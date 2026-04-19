@@ -2,7 +2,7 @@
   "name": "Little Sylly Games",
   "short_name": "Sylly Games",
   "description": "Serious games for silly people.",
-  "start_url": "/",
+  "start_url": ".",
   "display": "standalone",
   "orientation": "portrait",
   "theme_color": "#EC4899",

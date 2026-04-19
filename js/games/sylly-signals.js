@@ -12,9 +12,12 @@
 let ssSettingInterceptsToWin = 2;  // 2 | 3
 let ssDifficultyLevel        = 1;  // 1 | 2 | 3
 
-// Categories: curated 10 (same set Great Minds uses minus vehicles, plus vehicles here)
-const SS_CATEGORIES = ['animals','food','places','objects','sports','nature','vehicles','jobs','activities','emotions'];
-let ssSelectedCategories = [];     // exactly 4 when game starts (empty = all)
+// Curated 10 categories (shared with Great Minds) — used when Customise Vault is OFF
+const SS_CURATED_CATS = ['animals','food','places','objects','nature','sports','activities','emotions','jobs','actions'];
+// All 16 categories — available when Customise Vault is ON
+const SS_CATEGORIES   = ['animals','food','places','objects','sports','nature','vehicles','jobs','activities','emotions','actions','music','pop_culture','people','brands','aussie_slang'];
+let ssSelectedCategories = [];     // empty = use curated/all pool; non-empty = filtered
+let ssCustomiseVault     = false;  // false = curated pool; true = full picker visible
 
 let ssRerollLimitSetting = 1;      // max rerolls per keyword: 1 | 2 | Infinity
 let ssTimerSetting       = 0;      // countdown seconds (0 = off)
@@ -55,7 +58,7 @@ let ssAlarmInterval    = null;
 
 // ── SS Intel Phase ────────────────────────────────────────────────────────────
 const SS_INTEL_KW_PTS       = 0.25;   // per keyword found
-const SS_INTEL_SCRAMBLE_PTS = 0.5;    // bonus for finding all 4; max total = 1.5
+const SS_INTEL_SCRAMBLE_PTS = 1.0;    // bonus for finding all 4; max total = 2.0
 
 let ssIntelSyllyMode    = false;      // ✨ Sylly Mode toggle (default OFF)
 let ssIntelScoreA       = 0;          // float — intel pts earned by Team A
@@ -65,8 +68,10 @@ let ssIntelGuessingTeam = 0;          // team currently guessing
 let ssIntelKwIdx        = 0;          // current keyword index (0–3)
 let ssIntelAttemptNum   = 0;          // current attempt (0, 1, or 2)
 let ssIntelFound           = [[false,false,false,false],[false,false,false,false]]; // [team][kwIdx]
-let ssIntelPreviousGuesses = [];   // stores rawInputs for previous failed attempts (per keyword)
-let ssIntelHistory        = [];   // [{team, kwIdx, word, attempts, found}] — for Mission Journal
+let ssIntelPreviousGuesses    = [];   // stores rawInputs for previous failed attempts (per keyword)
+let ssIntelAttempts           = [];   // all 3 raw attempt strings (current keyword) — for Dip Res selection
+let ssOverrideSelectedAttempt = '';   // which attempt the player tapped to argue for
+let ssIntelHistory            = [];   // [{team, kwIdx, word, attempts, found}] — for Mission Journal
 
 // ── SS Fuzzy Matching ─────────────────────────────────────────────────────────
 
@@ -104,10 +109,20 @@ function ssWordForms(w) {
   return [...forms];
 }
 
-// Returns true if a and b are the same word (case-insensitive, plural-aware)
+// Returns true if a and b are the same word (case-insensitive, plural-aware, compound-aware)
 function ssFuzzyMatch(a, b) {
-  const formsA = ssWordForms(a.trim().toLowerCase());
-  return formsA.includes(b.trim().toLowerCase());
+  const normalB = b.trim().toLowerCase();
+  const formsA  = ssWordForms(a.trim().toLowerCase());
+
+  // Direct match (plural/singular aware)
+  if (formsA.includes(normalB)) return true;
+
+  // Component match: if target is a compound word (hyphen/space), match any part
+  const components = normalB.split(/[-\s]+/).filter(c => c.length >= 3);
+  if (components.length > 1) {
+    return components.some(comp => formsA.includes(comp));
+  }
+  return false;
 }
 
 // ── SS Helpers ────────────────────────────────────────────────────────────────
@@ -123,9 +138,12 @@ function ssGenerateCode() {
 }
 
 function ssBuildVaults() {
-  // Filter by difficulty and selected categories (empty = all categories)
+  // Filter by difficulty
   let pool = allWords.filter(w => w.difficulty === ssDifficultyLevel);
-  if (ssSelectedCategories.length === 4) {
+  // Category filter: curated 10 by default; user-selected when Customise is ON
+  if (!ssCustomiseVault) {
+    pool = pool.filter(w => SS_CURATED_CATS.includes(w.category));
+  } else if (ssSelectedCategories.length > 0) {
     pool = pool.filter(w => ssSelectedCategories.includes(w.category));
   }
   // Fallback: if pool too small, use all words at this difficulty
@@ -142,7 +160,10 @@ function ssRerollWord(team, kwIdx) {
   const usedIds = new Set([...ssVaultA, ...ssVaultB].map(w => w.id));
 
   let pool = allWords.filter(w => w.difficulty === ssDifficultyLevel && !usedIds.has(w.id));
-  if (ssSelectedCategories.length === 4) {
+  if (!ssCustomiseVault) {
+    const catPool = pool.filter(w => SS_CURATED_CATS.includes(w.category));
+    if (catPool.length > 0) pool = catPool;
+  } else if (ssSelectedCategories.length > 0) {
     const catPool = pool.filter(w => ssSelectedCategories.includes(w.category));
     if (catPool.length > 0) pool = catPool;
   }
@@ -214,26 +235,42 @@ function ssCheckWin() {
 // Renders the Intelligence Archive for a given team into a container element.
 // showWords=true (default) reveals keyword names; false = clue history only (interceptor view)
 function ssRenderArchive(containerEl, team, showWords = true) {
-  const history = ssGetHistory(team);
-  const vault   = ssGetVault(team);
-  const hasAny  = history.some(arr => arr.length > 0);
+  const history   = ssGetHistory(team);
+  const vault     = ssGetVault(team);
+  const hasAny    = history.some(arr => arr.length > 0);
+  const maxRounds = Math.max(...history.map(h => h.length), 1);
 
   if (!hasAny) {
     containerEl.innerHTML = '<p class="text-stone-400 text-sm italic">No history yet.</p>';
     return;
   }
 
-  containerEl.innerHTML = history.map((clues, i) => {
-    const label   = showWords && vault[i] ? vault[i].word : `Keyword ${i + 1}`;
-    const clueStr = clues.length > 0
-      ? clues.map((c, r) => `<span class="text-teal-600 font-semibold">${c}</span><span class="text-stone-300 text-xs"> R${r + 1}</span>`).join('  ')
-      : '<span class="text-stone-300">—</span>';
-    return `<div class="flex items-start gap-2 text-sm">
-      <span class="font-bold text-stone-600 w-5 flex-shrink-0">${i + 1}</span>
-      <span class="text-stone-400 font-semibold flex-shrink-0">${label}:</span>
-      <span class="flex flex-wrap gap-x-2 gap-y-0.5">${clueStr}</span>
-    </div>`;
+  const roundHeaders = Array.from({ length: maxRounds }, (_, i) =>
+    `<th class="text-left text-stone-400 font-semibold pb-1 pr-2 whitespace-nowrap">R${i + 1}</th>`
+  ).join('');
+
+  const rows = history.map((clues, i) => {
+    const label = showWords && vault[i] ? vault[i].word.toUpperCase() : `KW${i + 1}`;
+    const cells = Array.from({ length: maxRounds }, (_, r) =>
+      `<td class="pr-2 pb-0.5 text-teal-600 font-semibold text-xs whitespace-nowrap">${clues[r] || '—'}</td>`
+    ).join('');
+    return `<tr>
+      <td class="pr-1 pb-0.5 text-stone-400 font-bold text-xs">${i + 1}</td>
+      <td class="pr-2 pb-0.5 text-stone-600 font-semibold text-xs max-w-[5rem] truncate">${label}</td>
+      ${cells}
+    </tr>`;
   }).join('');
+
+  containerEl.innerHTML = `<table class="w-full border-collapse">
+    <thead>
+      <tr>
+        <th class="text-left text-stone-400 font-semibold pb-1 pr-1 w-4">#</th>
+        <th class="text-left text-stone-400 font-semibold pb-1 pr-2">${showWords ? 'Keyword' : 'KW'}</th>
+        ${roundHeaders}
+      </tr>
+    </thead>
+    <tbody>${rows}</tbody>
+  </table>`;
 }
 
 // Renders the current-round clue cards into a container
@@ -403,12 +440,13 @@ function ssShowIntelIntro(team) {
       if (pts <= 0.5)  return '2 keywords';
       if (pts <= 0.75) return '3 keywords';
       if (pts <= 1.0)  return '4 keywords';
-      return 'all 4 + the scramble bonus';
+      if (pts <= 2.0)  return 'all 4 + the bonus';
+      return null;  // gap > 2.0, unbeatable
     }
     const kwText = ssKwsNeeded(needed);
     document.getElementById('ss-intel-target-needed').textContent = canWin && kwText
-      ? `Get ${kwText} right to take the lead 🎯`
-      : `Gap too large — play for pride! (max 1.5 pts)`;
+      ? `Data gap: ${needed.toFixed(2)} pts — ${kwText} to intercept the lead 🎯`
+      : `Data gap too large — intel alone can't close it. Play for pride. 📡`;
     targetCard.style.display = 'block';
   } else {
     targetCard.style.display = 'none';
@@ -441,16 +479,18 @@ function ssStartIntelKeyword() {
   }
 
   // Reset attempt UI
-  ssIntelAttemptNum    = 0;
-  ssIntelPreviousGuesses = [];
+  ssIntelAttemptNum         = 0;
+  ssIntelPreviousGuesses    = [];
+  ssIntelAttempts           = [];
+  ssOverrideSelectedAttempt = '';
   ssIntelRenderAttempts();
 
   // Hide feedback + continue button; show override button
   const fb = document.getElementById('ss-intel-feedback');
   fb.style.display = 'none';
   fb.textContent = '';
-  document.getElementById('btn-ss-intel-continue').style.display = 'none';
-  document.getElementById('btn-ss-intel-override').style.display = 'block';
+  document.getElementById('btn-ss-intel-continue').style.display   = 'none';
+  document.getElementById('btn-ss-intel-override').style.display   = 'block';
 
   showScreen('screen-ss-intel-guess');
 }
@@ -461,7 +501,7 @@ function ssIntelRenderAttempts() {
   for (let i = 0; i <= ssIntelAttemptNum; i++) {
     const isLast = i === ssIntelAttemptNum;
     const wrapper = document.createElement('div');
-    wrapper.className = 'flex gap-2';
+    wrapper.className = 'ss-attempt-row flex gap-2';
 
     const label = document.createElement('label');
     label.className = 'text-stone-400 text-xs font-semibold uppercase tracking-widest w-20 flex-shrink-0 pt-3';
@@ -515,6 +555,7 @@ function ssIntelRenderAttempts() {
 
 function ssIntelSubmitGuess(rawInput) {
   const target = ssIntelTargetVault()[ssIntelKwIdx].word;
+  ssIntelAttempts.push(rawInput.trim());
 
   if (ssFuzzyMatch(rawInput, target)) {
     ssIntelOnFound(rawInput);
@@ -528,8 +569,32 @@ function ssIntelSubmitGuess(rawInput) {
     ssIntelRenderAttempts();
   } else {
     ssIntelPreviousGuesses.push(rawInput.trim());
+    // Lock the input after the 3rd attempt
+    document.querySelectorAll('#ss-intel-attempts input, #ss-intel-attempts button').forEach(el => {
+      el.disabled = true;
+    });
+    ssLockAttemptInputs();
     ssIntelOnNotFound();
   }
+}
+
+function ssLockAttemptInputs() {
+  document.querySelectorAll('#ss-intel-attempts .ss-attempt-row').forEach((row, i) => {
+    const attempt = ssIntelAttempts[i];
+    if (!attempt) return;
+    // Hide submit button
+    const btn = row.querySelector('button');
+    if (btn) btn.style.display = 'none';
+    // Style row as selectable pill
+    row.classList.add('cursor-pointer', 'rounded-xl', 'transition-all', 'duration-150');
+    row.addEventListener('click', () => {
+      playPillClick();
+      document.querySelectorAll('#ss-intel-attempts .ss-attempt-row').forEach(r =>
+        r.classList.remove('ring-2', 'ring-teal-400', 'bg-teal-50'));
+      row.classList.add('ring-2', 'ring-teal-400', 'bg-teal-50');
+      ssOverrideSelectedAttempt = attempt;
+    });
+  });
 }
 
 function ssIntelOnFound(rawInput) {
@@ -608,13 +673,15 @@ function ssShowIntelSummary() {
 
   // Keyword result grid — shows vault word + found/not
   const targetVault = ssIntelTargetVault();
-  document.getElementById('ss-intel-summary-grid').innerHTML = found.map((f, i) => `
-    <div class="rounded-xl p-2 text-center ${f ? 'bg-teal-500 text-white' : 'bg-stone-200 text-stone-400'}">
+  document.getElementById('ss-intel-summary-grid').innerHTML = found.map((f, i) => {
+    const word = targetVault[i].word;
+    const wordFontCls = word.length > 9 ? 'text-[10px]' : 'text-xs';
+    return `<div class="rounded-xl p-2 text-center ${f ? 'bg-teal-500 text-white' : 'bg-stone-200 text-stone-400'}">
       <p class="text-xs font-semibold mb-0.5">${i + 1}</p>
-      <p class="text-xs font-bold uppercase leading-tight">${targetVault[i].word}</p>
+      <p class="${wordFontCls} font-bold uppercase leading-tight break-all">${word}</p>
       <p class="text-base mt-0.5">${f ? '✅' : '❌'}</p>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
 
   document.getElementById('ss-intel-summary-kw').textContent = `${kwCount} / 4`;
 
@@ -633,7 +700,7 @@ function ssShowIntelSummary() {
     nextBtn.onclick = () => { playDone(); ssShowInningTransition(underdog); };
   } else {
     // Both teams done — final result
-    nextBtn.textContent = 'See Final Results 🏆';
+    nextBtn.textContent = 'Final Mission Report 📑';
     nextBtn.onclick = () => { playLaunch(); ssShowFinalGameOver(); };
   }
 
@@ -762,6 +829,28 @@ function ssGetBroadcaster(team) {
   return names[ssRound % names.length];
 }
 
+let ssFirstTeamWinner = -1;
+
+function ssShowFirstTeam() {
+  // Populate RPS team-name buttons
+  document.getElementById('btn-ss-first-rps-a').textContent = `${ssTeamName(0)} Won`;
+  document.getElementById('btn-ss-first-rps-b').textContent = `${ssTeamName(1)} Won`;
+  // Reset to initial state
+  document.getElementById('ss-first-team-main').style.display   = 'flex';
+  document.getElementById('ss-first-rps-row').style.display     = 'none';
+  document.getElementById('ss-first-winner-row').style.display  = 'none';
+  ssFirstTeamWinner = -1;
+  showScreen('screen-ss-first-team');
+}
+
+function ssFirstTeamShowWinner(winner) {
+  ssFirstTeamWinner = winner;
+  document.getElementById('ss-first-winner-label').textContent  = `${ssTeamName(winner)} — your call.`;
+  document.getElementById('ss-first-team-main').style.display   = 'none';
+  document.getElementById('ss-first-rps-row').style.display     = 'none';
+  document.getElementById('ss-first-winner-row').style.display  = 'flex';
+}
+
 function ssShowVaultGate(team) {
   const name = ssTeamName(team);
   document.getElementById('ss-vault-gate-title').textContent = `${name} only`;
@@ -823,8 +912,22 @@ function ssShowEncrypt() {
   const transmitBtn = document.getElementById('btn-ss-transmit');
   transmitBtn.disabled = true;
 
+  // Stem normaliser for fuzzy dupe check (Cave/Caves, Run/Running etc.)
+  function ssNormClue(str) {
+    let s = str.toLowerCase().trim();
+    if (s.endsWith('ing')) s = s.slice(0, -3);
+    else if (s.endsWith('ed'))  s = s.slice(0, -2);
+    else if (s.endsWith('er'))  s = s.slice(0, -2);
+    else if (s.endsWith('es'))  s = s.slice(0, -2);
+    else if (s.endsWith('s'))   s = s.slice(0, -1);
+    return s;
+  }
+
   function ssValidateClues() {
-    let anyMatch = false;
+    let errorMsg = '';
+    const filled = ssCurrentClues.filter(c => c);
+    const history = team === 0 ? ssClueHistoryA : ssClueHistoryB;
+
     clueContainer.querySelectorAll('.ss-clue-input').forEach(inp => {
       const idx    = parseInt(inp.dataset.clueIndex);
       const kwWord = vault[code[idx] - 1].word;
@@ -833,13 +936,48 @@ function ssShowEncrypt() {
       if (clue && ssFuzzyMatch(clue, kwWord)) {
         inp.classList.add('border-red-400');
         if (warn) warn.style.display = 'block';
-        anyMatch = true;
+        if (!errorMsg) errorMsg = `"${clue}" is too close to a vault keyword!`;
       } else {
         inp.classList.remove('border-red-400');
         if (warn) warn.style.display = 'none';
       }
     });
-    transmitBtn.disabled = ssCurrentClues.some(c => !c) || anyMatch;
+
+    // Within-round duplicate check (exact + fuzzy stem)
+    if (!errorMsg) {
+      const clueNorms = ssCurrentClues.map(c => ssNormClue(c));
+      for (let i = 0; i < 3 && !errorMsg; i++) {
+        if (!ssCurrentClues[i]) continue;
+        for (let j = i + 1; j < 3; j++) {
+          if (!ssCurrentClues[j]) continue;
+          if (clueNorms[i] === clueNorms[j]) {
+            errorMsg = `Clues ${i+1} and ${j+1} are too similar — use different words.`;
+          }
+        }
+      }
+    }
+
+    // Historical duplicate check (exact + fuzzy stem)
+    if (!errorMsg) {
+      for (let i = 0; i < 3 && !errorMsg; i++) {
+        const clue = ssCurrentClues[i];
+        if (!clue) continue;
+        const normClue = ssNormClue(clue);
+        for (let kwI = 0; kwI < 4 && !errorMsg; kwI++) {
+          for (const prev of history[kwI]) {
+            if (ssNormClue(prev) === normClue) {
+              errorMsg = `"${clue}" was used in a previous round — try something new.`;
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    const errEl = document.getElementById('ss-clue-error');
+    errEl.textContent    = errorMsg;
+    errEl.style.display  = errorMsg ? 'block' : 'none';
+    transmitBtn.disabled = ssCurrentClues.some(c => !c) || !!errorMsg;
   }
 
   clueContainer.querySelectorAll('.ss-clue-input').forEach(input => {
@@ -947,6 +1085,10 @@ function ssShowDecode() {
   const team = ssEncryptingTeam;
 
   document.getElementById('ss-decode-team-label').textContent = ssTeamName(team);
+  // Thematic header: name the broadcaster whose transmission is being decoded
+  const broadcaster = ssGetBroadcaster(team);
+  document.getElementById('ss-decode-header').textContent =
+    `🔑 Decrypt ${broadcaster}'s Transmission`;
 
   // Vault card (open to the encrypting team)
   const vault = ssGetVault(team);
@@ -1052,13 +1194,13 @@ function ssShowEndgameSplash(winner) {
   const loser     = 1 - winner;
   const byMisfire = ssMisfires[loser] >= 2;
 
-  document.getElementById('ss-splash-icon').textContent   = byMisfire ? '📻' : '🏆';
-  document.getElementById('ss-splash-status').textContent = byMisfire ? 'COMMUNICATION BLACKOUT' : 'MISSION SUCCESS';
+  document.getElementById('ss-splash-icon').textContent   = byMisfire ? '💥' : '📑';
+  document.getElementById('ss-splash-status').textContent = byMisfire ? 'TRANSMISSION LOST' : 'INTELLIGENCE SECURED';
   document.getElementById('ss-splash-title').textContent  = byMisfire
     ? `${ssTeamName(loser)} lost the signal`
     : `${ssTeamName(winner)} intercepted`;
   document.getElementById('ss-splash-sub').textContent = byMisfire
-    ? 'Two misfires — your own transmission went dark.'
+    ? 'Two misfires — the data never reached its destination.'
     : `${ssTeamName(winner)} cracked the code.`;
 
   document.getElementById('btn-ss-splash-phase2').style.display  = 'none';
@@ -1153,29 +1295,30 @@ function ssRenderMissionJournal(containerEl) {
     const halvesHtml = halves.map(h => {
       const enc  = ssTeamName(h.encryptingTeam);
       const intc = ssTeamName(1 - h.encryptingTeam);
-      const codeDigits = h.code.map((v, i) => {
-        const iHit = h.interceptGuess[i] === v;
-        const dHit = h.decodeGuess[i]    === v;
-        return `<span class="font-bold text-teal-600">${v}</span>`;
-      }).join('<span class="text-stone-300 text-xs mx-0.5">—</span>');
+      const sep = '<span class="text-stone-300 text-xs mx-0.5">—</span>';
+      const codeDigits = h.code.join(' — ');
 
       const iDigits = h.code.map((v, i) => {
         const hit = h.interceptGuess[i] === v;
         return `<span class="${hit ? 'text-teal-600' : 'text-red-500'} font-semibold">${h.interceptGuess[i]}</span>`;
-      }).join('<span class="text-stone-200 text-xs mx-0.5">—</span>');
+      }).join(sep);
 
       const dDigits = h.code.map((v, i) => {
         const hit = h.decodeGuess[i] === v;
         return `<span class="${hit ? 'text-teal-600' : 'text-red-500'} font-semibold">${h.decodeGuess[i]}</span>`;
-      }).join('<span class="text-stone-200 text-xs mx-0.5">—</span>');
+      }).join(sep);
 
       const clueList = h.clues.map((c, i) =>
         `<span class="text-xs bg-stone-100 rounded px-1.5 py-0.5 text-stone-600">${c}</span>`
       ).join(' ');
 
       return `<div class="text-xs border-t border-stone-100 pt-2 mt-2">
-        <p class="font-semibold text-stone-600 mb-1">${enc} broadcast</p>
-        <div class="flex flex-wrap gap-1 mb-1">${clueList}</div>
+        <div class="flex items-center gap-2 mb-1">
+          <span class="font-semibold text-stone-600">${enc} broadcast</span>
+          <span class="text-stone-300">·</span>
+          <span class="font-bold text-teal-500 tracking-widest">Code: ${codeDigits}</span>
+        </div>
+        <div class="flex flex-wrap gap-1 mb-1.5">${clueList}</div>
         <div class="flex flex-col gap-0.5">
           <div class="flex items-center gap-2">
             <span class="text-stone-400 w-16 flex-shrink-0">${intc} 🔍</span>
@@ -1246,13 +1389,16 @@ function resetSyllySignals() {
   ssIntelGuessingTeam    = 0;
   ssIntelKwIdx           = 0;
   ssIntelAttemptNum      = 0;
-  ssIntelFound           = [[false,false,false,false],[false,false,false,false]];
+  ssIntelFound              = [[false,false,false,false],[false,false,false,false]];
+  ssIntelAttempts           = [];
+  ssOverrideSelectedAttempt = '';
+  ssCustomiseVault          = false;
   ssStopTimer();
-  document.getElementById('ss-quit-overlay').style.display         = 'none';
-  document.getElementById('ss-override-overlay').style.display     = 'none';
-  document.getElementById('ss-inning-transition').style.display    = 'none';
-  document.getElementById('ss-endgame-splash').style.display       = 'none';
-  document.getElementById('ss-play-again-overlay').style.display   = 'none';
+  document.getElementById('ss-quit-overlay').style.display          = 'none';
+  document.getElementById('ss-override-overlay').style.display      = 'none';
+  document.getElementById('ss-inning-transition').style.display     = 'none';
+  document.getElementById('ss-endgame-splash').style.display        = 'none';
+  document.getElementById('ss-play-again-overlay').style.display    = 'none';
 }
 
 // ── SS Settings ───────────────────────────────────────────────────────────────
@@ -1269,7 +1415,16 @@ function ssyncTimerToggleUI() {
   });
 }
 
+function ssyncCustomiseToggleUI() {
+  const toggleBtn = document.getElementById('btn-ss-customise-toggle');
+  toggleBtn.textContent = ssCustomiseVault ? 'ON' : 'OFF';
+  toggleBtn.className   = ssCustomiseVault ? 'sylly-toggle-on' : 'sylly-toggle-off';
+  document.getElementById('ss-customise-body').style.display = ssCustomiseVault ? 'flex' : 'none';
+}
+
 function ssOpenSettings() {
+  // Sync customise vault toggle
+  ssyncCustomiseToggleUI();
   // Sync intercepts-to-win
   document.querySelectorAll('[data-ss-setting="interceptsToWin"]').forEach(btn => {
     btn.className = `pill${parseInt(btn.dataset.value) === ssSettingInterceptsToWin ? ' pill-active-teal' : ''}`;
@@ -1295,9 +1450,12 @@ function ssOpenSettings() {
 }
 
 function ssSyncCategoryPills() {
-  const grid    = document.getElementById('ss-cat-grid');
-  const countEl = document.getElementById('ss-cat-count');
-  const warnEl  = document.getElementById('ss-cat-warn');
+  const grid         = document.getElementById('ss-cat-grid');
+  const countEl      = document.getElementById('ss-cat-count');
+  const warnEl       = document.getElementById('ss-cat-warn');
+  const selectAllBtn = document.getElementById('btn-ss-cat-select-all');
+  const done         = document.getElementById('btn-ss-settings-done');
+
   // Build word counts per category at current difficulty
   const catCounts = {};
   SS_CATEGORIES.forEach(c => {
@@ -1307,34 +1465,48 @@ function ssSyncCategoryPills() {
   grid.innerHTML = SS_CATEGORIES.map(cat => {
     const isActive = ssSelectedCategories.includes(cat);
     const count    = catCounts[cat] || 0;
-    const badge    = count < 8 && count > 0 ? ' ⚠️' : '';  // no 🚫 — grey already signals unselected
-    const label    = cat.replace('_', ' ');
+    const badge    = count < 8 && count > 0 ? ' ⚠️' : '';
+    const label    = cat.replace(/_/g, ' ');
     return `<button class="gm-cat-pill${isActive ? ' gm-cat-active' : ''}" data-ss-cat="${cat}"
       style="text-transform:capitalize">${label}${badge}</button>`;
   }).join('');
 
-  const n = ssSelectedCategories.length;
-  countEl.textContent = n === 0 ? 'All categories' : `${n} selected`;
+  const n   = ssSelectedCategories.length;
+  const all = SS_CATEGORIES.length;
+  countEl.textContent = `${n} / ${all}`;
+
+  // Select All / Deselect All button label
+  if (selectAllBtn) {
+    selectAllBtn.textContent = n === all ? 'Deselect All' : 'Select All';
+  }
+
   // Warning for thin pools (1–3 selected)
   warnEl.style.display = (n >= 1 && n <= 3) ? 'block' : 'none';
+
+  // Block Done when Customise is ON and nothing is selected
+  const blocked = ssCustomiseVault && n === 0;
+  done.disabled = blocked;
+  done.classList.toggle('opacity-40', blocked);
 
   grid.querySelectorAll('[data-ss-cat]').forEach(btn => {
     btn.addEventListener('click', () => {
       playPillClick();
       const cat = btn.dataset.ssCat;
       const idx = ssSelectedCategories.indexOf(cat);
-      if (idx >= 0) {
-        ssSelectedCategories.splice(idx, 1);
-      } else {
-        ssSelectedCategories.push(cat);
-      }
+      if (idx >= 0) ssSelectedCategories.splice(idx, 1);
+      else          ssSelectedCategories.push(cat);
       ssSyncCategoryPills();
-      // Disable Done only when exactly 1 category selected (too thin)
-      const done = document.getElementById('btn-ss-settings-done');
-      done.disabled = ssSelectedCategories.length === 1;
-      done.classList.toggle('opacity-40', done.disabled);
     });
   });
+
+  // Wire Select All / Deselect All (re-wire every render to stay current)
+  if (selectAllBtn) {
+    selectAllBtn.onclick = () => {
+      playPillClick();
+      ssSelectedCategories = n === all ? [] : [...SS_CATEGORIES];
+      ssSyncCategoryPills();
+    };
+  }
 }
 
 // ── Event Listeners ───────────────────────────────────────────────────────────
@@ -1389,11 +1561,16 @@ document.getElementById('btn-ss-vault-done').addEventListener('click', () => {
     // Team A done — now show Team B vault gate
     ssShowVaultGate(1);
   } else {
-    // Both vaults revealed — start first half (Team A encrypts)
+    // Both vaults revealed — decide who encrypts first
     ssRound = 0;
-    ssEncryptingTeam = 0;
-    ssStartHalf();
+    ssShowFirstTeam();
   }
+});
+
+// Vault screen exit
+document.getElementById('btn-ss-vault-exit').addEventListener('click', () => {
+  playExit();
+  ssShowQuitOverlay();
 });
 
 // Encrypt screen
@@ -1404,6 +1581,12 @@ document.getElementById('btn-ss-encrypt-exit').addEventListener('click', () => {
 document.getElementById('btn-ss-transmit').addEventListener('click', () => {
   playSuccess();
   ssTransmit();
+});
+
+// Broadcast exit
+document.getElementById('btn-ss-broadcast-exit').addEventListener('click', () => {
+  playExit();
+  ssShowQuitOverlay();
 });
 
 // Broadcast → intercept
@@ -1426,6 +1609,12 @@ document.getElementById('btn-ss-submit-intercept').addEventListener('click', () 
 document.getElementById('btn-ss-decode-gate-ready').addEventListener('click', () => {
   playPillClick();
   ssShowDecode();
+});
+
+// Decode screen exit
+document.getElementById('btn-ss-decode-exit').addEventListener('click', () => {
+  playExit();
+  ssShowQuitOverlay();
 });
 
 // Decode screen
@@ -1474,6 +1663,19 @@ document.getElementById('btn-ss-quit-confirm').addEventListener('click', () => {
 document.getElementById('btn-ss-quit-cancel').addEventListener('click', () => {
   playDone();
   document.getElementById('ss-quit-overlay').style.display = 'none';
+});
+
+// Settings — customise vault toggle
+document.getElementById('btn-ss-customise-toggle').addEventListener('click', () => {
+  playPillClick();
+  ssCustomiseVault = !ssCustomiseVault;
+  if (!ssCustomiseVault) {
+    ssSelectedCategories = [];                    // turning off — curated pool, no selection needed
+  } else {
+    ssSelectedCategories = [...SS_CATEGORIES];    // turning on — start with everything selected
+  }
+  ssyncCustomiseToggleUI();
+  ssSyncCategoryPills();
 });
 
 // Settings overlay
@@ -1573,6 +1775,45 @@ document.getElementById('ss-sylly-toggle').addEventListener('click', () => {
   toggle.className   = ssIntelSyllyMode ? 'sylly-toggle-on' : 'sylly-toggle-off';
 });
 
+// ── Who Encrypts First screen ─────────────────────────────────────────────────
+document.getElementById('btn-ss-first-random').addEventListener('click', () => {
+  playPillClick();
+  ssFirstTeamShowWinner(Math.random() < 0.5 ? 0 : 1);
+});
+document.getElementById('btn-ss-first-rps').addEventListener('click', () => {
+  playPillClick();
+  document.getElementById('ss-first-team-main').style.display = 'none';
+  document.getElementById('ss-first-rps-row').style.display   = 'flex';
+});
+document.getElementById('btn-ss-first-rps-a').addEventListener('click', () => {
+  playPillClick();
+  ssFirstTeamShowWinner(0);
+});
+document.getElementById('btn-ss-first-rps-b').addEventListener('click', () => {
+  playPillClick();
+  ssFirstTeamShowWinner(1);
+});
+document.getElementById('btn-ss-first-go-first').addEventListener('click', () => {
+  playLaunch();
+  ssEncryptingTeam = ssFirstTeamWinner;
+  ssStartHalf();
+});
+document.getElementById('btn-ss-first-go-second').addEventListener('click', () => {
+  playLaunch();
+  ssEncryptingTeam = 1 - ssFirstTeamWinner;
+  ssStartHalf();
+});
+document.getElementById('btn-ss-first-back-from-rps').addEventListener('click', () => {
+  playExit();
+  document.getElementById('ss-first-rps-row').style.display    = 'none';
+  document.getElementById('ss-first-team-main').style.display  = 'flex';
+});
+document.getElementById('btn-ss-first-back-from-winner').addEventListener('click', () => {
+  playExit();
+  document.getElementById('ss-first-winner-row').style.display = 'none';
+  document.getElementById('ss-first-team-main').style.display  = 'flex';
+});
+
 // ── Tiebreak screen ───────────────────────────────────────────────────────────
 document.getElementById('btn-ss-tiebreak-exit').addEventListener('click', () => {
   playExit();
@@ -1642,11 +1883,30 @@ document.getElementById('btn-ss-intel-guess-exit').addEventListener('click', () 
 });
 
 document.getElementById('btn-ss-intel-override').addEventListener('click', () => {
-  const currentInput = document.querySelector('#ss-intel-attempts input:not([disabled])');
-  const guessed = currentInput ? currentInput.value.trim() : '…';
-  const target  = ssIntelTargetVault()[ssIntelKwIdx].word;
+  playPillClick();
+  const target = ssIntelTargetVault()[ssIntelKwIdx].word;
 
-  document.getElementById('btn-override-word-guess').textContent  = guessed || '…';
+  // After 3 attempts: require the player to select an attempt pill first
+  if (ssIntelAttemptNum >= 2 && ssIntelAttempts.length >= 3) {
+    if (!ssOverrideSelectedAttempt) {
+      // Flash the locked attempt rows as a prompt — shake them
+      document.querySelectorAll('#ss-intel-attempts .ss-attempt-row').forEach(r => {
+        r.classList.remove('shake');
+        void r.offsetWidth;  // force reflow to replay animation
+        r.classList.add('shake');
+        setTimeout(() => r.classList.remove('shake'), 600);
+      });
+      return;
+    }
+    // Use the selected attempt
+    document.getElementById('btn-override-word-guess').textContent  = ssOverrideSelectedAttempt;
+  } else {
+    // Earlier attempts: use current input value
+    const currentInput = document.querySelector('#ss-intel-attempts input:not([disabled])');
+    const guessed = currentInput ? currentInput.value.trim() : '…';
+    document.getElementById('btn-override-word-guess').textContent  = guessed || '…';
+  }
+
   document.getElementById('btn-override-word-target').textContent = target.toUpperCase();
   // Reset highlight
   ['btn-override-word-guess', 'btn-override-word-target'].forEach(id => {
@@ -1669,7 +1929,9 @@ document.getElementById('btn-ss-intel-override').addEventListener('click', () =>
 document.getElementById('btn-ss-override-confirm').addEventListener('click', () => {
   playSuccess();
   document.getElementById('ss-override-overlay').style.display = 'none';
-  ssIntelOnFound();
+  // Pass the argued word as the rawInput for history/scoring
+  const argued = document.getElementById('btn-override-word-guess').textContent || '…';
+  ssIntelOnFound(argued);
 });
 
 document.getElementById('btn-ss-override-cancel').addEventListener('click', () => {

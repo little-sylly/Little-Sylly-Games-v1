@@ -93,7 +93,7 @@ function flashBackground(colour) {
 // ── Word loading + drawing ────────────────────────────────────────────────────
 async function loadWords() {
   if (wordsLoaded) return;
-  allWords    = await fetch('/data/words.json').then(r => r.json());
+  allWords    = await fetch('data/words.json').then(r => r.json());
   wordsLoaded = true;
 }
 

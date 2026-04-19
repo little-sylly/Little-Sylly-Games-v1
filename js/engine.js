@@ -19,7 +19,7 @@ const allScreens = [
   'screen-ss-menu', 'screen-ss-setup', 'screen-ss-vault-gate', 'screen-ss-vault',
   'screen-ss-encrypt', 'screen-ss-broadcast', 'screen-ss-intercept',
   'screen-ss-decode-gate', 'screen-ss-decode', 'screen-ss-resolution', 'screen-ss-gameover',
-  'screen-ss-players',
+  'screen-ss-players', 'screen-ss-first-team',
   'screen-ss-tiebreak', 'screen-ss-intel-intro', 'screen-ss-intel-guess', 'screen-ss-intel-summary',
 ];
 

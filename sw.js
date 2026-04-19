@@ -1,20 +1,20 @@
-// Little Sylly Games — Service Worker v43
+// Little Sylly Games — Service Worker v46
 // All assets are local — no external CDN URLs, no opaque response issues.
 
-const CACHE_NAME = 'sylly-games-v43';
+const CACHE_NAME = 'sylly-games-v46';
 
 const PRECACHE_URLS = [
-  '/',
-  '/index.html',
-  '/css/styles.css',
-  '/js/engine.js',
-  '/js/games/dstw.js',
-  '/js/games/great-minds.js',
-  '/js/games/sylly-signals.js',
-  '/js/app.js',
-  '/js/lib/tailwind-play.js',
-  '/data/words.json',
-  '/manifest.json'
+  './',
+  'index.html',
+  'css/styles.css',
+  'js/engine.js',
+  'js/games/dstw.js',
+  'js/games/great-minds.js',
+  'js/games/sylly-signals.js',
+  'js/app.js',
+  'js/lib/tailwind-play.js',
+  'data/words.json',
+  'manifest.json'
 ];
 
 self.addEventListener('install', event => {
