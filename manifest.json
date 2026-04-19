@@ -1,0 +1,18 @@
+{
+  "name": "Little Sylly Games",
+  "short_name": "Sylly Games",
+  "description": "Serious games for silly people.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#EC4899",
+  "background_color": "#FAFAF7",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg'><text y='32' font-size='32'>💬</text></svg>",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

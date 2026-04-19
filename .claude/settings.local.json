@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node -e \"const d = require\\('./data/words.json'\\); const cats = [...new Set\\(d.map\\(w=>w.category\\)\\)]; console.log\\('Total words:', d.length\\); console.log\\('Categories:', cats.join\\(', '\\)\\); console.log\\('Entertainment:', d.filter\\(w=>w.category==='entertainment'\\).length\\); console.log\\('People:', d.filter\\(w=>w.category==='people'\\).length\\);\")",
+      "Bash(node -e \"const d = require\\('d:/Coding Projects/Little-Sylly-Games/data/words.json'\\); console.log\\('Total:', d.length\\); console.log\\('Entertainment:', d.filter\\(w=>w.category==='entertainment'\\).length\\); console.log\\('People:', d.filter\\(w=>w.category==='people'\\).length\\);\")"
+    ]
+  }
+}

@@ -1,0 +1,339 @@
+/* Little Sylly Games — Custom Styles */
+
+body {
+  font-family: 'Fredoka', ui-rounded, 'Nunito', 'Varela Round', system-ui, sans-serif;
+  transition: background-color 0.3s ease;
+}
+
+/* ── Visual flash feedback ───────────────────────────────────────────────── */
+body.flash-green { background-color: #bbf7d0; }
+body.flash-red   { background-color: #fecaca; }
+
+/* ── Screen entrance animation ──────────────────────────────────────────── */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0);   }
+}
+.screen-enter { animation: fadeIn 0.2s ease-out forwards; }
+
+/* ── Settings modal ──────────────────────────────────────────────────────── */
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0);    }
+}
+.settings-slide-up { animation: slideUp 0.3s ease-out forwards; }
+
+/* Settings pill buttons */
+.pill {
+  flex: 1;
+  padding: 0.5rem 0;
+  border-radius: 9999px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  background: #e7e5e4;   /* stone-200 */
+  color: #78716c;         /* stone-500 */
+  transition: background 0.15s, color 0.15s;
+  border: none;
+  cursor: pointer;
+}
+.pill.pill-active {
+  background: #ec4899;   /* pink-500 */
+  color: #fff;
+}
+.pill.pill-active-purple {
+  background: #a855f7;   /* purple-500 */
+  color: #fff;
+}
+
+/* Sylly toggle button */
+.sylly-toggle-off {
+  background: #e7e5e4;
+  color: #78716c;
+  border-radius: 9999px;
+  padding: 0.4rem 1.2rem;
+  font-weight: 700;
+  font-size: 0.9rem;
+  transition: background 0.2s, color 0.2s;
+  border: none;
+  cursor: pointer;
+}
+.sylly-toggle-on {
+  background: #a855f7;
+  color: #fff;
+  border-radius: 9999px;
+  padding: 0.4rem 1.2rem;
+  font-weight: 700;
+  font-size: 0.9rem;
+  transition: background 0.2s, color 0.2s;
+  border: none;
+  cursor: pointer;
+}
+
+/* ── Sylly Mode — word card glow + pulse ─────────────────────────────────── */
+@keyframes syllyPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(168, 85, 247, 0.45); }
+  50%       { box-shadow: 0 0 0 10px rgba(168, 85, 247, 0);  }
+}
+.sylly-glow {
+  border: 2px solid #a855f7;
+  border-radius: 1rem;
+  padding: 0.75rem 1rem;
+  animation: syllyPulse 1.5s ease-in-out infinite;
+}
+
+/* ── Deck category cards ─────────────────────────────────────────────────── */
+.deck-card {
+  padding: 0.85rem 0.5rem;
+  border-radius: 1rem;
+  font-weight: 600;
+  font-size: 0.95rem;
+  background: #e7e5e4;
+  color: #78716c;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  text-align: center;
+}
+.deck-card-active {
+  background: #ec4899;
+  color: #fff;
+}
+.deck-slide-up { animation: slideUp 0.3s ease-out forwards; }
+
+/* ── Great Minds category pills ─────────────────────────────────────────── */
+.gm-cat-pill {
+  padding: 0.45rem 0.85rem;
+  border-radius: 9999px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  background: #e7e5e4;
+  color: #78716c;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.gm-cat-active {
+  background: #8b5cf6;  /* violet-500 */
+  color: #fff;
+}
+
+/* ── Great Minds deck grid active state ──────────────────────────────────── */
+.gm-deck-card-active {
+  background: #8b5cf6;  /* violet-500 */
+  color: #fff;
+}
+
+/* ── Sylly Signals pill active state (teal) ──────────────────────────────── */
+.pill-active-teal {
+  background: #14b8a6;  /* teal-500 */
+  color: #fff;
+}
+
+/* ── Global volume group — slides away when muted ───────────────────────── */
+#global-volume-group {
+  overflow: hidden;
+  max-height: 80px;
+  opacity: 1;
+  transition: max-height 0.3s ease, opacity 0.3s ease;
+}
+#global-volume-group.volume-hidden {
+  max-height: 0;
+  opacity: 0;
+}
+
+/* ── 5-word clean centred list ───────────────────────────────────────────── */
+.taboo-list-clean {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.45rem;
+}
+.taboo-list-clean li {
+  color: #44403c;
+  font-weight: 600;
+  font-size: 1.05rem;
+}
+
+/* ── No-No List container — tight natural height, stable floor on outer card ─── */
+#taboo-card {
+  width: 90%;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Stability floor — prevents buttons jumping between words without adding air */
+#active-word-card { min-height: 14rem; }
+
+/* ── 10-word Hard Mode taboo layout ──────────────────────────────────────── */
+.taboo-list-hard {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.4rem 0.75rem;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  text-align: center;
+}
+.taboo-list-hard li {
+  color: #44403c;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+/* ── Volume control group — slides away when muted ───────────────────────── */
+#volume-control-group {
+  overflow: hidden;
+  max-height: 60px;
+  opacity: 1;
+  transform: translateY(0);
+  transition: max-height 0.3s ease, opacity 0.3s ease, transform 0.3s ease;
+}
+#volume-control-group.volume-hidden {
+  max-height: 0;
+  opacity: 0;
+  transform: translateY(-8px);
+}
+
+/* ── Sylly intensity range slider ───────────────────────────────────────── */
+.sylly-range {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 9999px;
+  background: linear-gradient(to right, #e0aaff, #6a0dad);
+  outline: none;
+  cursor: pointer;
+}
+.sylly-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: #a855f7;
+  border: 3px solid #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
+.sylly-range::-moz-range-thumb {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: #a855f7;
+  border: 3px solid #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+  border: none;
+}
+
+/* ── Team score boxes — twin transition ──────────────────────────────────── */
+.team-box {
+  border: 2px solid transparent;
+  transition: transform    0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275),
+              opacity      0.3s ease,
+              border-color 0.3s ease,
+              box-shadow   0.3s ease;
+}
+.team-box-active {
+  transform: scale(1.05);
+  opacity: 1;
+  border-color: #ec4899;
+  box-shadow: 0 4px 16px rgba(236, 72, 153, 0.25);
+}
+.team-box-inactive {
+  transform: scale(0.95);
+  opacity: 0.6;
+  border-color: transparent;
+}
+@keyframes activeBoxPulse {
+  0%, 100% { transform: scale(1.05); }
+  50%       { transform: scale(1.08); }
+}
+.team-box-pulse {
+  animation: activeBoxPulse 1.6s ease-in-out infinite;
+}
+.team-box-winner {
+  border-color: #f59e0b;
+  box-shadow: 0 4px 16px rgba(245, 158, 11, 0.3);
+}
+
+/* ── Streak glow — orange rattle when 3+ in a row ───────────────────────── */
+.streak-glow {
+  color: #ea580c;
+  text-shadow: 0 0 10px rgba(249, 115, 22, 0.7);
+  animation: shake 0.55s ease-in-out 2;
+}
+
+/* ── Score pulse — pops when points change ───────────────────────────────── */
+@keyframes pulseScore {
+  0%   { transform: scale(1);   }
+  40%  { transform: scale(1.35); }
+  100% { transform: scale(1);   }
+}
+.score-pulse { animation: pulseScore 0.25s ease-out forwards; }
+
+/* ── Timer warning — red text at ≤10 s ───────────────────────────────────── */
+.timer-warning { color: #ef4444 !important; } /* red-500 */
+
+/* ── Sylly hint reveal — 300 ms delay fade-in ────────────────────────────── */
+@keyframes fadeInHint {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+.sylly-hint-show {
+  display: block !important;
+  animation: fadeInHint 0.25s ease-out 0.3s both;
+}
+
+/* ── Sylly nudge shake (soft — ±2px) ─────────────────────────────────────── */
+@keyframes shake {
+  0%, 100% { transform: translateX(0);    }
+  20%       { transform: translateX(-2px); }
+  40%       { transform: translateX(2px);  }
+  60%       { transform: translateX(-2px); }
+  80%       { transform: translateX(2px);  }
+}
+.shake { animation: shake 0.55s ease-in-out infinite; }
+
+/* ── Notch / safe-area support for active-play header ───────────────────── */
+#screen-active-play {
+  padding-top: max(0.75rem, env(safe-area-inset-top));
+}
+
+/* ── Justice Ring — pink outline on flipped review rows ─────────────────── */
+.row-edited {
+  outline: 2px solid #f472b6; /* pink-400 */
+  outline-offset: -2px;
+  border-radius: 0.75rem;
+}
+
+/* ── Endgame splash — urgent Phase 2 button pulse ───────────────────────── */
+@keyframes flashPulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
+}
+.ss-flash-btn { animation: flashPulse 0.9s ease-in-out infinite; }
+
+/* ── Hype phrase pop ─────────────────────────────────────────────────────── */
+@keyframes hypePop {
+  0%   { opacity: 0; transform: scale(0.7) translateY(4px);  }
+  30%  { opacity: 1; transform: scale(1.05) translateY(0);   }
+  70%  { opacity: 1; transform: scale(1)    translateY(0);   }
+  100% { opacity: 0; transform: scale(0.95) translateY(-4px); }
+}
+.hype-pop { animation: hypePop 1.4s ease-out forwards; }
+
+/* ── Hot Streak — team name glow + shake (2×) when 3+ correct in a row ──── */
+@keyframes streakFire {
+  0%, 100% { transform: translateX(0); }
+  25%       { transform: translateX(-3px); }
+  75%       { transform: translateX(3px); }
+}
+.streak-fire-active {
+  color: #ea580c;
+  text-shadow: 0 0 8px rgba(249, 115, 22, 0.55);
+  transition: color 0.2s ease, text-shadow 0.2s ease;
+}
+.streak-fire-shake {
+  animation: streakFire 0.35s ease-in-out 2;
+}
