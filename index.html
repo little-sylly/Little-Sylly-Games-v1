@@ -1,109 +1,100 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" content="#EC4899" />
-  <meta name="description" content="Serious games for silly people." />
-  
-  <link rel="manifest" href="manifest.json" />
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="theme-color" content="#EC4899" />
+    <meta name="description" content="Serious games for silly people." />
+    <link rel="manifest" href="manifest.json" />
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap" rel="stylesheet" />
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <link rel="stylesheet" href="css/styles.css" />
 
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap" rel="stylesheet" />
-
-  <script src="js/lib/tailwind-play.js"></script> 
-
-  <link rel="stylesheet" href="css/styles.css" />
-
-  <title>Little Sylly Games</title>
+    <title>Little Sylly Games</title>
 </head>
-<body class="bg-stone-50 min-h-screen flex items-center justify-center">
+<body class="bg-stone-50 min-h-screen flex items-center justify-center font-['Fredoka']">
 
-  <section id="screen-lobby" class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
-    <button class="btn-open-sound absolute top-4 right-4 text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
-    <div class="text-6xl" role="img" aria-label="Game controller">🎮</div>
-    <div>
-      <h1 class="text-5xl font-bold leading-tight text-stone-800">Little Sylly</h1>
-      <h1 class="text-5xl font-bold leading-tight text-pink-500">Games</h1>
-    </div>
-    <p class="text-stone-500 text-lg">What are we playing today?</p>
-    <div class="flex flex-col gap-4 w-full mt-2">
-      <button id="btn-dstw" class="min-h-14 w-full rounded-2xl bg-pink-500 hover:bg-pink-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
-        Don't Say Those Words
-      </button>
-      <button id="btn-great-minds" class="min-h-14 w-full rounded-2xl bg-violet-500 hover:bg-violet-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
-        Great Minds
-      </button>
-      <button id="btn-sylly-signals" class="min-h-14 w-full rounded-2xl bg-teal-500 hover:bg-teal-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
-        Sylly Signals
-      </button>
-    </div>
-  </section>
+    <section id="screen-lobby" class="relative flex flex-col items-center justify-center px-6 py-12 text-center min-h-screen w-full">
+        
+        <div class="absolute top-6 right-6">
+            <button class="btn-open-sound text-2xl p-2 bg-white/50 rounded-full shadow-sm hover:bg-white transition-colors">
+                🔊
+            </button>
+        </div>
 
-  <main id="screen-menu" style="display:none" class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
-    <button class="btn-open-sound absolute top-4 right-4 text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
-    <div class="text-6xl" role="img" aria-label="Speech balloon">💬</div>
-    <div>
-      <h1 class="text-5xl font-bold leading-tight text-stone-800">Don't Say</h1>
-      <h1 class="text-5xl font-bold leading-tight text-pink-500">Those Words</h1>
-    </div>
-    <p class="text-stone-500 text-lg">Just make sure you don't say those words!</p>
-    <div class="flex flex-col gap-4 w-full mt-2">
-      <button id="btn-play" class="min-h-14 w-full rounded-2xl bg-pink-500 hover:bg-pink-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
-        Let's Play!
-      </button>
-      <button id="btn-how-to" class="min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
-        How to Play
-      </button>
-      <button id="btn-settings" class="min-h-14 w-full rounded-2xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
-        Settings
-      </button>
-      <button id="btn-back-to-lobby" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-base font-medium transition-all duration-150">
-        ← Back to the Box
-      </button>
-    </div>
-  </main>
+        <div class="mb-8">
+            <div class="text-6xl mb-4 animate-bounce">🎮</div>
+            <h1 class="text-5xl font-black text-stone-800 tracking-tight mb-2">
+                Little Sylly <span class="text-pink-500">Games</span>
+            </h1>
+            <p class="text-stone-500 font-medium text-lg">What are we playing today?</p>
+        </div>
 
-  <section id="screen-setup" style="display:none" class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
-    <div class="absolute top-4 right-4 flex items-center gap-2">
-      <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
-      <button id="btn-setup-exit" class="text-xl text-stone-500 font-bold active:scale-90 transition-transform duration-100">✕</button>
-    </div>
-    <div class="text-5xl" role="img" aria-label="People">👥</div>
-    <div>
-      <h2 class="text-3xl font-bold text-stone-800">Who's playing?</h2>
-      <p class="text-stone-400 text-base mt-1">Leave blank to use Team 1 &amp; Team 2</p>
-    </div>
-    <div class="flex flex-col gap-4 w-full text-left">
-      <div>
-        <label class="text-stone-500 text-sm font-semibold uppercase tracking-widest block mb-1">Team 1 name</label>
-        <input id="input-team1" type="text" maxlength="20" placeholder="e.g. The Legends"
-          class="w-full rounded-xl border-2 border-stone-200 bg-white px-4 py-3 text-lg text-stone-800 placeholder-stone-300 focus:border-pink-400 focus:outline-none transition-colors" />
-      </div>
-      <div>
-        <label class="text-stone-500 text-sm font-semibold uppercase tracking-widest block mb-1">Team 2 name</label>
-        <input id="input-team2" type="text" maxlength="20" placeholder="e.g. The Underdogs"
-          class="w-full rounded-xl border-2 border-stone-200 bg-white px-4 py-3 text-lg text-stone-800 placeholder-stone-300 focus:border-pink-400 focus:outline-none transition-colors" />
-      </div>
-    </div>
-    <button id="btn-start-game" class="min-h-14 w-full rounded-2xl bg-pink-500 hover:bg-pink-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
-      Let's Go! 🚀
-    </button>
-  </section>
+        <div class="flex flex-col gap-4 w-full max-w-sm">
+            <button onclick="playPillClick(); showScreen('screen-menu')" 
+                    class="bg-pink-500 hover:bg-pink-600 text-white font-bold py-5 px-8 rounded-2xl shadow-lg active:scale-95 transition-all text-xl">
+                Don't Say Those Words
+            </button>
 
-  <script src="js/engine.js"></script>
-  <script src="js/app.js"></script>
+            <button onclick="playPillClick(); showScreen('screen-gm-menu')" 
+                    class="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-5 px-8 rounded-2xl shadow-lg active:scale-95 transition-all text-xl">
+                Great Minds
+            </button>
 
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        // Fixed: Removed leading slash for GitHub Pages
-        navigator.serviceWorker.register('sw.js')
-          .then(reg => console.log('Service Worker registered!'))
-          .catch(err => console.log('Service Worker failed:', err));
-      });
-    }
-  </script>
-</body>
-</html>
+            <button onclick="playPillClick(); showScreen('screen-ss-menu')" 
+                    class="bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-5 px-8 rounded-2xl shadow-lg active:scale-95 transition-all text-xl">
+                Sylly Signals
+            </button>
+        </div>
+    </section>
+
+    <section id="screen-menu" class="hidden flex-col items-center justify-center p-6 min-h-screen">
+        <h2 class="text-3xl font-bold mb-4">Don't Say Those Words</h2>
+        <button onclick="showScreen('screen-lobby')" class="text-stone-500 underline">Back to Lobby</button>
+    </section>
+
+    <section id="screen-gm-menu" class="hidden flex-col items-center justify-center p-6 min-h-screen">
+        <h2 class="text-3xl font-bold mb-4">Great Minds</h2>
+        <button onclick="showScreen('screen-lobby')" class="text-stone-500 underline">Back to Lobby</button>
+    </section>
+
+    <section id="screen-ss-menu" class="hidden flex-col items-center justify-center p-6 min-h-screen">
+        <h2 class="text-3xl font-bold mb-4">Sylly Signals</h2>
+        <button onclick="showScreen('screen-lobby')" class="text-stone-500 underline">Back to Lobby</button>
+    </section>
+
+    <div id="sound-overlay" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 items-center justify-center p-6">
+        <div class="bg-white rounded-3xl p-8 w-full max-w-sm shadow-2xl">
+            <h3 class="text-2xl font-bold mb-6 text-center">Sound Settings</h3>
+            
+            <div class="flex items-center justify-between mb-8">
+                <span class="font-bold text-lg">Mute Sounds</span>
+                <button id="global-mute-toggle" class="sylly-toggle-off px-4 py-2 rounded-xl font-bold transition-colors">OFF</button>
+            </div>
+
+            <div id="global-volume-group" class="mb-8">
+                <div class="flex justify-between mb-2">
+                    <span class="font-bold">Volume</span>
+                    <span id="global-volume-label" class="text-pink-500 font-bold">60%</span>
+                </div>
+                <input type="range" id="global-sound-volume" min="0" max="100" value="60" class="w-full h-2 bg-stone-200 rounded-lg appearance-none cursor-pointer accent-pink-500">
+            </div>
+
+            <button id="btn-sound-overlay-done" class="w-full bg-stone-800 text-white font-bold py-4 rounded-2xl hover:bg-stone-900 transition-colors">
+                Done
+            </button>
+        </div>
+    </div>
+
+    <button id="btn-mute" class="hidden">🔊</button>
+
+    <script src="js/engine.js"></script>
+    <script>
+        // Register Service Worker for PWA
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.
