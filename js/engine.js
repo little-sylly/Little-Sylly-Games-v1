@@ -44,16 +44,14 @@ function playTone({ type = 'sine', freq, startTime, duration, gain = 0.3 }) {
   osc.stop(startTime + duration);
 }
 
-// YAY! — bright ascending collect chime: C5 → E5 → G5 (triangle, musical)
 function playSuccess() {
   if (isMuted) return;
   const ctx = getAudioCtx(), now = ctx.currentTime;
-  playTone({ type: 'triangle', freq: 523, startTime: now,        duration: 0.12, gain: 0.22 });
+  playTone({ type: 'triangle', freq: 523, startTime: now,         duration: 0.12, gain: 0.22 });
   playTone({ type: 'triangle', freq: 659, startTime: now + 0.08, duration: 0.12, gain: 0.22 });
   playTone({ type: 'triangle', freq: 784, startTime: now + 0.16, duration: 0.18, gain: 0.22 });
 }
 
-// NAY! — cartoon descending boing (square sweep 280→120 Hz, gentle gain)
 function playBoing() {
   if (isMuted) return;
   const ctx = getAudioCtx(), now = ctx.currentTime;
@@ -70,7 +68,6 @@ function playBoing() {
   osc.stop(now + 0.23);
 }
 
-// SKIP — breezy swish: sweep up then tail off down
 function playWhoosh() {
   if (isMuted) return;
   const ctx = getAudioCtx(), now = ctx.currentTime;
@@ -88,48 +85,27 @@ function playWhoosh() {
   osc.stop(now + 0.21);
 }
 
-// PILL/TOGGLE — tactile micro-pop
 function playPillClick() {
   if (isMuted) return;
   const ctx = getAudioCtx();
   playTone({ type: 'sine', freq: 900, startTime: ctx.currentTime, duration: 0.025, gain: 0.08 });
 }
 
-// DONE/CLOSE — satisfying two-note confirm: G4 → C5
 function playDone() {
   if (isMuted) return;
   const ctx = getAudioCtx(), now = ctx.currentTime;
-  playTone({ type: 'sine', freq: 392, startTime: now,        duration: 0.09, gain: 0.18 });
+  playTone({ type: 'sine', freq: 392, startTime: now,         duration: 0.09, gain: 0.18 });
   playTone({ type: 'sine', freq: 523, startTime: now + 0.07, duration: 0.12, gain: 0.18 });
 }
 
-// LAUNCH — energetic 3-note arpeggio for big CTAs (Play, Let's Go, Start Turn, Play Again)
 function playLaunch() {
   if (isMuted) return;
   const ctx = getAudioCtx(), now = ctx.currentTime;
-  playTone({ type: 'triangle', freq: 330, startTime: now,        duration: 0.10, gain: 0.20 });
+  playTone({ type: 'triangle', freq: 330, startTime: now,         duration: 0.10, gain: 0.20 });
   playTone({ type: 'triangle', freq: 392, startTime: now + 0.07, duration: 0.10, gain: 0.20 });
   playTone({ type: 'triangle', freq: 494, startTime: now + 0.14, duration: 0.15, gain: 0.20 });
 }
 
-// RESUME — warm two-note rise for "back to it" positive confirms
-function playResume() {
-  if (isMuted) return;
-  const ctx = getAudioCtx(), now = ctx.currentTime;
-  playTone({ type: 'sine', freq: 392, startTime: now,        duration: 0.09, gain: 0.15 });
-  playTone({ type: 'sine', freq: 659, startTime: now + 0.06, duration: 0.13, gain: 0.15 });
-}
-
-// EXIT — gentle two-note fall for destructive confirms
-function playExit() {
-  if (isMuted) return;
-  const ctx = getAudioCtx(), now = ctx.currentTime;
-  playTone({ type: 'sine', freq: 247, startTime: now,        duration: 0.10, gain: 0.15 });
-  playTone({ type: 'sine', freq: 196, startTime: now + 0.08, duration: 0.14, gain: 0.12 });
-}
-
-// SLIDER TICK — bypasses isMuted and masterVolume so user always hears it.
-// value (0–100): scales pitch 700→1600 Hz and gain 0.02→0.14 for an auditory ramp.
 function playSliderTick(value = 50) {
   const t = value / 100;
   const freq = 700 + t * 900;
@@ -145,146 +121,92 @@ function playSliderTick(value = 50) {
   osc.start(now); osc.stop(now + 0.018);
 }
 
-// SYLLY ON — fast ascending sparkle arpeggio (playSuccess at 2x speed)
-function playSyllyOn() {
-  if (isMuted) return;
-  const ctx = getAudioCtx(), now = ctx.currentTime;
-  playTone({ type: 'triangle', freq: 523, startTime: now,        duration: 0.06, gain: 0.20 });
-  playTone({ type: 'triangle', freq: 659, startTime: now + 0.04, duration: 0.06, gain: 0.20 });
-  playTone({ type: 'triangle', freq: 784, startTime: now + 0.08, duration: 0.06, gain: 0.20 });
-  playTone({ type: 'triangle', freq: 1047,startTime: now + 0.12, duration: 0.10, gain: 0.18 });
-}
-
-// SYLLY OFF — descending version, neutral "back to normal"
-function playSyllyOff() {
-  if (isMuted) return;
-  const ctx = getAudioCtx(), now = ctx.currentTime;
-  playTone({ type: 'triangle', freq: 784, startTime: now,        duration: 0.06, gain: 0.16 });
-  playTone({ type: 'triangle', freq: 659, startTime: now + 0.04, duration: 0.06, gain: 0.14 });
-  playTone({ type: 'triangle', freq: 523, startTime: now + 0.08, duration: 0.09, gain: 0.12 });
-}
-
-// ALARM — short 3-pulse radar blip for timer expiry (stops on Transmit)
-function playAlarm() {
-  if (isMuted) return;
-  const ctx = getAudioCtx(), now = ctx.currentTime;
-  [0, 0.22, 0.44].forEach(offset => {
-    playTone({ type: 'square', freq: 880, startTime: now + offset, duration: 0.12, gain: 0.18 });
-  });
-}
-
-// TICK — soft clock tick (1 per second during countdown)
-function playTick() {
-  if (isMuted) return;
-  const ctx = getAudioCtx();
-  playTone({ freq: 440, startTime: ctx.currentTime, duration: 0.05, gain: 0.15 });
-}
-
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function showScreen(id) {
-  allScreens.forEach(s => { document.getElementById(s).style.display = 'none'; });
+  allScreens.forEach(s => { 
+    const screen = document.getElementById(s);
+    if(screen) screen.style.display = 'none'; 
+  });
   const el = document.getElementById(id);
-  el.style.display = 'flex';
-  el.classList.remove('screen-enter');
-  void el.offsetWidth;
-  el.classList.add('screen-enter');
+  if(el) {
+    el.style.display = 'flex';
+    el.classList.remove('screen-enter');
+    void el.offsetWidth;
+    el.classList.add('screen-enter');
+  }
 }
 
 function toggleMute() {
   isMuted = !isMuted;
   localStorage.setItem('sylly-muted', isMuted);
-  // Active play header button
-  document.getElementById('btn-mute').textContent = isMuted ? '🔇' : '🔊';
-  // Global overlay toggle
+  
+  const muteBtn = document.getElementById('btn-mute');
+  if (muteBtn) muteBtn.textContent = isMuted ? '🔇' : '🔊';
+
   const globalBtn = document.getElementById('global-mute-toggle');
-  globalBtn.textContent = isMuted ? 'ON' : 'OFF';
-  globalBtn.className   = isMuted ? 'sylly-toggle-on' : 'sylly-toggle-off';
-  document.getElementById('global-volume-group').classList.toggle('volume-hidden', isMuted);
-  // All screen speaker icons
+  if (globalBtn) {
+    globalBtn.textContent = isMuted ? 'ON' : 'OFF';
+    globalBtn.className   = isMuted ? 'sylly-toggle-on' : 'sylly-toggle-off';
+  }
+
+  const volGrp = document.getElementById('global-volume-group');
+  if (volGrp) volGrp.classList.toggle('volume-hidden', isMuted);
+
   document.querySelectorAll('.btn-open-sound').forEach(b => {
     b.textContent = isMuted ? '🔇' : '🔊';
   });
 }
 
 function openSoundOverlay() {
-  document.getElementById('sound-overlay').style.display = 'flex';
+  const overlay = document.getElementById('sound-overlay');
+  if(overlay) overlay.style.display = 'flex';
 }
 
-function shuffle(arr) {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-}
+// ── Audio control init + Safety Checks ────────────────────────────────────────
+// This section prevents the "null" errors that break the buttons
 
-function formatTime(secs) {
-  const m = Math.floor(secs / 60);
-  const s = secs % 60;
-  return `${m}:${String(s).padStart(2, '0')}`;
-}
+const initMuteBtn = document.getElementById('btn-mute');
+if (initMuteBtn) initMuteBtn.textContent = isMuted ? '🔇' : '🔊';
 
-// ── Reset (settings intentionally preserved) ──────────────────────────────────
-function resetToLobby() {
-  stopTimer();
-  document.getElementById('quit-overlay').style.display        = 'none';
-  document.getElementById('review-overlay').style.display      = 'none';
-  document.getElementById('history-overlay').style.display     = 'none';
-  document.getElementById('gm-override-overlay').style.display = 'none';
-  document.getElementById('gm-quit-overlay').style.display     = 'none';
-  document.getElementById('input-team1').value = '';
-  document.getElementById('input-team2').value = '';
-  // DSTW cold boot
-  teamScores      = [0, 0];
-  roundLog        = [];
-  matchLog        = [];
-  regularIdx      = 0;
-  syllyIdx        = 0;
-  currentWordData = null;
-  // Great Minds teardown
-  if (gmCountdownTimer) { clearInterval(gmCountdownTimer); gmCountdownTimer = null; }
-  gmRound       = 0;
-  gmCurrentPair = ['', ''];
-  gmRoundLog    = [];
-  activeGameId  = null;
-  // Sylly Signals teardown
-  resetSyllySignals();
-  showScreen('screen-lobby');
-}
-
-function resetToMenu() {
-  stopTimer();
-  document.getElementById('quit-overlay').style.display    = 'none';
-  document.getElementById('review-overlay').style.display  = 'none';
-  document.getElementById('history-overlay').style.display = 'none';
-  document.getElementById('input-team1').value = '';
-  document.getElementById('input-team2').value = '';
-  showScreen('screen-menu');
-}
-
-// ── Audio control init + listeners ────────────────────────────────────────────
-document.getElementById('btn-mute').textContent = isMuted ? '🔇' : '🔊';
 document.querySelectorAll('.btn-open-sound').forEach(b => { b.textContent = isMuted ? '🔇' : '🔊'; });
-const _globalMute = document.getElementById('global-mute-toggle');
-_globalMute.textContent = isMuted ? 'ON' : 'OFF';
-_globalMute.className   = isMuted ? 'sylly-toggle-on' : 'sylly-toggle-off';
-document.getElementById('global-sound-volume').value             = Math.round(masterVolume * 100);
-document.getElementById('global-volume-label').textContent       = `${Math.round(masterVolume * 100)}%`;
-document.getElementById('global-volume-group').classList.toggle('volume-hidden', isMuted);
 
-document.getElementById('btn-mute').addEventListener('click', toggleMute);
-document.getElementById('global-mute-toggle').addEventListener('click', toggleMute);
-document.getElementById('global-sound-volume').addEventListener('input', e => {
-  masterVolume = parseInt(e.target.value) / 100;
-  localStorage.setItem('sylly-volume', masterVolume);
-  document.getElementById('global-volume-label').textContent = `${e.target.value}%`;
-  playSliderTick(parseInt(e.target.value));
-});
-document.getElementById('btn-sound-overlay-done').addEventListener('click', () => {
-  playDone();
-  document.getElementById('sound-overlay').style.display = 'none';
-});
+const initGlobalMute = document.getElementById('global-mute-toggle');
+if (initGlobalMute) {
+  initGlobalMute.textContent = isMuted ? 'ON' : 'OFF';
+  initGlobalMute.className   = isMuted ? 'sylly-toggle-on' : 'sylly-toggle-off';
+}
+
+const initVolSlider = document.getElementById('global-sound-volume');
+if (initVolSlider) initVolSlider.value = Math.round(masterVolume * 100);
+
+const initVolLabel = document.getElementById('global-volume-label');
+if (initVolLabel) initVolLabel.textContent = `${Math.round(masterVolume * 100)}%`;
+
+const initVolGrp = document.getElementById('global-volume-group');
+if (initVolGrp) initVolGrp.classList.toggle('volume-hidden', isMuted);
+
+// Listeners
+if (initMuteBtn) initMuteBtn.addEventListener('click', toggleMute);
+if (initGlobalMute) initGlobalMute.addEventListener('click', toggleMute);
+
+if (initVolSlider) {
+  initVolSlider.addEventListener('input', e => {
+    masterVolume = parseInt(e.target.value) / 100;
+    localStorage.setItem('sylly-volume', masterVolume);
+    if (initVolLabel) initVolLabel.textContent = `${e.target.value}%`;
+    playSliderTick(parseInt(e.target.value));
+  });
+}
+
+const soundDoneBtn = document.getElementById('btn-sound-overlay-done');
+if (soundDoneBtn) {
+  soundDoneBtn.addEventListener('click', () => {
+    playDone();
+    const overlay = document.getElementById('sound-overlay');
+    if(overlay) overlay.style.display = 'none';
+  });
+}
+
 document.querySelectorAll('.btn-open-sound').forEach(b => {
   b.addEventListener('click', () => { playPillClick(); openSoundOverlay(); });
 });
