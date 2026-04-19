@@ -327,7 +327,7 @@ document.getElementById('btn-gm-settings-done').addEventListener('click', () => 
 
 // Sylly Mode toggle — OFF = diff 1, ON = reveal Wild/Wilder (default Wild)
 document.getElementById('btn-gm-sylly-toggle').addEventListener('click', () => {
-  playPillClick();
+  gmSyllyMode ? playSyllyOff() : playSyllyOn();
   gmSyllyMode = !gmSyllyMode;
   const btn = document.getElementById('btn-gm-sylly-toggle');
   btn.textContent = gmSyllyMode ? 'ON' : 'OFF';

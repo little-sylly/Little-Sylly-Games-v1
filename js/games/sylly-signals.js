@@ -65,7 +65,8 @@ let ssIntelGuessingTeam = 0;          // team currently guessing
 let ssIntelKwIdx        = 0;          // current keyword index (0–3)
 let ssIntelAttemptNum   = 0;          // current attempt (0, 1, or 2)
 let ssIntelFound           = [[false,false,false,false],[false,false,false,false]]; // [team][kwIdx]
-let ssIntelPreviousGuesses = [];   // stores rawInputs for previous failed attempts
+let ssIntelPreviousGuesses = [];   // stores rawInputs for previous failed attempts (per keyword)
+let ssIntelHistory        = [];   // [{team, kwIdx, word, attempts, found}] — for Mission Journal
 
 // ── SS Fuzzy Matching ─────────────────────────────────────────────────────────
 
@@ -272,7 +273,7 @@ function ssRenderCodeGuessUI(containerEl, guessArr, onSelect) {
       const pos = parseInt(btn.dataset.pos);
       const val = parseInt(btn.dataset.val);
       playPillClick();
-      guessArr[pos] = val;
+      guessArr[pos] = (guessArr[pos] === val) ? 0 : val;  // toggle deselect
       // Full re-render so mutual exclusion updates across all positions
       ssRenderCodeGuessUI(containerEl, guessArr, onSelect);
       onSelect(pos, val);
@@ -396,10 +397,18 @@ function ssShowIntelIntro(team) {
 
     document.getElementById('ss-intel-target-text').innerHTML =
       `${ssTeamName(ssIntelLeader)} scored <strong>${ssFormatPts(leaderIntel)} intel pts</strong> — combined total: <strong>${ssFormatPts(leaderTotal)}</strong>`;
-    document.getElementById('ss-intel-target-needed').textContent =
-      canWin
-        ? `You need ${ssFormatPts(needed)}+ pts to win — within reach! (max 1.5)`
-        : `You need ${ssFormatPts(needed)}+ pts to win — gap too large (max 1.5)`;
+    function ssKwsNeeded(pts) {
+      if (pts <= 0)    return null;
+      if (pts <= 0.25) return '1 keyword';
+      if (pts <= 0.5)  return '2 keywords';
+      if (pts <= 0.75) return '3 keywords';
+      if (pts <= 1.0)  return '4 keywords';
+      return 'all 4 + the scramble bonus';
+    }
+    const kwText = ssKwsNeeded(needed);
+    document.getElementById('ss-intel-target-needed').textContent = canWin && kwText
+      ? `Get ${kwText} right to take the lead 🎯`
+      : `Gap too large — play for pride! (max 1.5 pts)`;
     targetCard.style.display = 'block';
   } else {
     targetCard.style.display = 'none';
@@ -524,6 +533,12 @@ function ssIntelSubmitGuess(rawInput) {
 }
 
 function ssIntelOnFound(rawInput) {
+  ssIntelHistory.push({
+    team: ssIntelGuessingTeam, kwIdx: ssIntelKwIdx,
+    word: ssIntelTargetVault()[ssIntelKwIdx].word,
+    attempts: [...ssIntelPreviousGuesses, rawInput],
+    found: true,
+  });
   ssIntelFound[ssIntelGuessingTeam][ssIntelKwIdx] = true;
   ssIntelAddScore(ssIntelGuessingTeam, SS_INTEL_KW_PTS);
   const fb  = document.getElementById('ss-intel-feedback');
@@ -540,13 +555,19 @@ function ssIntelOnFound(rawInput) {
 }
 
 function ssIntelOnNotFound() {
+  ssIntelHistory.push({
+    team: ssIntelGuessingTeam, kwIdx: ssIntelKwIdx,
+    word: ssIntelTargetVault()[ssIntelKwIdx].word,
+    attempts: [...ssIntelPreviousGuesses],
+    found: false,
+  });
   const fb  = document.getElementById('ss-intel-feedback');
   const btn = document.getElementById('btn-ss-intel-continue');
   fb.textContent = `❌ The word was "${ssIntelTargetVault()[ssIntelKwIdx].word}"`;
   fb.style.cssText = 'display:block; color: #78716c; font-weight: 600;';
   btn.style.display = 'block';
   btn.onclick = () => { playPillClick(); btn.style.display = 'none'; ssIntelAdvance(); };
-  document.getElementById('btn-ss-intel-override').style.display = 'none';
+  // Keep Dip Res visible — both Continue and Dip Res shown on 3rd failure
   playBoing();
 }
 
@@ -585,11 +606,13 @@ function ssShowIntelSummary() {
 
   document.getElementById('ss-intel-summary-title').textContent = ssTeamName(team);
 
-  // Keyword result grid
+  // Keyword result grid — shows vault word + found/not
+  const targetVault = ssIntelTargetVault();
   document.getElementById('ss-intel-summary-grid').innerHTML = found.map((f, i) => `
-    <div class="rounded-xl p-3 text-center ${f ? 'bg-teal-500 text-white' : 'bg-stone-200 text-stone-400'}">
-      <p class="text-xs font-semibold">${i + 1}</p>
-      <p class="text-xl">${f ? '✅' : '❌'}</p>
+    <div class="rounded-xl p-2 text-center ${f ? 'bg-teal-500 text-white' : 'bg-stone-200 text-stone-400'}">
+      <p class="text-xs font-semibold mb-0.5">${i + 1}</p>
+      <p class="text-xs font-bold uppercase leading-tight">${targetVault[i].word}</p>
+      <p class="text-base mt-0.5">${f ? '✅' : '❌'}</p>
     </div>
   `).join('');
 
@@ -839,10 +862,11 @@ function ssShowEncrypt() {
 
   // Timer
   ssStopTimer();
-  const timerEl      = document.getElementById('ss-encrypt-timer');
-  const timerDisplay = document.getElementById('ss-encrypt-timer-display');
+  const timerLabelEl  = document.getElementById('ss-encrypt-timer-label');
+  const timerDisplay  = document.getElementById('ss-encrypt-timer-display');
   if (ssTimerSetting > 0) {
-    timerEl.style.display = 'block';
+    timerLabelEl.style.display = 'block';
+    timerDisplay.style.display = 'block';
     ssTimerSecondsLeft = ssTimerSetting;
     timerDisplay.textContent = formatTime(ssTimerSecondsLeft);
     timerDisplay.classList.remove('timer-warning');
@@ -860,7 +884,8 @@ function ssShowEncrypt() {
       }
     }, 1000);
   } else {
-    timerEl.style.display = 'none';
+    timerLabelEl.style.display = 'none';
+    timerDisplay.style.display = 'none';
   }
 
   showScreen('screen-ss-encrypt');
@@ -925,12 +950,14 @@ function ssShowDecode() {
 
   // Vault card (open to the encrypting team)
   const vault = ssGetVault(team);
-  document.getElementById('ss-decode-vault').innerHTML = vault.map((w, i) =>
-    `<div class="flex gap-2 text-sm">
-      <span class="text-teal-500 font-bold w-5">${i + 1}</span>
-      <span class="text-stone-700 font-semibold">${w.word.toUpperCase()}</span>
-    </div>`
-  ).join('');
+  document.getElementById('ss-decode-vault').innerHTML = `<div class="grid grid-cols-2 gap-2">${
+    vault.map((w, i) =>
+      `<div class="flex items-center gap-2 py-0.5">
+        <span class="text-teal-500 font-bold text-base w-5 flex-shrink-0">${i + 1}</span>
+        <span class="text-stone-700 font-semibold text-sm">${w.word.toUpperCase()}</span>
+      </div>`
+    ).join('')
+  }</div>`;
 
   ssRenderCurrentClues(document.getElementById('ss-decode-clues'));
   ssRenderArchive(document.getElementById('ss-decode-archive'), team);
@@ -987,6 +1014,16 @@ function ssResolve() {
   document.getElementById('ss-resolution-code').textContent =
     ssCurrentCode.join(' — ');
 
+  // Hype message
+  const hypeMsg = interceptCorrect && decodeCorrect
+    ? '📡 Signals crossed — both teams nailed it!'
+    : interceptCorrect && !decodeCorrect
+      ? '🎯 Interception! Their signal was compromised.'
+      : !interceptCorrect && decodeCorrect
+        ? '🔒 Transmission secured — code held!'
+        : '📻 Static on all frequencies…';
+  document.getElementById('ss-resolution-hype').textContent = hypeMsg;
+
   document.getElementById('ss-resolution-results').innerHTML = `
     <div class="w-full bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
       <div>
@@ -1011,14 +1048,49 @@ function ssResolve() {
   showScreen('screen-ss-resolution');
 }
 
+function ssShowEndgameSplash(winner) {
+  const loser     = 1 - winner;
+  const byMisfire = ssMisfires[loser] >= 2;
+
+  document.getElementById('ss-splash-icon').textContent   = byMisfire ? '📻' : '🏆';
+  document.getElementById('ss-splash-status').textContent = byMisfire ? 'COMMUNICATION BLACKOUT' : 'MISSION SUCCESS';
+  document.getElementById('ss-splash-title').textContent  = byMisfire
+    ? `${ssTeamName(loser)} lost the signal`
+    : `${ssTeamName(winner)} intercepted`;
+  document.getElementById('ss-splash-sub').textContent = byMisfire
+    ? 'Two misfires — your own transmission went dark.'
+    : `${ssTeamName(winner)} cracked the code.`;
+
+  document.getElementById('btn-ss-splash-phase2').style.display  = 'none';
+  document.getElementById('btn-ss-splash-results').style.display = 'none';
+  document.getElementById('ss-endgame-splash').style.display     = 'flex';
+
+  // After 2s reveal the action button
+  setTimeout(() => {
+    if (ssIntelSyllyMode) {
+      const p2Btn = document.getElementById('btn-ss-splash-phase2');
+      p2Btn.style.display = 'block';
+      p2Btn.onclick = () => {
+        playLaunch();
+        document.getElementById('ss-endgame-splash').style.display = 'none';
+        ssStartIntelPhase();
+      };
+    } else {
+      const resBtn = document.getElementById('btn-ss-splash-results');
+      resBtn.style.display = 'block';
+      resBtn.onclick = () => {
+        playLaunch();
+        document.getElementById('ss-endgame-splash').style.display = 'none';
+        ssShowGameOver(winner);
+      };
+    }
+  }, 2000);
+}
+
 function ssNextHalf() {
   const winner = ssCheckWin();
   if (winner !== null) {
-    if (ssIntelSyllyMode) {
-      ssStartIntelPhase();
-    } else {
-      ssShowGameOver(winner);
-    }
+    ssShowEndgameSplash(winner);
     return;
   }
 
@@ -1124,6 +1196,26 @@ function ssRenderMissionJournal(containerEl) {
       ${halvesHtml}
     </div>`;
   }).join('');
+
+  // ── Intel Dossier section (if intel phase was played)
+  if (ssIntelHistory.length) {
+    containerEl.innerHTML += `<div class="bg-stone-50 rounded-xl p-3 mt-1">
+      <p class="text-xs font-bold uppercase tracking-widest text-stone-400 mb-2">Intel Dossier</p>
+      ${[0, 1].map(team => {
+        const entries = ssIntelHistory.filter(e => e.team === team);
+        if (!entries.length) return '';
+        return `<p class="text-xs font-semibold text-teal-600 mb-1">${ssTeamName(team)}</p>
+        <div class="flex flex-col gap-1.5 mb-2">${entries.map(e => `
+          <div class="flex items-start gap-2 text-xs">
+            <span class="text-stone-500 font-bold w-5 flex-shrink-0">${e.kwIdx + 1}</span>
+            <span class="font-bold uppercase text-stone-700 w-16 flex-shrink-0">${e.word}</span>
+            <span class="${e.found ? 'text-teal-600' : 'text-stone-400'} flex-1 min-w-0 break-words">${e.attempts.join(' → ') || '—'}</span>
+            <span class="ml-auto flex-shrink-0">${e.found ? '✅' : '❌'}</span>
+          </div>`
+        ).join('')}</div>`;
+      }).join('')}
+    </div>`;
+  }
 }
 
 // ── SS Quit ───────────────────────────────────────────────────────────────────
@@ -1146,6 +1238,7 @@ function resetSyllySignals() {
   ssRoundHistory         = [];
   ssRerollCounts         = [[0,0,0,0],[0,0,0,0]];
   ssIntelPreviousGuesses = [];
+  ssIntelHistory         = [];
   // Intel phase
   ssIntelScoreA          = 0;
   ssIntelScoreB          = 0;
@@ -1158,6 +1251,8 @@ function resetSyllySignals() {
   document.getElementById('ss-quit-overlay').style.display         = 'none';
   document.getElementById('ss-override-overlay').style.display     = 'none';
   document.getElementById('ss-inning-transition').style.display    = 'none';
+  document.getElementById('ss-endgame-splash').style.display       = 'none';
+  document.getElementById('ss-play-again-overlay').style.display   = 'none';
 }
 
 // ── SS Settings ───────────────────────────────────────────────────────────────
@@ -1339,39 +1434,32 @@ document.getElementById('btn-ss-submit-decode').addEventListener('click', () => 
   ssResolve();
 });
 
+// Resolution exit → quit overlay
+document.getElementById('btn-ss-resolution-exit').addEventListener('click', () => {
+  playExit();
+  ssShowQuitOverlay();
+});
+
 // Resolution → next half
 document.getElementById('btn-ss-continue').addEventListener('click', () => {
   playPillClick();
   ssNextHalf();
 });
 
-// Game over — long-press Play Again (3 seconds)
-{
-  const btn  = document.getElementById('btn-ss-play-again');
-  const fill = document.getElementById('ss-play-again-fill');
-  let holdTimer = null;
-
-  function cancelHold() {
-    clearTimeout(holdTimer);
-    holdTimer = null;
-    fill.style.transition = 'none';
-    fill.style.width = '0%';
-  }
-
-  btn.addEventListener('pointerdown', () => {
-    fill.style.transition = 'width 3s linear';
-    fill.style.width = '100%';
-    holdTimer = setTimeout(() => {
-      holdTimer = null;
-      fill.style.transition = 'none';
-      fill.style.width = '0%';
-      playLaunch();
-      startSyllySignals();
-    }, 3000);
-  });
-  btn.addEventListener('pointerup',    cancelHold);
-  btn.addEventListener('pointerleave', cancelHold);
-}
+// Game over — Play Again → confirmation modal
+document.getElementById('btn-ss-play-again').addEventListener('click', () => {
+  playPillClick();
+  document.getElementById('ss-play-again-overlay').style.display = 'flex';
+});
+document.getElementById('btn-ss-play-again-confirm').addEventListener('click', () => {
+  playLaunch();
+  document.getElementById('ss-play-again-overlay').style.display = 'none';
+  startSyllySignals();
+});
+document.getElementById('btn-ss-play-again-cancel').addEventListener('click', () => {
+  playDone();
+  document.getElementById('ss-play-again-overlay').style.display = 'none';
+});
 document.getElementById('btn-ss-gameover-exit').addEventListener('click', () => {
   playExit();
   resetToLobby();
@@ -1554,11 +1642,27 @@ document.getElementById('btn-ss-intel-guess-exit').addEventListener('click', () 
 });
 
 document.getElementById('btn-ss-intel-override').addEventListener('click', () => {
-  // Show override confirmation overlay with the current input value
   const currentInput = document.querySelector('#ss-intel-attempts input:not([disabled])');
-  const val = currentInput ? currentInput.value.trim() : '…';
-  document.getElementById('ss-override-guess-display').textContent = `Their guess: "${val || '…'}"`;
+  const guessed = currentInput ? currentInput.value.trim() : '…';
+  const target  = ssIntelTargetVault()[ssIntelKwIdx].word;
+
+  document.getElementById('btn-override-word-guess').textContent  = guessed || '…';
+  document.getElementById('btn-override-word-target').textContent = target.toUpperCase();
+  // Reset highlight
+  ['btn-override-word-guess', 'btn-override-word-target'].forEach(id => {
+    document.getElementById(id).classList.remove('ring-2', 'ring-teal-400', 'bg-teal-50');
+  });
   document.getElementById('ss-override-overlay').style.display = 'flex';
+});
+
+// Word tap-to-highlight in override overlay
+['btn-override-word-guess', 'btn-override-word-target'].forEach(id => {
+  document.getElementById(id).addEventListener('click', () => {
+    playPillClick();
+    ['btn-override-word-guess', 'btn-override-word-target'].forEach(i =>
+      document.getElementById(i).classList.remove('ring-2', 'ring-teal-400', 'bg-teal-50'));
+    document.getElementById(id).classList.add('ring-2', 'ring-teal-400', 'bg-teal-50');
+  });
 });
 
 // ── Intel override overlay ────────────────────────────────────────────────────
