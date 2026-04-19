@@ -1,0 +1,1524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#EC4899" />
+  <meta name="description" content="Serious games for silly people." />
+  <link rel="manifest" href="manifest.json" />
+
+  <!-- Fredoka — Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind CSS — local copy for offline support -->
+  <script src="js/lib/tailwind-play.js"></script> 
+
+  <!-- Custom styles (font-family rule) -->
+  <link rel="stylesheet" href="css/styles.css" />
+
+  <title>Little Sylly Games</title>
+</head>
+<body class="bg-stone-50 min-h-screen flex items-center justify-center">
+
+  <!-- ① LOBBY screen — game selection -->
+  <section id="screen-lobby" class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
+    <button class="btn-open-sound absolute top-4 right-4 text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+    <div class="text-6xl" role="img" aria-label="Game controller">🎮</div>
+    <div>
+      <h1 class="text-5xl font-bold leading-tight text-stone-800">Little Sylly</h1>
+      <h1 class="text-5xl font-bold leading-tight text-pink-500">Games</h1>
+    </div>
+    <p class="text-stone-500 text-lg">What are we playing today?</p>
+    <div class="flex flex-col gap-4 w-full mt-2">
+      <button id="btn-dstw" class="min-h-14 w-full rounded-2xl bg-pink-500 hover:bg-pink-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Don't Say Those Words
+      </button>
+      <button id="btn-great-minds" class="min-h-14 w-full rounded-2xl bg-violet-500 hover:bg-violet-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Great Minds
+      </button>
+      <button id="btn-sylly-signals" class="min-h-14 w-full rounded-2xl bg-teal-500 hover:bg-teal-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Sylly Signals
+      </button>
+    </div>
+  </section>
+
+  <!-- ② MENU screen — Don't Say Those Words -->
+  <main id="screen-menu" style="display:none" class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
+    <button class="btn-open-sound absolute top-4 right-4 text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+    <div class="text-6xl" role="img" aria-label="Speech balloon">💬</div>
+    <div>
+      <h1 class="text-5xl font-bold leading-tight text-stone-800">Don't Say</h1>
+      <h1 class="text-5xl font-bold leading-tight text-pink-500">Those Words</h1>
+    </div>
+    <p class="text-stone-500 text-lg">Just make sure you don't say those words!</p>
+    <div class="flex flex-col gap-4 w-full mt-2">
+      <button id="btn-play" class="min-h-14 w-full rounded-2xl bg-pink-500 hover:bg-pink-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Let's Play!
+      </button>
+      <button id="btn-how-to" class="min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        How to Play
+      </button>
+      <button id="btn-settings" class="min-h-14 w-full rounded-2xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Settings
+      </button>
+      <button id="btn-back-to-lobby" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-base font-medium transition-all duration-150">
+        ← Back to the Box
+      </button>
+    </div>
+  </main>
+
+  <!-- ② SETUP screen — team name entry -->
+  <section id="screen-setup" style="display:none" class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
+    <div class="absolute top-4 right-4 flex items-center gap-2">
+      <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+      <button id="btn-setup-exit" class="text-xl text-stone-500 font-bold active:scale-90 transition-transform duration-100">✕</button>
+    </div>
+    <div class="text-5xl" role="img" aria-label="People">👥</div>
+    <div>
+      <h2 class="text-3xl font-bold text-stone-800">Who's playing?</h2>
+      <p class="text-stone-400 text-base mt-1">Leave blank to use Team 1 &amp; Team 2</p>
+    </div>
+    <div class="flex flex-col gap-4 w-full text-left">
+      <div>
+        <label class="text-stone-500 text-sm font-semibold uppercase tracking-widest block mb-1">Team 1 name</label>
+        <input id="input-team1" type="text" maxlength="20" placeholder="e.g. The Legends"
+          class="w-full rounded-xl border-2 border-stone-200 bg-white px-4 py-3 text-lg text-stone-800 placeholder-stone-300 focus:border-pink-400 focus:outline-none transition-colors" />
+      </div>
+      <div>
+        <label class="text-stone-500 text-sm font-semibold uppercase tracking-widest block mb-1">Team 2 name</label>
+        <input id="input-team2" type="text" maxlength="20" placeholder="e.g. The Underdogs"
+          class="w-full rounded-xl border-2 border-stone-200 bg-white px-4 py-3 text-lg text-stone-800 placeholder-stone-300 focus:border-pink-400 focus:outline-none transition-colors" />
+      </div>
+    </div>
+    <button id="btn-start-game" class="min-h-14 w-full rounded-2xl bg-pink-500 hover:bg-pink-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      Let's Go! 🚀
+    </button>
+  </section>
+
+  <!-- ③ INTERMISSION screen — round info, scores, hype, blind start -->
+  <section id="screen-gatekeeper" style="display:none" class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
+    <div class="absolute top-4 right-4 flex items-center gap-2">
+      <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+      <button id="btn-gatekeeper-exit" class="text-xl text-stone-500 font-bold active:scale-90 transition-transform duration-100">✕</button>
+    </div>
+    <p id="gatekeeper-round-label" class="text-stone-400 text-sm font-semibold uppercase tracking-widest">Round 1 of 5</p>
+
+    <!-- Mini scoreboard -->
+    <div class="flex gap-4 w-full">
+      <div id="gatekeeper-score-team1" class="team-box flex-1 rounded-2xl bg-white shadow-sm p-4">
+        <p id="gatekeeper-name-team1" class="text-stone-500 text-sm font-semibold truncate">Team 1</p>
+        <p id="gatekeeper-pts-team1" class="text-4xl font-bold text-stone-800">0</p>
+      </div>
+      <div id="gatekeeper-score-team2" class="team-box flex-1 rounded-2xl bg-white shadow-sm p-4">
+        <p id="gatekeeper-name-team2" class="text-stone-500 text-sm font-semibold truncate">Team 2</p>
+        <p id="gatekeeper-pts-team2" class="text-4xl font-bold text-stone-800">0</p>
+      </div>
+    </div>
+
+    <!-- Team name + hype -->
+    <div>
+      <p class="text-stone-400 text-base">Ready up,</p>
+      <h2 id="gatekeeper-team-name" class="text-4xl font-bold text-stone-800 mt-1"></h2>
+      <p id="gatekeeper-hype" class="text-stone-500 text-lg mt-3 italic"></p>
+    </div>
+
+    <button id="btn-start-turn" class="min-h-14 w-full rounded-2xl bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      Start Turn!
+    </button>
+  </section>
+
+  <!-- ⑤ ACTIVE PLAY screen — timer, word, taboo list, score buttons -->
+  <section id="screen-active-play" style="display:none" class="flex flex-col items-center px-6 py-3 w-full max-w-sm mx-auto text-center gap-2">
+
+    <!-- Header row: [Team Name] | Timer | [⏸ ⏭ 🔊 ✕] -->
+    <div class="w-full" style="display:grid; grid-template-columns: 1fr auto 1fr; align-items: center;">
+      <div class="flex flex-col items-center min-w-0">
+        <span id="active-team-label" class="text-stone-500 text-sm font-semibold truncate w-full"></span>
+        <span id="hype-phrase" class="text-xs font-bold text-orange-500 leading-tight"></span>
+      </div>
+      <span id="timer-display" class="text-3xl font-bold text-stone-800 tabular-nums">1:00</span>
+      <div class="flex items-center justify-end gap-2">
+        <button id="btn-pause"    aria-label="Pause"    class="text-xl leading-none text-stone-400 active:scale-90 transition-transform duration-100">⏸</button>
+        <button id="btn-end-turn" aria-label="End turn" class="text-xl leading-none text-stone-400 active:scale-90 transition-transform duration-100">⏭</button>
+        <button id="btn-mute"     aria-label="Mute"     class="text-xl leading-none text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+        <button id="btn-stop"     aria-label="Quit game" class="text-xl leading-none text-red-500 font-bold active:scale-90 transition-transform duration-100">✕</button>
+      </div>
+    </div>
+
+    <!-- Pause overlay — shown instead of word/taboo/buttons when paused -->
+    <div id="pause-overlay" style="display:none" class="flex flex-col items-center gap-4 w-full">
+      <p class="text-5xl">⏸</p>
+      <p class="text-stone-400 text-lg font-semibold">Game paused</p>
+      <p class="text-stone-400 text-sm">Word is hidden so no one can peek!</p>
+      <button id="btn-resume" class="min-h-14 w-full rounded-2xl bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        ▶ Resume Turn
+      </button>
+    </div>
+
+    <!-- Game content — hidden while paused -->
+    <div id="active-content" class="flex flex-col w-full gap-2">
+      <!-- Target word + taboo list wrapped for Sylly glow -->
+      <div id="active-word-card" class="w-full">
+        <p id="word-category-label" class="text-stone-400 text-xs uppercase tracking-widest mb-1"></p>
+        <h2 id="active-word" class="text-3xl font-bold text-pink-500 mb-2"></h2>
+        <div id="taboo-card" class="w-full text-center bg-white rounded-2xl p-3 shadow-sm">
+          <p class="text-stone-400 text-xs uppercase tracking-widest mb-2">The No-No List</p>
+          <ul id="active-taboo-list" class="flex flex-col gap-2"></ul>
+        </div>
+      </div>
+
+      <!-- Live score + Sylly scoring hint -->
+      <p class="text-stone-500 text-base mb-1">Score: <span id="score-display" class="font-bold text-stone-800">0</span></p>
+      <p id="sylly-scoring-hint" style="display:none" class="text-purple-500 text-sm font-semibold">✨ Sylly word x2 🔥</p>
+
+      <!-- Action buttons -->
+      <div class="flex gap-3 w-full mb-3">
+        <button id="btn-correct" class="min-h-12 flex-1 rounded-xl bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white text-lg font-semibold transition-all duration-150">
+          YAY!
+        </button>
+        <button id="btn-taboo" class="min-h-12 flex-1 rounded-xl bg-red-500 hover:bg-red-600 active:scale-95 text-white text-lg font-semibold transition-all duration-150">
+          NAY!
+        </button>
+      </div>
+      <button id="btn-skip" class="min-h-10 w-full rounded-xl bg-stone-300 hover:bg-stone-400 active:scale-95 text-stone-700 text-base font-semibold transition-all duration-150">
+        Skip
+      </button>
+    </div>
+  </section>
+
+  <!-- ⑦ SETTINGS MODAL — slide-up overlay -->
+  <div id="settings-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-50 flex items-end justify-center">
+    <div class="settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl px-6 pt-5 pb-5 flex flex-col" style="max-height: 85vh;">
+
+      <!-- Fixed header — never scrolls -->
+      <h3 class="text-xl font-bold text-stone-800 text-center">⚙️ Settings</h3>
+      <p class="text-stone-400 text-xs text-center mt-1 mb-3">Resets to defaults on page refresh</p>
+
+      <!-- Scrollable settings body -->
+      <div class="flex-1 overflow-y-auto flex flex-col gap-3 pb-1">
+
+        <!-- Decks -->
+        <div>
+          <p class="text-stone-500 text-xs font-semibold uppercase tracking-widest mb-2">Decks</p>
+          <div class="flex items-center justify-between">
+            <p class="text-stone-800 font-semibold">Play All Decks</p>
+            <button id="all-decks-toggle" class="sylly-toggle-on">ON</button>
+          </div>
+          <button id="btn-edit-deck" style="display:none"
+            class="mt-2 w-full rounded-xl bg-stone-200 text-stone-700 font-semibold py-2 text-base active:scale-95 transition-all">
+            Edit Custom Deck ▸
+          </button>
+        </div>
+
+        <!-- Timer -->
+        <div>
+          <p class="text-stone-500 text-xs font-semibold uppercase tracking-widest mb-2">Timer</p>
+          <div class="flex gap-2">
+            <button class="pill" data-group="timer" data-value="30">30s</button>
+            <button class="pill pill-active" data-group="timer" data-value="60">60s</button>
+            <button class="pill" data-group="timer" data-value="90">90s</button>
+          </div>
+        </div>
+
+        <!-- Rounds -->
+        <div>
+          <p class="text-stone-500 text-xs font-semibold uppercase tracking-widest mb-2">Rounds</p>
+          <div class="flex gap-2">
+            <button class="pill" data-group="rounds" data-value="3">3</button>
+            <button class="pill pill-active" data-group="rounds" data-value="5">5</button>
+            <button class="pill" data-group="rounds" data-value="10">10</button>
+          </div>
+        </div>
+
+        <!-- The No-No List -->
+        <div>
+          <p class="text-stone-500 text-xs font-semibold uppercase tracking-widest mb-2">The No-No List</p>
+          <div class="flex gap-2">
+            <button class="pill pill-active" data-group="taboo-count" data-value="5">5 words</button>
+            <button class="pill" data-group="taboo-count" data-value="10">10 words 🔥</button>
+          </div>
+        </div>
+
+        <!-- Penalty Type -->
+        <div>
+          <p class="text-stone-500 text-xs font-semibold uppercase tracking-widest mb-2">Penalty Type</p>
+          <div class="flex gap-2">
+            <button class="pill pill-active" data-group="penalty-mode" data-value="points">−1 Point</button>
+            <button id="pill-time-penalty" class="pill" data-group="penalty-mode" data-value="time">−10 Secs</button>
+          </div>
+        </div>
+
+        <!-- Skip Cost -->
+        <div>
+          <p class="text-stone-500 text-xs font-semibold uppercase tracking-widest mb-2">Skip Cost</p>
+          <div class="flex gap-2">
+            <button class="pill pill-active" data-group="skip-cost" data-value="free">Free</button>
+            <button class="pill"             data-group="skip-cost" data-value="penalised">Penalised</button>
+          </div>
+        </div>
+
+        <!-- Review Corrections -->
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-stone-800 font-semibold">Allow Review Edits</p>
+            <p class="text-stone-400 text-sm">Tap words to flip outcome.</p>
+          </div>
+          <button id="corrections-toggle" class="sylly-toggle-off">OFF</button>
+        </div>
+
+        <!-- Sylly Mode toggle -->
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-stone-800 font-semibold">✨ Sylly Mode</p>
+            <p class="text-stone-400 text-sm">Wild words. High stakes.</p>
+          </div>
+          <button id="sylly-toggle" class="sylly-toggle-off">OFF</button>
+        </div>
+
+        <!-- Sylly intensity (hidden until toggle ON) -->
+        <div id="sylly-pct-row" style="display:none">
+          <p class="text-purple-400 text-sm font-semibold uppercase tracking-widest mb-2">
+            Sylly Intensity — <span id="sylly-intensity-label">30%</span>
+          </p>
+          <input id="sylly-intensity" type="range" min="30" max="100" step="10" value="30"
+            class="sylly-range w-full" />
+        </div>
+
+      </div><!-- end scrollable body -->
+
+      <!-- Sticky Done — always visible -->
+      <div class="pt-4">
+        <button id="btn-settings-done" class="min-h-14 w-full rounded-2xl bg-pink-500 hover:bg-pink-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+          Done
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ⑥ GAME OVER screen — final scores, winner announcement -->
+  <section id="screen-gameover" style="display:none" class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
+    <div class="absolute top-4 right-4 flex items-center gap-2">
+      <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+      <button id="btn-gameover-exit" class="text-xl text-stone-500 font-bold active:scale-90 transition-transform duration-100">✕</button>
+    </div>
+    <div class="text-6xl" role="img" aria-label="Trophy">🏆</div>
+    <h2 class="text-3xl font-bold text-stone-800">Game Over!</h2>
+
+    <!-- Final scoreboard -->
+    <div class="flex gap-4 w-full">
+      <div id="gameover-card-team1" class="team-box flex-1 rounded-2xl bg-white shadow-sm p-4 cursor-pointer active:opacity-75 transition-opacity">
+        <p id="gameover-name-team1" class="text-stone-500 text-sm font-semibold truncate">Team 1</p>
+        <p id="gameover-pts-team1" class="text-5xl font-bold text-stone-800">0</p>
+        <p class="text-stone-300 text-xs mt-1">View History ›</p>
+      </div>
+      <div id="gameover-card-team2" class="team-box flex-1 rounded-2xl bg-white shadow-sm p-4 cursor-pointer active:opacity-75 transition-opacity">
+        <p id="gameover-name-team2" class="text-stone-500 text-sm font-semibold truncate">Team 2</p>
+        <p id="gameover-pts-team2" class="text-5xl font-bold text-stone-800">0</p>
+        <p class="text-stone-300 text-xs mt-1">View History ›</p>
+      </div>
+    </div>
+
+    <!-- Winner line -->
+    <p id="gameover-result" class="text-2xl font-bold text-pink-500"></p>
+
+    <!-- Early end message (word exhaustion) -->
+    <p id="gameover-early-end" style="display:none" class="text-stone-400 text-sm italic"></p>
+
+    <button id="btn-play-again" class="min-h-14 w-full rounded-2xl bg-pink-500 hover:bg-pink-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      Play Again!
+    </button>
+  </section>
+
+  <!-- Custom Deck sub-panel -->
+  <div id="deck-panel" style="display:none"
+    class="fixed inset-0 bg-black/40 z-[60] flex items-end justify-center">
+    <div class="deck-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl px-6 pt-5 pb-10 flex flex-col gap-4">
+
+      <!-- Header -->
+      <div class="text-center">
+        <h3 class="text-xl font-bold text-stone-800">Custom Deck</h3>
+      </div>
+      <p class="text-stone-400 text-xs text-center -mt-2">Tap to include or exclude a category</p>
+
+      <!-- Toggle All -->
+      <div class="flex justify-end -mt-1">
+        <button id="btn-toggle-all-decks" class="text-xs font-semibold text-pink-500 active:opacity-60 transition-opacity">Deselect All</button>
+      </div>
+
+      <!-- Category grid -->
+      <div class="grid grid-cols-2 gap-3">
+        <button class="deck-card deck-card-active" data-category="animals">🐾 Animals</button>
+        <button class="deck-card deck-card-active" data-category="food">🍕 Food</button>
+        <button class="deck-card deck-card-active" data-category="places">📍 Places</button>
+        <button class="deck-card deck-card-active" data-category="objects">📦 Objects</button>
+        <button class="deck-card deck-card-active" data-category="sports">⚽ Sports</button>
+        <button class="deck-card deck-card-active" data-category="nature">🌿 Nature</button>
+        <button class="deck-card deck-card-active" data-category="vehicles">🚗 Vehicles</button>
+        <button class="deck-card deck-card-active" data-category="jobs">💼 Jobs</button>
+        <button class="deck-card deck-card-active" data-category="activities">🎯 Activities</button>
+        <button class="deck-card deck-card-active" data-category="music">🎵 Music</button>
+        <button class="deck-card deck-card-active" data-category="pop_culture">🎬 Pop Culture</button>
+        <button class="deck-card deck-card-active" data-category="people">👤 People</button>
+        <button class="deck-card deck-card-active" data-category="brands">🏷️ Brands</button>
+        <button class="deck-card deck-card-active" data-category="emotions">💭 Emotions</button>
+        <button class="deck-card deck-card-active" data-category="actions">⚡ Actions</button>
+        <button class="deck-card deck-card-active" data-category="aussie_slang">🦘 Aussie Slang</button>
+      </div>
+
+      <p id="deck-empty-msg" style="display:none" class="text-center text-pink-500 text-sm font-semibold">
+        Don't be Sylly — we need at least one deck to play! 🃏
+      </p>
+
+      <p id="deck-few-msg" style="display:none" class="text-center text-amber-500 text-sm font-semibold">
+        You sure? It'll be way more fun with more decks! 🎉
+      </p>
+
+      <button id="btn-deck-done"
+        class="min-h-14 w-full rounded-2xl bg-pink-500 hover:bg-pink-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Done
+      </button>
+    </div>
+  </div>
+
+  <!-- Quit confirmation overlay -->
+  <div id="quit-overlay" style="display:none" class="fixed inset-0 bg-black/50 z-[80] flex items-center justify-center px-6">
+    <div class="bg-white rounded-2xl p-8 w-full max-w-sm text-center flex flex-col gap-3 shadow-xl">
+      <p class="text-4xl">🛑</p>
+      <h3 class="text-xl font-bold text-stone-800">Quit game?</h3>
+      <p class="text-stone-400 text-sm">All scores will be lost.</p>
+      <button id="btn-quit-confirm" class="min-h-12 w-full rounded-xl bg-red-500 hover:bg-red-600 active:scale-95 text-white text-lg font-semibold transition-all duration-150 mt-2">
+        Yes, quit
+      </button>
+      <button id="btn-quit-cancel" class="min-h-12 w-full rounded-xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 text-lg font-semibold transition-all duration-150">
+        Keep playing
+      </button>
+    </div>
+  </div>
+
+  <!-- Skip turn confirmation overlay -->
+  <div id="skip-turn-overlay" style="display:none" class="fixed inset-0 bg-black/50 z-[80] flex items-center justify-center px-6">
+    <div class="bg-white rounded-2xl p-8 w-full max-w-sm text-center flex flex-col gap-3 shadow-xl">
+      <p class="text-4xl">⏭</p>
+      <h3 class="text-xl font-bold text-stone-800">End turn early?</h3>
+      <p class="text-stone-400 text-sm">The current word won't count.</p>
+      <button id="btn-skip-turn-confirm" class="min-h-12 w-full rounded-xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-lg font-semibold transition-all duration-150 mt-2">
+        Yes, end turn
+      </button>
+      <button id="btn-skip-turn-cancel" class="min-h-12 w-full rounded-xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 text-lg font-semibold transition-all duration-150">
+        Resume turn
+      </button>
+    </div>
+  </div>
+
+  <!-- Round Review overlay — slide-up sheet, appears after each turn -->
+  <div id="review-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[90] flex items-end justify-center">
+    <div class="settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl px-5 pt-5 pb-5 flex flex-col" style="max-height: 85vh;">
+
+      <!-- Header -->
+      <div class="text-center mb-1">
+        <p id="review-team-label" class="text-stone-400 text-xs font-semibold uppercase tracking-widest"></p>
+        <h3 class="text-xl font-bold text-stone-800 mt-0.5">Round Summary</h3>
+        <p id="review-score-delta" class="text-pink-500 font-semibold text-sm mt-0.5"></p>
+      </div>
+
+      <!-- Streak callout (hidden unless 3+ consecutive correct) -->
+      <p id="review-streak" style="display:none" class="text-center text-orange-500 font-bold text-sm mb-2">🔥 Hot streak!</p>
+
+      <!-- Scrollable word list -->
+      <ul id="review-list" class="flex-1 overflow-y-auto flex flex-col gap-2 py-3 min-h-0"></ul>
+
+      <!-- Next button -->
+      <div class="pt-3">
+        <button id="btn-review-next" class="min-h-14 w-full rounded-2xl bg-pink-500 hover:bg-pink-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+          Next →
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Match History overlay -->
+  <div id="history-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[90] flex items-end justify-center">
+    <div class="settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl px-5 pt-5 pb-5 flex flex-col" style="max-height: 85vh;">
+      <div class="text-center mb-3">
+        <p id="history-subtitle" class="text-stone-400 text-xs font-semibold uppercase tracking-widest mb-0.5">Match History</p>
+        <h3 id="history-title" class="text-xl font-bold text-stone-800"></h3>
+      </div>
+      <div id="history-body" class="flex-1 overflow-y-auto flex flex-col gap-4 pb-2 min-h-0"></div>
+      <div class="pt-3">
+        <button id="btn-history-close" class="min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- How to Play overlay -->
+  <div id="how-to-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[90] flex items-end justify-center">
+    <div class="settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl px-6 pt-6 pb-6 flex flex-col gap-5" style="max-height: 85vh; overflow-y: auto;">
+
+      <div class="text-center">
+        <div class="text-4xl mb-1">💬</div>
+        <h3 class="text-2xl font-bold text-stone-800">How to Play</h3>
+        <p class="text-stone-400 text-sm mt-1">Don't Say Those Words</p>
+      </div>
+
+      <div class="bg-white rounded-2xl p-4 shadow-sm">
+        <p class="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-2">Step 1 — The Goal 🎯</p>
+        <p class="text-stone-700 font-semibold text-base leading-snug">Divide into two teams.</p>
+        <p class="text-stone-500 text-sm mt-1 leading-relaxed">One person describes the Word on screen while their team guesses. Get as many right as you can before the timer runs out — then pass the phone!</p>
+      </div>
+
+      <div class="bg-white rounded-2xl p-4 shadow-sm">
+        <p class="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-2">Step 2 — The Rules 🚫</p>
+        <p class="text-stone-700 font-semibold text-base leading-snug">Don't say the No-No words.</p>
+        <p class="text-stone-500 text-sm mt-1 leading-relaxed">You also can't say any part of the main word. Use your hands, sounds, or wild metaphors — just no cheating, yeah?</p>
+      </div>
+
+      <div class="bg-white rounded-2xl p-4 shadow-sm">
+        <p class="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-2">Step 3 — Scoring ✅</p>
+        <div class="flex flex-col gap-1.5 text-sm text-stone-500">
+          <p>✅ <span class="font-semibold text-stone-700">Correct</span> — your team got it, ripper!</p>
+          <p>❌ <span class="font-semibold text-stone-700">No-No!</span> — busted! Points off.</p>
+          <p>⏩ <span class="font-semibold text-stone-700">Skip</span> — too hard? Pass it on.</p>
+          <p>✨ <span class="font-semibold text-stone-700">Sylly words</span> — tricky ones worth double points.</p>
+        </div>
+      </div>
+
+      <button id="btn-how-to-close" class="min-h-14 w-full rounded-2xl bg-pink-500 hover:bg-pink-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Got it! Let's go 🚀
+      </button>
+
+    </div>
+  </div>
+
+  <!-- ══ GREAT MINDS SCREENS ══════════════════════════════════════════════════ -->
+
+  <!-- GM MENU screen — Great Minds game hub -->
+  <section id="screen-gm-menu" style="display:none" class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
+    <button class="btn-open-sound absolute top-4 right-4 text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+    <div class="text-6xl" role="img" aria-label="Brain">🧠</div>
+    <div>
+      <h1 class="text-5xl font-bold leading-tight text-stone-800">Great</h1>
+      <h1 class="text-5xl font-bold leading-tight text-violet-500">Minds</h1>
+    </div>
+    <p class="text-stone-500 text-lg">Think alike. Say the same word.</p>
+    <div class="flex flex-col gap-4 w-full mt-2">
+      <button id="btn-gm-menu-play" class="min-h-14 w-full rounded-2xl bg-violet-500 hover:bg-violet-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Let's Play!
+      </button>
+      <button id="btn-gm-menu-how-to" class="min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        How to Play
+      </button>
+      <button id="btn-gm-menu-settings" class="min-h-14 w-full rounded-2xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Settings
+      </button>
+      <button id="btn-gm-menu-back" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-base font-medium transition-all duration-150">
+        ← Back to the Box
+      </button>
+    </div>
+  </section>
+
+  <!-- GM① SETUP — name entry (phase: 'names') then pair reveal (phase: 'pair') -->
+  <section id="screen-gm-setup" style="display:none" class="flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
+
+    <!-- Phase: names -->
+    <div id="gm-setup-names" class="flex flex-col items-center gap-6 w-full">
+      <div class="flex items-center justify-between w-full">
+        <div class="w-10"></div>
+        <div class="text-6xl" role="img" aria-label="Brain">🧠</div>
+        <div class="flex items-center gap-2">
+          <button class="btn-open-sound w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-lg">🔊</button>
+          <button id="btn-gm-setup-exit" class="w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-stone-500 font-bold text-lg">✕</button>
+        </div>
+      </div>
+      <div>
+        <h2 class="text-3xl font-bold text-stone-800">Great Minds</h2>
+        <p class="text-stone-400 text-sm mt-1">Who's mind-melding today?</p>
+      </div>
+      <div class="flex flex-col gap-3 w-full">
+        <input id="gm-input-player1" type="text" maxlength="20" placeholder="Player 1 name" autocomplete="off"
+          class="w-full rounded-2xl border-2 border-stone-200 px-4 py-3 text-lg text-center text-stone-800 focus:outline-none focus:border-violet-400" />
+        <input id="gm-input-player2" type="text" maxlength="20" placeholder="Player 2 name" autocomplete="off"
+          class="w-full rounded-2xl border-2 border-stone-200 px-4 py-3 text-lg text-center text-stone-800 focus:outline-none focus:border-violet-400" />
+      </div>
+      <button id="btn-gm-names-done" class="min-h-14 w-full rounded-2xl bg-violet-500 hover:bg-violet-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Let's Meld 🧠
+      </button>
+    </div>
+
+    <!-- Phase: pair reveal (hidden until names submitted) -->
+    <div id="gm-setup-pair" style="display:none" class="flex flex-col items-center gap-6 w-full">
+      <p class="text-stone-400 text-sm font-semibold uppercase tracking-widest">Round 1 — Connect these</p>
+      <div class="flex items-center justify-center gap-4 w-full">
+        <div class="flex-1 bg-white rounded-2xl py-5 shadow-sm">
+          <p id="gm-pair-word-a" class="text-2xl font-bold text-stone-800"></p>
+        </div>
+        <div class="text-2xl text-stone-300">↔</div>
+        <div class="flex-1 bg-white rounded-2xl py-5 shadow-sm">
+          <p id="gm-pair-word-b" class="text-2xl font-bold text-stone-800"></p>
+        </div>
+      </div>
+      <p class="text-stone-500 text-sm">Both players — look together, then pass the phone.</p>
+      <button id="btn-gm-start-round" class="min-h-14 w-full rounded-2xl bg-violet-500 hover:bg-violet-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Start! 🚀
+      </button>
+    </div>
+
+  </section>
+
+  <!-- GM② INPUT — privacy gate, reused for Player 1 and Player 2 -->
+  <section id="screen-gm-input" style="display:none" class="flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-5">
+    <div class="flex justify-end gap-2 w-full">
+      <button class="btn-open-sound w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-lg">🔊</button>
+      <button id="btn-gm-input-exit" class="w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-stone-500 font-bold">✕</button>
+    </div>
+    <p id="gm-input-prompt" class="text-stone-400 text-sm font-semibold uppercase tracking-widest">Your turn</p>
+    <div class="flex items-center justify-center gap-4 w-full">
+      <div class="flex-1 bg-white rounded-2xl py-4 shadow-sm">
+        <p id="gm-input-word-a" class="text-xl font-bold text-stone-800"></p>
+      </div>
+      <div class="text-xl text-stone-300">↔</div>
+      <div class="flex-1 bg-white rounded-2xl py-4 shadow-sm">
+        <p id="gm-input-word-b" class="text-xl font-bold text-stone-800"></p>
+      </div>
+    </div>
+    <p class="text-stone-500 text-sm">What one word connects them?</p>
+    <input id="gm-word-input" type="text" maxlength="30" placeholder="Your connecting word…" autocomplete="off"
+      class="w-full rounded-2xl border-2 border-stone-200 px-4 py-4 text-xl text-center text-stone-800 focus:outline-none focus:border-violet-400" />
+    <p id="gm-input-error" style="display:none" class="text-pink-500 text-sm font-semibold text-center">
+      Oi! That's cheating — pick a fresh word ✋
+    </p>
+    <button id="btn-gm-lock-in" class="min-h-14 w-full rounded-2xl bg-violet-500 hover:bg-violet-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      Lock it in 🔒
+    </button>
+  </section>
+
+  <!-- GM③ PASS GATE — neutral handoff, nothing revealing -->
+  <section id="screen-gm-pass-gate" style="display:none" class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
+    <div class="absolute top-4 right-4 flex items-center gap-2">
+      <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+      <button id="btn-gm-pass-exit" class="text-xl text-stone-500 font-bold active:scale-90 transition-transform duration-100">✕</button>
+    </div>
+    <div class="text-6xl">🙈</div>
+    <div>
+      <h2 class="text-2xl font-bold text-stone-800">Word locked.</h2>
+      <p id="gm-pass-prompt" class="text-stone-500 text-lg mt-2">Pass the phone to <span id="gm-pass-name" class="font-semibold text-violet-500"></span></p>
+    </div>
+    <button id="btn-gm-ready" class="min-h-14 w-full rounded-2xl bg-violet-500 hover:bg-violet-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      I've got it 👋
+    </button>
+  </section>
+
+  <!-- GM④ REVEAL GATE — both players watch the countdown together -->
+  <section id="screen-gm-reveal-gate" style="display:none" class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
+    <div class="absolute top-4 right-4 flex items-center gap-2">
+      <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+      <button id="btn-gm-reveal-gate-exit" class="text-xl text-stone-500 font-bold active:scale-90 transition-transform duration-100">✕</button>
+    </div>
+    <div class="text-6xl">🤝</div>
+    <div>
+      <h2 class="text-2xl font-bold text-stone-800">Words locked.</h2>
+      <p class="text-stone-500 text-lg mt-2">Pass to <span id="gm-ready-pass-name" class="font-semibold text-violet-500"></span> — both watch together!</p>
+    </div>
+    <button id="btn-gm-countdown-ready" class="min-h-14 w-full rounded-2xl bg-violet-500 hover:bg-violet-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      Ready! 🚀
+    </button>
+  </section>
+
+  <!-- GM⑤ REVEAL COUNTDOWN — 3… 2… 1… -->
+  <section id="screen-gm-reveal" style="display:none" class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
+    <div class="absolute top-4 right-4 flex items-center gap-2">
+      <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+      <button id="btn-gm-reveal-exit" class="text-xl text-stone-500 font-bold active:scale-90 transition-transform duration-100">✕</button>
+    </div>
+    <p class="text-stone-400 text-sm font-semibold uppercase tracking-widest">Revealing in…</p>
+    <p id="gm-countdown-number" class="text-9xl font-bold text-violet-500 leading-none">3</p>
+  </section>
+
+  <!-- GM⑤ RESULT — match or no match -->
+  <section id="screen-gm-result" style="display:none" class="flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
+
+    <!-- No-match state (shown by default, hidden on match) -->
+    <div id="gm-result-nomatch" class="flex flex-col items-center gap-5 w-full">
+      <div class="flex justify-end gap-2 w-full">
+        <button class="btn-open-sound w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-lg">🔊</button>
+        <button id="btn-gm-result-exit" class="w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-stone-500 font-bold">✕</button>
+      </div>
+      <div class="text-5xl">🤔</div>
+      <div>
+        <h2 id="gm-result-heading" class="text-2xl font-bold text-stone-800">Not quite…</h2>
+        <p class="text-stone-500 text-sm mt-1">Round <span id="gm-result-round-num"></span></p>
+      </div>
+      <div class="flex items-center justify-center gap-3 w-full">
+        <div class="flex-1 bg-white rounded-2xl py-4 shadow-sm">
+          <p class="text-xs text-stone-400 mb-1" id="gm-result-name-a"></p>
+          <p id="gm-result-word-a" class="text-xl font-bold text-stone-800"></p>
+        </div>
+        <div class="text-xl text-stone-300">≠</div>
+        <div class="flex-1 bg-white rounded-2xl py-4 shadow-sm">
+          <p class="text-xs text-stone-400 mb-1" id="gm-result-name-b"></p>
+          <p id="gm-result-word-b" class="text-xl font-bold text-stone-800"></p>
+        </div>
+      </div>
+      <p id="gm-result-pair-hint" class="text-stone-400 text-sm">These are your new starting words ↑</p>
+      <button id="btn-gm-next-round" class="min-h-14 w-full rounded-2xl bg-violet-500 hover:bg-violet-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Next Round 🔄
+      </button>
+      <button id="btn-gm-override" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-base font-medium transition-all duration-150">
+        Actually... that counts 🤝
+      </button>
+    </div>
+
+    <!-- Match state (hidden until match) -->
+    <div id="gm-result-match" style="display:none" class="flex flex-col items-center gap-5 w-full">
+      <div class="text-6xl">🎉</div>
+      <div>
+        <h2 class="text-3xl font-bold text-violet-500">MIND MELD!</h2>
+        <p id="gm-match-subtext" class="text-stone-500 text-sm mt-1">You both said…</p>
+      </div>
+      <div class="bg-white rounded-2xl py-6 px-8 shadow-sm w-full">
+        <p id="gm-match-word" class="text-3xl font-bold text-stone-800"></p>
+      </div>
+      <div class="bg-stone-100 rounded-2xl p-4 w-full">
+        <p class="text-stone-400 text-xs uppercase tracking-widest mb-1">Rounds to meld</p>
+        <p id="gm-victory-rounds" class="text-4xl font-bold text-stone-800"></p>
+      </div>
+      <div id="gm-journey-log" class="flex flex-col gap-2 w-full max-h-52 overflow-y-auto"></div>
+      <button id="btn-gm-victory-lobby" class="min-h-14 w-full rounded-2xl bg-violet-500 hover:bg-violet-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        New Game 🧠
+      </button>
+    </div>
+
+  </section>
+
+  <!-- Great Minds Settings overlay -->
+  <div id="gm-settings-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[80] flex items-end justify-center">
+    <div class="settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl px-6 pt-6 pb-8 flex flex-col gap-5" style="max-height:85vh; overflow-y:auto;">
+
+      <div class="text-center">
+        <h3 class="text-xl font-bold text-stone-800">Great Minds Settings</h3>
+        <p class="text-stone-400 text-sm mt-1">Tweak before you meld.</p>
+      </div>
+
+      <!-- Custom Words toggle + pickers -->
+      <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-4">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-stone-800 font-semibold">Customise Words</p>
+            <p class="text-stone-400 text-sm">Pick a category for each word.</p>
+          </div>
+          <button id="btn-gm-custom-toggle" class="sylly-toggle-off">OFF</button>
+        </div>
+
+        <div id="gm-custom-pickers" style="display:none" class="flex flex-col gap-2">
+          <button id="btn-gm-set-pool-a" class="min-h-12 w-full rounded-xl bg-stone-100 hover:bg-stone-200 active:scale-95 text-stone-700 text-sm font-semibold transition-all duration-150 text-left px-4">
+            Word 1 Decks — all 📂
+          </button>
+          <button id="btn-gm-set-pool-b" class="min-h-12 w-full rounded-xl bg-stone-100 hover:bg-stone-200 active:scale-95 text-stone-700 text-sm font-semibold transition-all duration-150 text-left px-4">
+            Word 2 Decks — all 📂
+          </button>
+        </div>
+      </div>
+
+      <!-- Sylly Mode -->
+      <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-stone-800 font-semibold">✨ Sylly Mode</p>
+            <p class="text-stone-400 text-sm">Weirder words. Higher stakes.</p>
+          </div>
+          <button id="btn-gm-sylly-toggle" class="sylly-toggle-off">OFF</button>
+        </div>
+        <div id="gm-sylly-intensity" style="display:none" class="flex gap-2">
+          <button class="pill pill-active-purple" data-gm-intensity="2">Wild</button>
+          <button class="pill" data-gm-intensity="3">Wilder 🔥</button>
+        </div>
+      </div>
+
+      <button id="btn-gm-settings-done" class="min-h-14 w-full rounded-2xl bg-violet-500 hover:bg-violet-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Done ✓
+      </button>
+
+    </div>
+  </div>
+
+  <!-- Override confirmation overlay (Great Minds) -->
+  <div id="gm-override-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[90] flex items-end justify-center">
+    <div class="settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center">
+      <p class="text-4xl">🤥</p>
+      <p class="text-xl font-bold text-stone-800">Fair dinkum?</p>
+      <p class="text-stone-500 text-sm">Spirit of the game... or total cobblers?</p>
+      <button id="btn-gm-override-confirm" class="min-h-14 w-full rounded-2xl bg-violet-500 hover:bg-violet-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Count it, we're geniuses 🧠
+      </button>
+      <button id="btn-gm-override-cancel" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-base font-medium transition-all duration-150">
+        Nah, keep going
+      </button>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!-- SYLLY SIGNALS screens                                                  -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+
+  <!-- SS-① MENU -->
+  <section id="screen-ss-menu" style="display:none" class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
+    <button class="btn-open-sound absolute top-4 right-4 text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+    <div class="text-6xl" role="img" aria-label="Satellite">📡</div>
+    <div>
+      <h1 class="text-5xl font-bold leading-tight text-stone-800">Sylly</h1>
+      <h1 class="text-5xl font-bold leading-tight text-teal-500">Signals</h1>
+    </div>
+    <p class="text-stone-500 text-lg">Can you crack the code?</p>
+    <div class="flex flex-col gap-4 w-full mt-2">
+      <button id="btn-ss-play" class="min-h-14 w-full rounded-2xl bg-teal-500 hover:bg-teal-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Let's Play!
+      </button>
+      <button id="btn-ss-how-to" class="min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        How to Play
+      </button>
+      <button id="btn-ss-settings" class="min-h-14 w-full rounded-2xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Settings
+      </button>
+      <button id="btn-ss-back" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-base font-medium transition-all duration-150">
+        ← Back to the Box
+      </button>
+    </div>
+  </section>
+
+  <!-- SS-② SETUP — team name entry -->
+  <section id="screen-ss-setup" style="display:none" class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
+    <div class="absolute top-4 right-4 flex items-center gap-2">
+      <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+      <button id="btn-ss-setup-exit" class="text-xl text-stone-500 font-bold active:scale-90 transition-transform duration-100">✕</button>
+    </div>
+    <div class="text-5xl" role="img" aria-label="People">👥</div>
+    <div>
+      <h2 class="text-3xl font-bold text-stone-800">Who's playing?</h2>
+      <p class="text-stone-400 text-base mt-1">Leave blank to use Team A &amp; Team B</p>
+    </div>
+    <div class="flex flex-col gap-4 w-full text-left">
+      <div>
+        <label class="text-stone-500 text-sm font-semibold uppercase tracking-widest block mb-1">Team A name</label>
+        <input id="ss-input-team-a" type="text" maxlength="20" placeholder="e.g. The Agents"
+          class="w-full rounded-xl border-2 border-stone-200 bg-white px-4 py-3 text-lg text-stone-800 placeholder-stone-300 focus:border-teal-400 focus:outline-none transition-colors" />
+      </div>
+      <div>
+        <label class="text-stone-500 text-sm font-semibold uppercase tracking-widest block mb-1">Team B name</label>
+        <input id="ss-input-team-b" type="text" maxlength="20" placeholder="e.g. The Analysts"
+          class="w-full rounded-xl border-2 border-stone-200 bg-white px-4 py-3 text-lg text-stone-800 placeholder-stone-300 focus:border-teal-400 focus:outline-none transition-colors" />
+      </div>
+    </div>
+    <button id="btn-ss-start-game" class="min-h-14 w-full rounded-2xl bg-teal-500 hover:bg-teal-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      Next — Meet the Operatives 👥
+    </button>
+  </section>
+
+  <!-- SS-② PLAYERS — operative names -->
+  <section id="screen-ss-players" style="display:none" class="relative flex flex-col items-start px-6 py-10 w-full max-w-sm mx-auto gap-5">
+    <div class="flex justify-between items-center w-full">
+      <button id="btn-ss-players-back" class="text-stone-500 font-bold text-xl active:scale-90 transition-transform duration-100">←</button>
+      <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest">Operatives</p>
+      <div class="flex items-center gap-2">
+        <button class="btn-open-sound w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-lg">🔊</button>
+      </div>
+    </div>
+    <div>
+      <h2 class="text-2xl font-bold text-stone-800">Meet the Operatives</h2>
+      <p class="text-stone-400 text-sm mt-1">Names optional — helps with broadcaster rotation.</p>
+    </div>
+    <!-- Player count toggle -->
+    <div class="w-full">
+      <p class="text-stone-600 text-sm font-semibold mb-2">Team size</p>
+      <div class="flex gap-2">
+        <button class="pill pill-active-teal" data-ss-player-count="2">2v2</button>
+        <button class="pill" data-ss-player-count="3">3v3</button>
+      </div>
+    </div>
+    <!-- Team A -->
+    <div class="w-full">
+      <p id="ss-players-team-a-label" class="text-xs font-semibold uppercase tracking-widest text-teal-600 mb-2">Team A</p>
+      <div class="flex flex-col gap-2" id="ss-players-a-inputs">
+        <input type="text" maxlength="20" placeholder="Operative 1" id="ss-player-a1"
+          class="w-full rounded-xl border-2 border-stone-200 bg-white px-4 py-3 text-base text-stone-800 placeholder-stone-300 focus:border-teal-400 focus:outline-none transition-colors" />
+        <input type="text" maxlength="20" placeholder="Operative 2" id="ss-player-a2"
+          class="w-full rounded-xl border-2 border-stone-200 bg-white px-4 py-3 text-base text-stone-800 placeholder-stone-300 focus:border-teal-400 focus:outline-none transition-colors" />
+        <input type="text" maxlength="20" placeholder="Operative 3" id="ss-player-a3" style="display:none"
+          class="w-full rounded-xl border-2 border-stone-200 bg-white px-4 py-3 text-base text-stone-800 placeholder-stone-300 focus:border-teal-400 focus:outline-none transition-colors" />
+      </div>
+    </div>
+    <!-- Team B -->
+    <div class="w-full">
+      <p id="ss-players-team-b-label" class="text-xs font-semibold uppercase tracking-widest text-teal-600 mb-2">Team B</p>
+      <div class="flex flex-col gap-2" id="ss-players-b-inputs">
+        <input type="text" maxlength="20" placeholder="Operative 1" id="ss-player-b1"
+          class="w-full rounded-xl border-2 border-stone-200 bg-white px-4 py-3 text-base text-stone-800 placeholder-stone-300 focus:border-teal-400 focus:outline-none transition-colors" />
+        <input type="text" maxlength="20" placeholder="Operative 2" id="ss-player-b2"
+          class="w-full rounded-xl border-2 border-stone-200 bg-white px-4 py-3 text-base text-stone-800 placeholder-stone-300 focus:border-teal-400 focus:outline-none transition-colors" />
+        <input type="text" maxlength="20" placeholder="Operative 3" id="ss-player-b3" style="display:none"
+          class="w-full rounded-xl border-2 border-stone-200 bg-white px-4 py-3 text-base text-stone-800 placeholder-stone-300 focus:border-teal-400 focus:outline-none transition-colors" />
+      </div>
+    </div>
+    <button id="btn-ss-players-confirm" class="min-h-14 w-full rounded-2xl bg-teal-500 hover:bg-teal-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      Proceed to Vault →
+    </button>
+  </section>
+
+  <!-- SS-③ VAULT GATE — reused for both teams (dynamic content) -->
+  <section id="screen-ss-vault-gate" style="display:none" class="flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
+    <div class="text-6xl" role="img" aria-label="Shh">🤫</div>
+    <div>
+      <p class="text-stone-400 text-sm font-semibold uppercase tracking-widest">Top Secret</p>
+      <h2 id="ss-vault-gate-title" class="text-3xl font-bold text-stone-800 mt-1">Team A only</h2>
+      <p class="text-stone-500 text-base mt-3 leading-relaxed">Pass the phone to <span id="ss-vault-gate-team" class="font-bold text-teal-600">Team A</span>.<br>Don't let the other team peek!</p>
+    </div>
+    <button id="btn-ss-vault-gate-ready" class="min-h-14 w-full rounded-2xl bg-teal-500 hover:bg-teal-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      We're ready — show our vault 🔐
+    </button>
+  </section>
+
+  <!-- SS-④ VAULT — reused for both teams (dynamic content) -->
+  <section id="screen-ss-vault" style="display:none" class="flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-5">
+    <div class="text-5xl" role="img" aria-label="Lock">🔐</div>
+    <div>
+      <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest">Your Secret Vault</p>
+      <h2 id="ss-vault-title" class="text-2xl font-bold text-stone-800 mt-1">Team A</h2>
+      <p class="text-stone-400 text-sm mt-1">Memorise these — don't show the other team!</p>
+    </div>
+    <div id="ss-vault-grid" class="w-full grid grid-cols-2 gap-3">
+      <!-- 4 keyword cards injected by JS -->
+    </div>
+    <p id="ss-vault-reroll-note" class="text-stone-400 text-xs text-center" style="display:none"></p>
+    <button id="btn-ss-vault-done" class="min-h-14 w-full rounded-2xl bg-teal-500 hover:bg-teal-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      Got it! I've memorised my vault 👁️
+    </button>
+  </section>
+
+  <!-- SS-⑤ ENCRYPT — encrypter's private view -->
+  <section id="screen-ss-encrypt" style="display:none" class="flex flex-col items-start px-6 py-10 w-full max-w-sm mx-auto gap-5">
+    <div class="flex justify-between items-center w-full">
+      <div class="w-10"></div>
+      <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest">Encrypt</p>
+      <div class="flex items-center gap-2">
+        <button class="btn-open-sound w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-lg">🔊</button>
+        <button id="btn-ss-encrypt-exit" class="w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-stone-500 font-bold">✕</button>
+      </div>
+    </div>
+    <div class="flex items-baseline justify-between w-full gap-4">
+      <p id="ss-encrypt-team-label" class="text-sm font-semibold text-teal-600 uppercase tracking-widest">Team A</p>
+      <p id="ss-encrypt-timer-label" class="text-xs font-semibold uppercase tracking-widest text-stone-400" style="display:none">Time</p>
+    </div>
+    <div class="flex items-baseline justify-between w-full gap-4">
+      <h2 class="text-2xl font-bold text-stone-800">Encrypt Transmission</h2>
+      <p id="ss-encrypt-timer-display" class="text-2xl font-bold tabular-nums text-stone-700" style="display:none">2:00</p>
+    </div>
+    <p id="ss-broadcaster-name" class="text-xs text-stone-400 -mt-3" style="display:none"></p>
+    <div class="w-full bg-stone-100 rounded-2xl p-4">
+      <p class="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-3">Your Vault</p>
+      <div id="ss-encrypt-vault" class="grid grid-cols-2 gap-2"></div>
+    </div>
+    <div class="w-full bg-teal-50 rounded-2xl p-4 text-center">
+      <p class="text-xs font-semibold uppercase tracking-widest text-teal-400 mb-2">Your Code</p>
+      <p id="ss-encrypt-code" class="text-4xl font-bold text-teal-600 tracking-[0.25em]"></p>
+      <p class="text-xs text-teal-400 mt-1">Give one clue for each number, in order</p>
+    </div>
+    <div id="ss-clue-inputs" class="w-full flex flex-col gap-3"></div>
+    <button id="btn-ss-transmit" class="min-h-14 w-full rounded-2xl bg-teal-500 hover:bg-teal-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed" disabled>
+      Transmit 📡
+    </button>
+  </section>
+
+  <!-- SS-⑥ BROADCAST — everyone sees clues + archive -->
+  <section id="screen-ss-broadcast" style="display:none" class="flex flex-col items-start px-6 py-10 w-full max-w-sm mx-auto gap-5">
+    <div class="w-full flex justify-between items-center">
+      <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+      <p class="text-xs font-semibold uppercase tracking-widest text-stone-400">Transmission</p>
+      <div class="w-7"></div>
+    </div>
+    <div class="text-center w-full">
+      <p id="ss-broadcast-label" class="text-sm font-semibold text-teal-600 uppercase tracking-widest">Team A — Round 1</p>
+      <h2 class="text-2xl font-bold text-stone-800 mt-0.5">📡 Incoming Clues</h2>
+    </div>
+    <div id="ss-broadcast-clues" class="w-full flex flex-col gap-2"></div>
+    <div class="w-full">
+      <p class="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-2">Intelligence Archive</p>
+      <div id="ss-broadcast-archive" class="w-full flex flex-col gap-2"></div>
+    </div>
+    <button id="btn-ss-to-intercept" class="min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      🔒 Interceptors, Ready?
+    </button>
+  </section>
+
+  <!-- SS-⑦ INTERCEPT — intercepting team guesses code -->
+  <section id="screen-ss-intercept" style="display:none" class="flex flex-col items-start px-6 py-10 w-full max-w-sm mx-auto gap-5">
+    <div class="flex justify-between items-center w-full">
+      <div class="w-10"></div>
+      <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest">Intercept</p>
+      <div class="flex items-center gap-2">
+        <button class="btn-open-sound w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-lg">🔊</button>
+        <button id="btn-ss-intercept-exit" class="w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-stone-500 font-bold">✕</button>
+      </div>
+    </div>
+    <div>
+      <p id="ss-intercept-team-label" class="text-sm font-semibold text-teal-600 uppercase tracking-widest">Team B</p>
+      <h2 class="text-2xl font-bold text-stone-800 mt-0.5">🕵️ Intercept the code</h2>
+    </div>
+    <div id="ss-intercept-clues" class="w-full flex flex-col gap-2"></div>
+    <div class="w-full">
+      <p class="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-2">Intelligence Archive</p>
+      <div id="ss-intercept-archive" class="w-full flex flex-col gap-2"></div>
+    </div>
+    <div class="w-full">
+      <p class="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-3">Guess the code</p>
+      <div id="ss-intercept-guess-ui" class="flex flex-col gap-3"></div>
+    </div>
+    <button id="btn-ss-submit-intercept" class="min-h-14 w-full rounded-2xl bg-teal-500 hover:bg-teal-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed" disabled>
+      Submit Intercept
+    </button>
+  </section>
+
+  <!-- SS-⑧ DECODE GATE — pass gate before encrypting team decodes -->
+  <section id="screen-ss-decode-gate" style="display:none" class="flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
+    <div class="text-6xl" role="img" aria-label="Key">🔑</div>
+    <div>
+      <p class="text-stone-400 text-sm font-semibold uppercase tracking-widest">Next up</p>
+      <h2 id="ss-decode-gate-title" class="text-3xl font-bold text-stone-800 mt-1">Team A — Decode</h2>
+      <p class="text-stone-500 text-base mt-3 leading-relaxed">Pass the phone to <span id="ss-decode-gate-team" class="font-bold text-teal-600">Team A</span>.<br>Time to verify your transmission.</p>
+    </div>
+    <button id="btn-ss-decode-gate-ready" class="min-h-14 w-full rounded-2xl bg-teal-500 hover:bg-teal-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      Ready to Decode 🔓
+    </button>
+  </section>
+
+  <!-- SS-⑨ DECODE — encrypting team guesses own code -->
+  <section id="screen-ss-decode" style="display:none" class="flex flex-col items-start px-6 py-10 w-full max-w-sm mx-auto gap-5">
+    <div class="flex justify-between items-center w-full">
+      <div class="w-10"></div>
+      <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest">Decode</p>
+      <button class="btn-open-sound w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-lg">🔊</button>
+    </div>
+    <div>
+      <p id="ss-decode-team-label" class="text-sm font-semibold text-teal-600 uppercase tracking-widest">Team A</p>
+      <h2 class="text-2xl font-bold text-stone-800 mt-0.5">🔑 Decode your message</h2>
+      <p class="text-stone-400 text-sm mt-1">What was the code you sent?</p>
+    </div>
+    <div class="w-full bg-stone-100 rounded-2xl p-3">
+      <p class="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-2">Your Vault</p>
+      <div id="ss-decode-vault" class="w-full"></div>
+    </div>
+    <div id="ss-decode-clues" class="w-full flex flex-col gap-2"></div>
+    <div class="w-full">
+      <p class="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-2">Intelligence Archive</p>
+      <div id="ss-decode-archive" class="w-full flex flex-col gap-2"></div>
+    </div>
+    <div class="w-full">
+      <p class="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-3">Your code</p>
+      <div id="ss-decode-guess-ui" class="flex flex-col gap-3"></div>
+    </div>
+    <button id="btn-ss-submit-decode" class="min-h-14 w-full rounded-2xl bg-teal-500 hover:bg-teal-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed" disabled>
+      Confirm Code
+    </button>
+  </section>
+
+  <!-- SS-⑩ RESOLUTION — round result -->
+  <section id="screen-ss-resolution" style="display:none" class="flex flex-col items-start px-6 py-10 w-full max-w-sm mx-auto gap-5">
+    <div class="flex justify-between items-center w-full">
+      <button class="btn-open-sound w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-lg">🔊</button>
+      <p class="text-xs font-semibold uppercase tracking-widest text-stone-400">The Code Was</p>
+      <button id="btn-ss-resolution-exit" class="w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-stone-500 font-bold">✕</button>
+    </div>
+    <div class="text-center w-full">
+      <p id="ss-resolution-code" class="text-5xl font-bold text-teal-600 tracking-[0.25em]"></p>
+      <p id="ss-resolution-hype" class="text-base font-bold text-stone-600 mt-2"></p>
+    </div>
+    <div id="ss-resolution-results" class="w-full flex flex-col gap-3"></div>
+    <div class="w-full bg-stone-100 rounded-2xl p-4">
+      <p class="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-3">Scoreboard</p>
+      <div id="ss-scoreboard" class="flex flex-col gap-2"></div>
+    </div>
+    <button id="btn-ss-continue" class="min-h-14 w-full rounded-2xl bg-teal-500 hover:bg-teal-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      Continue
+    </button>
+  </section>
+
+  <!-- SS-⑪ GAME OVER -->
+  <section id="screen-ss-gameover" style="display:none" class="flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
+    <div id="ss-gameover-emoji" class="text-6xl">🏆</div>
+    <div>
+      <p class="text-stone-400 text-sm font-semibold uppercase tracking-widest">Game Over</p>
+      <h2 id="ss-gameover-title" class="text-3xl font-bold text-stone-800 mt-1">Team A wins!</h2>
+      <p id="ss-gameover-reason" class="text-stone-500 text-base mt-2"></p>
+    </div>
+    <div id="ss-gameover-scores" class="w-full bg-stone-100 rounded-2xl p-4 flex flex-col gap-2"></div>
+    <!-- Mission Journal -->
+    <div class="w-full">
+      <p class="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-2">Mission Journal</p>
+      <div id="ss-mission-journal" class="w-full flex flex-col gap-2 max-h-64 overflow-y-auto"></div>
+    </div>
+    <div class="flex flex-col gap-3 w-full mt-2">
+      <button id="btn-ss-play-again" class="min-h-14 w-full rounded-2xl bg-teal-500 hover:bg-teal-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Play Again 🕵️
+      </button>
+      <button id="btn-ss-gameover-exit" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-base font-medium transition-all duration-150">
+        ← Back to the Box
+      </button>
+    </div>
+  </section>
+
+  <!-- SS-⑫ TIEBREAK — who goes first in Intel Reveal -->
+  <section id="screen-ss-tiebreak" style="display:none" class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
+    <div class="absolute top-4 right-4 flex items-center gap-2">
+      <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+      <button id="btn-ss-tiebreak-exit" class="text-xl text-stone-500 font-bold active:scale-90 transition-transform duration-100">✕</button>
+    </div>
+    <div class="text-5xl">📡</div>
+    <div>
+      <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest">Intelligence Reveal</p>
+      <h2 class="text-2xl font-bold text-stone-800 mt-1">Signal Interference!<br>Leadership is contested.</h2>
+      <p class="text-stone-500 text-sm mt-2">Going second = you see the target score before guessing</p>
+    </div>
+    <!-- Method selection (shown first) -->
+    <div id="ss-tiebreak-method" class="flex flex-col gap-3 w-full">
+      <button id="btn-ss-tiebreak-random" class="min-h-14 w-full rounded-2xl bg-teal-500 hover:bg-teal-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Let Fate Decide — ⚡ Go Random
+      </button>
+      <button id="btn-ss-tiebreak-rps" class="min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Trial by Combat — ✂️ Rock Paper Scissors
+      </button>
+    </div>
+    <!-- RPS duel buttons (shown after RPS tap) -->
+    <div id="ss-tiebreak-rps-result" style="display:none" class="flex flex-col gap-4 w-full">
+      <div class="bg-stone-100 rounded-2xl p-4 text-sm text-stone-600 leading-relaxed">
+        ✂️ Play Rock Paper Scissors now.<br>Winner gets to choose who goes first.
+      </div>
+      <div class="flex flex-col gap-3 w-full">
+        <button id="btn-ss-rps-a-won" class="min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-lg font-semibold transition-all duration-150"></button>
+        <button id="btn-ss-rps-b-won" class="min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-lg font-semibold transition-all duration-150"></button>
+      </div>
+    </div>
+    <!-- Winner choice (shown after Random pick or RPS winner tapped) -->
+    <div id="ss-tiebreak-winner-choice" style="display:none" class="flex flex-col gap-4 w-full items-center">
+      <p id="ss-tiebreak-winner-heading" class="text-xl font-bold text-teal-600"></p>
+      <p class="text-stone-500 text-sm">Going second = you know the target score. Choose wisely.</p>
+      <div class="flex gap-3 w-full">
+        <button id="btn-ss-tiebreak-go-first" class="min-h-14 flex-1 rounded-2xl bg-teal-500 hover:bg-teal-600 active:scale-95 text-white text-lg font-semibold transition-all duration-150">
+          Go First 🎯
+        </button>
+        <button id="btn-ss-tiebreak-go-second" class="min-h-14 flex-1 rounded-2xl bg-stone-600 hover:bg-stone-700 active:scale-95 text-white text-lg font-semibold transition-all duration-150">
+          Go Second 👁
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- SS-⑬ INTEL INTRO — team handoff (reused for both teams) -->
+  <section id="screen-ss-intel-intro" style="display:none" class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-5">
+    <div class="absolute top-4 right-4 flex items-center gap-2">
+      <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+      <button id="btn-ss-intel-intro-exit" class="text-xl text-stone-500 font-bold active:scale-90 transition-transform duration-100">✕</button>
+    </div>
+    <div>
+      <p class="text-2xl font-black tracking-widest text-teal-700 uppercase">Phase 2: Intelligence Reveal</p>
+      <h2 id="ss-intel-intro-title" class="text-2xl font-bold text-stone-800 mt-2">Team A — your turn</h2>
+      <p id="ss-intel-intro-sub" class="text-stone-500 text-base mt-2">You're guessing <strong id="ss-intel-intro-opponent"></strong>'s keywords.<br>Use their clue history as your only evidence.</p>
+    </div>
+    <!-- Target to Beat card — shown only for the 2nd team -->
+    <div id="ss-intel-target-card" style="display:none" class="w-full bg-teal-50 rounded-2xl p-4 text-left">
+      <p class="text-xs font-semibold uppercase tracking-widest text-teal-400 mb-2">Target to Beat</p>
+      <p id="ss-intel-target-text" class="text-stone-700 font-semibold text-sm leading-relaxed"></p>
+      <p id="ss-intel-target-needed" class="text-teal-600 font-bold text-base mt-1"></p>
+    </div>
+    <button id="btn-ss-intel-begin" class="min-h-14 w-full rounded-2xl bg-teal-500 hover:bg-teal-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      Begin Intel Sweep 🔍
+    </button>
+  </section>
+
+  <!-- SS-⑭ INTEL GUESS — keyword dossier + attempt inputs (reused per keyword) -->
+  <section id="screen-ss-intel-guess" style="display:none" class="flex flex-col items-start px-6 py-10 w-full max-w-sm mx-auto gap-5">
+    <div class="flex justify-between items-center w-full">
+      <p id="ss-intel-guess-progress" class="text-stone-400 text-xs font-semibold uppercase tracking-widest">Keyword 1 of 4</p>
+      <div class="flex items-center gap-2">
+        <button class="btn-open-sound w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-lg">🔊</button>
+        <button id="btn-ss-intel-guess-exit" class="w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-stone-500 font-bold">✕</button>
+      </div>
+    </div>
+    <div>
+      <p id="ss-intel-guess-team" class="text-sm font-semibold text-teal-600 uppercase tracking-widest">Team A guessing</p>
+      <h2 class="text-2xl font-bold text-stone-800 mt-0.5">Crack the keyword 🔍</h2>
+    </div>
+    <!-- Clue Dossier -->
+    <div class="w-full bg-stone-100 rounded-2xl p-4">
+      <p class="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-2">Clue Dossier</p>
+      <div id="ss-intel-dossier" class="flex flex-wrap gap-2"></div>
+    </div>
+    <!-- Attempt inputs — JS renders attempt 1; adds 2 and 3 on failure -->
+    <div id="ss-intel-attempts" class="w-full flex flex-col gap-3"></div>
+    <!-- Feedback flash -->
+    <p id="ss-intel-feedback" style="display:none" class="text-base font-bold w-full text-center"></p>
+    <!-- Continue button — shown after result revealed -->
+    <button id="btn-ss-intel-continue" style="display:none" class="min-h-14 w-full rounded-2xl bg-teal-500 hover:bg-teal-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      Continue →
+    </button>
+    <!-- Override button — always visible -->
+    <button id="btn-ss-intel-override" class="w-full min-h-11 rounded-xl bg-stone-100 hover:bg-stone-200 active:scale-95 text-stone-600 text-base font-semibold transition-all duration-150">
+      Diplomatic Resolution 🤝
+    </button>
+  </section>
+
+  <!-- SS-⑮ INTEL SUMMARY — team's intel tally (reused for both teams) -->
+  <section id="screen-ss-intel-summary" style="display:none" class="flex flex-col items-start px-6 py-10 w-full max-w-sm mx-auto gap-5">
+    <div class="w-full flex justify-center">
+      <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+    </div>
+    <div class="text-center w-full">
+      <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest">Intel Summary</p>
+      <h2 id="ss-intel-summary-title" class="text-2xl font-bold text-stone-800 mt-1">Team A</h2>
+    </div>
+    <!-- Keyword result grid -->
+    <div id="ss-intel-summary-grid" class="w-full grid grid-cols-4 gap-2"></div>
+    <!-- Score breakdown -->
+    <div class="w-full bg-stone-100 rounded-2xl p-4 flex flex-col gap-2">
+      <div class="flex justify-between text-sm">
+        <span class="text-stone-500 font-semibold">Keywords found</span>
+        <span id="ss-intel-summary-kw" class="text-stone-800 font-bold"></span>
+      </div>
+      <div id="ss-intel-summary-scramble-row" class="flex justify-between text-sm" style="display:none">
+        <span class="text-teal-500 font-semibold">✨ Scramble Bonus</span>
+        <span class="text-teal-600 font-bold">+0.5</span>
+      </div>
+      <hr class="border-stone-200" />
+      <div class="flex justify-between text-base">
+        <span class="text-stone-700 font-bold">Intel Points</span>
+        <span id="ss-intel-summary-total" class="text-teal-600 font-bold text-xl"></span>
+      </div>
+    </div>
+    <button id="btn-ss-intel-summary-next" class="min-h-14 w-full rounded-2xl bg-teal-500 hover:bg-teal-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      Pass to Team B →
+    </button>
+  </section>
+
+  <!-- SS Settings overlay -->
+  <div id="ss-settings-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[80] flex items-end justify-center">
+    <div class="settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col" style="max-height:80vh;overflow:hidden">
+      <!-- Fixed header -->
+      <div class="flex-shrink-0 px-6 pt-6 pb-3 text-center border-b border-stone-100">
+        <h3 class="text-xl font-bold text-stone-800">⚙️ Settings</h3>
+        <p class="text-stone-400 text-sm mt-0.5">Sylly Signals</p>
+      </div>
+      <!-- Scrollable body -->
+      <div class="flex-1 overflow-y-auto px-6 py-5 flex flex-col gap-5">
+        <!-- 1. Customise Vault -->
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <p class="text-stone-700 font-semibold">Customise Vault</p>
+            <p id="ss-cat-count" class="text-xs font-bold text-stone-400">0 selected</p>
+          </div>
+          <p class="text-stone-400 text-xs mb-3">Toggle categories to draw vault words from. Leave all off to use everything.</p>
+          <div id="ss-cat-grid" class="flex flex-wrap gap-2">
+            <!-- Category pills injected by JS on settings open -->
+          </div>
+          <p id="ss-cat-warn" style="display:none" class="text-amber-500 text-xs mt-2">⚠️ Fewer than 4 categories may cause repeated keywords.</p>
+        </div>
+        <hr class="border-stone-200" />
+        <!-- 2. Difficulty -->
+        <div>
+          <p class="text-stone-700 font-semibold mb-2">Difficulty</p>
+          <div class="flex gap-2">
+            <button class="pill pill-active-teal" data-ss-setting="difficulty" data-value="1">1</button>
+            <button class="pill" data-ss-setting="difficulty" data-value="2">2</button>
+            <button class="pill" data-ss-setting="difficulty" data-value="3">3</button>
+          </div>
+          <p class="text-stone-400 text-xs mt-1.5">Controls how abstract the vault keywords are.</p>
+        </div>
+        <hr class="border-stone-200" />
+        <!-- 3. Intercepts to Win -->
+        <div>
+          <p class="text-stone-700 font-semibold mb-2">Intercepts to Win</p>
+          <div class="flex gap-2">
+            <button class="pill pill-active-teal" data-ss-setting="interceptsToWin" data-value="2">2</button>
+            <button class="pill" data-ss-setting="interceptsToWin" data-value="3">3</button>
+          </div>
+          <p class="text-stone-400 text-xs mt-1.5">First team to intercept this many codes wins.</p>
+        </div>
+        <hr class="border-stone-200" />
+        <!-- 4. Vault Word Rerolls -->
+        <div>
+          <p class="text-stone-700 font-semibold mb-2">Vault Word Rerolls</p>
+          <div class="flex gap-2">
+            <button class="pill pill-active-teal" data-ss-setting="rerollLimit" data-value="1">Once</button>
+            <button class="pill" data-ss-setting="rerollLimit" data-value="2">Twice</button>
+            <button class="pill" data-ss-setting="rerollLimit" data-value="Infinity">Unlimited</button>
+          </div>
+          <p class="text-stone-400 text-xs mt-1.5">How many times each vault keyword can be rerolled.</p>
+        </div>
+        <hr class="border-stone-200" />
+        <!-- 5. Broadcaster Timer -->
+        <div>
+          <p class="text-stone-700 font-semibold mb-2">⏱ Broadcaster Timer</p>
+          <div class="flex items-center gap-3 mb-2">
+            <button id="btn-ss-timer-toggle" class="sylly-toggle-off flex-shrink-0">OFF</button>
+            <p class="text-stone-400 text-sm">Countdown during clue-giving</p>
+          </div>
+          <div id="ss-timer-duration-row" style="display:none" class="flex gap-2 mt-1">
+            <button class="pill" data-ss-setting="timer" data-value="60">1 min</button>
+            <button class="pill" data-ss-setting="timer" data-value="120">2 min</button>
+            <button class="pill" data-ss-setting="timer" data-value="180">3 min</button>
+          </div>
+          <p class="text-stone-400 text-xs mt-1.5">Alarm sounds at 0 — stops on Transmit.</p>
+        </div>
+        <hr class="border-stone-200" />
+        <!-- 6. Sylly Mode (always last) -->
+        <div class="flex items-center justify-between gap-4">
+          <div>
+            <p class="text-stone-700 font-semibold">✨ Sylly Mode</p>
+            <p class="text-stone-400 text-xs mt-0.5 leading-relaxed">Intelligence Reveal — teams guess the opponent's vault after the game</p>
+          </div>
+          <button id="ss-sylly-toggle" class="sylly-toggle-off flex-shrink-0">OFF</button>
+        </div>
+      </div>
+      <!-- Fixed footer -->
+      <div class="flex-shrink-0 px-6 pb-8 pt-3 border-t border-stone-100">
+        <button id="btn-ss-settings-done" class="min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+          Done
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SS Inning Transition overlay -->
+  <div id="ss-inning-transition" style="display:none" class="fixed inset-0 bg-stone-900 z-[95] flex flex-col items-center justify-center px-6 gap-6 text-center">
+    <div class="text-6xl">📡</div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-widest text-teal-400 mb-2">Intel Phase</p>
+      <h2 class="text-2xl font-black tracking-widest text-white uppercase">Data Filed —<br>Intel Secured</h2>
+      <p class="text-stone-400 text-sm mt-3">Switching operative teams. Stand by.</p>
+    </div>
+    <button id="btn-ss-mission-continues" class="min-h-14 w-full max-w-xs rounded-2xl bg-teal-500 hover:bg-teal-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      Mission Continues »
+    </button>
+  </div>
+
+  <!-- SS Intel Override overlay -->
+  <div id="ss-override-overlay" style="display:none" class="fixed inset-0 bg-black/50 z-[90] flex items-center justify-center px-6">
+    <div class="bg-white rounded-2xl p-8 w-full max-w-sm text-center flex flex-col gap-3 shadow-xl">
+      <p class="text-4xl">🤝</p>
+      <h3 class="text-xl font-bold text-stone-800">Diplomatic Resolution</h3>
+      <div class="flex gap-2 items-center justify-center my-1">
+        <button id="btn-override-word-guess" class="flex-1 rounded-xl p-3 bg-stone-100 text-stone-700 font-bold text-lg text-center transition-all"></button>
+        <span class="text-stone-300 font-bold text-sm">vs</span>
+        <button id="btn-override-word-target" class="flex-1 rounded-xl p-3 bg-stone-100 text-stone-700 font-bold text-lg text-center transition-all"></button>
+      </div>
+      <p class="text-stone-400 text-xs -mt-1">Tap the word you're arguing for</p>
+      <p class="text-stone-600 text-sm"><strong>Both teams agree this guess is close enough.</strong></p>
+      <button id="btn-ss-override-confirm" class="min-h-12 w-full rounded-xl bg-teal-500 hover:bg-teal-600 active:scale-95 text-white text-lg font-semibold transition-all duration-150 mt-2">
+        Agreed — it counts! 🤝
+      </button>
+      <button id="btn-ss-override-cancel" class="min-h-12 w-full rounded-xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 text-lg font-semibold transition-all duration-150">
+        No deal, try again
+      </button>
+    </div>
+  </div>
+
+  <!-- SS Quit overlay -->
+  <div id="ss-quit-overlay" style="display:none" class="fixed inset-0 bg-black/50 z-[80] flex items-center justify-center px-6">
+    <div class="bg-white rounded-2xl p-8 w-full max-w-sm text-center flex flex-col gap-3 shadow-xl">
+      <p class="text-4xl">🏳️</p>
+      <h3 class="text-xl font-bold text-stone-800">Abort the mission?</h3>
+      <p class="text-stone-400 text-sm">Your intel will be lost.</p>
+      <button id="btn-ss-quit-confirm" class="min-h-12 w-full rounded-xl bg-red-500 hover:bg-red-600 active:scale-95 text-white text-lg font-semibold transition-all duration-150 mt-2">
+        Yeah, pull out
+      </button>
+      <button id="btn-ss-quit-cancel" class="min-h-12 w-full rounded-xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 text-lg font-semibold transition-all duration-150">
+        Stay in the field
+      </button>
+    </div>
+  </div>
+
+  <!-- SS Endgame Splash — mission result + Phase 2 bridge -->
+  <div id="ss-endgame-splash" style="display:none" class="fixed inset-0 bg-stone-900 z-[95] flex flex-col items-center justify-center px-6 gap-6 text-center">
+    <div id="ss-splash-icon" class="text-6xl"></div>
+    <div>
+      <p id="ss-splash-status" class="text-xs font-semibold uppercase tracking-widest text-teal-400 mb-2">Mission Status</p>
+      <h2 id="ss-splash-title" class="text-3xl font-black tracking-widest text-white uppercase leading-tight"></h2>
+      <p id="ss-splash-sub" class="text-stone-400 text-sm mt-3 leading-relaxed"></p>
+    </div>
+    <button id="btn-ss-splash-phase2" style="display:none" class="min-h-14 w-full max-w-xs rounded-2xl bg-red-600 text-white text-base font-bold ss-flash-btn">
+      ⚠️ Urgent: Phase 2 Detected
+    </button>
+    <button id="btn-ss-splash-results" style="display:none" class="min-h-14 w-full max-w-xs rounded-2xl bg-teal-500 hover:bg-teal-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      See Results 🏆
+    </button>
+  </div>
+
+  <!-- SS Play Again confirmation modal -->
+  <div id="ss-play-again-overlay" style="display:none" class="fixed inset-0 bg-black/50 z-[90] flex items-center justify-center px-6">
+    <div class="bg-white rounded-2xl p-8 w-full max-w-sm text-center flex flex-col gap-3 shadow-xl">
+      <p class="text-4xl">🕵️</p>
+      <h3 class="text-xl font-bold text-stone-800">New Mission?</h3>
+      <p class="text-stone-400 text-sm">This mission's intel will be archived.</p>
+      <button id="btn-ss-play-again-confirm" class="min-h-12 w-full rounded-xl bg-teal-500 hover:bg-teal-600 active:scale-95 text-white text-lg font-semibold transition-all duration-150 mt-2">
+        Deploy Again 🕵️
+      </button>
+      <button id="btn-ss-play-again-cancel" class="min-h-12 w-full rounded-xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 text-lg font-semibold transition-all duration-150">
+        Back to Mission Review
+      </button>
+    </div>
+  </div>
+
+  <!-- SS How to Play overlay -->
+  <div id="ss-how-to-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[90] flex items-end justify-center">
+    <div class="settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl px-6 pt-6 pb-6 flex flex-col gap-5" style="max-height: 85vh; overflow-y: auto;">
+      <div class="text-center">
+        <div class="text-4xl mb-1">📡</div>
+        <h3 class="text-2xl font-bold text-stone-800">How to Play</h3>
+        <p class="text-stone-400 text-sm mt-1">Sylly Signals</p>
+      </div>
+      <div class="bg-white rounded-2xl p-4 shadow-sm">
+        <p class="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-2">Step 1 — The Vault 🔐</p>
+        <p class="text-stone-700 font-semibold text-base leading-snug">Each team gets 4 secret keywords.</p>
+        <p class="text-stone-500 text-sm mt-1 leading-relaxed">Memorise them! They're numbered 1–4 and only your team can see them.</p>
+      </div>
+      <div class="bg-white rounded-2xl p-4 shadow-sm">
+        <p class="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-2">Step 2 — Encrypt 📡</p>
+        <p class="text-stone-700 font-semibold text-base leading-snug">Each round, one player gets a secret code.</p>
+        <p class="text-stone-500 text-sm mt-1 leading-relaxed">The code is 3 numbers (e.g. 3-1-4). Give one clue for each number — cryptic enough that the other team can't guess it, clear enough that your own team can!</p>
+      </div>
+      <div class="bg-white rounded-2xl p-4 shadow-sm">
+        <p class="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-2">Step 3 — Intercept 🕵️</p>
+        <p class="text-stone-700 font-semibold text-base leading-snug">The opposing team tries to crack your code.</p>
+        <p class="text-stone-500 text-sm mt-1 leading-relaxed">They see your clues and all previous clues — patterns emerge over time! If they guess correctly: they score an <strong>Interception</strong>.</p>
+      </div>
+      <div class="bg-white rounded-2xl p-4 shadow-sm">
+        <p class="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-2">Step 4 — Decode 🔑</p>
+        <p class="text-stone-700 font-semibold text-base leading-snug">Your own team must also decode the code.</p>
+        <p class="text-stone-500 text-sm mt-1 leading-relaxed">If your own team gets it wrong — that's a <strong>Misfire</strong>. You're talking in riddles no one understands!</p>
+      </div>
+      <div class="bg-white rounded-2xl p-4 shadow-sm">
+        <p class="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-2">Winning 🏆</p>
+        <p class="text-stone-500 text-sm leading-relaxed"><strong>Win</strong> by intercepting the enemy's transmissions.<br><strong>Lose</strong> by misfiring twice — your own team can't understand you!</p>
+      </div>
+      <button id="btn-ss-how-to-close" class="min-h-14 w-full rounded-2xl bg-teal-500 hover:bg-teal-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Got it! Let's Signal 📡
+      </button>
+    </div>
+  </div>
+
+  <!-- Global Sound overlay -->
+  <div id="sound-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[110] flex items-center justify-center px-6">
+    <div class="bg-white rounded-2xl p-6 w-full max-w-sm flex flex-col gap-4 shadow-xl">
+      <h3 class="text-xl font-bold text-stone-800 text-center">🔊 Sound</h3>
+      <div class="flex items-center justify-between">
+        <p class="text-stone-800 font-semibold">Mute All</p>
+        <button id="global-mute-toggle" class="sylly-toggle-off">OFF</button>
+      </div>
+      <div id="global-volume-group">
+        <p class="text-stone-400 text-sm font-semibold mb-2">Volume — <span id="global-volume-label">60%</span></p>
+        <input id="global-sound-volume" type="range" min="0" max="100" step="10" value="60"
+          class="sylly-range w-full" />
+      </div>
+      <button id="btn-sound-overlay-done" class="min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Done
+      </button>
+    </div>
+  </div>
+
+  <!-- Great Minds deck selector panel -->
+  <div id="gm-deck-panel" style="display:none" class="fixed inset-0 bg-black/40 z-[100] flex items-end justify-center">
+    <div class="deck-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl px-6 pt-5 pb-10 flex flex-col gap-4">
+
+      <div class="text-center">
+        <h3 id="gm-deck-panel-title" class="text-xl font-bold text-stone-800">Word 1 Decks</h3>
+      </div>
+      <p class="text-stone-400 text-xs text-center -mt-2">Tap to include or exclude a category</p>
+
+      <div class="flex justify-end -mt-1">
+        <button id="btn-gm-deck-toggle-all" class="text-xs font-semibold text-violet-500 active:opacity-60 transition-opacity">Deselect All</button>
+      </div>
+
+      <div id="gm-deck-grid" class="grid grid-cols-2 gap-3">
+        <button class="deck-card" data-gm-deck="animals">🐾 Animals</button>
+        <button class="deck-card" data-gm-deck="food">🍕 Food</button>
+        <button class="deck-card" data-gm-deck="places">📍 Places</button>
+        <button class="deck-card" data-gm-deck="objects">📦 Objects</button>
+        <button class="deck-card" data-gm-deck="nature">🌿 Nature</button>
+        <button class="deck-card" data-gm-deck="sports">⚽ Sports</button>
+        <button class="deck-card" data-gm-deck="activities">🎯 Activities</button>
+        <button class="deck-card" data-gm-deck="emotions">💭 Emotions</button>
+        <button class="deck-card" data-gm-deck="jobs">💼 Jobs</button>
+        <button class="deck-card" data-gm-deck="actions">⚡ Actions</button>
+      </div>
+
+      <button id="btn-gm-deck-done" class="min-h-14 w-full rounded-2xl bg-violet-500 hover:bg-violet-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Done
+      </button>
+    </div>
+  </div>
+
+  <!-- Great Minds quit confirmation overlay -->
+  <div id="gm-quit-overlay" style="display:none" class="fixed inset-0 bg-black/50 z-[80] flex items-center justify-center px-6">
+    <div class="bg-white rounded-2xl p-8 w-full max-w-sm text-center flex flex-col gap-3 shadow-xl">
+      <p class="text-4xl">🏳️</p>
+      <h3 class="text-xl font-bold text-stone-800">Giving up already, mate?</h3>
+      <p class="text-stone-400 text-sm">Your progress will be lost.</p>
+      <button id="btn-gm-quit-confirm" class="min-h-12 w-full rounded-xl bg-red-500 hover:bg-red-600 active:scale-95 text-white text-lg font-semibold transition-all duration-150 mt-2">
+        Yeah, bail out
+      </button>
+      <button id="btn-gm-quit-cancel" class="min-h-12 w-full rounded-xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 text-lg font-semibold transition-all duration-150">
+        Keep going
+      </button>
+    </div>
+  </div>
+
+  <!-- Great Minds How to Play overlay -->
+  <div id="gm-how-to-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[90] flex items-end justify-center">
+    <div class="settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl px-6 pt-6 pb-6 flex flex-col gap-5" style="max-height: 85vh; overflow-y: auto;">
+
+      <div class="text-center">
+        <div class="text-4xl mb-1">🧠</div>
+        <h3 class="text-2xl font-bold text-stone-800">How to Play</h3>
+        <p class="text-stone-400 text-sm mt-1">Great Minds</p>
+      </div>
+
+      <div class="bg-white rounded-2xl p-4 shadow-sm">
+        <p class="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-2">Step 1 — The Setup 🎯</p>
+        <p class="text-stone-700 font-semibold text-base leading-snug">Two players. One phone.</p>
+        <p class="text-stone-500 text-sm mt-1 leading-relaxed">You're each shown the same pair of words. Your job: think of one word that connects them both.</p>
+      </div>
+
+      <div class="bg-white rounded-2xl p-4 shadow-sm">
+        <p class="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-2">Step 2 — The Rules 🚫</p>
+        <p class="text-stone-700 font-semibold text-base leading-snug">Don't look at each other's answers.</p>
+        <p class="text-stone-500 text-sm mt-1 leading-relaxed">Each player enters their word privately — no peeking! You also can't use any part of either starting word.</p>
+      </div>
+
+      <div class="bg-white rounded-2xl p-4 shadow-sm">
+        <p class="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-2">Step 3 — The Meld 🤝</p>
+        <p class="text-stone-500 text-sm mt-1 leading-relaxed">After the 3-2-1 countdown, both answers are revealed. If they match — Mind Meld! If not, your two words become the new starting pair. Keep going until you meld!</p>
+        <p class="text-stone-500 text-sm mt-2 leading-relaxed">Lower rounds = bigger brains. 🧠</p>
+      </div>
+
+      <button id="btn-gm-how-to-close" class="min-h-14 w-full rounded-2xl bg-violet-500 hover:bg-violet-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Got it! Let's Meld 🧠
+      </button>
+
+    </div>
+  </div>
+
+  <!-- Load order: engine → plugins → bootstrapper -->
+  <script src="/js/engine.js"></script>
+  <script src="/js/games/dstw.js"></script>
+  <script src="/js/games/great-minds.js"></script>
+  <script src="/js/games/sylly-signals.js"></script>
+  <script src="/js/app.js"></script>
+
+  <!-- Register service worker -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js');
+    }
+  </script>
+
+</body>
+</html>
