@@ -10,27 +10,32 @@
 const GM_CATEGORIES = ['animals', 'food', 'places', 'objects', 'nature', 'sports', 'activities', 'emotions', 'jobs', 'actions'];
 
 const GM_MISMATCH_PHRASES = [
-  'Yeah, nah. Not even close! 😅',
-  'Two different planets, those thoughts. 🪐',
-  "Tell him he's dreaming! ☁️",
-  'A bit of a stretch, that one! 🐈‍⬛',
-  'Not even in the same zip code. 🗺️',
+  'Signal interference — frequencies misaligned. 📡',
+  'Out of phase. Recalibrating… 🌀',
+  'Neural link disrupted. Try again. 🧠',
+  'Wavelengths crossed. Close, but no sync. ⚡',
+  'Transmission garbled. Boost the signal. 📻',
 ];
 
 const GM_OVERRIDE_PHRASES = [
-  "Fair dinkum? We're counting it! 🤝",
-  'The judges allow it! 👩‍⚖️',
-  "A bit of a reach, but we'll take it! 🤏",
-  'Pure genius... or pure cheating? 🧠',
-  'Close enough for government work! ✅',
+  "Quantum entanglement detected — we'll allow it! ⚛️",
+  'Unconventional frequency… but the judges confirm sync. 📡',
+  'Neural link established by lateral pathways. 🧠',
+  'Close enough for a quantum state — it counts! ✅',
+  'Signal weak, but detectable. Neural link confirmed. 💫',
 ];
 
-let gmSettingDifficulty = 1;
-let gmSyllyMode         = false;
-let gmCustomWords       = false;
-let gmPoolA             = new Set(GM_CATEGORIES);
-let gmPoolB             = new Set(GM_CATEGORIES);
-let gmEditingPool       = 'a';
+let gmFrequencyRange     = 'stable'; // 'stable' | 'unstable' | 'chaotic'
+let gmStaticInterference = false;
+let gmCustomWords        = false;
+let gmInfiniteResync     = false;
+let gmMemoryGuard        = false;
+let gmResonanceTolerance = 'strict'; // 'strict' | 'normal'
+let gmSignalBoost        = false;
+let gmSyllyIntensity     = 'sub-atomic'; // 'sub-atomic' | 'supernova'
+let gmPoolA              = new Set(GM_CATEGORIES);
+let gmPoolB              = new Set(GM_CATEGORIES);
+let gmEditingPool        = 'a';
 
 // ── GM State ──────────────────────────────────────────────────────────────────
 let gmPlayerNames    = ['Player 1', 'Player 2'];
@@ -40,40 +45,60 @@ let gmWordB          = '';
 let gmRound          = 0;
 let gmActivePlayer   = 0;
 let gmCountdownTimer = null;
-let gmRoundLog       = [];  // [{ round, pair, guessA, guessB }] — one entry per mismatch
+let gmStartingPair    = [];        // original 2 words — never mutated; contains check, entire game
+let gmRoundLog        = [];        // [{ round, pair, guessA, guessB, traceA, traceB, isWin }]
+let gmSessionGuesses  = new Set(); // all clues typed this game (Memory Guard ON)
+let gmPrevRoundWords  = new Set(); // last round's pair + both clues — always blocked
+let gmBannedLetter    = '';        // current round's banned letter (Static Interference)
+let gmLastBannedLetter = '';       // previous round's banned letter (to prevent repeats)
+let gmPendingLockIn   = '';        // validated clue held while boost overlay is open
+let gmPendingBoostA   = '';        // signal boost context from transmitter this round
+let gmPendingBoostB   = '';        // signal boost context for player 2 this round (legacy, unused)
 
 // ── GM Helpers ────────────────────────────────────────────────────────────────
 function gmBuildPool(categorySet) {
   // Build a word pool from a Set of categories, with difficulty + safety fallbacks
-  const diff = gmSettingDifficulty;
+  const maxDiff = { stable: 1, unstable: 2, chaotic: 3 }[gmFrequencyRange] || 1;
   const cats = categorySet.size > 0 ? [...categorySet] : [...GM_CATEGORIES];
-  let pool = allWords.filter(w => cats.includes(w.category) && w.difficulty === diff);
+  let pool = allWords.filter(w => cats.includes(w.category) && w.difficulty <= maxDiff);
   if (pool.length === 0) pool = allWords.filter(w => cats.includes(w.category) && w.difficulty === 1);
   if (pool.length === 0) pool = allWords.filter(w => GM_CATEGORIES.includes(w.category) && w.difficulty === 1);
   return pool;
 }
 
-function gmPickStarterPair() {
+// Fisher-Yates shuffle — returns a new shuffled copy of the array
+function gmShuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+// exclude: array of word strings to hard-exclude from this draw (used by reroll to prevent sticky words)
+function gmPickStarterPair(exclude = []) {
+  const excluded = exclude.map(w => w.toLowerCase());
+
   if (!gmCustomWords) {
-    // Standard: full GM pool
-    const pool = gmBuildPool(new Set(GM_CATEGORIES));
-    const a = pool[Math.floor(Math.random() * pool.length)];
-    let b;
-    do { b = pool[Math.floor(Math.random() * pool.length)]; } while (b.id === a.id);
-    return [a.word, b.word];
+    // Standard: full GM pool, shuffled, excluding current words
+    let pool = gmBuildPool(new Set(GM_CATEGORIES))
+      .filter(w => !excluded.includes(w.word.toLowerCase()));
+    if (pool.length < 2) pool = gmBuildPool(new Set(GM_CATEGORIES)); // fallback if pool too small
+    const shuffled = gmShuffle(pool);
+    return [shuffled[0].word, shuffled[1].word];
   }
 
   // Custom recipe: one word from pool A, one from pool B
-  const poolA = gmBuildPool(gmPoolA);
-  const poolB = gmBuildPool(gmPoolB);
-  const a = poolA[Math.floor(Math.random() * poolA.length)];
-  let b = poolB[Math.floor(Math.random() * poolB.length)];
-  // Guard: if pools overlap and same word drawn, retry up to 10x
-  let attempts = 0;
-  while (b.id === a.id && attempts < 10) {
-    b = poolB[Math.floor(Math.random() * poolB.length)];
-    attempts++;
-  }
+  let poolA = gmBuildPool(gmPoolA).filter(w => !excluded.includes(w.word.toLowerCase()));
+  let poolB = gmBuildPool(gmPoolB).filter(w => !excluded.includes(w.word.toLowerCase()));
+  if (poolA.length === 0) poolA = gmBuildPool(gmPoolA);
+  if (poolB.length === 0) poolB = gmBuildPool(gmPoolB);
+  const shuffledA = gmShuffle(poolA);
+  const shuffledB = gmShuffle(poolB);
+  // If pools overlap and first picks collide, take the second from pool B's shuffle
+  const a = shuffledA[0];
+  const b = shuffledB[0].id === a.id ? (shuffledB[1] || shuffledB[0]) : shuffledB[0];
   return [a.word, b.word];
 }
 
@@ -83,22 +108,50 @@ function gmShowPair(wordA, wordB, targetA, targetB) {
   document.getElementById(targetB).textContent = wordB;
 }
 
-// Returns true if the input is a partial match against either pair word (cheap move).
-function gmIsCheapMove(input) {
-  return gmCurrentPair.some(w => {
-    const word = w.toLowerCase();
-    return input.includes(word) || word.includes(input);
-  });
+// Returns the matched pair word if the input CONTAINS it (compound extension).
+// Root words that are substrings of a pair word (e.g. "Bird" for "Birdcage") are allowed.
+function gmCheapMoveWord(input) {
+  return gmCurrentPair.find(w => input.includes(w.toLowerCase())) || null;
+}
+
+// Strips common plural/verb suffixes to a root form for near-sync comparison.
+// Order matters: -ies before -es before -s.
+function gmNormaliseWord(w) {
+  w = w.toLowerCase().trim();
+  if (w.endsWith('ies') && w.length > 4) return w.slice(0, -3) + 'y'; // berries → berry
+  if (w.endsWith('es')  && w.length > 3) return w.slice(0, -2);        // foxes → fox
+  if (w.endsWith('s')   && w.length > 2) return w.slice(0, -1);        // cats → cat
+  return w;
+}
+
+// Picks a random banned letter that differs from the previous round's letter.
+function gmPickBannedLetter() {
+  const consonants = 'bcdfghjklmnpqrstvwxyz';
+  const vowels     = 'aeiou';
+  const pool = gmSyllyIntensity === 'supernova' ? vowels : consonants;
+  let letter;
+  do { letter = pool[Math.floor(Math.random() * pool.length)]; }
+  while (letter === gmLastBannedLetter);
+  gmLastBannedLetter = letter;
+  gmBannedLetter = letter;
 }
 
 // ── GM Screen Transitions ─────────────────────────────────────────────────────
 function startGreatMinds() {
-  gmCurrentPair  = ['', ''];
-  gmWordA        = '';
-  gmWordB        = '';
-  gmRound        = 0;
-  gmActivePlayer = 0;
-  gmRoundLog     = [];
+  gmCurrentPair    = ['', ''];
+  gmWordA          = '';
+  gmWordB          = '';
+  gmRound          = 0;
+  gmActivePlayer   = 0;
+  gmStartingPair     = [];
+  gmRoundLog         = [];
+  gmSessionGuesses   = new Set();
+  gmPrevRoundWords   = new Set();
+  gmBannedLetter     = '';
+  gmLastBannedLetter = '';
+  gmPendingLockIn    = '';
+  gmPendingBoostA    = '';
+  gmPendingBoostB    = '';
   document.getElementById('gm-setup-names').style.display = 'flex';
   document.getElementById('gm-setup-pair').style.display  = 'none';
   // Pre-populate with last known names; blank if still default
@@ -114,22 +167,46 @@ function gmShowPairReveal() {
     document.getElementById('gm-pair-word-b').textContent = gmCurrentPair[1];
     document.getElementById('gm-setup-names').style.display = 'none';
     document.getElementById('gm-setup-pair').style.display  = 'flex';
+    document.getElementById('btn-gm-reroll-pair').style.display = gmInfiniteResync ? 'block' : 'none';
   });
 }
 
 function gmStartInputPhase() {
   gmActivePlayer = 0;
-  gmWordA = '';
-  gmWordB = '';
+  gmWordA        = '';
+  gmWordB        = '';
+  if (gmRound === 0) gmStartingPair = [...gmCurrentPair]; // lock in before increment
   gmRound++;
+  gmPendingBoostA = '';
+  gmPendingBoostB = '';
+  // Static Interference: pick a new banned letter for this round
+  if (gmStaticInterference) gmPickBannedLetter();
   gmShowPlayerInput();
 }
 
 function gmShowPlayerInput() {
+  document.getElementById('gm-round-num-input').textContent = gmRound;
   document.getElementById('gm-input-prompt').textContent = `${gmPlayerNames[gmActivePlayer]} — your turn`;
   gmShowPair(gmCurrentPair[0], gmCurrentPair[1], 'gm-input-word-a', 'gm-input-word-b');
   document.getElementById('gm-word-input').value = '';
   document.getElementById('gm-input-error').style.display = 'none';
+  // Static Interference alert
+  const alertEl = document.getElementById('gm-static-alert');
+  alertEl.style.display = gmStaticInterference ? 'block' : 'none';
+  if (gmStaticInterference) {
+    document.getElementById('gm-static-letter').textContent = gmBannedLetter.toUpperCase();
+  }
+  gmRenderInputEchoes();
+  // Boost context banner — shown to receiver if transmitter provided a boost
+  const banner = document.getElementById('gm-boost-context-banner');
+  const isBoostRound = gmSignalBoost && gmRound >= 5;
+  const transmitter  = isBoostRound ? ((gmRound - 5) % 2 === 0 ? 0 : 1) : -1;
+  if (isBoostRound && gmActivePlayer !== transmitter && gmPendingBoostA) {
+    document.getElementById('gm-boost-context-text').textContent = gmPendingBoostA;
+    banner.style.display = 'block';
+  } else {
+    banner.style.display = 'none';
+  }
   showScreen('screen-gm-input');
 }
 
@@ -138,25 +215,79 @@ function gmLockIn() {
   if (!val) return;
 
   const input = val.toLowerCase();
+  const err = document.getElementById('gm-input-error');
 
-  // Cheap move guard — block partial matches against either pair word
-  if (gmIsCheapMove(input)) {
-    const err = document.getElementById('gm-input-error');
+  // Priority 1 — Starting Pair Guard (contains check, entire game)
+  const startMatch = gmStartingPair.find(w => input.includes(w.toLowerCase()));
+  if (startMatch) {
+    err.textContent = '⚛️ Quantum Entanglement! You can\'t use words from the starting pair.';
     err.style.display = 'block';
     playBoing();
     return;
   }
 
-  document.getElementById('gm-input-error').style.display = 'none';
+  // Priority 2 — Last Round Guard (exact match)
+  if (gmPrevRoundWords.has(input)) {
+    err.textContent = '⚛️ Quantum Entanglement! You can\'t use a word from last round.';
+    err.style.display = 'block';
+    playBoing();
+    return;
+  }
 
+  // Priority 3 — Cheap Move Guard (contains check on current pair)
+  const matchedWord = gmCheapMoveWord(input);
+  if (matchedWord) {
+    err.textContent = `⚛️ Quantum Entanglement! You can't use a word that contains "${matchedWord}".`;
+    err.style.display = 'block';
+    playBoing();
+    return;
+  }
+
+  // Priority 4 — Sylly Guard (letter ban)
+  if (gmStaticInterference && gmBannedLetter && input.includes(gmBannedLetter)) {
+    err.textContent = `⚡ Static Interference! Letter "${gmBannedLetter.toUpperCase()}" is banned this round.`;
+    err.style.display = 'block';
+    playBoing();
+    return;
+  }
+
+  // Memory Guard ON — block if clue was used in any previous round
+  if (gmMemoryGuard && gmSessionGuesses.has(input)) {
+    err.textContent = 'Temporal Paradox! That frequency has already been transmitted. ⏳';
+    err.style.display = 'block';
+    playBoing();
+    return;
+  }
+
+  err.style.display = 'none';
+
+  // Signal Boost overlay — transmitter only, from round 5
+  if (gmSignalBoost && gmRound >= 5) {
+    const transmitter = (gmRound - 5) % 2 === 0 ? 0 : 1;
+    if (gmActivePlayer === transmitter) {
+      gmPendingLockIn = input;
+      document.getElementById('gm-boost-input').value = '';
+      document.getElementById('gm-boost-error').style.display = 'none';
+      document.getElementById('gm-boost-overlay').style.display = 'flex';
+      return;
+    }
+  }
+
+  gmProcessLockIn(input, '');
+}
+
+function gmProcessLockIn(input, boost) {
   if (gmActivePlayer === 0) {
     gmWordA = input;
+    gmPendingBoostA = boost;
     document.getElementById('gm-pass-name').textContent = gmPlayerNames[1];
+    document.getElementById('gm-round-num-pass').textContent = gmRound;
     showScreen('screen-gm-pass-gate');
   } else {
     gmWordB = input;
-    // Show the shared ready gate so both players watch the countdown together
+    gmPendingBoostB = boost;
     document.getElementById('gm-ready-pass-name').textContent = gmPlayerNames[0];
+    document.getElementById('gm-round-num-reveal-gate').textContent = gmRound;
     showScreen('screen-gm-reveal-gate');
   }
 }
@@ -164,6 +295,7 @@ function gmLockIn() {
 function gmStartCountdown() {
   let count = 3;
   document.getElementById('gm-countdown-number').textContent = count;
+  document.getElementById('gm-round-num-countdown').textContent = gmRound;
   showScreen('screen-gm-reveal');
   playTick();
   gmCountdownTimer = setInterval(() => {
@@ -179,69 +311,143 @@ function gmStartCountdown() {
   }, 1000);
 }
 
+// Compact table rendered on the input and result screens while players are thinking
+function gmRenderInputEchoes(containerId = 'gm-input-echoes') {
+  const container = document.getElementById(containerId);
+  if (!container || gmRoundLog.length === 0) { if (container) container.innerHTML = ''; return; }
+  const header = `<div class="grid grid-cols-[2rem_1fr_1fr_1fr] text-[10px] font-semibold uppercase tracking-widest text-stone-400 pb-1 border-b border-stone-200 mb-1">
+    <span>#</span><span>Pair</span><span>${gmPlayerNames[0]}</span><span>${gmPlayerNames[1]}</span>
+  </div>`;
+  const rows = gmRoundLog.map(e => {
+    const clueA = e.traceA ? `${e.guessA} <span class="text-stone-400">(${e.traceA})</span>` : e.guessA;
+    const clueB = e.traceB ? `${e.guessB} <span class="text-stone-400">(${e.traceB})</span>` : e.guessB;
+    const rowClass = e.isWin ? ' text-violet-500 font-bold' : '';
+    return `<div class="grid grid-cols-[2rem_1fr_1fr_1fr] text-[11px] text-stone-600 py-1 border-b border-stone-100 last:border-0 items-start${rowClass}">
+      <span class="text-stone-300 font-mono">${e.round}</span>
+      <span>${e.pair[0]} · ${e.pair[1]}</span>
+      <span>${clueA}</span>
+      <span>${clueB}</span>
+    </div>`;
+  }).join('');
+  container.innerHTML = header + rows;
+}
+
+// Full table rendered on the victory screen — "Psychic Echoes 📖" log
+function gmRenderPsychicEchoes(containerId = 'gm-journey-log') {
+  const container = document.getElementById(containerId);
+  if (!container || gmRoundLog.length === 0) { if (container) container.innerHTML = ''; return; }
+  const header = `<div class="grid grid-cols-[2rem_1fr_1fr_1fr] text-[10px] font-semibold uppercase tracking-widest text-stone-400 pb-1 border-b border-stone-200 mb-1">
+    <span>#</span><span>Pair</span><span>${gmPlayerNames[0]}</span><span>${gmPlayerNames[1]}</span>
+  </div>`;
+  const rows = gmRoundLog.map(e => {
+    const clueA = e.traceA ? `${e.guessA} <span class="text-stone-400 text-[10px]">(${e.traceA})</span>` : e.guessA;
+    const clueB = e.traceB ? `${e.guessB} <span class="text-stone-400 text-[10px]">(${e.traceB})</span>` : e.guessB;
+    const rowClass = e.isWin ? ' text-violet-500 font-bold' : '';
+    return `<div class="grid grid-cols-[2rem_1fr_1fr_1fr] text-[11px] text-stone-600 py-1.5 border-b border-stone-100 last:border-0 items-start${rowClass}">
+      <span class="text-stone-300 font-mono">${e.round}</span>
+      <span>${e.pair[0]} · ${e.pair[1]}</span>
+      <span>${clueA}</span>
+      <span>${clueB}</span>
+    </div>`;
+  }).join('');
+  container.innerHTML = header + rows;
+}
+
+// Shared mismatch handler — called from gmShowResult and from near-sync Reject
+function gmHandleMismatch() {
+  document.getElementById('gm-result-heading').textContent =
+    GM_MISMATCH_PHRASES[Math.floor(Math.random() * GM_MISMATCH_PHRASES.length)];
+  gmRoundLog.push({
+    round:  gmRound,
+    pair:   [...gmCurrentPair],
+    guessA: gmWordA,
+    guessB: gmWordB,
+    traceA: gmPendingBoostA,
+    traceB: gmPendingBoostB,
+  });
+  gmPendingBoostA = ''; gmPendingBoostB = '';
+  // Record both clues in session history after round resolves (Memory Guard)
+  if (gmMemoryGuard) {
+    gmSessionGuesses.add(gmWordA.toLowerCase());
+    gmSessionGuesses.add(gmWordB.toLowerCase());
+  }
+  // Baseline: block all words from this round in the next round
+  gmPrevRoundWords = new Set([
+    ...gmCurrentPair.map(w => w.toLowerCase()),
+    gmWordA.toLowerCase(),
+    gmWordB.toLowerCase(),
+  ]);
+  document.getElementById('gm-result-nomatch').style.display = 'flex';
+  document.getElementById('gm-result-match').style.display   = 'none';
+  document.getElementById('gm-result-name-a').textContent    = gmPlayerNames[0];
+  document.getElementById('gm-result-name-b').textContent    = gmPlayerNames[1];
+  document.getElementById('gm-result-word-a').textContent    = gmWordA;
+  document.getElementById('gm-result-word-b').textContent    = gmWordB;
+  document.getElementById('gm-result-round-num').textContent = gmRound;
+  document.getElementById('gm-result-pair-hint').textContent = 'New signal acquired ↑';
+  gmCurrentPair = [gmWordA, gmWordB];
+  document.getElementById('btn-gm-reroll-result').style.display = 'none';
+  gmRenderInputEchoes('gm-result-echoes');
+}
+
 function gmShowResult() {
   const isMatch = gmWordA === gmWordB;
 
   if (isMatch) {
     playSuccess();
+    gmHandleMatch();
     gmRenderVictory();
-  } else {
-    playBoing();
-    document.getElementById('gm-result-heading').textContent =
-      GM_MISMATCH_PHRASES[Math.floor(Math.random() * GM_MISMATCH_PHRASES.length)];
-    // Log this mismatch round
-    gmRoundLog.push({
-      round:  gmRound,
-      pair:   [...gmCurrentPair],
-      guessA: gmWordA,
-      guessB: gmWordB,
-    });
-    document.getElementById('gm-result-nomatch').style.display = 'flex';
-    document.getElementById('gm-result-match').style.display   = 'none';
-    document.getElementById('gm-result-name-a').textContent    = gmPlayerNames[0];
-    document.getElementById('gm-result-name-b').textContent    = gmPlayerNames[1];
-    document.getElementById('gm-result-word-a').textContent    = gmWordA;
-    document.getElementById('gm-result-word-b').textContent    = gmWordB;
-    document.getElementById('gm-result-round-num').textContent = gmRound;
-    document.getElementById('gm-result-pair-hint').textContent = 'These are your new starting words ↑';
-    gmCurrentPair = [gmWordA, gmWordB];
+    showScreen('screen-gm-result');
+    return;
   }
 
+  // Near-sync check: roots match but words aren't identical
+  if (gmResonanceTolerance === 'normal' &&
+      gmNormaliseWord(gmWordA) === gmNormaliseWord(gmWordB)) {
+    document.getElementById('gm-near-sync-word-a').textContent = gmWordA;
+    document.getElementById('gm-near-sync-word-b').textContent = gmWordB;
+    document.getElementById('gm-near-sync-overlay').style.display = 'flex';
+    playSuccess();
+    return; // wait for Accept or Reject
+  }
+
+  playBoing();
+  gmHandleMismatch();
   showScreen('screen-gm-result');
+}
+
+function gmHandleMatch() {
+  // Guard against double-log (near-sync override may call after gmShowResult already logged)
+  if (gmRoundLog.length > 0 && gmRoundLog[gmRoundLog.length - 1].isWin) return;
+  gmRoundLog.push({
+    round:  gmRound,
+    pair:   [...gmCurrentPair],
+    guessA: gmWordA,
+    guessB: gmWordB,
+    traceA: gmPendingBoostA,
+    traceB: gmPendingBoostB,
+    isWin:  true,
+  });
+  gmPendingBoostA = ''; gmPendingBoostB = '';
+  // Record both clues in session history after round resolves (Memory Guard)
+  if (gmMemoryGuard) {
+    gmSessionGuesses.add(gmWordA.toLowerCase());
+    gmSessionGuesses.add(gmWordB.toLowerCase());
+  }
 }
 
 function gmRenderVictory() {
   document.getElementById('gm-result-nomatch').style.display = 'none';
   document.getElementById('gm-result-match').style.display   = 'flex';
-  document.getElementById('gm-match-subtext').textContent    = 'You both said…';
+  document.getElementById('gm-match-subtext').textContent    = 'You both thought of…';
   document.getElementById('gm-match-word').textContent       = gmWordA;
   document.getElementById('gm-victory-rounds').textContent   = gmRound;
-
-  // Render journey log
-  const log = document.getElementById('gm-journey-log');
-  if (gmRoundLog.length === 0) {
-    log.innerHTML = '';
-    return;
-  }
-  log.innerHTML = gmRoundLog.map(e =>
-    `<div class="bg-white rounded-xl px-4 py-3 shadow-sm text-sm">
-      <p class="text-stone-400 text-xs uppercase tracking-widest mb-1.5">Round ${e.round}</p>
-      <div class="flex items-center justify-center gap-2 font-semibold text-stone-700">
-        <span>${e.pair[0]}</span>
-        <span class="text-stone-300">↔</span>
-        <span>${e.pair[1]}</span>
-      </div>
-      <p class="text-stone-400 text-xs mt-1.5">
-        ${gmPlayerNames[0]}: <span class="text-stone-600 font-medium">${e.guessA}</span>
-        &nbsp;·&nbsp;
-        ${gmPlayerNames[1]}: <span class="text-stone-600 font-medium">${e.guessB}</span>
-      </p>
-    </div>`
-  ).join('');
+  gmRenderPsychicEchoes('gm-journey-log');
 }
 
 function gmTriggerVictory() {
-  // Social override path — show both words + random cheeky subtext
+  // Social override path — log winning round then show both words + random cheeky subtext
+  gmHandleMatch();
   gmRenderVictory();
   document.getElementById('gm-match-word').textContent    = `${gmWordA} / ${gmWordB}`;
   document.getElementById('gm-match-subtext').textContent =
@@ -270,6 +476,30 @@ document.getElementById('btn-gm-lock-in').addEventListener('click', () => {
   gmLockIn();
 });
 
+// Clear validation error the moment the input is emptied
+document.getElementById('gm-word-input').addEventListener('input', () => {
+  if (!document.getElementById('gm-word-input').value) {
+    document.getElementById('gm-input-error').style.display = 'none';
+  }
+});
+
+// Reroll pair on setup screen — exclude the current words to prevent sticky repeats
+document.getElementById('btn-gm-reroll-pair').addEventListener('click', () => {
+  playPillClick();
+  gmCurrentPair = gmPickStarterPair(gmCurrentPair);
+  document.getElementById('gm-pair-word-a').textContent = gmCurrentPair[0];
+  document.getElementById('gm-pair-word-b').textContent = gmCurrentPair[1];
+});
+
+// Reroll pair on result screen (before next round) — exclude current pair
+document.getElementById('btn-gm-reroll-result').addEventListener('click', () => {
+  playPillClick();
+  gmCurrentPair = gmPickStarterPair(gmCurrentPair);
+  document.getElementById('gm-result-word-a').textContent    = gmCurrentPair[0];
+  document.getElementById('gm-result-word-b').textContent    = gmCurrentPair[1];
+  document.getElementById('gm-result-pair-hint').textContent = 'New frequency locked in ↑';
+});
+
 document.getElementById('btn-gm-ready').addEventListener('click', () => {
   // Pass gate → Player 2 input
   playPillClick();
@@ -288,9 +518,60 @@ document.getElementById('btn-gm-next-round').addEventListener('click', () => {
   gmStartInputPhase();
 });
 
-document.getElementById('btn-gm-victory-lobby').addEventListener('click', () => {
+document.getElementById('btn-gm-new-frequency').addEventListener('click', () => {
+  playPillClick();
+  document.getElementById('gm-new-frequency-overlay').style.display = 'flex';
+});
+
+document.getElementById('btn-gm-new-game-confirm').addEventListener('click', () => {
+  document.getElementById('gm-new-frequency-overlay').style.display = 'none';
   playLaunch();
   showScreen('screen-gm-menu');
+});
+
+document.getElementById('btn-gm-new-game-cancel').addEventListener('click', () => {
+  document.getElementById('gm-new-frequency-overlay').style.display = 'none';
+  playPillClick();
+});
+
+// Signal Boost overlay confirm
+document.getElementById('btn-gm-boost-confirm').addEventListener('click', () => {
+  const boost = (document.getElementById('gm-boost-input').value || '').trim().slice(0, 15);
+  if (boost.length >= 3 && gmPendingLockIn.length >= 3) {
+    const normBoost = gmNormaliseWord(boost);
+    const normClue  = gmNormaliseWord(gmPendingLockIn);
+    if (normBoost.includes(normClue) || normClue.includes(normBoost)) {
+      document.getElementById('gm-boost-error').style.display = 'block';
+      return;
+    }
+  }
+  document.getElementById('gm-boost-error').style.display = 'none';
+  document.getElementById('gm-boost-overlay').style.display = 'none';
+  playPillClick();
+  gmProcessLockIn(gmPendingLockIn, boost);
+  gmPendingLockIn = '';
+});
+
+document.getElementById('btn-gm-raw-signal').addEventListener('click', () => {
+  document.getElementById('gm-boost-error').style.display = 'none';
+  document.getElementById('gm-boost-overlay').style.display = 'none';
+  playPillClick();
+  gmProcessLockIn(gmPendingLockIn, '');
+  gmPendingLockIn = '';
+});
+
+document.getElementById('btn-gm-boost-help').addEventListener('click', () => {
+  document.getElementById('gm-neural-library-overlay').style.display = 'flex';
+});
+document.getElementById('btn-gm-boost-help-settings').addEventListener('click', () => {
+  document.getElementById('gm-neural-library-overlay').style.display = 'flex';
+});
+document.getElementById('btn-gm-neural-library-close').addEventListener('click', () => {
+  document.getElementById('gm-neural-library-overlay').style.display = 'none';
+});
+
+document.getElementById('gm-boost-input').addEventListener('input', () => {
+  document.getElementById('gm-boost-error').style.display = 'none';
 });
 
 // ── GM Menu listeners ─────────────────────────────────────────────────────────
@@ -325,34 +606,39 @@ document.getElementById('btn-gm-settings-done').addEventListener('click', () => 
   document.getElementById('gm-settings-overlay').style.display = 'none';
 });
 
-// Sylly Mode toggle — OFF = diff 1, ON = reveal Wild/Wilder (default Wild)
-document.getElementById('btn-gm-sylly-toggle').addEventListener('click', () => {
-  gmSyllyMode ? playSyllyOff() : playSyllyOn();
-  gmSyllyMode = !gmSyllyMode;
-  const btn = document.getElementById('btn-gm-sylly-toggle');
-  btn.textContent = gmSyllyMode ? 'ON' : 'OFF';
-  btn.className   = gmSyllyMode ? 'sylly-toggle-on' : 'sylly-toggle-off';
-  document.getElementById('gm-sylly-intensity').style.display = gmSyllyMode ? 'flex' : 'none';
-  if (!gmSyllyMode) {
-    gmSettingDifficulty = 1;
-  } else {
-    // Auto-select Wild (diff 2) on first enable
-    gmSettingDifficulty = 2;
-    document.querySelectorAll('#gm-sylly-intensity [data-gm-intensity]').forEach(b => {
-      b.classList.toggle('pill-active-purple', b.dataset.gmIntensity === '2');
-    });
-  }
+// Infinite Resync toggle
+document.getElementById('btn-gm-resync-toggle').addEventListener('click', () => {
+  playPillClick();
+  gmInfiniteResync = !gmInfiniteResync;
+  const btn = document.getElementById('btn-gm-resync-toggle');
+  btn.textContent = gmInfiniteResync ? 'ON' : 'OFF';
+  btn.className   = gmInfiniteResync ? 'sylly-toggle-on' : 'sylly-toggle-off';
 });
 
-// Intensity pills (Wild / Wilder) — only visible when Sylly Mode ON
-document.getElementById('gm-sylly-intensity').addEventListener('click', e => {
-  const btn = e.target.closest('[data-gm-intensity]');
+// Adjust Frequency Range pills
+document.getElementById('gm-frequency-pills').addEventListener('click', e => {
+  const btn = e.target.closest('[data-gm-frequency]');
   if (!btn) return;
   playPillClick();
-  gmSettingDifficulty = parseInt(btn.dataset.gmIntensity);
-  document.querySelectorAll('#gm-sylly-intensity [data-gm-intensity]').forEach(b => {
-    b.classList.toggle('pill-active-purple', b === btn);
-  });
+  gmFrequencyRange = btn.dataset.gmFrequency;
+  document.querySelectorAll('#gm-frequency-pills [data-gm-frequency]').forEach(b =>
+    b.classList.toggle('pill-active-purple', b === btn));
+  const descs = {
+    stable:   'Standard words only.',
+    unstable: 'Standard and tricky words.',
+    chaotic:  'Full range including abstract concepts.',
+  };
+  document.getElementById('gm-frequency-desc').textContent = descs[gmFrequencyRange];
+});
+
+// Sylly Mode toggle (Static Interference)
+document.getElementById('btn-gm-static-toggle').addEventListener('click', () => {
+  gmStaticInterference ? playSyllyOff() : playSyllyOn();
+  gmStaticInterference = !gmStaticInterference;
+  const btn = document.getElementById('btn-gm-static-toggle');
+  btn.textContent = gmStaticInterference ? 'ON' : 'OFF';
+  btn.className   = gmStaticInterference ? 'sylly-toggle-on' : 'sylly-toggle-off';
+  document.getElementById('gm-sylly-mode-detail').style.display = gmStaticInterference ? 'block' : 'none';
 });
 
 // Customise Words toggle
@@ -459,12 +745,20 @@ document.getElementById('btn-gm-quit-confirm').addEventListener('click', () => {
   document.getElementById('gm-quit-overlay').style.display = 'none';
   playExit();
   // Reset in-game state, keep player names and settings
-  gmCurrentPair  = ['', ''];
-  gmWordA        = '';
-  gmWordB        = '';
-  gmRound        = 0;
-  gmActivePlayer = 0;
-  gmRoundLog     = [];
+  gmCurrentPair    = ['', ''];
+  gmWordA          = '';
+  gmWordB          = '';
+  gmRound          = 0;
+  gmActivePlayer   = 0;
+  gmStartingPair     = [];
+  gmRoundLog         = [];
+  gmSessionGuesses   = new Set();
+  gmPrevRoundWords   = new Set();
+  gmBannedLetter     = '';
+  gmLastBannedLetter = '';
+  gmPendingLockIn    = '';
+  gmPendingBoostA    = '';
+  gmPendingBoostB    = '';
   if (gmCountdownTimer) { clearInterval(gmCountdownTimer); gmCountdownTimer = null; }
   showScreen('screen-gm-menu');
 });
@@ -472,6 +766,73 @@ document.getElementById('btn-gm-quit-confirm').addEventListener('click', () => {
 document.getElementById('btn-gm-quit-cancel').addEventListener('click', () => {
   playPillClick();
   document.getElementById('gm-quit-overlay').style.display = 'none';
+});
+
+// ── Near-Sync overlay ────────────────────────────────────────────────────────
+document.getElementById('btn-gm-near-sync-accept').addEventListener('click', () => {
+  document.getElementById('gm-near-sync-overlay').style.display = 'none';
+  gmTriggerVictory();
+  showScreen('screen-gm-result');
+});
+
+document.getElementById('btn-gm-near-sync-reject').addEventListener('click', () => {
+  document.getElementById('gm-near-sync-overlay').style.display = 'none';
+  playBoing();
+  gmHandleMismatch();
+  showScreen('screen-gm-result');
+});
+
+// ── New settings listeners ────────────────────────────────────────────────────
+
+// Memory Guard toggle
+document.getElementById('btn-gm-memory-guard-toggle').addEventListener('click', () => {
+  gmMemoryGuard ? playSyllyOff() : playSyllyOn();
+  gmMemoryGuard = !gmMemoryGuard;
+  const btn = document.getElementById('btn-gm-memory-guard-toggle');
+  btn.textContent = gmMemoryGuard ? 'ON' : 'OFF';
+  btn.className   = gmMemoryGuard ? 'sylly-toggle-on' : 'sylly-toggle-off';
+  document.getElementById('gm-memory-guard-desc').textContent = gmMemoryGuard
+    ? 'All clues from every round are permanently banned for this game.'
+    : "Previous round's words are always blocked. No further restrictions.";
+});
+
+// Resonance Tolerance pills
+document.getElementById('gm-resonance-pills').addEventListener('click', e => {
+  const btn = e.target.closest('[data-gm-resonance]');
+  if (!btn) return;
+  playPillClick();
+  gmResonanceTolerance = btn.dataset.gmResonance;
+  document.querySelectorAll('#gm-resonance-pills [data-gm-resonance]').forEach(b =>
+    b.classList.toggle('pill-active-purple', b === btn));
+  const descs = {
+    strict: 'Exact match only. No partial credit.',
+    normal: 'Plural and singular variants trigger a Near-Sync alert for player review.',
+  };
+  document.getElementById('gm-resonance-desc').textContent = descs[gmResonanceTolerance];
+});
+
+// Signal Boost toggle
+document.getElementById('btn-gm-signal-boost-toggle').addEventListener('click', () => {
+  playPillClick();
+  gmSignalBoost = !gmSignalBoost;
+  const btn = document.getElementById('btn-gm-signal-boost-toggle');
+  btn.textContent = gmSignalBoost ? 'ON' : 'OFF';
+  btn.className   = gmSignalBoost ? 'sylly-toggle-on' : 'sylly-toggle-off';
+});
+
+// Sylly Intensity pills
+document.getElementById('gm-sylly-intensity-pills').addEventListener('click', e => {
+  const btn = e.target.closest('[data-gm-intensity]');
+  if (!btn) return;
+  playPillClick();
+  gmSyllyIntensity = btn.dataset.gmIntensity;
+  document.querySelectorAll('#gm-sylly-intensity-pills [data-gm-intensity]').forEach(b =>
+    b.classList.toggle('pill-active-purple', b === btn));
+  const intensityDescs = {
+    'sub-atomic': 'Each round, a random consonant is banned for both players.',
+    'supernova':  'Each round, a random vowel is banned. Prepare for chaos.',
+  };
+  document.getElementById('gm-sylly-intensity-desc').textContent = intensityDescs[gmSyllyIntensity];
 });
 
 // ── Social Override ───────────────────────────────────────────────────────────

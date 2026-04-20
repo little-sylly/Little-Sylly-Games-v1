@@ -157,6 +157,42 @@ body.flash-red   { background-color: #fecaca; }
   font-size: 1.05rem;
 }
 
+/* ── Overlay Library ─────────────────────────────────────────────────────── */
+/*
+ * TWO PATTERNS ONLY. Do not invent a third.
+ *
+ * Data overlay  — use for: settings, how-to, word lists, history, any scrollable content
+ *   Backdrop:  .overlay-data-backdrop  (items-end justify-center)
+ *   Inner div: .overlay-data-inner     (height:80vh; overflow-y:auto) + rounded-t-3xl + settings-slide-up
+ *
+ * Decision modal — use for: confirmations, short prompts, ≤3 interactive elements
+ *   Backdrop:  .overlay-modal-backdrop (items-center justify-center px-6)
+ *   Inner div: .overlay-modal-inner    (rounded-3xl, auto height, no slide-up)
+ */
+
+/* Data overlay backdrop */
+.overlay-data-backdrop {
+  align-items: flex-end;
+  justify-content: center;
+}
+/* Data overlay inner scrollable sheet */
+.overlay-data-inner {
+  height: 80vh;
+  overflow-y: auto;
+}
+
+/* Decision modal backdrop */
+.overlay-modal-backdrop {
+  align-items: center;
+  justify-content: center;
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+}
+/* Decision modal inner card */
+.overlay-modal-inner {
+  border-radius: 1.5rem; /* rounded-3xl */
+}
+
 /* ── No-No List container — tight natural height, stable floor on outer card ─── */
 #taboo-card {
   width: 90%;

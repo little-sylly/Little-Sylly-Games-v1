@@ -10,20 +10,21 @@
 │   ├── engine.js                # Shared engine: audio, navigation, allScreens[], reset
 │   ├── games/
 │   │   ├── dstw.js              # Plugin: Don't Say Those Words (all state + logic)
-│   │   └── great-minds.js       # Plugin: Great Minds (all state + logic)
+│   │   ├── great-minds.js       # Plugin: Great Minds (all state + logic)
+│   │   └── sylly-signals.js     # Plugin: Sylly Signals (all state + logic)
 │   ├── app.js                   # Bootstrapper only — no logic (3 lines)
 │   └── lib/tailwind-play.js     # Local Tailwind (no CDN — fully offline)
 ├── data/words.json              # Word bank (~358 words, 16 categories)
-├── sw.js                        # Service Worker (currently v40)
+├── sw.js                        # Service Worker (currently v55)
 ├── manifest.json                # PWA manifest
-├── docs/phase5-snapshot.md      # Phase 5 gold-master reference
-└── docs/phase7-snapshot.md      # Phase 7 architecture snapshot (current)
+├── docs/phase7-snapshot.md      # Phase 7 architecture snapshot (archived)
+└── docs/phase10-snapshot.md     # Phase 10.1 architecture snapshot (current)
 ```
 
-**Load order:** `engine.js` → `dstw.js` → `great-minds.js` → `app.js`
+**Load order:** `engine.js` → `dstw.js` → `great-minds.js` → `sylly-signals.js` → `app.js`
 All symbols are global (no ES modules). Forward references work at runtime.
 
-## 🏗 Gamebox Architecture (Phase 7 — Current)
+## 🏗 Gamebox Architecture (Phase 10.1 — Current)
 
 ### The Plugin Pattern
 `engine.js` owns everything game-agnostic:
@@ -35,7 +36,7 @@ All symbols are global (no ES modules). Forward references work at runtime.
 - Global sound overlay (`#sound-overlay`) — mute toggle + volume slider
 - `openSoundOverlay()`, `toggleMute()` — referenced by all `.btn-open-sound` buttons
 
-Each plugin (`dstw.js`, `great-minds.js`) owns:
+Each plugin (`dstw.js`, `great-minds.js`, `sylly-signals.js`) owns:
 - All game-specific state variables
 - All game-specific functions and event listeners
 - Nothing from engine.js is duplicated in plugins
@@ -158,6 +159,10 @@ All multi-choice settings use the **Pill Button** style (`data-group` or `data-*
 - **PWA Lifecycle:** SW versioning (`CACHE_NAME = 'sylly-games-vN'`), cache-first strategy. Bump on every deploy.
 - **Acoustic Branding:** Synthesised tones — pitch + duration encode meaning. Function names: `playSuccess`, `playBoing`, `playLaunch`, `playExit`, `playPillClick`, `playDone`, `playTick`.
 - **Animation Re-trigger:** `classList.remove` → `void el.offsetWidth` → `classList.add` — required to replay CSS animations on the same element.
+- **Overlay Standard (Two-Pattern Library):** TWO patterns only — do not invent a third.
+  - *Data overlay* (settings, how-to, word lists, history — scrollable content or keyboard input): backdrop adds `.overlay-data-backdrop` (`items-end justify-center`); inner div adds `.overlay-data-inner` (`height:80vh; overflow-y:auto`) + `rounded-t-3xl` + `settings-slide-up` animation.
+  - *Decision modal* (confirmations, short prompts, ≤3 interactive elements): backdrop adds `.overlay-modal-backdrop` (`items-center justify-center px-6`); inner div adds `.overlay-modal-inner` (`rounded-3xl`), auto height, no slide-up animation.
+  - Classes live in `css/styles.css`. If a new overlay doesn't clearly fit either pattern, discuss before building.
 
 ## 🕹 Games
 
@@ -171,12 +176,20 @@ Pass-the-phone. One player describes, others guess. No saying the target word or
 Two players privately enter a connecting word for a random pair. Reveal together with 3-2-1 countdown. Loop until they match (Mind Meld). Score = rounds taken (lower is better).
 **State:** LOBBY → GM MENU → GM SETUP → GM INPUT → GM PASS GATE → GM REVEAL GATE → GM REVEAL → GM RESULT (loop or victory)
 **Key files:** `js/games/great-minds.js`
-**Settings:** Customise Words (pool A + pool B from curated categories), Sylly Mode (Wild = diff 2, Wilder = diff 3)
+**Settings:** Customise Words, Memory Guard, Resonance Tolerance (High Fidelity/Resonant), Signal Boost, Infinite Resync, Frequency Range, Static Interference, Sylly Mode (Mental Fog/Neural Storm)
 **Special mechanics:**
 - Cheap Move Guard: blocks inputs that contain or are contained by either pair word
-- Social Override: "Actually... that counts 🤝" button with "Fair dinkum?" confirmation
-- Journey Log: mismatch history rendered on victory screen
-- Name Persistence: `gmPlayerNames` survives between games; pre-populates input fields
+- Starting Pair Guard + Last Round Guard: hardcoded, always active
+- Social Override: "Actually... that counts 🤝" → "Quantum Entanglement?" confirmation modal
+- Signal Boost (turn-based from R5): transmitter sees boost overlay + `?` Neural Library guide; receiver sees boost context banner
+- Psychic Echoes: table log on victory screen + result screen; columns: # | Pair | P1 | P2
+- Session Terminal: decision modal — "Memory Purge ⚛️" (new game) / "Resume Current Evaluation 📖"
+- Name Persistence: `gmPlayerNames` survives between games
+
+### Game 3: Sylly Signals
+Two teams intercept and decode encrypted transmissions. Team A encrypts keywords into a code; Team B intercepts.
+**Key files:** `js/games/sylly-signals.js`
+**Full state:** see `docs/phase10-snapshot.md`
 
 ## 📊 Data Schema: words.json
 ```json
@@ -192,6 +205,6 @@ Two players privately enter a connecting word for a random pair. Reveal together
 - Great Minds uses 10 of these: excludes `vehicles, music, pop_culture, people, brands, aussie_slang`
 
 ## 🎯 Current Focus
-**Phase:** 7 (Gamebox Platform — active)
-**SW Version:** v40
-**Key reference:** `docs/phase7-snapshot.md` — current architecture gold master
+**Phase:** 10.1 (Great Minds + Neural Library — complete)
+**SW Version:** v55
+**Key reference:** `docs/phase10-snapshot.md` — current architecture gold master
