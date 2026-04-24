@@ -56,13 +56,21 @@ let gmPendingBoostA   = '';        // signal boost context from transmitter this
 let gmPendingBoostB   = '';        // signal boost context for player 2 this round (legacy, unused)
 
 // ── GM Helpers ────────────────────────────────────────────────────────────────
+// In Secret Mode Round 2+, word source switches to expansion bank
+function gmGetWordPool() {
+  return (isSecretMode && gmRound >= 2) ? secretWords : allWords;
+}
+
 function gmBuildPool(categorySet) {
-  // Build a word pool from a Set of categories, with difficulty + safety fallbacks
+  // Secret Mode Round 2+: expansion is pre-curated, skip category/difficulty filters
+  if (isSecretMode && gmRound >= 2) return gmGetWordPool();
+  // Standard: filter by category + difficulty with safety fallbacks
+  const wordPool = gmGetWordPool();
   const maxDiff = { stable: 1, unstable: 2, chaotic: 3 }[gmFrequencyRange] || 1;
   const cats = categorySet.size > 0 ? [...categorySet] : [...GM_CATEGORIES];
-  let pool = allWords.filter(w => cats.includes(w.category) && w.difficulty <= maxDiff);
-  if (pool.length === 0) pool = allWords.filter(w => cats.includes(w.category) && w.difficulty === 1);
-  if (pool.length === 0) pool = allWords.filter(w => GM_CATEGORIES.includes(w.category) && w.difficulty === 1);
+  let pool = wordPool.filter(w => cats.includes(w.category) && w.difficulty <= maxDiff);
+  if (pool.length === 0) pool = wordPool.filter(w => cats.includes(w.category) && w.difficulty === 1);
+  if (pool.length === 0) pool = wordPool.filter(w => GM_CATEGORIES.includes(w.category) && w.difficulty === 1);
   return pool;
 }
 
@@ -116,13 +124,6 @@ function gmCheapMoveWord(input) {
 
 // Strips common plural/verb suffixes to a root form for near-sync comparison.
 // Order matters: -ies before -es before -s.
-function gmNormaliseWord(w) {
-  w = w.toLowerCase().trim();
-  if (w.endsWith('ies') && w.length > 4) return w.slice(0, -3) + 'y'; // berries → berry
-  if (w.endsWith('es')  && w.length > 3) return w.slice(0, -2);        // foxes → fox
-  if (w.endsWith('s')   && w.length > 2) return w.slice(0, -1);        // cats → cat
-  return w;
-}
 
 // Picks a random banned letter that differs from the previous round's letter.
 function gmPickBannedLetter() {
@@ -171,7 +172,20 @@ function gmShowPairReveal() {
   });
 }
 
+// Secret Mode: apply forced overrides on first round only
+function gmApplyExpansionOverrides() {
+  if (!isSecretMode || !window.activeExpansionOverrides) return;
+  const ov = window.activeExpansionOverrides;
+  if (ov.gmFrequencyRange     !== undefined) gmFrequencyRange     = ov.gmFrequencyRange;
+  if (ov.gmMemoryGuard        !== undefined) gmMemoryGuard        = ov.gmMemoryGuard;
+  if (ov.gmResonanceTolerance !== undefined) gmResonanceTolerance = ov.gmResonanceTolerance;
+  if (ov.gmInfiniteResync     !== undefined) gmInfiniteResync     = ov.gmInfiniteResync;
+  if (ov.gmSignalBoost        !== undefined) gmSignalBoost        = ov.gmSignalBoost;
+  if (ov.gmSyllyIntensity     !== undefined) gmSyllyIntensity     = ov.gmSyllyIntensity;
+}
+
 function gmStartInputPhase() {
+  if (gmRound === 0) gmApplyExpansionOverrides(); // apply before first round starts
   gmActivePlayer = 0;
   gmWordA        = '';
   gmWordB        = '';
@@ -207,7 +221,10 @@ function gmShowPlayerInput() {
   } else {
     banner.style.display = 'none';
   }
+  document.getElementById('gm-vocab-list-btn').style.display = 'none';
   showScreen('screen-gm-input');
+  document.getElementById('gm-concede-wrap').style.display =
+    (isSecretMode && gmRound >= 11) ? 'flex' : 'none';
 }
 
 function gmLockIn() {
@@ -243,7 +260,30 @@ function gmLockIn() {
     return;
   }
 
-  // Priority 4 — Sylly Guard (letter ban)
+  // Priority 4 — Vocabulary Lock (Secret Mode Round 2+: clue must be in expansion vocab)
+  if (isSecretMode && gmRound >= 2 && window.activeExpansionData) {
+    if (!window.activeExpansionData.vocab.has(normaliseWord(input))) {
+      err.textContent = '📡 Signal Blocked — word not in expansion vocabulary.';
+      err.style.display = 'block';
+      document.getElementById('gm-vocab-list-btn').style.display = 'block';
+      playBoing();
+      return;
+    }
+    // Priority 5 — Too Easy block (clue in nono_list of BOTH active pair words)
+    const pairObjs = secretWords.filter(w => gmCurrentPair.some(p => p.toLowerCase() === w.word.toLowerCase()));
+    if (pairObjs.length === 2) {
+      const inBoth = pairObjs[0].nono_list.map(n => n.toLowerCase()).includes(input)
+                  && pairObjs[1].nono_list.map(n => n.toLowerCase()).includes(input);
+      if (inBoth) {
+        err.textContent = 'Haha, that would be too easy! Try another word.';
+        err.style.display = 'block';
+        playBoing();
+        return;
+      }
+    }
+  }
+
+  // Priority 6 — Static Interference (letter ban)
   if (gmStaticInterference && gmBannedLetter && input.includes(gmBannedLetter)) {
     err.textContent = `⚡ Static Interference! Letter "${gmBannedLetter.toUpperCase()}" is banned this round.`;
     err.style.display = 'block';
@@ -403,7 +443,7 @@ function gmShowResult() {
 
   // Near-sync check: roots match but words aren't identical
   if (gmResonanceTolerance === 'normal' &&
-      gmNormaliseWord(gmWordA) === gmNormaliseWord(gmWordB)) {
+      normaliseWord(gmWordA) === normaliseWord(gmWordB)) {
     document.getElementById('gm-near-sync-word-a').textContent = gmWordA;
     document.getElementById('gm-near-sync-word-b').textContent = gmWordB;
     document.getElementById('gm-near-sync-overlay').style.display = 'flex';
@@ -538,8 +578,8 @@ document.getElementById('btn-gm-new-game-cancel').addEventListener('click', () =
 document.getElementById('btn-gm-boost-confirm').addEventListener('click', () => {
   const boost = (document.getElementById('gm-boost-input').value || '').trim().slice(0, 15);
   if (boost.length >= 3 && gmPendingLockIn.length >= 3) {
-    const normBoost = gmNormaliseWord(boost);
-    const normClue  = gmNormaliseWord(gmPendingLockIn);
+    const normBoost = normaliseWord(boost);
+    const normClue  = normaliseWord(gmPendingLockIn);
     if (normBoost.includes(normClue) || normClue.includes(normBoost)) {
       document.getElementById('gm-boost-error').style.display = 'block';
       return;
@@ -572,6 +612,41 @@ document.getElementById('btn-gm-neural-library-close').addEventListener('click',
 
 document.getElementById('gm-boost-input').addEventListener('input', () => {
   document.getElementById('gm-boost-error').style.display = 'none';
+});
+
+// ── Concede (Secret Mode) ─────────────────────────────────────────────────────
+function gmNavigateToConcede() {
+  document.getElementById('gm-concede-word-a').textContent = gmCurrentPair[0] ?? '';
+  document.getElementById('gm-concede-word-b').textContent = gmCurrentPair[1] ?? '';
+  document.getElementById('gm-concede-rounds').textContent = gmRound;
+  gmRenderPsychicEchoes('gm-concede-log');
+  showScreen('screen-gm-concede');
+}
+
+document.getElementById('btn-gm-sever-link').addEventListener('click', () => {
+  playPillClick();
+  document.getElementById('gm-concede-overlay').style.display = 'flex';
+});
+
+document.getElementById('btn-gm-concede-cancel').addEventListener('click', () => {
+  playDone();
+  document.getElementById('gm-concede-overlay').style.display = 'none';
+});
+
+document.getElementById('btn-gm-concede-confirm').addEventListener('click', () => {
+  playExit();
+  document.getElementById('gm-concede-overlay').style.display = 'none';
+  gmNavigateToConcede();
+});
+
+document.getElementById('btn-gm-concede-new-frequency').addEventListener('click', () => {
+  playLaunch();
+  document.getElementById('gm-new-frequency-overlay').style.display = 'flex';
+});
+
+document.getElementById('btn-gm-concede-back').addEventListener('click', () => {
+  playExit();
+  showScreen('screen-gm-menu');
 });
 
 // ── GM Menu listeners ─────────────────────────────────────────────────────────

@@ -343,6 +343,16 @@ body.flash-red   { background-color: #fecaca; }
   border-radius: 0.75rem;
 }
 
+/* ── Vocab overlay — terminal-style scrollbars ───────────────────────────── */
+#gm-vocab-list::-webkit-scrollbar,
+#gm-vocab-tabs::-webkit-scrollbar        { width: 4px; height: 4px; }
+#gm-vocab-list::-webkit-scrollbar-track,
+#gm-vocab-tabs::-webkit-scrollbar-track  { background: transparent; }
+#gm-vocab-list::-webkit-scrollbar-thumb,
+#gm-vocab-tabs::-webkit-scrollbar-thumb  { background: #166534; border-radius: 2px; }
+#gm-vocab-list { scrollbar-width: thin; scrollbar-color: #166534 transparent; }
+#gm-vocab-tabs { scrollbar-width: thin; scrollbar-color: #166534 transparent; }
+
 /* ── Endgame splash — urgent Phase 2 button pulse ───────────────────────── */
 @keyframes flashPulse {
   0%, 100% { opacity: 1; }

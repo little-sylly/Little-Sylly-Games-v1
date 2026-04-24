@@ -54,7 +54,7 @@ let roundLog        = [];
 let currentStreak   = 0;
 let isProcessing    = false;
 
-const HYPE_PHRASES = ['🔥 On fire!', 'Unstoppable!', 'Keep it up!', 'Hat trick! 🎩', "Can't stop you!", 'Scorching! 🌶️', 'Legendary! ⚡'];
+const HYPE_PHRASES = ['Gold Star! 🌟', 'Clever clogs! 🧠', "You're on a roll! 🎉", 'Hat trick! 🎩', 'Absolutely smashing! 🏆', 'Too easy! 😎', 'Legendary! ⚡'];
 let lastHypeIdx     = -1;
 let reviewCallback  = null;
 let matchLog        = [];
@@ -150,13 +150,28 @@ function timePenaltyForTimer(secs) {
   return secs === 30 ? 5 : secs === 90 ? 20 : 10;
 }
 
+// ── Secret Mode: apply forced overrides before game start ────────────────────
+function applyExpansionOverrides() {
+  if (!isSecretMode || !window.activeExpansionOverrides) return;
+  const ov = window.activeExpansionOverrides;
+  if (ov.settingTimer       !== undefined) settingTimer       = ov.settingTimer;
+  if (ov.settingRounds      !== undefined) settingRounds      = ov.settingRounds;
+  if (ov.settingTabooCount  !== undefined) settingTabooCount  = ov.settingTabooCount;
+  if (ov.settingPenaltyMode !== undefined) settingPenaltyMode = ov.settingPenaltyMode;
+  if (ov.settingSkipFree    !== undefined) settingSkipFree    = ov.settingSkipFree;
+  if (ov.settingSylly       !== undefined) settingSylly       = ov.settingSylly;
+  if (ov.settingSyllyPct    !== undefined) settingSyllyPct    = ov.settingSyllyPct;
+}
+
 // ── Screen: SETUP ─────────────────────────────────────────────────────────────
 async function startGame() {
-  if (!settingPlayAllDecks && settingCategories.size === 0) return;
+  applyExpansionOverrides();
+  if (!isSecretMode && !settingPlayAllDecks && settingCategories.size === 0) return;
   await loadWords();
-  const active = settingPlayAllDecks
-    ? allWords
-    : allWords.filter(w => settingCategories.has(w.category));
+  // In Secret Mode, use expansion word bank instead of standard words
+  const active = isSecretMode
+    ? secretWords
+    : (settingPlayAllDecks ? allWords : allWords.filter(w => settingCategories.has(w.category)));
   regularWords   = shuffle(active.filter(w => w.difficulty < 3));
   syllyWords     = settingSylly ? shuffle(active.filter(w => w.difficulty >= 3)) : [];
   regularIdx     = 0;
@@ -192,36 +207,37 @@ function renderTabooList(containerId, tabooList) {
 // ── Hype message pools ────────────────────────────────────────────────────────
 const HYPE_POOLS = {
   finalRound: [
-    'Make it count — Final Round!',
-    'Make it count—Final Round!',
-    'Last round! Leave it all on the pitch!',
-    'This is it — Final Round!',
+    'Last chance for a gold star!',
+    'One more? When is lunch!',
+    'Final round— team circle!',
+    'One more turn! Time to win!',
   ],
   scoreless: [
-    "Let's get some points on the board!",
-    "Time to wake up — zero won't cut it!",
-    "First point's the hardest. Go get it!",
+    "Let's get a sticker on the chart!",
+    "Time to wake up — No time for a nap!",
+    "No time to waste! Let's get moving!",
+    "Pick up the pace!",
   ],
   hot: [
-    "You're on fire! Keep it up!",
-    "You're unstoppable!",
-    'Absolutely cooking right now!',
+    "You're a total whiz-kid!",
+    "Top of the class!",
+    "You're on a roll—roll-roll!",
   ],
   trailing: [
-    "Don't fall behind now!",
-    'Time to mount a comeback!',
-    "They're ahead — flip the script!",
+    "Don't be a slow-poke! Catch up!",
+    'Time to put your thinking cap on!',
+    "You're behind—time for a big play!",
   ],
   tied: [
-    "It's neck and neck! Who's it gonna be?",
-    "It's neck and neck!",
-    'Break the deadlock!',
-    'Deadlocked! Make your move!',
+    "Tied up! Who's the big brain?",
+    "Head to head! Feet to Feet!",
+    "It's a tie! Let's make it count!",
+    "No time to be drawing!",
   ],
   leading: [
-    'Go go go! Give it your all!',
-    "You're in front — keep the lead!",
-    'Ride the momentum!',
+    "King of the castle! Don't let go!",
+    "Look at you go! Stay in front!",
+    "You're the leader—keep up the pace!",
   ],
 };
 
@@ -395,6 +411,16 @@ function showHypePhrase() {
   void el.offsetWidth;
   el.classList.add('hype-pop');
   el.addEventListener('animationend', () => { el.classList.remove('hype-pop'); el.textContent = ''; }, { once: true });
+}
+
+function showPenaltyPhrase() {
+  const el = document.getElementById('hype-phrase');
+  el.textContent = "Oops! That's a No-No! 🙊";
+  el.classList.add('text-red-500');
+  el.classList.remove('hype-pop');
+  void el.offsetWidth;
+  el.classList.add('hype-pop');
+  el.addEventListener('animationend', () => { el.classList.remove('hype-pop', 'text-red-500'); el.textContent = ''; }, { once: true });
 }
 
 // ── Round Review ──────────────────────────────────────────────────────────────
@@ -634,7 +660,21 @@ document.getElementById('btn-back-to-lobby')
   .addEventListener('click', () => { playExit(); resetToLobby(); });
 
 document.getElementById('btn-play')
-  .addEventListener('click', () => { playLaunch(); showScreen('screen-setup'); });
+  .addEventListener('click', () => {
+    playLaunch();
+    const t1 = document.getElementById('input-team1');
+    const t2 = document.getElementById('input-team2');
+    if (isSecretMode) {
+      t1.value = 'The Radiant';
+      t2.value = 'The Dire';
+      t1.disabled = true;
+      t2.disabled = true;
+    } else {
+      t1.disabled = false;
+      t2.disabled = false;
+    }
+    showScreen('screen-setup');
+  });
 
 document.getElementById('btn-how-to')
   .addEventListener('click', () => {
@@ -755,7 +795,7 @@ document.getElementById('btn-correct').addEventListener('click', () => {
 document.getElementById('btn-taboo').addEventListener('click', () => {
   if (isProcessing) return;
   isProcessing = true; setTimeout(() => { isProcessing = false; }, 100);
-  playBoing(); flashBackground('red'); navigator.vibrate?.(40); applyAndAdvance('taboo');
+  playBoing(); flashBackground('red'); navigator.vibrate?.(40); showPenaltyPhrase(); applyAndAdvance('taboo');
 });
 
 document.getElementById('btn-skip').addEventListener('click', () => {

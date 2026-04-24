@@ -21,6 +21,9 @@ const allScreens = [
   'screen-ss-decode-gate', 'screen-ss-decode', 'screen-ss-resolution', 'screen-ss-gameover',
   'screen-ss-players', 'screen-ss-first-team',
   'screen-ss-tiebreak', 'screen-ss-intel-intro', 'screen-ss-intel-guess', 'screen-ss-intel-summary',
+  'screen-secret-controller',
+  'screen-secret-terminal',
+  'screen-gm-concede',
 ];
 
 // ── Web Audio API ─────────────────────────────────────────────────────────────
@@ -233,8 +236,10 @@ function resetToLobby() {
   document.getElementById('history-overlay').style.display     = 'none';
   document.getElementById('gm-override-overlay').style.display = 'none';
   document.getElementById('gm-quit-overlay').style.display     = 'none';
-  document.getElementById('input-team1').value = '';
-  document.getElementById('input-team2').value = '';
+  document.getElementById('input-team1').value    = '';
+  document.getElementById('input-team2').value    = '';
+  document.getElementById('input-team1').disabled = false;
+  document.getElementById('input-team2').disabled = false;
   // DSTW cold boot
   teamScores      = [0, 0];
   roundLog        = [];
@@ -250,6 +255,8 @@ function resetToLobby() {
   activeGameId  = null;
   // Sylly Signals teardown
   resetSyllySignals();
+  // Secret Mode hard-reset (forward ref — safe at runtime)
+  if (typeof resetSecretMode === 'function') resetSecretMode();
   showScreen('screen-lobby');
 }
 
@@ -288,3 +295,12 @@ document.getElementById('btn-sound-overlay-done').addEventListener('click', () =
 document.querySelectorAll('.btn-open-sound').forEach(b => {
   b.addEventListener('click', () => { playPillClick(); openSoundOverlay(); });
 });
+
+// ── Shared word normalisation — used by GM near-sync + future games ───────────
+function normaliseWord(w) {
+  w = w.toLowerCase().trim();
+  if (w.endsWith('ies') && w.length > 4) return w.slice(0, -3) + 'y'; // berries → berry
+  if (w.endsWith('es')  && w.length > 3) return w.slice(0, -2);        // foxes → fox
+  if (w.endsWith('s')   && w.length > 2) return w.slice(0, -1);        // cats → cat
+  return w;
+}

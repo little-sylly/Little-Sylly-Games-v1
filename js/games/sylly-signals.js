@@ -138,15 +138,21 @@ function ssGenerateCode() {
 }
 
 function ssBuildVaults() {
-  // Filter by difficulty
+  // In Secret Mode: draw from expansion word bank, skip user filters
+  if (isSecretMode) {
+    const shuffled = secretWords.slice().sort(() => Math.random() - 0.5);
+    ssVaultA = shuffled.slice(0, 4);
+    ssVaultB = shuffled.slice(4, 8);
+    ssRerollCounts = [[0,0,0,0],[0,0,0,0]];
+    return;
+  }
+  // Standard mode: filter by difficulty + category
   let pool = allWords.filter(w => w.difficulty === ssDifficultyLevel);
-  // Category filter: curated 10 by default; user-selected when Customise is ON
   if (!ssCustomiseVault) {
     pool = pool.filter(w => SS_CURATED_CATS.includes(w.category));
   } else if (ssSelectedCategories.length > 0) {
     pool = pool.filter(w => ssSelectedCategories.includes(w.category));
   }
-  // Fallback: if pool too small, use all words at this difficulty
   if (pool.length < 8) pool = allWords.filter(w => w.difficulty === ssDifficultyLevel);
   const shuffled = pool.slice().sort(() => Math.random() - 0.5);
   ssVaultA = shuffled.slice(0, 4);
@@ -159,6 +165,17 @@ function ssRerollWord(team, kwIdx) {
   if (ssRerollCounts[team][kwIdx] >= ssRerollLimitSetting) return;
   const usedIds = new Set([...ssVaultA, ...ssVaultB].map(w => w.id));
 
+  // In Secret Mode: reroll from expansion word bank only
+  if (isSecretMode) {
+    const pool = secretWords.filter(w => !usedIds.has(w.id));
+    if (pool.length === 0) return;
+    const newWord = pool[Math.floor(Math.random() * pool.length)];
+    if (team === 0) ssVaultA[kwIdx] = newWord;
+    else            ssVaultB[kwIdx] = newWord;
+    ssRerollCounts[team][kwIdx]++;
+    ssShowVaultAfterReroll(team);
+    return;
+  }
   let pool = allWords.filter(w => w.difficulty === ssDifficultyLevel && !usedIds.has(w.id));
   if (!ssCustomiseVault) {
     const catPool = pool.filter(w => SS_CURATED_CATS.includes(w.category));
@@ -818,6 +835,15 @@ function ssConfirmPlayers() {
   ssPlayerNamesB = suffixes.map(s => document.getElementById(`ss-player-b${s}`).value.trim());
 
   loadWords().then(() => {
+    // Secret Mode: apply forced overrides + lockdown vault customisation
+    if (isSecretMode && window.activeExpansionOverrides) {
+      const ov = window.activeExpansionOverrides;
+      if (ov.ssDifficultyLevel        !== undefined) ssDifficultyLevel        = ov.ssDifficultyLevel;
+      if (ov.ssSettingInterceptsToWin !== undefined) ssSettingInterceptsToWin = ov.ssSettingInterceptsToWin;
+      if (ov.ssRerollLimitSetting     !== undefined) ssRerollLimitSetting     = ov.ssRerollLimitSetting;
+      if (ov.ssIntelSyllyMode         !== undefined) ssIntelSyllyMode         = ov.ssIntelSyllyMode;
+      ssCustomiseVault = false; // lockdown: no vault customisation in Secret Mode
+    }
     ssBuildVaults();
     ssShowVaultGate(0);
   });

@@ -25,7 +25,7 @@
   <!-- ① LOBBY screen — game selection -->
   <section id="screen-lobby" class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
     <button class="btn-open-sound absolute top-4 right-4 text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
-    <div class="text-6xl" role="img" aria-label="Game controller">🎮</div>
+    <div id="lobby-icon" class="text-6xl" role="img" aria-label="Game controller">🎮</div>
     <div>
       <h1 class="text-5xl font-bold leading-tight text-stone-800">Little Sylly</h1>
       <h1 class="text-5xl font-bold leading-tight text-pink-500">Games</h1>
@@ -77,23 +77,23 @@
     </div>
     <div class="text-5xl" role="img" aria-label="People">👥</div>
     <div>
-      <h2 class="text-3xl font-bold text-stone-800">Who's playing?</h2>
+      <h2 class="text-3xl font-bold text-stone-800">Name your Playgroups!</h2>
       <p class="text-stone-400 text-base mt-1">Leave blank to use Team 1 &amp; Team 2</p>
     </div>
     <div class="flex flex-col gap-4 w-full text-left">
       <div>
-        <label class="text-stone-500 text-sm font-semibold uppercase tracking-widest block mb-1">Team 1 name</label>
-        <input id="input-team1" type="text" maxlength="20" placeholder="e.g. The Legends"
+        <label class="text-stone-500 text-sm font-semibold uppercase tracking-widest block mb-1">Team 1</label>
+        <input id="input-team1" type="text" maxlength="20" placeholder="e.g. Crayon Crew"
           class="w-full rounded-xl border-2 border-stone-200 bg-white px-4 py-3 text-lg text-stone-800 placeholder-stone-300 focus:border-pink-400 focus:outline-none transition-colors" />
       </div>
       <div>
-        <label class="text-stone-500 text-sm font-semibold uppercase tracking-widest block mb-1">Team 2 name</label>
-        <input id="input-team2" type="text" maxlength="20" placeholder="e.g. The Underdogs"
+        <label class="text-stone-500 text-sm font-semibold uppercase tracking-widest block mb-1">Team 2</label>
+        <input id="input-team2" type="text" maxlength="20" placeholder="e.g. Glue Stick Gang"
           class="w-full rounded-xl border-2 border-stone-200 bg-white px-4 py-3 text-lg text-stone-800 placeholder-stone-300 focus:border-pink-400 focus:outline-none transition-colors" />
       </div>
     </div>
     <button id="btn-start-game" class="min-h-14 w-full rounded-2xl bg-pink-500 hover:bg-pink-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
-      Let's Go! 🚀
+      Let's Go Already! 🚀
     </button>
   </section>
 
@@ -125,7 +125,7 @@
     </div>
 
     <button id="btn-start-turn" class="min-h-14 w-full rounded-2xl bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
-      Start Turn!
+      My Turn!
     </button>
   </section>
 
@@ -150,10 +150,10 @@
     <!-- Pause overlay — shown instead of word/taboo/buttons when paused -->
     <div id="pause-overlay" style="display:none" class="flex flex-col items-center gap-4 w-full">
       <p class="text-5xl">⏸</p>
-      <p class="text-stone-400 text-lg font-semibold">Game paused</p>
-      <p class="text-stone-400 text-sm">Word is hidden so no one can peek!</p>
+      <p class="text-stone-400 text-lg font-semibold">Time Out</p>
+      <p class="text-stone-400 text-sm">Word is hidden so no peeking!</p>
       <button id="btn-resume" class="min-h-14 w-full rounded-2xl bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
-        ▶ Resume Turn
+        ▶ Let's Continue Playing!
       </button>
     </div>
 
@@ -176,14 +176,14 @@
       <!-- Action buttons -->
       <div class="flex gap-3 w-full mb-3">
         <button id="btn-correct" class="min-h-12 flex-1 rounded-xl bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white text-lg font-semibold transition-all duration-150">
-          YAY!
+          Yay!
         </button>
         <button id="btn-taboo" class="min-h-12 flex-1 rounded-xl bg-red-500 hover:bg-red-600 active:scale-95 text-white text-lg font-semibold transition-all duration-150">
-          NAY!
+          Nay!
         </button>
       </div>
       <button id="btn-skip" class="min-h-10 w-full rounded-xl bg-stone-300 hover:bg-stone-400 active:scale-95 text-stone-700 text-base font-semibold transition-all duration-150">
-        Skip
+        Skip-a-roo
       </button>
     </div>
   </section>
@@ -201,20 +201,20 @@
 
         <!-- Decks -->
         <div>
-          <p class="text-stone-500 text-xs font-semibold uppercase tracking-widest mb-2">Decks</p>
+          <p class="text-stone-500 text-xs font-semibold uppercase tracking-widest mb-2">The Toy Box</p>
           <div class="flex items-center justify-between">
-            <p class="text-stone-800 font-semibold">Play All Decks</p>
+            <p class="text-stone-800 font-semibold">Play Everything</p>
             <button id="all-decks-toggle" class="sylly-toggle-on">ON</button>
           </div>
           <button id="btn-edit-deck" style="display:none"
             class="mt-2 w-full rounded-xl bg-stone-200 text-stone-700 font-semibold py-2 text-base active:scale-95 transition-all">
-            Edit Custom Deck ▸
+            Edit Toy Box ▸
           </button>
         </div>
 
         <!-- Timer -->
         <div>
-          <p class="text-stone-500 text-xs font-semibold uppercase tracking-widest mb-2">Timer</p>
+          <p class="text-stone-500 text-xs font-semibold uppercase tracking-widest mb-2">Tick Tock Clock</p>
           <div class="flex gap-2">
             <button class="pill" data-group="timer" data-value="30">30s</button>
             <button class="pill pill-active" data-group="timer" data-value="60">60s</button>
@@ -224,7 +224,7 @@
 
         <!-- Rounds -->
         <div>
-          <p class="text-stone-500 text-xs font-semibold uppercase tracking-widest mb-2">Rounds</p>
+          <p class="text-stone-500 text-xs font-semibold uppercase tracking-widest mb-2">Roundy Rounds</p>
           <div class="flex gap-2">
             <button class="pill" data-group="rounds" data-value="3">3</button>
             <button class="pill pill-active" data-group="rounds" data-value="5">5</button>
@@ -234,7 +234,7 @@
 
         <!-- The No-No List -->
         <div>
-          <p class="text-stone-500 text-xs font-semibold uppercase tracking-widest mb-2">The No-No List</p>
+          <p class="text-stone-500 text-xs font-semibold uppercase tracking-widest mb-2">The No-No List!</p>
           <div class="flex gap-2">
             <button class="pill pill-active" data-group="taboo-count" data-value="5">5 words</button>
             <button class="pill" data-group="taboo-count" data-value="10">10 words 🔥</button>
@@ -243,7 +243,7 @@
 
         <!-- Penalty Type -->
         <div>
-          <p class="text-stone-500 text-xs font-semibold uppercase tracking-widest mb-2">Penalty Type</p>
+          <p class="text-stone-500 text-xs font-semibold uppercase tracking-widest mb-2">Oopsie Daisy</p>
           <div class="flex gap-2">
             <button class="pill pill-active" data-group="penalty-mode" data-value="points">−1 Point</button>
             <button id="pill-time-penalty" class="pill" data-group="penalty-mode" data-value="time">−10 Secs</button>
@@ -252,7 +252,7 @@
 
         <!-- Skip Cost -->
         <div>
-          <p class="text-stone-500 text-xs font-semibold uppercase tracking-widest mb-2">Skip Cost</p>
+          <p class="text-stone-500 text-xs font-semibold uppercase tracking-widest mb-2">Skip-a-roo</p>
           <div class="flex gap-2">
             <button class="pill pill-active" data-group="skip-cost" data-value="free">Free</button>
             <button class="pill"             data-group="skip-cost" data-value="penalised">Penalised</button>
@@ -262,7 +262,7 @@
         <!-- Review Corrections -->
         <div class="flex items-center justify-between">
           <div>
-            <p class="text-stone-800 font-semibold">Allow Review Edits</p>
+            <p class="text-stone-800 font-semibold">Pinky Swear Mode</p>
             <p class="text-stone-400 text-sm">Tap words to flip outcome.</p>
           </div>
           <button id="corrections-toggle" class="sylly-toggle-off">OFF</button>
@@ -304,7 +304,7 @@
       <button id="btn-gameover-exit" class="text-xl text-stone-500 font-bold active:scale-90 transition-transform duration-100">✕</button>
     </div>
     <div class="text-6xl" role="img" aria-label="Trophy">🏆</div>
-    <h2 class="text-3xl font-bold text-stone-800">Game Over!</h2>
+    <h2 class="text-3xl font-bold text-stone-800">Class Dismissed!</h2>
 
     <!-- Final scoreboard -->
     <div class="flex gap-4 w-full">
@@ -327,7 +327,7 @@
     <p id="gameover-early-end" style="display:none" class="text-stone-400 text-sm italic"></p>
 
     <button id="btn-play-again" class="min-h-14 w-full rounded-2xl bg-pink-500 hover:bg-pink-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
-      Play Again!
+      One More Go?
     </button>
   </section>
 
@@ -338,7 +338,7 @@
 
       <!-- Header -->
       <div class="text-center">
-        <h3 class="text-xl font-bold text-stone-800">Custom Deck</h3>
+        <h3 class="text-xl font-bold text-stone-800">Toy Box</h3>
       </div>
       <p class="text-stone-400 text-xs text-center -mt-2">Tap to include or exclude a category</p>
 
@@ -401,13 +401,13 @@
   <div id="skip-turn-overlay" style="display:none" class="fixed inset-0 bg-black/50 z-[80] flex items-center justify-center px-6">
     <div class="bg-white rounded-2xl p-8 w-full max-w-sm text-center flex flex-col gap-3 shadow-xl">
       <p class="text-4xl">⏭</p>
-      <h3 class="text-xl font-bold text-stone-800">End turn early?</h3>
+      <h3 class="text-xl font-bold text-stone-800">All tuckered out?</h3>
       <p class="text-stone-400 text-sm">The current word won't count.</p>
       <button id="btn-skip-turn-confirm" class="min-h-12 w-full rounded-xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-lg font-semibold transition-all duration-150 mt-2">
-        Yes, end turn
+        Yep, break time!
       </button>
       <button id="btn-skip-turn-cancel" class="min-h-12 w-full rounded-xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 text-lg font-semibold transition-all duration-150">
-        Resume turn
+        Not yet!
       </button>
     </div>
   </div>
@@ -419,7 +419,7 @@
       <!-- Header -->
       <div class="text-center mb-1">
         <p id="review-team-label" class="text-stone-400 text-xs font-semibold uppercase tracking-widest"></p>
-        <h3 class="text-xl font-bold text-stone-800 mt-0.5">Round Summary</h3>
+        <h3 class="text-xl font-bold text-stone-800 mt-0.5">Report Card</h3>
         <p id="review-score-delta" class="text-pink-500 font-semibold text-sm mt-0.5"></p>
       </div>
 
@@ -432,7 +432,7 @@
       <!-- Next button -->
       <div class="pt-3">
         <button id="btn-review-next" class="min-h-14 w-full rounded-2xl bg-pink-500 hover:bg-pink-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
-          Next →
+          Your Turn →
         </button>
       </div>
     </div>
@@ -442,7 +442,7 @@
   <div id="history-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[90] flex items-end justify-center">
     <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl px-5 pt-5 pb-5 flex flex-col">
       <div class="text-center mb-3">
-        <p id="history-subtitle" class="text-stone-400 text-xs font-semibold uppercase tracking-widest mb-0.5">Match History</p>
+        <p id="history-subtitle" class="text-stone-400 text-xs font-semibold uppercase tracking-widest mb-0.5">Report Card</p>
         <h3 id="history-title" class="text-xl font-bold text-stone-800"></h3>
       </div>
       <div id="history-body" class="flex-1 overflow-y-auto flex flex-col gap-4 pb-2 min-h-0"></div>
@@ -605,11 +605,24 @@
     <input id="gm-word-input" type="text" maxlength="30" placeholder="Your clue…" autocomplete="off"
       class="w-full rounded-2xl border-2 border-stone-200 px-4 py-4 text-xl text-center text-stone-800 focus:outline-none focus:border-violet-400" />
     <p id="gm-input-error" style="display:none" class="text-pink-500 text-sm font-semibold text-center"></p>
+    <!-- Secret Mode vocab list trigger — hidden until first vocab guard failure -->
+    <button id="gm-vocab-list-btn" style="display:none"
+      class="text-xs font-mono text-green-400 border border-green-800 bg-black rounded-xl px-4 py-2 min-h-11 w-full active:scale-95 transition-transform duration-75">
+      📋 VIEW WORD LIST
+    </button>
     <button id="btn-gm-lock-in" class="min-h-14 w-full rounded-2xl bg-violet-500 hover:bg-violet-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
       Lock it in 🔒
     </button>
     <!-- Psychic Echoes — round history visible while typing -->
     <div id="gm-input-echoes" class="w-full max-h-28 overflow-y-auto flex flex-col"></div>
+    <!-- Sever Link — Secret Mode only, revealed from round 11 -->
+    <div id="gm-concede-wrap" style="display:none" class="flex flex-col items-center gap-2 w-full pt-1">
+      <p class="text-stone-300 text-xs text-center">Losing the connection — frequency mismatch intensifying 📡</p>
+      <button id="btn-gm-sever-link"
+        class="min-h-11 w-full rounded-2xl bg-stone-100 hover:bg-stone-200 active:scale-95 text-red-400 text-sm font-medium transition-all duration-150">
+        Sever Link
+      </button>
+    </div>
   </section>
 
   <!-- GM③ PASS GATE — neutral handoff, nothing revealing -->
@@ -723,6 +736,38 @@
       </button>
     </div>
 
+  </section>
+
+  <!-- GM CONCEDE — end state when players sever the link -->
+  <section id="screen-gm-concede" style="display:none"
+    class="flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
+    <div class="text-5xl">📡</div>
+    <div>
+      <h2 class="text-2xl font-bold text-stone-800">No Link Could Be Established</h2>
+      <p class="text-stone-400 text-sm mt-1">Incompatible wavelengths — frequencies could not be aligned.</p>
+    </div>
+    <div class="flex items-center justify-center gap-3 w-full">
+      <div class="flex-1 bg-white rounded-2xl py-4 shadow-sm">
+        <p id="gm-concede-word-a" class="text-xl font-bold text-stone-800"></p>
+      </div>
+      <div class="text-xl text-stone-300">↔</div>
+      <div class="flex-1 bg-white rounded-2xl py-4 shadow-sm">
+        <p id="gm-concede-word-b" class="text-xl font-bold text-stone-800"></p>
+      </div>
+    </div>
+    <p class="text-stone-400 text-sm">Rounds attempted: <span id="gm-concede-rounds" class="font-bold text-stone-800"></span></p>
+    <div class="w-full">
+      <p class="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-2">Psychic Echoes 📖</p>
+      <div id="gm-concede-log" class="w-full max-h-48 overflow-y-auto text-left"></div>
+    </div>
+    <button id="btn-gm-concede-new-frequency"
+      class="min-h-14 w-full rounded-2xl bg-violet-500 hover:bg-violet-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      New Frequency ⚛️
+    </button>
+    <button id="btn-gm-concede-back"
+      class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-base font-medium transition-all duration-150">
+      ← Back to the Box
+    </button>
   </section>
 
   <!-- Great Minds Settings overlay -->
@@ -915,6 +960,49 @@
     </div>
   </div>
 
+  <!-- Vocab reference overlay — Secret Mode expansion (terminal-style slide-up) -->
+  <div id="gm-vocab-overlay" style="display:none"
+    class="fixed inset-0 bg-black/90 z-[95] flex items-end justify-center">
+    <div class="bg-black border-t-2 border-green-800 w-full max-w-sm font-mono flex flex-col rounded-t-3xl settings-slide-up"
+      style="height:85vh">
+      <!-- Header -->
+      <div class="flex items-center justify-between px-5 pt-5 pb-3 border-b border-green-900 flex-shrink-0">
+        <p id="gm-vocab-title" class="text-green-400 text-xs tracking-widest"></p>
+        <button id="btn-gm-vocab-close"
+          class="text-green-600 text-xs border border-green-800 rounded px-3 py-1 min-h-11 min-w-11 active:scale-90 transition-transform">
+          ✕ CLOSE
+        </button>
+      </div>
+      <!-- Search -->
+      <div class="px-4 pt-3 pb-2 flex-shrink-0">
+        <input id="gm-vocab-search" type="text" placeholder="SEARCH..." maxlength="30" autocomplete="off"
+          class="w-full bg-transparent border border-green-800 rounded px-3 py-2 text-green-400 text-xs placeholder-green-900 focus:outline-none focus:border-green-400" />
+      </div>
+      <!-- Tab bar -->
+      <div id="gm-vocab-tabs" class="flex gap-2 px-4 pb-2 flex-shrink-0 overflow-x-auto"></div>
+      <!-- Word list -->
+      <div id="gm-vocab-list" class="flex-1 overflow-y-auto px-5 pb-6 text-green-400 text-xs leading-7"></div>
+    </div>
+  </div>
+
+  <!-- Concede confirmation overlay (Great Minds — Secret Mode) -->
+  <div id="gm-concede-overlay" style="display:none"
+    class="fixed inset-0 bg-black/40 z-[95] flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center">
+      <p class="text-4xl">📡</p>
+      <p class="text-xl font-bold text-stone-800">Incompatible Wavelengths</p>
+      <p class="text-stone-500 text-sm">We are losing the connection — frequency mismatch intensifying.</p>
+      <button id="btn-gm-concede-confirm"
+        class="min-h-14 w-full rounded-2xl bg-red-500 hover:bg-red-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Sever
+      </button>
+      <button id="btn-gm-concede-cancel"
+        class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-base font-medium transition-all duration-150">
+        Re-establish Connection
+      </button>
+    </div>
+  </div>
+
   <!-- Override confirmation overlay (Great Minds) -->
   <div id="gm-override-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[90] flex items-center justify-center px-6">
     <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center">
@@ -967,18 +1055,18 @@
     </div>
     <div class="text-5xl" role="img" aria-label="People">👥</div>
     <div>
-      <h2 class="text-3xl font-bold text-stone-800">Who's playing?</h2>
+      <h2 class="text-3xl font-bold text-stone-800">Establish Cover Identities</h2>
       <p class="text-stone-400 text-base mt-1">Leave blank to use Team A &amp; Team B</p>
     </div>
     <div class="flex flex-col gap-4 w-full text-left">
       <div>
         <label class="text-stone-500 text-sm font-semibold uppercase tracking-widest block mb-1">Team A name</label>
-        <input id="ss-input-team-a" type="text" maxlength="20" placeholder="e.g. The Agents"
+        <input id="ss-input-team-a" type="text" maxlength="20" placeholder="e.g. Alpha Echo"
           class="w-full rounded-xl border-2 border-stone-200 bg-white px-4 py-3 text-lg text-stone-800 placeholder-stone-300 focus:border-teal-400 focus:outline-none transition-colors" />
       </div>
       <div>
         <label class="text-stone-500 text-sm font-semibold uppercase tracking-widest block mb-1">Team B name</label>
-        <input id="ss-input-team-b" type="text" maxlength="20" placeholder="e.g. The Analysts"
+        <input id="ss-input-team-b" type="text" maxlength="20" placeholder="e.g. Bravo Zulu"
           class="w-full rounded-xl border-2 border-stone-200 bg-white px-4 py-3 text-lg text-stone-800 placeholder-stone-300 focus:border-teal-400 focus:outline-none transition-colors" />
       </div>
     </div>
@@ -1703,13 +1791,13 @@
   <div id="gm-quit-overlay" style="display:none" class="fixed inset-0 bg-black/50 z-[80] flex items-center justify-center px-6">
     <div class="bg-white rounded-2xl p-8 w-full max-w-sm text-center flex flex-col gap-3 shadow-xl">
       <p class="text-4xl">🏳️</p>
-      <h3 class="text-xl font-bold text-stone-800">Giving up already, mate?</h3>
+      <h3 class="text-xl font-bold text-stone-800">Giving up?</h3>
       <p class="text-stone-400 text-sm">Your progress will be lost.</p>
       <button id="btn-gm-quit-confirm" class="min-h-12 w-full rounded-xl bg-red-500 hover:bg-red-600 active:scale-95 text-white text-lg font-semibold transition-all duration-150 mt-2">
-        Yeah, bail out
+        Yeah, let's quit!
       </button>
       <button id="btn-gm-quit-cancel" class="min-h-12 w-full rounded-xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 text-lg font-semibold transition-all duration-150">
-        Keep going
+        Keep going!
       </button>
     </div>
   </div>
@@ -1749,11 +1837,126 @@
     </div>
   </div>
 
-  <!-- Load order: engine → plugins → bootstrapper -->
+  <!-- ══ SECRET CONTROLLER — Konami gateway ══ -->
+  <section id="screen-secret-controller" style="display:none"
+    class="relative flex flex-col items-center justify-center w-full min-h-screen bg-black px-4 py-8 font-mono">
+
+    <!-- Exit -->
+    <button id="sm-btn-exit"
+      class="absolute top-4 right-4 text-green-400 text-xl active:scale-90 transition-transform duration-100">✕</button>
+
+    <!-- Header -->
+    <div class="text-green-400 text-center mb-6 select-none">
+      <div class="text-xs tracking-widest mb-1 opacity-60">SYLLY-OS v1.0 // CLASSIFIED</div>
+      <div class="text-lg font-bold tracking-widest">[ KONAMI GATEWAY ]</div>
+    </div>
+
+    <!-- ASCII Controller body -->
+    <div class="border border-green-400 text-green-400 rounded-lg p-5 w-full max-w-xs select-none">
+      <div class="text-xs text-center opacity-50 mb-4 tracking-widest">NES-01 INPUT DEVICE</div>
+
+      <!-- D-Pad + Face buttons row -->
+      <div class="flex items-center justify-between mb-4">
+
+        <!-- D-Pad -->
+        <div class="grid grid-rows-3 grid-cols-3 gap-1 w-28">
+          <div></div>
+          <button id="sm-btn-up"
+            class="text-2xl text-center active:scale-90 transition-transform duration-75 min-h-11 min-w-11 flex items-center justify-center">⬆️</button>
+          <div></div>
+          <button id="sm-btn-left"
+            class="text-2xl text-center active:scale-90 transition-transform duration-75 min-h-11 min-w-11 flex items-center justify-center">⬅️</button>
+          <div class="min-h-11 min-w-11 border border-green-800 rounded opacity-30"></div>
+          <button id="sm-btn-right"
+            class="text-2xl text-center active:scale-90 transition-transform duration-75 min-h-11 min-w-11 flex items-center justify-center">➡️</button>
+          <div></div>
+          <button id="sm-btn-down"
+            class="text-2xl text-center active:scale-90 transition-transform duration-75 min-h-11 min-w-11 flex items-center justify-center">⬇️</button>
+          <div></div>
+        </div>
+
+        <!-- Centre buttons -->
+        <div class="flex flex-col items-center gap-2">
+          <button class="text-xs text-green-600 border border-green-800 rounded px-2 py-1 opacity-40 min-h-11 min-w-11 flex items-center justify-center" disabled>SEL</button>
+          <button id="sm-btn-start"
+            class="text-xs text-green-400 border border-green-400 rounded px-2 py-1 active:scale-90 transition-transform duration-75 min-h-11 min-w-11 flex items-center justify-center">STA</button>
+        </div>
+
+        <!-- Face buttons -->
+        <div class="grid grid-rows-3 grid-cols-2 gap-1 w-24">
+          <div></div>
+          <button id="sm-btn-b"
+            class="text-2xl text-center active:scale-90 transition-transform duration-75 min-h-11 min-w-11 flex items-center justify-center">🅱️</button>
+          <div></div>
+          <div></div>
+          <button id="sm-btn-a"
+            class="text-2xl text-center active:scale-90 transition-transform duration-75 min-h-11 min-w-11 flex items-center justify-center">🅰️</button>
+          <div></div>
+        </div>
+
+      </div>
+
+      <!-- Progress dots -->
+      <div class="border-t border-green-800 pt-3 mt-2 text-center">
+        <div class="text-xs opacity-50 mb-1 tracking-widest">SEQUENCE PROGRESS</div>
+        <div id="sm-konami-progress" class="text-green-400 tracking-widest text-sm">○○○○○○○○○○○</div>
+      </div>
+    </div>
+
+    <!-- Status line -->
+    <div id="sm-controller-status"
+      class="mt-5 text-xs text-green-600 tracking-widest text-center animate-pulse">
+      > ENTER SEQUENCE TO CONTINUE
+    </div>
+
+    <div class="mt-4 text-xs text-green-900 tracking-widest text-center select-none">
+      ↑↑↓↓←→←→🅱️🅰️START
+    </div>
+  </section>
+
+  <!-- ══ SECRET TERMINAL — Sylly-OS launcher ══ -->
+  <section id="screen-secret-terminal" style="display:none"
+    class="relative flex flex-col w-full min-h-screen bg-black px-4 pt-5 pb-6 font-mono overflow-y-auto">
+
+    <!-- Header bar -->
+    <div class="flex items-center justify-between mb-5 flex-shrink-0">
+      <div class="text-green-400 text-xs tracking-widest opacity-60 select-none">SYLLY-OS v1.0 // CLASSIFIED</div>
+      <button id="sm-terminal-back"
+        class="text-green-400 text-xs border border-green-800 rounded px-3 py-1 active:scale-90 transition-transform duration-100 min-h-11 min-w-11 flex items-center justify-center">
+        ← BACK
+      </button>
+    </div>
+
+    <!-- Typewriter log output -->
+    <div id="sm-terminal-log"
+      class="text-green-400 text-xs leading-6 tracking-wide space-y-0 mb-4 flex-shrink-0"></div>
+
+    <!-- Expansion selector — revealed after boot sequence -->
+    <div id="sm-terminal-expansions" style="display:none" class="mb-4 flex-shrink-0"></div>
+
+    <!-- Game selector — revealed after expansion chosen -->
+    <div id="sm-terminal-games" style="display:none" class="mb-4 flex-shrink-0"></div>
+
+    <!-- Launch button — revealed after game chosen -->
+    <div id="sm-terminal-launch-wrap" style="display:none" class="mt-2 flex-shrink-0">
+      <button id="sm-terminal-launch"
+        class="w-full min-h-14 rounded border-2 border-green-400 text-green-400 text-sm font-bold tracking-widest active:scale-95 transition-transform duration-100">
+        [ LAUNCH SEQUENCE ]
+      </button>
+    </div>
+
+    <!-- Decorative footer -->
+    <div class="mt-auto pt-6 text-green-900 text-xs text-center tracking-widest select-none flex-shrink-0">
+      SYLLY-OS © CLASSIFIED // AUTHORISED PERSONNEL ONLY
+    </div>
+  </section>
+
+  <!-- Load order: engine → plugins → secret-mode → bootstrapper -->
   <script src="js/engine.js"></script>
   <script src="js/games/dstw.js"></script>
   <script src="js/games/great-minds.js"></script>
   <script src="js/games/sylly-signals.js"></script>
+  <script src="js/secret-mode.js"></script>
   <script src="js/app.js"></script>
 
   <!-- Register service worker -->
