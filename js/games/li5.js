@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════════════════════
-// PLUGIN: Don't Say Those Words (dstw)
+// PLUGIN: Like I'm Five (LI5)
 // Depends on: engine.js (audio, showScreen, shuffle, formatTime, resetToLobby/Menu)
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -54,7 +54,7 @@ let roundLog        = [];
 let currentStreak   = 0;
 let isProcessing    = false;
 
-const HYPE_PHRASES = ['Gold Star! 🌟', 'Clever clogs! 🧠', "You're on a roll! 🎉", 'Hat trick! 🎩', 'Absolutely smashing! 🏆', 'Too easy! 😎', 'Legendary! ⚡'];
+const HYPE_PHRASES = ['Gold Star! 🌟', 'Clever clogs! 🧠', 'A+ Student! 📝', 'Show and Tell champion! 🎤', "Teacher's Pet! 🍎", 'Playground Legend! 🎡', 'Sticker Chart Full! 🎫'];
 let lastHypeIdx     = -1;
 let reviewCallback  = null;
 let matchLog        = [];
@@ -122,8 +122,12 @@ function applySyllyVisuals() {
   const skip = document.getElementById('btn-skip');
   const hint = document.getElementById('sylly-scoring-hint');
 
+  const yay = document.getElementById('btn-correct');
   if (currentWordIsSylly) {
     card.classList.add('sylly-glow');
+    yay.textContent        = 'Double Yay! ✨';
+    nay.textContent        = 'Double Nay! 🙊';
+    skip.textContent       = 'Skip-a-BOOO! 👎';
     nay.classList.add('shake');
     nay.style.background   = '#a855f7';
     nay.style.color        = '#fff';
@@ -133,6 +137,9 @@ function applySyllyVisuals() {
     hint.classList.add('sylly-hint-show');
   } else {
     card.classList.remove('sylly-glow');
+    yay.textContent        = 'Yay!';
+    nay.textContent        = 'Nay!';
+    skip.textContent       = 'Skip-a-roo';
     nay.classList.remove('shake');
     nay.style.background   = '';
     nay.style.color        = '';
@@ -303,6 +310,11 @@ function renderCurrentWord() {
   document.getElementById('word-category-label').textContent = `${emoji} ${label}`;
   renderTabooList('active-taboo-list', currentWordData.nono_list);
   applySyllyVisuals();
+  const card = document.getElementById('active-word-card');
+  card.classList.remove('card-enter');
+  void card.offsetWidth;
+  card.classList.add('card-enter');
+  card.addEventListener('animationend', () => card.classList.remove('card-enter'), { once: true });
 }
 
 // ── Timer ─────────────────────────────────────────────────────────────────────
@@ -373,7 +385,13 @@ function applyAndAdvance(action) {
     stopTimer();
     showRoundReview(() => showGameOver());
   } else {
-    renderCurrentWord();
+    const card = document.getElementById('active-word-card');
+    const exitClass = action === 'correct' ? 'card-exit-right' : 'card-exit-left';
+    card.classList.add(exitClass);
+    setTimeout(() => {
+      card.classList.remove(exitClass);
+      renderCurrentWord();
+    }, 150);
   }
 }
 
@@ -657,7 +675,7 @@ function handleCategoryPill(btn) {
 
 // ── Event listeners ───────────────────────────────────────────────────────────
 document.getElementById('btn-dstw')
-  .addEventListener('click', () => { activeGameId = 'dstw'; playLaunch(); showScreen('screen-menu'); });
+  .addEventListener('click', () => { activeGameId = 'li5'; playLaunch(); showScreen('screen-menu'); });
 
 document.getElementById('btn-back-to-lobby')
   .addEventListener('click', () => { playExit(); resetToLobby(); });
@@ -794,19 +812,19 @@ document.getElementById('btn-resume')
 
 document.getElementById('btn-correct').addEventListener('click', () => {
   if (isProcessing) return;
-  isProcessing = true; setTimeout(() => { isProcessing = false; }, 100);
+  isProcessing = true; setTimeout(() => { isProcessing = false; }, 300);
   playSuccess(); flashBackground('green'); applyAndAdvance('correct');
 });
 
 document.getElementById('btn-taboo').addEventListener('click', () => {
   if (isProcessing) return;
-  isProcessing = true; setTimeout(() => { isProcessing = false; }, 100);
+  isProcessing = true; setTimeout(() => { isProcessing = false; }, 300);
   playBoing(); flashBackground('red'); navigator.vibrate?.(40); showPenaltyPhrase(); applyAndAdvance('taboo');
 });
 
 document.getElementById('btn-skip').addEventListener('click', () => {
   if (isProcessing) return;
-  isProcessing = true; setTimeout(() => { isProcessing = false; }, 100);
+  isProcessing = true; setTimeout(() => { isProcessing = false; }, 300);
   if (!settingSkipFree) { playBoing(); navigator.vibrate?.(40); } else { playWhoosh(); }
   applyAndAdvance('skip');
 });

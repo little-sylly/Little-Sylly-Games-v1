@@ -162,6 +162,9 @@ body.flash-red   { background-color: #fecaca; }
   font-weight: 600;
   font-size: 1.05rem;
 }
+/* Alternating micro-rotation — hand-stamped flash card feel */
+.taboo-list-clean li:nth-child(odd)  { transform: rotate(-0.5deg); }
+.taboo-list-clean li:nth-child(even) { transform: rotate(0.5deg); }
 
 /* ── Overlay Library ─────────────────────────────────────────────────────── */
 /*
@@ -199,12 +202,29 @@ body.flash-red   { background-color: #fecaca; }
   border-radius: 1.5rem; /* rounded-3xl */
 }
 
-/* ── No-No List container — tight natural height, stable floor on outer card ─── */
+/* ── No-No List container — flash card look ──────────────────────────────── */
 #taboo-card {
   width: 90%;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
+  position: relative;
+  box-shadow: 0 6px 16px rgba(0,0,0,0.10), 0 1px 4px rgba(0,0,0,0.07);
+}
+
+/* Hole-punch ring at the top — mimics a physical flash card */
+#taboo-card::before {
+  content: '';
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid #d6d3d1; /* stone-300 */
+  background: transparent;
+  pointer-events: none;
 }
 
 /* Stability floor — prevents buttons jumping between words without adding air */
@@ -366,14 +386,34 @@ body.flash-red   { background-color: #fecaca; }
 }
 .ss-flash-btn { animation: flashPulse 0.9s ease-in-out infinite; }
 
-/* ── Hype phrase pop ─────────────────────────────────────────────────────── */
-@keyframes hypePop {
-  0%   { opacity: 0; transform: scale(0.7) translateY(4px);  }
-  30%  { opacity: 1; transform: scale(1.05) translateY(0);   }
-  70%  { opacity: 1; transform: scale(1)    translateY(0);   }
-  100% { opacity: 0; transform: scale(0.95) translateY(-4px); }
+/* ── Word card — bouncy entrance ────────────────────────────────────────── */
+@keyframes cardPop {
+  0%   { opacity: 0.6; transform: scale(0.9);  }
+  60%  { transform: scale(1.04); }
+  100% { opacity: 1;   transform: scale(1);    }
 }
-.hype-pop { animation: hypePop 1.4s ease-out forwards; }
+.card-enter { animation: cardPop 0.22s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+
+/* ── Word card — slide exits ─────────────────────────────────────────────── */
+@keyframes cardExitLeft {
+  0%   { opacity: 1; transform: translateX(0)     scale(1);   }
+  100% { opacity: 0; transform: translateX(-60px) scale(0.9); }
+}
+@keyframes cardExitRight {
+  0%   { opacity: 1; transform: translateX(0)    scale(1);   }
+  100% { opacity: 0; transform: translateX(60px) scale(0.9); }
+}
+.card-exit-left  { animation: cardExitLeft  0.15s ease-in forwards; }
+.card-exit-right { animation: cardExitRight 0.15s ease-in forwards; }
+
+/* ── Hype phrase — floats upward from score counter ─────────────────────── */
+@keyframes hypePop {
+  0%   { opacity: 0; transform: translateX(-50%) translateY(0);     }
+  20%  { opacity: 1; transform: translateX(-50%) translateY(-10px); }
+  75%  { opacity: 1; transform: translateX(-50%) translateY(-28px); }
+  100% { opacity: 0; transform: translateX(-50%) translateY(-48px); }
+}
+.hype-pop { animation: hypePop 1.6s ease-out forwards; }
 
 /* ── Hot Streak — team name glow + shake (2×) when 3+ correct in a row ──── */
 @keyframes streakFire {
