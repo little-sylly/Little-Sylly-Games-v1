@@ -7,9 +7,9 @@
 
 ---
 
-## Game 1: Don't Say Those Words (DSTW)
+## Game 1: Like I'm Five (LI5)
 **Theme:** Describe without saying the forbidden words. Pass the phone.
-**Key file:** `js/games/dstw.js`
+**Key file:** `js/games/li5.js`
 **State flow:** LOBBY → DSTW MENU → SETUP → GATEKEEPER → ACTIVE_PLAY → GAMEOVER
 
 ### Terminology
@@ -92,9 +92,9 @@
 
 ---
 
-## Game 3: Sylly Signals
+## Game 3: Secret Signals (SS)
 **Theme:** Encryption / intercept / broadcast. Two teams — one encrypts keywords, the other intercepts.
-**Key file:** `js/games/sylly-signals.js`
+**Key file:** `js/games/secret-signals.js`
 **State flow:** Setup → Players → Vault Gate (×2) → Vault (×2) → Who Encrypts First? → [Round: Encrypt → Broadcast → Intercept → Decode Gate → Decode → Resolution] → Endgame Splash → [Phase 2 if Sylly Mode: Tiebreak? → Intel Intro → Intel Guess (×4) → Intel Summary] → Final Game Over
 
 ### Terminology
@@ -127,3 +127,75 @@
 ### Fuzzy Matching (`ssFuzzyMatch`)
 - Plural/singular aware + compound word aware (hyphen/space split, ≥3 char components)
 - Solid compounds (no separator) do NOT auto-split — store as "Weight-Lifting" to enable matching
+
+---
+
+## Game 4: Just Enough Cooks (JEC)
+**Theme:** Collaborative ingredient guessing — find the Sweet Spot by sharing a word with just enough other players, not too few and not too many.
+**Key file:** `js/games/jec.js`
+**State flow:** LOBBY → JEC MENU → ROSTER → [Round loop: ORDER → PREP (×N players) → SIFTING → TALLY] → WASHUP
+
+### Terminology
+| Term | Meaning |
+|------|---------|
+| Today's Order | The food word revealed at the start of each round |
+| Today's Recipe | Sub-header label above the ingredient list on the sifting screen |
+| The Sifting | Screen where ingredient frequency is revealed and Sous Chef merges applied |
+| Chef's Kiss ✨ | Golden status — ingredient hit the Sweet Spot count |
+| Too Many Cooks! | Spoilt status — word submitted by too many players |
+| A Bit Pongy! | Rotten status — unique ingredient nobody else submitted |
+| Kitchen Nightmare! 🧪 | Poisoned status (KN mode only) — overrides all other status |
+| Signature Dish | Ingredient 1 in KN mode — scores double if Golden |
+| Poison Word | Word entered in KN mode to sabotage matching ingredients |
+| Health Inspector's Report | Section on sifting screen listing all active poison words as chips |
+| Sous Chef Oversight | Setting enabling manual word merges before scoring |
+| Crowded Kitchen Tax | Spoilt penalty formula: −(count × 2) pts |
+| The Tally | Per-round score reveal screen |
+| Final Wash-up | End-of-game leaderboard screen |
+| Chef's Cook Book 📖 | Per-round score log shown on the washup screen |
+| New Shift | "Play again" — resets round state, preserves names + settings |
+| The Pantry Cabinet | Settings overlay label |
+
+### Settings
+| Setting | Options | Default |
+|---------|---------|---------|
+| Chefs (player count) | 3 / 4 / 5 / 6 | 4 |
+| Rounds | 3 / 5 / 10 | 3 |
+| The Sweet Spot | 10 / 20 / 30 pts | 20 pts |
+| Rotten Penalty | Off / On | On — unique ingredients cost −10 pts |
+| Spoilt Penalty | Off / On | On — Crowded Kitchen Tax: −(count × 2) pts |
+| Sous Chef Oversight | Off / On | On |
+| ✨ Sylly Mode (Kitchen Nightmares) | Off / On | Off |
+
+### Special Mechanics
+
+**Scoring (inverse proportional):**
+- `goldenMax = Math.floor(N * 0.7)` — max count that stays Golden
+- Golden: `Math.round(jecGoldenScore * (goldenMax - count + 2) / goldenMax)` — count=2 always = full score
+- Spoilt: `-(count × 2)` if penalty on (scales with how crowded the kitchen was)
+- Rotten: `-10` flat if penalty on
+- Poisoned: 0 pts (KN mode — overrides all)
+- Signature Dish: Golden score × 2 (KN mode — always ingredient slot 0)
+
+**Sous Chef Oversight:**
+- Tap any two `.jec-sift-card` or `.jec-poison-chip` elements to trigger merge modal
+- `jecApplyMerge(normA, normB)` auto-swaps so the ingredient (word in freq map) always wins; poison propagates to merged result
+- Selection highlight: amber ring on sift cards, purple ring on poison chips
+- Ghost merge guard: if neither norm is in freq map, returns early — no effect
+
+**Kitchen Nightmares (Sylly Mode):**
+- Ingredient 1 = Signature Dish (amber border on prep screen); double points if Golden
+- Poison Word submitted in prep; normalised form added to `jecPoisonedNorms` Set before sifting
+- Health Inspector chips: tappable for Sous Chef when oversight is on; chips have `data-norm` + `.jec-poison-chip` class
+- Validation: blocks duplicate ingredients, blocks self-poison (poison word matching own ingredient)
+
+**Naming collision note:** JEC uses `jecApplyExpansionOverrides()` — the generic name `applyExpansionOverrides()` is already defined globally by dstw.js and would be overwritten if reused.
+
+### Overlay Types
+| Overlay | Pattern |
+|---------|---------|
+| `jec-settings-overlay` | Data (slide-up) — "The Pantry Cabinet" |
+| `jec-how-to-overlay` | Data (slide-up) |
+| `jec-quit-overlay` | Decision modal |
+| `jec-oversight-overlay` | Decision modal — merge confirm |
+| `jec-new-shift-overlay` | Decision modal — "New Shift?" |

@@ -22,6 +22,12 @@
 </head>
 <body class="bg-stone-50 min-h-screen flex items-center justify-center">
 
+  <!-- ═══════════════════════════════════════════════════════════════
+       ENGINE / GLOBAL
+       Screens : #screen-lobby
+       Overlays: #sound-overlay (line ~1743)
+       Ref     : js/engine.js
+  ════════════════════════════════════════════════════════════════ -->
   <!-- ① LOBBY screen — game selection -->
   <section id="screen-lobby" class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
     <button class="btn-open-sound absolute top-4 right-4 text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
@@ -41,9 +47,21 @@
       <button id="btn-sylly-signals" class="min-h-14 w-full rounded-2xl bg-teal-500 hover:bg-teal-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
         Secret Signals
       </button>
+      <button id="btn-jec" class="min-h-14 w-full rounded-2xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Just Enough Cooks
+      </button>
     </div>
   </section>
 
+  <!-- ═══════════════════════════════════════════════════════════════
+       LIKE I'M FIVE (LI5)
+       Screens : #screen-menu, #screen-setup, #screen-gatekeeper,
+                 #screen-active-play, #screen-gameover
+       Overlays: #settings-overlay, #how-to-overlay, #quit-overlay,
+                 #skip-turn-overlay, #review-overlay, #history-overlay,
+                 #pause-overlay (inline), #deck-panel
+       Ref     : js/games/li5.js  (was dstw.js)
+  ════════════════════════════════════════════════════════════════ -->
   <!-- ② MENU screen — Don't Say Those Words -->
   <main id="screen-menu" style="display:none" class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
     <button class="btn-open-sound absolute top-4 right-4 text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
@@ -495,6 +513,19 @@
 
   <!-- ══ GREAT MINDS SCREENS ══════════════════════════════════════════════════ -->
 
+  <!-- ═══════════════════════════════════════════════════════════════
+       GREAT MINDS (GM)
+       Screens : #screen-gm-menu, #screen-gm-setup, #screen-gm-input,
+                 #screen-gm-pass-gate, #screen-gm-reveal-gate,
+                 #screen-gm-reveal, #screen-gm-result, #screen-gm-concede
+       Overlays: #gm-settings-overlay, #gm-near-sync-overlay,
+                 #gm-boost-overlay, #gm-neural-library-overlay,
+                 #gm-new-frequency-overlay, #gm-vocab-overlay,
+                 #gm-concede-overlay, #gm-override-overlay, #gm-deck-panel
+       Note    : #gm-quit-overlay and #gm-how-to-overlay placed near
+                 line ~1794 (after SS, before Secret Mode)
+       Ref     : js/games/great-minds.js
+  ════════════════════════════════════════════════════════════════ -->
   <!-- GM MENU screen — Great Minds game hub -->
   <section id="screen-gm-menu" style="display:none" class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
     <button class="btn-open-sound absolute top-4 right-4 text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
@@ -1022,6 +1053,21 @@
   <!-- SYLLY SIGNALS screens                                                  -->
   <!-- ══════════════════════════════════════════════════════════════════════ -->
 
+  <!-- ═══════════════════════════════════════════════════════════════
+       SECRET SIGNALS (SS)
+       Screens : #screen-ss-menu, #screen-ss-setup, #screen-ss-players,
+                 #screen-ss-vault-gate, #screen-ss-vault,
+                 #screen-ss-first-team, #screen-ss-encrypt,
+                 #screen-ss-broadcast, #screen-ss-intercept,
+                 #screen-ss-decode-gate, #screen-ss-decode,
+                 #screen-ss-resolution, #screen-ss-gameover,
+                 #screen-ss-tiebreak, #screen-ss-intel-intro,
+                 #screen-ss-intel-guess, #screen-ss-intel-summary
+       Overlays: #ss-settings-overlay, #ss-how-to-overlay,
+                 #ss-quit-overlay, #ss-play-again-overlay,
+                 #ss-override-overlay
+       Ref     : js/games/secret-signals.js  (was sylly-signals.js)
+  ════════════════════════════════════════════════════════════════ -->
   <!-- SS-① MENU -->
   <section id="screen-ss-menu" style="display:none" class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
     <button class="btn-open-sound absolute top-4 right-4 text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
@@ -1736,6 +1782,12 @@
     </div>
   </div>
 
+  <!-- ═══════════════════════════════════════════════════════════════
+       GLOBAL + GM SUPPLEMENTARY OVERLAYS
+       #sound-overlay      — Global sound settings (z-[110], always on top)
+       #gm-quit-overlay    — GM quit confirmation
+       #gm-how-to-overlay  — GM how-to (placed here for historical reasons)
+  ════════════════════════════════════════════════════════════════ -->
   <!-- Global Sound overlay -->
   <div id="sound-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[110] flex items-center justify-center px-6">
     <div class="bg-white rounded-2xl p-6 w-full max-w-sm flex flex-col gap-4 shadow-xl">
@@ -1837,6 +1889,12 @@
     </div>
   </div>
 
+  <!-- ═══════════════════════════════════════════════════════════════
+       SECRET MODE
+       Screens : #screen-secret-controller, #screen-secret-terminal
+       Overlays: #gm-vocab-overlay (word list, terminal style)
+       Ref     : js/secret-mode.js
+  ════════════════════════════════════════════════════════════════ -->
   <!-- ══ SECRET CONTROLLER — Konami gateway ══ -->
   <section id="screen-secret-controller" style="display:none"
     class="relative flex flex-col items-center justify-center w-full min-h-screen bg-black px-4 py-8 font-mono">
@@ -1951,11 +2009,425 @@
     </div>
   </section>
 
+  <!-- ══ JUST ENOUGH COOKS SCREENS ══════════════════════════════════════════ -->
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       JUST ENOUGH COOKS (JEC)
+       Screens : #screen-jec-menu, #screen-jec-roster, #screen-jec-order,
+                 #screen-jec-prep, #screen-jec-sifting, #screen-jec-tally,
+                 #screen-jec-washup
+       Overlays: #jec-settings-overlay, #jec-how-to-overlay,
+                 #jec-quit-overlay, #jec-oversight-overlay,
+                 #jec-new-shift-overlay
+       Ref     : js/games/jec.js
+  ════════════════════════════════════════════════════════════════ -->
+  <!-- JEC MENU screen -->
+  <section id="screen-jec-menu" style="display:none" class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
+    <button class="btn-open-sound absolute top-4 right-4 text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+    <div class="text-6xl" role="img" aria-label="Cooking pot">🍳</div>
+    <div>
+      <h1 class="text-5xl font-bold leading-tight text-stone-800">Just Enough</h1>
+      <h1 class="text-5xl font-bold leading-tight text-amber-500">Cooks</h1>
+    </div>
+    <p class="text-stone-500 text-lg">Won't Spoil the Broth!</p>
+    <div class="flex flex-col gap-4 w-full mt-2">
+      <button id="btn-jec-menu-play" class="min-h-14 w-full rounded-2xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Let's Cook!
+      </button>
+      <button id="btn-jec-menu-how-to" class="min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        How to Play
+      </button>
+      <button id="btn-jec-menu-settings" class="min-h-14 w-full rounded-2xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        The Pantry Cabinet
+      </button>
+      <button id="btn-jec-menu-back" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-base font-medium transition-all duration-150">
+        ← Back to the Box
+      </button>
+    </div>
+  </section>
+
+  <!-- JEC ROSTER screen — Kitchen Roster -->
+  <section id="screen-jec-roster" style="display:none" class="relative flex flex-col items-start px-6 py-10 w-full max-w-sm mx-auto gap-5">
+    <div class="flex justify-between items-center w-full">
+      <div class="w-10"></div>
+      <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest">Kitchen Roster</p>
+      <div class="flex items-center gap-2">
+        <button class="btn-open-sound w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-lg">🔊</button>
+        <button id="btn-jec-roster-exit" class="w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-stone-500 font-bold text-lg">✕</button>
+      </div>
+    </div>
+    <div>
+      <h2 class="text-2xl font-bold text-stone-800">Who's cooking today?</h2>
+      <p class="text-stone-400 text-sm mt-1">Names optional — just here for the score sheet.</p>
+    </div>
+    <!-- Chef count -->
+    <div class="w-full">
+      <p class="text-stone-600 text-sm font-semibold mb-2">Number of Chefs</p>
+      <div class="flex gap-2">
+        <button class="pill" data-jec-player-count="3">3</button>
+        <button class="pill pill-active-amber" data-jec-player-count="4">4</button>
+        <button class="pill" data-jec-player-count="5">5</button>
+        <button class="pill" data-jec-player-count="6">6</button>
+      </div>
+    </div>
+    <!-- Name inputs -->
+    <div class="flex flex-col gap-2 w-full">
+      <input type="text" maxlength="20" placeholder="Chef 1" id="jec-player-1"
+        class="w-full rounded-xl border-2 border-stone-200 bg-white px-4 py-3 text-base text-stone-800 placeholder-stone-300 focus:border-amber-400 focus:outline-none transition-colors" />
+      <input type="text" maxlength="20" placeholder="Chef 2" id="jec-player-2"
+        class="w-full rounded-xl border-2 border-stone-200 bg-white px-4 py-3 text-base text-stone-800 placeholder-stone-300 focus:border-amber-400 focus:outline-none transition-colors" />
+      <input type="text" maxlength="20" placeholder="Chef 3" id="jec-player-3"
+        class="w-full rounded-xl border-2 border-stone-200 bg-white px-4 py-3 text-base text-stone-800 placeholder-stone-300 focus:border-amber-400 focus:outline-none transition-colors" />
+      <input type="text" maxlength="20" placeholder="Chef 4" id="jec-player-4"
+        class="w-full rounded-xl border-2 border-stone-200 bg-white px-4 py-3 text-base text-stone-800 placeholder-stone-300 focus:border-amber-400 focus:outline-none transition-colors" />
+      <input type="text" maxlength="20" placeholder="Chef 5" id="jec-player-5" style="display:none"
+        class="w-full rounded-xl border-2 border-stone-200 bg-white px-4 py-3 text-base text-stone-800 placeholder-stone-300 focus:border-amber-400 focus:outline-none transition-colors" />
+      <input type="text" maxlength="20" placeholder="Chef 6" id="jec-player-6" style="display:none"
+        class="w-full rounded-xl border-2 border-stone-200 bg-white px-4 py-3 text-base text-stone-800 placeholder-stone-300 focus:border-amber-400 focus:outline-none transition-colors" />
+    </div>
+    <button id="btn-jec-roster-confirm" class="min-h-14 w-full rounded-2xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      Let's Cook! 👨‍🍳
+    </button>
+  </section>
+
+  <!-- JEC ORDER screen — Today's Order reveal -->
+  <section id="screen-jec-order" style="display:none" class="flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
+    <div class="flex justify-end gap-2 w-full">
+      <button class="btn-open-sound w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-lg">🔊</button>
+      <button id="btn-jec-order-exit" class="w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-stone-500 font-bold">✕</button>
+    </div>
+    <p id="jec-order-round" class="text-stone-400 text-xs font-semibold uppercase tracking-widest">Round 1 of 5</p>
+    <div class="text-5xl" role="img" aria-label="Receipt">🧾</div>
+    <div>
+      <p class="text-stone-400 text-sm font-semibold uppercase tracking-widest mb-2">Today's Order:</p>
+      <h2 id="jec-order-word" class="text-5xl font-bold text-amber-500 uppercase tracking-wide"></h2>
+    </div>
+    <p class="text-stone-500 text-sm leading-relaxed">Everyone read this together, then pass the phone to the first Chef.</p>
+    <button id="btn-jec-order-start" class="min-h-14 w-full rounded-2xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      Start Prepping! →
+    </button>
+  </section>
+
+  <!-- JEC PREP screen — ingredient entry + pass-the-phone gate -->
+  <section id="screen-jec-prep" style="display:none" class="flex-col w-full max-w-sm mx-auto">
+
+    <!-- Phase A: ingredient entry -->
+    <div id="jec-prep-phase" class="flex flex-col px-6 py-10 gap-5">
+      <div class="flex justify-between items-center w-full">
+        <div class="w-10"></div>
+        <p id="jec-prep-round-label" class="text-stone-400 text-xs font-semibold uppercase tracking-widest">Round 1 of 3</p>
+        <div class="flex items-center gap-2">
+          <button class="btn-open-sound w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-lg">🔊</button>
+          <button id="btn-jec-prep-exit" class="w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-stone-500 font-bold text-lg">✕</button>
+        </div>
+      </div>
+      <div class="w-full text-center">
+        <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest">Today's Order 🧾</p>
+        <h2 id="jec-prep-order-word" class="text-3xl font-bold text-amber-500 uppercase tracking-wide mt-1"></h2>
+      </div>
+      <div class="w-full">
+        <p class="text-stone-500 text-sm font-semibold mb-1">Prep your Ingredients!</p>
+        <p id="jec-prep-kn-subtitle" style="display:none" class="text-purple-500 text-xs font-semibold mb-3">Kitchen Nightmares 🌶️ — Ingredient 1 is your Signature Dish</p>
+        <h2 id="jec-prep-chef-name" class="text-xl font-bold text-stone-800 mb-3"></h2>
+        <div class="flex flex-col gap-3 w-full">
+          <input type="text" maxlength="30" placeholder="Ingredient 1" id="jec-prep-ingredient-1" autocomplete="off"
+            class="w-full rounded-xl border-2 border-stone-200 bg-white px-4 py-3 text-base text-stone-800 placeholder-stone-300 focus:border-amber-400 focus:outline-none transition-colors" />
+          <input type="text" maxlength="30" placeholder="Ingredient 2" id="jec-prep-ingredient-2" autocomplete="off"
+            class="w-full rounded-xl border-2 border-stone-200 bg-white px-4 py-3 text-base text-stone-800 placeholder-stone-300 focus:border-amber-400 focus:outline-none transition-colors" />
+          <input type="text" maxlength="30" placeholder="Ingredient 3" id="jec-prep-ingredient-3" autocomplete="off"
+            class="w-full rounded-xl border-2 border-stone-200 bg-white px-4 py-3 text-base text-stone-800 placeholder-stone-300 focus:border-amber-400 focus:outline-none transition-colors" />
+        </div>
+      </div>
+      <!-- Kitchen Nightmares: poison input (shown when Sylly Mode is ON) -->
+      <div id="jec-prep-kn-section" style="display:none" class="w-full flex flex-col gap-2">
+        <p class="text-stone-500 text-sm font-semibold">Add a dash of Sabotage — your Poison Word:</p>
+        <input type="text" maxlength="30" placeholder="Add a dash of Sabotage…" id="jec-prep-poison" autocomplete="off"
+          class="w-full rounded-xl border-2 border-purple-300 bg-white px-4 py-3 text-base text-stone-800 placeholder-stone-300 focus:border-purple-500 focus:outline-none transition-colors" />
+        <p class="text-purple-400 text-xs">This word will Spoil any matching ingredient in the pot.</p>
+      </div>
+      <p id="jec-prep-error" class="text-pink-500 text-sm font-semibold text-center w-full min-h-5"></p>
+      <button id="btn-jec-serve" class="min-h-14 w-full rounded-2xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Serve it Up! 🍽️
+      </button>
+    </div>
+
+    <!-- Phase B: pass gate — shown between players -->
+    <div id="jec-pass-gate" style="display:none"
+         class="flex flex-col items-center justify-center px-6 py-12 gap-6 text-center min-h-screen">
+      <div class="text-6xl" role="img" aria-label="Shh">🤫</div>
+      <div>
+        <p class="text-stone-400 text-sm font-semibold uppercase tracking-widest">The broth is simmering…</p>
+        <h2 class="text-2xl font-bold text-stone-800 mt-2">Pass to <span id="jec-pass-gate-next-name"></span>!</h2>
+        <p class="text-stone-500 text-sm mt-2">Don't let them peek — it's their turn now.</p>
+      </div>
+      <button id="btn-jec-pass-gate-ready" class="min-h-14 w-full rounded-2xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        I've got the phone! 👐
+      </button>
+    </div>
+
+  </section>
+
+  <!-- JEC SIFTING screen — ingredient frequency reveal -->
+  <section id="screen-jec-sifting" style="display:none" class="flex flex-col items-start px-6 py-10 w-full max-w-sm mx-auto gap-5">
+    <div class="flex justify-between items-center w-full">
+      <div class="w-10"></div>
+      <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest">The Sifting</p>
+      <div class="flex items-center gap-2">
+        <button class="btn-open-sound w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-lg">🔊</button>
+        <button id="btn-jec-sifting-exit" class="w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-stone-500 font-bold text-lg">✕</button>
+      </div>
+    </div>
+    <div class="w-full text-center">
+      <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest">Today's Order</p>
+      <h2 id="jec-sifting-order" class="text-3xl font-bold text-amber-500 uppercase tracking-wide mt-1"></h2>
+      <p id="jec-sifting-round-label" class="text-stone-400 text-xs mt-1"></p>
+    </div>
+    <!-- Health Inspector's Report: poison words (Sylly Mode, hidden when KN off) -->
+    <div id="jec-sifting-poison-section" style="display:none" class="w-full text-center">
+      <p class="text-xs font-semibold uppercase tracking-widest text-purple-500 mb-2">🧪 Health Inspector's Report found the following ingredients poisoned:</p>
+      <div id="jec-sifting-poison-list" class="flex flex-wrap gap-2 justify-center"></div>
+    </div>
+    <!-- Sous Chef Oversight hint (shown when setting is ON) -->
+    <div id="jec-oversight-hint" style="display:none"
+         class="w-full bg-amber-50 border border-amber-200 rounded-xl px-4 py-2 text-center">
+      <p class="text-amber-700 text-xs font-semibold">Sous Chef Oversight: tap two similar words to merge.</p>
+    </div>
+    <!-- Today's Recipe sub-header (populated by jecStartSifting) -->
+    <p id="jec-sifting-recipe-label" class="text-sm font-bold text-stone-700 text-center w-full"></p>
+    <!-- Ingredient list injected by JS -->
+    <div id="jec-sifting-list" class="flex flex-col gap-3 w-full"></div>
+    <button id="btn-jec-sifting-proceed" class="min-h-14 w-full rounded-2xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      The Taste Test! 🍽️
+    </button>
+  </section>
+
+  <!-- JEC TALLY screen — per-round score breakdown -->
+  <section id="screen-jec-tally" style="display:none" class="flex flex-col items-start px-6 py-10 w-full max-w-sm mx-auto gap-5">
+    <div class="flex justify-between items-center w-full">
+      <div class="w-10"></div>
+      <p id="jec-tally-round-label" class="text-stone-400 text-xs font-semibold uppercase tracking-widest"></p>
+      <div class="flex items-center gap-2">
+        <button class="btn-open-sound w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-lg">🔊</button>
+        <button id="btn-jec-tally-exit" class="w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-stone-500 font-bold text-lg">✕</button>
+      </div>
+    </div>
+    <div class="w-full text-center">
+      <h2 id="jec-tally-feedback" class="text-xl font-bold text-stone-800"></h2>
+    </div>
+    <!-- Per-player score cards injected by JS -->
+    <div id="jec-tally-list" class="flex flex-col gap-3 w-full"></div>
+    <button id="btn-jec-tally-next" class="min-h-14 w-full rounded-2xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      Next Course 🍽️
+    </button>
+  </section>
+
+  <!-- Sous Chef Oversight modal (Pattern 2) -->
+  <div id="jec-oversight-overlay" style="display:none" class="fixed inset-0 bg-black/50 z-[90] flex items-center justify-center px-6">
+    <div class="bg-white rounded-3xl px-6 pt-6 pb-8 w-full max-w-sm flex flex-col gap-4 text-center shadow-xl">
+      <p class="text-4xl">🧑‍🍳</p>
+      <p class="text-xl font-bold text-stone-800">Sous Chef Oversight</p>
+      <p class="text-stone-500 text-sm">Are these the same ingredient?</p>
+      <div class="bg-stone-50 rounded-2xl py-4 px-6 text-center">
+        <span id="jec-oversight-words" class="text-lg font-bold text-stone-800 leading-snug"></span>
+      </div>
+      <button id="btn-jec-oversight-merge" class="min-h-14 w-full rounded-2xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150 mt-2">
+        Yep — merge 'em! 🤝
+      </button>
+      <button id="btn-jec-oversight-cancel" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-base font-medium transition-all duration-150">
+        Different things
+      </button>
+    </div>
+  </div>
+
+  <!-- JEC Pantry Cabinet — settings overlay (Pattern 1) -->
+  <div id="jec-settings-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[80] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl px-6 pt-6 pb-8 flex flex-col gap-5">
+
+      <div class="text-center">
+        <h3 class="text-xl font-bold text-stone-800">The Pantry Cabinet</h3>
+        <p class="text-stone-400 text-sm mt-1">Prep before you cook.</p>
+      </div>
+
+      <!-- 1. Dishes (Rounds) -->
+      <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+        <div>
+          <p class="text-stone-800 font-semibold">Dishes</p>
+          <p class="text-stone-400 text-sm mt-0.5">Number of food orders per game.</p>
+        </div>
+        <div class="flex gap-2">
+          <button class="pill pill-active-amber" data-jec-rounds="3">3</button>
+          <button class="pill" data-jec-rounds="5">5</button>
+          <button class="pill" data-jec-rounds="10">10</button>
+        </div>
+      </div>
+
+      <!-- 2. The Sweet Spot (Golden Zone score) -->
+      <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+        <div>
+          <p class="text-stone-800 font-semibold">The Sweet Spot</p>
+          <p class="text-stone-400 text-sm mt-0.5">Points for a perfect match. The more Chefs share a word, the fewer points it's worth.</p>
+        </div>
+        <div class="flex gap-2">
+          <button class="pill" data-jec-golden="10">10 pts</button>
+          <button class="pill pill-active-amber" data-jec-golden="20">20 pts</button>
+          <button class="pill" data-jec-golden="30">30 pts</button>
+        </div>
+      </div>
+
+      <!-- 3. Rotten Penalty -->
+      <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+        <div>
+          <p class="text-stone-800 font-semibold">Rotten Penalty</p>
+          <p class="text-stone-400 text-sm mt-0.5">Nobody matched your ingredient. A Bit Pongy!</p>
+        </div>
+        <div class="flex gap-2">
+          <button class="pill" data-jec-rotten="off">Off</button>
+          <button class="pill pill-active-amber" data-jec-rotten="on">On</button>
+        </div>
+        <p id="jec-rotten-desc" class="text-stone-400 text-xs">Unique ingredients cost −10 pts.</p>
+      </div>
+
+      <!-- 3. Spoilt Penalty -->
+      <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+        <div>
+          <p class="text-stone-800 font-semibold">Spoilt Penalty</p>
+          <p class="text-stone-400 text-sm mt-0.5">Too many cooks spoil the broth.</p>
+        </div>
+        <div class="flex gap-2">
+          <button class="pill" data-jec-spoilt="off">Off</button>
+          <button class="pill pill-active-amber" data-jec-spoilt="on">On</button>
+        </div>
+        <p id="jec-spoilt-desc" class="text-stone-400 text-xs">Crowded Kitchen Tax — −2 pts per Chef who picked it.</p>
+      </div>
+
+      <!-- 4. Sous Chef Oversight -->
+      <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+        <div class="flex items-center justify-between">
+          <p class="text-stone-800 font-semibold">Sous Chef Oversight</p>
+          <button id="btn-jec-oversight-toggle" class="sylly-toggle-on shrink-0">ON</button>
+        </div>
+        <p class="text-stone-400 text-sm">Before the tally, manually merge similar words (e.g. "Prosciutto" and "Persciutto").</p>
+      </div>
+
+      <!-- 5. ✨ Sylly Mode (always last) -->
+      <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+        <div class="flex items-center justify-between">
+          <p class="text-stone-800 font-semibold">✨ Sylly Mode</p>
+          <button id="btn-jec-sylly-toggle" class="sylly-toggle-off shrink-0">OFF</button>
+        </div>
+        <p class="text-stone-400 text-sm">Kitchen Nightmares — flag a Signature Dish for double points, and plant a Poison Word to spoil the competition.</p>
+      </div>
+
+      <button id="btn-jec-settings-done" class="min-h-14 w-full rounded-2xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Done ✓
+      </button>
+
+    </div>
+  </div>
+
+  <!-- JEC How to Play overlay (Pattern 1) -->
+  <div id="jec-how-to-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[90] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl px-6 pt-6 pb-6 flex flex-col gap-5">
+
+      <div class="text-center">
+        <div class="text-4xl mb-1">🍳</div>
+        <h3 class="text-2xl font-bold text-stone-800">How to Play</h3>
+        <p class="text-stone-400 text-sm mt-1">Just Enough Cooks</p>
+      </div>
+
+      <div class="bg-white rounded-2xl p-4 shadow-sm">
+        <p class="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-2">Step 1 — Get the Order 🍽️</p>
+        <p class="text-stone-700 font-semibold text-base leading-snug">Everyone sees the same secret food.</p>
+        <p class="text-stone-500 text-sm mt-1 leading-relaxed">A food item — like "Pizza" or "Nachos" — appears on screen. Everyone reads it, then passes the phone.</p>
+      </div>
+
+      <div class="bg-white rounded-2xl p-4 shadow-sm">
+        <p class="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-2">Step 2 — Prep your Ingredients 🧑‍🍳</p>
+        <p class="text-stone-700 font-semibold text-base leading-snug">Each player secretly enters 3 words.</p>
+        <p class="text-stone-500 text-sm mt-1 leading-relaxed">What ingredients would you use? Think carefully — you want to match others without being too obvious.</p>
+      </div>
+
+      <div class="bg-white rounded-2xl p-4 shadow-sm">
+        <p class="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-2">Step 3 — Hit the Sweet Spot 🌟</p>
+        <p class="text-stone-700 font-semibold text-base leading-snug">Fewer matches = more points.</p>
+        <p class="text-stone-500 text-sm mt-1 leading-relaxed">A 2-player match scores the most. The more Chefs share a word, the fewer points it's worth — until it tips into Spoilt (Too Many Cooks!). Unique words are Rotten. With penalties on: Rotten costs −10 pts, and Spoilt costs −2 pts per Chef who picked it.</p>
+      </div>
+
+      <div class="bg-white rounded-2xl p-4 shadow-sm">
+        <p class="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-2">Step 4 — Win the Shift 🏆</p>
+        <p class="text-stone-500 text-sm mt-1 leading-relaxed">Most Golden ingredients across all dishes wins. Five-star effort right there!</p>
+      </div>
+
+      <button id="btn-jec-how-to-close" class="min-h-14 w-full rounded-2xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Got it — let's cook! 🍳
+      </button>
+
+    </div>
+  </div>
+
+  <!-- JEC WASHUP screen — final leaderboard -->
+  <section id="screen-jec-washup" style="display:none" class="flex flex-col items-start px-6 py-10 w-full max-w-sm mx-auto gap-6">
+    <div class="flex justify-between items-center w-full">
+      <div class="w-10"></div>
+      <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest">Final Wash-up</p>
+      <button class="btn-open-sound w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-lg">🔊</button>
+    </div>
+    <div class="w-full text-center flex flex-col gap-1">
+      <p class="text-5xl">🏆</p>
+      <h2 class="text-2xl font-bold text-stone-800 mt-2">The Final Wash-up</h2>
+      <p id="jec-washup-subtitle" class="text-stone-500 text-base"></p>
+    </div>
+    <!-- Ranked player cards injected by JS -->
+    <div id="jec-washup-list" class="flex flex-col gap-3 w-full"></div>
+    <!-- Chef's Cook Book: per-round log injected by JS -->
+    <div class="w-full flex flex-col gap-3">
+      <p class="text-xs font-semibold uppercase tracking-widest text-stone-400">Chef's Cook Book 📖</p>
+      <div id="jec-washup-cookbook" class="flex flex-col gap-3 w-full"></div>
+    </div>
+    <button id="btn-jec-new-game" class="min-h-14 w-full rounded-2xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      New Shift 👨‍🍳
+    </button>
+    <button id="btn-jec-washup-back" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-600 text-base font-medium transition-all duration-150">
+      ← Back to the Box
+    </button>
+  </section>
+
+  <!-- JEC New Shift modal (Pattern 2) -->
+  <div id="jec-new-shift-overlay" style="display:none" class="fixed inset-0 bg-black/50 z-[80] flex items-center justify-center px-6">
+    <div class="bg-white rounded-3xl px-6 pt-6 pb-8 w-full max-w-sm flex flex-col gap-3 text-center shadow-xl">
+      <p class="text-4xl">👨‍🍳</p>
+      <h3 class="text-xl font-bold text-stone-800">New Shift?</h3>
+      <p class="text-stone-400 text-sm">Scores will be wiped and a fresh game will begin.</p>
+      <button id="btn-jec-new-shift-start" class="min-h-14 w-full rounded-2xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150 mt-2">
+        Begin New Shift 🍳
+      </button>
+      <button id="btn-jec-new-shift-cancel" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 text-base font-medium transition-all duration-150">
+        Back to the Chopping Block
+      </button>
+    </div>
+  </div>
+
+  <!-- JEC Quit confirm overlay (Pattern 2) -->
+  <div id="jec-quit-overlay" style="display:none" class="fixed inset-0 bg-black/50 z-[80] flex items-center justify-center px-6">
+    <div class="bg-white rounded-2xl p-8 w-full max-w-sm text-center flex flex-col gap-3 shadow-xl">
+      <p class="text-4xl">🏳️</p>
+      <h3 class="text-xl font-bold text-stone-800">Kitchen Closed?</h3>
+      <p class="text-stone-400 text-sm">Your progress will be lost.</p>
+      <button id="btn-jec-quit-confirm" class="min-h-12 w-full rounded-xl bg-red-500 hover:bg-red-600 active:scale-95 text-white text-lg font-semibold transition-all duration-150 mt-2">
+        Yeah, close the kitchen.
+      </button>
+      <button id="btn-jec-quit-cancel" class="min-h-12 w-full rounded-xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 text-lg font-semibold transition-all duration-150">
+        Back to the stove!
+      </button>
+    </div>
+  </div>
+
   <!-- Load order: engine → plugins → secret-mode → bootstrapper -->
   <script src="js/engine.js"></script>
-  <script src="js/games/dstw.js"></script>
+  <script src="js/games/li5.js"></script>
   <script src="js/games/great-minds.js"></script>
-  <script src="js/games/sylly-signals.js"></script>
+  <script src="js/games/secret-signals.js"></script>
+  <script src="js/games/jec.js"></script>
   <script src="js/secret-mode.js"></script>
   <script src="js/app.js"></script>
 

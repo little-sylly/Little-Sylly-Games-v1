@@ -3,7 +3,7 @@
 // Mechanic: Two players find a shared connecting word for a random pair.
 // No timer. Rounds loop until both players say the same word (Mind Meld).
 // Score = rounds taken (lower is better, like golf).
-// Depends on: engine.js (audio, showScreen, resetToLobby), dstw.js (allWords, loadWords)
+// Depends on: engine.js (audio, showScreen, resetToLobby), li5.js (allWords, loadWords)
 // ═══════════════════════════════════════════════════════════════════════════════
 
 // ── GM Settings ───────────────────────────────────────────────────────────────

@@ -17,24 +17,28 @@
 ├── js/
 │   ├── engine.js                    # Shared engine: audio, navigation, allScreens[], normaliseWord()
 │   ├── games/
-│   │   ├── dstw.js                  # Plugin: Don't Say Those Words (all state + logic)
+│   │   ├── li5.js                   # Plugin: Like I'm Five (all state + logic)
 │   │   ├── great-minds.js           # Plugin: Great Minds (all state + logic)
-│   │   └── sylly-signals.js         # Plugin: Sylly Signals (all state + logic)
+│   │   ├── secret-signals.js        # Plugin: Secret Signals (all state + logic)
+│   │   └── jec.js                   # Plugin: Just Enough Cooks (all state + logic)
 │   ├── secret-mode.js               # Secret Mode: Konami gateway, Terminal, expansion proxy state
 │   ├── app.js                       # Bootstrapper only — no logic (3 lines)
 │   └── lib/tailwind-play.js         # Local Tailwind (no CDN — fully offline)
 ├── data/
 │   ├── words.json                   # Standard word bank (~358 words, 16 categories)
 │   └── secret_words.json            # Expansion word bank: Dota 2 (35 words, 5 categories)
-├── sw.js                            # Service Worker (currently v58)
+├── sw.js                            # Service Worker (currently v60)
 ├── manifest.json                    # PWA manifest
 ├── docs/expansion-guide.md          # Template + checklist for adding new expansion packs
 ├── docs/secret-mode-plan.md         # Secret Mode vision + validated architecture (complete)
 ├── docs/phase7-snapshot.md          # Phase 7 architecture snapshot (archived)
-└── docs/phase10-snapshot.md         # Phase 10.1 architecture snapshot (current)
+├── docs/phase10-snapshot.md         # Phase 10 architecture snapshot (archived)
+├── docs/phase11-snapshot.md         # Phase 11 architecture snapshot (archived)
+├── docs/code-map.md                 # Surgical code reference — all game IDs, overlays, key functions
+└── docs/phase12-snapshot.md         # Phase 12 architecture snapshot (current)
 ```
 
-**Load order:** `engine.js` → `dstw.js` → `great-minds.js` → `sylly-signals.js` → `secret-mode.js` → `app.js`
+**Load order:** `engine.js` → `li5.js` → `great-minds.js` → `secret-signals.js` → `jec.js` → `secret-mode.js` → `app.js`
 All symbols are global (no ES modules). Forward references work at runtime.
 
 ---
@@ -118,10 +122,12 @@ See `@logic-engine.md` for the full checklist and SW asset list.
 ---
 
 ## 🎯 Current Focus
-**Phase:** Secret Mode — complete (Stage 2 of 3-stage plan)
-**SW Version:** v58
+**Phase:** 12 — Stage 4 Hard Branding + UI Consistency Pass (in progress)
+**SW Version:** v60
+**Next:** Stage 4 sub-tasks B–L (exit routing, settings consistency, NES controller, Secret Mode polish, docs)
 **Key references:**
-- `docs/phase10-snapshot.md` — core architecture gold master
+- `docs/phase12-snapshot.md` — core architecture gold master (current)
+- `docs/code-map.md` — surgical reference: all game IDs, overlays, key functions
 - `docs/secret-mode-plan.md` — Secret Mode vision + implementation (complete)
 - `docs/expansion-guide.md` — template for adding new expansion packs
 
@@ -151,7 +157,7 @@ See `@logic-engine.md` for the full checklist and SW asset list.
 - `gmNavigateToConcede()` — populates and routes to the concede end screen.
 
 **LI5 Secret Mode addition:**
-- Team names locked to "The Radiant" / "The Dire" — set + disabled in `btn-play` listener (`dstw.js`); re-enabled in `resetToLobby()` (`engine.js`).
+- Team names locked to "The Radiant" / "The Dire" — set + disabled in `btn-play` listener (`li5.js`); re-enabled in `resetToLobby()` (`engine.js`).
 
 **Terminal UX (settled):**
 - Expansion list collapses after selection; game buttons render indented below a `└─ SELECT GAME:` log line.
@@ -160,7 +166,19 @@ See `@logic-engine.md` for the full checklist and SW asset list.
 
 ---
 
-## 🔒 Next Phase: Just Enough Cooks (JEC)
-**Reference:** `docs/new-game-just_enough_cooks.md` — full spec + screen map
-**Reference:** `docs/next-3-stage-plan.md` — Stage 3 breakdown (JEC-1 through JEC-5)
-**Start prompt:** "Starting JEC Stage 3. Reference docs/new-game-just_enough_cooks.md. Begin with JEC-1: jec-menu screen and jec-roster in index.html, plus allScreens[] and resetToLobby() wiring in engine.js."
+## ✅ Just Enough Cooks (JEC) — Implemented
+**What it is:** 4th game plugin. Pass-the-phone ingredient guessing — find the Sweet Spot by matching just enough Chefs without overcrowding the kitchen.
+
+**Architecture (settled):**
+- Word pool: `food` category from `allWords` (loaded by li5.js's `loadWords()`)
+- Scoring: inverse proportional Golden (`jecCalcGoldenPoints`), Crowded Kitchen Tax Spoilt (`-(count×2)`), flat Rotten (`-10`)
+- Sous Chef Oversight: tap any two sifting cards or Health Inspector chips to merge; poison propagates
+- Kitchen Nightmares (Sylly Mode): Signature Dish (ingredient 1, double points if Golden) + Poison Word
+- `jecApplyExpansionOverrides()` — namespaced to avoid collision with li5.js's global `applyExpansionOverrides()`
+- Full teardown in `resetToLobby()` (engine.js) and `jecResetForNewGame()` (jec.js)
+
+---
+
+## ✅ Stage 4 — Hard Branding + UI Consistency Pass (complete)
+File rename pass complete. `dstw.js → li5.js`, `sylly-signals.js → secret-signals.js`.
+All references updated atomically. See `docs/phase12-snapshot.md` for current gold master.

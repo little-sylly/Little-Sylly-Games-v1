@@ -15,9 +15,10 @@ const SM_TERMINAL_CONFIG = {
     { id: 'classified', label: '??? [CLASSIFIED]', locked: true,  file: null },
   ],
   games: [
-    { id: 'li5', label: "LIKE I'M FIVE",  screen: 'screen-menu'    },
-    { id: 'gm',  label: 'GREAT MINDS',    screen: 'screen-gm-menu' },
-    { id: 'ss',  label: 'SECRET SIGNALS', screen: 'screen-ss-menu' },
+    { id: 'li5', label: "LIKE I'M FIVE",      screen: 'screen-menu'     },
+    { id: 'gm',  label: 'GREAT MINDS',        screen: 'screen-gm-menu'  },
+    { id: 'ss',  label: 'SECRET SIGNALS',     screen: 'screen-ss-menu'  },
+    { id: 'jec', label: 'JUST ENOUGH COOKS',  screen: 'screen-jec-menu' },
   ],
 };
 
@@ -25,7 +26,7 @@ const SM_TERMINAL_CONFIG = {
 // Keys match exact plugin variable names so SM-4/5 can apply directly.
 const SM_EXPANSION_OVERRIDES = {
   dota2: {
-    // LI5 (dstw.js)
+    // LI5 (li5.js)
     settingTimer:       60,
     settingRounds:      5,
     settingTabooCount:  10,
@@ -40,7 +41,7 @@ const SM_EXPANSION_OVERRIDES = {
     gmInfiniteResync:     true,
     gmSignalBoost:        false,
     gmSyllyIntensity:     'sub-atomic', // Sylly Mode OFF
-    // SS (sylly-signals.js)
+    // SS (secret-signals.js)
     ssDifficultyLevel:        3,
     ssSettingInterceptsToWin: 2,
     ssRerollLimitSetting:     Infinity, // unlimited rerolls
@@ -72,6 +73,12 @@ const SM_SETTINGS_DISPLAY = {
     { key: 'ssSettingInterceptsToWin', label: 'Intercepts to Win', fmt: v => String(v) },
     { key: 'ssRerollLimitSetting',     label: 'Rerolls',           fmt: v => v === Infinity ? 'Unlimited' : String(v) },
     { key: 'ssIntelSyllyMode',         label: 'Intel Phase',       fmt: v => v ? 'ON' : 'OFF' },
+  ],
+  jec: [
+    { key: 'jecRounds',            label: 'Dishes',     fmt: v => String(v) },
+    { key: 'jecRottenPenalty',     label: 'Rotten',     fmt: v => v ? '−10 pts' : 'Off' },
+    { key: 'jecSpoiltPenalty',     label: 'Spoilt',     fmt: v => v ? '−10 pts' : 'Off' },
+    { key: 'jecKitchenNightmares', label: 'Sylly Mode', fmt: v => v ? 'ON' : 'OFF' },
   ],
 };
 

@@ -1,11 +1,11 @@
 // ═══════════════════════════════════════════════════════════════════════════════
-// PLUGIN: Sylly Signals (sylly-signals)
+// PLUGIN: Secret Signals (secret-signals)
 // Mechanic: Two teams share secret vaults of 4 keywords (numbered 1–4).
 //   Each round, one player receives a 3-digit code and gives 3 clues.
 //   The opposing team tries to intercept the code; the encrypting team
 //   must also decode it correctly or suffer a misfire.
 //   Win: 2 interceptions. Lose: 2 misfires.
-// Depends on: engine.js (audio, showScreen, resetToLobby), dstw.js (allWords, loadWords)
+// Depends on: engine.js (audio, showScreen, resetToLobby), li5.js (allWords, loadWords)
 // ═══════════════════════════════════════════════════════════════════════════════
 
 // ── SS Settings ───────────────────────────────────────────────────────────────
