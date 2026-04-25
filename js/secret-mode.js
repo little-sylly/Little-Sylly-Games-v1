@@ -243,8 +243,8 @@ function smRenderExpansions() {
   SM_TERMINAL_CONFIG.expansions.forEach((exp, i) => {
     const btn = document.createElement('button');
     btn.className = exp.locked
-      ? 'w-full text-left text-xs font-mono px-3 py-3 border border-green-900 text-green-900 rounded opacity-50 cursor-not-allowed min-h-11'
-      : 'w-full text-left text-xs font-mono px-3 py-3 border border-green-400 text-green-400 rounded active:scale-95 transition-transform duration-75 min-h-11';
+      ? 'w-full text-left text-xs font-mono px-3 py-3 border-2 border-green-900 text-green-900 rounded opacity-50 cursor-not-allowed min-h-11'
+      : 'w-full text-left text-xs font-mono px-3 py-3 border-2 border-green-400 text-green-400 rounded active:scale-95 transition-transform duration-75 min-h-11';
     btn.textContent = `  [${i + 1}] ${exp.label}${exp.locked ? ' — LOCKED' : ''}`;
     btn.disabled = exp.locked;
     if (!exp.locked) btn.addEventListener('click', () => smSelectExpansion(exp.id));
@@ -289,7 +289,7 @@ function smRenderGames() {
   SM_TERMINAL_CONFIG.games.forEach((game, i) => {
     const btn = document.createElement('button');
     btn.id = `sm-game-btn-${game.id}`;
-    btn.className = 'w-full text-left text-xs font-mono px-3 py-3 border border-green-400 text-green-400 rounded active:scale-95 transition-transform duration-75 min-h-11';
+    btn.className = 'w-full text-left text-xs font-mono px-3 py-3 border-2 border-green-400 text-green-400 rounded active:scale-95 transition-transform duration-75 min-h-11';
     btn.textContent = `  [${i + 1}] ${game.label}`;
     btn.addEventListener('click', () => smSelectGame(game.id));
     wrap.appendChild(btn);
@@ -424,7 +424,7 @@ function smRenderVocabTabs() {
     btn.textContent = tab;
     btn.className = tab === smVocabActiveTab
       ? 'text-xs font-mono px-3 py-1 rounded border border-green-400 bg-green-400 text-black min-h-11 flex-shrink-0'
-      : 'text-xs font-mono px-3 py-1 rounded border border-green-800 text-green-600 min-h-11 flex-shrink-0 active:scale-95 transition-transform';
+      : 'text-xs font-mono px-3 py-1 rounded border border-green-800 text-green-600 min-h-11 flex-shrink-0 active:scale-95 transition-transform hover:bg-green-900/30 transition-colors';
     btn.addEventListener('click', () => {
       smVocabActiveTab = tab;
       document.getElementById('gm-vocab-search').value = '';
@@ -452,7 +452,7 @@ function smRenderVocabList() {
   if (!words.length) {
     const p = document.createElement('p');
     p.textContent = 'No matches.';
-    p.className = 'text-green-900 mt-4';
+    p.className = 'text-green-600 mt-4';
     list.appendChild(p);
     return;
   }

@@ -1392,6 +1392,40 @@ function ssShowQuitOverlay() {
   document.getElementById('ss-quit-overlay').style.display = 'flex';
 }
 
+// Quit mid-game → SS menu. Wipes round state; preserves names + settings.
+function ssResetToMenu() {
+  ssStopTimer();
+  ssEncryptingTeam       = 0;
+  ssCurrentCode          = [];
+  ssCurrentClues         = ['', '', ''];
+  ssClueHistoryA         = [[], [], [], []];
+  ssClueHistoryB         = [[], [], [], []];
+  ssInterceptGuess       = [0, 0, 0];
+  ssDecodeGuess          = [0, 0, 0];
+  ssTokens               = [0, 0];
+  ssMisfires             = [0, 0];
+  ssRound                = 0;
+  ssRoundHistory         = [];
+  ssRerollCounts         = [[0,0,0,0],[0,0,0,0]];
+  ssVaultA               = [];
+  ssVaultB               = [];
+  ssIntelPreviousGuesses = [];
+  ssIntelHistory         = [];
+  ssIntelScoreA          = 0;
+  ssIntelScoreB          = 0;
+  ssIntelLeader          = 0;
+  ssIntelGuessingTeam    = 0;
+  ssIntelKwIdx           = 0;
+  ssIntelAttemptNum      = 0;
+  ssIntelFound              = [[false,false,false,false],[false,false,false,false]];
+  ssIntelAttempts           = [];
+  ssOverrideSelectedAttempt = '';
+  document.getElementById('ss-quit-overlay').style.display       = 'none';
+  document.getElementById('ss-override-overlay').style.display   = 'none';
+  document.getElementById('ss-play-again-overlay').style.display = 'none';
+  showScreen('screen-ss-menu');
+}
+
 // ── SS Reset (called by engine resetToLobby) ──────────────────────────────────
 function resetSyllySignals() {
   ssEncryptingTeam       = 0;
@@ -1472,7 +1506,10 @@ function ssOpenSettings() {
   toggle.className   = ssIntelSyllyMode ? 'sylly-toggle-on' : 'sylly-toggle-off';
   // Render category pills
   ssSyncCategoryPills();
-  document.getElementById('ss-settings-overlay').style.display = 'flex';
+  const el = document.getElementById('ss-settings-overlay');
+  const body = el.querySelector('.overflow-y-auto');
+  if (body) body.scrollTop = 0;
+  el.style.display = 'flex';
 }
 
 function ssSyncCategoryPills() {
@@ -1551,7 +1588,10 @@ document.getElementById('btn-ss-play').addEventListener('click', () => {
 });
 document.getElementById('btn-ss-how-to').addEventListener('click', () => {
   playPillClick();
-  document.getElementById('ss-how-to-overlay').style.display = 'flex';
+  const el = document.getElementById('ss-how-to-overlay');
+  const inner = el.querySelector('.overlay-data-inner');
+  if (inner) inner.scrollTop = 0;
+  el.style.display = 'flex';
 });
 document.getElementById('btn-ss-settings').addEventListener('click', () => {
   playPillClick();
@@ -1683,8 +1723,7 @@ document.getElementById('btn-ss-gameover-exit').addEventListener('click', () => 
 // Quit overlay
 document.getElementById('btn-ss-quit-confirm').addEventListener('click', () => {
   playExit();
-  document.getElementById('ss-quit-overlay').style.display = 'none';
-  resetToLobby();
+  ssResetToMenu();
 });
 document.getElementById('btn-ss-quit-cancel').addEventListener('click', () => {
   playDone();

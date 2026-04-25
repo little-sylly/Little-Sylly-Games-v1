@@ -657,7 +657,10 @@ document.getElementById('btn-gm-menu-play').addEventListener('click', () => {
 
 document.getElementById('btn-gm-menu-how-to').addEventListener('click', () => {
   playPillClick();
-  document.getElementById('gm-how-to-overlay').style.display = 'flex';
+  const el = document.getElementById('gm-how-to-overlay');
+  const inner = el.querySelector('.overlay-data-inner');
+  if (inner) inner.scrollTop = 0;
+  el.style.display = 'flex';
 });
 
 document.getElementById('btn-gm-how-to-close').addEventListener('click', () => {
@@ -667,7 +670,10 @@ document.getElementById('btn-gm-how-to-close').addEventListener('click', () => {
 
 document.getElementById('btn-gm-menu-settings').addEventListener('click', () => {
   playPillClick();
-  document.getElementById('gm-settings-overlay').style.display = 'flex';
+  const el = document.getElementById('gm-settings-overlay');
+  const body = el.querySelector('.overflow-y-auto');
+  if (body) body.scrollTop = 0;
+  el.style.display = 'flex';
 });
 
 document.getElementById('btn-gm-menu-back').addEventListener('click', () => {

@@ -122,9 +122,9 @@ See `@logic-engine.md` for the full checklist and SW asset list.
 ---
 
 ## 🎯 Current Focus
-**Phase:** 12 — Stage 4 Hard Branding + UI Consistency Pass (in progress)
+**Phase:** 12 complete — Hard Branding + UI Consistency Pass
 **SW Version:** v60
-**Next:** Stage 4 sub-tasks B–L (exit routing, settings consistency, NES controller, Secret Mode polish, docs)
+**Next:** Game 5 or expansion pack 2
 **Key references:**
 - `docs/phase12-snapshot.md` — core architecture gold master (current)
 - `docs/code-map.md` — surgical reference: all game IDs, overlays, key functions

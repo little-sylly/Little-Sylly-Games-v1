@@ -3,12 +3,14 @@
 ## Global UI Protocol
 Every screen must have:
 
-1. **Speaker icon** (`.btn-open-sound`) — opens `#sound-overlay`. Absolute top-right on full screens; inline in header rows on setup/input screens.
-2. **Exit button** (✕) — logical destination:
-   - Pre-game screens → game's own menu screen
-   - Mid-game screens → quit confirmation overlay
-   - Post-game screens → `resetToLobby()`
-3. **Active play exception:** `#btn-mute` stays as instant tap-to-mute (no overlay — timer running).
+1. **Speaker icon** (`.btn-open-sound`) — opens `#sound-overlay`. Two official positions:
+   - **Full-screen menus:** `absolute top-4 right-4` within a `relative` screen container
+   - **Gameplay flow screens:** header row — `flex items-center justify-between px-4 pt-4 pb-2 flex-shrink-0`, speaker + ✕ right-aligned in the same row
+2. **Exit button** (✕) — logical destination (formalised):
+   - Mid-game ✕ → quit confirm overlay → **game menu screen** (NOT lobby)
+   - Post-game ✕ → `resetToLobby()` directly (game is over, no state to preserve)
+   - "← Back to the Box" on game menu → `resetToLobby()` — the **only** path to lobby from within a game
+3. **Active play exception:** `#btn-mute` stays as instant tap-to-mute (no overlay — timer running). Pixel-exact rule applies to `.btn-open-sound` only.
 
 ---
 
@@ -52,8 +54,21 @@ Use for: confirmations, short prompts, ≤3 interactive elements. No slide-up an
 
 ## Settings Layout Standard
 Every game's settings overlay must follow this order:
-1. Game-specific options (timer, rounds, categories, word pools, etc.)
-2. **✨ Sylly Mode** — always last; the "advanced rules" signature
+1. **Thematic title block** — first child of `overlay-data-inner`:
+   ```html
+   <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
+     <h2 class="text-xl font-bold text-stone-800">Game Name 🎮</h2>
+     <p class="text-xs text-stone-400 mt-1">One-line game-voiced subtitle.</p>
+   </div>
+   ```
+2. Game-specific options (timer, rounds, categories, word pools, etc.)
+3. **✨ Sylly Mode** — always last; the "advanced rules" signature
+
+**Settings button on the game menu:** always labelled **"Settings"** exactly. Thematic flair lives inside the overlay as the title block — not on the button.
+
+**Scroll reset on open:** call `el.querySelector('.overflow-y-auto').scrollTop = 0` (or `.overlay-data-inner` for whole-panel-scroll overlays) before `style.display = 'flex'` so the thematic title is always the first thing seen.
+
+**How-to overlays** follow the same structure: thematic title block at top, `scrollTop = 0` on open.
 
 All multi-choice settings use the **Pill Button** style:
 - Inactive: `.pill` | Active: `.pill-active-purple`
@@ -87,15 +102,34 @@ Look for ONE opportunity to inject playfulness — cheeky button labels, Austral
 ## Universal Menu Standard (All Games)
 Every game's main menu screen must have exactly these 4 buttons, in this order:
 
-| Button         | DSTW (Like I'm 5)    | Great Minds          | Sylly Signals        | Just Enough Cooks    |
+| Button         | LI5 (Like I'm Five)  | Great Minds          | Secret Signals       | Just Enough Cooks    |
 |----------------|----------------------|----------------------|----------------------|----------------------|
 | Play CTA       | Let's Play!          | Let's Play!          | Let's Play!          | Let's Cook!          |
 | How to Play    | How to Play          | How to Play          | How to Play          | How to Play          |
-| Settings       | Settings             | Settings             | Settings             | The Pantry Cabinet   |
+| Settings       | Settings             | Settings             | Settings             | Settings             |
 | Back to lobby  | ← Back to the Box    | ← Back to the Box    | ← Back to the Box    | ← Back to the Box    |
 
 **Rules:**
 - "← Back to the Box" is always identical — never game-themed.
 - "How to Play" label is always identical — opens a data overlay (Pattern 1).
-- Settings label may be game-themed (see table); opens a data overlay (Pattern 1).
+- Settings button label is always **"Settings"** — no exceptions. Thematic name lives inside the overlay as the title block.
 - Play CTA is the primary action — largest button, top of the stack.
+
+---
+
+## Quit Overlay Checklist
+Every game's quit overlay (Pattern 2 — Decision Modal) must have ALL of:
+- Thematic emoji (e.g. 🏳️ for LI5, 📡 for GM, 🔐 for SS, 🍳 for JEC)
+- Game-voiced heading (not the generic "Quit game?")
+- Game-voiced subtext (what will be lost, in the game's voice)
+- Themed confirm button (e.g. "Yeah, pack up!", "Yeah, disconnect.", "Yeah, close the kitchen.")
+- Neutral cancel button ("Keep going!" or "Not yet!")
+
+---
+
+## Vocab Lock Reuse Pattern
+The vocab lock is game-agnostic and available to any future game:
+- **Vocabulary check:** `window.activeExpansionData.vocab.has(normaliseWord(input))`  — covers primary words AND all `nono_list` terms
+- **Open vocab overlay:** `smOpenVocabOverlay()` — opens the terminal-style `#gm-vocab-overlay`
+- **"VIEW WORD LIST" button:** show `#gm-vocab-list-btn` reactively on vocab-lock failure; reset (hide) at the start of each turn's input setup
+- Any future game can wire a "VIEW WORD LIST" button to `smOpenVocabOverlay()` with zero changes to `secret-mode.js`

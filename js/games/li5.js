@@ -609,7 +609,10 @@ function togglePause() {
 
 // ── Settings modal ────────────────────────────────────────────────────────────
 function openSettings() {
-  document.getElementById('settings-overlay').style.display = 'flex';
+  const el = document.getElementById('settings-overlay');
+  const body = el.querySelector('.overflow-y-auto');
+  if (body) body.scrollTop = 0;
+  el.style.display = 'flex';
 }
 
 function closeSettings() {
@@ -679,7 +682,10 @@ document.getElementById('btn-play')
 document.getElementById('btn-how-to')
   .addEventListener('click', () => {
     playPillClick();
-    document.getElementById('how-to-overlay').style.display = 'flex';
+    const el = document.getElementById('how-to-overlay');
+    const inner = el.querySelector('.overlay-data-inner');
+    if (inner) inner.scrollTop = 0;
+    el.style.display = 'flex';
   });
 
 document.getElementById('btn-how-to-close')

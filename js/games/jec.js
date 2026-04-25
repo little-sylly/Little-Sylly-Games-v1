@@ -49,12 +49,18 @@ document.getElementById('btn-jec-menu-play').addEventListener('click', () => {
 
 document.getElementById('btn-jec-menu-how-to').addEventListener('click', () => {
   playPillClick();
-  document.getElementById('jec-how-to-overlay').style.display = 'flex';
+  const el = document.getElementById('jec-how-to-overlay');
+  const inner = el.querySelector('.overlay-data-inner');
+  if (inner) inner.scrollTop = 0;
+  el.style.display = 'flex';
 });
 
 document.getElementById('btn-jec-menu-settings').addEventListener('click', () => {
   playPillClick();
-  document.getElementById('jec-settings-overlay').style.display = 'flex';
+  const el = document.getElementById('jec-settings-overlay');
+  const body = el.querySelector('.overflow-y-auto');
+  if (body) body.scrollTop = 0;
+  el.style.display = 'flex';
 });
 
 document.getElementById('btn-jec-menu-back').addEventListener('click', () => {
@@ -187,7 +193,12 @@ async function jecStartGame() {
 function jecStartRound() {
   jecRound++;
   if (jecWordPool.length === 0) {
-    jecWordPool = shuffle(allWords.filter(w => w.category === 'food').map(w => w.word));
+    if (isSecretMode && secretWords && secretWords.length) {
+      const foodWords = secretWords.filter(w => w.category === 'food').map(w => w.word);
+      jecWordPool = shuffle(foodWords.length ? foodWords : secretWords.map(w => w.word));
+    } else {
+      jecWordPool = shuffle(allWords.filter(w => w.category === 'food').map(w => w.word));
+    }
   }
   jecCurrentWord      = jecWordPool.pop();
   jecCurrentPlayerIdx = 0;
@@ -660,7 +671,7 @@ document.getElementById('btn-jec-pass-gate-ready').addEventListener('click', () 
 document.getElementById('btn-jec-quit-confirm').addEventListener('click', () => {
   playExit();
   document.getElementById('jec-quit-overlay').style.display = 'none';
-  resetToLobby();
+  jecResetForNewGame();
 });
 
 document.getElementById('btn-jec-quit-cancel').addEventListener('click', () => {
@@ -677,4 +688,9 @@ function jecApplyExpansionOverrides() {
   if (ov.jecRottenPenalty     !== undefined) jecRottenPenalty     = ov.jecRottenPenalty;
   if (ov.jecSpoiltPenalty     !== undefined) jecSpoiltPenalty     = ov.jecSpoiltPenalty;
   if (ov.jecKitchenNightmares !== undefined) jecKitchenNightmares = ov.jecKitchenNightmares;
+  // In Secret Mode, use expansion words filtered to food category; fall back to all expansion words
+  if (secretWords && secretWords.length) {
+    const foodWords = secretWords.filter(w => w.category === 'food').map(w => w.word);
+    jecWordPool = shuffle(foodWords.length ? foodWords : secretWords.map(w => w.word));
+  }
 }

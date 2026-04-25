@@ -129,6 +129,12 @@ body.flash-red   { background-color: #fecaca; }
   color: #fff;
 }
 
+/* ── Just Enough Cooks pill active state (amber) ─────────────────────────── */
+.pill-active-amber {
+  background: #f59e0b;  /* amber-500 */
+  color: #fff;
+}
+
 /* ── Global volume group — slides away when muted ───────────────────────── */
 #global-volume-group {
   overflow: hidden;

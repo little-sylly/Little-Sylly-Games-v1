@@ -8,6 +8,7 @@
 | DSTW state | `camelCase` (short file, fewer collisions) | `currentWord`, `timeLeft`, `roundCount` |
 | Great Minds state | `gm` prefix + `camelCase` | `gmPlayerNames`, `gmRound`, `gmCurrentPair` |
 | Sylly Signals state | `ss` prefix + `camelCase` | `ssTokens`, `ssRound`, `ssVaultA` |
+| JEC state | `jec` prefix + `camelCase` | `jecRound`, `jecScores`, `jecPoisonedNorms` |
 | Booleans | `is`/`has` prefix, or direct flag name | `isMuted`, `gmMemoryGuard`, `gmCustomWords` |
 | Sets / Arrays | Pluralised camelCase | `allScreens`, `gmSessionGuesses`, `gmRoundLog` |
 | Constants | `SCREAMING_SNAKE_CASE` | `GM_CATEGORIES`, `GM_MISMATCH_PHRASES` |

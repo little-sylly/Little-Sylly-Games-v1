@@ -211,8 +211,8 @@
     <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl px-6 pt-5 pb-5 flex flex-col">
 
       <!-- Fixed header — never scrolls -->
-      <h3 class="text-xl font-bold text-stone-800 text-center">⚙️ Settings</h3>
-      <p class="text-stone-400 text-xs text-center mt-1 mb-3">Resets to defaults on page refresh</p>
+      <h3 class="text-xl font-bold text-stone-800 text-center">Like I'm Five ⭐</h3>
+      <p class="text-stone-400 text-xs text-center mt-1 mb-3">Set it up before the fun begins!</p>
 
       <!-- Scrollable settings body -->
       <div class="flex-1 overflow-y-auto flex flex-col gap-3 pb-1">
@@ -403,14 +403,14 @@
   <!-- Quit confirmation overlay -->
   <div id="quit-overlay" style="display:none" class="fixed inset-0 bg-black/50 z-[80] flex items-center justify-center px-6">
     <div class="bg-white rounded-2xl p-8 w-full max-w-sm text-center flex flex-col gap-3 shadow-xl">
-      <p class="text-4xl">🛑</p>
-      <h3 class="text-xl font-bold text-stone-800">Quit game?</h3>
-      <p class="text-stone-400 text-sm">All scores will be lost.</p>
+      <p class="text-4xl">🏳️</p>
+      <h3 class="text-xl font-bold text-stone-800">Done explaining already? 🧒</h3>
+      <p class="text-stone-400 text-sm">Your stars will disappear!</p>
       <button id="btn-quit-confirm" class="min-h-12 w-full rounded-xl bg-red-500 hover:bg-red-600 active:scale-95 text-white text-lg font-semibold transition-all duration-150 mt-2">
-        Yes, quit
+        Yeah, pack up!
       </button>
       <button id="btn-quit-cancel" class="min-h-12 w-full rounded-xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 text-lg font-semibold transition-all duration-150">
-        Keep playing
+        Keep going!
       </button>
     </div>
   </div>
@@ -806,7 +806,7 @@
     <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl px-6 pt-6 pb-8 flex flex-col gap-5">
 
       <div class="text-center">
-        <h3 class="text-xl font-bold text-stone-800">Great Minds Settings</h3>
+        <h3 class="text-xl font-bold text-stone-800">Frequency Configuration 📡</h3>
         <p class="text-stone-400 text-sm mt-1">Calibrate before you sync.</p>
       </div>
 
@@ -1572,8 +1572,8 @@
     <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
       <!-- Fixed header -->
       <div class="flex-shrink-0 px-6 pt-6 pb-3 text-center border-b border-stone-100">
-        <h3 class="text-xl font-bold text-stone-800">⚙️ Settings</h3>
-        <p class="text-stone-400 text-sm mt-0.5">Secret Signals</p>
+        <h3 class="text-xl font-bold text-stone-800">Signal Parameters 🔐</h3>
+        <p class="text-stone-400 text-sm mt-0.5">Configure before your first broadcast.</p>
       </div>
       <!-- Scrollable body -->
       <div class="flex-1 overflow-y-auto px-6 py-5 flex flex-col gap-5">
@@ -1910,7 +1910,7 @@
     </div>
 
     <!-- ASCII Controller body -->
-    <div class="border border-green-400 text-green-400 rounded-lg p-5 w-full max-w-xs select-none">
+    <div class="border border-green-400 text-green-400 rounded-lg p-5 w-full max-w-sm select-none">
       <div class="text-xs text-center opacity-50 mb-4 tracking-widest">NES-01 INPUT DEVICE</div>
 
       <!-- D-Pad + Face buttons row -->
@@ -1933,23 +1933,20 @@
           <div></div>
         </div>
 
-        <!-- Centre buttons -->
-        <div class="flex flex-col items-center gap-2">
-          <button class="text-xs text-green-600 border border-green-800 rounded px-2 py-1 opacity-40 min-h-11 min-w-11 flex items-center justify-center" disabled>SEL</button>
+        <!-- Centre buttons — Select + Start side by side -->
+        <div class="flex flex-row items-center gap-2">
+          <button id="sm-btn-select"
+            class="text-xs text-green-400 border border-green-400 rounded px-3 py-1 active:scale-90 transition-transform duration-75 min-h-11 flex items-center justify-center">SEL</button>
           <button id="sm-btn-start"
-            class="text-xs text-green-400 border border-green-400 rounded px-2 py-1 active:scale-90 transition-transform duration-75 min-h-11 min-w-11 flex items-center justify-center">STA</button>
+            class="text-xs text-green-400 border border-green-400 rounded px-3 py-1 active:scale-90 transition-transform duration-75 min-h-11 flex items-center justify-center">STA</button>
         </div>
 
-        <!-- Face buttons -->
-        <div class="grid grid-rows-3 grid-cols-2 gap-1 w-24">
-          <div></div>
+        <!-- Face buttons — B and A side by side -->
+        <div class="flex flex-row items-center gap-2">
           <button id="sm-btn-b"
             class="text-2xl text-center active:scale-90 transition-transform duration-75 min-h-11 min-w-11 flex items-center justify-center">🅱️</button>
-          <div></div>
-          <div></div>
           <button id="sm-btn-a"
             class="text-2xl text-center active:scale-90 transition-transform duration-75 min-h-11 min-w-11 flex items-center justify-center">🅰️</button>
-          <div></div>
         </div>
 
       </div>
@@ -2038,7 +2035,7 @@
         How to Play
       </button>
       <button id="btn-jec-menu-settings" class="min-h-14 w-full rounded-2xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
-        The Pantry Cabinet
+        Settings
       </button>
       <button id="btn-jec-menu-back" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-base font-medium transition-all duration-150">
         ← Back to the Box

@@ -24,6 +24,9 @@ const allScreens = [
   'screen-secret-controller',
   'screen-secret-terminal',
   'screen-gm-concede',
+  'screen-jec-menu', 'screen-jec-roster', 'screen-jec-order',
+  'screen-jec-prep', 'screen-jec-sifting',
+  'screen-jec-tally', 'screen-jec-washup',
 ];
 
 // ── Web Audio API ─────────────────────────────────────────────────────────────
@@ -257,6 +260,25 @@ function resetToLobby() {
   resetSyllySignals();
   // Secret Mode hard-reset (forward ref — safe at runtime)
   if (typeof resetSecretMode === 'function') resetSecretMode();
+  // JEC teardown
+  document.getElementById('jec-quit-overlay').style.display        = 'none';
+  document.getElementById('jec-settings-overlay').style.display    = 'none';
+  document.getElementById('jec-how-to-overlay').style.display      = 'none';
+  document.getElementById('jec-oversight-overlay').style.display   = 'none';
+  document.getElementById('jec-new-shift-overlay').style.display   = 'none';
+  jecRound            = 0;
+  jecScores           = [];
+  jecWordPool         = [];
+  jecInputs           = [];
+  jecSignatures       = [];
+  jecPoisons          = [];
+  jecWordFrequency    = {};
+  jecDisplayWords     = {};
+  jecMergeMap         = {};
+  jecRoundLog         = [];
+  jecCurrentPlayerIdx  = 0;
+  jecOversightSelected = null;
+  jecPoisonedNorms     = new Set();
   showScreen('screen-lobby');
 }
 
