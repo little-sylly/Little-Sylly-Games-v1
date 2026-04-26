@@ -154,6 +154,7 @@
     <div class="w-full" style="display:grid; grid-template-columns: 1fr auto 1fr; align-items: center;">
       <div class="flex flex-col items-center min-w-0">
         <span id="active-team-label" class="text-stone-500 text-sm font-semibold truncate w-full"></span>
+        <span id="hype-phrase" class="text-xs font-bold text-orange-500 leading-tight"></span>
       </div>
       <span id="timer-display" class="text-3xl font-bold text-stone-800 tabular-nums">1:00</span>
       <div class="flex items-center justify-end gap-2">
@@ -186,12 +187,9 @@
         </div>
       </div>
 
-      <!-- Live score + Sylly scoring hint + hype float anchor -->
-      <div class="relative flex flex-col items-center">
-        <span id="hype-phrase" class="absolute left-1/2 bottom-full text-xs font-bold text-orange-500 whitespace-nowrap pointer-events-none"></span>
-        <p class="text-stone-500 text-base">Score: <span id="score-display" class="font-bold text-stone-800">0</span></p>
-        <p id="sylly-scoring-hint" style="display:none" class="text-purple-500 text-sm font-semibold">✨ Sylly word x2 🔥</p>
-      </div>
+      <!-- Live score + Sylly scoring hint -->
+      <p class="text-stone-500 text-base mb-1">Score: <span id="score-display" class="font-bold text-stone-800">0</span></p>
+      <p id="sylly-scoring-hint" style="display:none" class="text-purple-500 text-sm font-semibold">✨ Sylly word x2 🔥</p>
 
       <!-- Action buttons -->
       <div class="flex gap-3 w-full mb-3">

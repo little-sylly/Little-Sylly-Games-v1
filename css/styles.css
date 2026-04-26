@@ -406,14 +406,14 @@ body.flash-red   { background-color: #fecaca; }
 .card-exit-left  { animation: cardExitLeft  0.15s ease-in forwards; }
 .card-exit-right { animation: cardExitRight 0.15s ease-in forwards; }
 
-/* ── Hype phrase — floats upward from score counter ─────────────────────── */
+/* ── Hype phrase — pops in, spins out (PowerPoint star style) ───────────── */
 @keyframes hypePop {
-  0%   { opacity: 0; transform: translateX(-50%) translateY(0);     }
-  20%  { opacity: 1; transform: translateX(-50%) translateY(-10px); }
-  75%  { opacity: 1; transform: translateX(-50%) translateY(-28px); }
-  100% { opacity: 0; transform: translateX(-50%) translateY(-48px); }
+  0%   { opacity: 0; transform: scale(0.5)  rotate(-15deg); }
+  18%  { opacity: 1; transform: scale(1.1)  rotate(3deg);   }
+  45%  { opacity: 1; transform: scale(1)    rotate(0deg);   }
+  100% { opacity: 0; transform: scale(0.2)  rotate(360deg); }
 }
-.hype-pop { animation: hypePop 1.6s ease-out forwards; }
+.hype-pop { animation: hypePop 1.5s ease-out forwards; }
 
 /* ── Hot Streak — team name glow + shake (2×) when 3+ correct in a row ──── */
 @keyframes streakFire {
