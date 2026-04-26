@@ -135,6 +135,18 @@ body.flash-red   { background-color: #fecaca; }
   color: #fff;
 }
 
+/* ── Like I'm Five pill active state (pink) ──────────────────────────────── */
+.pill-active-pink {
+  background: #ec4899;  /* pink-500 */
+  color: #fff;
+}
+
+/* ── Close Enough pill active state (orange) ─────────────────────────────── */
+.pill-active-orange {
+  background: #f97316;  /* orange-500 */
+  color: #fff;
+}
+
 /* ── Global volume group — slides away when muted ───────────────────────── */
 #global-volume-group {
   overflow: hidden;

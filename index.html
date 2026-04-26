@@ -50,6 +50,9 @@
       <button id="btn-jec" class="min-h-14 w-full rounded-2xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
         Just Enough Cooks
       </button>
+      <button id="btn-ce" class="min-h-14 w-full rounded-2xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Close Enough
+      </button>
     </div>
   </section>
 
@@ -142,7 +145,7 @@
       <p id="gatekeeper-hype" class="text-stone-500 text-lg mt-3 italic"></p>
     </div>
 
-    <button id="btn-start-turn" class="min-h-14 w-full rounded-2xl bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+    <button id="btn-start-turn" class="min-h-14 w-full rounded-2xl bg-pink-500 hover:bg-pink-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
       My Turn!
     </button>
   </section>
@@ -170,7 +173,7 @@
       <p class="text-5xl">⏸</p>
       <p class="text-stone-400 text-lg font-semibold">Time Out</p>
       <p class="text-stone-400 text-sm">Word is hidden so no peeking!</p>
-      <button id="btn-resume" class="min-h-14 w-full rounded-2xl bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      <button id="btn-resume" class="min-h-14 w-full rounded-2xl bg-pink-500 hover:bg-pink-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
         ▶ Let's Continue Playing!
       </button>
     </div>
@@ -211,97 +214,122 @@
     <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl px-6 pt-5 pb-5 flex flex-col">
 
       <!-- Fixed header — never scrolls -->
-      <h3 class="text-xl font-bold text-stone-800 text-center">Like I'm Five ⭐</h3>
+      <h3 class="text-xl font-bold text-stone-800 text-center">Learning Plan 📝</h3>
       <p class="text-stone-400 text-xs text-center mt-1 mb-3">Adults make the rules! ✋</p>
 
       <!-- Scrollable settings body -->
-      <div class="flex-1 overflow-y-auto flex flex-col gap-3 pb-1">
+      <div class="flex-1 overflow-y-auto flex flex-col gap-5 pb-1">
 
         <!-- Decks -->
-        <div>
-          <p class="text-stone-500 text-xs font-semibold uppercase tracking-widest mb-2">The Toy Box</p>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
           <div class="flex items-center justify-between">
-            <p class="text-stone-800 font-semibold">Play Everything</p>
-            <button id="all-decks-toggle" class="sylly-toggle-on">ON</button>
+            <p class="text-stone-800 font-semibold">The Toy Box</p>
+            <button id="all-decks-toggle" class="sylly-toggle-on shrink-0">ON</button>
           </div>
+          <p class="text-stone-400 text-sm">Play with all word categories, or pick and choose.</p>
           <button id="btn-edit-deck" style="display:none"
-            class="mt-2 w-full rounded-xl bg-stone-200 text-stone-700 font-semibold py-2 text-base active:scale-95 transition-all">
+            class="w-full rounded-xl bg-stone-200 text-stone-700 font-semibold py-2 text-base active:scale-95 transition-all">
             Edit Toy Box ▸
           </button>
         </div>
 
+        <!-- Difficulty -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">Report Card</p>
+            <p class="text-stone-400 text-sm mt-0.5">Control how tricky the words are.</p>
+          </div>
+          <div class="flex gap-2">
+            <button class="pill" data-group="difficulty" data-value="easy">Gold Star ⭐</button>
+            <button class="pill pill-active-pink" data-group="difficulty" data-value="standard">Honour Roll 📚</button>
+          </div>
+        </div>
+
         <!-- Timer -->
-        <div>
-          <p class="text-stone-500 text-xs font-semibold uppercase tracking-widest mb-2">Tick Tock Clock</p>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">Tick Tock Clock</p>
+            <p class="text-stone-400 text-sm mt-0.5">How long each team has to describe words.</p>
+          </div>
           <div class="flex gap-2">
             <button class="pill" data-group="timer" data-value="30">30s</button>
-            <button class="pill pill-active" data-group="timer" data-value="60">60s</button>
+            <button class="pill pill-active-pink" data-group="timer" data-value="60">60s</button>
             <button class="pill" data-group="timer" data-value="90">90s</button>
           </div>
         </div>
 
         <!-- Rounds -->
-        <div>
-          <p class="text-stone-500 text-xs font-semibold uppercase tracking-widest mb-2">Roundy Rounds</p>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">Roundy Rounds</p>
+            <p class="text-stone-400 text-sm mt-0.5">Number of turns per team.</p>
+          </div>
           <div class="flex gap-2">
             <button class="pill" data-group="rounds" data-value="3">3</button>
-            <button class="pill pill-active" data-group="rounds" data-value="5">5</button>
+            <button class="pill pill-active-pink" data-group="rounds" data-value="5">5</button>
             <button class="pill" data-group="rounds" data-value="10">10</button>
           </div>
         </div>
 
         <!-- The No-No List -->
-        <div>
-          <p class="text-stone-500 text-xs font-semibold uppercase tracking-widest mb-2">The No-No List!</p>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">The No-No List!</p>
+            <p class="text-stone-400 text-sm mt-0.5">How many forbidden words appear with each clue.</p>
+          </div>
           <div class="flex gap-2">
-            <button class="pill pill-active" data-group="taboo-count" data-value="5">5 words</button>
+            <button class="pill pill-active-pink" data-group="taboo-count" data-value="5">5 words</button>
             <button class="pill" data-group="taboo-count" data-value="10">10 words 🔥</button>
           </div>
         </div>
 
         <!-- Penalty Type -->
-        <div>
-          <p class="text-stone-500 text-xs font-semibold uppercase tracking-widest mb-2">Oopsie Daisy</p>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">Oopsie Daisy</p>
+            <p class="text-stone-400 text-sm mt-0.5">Penalty for saying a forbidden word.</p>
+          </div>
           <div class="flex gap-2">
-            <button class="pill pill-active" data-group="penalty-mode" data-value="points">−1 Point</button>
+            <button class="pill pill-active-pink" data-group="penalty-mode" data-value="points">−1 Point</button>
             <button id="pill-time-penalty" class="pill" data-group="penalty-mode" data-value="time">−10 Secs</button>
           </div>
         </div>
 
         <!-- Skip Cost -->
-        <div>
-          <p class="text-stone-500 text-xs font-semibold uppercase tracking-widest mb-2">Skip-a-roo</p>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">Skip-a-roo</p>
+            <p class="text-stone-400 text-sm mt-0.5">Whether skipping a word costs a penalty.</p>
+          </div>
           <div class="flex gap-2">
-            <button class="pill pill-active" data-group="skip-cost" data-value="free">Free</button>
-            <button class="pill"             data-group="skip-cost" data-value="penalised">Penalised</button>
+            <button class="pill pill-active-pink" data-group="skip-cost" data-value="free">Free</button>
+            <button class="pill" data-group="skip-cost" data-value="penalised">Penalised</button>
           </div>
         </div>
 
         <!-- Review Corrections -->
-        <div class="flex items-center justify-between">
-          <div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <div class="flex items-center justify-between">
             <p class="text-stone-800 font-semibold">Pinky Swear Mode</p>
-            <p class="text-stone-400 text-sm">Tap words to flip outcome.</p>
+            <button id="corrections-toggle" class="sylly-toggle-off shrink-0">OFF</button>
           </div>
-          <button id="corrections-toggle" class="sylly-toggle-off">OFF</button>
+          <p class="text-stone-400 text-sm">Tap words to flip outcome after the round.</p>
         </div>
 
-        <!-- Sylly Mode toggle -->
-        <div class="flex items-center justify-between">
-          <div>
+        <!-- Sylly Mode toggle + intensity -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <div class="flex items-center justify-between">
             <p class="text-stone-800 font-semibold">✨ Sylly Mode</p>
-            <p class="text-stone-400 text-sm">Wild words. High stakes.</p>
+            <button id="sylly-toggle" class="sylly-toggle-off shrink-0">OFF</button>
           </div>
-          <button id="sylly-toggle" class="sylly-toggle-off">OFF</button>
-        </div>
-
-        <!-- Sylly intensity (hidden until toggle ON) -->
-        <div id="sylly-pct-row" style="display:none">
-          <p class="text-purple-400 text-sm font-semibold uppercase tracking-widest mb-2">
-            Sylly Intensity — <span id="sylly-intensity-label">30%</span>
-          </p>
-          <input id="sylly-intensity" type="range" min="30" max="100" step="10" value="30"
-            class="sylly-range w-full" />
+          <p class="text-stone-400 text-sm">Wild words mixed in — correct answers score double.</p>
+          <div id="sylly-pct-row" style="display:none">
+            <p class="text-purple-400 text-sm font-semibold uppercase tracking-widest mb-2">
+              Sylly Intensity — <span id="sylly-intensity-label">30%</span>
+            </p>
+            <input id="sylly-intensity" type="range" min="30" max="100" step="10" value="30"
+              class="sylly-range w-full" />
+          </div>
         </div>
 
       </div><!-- end scrollable body -->
@@ -903,7 +931,7 @@
       </div>
 
       <button id="btn-gm-settings-done" class="min-h-14 w-full rounded-2xl bg-violet-500 hover:bg-violet-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
-        Done ✓
+        Done 
       </button>
 
     </div>
@@ -967,7 +995,7 @@
         <div class="rounded-xl bg-stone-100 px-4 py-2"><span class="font-semibold text-stone-700">Conceptual</span> — Feeling · Location · Time Period · Relationship</div>
       </div>
       <div class="rounded-xl bg-violet-50 border border-violet-200 px-4 py-3 text-sm">
-        <p class="text-xs text-violet-400 uppercase tracking-widest font-semibold mb-1">Clinical Example</p>
+        <p class="text-xs text-violet-400 uppercase tracking-widest font-semibold mb-1">Example</p>
         <p class="text-stone-500 mb-1">Pair: <span class="font-semibold text-stone-700">Elephant · Whale</span> — Clue: "Big"</p>
         <p class="text-green-600 font-semibold">✅ "Scale" or "Size" — metadata</p>
         <p class="text-pink-500 font-semibold">❌ "Huge" or "Enormous" — exploit</p>
@@ -1572,7 +1600,7 @@
     <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
       <!-- Fixed header -->
       <div class="flex-shrink-0 px-6 pt-6 pb-3 text-center border-b border-stone-100">
-        <h3 class="text-xl font-bold text-stone-800">Signal Parameters 🔐</h3>
+        <h3 class="text-xl font-bold text-stone-800">Operations Briefing 🔐</h3>
         <p class="text-stone-400 text-sm mt-0.5">Configure before your first broadcast.</p>
       </div>
       <!-- Scrollable body -->
@@ -1580,10 +1608,10 @@
         <!-- 1. Customise Vault -->
         <div>
           <div class="flex items-center justify-between mb-2">
-            <p class="text-stone-700 font-semibold">Customise Vault</p>
+            <p class="text-stone-800 font-semibold">Designate Vault Contents</p>
             <button id="btn-ss-customise-toggle" class="sylly-toggle-off">OFF</button>
           </div>
-          <p class="text-stone-400 text-xs mb-1">OFF uses the standard curated word pool. Turn on to pick specific categories.</p>
+          <p class="text-stone-400 text-sm mb-1">OFF uses the standard curated word pool. Turn on to pick specific categories.</p>
           <div id="ss-customise-body" style="display:none" class="flex flex-col gap-2 mt-3">
             <div class="flex items-center justify-between">
               <p class="text-stone-500 text-xs font-semibold">Categories</p>
@@ -1601,39 +1629,39 @@
         <hr class="border-stone-200" />
         <!-- 2. Difficulty -->
         <div>
-          <p class="text-stone-700 font-semibold mb-2">Difficulty</p>
+          <p class="text-stone-800 font-semibold mb-2">Encryption Protocol</p>
           <div class="flex gap-2">
-            <button class="pill pill-active-teal" data-ss-setting="difficulty" data-value="1">1</button>
-            <button class="pill" data-ss-setting="difficulty" data-value="2">2</button>
-            <button class="pill" data-ss-setting="difficulty" data-value="3">3</button>
+            <button class="pill pill-active-teal" data-ss-setting="difficulty" data-value="1">Clear</button>
+            <button class="pill" data-ss-setting="difficulty" data-value="2">Scrambled</button>
+            <button class="pill" data-ss-setting="difficulty" data-value="3">Deep Space</button>
           </div>
-          <p class="text-stone-400 text-xs mt-1.5">Controls how abstract the vault keywords are.</p>
+          <p class="text-stone-400 text-sm mt-1.5">Controls how abstract the vault keywords are.</p>
         </div>
         <hr class="border-stone-200" />
         <!-- 3. Intercepts to Win -->
         <div>
-          <p class="text-stone-700 font-semibold mb-2">Intercepts to Win</p>
+          <p class="text-stone-800 font-semibold mb-2">Interceptions Required</p>
           <div class="flex gap-2">
             <button class="pill pill-active-teal" data-ss-setting="interceptsToWin" data-value="2">2</button>
             <button class="pill" data-ss-setting="interceptsToWin" data-value="3">3</button>
           </div>
-          <p class="text-stone-400 text-xs mt-1.5">First team to intercept this many codes wins.</p>
+          <p class="text-stone-400 text-sm mt-1.5">First team to intercept this many codes wins.</p>
         </div>
         <hr class="border-stone-200" />
         <!-- 4. Vault Word Rerolls -->
         <div>
-          <p class="text-stone-700 font-semibold mb-2">Vault Word Rerolls</p>
+          <p class="text-stone-800 font-semibold mb-2">Vault Rotations</p>
           <div class="flex gap-2">
             <button class="pill pill-active-teal" data-ss-setting="rerollLimit" data-value="1">Once</button>
             <button class="pill" data-ss-setting="rerollLimit" data-value="2">Twice</button>
             <button class="pill" data-ss-setting="rerollLimit" data-value="Infinity">Unlimited</button>
           </div>
-          <p class="text-stone-400 text-xs mt-1.5">How many times each vault keyword can be rerolled.</p>
+          <p class="text-stone-400 text-sm mt-1.5">How many times each vault keyword can be rerolled.</p>
         </div>
         <hr class="border-stone-200" />
         <!-- 5. Broadcaster Timer -->
         <div>
-          <p class="text-stone-700 font-semibold mb-2">⏱ Broadcaster Timer</p>
+          <p class="text-stone-800 font-semibold mb-2">⏱ Broadcaster Timer</p>
           <div class="flex items-center gap-3 mb-2">
             <button id="btn-ss-timer-toggle" class="sylly-toggle-off flex-shrink-0">OFF</button>
             <p class="text-stone-400 text-sm">Countdown during clue-giving</p>
@@ -1643,21 +1671,21 @@
             <button class="pill" data-ss-setting="timer" data-value="120">2 min</button>
             <button class="pill" data-ss-setting="timer" data-value="180">3 min</button>
           </div>
-          <p class="text-stone-400 text-xs mt-1.5">Alarm sounds at 0 — stops on Transmit.</p>
+          <p class="text-stone-400 text-sm mt-1.5">Alarm sounds at 0 — stops on Transmit.</p>
         </div>
         <hr class="border-stone-200" />
         <!-- 6. Sylly Mode (always last) -->
         <div class="flex items-center justify-between gap-4">
           <div>
-            <p class="text-stone-700 font-semibold">✨ Sylly Mode</p>
-            <p class="text-stone-400 text-xs mt-0.5 leading-relaxed">Intelligence Reveal — teams guess the opponent's vault after the game</p>
+            <p class="text-stone-800 font-semibold">✨ Sylly Mode</p>
+            <p class="text-stone-400 text-sm mt-0.5 leading-relaxed">Intelligence Reveal — teams guess the opponent's vault after the game</p>
           </div>
           <button id="ss-sylly-toggle" class="sylly-toggle-off flex-shrink-0">OFF</button>
         </div>
       </div>
       <!-- Fixed footer -->
       <div class="flex-shrink-0 px-6 pb-8 pt-3 border-t border-stone-100">
-        <button id="btn-ss-settings-done" class="min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        <button id="btn-ss-settings-done" class="min-h-14 w-full rounded-2xl bg-teal-500 hover:bg-teal-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
           Done
         </button>
       </div>
@@ -2258,7 +2286,20 @@
         </div>
       </div>
 
-      <!-- 2. The Sweet Spot (Golden Zone score) -->
+      <!-- 2. Menu Complexity (food difficulty) -->
+      <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+        <div>
+          <p class="text-stone-800 font-semibold">Menu Complexity</p>
+          <p class="text-stone-400 text-sm mt-0.5">Family Dinner · Bistro Night · The Michelin Star</p>
+        </div>
+        <div class="flex gap-2 flex-wrap">
+          <button class="pill" data-jec-food-difficulty="easy">Home Cook</button>
+          <button class="pill pill-active-amber" data-jec-food-difficulty="mixed">Sous Chef</button>
+          <button class="pill" data-jec-food-difficulty="hard">Head Chef</button>
+        </div>
+      </div>
+
+      <!-- 3. The Sweet Spot (Golden Zone score) -->
       <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
         <div>
           <p class="text-stone-800 font-semibold">The Sweet Spot</p>
@@ -2306,7 +2347,7 @@
         <p class="text-stone-400 text-sm">Before the tally, manually merge similar words (e.g. "Prosciutto" and "Persciutto").</p>
       </div>
 
-      <!-- 5. ✨ Sylly Mode (always last) -->
+      <!-- 6. ✨ Sylly Mode (always last) -->
       <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
         <div class="flex items-center justify-between">
           <p class="text-stone-800 font-semibold">✨ Sylly Mode</p>
@@ -2316,7 +2357,7 @@
       </div>
 
       <button id="btn-jec-settings-done" class="min-h-14 w-full rounded-2xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
-        Done ✓
+        Done
       </button>
 
     </div>
@@ -2419,12 +2460,418 @@
     </div>
   </div>
 
+  <!-- ═══════════════════════════════════════════════════════════════
+       CLOSE ENOUGH (CE)
+       Screens : #screen-ce-menu, #screen-ce-setup,
+                 #screen-ce-pass, #screen-ce-prompt, #screen-ce-input,
+                 #screen-ce-reveal, #screen-ce-vote, #screen-ce-results,
+                 #screen-ce-gameover
+       Overlays: #ce-settings-overlay, #ce-how-to-overlay, #ce-quit-overlay
+  ════════════════════════════════════════════════════════════════════ -->
+
+  <!-- CE-① MENU -->
+  <section id="screen-ce-menu" style="display:none" class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
+    <button class="btn-open-sound absolute top-4 right-4 text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+    <div class="text-6xl" role="img" aria-label="Triangle ruler">📐</div>
+    <div>
+      <h1 class="text-5xl font-bold leading-tight text-stone-800">Close</h1>
+      <h1 class="text-5xl font-bold leading-tight text-orange-500">Enough</h1>
+    </div>
+    <p class="text-stone-500 text-lg">Not quite right, but right enough for us.</p>
+    <div class="flex flex-col gap-4 w-full mt-2">
+      <button id="btn-ce-menu-play" class="min-h-14 w-full rounded-2xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Start Estimating 📐
+      </button>
+      <button id="btn-ce-menu-how-to" class="min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        How to Play
+      </button>
+      <button id="btn-ce-menu-settings" class="min-h-14 w-full rounded-2xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Settings
+      </button>
+      <button id="btn-ce-menu-back" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-base font-medium transition-all duration-150">
+        ← Back to the Box
+      </button>
+    </div>
+  </section>
+
+  <!-- CE-② SETUP (player count + names) -->
+  <section id="screen-ce-setup" style="display:none" class="flex flex-col px-6 py-8 w-full max-w-sm mx-auto gap-6">
+    <div class="flex items-center justify-between">
+      <button id="btn-ce-setup-back" class="text-stone-400 text-2xl active:scale-90 transition-transform duration-100">←</button>
+      <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest">The Crew</p>
+      <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+    </div>
+
+    <!-- Player count pills -->
+    <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+      <div>
+        <p class="text-stone-800 font-semibold">Estimators</p>
+        <p class="text-stone-400 text-sm mt-0.5">How many players are in the Ballpark?</p>
+      </div>
+      <div class="flex gap-2">
+        <button class="pill" data-ce-player-count="3">3</button>
+        <button class="pill pill-active-orange" data-ce-player-count="4">4</button>
+        <button class="pill" data-ce-player-count="5">5</button>
+        <button class="pill" data-ce-player-count="6">6</button>
+      </div>
+    </div>
+
+    <!-- Name fields -->
+    <div class="flex flex-col gap-3">
+      <div class="ce-player-row"><input id="ce-player-1" type="text" placeholder="Estimator 1" maxlength="20" class="w-full rounded-2xl border border-stone-200 px-4 py-3 text-stone-800 text-base focus:outline-none focus:ring-2 focus:ring-orange-300"></div>
+      <div class="ce-player-row"><input id="ce-player-2" type="text" placeholder="Estimator 2" maxlength="20" class="w-full rounded-2xl border border-stone-200 px-4 py-3 text-stone-800 text-base focus:outline-none focus:ring-2 focus:ring-orange-300"></div>
+      <div class="ce-player-row"><input id="ce-player-3" type="text" placeholder="Estimator 3" maxlength="20" class="w-full rounded-2xl border border-stone-200 px-4 py-3 text-stone-800 text-base focus:outline-none focus:ring-2 focus:ring-orange-300"></div>
+      <div class="ce-player-row"><input id="ce-player-4" type="text" placeholder="Estimator 4" maxlength="20" class="w-full rounded-2xl border border-stone-200 px-4 py-3 text-stone-800 text-base focus:outline-none focus:ring-2 focus:ring-orange-300"></div>
+      <div class="ce-player-row" style="display:none"><input id="ce-player-5" type="text" placeholder="Estimator 5" maxlength="20" class="w-full rounded-2xl border border-stone-200 px-4 py-3 text-stone-800 text-base focus:outline-none focus:ring-2 focus:ring-orange-300"></div>
+      <div class="ce-player-row" style="display:none"><input id="ce-player-6" type="text" placeholder="Estimator 6" maxlength="20" class="w-full rounded-2xl border border-stone-200 px-4 py-3 text-stone-800 text-base focus:outline-none focus:ring-2 focus:ring-orange-300"></div>
+    </div>
+
+    <button id="btn-ce-setup-confirm" class="min-h-14 w-full rounded-2xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      Lock In the Crew →
+    </button>
+  </section>
+
+  <!-- CE-③ PASS GATE (amber full-screen hand-off) -->
+  <section id="screen-ce-pass" style="display:none" class="flex flex-col items-center justify-center px-8 w-full max-w-sm mx-auto text-center gap-4 bg-orange-500 min-h-screen">
+    <p class="text-white text-4xl font-black leading-tight" id="ce-pass-name"></p>
+    <p class="text-orange-100 text-lg font-medium">Pass the phone and don't peek!</p>
+    <button id="btn-ce-pass-ready" class="mt-8 min-h-14 w-full rounded-2xl bg-white active:scale-95 text-orange-500 text-xl font-bold transition-all duration-150">
+      I'm Ready 📐
+    </button>
+  </section>
+
+  <!-- CE-④ PROMPT (group view — everyone reads the inquiry together) -->
+  <section id="screen-ce-prompt" style="display:none" class="flex flex-col items-center justify-center px-6 w-full max-w-sm mx-auto text-center gap-8 min-h-screen">
+    <div class="flex items-center justify-between w-full">
+      <button class="btn-ce-quit-open text-stone-400 text-2xl active:scale-90 transition-transform duration-100">✕</button>
+      <p id="ce-prompt-round-label" class="text-stone-400 text-xs font-semibold uppercase tracking-widest"></p>
+      <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+    </div>
+    <div class="flex flex-col gap-4">
+      <p class="text-stone-400 text-sm font-semibold uppercase tracking-widest">New Statement Closing In...</p>
+      <p id="ce-prompt-text" class="text-stone-800 text-2xl font-bold leading-snug"></p>
+    </div>
+    <button id="btn-ce-prompt-start" class="min-h-14 w-full rounded-2xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      Time to Guess! 📐
+    </button>
+  </section>
+
+  <!-- CE-⑤ INPUT (per-player: number + metric entry) -->
+  <section id="screen-ce-input" style="display:none" class="flex flex-col px-6 py-8 w-full max-w-sm mx-auto gap-6">
+    <div class="flex items-center justify-between">
+      <button class="btn-ce-quit-open text-stone-400 text-2xl active:scale-90 transition-transform duration-100">✕</button>
+      <p id="ce-input-player-label" class="text-stone-800 font-semibold text-base"></p>
+      <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+    </div>
+
+    <div class="bg-orange-50 rounded-2xl p-4 border border-orange-100">
+      <p id="ce-input-prompt-text" class="text-stone-600 text-sm font-medium leading-snug text-center"></p>
+    </div>
+
+    <div class="flex flex-col gap-4">
+      <!-- Number field -->
+      <div class="flex flex-col gap-1.5">
+        <label class="text-stone-500 text-xs font-semibold uppercase tracking-widest">The Number</label>
+        <input id="ce-input-number"
+          type="number" inputmode="numeric" pattern="[0-9]*"
+          min="0" max="1000000" step="1"
+          placeholder="0 – 1,000,000"
+          class="w-full rounded-2xl border border-stone-200 px-4 py-4 text-stone-800 text-2xl font-bold text-center focus:outline-none focus:ring-2 focus:ring-orange-300">
+      </div>
+      <!-- Metric field -->
+      <div class="flex flex-col gap-1.5">
+        <label class="text-stone-500 text-xs font-semibold uppercase tracking-widest">The Metric</label>
+        <input id="ce-input-metric"
+          type="text"
+          placeholder="e.g. groans from the audience"
+          maxlength="60"
+          class="w-full rounded-2xl border border-stone-200 px-4 py-4 text-stone-800 text-base focus:outline-none focus:ring-2 focus:ring-orange-300">
+      </div>
+    </div>
+
+    <p id="ce-input-error" class="text-red-500 text-sm text-center min-h-5"></p>
+
+    <button id="btn-ce-input-confirm" class="min-h-14 w-full rounded-2xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      Lock In My Ballpark 📐
+    </button>
+  </section>
+
+  <!-- CE-⑥ REVEAL — The Lineup (Piece 2) -->
+  <section id="screen-ce-reveal" style="display:none" class="flex flex-col w-full max-w-sm mx-auto min-h-screen">
+    <div class="flex items-center justify-between px-4 pt-4 pb-2 flex-shrink-0">
+      <button class="btn-ce-quit-open text-stone-400 text-2xl active:scale-90 transition-transform duration-100">✕</button>
+      <p id="ce-reveal-round-label" class="text-stone-400 text-xs font-semibold uppercase tracking-widest"></p>
+      <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+    </div>
+
+    <div class="px-6 pt-2 pb-4 flex-shrink-0 text-center">
+      <p class="text-xs font-semibold uppercase tracking-widest text-orange-400 mb-2">The Lineup 🃏</p>
+      <p id="ce-reveal-prompt-text" class="text-stone-700 font-semibold text-base leading-snug"></p>
+    </div>
+
+    <div id="ce-lineup-cards" class="flex flex-col gap-3 px-6 pb-4 flex-1 overflow-y-auto">
+      <!-- Populated by ceShowReveal() -->
+    </div>
+
+    <div class="px-6 pb-8 pt-2 flex-shrink-0">
+      <button id="btn-ce-reveal-next" class="min-h-14 w-full rounded-2xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Start the Verdict 🏆
+      </button>
+    </div>
+  </section>
+
+  <!-- CE-⑦ VOTE — The Verdict (Piece 3) -->
+  <section id="screen-ce-vote" style="display:none" class="flex flex-col w-full max-w-sm mx-auto min-h-screen">
+    <div class="flex items-center justify-between px-4 pt-4 pb-2 flex-shrink-0">
+      <button class="btn-ce-quit-open text-stone-400 text-2xl active:scale-90 transition-transform duration-100">✕</button>
+      <p id="ce-vote-round-label" class="text-stone-400 text-xs font-semibold uppercase tracking-widest"></p>
+      <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+    </div>
+
+    <div class="px-6 pt-1 pb-3 flex-shrink-0 text-center">
+      <p id="ce-vote-player-label" class="text-stone-800 font-bold text-lg"></p>
+      <p class="text-xs font-semibold uppercase tracking-widest text-orange-400 mt-1 mb-2">The Verdict 🏆</p>
+      <p id="ce-vote-prompt-text" class="text-stone-500 text-sm leading-snug"></p>
+    </div>
+
+    <p id="ce-vote-instruction" class="px-6 text-xs text-stone-400 text-center mb-2 flex-shrink-0"></p>
+
+    <div id="ce-vote-cards" class="flex flex-col gap-3 px-6 pb-4 flex-1 overflow-y-auto">
+      <!-- Populated by ceRenderVoteCards() -->
+    </div>
+
+    <div class="px-6 pb-8 pt-2 flex-shrink-0">
+      <p id="ce-vote-error" class="text-red-500 text-sm text-center mb-2 min-h-5"></p>
+      <button id="btn-ce-vote-submit" class="min-h-14 w-full rounded-2xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Lock In My Verdict ✓
+      </button>
+    </div>
+  </section>
+
+  <!-- CE-⑧ RESULTS — Round Tally (Piece 3) -->
+  <section id="screen-ce-results" style="display:none" class="flex flex-col w-full max-w-sm mx-auto min-h-screen">
+    <div class="flex items-center justify-between px-4 pt-4 pb-2 flex-shrink-0">
+      <button class="btn-ce-quit-open text-stone-400 text-2xl active:scale-90 transition-transform duration-100">✕</button>
+      <p id="ce-results-round-label" class="text-stone-400 text-xs font-semibold uppercase tracking-widest"></p>
+      <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+    </div>
+
+    <div class="px-6 pt-2 pb-3 flex-shrink-0 text-center">
+      <p class="text-xs font-semibold uppercase tracking-widest text-orange-400 mb-2">Round Results</p>
+      <p id="ce-results-prompt-text" class="text-stone-700 font-semibold text-base leading-snug"></p>
+    </div>
+
+    <div id="ce-results-ghost-banner" style="display:none" class="mx-6 mb-3 bg-red-50 border border-red-200 rounded-2xl p-3 text-center flex-shrink-0">
+      <p class="text-red-600 font-bold text-sm">👻 The Saboteur Won! Everyone loses 2 pts.</p>
+    </div>
+
+    <div id="ce-results-cards" class="flex flex-col gap-3 px-6 flex-1 overflow-y-auto pb-3">
+      <!-- Populated by ceShowResults() -->
+    </div>
+
+    <div class="px-6 pb-3 flex-shrink-0">
+      <p class="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-2 mt-1">Running Total</p>
+      <div id="ce-results-scores" class="bg-white rounded-2xl px-4 py-2 shadow-sm flex flex-col">
+        <!-- Populated by ceShowResults() -->
+      </div>
+    </div>
+
+    <div class="px-6 pb-8 pt-2 flex-shrink-0">
+      <button id="btn-ce-results-next" class="min-h-14 w-full rounded-2xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Next Inquiry →
+      </button>
+    </div>
+  </section>
+
+  <!-- CE-⑨ GAMEOVER — The Final Result (Piece 4) -->
+  <section id="screen-ce-gameover" style="display:none" class="flex flex-col w-full max-w-sm mx-auto min-h-screen">
+    <div class="flex items-center justify-end px-4 pt-4 pb-2 flex-shrink-0">
+      <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+    </div>
+
+    <div class="px-6 pt-2 pb-4 flex-shrink-0 text-center">
+      <p class="text-5xl mb-2">📐</p>
+      <h2 class="text-2xl font-bold text-stone-800">The Final Result</h2>
+      <p class="text-stone-400 text-sm mt-1">Well estimated, everyone.</p>
+    </div>
+
+    <!-- SD answers (visible only after Sudden Death) -->
+    <div id="ce-gameover-sd-reveal" style="display:none" class="mx-6 mb-3 bg-amber-50 border border-amber-200 rounded-2xl p-4 flex-shrink-0">
+      <p class="text-xs font-semibold uppercase tracking-widest text-amber-500 mb-2">⚡ Sudden Death</p>
+      <div id="ce-gameover-sd-answers" class="flex flex-col gap-1"></div>
+    </div>
+
+    <div id="ce-gameover-standings" class="flex flex-col gap-3 px-6 flex-1 overflow-y-auto pb-4">
+      <!-- Populated by ceShowFinalStandings() -->
+    </div>
+
+    <div class="px-6 pb-8 pt-2 flex-shrink-0 flex flex-col gap-3">
+      <button id="btn-ce-play-again" class="min-h-14 w-full rounded-2xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Play Again 📐
+      </button>
+      <button id="btn-ce-gameover-back" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-base font-medium transition-all duration-150">
+        ← Back to the Box
+      </button>
+    </div>
+  </section>
+
+  <!-- CE-⑩ SUDDEN DEATH INTRO (Only One mode) -->
+  <section id="screen-ce-sd-intro" style="display:none" class="flex flex-col items-center justify-center px-6 w-full max-w-sm mx-auto text-center gap-6 min-h-screen">
+    <div>
+      <p class="text-5xl mb-3">⚡</p>
+      <h2 class="text-3xl font-bold text-stone-800">Sudden Death!</h2>
+      <p id="ce-sd-tied-names" class="text-orange-500 font-bold text-lg mt-2"></p>
+      <p class="text-stone-400 text-sm mt-1">One final question. Highest number wins.</p>
+    </div>
+
+    <div class="bg-orange-50 border border-orange-200 rounded-2xl p-5 w-full">
+      <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest mb-2">The Question</p>
+      <p id="ce-sd-question" class="text-stone-800 font-bold text-lg leading-snug"></p>
+    </div>
+
+    <button id="btn-ce-sd-begin" class="min-h-14 w-full rounded-2xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      Begin Sudden Death ⚡
+    </button>
+  </section>
+
+  <!-- CE-⑪ SUDDEN DEATH INPUT (Only One mode) -->
+  <section id="screen-ce-sd-input" style="display:none" class="flex flex-col px-6 py-8 w-full max-w-sm mx-auto gap-6">
+    <div class="flex items-center justify-between">
+      <span class="w-8"></span>
+      <p id="ce-sd-input-player-label" class="text-stone-800 font-semibold text-base text-center flex-1"></p>
+      <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+    </div>
+
+    <div class="bg-orange-50 rounded-2xl p-4 border border-orange-100 text-center">
+      <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest mb-1">⚡ Sudden Death</p>
+      <p id="ce-sd-input-question" class="text-stone-700 font-semibold text-sm leading-snug"></p>
+    </div>
+
+    <div class="flex flex-col gap-1.5">
+      <label class="text-stone-500 text-xs font-semibold uppercase tracking-widest">Your Answer</label>
+      <input id="ce-sd-input-number"
+        type="number" inputmode="numeric" pattern="[0-9]*"
+        min="0" max="1000000" step="1"
+        placeholder="0 – 1,000,000"
+        class="w-full rounded-2xl border border-stone-200 px-4 py-4 text-stone-800 text-2xl font-bold text-center focus:outline-none focus:ring-2 focus:ring-orange-300">
+    </div>
+
+    <p id="ce-sd-input-error" class="text-red-500 text-sm text-center min-h-5"></p>
+
+    <button id="btn-ce-sd-input-confirm" class="min-h-14 w-full rounded-2xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      Lock In My Answer ⚡
+    </button>
+  </section>
+
+  <!-- CE Settings overlay (Pattern 1) -->
+  <div id="ce-settings-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[80] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl px-6 pt-6 pb-8 flex flex-col gap-5">
+      <div class="text-center">
+        <h3 class="text-xl font-bold text-stone-800">The Ballpark Rules 📐</h3>
+        <p class="text-stone-400 text-sm mt-1">Set it before you guess it.</p>
+      </div>
+
+      <!-- Inquiries (rounds) -->
+      <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+        <div>
+          <p class="text-stone-800 font-semibold">Inquiries</p>
+          <p class="text-stone-400 text-sm mt-0.5">Number of questions per game.</p>
+        </div>
+        <div class="flex gap-2">
+          <button class="pill" data-ce-rounds="3">3</button>
+          <button class="pill pill-active-orange" data-ce-rounds="5">5</button>
+          <button class="pill" data-ce-rounds="8">8</button>
+        </div>
+      </div>
+
+      <!-- The Decider (tiebreak) -->
+      <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+        <div>
+          <p class="text-stone-800 font-semibold">The Decider</p>
+          <p class="text-stone-400 text-sm mt-0.5">What happens if scores are tied at the end.</p>
+        </div>
+        <div class="flex gap-2">
+          <button class="pill pill-active-orange" data-ce-decider="close-enough">Close Enough</button>
+          <button class="pill" data-ce-decider="only-one">Only One</button>
+        </div>
+      </div>
+
+      <!-- Wall of Shame (full tally) -->
+      <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+        <div class="flex items-center justify-between">
+          <p class="text-stone-800 font-semibold">Wall of Shame</p>
+          <button id="btn-ce-full-tally-toggle" class="sylly-toggle-off shrink-0">OFF</button>
+        </div>
+        <p class="text-stone-400 text-sm">Force every player to rank all entries — including last place.</p>
+      </div>
+
+      <!-- Sylly Mode -->
+      <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+        <div class="flex items-center justify-between">
+          <p class="text-stone-800 font-semibold">✨ Sylly Mode</p>
+          <button id="btn-ce-sylly-toggle" class="sylly-toggle-off shrink-0">OFF</button>
+        </div>
+        <p class="text-stone-400 text-sm">The Saboteur — a mystery Ghost Card joins the Lineup. If it wins, everyone loses 2 points.</p>
+      </div>
+
+      <button id="btn-ce-settings-done" class="min-h-14 w-full rounded-2xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Done ✓
+      </button>
+    </div>
+  </div>
+
+  <!-- CE How to Play overlay (Pattern 1) -->
+  <div id="ce-how-to-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[90] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl px-6 pt-6 pb-6 flex flex-col gap-5">
+      <div class="text-center">
+        <div class="text-4xl mb-1">📐</div>
+        <h3 class="text-2xl font-bold text-stone-800">How to Play</h3>
+        <p class="text-stone-400 text-sm mt-1">Close Enough</p>
+      </div>
+      <div class="bg-white rounded-2xl p-4 shadow-sm">
+        <p class="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-2">Step 1 — The Inquiry 📋</p>
+        <p class="text-stone-700 font-semibold text-base leading-snug">Everyone reads the same question together.</p>
+      </div>
+      <div class="bg-white rounded-2xl p-4 shadow-sm">
+        <p class="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-2">Step 2 — Your Ballpark 📐</p>
+        <p class="text-stone-700 font-semibold text-base leading-snug">Each player privately enters a Number and a Metric. Pass the phone around.</p>
+      </div>
+      <div class="bg-white rounded-2xl p-4 shadow-sm">
+        <p class="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-2">Step 3 — The Lineup 🃏</p>
+        <p class="text-stone-700 font-semibold text-base leading-snug">All answers are revealed anonymously, sorted low to high.</p>
+      </div>
+      <div class="bg-white rounded-2xl p-4 shadow-sm">
+        <p class="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-2">Step 4 — The Verdict 🏆</p>
+        <p class="text-stone-700 font-semibold text-base leading-snug">Each player ranks everyone else's answer. 1st = 3pts, 2nd = 2pts, 3rd = 1pt.</p>
+      </div>
+      <button id="btn-ce-how-to-close" class="min-h-14 w-full rounded-2xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Got it — let's guess! 📐
+      </button>
+    </div>
+  </div>
+
+  <!-- CE Quit overlay (Pattern 2) -->
+  <div id="ce-quit-overlay" style="display:none" class="fixed inset-0 bg-black/50 z-[80] flex items-center justify-center px-6">
+    <div class="bg-white rounded-2xl p-8 w-full max-w-sm text-center flex flex-col gap-3 shadow-xl">
+      <p class="text-4xl">📐</p>
+      <h3 class="text-xl font-bold text-stone-800">Abandon the Ballpark?</h3>
+      <p class="text-stone-400 text-sm">Your guesses will be lost to history.</p>
+      <button id="btn-ce-quit-confirm" class="min-h-12 w-full rounded-xl bg-red-500 hover:bg-red-600 active:scale-95 text-white text-lg font-semibold transition-all duration-150 mt-2">
+        Yeah, pack up the gear.
+      </button>
+      <button id="btn-ce-quit-cancel" class="min-h-12 w-full rounded-xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 text-lg font-semibold transition-all duration-150">
+        Keep guessing!
+      </button>
+    </div>
+  </div>
+
   <!-- Load order: engine → plugins → secret-mode → bootstrapper -->
   <script src="js/engine.js"></script>
   <script src="js/games/li5.js"></script>
   <script src="js/games/great-minds.js"></script>
   <script src="js/games/secret-signals.js"></script>
   <script src="js/games/jec.js"></script>
+  <script src="js/games/ce.js"></script>
   <script src="js/secret-mode.js"></script>
   <script src="js/app.js"></script>
 

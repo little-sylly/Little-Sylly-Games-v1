@@ -92,7 +92,8 @@ js/lib/tailwind-play.js, data/words.json, data/secret_words.json, manifest.json
 - [ ] Add game teardown to `resetToLobby()` in `engine.js`
 - [ ] Wire lobby button → game menu screen (not directly into setup)
 - [ ] Add game menu: Let's Play!, How to Play, Settings, ← Back to the Box (see `@ui-style.md` Universal Menu Standard)
-- [ ] Settings: game options first, ✨ Sylly Mode last; pill buttons for discrete choices
+- [ ] Settings: game options first, ✨ Sylly Mode last; every setting in a white card (see `@ui-style.md` Settings Card Standard)
+- [ ] Settings: include a **difficulty setting** (themed name, plain-English description) — controls word difficulty tier (d1 / d1+d2 / d3); position it early, before timer/rounds
 - [ ] Overlays: data overlay (slide-up) or decision modal — no third pattern
 - [ ] Add precache entries to `sw.js` and bump SW version
 - [ ] Add `applyExpansionOverrides()` read at the plugin's settings-apply point — reads `window.activeExpansionOverrides` if `isSecretMode` is true; see `js/secret-mode.js` for the established pattern (required from Secret Mode onwards; retrofit existing games during Secret Mode build)

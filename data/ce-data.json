@@ -1,0 +1,519 @@
+[
+  {
+    "id": "ce-001",
+    "text": "How many browser tabs is too many to have open at once?",
+    "saboteurs": [
+      { "number": 404, "metric": "Error pages currently 'Not Found'" },
+      { "number": 1, "metric": "Tab playing music you can't find" },
+      { "number": 88, "metric": "Gigabytes of RAM screaming for mercy" },
+      { "number": 0, "metric": "Remaining patience for the spinning wheel" },
+      { "number": 1000, "metric": "Bookmarked articles I will never read" }
+    ]
+  },
+  {
+    "id": "ce-002",
+    "text": "How many 'I'm nearly ready' lies is it okay to tell before leaving?",
+    "saboteurs": [
+      { "number": 5, "metric": "Snoozed alarms in a row" },
+      { "number": 3, "metric": "Lies told while still in my pyjamas" },
+      { "number": 1, "metric": "Soul-crushing realisation I'm going to be late" },
+      { "number": 45, "metric": "Minutes of staring into the void" },
+      { "number": 10, "metric": "Empty promises of 'leaving now!'" }
+    ]
+  },
+  {
+    "id": "ce-003",
+    "text": "How many days is acceptable to leave a text on 'read'?",
+    "saboteurs": [
+      { "number": 365, "metric": "Days until it's officially too awkward to reply" },
+      { "number": 0, "metric": "Seconds of peace before the follow-up '?'" },
+      { "number": 7, "metric": "Drafted replies that were too much effort" },
+      { "number": 1, "metric": "Read receipt that caused an existential crisis" },
+      { "number": 14, "metric": "Business days (if you're a professional ghost)" }
+    ]
+  },
+  {
+    "id": "ce-004",
+    "text": "How many slices of cake is a reasonable amount at a birthday party?",
+    "saboteurs": [
+      { "number": 0, "metric": "Slices left after the 'Birthday Kid' takes theirs" },
+      { "number": 12, "metric": "Thin slivers that technically equal one slice" },
+      { "number": 2, "metric": "Hands required to carry the plate" },
+      { "number": 100, "metric": "Percent chance of a sugar crash at 4:00 PM" },
+      { "number": 1, "metric": "Giant slab that replaces a real meal" }
+    ]
+  },
+  {
+    "id": "ce-005",
+    "text": "How many times can you replay a song before it's officially ruined?",
+    "saboteurs": [
+      { "number": 99, "metric": "Problems, but the song isn't one" },
+      { "number": 1, "metric": "Time is all it takes if it's 'Baby Shark'" },
+      { "number": 50, "metric": "Repeats before the lyrics lose all meaning" },
+      { "number": 12, "metric": "Hours of a 'Lofi Beats' loop" },
+      { "number": 5, "metric": "Angry knocks on the wall from the neighbours" }
+    ]
+  },
+  {
+    "id": "ce-006",
+    "text": "How many minutes late is still considered 'on time' for a party?",
+    "saboteurs": [
+      { "number": 45, "metric": "Minutes of 'Fashionable' lateness" },
+      { "number": 0, "metric": "Chances I'm the first one there" },
+      { "number": 15, "metric": "Minutes spent circling for a park at Indooroopilly" },
+      { "number": 2, "metric": "Hours if you're the one bringing the ice" },
+      { "number": 10, "metric": "Minutes of 'I'm around the corner' lies" }
+    ]
+  },
+  {
+    "id": "ce-007",
+    "text": "How many pillows on a bed is officially 'too many'?",
+    "saboteurs": [
+      { "number": 1, "metric": "Pillow actually used for sleeping" },
+      { "number": 14, "metric": "Decorative shams that live on the floor" },
+      { "number": 100, "metric": "Percent of the mattress currently invisible" },
+      { "number": 5, "metric": "Minutes spent 'unmaking' the bed to find the sheets" },
+      { "number": 0, "metric": "Room left for an actual human" }
+    ]
+  },
+  {
+    "id": "ce-008",
+    "text": "How many 'one last episodes' can you watch at 1:00 AM?",
+    "saboteurs": [
+      { "number": 3, "metric": "Stages of grief when the sun starts coming up" },
+      { "number": 1, "metric": "Season finale that was definitely worth the fatigue" },
+      { "number": 4, "metric": "Hours of sleep I've just negotiated away" },
+      { "number": 0, "metric": "Self-control remaining in the Netflix UI" },
+      { "number": 9, "metric": "Episodes if the 'Skip Intro' button is working" }
+    ]
+  },
+  {
+    "id": "ce-009",
+    "text": "How many spider sightings in a house before you move out?",
+    "saboteurs": [
+      { "number": 1, "metric": "Huntsman the size of a dinner plate" },
+      { "number": 0, "metric": "Laps of the house I'm doing while screaming" },
+      { "number": 8, "metric": "Legs moving way too fast for comfort" },
+      { "number": 10, "metric": "Real estate agents called immediately" },
+      { "number": 2, "metric": "Spiders that have started paying rent" }
+    ]
+  },
+  {
+    "id": "ce-010",
+    "text": "How many years must pass before movie spoilers are fair game?",
+    "saboteurs": [
+      { "number": 20, "metric": "Years, and people still haven't seen 'The Sixth Sense'?" },
+      { "number": 0, "metric": "Days if you're a monster on Twitter" },
+      { "number": 1, "metric": "Week (The International Grace Period)" },
+      { "number": 50, "metric": "Years until even the spoiler doesn't matter" },
+      { "number": 3, "metric": "Hours after the midnight screening" }
+    ]
+  },
+  {
+    "id": "ce-011",
+    "text": "How many times can you say 'What?' before you pretend to hear them?",
+    "saboteurs": [
+      { "number": 3, "metric": "Strikes and you're out (just nod and smile)" },
+      { "number": 1, "metric": "Panic-induced 'Haha, yeah' to a question" },
+      { "number": 5, "metric": "Degrees of head-tilting to look focused" },
+      { "number": 0, "metric": "Idea of what is actually being discussed" },
+      { "number": 100, "metric": "Percent chance they asked 'How are you?'" }
+    ]
+  },
+  {
+    "id": "ce-012",
+    "text": "How many chips can you steal from someone's plate before it's a crime?",
+    "saboteurs": [
+      { "number": 1, "metric": "Single chip that represents the 'Friendship Tax'" },
+      { "number": 5, "metric": "Chips if they are the 'crunchy' ones at the bottom" },
+      { "number": 0, "metric": "Evidence left behind on the tablecloth" },
+      { "number": 12, "metric": "Months in 'Snack Jail' for your crimes" },
+      { "number": 10, "metric": "Percent of the box 'borrowed' during the drive home" }
+    ]
+  },
+  {
+    "id": "ce-013",
+    "text": "How many alarms do you need to actually get out of bed?",
+    "saboteurs": [
+      { "number": 1, "metric": "Alarm that is physically across the room" },
+      { "number": 8, "metric": "Snooze cycles that feel like 2 minutes each" },
+      { "number": 5, "metric": "Minutes of 'scrolling' before my eyes actually open" },
+      { "number": 0, "metric": "Willpower available before 8:00 AM" },
+      { "number": 10, "metric": "Different songs that I now hate" }
+    ]
+  },
+  {
+    "id": "ce-014",
+    "text": "How many degrees of 'spicy' is the perfect level for a curry?",
+    "saboteurs": [
+      { "number": 11, "metric": "On a scale of 1 to 10" },
+      { "number": 2, "metric": "Litres of milk required to survive" },
+      { "number": 0, "metric": "Tastebuds remaining after the third bite" },
+      { "number": 5, "metric": "Sweaty napkins used to mop my forehead" },
+      { "number": 1, "metric": "Humble 'Mild' that was actually a 'Volcanic'" }
+    ]
+  },
+  {
+    "id": "ce-015",
+    "text": "How many standard Tim Tams can a human eat in one sitting?",
+    "saboteurs": [
+      { "number": 11, "metric": "Which is exactly one full packet" },
+      { "number": 1, "metric": "Tim Tam used as a straw for a Slam" },
+      { "number": 22, "metric": "If you've had a really bad day" },
+      { "number": 0, "metric": "Crumbs left in the tray when the kids find it" },
+      { "number": 100, "metric": "Percent of my daily calories in 5 minutes" }
+    ]
+  },
+  {
+    "id": "ce-016",
+    "text": "How many consecutive days can you wear the same jeans before washing them?",
+    "saboteurs": [
+      { "number": 7, "metric": "Wears before they can stand up on their own" },
+      { "number": 0, "metric": "Days until someone gives you 'The Look'" },
+      { "number": 1, "metric": "Day after sitting on a train seat you immediately regret" },
+      { "number": 365, "metric": "Days per year — technically a capsule wardrobe" },
+      { "number": 14, "metric": "Rotations per year if you own exactly two pairs" }
+    ]
+  },
+  {
+    "id": "ce-017",
+    "text": "How many minutes on hold is the limit before it's okay to hang up?",
+    "saboteurs": [
+      { "number": 1, "metric": "'Your call is important to us' before the lie sinks in" },
+      { "number": 45, "metric": "Minutes of the same 8-bar jazz loop burned into my soul" },
+      { "number": 0, "metric": "Times I've called Telstra voluntarily" },
+      { "number": 10, "metric": "Steps in the choreography I've invented while waiting" },
+      { "number": 60, "metric": "Seconds before the line drops anyway" }
+    ]
+  },
+  {
+    "id": "ce-018",
+    "text": "How many items in an online shopping cart is too many to actually buy?",
+    "saboteurs": [
+      { "number": 0, "metric": "Items that survive a 24-hour 'sleep on it' test" },
+      { "number": 12, "metric": "Tabs open comparing the exact same product" },
+      { "number": 1, "metric": "Moment of clarity that strikes right before checkout" },
+      { "number": 99, "metric": "Items decomposing in my 'Saved for Later' graveyard" },
+      { "number": 3, "metric": "Different sizes of the same jeans, just in case" }
+    ]
+  },
+  {
+    "id": "ce-019",
+    "text": "How many exclamation marks in a single work email is too enthusiastic?",
+    "saboteurs": [
+      { "number": 1, "metric": "That somehow reads as shouting with a smile" },
+      { "number": 0, "metric": "Needed to sound passive-aggressive in plain text" },
+      { "number": 5, "metric": "Before HR does a quiet 'wellness check'" },
+      { "number": 3, "metric": "In 'Thanks!!!' before someone screenshots it" },
+      { "number": 100, "metric": "Percent chance they can feel my anxiety through the screen" }
+    ]
+  },
+  {
+    "id": "ce-020",
+    "text": "How many 'quick tasks' can pile up before they become an actual Project?",
+    "saboteurs": [
+      { "number": 1, "metric": "'Five-minute job' that took three weekends" },
+      { "number": 3, "metric": "Hardware store trips this task requires" },
+      { "number": 12, "metric": "YouTube tutorials watched before any work begins" },
+      { "number": 0, "metric": "Tools currently in the right place when I need them" },
+      { "number": 10, "metric": "Items on the list that spawned their own sub-lists" }
+    ]
+  },
+  {
+    "id": "ce-021",
+    "text": "How many times can you check the fridge before admitting there's nothing to eat?",
+    "saboteurs": [
+      { "number": 4, "metric": "Identical open-stare-close cycles in a row" },
+      { "number": 1, "metric": "Container of leftovers I've moved past six times" },
+      { "number": 0, "metric": "Things I actually want in there" },
+      { "number": 7, "metric": "Times I've rearranged the condiments hoping for inspiration" },
+      { "number": 100, "metric": "Percent chance I order UberEats in the end" }
+    ]
+  },
+  {
+    "id": "ce-022",
+    "text": "How many items can you buy before a 'quick trip to the shops' needs a trolley?",
+    "saboteurs": [
+      { "number": 3, "metric": "Items that turned into a full weekly shop" },
+      { "number": 0, "metric": "Bags I remembered to bring from the car" },
+      { "number": 12, "metric": "Items that don't fit in two arms but I'll try anyway" },
+      { "number": 1, "metric": "Basket handle cutting off circulation by checkout" },
+      { "number": 6, "metric": "Impulse buys that justify getting the trolley in retrospect" }
+    ]
+  },
+  {
+    "id": "ce-023",
+    "text": "How many hours on a YouTube rabbit hole is acceptable on a weeknight?",
+    "saboteurs": [
+      { "number": 1, "metric": "Video about 'How Traffic Jams Form' that started everything" },
+      { "number": 3, "metric": "AM before I realise I've been watching drone footage of Greenland" },
+      { "number": 0, "metric": "Videos watched that I actually searched for" },
+      { "number": 47, "metric": "'Recommended' videos I've somehow already seen" },
+      { "number": 12, "metric": "Documentaries about topics I will never use in real life" }
+    ]
+  },
+  {
+    "id": "ce-024",
+    "text": "How many days can leftovers stay in the fridge before they become questionable?",
+    "saboteurs": [
+      { "number": 7, "metric": "Days until you do the Brave Sniff Test" },
+      { "number": 0, "metric": "Chance you remember what it was by day five" },
+      { "number": 14, "metric": "Days if it's sealed in original Tupperware (honour system)" },
+      { "number": 3, "metric": "Containers lurking in the back corner right now" },
+      { "number": 1, "metric": "Optimistic 'it's definitely fine' that definitely wasn't" }
+    ]
+  },
+  {
+    "id": "ce-025",
+    "text": "How many apology texts is the right amount after accidentally ignoring someone?",
+    "saboteurs": [
+      { "number": 0, "metric": "Texts sent because I panicked and called instead" },
+      { "number": 3, "metric": "Drafts deleted because I over-explained" },
+      { "number": 1, "metric": "Gif that says 'I'm so sorry' sent instead of actual words" },
+      { "number": 100, "metric": "Percent chance they've already forgotten about it" },
+      { "number": 5, "metric": "Follow-up '???' messages that arrived before my reply" }
+    ]
+  },
+  {
+    "id": "ce-026",
+    "text": "How many plants is officially too many for one apartment?",
+    "saboteurs": [
+      { "number": 0, "metric": "That are currently thriving without human intervention" },
+      { "number": 42, "metric": "Leaves blocking the only natural light in the living room" },
+      { "number": 1, "metric": "Cactus per ex-partner (therapeutic)" },
+      { "number": 5, "metric": "Dead ones I've quietly replaced hoping nobody noticed" },
+      { "number": 17, "metric": "That I've run out of names for" }
+    ]
+  },
+  {
+    "id": "ce-027",
+    "text": "How many times should you re-read a message before hitting send?",
+    "saboteurs": [
+      { "number": 10, "metric": "Re-reads before I change it back to what it originally said" },
+      { "number": 1, "metric": "Second I notice the typo after hitting send" },
+      { "number": 0, "metric": "Times the recipient reads it as carefully as I wrote it" },
+      { "number": 5, "metric": "Times read aloud to check if it 'sounds passive-aggressive'" },
+      { "number": 3, "metric": "People sent it to for a second opinion" }
+    ]
+  },
+  {
+    "id": "ce-028",
+    "text": "How many steps on your phone in a day counts as 'being active'?",
+    "saboteurs": [
+      { "number": 10000, "metric": "Steps — a number someone invented in 1960 to sell pedometers" },
+      { "number": 200, "metric": "Steps to the fridge and back, repeated with conviction" },
+      { "number": 1, "metric": "Walk from the car to the shops I definitely counted" },
+      { "number": 3000, "metric": "Steps that justify the second helping" },
+      { "number": 0, "metric": "Steps recorded because I left my phone on the couch all day" }
+    ]
+  },
+  {
+    "id": "ce-029",
+    "text": "How many times can you refresh your inbox before admitting they're not going to reply?",
+    "saboteurs": [
+      { "number": 47, "metric": "Refreshes in the first hour alone" },
+      { "number": 1, "metric": "Notification that turned out to be a Coles catalogue" },
+      { "number": 0, "metric": "Replies ever received from 'Do Not Reply' addresses" },
+      { "number": 5, "metric": "Days before the follow-up 'Just checking in!' message" },
+      { "number": 100, "metric": "Percent chance they're composing a reply right now (they're not)" }
+    ]
+  },
+  {
+    "id": "ce-030",
+    "text": "How many bags of snacks is it acceptable to bring to a two-hour movie?",
+    "saboteurs": [
+      { "number": 1, "metric": "Bag that makes a noise during every quiet moment" },
+      { "number": 0, "metric": "Smuggled items that actually made it through bag check" },
+      { "number": 5, "metric": "Dollars saved by bringing my own Maltesers" },
+      { "number": 3, "metric": "Layers of snacks hidden under a jacket" },
+      { "number": 100, "metric": "Percent chance I run out before the trailers end" }
+    ]
+  },
+  {
+    "id": "ce-031",
+    "text": "How many times can you cancel plans before you're officially unreliable?",
+    "saboteurs": [
+      { "number": 3, "metric": "Cancellations before you get the 'Are you okay?' text" },
+      { "number": 1, "metric": "Cancel on the day of that nobody forgets for a year" },
+      { "number": 0, "metric": "Times I've cancelled and actually felt fine about it" },
+      { "number": 10, "metric": "Backup excuses stored for a genuine emergency" },
+      { "number": 100, "metric": "Percent chance I was never going in the first place" }
+    ]
+  },
+  {
+    "id": "ce-032",
+    "text": "How many cups of coffee per day is officially too many?",
+    "saboteurs": [
+      { "number": 1, "metric": "Cup that gives you the shakes" },
+      { "number": 5, "metric": "Cups before your resting heart rate is a public health concern" },
+      { "number": 0, "metric": "Days without it since sometime in 2019" },
+      { "number": 4, "metric": "'Just a quick one' promises broken before lunch" },
+      { "number": 12, "metric": "Hours of sleep I owe myself for every one I drink" }
+    ]
+  },
+  {
+    "id": "ce-033",
+    "text": "How many 'I'll do it tomorrow' days before a task is officially abandoned?",
+    "saboteurs": [
+      { "number": 365, "metric": "Tomorrows until it quietly becomes someone else's problem" },
+      { "number": 1, "metric": "Day it mysteriously migrates to next year's resolutions" },
+      { "number": 0, "metric": "Tasks on the list that actually got done on day one" },
+      { "number": 7, "metric": "Days of guilt before I rename it 'optional'" },
+      { "number": 14, "metric": "Business days before I delete it with quiet relief" }
+    ]
+  },
+  {
+    "id": "ce-034",
+    "text": "How many 'We should catch up!' texts until it just means 'never'?",
+    "saboteurs": [
+      { "number": 3, "metric": "Texts sent with zero dates ever proposed" },
+      { "number": 1, "metric": "Time we actually caught up — briefly, at a mutual friend's thing" },
+      { "number": 5, "metric": "Years since the first 'We should really do it this time!'" },
+      { "number": 0, "metric": "Concrete plans that survived past Thursday" },
+      { "number": 100, "metric": "Percent chance the next message is also 'We should catch up!'" }
+    ]
+  },
+  {
+    "id": "ce-035",
+    "text": "How many hours sleep is the minimum before you can still claim you 'slept fine'?",
+    "saboteurs": [
+      { "number": 4, "metric": "Hours, followed by approximately eight coffees" },
+      { "number": 0, "metric": "REM cycles achieved on Christmas Eve" },
+      { "number": 3, "metric": "Times I woke up and checked my phone 'just quickly'" },
+      { "number": 6, "metric": "Hours that feel like 2 after a 1 AM 'one last episode'" },
+      { "number": 8, "metric": "Hours I confidently promise myself every Sunday night" }
+    ]
+  },
+  {
+    "id": "ce-036",
+    "text": "How many 'Remind Me Later' taps before you just do the software update?",
+    "saboteurs": [
+      { "number": 47, "metric": "'Later' buttons pressed across twelve months" },
+      { "number": 1, "metric": "Update that broke everything — hence the ongoing hesitation" },
+      { "number": 0, "metric": "Times I've updated at a genuinely convenient moment" },
+      { "number": 3, "metric": "Years of battery health sacrificed to avoiding iOS 17" },
+      { "number": 100, "metric": "Percent chance it's 'Bug fixes and performance improvements'" }
+    ]
+  },
+  {
+    "id": "ce-037",
+    "text": "How many songs can you skip before Spotify decides you have commitment issues?",
+    "saboteurs": [
+      { "number": 6, "metric": "Skips before the free tier cuts you off mid-chorus" },
+      { "number": 0, "metric": "Songs listened to all the way through this week" },
+      { "number": 47, "metric": "Songs skipped while 'looking for something to match my mood'" },
+      { "number": 1, "metric": "Song I skip every time but refuse to remove from the playlist" },
+      { "number": 10, "metric": "Minutes spent skipping instead of just picking something" }
+    ]
+  },
+  {
+    "id": "ce-038",
+    "text": "How many minutes of mindless scrolling before it counts as wasting your evening?",
+    "saboteurs": [
+      { "number": 0, "metric": "Minutes before I already know I should stop" },
+      { "number": 90, "metric": "Minutes — basically a movie, but with no plot" },
+      { "number": 45, "metric": "Minutes of content I will not remember by morning" },
+      { "number": 1, "metric": "Reel about productivity watched while being unproductive" },
+      { "number": 120, "metric": "Minutes lost inside an argument I wasn't even involved in" }
+    ]
+  },
+  {
+    "id": "ce-039",
+    "text": "How many times is it acceptable to return something to the shops?",
+    "saboteurs": [
+      { "number": 0, "metric": "Returns that didn't involve mild shame at the counter" },
+      { "number": 5, "metric": "Trips back before staff start recognising your face" },
+      { "number": 1, "metric": "Item returned 'not quite right' that was definitely already worn" },
+      { "number": 12, "metric": "Months the receipt technically covers you, apparently" },
+      { "number": 3, "metric": "Items currently sitting in the boot waiting to go back" }
+    ]
+  },
+  {
+    "id": "ce-040",
+    "text": "How many people in a group chat is too many before it becomes unmanageable?",
+    "saboteurs": [
+      { "number": 1, "metric": "Person who never mutes it and gets every notification" },
+      { "number": 47, "metric": "Unread messages waiting after a ten-minute shower" },
+      { "number": 3, "metric": "Side chats started specifically to manage the main chat" },
+      { "number": 0, "metric": "Messages I've sent in there that were acknowledged" },
+      { "number": 5, "metric": "People typing at once, and somehow nothing useful is said" }
+    ]
+  },
+  {
+    "id": "ce-041",
+    "text": "How many 'Final Sales' can a store hold before it stops counting as a sale?",
+    "saboteurs": [
+      { "number": 4, "metric": "Consecutive 'Biggest Sale of the Year' events in twelve months" },
+      { "number": 1, "metric": "'Last chance!' email received today alone" },
+      { "number": 0, "metric": "Sales where I saved money net of impulse buying" },
+      { "number": 70, "metric": "Percent off that somehow always ends up on the ugly stock" },
+      { "number": 12, "metric": "Times this store has been 'closing down for good' since 2018" }
+    ]
+  },
+  {
+    "id": "ce-042",
+    "text": "How many hours of binge-watching before you owe yourself an outdoor walk?",
+    "saboteurs": [
+      { "number": 1, "metric": "Episode where I said 'just one more' and genuinely meant it" },
+      { "number": 6, "metric": "Hours until the streaming service sends a 'Still watching?' check" },
+      { "number": 0, "metric": "Steps taken since the couch became my permanent address" },
+      { "number": 3, "metric": "Seasons in and I can't remember the first character's name" },
+      { "number": 12, "metric": "Hours on a rainy Sunday — spiritually this is fine" }
+    ]
+  },
+  {
+    "id": "ce-043",
+    "text": "How many grocery bags can you carry from the car in one trip?",
+    "saboteurs": [
+      { "number": 1, "metric": "Trip I am physically and emotionally committed to making" },
+      { "number": 8, "metric": "Bags cutting off all circulation below the elbow" },
+      { "number": 0, "metric": "Times I've accepted help when offered" },
+      { "number": 3, "metric": "Bags I dropped on the driveway and refused to acknowledge" },
+      { "number": 100, "metric": "Percent chance I attempt it regardless of the answer" }
+    ]
+  },
+  {
+    "id": "ce-044",
+    "text": "How many days without checking the news before it feels irresponsible?",
+    "saboteurs": [
+      { "number": 7, "metric": "Days until a friend's 'Did you hear about...' sends me into a spiral" },
+      { "number": 0, "metric": "Headlines this week that improved my morning" },
+      { "number": 1, "metric": "Day off ruined by accidentally seeing a push notification" },
+      { "number": 365, "metric": "Days recommended by every therapist I've spoken to" },
+      { "number": 3, "metric": "News tabs opened, briefly glimpsed, and immediately closed" }
+    ]
+  },
+  {
+    "id": "ce-045",
+    "text": "How many candles burning at once is the correct amount for a relaxing atmosphere?",
+    "saboteurs": [
+      { "number": 0, "metric": "Lighters found when I actually want to light them" },
+      { "number": 12, "metric": "Candles that make the room a legitimate fire hazard" },
+      { "number": 1, "metric": "That I forgot about until the smoke alarm reminded me" },
+      { "number": 47, "metric": "Dollars spent on a candle that smells like 'rain on concrete'" },
+      { "number": 5, "metric": "Different scents competing in a 'smells like a headache' symphony" }
+    ]
+  },
+  {
+    "id": "ce-046",
+    "text": "How many times can you google a symptom before you're convinced it's serious?",
+    "saboteurs": [
+      { "number": 1, "metric": "Search before 'rare tropical disease' appears in the results" },
+      { "number": 0, "metric": "Results that concluded I was probably fine and should go to bed" },
+      { "number": 3, "metric": "AM emergency room visits that turned out to be dehydration" },
+      { "number": 47, "metric": "Distinct conditions I definitely have based on a mild headache" },
+      { "number": 14, "metric": "Browser tabs open, each with an increasingly grim prognosis" }
+    ]
+  },
+  {
+    "id": "ce-047",
+    "text": "How many days can dishes sit 'soaking' before it stops being soaking?",
+    "saboteurs": [
+      { "number": 0, "metric": "People in this house who share my definition of 'soon'" },
+      { "number": 7, "metric": "Days until the water develops its own functioning ecosystem" },
+      { "number": 1, "metric": "Bowl of cereal I will never publicly acknowledge" },
+      { "number": 3, "metric": "Passive-aggressive notes left on the kitchen bench before I snapped" },
+      { "number": 365, "metric": "Days my flatmate has been conducting this experiment" }
+    ]
+  }
+]

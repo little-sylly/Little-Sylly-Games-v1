@@ -12,6 +12,7 @@ let jecRottenPenalty     = true;  // −10 pts for unique words (Rotten)
 let jecSpoiltPenalty     = true;  // −10 pts for overcrowded words (Spoilt)
 let jecSousChefOversight = true;  // manual merge before tally
 let jecKitchenNightmares = false; // Sylly Mode
+let jecFoodDifficulty   = 'mixed'; // 'easy' | 'mixed' | 'hard'
 
 // ── JEC State ─────────────────────────────────────────────────────────────────
 let jecPlayerCount   = 4;
@@ -133,6 +134,16 @@ document.querySelectorAll('[data-jec-golden]').forEach(btn => {
   });
 });
 
+document.querySelectorAll('[data-jec-food-difficulty]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    playPillClick();
+    jecFoodDifficulty = btn.dataset.jecFoodDifficulty;
+    document.querySelectorAll('[data-jec-food-difficulty]').forEach(b => {
+      b.className = `pill${b.dataset.jecFoodDifficulty === jecFoodDifficulty ? ' pill-active-amber' : ''}`;
+    });
+  });
+});
+
 document.getElementById('btn-jec-settings-done').addEventListener('click', () => {
   playDone();
   document.getElementById('jec-settings-overlay').style.display = 'none';
@@ -179,10 +190,21 @@ document.getElementById('btn-jec-roster-confirm').addEventListener('click', () =
   jecStartGame();
 });
 
+// ── JEC Word pool builder ─────────────────────────────────────────────────────
+function jecBuildFoodPool(source) {
+  const filtered = source.filter(w => {
+    if (w.category !== 'food') return false;
+    if (jecFoodDifficulty === 'easy') return w.difficulty === 1;
+    if (jecFoodDifficulty === 'hard') return w.difficulty === 3;
+    return w.difficulty <= 2; // 'mixed'
+  });
+  return shuffle((filtered.length ? filtered : source.filter(w => w.category === 'food')).map(w => w.word));
+}
+
 // ── JEC Game start ────────────────────────────────────────────────────────────
 async function jecStartGame() {
   await loadWords();
-  jecWordPool = shuffle(allWords.filter(w => w.category === 'food').map(w => w.word));
+  jecWordPool = jecBuildFoodPool(allWords);
   jecRound    = 0;
   jecScores   = Array(jecPlayerCount).fill(0);
   jecRoundLog = [];
@@ -197,7 +219,7 @@ function jecStartRound() {
       const foodWords = secretWords.filter(w => w.category === 'food').map(w => w.word);
       jecWordPool = shuffle(foodWords.length ? foodWords : secretWords.map(w => w.word));
     } else {
-      jecWordPool = shuffle(allWords.filter(w => w.category === 'food').map(w => w.word));
+      jecWordPool = jecBuildFoodPool(allWords);
     }
   }
   jecCurrentWord      = jecWordPool.pop();

@@ -27,6 +27,10 @@ const allScreens = [
   'screen-jec-menu', 'screen-jec-roster', 'screen-jec-order',
   'screen-jec-prep', 'screen-jec-sifting',
   'screen-jec-tally', 'screen-jec-washup',
+  'screen-ce-menu', 'screen-ce-setup', 'screen-ce-pass',
+  'screen-ce-prompt', 'screen-ce-input', 'screen-ce-reveal',
+  'screen-ce-vote', 'screen-ce-results', 'screen-ce-gameover',
+  'screen-ce-sd-intro', 'screen-ce-sd-input',
 ];
 
 // ── Web Audio API ─────────────────────────────────────────────────────────────
@@ -279,6 +283,8 @@ function resetToLobby() {
   jecCurrentPlayerIdx  = 0;
   jecOversightSelected = null;
   jecPoisonedNorms     = new Set();
+  // Close Enough teardown
+  if (typeof resetCloseEnough === 'function') resetCloseEnough();
   showScreen('screen-lobby');
 }
 

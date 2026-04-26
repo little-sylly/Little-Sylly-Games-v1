@@ -6,6 +6,7 @@
 // ── Session settings (JS memory only — resets on page refresh) ───────────────
 let settingTimer      = 60;
 let settingRounds     = 5;
+let settingDifficulty = 'standard'; // 'easy' | 'standard'
 let settingSylly      = false;
 let settingSyllyPct   = 30;
 let settingCategories = new Set([
@@ -179,7 +180,7 @@ async function startGame() {
   const active = isSecretMode
     ? secretWords
     : (settingPlayAllDecks ? allWords : allWords.filter(w => settingCategories.has(w.category)));
-  regularWords   = shuffle(active.filter(w => w.difficulty < 3));
+  regularWords   = shuffle(active.filter(w => settingDifficulty === 'easy' ? w.difficulty === 1 : w.difficulty < 3));
   syllyWords     = settingSylly ? shuffle(active.filter(w => w.difficulty >= 3)) : [];
   regularIdx     = 0;
   syllyIdx       = 0;
@@ -643,9 +644,9 @@ function handlePill(btn) {
   const value = btn.dataset.value;
 
   document.querySelectorAll(`[data-group="${group}"]`).forEach(b => {
-    b.classList.remove('pill-active', 'pill-active-purple');
+    b.classList.remove('pill-active', 'pill-active-purple', 'pill-active-pink');
   });
-  btn.classList.add('pill-active');
+  btn.classList.add('pill-active-pink');
 
   if (group === 'timer') {
     settingTimer       = parseInt(value);
@@ -653,6 +654,7 @@ function handlePill(btn) {
     document.getElementById('pill-time-penalty').textContent = `−${settingTimePenalty} Secs`;
   }
   if (group === 'rounds')       settingRounds      = parseInt(value);
+  if (group === 'difficulty')   settingDifficulty  = value;
   if (group === 'taboo-count')  settingTabooCount  = parseInt(value);
   if (group === 'penalty-mode') settingPenaltyMode = value;
   if (group === 'skip-cost')    settingSkipFree    = (value === 'free');
