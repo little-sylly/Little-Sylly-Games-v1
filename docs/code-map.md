@@ -1,6 +1,6 @@
 # Code Map — Little Sylly Games
 **Purpose:** Surgical reference for editing. Uses element IDs (stable) not line numbers (shift).
-**Updated:** Phase 12 (Stage 4)
+**Updated:** Phase 13
 
 ---
 
@@ -254,6 +254,69 @@
 | `jecCalcRoundScores()` | Scoring with merge-map resolution |
 | `jecResetForNewGame()` | Reset round state, preserve names+settings → `#screen-jec-menu` |
 | `jecApplyExpansionOverrides()` | Secret Mode hook (namespaced — avoids collision with LI5's global) |
+
+---
+
+## You Get It? (YGI)
+
+**JS file:** `js/games/ygi.js`
+**Brand colour:** `orange-500`
+**Lobby button:** `#btn-ygi`
+**Data file:** `data/ygi-data.json`
+
+### Screens
+| ID | Purpose |
+|----|---------|
+| `#screen-ygi-menu` | Game menu |
+| `#screen-ygi-setup` | Player name entry |
+| `#screen-ygi-pass` | Pass-the-phone gate (host/next player hand-off) — reused for input/vote/SD via `ygiPassPhase` |
+| `#screen-ygi-prompt` | Group view of The Situation (shown to room before input loop) |
+| `#screen-ygi-input` | The Situation input — number + metric per player |
+| `#screen-ygi-reveal` | The Lineup — all Takes revealed |
+| `#screen-ygi-vote` | Vote ranking screen (Your Call per player; The Consensus shared) |
+| `#screen-ygi-results` | Per-round results with running totals + medals |
+| `#screen-ygi-gameover` | Final standings + The Record carousel |
+| `#screen-ygi-sd-intro` | Sudden Death intro — tied finalist names + random question |
+| `#screen-ygi-sd-input` | Sudden Death number entry per finalist (pass-the-phone) |
+
+### Overlays
+| ID | Pattern | Opened by |
+|----|---------|-----------|
+| `#ygi-settings-overlay` | Data (slide-up) | `#btn-ygi-menu-settings` |
+| `#ygi-how-to-overlay` | Data (slide-up) | `#btn-ygi-menu-how-to` |
+| `#ygi-quit-overlay` | Decision modal | ✕ during active play |
+| `#ygi-run-it-back-overlay` | Decision modal | "Run It Back" button on gameover screen |
+
+### Key buttons
+| ID | Action |
+|----|--------|
+| `#btn-ygi-menu-back` | `resetToLobby()` (on YGI menu) |
+| `#btn-ygi-menu-settings` | Open `#ygi-settings-overlay` |
+| `#btn-ygi-menu-how-to` | Open `#ygi-how-to-overlay` |
+| `#btn-ygi-quit-confirm` | Confirm quit → `showScreen('screen-ygi-menu')` |
+| `#btn-ygi-reveal-next` | → vote pass gate (Your Call) or `ygiShowOpenBallparkVote()` |
+| `#btn-ygi-vote-submit` | Submit rankings → next voter or `ygiComputeAndShowResults()` |
+| `#btn-ygi-log-prev` | The Record: previous round card |
+| `#btn-ygi-log-next` | The Record: next round card |
+| `#btn-ygi-run-confirm` | Confirm "Run It Back" → restarts game with same players + settings |
+| `#btn-ygi-run-cancel` | Dismiss `#ygi-run-it-back-overlay` without restarting |
+
+### Key functions
+| Function | Purpose |
+|----------|---------|
+| `ygiLoadData()` | Async — fetches `data/ygi-data.json`, populates `ygiAllPrompts[]` (once) |
+| `ygiStartGame()` | Resets all state, shows setup screen |
+| `ygiShowInput()` | Input screen for current player |
+| `ygiShowReveal()` | Builds and shows The Lineup |
+| `ygiShowVotePassGate()` | Pass-phone gate before Your Call voting |
+| `ygiShowVoteInput()` | Vote ranking screen per player (Your Call) |
+| `ygiShowOpenBallparkVote()` | Shared group vote (The Consensus) — single submit fills all voters |
+| `ygiComputeAndShowResults()` | Tallies votes, computes scores, shows results |
+| `ygiShowResults()` | Round results with running totals + 🥇🥈🥉 medals |
+| `ygiShowFinalStandings()` | Final podium + seeds The Record, calls `ygiRenderRoundLog()` |
+| `ygiRenderRoundLog()` | Renders current Record card (driven by `ygiRoundLogIdx`) |
+| `ygiShowSuddenDeathIntro()` | Renders SD intro screen — tied finalist names + random question |
+| `ygiShowSDInput()` | SD number entry for current finalist; advances until all done |
 
 ---
 

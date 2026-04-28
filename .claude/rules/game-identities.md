@@ -199,3 +199,88 @@
 | `jec-quit-overlay` | Decision modal |
 | `jec-oversight-overlay` | Decision modal — merge confirm |
 | `jec-new-shift-overlay` | Decision modal — "New Shift?" |
+
+---
+
+## Game 5: You Get It? (YGI)
+**Theme:** Social verification game — each player submits a number + metric for a shared situation. The group gives The Nod to whoever they relate to most.
+**Tagline:** "Finally, someone said it."
+**Key file:** `js/games/ygi.js`
+**Data file:** `data/ygi-data.json`
+**State flow:** LOBBY → YGI MENU → YGI SETUP → [Round loop: YGI PASS → YGI INPUT (×N players) → YGI REVEAL → YGI VOTE (×N) or THE CONSENSUS → YGI RESULTS] → YGI GAMEOVER
+
+### Terminology
+| Term | Meaning |
+|------|---------|
+| The Situation | The prompt/fill-in-the-blank statement read by the group |
+| The Gap | Fill-in-the-blank placeholder shown as `________` on screen (stored as `[ ]` in data) |
+| The Take | A player's combined Number + Metric response |
+| The Lineup 🃏 | The reveal screen showing all Takes side-by-side |
+| The Nod | The act of voting — giving a nod to the Take you relate to most |
+| Your Call | Verdict Style — each player gives The Nod individually, pass-the-phone |
+| The Consensus 🏟️ | Verdict Style — group gives The Nod together as one shared vote |
+| The Verdict 🏆 | The vote ranking screen |
+| The Record 📋 | Round-by-round history carousel on the gameover screen |
+| The Ringer 🃏 | Sylly Mode ghost card — a pre-written Take injected anonymously into The Lineup |
+| Lock In My Verdict | Vote submit button label (Your Call) |
+| Lock In The Consensus | Vote submit button label (The Consensus) |
+
+### Settings
+| Setting | Options | Default | Internal value |
+|---------|---------|---------|----------------|
+| Players | 3–8 | 4 | `ygiPlayerCount` |
+| Situations | 3 / 5 / 8 | 5 | `ygiRounds` |
+| The Decider | Split Take / Solo Take | Split Take | `'close-enough'` / `'only-one'` |
+| Full Tally | Off / On | Off — top 3 ranked only | `ygiFullTally` bool |
+| Verdict Style | Your Call / The Consensus | Your Call | `'secret-ballot'` / `'open-ballpark'` |
+| ✨ Sylly Mode (The Ringer) | Off / On | Off | `ygiRinger` bool |
+
+### Special Mechanics
+
+**Variable brackets:**
+- Situations using `[ ]` as placeholder render as `________` at display time.
+- Pattern: `.replace('[ ]', '________')` applied at every display point — never in stored state.
+- Display points: `ygiShowInput()`, `ygiShowReveal()`, `ygiShowVoteInput()`, `ygiShowOpenBallparkVote()`, `ygiShowResults()`, `ygiRenderRoundLog()`.
+
+**Vertical centering (The Lineup):**
+- `flex-1 overflow-y-auto flex flex-col` on outer wrapper + `my-auto` on inner content div.
+- Centers when content fits the viewport; collapses to natural scroll when overflowing.
+- `min-h-full justify-center` does NOT work inside overflow containers — always use `my-auto`.
+
+**Scoring:**
+- Rankings submitted per-voter (Your Call) or as one shared ranking (The Consensus).
+- Aggregated vote scores determine final round ranking; position drives score.
+- Running totals shown on `#screen-ygi-results` with 🥇🥈🥉 medals for positions 1–3.
+
+**The Consensus voting:**
+- Single ranking screen labelled "The Consensus 🏟️".
+- On submit: `ygiVotes` filled with identical rankings for all N players → `ygiComputeAndShowResults()` runs unchanged.
+
+**The Record (gameover carousel):**
+- `ygiRoundLog[]` accumulates `{ round, prompt, entries[] }` objects after each round completes (in `ygiShowResults()`).
+- `ygiRoundLogIdx` tracks displayed card; prev/next buttons navigate.
+- `ygiRenderRoundLog()` renders current card into `#ygi-log-card`.
+
+**Data format (`data/ygi-data.json`):**
+```json
+{
+  "id": "ce-001",
+  "text": "My browser is a cry for help once it contains more than [ ].",
+  "ringers": [
+    { "number": 404, "metric": "pages not found" },
+    { "number": 88,  "metric": "gigabytes of RAM currently in use" }
+  ]
+}
+```
+- `id` format: existing entries use `ce-NNN` (legacy, do not rename); new entries use `ygi-NNN` starting at `ygi-001`
+- `text` always contains `[ ]` as The Gap — rendered as `________` at display time.
+- `ringers[]` — 5 pre-written `{ number, metric }` pairs. Sylly Mode (The Ringer) picks one randomly and injects it as a ghost card in The Lineup. Ignored when Sylly Mode is off.
+- `metric` is player-entered at runtime (the "Fill the gap…" input) — NOT a top-level data field.
+
+### Overlay Types
+| Overlay | Pattern |
+|---------|---------|
+| `ygi-settings-overlay` | Data (slide-up) |
+| `ygi-how-to-overlay` | Data (slide-up) |
+| `ygi-quit-overlay` | Decision modal |
+| `ygi-run-it-back-overlay` | Decision modal — "Run It Back?" confirm |

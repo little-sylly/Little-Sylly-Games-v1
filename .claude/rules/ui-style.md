@@ -52,6 +52,45 @@ Use for: confirmations, short prompts, ≤3 interactive elements. No slide-up an
 
 ---
 
+## Gameplay Screen Layout — Header / Body / Footer
+
+**Trigger:** Any gameplay flow screen (input, reveal, vote, results, gameover).
+
+Every gameplay screen must use `h-screen` (not `min-h-screen`) on the section so the flex container is viewport-capped and the scroll body actually constrains:
+
+```html
+<section id="screen-game-foo" style="display:none"
+  class="flex flex-col w-full max-w-sm mx-auto h-screen overflow-hidden">
+
+  <!-- HEADER — always visible, never shrinks -->
+  <div class="flex items-center justify-between px-4 pt-4 pb-2 flex-shrink-0">
+    <!-- round label | speaker + ✕ -->
+  </div>
+
+  <!-- Optional fixed subheader (prompt text, section title, etc.) -->
+  <div class="px-6 pt-2 pb-3 flex-shrink-0 text-center">...</div>
+
+  <!-- BODY — scrolls when content overflows -->
+  <div class="flex-1 overflow-y-auto flex flex-col min-h-0">
+    <!-- cards, lists, etc. -->
+  </div>
+
+  <!-- FOOTER — always visible, sticks to bottom -->
+  <div class="px-6 pb-8 pt-2 flex-shrink-0">
+    <button class="min-h-14 w-full ...">Primary Action</button>
+  </div>
+</section>
+```
+
+**Rules:**
+- `h-screen overflow-hidden` on the `<section>` — `h-screen` sets the cap; `overflow-hidden` tells the browser the container cannot grow past it
+- `flex-shrink-0` on header and footer — they never compress
+- `flex-1 overflow-y-auto min-h-0` on the body — `min-h-0` is the critical line; without it, flex items default to `min-height: auto` and the body still expands to fit its content instead of scrolling
+- For centering short content inside the body: add `flex flex-col` on the body and `my-auto` on the inner content wrapper (collapses to 0 when overflowing — safe for both short and long content)
+- `min-h-screen` is only correct for lobby/menu screens that don't need a sticky footer
+
+---
+
 ## Settings Layout Standard
 Every game's settings overlay must follow this order:
 1. **Thematic title block** — first child of `overlay-data-inner`:
@@ -116,7 +155,7 @@ Every individual setting is wrapped in a white card. Do NOT use bare divs or `<h
 | Great Minds | `pill-active-purple` |
 | Secret Signals | `pill-active-teal` |
 | Just Enough Cooks | `pill-active-amber` |
-| Close Enough | `pill-active-orange` |
+| You Get It? | `pill-active-orange` |
 
 ---
 
@@ -145,9 +184,9 @@ Look for ONE opportunity to inject playfulness — cheeky button labels, Austral
 ## Universal Menu Standard (All Games)
 Every game's main menu screen must have exactly these 4 buttons, in this order:
 
-| Button         | LI5 (Like I'm Five)  | Great Minds          | Secret Signals       | Just Enough Cooks    | Close Enough         |
+| Button         | LI5 (Like I'm Five)  | Great Minds          | Secret Signals       | Just Enough Cooks    | You Get It?          |
 |----------------|----------------------|----------------------|----------------------|----------------------|----------------------|
-| Play CTA       | Let's Play!          | Let's Play!          | Let's Play!          | Let's Cook!          | Start Estimating     |
+| Play CTA       | Let's Play!          | Let's Play!          | Let's Play!          | Let's Cook!          | Show Your Take 🃏    |
 | How to Play    | How to Play          | How to Play          | How to Play          | How to Play          | How to Play          |
 | Settings       | Settings             | Settings             | Settings             | Settings             | Settings             |
 | Back to lobby  | ← Back to the Box    | ← Back to the Box    | ← Back to the Box    | ← Back to the Box    | ← Back to the Box    |

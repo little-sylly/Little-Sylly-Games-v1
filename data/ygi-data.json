@@ -1,0 +1,552 @@
+[
+  {
+    "id": "ce-001",
+    "text": "My browser is officially a cry for help once it contains more than [ ].",
+    "ringers": [
+      { "number": 404, "metric": "pages not found" },
+      { "number": 1, "metric": "hidden tab playing music I can't find" },
+      { "number": 88, "metric": "gigabytes of RAM currently in use" },
+      { "number": 100, "metric": "research articles that I 'need' for my assignment" },
+      { "number": 120, "metric": "Amazon pages for things I definitely don't need" }
+    ]
+  },
+  {
+    "id": "ce-002",
+    "text": "I can usually get away with [ ] before someone realises I'm not actually ready.",
+    "ringers": [
+      { "number": 5, "metric": "consecutive 'I'm five minutes away' texts" },
+      { "number": 45, "metric": "minutes of standing in the shower doing nothing" },
+      { "number": 3, "metric": "outfit changes that ended up being the original choice" },
+      { "number": 10, "metric": "empty promises made while still in my pajamas" },
+      { "number": 1, "metric": "soul-crushing realisation that the event started an hour ago" }
+    ]
+  },
+  {
+    "id": "ce-003",
+    "text": "Before replying to a text I need exactly [ ].",
+    "ringers": [
+      { "number": 14, "metric": "business days of professional ghosting" },
+      { "number": 365, "metric": "days until it's officially too awkward to reply" },
+      { "number": 0, "metric": "seconds of peace before the follow-up '?'" },
+      { "number": 7, "metric": "drafted replies that were too much effort to finish" },
+      { "number": 1, "metric": "read receipt that caused a minor existential crisis" }
+    ]
+  },
+  {
+    "id": "ce-004",
+    "text": "A birthday party guest is only entitled to [ ].",
+    "ringers": [
+      { "number": 12, "metric": "thin slivers of cake that technically equal to one slice" },
+      { "number": 0, "metric": "pieces of cake after the brat birthday kid 'claims' their share" },
+      { "number": 1, "metric": "plate of food stolen from the children's table" },
+      { "number": 3, "metric": "fist-fights before a responsible adult must take them home" },
+      { "number": 5, "metric": "handfuls of M&Ms eaten directly from the bowl" }
+    ]
+  },
+  {
+    "id": "ce-005",
+    "text": "You can replay a song for [ ].",
+    "ringers": [
+      { "number": 2, "metric": "times before an angry neighbour bangs on the wall" },
+      { "number": 1, "metric": "listen if it happens to be 'Baby Shark'" },
+      { "number": 50, "metric": "repeats before the lyrics lose all human meaning" },
+      { "number": 12, "metric": "hours only if it's 'Lofi Beats to Study To' music" },
+      { "number": 30, "metric": "minutes before the kids start again with 'Are we there yet?'" }
+    ]
+  },
+  {
+    "id": "ce-006",
+    "text": "A single Brisbane summer consists of exactly [ ].",
+    "ringers": [
+      { "number": 45, "metric": "minutes of pure humidity before a storm hits" },
+      { "number": 0, "metric": "remaining spaces at the South Bank beach" },
+      { "number": 15, "metric": "mangoes consumed in a single sitting" },
+      { "number": 2, "metric": "fans pointed directly at my face at all times" },
+      { "number": 10, "metric": "litres of sunscreen used in one weekend" }
+    ]
+  },
+  {
+    "id": "ce-007",
+    "text": "A bed is officially 'over-decorated' once it has [ ].",
+    "ringers": [
+      { "number": 14, "metric": "decorative shams that live on the floor all night" },
+      { "number": 1, "metric": "pillow that is actually used for sleeping" },
+      { "number": 100, "metric": "percent of the mattress currently invisible to the eye" },
+      { "number": 1, "metric": "single argument over the colours of the sheets" },
+      { "number": 0, "metric": "room left for an actual human being" }
+    ]
+  },
+  {
+    "id": "ce-008",
+    "text": "Watching 'one last episode' at midnight usually results in [ ].",
+    "ringers": [
+      { "number": 3, "metric": "snoozes of the 'time for work' alarm" },
+      { "number": 4, "metric": "hours of sleep I've just negotiated away" },
+      { "number": 1, "metric": "season finale that was definitely worth the fatigue" },
+      { "number": 0, "metric": "self-control remaining in the Netflix menu" },
+      { "number": 9, "metric": "episodes watched while 'Skip Intro' did all the work" }
+    ]
+  },
+  {
+    "id": "ce-009",
+    "text": "I would only ever sell my house immediately because of [ ].",
+    "ringers": [
+      { "number": 1, "metric": "Huntsman spider perched on the door-knob" },
+      { "number": 0, "metric": "functioning toilets during a visit from the in-laws" },
+      { "number": 47, "metric": "distinct species of mould in the ensuite" },
+      { "number": 1, "metric": "ghostly child standing in the hallway" },
+      { "number": 12, "metric": "months of neighbours practicing the recorder at 6 AM" }
+    ]
+  },
+  {
+    "id": "ce-010",
+    "text": "The unspoken law on movie spoilers is exactly [ ].",
+    "ringers": [
+      { "number": 20, "metric": "years, yet people still haven't seen 'The Sixth Sense'" },
+      { "number": 0, "metric": "seconds for monsters on social media" },
+      { "number": 1, "metric": "week of 'The International Grace Period'" },
+      { "number": 50, "metric": "years of waiting for it to no longer matter" },
+      { "number": 3, "metric": "hours after the midnight screening ended" }
+    ]
+  },
+  {
+    "id": "ce-011",
+    "text": "On my resumé under 'Special Achievements' I have included [ ].",
+    "ringers": [
+      { "number": 12, "metric": "consecutive days of not crying at my desk" },
+      { "number": 1, "metric": "participation award from a primary school cross country" },
+      { "number": 0, "metric": "unanswered emails, yes even to the do-not-reply emails" },
+      { "number": 8, "metric": "different fonts memorised from my university days" },
+      { "number": 100, "metric": "percent success rate at identifying 'not a robot' images" }
+    ]
+  },
+  {
+    "id": "ce-012",
+    "text": "The 'Friendship Tax' entitles me to exactly [ ].",
+    "ringers": [
+      { "number": 1, "metric": "single chip that was clearly the best one" },
+      { "number": 5, "metric": "extra crunchy bits of fried chicken crumbs" },
+      { "number": 100, "metric": "percent of their meal, once they leave for the bathroom" },
+      { "number": 10, "metric": "percent of the burger 'borrowed' for a taste test" },
+      { "number": 12, "metric": "months in 'Snack Jail' for my recurring crimes" }
+    ]
+  },
+  {
+    "id": "ce-013",
+    "text": "Getting out of bed on a Monday requires [ ].",
+    "ringers": [
+      { "number": 8, "metric": "snooze cycles that felt like two minutes each" },
+      { "number": 1, "metric": "alarm that is now physically across the room" },
+      { "number": 5, "metric": "minutes of 'scrolling' before my eyes fully open" },
+      { "number": 110, "metric": "percent willpower, which is obviously unavailable before 9:00 AM" },
+      { "number": 10, "metric": "different alarm songs that I now hate" }
+    ]
+  },
+  {
+    "id": "ce-014",
+    "text": "My local Chinese takeaway's 'mild' hot-sauce results in [ ].",
+    "ringers": [
+      { "number": 2, "metric": "litres of milk required to survive the experience" },
+      { "number": 1, "metric": "trip to the E.R" },
+      { "number": 0, "metric": "tastebuds remaining after the third bite" },
+      { "number": 5, "metric": "sweaty napkins used to mop my forehead" },
+      { "number": 1, "metric": "humble 'mild' that was actually volcanic" }
+    ]
+  },
+  {
+    "id": "ce-015",
+    "text": "A single Tim Tam Slam session for me is [ ].",
+    "ringers": [
+      { "number": 11, "metric": "biscuits, which is exactly one full packet" },
+      { "number": 1, "metric": "Tim Tam used as a straw for a coffee slam" },
+      { "number": 22, "metric": "if I've had a particularly bad day at work" },
+      { "number": 0, "metric": "crumbs left in the tray when the kids found it" },
+      { "number": 100, "metric": "percent of my daily calories consumed in five minutes" }
+    ]
+  },
+  {
+    "id": "ce-016",
+    "text": "You can wear the same pair of jeans for [ ].",
+    "ringers": [
+      { "number": 7, "metric": "wears before they can stand up on their own" },
+      { "number": 5, "metric": "days until someone gives you 'The Look'" },
+      { "number": 1, "metric": "day after sitting on a train seat I immediately regret" },
+      { "number": 365, "metric": "days — technically a 'capsule wardrobe'" },
+      { "number": 14, "metric": "rotations per year if you own exactly two pairs" }
+    ]
+  },
+  {
+    "id": "ce-017",
+    "text": "I can only handle waiting on hold for exactly [ ].",
+    "ringers": [
+      { "number": 45, "metric": "minutes of the same 8-bar jazz loop burned into my soul" },
+      { "number": 1, "metric": "'Your call is important to us' before the lie sinks in" },
+      { "number": 0, "metric": "times, you can expect an angry email instead" },
+      { "number": 10, "metric": "steps in the choreography I've invented while waiting" },
+      { "number": 60, "metric": "minutes before the line drops for no reason" }
+    ]
+  },
+  {
+    "id": "ce-018",
+    "text": "My online shopping cart is currently [ ].",
+    "ringers": [
+      { "number": 99, "metric": "items decomposing in my 'Saved for Later' list" },
+      { "number": 2, "metric": "items that survived a 24-hour 'sleep on it' test" },
+      { "number": 12, "metric": "tabs open comparing the exact same product" },
+      { "number": 1, "metric": "moment of clarity that strikes right before checkout" },
+      { "number": 3, "metric": "different sizes of the same pants, just in case" }
+    ]
+  },
+  {
+    "id": "ce-019",
+    "text": "A single work email containing [ ] is enough to trigger a panic attack.",
+    "ringers": [
+      { "number": 5, "metric": "exclamation marks before HR does a wellness check" },
+      { "number": 1, "metric": "line that just says 'Can we chat?'" },
+      { "number": 0, "metric": "context provided in the subject line" },
+      { "number": 3, "metric": "piles of tasks I haven't even started yet" },
+      { "number": 100, "metric": "percent chance they can feel my anxiety through the screen" }
+    ]
+  },
+  {
+    "id": "ce-020",
+    "text": "A 'simple' home repair project usually involves [ ].",
+    "ringers": [
+      { "number": 3, "metric": "hardware store trips for things I didn't know existed" },
+      { "number": 1, "metric": "'five-minute job' that took three weekends" },
+      { "number": 12, "metric": "YouTube tutorials watched before any work begins" },
+      { "number": 0, "metric": "tools currently in the right place when I need them" },
+      { "number": 10, "metric": "new problems created by 'fixing' the first one" }
+    ]
+  },
+  {
+    "id": "ce-021",
+    "text": "Opening the fridge for the fifth time results in [ ].",
+    "ringers": [
+      { "number": 4, "metric": "identical open-stare-close cycles in a row" },
+      { "number": 1, "metric": "container of leftovers I've moved past six times" },
+      { "number": 0, "metric": "actual food I actually want to eat" },
+      { "number": 7, "metric": "times I've rearranged the condiments for inspiration" },
+      { "number": 100, "metric": "percent chance I order UberEats in the end" }
+    ]
+  },
+  {
+    "id": "ce-022",
+    "text": "A 'quick trip to the shops' is never complete without [ ].",
+    "ringers": [
+      { "number": 12, "metric": "items that don't fit in two arms but I'll try anyway" },
+      { "number": 0, "metric": "bags I remembered to bring from the car" },
+      { "number": 3, "metric": "items that then turned into a full weekly shop instead" },
+      { "number": 1, "metric": "basket handle cutting off circulation at checkout" },
+      { "number": 6, "metric": "impulse buys that justify getting a trolley in retrospect" }
+    ]
+  },
+  {
+    "id": "ce-023",
+    "text": "The YouTube algorithm eventually leads everyone to [ ].",
+    "ringers": [
+      { "number": 1, "metric": "video about 'How Traffic Jams Form' that started it all" },
+      { "number": 3, "metric": "hours of drone footage of an abandoned mall" },
+      { "number": 0, "metric": "videos watched that I actually searched for" },
+      { "number": 47, "metric": "'Recommended' videos I've somehow already seen" },
+      { "number": 12, "metric": "documentaries about topics I will never use in real life" }
+    ]
+  },
+  {
+    "id": "ce-024",
+    "text": "Leftovers in the fridge are officially 'science' after [ ].",
+    "ringers": [
+      { "number": 7, "metric": "days until I perform the 'Brave Sniff Test'" },
+      { "number": 0, "metric": "percent chance I remember what it was by day five" },
+      { "number": 14, "metric": "days if it's sealed in the 'good' Tupperware" },
+      { "number": 3, "metric": "full pitch-black containers" },
+      { "number": 1, "metric": "optimistic 'it's fine' that definitely wasn't fine" }
+    ]
+  },
+  {
+    "id": "ce-025",
+    "text": "I would rather send [ ] than have an actual phone conversation.",
+    "ringers": [
+      { "number": 1, "metric": "carrier pigeon with a handwritten note" },
+      { "number": 500, "metric": "words of a frantic text I'll never actually send" },
+      { "number": 1, "metric": "voice note that lasts longer than the actual call" },
+      { "number": 12, "metric": "smoke signals from my back garden" },
+      { "number": 2, "metric": "blank faxes to fake a technical error" }
+    ]
+  },
+  {
+    "id": "ce-026",
+    "text": "My apartment is currently a home to [ ].",
+    "ringers": [
+      { "number": 5, "metric": "dead plants I've quietly replaced hoping nobody noticed" },
+      { "number": 0, "metric": "succulents that are actually thriving" },
+      { "number": 42, "metric": "piles of mail blocking the light in the living room" },
+      { "number": 1, "metric": "cactus per ex-partner kept for therapeutic reasons" },
+      { "number": 17, "metric": "ferns that I have officially run out of names for" }
+    ]
+  },
+  {
+    "id": "ce-027",
+    "text": "I have re-read my own sent messages for [ ].",
+    "ringers": [
+      { "number": 10, "metric": "minutes before I change my mind about everything" },
+      { "number": 1, "metric": "second before I noticed the typo" },
+      { "number": 0, "metric": "times, no one will bother reading it anyway" },
+      { "number": 5, "metric": "read-alouds to check for passive-aggressive tones" },
+      { "number": 3, "metric": "group chats I sent the screenshot to for a second opinion" }
+    ]
+  },
+  {
+    "id": "ce-028",
+    "text": "My fitness tracker currently thinks I have done [ ].",
+    "ringers": [
+      { "number": 10000, "metric": "steps — and it will never know" },
+      { "number": 200, "metric": "steps to the fridge and back, repeated with conviction" },
+      { "number": 1, "metric": "walk from the car to the shops I definitely counted as 'cardio'" },
+      { "number": 3000, "metric": "steps that justify a second helping of dessert" },
+      { "number": 0, "metric": "steps recorded because the phone was on the couch all day" }
+    ]
+  },
+  {
+    "id": "ce-029",
+    "text": "Achieving a 'zero inbox' is only possible after [ ].",
+    "ringers": [
+      { "number": 47, "metric": "manual refreshes during the first hour of Monday" },
+      { "number": 1, "metric": "brave click of the 'Delete All' button" },
+      { "number": 0, "metric": "witnesses remain to testify to my incompetence" },
+      { "number": 5, "metric": "straight hours of ignoring the 'just checking in' follow-ups" },
+      { "number": 100, "metric": "unopened shopping catalogues are sent to archive" }
+    ]
+  },
+  {
+    "id": "ce-030",
+    "text": "My attempt at sneaking snacks into the cinema involved [ ].",
+    "ringers": [
+      { "number": 3, "metric": "layers of chocolate hidden under a heavy winter jacket" },
+      { "number": 1, "metric": "bag of chips that crinkled during every quiet scene" },
+      { "number": 0, "metric": "items actually making it past the ticket tearer" },
+      { "number": 5, "metric": "loose Maltesers lost in the lining of my coat" },
+      { "number": 100, "metric": "percent of my supplies being eaten during the trailers" }
+    ]
+  },
+  {
+    "id": "ce-031",
+    "text": "Cancelling plans is a spiritual experience that guarantees [ ].",
+    "ringers": [
+      { "number": 100, "metric": "percent chance I am not putting on pants tonight" },
+      { "number": 3, "metric": "hours of staring at the ceiling in blissful silence" },
+      { "number": 1, "metric": "perfectly crafted excuse that I'll take to my grave" },
+      { "number": 0, "metric": "percent regret for staying home with my snacks" },
+      { "number": 10, "metric": "years of life back by avoiding small talk" }
+    ]
+  },
+  {
+    "id": "ce-032",
+    "text": "I cannot be held legally liable for my morning behaviour until I've had [ ].",
+    "ringers": [
+      { "number": 5, "metric": "coffees and my heart rate is a public health concern" },
+      { "number": 1, "metric": "sip that finally makes the world stop spinning" },
+      { "number": 0, "metric": "conversations with people who 'love mornings'" },
+      { "number": 4, "metric": "minutes of silence to mourn my departing sleep" },
+      { "number": 12, "metric": "hours of rest that I am still trying to catch up on" }
+    ]
+  },
+  {
+    "id": "ce-033",
+    "text": "That task I promised to do 'tomorrow' is currently [ ].",
+    "ringers": [
+      { "number": 365, "metric": "days away from becoming someone else's problem" },
+      { "number": 1, "metric": "year old and has officially spawned its own sub-tasks" },
+      { "number": 0, "metric": "percent likely to be completed before the heat death of the universe" },
+      { "number": 7, "metric": "layers deep in a 'To Do' list that I've stopped reading" },
+      { "number": 14, "metric": "business days past the point where I've forgotten what it was" }
+    ]
+  },
+  {
+    "id": "ce-034",
+    "text": "Saying 'we should catch up' is code for [ ].",
+    "ringers": [
+      { "number": 100, "metric": "percent commitment to never actually leaving the house" },
+      { "number": 3, "metric": "more years of liking each other's photos from a distance" },
+      { "number": 1, "metric": "polite lie we tell to keep the friendship on life support" },
+      { "number": 5, "metric": "minutes of panic if the other person actually says 'How about tomorrow?'" },
+      { "number": 0, "metric": "intentions of checking my calendar after I hit send" }
+    ]
+  },
+  {
+    "id": "ce-035",
+    "text": "A 'good night's sleep' for a modern adult is approximately [ ].",
+    "ringers": [
+      { "number": 4, "metric": "hours, followed by approximately eight coffees" },
+      { "number": 0, "metric": "REM cycles achieved on a Sunday night" },
+      { "number": 3, "metric": "times waking up and checking your phone 'just quickly'" },
+      { "number": 6, "metric": "hours that feel like 2 after a 1 AM 'one last episode'" },
+      { "number": 8, "metric": "hours I confidently promise myself every weekend" }
+    ]
+  },
+  {
+    "id": "ce-036",
+    "text": "I have avoided my phone's software update for [ ].",
+    "ringers": [
+      { "number": 47, "metric": "'Later' buttons pressed across twelve months" },
+      { "number": 1, "metric": "update that broke everything and caused this hesitation" },
+      { "number": 0, "metric": "times, I've updated it at genuinely convenient moments" },
+      { "number": 3, "metric": "years, of course to avoid iOS 17" },
+      { "number": 100, "metric": "percent more storage space than I'd have if I hit 'Install Now'" }
+    ]
+  },
+  {
+    "id": "ce-037",
+    "text": "My 'Discover Weekly' playlist is currently [ ].",
+    "ringers": [
+      { "number": 12, "metric": "variations of the same lo-fi beat I heard once in a cafe" },
+      { "number": 1, "metric": "obscure indie band with four listeners that the algorithm is obsessed with" },
+      { "number": 0, "metric": "percent compatible with my actual music taste" },
+      { "number": 5, "metric": "true crime podcasts I am definitely too fragile to listen to" },
+      { "number": 100, "metric": "percent aggressive heavy metal because I worked out once on Tuesday" }
+    ]
+  },
+  {
+    "id": "ce-038",
+    "text": "Today's mindless scrolling session has resulted in [ ].",
+    "ringers": [
+      { "number": 90, "metric": "wasted minutes — essentially a full-length movie with zero plot" },
+      { "number": 0, "metric": "percent of the information being useful for my actual life" },
+      { "number": 45, "metric": "minutes of 'life-changing' advice I will forget by tomorrow" },
+      { "number": 1, "metric": "hour spent watching 'how to be productive' while doing nothing" },
+      { "number": 120, "metric": "unnecessary heartbeats spent on an argument between strangers" }
+    ]
+  },
+  {
+    "id": "ce-039",
+    "text": "The pile of items I need to return is [ ].",
+    "ringers": [
+      { "number": 3, "metric": "years old and most likely won't be accepted" },
+      { "number": 0, "metric": "percent likely to be returned before the receipt expires" },
+      { "number": 5, "metric": "bags deep in a cupboard I've promised to never open again" },
+      { "number": 1, "metric": "item sitting in the boot of the car to 'remind me' for six months" },
+      { "number": 12, "metric": "weeks past the deadline for a full refund" }
+    ]
+  },
+  {
+    "id": "ce-040",
+    "text": "The life cycle of a group chat consists of [ ].",
+    "ringers": [
+      { "number": 47, "metric": "unread messages appearing during a five-minute shower" },
+      { "number": 1, "metric": "brave soul who refuses to mute it and suffers the pings" },
+      { "number": 3, "metric": "sub-group chats created to talk about the main group chat" },
+      { "number": 0, "metric": "actual plans being finalised before the event starts" },
+      { "number": 5, "metric": "people typing at once to reach zero collective conclusions" }
+    ]
+  },
+  {
+    "id": "ce-041",
+    "text": "That '90% off' sale is basically just [ ].",
+    "ringers": [
+      { "number": 12, "metric": "times this store has been 'closing down' since 2018" },
+      { "number": 4, "metric": "consecutive 'Biggest Sale of the Year' events in one year" },
+      { "number": 1, "metric": "'Last chance!' email received today alone" },
+      { "number": 0, "metric": "sales where I actually saved money overall" },
+      { "number": 70, "metric": "percent off that somehow only applies to the ugly stock" }
+    ]
+  },
+  {
+    "id": "ce-042",
+    "text": "My 'quick 20-minute break' on the couch has turned into [ ].",
+    "ringers": [
+      { "number": 0, "metric": "steps taken since the couch became my permanent address" },
+      { "number": 1, "metric": "episode where I said 'just one more' and genuinely meant it" },
+      { "number": 6, "metric": "hours until the streaming service asks if I'm still watching" },
+      { "number": 3, "metric": "seasons in and I still don't know the main character's name" },
+      { "number": 12, "metric": "hours of a rainy Sunday — which is spiritually fine" }
+    ]
+  },
+  {
+    "id": "ce-043",
+    "text": "Adhering to the grocery 'one trip' rule usually results in [ ].",
+    "ringers": [
+      { "number": 8, "metric": "bags cutting off all circulation to my purple fingers" },
+      { "number": 1, "metric": "sweaty, heroic struggle from the car to the kitchen" },
+      { "number": 0, "metric": "accepted offers of help because I'm too stubborn to fail" },
+      { "number": 3, "metric": "escaped oranges currently rolling down the driveway" },
+      { "number": 100, "metric": "percent certainty that physics won't stop me" }
+    ]
+  },
+  {
+    "id": "ce-044",
+    "text": "My daily news intake usually lasts for [ ].",
+    "ringers": [
+      { "number": 1, "metric": "minute before I decide to live in a hole in the ground" },
+      { "number": 7, "metric": "seconds—just enough for one push notification to ruin my day" },
+      { "number": 0, "metric": "seconds, because I am currently hiding from reality" },
+      { "number": 3, "metric": "headlines—at which point I have to put my phone in the fridge" },
+      { "number": 5, "metric": "minutes of scrolling before the existential dread kicks in" }
+    ]
+  },
+  {
+    "id": "ce-045",
+    "text": "My evening relaxation ritual consists of [ ].",
+    "ringers": [
+      { "number": 12, "metric": "scented candles that have turned my lounge into a fire hazard" },
+      { "number": 2, "metric": "minutes of peace before someone knocks on the toilet door" },
+      { "number": 1, "metric": "candle I completely forgot about until the smoke alarm went off" },
+      { "number": 47, "metric": "dollars spent on a candle that smells like 'expensive dirt'" },
+      { "number": 0, "metric": "actual tasks completed before I fell asleep in the attempt" }
+    ]
+  },
+  {
+    "id": "ce-046",
+    "text": "Searching my symptoms online has resulted in [ ].",
+    "ringers": [
+      { "number": 1, "metric": "previous search showing 'rare tropical diseases'" },
+      { "number": 0, "metric": "conclusions that suggest I am actually fine and just need water" },
+      { "number": 3, "metric": "panic attacks over what turned out to be a slight headache" },
+      { "number": 47, "metric": "deadly conditions I have diagnosed myself with this hour" },
+      { "number": 14, "metric": "open tabs that are all telling me I have three days to live" }
+    ]
+  },
+  {
+    "id": "ce-047",
+    "text": "The strategy of 'letting the dishes soak' usually involves [ ].",
+    "ringers": [
+      { "number": 7, "metric": "days until the water develops its own functioning ecosystem" },
+      { "number": 0, "metric": "people in this house who share my definition of 'clean'" },
+      { "number": 1, "metric": "bowl of cereal I will never publicly acknowledge" },
+      { "number": 3, "metric": "passive-aggressive notes left on the kitchen bench" },
+      { "number": 365, "metric": "days my flatmate has been conducting this experiment" }
+    ]
+  },
+  {
+    "id": "ce-048",
+    "text": "My attempt at parallel parking usually results in [ ].",
+    "ringers": [
+      { "number": 3, "metric": "failed attempts before the queue behind me becomes a crowd" },
+      { "number": 0, "metric": "percent chance of success if a single person is watching" },
+      { "number": 1, "metric": "gentle kerb 'tap' that I’m counting as a win" },
+      { "number": 5, "metric": "passengers who have all gone completely silent in prayer" },
+      { "number": 15, "metric": "minutes of my life I could have saved by just walking" }
+    ]
+  },
+  {
+    "id": "ce-049",
+    "text": "Saying 'I'm not that hungry' at dinner is code for [ ].",
+    "ringers": [
+      { "number": 1, "metric": "immediate order of loaded fries to 'share' with myself" },
+      { "number": 0, "metric": "intentions of actually letting you finish your own meal" },
+      { "number": 3, "metric": "courses I am about to consume while complaining I’m full" },
+      { "number": 12, "metric": "free breadsticks eaten 'just to be polite'" },
+      { "number": 100, "metric": "percent chance I’m eating at least half of your plate" }
+    ]
+  },
+  {
+    "id": "ce-050",
+    "text": "My monthly gym membership is essentially [ ].",
+    "ringers": [
+      { "number": 12, "metric": "months of payments made purely to feel like an athlete" },
+      { "number": 0, "metric": "times I've successfully walked past the juice bar and into a squat rack" },
+      { "number": 3, "metric": "heavy bags packed, moved to the car, and never opened" },
+      { "number": 1, "metric": "visit per year that I use to justify the entire expense" },
+      { "number": 47, "metric": "dollars per minute of actual exercise, by my latest math" }
+    ]
+  }
+]

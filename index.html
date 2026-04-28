@@ -50,8 +50,8 @@
       <button id="btn-jec" class="min-h-14 w-full rounded-2xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
         Just Enough Cooks
       </button>
-      <button id="btn-ce" class="min-h-14 w-full rounded-2xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
-        Close Enough
+      <button id="btn-ygi" class="min-h-14 w-full rounded-2xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        You Get It?
       </button>
     </div>
   </section>
@@ -2462,117 +2462,130 @@
 
   <!-- ═══════════════════════════════════════════════════════════════
        CLOSE ENOUGH (CE)
-       Screens : #screen-ce-menu, #screen-ce-setup,
-                 #screen-ce-pass, #screen-ce-prompt, #screen-ce-input,
-                 #screen-ce-reveal, #screen-ce-vote, #screen-ce-results,
-                 #screen-ce-gameover
-       Overlays: #ce-settings-overlay, #ce-how-to-overlay, #ce-quit-overlay
+       Screens : #screen-ygi-menu, #screen-ygi-setup,
+                 #screen-ygi-pass, #screen-ygi-prompt, #screen-ygi-input,
+                 #screen-ygi-reveal, #screen-ygi-vote, #screen-ygi-results,
+                 #screen-ygi-gameover
+       Overlays: #ygi-settings-overlay, #ygi-how-to-overlay, #ygi-quit-overlay, #ygi-run-it-back-overlay
   ════════════════════════════════════════════════════════════════════ -->
 
-  <!-- CE-① MENU -->
-  <section id="screen-ce-menu" style="display:none" class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
+  <!-- ygi-① MENU -->
+  <section id="screen-ygi-menu" style="display:none" class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
     <button class="btn-open-sound absolute top-4 right-4 text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
-    <div class="text-6xl" role="img" aria-label="Triangle ruler">📐</div>
+    <div class="text-6xl" role="img" aria-label="Lightbulb">💡</div>
     <div>
-      <h1 class="text-5xl font-bold leading-tight text-stone-800">Close</h1>
-      <h1 class="text-5xl font-bold leading-tight text-orange-500">Enough</h1>
+      <h1 class="text-5xl font-bold leading-tight text-stone-800">You Get</h1>
+      <h1 class="text-5xl font-bold leading-tight text-orange-500">It?</h1>
     </div>
-    <p class="text-stone-500 text-lg">Not quite right, but right enough for us.</p>
+    <p class="text-stone-500 text-lg">Finally, someone said it.</p>
     <div class="flex flex-col gap-4 w-full mt-2">
-      <button id="btn-ce-menu-play" class="min-h-14 w-full rounded-2xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
-        Start Estimating 📐
+      <button id="btn-ygi-menu-play" class="min-h-14 w-full rounded-2xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Let's Get To It! 
       </button>
-      <button id="btn-ce-menu-how-to" class="min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      <button id="btn-ygi-menu-how-to" class="min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
         How to Play
       </button>
-      <button id="btn-ce-menu-settings" class="min-h-14 w-full rounded-2xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      <button id="btn-ygi-menu-settings" class="min-h-14 w-full rounded-2xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
         Settings
       </button>
-      <button id="btn-ce-menu-back" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-base font-medium transition-all duration-150">
+      <button id="btn-ygi-menu-back" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-base font-medium transition-all duration-150">
         ← Back to the Box
       </button>
     </div>
   </section>
 
-  <!-- CE-② SETUP (player count + names) -->
-  <section id="screen-ce-setup" style="display:none" class="flex flex-col px-6 py-8 w-full max-w-sm mx-auto gap-6">
+  <!-- ygi-② SETUP (player count + names) -->
+  <section id="screen-ygi-setup" style="display:none" class="flex flex-col px-6 w-full max-w-sm mx-auto min-h-screen overflow-y-auto">
+  <div class="flex flex-col gap-6 my-auto py-8">
     <div class="flex items-center justify-between">
-      <button id="btn-ce-setup-back" class="text-stone-400 text-2xl active:scale-90 transition-transform duration-100">←</button>
-      <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest">The Crew</p>
+      <button id="btn-ygi-setup-back" class="text-stone-400 text-2xl active:scale-90 transition-transform duration-100">←</button>
+      <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest">Who's In?</p>
       <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
     </div>
 
     <!-- Player count pills -->
     <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
       <div>
-        <p class="text-stone-800 font-semibold">Estimators</p>
-        <p class="text-stone-400 text-sm mt-0.5">How many players are in the Ballpark?</p>
+        <p class="text-stone-800 font-semibold">Friends</p>
+        <p class="text-stone-400 text-sm mt-0.5">How many friends are in on it?</p>
       </div>
       <div class="flex gap-2">
-        <button class="pill" data-ce-player-count="3">3</button>
-        <button class="pill pill-active-orange" data-ce-player-count="4">4</button>
-        <button class="pill" data-ce-player-count="5">5</button>
-        <button class="pill" data-ce-player-count="6">6</button>
+        <button class="pill" data-ygi-player-count="3">3</button>
+        <button class="pill pill-active-orange" data-ygi-player-count="4">4</button>
+        <button class="pill" data-ygi-player-count="5">5</button>
+        <button class="pill" data-ygi-player-count="6">6</button>
       </div>
     </div>
 
     <!-- Name fields -->
     <div class="flex flex-col gap-3">
-      <div class="ce-player-row"><input id="ce-player-1" type="text" placeholder="Estimator 1" maxlength="20" class="w-full rounded-2xl border border-stone-200 px-4 py-3 text-stone-800 text-base focus:outline-none focus:ring-2 focus:ring-orange-300"></div>
-      <div class="ce-player-row"><input id="ce-player-2" type="text" placeholder="Estimator 2" maxlength="20" class="w-full rounded-2xl border border-stone-200 px-4 py-3 text-stone-800 text-base focus:outline-none focus:ring-2 focus:ring-orange-300"></div>
-      <div class="ce-player-row"><input id="ce-player-3" type="text" placeholder="Estimator 3" maxlength="20" class="w-full rounded-2xl border border-stone-200 px-4 py-3 text-stone-800 text-base focus:outline-none focus:ring-2 focus:ring-orange-300"></div>
-      <div class="ce-player-row"><input id="ce-player-4" type="text" placeholder="Estimator 4" maxlength="20" class="w-full rounded-2xl border border-stone-200 px-4 py-3 text-stone-800 text-base focus:outline-none focus:ring-2 focus:ring-orange-300"></div>
-      <div class="ce-player-row" style="display:none"><input id="ce-player-5" type="text" placeholder="Estimator 5" maxlength="20" class="w-full rounded-2xl border border-stone-200 px-4 py-3 text-stone-800 text-base focus:outline-none focus:ring-2 focus:ring-orange-300"></div>
-      <div class="ce-player-row" style="display:none"><input id="ce-player-6" type="text" placeholder="Estimator 6" maxlength="20" class="w-full rounded-2xl border border-stone-200 px-4 py-3 text-stone-800 text-base focus:outline-none focus:ring-2 focus:ring-orange-300"></div>
+      <div class="ygi-player-row"><input id="ygi-player-1" type="text" placeholder="Friend 1" maxlength="20" class="w-full rounded-2xl border border-stone-200 px-4 py-3 text-stone-800 text-base focus:outline-none focus:ring-2 focus:ring-orange-300"></div>
+      <div class="ygi-player-row"><input id="ygi-player-2" type="text" placeholder="Friend 2" maxlength="20" class="w-full rounded-2xl border border-stone-200 px-4 py-3 text-stone-800 text-base focus:outline-none focus:ring-2 focus:ring-orange-300"></div>
+      <div class="ygi-player-row"><input id="ygi-player-3" type="text" placeholder="Friend 3" maxlength="20" class="w-full rounded-2xl border border-stone-200 px-4 py-3 text-stone-800 text-base focus:outline-none focus:ring-2 focus:ring-orange-300"></div>
+      <div class="ygi-player-row"><input id="ygi-player-4" type="text" placeholder="Friend 4" maxlength="20" class="w-full rounded-2xl border border-stone-200 px-4 py-3 text-stone-800 text-base focus:outline-none focus:ring-2 focus:ring-orange-300"></div>
+      <div class="ygi-player-row" style="display:none"><input id="ygi-player-5" type="text" placeholder="Friend 5" maxlength="20" class="w-full rounded-2xl border border-stone-200 px-4 py-3 text-stone-800 text-base focus:outline-none focus:ring-2 focus:ring-orange-300"></div>
+      <div class="ygi-player-row" style="display:none"><input id="ygi-player-6" type="text" placeholder="Friend 6" maxlength="20" class="w-full rounded-2xl border border-stone-200 px-4 py-3 text-stone-800 text-base focus:outline-none focus:ring-2 focus:ring-orange-300"></div>
     </div>
 
-    <button id="btn-ce-setup-confirm" class="min-h-14 w-full rounded-2xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
-      Lock In the Crew →
+    <button id="btn-ygi-setup-confirm" class="min-h-14 w-full rounded-2xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      Everyone's In! →
     </button>
+  </div>
   </section>
 
-  <!-- CE-③ PASS GATE (amber full-screen hand-off) -->
-  <section id="screen-ce-pass" style="display:none" class="flex flex-col items-center justify-center px-8 w-full max-w-sm mx-auto text-center gap-4 bg-orange-500 min-h-screen">
-    <p class="text-white text-4xl font-black leading-tight" id="ce-pass-name"></p>
-    <p class="text-orange-100 text-lg font-medium">Pass the phone and don't peek!</p>
-    <button id="btn-ce-pass-ready" class="mt-8 min-h-14 w-full rounded-2xl bg-white active:scale-95 text-orange-500 text-xl font-bold transition-all duration-150">
-      I'm Ready 📐
-    </button>
-  </section>
-
-  <!-- CE-④ PROMPT (group view — everyone reads the inquiry together) -->
-  <section id="screen-ce-prompt" style="display:none" class="flex flex-col items-center justify-center px-6 w-full max-w-sm mx-auto text-center gap-8 min-h-screen">
-    <div class="flex items-center justify-between w-full">
-      <button class="btn-ce-quit-open text-stone-400 text-2xl active:scale-90 transition-transform duration-100">✕</button>
-      <p id="ce-prompt-round-label" class="text-stone-400 text-xs font-semibold uppercase tracking-widest"></p>
+  <!-- ygi-③ PASS GATE (phone handoff before input) -->
+  <section id="screen-ygi-pass" style="display:none" class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
+    <div class="absolute top-4 right-4 flex items-center gap-2">
       <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+      <button class="btn-ygi-quit-open text-stone-400 text-2xl active:scale-90 transition-transform duration-100">✕</button>
+    </div>
+    <div class="text-6xl">📱</div>
+    <div>
+      <h2 class="text-2xl font-bold text-stone-800" id="ygi-pass-name"></h2>
+      <p class="text-stone-500 text-lg mt-2">Pass the phone and don't peek!</p>
+    </div>
+    <button id="btn-ygi-pass-ready" class="min-h-14 w-full rounded-2xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      I'm Ready
+    </button>
+  </section>
+
+  <!-- ygi-④ PROMPT (group view — everyone reads the inquiry together) -->
+  <section id="screen-ygi-prompt" style="display:none" class="flex flex-col items-center justify-center px-6 w-full max-w-sm mx-auto text-center gap-8 min-h-screen">
+    <div class="flex items-center justify-between w-full">
+      <p id="ygi-prompt-round-label" class="text-stone-400 text-xs font-semibold uppercase tracking-widest"></p>
+      <div class="flex items-center gap-2">
+        <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+        <button class="btn-ygi-quit-open text-stone-400 text-2xl active:scale-90 transition-transform duration-100">✕</button>
+      </div>
     </div>
     <div class="flex flex-col gap-4">
-      <p class="text-stone-400 text-sm font-semibold uppercase tracking-widest">New Statement Closing In...</p>
-      <p id="ce-prompt-text" class="text-stone-800 text-2xl font-bold leading-snug"></p>
+      <p class="text-stone-400 text-sm font-semibold uppercase tracking-widest">New Situation Dropping...</p>
+      <p id="ygi-prompt-text" class="text-stone-800 text-2xl font-bold leading-snug"></p>
     </div>
-    <button id="btn-ce-prompt-start" class="min-h-14 w-full rounded-2xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
-      Time to Guess! 📐
+    <button id="btn-ygi-prompt-start" class="min-h-14 w-full rounded-2xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      Get Into It! 💡
     </button>
   </section>
 
-  <!-- CE-⑤ INPUT (per-player: number + metric entry) -->
-  <section id="screen-ce-input" style="display:none" class="flex flex-col px-6 py-8 w-full max-w-sm mx-auto gap-6">
+  <!-- ygi-⑤ INPUT (per-player: number + metric entry) -->
+  <section id="screen-ygi-input" style="display:none" class="flex flex-col px-6 py-8 w-full max-w-sm mx-auto gap-6">
     <div class="flex items-center justify-between">
-      <button class="btn-ce-quit-open text-stone-400 text-2xl active:scale-90 transition-transform duration-100">✕</button>
-      <p id="ce-input-player-label" class="text-stone-800 font-semibold text-base"></p>
-      <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+      <p id="ygi-input-player-label" class="text-stone-800 font-semibold text-base"></p>
+      <div class="flex items-center gap-2">
+        <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+        <button class="btn-ygi-quit-open text-stone-400 text-2xl active:scale-90 transition-transform duration-100">✕</button>
+      </div>
     </div>
 
     <div class="bg-orange-50 rounded-2xl p-4 border border-orange-100">
-      <p id="ce-input-prompt-text" class="text-stone-600 text-sm font-medium leading-snug text-center"></p>
+      <p id="ygi-input-prompt-text" class="text-stone-600 text-sm font-medium leading-snug text-center"></p>
     </div>
 
     <div class="flex flex-col gap-4">
       <!-- Number field -->
       <div class="flex flex-col gap-1.5">
         <label class="text-stone-500 text-xs font-semibold uppercase tracking-widest">The Number</label>
-        <input id="ce-input-number"
+        <input id="ygi-input-number"
           type="number" inputmode="numeric" pattern="[0-9]*"
           min="0" max="1000000" step="1"
           placeholder="0 – 1,000,000"
@@ -2580,207 +2593,244 @@
       </div>
       <!-- Metric field -->
       <div class="flex flex-col gap-1.5">
-        <label class="text-stone-500 text-xs font-semibold uppercase tracking-widest">The Metric</label>
-        <input id="ce-input-metric"
-          type="text"
-          placeholder="e.g. groans from the audience"
-          maxlength="60"
-          class="w-full rounded-2xl border border-stone-200 px-4 py-4 text-stone-800 text-base focus:outline-none focus:ring-2 focus:ring-orange-300">
+        <label class="text-stone-500 text-xs font-semibold uppercase tracking-widest">The Gap</label>
+        <textarea id="ygi-input-metric"
+          placeholder="Fill the gap..."
+          maxlength="95"
+          rows="3"
+          class="w-full rounded-2xl border border-stone-200 px-4 py-3 text-stone-800 text-base focus:outline-none focus:ring-2 focus:ring-orange-300 resize-none overflow-hidden leading-snug"></textarea>
       </div>
     </div>
 
-    <p id="ce-input-error" class="text-red-500 text-sm text-center min-h-5"></p>
+    <p id="ygi-input-error" class="text-red-500 text-sm text-center min-h-5"></p>
 
-    <button id="btn-ce-input-confirm" class="min-h-14 w-full rounded-2xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
-      Lock In My Ballpark 📐
+    <button id="btn-ygi-input-confirm" class="min-h-14 w-full rounded-2xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      That's My Take
     </button>
   </section>
 
-  <!-- CE-⑥ REVEAL — The Lineup (Piece 2) -->
-  <section id="screen-ce-reveal" style="display:none" class="flex flex-col w-full max-w-sm mx-auto min-h-screen">
+  <!-- ygi-⑥ REVEAL — The Lineup (Piece 2) -->
+  <section id="screen-ygi-reveal" style="display:none" class="flex flex-col w-full max-w-sm mx-auto h-screen overflow-hidden">
     <div class="flex items-center justify-between px-4 pt-4 pb-2 flex-shrink-0">
-      <button class="btn-ce-quit-open text-stone-400 text-2xl active:scale-90 transition-transform duration-100">✕</button>
-      <p id="ce-reveal-round-label" class="text-stone-400 text-xs font-semibold uppercase tracking-widest"></p>
-      <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+      <p id="ygi-reveal-round-label" class="text-stone-400 text-xs font-semibold uppercase tracking-widest"></p>
+      <div class="flex items-center gap-2">
+        <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+        <button class="btn-ygi-quit-open text-stone-400 text-2xl active:scale-90 transition-transform duration-100">✕</button>
+      </div>
     </div>
 
-    <div class="px-6 pt-2 pb-4 flex-shrink-0 text-center">
-      <p class="text-xs font-semibold uppercase tracking-widest text-orange-400 mb-2">The Lineup 🃏</p>
-      <p id="ce-reveal-prompt-text" class="text-stone-700 font-semibold text-base leading-snug"></p>
-    </div>
-
-    <div id="ce-lineup-cards" class="flex flex-col gap-3 px-6 pb-4 flex-1 overflow-y-auto">
-      <!-- Populated by ceShowReveal() -->
+    <div class="flex-1 overflow-y-auto overflow-x-hidden flex flex-col min-h-0">
+      <div class="my-auto px-6 py-4 flex flex-col gap-4">
+        <div class="text-center">
+          <p class="text-base font-bold uppercase tracking-widest text-orange-400 mb-2">The Lineup 🃏</p>
+          <p id="ygi-reveal-prompt-text" class="text-stone-700 font-semibold text-base leading-snug"></p>
+        </div>
+        <div id="ygi-lineup-cards" class="flex flex-col gap-3">
+          <!-- Populated by ygiShowReveal() -->
+        </div>
+      </div>
     </div>
 
     <div class="px-6 pb-8 pt-2 flex-shrink-0">
-      <button id="btn-ce-reveal-next" class="min-h-14 w-full rounded-2xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      <button id="btn-ygi-reveal-next" class="min-h-14 w-full rounded-2xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
         Start the Verdict 🏆
       </button>
     </div>
   </section>
 
-  <!-- CE-⑦ VOTE — The Verdict (Piece 3) -->
-  <section id="screen-ce-vote" style="display:none" class="flex flex-col w-full max-w-sm mx-auto min-h-screen">
+  <!-- ygi-⑦ VOTE — The Verdict (Piece 3) -->
+  <section id="screen-ygi-vote" style="display:none" class="flex flex-col w-full max-w-sm mx-auto h-screen overflow-hidden">
     <div class="flex items-center justify-between px-4 pt-4 pb-2 flex-shrink-0">
-      <button class="btn-ce-quit-open text-stone-400 text-2xl active:scale-90 transition-transform duration-100">✕</button>
-      <p id="ce-vote-round-label" class="text-stone-400 text-xs font-semibold uppercase tracking-widest"></p>
-      <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+      <p id="ygi-vote-round-label" class="text-stone-400 text-xs font-semibold uppercase tracking-widest"></p>
+      <div class="flex items-center gap-2">
+        <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+        <button class="btn-ygi-quit-open text-stone-400 text-2xl active:scale-90 transition-transform duration-100">✕</button>
+      </div>
     </div>
 
     <div class="px-6 pt-1 pb-3 flex-shrink-0 text-center">
-      <p id="ce-vote-player-label" class="text-stone-800 font-bold text-lg"></p>
+      <p id="ygi-vote-player-label" class="text-stone-800 font-bold text-lg"></p>
       <p class="text-xs font-semibold uppercase tracking-widest text-orange-400 mt-1 mb-2">The Verdict 🏆</p>
-      <p id="ce-vote-prompt-text" class="text-stone-500 text-sm leading-snug"></p>
+      <p id="ygi-vote-prompt-text" class="text-stone-500 text-sm leading-snug"></p>
     </div>
 
-    <p id="ce-vote-instruction" class="px-6 text-xs text-stone-400 text-center mb-2 flex-shrink-0"></p>
+    <p id="ygi-vote-instruction" class="px-6 text-xs text-stone-400 text-center mb-2 flex-shrink-0"></p>
 
-    <div id="ce-vote-cards" class="flex flex-col gap-3 px-6 pb-4 flex-1 overflow-y-auto">
-      <!-- Populated by ceRenderVoteCards() -->
-    </div>
-
-    <div class="px-6 pb-8 pt-2 flex-shrink-0">
-      <p id="ce-vote-error" class="text-red-500 text-sm text-center mb-2 min-h-5"></p>
-      <button id="btn-ce-vote-submit" class="min-h-14 w-full rounded-2xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
-        Lock In My Verdict ✓
-      </button>
-    </div>
-  </section>
-
-  <!-- CE-⑧ RESULTS — Round Tally (Piece 3) -->
-  <section id="screen-ce-results" style="display:none" class="flex flex-col w-full max-w-sm mx-auto min-h-screen">
-    <div class="flex items-center justify-between px-4 pt-4 pb-2 flex-shrink-0">
-      <button class="btn-ce-quit-open text-stone-400 text-2xl active:scale-90 transition-transform duration-100">✕</button>
-      <p id="ce-results-round-label" class="text-stone-400 text-xs font-semibold uppercase tracking-widest"></p>
-      <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
-    </div>
-
-    <div class="px-6 pt-2 pb-3 flex-shrink-0 text-center">
-      <p class="text-xs font-semibold uppercase tracking-widest text-orange-400 mb-2">Round Results</p>
-      <p id="ce-results-prompt-text" class="text-stone-700 font-semibold text-base leading-snug"></p>
-    </div>
-
-    <div id="ce-results-ghost-banner" style="display:none" class="mx-6 mb-3 bg-red-50 border border-red-200 rounded-2xl p-3 text-center flex-shrink-0">
-      <p class="text-red-600 font-bold text-sm">👻 The Saboteur Won! Everyone loses 2 pts.</p>
-    </div>
-
-    <div id="ce-results-cards" class="flex flex-col gap-3 px-6 flex-1 overflow-y-auto pb-3">
-      <!-- Populated by ceShowResults() -->
-    </div>
-
-    <div class="px-6 pb-3 flex-shrink-0">
-      <p class="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-2 mt-1">Running Total</p>
-      <div id="ce-results-scores" class="bg-white rounded-2xl px-4 py-2 shadow-sm flex flex-col">
-        <!-- Populated by ceShowResults() -->
+    <div class="flex-1 overflow-y-auto overflow-x-hidden flex flex-col min-h-0">
+      <div id="ygi-vote-cards" class="flex flex-col gap-3 px-6 py-4">
+        <!-- Populated by ygiRenderVoteCards() -->
       </div>
     </div>
 
     <div class="px-6 pb-8 pt-2 flex-shrink-0">
-      <button id="btn-ce-results-next" class="min-h-14 w-full rounded-2xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
-        Next Inquiry →
+      <p id="ygi-vote-error" class="text-red-500 text-sm text-center mb-2 min-h-5"></p>
+      <button id="btn-ygi-vote-submit" class="min-h-14 w-full rounded-2xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Lock In My Verdict
       </button>
     </div>
   </section>
 
-  <!-- CE-⑨ GAMEOVER — The Final Result (Piece 4) -->
-  <section id="screen-ce-gameover" style="display:none" class="flex flex-col w-full max-w-sm mx-auto min-h-screen">
+  <!-- ygi-⑧ RESULTS — Round Tally (Piece 3) -->
+  <section id="screen-ygi-results" style="display:none" class="flex flex-col w-full max-w-sm mx-auto h-screen overflow-hidden">
+    <!-- Fixed header -->
+    <div class="flex items-center justify-between px-4 pt-4 pb-2 flex-shrink-0">
+      <p id="ygi-results-round-label" class="text-stone-400 text-xs font-semibold uppercase tracking-widest"></p>
+      <div class="flex items-center gap-2">
+        <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+        <button class="btn-ygi-quit-open text-stone-400 text-2xl active:scale-90 transition-transform duration-100">✕</button>
+      </div>
+    </div>
+
+    <!-- Fixed subheader — prompt always visible -->
+    <div class="px-6 pt-2 pb-3 flex-shrink-0 text-center">
+      <p class="text-xs font-semibold uppercase tracking-widest text-orange-400 mb-2">The Tally</p>
+      <p id="ygi-results-prompt-text" class="text-stone-700 font-semibold text-base leading-snug"></p>
+    </div>
+
+    <!-- Scrollable body — cards + running total -->
+    <div class="flex-1 overflow-y-auto overflow-x-hidden flex flex-col min-h-0">
+      <div id="ygi-results-ghost-banner" style="display:none" class="mx-6 mb-3 bg-red-50 border border-red-200 rounded-2xl p-3 text-center">
+        <p class="text-red-600 font-bold text-sm">👻 The Ringer Won! Everyone loses 2 points.</p>
+      </div>
+
+      <div id="ygi-results-cards" class="flex flex-col gap-3 px-6 pb-3">
+        <!-- Populated by ygiShowResults() -->
+      </div>
+
+      <div class="px-6 pb-3">
+        <p class="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-2 mt-1">Running Total</p>
+        <div id="ygi-results-scores" class="bg-white rounded-2xl px-4 py-2 shadow-sm flex flex-col">
+          <!-- Populated by ygiShowResults() -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Sticky footer -->
+    <div class="px-6 pb-8 pt-2 flex-shrink-0">
+      <button id="btn-ygi-results-next" class="min-h-14 w-full rounded-2xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Next Situation →
+      </button>
+    </div>
+  </section>
+
+  <!-- ygi-⑨ GAMEOVER — Final Standings (Piece 4) -->
+  <section id="screen-ygi-gameover" style="display:none" class="flex flex-col w-full max-w-sm mx-auto h-screen overflow-hidden">
+    <!-- Fixed header -->
     <div class="flex items-center justify-end px-4 pt-4 pb-2 flex-shrink-0">
       <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
     </div>
 
+    <!-- Fixed hero -->
     <div class="px-6 pt-2 pb-4 flex-shrink-0 text-center">
-      <p class="text-5xl mb-2">📐</p>
-      <h2 class="text-2xl font-bold text-stone-800">The Final Result</h2>
-      <p class="text-stone-400 text-sm mt-1">Well estimated, everyone.</p>
+      <p class="text-5xl mb-2">💡</p>
+      <h2 class="text-2xl font-bold text-stone-800">Final Standings</h2>
+      <p class="text-stone-400 text-sm mt-1">Does everyone get it? Yeah, you get it.</p>
     </div>
 
-    <!-- SD answers (visible only after Sudden Death) -->
-    <div id="ce-gameover-sd-reveal" style="display:none" class="mx-6 mb-3 bg-amber-50 border border-amber-200 rounded-2xl p-4 flex-shrink-0">
-      <p class="text-xs font-semibold uppercase tracking-widest text-amber-500 mb-2">⚡ Sudden Death</p>
-      <div id="ce-gameover-sd-answers" class="flex flex-col gap-1"></div>
+    <!-- Scrollable body — SD reveal + standings + record -->
+    <div class="flex-1 overflow-y-auto overflow-x-hidden flex flex-col gap-3 px-6 pb-3 min-h-0">
+      <div id="ygi-gameover-sd-reveal" style="display:none" class="bg-amber-50 border border-amber-200 rounded-2xl p-4">
+        <p class="text-xs font-semibold uppercase tracking-widest text-amber-500 mb-2">⚡ Sudden Death</p>
+        <div id="ygi-gameover-sd-answers" class="flex flex-col gap-1"></div>
+      </div>
+
+      <div id="ygi-gameover-standings" class="flex flex-col gap-3">
+        <!-- Populated by ygiShowFinalStandings() -->
+      </div>
+
+      <!-- Round log carousel -->
+      <div id="ygi-round-log-section">
+        <div class="flex items-center justify-between mb-2">
+          <p class="text-xs font-semibold uppercase tracking-widest text-stone-400">The Record</p>
+          <div class="flex items-center gap-3">
+            <button id="btn-ygi-log-prev" class="text-stone-400 text-lg active:scale-90 transition-transform duration-100">←</button>
+            <p id="ygi-log-round-indicator" class="text-xs text-stone-400 font-semibold tabular-nums"></p>
+            <button id="btn-ygi-log-next" class="text-stone-400 text-lg active:scale-90 transition-transform duration-100">→</button>
+          </div>
+        </div>
+        <div id="ygi-log-card" class="bg-white rounded-2xl shadow-sm px-4 py-3 flex flex-col gap-0">
+          <!-- Populated by ygiRenderRoundLog() -->
+        </div>
+      </div>
     </div>
 
-    <div id="ce-gameover-standings" class="flex flex-col gap-3 px-6 flex-1 overflow-y-auto pb-4">
-      <!-- Populated by ceShowFinalStandings() -->
-    </div>
-
+    <!-- Sticky footer -->
     <div class="px-6 pb-8 pt-2 flex-shrink-0 flex flex-col gap-3">
-      <button id="btn-ce-play-again" class="min-h-14 w-full rounded-2xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
-        Play Again 📐
+      <button id="btn-ygi-play-again" class="min-h-14 w-full rounded-2xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Run It Back 
       </button>
-      <button id="btn-ce-gameover-back" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-base font-medium transition-all duration-150">
+      <button id="btn-ygi-gameover-back" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-base font-medium transition-all duration-150">
         ← Back to the Box
       </button>
     </div>
   </section>
 
-  <!-- CE-⑩ SUDDEN DEATH INTRO (Only One mode) -->
-  <section id="screen-ce-sd-intro" style="display:none" class="flex flex-col items-center justify-center px-6 w-full max-w-sm mx-auto text-center gap-6 min-h-screen">
+  <!-- ygi-⑩ SUDDEN DEATH INTRO (Only One mode) -->
+  <section id="screen-ygi-sd-intro" style="display:none" class="flex flex-col items-center justify-center px-6 w-full max-w-sm mx-auto text-center gap-6 min-h-screen">
     <div>
       <p class="text-5xl mb-3">⚡</p>
       <h2 class="text-3xl font-bold text-stone-800">Sudden Death!</h2>
-      <p id="ce-sd-tied-names" class="text-orange-500 font-bold text-lg mt-2"></p>
+      <p id="ygi-sd-tied-names" class="text-orange-500 font-bold text-lg mt-2"></p>
       <p class="text-stone-400 text-sm mt-1">One final question. Highest number wins.</p>
     </div>
 
     <div class="bg-orange-50 border border-orange-200 rounded-2xl p-5 w-full">
       <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest mb-2">The Question</p>
-      <p id="ce-sd-question" class="text-stone-800 font-bold text-lg leading-snug"></p>
+      <p id="ygi-sd-question" class="text-stone-800 font-bold text-lg leading-snug"></p>
     </div>
 
-    <button id="btn-ce-sd-begin" class="min-h-14 w-full rounded-2xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+    <button id="btn-ygi-sd-begin" class="min-h-14 w-full rounded-2xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
       Begin Sudden Death ⚡
     </button>
   </section>
 
-  <!-- CE-⑪ SUDDEN DEATH INPUT (Only One mode) -->
-  <section id="screen-ce-sd-input" style="display:none" class="flex flex-col px-6 py-8 w-full max-w-sm mx-auto gap-6">
+  <!-- ygi-⑪ SUDDEN DEATH INPUT (Only One mode) -->
+  <section id="screen-ygi-sd-input" style="display:none" class="flex flex-col px-6 py-8 w-full max-w-sm mx-auto gap-6">
     <div class="flex items-center justify-between">
       <span class="w-8"></span>
-      <p id="ce-sd-input-player-label" class="text-stone-800 font-semibold text-base text-center flex-1"></p>
+      <p id="ygi-sd-input-player-label" class="text-stone-800 font-semibold text-base text-center flex-1"></p>
       <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
     </div>
 
     <div class="bg-orange-50 rounded-2xl p-4 border border-orange-100 text-center">
       <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest mb-1">⚡ Sudden Death</p>
-      <p id="ce-sd-input-question" class="text-stone-700 font-semibold text-sm leading-snug"></p>
+      <p id="ygi-sd-input-question" class="text-stone-700 font-semibold text-sm leading-snug"></p>
     </div>
 
     <div class="flex flex-col gap-1.5">
       <label class="text-stone-500 text-xs font-semibold uppercase tracking-widest">Your Answer</label>
-      <input id="ce-sd-input-number"
+      <input id="ygi-sd-input-number"
         type="number" inputmode="numeric" pattern="[0-9]*"
         min="0" max="1000000" step="1"
         placeholder="0 – 1,000,000"
         class="w-full rounded-2xl border border-stone-200 px-4 py-4 text-stone-800 text-2xl font-bold text-center focus:outline-none focus:ring-2 focus:ring-orange-300">
     </div>
 
-    <p id="ce-sd-input-error" class="text-red-500 text-sm text-center min-h-5"></p>
+    <p id="ygi-sd-input-error" class="text-red-500 text-sm text-center min-h-5"></p>
 
-    <button id="btn-ce-sd-input-confirm" class="min-h-14 w-full rounded-2xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+    <button id="btn-ygi-sd-input-confirm" class="min-h-14 w-full rounded-2xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
       Lock In My Answer ⚡
     </button>
   </section>
 
-  <!-- CE Settings overlay (Pattern 1) -->
-  <div id="ce-settings-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[80] flex items-end justify-center">
+  <!-- YGI Settings overlay (Pattern 1) -->
+  <div id="ygi-settings-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[80] flex items-end justify-center">
     <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl px-6 pt-6 pb-8 flex flex-col gap-5">
       <div class="text-center">
-        <h3 class="text-xl font-bold text-stone-800">The Ballpark Rules 📐</h3>
-        <p class="text-stone-400 text-sm mt-1">Set it before you guess it.</p>
+        <h3 class="text-xl font-bold text-stone-800">House Rules 💡</h3>
+        <p class="text-stone-400 text-sm mt-1">Set it before you take it.</p>
       </div>
 
       <!-- Inquiries (rounds) -->
       <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
         <div>
-          <p class="text-stone-800 font-semibold">Inquiries</p>
-          <p class="text-stone-400 text-sm mt-0.5">Number of questions per game.</p>
+          <p class="text-stone-800 font-semibold">Situations</p>
+          <p class="text-stone-400 text-sm mt-0.5">How many situations per session.</p>
         </div>
         <div class="flex gap-2">
-          <button class="pill" data-ce-rounds="3">3</button>
-          <button class="pill pill-active-orange" data-ce-rounds="5">5</button>
-          <button class="pill" data-ce-rounds="8">8</button>
+          <button class="pill pill-active-orange" data-ygi-rounds="3">3</button>
+          <button class="pill" data-ygi-rounds="5">5</button>
+          <button class="pill" data-ygi-rounds="8">8</button>
         </div>
       </div>
 
@@ -2791,50 +2841,62 @@
           <p class="text-stone-400 text-sm mt-0.5">What happens if scores are tied at the end.</p>
         </div>
         <div class="flex gap-2">
-          <button class="pill pill-active-orange" data-ce-decider="close-enough">Close Enough</button>
-          <button class="pill" data-ce-decider="only-one">Only One</button>
+          <button class="pill pill-active-orange" data-ygi-decider="close-enough">Split Take</button>
+          <button class="pill" data-ygi-decider="only-one">Solo Take</button>
         </div>
       </div>
 
-      <!-- Wall of Shame (full tally) -->
+      <!-- Full Tally -->
       <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
         <div class="flex items-center justify-between">
-          <p class="text-stone-800 font-semibold">Wall of Shame</p>
-          <button id="btn-ce-full-tally-toggle" class="sylly-toggle-off shrink-0">OFF</button>
+          <p class="text-stone-800 font-semibold">Full Tally</p>
+          <button id="btn-ygi-full-tally-toggle" class="sylly-toggle-off shrink-0">OFF</button>
         </div>
-        <p class="text-stone-400 text-sm">Force every player to rank all entries — including last place.</p>
+        <p class="text-stone-400 text-sm">Show the full ranking — no one escapes judgement.</p>
+      </div>
+
+      <!-- Verdict Style -->
+      <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+        <div>
+          <p class="text-stone-800 font-semibold">Verdict Style</p>
+          <p class="text-stone-400 text-sm mt-0.5">How the group gives The Nod each round.</p>
+        </div>
+        <div class="flex gap-2">
+          <button class="pill pill-active-orange" data-ygi-verdict="open-ballpark">The Consensus</button>
+          <button class="pill" data-ygi-verdict="secret-ballot">Your Call</button>
+        </div>
       </div>
 
       <!-- Sylly Mode -->
       <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
         <div class="flex items-center justify-between">
           <p class="text-stone-800 font-semibold">✨ Sylly Mode</p>
-          <button id="btn-ce-sylly-toggle" class="sylly-toggle-off shrink-0">OFF</button>
+          <button id="btn-ygi-sylly-toggle" class="sylly-toggle-off shrink-0">OFF</button>
         </div>
-        <p class="text-stone-400 text-sm">The Saboteur — a mystery Ghost Card joins the Lineup. If it wins, everyone loses 2 points.</p>
+        <p class="text-stone-400 text-sm">The Ringer — a mystery Ghost Card joins the Lineup. If it wins, everyone loses 2 points.</p>
       </div>
 
-      <button id="btn-ce-settings-done" class="min-h-14 w-full rounded-2xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
-        Done ✓
+      <button id="btn-ygi-settings-done" class="min-h-14 w-full rounded-2xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Done
       </button>
     </div>
   </div>
 
-  <!-- CE How to Play overlay (Pattern 1) -->
-  <div id="ce-how-to-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[90] flex items-end justify-center">
+  <!-- YGI How to Play overlay (Pattern 1) -->
+  <div id="ygi-how-to-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[90] flex items-end justify-center">
     <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl px-6 pt-6 pb-6 flex flex-col gap-5">
       <div class="text-center">
-        <div class="text-4xl mb-1">📐</div>
+        <div class="text-4xl mb-1">💡</div>
         <h3 class="text-2xl font-bold text-stone-800">How to Play</h3>
-        <p class="text-stone-400 text-sm mt-1">Close Enough</p>
+        <p class="text-stone-400 text-sm mt-1">You Get It?</p>
       </div>
       <div class="bg-white rounded-2xl p-4 shadow-sm">
-        <p class="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-2">Step 1 — The Inquiry 📋</p>
-        <p class="text-stone-700 font-semibold text-base leading-snug">Everyone reads the same question together.</p>
+        <p class="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-2">Step 1 — The Situation 📋</p>
+        <p class="text-stone-700 font-semibold text-base leading-snug">Everyone reads The Situation together.</p>
       </div>
       <div class="bg-white rounded-2xl p-4 shadow-sm">
-        <p class="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-2">Step 2 — Your Ballpark 📐</p>
-        <p class="text-stone-700 font-semibold text-base leading-snug">Each player privately enters a Number and a Metric. Pass the phone around.</p>
+        <p class="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-2">Step 2 — Your Take 🃏</p>
+        <p class="text-stone-700 font-semibold text-base leading-snug">Each player privately enters their Number and fills The Gap. Pass the phone around.</p>
       </div>
       <div class="bg-white rounded-2xl p-4 shadow-sm">
         <p class="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-2">Step 3 — The Lineup 🃏</p>
@@ -2842,25 +2904,40 @@
       </div>
       <div class="bg-white rounded-2xl p-4 shadow-sm">
         <p class="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-2">Step 4 — The Verdict 🏆</p>
-        <p class="text-stone-700 font-semibold text-base leading-snug">Each player ranks everyone else's answer. 1st = 3pts, 2nd = 2pts, 3rd = 1pt.</p>
+        <p class="text-stone-700 font-semibold text-base leading-snug">Each player ranks everyone else's answer. 1st = 3 points, 2nd = 2 points, 3rd = 1 point.</p>
       </div>
-      <button id="btn-ce-how-to-close" class="min-h-14 w-full rounded-2xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
-        Got it — let's guess! 📐
+      <button id="btn-ygi-how-to-close" class="min-h-14 w-full rounded-2xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Got it — let's go!
       </button>
     </div>
   </div>
 
-  <!-- CE Quit overlay (Pattern 2) -->
-  <div id="ce-quit-overlay" style="display:none" class="fixed inset-0 bg-black/50 z-[80] flex items-center justify-center px-6">
+  <!-- YGI Quit overlay (Pattern 2) -->
+  <div id="ygi-quit-overlay" style="display:none" class="fixed inset-0 bg-black/50 z-[80] flex items-center justify-center px-6">
     <div class="bg-white rounded-2xl p-8 w-full max-w-sm text-center flex flex-col gap-3 shadow-xl">
-      <p class="text-4xl">📐</p>
-      <h3 class="text-xl font-bold text-stone-800">Abandon the Ballpark?</h3>
-      <p class="text-stone-400 text-sm">Your guesses will be lost to history.</p>
-      <button id="btn-ce-quit-confirm" class="min-h-12 w-full rounded-xl bg-red-500 hover:bg-red-600 active:scale-95 text-white text-lg font-semibold transition-all duration-150 mt-2">
-        Yeah, pack up the gear.
+      <p class="text-4xl">💡</p>
+      <h3 class="text-xl font-bold text-stone-800">Not Feeling It?</h3>
+      <p class="text-stone-400 text-sm">Your takes will vanish into the void.</p>
+      <button id="btn-ygi-quit-confirm" class="min-h-12 w-full rounded-xl bg-red-500 hover:bg-red-600 active:scale-95 text-white text-lg font-semibold transition-all duration-150 mt-2">
+        Yeah, I'm out.
       </button>
-      <button id="btn-ce-quit-cancel" class="min-h-12 w-full rounded-xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 text-lg font-semibold transition-all duration-150">
+      <button id="btn-ygi-quit-cancel" class="min-h-12 w-full rounded-xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 text-lg font-semibold transition-all duration-150">
         Keep guessing!
+      </button>
+    </div>
+  </div>
+
+  <!-- YGI Run It Back overlay (Pattern 2) -->
+  <div id="ygi-run-it-back-overlay" style="display:none" class="fixed inset-0 bg-black/50 z-[80] flex items-center justify-center px-6">
+    <div class="bg-white rounded-2xl p-8 w-full max-w-sm text-center flex flex-col gap-3 shadow-xl">
+      <p class="text-4xl">🃏</p>
+      <h3 class="text-xl font-bold text-stone-800">Run It Back?</h3>
+      <p class="text-stone-400 text-sm">Start a fresh game with the same crew.</p>
+      <button id="btn-ygi-run-confirm" class="min-h-12 w-full rounded-xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white text-lg font-semibold transition-all duration-150 mt-2">
+        Yeah, let's go! 
+      </button>
+      <button id="btn-ygi-run-cancel" class="min-h-12 w-full rounded-xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 text-lg font-semibold transition-all duration-150">
+        Back to Results
       </button>
     </div>
   </div>
@@ -2871,7 +2948,7 @@
   <script src="js/games/great-minds.js"></script>
   <script src="js/games/secret-signals.js"></script>
   <script src="js/games/jec.js"></script>
-  <script src="js/games/ce.js"></script>
+  <script src="js/games/ygi.js"></script>
   <script src="js/secret-mode.js"></script>
   <script src="js/app.js"></script>
 

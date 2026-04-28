@@ -141,7 +141,7 @@ body.flash-red   { background-color: #fecaca; }
   color: #fff;
 }
 
-/* ── Close Enough pill active state (orange) ─────────────────────────────── */
+/* ── You Get It? pill active state (orange) ──────────────────────────────── */
 .pill-active-orange {
   background: #f97316;  /* orange-500 */
   color: #fff;
