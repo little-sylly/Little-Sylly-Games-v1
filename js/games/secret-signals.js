@@ -1720,6 +1720,19 @@ document.getElementById('btn-ss-gameover-exit').addEventListener('click', () => 
   resetToLobby();
 });
 
+// Clue Dossier overlay
+document.getElementById('btn-ss-dossier').addEventListener('click', () => {
+  playDone();
+  const el = document.getElementById('ss-dossier-overlay');
+  el.querySelector('.overlay-data-inner').scrollTop = 0;
+  ssRenderArchive(document.getElementById('ss-dossier-content'), ssEncryptingTeam, true);
+  el.style.display = 'flex';
+});
+document.getElementById('btn-ss-dossier-close').addEventListener('click', () => {
+  playDone();
+  document.getElementById('ss-dossier-overlay').style.display = 'none';
+});
+
 // Quit overlay
 document.getElementById('btn-ss-quit-confirm').addEventListener('click', () => {
   playExit();

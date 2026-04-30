@@ -13,6 +13,7 @@ let jecSpoiltPenalty     = true;  // −10 pts for overcrowded words (Spoilt)
 let jecSousChefOversight = true;  // manual merge before tally
 let jecKitchenNightmares = false; // Sylly Mode
 let jecFoodDifficulty   = 'mixed'; // 'easy' | 'mixed' | 'hard'
+let jecSpecialsBoard    = false;  // allow rerolling food word on order screen
 
 // ── JEC State ─────────────────────────────────────────────────────────────────
 let jecPlayerCount   = 4;
@@ -114,6 +115,14 @@ document.getElementById('btn-jec-oversight-toggle').addEventListener('click', ()
   const btn = document.getElementById('btn-jec-oversight-toggle');
   btn.textContent = jecSousChefOversight ? 'ON' : 'OFF';
   btn.className   = jecSousChefOversight ? 'sylly-toggle-on' : 'sylly-toggle-off';
+});
+
+document.getElementById('btn-jec-specials-toggle').addEventListener('click', () => {
+  playPillClick();
+  jecSpecialsBoard = !jecSpecialsBoard;
+  const btn = document.getElementById('btn-jec-specials-toggle');
+  btn.textContent = jecSpecialsBoard ? 'ON' : 'OFF';
+  btn.className   = jecSpecialsBoard ? 'sylly-toggle-on shrink-0' : 'sylly-toggle-off shrink-0';
 });
 
 document.getElementById('btn-jec-sylly-toggle').addEventListener('click', () => {
@@ -235,6 +244,7 @@ function jecStartRound() {
 function jecShowOrderScreen() {
   document.getElementById('jec-order-word').textContent  = jecCurrentWord.toUpperCase();
   document.getElementById('jec-order-round').textContent = `Round ${jecRound} of ${jecRounds}`;
+  document.getElementById('btn-jec-reroll').style.display = jecSpecialsBoard ? '' : 'none';
   showScreen('screen-jec-order');
 }
 
@@ -328,13 +338,13 @@ function jecBuildFrequency() {
 
 function getIngredientStatus(count, N) {
   if (count === 1) return 'Rotten';
-  if (count >= 2 && count <= Math.floor(N * 0.7)) return 'Golden';
+  if (count >= 2 && count <= Math.ceil(N * 0.75)) return 'Golden';
   return 'Spoilt';
 }
 
 // Inverse proportional: 2-player match = full Sweet Spot score; scales down as count grows
 function jecCalcGoldenPoints(count, N) {
-  const goldenMax = Math.floor(N * 0.7);
+  const goldenMax = Math.ceil(N * 0.75);
   if (goldenMax <= 1) return jecGoldenScore;
   return Math.round(jecGoldenScore * (goldenMax - count + 2) / goldenMax);
 }
@@ -564,16 +574,16 @@ function jecShowWashup() {
   list.innerHTML = '';
   const medals = ['🥇', '🥈', '🥉'];
   ranked.forEach((p, i) => {
-    const medal = medals[i] || `${i + 1}.`;
-    const isTied = p.score === topScore && i > 0;
+    const isFirst = p.score === topScore;
+    const medal = isFirst ? '🥇' : (medals[i] || `${i + 1}.`);
     const card = document.createElement('div');
-    card.className = `bg-white rounded-2xl px-4 py-3 shadow-sm flex items-center gap-3${i === 0 ? ' border-2 border-amber-400' : ''}`;
+    card.className = `bg-white rounded-2xl px-4 py-3 shadow-sm flex items-center gap-3${isFirst ? ' border-2 border-amber-400' : ''}`;
     card.innerHTML = `
       <span class="text-2xl w-8 text-center">${medal}</span>
       <div class="flex-1">
         <p class="font-semibold text-stone-800">${p.name}</p>
       </div>
-      <span class="text-xl font-bold ${i === 0 ? 'text-amber-600' : 'text-stone-400'}">${p.score} pts</span>`;
+      <span class="text-xl font-bold ${isFirst ? 'text-amber-600' : 'text-stone-400'}">${p.score} pts</span>`;
     list.appendChild(card);
   });
   jecRenderCookBook();
@@ -671,6 +681,20 @@ document.getElementById('btn-jec-order-exit').addEventListener('click', () => {
 document.getElementById('btn-jec-order-start').addEventListener('click', () => {
   playLaunch();
   jecStartPlayerPrep(0);
+});
+
+document.getElementById('btn-jec-reroll').addEventListener('click', () => {
+  playWhoosh();
+  if (jecWordPool.length === 0) {
+    if (isSecretMode && secretWords && secretWords.length) {
+      const foodWords = secretWords.filter(w => w.category === 'food').map(w => w.word);
+      jecWordPool = shuffle(foodWords.length ? foodWords : secretWords.map(w => w.word));
+    } else {
+      jecWordPool = jecBuildFoodPool(allWords);
+    }
+  }
+  jecCurrentWord = jecWordPool.pop();
+  document.getElementById('jec-order-word').textContent = jecCurrentWord.toUpperCase();
 });
 
 // ── Prep screen listeners ─────────────────────────────────────────────────────

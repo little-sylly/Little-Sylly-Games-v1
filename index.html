@@ -184,7 +184,7 @@
       <div id="active-word-card" class="w-full">
         <p id="word-category-label" class="text-stone-400 text-xs uppercase tracking-widest mb-1"></p>
         <h2 id="active-word" class="text-3xl font-bold text-pink-500 mb-2"></h2>
-        <div id="taboo-card" class="w-full text-center bg-white rounded-2xl p-3 shadow-sm">
+        <div id="taboo-card" class="w-full text-center bg-white rounded-2xl px-3 pb-3 pt-4 shadow-sm">
           <p class="text-stone-400 text-xs uppercase tracking-widest mb-2">The No-No List</p>
           <ul id="active-taboo-list" class="flex flex-col gap-2"></ul>
         </div>
@@ -597,9 +597,9 @@
         <p class="text-stone-400 text-sm mt-1">Who's syncing today?</p>
       </div>
       <div class="flex flex-col gap-3 w-full">
-        <input id="gm-input-player1" type="text" maxlength="20" placeholder="Player 1 name" autocomplete="off"
+        <input id="gm-input-player1" type="text" maxlength="20" placeholder="Mind 1" autocomplete="off"
           class="w-full rounded-2xl border-2 border-stone-200 px-4 py-3 text-lg text-center text-stone-800 focus:outline-none focus:border-violet-400" />
-        <input id="gm-input-player2" type="text" maxlength="20" placeholder="Player 2 name" autocomplete="off"
+        <input id="gm-input-player2" type="text" maxlength="20" placeholder="Mind 2" autocomplete="off"
           class="w-full rounded-2xl border-2 border-stone-200 px-4 py-3 text-lg text-center text-stone-800 focus:outline-none focus:border-violet-400" />
       </div>
       <button id="btn-gm-names-done" class="min-h-14 w-full rounded-2xl bg-violet-500 hover:bg-violet-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
@@ -1240,7 +1240,7 @@
   <!-- SS-⑤ ENCRYPT — encrypter's private view -->
   <section id="screen-ss-encrypt" style="display:none" class="flex flex-col items-start px-6 py-10 w-full max-w-sm mx-auto gap-5">
     <div class="flex justify-between items-center w-full">
-      <div class="w-10"></div>
+      <button id="btn-ss-dossier" class="w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-lg">📖</button>
       <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest">Encrypt</p>
       <div class="flex items-center gap-2">
         <button class="btn-open-sound w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-lg">🔊</button>
@@ -1726,6 +1726,22 @@
     </div>
   </div>
 
+  <!-- SS Clue Dossier overlay -->
+  <div id="ss-dossier-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[90] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col" style="max-height:80vh">
+      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0 flex items-center justify-between">
+        <div>
+          <h2 class="text-xl font-bold text-stone-800">Clue Dossier 📖</h2>
+          <p class="text-xs text-stone-400 mt-1">Your team's transmission history.</p>
+        </div>
+        <button id="btn-ss-dossier-close" class="w-10 h-10 flex items-center justify-center rounded-full bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 font-bold">✕</button>
+      </div>
+      <div class="overflow-y-auto px-5 py-4 flex-1">
+        <div id="ss-dossier-content"></div>
+      </div>
+    </div>
+  </div>
+
   <!-- SS Quit overlay -->
   <div id="ss-quit-overlay" style="display:none" class="fixed inset-0 bg-black/50 z-[80] flex items-center justify-center px-6">
     <div class="bg-white rounded-2xl p-8 w-full max-w-sm text-center flex flex-col gap-3 shadow-xl">
@@ -1870,14 +1886,14 @@
   <!-- Great Minds quit confirmation overlay -->
   <div id="gm-quit-overlay" style="display:none" class="fixed inset-0 bg-black/50 z-[80] flex items-center justify-center px-6">
     <div class="bg-white rounded-2xl p-8 w-full max-w-sm text-center flex flex-col gap-3 shadow-xl">
-      <p class="text-4xl">🏳️</p>
-      <h3 class="text-xl font-bold text-stone-800">Giving up?</h3>
-      <p class="text-stone-400 text-sm">Your progress will be lost.</p>
+      <p class="text-4xl">📡</p>
+      <h3 class="text-xl font-bold text-stone-800">Cut the signal?</h3>
+      <p class="text-stone-400 text-sm">The link will be severed. All progress lost.</p>
       <button id="btn-gm-quit-confirm" class="min-h-12 w-full rounded-xl bg-red-500 hover:bg-red-600 active:scale-95 text-white text-lg font-semibold transition-all duration-150 mt-2">
-        Yeah, let's quit!
+        Yeah, disconnect.
       </button>
       <button id="btn-gm-quit-cancel" class="min-h-12 w-full rounded-xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 text-lg font-semibold transition-all duration-150">
-        Keep going!
+        Stay on frequency.
       </button>
     </div>
   </div>
@@ -2127,6 +2143,9 @@
       <p class="text-stone-400 text-sm font-semibold uppercase tracking-widest mb-2">Today's Order:</p>
       <h2 id="jec-order-word" class="text-5xl font-bold text-amber-500 uppercase tracking-wide"></h2>
     </div>
+    <button id="btn-jec-reroll" style="display:none" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-600 text-base font-medium transition-all duration-150">
+      🔀 Reroll Order
+    </button>
     <p class="text-stone-500 text-sm leading-relaxed">Everyone read this together, then pass the phone to the first Chef.</p>
     <button id="btn-jec-order-start" class="min-h-14 w-full rounded-2xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
       Start Prepping! →
@@ -2347,7 +2366,16 @@
         <p class="text-stone-400 text-sm">Before the tally, manually merge similar words (e.g. "Prosciutto" and "Persciutto").</p>
       </div>
 
-      <!-- 6. ✨ Sylly Mode (always last) -->
+      <!-- Specials Board -->
+      <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+        <div class="flex items-center justify-between">
+          <p class="text-stone-800 font-semibold">Specials Board</p>
+          <button id="btn-jec-specials-toggle" class="sylly-toggle-off shrink-0">OFF</button>
+        </div>
+        <p class="text-stone-400 text-sm">Allow the group to reroll the food order before prepping starts. Unlimited rerolls — use fair play.</p>
+      </div>
+
+      <!-- ✨ Sylly Mode (always last) -->
       <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
         <div class="flex items-center justify-between">
           <p class="text-stone-800 font-semibold">✨ Sylly Mode</p>
@@ -2657,8 +2685,10 @@
     <p id="ygi-vote-instruction" class="px-6 text-xs text-stone-400 text-center mb-2 flex-shrink-0"></p>
 
     <div class="flex-1 overflow-y-auto overflow-x-hidden flex flex-col min-h-0">
-      <div id="ygi-vote-cards" class="flex flex-col gap-3 px-6 py-4">
-        <!-- Populated by ygiRenderVoteCards() -->
+      <div class="my-auto px-6 py-4 flex flex-col gap-3">
+        <div id="ygi-vote-cards" class="flex flex-col gap-3">
+          <!-- Populated by ygiRenderVoteCards() -->
+        </div>
       </div>
     </div>
 
@@ -2689,18 +2719,20 @@
 
     <!-- Scrollable body — cards + running total -->
     <div class="flex-1 overflow-y-auto overflow-x-hidden flex flex-col min-h-0">
-      <div id="ygi-results-ghost-banner" style="display:none" class="mx-6 mb-3 bg-red-50 border border-red-200 rounded-2xl p-3 text-center">
-        <p class="text-red-600 font-bold text-sm">👻 The Ringer Won! Everyone loses 2 points.</p>
-      </div>
+      <div class="my-auto px-6 py-4 flex flex-col gap-3">
+        <div id="ygi-results-ghost-banner" style="display:none" class="bg-red-50 border border-red-200 rounded-2xl p-3 text-center">
+          <p class="text-red-600 font-bold text-sm">👻 The Ringer Won! Everyone loses 2 points.</p>
+        </div>
 
-      <div id="ygi-results-cards" class="flex flex-col gap-3 px-6 pb-3">
-        <!-- Populated by ygiShowResults() -->
-      </div>
-
-      <div class="px-6 pb-3">
-        <p class="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-2 mt-1">Running Total</p>
-        <div id="ygi-results-scores" class="bg-white rounded-2xl px-4 py-2 shadow-sm flex flex-col">
+        <div id="ygi-results-cards" class="flex flex-col gap-3">
           <!-- Populated by ygiShowResults() -->
+        </div>
+
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-2 mt-1">Running Total</p>
+          <div id="ygi-results-scores" class="bg-white rounded-2xl px-4 py-2 shadow-sm flex flex-col">
+            <!-- Populated by ygiShowResults() -->
+          </div>
         </div>
       </div>
     </div>

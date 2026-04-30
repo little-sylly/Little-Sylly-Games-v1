@@ -38,7 +38,7 @@ let gmPoolB              = new Set(GM_CATEGORIES);
 let gmEditingPool        = 'a';
 
 // ── GM State ──────────────────────────────────────────────────────────────────
-let gmPlayerNames    = ['Player 1', 'Player 2'];
+let gmPlayerNames    = ['Mind 1', 'Mind 2'];
 let gmCurrentPair    = ['', ''];
 let gmWordA          = '';
 let gmWordB          = '';
@@ -156,8 +156,8 @@ function startGreatMinds() {
   document.getElementById('gm-setup-names').style.display = 'flex';
   document.getElementById('gm-setup-pair').style.display  = 'none';
   // Pre-populate with last known names; blank if still default
-  document.getElementById('gm-input-player1').value = gmPlayerNames[0] === 'Player 1' ? '' : gmPlayerNames[0];
-  document.getElementById('gm-input-player2').value = gmPlayerNames[1] === 'Player 2' ? '' : gmPlayerNames[1];
+  document.getElementById('gm-input-player1').value = gmPlayerNames[0] === 'Mind 1' ? '' : gmPlayerNames[0];
+  document.getElementById('gm-input-player2').value = gmPlayerNames[1] === 'Mind 2' ? '' : gmPlayerNames[1];
   showScreen('screen-gm-setup');
 }
 
@@ -499,8 +499,8 @@ document.getElementById('btn-great-minds')
   .addEventListener('click', () => { activeGameId = 'great-minds'; playLaunch(); showScreen('screen-gm-menu'); });
 
 document.getElementById('btn-gm-names-done').addEventListener('click', () => {
-  const p1 = document.getElementById('gm-input-player1').value.trim() || 'Player 1';
-  const p2 = document.getElementById('gm-input-player2').value.trim() || 'Player 2';
+  const p1 = document.getElementById('gm-input-player1').value.trim() || 'Mind 1';
+  const p2 = document.getElementById('gm-input-player2').value.trim() || 'Mind 2';
   gmPlayerNames = [p1, p2];
   playPillClick();
   gmShowPairReveal();
