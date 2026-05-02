@@ -1,5 +1,5 @@
-## Project: Little Sylly Games (The "Word" Series)
-## Brand Inspiration: Sylvia (Nickname: Little Sylly)
+# Project: Little Sylly Games (The "Word" Series)
+# Brand Inspiration: Sylvia (Nickname: Little Sylly)
 
 ## 📂 Rule Files — Load When Relevant
 - `@ui-style.md` — overlays, buttons, speaker/exit protocol, settings layout, Sylly Tone
