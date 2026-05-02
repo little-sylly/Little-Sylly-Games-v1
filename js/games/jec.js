@@ -338,13 +338,13 @@ function jecBuildFrequency() {
 
 function getIngredientStatus(count, N) {
   if (count === 1) return 'Rotten';
-  if (count >= 2 && count <= Math.ceil(N * 0.75)) return 'Golden';
+  if (count >= 2 && count <= N - 1) return 'Golden';
   return 'Spoilt';
 }
 
 // Inverse proportional: 2-player match = full Sweet Spot score; scales down as count grows
 function jecCalcGoldenPoints(count, N) {
-  const goldenMax = Math.ceil(N * 0.75);
+  const goldenMax = N - 1;
   if (goldenMax <= 1) return jecGoldenScore;
   return Math.round(jecGoldenScore * (goldenMax - count + 2) / goldenMax);
 }
@@ -409,9 +409,9 @@ function jecRenderSifting() {
       : 'bg-green-100 text-green-700';
     const badgeText = status === 'Golden'
       ? "Chef's Kiss! ✨"
-      : status === 'Spoilt'   ? 'Too Many Cooks!'
+      : status === 'Spoilt'   ? 'Spoilt ingredient!'
       : status === 'Poisoned' ? 'Kitchen Nightmare! 🧪'
-      : 'A Bit Pongy!';
+      : 'Rotten ingredient!';
     const card = document.createElement('div');
     card.className    = `jec-sift-card bg-white rounded-2xl p-4 shadow-sm flex items-center justify-between${jecSousChefOversight ? ' cursor-pointer active:scale-95 transition-transform duration-100' : ''}`;
     card.dataset.norm = norm;
