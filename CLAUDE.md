@@ -129,4 +129,4 @@ See `@logic-engine.md` for the full checklist and SW asset list.
 - `docs/phase13-snapshot.md` — current gold master (5 games, YGI complete)
 - `docs/code-map.md` — surgical reference: all game IDs, overlays, key functions
 - `docs/expansion-guide.md` — template for adding new expansion packs
-- `docs/ygi-content-guide.md` — content creation guide for You Get It? prompts
+- `docs/ygi-content-guide.md` — content creation guide for You Get It? prompts 
