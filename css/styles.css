@@ -147,6 +147,12 @@ body.flash-red   { background-color: #fecaca; }
   color: #fff;
 }
 
+/* ── Late To The Party pill active state (red) ───────────────────────────── */
+.pill-active-red {
+  background: #ef4444;  /* red-500 */
+  color: #fff;
+}
+
 /* ── Global volume group — slides away when muted ───────────────────────── */
 #global-volume-group {
   overflow: hidden;

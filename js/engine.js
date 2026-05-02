@@ -31,6 +31,9 @@ const allScreens = [
   'screen-ygi-prompt', 'screen-ygi-input', 'screen-ygi-reveal',
   'screen-ygi-vote', 'screen-ygi-results', 'screen-ygi-gameover',
   'screen-ygi-sd-intro', 'screen-ygi-sd-input',
+  // Late To The Party
+  'screen-lttp-menu', 'screen-lttp-setup', 'screen-lttp-role-reveal',
+  'screen-lttp-handover', 'screen-lttp-chat', 'screen-lttp-guess', 'screen-lttp-gameover',
 ];
 
 // ── Web Audio API ─────────────────────────────────────────────────────────────
@@ -285,6 +288,8 @@ function resetToLobby() {
   jecPoisonedNorms     = new Set();
   // You Get It? teardown
   if (typeof resetYouGetIt === 'function') resetYouGetIt();
+  // Late To The Party teardown
+  if (typeof resetLateToTheParty === 'function') resetLateToTheParty();
   showScreen('screen-lobby');
 }
 

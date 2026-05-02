@@ -320,6 +320,78 @@
 
 ---
 
+## Late To The Party (LTTP)
+
+**JS file:** `js/games/lttp.js`
+**Brand colour:** `red-500`
+**Lobby button:** `#btn-lttp`
+
+### Screens
+| ID | Purpose |
+|----|---------|
+| `#screen-lttp-menu` | Title card + Get the Address! CTA |
+| `#screen-lttp-setup` | Player count + names |
+| `#screen-lttp-role-reveal` | Private role check — shown after pass-gate handover |
+| `#screen-lttp-handover` | Pass gate between turns + plan-end transitions |
+| `#screen-lttp-chat` | Main interrogation hub (active player's turn) |
+| `#screen-lttp-guess` | Plan 4 vote + pin phase (pass-the-phone) |
+| `#screen-lttp-gameover` | Full reveal + Friendship Points tally |
+
+### Overlays
+| ID | Pattern | Opened by |
+|----|---------|-----------|
+| `#lttp-map-overlay` | Data (slide-up) z-[95] | `lttpOpenMapOverlay()` via `#btn-lttp-chat-map` or `#btn-lttp-guess-map` |
+| `#lttp-suspicion-overlay` | Decision modal z-[80] | `lttpOpenSuspicionOverlay()` via `#btn-lttp-chat-suspicion` |
+| `#lttp-settings-overlay` | Data (slide-up) z-[80] | `#btn-lttp-menu-settings` |
+| `#lttp-how-to-overlay` | Data (slide-up) z-[90] | `#btn-lttp-menu-how-to` |
+| `#lttp-quit-overlay` | Decision modal z-[80] | `.btn-lttp-quit-open` (any gameplay screen) |
+
+### Key chat elements
+| ID | Purpose |
+|----|---------|
+| `#lttp-chat-plan-label` | "Plan N of 4" |
+| `#lttp-chat-player-label` | "IT'S [NAME]'S TURN" |
+| `#lttp-chat-player-list` | JS-rendered player buttons (greyed = already answered) |
+| `#lttp-chat-history` | Group Chatlog feed (most recent 6) |
+| `#lttp-chat-notes` | Private per-player scratchpad textarea |
+| `#lttp-map-grid` | 4×4 grid cells (role-aware, JS-rendered) |
+| `#lttp-suspicion-list` | Suspicion tracker rows (JS-rendered) |
+
+### Key guess-phase elements
+| ID | Purpose |
+|----|---------|
+| `#lttp-guess-pass-gate` | Pass-gate div (shown between voters) |
+| `#lttp-guess-action` | Action div (shown when active player acts) |
+| `#lttp-guess-grid` | 4×4 pin grid for The Stray |
+| `#lttp-guess-vote-list` | Player vote buttons for non-Stray |
+
+### Key functions
+| Function | Purpose |
+|----------|---------|
+| `lttpBuildGrid(allWords)` | Selects 16 places, sets address, seeds 6 highlights + fake targets |
+| `lttpAssignRoles()` | Random Stray + Joker assignment |
+| `lttpStartGame()` | Full state reset → fetch words → build → roles → role-reveal |
+| `lttpShowRoleReveal(idx)` | Role-aware private reveal screen |
+| `lttpShowHandover(toIdx, msg)` | Pass gate — `msg` non-null triggers plan-transition text |
+| `lttpShowChat(playerIdx)` | Main turn screen — renders player list + history + notes |
+| `lttpSelectPlayer(targetIdx)` | Core lap logic — logs history, checks lap complete, routes |
+| `lttpNarrowHighlights()` | 6→3→1 narrowing + logs plan snapshot |
+| `lttpOpenMapOverlay()` | Role-aware 4×4 grid — IC red, Joker gold+orange, Stray annotatable |
+| `lttpOpenSuspicionOverlay()` | Suspicion tracker modal |
+| `lttpStartGuessPhase()` | Begins Plan 4 vote/pin pass-the-phone sequence |
+| `lttpShowGuess(playerIdx)` | Role-aware action — Stray pins, IC votes |
+| `lttpComputeAndShowGameover()` | Scores via priority cascade → gameover |
+| `lttpRenderPlanLog()` | Plan log carousel driven by `lttpPlanLogIdx` |
+| `resetLateToTheParty()` | Full teardown; called by `resetToLobby()` |
+
+### Win condition priority (highest → lowest)
+1. **Joker Prank** — Stray pins a fake target → Joker +20 wins
+2. **Stray Pin** — Stray pins correct address → Stray +10 wins
+3. **Confusion Bonus** — more wrong votes than correct → Stray auto-wins
+4. **IC wins** — Stray missed, no confusion → IC +5 each
+
+---
+
 ## Secret Mode
 
 **JS file:** `js/secret-mode.js`
