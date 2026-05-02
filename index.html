@@ -3064,7 +3064,31 @@
     </div>
   </section>
 
-  <!-- lttp-④ HANDOVER (pass gate between turns + plan transitions) -->
+  <!-- lttp-④ BRIEFING (settings recap + first player callout) -->
+  <section id="screen-lttp-briefing" style="display:none" class="relative flex flex-col items-center justify-center px-6 w-full max-w-sm mx-auto text-center min-h-screen">
+    <div class="absolute top-4 right-4 flex items-center gap-2">
+      <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+      <button class="btn-lttp-quit-open text-stone-400 text-2xl active:scale-90 transition-transform duration-100">✕</button>
+    </div>
+    <div class="overlay-modal-inner w-full flex flex-col gap-4">
+      <div>
+        <div class="text-4xl mb-2">🎉</div>
+        <h2 class="text-2xl font-bold text-stone-800">Tonight's Plans</h2>
+      </div>
+      <div class="flex flex-col gap-2 text-left bg-stone-50 rounded-2xl px-4 py-3">
+        <p class="text-stone-700 font-medium" id="lttp-briefing-players"></p>
+        <p class="text-stone-700 font-medium" id="lttp-briefing-diff"></p>
+        <p class="text-stone-700 font-medium" id="lttp-briefing-joker"></p>
+      </div>
+      <hr class="border-stone-200">
+      <p class="text-stone-500 text-sm" id="lttp-briefing-first"></p>
+      <button id="btn-lttp-briefing-go" class="min-h-14 w-full rounded-2xl bg-red-500 hover:bg-red-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Let's Go 🚀
+      </button>
+    </div>
+  </section>
+
+  <!-- lttp-⑤ HANDOVER (pass gate between turns + plan transitions) -->
   <section id="screen-lttp-handover" style="display:none" class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6 min-h-screen">
     <div class="absolute top-4 right-4 flex items-center gap-2">
       <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>

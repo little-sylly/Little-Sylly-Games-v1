@@ -33,7 +33,7 @@ const allScreens = [
   'screen-ygi-sd-intro', 'screen-ygi-sd-input',
   // Late To The Party
   'screen-lttp-menu', 'screen-lttp-setup', 'screen-lttp-role-reveal',
-  'screen-lttp-handover', 'screen-lttp-chat', 'screen-lttp-guess', 'screen-lttp-gameover',
+  'screen-lttp-briefing', 'screen-lttp-handover', 'screen-lttp-chat', 'screen-lttp-guess', 'screen-lttp-gameover',
 ];
 
 // ── Web Audio API ─────────────────────────────────────────────────────────────

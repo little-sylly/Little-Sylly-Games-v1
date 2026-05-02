@@ -162,34 +162,10 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('lttp-suspicion-overlay').style.display = 'none';
   });
 
-  // ── Role reveal "Got it" ───────────────────────────────────────────────────
-  document.getElementById('btn-lttp-role-got-it').addEventListener('click', () => {
-    playLaunch();
-    if (lttpActiveIdx < lttpPlayerCount - 1) {
-      // Pass to next player for their role reveal
-      const next = lttpActiveIdx + 1;
-      lttpActiveIdx = next;
-      lttpShowHandover(next, `Everyone look away — pass to ${lttpPlayerNames[next]}!`);
-    } else {
-      // All roles seen — start Plan 1
-      lttpHandoverMode = 'chat';
-      lttpPlan         = 1;
-      lttpLapAnswered.clear();
-      lttpPlanLog.push({ plan: 1, highlights: [...lttpHighlights] });
-      const first = Math.floor(Math.random() * lttpPlayerCount);
-      lttpActiveIdx = first;
-      lttpShowHandover(first, null);
-    }
-  });
-
   // ── Handover "I'm Ready" ───────────────────────────────────────────────────
   document.getElementById('btn-lttp-handover-ready').addEventListener('click', () => {
     playLaunch();
-    if (lttpHandoverMode === 'role') {
-      lttpShowRoleReveal(lttpActiveIdx);
-    } else {
-      lttpShowChat(lttpActiveIdx);
-    }
+    lttpShowChat(lttpActiveIdx);
   });
 
   // ── Chat: map + suspicion icons ────────────────────────────────────────────
@@ -237,6 +213,12 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-lttp-gameover-back').addEventListener('click', () => {
     playExit();
     resetToLobby();
+  });
+
+  // ── Briefing "Let's Go" ──────────────────────────────────────────────────
+  document.getElementById('btn-lttp-briefing-go').addEventListener('click', () => {
+    playLaunch();
+    lttpShowChat(lttpActiveIdx);
   });
 
 });
@@ -340,9 +322,13 @@ function lttpStartGame() {
     .then(allWords => {
       lttpBuildGrid(allWords);
       lttpAssignRoles();
-      lttpHandoverMode = 'role';
-      lttpActiveIdx    = 0;
-      lttpShowHandover(0, `Everyone look away — pass to ${lttpPlayerNames[0]}!`);
+      lttpHandoverMode = 'chat';
+      lttpPlan         = 1;
+      lttpLapAnswered.clear();
+      lttpPlanLog.push({ plan: 1, highlights: [...lttpHighlights] });
+      const first = Math.floor(Math.random() * lttpPlayerCount);
+      lttpActiveIdx = first;
+      lttpShowBriefing(first);
     });
 }
 
@@ -395,6 +381,18 @@ function lttpRenderRevealGrid(container, role) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// BRIEFING SCREEN (settings recap + first player callout)
+// ═══════════════════════════════════════════════════════════════════════════
+function lttpShowBriefing(firstIdx) {
+  lttpActiveIdx = firstIdx;
+  const diffLabel = lttpDifficulty === 'secret' ? 'The Secret Trip' : 'The Local Hang';
+  document.getElementById('lttp-briefing-players').textContent = `👥 ${lttpPlayerCount} players`;
+  document.getElementById('lttp-briefing-diff').textContent    = `🗺️ ${diffLabel}`;
+  document.getElementById('lttp-briefing-joker').textContent   = `🃏 Joker Mode: ${lttpJokerMode ? 'ON' : 'OFF'}`;
+  document.getElementById('lttp-briefing-first').textContent   = `📱 ${lttpPlayerNames[firstIdx]}, you're up first.`;
+  showScreen('screen-lttp-briefing');
+}
+
 // HANDOVER SCREEN (pass gate between turns + plan transitions)
 // ═══════════════════════════════════════════════════════════════════════════
 function lttpShowHandover(toIdx, transitionMsg) {
@@ -566,7 +564,6 @@ function lttpOpenMapOverlay() {
   });
 
   const ov = document.getElementById('lttp-map-overlay');
-  ov.querySelector('.overlay-data-inner').scrollTop = 0;
   ov.style.display = 'flex';
 }
 
