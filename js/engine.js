@@ -33,7 +33,11 @@ const allScreens = [
   'screen-ygi-sd-intro', 'screen-ygi-sd-input',
   // Late To The Party
   'screen-lttp-menu', 'screen-lttp-setup', 'screen-lttp-role-reveal',
-  'screen-lttp-briefing', 'screen-lttp-handover', 'screen-lttp-chat', 'screen-lttp-guess', 'screen-lttp-gameover',
+  'screen-lttp-briefing', 'screen-lttp-smalltalk', 'screen-lttp-handover', 'screen-lttp-chat', 'screen-lttp-guess', 'screen-lttp-group-guess', 'screen-lttp-gameover',
+  // Natural Selection
+  'screen-nat-menu', 'screen-nat-setup', 'screen-nat-handover',
+  'screen-nat-observation', 'screen-nat-daily-review', 'screen-nat-selection', 'screen-nat-last-stand',
+  'screen-nat-tally', 'screen-nat-gameover',
 ];
 
 // ── Web Audio API ─────────────────────────────────────────────────────────────
@@ -290,6 +294,11 @@ function resetToLobby() {
   if (typeof resetYouGetIt === 'function') resetYouGetIt();
   // Late To The Party teardown
   if (typeof resetLateToTheParty === 'function') resetLateToTheParty();
+  // Natural Selection teardown
+  document.getElementById('nat-quit-overlay').style.display     = 'none';
+  document.getElementById('nat-settings-overlay').style.display = 'none';
+  document.getElementById('nat-how-to-overlay').style.display   = 'none';
+  if (typeof natResetState === 'function') natResetState();
   showScreen('screen-lobby');
 }
 

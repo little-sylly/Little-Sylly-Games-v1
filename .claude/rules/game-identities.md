@@ -284,3 +284,176 @@
 | `ygi-how-to-overlay` | Data (slide-up) |
 | `ygi-quit-overlay` | Decision modal |
 | `ygi-run-it-back-overlay` | Decision modal — "Run It Back?" confirm |
+
+---
+
+## Game 6: Late to the Party (LTTP)
+**Theme:** Social deduction — the Inner Circle knows a secret address; the Stray doesn't. Players question each other over 4 plans, narrowing locations and identities.
+**Key file:** `js/games/lttp.js`
+**State flow:** LOBBY → LTTP MENU → LTTP SETUP → BRIEFING → [Plan loop: CHAT → (Small Talk overlay OR confirm) → SELECT PLAYER → MAP (auto-opens) → repeat until lap complete → PLAN UPDATE] → GUESS phase (Plan 4) → GAMEOVER
+
+### Terminology
+| Term | Meaning |
+|------|---------|
+| The Stray | The outsider — doesn't know the address; trying to blend in and figure it out |
+| The Inner Circle (IC) | Everyone who knows the address |
+| The Joker | IC member who plants a fake location to mislead the Stray (optional role) |
+| Plan | One full lap of questioning (each player messages someone once); 4 plans per game |
+| Locations | The grid of possible addresses shown on the map |
+| Lap | One full round of turns (all players message once) |
+| Contacts | The suspicion overlay — roster of other players with per-player folders |
+| Folder | Per-player notes + status chip inside the Contacts overlay |
+| Friendship Points | Score currency — Stray +10 for correct pin, Joker +20 for prank, IC +5 each for winning |
+
+### Role-Specific Map Behaviour
+- **Stray:** Sees all locations; can annotate cells as Safe (green) or Dead End (red)
+- **IC:** Sees red highlights narrowing to the real address each plan (6→3→1)
+- **Joker:** Sees gold cell (real address) + purple cell (decoy they're planting)
+
+### Contacts System
+The 🕵️ button opens the Contacts overlay — a dual-view panel (roster → folder) for tracking suspicions and notes on each other player.
+
+**Status cycles (keyed to the ACTIVE player's role):**
+- IC: None → ✅ Safe → ❓ Sus → 🃏 Joker → None
+- Joker: None → ✅ Safe → ❓ Sus → None
+- Stray (Joker Mode ON): None → 🃏 Joker → None
+- Stray (Joker Mode OFF): status section hidden
+
+**Status is reflected in the chat player list** — a colour chip appears next to each player's name so the active player can see their assessments at a glance without reopening Contacts.
+
+### Rotating Folder Hints
+Each role has a strategic frame for their observations, surfaced via rotating placeholder text in the notes textarea. The hint index increments globally each time any folder is opened (6 phrases per role, cycles via modulo):
+
+| Role | Strategy Frame | Focus |
+|------|---------------|-------|
+| Stray | Evidence Gathering | Map-to-chat cross-referencing |
+| Joker | Deception Tracking | Cover story self-consistency |
+| IC | Identity Scrubbing | Sniffing out the Outsider |
+
+**Stray hints:** "What did they say? Does it match the map?" / "Any slips? Which locations kept coming up?" / "Who's been too specific? Too vague?" / "Did their answers change between conversations?" / "Who avoided certain locations entirely?" / "What did they claim to know — and how would they know it?"
+
+**Joker hints:** "What lie did you tell them? Keep it consistent." / "Did the Stray take the bait? Track what they believe." / "Stick to your story. What's your cover here?" / "What false trail have you been laying?" / "Did anyone seem suspicious of you? Adjust the story." / "Which details of your cover have you already committed to?"
+
+**IC hints:** "Do they seem like they know the address?" / "Were they too specific or too vague?" / "Could they be the one who's late?" / "Did they seem nervous about certain locations?" / "Were they fishing for information rather than sharing it?" / "What have they said so far — does it add up?"
+
+### Small Talk Mechanic
+
+Controlled by the **Small Talk** setting (`lttpSmallTalk`). Two modes:
+
+**Guided (ON) — `lttpSmallTalk === true`:**
+- Tapping a player name opens `lttp-smalltalk-overlay` directly — no extra confirm step
+- Tab bar: What? / When? / How? / Why? (from `LTTP_SMALL_TALK` keys)
+- Each tab shows 3 sub-topic pill buttons (emoji + label) — freely switchable before committing
+- Selecting a sub-pill highlights it red and activates "Send it 📨"
+- `lttpPendingTag = {root, emoji, label}` persists until send or cancel
+- ✕ closes overlay, clears tag + pending target, no turn advance
+- On send: `lttpSelectPlayer(lttpPendingTarget, lttpPendingTag)`
+- History feed: `· What → 👔 Wear`
+
+**Pro (OFF) — `lttpSmallTalk === false`:**
+- Tapping a player name opens `lttp-confirm-overlay` ("Send a message to [Name]?")
+- On confirm: `screen-lttp-smalltalk` shows (ask phase + root stamp row)
+- Player stamps root (What/When/How/Why), then done
+- `lttpSelectPlayer(targetIdx, { root })` called after stamp
+- History feed: `· How`
+
+**`LTTP_SMALL_TALK` matrix (4 roots × 3 subs):**
+```js
+const LTTP_SMALL_TALK = {
+  What: [{ emoji: '👔', label: 'Wear'     }, { emoji: '🎒', label: 'Items'    }, { emoji: '🎨', label: 'Sights'  }],
+  When: [{ emoji: '⌚', label: 'Arrival'  }, { emoji: '🚪', label: 'Departure'}, { emoji: '⏳', label: 'Duration'}],
+  How:  [{ emoji: '🚗', label: 'Travel'   }, { emoji: '💰', label: 'Price'    }, { emoji: '🎟️', label: 'Access'  }],
+  Why:  [{ emoji: '🍰', label: 'Vibe'     }, { emoji: '🎯', label: 'Reason'   }, { emoji: '👥', label: 'Crowd'   }],
+};
+```
+
+### Settings
+| Setting | Options | Default | Internal value |
+|---------|---------|---------|----------------|
+| Players | 3–6 | 4 | `lttpPlayerCount` |
+| Difficulty | Local / Secret | Local | `'local'` / `'secret'` |
+| Joker Mode | OFF / ON | OFF | `lttpJokerMode` bool |
+| Group Vote | OFF / ON | ON | `lttpGroupVote` bool |
+| Small Talk | Guided / Pro | Guided | `lttpSmallTalk` bool (true = Guided) |
+
+### Overlay Types
+| Overlay | Pattern | Notes |
+|---------|---------|-------|
+| `lttp-suspicion-overlay` | Data (slide-up) z-[80] | Dual-view: roster → folder |
+| `lttp-settings-overlay` | Data (slide-up) z-[80] | Settings |
+| `lttp-how-to-overlay` | Data (slide-up) z-[90] | How to Play |
+| `lttp-history-overlay` | Data (slide-up) z-[90] | Full chat history log |
+| `lttp-smalltalk-overlay` | Data (slide-up) z-[80] | Guided mode only — tabbed topic picker |
+| `lttp-confirm-overlay` | Decision modal z-[80] | Pro mode only — "Send a message to [Name]?" |
+| `lttp-quit-overlay` | Decision modal z-[80] | Quit confirm |
+
+---
+
+## Game 7: Natural Selection
+**Theme:** BBC/Attenborough wildlife documentary. One player (The Mole) doesn't know the specific animal — only its broad category. Everyone else gives clues; the group votes to expose the Mole.
+**Key file:** `js/games/nat.js`
+**State flow:** LOBBY → NAT MENU → NAT SETUP → [Round loop: NAT BRIEFING → NAT OBSERVATION → NAT EVICTION → NAT LAST STAND (if Mole caught) → NAT TALLY] → NAT GAMEOVER
+
+### Terminology
+| Term | Meaning |
+|------|---------|
+| The Specimen | The animal drawn each round from `words.json` animals category |
+| The Mole | The player who only knows The Grouping — trying to blend in |
+| Lead Biologist | The player who sees the full animal name |
+| Field Researcher | All other players — each sees a different detail word from `nono_list[1–9]` |
+| The Grouping | The Mole's information: `nono_list[0]` (the Broad Shield / Documentary Label) |
+| The Briefing | NAT BRIEFING — sequential tap-reveal gate (each player sees their assigned word privately) |
+| The Observation | NAT OBSERVATION — sequential clue input (one word per player per pass) |
+| The Eviction | NAT EVICTION — group votes to identify the Mole |
+| Final Identification | NAT LAST STAND — Mole's last-chance guess + Lead Biologist's Confirmed / Disputed verdict |
+| The Field Notes | NAT TALLY — per-round score reveal |
+| The Final Report | NAT GAMEOVER — expedition winner + round log |
+| Credibility | Score currency |
+| New Expedition | Play again |
+
+### Settings
+| Setting | Options | Default | Internal value |
+|---------|---------|---------|----------------|
+| Expedition Length | 3 / 5 / 7 | 3 | `natRoundsSetting` int |
+| Field Difficulty | Easy / Mixed / All | Mixed | `'d1'` / `'d1+d2'` / `'all'` |
+| ✨ Sylly Mode (Survival of the Fittest) | OFF / ON | OFF | `natSyllyMode` bool |
+
+### Special Mechanics
+
+**Three-tier information model:**
+- Lead Biologist → `specimen.word` (full animal name)
+- Field Researchers (N−2 players) → each a DIFFERENT word from `specimen.nono_list[1–9]` (shuffled pool, one per Researcher)
+- The Mole → `specimen.nono_list[0]` (The Grouping / Broad Shield)
+
+**Detail word assignment (`natAssignRoles`):**
+```js
+const order = shuffle([...Array(natPlayerCount).keys()]);
+natMoleIdx = order[0]; natBiologistIdx = order[1];
+const detailPool = shuffle(natSpecimen.nono_list.slice(1));
+order.slice(2).forEach((pIdx, i) => { natAssignedWords[pIdx] = detailPool[i]; });
+```
+Turn order for Observation: Biologist first, then remaining players in the shuffled order.
+
+**Blocking rule:** Block (a) the animal name, (b) any word already submitted this round. No super-block on the full nono_list.
+
+**Eviction tie-break:** Highest vote count → evicted. Tie → lowest current Credibility breaks it. Still tied → `natEvictedIdx = -1` (Mole wins by default).
+
+**Scoring:**
+| Outcome | Who scores | Credibility |
+|---------|------------|-------------|
+| Mole not evicted | The Mole | +20 |
+| Mole not evicted | All others | 0 |
+| Mole evicted, guess confirmed | The Mole | +15 |
+| Mole evicted, guess confirmed | All others | 0 |
+| Mole evicted, guess disputed / no guess | Lead Biologist + all Researchers | +10 each |
+| Mole evicted, guess disputed / no guess | The Mole | 0 |
+
+**Sylly Mode — Survival of the Fittest (v1):**
+The Observation phase runs twice per round. Pass 1: everyone submits a generic (broad, category-level) clue. Pass 2: Researchers submit a second clue using their assigned detail word; Mole submits another generic clue. Both passes' clues are visible during Eviction. Eviction, scoring, and win condition unchanged.
+
+### Overlay Types
+| Overlay | Pattern | Notes |
+|---------|---------|-------|
+| `nat-settings-overlay` | Data (slide-up) z-[80] | "The Permit Office 🦁" |
+| `nat-how-to-overlay` | Data (slide-up) z-[90] | How to Play |
+| `nat-quit-overlay` | Decision modal z-[80] | "Abandon the expedition?" |

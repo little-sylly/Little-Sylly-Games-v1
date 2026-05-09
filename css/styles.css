@@ -23,6 +23,10 @@ body.flash-red   { background-color: #fecaca; }
 }
 .settings-slide-up { animation: slideUp 0.3s ease-out forwards; }
 
+/* ── LTTP carousel — hide scrollbar ─────────────────────────────────────── */
+#lttp-carousel::-webkit-scrollbar { display: none; }
+#lttp-carousel { scrollbar-width: none; }
+
 /* Settings pill buttons */
 .pill {
   flex: 1;
@@ -150,6 +154,12 @@ body.flash-red   { background-color: #fecaca; }
 /* ── Late To The Party pill active state (red) ───────────────────────────── */
 .pill-active-red {
   background: #ef4444;  /* red-500 */
+  color: #fff;
+}
+
+/* ── Natural Selection pill active state (lime) ──────────────────────────── */
+.pill-active-lime {
+  background: #65a30d;  /* lime-600 */
   color: #fff;
 }
 

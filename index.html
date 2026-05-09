@@ -56,6 +56,9 @@
       <button id="btn-lttp" class="min-h-14 w-full rounded-2xl bg-red-500 hover:bg-red-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
         Late To The Party
       </button>
+      <button id="btn-nat" class="min-h-14 w-full rounded-2xl bg-lime-600 hover:bg-lime-700 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Natural Selection
+      </button>
     </div>
   </section>
 
@@ -2980,9 +2983,9 @@
   <!-- ════════════════════════════════════════════════════════════════
        LATE TO THE PARTY (LTTP)
        Screens : screen-lttp-menu, screen-lttp-setup, screen-lttp-role-reveal,
-                 screen-lttp-handover, screen-lttp-chat, screen-lttp-guess, screen-lttp-gameover
-       Overlays: lttp-map-overlay, lttp-suspicion-overlay, lttp-settings-overlay,
-                 lttp-how-to-overlay, lttp-quit-overlay
+                 screen-lttp-smalltalk, screen-lttp-handover, screen-lttp-chat, screen-lttp-guess, screen-lttp-group-guess, screen-lttp-gameover
+       Overlays: lttp-suspicion-overlay (folder), lttp-history-overlay, lttp-guess-map-overlay,
+                 lttp-confirm-overlay, lttp-settings-overlay, lttp-how-to-overlay, lttp-quit-overlay
        Ref     : js/games/lttp.js
   ════════════════════════════════════════════════════════════════ -->
 
@@ -2997,7 +3000,7 @@
     <p class="text-stone-500 text-lg">Everyone's at the party except you.</p>
     <div class="flex flex-col gap-4 w-full mt-2">
       <button id="btn-lttp-menu-play" class="min-h-14 w-full rounded-2xl bg-red-500 hover:bg-red-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
-        Get the Address!
+        Find The Location!
       </button>
       <button id="btn-lttp-menu-how-to" class="min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
         How to Play
@@ -3072,8 +3075,8 @@
     </div>
     <div class="overlay-modal-inner w-full flex flex-col gap-4">
       <div>
-        <div class="text-4xl mb-2">🎉</div>
-        <h2 class="text-2xl font-bold text-stone-800">Tonight's Plans</h2>
+        <div id="lttp-briefing-emoji" class="text-4xl mb-2">🎉</div>
+        <h2 id="lttp-briefing-heading" class="text-2xl font-bold text-stone-800">Tonight's Plans</h2>
       </div>
       <div class="flex flex-col gap-2 text-left bg-stone-50 rounded-2xl px-4 py-3">
         <p class="text-stone-700 font-medium" id="lttp-briefing-players"></p>
@@ -3083,12 +3086,27 @@
       <hr class="border-stone-200">
       <p class="text-stone-500 text-sm" id="lttp-briefing-first"></p>
       <button id="btn-lttp-briefing-go" class="min-h-14 w-full rounded-2xl bg-red-500 hover:bg-red-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
-        Let's Go 🚀
+        <span id="lttp-briefing-btn-label">Let's Go 🚀</span>
       </button>
     </div>
   </section>
 
-  <!-- lttp-⑤ HANDOVER (pass gate between turns + plan transitions) -->
+  <!-- lttp-⑤ SMALL TALK — Pro mode only (Guided uses lttp-smalltalk-overlay) -->
+  <section id="screen-lttp-smalltalk" style="display:none"
+    class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6 min-h-screen">
+
+    <!-- Ask phase (Pro mode) -->
+    <div id="lttp-st-ask-phase" style="display:none" class="flex flex-col items-center gap-3">
+      <p class="text-5xl" id="lttp-st-ask-emoji"></p>
+      <p class="text-2xl font-bold text-stone-800" id="lttp-st-ask-label">Ask your question!</p>
+      <p class="text-stone-400 text-sm" id="lttp-st-ask-sub"></p>
+    </div>
+
+    <!-- Pro: Root stamp row -->
+    <div id="lttp-st-stamp-row" style="display:none" class="flex gap-2 w-full"></div>
+  </section>
+
+  <!-- lttp-⑥ HANDOVER (pass gate between turns + plan transitions) -->
   <section id="screen-lttp-handover" style="display:none" class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6 min-h-screen">
     <div class="absolute top-4 right-4 flex items-center gap-2">
       <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
@@ -3105,45 +3123,70 @@
   </section>
 
   <!-- lttp-⑤ CHAT (main interrogation hub) -->
-  <section id="screen-lttp-chat" style="display:none" class="flex flex-col w-full max-w-sm mx-auto h-screen overflow-hidden">
+  <section id="screen-lttp-chat" style="display:none" class="flex flex-col justify-center w-full max-w-sm mx-auto min-h-screen">
 
-    <!-- Fixed header -->
-    <div class="bg-red-500 px-4 pt-3 pb-2 flex-shrink-0">
-      <div class="flex items-center justify-between">
-        <div>
-          <p id="lttp-chat-plan-label" class="text-red-200 text-xs font-semibold uppercase tracking-widest"></p>
-          <p id="lttp-chat-player-label" class="text-white text-lg font-black leading-tight mt-0.5"></p>
-        </div>
-        <div class="flex items-center gap-3">
-          <button id="btn-lttp-chat-map" class="text-white text-xl active:scale-90 transition-transform duration-100" title="View Map">🗺️</button>
-          <button id="btn-lttp-chat-suspicion" class="text-white text-xl active:scale-90 transition-transform duration-100" title="Suspicion List">🕵️</button>
-          <button class="btn-open-sound text-white text-xl active:scale-90 transition-transform duration-100">🔊</button>
-          <button class="btn-lttp-quit-open text-white text-2xl active:scale-90 transition-transform duration-100">✕</button>
-        </div>
+    <!-- Red bar: plan / name / role — 🔊 + ✕ only -->
+    <div class="bg-red-500 px-4 pt-3 pb-3 relative">
+      <div class="text-center">
+        <p id="lttp-chat-plan-label"   class="text-red-200 text-xs font-semibold uppercase tracking-widest"></p>
+        <p id="lttp-chat-player-label" class="text-white text-lg font-black leading-tight mt-0.5"></p>
+        <p id="lttp-chat-role-label"   class="text-red-200 text-xs font-medium mt-0.5"></p>
+      </div>
+      <div class="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-3">
+        <button class="btn-open-sound text-white text-xl active:scale-90 transition-transform duration-100">🔊</button>
+        <button class="btn-lttp-quit-open text-white text-2xl active:scale-90 transition-transform duration-100">✕</button>
       </div>
     </div>
 
-    <!-- Subheader -->
-    <div class="px-4 py-2 bg-red-50 flex-shrink-0">
-      <p class="text-red-700 text-sm font-semibold text-center">Who are you grilling?</p>
+    <!-- Tab bar -->
+    <div class="bg-white border-b border-stone-100 flex">
+      <button id="btn-lttp-tab-map"
+        class="flex-1 py-2.5 text-sm font-semibold text-stone-700 border-b-2 border-stone-700 transition-all duration-200">
+        🗺️ Map
+      </button>
+      <button id="btn-lttp-tab-contacts"
+        class="flex-1 py-2.5 text-sm font-semibold text-stone-400 border-b-2 border-transparent transition-all duration-200">
+        🕵️ Contacts
+      </button>
     </div>
 
-    <!-- Scrollable body -->
-    <div class="flex-1 overflow-y-auto min-h-0 px-4 py-3 flex flex-col gap-4">
-      <!-- Player list -->
-      <div id="lttp-chat-player-list" class="flex flex-col gap-2"></div>
+    <!-- Pane A: Map (shown by default) -->
+    <div id="lttp-pane-map" class="flex flex-col px-4 pt-4 pb-6 gap-2">
+      <h2 class="text-base font-bold text-stone-800">🗺️ Map</h2>
+      <p id="lttp-map-sub" class="text-xs text-stone-400"></p>
+      <div id="lttp-map-grid" class="grid grid-cols-4 gap-1.5"></div>
+    </div>
 
-      <!-- History feed -->
+    <!-- Pane B: Contacts + Chatlog (hidden by default) -->
+    <div id="lttp-pane-contacts" style="display:none" class="flex flex-col px-4 pt-4 pb-6 gap-4">
+
+      <div>
+        <h2 class="text-base font-bold text-stone-800">👥 Contacts</h2>
+        <p class="text-xs text-stone-400 mt-0.5">Tap a name to message · tap notes to annotate.</p>
+      </div>
+
+      <!-- Contacts table -->
+      <div class="flex flex-col">
+        <div class="flex items-center px-1 pb-1 text-stone-400 text-xs font-semibold uppercase tracking-widest">
+          <span class="w-1/4">Contact</span>
+          <span class="w-1/2 px-2">Notes</span>
+          <span class="w-1/4 text-right">Status</span>
+        </div>
+        <div class="relative">
+          <div class="absolute top-0 left-0 right-0 h-5 bg-gradient-to-b from-white to-transparent pointer-events-none z-10"></div>
+          <div id="lttp-contacts-list" class="flex flex-col gap-2 max-h-[45vh] overflow-y-auto py-1"></div>
+          <div class="absolute bottom-0 left-0 right-0 h-5 bg-gradient-to-t from-white to-transparent pointer-events-none z-10"></div>
+        </div>
+      </div>
+
+      <!-- Chatlog preview -->
       <div class="border-t border-stone-100 pt-3">
-        <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest mb-2">📜 Group Chatlog</p>
-        <div id="lttp-chat-history" class="flex flex-col gap-1 text-stone-500 text-xs"></div>
+        <button id="btn-lttp-open-history" class="w-full text-left mb-2">
+          <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest">📜 Group Chatlog ›</p>
+        </button>
+        <div id="lttp-chatlog-preview" class="flex flex-col gap-1 text-stone-500 text-xs"></div>
       </div>
 
-      <!-- Notes scratchpad -->
-      <div class="border-t border-stone-100 pt-3 pb-2">
-        <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest mb-2">📝 Notes</p>
-        <textarea id="lttp-chat-notes" rows="3" placeholder="Jot down those half-truths here..." class="w-full rounded-xl border border-stone-200 px-3 py-2 text-stone-700 text-sm focus:outline-none focus:ring-2 focus:ring-red-200 resize-none"></textarea>
-      </div>
     </div>
   </section>
 
@@ -3155,7 +3198,7 @@
       <div class="text-6xl">📱</div>
       <div>
         <h2 class="text-2xl font-bold text-stone-800" id="lttp-guess-pass-name"></h2>
-        <p class="text-stone-500 text-base mt-2">Don't peek — it's time to find The Stray.</p>
+        <p class="text-stone-500 text-base mt-2">Don't peek — it's time to find the Friend of a Friend.</p>
       </div>
       <button id="btn-lttp-guess-ready" class="min-h-14 w-full rounded-2xl bg-red-500 hover:bg-red-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
         I'm Ready
@@ -3198,12 +3241,38 @@
     </div>
   </section>
 
-  <!-- lttp-⑦ GAMEOVER -->
+  <!-- lttp-⑦ GROUP GUESS -->
+  <section id="screen-lttp-group-guess" style="display:none" class="flex flex-col w-full max-w-sm mx-auto h-screen overflow-hidden">
+    <!-- Header -->
+    <div class="flex items-center justify-between px-4 pt-4 pb-2 flex-shrink-0">
+      <span class="text-stone-400 text-sm font-medium">Plan 4 — Last Drinks</span>
+      <button class="btn-open-sound p-2 text-stone-400 text-xl">🔊</button>
+    </div>
+
+    <!-- Subheader -->
+    <div class="px-6 pt-1 pb-3 flex-shrink-0 text-center">
+      <p class="text-stone-800 text-lg font-bold">Who's the Friend of a Friend?</p>
+      <p class="text-stone-400 text-sm mt-1">Discuss as a group, then tap to select.</p>
+    </div>
+
+    <!-- Player list -->
+    <div id="lttp-group-guess-list" class="flex-1 overflow-y-auto flex flex-col gap-3 px-6 py-2 min-h-0"></div>
+
+    <!-- Footer -->
+    <div class="px-6 pb-8 pt-3 flex-shrink-0">
+      <button id="btn-lttp-group-guess-confirm" disabled
+        class="min-h-14 w-full rounded-2xl bg-stone-300 text-white text-xl font-semibold transition-all duration-150 cursor-not-allowed">
+        Lock It In 🔒
+      </button>
+    </div>
+  </section>
+
+  <!-- lttp-⑧ GAMEOVER -->
   <section id="screen-lttp-gameover" style="display:none" class="flex flex-col w-full max-w-sm mx-auto h-screen overflow-hidden">
 
     <!-- Fixed header -->
     <div class="flex items-center justify-between px-4 pt-4 pb-2 flex-shrink-0">
-      <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest">Results</p>
+      <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest">How It All Played Out</p>
       <div class="flex items-center gap-2">
         <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
         <button id="btn-lttp-gameover-exit" class="text-stone-400 text-2xl active:scale-90 transition-transform duration-100">✕</button>
@@ -3230,12 +3299,6 @@
       <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-1">
         <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest mb-2">Who They Voted</p>
         <div id="lttp-gameover-votes" class="flex flex-col gap-1"></div>
-      </div>
-
-      <!-- Friendship Points tally -->
-      <div class="flex flex-col gap-2">
-        <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest">Friendship Points</p>
-        <div id="lttp-gameover-tally" class="flex flex-col gap-2"></div>
       </div>
 
       <!-- Plan log carousel -->
@@ -3266,35 +3329,64 @@
 
   <!-- ════ LTTP OVERLAYS ════════════════════════════════════════════════════ -->
 
-  <!-- MAP OVERLAY (Pattern 2 — centered modal, role-aware grid) -->
-  <div id="lttp-map-overlay" style="display:none" class="fixed inset-0 bg-black/50 z-[95] flex items-center justify-center px-4">
-    <div class="bg-white rounded-2xl w-full max-w-sm flex flex-col shadow-xl" style="max-height:85vh">
-      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0 flex items-center justify-between">
-        <div>
-          <h2 id="lttp-map-header" class="text-lg font-bold text-stone-800"></h2>
-          <p class="text-xs text-stone-400 mt-0.5">Stray: tap cells to annotate ✅ ❌</p>
+  <!-- CONTACTS OVERLAY (Pattern 1 — slide-up, folder-only) -->
+  <div id="lttp-suspicion-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[80] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col" style="max-height:80vh">
+
+      <!-- FOLDER VIEW -->
+      <div id="lttp-contacts-folder" class="flex flex-col flex-1 min-h-0">
+        <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0 flex items-center gap-3">
+          <button id="btn-lttp-folder-back" class="text-stone-400 text-sm font-medium active:scale-90 transition-transform duration-100">← Done</button>
+          <h2 id="lttp-folder-name" class="text-xl font-bold text-stone-800 flex-1"></h2>
+        </div>
+        <div class="flex flex-col gap-4 px-5 py-4 overflow-y-auto flex-1">
+          <!-- Status section — shown/hidden by role -->
+          <div id="lttp-folder-status-section" class="bg-white rounded-2xl p-4 shadow-sm flex items-center justify-between">
+            <p class="text-stone-800 font-semibold text-sm">Status</p>
+            <button id="btn-lttp-folder-status" class="px-4 py-1.5 rounded-full text-sm font-medium bg-stone-100 text-stone-500">—</button>
+          </div>
+          <!-- Notes -->
+          <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+            <p class="text-stone-800 font-semibold text-sm">Observations</p>
+            <textarea id="lttp-folder-notes" rows="5"
+              class="w-full bg-stone-50 border border-stone-200 rounded-xl px-3 py-2 text-sm text-stone-700 resize-none focus:outline-none focus:ring-2 focus:ring-red-300"
+              placeholder=""></textarea>
+          </div>
+        </div>
+        <div class="px-5 pb-6 pt-2 flex-shrink-0">
+          <button id="btn-lttp-folder-done" class="min-h-12 w-full rounded-xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-base font-semibold transition-all duration-150">
+            Done
+          </button>
         </div>
       </div>
-      <div class="px-4 py-4 overflow-y-auto flex-1">
-        <div id="lttp-map-grid" class="grid grid-cols-4 gap-1.5"></div>
-      </div>
-      <div class="px-5 pb-5 pt-2 flex-shrink-0">
-        <button id="btn-lttp-map-done" class="min-h-12 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-base font-semibold transition-all duration-150">
-          Done
-        </button>
-      </div>
+
     </div>
   </div>
 
-  <!-- SUSPICION OVERLAY (Pattern 2 — center modal) -->
-  <div id="lttp-suspicion-overlay" style="display:none" class="fixed inset-0 bg-black/50 z-[80] flex items-center justify-center px-6">
-    <div class="bg-white rounded-2xl p-6 w-full max-w-sm flex flex-col gap-4 shadow-xl">
-      <h3 class="text-lg font-bold text-stone-800 text-center">🕵️ Suspicion List</h3>
-      <p class="text-stone-400 text-xs text-center -mt-2">Tap to cycle: — → ✅ Safe → ❓ Sus → 🃏 Joker</p>
-      <div id="lttp-suspicion-list" class="flex flex-col gap-2"></div>
-      <button id="btn-lttp-suspicion-done" class="min-h-12 w-full rounded-xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-base font-semibold transition-all duration-150 mt-1">
-        Done
-      </button>
+  <!-- HISTORY OVERLAY (Pattern 1 — slide-up, full chatlog) -->
+  <div id="lttp-history-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[90] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col" style="max-height:80vh">
+      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0 flex items-center justify-between">
+        <h2 class="text-xl font-bold text-stone-800">Group Chatlog 📜</h2>
+        <button id="btn-lttp-history-close" class="text-stone-400 text-sm font-medium active:scale-90 transition-transform duration-100">Close</button>
+      </div>
+      <div id="lttp-history-full" class="flex flex-col gap-1 px-5 py-4 overflow-y-auto flex-1 text-stone-500 text-sm"></div>
+    </div>
+  </div>
+
+  <!-- GUESS MAP OVERLAY (Pattern 2 — centred modal, annotations only, guess phase) -->
+  <div id="lttp-guess-map-overlay" style="display:none" class="fixed inset-0 bg-black/50 z-[95] flex items-center justify-center px-4">
+    <div class="bg-white rounded-2xl w-full max-w-sm flex flex-col shadow-xl" style="max-height:85vh">
+      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
+        <h2 class="text-base font-bold text-stone-800">🚨 Your Map — Annotations</h2>
+        <p class="text-xs text-stone-400 mt-0.5">Use your notes to pick the right location.</p>
+      </div>
+      <div class="px-4 py-4 overflow-y-auto flex-1">
+        <div id="lttp-guess-map-grid" class="grid grid-cols-4 gap-1.5"></div>
+      </div>
+      <div class="px-5 pb-5 pt-2 flex-shrink-0">
+        <button id="btn-lttp-guess-map-close" class="min-h-12 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-base font-semibold transition-all duration-150">Done</button>
+      </div>
     </div>
   </div>
 
@@ -3302,19 +3394,35 @@
   <div id="lttp-settings-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[80] flex items-end justify-center">
     <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl px-6 pt-6 pb-8 flex flex-col gap-5">
       <div class="pb-4 border-b border-stone-200 flex-shrink-0">
-        <h2 class="text-xl font-bold text-stone-800">Frequency Configuration 🗺️</h2>
-        <p class="text-xs text-stone-400 mt-1">Set the vibe before the Uber arrives.</p>
+        <h2 class="text-xl font-bold text-stone-800">Night Out Settings 🗺️</h2>
+        <p class="text-xs text-stone-400 mt-1">What's the plan tonight?</p>
       </div>
 
       <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
         <div>
           <p class="text-stone-800 font-semibold">Party Destination</p>
-          <p class="text-stone-400 text-sm mt-0.5">How obscure is the address tonight?</p>
+          <p class="text-stone-400 text-sm mt-0.5">How familiar is tonight's location?</p>
         </div>
         <div class="flex gap-2">
-          <button class="pill pill-active-red flex-1" data-lttp-difficulty="local">Level 1<br><span class="text-xs font-normal">The Local Hang</span></button>
-          <button class="pill flex-1" data-lttp-difficulty="secret">Level 2<br><span class="text-xs font-normal">The Secret Trip</span></button>
+          <button class="pill pill-active-red flex-1" data-lttp-difficulty="local">The Local Hang</button>
+          <button class="pill flex-1" data-lttp-difficulty="secret">The Secret Spot</button>
         </div>
+      </div>
+
+      <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+        <div class="flex items-center justify-between">
+          <p class="text-stone-800 font-semibold">Group Vote</p>
+          <button id="btn-lttp-groupvote-toggle" class="sylly-toggle-on shrink-0">ON</button>
+        </div>
+        <p class="text-stone-400 text-sm">Everyone votes together on who's the Friend of a Friend. Turn off to pass the phone individually.</p>
+      </div>
+
+      <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+        <div class="flex items-center justify-between">
+          <p class="text-stone-800 font-semibold">Small Talk</p>
+          <button id="btn-lttp-smalltalk-toggle" class="sylly-toggle-on shrink-0">ON</button>
+        </div>
+        <p class="text-stone-400 text-sm">Let's help you get the conversation rolling.</p>
       </div>
 
       <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
@@ -3322,7 +3430,7 @@
           <p class="text-stone-800 font-semibold">✨ Sylly Mode</p>
           <button id="btn-lttp-joker-toggle" class="sylly-toggle-off shrink-0">OFF</button>
         </div>
-        <p class="text-stone-400 text-sm">The Joker — a traitor in the Inner Circle with 2 fake targets. Three-way fight for points.</p>
+        <p class="text-stone-400 text-sm">One member of the Gang is secretly stirring the pot. Three-way scoring.</p>
       </div>
 
       <button id="btn-lttp-settings-done" class="min-h-14 w-full rounded-2xl bg-red-500 hover:bg-red-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
@@ -3336,34 +3444,47 @@
     <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl px-6 pt-6 pb-8 flex flex-col gap-5">
       <div class="pb-4 border-b border-stone-200 flex-shrink-0">
         <h2 class="text-xl font-bold text-stone-800">Late To The Party 🏃‍♂️</h2>
-        <p class="text-xs text-stone-400 mt-1">Figure out the address before the Uber arrives.</p>
+        <p class="text-xs text-stone-400 mt-1">Figure out where the party is taking place. Don't be late.</p>
       </div>
 
       <div class="flex flex-col gap-4 text-sm text-stone-600">
         <div class="bg-white rounded-2xl p-4 shadow-sm">
           <p class="font-semibold text-stone-800 mb-1">🎯 The Setup</p>
-          <p>One player is <strong>The Stray</strong> — they don't know the party address. Everyone else is the <strong>Inner Circle</strong> — they can see a shortlist of possible locations but aren't sure which one is correct until the game narrows it down.</p>
+          <p>One player is the <strong>Friend of a Friend</strong> — they don't know the location. Everyone else is <strong>The Gang</strong> — they can see a shortlist of possible locations but aren't sure which one is correct until the game narrows it down.</p>
         </div>
         <div class="bg-white rounded-2xl p-4 shadow-sm">
           <p class="font-semibold text-stone-800 mb-1">💬 The Plans (Rounds)</p>
-          <p>Players take turns asking questions and answering them. Each lap, the Inner Circle's shortlist narrows: <strong>6 → 3 → 1 location</strong>. By Plan 3, the Inner Circle knows the exact address — but so might The Stray if they've been listening.</p>
+          <p>Players take turns asking questions and answering them. Each lap, The Gang's shortlist narrows: <strong>6 → 3 → 1 location</strong>. By Plan 3, The Gang knows the exact location — but so might the Friend of a Friend if they've been listening.</p>
         </div>
         <div class="bg-white rounded-2xl p-4 shadow-sm">
           <p class="font-semibold text-stone-800 mb-1">🗺️ The Map</p>
-          <p>Open the map any time with 🗺️. <strong>Inner Circle</strong> see their highlights. <strong>The Stray</strong> sees all 16 locations — tap to annotate ✅ (possible) or ❌ (ruled out).</p>
+          <p>Open the map any time with 🗺️. <strong>The Gang</strong> see their highlights. <strong>Friend of a Friend</strong> sees all 16 locations — tap to annotate Maybe ✅ or Nope ❌.</p>
         </div>
         <div class="bg-white rounded-2xl p-4 shadow-sm">
-          <p class="font-semibold text-stone-800 mb-1">🏁 Plan 4 — The Reckoning</p>
-          <p>After the final round of questions, everyone votes on <strong>who they think is The Stray</strong>, and The Stray <strong>pins their guess</strong> on the map. Points are tallied and the winner is revealed.</p>
+          <p class="font-semibold text-stone-800 mb-1">🏁 Plan 4 — Last Drinks</p>
+          <p>After the final round of questions, everyone votes on <strong>who they think is the Friend of a Friend</strong>, and the Friend of a Friend <strong>pins their guess</strong> on the map. Points are tallied and the winner is revealed.</p>
         </div>
         <div class="bg-white rounded-2xl p-4 shadow-sm">
           <p class="font-semibold text-stone-800 mb-1">🏆 Winning</p>
-          <p><strong>Stray pins correctly</strong> → +10 pts. <strong>IC keeps the secret</strong> → +5 each. <strong>Confusion Bonus</strong>: if more players vote wrong, The Stray auto-wins. ✨ <strong>Joker Prank</strong>: +20 if The Stray pins a fake target.</p>
+          <p><strong>Friend of a Friend pins correctly</strong> → +10 pts. <strong>The Gang keeps the secret</strong> → +5 each. <strong>Mischief Bonus</strong>: if more players vote wrong, Friend of a Friend auto-wins. ✨ <strong>Troublemaker Win</strong>: +20 if Friend of a Friend pins a fake location.</p>
         </div>
       </div>
 
       <button id="btn-lttp-how-to-done" class="min-h-14 w-full rounded-2xl bg-red-500 hover:bg-red-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
         Got it — let's go!
+      </button>
+    </div>
+  </div>
+
+  <!-- CONFIRM OVERLAY (Pattern 2 — intent gate before player selection) -->
+  <div id="lttp-confirm-overlay" style="display:none" class="fixed inset-0 bg-black/50 z-[80] flex items-center justify-center px-6">
+    <div class="bg-white rounded-2xl p-8 w-full max-w-sm text-center flex flex-col gap-3 shadow-xl">
+      <p class="text-stone-800 text-lg font-bold">Send a message to<br><span id="lttp-confirm-name" class="text-red-500"></span>?</p>
+      <button id="btn-lttp-confirm-send" class="min-h-12 w-full rounded-xl bg-red-500 hover:bg-red-600 active:scale-95 text-white text-lg font-semibold transition-all duration-150 mt-2">
+        Send it 📨
+      </button>
+      <button id="btn-lttp-confirm-back" class="min-h-12 w-full rounded-xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 text-lg font-semibold transition-all duration-150">
+        Pick someone else
       </button>
     </div>
   </div>
@@ -3383,14 +3504,525 @@
     </div>
   </div>
 
+  <!-- SMALL TALK OVERLAY (Guided mode — Pattern 1, slide-up) -->
+  <div id="lttp-smalltalk-overlay" style="display:none"
+    class="fixed inset-0 bg-black/50 z-[80] flex items-end justify-center">
+    <div class="overlay-data-inner bg-white w-full max-w-sm rounded-t-3xl settings-slide-up flex flex-col"
+         style="max-height:80vh">
+
+      <!-- Header -->
+      <div class="flex items-center justify-between px-5 pt-5 pb-3 border-b border-stone-100 flex-shrink-0">
+        <div>
+          <p class="text-xs text-stone-400 uppercase tracking-widest font-medium">Asking</p>
+          <p class="text-lg font-bold text-stone-800" id="lttp-st-overlay-name"></p>
+        </div>
+        <button id="btn-lttp-st-overlay-close"
+          class="w-9 h-9 rounded-full bg-stone-100 flex items-center justify-center text-stone-500 text-sm font-bold active:scale-95 transition-transform">
+          ✕
+        </button>
+      </div>
+
+      <!-- Tab bar (rendered by JS from LTTP_SMALL_TALK keys) -->
+      <div id="lttp-st-overlay-tabs" class="flex border-b border-stone-100 flex-shrink-0 bg-white"></div>
+
+      <!-- Sub-topic pills (rendered by JS for active tab) -->
+      <div id="lttp-st-overlay-subs" class="flex flex-col gap-3 px-5 py-4 overflow-y-auto flex-1"></div>
+
+      <!-- Footer -->
+      <div class="px-5 pb-8 pt-3 flex-shrink-0">
+        <button id="btn-lttp-st-overlay-send"
+          class="min-h-14 w-full rounded-2xl bg-stone-200 text-stone-400 text-xl font-semibold transition-all duration-150"
+          disabled>
+          Send it 📨
+        </button>
+      </div>
+
+    </div>
+  </div>
+
   <!-- Load order: engine → plugins → secret-mode → bootstrapper -->
   <script src="js/engine.js"></script>
   <script src="js/games/li5.js"></script>
   <script src="js/games/great-minds.js"></script>
   <script src="js/games/secret-signals.js"></script>
+  <!-- ════════════════════════════════════════════════════════════════
+       NATURAL SELECTION (NAT)
+       Screens : screen-nat-menu, screen-nat-setup, screen-nat-handover,
+                 screen-nat-observation, screen-nat-selection, screen-nat-last-stand,
+                 screen-nat-tally, screen-nat-gameover
+       Overlays: nat-settings-overlay, nat-how-to-overlay, nat-quit-overlay
+       Ref     : js/games/nat.js
+  ════════════════════════════════════════════════════════════════ -->
+
+  <!-- nat-① MENU -->
+  <section id="screen-nat-menu" style="display:none" class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6 min-h-screen">
+    <button class="btn-open-sound absolute top-4 right-4 text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+    <div class="text-6xl" role="img" aria-label="Lion">🦁</div>
+    <div>
+      <h1 class="text-5xl font-bold leading-tight text-stone-800">Natural</h1>
+      <h1 class="text-5xl font-bold leading-tight text-lime-600">Selection</h1>
+    </div>
+    <p class="text-stone-500 text-lg">One of you doesn't know what they're looking at.</p>
+    <div class="flex flex-col gap-4 w-full mt-2">
+      <button id="btn-nat-menu-play" class="min-h-14 w-full rounded-2xl bg-lime-600 hover:bg-lime-700 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Begin Observation
+      </button>
+      <button id="btn-nat-menu-howto" class="min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        How to Play
+      </button>
+      <button id="btn-nat-menu-settings" class="min-h-14 w-full rounded-2xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Settings
+      </button>
+      <button id="btn-nat-menu-back" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-base font-medium transition-all duration-150">
+        ← Back to the Box
+      </button>
+    </div>
+  </section>
+
+  <!-- nat-② SETUP -->
+  <section id="screen-nat-setup" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-4">
+
+      <div class="flex items-center justify-between">
+        <button id="btn-nat-setup-back" class="text-stone-400 text-2xl active:scale-90 transition-transform duration-100">←</button>
+        <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest">The Research Team</p>
+        <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+      </div>
+
+      <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+        <div>
+          <p class="text-stone-800 font-semibold">Researchers</p>
+          <p class="text-stone-400 text-sm mt-0.5">How many are joining the expedition?</p>
+        </div>
+        <div id="nat-count-group" class="flex gap-2">
+          <button class="pill pill-active-lime" data-count="4">4</button>
+          <button class="pill" data-count="5">5</button>
+          <button class="pill" data-count="6">6</button>
+          <button class="pill" data-count="7">7</button>
+          <button class="pill" data-count="8">8</button>
+        </div>
+      </div>
+
+      <div id="nat-name-inputs" class="flex flex-col gap-3"></div>
+
+      <button id="btn-nat-setup-start" class="min-h-14 w-full rounded-2xl bg-lime-600 hover:bg-lime-700 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Head Out →
+      </button>
+
+    </div>
+  </section>
+
+  <!-- nat-③ HANDOVER (pass-the-phone gate before each clue turn) -->
+  <section id="screen-nat-handover" style="display:none"
+    class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6 min-h-screen">
+    <div class="absolute top-4 right-4 flex items-center gap-2">
+      <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+      <button id="btn-nat-handover-quit" class="text-stone-400 text-2xl active:scale-90 transition-transform duration-100">✕</button>
+    </div>
+    <div class="text-6xl">📱</div>
+    <div>
+      <h2 id="nat-handover-name" class="text-2xl font-bold text-stone-800"></h2>
+      <p id="nat-handover-sub" class="text-stone-500 text-base mt-2">Don't peek — hand it over.</p>
+    </div>
+    <button id="btn-nat-handover-ready"
+      class="min-h-14 w-full rounded-2xl bg-lime-600 hover:bg-lime-700 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      Open Field Notes
+    </button>
+  </section>
+
+  <!-- nat-④ OBSERVATION (journal entry — sequential per player) -->
+  <section id="screen-nat-observation" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-4">
+
+      <!-- 1. Header -->
+      <div class="flex items-center justify-between">
+        <p id="nat-obs-round" class="text-stone-400 text-xs font-semibold uppercase tracking-widest"></p>
+        <div class="flex items-center gap-2">
+          <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+          <button id="btn-nat-obs-quit" class="text-stone-400 text-2xl active:scale-90 transition-transform duration-100">✕</button>
+        </div>
+      </div>
+
+      <!-- 2. Role card -->
+      <div class="bg-lime-50 border border-lime-100 rounded-2xl px-4 py-2.5 flex items-center justify-between gap-3">
+        <div class="min-w-0">
+          <p id="nat-obs-role" class="text-xs font-bold text-lime-700 uppercase tracking-wide leading-none mb-0.5"></p>
+          <p id="nat-obs-step" class="text-stone-400 text-xs leading-none"></p>
+        </div>
+        <div class="text-right flex-shrink-0">
+          <p id="nat-obs-word-label" class="text-stone-400 text-xs uppercase tracking-widest leading-none mb-0.5"></p>
+          <p id="nat-obs-word" class="text-lg font-black text-stone-800 leading-none"></p>
+        </div>
+      </div>
+
+      <!-- 3. Journal (fixed max-height, scrolls internally — newest day on top) -->
+      <div class="max-h-40 overflow-y-auto rounded-2xl">
+        <div id="nat-obs-journal" class="flex flex-col gap-3"></div>
+      </div>
+
+      <!-- 4. Researcher name -->
+      <p id="nat-obs-name" class="text-center font-bold text-stone-800 text-sm"></p>
+
+      <!-- 5. Observation input + error -->
+      <input id="nat-obs-input" type="text" maxlength="30" autocomplete="off" autocorrect="off" spellcheck="false"
+        placeholder="Your observation…"
+        class="w-full rounded-2xl border border-stone-200 bg-white px-4 py-3 text-stone-800 text-lg text-center focus:outline-none focus:ring-2 focus:ring-lime-400" />
+      <p id="nat-obs-error" class="text-red-500 text-sm text-center min-h-5"></p>
+
+      <!-- 6. Add to Journal button -->
+      <button id="btn-nat-obs-submit" disabled
+        class="min-h-14 w-full rounded-2xl bg-lime-600 hover:bg-lime-700 active:scale-95 text-white text-xl font-semibold transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed">
+        Add to Journal
+      </button>
+
+    </div>
+  </section>
+
+  <!-- nat-④b DAILY REVIEW (Sylly Mode — shared end-of-day observation reveal) -->
+  <section id="screen-nat-daily-review" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-4">
+
+      <div class="flex items-center justify-between">
+        <p id="nat-review-header" class="text-stone-400 text-xs font-semibold uppercase tracking-widest"></p>
+        <div class="flex items-center gap-2">
+          <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+          <button id="btn-nat-review-quit" class="text-stone-400 text-2xl active:scale-90 transition-transform duration-100">✕</button>
+        </div>
+      </div>
+
+      <div class="text-center">
+        <p class="text-stone-800 font-semibold text-lg">Today's Observations</p>
+        <p class="text-stone-400 text-sm mt-0.5">Review together before continuing.</p>
+      </div>
+
+      <div id="nat-review-entries" class="flex flex-col gap-2"></div>
+
+      <button id="btn-nat-review-continue"
+        class="min-h-14 w-full rounded-2xl bg-lime-600 hover:bg-lime-700 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Day 2 →
+      </button>
+
+    </div>
+  </section>
+
+  <!-- nat-⑤ THE SELECTION (vote to identify the Mole) -->
+  <section id="screen-nat-selection" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-4">
+
+      <div class="flex items-center justify-between">
+        <p id="nat-sel-round" class="text-stone-400 text-xs font-semibold uppercase tracking-widest"></p>
+        <div class="flex items-center gap-2">
+          <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+          <button id="btn-nat-sel-quit" class="text-stone-400 text-2xl active:scale-90 transition-transform duration-100">✕</button>
+        </div>
+      </div>
+
+      <p class="text-stone-600 font-semibold text-center">The Field Notes Are In</p>
+
+      <div id="nat-sel-clues" class="flex flex-col gap-2"></div>
+
+      <!-- Field Consensus tally (shown when voting) -->
+      <div id="nat-sel-tally-wrapper" style="display:none" class="flex flex-col gap-2">
+        <p class="text-stone-500 text-sm font-semibold text-center">Cast your votes</p>
+        <div id="nat-sel-consensus-tally" class="flex flex-col gap-2"></div>
+      </div>
+
+      <!-- Independent Verification voter UI (shown when voting) -->
+      <div id="nat-sel-indep-wrapper" style="display:none" class="flex flex-col gap-2">
+        <div class="text-center">
+          <p id="nat-sel-voter" class="text-stone-800 font-bold text-base"></p>
+          <p id="nat-sel-vote-step" class="text-stone-400 text-xs"></p>
+        </div>
+        <div id="nat-sel-vote-buttons" class="flex flex-col gap-2"></div>
+      </div>
+
+      <!-- Reveal phase action -->
+      <div id="nat-sel-reveal-footer" class="flex flex-col gap-2">
+        <p class="text-stone-400 text-sm text-center">Study the observations. Who doesn't belong?</p>
+        <button id="btn-nat-sel-start" class="min-h-14 w-full rounded-2xl bg-lime-600 hover:bg-lime-700 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+          Begin The Selection 🗳️
+        </button>
+      </div>
+
+      <!-- Field Consensus submit -->
+      <div id="nat-sel-consensus-footer" style="display:none" class="flex flex-col gap-2">
+        <p id="nat-sel-consensus-total" class="text-stone-400 text-xs text-center">0 of N votes assigned</p>
+        <button id="btn-nat-sel-consensus-submit" disabled
+          class="min-h-14 w-full rounded-2xl bg-lime-600 hover:bg-lime-700 active:scale-95 text-white text-xl font-semibold transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed">
+          Identify the Mole 🔬
+        </button>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- nat-⑥ LAST STAND (Mole guess + Biologist verdict) -->
+  <section id="screen-nat-last-stand" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-4">
+
+      <div class="flex items-center justify-between">
+        <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest">Final Identification</p>
+        <div class="flex items-center gap-2">
+          <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+          <button id="btn-nat-ls-quit" class="text-stone-400 text-2xl active:scale-90 transition-transform duration-100">✕</button>
+        </div>
+      </div>
+
+      <!-- Mole guess phase -->
+      <div id="nat-ls-mole-section" class="flex flex-col items-center gap-5 text-center">
+        <p class="text-5xl">🕵️</p>
+        <div>
+          <p id="nat-ls-mole-name" class="text-2xl font-bold text-stone-800"></p>
+          <p class="text-stone-500 mt-1">You've been identified. One last chance.</p>
+          <p class="text-stone-400 text-sm mt-0.5">Name the specimen to steal the research.</p>
+        </div>
+        <input id="nat-ls-guess-input" type="text" maxlength="40" autocomplete="off" autocorrect="off" spellcheck="false"
+          placeholder="The specimen is…"
+          class="w-full rounded-2xl border border-stone-200 bg-white px-4 py-3 text-stone-800 text-lg text-center focus:outline-none focus:ring-2 focus:ring-lime-400" />
+        <p id="nat-ls-guess-error" class="text-red-500 text-sm min-h-5"></p>
+      </div>
+
+      <!-- Biologist verdict phase -->
+      <div id="nat-ls-bio-section" class="hidden flex flex-col items-center gap-5 text-center">
+        <p class="text-5xl">🔬</p>
+        <div>
+          <p id="nat-ls-bio-name" class="text-2xl font-bold text-stone-800"></p>
+          <p class="text-stone-500 mt-1">The Mole's final identification:</p>
+        </div>
+        <div class="bg-stone-100 rounded-2xl px-5 py-3 w-full">
+          <p class="text-xs text-stone-400 uppercase tracking-widest mb-1">Their guess</p>
+          <p id="nat-ls-guess-display" class="text-2xl font-black text-stone-800"></p>
+        </div>
+        <div class="bg-lime-50 border border-lime-200 rounded-2xl px-5 py-3 w-full">
+          <p class="text-xs text-stone-400 uppercase tracking-widest mb-1">The specimen</p>
+          <p id="nat-ls-specimen-reveal" class="text-xl font-bold text-lime-800"></p>
+        </div>
+        <p class="text-stone-400 text-sm">Is this close enough?</p>
+      </div>
+
+      <div class="flex flex-col gap-3">
+        <button id="btn-nat-ls-submit" disabled
+          class="min-h-14 w-full rounded-2xl bg-lime-600 hover:bg-lime-700 active:scale-95 text-white text-xl font-semibold transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed">
+          Submit Identification
+        </button>
+        <button id="btn-nat-ls-confirmed" class="hidden min-h-14 w-full rounded-2xl bg-lime-600 hover:bg-lime-700 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+          Confirmed ✓
+        </button>
+        <button id="btn-nat-ls-disputed" class="hidden min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+          Disputed ✕
+        </button>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- nat-⑦ TALLY (per-round scores) -->
+  <section id="screen-nat-tally" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-4">
+
+      <div class="flex items-center justify-between">
+        <p id="nat-tally-round" class="text-stone-400 text-xs font-semibold uppercase tracking-widest"></p>
+        <div class="flex items-center gap-2">
+          <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+          <button id="btn-nat-tally-quit" class="text-stone-400 text-2xl active:scale-90 transition-transform duration-100">✕</button>
+        </div>
+      </div>
+
+      <p id="nat-tally-specimen" class="text-center text-stone-400 text-sm font-semibold uppercase tracking-widest"></p>
+      <div class="bg-stone-100 rounded-2xl px-4 py-3 text-center">
+        <p id="nat-tally-result" class="text-stone-800 font-semibold"></p>
+      </div>
+      <p id="nat-tally-mole-reveal" class="text-center text-stone-500 text-sm"></p>
+      <div id="nat-tally-scores" class="flex flex-col gap-2"></div>
+      <div id="nat-tally-suspicion" style="display:none" class="flex-col gap-2"></div>
+
+      <button id="btn-nat-tally-next" class="min-h-14 w-full rounded-2xl bg-lime-600 hover:bg-lime-700 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Next Observation
+      </button>
+
+    </div>
+  </section>
+
+  <!-- nat-⑧ GAMEOVER (Final Report) -->
+  <section id="screen-nat-gameover" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-4">
+
+      <div class="flex items-center justify-between">
+        <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest">Final Report</p>
+        <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+      </div>
+
+      <div class="text-center">
+        <p class="text-stone-400 text-sm">Lead Researcher of the Expedition</p>
+        <p id="nat-go-winner" class="text-3xl font-black text-lime-600 mt-1"></p>
+        <p id="nat-go-winner-score" class="text-stone-400 text-sm mt-0.5"></p>
+      </div>
+      <div id="nat-go-leaderboard" class="flex flex-col gap-2"></div>
+      <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest text-center">Expedition Log</p>
+      <div id="nat-go-log" class="flex flex-col gap-2"></div>
+
+      <button id="btn-nat-go-new" class="min-h-14 w-full rounded-2xl bg-lime-600 hover:bg-lime-700 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        New Expedition
+      </button>
+      <button id="btn-nat-go-exit" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-base font-medium transition-all duration-150">
+        ← Back to the Box
+      </button>
+
+    </div>
+  </section>
+
+  <!-- ─── NAT OVERLAYS ─────────────────────────────────────────────────────── -->
+
+  <!-- nat-settings-overlay (data slide-up z-[80]) -->
+  <div id="nat-settings-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[80] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
+      <!-- Title block -->
+      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
+        <h2 class="text-xl font-bold text-stone-800">The Permit Office 🦁</h2>
+        <p class="text-xs text-stone-400 mt-1">Configure the expedition before you head out.</p>
+      </div>
+      <div class="overflow-y-auto flex flex-col gap-5 px-5 py-5">
+
+        <!-- Days per Habitat -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">Days per Habitat</p>
+            <p class="text-stone-400 text-sm mt-0.5">How many observation cycles before the vote.</p>
+          </div>
+          <div id="nat-rounds-group" class="flex gap-2">
+            <button class="pill pill-active-lime" data-days="2">2</button>
+            <button class="pill" data-days="3">3</button>
+            <button class="pill" data-days="4">4</button>
+          </div>
+        </div>
+
+        <!-- Habitats -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">Habitats</p>
+            <p class="text-stone-400 text-sm mt-0.5">How many different animals per expedition.</p>
+          </div>
+          <div id="nat-matches-group" class="flex gap-2">
+            <button class="pill pill-active-lime" data-habitats="3">3</button>
+            <button class="pill" data-habitats="4">4</button>
+            <button class="pill" data-habitats="5">5</button>
+          </div>
+        </div>
+
+        <!-- Field Difficulty -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">Field Difficulty</p>
+            <p class="text-stone-400 text-sm mt-0.5">Controls how common or exotic the animals are.</p>
+          </div>
+          <div id="nat-diff-group" class="flex gap-2">
+            <button class="pill" data-diff="d1">Common</button>
+            <button class="pill pill-active-lime" data-diff="d1+d2">Rare</button>
+            <button class="pill" data-diff="all">Exotic</button>
+          </div>
+        </div>
+
+        <!-- The Vote -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">The Vote</p>
+            <p class="text-stone-400 text-sm mt-0.5">How the group identifies the anomaly.</p>
+          </div>
+          <div id="nat-vote-group" class="flex gap-2">
+            <button class="pill pill-active-lime" data-vote="consensus">Field Consensus</button>
+            <button class="pill" data-vote="independent">Independent</button>
+          </div>
+        </div>
+
+        <!-- Sylly Mode -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <div class="flex items-center justify-between">
+            <p class="text-stone-800 font-semibold">✨ Survival of the Fittest</p>
+            <button id="btn-nat-sylly-toggle" class="sylly-toggle-off shrink-0">OFF</button>
+          </div>
+          <p class="text-stone-400 text-sm">Day 1 everyone shares the same broad clue. Day 2 and beyond, researchers reveal their specific detail while the Mole holds on.</p>
+        </div>
+
+        <button id="btn-nat-settings-close" class="min-h-14 w-full rounded-2xl bg-lime-600 hover:bg-lime-700 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+          Done
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- nat-how-to-overlay (data slide-up z-[90]) -->
+  <div id="nat-how-to-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[90] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl">
+      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
+        <h2 class="text-xl font-bold text-stone-800">How to Play 🦁</h2>
+        <p class="text-xs text-stone-400 mt-1">Natural Selection — a wildlife documentary goes wrong.</p>
+      </div>
+      <div class="overflow-y-auto flex flex-col gap-5 px-5 py-5 text-stone-700 text-sm leading-relaxed">
+        <div class="flex flex-col gap-2">
+          <p class="font-bold text-stone-800">The Setup</p>
+          <p>Each habitat in the expedition focuses on a new <span class="font-semibold">Specimen</span>. Roles are secretly assigned at the start of each habitat:</p>
+          <ul class="list-disc pl-5 flex flex-col gap-1">
+            <li><span class="font-semibold">🔬 Lead Biologist (1)</span> — sees the full animal name.</li>
+            <li><span class="font-semibold">📋 Field Researchers</span> — each sees a different detail word about the animal.</li>
+            <li><span class="font-semibold">🕵️ The Mole (1)</span> — only knows the broad grouping (e.g. "Sea Creature"). Trying to blend in.</li>
+          </ul>
+        </div>
+        <div class="flex flex-col gap-2">
+          <p class="font-bold text-stone-800">The Observation</p>
+          <p>Over several days, each player submits exactly <span class="font-semibold">one word</span> to describe the specimen. Turn order is random each day. You can't use the animal's name, and you can't repeat any clue already given this habitat.</p>
+        </div>
+        <div class="flex flex-col gap-2">
+          <p class="font-bold text-stone-800">The Selection</p>
+          <p>Once all observation days are done, the field notes are revealed. Each player votes privately to identify who they think is The Mole. The most-voted player is exposed.</p>
+        </div>
+        <div class="flex flex-col gap-2">
+          <p class="font-bold text-stone-800">Final Identification</p>
+          <p>If The Mole is exposed, they get one last chance to name the specimen. The table decides if it counts.</p>
+        </div>
+        <div class="flex flex-col gap-2">
+          <p class="font-bold text-stone-800">Scoring</p>
+          <ul class="list-disc pl-5 flex flex-col gap-1">
+            <li>Mole blends in → <span class="font-semibold">+20 Credibility</span> to the Mole.</li>
+            <li>Mole caught, names specimen → <span class="font-semibold">+15 Credibility</span> to the Mole.</li>
+            <li>Mole caught, wrong guess → <span class="font-semibold">+10 Credibility</span> to everyone else.</li>
+          </ul>
+          <p class="text-stone-400 text-xs mt-1">Credibility accumulates across all habitats. Highest total wins the expedition.</p>
+        </div>
+        <button id="btn-nat-howto-close" class="min-h-14 w-full rounded-2xl bg-lime-600 hover:bg-lime-700 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+          Got it
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- nat-quit-overlay (decision modal z-[80]) -->
+  <div id="nat-quit-overlay" style="display:none" class="fixed inset-0 bg-black/50 z-[80] flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-white p-8 w-full max-w-sm flex flex-col gap-3 shadow-xl">
+      <p class="text-4xl text-center">🔬</p>
+      <h2 class="text-xl font-bold text-stone-800 text-center">Abandon the expedition?</h2>
+      <p class="text-stone-500 text-sm text-center">All observations and Credibility will be lost.</p>
+      <div class="flex flex-col gap-3 mt-2">
+        <button id="btn-nat-quit-confirm" class="min-h-14 w-full rounded-2xl bg-red-500 hover:bg-red-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+          Yeah, pack up.
+        </button>
+        <button id="btn-nat-quit-cancel" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-base font-medium transition-all duration-150">
+          Keep watching.
+        </button>
+      </div>
+    </div>
+  </div>
+
   <script src="js/games/jec.js"></script>
   <script src="js/games/ygi.js"></script>
   <script src="js/games/lttp.js"></script>
+  <script src="js/games/nat.js"></script>
   <script src="js/secret-mode.js"></script>
   <script src="js/app.js"></script>
 

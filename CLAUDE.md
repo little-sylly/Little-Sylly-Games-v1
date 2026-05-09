@@ -21,7 +21,8 @@
 │   │   ├── great-minds.js           # Plugin: Great Minds (all state + logic)
 │   │   ├── secret-signals.js        # Plugin: Secret Signals (all state + logic)
 │   │   ├── jec.js                   # Plugin: Just Enough Cooks (all state + logic)
-│   │   └── ygi.js                   # Plugin: You Get It? (all state + logic)
+│   │   ├── ygi.js                   # Plugin: You Get It? (all state + logic)
+│   │   └── lttp.js                  # Plugin: Late to the Party (all state + logic)
 │   ├── secret-mode.js               # Secret Mode: Konami gateway, Terminal, expansion proxy state
 │   ├── app.js                       # Bootstrapper only — no logic (3 lines)
 │   └── lib/tailwind-play.js         # Local Tailwind (no CDN — fully offline)
@@ -29,16 +30,17 @@
 │   ├── words.json                   # Standard word bank (~358 words, 16 categories)
 │   ├── secret_words.json            # Expansion word bank: Dota 2 (35 words, 5 categories)
 │   └── ygi-data.json                # You Get It? prompts (55+ entries, {id, text, ringers[5]})
-├── sw.js                            # Service Worker (currently v73)
+├── sw.js                            # Service Worker (currently v74)
 ├── manifest.json                    # PWA manifest
 ├── docs/expansion-guide.md          # Template + checklist for adding new expansion packs
 ├── docs/code-map.md                 # Surgical code reference — all game IDs, overlays, key functions
-├── docs/phase13-snapshot.md         # Phase 13 architecture snapshot (current gold master)
+├── docs/phase16b-snapshot.md        # Phase 16b architecture snapshot (current gold master — 6 games)
+├── docs/phase13-snapshot.md         # Phase 13 snapshot (games 1–5 detail, engine, patterns)
 ├── docs/ygi-content-guide.md        # Content creation guide for You Get It? prompts + ringers
 └── docs/archive/                    # Retired snapshots + spent plan docs
 ```
 
-**Load order:** `engine.js` → `li5.js` → `great-minds.js` → `secret-signals.js` → `jec.js` → `ygi.js` → `secret-mode.js` → `app.js`
+**Load order:** `engine.js` → `li5.js` → `great-minds.js` → `secret-signals.js` → `jec.js` → `ygi.js` → `lttp.js` → `secret-mode.js` → `app.js`
 All symbols are global (no ES modules). Forward references work at runtime.
 
 ---
@@ -107,6 +109,11 @@ See `@logic-engine.md` for the full checklist and SW asset list.
 - **Legal:** All words must be original. `nono_list` field name is deliberate (not `taboo_list`)
 - **Great Minds curated categories:** `animals, food, places, objects, nature, sports, activities, emotions, jobs, actions` — no `pop_culture`, `brands`, or `aussie_slang` (dead-end pairs)
 
+#### 🐾 Animals Category — Hierarchical nono_list Protocol
+- **nono_list[0] (The Broad Shield):** Must be a Documentary Label — a natural-language Common Grouping (e.g., "Sea Creature", "Furry Animal", "Ground Bird"). NOT a scientific class (not "Mammalia", "Aves", etc.)
+- **nono_list[1–9] (The Details):** Standard associative words — same rules as all other categories
+- **Design Conflict Rule:** If a Broad Shield covers >15% of the animal bank, it is too broad. Split into narrower Documentary Labels (e.g., "Bird" → "Ground Bird", "Wading Bird", "Tropical Bird") to preserve game tension.
+
 ### 🎯 Skill: Add New Expansion Pack
 **Trigger:** Adding a new secret mode expansion (new theme/word bank).
 **Action:** Follow `docs/expansion-guide.md` — 4-step checklist. Do NOT patch plugin files (the proxy architecture handles everything).
@@ -122,11 +129,13 @@ See `@logic-engine.md` for the full checklist and SW asset list.
 ---
 
 ## 🎯 Current Focus
-**Phase:** 13 complete — YGI (Game 5, formerly "Close Enough") full rebrand
-**SW Version:** v73
-**Next:** expansion pack 2 or YGI How-to overlay
+**Phase:** 17 — Nature Documentary (Game 7) prep
+**SW Version:** v74
+**Milestone:** 100-Animal Master Database complete (hierarchical nono_list structure — Broad Shield at index 0)
+**Next:** Build Nature Documentary game plugin
 **Key references:**
-- `docs/phase13-snapshot.md` — current gold master (5 games, YGI complete)
+- `docs/phase16b-snapshot.md` — previous gold master (6 games, LTTP complete)
+- `docs/phase13-snapshot.md` — Phase 13 reference (games 1–5 detail, engine, patterns)
 - `docs/code-map.md` — surgical reference: all game IDs, overlays, key functions
 - `docs/expansion-guide.md` — template for adding new expansion packs
-- `docs/ygi-content-guide.md` — content creation guide for You Get It? prompts 
+- `docs/ygi-content-guide.md` — content creation guide for You Get It? prompts

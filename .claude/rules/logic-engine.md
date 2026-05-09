@@ -70,13 +70,14 @@ Before implementing, answer:
 
 **SW versioning:** `CACHE_NAME = 'sylly-games-vN'` — bump N on **every deploy**.
 
-**Current SW version:** v73
+**Current SW version:** v74
 
 **Precached assets (relative paths — no leading `/`):**
 ```
 ./, index.html, css/styles.css,
 js/engine.js, js/games/li5.js, js/games/great-minds.js,
-js/games/secret-signals.js, js/games/jec.js, js/games/ygi.js, js/secret-mode.js, js/app.js,
+js/games/secret-signals.js, js/games/jec.js, js/games/ygi.js,
+js/games/lttp.js, js/secret-mode.js, js/app.js,
 js/lib/tailwind-play.js, data/words.json, data/secret_words.json, data/ygi-data.json, manifest.json
 ```
 

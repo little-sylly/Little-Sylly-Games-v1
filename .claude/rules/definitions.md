@@ -65,7 +65,7 @@ ssDifficultyLevel:    'standard' | 'wild' | 'wilder'
 {
   "id": "string (unique, e.g., 'animals-001')",
   "word": "string (target word)",
-  "nono_list": ["array of 10 forbidden words"],
+  "nono_list": ["array of 10 words — index 0 is the Broad Shield (Documentary Label) for animals; indices 1-9 are standard associative/forbidden words"],
   "category": "string — one of 16 categories",
   "difficulty": 1
 }
@@ -74,3 +74,4 @@ ssDifficultyLevel:    'standard' | 'wild' | 'wilder'
 - Great Minds uses 10: excludes `vehicles, music, pop_culture, people, brands, aussie_slang`
 - Difficulty 1 = Standard (concrete nouns), 2 = Wild (verbs/adjectives), 3 = Wilder (abstract)
 - `isSylly` = `difficulty === 3` — derived, never stored
+- **animals category only:** `nono_list[0]` = Documentary Label / Common Grouping (e.g., "Sea Creature", "Furry Animal") — serves as the Cuckoo's Broad Shield in Nature Documentary. Must NOT be a scientific class name.

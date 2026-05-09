@@ -329,22 +329,33 @@
 ### Screens
 | ID | Purpose |
 |----|---------|
-| `#screen-lttp-menu` | Title card + Get the Address! CTA |
+| `#screen-lttp-menu` | Title card + "Find The Location!" CTA |
 | `#screen-lttp-setup` | Player count + names |
 | `#screen-lttp-role-reveal` | Private role check — shown after pass-gate handover |
 | `#screen-lttp-handover` | Pass gate between turns + plan-end transitions |
 | `#screen-lttp-chat` | Main interrogation hub (active player's turn) |
+| `#screen-lttp-smalltalk` | **Pro mode only** — "Ask your question!" holding screen + root stamp row |
 | `#screen-lttp-guess` | Plan 4 vote + pin phase (pass-the-phone) |
+| `#screen-lttp-group-guess` | Group Vote mode — shared guess reveal screen |
 | `#screen-lttp-gameover` | Full reveal + Friendship Points tally |
 
 ### Overlays
 | ID | Pattern | Opened by |
 |----|---------|-----------|
-| `#lttp-map-overlay` | Data (slide-up) z-[95] | `lttpOpenMapOverlay()` via `#btn-lttp-chat-map` or `#btn-lttp-guess-map` |
-| `#lttp-suspicion-overlay` | Decision modal z-[80] | `lttpOpenSuspicionOverlay()` via `#btn-lttp-chat-suspicion` |
+| `#lttp-suspicion-overlay` | Data (slide-up) z-[80] | `lttpOpenSuspicionOverlay()` / `lttpOpenPlayerFolder()` |
+| `#lttp-history-overlay` | Data (slide-up) z-[90] | `lttpOpenFullHistory()` |
 | `#lttp-settings-overlay` | Data (slide-up) z-[80] | `#btn-lttp-menu-settings` |
 | `#lttp-how-to-overlay` | Data (slide-up) z-[90] | `#btn-lttp-menu-how-to` |
+| `#lttp-smalltalk-overlay` | Data (slide-up) z-[80] | `lttpOpenSmallTalkOverlay()` — **Guided mode only** |
+| `#lttp-confirm-overlay` | Decision modal z-[80] | `lttpOpenConfirmModal()` — **Pro mode only** |
 | `#lttp-quit-overlay` | Decision modal z-[80] | `.btn-lttp-quit-open` (any gameplay screen) |
+
+### Small Talk state
+| Variable | Purpose |
+|----------|---------|
+| `lttpSmallTalk` | `true` = Guided (overlay); `false` = Pro (confirm + screen) |
+| `lttpPendingTarget` | Player index awaiting confirm/send |
+| `lttpPendingTag` | `{root, emoji, label}` — selected sub-topic; null until committed |
 
 ### Key chat elements
 | ID | Purpose |
@@ -374,14 +385,23 @@
 | `lttpShowRoleReveal(idx)` | Role-aware private reveal screen |
 | `lttpShowHandover(toIdx, msg)` | Pass gate — `msg` non-null triggers plan-transition text |
 | `lttpShowChat(playerIdx)` | Main turn screen — renders player list + history + notes |
-| `lttpSelectPlayer(targetIdx)` | Core lap logic — logs history, checks lap complete, routes |
+| `lttpOpenConfirmModal(targetIdx)` | Branches: Guided → `lttpOpenSmallTalkOverlay()`, Pro → `lttp-confirm-overlay` |
+| `lttpOpenSmallTalkOverlay(targetIdx)` | Opens tabbed Small Talk overlay, resets `lttpPendingTag`, renders tabs |
+| `lttpRenderSmallTalkTabs()` | Renders tab bar from `LTTP_SMALL_TALK` keys |
+| `lttpSnapToSmallTalkTab(root)` | Switches active tab + re-renders sub-pills |
+| `lttpRenderSmallTalkSubs(root)` | Renders 3 sub-pill buttons; restores red highlight if `lttpPendingTag` matches |
+| `lttpSelectPlayer(targetIdx, tag)` | Core lap logic — logs history, checks lap complete, routes; `tag` = `{root,emoji,label}` or `{root}` or null |
 | `lttpNarrowHighlights()` | 6→3→1 narrowing + logs plan snapshot |
-| `lttpOpenMapOverlay()` | Role-aware 4×4 grid — IC red, Joker gold+orange, Stray annotatable |
-| `lttpOpenSuspicionOverlay()` | Suspicion tracker modal |
+| `lttpOpenMapOverlay()` | Role-aware 4×4 grid — IC red, Joker gold+purple, Stray annotatable |
+| `lttpOpenFullHistory()` | Full history log overlay |
+| `lttpOpenPlayerFolder(idx)` | Opens suspicion overlay at a specific player's folder |
 | `lttpStartGuessPhase()` | Begins Plan 4 vote/pin pass-the-phone sequence |
 | `lttpShowGuess(playerIdx)` | Role-aware action — Stray pins, IC votes |
 | `lttpComputeAndShowGameover()` | Scores via priority cascade → gameover |
 | `lttpRenderPlanLog()` | Plan log carousel driven by `lttpPlanLogIdx` |
+| `lttpShowSmallTalk()` | Pro mode only — shows ask-phase screen + stamp row |
+| `lttpShowSmallTalkAskPhase(tag)` | Pro mode only — renders ask prompt + stamp row |
+| `lttpRenderStampRow()` | Renders 4 root stamp buttons (What/When/How/Why) |
 | `resetLateToTheParty()` | Full teardown; called by `resetToLobby()` |
 
 ### Win condition priority (highest → lowest)

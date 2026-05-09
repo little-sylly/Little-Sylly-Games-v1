@@ -52,9 +52,33 @@ Use for: confirmations, short prompts, ≤3 interactive elements. No slide-up an
 
 ---
 
-## Gameplay Screen Layout — Header / Body / Footer
+## Centered Content Layout (Default — Phone Screens)
 
-**Trigger:** Any gameplay flow screen (input, reveal, vote, results, gameover).
+**Trigger:** Any gameplay flow screen where content flows naturally without a required sticky footer.
+
+This is the **default pattern** for new screens. Use it for: setup, observation, handover, tally, gameover, last stand, review screens — any screen where the button can sit below the content.
+
+```html
+<section id="screen-game-foo" style="display:none"
+  class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+  <div class="flex flex-col w-full max-w-sm gap-4">
+    <!-- header row, cards, inputs, button — all flow naturally -->
+  </div>
+</section>
+```
+
+**Rules:**
+- `flex items-center justify-center` on section — centers the content block when short; has no effect when content overflows
+- `min-h-screen overflow-y-auto` on section — fills the viewport; scrolls when content is taller than screen
+- `px-5 py-8` on section — outer breathing room; `px-5` safely handles narrow screens
+- Inner `div.max-w-sm.w-full.gap-4` — constrains and spaces content; no separate header/body/footer wrappers needed
+- **NOT for:** screens that need a footer button visible at all times regardless of content (e.g. LTTP chat flow) — use the sticky-footer pattern below instead
+
+---
+
+## Gameplay Screen Layout — Header / Body / Footer (Sticky Footer)
+
+**Trigger:** Screens where the primary action button MUST remain visible at all times, independent of content height (e.g. a long scrollable list with a persistent "Submit" button).
 
 Every gameplay screen must use `h-screen` (not `min-h-screen`) on the section so the flex container is viewport-capped and the scroll body actually constrains:
 
