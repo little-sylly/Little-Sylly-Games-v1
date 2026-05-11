@@ -12,7 +12,9 @@ let natMatchesSetting  = 3;        // 3 | 4 | 5
 let natRoundsPerMatch  = 2;        // 2 | 3 | 4
 let natDifficulty      = 'd1+d2';  // 'd1' | 'd1+d2' | 'all'
 let natSyllyMode       = false;
-let natVotingMode      = 'consensus'; // 'consensus' | 'independent'
+let natVotingMode           = 'consensus'; // 'consensus' | 'independent'
+let natScientificIntegrity  = 'relaxed';   // 'relaxed' | 'peer-review'
+let natEscapePoints         = 10;          // 10 | 15 | 20
 
 // ── NAT Roster ───────────────────────────────────────────────────────────────
 let natPlayerCount     = 4;
@@ -49,6 +51,9 @@ let natMoleGuess       = '';
 let natScores          = [];
 let natRoundLog        = [];
 
+// ── NAT Scientific Integrity (dispute mechanic) ───────────────────────────────
+let natClueStatuses    = []; // [playerIdx][dayIdx] = 'normal' | 'review' | 'discredited'
+
 
 // ── Init & Menu ───────────────────────────────────────────────────────────────
 function natInit() {
@@ -79,6 +84,12 @@ function natApplySettings() {
 
   const vPill = document.querySelector('#nat-vote-group .pill-active-lime');
   if (vPill) natVotingMode = vPill.dataset.vote;
+
+  const iPill = document.querySelector('#nat-integrity-group .pill-active-lime');
+  if (iPill) natScientificIntegrity = iPill.dataset.integrity;
+
+  const ePill = document.querySelector('#nat-escape-group .pill-active-lime');
+  if (ePill) natEscapePoints = parseInt(ePill.dataset.escape);
 }
 
 // ── How to Play overlay ───────────────────────────────────────────────────────
@@ -136,10 +147,11 @@ async function natStartGame() {
     names.push(val || `Researcher ${i + 1}`);
   }
   natPlayerNames  = names;
-  natScores       = Array(natPlayerCount).fill(0);
-  natRoundLog     = [];
-  natUsedWordIds  = new Set();
-  natCurrentMatch = 0;
+  natScores          = Array(natPlayerCount).fill(0);
+  natRoundLog        = [];
+  natUsedWordIds     = new Set();
+  natCurrentMatch    = 0;
+  natClueStatuses    = Array.from({ length: natPlayerCount }, () => Array(natRoundsPerMatch).fill('normal'));
   await natStartMatch();
 }
 
@@ -160,6 +172,7 @@ async function natStartMatch() {
   natVotes            = Array(natPlayerCount).fill(-1);
   natConsensusTallies = Array(natPlayerCount).fill(0);
   natCurrentVoteStep  = 0;
+  natClueStatuses     = Array.from({ length: natPlayerCount }, () => Array(natRoundsPerMatch).fill('normal'));
   natEvictedIdx       = -1;
   natSelectionPhase   = 'reveal';
   natMoleGuess        = '';
@@ -318,6 +331,23 @@ function natRenderJournal() {
   if (scrollEl) scrollEl.scrollTop = 0;
 }
 
+// ── Root-word stemmer — strips common English suffixes for derivative blocking ─
+function natStem(word) {
+  const suffixes = [
+    'ations','nesses','ments','tions','sions',
+    'ians','ings','ness','ment','tion','sion',
+    'ers','ies','est','ing','ian','ia',
+    'al','an','ed','er','es','ly','ous','ive','ful',
+    'y','s'
+  ];
+  for (const suf of suffixes) {
+    if (word.endsWith(suf) && word.length - suf.length >= 3) {
+      return word.slice(0, word.length - suf.length);
+    }
+  }
+  return word;
+}
+
 // ── Submit observation ────────────────────────────────────────────────────────
 function natSubmitObservation() {
   const inputEl = document.getElementById('nat-obs-input');
@@ -341,8 +371,21 @@ function natSubmitObservation() {
     playBoing();
     return;
   }
-
+  const stemNew = natStem(val);
+  if (natStem(animal) === stemNew || submitted.some(s => natStem(s) === stemNew)) {
+    errEl.textContent = 'Too similar to a word already used.';
+    inputEl.classList.remove('shake'); void inputEl.offsetWidth; inputEl.classList.add('shake');
+    playBoing();
+    return;
+  }
   const pIdx = natClueOrder[natCurrentClueStep];
+  const assignedWord = pIdx === natMoleIdx ? natSpecimen.nono_list[0] : (natAssignedWords[pIdx] || null);
+  if (assignedWord && natStem(normaliseWord(assignedWord)) === stemNew) {
+    errEl.textContent = "You can't use your own clue word.";
+    inputEl.classList.remove('shake'); void inputEl.offsetWidth; inputEl.classList.add('shake');
+    playBoing();
+    return;
+  }
   natCluesByRound[natCurrentMatchRound][pIdx] = inputEl.value.trim();
   playSuccess();
 
@@ -412,11 +455,21 @@ function natRenderSelectionScreen() {
     `Habitat ${natCurrentMatch + 1} of ${natMatchesSetting}`;
 
   const list = document.getElementById('nat-sel-clues');
+  const isPeerReview = natScientificIntegrity === 'peer-review' && natSelectionPhase === 'reveal';
   list.innerHTML = '';
   for (let i = 0; i < natPlayerCount; i++) {
     const dayClues = natCluesByRound.map((round, r) => {
       const clue = round[i] || '—';
-      return `<span class="text-stone-500 text-sm">Day ${r + 1}: <span class="font-semibold text-stone-800">${clue}</span></span>`;
+      if (clue === '—' || !isPeerReview) {
+        return `<span class="text-stone-500 text-sm">Day ${r + 1}: <span class="font-semibold text-stone-800">${clue}</span></span>`;
+      }
+      const discredited = (natClueStatuses[i]?.[r] ?? 'normal') === 'discredited';
+      const clueHtml  = discredited
+        ? `<span class="line-through text-stone-400">${clue}</span>`
+        : `<span class="font-semibold text-stone-800">${clue}</span>`;
+      const badgeHtml = discredited ? `<span class="text-xs text-red-400 font-semibold">Discredited</span>` : '';
+      const btnClass  = discredited ? 'bg-red-100 text-red-500 active:bg-red-200' : 'bg-stone-100 text-stone-500 active:bg-stone-200';
+      return `<span class="text-stone-500 text-sm">Day ${r + 1}: ${clueHtml} <button onclick="natDispute(${i},${r})" class="ml-0.5 text-xs px-1.5 py-0.5 rounded-full ${btnClass}">🔬</button>${badgeHtml ? ' ' + badgeHtml : ''}</span>`;
     }).join('<span class="text-stone-300 mx-1">·</span>');
     list.insertAdjacentHTML('beforeend', `
       <div class="bg-white rounded-2xl px-4 py-3 shadow-sm">
@@ -451,7 +504,19 @@ function natRenderSelectionScreen() {
   }
 }
 
+function natDispute(playerIdx, dayIdx) {
+  const cycle = { 'normal': 'discredited', 'discredited': 'normal' };
+  natClueStatuses[playerIdx][dayIdx] = cycle[natClueStatuses[playerIdx][dayIdx]] || 'normal';
+  natRenderSelectionScreen();
+}
+
 function natStartVoting() {
+  if (natScientificIntegrity === 'peer-review') {
+    natClueStatuses.forEach((playerStatuses, pIdx) => {
+      const count = playerStatuses.filter(s => s === 'discredited').length;
+      if (count > 0) natScores[pIdx] = Math.max(0, natScores[pIdx] - count * 5);
+    });
+  }
   natSelectionPhase  = 'vote';
   natCurrentVoteStep = 0;
   natRenderSelectionScreen();
@@ -506,9 +571,9 @@ function natSubmitConsensusVote() {
 // ── Independent Verification voting ──────────────────────────────────────────
 function natRenderVoterTurn() {
   const voterIdx = natVoteOrder[natCurrentVoteStep];
-  document.getElementById('nat-sel-voter').textContent     = `${natPlayerNames[voterIdx]}'s vote`;
+  document.getElementById('nat-sel-voter').textContent     = `${natPlayerNames[voterIdx]}'s Classification`;
   document.getElementById('nat-sel-vote-step').textContent =
-    `Vote ${natCurrentVoteStep + 1} of ${natPlayerCount}`;
+    `Classification ${natCurrentVoteStep + 1} of ${natPlayerCount}`;
 
   const btns = document.getElementById('nat-sel-vote-buttons');
   btns.innerHTML = '';
@@ -596,16 +661,14 @@ function natSubmitMoleGuess() {
 function natBiologistVerdict(confirmed) {
   playExit();
   const caught = natEvictedIdx === natMoleIdx;
-  natResolveRound(caught, caught && confirmed);
+  natResolveRound(caught, confirmed);
   natShowTally();
 }
 
 // ── Scoring ───────────────────────────────────────────────────────────────────
-function natResolveRound(caught, stole) {
+function natResolveRound(caught, correctId) {
   if (!caught) {
-    natScores[natMoleIdx] += 20;
-  } else if (stole) {
-    natScores[natMoleIdx] += 15;
+    natScores[natMoleIdx] += natEscapePoints;
   } else if (natVotingMode === 'independent') {
     for (let i = 0; i < natPlayerCount; i++) {
       if (i !== natMoleIdx && natVotes[i] === natMoleIdx) natScores[i] += 10;
@@ -615,6 +678,8 @@ function natResolveRound(caught, stole) {
       if (i !== natMoleIdx) natScores[i] += 10;
     }
   }
+  if (correctId) natScores[natMoleIdx] += 10;
+
   natRoundLog.push({
     match:        natCurrentMatch,
     specimen:     natSpecimen.word,
@@ -622,7 +687,7 @@ function natResolveRound(caught, stole) {
     biologistIdx: natBiologistIdx,
     evictedIdx:   natEvictedIdx,
     moleGuess:    natMoleGuess,
-    caught, stole,
+    caught, correctId,
     scores:       [...natScores],
   });
 }
@@ -636,15 +701,13 @@ function natShowTally() {
     `Habitat ${natCurrentMatch + 1} of ${natMatchesSetting}`;
   document.getElementById('nat-tally-specimen').textContent = `Specimen: ${entry.specimen}`;
 
-  let resultText;
-  if (!entry.caught) {
-    resultText = `🕵️ ${natPlayerNames[natMoleIdx]} blended in. Research compromised.`;
-  } else if (entry.stole) {
-    resultText = `🕵️ Caught! But ${natPlayerNames[natMoleIdx]} stole the research.`;
-  } else {
-    resultText = `✅ The anomaly has been identified. Research secured.`;
-  }
-  document.getElementById('nat-tally-result').textContent      = resultText;
+  const caughtText = entry.caught
+    ? `✅ The anomaly has been identified. Research secured.`
+    : `🕵️ ${natPlayerNames[natMoleIdx]} blended in. Research compromised.`;
+  const idText = entry.correctId
+    ? `🔬 ${natPlayerNames[natMoleIdx]} correctly identified the specimen.`
+    : `❌ ${natPlayerNames[natMoleIdx]} couldn't name the specimen.`;
+  document.getElementById('nat-tally-result').innerHTML = `${caughtText}<br><span class="text-sm">${idText}</span>`;
   document.getElementById('nat-tally-mole-reveal').textContent = `The Mole: ${natPlayerNames[natMoleIdx]}`;
 
   const sorted = [...natScores.map((s, i) => ({ name: natPlayerNames[i], score: s }))]
@@ -657,7 +720,7 @@ function natShowTally() {
   `).join('');
 
   const suspicionEl = document.getElementById('nat-tally-suspicion');
-  if (entry.caught && !entry.stole && natVotingMode === 'consensus') {
+  if (entry.caught && !entry.correctId && natVotingMode === 'consensus') {
     const rows = natConsensusTallies
       .map((votes, i) => votes > 0 ? `<div class="flex items-center justify-between bg-amber-50 rounded-xl px-3 py-2">
         <span class="text-stone-700 text-sm font-semibold">${natPlayerNames[i]}</span>
@@ -666,7 +729,7 @@ function natShowTally() {
       .join('');
     suspicionEl.innerHTML = `<p class="text-xs text-stone-400 font-semibold uppercase tracking-widest px-1">Suspicion Log</p>${rows}`;
     suspicionEl.style.display = 'flex';
-  } else if (entry.caught && !entry.stole && natVotingMode === 'independent') {
+  } else if (entry.caught && !entry.correctId && natVotingMode === 'independent') {
     const experts = natPlayerNames
       .map((name, i) => ({ name, i }))
       .filter(p => p.i !== natMoleIdx && natVotes[p.i] === natMoleIdx)
@@ -715,7 +778,7 @@ function natShowGameover() {
       <p class="text-xs text-stone-400 font-semibold uppercase tracking-wide">Habitat ${r.match + 1}</p>
       <p class="text-stone-800 font-bold">${r.specimen}</p>
       <p class="text-stone-500 text-sm">Mole: ${natPlayerNames[r.moleIdx]}</p>
-      <p class="text-stone-500 text-sm">${!r.caught ? '🕵️ Blended in (+20)' : r.stole ? '🕵️ Stole research (+15)' : '✅ Caught (+10 each)'}</p>
+      <p class="text-stone-500 text-sm">${!r.caught ? `🕵️ Blended in (+${natEscapePoints})` : '✅ Caught (+10 each)'}</p>
     </div>
   `).join('');
 
@@ -776,7 +839,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-nat-settings-close')?.addEventListener('click', () => {
     playDone(); natCloseSettings();
   });
-  ['#nat-matches-group', '#nat-rounds-group', '#nat-diff-group', '#nat-vote-group'].forEach(grp => {
+  ['#nat-matches-group', '#nat-rounds-group', '#nat-diff-group', '#nat-vote-group', '#nat-integrity-group', '#nat-escape-group'].forEach(grp => {
     document.querySelectorAll(`${grp} .pill`).forEach(pill => {
       pill.addEventListener('click', () => {
         document.querySelectorAll(`${grp} .pill`).forEach(p => p.classList.remove('pill-active-lime'));

@@ -180,6 +180,8 @@ Every individual setting is wrapped in a white card. Do NOT use bare divs or `<h
 | Secret Signals | `pill-active-teal` |
 | Just Enough Cooks | `pill-active-amber` |
 | You Get It? | `pill-active-orange` |
+| Late to the Party | `pill-active-red` |
+| Natural Selection | `pill-active-lime` |
 
 ---
 
@@ -208,12 +210,12 @@ Look for ONE opportunity to inject playfulness — cheeky button labels, Austral
 ## Universal Menu Standard (All Games)
 Every game's main menu screen must have exactly these 4 buttons, in this order:
 
-| Button         | LI5 (Like I'm Five)  | Great Minds          | Secret Signals       | Just Enough Cooks    | You Get It?          |
-|----------------|----------------------|----------------------|----------------------|----------------------|----------------------|
-| Play CTA       | Let's Play!          | Let's Play!          | Let's Play!          | Let's Cook!          | Show Your Take 🃏    |
-| How to Play    | How to Play          | How to Play          | How to Play          | How to Play          | How to Play          |
-| Settings       | Settings             | Settings             | Settings             | Settings             | Settings             |
-| Back to lobby  | ← Back to the Box    | ← Back to the Box    | ← Back to the Box    | ← Back to the Box    | ← Back to the Box    |
+| Button         | LI5 (Like I'm Five)  | Great Minds          | Secret Signals       | Just Enough Cooks    | You Get It?          | Late to the Party    | Natural Selection    |
+|----------------|----------------------|----------------------|----------------------|----------------------|----------------------|----------------------|----------------------|
+| Play CTA       | Let's Play!          | Let's Play!          | Let's Play!          | Let's Cook!          | Show Your Take 🃏    | Find The Location!   | Begin Observation    |
+| How to Play    | How to Play          | How to Play          | How to Play          | How to Play          | How to Play          | How to Play          | How to Play          |
+| Settings       | Settings             | Settings             | Settings             | Settings             | Settings             | Settings             | Settings             |
+| Back to lobby  | ← Back to the Box    | ← Back to the Box    | ← Back to the Box    | ← Back to the Box    | ← Back to the Box    | ← Back to the Box    | ← Back to the Box    |
 
 **Rules:**
 - "← Back to the Box" is always identical — never game-themed.

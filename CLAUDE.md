@@ -6,6 +6,8 @@
 - `@logic-engine.md` — engine/plugin split, screen routing, audio catalogue, PWA, new-game checklist
 - `@definitions.md` — naming conventions, comment style, data schema, project-wide terms
 - `@game-identities.md` — per-game themes, terminology, settings tables, special mechanics
+- `@new-game-template.md` — fill this in before coding any new game (brief format + 10-section spec)
+- `@phase-audit.md` — run after every completed game and before every new game's first line of code
 
 ---
 
@@ -22,25 +24,26 @@
 │   │   ├── secret-signals.js        # Plugin: Secret Signals (all state + logic)
 │   │   ├── jec.js                   # Plugin: Just Enough Cooks (all state + logic)
 │   │   ├── ygi.js                   # Plugin: You Get It? (all state + logic)
-│   │   └── lttp.js                  # Plugin: Late to the Party (all state + logic)
+│   │   ├── lttp.js                  # Plugin: Late to the Party (all state + logic)
+│   │   └── nat.js                   # Plugin: Natural Selection (all state + logic)
 │   ├── secret-mode.js               # Secret Mode: Konami gateway, Terminal, expansion proxy state
 │   ├── app.js                       # Bootstrapper only — no logic (3 lines)
 │   └── lib/tailwind-play.js         # Local Tailwind (no CDN — fully offline)
 ├── data/
-│   ├── words.json                   # Standard word bank (~358 words, 16 categories)
+│   ├── words.json                   # Standard word bank (~433 words, 16 categories)
 │   ├── secret_words.json            # Expansion word bank: Dota 2 (35 words, 5 categories)
 │   └── ygi-data.json                # You Get It? prompts (55+ entries, {id, text, ringers[5]})
-├── sw.js                            # Service Worker (currently v74)
+├── sw.js                            # Service Worker (currently v75)
 ├── manifest.json                    # PWA manifest
 ├── docs/expansion-guide.md          # Template + checklist for adding new expansion packs
 ├── docs/code-map.md                 # Surgical code reference — all game IDs, overlays, key functions
-├── docs/phase16b-snapshot.md        # Phase 16b architecture snapshot (current gold master — 6 games)
-├── docs/phase13-snapshot.md         # Phase 13 snapshot (games 1–5 detail, engine, patterns)
+├── docs/phase17-snapshot.md         # Phase 17 architecture snapshot (current gold master — 7 games)
+├── docs/archive/phase16b-snapshot.md  # Phase 16b snapshot (6 games, LTTP complete)
 ├── docs/ygi-content-guide.md        # Content creation guide for You Get It? prompts + ringers
 └── docs/archive/                    # Retired snapshots + spent plan docs
 ```
 
-**Load order:** `engine.js` → `li5.js` → `great-minds.js` → `secret-signals.js` → `jec.js` → `ygi.js` → `lttp.js` → `secret-mode.js` → `app.js`
+**Load order:** `engine.js` → `li5.js` → `great-minds.js` → `secret-signals.js` → `jec.js` → `ygi.js` → `lttp.js` → `nat.js` → `secret-mode.js` → `app.js`
 All symbols are global (no ES modules). Forward references work at runtime.
 
 ---
@@ -118,6 +121,10 @@ See `@logic-engine.md` for the full checklist and SW asset list.
 **Trigger:** Adding a new secret mode expansion (new theme/word bank).
 **Action:** Follow `docs/expansion-guide.md` — 4-step checklist. Do NOT patch plugin files (the proxy architecture handles everything).
 
+### 🎯 Skill: Phase Gate — Studio Audit
+**Trigger:** After completing a game or entering a new phase. Before writing the phase snapshot. Before writing the first line of a new game's JS.
+**Action:** Run both protocols in `@phase-audit.md`. Do not write the phase snapshot until the Drift Check and Linguistic Sweep are clean. Do not write a line of game logic until the Skeleton-First protocol (Steps 1–4) is confirmed.
+
 ### 🎯 Skill: Logic-First Teaching
 **Trigger:** Any new concept, pattern, or architectural decision.
 **Action:** Before writing code:
@@ -129,13 +136,13 @@ See `@logic-engine.md` for the full checklist and SW asset list.
 ---
 
 ## 🎯 Current Focus
-**Phase:** 17 — Nature Documentary (Game 7) prep
-**SW Version:** v74
-**Milestone:** 100-Animal Master Database complete (hierarchical nono_list structure — Broad Shield at index 0)
-**Next:** Build Nature Documentary game plugin
+**Phase:** 18 — Post-Launch / System Health
+**SW Version:** v75
+**Gold Master:** 7 games complete (LI5, Great Minds, Secret Signals, JEC, YGI, LTTP, Natural Selection)
+**Next:** TBD — new game concept or expansion pack
 **Key references:**
-- `docs/phase16b-snapshot.md` — previous gold master (6 games, LTTP complete)
-- `docs/phase13-snapshot.md` — Phase 13 reference (games 1–5 detail, engine, patterns)
+- `docs/phase17-snapshot.md` — current gold master (7 games, NAT complete)
 - `docs/code-map.md` — surgical reference: all game IDs, overlays, key functions
+- `.claude/rules/new-game-template.md` — fill this in before coding any new game
 - `docs/expansion-guide.md` — template for adding new expansion packs
 - `docs/ygi-content-guide.md` — content creation guide for You Get It? prompts

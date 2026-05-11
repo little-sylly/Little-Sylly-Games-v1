@@ -392,30 +392,45 @@ const LTTP_SMALL_TALK = {
 ## Game 7: Natural Selection
 **Theme:** BBC/Attenborough wildlife documentary. One player (The Mole) doesn't know the specific animal — only its broad category. Everyone else gives clues; the group votes to expose the Mole.
 **Key file:** `js/games/nat.js`
-**State flow:** LOBBY → NAT MENU → NAT SETUP → [Round loop: NAT BRIEFING → NAT OBSERVATION → NAT EVICTION → NAT LAST STAND (if Mole caught) → NAT TALLY] → NAT GAMEOVER
+**Brand colour:** `lime-600` | **Active pill:** `pill-active-lime`
+**State flow:**
+```
+LOBBY → NAT MENU → NAT SETUP
+→ [Match loop:
+    [Day loop: NAT HANDOVER → NAT OBSERVATION → (NAT DAILY REVIEW if Sylly)]
+    → NAT SELECTION → NAT LAST STAND (if Mole caught) → NAT TALLY
+  ]
+→ NAT GAMEOVER
+```
 
 ### Terminology
 | Term | Meaning |
 |------|---------|
-| The Specimen | The animal drawn each round from `words.json` animals category |
+| The Specimen | The animal drawn each match from `words.json` animals category |
 | The Mole | The player who only knows The Grouping — trying to blend in |
-| Lead Biologist | The player who sees the full animal name |
+| Lead Biologist | The player who sees the full animal name (`specimen.word`) |
 | Field Researcher | All other players — each sees a different detail word from `nono_list[1–9]` |
 | The Grouping | The Mole's information: `nono_list[0]` (the Broad Shield / Documentary Label) |
-| The Briefing | NAT BRIEFING — sequential tap-reveal gate (each player sees their assigned word privately) |
-| The Observation | NAT OBSERVATION — sequential clue input (one word per player per pass) |
-| The Eviction | NAT EVICTION — group votes to identify the Mole |
-| Final Identification | NAT LAST STAND — Mole's last-chance guess + Lead Biologist's Confirmed / Disputed verdict |
-| The Field Notes | NAT TALLY — per-round score reveal |
-| The Final Report | NAT GAMEOVER — expedition winner + round log |
+| Observation Day | One clue-submission pass (`natRoundsPerMatch` days per match) |
+| The Handover | `screen-nat-handover` — pass-the-phone gate before each player's observation |
+| The Observation | `screen-nat-observation` — one word clue input per player per day |
+| The Daily Review | `screen-nat-daily-review` — Sylly Mode: all clues revealed before voting |
+| The Selection | `screen-nat-selection` — group votes to identify The Mole |
+| The Last Stand | `screen-nat-last-stand` — Mole's final specimen guess + Biologist verdict |
+| The Field Notes | `screen-nat-tally` — per-match score reveal |
+| The Final Report | `screen-nat-gameover` — expedition winner + match log |
 | Credibility | Score currency |
-| New Expedition | Play again |
+| New Expedition | Play again (resets all state, preserves names + settings) |
 
 ### Settings
 | Setting | Options | Default | Internal value |
 |---------|---------|---------|----------------|
-| Expedition Length | 3 / 5 / 7 | 3 | `natRoundsSetting` int |
-| Field Difficulty | Easy / Mixed / All | Mixed | `'d1'` / `'d1+d2'` / `'all'` |
+| Habitats | 3 / 4 / 5 | 3 | `natMatchesSetting` int (data-habitats) |
+| Days Per Habitat | 2 / 3 / 4 | 2 | `natRoundsPerMatch` int (data-days) |
+| Field Difficulty | Shallow / Mixed / All | Mixed | `'d1'` / `'d1+d2'` / `'all'` |
+| Voting Mode | Consensus / Independent | Consensus | `'consensus'` / `'independent'` |
+| Scientific Integrity | Relaxed / Peer Review | Relaxed | `'relaxed'` / `'peer-review'` |
+| Escape Points | 10 / 15 / 20 | 10 | `natEscapePoints` int (data-escape) |
 | ✨ Sylly Mode (Survival of the Fittest) | OFF / ON | OFF | `natSyllyMode` bool |
 
 ### Special Mechanics
@@ -425,31 +440,37 @@ const LTTP_SMALL_TALK = {
 - Field Researchers (N−2 players) → each a DIFFERENT word from `specimen.nono_list[1–9]` (shuffled pool, one per Researcher)
 - The Mole → `specimen.nono_list[0]` (The Grouping / Broad Shield)
 
-**Detail word assignment (`natAssignRoles`):**
+**Role assignment (`natAssignRoles`):**
 ```js
 const order = shuffle([...Array(natPlayerCount).keys()]);
 natMoleIdx = order[0]; natBiologistIdx = order[1];
 const detailPool = shuffle(natSpecimen.nono_list.slice(1));
 order.slice(2).forEach((pIdx, i) => { natAssignedWords[pIdx] = detailPool[i]; });
 ```
-Turn order for Observation: Biologist first, then remaining players in the shuffled order.
+Observation turn order: Biologist first, then remaining players in shuffled order.
 
 **Blocking rule:** Block (a) the animal name, (b) any word already submitted this round. No super-block on the full nono_list.
 
 **Eviction tie-break:** Highest vote count → evicted. Tie → lowest current Credibility breaks it. Still tied → `natEvictedIdx = -1` (Mole wins by default).
 
-**Scoring:**
+**Voting Mode:**
+- `consensus` — all players vote together on one shared screen; all non-mole players score if the Mole is caught
+- `independent` — pass-the-phone per player; only players who individually voted for the Mole score
+
+**Scientific Integrity (Peer Review mode):**
+Players can dispute (`natDispute(playerIdx, dayIdx)`) any submitted clue on the selection screen. Status cycles: `normal → review → discredited`. Tracked in `natClueStatuses[playerIdx][dayIdx]`. Each discredited clue deducts −5 Credibility from the disputed player after voting resolves.
+
+**Scoring (`natResolveRound`):**
 | Outcome | Who scores | Credibility |
 |---------|------------|-------------|
-| Mole not evicted | The Mole | +20 |
-| Mole not evicted | All others | 0 |
-| Mole evicted, guess confirmed | The Mole | +15 |
-| Mole evicted, guess confirmed | All others | 0 |
-| Mole evicted, guess disputed / no guess | Lead Biologist + all Researchers | +10 each |
-| Mole evicted, guess disputed / no guess | The Mole | 0 |
+| Mole not caught | The Mole | +`natEscapePoints` |
+| Mole caught, consensus mode | All non-mole players | +10 each |
+| Mole caught, independent mode | Each player who voted for Mole | +10 each |
+| Mole guesses specimen correctly | The Mole | +10 bonus (stacks with any above) |
+| Each discredited clue (peer-review) | The discredited player | −5 per clue |
 
-**Sylly Mode — Survival of the Fittest (v1):**
-The Observation phase runs twice per round. Pass 1: everyone submits a generic (broad, category-level) clue. Pass 2: Researchers submit a second clue using their assigned detail word; Mole submits another generic clue. Both passes' clues are visible during Eviction. Eviction, scoring, and win condition unchanged.
+**Sylly Mode — Survival of the Fittest:**
+No Lead Biologist role. All players (including the position normally assigned as Biologist) receive detail words from `nono_list[1–9]`. The Mole still receives `nono_list[0]`. Journal entries are hidden from the group until the NAT DAILY REVIEW screen appears at the end of each Observation Day. Scoring and eviction rules are unchanged.
 
 ### Overlay Types
 | Overlay | Pattern | Notes |
@@ -457,3 +478,5 @@ The Observation phase runs twice per round. Pass 1: everyone submits a generic (
 | `nat-settings-overlay` | Data (slide-up) z-[80] | "The Permit Office 🦁" |
 | `nat-how-to-overlay` | Data (slide-up) z-[90] | How to Play |
 | `nat-quit-overlay` | Decision modal z-[80] | "Abandon the expedition?" |
+
+`screen-nat-daily-review` is a full screen (not an overlay) — shown in Sylly Mode between the last Observation Day and The Selection.

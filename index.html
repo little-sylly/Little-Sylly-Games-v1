@@ -3548,8 +3548,8 @@
   <!-- ════════════════════════════════════════════════════════════════
        NATURAL SELECTION (NAT)
        Screens : screen-nat-menu, screen-nat-setup, screen-nat-handover,
-                 screen-nat-observation, screen-nat-selection, screen-nat-last-stand,
-                 screen-nat-tally, screen-nat-gameover
+                 screen-nat-observation, screen-nat-daily-review, screen-nat-selection,
+                 screen-nat-last-stand, screen-nat-tally, screen-nat-gameover
        Overlays: nat-settings-overlay, nat-how-to-overlay, nat-quit-overlay
        Ref     : js/games/nat.js
   ════════════════════════════════════════════════════════════════ -->
@@ -3778,8 +3778,8 @@
         <p class="text-5xl">🕵️</p>
         <div>
           <p id="nat-ls-mole-name" class="text-2xl font-bold text-stone-800"></p>
-          <p class="text-stone-500 mt-1">You've been identified. One last chance.</p>
-          <p class="text-stone-400 text-sm mt-0.5">Name the specimen to steal the research.</p>
+          <p class="text-stone-500 mt-1">Final Identification.</p>
+          <p class="text-stone-400 text-sm mt-0.5">Make your Final Identification — name the specimen.</p>
         </div>
         <input id="nat-ls-guess-input" type="text" maxlength="40" autocomplete="off" autocorrect="off" spellcheck="false"
           placeholder="The specimen is…"
@@ -3932,12 +3932,37 @@
         <!-- The Vote -->
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
           <div>
-            <p class="text-stone-800 font-semibold">The Vote</p>
+            <p class="text-stone-800 font-semibold">The Classification</p>
             <p class="text-stone-400 text-sm mt-0.5">How the group identifies the anomaly.</p>
           </div>
           <div id="nat-vote-group" class="flex gap-2">
             <button class="pill pill-active-lime" data-vote="consensus">Field Consensus</button>
             <button class="pill" data-vote="independent">Independent</button>
+          </div>
+        </div>
+
+        <!-- Mole Escape Bonus -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">Mole Escape Bonus</p>
+            <p class="text-stone-400 text-sm mt-0.5">Credibility awarded to the Mole for surviving the round undetected.</p>
+          </div>
+          <div id="nat-escape-group" class="flex gap-2">
+            <button class="pill pill-active-lime" data-escape="10">10</button>
+            <button class="pill" data-escape="15">15</button>
+            <button class="pill" data-escape="20">20</button>
+          </div>
+        </div>
+
+        <!-- Scientific Integrity -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">Scientific Integrity</p>
+            <p class="text-stone-400 text-sm mt-0.5">Relaxed: no penalties for vague observations. Peer Review: during Selection, flag any clue — a majority marks it Discredited and costs the author Credibility.</p>
+          </div>
+          <div id="nat-integrity-group" class="flex gap-2">
+            <button class="pill pill-active-lime" data-integrity="relaxed">Relaxed</button>
+            <button class="pill" data-integrity="peer-review">Peer Review</button>
           </div>
         </div>
 
@@ -3976,22 +4001,23 @@
         </div>
         <div class="flex flex-col gap-2">
           <p class="font-bold text-stone-800">The Observation</p>
-          <p>Over several days, each player submits exactly <span class="font-semibold">one word</span> to describe the specimen. Turn order is random each day. You can't use the animal's name, and you can't repeat any clue already given this habitat.</p>
+          <p>Over several days, each player submits exactly <span class="font-semibold">one word</span> to describe the specimen. Turn order is random each day. You can't use the animal's name, and you can't repeat any Field Observation already given this habitat.</p>
         </div>
         <div class="flex flex-col gap-2">
           <p class="font-bold text-stone-800">The Selection</p>
-          <p>Once all observation days are done, the field notes are revealed. Each player votes privately to identify who they think is The Mole. The most-voted player is exposed.</p>
+          <p>Once all observation days are done, the field notes are revealed. Each player makes their Classification — privately identifying who they think is The Mole. The most-voted player is exposed.</p>
         </div>
         <div class="flex flex-col gap-2">
           <p class="font-bold text-stone-800">Final Identification</p>
-          <p>If The Mole is exposed, they get one last chance to name the specimen. The table decides if it counts.</p>
+          <p>After each Habitat, The Mole makes their Final Identification — naming the specimen regardless of whether they were caught. The Lead Biologist decides if it counts.</p>
         </div>
         <div class="flex flex-col gap-2">
           <p class="font-bold text-stone-800">Scoring</p>
           <ul class="list-disc pl-5 flex flex-col gap-1">
-            <li>Mole blends in → <span class="font-semibold">+20 Credibility</span> to the Mole.</li>
-            <li>Mole caught, names specimen → <span class="font-semibold">+15 Credibility</span> to the Mole.</li>
-            <li>Mole caught, wrong guess → <span class="font-semibold">+10 Credibility</span> to everyone else.</li>
+            <li>Mole escapes undetected → <span class="font-semibold">+Escape Bonus Credibility</span> to the Mole (configurable in Settings, default 10).</li>
+            <li>Mole correctly names the specimen → <span class="font-semibold">+10 Credibility</span> to the Mole (always, win or lose).</li>
+            <li>Mole caught → <span class="font-semibold">+10 Credibility</span> to each Field Researcher and Lead Biologist.</li>
+            <li>Discredited clue (Peer Review) → <span class="font-semibold">−5 Credibility</span> to the author.</li>
           </ul>
           <p class="text-stone-400 text-xs mt-1">Credibility accumulates across all habitats. Highest total wins the expedition.</p>
         </div>

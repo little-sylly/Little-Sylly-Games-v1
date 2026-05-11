@@ -1,6 +1,6 @@
 # Code Map — Little Sylly Games
 **Purpose:** Surgical reference for editing. Uses element IDs (stable) not line numbers (shift).
-**Updated:** Phase 13
+**Updated:** Phase 17 (7-game gold master)
 
 ---
 
@@ -32,6 +32,9 @@
 | `#btn-great-minds` | Lobby → GM menu |
 | `#btn-sylly-signals` | Lobby → SS menu |
 | `#btn-jec` | Lobby → JEC menu |
+| `#btn-ygi` | Lobby → YGI menu |
+| `#btn-lttp` | Lobby → LTTP menu |
+| `#btn-nat` | Lobby → NAT menu |
 | `#lobby-icon` | Secret Mode tap counter (7 taps → controller screen) |
 | `.btn-open-sound` | Opens `#sound-overlay` (on every screen) |
 | `#global-mute-toggle` | Mute toggle inside sound overlay |
@@ -471,6 +474,72 @@ Each plugin reads `window.activeExpansionOverrides` at its settings-apply point 
 **Default word pool in Secret Mode:** Each plugin should check `if (isSecretMode && secretWords.length)` and use `secretWords` (or a category-filtered subset) instead of `allWords`. If no specific `SM_EXPANSION_OVERRIDES` entry exists for a game, this is the minimum expected behaviour.
 
 **Vocab Lock reuse:** Any game can check `window.activeExpansionData.vocab.has(normaliseWord(input))` and call `smOpenVocabOverlay()` to expose the word list. Wire a hidden button (revealed on failure) per `#gm-vocab-list-btn` pattern.
+
+---
+
+## Natural Selection (NAT)
+
+**JS file:** `js/games/nat.js`
+**Brand colour:** `lime-600`
+**Lobby button:** `#btn-nat`
+
+### Screens
+| ID | Purpose |
+|----|---------|
+| `#screen-nat-menu` | Game menu — "Begin Observation" CTA |
+| `#screen-nat-setup` | Player count + name entry |
+| `#screen-nat-handover` | Pass-the-phone gate (before each observation day + role reveal) |
+| `#screen-nat-observation` | Journal entry — each player submits one clue word per day |
+| `#screen-nat-daily-review` | **Sylly Mode only** — all clues revealed at end of day before voting |
+| `#screen-nat-selection` | Eviction vote — players vote to identify The Mole |
+| `#screen-nat-last-stand` | Mole's final specimen guess + Lead Biologist verdict |
+| `#screen-nat-tally` | Per-match score reveal (Credibility totals) |
+| `#screen-nat-gameover` | Final expedition report + round log |
+
+### Overlays
+| ID | Pattern | Opened by |
+|----|---------|-----------|
+| `#nat-settings-overlay` | Data (slide-up) z-[80] | `#btn-nat-menu-settings` / `natOpenSettings()` |
+| `#nat-how-to-overlay` | Data (slide-up) z-[90] | `#btn-nat-menu-howto` / `natOpenHowTo()` |
+| `#nat-quit-overlay` | Decision modal z-[80] | `.btn-nat-quit-open` (any gameplay screen) |
+
+### Key state variables
+| Variable | Default | Options |
+|----------|---------|---------|
+| `natMatchesSetting` | `3` | `3 \| 4 \| 5` |
+| `natRoundsPerMatch` | `2` | `2 \| 3 \| 4` |
+| `natDifficulty` | `'d1+d2'` | `'d1' \| 'd1+d2' \| 'all'` |
+| `natVotingMode` | `'consensus'` | `'consensus' \| 'independent'` |
+| `natScientificIntegrity` | `'relaxed'` | `'relaxed' \| 'peer-review'` |
+| `natEscapePoints` | `10` | `10 \| 15 \| 20` |
+| `natSyllyMode` | `false` | bool |
+| `natBiologistIdx` | `-1` | player index |
+| `natMoleIdx` | `-1` | player index |
+| `natAssignedWords[]` | `[]` | detail word per player |
+| `natClueStatuses[][]` | `[]` | `'normal' \| 'review' \| 'discredited'` per player per day |
+
+### Key functions
+| Function | Purpose |
+|----------|---------|
+| `natInit()` | Sets `activeGameId = 'nat'` → `#screen-nat-menu` |
+| `natApplySettings()` | Reads pill state → updates all nat* settings vars |
+| `natStartGame()` | Resets state, builds player roster → starts first match |
+| `natStartMatch()` | Draws specimen, assigns roles → handover |
+| `natAssignRoles()` | Shuffles players: index 0 = Mole, index 1 = Biologist, rest = Researchers |
+| `natGetWordForPlayer(idx)` | Returns role-appropriate word: Biologist → `specimen.word`, Mole → `nono_list[0]`, Researcher → assigned detail word |
+| `natShowHandover(idx)` | Pass gate — shows role-aware instruction before each player's turn |
+| `natShowObservation()` | Journal entry screen for current player |
+| `natSubmitObservation()` | Validates + stores clue; advances to next player or selection |
+| `natShowDailyReview()` | **Sylly Mode** — reveals all day's clues before voting begins |
+| `natShowSelection()` | Eviction vote screen (consensus or pass-the-phone per `natVotingMode`) |
+| `natDispute(playerIdx, dayIdx)` | **Peer Review** — cycles clue status: normal → review → discredited |
+| `natResolveEviction()` | Tallies votes, applies tie-break (lowest Credibility), sets `natEvictedIdx` |
+| `natShowLastStand()` | Mole's final specimen identification guess |
+| `natBiologistVerdict()` | Lead Biologist confirms or disputes Mole's guess → scoring |
+| `natShowTally()` | Credibility score reveal for the completed match |
+| `natNextMatch()` | Advances to next match or gameover |
+| `natShowGameover()` | Final expedition report with round log |
+| `natResetState()` | Full teardown; called by `resetToLobby()` |
 
 ---
 
