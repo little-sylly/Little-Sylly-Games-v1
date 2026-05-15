@@ -60,7 +60,7 @@ document.getElementById('btn-jec-menu-how-to').addEventListener('click', () => {
 document.getElementById('btn-jec-menu-settings').addEventListener('click', () => {
   playPillClick();
   const el = document.getElementById('jec-settings-overlay');
-  const body = el.querySelector('.overflow-y-auto');
+  const body = el.querySelector('.overlay-data-inner');
   if (body) body.scrollTop = 0;
   el.style.display = 'flex';
 });
@@ -114,7 +114,7 @@ document.getElementById('btn-jec-oversight-toggle').addEventListener('click', ()
   jecSousChefOversight = !jecSousChefOversight;
   const btn = document.getElementById('btn-jec-oversight-toggle');
   btn.textContent = jecSousChefOversight ? 'ON' : 'OFF';
-  btn.className   = jecSousChefOversight ? 'sylly-toggle-on' : 'sylly-toggle-off';
+  btn.className   = jecSousChefOversight ? 'game-toggle-on-amber shrink-0' : 'sylly-toggle-off shrink-0';
 });
 
 document.getElementById('btn-jec-specials-toggle').addEventListener('click', () => {
@@ -122,14 +122,14 @@ document.getElementById('btn-jec-specials-toggle').addEventListener('click', () 
   jecSpecialsBoard = !jecSpecialsBoard;
   const btn = document.getElementById('btn-jec-specials-toggle');
   btn.textContent = jecSpecialsBoard ? 'ON' : 'OFF';
-  btn.className   = jecSpecialsBoard ? 'sylly-toggle-on shrink-0' : 'sylly-toggle-off shrink-0';
+  btn.className   = jecSpecialsBoard ? 'game-toggle-on-amber shrink-0' : 'sylly-toggle-off shrink-0';
 });
 
 document.getElementById('btn-jec-sylly-toggle').addEventListener('click', () => {
   jecKitchenNightmares = !jecKitchenNightmares;
   const btn = document.getElementById('btn-jec-sylly-toggle');
   btn.textContent = jecKitchenNightmares ? 'ON' : 'OFF';
-  btn.className   = jecKitchenNightmares ? 'sylly-toggle-on' : 'sylly-toggle-off';
+  btn.className   = jecKitchenNightmares ? 'game-toggle-on-amber shrink-0' : 'sylly-toggle-off shrink-0';
   jecKitchenNightmares ? playSyllyOn() : playSyllyOff();
 });
 
@@ -616,6 +616,11 @@ document.getElementById('btn-jec-new-game').addEventListener('click', () => {
 });
 
 document.getElementById('btn-jec-washup-back').addEventListener('click', () => {
+  playExit();
+  resetToLobby();
+});
+
+document.getElementById('btn-jec-washup-exit').addEventListener('click', () => {
   playExit();
   resetToLobby();
 });

@@ -9,7 +9,7 @@
 let ygiRounds       = 3;              // 3 | 5 | 8
 let ygiDecider      = 'close-enough'; // 'close-enough' | 'only-one'
 let ygiFullTally    = false;          // false = top-3 only | true = rank all
-let ygiVerdictStyle = 'open-ballpark'; // 'secret-ballot' | 'open-ballpark'
+let ygiVerdictStyle = 'secret-ballot'; // 'secret-ballot' | 'open-ballpark'
 let ygiRinger     = false;          // Sylly Mode — injects a Ghost Card each round
 
 // ── CE State ──────────────────────────────────────────────────────────────────
@@ -118,7 +118,7 @@ document.getElementById('btn-ygi-full-tally-toggle').addEventListener('click', (
   ygiFullTally = !ygiFullTally;
   const btn = document.getElementById('btn-ygi-full-tally-toggle');
   btn.textContent = ygiFullTally ? 'ON' : 'OFF';
-  btn.className   = ygiFullTally ? 'sylly-toggle-on shrink-0' : 'sylly-toggle-off shrink-0';
+  btn.className   = ygiFullTally ? 'game-toggle-on-orange shrink-0' : 'sylly-toggle-off shrink-0';
   playPillClick();
 });
 
@@ -126,7 +126,7 @@ document.getElementById('btn-ygi-sylly-toggle').addEventListener('click', () => 
   ygiRinger = !ygiRinger;
   const btn = document.getElementById('btn-ygi-sylly-toggle');
   btn.textContent = ygiRinger ? 'ON' : 'OFF';
-  btn.className   = ygiRinger ? 'sylly-toggle-on shrink-0' : 'sylly-toggle-off shrink-0';
+  btn.className   = ygiRinger ? 'game-toggle-on-orange shrink-0' : 'sylly-toggle-off shrink-0';
   ygiRinger ? playSyllyOn() : playSyllyOff();
 });
 
@@ -741,6 +741,11 @@ document.getElementById('btn-ygi-run-cancel').addEventListener('click', () => {
 });
 
 document.getElementById('btn-ygi-gameover-back').addEventListener('click', () => {
+  playExit();
+  resetToLobby();
+});
+
+document.getElementById('btn-ygi-gameover-exit').addEventListener('click', () => {
   playExit();
   resetToLobby();
 });

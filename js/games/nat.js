@@ -64,7 +64,7 @@ function natInit() {
 // ── Settings overlay ──────────────────────────────────────────────────────────
 function natOpenSettings() {
   const el = document.getElementById('nat-settings-overlay');
-  el.querySelector('.overflow-y-auto').scrollTop = 0;
+  el.querySelector('.overlay-data-inner').scrollTop = 0;
   el.style.display = 'flex';
 }
 
@@ -95,7 +95,7 @@ function natApplySettings() {
 // ── How to Play overlay ───────────────────────────────────────────────────────
 function natOpenHowTo() {
   const el = document.getElementById('nat-how-to-overlay');
-  el.querySelector('.overflow-y-auto').scrollTop = 0;
+  el.querySelector('.overlay-data-inner').scrollTop = 0;
   el.style.display = 'flex';
 }
 
@@ -852,7 +852,7 @@ document.addEventListener('DOMContentLoaded', () => {
     natSyllyMode = !natSyllyMode;
     const btn = document.getElementById('btn-nat-sylly-toggle');
     btn.textContent = natSyllyMode ? 'ON' : 'OFF';
-    btn.className   = natSyllyMode ? 'sylly-toggle-on shrink-0' : 'sylly-toggle-off shrink-0';
+    btn.className   = natSyllyMode ? 'game-toggle-on-lime shrink-0' : 'sylly-toggle-off shrink-0';
     natSyllyMode ? playSyllyOn() : playSyllyOff();
   });
 
@@ -949,14 +949,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ── Gameover ──
   document.getElementById('btn-nat-go-new')?.addEventListener('click', () => {
+    document.getElementById('nat-new-expedition-overlay').style.display = 'flex';
+  });
+  document.getElementById('btn-nat-expedition-confirm')?.addEventListener('click', () => {
     playLaunch();
+    document.getElementById('nat-new-expedition-overlay').style.display = 'none';
     natScores       = Array(natPlayerCount).fill(0);
     natRoundLog     = [];
     natUsedWordIds  = new Set();
     natCurrentMatch = 0;
     natStartMatch();
   });
+  document.getElementById('btn-nat-expedition-cancel')?.addEventListener('click', () => {
+    document.getElementById('nat-new-expedition-overlay').style.display = 'none';
+  });
   document.getElementById('btn-nat-go-exit')?.addEventListener('click', () => {
+    playExit(); resetToLobby();
+  });
+  document.getElementById('btn-nat-gameover-exit')?.addEventListener('click', () => {
     playExit(); resetToLobby();
   });
 

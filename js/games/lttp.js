@@ -135,14 +135,14 @@ document.addEventListener('DOMContentLoaded', () => {
     lttpGroupVote = !lttpGroupVote;
     const btn = document.getElementById('btn-lttp-groupvote-toggle');
     btn.textContent = lttpGroupVote ? 'ON' : 'OFF';
-    btn.className   = lttpGroupVote ? 'sylly-toggle-on shrink-0' : 'sylly-toggle-off shrink-0';
+    btn.className   = lttpGroupVote ? 'game-toggle-on-red shrink-0' : 'sylly-toggle-off shrink-0';
     playPillClick();
   });
   document.getElementById('btn-lttp-smalltalk-toggle').addEventListener('click', () => {
     lttpSmallTalk = !lttpSmallTalk;
     const btn = document.getElementById('btn-lttp-smalltalk-toggle');
     btn.textContent = lttpSmallTalk ? 'ON' : 'OFF';
-    btn.className   = lttpSmallTalk ? 'sylly-toggle-on shrink-0' : 'sylly-toggle-off shrink-0';
+    btn.className   = lttpSmallTalk ? 'game-toggle-on-red shrink-0' : 'sylly-toggle-off shrink-0';
     playPillClick();
   });
   document.getElementById('btn-lttp-st-overlay-close').addEventListener('click', () => {
@@ -161,7 +161,7 @@ document.addEventListener('DOMContentLoaded', () => {
     lttpJokerMode = !lttpJokerMode;
     const btn = document.getElementById('btn-lttp-joker-toggle');
     btn.textContent = lttpJokerMode ? 'ON' : 'OFF';
-    btn.className   = lttpJokerMode ? 'sylly-toggle-on shrink-0' : 'sylly-toggle-off shrink-0';
+    btn.className   = lttpJokerMode ? 'game-toggle-on-red shrink-0' : 'sylly-toggle-off shrink-0';
     lttpJokerMode ? playSyllyOn() : playSyllyOff();
   });
   document.getElementById('btn-lttp-settings-done').addEventListener('click', () => {

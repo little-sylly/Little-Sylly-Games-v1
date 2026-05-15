@@ -23,7 +23,7 @@ let ssRerollLimitSetting = 1;      // max rerolls per keyword: 1 | 2 | Infinity
 let ssTimerSetting       = 0;      // countdown seconds (0 = off)
 
 // ── SS Team + vault state ─────────────────────────────────────────────────────
-let ssTeamNames    = ['Team A', 'Team B'];
+let ssTeamNames    = ['Alpha Echo', 'Bravo Zulu'];
 let ssPlayerCount  = 2;           // 2 or 3 per team
 let ssPlayerNamesA = ['', ''];
 let ssPlayerNamesB = ['', ''];
@@ -32,7 +32,8 @@ let ssVaultB    = [];  // 4 word objects
 let ssRerollCounts = [[0,0,0,0],[0,0,0,0]]; // [team][kwIdx]
 
 // ── SS Round state ────────────────────────────────────────────────────────────
-let ssEncryptingTeam = 0;        // 0 = Team A encrypts, 1 = Team B encrypts
+let ssEncryptingTeam    = 0;        // 0 = Team A encrypts, 1 = Team B encrypts
+let ssSecondVaultShown  = false;    // true once the non-first team has viewed their vault
 let ssCurrentCode    = [];       // e.g. [3, 1, 4] — three distinct ints 1–4
 let ssCurrentClues   = ['', '', ''];
 
@@ -566,6 +567,7 @@ function ssIntelRenderAttempts() {
     wrapper.appendChild(btn);
     container.appendChild(wrapper);
 
+    // brief delay ensures DOM render is complete before focus, preventing keyboard-snap on iOS
     if (isLast) setTimeout(() => input.focus(), 100);
   }
 }
@@ -777,28 +779,29 @@ function ssShowFinalGameOver() {
 
 function startSyllySignals() {
   activeGameId      = 'sylly-signals';
-  ssEncryptingTeam  = 0;
-  ssCurrentCode     = [];
-  ssCurrentClues    = ['', '', ''];
-  ssClueHistoryA    = [[], [], [], []];
-  ssClueHistoryB    = [[], [], [], []];
-  ssInterceptGuess  = [0, 0, 0];
-  ssDecodeGuess     = [0, 0, 0];
-  ssTokens          = [0, 0];
-  ssMisfires        = [0, 0];
-  ssRound           = 0;
+  ssEncryptingTeam   = 0;
+  ssSecondVaultShown = false;
+  ssCurrentCode      = [];
+  ssCurrentClues     = ['', '', ''];
+  ssClueHistoryA     = [[], [], [], []];
+  ssClueHistoryB     = [[], [], [], []];
+  ssInterceptGuess   = [0, 0, 0];
+  ssDecodeGuess      = [0, 0, 0];
+  ssTokens           = [0, 0];
+  ssMisfires         = [0, 0];
+  ssRound            = 0;
 
   // Pre-populate team name inputs (blank if still defaults)
-  document.getElementById('ss-input-team-a').value = ssTeamNames[0] === 'Team A' ? '' : ssTeamNames[0];
-  document.getElementById('ss-input-team-b').value = ssTeamNames[1] === 'Team B' ? '' : ssTeamNames[1];
+  document.getElementById('ss-input-team-a').value = ssTeamNames[0] === 'Alpha Echo' ? '' : ssTeamNames[0];
+  document.getElementById('ss-input-team-b').value = ssTeamNames[1] === 'Bravo Zulu' ? '' : ssTeamNames[1];
   showScreen('screen-ss-setup');
 }
 
 function ssConfirmSetup() {
   const valA = document.getElementById('ss-input-team-a').value.trim();
   const valB = document.getElementById('ss-input-team-b').value.trim();
-  ssTeamNames[0] = valA || 'Team A';
-  ssTeamNames[1] = valB || 'Team B';
+  ssTeamNames[0] = valA || 'Alpha Echo';
+  ssTeamNames[1] = valB || 'Bravo Zulu';
   ssShowPlayers();
 }
 
@@ -845,7 +848,23 @@ function ssConfirmPlayers() {
       ssCustomiseVault = false; // lockdown: no vault customisation in Secret Mode
     }
     ssBuildVaults();
-    ssShowVaultGate(0);
+    showWhoFirst({
+      emoji:           '📡',
+      eyebrow:         'Mission Briefing',
+      heading:         'Who Encrypts First?',
+      prompt:          'Decide which team transmits the first signal.',
+      teamA:           ssTeamName(0),
+      teamB:           ssTeamName(1),
+      confirmLabel:    'Start Encrypting 📡',
+      accentBtnClass:  'bg-teal-500 hover:bg-teal-600',
+      accentTextClass: 'text-teal-600',
+      onResult(goesFirstIdx) {
+        ssEncryptingTeam   = goesFirstIdx;
+        ssRound            = 0;
+        ssSecondVaultShown = false;
+        ssShowVaultGate(ssEncryptingTeam);
+      },
+    });
   });
 }
 
@@ -855,27 +874,6 @@ function ssGetBroadcaster(team) {
   return names[ssRound % names.length];
 }
 
-let ssFirstTeamWinner = -1;
-
-function ssShowFirstTeam() {
-  // Populate RPS team-name buttons
-  document.getElementById('btn-ss-first-rps-a').textContent = `${ssTeamName(0)} Won`;
-  document.getElementById('btn-ss-first-rps-b').textContent = `${ssTeamName(1)} Won`;
-  // Reset to initial state
-  document.getElementById('ss-first-team-main').style.display   = 'flex';
-  document.getElementById('ss-first-rps-row').style.display     = 'none';
-  document.getElementById('ss-first-winner-row').style.display  = 'none';
-  ssFirstTeamWinner = -1;
-  showScreen('screen-ss-first-team');
-}
-
-function ssFirstTeamShowWinner(winner) {
-  ssFirstTeamWinner = winner;
-  document.getElementById('ss-first-winner-label').textContent  = `${ssTeamName(winner)} — your call.`;
-  document.getElementById('ss-first-team-main').style.display   = 'none';
-  document.getElementById('ss-first-rps-row').style.display     = 'none';
-  document.getElementById('ss-first-winner-row').style.display  = 'flex';
-}
 
 function ssShowVaultGate(team) {
   const name = ssTeamName(team);
@@ -889,6 +887,14 @@ function ssShowVaultGate(team) {
 function ssShowVault(team) {
   document.getElementById('ss-vault-title').textContent = ssTeamName(team);
   document.getElementById('btn-ss-vault-done').dataset.team = team;
+  const broadcaster   = ssGetBroadcaster(team);
+  const hasPlayerName = broadcaster !== ssTeamName(team);
+  const instrEl       = document.getElementById('ss-vault-instruction');
+  const doneBtn       = document.getElementById('btn-ss-vault-done');
+  const playerLabel   = hasPlayerName ? broadcaster : 'Player 1';
+  instrEl.innerHTML     = `Once memorised, pass the phone to <strong>${playerLabel}</strong> only.`;
+  instrEl.style.display = 'block';
+  doneBtn.textContent   = `${ssTeamName(team)}, ${playerLabel} ready? Let's Transmit! 📡`;
   ssShowVaultAfterReroll(team);
   showScreen('screen-ss-vault');
 }
@@ -1233,7 +1239,7 @@ function ssShowEndgameSplash(winner) {
   document.getElementById('btn-ss-splash-results').style.display = 'none';
   document.getElementById('ss-endgame-splash').style.display     = 'flex';
 
-  // After 2s reveal the action button
+  // give player 2s to absorb the win/loss state before the continue button appears
   setTimeout(() => {
     if (ssIntelSyllyMode) {
       const p2Btn = document.getElementById('btn-ss-splash-phase2');
@@ -1269,6 +1275,12 @@ function ssNextHalf() {
     // Both halves done — new round
     ssRound++;
     ssEncryptingTeam = 0;
+  }
+
+  if (!ssSecondVaultShown) {
+    ssSecondVaultShown = true;
+    ssShowVaultGate(ssEncryptingTeam);
+    return;
   }
   ssStartHalf();
 }
@@ -1396,6 +1408,7 @@ function ssShowQuitOverlay() {
 function ssResetToMenu() {
   ssStopTimer();
   ssEncryptingTeam       = 0;
+  ssSecondVaultShown     = false;
   ssCurrentCode          = [];
   ssCurrentClues         = ['', '', ''];
   ssClueHistoryA         = [[], [], [], []];
@@ -1429,6 +1442,7 @@ function ssResetToMenu() {
 // ── SS Reset (called by engine resetToLobby) ──────────────────────────────────
 function resetSyllySignals() {
   ssEncryptingTeam       = 0;
+  ssSecondVaultShown     = false;
   ssCurrentCode          = [];
   ssCurrentClues         = ['', '', ''];
   ssClueHistoryA         = [[], [], [], []];
@@ -1467,7 +1481,7 @@ function ssyncTimerToggleUI() {
   const on = ssTimerSetting > 0;
   const toggleBtn = document.getElementById('btn-ss-timer-toggle');
   toggleBtn.textContent = on ? 'ON' : 'OFF';
-  toggleBtn.className   = on ? 'sylly-toggle-on flex-shrink-0' : 'sylly-toggle-off flex-shrink-0';
+  toggleBtn.className   = on ? 'game-toggle-on-teal shrink-0' : 'sylly-toggle-off shrink-0';
   document.getElementById('ss-timer-duration-row').style.display = on ? 'flex' : 'none';
   // Sync active pill for current duration
   document.querySelectorAll('[data-ss-setting="timer"]').forEach(btn => {
@@ -1478,7 +1492,7 @@ function ssyncTimerToggleUI() {
 function ssyncCustomiseToggleUI() {
   const toggleBtn = document.getElementById('btn-ss-customise-toggle');
   toggleBtn.textContent = ssCustomiseVault ? 'ON' : 'OFF';
-  toggleBtn.className   = ssCustomiseVault ? 'sylly-toggle-on' : 'sylly-toggle-off';
+  toggleBtn.className   = ssCustomiseVault ? 'game-toggle-on-teal shrink-0' : 'sylly-toggle-off shrink-0';
   document.getElementById('ss-customise-body').style.display = ssCustomiseVault ? 'flex' : 'none';
 }
 
@@ -1503,7 +1517,7 @@ function ssOpenSettings() {
   // Sync Sylly Mode toggle
   const toggle = document.getElementById('ss-sylly-toggle');
   toggle.textContent = ssIntelSyllyMode ? 'ON' : 'OFF';
-  toggle.className   = ssIntelSyllyMode ? 'sylly-toggle-on' : 'sylly-toggle-off';
+  toggle.className   = ssIntelSyllyMode ? 'game-toggle-on-teal shrink-0' : 'sylly-toggle-off shrink-0';
   // Render category pills
   ssSyncCategoryPills();
   const el = document.getElementById('ss-settings-overlay');
@@ -1619,18 +1633,10 @@ document.getElementById('btn-ss-vault-gate-ready').addEventListener('click', () 
   ssShowVault(team);
 });
 
-// Vault → next stage
+// Vault → start encoding turn
 document.getElementById('btn-ss-vault-done').addEventListener('click', () => {
-  playDone();
-  const team = parseInt(document.getElementById('btn-ss-vault-done').dataset.team ?? '0');
-  if (team === 0) {
-    // Team A done — now show Team B vault gate
-    ssShowVaultGate(1);
-  } else {
-    // Both vaults revealed — decide who encrypts first
-    ssRound = 0;
-    ssShowFirstTeam();
-  }
+  playLaunch();
+  ssStartHalf();
 });
 
 // Vault screen exit
@@ -1850,46 +1856,13 @@ document.getElementById('ss-sylly-toggle').addEventListener('click', () => {
   ssIntelSyllyMode = !ssIntelSyllyMode;
   const toggle = document.getElementById('ss-sylly-toggle');
   toggle.textContent = ssIntelSyllyMode ? 'ON' : 'OFF';
-  toggle.className   = ssIntelSyllyMode ? 'sylly-toggle-on' : 'sylly-toggle-off';
+  toggle.className   = ssIntelSyllyMode ? 'game-toggle-on-teal shrink-0' : 'sylly-toggle-off shrink-0';
 });
 
-// ── Who Encrypts First screen ─────────────────────────────────────────────────
-document.getElementById('btn-ss-first-random').addEventListener('click', () => {
-  playPillClick();
-  ssFirstTeamShowWinner(Math.random() < 0.5 ? 0 : 1);
-});
-document.getElementById('btn-ss-first-rps').addEventListener('click', () => {
-  playPillClick();
-  document.getElementById('ss-first-team-main').style.display = 'none';
-  document.getElementById('ss-first-rps-row').style.display   = 'flex';
-});
-document.getElementById('btn-ss-first-rps-a').addEventListener('click', () => {
-  playPillClick();
-  ssFirstTeamShowWinner(0);
-});
-document.getElementById('btn-ss-first-rps-b').addEventListener('click', () => {
-  playPillClick();
-  ssFirstTeamShowWinner(1);
-});
-document.getElementById('btn-ss-first-go-first').addEventListener('click', () => {
-  playLaunch();
-  ssEncryptingTeam = ssFirstTeamWinner;
-  ssStartHalf();
-});
-document.getElementById('btn-ss-first-go-second').addEventListener('click', () => {
-  playLaunch();
-  ssEncryptingTeam = 1 - ssFirstTeamWinner;
-  ssStartHalf();
-});
-document.getElementById('btn-ss-first-back-from-rps').addEventListener('click', () => {
+// ── Intel Summary screen ──────────────────────────────────────────────────────
+document.getElementById('btn-ss-intel-summary-exit').addEventListener('click', () => {
   playExit();
-  document.getElementById('ss-first-rps-row').style.display    = 'none';
-  document.getElementById('ss-first-team-main').style.display  = 'flex';
-});
-document.getElementById('btn-ss-first-back-from-winner').addEventListener('click', () => {
-  playExit();
-  document.getElementById('ss-first-winner-row').style.display = 'none';
-  document.getElementById('ss-first-team-main').style.display  = 'flex';
+  resetToLobby(); // post-game exit — game has already concluded before the Intel Phase
 });
 
 // ── Tiebreak screen ───────────────────────────────────────────────────────────
@@ -1972,7 +1945,7 @@ document.getElementById('btn-ss-intel-override').addEventListener('click', () =>
         r.classList.remove('shake');
         void r.offsetWidth;  // force reflow to replay animation
         r.classList.add('shake');
-        setTimeout(() => r.classList.remove('shake'), 600);
+        setTimeout(() => r.classList.remove('shake'), 600); // 600ms matches the shake animation duration in CSS
       });
       return;
     }

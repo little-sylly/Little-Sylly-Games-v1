@@ -28,6 +28,12 @@
 | Review edits | ON / OFF |
 | Sylly Mode | ON / OFF |
 
+### Team Setup
+- **Screen 1 heading:** "Name your Playgroups!"
+- **Default team names:** Crayon Crew / Glue Stick Gang
+- **Screen 2:** None — LI5 does not track individual player names
+- **Setup emoji:** 👥
+
 **Status:** Stable since Phase 7. No changes in Phase 10.x.
 
 ---
@@ -35,7 +41,7 @@
 ## Game 2: Great Minds
 **Theme:** Telepathy / frequency / signal. Two players find a connecting word for a random pair.
 **Key file:** `js/games/great-minds.js`
-**State flow:** LOBBY → GM MENU → GM SETUP → GM INPUT → GM PASS GATE → GM REVEAL GATE → GM REVEAL → GM RESULT (loop until victory)
+**State flow:** LOBBY → GM MENU → GM SETUP → GM INPUT → GM PASS GATE → GM REVEAL GATE → GM REVEAL → GM RESULT (loop until victory) → GM CONCEDE (Secret Mode only: Sever Link path from round 11)
 
 ### Terminology
 | Screen / element | Display text |
@@ -48,7 +54,7 @@
 | Victory state | **"NEURAL LINK!"** |
 | Override modal title | "Quantum Entanglement?" |
 | Near-sync modal title | "Frequency Overlap" |
-| Static block message | "Signal Interrupted!" |
+| Static block message | "⚡ Static Interference! Letter [X] is banned this round." |
 | Memory Guard block | "Temporal Paradox!" |
 | Session Terminal — new game | "Memory Purge ⚛️" |
 | Session Terminal — continue | "Resume Current Evaluation 📖" |
@@ -95,7 +101,7 @@
 ## Game 3: Secret Signals (SS)
 **Theme:** Encryption / intercept / broadcast. Two teams — one encrypts keywords, the other intercepts.
 **Key file:** `js/games/secret-signals.js`
-**State flow:** Setup → Players → Vault Gate (×2) → Vault (×2) → Who Encrypts First? → [Round: Encrypt → Broadcast → Intercept → Decode Gate → Decode → Resolution] → Endgame Splash → [Phase 2 if Sylly Mode: Tiebreak? → Intel Intro → Intel Guess (×4) → Intel Summary] → Final Game Over
+**State flow:** Setup → Players → Who Encrypts First? → Vault Gate (first team) → Vault (first team) → [first team's encoding turn] → Vault Gate (second team, first time only) → Vault (second team) → [Round loop: Encrypt → Broadcast → Intercept → Decode Gate → Decode → Resolution, alternating teams] → Endgame Splash → [Phase 2 if Sylly Mode: Tiebreak? → Intel Intro → Intel Guess (×4) → Intel Summary] → Final Game Over
 
 ### Terminology
 - **Vault:** Each team's private set of 4 keywords
@@ -128,6 +134,14 @@
 - Plural/singular aware + compound word aware (hyphen/space split, ≥3 char components)
 - Solid compounds (no separator) do NOT auto-split — store as "Weight-Lifting" to enable matching
 
+### Team Setup
+- **Screen 1 heading:** "Establish Cover Identities"
+- **Default team names:** Alpha Echo / Bravo Zulu
+- **Screen 2 heading:** "Meet the Operatives"
+- **Screen 2 subtitle:** "Names optional — helps with broadcaster rotation."
+- **Player placeholder:** "Operative 1", "Operative 2", etc.
+- **Setup emoji:** 👥
+
 ---
 
 ## Game 4: Just Enough Cooks (JEC)
@@ -157,15 +171,17 @@
 | The Pantry Cabinet | Settings overlay label |
 
 ### Settings
-| Setting | Options | Default |
-|---------|---------|---------|
-| Chefs (player count) | 3 / 4 / 5 / 6 | 4 |
-| Rounds | 3 / 5 / 10 | 3 |
-| The Sweet Spot | 10 / 20 / 30 pts | 20 pts |
-| Rotten Penalty | Off / On | On — unique ingredients cost −10 pts |
-| Spoilt Penalty | Off / On | On — Crowded Kitchen Tax: −(count × 2) pts |
-| Sous Chef Oversight | Off / On | On |
-| ✨ Sylly Mode (Kitchen Nightmares) | Off / On | Off |
+| Setting | Options | Default | Internal value |
+|---------|---------|---------|----------------|
+| Chefs (player count) | 3 / 4 / 5 / 6 | 4 | `jecPlayerCount` int |
+| Rounds | 3 / 5 / 10 | 3 | `jecRounds` int |
+| Menu Complexity | Home Cook / Sous Chef / Head Chef | Sous Chef | `jecFoodDifficulty` `'easy'` / `'mixed'` / `'hard'` |
+| The Sweet Spot | 10 / 20 / 30 pts | 20 pts | `jecGoldenScore` int |
+| Rotten Penalty | Off / On | On — unique ingredients cost −10 pts | `jecRottenPenalty` bool |
+| Spoilt Penalty | Off / On | On — Crowded Kitchen Tax: −(count × 2) pts | `jecSpoiltPenalty` bool |
+| Sous Chef Oversight | Off / On | On | `jecSousChefOversight` bool |
+| Specials Board | Off / On | Off | `jecSpecialsBoard` bool |
+| ✨ Sylly Mode (Kitchen Nightmares) | Off / On | Off | `jecKitchenNightmares` bool |
 
 ### Special Mechanics
 
@@ -386,6 +402,7 @@ const LTTP_SMALL_TALK = {
 | `lttp-smalltalk-overlay` | Data (slide-up) z-[80] | Guided mode only — tabbed topic picker |
 | `lttp-confirm-overlay` | Decision modal z-[80] | Pro mode only — "Send a message to [Name]?" |
 | `lttp-quit-overlay` | Decision modal z-[80] | Quit confirm |
+| `lttp-guess-map-overlay` | Custom (full-width map panel) z-[95] | Guess phase — Stray pins the address |
 
 ---
 
@@ -437,8 +454,8 @@ LOBBY → NAT MENU → NAT SETUP
 
 **Three-tier information model:**
 - Lead Biologist → `specimen.word` (full animal name)
-- Field Researchers (N−2 players) → each a DIFFERENT word from `specimen.nono_list[1–9]` (shuffled pool, one per Researcher)
-- The Mole → `specimen.nono_list[0]` (The Grouping / Broad Shield)
+- Field Researchers (N−2 players) → each a DIFFERENT word from `specimen.nono_list[1–9]` (shuffled pool, one per Researcher). Word bank quality rule: each word must be distinctive and non-redundant — see Dual-Use Contract in `CLAUDE.md`
+- The Mole → `specimen.nono_list[0]` (The Grouping / Broad Shield) — a Documentary Label, never a scientific class name
 
 **Role assignment (`natAssignRoles`):**
 ```js
@@ -480,3 +497,107 @@ No Lead Biologist role. All players (including the position normally assigned as
 | `nat-quit-overlay` | Decision modal z-[80] | "Abandon the expedition?" |
 
 `screen-nat-daily-review` is a full screen (not an overlay) — shown in Sylly Mode between the last Observation Day and The Selection.
+
+---
+
+## Game 8: Deep-Sea Deploy (DSD)
+**Theme:** Codenames-style clue-giving + sequential deduction for two naval task forces.
+**Key file:** `js/games/dsd.js`
+**Brand colour:** `cyan-700` | **Active pill:** `pill-active-cyan`
+**State flow:**
+```
+LOBBY → DSD MENU → DSD SETUP (team names) → DSD PLAYERS (player names + captain) → [WHO FIRST]
+→ [Deployment loop:
+    PASS GATE (Captain) → DSD CAPTAIN → PASS GATE (Crew) → DSD CREW → DSD EXECUTION
+    → (DSD SABOTAGE if Sylly Mode + deploy ≥ 2)
+  ]
+→ DSD GAMEOVER
+```
+
+### Terminology
+| Term | Meaning |
+|------|---------|
+| Sonar Ping | Captain's clue: one word + number 1–9 |
+| The Sequence | Crew's ordered list of grid taps (max ping number + 1) |
+| Deployment | Full round (both teams played once) |
+| Valour | Score currency |
+| Payload | Team-coloured grid cell (9 for first team, 8 for second) |
+| Spiked Urchin | Hazard cell — costs 5 Valour |
+| The Manifest | Captain screen label |
+| The Console ⚓ | Settings overlay title |
+| Operations Manual ⚓ | How-to overlay title |
+| New Operation | Play again (resets game state, keeps names + settings) |
+| Mission Abyss | Sylly Mode name |
+| Jammer | Sylly Mode sabotage tile |
+| Magnetic Drift | Sylly Mode mechanic — unrevealed grid cells shuffle each deployment |
+
+### Settings
+| Setting | Options | Default | Internal value |
+|---------|---------|---------|----------------|
+| Sea State | Calm / Turbulent / Tempest | Turbulent | `'calm'` / `'turbulent'` / `'tempest'` |
+| Danger Level | Pressure Mine / Nuclear Mine | Pressure | `'pressure'` / `'nuclear'` |
+| Urchin Ends Turn | OFF / ON | OFF | `dsdHazardControl.urchin` bool |
+| Mine Ends Turn | OFF / ON | ON | `dsdHazardControl.mine` bool |
+| Enemy Payload Ends Turn | OFF / ON | ON | `dsdHazardControl.enemy` bool |
+| ✨ Sylly Mode (Mission Abyss) | OFF / ON | OFF | `dsdSyllyMode` bool |
+
+### Scoring
+| Outcome | Who scores | Points | Turn End? |
+|---------|-----------|--------|-----------|
+| Friendly Payload | Active Team | +10 | No |
+| Enemy Payload | Enemy Team | +10 | If `dsdHazardControl.enemy` |
+| Spiked Urchin | Active Team | −5 | If `dsdHazardControl.urchin` |
+| Pressure Mine | Active Team | −20 | If `dsdHazardControl.mine` |
+| Nuclear Mine | Active Team | −1000 | GAME OVER (2.6s delay) |
+| Jammer (Sylly) | Active Team | −5 | Yes (always) |
+
+### Special Mechanics
+
+**Grid composition:** **9/8/4/4** (first team / second team / urchins / mines = 25 cells). No bystander. First team is determined by `showWhoFirst()` result; they receive 9 payloads. Role stored as `0` (team0), `1` (team1), `'urchin'`, or `'mine'`.
+
+**Deep Trench colour palette (Phase 20):**
+| Role | Captain grid | Crew grid (muted, revealed) |
+|------|-------------|-----------------------------|
+| Friendly payload | `bg-cyan-700 text-white` | `bg-cyan-200 text-cyan-900` |
+| Enemy payload | `bg-indigo-800 text-white` | `bg-indigo-200 text-indigo-900` |
+| Urchin | `bg-slate-400 text-white` | `bg-slate-200 text-slate-700` |
+| Mine (pressure) | `bg-red-600 text-white` | `bg-red-200 text-red-900` |
+| Mine (nuclear) | `bg-red-900 text-white` | `bg-red-200 text-red-900` |
+| Jammer (Sylly) | placing team's colour + `?` badge | — |
+
+**Word curation filter** (applied at runtime in `dsdBuildGame()`): excludes `aussie_slang`, `pop_culture`, `people`, `brands` categories + any word containing a space (hyphenated entries are kept).
+
+**Captain visibility:** Captain sees full Deep Trench colour-coded grid. Revealed cells shown with `opacity-40 line-through`. Colour legend strip below grid shows team names (active team bold). In Sylly Mode, opponent's Jammer shown as placing team's colour + `?` badge (not amber).
+
+**Pass-gate pattern:** `dsdShowPassGate({heading, subtext, ctaLabel, onConfirm})` — shows `screen-dsd-pass-gate` before every Captain screen and before every Crew screen (after ping transmitted).
+
+**Crew sequence:** Crew selects up to `dsdPingNumber + 1` tiles in order. Each tap adds a numbered badge. Confirm via `dsd-confirm-disarm` overlay before executing. Execution resolves tile-by-tile on a live grid with 400ms pre-reveal + 300ms post-resolve delay; outcome log builds per resolved tile.
+
+**`showWhoFirst()` used for team order:** DSD is the first game to call this engine utility in production. First team receives 9 payloads.
+
+**Magnetic Drift (`dsdApplyDrift()`):** From deployment 2 onwards (Sylly Mode), shuffles unrevealed grid cells' words and roles independently before each Captain screen. Revealed cells are never moved.
+
+**Jammer:** Placed by the team that just finished their first turn (at end of deployment 1). Captain of the opposing team sees the placing team's colour + `?` badge. Triggering costs the active team 5 Valour + ends turn + clears the Jammer. `dsdJammer` = grid index (−1 = none); `dsdJammerTeam` = placing team index.
+
+**Nuclear Mine:** `dsdValour[me] -= 1000` then `setTimeout(() => dsdShowGameover(), 2600)` — 2.6s delay allows `playAbyssThud()` to play out.
+
+**Turn log:** `dsdTurnLog[]` accumulates per-turn records `{deployment, team, teamName, captainName, ping, pingNumber, outcomes[]}`. Rendered as a per-deployment history carousel on the gameover screen. `dsdTurnOutcomes[]` is populated by `dsdResolveHit()` and pushed to `dsdTurnLog` by `dsdAdvanceTurn()`.
+
+**Win condition:** Highest Valour when all of either team's payloads are revealed. Arming all payloads ends the game but does NOT guarantee a win.
+
+### Team Setup
+- **Screen 1 heading:** "Name Your Task Forces"
+- **Default team names:** SS Kraken / SS Leviathan
+- **Screen 2 heading:** "Meet the Crew"
+- **Screen 2 subtitle:** "Names optional — tap ⚓ to assign the Captain."
+- **Player placeholder:** "Crew member 1", "Crew member 2", etc.
+- **Setup emoji:** ⚓
+
+### Overlay Types
+| Overlay | Pattern | z-index | Notes |
+|---------|---------|---------|-------|
+| `dsd-settings-overlay` | Data (slide-up) | z-[80] | "The Console ⚓" |
+| `dsd-how-to-overlay` | Data (slide-up) | z-[90] | "Operations Manual ⚓" |
+| `dsd-quit-overlay` | Decision modal | z-[80] | "Scuttle the Ship?" |
+| `dsd-confirm-disarm` | Decision modal | z-[90] | "Confirm Sequence?" |
+| `dsd-new-op-overlay` | Decision modal | z-[90] | "New Operation?" — play-again confirmation |

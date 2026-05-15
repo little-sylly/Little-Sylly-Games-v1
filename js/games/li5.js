@@ -61,7 +61,7 @@ let reviewCallback  = null;
 let matchLog        = [];
 let scoreBeforeTurn = 0;
 
-let teamNames    = ['Team 1', 'Team 2'];
+let teamNames    = ['Crayon Crew', 'Glue Stick Gang'];
 let teamScores   = [0, 0];
 let currentTeam  = 0;
 let currentRound = 1;
@@ -88,7 +88,7 @@ function pulseScore() {
 function flashBackground(colour) {
   document.body.classList.remove('flash-green', 'flash-red');
   document.body.classList.add(colour === 'green' ? 'flash-green' : 'flash-red');
-  setTimeout(() => document.body.classList.remove('flash-green', 'flash-red'), 400);
+  setTimeout(() => document.body.classList.remove('flash-green', 'flash-red'), 400); // matches flash animation duration in CSS
 }
 
 // ── Word loading + drawing ────────────────────────────────────────────────────
@@ -193,11 +193,25 @@ async function startGame() {
 
   const n1 = document.getElementById('input-team1').value.trim();
   const n2 = document.getElementById('input-team2').value.trim();
-  teamNames[0] = n1 || 'Team 1';
-  teamNames[1] = n2 || 'Team 2';
+  teamNames[0] = n1 || 'Crayon Crew';
+  teamNames[1] = n2 || 'Glue Stick Gang';
 
-  drawNextWord();
-  showGatekeeper();
+  showWhoFirst({
+    emoji:           '💬',
+    eyebrow:         'Ready to Go?',
+    heading:         'Who Goes First?',
+    prompt:          'Decide which Playgroup starts describing.',
+    teamA:           teamNames[0],
+    teamB:           teamNames[1],
+    confirmLabel:    "Let's Go! 🚀",
+    accentBtnClass:  'bg-pink-500 hover:bg-pink-600',
+    accentTextClass: 'text-pink-600',
+    onResult: (idx) => {
+      currentTeam = idx;
+      drawNextWord();
+      showGatekeeper();
+    }
+  });
 }
 
 // ── Taboo list renderer ───────────────────────────────────────────────────────
@@ -390,7 +404,7 @@ function applyAndAdvance(action) {
     const exitClass = action === 'correct' ? 'card-exit-right' : 'card-exit-left';
     card.classList.add(exitClass);
     setTimeout(() => {
-      card.classList.remove(exitClass);
+      card.classList.remove(exitClass); // wait for 150ms card-exit CSS animation before rendering next word
       renderCurrentWord();
     }, 150);
   }
@@ -729,7 +743,7 @@ document.getElementById('all-decks-toggle').addEventListener('click', () => { pl
   settingPlayAllDecks = !settingPlayAllDecks;
   const btn = document.getElementById('all-decks-toggle');
   btn.textContent = settingPlayAllDecks ? 'ON' : 'OFF';
-  btn.className   = settingPlayAllDecks ? 'sylly-toggle-on' : 'sylly-toggle-off';
+  btn.className   = settingPlayAllDecks ? 'game-toggle-on-pink shrink-0' : 'sylly-toggle-off shrink-0';
   document.getElementById('btn-edit-deck').style.display = settingPlayAllDecks ? 'none' : 'block';
   if (settingPlayAllDecks) {
     settingCategories = new Set([
@@ -789,7 +803,7 @@ document.getElementById('sylly-toggle').addEventListener('click', () => {
   settingSylly ? playSyllyOn() : playSyllyOff();
   const toggle = document.getElementById('sylly-toggle');
   toggle.textContent = settingSylly ? 'ON' : 'OFF';
-  toggle.className   = settingSylly ? 'sylly-toggle-on' : 'sylly-toggle-off';
+  toggle.className   = settingSylly ? 'game-toggle-on-pink shrink-0' : 'sylly-toggle-off shrink-0';
   document.getElementById('sylly-pct-row').style.display = settingSylly ? 'block' : 'none';
 });
 
@@ -814,19 +828,19 @@ document.getElementById('btn-resume')
 
 document.getElementById('btn-correct').addEventListener('click', () => {
   if (isProcessing) return;
-  isProcessing = true; setTimeout(() => { isProcessing = false; }, 300);
+  isProcessing = true; setTimeout(() => { isProcessing = false; }, 300); // debounce: blocks double-tap within 300ms
   playSuccess(); flashBackground('green'); applyAndAdvance('correct');
 });
 
 document.getElementById('btn-taboo').addEventListener('click', () => {
   if (isProcessing) return;
-  isProcessing = true; setTimeout(() => { isProcessing = false; }, 300);
+  isProcessing = true; setTimeout(() => { isProcessing = false; }, 300); // debounce: blocks double-tap within 300ms
   playBoing(); flashBackground('red'); navigator.vibrate?.(40); showPenaltyPhrase(); applyAndAdvance('taboo');
 });
 
 document.getElementById('btn-skip').addEventListener('click', () => {
   if (isProcessing) return;
-  isProcessing = true; setTimeout(() => { isProcessing = false; }, 300);
+  isProcessing = true; setTimeout(() => { isProcessing = false; }, 300); // debounce: blocks double-tap within 300ms
   if (!settingSkipFree) { playBoing(); navigator.vibrate?.(40); } else { playWhoosh(); }
   applyAndAdvance('skip');
 });
@@ -862,7 +876,7 @@ document.getElementById('btn-review-next').addEventListener('click', () => {
 document.getElementById('corrections-toggle').addEventListener('click', () => {
   settingCorrections = !settingCorrections;
   document.getElementById('corrections-toggle').textContent = settingCorrections ? 'ON' : 'OFF';
-  document.getElementById('corrections-toggle').className   = settingCorrections ? 'sylly-toggle-on' : 'sylly-toggle-off';
+  document.getElementById('corrections-toggle').className   = settingCorrections ? 'game-toggle-on-pink shrink-0' : 'sylly-toggle-off shrink-0';
   playPillClick();
 });
 
@@ -874,7 +888,23 @@ document.getElementById('btn-history-close').addEventListener('click', () => {
 });
 
 document.getElementById('btn-play-again')
-  .addEventListener('click', () => { playLaunch(); resetToMenu(); });
+  .addEventListener('click', () => { playPillClick(); document.getElementById('li5-play-again-overlay').style.display = 'flex'; });
+
+document.getElementById('btn-li5-confirm-new-game').addEventListener('click', () => {
+  playLaunch();
+  document.getElementById('li5-play-again-overlay').style.display = 'none';
+  stopTimer();
+  teamScores = [0, 0];
+  wordsExhausted = false;
+  matchLog = [];
+  currentRound = 1;
+  showScreen('screen-setup');
+});
+
+document.getElementById('btn-li5-cancel-new-game').addEventListener('click', () => {
+  playExit();
+  document.getElementById('li5-play-again-overlay').style.display = 'none';
+});
 
 // ── Navigation exits on transition/score screens ──────────────────────────────
 // Setup → back to DSTW menu (no game started, no confirmation needed)

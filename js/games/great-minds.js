@@ -671,8 +671,8 @@ document.getElementById('btn-gm-how-to-close').addEventListener('click', () => {
 document.getElementById('btn-gm-menu-settings').addEventListener('click', () => {
   playPillClick();
   const el = document.getElementById('gm-settings-overlay');
-  const body = el.querySelector('.overflow-y-auto');
-  if (body) body.scrollTop = 0;
+  const inner = el.querySelector('.overlay-data-inner');
+  if (inner) inner.scrollTop = 0;
   el.style.display = 'flex';
 });
 
@@ -693,7 +693,7 @@ document.getElementById('btn-gm-resync-toggle').addEventListener('click', () => 
   gmInfiniteResync = !gmInfiniteResync;
   const btn = document.getElementById('btn-gm-resync-toggle');
   btn.textContent = gmInfiniteResync ? 'ON' : 'OFF';
-  btn.className   = gmInfiniteResync ? 'sylly-toggle-on' : 'sylly-toggle-off';
+  btn.className   = gmInfiniteResync ? 'game-toggle-on-purple shrink-0' : 'sylly-toggle-off shrink-0';
 });
 
 // Adjust Frequency Range pills
@@ -718,7 +718,7 @@ document.getElementById('btn-gm-static-toggle').addEventListener('click', () => 
   gmStaticInterference = !gmStaticInterference;
   const btn = document.getElementById('btn-gm-static-toggle');
   btn.textContent = gmStaticInterference ? 'ON' : 'OFF';
-  btn.className   = gmStaticInterference ? 'sylly-toggle-on' : 'sylly-toggle-off';
+  btn.className   = gmStaticInterference ? 'game-toggle-on-purple shrink-0' : 'sylly-toggle-off shrink-0';
   document.getElementById('gm-sylly-mode-detail').style.display = gmStaticInterference ? 'block' : 'none';
 });
 
@@ -728,7 +728,7 @@ document.getElementById('btn-gm-custom-toggle').addEventListener('click', () => 
   gmCustomWords = !gmCustomWords;
   const btn = document.getElementById('btn-gm-custom-toggle');
   btn.textContent = gmCustomWords ? 'ON' : 'OFF';
-  btn.className   = gmCustomWords ? 'sylly-toggle-on' : 'sylly-toggle-off';
+  btn.className   = gmCustomWords ? 'game-toggle-on-purple shrink-0' : 'sylly-toggle-off shrink-0';
   document.getElementById('gm-custom-pickers').style.display = gmCustomWords ? 'flex' : 'none';
 });
 
@@ -816,11 +816,16 @@ function gmShowQuitOverlay() {
 }
 
 document.getElementById('btn-gm-setup-exit').addEventListener('click', gmShowQuitOverlay);
+document.getElementById('btn-gm-setup-pair-exit').addEventListener('click', gmShowQuitOverlay);
 document.getElementById('btn-gm-input-exit').addEventListener('click', gmShowQuitOverlay);
 document.getElementById('btn-gm-result-exit').addEventListener('click', gmShowQuitOverlay);
 document.getElementById('btn-gm-pass-exit').addEventListener('click', gmShowQuitOverlay);
 document.getElementById('btn-gm-reveal-gate-exit').addEventListener('click', gmShowQuitOverlay);
 document.getElementById('btn-gm-reveal-exit').addEventListener('click', gmShowQuitOverlay);
+
+// Post-game exits — game is over, route directly to lobby (no quit overlay needed)
+document.getElementById('btn-gm-victory-exit').addEventListener('click', () => { playExit(); resetToLobby(); });
+document.getElementById('btn-gm-concede-exit').addEventListener('click', () => { playExit(); resetToLobby(); });
 
 document.getElementById('btn-gm-quit-confirm').addEventListener('click', () => {
   document.getElementById('gm-quit-overlay').style.display = 'none';
@@ -871,7 +876,7 @@ document.getElementById('btn-gm-memory-guard-toggle').addEventListener('click', 
   gmMemoryGuard = !gmMemoryGuard;
   const btn = document.getElementById('btn-gm-memory-guard-toggle');
   btn.textContent = gmMemoryGuard ? 'ON' : 'OFF';
-  btn.className   = gmMemoryGuard ? 'sylly-toggle-on' : 'sylly-toggle-off';
+  btn.className   = gmMemoryGuard ? 'game-toggle-on-purple shrink-0' : 'sylly-toggle-off shrink-0';
   document.getElementById('gm-memory-guard-desc').textContent = gmMemoryGuard
     ? 'All clues from every round are permanently banned for this game.'
     : "Previous round's words are always blocked. No further restrictions.";
@@ -898,7 +903,7 @@ document.getElementById('btn-gm-signal-boost-toggle').addEventListener('click', 
   gmSignalBoost = !gmSignalBoost;
   const btn = document.getElementById('btn-gm-signal-boost-toggle');
   btn.textContent = gmSignalBoost ? 'ON' : 'OFF';
-  btn.className   = gmSignalBoost ? 'sylly-toggle-on' : 'sylly-toggle-off';
+  btn.className   = gmSignalBoost ? 'game-toggle-on-purple shrink-0' : 'sylly-toggle-off shrink-0';
 });
 
 // Sylly Intensity pills

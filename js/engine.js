@@ -10,16 +10,21 @@ let audioCtx     = null;
 // ── Gamebox routing ───────────────────────────────────────────────────────────
 let activeGameId = null;  // set by each plugin on entry; cleared by resetToLobby
 
+// ── Who Goes First shared utility ─────────────────────────────────────────────
+let whoFirstConfig      = null;
+let whoFirstSelectedIdx = -1;
+let whoFirstPath        = null;   // 'random' | 'rps' — drives back-from-confirm routing
+
 // ── DOM: all screen IDs ───────────────────────────────────────────────────────
 const allScreens = [
-  'screen-lobby', 'screen-menu', 'screen-setup',
+  'screen-lobby', 'screen-who-first', 'screen-menu', 'screen-setup',
   'screen-gatekeeper', 'screen-active-play', 'screen-gameover',
   'screen-gm-menu', 'screen-gm-setup', 'screen-gm-input', 'screen-gm-pass-gate',
   'screen-gm-reveal-gate', 'screen-gm-reveal', 'screen-gm-result',
   'screen-ss-menu', 'screen-ss-setup', 'screen-ss-vault-gate', 'screen-ss-vault',
   'screen-ss-encrypt', 'screen-ss-broadcast', 'screen-ss-intercept',
   'screen-ss-decode-gate', 'screen-ss-decode', 'screen-ss-resolution', 'screen-ss-gameover',
-  'screen-ss-players', 'screen-ss-first-team',
+  'screen-ss-players',
   'screen-ss-tiebreak', 'screen-ss-intel-intro', 'screen-ss-intel-guess', 'screen-ss-intel-summary',
   'screen-secret-controller',
   'screen-secret-terminal',
@@ -38,6 +43,10 @@ const allScreens = [
   'screen-nat-menu', 'screen-nat-setup', 'screen-nat-handover',
   'screen-nat-observation', 'screen-nat-daily-review', 'screen-nat-selection', 'screen-nat-last-stand',
   'screen-nat-tally', 'screen-nat-gameover',
+  // Deep-Sea Deploy
+  'screen-dsd-menu', 'screen-dsd-setup', 'screen-dsd-players', 'screen-dsd-pass-gate',
+  'screen-dsd-captain', 'screen-dsd-crew', 'screen-dsd-execution', 'screen-dsd-sabotage',
+  'screen-dsd-gameover',
 ];
 
 // ── Web Audio API ─────────────────────────────────────────────────────────────
@@ -197,6 +206,77 @@ function playTick() {
   playTone({ freq: 440, startTime: ctx.currentTime, duration: 0.05, gain: 0.15 });
 }
 
+// SONAR PING — DSD: Urchin hit / Sonar Ping transmit (dual sine + water filter)
+function playSonarPing() {
+  if (isMuted) return;
+  const ctx = getAudioCtx(), now = ctx.currentTime;
+  const filt = ctx.createBiquadFilter();
+  filt.type = 'lowpass'; filt.frequency.value = 600; filt.Q.value = 1.5;
+  filt.connect(ctx.destination);
+  // Primary: 880Hz → 440Hz chirp, 1.2s decay
+  const osc = ctx.createOscillator();
+  const env = ctx.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(880, now);
+  osc.frequency.exponentialRampToValueAtTime(440, now + 0.3);
+  env.gain.setValueAtTime(0.25, now);
+  env.gain.exponentialRampToValueAtTime(0.001, now + 1.2);
+  osc.connect(env); env.connect(filt);
+  osc.start(now); osc.stop(now + 1.25);
+  // Harmonic: 1760Hz, 0.2× gain — glassy sonar chirp
+  const harm = ctx.createOscillator();
+  const harmGain = ctx.createGain();
+  harm.type = 'sine'; harm.frequency.value = 1760;
+  harmGain.gain.setValueAtTime(0.05, now);
+  harmGain.gain.exponentialRampToValueAtTime(0.001, now + 0.8);
+  harm.connect(harmGain); harmGain.connect(filt);
+  harm.start(now); harm.stop(now + 0.85);
+}
+
+// HULL THUD — DSD: Pressure Mine hit (white noise + resonant lowpass + triangle sub)
+function playHullThud() {
+  if (isMuted) return;
+  const ctx = getAudioCtx(), now = ctx.currentTime;
+  // White noise through resonant lowpass — metallic crunch
+  const bufLen = Math.floor(ctx.sampleRate * 0.5);
+  const noiseBuf = ctx.createBuffer(1, bufLen, ctx.sampleRate);
+  const data = noiseBuf.getChannelData(0);
+  for (let i = 0; i < bufLen; i++) data[i] = Math.random() * 2 - 1;
+  const noise = ctx.createBufferSource();
+  noise.buffer = noiseBuf;
+  const nFilt = ctx.createBiquadFilter();
+  nFilt.type = 'lowpass'; nFilt.frequency.value = 80; nFilt.Q.value = 8;
+  const nEnv = ctx.createGain();
+  nEnv.gain.setValueAtTime(0.6, now);
+  nEnv.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+  noise.connect(nFilt); nFilt.connect(nEnv); nEnv.connect(ctx.destination);
+  noise.start(now); noise.stop(now + 0.45);
+  // Triangle sub 70Hz — low-frequency punch
+  const sub = ctx.createOscillator();
+  const sEnv = ctx.createGain();
+  sub.type = 'triangle'; sub.frequency.value = 70;
+  sEnv.gain.setValueAtTime(0.35, now);
+  sEnv.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+  sub.connect(sEnv); sEnv.connect(ctx.destination);
+  sub.start(now); sub.stop(now + 0.35);
+}
+
+// ABYSS THUD — DSD: Nuclear Mine hit — hull thud + 35Hz sawtooth rumble (2.5s)
+function playAbyssThud() {
+  if (isMuted) return;
+  playHullThud();
+  const ctx = getAudioCtx(), now = ctx.currentTime;
+  const rumble = ctx.createOscillator();
+  const rFilt = ctx.createBiquadFilter();
+  const rEnv = ctx.createGain();
+  rumble.type = 'sawtooth'; rumble.frequency.value = 35;
+  rFilt.type = 'lowpass'; rFilt.frequency.value = 100; rFilt.Q.value = 2;
+  rEnv.gain.setValueAtTime(0.4, now);
+  rEnv.gain.exponentialRampToValueAtTime(0.001, now + 2.5);
+  rumble.connect(rFilt); rFilt.connect(rEnv); rEnv.connect(ctx.destination);
+  rumble.start(now); rumble.stop(now + 2.55);
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function showScreen(id) {
   allScreens.forEach(s => { document.getElementById(s).style.display = 'none'; });
@@ -245,9 +325,10 @@ function formatTime(secs) {
 // ── Reset (settings intentionally preserved) ──────────────────────────────────
 function resetToLobby() {
   stopTimer();
-  document.getElementById('quit-overlay').style.display        = 'none';
-  document.getElementById('review-overlay').style.display      = 'none';
-  document.getElementById('history-overlay').style.display     = 'none';
+  document.getElementById('quit-overlay').style.display          = 'none';
+  document.getElementById('li5-play-again-overlay').style.display = 'none';
+  document.getElementById('review-overlay').style.display        = 'none';
+  document.getElementById('history-overlay').style.display       = 'none';
   document.getElementById('gm-override-overlay').style.display = 'none';
   document.getElementById('gm-quit-overlay').style.display     = 'none';
   document.getElementById('input-team1').value    = '';
@@ -295,10 +376,18 @@ function resetToLobby() {
   // Late To The Party teardown
   if (typeof resetLateToTheParty === 'function') resetLateToTheParty();
   // Natural Selection teardown
-  document.getElementById('nat-quit-overlay').style.display     = 'none';
-  document.getElementById('nat-settings-overlay').style.display = 'none';
-  document.getElementById('nat-how-to-overlay').style.display   = 'none';
+  document.getElementById('nat-quit-overlay').style.display            = 'none';
+  document.getElementById('nat-settings-overlay').style.display        = 'none';
+  document.getElementById('nat-how-to-overlay').style.display          = 'none';
+  document.getElementById('nat-new-expedition-overlay').style.display  = 'none';
   if (typeof natResetState === 'function') natResetState();
+  // Deep-Sea Deploy teardown
+  document.getElementById('dsd-quit-overlay').style.display     = 'none';
+  document.getElementById('dsd-settings-overlay').style.display = 'none';
+  document.getElementById('dsd-how-to-overlay').style.display   = 'none';
+  document.getElementById('dsd-confirm-disarm').style.display   = 'none';
+  document.getElementById('dsd-new-op-overlay').style.display   = 'none';
+  if (typeof dsdResetState === 'function') dsdResetState();
   showScreen('screen-lobby');
 }
 
@@ -346,3 +435,63 @@ function normaliseWord(w) {
   if (w.endsWith('s')   && w.length > 2) return w.slice(0, -1);        // cats → cat
   return w;
 }
+
+// ── Who Goes First shared utility ─────────────────────────────────────────────
+const _WHO_BTN_BASE = 'min-h-14 w-full rounded-2xl active:scale-95 text-white text-xl font-semibold transition-all duration-150';
+
+function showWhoFirst(config) {
+  whoFirstConfig      = config;
+  whoFirstSelectedIdx = -1;
+  whoFirstPath        = null;
+  document.getElementById('who-first-emoji').textContent    = config.emoji;
+  document.getElementById('who-first-eyebrow').textContent  = config.eyebrow;
+  document.getElementById('who-first-heading').textContent  = config.heading;
+  document.getElementById('who-first-prompt').textContent   = config.prompt;
+  document.getElementById('btn-who-first-rps-a').textContent = config.teamA;
+  document.getElementById('btn-who-first-rps-b').textContent = config.teamB;
+  const accentBtn  = config.accentBtnClass  || 'bg-stone-700 hover:bg-stone-800';
+  const accentText = config.accentTextClass || 'text-stone-700';
+  document.getElementById('btn-who-first-random').className  = `${_WHO_BTN_BASE} ${accentBtn}`;
+  document.getElementById('btn-who-first-confirm').className = `${_WHO_BTN_BASE} ${accentBtn}`;
+  document.getElementById('who-first-confirm-label').className = `text-2xl font-bold text-center ${accentText}`;
+  _whoFirstSubState('method');
+  showScreen('screen-who-first');
+}
+
+function _whoFirstSubState(state) {
+  document.getElementById('who-first-sub-method').style.display  = state === 'method'  ? 'flex' : 'none';
+  document.getElementById('who-first-sub-rps').style.display     = state === 'rps'     ? 'flex' : 'none';
+  document.getElementById('who-first-sub-confirm').style.display = state === 'confirm' ? 'flex' : 'none';
+}
+
+function _whoFirstSelectTeam(idx, path) {
+  whoFirstSelectedIdx = idx;
+  whoFirstPath        = path;
+  const name = idx === 0 ? whoFirstConfig.teamA : whoFirstConfig.teamB;
+  document.getElementById('who-first-confirm-label').textContent = `${name} goes first!`;
+  document.getElementById('btn-who-first-confirm').textContent   = whoFirstConfig.confirmLabel;
+  _whoFirstSubState('confirm');
+}
+
+// ── Who Goes First screen listeners ───────────────────────────────────────────
+document.getElementById('btn-who-first-random').addEventListener('click', () => {
+  playLaunch(); _whoFirstSelectTeam(Math.random() < 0.5 ? 0 : 1, 'random');
+});
+document.getElementById('btn-who-first-rps').addEventListener('click', () => {
+  playPillClick(); _whoFirstSubState('rps');
+});
+document.getElementById('btn-who-first-rps-a').addEventListener('click', () => {
+  playPillClick(); _whoFirstSelectTeam(0, 'rps');
+});
+document.getElementById('btn-who-first-rps-b').addEventListener('click', () => {
+  playPillClick(); _whoFirstSelectTeam(1, 'rps');
+});
+document.getElementById('btn-who-first-back-from-rps').addEventListener('click', () => {
+  playExit(); _whoFirstSubState('method');
+});
+document.getElementById('btn-who-first-back-from-confirm').addEventListener('click', () => {
+  playExit(); _whoFirstSubState(whoFirstPath === 'rps' ? 'rps' : 'method');
+});
+document.getElementById('btn-who-first-confirm').addEventListener('click', () => {
+  playLaunch(); whoFirstConfig.onResult(whoFirstSelectedIdx);
+});

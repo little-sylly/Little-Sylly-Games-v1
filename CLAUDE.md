@@ -25,7 +25,8 @@
 │   │   ├── jec.js                   # Plugin: Just Enough Cooks (all state + logic)
 │   │   ├── ygi.js                   # Plugin: You Get It? (all state + logic)
 │   │   ├── lttp.js                  # Plugin: Late to the Party (all state + logic)
-│   │   └── nat.js                   # Plugin: Natural Selection (all state + logic)
+│   │   ├── nat.js                   # Plugin: Natural Selection (all state + logic)
+│   │   └── dsd.js                   # Plugin: Deep-Sea Deploy (all state + logic)
 │   ├── secret-mode.js               # Secret Mode: Konami gateway, Terminal, expansion proxy state
 │   ├── app.js                       # Bootstrapper only — no logic (3 lines)
 │   └── lib/tailwind-play.js         # Local Tailwind (no CDN — fully offline)
@@ -37,13 +38,14 @@
 ├── manifest.json                    # PWA manifest
 ├── docs/expansion-guide.md          # Template + checklist for adding new expansion packs
 ├── docs/code-map.md                 # Surgical code reference — all game IDs, overlays, key functions
-├── docs/phase17-snapshot.md         # Phase 17 architecture snapshot (current gold master — 7 games)
+├── docs/phase19-snapshot.md         # Phase 19 architecture snapshot (current gold master — 8 games)
+├── docs/phase17-snapshot.md         # Phase 17 snapshot (7 games, NAT complete)
 ├── docs/archive/phase16b-snapshot.md  # Phase 16b snapshot (6 games, LTTP complete)
 ├── docs/ygi-content-guide.md        # Content creation guide for You Get It? prompts + ringers
 └── docs/archive/                    # Retired snapshots + spent plan docs
 ```
 
-**Load order:** `engine.js` → `li5.js` → `great-minds.js` → `secret-signals.js` → `jec.js` → `ygi.js` → `lttp.js` → `nat.js` → `secret-mode.js` → `app.js`
+**Load order:** `engine.js` → `li5.js` → `great-minds.js` → `secret-signals.js` → `jec.js` → `ygi.js` → `lttp.js` → `nat.js` → `dsd.js` → `secret-mode.js` → `app.js`
 All symbols are global (no ES modules). Forward references work at runtime.
 
 ---
@@ -116,6 +118,21 @@ See `@logic-engine.md` for the full checklist and SW asset list.
 - **nono_list[0] (The Broad Shield):** Must be a Documentary Label — a natural-language Common Grouping (e.g., "Sea Creature", "Furry Animal", "Ground Bird"). NOT a scientific class (not "Mammalia", "Aves", etc.)
 - **nono_list[1–9] (The Details):** Standard associative words — same rules as all other categories
 - **Design Conflict Rule:** If a Broad Shield covers >15% of the animal bank, it is too broad. Split into narrower Documentary Labels (e.g., "Bird" → "Ground Bird", "Wading Bird", "Tropical Bird") to preserve game tension.
+- **Bank size:** 100 animals as of Phase 20.
+
+#### 🐾 nono_list Dual-Use Contract
+The animals category is shared by both Like I'm Five and Natural Selection. Every slot serves a different role in each game:
+
+| Slot | Like I'm Five | Natural Selection |
+|------|--------------|-------------------|
+| `nono_list[0]` | Broad Shield — the describer cannot hint at the animal's category | The Mole's Grouping — the only information The Mole receives |
+| `nono_list[1–9]` | Forbidden words — the describer cannot say these | Field Researcher clues — each Researcher receives exactly ONE of these words and must give one clue based on it |
+
+**nono_list[1–9] quality rules (for Natural Selection playability):**
+- **Distinctive:** The word must clearly narrow down this specific animal (or a small group), not apply to dozens of animals. "ivory" ✓, "big" ✗
+- **Non-redundant:** No 3+ synonyms for the same trait in one list. Cheetah had "fast", "run", "speed", "sprint" — a researcher assigned any one of those has a useless clue. Keep at most 2 movement/speed words; replace the rest with different trait types
+- **Standalone:** Must work as a single spoken word or hyphenated compound. A researcher receives it cold and says it aloud to the group. "duck-billed" ✓, prefer "eggs" over "lay eggs"
+- **Specific over vague:** When two words cover the same trait, keep the more specific one. "purr" beats a second "fast"; "acacia" beats "height" when "tall" is already present
 
 ### 🎯 Skill: Add New Expansion Pack
 **Trigger:** Adding a new secret mode expansion (new theme/word bank).
@@ -136,12 +153,12 @@ See `@logic-engine.md` for the full checklist and SW asset list.
 ---
 
 ## 🎯 Current Focus
-**Phase:** 18 — Post-Launch / System Health
-**SW Version:** v75
-**Gold Master:** 7 games complete (LI5, Great Minds, Secret Signals, JEC, YGI, LTTP, Natural Selection)
-**Next:** TBD — new game concept or expansion pack
+**Phase:** 20 — Protocol A Audit + Cross-Game Consolidation
+**SW Version:** v78
+**Gold Master:** 8 games complete (LI5, Great Minds, Secret Signals, JEC, YGI, LTTP, Natural Selection, Deep-Sea Deploy)
+**Next:** DSD Protocol A audit pending; then TBD new game
 **Key references:**
-- `docs/phase17-snapshot.md` — current gold master (7 games, NAT complete)
+- `docs/phase20-snapshot.md` — current gold master (8 games, Phase 20 audit complete)
 - `docs/code-map.md` — surgical reference: all game IDs, overlays, key functions
 - `.claude/rules/new-game-template.md` — fill this in before coding any new game
 - `docs/expansion-guide.md` — template for adding new expansion packs

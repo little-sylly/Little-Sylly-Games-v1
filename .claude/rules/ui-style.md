@@ -129,9 +129,9 @@ Every game's settings overlay must follow this order:
 
 **Settings button on the game menu:** always labelled **"Settings"** exactly. Thematic flair lives inside the overlay as the title block — not on the button.
 
-**Scroll reset on open:** call `el.querySelector('.overflow-y-auto').scrollTop = 0` (or `.overlay-data-inner` for whole-panel-scroll overlays) before `style.display = 'flex'` so the thematic title is always the first thing seen.
+**Scroll reset on open:** call `el.querySelector('.overlay-data-inner').scrollTop = 0` before `style.display = 'flex'` so the thematic title is always the first thing seen. `overlay-data-inner` gets `overflow-y: auto` from its CSS class — NOT from a Tailwind utility. Using `.overflow-y-auto` returns `null` silently and the scroll is never reset.
 
-**How-to overlays** follow the same structure: thematic title block at top, `scrollTop = 0` on open.
+**How-to overlays** follow the same structure: thematic title block at top, same `.overlay-data-inner` scroll reset on open.
 
 All multi-choice settings use the **Pill Button** style:
 - Inactive: `.pill` | Active: `pill-active-[game-colour]` (see table below)
@@ -185,6 +185,43 @@ Every individual setting is wrapped in a white card. Do NOT use bare divs or `<h
 
 ---
 
+## Game Brand Colour — Scope
+
+**Rule:** Game brand colour = "yes, proceed" actions and accents only. Navigation chrome (exit, back) is always neutral.
+
+### Applies — game colour:
+| Element | Implementation |
+|---------|---------------|
+| Primary CTA buttons | `bg-[brand] hover:bg-[brand-dark] text-white` |
+| Active pill state | `pill-active-[colour]` |
+| Input focus border | `focus:border-[brand]` |
+| Team labels on players screen | `text-[brand]` |
+| `screen-who-first` primary CTA + confirm label | `accentBtnClass` / `accentTextClass` keys in `showWhoFirst()` config |
+| ALL ON/OFF toggles (active) | `game-toggle-on-[colour]` — applies to every toggle including Sylly Mode |
+| Settings button (game menu) | `bg-[brand-100] hover:bg-[brand-200] text-[brand-700]` — light brand tint, distinct from full CTA |
+
+### Never applies — always neutral:
+| Element | Style |
+|---------|-------|
+| Exit button (✕) | `text-stone-500 font-bold` |
+| Back arrow (←) | `text-stone-500 font-bold` |
+| "← Back to the Box" | `bg-stone-200 hover:bg-stone-300 text-stone-500` |
+| How to Play button | `bg-stone-700 hover:bg-stone-800 text-white` |
+
+### Per-game brand reference:
+| Game | Brand colour | `accentBtnClass` | `accentTextClass` | Toggle class | Settings button |
+|------|-------------|-----------------|------------------|-------------|----------------|
+| LI5 | pink-500 | `bg-pink-500 hover:bg-pink-600` | `text-pink-600` | `game-toggle-on-pink` | `bg-pink-100 hover:bg-pink-200 text-pink-700` |
+| SS | teal-500 | `bg-teal-500 hover:bg-teal-600` | `text-teal-600` | `game-toggle-on-teal` | `bg-teal-100 hover:bg-teal-200 text-teal-700` |
+| DSD | cyan-700 | `bg-cyan-700 hover:bg-cyan-800` | `text-cyan-700` | `game-toggle-on-cyan` | `bg-cyan-100 hover:bg-cyan-200 text-cyan-700` |
+| GM | purple-500 | `bg-purple-500 hover:bg-purple-600` | `text-purple-600` | `game-toggle-on-purple` | `bg-purple-100 hover:bg-purple-200 text-purple-700` |
+| JEC | amber-500 | `bg-amber-500 hover:bg-amber-600` | `text-amber-600` | `game-toggle-on-amber` | `bg-amber-100 hover:bg-amber-200 text-amber-700` |
+| YGI | orange-500 | `bg-orange-500 hover:bg-orange-600` | `text-orange-600` | `game-toggle-on-orange` | `bg-orange-100 hover:bg-orange-200 text-orange-700` |
+| LTTP | red-500 | `bg-red-500 hover:bg-red-600` | `text-red-600` | `game-toggle-on-red` | `bg-red-100 hover:bg-red-200 text-red-700` |
+| NAT | lime-600 | `bg-lime-600 hover:bg-lime-700` | `text-lime-700` | `game-toggle-on-lime` | `bg-lime-100 hover:bg-lime-200 text-lime-700` |
+
+---
+
 ## Thumb-Friendly UI
 **Trigger:** Any new button, link, or interactive element.
 
@@ -219,9 +256,91 @@ Every game's main menu screen must have exactly these 4 buttons, in this order:
 
 **Rules:**
 - "← Back to the Box" is always identical — never game-themed.
-- "How to Play" label is always identical — opens a data overlay (Pattern 1).
-- Settings button label is always **"Settings"** — no exceptions. Thematic name lives inside the overlay as the title block.
-- Play CTA is the primary action — largest button, top of the stack.
+- "How to Play" label is always identical — opens a data overlay (Pattern 1). Always `bg-stone-700 hover:bg-stone-800 text-white`.
+- Settings button label is always **"Settings"** — no exceptions. Thematic name lives inside the overlay as the title block. Button uses a **light brand tint** (`bg-[brand-100] hover:bg-[brand-200] text-[brand-700]`) — see Game Brand Colour — Scope § Per-game brand reference for per-game classes.
+- Play CTA is the primary action — largest button, top of the stack, full brand colour.
+
+---
+
+## Team Setup Screen Standard
+**Applies to:** Any game where two teams compete (2-team games only). Single-player or co-op games skip this.
+
+### Screen count
+- **Single-screen** (team names only, no individual player tracking): Screen 1 only. Example: LI5.
+- **Two-screen** (team names + individual player names / captain assignment): both screens. Example: SS, DSD.
+
+---
+
+### Screen 1 — Team Names (`screen-[abbr]-setup`)
+
+**Section class:**
+```
+relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6
+```
+
+**Required structure:**
+```
+[absolute top-4 right-4 flex items-center gap-2: btn-open-sound 🔊 + ✕ exit button]
+[div.text-5xl role="img": game emoji]
+[div: h2.text-3xl.font-bold.text-stone-800 + p.text-stone-400.text-base.mt-1 hint]
+[div.flex.flex-col.gap-4.w-full.text-left:
+  [div: label + input]
+  [div: label + input]
+]
+[CTA button]
+```
+
+**Label style:** `text-stone-500 text-sm font-semibold uppercase tracking-widest block mb-1`
+Label text is game-specific ("Team 1", "Team A name", etc.) — structure matters, not exact wording.
+
+**Input style:**
+```
+w-full rounded-xl border-2 border-stone-200 bg-white px-4 py-3 text-lg text-stone-800
+placeholder-stone-300 focus:border-[brand-colour] focus:outline-none transition-colors
+```
+
+**Rules:**
+- No card wrapper around the inputs — bare `div.flex.flex-col.gap-4` only
+- Hint subtext MUST name the actual defaults — e.g. "Leave blank to use Alpha Echo & Bravo Zulu"
+- Placeholder text = the default name (e.g. `placeholder="e.g. Crayon Crew"`)
+- No team size pills on this screen
+- **Pre-fill rule:** only pre-fill if the user previously set a *custom* name — leave blank (show placeholder) if the value is still the default. Check: `value = teamNames[0] !== 'DefaultA' ? teamNames[0] : ''`
+
+---
+
+### Screen 2 — Player Names (`screen-[abbr]-players`)
+**Only for games with individual player name inputs.** Omit entirely for games like LI5 that don't track per-player names.
+
+**Section class:**
+```
+relative flex flex-col items-start px-6 py-10 w-full max-w-sm mx-auto gap-5
+```
+
+**Required structure:**
+```
+[div.flex.justify-between.items-center.w-full: ← back / eyebrow label / btn-open-sound 🔊]
+[div: h2.text-2xl.font-bold.text-stone-800 heading + p.text-stone-400.text-sm.mt-1 subtitle]
+[div.w-full: "Team size" label + pills — NO card wrapper]
+[div.w-full: team-A coloured label + input container]
+[div.w-full: team-B coloured label + input container]
+[p error text — hidden by default]
+[CTA button]
+```
+
+**Team size label style:** `text-stone-600 text-sm font-semibold mb-2` (no card wrapper)
+**Team label style:** `text-xs font-semibold uppercase tracking-widest text-[brand-colour] mb-2`
+**Player input style:** same as Screen 1 input style above (use `text-base` instead of `text-lg`)
+
+**Rule:** Team size pills belong on Screen 2 — NOT on Screen 1.
+
+---
+
+### Per-game reference
+| Game | Screen 1 heading | Default names | Input focus colour | Screen 2? |
+|------|-----------------|--------------|-------------------|-----------|
+| LI5 | "Name your Playgroups!" | Crayon Crew / Glue Stick Gang | `focus:border-pink-400` | No |
+| SS | "Establish Cover Identities" | Alpha Echo / Bravo Zulu | `focus:border-teal-400` | Yes |
+| DSD | "Name Your Task Forces" | SS Kraken / SS Leviathan | `focus:border-cyan-600` | Yes |
 
 ---
 

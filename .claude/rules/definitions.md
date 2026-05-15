@@ -74,4 +74,4 @@ ssDifficultyLevel:    'standard' | 'wild' | 'wilder'
 - Great Minds uses 10: excludes `vehicles, music, pop_culture, people, brands, aussie_slang`
 - Difficulty 1 = Standard (concrete nouns), 2 = Wild (verbs/adjectives), 3 = Wilder (abstract)
 - `isSylly` = `difficulty === 3` — derived, never stored
-- **animals category only:** `nono_list[0]` = Documentary Label / Common Grouping (e.g., "Sea Creature", "Furry Animal") — serves as the Cuckoo's Broad Shield in Nature Documentary. Must NOT be a scientific class name.
+- **animals category only:** `nono_list[0]` = Documentary Label / Common Grouping (e.g., "Sea Creature", "Furry Animal") — serves as the Broad Shield in Like I'm Five AND as The Mole's Grouping in Natural Selection (the only clue The Mole receives). Must NOT be a scientific class name. See Dual-Use Contract in `CLAUDE.md`.

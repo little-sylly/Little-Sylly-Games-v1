@@ -19,6 +19,7 @@
 | ID | Purpose |
 |----|---------|
 | `#screen-lobby` | Game selection — main title screen |
+| `#screen-who-first` | Shared "Who Goes First?" — method picker → RPS declare → winner choice |
 
 ### Overlays
 | ID | Pattern | Opened by |
@@ -48,6 +49,7 @@
 | `normaliseWord(w)` | Lowercase + trim + plural strip (used by GM, JEC) |
 | `shuffle(arr)` | Fisher-Yates, returns new array |
 | `openSoundOverlay()` | Opens `#sound-overlay`, syncs mute state |
+| `showWhoFirst(config)` | Drives `#screen-who-first`; calls `config.onResult(goesFirstIdx)` on completion |
 
 ---
 
@@ -170,7 +172,6 @@
 | `#screen-ss-players` | Player name entry |
 | `#screen-ss-vault-gate` | Pass-the-phone gate before vault reveal |
 | `#screen-ss-vault` | Team keyword vault display |
-| `#screen-ss-first-team` | Who encrypts first? |
 | `#screen-ss-encrypt` | Encoder picks keyword to encrypt |
 | `#screen-ss-broadcast` | Broadcast screen (timer + clue display) |
 | `#screen-ss-intercept` | Intercepting team guesses |
@@ -208,6 +209,7 @@
 | `ssNextRound()` | Advances round, rotates encoder |
 | `ssFuzzyMatch(a, b)` | Plural/compound-aware word equivalence check |
 | `ssApplyExpansionOverrides()` | Secret Mode hook |
+| *(Who Encrypts First)* | Handled by engine `showWhoFirst()` — see Engine section |
 
 ---
 
@@ -540,6 +542,80 @@ Each plugin reads `window.activeExpansionOverrides` at its settings-apply point 
 | `natNextMatch()` | Advances to next match or gameover |
 | `natShowGameover()` | Final expedition report with round log |
 | `natResetState()` | Full teardown; called by `resetToLobby()` |
+
+---
+
+## Deep-Sea Deploy (DSD)
+
+**Game ID:** `dsd`
+**JS file:** `js/games/dsd.js`
+**Brand colour:** `cyan-700` | **Active pill:** `pill-active-cyan`
+**Lobby button:** `#btn-dsd`
+**Updated:** Phase 19
+
+### Screens
+| Screen ID | Purpose |
+|-----------|---------|
+| `screen-dsd-menu` | Main menu — Play CTA, How to Play, Settings, ← Back to the Box |
+| `screen-dsd-setup` | Team names, players per team, Captain designation |
+| `screen-dsd-captain` | Captain view — full-width colour-coded grid + Sonar Ping input |
+| `screen-dsd-crew` | Crew view — word-only grid, sequence builder |
+| `screen-dsd-execution` | Sequential tile reveal with Valour scoreboard |
+| `screen-dsd-sabotage` | Sylly Mode — Jammer placement by the placing team |
+| `screen-dsd-gameover` | Winner display, Valour totals, deployment count |
+
+### Overlays
+| Overlay ID | Pattern | z-index | Purpose |
+|------------|---------|---------|---------|
+| `dsd-settings-overlay` | Data (slide-up) | z-[80] | "The Console ⚓" — 6 settings cards |
+| `dsd-how-to-overlay` | Data (slide-up) | z-[90] | "Operations Manual ⚓" — 5 rule sections |
+| `dsd-quit-overlay` | Decision modal | z-[80] | "Scuttle the Ship?" — mid-game exit confirm |
+| `dsd-confirm-disarm` | Decision modal | z-[90] | "Confirm Sequence?" — crew sequence confirm |
+
+### Key State Variables
+| Variable | Type | Default | Purpose |
+|----------|------|---------|---------|
+| `dsdSeaState` | string | `'turbulent'` | Word difficulty tier: `'calm'`/`'turbulent'`/`'tempest'` |
+| `dsdHazardControl` | object | `{urchin:false, mine:true, enemy:true}` | Turn-end toggles per hazard type |
+| `dsdDangerLevel` | string | `'pressure'` | Mine type: `'pressure'`/`'nuclear'` |
+| `dsdSyllyMode` | bool | `false` | Mission Abyss — enables Drift + Jammer |
+| `dsdTeamNames` | array[2] | `['Kraken','Leviathan']` | Custom team display names |
+| `dsdPlayersPerTeam` | int | `2` | 2 or 3 players per team |
+| `dsdPlayerNames` | array[2][] | `[[],[]]` | Per-team player name arrays |
+| `dsdCaptainName` | array[2] | `['','']` | Designated captain name per team |
+| `dsdValour` | array[2] | `[0,0]` | Running Valour (VP) per team |
+| `dsdGrid` | array[25] | `[]` | `{word, role, revealed}` — roles: 0, 1, 'urchin', 'mine', 'bystander' |
+| `dsdCurrentTeam` | int | `0` | Active team index (0 or 1) |
+| `dsdFirstTeam` | int | `0` | Team with 9 payloads (from `showWhoFirst()`) |
+| `dsdDeployment` | int | `1` | Current deployment (round) counter |
+| `dsdPingClue` | string | `''` | Captain's current clue word |
+| `dsdPingNumber` | int | `0` | Captain's current ping number |
+| `dsdSequence` | array | `[]` | Ordered grid indices chosen by crew |
+| `dsdJammer` | int | `-1` | Grid index of active Jammer (−1 = none) |
+| `dsdJammerTeam` | int | `-1` | Index of team that placed the Jammer |
+
+### Key Functions
+| Function | Purpose |
+|----------|---------|
+| `dsdShowMenu()` | Routes to `screen-dsd-menu`; sets `activeGameId = 'dsd'` |
+| `dsdShowSetup()` / `dsdInitSetup()` | Renders team name inputs + player/captain inputs |
+| `dsdRenderPlayerInputs()` | Rebuilds player name inputs + captain selector buttons |
+| `dsdValidateSetup()` | Validates all fields then calls `dsdLaunchWhoFirst()` |
+| `dsdLaunchWhoFirst()` | Calls engine `showWhoFirst()` with DSD config; `onResult` sets `dsdFirstTeam` |
+| `dsdBuildGame()` | Async — awaits `loadWords()`, builds shuffled 25-cell grid by sea state tiers |
+| `dsdRenderCaptainGrid()` | Full-width colour-coded grid; Jammer shown as amber `?` for opponent |
+| `dsdTransmitPing()` | Validates word (single token, not in grid); sets `dsdPingClue/Number` |
+| `dsdRenderCrewGrid()` | Word-only grid with numbered sequence badges; enforces max N+1 taps |
+| `dsdOpenDisarmOverlay()` | Builds ordered word list in `#dsd-disarm-list`; shows confirm modal |
+| `dsdShowExecution()` | Async sequential reveal loop — `dsdDelay(600)` pre + `dsdDelay(500)` post |
+| `dsdResolveHit(gridIdx)` | Jammer check first, then role-based scoring; returns `true` if turn ends |
+| `dsdAdvanceTurn()` | Switches team, increments deployment, routes to sabotage or captain |
+| `dsdCheckVictory()` | All team-0 or team-1 cells revealed → `dsdShowGameover(); return true` |
+| `dsdApplyDrift()` | Shuffles unrevealed cells' words + roles independently (Sylly Mode) |
+| `dsdRenderSabotageGrid(placingTeam)` | Jammer placement grid; uses `grid.onclick` assignment to prevent stacking |
+| `dsdOpenSettings()` | Syncs pill/toggle state, resets `scrollTop`, shows settings overlay |
+| `dsdRenderGameover()` | Determines winner by Valour, renders final scores + deployment count |
+| `dsdResetState()` | Zeroes all game/turn state; called by `resetToLobby()` |
 
 ---
 

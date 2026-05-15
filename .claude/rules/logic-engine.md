@@ -44,8 +44,89 @@ All audio is synthesised via Web Audio API — no audio files.
 | `playSyllyOn()` / `playSyllyOff()` | Sylly Mode toggle | — |
 | `playWhoosh()` | Skip / swish | — |
 | `playResume()` | Resume from pause | — |
+| `playAlarm()` | Timer expiry | 3-pulse radar blip |
+| `playSonarPing()` | DSD: Urchin hit / Sonar Ping transmit | Dual sine 880→440Hz + 1760Hz harmonic, lowpass filter, 1.2s decay |
+| `playHullThud()` | DSD: Pressure Mine hit | White noise + resonant lowpass (80Hz Q8) + triangle sub 70Hz, 0.4s |
+| `playAbyssThud()` | DSD: Nuclear Mine hit | `playHullThud()` + 35Hz sawtooth rumble through lowpass, 2.5s decay |
 
 Global audio state: `isMuted` (bool), `masterVolume` (0–1), `audioCtx` (Web Audio context).
+
+---
+
+## Shared Screen Utility — Who Goes First
+
+`showWhoFirst(config)` in `engine.js` — drives `#screen-who-first`. Use for any game with two teams where turn order is undecided at the start.
+
+### Config object
+| Key | Type | Description |
+|-----|------|-------------|
+| `emoji` | string | Thematic emoji (game-specific) |
+| `eyebrow` | string | Small-caps label above heading |
+| `heading` | string | Main question, game-voiced |
+| `prompt` | string | Sub-heading |
+| `teamA` | string | Display name for index 0 |
+| `teamB` | string | Display name for index 1 |
+| `confirmLabel` | string | CTA button label on the confirm sub-state (game-voiced, e.g. "Start Encrypting 📡") |
+| `accentBtnClass` | string | Tailwind classes for primary button bg + hover (e.g. `'bg-teal-500 hover:bg-teal-600'`). Defaults to `'bg-stone-700 hover:bg-stone-800'` if omitted. |
+| `accentTextClass` | string | Tailwind class for the confirm-label text colour (e.g. `'text-teal-600'`). Defaults to `'text-stone-700'` if omitted. |
+| `onResult` | function | Called with `goesFirstIdx` (0 or 1) — the team that goes first |
+
+### Engine state
+| Variable | Purpose |
+|----------|---------|
+| `whoFirstConfig` | Config object for the current invocation |
+| `whoFirstSelectedIdx` | Index of the selected team; −1 until set |
+| `whoFirstPath` | `'random'` or `'rps'` — drives back-from-confirm routing |
+
+### Rule
+**All team games must use `showWhoFirst()`.** No plugin may implement its own "who goes first" screen.
+
+---
+
+## Pass-the-Phone Safety Gate
+
+Any screen transition that reveals **private role information** to a new player (team change, role change, Captain reveal, Crew handoff) **MUST** be preceded by a named gate screen confirming the right person is holding the phone. No plugin may skip this gate.
+
+### Standard implementation (`dsdShowPassGate` pattern)
+```js
+function [abbr]ShowPassGate({ heading, subtext, ctaLabel, onConfirm }) {
+  document.getElementById('[abbr]-gate-heading').textContent = heading;
+  document.getElementById('[abbr]-gate-subtext').textContent = subtext;
+  const btn = document.getElementById('btn-[abbr]-gate-confirm');
+  btn.textContent = ctaLabel;
+  btn.onclick = () => { playLaunch(); onConfirm(); };
+  showScreen('screen-[abbr]-pass-gate');
+}
+```
+
+### Trigger points
+- Any screen showing a Captain's grid or private role info → gate first
+- Any screen showing a Crew's sequence interface → gate first after Captain's transmit
+- Role-reveal screens (e.g. Great Minds pass-gate pattern) already compliant via existing `screen-gm-pass-gate`
+
+### Rule
+**Every role/team transition that shows private information must have a named gate.** The gate screen must name who the phone is being passed to and require an explicit "I'm ready" tap. No back button on the gate (it cannot be skipped mid-game).
+
+---
+
+## Play-Again Confirmation
+
+**"Play again" actions that reset round state must go through a Decision Modal confirmation (z-[90]) before executing.** Direct-restart buttons with no confirmation are not permitted.
+
+### Pattern
+- The gameover "Play Again" / "New [Game]" button shows a Decision Modal (not executes reset directly)
+- Modal: themed emoji + "New [Game]?" heading + one-line cost subtext + themed confirm + neutral cancel
+- Confirm button: calls reset state + navigates to setup
+- Cancel button: closes modal, returns to gameover screen
+
+### Overlays
+- Named `[abbr]-new-[game]-overlay`, z-[90]
+- Added to `resetToLobby()` teardown in `engine.js`
+
+### Applies to (as of Phase 20)
+- DSD: `dsd-new-op-overlay` (New Operation?)
+- NAT: `nat-new-expedition-overlay` (New Expedition?)
+- All future games: required from day one
 
 ---
 
@@ -70,14 +151,14 @@ Before implementing, answer:
 
 **SW versioning:** `CACHE_NAME = 'sylly-games-vN'` — bump N on **every deploy**.
 
-**Current SW version:** v75
+**Current SW version:** v78
 
 **Precached assets (relative paths — no leading `/`):**
 ```
 ./, index.html, css/styles.css,
 js/engine.js, js/games/li5.js, js/games/great-minds.js,
 js/games/secret-signals.js, js/games/jec.js, js/games/ygi.js,
-js/games/lttp.js, js/games/nat.js, js/secret-mode.js, js/app.js,
+js/games/lttp.js, js/games/nat.js, js/games/dsd.js, js/secret-mode.js, js/app.js,
 js/lib/tailwind-play.js, data/words.json, data/secret_words.json, data/ygi-data.json, manifest.json
 ```
 
@@ -104,3 +185,4 @@ js/lib/tailwind-play.js, data/words.json, data/secret_words.json, data/ygi-data.
 - [ ] Exit routing: mid-game ✕ → quit overlay → game menu screen; post-game ✕ → `resetToLobby()`; never call `resetToLobby()` from quit confirm
 - [ ] Vocab Lock (if game uses word validation in Secret Mode): use `window.activeExpansionData.vocab.has(normaliseWord(input))`; wire a "VIEW WORD LIST" button to `smOpenVocabOverlay()` (see `@ui-style.md` Vocab Lock Reuse Pattern)
 - [ ] Add section header comment block to `index.html` (see existing `<!-- ════ GAME NAME ════ -->` pattern) and update `docs/code-map.md`
+- [ ] **Team games — setup screens:** Screen 1 = team names only (per-input labels + "Leave blank to use X & Y" hint + themed placeholders, no size pills); screen 2 = team size pills first then player inputs — see `@ui-style.md` § Team Setup Screen Standard

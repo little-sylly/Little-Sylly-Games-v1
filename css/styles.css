@@ -72,6 +72,94 @@ body.flash-red   { background-color: #fecaca; }
   border: none;
   cursor: pointer;
 }
+.game-toggle-on-pink {
+  background: #ec4899;
+  color: #fff;
+  border-radius: 9999px;
+  padding: 0.4rem 1.2rem;
+  font-weight: 700;
+  font-size: 0.9rem;
+  transition: background 0.2s, color 0.2s;
+  border: none;
+  cursor: pointer;
+}
+.game-toggle-on-teal {
+  background: #14b8a6;
+  color: #fff;
+  border-radius: 9999px;
+  padding: 0.4rem 1.2rem;
+  font-weight: 700;
+  font-size: 0.9rem;
+  transition: background 0.2s, color 0.2s;
+  border: none;
+  cursor: pointer;
+}
+.game-toggle-on-cyan {
+  background: #0e7490;
+  color: #fff;
+  border-radius: 9999px;
+  padding: 0.4rem 1.2rem;
+  font-weight: 700;
+  font-size: 0.9rem;
+  transition: background 0.2s, color 0.2s;
+  border: none;
+  cursor: pointer;
+}
+.game-toggle-on-purple {
+  background: #a855f7;
+  color: #fff;
+  border-radius: 9999px;
+  padding: 0.4rem 1.2rem;
+  font-weight: 700;
+  font-size: 0.9rem;
+  transition: background 0.2s, color 0.2s;
+  border: none;
+  cursor: pointer;
+}
+.game-toggle-on-amber {
+  background: #f59e0b;
+  color: #fff;
+  border-radius: 9999px;
+  padding: 0.4rem 1.2rem;
+  font-weight: 700;
+  font-size: 0.9rem;
+  transition: background 0.2s, color 0.2s;
+  border: none;
+  cursor: pointer;
+}
+.game-toggle-on-orange {
+  background: #f97316;
+  color: #fff;
+  border-radius: 9999px;
+  padding: 0.4rem 1.2rem;
+  font-weight: 700;
+  font-size: 0.9rem;
+  transition: background 0.2s, color 0.2s;
+  border: none;
+  cursor: pointer;
+}
+.game-toggle-on-red {
+  background: #ef4444;
+  color: #fff;
+  border-radius: 9999px;
+  padding: 0.4rem 1.2rem;
+  font-weight: 700;
+  font-size: 0.9rem;
+  transition: background 0.2s, color 0.2s;
+  border: none;
+  cursor: pointer;
+}
+.game-toggle-on-lime {
+  background: #65a30d;
+  color: #fff;
+  border-radius: 9999px;
+  padding: 0.4rem 1.2rem;
+  font-weight: 700;
+  font-size: 0.9rem;
+  transition: background 0.2s, color 0.2s;
+  border: none;
+  cursor: pointer;
+}
 
 /* ── Sylly Mode — word card glow + pulse ─────────────────────────────────── */
 @keyframes syllyPulse {
@@ -160,6 +248,12 @@ body.flash-red   { background-color: #fecaca; }
 /* ── Natural Selection pill active state (lime) ──────────────────────────── */
 .pill-active-lime {
   background: #65a30d;  /* lime-600 */
+  color: #fff;
+}
+
+/* ── Deep-Sea Deploy pill active state (cyan) ────────────────────────────── */
+.pill-active-cyan {
+  background: #0e7490;  /* cyan-700 */
   color: #fff;
 }
 
@@ -315,6 +409,31 @@ body.flash-red   { background-color: #fecaca; }
   box-shadow: 0 1px 4px rgba(0,0,0,0.2);
   border: none;
 }
+.li5-range {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 9999px;
+  background: linear-gradient(to right, #fce7f3, #ec4899);
+  outline: none;
+  cursor: pointer;
+}
+.li5-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: #ec4899;
+  border: 3px solid #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
+.li5-range::-moz-range-thumb {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: #ec4899;
+  border: none;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
 
 /* ── Team score boxes — twin transition ──────────────────────────────────── */
 .team-box {
@@ -456,4 +575,13 @@ body.flash-red   { background-color: #fecaca; }
 }
 .streak-fire-shake {
   animation: streakFire 0.35s ease-in-out 2;
+}
+
+/* ── DSD — mine cell pulse on captain grid ───────────────────────────────── */
+@keyframes dsd-mine-pulse {
+  0%, 100% { box-shadow: inset 0 0 0 2px rgb(220 38 38); }
+  50%       { box-shadow: inset 0 0 0 3px rgb(220 38 38), 0 0 8px rgb(220 38 38 / 0.35); }
+}
+.dsd-mine-pulse {
+  animation: dsd-mine-pulse 1.6s ease-in-out infinite;
 }
