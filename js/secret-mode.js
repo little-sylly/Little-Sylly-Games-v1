@@ -1,4 +1,4 @@
-// ═══════════════════════════════════════════════════════════════════════════
+﻿// ═══════════════════════════════════════════════════════════════════════════
 // secret-mode.js — Konami gateway, Sylly-OS Terminal, expansion proxy state
 // Depends on: engine.js (getAudioCtx, masterVolume, isMuted, showScreen)
 // ═══════════════════════════════════════════════════════════════════════════
@@ -11,14 +11,17 @@ window.activeExpansionOverrides = null;
 // ── Terminal config — add new expansions/games here only ─────────────────────
 const SM_TERMINAL_CONFIG = {
   expansions: [
-    { id: 'dota2',      label: 'DOTA 2',          locked: false, file: 'data/secret_words.json' },
-    { id: 'classified', label: '??? [CLASSIFIED]', locked: true,  file: null },
+    { id: 'dota2',         label: 'DOTA 2',           locked: false, file: 'data/secret_words.json',  games: ['li5', 'gm', 'ss', 'jec'] },
+    { id: 'monsterhunter', label: 'MONSTER HUNTER',   locked: false, file: 'data/secret2_words.json', games: ['li5', 'nat'] },
+    { id: 'pokemon', label: 'POKÉMON', locked: false, file: 'data/secret3_words.json', games: ['li5', 'nat'], subCategories: [{ id: 'gen1', label: 'GEN 1' }] },
+    { id: 'classified',    label: '??? [CLASSIFIED]',  locked: true,  file: null },
   ],
   games: [
     { id: 'li5', label: "LIKE I'M FIVE",      screen: 'screen-menu'     },
     { id: 'gm',  label: 'GREAT MINDS',        screen: 'screen-gm-menu'  },
     { id: 'ss',  label: 'SECRET SIGNALS',     screen: 'screen-ss-menu'  },
     { id: 'jec', label: 'JUST ENOUGH COOKS',  screen: 'screen-jec-menu' },
+    { id: 'nat', label: 'NATURAL SELECTION',  screen: 'screen-nat-menu' },
   ],
 };
 
@@ -27,6 +30,7 @@ const SM_TERMINAL_CONFIG = {
 const SM_EXPANSION_OVERRIDES = {
   dota2: {
     // LI5 (li5.js)
+    teamNames:          ['The Radiant', 'The Dire'],
     settingTimer:       60,
     settingRounds:      5,
     settingTabooCount:  10,
@@ -46,6 +50,38 @@ const SM_EXPANSION_OVERRIDES = {
     ssSettingInterceptsToWin: 2,
     ssRerollLimitSetting:     Infinity, // unlimited rerolls
     ssIntelSyllyMode:         true,
+  },
+  monsterhunter: {
+    // LI5 (li5.js)
+    teamNames:          ["Hunter's Guild", 'The Commission'],
+    settingTimer:       60,
+    settingRounds:      5,
+    settingTabooCount:  10,
+    settingPenaltyMode: 'points',
+    settingSkipFree:    false,
+    settingSylly:       true,
+    settingSyllyPct:    40,
+    // NAT (nat.js)
+    natMatchesSetting:  3,
+    natRoundsPerMatch:  2,
+    natDifficulty:      'd1+d2',
+    natSyllyMode:       false,
+  },
+  pokemon: {
+    // LI5 (li5.js)
+    teamNames:          ['Team Red', 'Team Blue'],
+    settingTimer:       60,
+    settingRounds:      5,
+    settingTabooCount:  10,
+    settingPenaltyMode: 'points',
+    settingSkipFree:    false,
+    settingSylly:       true,
+    settingSyllyPct:    40,
+    // NAT (nat.js)
+    natMatchesSetting:  3,
+    natRoundsPerMatch:  2,
+    natDifficulty:      'd1+d2',
+    natSyllyMode:       false,
   },
 };
 
@@ -80,6 +116,12 @@ const SM_SETTINGS_DISPLAY = {
     { key: 'jecSpoiltPenalty',     label: 'Spoilt',     fmt: v => v ? '−10 pts' : 'Off' },
     { key: 'jecKitchenNightmares', label: 'Sylly Mode', fmt: v => v ? 'ON' : 'OFF' },
   ],
+  nat: [
+    { key: 'natMatchesSetting', label: 'Habitats',         fmt: v => String(v) },
+    { key: 'natRoundsPerMatch', label: 'Days / Habitat',   fmt: v => String(v) },
+    { key: 'natDifficulty',     label: 'Field Difficulty', fmt: v => ({ 'd1': 'Shallow', 'd1+d2': 'Mixed', 'all': 'All' }[v] ?? v) },
+    { key: 'natSyllyMode',      label: 'Sylly Mode',       fmt: v => v ? 'ON' : 'OFF' },
+  ],
 };
 
 // ── Expansion word bank — loaded at launch, shared by all plugins ─────────────
@@ -108,9 +150,10 @@ function smBuildExpansionData(words) {
 }
 
 // ── Terminal UI state ─────────────────────────────────────────────────────────
-let smSelectedExpansion = null;
-let smSelectedGame      = null;
-let smTypewriterTimers  = [];
+let smSelectedExpansion   = null;
+let smSelectedGame        = null;
+let smSelectedSubCategory = null;
+let smTypewriterTimers    = [];
 
 // ── Konami sequence: U U D D L R L R B A Start ───────────────────────────────
 const SM_KONAMI = ['U','U','D','D','L','R','L','R','B','A','S'];
@@ -121,10 +164,11 @@ function resetSecretMode() {
   isSecretMode  = false;
   activeExpansion = null;
   window.activeExpansionOverrides = null;
-  smKonamiBuffer      = [];
-  secretWords         = [];
-  smSelectedExpansion = null;
-  smSelectedGame      = null;
+  smKonamiBuffer        = [];
+  secretWords           = [];
+  smSelectedExpansion   = null;
+  smSelectedGame        = null;
+  smSelectedSubCategory = null;
   smTypewriterTimers.forEach(clearTimeout);
   smTypewriterTimers  = [];
   document.querySelectorAll('.sm-menu-banner').forEach(el => el.remove());
@@ -186,14 +230,17 @@ function smHandleButton(code) {
 // ═══════════════════════════════════════════════════════════════════════════
 
 function smOpenTerminal() {
-  smSelectedExpansion = null;
-  smSelectedGame      = null;
+  smSelectedExpansion   = null;
+  smSelectedGame        = null;
+  smSelectedSubCategory = null;
   // Clear terminal UI to a clean state
   document.getElementById('sm-terminal-log').innerHTML = '';
-  document.getElementById('sm-terminal-expansions').style.display  = 'none';
-  document.getElementById('sm-terminal-expansions').innerHTML       = '';
-  document.getElementById('sm-terminal-games').style.display       = 'none';
-  document.getElementById('sm-terminal-games').innerHTML            = '';
+  document.getElementById('sm-terminal-expansions').style.display     = 'none';
+  document.getElementById('sm-terminal-expansions').innerHTML          = '';
+  document.getElementById('sm-terminal-subcategories').style.display  = 'none';
+  document.getElementById('sm-terminal-subcategories').innerHTML       = '';
+  document.getElementById('sm-terminal-games').style.display          = 'none';
+  document.getElementById('sm-terminal-games').innerHTML               = '';
   document.getElementById('sm-terminal-launch-wrap').style.display = 'none';
   const sp = document.getElementById('sm-terminal-settings');
   if (sp) sp.remove();
@@ -273,20 +320,63 @@ function smSelectExpansion(expansionId) {
   p2.style.lineHeight = '0.5';
   log.appendChild(p2);
   const p3 = document.createElement('p');
-  p3.textContent = '  \u2514\u2500 SELECT GAME:';
+  p3.textContent = exp.subCategories?.length ? '  └─ SELECT GENERATION:' : '  └─ SELECT GAME:';
   log.appendChild(p3);
   log.scrollTop = log.scrollHeight;
-  // Collapse expansion list — it's chosen, now drill into game selection
+  // Collapse expansion list — it's chosen, now drill into sub-category or game selection
   document.getElementById('sm-terminal-expansions').style.display = 'none';
   // Hide launch, reset game selection
   document.getElementById('sm-terminal-launch-wrap').style.display = 'none';
+  if (exp.subCategories?.length) {
+    smRenderSubCategories(exp.subCategories);
+  } else {
+    smRenderGames();
+  }
+}
+
+function smRenderSubCategories(subCats) {
+  const wrap = document.getElementById('sm-terminal-subcategories');
+  wrap.innerHTML = '';
+  const allEntries = [...subCats, { id: null, label: 'ALL GENERATIONS' }];
+  allEntries.forEach((cat, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'w-full text-left text-xs font-mono px-3 py-3 border-2 border-green-400 text-green-400 rounded active:scale-95 transition-transform duration-75 min-h-11';
+    btn.textContent = `  [${i + 1}] ${cat.label}`;
+    btn.addEventListener('click', () => smSelectSubCategory(cat.id, cat.label));
+    wrap.appendChild(btn);
+  });
+  wrap.style.display = 'flex';
+  wrap.style.flexDirection = 'column';
+  wrap.style.gap = '8px';
+}
+
+function smSelectSubCategory(subCatId, subCatLabel) {
+  playSecretBeep(660);
+  smSelectedSubCategory = subCatId;
+  const log = document.getElementById('sm-terminal-log');
+  const p = document.createElement('p');
+  p.textContent = `> GENERATION: ${subCatLabel} SELECTED`;
+  log.appendChild(p);
+  const p2 = document.createElement('p');
+  p2.innerHTML = '&nbsp;';
+  p2.style.lineHeight = '0.5';
+  log.appendChild(p2);
+  const p3 = document.createElement('p');
+  p3.textContent = '  └─ SELECT GAME:';
+  log.appendChild(p3);
+  log.scrollTop = log.scrollHeight;
+  document.getElementById('sm-terminal-subcategories').style.display = 'none';
   smRenderGames();
 }
 
 function smRenderGames() {
   const wrap = document.getElementById('sm-terminal-games');
   wrap.innerHTML = '';
-  SM_TERMINAL_CONFIG.games.forEach((game, i) => {
+  const expCfg = SM_TERMINAL_CONFIG.expansions.find(e => e.id === smSelectedExpansion);
+  const visibleGames = expCfg?.games
+    ? SM_TERMINAL_CONFIG.games.filter(g => expCfg.games.includes(g.id))
+    : SM_TERMINAL_CONFIG.games;
+  visibleGames.forEach((game, i) => {
     const btn = document.createElement('button');
     btn.id = `sm-game-btn-${game.id}`;
     btn.className = 'w-full text-left text-xs font-mono px-3 py-3 border-2 border-green-400 text-green-400 rounded active:scale-95 transition-transform duration-75 min-h-11';
@@ -360,6 +450,9 @@ async function smLaunch() {
     const res = await fetch(expansion.file);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     secretWords = await res.json();
+    if (smSelectedSubCategory) {
+      secretWords = secretWords.filter(w => w.category === smSelectedSubCategory);
+    }
     smBuildExpansionData(secretWords);
   } catch (e) {
     console.error('[Secret Mode] Word load failed:', e);
@@ -388,7 +481,12 @@ async function smLaunch() {
       banner.className = 'sm-menu-banner absolute top-0 left-0 right-0 z-10 bg-black border-b border-green-800 px-3 py-2 flex items-center justify-between font-mono text-xs text-green-400 tracking-widest';
       screenEl.prepend(banner);
     }
-    const expLabel = SM_TERMINAL_CONFIG.expansions.find(e => e.id === smSelectedExpansion)?.label ?? smSelectedExpansion.toUpperCase();
+    const subCatLabel = smSelectedSubCategory
+      ? SM_TERMINAL_CONFIG.expansions.find(e => e.id === smSelectedExpansion)
+          ?.subCategories?.find(s => s.id === smSelectedSubCategory)?.label
+      : null;
+    const expLabel = (SM_TERMINAL_CONFIG.expansions.find(e => e.id === smSelectedExpansion)?.label ?? smSelectedExpansion.toUpperCase())
+      + (subCatLabel ? ` (${subCatLabel})` : '');
     banner.innerHTML = `
       <button onclick="smOpenTerminal()" class="text-green-600 active:scale-90 transition-transform duration-75 min-h-11 px-1">← TERMINAL</button>
       <span>SYLLY-OS › ${expLabel} › ${game.label}</span>
@@ -519,6 +617,7 @@ document.getElementById('lobby-icon').addEventListener('click', () => {
     smUpdateProgress();
     document.getElementById('sm-controller-status').textContent = '> ENTER SEQUENCE TO CONTINUE';
     document.getElementById('sm-controller-status').style.color = '';
+    playSyllyOn();
     showScreen('screen-secret-controller');
   }
 });

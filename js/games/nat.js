@@ -72,6 +72,16 @@ function natCloseSettings() {
   document.getElementById('nat-settings-overlay').style.display = 'none';
 }
 
+function natApplyExpansionOverrides() {
+  if (!isSecretMode || !window.activeExpansionOverrides) return;
+  const ov = window.activeExpansionOverrides;
+  if (ov.natMatchesSetting !== undefined) natMatchesSetting = ov.natMatchesSetting;
+  if (ov.natRoundsPerMatch !== undefined) natRoundsPerMatch = ov.natRoundsPerMatch;
+  if (ov.natDifficulty     !== undefined) natDifficulty     = ov.natDifficulty;
+  if (ov.natSyllyMode      !== undefined) natSyllyMode      = ov.natSyllyMode;
+  if (ov.natEscapePoints   !== undefined) natEscapePoints   = ov.natEscapePoints;
+}
+
 function natApplySettings() {
   const mPill = document.querySelector('#nat-matches-group .pill-active-lime');
   if (mPill) natMatchesSetting = parseInt(mPill.dataset.habitats);
@@ -141,6 +151,7 @@ function natRenderNameInputs() {
 
 async function natStartGame() {
   natApplySettings();
+  natApplyExpansionOverrides();
   const names = [];
   for (let i = 0; i < natPlayerCount; i++) {
     const val = (document.getElementById(`nat-name-${i}`)?.value || '').trim();
@@ -185,9 +196,9 @@ async function natStartMatch() {
 
 function natDrawSpecimen() {
   const diffMax = natDifficulty === 'd1' ? 1 : natDifficulty === 'd1+d2' ? 2 : 3;
-  const pool = allWords.filter(
-    w => w.category === 'animals' && w.difficulty <= diffMax && !natUsedWordIds.has(w.id)
-  );
+  const pool = isSecretMode
+    ? secretWords.filter(w => w.difficulty <= diffMax && !natUsedWordIds.has(w.id))
+    : allWords.filter(w => w.category === 'animals' && w.difficulty <= diffMax && !natUsedWordIds.has(w.id));
   if (!pool.length) return null;
   return pool[Math.floor(Math.random() * pool.length)];
 }

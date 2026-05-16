@@ -702,10 +702,8 @@ document.getElementById('btn-play')
     const t1 = document.getElementById('input-team1');
     const t2 = document.getElementById('input-team2');
     if (isSecretMode) {
-      t1.value = 'The Radiant';
-      t2.value = 'The Dire';
-      t1.disabled = true;
-      t2.disabled = true;
+      const names = window.activeExpansionOverrides?.teamNames;
+      if (names) { t1.value = names[0]; t2.value = names[1]; t1.disabled = true; t2.disabled = true; }
     } else {
       t1.disabled = false;
       t2.disabled = false;

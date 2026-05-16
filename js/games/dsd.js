@@ -30,12 +30,17 @@ let dsdSequence      = []; // grid indices in chosen order (max dsdPingNumber + 
 let dsdTurnOutcomes  = []; // [{word, role, vp, label}] — populated by dsdResolveHit each turn
 
 // ── Game log (reset each New Operation) ──────────────────────────────────────
-let dsdTurnLog    = []; // [{deployment, team, teamName, captainName, ping, pingNumber, outcomes[]}]
-let dsdHistoryIdx = 0;  // active carousel card index (per-deployment)
+let dsdTurnLog     = []; // [{deployment, team, teamName, captainName, ping, pingNumber, outcomes[]}]
+let dsdHistoryIdx  = 0;  // active carousel card index (per-deployment) — gameover screen
+let dsdHistoryPage = 0;  // deployment shown in in-game history carousel
 
 // ── Sylly Mode only (Mission Abyss) ──────────────────────────────────────────
-let dsdJammer     = -1; // grid index of the active Jammer (−1 = none placed)
-let dsdJammerTeam = -1; // which team placed the current Jammer (0 or 1)
+let dsdJammers       = [-1, -1]; // dsdJammers[t] = grid index jammed BY team t; -1 = none
+let dsdUpgradedMines = [];       // indices upgraded urchin→mine this cycle; reverted before next jam
+
+// ── Captain grid UI state ─────────────────────────────────────────────────────
+let dsdCaptainFilter = new Set(); // roles currently greyed out; tapping legend key toggles
+let dsdFlippedCells  = new Set(); // revealed cell indices showing word instead of emoji
 
 // ── Setup helpers ─────────────────────────────────────────────────────────────
 
@@ -219,10 +224,9 @@ function dsdShowCaptain() {
     ctaLabel: `I'm ${captainName} ⚓`,
     teamIdx: team,
     onConfirm: () => {
-      if (dsdSyllyMode && dsdDeployment > 1) dsdApplyDrift();
       showScreen('screen-dsd-captain');
       dsdRenderCaptainGrid();
-      dsdRenderClueLog();
+      dsdRenderInGameHistory('captain');
       document.getElementById('dsd-ping-word').value = '';
       document.getElementById('dsd-ping-number').value = '';
       document.getElementById('dsd-ping-error').classList.add('hidden');
@@ -239,7 +243,7 @@ function dsdRenderCaptainGrid() {
   label.className   = `${teamTextClass} text-xs font-semibold uppercase tracking-widest`;
   label.textContent = `${dsdTeamNames[team].toUpperCase()} — DEPLOYMENT ${dsdDeployment}`;
   tag.textContent   = `Captain: ${dsdCaptainName[team]}`;
-  // Update legend — bold active team; mine swatch colour reflects danger level
+  // Update legend — bold active team; mine swatch colour reflects danger level; sync filter opacity
   [0, 1].forEach(t => {
     const span = document.getElementById(`dsd-legend-team${t}`);
     if (!span) return;
@@ -250,6 +254,11 @@ function dsdRenderCaptainGrid() {
   if (mineSwatch) {
     mineSwatch.className = `inline-block w-3 h-3 rounded-sm flex-shrink-0 ${dsdDangerLevel === 'nuclear' ? 'bg-red-900' : 'bg-red-600'}`;
   }
+  document.querySelectorAll('.dsd-legend-key').forEach(btn => {
+    const raw  = btn.dataset.role;
+    const role = raw === '0' ? 0 : raw === '1' ? 1 : raw;
+    btn.classList.toggle('opacity-40', dsdCaptainFilter.has(role));
+  });
   // Update transmit button colour to match active team
   document.getElementById('btn-dsd-transmit').className = dsdTeamBtnClass(team);
 
@@ -257,24 +266,25 @@ function dsdRenderCaptainGrid() {
   const reticle = `<span class="absolute top-0.5 left-0.5 w-2 h-2 border-t-2 border-l-2 border-white/50 pointer-events-none"></span><span class="absolute top-0.5 right-0.5 w-2 h-2 border-t-2 border-r-2 border-white/50 pointer-events-none"></span><span class="absolute bottom-0.5 left-0.5 w-2 h-2 border-b-2 border-l-2 border-white/50 pointer-events-none"></span><span class="absolute bottom-0.5 right-0.5 w-2 h-2 border-b-2 border-r-2 border-white/50 pointer-events-none"></span>`;
 
   grid.innerHTML = dsdGrid.map((cell, i) => {
-    // Jammer override (Sylly Mode) — render as placing team's colour with ? badge
-    const isJammer = dsdSyllyMode && i === dsdJammer && dsdJammerTeam !== team;
+    // Jammer override (Sylly Mode) — render as placing team's colour with amber ring
+    const isJammer = dsdSyllyMode && i === dsdJammers[1 - team]; // opponent's jammer on our grid
     if (isJammer) {
-      const jammerColour = dsdJammerTeam === 0 ? 'bg-cyan-700 text-white' : 'bg-indigo-800 text-white';
-      return `<div class="relative h-[52px] ${jammerColour} rounded-lg flex items-center justify-center text-[10px] font-semibold uppercase text-center px-1 leading-tight"><span>${cell.word}</span><span class="absolute top-0.5 right-0.5 text-[9px] font-bold opacity-80">?</span></div>`;
+      const jammerBg = team === 0 ? 'bg-cyan-700' : 'bg-indigo-800';
+      const filterCls = dsdCaptainFilter.has('jammer') ? 'opacity-20' : '';
+      return `<div class="relative h-[52px] ${jammerBg} ${filterCls} ring-2 ring-amber-400 rounded-lg flex items-center justify-center text-[10px] font-semibold uppercase text-center px-1 leading-tight text-amber-300"><span>${cell.word}</span><span class="absolute top-0.5 right-0.5 text-[11px] font-bold text-amber-400">⚡</span></div>`;
     }
 
-    // Revealed cells — emoji replaces word; tap to peek at original word
+    // Revealed cells — emoji replaces word; tap to peek at original word (never filtered)
     if (cell.revealed) {
-      const mineEmoji = dsdDangerLevel === 'nuclear' ? '💀' : '💣';
-      const emoji = cell.role === 'mine' ? mineEmoji : cell.role === 'urchin' ? '🦔' : '⚓';
-      return `<div class="relative h-[52px] bg-stone-900 opacity-40 rounded-lg flex items-center justify-center text-[10px] font-semibold uppercase text-center px-1 leading-tight cursor-pointer" data-revealed="1"><span class="emoji-view text-lg">${emoji}</span><span class="word-view hidden line-through text-[9px] text-white/70">${cell.word}</span></div>`;
+      const emoji = cell.role === 'mine' ? '💣' : cell.role === 'urchin' ? '💥' : '⚓';
+      return `<div class="relative h-[52px] bg-stone-900 opacity-40 rounded-lg flex items-center justify-center px-1 cursor-pointer" data-revealed="1"><span class="emoji-view text-lg">${emoji}</span><span class="word-view hidden line-through text-[9px] text-white/70">${cell.word}</span></div>`;
     }
 
     // Own-team unrevealed — solid vibrant block with corner reticle
     if (cell.role === team) {
       const solidBg = team === 0 ? 'bg-cyan-700 text-white' : 'bg-indigo-800 text-white';
-      return `<div class="relative h-[52px] ${solidBg} rounded-lg flex items-center justify-center text-[10px] font-semibold uppercase text-center px-1 leading-tight">${reticle}<span>${cell.word}</span></div>`;
+      const filterCls = dsdCaptainFilter.has(team) ? 'opacity-20' : '';
+      return `<div class="relative h-[52px] ${solidBg} ${filterCls} rounded-lg flex items-center justify-center text-[10px] font-semibold uppercase text-center px-1 leading-tight">${reticle}<span>${cell.word}</span></div>`;
     }
 
     // Non-team unrevealed — light tint of role colour; own-team pops by contrast
@@ -282,12 +292,12 @@ function dsdRenderCaptainGrid() {
     if (cell.role === 'mine') {
       bgClass = 'bg-red-200 text-red-900 dsd-mine-pulse';
     } else if (cell.role === 'urchin') {
-      bgClass = 'bg-slate-200 text-slate-700';
+      bgClass = 'bg-red-100 text-red-600';
     } else {
-      // Enemy team
       bgClass = team === 0 ? 'bg-indigo-200 text-indigo-900' : 'bg-cyan-100 text-cyan-900';
     }
-    return `<div class="relative h-[52px] ${bgClass} rounded-lg flex items-center justify-center text-[10px] font-semibold uppercase text-center px-1 leading-tight"><span>${cell.word}</span></div>`;
+    const filterCls = dsdCaptainFilter.has(cell.role) ? 'opacity-20' : '';
+    return `<div class="relative h-[52px] ${bgClass} ${filterCls} rounded-lg flex items-center justify-center text-[10px] font-semibold uppercase text-center px-1 leading-tight"><span>${cell.word}</span></div>`;
   }).join('');
 }
 
@@ -300,6 +310,11 @@ function dsdTransmitPing() {
   errEl.classList.add('hidden');
   if (!word || /\s/.test(word)) {
     errEl.textContent = 'One word only — no spaces.';
+    errEl.classList.remove('hidden');
+    return;
+  }
+  if (word.length === 1) {
+    errEl.textContent = 'Single-letter clues aren\'t allowed.';
     errEl.classList.remove('hidden');
     return;
   }
@@ -340,6 +355,7 @@ function dsdTransmitPing() {
 }
 
 function dsdShowCrew() {
+  dsdFlippedCells = new Set(); // reset flip state for this crew selection phase
   showScreen('screen-dsd-crew');
   dsdRenderCrewGrid();
 }
@@ -350,7 +366,7 @@ function dsdRenderCrewGrid() {
   labelEl.className   = `${teamTextClass} text-xs font-semibold uppercase tracking-widest`;
   labelEl.textContent = dsdTeamNames[dsdCurrentTeam].toUpperCase() + ' CREW';
   document.getElementById('dsd-ping-display').textContent =
-    `⚓ ${dsdPingClue.toUpperCase()} — ${dsdPingNumber}`;
+    `${dsdPingClue.toUpperCase()} — ${dsdPingNumber}`;
   const grid = document.getElementById('dsd-crew-grid');
   grid.innerHTML = dsdGrid.map((cell, i) => {
     const seqPos = dsdSequence.indexOf(i);
@@ -360,14 +376,17 @@ function dsdRenderCrewGrid() {
     const revealedColour = {
       0:      'bg-cyan-200 text-cyan-900',
       1:      'bg-indigo-200 text-indigo-900',
-      urchin: 'bg-slate-200 text-slate-700',
+      urchin: 'bg-red-100 text-red-600',
       mine:   'bg-red-200 text-red-900',
     };
-    const colour = cell.revealed
-      ? (revealedColour[cell.role] || 'bg-stone-200 text-stone-400')
-      : (seqPos !== -1 ? 'bg-cyan-100 text-cyan-800 ring-2 ring-cyan-500' : 'bg-stone-100 text-stone-700');
-    const pointer = cell.revealed ? 'opacity-40 pointer-events-none' : '';
-    return `<div class="relative h-[52px] ${colour} ${pointer} rounded-lg flex items-center justify-center text-[10px] font-semibold uppercase text-center px-1 leading-tight cursor-pointer active:scale-95 transition-transform duration-100" data-idx="${i}">${cell.word}${badge}</div>`;
+    if (cell.revealed) {
+      const col     = revealedColour[cell.role] || 'bg-stone-200 text-stone-400';
+      const emoji   = { mine: '💣', urchin: '💥' }[cell.role] ?? '⚓';
+      const flipped = dsdFlippedCells.has(i);
+      return `<div class="relative h-[52px] ${col} opacity-60 rounded-lg flex items-center justify-center px-1 cursor-pointer" data-idx="${i}" data-revealed="1"><span class="${flipped ? 'hidden' : ''} text-xl">${emoji}</span><span class="${flipped ? '' : 'hidden'} text-[9px] font-semibold uppercase line-through leading-tight text-center">${cell.word}</span></div>`;
+    }
+    const colour = seqPos !== -1 ? 'bg-cyan-100 text-cyan-800 ring-2 ring-cyan-500' : 'bg-stone-100 text-stone-700';
+    return `<div class="relative h-[52px] ${colour} rounded-lg flex items-center justify-center text-[10px] font-semibold uppercase text-center px-1 leading-tight cursor-pointer active:scale-95 transition-transform duration-100" data-idx="${i}">${cell.word}${badge}</div>`;
   }).join('');
   const execBtn = document.getElementById('btn-dsd-crew-execute');
   execBtn.disabled = dsdSequence.length === 0;
@@ -396,6 +415,7 @@ function dsdOpenDisarmOverlay() {
 }
 
 async function dsdShowExecution() {
+  dsdFlippedCells = new Set(); // reset flip state for this execution phase
   showScreen('screen-dsd-execution');
   dsdTurnOutcomes = [];
   document.getElementById('dsd-execution-log').innerHTML = '';
@@ -403,12 +423,15 @@ async function dsdShowExecution() {
   document.getElementById('btn-dsd-execution-next').className = dsdTeamBtnClass(dsdCurrentTeam);
   dsdRenderExecutionGrid();
   dsdUpdateValourDisplay();
-  dsdRenderHistorySummary();
+  dsdRenderInGameHistory('exec');
   let turnEnded = false;
   for (let i = 0; i < dsdSequence.length; i++) {
     const idx = dsdSequence[i];
     dsdRenderExecutionGrid(idx);   // highlight pending tile
     await dsdDelay(400);
+    if (dsdSyllyMode && idx === dsdJammers[1 - dsdCurrentTeam]) {
+      await dsdFlashJammer(idx); // 700ms ⚡ before hull thud fires in resolve
+    }
     const ended = dsdResolveHit(idx);
     dsdRenderExecutionGrid();      // resolved — tile now shows role colour
     dsdAppendExecutionLog(dsdTurnOutcomes[dsdTurnOutcomes.length - 1]);
@@ -425,13 +448,15 @@ function dsdRenderExecutionGrid(pendingIdx = -1) {
   const colours = {
     0:      'bg-cyan-700 text-white',
     1:      'bg-indigo-800 text-white',
-    urchin: 'bg-slate-400 text-white',
+    urchin: 'bg-red-300 text-red-900',
     mine:   dsdDangerLevel === 'nuclear' ? 'bg-red-900 text-white' : 'bg-red-600 text-white',
   };
   grid.innerHTML = dsdGrid.map((cell, i) => {
     if (cell.revealed) {
-      const col = colours[cell.role] || 'bg-stone-300 text-stone-600';
-      return `<div class="h-[52px] ${col} rounded-lg flex items-center justify-center text-[10px] font-semibold uppercase text-center px-1 leading-tight"><span class="line-through opacity-80">${cell.word}</span></div>`;
+      const col     = colours[cell.role] || 'bg-stone-300 text-stone-600';
+      const emoji   = { mine: '💣', urchin: '💥' }[cell.role] ?? '⚓';
+      const flipped = dsdFlippedCells.has(i);
+      return `<div class="h-[52px] ${col} rounded-lg flex items-center justify-center px-1 cursor-pointer" data-idx="${i}" data-revealed="1"><span class="${flipped ? 'hidden' : ''} text-xl">${emoji}</span><span class="${flipped ? '' : 'hidden'} text-[9px] font-semibold uppercase line-through leading-tight text-center opacity-80">${cell.word}</span></div>`;
     }
     if (i === pendingIdx) {
       return `<div class="h-[52px] bg-cyan-100 text-cyan-800 ring-2 ring-cyan-400 rounded-lg flex items-center justify-center text-[10px] font-semibold uppercase text-center px-1 leading-tight">⚡</div>`;
@@ -460,6 +485,14 @@ function dsdAppendExecutionLog(outcome) {
 
 function dsdDelay(ms) { return new Promise(r => setTimeout(r, ms)); }
 
+async function dsdFlashJammer(idx) {
+  const cell = document.getElementById('dsd-execution-grid')?.querySelector(`[data-idx="${idx}"]`);
+  if (!cell) return;
+  cell.className = 'h-[52px] bg-amber-400 rounded-lg flex items-center justify-center text-3xl';
+  cell.textContent = '⚡';
+  await dsdDelay(700); // flash before resolve redraws the cell
+}
+
 function dsdUpdateValourDisplay() {
   const el = document.getElementById('dsd-valour-display');
   if (!el) return;
@@ -476,39 +509,34 @@ function dsdUpdateValourDisplay() {
     </div>`;
 }
 
-function dsdRenderHistorySummary() {
-  const el = document.getElementById('dsd-history-summary');
-  if (!el) return;
-  if (dsdTurnLog.length === 0) { el.classList.add('hidden'); return; }
-  el.classList.remove('hidden');
-  el.innerHTML = dsdTurnLog.map(t => {
-    const teamColor = t.team === 0 ? 'text-cyan-700' : 'text-indigo-800';
-    const outcomes = t.outcomes.map(o => o.label).join(', ') || '—';
-    return `<div class="flex items-baseline gap-1.5 text-[10px] text-stone-400 leading-snug">
-      <span class="${teamColor} font-semibold shrink-0">${t.teamName}</span>
-      <span class="opacity-70 shrink-0">D${t.deployment}:</span>
-      <span class="font-medium text-stone-500 shrink-0">${t.ping.toUpperCase()} (${t.pingNumber})</span>
-      <span class="ml-auto shrink-0">${outcomes}</span>
-    </div>`;
-  }).join('');
-  el.scrollTop = el.scrollHeight;
-}
+function dsdRenderInGameHistory(mode) {
+  const wrapId  = mode === 'captain' ? 'dsd-captain-history' : 'dsd-exec-history';
+  const prefix  = mode === 'captain' ? 'dsd-cap-hist'        : 'dsd-exec-hist';
+  const wrapper = document.getElementById(wrapId);
+  if (!wrapper) return;
+  if (!dsdTurnLog.length) { wrapper.classList.add('hidden'); return; }
+  wrapper.classList.remove('hidden');
 
-function dsdRenderClueLog() {
-  const el = document.getElementById('dsd-clue-log');
-  if (!el) return;
-  if (dsdTurnLog.length === 0) { el.classList.add('hidden'); return; }
-  el.classList.remove('hidden');
-  el.innerHTML = dsdTurnLog.map(t => {
-    const teamColor = t.team === 0 ? 'text-cyan-700' : 'text-indigo-800';
+  const deployments = [...new Set(dsdTurnLog.map(t => t.deployment))].sort((a, b) => a - b);
+  const page  = Math.min(dsdHistoryPage, deployments.length - 1);
+  const dep   = deployments[page];
+  const turns = dsdTurnLog.filter(t => t.deployment === dep);
+
+  document.getElementById(`${prefix}-prev`).disabled = page === 0;
+  document.getElementById(`${prefix}-next`).disabled = page === deployments.length - 1;
+
+  document.getElementById(`${prefix}-card`).innerHTML = turns.map(t => {
+    const teamCls  = t.team === 0 ? 'text-cyan-700' : 'text-indigo-800';
+    const outcomes = mode === 'exec' && t.outcomes?.length
+      ? ` — ${t.outcomes.map(o => o.label).join(', ')}`
+      : '';
     return `<div class="flex items-baseline gap-1.5 text-[10px] text-stone-400 leading-snug">
-      <span class="${teamColor} font-semibold shrink-0">${t.teamName}</span>
-      <span class="shrink-0 opacity-60">D${t.deployment}:</span>
-      <span class="font-semibold text-stone-600 shrink-0">${t.ping.toUpperCase()}</span>
-      <span class="opacity-60 shrink-0">(${t.pingNumber})</span>
+      <span class="${teamCls} font-semibold shrink-0">${t.teamName}</span>
+      <span class="opacity-60 shrink-0">D${t.deployment}:</span>
+      <span class="font-semibold text-stone-600 shrink-0">${t.ping.toUpperCase()} (${t.pingNumber})</span>
+      ${outcomes ? `<span class="opacity-70 ml-auto shrink-0 text-right">${outcomes}</span>` : ''}
     </div>`;
   }).join('');
-  el.scrollTop = el.scrollHeight;
 }
 
 function dsdShowSabotage(placingTeam) {
@@ -523,10 +551,10 @@ function dsdResolveHit(gridIdx) {
   cell.revealed = true;
   const { role, word } = cell;
   const me = dsdCurrentTeam, them = 1 - me;
-  if (dsdSyllyMode && gridIdx === dsdJammer) {
+  if (dsdSyllyMode && gridIdx === dsdJammers[them]) { // opponent's jammer placed on our grid
     dsdValour[me] -= 5;
-    playSonarPing();
-    dsdJammer = -1; dsdJammerTeam = -1;
+    playHullThud();
+    dsdJammers[them] = -1;
     dsdTurnOutcomes.push({ word, role: 'jammer', vp: -5, label: 'Jammer! −5' });
     return true;
   }
@@ -544,7 +572,7 @@ function dsdResolveHit(gridIdx) {
   }
   if (role === 'urchin') {
     dsdValour[me] -= 5;
-    playSonarPing();
+    playHullThud();
     dsdTurnOutcomes.push({ word, role, vp: -5, label: 'Urchin! −5' });
     return dsdHazardControl.urchin;
   }
@@ -553,7 +581,16 @@ function dsdResolveHit(gridIdx) {
       dsdValour[me] -= 1000;
       playAbyssThud();
       dsdTurnOutcomes.push({ word, role, vp: -1000, label: 'NUCLEAR MINE ☢️' });
-      setTimeout(() => dsdShowGameover(), 2600);
+      dsdTurnLog.push({                          // commit turn before bypassing dsdAdvanceTurn
+        deployment: dsdDeployment,
+        team: me,
+        teamName: dsdTeamNames[me],
+        captainName: dsdCaptainName[me],
+        ping: dsdPingClue,
+        pingNumber: dsdPingNumber,
+        outcomes: [...dsdTurnOutcomes],
+      });
+      setTimeout(() => dsdShowGameover(), 2600); // 2600ms matches playAbyssThud() decay
       return true;
     }
     dsdValour[me] -= 20;
@@ -575,13 +612,28 @@ function dsdAdvanceTurn() {
     pingNumber: dsdPingNumber,
     outcomes: [...dsdTurnOutcomes],
   });
+  dsdHistoryPage = dsdDeployment; // auto-navigate carousel to the deployment just completed
   dsdTurnOutcomes = [];
   dsdCurrentTeam = 1 - dsdCurrentTeam;
-  if (dsdCurrentTeam === dsdFirstTeam) dsdDeployment++;
+  if (dsdCurrentTeam === dsdFirstTeam) {
+    dsdDeployment++;
+    if (dsdSyllyMode && dsdDeployment >= 2) {
+      dsdRevertUpgradedMines(); // clean roles before drift so shuffle sees ground truth
+      dsdApplyDrift();
+    }
+  }
   dsdPingClue = ''; dsdPingNumber = 0; dsdSequence = [];
   if (dsdCheckVictory()) return;
-  if (dsdSyllyMode && dsdDeployment === 2 && dsdCurrentTeam === dsdFirstTeam) {
-    dsdShowSabotage(justFinished); // justFinished = second team = Jammer placer
+  if (dsdSyllyMode && dsdDeployment >= 2) {
+    const placingTeam = justFinished;
+    dsdRevertUpgradedMines();
+    dsdShowPassGate({
+      heading: `Pass to ${dsdCaptainName[placingTeam] || dsdTeamNames[placingTeam]}`,
+      subtext: 'Mission Abyss: the Captain sabotages in secret.',
+      ctaLabel: 'Deploy Jammer ⚡',
+      teamIdx: placingTeam,
+      onConfirm: () => dsdShowSabotage(placingTeam),
+    });
     return;
   }
   dsdShowCaptain();
@@ -632,7 +684,7 @@ function dsdRenderGameoverGrid() {
   const colours = {
     0:      'bg-cyan-700 text-white',
     1:      'bg-indigo-800 text-white',
-    urchin: 'bg-slate-400 text-white',
+    urchin: 'bg-red-300 text-red-900',
     mine:   dsdDangerLevel === 'nuclear' ? 'bg-red-900 text-white' : 'bg-red-600 text-white',
   };
   grid.innerHTML = dsdGrid.map(cell => {
@@ -690,58 +742,102 @@ function dsdResetState() {
   dsdPingClue      = '';
   dsdPingNumber    = 0;
   dsdSequence      = [];
-  dsdJammer        = -1;
-  dsdJammerTeam    = -1;
+  dsdJammers       = [-1, -1];
+  dsdUpgradedMines = [];
   dsdTurnOutcomes  = [];
   dsdTurnLog       = [];
+  dsdCaptainFilter = new Set();
+  dsdFlippedCells  = new Set();
+  dsdHistoryPage   = 0;
 }
 
 // ── Sylly Mode helpers ────────────────────────────────────────────────────────
 
+function dsdRevertUpgradedMines() {
+  dsdUpgradedMines.forEach(idx => { if (!dsdGrid[idx].revealed) dsdGrid[idx].role = 'urchin'; });
+  dsdUpgradedMines = [];
+}
+
 function dsdApplyDrift() {
+  // Words stay fixed in position — only role assignments shuffle among unrevealed cells
   const unrevealed = dsdGrid.map((c, i) => i).filter(i => !dsdGrid[i].revealed);
-  const shuffled   = shuffle([...unrevealed]);
-  const words = unrevealed.map(i => dsdGrid[i].word);
-  const roles = unrevealed.map(i => dsdGrid[i].role);
-  shuffle(roles);
-  shuffled.forEach((origIdx, n) => {
-    dsdGrid[origIdx].word = words[n];
-    dsdGrid[origIdx].role = roles[n];
-  });
+  const roles = shuffle(unrevealed.map(i => dsdGrid[i].role));
+  unrevealed.forEach((idx, n) => { dsdGrid[idx].role = roles[n]; });
 }
 
 function dsdRenderSabotageGrid(placingTeam) {
   let selectedIdx = -1;
+  const opponent  = 1 - placingTeam;
   const confirmBtn = document.getElementById('btn-dsd-sabotage-confirm');
   confirmBtn.disabled = true;
+  const label    = document.getElementById('dsd-sabotage-label');
+  const grid     = document.getElementById('dsd-sabotage-grid');
   const teamName = dsdTeamNames[placingTeam] || 'Team';
-  document.getElementById('dsd-sabotage-label').innerHTML =
-    `<strong>${teamName}</strong>: tap a word to plant your Jammer. The enemy Captain will see it as <strong>?</strong> — triggering it costs them 5 Valour and ends their turn.`;
-  const grid = document.getElementById('dsd-sabotage-grid');
+
+  const opponentPayloadsLeft = dsdGrid.filter(c => !c.revealed && c.role === opponent).length;
+  const upgradeMode = opponentPayloadsLeft <= 2;
+
+  const sabColours = {
+    0:      'bg-cyan-700 text-white',
+    1:      'bg-indigo-800 text-white',
+    urchin: 'bg-red-100 text-red-600',
+    mine:   dsdDangerLevel === 'nuclear' ? 'bg-red-900 text-white' : 'bg-red-600 text-white',
+  };
+
+  function isTappable(cell) {
+    if (cell.revealed) return false;
+    return upgradeMode ? cell.role === 'urchin' : cell.role === opponent;
+  }
+
+  if (!upgradeMode) {
+    label.innerHTML = `<strong>${teamName}</strong>: tap an enemy Payload to plant your Jammer — triggering it costs them 5 Valour and ends their turn.`;
+    confirmBtn.textContent = 'Plant Jammer ⚡';
+    confirmBtn.onclick = () => {
+      if (selectedIdx === -1) return;
+      dsdJammers[placingTeam] = selectedIdx;
+      dsdShowCaptain();
+    };
+  } else {
+    const urchinsLeft = dsdGrid.filter(c => !c.revealed && c.role === 'urchin').length;
+    label.innerHTML = urchinsLeft > 0
+      ? `<strong>${teamName}</strong>: enemy is nearly out — upgrade an Urchin to a ${dsdDangerLevel === 'nuclear' ? 'Nuclear' : 'Pressure'} Mine instead.`
+      : `<strong>${teamName}</strong>: enemy is nearly out, and no Urchins remain. Skip or carry on.`;
+    confirmBtn.textContent = 'Upgrade Urchin 💣';
+    confirmBtn.onclick = () => {
+      if (selectedIdx === -1) return;
+      dsdGrid[selectedIdx].role = 'mine';
+      dsdUpgradedMines.push(selectedIdx);
+      dsdShowCaptain();
+    };
+  }
+
   function render() {
     grid.innerHTML = dsdGrid.map((cell, i) => {
       if (cell.revealed) {
-        return `<div class="h-[52px] bg-stone-100 opacity-40 rounded-lg flex items-center justify-center text-[10px] font-semibold uppercase text-stone-400 px-1 text-center leading-tight">${cell.word}</div>`;
+        const col   = sabColours[cell.role] || 'bg-stone-200';
+        const emoji = { mine: '💣', urchin: '💥' }[cell.role] ?? '⚓';
+        return `<div class="h-[52px] ${col} opacity-30 rounded-lg flex items-center justify-center text-xl">${emoji}</div>`;
+      }
+      if (!isTappable(cell)) {
+        const baseCls = sabColours[cell.role] || 'bg-stone-100 text-stone-700';
+        return `<div class="h-[52px] ${baseCls} opacity-20 rounded-lg flex items-center justify-center text-[10px] font-semibold uppercase text-center px-1 leading-tight">${cell.word}</div>`;
       }
       const selected = i === selectedIdx;
-      return `<div class="h-[52px] ${selected ? 'bg-amber-300 ring-2 ring-amber-500' : 'bg-stone-100 text-stone-700'} rounded-lg flex items-center justify-center text-[10px] font-semibold uppercase text-center px-1 leading-tight cursor-pointer active:scale-95 transition-transform duration-100" data-sab="${i}">${cell.word}</div>`;
+      const baseCls  = sabColours[cell.role] || 'bg-stone-100 text-stone-700';
+      const cellCls  = selected ? 'bg-amber-300 ring-2 ring-amber-500 text-stone-800' : baseCls;
+      return `<div class="h-[52px] ${cellCls} rounded-lg flex items-center justify-center text-[10px] font-semibold uppercase text-center px-1 leading-tight cursor-pointer active:scale-95 transition-transform duration-100" data-sab="${i}">${cell.word}</div>`;
     }).join('');
   }
+
   render();
   grid.onclick = function(e) {
     const tile = e.target.closest('[data-sab]');
     if (!tile) return;
     const idx = parseInt(tile.dataset.sab);
-    if (dsdGrid[idx].revealed) return;
+    if (!isTappable(dsdGrid[idx])) return;
     selectedIdx = (selectedIdx === idx) ? -1 : idx;
     confirmBtn.disabled = selectedIdx === -1;
     render();
-  };
-  confirmBtn.onclick = () => {
-    if (selectedIdx === -1) return;
-    dsdJammer     = selectedIdx;
-    dsdJammerTeam = placingTeam;
-    dsdShowCaptain();
   };
 }
 
@@ -749,7 +845,7 @@ function dsdRenderSabotageGrid(placingTeam) {
 
 function dsdOpenSettings() {
   const overlay = document.getElementById('dsd-settings-overlay');
-  overlay.querySelector('.overflow-y-auto').scrollTop = 0;
+  overlay.querySelector('.overlay-data-inner').scrollTop = 0;
   dsdSyncSettingsPills();
   dsdSyncHazardPills();
   dsdSetToggle('btn-dsd-sylly-toggle', dsdSyllyMode);
@@ -799,7 +895,7 @@ document.getElementById('btn-dsd-menu-play').addEventListener('click', () => {
 document.getElementById('btn-dsd-menu-howto').addEventListener('click', () => {
   playPillClick();
   const overlay = document.getElementById('dsd-how-to-overlay');
-  overlay.querySelector('.overflow-y-auto').scrollTop = 0;
+  overlay.querySelector('.overlay-data-inner').scrollTop = 0;
   overlay.style.display = 'flex';
 });
 document.getElementById('btn-dsd-howto-done').addEventListener('click', () => {
@@ -884,6 +980,16 @@ document.getElementById('dsd-captain-grid').addEventListener('click', e => {
   cell.querySelector('.word-view')?.classList.toggle('hidden');
 });
 
+// ── Execution grid — flip revealed cells between emoji and word ───────────────
+document.getElementById('dsd-execution-grid').addEventListener('click', e => {
+  const cell = e.target.closest('[data-revealed]');
+  if (!cell) return;
+  const idx = parseInt(cell.dataset.idx);
+  dsdFlippedCells.has(idx) ? dsdFlippedCells.delete(idx) : dsdFlippedCells.add(idx);
+  cell.querySelector('span:first-child')?.classList.toggle('hidden');
+  cell.querySelector('span:last-child')?.classList.toggle('hidden');
+});
+
 // ── Mid-game forward navigation (stubs — replaced in Step 5) ─────────────────
 document.getElementById('btn-dsd-transmit').addEventListener('click', () => {
   dsdTransmitPing();
@@ -892,7 +998,12 @@ document.getElementById('dsd-crew-grid').addEventListener('click', e => {
   const tile = e.target.closest('[data-idx]');
   if (!tile) return;
   const idx = parseInt(tile.dataset.idx);
-  if (dsdGrid[idx].revealed) return;
+  if (dsdGrid[idx].revealed) {
+    dsdFlippedCells.has(idx) ? dsdFlippedCells.delete(idx) : dsdFlippedCells.add(idx);
+    tile.querySelector('span:first-child')?.classList.toggle('hidden');
+    tile.querySelector('span:last-child')?.classList.toggle('hidden');
+    return;
+  }
   const pos = dsdSequence.indexOf(idx);
   if (pos !== -1) {
     dsdSequence.splice(pos, 1);
@@ -958,4 +1069,43 @@ document.getElementById('dsd-history-prev').addEventListener('click', () => {
 document.getElementById('dsd-history-next').addEventListener('click', () => {
   const deployments = [...new Set(dsdTurnLog.map(t => t.deployment))];
   if (dsdHistoryIdx < deployments.length - 1) { dsdHistoryIdx++; dsdRenderTurnLog(); }
+});
+
+// ── Legend filter — tap to grey out a role on the captain grid ────────────────
+document.querySelectorAll('.dsd-legend-key').forEach(btn => {
+  btn.addEventListener('click', () => {
+    playPillClick();
+    const raw  = btn.dataset.role;
+    const role = raw === '0' ? 0 : raw === '1' ? 1 : raw;
+    if (dsdCaptainFilter.has(role)) {
+      dsdCaptainFilter.delete(role);
+      btn.classList.remove('opacity-40');
+    } else {
+      dsdCaptainFilter.add(role);
+      btn.classList.add('opacity-40');
+    }
+    dsdRenderCaptainGrid();
+  });
+});
+document.getElementById('btn-dsd-legend-showall').addEventListener('click', () => {
+  playPillClick();
+  dsdCaptainFilter.clear();
+  document.querySelectorAll('.dsd-legend-key').forEach(b => b.classList.remove('opacity-40'));
+  dsdRenderCaptainGrid();
+});
+
+// ── In-game history carousel navigation ──────────────────────────────────────
+document.getElementById('dsd-cap-hist-prev')?.addEventListener('click', () => {
+  if (dsdHistoryPage > 0) { dsdHistoryPage--; dsdRenderInGameHistory('captain'); }
+});
+document.getElementById('dsd-cap-hist-next')?.addEventListener('click', () => {
+  const deps = [...new Set(dsdTurnLog.map(t => t.deployment))];
+  if (dsdHistoryPage < deps.length - 1) { dsdHistoryPage++; dsdRenderInGameHistory('captain'); }
+});
+document.getElementById('dsd-exec-hist-prev')?.addEventListener('click', () => {
+  if (dsdHistoryPage > 0) { dsdHistoryPage--; dsdRenderInGameHistory('exec'); }
+});
+document.getElementById('dsd-exec-hist-next')?.addEventListener('click', () => {
+  const deps = [...new Set(dsdTurnLog.map(t => t.deployment))];
+  if (dsdHistoryPage < deps.length - 1) { dsdHistoryPage++; dsdRenderInGameHistory('exec'); }
 });

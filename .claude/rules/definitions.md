@@ -75,3 +75,9 @@ ssDifficultyLevel:    'standard' | 'wild' | 'wilder'
 - Difficulty 1 = Standard (concrete nouns), 2 = Wild (verbs/adjectives), 3 = Wilder (abstract)
 - `isSylly` = `difficulty === 3` — derived, never stored
 - **animals category only:** `nono_list[0]` = Documentary Label / Common Grouping (e.g., "Sea Creature", "Furry Animal") — serves as the Broad Shield in Like I'm Five AND as The Mole's Grouping in Natural Selection (the only clue The Mole receives). Must NOT be a scientific class name. See Dual-Use Contract in `CLAUDE.md`.
+
+## File Format: words.json
+- **One entry per line** (compact `JSON.stringify(entry)` — no multi-line pretty-print)
+- **Blank line between each category group** — 16 categories, 15 blank-line separators
+- **Category order in file:** `animals, food, places, objects, sports, nature, vehicles, jobs, activities, aussie_slang, pop_culture, people, brands, emotions, actions, music`
+- When rewriting the file (e.g. after adding words), use a custom serialiser — `JSON.stringify(entry)` per line, with `lines.push('')` after the last entry of each category except the final one. Never use `JSON.stringify(array, null, 2)` — it produces multi-line per-entry format.

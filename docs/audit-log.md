@@ -15,7 +15,44 @@ Living document. Update after every completed Protocol A run.
 | You Get It? | YGI | ✅ Clean | 2026-05-15 | 9 | 9 |
 | Late to the Party | LTTP | ✅ Clean | 2026-05-15 | 9 | 9 |
 | Natural Selection | NAT | ✅ Clean | 2026-05-15 | 5 | 5 |
-| Deep-Sea Deploy | DSD | 🔧 Phase 20 rework | 2026-05-15 | Multiple | All fixed |
+| Deep-Sea Deploy | DSD | ✅ Clean | 2026-05-16 | 9 | 9 |
+
+---
+
+## Deep-Sea Deploy (DSD) — 2026-05-16 (first full Protocol A audit)
+
+**Files read:** `js/games/dsd.js`, `index.html` (DSD section, lines ~4108–4571), `js/engine.js` (`allScreens[]`, `resetToLobby()`), `sw.js`, `game-identities.md`
+
+**Flags:**
+
+1. **`dsd.js` line 848 — `dsdOpenSettings()` scroll reset uses `.overflow-y-auto`** — Same bug caught in NAT, JEC, GM. `.overlay-data-inner` gets `overflow-y: auto` from CSS; Tailwind query returns `null` silently.
+   - Fix: `.overflow-y-auto` → `.overlay-data-inner`.
+
+2. **`dsd.js` line 898 — How-to open handler uses `.overflow-y-auto`** — Same bug as Flag 1 in the `btn-dsd-menu-howto` click handler.
+   - Fix: Same selector correction.
+
+3. **`index.html` — `dsd-quit-overlay` inner div wrong pattern** — Used `bg-white p-8 flex flex-col gap-3 shadow-xl` without `rounded-3xl` and missing `text-center`. The `bg-white` gives a bright white background instead of the warm `stone-50`.
+   - Fix: Replaced with `overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center`.
+
+4. **`index.html` — `dsd-confirm-disarm` inner div wrong pattern** — Same issue: `bg-white p-8 shadow-xl`, missing `rounded-3xl` and `text-center`.
+   - Fix: Same standard pattern correction.
+
+5. **`index.html` — `dsd-new-op-overlay` inner div wrong bg and padding** — Used `bg-white p-6`; correct is `bg-stone-50 px-6 pt-6 pb-8`.
+   - Fix: Applied standard padding and background.
+
+6. **`index.html` lines 4108–4113 — Section header comment stale** — Screen list was missing `screen-dsd-players` and `screen-dsd-pass-gate` (both added in Phase 20 two-screen setup split). Overlay list was missing `dsd-new-op-overlay`.
+   - Fix: Updated both lists to match current implementation.
+
+7. **`index.html` — `screen-dsd-players` missing ✕ button** — Players screen header had ← back and speaker but no ✕. Protocol requires Speaker + ✕ on every screen. `.btn-dsd-quit-open` already wired via event delegation — no JS change needed.
+   - Fix: Added `.btn-dsd-quit-open ✕` to the right header flex group.
+
+8. **`index.html` — `screen-dsd-pass-gate` missing speaker button** — Pass gate has no ✕ by design (gate cannot be skipped mid-game per engine rules), but the speaker must still be accessible for volume control during handoff.
+   - Fix: Added `.btn-open-sound 🔊` row at top of the content block (`flex justify-end w-full`).
+
+9. **`index.html` line 4361 — `btn-dsd-sabotage-confirm` has wrong emoji** — Button read `Plant Jammer 🔊`. The 🔊 emoji is the app-wide sound control icon — clearly a copy-paste error.
+   - Fix: Changed to `Plant Jammer ⚡`.
+
+**Passed clean:** All 9 screen IDs in `allScreens[]` ✅, settings variables match docs ✅, single `setTimeout` has inline WHY comment ✅, no hardcoded setting shadows ✅, no TODO/FIXME ✅, no engine duplication ✅, `showWhoFirst()` wired with correct cyan accent ✅, pass-gates on all Captain/Crew transitions ✅, play-again uses `dsd-new-op-overlay` modal ✅, team setup Screen 1 matches standard ✅, `dsdSetToggle()` includes `shrink-0` on both class values ✅, settings + how-to title blocks correct ✅, quit overlay copy thematic ("Scuttle the Ship?" / "Scuttle the Ship 🚢" / "Belay that!") ✅, `min-h-0` on all `flex-1` scroll bodies ✅, speaker + ✕ on all other mid-game screens ✅, z-index stack correct ✅, SW precache at v78 ✅, `game-toggle-on-cyan` on Sylly Mode toggle ✅, Australian English ✅, touch targets ✅.
 
 ---
 

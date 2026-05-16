@@ -45,8 +45,8 @@ All audio is synthesised via Web Audio API — no audio files.
 | `playWhoosh()` | Skip / swish | — |
 | `playResume()` | Resume from pause | — |
 | `playAlarm()` | Timer expiry | 3-pulse radar blip |
-| `playSonarPing()` | DSD: Urchin hit / Sonar Ping transmit | Dual sine 880→440Hz + 1760Hz harmonic, lowpass filter, 1.2s decay |
-| `playHullThud()` | DSD: Pressure Mine hit | White noise + resonant lowpass (80Hz Q8) + triangle sub 70Hz, 0.4s |
+| `playSonarPing()` | DSD: Sonar Ping transmit (captain only) | Dual sine 880→440Hz + 1760Hz harmonic, lowpass filter, 1.2s decay |
+| `playHullThud()` | DSD: Pressure Mine / Urchin / Jammer hit | White noise + resonant lowpass (80Hz Q8) + triangle sub 70Hz, 0.4s |
 | `playAbyssThud()` | DSD: Nuclear Mine hit | `playHullThud()` + 35Hz sawtooth rumble through lowpass, 2.5s decay |
 
 Global audio state: `isMuted` (bool), `masterVolume` (0–1), `audioCtx` (Web Audio context).
@@ -151,7 +151,7 @@ Before implementing, answer:
 
 **SW versioning:** `CACHE_NAME = 'sylly-games-vN'` — bump N on **every deploy**.
 
-**Current SW version:** v78
+**Current SW version:** v80
 
 **Precached assets (relative paths — no leading `/`):**
 ```
@@ -159,7 +159,7 @@ Before implementing, answer:
 js/engine.js, js/games/li5.js, js/games/great-minds.js,
 js/games/secret-signals.js, js/games/jec.js, js/games/ygi.js,
 js/games/lttp.js, js/games/nat.js, js/games/dsd.js, js/secret-mode.js, js/app.js,
-js/lib/tailwind-play.js, data/words.json, data/secret_words.json, data/ygi-data.json, manifest.json
+js/lib/tailwind-play.js, data/words.json, data/secret_words.json, data/secret2_words.json, data/secret3_words.json, data/ygi-data.json, manifest.json
 ```
 
 ---

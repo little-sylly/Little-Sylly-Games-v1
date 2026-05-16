@@ -1975,55 +1975,52 @@
     <!-- Header -->
     <div class="text-green-400 text-center mb-6 select-none">
       <div class="text-xs tracking-widest mb-1 opacity-60">SYLLY-OS v1.0 // CLASSIFIED</div>
-      <div class="text-lg font-bold tracking-widest">[ KONAMI GATEWAY ]</div>
+      <div class="text-lg font-bold tracking-widest">[ SYLLY GATEWAY ]</div>
     </div>
 
     <!-- ASCII Controller body -->
-    <div class="border border-green-400 text-green-400 rounded-lg p-5 w-full max-w-sm select-none">
-      <div class="text-xs text-center opacity-50 mb-4 tracking-widest">NES-01 INPUT DEVICE</div>
+    <div class="border border-green-500/30 bg-black/40 rounded-2xl p-5 w-full max-w-sm select-none">
 
-      <!-- D-Pad + Face buttons row -->
-      <div class="flex items-center justify-between mb-4">
+      <div class="flex items-center justify-center gap-5 pt-2">
 
-        <!-- D-Pad -->
-        <div class="grid grid-rows-3 grid-cols-3 gap-1 w-28">
-          <div></div>
+        <!-- D-Pad — relative container, solid block arrows -->
+        <div class="relative w-24 h-24 flex items-center justify-center shrink-0">
+          <div class="h-6 w-6 rounded-full bg-stone-800 border border-green-500/20 z-20 shadow-inner"></div>
           <button id="sm-btn-up"
-            class="text-2xl text-center active:scale-90 transition-transform duration-75 min-h-11 min-w-11 flex items-center justify-center">⬆️</button>
-          <div></div>
+            class="absolute top-0 left-1/2 -translate-x-1/2 h-8 w-8 text-[11px] bg-[#161616] border border-green-500/30 text-green-400 rounded-md active:bg-green-950 transition-colors duration-75 flex items-center justify-center z-10 font-sans">▲</button>
           <button id="sm-btn-left"
-            class="text-2xl text-center active:scale-90 transition-transform duration-75 min-h-11 min-w-11 flex items-center justify-center">⬅️</button>
-          <div class="min-h-11 min-w-11 border border-green-800 rounded opacity-30"></div>
+            class="absolute left-0 top-1/2 -translate-y-1/2 h-8 w-8 text-[14px] bg-[#161616] border border-green-500/30 text-green-400 rounded-md active:bg-green-950 transition-colors duration-75 flex items-center justify-center z-10 font-sans">◄</button>
           <button id="sm-btn-right"
-            class="text-2xl text-center active:scale-90 transition-transform duration-75 min-h-11 min-w-11 flex items-center justify-center">➡️</button>
-          <div></div>
+            class="absolute right-0 top-1/2 -translate-y-1/2 h-8 w-8 text-[14px] bg-[#161616] border border-green-500/30 text-green-400 rounded-md active:bg-green-950 transition-colors duration-75 flex items-center justify-center z-10 font-sans">►</button>
           <button id="sm-btn-down"
-            class="text-2xl text-center active:scale-90 transition-transform duration-75 min-h-11 min-w-11 flex items-center justify-center">⬇️</button>
-          <div></div>
+            class="absolute bottom-0 left-1/2 -translate-x-1/2 h-8 w-8 text-[11px] bg-[#161616] border border-green-500/30 text-green-400 rounded-md active:bg-green-950 transition-colors duration-75 flex items-center justify-center z-10 font-sans">▼</button>
         </div>
 
-        <!-- Centre buttons — Select + Start side by side -->
-        <div class="flex flex-row items-center gap-2">
-          <button id="sm-btn-select"
-            class="text-xs text-green-400 border border-green-400 rounded px-3 py-1 active:scale-90 transition-transform duration-75 min-h-11 flex items-center justify-center">SEL</button>
-          <button id="sm-btn-start"
-            class="text-xs text-green-400 border border-green-400 rounded px-3 py-1 active:scale-90 transition-transform duration-75 min-h-11 flex items-center justify-center">STA</button>
-        </div>
-
-        <!-- Face buttons — B and A side by side -->
-        <div class="flex flex-row items-center gap-2">
-          <button id="sm-btn-b"
-            class="text-2xl text-center active:scale-90 transition-transform duration-75 min-h-11 min-w-11 flex items-center justify-center">🅱️</button>
-          <button id="sm-btn-a"
-            class="text-2xl text-center active:scale-90 transition-transform duration-75 min-h-11 min-w-11 flex items-center justify-center">🅰️</button>
+        <!-- Right section: SYL-01 absolute, CSS-styled B/A -->
+        <div class="relative flex items-center gap-3.5 shrink-0 pl-1">
+          <div class="absolute -top-8 left-0 right-0 text-center text-[10px] font-bold text-green-500/40 tracking-[0.2em]">SYL-01</div>
+          <!-- SEL + STA -->
+          <div class="flex gap-1.5">
+            <button id="sm-btn-select"
+              class="h-6 w-11 text-[9px] font-bold text-green-400/80 border border-green-500/30 bg-[#121212] rounded active:bg-green-950 transition-colors flex items-center justify-center shrink-0">SEL</button>
+            <button id="sm-btn-start"
+              class="h-6 w-11 text-[9px] font-bold text-green-400/80 border border-green-500/30 bg-[#121212] rounded active:bg-green-950 transition-colors flex items-center justify-center shrink-0">STA</button>
+          </div>
+          <!-- B + A — pink-500, no emoji padding -->
+          <div class="flex gap-1.5">
+            <button id="sm-btn-b"
+              class="h-8 w-8 text-xs font-black bg-pink-500 text-white rounded-xl border border-pink-700/50 active:scale-90 active:bg-pink-600 transition-all flex items-center justify-center shrink-0">B</button>
+            <button id="sm-btn-a"
+              class="h-8 w-8 text-xs font-black bg-pink-500 text-white rounded-xl border border-pink-700/50 active:scale-90 active:bg-pink-600 transition-all flex items-center justify-center shrink-0">A</button>
+          </div>
         </div>
 
       </div>
 
       <!-- Progress dots -->
-      <div class="border-t border-green-800 pt-3 mt-2 text-center">
-        <div class="text-xs opacity-50 mb-1 tracking-widest">SEQUENCE PROGRESS</div>
-        <div id="sm-konami-progress" class="text-green-400 tracking-widest text-sm">○○○○○○○○○○○</div>
+      <div class="border-t border-green-500/10 pt-3 mt-4 text-center">
+        <div class="text-[10px] text-green-500/40 mb-1.5 tracking-[0.15em]">SEQUENCE PROGRESS</div>
+        <div id="sm-konami-progress" class="text-green-400/90 tracking-widest text-xs font-sans">○○○○○○○○○○○</div>
       </div>
     </div>
 
@@ -2033,8 +2030,8 @@
       > ENTER SEQUENCE TO CONTINUE
     </div>
 
-    <div class="mt-4 text-xs text-green-900 tracking-widest text-center select-none">
-      ↑↑↓↓←→←→🅱️🅰️START
+    <div class="mt-4 text-xs tracking-widest text-center text-black cursor-default">
+      ↑↑↓↓←→←→ B A STA
     </div>
   </section>
 
@@ -2057,6 +2054,9 @@
 
     <!-- Expansion selector — revealed after boot sequence -->
     <div id="sm-terminal-expansions" style="display:none" class="mb-4 flex-shrink-0"></div>
+
+    <!-- Generation/sub-category selector — revealed after expansion chosen (Pokémon etc.) -->
+    <div id="sm-terminal-subcategories" style="display:none" class="mb-4 flex-shrink-0"></div>
 
     <!-- Game selector — revealed after expansion chosen -->
     <div id="sm-terminal-games" style="display:none" class="mb-4 flex-shrink-0"></div>
@@ -4106,11 +4106,11 @@
   </div>
 
   <!-- ════ DEEP-SEA DEPLOY (DSD) ════════════════════════════════════════════
-       Screens : screen-dsd-menu, screen-dsd-setup, screen-dsd-captain,
-                 screen-dsd-crew, screen-dsd-execution, screen-dsd-sabotage,
-                 screen-dsd-gameover
+       Screens : screen-dsd-menu, screen-dsd-setup, screen-dsd-players,
+                 screen-dsd-pass-gate, screen-dsd-captain, screen-dsd-crew,
+                 screen-dsd-execution, screen-dsd-sabotage, screen-dsd-gameover
        Overlays: dsd-settings-overlay, dsd-how-to-overlay, dsd-quit-overlay,
-                 dsd-confirm-disarm
+                 dsd-confirm-disarm, dsd-new-op-overlay
        Ref     : js/games/dsd.js
     ════════════════════════════════════════════════════════════════ -->
 
@@ -4175,6 +4175,7 @@
       <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest">Crew</p>
       <div class="flex items-center gap-2">
         <button class="btn-open-sound w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-lg">🔊</button>
+        <button class="btn-dsd-quit-open w-8 h-8 flex items-center justify-center text-stone-500 font-bold text-xl active:scale-90 transition-transform duration-100">✕</button>
       </div>
     </div>
     <div>
@@ -4209,6 +4210,9 @@
   <section id="screen-dsd-pass-gate" style="display:none"
     class="flex items-center justify-center w-full min-h-screen px-6 py-8">
     <div class="flex flex-col items-center w-full max-w-sm gap-6 text-center">
+      <div class="flex justify-end w-full">
+        <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+      </div>
       <p class="text-6xl">📱</p>
       <div>
         <h2 id="dsd-gate-heading" class="text-2xl font-bold text-stone-800">Pass to …</h2>
@@ -4236,27 +4240,35 @@
     <div class="px-4 pb-1 flex-shrink-0">
       <p id="dsd-captain-tag" class="text-xs text-stone-400 text-center"></p>
     </div>
-    <!-- Colour legend -->
-    <div class="flex-shrink-0 flex flex-wrap gap-x-4 gap-y-1 px-4 py-2 bg-stone-50 border-b border-stone-100">
-      <span class="flex items-center gap-1.5 text-xs text-stone-600">
+    <!-- Colour legend (tappable — filters captain grid) -->
+    <div class="flex-shrink-0 flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2 bg-stone-50 border-b border-stone-100">
+      <button data-role="0" class="dsd-legend-key flex items-center gap-1.5 text-xs text-stone-600 active:opacity-60 transition-opacity">
         <span class="inline-block w-3 h-3 rounded-sm bg-cyan-700 flex-shrink-0"></span>
         <span id="dsd-legend-team0" class="font-medium">Kraken</span>
-      </span>
-      <span class="flex items-center gap-1.5 text-xs text-stone-600">
+      </button>
+      <button data-role="1" class="dsd-legend-key flex items-center gap-1.5 text-xs text-stone-600 active:opacity-60 transition-opacity">
         <span class="inline-block w-3 h-3 rounded-sm bg-indigo-800 flex-shrink-0"></span>
         <span id="dsd-legend-team1" class="font-medium">Leviathan</span>
-      </span>
-      <span class="flex items-center gap-1.5 text-xs text-stone-600">
-        <span class="inline-block w-3 h-3 rounded-sm bg-slate-400 flex-shrink-0"></span>Urchin
-      </span>
-      <span class="flex items-center gap-1.5 text-xs text-stone-600">
-        <span id="dsd-legend-mine-swatch" class="inline-block w-3 h-3 rounded-sm bg-red-600 flex-shrink-0"></span>Mine
-      </span>
+      </button>
+      <button data-role="urchin" class="dsd-legend-key flex items-center gap-1.5 text-xs text-stone-600 active:opacity-60 transition-opacity">
+        <span class="inline-block w-3 h-3 rounded-sm bg-red-100 border border-red-300 flex-shrink-0"></span>💥 Urchin
+      </button>
+      <button data-role="mine" class="dsd-legend-key flex items-center gap-1.5 text-xs text-stone-600 active:opacity-60 transition-opacity">
+        <span id="dsd-legend-mine-swatch" class="inline-block w-3 h-3 rounded-sm bg-red-600 flex-shrink-0"></span>💣 Mine
+      </button>
+      <button data-role="jammer" class="dsd-legend-key flex items-center gap-1.5 text-xs text-stone-600 active:opacity-60 transition-opacity">
+        <span class="inline-block w-3 h-3 rounded-sm bg-amber-200 ring-1 ring-amber-400 flex-shrink-0"></span>⚡ Jammer
+      </button>
+      <button id="btn-dsd-legend-showall" class="ml-auto text-[10px] text-stone-400 underline active:opacity-60">show all</button>
     </div>
     <!-- Grid -->
     <div id="dsd-captain-grid" class="flex-1 min-h-0 grid grid-cols-5 gap-2 p-2 content-start"></div>
-    <!-- Clue log (hidden until deployment 2+) -->
-    <div id="dsd-clue-log" class="hidden flex-shrink-0 max-h-20 overflow-y-auto px-4 py-1.5 border-t border-stone-100 flex flex-col gap-0.5"></div>
+    <!-- History carousel (hidden until first turn completes) -->
+    <div id="dsd-captain-history" class="hidden flex-shrink-0 border-t border-stone-100 px-3 py-1.5 flex items-center gap-1">
+      <button id="dsd-cap-hist-prev" class="text-sm text-stone-400 disabled:opacity-30 px-1 min-w-[1.5rem] active:scale-90 transition-transform">←</button>
+      <div id="dsd-cap-hist-card" class="flex-1 flex flex-col gap-0.5 min-w-0 overflow-hidden"></div>
+      <button id="dsd-cap-hist-next" class="text-sm text-stone-400 disabled:opacity-30 px-1 min-w-[1.5rem] active:scale-90 transition-transform">→</button>
+    </div>
     <!-- Ping footer -->
     <div class="flex-shrink-0 px-4 pb-8 pt-3 border-t border-stone-100">
       <div class="flex gap-2 mb-2">
@@ -4315,8 +4327,12 @@
     <div id="dsd-execution-log" class="flex-shrink-0 max-h-36 overflow-y-auto px-4 py-2 flex flex-col gap-1 border-t border-stone-100"></div>
     <!-- Valour display -->
     <div id="dsd-valour-display" class="flex-shrink-0 px-4 py-3 bg-stone-50 border-t border-stone-100"></div>
-    <!-- Turn history (hidden until deployment 2+) -->
-    <div id="dsd-history-summary" class="hidden flex-shrink-0 max-h-24 overflow-y-auto px-4 py-2 border-t border-stone-100 flex flex-col gap-0.5"></div>
+    <!-- History carousel (hidden until first turn completes) -->
+    <div id="dsd-exec-history" class="hidden flex-shrink-0 border-t border-stone-100 px-3 py-1.5 flex items-center gap-1">
+      <button id="dsd-exec-hist-prev" class="text-sm text-stone-400 disabled:opacity-30 px-1 min-w-[1.5rem] active:scale-90 transition-transform">←</button>
+      <div id="dsd-exec-hist-card" class="flex-1 flex flex-col gap-0.5 min-w-0 overflow-hidden"></div>
+      <button id="dsd-exec-hist-next" class="text-sm text-stone-400 disabled:opacity-30 px-1 min-w-[1.5rem] active:scale-90 transition-transform">→</button>
+    </div>
     <!-- Footer -->
     <div id="dsd-execution-footer" class="hidden flex-shrink-0 px-4 pb-8 pt-3 border-t border-stone-100">
       <button id="btn-dsd-execution-next" class="min-h-14 w-full rounded-2xl bg-cyan-700 hover:bg-cyan-800 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
@@ -4346,7 +4362,7 @@
     <div class="flex-shrink-0 px-4 pb-8 pt-3 border-t border-stone-100 flex flex-col gap-3">
       <button id="btn-dsd-sabotage-confirm" disabled
         class="min-h-14 w-full rounded-2xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150 disabled:opacity-40 disabled:pointer-events-none">
-        Plant Jammer 🔊
+        Plant Jammer ⚡
       </button>
       <button id="btn-dsd-sabotage-skip"
         class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-base font-medium transition-all duration-150">
@@ -4396,7 +4412,7 @@
 
   <!-- dsd-new-op-overlay (decision modal z-[90]) -->
   <div id="dsd-new-op-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[90] flex items-center justify-center px-6">
-    <div class="overlay-modal-inner bg-white w-full max-w-sm rounded-3xl p-6 flex flex-col gap-4 text-center">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center">
       <p class="text-5xl">⚓</p>
       <div>
         <h2 class="text-xl font-bold text-stone-800">New Operation?</h2>
@@ -4528,11 +4544,11 @@
   </div>
   <!-- dsd-quit-overlay (decision modal z-[80]) -->
   <div id="dsd-quit-overlay" style="display:none" class="fixed inset-0 bg-black/50 z-[80] flex items-center justify-center px-6">
-    <div class="overlay-modal-inner bg-white p-8 w-full max-w-sm flex flex-col gap-3 shadow-xl">
-      <p class="text-4xl text-center">🚢</p>
-      <h2 class="text-xl font-bold text-stone-800 text-center">Scuttle the Ship?</h2>
-      <p class="text-stone-500 text-sm text-center">Your deployment will be abandoned. All Valour will be lost.</p>
-      <div class="flex flex-col gap-3 mt-2">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center">
+      <p class="text-4xl">🚢</p>
+      <h2 class="text-xl font-bold text-stone-800">Scuttle the Ship?</h2>
+      <p class="text-stone-500 text-sm">Your deployment will be abandoned. All Valour will be lost.</p>
+      <div class="flex flex-col gap-2 mt-2">
         <button id="btn-dsd-quit-confirm" class="min-h-14 w-full rounded-2xl bg-red-600 hover:bg-red-700 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
           Scuttle the Ship 🚢
         </button>
@@ -4544,8 +4560,8 @@
   </div>
   <!-- dsd-confirm-disarm (decision modal z-[90]) -->
   <div id="dsd-confirm-disarm" style="display:none" class="fixed inset-0 bg-black/50 z-[90] flex items-center justify-center px-6">
-    <div class="overlay-modal-inner bg-white p-8 w-full max-w-sm flex flex-col gap-4 shadow-xl">
-      <h2 class="text-xl font-bold text-stone-800 text-center">Confirm Sequence?</h2>
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center">
+      <h2 class="text-xl font-bold text-stone-800">Confirm Sequence?</h2>
       <ol id="dsd-disarm-list" class="flex flex-col gap-1 text-stone-700 text-sm list-decimal list-inside"></ol>
       <div class="flex flex-col gap-3 mt-1">
         <button id="btn-dsd-disarm-confirm" class="min-h-14 w-full rounded-2xl bg-cyan-700 hover:bg-cyan-800 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
