@@ -10,14 +10,41 @@ let lttpPlayerCount = 4;
 let lttpDifficulty  = 'local';   // 'local' = d1+d2 places | 'secret' = d1+d2+d3 places
 let lttpJokerMode   = false;
 let lttpGroupVote   = true;
-let lttpSmallTalk   = true;      // true = Guided (ON) | false = Pro (OFF)
+let lttpSmallTalk   = false;     // guided message prompts — OFF by default (easy mode)
 
-// ── LTTP Small Talk matrix ───────────────────────────────────────────────────
+// ── Small Talk Prompts ────────────────────────────────────────────────────────
 const LTTP_SMALL_TALK = {
-  What: [{ emoji: '👔', label: 'Wear'      }, { emoji: '🎒', label: 'Items'     }, { emoji: '🎨', label: 'Sights'   }],
-  When: [{ emoji: '⌚', label: 'Arrival'   }, { emoji: '🚪', label: 'Departure' }, { emoji: '⏳', label: 'Duration' }],
-  How:  [{ emoji: '🚗', label: 'Travel'    }, { emoji: '💰', label: 'Price'     }, { emoji: '🎟️', label: 'Access'   }],
-  Why:  [{ emoji: '🍰', label: 'Vibe'      }, { emoji: '🎯', label: 'Reason'    }, { emoji: '👥', label: 'Crowd'    }],
+  '📍 Getting There': [
+    'How are you getting there?',
+    'Is parking an issue?',
+    'Is it a bit of a trek or pretty central?',
+    'Worth grabbing a cab?',
+  ],
+  '🕐 Timing': [
+    'What time are you heading over?',
+    'Worth being there from the start?',
+    'How long are you planning to stay?',
+    'Should we meet somewhere first?',
+  ],
+  '👥 The Crowd': [
+    'Do you know most people there?',
+    'Is it a big group or a small thing?',
+    'Is it the kind of crowd that spills outside?',
+    'Any familiar faces I should look out for?',
+  ],
+  '🎉 The Vibe': [
+    'Is it indoors or outside?',
+    'Standing room only or plenty of seating?',
+    'Is there a dress code?',
+    'Is there food there or should I eat first?',
+  ],
+  '💬 Casual': [
+    'You been to a place like this before?',
+    'Is it the kind of place that gets loud?',
+    'Worth getting there early to grab a spot?',
+    'Is there a cover charge?',
+  ],
+  '✏️ Other': null, // free-form — opens confirm modal empty; typed text is reminder only
 };
 
 // ── LTTP Roles & Grid ────────────────────────────────────────────────────────
@@ -54,8 +81,7 @@ let lttpPlanLogIdx   = 0;
 let lttpDecoys       = [];        // indices of current non-address highlights
 
 // ── LTTP Contacts / Folder state ─────────────────────────────────────────────
-let lttpPendingTarget  = -1;      // player index awaiting confirm modal
-let lttpPendingTag     = null;    // {root, emoji, label} | null — Small Talk tag for current turn
+let lttpPendingTarget  = -1;      // player index awaiting message confirm modal
 let lttpFolderPlayerIdx = -1;     // player index currently open in folder
 let lttpFolderHintIdx  = 0;       // cycles placeholder hints each folder open
 
@@ -135,33 +161,70 @@ document.addEventListener('DOMContentLoaded', () => {
     lttpGroupVote = !lttpGroupVote;
     const btn = document.getElementById('btn-lttp-groupvote-toggle');
     btn.textContent = lttpGroupVote ? 'ON' : 'OFF';
-    btn.className   = lttpGroupVote ? 'game-toggle-on-red shrink-0' : 'sylly-toggle-off shrink-0';
+    btn.className   = lttpGroupVote ? 'game-toggle-on-red shrink-0' : 'game-toggle-off shrink-0';
     playPillClick();
   });
+  // ── Guided Messages (Small Talk) settings toggle ──────────────────────────
   document.getElementById('btn-lttp-smalltalk-toggle').addEventListener('click', () => {
     lttpSmallTalk = !lttpSmallTalk;
     const btn = document.getElementById('btn-lttp-smalltalk-toggle');
     btn.textContent = lttpSmallTalk ? 'ON' : 'OFF';
-    btn.className   = lttpSmallTalk ? 'game-toggle-on-red shrink-0' : 'sylly-toggle-off shrink-0';
+    btn.className   = lttpSmallTalk ? 'game-toggle-on-red shrink-0' : 'game-toggle-off shrink-0';
     playPillClick();
   });
+
+  // ── SmallTalk overlay: close + "Use this →" ───────────────────────────────
   document.getElementById('btn-lttp-st-overlay-close').addEventListener('click', () => {
     playDone();
     document.getElementById('lttp-smalltalk-overlay').style.display = 'none';
-    lttpPendingTag    = null;
-    lttpPendingTarget = null;
   });
   document.getElementById('btn-lttp-st-overlay-send').addEventListener('click', () => {
-    if (!lttpPendingTag) return;
+    const prompt = document.getElementById('btn-lttp-st-overlay-send').dataset.selected || '';
     playLaunch();
     document.getElementById('lttp-smalltalk-overlay').style.display = 'none';
-    lttpSelectPlayer(lttpPendingTarget, lttpPendingTag);
+    lttpOpenConfirmModal(lttpPendingTarget, prompt);
   });
+
+  // ── Free-text message confirm overlay ────────────────────────────────────
+  const msgInput  = document.getElementById('lttp-message-input');
+  const msgSend   = document.getElementById('btn-lttp-message-send');
+  const msgCancel = document.getElementById('btn-lttp-message-cancel');
+  const msgCounter = document.getElementById('lttp-char-counter');
+  if (msgInput) {
+    msgInput.addEventListener('input', () => {
+      const len = msgInput.value.length;
+      const remaining = 80 - len;
+      msgCounter.textContent = `${len} / 80`;
+      msgCounter.className   = remaining <= 10 ? 'text-red-500 text-xs text-right' : 'text-stone-400 text-xs text-right';
+      msgSend.disabled = len === 0;
+    });
+  }
+  if (msgSend) {
+    msgSend.addEventListener('click', () => {
+      const text = msgInput.value.trim();
+      if (!text) {
+        msgInput.classList.remove('shake'); void msgInput.offsetWidth; msgInput.classList.add('shake');
+        msgInput.style.borderColor = '#f87171';
+        setTimeout(() => { msgInput.style.borderColor = ''; }, 800);
+        return;
+      }
+      playLaunch();
+      document.getElementById('lttp-confirm-overlay').style.display = 'none';
+      lttpSelectPlayer(lttpPendingTarget, text);
+    });
+  }
+  if (msgCancel) {
+    msgCancel.addEventListener('click', () => {
+      playDone();
+      document.getElementById('lttp-confirm-overlay').style.display = 'none';
+      lttpPendingTarget = -1;
+    });
+  }
   document.getElementById('btn-lttp-joker-toggle').addEventListener('click', () => {
     lttpJokerMode = !lttpJokerMode;
     const btn = document.getElementById('btn-lttp-joker-toggle');
     btn.textContent = lttpJokerMode ? 'ON' : 'OFF';
-    btn.className   = lttpJokerMode ? 'game-toggle-on-red shrink-0' : 'sylly-toggle-off shrink-0';
+    btn.className   = lttpJokerMode ? 'game-toggle-on-red shrink-0' : 'game-toggle-off shrink-0';
     lttpJokerMode ? playSyllyOn() : playSyllyOff();
   });
   document.getElementById('btn-lttp-settings-done').addEventListener('click', () => {
@@ -204,6 +267,22 @@ document.addEventListener('DOMContentLoaded', () => {
     lttpShowChat(lttpActiveIdx);
   });
 
+  // ── [?] Help buttons ────────────────────────────────────────────────────────
+  document.querySelectorAll('.btn-lttp-help-open').forEach(btn => {
+    btn.addEventListener('click', () => {
+      playDone();
+      document.getElementById('lttp-how-to-overlay').querySelector('.overlay-data-inner').scrollTop = 0;
+      document.getElementById('lttp-how-to-overlay').style.display = 'flex';
+    });
+  });
+  document.getElementById('btn-lttp-chat-tip')?.addEventListener('click', () => {
+    lttpShowHelpTip('💬', 'Sending Messages', 'Tap a contact name to send them a message. Use the map to track your suspicions.');
+  });
+  document.getElementById('btn-lttp-help-tip-close')?.addEventListener('click', () => {
+    playDone();
+    document.getElementById('lttp-help-tip-overlay').style.display = 'none';
+  });
+
   // ── Chat: carousel tab buttons ────────────────────────────────────────────
   document.getElementById('btn-lttp-tab-map').addEventListener('click', () => {
     playDone();
@@ -211,6 +290,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   document.getElementById('btn-lttp-tab-contacts').addEventListener('click', () => {
     playDone();
+    document.getElementById('btn-lttp-tab-contacts').classList.remove('lttp-tab-badge');
     lttpSnapToPane('contacts');
   });
 
@@ -371,7 +451,6 @@ function lttpStartGame() {
   lttpGuessOrder      = [];
   lttpGuessStep       = 0;
   lttpHandoverMode    = 'chat';
-  lttpPendingTag      = null;
   lttpFolderPlayerIdx = -1;
   lttpFolderHintIdx   = 0;
 
@@ -486,6 +565,20 @@ function lttpShowHandover(toIdx, transitionMsg) {
   document.getElementById('lttp-handover-sub').textContent  = transitionMsg
     ? transitionMsg
     : 'Don\'t peek — hand it over.';
+
+  // In chat mode, show the message that was just sent to this player
+  const msgBlock = document.getElementById('lttp-handover-msg-block');
+  if (msgBlock) {
+    const lastEntry = lttpHistory[lttpHistory.length - 1];
+    const showMsg = lttpHandoverMode === 'chat' && !transitionMsg && lastEntry?.messageText;
+    if (showMsg) {
+      document.getElementById('lttp-handover-msg-text').textContent = `"${lastEntry.messageText}"`;
+      msgBlock.style.display = 'flex';
+    } else {
+      msgBlock.style.display = 'none';
+    }
+  }
+
   showScreen('screen-lttp-handover');
 }
 
@@ -497,11 +590,20 @@ function lttpShowChat(playerIdx) {
   const name      = lttpPlayerNames[playerIdx];
   const isStray   = playerIdx === lttpStrayIdx;
   const isJoker   = lttpJokerMode && playerIdx === lttpJokerIdx;
-  const roleLabel = isStray ? 'Friend of a Friend' : isJoker ? 'Troublemaker' : 'The Gang';
+  const roleLabel = isStray ? 'Friend of a Friend' : isJoker ? 'The Troublemaker' : 'The Gang';
+  const roleObjective = isStray
+    ? 'Blend in. Message your way to the exit without being caught.'
+    : isJoker
+      ? 'Cause chaos. Lead The Gang to a fake location.'
+      : 'Find the Friend of a Friend before they disappear.';
 
-  document.getElementById('lttp-chat-plan-label').textContent   = `Plan ${lttpPlan} of 4`;
-  document.getElementById('lttp-chat-player-label').textContent = `${name}'s Phone`;
-  document.getElementById('lttp-chat-role-label').textContent   = roleLabel;
+  document.getElementById('lttp-chat-plan-label').textContent      = `Plan ${lttpPlan} of 4`;
+  document.getElementById('lttp-chat-player-label').textContent    = `${name}'s Phone`;
+  document.getElementById('lttp-chat-role-label').textContent      = roleLabel;
+  document.getElementById('lttp-chat-role-objective').textContent  = roleObjective;
+
+  // Contacts tab badge — prompts player to tap Contacts on each new turn
+  document.getElementById('btn-lttp-tab-contacts').classList.add('lttp-tab-badge');
 
   lttpRenderMapPane();
   lttpRenderPaneB();
@@ -556,18 +658,28 @@ function lttpRenderPaneB() {
     const row = document.createElement('div');
     row.className = `flex items-center bg-white rounded-2xl shadow-sm px-3 py-3 min-h-[52px]${answered ? ' opacity-50' : ''}`;
 
-    // Name column — tap → confirm modal (disabled if answered)
+    // Name column — tap → confirm modal (disabled if answered); pill border signals tappability
     const nameSpan = document.createElement('span');
-    nameSpan.className = `w-1/4 font-medium text-sm truncate pr-1 ${answered ? 'text-stone-400 cursor-not-allowed' : 'text-stone-800 cursor-pointer active:scale-95 transition-transform duration-100'}`;
-    nameSpan.textContent = lttpPlayerNames[i];
+    nameSpan.className = `w-1/4 pr-1 flex-shrink-0 ${answered ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`;
+    const namePill = document.createElement('span');
+    namePill.className = `border border-stone-300 rounded-full px-2 py-0.5 font-medium text-xs truncate inline-block max-w-full ${answered ? 'text-stone-400' : 'text-stone-700 active:scale-95 transition-transform duration-100'}`;
+    namePill.textContent = lttpPlayerNames[i];
+    nameSpan.appendChild(namePill);
     if (!answered) {
-      nameSpan.addEventListener('click', (e) => { e.stopPropagation(); lttpOpenConfirmModal(i); });
+      nameSpan.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (lttpSmallTalk) {
+          lttpOpenSmallTalkOverlay(i);
+        } else {
+          lttpOpenConfirmModal(i);
+        }
+      });
     }
 
-    // Notes column — tap → open folder
+    // Notes column — tap → open folder; tinted background + eyebrow label
     const notesSpan = document.createElement('span');
-    notesSpan.className = 'w-1/2 px-2 text-xs text-stone-400 line-clamp-2 leading-snug cursor-pointer';
-    notesSpan.innerHTML = notesText || '<em>No notes yet</em>';
+    notesSpan.className = 'w-1/2 px-1 cursor-pointer';
+    notesSpan.innerHTML = `<span class="text-stone-400 text-[10px] font-semibold uppercase tracking-widest block leading-none mb-0.5">Notes</span><span class="bg-stone-50 rounded-lg px-1 py-0.5 block text-xs text-stone-400 line-clamp-2 leading-snug">${notesText || '<em>No notes yet</em>'}</span>`;
     notesSpan.addEventListener('click', (e) => {
       e.stopPropagation();
       lttpOpenPlayerFolder(i);
@@ -608,36 +720,113 @@ function lttpRenderPaneB() {
     preview.innerHTML = '';
     lttpHistory.slice(-4).reverse().forEach(entry => {
       const el = document.createElement('p');
-      const tagStr = entry.tag
-        ? (entry.tag.label ? ` · ${entry.tag.root} → ${entry.tag.emoji} ${entry.tag.label}` : ` · ${entry.tag.root}`)
-        : '';
-      el.textContent = `${lttpPlayerNames[entry.asker]} ➡ ${lttpPlayerNames[entry.asked]}${tagStr}`;
+      const msgPreview = entry.messageText ? ` — "${entry.messageText.slice(0, 30)}${entry.messageText.length > 30 ? '…' : ''}"` : '';
+      el.textContent = `${lttpPlayerNames[entry.asker]} ➡ ${lttpPlayerNames[entry.asked]}${msgPreview}`;
       preview.appendChild(el);
     });
   }
 }
 
-// ── Confirm modal ─────────────────────────────────────────────────────────────
-function lttpOpenConfirmModal(targetIdx) {
+// ── [?] Help ─────────────────────────────────────────────────────────────────
+function lttpShowHelpTip(emoji, heading, tip) {
+  document.getElementById('lttp-help-tip-emoji').textContent   = emoji;
+  document.getElementById('lttp-help-tip-heading').textContent = heading;
+  document.getElementById('lttp-help-tip-text').textContent    = tip;
+  document.getElementById('lttp-help-tip-overlay').style.display = 'flex';
+}
+
+// ── Guided Message overlay (Small Talk) ──────────────────────────────────────
+function lttpOpenSmallTalkOverlay(targetIdx) {
   lttpPendingTarget = targetIdx;
-  if (lttpSmallTalk) {
-    lttpOpenSmallTalkOverlay(targetIdx);
-  } else {
-    document.getElementById('lttp-confirm-name').textContent = lttpPlayerNames[targetIdx];
-    document.getElementById('lttp-confirm-overlay').style.display = 'flex';
+  document.getElementById('lttp-st-overlay-name').textContent = lttpPlayerNames[targetIdx];
+  lttpRenderSmallTalkTabs();
+  const firstKey = Object.keys(LTTP_SMALL_TALK)[0];
+  lttpSnapToSmallTalkTab(firstKey);
+  const sendBtn = document.getElementById('btn-lttp-st-overlay-send');
+  sendBtn.disabled = true;
+  sendBtn.dataset.selected = '';
+  document.getElementById('lttp-smalltalk-overlay').style.display = 'flex';
+}
+
+function lttpRenderSmallTalkTabs() {
+  const tabBar = document.getElementById('lttp-st-overlay-tabs');
+  tabBar.innerHTML = '';
+  Object.keys(LTTP_SMALL_TALK).forEach(key => {
+    const btn = document.createElement('button');
+    btn.textContent = key;
+    btn.dataset.stKey = key;
+    btn.className = 'lttp-st-tab flex-shrink-0 px-3 py-2 text-xs font-medium text-stone-400 whitespace-nowrap transition-colors duration-100';
+    btn.addEventListener('click', () => lttpSnapToSmallTalkTab(key));
+    tabBar.appendChild(btn);
+  });
+}
+
+function lttpSnapToSmallTalkTab(key) {
+  document.querySelectorAll('.lttp-st-tab').forEach(btn => {
+    const active = btn.dataset.stKey === key;
+    btn.className = `lttp-st-tab px-3 py-2 text-xs font-medium whitespace-nowrap transition-colors duration-100 ${
+      active ? 'font-semibold text-red-500 border-b-2 border-red-400' : 'text-stone-400'
+    }`;
+  });
+  lttpRenderSmallTalkSubs(key);
+}
+
+function lttpRenderSmallTalkSubs(key) {
+  const container = document.getElementById('lttp-st-overlay-subs');
+  container.innerHTML = '';
+  const sendBtn = document.getElementById('btn-lttp-st-overlay-send');
+  // Reset send button state on every tab switch
+  sendBtn.dataset.selected = '';
+  sendBtn.disabled = true;
+  sendBtn.className = 'min-h-14 w-full rounded-2xl bg-stone-200 text-stone-400 text-xl font-semibold transition-all duration-150';
+
+  if (LTTP_SMALL_TALK[key] === null) {
+    // "Other" tab — free-form input; typed text transfers to confirm modal as pre-fill
+    const textarea = document.createElement('textarea');
+    textarea.placeholder = 'Type your message here…';
+    textarea.maxLength = 80;
+    textarea.rows = 3;
+    textarea.className = 'w-full rounded-2xl border border-stone-200 px-4 py-3 text-sm bg-white text-stone-700 resize-none focus:outline-none focus:ring-2 focus:ring-red-200 placeholder-stone-300';
+    textarea.addEventListener('input', () => { sendBtn.dataset.selected = textarea.value; });
+    container.appendChild(textarea);
+    sendBtn.disabled = false;
+    sendBtn.className = 'min-h-14 w-full rounded-2xl bg-red-500 hover:bg-red-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150';
+    return;
   }
+
+  LTTP_SMALL_TALK[key].forEach(prompt => {
+    const btn = document.createElement('button');
+    btn.textContent = prompt;
+    btn.className = 'lttp-st-sub text-left w-full rounded-2xl px-4 py-3 text-sm text-stone-700 bg-stone-100 active:scale-95 transition-all duration-100';
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.lttp-st-sub').forEach(b => {
+        b.className = 'lttp-st-sub text-left w-full rounded-2xl px-4 py-3 text-sm text-stone-700 bg-stone-100 active:scale-95 transition-all duration-100';
+      });
+      btn.className = 'lttp-st-sub text-left w-full rounded-2xl px-4 py-3 text-sm font-semibold text-white bg-red-500 active:scale-95 transition-all duration-100';
+      sendBtn.dataset.selected = prompt;
+      sendBtn.disabled = false;
+      sendBtn.className = 'min-h-14 w-full rounded-2xl bg-red-500 hover:bg-red-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150';
+    });
+    container.appendChild(btn);
+  });
+}
+
+// ── Confirm modal ─────────────────────────────────────────────────────────────
+function lttpOpenConfirmModal(targetIdx, prefill = '') {
+  lttpPendingTarget = targetIdx;
+  document.getElementById('lttp-confirm-heading').textContent = `Message to ${lttpPlayerNames[targetIdx]}`;
+  const input = document.getElementById('lttp-message-input');
+  input.value = prefill;
+  const len = prefill.length;
+  document.getElementById('lttp-char-counter').textContent = `${len} / 80`;
+  document.getElementById('lttp-char-counter').className   = len >= 70 ? 'text-red-500 text-xs text-right' : 'text-stone-400 text-xs text-right';
+  document.getElementById('btn-lttp-message-send').disabled = len === 0;
+  input.style.borderColor = '';
+  document.getElementById('lttp-confirm-overlay').style.display = 'flex';
+  setTimeout(() => input.focus(), 100); // slight delay so overlay is visible first
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('btn-lttp-confirm-send').addEventListener('click', () => {
-    playLaunch();
-    document.getElementById('lttp-confirm-overlay').style.display = 'none';
-    lttpShowSmallTalk();
-  });
-  document.getElementById('btn-lttp-confirm-back').addEventListener('click', () => {
-    playDone();
-    document.getElementById('lttp-confirm-overlay').style.display = 'none';
-  });
   // ── Folder notes auto-save ─────────────────────────────────────────────────
   document.getElementById('lttp-folder-notes').addEventListener('input', e => {
     lttpNotes[lttpFolderPlayerIdx] = e.target.value;
@@ -645,9 +834,9 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ── Player selection — core lap logic ────────────────────────────────────────
-function lttpSelectPlayer(targetIdx, tag = null) {
+function lttpSelectPlayer(targetIdx, messageText = '') {
   playLaunch();
-  lttpHistory.push({ asker: lttpActiveIdx, asked: targetIdx, plan: lttpPlan, tag });
+  lttpHistory.push({ asker: lttpActiveIdx, asked: targetIdx, plan: lttpPlan, messageText });
   lttpLapAnswered.add(lttpActiveIdx);
 
   // Check if lap is complete (all players except active have been covered)
@@ -798,11 +987,9 @@ function lttpOpenFullHistory() {
     feed.textContent = 'No chatter yet...';
   } else {
     [...lttpHistory].reverse().forEach(entry => {
-      const el = document.createElement('p');
-      const tagStr = entry.tag
-        ? (entry.tag.label ? ` · ${entry.tag.root} → ${entry.tag.emoji} ${entry.tag.label}` : ` · ${entry.tag.root}`)
-        : '';
-      el.textContent = `${lttpPlayerNames[entry.asker]} ➡ ${lttpPlayerNames[entry.asked]}${tagStr}`;
+      const el = document.createElement('div');
+      el.className = 'py-1 border-b border-stone-50';
+      el.innerHTML = `<span class="font-semibold text-stone-700">${lttpPlayerNames[entry.asker]}</span> ➡ <span class="font-semibold text-stone-700">${lttpPlayerNames[entry.asked]}</span>${entry.messageText ? `<span class="block text-stone-500 text-xs mt-0.5 italic">"${entry.messageText}"</span>` : ''}`;
       feed.appendChild(el);
     });
   }
@@ -1034,109 +1221,7 @@ function lttpShowGroupGuess() {
   showScreen('screen-lttp-group-guess');
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// SMALL TALK — topic selection flow
-// ═══════════════════════════════════════════════════════════════════════════
-
-// Guided mode: tabbed slide-up overlay
-function lttpOpenSmallTalkOverlay(targetIdx) {
-  lttpPendingTag = null;
-  document.getElementById('lttp-st-overlay-name').textContent = lttpPlayerNames[targetIdx];
-  const sendBtn = document.getElementById('btn-lttp-st-overlay-send');
-  sendBtn.disabled = true;
-  sendBtn.className = 'min-h-14 w-full rounded-2xl bg-stone-200 text-stone-400 text-xl font-semibold transition-all duration-150';
-  lttpRenderSmallTalkTabs();
-  lttpSnapToSmallTalkTab(Object.keys(LTTP_SMALL_TALK)[0]);
-  document.getElementById('lttp-smalltalk-overlay').style.display = 'flex';
-}
-
-function lttpRenderSmallTalkTabs() {
-  const bar = document.getElementById('lttp-st-overlay-tabs');
-  bar.innerHTML = '';
-  Object.keys(LTTP_SMALL_TALK).forEach((root, i) => {
-    const btn = document.createElement('button');
-    btn.textContent  = root + '?';
-    btn.dataset.root = root;
-    btn.className = i === 0
-      ? 'flex-1 py-2.5 text-sm font-semibold text-stone-700 border-b-2 border-stone-700 transition-all duration-200'
-      : 'flex-1 py-2.5 text-sm font-semibold text-stone-400 border-b-2 border-transparent transition-all duration-200';
-    btn.addEventListener('click', () => {
-      playPillClick();
-      lttpSnapToSmallTalkTab(root);
-    });
-    bar.appendChild(btn);
-  });
-}
-
-function lttpSnapToSmallTalkTab(root) {
-  document.querySelectorAll('#lttp-st-overlay-tabs button').forEach(btn => {
-    const active = btn.dataset.root === root;
-    btn.classList.toggle('text-stone-700',     active);
-    btn.classList.toggle('border-stone-700',   active);
-    btn.classList.toggle('text-stone-400',     !active);
-    btn.classList.toggle('border-transparent', !active);
-  });
-  lttpRenderSmallTalkSubs(root);
-}
-
-function lttpRenderSmallTalkSubs(root) {
-  const container = document.getElementById('lttp-st-overlay-subs');
-  container.innerHTML = '';
-  LTTP_SMALL_TALK[root].forEach(({ emoji, label }) => {
-    const btn = document.createElement('button');
-    btn.textContent = `${emoji}  ${label}`;
-    const isSelected = lttpPendingTag && lttpPendingTag.root === root && lttpPendingTag.label === label;
-    btn.className = isSelected
-      ? 'min-h-14 w-full py-3 rounded-2xl bg-red-500 text-white text-base font-semibold active:scale-95 transition-transform shadow-sm'
-      : 'min-h-14 w-full py-3 rounded-2xl bg-white border border-stone-200 text-stone-800 text-base font-medium active:scale-95 transition-transform shadow-sm';
-    btn.addEventListener('click', () => {
-      playPillClick();
-      lttpPendingTag = { root, emoji, label };
-      const sendBtn = document.getElementById('btn-lttp-st-overlay-send');
-      sendBtn.disabled  = false;
-      sendBtn.className = 'min-h-14 w-full rounded-2xl bg-red-500 hover:bg-red-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150';
-      lttpRenderSmallTalkSubs(root);
-    });
-    container.appendChild(btn);
-  });
-}
-
-// Pro mode: "Ask your question!" holding screen with root stamp row
-function lttpShowSmallTalk() {
-  lttpPendingTag = null;
-  ['lttp-st-ask-phase', 'lttp-st-stamp-row'].forEach(id => {
-    document.getElementById(id).style.display = 'none';
-  });
-  lttpShowSmallTalkAskPhase(null);
-  showScreen('screen-lttp-smalltalk');
-}
-
-function lttpShowSmallTalkAskPhase(tag) {
-  const emojiEl = document.getElementById('lttp-st-ask-emoji');
-  const labelEl = document.getElementById('lttp-st-ask-label');
-  const subEl   = document.getElementById('lttp-st-ask-sub');
-  emojiEl.textContent = '💬';
-  labelEl.textContent = 'Ask your question!';
-  subEl.textContent   = 'Then stamp what you asked.';
-  lttpRenderStampRow();
-  document.getElementById('lttp-st-stamp-row').style.display = 'flex';
-  document.getElementById('lttp-st-ask-phase').style.display = 'flex';
-}
-
-function lttpRenderStampRow() {
-  const row = document.getElementById('lttp-st-stamp-row');
-  row.innerHTML = '';
-  Object.keys(LTTP_SMALL_TALK).forEach(root => {
-    const btn = document.createElement('button');
-    btn.textContent = root;
-    btn.className = 'flex-1 py-3 rounded-2xl bg-white border border-stone-200 text-stone-800 text-sm font-semibold active:scale-95 transition-transform shadow-sm';
-    btn.addEventListener('click', () => {
-      playLaunch();
-      lttpSelectPlayer(lttpPendingTarget, { root, emoji: null, label: null });
-    });
-    row.appendChild(btn);
-  });
-}
+// (Small Talk overlay removed in Phase 21a — replaced by free-text message flow in lttp-confirm-overlay)
 
 // ── Confirm action button ────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {

@@ -1,5 +1,9 @@
 /* Little Sylly Games — Custom Styles */
 
+:root {
+  overscroll-behavior-y: none;
+}
+
 body {
   font-family: 'Fredoka', ui-rounded, 'Nunito', 'Varela Round', system-ui, sans-serif;
   transition: background-color 0.3s ease;
@@ -49,7 +53,8 @@ body.flash-red   { background-color: #fecaca; }
   color: #fff;
 }
 
-/* Sylly toggle button */
+/* Toggle button — OFF state (canonical name; sylly-toggle-off is the legacy alias) */
+.game-toggle-off,
 .sylly-toggle-off {
   background: #e7e5e4;
   color: #78716c;
@@ -584,4 +589,20 @@ body.flash-red   { background-color: #fecaca; }
 }
 .dsd-mine-pulse {
   animation: dsd-mine-pulse 1.6s ease-in-out infinite;
+}
+
+/* ── LTTP — contacts tab pulse badge ────────────────────────────────────── */
+#btn-lttp-tab-contacts.lttp-tab-badge {
+  position: relative;
+}
+#btn-lttp-tab-contacts.lttp-tab-badge::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ef4444;
+  animation: pulse 1.5s cubic-bezier(0.4,0,0.6,1) infinite;
 }

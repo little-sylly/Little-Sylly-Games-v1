@@ -25,7 +25,7 @@
 | No-No list size | 5 / 10 |
 | Penalty type | Configurable |
 | Skip cost | Configurable |
-| Review edits | ON / OFF |
+| Pinky Swear Mode | ON / OFF |
 | Sylly Mode | ON / OFF |
 
 ### Team Setup
@@ -33,6 +33,11 @@
 - **Default team names:** Crayon Crew / Glue Stick Gang
 - **Screen 2:** None — LI5 does not track individual player names
 - **Setup emoji:** 👥
+
+### Overlay Types
+| Overlay | Pattern | Notes |
+|---------|---------|-------|
+| `li5-play-again-overlay` | Decision modal z-[90] | "New Playgroup?" play-again confirmation |
 
 **Status:** Stable since Phase 7. No changes in Phase 10.x.
 
@@ -304,36 +309,36 @@
 ---
 
 ## Game 6: Late to the Party (LTTP)
-**Theme:** Social deduction — the Inner Circle knows a secret address; the Stray doesn't. Players question each other over 4 plans, narrowing locations and identities.
+**Theme:** Social deduction — the Inner Circle knows a secret address; Friend of a Friend doesn't. Players message each other over 4 plans, narrowing locations and identities.
 **Key file:** `js/games/lttp.js`
-**State flow:** LOBBY → LTTP MENU → LTTP SETUP → BRIEFING → [Plan loop: CHAT → (Small Talk overlay OR confirm) → SELECT PLAYER → MAP (auto-opens) → repeat until lap complete → PLAN UPDATE] → GUESS phase (Plan 4) → GAMEOVER
+**State flow:** LOBBY → LTTP MENU → LTTP SETUP → BRIEFING → [Plan loop: CHAT → MESSAGE MODAL → SELECT PLAYER → MAP (auto-opens) → repeat until lap complete → PLAN UPDATE] → GUESS phase (Plan 4) → GAMEOVER
 
 ### Terminology
 | Term | Meaning |
 |------|---------|
-| The Stray | The outsider — doesn't know the address; trying to blend in and figure it out |
-| The Inner Circle (IC) | Everyone who knows the address |
-| The Joker | IC member who plants a fake location to mislead the Stray (optional role) |
-| Plan | One full lap of questioning (each player messages someone once); 4 plans per game |
+| Friend of a Friend | The outsider (internal: `lttpStrayIdx`) — doesn't know the address; trying to blend in and figure it out |
+| The Gang | Everyone who knows the address (all players except Friend of a Friend) |
+| The Troublemaker | Gang member (internal: `lttpJokerIdx`) who plants a fake location to mislead (optional role, Joker Mode ON) |
+| Plan | One full lap of messaging (each player messages someone once); 4 plans per game |
 | Locations | The grid of possible addresses shown on the map |
 | Lap | One full round of turns (all players message once) |
 | Contacts | The suspicion overlay — roster of other players with per-player folders |
 | Folder | Per-player notes + status chip inside the Contacts overlay |
-| Friendship Points | Score currency — Stray +10 for correct pin, Joker +20 for prank, IC +5 each for winning |
+| Friendship Points | Score currency — Friend of a Friend +10 for correct pin, Troublemaker +20 for prank, The Gang +5 each for winning |
 
 ### Role-Specific Map Behaviour
-- **Stray:** Sees all locations; can annotate cells as Safe (green) or Dead End (red)
-- **IC:** Sees red highlights narrowing to the real address each plan (6→3→1)
-- **Joker:** Sees gold cell (real address) + purple cell (decoy they're planting)
+- **Friend of a Friend:** Sees all locations; can annotate cells as Safe (green) or Dead End (red)
+- **The Gang:** Sees red highlights narrowing to the real address each plan (6→3→1)
+- **The Troublemaker:** Sees gold cell (real address) + purple cell (decoy they're planting)
 
 ### Contacts System
 The 🕵️ button opens the Contacts overlay — a dual-view panel (roster → folder) for tracking suspicions and notes on each other player.
 
 **Status cycles (keyed to the ACTIVE player's role):**
-- IC: None → ✅ Safe → ❓ Sus → 🃏 Joker → None
-- Joker: None → ✅ Safe → ❓ Sus → None
-- Stray (Joker Mode ON): None → 🃏 Joker → None
-- Stray (Joker Mode OFF): status section hidden
+- The Gang: None → ✅ Safe → ❓ Sus → 🃏 Troublemaker → None
+- The Troublemaker: None → ✅ Safe → ❓ Sus → None
+- Friend of a Friend (Joker Mode ON): None → 🃏 Troublemaker → None
+- Friend of a Friend (Joker Mode OFF): status section hidden
 
 **Status is reflected in the chat player list** — a colour chip appears next to each player's name so the active player can see their assessments at a glance without reopening Contacts.
 
@@ -342,46 +347,40 @@ Each role has a strategic frame for their observations, surfaced via rotating pl
 
 | Role | Strategy Frame | Focus |
 |------|---------------|-------|
-| Stray | Evidence Gathering | Map-to-chat cross-referencing |
-| Joker | Deception Tracking | Cover story self-consistency |
-| IC | Identity Scrubbing | Sniffing out the Outsider |
+| Friend of a Friend | Evidence Gathering | Map-to-message cross-referencing |
+| The Troublemaker | Deception Tracking | Cover story self-consistency |
+| The Gang | Identity Scrubbing | Sniffing out the Outsider |
 
-**Stray hints:** "What did they say? Does it match the map?" / "Any slips? Which locations kept coming up?" / "Who's been too specific? Too vague?" / "Did their answers change between conversations?" / "Who avoided certain locations entirely?" / "What did they claim to know — and how would they know it?"
+**Friend of a Friend hints:** "What did they say? Does it match the map?" / "Any slips? Which locations kept coming up?" / "Who's been too specific? Too vague?" / "Did their answers change between conversations?" / "Who avoided certain locations entirely?" / "What did they claim to know — and how would they know it?"
 
-**Joker hints:** "What lie did you tell them? Keep it consistent." / "Did the Stray take the bait? Track what they believe." / "Stick to your story. What's your cover here?" / "What false trail have you been laying?" / "Did anyone seem suspicious of you? Adjust the story." / "Which details of your cover have you already committed to?"
+**Troublemaker hints:** "What lie did you tell them? Keep it consistent." / "Did Friend of a Friend take the bait? Track what they believe." / "Stick to your story. What's your cover here?" / "What false trail have you been laying?" / "Did anyone seem suspicious of you? Adjust the story." / "Which details of your cover have you already committed to?"
 
-**IC hints:** "Do they seem like they know the address?" / "Were they too specific or too vague?" / "Could they be the one who's late?" / "Did they seem nervous about certain locations?" / "Were they fishing for information rather than sharing it?" / "What have they said so far — does it add up?"
+**The Gang hints:** "Do they seem like they know the address?" / "Were they too specific or too vague?" / "Could they be the one who's late?" / "Did they seem nervous about certain locations?" / "Were they fishing for information rather than sharing it?" / "What have they said so far — does it add up?"
 
-### Small Talk Mechanic
+### Message Flow
 
-Controlled by the **Small Talk** setting (`lttpSmallTalk`). Two modes:
+Tapping a player name in the Contacts roster triggers one of two flows based on the **Small Talk Helper** setting:
 
-**Guided (ON) — `lttpSmallTalk === true`:**
-- Tapping a player name opens `lttp-smalltalk-overlay` directly — no extra confirm step
-- Tab bar: What? / When? / How? / Why? (from `LTTP_SMALL_TALK` keys)
-- Each tab shows 3 sub-topic pill buttons (emoji + label) — freely switchable before committing
-- Selecting a sub-pill highlights it red and activates "Send it 📨"
-- `lttpPendingTag = {root, emoji, label}` persists until send or cancel
-- ✕ closes overlay, clears tag + pending target, no turn advance
-- On send: `lttpSelectPlayer(lttpPendingTarget, lttpPendingTag)`
-- History feed: `· What → 👔 Wear`
+**Small Talk Helper OFF (default):** Opens `lttp-confirm-overlay` directly with a free-text message input.
 
-**Pro (OFF) — `lttpSmallTalk === false`:**
-- Tapping a player name opens `lttp-confirm-overlay` ("Send a message to [Name]?")
-- On confirm: `screen-lttp-smalltalk` shows (ask phase + root stamp row)
-- Player stamps root (What/When/How/Why), then done
-- `lttpSelectPlayer(targetIdx, { root })` called after stamp
-- History feed: `· How`
+**Small Talk Helper ON:** Opens `lttp-smalltalk-overlay` (6 topic tabs; 5 have 4 prompt pills each, plus an "Other" free-form tab). Player selects a prompt → "Use this →" button enabled → tapping it closes the smalltalk overlay and opens `lttp-confirm-overlay` pre-filled with the selected prompt. "Other" tab opens confirm modal with empty input (typed reminder text is not transferred). Player can edit before sending.
 
-**`LTTP_SMALL_TALK` matrix (4 roots × 3 subs):**
-```js
-const LTTP_SMALL_TALK = {
-  What: [{ emoji: '👔', label: 'Wear'     }, { emoji: '🎒', label: 'Items'    }, { emoji: '🎨', label: 'Sights'  }],
-  When: [{ emoji: '⌚', label: 'Arrival'  }, { emoji: '🚪', label: 'Departure'}, { emoji: '⏳', label: 'Duration'}],
-  How:  [{ emoji: '🚗', label: 'Travel'   }, { emoji: '💰', label: 'Price'    }, { emoji: '🎟️', label: 'Access'  }],
-  Why:  [{ emoji: '🍰', label: 'Vibe'     }, { emoji: '🎯', label: 'Reason'   }, { emoji: '👥', label: 'Crowd'   }],
-};
-```
+**`lttp-confirm-overlay` (always the final step):**
+- Header: "Message to [Player Name]"
+- Textarea, placeholder: "Type your message...", maxlength 80
+- Live character counter: "0 / 80" — turns `text-red-500` at ≤10 characters remaining
+- Send button: disabled until input non-empty (pre-fill from guided mode counts)
+- Cancel: closes overlay, no action
+
+On Send: `lttpSelectPlayer(targetIdx, inputValue.trim())`
+
+**History schema:** `{ asker, asked, plan, messageText: "string" }` — always the final typed message regardless of mode.
+
+**Handover screen (chat mode):** Shows message in quotes + "Read this message aloud, then hand over the phone." instruction. Message block hidden during role-reveal handovers.
+
+**`LTTP_SMALL_TALK` constant:** 5 categories — "📍 Getting There", "🕐 Timing", "👥 The Crowd", "🎉 The Vibe", "💬 Casual" — each with 4 prompt strings. Drives tab + pill UI in `lttp-smalltalk-overlay`.
+
+*Note: `lttpPendingTag` is no longer present. The history schema uses `messageText` only.*
 
 ### Settings
 | Setting | Options | Default | Internal value |
@@ -390,7 +389,12 @@ const LTTP_SMALL_TALK = {
 | Difficulty | Local / Secret | Local | `'local'` / `'secret'` |
 | Joker Mode | OFF / ON | OFF | `lttpJokerMode` bool |
 | Group Vote | OFF / ON | ON | `lttpGroupVote` bool |
-| Small Talk | Guided / Pro | Guided | `lttpSmallTalk` bool (true = Guided) |
+| Small Talk Helper | OFF / ON | OFF | `lttpSmallTalk` bool |
+
+### Screens
+| Screen ID | Purpose |
+|-----------|---------|
+| `screen-lttp-briefing` | Plan start/transition — session summary (Tonight's Plans / Plans Updated), first active player named |
 
 ### Overlay Types
 | Overlay | Pattern | Notes |
@@ -399,10 +403,10 @@ const LTTP_SMALL_TALK = {
 | `lttp-settings-overlay` | Data (slide-up) z-[80] | Settings |
 | `lttp-how-to-overlay` | Data (slide-up) z-[90] | How to Play |
 | `lttp-history-overlay` | Data (slide-up) z-[90] | Full chat history log |
-| `lttp-smalltalk-overlay` | Data (slide-up) z-[80] | Guided mode only — tabbed topic picker |
-| `lttp-confirm-overlay` | Decision modal z-[80] | Pro mode only — "Send a message to [Name]?" |
+| `lttp-smalltalk-overlay` | Data (slide-up) z-[80] | Small Talk Helper — topic tabs + prompt pills (+ "Other" free-form tab); shown before confirm when `lttpSmallTalk` ON |
+| `lttp-confirm-overlay` | Decision modal z-[80] | Free-text message input — always the final step; pre-filled if guided prompt selected |
 | `lttp-quit-overlay` | Decision modal z-[80] | Quit confirm |
-| `lttp-guess-map-overlay` | Custom (full-width map panel) z-[95] | Guess phase — Stray pins the address |
+| `lttp-guess-map-overlay` | Custom (full-width map panel) z-[95] | Guess phase — Friend of a Friend pins the address |
 
 ---
 
@@ -444,6 +448,7 @@ LOBBY → NAT MENU → NAT SETUP
 |---------|---------|---------|----------------|
 | Habitats | 3 / 4 / 5 | 3 | `natMatchesSetting` int (data-habitats) |
 | Days Per Habitat | 2 / 3 / 4 | 2 | `natRoundsPerMatch` int (data-days) |
+| Research Log | OFF / ON | OFF | `natCumulativeClues` bool |
 | Field Difficulty | Shallow / Mixed / All | Mixed | `'d1'` / `'d1+d2'` / `'all'` |
 | Voting Mode | Consensus / Independent | Consensus | `'consensus'` / `'independent'` |
 | Scientific Integrity | Relaxed / Peer Review | Relaxed | `'relaxed'` / `'peer-review'` |
@@ -468,7 +473,7 @@ Observation turn order: Biologist first, then remaining players in shuffled orde
 
 **Blocking rule:** Block (a) the animal name, (b) any word already submitted this round. No super-block on the full nono_list.
 
-**Eviction tie-break:** Highest vote count → evicted. Tie → lowest current Credibility breaks it. Still tied → `natEvictedIdx = -1` (Mole wins by default).
+**Eviction tie-break:** Highest vote count → evicted. Tie → lowest current Credibility breaks it. Still tied → `natEvictedIdx = -1` (Mole wins by default). The `-1` path is handled in `natShowLastStand()` — when `natEvictedIdx === -1`, no player name is shown; instead a "No consensus reached — The Mole escapes." message is displayed and the Mole is not forced to guess.
 
 **Voting Mode:**
 - `consensus` — all players vote together on one shared screen; all non-mole players score if the Mole is caught
@@ -495,6 +500,7 @@ No Lead Biologist role. All players (including the position normally assigned as
 | `nat-settings-overlay` | Data (slide-up) z-[80] | "The Permit Office 🦁" |
 | `nat-how-to-overlay` | Data (slide-up) z-[90] | How to Play |
 | `nat-quit-overlay` | Decision modal z-[80] | "Abandon the expedition?" |
+| `nat-new-expedition-overlay` | Decision modal z-[90] | "New Expedition?" play-again confirmation |
 
 `screen-nat-daily-review` is a full screen (not an overlay) — shown in Sylly Mode between the last Observation Day and The Selection.
 
@@ -535,6 +541,7 @@ LOBBY → DSD MENU → DSD SETUP (team names) → DSD PLAYERS (player names + ca
 | Setting | Options | Default | Internal value |
 |---------|---------|---------|----------------|
 | Sea State | Calm / Turbulent / Tempest | Turbulent | `'calm'` / `'turbulent'` / `'tempest'` |
+| Strategic Planning | OFF / ON | OFF | `dsdStrategicPlanning` bool |
 | Danger Level | Pressure Mine / Nuclear Mine | Pressure | `'pressure'` / `'nuclear'` |
 | Urchin Ends Turn | OFF / ON | OFF | `dsdHazardControl.urchin` bool |
 | Mine Ends Turn | OFF / ON | ON | `dsdHazardControl.mine` bool |
@@ -601,3 +608,17 @@ LOBBY → DSD MENU → DSD SETUP (team names) → DSD PLAYERS (player names + ca
 | `dsd-quit-overlay` | Decision modal | z-[80] | "Scuttle the Ship?" |
 | `dsd-confirm-disarm` | Decision modal | z-[90] | "Confirm Sequence?" |
 | `dsd-new-op-overlay` | Decision modal | z-[90] | "New Operation?" — play-again confirmation |
+
+### Screens (Phase 21a addition)
+| Screen ID | Purpose |
+|-----------|---------|
+| `screen-dsd-briefing` | Strategic Planning preview — 25 words as tappable tiles; tap any word to swap it (unlimited swaps); shown when `dsdStrategicPlanning` ON |
+
+### Dynamic Legend (Phase 21a)
+The captain screen legend dynamically shows outcome text based on current settings (updated by `dsdUpdateLegend()` on each captain screen open):
+- Friendly payload: "+10 Valour"
+- Enemy payload: "+10 to [enemy name]" + "(ends turn)" if `dsdHazardControl.enemy`
+- Urchin: "−5 Valour" + "(ends turn)" or "(turn continues)" based on `dsdHazardControl.urchin`
+- Mine (pressure): "−20 Valour (ends turn)"
+- Mine (nuclear): "−1000 Valour ☠️ GAME OVER"
+- Jammer (Sylly): "−5 Valour, ends turn"

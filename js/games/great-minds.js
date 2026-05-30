@@ -649,6 +649,14 @@ document.getElementById('btn-gm-concede-back').addEventListener('click', () => {
   showScreen('screen-gm-menu');
 });
 
+// ── GM Help tip overlay ────────────────────────────────────────────────────────
+function gmShowHelpTip(emoji, heading, tip) {
+  document.getElementById('gm-help-tip-emoji').textContent   = emoji;
+  document.getElementById('gm-help-tip-heading').textContent = heading;
+  document.getElementById('gm-help-tip-text').textContent    = tip;
+  document.getElementById('gm-help-tip-overlay').style.display = 'flex';
+}
+
 // ── GM Menu listeners ─────────────────────────────────────────────────────────
 document.getElementById('btn-gm-menu-play').addEventListener('click', () => {
   playLaunch();
@@ -937,4 +945,22 @@ document.getElementById('btn-gm-override-confirm').addEventListener('click', () 
 document.getElementById('btn-gm-override-cancel').addEventListener('click', () => {
   playPillClick();
   document.getElementById('gm-override-overlay').style.display = 'none';
+});
+
+// ── [?] GM Help buttons ────────────────────────────────────────────────────────
+document.querySelectorAll('.btn-gm-help-open').forEach(btn => {
+  btn.addEventListener('click', () => {
+    playDone();
+    const el = document.getElementById('gm-how-to-overlay');
+    const inner = el.querySelector('.overlay-data-inner');
+    if (inner) inner.scrollTop = 0;
+    el.style.display = 'flex';
+  });
+});
+document.getElementById('btn-gm-input-tip')?.addEventListener('click', () => {
+  gmShowHelpTip('🔮', 'Your Clue Word', 'Enter one word that connects both displayed words.');
+});
+document.getElementById('btn-gm-help-tip-close')?.addEventListener('click', () => {
+  playDone();
+  document.getElementById('gm-help-tip-overlay').style.display = 'none';
 });

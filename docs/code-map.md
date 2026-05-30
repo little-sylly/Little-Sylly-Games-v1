@@ -1,6 +1,6 @@
 # Code Map — Little Sylly Games
 **Purpose:** Surgical reference for editing. Uses element IDs (stable) not line numbers (shift).
-**Updated:** Phase 17 (7-game gold master)
+**Updated:** Phase 21a (8 games, post-audit)
 
 ---
 
@@ -36,6 +36,7 @@
 | `#btn-ygi` | Lobby → YGI menu |
 | `#btn-lttp` | Lobby → LTTP menu |
 | `#btn-nat` | Lobby → NAT menu |
+| `#btn-dsd` | Lobby → DSD menu |
 | `#lobby-icon` | Secret Mode tap counter (7 taps → controller screen) |
 | `.btn-open-sound` | Opens `#sound-overlay` (on every screen) |
 | `#global-mute-toggle` | Mute toggle inside sound overlay |
@@ -79,6 +80,7 @@
 | `#history-overlay` | Data (slide-up) | Score history button |
 | `#pause-overlay` | Inline (inside `#screen-active-play`) | Pause button |
 | `#deck-panel` | Data (slide-up) | Word deck button |
+| `#li5-play-again-overlay` | Decision modal | "New Playgroup?" play-again confirmation — `#btn-li5-play-again` |
 
 ### Key buttons
 | ID | Action |
@@ -336,10 +338,10 @@
 |----|---------|
 | `#screen-lttp-menu` | Title card + "Find The Location!" CTA |
 | `#screen-lttp-setup` | Player count + names |
+| `#screen-lttp-briefing` | Plan start/transition — session summary (Tonight's Plans / Plans Updated), first active player named |
 | `#screen-lttp-role-reveal` | Private role check — shown after pass-gate handover |
-| `#screen-lttp-handover` | Pass gate between turns + plan-end transitions |
+| `#screen-lttp-handover` | Pass gate between turns + plan-end transitions; shows message text in chat mode |
 | `#screen-lttp-chat` | Main interrogation hub (active player's turn) |
-| `#screen-lttp-smalltalk` | **Pro mode only** — "Ask your question!" holding screen + root stamp row |
 | `#screen-lttp-guess` | Plan 4 vote + pin phase (pass-the-phone) |
 | `#screen-lttp-group-guess` | Group Vote mode — shared guess reveal screen |
 | `#screen-lttp-gameover` | Full reveal + Friendship Points tally |
@@ -351,16 +353,14 @@
 | `#lttp-history-overlay` | Data (slide-up) z-[90] | `lttpOpenFullHistory()` |
 | `#lttp-settings-overlay` | Data (slide-up) z-[80] | `#btn-lttp-menu-settings` |
 | `#lttp-how-to-overlay` | Data (slide-up) z-[90] | `#btn-lttp-menu-how-to` |
-| `#lttp-smalltalk-overlay` | Data (slide-up) z-[80] | `lttpOpenSmallTalkOverlay()` — **Guided mode only** |
-| `#lttp-confirm-overlay` | Decision modal z-[80] | `lttpOpenConfirmModal()` — **Pro mode only** |
+| `#lttp-confirm-overlay` | Decision modal z-[80] | `lttpOpenConfirmModal()` — free-text message input (Phase 21a) |
 | `#lttp-quit-overlay` | Decision modal z-[80] | `.btn-lttp-quit-open` (any gameplay screen) |
 
-### Small Talk state
+### Message Flow state (Phase 21a — replaces Small Talk)
 | Variable | Purpose |
 |----------|---------|
-| `lttpSmallTalk` | `true` = Guided (overlay); `false` = Pro (confirm + screen) |
-| `lttpPendingTarget` | Player index awaiting confirm/send |
-| `lttpPendingTag` | `{root, emoji, label}` — selected sub-topic; null until committed |
+| `lttpPendingTarget` | Player index currently being messaged |
+| `lttpHistory` | `[{asker, asked, plan, messageText}]` — full chat log; `messageText` is the free-text message |
 
 ### Key chat elements
 | ID | Purpose |
@@ -378,41 +378,34 @@
 |----|---------|
 | `#lttp-guess-pass-gate` | Pass-gate div (shown between voters) |
 | `#lttp-guess-action` | Action div (shown when active player acts) |
-| `#lttp-guess-grid` | 4×4 pin grid for The Stray |
-| `#lttp-guess-vote-list` | Player vote buttons for non-Stray |
+| `#lttp-guess-grid` | 4×4 pin grid for Friend of a Friend |
+| `#lttp-guess-vote-list` | Player vote buttons for The Gang |
 
 ### Key functions
 | Function | Purpose |
 |----------|---------|
 | `lttpBuildGrid(allWords)` | Selects 16 places, sets address, seeds 6 highlights + fake targets |
-| `lttpAssignRoles()` | Random Stray + Joker assignment |
+| `lttpAssignRoles()` | Random Friend of a Friend + Troublemaker assignment |
 | `lttpStartGame()` | Full state reset → fetch words → build → roles → role-reveal |
 | `lttpShowRoleReveal(idx)` | Role-aware private reveal screen |
-| `lttpShowHandover(toIdx, msg)` | Pass gate — `msg` non-null triggers plan-transition text |
+| `lttpShowHandover(toIdx, msg)` | Pass gate — `msg` non-null triggers plan-transition text; in chat mode shows message + "Read aloud" instruction |
 | `lttpShowChat(playerIdx)` | Main turn screen — renders player list + history + notes |
-| `lttpOpenConfirmModal(targetIdx)` | Branches: Guided → `lttpOpenSmallTalkOverlay()`, Pro → `lttp-confirm-overlay` |
-| `lttpOpenSmallTalkOverlay(targetIdx)` | Opens tabbed Small Talk overlay, resets `lttpPendingTag`, renders tabs |
-| `lttpRenderSmallTalkTabs()` | Renders tab bar from `LTTP_SMALL_TALK` keys |
-| `lttpSnapToSmallTalkTab(root)` | Switches active tab + re-renders sub-pills |
-| `lttpRenderSmallTalkSubs(root)` | Renders 3 sub-pill buttons; restores red highlight if `lttpPendingTag` matches |
-| `lttpSelectPlayer(targetIdx, tag)` | Core lap logic — logs history, checks lap complete, routes; `tag` = `{root,emoji,label}` or `{root}` or null |
+| `lttpOpenConfirmModal(targetIdx)` | Opens `lttp-confirm-overlay` with free-text message input for `targetIdx` |
+| `lttpSelectPlayer(targetIdx, messageText)` | Core lap logic — logs `{asker, asked, plan, messageText}` to history, checks lap complete, routes |
 | `lttpNarrowHighlights()` | 6→3→1 narrowing + logs plan snapshot |
-| `lttpOpenMapOverlay()` | Role-aware 4×4 grid — IC red, Joker gold+purple, Stray annotatable |
+| `lttpOpenMapOverlay()` | Role-aware 4×4 grid — The Gang: red, The Troublemaker: gold+purple, Friend of a Friend: annotatable |
 | `lttpOpenFullHistory()` | Full history log overlay |
 | `lttpOpenPlayerFolder(idx)` | Opens suspicion overlay at a specific player's folder |
 | `lttpStartGuessPhase()` | Begins Plan 4 vote/pin pass-the-phone sequence |
-| `lttpShowGuess(playerIdx)` | Role-aware action — Stray pins, IC votes |
+| `lttpShowGuess(playerIdx)` | Role-aware action — Friend of a Friend pins, The Gang votes |
 | `lttpComputeAndShowGameover()` | Scores via priority cascade → gameover |
 | `lttpRenderPlanLog()` | Plan log carousel driven by `lttpPlanLogIdx` |
-| `lttpShowSmallTalk()` | Pro mode only — shows ask-phase screen + stamp row |
-| `lttpShowSmallTalkAskPhase(tag)` | Pro mode only — renders ask prompt + stamp row |
-| `lttpRenderStampRow()` | Renders 4 root stamp buttons (What/When/How/Why) |
 | `resetLateToTheParty()` | Full teardown; called by `resetToLobby()` |
 
 ### Win condition priority (highest → lowest)
-1. **Joker Prank** — Stray pins a fake target → Joker +20 wins
-2. **Stray Pin** — Stray pins correct address → Stray +10 wins
-3. **Confusion Bonus** — more wrong votes than correct → Stray auto-wins
+1. **Troublemaker Prank** — Friend of a Friend pins a fake target → The Troublemaker +20 wins
+2. **Friend of a Friend Pin** — Friend of a Friend pins correct address → +10 wins
+3. **Confusion Bonus** — more wrong votes than correct → Friend of a Friend auto-wins
 4. **IC wins** — Stray missed, no confusion → IC +5 each
 
 ---
@@ -504,6 +497,7 @@ Each plugin reads `window.activeExpansionOverrides` at its settings-apply point 
 | `#nat-settings-overlay` | Data (slide-up) z-[80] | `#btn-nat-menu-settings` / `natOpenSettings()` |
 | `#nat-how-to-overlay` | Data (slide-up) z-[90] | `#btn-nat-menu-howto` / `natOpenHowTo()` |
 | `#nat-quit-overlay` | Decision modal z-[80] | `.btn-nat-quit-open` (any gameplay screen) |
+| `#nat-new-expedition-overlay` | Decision modal z-[90] | "New Expedition?" play-again confirmation |
 
 ### Key state variables
 | Variable | Default | Options |
@@ -515,6 +509,7 @@ Each plugin reads `window.activeExpansionOverrides` at its settings-apply point 
 | `natScientificIntegrity` | `'relaxed'` | `'relaxed' \| 'peer-review'` |
 | `natEscapePoints` | `10` | `10 \| 15 \| 20` |
 | `natSyllyMode` | `false` | bool |
+| `natCumulativeClues` | `false` | bool — Research Log setting; Field Researchers see all previous assigned words stacked |
 | `natBiologistIdx` | `-1` | player index |
 | `natMoleIdx` | `-1` | player index |
 | `natAssignedWords[]` | `[]` | detail word per player |
@@ -557,8 +552,11 @@ Each plugin reads `window.activeExpansionOverrides` at its settings-apply point 
 | Screen ID | Purpose |
 |-----------|---------|
 | `screen-dsd-menu` | Main menu — Play CTA, How to Play, Settings, ← Back to the Box |
-| `screen-dsd-setup` | Team names, players per team, Captain designation |
-| `screen-dsd-captain` | Captain view — full-width colour-coded grid + Sonar Ping input |
+| `screen-dsd-setup` | Team names only (Phase 20 split) |
+| `screen-dsd-players` | Player names + Captain designation (Phase 20 — new screen) |
+| `screen-dsd-pass-gate` | Pass-the-phone gate — before every Captain screen and before every Crew screen |
+| `screen-dsd-briefing` | Strategic Planning word preview — 25 tappable tiles; tap any word to swap it (unlimited swaps, pool rebuilds when exhausted); shown when `dsdStrategicPlanning` ON |
+| `screen-dsd-captain` | Captain view — full-width colour-coded grid + dynamic legend + Sonar Ping input |
 | `screen-dsd-crew` | Crew view — word-only grid, sequence builder |
 | `screen-dsd-execution` | Sequential tile reveal with Valour scoreboard |
 | `screen-dsd-sabotage` | Sylly Mode — Jammer placement by the placing team |
@@ -567,10 +565,11 @@ Each plugin reads `window.activeExpansionOverrides` at its settings-apply point 
 ### Overlays
 | Overlay ID | Pattern | z-index | Purpose |
 |------------|---------|---------|---------|
-| `dsd-settings-overlay` | Data (slide-up) | z-[80] | "The Console ⚓" — 6 settings cards |
-| `dsd-how-to-overlay` | Data (slide-up) | z-[90] | "Operations Manual ⚓" — 5 rule sections |
+| `dsd-settings-overlay` | Data (slide-up) | z-[80] | "The Console ⚓" — settings cards incl. Strategic Planning |
+| `dsd-how-to-overlay` | Data (slide-up) | z-[90] | "Operations Manual ⚓" — rule sections |
 | `dsd-quit-overlay` | Decision modal | z-[80] | "Scuttle the Ship?" — mid-game exit confirm |
 | `dsd-confirm-disarm` | Decision modal | z-[90] | "Confirm Sequence?" — crew sequence confirm |
+| `dsd-new-op-overlay` | Decision modal | z-[90] | "New Operation?" play-again confirmation |
 
 ### Key State Variables
 | Variable | Type | Default | Purpose |
@@ -579,20 +578,22 @@ Each plugin reads `window.activeExpansionOverrides` at its settings-apply point 
 | `dsdHazardControl` | object | `{urchin:false, mine:true, enemy:true}` | Turn-end toggles per hazard type |
 | `dsdDangerLevel` | string | `'pressure'` | Mine type: `'pressure'`/`'nuclear'` |
 | `dsdSyllyMode` | bool | `false` | Mission Abyss — enables Drift + Jammer |
+| `dsdStrategicPlanning` | bool | `false` | Shows word preview screen before first deployment; unlimited per-word swaps |
 | `dsdTeamNames` | array[2] | `['Kraken','Leviathan']` | Custom team display names |
 | `dsdPlayersPerTeam` | int | `2` | 2 or 3 players per team |
 | `dsdPlayerNames` | array[2][] | `[[],[]]` | Per-team player name arrays |
 | `dsdCaptainName` | array[2] | `['','']` | Designated captain name per team |
 | `dsdValour` | array[2] | `[0,0]` | Running Valour (VP) per team |
-| `dsdGrid` | array[25] | `[]` | `{word, role, revealed}` — roles: 0, 1, 'urchin', 'mine', 'bystander' |
+| `dsdGrid` | array[25] | `[]` | `{word, role, revealed}` — roles: 0 (team0), 1 (team1), 'urchin', 'mine' |
 | `dsdCurrentTeam` | int | `0` | Active team index (0 or 1) |
 | `dsdFirstTeam` | int | `0` | Team with 9 payloads (from `showWhoFirst()`) |
 | `dsdDeployment` | int | `1` | Current deployment (round) counter |
 | `dsdPingClue` | string | `''` | Captain's current clue word |
 | `dsdPingNumber` | int | `0` | Captain's current ping number |
 | `dsdSequence` | array | `[]` | Ordered grid indices chosen by crew |
-| `dsdJammer` | int | `-1` | Grid index of active Jammer (−1 = none) |
-| `dsdJammerTeam` | int | `-1` | Index of team that placed the Jammer |
+| `dsdJammers` | array[2] | `[-1,-1]` | Grid index jammed BY each team; -1 = none |
+| `dsdWordPool` | array | `[]` | Full shuffled word pool from `dsdBuildGame()` — used for per-word swaps |
+| `dsdWordPoolIdx` | int | `0` | Pointer to next unused word in `dsdWordPool` (starts at 25) |
 
 ### Key Functions
 | Function | Purpose |
@@ -603,7 +604,10 @@ Each plugin reads `window.activeExpansionOverrides` at its settings-apply point 
 | `dsdValidateSetup()` | Validates all fields then calls `dsdLaunchWhoFirst()` |
 | `dsdLaunchWhoFirst()` | Calls engine `showWhoFirst()` with DSD config; `onResult` sets `dsdFirstTeam` |
 | `dsdBuildGame()` | Async — awaits `loadWords()`, builds shuffled 25-cell grid by sea state tiers |
-| `dsdRenderCaptainGrid()` | Full-width colour-coded grid; Jammer shown as amber `?` for opponent |
+| `dsdShowBriefing()` | Strategic Planning screen — renders 25-word tappable tiles (all always interactive) |
+| `dsdRerollWord(cellIdx)` | Swaps one grid word at `cellIdx` with next word from `dsdWordPool`; rebuilds pool (excluding on-board words) when exhausted — unlimited swaps |
+| `dsdUpdateLegend()` | Populates legend value labels dynamically from `dsdDangerLevel` + `dsdHazardControl` |
+| `dsdRenderCaptainGrid()` | Full-width colour-coded grid; Jammer shown as placing team's colour + `?` badge |
 | `dsdTransmitPing()` | Validates word (single token, not in grid); sets `dsdPingClue/Number` |
 | `dsdRenderCrewGrid()` | Word-only grid with numbered sequence badges; enforces max N+1 taps |
 | `dsdOpenDisarmOverlay()` | Builds ordered word list in `#dsd-disarm-list`; shows confirm modal |

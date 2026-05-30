@@ -1586,6 +1586,14 @@ function ssSyncCategoryPills() {
   }
 }
 
+// ── SS Help tip overlay ────────────────────────────────────────────────────────
+function ssShowHelpTip(emoji, heading, tip) {
+  document.getElementById('ss-help-tip-emoji').textContent   = emoji;
+  document.getElementById('ss-help-tip-heading').textContent = heading;
+  document.getElementById('ss-help-tip-text').textContent    = tip;
+  document.getElementById('ss-help-tip-overlay').style.display = 'flex';
+}
+
 // ── Event Listeners ───────────────────────────────────────────────────────────
 
 // Lobby → SS menu
@@ -1988,4 +1996,22 @@ document.getElementById('btn-ss-override-confirm').addEventListener('click', () 
 document.getElementById('btn-ss-override-cancel').addEventListener('click', () => {
   playDone();
   document.getElementById('ss-override-overlay').style.display = 'none';
+});
+
+// ── [?] SS Help buttons ────────────────────────────────────────────────────────
+document.querySelectorAll('.btn-ss-help-open').forEach(btn => {
+  btn.addEventListener('click', () => {
+    playDone();
+    const el = document.getElementById('ss-how-to-overlay');
+    const inner = el.querySelector('.overlay-data-inner');
+    if (inner) inner.scrollTop = 0;
+    el.style.display = 'flex';
+  });
+});
+document.getElementById('btn-ss-encrypt-tip')?.addEventListener('click', () => {
+  ssShowHelpTip('📡', 'Encoding', 'Pick one keyword from your vault that your partner will recognise.');
+});
+document.getElementById('btn-ss-help-tip-close')?.addEventListener('click', () => {
+  playDone();
+  document.getElementById('ss-help-tip-overlay').style.display = 'none';
 });

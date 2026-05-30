@@ -11,6 +11,7 @@
 let natMatchesSetting  = 3;        // 3 | 4 | 5
 let natRoundsPerMatch  = 2;        // 2 | 3 | 4
 let natDifficulty      = 'd1+d2';  // 'd1' | 'd1+d2' | 'all'
+let natCumulativeClues = false;    // Research Log — Researchers get new word each day, accumulate history
 let natSyllyMode       = false;
 let natVotingMode           = 'consensus'; // 'consensus' | 'independent'
 let natScientificIntegrity  = 'relaxed';   // 'relaxed' | 'peer-review'
@@ -34,6 +35,7 @@ let natClueOrder         = [];
 let natClueOrders        = []; // [dayIdx] → submission order array for that day
 let natCurrentClueStep   = 0;
 let natCluesByRound      = []; // [dayIdx][playerIdx] → observation string
+let natWordsByDay        = []; // [dayIdx][playerIdx] → word shown that day (Research Log)
 
 // ── NAT Selection (voting phase) ─────────────────────────────────────────────
 let natSelectionPhase    = 'reveal';
@@ -75,11 +77,12 @@ function natCloseSettings() {
 function natApplyExpansionOverrides() {
   if (!isSecretMode || !window.activeExpansionOverrides) return;
   const ov = window.activeExpansionOverrides;
-  if (ov.natMatchesSetting !== undefined) natMatchesSetting = ov.natMatchesSetting;
-  if (ov.natRoundsPerMatch !== undefined) natRoundsPerMatch = ov.natRoundsPerMatch;
-  if (ov.natDifficulty     !== undefined) natDifficulty     = ov.natDifficulty;
-  if (ov.natSyllyMode      !== undefined) natSyllyMode      = ov.natSyllyMode;
-  if (ov.natEscapePoints   !== undefined) natEscapePoints   = ov.natEscapePoints;
+  if (ov.natMatchesSetting  !== undefined) natMatchesSetting  = ov.natMatchesSetting;
+  if (ov.natRoundsPerMatch  !== undefined) natRoundsPerMatch  = ov.natRoundsPerMatch;
+  if (ov.natDifficulty      !== undefined) natDifficulty      = ov.natDifficulty;
+  if (ov.natCumulativeClues !== undefined) natCumulativeClues = ov.natCumulativeClues;
+  if (ov.natSyllyMode       !== undefined) natSyllyMode       = ov.natSyllyMode;
+  if (ov.natEscapePoints    !== undefined) natEscapePoints    = ov.natEscapePoints;
 }
 
 function natApplySettings() {
@@ -100,6 +103,9 @@ function natApplySettings() {
 
   const ePill = document.querySelector('#nat-escape-group .pill-active-lime');
   if (ePill) natEscapePoints = parseInt(ePill.dataset.escape);
+
+  const cToggle = document.getElementById('btn-nat-cumulative-toggle');
+  if (cToggle) natCumulativeClues = cToggle.classList.contains('game-toggle-on-lime');
 }
 
 // ── How to Play overlay ───────────────────────────────────────────────────────
@@ -111,6 +117,13 @@ function natOpenHowTo() {
 
 function natCloseHowTo() {
   document.getElementById('nat-how-to-overlay').style.display = 'none';
+}
+
+function natShowHelpTip(emoji, heading, tip) {
+  document.getElementById('nat-help-tip-emoji').textContent   = emoji;
+  document.getElementById('nat-help-tip-heading').textContent = heading;
+  document.getElementById('nat-help-tip-text').textContent    = tip;
+  document.getElementById('nat-help-tip-overlay').style.display = 'flex';
 }
 
 // ── Quit overlay ──────────────────────────────────────────────────────────────
@@ -240,6 +253,16 @@ function natGetRoleLabel(pIdx) {
   return '📋 Field Researcher';
 }
 
+function natGetRoleDescription(pIdx) {
+  if (pIdx === natMoleIdx) return 'Blend in. Guess what the animal is and give a clue about it.';
+  if (!natSyllyMode && pIdx === natBiologistIdx) return 'Give one clue — guide the group without tipping off The Mole.';
+  return 'Figure out the animal from your word. Give one clue about it.';
+}
+
+function natWordIsResearcher(pIdx) {
+  return pIdx !== natMoleIdx && (natSyllyMode || pIdx !== natBiologistIdx);
+}
+
 function natGetWordLabel(pIdx) {
   if (pIdx === natMoleIdx) return 'Classification';
   if (!natSyllyMode && pIdx === natBiologistIdx) return 'Target Specimen';
@@ -248,6 +271,20 @@ function natGetWordLabel(pIdx) {
 
 // ── Observation day setup ─────────────────────────────────────────────────────
 function natStartClueRound() {
+  // Research Log: draw new words for Field Researchers on day 1+
+  if (natCumulativeClues && natCurrentMatchRound > 0) {
+    const detailPool = shuffle(natSpecimen.nono_list.slice(1));
+    let poolIdx = 0;
+    for (let i = 0; i < natPlayerCount; i++) {
+      if (natWordIsResearcher(i)) {
+        natAssignedWords[i] = detailPool[poolIdx % detailPool.length];
+        poolIdx++;
+      }
+    }
+  }
+  // Record what each player sees today (used by Research Log stacked display)
+  natWordsByDay[natCurrentMatchRound] = Array.from({ length: natPlayerCount }, (_, i) => natGetWordForPlayer(i));
+
   // Reshuffle order every day — no persistent tells
   natClueOrder = shuffle([...Array(natPlayerCount).keys()]);
   natClueOrders[natCurrentMatchRound] = [...natClueOrder];
@@ -268,26 +305,49 @@ function natShowHandover(pIdx) {
 function natShowObservation() {
   natRenderObservationScreen();
   showScreen('screen-nat-observation');
-  const obsSection = document.getElementById('screen-nat-observation');
-  if (obsSection) obsSection.scrollTop = 0;
-  const journalBox = document.getElementById('nat-obs-journal')?.parentElement;
-  if (journalBox) journalBox.scrollTop = 0;
+  document.getElementById('screen-nat-observation').scrollTop = 0;
 }
 
 function natRenderObservationScreen() {
   const pIdx = natClueOrder[natCurrentClueStep];
+  const isResearcher = natWordIsResearcher(pIdx);
 
   document.getElementById('nat-obs-round').textContent =
     `Day ${natCurrentMatchRound + 1} of ${natRoundsPerMatch} · Habitat ${natCurrentMatch + 1} of ${natMatchesSetting}`;
   document.getElementById('nat-obs-step').textContent  =
     `Observation ${natCurrentClueStep + 1} of ${natPlayerCount}`;
-  document.getElementById('nat-obs-name').textContent        = natPlayerNames[pIdx];
-  document.getElementById('nat-obs-role').textContent        = natGetRoleLabel(pIdx);
-  document.getElementById('nat-obs-word-label').textContent  = natGetWordLabel(pIdx);
-  document.getElementById('nat-obs-word').textContent        = natGetWordForPlayer(pIdx);
+  document.getElementById('nat-obs-name').textContent      = natPlayerNames[pIdx];
+  document.getElementById('nat-obs-role').textContent      = natGetRoleLabel(pIdx);
+  document.getElementById('nat-obs-role-desc').textContent = natGetRoleDescription(pIdx);
+  document.getElementById('nat-obs-word-label').textContent = natGetWordLabel(pIdx);
 
-  document.getElementById('nat-obs-input').value        = '';
-  document.getElementById('nat-obs-error').textContent  = '';
+  // Research Log: stacked word history for Field Researchers on day 1+
+  if (natCumulativeClues && isResearcher && natCurrentMatchRound > 0) {
+    const parts = [];
+    for (let d = 0; d <= natCurrentMatchRound; d++) {
+      const w = natWordsByDay[d]?.[pIdx] || '';
+      if (w) parts.push(`Day ${d + 1}: ${w}`);
+    }
+    document.getElementById('nat-obs-word').textContent = parts.join(' · ');
+  } else {
+    document.getElementById('nat-obs-word').textContent = natGetWordForPlayer(pIdx);
+  }
+
+  // Category — show label + value for non-Mole players; Mole's word IS the category
+  const catLabelEl = document.getElementById('nat-obs-category-label');
+  const catValEl   = document.getElementById('nat-obs-category-value');
+  if (pIdx !== natMoleIdx) {
+    catLabelEl.textContent = 'Category';
+    catValEl.textContent   = natSpecimen.nono_list[0];
+    catLabelEl.classList.remove('hidden');
+    catValEl.classList.remove('hidden');
+  } else {
+    catLabelEl.classList.add('hidden');
+    catValEl.classList.add('hidden');
+  }
+
+  document.getElementById('nat-obs-input').value         = '';
+  document.getElementById('nat-obs-error').textContent   = '';
   document.getElementById('btn-nat-obs-submit').disabled = true;
 
   natRenderJournal();
@@ -338,8 +398,7 @@ function natRenderJournal() {
   }
 
   // Scroll to top — newest day is already at top
-  const scrollEl = journal.parentElement;
-  if (scrollEl) scrollEl.scrollTop = 0;
+  document.getElementById('screen-nat-observation').scrollTop = 0;
 }
 
 // ── Root-word stemmer — strips common English suffixes for derivative blocking ─
@@ -366,6 +425,13 @@ function natSubmitObservation() {
   const errEl   = document.getElementById('nat-obs-error');
 
   if (!val) return;
+
+  if (inputEl.value.trim().includes(' ')) {
+    errEl.textContent = 'One word only.';
+    inputEl.classList.remove('shake'); void inputEl.offsetWidth; inputEl.classList.add('shake');
+    playBoing();
+    return;
+  }
 
   const animal    = normaliseWord(natSpecimen.word);
   const submitted = natCluesByRound.flat().filter(c => c !== '').map(normaliseWord);
@@ -712,9 +778,12 @@ function natShowTally() {
     `Habitat ${natCurrentMatch + 1} of ${natMatchesSetting}`;
   document.getElementById('nat-tally-specimen').textContent = `Specimen: ${entry.specimen}`;
 
+  const noConsensus = !entry.caught && entry.evictedIdx === -1;
   const caughtText = entry.caught
     ? `✅ The anomaly has been identified. Research secured.`
-    : `🕵️ ${natPlayerNames[natMoleIdx]} blended in. Research compromised.`;
+    : noConsensus
+      ? `🤝 No consensus reached — ${natPlayerNames[natMoleIdx]} escapes by default.`
+      : `🕵️ ${natPlayerNames[natMoleIdx]} blended in. Research compromised.`;
   const idText = entry.correctId
     ? `🔬 ${natPlayerNames[natMoleIdx]} correctly identified the specimen.`
     : `❌ ${natPlayerNames[natMoleIdx]} couldn't name the specimen.`;
@@ -805,6 +874,7 @@ function natResetState() {
   natBiologistIdx      = -1;
   natMoleIdx           = -1;
   natAssignedWords     = [];
+  natWordsByDay        = [];
   natUsedWordIds       = new Set();
   natClueOrder         = [];
   natClueOrders        = [];
@@ -859,17 +929,36 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     });
   });
+  document.getElementById('btn-nat-cumulative-toggle')?.addEventListener('click', () => {
+    natCumulativeClues = !natCumulativeClues;
+    const btn = document.getElementById('btn-nat-cumulative-toggle');
+    btn.textContent = natCumulativeClues ? 'ON' : 'OFF';
+    btn.className   = natCumulativeClues ? 'game-toggle-on-lime shrink-0' : 'game-toggle-off shrink-0';
+    playPillClick();
+  });
   document.getElementById('btn-nat-sylly-toggle')?.addEventListener('click', () => {
     natSyllyMode = !natSyllyMode;
     const btn = document.getElementById('btn-nat-sylly-toggle');
     btn.textContent = natSyllyMode ? 'ON' : 'OFF';
-    btn.className   = natSyllyMode ? 'game-toggle-on-lime shrink-0' : 'sylly-toggle-off shrink-0';
+    btn.className   = natSyllyMode ? 'game-toggle-on-lime shrink-0' : 'game-toggle-off shrink-0';
     natSyllyMode ? playSyllyOn() : playSyllyOff();
   });
 
   // ── How to Play overlay ──
   document.getElementById('btn-nat-howto-close')?.addEventListener('click', () => {
     playDone(); natCloseHowTo();
+  });
+
+  // ── [?] Help — header opens How to Play; contextual tip on observation screen ──
+  document.querySelectorAll('.btn-nat-help-open').forEach(btn => {
+    btn.addEventListener('click', () => { playDone(); natOpenHowTo(); });
+  });
+  document.getElementById('btn-nat-obs-help-tip')?.addEventListener('click', () => {
+    natShowHelpTip('📋', 'Your Observation', 'Give one word based on your assigned clue. No spaces — hyphens OK.');
+  });
+  document.getElementById('btn-nat-help-tip-close')?.addEventListener('click', () => {
+    playDone();
+    document.getElementById('nat-help-tip-overlay').style.display = 'none';
   });
 
   // ── Setup ──

@@ -52,6 +52,14 @@ async function ygiLoadData() {
   ygiDataLoaded = true;
 }
 
+// ── YGI Help tip overlay ──────────────────────────────────────────────────────
+function ygiShowHelpTip(emoji, heading, tip) {
+  document.getElementById('ygi-help-tip-emoji').textContent   = emoji;
+  document.getElementById('ygi-help-tip-heading').textContent = heading;
+  document.getElementById('ygi-help-tip-text').textContent    = tip;
+  document.getElementById('ygi-help-tip-overlay').style.display = 'flex';
+}
+
 // ── Lobby → CE Menu ───────────────────────────────────────────────────────────
 document.getElementById('btn-ygi').addEventListener('click', () => {
   playLaunch();
@@ -748,6 +756,24 @@ document.getElementById('btn-ygi-gameover-back').addEventListener('click', () =>
 document.getElementById('btn-ygi-gameover-exit').addEventListener('click', () => {
   playExit();
   resetToLobby();
+});
+
+// ── [?] YGI Help buttons ──────────────────────────────────────────────────────
+document.querySelectorAll('.btn-ygi-help-open').forEach(btn => {
+  btn.addEventListener('click', () => {
+    playDone();
+    const el = document.getElementById('ygi-how-to-overlay');
+    const inner = el.querySelector('.overlay-data-inner');
+    if (inner) inner.scrollTop = 0;
+    el.style.display = 'flex';
+  });
+});
+document.getElementById('btn-ygi-input-tip')?.addEventListener('click', () => {
+  ygiShowHelpTip('🃏', 'Your Take', 'Enter a number and a unit for the situation — e.g. 47 tabs, 3 hours, 12 messages.');
+});
+document.getElementById('btn-ygi-help-tip-close')?.addEventListener('click', () => {
+  playDone();
+  document.getElementById('ygi-help-tip-overlay').style.display = 'none';
 });
 
 // ── YGI teardown (called by engine.js resetToLobby) ───────────────────────────

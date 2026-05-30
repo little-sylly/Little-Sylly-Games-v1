@@ -210,6 +210,7 @@
         <button id="btn-pause"    aria-label="Pause"    class="text-xl leading-none text-stone-400 active:scale-90 transition-transform duration-100">⏸</button>
         <button id="btn-end-turn" aria-label="End turn" class="text-xl leading-none text-stone-400 active:scale-90 transition-transform duration-100">⏭</button>
         <button id="btn-mute"     aria-label="Mute"     class="text-xl leading-none text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+        <button id="btn-li5-active-tip" aria-label="Help" class="text-stone-300 font-mono font-bold text-xl leading-none active:scale-90 transition-transform duration-100">?</button>
         <button id="btn-stop"     aria-label="Quit game" class="text-xl leading-none text-stone-500 font-bold active:scale-90 transition-transform duration-100">✕</button>
       </div>
     </div>
@@ -600,6 +601,18 @@
     </div>
   </div>
 
+  <!-- li5-help-tip-overlay (decision modal z-[90] — contextual help) -->
+  <div id="li5-help-tip-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[90] flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center">
+      <p id="li5-help-tip-emoji" class="text-4xl"></p>
+      <h3 id="li5-help-tip-heading" class="text-lg font-bold text-stone-800"></h3>
+      <p id="li5-help-tip-text" class="text-stone-500 text-sm"></p>
+      <button id="btn-li5-help-tip-close" class="min-h-12 w-full rounded-xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-base font-semibold transition-all duration-150">
+        Got it ✓
+      </button>
+    </div>
+  </div>
+
   <!-- ══ GREAT MINDS SCREENS ══════════════════════════════════════════════════ -->
 
   <!-- ═══════════════════════════════════════════════════════════════
@@ -700,6 +713,7 @@
   <section id="screen-gm-input" style="display:none" class="flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-5">
     <div class="flex justify-end gap-2 w-full">
       <button class="btn-open-sound w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-lg">🔊</button>
+      <button class="btn-gm-help-open w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-stone-300 font-mono font-bold">?</button>
       <button id="btn-gm-input-exit" class="w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-stone-500 font-bold">✕</button>
     </div>
     <p class="text-stone-300 text-xs font-semibold uppercase tracking-widest">Round <span id="gm-round-num-input"></span></p>
@@ -725,7 +739,10 @@
       <p class="text-xs text-violet-400 uppercase tracking-widest font-semibold mb-1">Boost Signal ⚡</p>
       <p id="gm-boost-context-text" class="text-stone-700 font-semibold text-base"></p>
     </div>
-    <p class="text-stone-500 text-sm">Establishing Link... Transmit Clue.</p>
+    <div class="flex items-center gap-2 w-full">
+      <p class="text-stone-500 text-sm flex-1 text-center">Establishing Link... Transmit Clue.</p>
+      <button id="btn-gm-input-tip" class="text-stone-300 font-mono font-bold text-xl active:scale-90 transition-transform duration-100 flex-shrink-0">?</button>
+    </div>
     <input id="gm-word-input" type="text" maxlength="30" placeholder="Your clue…" autocomplete="off"
       class="w-full rounded-2xl border-2 border-stone-200 px-4 py-4 text-xl text-center text-stone-800 focus:outline-none focus:border-violet-400" />
     <p id="gm-input-error" style="display:none" class="text-pink-500 text-sm font-semibold text-center"></p>
@@ -1150,6 +1167,18 @@
     </div>
   </div>
 
+  <!-- gm-help-tip-overlay (decision modal z-[90] — contextual help) -->
+  <div id="gm-help-tip-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[90] flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center">
+      <p id="gm-help-tip-emoji" class="text-4xl"></p>
+      <h3 id="gm-help-tip-heading" class="text-lg font-bold text-stone-800"></h3>
+      <p id="gm-help-tip-text" class="text-stone-500 text-sm"></p>
+      <button id="btn-gm-help-tip-close" class="min-h-12 w-full rounded-xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-base font-semibold transition-all duration-150">
+        Got it ✓
+      </button>
+    </div>
+  </div>
+
   <!-- ══════════════════════════════════════════════════════════════════════ -->
   <!-- SYLLY SIGNALS screens                                                  -->
   <!-- ══════════════════════════════════════════════════════════════════════ -->
@@ -1319,6 +1348,7 @@
       <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest">Encrypt</p>
       <div class="flex items-center gap-2">
         <button class="btn-open-sound w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-lg">🔊</button>
+        <button id="btn-ss-encrypt-tip" class="w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-stone-300 font-mono font-bold">?</button>
         <button id="btn-ss-encrypt-exit" class="w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-stone-500 font-bold">✕</button>
       </div>
     </div>
@@ -2075,6 +2105,18 @@
     </div>
   </section>
 
+  <!-- ss-help-tip-overlay (decision modal z-[90] — contextual help) -->
+  <div id="ss-help-tip-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[90] flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center">
+      <p id="ss-help-tip-emoji" class="text-4xl"></p>
+      <h3 id="ss-help-tip-heading" class="text-lg font-bold text-stone-800"></h3>
+      <p id="ss-help-tip-text" class="text-stone-500 text-sm"></p>
+      <button id="btn-ss-help-tip-close" class="min-h-12 w-full rounded-xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-base font-semibold transition-all duration-150">
+        Got it ✓
+      </button>
+    </div>
+  </div>
+
   <!-- ══ JUST ENOUGH COOKS SCREENS ══════════════════════════════════════════ -->
 
   <!-- ═══════════════════════════════════════════════════════════════
@@ -2187,6 +2229,7 @@
         <p id="jec-prep-round-label" class="text-stone-400 text-xs font-semibold uppercase tracking-widest">Round 1 of 3</p>
         <div class="flex items-center gap-2">
           <button class="btn-open-sound w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-lg">🔊</button>
+          <button id="btn-jec-prep-tip" class="w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-stone-300 font-mono font-bold">?</button>
           <button id="btn-jec-prep-exit" class="w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-stone-500 font-bold text-lg">✕</button>
         </div>
       </div>
@@ -2513,6 +2556,18 @@
     </div>
   </div>
 
+  <!-- jec-help-tip-overlay (decision modal z-[90] — contextual help) -->
+  <div id="jec-help-tip-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[90] flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center">
+      <p id="jec-help-tip-emoji" class="text-4xl"></p>
+      <h3 id="jec-help-tip-heading" class="text-lg font-bold text-stone-800"></h3>
+      <p id="jec-help-tip-text" class="text-stone-500 text-sm"></p>
+      <button id="btn-jec-help-tip-close" class="min-h-12 w-full rounded-xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-base font-semibold transition-all duration-150">
+        Got it ✓
+      </button>
+    </div>
+  </div>
+
   <!-- ═══════════════════════════════════════════════════════════════
        YOU GET IT? (YGI)
        Screens : #screen-ygi-menu, #screen-ygi-setup,
@@ -2626,6 +2681,7 @@
       <p id="ygi-input-player-label" class="text-stone-800 font-semibold text-base"></p>
       <div class="flex items-center gap-2">
         <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+        <button id="btn-ygi-input-tip" class="text-stone-300 font-mono font-bold text-xl active:scale-90 transition-transform duration-100">?</button>
         <button class="btn-ygi-quit-open text-stone-400 text-2xl active:scale-90 transition-transform duration-100">✕</button>
       </div>
     </div>
@@ -3004,12 +3060,27 @@
     </div>
   </div>
 
+  <!-- ygi-help-tip-overlay (decision modal z-[90] — contextual help) -->
+  <div id="ygi-help-tip-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[90] flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center">
+      <p id="ygi-help-tip-emoji" class="text-4xl"></p>
+      <h3 id="ygi-help-tip-heading" class="text-lg font-bold text-stone-800"></h3>
+      <p id="ygi-help-tip-text" class="text-stone-500 text-sm"></p>
+      <button id="btn-ygi-help-tip-close" class="min-h-12 w-full rounded-xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-base font-semibold transition-all duration-150">
+        Got it ✓
+      </button>
+    </div>
+  </div>
+
   <!-- ════════════════════════════════════════════════════════════════
        LATE TO THE PARTY (LTTP)
-       Screens : screen-lttp-menu, screen-lttp-setup, screen-lttp-role-reveal,
-                 screen-lttp-smalltalk, screen-lttp-handover, screen-lttp-chat, screen-lttp-guess, screen-lttp-group-guess, screen-lttp-gameover
+       Screens : screen-lttp-menu, screen-lttp-setup, screen-lttp-briefing,
+                 screen-lttp-role-reveal, screen-lttp-handover, screen-lttp-chat,
+                 screen-lttp-guess, screen-lttp-group-guess, screen-lttp-gameover
        Overlays: lttp-suspicion-overlay (folder), lttp-history-overlay, lttp-guess-map-overlay,
-                 lttp-confirm-overlay, lttp-settings-overlay, lttp-how-to-overlay, lttp-quit-overlay
+                 lttp-confirm-overlay (free-text message), lttp-settings-overlay,
+                 lttp-how-to-overlay, lttp-quit-overlay
+       Note    : screen-lttp-smalltalk removed Phase 21a (SmallTalk setting replaced by free-text)
        Ref     : js/games/lttp.js
   ════════════════════════════════════════════════════════════════ -->
 
@@ -3149,6 +3220,11 @@
       <h2 class="text-2xl font-bold text-stone-800" id="lttp-handover-name"></h2>
       <p class="text-stone-500 text-base mt-2" id="lttp-handover-sub">Don't peek — hand it over.</p>
     </div>
+    <!-- Message block — visible in chat mode when a message was sent -->
+    <div id="lttp-handover-msg-block" style="display:none" class="flex flex-col gap-2 w-full">
+      <p id="lttp-handover-msg-text" class="bg-stone-100 rounded-2xl px-4 py-3 text-stone-800 text-base italic text-left"></p>
+      <p class="text-stone-600 text-sm font-semibold">Read this message aloud, then hand over the phone.</p>
+    </div>
     <button id="btn-lttp-handover-ready" class="min-h-14 w-full rounded-2xl bg-red-500 hover:bg-red-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
       I'm Ready
     </button>
@@ -3160,12 +3236,14 @@
     <!-- Red bar: plan / name / role — 🔊 + ✕ only -->
     <div class="bg-red-500 px-4 pt-3 pb-3 relative">
       <div class="text-center">
-        <p id="lttp-chat-plan-label"   class="text-red-200 text-xs font-semibold uppercase tracking-widest"></p>
-        <p id="lttp-chat-player-label" class="text-white text-lg font-black leading-tight mt-0.5"></p>
-        <p id="lttp-chat-role-label"   class="text-red-200 text-xs font-medium mt-0.5"></p>
+        <p id="lttp-chat-plan-label"      class="text-red-200 text-xs font-semibold uppercase tracking-widest"></p>
+        <p id="lttp-chat-player-label"    class="text-white text-lg font-black leading-tight mt-0.5"></p>
+        <p id="lttp-chat-role-label"      class="text-red-200 text-xs font-medium mt-0.5"></p>
+        <p id="lttp-chat-role-objective"  class="text-red-300 text-xs mt-0.5"></p>
       </div>
       <div class="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-3">
         <button class="btn-open-sound text-white text-xl active:scale-90 transition-transform duration-100">🔊</button>
+        <button class="btn-lttp-help-open text-white/50 font-mono font-bold text-xl active:scale-90 transition-transform duration-100">?</button>
         <button class="btn-lttp-quit-open text-white text-2xl active:scale-90 transition-transform duration-100">✕</button>
       </div>
     </div>
@@ -3187,6 +3265,10 @@
       <h2 class="text-base font-bold text-stone-800">🗺️ Map</h2>
       <p id="lttp-map-sub" class="text-xs text-stone-400"></p>
       <div id="lttp-map-grid" class="grid grid-cols-4 gap-1.5"></div>
+      <div class="flex items-center justify-center gap-2 pt-1">
+        <p id="lttp-map-instruction" class="text-xs text-stone-400 text-center">1. Check the map.&nbsp;&nbsp;2. Tap Contacts to choose who to message.</p>
+        <button id="btn-lttp-chat-tip" class="text-stone-300 font-mono font-bold text-sm active:scale-90 transition-transform duration-100 flex-shrink-0">?</button>
+      </div>
     </div>
 
     <!-- Pane B: Contacts + Chatlog (hidden by default) -->
@@ -3459,16 +3541,16 @@
 
       <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
         <div class="flex items-center justify-between">
-          <p class="text-stone-800 font-semibold">Small Talk</p>
-          <button id="btn-lttp-smalltalk-toggle" class="game-toggle-on-red shrink-0">ON</button>
+          <p class="text-stone-800 font-semibold">Small Talk Helper</p>
+          <button id="btn-lttp-smalltalk-toggle" class="game-toggle-off shrink-0">OFF</button>
         </div>
-        <p class="text-stone-400 text-sm">Let's help you get the conversation rolling.</p>
+        <p class="text-stone-400 text-sm">Suggests conversation starters to help kick off small talk before you type your message.</p>
       </div>
 
       <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
         <div class="flex items-center justify-between">
           <p class="text-stone-800 font-semibold">✨ Sylly Mode</p>
-          <button id="btn-lttp-joker-toggle" class="sylly-toggle-off shrink-0">OFF</button>
+          <button id="btn-lttp-joker-toggle" class="game-toggle-off shrink-0">OFF</button>
         </div>
         <p class="text-stone-400 text-sm">One member of the Gang is secretly stirring the pot. Three-way scoring.</p>
       </div>
@@ -3516,15 +3598,21 @@
     </div>
   </div>
 
-  <!-- CONFIRM OVERLAY (Pattern 2 — intent gate before player selection) -->
+  <!-- CONFIRM OVERLAY (Pattern 2 — free-text message input) -->
   <div id="lttp-confirm-overlay" style="display:none" class="fixed inset-0 bg-black/50 z-[80] flex items-center justify-center px-6">
-    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center">
-      <p class="text-stone-800 text-lg font-bold">Send a message to<br><span id="lttp-confirm-name" class="text-red-500"></span>?</p>
-      <button id="btn-lttp-confirm-send" class="min-h-12 w-full rounded-xl bg-red-500 hover:bg-red-600 active:scale-95 text-white text-lg font-semibold transition-all duration-150 mt-2">
-        Send it 📨
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-3">
+      <h3 id="lttp-confirm-heading" class="text-stone-800 text-lg font-bold text-center"></h3>
+      <textarea id="lttp-message-input" maxlength="80" rows="3"
+        placeholder="Type your message..."
+        class="w-full rounded-xl border-2 border-stone-200 bg-white px-3 py-2.5 text-stone-800 text-sm resize-none focus:border-red-400 focus:outline-none transition-colors"></textarea>
+      <p id="lttp-char-counter" class="text-stone-400 text-xs text-right">0 / 80</p>
+      <button id="btn-lttp-message-send" disabled
+        class="min-h-12 w-full rounded-xl bg-red-500 hover:bg-red-600 active:scale-95 text-white text-lg font-semibold transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed">
+        Send 📨
       </button>
-      <button id="btn-lttp-confirm-back" class="min-h-12 w-full rounded-xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 text-lg font-semibold transition-all duration-150">
-        Pick someone else
+      <button id="btn-lttp-message-cancel"
+        class="min-h-12 w-full rounded-xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 text-lg font-semibold transition-all duration-150">
+        Cancel
       </button>
     </div>
   </div>
@@ -3544,7 +3632,19 @@
     </div>
   </div>
 
-  <!-- SMALL TALK OVERLAY (Guided mode — Pattern 1, slide-up) -->
+  <!-- lttp-help-tip-overlay (decision modal z-[90] — contextual help) -->
+  <div id="lttp-help-tip-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[90] flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center">
+      <p id="lttp-help-tip-emoji" class="text-4xl"></p>
+      <h3 id="lttp-help-tip-heading" class="text-lg font-bold text-stone-800"></h3>
+      <p id="lttp-help-tip-text" class="text-stone-500 text-sm"></p>
+      <button id="btn-lttp-help-tip-close" class="min-h-12 w-full rounded-xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-base font-semibold transition-all duration-150">
+        Got it ✓
+      </button>
+    </div>
+  </div>
+
+  <!-- SMALL TALK OVERLAY (Guided mode — Pattern 1, slide-up) — restored post-21a; precedes free-text confirm when Guided Messages ON -->
   <div id="lttp-smalltalk-overlay" style="display:none"
     class="fixed inset-0 bg-black/50 z-[80] flex items-end justify-center">
     <div class="overlay-data-inner bg-white w-full max-w-sm rounded-t-3xl settings-slide-up flex flex-col"
@@ -3563,7 +3663,7 @@
       </div>
 
       <!-- Tab bar (rendered by JS from LTTP_SMALL_TALK keys) -->
-      <div id="lttp-st-overlay-tabs" class="flex border-b border-stone-100 flex-shrink-0 bg-white"></div>
+      <div id="lttp-st-overlay-tabs" class="flex flex-wrap border-b border-stone-100 flex-shrink-0 bg-white px-1 pt-1"></div>
 
       <!-- Sub-topic pills (rendered by JS for active tab) -->
       <div id="lttp-st-overlay-subs" class="flex flex-col gap-3 px-5 py-4 overflow-y-auto flex-1"></div>
@@ -3573,7 +3673,7 @@
         <button id="btn-lttp-st-overlay-send"
           class="min-h-14 w-full rounded-2xl bg-stone-200 text-stone-400 text-xl font-semibold transition-all duration-150"
           disabled>
-          Send it 📨
+          Use this →
         </button>
       </div>
 
@@ -3658,6 +3758,7 @@
     class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6 min-h-screen">
     <div class="absolute top-4 right-4 flex items-center gap-2">
       <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+      <button class="btn-nat-help-open text-stone-300 font-mono font-bold text-xl active:scale-90 transition-transform duration-100">?</button>
       <button id="btn-nat-handover-quit" class="text-stone-400 text-2xl active:scale-90 transition-transform duration-100">✕</button>
     </div>
     <div class="text-6xl">📱</div>
@@ -3676,11 +3777,15 @@
     class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
     <div class="flex flex-col w-full max-w-sm gap-4">
 
-      <!-- 1. Header -->
-      <div class="flex items-center justify-between">
-        <p id="nat-obs-round" class="text-stone-400 text-xs font-semibold uppercase tracking-widest"></p>
+      <!-- 1. Header — progress info grouped together top-left -->
+      <div class="flex items-start justify-between">
+        <div>
+          <p id="nat-obs-round" class="text-stone-400 text-xs font-semibold uppercase tracking-widest"></p>
+          <p id="nat-obs-step" class="text-stone-400 text-xs font-semibold uppercase tracking-widest mt-0.5"></p>
+        </div>
         <div class="flex items-center gap-2">
           <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+          <button class="btn-nat-help-open text-stone-300 font-mono font-bold text-xl active:scale-90 transition-transform duration-100">?</button>
           <button id="btn-nat-obs-quit" class="text-stone-400 text-2xl active:scale-90 transition-transform duration-100">✕</button>
         </div>
       </div>
@@ -3688,30 +3793,33 @@
       <!-- 2. Role card -->
       <div class="bg-lime-50 border border-lime-100 rounded-2xl px-4 py-2.5 flex items-center justify-between gap-3">
         <div class="min-w-0">
-          <p id="nat-obs-role" class="text-xs font-bold text-lime-700 uppercase tracking-wide leading-none mb-0.5"></p>
-          <p id="nat-obs-step" class="text-stone-400 text-xs leading-none"></p>
+          <p id="nat-obs-role" class="text-sm font-bold text-lime-700 uppercase tracking-wide leading-none mb-0.5"></p>
+          <p id="nat-obs-role-desc" class="text-stone-400 text-sm leading-none mt-0.5"></p>
         </div>
         <div class="text-right flex-shrink-0">
           <p id="nat-obs-word-label" class="text-stone-400 text-xs uppercase tracking-widest leading-none mb-0.5"></p>
-          <p id="nat-obs-word" class="text-lg font-black text-stone-800 leading-none"></p>
+          <p id="nat-obs-word" class="text-sm font-bold text-stone-800 leading-none mb-2"></p>
+          <p id="nat-obs-category-label" class="text-stone-400 text-xs uppercase tracking-widest leading-none mb-0.5 hidden"></p>
+          <p id="nat-obs-category-value" class="text-stone-800 font-bold text-sm leading-none hidden"></p>
         </div>
       </div>
 
-      <!-- 3. Journal (fixed max-height, scrolls internally — newest day on top) -->
-      <div class="max-h-40 overflow-y-auto rounded-2xl">
-        <div id="nat-obs-journal" class="flex flex-col gap-3"></div>
-      </div>
+      <!-- 3. Journal (flows naturally; page scrolls when content grows tall) -->
+      <div id="nat-obs-journal" class="flex flex-col gap-3"></div>
 
       <!-- 4. Researcher name -->
       <p id="nat-obs-name" class="text-center font-bold text-stone-800 text-sm"></p>
 
       <!-- 5. Observation input + error -->
-      <input id="nat-obs-input" type="text" maxlength="30" autocomplete="off" autocorrect="off" spellcheck="false"
-        placeholder="Your observation…"
-        class="w-full rounded-2xl border border-stone-200 bg-white px-4 py-3 text-stone-800 text-lg text-center focus:outline-none focus:ring-2 focus:ring-lime-400" />
+      <div class="flex items-center gap-2">
+        <input id="nat-obs-input" type="text" maxlength="30" autocomplete="off" autocorrect="off" spellcheck="false"
+          placeholder="Your observation…"
+          class="flex-1 rounded-2xl border border-stone-200 bg-white px-4 py-3 text-stone-800 text-lg text-center focus:outline-none focus:ring-2 focus:ring-lime-400" />
+        <button id="btn-nat-obs-help-tip" class="text-stone-300 font-mono font-bold text-xl active:scale-90 transition-transform duration-100 flex-shrink-0">?</button>
+      </div>
       <p id="nat-obs-error" class="text-red-500 text-sm text-center min-h-5"></p>
+      <p class="text-stone-400 text-xs text-center -mt-2">Say your clue aloud, then submit.</p>
 
-      <!-- 6. Add to Journal button -->
       <button id="btn-nat-obs-submit" disabled
         class="min-h-14 w-full rounded-2xl bg-lime-600 hover:bg-lime-700 active:scale-95 text-white text-xl font-semibold transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed">
         Add to Journal
@@ -3938,6 +4046,18 @@
     </div>
   </div>
 
+  <!-- nat-help-tip-overlay (decision modal z-[90] — contextual help) -->
+  <div id="nat-help-tip-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[90] flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center">
+      <p id="nat-help-tip-emoji" class="text-4xl"></p>
+      <h3 id="nat-help-tip-heading" class="text-lg font-bold text-stone-800"></h3>
+      <p id="nat-help-tip-text" class="text-stone-500 text-sm"></p>
+      <button id="btn-nat-help-tip-close" class="min-h-12 w-full rounded-xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-base font-semibold transition-all duration-150">
+        Got it ✓
+      </button>
+    </div>
+  </div>
+
   <!-- ─── NAT OVERLAYS ─────────────────────────────────────────────────────── -->
 
   <!-- nat-settings-overlay (data slide-up z-[80]) -->
@@ -3961,6 +4081,15 @@
             <button class="pill" data-days="3">3</button>
             <button class="pill" data-days="4">4</button>
           </div>
+        </div>
+
+        <!-- Research Log -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <div class="flex items-center justify-between">
+            <p class="text-stone-800 font-semibold">Research Log</p>
+            <button id="btn-nat-cumulative-toggle" class="game-toggle-off shrink-0">OFF</button>
+          </div>
+          <p class="text-stone-400 text-sm">Researchers get a new clue word each day and see all previous words stacked.</p>
         </div>
 
         <!-- Habitats -->
@@ -4030,7 +4159,7 @@
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
           <div class="flex items-center justify-between">
             <p class="text-stone-800 font-semibold">✨ Survival of the Fittest</p>
-            <button id="btn-nat-sylly-toggle" class="sylly-toggle-off shrink-0">OFF</button>
+            <button id="btn-nat-sylly-toggle" class="game-toggle-off shrink-0">OFF</button>
           </div>
           <p class="text-stone-400 text-sm">Day 1 everyone shares the same broad clue. Day 2 and beyond, researchers reveal their specific detail while the Mole holds on.</p>
         </div>
@@ -4107,6 +4236,7 @@
 
   <!-- ════ DEEP-SEA DEPLOY (DSD) ════════════════════════════════════════════
        Screens : screen-dsd-menu, screen-dsd-setup, screen-dsd-players,
+                 screen-dsd-briefing (Strategic Planning — new Phase 21a),
                  screen-dsd-pass-gate, screen-dsd-captain, screen-dsd-crew,
                  screen-dsd-execution, screen-dsd-sabotage, screen-dsd-gameover
        Overlays: dsd-settings-overlay, dsd-how-to-overlay, dsd-quit-overlay,
@@ -4206,7 +4336,24 @@
     </button>
   </section>
 
-  <!-- dsd-④ PASS GATE — dynamic hand-off screen -->
+  <!-- dsd-④ STRATEGIC BRIEFING (word preview + reroll) — shown when Strategic Planning ON -->
+  <section id="screen-dsd-briefing" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-4">
+      <div class="flex items-center justify-between">
+        <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest">Strategic Briefing ⚓</p>
+        <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+      </div>
+      <p class="text-stone-500 text-sm text-center">Review the field. Tap any word to swap it out.</p>
+      <div id="dsd-briefing-grid" class="grid grid-cols-5 gap-1.5"></div>
+      <button id="btn-dsd-briefing-deploy"
+        class="min-h-14 w-full rounded-2xl bg-cyan-700 hover:bg-cyan-800 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Deploy ⚓
+      </button>
+    </div>
+  </section>
+
+  <!-- dsd-⑤ PASS GATE — dynamic hand-off screen -->
   <section id="screen-dsd-pass-gate" style="display:none"
     class="flex items-center justify-center w-full min-h-screen px-6 py-8">
     <div class="flex flex-col items-center w-full max-w-sm gap-6 text-center">
@@ -4233,6 +4380,7 @@
       <p id="dsd-captain-label" class="text-stone-600 text-xs font-semibold uppercase tracking-widest">The Manifest</p>
       <div class="flex items-center gap-3">
         <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+        <button class="btn-dsd-help-open text-stone-300 font-mono font-bold text-xl active:scale-90 transition-transform duration-100">?</button>
         <button class="btn-dsd-quit-open text-xl text-stone-400 active:scale-90 transition-transform duration-100">✕</button>
       </div>
     </div>
@@ -4240,26 +4388,37 @@
     <div class="px-4 pb-1 flex-shrink-0">
       <p id="dsd-captain-tag" class="text-xs text-stone-400 text-center"></p>
     </div>
-    <!-- Colour legend (tappable — filters captain grid) -->
-    <div class="flex-shrink-0 flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2 bg-stone-50 border-b border-stone-100">
-      <button data-role="0" class="dsd-legend-key flex items-center gap-1.5 text-xs text-stone-600 active:opacity-60 transition-opacity">
-        <span class="inline-block w-3 h-3 rounded-sm bg-cyan-700 flex-shrink-0"></span>
-        <span id="dsd-legend-team0" class="font-medium">Kraken</span>
-      </button>
-      <button data-role="1" class="dsd-legend-key flex items-center gap-1.5 text-xs text-stone-600 active:opacity-60 transition-opacity">
-        <span class="inline-block w-3 h-3 rounded-sm bg-indigo-800 flex-shrink-0"></span>
-        <span id="dsd-legend-team1" class="font-medium">Leviathan</span>
-      </button>
-      <button data-role="urchin" class="dsd-legend-key flex items-center gap-1.5 text-xs text-stone-600 active:opacity-60 transition-opacity">
-        <span class="inline-block w-3 h-3 rounded-sm bg-red-100 border border-red-300 flex-shrink-0"></span>💥 Urchin
-      </button>
-      <button data-role="mine" class="dsd-legend-key flex items-center gap-1.5 text-xs text-stone-600 active:opacity-60 transition-opacity">
-        <span id="dsd-legend-mine-swatch" class="inline-block w-3 h-3 rounded-sm bg-red-600 flex-shrink-0"></span>💣 Mine
-      </button>
-      <button data-role="jammer" class="dsd-legend-key flex items-center gap-1.5 text-xs text-stone-600 active:opacity-60 transition-opacity">
-        <span class="inline-block w-3 h-3 rounded-sm bg-amber-200 ring-1 ring-amber-400 flex-shrink-0"></span>⚡ Jammer
-      </button>
-      <button id="btn-dsd-legend-showall" class="ml-auto text-[10px] text-stone-400 underline active:opacity-60">show all</button>
+    <!-- Colour legend (tappable — filters captain grid; values populated by dsdUpdateLegend()) -->
+    <div class="flex-shrink-0 flex flex-col gap-1 px-4 py-2 bg-stone-50 border-b border-stone-100">
+      <!-- Row 1: teams -->
+      <div class="flex items-center gap-x-3">
+        <button data-role="0" class="dsd-legend-key flex items-center gap-1 text-xs text-stone-600 active:opacity-60 transition-opacity">
+          <span class="inline-block w-3 h-3 rounded-sm bg-cyan-700 flex-shrink-0"></span>
+          <span id="dsd-legend-team0" class="font-medium">Kraken</span>
+          <span id="dsd-legend-team0-val" class="text-stone-400"></span>
+        </button>
+        <button data-role="1" class="dsd-legend-key flex items-center gap-1 text-xs text-stone-600 active:opacity-60 transition-opacity">
+          <span class="inline-block w-3 h-3 rounded-sm bg-indigo-800 flex-shrink-0"></span>
+          <span id="dsd-legend-team1" class="font-medium">Leviathan</span>
+          <span id="dsd-legend-team1-val" class="text-stone-400"></span>
+        </button>
+        <button id="btn-dsd-legend-showall" class="ml-auto text-[10px] text-stone-400 underline active:opacity-60">show all</button>
+      </div>
+      <!-- Row 2: hazards + jammer -->
+      <div class="flex items-center gap-x-3">
+        <button data-role="urchin" class="dsd-legend-key flex items-center gap-1 text-xs text-stone-600 active:opacity-60 transition-opacity">
+          <span class="inline-block w-3 h-3 rounded-sm bg-red-100 border border-red-300 flex-shrink-0"></span>💥
+          <span id="dsd-legend-urchin-val" class="text-stone-400"></span>
+        </button>
+        <button data-role="mine" class="dsd-legend-key flex items-center gap-1 text-xs text-stone-600 active:opacity-60 transition-opacity">
+          <span id="dsd-legend-mine-swatch" class="inline-block w-3 h-3 rounded-sm bg-red-600 flex-shrink-0"></span>💣
+          <span id="dsd-legend-mine-val" class="text-stone-400"></span>
+        </button>
+        <button data-role="jammer" class="dsd-legend-key flex items-center gap-1 text-xs text-stone-600 active:opacity-60 transition-opacity">
+          <span class="inline-block w-3 h-3 rounded-sm bg-amber-200 ring-1 ring-amber-400 flex-shrink-0"></span>⚡
+          <span id="dsd-legend-jammer-val" class="text-stone-400"></span>
+        </button>
+      </div>
     </div>
     <!-- Grid -->
     <div id="dsd-captain-grid" class="flex-1 min-h-0 grid grid-cols-5 gap-2 p-2 content-start"></div>
@@ -4271,11 +4430,12 @@
     </div>
     <!-- Ping footer -->
     <div class="flex-shrink-0 px-4 pb-8 pt-3 border-t border-stone-100">
-      <div class="flex gap-2 mb-2">
+      <div class="flex gap-2 mb-2 items-center">
         <input id="dsd-ping-word" type="text" maxlength="30" placeholder="One word…"
           class="flex-1 border border-stone-200 rounded-xl px-4 py-3 text-stone-800 text-base focus:outline-none focus:border-cyan-500">
         <input id="dsd-ping-number" type="number" min="1" max="9" placeholder="N"
           class="w-16 border border-stone-200 rounded-xl px-3 py-3 text-stone-800 text-base text-center focus:outline-none focus:border-cyan-500">
+        <button id="btn-dsd-captain-tip" class="text-stone-300 font-mono font-bold text-xl active:scale-90 transition-transform duration-100 flex-shrink-0">?</button>
       </div>
       <p id="dsd-ping-error" class="text-red-500 text-xs text-center mb-2 hidden"></p>
       <button id="btn-dsd-transmit" class="min-h-14 w-full rounded-2xl bg-cyan-700 hover:bg-cyan-800 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
@@ -4429,6 +4589,18 @@
     </div>
   </div>
 
+  <!-- dsd-help-tip-overlay (decision modal z-[90] — contextual help) -->
+  <div id="dsd-help-tip-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[90] flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center">
+      <p id="dsd-help-tip-emoji" class="text-4xl"></p>
+      <h3 id="dsd-help-tip-heading" class="text-lg font-bold text-stone-800"></h3>
+      <p id="dsd-help-tip-text" class="text-stone-500 text-sm"></p>
+      <button id="btn-dsd-help-tip-close" class="min-h-12 w-full rounded-xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-base font-semibold transition-all duration-150">
+        Got it ✓
+      </button>
+    </div>
+  </div>
+
   <!-- DSD overlay placeholders (needed for resetToLobby teardown) -->
   <!-- dsd-settings-overlay (data slide-up z-[80]) -->
   <div id="dsd-settings-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[80] flex items-end justify-center">
@@ -4451,6 +4623,15 @@
             <button class="pill pill-active-cyan" data-val="turbulent">Turbulent</button>
             <button class="pill" data-val="tempest">Tempest</button>
           </div>
+        </div>
+
+        <!-- Strategic Planning -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <div class="flex items-center justify-between">
+            <p class="text-stone-800 font-semibold">Strategic Planning</p>
+            <button id="btn-dsd-planning-toggle" class="game-toggle-off shrink-0">OFF</button>
+          </div>
+          <p class="text-stone-400 text-sm">Preview all words before deployment. Rerolls allowed.</p>
         </div>
 
         <!-- Hazard Control -->
@@ -4482,7 +4663,7 @@
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
           <div class="flex items-center justify-between">
             <p class="text-stone-800 font-semibold">✨ Sylly Mode</p>
-            <button id="btn-dsd-sylly-toggle" class="sylly-toggle-off shrink-0">OFF</button>
+            <button id="btn-dsd-sylly-toggle" class="game-toggle-off shrink-0">OFF</button>
           </div>
           <p class="text-stone-400 text-sm">Mission Abyss: the grid drifts between deployments, and teams can plant a Jammer tile to sabotage the enemy.</p>
         </div>

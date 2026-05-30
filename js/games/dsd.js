@@ -5,10 +5,11 @@
 // ══════════════════════════════════════════════════════════════════════════════
 
 // ── Settings (persist between New Operations) ─────────────────────────────────
-let dsdSeaState      = 'turbulent'; // 'calm' | 'turbulent' | 'tempest'
-let dsdHazardControl = { urchin: false, mine: true, enemy: true };
-let dsdDangerLevel   = 'pressure';  // 'pressure' | 'nuclear'
-let dsdSyllyMode     = false;
+let dsdSeaState         = 'turbulent'; // 'calm' | 'turbulent' | 'tempest'
+let dsdHazardControl    = { urchin: false, mine: true, enemy: true };
+let dsdDangerLevel      = 'pressure';  // 'pressure' | 'nuclear'
+let dsdStrategicPlanning = false;
+let dsdSyllyMode        = false;
 
 // ── Roster (set in setup, persist across New Operations) ──────────────────────
 let dsdTeamNames      = ['SS Kraken', 'SS Leviathan']; // customisable; defaults shown
@@ -17,6 +18,8 @@ let dsdPlayerNames    = [[], []];                  // [team0[], team1[]] — nam
 let dsdCaptainName    = ['', ''];                  // designated Captain name per team
 
 // ── Game state (reset each New Operation) ────────────────────────────────────
+let dsdWordPool         = []; // full shuffled pool from dsdBuildGame (for per-word swaps)
+let dsdWordPoolIdx      = 0;  // pointer to next unused word in dsdWordPool
 let dsdValour      = [0, 0];  // [team0Valour, team1Valour]
 let dsdGrid        = [];      // [{ word, role, revealed }] × 25
 let dsdCurrentTeam = 0;       // 0 = team0 active, 1 = team1 active
@@ -57,7 +60,13 @@ function dsdLaunchWhoFirst() {
     accentTextClass: 'text-cyan-700',
     onResult: (idx) => {
       dsdFirstTeam = idx;
-      dsdBuildGame().then(() => dsdShowCaptain());
+      dsdBuildGame().then(() => {
+        if (dsdStrategicPlanning) {
+          dsdShowBriefing();
+        } else {
+          dsdShowCaptain();
+        }
+      });
     }
   });
 }
@@ -87,6 +96,8 @@ async function dsdBuildGame() {
     );
     pool = shuffle(filtered.map(w => w.word));
   }
+  dsdWordPool    = pool;
+  dsdWordPoolIdx = 25;
   const words = pool.slice(0, 25);
   const roles = [
     ...Array(9).fill(dsdFirstTeam),
@@ -173,6 +184,14 @@ function dsdRenderPlayerInputs() {
       playPillClick();
     });
   });
+  // Default the first crew member of each team to captain
+  [0, 1].forEach(team => {
+    const firstBtn = document.querySelector(`.dsd-captain-btn[data-team="${team}"][data-player="0"]`);
+    if (firstBtn) {
+      firstBtn.classList.remove('bg-stone-100', 'text-stone-400');
+      firstBtn.classList.add('bg-cyan-100', 'text-cyan-700');
+    }
+  });
 }
 
 function dsdValidatePlayers() {
@@ -214,6 +233,73 @@ function dsdShowPassGate({ heading, subtext, ctaLabel, onConfirm, teamIdx }) {
   showScreen('screen-dsd-pass-gate');
 }
 
+// ── Strategic Planning briefing screen ────────────────────────────────────────
+function dsdShowBriefing() {
+  const grid = document.getElementById('dsd-briefing-grid');
+  if (grid) {
+    grid.innerHTML = dsdGrid.map((cell, i) => {
+      const len = cell.word.length;
+      const fontClass = len > 12 ? 'text-[9px]' : len > 9 ? 'text-[10px]' : 'text-xs';
+      return `<div onclick="dsdRerollWord(${i})" class="bg-white rounded-xl border border-stone-200 ${fontClass} text-stone-700 p-2 text-center font-medium leading-tight select-none overflow-hidden whitespace-nowrap cursor-pointer hover:bg-stone-100 active:scale-95 transition-all duration-100">${cell.word}</div>`;
+    }).join('');
+  }
+  showScreen('screen-dsd-briefing');
+}
+
+function dsdRerollWord(cellIdx) {
+  if (dsdWordPoolIdx >= dsdWordPool.length) {
+    // Pool exhausted — rebuild from eligible words not currently on the board
+    const onBoard = new Set(dsdGrid.map(c => c.word));
+    const tierMap = { calm: [1], turbulent: [1, 2], tempest: [1, 2, 3] };
+    const tiers = tierMap[dsdSeaState] || [1, 2];
+    let fresh;
+    if (typeof isSecretMode !== 'undefined' && isSecretMode &&
+        typeof secretWords !== 'undefined' && secretWords && secretWords.length) {
+      fresh = shuffle(secretWords.map(w => w.word).filter(w => !onBoard.has(w)));
+    } else {
+      fresh = shuffle(
+        allWords
+          .filter(w => tiers.includes(w.difficulty) && !DSD_EXCLUDED_CATEGORIES.has(w.category) && !w.word.includes(' ') && !onBoard.has(w.word))
+          .map(w => w.word)
+      );
+    }
+    if (!fresh.length) return;
+    dsdWordPool    = fresh;
+    dsdWordPoolIdx = 0;
+  }
+  dsdGrid[cellIdx].word = dsdWordPool[dsdWordPoolIdx++];
+  playPillClick();
+  dsdShowBriefing();
+}
+
+function dsdUpdateLegend() {
+  const me = dsdCurrentTeam;
+  const enemy = 1 - me;
+  const enemyName = dsdTeamNames[enemy];
+  const enemyEnds = dsdHazardControl.enemy;
+  const urchinEnds = dsdHazardControl.urchin;
+  const isNuclear = dsdDangerLevel === 'nuclear';
+
+  document.getElementById('dsd-legend-team0-val').textContent = '+10';
+  document.getElementById('dsd-legend-team1-val').textContent = enemyEnds
+    ? `+10 to ${enemyName} · ends turn` : `+10 to ${enemyName}`;
+  if (me === 1) {
+    document.getElementById('dsd-legend-team0-val').textContent = enemyEnds
+      ? `+10 to ${dsdTeamNames[0]} · ends turn` : `+10 to ${dsdTeamNames[0]}`;
+    document.getElementById('dsd-legend-team1-val').textContent = '+10';
+  }
+  document.getElementById('dsd-legend-urchin-val').textContent = urchinEnds ? '−5 · ends turn' : '−5 · continues';
+  document.getElementById('dsd-legend-mine-val').textContent   = isNuclear
+    ? '−1000 ☠️ GAME OVER' : '−20 · ends turn';
+  document.getElementById('dsd-legend-jammer-val').textContent = '−5 · ends turn';
+
+  const jammerBtn = document.querySelector('[data-role="jammer"]');
+  if (jammerBtn) jammerBtn.style.display = dsdSyllyMode ? '' : 'none';
+
+  const mineSwatch = document.getElementById('dsd-legend-mine-swatch');
+  if (mineSwatch) mineSwatch.className = `inline-block w-3 h-3 rounded-sm flex-shrink-0 ${isNuclear ? 'bg-red-900' : 'bg-red-600'}`;
+}
+
 function dsdShowCaptain() {
   const team = dsdCurrentTeam;
   const captainName = dsdCaptainName[team];
@@ -224,7 +310,9 @@ function dsdShowCaptain() {
     ctaLabel: `I'm ${captainName} ⚓`,
     teamIdx: team,
     onConfirm: () => {
+      dsdCaptainFilter.clear();
       showScreen('screen-dsd-captain');
+      dsdUpdateLegend();
       dsdRenderCaptainGrid();
       dsdRenderInGameHistory('captain');
       document.getElementById('dsd-ping-word').value = '';
@@ -266,25 +354,28 @@ function dsdRenderCaptainGrid() {
   const reticle = `<span class="absolute top-0.5 left-0.5 w-2 h-2 border-t-2 border-l-2 border-white/50 pointer-events-none"></span><span class="absolute top-0.5 right-0.5 w-2 h-2 border-t-2 border-r-2 border-white/50 pointer-events-none"></span><span class="absolute bottom-0.5 left-0.5 w-2 h-2 border-b-2 border-l-2 border-white/50 pointer-events-none"></span><span class="absolute bottom-0.5 right-0.5 w-2 h-2 border-b-2 border-r-2 border-white/50 pointer-events-none"></span>`;
 
   grid.innerHTML = dsdGrid.map((cell, i) => {
+    const wlen = cell.word.length;
+    const wFont = wlen > 12 ? 'text-[8px]' : wlen > 9 ? 'text-[9px]' : 'text-[10px]';
+
     // Jammer override (Sylly Mode) — render as placing team's colour with amber ring
     const isJammer = dsdSyllyMode && i === dsdJammers[1 - team]; // opponent's jammer on our grid
     if (isJammer) {
       const jammerBg = team === 0 ? 'bg-cyan-700' : 'bg-indigo-800';
       const filterCls = dsdCaptainFilter.has('jammer') ? 'opacity-20' : '';
-      return `<div class="relative h-[52px] ${jammerBg} ${filterCls} ring-2 ring-amber-400 rounded-lg flex items-center justify-center text-[10px] font-semibold uppercase text-center px-1 leading-tight text-amber-300"><span>${cell.word}</span><span class="absolute top-0.5 right-0.5 text-[11px] font-bold text-amber-400">⚡</span></div>`;
+      return `<div class="relative h-[52px] ${jammerBg} ${filterCls} ring-2 ring-amber-400 rounded-lg flex items-center justify-center ${wFont} font-semibold uppercase text-center px-1 leading-tight text-amber-300 overflow-hidden"><span class="whitespace-nowrap overflow-hidden">${cell.word}</span><span class="absolute top-0.5 right-0.5 text-[11px] font-bold text-amber-400">⚡</span></div>`;
     }
 
     // Revealed cells — emoji replaces word; tap to peek at original word (never filtered)
     if (cell.revealed) {
       const emoji = cell.role === 'mine' ? '💣' : cell.role === 'urchin' ? '💥' : '⚓';
-      return `<div class="relative h-[52px] bg-stone-900 opacity-40 rounded-lg flex items-center justify-center px-1 cursor-pointer" data-revealed="1"><span class="emoji-view text-lg">${emoji}</span><span class="word-view hidden line-through text-[9px] text-white/70">${cell.word}</span></div>`;
+      return `<div class="relative h-[52px] bg-stone-900 opacity-40 rounded-lg flex items-center justify-center px-1 cursor-pointer overflow-hidden" data-revealed="1"><span class="emoji-view text-lg">${emoji}</span><span class="word-view hidden line-through ${wFont} text-white/70 whitespace-nowrap">${cell.word}</span></div>`;
     }
 
     // Own-team unrevealed — solid vibrant block with corner reticle
     if (cell.role === team) {
       const solidBg = team === 0 ? 'bg-cyan-700 text-white' : 'bg-indigo-800 text-white';
       const filterCls = dsdCaptainFilter.has(team) ? 'opacity-20' : '';
-      return `<div class="relative h-[52px] ${solidBg} ${filterCls} rounded-lg flex items-center justify-center text-[10px] font-semibold uppercase text-center px-1 leading-tight">${reticle}<span>${cell.word}</span></div>`;
+      return `<div class="relative h-[52px] ${solidBg} ${filterCls} rounded-lg flex items-center justify-center ${wFont} font-semibold uppercase text-center px-1 leading-tight overflow-hidden">${reticle}<span class="whitespace-nowrap overflow-hidden">${cell.word}</span></div>`;
     }
 
     // Non-team unrevealed — light tint of role colour; own-team pops by contrast
@@ -297,7 +388,7 @@ function dsdRenderCaptainGrid() {
       bgClass = team === 0 ? 'bg-indigo-200 text-indigo-900' : 'bg-cyan-100 text-cyan-900';
     }
     const filterCls = dsdCaptainFilter.has(cell.role) ? 'opacity-20' : '';
-    return `<div class="relative h-[52px] ${bgClass} ${filterCls} rounded-lg flex items-center justify-center text-[10px] font-semibold uppercase text-center px-1 leading-tight"><span>${cell.word}</span></div>`;
+    return `<div class="relative h-[52px] ${bgClass} ${filterCls} rounded-lg flex items-center justify-center ${wFont} font-semibold uppercase text-center px-1 leading-tight overflow-hidden"><span class="whitespace-nowrap overflow-hidden">${cell.word}</span></div>`;
   }).join('');
 }
 
@@ -379,14 +470,16 @@ function dsdRenderCrewGrid() {
       urchin: 'bg-red-100 text-red-600',
       mine:   'bg-red-200 text-red-900',
     };
+    const wlen  = cell.word.length;
+    const wFont = wlen > 12 ? 'text-[8px]' : wlen > 9 ? 'text-[9px]' : 'text-[10px]';
     if (cell.revealed) {
       const col     = revealedColour[cell.role] || 'bg-stone-200 text-stone-400';
       const emoji   = { mine: '💣', urchin: '💥' }[cell.role] ?? '⚓';
       const flipped = dsdFlippedCells.has(i);
-      return `<div class="relative h-[52px] ${col} opacity-60 rounded-lg flex items-center justify-center px-1 cursor-pointer" data-idx="${i}" data-revealed="1"><span class="${flipped ? 'hidden' : ''} text-xl">${emoji}</span><span class="${flipped ? '' : 'hidden'} text-[9px] font-semibold uppercase line-through leading-tight text-center">${cell.word}</span></div>`;
+      return `<div class="relative h-[52px] ${col} opacity-60 rounded-lg flex items-center justify-center px-1 cursor-pointer overflow-hidden" data-idx="${i}" data-revealed="1"><span class="${flipped ? 'hidden' : ''} text-xl">${emoji}</span><span class="${flipped ? '' : 'hidden'} ${wFont} font-semibold uppercase line-through leading-tight text-center whitespace-nowrap">${cell.word}</span></div>`;
     }
     const colour = seqPos !== -1 ? 'bg-cyan-100 text-cyan-800 ring-2 ring-cyan-500' : 'bg-stone-100 text-stone-700';
-    return `<div class="relative h-[52px] ${colour} rounded-lg flex items-center justify-center text-[10px] font-semibold uppercase text-center px-1 leading-tight cursor-pointer active:scale-95 transition-transform duration-100" data-idx="${i}">${cell.word}${badge}</div>`;
+    return `<div class="relative h-[52px] ${colour} rounded-lg flex items-center justify-center ${wFont} font-semibold uppercase text-center px-1 leading-tight cursor-pointer active:scale-95 transition-transform duration-100 overflow-hidden whitespace-nowrap" data-idx="${i}">${cell.word}${badge}</div>`;
   }).join('');
   const execBtn = document.getElementById('btn-dsd-crew-execute');
   execBtn.disabled = dsdSequence.length === 0;
@@ -456,12 +549,12 @@ function dsdRenderExecutionGrid(pendingIdx = -1) {
       const col     = colours[cell.role] || 'bg-stone-300 text-stone-600';
       const emoji   = { mine: '💣', urchin: '💥' }[cell.role] ?? '⚓';
       const flipped = dsdFlippedCells.has(i);
-      return `<div class="h-[52px] ${col} rounded-lg flex items-center justify-center px-1 cursor-pointer" data-idx="${i}" data-revealed="1"><span class="${flipped ? 'hidden' : ''} text-xl">${emoji}</span><span class="${flipped ? '' : 'hidden'} text-[9px] font-semibold uppercase line-through leading-tight text-center opacity-80">${cell.word}</span></div>`;
+      return `<div class="h-[52px] ${col} rounded-lg flex items-center justify-center px-1 cursor-pointer" data-idx="${i}" data-revealed="1"><span class="${flipped ? 'hidden' : ''} text-xl">${emoji}</span><span class="${flipped ? '' : 'hidden'} text-[10px] font-semibold uppercase line-through leading-tight text-center opacity-80">${cell.word}</span></div>`;
     }
     if (i === pendingIdx) {
-      return `<div class="h-[52px] bg-cyan-100 text-cyan-800 ring-2 ring-cyan-400 rounded-lg flex items-center justify-center text-[10px] font-semibold uppercase text-center px-1 leading-tight">⚡</div>`;
+      return `<div class="h-[52px] bg-cyan-100 text-cyan-800 ring-2 ring-cyan-400 rounded-lg flex items-center justify-center text-xs font-semibold uppercase text-center px-1 leading-tight">⚡</div>`;
     }
-    return `<div class="h-[52px] bg-stone-100 text-stone-700 rounded-lg flex items-center justify-center text-[10px] font-semibold uppercase text-center px-1 leading-tight">${cell.word}</div>`;
+    return `<div class="h-[52px] bg-stone-100 text-stone-700 rounded-lg flex items-center justify-center text-xs font-semibold uppercase text-center px-1 leading-tight">${cell.word}</div>`;
   }).join('');
 }
 
@@ -841,6 +934,15 @@ function dsdRenderSabotageGrid(placingTeam) {
   };
 }
 
+// ── [?] Help ─────────────────────────────────────────────────────────────────
+
+function dsdShowHelpTip(emoji, heading, tip) {
+  document.getElementById('dsd-help-tip-emoji').textContent   = emoji;
+  document.getElementById('dsd-help-tip-heading').textContent = heading;
+  document.getElementById('dsd-help-tip-text').textContent    = tip;
+  document.getElementById('dsd-help-tip-overlay').style.display = 'flex';
+}
+
 // ── Settings ─────────────────────────────────────────────────────────────────
 
 function dsdOpenSettings() {
@@ -848,6 +950,7 @@ function dsdOpenSettings() {
   overlay.querySelector('.overlay-data-inner').scrollTop = 0;
   dsdSyncSettingsPills();
   dsdSyncHazardPills();
+  dsdSetToggle('btn-dsd-planning-toggle', dsdStrategicPlanning);
   dsdSetToggle('btn-dsd-sylly-toggle', dsdSyllyMode);
   overlay.style.display = 'flex';
 }
@@ -871,7 +974,7 @@ function dsdSetToggle(id, on) {
   const btn = document.getElementById(id);
   btn.textContent = on ? 'ON' : 'OFF';
   const onClass = 'game-toggle-on-cyan';
-  btn.className = on ? `${onClass} shrink-0` : 'sylly-toggle-off shrink-0';
+  btn.className = on ? `${onClass} shrink-0` : 'game-toggle-off shrink-0';
 }
 
 function dsdTeamBtnClass(teamIdx) {
@@ -934,6 +1037,11 @@ document.getElementById('dsd-hazard-pills').addEventListener('click', e => {
   playPillClick();
   dsdSyncHazardPills();
 });
+document.getElementById('btn-dsd-planning-toggle').addEventListener('click', () => {
+  dsdStrategicPlanning = !dsdStrategicPlanning;
+  dsdSetToggle('btn-dsd-planning-toggle', dsdStrategicPlanning);
+  playPillClick();
+});
 document.getElementById('btn-dsd-sylly-toggle').addEventListener('click', () => {
   dsdSyllyMode = !dsdSyllyMode;
   dsdSyllyMode ? playSyllyOn() : playSyllyOff();
@@ -970,6 +1078,28 @@ document.getElementById('btn-dsd-players-back').addEventListener('click', () => 
 });
 document.getElementById('btn-dsd-players-next').addEventListener('click', () => {
   dsdValidatePlayers();
+});
+
+// ── Strategic Planning briefing ───────────────────────────────────────────────
+document.getElementById('btn-dsd-briefing-deploy').addEventListener('click', () => {
+  playLaunch();
+  dsdShowCaptain();
+});
+
+// ── [?] Help buttons ──────────────────────────────────────────────────────────
+document.querySelectorAll('.btn-dsd-help-open').forEach(btn => {
+  btn.addEventListener('click', () => {
+    playDone();
+    document.getElementById('dsd-how-to-overlay').querySelector('.overlay-data-inner').scrollTop = 0;
+    document.getElementById('dsd-how-to-overlay').style.display = 'flex';
+  });
+});
+document.getElementById('btn-dsd-captain-tip')?.addEventListener('click', () => {
+  dsdShowHelpTip('⚓', 'Sonar Ping', 'Enter one word clue + a number (how many payloads it covers, 1–9).');
+});
+document.getElementById('btn-dsd-help-tip-close')?.addEventListener('click', () => {
+  playDone();
+  document.getElementById('dsd-help-tip-overlay').style.display = 'none';
 });
 
 // ── Captain grid — click-to-reveal original word on emoji'd cells ─────────────

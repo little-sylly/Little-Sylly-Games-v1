@@ -37,14 +37,15 @@ const allScreens = [
   'screen-ygi-vote', 'screen-ygi-results', 'screen-ygi-gameover',
   'screen-ygi-sd-intro', 'screen-ygi-sd-input',
   // Late To The Party
-  'screen-lttp-menu', 'screen-lttp-setup', 'screen-lttp-role-reveal',
-  'screen-lttp-briefing', 'screen-lttp-smalltalk', 'screen-lttp-handover', 'screen-lttp-chat', 'screen-lttp-guess', 'screen-lttp-group-guess', 'screen-lttp-gameover',
+  'screen-lttp-menu', 'screen-lttp-setup', 'screen-lttp-briefing', 'screen-lttp-role-reveal',
+  'screen-lttp-handover', 'screen-lttp-chat', 'screen-lttp-guess', 'screen-lttp-group-guess', 'screen-lttp-gameover',
   // Natural Selection
   'screen-nat-menu', 'screen-nat-setup', 'screen-nat-handover',
   'screen-nat-observation', 'screen-nat-daily-review', 'screen-nat-selection', 'screen-nat-last-stand',
   'screen-nat-tally', 'screen-nat-gameover',
   // Deep-Sea Deploy
-  'screen-dsd-menu', 'screen-dsd-setup', 'screen-dsd-players', 'screen-dsd-pass-gate',
+  'screen-dsd-menu', 'screen-dsd-setup', 'screen-dsd-players',
+  'screen-dsd-briefing', 'screen-dsd-pass-gate',
   'screen-dsd-captain', 'screen-dsd-crew', 'screen-dsd-execution', 'screen-dsd-sabotage',
   'screen-dsd-gameover',
 ];
@@ -388,6 +389,11 @@ function resetToLobby() {
   document.getElementById('dsd-confirm-disarm').style.display   = 'none';
   document.getElementById('dsd-new-op-overlay').style.display   = 'none';
   if (typeof dsdResetState === 'function') dsdResetState();
+  // Help-tip overlay cleanup (Phase 21a)
+  ['li5','gm','ss','jec','ygi','lttp','nat','dsd'].forEach(abbr => {
+    const el = document.getElementById(`${abbr}-help-tip-overlay`);
+    if (el) el.style.display = 'none';
+  });
   showScreen('screen-lobby');
 }
 

@@ -38,7 +38,8 @@
 ├── manifest.json                    # PWA manifest
 ├── docs/expansion-guide.md          # Template + checklist for adding new expansion packs
 ├── docs/code-map.md                 # Surgical code reference — all game IDs, overlays, key functions
-├── docs/phase19-snapshot.md         # Phase 19 architecture snapshot (current gold master — 8 games)
+├── docs/phase21a-snapshot.md        # Phase 21a snapshot (current gold master — 8 games, post-audit)
+├── docs/phase19-snapshot.md         # Phase 19 architecture snapshot (7 games, pre-DSD)
 ├── docs/phase17-snapshot.md         # Phase 17 snapshot (7 games, NAT complete)
 ├── docs/archive/phase16b-snapshot.md  # Phase 16b snapshot (6 games, LTTP complete)
 ├── docs/ygi-content-guide.md        # Content creation guide for You Get It? prompts + ringers
@@ -87,6 +88,20 @@ All symbols are global (no ES modules). Forward references work at runtime.
 2. **Rationale:** The "why"
 3. **Technical Impact:** What changed, which files affected
 **Wait:** Do not proceed until confirmed.
+
+---
+
+## 📋 Documentation Integrity Protocol
+**Trigger:** After any completed phase, game addition, or permanent architectural change.
+**Mandatory updates (in this order, before the phase snapshot is written):**
+1. `docs/code-map.md` — add/update all new screen IDs, overlay IDs, key functions, and state variables introduced in the phase
+2. `game-identities.md` — add/update all new settings, terminology, overlay types, and screen entries for affected games
+3. `CLAUDE.md` — update SW version, current focus, and key references
+4. `logic-engine.md` — update any new universal rules, audio functions, or engine patterns introduced
+
+**Rule:** No phase snapshot may be written until all four documents are verified current. The snapshot itself is the final deliverable — not the starting point for cleanup.
+
+**Enforcement:** At the start of every new phase, Claude Code must read `docs/code-map.md` and `game-identities.md` for all games it will touch and cross-reference against the actual `index.html` section headers and JS file. Any discrepancy found must be flagged and resolved before implementation begins.
 
 ---
 
@@ -153,12 +168,12 @@ The animals category is shared by both Like I'm Five and Natural Selection. Ever
 ---
 
 ## 🎯 Current Focus
-**Phase:** 20 — Protocol A Audit + Cross-Game Consolidation
-**SW Version:** v78
+**Phase:** 22 — Multiplayer (MFS v1.4)
+**SW Version:** v78 (bump when assets change)
 **Gold Master:** 8 games complete (LI5, Great Minds, Secret Signals, JEC, YGI, LTTP, Natural Selection, Deep-Sea Deploy)
-**Next:** DSD Protocol A audit pending; then TBD new game
 **Key references:**
-- `docs/phase20-snapshot.md` — current gold master (8 games, Phase 20 audit complete)
+- `docs/phase21a-snapshot.md` — gold master (Phase 21a complete — 8 games, post-audit)
+- `docs/multiplayer-feature-specification-v1.4.md` — MFS v1.4 spec (Phase 22 source of truth)
 - `docs/code-map.md` — surgical reference: all game IDs, overlays, key functions
 - `.claude/rules/new-game-template.md` — fill this in before coding any new game
 - `docs/expansion-guide.md` — template for adding new expansion packs

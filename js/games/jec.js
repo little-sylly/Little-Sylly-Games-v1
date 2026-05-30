@@ -35,6 +35,14 @@ let jecOversightPendingA = null; // norm words awaiting merge confirm
 let jecOversightPendingB = null;
 let jecPoisonedNorms     = new Set(); // built from all players' poison words (KN mode)
 
+// ── JEC Help tip overlay ──────────────────────────────────────────────────────
+function jecShowHelpTip(emoji, heading, tip) {
+  document.getElementById('jec-help-tip-emoji').textContent   = emoji;
+  document.getElementById('jec-help-tip-heading').textContent = heading;
+  document.getElementById('jec-help-tip-text').textContent    = tip;
+  document.getElementById('jec-help-tip-overlay').style.display = 'flex';
+}
+
 // ── Lobby → JEC Menu ──────────────────────────────────────────────────────────
 document.getElementById('btn-jec').addEventListener('click', () => {
   playLaunch();
@@ -728,6 +736,24 @@ document.getElementById('btn-jec-quit-confirm').addEventListener('click', () => 
 document.getElementById('btn-jec-quit-cancel').addEventListener('click', () => {
   playDone();
   document.getElementById('jec-quit-overlay').style.display = 'none';
+});
+
+// ── [?] JEC Help buttons ──────────────────────────────────────────────────────
+document.querySelectorAll('.btn-jec-help-open').forEach(btn => {
+  btn.addEventListener('click', () => {
+    playDone();
+    const el = document.getElementById('jec-how-to-overlay');
+    const inner = el.querySelector('.overlay-data-inner');
+    if (inner) inner.scrollTop = 0;
+    el.style.display = 'flex';
+  });
+});
+document.getElementById('btn-jec-prep-tip')?.addEventListener('click', () => {
+  jecShowHelpTip('🍳', 'Your Ingredients', 'Enter words you think others will also write. The Sweet Spot is matching — not too many, not too few.');
+});
+document.getElementById('btn-jec-help-tip-close')?.addEventListener('click', () => {
+  playDone();
+  document.getElementById('jec-help-tip-overlay').style.display = 'none';
 });
 
 // ── Secret Mode expansion overrides ──────────────────────────────────────────

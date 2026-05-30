@@ -689,6 +689,14 @@ function handleCategoryPill(btn) {
   deckFewWarned = false;
 }
 
+// ── Help tip overlay ──────────────────────────────────────────────────────────
+function li5ShowHelpTip(emoji, heading, tip) {
+  document.getElementById('li5-help-tip-emoji').textContent   = emoji;
+  document.getElementById('li5-help-tip-heading').textContent = heading;
+  document.getElementById('li5-help-tip-text').textContent    = tip;
+  document.getElementById('li5-help-tip-overlay').style.display = 'flex';
+}
+
 // ── Event listeners ───────────────────────────────────────────────────────────
 document.getElementById('btn-dstw')
   .addEventListener('click', () => { activeGameId = 'li5'; playLaunch(); showScreen('screen-menu'); });
@@ -902,6 +910,24 @@ document.getElementById('btn-li5-confirm-new-game').addEventListener('click', ()
 document.getElementById('btn-li5-cancel-new-game').addEventListener('click', () => {
   playExit();
   document.getElementById('li5-play-again-overlay').style.display = 'none';
+});
+
+// ── [?] Help buttons ──────────────────────────────────────────────────────────
+document.querySelectorAll('.btn-li5-help-open').forEach(btn => {
+  btn.addEventListener('click', () => {
+    playDone();
+    const el = document.getElementById('how-to-overlay');
+    const inner = el.querySelector('.overlay-data-inner');
+    if (inner) inner.scrollTop = 0;
+    el.style.display = 'flex';
+  });
+});
+document.getElementById('btn-li5-active-tip')?.addEventListener('click', () => {
+  li5ShowHelpTip('🎯', 'Describing', 'Describe the word without saying any word on the No-No List.');
+});
+document.getElementById('btn-li5-help-tip-close')?.addEventListener('click', () => {
+  playDone();
+  document.getElementById('li5-help-tip-overlay').style.display = 'none';
 });
 
 // ── Navigation exits on transition/score screens ──────────────────────────────
