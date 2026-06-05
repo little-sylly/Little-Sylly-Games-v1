@@ -165,6 +165,17 @@ body.flash-red   { background-color: #fecaca; }
   border: none;
   cursor: pointer;
 }
+.game-toggle-on-yellow {
+  background: #eab308;
+  color: #fff;
+  border-radius: 9999px;
+  padding: 0.4rem 1.2rem;
+  font-weight: 700;
+  font-size: 0.9rem;
+  transition: background 0.2s, color 0.2s;
+  border: none;
+  cursor: pointer;
+}
 
 /* ── Sylly Mode — word card glow + pulse ─────────────────────────────────── */
 @keyframes syllyPulse {
@@ -259,6 +270,12 @@ body.flash-red   { background-color: #fecaca; }
 /* ── Deep-Sea Deploy pill active state (cyan) ────────────────────────────── */
 .pill-active-cyan {
   background: #0e7490;  /* cyan-700 */
+  color: #fff;
+}
+
+/* ── Bailed pill active state (yellow) ───────────────────────────────────── */
+.pill-active-yellow {
+  background: #eab308;  /* yellow-500 */
   color: #fff;
 }
 
@@ -605,4 +622,21 @@ body.flash-red   { background-color: #fecaca; }
   border-radius: 50%;
   background: #ef4444;
   animation: pulse 1.5s cubic-bezier(0.4,0,0.6,1) infinite;
+}
+
+/* ── Multiplayer sync lock ───────────────────────────────────────── */
+.mp-sync-locked .btn-mp-action {
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+/* ── Multiplayer roster: drop target highlights ──────────────────── */
+.mp-roster-target {
+  border-color: #78716c !important;
+  background-color: #e7e5e4 !important;
+}
+.mp-roster-bench-target {
+  border: 2px dashed #78716c !important;
+  background-color: #f5f5f4 !important;
+  border-radius: 0.75rem;
 }

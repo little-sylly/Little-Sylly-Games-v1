@@ -44,6 +44,7 @@ let dsdUpgradedMines = [];       // indices upgraded urchin→mine this cycle; r
 // ── Captain grid UI state ─────────────────────────────────────────────────────
 let dsdCaptainFilter = new Set(); // roles currently greyed out; tapping legend key toggles
 let dsdFlippedCells  = new Set(); // revealed cell indices showing word instead of emoji
+let dsdMpStandby     = false;     // Lobby Mode: true when this device is the non-active team
 
 // ── Setup helpers ─────────────────────────────────────────────────────────────
 
@@ -119,10 +120,56 @@ function dsdShowMenu() {
 }
 
 function dsdShowSetup() {
+  // Lobby Mode with rosterData: bypass PTP setup screens
+  if (window.syllyMultiplayerMode !== 'single' && window.mpLobbyRoster) {
+    dsdApplyLobbyRoster();
+    const myTeamIdx = window.syllyMultiplayerMode === 'host' ? 0 : 1;
+    dsdShowPassGate({
+      heading:   `Pass to ${dsdCaptainName[myTeamIdx]}`,
+      subtext:   `${dsdTeamNames[myTeamIdx]} — hand this device to your Captain.`,
+      ctaLabel:  'Ready to deploy →',
+      onConfirm: () => {
+        if (window.syllyMultiplayerMode === 'host') {
+          showWhoFirst({
+            emoji:           '⚓',
+            eyebrow:         'Operations',
+            heading:         'Who Deploys First?',
+            prompt:          'Decide which task force strikes first.',
+            teamA:           dsdTeamNames[0],
+            teamB:           dsdTeamNames[1],
+            confirmLabel:    'Commence Operation ⚓',
+            accentBtnClass:  'bg-cyan-700 hover:bg-cyan-800',
+            accentTextClass: 'text-cyan-700',
+            onResult: goesFirstIdx => {
+              dsdFirstTeam = goesFirstIdx;
+              dsdBuildGame().then(() => dsdShowCaptain());
+            },
+          });
+        }
+        // Client waits for DSD_CREW_ACTIVE sync
+      },
+    });
+    return;
+  }
+  // PTP path unchanged
   showScreen('screen-dsd-setup');
-  // Only pre-fill if the user previously set custom names; let placeholder show for defaults
   document.getElementById('dsd-team-name-0').value = dsdTeamNames[0] !== 'SS Kraken'    ? dsdTeamNames[0] : '';
   document.getElementById('dsd-team-name-1').value = dsdTeamNames[1] !== 'SS Leviathan' ? dsdTeamNames[1] : '';
+}
+
+function dsdApplyLobbyRoster() {
+  const r = window.mpLobbyRoster;
+  dsdTeamNames = r.teamNames || ['SS Kraken', 'SS Leviathan'];
+  dsdPlayerNames = [[], []];
+  (r.playerTeamIdx || []).forEach((teamIdx, slotIdx) => {
+    dsdPlayerNames[teamIdx].push(mpPlayerSlots[slotIdx].nickname);
+  });
+  dsdPlayersPerTeam = dsdPlayerNames[0].length || 1;
+  dsdCaptainName = r.captainNames
+    ? r.captainNames.slice(0, 2).map((n, i) => n || `${dsdTeamNames[i]} Captain`)
+    : r.captainSlots
+      ? r.captainSlots.map(slotIdx => mpPlayerSlots[slotIdx]?.nickname || 'Captain')
+      : [dsdPlayerNames[0][0] || 'Captain', dsdPlayerNames[1][0] || 'Captain'];
 }
 
 function dsdShowPlayers() {
@@ -302,6 +349,61 @@ function dsdUpdateLegend() {
 
 function dsdShowCaptain() {
   const team = dsdCurrentTeam;
+
+  if (window.syllyMultiplayerMode !== 'single') {
+    // Host (TLM): broadcast turn state so client navigates correctly
+    if (window.syllyMultiplayerMode === 'host' && window.mpLobbyStyle === 'team') {
+      mpSendEnvelope({ type: 'SYNC', payload: {
+        action:     'DSD_CAPTAIN_ACTIVE',
+        team:       dsdCurrentTeam,
+        deployment: dsdDeployment,
+        grid:       dsdGrid.map(c => ({ ...c })),
+      }});
+    }
+    if (dsdCurrentTeam !== mpMyPlayerIdx) {
+      // Non-active team's device → spectator (TLM) or standby (MDLM)
+      if (window.mpLobbyStyle === 'team') {
+        dsdShowSpectatorView();
+      } else {
+        dsdMpStandby = true;
+        dsdShowCrewStandby('Awaiting enemy Sonar Ping…');
+      }
+      return;
+    }
+    // Active team's device — TLM gets an intra-device pass gate before the captain screen
+    if (window.mpLobbyStyle === 'team') {
+      dsdShowPassGate({
+        heading:  `Pass to ${dsdCaptainName[dsdCurrentTeam]}`,
+        subtext:  `${dsdTeamNames[dsdCurrentTeam]} — your turn to deploy.`,
+        ctaLabel: `Ready, Captain ⚓`,
+        teamIdx:  dsdCurrentTeam,
+        onConfirm: () => {
+          dsdMpStandby = false;
+          dsdCaptainFilter.clear();
+          showScreen('screen-dsd-captain');
+          dsdUpdateLegend();
+          dsdRenderCaptainGrid();
+          dsdRenderInGameHistory('captain');
+          document.getElementById('dsd-ping-word').value  = '';
+          document.getElementById('dsd-ping-number').value = '';
+          document.getElementById('dsd-ping-error').classList.add('hidden');
+        },
+      });
+    } else {
+      // MDLM: skip pass gate — captain uses their own device
+      dsdMpStandby = false;
+      dsdCaptainFilter.clear();
+      showScreen('screen-dsd-captain');
+      dsdUpdateLegend();
+      dsdRenderCaptainGrid();
+      dsdRenderInGameHistory('captain');
+      document.getElementById('dsd-ping-word').value  = '';
+      document.getElementById('dsd-ping-number').value = '';
+      document.getElementById('dsd-ping-error').classList.add('hidden');
+    }
+    return;
+  }
+
   const captainName = dsdCaptainName[team];
   const teamName = dsdTeamNames[team];
   dsdShowPassGate({
@@ -320,6 +422,72 @@ function dsdShowCaptain() {
       document.getElementById('dsd-ping-error').classList.add('hidden');
     }
   });
+}
+
+// Lobby Mode: standby state for non-active team device
+function dsdShowCrewStandby(message) {
+  dsdMpStandby = true;
+  dsdFlippedCells = new Set();
+  document.getElementById('dsd-ping-display').textContent = message || 'Standby…';
+  document.getElementById('btn-dsd-crew-execute').disabled = true;
+  dsdRenderCrewGrid(); // renders public grid (unrevealed = word-only, no colour coding)
+  showScreen('screen-dsd-crew');
+}
+
+// TLM: spectator view for non-active team — shows grid + clue history
+function dsdShowSpectatorView() {
+  dsdMpStandby = true;
+  dsdFlippedCells = new Set();
+  const nonActiveTeam   = dsdCurrentTeam === 0 ? 1 : 0;
+  const labelEl         = document.getElementById('dsd-spectator-label');
+  const teamTextClass   = nonActiveTeam === 0 ? 'text-cyan-700' : 'text-indigo-800';
+  labelEl.className     = `${teamTextClass} text-xs font-semibold uppercase tracking-widest`;
+  labelEl.textContent   = `${dsdTeamNames[nonActiveTeam].toUpperCase()} — WATCHING`;
+  dsdRenderSpectatorGrid();
+  dsdRenderSpectatorHistory();
+  showScreen('screen-dsd-spectator');
+}
+
+function dsdRenderSpectatorGrid() {
+  const pingEl = document.getElementById('dsd-spectator-ping');
+  pingEl.textContent = dsdPingClue
+    ? `${dsdPingClue.toUpperCase()} — ${dsdPingNumber}`
+    : 'Waiting for Sonar Ping…';
+
+  const revealedColour = {
+    0:      'bg-cyan-200 text-cyan-900',
+    1:      'bg-indigo-200 text-indigo-900',
+    urchin: 'bg-red-100 text-red-600',
+    mine:   'bg-red-200 text-red-900',
+  };
+  const grid = document.getElementById('dsd-spectator-grid');
+  grid.innerHTML = dsdGrid.map(cell => {
+    const wlen  = cell.word.length;
+    const wFont = wlen > 12 ? 'text-[8px]' : wlen > 9 ? 'text-[9px]' : 'text-[10px]';
+    if (cell.revealed) {
+      const col   = revealedColour[cell.role] || 'bg-stone-200 text-stone-400';
+      const emoji = { mine: '💣', urchin: '💥' }[cell.role] ?? '⚓';
+      return `<div class="h-[52px] ${col} opacity-60 rounded-lg flex items-center justify-center px-1 overflow-hidden"><span class="text-xl">${emoji}</span></div>`;
+    }
+    return `<div class="h-[52px] bg-stone-100 text-stone-700 rounded-lg flex items-center justify-center ${wFont} font-semibold uppercase text-center px-1 leading-tight overflow-hidden whitespace-nowrap">${cell.word}</div>`;
+  }).join('');
+}
+
+function dsdRenderSpectatorHistory() {
+  const histEl = document.getElementById('dsd-spectator-history');
+  if (!dsdTurnLog.length) {
+    histEl.innerHTML = '<p class="text-stone-400 text-sm italic text-center mt-2">Waiting for first ping…</p>';
+    return;
+  }
+  histEl.innerHTML = dsdTurnLog.slice().reverse().map(entry => {
+    const teamClass = entry.team === 0 ? 'text-cyan-700' : 'text-indigo-800';
+    const outcomes  = (entry.outcomes || []).map(o => `<span class="text-xs text-stone-500">${o.word} — ${o.label}</span>`).join('<br>');
+    return `<div class="bg-white rounded-xl px-3 py-2 border border-stone-100">
+      <p class="text-xs text-stone-400 mb-1"><span class="${teamClass} font-semibold">${entry.teamName}</span> · Deployment ${entry.deployment}</p>
+      <p class="font-bold text-stone-800 text-sm">${entry.ping.toUpperCase()} — ${entry.pingNumber}</p>
+      ${outcomes ? `<div class="mt-1 flex flex-col gap-0.5">${outcomes}</div>` : ''}
+    </div>`;
+  }).join('');
 }
 
 function dsdRenderCaptainGrid() {
@@ -435,6 +603,51 @@ function dsdTransmitPing() {
   dsdPingNumber = num;
   dsdSequence   = [];
   playSonarPing();
+
+  if (window.syllyMultiplayerMode !== 'single') {
+    if (window.syllyMultiplayerMode === 'client') {
+      // Client captain: send to Host; Host will broadcast crew-active SYNC to standby device
+      mpLockSync();
+      mpSendEnvelope({ type: 'ACTION', payload: {
+        action: 'DSD_PING_TRANSMIT', word, num,
+        team: dsdCurrentTeam, deployment: dsdDeployment,
+      }});
+      mpUnlockSync(); // captain moves on immediately; crew submit is a separate action
+      if (window.mpLobbyStyle === 'team') {
+        // TLM: pass device to crew before sequence input
+        dsdShowPassGate({
+          heading:  `Pass to ${dsdTeamNames[dsdCurrentTeam]} Crew`,
+          subtext:  `${word.toUpperCase()} — ${num} · Confirm the sequence.`,
+          ctaLabel: `We're Ready ⚓`,
+          teamIdx:  dsdCurrentTeam,
+          onConfirm: () => { dsdMpStandby = false; dsdShowCrew(); },
+        });
+      } else {
+        dsdMpStandby = false;
+        dsdShowCrew();
+      }
+      return;
+    }
+    // Host captain: broadcast SYNC so standby device shows spectator, then handle crew transition
+    mpSendEnvelope({ type: 'SYNC', payload: {
+      action: 'DSD_CREW_ACTIVE', word, num, team: dsdCurrentTeam,
+    }});
+    if (window.mpLobbyStyle === 'team') {
+      // TLM: pass device to crew before sequence input
+      dsdShowPassGate({
+        heading:  `Pass to ${dsdTeamNames[dsdCurrentTeam]} Crew`,
+        subtext:  `${word.toUpperCase()} — ${num} · Confirm the sequence.`,
+        ctaLabel: `We're Ready ⚓`,
+        teamIdx:  dsdCurrentTeam,
+        onConfirm: () => { dsdMpStandby = false; dsdShowCrew(); },
+      });
+    } else {
+      dsdMpStandby = false;
+      dsdShowCrew();
+    }
+    return;
+  }
+
   const teamName = dsdTeamNames[dsdCurrentTeam];
   dsdShowPassGate({
     heading: `Pass to ${teamName} Crew`,
@@ -533,6 +746,19 @@ async function dsdShowExecution() {
     if (ended) { turnEnded = true; break; }
   }
   document.getElementById('dsd-execution-footer').classList.remove('hidden');
+
+  // Lobby Mode: Host broadcasts updated grid + scores after execution completes
+  if (window.syllyMultiplayerMode === 'host') {
+    mpSendEnvelope({ type: 'SYNC', payload: {
+      action:   'DSD_EXECUTION_RESULT',
+      grid:     dsdGrid.map(c => ({ ...c })),
+      valour:   [...dsdValour],
+      outcomes: [...dsdTurnOutcomes],
+      turnLog:  dsdTurnLog.map(e => ({ ...e, outcomes: [...(e.outcomes || [])] })),
+      team:     dsdCurrentTeam,
+    }});
+    mpUnlockSync();
+  }
 }
 
 function dsdRenderExecutionGrid(pendingIdx = -1) {
@@ -716,7 +942,17 @@ function dsdAdvanceTurn() {
     }
   }
   dsdPingClue = ''; dsdPingNumber = 0; dsdSequence = [];
-  if (dsdCheckVictory()) return;
+  if (dsdCheckVictory()) {
+    if (window.syllyMultiplayerMode === 'host') {
+      mpSendEnvelope({ type: 'SYNC', payload: {
+        action: 'DSD_GAMEOVER',
+        valour: [...dsdValour],
+        grid:   dsdGrid.map(c => ({ ...c })),
+        turnLog: dsdTurnLog,
+      }});
+    }
+    return;
+  }
   if (dsdSyllyMode && dsdDeployment >= 2) {
     const placingTeam = justFinished;
     dsdRevertUpgradedMines();
@@ -993,7 +1229,7 @@ document.getElementById('btn-dsd').addEventListener('click', () => {
 // ── Menu navigation ───────────────────────────────────────────────────────────
 document.getElementById('btn-dsd-menu-play').addEventListener('click', () => {
   playLaunch();
-  dsdShowSetup();
+  mpShowModeScreen('dsd');
 });
 document.getElementById('btn-dsd-menu-howto').addEventListener('click', () => {
   playPillClick();
@@ -1144,10 +1380,23 @@ document.getElementById('dsd-crew-grid').addEventListener('click', e => {
 });
 document.getElementById('btn-dsd-crew-execute').addEventListener('click', () => {
   if (dsdSequence.length === 0) return;
+  if (dsdMpStandby) return; // standby device: ignore
   dsdOpenDisarmOverlay();
 });
 document.getElementById('btn-dsd-disarm-confirm').addEventListener('click', () => {
   document.getElementById('dsd-confirm-disarm').style.display = 'none';
+  if (window.syllyMultiplayerMode === 'client' && dsdCurrentTeam === mpMyPlayerIdx) {
+    // Client's crew submits sequence to Host for execution
+    mpLockSync();
+    mpSendEnvelope({ type: 'ACTION', payload: {
+      action:   'DSD_SEQUENCE_SUBMIT',
+      sequence: [...dsdSequence],
+      team:     dsdCurrentTeam,
+    }});
+    // Show execution screen locally (Host will confirm via SYNC)
+    dsdShowExecution();
+    return;
+  }
   dsdShowExecution();
 });
 document.getElementById('btn-dsd-disarm-cancel').addEventListener('click', () => {
@@ -1182,11 +1431,23 @@ document.getElementById('btn-dsd-gameover-exit').addEventListener('click', () =>
   resetToLobby();
 });
 document.getElementById('btn-dsd-new-operation').addEventListener('click', () => {
+  const confirmBtn = document.getElementById('btn-dsd-new-op-confirm');
+  if (window.syllyMultiplayerMode === 'host') {
+    confirmBtn.textContent = 'Restart in Lobby 🔄';
+  } else if (window.syllyMultiplayerMode === 'client') {
+    confirmBtn.textContent = 'Leave Session';
+  } else {
+    confirmBtn.textContent = 'New Operation ⚓';
+  }
   document.getElementById('dsd-new-op-overlay').style.display = 'flex';
 });
 document.getElementById('btn-dsd-new-op-confirm').addEventListener('click', () => {
   playLaunch();
   document.getElementById('dsd-new-op-overlay').style.display = 'none';
+  if (window.syllyMultiplayerMode !== 'single') {
+    mpReturnToLobby();
+    return;
+  }
   dsdResetState();
   dsdShowSetup();
 });

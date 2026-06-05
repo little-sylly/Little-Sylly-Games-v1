@@ -22,6 +22,7 @@ For the game just completed, verify these against the actual JS file:
 - [ ] **State variable list is complete** — all state vars declared in the plugin are listed under State Variables in `game-identities.md`
 - [ ] **`allScreens[]` is current** — every screen ID registered in `engine.js` matches the screens defined for this game
 - [ ] **SW precache is current** — `sw.js` lists the plugin file; `logic-engine.md` precache list matches `sw.js`; CACHE_NAME version is correct
+- [ ] **Implementation notes current** — `docs/[abbr]-implementation-notes.md` exists for this game; any bugs resolved or design decisions made during this phase are logged under the appropriate section (Design Decisions / Bug Index / Multiplayer Lessons / Template Gaps)
 
 ---
 
@@ -64,12 +65,20 @@ Static checklist — verify by reading the HTML and CSS, not by running a browse
 - [ ] **No `.focus()` on page load or screen show** — any programmatic focus call risks snapping the keyboard open on mobile; allowed only in explicit user-triggered input flows
 - [ ] **Touch targets ≥ 44×44px** — all buttons have `min-h-11` or equivalent; no bare `<div>` used as a tap target
 - [ ] **Speaker + ✕ on every screen** — full-screen menus use `absolute top-4 right-4` speaker; gameplay screens use the header row pattern
+- [ ] **`[?]` opens How to Play on main gameplay screen** — the gameplay screen header must have a `btn-[abbr]-how-to` button wired to `[abbr]-how-to-overlay`. Must be always visible (no `hidden` class). Grep for `btn-[abbr]-how-to` to confirm presence and handler.
+- [ ] **Decision modal borders** — every `overlay-modal-inner` div has `border border-[brand]-300`. Grep the game's HTML for `overlay-modal-inner` and verify each instance has the border class. Data overlays (`overlay-data-inner`) are exempt.
 
 ---
 
 ## Protocol B: Skeleton-First Build Order
 
 Follow this sequence strictly. Do not skip ahead to logic injection.
+
+### Step 0 — Template Gap Review (before the brief)
+- Read the **Template Gaps** section of every existing `docs/[abbr]-implementation-notes.md` file
+- For each gap, assess whether it applies to the new game's design — if yes, resolve it in the tech spec before coding begins
+- This is how recurring bugs from past games get prevented proactively rather than discovered again
+- **Gate:** All applicable template gaps acknowledged → proceed to Step 1
 
 ### Step 1 — Brief (before any JS)
 - Fill out `docs/new-game-brief-[name].md` using `.claude/rules/new-game-template.md`

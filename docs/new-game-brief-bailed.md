@@ -1,16 +1,9 @@
 # New Game Brief — Bailed
 **Document type:** Phase 1 — Design Brief
-**Version:** v0.3 — final pre-implementation polish
-**Status:** Parked pending Phase 21a + 21b (MFS). Revisit before writing technical spec.
-
-> ⚠️ **MFS Revisit Required**
-> This brief was written before multiplayer implementation. Before converting to a technical spec, the following sections must be reviewed against the completed MFS v1.4:
-> - §10 (Multiplayer Classification) — confirm readyCheck matrix pattern, Firebase targeted writes for role reveal, simultaneous vote reveal mechanics
-> - §11 (Screens) — the "Tap to Reveal" pass-gate design may be simplified or replaced by individual device handling in multiplayer mode
-> - §12 (Pass-gate mandate) — single-device only; multiplayer handles vote privacy natively on individual screens
-> Do not begin the technical spec until MFS v1.4 is implemented and confirmed.
+**Version:** v1.0 — MFS-aligned, ready for technical spec
 
 ---
+
 
 ## On the Title
 
@@ -34,7 +27,7 @@ This brief uses **Bailed** throughout. Short ID: `bld`. If "Flaked" wins, short 
 |-------|--------|
 | **Full game name** | Bailed |
 | **Short ID / abbreviation** | `bld` |
-| **One-sentence tagline** | *"Every group has a Flake. Yours has two."* |
+| **One-sentence tagline** | *"Making plans is easy. Showing up is hard."* |
 | **Thematic universe** | A group of friends trying to organise plans. A subset of them are quietly, repeatedly, mysteriously wrecking it. The social paranoia of a group chat where trust erodes one bailed plan at a time. Not just one person — a small faction of them, coordinated. |
 | **Emoji / icon** | 💬 |
 | **Brand colour** | `yellow-500` — warm, sunny, friends-and-joy energy on the surface. Reads as caution from the Flake's perspective. Distinct from all existing game colours. Fallback: `sky-500` (loyal, trustworthy, group-chat blue) if yellow is too close to existing UI elements. |
@@ -90,11 +83,11 @@ Flakes may choose to submit "I'm In" on a plan — letting plans succeed is a st
 
 3. **Everyone votes simultaneously** (or sequentially in pass-the-phone — see §12). All players submit privately: **"I'm In"** (approve) or **"Not Them"** (reject). After submitting, a pending state covers the action area — no one sees anything until all votes are in. All votes reveal at once.
 
-4. **Vote result.** Each player's vote is shown publicly. Majority approves → plan proceeds. Majority rejects (ties = rejection) → a rejection dot is added to the **Patience Meter**, the Planner role passes clockwise for a fresh nomination of the same plan. **If 5 consecutive nominations are rejected for the same plan: Flakes win immediately.**
+4. **Vote result.** Each player's individual vote is shown publicly by name — e.g. *"Tom: Not Them, Priya: I'm In"* — never just a tally. The Resistance's meta-game lives here: every vote is permanent evidence. Majority approves → plan proceeds. Majority rejects (ties = rejection) → a rejection dot is added to the **Patience Meter**, the Planner role passes clockwise for a fresh nomination of the same plan. **If 5 consecutive nominations are rejected for the same plan: Flakes win immediately.**
 
 5. **Task executes.** Only nominated players act. Each submits privately: **"I'm In"** (succeed) or **"I Bailed"** (sabotage). Friends can only submit "I'm In." Flakes choose freely.
 
-6. **Plan result.** The count of "I Bailed" cards is revealed — count only, never who. One bail = plan fails (exception: Plan 4 at 7+ players requires 2 bails — see §12). The Agenda updates with ✅ or ❌. A rotating phrase appears for flavour (see §8.1).
+6. **Plan result.** The count of "I Bailed" cards is revealed — count only, never who. One bail = plan fails (exception: Plan 4 at 7+ players requires 2 bails). At 7+ players, if Plan 4 receives exactly 1 bail, the UI must show a distinct state — *"Someone bailed, but the plan survived (1/2 bails)"* — not "Someone bailed ❌". The plan only fails when the second bail drops. The Itinerary updates with ✅ or ❌. A rotating phrase appears for flavour (see §8.1).
 
 7. **Planner rotates clockwise.** Patience Meter resets. Next plan begins.
 
@@ -118,13 +111,19 @@ Flakes may choose to submit "I'm In" on a plan — letting plans succeed is a st
 
 No individual scoring. This is a team win/lose game. The result is: Friends won, or Flakes won.
 
-The Aftermath screen names both teams, reveals all roles, and shows the final Agenda. No points. No rankings. The conversation after the reveal is the payoff.
+The Aftermath screen names both teams, reveals all roles, and shows the final Itinerary. No points. No rankings. The conversation after the reveal is the payoff.
 
 ---
 
 ## 6. Settings
 
-No settings screen. Group size is handled at player entry (pass-the-phone) or the lobby (multiplayer). All other rules are fixed behaviours explained in How to Play.
+This game has one setting: **Drama Mode**. It lives in a standard settings overlay (Pattern 1 — data slide-up), accessible via a Settings button on the game menu. All other rules are fixed and explained in How to Play. Group size is handled at player entry (pass-the-phone) or the lobby (multiplayer).
+
+**Settings overlay title block:** *"Bailed 💬"* / *"Toggle Drama Mode on or off before play."*
+
+| Setting | Options | Default |
+|---------|---------|---------|
+| ✨ Drama Mode ("Someone Always Knows") | OFF / ON | OFF |
 
 **Player entry screen note:** As the host enters players, show a live counter: *"X Flakes will be assigned"*. Include a [?] tap to reveal the full Friends/Flakes table from §2.
 
@@ -152,22 +151,17 @@ One Friend is randomly assigned as The Pot-Stirrer at role assignment. Their rol
 
 This sequence only triggers when Friends win 3 plans.
 
-1. Before any roles are revealed, one Flake is designated **The Ringleader** at game start (assigned randomly alongside roles, shown only on that Flake's role reveal). The Ringleader is the Flakes' spokesperson for this moment.
+**The UI lock (critical):** When the 3rd plan succeeds, roles are NOT revealed immediately. The moment the success token drops, all devices transition to a locked state — *"The Flakes are plotting..."* — before any role reveal occurs. Only The Big Flake's device renders the active identification input (a selectable grid of player names). All other devices remain locked until The Big Flake submits their guess. This prevents multi-device write conflicts and keeps The Pot-Stirrer's identity secret until the guess resolves.
 
-2. Flakes reveal themselves publicly to the group for the first time — a dramatic moment. They discuss openly: *"We think the Pot-Stirrer is..."*
+1. Before any roles are revealed, one Flake is designated **The Big Flake** at game start (assigned randomly alongside roles, shown only on that Flake's role reveal). The Big Flake is the Flakes' spokesperson for this moment.
 
-3. The Ringleader's device shows the identification input. Instructions read: *"Discuss with your fellow Flakes, then submit your pick."* The Ringleader submits one player name — their collective guess for who The Pot-Stirrer is.
+2. All devices show the locked state. Flakes speak aloud and discuss openly: *"We think the Pot-Stirrer is..."* The Big Flake's device shows the identification input.
 
-4. The guess is revealed to all. Then all roles are revealed.
+3. Instructions on The Big Flake's screen read: *"Discuss with your fellow Flakes, then submit your pick."* The Big Flake submits one player name — their collective guess for who The Pot-Stirrer is.
+
+4. The guess is broadcast to all devices. Then all roles are revealed simultaneously.
    - **If correct:** Flakes win — the Friends' inside advantage was neutralised.
    - **If wrong:** Friends win as normal — The Pot-Stirrer stayed hidden.
-
-**The Ringleader display name options** (one to confirm before technical spec):
-- **The Ringleader** — implies coordination, fits the group-sabotage theme
-- **The Head Flake** — more on-the-nose, consistent vocabulary
-- **The OG Flake** — casual, fits the tone
-
-Recommendation: **The Ringleader**. Signals authority within the Flake group without being crude.
 
 ---
 
@@ -186,14 +180,14 @@ Recommendation: **The Ringleader**. Signals authority within the Flake group wit
 | Traitor | **The Flake** |
 | Loyal player | **The Friend** |
 | Current leader | **The Planner** |
-| Plan progress track | **The Agenda** |
+| Plan progress track | **The Itinerary** |
 | Rejection counter | **The Patience Meter** |
 | Drama Mode special role | **The Pot-Stirrer** |
-| Drama Mode Flake spokesperson | **The Ringleader** |
+| Drama Mode Flake spokesperson | **The Big Flake** |
 | Game over screen | **The Aftermath** |
 | Roles revealed | **"The Truth Comes Out"** |
-| Play again | **"We Never Learn"** |
-| Quit | **"Leave the Chat?"** |
+| Play again | **"Second Chances"** |
+| Quit | **"Let's Bail"** |
 | How to Play title | **"The Group Rules 📋"** |
 | Sylly Mode label | **✨ Drama Mode** |
 
@@ -240,6 +234,7 @@ These are hardcoded constants in the plugin — no data file needed.
 - "There's a situation at home, can't explain"
 - "My neighbour locked themselves out and now I'm involved somehow"
 - "Long story but I'm stuck at my ex's"
+- "Was up late playing games, couldn't wake up on time"
 
 **Plan 4 tier — ridiculous:**
 - "There's a bird in my apartment and I genuinely cannot catch it"
@@ -248,6 +243,8 @@ These are hardcoded constants in the plugin — no data file needed.
 - "There's a possum on my balcony and I'm a little scared honestly"
 - "Long story but I'm somehow at the airport"
 - "I'm being very honest when I say I have no idea where I am right now"
+- "I accidentally took my sleeping pill instead of my vitamin."
+- "Paint spill on the highway, there's green everywhere"
 
 **Plan 5 tier — completely unhinged:**
 - "There was something in my building's elevator I cannot explain"
@@ -256,6 +253,7 @@ These are hardcoded constants in the plugin — no data file needed.
 - "I genuinely cannot legally explain what happened"
 - "You wouldn't believe me if I told you"
 - "Okay so there was an elephant. At the bottle shop. I'm serious."
+- "I'm not trying to be dramatic but I am currently trapped in a storage unit."
 
 ### 8.3 Rotating Phrases — Plan Successes
 
@@ -269,7 +267,7 @@ Hardcoded constants alongside the failure phrases.
 - "Against all odds, the vibes were immaculate."
 - "No one flaked! Check the group's temperature."
 - "Somehow, it all came together."
-- "The Agenda thanks you for your service."
+- "The Itinerary thanks you for your service."
 
 ---
 
@@ -288,12 +286,27 @@ Hardcoded constants alongside the failure phrases.
 | Field | Answer |
 |-------|--------|
 | **Primary mode** | **Individual devices — multiplayer-first.** This is the first game in the box designed with multiplayer as the primary experience. Pass-the-phone is the fallback port, not the design target. |
-| **Private information types** | (1) Role reveal at game start — Flakes see each other's names; Friends see only their own role; Pot-Stirrer sees all Flake names. (2) Voting — private per player until simultaneous reveal. (3) Mission card submission — private per nominated player; only the count is revealed. |
+| **Private information types** | (1) Role reveal at game start — Flakes see each other's names; Friends see only their own role; Pot-Stirrer sees all Flake names; Big Flake sees Flake names + Big Flake designation. (2) Voting — private per player until simultaneous reveal. (3) Mission card submission — private per nominated player; only the count is revealed. |
 | **Simultaneous actions** | Yes — voting phase and mission card phase are both simultaneously private then simultaneously revealed. readyCheck matrix pattern applies to both. |
-| **Locked states** | Non-nominated players during mission phase: action area inactive ("Waiting for the group..."). Voting phase: all devices active. |
+| **Locked states** | Non-nominated players during mission phase: action area inactive ("Waiting for the group..."). Voting phase: all devices active. Drama Mode endgame: all devices locked ("The Flakes are plotting...") except The Big Flake. |
 | **Pass-the-phone fallback** | Functional but long — every private input requires a mandatory pass-gate (see §12). |
 
-> ⚠️ **MFS Revisit — §10:** Confirm readyCheck matrix behaviour, Firebase targeted writes for role reveal (Flake-to-Flake, Pot-Stirrer), and simultaneous vote reveal mechanics against MFS v1.4 §7 before writing technical spec.
+**MFS v1.4 alignment (resolved):**
+
+**Private data routing — targeted Firebase writes at game start:**
+- Host writes role data per player to `/rooms/{roomCode}/players/{idx}/roleData`
+- Friend slots: role name only
+- Flake slots: role name + all fellow Flakes' names
+- Pot-Stirrer slot: role name + all Flakes' names
+- Big Flake slot: role name + all fellow Flakes' names + Big Flake designation
+
+**readyCheck matrices:**
+- `bldVoteReady[]` — N booleans; one per player. Host resolves and broadcasts `BLD_VOTE_RESULT` when all true.
+- `bldMissionReady[]` — sized to nominated group. Host resolves and broadcasts `BLD_MISSION_RESULT` when all true.
+
+**Drama Mode endgame sync:**
+- `BLD_DRAMA_IDENTIFICATION` SYNC → all-device lock; Big Flake device receives active identification UI
+- `BLD_DRAMA_GUESS` ACTION from Big Flake → Host resolves → `BLD_AFTERMATH` SYNC broadcasts result + role reveal to all devices
 
 ---
 
@@ -301,11 +314,11 @@ Hardcoded constants alongside the failure phrases.
 
 This game runs on a single persistent main screen for most of its duration. Fewer distinct full-screen transitions than other Little Sylly games.
 
-1. **Game menu** — title, tagline, How to Play, ✨ Drama Mode toggle, Back to the Box
+1. **Game menu** — title, tagline, Let's Play!, How to Play, Settings (Drama Mode only), ← Back to the Box
 2. **Player setup** — player names entered one by one; live "X Flakes will be assigned" counter; [?] tap for the Friends/Flakes reference table. *(Multiplayer: replaced by the shared lobby screen from MFS v1.4)*
-3. **Role reveal** — each player privately sees their role card. Friends: role only. Flakes: role + fellow Flake names. Pot-Stirrer: role + all Flake names. The Ringleader: role + fellow Flake names + a small secondary label indicating they are The Ringleader (visible only to them). Mandatory pass-gate before each player's reveal in pass-the-phone mode.
+3. **Role reveal** — each player privately sees their role card. Friends: role only. Flakes: role + fellow Flake names. Pot-Stirrer: role + all Flake names. The Big Flake: role + fellow Flake names + a small secondary label indicating they are The Big Flake (visible only to them). Mandatory pass-gate before each player's reveal in pass-the-phone mode.
 4. **The Main Screen** — the persistent game board used for the entire game. All action happens here via a context-sensitive action area. See §12 for full layout description.
-5. **The Aftermath** — end-of-game screen. Shows the complete Agenda (all 5 plans, ✅/❌), the team result (Friends won / Flakes won), and — if Drama Mode — the Ringleader identification sequence before roles are revealed.
+5. **The Aftermath** — end-of-game screen. Shows the complete Agenda (all 5 plans, ✅/❌), the team result (Friends won / Flakes won), and — if Drama Mode — The Big Flake's identification sequence before roles are revealed.
 6. **Role reveal at end** — all roles revealed simultaneously. Flakes displayed in the game's brand colour. Friends neutral. Pot-Stirrer shown separately if Drama Mode was on.
 
 ---
@@ -318,8 +331,8 @@ The entire game lives on one persistent screen. Elements update in place. The pl
 
 **Always-visible elements:**
 - **Name & Role tag** (top): this device's player name and their role. Private — not a public display.
-- **The Agenda** (plan track): 5 boxes in a row. Past plans: ✅ or ❌. Current plan: pulsing indicator with plan name and emoji. Future plans: empty. Each box is tappable — opens the Plan Detail panel.
-- **The Patience Meter** (vote rejection counter): 5 dots beneath the Agenda. Fills left-to-right as nominations are rejected for the current plan. Resets when a new plan begins. At 5 filled dots — Flakes win. The visual tension of watching this fill is part of the game.
+- **The Itinerary** (plan track): 5 boxes in a row. Past plans: ✅ or ❌. Current plan: pulsing indicator with plan name and emoji. Future plans: empty. Each box is tappable — opens the Plan Detail panel.
+- **The Patience Meter** (vote rejection counter): 5 dots beneath the Itinerary. Fills left-to-right as nominations are rejected for the current plan. Resets when a new plan begins. At 5 filled dots — Flakes win. The visual tension of watching this fill is part of the game.
 
 **Context-sensitive Action Area** (bottom — changes by game phase):
 
@@ -333,8 +346,30 @@ The entire game lives on one persistent screen. Elements update in place. The pl
 | Mission (non-nominated) | "Waiting for the group..." | Same |
 | Plan result | Rotating phrase + ✅/❌ + plan tracker update | Same |
 
-**Plan Detail panel** (tap any Agenda box):
-A slide-up overlay showing: plan name + emoji, task group for each nomination attempt, vote breakdown per attempt, outcome. This is the receipts screen — players will reference it mid-argument. Dismisses on tap-outside.
+**Plan Detail panel** (tap any Itinerary box):
+A slide-up overlay — this is the most important UI element in the game. In a physical card game, players look at the table to see previous voting rounds. In a single-screen app, that data is buried unless the panel is exceptionally clean. It must clearly answer: Who was the Planner? Who did they nominate? Who voted to block them?
+
+Each nomination attempt is one record. Multiple attempts for the same plan are shown in sequence (attempt 1, attempt 2, etc.):
+
+```json
+{
+  "plan_number": 2,
+  "attempt_number": 1,
+  "planner": "Mia",
+  "nominated_group": ["Mia", "Jake", "Sophie"],
+  "votes": {
+    "Mia": "I'm In",
+    "Jake": "I'm In",
+    "Tom": "Not Them",
+    "Priya": "I'm In",
+    "Dan": "I'm In",
+    "Sophie": "I'm In"
+  },
+  "status": "Approved"
+}
+```
+
+Dismisses on tap-outside.
 
 ---
 
@@ -394,7 +429,7 @@ First Planner selected randomly at game start. Rotation proceeds clockwise based
 - The Receipts mechanic (Planner must publicly nominate a non-suspect after each failed plan — excellent idea, parked for v1.1 after playtesting confirms it's needed)
 - Spectator mode
 - Score tracking across multiple games in a session
-- Any Drama Mode special roles beyond The Pot-Stirrer and The Ringleader designation
+- Any Drama Mode special roles beyond The Pot-Stirrer and The Big Flake designation
 
 ---
 
@@ -412,7 +447,7 @@ First Planner selected randomly at game start. Rotation proceeds clockwise based
 
 ## 15. Sample Round
 
-**Setup:** 6 players. Plan 2 — The Supply Run. 3 people needed. Current Planner: Mia. Drama Mode ON. Roles (secret): Mia (Friend), Jake (Pot-Stirrer — knows Sophie and Dan are Flakes), Sophie (Flake, Ringleader), Tom (Friend), Priya (Friend), Dan (Flake).
+**Setup:** 6 players. Plan 2 — The Supply Run. 3 people needed. Current Planner: Mia. Drama Mode ON. Roles (secret): Mia (Friend), Jake (Pot-Stirrer — knows Sophie and Dan are Flakes), Sophie (Flake, Big Flake), Tom (Friend), Priya (Friend), Dan (Flake).
 
 ---
 
@@ -430,7 +465,7 @@ Pending state drops. Votes reveal simultaneously. 5 In, 1 Not Them. **Approved.*
 **Mission.** Mia, Jake, Sophie submit privately behind pass-gates. Tom, Priya, Dan see "Waiting for the group..."
 - Mia: I'm In / Jake: I'm In / Sophie: **I Bailed**
 
-**Result.** All devices: *"Someone bailed ❌"* — count only, no names. Excuse phrase: *"Lost my keys, can't find them anywhere."* Agenda: Plan 1 ✅ Plan 2 ❌. Patience Meter resets.
+**Result.** All devices: *"Someone bailed ❌"* — count only, no names. Excuse phrase: *"Lost my keys, can't find them anywhere."* Itinerary: Plan 1 ✅ Plan 2 ❌. Patience Meter resets.
 
 *"CALLED IT." — Tom / "It wasn't me!" — Sophie / "Three people, one bail, do the math." — Tom / "Could've been anyone." — Dan [covering] / Jake files this away silently*
 

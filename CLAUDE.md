@@ -27,26 +27,38 @@
 │   │   ├── lttp.js                  # Plugin: Late to the Party (all state + logic)
 │   │   ├── nat.js                   # Plugin: Natural Selection (all state + logic)
 │   │   └── dsd.js                   # Plugin: Deep-Sea Deploy (all state + logic)
+│   ├── engine-multiplayer.js        # Multiplayer module: Firebase, lobby, sync, per-game envelopes
 │   ├── secret-mode.js               # Secret Mode: Konami gateway, Terminal, expansion proxy state
 │   ├── app.js                       # Bootstrapper only — no logic (3 lines)
-│   └── lib/tailwind-play.js         # Local Tailwind (no CDN — fully offline)
+│   └── lib/
+│       ├── tailwind-play.js         # Local Tailwind (no CDN — fully offline)
+│       ├── firebase-app.js          # Firebase App (local copy — no CDN)
+│       ├── firebase-auth.js         # Firebase Auth (anonymous auth)
+│       ├── firebase-database.js     # Firebase Realtime Database
+│       └── firebase-init.js         # Firebase project config + initialisation
 ├── data/
 │   ├── words.json                   # Standard word bank (~433 words, 16 categories)
 │   ├── secret_words.json            # Expansion word bank: Dota 2 (35 words, 5 categories)
 │   └── ygi-data.json                # You Get It? prompts (55+ entries, {id, text, ringers[5]})
-├── sw.js                            # Service Worker (currently v75)
+├── sw.js                            # Service Worker (currently v80)
 ├── manifest.json                    # PWA manifest
 ├── docs/expansion-guide.md          # Template + checklist for adding new expansion packs
 ├── docs/code-map.md                 # Surgical code reference — all game IDs, overlays, key functions
-├── docs/phase21a-snapshot.md        # Phase 21a snapshot (current gold master — 8 games, post-audit)
+├── docs/multiplayer-feature-specification-v1.4.md  # MFS v1.4 — Phase 22 source of truth
+├── docs/multiplayer-ui-components.md  # Multiplayer component catalogue (screens, overlays, CSS)
+├── docs/phase22-snapshot.md         # Phase 22 snapshot (multiplayer complete — MFS v1.4)
+├── docs/phase21a-snapshot.md        # Phase 21a snapshot (gold master — 8 games, pre-multiplayer)
 ├── docs/phase19-snapshot.md         # Phase 19 architecture snapshot (7 games, pre-DSD)
 ├── docs/phase17-snapshot.md         # Phase 17 snapshot (7 games, NAT complete)
 ├── docs/archive/phase16b-snapshot.md  # Phase 16b snapshot (6 games, LTTP complete)
 ├── docs/ygi-content-guide.md        # Content creation guide for You Get It? prompts + ringers
+├── docs/bld-implementation-notes.md # BLD: design decisions, bugs, lessons, template gaps
 └── docs/archive/                    # Retired snapshots + spent plan docs
+
+**Implementation notes files** (`docs/[abbr]-implementation-notes.md`) exist for games that have been through active testing/debugging. Sections: Design Decisions / Bug Index / Multiplayer Lessons / Template Gaps. Created retroactively or during a game's first testing phase — never before implementation begins.
 ```
 
-**Load order:** `engine.js` → `li5.js` → `great-minds.js` → `secret-signals.js` → `jec.js` → `ygi.js` → `lttp.js` → `nat.js` → `dsd.js` → `secret-mode.js` → `app.js`
+**Load order:** `engine.js` → `engine-multiplayer.js` → `li5.js` → `great-minds.js` → `secret-signals.js` → `jec.js` → `ygi.js` → `lttp.js` → `nat.js` → `dsd.js` → `secret-mode.js` → `app.js`
 All symbols are global (no ES modules). Forward references work at runtime.
 
 ---
@@ -65,6 +77,7 @@ All symbols are global (no ES modules). Forward references work at runtime.
 - Do NOT add external JS libraries beyond local Tailwind
 - Do NOT create multiple HTML pages — single-page app
 - Do NOT use `localStorage` for game state mid-round (memory only; settings may persist)
+  - **Exception:** `sylly_nickname` (multiplayer nickname) and `isMuted`/`masterVolume` are permitted localStorage uses
 - Do NOT over-engineer: no classes/inheritance unless genuinely needed
 - Do NOT assume context from previous sessions — reference files explicitly
 - Do NOT add game-specific audio controls — audio is global via `engine.js`
@@ -98,8 +111,9 @@ All symbols are global (no ES modules). Forward references work at runtime.
 2. `game-identities.md` — add/update all new settings, terminology, overlay types, and screen entries for affected games
 3. `CLAUDE.md` — update SW version, current focus, and key references
 4. `logic-engine.md` — update any new universal rules, audio functions, or engine patterns introduced
+5. `docs/[abbr]-implementation-notes.md` — log any design decisions made, bugs found and resolved, or lessons learned during the phase (create the file if it doesn't exist for this game)
 
-**Rule:** No phase snapshot may be written until all four documents are verified current. The snapshot itself is the final deliverable — not the starting point for cleanup.
+**Rule:** No phase snapshot may be written until all five documents are verified current. The snapshot itself is the final deliverable — not the starting point for cleanup.
 
 **Enforcement:** At the start of every new phase, Claude Code must read `docs/code-map.md` and `game-identities.md` for all games it will touch and cross-reference against the actual `index.html` section headers and JS file. Any discrepancy found must be flagged and resolved before implementation begins.
 
@@ -153,6 +167,15 @@ The animals category is shared by both Like I'm Five and Natural Selection. Ever
 **Trigger:** Adding a new secret mode expansion (new theme/word bank).
 **Action:** Follow `docs/expansion-guide.md` — 4-step checklist. Do NOT patch plugin files (the proxy architecture handles everything).
 
+### 🎯 Skill: Implementation Notes
+**Trigger:** Any non-trivial bug fix, design decision change, or architectural lesson — during new game builds, maintenance, or audit of any existing game.
+**Action:**
+1. If `docs/[abbr]-implementation-notes.md` does not exist for the affected game, create it with four sections: Design Decisions / Bug Index / Multiplayer Lessons / Template Gaps
+2. Add a concise entry in the appropriate section: **What happened → Root cause → Lesson**
+3. At the end of any audit or testing session, review the Template Gaps section and flag items that should fold into `logic-engine.md`, `ui-style.md`, or the tech template
+**Scope:** All games — new and existing. Log during any session that touches a game's code, not just at phase boundaries.
+**Cross-reference:** Before starting a new game's tech spec, read the Template Gaps section of all existing implementation notes files and resolve any gaps that apply to the new game before implementation begins.
+
 ### 🎯 Skill: Phase Gate — Studio Audit
 **Trigger:** After completing a game or entering a new phase. Before writing the phase snapshot. Before writing the first line of a new game's JS.
 **Action:** Run both protocols in `@phase-audit.md`. Do not write the phase snapshot until the Drift Check and Linguistic Sweep are clean. Do not write a line of game logic until the Skeleton-First protocol (Steps 1–4) is confirmed.
@@ -168,12 +191,17 @@ The animals category is shared by both Like I'm Five and Natural Selection. Ever
 ---
 
 ## 🎯 Current Focus
-**Phase:** 22 — Multiplayer (MFS v1.4)
-**SW Version:** v78 (bump when assets change)
-**Gold Master:** 8 games complete (LI5, Great Minds, Secret Signals, JEC, YGI, LTTP, Natural Selection, Deep-Sea Deploy)
+**Phase:** BLD (Bailed) — active development + bug fixing (MDLM multiplayer-only game).
+**SW Version:** v92 (bump when assets change)
+**Gold Master:** 8 games complete + multiplayer (LI5, Great Minds, Secret Signals, JEC, YGI, LTTP, Natural Selection, Deep-Sea Deploy)
+**BLD status:** In active testing — MDLM only, `js/games/bld.js`, multiplayer bugs being resolved round by round.
 **Key references:**
-- `docs/phase21a-snapshot.md` — gold master (Phase 21a complete — 8 games, post-audit)
+- `docs/bld-implementation-notes.md` — BLD bug log + design decisions (active)
+- `docs/phase25-snapshot.md` — Phase 25 snapshot (play-again lobby return all games, host-only audit)
+- `docs/phase22-snapshot.md` — Phase 22 snapshot (multiplayer complete — MFS v1.4)
+- `docs/phase21a-snapshot.md` — Phase 21a snapshot (8 games, pre-multiplayer gold master)
 - `docs/multiplayer-feature-specification-v1.4.md` — MFS v1.4 spec (Phase 22 source of truth)
+- `docs/multiplayer-ui-components.md` — multiplayer component catalogue
 - `docs/code-map.md` — surgical reference: all game IDs, overlays, key functions
 - `.claude/rules/new-game-template.md` — fill this in before coding any new game
 - `docs/expansion-guide.md` — template for adding new expansion packs

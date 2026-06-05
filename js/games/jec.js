@@ -34,6 +34,7 @@ let jecOversightSelected = null; // norm word of first Sous Chef tap
 let jecOversightPendingA = null; // norm words awaiting merge confirm
 let jecOversightPendingB = null;
 let jecPoisonedNorms     = new Set(); // built from all players' poison words (KN mode)
+let jecMpReadyCheck      = [];        // Lobby Mode: tracks which players have submitted prep
 
 // ── JEC Help tip overlay ──────────────────────────────────────────────────────
 function jecShowHelpTip(emoji, heading, tip) {
@@ -53,8 +54,7 @@ document.getElementById('btn-jec').addEventListener('click', () => {
 // ── JEC Menu ──────────────────────────────────────────────────────────────────
 document.getElementById('btn-jec-menu-play').addEventListener('click', () => {
   playLaunch();
-  jecInitRoster();
-  showScreen('screen-jec-roster');
+  mpShowModeScreen('jec');
 });
 
 document.getElementById('btn-jec-menu-how-to').addEventListener('click', () => {
@@ -168,6 +168,13 @@ document.getElementById('btn-jec-settings-done').addEventListener('click', () =>
 
 // ── JEC Roster (Kitchen Roster) ───────────────────────────────────────────────
 function jecInitRoster() {
+  if (window.syllyMultiplayerMode !== 'single') {
+    // Lobby Mode: player count and names come from lobby slots
+    jecPlayerCount = mpPlayerSlots.length;
+    jecPlayerNames = mpPlayerSlots.map(p => p.nickname);
+    jecStartGame();
+    return;
+  }
   document.querySelectorAll('[data-jec-player-count]').forEach(b => {
     b.className = `pill${parseInt(b.dataset.jecPlayerCount) === jecPlayerCount ? ' pill-active-amber' : ''}`;
   });
@@ -242,10 +249,19 @@ function jecStartRound() {
   jecCurrentWord      = jecWordPool.pop();
   jecCurrentPlayerIdx = 0;
   jecInputs           = Array.from({ length: jecPlayerCount }, () => ['', '', '']);
+  jecMpReadyCheck     = Array(jecPlayerCount).fill(false);
   if (jecKitchenNightmares) {
     jecSignatures = Array(jecPlayerCount).fill(-1);
     jecPoisons    = Array(jecPlayerCount).fill('');
   }
+
+  if (window.syllyMultiplayerMode === 'host') {
+    // Lobby Mode: broadcast the food word so all devices show the same order screen
+    mpSendEnvelope({ type: 'SYNC', payload: {
+      action: 'JEC_ORDER', word: jecCurrentWord, round: jecRound, rounds: jecRounds,
+    }});
+  }
+
   jecShowOrderScreen();
 }
 
@@ -313,6 +329,22 @@ function jecSubmitIngredients() {
     jecSignatures[jecCurrentPlayerIdx] = 0; // ingredient 1 is always the Signature Dish
   }
   jecInputs[jecCurrentPlayerIdx] = [v1, v2, v3];
+
+  if (window.syllyMultiplayerMode !== 'single') {
+    // Lobby Mode: send ACTION to Host, freeze local prep screen
+    const poison = jecKitchenNightmares ? (document.getElementById('jec-prep-poison').value.trim() || '') : '';
+    mpLockSync();
+    document.getElementById('btn-jec-serve').classList.add('opacity-50', 'pointer-events-none');
+    document.getElementById('jec-prep-error').textContent = 'Ingredients submitted — waiting for the other chefs…';
+    mpSendEnvelope({ type: 'ACTION', payload: {
+      action:     'JEC_PREP_SUBMIT',
+      playerIdx:  mpMyPlayerIdx,
+      ingredients: [v1, v2, v3],
+      poison,
+    }});
+    return;
+  }
+
   const nextIdx = jecCurrentPlayerIdx + 1;
   if (nextIdx < jecPlayerCount) {
     document.getElementById('jec-pass-gate-next-name').textContent = jecPlayerNames[nextIdx];
@@ -481,6 +513,17 @@ function jecApplyMerge(normA, normB) {
   jecPoisonedNorms.delete(normB);
   delete jecWordFrequency[normB];
   delete jecDisplayWords[normB];
+
+  if (window.syllyMultiplayerMode === 'host') {
+    // Lobby Mode: broadcast updated sifting state so all clients re-render
+    mpSendEnvelope({ type: 'SYNC', payload: {
+      action: 'JEC_MERGE',
+      jecWordFrequency: {...jecWordFrequency},
+      jecDisplayWords:  {...jecDisplayWords},
+      jecMergeMap:      {...jecMergeMap},
+      jecPoisonedNorms: [...jecPoisonedNorms],
+    }});
+  }
 }
 
 // ── JEC Round scoring ─────────────────────────────────────────────────────────
@@ -620,6 +663,14 @@ function jecResetForNewGame() {
 // ── Washup screen listeners ───────────────────────────────────────────────────
 document.getElementById('btn-jec-new-game').addEventListener('click', () => {
   playPillClick();
+  const confirmBtn = document.getElementById('btn-jec-new-shift-start');
+  if (window.syllyMultiplayerMode === 'host') {
+    confirmBtn.textContent = 'Restart in Lobby 🔄';
+  } else if (window.syllyMultiplayerMode === 'client') {
+    confirmBtn.textContent = 'Leave Session';
+  } else {
+    confirmBtn.textContent = 'Yeah, fire it up! 🍳';
+  }
   document.getElementById('jec-new-shift-overlay').style.display = 'flex';
 });
 
@@ -636,6 +687,10 @@ document.getElementById('btn-jec-washup-exit').addEventListener('click', () => {
 document.getElementById('btn-jec-new-shift-start').addEventListener('click', () => {
   playLaunch();
   document.getElementById('jec-new-shift-overlay').style.display = 'none';
+  if (window.syllyMultiplayerMode !== 'single') {
+    mpReturnToLobby();
+    return;
+  }
   jecResetForNewGame();
 });
 
@@ -653,6 +708,16 @@ document.getElementById('btn-jec-sifting-exit').addEventListener('click', () => 
 document.getElementById('btn-jec-sifting-proceed').addEventListener('click', () => {
   playSuccess();
   const roundScores = jecCalcRoundScores();
+
+  if (window.syllyMultiplayerMode === 'host') {
+    // Lobby Mode: broadcast tally so all devices render the same scores
+    mpSendEnvelope({ type: 'SYNC', payload: {
+      action: 'JEC_TALLY',
+      round: jecRound, rounds: jecRounds,
+      roundScores, scores: [...jecScores], roundLog: jecRoundLog,
+    }});
+  }
+
   jecRenderTally(roundScores);
   showScreen('screen-jec-tally');
 });
@@ -678,6 +743,14 @@ document.getElementById('btn-jec-tally-exit').addEventListener('click', () => {
 
 document.getElementById('btn-jec-tally-next').addEventListener('click', () => {
   playLaunch();
+  if (window.syllyMultiplayerMode === 'host') {
+    // Lobby Mode: Host triggers next phase for all devices
+    if (jecRound < jecRounds) {
+      mpSendEnvelope({ type: 'SYNC', payload: { action: 'JEC_NEXT_ROUND' } });
+    } else {
+      mpSendEnvelope({ type: 'SYNC', payload: { action: 'JEC_WASHUP', scores: [...jecScores], roundLog: jecRoundLog } });
+    }
+  }
   if (jecRound < jecRounds) {
     jecStartRound();
   } else {
@@ -693,7 +766,9 @@ document.getElementById('btn-jec-order-exit').addEventListener('click', () => {
 
 document.getElementById('btn-jec-order-start').addEventListener('click', () => {
   playLaunch();
-  jecStartPlayerPrep(0);
+  // Lobby Mode: each device goes directly to their own player's prep (no sequential pass-gate)
+  const prepIdx = window.syllyMultiplayerMode !== 'single' ? mpMyPlayerIdx : 0;
+  jecStartPlayerPrep(prepIdx);
 });
 
 document.getElementById('btn-jec-reroll').addEventListener('click', () => {

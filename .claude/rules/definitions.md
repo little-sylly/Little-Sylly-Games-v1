@@ -59,6 +59,15 @@ ssDifficultyLevel:    'standard' | 'wild' | 'wilder'
 | Signal Boost | Great Minds: turn-based hint mechanic from round 5 |
 | Vault | Sylly Signals: each team's 4-word keyword set |
 | Broadcast | Sylly Signals: the encrypted clue sent from Encoder to Interceptors |
+| `syllyMultiplayerMode` | `'single'` / `'host'` / `'client'` — global gate controlling all MP branches in every plugin |
+| `syllySyncLocked` | Bool — true while awaiting a Firebase response; prevents double-submission via `btn-mp-action` CSS class |
+| `syllyDeviceUid` | Anonymous Firebase UID assigned on first room action; lives in memory only (not localStorage) |
+| `syllyFirebase` | Lazy-loaded Firebase app instance; null on app boot until user enters Lobby Mode |
+| Envelope | `{ type, payload, originId, timestamp }` — universal message wrapper written to and read from Firebase |
+| Room Code | 4-char uppercase alphanumeric string uniquely identifying a Firebase room node |
+| Lobby Mode | Multiplayer session where a Host + 1–N Clients share game state over Firebase Realtime Database |
+| readyCheck matrix | `[false, false, ...]` — one boolean per player; Host advances state when `.every(Boolean)` |
+| `btn-mp-action` | CSS class applied to every submittable multiplayer button; greys out during sync lock via `.mp-sync-locked` body class |
 
 ## Data Schema: words.json
 ```json

@@ -73,6 +73,7 @@ let ssIntelPreviousGuesses    = [];   // stores rawInputs for previous failed at
 let ssIntelAttempts           = [];   // all 3 raw attempt strings (current keyword) — for Dip Res selection
 let ssOverrideSelectedAttempt = '';   // which attempt the player tapped to argue for
 let ssIntelHistory            = [];   // [{team, kwIdx, word, attempts, found}] — for Mission Journal
+let ssMpVaultReady            = [false, false]; // Lobby Mode: tracks which teams confirmed vault
 
 // ── SS Fuzzy Matching ─────────────────────────────────────────────────────────
 
@@ -790,6 +791,45 @@ function startSyllySignals() {
   ssTokens           = [0, 0];
   ssMisfires         = [0, 0];
   ssRound            = 0;
+  ssMpVaultReady     = [false, false];
+
+  if (window.syllyMultiplayerMode !== 'single') {
+    // Apply roster data if present (MDLM with full assignment)
+    if (window.mpLobbyRoster?.teamNames) {
+      const r = window.mpLobbyRoster;
+      ssTeamNames    = [...r.teamNames];
+      ssPlayerNamesA = mpPlayerSlots
+        .filter((_, i) => r.playerTeamIdx[i] === 0)
+        .map(p => p.nickname);
+      ssPlayerNamesB = mpPlayerSlots
+        .filter((_, i) => r.playerTeamIdx[i] === 1)
+        .map(p => p.nickname);
+      ssPlayerCount = ssPlayerNamesA.length;
+    } else {
+      // Fallback: TLM — device nicknames as team names, 1 player per team
+      ssTeamNames    = [
+        mpPlayerSlots[0]?.nickname || 'Alpha Echo',
+        mpPlayerSlots[1]?.nickname || 'Bravo Zulu',
+      ];
+      ssPlayerNamesA = [mpPlayerSlots[0]?.nickname || ''];
+      ssPlayerNamesB = [mpPlayerSlots[1]?.nickname || ''];
+      ssPlayerCount  = 1;
+    }
+    if (window.syllyMultiplayerMode === 'host') {
+      // Host builds both vaults; sends Team B's vault to Client
+      loadWords().then(() => {
+        ssBuildVaults();
+        mpSendEnvelope({ type: 'SYNC', payload: {
+          action: 'SS_VAULT_DATA',
+          vaultB: ssVaultB.map(w => ({ word: w.word, id: w.id, category: w.category })),
+        }});
+        // Host shows Team A's vault gate
+        ssShowVaultGate(0);
+      });
+    }
+    // Client waits for SS_VAULT_DATA SYNC before showing vault gate
+    return;
+  }
 
   // Pre-populate team name inputs (blank if still defaults)
   document.getElementById('ss-input-team-a').value = ssTeamNames[0] === 'Alpha Echo' ? '' : ssTeamNames[0];
@@ -1071,6 +1111,30 @@ function ssStopTimer() {
 function ssTransmit() {
   if (ssCurrentClues.some(c => !c)) return;
   ssStopTimer();
+
+  if (window.syllyMultiplayerMode !== 'single') {
+    if (window.syllyMultiplayerMode === 'client' && ssEncryptingTeam === mpMyPlayerIdx) {
+      // Client (Team B) is encoding: send code + clues to Host so Host can resolve later
+      mpSendEnvelope({ type: 'ACTION', payload: {
+        action: 'SS_ENCODE_TRANSMIT',
+        code:   [...ssCurrentCode],
+        clues:  [...ssCurrentClues],
+        round:  ssRound,
+        team:   ssEncryptingTeam,
+      }});
+    } else if (window.syllyMultiplayerMode === 'host') {
+      // Host (Team A) is encoding: broadcast clues to intercepting device
+      mpSendEnvelope({ type: 'SYNC', payload: {
+        action:          'SS_BROADCAST',
+        clues:           [...ssCurrentClues],
+        round:           ssRound,
+        encryptingTeam:  ssEncryptingTeam,
+      }});
+    }
+    ssShowBroadcast();
+    return;
+  }
+
   ssShowBroadcast();
 }
 
@@ -1264,20 +1328,34 @@ function ssShowEndgameSplash(winner) {
 function ssNextHalf() {
   const winner = ssCheckWin();
   if (winner !== null) {
+    if (window.syllyMultiplayerMode === 'host') {
+      mpSendEnvelope({ type: 'SYNC', payload: {
+        action: 'SS_ENDGAME', winner, tokens: [...ssTokens], misfires: [...ssMisfires],
+      }});
+    }
     ssShowEndgameSplash(winner);
     return;
   }
 
   if (ssEncryptingTeam === 0) {
-    // First half done — now Team B encrypts
     ssEncryptingTeam = 1;
   } else {
-    // Both halves done — new round
     ssRound++;
     ssEncryptingTeam = 0;
   }
 
-  if (!ssSecondVaultShown) {
+  if (window.syllyMultiplayerMode === 'host') {
+    // Lobby Mode: broadcast next encrypt turn so correct device activates
+    mpSendEnvelope({ type: 'SYNC', payload: {
+      action: 'SS_ENCRYPT_TURN',
+      encryptingTeam: ssEncryptingTeam,
+      round: ssRound,
+      tokens: [...ssTokens],
+      misfires: [...ssMisfires],
+    }});
+  }
+
+  if (!ssSecondVaultShown && window.syllyMultiplayerMode === 'single') {
     ssSecondVaultShown = true;
     ssShowVaultGate(ssEncryptingTeam);
     return;
@@ -1606,7 +1684,7 @@ document.getElementById('btn-sylly-signals').addEventListener('click', () => {
 // SS menu buttons
 document.getElementById('btn-ss-play').addEventListener('click', () => {
   playLaunch();
-  startSyllySignals();
+  mpShowModeScreen('ss');
 });
 document.getElementById('btn-ss-how-to').addEventListener('click', () => {
   playPillClick();
@@ -1644,6 +1722,27 @@ document.getElementById('btn-ss-vault-gate-ready').addEventListener('click', () 
 // Vault → start encoding turn
 document.getElementById('btn-ss-vault-done').addEventListener('click', () => {
   playLaunch();
+  if (window.syllyMultiplayerMode !== 'single') {
+    // Lobby Mode: signal vault readiness to Host; wait for SS_ENCRYPT_TURN
+    ssMpVaultReady[mpMyPlayerIdx] = true;
+    if (window.syllyMultiplayerMode === 'client') {
+      mpSendEnvelope({ type: 'ACTION', payload: {
+        action: 'SS_VAULT_READY', teamIdx: mpMyPlayerIdx,
+      }});
+      return; // Client waits for Host to broadcast encrypt turn
+    }
+    // Host: record own vault readiness; if both ready → broadcast encrypt turn
+    if (ssMpVaultReady[0] && ssMpVaultReady[1]) {
+      ssEncryptingTeam = 0;
+      mpSendEnvelope({ type: 'SYNC', payload: {
+        action: 'SS_ENCRYPT_TURN', encryptingTeam: 0, round: ssRound,
+        tokens: [...ssTokens], misfires: [...ssMisfires],
+      }});
+      ssStartHalf();
+    }
+    // If Client hasn't confirmed vault yet, Host waits
+    return;
+  }
   ssStartHalf();
 });
 
@@ -1672,6 +1771,18 @@ document.getElementById('btn-ss-broadcast-exit').addEventListener('click', () =>
 // Broadcast → intercept
 document.getElementById('btn-ss-to-intercept').addEventListener('click', () => {
   playPillClick();
+  if (window.syllyMultiplayerMode !== 'single') {
+    // In lobby mode, only the encoding team's device has the broadcast screen
+    // Signal to intercepting device to show intercept screen
+    mpSendEnvelope({ type: 'SYNC', payload: {
+      action:         'SS_START_INTERCEPT',
+      clues:          [...ssCurrentClues],
+      encryptingTeam: ssEncryptingTeam,
+      round:          ssRound,
+    }});
+    // Encoding device waits for resolution (shows broadcast screen until resolved)
+    return;
+  }
   ssShowIntercept();
 });
 
@@ -1682,6 +1793,27 @@ document.getElementById('btn-ss-intercept-exit').addEventListener('click', () =>
 });
 document.getElementById('btn-ss-submit-intercept').addEventListener('click', () => {
   playDone();
+  if (window.syllyMultiplayerMode !== 'single') {
+    const interceptor = ssInterceptingTeam();
+    if (interceptor !== mpMyPlayerIdx) return; // safety: only intercepting device submits
+    if (window.syllyMultiplayerMode === 'client') {
+      // Client is intercepting: send guess to Host
+      mpLockSync();
+      mpSendEnvelope({ type: 'ACTION', payload: {
+        action: 'SS_INTERCEPT_SUBMIT',
+        guess:  [...ssInterceptGuess],
+        team:   interceptor,
+      }});
+      return;
+    }
+    // Host is intercepting (Team A): record locally, then send decode-gate SYNC to Client
+    mpSendEnvelope({ type: 'SYNC', payload: {
+      action: 'SS_DECODE_GATE',
+      encryptingTeam: ssEncryptingTeam,
+    }});
+    ssShowDecodeGate();
+    return;
+  }
   ssShowDecodeGate();
 });
 
@@ -1700,6 +1832,33 @@ document.getElementById('btn-ss-decode-exit').addEventListener('click', () => {
 // Decode screen
 document.getElementById('btn-ss-submit-decode').addEventListener('click', () => {
   playDone();
+  if (window.syllyMultiplayerMode !== 'single') {
+    const encoder = ssEncryptingTeam;
+    if (encoder !== mpMyPlayerIdx) return; // only encoding team decodes
+    if (window.syllyMultiplayerMode === 'client') {
+      // Client (Team B encoding) decodes: send to Host for resolution
+      mpLockSync();
+      mpSendEnvelope({ type: 'ACTION', payload: {
+        action: 'SS_DECODE_SUBMIT',
+        guess:  [...ssDecodeGuess],
+        team:   encoder,
+      }});
+      return;
+    }
+    // Host (Team A encoding) decodes: resolve locally and broadcast results
+    ssResolve();
+    const result = ssRoundHistory[ssRoundHistory.length - 1];
+    mpSendEnvelope({ type: 'SYNC', payload: {
+      action:         'SS_RESOLUTION',
+      result,
+      tokens:         [...ssTokens],
+      misfires:       [...ssMisfires],
+      clueHistoryA:   ssClueHistoryA.map(h => [...h]),
+      clueHistoryB:   ssClueHistoryB.map(h => [...h]),
+      roundHistory:   ssRoundHistory,
+    }});
+    return;
+  }
   ssResolve();
 });
 
@@ -1718,11 +1877,23 @@ document.getElementById('btn-ss-continue').addEventListener('click', () => {
 // Game over — Play Again → confirmation modal
 document.getElementById('btn-ss-play-again').addEventListener('click', () => {
   playPillClick();
+  const confirmBtn = document.getElementById('btn-ss-play-again-confirm');
+  if (window.syllyMultiplayerMode === 'host') {
+    confirmBtn.textContent = 'Restart in Lobby 🔄';
+  } else if (window.syllyMultiplayerMode === 'client') {
+    confirmBtn.textContent = 'Leave Session';
+  } else {
+    confirmBtn.textContent = 'Start New Mission 📡';
+  }
   document.getElementById('ss-play-again-overlay').style.display = 'flex';
 });
 document.getElementById('btn-ss-play-again-confirm').addEventListener('click', () => {
   playLaunch();
   document.getElementById('ss-play-again-overlay').style.display = 'none';
+  if (window.syllyMultiplayerMode !== 'single') {
+    mpReturnToLobby();
+    return;
+  }
   startSyllySignals();
 });
 document.getElementById('btn-ss-play-again-cancel').addEventListener('click', () => {

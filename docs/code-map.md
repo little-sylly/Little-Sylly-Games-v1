@@ -1,6 +1,6 @@
 # Code Map — Little Sylly Games
 **Purpose:** Surgical reference for editing. Uses element IDs (stable) not line numbers (shift).
-**Updated:** Phase 21a (8 games, post-audit)
+**Updated:** Phase 25 (multiplayer polish + host-only audit)
 
 ---
 
@@ -633,3 +633,112 @@ Each plugin reads `window.activeExpansionOverrides` at its settings-apply point 
 **First element inside every `overlay-data-inner`:** thematic title block — heading + optional subtitle, `border-b`, `flex-shrink-0`.
 
 **`scrollTop = 0`** must be called on the `overlay-data-inner` element before setting `display: flex`.
+
+---
+
+## Multiplayer Module
+
+**JS file:** `js/engine-multiplayer.js`
+**Loaded after:** `engine.js` | **Loaded before:** `secret-mode.js`
+**Full component reference:** `docs/multiplayer-ui-components.md`
+
+### Multiplayer Globals
+| Variable | Type | Default | Purpose |
+|----------|------|---------|---------|
+| `syllyMultiplayerMode` | string | `'single'` | `'single'` / `'host'` / `'client'` — global gate for all MP branches in plugins |
+| `syllySyncLocked` | bool | `false` | true while awaiting Firebase response; blocks double-submit via `btn-mp-action` |
+| `syllyDeviceUid` | string | `''` | Anonymous Firebase UID; assigned on first room action; memory-only |
+| `syllyFirebase` | object | `null` | Lazy-loaded Firebase app instance; null until Lobby Mode entered |
+| `mpMyPlayerIdx` | int | `0` | This device's slot index (0 = Host) |
+| `mpPlayerSlots` | array | `[]` | `[{uid, nickname}]` — joined player list |
+| `mpActiveGame` | string | `''` | Current game abbreviation (set when Lobby Mode starts) |
+| `mpRoomCode` | string | `''` | Active 4-char room code |
+| `mpJoinListenFrom` | int | `0` | Timestamp cutoff — events older than this are ignored by listener |
+| `mpLobbyStyle` | string | `'individual'` | `'team'` (TLM) / `'individual'` (MDLM) — set at mode selection; broadcast in GAME_START; reset in `resetToLobby()` |
+| `mpPlayersListener` | function\|null | `null` | `onValue` unsubscribe for `/players` node; active during host lobby only; cancelled in `mpStopListeners()` and before GAME_START in `mpConfirmRoster()` |
+| `window.mpClientPlayerRef` | Firebase ref\|null | `null` | Reference to client's own `/players/{uid}` node; used for explicit removal on leave/cancel; set in `mpClientJoinRoom()`, cleared in `resetToLobby()` and cancel handler |
+
+### Multiplayer Mode Classification
+Three named modes (Phase 23). Each game has a `recommendedMode` and `supportedModes[]` in `MP_GAME_CONFIGS`:
+| Mode key | Display name | Description |
+|----------|-------------|-------------|
+| `ptp` | Pass the Phone | Single device, take turns. No internet needed. |
+| `tlm` | Team Lobby Mode | Each team shares one device. Host/Join with room code. |
+| `mdlm` | Multi-device Lobby Mode | Each player uses their own phone. Host/Join with room code. |
+
+Per-game: LI5 `ptp`★/`tlm` · GM `ptp`★/`mdlm` · SS `tlm`★/`mdlm`/`ptp` · JEC `mdlm`★/`ptp` · YGI `mdlm`★/`ptp` · LTTP `mdlm`★/`ptp` · NAT `mdlm`★/`ptp` · DSD `tlm`★/`mdlm`/`ptp` (★ = recommended)
+
+### Multiplayer Screens
+| Screen ID | Purpose |
+|-----------|---------|
+| `screen-mp-mode` | Mode selection — dynamically built by `mpShowModeScreen(abbr)` from `MP_GAME_CONFIGS.recommendedMode` + `supportedModes` |
+| `screen-mp-lobby-host` | Host waiting room — room code, player dock (shared) |
+| `screen-mp-lobby-join` | Client join flow — 4-char code input + nickname entry (shared) |
+| `screen-li5-monitor` | LI5-specific opposing team view — Tattletale Sheet (word + No-No List + CATCH! button) |
+| `screen-dsd-spectator` | DSD TLM non-active team view — read-only crew grid + clue history; shown by `dsdShowSpectatorView()` |
+
+### Multiplayer Overlays
+| Overlay ID | Pattern | z-index | Trigger |
+|------------|---------|---------|---------|
+| `mp-network-error-overlay` | Decision modal | z-[90] | Firebase load timeout on mode screen |
+| `mp-version-mismatch-overlay` | Decision modal | z-[90] | Handshake: client SW version !== host SW version |
+| `mp-host-disconnected-overlay` | Decision modal | z-[100] | Firebase `.onDisconnect()` sentinel fires on all client devices |
+| `mp-lttp-message-interrupt-overlay` | Decision modal | z-[105] | `SYNC: LTTP_MESSAGE_INTERRUPT` — fires on ALL LTTP devices simultaneously |
+| `mp-host-prelobby-overlay` | Decision modal | z-[90] | Host selects "Host Lobby" — nickname entry before room code generation |
+
+### Key Functions
+| Function | Purpose |
+|----------|---------|
+| `mpShowModeScreen(abbr)` | Parameterises + shows `screen-mp-mode` for the given game |
+| `mpShowLobbyHost()` | Shows `screen-mp-lobby-host` after room creation |
+| `mpShowLobbyJoin()` | Shows `screen-mp-lobby-join` |
+| `mpSetModeSelection(mode)` | Updates mode card radio state + enables CTA |
+| `mpLockSync()` | Activates sync lock — greys all `btn-mp-action` buttons; 8-second auto-release |
+| `mpUnlockSync()` | Releases sync lock |
+| `mpSendEnvelope(env)` | Async — writes `{type, payload, originId, timestamp}` envelope to Firebase |
+| `mpHandleEnvelope(env)` | Routes incoming envelopes to game-specific ACTION/SYNC handlers |
+| `mpSerialiseSettings(abbr)` | Serialises host's current game settings object for `SETTINGS_SYNC` packet |
+| `mpRenderHostPlayerList()` | Renders joined player chips in host lobby dock |
+| `mpHostCreateRoom()` | Async — creates Firebase room node, starts event listener |
+| `mpClientJoinRoom()` | Async — validates room code, joins Firebase room |
+| `mpStartEventListener()` | Attaches Firebase `onValue` listener (ignores events before join timestamp) |
+| `mpStopListeners()` | Detaches all Firebase listeners |
+| `mpGetNickname()` / `mpSaveNickname(v)` | `localStorage` helpers for `sylly_nickname` (permitted exception to no-localStorage rule) |
+| `mpGenerateRoomCode()` | Returns a random 4-char uppercase alphanumeric room code |
+| `mpUpdateJoinCta()` | Enables/disables join CTA based on code + nickname input state |
+| `mpShakeNicknameInput(el)` | Shake animation helper for invalid nickname input |
+| `mpStartPlayersWatcher()` | Subscribes `onValue` to `/rooms/{code}/players`; on count decrease rebuilds `mpPlayerSlots` from Firebase and re-renders host lobby; called after room creation and after each `mpReturnToLobby()` host call |
+| `mpReturnToLobby()` | Universal play-again handler for Lobby Mode. Host: broadcasts `LOBBY_RESET` + returns to `screen-mp-lobby-host` with same room code + re-subscribes players watcher. Client: calls `resetToLobby()`. Every game's play-again confirm must call this instead of navigating to setup when `syllyMultiplayerMode !== 'single'`. |
+
+### Envelope Schema
+```js
+{
+  type:      'ACTION' | 'SYNC' | 'LOBBY',
+  payload:   { action: 'GAME_EVENT_NAME', ...data },
+  originId:  syllyDeviceUid,
+  timestamp: Date.now()
+}
+```
+- `ACTION` — Client → Host: submits player action; Host processes and responds with SYNC
+- `SYNC` — Host → All: broadcasts resolved state; all devices apply and navigate
+- `LOBBY` — Host → All: session management (`SETTINGS_SYNC`, `GAME_START`, `HOST_END_GAME`, `LOBBY_RESET`)
+
+**LOBBY action types:**
+| Action | Direction | Trigger | Effect on receiver |
+|--------|-----------|---------|-------------------|
+| `SETTINGS_SYNC` | Host → All | Host settings change in lobby | Client applies serialised settings |
+| `GAME_START` | Host → All | Host confirms roster | All devices call `mpActiveGameConfig.onPassThePhone()` |
+| `HOST_END_GAME` | Host → All | Host force-ends session | All clients call `resetToLobby()` |
+| `LOBBY_RESET` | Host → All | Host confirms play-again | Client pre-fills code boxes, shows "Host is setting up another round — waiting to start…", disables join CTA, navigates to `screen-mp-lobby-join` |
+
+### Per-Game ACTION/SYNC Packet Types
+| Game | ACTION packets | SYNC packets |
+|------|---------------|-------------|
+| LI5 | `LI5_CATCH` | `LI5_ROUND_START` |
+| GM | `GM_SUBMIT` | `GM_ROUND_START`, `GM_RESULT` (`isOverride: bool`, `overridePhrase: string` — present when host triggers Social Override) |
+| JEC | `JEC_PREP_SUBMIT` | `JEC_ORDER`, `JEC_SIFTING`, `JEC_MERGE`, `JEC_TALLY`, `JEC_NEXT_ROUND`, `JEC_WASHUP` |
+| YGI | `YGI_TAKE_SUBMIT`, `YGI_VOTE_SUBMIT` | `YGI_ROUND_START`, `YGI_LINEUP`, `YGI_VERDICT` |
+| NAT | `NAT_OBSERVATION` | `NAT_MATCH_START`, `NAT_ACTIVE_PLAYER`, `NAT_DAY_END`, `NAT_SELECTION`, `NAT_TALLY` |
+| DSD | `DSD_PING_TRANSMIT`, `DSD_SEQUENCE_SUBMIT` | `DSD_CREW_ACTIVE`, `DSD_EXECUTION_RESULT`, `DSD_GAMEOVER` |
+| SS | `SS_VAULT_READY`, `SS_ENCODE_TRANSMIT`, `SS_INTERCEPT_SUBMIT`, `SS_DECODE_SUBMIT` | `SS_VAULT_DATA`, `SS_ENCRYPT_TURN`, `SS_BROADCAST`, `SS_START_INTERCEPT`, `SS_DECODE_GATE`, `SS_RESOLUTION`, `SS_ENDGAME` |
+| LTTP | `LTTP_MESSAGE_SEND` | `LTTP_GAME_START`, `LTTP_TURN_ADVANCE`, `LTTP_MESSAGE_INTERRUPT` |

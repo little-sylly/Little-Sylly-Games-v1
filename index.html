@@ -62,6 +62,9 @@
       <button id="btn-dsd" class="min-h-14 w-full rounded-2xl bg-cyan-700 hover:bg-cyan-800 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
         Deep-Sea Deploy
       </button>
+      <button id="btn-bld" class="min-h-14 w-full rounded-2xl bg-yellow-500 hover:bg-yellow-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Bailed
+      </button>
     </div>
   </section>
 
@@ -251,7 +254,7 @@
         </button>
       </div>
       <button id="btn-skip" class="min-h-10 w-full rounded-xl bg-stone-300 hover:bg-stone-400 active:scale-95 text-stone-700 text-base font-semibold transition-all duration-150">
-        Skip-a-roo
+        Skip!
       </button>
     </div>
   </section>
@@ -345,7 +348,7 @@
         <!-- Skip Cost -->
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
           <div>
-            <p class="text-stone-800 font-semibold">Skip-a-roo</p>
+            <p class="text-stone-800 font-semibold">Skip</p>
             <p class="text-stone-400 text-sm mt-0.5">Whether skipping a word costs a penalty.</p>
           </div>
           <div class="flex gap-2">
@@ -369,7 +372,8 @@
             <p class="text-stone-800 font-semibold">✨ Sylly Mode</p>
             <button id="sylly-toggle" class="sylly-toggle-off shrink-0">OFF</button>
           </div>
-          <p class="text-stone-400 text-sm">Wild words mixed in — correct answers score double.</p>
+          <p class="text-stone-600 text-sm font-semibold">Wild Words</p>
+          <p class="text-stone-400 text-sm">Mixed in with the deck — correct answers score double, but also penalties!</p>
           <div id="sylly-pct-row" style="display:none">
             <p class="text-pink-400 text-sm font-semibold uppercase tracking-widest mb-2">
               Sylly Intensity — <span id="sylly-intensity-label">30%</span>
@@ -1009,10 +1013,9 @@
           <p class="text-stone-800 font-semibold">✨ Sylly Mode</p>
           <button id="btn-gm-static-toggle" class="sylly-toggle-off shrink-0">OFF</button>
         </div>
+        <p class="text-stone-600 text-sm font-semibold">Static Interference</p>
+        <p id="gm-sylly-intensity-desc" class="text-stone-400 text-sm">Each round, a random consonant is banned for both players. No clue may contain it.</p>
         <div id="gm-sylly-mode-detail" style="display:none" class="flex flex-col gap-2">
-          <p class="text-stone-600 text-sm font-semibold">⚡ Static Interference</p>
-          <p id="gm-sylly-intensity-desc" class="text-stone-400 text-sm">Each round, a random consonant is banned for both players.</p>
-          <p class="text-stone-400 text-sm">No clue may contain it.</p>
           <div id="gm-sylly-intensity-pills" class="flex gap-2">
             <button class="pill pill-active-purple" data-gm-intensity="sub-atomic">Mental Fog</button>
             <button class="pill" data-gm-intensity="supernova">Neural Storm</button>
@@ -1730,12 +1733,13 @@
         </div>
         <hr class="border-stone-200" />
         <!-- 6. Sylly Mode (always last) -->
-        <div class="flex items-center justify-between gap-4">
-          <div>
+        <div class="flex flex-col gap-2">
+          <div class="flex items-center justify-between">
             <p class="text-stone-800 font-semibold">✨ Sylly Mode</p>
-            <p class="text-stone-400 text-sm mt-0.5 leading-relaxed">Intelligence Reveal — teams guess the opponent's vault after the game</p>
+            <button id="ss-sylly-toggle" class="sylly-toggle-off flex-shrink-0">OFF</button>
           </div>
-          <button id="ss-sylly-toggle" class="sylly-toggle-off flex-shrink-0">OFF</button>
+          <p class="text-stone-600 text-sm font-semibold">Intel Phase</p>
+          <p class="text-stone-400 text-sm">Teams guess the opponent's vault after the game.</p>
         </div>
       </div>
       <!-- Fixed footer -->
@@ -2449,7 +2453,8 @@
           <p class="text-stone-800 font-semibold">✨ Sylly Mode</p>
           <button id="btn-jec-sylly-toggle" class="sylly-toggle-off shrink-0">OFF</button>
         </div>
-        <p class="text-stone-400 text-sm">Kitchen Nightmares — flag a Signature Dish for double points, and plant a Poison Word to spoil the competition.</p>
+        <p class="text-stone-600 text-sm font-semibold">Kitchen Nightmares</p>
+        <p class="text-stone-400 text-sm">Flag a Signature Dish for double points, and plant a Poison Word to spoil the competition.</p>
       </div>
 
       <button id="btn-jec-settings-done" class="min-h-14 w-full rounded-2xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
@@ -2980,8 +2985,8 @@
           <p class="text-stone-400 text-sm mt-0.5">How the group gives The Nod each round.</p>
         </div>
         <div class="flex gap-2">
-          <button class="pill" data-ygi-verdict="open-ballpark">The Consensus</button>
-          <button class="pill pill-active-orange" data-ygi-verdict="secret-ballot">Your Call</button>
+          <button class="pill pill-active-orange" data-ygi-verdict="open-ballpark">The Consensus</button>
+          <button class="pill" data-ygi-verdict="secret-ballot">Your Call</button>
         </div>
       </div>
 
@@ -2991,7 +2996,8 @@
           <p class="text-stone-800 font-semibold">✨ Sylly Mode</p>
           <button id="btn-ygi-sylly-toggle" class="sylly-toggle-off shrink-0">OFF</button>
         </div>
-        <p class="text-stone-400 text-sm">The Ringer — a mystery Ghost Card joins the Lineup. If it wins, everyone loses 2 points.</p>
+        <p class="text-stone-600 text-sm font-semibold">The Ringer</p>
+        <p class="text-stone-400 text-sm">A mystery Ghost Card joins the Lineup. If it wins, everyone loses 2 points.</p>
       </div>
 
       <button id="btn-ygi-settings-done" class="min-h-14 w-full rounded-2xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
@@ -3552,6 +3558,7 @@
           <p class="text-stone-800 font-semibold">✨ Sylly Mode</p>
           <button id="btn-lttp-joker-toggle" class="game-toggle-off shrink-0">OFF</button>
         </div>
+        <p class="text-stone-600 text-sm font-semibold">Joker Mode</p>
         <p class="text-stone-400 text-sm">One member of the Gang is secretly stirring the pot. Three-way scoring.</p>
       </div>
 
@@ -3680,8 +3687,9 @@
     </div>
   </div>
 
-  <!-- Load order: engine → plugins → secret-mode → bootstrapper -->
+  <!-- Load order: engine → multiplayer → plugins → secret-mode → bootstrapper -->
   <script src="js/engine.js"></script>
+  <script src="js/engine-multiplayer.js"></script>
   <script src="js/games/li5.js"></script>
   <script src="js/games/great-minds.js"></script>
   <script src="js/games/secret-signals.js"></script>
@@ -4158,9 +4166,10 @@
         <!-- Sylly Mode -->
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
           <div class="flex items-center justify-between">
-            <p class="text-stone-800 font-semibold">✨ Survival of the Fittest</p>
+            <p class="text-stone-800 font-semibold">✨ Sylly Mode</p>
             <button id="btn-nat-sylly-toggle" class="game-toggle-off shrink-0">OFF</button>
           </div>
+          <p class="text-stone-600 text-sm font-semibold">Survival of the Fittest</p>
           <p class="text-stone-400 text-sm">Day 1 everyone shares the same broad clue. Day 2 and beyond, researchers reveal their specific detail while the Mole holds on.</p>
         </div>
 
@@ -4238,7 +4247,8 @@
        Screens : screen-dsd-menu, screen-dsd-setup, screen-dsd-players,
                  screen-dsd-briefing (Strategic Planning — new Phase 21a),
                  screen-dsd-pass-gate, screen-dsd-captain, screen-dsd-crew,
-                 screen-dsd-execution, screen-dsd-sabotage, screen-dsd-gameover
+                 screen-dsd-execution, screen-dsd-sabotage, screen-dsd-spectator,
+                 screen-dsd-gameover
        Overlays: dsd-settings-overlay, dsd-how-to-overlay, dsd-quit-overlay,
                  dsd-confirm-disarm, dsd-new-op-overlay
        Ref     : js/games/dsd.js
@@ -4256,7 +4266,7 @@
     <p class="text-stone-500 text-lg">Read the grid. Trust your Captain. Don't hit the mine.</p>
     <div class="flex flex-col gap-4 w-full mt-2">
       <button id="btn-dsd-menu-play" class="min-h-14 w-full rounded-2xl bg-cyan-700 hover:bg-cyan-800 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
-        Begin Deployment ⚓
+        Begin Deployment
       </button>
       <button id="btn-dsd-menu-howto" class="min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
         How to Play
@@ -4531,7 +4541,30 @@
     </div>
   </section>
 
-  <!-- dsd-⑦ GAMEOVER (Mission Debrief) -->
+  <!-- dsd-⑦ SPECTATOR: Non-active team watch view (TLM only) -->
+  <section id="screen-dsd-spectator" style="display:none"
+    class="flex flex-col w-full max-w-sm mx-auto h-screen overflow-hidden">
+    <!-- Header -->
+    <div class="flex items-center justify-between px-4 pt-4 pb-2 flex-shrink-0">
+      <p id="dsd-spectator-label" class="text-xs font-semibold uppercase tracking-widest text-stone-400">Watching ⚓</p>
+      <button class="btn-open-sound text-2xl leading-none min-h-11 flex items-center">🔊</button>
+    </div>
+    <!-- Ping banner -->
+    <div id="dsd-spectator-banner" class="px-4 py-2 bg-stone-100 border-b border-stone-200 flex-shrink-0">
+      <p id="dsd-spectator-ping" class="text-stone-600 font-bold text-sm text-center">Waiting for Sonar Ping…</p>
+    </div>
+    <!-- Grid -->
+    <div id="dsd-spectator-grid" class="grid grid-cols-5 gap-1 p-2 flex-shrink-0"></div>
+    <!-- Clue history -->
+    <div class="flex-1 overflow-y-auto min-h-0 px-4 pb-4 pt-2">
+      <p class="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-2">Clue History</p>
+      <div id="dsd-spectator-history" class="flex flex-col gap-2">
+        <p class="text-stone-400 text-sm italic text-center mt-2">Waiting for first ping…</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- dsd-⑧ GAMEOVER (Mission Debrief) -->
   <section id="screen-dsd-gameover" style="display:none"
     class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
     <div class="flex flex-col w-full max-w-sm gap-4">
@@ -4665,7 +4698,8 @@
             <p class="text-stone-800 font-semibold">✨ Sylly Mode</p>
             <button id="btn-dsd-sylly-toggle" class="game-toggle-off shrink-0">OFF</button>
           </div>
-          <p class="text-stone-400 text-sm">Mission Abyss: the grid drifts between deployments, and teams can plant a Jammer tile to sabotage the enemy.</p>
+          <p class="text-stone-600 text-sm font-semibold">Mission Abyss</p>
+          <p class="text-stone-400 text-sm">The grid drifts between deployments, and teams can plant a Jammer tile to sabotage the enemy.</p>
         </div>
 
         <!-- Done -->
@@ -4755,11 +4789,896 @@
     </div>
   </div>
 
+  <!-- ════ MULTIPLAYER ENGINE ════
+       Screens : screen-mp-mode (shared, parameterised by mpShowModeScreen)
+                 screen-mp-lobby-host (shared, parameterised by mpShowLobbyHost)
+                 screen-mp-lobby-join (shared, parameterised by mpShowLobbyJoin)
+                 screen-li5-monitor (LI5-specific opposing team view)
+       Overlays: mp-version-mismatch-overlay, mp-host-disconnected-overlay,
+                 mp-lttp-message-interrupt-overlay, mp-network-error-overlay
+       Ref     : js/engine-multiplayer.js
+    ════════════════════════════════════════════════════════════════ -->
+
+  <!-- ── screen-mp-mode: Mode Selection (shared, parameterised by mpShowModeScreen) ── -->
+  <section id="screen-mp-mode" style="display:none"
+    class="flex flex-col w-full max-w-sm mx-auto h-screen overflow-hidden">
+
+    <!-- Header -->
+    <div class="flex items-center justify-between px-5 pt-5 pb-3 flex-shrink-0">
+      <button id="btn-mp-mode-back" class="text-stone-500 font-bold text-xl leading-none min-h-11 flex items-center">←</button>
+      <div class="flex items-center gap-2">
+        <span id="mp-mode-emoji" class="text-2xl leading-none"></span>
+        <span id="mp-mode-game-name" class="text-base font-semibold text-stone-600"></span>
+      </div>
+      <div class="flex items-center gap-3">
+        <button class="btn-open-sound text-2xl leading-none min-h-11 flex items-center">🔊</button>
+        <button id="btn-mp-mode-exit" class="text-stone-500 font-bold text-xl leading-none min-h-11 flex items-center">✕</button>
+      </div>
+    </div>
+
+    <!-- Scrollable body -->
+    <div class="flex-1 overflow-y-auto min-h-0 px-5 pb-3 flex flex-col gap-5">
+
+      <!-- Heading -->
+      <div>
+        <h2 class="text-3xl font-bold text-stone-800">How are you playing?</h2>
+        <p class="text-stone-400 text-base mt-1">One phone or many — your choice.</p>
+      </div>
+
+      <!-- Offline notice (hidden by default) -->
+      <div id="mp-mode-offline-notice" style="display:none"
+        class="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 text-amber-700 text-sm text-center">
+        No internet connection — Pass-the-Phone only.
+      </div>
+
+      <!-- Mode options — populated dynamically by mpShowModeScreen() -->
+      <div id="mp-mode-recommended-section"></div>
+      <div id="mp-mode-others-section"></div>
+
+    </div>
+
+    <!-- Footer: single branded CTA -->
+    <div class="px-5 pb-8 pt-3 flex-shrink-0">
+      <button id="btn-mp-mode-cta"
+        class="min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Let's Play!
+      </button>
+    </div>
+
+  </section>
+
+  <!-- ── screen-mp-lobby-host: Host Lobby (shared) ── -->
+  <section id="screen-mp-lobby-host" style="display:none"
+    class="flex flex-col w-full max-w-sm mx-auto h-screen overflow-hidden">
+
+    <!-- Zone 1: Connection header -->
+    <div class="flex items-center justify-between px-4 pt-4 pb-3 flex-shrink-0 border-b border-stone-100">
+      <button id="btn-mp-lobby-host-cancel"
+        class="text-stone-500 font-bold text-base leading-none min-h-11 px-2">← Cancel</button>
+      <button id="mp-lobby-host-room-code"
+        title="Tap to copy"
+        class="bg-stone-800 text-white text-xl font-mono font-bold tracking-[0.25em] px-4 py-2 rounded-xl active:scale-95 transition-all duration-150">
+        - - - -
+      </button>
+      <button class="btn-open-sound text-2xl leading-none min-h-11 w-11 flex items-center justify-center">🔊</button>
+    </div>
+
+    <!-- Zone 2: Player dock -->
+    <div class="flex-1 overflow-y-auto min-h-0 px-4 py-4 flex flex-col gap-3">
+      <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest">Players</p>
+      <div id="mp-lobby-players-list" class="flex flex-col gap-2">
+        <!-- Populated by mpRenderHostPlayerList() -->
+      </div>
+      <p id="mp-lobby-host-waiting" class="text-stone-400 text-sm italic text-center mt-2">
+        Waiting for players to join…
+      </p>
+      <p id="mp-lobby-capacity-display" class="text-stone-400 text-xs text-center"></p>
+    </div>
+
+    <!-- Footer: CTA -->
+    <div class="px-4 pb-8 pt-3 flex-shrink-0 border-t border-stone-100">
+      <button id="btn-mp-lobby-host-cta"
+        class="min-h-14 w-full rounded-2xl bg-stone-700 active:scale-95 text-white text-xl font-semibold transition-all duration-150 opacity-50 pointer-events-none"
+        disabled>
+        Let's Go! →
+      </button>
+    </div>
+
+  </section>
+
+  <!-- ── screen-mp-lobby-join: Client Join (shared) ── -->
+  <section id="screen-mp-lobby-join" style="display:none"
+    class="flex flex-col w-full max-w-sm mx-auto h-screen overflow-hidden">
+
+    <!-- Zone 1: Header -->
+    <div class="flex items-center justify-between px-4 pt-4 pb-3 flex-shrink-0">
+      <button id="btn-mp-join-cancel"
+        class="text-stone-500 font-bold text-base leading-none min-h-11 px-2">← Cancel</button>
+      <p class="text-base font-bold text-stone-700">Join Lobby</p>
+      <button class="btn-open-sound text-2xl leading-none min-h-11 w-11 flex items-center justify-center">🔊</button>
+    </div>
+
+    <!-- Zone 2: Code input boxes -->
+    <div class="flex-1 overflow-y-auto min-h-0 flex flex-col items-center justify-center px-6 gap-6">
+
+      <div>
+        <p class="text-stone-500 text-sm font-semibold uppercase tracking-widest text-center mb-4">
+          Enter the 4-character room code
+        </p>
+        <div class="flex gap-3 justify-center">
+          <input id="mp-join-c1" type="text" maxlength="1" autocomplete="off" spellcheck="false" inputmode="text"
+            class="w-14 h-16 rounded-xl border-2 border-stone-300 text-center text-2xl font-mono font-bold text-stone-800 focus:border-stone-600 focus:outline-none uppercase transition-colors" />
+          <input id="mp-join-c2" type="text" maxlength="1" autocomplete="off" spellcheck="false" inputmode="text"
+            class="w-14 h-16 rounded-xl border-2 border-stone-300 text-center text-2xl font-mono font-bold text-stone-800 focus:border-stone-600 focus:outline-none uppercase transition-colors" />
+          <input id="mp-join-c3" type="text" maxlength="1" autocomplete="off" spellcheck="false" inputmode="text"
+            class="w-14 h-16 rounded-xl border-2 border-stone-300 text-center text-2xl font-mono font-bold text-stone-800 focus:border-stone-600 focus:outline-none uppercase transition-colors" />
+          <input id="mp-join-c4" type="text" maxlength="1" autocomplete="off" spellcheck="false" inputmode="text"
+            class="w-14 h-16 rounded-xl border-2 border-stone-300 text-center text-2xl font-mono font-bold text-stone-800 focus:border-stone-600 focus:outline-none uppercase transition-colors" />
+        </div>
+      </div>
+
+      <!-- Zone 3: Nickname input -->
+      <div class="w-full px-2 flex flex-col gap-2">
+        <p class="text-stone-500 text-sm font-semibold text-center">Your nickname</p>
+        <input id="mp-join-nickname-input" type="text" maxlength="12" autocomplete="off" spellcheck="false"
+          placeholder="What do they call you?"
+          class="w-full rounded-xl border-2 border-stone-200 bg-white px-4 py-3 text-lg text-stone-800 placeholder-stone-300 focus:border-stone-600 focus:outline-none uppercase-first transition-colors text-center" />
+        <p class="text-stone-400 text-xs text-center">Max 12 characters</p>
+      </div>
+
+      <!-- Status message: populated by mpClientJoinRoom() -->
+      <p id="mp-join-status" class="text-stone-400 text-sm text-center"></p>
+
+    </div>
+
+    <!-- Footer: CTA -->
+    <div class="px-6 pb-8 pt-3 flex-shrink-0">
+      <button id="btn-mp-join-enter"
+        class="min-h-14 w-full rounded-2xl bg-stone-700 active:scale-95 text-white text-xl font-semibold transition-all duration-150 opacity-50"
+        disabled>
+        Enter Room →
+      </button>
+    </div>
+
+  </section>
+
+  <!-- ── screen-mp-roster: Host Roster Assignment (shared, Phase 24) ── -->
+  <section id="screen-mp-roster" style="display:none"
+    class="flex flex-col w-full max-w-sm mx-auto h-screen overflow-hidden">
+    <!-- Header -->
+    <div class="flex items-center justify-between px-4 pt-4 pb-3 flex-shrink-0 border-b border-stone-100">
+      <button id="btn-mp-roster-back"
+        class="text-stone-500 font-bold text-base leading-none min-h-11 px-2">← Back</button>
+      <p id="mp-roster-heading" class="text-base font-bold text-stone-700">Assign Spots</p>
+      <button class="btn-open-sound text-2xl leading-none min-h-11 w-11 flex items-center justify-center">🔊</button>
+    </div>
+    <!-- Body: built dynamically by mpBuildRosterUI() -->
+    <div id="mp-roster-body" class="flex-1 overflow-y-auto min-h-0 px-4 py-4 flex flex-col gap-4"></div>
+    <!-- Footer -->
+    <div class="px-4 pb-8 pt-3 flex-shrink-0 border-t border-stone-100 flex flex-col gap-3">
+      <button id="btn-mp-roster-randomise"
+        class="min-h-11 w-full rounded-xl bg-stone-100 hover:bg-stone-200 active:scale-95 text-stone-600 text-sm font-semibold transition-all duration-150">
+        🎲 Randomise
+      </button>
+      <button id="btn-mp-roster-confirm"
+        class="min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-xl font-semibold transition-all duration-150 opacity-50 pointer-events-none btn-mp-action"
+        disabled>
+        Start Game →
+      </button>
+    </div>
+  </section>
+
+  <!-- ── screen-li5-monitor: LI5 Opposing Team View (Tattletale Sheet) ── -->
+  <section id="screen-li5-monitor" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-6">
+
+      <!-- Header -->
+      <div class="flex items-center justify-between">
+        <button id="btn-li5-monitor-exit" class="text-stone-500 font-bold text-xl leading-none min-h-11 flex items-center">✕</button>
+        <button class="btn-open-sound text-2xl leading-none">🔊</button>
+      </div>
+
+      <!-- Title -->
+      <div class="text-center">
+        <p class="text-5xl mb-2">👀</p>
+        <h2 class="text-3xl font-bold text-stone-800">Tattletale Sheet</h2>
+        <p class="text-stone-400 text-sm mt-1">Watch for rule breaks — tap CATCH! to alert them.</p>
+      </div>
+
+      <!-- Word display (populated by Sprint 4 Firebase SYNC) -->
+      <div class="bg-white rounded-2xl p-5 shadow-sm text-center">
+        <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest mb-2">They're describing</p>
+        <p id="li5-monitor-word" class="text-3xl font-bold text-stone-800">—</p>
+      </div>
+
+      <!-- No-No List (populated by Sprint 4) -->
+      <div class="bg-white rounded-2xl p-4 shadow-sm">
+        <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest mb-3">No-No List</p>
+        <ul id="li5-monitor-nono-list" class="flex flex-col gap-2">
+          <li class="text-stone-400 text-sm italic text-center">Waiting for round to start…</li>
+        </ul>
+      </div>
+
+      <!-- CATCH! button -->
+      <button id="btn-li5-catch"
+        class="min-h-16 w-full rounded-2xl bg-pink-500 hover:bg-pink-600 active:scale-95 text-white text-2xl font-bold transition-all duration-150">
+        CATCH! 🚨
+      </button>
+
+    </div>
+  </section>
+
+  <!-- ════ MULTIPLAYER GLOBAL OVERLAYS ════ -->
+
+  <!-- mp-version-mismatch-overlay (decision modal z-[90]) — shown on Host when client version doesn't match -->
+  <div id="mp-version-mismatch-overlay" style="display:none"
+    class="fixed inset-0 bg-black/40 z-[90] flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center">
+      <p class="text-4xl">⚠️</p>
+      <h3 class="text-lg font-bold text-stone-800">Version Mismatch</h3>
+      <p class="text-stone-500 text-sm">A player is on an older version of the app. Ask them to refresh or reinstall before joining.</p>
+      <button id="btn-mp-version-mismatch-ok"
+        class="min-h-12 w-full rounded-xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-base font-semibold transition-all duration-150">
+        Got it
+      </button>
+    </div>
+  </div>
+
+  <!-- mp-host-disconnected-overlay (decision modal z-[100]) — shown on all clients when Host disconnects -->
+  <div id="mp-host-disconnected-overlay" style="display:none"
+    class="fixed inset-0 bg-black/40 z-[100] flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center">
+      <p class="text-4xl">📡</p>
+      <h3 class="text-lg font-bold text-stone-800">Host Disconnected</h3>
+      <p class="text-stone-500 text-sm">The host left the session. You'll be returned to the lobby.</p>
+      <button id="btn-mp-host-disconnected-ok"
+        class="min-h-12 w-full rounded-xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-base font-semibold transition-all duration-150">
+        Back to Lobby
+      </button>
+    </div>
+  </div>
+
+  <!-- mp-lttp-message-interrupt-overlay (decision modal z-[105]) — LTTP message broadcast to all devices -->
+  <div id="mp-lttp-message-interrupt-overlay" style="display:none"
+    class="fixed inset-0 bg-black/40 z-[105] flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center">
+      <p class="text-4xl">💬</p>
+      <h3 id="mp-lttp-interrupt-heading" class="text-base font-bold text-stone-800">New message</h3>
+      <p id="mp-lttp-interrupt-body" class="text-stone-600 text-sm italic"></p>
+      <button id="btn-mp-lttp-interrupt-ok"
+        class="min-h-12 w-full rounded-xl bg-red-500 hover:bg-red-600 active:scale-95 text-white text-base font-semibold transition-all duration-150">
+        OK
+      </button>
+    </div>
+  </div>
+
+  <!-- mp-network-error-overlay (decision modal z-[90]) — Firebase load failure -->
+  <div id="mp-network-error-overlay" style="display:none"
+    class="fixed inset-0 bg-black/40 z-[90] flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center">
+      <p class="text-4xl">📶</p>
+      <h3 class="text-lg font-bold text-stone-800">Lobby Mode Unavailable</h3>
+      <p class="text-stone-500 text-sm">Couldn't connect to the server. Check your internet connection and try again. Pass-the-Phone still works!</p>
+      <button id="btn-mp-network-error-ok"
+        class="min-h-12 w-full rounded-xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-base font-semibold transition-all duration-150">
+        OK
+      </button>
+    </div>
+  </div>
+
+  <!-- mp-host-prelobby-overlay (decision modal z-[90]) — nickname entry before generating room code -->
+  <div id="mp-host-prelobby-overlay" style="display:none"
+    class="fixed inset-0 bg-black/40 z-[90] flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center">
+      <p class="text-4xl">🖥</p>
+      <h3 class="text-lg font-bold text-stone-800">Host a Lobby</h3>
+      <p class="text-stone-500 text-sm">Set your nickname so other players can identify you.</p>
+      <input id="mp-host-nickname" type="text" maxlength="12" autocomplete="off" spellcheck="false"
+        placeholder="Your nickname"
+        class="w-full rounded-xl border-2 border-stone-200 bg-white px-4 py-3 text-lg text-stone-800 placeholder-stone-300 focus:border-stone-600 focus:outline-none transition-colors text-center" />
+      <!-- Team name inputs — shown only for team games (JS toggles display) -->
+      <div id="mp-prelobby-team-names" style="display:none" class="flex flex-col gap-3 w-full text-left">
+        <div>
+          <label class="text-stone-500 text-xs font-semibold uppercase tracking-widest block mb-1">Team A name</label>
+          <input id="mp-prelobby-team-a" type="text" maxlength="20" autocomplete="off" spellcheck="false"
+            class="w-full rounded-xl border-2 border-stone-200 bg-white px-4 py-3 text-base text-stone-800 placeholder-stone-300 focus:border-stone-600 focus:outline-none transition-colors" />
+        </div>
+        <div>
+          <label class="text-stone-500 text-xs font-semibold uppercase tracking-widest block mb-1">Team B name</label>
+          <input id="mp-prelobby-team-b" type="text" maxlength="20" autocomplete="off" spellcheck="false"
+            class="w-full rounded-xl border-2 border-stone-200 bg-white px-4 py-3 text-base text-stone-800 placeholder-stone-300 focus:border-stone-600 focus:outline-none transition-colors" />
+        </div>
+        <!-- Captain name inputs — shown only when hasCaptain: true -->
+        <div id="mp-prelobby-captain-names" style="display:none" class="flex flex-col gap-3 w-full text-left">
+          <div>
+            <label class="text-stone-500 text-xs font-semibold uppercase tracking-widest block mb-1">Team A Captain</label>
+            <input id="mp-prelobby-captain-a" type="text" maxlength="16" autocomplete="off" spellcheck="false"
+              placeholder="e.g. Commander Rodriguez"
+              class="w-full rounded-xl border-2 border-stone-200 bg-white px-4 py-3 text-base text-stone-800 placeholder-stone-300 focus:border-stone-600 focus:outline-none transition-colors" />
+          </div>
+          <div>
+            <label class="text-stone-500 text-xs font-semibold uppercase tracking-widest block mb-1">Team B Captain</label>
+            <input id="mp-prelobby-captain-b" type="text" maxlength="16" autocomplete="off" spellcheck="false"
+              placeholder="e.g. Admiral Chen"
+              class="w-full rounded-xl border-2 border-stone-200 bg-white px-4 py-3 text-base text-stone-800 placeholder-stone-300 focus:border-stone-600 focus:outline-none transition-colors" />
+          </div>
+        </div>
+        <!-- Device-to-team assignment labels + swap -->
+        <div class="flex items-center gap-2 pt-1">
+          <div class="flex-1 bg-stone-100 rounded-xl p-2.5 text-center min-w-0">
+            <p class="text-stone-400 text-xs font-semibold uppercase tracking-wide leading-none mb-1">This device</p>
+            <p id="mp-prelobby-this-team" class="text-stone-700 text-sm font-bold truncate leading-tight">—</p>
+          </div>
+          <button id="btn-mp-prelobby-swap"
+            class="flex-shrink-0 min-h-10 w-10 rounded-xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-600 text-base font-bold transition-all duration-150">
+            ⇄
+          </button>
+          <div class="flex-1 bg-stone-100 rounded-xl p-2.5 text-center min-w-0">
+            <p class="text-stone-400 text-xs font-semibold uppercase tracking-wide leading-none mb-1">Other device</p>
+            <p id="mp-prelobby-other-team" class="text-stone-700 text-sm font-bold truncate leading-tight">—</p>
+          </div>
+        </div>
+      </div>
+      <div class="flex flex-col gap-3 mt-2">
+        <button id="btn-mp-host-generate"
+          class="min-h-12 w-full rounded-xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-base font-semibold transition-all duration-150 opacity-50"
+          disabled>
+          Generate Room Code →
+        </button>
+        <button id="btn-mp-host-prelobby-cancel"
+          class="min-h-12 w-full rounded-xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-600 text-base font-semibold transition-all duration-150">
+          Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════ BAILED ════
+       Screens : screen-bld-menu, screen-bld-setup, screen-bld-seating, screen-bld-pass-gate,
+                 screen-bld-role-reveal, screen-bld-main, screen-bld-aftermath
+       Overlays: bld-settings-overlay, bld-how-to-overlay, bld-quit-overlay,
+                 bld-second-chances-overlay, bld-plan-detail-overlay, bld-pass-reveal-overlay,
+                 bld-role-help-overlay
+    ════════════════════════════════════════════════════════════════════════════════════ -->
+
+  <!-- BLD MENU -->
+  <section id="screen-bld-menu" style="display:none"
+    class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
+    <div class="absolute top-4 right-4 flex items-center gap-2">
+      <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+    </div>
+    <div class="text-5xl" role="img" aria-label="Chat bubble">💬</div>
+    <div>
+      <h2 class="text-3xl font-bold text-stone-800">Bailed</h2>
+      <p class="text-stone-400 text-base mt-1">Making plans is easy. Showing up is hard.</p>
+    </div>
+    <div class="flex flex-col gap-4 w-full mt-2">
+      <button id="btn-bld-menu-play" class="min-h-14 w-full rounded-2xl bg-yellow-500 hover:bg-yellow-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Make the Plans
+      </button>
+      <button id="btn-bld-menu-how-to" class="min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        How to Play
+      </button>
+      <button id="btn-bld-menu-settings" class="min-h-14 w-full rounded-2xl bg-yellow-100 hover:bg-yellow-200 active:scale-95 text-yellow-700 text-xl font-semibold transition-all duration-150">
+        Settings
+      </button>
+      <button id="btn-bld-menu-back" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-base font-medium transition-all duration-150">
+        ← Back to the Box
+      </button>
+    </div>
+  </section>
+
+  <!-- BLD SETUP -->
+  <section id="screen-bld-setup" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-5">
+      <div class="flex items-center justify-between">
+        <button id="btn-bld-setup-back" class="text-stone-500 font-bold text-xl active:scale-90 transition-transform duration-100">←</button>
+        <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest">The Group Chat</p>
+        <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+      </div>
+      <div class="text-center">
+        <h2 class="text-2xl font-bold text-stone-800">Who's in the Group Chat?</h2>
+        <p class="text-stone-400 text-sm mt-1">Enter everyone's name — roles will be assigned secretly.</p>
+      </div>
+      <!-- Player count pills -->
+      <div>
+        <p class="text-stone-600 text-sm font-semibold mb-2">Players</p>
+        <div id="bld-player-count-pills" class="flex gap-2">
+          <button class="pill pill-active-yellow" data-count="5">5</button>
+          <button class="pill" data-count="6">6</button>
+          <button class="pill" data-count="7">7</button>
+          <button class="pill" data-count="8">8</button>
+          <button class="pill" data-count="9">9</button>
+          <button class="pill" data-count="10">10</button>
+        </div>
+      </div>
+      <!-- Player name inputs — rendered by bldRenderSetupInputs() -->
+      <div id="bld-setup-inputs" class="flex flex-col gap-3"></div>
+      <!-- Role hint: Flake count -->
+      <p id="bld-setup-flake-hint" class="text-stone-400 text-sm text-center"></p>
+      <p id="bld-setup-error" class="text-red-500 text-sm text-center hidden"></p>
+      <button id="btn-bld-setup-start" class="min-h-14 w-full rounded-2xl bg-yellow-500 hover:bg-yellow-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Deal the Roles →
+      </button>
+    </div>
+  </section>
+
+  <!-- BLD SEATING SETUP (MDLM host only — set seat order before roles are dealt) -->
+  <section id="screen-bld-seating" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-5">
+      <div class="flex justify-end">
+        <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+      </div>
+      <div class="text-center">
+        <div class="text-4xl mb-2">🪑</div>
+        <h2 class="text-2xl font-bold text-stone-800">Set the Seating Order</h2>
+        <p class="text-stone-400 text-sm mt-1">Top = Seat 1. Planner rotates in seat order.</p>
+      </div>
+      <div id="bld-seating-list" class="flex flex-col gap-2">
+        <!-- dynamically rendered by bldRenderSeatingList() -->
+      </div>
+      <button id="btn-bld-randomise-seating"
+        class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 text-stone-700 text-sm font-semibold active:scale-95 transition-all duration-100">
+        🔀 Randomise Order
+      </button>
+      <button id="btn-bld-confirm-seating"
+        class="min-h-14 w-full rounded-2xl bg-yellow-500 hover:bg-yellow-600 text-white text-lg font-bold active:scale-95 transition-all duration-100">
+        Confirm Seating →
+      </button>
+    </div>
+  </section>
+
+  <!-- BLD PASS GATE (role reveal gate — PTP only) -->
+  <section id="screen-bld-pass-gate" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-6 text-center">
+      <div class="text-5xl">💬</div>
+      <div>
+        <h2 id="bld-gate-name" class="text-3xl font-bold text-stone-800"></h2>
+        <p class="text-stone-400 text-base mt-2">Don't look until it's yours.</p>
+      </div>
+      <button id="btn-bld-gate-reveal" class="min-h-14 w-full rounded-2xl bg-yellow-500 hover:bg-yellow-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Tap to Reveal 👁️
+      </button>
+    </div>
+  </section>
+
+  <!-- BLD ROLE REVEAL -->
+  <section id="screen-bld-role-reveal" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-5 text-center">
+      <div>
+        <p id="bld-reveal-player-name" class="text-stone-400 text-sm font-semibold uppercase tracking-widest mb-0.5"></p>
+        <p id="bld-reveal-seat-number" class="hidden text-xs text-stone-400 font-medium mb-2"></p>
+        <div id="bld-reveal-role-emoji" class="text-5xl mb-2"></div>
+        <div class="flex items-center justify-center gap-2">
+          <h2 id="bld-reveal-role-name" class="text-3xl font-bold text-stone-800"></h2>
+          <button id="btn-bld-role-reveal-help" class="text-stone-400 font-bold text-sm active:scale-90 transition-transform duration-100">[?]</button>
+        </div>
+      </div>
+      <!-- Role card — content populated by bldShowRoleReveal() -->
+      <div id="bld-reveal-card" class="bg-white rounded-2xl p-5 shadow-sm text-left flex flex-col gap-3">
+        <p id="bld-reveal-description" class="text-stone-600 text-sm leading-relaxed"></p>
+        <div id="bld-reveal-extra" class="hidden">
+          <p class="text-xs text-stone-400 font-semibold uppercase tracking-widest mb-1">Fellow Flakes</p>
+          <p id="bld-reveal-extra-names" class="text-stone-700 font-semibold text-sm"></p>
+        </div>
+        <div id="bld-reveal-drama-label" class="hidden">
+          <p id="bld-reveal-drama-text" class="text-yellow-600 text-sm font-semibold"></p>
+        </div>
+      </div>
+      <button id="btn-bld-reveal-confirm" class="min-h-14 w-full rounded-2xl bg-yellow-500 hover:bg-yellow-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Got it — pass the phone
+      </button>
+    </div>
+  </section>
+
+  <!-- BLD MAIN (entire game loop) -->
+  <section id="screen-bld-main" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm px-5 py-8 gap-5">
+      <!-- Header: plan title + player identity + controls -->
+      <div class="flex items-start justify-between">
+        <div>
+          <p id="bld-main-plan-label" class="text-stone-800 font-bold text-base leading-tight"></p>
+          <p id="bld-header-role-subtitle" class="hidden text-xs text-stone-400 mt-0.5"></p>
+          <p id="bld-header-fellow-flakes" class="hidden text-xs text-yellow-600 font-semibold mt-0.5"></p>
+        </div>
+        <div class="flex items-center gap-2 mt-0.5">
+          <button id="btn-bld-how-to" class="text-xs text-stone-400 font-bold active:scale-90 transition-transform duration-100">[?]</button>
+          <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+          <button class="btn-bld-quit-open text-xl text-stone-500 font-bold active:scale-90 transition-transform duration-100">✕</button>
+        </div>
+      </div>
+        <!-- Planner label + plan tiles + patience -->
+        <div class="flex items-center justify-center gap-1.5">
+          <p id="bld-main-planner-label" class="text-stone-400 text-xs"></p>
+          <button id="btn-bld-tip-planner" class="text-stone-300 font-bold text-xs leading-none active:scale-90 transition-transform duration-100">[?]</button>
+        </div>
+        <div id="bld-itinerary" class="flex gap-1.5 justify-center">
+          <!-- 5 plan boxes rendered by bldRenderItinerary() -->
+        </div>
+        <div class="flex items-center gap-1 justify-center">
+          <p class="text-stone-400 text-xs font-semibold">Patience:</p>
+          <div id="bld-patience-dots" class="flex gap-1 ml-1">
+            <!-- 5 dots rendered by bldRenderPatienceMeter() -->
+          </div>
+          <button id="btn-bld-tip-patience" class="text-stone-300 font-bold text-xs leading-none ml-1 active:scale-90 transition-transform duration-100">[?]</button>
+        </div>
+
+        <!-- Dynamic action area — sub-state views, shown/hidden by bldRenderPhase() -->
+        <div class="flex flex-col gap-4">
+
+        <!-- Nominating phase -->
+        <div id="bld-phase-nominating" class="hidden flex flex-col gap-4">
+          <div id="bld-nominating-planner" class="hidden flex flex-col gap-3">
+            <div class="bg-white rounded-2xl p-4 shadow-sm">
+              <div class="flex items-center justify-center gap-1.5">
+                <p id="bld-nominating-instruction" class="text-stone-600 text-sm font-semibold text-center"></p>
+                <button id="btn-bld-tip-nominate" class="text-stone-300 font-bold text-xs leading-none flex-shrink-0 active:scale-90 transition-transform duration-100">[?]</button>
+              </div>
+              <div id="bld-nominating-player-list" class="flex flex-col gap-2 mt-3"></div>
+            </div>
+            <p id="bld-nominating-error" class="text-red-500 text-xs text-center hidden"></p>
+            <button id="btn-bld-nominate-confirm" class="min-h-14 w-full rounded-2xl bg-yellow-500 hover:bg-yellow-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150 shake-target">
+              Lock in the Group →
+            </button>
+          </div>
+          <div id="bld-nominating-waiting" class="hidden">
+            <div class="bg-white rounded-2xl p-6 shadow-sm text-center w-full">
+              <p class="text-2xl mb-2">💬</p>
+              <p id="bld-nominating-wait-text" class="text-stone-500 text-sm"></p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Voting phase -->
+        <div id="bld-phase-voting" class="hidden flex flex-col gap-4">
+          <div class="bg-white rounded-2xl p-4 shadow-sm">
+            <div class="flex items-center justify-between mb-1">
+              <p class="text-stone-600 text-sm font-semibold">The Group</p>
+              <button id="btn-bld-tip-vote" class="text-stone-300 font-bold text-xs leading-none active:scale-90 transition-transform duration-100">[?]</button>
+            </div>
+            <p id="bld-vote-group-display" class="text-stone-800 font-bold text-base text-center"></p>
+          </div>
+          <div class="flex flex-col gap-3">
+            <button id="btn-bld-vote-in" class="btn-mp-action min-h-14 w-full rounded-2xl bg-yellow-500 hover:bg-yellow-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+              Sounds Good ✅
+            </button>
+            <button id="btn-bld-vote-not-them" class="btn-mp-action min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+              No Way ❌
+            </button>
+          </div>
+        </div>
+
+        <!-- Vote pending phase -->
+        <div id="bld-phase-vote-pending" class="hidden">
+          <div class="bg-stone-100 rounded-2xl p-8 text-center">
+            <p class="text-stone-400 text-sm">Tallying votes…</p>
+          </div>
+        </div>
+
+        <!-- Vote result phase -->
+        <div id="bld-phase-vote-result" class="hidden flex flex-col gap-4">
+          <div class="bg-white rounded-2xl p-4 shadow-sm">
+            <p class="text-stone-500 text-xs font-semibold uppercase tracking-widest mb-3">The Vote</p>
+            <div id="bld-vote-result-list" class="flex flex-col gap-1.5"></div>
+          </div>
+          <div id="bld-vote-result-outcome" class="bg-white rounded-2xl p-4 shadow-sm text-center"></div>
+          <button id="btn-bld-vote-result-next" class="min-h-12 w-full rounded-2xl bg-yellow-500 hover:bg-yellow-600 active:scale-95 text-white text-base font-semibold transition-all duration-150">
+            Continue →
+          </button>
+        </div>
+
+        <!-- Mission phase -->
+        <div id="bld-phase-mission" class="hidden flex flex-col gap-4">
+          <div id="bld-mission-nominated" class="hidden flex flex-col gap-3">
+            <div class="bg-white rounded-2xl p-4 shadow-sm">
+              <div class="flex items-center justify-between mb-1">
+                <p class="text-stone-500 text-xs font-semibold uppercase tracking-widest">You're in the group</p>
+                <button id="btn-bld-tip-mission" class="hidden text-stone-300 font-bold text-xs leading-none active:scale-90 transition-transform duration-100">[?]</button>
+              </div>
+              <p class="text-stone-600 text-sm text-center">Submit your decision.</p>
+            </div>
+            <button id="btn-bld-mission-in" class="btn-mp-action min-h-14 w-full rounded-2xl bg-yellow-500 hover:bg-yellow-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+              I'm In ✅
+            </button>
+            <button id="btn-bld-mission-bailed" class="btn-mp-action min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-xl font-semibold transition-all duration-150 hidden">
+              I Bailed 🚪
+            </button>
+          </div>
+          <div id="bld-mission-waiting" class="hidden">
+            <div class="bg-white rounded-2xl p-6 shadow-sm text-center">
+              <p class="text-2xl mb-2">💬</p>
+              <p class="text-stone-500 text-sm">Waiting for the group's decision…</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Mission pending phase -->
+        <div id="bld-phase-mission-pending" class="hidden">
+          <div class="bg-stone-100 rounded-2xl p-8 text-center">
+            <p class="text-stone-400 text-sm">Checking the receipts…</p>
+          </div>
+        </div>
+
+        <!-- Plan result phase -->
+        <div id="bld-phase-plan-result" class="hidden flex flex-col gap-4">
+          <div id="bld-plan-result-card" class="bg-white rounded-2xl p-5 shadow-sm text-center flex flex-col gap-2"></div>
+          <p id="bld-plan-result-phrase" class="text-stone-500 text-sm italic text-center px-2"></p>
+          <button id="btn-bld-plan-result-next" class="min-h-12 w-full rounded-2xl bg-yellow-500 hover:bg-yellow-600 active:scale-95 text-white text-base font-semibold transition-all duration-150">
+            Next Plan →
+          </button>
+        </div>
+
+        <!-- Drama lock phase -->
+        <div id="bld-phase-drama-lock" class="hidden flex flex-col gap-4">
+          <div id="bld-drama-lock-waiting" class="hidden">
+            <div class="bg-yellow-50 border border-yellow-200 rounded-2xl p-6 text-center">
+              <p class="text-2xl mb-2">🤫</p>
+              <p class="text-yellow-700 font-semibold text-sm">The Flakes are plotting…</p>
+            </div>
+          </div>
+          <div id="bld-drama-lock-active" class="hidden flex flex-col gap-3">
+            <div class="bg-yellow-50 border border-yellow-200 rounded-2xl p-4 text-center">
+              <p class="text-yellow-700 font-semibold text-sm">Who is The Pot-Stirrer?</p>
+              <p class="text-yellow-600 text-xs mt-1">They're a Friend who knew all along.</p>
+            </div>
+            <div id="bld-drama-guess-list" class="flex flex-col gap-2"></div>
+            <button id="btn-bld-drama-guess-confirm" class="btn-mp-action min-h-14 w-full rounded-2xl bg-yellow-500 hover:bg-yellow-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150" disabled>
+              Make the Accusation →
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- BLD AFTERMATH -->
+  <section id="screen-bld-aftermath" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-5">
+      <div class="flex items-center justify-between">
+        <div></div>
+        <div class="flex items-center gap-2">
+          <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+          <button id="btn-bld-aftermath-exit" class="text-xl text-stone-400 active:scale-90 transition-transform duration-100">✕</button>
+        </div>
+      </div>
+      <!-- Result headline -->
+      <div id="bld-aftermath-headline" class="text-center py-2"></div>
+      <!-- Drama Mode identification result (shown before roles revealed, Drama Mode only) -->
+      <div id="bld-aftermath-drama" class="hidden">
+        <div id="bld-aftermath-drama-card" class="bg-white rounded-2xl p-5 shadow-sm text-center flex flex-col gap-2"></div>
+        <button id="btn-bld-aftermath-drama-continue" class="mt-4 min-h-12 w-full rounded-2xl bg-yellow-500 hover:bg-yellow-600 active:scale-95 text-white text-base font-semibold transition-all duration-150">
+          Reveal Everyone →
+        </button>
+      </div>
+      <!-- Final Itinerary -->
+      <div>
+        <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest mb-2">The Itinerary</p>
+        <div id="bld-aftermath-itinerary" class="flex gap-1.5"></div>
+      </div>
+      <!-- Role reveal -->
+      <div id="bld-aftermath-roles" class="hidden flex flex-col gap-2">
+        <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest mb-1">Who Was Who</p>
+        <div id="bld-aftermath-role-list" class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2"></div>
+      </div>
+      <!-- Actions -->
+      <div id="bld-aftermath-actions" class="hidden flex flex-col gap-3 mt-2">
+        <button id="btn-bld-go-again" class="min-h-14 w-full rounded-2xl bg-yellow-500 hover:bg-yellow-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+          Second Chances 💬
+        </button>
+        <button id="btn-bld-aftermath-exit-2" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-base font-medium transition-all duration-150">
+          ← Back to the Box
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- BLD SETTINGS OVERLAY -->
+  <div id="bld-settings-overlay" style="display:none"
+    class="fixed inset-0 z-[80] overlay-data-backdrop flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
+      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
+        <h2 class="text-xl font-bold text-stone-800">Bailed 💬</h2>
+        <p class="text-xs text-stone-400 mt-1">Toggle Drama Mode on or off before play.</p>
+      </div>
+      <div class="flex-1 overflow-y-auto px-5 py-5 flex flex-col gap-5">
+        <!-- Drama Mode (Sylly Mode) toggle -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <div class="flex items-center justify-between">
+            <p class="text-stone-800 font-semibold">✨ Sylly Mode</p>
+            <button id="btn-bld-drama-toggle" class="game-toggle-off shrink-0">OFF</button>
+          </div>
+          <p class="text-stone-600 text-sm font-semibold">Drama Mode</p>
+          <p class="text-stone-400 text-sm">One Friend secretly knows all the Flakes — but can only hint, never name names. And if the Flakes figure out who they are, they win anyway.</p>
+        </div>
+      </div>
+      <div class="px-5 pb-8 pt-2 flex-shrink-0">
+        <button id="btn-bld-settings-done" class="min-h-14 w-full rounded-2xl bg-stone-800 hover:bg-stone-900 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+          Done
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- BLD HOW TO PLAY OVERLAY -->
+  <div id="bld-how-to-overlay" style="display:none"
+    class="fixed inset-0 z-[90] overlay-data-backdrop flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
+      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
+        <h2 class="text-xl font-bold text-stone-800">The Group Rules 📋</h2>
+        <p class="text-xs text-stone-400 mt-1">Because apparently some of you need them.</p>
+      </div>
+      <div class="flex-1 overflow-y-auto px-5 py-5 flex flex-col gap-5 text-sm text-stone-600">
+        <div>
+          <p class="font-semibold text-stone-800 mb-1">The Setup</p>
+          <p>Everyone is secretly a Friend or a Flake. Friends want the plans to succeed. Flakes want them to fail — without getting caught.</p>
+        </div>
+        <div>
+          <p class="font-semibold text-stone-800 mb-1">Each Plan</p>
+          <p>The Planner picks a group to carry out the plan. Everyone votes: I'm In or Not Them. If the group gets rejected 5 times in a row, the Flakes win immediately.</p>
+        </div>
+        <div>
+          <p class="font-semibold text-stone-800 mb-1">The Mission Cards</p>
+          <p>Once approved, the group privately submits a card. Friends must submit "I'm In". Flakes can choose to bail — anonymously.</p>
+        </div>
+        <div>
+          <p class="font-semibold text-stone-800 mb-1">Winning</p>
+          <p>Friends win with 3 plan successes. Flakes win with 3 plan failures.</p>
+        </div>
+        <div>
+          <p class="font-semibold text-stone-800 mb-1">Group Sizes</p>
+          <table class="w-full text-xs border-collapse">
+            <thead><tr class="text-stone-400"><th class="text-left py-1">Players</th><th class="text-center py-1">Plan 1</th><th class="text-center py-1">Plan 2</th><th class="text-center py-1">Plan 3</th><th class="text-center py-1">Plan 4</th><th class="text-center py-1">Plan 5</th></tr></thead>
+            <tbody>
+              <tr><td>5</td><td class="text-center">2</td><td class="text-center">3</td><td class="text-center">2</td><td class="text-center">3</td><td class="text-center">3</td></tr>
+              <tr><td>6</td><td class="text-center">2</td><td class="text-center">3</td><td class="text-center">4</td><td class="text-center">3</td><td class="text-center">4</td></tr>
+              <tr><td>7</td><td class="text-center">2</td><td class="text-center">3</td><td class="text-center">3</td><td class="text-center">4*</td><td class="text-center">4</td></tr>
+              <tr><td>8</td><td class="text-center">3</td><td class="text-center">4</td><td class="text-center">4</td><td class="text-center">5*</td><td class="text-center">5</td></tr>
+              <tr><td>9</td><td class="text-center">3</td><td class="text-center">4</td><td class="text-center">4</td><td class="text-center">5*</td><td class="text-center">5</td></tr>
+              <tr><td>10</td><td class="text-center">3</td><td class="text-center">4</td><td class="text-center">4</td><td class="text-center">5*</td><td class="text-center">5</td></tr>
+            </tbody>
+          </table>
+          <p class="text-stone-400 text-xs mt-1">* Plan 4 requires 2 bails to fail at 7+ players.</p>
+        </div>
+        <div>
+          <p class="font-semibold text-stone-800 mb-1">Roles per Player Count</p>
+          <table class="w-full text-xs border-collapse">
+            <thead><tr class="text-stone-400"><th class="text-left py-1">Players</th><th class="text-center py-1">Friends</th><th class="text-center py-1">Flakes</th></tr></thead>
+            <tbody>
+              <tr><td>5</td><td class="text-center">3</td><td class="text-center">2</td></tr>
+              <tr><td>6</td><td class="text-center">4</td><td class="text-center">2</td></tr>
+              <tr><td>7</td><td class="text-center">4</td><td class="text-center">3</td></tr>
+              <tr><td>8</td><td class="text-center">5</td><td class="text-center">3</td></tr>
+              <tr><td>9</td><td class="text-center">6</td><td class="text-center">3</td></tr>
+              <tr><td>10</td><td class="text-center">6</td><td class="text-center">4</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div>
+          <p class="font-semibold text-stone-800 mb-1">✨ Drama Mode</p>
+          <p>One Friend secretly knows all the Flakes (The Pot-Stirrer). One Flake is designated as The Big Flake. If the Friends win, the Big Flake gets one chance to name The Pot-Stirrer — if correct, the Flakes steal the win.</p>
+        </div>
+      </div>
+      <div class="px-5 pb-8 pt-2 flex-shrink-0">
+        <button id="btn-bld-how-to-done" class="min-h-14 w-full rounded-2xl bg-stone-800 hover:bg-stone-900 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+          Got it
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- BLD QUIT OVERLAY -->
+  <div id="bld-quit-overlay" style="display:none"
+    class="fixed inset-0 z-[80] overlay-modal-backdrop flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-yellow-300">
+      <p class="text-4xl">💬</p>
+      <div>
+        <h3 class="text-xl font-bold text-stone-800">Leave the Chat?</h3>
+        <p class="text-stone-500 text-sm mt-1">The group will keep planning without you.</p>
+      </div>
+      <div class="flex flex-col gap-2 mt-2">
+        <button id="btn-bld-quit-confirm" class="min-h-14 w-full rounded-2xl bg-red-500 hover:bg-red-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+          Let's Bail
+        </button>
+        <button id="btn-bld-quit-cancel" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-base font-medium transition-all duration-150">
+          Not yet!
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- BLD ROLE HELP OVERLAY -->
+  <div id="bld-role-help-overlay" style="display:none"
+    class="fixed inset-0 z-[90] overlay-modal-backdrop flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-yellow-300">
+      <div id="bld-role-help-emoji" class="text-4xl"></div>
+      <div>
+        <h3 id="bld-role-help-name" class="text-xl font-bold text-stone-800"></h3>
+        <p id="bld-role-help-desc" class="text-stone-500 text-sm leading-relaxed mt-2"></p>
+      </div>
+      <button id="btn-bld-role-help-close" class="min-h-12 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-base font-semibold transition-all duration-150">
+        Got it
+      </button>
+    </div>
+  </div>
+
+  <!-- BLD SECOND CHANCES (play again) OVERLAY -->
+  <div id="bld-second-chances-overlay" style="display:none"
+    class="fixed inset-0 z-[90] overlay-modal-backdrop flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-yellow-300">
+      <p class="text-4xl">💬</p>
+      <div>
+        <h3 class="text-xl font-bold text-stone-800">Second Chances?</h3>
+        <p class="text-stone-500 text-sm mt-1">Roles will be reshuffled. The group plans a new party.</p>
+      </div>
+      <div class="flex flex-col gap-2 mt-2">
+        <button id="btn-bld-second-chances-confirm" class="min-h-14 w-full rounded-2xl bg-yellow-500 hover:bg-yellow-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+          Second Chances 💬
+        </button>
+        <button id="btn-bld-second-chances-cancel" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-base font-medium transition-all duration-150">
+          Stay here
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- BLD PLAN DETAIL OVERLAY (The Receipts) -->
+  <div id="bld-plan-detail-overlay" style="display:none"
+    class="fixed inset-0 z-[80] overlay-data-backdrop flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
+      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0 flex items-center justify-between">
+        <div>
+          <h2 id="bld-detail-title" class="text-xl font-bold text-stone-800"></h2>
+          <p id="bld-detail-subtitle" class="text-xs text-stone-400 mt-0.5"></p>
+        </div>
+        <button id="btn-bld-detail-close" class="text-stone-400 text-xl font-bold active:scale-90">✕</button>
+      </div>
+      <div id="bld-detail-content" class="flex-1 overflow-y-auto px-5 py-5 flex flex-col gap-4 text-sm text-stone-600">
+        <!-- Populated by bldOpenPlanDetail() -->
+      </div>
+    </div>
+  </div>
+
+  <!-- BLD TIP OVERLAY (contextual [?] tips throughout gameplay) -->
+  <div id="bld-tip-overlay" style="display:none"
+    class="fixed inset-0 z-[90] overlay-modal-backdrop flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-yellow-300">
+      <div class="flex flex-col gap-2">
+        <p id="bld-tip-emoji" class="text-3xl"></p>
+        <h3 id="bld-tip-heading" class="text-lg font-bold text-stone-800"></h3>
+        <div id="bld-tip-body" class="text-stone-500 text-sm text-left flex flex-col gap-1.5"></div>
+      </div>
+      <button id="btn-bld-tip-close" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-sm transition-all duration-100">Got it</button>
+    </div>
+  </div>
+
+  <!-- BLD PASS-REVEAL OVERLAY (voting / mission PTP gate) -->
+  <div id="bld-pass-reveal-overlay" style="display:none"
+    class="fixed inset-0 z-[90] overlay-modal-backdrop flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-yellow-300">
+      <p class="text-4xl">💬</p>
+      <div>
+        <h3 id="bld-pass-reveal-heading" class="text-xl font-bold text-stone-800"></h3>
+        <p class="text-stone-500 text-sm mt-1">Don't look until it's yours.</p>
+      </div>
+      <button id="btn-bld-pass-reveal-confirm" class="min-h-14 w-full rounded-2xl bg-yellow-500 hover:bg-yellow-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Tap to Vote
+      </button>
+    </div>
+  </div>
+
   <script src="js/games/jec.js"></script>
   <script src="js/games/ygi.js"></script>
   <script src="js/games/lttp.js"></script>
   <script src="js/games/nat.js"></script>
   <script src="js/games/dsd.js"></script>
+  <script src="js/games/bld.js"></script>
   <script src="js/secret-mode.js"></script>
   <script src="js/app.js"></script>
 

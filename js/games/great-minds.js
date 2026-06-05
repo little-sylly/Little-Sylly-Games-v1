@@ -54,6 +54,7 @@ let gmLastBannedLetter = '';       // previous round's banned letter (to prevent
 let gmPendingLockIn   = '';        // validated clue held while boost overlay is open
 let gmPendingBoostA   = '';        // signal boost context from transmitter this round
 let gmPendingBoostB   = '';        // signal boost context for player 2 this round (legacy, unused)
+let gmMpReadyCheck    = [false, false]; // Lobby Mode: tracks which players submitted this round
 
 // ── GM Helpers ────────────────────────────────────────────────────────────────
 // In Secret Mode Round 2+, word source switches to expansion bank
@@ -153,6 +154,27 @@ function startGreatMinds() {
   gmPendingLockIn    = '';
   gmPendingBoostA    = '';
   gmPendingBoostB    = '';
+  gmMpReadyCheck     = [false, false];
+
+  if (window.syllyMultiplayerMode !== 'single') {
+    // Lobby Mode: names come from lobby slots; Host picks pair and broadcasts start
+    gmPlayerNames = [mpPlayerSlots[0].nickname, mpPlayerSlots[1].nickname];
+    if (window.syllyMultiplayerMode === 'host') {
+      showScreen('screen-gm-setup');  // navigate immediately; gmShowPairReveal fills in pair async
+      gmShowPairReveal();
+    } else {
+      // Client waits for Host to broadcast the round start; show standby on setup screen
+      document.getElementById('gm-setup-names').style.display = 'none';
+      document.getElementById('gm-setup-pair').style.display  = 'flex';
+      document.getElementById('gm-pair-word-a').textContent = '…';
+      document.getElementById('gm-pair-word-b').textContent = '…';
+      document.getElementById('btn-gm-start-round').style.display  = 'none';
+      document.getElementById('btn-gm-reroll-pair').style.display  = 'none';
+      showScreen('screen-gm-setup');
+    }
+    return;
+  }
+
   document.getElementById('gm-setup-names').style.display = 'flex';
   document.getElementById('gm-setup-pair').style.display  = 'none';
   // Pre-populate with last known names; blank if still default
@@ -186,7 +208,6 @@ function gmApplyExpansionOverrides() {
 
 function gmStartInputPhase() {
   if (gmRound === 0) gmApplyExpansionOverrides(); // apply before first round starts
-  gmActivePlayer = 0;
   gmWordA        = '';
   gmWordB        = '';
   if (gmRound === 0) gmStartingPair = [...gmCurrentPair]; // lock in before increment
@@ -195,10 +216,25 @@ function gmStartInputPhase() {
   gmPendingBoostB = '';
   // Static Interference: pick a new banned letter for this round
   if (gmStaticInterference) gmPickBannedLetter();
+
+  if (window.syllyMultiplayerMode !== 'single') {
+    // Lobby Mode: each device inputs for their own player simultaneously
+    gmActivePlayer = mpMyPlayerIdx;
+    gmShowPlayerInput();
+    return;
+  }
+
+  gmActivePlayer = 0;
   gmShowPlayerInput();
 }
 
 function gmShowPlayerInput() {
+  // Re-enable input (may have been frozen after a previous lobby-mode submission)
+  const inputEl  = document.getElementById('gm-word-input');
+  const lockInEl = document.getElementById('btn-gm-lock-in');
+  inputEl.disabled = false;
+  lockInEl.classList.remove('opacity-50', 'pointer-events-none');
+
   document.getElementById('gm-round-num-input').textContent = gmRound;
   document.getElementById('gm-input-prompt').textContent = `${gmPlayerNames[gmActivePlayer]} — your turn`;
   gmShowPair(gmCurrentPair[0], gmCurrentPair[1], 'gm-input-word-a', 'gm-input-word-b');
@@ -317,6 +353,28 @@ function gmLockIn() {
 }
 
 function gmProcessLockIn(input, boost) {
+  if (window.syllyMultiplayerMode !== 'single') {
+    // Lobby Mode: freeze local input; Host records own word; Client sends ACTION
+    document.getElementById('gm-word-input').disabled = true;
+    document.getElementById('btn-gm-lock-in').classList.add('opacity-50', 'pointer-events-none');
+    document.getElementById('gm-input-prompt').textContent = 'Transmitted — waiting for the other mind…';
+
+    if (window.syllyMultiplayerMode === 'host') {
+      // Host records P0 word locally and waits for client
+      gmWordA        = input;
+      gmPendingBoostA = boost;
+      gmMpReadyCheck[0] = true;
+      if (gmMpReadyCheck[1]) gmMpResolveRound(); // client already submitted
+    } else {
+      // Client sends ACTION to Host
+      mpLockSync();
+      mpSendEnvelope({ type: 'ACTION', payload: {
+        action: 'GM_SUBMIT', playerIdx: 1, word: input, boost,
+      }});
+    }
+    return;
+  }
+
   if (gmActivePlayer === 0) {
     gmWordA = input;
     gmPendingBoostA = boost;
@@ -456,6 +514,83 @@ function gmShowResult() {
   showScreen('screen-gm-result');
 }
 
+// ── Lobby Mode helpers ────────────────────────────────────────────────────────
+
+// Called on Host when both words are in. Runs logic, broadcasts SYNC: GM_RESULT.
+function gmMpResolveRound() {
+  gmMpReadyCheck = [false, false];
+  mpUnlockSync();
+
+  const isMatch   = gmWordA.toLowerCase() === gmWordB.toLowerCase();
+  const isNearSync = !isMatch && gmResonanceTolerance === 'normal' &&
+                     normaliseWord(gmWordA) === normaliseWord(gmWordB);
+  const mismatchPhrase = GM_MISMATCH_PHRASES[Math.floor(Math.random() * GM_MISMATCH_PHRASES.length)];
+
+  if (isMatch) {
+    gmHandleMatch();
+  } else if (!isNearSync) {
+    // Apply mismatch phrase picked here so clients render the same phrase
+    document.getElementById('gm-result-heading').textContent = mismatchPhrase;
+    gmHandleMismatch();
+  }
+  // Near-sync: treat as mismatch for now (social override stays Host-only in Lobby Mode)
+
+  mpSendEnvelope({ type: 'SYNC', payload: {
+    action:        'GM_RESULT',
+    wordA:         gmWordA,
+    wordB:         gmWordB,
+    isMatch,
+    isNearSync,
+    mismatchPhrase,
+    round:         gmRound,
+    roundLog:      gmRoundLog,
+    nextPair:      gmCurrentPair,
+    prevRoundWords: [...gmPrevRoundWords],
+  }});
+
+  showScreen('screen-gm-result');
+  if (isMatch) gmRenderVictory();
+}
+
+// Called on Client when SYNC: GM_RESULT arrives. Applies state and renders result screen.
+function gmMpDisplayResult(payload) {
+  gmWordA         = payload.wordA;
+  gmWordB         = payload.wordB;
+  gmRoundLog      = payload.roundLog;
+  gmCurrentPair   = payload.nextPair;
+  gmPrevRoundWords = new Set(payload.prevRoundWords || []);
+  mpUnlockSync();
+
+  if (payload.isMatch) {
+    playSuccess();
+    document.getElementById('gm-result-nomatch').style.display = 'none';
+    document.getElementById('gm-result-match').style.display   = 'flex';
+    if (payload.isOverride) {
+      document.getElementById('gm-match-subtext').textContent = payload.overridePhrase || '…close enough!';
+      document.getElementById('gm-match-word').textContent    = `${gmWordA} / ${gmWordB}`;
+    } else {
+      document.getElementById('gm-match-subtext').textContent = 'You both thought of…';
+      document.getElementById('gm-match-word').textContent    = gmWordA;
+    }
+    document.getElementById('gm-victory-rounds').textContent   = payload.round;
+    gmRenderPsychicEchoes('gm-journey-log');
+  } else {
+    playBoing();
+    document.getElementById('gm-result-heading').textContent   = payload.mismatchPhrase || '';
+    document.getElementById('gm-result-nomatch').style.display = 'flex';
+    document.getElementById('gm-result-match').style.display   = 'none';
+    document.getElementById('gm-result-name-a').textContent    = gmPlayerNames[0];
+    document.getElementById('gm-result-name-b').textContent    = gmPlayerNames[1];
+    document.getElementById('gm-result-word-a').textContent    = gmWordA;
+    document.getElementById('gm-result-word-b').textContent    = gmWordB;
+    document.getElementById('gm-result-round-num').textContent = payload.round;
+    document.getElementById('gm-result-pair-hint').textContent = 'New signal acquired ↑';
+    document.getElementById('btn-gm-reroll-result').style.display = 'none';
+    gmRenderInputEchoes('gm-result-echoes');
+  }
+  showScreen('screen-gm-result');
+}
+
 function gmHandleMatch() {
   // Guard against double-log (near-sync override may call after gmShowResult already logged)
   if (gmRoundLog.length > 0 && gmRoundLog[gmRoundLog.length - 1].isWin) return;
@@ -508,6 +643,14 @@ document.getElementById('btn-gm-names-done').addEventListener('click', () => {
 
 document.getElementById('btn-gm-start-round').addEventListener('click', () => {
   playLaunch();
+  if (window.syllyMultiplayerMode === 'host') {
+    // Lobby Mode: Host broadcasts pair + round start to all devices
+    mpSendEnvelope({ type: 'SYNC', payload: {
+      action: 'GM_ROUND_START',
+      pair:         gmCurrentPair,
+      bannedLetter: gmBannedLetter,
+    }});
+  }
   gmStartInputPhase();
 });
 
@@ -554,19 +697,40 @@ document.getElementById('btn-gm-countdown-ready').addEventListener('click', () =
 });
 
 document.getElementById('btn-gm-next-round').addEventListener('click', () => {
+  if (window.syllyMultiplayerMode === 'client') return; // client waits for GM_ROUND_START from host
   playLaunch();
+  if (window.syllyMultiplayerMode === 'host') {
+    // Lobby Mode: Host broadcasts the new pair + round start to all devices
+    mpSendEnvelope({ type: 'SYNC', payload: {
+      action: 'GM_ROUND_START',
+      pair:         gmCurrentPair,
+      bannedLetter: gmBannedLetter,
+    }});
+  }
   gmStartInputPhase();
 });
 
 document.getElementById('btn-gm-new-frequency').addEventListener('click', () => {
   playPillClick();
+  const confirmBtn = document.getElementById('btn-gm-new-game-confirm');
+  if (window.syllyMultiplayerMode === 'host') {
+    confirmBtn.textContent = 'Restart in Lobby 🔄';
+  } else if (window.syllyMultiplayerMode === 'client') {
+    confirmBtn.textContent = 'Leave Session';
+  } else {
+    confirmBtn.textContent = 'Memory Purge ⚛️';
+  }
   document.getElementById('gm-new-frequency-overlay').style.display = 'flex';
 });
 
 document.getElementById('btn-gm-new-game-confirm').addEventListener('click', () => {
   document.getElementById('gm-new-frequency-overlay').style.display = 'none';
   playLaunch();
-  showScreen('screen-gm-menu');
+  if (window.syllyMultiplayerMode !== 'single') {
+    mpReturnToLobby();
+  } else {
+    showScreen('screen-gm-menu');
+  }
 });
 
 document.getElementById('btn-gm-new-game-cancel').addEventListener('click', () => {
@@ -660,7 +824,7 @@ function gmShowHelpTip(emoji, heading, tip) {
 // ── GM Menu listeners ─────────────────────────────────────────────────────────
 document.getElementById('btn-gm-menu-play').addEventListener('click', () => {
   playLaunch();
-  startGreatMinds();
+  mpShowModeScreen('gm');
 });
 
 document.getElementById('btn-gm-menu-how-to').addEventListener('click', () => {
@@ -923,14 +1087,15 @@ document.getElementById('gm-sylly-intensity-pills').addEventListener('click', e 
   document.querySelectorAll('#gm-sylly-intensity-pills [data-gm-intensity]').forEach(b =>
     b.classList.toggle('pill-active-purple', b === btn));
   const intensityDescs = {
-    'sub-atomic': 'Each round, a random consonant is banned for both players.',
-    'supernova':  'Each round, a random vowel is banned. Prepare for chaos.',
+    'sub-atomic': 'Each round, a random consonant is banned for both players. No clue may contain it.',
+    'supernova':  'Each round, a random vowel is banned. Prepare for chaos. No clue may contain it.',
   };
   document.getElementById('gm-sylly-intensity-desc').textContent = intensityDescs[gmSyllyIntensity];
 });
 
 // ── Social Override ───────────────────────────────────────────────────────────
 document.getElementById('btn-gm-override').addEventListener('click', () => {
+  if (window.syllyMultiplayerMode === 'client') return; // host-only action
   playPillClick();
   document.getElementById('gm-override-overlay').style.display = 'flex';
 });
@@ -939,6 +1104,22 @@ document.getElementById('btn-gm-override-confirm').addEventListener('click', () 
   document.getElementById('gm-override-overlay').style.display = 'none';
   playSuccess();
   gmTriggerVictory();
+  if (window.syllyMultiplayerMode === 'host') {
+    // Broadcast override victory so client transitions to the same result screen
+    const overridePhrase = document.getElementById('gm-match-subtext').textContent;
+    mpSendEnvelope({ type: 'SYNC', payload: {
+      action:         'GM_RESULT',
+      wordA:          gmWordA,
+      wordB:          gmWordB,
+      isMatch:        true,
+      isOverride:     true,
+      overridePhrase,
+      round:          gmRound,
+      roundLog:       gmRoundLog,
+      nextPair:       gmCurrentPair,
+      prevRoundWords: [...gmPrevRoundWords],
+    }});
+  }
   showScreen('screen-gm-result');
 });
 

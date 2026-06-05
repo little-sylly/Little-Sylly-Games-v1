@@ -41,6 +41,13 @@
 
 **Status:** Stable since Phase 7. No changes in Phase 10.x.
 
+### Multiplayer (Phase 22)
+- **Mode:** 2-Device Teams — Host device = active describer team; Client device = `screen-li5-monitor` (Tattletale Sheet)
+- **Shared screens:** `screen-li5-mode`, `screen-li5-lobby-host`, `screen-li5-lobby-join` (parameterised)
+- **Game-specific screen:** `screen-li5-monitor` — shows current word + No-No List; CATCH! button sends ACTION
+- **Key ACTION packets:** `LI5_CATCH` (Client → Host: alert, no auto score change)
+- **Key SYNC packets:** `LI5_ROUND_START` (word + nonoList per new card)
+
 ---
 
 ## Game 2: Great Minds
@@ -101,6 +108,17 @@
 | `gm-new-frequency-overlay` (Session Terminal) | Decision modal |
 | `gm-neural-library-overlay` | Decision modal |
 
+### Multiplayer (Phase 22 + Phase 24–25)
+- **Mode:** Individual Devices — both players on their own device simultaneously (no pass-gate or reveal-gate in Lobby Mode)
+- **Shared screens:** `screen-gm-mode`, `screen-gm-lobby-host`, `screen-gm-lobby-join` (parameterised)
+- **Game-specific screens:** none
+- **Key change:** `gmStartInputPhase()` sets `gmActivePlayer = mpMyPlayerIdx` in Lobby Mode — both devices show input simultaneously. Firebase round-trip replaces the pass-gate + reveal-gate.
+- **Key ACTION packets:** `GM_SUBMIT` (Client word → Host)
+- **Key SYNC packets:** `GM_ROUND_START` (pair + banned letter), `GM_RESULT` (both words + match outcome + round log + `isOverride: bool` + `overridePhrase: string`)
+- **Client guards (Phase 24):** `btn-gm-override` is a no-op for clients (host-only overlay). `btn-gm-next-round` is a no-op for clients (wait for `GM_ROUND_START` from host).
+- **Social Override (Phase 24):** Host broadcasts `GM_RESULT` with `isMatch: true`, `isOverride: true`, `overridePhrase`. Client `gmMpDisplayResult()` handles `isOverride` — shows `wordA / wordB` instead of single match word.
+- **Play-again (Phase 25):** Host confirm → `mpReturnToLobby()` (returns to same-code lobby). Client confirm → `resetToLobby()`.
+
 ---
 
 ## Game 3: Secret Signals (SS)
@@ -146,6 +164,14 @@
 - **Screen 2 subtitle:** "Names optional — helps with broadcaster rotation."
 - **Player placeholder:** "Operative 1", "Operative 2", etc.
 - **Setup emoji:** 👥
+
+### Multiplayer (Phase 22)
+- **Mode:** Hybrid — supports Individual Devices or 2-Device Teams (Zone 2 pill in host lobby, `supportsHybrid: true`)
+- **Shared screens:** `screen-ss-mode`, `screen-ss-lobby-host`, `screen-ss-lobby-join` (parameterised)
+- **Game-specific screens:** none
+- **Security:** Team B's vault is sent ONLY to the Client device via `SYNC: SS_VAULT_DATA` (targeted write). Team A's vault never leaves the Host.
+- **Key ACTION packets:** `SS_VAULT_READY`, `SS_ENCODE_TRANSMIT`, `SS_INTERCEPT_SUBMIT`, `SS_DECODE_SUBMIT`
+- **Key SYNC packets:** `SS_VAULT_DATA`, `SS_ENCRYPT_TURN`, `SS_BROADCAST`, `SS_START_INTERCEPT`, `SS_DECODE_GATE`, `SS_RESOLUTION`, `SS_ENDGAME`
 
 ---
 
@@ -220,6 +246,14 @@
 | `jec-quit-overlay` | Decision modal |
 | `jec-oversight-overlay` | Decision modal — merge confirm |
 | `jec-new-shift-overlay` | Decision modal — "New Shift?" |
+
+### Multiplayer (Phase 22)
+- **Mode:** Individual Devices — all chefs on their own device
+- **Shared screens:** `screen-jec-mode`, `screen-jec-lobby-host`, `screen-jec-lobby-join` (parameterised)
+- **Game-specific screens:** none
+- **Key mechanic:** `jecMpReadyCheck[]` tracks prep submissions. Host runs sifting + Sous Chef oversight; all merges broadcast so all devices stay in sync.
+- **Key ACTION packets:** `JEC_PREP_SUBMIT` (each chef's ingredient + KN fields)
+- **Key SYNC packets:** `JEC_ORDER`, `JEC_SIFTING`, `JEC_MERGE`, `JEC_TALLY`, `JEC_NEXT_ROUND`, `JEC_WASHUP`
 
 ---
 
@@ -305,6 +339,14 @@
 | `ygi-how-to-overlay` | Data (slide-up) |
 | `ygi-quit-overlay` | Decision modal |
 | `ygi-run-it-back-overlay` | Decision modal — "Run It Back?" confirm |
+
+### Multiplayer (Phase 22)
+- **Mode:** Individual Devices — each player on their own device
+- **Shared screens:** `screen-ygi-mode`, `screen-ygi-lobby-host`, `screen-ygi-lobby-join` (parameterised)
+- **Game-specific screens:** none
+- **Mandatory override:** `ygiVerdictStyle` forced to `'secret-ballot'` in Lobby Mode (The Consensus requires a shared device — not viable with individual devices)
+- **Key ACTION packets:** `YGI_TAKE_SUBMIT` (player's number + metric), `YGI_VOTE_SUBMIT` (player's vote ranking)
+- **Key SYNC packets:** `YGI_ROUND_START` (prompt + round number), `YGI_LINEUP` (all takes + optional ringer), `YGI_VERDICT` (scores + standings)
 
 ---
 
@@ -408,6 +450,16 @@ On Send: `lttpSelectPlayer(targetIdx, inputValue.trim())`
 | `lttp-quit-overlay` | Decision modal z-[80] | Quit confirm |
 | `lttp-guess-map-overlay` | Custom (full-width map panel) z-[95] | Guess phase — Friend of a Friend pins the address |
 
+### Multiplayer (Phase 22)
+- **Mode:** Individual Devices — each player on their own device
+- **Shared screens:** `screen-lttp-mode`, `screen-lttp-lobby-host`, `screen-lttp-lobby-join` (parameterised)
+- **Game-specific screens:** none
+- **Message interrupt:** When any player sends a message, `mp-lttp-message-interrupt-overlay` (z-[105]) fires on ALL devices simultaneously
+- **Passive device behaviour:** Map and Contacts navigation permitted; `.lttp-send-trigger` and `#btn-lttp-confirm-send` locked when device is not the active player
+- **Map/Contacts state:** Local only — never synced. Each player maintains their own annotations.
+- **Key ACTION packets:** `LTTP_MESSAGE_SEND` (Client → Host: message text + from/to indices)
+- **Key SYNC packets:** `LTTP_GAME_START` (full world state including strayIdx, jokerIdx, addressIdx, gridLocations), `LTTP_TURN_ADVANCE` (nextPlayerIdx), `LTTP_MESSAGE_INTERRUPT` (fromName, toName, messageText → all devices)
+
 ---
 
 ## Game 7: Natural Selection
@@ -503,6 +555,15 @@ No Lead Biologist role. All players (including the position normally assigned as
 | `nat-new-expedition-overlay` | Decision modal z-[90] | "New Expedition?" play-again confirmation |
 
 `screen-nat-daily-review` is a full screen (not an overlay) — shown in Sylly Mode between the last Observation Day and The Selection.
+
+### Multiplayer (Phase 22)
+- **Mode:** Individual Devices — each player on their own device
+- **Shared screens:** `screen-nat-mode`, `screen-nat-lobby-host`, `screen-nat-lobby-join` (parameterised)
+- **Game-specific screens:** none
+- **Role security:** NAT role data is broadcast to all devices; each device renders only its own role (UX-based couch security — sufficient for a same-room couch game). For full separation, targeted Firebase writes per player would be required.
+- **Handover screen:** Skipped in Lobby Mode; replaced by `SYNC: NAT_ACTIVE_PLAYER` which drives who can input and who sees a standby placeholder
+- **Key ACTION packets:** `NAT_OBSERVATION` (player's clue word → Host validates + advances turn)
+- **Key SYNC packets:** `NAT_MATCH_START` (specimen + all role assignments), `NAT_ACTIVE_PLAYER` (current observer index), `NAT_DAY_END` (Sylly Mode daily review), `NAT_SELECTION` (all clue data for vote screen), `NAT_TALLY` (score results)
 
 ---
 
@@ -609,10 +670,11 @@ LOBBY → DSD MENU → DSD SETUP (team names) → DSD PLAYERS (player names + ca
 | `dsd-confirm-disarm` | Decision modal | z-[90] | "Confirm Sequence?" |
 | `dsd-new-op-overlay` | Decision modal | z-[90] | "New Operation?" — play-again confirmation |
 
-### Screens (Phase 21a addition)
+### Screens (Phase 21a + Phase 23)
 | Screen ID | Purpose |
 |-----------|---------|
 | `screen-dsd-briefing` | Strategic Planning preview — 25 words as tappable tiles; tap any word to swap it (unlimited swaps); shown when `dsdStrategicPlanning` ON |
+| `screen-dsd-spectator` | TLM non-active team watch view — read-only crew-view grid + running clue history; shown by `dsdShowSpectatorView()` when `mpLobbyStyle === 'team'` |
 
 ### Dynamic Legend (Phase 21a)
 The captain screen legend dynamically shows outcome text based on current settings (updated by `dsdUpdateLegend()` on each captain screen open):
@@ -622,3 +684,14 @@ The captain screen legend dynamically shows outcome text based on current settin
 - Mine (pressure): "−20 Valour (ends turn)"
 - Mine (nuclear): "−1000 Valour ☠️ GAME OVER"
 - Jammer (Sylly): "−5 Valour, ends turn"
+
+### Multiplayer (Phase 22 + Phase 23)
+- **Mode:** TLM (recommended) / MDLM / PTP — `recommendedMode: 'tlm'`, `supportedModes: ['ptp', 'tlm', 'mdlm']`
+- **Shared screens:** `screen-mp-mode`, `screen-mp-lobby-host`, `screen-mp-lobby-join` (parameterised)
+- **Game-specific screens:** `screen-dsd-spectator` (TLM non-active team view)
+- **Captain screen routing (TLM):** Active team's Captain device shows full colour grid; non-active team shows `screen-dsd-spectator` via `dsdShowSpectatorView()`
+- **Captain screen routing (MDLM):** Same but non-active team shows crew standby via `dsdShowCrewStandby()`
+- **Execution flow:** Client Captain sends `ACTION: DSD_PING_TRANSMIT`; Host validates + broadcasts `SYNC: DSD_CREW_ACTIVE`; Client Crew submits `ACTION: DSD_SEQUENCE_SUBMIT`; Host resolves + broadcasts `SYNC: DSD_EXECUTION_RESULT`
+- **Magnetic Drift (Sylly):** Applied by Host locally then reflected in `SYNC: DSD_EXECUTION_RESULT` grid state
+- **Key ACTION packets:** `DSD_PING_TRANSMIT` (Captain's clue word + number), `DSD_SEQUENCE_SUBMIT` (crew's ordered grid indices)
+- **Key SYNC packets:** `DSD_CREW_ACTIVE` (ping word + number for crew screen), `DSD_EXECUTION_RESULT` (tile outcomes + updated Valour + grid state), `DSD_GAMEOVER` (final scores)

@@ -55,6 +55,7 @@ let natRoundLog        = [];
 
 // ── NAT Scientific Integrity (dispute mechanic) ───────────────────────────────
 let natClueStatuses    = []; // [playerIdx][dayIdx] = 'normal' | 'review' | 'discredited'
+let natMpVoteReadyCheck = []; // Lobby Mode (independent voting): tracks per-player vote submission
 
 
 // ── Init & Menu ───────────────────────────────────────────────────────────────
@@ -143,6 +144,24 @@ function natConfirmQuit() {
 
 // ── Setup (roster) ────────────────────────────────────────────────────────────
 function natShowSetup() {
+  if (window.syllyMultiplayerMode !== 'single') {
+    // MDLM: independent voting; PTP: consensus default
+    if (window.mpLobbyStyle === 'individual') natVotingMode = 'independent';
+    // Lobby Mode: use slot names, Host starts match directly
+    natApplySettings();
+    natPlayerCount = mpPlayerSlots.length;
+    natPlayerNames = mpPlayerSlots.map(p => p.nickname);
+    if (window.syllyMultiplayerMode === 'host') {
+      natScores       = Array(natPlayerCount).fill(0);
+      natRoundLog     = [];
+      natUsedWordIds  = new Set();
+      natCurrentMatch = 0;
+      natClueStatuses = Array.from({ length: natPlayerCount }, () => Array(natRoundsPerMatch).fill('normal'));
+      natStartMatch();
+    }
+    // Clients wait for NAT_MATCH_START SYNC from Host
+    return;
+  }
   natApplySettings();
   natRenderNameInputs();
   showScreen('screen-nat-setup');
@@ -204,6 +223,21 @@ async function natStartMatch() {
 
   natCurrentMatchRound = 0;
   natAssignRoles();
+
+  if (window.syllyMultiplayerMode === 'host') {
+    // Lobby Mode: broadcast specimen + role assignments so all devices know their role
+    mpSendEnvelope({ type: 'SYNC', payload: {
+      action:       'NAT_MATCH_START',
+      specimen:     natSpecimen,
+      assignedWords: natAssignedWords,
+      moleIdx:      natMoleIdx,
+      biologistIdx: natBiologistIdx,
+      match:        natCurrentMatch,
+      matchesSetting: natMatchesSetting,
+      roundsPerMatch: natRoundsPerMatch,
+    }});
+  }
+
   natStartClueRound();
 }
 
@@ -295,6 +329,20 @@ function natStartClueRound() {
 
 // ── Handover gate ─────────────────────────────────────────────────────────────
 function natShowHandover(pIdx) {
+  if (window.syllyMultiplayerMode !== 'single') {
+    // Lobby Mode: skip handover screen; broadcast active player + navigate all devices to observation
+    if (window.syllyMultiplayerMode === 'host') {
+      mpSendEnvelope({ type: 'SYNC', payload: {
+        action:      'NAT_ACTIVE_PLAYER',
+        playerIdx:   pIdx,
+        clueOrder:   natClueOrder,
+        clueStep:    natCurrentClueStep,
+        day:         natCurrentMatchRound,
+      }});
+    }
+    natShowObservation();
+    return;
+  }
   document.getElementById('nat-handover-name').textContent = natPlayerNames[pIdx];
   document.getElementById('nat-handover-sub').textContent  =
     `Day ${natCurrentMatchRound + 1} of ${natRoundsPerMatch} — don't peek.`;
@@ -311,6 +359,17 @@ function natShowObservation() {
 function natRenderObservationScreen() {
   const pIdx = natClueOrder[natCurrentClueStep];
   const isResearcher = natWordIsResearcher(pIdx);
+
+  // Lobby Mode standby: lock input when it's not this device's turn
+  if (window.syllyMultiplayerMode !== 'single') {
+    const isActive = pIdx === mpMyPlayerIdx;
+    const inputEl  = document.getElementById('nat-obs-input');
+    const submitEl = document.getElementById('btn-nat-obs-submit');
+    if (inputEl) { inputEl.disabled = !isActive; if (isActive) inputEl.value = ''; }
+    if (submitEl) submitEl.disabled = !isActive;
+    document.getElementById('nat-obs-error').textContent =
+      isActive ? '' : `Recording ${natPlayerNames[pIdx]}'s field observation…`;
+  }
 
   document.getElementById('nat-obs-round').textContent =
     `Day ${natCurrentMatchRound + 1} of ${natRoundsPerMatch} · Habitat ${natCurrentMatch + 1} of ${natMatchesSetting}`;
@@ -466,6 +525,45 @@ function natSubmitObservation() {
   natCluesByRound[natCurrentMatchRound][pIdx] = inputEl.value.trim();
   playSuccess();
 
+  if (window.syllyMultiplayerMode !== 'single') {
+    // Lobby Mode: send observation to Host; Host advances
+    if (window.syllyMultiplayerMode === 'client') {
+      mpLockSync();
+      document.getElementById('btn-nat-obs-submit').disabled = true;
+      mpSendEnvelope({ type: 'ACTION', payload: {
+        action:   'NAT_OBSERVATION',
+        playerIdx: pIdx,
+        clue:      inputEl.value.trim(),
+        day:       natCurrentMatchRound,
+        step:      natCurrentClueStep,
+      }});
+      return; // Host will advance via NAT_ACTIVE_PLAYER SYNC
+    }
+    // Host: advance and broadcast
+    natCurrentClueStep++;
+    if (natCurrentClueStep >= natPlayerCount) {
+      if (natSyllyMode) {
+        mpSendEnvelope({ type: 'SYNC', payload: {
+          action:        'NAT_DAY_END',
+          cluesByRound:  natCluesByRound,
+          day:           natCurrentMatchRound,
+          isSyllyReview: true,
+        }});
+        natShowDailyReview();
+      } else if (natCurrentMatchRound < natRoundsPerMatch - 1) {
+        natCurrentMatchRound++;
+        natCurrentClueStep = 0;
+        natStartClueRound(); // broadcasts next NAT_ACTIVE_PLAYER internally
+      } else {
+        natMpBroadcastSelection();
+        natShowSelection();
+      }
+    } else {
+      natShowHandover(natClueOrder[natCurrentClueStep]); // broadcasts NAT_ACTIVE_PLAYER
+    }
+    return;
+  }
+
   natCurrentClueStep++;
   if (natCurrentClueStep >= natPlayerCount) {
     // Day complete
@@ -585,6 +683,20 @@ function natDispute(playerIdx, dayIdx) {
   const cycle = { 'normal': 'discredited', 'discredited': 'normal' };
   natClueStatuses[playerIdx][dayIdx] = cycle[natClueStatuses[playerIdx][dayIdx]] || 'normal';
   natRenderSelectionScreen();
+}
+
+// Lobby Mode helper: Host broadcasts full selection data to all devices
+function natMpBroadcastSelection() {
+  if (window.syllyMultiplayerMode !== 'host') return;
+  mpSendEnvelope({ type: 'SYNC', payload: {
+    action:       'NAT_SELECTION',
+    cluesByRound: natCluesByRound,
+    wordsByDay:   natWordsByDay,
+    moleIdx:      natMoleIdx,
+    biologistIdx: natBiologistIdx,
+    match:        natCurrentMatch,
+    day:          natCurrentMatchRound,
+  }});
 }
 
 function natStartVoting() {
@@ -825,6 +937,18 @@ function natShowTally() {
   }
 
   document.getElementById('btn-nat-tally-next').textContent = isLast ? 'View Final Report' : 'Next Habitat';
+
+  if (window.syllyMultiplayerMode === 'host') {
+    // Lobby Mode: broadcast tally so all devices render the same result
+    mpSendEnvelope({ type: 'SYNC', payload: {
+      action:   'NAT_TALLY',
+      roundLog: natRoundLog,
+      scores:   [...natScores],
+      moleIdx:  natMoleIdx,
+      isLast:   isLast,
+    }});
+  }
+
   showScreen('screen-nat-tally');
 }
 
@@ -904,7 +1028,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ── Menu ──
   document.getElementById('btn-nat-menu-play')?.addEventListener('click', () => {
-    playLaunch(); natShowSetup();
+    playLaunch(); mpShowModeScreen('nat');
   });
   document.getElementById('btn-nat-menu-howto')?.addEventListener('click', () => {
     playDone(); natOpenHowTo();
@@ -1049,11 +1173,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ── Gameover ──
   document.getElementById('btn-nat-go-new')?.addEventListener('click', () => {
+    const confirmBtn = document.getElementById('btn-nat-expedition-confirm');
+    if (window.syllyMultiplayerMode === 'host') {
+      confirmBtn.textContent = 'Restart in Lobby 🔄';
+    } else if (window.syllyMultiplayerMode === 'client') {
+      confirmBtn.textContent = 'Leave Session';
+    } else {
+      confirmBtn.textContent = 'New Expedition 🦁';
+    }
     document.getElementById('nat-new-expedition-overlay').style.display = 'flex';
   });
   document.getElementById('btn-nat-expedition-confirm')?.addEventListener('click', () => {
     playLaunch();
     document.getElementById('nat-new-expedition-overlay').style.display = 'none';
+    if (window.syllyMultiplayerMode !== 'single') {
+      mpReturnToLobby();
+      return;
+    }
     natScores       = Array(natPlayerCount).fill(0);
     natRoundLog     = [];
     natUsedWordIds  = new Set();

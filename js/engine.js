@@ -9,6 +9,7 @@ let audioCtx     = null;
 
 // ── Gamebox routing ───────────────────────────────────────────────────────────
 let activeGameId = null;  // set by each plugin on entry; cleared by resetToLobby
+const SYLLY_VERSION = 'v83'; // must match CACHE_NAME in sw.js — bump both together
 
 // ── Who Goes First shared utility ─────────────────────────────────────────────
 let whoFirstConfig      = null;
@@ -47,7 +48,14 @@ const allScreens = [
   'screen-dsd-menu', 'screen-dsd-setup', 'screen-dsd-players',
   'screen-dsd-briefing', 'screen-dsd-pass-gate',
   'screen-dsd-captain', 'screen-dsd-crew', 'screen-dsd-execution', 'screen-dsd-sabotage',
-  'screen-dsd-gameover',
+  'screen-dsd-spectator', 'screen-dsd-gameover',
+  // Multiplayer — 3 shared parameterised screens + LI5-specific monitor
+  'screen-mp-mode', 'screen-mp-lobby-host', 'screen-mp-lobby-join',
+  'screen-mp-roster',
+  'screen-li5-monitor',
+  // Bailed
+  'screen-bld-menu', 'screen-bld-setup', 'screen-bld-seating', 'screen-bld-pass-gate',
+  'screen-bld-role-reveal', 'screen-bld-main', 'screen-bld-aftermath',
 ];
 
 // ── Web Audio API ─────────────────────────────────────────────────────────────
@@ -280,7 +288,7 @@ function playAbyssThud() {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function showScreen(id) {
-  allScreens.forEach(s => { document.getElementById(s).style.display = 'none'; });
+  allScreens.forEach(s => { const el = document.getElementById(s); if (el) el.style.display = 'none'; });
   const el = document.getElementById(id);
   el.style.display = 'flex';
   el.classList.remove('screen-enter');
@@ -389,9 +397,42 @@ function resetToLobby() {
   document.getElementById('dsd-confirm-disarm').style.display   = 'none';
   document.getElementById('dsd-new-op-overlay').style.display   = 'none';
   if (typeof dsdResetState === 'function') dsdResetState();
+  // Bailed teardown
+  const bldSeatingScreen = document.getElementById('screen-bld-seating');
+  if (bldSeatingScreen) bldSeatingScreen.style.display = 'none';
+  document.getElementById('bld-quit-overlay').style.display            = 'none';
+  document.getElementById('bld-settings-overlay').style.display        = 'none';
+  document.getElementById('bld-how-to-overlay').style.display          = 'none';
+  document.getElementById('bld-second-chances-overlay').style.display  = 'none';
+  document.getElementById('bld-plan-detail-overlay').style.display     = 'none';
+  document.getElementById('bld-pass-reveal-overlay').style.display     = 'none';
+  document.getElementById('bld-role-help-overlay').style.display       = 'none';
+  document.getElementById('bld-tip-overlay').style.display             = 'none';
+  if (typeof bldResetState === 'function') bldResetState();
   // Help-tip overlay cleanup (Phase 21a)
   ['li5','gm','ss','jec','ygi','lttp','nat','dsd'].forEach(abbr => {
     const el = document.getElementById(`${abbr}-help-tip-overlay`);
+    if (el) el.style.display = 'none';
+  });
+  // Multiplayer teardown
+  if (window.syllyFirebase && window.syllyMultiplayerMode === 'host') {
+    if (typeof syllyTeardownRoom === 'function') syllyTeardownRoom();
+  }
+  if (window.syllyFirebase && window.syllyMultiplayerMode === 'client' && window.mpClientPlayerRef) {
+    try { window.syllyFirebase.remove(window.mpClientPlayerRef); } catch (_) {}
+    window.mpClientPlayerRef = null;
+  }
+  window.syllyMultiplayerMode   = 'single';
+  window.syllySyncLocked        = false;
+  window.mpLobbyStyle           = 'individual';
+  window.mpLobbyRoster          = null;
+  window.mpLobbyRosterTeamNames    = null;
+  window.mpLobbyRosterCaptainNames = null;
+  document.body.classList.remove('mp-sync-locked');
+  ['mp-version-mismatch-overlay', 'mp-host-disconnected-overlay',
+   'mp-lttp-message-interrupt-overlay', 'mp-network-error-overlay',
+   'mp-host-prelobby-overlay'].forEach(id => {
+    const el = document.getElementById(id);
     if (el) el.style.display = 'none';
   });
   showScreen('screen-lobby');

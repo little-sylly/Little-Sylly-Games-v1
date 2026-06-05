@@ -79,6 +79,7 @@ let lttpPlanLogIdx   = 0;
 
 // ── LTTP Decoy pool (used across narrowing steps) ────────────────────────────
 let lttpDecoys       = [];        // indices of current non-address highlights
+let lttpMpTurnReady  = false;     // Lobby Mode: true when local player has dismissed interrupt
 
 // ── LTTP Contacts / Folder state ─────────────────────────────────────────────
 let lttpPendingTarget  = -1;      // player index awaiting message confirm modal
@@ -100,8 +101,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // ── Menu buttons ───────────────────────────────────────────────────────────
   document.getElementById('btn-lttp-menu-play').addEventListener('click', () => {
     playLaunch();
-    showScreen('screen-lttp-setup');
-    lttpSyncSetup();
+    mpShowModeScreen('lttp');
   });
   document.getElementById('btn-lttp-menu-how-to').addEventListener('click', () => {
     playDone();
@@ -327,6 +327,10 @@ document.addEventListener('DOMContentLoaded', () => {
   // ── Gameover: New Plans ────────────────────────────────────────────────────
   document.getElementById('btn-lttp-new-plans').addEventListener('click', () => {
     playLaunch();
+    if (window.syllyMultiplayerMode !== 'single') {
+      mpReturnToLobby();
+      return;
+    }
     showScreen('screen-lttp-setup');
     lttpSyncSetup();
   });
@@ -434,6 +438,8 @@ function lttpAssignRoles() {
 // START GAME
 // ═══════════════════════════════════════════════════════════════════════════
 function lttpStartGame() {
+  // MDLM: each player votes independently; PTP: group vote default ON
+  if (window.syllyMultiplayerMode !== 'single' && window.mpLobbyStyle === 'individual') lttpGroupVote = false;
   // Reset runtime state (preserve settings + names)
   lttpPlan        = 0;
   lttpActiveIdx   = -1;
@@ -468,6 +474,25 @@ function lttpStartGame() {
       lttpPlanLog.push({ plan: 1, highlights: [...lttpHighlights] });
       const first = Math.floor(Math.random() * lttpPlayerCount);
       lttpActiveIdx = first;
+
+      if (window.syllyMultiplayerMode === 'host') {
+        // Lobby Mode: broadcast world state + roles; all devices show their own role reveal
+        mpSendEnvelope({ type: 'SYNC', payload: {
+          action:         'LTTP_GAME_START',
+          strayIdx:       lttpStrayIdx,
+          jokerIdx:       lttpJokerIdx,
+          addressIdx:     lttpAddressIdx,
+          gridLocations:  [...lttpGridLocations],
+          highlights:     [...lttpHighlights],
+          decoys:         [...lttpDecoys],
+          fakeTargets:    [...lttpFakeTargets],
+          firstActiveIdx: first,
+          plan:           1,
+          playerNames:    [...lttpPlayerNames],
+          playerCount:    lttpPlayerCount,
+        }});
+      }
+
       lttpShowBriefing(first);
     });
 }
@@ -560,6 +585,22 @@ function lttpShowPlanUpdate(targetIdx) {
 // ═══════════════════════════════════════════════════════════════════════════
 function lttpShowHandover(toIdx, transitionMsg) {
   lttpActiveIdx = toIdx;
+
+  if (window.syllyMultiplayerMode !== 'single') {
+    // Lobby Mode: skip handover screen; broadcast turn advance to all devices
+    if (window.syllyMultiplayerMode === 'host') {
+      mpSendEnvelope({ type: 'SYNC', payload: {
+        action:      'LTTP_TURN_ADVANCE',
+        activeIdx:   toIdx,
+        plan:        lttpPlan,
+        history:     lttpHistory,
+        lapAnswered: [...lttpLapAnswered],
+      }});
+    }
+    lttpShowChat(toIdx);
+    return;
+  }
+
   const name = lttpPlayerNames[toIdx];
   document.getElementById('lttp-handover-name').textContent = name;
   document.getElementById('lttp-handover-sub').textContent  = transitionMsg
@@ -607,6 +648,16 @@ function lttpShowChat(playerIdx) {
 
   lttpRenderMapPane();
   lttpRenderPaneB();
+
+  // Lobby Mode: lock message-sending if it's not this device's turn
+  if (window.syllyMultiplayerMode !== 'single') {
+    const isActive = playerIdx === mpMyPlayerIdx;
+    document.querySelectorAll('.lttp-send-trigger, #btn-lttp-confirm-send').forEach(el => {
+      el.classList.toggle('opacity-40', !isActive);
+      el.classList.toggle('pointer-events-none', !isActive);
+    });
+  }
+
   showScreen('screen-lttp-chat');
   lttpSnapToPane('map');
 }
@@ -838,6 +889,37 @@ function lttpSelectPlayer(targetIdx, messageText = '') {
   playLaunch();
   lttpHistory.push({ asker: lttpActiveIdx, asked: targetIdx, plan: lttpPlan, messageText });
   lttpLapAnswered.add(lttpActiveIdx);
+
+  if (window.syllyMultiplayerMode !== 'single') {
+    // Lobby Mode: broadcast message interrupt to all devices before advancing
+    const fromName = lttpPlayerNames[lttpActiveIdx] || '';
+    const toName   = lttpPlayerNames[targetIdx] || '';
+    if (window.syllyMultiplayerMode === 'host') {
+      mpSendEnvelope({ type: 'SYNC', payload: {
+        action:      'LTTP_MESSAGE_INTERRUPT',
+        fromName,
+        toName,
+        messageText,
+        targetIdx,
+        askerIdx:    lttpActiveIdx,
+      }});
+    } else {
+      mpSendEnvelope({ type: 'ACTION', payload: {
+        action:      'LTTP_MESSAGE_SEND',
+        fromName,
+        toName,
+        messageText,
+        targetIdx,
+        askerIdx:    lttpActiveIdx,
+        history:     { asker: lttpActiveIdx, asked: targetIdx, plan: lttpPlan, messageText },
+        lapAnswered: [...lttpLapAnswered],
+      }});
+      // Client shows interrupt locally while waiting for Host to broadcast
+      document.getElementById('mp-lttp-interrupt-heading').textContent = `${fromName} → ${toName}`;
+      document.getElementById('mp-lttp-interrupt-body').textContent    = messageText ? `"${messageText}"` : '';
+      document.getElementById('mp-lttp-message-interrupt-overlay').style.display = 'flex';
+    }
+  }
 
   // Check if lap is complete (all players except active have been covered)
   const allGone = [...Array(lttpPlayerCount).keys()]

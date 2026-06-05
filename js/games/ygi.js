@@ -9,7 +9,7 @@
 let ygiRounds       = 3;              // 3 | 5 | 8
 let ygiDecider      = 'close-enough'; // 'close-enough' | 'only-one'
 let ygiFullTally    = false;          // false = top-3 only | true = rank all
-let ygiVerdictStyle = 'secret-ballot'; // 'secret-ballot' | 'open-ballpark'
+let ygiVerdictStyle = 'open-ballpark'; // 'secret-ballot' | 'open-ballpark' — default The Consensus (PTP); MDLM forces Your Call
 let ygiRinger     = false;          // Sylly Mode — injects a Ghost Card each round
 
 // ── CE State ──────────────────────────────────────────────────────────────────
@@ -43,6 +43,8 @@ let ygiSuddenDeathInputs   = [];   // [{playerIdx, number}]
 let ygiSuddenDeathInputIdx = 0;    // current finalist's turn
 let ygiDataLoaded      = false;
 let ygiAllPrompts      = [];        // raw data from ygi-data.json
+let ygiMpReadyCheck    = [];        // Lobby Mode: tracks which players have submitted their take
+let ygiVoteReadyCheck  = [];        // Lobby Mode: tracks which players have submitted their vote
 
 // ── Load CE data ──────────────────────────────────────────────────────────────
 async function ygiLoadData() {
@@ -70,8 +72,7 @@ document.getElementById('btn-ygi').addEventListener('click', () => {
 // ── CE Menu ───────────────────────────────────────────────────────────────────
 document.getElementById('btn-ygi-menu-play').addEventListener('click', () => {
   playLaunch();
-  ygiShowSetup();
-  showScreen('screen-ygi-setup');
+  mpShowModeScreen('ygi');
 });
 
 document.getElementById('btn-ygi-menu-how-to').addEventListener('click', () => {
@@ -150,6 +151,13 @@ document.getElementById('btn-ygi-how-to-close').addEventListener('click', () => 
 
 // ── CE Setup screen ───────────────────────────────────────────────────────────
 function ygiShowSetup() {
+  if (window.syllyMultiplayerMode !== 'single') {
+    // Lobby Mode: skip setup, use slot names
+    ygiPlayerCount = mpPlayerSlots.length;
+    ygiPlayerNames = mpPlayerSlots.map(p => p.nickname);
+    ygiStartGame();
+    return;
+  }
   document.querySelectorAll('[data-ygi-player-count]').forEach(b => {
     b.className = `pill${parseInt(b.dataset.ygiPlayerCount) === ygiPlayerCount ? ' pill-active-orange' : ''}`;
   });
@@ -192,6 +200,8 @@ document.getElementById('btn-ygi-setup-confirm').addEventListener('click', async
 // ── CE Game start ─────────────────────────────────────────────────────────────
 async function ygiStartGame() {
   await ygiLoadData();
+  // MDLM: force Your Call (The Consensus requires a shared device); PTP: use setting
+  if (window.syllyMultiplayerMode !== 'single' && window.mpLobbyStyle === 'individual') ygiVerdictStyle = 'secret-ballot';
   ygiRound               = 0;
   ygiScores              = Array(ygiPlayerCount).fill(0);
   ygiRoundLog            = [];
@@ -208,13 +218,28 @@ async function ygiStartGame() {
 
 function ygiStartRound() {
   ygiRound++;
-  ygiInputs          = [];
-  ygiCurrentInputIdx = 0;
-  ygiLineup          = [];
-  ygiCurrentPrompt   = ygiPromptPool.pop();
-  ygiCurrentRinger = ygiRinger
+  ygiInputs           = [];
+  ygiCurrentInputIdx  = 0;
+  ygiLineup           = [];
+  ygiVotes            = [];
+  ygiCurrentVoterIdx  = 0;
+  ygiMpReadyCheck     = Array(ygiPlayerCount).fill(false);
+  ygiVoteReadyCheck   = Array(ygiPlayerCount).fill(false);
+  ygiCurrentPrompt    = ygiPromptPool.pop();
+  ygiCurrentRinger    = ygiRinger
     ? ygiCurrentPrompt.ringers[Math.floor(Math.random() * ygiCurrentPrompt.ringers.length)]
     : null;
+
+  if (window.syllyMultiplayerMode === 'host') {
+    // Lobby Mode: broadcast prompt so all devices show same situation
+    mpSendEnvelope({ type: 'SYNC', payload: {
+      action: 'YGI_ROUND_START',
+      round:  ygiRound,
+      rounds: ygiRounds,
+      prompt: ygiCurrentPrompt,
+      ringer: ygiCurrentRinger,
+    }});
+  }
 
   document.getElementById('ygi-prompt-round-label').textContent = `Situation ${ygiRound} of ${ygiRounds}`;
   document.getElementById('ygi-prompt-text').textContent        = ygiCurrentPrompt.text;
@@ -223,6 +248,12 @@ function ygiStartRound() {
 
 document.getElementById('btn-ygi-prompt-start').addEventListener('click', () => {
   playLaunch();
+  // Lobby Mode: each device goes to their own input directly (no pass-gate)
+  if (window.syllyMultiplayerMode !== 'single') {
+    ygiCurrentInputIdx = mpMyPlayerIdx;
+    ygiShowInput();
+    return;
+  }
   ygiShowPassGate();
 });
 
@@ -277,8 +308,22 @@ document.getElementById('btn-ygi-input-confirm').addEventListener('click', () =>
   if (!metric)         { errEl.textContent = 'Give it a metric!'; return; }
 
   ygiInputs.push({ playerIdx: ygiCurrentInputIdx, number: num, metric });
-  ygiCurrentInputIdx++;
 
+  if (window.syllyMultiplayerMode !== 'single') {
+    // Lobby Mode: send ACTION, freeze input screen
+    mpLockSync();
+    document.getElementById('btn-ygi-input-confirm').classList.add('opacity-50', 'pointer-events-none');
+    document.getElementById('ygi-input-error').textContent = 'Take submitted — waiting for other players…';
+    mpSendEnvelope({ type: 'ACTION', payload: {
+      action: 'YGI_TAKE_SUBMIT',
+      playerIdx: mpMyPlayerIdx,
+      number: num,
+      metric,
+    }});
+    return;
+  }
+
+  ygiCurrentInputIdx++;
   if (ygiCurrentInputIdx < ygiPlayerCount) {
     ygiShowPassGate();
   } else {
@@ -340,6 +385,12 @@ function ygiShowReveal() {
 
 document.getElementById('btn-ygi-reveal-next').addEventListener('click', () => {
   playLaunch();
+  if (window.syllyMultiplayerMode !== 'single') {
+    // Lobby Mode: each device votes for their own player directly
+    ygiCurrentVoterIdx = mpMyPlayerIdx;
+    ygiShowVoteInput();
+    return;
+  }
   if (ygiVerdictStyle === 'open-ballpark') {
     ygiShowOpenBallparkVote();
   } else {
@@ -355,6 +406,10 @@ function ygiShowVotePassGate() {
 }
 
 function ygiShowVoteInput() {
+  // Re-enable vote submit button (may have been frozen from a previous lobby round)
+  const voteBtn = document.getElementById('btn-ygi-vote-submit');
+  voteBtn.classList.remove('opacity-50', 'pointer-events-none');
+
   ygiCurrentVoteRankings = [];
   ygiCurrVoteEntries = ygiLineup
     .map((entry, idx) => ({ ...entry, lineupIdx: idx }))
@@ -432,6 +487,20 @@ document.getElementById('btn-ygi-vote-submit').addEventListener('click', () => {
     return;
   }
   playDone();
+
+  if (window.syllyMultiplayerMode !== 'single') {
+    // Lobby Mode: send vote ACTION, freeze vote screen
+    mpLockSync();
+    document.getElementById('btn-ygi-vote-submit').classList.add('opacity-50', 'pointer-events-none');
+    document.getElementById('ygi-vote-error').textContent = 'Nod locked — waiting for other players…';
+    mpSendEnvelope({ type: 'ACTION', payload: {
+      action:    'YGI_VOTE_SUBMIT',
+      voterIdx:  mpMyPlayerIdx,
+      rankings:  [...ygiCurrentVoteRankings],
+    }});
+    return;
+  }
+
   if (ygiVerdictStyle === 'open-ballpark') {
     ygiVotes = Array.from({ length: ygiPlayerCount }, (_, i) => ({
       voterIdx: i, rankings: [...ygiCurrentVoteRankings]
@@ -734,12 +803,24 @@ document.getElementById('btn-ygi-log-next').addEventListener('click', () => {
 
 document.getElementById('btn-ygi-play-again').addEventListener('click', () => {
   playDone();
+  const confirmBtn = document.getElementById('btn-ygi-run-confirm');
+  if (window.syllyMultiplayerMode === 'host') {
+    confirmBtn.textContent = 'Restart in Lobby 🔄';
+  } else if (window.syllyMultiplayerMode === 'client') {
+    confirmBtn.textContent = 'Leave Session';
+  } else {
+    confirmBtn.textContent = 'Run It Back! 🃏';
+  }
   document.getElementById('ygi-run-it-back-overlay').style.display = 'flex';
 });
 
 document.getElementById('btn-ygi-run-confirm').addEventListener('click', async () => {
   playLaunch();
   document.getElementById('ygi-run-it-back-overlay').style.display = 'none';
+  if (window.syllyMultiplayerMode !== 'single') {
+    mpReturnToLobby();
+    return;
+  }
   await ygiStartGame();
 });
 

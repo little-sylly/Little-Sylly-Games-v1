@@ -109,6 +109,112 @@ function [abbr]ShowPassGate({ heading, subtext, ctaLabel, onConfirm }) {
 
 ---
 
+## Multiplayer Sync Module
+
+**JS file:** `js/engine-multiplayer.js` — loaded after `engine.js`, before `secret-mode.js`.
+**Full reference:** `docs/multiplayer-ui-components.md` | `docs/code-map.md` (Multiplayer Module section)
+
+### Globals
+
+| Variable | Type | Default | Rule |
+|----------|------|---------|------|
+| `syllyMultiplayerMode` | string | `'single'` | `'single'` / `'host'` / `'client'` — every plugin branches on this |
+| `syllySyncLocked` | bool | `false` | True while awaiting Firebase; blocks resubmission |
+| `syllyDeviceUid` | string | `''` | Anonymous UID; memory-only (not localStorage) |
+| `syllyFirebase` | object | `null` | Lazy-loaded — null on app boot; loaded when user taps "Host Lobby" or "Join Lobby" |
+| `mpLobbyStyle` | string | `'individual'` | `'team'` (TLM — teams share a device) / `'individual'` (MDLM — each player own device); set at mode selection; broadcast in `GAME_START`; reset in `resetToLobby()` |
+| `mpPlayersListener` | function\|null | `null` | `onValue` unsubscribe for `/players` node; active during host lobby only; cancelled in `mpStopListeners()` and before GAME_START in `mpConfirmRoster()` |
+| `window.mpClientPlayerRef` | Firebase ref\|null | `null` | Reference to client's own `/players/{uid}` node; used for explicit removal on leave/cancel; set in `mpClientJoinRoom()`, cleared in `resetToLobby()` and cancel handler |
+
+### Envelope Schema
+
+All Firebase messages follow this shape:
+```js
+{ type: 'ACTION' | 'SYNC' | 'LOBBY', payload: { action: 'EVENT_NAME', ...data }, originId, timestamp }
+```
+- `ACTION` — Client → Host: player submits; Host processes, responds with SYNC
+- `SYNC` — Host → All: resolved state; all devices apply and navigate
+- `LOBBY` — session management: `SETTINGS_SYNC`, `GAME_START`, `HOST_END_GAME`, `LOBBY_RESET`
+
+### Sync Lock
+
+`mpLockSync()` — adds `mp-sync-locked` class to `document.body`. CSS rule greys and disables all
+`.btn-mp-action` buttons across every screen. An 8-second timeout auto-releases to prevent
+permanent lock on dropped packets.
+
+`mpUnlockSync()` — removes `mp-sync-locked`. Called by every SYNC handler after applying state.
+
+### Firebase Lazy-Load
+
+`syllyFirebase` is `null` on app boot. Firebase scripts are loaded only when the user enters
+Lobby Mode (taps Host or Join). This keeps the app fully functional offline without Firebase.
+If the load times out (4 seconds), `mp-network-error-overlay` is shown.
+
+### Interceptor Pattern (per-plugin)
+
+Every submittable action in a plugin branches on `syllyMultiplayerMode`:
+
+```js
+// In a plugin's submit handler:
+if (window.syllyMultiplayerMode !== 'single') {
+  if (window.syllyMultiplayerMode === 'client') {
+    mpLockSync();
+    mpSendEnvelope({ type: 'ACTION', payload: { action: 'GAME_EVENT', ...data } });
+    return; // wait for HOST SYNC
+  }
+  // Host path: run logic locally, then broadcast
+  mpSendEnvelope({ type: 'SYNC', payload: { action: 'GAME_EVENT', ...resolvedState } });
+}
+// Single-device path falls through
+```
+
+### `resetToLobby()` Multiplayer Additions
+
+Added to engine.js `resetToLobby()` after all game teardowns:
+```js
+syllyMultiplayerMode = 'single';
+syllySyncLocked = false;
+mpStopListeners();       // detach Firebase listeners
+document.body.classList.remove('mp-sync-locked');
+// hide all MP overlays
+['mp-network-error-overlay','mp-version-mismatch-overlay',
+ 'mp-host-disconnected-overlay','mp-lttp-message-interrupt-overlay',
+ 'mp-host-prelobby-overlay'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) el.style.display = 'none';
+});
+```
+
+### Play-Again Return Pattern (`mpReturnToLobby`)
+
+**Rule:** Every game's play-again confirm handler MUST call `mpReturnToLobby()` instead of navigating to setup or game menu when `syllyMultiplayerMode !== 'single'`.
+
+```js
+// Pattern: in every game's play-again confirm listener
+if (window.syllyMultiplayerMode !== 'single') {
+  mpReturnToLobby();
+  return;
+}
+// single-device path unchanged
+```
+
+**Behaviour:**
+- **Host:** broadcasts `LOBBY_RESET` envelope → all clients navigate to `screen-mp-lobby-join` in a "waiting" state (code pre-filled, CTA disabled) → host navigates to `screen-mp-lobby-host` with same room code → `mpStartPlayersWatcher()` re-subscribed
+- **Client:** calls `resetToLobby()` directly (they leave the session)
+
+**Confirm button label** on the play-again overlay should update dynamically when the overlay is opened:
+- Host: `'Restart in Lobby 🔄'`
+- Client: `'Leave Session'`
+- Single: original thematic label (e.g. `'New Expedition 🦁'`)
+
+### localStorage Exception
+
+`sylly_nickname` is stored in `localStorage` via `mpGetNickname()` / `mpSaveNickname(v)`. This
+is the **only** permitted localStorage use beyond `isMuted` and `masterVolume` — it is a user
+preference (not game state) that survives across sessions.
+
+---
+
 ## Play-Again Confirmation
 
 **"Play again" actions that reset round state must go through a Decision Modal confirmation (z-[90]) before executing.** Direct-restart buttons with no confirmation are not permitted.
@@ -186,3 +292,4 @@ js/lib/tailwind-play.js, data/words.json, data/secret_words.json, data/secret2_w
 - [ ] Vocab Lock (if game uses word validation in Secret Mode): use `window.activeExpansionData.vocab.has(normaliseWord(input))`; wire a "VIEW WORD LIST" button to `smOpenVocabOverlay()` (see `@ui-style.md` Vocab Lock Reuse Pattern)
 - [ ] Add section header comment block to `index.html` (see existing `<!-- ════ GAME NAME ════ -->` pattern) and update `docs/code-map.md`
 - [ ] **Team games — setup screens:** Screen 1 = team names only (per-input labels + "Leave blank to use X & Y" hint + themed placeholders, no size pills); screen 2 = team size pills first then player inputs — see `@ui-style.md` § Team Setup Screen Standard
+- [ ] **Multiplayer:** Add game entry to `MP_GAME_CONFIGS` in `engine-multiplayer.js`; add per-game interceptor branches (ACTION/SYNC) to `mpHandleEnvelope`; add per-game SETTINGS_SYNC serialiser entry to `mpSerialiseSettings`; add packet types to `docs/code-map.md` (Multiplayer Module → Per-Game ACTION/SYNC Packet Types table); add multiplayer subsection to `game-identities.md`

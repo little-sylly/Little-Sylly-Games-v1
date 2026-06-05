@@ -128,7 +128,7 @@ function applySyllyVisuals() {
     card.classList.add('sylly-glow');
     yay.textContent        = 'Double Yay! ✨';
     nay.textContent        = 'Double Nay! 🙊';
-    skip.textContent       = 'Skip-a-BOOO! 👎';
+    skip.textContent       = 'Skip! 👎';
     nay.classList.add('shake');
     nay.style.background   = '#a855f7';
     nay.style.color        = '#fff';
@@ -140,7 +140,7 @@ function applySyllyVisuals() {
     card.classList.remove('sylly-glow');
     yay.textContent        = 'Yay!';
     nay.textContent        = 'Nay!';
-    skip.textContent       = 'Skip-a-roo';
+    skip.textContent       = 'Skip!';
     nay.classList.remove('shake');
     nay.style.background   = '';
     nay.style.color        = '';
@@ -191,10 +191,13 @@ async function startGame() {
   currentRound   = 1;
   totalRounds    = settingRounds;
 
-  const n1 = document.getElementById('input-team1').value.trim();
-  const n2 = document.getElementById('input-team2').value.trim();
-  teamNames[0] = n1 || 'Crayon Crew';
-  teamNames[1] = n2 || 'Glue Stick Gang';
+  // In Lobby Mode, team names come from the roster — preserve them
+  if (window.syllyMultiplayerMode === 'single') {
+    const n1 = document.getElementById('input-team1').value.trim();
+    const n2 = document.getElementById('input-team2').value.trim();
+    teamNames[0] = n1 || 'Crayon Crew';
+    teamNames[1] = n2 || 'Glue Stick Gang';
+  }
 
   showWhoFirst({
     emoji:           '💬',
@@ -325,6 +328,15 @@ function renderCurrentWord() {
   document.getElementById('word-category-label').textContent = `${emoji} ${label}`;
   renderTabooList('active-taboo-list', currentWordData.nono_list);
   applySyllyVisuals();
+
+  // Lobby Mode: broadcast word + nono list to opposing team's monitor screen
+  if (window.syllyMultiplayerMode === 'host') {
+    mpSendEnvelope({ type: 'SYNC', payload: {
+      action:   'LI5_ROUND_START',
+      word:     currentWordData.word,
+      nonoList: currentWordData.nono_list.slice(0, settingTabooCount),
+    }});
+  }
   const card = document.getElementById('active-word-card');
   card.classList.remove('card-enter');
   void card.offsetWidth;
@@ -716,7 +728,7 @@ document.getElementById('btn-play')
       t1.disabled = false;
       t2.disabled = false;
     }
-    showScreen('screen-setup');
+    mpShowModeScreen('li5');
   });
 
 document.getElementById('btn-how-to')
@@ -893,12 +905,26 @@ document.getElementById('btn-history-close').addEventListener('click', () => {
   document.getElementById('history-overlay').style.display = 'none';
 });
 
-document.getElementById('btn-play-again')
-  .addEventListener('click', () => { playPillClick(); document.getElementById('li5-play-again-overlay').style.display = 'flex'; });
+document.getElementById('btn-play-again').addEventListener('click', () => {
+  playPillClick();
+  const confirmBtn = document.getElementById('btn-li5-confirm-new-game');
+  if (window.syllyMultiplayerMode === 'host') {
+    confirmBtn.textContent = 'Restart in Lobby 🔄';
+  } else if (window.syllyMultiplayerMode === 'client') {
+    confirmBtn.textContent = 'Leave Session';
+  } else {
+    confirmBtn.textContent = 'New Playgroup! 👥';
+  }
+  document.getElementById('li5-play-again-overlay').style.display = 'flex';
+});
 
 document.getElementById('btn-li5-confirm-new-game').addEventListener('click', () => {
   playLaunch();
   document.getElementById('li5-play-again-overlay').style.display = 'none';
+  if (window.syllyMultiplayerMode !== 'single') {
+    mpReturnToLobby();
+    return;
+  }
   stopTimer();
   teamScores = [0, 0];
   wordsExhausted = false;

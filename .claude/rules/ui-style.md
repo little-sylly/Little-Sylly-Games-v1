@@ -6,11 +6,50 @@ Every screen must have:
 1. **Speaker icon** (`.btn-open-sound`) — opens `#sound-overlay`. Two official positions:
    - **Full-screen menus:** `absolute top-4 right-4` within a `relative` screen container
    - **Gameplay flow screens:** header row — `flex items-center justify-between px-4 pt-4 pb-2 flex-shrink-0`, speaker + ✕ right-aligned in the same row
-2. **Exit button** (✕) — logical destination (formalised):
+2. **Help icon `[?]`** — every game's main gameplay screen header must include a `[?]` button alongside the speaker icon and ✕. It opens the game's How to Play overlay (`[abbr]-how-to-overlay`). Position: left of speaker, same `flex items-center gap-2` group. Style: `text-stone-400 font-bold text-sm`. Always visible — no `hidden` class. Never opens a role-help or context-specific overlay — that role belongs to inline `[?]` buttons (see Contextual Tip Icons below).
+3. **Exit button** (✕) — logical destination (formalised):
    - Mid-game ✕ → quit confirm overlay → **game menu screen** (NOT lobby)
    - Post-game ✕ → `resetToLobby()` directly (game is over, no state to preserve)
    - "← Back to the Box" on game menu → `resetToLobby()` — the **only** path to lobby from within a game
-3. **Active play exception:** `#btn-mute` stays as instant tap-to-mute (no overlay — timer running). Pixel-exact rule applies to `.btn-open-sound` only.
+4. **Active play exception:** `#btn-mute` stays as instant tap-to-mute (no overlay — timer running). Pixel-exact rule applies to `.btn-open-sound` only.
+
+---
+
+## Contextual Tip Icons `[?]`
+
+**Use for:** Inline help anchored to a specific mechanic — Planner role, scoring currency, group selection, voting, and role-specific decisions. Not for general rules (that's the How to Play overlay via the header `[?]`).
+
+**Pattern:** Small `[?]` button placed inline next to the label it explains. Tapping opens the shared `[abbr]-tip-overlay` (Decision Modal, z-[90]) with dynamic content set by `[abbr]ShowTip(emoji, heading, lines[])`.
+
+```html
+<!-- Inline placement example — next to a mechanic label -->
+<div class="flex items-center gap-1.5">
+  <p class="text-stone-400 text-xs font-semibold">Mechanic Name</p>
+  <button id="btn-[abbr]-tip-[context]" class="text-stone-300 font-bold text-xs leading-none active:scale-90 transition-transform duration-100">[?]</button>
+</div>
+```
+
+**Tip overlay** (one per game, reused for all contextual tips):
+```html
+<div id="[abbr]-tip-overlay" style="display:none"
+  class="fixed inset-0 z-[90] overlay-modal-backdrop flex items-center justify-center px-6">
+  <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-[brand]-300">
+    <div class="flex flex-col gap-2">
+      <p id="[abbr]-tip-emoji" class="text-3xl"></p>
+      <h3 id="[abbr]-tip-heading" class="text-lg font-bold text-stone-800"></h3>
+      <div id="[abbr]-tip-body" class="text-stone-500 text-sm text-left flex flex-col gap-1.5"></div>
+    </div>
+    <button id="btn-[abbr]-tip-close" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-sm transition-all duration-100">Got it</button>
+  </div>
+</div>
+```
+
+**Tip content rules:**
+- **Concise and helpful** — one clear sentence per bullet point. No multi-sentence tips.
+- **Role-specific when relevant** — inject different content for different roles at call time (e.g. Friend vs Flake tips for group selection).
+- **3 bullets maximum** — resist the urge to explain everything.
+- Hidden by default when tip is only relevant to certain roles (e.g. Flake-only tip hidden until `bldRenderMission()` confirms the player is a Flake).
+- Add `[abbr]-tip-overlay` to `resetToLobby()` teardown in `engine.js`.
 
 ---
 
@@ -40,6 +79,14 @@ Use for: confirmations, short prompts, ≤3 interactive elements. No slide-up an
   </div>
 </div>
 ```
+
+**Border rule:** All decision modals (`overlay-modal-inner`) must include a subtle brand-accented border: `border border-[brand]-300`. This is a deliberate visual anchor that separates the modal from the backdrop without being a loud frame. Use the game's own brand colour — see Per-game brand reference table. Data slide-up overlays (Pattern 1, `overlay-data-inner`) do NOT get this treatment.
+
+**Exact inner div class string — use verbatim (with correct `[brand]` substituted):**
+```html
+<div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-[brand]-300">
+```
+Not `bg-white`, not `shadow-xl`, not `p-8`, not `rounded-2xl`, not `border-2`.
 
 ### Z-Index Stack
 | z-index | Used for |
@@ -164,6 +211,25 @@ Every individual setting is wrapped in a white card. Do NOT use bare divs or `<h
   <p class="text-stone-400 text-sm">Plain English description.</p>
 </div>
 ```
+
+**Sylly Mode card** — always the last card in every settings overlay:
+```html
+<div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+  <div class="flex items-center justify-between">
+    <p class="text-stone-800 font-semibold">✨ Sylly Mode</p>
+    <button id="btn-[abbr]-sylly-toggle" class="game-toggle-off shrink-0">OFF</button>
+  </div>
+  <p class="text-stone-600 text-sm font-semibold">[Thematic Name]</p>
+  <p class="text-stone-400 text-sm">[Full description in one paragraph.]</p>
+  <!-- Sub-options only (e.g. intensity pills) — wrapped in a toggled div, shown when ON -->
+</div>
+```
+Rules:
+- Subtitle (`text-stone-600 text-sm font-semibold`): thematic name only, no emoji, always visible
+- Description (`text-stone-400 text-sm`): one paragraph, always visible — even when toggle is OFF
+- Sub-options (pills, sliders): wrapped in a separate `style="display:none"` div, shown only when toggle is ON — only used when there is a meaningful sub-choice (e.g. GM intensity)
+- CTA start-game buttons (game menu) must not contain emoji
+- LI5: subtitle is "Wild Words"; intensity slider (`#sylly-pct-row`) is revealed on toggle ON (same sub-options pattern as GM)
 
 **Outer scrollable body** between cards: `flex flex-col gap-5` — keep consistent across all games.
 

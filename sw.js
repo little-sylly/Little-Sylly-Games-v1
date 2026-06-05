@@ -1,7 +1,7 @@
-// Little Sylly Games — Service Worker v80
+// Little Sylly Games — Service Worker v92
 // All assets are local — no external CDN URLs, no opaque response issues.
 
-const CACHE_NAME = 'sylly-games-v80';
+const CACHE_NAME = 'sylly-games-v92';
 
 const PRECACHE_URLS = [
   './',
@@ -16,6 +16,7 @@ const PRECACHE_URLS = [
   'js/games/lttp.js',
   'js/games/nat.js',
   'js/games/dsd.js',
+  'js/games/bld.js',
   'data/ygi-data.json',
   'js/secret-mode.js',
   'js/app.js',
@@ -24,7 +25,12 @@ const PRECACHE_URLS = [
   'data/secret_words.json',
   'data/secret2_words.json',
   'data/secret3_words.json',
-  'manifest.json'
+  'manifest.json',
+  'js/engine-multiplayer.js',
+  'js/lib/firebase-app.js',
+  'js/lib/firebase-database.js',
+  'js/lib/firebase-auth.js',
+  'js/lib/firebase-init.js'
 ];
 
 self.addEventListener('install', event => {
