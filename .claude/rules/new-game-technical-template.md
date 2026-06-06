@@ -71,6 +71,14 @@ LOBBY → [ABBR] MENU → [ABBR] SETUP
 - Config values: `emoji`, `eyebrow`, `heading`, `prompt`, `teamA/B`, `confirmLabel`, `accentBtnClass`, `accentTextClass`
 - `onResult` handler: [describe what happens when first team is determined]
 
+**Screen layout pattern decision** — decide at spec time for every screen; wrong choices require structural rework during testing:
+
+| Screen ID | Layout pattern | Reason |
+|-----------|---------------|--------|
+| | `min-h-screen` centred (default) / `h-screen` sticky-footer | |
+
+Rule: `h-screen overflow-hidden` only when a primary CTA must stay visible regardless of content height. Everything else: `min-h-screen overflow-y-auto flex items-center justify-center` (the NAT pattern).
+
 ---
 
 ## §3 — Screen Registry
@@ -214,6 +222,8 @@ Only two patterns permitted — data slide-up or decision modal. All overlays ad
 - Confirm: [themed label]
 - Cancel: "Stay here"
 
+**Shared tip overlay:** If the game has 3+ contextual `[?]` tip points (inline help for specific mechanics), add one `[abbr]-tip-overlay` entry here (Decision Modal, z-[90]) and implement `[abbr]ShowTip(emoji, heading, lines[])` to inject content dynamically. All contextual `[?]` buttons share this one overlay. See `@ui-style.md` § Contextual Tip Icons for the full HTML/JS pattern.
+
 **Exact inner div class strings — use verbatim:**
 
 Pattern 1 (data slide-up):
@@ -223,9 +233,9 @@ Pattern 1 (data slide-up):
 
 Pattern 2 (decision modal):
 ```html
-<div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center">
+<div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-[brand]-300">
 ```
-Not `bg-white`, not `shadow-xl`, not `p-8`, not `rounded-2xl`.
+Not `bg-white`, not `shadow-xl`, not `p-8`, not `rounded-2xl`, not `border-2`.
 
 ---
 
@@ -394,6 +404,8 @@ Tick each item as it is built. Do not mark complete until verified in the browse
 
 ### Screens
 - [ ] `.btn-open-sound` + ✕ on every screen
+- [ ] `[?]` button (`#btn-[abbr]-how-to`) in main gameplay screen header — always visible (no `hidden`), wired to `[abbr]-how-to-overlay` (see `@ui-style.md` § Help icon `[?]`)
+- [ ] Every screen uses the layout pattern decided in §2 (centred vs sticky-footer)
 - [ ] Mid-game ✕ → quit overlay → game menu
 - [ ] Post-game ✕ (`#btn-[abbr]-gameover-exit`) → `playExit(); resetToLobby()`
 - [ ] Pass-gate screens implemented at all transitions identified in §2
@@ -401,9 +413,10 @@ Tick each item as it is built. Do not mark complete until verified in the browse
 
 ### Overlays
 - [ ] Data slide-up inners use exact class string from §8
-- [ ] Decision modal inners use exact class string from §8
+- [ ] Decision modal inners use exact class string from §8 — including `border border-[brand]-300`
 - [ ] Quit overlay copy matches §8 (game-voiced, not generic)
 - [ ] Play-again overlay (`[abbr]-new-[game]-overlay`) triggers correctly — never resets state directly
+- [ ] Shared tip overlay (`[abbr]-tip-overlay`) implemented if ≥3 contextual tip buttons (see `@ui-style.md` § Contextual Tip Icons)
 - [ ] All `setTimeout` calls have inline WHY comment
 
 ### Scoring & Logic

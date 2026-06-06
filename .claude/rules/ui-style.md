@@ -162,6 +162,24 @@ Every gameplay screen must use `h-screen` (not `min-h-screen`) on the section so
 
 ---
 
+## How-to Overlay Standard
+
+**Title heading rule (ALL games):** The how-to overlay title block heading must always read exactly `"How to Play [thematic emoji]"` — never the game's internal name for the overlay (e.g. not "Operations Manual ⚓", not "Late To The Party 🏃‍♂️"). The thematic subtitle below it can be any flavour text.
+
+**Compliance status (Phase 28):** NAT ✅ | DSD ✅ | JEC ⚠️ (missing emoji) | YGI ⚠️ (missing emoji) | LTTP ⚠️ (uses game title) | LI5/GM/SS not yet audited.
+
+**Content structure per step (3-level required):**
+```html
+<div class="bg-white rounded-2xl p-4 shadow-sm">
+  <p class="text-xs font-semibold uppercase tracking-widest text-[brand]-500">Step [N]</p>
+  <p class="font-bold text-stone-800">[Bold instruction heading]</p>
+  <p class="text-stone-500 text-sm">[Plain English detail — 1–3 sentences]</p>
+</div>
+```
+All games must follow this 3-level structure. Games missing the detail paragraph: flag for next audit pass.
+
+---
+
 ## Settings Layout Standard
 Every game's settings overlay must follow this order:
 1. **Thematic title block** — first child of `overlay-data-inner`:

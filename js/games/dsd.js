@@ -461,7 +461,7 @@ function dsdRenderSpectatorGrid() {
     mine:   'bg-red-200 text-red-900',
   };
   const grid = document.getElementById('dsd-spectator-grid');
-  grid.innerHTML = dsdGrid.map(cell => {
+  grid.innerHTML = dsdGrid.map((cell, i) => {
     const wlen  = cell.word.length;
     const wFont = wlen > 12 ? 'text-[8px]' : wlen > 9 ? 'text-[9px]' : 'text-[10px]';
     if (cell.revealed) {
@@ -469,8 +469,22 @@ function dsdRenderSpectatorGrid() {
       const emoji = { mine: '💣', urchin: '💥' }[cell.role] ?? '⚓';
       return `<div class="h-[52px] ${col} opacity-60 rounded-lg flex items-center justify-center px-1 overflow-hidden"><span class="text-xl">${emoji}</span></div>`;
     }
-    return `<div class="h-[52px] bg-stone-100 text-stone-700 rounded-lg flex items-center justify-center ${wFont} font-semibold uppercase text-center px-1 leading-tight overflow-hidden whitespace-nowrap">${cell.word}</div>`;
+    // Unrevealed: show ? by default; tap to peek word (toggle via dsdFlippedCells)
+    const peeked = dsdFlippedCells.has(i);
+    const inner  = peeked
+      ? `<span class="${wFont} font-semibold uppercase text-center leading-tight whitespace-normal break-words">${cell.word}</span>`
+      : `<span class="text-stone-400 text-base font-bold">?</span>`;
+    return `<div data-spectator-idx="${i}" class="h-[52px] bg-stone-100 text-stone-700 rounded-lg flex items-center justify-center px-1 overflow-hidden cursor-pointer active:scale-95 transition-transform duration-100">${inner}</div>`;
   }).join('');
+
+  // Wire tap-to-peek on unrevealed cells
+  grid.querySelectorAll('[data-spectator-idx]').forEach(el => {
+    el.addEventListener('click', () => {
+      const idx = parseInt(el.dataset.spectatorIdx, 10);
+      dsdFlippedCells.has(idx) ? dsdFlippedCells.delete(idx) : dsdFlippedCells.add(idx);
+      dsdRenderSpectatorGrid();
+    });
+  });
 }
 
 function dsdRenderSpectatorHistory() {
@@ -482,10 +496,10 @@ function dsdRenderSpectatorHistory() {
   histEl.innerHTML = dsdTurnLog.slice().reverse().map(entry => {
     const teamClass = entry.team === 0 ? 'text-cyan-700' : 'text-indigo-800';
     const outcomes  = (entry.outcomes || []).map(o => `<span class="text-xs text-stone-500">${o.word} — ${o.label}</span>`).join('<br>');
-    return `<div class="bg-white rounded-xl px-3 py-2 border border-stone-100">
-      <p class="text-xs text-stone-400 mb-1"><span class="${teamClass} font-semibold">${entry.teamName}</span> · Deployment ${entry.deployment}</p>
+    return `<div class="border-b border-stone-100 px-1 py-2">
+      <p class="text-xs text-stone-400 mb-0.5"><span class="${teamClass} font-semibold">${entry.teamName}</span> · D${entry.deployment}</p>
       <p class="font-bold text-stone-800 text-sm">${entry.ping.toUpperCase()} — ${entry.pingNumber}</p>
-      ${outcomes ? `<div class="mt-1 flex flex-col gap-0.5">${outcomes}</div>` : ''}
+      ${outcomes ? `<div class="mt-0.5 flex flex-col gap-0">${outcomes}</div>` : ''}
     </div>`;
   }).join('');
 }
@@ -734,7 +748,7 @@ async function dsdShowExecution() {
   for (let i = 0; i < dsdSequence.length; i++) {
     const idx = dsdSequence[i];
     dsdRenderExecutionGrid(idx);   // highlight pending tile
-    await dsdDelay(400);
+    await dsdDelay(400); // pre-reveal pause so player can see which tile is next
     if (dsdSyllyMode && idx === dsdJammers[1 - dsdCurrentTeam]) {
       await dsdFlashJammer(idx); // 700ms ⚡ before hull thud fires in resolve
     }
@@ -742,7 +756,7 @@ async function dsdShowExecution() {
     dsdRenderExecutionGrid();      // resolved — tile now shows role colour
     dsdAppendExecutionLog(dsdTurnOutcomes[dsdTurnOutcomes.length - 1]);
     dsdUpdateValourDisplay();
-    await dsdDelay(300);
+    await dsdDelay(300); // post-resolve pause before moving to next tile
     if (ended) { turnEnded = true; break; }
   }
   document.getElementById('dsd-execution-footer').classList.remove('hidden');

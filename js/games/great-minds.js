@@ -1141,6 +1141,9 @@ document.querySelectorAll('.btn-gm-help-open').forEach(btn => {
 document.getElementById('btn-gm-input-tip')?.addEventListener('click', () => {
   gmShowHelpTip('🔮', 'Your Clue Word', 'Enter one word that connects both displayed words.');
 });
+document.getElementById('btn-gm-override-tip')?.addEventListener('click', () => {
+  gmShowHelpTip('🤝', 'Actually... That\'s a Sync', 'Use this when one player made a typo, used a root word (e.g. "run" / "running"), or when you both genuinely consider it close enough to count.');
+});
 document.getElementById('btn-gm-help-tip-close')?.addEventListener('click', () => {
   playDone();
   document.getElementById('gm-help-tip-overlay').style.display = 'none';

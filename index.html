@@ -213,7 +213,7 @@
         <button id="btn-pause"    aria-label="Pause"    class="text-xl leading-none text-stone-400 active:scale-90 transition-transform duration-100">⏸</button>
         <button id="btn-end-turn" aria-label="End turn" class="text-xl leading-none text-stone-400 active:scale-90 transition-transform duration-100">⏭</button>
         <button id="btn-mute"     aria-label="Mute"     class="text-xl leading-none text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
-        <button id="btn-li5-active-tip" aria-label="Help" class="text-stone-300 font-mono font-bold text-xl leading-none active:scale-90 transition-transform duration-100">?</button>
+        <button id="btn-li5-how-to" aria-label="Help" class="text-stone-300 font-mono font-bold text-xl leading-none active:scale-90 transition-transform duration-100">?</button>
         <button id="btn-stop"     aria-label="Quit game" class="text-xl leading-none text-stone-500 font-bold active:scale-90 transition-transform duration-100">✕</button>
       </div>
     </div>
@@ -234,7 +234,7 @@
       <div id="active-word-card" class="w-full">
         <p id="word-category-label" class="text-stone-400 text-xs uppercase tracking-widest mb-1"></p>
         <h2 id="active-word" class="text-3xl font-bold text-pink-500 mb-2"></h2>
-        <div id="taboo-card" class="w-full text-center bg-white rounded-2xl px-3 pb-3 pt-4 shadow-sm">
+        <div id="taboo-card" class="w-full text-center bg-white rounded-2xl px-3 pb-3 pt-8 shadow-sm">
           <p class="text-stone-400 text-xs uppercase tracking-widest mb-2">The No-No List</p>
           <ul id="active-taboo-list" class="flex flex-col gap-2"></ul>
         </div>
@@ -481,7 +481,7 @@
 
   <!-- Quit confirmation overlay -->
   <div id="quit-overlay" style="display:none" class="fixed inset-0 bg-black/50 z-[80] flex items-center justify-center px-6">
-    <div class="bg-white rounded-2xl p-8 w-full max-w-sm text-center flex flex-col gap-3 shadow-xl">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-pink-300">
       <p class="text-4xl">🏳️</p>
       <h3 class="text-xl font-bold text-stone-800">Done explaining already? 🧒</h3>
       <p class="text-stone-400 text-sm">Your stars will disappear!</p>
@@ -496,7 +496,7 @@
 
   <!-- Play-again confirmation overlay -->
   <div id="li5-play-again-overlay" style="display:none" class="fixed inset-0 bg-black/60 z-[90] flex items-center justify-center px-6">
-    <div class="overlay-modal-inner bg-white rounded-3xl p-6 flex flex-col gap-4 w-full max-w-sm text-center">
+    <div class="overlay-modal-inner bg-white rounded-3xl p-6 flex flex-col gap-4 w-full max-w-sm text-center border border-pink-300">
       <div class="text-4xl">📚</div>
       <h3 class="text-xl font-bold text-stone-800">New Playgroup?</h3>
       <p class="text-stone-400 text-sm">Your stars and word pile will be packed away.</p>
@@ -511,7 +511,7 @@
 
   <!-- Skip turn confirmation overlay -->
   <div id="skip-turn-overlay" style="display:none" class="fixed inset-0 bg-black/50 z-[80] flex items-center justify-center px-6">
-    <div class="bg-white rounded-2xl p-8 w-full max-w-sm text-center flex flex-col gap-3 shadow-xl">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-pink-300">
       <p class="text-4xl">⏭</p>
       <h3 class="text-xl font-bold text-stone-800">All tuckered out?</h3>
       <p class="text-stone-400 text-sm">The current word won't count.</p>
@@ -579,7 +579,7 @@
       <div class="bg-white rounded-2xl p-4 shadow-sm">
         <p class="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-2">Step 1 — The Goal 🎯</p>
         <p class="text-stone-700 font-semibold text-base leading-snug">Divide into two teams.</p>
-        <p class="text-stone-500 text-sm mt-1 leading-relaxed">One person describes the Word on screen while their team guesses. Get as many right as you can before the timer runs out — then pass the phone!</p>
+        <p class="text-stone-500 text-sm mt-1 leading-relaxed">One person describes the Word on screen while their team guesses. Get as many right as you can before the timer runs out!</p>
       </div>
 
       <div class="bg-white rounded-2xl p-4 shadow-sm">
@@ -607,7 +607,7 @@
 
   <!-- li5-help-tip-overlay (decision modal z-[90] — contextual help) -->
   <div id="li5-help-tip-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[90] flex items-center justify-center px-6">
-    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-pink-300">
       <p id="li5-help-tip-emoji" class="text-4xl"></p>
       <h3 id="li5-help-tip-heading" class="text-lg font-bold text-stone-800"></h3>
       <p id="li5-help-tip-text" class="text-stone-500 text-sm"></p>
@@ -701,7 +701,7 @@
           <p id="gm-pair-word-b" class="text-2xl font-bold text-stone-800"></p>
         </div>
       </div>
-      <p class="text-stone-500 text-sm">Both players — look together, then pass the phone.</p>
+      <p class="text-stone-500 text-sm">Both players — look together, then take turns entering your clue.</p>
       <button id="btn-gm-reroll-pair" style="display:none"
         class="min-h-11 w-full rounded-2xl bg-stone-100 hover:bg-stone-200 active:scale-95 text-stone-500 text-base font-medium transition-all duration-150">
         New Frequency 🔄
@@ -717,7 +717,7 @@
   <section id="screen-gm-input" style="display:none" class="flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-5">
     <div class="flex justify-end gap-2 w-full">
       <button class="btn-open-sound w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-lg">🔊</button>
-      <button class="btn-gm-help-open w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-stone-300 font-mono font-bold">?</button>
+      <button id="btn-gm-how-to" id="btn-gm-how-to" class="btn-gm-help-open w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-stone-300 font-mono font-bold">?</button>
       <button id="btn-gm-input-exit" class="w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-stone-500 font-bold">✕</button>
     </div>
     <p class="text-stone-300 text-xs font-semibold uppercase tracking-widest">Round <span id="gm-round-num-input"></span></p>
@@ -849,9 +849,12 @@
         class="min-h-11 w-full rounded-2xl bg-stone-100 hover:bg-stone-200 active:scale-95 text-stone-500 text-base font-medium transition-all duration-150">
         New Frequency 🔄
       </button>
-      <button id="btn-gm-override" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-base font-medium transition-all duration-150">
-        Actually... that's a sync 🤝
-      </button>
+      <div class="flex items-center gap-2">
+        <button id="btn-gm-override" class="flex-1 min-h-11 rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-base font-medium transition-all duration-150">
+          Actually... that's a sync 🤝
+        </button>
+        <button id="btn-gm-override-tip" class="text-stone-300 font-bold text-sm leading-none active:scale-90 transition-transform duration-100">[?]</button>
+      </div>
     </div>
 
     <!-- Match state (hidden until match) -->
@@ -1032,7 +1035,7 @@
 
   <!-- Near-Sync overlay (Great Minds) — fires when root forms match but words differ -->
   <div id="gm-near-sync-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[95] flex items-center justify-center px-6">
-    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-purple-300">
       <p class="text-4xl">⚡</p>
       <p class="text-xl font-bold text-stone-800">Frequency Overlap</p>
       <p class="text-stone-500 text-sm">These wavelengths are nearly identical. Do you accept this resonance?</p>
@@ -1052,7 +1055,7 @@
 
   <!-- Signal Boost overlay (Great Minds) — optional context before locking in -->
   <div id="gm-boost-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[95] flex overlay-modal-backdrop">
-    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm px-6 pt-6 pb-8 flex flex-col gap-4">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 border border-purple-300 border border-purple-300">
       <div class="text-center">
         <p class="text-lg font-bold text-stone-800">Boost Signal ⚡</p>
         <p class="text-stone-400 text-sm mt-1">Hint at category, relationship, or part of speech (15 chars max).</p>
@@ -1076,7 +1079,7 @@
 
   <!-- Neural Library modal (Signal Boost guide) -->
   <div id="gm-neural-library-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[100] flex overlay-modal-backdrop">
-    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm px-6 pt-6 pb-8 flex flex-col gap-4">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 border border-purple-300 border border-purple-300">
       <div class="text-center">
         <p class="text-lg font-bold text-stone-800">Boost Signal Guide ⚡</p>
         <p class="text-stone-400 text-sm mt-1 font-semibold">Provide Metadata, not Synonyms.</p>
@@ -1101,7 +1104,7 @@
 
   <!-- New Frequency confirmation overlay (Great Minds) -->
   <div id="gm-new-frequency-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[95] flex overlay-modal-backdrop">
-    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm px-6 pt-6 pb-8 flex flex-col gap-4">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 border border-purple-300 border border-purple-300">
       <p class="text-lg font-bold text-stone-800 text-center">Session Terminal</p>
       <button id="btn-gm-new-game-confirm" class="min-h-14 w-full rounded-2xl bg-violet-500 hover:bg-violet-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
         Memory Purge ⚛️
@@ -1140,7 +1143,7 @@
   <!-- Concede confirmation overlay (Great Minds — Secret Mode) -->
   <div id="gm-concede-overlay" style="display:none"
     class="fixed inset-0 bg-black/40 z-[95] flex items-center justify-center px-6">
-    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-purple-300">
       <p class="text-4xl">📡</p>
       <p class="text-xl font-bold text-stone-800">Incompatible Wavelengths</p>
       <p class="text-stone-500 text-sm">We are losing the connection — frequency mismatch intensifying.</p>
@@ -1157,7 +1160,7 @@
 
   <!-- Override confirmation overlay (Great Minds) -->
   <div id="gm-override-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[95] flex items-center justify-center px-6">
-    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-purple-300">
       <p class="text-4xl">⚛️</p>
       <p class="text-xl font-bold text-stone-800">Quantum Entanglement?</p>
       <p class="text-stone-500 text-sm">Unorthodox frequency… but does it sync?</p>
@@ -1172,7 +1175,7 @@
 
   <!-- gm-help-tip-overlay (decision modal z-[90] — contextual help) -->
   <div id="gm-help-tip-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[90] flex items-center justify-center px-6">
-    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-purple-300">
       <p id="gm-help-tip-emoji" class="text-4xl"></p>
       <h3 id="gm-help-tip-heading" class="text-lg font-bold text-stone-800"></h3>
       <p id="gm-help-tip-text" class="text-stone-500 text-sm"></p>
@@ -1195,10 +1198,11 @@
                  #screen-ss-decode-gate, #screen-ss-decode,
                  #screen-ss-resolution, #screen-ss-gameover,
                  #screen-ss-tiebreak, #screen-ss-intel-intro,
-                 #screen-ss-intel-guess, #screen-ss-intel-summary
+                 #screen-ss-intel-guess, #screen-ss-intel-summary,
+                 #screen-ss-standby
        Overlays: #ss-settings-overlay, #ss-how-to-overlay,
                  #ss-quit-overlay, #ss-play-again-overlay,
-                 #ss-override-overlay
+                 #ss-override-overlay, #ss-help-tip-overlay
        Ref     : js/games/secret-signals.js  (was sylly-signals.js)
   ════════════════════════════════════════════════════════════════ -->
   <!-- SS-① MENU -->
@@ -1371,7 +1375,10 @@
     <div class="w-full bg-teal-50 rounded-2xl p-4 text-center">
       <p class="text-xs font-semibold uppercase tracking-widest text-teal-400 mb-2">Your Code</p>
       <p id="ss-encrypt-code" class="text-4xl font-bold text-teal-600 tracking-[0.25em]"></p>
-      <p class="text-xs text-teal-400 mt-1">Give one clue for each number, in order</p>
+      <div class="flex items-center justify-center gap-1.5 mt-1">
+        <p class="text-xs text-teal-400">Give one clue for each number, in order</p>
+        <button id="btn-ss-clue-tip" class="text-teal-300 font-bold text-xs leading-none active:scale-90 transition-transform duration-100">[?]</button>
+      </div>
     </div>
     <div id="ss-clue-inputs" class="w-full flex flex-col gap-3"></div>
     <p id="ss-clue-error" style="display:none" class="text-red-500 text-xs font-semibold -mt-2"></p>
@@ -1380,7 +1387,26 @@
     </button>
   </section>
 
-  <!-- SS-⑥ BROADCAST — everyone sees clues + archive -->
+  <!-- SS-⑤b STANDBY — non-encrypting team waits in TLM mode -->
+  <section id="screen-ss-standby" style="display:none" class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-6 text-center">
+      <div class="w-full flex justify-between items-center">
+        <button class="btn-open-sound w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-lg">🔊</button>
+        <p class="text-xs font-semibold uppercase tracking-widest text-stone-400">Secret Signals</p>
+        <button id="btn-ss-standby-exit" class="text-stone-500 font-bold text-lg leading-none active:scale-90 transition-transform duration-100">✕</button>
+      </div>
+      <div class="flex flex-col items-center gap-4">
+        <p class="text-5xl">📡</p>
+        <div>
+          <p class="text-2xl font-bold text-stone-800">Interceptors Ready</p>
+          <p class="text-stone-400 text-sm mt-2">Waiting for <span id="ss-standby-team" class="font-semibold text-stone-600"></span> to transmit…</p>
+        </div>
+        <p class="text-stone-300 text-xs mt-2">Listen carefully — the broadcast is coming.</p>
+      </div>
+    </div>
+  </section>
+
+    <!-- SS-⑥ BROADCAST — everyone sees clues + archive -->
   <section id="screen-ss-broadcast" style="display:none" class="flex flex-col items-start px-6 py-10 w-full max-w-sm mx-auto gap-5">
     <div class="w-full flex justify-between items-center">
       <button class="btn-open-sound w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-lg">🔊</button>
@@ -1421,7 +1447,10 @@
       <div id="ss-intercept-archive" class="w-full flex flex-col gap-2"></div>
     </div>
     <div class="w-full">
-      <p class="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-3">Guess the code</p>
+      <div class="flex items-center gap-1.5 mb-3">
+        <p class="text-xs font-semibold uppercase tracking-widest text-stone-400">Guess the code</p>
+        <button id="btn-ss-intercept-tip" class="text-stone-300 font-bold text-xs leading-none active:scale-90 transition-transform duration-100">[?]</button>
+      </div>
       <div id="ss-intercept-guess-ui" class="flex flex-col gap-3"></div>
     </div>
     <button id="btn-ss-submit-intercept" class="min-h-14 w-full rounded-2xl bg-teal-500 hover:bg-teal-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed" disabled>
@@ -1614,9 +1643,9 @@
     <button id="btn-ss-intel-continue" style="display:none" class="min-h-14 w-full rounded-2xl bg-teal-500 hover:bg-teal-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
       Continue →
     </button>
-    <!-- Override button — always visible -->
-    <button id="btn-ss-intel-override" class="w-full min-h-11 rounded-xl bg-stone-100 hover:bg-stone-200 active:scale-95 text-stone-600 text-base font-semibold transition-all duration-150">
-      Diplomatic Resolution 🤝
+    <!-- Override button — shown only after 3rd failed attempt -->
+    <button id="btn-ss-intel-override" style="display:none" class="w-full min-h-11 rounded-xl bg-stone-100 hover:bg-stone-200 active:scale-95 text-stone-600 text-base font-semibold transition-all duration-150">
+      Accept It 🤝
     </button>
   </section>
 
@@ -1766,7 +1795,7 @@
 
   <!-- SS Intel Override overlay -->
   <div id="ss-override-overlay" style="display:none" class="fixed inset-0 bg-black/50 z-[90] flex items-center justify-center px-6">
-    <div class="bg-white rounded-2xl p-8 w-full max-w-sm text-center flex flex-col gap-3 shadow-xl">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-teal-300">
       <p class="text-4xl">🤝</p>
       <h3 class="text-xl font-bold text-stone-800">Diplomatic Resolution</h3>
       <div class="flex gap-2 items-center justify-center my-1">
@@ -1803,7 +1832,7 @@
 
   <!-- SS Quit overlay -->
   <div id="ss-quit-overlay" style="display:none" class="fixed inset-0 bg-black/50 z-[80] flex items-center justify-center px-6">
-    <div class="bg-white rounded-2xl p-8 w-full max-w-sm text-center flex flex-col gap-3 shadow-xl">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-teal-300">
       <p class="text-4xl">🏳️</p>
       <h3 class="text-xl font-bold text-stone-800">Abort the mission?</h3>
       <p class="text-stone-400 text-sm">Your intel will be lost.</p>
@@ -1834,7 +1863,7 @@
 
   <!-- SS Play Again confirmation modal -->
   <div id="ss-play-again-overlay" style="display:none" class="fixed inset-0 bg-black/50 z-[90] flex items-center justify-center px-6">
-    <div class="bg-white rounded-2xl p-8 w-full max-w-sm text-center flex flex-col gap-3 shadow-xl">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-teal-300">
       <p class="text-4xl">🕵️</p>
       <h3 class="text-xl font-bold text-stone-800">New Mission?</h3>
       <p class="text-stone-400 text-sm">This mission's intel will be archived.</p>
@@ -1944,7 +1973,7 @@
 
   <!-- Great Minds quit confirmation overlay -->
   <div id="gm-quit-overlay" style="display:none" class="fixed inset-0 bg-black/50 z-[80] flex items-center justify-center px-6">
-    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-teal-300">
       <p class="text-4xl">📡</p>
       <h3 class="text-xl font-bold text-stone-800">Cut the signal?</h3>
       <p class="text-stone-400 text-sm">The link will be severed. All progress lost.</p>
@@ -1969,7 +1998,7 @@
 
       <div class="bg-white rounded-2xl p-4 shadow-sm">
         <p class="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-2">Step 1 — The Setup 🎯</p>
-        <p class="text-stone-700 font-semibold text-base leading-snug">Two players. One phone.</p>
+        <p class="text-stone-700 font-semibold text-base leading-snug">Two players. One match.</p>
         <p class="text-stone-500 text-sm mt-1 leading-relaxed">You're each shown the same pair of words. Your job: think of one word that connects them both.</p>
       </div>
 
@@ -2111,7 +2140,7 @@
 
   <!-- ss-help-tip-overlay (decision modal z-[90] — contextual help) -->
   <div id="ss-help-tip-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[90] flex items-center justify-center px-6">
-    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-teal-300">
       <p id="ss-help-tip-emoji" class="text-4xl"></p>
       <h3 id="ss-help-tip-heading" class="text-lg font-bold text-stone-800"></h3>
       <p id="ss-help-tip-text" class="text-stone-500 text-sm"></p>
@@ -2217,7 +2246,7 @@
     <button id="btn-jec-reroll" style="display:none" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-600 text-base font-medium transition-all duration-150">
       🔀 Reroll Order
     </button>
-    <p class="text-stone-500 text-sm leading-relaxed">Everyone read this together, then pass the phone to the first Chef.</p>
+    <p class="text-stone-500 text-sm leading-relaxed">Everyone read this together — each Chef will take a turn.</p>
     <button id="btn-jec-order-start" class="min-h-14 w-full rounded-2xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
       Start Prepping! →
     </button>
@@ -2233,7 +2262,7 @@
         <p id="jec-prep-round-label" class="text-stone-400 text-xs font-semibold uppercase tracking-widest">Round 1 of 3</p>
         <div class="flex items-center gap-2">
           <button class="btn-open-sound w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-lg">🔊</button>
-          <button id="btn-jec-prep-tip" class="w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-stone-300 font-mono font-bold">?</button>
+          <button id="btn-jec-how-to" class="w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-stone-300 font-mono font-bold">?</button>
           <button id="btn-jec-prep-exit" class="w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-stone-500 font-bold text-lg">✕</button>
         </div>
       </div>
@@ -2339,7 +2368,7 @@
 
   <!-- Sous Chef Oversight modal (Pattern 2) -->
   <div id="jec-oversight-overlay" style="display:none" class="fixed inset-0 bg-black/50 z-[90] flex items-center justify-center px-6">
-    <div class="bg-white rounded-3xl px-6 pt-6 pb-8 w-full max-w-sm flex flex-col gap-4 text-center shadow-xl">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-amber-300">
       <p class="text-4xl">🧑‍🍳</p>
       <p class="text-xl font-bold text-stone-800">Sous Chef Oversight</p>
       <p class="text-stone-500 text-sm">Are these the same ingredient?</p>
@@ -2477,7 +2506,7 @@
       <div class="bg-white rounded-2xl p-4 shadow-sm">
         <p class="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-2">Step 1 — Get the Order 🍽️</p>
         <p class="text-stone-700 font-semibold text-base leading-snug">Everyone sees the same secret food.</p>
-        <p class="text-stone-500 text-sm mt-1 leading-relaxed">A food item — like "Pizza" or "Nachos" — appears on screen. Everyone reads it, then passes the phone.</p>
+        <p class="text-stone-500 text-sm mt-1 leading-relaxed">A food item — like "Pizza" or "Nachos" — appears on screen. Everyone reads it, then each Chef takes a turn.</p>
       </div>
 
       <div class="bg-white rounded-2xl p-4 shadow-sm">
@@ -2533,7 +2562,7 @@
 
   <!-- JEC New Shift modal (Pattern 2) -->
   <div id="jec-new-shift-overlay" style="display:none" class="fixed inset-0 bg-black/50 z-[80] flex items-center justify-center px-6">
-    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-amber-300">
       <p class="text-4xl">👨‍🍳</p>
       <h3 class="text-xl font-bold text-stone-800">New Shift?</h3>
       <p class="text-stone-400 text-sm">Scores will be wiped and a fresh game will begin.</p>
@@ -2548,7 +2577,7 @@
 
   <!-- JEC Quit confirm overlay (Pattern 2) -->
   <div id="jec-quit-overlay" style="display:none" class="fixed inset-0 bg-black/50 z-[80] flex items-center justify-center px-6">
-    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-amber-300">
       <p class="text-4xl">🏳️</p>
       <h3 class="text-xl font-bold text-stone-800">Kitchen Closed?</h3>
       <p class="text-stone-400 text-sm">Your progress will be lost.</p>
@@ -2563,7 +2592,7 @@
 
   <!-- jec-help-tip-overlay (decision modal z-[90] — contextual help) -->
   <div id="jec-help-tip-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[90] flex items-center justify-center px-6">
-    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-amber-300">
       <p id="jec-help-tip-emoji" class="text-4xl"></p>
       <h3 id="jec-help-tip-heading" class="text-lg font-bold text-stone-800"></h3>
       <p id="jec-help-tip-text" class="text-stone-500 text-sm"></p>
@@ -2686,7 +2715,7 @@
       <p id="ygi-input-player-label" class="text-stone-800 font-semibold text-base"></p>
       <div class="flex items-center gap-2">
         <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
-        <button id="btn-ygi-input-tip" class="text-stone-300 font-mono font-bold text-xl active:scale-90 transition-transform duration-100">?</button>
+        <button id="btn-ygi-how-to" class="text-stone-300 font-mono font-bold text-xl active:scale-90 transition-transform duration-100">?</button>
         <button class="btn-ygi-quit-open text-stone-400 text-2xl active:scale-90 transition-transform duration-100">✕</button>
       </div>
     </div>
@@ -2707,7 +2736,10 @@
       </div>
       <!-- Metric field -->
       <div class="flex flex-col gap-1.5">
-        <label class="text-stone-500 text-xs font-semibold uppercase tracking-widest">The Gap</label>
+        <div class="flex items-center gap-1.5">
+          <label class="text-stone-500 text-xs font-semibold uppercase tracking-widest">The Gap</label>
+          <button id="btn-ygi-tip-gap" class="text-stone-300 font-bold text-xs leading-none active:scale-90 transition-transform duration-100">[?]</button>
+        </div>
         <textarea id="ygi-input-metric"
           placeholder="Fill the gap..."
           maxlength="95"
@@ -3015,20 +3047,24 @@
         <p class="text-stone-400 text-xs mt-1">You Get It?</p>
       </div>
       <div class="bg-white rounded-2xl p-4 shadow-sm">
-        <p class="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-2">Step 1 — The Situation 📋</p>
-        <p class="text-stone-700 font-semibold text-base leading-snug">Everyone reads The Situation together.</p>
+        <p class="text-xs font-semibold uppercase tracking-widest text-orange-500 mb-1">Step 1</p>
+        <p class="font-bold text-stone-800">The Situation 📋</p>
+        <p class="text-stone-500 text-sm mt-1">Everyone reads the prompt aloud together. It'll have a blank — that's The Gap you'll fill in with your answer.</p>
       </div>
       <div class="bg-white rounded-2xl p-4 shadow-sm">
-        <p class="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-2">Step 2 — Your Take 🃏</p>
-        <p class="text-stone-700 font-semibold text-base leading-snug">Each player privately enters their Number and fills The Gap. Pass the phone around.</p>
+        <p class="text-xs font-semibold uppercase tracking-widest text-orange-500 mb-1">Step 2</p>
+        <p class="font-bold text-stone-800">Your Take 🃏</p>
+        <p class="text-stone-500 text-sm mt-1">Pass the phone around. Each player secretly picks a Number and writes something for The Gap. Your combined answer should slot right into the sentence.</p>
       </div>
       <div class="bg-white rounded-2xl p-4 shadow-sm">
-        <p class="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-2">Step 3 — The Lineup 🃏</p>
-        <p class="text-stone-700 font-semibold text-base leading-snug">All answers are revealed anonymously, sorted low to high.</p>
+        <p class="text-xs font-semibold uppercase tracking-widest text-orange-500 mb-1">Step 3</p>
+        <p class="font-bold text-stone-800">The Lineup 🃏</p>
+        <p class="text-stone-500 text-sm mt-1">All Takes are revealed at once, sorted from lowest number to highest. No names — just the answers.</p>
       </div>
       <div class="bg-white rounded-2xl p-4 shadow-sm">
-        <p class="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-2">Step 4 — The Verdict 🏆</p>
-        <p class="text-stone-700 font-semibold text-base leading-snug">Each player ranks everyone else's answer. 1st = 3 points, 2nd = 2 points, 3rd = 1 point.</p>
+        <p class="text-xs font-semibold uppercase tracking-widest text-orange-500 mb-1">Step 4</p>
+        <p class="font-bold text-stone-800">The Verdict 🏆</p>
+        <p class="text-stone-500 text-sm mt-1">Give The Nod to the answer you relate to most. 1st choice = 3 pts, 2nd = 2 pts, 3rd = 1 pt. The Take everyone vibes with wins the round.</p>
       </div>
       <button id="btn-ygi-how-to-close" class="min-h-14 w-full rounded-2xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
         Got it — let's go!
@@ -3038,7 +3074,7 @@
 
   <!-- YGI Quit overlay (Pattern 2) -->
   <div id="ygi-quit-overlay" style="display:none" class="fixed inset-0 bg-black/50 z-[80] flex items-center justify-center px-6">
-    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-orange-300">
       <p class="text-4xl">💡</p>
       <h3 class="text-xl font-bold text-stone-800">Not Feeling It?</h3>
       <p class="text-stone-400 text-sm">Your takes will vanish into the void.</p>
@@ -3053,7 +3089,7 @@
 
   <!-- YGI Run It Back overlay (Pattern 2) -->
   <div id="ygi-run-it-back-overlay" style="display:none" class="fixed inset-0 bg-black/50 z-[80] flex items-center justify-center px-6">
-    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-orange-300">
       <p class="text-4xl">🃏</p>
       <h3 class="text-xl font-bold text-stone-800">Run It Back?</h3>
       <p class="text-stone-400 text-sm">Start a fresh game with the same crew.</p>
@@ -3068,7 +3104,7 @@
 
   <!-- ygi-help-tip-overlay (decision modal z-[90] — contextual help) -->
   <div id="ygi-help-tip-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[90] flex items-center justify-center px-6">
-    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-orange-300">
       <p id="ygi-help-tip-emoji" class="text-4xl"></p>
       <h3 id="ygi-help-tip-heading" class="text-lg font-bold text-stone-800"></h3>
       <p id="ygi-help-tip-text" class="text-stone-500 text-sm"></p>
@@ -3178,7 +3214,7 @@
       <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
       <button class="btn-lttp-quit-open text-stone-400 text-2xl active:scale-90 transition-transform duration-100">✕</button>
     </div>
-    <div class="overlay-modal-inner w-full flex flex-col gap-4">
+    <div class="overlay-modal-inner w-full flex flex-col gap-4 border border-red-300">
       <div>
         <div id="lttp-briefing-emoji" class="text-4xl mb-2">🎉</div>
         <h2 id="lttp-briefing-heading" class="text-2xl font-bold text-stone-800">Tonight's Plans</h2>
@@ -3249,7 +3285,7 @@
       </div>
       <div class="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-3">
         <button class="btn-open-sound text-white text-xl active:scale-90 transition-transform duration-100">🔊</button>
-        <button class="btn-lttp-help-open text-white/50 font-mono font-bold text-xl active:scale-90 transition-transform duration-100">?</button>
+        <button id="btn-lttp-how-to" id="btn-lttp-how-to" class="btn-lttp-help-open text-white/50 font-mono font-bold text-xl active:scale-90 transition-transform duration-100">?</button>
         <button class="btn-lttp-quit-open text-white text-2xl active:scale-90 transition-transform duration-100">✕</button>
       </div>
     </div>
@@ -3607,8 +3643,11 @@
 
   <!-- CONFIRM OVERLAY (Pattern 2 — free-text message input) -->
   <div id="lttp-confirm-overlay" style="display:none" class="fixed inset-0 bg-black/50 z-[80] flex items-center justify-center px-6">
-    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-3">
-      <h3 id="lttp-confirm-heading" class="text-stone-800 text-lg font-bold text-center"></h3>
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-3 border border-red-300">
+      <div class="flex items-center justify-center gap-2">
+        <h3 id="lttp-confirm-heading" class="text-stone-800 text-lg font-bold text-center"></h3>
+        <button id="btn-lttp-tip-message" class="text-stone-300 font-bold text-xs leading-none active:scale-90 transition-transform duration-100 flex-shrink-0">[?]</button>
+      </div>
       <textarea id="lttp-message-input" maxlength="80" rows="3"
         placeholder="Type your message..."
         class="w-full rounded-xl border-2 border-stone-200 bg-white px-3 py-2.5 text-stone-800 text-sm resize-none focus:border-red-400 focus:outline-none transition-colors"></textarea>
@@ -3624,9 +3663,19 @@
     </div>
   </div>
 
+  <!-- lttp-tip-overlay (decision modal z-[90] — contextual tips) -->
+  <div id="lttp-tip-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[90] flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-red-300">
+      <p id="lttp-tip-emoji" class="text-3xl"></p>
+      <h3 id="lttp-tip-heading" class="text-lg font-bold text-stone-800"></h3>
+      <div id="lttp-tip-body" class="text-stone-500 text-sm text-left flex flex-col gap-1.5"></div>
+      <button id="btn-lttp-tip-close" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-sm transition-all duration-100">Got it</button>
+    </div>
+  </div>
+
   <!-- QUIT OVERLAY (Pattern 2 — center modal) -->
   <div id="lttp-quit-overlay" style="display:none" class="fixed inset-0 bg-black/50 z-[80] flex items-center justify-center px-6">
-    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-red-300">
       <p class="text-4xl">🚨</p>
       <h2 class="text-xl font-bold text-stone-800">Cancel the plans?</h2>
       <p class="text-stone-400 text-sm">Everyone will just stay home.</p>
@@ -3641,7 +3690,7 @@
 
   <!-- lttp-help-tip-overlay (decision modal z-[90] — contextual help) -->
   <div id="lttp-help-tip-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[90] flex items-center justify-center px-6">
-    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-red-300">
       <p id="lttp-help-tip-emoji" class="text-4xl"></p>
       <h3 id="lttp-help-tip-heading" class="text-lg font-bold text-stone-800"></h3>
       <p id="lttp-help-tip-text" class="text-stone-500 text-sm"></p>
@@ -3766,7 +3815,7 @@
     class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6 min-h-screen">
     <div class="absolute top-4 right-4 flex items-center gap-2">
       <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
-      <button class="btn-nat-help-open text-stone-300 font-mono font-bold text-xl active:scale-90 transition-transform duration-100">?</button>
+      <button id="btn-nat-how-to" id="btn-nat-how-to" class="btn-nat-help-open text-stone-300 font-mono font-bold text-xl active:scale-90 transition-transform duration-100">?</button>
       <button id="btn-nat-handover-quit" class="text-stone-400 text-2xl active:scale-90 transition-transform duration-100">✕</button>
     </div>
     <div class="text-6xl">📱</div>
@@ -4037,7 +4086,7 @@
 
   <!-- nat-new-expedition-overlay (decision modal z-[90]) -->
   <div id="nat-new-expedition-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[90] flex items-center justify-center px-6">
-    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-lime-300">
       <p class="text-5xl">🦁</p>
       <div>
         <h2 class="text-xl font-bold text-stone-800">New Expedition?</h2>
@@ -4056,7 +4105,7 @@
 
   <!-- nat-help-tip-overlay (decision modal z-[90] — contextual help) -->
   <div id="nat-help-tip-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[90] flex items-center justify-center px-6">
-    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-lime-300">
       <p id="nat-help-tip-emoji" class="text-4xl"></p>
       <h3 id="nat-help-tip-heading" class="text-lg font-bold text-stone-800"></h3>
       <p id="nat-help-tip-text" class="text-stone-500 text-sm"></p>
@@ -4187,37 +4236,41 @@
         <h2 class="text-xl font-bold text-stone-800">How to Play 🦁</h2>
         <p class="text-xs text-stone-400 mt-1">Natural Selection — a wildlife documentary goes wrong.</p>
       </div>
-      <div class="overflow-y-auto flex flex-col gap-5 px-5 py-5 text-stone-700 text-sm leading-relaxed">
-        <div class="flex flex-col gap-2">
-          <p class="font-bold text-stone-800">The Setup</p>
-          <p>Each habitat in the expedition focuses on a new <span class="font-semibold">Specimen</span>. Roles are secretly assigned at the start of each habitat:</p>
-          <ul class="list-disc pl-5 flex flex-col gap-1">
-            <li><span class="font-semibold">🔬 Lead Biologist (1)</span> — sees the full animal name.</li>
-            <li><span class="font-semibold">📋 Field Researchers</span> — each sees a different detail word about the animal.</li>
-            <li><span class="font-semibold">🕵️ The Mole (1)</span> — only knows the broad grouping (e.g. "Sea Creature"). Trying to blend in.</li>
+      <div class="overflow-y-auto flex flex-col gap-4 px-5 py-5">
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest text-lime-600">Step 1</p>
+          <p class="font-bold text-stone-800">Roles are Assigned 🔬</p>
+          <p class="text-stone-500 text-sm">Each habitat draws a new Specimen. Roles are secretly assigned and revealed one at a time:</p>
+          <ul class="list-disc pl-5 flex flex-col gap-1 text-stone-500 text-sm">
+            <li><span class="font-semibold text-stone-700">🔬 Lead Biologist (1)</span> — sees the full animal name.</li>
+            <li><span class="font-semibold text-stone-700">📋 Field Researchers</span> — each sees a different detail word about the animal.</li>
+            <li><span class="font-semibold text-stone-700">🕵️ The Mole (1)</span> — only knows the broad grouping (e.g. "Sea Creature"). Trying to blend in.</li>
           </ul>
         </div>
-        <div class="flex flex-col gap-2">
-          <p class="font-bold text-stone-800">The Observation</p>
-          <p>Over several days, each player submits exactly <span class="font-semibold">one word</span> to describe the specimen. Turn order is random each day. You can't use the animal's name, and you can't repeat any Field Observation already given this habitat.</p>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest text-lime-600">Step 2</p>
+          <p class="font-bold text-stone-800">The Observation 📋</p>
+          <p class="text-stone-500 text-sm">Over several Observation Days, each player submits one word to describe the Specimen. Turn order is random each day. You can't use the animal's name, and you can't repeat a word already given this habitat.</p>
         </div>
-        <div class="flex flex-col gap-2">
-          <p class="font-bold text-stone-800">The Selection</p>
-          <p>Once all observation days are done, the field notes are revealed. Each player makes their Classification — privately identifying who they think is The Mole. The most-voted player is exposed.</p>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest text-lime-600">Step 3</p>
+          <p class="font-bold text-stone-800">The Selection 🕵️</p>
+          <p class="text-stone-500 text-sm">Once all days are done, the field notes are revealed. Each player votes for who they think is The Mole. Most votes = exposed.</p>
         </div>
-        <div class="flex flex-col gap-2">
-          <p class="font-bold text-stone-800">Final Identification</p>
-          <p>After each Habitat, The Mole makes their Final Identification — naming the specimen regardless of whether they were caught. The Lead Biologist decides if it counts.</p>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest text-lime-600">Step 4</p>
+          <p class="font-bold text-stone-800">The Last Stand 🦁</p>
+          <p class="text-stone-500 text-sm">If The Mole is caught, they get one final chance — name the Specimen. The Lead Biologist decides if it counts. +10 Credibility either way for a correct guess.</p>
         </div>
-        <div class="flex flex-col gap-2">
-          <p class="font-bold text-stone-800">Scoring</p>
-          <ul class="list-disc pl-5 flex flex-col gap-1">
-            <li>Mole escapes undetected → <span class="font-semibold">+Escape Bonus Credibility</span> to the Mole (configurable in Settings, default 10).</li>
-            <li>Mole correctly names the specimen → <span class="font-semibold">+10 Credibility</span> to the Mole (always, win or lose).</li>
-            <li>Mole caught → <span class="font-semibold">+10 Credibility</span> to each Field Researcher and Lead Biologist.</li>
-            <li>Discredited clue (Peer Review) → <span class="font-semibold">−5 Credibility</span> to the author.</li>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest text-lime-600">Scoring</p>
+          <p class="font-bold text-stone-800">Credibility 🏆</p>
+          <ul class="list-disc pl-5 flex flex-col gap-1 text-stone-500 text-sm">
+            <li>Mole escapes → <span class="font-semibold text-stone-700">+Escape Bonus</span> to The Mole.</li>
+            <li>Mole names Specimen correctly → <span class="font-semibold text-stone-700">+10</span> to The Mole.</li>
+            <li>Mole caught → <span class="font-semibold text-stone-700">+10</span> to each Field Researcher &amp; Biologist.</li>
+            <li>Discredited clue (Peer Review) → <span class="font-semibold text-stone-700">−5</span> to the author.</li>
           </ul>
-          <p class="text-stone-400 text-xs mt-1">Credibility accumulates across all habitats. Highest total wins the expedition.</p>
         </div>
         <button id="btn-nat-howto-close" class="min-h-14 w-full rounded-2xl bg-lime-600 hover:bg-lime-700 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
           Got it
@@ -4228,7 +4281,7 @@
 
   <!-- nat-quit-overlay (decision modal z-[80]) -->
   <div id="nat-quit-overlay" style="display:none" class="fixed inset-0 bg-black/50 z-[80] flex items-center justify-center px-6">
-    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-lime-300">
       <p class="text-4xl">🔬</p>
       <h2 class="text-xl font-bold text-stone-800">Abandon the expedition?</h2>
       <p class="text-stone-500 text-sm text-center">All observations and Credibility will be lost.</p>
@@ -4390,7 +4443,7 @@
       <p id="dsd-captain-label" class="text-stone-600 text-xs font-semibold uppercase tracking-widest">The Manifest</p>
       <div class="flex items-center gap-3">
         <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
-        <button class="btn-dsd-help-open text-stone-300 font-mono font-bold text-xl active:scale-90 transition-transform duration-100">?</button>
+        <button id="btn-dsd-how-to" class="btn-dsd-help-open text-stone-300 font-mono font-bold text-xl active:scale-90 transition-transform duration-100">?</button>
         <button class="btn-dsd-quit-open text-xl text-stone-400 active:scale-90 transition-transform duration-100">✕</button>
       </div>
     </div>
@@ -4462,6 +4515,7 @@
       <p id="dsd-crew-label" class="text-stone-600 text-xs font-semibold uppercase tracking-widest">Sonar Crew</p>
       <div class="flex items-center gap-3">
         <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+        <button class="btn-dsd-help-open text-stone-300 font-mono font-bold text-xl active:scale-90 transition-transform duration-100">?</button>
         <button class="btn-dsd-quit-open text-xl text-stone-400 active:scale-90 transition-transform duration-100">✕</button>
       </div>
     </div>
@@ -4555,10 +4609,10 @@
     </div>
     <!-- Grid -->
     <div id="dsd-spectator-grid" class="grid grid-cols-5 gap-1 p-2 flex-shrink-0"></div>
-    <!-- Clue history -->
+    <!-- Sonar Log -->
     <div class="flex-1 overflow-y-auto min-h-0 px-4 pb-4 pt-2">
-      <p class="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-2">Clue History</p>
-      <div id="dsd-spectator-history" class="flex flex-col gap-2">
+      <p class="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-2">Sonar Log</p>
+      <div id="dsd-spectator-history" class="flex flex-col gap-0">
         <p class="text-stone-400 text-sm italic text-center mt-2">Waiting for first ping…</p>
       </div>
     </div>
@@ -4605,7 +4659,7 @@
 
   <!-- dsd-new-op-overlay (decision modal z-[90]) -->
   <div id="dsd-new-op-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[90] flex items-center justify-center px-6">
-    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-cyan-300">
       <p class="text-5xl">⚓</p>
       <div>
         <h2 class="text-xl font-bold text-stone-800">New Operation?</h2>
@@ -4624,7 +4678,7 @@
 
   <!-- dsd-help-tip-overlay (decision modal z-[90] — contextual help) -->
   <div id="dsd-help-tip-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[90] flex items-center justify-center px-6">
-    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-cyan-300">
       <p id="dsd-help-tip-emoji" class="text-4xl"></p>
       <h3 id="dsd-help-tip-heading" class="text-lg font-bold text-stone-800"></h3>
       <p id="dsd-help-tip-text" class="text-stone-500 text-sm"></p>
@@ -4714,7 +4768,7 @@
     <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
       <!-- Title block -->
       <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
-        <h2 class="text-xl font-bold text-stone-800">Operations Manual ⚓</h2>
+        <h2 class="text-xl font-bold text-stone-800">How to Play ⚓</h2>
         <p class="text-xs text-stone-400 mt-1">How to run a successful deployment.</p>
       </div>
       <div class="overflow-y-auto flex flex-col gap-5 px-5 py-5 text-sm text-stone-600">
@@ -4726,7 +4780,7 @@
 
         <div>
           <p class="font-semibold text-stone-800 mb-1">The Captain</p>
-          <p>Each team's Captain sees the colour-coded grid and gives the Crew a <strong>Sonar Ping</strong> — one word + one number. The word hints at multiple targets. The number says how many payloads it covers. Pass the phone to your Crew.</p>
+          <p>Each team's Captain sees the colour-coded grid and gives the Crew a <strong>Sonar Ping</strong> — one word + one number. The word hints at multiple targets. The number says how many payloads it covers. Then it's the Crew's turn.</p>
         </div>
 
         <div>
@@ -4759,7 +4813,7 @@
   </div>
   <!-- dsd-quit-overlay (decision modal z-[80]) -->
   <div id="dsd-quit-overlay" style="display:none" class="fixed inset-0 bg-black/50 z-[80] flex items-center justify-center px-6">
-    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-cyan-300">
       <p class="text-4xl">🚢</p>
       <h2 class="text-xl font-bold text-stone-800">Scuttle the Ship?</h2>
       <p class="text-stone-500 text-sm">Your deployment will be abandoned. All Valour will be lost.</p>
@@ -4775,7 +4829,7 @@
   </div>
   <!-- dsd-confirm-disarm (decision modal z-[90]) -->
   <div id="dsd-confirm-disarm" style="display:none" class="fixed inset-0 bg-black/50 z-[90] flex items-center justify-center px-6">
-    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-cyan-300">
       <h2 class="text-xl font-bold text-stone-800">Confirm Sequence?</h2>
       <ol id="dsd-disarm-list" class="flex flex-col gap-1 text-stone-700 text-sm list-decimal list-inside"></ol>
       <div class="flex flex-col gap-3 mt-1">
@@ -4988,23 +5042,25 @@
 
       <!-- Word display (populated by Sprint 4 Firebase SYNC) -->
       <div class="bg-white rounded-2xl p-5 shadow-sm text-center">
-        <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest mb-2">They're describing</p>
+        <p id="li5-monitor-describing-label" class="text-stone-400 text-xs font-semibold uppercase tracking-widest mb-2">They're describing</p>
         <p id="li5-monitor-word" class="text-3xl font-bold text-stone-800">—</p>
       </div>
 
       <!-- No-No List (populated by Sprint 4) -->
-      <div class="bg-white rounded-2xl p-4 shadow-sm">
-        <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest mb-3">No-No List</p>
+      <div id="li5-monitor-nono-section" class="bg-white rounded-2xl p-4 shadow-sm">
+        <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest mb-3 text-center">No-No List</p>
         <ul id="li5-monitor-nono-list" class="flex flex-col gap-2">
           <li class="text-stone-400 text-sm italic text-center">Waiting for round to start…</li>
         </ul>
       </div>
 
       <!-- CATCH! button -->
+      <div id="li5-monitor-catch-section">
       <button id="btn-li5-catch"
         class="min-h-16 w-full rounded-2xl bg-pink-500 hover:bg-pink-600 active:scale-95 text-white text-2xl font-bold transition-all duration-150">
         CATCH! 🚨
       </button>
+      </div>
 
     </div>
   </section>
@@ -5014,7 +5070,7 @@
   <!-- mp-version-mismatch-overlay (decision modal z-[90]) — shown on Host when client version doesn't match -->
   <div id="mp-version-mismatch-overlay" style="display:none"
     class="fixed inset-0 bg-black/40 z-[90] flex items-center justify-center px-6">
-    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-cyan-300">
       <p class="text-4xl">⚠️</p>
       <h3 class="text-lg font-bold text-stone-800">Version Mismatch</h3>
       <p class="text-stone-500 text-sm">A player is on an older version of the app. Ask them to refresh or reinstall before joining.</p>
@@ -5028,7 +5084,7 @@
   <!-- mp-host-disconnected-overlay (decision modal z-[100]) — shown on all clients when Host disconnects -->
   <div id="mp-host-disconnected-overlay" style="display:none"
     class="fixed inset-0 bg-black/40 z-[100] flex items-center justify-center px-6">
-    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-cyan-300">
       <p class="text-4xl">📡</p>
       <h3 class="text-lg font-bold text-stone-800">Host Disconnected</h3>
       <p class="text-stone-500 text-sm">The host left the session. You'll be returned to the lobby.</p>
@@ -5042,7 +5098,7 @@
   <!-- mp-lttp-message-interrupt-overlay (decision modal z-[105]) — LTTP message broadcast to all devices -->
   <div id="mp-lttp-message-interrupt-overlay" style="display:none"
     class="fixed inset-0 bg-black/40 z-[105] flex items-center justify-center px-6">
-    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-cyan-300">
       <p class="text-4xl">💬</p>
       <h3 id="mp-lttp-interrupt-heading" class="text-base font-bold text-stone-800">New message</h3>
       <p id="mp-lttp-interrupt-body" class="text-stone-600 text-sm italic"></p>
@@ -5056,7 +5112,7 @@
   <!-- mp-network-error-overlay (decision modal z-[90]) — Firebase load failure -->
   <div id="mp-network-error-overlay" style="display:none"
     class="fixed inset-0 bg-black/40 z-[90] flex items-center justify-center px-6">
-    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-cyan-300">
       <p class="text-4xl">📶</p>
       <h3 class="text-lg font-bold text-stone-800">Lobby Mode Unavailable</h3>
       <p class="text-stone-500 text-sm">Couldn't connect to the server. Check your internet connection and try again. Pass-the-Phone still works!</p>
@@ -5070,7 +5126,7 @@
   <!-- mp-host-prelobby-overlay (decision modal z-[90]) — nickname entry before generating room code -->
   <div id="mp-host-prelobby-overlay" style="display:none"
     class="fixed inset-0 bg-black/40 z-[90] flex items-center justify-center px-6">
-    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-cyan-300">
       <p class="text-4xl">🖥</p>
       <h3 class="text-lg font-bold text-stone-800">Host a Lobby</h3>
       <p class="text-stone-500 text-sm">Set your nickname so other players can identify you.</p>

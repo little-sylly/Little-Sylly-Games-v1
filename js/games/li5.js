@@ -226,7 +226,7 @@ function renderTabooList(containerId, tabooList) {
   } else {
     el.className = 'taboo-list-clean';
   }
-  el.innerHTML = words.map(t => `<li>${t}</li>`).join('');
+  el.innerHTML = words.map(t => `<li data-word="${t}">${t}</li>`).join('');
 }
 
 // ── Hype message pools ────────────────────────────────────────────────────────
@@ -329,12 +329,15 @@ function renderCurrentWord() {
   renderTabooList('active-taboo-list', currentWordData.nono_list);
   applySyllyVisuals();
 
-  // Lobby Mode: broadcast word + nono list to opposing team's monitor screen
+  // Lobby Mode: broadcast word + nono list to opposing team's monitor screen.
+  // isClientTurn: true when team 1 (client device) is the active describer —
+  // client then shows a large word card instead of the tattletale sheet.
   if (window.syllyMultiplayerMode === 'host') {
     mpSendEnvelope({ type: 'SYNC', payload: {
-      action:   'LI5_ROUND_START',
-      word:     currentWordData.word,
-      nonoList: currentWordData.nono_list.slice(0, settingTabooCount),
+      action:       'LI5_ROUND_START',
+      word:         currentWordData.word,
+      nonoList:     currentWordData.nono_list.slice(0, settingTabooCount),
+      isClientTurn: currentTeam === 1,
     }});
   }
   const card = document.getElementById('active-word-card');
@@ -655,7 +658,7 @@ function togglePause() {
 // ── Settings modal ────────────────────────────────────────────────────────────
 function openSettings() {
   const el = document.getElementById('settings-overlay');
-  const body = el.querySelector('.overflow-y-auto');
+  const body = el.querySelector('.overlay-data-inner');
   if (body) body.scrollTop = 0;
   el.style.display = 'flex';
 }
@@ -948,8 +951,12 @@ document.querySelectorAll('.btn-li5-help-open').forEach(btn => {
     el.style.display = 'flex';
   });
 });
-document.getElementById('btn-li5-active-tip')?.addEventListener('click', () => {
-  li5ShowHelpTip('🎯', 'Describing', 'Describe the word without saying any word on the No-No List.');
+document.getElementById('btn-li5-how-to')?.addEventListener('click', () => {
+  playDone();
+  const el = document.getElementById('how-to-overlay');
+  const inner = el.querySelector('.overlay-data-inner');
+  if (inner) inner.scrollTop = 0;
+  el.style.display = 'flex';
 });
 document.getElementById('btn-li5-help-tip-close')?.addEventListener('click', () => {
   playDone();

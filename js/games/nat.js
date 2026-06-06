@@ -357,45 +357,54 @@ function natShowObservation() {
 }
 
 function natRenderObservationScreen() {
-  const pIdx = natClueOrder[natCurrentClueStep];
-  const isResearcher = natWordIsResearcher(pIdx);
+  const pIdx = natClueOrder[natCurrentClueStep]; // whose turn it is to give a clue
+  // In MDLM each device shows its OWN role; single-device shows the current turn player
+  const myPIdx       = (window.syllyMultiplayerMode !== 'single') ? mpMyPlayerIdx : pIdx;
+  const myIsResearcher = natWordIsResearcher(myPIdx);
+
+  // Reset input state first
+  document.getElementById('nat-obs-input').value         = '';
+  document.getElementById('btn-nat-obs-submit').disabled = true;
 
   // Lobby Mode standby: lock input when it's not this device's turn
   if (window.syllyMultiplayerMode !== 'single') {
     const isActive = pIdx === mpMyPlayerIdx;
     const inputEl  = document.getElementById('nat-obs-input');
     const submitEl = document.getElementById('btn-nat-obs-submit');
-    if (inputEl) { inputEl.disabled = !isActive; if (isActive) inputEl.value = ''; }
+    if (inputEl) inputEl.disabled = !isActive;
     if (submitEl) submitEl.disabled = !isActive;
     document.getElementById('nat-obs-error').textContent =
       isActive ? '' : `Recording ${natPlayerNames[pIdx]}'s field observation…`;
+  } else {
+    document.getElementById('nat-obs-error').textContent = '';
   }
 
   document.getElementById('nat-obs-round').textContent =
     `Day ${natCurrentMatchRound + 1} of ${natRoundsPerMatch} · Habitat ${natCurrentMatch + 1} of ${natMatchesSetting}`;
   document.getElementById('nat-obs-step').textContent  =
     `Observation ${natCurrentClueStep + 1} of ${natPlayerCount}`;
-  document.getElementById('nat-obs-name').textContent      = natPlayerNames[pIdx];
-  document.getElementById('nat-obs-role').textContent      = natGetRoleLabel(pIdx);
-  document.getElementById('nat-obs-role-desc').textContent = natGetRoleDescription(pIdx);
-  document.getElementById('nat-obs-word-label').textContent = natGetWordLabel(pIdx);
+  // Role info always reflects THIS DEVICE's player (myPIdx)
+  document.getElementById('nat-obs-name').textContent      = natPlayerNames[myPIdx];
+  document.getElementById('nat-obs-role').textContent      = natGetRoleLabel(myPIdx);
+  document.getElementById('nat-obs-role-desc').textContent = natGetRoleDescription(myPIdx);
+  document.getElementById('nat-obs-word-label').textContent = natGetWordLabel(myPIdx);
 
-  // Research Log: stacked word history for Field Researchers on day 1+
-  if (natCumulativeClues && isResearcher && natCurrentMatchRound > 0) {
+  // Research Log: clues shown left-to-right in order (no day labels — player can infer order)
+  if (natCumulativeClues && myIsResearcher && natCurrentMatchRound > 0) {
     const parts = [];
     for (let d = 0; d <= natCurrentMatchRound; d++) {
-      const w = natWordsByDay[d]?.[pIdx] || '';
-      if (w) parts.push(`Day ${d + 1}: ${w}`);
+      const w = natWordsByDay[d]?.[myPIdx] || '';
+      if (w) parts.push(w);
     }
     document.getElementById('nat-obs-word').textContent = parts.join(' · ');
   } else {
-    document.getElementById('nat-obs-word').textContent = natGetWordForPlayer(pIdx);
+    document.getElementById('nat-obs-word').textContent = natGetWordForPlayer(myPIdx);
   }
 
-  // Category — show label + value for non-Mole players; Mole's word IS the category
+  // Category — show for non-Mole; Mole's word IS the category so hide the separate label
   const catLabelEl = document.getElementById('nat-obs-category-label');
   const catValEl   = document.getElementById('nat-obs-category-value');
-  if (pIdx !== natMoleIdx) {
+  if (myPIdx !== natMoleIdx) {
     catLabelEl.textContent = 'Category';
     catValEl.textContent   = natSpecimen.nono_list[0];
     catLabelEl.classList.remove('hidden');
@@ -404,10 +413,6 @@ function natRenderObservationScreen() {
     catLabelEl.classList.add('hidden');
     catValEl.classList.add('hidden');
   }
-
-  document.getElementById('nat-obs-input').value         = '';
-  document.getElementById('nat-obs-error').textContent   = '';
-  document.getElementById('btn-nat-obs-submit').disabled = true;
 
   natRenderJournal();
 }

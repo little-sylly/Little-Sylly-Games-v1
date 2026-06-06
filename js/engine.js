@@ -23,7 +23,7 @@ const allScreens = [
   'screen-gm-menu', 'screen-gm-setup', 'screen-gm-input', 'screen-gm-pass-gate',
   'screen-gm-reveal-gate', 'screen-gm-reveal', 'screen-gm-result',
   'screen-ss-menu', 'screen-ss-setup', 'screen-ss-vault-gate', 'screen-ss-vault',
-  'screen-ss-encrypt', 'screen-ss-broadcast', 'screen-ss-intercept',
+  'screen-ss-encrypt', 'screen-ss-broadcast', 'screen-ss-intercept', 'screen-ss-standby',
   'screen-ss-decode-gate', 'screen-ss-decode', 'screen-ss-resolution', 'screen-ss-gameover',
   'screen-ss-players',
   'screen-ss-tiebreak', 'screen-ss-intel-intro', 'screen-ss-intel-guess', 'screen-ss-intel-summary',
@@ -414,8 +414,15 @@ function resetToLobby() {
     const el = document.getElementById(`${abbr}-help-tip-overlay`);
     if (el) el.style.display = 'none';
   });
+  // Contextual tip overlays (Phase 28)
+  ['lttp'].forEach(abbr => {
+    const el = document.getElementById(`${abbr}-tip-overlay`);
+    if (el) el.style.display = 'none';
+  });
   // Multiplayer teardown
   if (window.syllyFirebase && window.syllyMultiplayerMode === 'host') {
+    // Notify clients before room deletion so the disconnect overlay appears immediately
+    try { if (typeof mpSendEnvelope === 'function') mpSendEnvelope({ type: 'LOBBY', payload: { action: 'HOST_END_GAME' } }); } catch (_) {}
     if (typeof syllyTeardownRoom === 'function') syllyTeardownRoom();
   }
   if (window.syllyFirebase && window.syllyMultiplayerMode === 'client' && window.mpClientPlayerRef) {

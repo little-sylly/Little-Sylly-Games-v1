@@ -191,12 +191,15 @@ The animals category is shared by both Like I'm Five and Natural Selection. Ever
 ---
 
 ## 🎯 Current Focus
-**Phase:** BLD (Bailed) — active development + bug fixing (MDLM multiplayer-only game).
-**SW Version:** v92 (bump when assets change)
+**Phase:** Phase 28 complete — Audit & polish: JEC, YGI, LTTP, NAT, DSD (MDLM readycheck fixes, LTTP PTP fix, DSD MDLM captain fix, UI improvements for all 5 games).
+**SW Version:** v95 (bump when assets change)
 **Gold Master:** 8 games complete + multiplayer (LI5, Great Minds, Secret Signals, JEC, YGI, LTTP, Natural Selection, Deep-Sea Deploy)
 **BLD status:** In active testing — MDLM only, `js/games/bld.js`, multiplayer bugs being resolved round by round.
 **Key references:**
 - `docs/bld-implementation-notes.md` — BLD bug log + design decisions (active)
+- `docs/phase28-snapshot.md` — Phase 28 snapshot (JEC/YGI/LTTP/NAT/DSD audit & polish)
+- `docs/phase27-snapshot.md` — Phase 27 snapshot (LI5/GM/SS polish pass)
+- `docs/phase26-snapshot.md` — Phase 26 snapshot (studio audit — retrograde polish pass, all 8 games)
 - `docs/phase25-snapshot.md` — Phase 25 snapshot (play-again lobby return all games, host-only audit)
 - `docs/phase22-snapshot.md` — Phase 22 snapshot (multiplayer complete — MFS v1.4)
 - `docs/phase21a-snapshot.md` — Phase 21a snapshot (8 games, pre-multiplayer gold master)

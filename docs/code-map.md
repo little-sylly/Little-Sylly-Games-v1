@@ -177,6 +177,7 @@
 | `#screen-ss-encrypt` | Encoder picks keyword to encrypt |
 | `#screen-ss-broadcast` | Broadcast screen (timer + clue display) |
 | `#screen-ss-intercept` | Intercepting team guesses |
+| `#screen-ss-standby` | TLM only — non-encrypting team waits while other team encodes |
 | `#screen-ss-decode-gate` | Pass gate before decode |
 | `#screen-ss-decode` | Decoding team enters answer |
 | `#screen-ss-resolution` | Round result |
@@ -200,7 +201,11 @@
 |----|--------|
 | `#btn-ss-back` | `resetToLobby()` (on SS menu) |
 | `#btn-ss-settings` | Open `#ss-settings-overlay` |
-| `#btn-ss-how-to` | Open `#ss-how-to-overlay` |
+| `#btn-ss-how-to` | Open `#ss-how-to-overlay` (game menu only — not encrypt screen) |
+| `#btn-ss-encrypt-tip` | Inline `[?]` on encrypt screen — `ssShowHelpTip()` |
+| `#btn-ss-clue-tip` | Inline `[?]` on broadcast/clue screen — `ssShowHelpTip()` |
+| `#btn-ss-intercept-tip` | Inline `[?]` on intercept screen — `ssShowHelpTip()` |
+| `#btn-ss-standby-exit` | ✕ on standby screen → quit overlay |
 | `#btn-ss-quit-confirm` | Confirm quit → `ssResetToMenu()` → `#screen-ss-menu` |
 
 ### Key functions

@@ -149,6 +149,22 @@ document.getElementById('btn-ygi-how-to-close').addEventListener('click', () => 
   document.getElementById('ygi-how-to-overlay').style.display = 'none';
 });
 
+// ── Contextual tip overlay ─────────────────────────────────────────────────────
+function ygiShowHelpTip(emoji, heading, text) {
+  document.getElementById('ygi-help-tip-emoji').textContent   = emoji;
+  document.getElementById('ygi-help-tip-heading').textContent = heading;
+  document.getElementById('ygi-help-tip-text').textContent    = text;
+  document.getElementById('ygi-help-tip-overlay').style.display = 'flex';
+}
+document.getElementById('btn-ygi-help-tip-close').addEventListener('click', () => {
+  playDone();
+  document.getElementById('ygi-help-tip-overlay').style.display = 'none';
+});
+document.getElementById('btn-ygi-tip-gap').addEventListener('click', () => {
+  playDone();
+  ygiShowHelpTip('✏️', 'Filling The Gap', 'Write whatever goes in the blank — your number slots in automatically. So if the situation says "more than [ ]", and you pick 47 and write "tabs open at once", it reads: "more than 47 tabs open at once."');
+});
+
 // ── CE Setup screen ───────────────────────────────────────────────────────────
 function ygiShowSetup() {
   if (window.syllyMultiplayerMode !== 'single') {
@@ -310,16 +326,37 @@ document.getElementById('btn-ygi-input-confirm').addEventListener('click', () =>
   ygiInputs.push({ playerIdx: ygiCurrentInputIdx, number: num, metric });
 
   if (window.syllyMultiplayerMode !== 'single') {
-    // Lobby Mode: send ACTION, freeze input screen
+    // Lobby Mode: freeze input screen
     mpLockSync();
     document.getElementById('btn-ygi-input-confirm').classList.add('opacity-50', 'pointer-events-none');
     document.getElementById('ygi-input-error').textContent = 'Take submitted — waiting for other players…';
-    mpSendEnvelope({ type: 'ACTION', payload: {
-      action: 'YGI_TAKE_SUBMIT',
-      playerIdx: mpMyPlayerIdx,
-      number: num,
-      metric,
-    }});
+    if (window.syllyMultiplayerMode === 'host') {
+      // Host processes directly — self-sent envelopes are deduplicated/ignored by engine-multiplayer.js
+      // Note: ygiInputs already updated above
+      ygiMpReadyCheck[mpMyPlayerIdx] = true;
+      if (ygiMpReadyCheck.every(Boolean)) {
+        const lineup = [...ygiInputs]
+          .sort((a, b) => a.number - b.number)
+          .map(e => ({ number: e.number, metric: e.metric, playerIdx: e.playerIdx, isGhost: false }));
+        if (ygiRinger && ygiCurrentRinger) {
+          const ghost    = { number: ygiCurrentRinger.number, metric: ygiCurrentRinger.metric, playerIdx: -1, isGhost: true };
+          const insertAt = lineup.findIndex(e => e.number > ghost.number);
+          if (insertAt === -1) lineup.push(ghost);
+          else lineup.splice(insertAt, 0, ghost);
+        }
+        ygiLineup = lineup;
+        mpSendEnvelope({ type: 'SYNC', payload: { action: 'YGI_LINEUP', lineup, round: ygiRound } });
+        mpUnlockSync();
+        ygiShowReveal();
+      }
+    } else {
+      mpSendEnvelope({ type: 'ACTION', payload: {
+        action:    'YGI_TAKE_SUBMIT',
+        playerIdx: mpMyPlayerIdx,
+        number:    num,
+        metric,
+      }});
+    }
     return;
   }
 
@@ -489,15 +526,54 @@ document.getElementById('btn-ygi-vote-submit').addEventListener('click', () => {
   playDone();
 
   if (window.syllyMultiplayerMode !== 'single') {
-    // Lobby Mode: send vote ACTION, freeze vote screen
+    // Lobby Mode: freeze vote screen
     mpLockSync();
     document.getElementById('btn-ygi-vote-submit').classList.add('opacity-50', 'pointer-events-none');
     document.getElementById('ygi-vote-error').textContent = 'Nod locked — waiting for other players…';
-    mpSendEnvelope({ type: 'ACTION', payload: {
-      action:    'YGI_VOTE_SUBMIT',
-      voterIdx:  mpMyPlayerIdx,
-      rankings:  [...ygiCurrentVoteRankings],
-    }});
+    if (window.syllyMultiplayerMode === 'host') {
+      // Host processes directly — self-sent envelopes are deduplicated/ignored by engine-multiplayer.js
+      ygiVotes.push({ voterIdx: mpMyPlayerIdx, rankings: [...ygiCurrentVoteRankings] });
+      ygiVoteReadyCheck[mpMyPlayerIdx] = true;
+      if (ygiVoteReadyCheck.every(Boolean)) {
+        const VOTE_PTS = [3, 2, 1];
+        const roundPts = Array(ygiLineup.length).fill(0);
+        ygiVotes.forEach(vote => {
+          vote.rankings.forEach((lineupIdx, rank) => {
+            if (rank < VOTE_PTS.length) roundPts[lineupIdx] += VOTE_PTS[rank];
+          });
+        });
+        const ghostIdx  = ygiLineup.findIndex(e => e.isGhost);
+        let   ghostWins = false;
+        if (ghostIdx !== -1) {
+          const ghostFirst    = ygiVotes.filter(v => v.rankings[0] === ghostIdx).length;
+          const maxHumanFirst = Math.max(...ygiLineup.map((e, i) => e.isGhost ? 0 : ygiVotes.filter(v => v.rankings[0] === i).length));
+          ghostWins = ghostFirst > maxHumanFirst;
+          if (ghostWins) for (let i = 0; i < ygiPlayerCount; i++) ygiScores[i] -= 2;
+        }
+        const maxRoundPts = Math.max(...ygiLineup.map((e, i) => e.isGhost ? -Infinity : roundPts[i]));
+        ygiLineup.forEach((entry, idx) => {
+          if (!entry.isGhost) {
+            ygiScores[entry.playerIdx] += roundPts[idx];
+            if (roundPts[idx] === maxRoundPts && maxRoundPts > 0) ygiScores[entry.playerIdx] += 2;
+          }
+        });
+        const roundLogEntry = { round: ygiRound, prompt: ygiCurrentPrompt, entries: ygiInputs.map(e => ({ ...e })) };
+        ygiRoundLog.push(roundLogEntry);
+        mpSendEnvelope({ type: 'SYNC', payload: {
+          action: 'YGI_VERDICT',
+          roundPts, ghostIdx, ghostWins, maxRoundPts,
+          scores: [...ygiScores], roundLog: ygiRoundLog,
+        }});
+        mpUnlockSync();
+        ygiShowResults(roundPts, ghostIdx, ghostWins, maxRoundPts);
+      }
+    } else {
+      mpSendEnvelope({ type: 'ACTION', payload: {
+        action:    'YGI_VOTE_SUBMIT',
+        voterIdx:  mpMyPlayerIdx,
+        rankings:  [...ygiCurrentVoteRankings],
+      }});
+    }
     return;
   }
 
@@ -849,8 +925,12 @@ document.querySelectorAll('.btn-ygi-help-open').forEach(btn => {
     el.style.display = 'flex';
   });
 });
-document.getElementById('btn-ygi-input-tip')?.addEventListener('click', () => {
-  ygiShowHelpTip('🃏', 'Your Take', 'Enter a number and a unit for the situation — e.g. 47 tabs, 3 hours, 12 messages.');
+document.getElementById('btn-ygi-how-to')?.addEventListener('click', () => {
+  playDone();
+  const el = document.getElementById('ygi-how-to-overlay');
+  const inner = el.querySelector('.overlay-data-inner');
+  if (inner) inner.scrollTop = 0;
+  el.style.display = 'flex';
 });
 document.getElementById('btn-ygi-help-tip-close')?.addEventListener('click', () => {
   playDone();

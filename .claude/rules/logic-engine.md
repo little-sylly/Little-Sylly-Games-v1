@@ -126,6 +126,8 @@ function [abbr]ShowPassGate({ heading, subtext, ctaLabel, onConfirm }) {
 | `mpPlayersListener` | function\|null | `null` | `onValue` unsubscribe for `/players` node; active during host lobby only; cancelled in `mpStopListeners()` and before GAME_START in `mpConfirmRoster()` |
 | `window.mpClientPlayerRef` | Firebase ref\|null | `null` | Reference to client's own `/players/{uid}` node; used for explicit removal on leave/cancel; set in `mpClientJoinRoom()`, cleared in `resetToLobby()` and cancel handler |
 
+**`window.` prefix rule:** All engine-multiplayer globals (`mpMyPlayerIdx`, `mpPlayerSlots`, `syllyMultiplayerMode`, `syllySyncLocked`, etc.) are `let`-declared at script top-level. `let` does NOT attach to `window`. Always access these directly — never `window.mpMyPlayerIdx`. That returns `undefined` silently. Only `var` attaches to `window`. Reference implementations: NAT.js and DSD.js.
+
 ### Envelope Schema
 
 All Firebase messages follow this shape:
@@ -167,6 +169,16 @@ if (window.syllyMultiplayerMode !== 'single') {
 }
 // Single-device path falls through
 ```
+
+**Missing handler audit (before shipping):** For every phase in the game's state flow, ask "can a non-host device submit something here?" Every "yes" is a required ACTION handler in `[abbr]HandleEnvelope`. Missing handlers silently drop submissions — they do not error or warn. Run this audit during Stage 2 (tech spec), not during testing.
+
+### MDLM Patterns
+
+**Name population from lobby:** In MDLM, `mpPlayerSlots[i].name` is already populated when `onPassThePhone` fires for the game. The game's own name-entry setup screen is redundant — skip it by populating the name array directly from `mpPlayerSlots` and calling the game's start function. BLD is the reference implementation.
+
+**Roster type `'none'`:** For games with automatic or random seating, use `rosterConfig.type: 'none'`. The `'individual'` type requires every player (including the host) to be manually assigned in the Assign Spots lobby UI — any player left unassigned produces `reordered[-1]` (a non-standard array property), corrupting the slot array. If the game handles seat labels internally, `'none'` is always safer.
+
+**Firebase callback crash safety:** A crash inside a Firebase `onValue` callback (inside `mpHandleEnvelope`) has a cascade failure mode: the SYNC that would advance all devices is never sent; Firebase may re-deliver buffered events against partially-reset state, triggering spurious double-resolutions. Treat every function called from `mpHandleEnvelope` as safety-critical. Grep to confirm every function called from it exists before shipping.
 
 ### `resetToLobby()` Multiplayer Additions
 
@@ -257,7 +269,7 @@ Before implementing, answer:
 
 **SW versioning:** `CACHE_NAME = 'sylly-games-vN'` — bump N on **every deploy**.
 
-**Current SW version:** v80
+**Current SW version:** v95
 
 **Precached assets (relative paths — no leading `/`):**
 ```
@@ -293,3 +305,6 @@ js/lib/tailwind-play.js, data/words.json, data/secret_words.json, data/secret2_w
 - [ ] Add section header comment block to `index.html` (see existing `<!-- ════ GAME NAME ════ -->` pattern) and update `docs/code-map.md`
 - [ ] **Team games — setup screens:** Screen 1 = team names only (per-input labels + "Leave blank to use X & Y" hint + themed placeholders, no size pills); screen 2 = team size pills first then player inputs — see `@ui-style.md` § Team Setup Screen Standard
 - [ ] **Multiplayer:** Add game entry to `MP_GAME_CONFIGS` in `engine-multiplayer.js`; add per-game interceptor branches (ACTION/SYNC) to `mpHandleEnvelope`; add per-game SETTINGS_SYNC serialiser entry to `mpSerialiseSettings`; add packet types to `docs/code-map.md` (Multiplayer Module → Per-Game ACTION/SYNC Packet Types table); add multiplayer subsection to `game-identities.md`
+- [ ] **`[?]` how-to button:** Add `#btn-[abbr]-how-to` to every main gameplay screen header — always visible (no `hidden` class), wired to `[abbr]-how-to-overlay` (see `@ui-style.md` § Help icon `[?]`)
+- [ ] **Decision modal borders:** All `overlay-modal-inner` divs include `border border-[brand]-300` from day one (see `@ui-style.md` § Two-Pattern Overlay Library)
+- [ ] **Shared tip overlay (if applicable):** For games with 3+ contextual `[?]` tip points, implement a single `[abbr]-tip-overlay` (Decision Modal, z-[90]) + `[abbr]ShowTip(emoji, heading, lines[])` rather than per-tip overlays (see `@ui-style.md` § Contextual Tip Icons)

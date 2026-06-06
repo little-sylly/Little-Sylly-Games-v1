@@ -331,17 +331,43 @@ function jecSubmitIngredients() {
   jecInputs[jecCurrentPlayerIdx] = [v1, v2, v3];
 
   if (window.syllyMultiplayerMode !== 'single') {
-    // Lobby Mode: send ACTION to Host, freeze local prep screen
+    // Lobby Mode: freeze local prep screen
     const poison = jecKitchenNightmares ? (document.getElementById('jec-prep-poison').value.trim() || '') : '';
     mpLockSync();
     document.getElementById('btn-jec-serve').classList.add('opacity-50', 'pointer-events-none');
     document.getElementById('jec-prep-error').textContent = 'Ingredients submitted — waiting for the other chefs…';
-    mpSendEnvelope({ type: 'ACTION', payload: {
-      action:     'JEC_PREP_SUBMIT',
-      playerIdx:  mpMyPlayerIdx,
-      ingredients: [v1, v2, v3],
-      poison,
-    }});
+    if (window.syllyMultiplayerMode === 'host') {
+      // Host processes directly — self-sent envelopes are deduplicated/ignored by engine-multiplayer.js
+      jecInputs[mpMyPlayerIdx] = [v1, v2, v3];
+      if (jecKitchenNightmares && poison) {
+        jecPoisons[mpMyPlayerIdx]    = poison;
+        jecSignatures[mpMyPlayerIdx] = 0;
+      }
+      jecMpReadyCheck[mpMyPlayerIdx] = true;
+      if (jecMpReadyCheck.every(Boolean)) {
+        jecBuildFrequency();
+        if (jecKitchenNightmares) jecBuildPoisonSet();
+        mpSendEnvelope({ type: 'SYNC', payload: {
+          action:           'JEC_SIFTING',
+          jecInputs:         jecInputs.map(a => [...a]),
+          jecWordFrequency:  {...jecWordFrequency},
+          jecDisplayWords:   {...jecDisplayWords},
+          jecMergeMap:       {...jecMergeMap},
+          jecPoisonedNorms:  [...jecPoisonedNorms],
+          jecPoisons:        [...jecPoisons],
+          jecSignatures:     [...jecSignatures],
+        }});
+        mpUnlockSync();
+        jecStartSifting();
+      }
+    } else {
+      mpSendEnvelope({ type: 'ACTION', payload: {
+        action:      'JEC_PREP_SUBMIT',
+        playerIdx:   mpMyPlayerIdx,
+        ingredients: [v1, v2, v3],
+        poison,
+      }});
+    }
     return;
   }
 
@@ -823,8 +849,12 @@ document.querySelectorAll('.btn-jec-help-open').forEach(btn => {
     el.style.display = 'flex';
   });
 });
-document.getElementById('btn-jec-prep-tip')?.addEventListener('click', () => {
-  jecShowHelpTip('🍳', 'Your Ingredients', 'Enter words you think others will also write. The Sweet Spot is matching — not too many, not too few.');
+document.getElementById('btn-jec-how-to')?.addEventListener('click', () => {
+  playDone();
+  const el = document.getElementById('jec-how-to-overlay');
+  const inner = el.querySelector('.overlay-data-inner');
+  if (inner) inner.scrollTop = 0;
+  el.style.display = 'flex';
 });
 document.getElementById('btn-jec-help-tip-close')?.addEventListener('click', () => {
   playDone();

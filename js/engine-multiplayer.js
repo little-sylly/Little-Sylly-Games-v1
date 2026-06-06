@@ -29,6 +29,9 @@ let mpSyncLockTimer   = null;  // timeout handle for 8-second sync lock fallback
 let mpJoinListenFrom  = 0;     // timestamp cutoff — ignore events older than this
 let mpMyPlayerIdx     = -1;    // this device's slot index in mpPlayerSlots; 0 = Host
 
+// ── Roster helper: hasCaptain may be a bool or a zero-arg function ────────────
+function mpRcHasCaptain(rc) { return typeof rc?.hasCaptain === 'function' ? rc.hasCaptain() : !!rc?.hasCaptain; }
+
 // ── Roster State (Phase 24) ───────────────────────────────────────────────────
 window.mpLobbyRoster          = null;   // confirmed roster — broadcast in GAME_START
 window.mpLobbyRosterTeamNames    = null;   // team names captured from pre-lobby overlay
@@ -141,9 +144,12 @@ const MP_GAME_CONFIGS = {
         lttpPlayerCount = mpPlayerSlots.length;
         lttpPlayerNames = mpPlayerSlots.map(p => p.nickname);
         lttpStartGame();
-      } else {
-        // Client: waits for LTTP_GAME_START SYNC from Host
+      } else if (window.syllyMultiplayerMode === 'single') {
+        // PTP mode: no Firebase — go to setup screen like any single-device game
+        showScreen('screen-lttp-setup');
+        lttpSyncSetup();
       }
+      // else: client — waits for LTTP_GAME_START SYNC from Host
     },
     recommendedMode: 'mdlm',
     supportedModes:  ['ptp', 'mdlm'],
@@ -151,6 +157,7 @@ const MP_GAME_CONFIGS = {
     lobbyCtaLabel:   'Find The Location!',
     rosterConfig: { type: 'individual', showTeamNamesInPreLobby: false, defaultTeamNames: null, hasCaptain: false },
     getMaxPlayers: () => (typeof lttpPlayerCount !== 'undefined' ? lttpPlayerCount : 4),
+    getMinPlayers: () => (typeof lttpPlayerCount !== 'undefined' ? lttpPlayerCount : 4),
   },
   nat: {
     gameName:        'Natural Selection',
@@ -177,7 +184,7 @@ const MP_GAME_CONFIGS = {
     supportedModes:  ['ptp', 'tlm', 'mdlm'],
     multiplayerOnly: false,
     lobbyCtaLabel:   "Let's Sail!",
-    rosterConfig: { type: 'teams', showTeamNamesInPreLobby: true, defaultTeamNames: ['SS Kraken', 'SS Leviathan'], hasCaptain: true },
+    rosterConfig: { type: 'teams', showTeamNamesInPreLobby: true, defaultTeamNames: ['SS Kraken', 'SS Leviathan'], hasCaptain: () => window.mpLobbyStyle === 'team' },
     getMaxPlayers: () => window.mpLobbyStyle === 'team' ? 2 : ((typeof dsdPlayersPerTeam !== 'undefined' ? dsdPlayersPerTeam : 2) * 2),
   },
   bld: {
@@ -993,19 +1000,39 @@ function mpHandleEnvelope(env) {
 
   // ── Like I'm Five ACTION/SYNC ──────────────────────────────────────────────
   if (mpActiveGame === 'li5') {
-    // LI5_ROUND_START — Client (opposing team monitor) receives word + nono list
+    // LI5_ROUND_START — Client receives word + nono list.
+    // isClientTurn: true = it's our team describing; show word-card mode (L2).
+    // isClientTurn: false = opposing team describing; show tattletale mode (default).
     if (env.type === 'SYNC' && env.payload.action === 'LI5_ROUND_START') {
-      const word     = env.payload.word;
-      const nonoList = env.payload.nonoList || [];
+      const word         = env.payload.word;
+      const nonoList     = env.payload.nonoList || [];
+      const isClientTurn = !!env.payload.isClientTurn;
+
       document.getElementById('li5-monitor-word').textContent = word;
-      const ul = document.getElementById('li5-monitor-nono-list');
-      ul.innerHTML = nonoList.map(w =>
-        `<li class="bg-pink-50 rounded-xl px-3 py-2 text-stone-800 font-semibold text-sm text-center">${w}</li>`
-      ).join('');
+      const labelEl   = document.getElementById('li5-monitor-describing-label');
+      const nonoSec   = document.getElementById('li5-monitor-nono-section');
+      const catchSec  = document.getElementById('li5-monitor-catch-section');
+
+      if (isClientTurn) {
+        // L2: Our team is describing — show the word prominently, hide nono/catch
+        if (labelEl)  labelEl.textContent       = "You're describing!";
+        if (nonoSec)  nonoSec.style.display     = 'none';
+        if (catchSec) catchSec.style.display    = 'none';
+      } else {
+        // Opposing team is describing — show full tattletale sheet (default)
+        if (labelEl)  labelEl.textContent       = "They're describing";
+        if (nonoSec)  nonoSec.style.display     = 'block';
+        if (catchSec) catchSec.style.display    = 'block';
+        // L3: Render nono words as tappable buttons (tap = CATCH! that word)
+        const ul = document.getElementById('li5-monitor-nono-list');
+        ul.innerHTML = nonoList.map(w =>
+          `<button data-word="${w}" class="li5-nono-word-btn w-full bg-pink-50 rounded-xl px-3 py-2 text-stone-800 font-semibold text-sm text-center active:scale-95 transition-all duration-100">${w}</button>`
+        ).join('');
+      }
       showScreen('screen-li5-monitor');
     }
 
-    // LI5_CATCH — Host receives alert from opposing team; pulses active word card
+    // LI5_CATCH — Host receives alert from opposing team; pulses word card + highlights caught word
     if (env.type === 'ACTION' && env.payload.action === 'LI5_CATCH' &&
         window.syllyMultiplayerMode === 'host') {
       playBoing();
@@ -1014,6 +1041,15 @@ function mpHandleEnvelope(env) {
         card.classList.remove('shake');
         void card.offsetWidth;
         card.classList.add('shake');
+      }
+      // L3: Highlight the caught word in the active taboo list on host
+      const caughtWord = env.payload.word;
+      if (caughtWord) {
+        document.querySelectorAll('#active-taboo-list li').forEach(li => {
+          if (li.textContent.trim() === caughtWord) {
+            li.classList.add('bg-pink-200', 'text-pink-800', 'font-bold');
+          }
+        });
       }
     }
   }
@@ -1134,7 +1170,11 @@ function mpHandleEnvelope(env) {
       ssRound          = env.payload.round ?? ssRound;
       ssTokens         = [...env.payload.tokens];
       ssMisfires       = [...env.payload.misfires];
-      // Correct device activates; other device will be in broadcast standby
+      // TLM: only the encrypting team's device generates a code and shows the encrypt screen
+      if (window.mpLobbyStyle === 'team' && ssEncryptingTeam !== mpMyPlayerIdx) {
+        ssShowEncryptStandby();
+        return;
+      }
       ssStartHalf();
     }
 
@@ -1327,7 +1367,8 @@ function mpRenderHostPlayerList() {
   if (cap) cap.textContent = `${mpPlayerSlots.length} / ${maxP} joined`;
 
   const cta   = document.getElementById('btn-mp-lobby-host-cta');
-  const ready = mpPlayerSlots.length >= 2;
+  const minP  = mpActiveGameConfig?.getMinPlayers?.() ?? 2;
+  const ready = mpPlayerSlots.length >= minP;
   cta.disabled = !ready;
   cta.classList.toggle('opacity-50',          !ready);
   cta.classList.toggle('pointer-events-none', !ready);
@@ -1388,7 +1429,7 @@ function mpRosterPlaceChipInZone(uid, teamIdx, dropZone, rc, rosterType) {
     teamEntry.remove();
     const chip = document.getElementById(`mp-roster-chip-${uid}`);
     if (chip) { chip.style.display = ''; chip.classList.add('ring-2', 'ring-stone-800'); }
-    if (rc.hasCaptain && mpRosterPendingCaptain[pickTeam] === selIdx) {
+    if (mpRcHasCaptain(rc) && mpRosterPendingCaptain[pickTeam] === selIdx) {
       mpRosterPendingCaptain[pickTeam] = -1;
     }
     mpRosterPendingTeamIdx[selIdx] = -1;
@@ -1396,7 +1437,7 @@ function mpRosterPlaceChipInZone(uid, teamIdx, dropZone, rc, rosterType) {
     mpRosterHighlightTargets('teams');
     mpRosterCheckConfirm(rosterType);
   });
-  if (rc.hasCaptain) {
+  if (mpRcHasCaptain(rc)) {
     const capBtn = document.createElement('button');
     capBtn.className = 'shrink-0 text-base px-1 transition-all duration-150 mp-roster-cap-btn';
     capBtn.dataset.slotIdx = selIdx;
@@ -1686,7 +1727,7 @@ function mpRosterRandomise(rosterType) {
 function mpRosterCheckConfirm(rosterType) {
   const allAssigned = mpRosterPendingTeamIdx.every(t => t >= 0);
   let captainsOk = true;
-  if (rosterType === 'teams' && mpActiveGameConfig.rosterConfig.hasCaptain) {
+  if (rosterType === 'teams' && mpRcHasCaptain(mpActiveGameConfig?.rosterConfig)) {
     captainsOk = mpRosterPendingCaptain[0] >= 0 && mpRosterPendingCaptain[1] >= 0;
   }
   const ready = allAssigned && captainsOk;
@@ -1713,7 +1754,7 @@ async function mpConfirmRoster() {
     mpPlayerSlots = [...teamASlots, ...teamBSlots];
     const newTeamIdx = [...Array(teamASlots.length).fill(0), ...Array(teamBSlots.length).fill(1)];
     // Remap captain slot indices to new absolute positions
-    const newCaptains = rc?.hasCaptain
+    const newCaptains = mpRcHasCaptain(rc)
       ? mpRosterPendingCaptain.map(oldIdx => {
           if (oldIdx < 0) return 0;
           const uid = origSlots[oldIdx]?.uid;
@@ -1812,7 +1853,7 @@ function mpHostCreateRoom() {
             document.getElementById('mp-prelobby-team-b').value.trim() || _rc.defaultTeamNames[1],
           ]
         : null;
-      window.mpLobbyRosterCaptainNames = _rc?.hasCaptain
+      window.mpLobbyRosterCaptainNames = mpRcHasCaptain(_rc)
         ? [
             document.getElementById('mp-prelobby-captain-a')?.value.trim() || null,
             document.getElementById('mp-prelobby-captain-b')?.value.trim() || null,
@@ -2049,8 +2090,8 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       const captainSection = document.getElementById('mp-prelobby-captain-names');
       if (captainSection) {
-        captainSection.style.display = rc?.hasCaptain ? 'flex' : 'none';
-        if (rc?.hasCaptain && rc.defaultTeamNames) {
+        captainSection.style.display = mpRcHasCaptain(rc) ? 'flex' : 'none';
+        if (mpRcHasCaptain(rc) && rc.defaultTeamNames) {
           document.getElementById('mp-prelobby-captain-a').placeholder = `e.g. ${rc.defaultTeamNames[0]} Captain`;
           document.getElementById('mp-prelobby-captain-b').placeholder = `e.g. ${rc.defaultTeamNames[1]} Captain`;
           document.getElementById('mp-prelobby-captain-a').value = '';
@@ -2085,10 +2126,14 @@ document.addEventListener('DOMContentLoaded', () => {
     playPillClick();
     const inputA = document.getElementById('mp-prelobby-team-a');
     const inputB = document.getElementById('mp-prelobby-team-b');
+    const rc = mpActiveGameConfig?.rosterConfig;
+    const defaults = rc?.defaultTeamNames || ['Team A', 'Team B'];
+    // Pre-fill with defaults if empty so swapping is meaningful
+    if (!inputA.value.trim()) inputA.value = defaults[0];
+    if (!inputB.value.trim()) inputB.value = defaults[1];
     const tmp = inputA.value;
     inputA.value = inputB.value;
     inputB.value = tmp;
-    const rc = mpActiveGameConfig?.rosterConfig;
     if (rc?.defaultTeamNames) mpUpdatePrelobbyDeviceLabels(rc.defaultTeamNames);
   });
   document.getElementById('btn-mp-host-generate').addEventListener('click', () => {
@@ -2191,11 +2236,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // LI5: CATCH! button on monitor screen → send alert to Host device (10s cooldown)
   let li5CatchCooldownTimer = null;
-  document.getElementById('btn-li5-catch')?.addEventListener('click', () => {
-    if (window.syllyMultiplayerMode !== 'client' || li5CatchCooldownTimer) return;
+
+  // L3: tappable nono words — tap to trigger CATCH with the specific word
+  document.getElementById('li5-monitor-nono-list')?.addEventListener('click', e => {
+    const btn = e.target.closest('.li5-nono-word-btn');
+    if (!btn || window.syllyMultiplayerMode !== 'client' || li5CatchCooldownTimer) return;
+    const word = btn.dataset.word;
+    // Highlight the tapped word on the monitor immediately
+    btn.classList.add('ring-2', 'ring-pink-500', 'bg-pink-200', 'text-pink-800');
     playBoing();
-    mpSendEnvelope({ type: 'ACTION', payload: { action: 'LI5_CATCH' } });
+    mpSendEnvelope({ type: 'ACTION', payload: { action: 'LI5_CATCH', word } });
+    li5StartCatchCooldown();
+  });
+
+  function li5StartCatchCooldown() {
     const btn = document.getElementById('btn-li5-catch');
+    if (!btn) return;
     btn.disabled = true;
     let remaining = 10;
     btn.textContent = `CATCH! 🚨 (${remaining}s)`;
@@ -2210,12 +2266,19 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.textContent = `CATCH! 🚨 (${remaining}s)`;
       }
     }, 1000);
+  }
+
+  // Big CATCH! button — sends without a specific word (general alert)
+  document.getElementById('btn-li5-catch')?.addEventListener('click', () => {
+    if (window.syllyMultiplayerMode !== 'client' || li5CatchCooldownTimer) return;
+    playBoing();
+    mpSendEnvelope({ type: 'ACTION', payload: { action: 'LI5_CATCH' } });
+    li5StartCatchCooldown();
   });
 
   // LI5 monitor screen ✕ — leave session and return to lobby (passive spectator, no confirm needed)
   document.getElementById('btn-li5-monitor-exit')?.addEventListener('click', () => {
     playExit();
-    mpTeardown();
     resetToLobby();
   });
 

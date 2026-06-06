@@ -69,6 +69,7 @@ let ssIntelGuessingTeam = 0;          // team currently guessing
 let ssIntelKwIdx        = 0;          // current keyword index (0–3)
 let ssIntelAttemptNum   = 0;          // current attempt (0, 1, or 2)
 let ssIntelFound           = [[false,false,false,false],[false,false,false,false]]; // [team][kwIdx]
+let ssIntelDone            = [[false,false,false,false],[false,false,false,false]]; // [team][kwIdx] — attempted (found or exhausted)
 let ssIntelPreviousGuesses    = [];   // stores rawInputs for previous failed attempts (per keyword)
 let ssIntelAttempts           = [];   // all 3 raw attempt strings (current keyword) — for Dip Res selection
 let ssOverrideSelectedAttempt = '';   // which attempt the player tapped to argue for
@@ -399,6 +400,7 @@ function ssStartIntelPhase() {
   ssIntelKwIdx     = 0;
   ssIntelAttemptNum = 0;
   ssIntelFound     = [[false,false,false,false],[false,false,false,false]];
+  ssIntelDone      = [[false,false,false,false],[false,false,false,false]];
 
   // Determine leader (goes first — going second is the strategic advantage)
   if (ssTokens[0] > ssTokens[1]) {
@@ -509,7 +511,7 @@ function ssStartIntelKeyword() {
   fb.style.display = 'none';
   fb.textContent = '';
   document.getElementById('btn-ss-intel-continue').style.display   = 'none';
-  document.getElementById('btn-ss-intel-override').style.display   = 'block';
+  document.getElementById('btn-ss-intel-override').style.display   = 'none';
 
   showScreen('screen-ss-intel-guess');
 }
@@ -605,13 +607,16 @@ function ssLockAttemptInputs() {
     // Hide submit button
     const btn = row.querySelector('button');
     if (btn) btn.style.display = 'none';
-    // Style row as selectable pill
-    row.classList.add('cursor-pointer', 'rounded-xl', 'transition-all', 'duration-150');
+    // Make the input cell tappable and highlightable (not the whole row)
+    const inputEl = row.querySelector('input');
+    if (inputEl) inputEl.style.cursor = 'pointer';
     row.addEventListener('click', () => {
       playPillClick();
-      document.querySelectorAll('#ss-intel-attempts .ss-attempt-row').forEach(r =>
-        r.classList.remove('ring-2', 'ring-teal-400', 'bg-teal-50'));
-      row.classList.add('ring-2', 'ring-teal-400', 'bg-teal-50');
+      // Remove highlight from all input cells
+      document.querySelectorAll('#ss-intel-attempts .ss-attempt-row input').forEach(inp =>
+        inp.classList.remove('ring-2', 'ring-teal-400', 'bg-teal-50', 'border-teal-400'));
+      // Highlight only the selected input cell
+      if (inputEl) inputEl.classList.add('ring-2', 'ring-teal-400', 'bg-teal-50', 'border-teal-400');
       ssOverrideSelectedAttempt = attempt;
     });
   });
@@ -630,6 +635,7 @@ function ssIntelOnFound(rawInput) {
   const btn = document.getElementById('btn-ss-intel-continue');
   fb.textContent = '✅ Correct!';
   fb.style.cssText = 'display:block; color: #14b8a6; font-size: 1.25rem; font-weight: 700;';
+  btn.textContent = 'Continue →';
   btn.style.display = 'block';
   btn.onclick = () => { playPillClick(); btn.style.display = 'none'; ssIntelAdvance(); };
   document.querySelectorAll('#ss-intel-attempts input, #ss-intel-attempts button').forEach(el => {
@@ -650,26 +656,44 @@ function ssIntelOnNotFound() {
   const btn = document.getElementById('btn-ss-intel-continue');
   fb.textContent = `❌ The word was "${ssIntelTargetVault()[ssIntelKwIdx].word}"`;
   fb.style.cssText = 'display:block; color: #78716c; font-weight: 600;';
+  btn.textContent = 'Next Word →';
   btn.style.display = 'block';
   btn.onclick = () => { playPillClick(); btn.style.display = 'none'; ssIntelAdvance(); };
-  // Keep Dip Res visible — both Continue and Dip Res shown on 3rd failure
+  document.getElementById('btn-ss-intel-override').style.display = 'block';
   playBoing();
 }
 
 function ssIntelAdvance() {
-  if (ssIntelKwIdx < 3) {
+  ssIntelDone[ssIntelGuessingTeam][ssIntelKwIdx] = true;
+  const other = 1 - ssIntelGuessingTeam;
+
+  if (!ssIntelDone[other][ssIntelKwIdx]) {
+    // Other team hasn't done this keyword yet — switch teams, same keyword
+    ssIntelGuessingTeam    = other;
+    ssIntelAttemptNum      = 0;
+    ssIntelPreviousGuesses = [];
+    ssIntelAttempts        = [];
+    ssStartIntelKeyword();
+  } else if (ssIntelKwIdx < 3) {
+    // Both teams done with this keyword — advance to next, leader goes first
     ssIntelKwIdx++;
-    ssIntelAttemptNum = 0;
+    ssIntelGuessingTeam    = ssIntelLeader;
+    ssIntelAttemptNum      = 0;
+    ssIntelPreviousGuesses = [];
+    ssIntelAttempts        = [];
     ssStartIntelKeyword();
   } else {
-    ssCheckScrambleBonus();
+    // Both teams done with all 4 keywords — compute bonuses then show leader's summary
+    ssCheckScrambleBonus(ssIntelLeader);
+    ssCheckScrambleBonus(1 - ssIntelLeader);
+    ssIntelGuessingTeam = ssIntelLeader;
     ssShowIntelSummary();
   }
 }
 
-function ssCheckScrambleBonus() {
-  if (ssIntelFound[ssIntelGuessingTeam].every(Boolean)) {
-    ssIntelAddScore(ssIntelGuessingTeam, SS_INTEL_SCRAMBLE_PTS);
+function ssCheckScrambleBonus(team) {
+  if (ssIntelFound[team].every(Boolean)) {
+    ssIntelAddScore(team, SS_INTEL_SCRAMBLE_PTS);
   }
 }
 
@@ -715,11 +739,11 @@ function ssShowIntelSummary() {
   const underdog = 1 - ssIntelLeader;
 
   if (team === ssIntelLeader) {
-    // First team done — hand to underdog
-    nextBtn.textContent = `Pass to ${ssTeamName(underdog)} →`;
-    nextBtn.onclick = () => { playDone(); ssShowInningTransition(underdog); };
+    // Leader's summary shown first — underdog already finished too, skip straight to their summary
+    nextBtn.textContent = `${ssTeamName(underdog)} Summary →`;
+    nextBtn.onclick = () => { playDone(); ssIntelGuessingTeam = underdog; ssShowIntelSummary(); };
   } else {
-    // Both teams done — final result
+    // Both summaries shown — final result
     nextBtn.textContent = 'Final Mission Report 📑';
     nextBtn.onclick = () => { playLaunch(); ssShowFinalGameOver(); };
   }
@@ -792,6 +816,12 @@ function startSyllySignals() {
   ssMisfires         = [0, 0];
   ssRound            = 0;
   ssMpVaultReady     = [false, false];
+
+  // PTP: clear any names carried over from a previous TLM session
+  if (window.syllyMultiplayerMode === 'single') {
+    ssPlayerNamesA = ['', ''];
+    ssPlayerNamesB = ['', ''];
+  }
 
   if (window.syllyMultiplayerMode !== 'single') {
     // Apply roster data if present (MDLM with full assignment)
@@ -947,6 +977,11 @@ function ssStartHalf() {
   ssInterceptGuess = [0, 0, 0];
   ssDecodeGuess    = [0, 0, 0];
   ssShowEncrypt();
+}
+
+function ssShowEncryptStandby() {
+  document.getElementById('ss-standby-team').textContent = ssTeamName(ssEncryptingTeam);
+  showScreen('screen-ss-standby');
 }
 
 function ssShowEncrypt() {
@@ -1360,6 +1395,11 @@ function ssNextHalf() {
     ssShowVaultGate(ssEncryptingTeam);
     return;
   }
+  // TLM: HOST = Team 0; if Team 1 (CLIENT) is encrypting, HOST waits — no code generation
+  if (window.syllyMultiplayerMode === 'host' && window.mpLobbyStyle === 'team' && ssEncryptingTeam !== 0) {
+    ssShowEncryptStandby();
+    return;
+  }
   ssStartHalf();
 }
 
@@ -1509,6 +1549,7 @@ function ssResetToMenu() {
   ssIntelKwIdx           = 0;
   ssIntelAttemptNum      = 0;
   ssIntelFound              = [[false,false,false,false],[false,false,false,false]];
+  ssIntelDone               = [[false,false,false,false],[false,false,false,false]];
   ssIntelAttempts           = [];
   ssOverrideSelectedAttempt = '';
   document.getElementById('ss-quit-overlay').style.display       = 'none';
@@ -1542,6 +1583,7 @@ function resetSyllySignals() {
   ssIntelKwIdx           = 0;
   ssIntelAttemptNum      = 0;
   ssIntelFound              = [[false,false,false,false],[false,false,false,false]];
+  ssIntelDone               = [[false,false,false,false],[false,false,false,false]];
   ssIntelAttempts           = [];
   ssOverrideSelectedAttempt = '';
   ssCustomiseVault          = false;
@@ -1760,6 +1802,12 @@ document.getElementById('btn-ss-encrypt-exit').addEventListener('click', () => {
 document.getElementById('btn-ss-transmit').addEventListener('click', () => {
   playSuccess();
   ssTransmit();
+});
+
+// Standby exit (TLM non-encrypting device)
+document.getElementById('btn-ss-standby-exit').addEventListener('click', () => {
+  playExit();
+  ssShowQuitOverlay();
 });
 
 // Broadcast exit
@@ -2179,10 +2227,25 @@ document.querySelectorAll('.btn-ss-help-open').forEach(btn => {
     el.style.display = 'flex';
   });
 });
-document.getElementById('btn-ss-encrypt-tip')?.addEventListener('click', () => {
-  ssShowHelpTip('📡', 'Encoding', 'Pick one keyword from your vault that your partner will recognise.');
+document.getElementById('btn-ss-how-to')?.addEventListener('click', () => {
+  playDone();
+  const el = document.getElementById('ss-how-to-overlay');
+  const inner = el.querySelector('.overlay-data-inner');
+  if (inner) inner.scrollTop = 0;
+  el.style.display = 'flex';
 });
 document.getElementById('btn-ss-help-tip-close')?.addEventListener('click', () => {
   playDone();
   document.getElementById('ss-help-tip-overlay').style.display = 'none';
+});
+
+// Contextual tips (S3–S5)
+document.getElementById('btn-ss-encrypt-tip')?.addEventListener('click', () => {
+  ssShowHelpTip('📡', 'Encrypt Your Transmission', 'Your code is a sequence of 3 numbers — each points to a keyword position in your Vault. Give one clue word per number, in order. Clues can be anything that hints at that keyword without naming it directly.');
+});
+document.getElementById('btn-ss-clue-tip')?.addEventListener('click', () => {
+  ssShowHelpTip('💬', 'Giving Clues', 'Each clue maps to one vault position. Think associations, not synonyms. Your clue can be a sound, a feeling, a place — anything your team might connect to that keyword. Stay vague enough to fool the interceptors.');
+});
+document.getElementById('btn-ss-intercept-tip')?.addEventListener('click', () => {
+  ssShowHelpTip('🕵️', 'Guessing the Code', 'Listen to the 3 clues in order. Each clue hints at one of their 4 vault keywords. Match each clue to the position you think it refers to. You\'re guessing a 3-digit sequence — get all 3 right to intercept.');
 });

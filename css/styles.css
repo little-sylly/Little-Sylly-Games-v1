@@ -360,7 +360,7 @@ body.flash-red   { background-color: #fecaca; }
 #taboo-card::before {
   content: '';
   position: absolute;
-  top: 8px;
+  top: 14px;
   left: 50%;
   transform: translateX(-50%);
   width: 10px;
@@ -595,6 +595,13 @@ body.flash-red   { background-color: #fecaca; }
   text-shadow: 0 0 8px rgba(249, 115, 22, 0.55);
   transition: color 0.2s ease, text-shadow 0.2s ease;
 }
+/* ── LTTP Contacts tab — pulse to draw attention on active player's turn ─── */
+@keyframes lttpTabPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.5; transform: scale(0.9); }
+}
+.lttp-tab-badge { animation: lttpTabPulse 1s ease-in-out infinite; }
+
 .streak-fire-shake {
   animation: streakFire 0.35s ease-in-out 2;
 }

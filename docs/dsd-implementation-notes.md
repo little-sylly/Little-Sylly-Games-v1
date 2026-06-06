@@ -27,7 +27,16 @@ DSD was the first game to call `showWhoFirst()` from `engine.js`. The function w
 
 ## Bug Index
 
-*(No bugs logged. Add entries here as issues are found and resolved.)*
+**`hasCaptain` as function — MDLM captain pre-lobby fix (Phase 28)**
+What happened: MDLM mode showed captain name input fields in the pre-lobby overlay even though no captain can be assigned before the roster is known (players join individually).
+Root cause: `hasCaptain: true` in DSD's rosterConfig was a static boolean, always showing captain fields regardless of `mpLobbyStyle`.
+Fix: Changed to `hasCaptain: () => window.mpLobbyStyle === 'team'` — only TLM mode shows captain fields pre-game. Added `mpRcHasCaptain(rc)` helper to engine-multiplayer.js to resolve function-or-bool values uniformly at all read sites.
+Lesson: Any game config property that depends on `mpLobbyStyle` should be a function, not a static value. The engine now supports this via `mpRcHasCaptain()`.
+
+**Duplicate `id` attribute on captain screen [?] button (Phase 28)**
+What happened: `#btn-dsd-how-to` had `id="btn-dsd-how-to"` written twice on the same element.
+Root cause: Copy-paste error — likely duplicated when wiring up the help button.
+Fix: Removed the second `id` attribute. No functional impact (browsers use the first occurrence), but technically invalid HTML.
 
 ---
 
@@ -36,8 +45,18 @@ DSD was the first game to call `showWhoFirst()` from `engine.js`. The function w
 **TLM captain routing**
 Active team's Captain device shows full colour grid. Non-active team shows `screen-dsd-spectator` (TLM) or crew standby (MDLM). The routing split is in `dsdShowCaptainPhase()` — check `mpLobbyStyle` and `bldCurrentTeam` to determine which view to show.
 
+**MDLM pre-game — separate team naming from captain assignment (Phase 28)**
+The original MDLM setup combined team name entry with captain assignment before the roster was known. Changed so team names are entered before the lobby fills, and captain assignment is a separate step after all players have joined (roster visible). This is the correct UX for any MDLM game with team + role assignment.
+
 ---
 
 ## Template Gaps
 
-*(No gaps logged. Add entries here when patterns emerge that should fold into the tech template.)*
+**How-to overlay title must be "How to Play" (Phase 28)**
+DSD used "Operations Manual ⚓" as the how-to overlay title block heading. Renamed to "How to Play ⚓" to match the universal standard. The subtitle can remain thematic. Added to ui-style.md as a hard rule: how-to title heading is always "How to Play [emoji]", never the game's internal name for the overlay.
+
+**Clue log on active deployment (Phase 28)**
+Added a collapsible Sonar Log strip on captain/crew screens showing the most recent entry, tapable to expand a full scrollable log. Any game with a running action history that could be relevant mid-round should use this collapsible-strip pattern rather than a full secondary screen.
+
+**Spectator tap-to-peek (Phase 28)**
+Added per-cell tap toggle on the spectator grid — cells show colour/icon by default, tap reveals the word temporarily. Useful for any spectator view where players need to recall what words were in play.

@@ -205,7 +205,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!text) {
         msgInput.classList.remove('shake'); void msgInput.offsetWidth; msgInput.classList.add('shake');
         msgInput.style.borderColor = '#f87171';
-        setTimeout(() => { msgInput.style.borderColor = ''; }, 800);
+        setTimeout(() => { msgInput.style.borderColor = ''; }, 800); // brief red flash — resets after user sees it
         return;
       }
       playLaunch();
@@ -281,6 +281,18 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-lttp-help-tip-close')?.addEventListener('click', () => {
     playDone();
     document.getElementById('lttp-help-tip-overlay').style.display = 'none';
+  });
+  document.getElementById('btn-lttp-tip-message')?.addEventListener('click', () => {
+    playDone();
+    lttpShowTip('💬', 'What makes a good message?', [
+      'Probe for information without giving yourself away — ask about the area, the crowd, or the vibe without naming the real address.',
+      'Pay attention to how specific their answers are. Someone who knows the address will be comfortable. Someone who doesn\'t know might hedge or stay vague.',
+      'Keep your story consistent between conversations — others are comparing notes.'
+    ]);
+  });
+  document.getElementById('btn-lttp-tip-close')?.addEventListener('click', () => {
+    playDone();
+    document.getElementById('lttp-tip-overlay').style.display = 'none';
   });
 
   // ── Chat: carousel tab buttons ────────────────────────────────────────────
@@ -628,7 +640,7 @@ function lttpShowHandover(toIdx, transitionMsg) {
 // ═══════════════════════════════════════════════════════════════════════════
 function lttpShowChat(playerIdx) {
   lttpActiveIdx = playerIdx;
-  const name      = lttpPlayerNames[playerIdx];
+  const name      = lttpPlayerNames[playerIdx] || `Player ${playerIdx + 1}`;
   const isStray   = playerIdx === lttpStrayIdx;
   const isJoker   = lttpJokerMode && playerIdx === lttpJokerIdx;
   const roleLabel = isStray ? 'Friend of a Friend' : isJoker ? 'The Troublemaker' : 'The Gang';
@@ -776,6 +788,20 @@ function lttpRenderPaneB() {
       preview.appendChild(el);
     });
   }
+}
+
+// ── [?] Contextual tip overlay ───────────────────────────────────────────────
+function lttpShowTip(emoji, heading, lines) {
+  document.getElementById('lttp-tip-emoji').textContent   = emoji;
+  document.getElementById('lttp-tip-heading').textContent = heading;
+  const body = document.getElementById('lttp-tip-body');
+  body.innerHTML = '';
+  lines.forEach(line => {
+    const p = document.createElement('p');
+    p.textContent = line;
+    body.appendChild(p);
+  });
+  document.getElementById('lttp-tip-overlay').style.display = 'flex';
 }
 
 // ── [?] Help ─────────────────────────────────────────────────────────────────
