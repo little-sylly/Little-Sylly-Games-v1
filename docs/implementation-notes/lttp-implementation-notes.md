@@ -37,8 +37,8 @@ Status: Partially mitigated Phase 28 (defensive fallback). Browser test to confi
 **L4 — LTTP has no play-again confirmation modal (Protocol A flag)**
 What happened: `btn-lttp-new-plans` on the gameover screen directly calls `showScreen('screen-lttp-setup')` with no confirmation overlay.
 Root cause: LTTP predates the play-again Decision Modal protocol established in Phase 20.
-Fix: Add `lttp-new-plans-overlay` Decision Modal — "Head Out Again?" — triggered from gameover. Currently out of scope.
-Status: Deferred. Log in Template Gaps.
+Fix: Added `lttp-new-plans-overlay` Decision Modal (z-[90], red border, "Head Out Again?" heading). `btn-lttp-new-plans` now opens the modal; confirm and cancel handlers added. Dynamic label on confirm button: "Restart in Lobby 🔄" (host) / "Leave Session" (client) / "Head Out Again 🏃‍♂️" (single). `mpReturnToLobby()` moved to confirm handler. Teardown added to `engine.js` `resetToLobby()`.
+Status: Fixed Phase 29.
 
 ---
 
@@ -60,8 +60,8 @@ The red dot on the 🕵️ Contacts button was insufficient to direct the active
 **[?] on message/action modals (Phase 28)**
 Added a contextual [?] to the `lttp-confirm-overlay` header with tips on what good questions look like. Any modal where the player is expected to produce creative or strategic content benefits from a tip anchor near the input.
 
-**Play-again confirmation modal missing (Phase 28)**
-LTTP gameover has no confirmation modal before resetting — `btn-lttp-new-plans` calls directly into setup. This violates the Protocol A "play-again must use Decision Modal" rule established in Phase 20. Needs `lttp-new-plans-overlay` added. See Bug Index L4.
+**Play-again confirmation modal (Phase 29 — resolved)**
+`lttp-new-plans-overlay` added in Phase 29. `btn-lttp-new-plans` now opens the modal; dynamic label per multiplayer mode. Teardown in `engine.js`. Fully compliant with Protocol A. See Bug Index L4.
 
 **How-to overlay title non-compliant (Phase 28)**
 LTTP's how-to overlay title reads "Late To The Party 🏃‍♂️" — should read "How to Play 🏃‍♂️" per the standard established in Phase 28. Low priority but flagged for next LTTP audit pass.

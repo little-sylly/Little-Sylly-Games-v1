@@ -11,8 +11,14 @@ JEC uses `jecApplyExpansionOverrides()` with the `jec` prefix deliberately. The 
 **Poisoned status overrides all other statuses**
 Kitchen Nightmares (Sylly Mode): Poisoned = 0 pts, overrides Golden/Spoilt/Rotten. This is evaluated first in the scoring function. Signature Dish (ingredient slot 0) is the only exception — it can still double if Golden and not Poisoned.
 
-**Inverse proportional scoring**
-Golden score scales inversely with count: `Math.round(jecGoldenScore * (goldenMax - count + 2) / goldenMax)`. count=2 always = full score. Designed so fewer matches = more points, without making unique matches (count=1) immediately rotten.
+**Inverse proportional scoring (Phase 28 and earlier)**
+Replaced in Phase 29. Was: `Math.round(jecGoldenScore * (goldenMax - count + 2) / goldenMax)`. Caused "scoring seems off" feedback — players felt punished for being almost-right.
+
+**Tiered positive scoring (Phase 29 — current)**
+New `jecCalcPoints(count, N)`: count=2 = full `jecGoldenScore` jackpot; count 3 to N−1 = half; count=N = 15% token reward; count=1 = 0 pts. No negatives by default — penalties (Rotten −5, Spoilt −count×2) are opt-in toggles defaulting OFF. Default `jecGoldenScore` raised from 20 → 30. This flips the philosophy from punitive to reward-driven: players chase jackpots rather than avoid mistakes. Sifting badge labels updated: "Chef's Kiss! ✨" (count=2), "Nice Match! 👌" (count 3+, Golden range), "Too Many Cooks! 🍲" (all-N), "A Bit Pongy! 🤢" (unique).
+
+**Opt-in penalty priority in scoring loop**
+When both Rotten or Spoilt penalties are ON, they override the tier reward for that count (not added on top). If Rotten penalty is ON and count=1, deduct 5 and skip the tier calc. If Spoilt penalty is ON and count=N, deduct count×2 and skip the token reward. This prevents double-counting (e.g. token reward + penalty simultaneously).
 
 ---
 
@@ -38,8 +44,6 @@ Host runs all sifting + Sous Chef oversight. All merges are broadcast via `JEC_M
 
 ## Template Gaps
 
-**Open design question: scoring balance (Phase 28)**
-User noted scoring "seems off" and that the game may feel less fun due to limited ingredient/cooking knowledge. The inverse proportional scoring formula and minimum 3-ingredient match are under review. Deferred to a future design session — do not change scoring without a dedicated design discussion.
-
-**Open design question: fun factor (Phase 28)**
-User noted the game "feels not exactly fun at the moment" — possibly linked to difficulty of generating ingredient words without cooking knowledge. Consider whether default difficulty (Menu Complexity) should be lowered, or whether the game needs a category refresh. Deferred.
+**Future design: Options A and B (Phase 29)**
+Option A (Secret Sous-Chef): Device secretly pairs each player with one other chef; big bonus for matching your assigned partner. Adds social dynamics and cross-table groans. Requires Firebase targeted write for pairing or a shared-state derivation. Good for MDLM.
+Option B (Kitchen Chaos Roles): Each round assigns a hidden agenda (Head Chef wants popular words, Fusion Chef wants exact 2-match, Health Inspector sabotages). Adds bluffing/deduction. Significantly changes game structure. Review design separately before implementing either option.

@@ -120,6 +120,13 @@ Flake players only see their fellow flakes on the role reveal screen — once th
 
 ---
 
+## Design Decisions (How-to Overlay Rewrite — Phase 29+)
+
+**BLD how-to rewritten to canonical Step-card format**
+The original BLD how-to overlay (`bld-how-to-overlay`) used narrative prose divs — no Step label cards, no brand-colour step labels, no `<span class="font-semibold text-stone-700">` key terms. It was also inconsistently structured (separate `flex-shrink-0` footer div for the close button, `bg-stone-800` close button instead of brand yellow). Rewritten entirely to match the canonical `ui-style.md` How-to Overlay Standard: 4 Step cards + Winning and Scoring + ✨ Sylly Mode (Drama Mode), all inside a single `overflow-y-auto` body div. Close button now `bg-yellow-500 hover:bg-yellow-600`. Tables (Group Sizes, Roles per Player Count) preserved inside the relevant step cards. Title updated from "The Group Rules 📋" to the canonical "How to Play 📋".
+
+---
+
 ## Design Decisions (Polish Round — Help System, Plan Reorder, UI Consistency)
 
 **Shared tip overlay (`bld-tip-overlay`) instead of per-tip overlays**

@@ -456,6 +456,156 @@ body.flash-red   { background-color: #fecaca; }
   border: none;
   box-shadow: 0 1px 4px rgba(0,0,0,0.2);
 }
+.ss-range {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 9999px;
+  background: linear-gradient(to right, #99f6e4, #14b8a6);
+  outline: none;
+  cursor: pointer;
+}
+.ss-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: #14b8a6;
+  border: 3px solid #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
+.ss-range::-moz-range-thumb {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: #14b8a6;
+  border: none;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
+.jec-range {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 9999px;
+  background: linear-gradient(to right, #fde68a, #f59e0b);
+  outline: none;
+  cursor: pointer;
+}
+.jec-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: #f59e0b;
+  border: 3px solid #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
+.jec-range::-moz-range-thumb {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: #f59e0b;
+  border: none;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
+.ygi-range {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 9999px;
+  background: linear-gradient(to right, #fed7aa, #f97316);
+  outline: none;
+  cursor: pointer;
+}
+.ygi-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: #f97316;
+  border: 3px solid #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
+.ygi-range::-moz-range-thumb {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: #f97316;
+  border: none;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
+.lttp-range {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 9999px;
+  background: linear-gradient(to right, #fecaca, #ef4444);
+  outline: none;
+  cursor: pointer;
+}
+.lttp-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: #ef4444;
+  border: 3px solid #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
+.lttp-range::-moz-range-thumb {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: #ef4444;
+  border: none;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
+.nat-range {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 9999px;
+  background: linear-gradient(to right, #d9f99d, #65a30d);
+  outline: none;
+  cursor: pointer;
+}
+.nat-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: #65a30d;
+  border: 3px solid #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
+.nat-range::-moz-range-thumb {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: #65a30d;
+  border: none;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
+.dsd-range {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 9999px;
+  background: linear-gradient(to right, #a5f3fc, #0e7490);
+  outline: none;
+  cursor: pointer;
+}
+.dsd-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: #0e7490;
+  border: 3px solid #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
+.dsd-range::-moz-range-thumb {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: #0e7490;
+  border: none;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
 
 /* ── Team score boxes — twin transition ──────────────────────────────────── */
 .team-box {

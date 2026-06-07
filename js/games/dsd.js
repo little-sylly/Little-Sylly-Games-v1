@@ -1237,6 +1237,7 @@ function dsdTeamBtnClass(teamIdx) {
 // ── Lobby button ──────────────────────────────────────────────────────────────
 document.getElementById('btn-dsd').addEventListener('click', () => {
   activeGameId = 'dsd';
+  updateSliderTheme('dsd');
   dsdShowMenu();
 });
 

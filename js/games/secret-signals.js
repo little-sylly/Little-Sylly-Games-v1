@@ -1720,6 +1720,7 @@ function ssShowHelpTip(emoji, heading, tip) {
 document.getElementById('btn-sylly-signals').addEventListener('click', () => {
   playLaunch();
   activeGameId = 'sylly-signals';
+  updateSliderTheme('sylly-signals');
   showScreen('screen-ss-menu');
 });
 

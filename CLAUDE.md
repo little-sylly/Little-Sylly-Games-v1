@@ -46,16 +46,12 @@
 ├── docs/code-map.md                 # Surgical code reference — all game IDs, overlays, key functions
 ├── docs/multiplayer-feature-specification-v1.4.md  # MFS v1.4 — Phase 22 source of truth
 ├── docs/multiplayer-ui-components.md  # Multiplayer component catalogue (screens, overlays, CSS)
-├── docs/phase22-snapshot.md         # Phase 22 snapshot (multiplayer complete — MFS v1.4)
-├── docs/phase21a-snapshot.md        # Phase 21a snapshot (gold master — 8 games, pre-multiplayer)
-├── docs/phase19-snapshot.md         # Phase 19 architecture snapshot (7 games, pre-DSD)
-├── docs/phase17-snapshot.md         # Phase 17 snapshot (7 games, NAT complete)
-├── docs/archive/phase16b-snapshot.md  # Phase 16b snapshot (6 games, LTTP complete)
 ├── docs/ygi-content-guide.md        # Content creation guide for You Get It? prompts + ringers
-├── docs/bld-implementation-notes.md # BLD: design decisions, bugs, lessons, template gaps
-└── docs/archive/                    # Retired snapshots + spent plan docs
-
-**Implementation notes files** (`docs/[abbr]-implementation-notes.md`) exist for games that have been through active testing/debugging. Sections: Design Decisions / Bug Index / Multiplayer Lessons / Template Gaps. Created retroactively or during a game's first testing phase — never before implementation begins.
+├── docs/implementation-notes/       # Per-game design decisions, bugs, lessons, template gaps
+│   ├── bld-implementation-notes.md  # BLD (active)
+│   └── [abbr]-implementation-notes.md  # One file per game
+├── docs/new-ideas/                  # Unimplemented game briefs + brainstorms
+├── docs/archive/                    # Retired snapshots + spent plan docs
 ```
 
 **Load order:** `engine.js` → `engine-multiplayer.js` → `li5.js` → `great-minds.js` → `secret-signals.js` → `jec.js` → `ygi.js` → `lttp.js` → `nat.js` → `dsd.js` → `secret-mode.js` → `app.js`
@@ -111,7 +107,7 @@ All symbols are global (no ES modules). Forward references work at runtime.
 2. `game-identities.md` — add/update all new settings, terminology, overlay types, and screen entries for affected games
 3. `CLAUDE.md` — update SW version, current focus, and key references
 4. `logic-engine.md` — update any new universal rules, audio functions, or engine patterns introduced
-5. `docs/[abbr]-implementation-notes.md` — log any design decisions made, bugs found and resolved, or lessons learned during the phase (create the file if it doesn't exist for this game)
+5. `docs/implementation-notes/[abbr]-implementation-notes.md` — log any design decisions made, bugs found and resolved, or lessons learned during the phase (create the file if it doesn't exist for this game)
 
 **Rule:** No phase snapshot may be written until all five documents are verified current. The snapshot itself is the final deliverable — not the starting point for cleanup.
 
@@ -170,7 +166,7 @@ The animals category is shared by both Like I'm Five and Natural Selection. Ever
 ### 🎯 Skill: Implementation Notes
 **Trigger:** Any non-trivial bug fix, design decision change, or architectural lesson — during new game builds, maintenance, or audit of any existing game.
 **Action:**
-1. If `docs/[abbr]-implementation-notes.md` does not exist for the affected game, create it with four sections: Design Decisions / Bug Index / Multiplayer Lessons / Template Gaps
+1. If `docs/implementation-notes/[abbr]-implementation-notes.md` does not exist for the affected game, create it with four sections: Design Decisions / Bug Index / Multiplayer Lessons / Template Gaps
 2. Add a concise entry in the appropriate section: **What happened → Root cause → Lesson**
 3. At the end of any audit or testing session, review the Template Gaps section and flag items that should fold into `logic-engine.md`, `ui-style.md`, or the tech template
 **Scope:** All games — new and existing. Log during any session that touches a game's code, not just at phase boundaries.
@@ -191,18 +187,19 @@ The animals category is shared by both Like I'm Five and Natural Selection. Ever
 ---
 
 ## 🎯 Current Focus
-**Phase:** Phase 28 complete — Audit & polish: JEC, YGI, LTTP, NAT, DSD (MDLM readycheck fixes, LTTP PTP fix, DSD MDLM captain fix, UI improvements for all 5 games).
-**SW Version:** v95 (bump when assets change)
+**Phase:** Phase 29 complete — Deferred fixes: LTTP L4 play-again modal, JEC scoring redesign (Option C: tiered positive rewards, penalties opt-in default OFF).
+**SW Version:** v96 (bump when assets change)
 **Gold Master:** 8 games complete + multiplayer (LI5, Great Minds, Secret Signals, JEC, YGI, LTTP, Natural Selection, Deep-Sea Deploy)
 **BLD status:** In active testing — MDLM only, `js/games/bld.js`, multiplayer bugs being resolved round by round.
 **Key references:**
-- `docs/bld-implementation-notes.md` — BLD bug log + design decisions (active)
-- `docs/phase28-snapshot.md` — Phase 28 snapshot (JEC/YGI/LTTP/NAT/DSD audit & polish)
-- `docs/phase27-snapshot.md` — Phase 27 snapshot (LI5/GM/SS polish pass)
-- `docs/phase26-snapshot.md` — Phase 26 snapshot (studio audit — retrograde polish pass, all 8 games)
-- `docs/phase25-snapshot.md` — Phase 25 snapshot (play-again lobby return all games, host-only audit)
-- `docs/phase22-snapshot.md` — Phase 22 snapshot (multiplayer complete — MFS v1.4)
-- `docs/phase21a-snapshot.md` — Phase 21a snapshot (8 games, pre-multiplayer gold master)
+- `docs/implementation-notes/bld-implementation-notes.md` — BLD bug log + design decisions (active)
+- `docs/archive/phase29-snapshot.md` — Phase 29 snapshot (LTTP L4 modal, JEC scoring redesign)
+- `docs/archive/phase28-snapshot.md` — Phase 28 snapshot (JEC/YGI/LTTP/NAT/DSD audit & polish)
+- `docs/archive/phase27-snapshot.md` — Phase 27 snapshot (LI5/GM/SS polish pass)
+- `docs/archive/phase26-snapshot.md` — Phase 26 snapshot (studio audit — retrograde polish pass, all 8 games)
+- `docs/archive/phase25-snapshot.md` — Phase 25 snapshot (play-again lobby return all games, host-only audit)
+- `docs/archive/phase22-snapshot.md` — Phase 22 snapshot (multiplayer complete — MFS v1.4)
+- `docs/archive/phase21a-snapshot.md` — Phase 21a snapshot (8 games, pre-multiplayer gold master)
 - `docs/multiplayer-feature-specification-v1.4.md` — MFS v1.4 spec (Phase 22 source of truth)
 - `docs/multiplayer-ui-components.md` — multiplayer component catalogue
 - `docs/code-map.md` — surgical reference: all game IDs, overlays, key functions

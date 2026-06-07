@@ -316,6 +316,17 @@ function openSoundOverlay() {
   document.getElementById('sound-overlay').style.display = 'flex';
 }
 
+function updateSliderTheme(gameId) {
+  const map = {
+    'li5': 'li5-range', 'great-minds': 'sylly-range',
+    'sylly-signals': 'ss-range', 'jec': 'jec-range',
+    'ce': 'ygi-range', 'lttp': 'lttp-range',
+    'nat': 'nat-range', 'dsd': 'dsd-range'
+  };
+  const el = document.getElementById('global-sound-volume');
+  el.className = (map[gameId] || 'sylly-range') + ' w-full';
+}
+
 function shuffle(arr) {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
@@ -336,6 +347,7 @@ function resetToLobby() {
   stopTimer();
   document.getElementById('quit-overlay').style.display          = 'none';
   document.getElementById('li5-play-again-overlay').style.display = 'none';
+  document.getElementById('li5-how-to-overlay').style.display     = 'none';
   document.getElementById('review-overlay').style.display        = 'none';
   document.getElementById('history-overlay').style.display       = 'none';
   document.getElementById('gm-override-overlay').style.display = 'none';
@@ -419,6 +431,9 @@ function resetToLobby() {
     const el = document.getElementById(`${abbr}-tip-overlay`);
     if (el) el.style.display = 'none';
   });
+  // Play-again confirmation overlays (Phase 29)
+  const lttpNewPlansEl = document.getElementById('lttp-new-plans-overlay');
+  if (lttpNewPlansEl) lttpNewPlansEl.style.display = 'none';
   // Multiplayer teardown
   if (window.syllyFirebase && window.syllyMultiplayerMode === 'host') {
     // Notify clients before room deletion so the disconnect overlay appears immediately
@@ -442,6 +457,7 @@ function resetToLobby() {
     const el = document.getElementById(id);
     if (el) el.style.display = 'none';
   });
+  updateSliderTheme(null);
   showScreen('screen-lobby');
 }
 

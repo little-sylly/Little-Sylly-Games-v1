@@ -94,6 +94,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // ── Lobby → LTTP Menu ──────────────────────────────────────────────────────
   document.getElementById('btn-lttp').addEventListener('click', () => {
     activeGameId = 'lttp';
+    updateSliderTheme('lttp');
     playLaunch();
     showScreen('screen-lttp-menu');
   });
@@ -339,12 +340,22 @@ document.addEventListener('DOMContentLoaded', () => {
   // ── Gameover: New Plans ────────────────────────────────────────────────────
   document.getElementById('btn-lttp-new-plans').addEventListener('click', () => {
     playLaunch();
-    if (window.syllyMultiplayerMode !== 'single') {
-      mpReturnToLobby();
-      return;
-    }
+    const btn = document.getElementById('btn-lttp-new-plans-confirm');
+    if (window.syllyMultiplayerMode === 'host')        btn.textContent = 'Restart in Lobby 🔄';
+    else if (window.syllyMultiplayerMode === 'client') btn.textContent = 'Leave Session';
+    else                                               btn.textContent = 'Head Out Again 🏃‍♂️';
+    document.getElementById('lttp-new-plans-overlay').style.display = 'flex';
+  });
+  document.getElementById('btn-lttp-new-plans-confirm').addEventListener('click', () => {
+    playLaunch();
+    document.getElementById('lttp-new-plans-overlay').style.display = 'none';
+    if (window.syllyMultiplayerMode !== 'single') { mpReturnToLobby(); return; }
     showScreen('screen-lttp-setup');
     lttpSyncSetup();
+  });
+  document.getElementById('btn-lttp-new-plans-cancel').addEventListener('click', () => {
+    playDone();
+    document.getElementById('lttp-new-plans-overlay').style.display = 'none';
   });
 
   // ── Gameover: ✕ and ← Back to the Box ────────────────────────────────────

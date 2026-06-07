@@ -164,19 +164,81 @@ Every gameplay screen must use `h-screen` (not `min-h-screen`) on the section so
 
 ## How-to Overlay Standard
 
-**Title heading rule (ALL games):** The how-to overlay title block heading must always read exactly `"How to Play [thematic emoji]"` — never the game's internal name for the overlay (e.g. not "Operations Manual ⚓", not "Late To The Party 🏃‍♂️"). The thematic subtitle below it can be any flavour text.
+**Compliance status (Phase 29+):** All 9 games ✅ — canonical structure applied. BLD rewritten from narrative format to Step-card format.
 
-**Compliance status (Phase 28):** NAT ✅ | DSD ✅ | JEC ⚠️ (missing emoji) | YGI ⚠️ (missing emoji) | LTTP ⚠️ (uses game title) | LI5/GM/SS not yet audited.
+### Canonical overlay structure
 
-**Content structure per step (3-level required):**
 ```html
-<div class="bg-white rounded-2xl p-4 shadow-sm">
-  <p class="text-xs font-semibold uppercase tracking-widest text-[brand]-500">Step [N]</p>
-  <p class="font-bold text-stone-800">[Bold instruction heading]</p>
-  <p class="text-stone-500 text-sm">[Plain English detail — 1–3 sentences]</p>
+<div id="[abbr]-how-to-overlay" style="display:none"
+  class="fixed inset-0 bg-black/40 z-[90] flex items-end justify-center">
+  <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
+
+    <!-- Left-aligned title block — sticky, never scrolls -->
+    <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
+      <h2 class="text-xl font-bold text-stone-800">How to Play [emoji]</h2>
+      <p class="text-xs text-stone-400 mt-1">[Short description — NOT the tagline]</p>
+    </div>
+
+    <!-- Scrollable body -->
+    <div class="overflow-y-auto flex flex-col gap-4 px-5 py-5">
+
+      <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+        <p class="text-xs font-semibold uppercase tracking-widest text-[brand]">Step N</p>
+        <p class="font-bold text-stone-800">Step heading — no emoji here</p>
+        <p class="text-stone-500 text-sm">Body text. Use <span class="font-semibold text-stone-700">Key Terms</span> bold. Emojis 🎯 in body OK.</p>
+      </div>
+
+      <!-- Second-to-last card is always "Winning and Scoring" -->
+      <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+        <p class="text-xs font-semibold uppercase tracking-widest text-[brand]">Winning and Scoring</p>
+        <p class="font-bold text-stone-800">Heading</p>
+        <ul class="list-disc pl-5 flex flex-col gap-1 text-stone-500 text-sm">
+          <li><span class="font-semibold text-stone-700">Outcome</span> — result.</li>
+        </ul>
+      </div>
+
+      <!-- Last card — present only if the game has a Sylly Mode (omit for LTTP which has none) -->
+      <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+        <p class="text-xs font-semibold uppercase tracking-widest text-[brand]">✨ Sylly Mode</p>
+        <p class="font-bold text-stone-800">[Thematic Name]</p>
+        <p class="text-stone-500 text-sm">Description. Use <span class="font-semibold text-stone-700">Key Terms</span> bold.</p>
+      </div>
+
+      <button id="btn-[abbr]-howto-close"
+        class="min-h-14 w-full rounded-2xl bg-[brand] hover:bg-[brand-dark] active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Got it
+      </button>
+    </div>
+  </div>
 </div>
 ```
-All games must follow this 3-level structure. Games missing the detail paragraph: flag for next audit pass.
+
+### Rules
+
+- **Title:** `"How to Play [emoji]"` in h2 — emoji inline, never in a separate div. Never use the game's internal name.
+- **Subtitle:** short plain-English description of what the game *is* — not the marketing tagline.
+- **Step label:** `text-[brand]`, no emoji, just `"Step N"` or `"Winning and Scoring"`.
+- **Step heading:** `font-bold text-stone-800`, **no emoji**.
+- **Body text:** `text-stone-500 text-sm`; keywords as `font-semibold text-stone-700`; emojis in body are OK.
+- **Card ordering:** Steps → Winning and Scoring → ✨ Sylly Mode → close button.
+- **Winning and Scoring:** always this exact label — never just "Winning" or "Scoring".
+- **Sylly Mode card:** present for every game. Label is `✨ Sylly Mode` (literal — the `✨` is part of the label text, styled with `text-[brand]`). Heading is the thematic name (e.g. "Wild Words", "Mission Abyss").
+- **Close button:** game brand primary colour (`bg-[brand] hover:bg-[brand-dark]`).
+- **Inner div:** must include `flex flex-col` — title block is `flex-shrink-0`, body is `overflow-y-auto`.
+
+### Per-game reference
+
+| Game | Emoji | Step label class | Close button | Sylly Mode name |
+|------|-------|-----------------|--------------|----------------|
+| LI5 | 💬 | `text-pink-500` | `bg-pink-500 hover:bg-pink-600` | Wild Words |
+| GM | 🧠 | `text-purple-500` | `bg-purple-500 hover:bg-purple-600` | Static Interference |
+| SS | 📡 | `text-teal-500` | `bg-teal-500 hover:bg-teal-600` | Intel Phase |
+| JEC | 🍳 | `text-amber-500` | `bg-amber-500 hover:bg-amber-600` | Kitchen Nightmares |
+| YGI | 🃏 | `text-orange-500` | `bg-orange-500 hover:bg-orange-600` | The Ringer |
+| LTTP | 🏃‍♂️ | `text-red-500` | `bg-red-500 hover:bg-red-600` | The Troublemaker |
+| NAT | 🦁 | `text-lime-600` | `bg-lime-600 hover:bg-lime-700` | Survival of the Fittest |
+| DSD | ⚓ | `text-cyan-700` | `bg-cyan-700 hover:bg-cyan-800` | Mission Abyss |
+| BLD | 📋 | `text-yellow-500` | `bg-yellow-500 hover:bg-yellow-600` | Drama Mode |
 
 ---
 

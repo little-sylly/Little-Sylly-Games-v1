@@ -1,15 +1,15 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 // PLUGIN: Just Enough Cooks (jec)
 // Mechanic: Social sync — players enter 3 ingredients for a secret food item.
-// The Golden Zone = 2 to floor(N × 0.7) matching ingredients. Won't Spoil the Broth!
+// Scoring: 2-Chef match = jackpot (full Sweet Spot pts); 3 to N−1 = half; all N = token reward; unique = 0.
 // Depends on: engine.js (normaliseWord, audio, showScreen, resetToLobby), li5.js (allWords)
 // ═══════════════════════════════════════════════════════════════════════════════
 
 // ── JEC Settings ──────────────────────────────────────────────────────────────
 let jecRounds            = 3;     // 3 | 5 | 10
-let jecGoldenScore       = 20;    // pts per Golden ingredient: 10 | 20 | 30
-let jecRottenPenalty     = true;  // −10 pts for unique words (Rotten)
-let jecSpoiltPenalty     = true;  // −10 pts for overcrowded words (Spoilt)
+let jecGoldenScore       = 30;    // Sweet Spot (2-Chef match) jackpot: 10 | 20 | 30
+let jecRottenPenalty     = false; // opt-in: −5 pts for unique words (Rotten); default OFF
+let jecSpoiltPenalty     = false; // opt-in: −(count×2) pts for all-N match (Spoilt); default OFF
 let jecSousChefOversight = true;  // manual merge before tally
 let jecKitchenNightmares = false; // Sylly Mode
 let jecFoodDifficulty   = 'mixed'; // 'easy' | 'mixed' | 'hard'
@@ -48,6 +48,7 @@ function jecShowHelpTip(emoji, heading, tip) {
 document.getElementById('btn-jec').addEventListener('click', () => {
   playLaunch();
   activeGameId = 'jec';
+  updateSliderTheme('jec');
   showScreen('screen-jec-menu');
 });
 
@@ -403,16 +404,17 @@ function jecBuildFrequency() {
 }
 
 function getIngredientStatus(count, N) {
-  if (count === 1) return 'Rotten';
-  if (count >= 2 && count <= N - 1) return 'Golden';
+  if (count <= 1)  return 'Rotten';
+  if (count < N)   return 'Golden';
   return 'Spoilt';
 }
 
-// Inverse proportional: 2-player match = full Sweet Spot score; scales down as count grows
-function jecCalcGoldenPoints(count, N) {
-  const goldenMax = N - 1;
-  if (goldenMax <= 1) return jecGoldenScore;
-  return Math.round(jecGoldenScore * (goldenMax - count + 2) / goldenMax);
+// Tiered positive rewards — 2-Chef match is the jackpot; no negatives unless opt-in penalties are on
+function jecCalcPoints(count, N) {
+  if (count <= 1) return 0;
+  if (count === 2) return jecGoldenScore;                      // Sweet Spot — full jackpot
+  if (count < N)   return Math.round(jecGoldenScore * 0.5);   // Nice Match — half score
+  return            Math.round(jecGoldenScore * 0.15);         // Too Many Cooks — token reward
 }
 
 function jecBuildPoisonSet() {
@@ -472,12 +474,12 @@ function jecRenderSifting() {
       ? 'bg-amber-100 text-amber-700'
       : status === 'Spoilt'   ? 'bg-stone-100 text-stone-500'
       : status === 'Poisoned' ? 'bg-purple-100 text-purple-700'
-      : 'bg-green-100 text-green-700';
+      : 'bg-stone-50 text-stone-400';
     const badgeText = status === 'Golden'
-      ? "Chef's Kiss! ✨"
-      : status === 'Spoilt'   ? 'Spoilt ingredient!'
+      ? (count === 2 ? "Chef's Kiss! ✨" : 'Nice Match! 👌')
+      : status === 'Spoilt'   ? 'Too Many Cooks! 🍲'
       : status === 'Poisoned' ? 'Kitchen Nightmare! 🧪'
-      : 'Rotten ingredient!';
+      : 'A Bit Pongy! 🤢';
     const card = document.createElement('div');
     card.className    = `jec-sift-card bg-white rounded-2xl p-4 shadow-sm flex items-center justify-between${jecSousChefOversight ? ' cursor-pointer active:scale-95 transition-transform duration-100' : ''}`;
     card.dataset.norm = norm;
@@ -561,16 +563,19 @@ function jecCalcRoundScores() {
       let norm  = normaliseWord(raw.trim());
       let steps = 0;
       while (jecMergeMap[norm] && steps < 10) { norm = jecMergeMap[norm]; steps++; }
+      const count        = jecWordFrequency[norm] || 0;
       const isPoisoned   = jecKitchenNightmares && jecPoisonedNorms.has(norm);
-      const status       = isPoisoned ? 'Poisoned' : getIngredientStatus(jecWordFrequency[norm] || 0, jecPlayerCount);
       const isSignature  = jecKitchenNightmares && jecSignatures[p] === j;
-      if (status === 'Golden') {
-        const pts = jecCalcGoldenPoints(jecWordFrequency[norm] || 0, jecPlayerCount);
-        roundScores[p] += isSignature ? pts * 2 : pts;
-      } else if (status === 'Spoilt' && jecSpoiltPenalty) {
-        roundScores[p] -= (jecWordFrequency[norm] || 0) * 2;
-      } else if (status === 'Rotten' && jecRottenPenalty) {
-        roundScores[p] -= 10;
+      if (!isPoisoned) {
+        // Opt-in penalties take priority over tier rewards
+        if (count === 1 && jecRottenPenalty) {
+          roundScores[p] -= 5;
+        } else if (count === jecPlayerCount && jecSpoiltPenalty) {
+          roundScores[p] -= count * 2;
+        } else {
+          const pts = jecCalcPoints(count, jecPlayerCount);
+          if (pts > 0) roundScores[p] += isSignature ? pts * 2 : pts;
+        }
       }
       // Poisoned: 0 pts regardless of penalty settings
     }

@@ -66,6 +66,7 @@ function ygiShowHelpTip(emoji, heading, tip) {
 document.getElementById('btn-ygi').addEventListener('click', () => {
   playLaunch();
   activeGameId = 'ce';
+  updateSliderTheme('ce');
   showScreen('screen-ygi-menu');
 });
 

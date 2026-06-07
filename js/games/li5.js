@@ -714,7 +714,7 @@ function li5ShowHelpTip(emoji, heading, tip) {
 
 // ── Event listeners ───────────────────────────────────────────────────────────
 document.getElementById('btn-dstw')
-  .addEventListener('click', () => { activeGameId = 'li5'; playLaunch(); showScreen('screen-menu'); });
+  .addEventListener('click', () => { activeGameId = 'li5'; updateSliderTheme('li5'); playLaunch(); showScreen('screen-menu'); });
 
 document.getElementById('btn-back-to-lobby')
   .addEventListener('click', () => { playExit(); resetToLobby(); });
@@ -737,15 +737,15 @@ document.getElementById('btn-play')
 document.getElementById('btn-how-to')
   .addEventListener('click', () => {
     playPillClick();
-    const el = document.getElementById('how-to-overlay');
+    const el = document.getElementById('li5-how-to-overlay');
     const inner = el.querySelector('.overlay-data-inner');
     if (inner) inner.scrollTop = 0;
     el.style.display = 'flex';
   });
 
-document.getElementById('btn-how-to-close')
+document.getElementById('btn-li5-how-to-close')
   .addEventListener('click', () => {
-    document.getElementById('how-to-overlay').style.display = 'none';
+    document.getElementById('li5-how-to-overlay').style.display = 'none';
   });
 
 document.getElementById('btn-settings')
@@ -945,7 +945,7 @@ document.getElementById('btn-li5-cancel-new-game').addEventListener('click', () 
 document.querySelectorAll('.btn-li5-help-open').forEach(btn => {
   btn.addEventListener('click', () => {
     playDone();
-    const el = document.getElementById('how-to-overlay');
+    const el = document.getElementById('li5-how-to-overlay');
     const inner = el.querySelector('.overlay-data-inner');
     if (inner) inner.scrollTop = 0;
     el.style.display = 'flex';
@@ -953,7 +953,7 @@ document.querySelectorAll('.btn-li5-help-open').forEach(btn => {
 });
 document.getElementById('btn-li5-how-to')?.addEventListener('click', () => {
   playDone();
-  const el = document.getElementById('how-to-overlay');
+  const el = document.getElementById('li5-how-to-overlay');
   const inner = el.querySelector('.overlay-data-inner');
   if (inner) inner.scrollTop = 0;
   el.style.display = 'flex';

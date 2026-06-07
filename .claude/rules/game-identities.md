@@ -360,7 +360,7 @@
 |------|---------|
 | Friend of a Friend | The outsider (internal: `lttpStrayIdx`) — doesn't know the address; trying to blend in and figure it out |
 | The Gang | Everyone who knows the address (all players except Friend of a Friend) |
-| The Troublemaker | Gang member (internal: `lttpJokerIdx`) who plants a fake location to mislead (optional role, Joker Mode ON) |
+| The Troublemaker | Gang member (internal: `lttpJokerIdx`) who plants a fake location to mislead (optional role, The Troublemaker mode ON) |
 | Plan | One full lap of messaging (each player messages someone once); 4 plans per game |
 | Locations | The grid of possible addresses shown on the map |
 | Lap | One full round of turns (all players message once) |
@@ -379,8 +379,8 @@ The 🕵️ button opens the Contacts overlay — a dual-view panel (roster → 
 **Status cycles (keyed to the ACTIVE player's role):**
 - The Gang: None → ✅ Safe → ❓ Sus → 🃏 Troublemaker → None
 - The Troublemaker: None → ✅ Safe → ❓ Sus → None
-- Friend of a Friend (Joker Mode ON): None → 🃏 Troublemaker → None
-- Friend of a Friend (Joker Mode OFF): status section hidden
+- Friend of a Friend (The Troublemaker mode ON): None → 🃏 Troublemaker → None
+- Friend of a Friend (The Troublemaker mode OFF): status section hidden
 
 **Status is reflected in the chat player list** — a colour chip appears next to each player's name so the active player can see their assessments at a glance without reopening Contacts.
 
@@ -429,7 +429,7 @@ On Send: `lttpSelectPlayer(targetIdx, inputValue.trim())`
 |---------|---------|---------|----------------|
 | Players | 3–6 | 4 | `lttpPlayerCount` |
 | Difficulty | Local / Secret | Local | `'local'` / `'secret'` |
-| Joker Mode | OFF / ON | OFF | `lttpJokerMode` bool |
+| ✨ Sylly Mode (The Troublemaker) | OFF / ON | OFF | `lttpJokerMode` bool |
 | Group Vote | OFF / ON | ON | `lttpGroupVote` bool |
 | Small Talk Helper | OFF / ON | OFF | `lttpSmallTalk` bool |
 
