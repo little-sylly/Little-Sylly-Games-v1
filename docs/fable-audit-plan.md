@@ -286,6 +286,9 @@ Several of these checks are mechanical — write small throwaway Node scripts (r
 ### 2B-9 — index.html section headers
 - Every game has its `<!-- ════ GAME NAME ════ -->` section header comment block, and the screen/overlay lists inside each header match reality.
 
+### 2B-10 — Orphaned markup sweep (scripted)
+- Diff the full set of screen/overlay IDs in `index.html` against the union of everything claimed by the 12 game section headers + engine / multiplayer / secret-mode sections. Any unclaimed element is an orphan — dead screens from removed features, leftover overlays, abandoned experiment divs. Per-game audits (Phase 3) never look here because no game owns it; this check covers the seam. Flag orphans as `[POLISH]` (don't delete during audit — Principle 1).
+
 **Output:** Findings logged to fix plan with severity tags. Doc corrections applied in place. Engine-level bugs are NOT fixed (Principle 1) — logged only.
 
 ---
