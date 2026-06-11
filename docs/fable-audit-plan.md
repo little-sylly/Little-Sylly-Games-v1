@@ -60,7 +60,7 @@ Update the status column as phases complete. A fresh session starts at the first
 |-------|--------|-------|
 | 0 — Housekeeping | ✅ | 12 June 2026 — pre-audit checkpoint commit `bb32291` (50 files); per-phase checkpoint convention active from here |
 | 1A — CLAUDE.md | ✅ | 12 June 2026 — structure map, load order, data counts, key references all corrected; see Audit Findings §Phase 1A |
-| 1B — game-identities.md | ☐ | |
+| 1B — game-identities.md | ✅ | 12 June 2026 — structural pass complete; GTH Screens table added, PASS packets corrected, numbering fixed; settings display-name drift forward-flagged to Phase 3; see Audit Findings §Phase 1B |
 | 1C — logic-engine.md | ☐ | |
 | 1D — ui-style.md | ☐ | |
 | 1E — phase-audit.md | ☐ | |
@@ -672,3 +672,21 @@ Changes applied to `CLAUDE.md`:
 - `[AUDIT FLAG]` `phase27-snapshot.md` (LI5/GM/SS polish pass) was referenced but never existed in `docs/archive/` — either it was never written or never committed.
 - `[AUDIT FLAG]` No Phase 32 snapshot exists for the PASS ship — `docs/archive/` ends at `phase31-snapshot.md`.
 - `[AUDIT FLAG]` `data/secret_words.json` contains at least one entry with an empty-string `category` — forward-noted for Phase 4D verification.
+
+### Phase 1B — game-identities.md (12 June 2026)
+
+Changes applied to `game-identities.md`:
+- **Game numbering corrected:** headings read Game 11 (DYB) before Game 10 (BLD) but the file order was DYB → BLD. Renumbered to match file order: DYB = Game 10, BLD = Game 11.
+- **GTH (known gap):** Screens table added — 10 screens. Discovered `screen-gth-disorder-reveal` exists in `allScreens[]` and `gth.js` but was absent from the doc's state flow AND from this audit plan's own expected-screens list (1B known gaps). Added to both the Screens table and the state flow (Phase 1 loop, before GTH CANVAS).
+- **GTH settings table updated to match `index.html` + `gth.js`:** display names had drifted — "Disorders per Patient" → "Reportable Symptoms" (options now 3/4/5, not 2/3/4), "Drawing Time" → "Expression Window", "Difficulty Mix" → "Symptom Severity" with internal values `'episodic'/'recurrent'/'refractory'` (not `'everyday'/'everyday+phobias'/'all'` — verified against `gth.js` line 10, default `'recurrent'`), "Deep Dive" → "Psychiatric Evaluation".
+- **PASS (known gap):** multiplayer SYNC packets verified against `pass.js` — `PASS_NEXT_ROUND` was implemented (line 1165) but undocumented; added. All other ACTION/SYNC packets match.
+- **PASS terminology:** removed "Stealth Veil … hide your own dice" row — a copy-paste from DYB; no veil/hide feature exists anywhere in `pass.js` or PASS's `index.html` markup (PASS is a card game; grep for "Stealth"/"veil" returns zero hits project-wide outside DYB's eye toggle).
+- **LTTP settings table:** reordered to match the actual overlay — Sylly Mode is last in reality (was listed mid-table, violating the Shared Rule as written). Display name corrected: "Difficulty Local/Secret" → "Party Destination — The Local Hang / The Secret Spot" (`lttpDifficulty`). Player count moved to a note (it lives on the setup screen, not the settings overlay).
+- **SS:** Overlay Types table added (was missing entirely) — 7 overlays verified against `index.html` with patterns + z-indexes (`ss-settings`, `ss-how-to`, `ss-dossier`, `ss-quit`, `ss-override`, `ss-play-again`, `ss-help-tip`).
+- **GM:** Overlay Types table completed — added z-index column and 4 undocumented overlays (`gm-quit-overlay` z-[80], `gm-help-tip-overlay` z-[90], `gm-concede-overlay` z-[95], `gm-vocab-overlay` z-[95]); corrected z-indexes for the existing rows.
+- **LI5:** Overlay Types table completed — added legacy `settings-overlay` (no `li5-` prefix — predates the prefix convention), `li5-how-to-overlay`, `li5-help-tip-overlay`.
+- **Known-gap checks with no change needed:** `pill-active-stone` exists in `css/styles.css` (line 711) ✓; BLD `onPassThePhone` PTP branch (`single` → `bldShowSetup()`) matches the doc ✓; Sylly Mode is the last card in all 12 actual settings overlays in `index.html` ✓.
+
+**Flags (forward-noted for Phase 3 — need plugin reads to resolve, out of 1B scope per the sequencing note):**
+- `[AUDIT FLAG]` Settings display-name drift exists in MORE games than GTH/LTTP. Observed card titles in `index.html` that don't match `game-identities.md` settings tables: **GM** ("Frequency Tuner", "Adjust Frequency Range"; no "Static Interference" card visible), **JEC** ("Dishes" card; no "Chefs" card in the overlay), **YGI** (no "Players" card in the overlay), **NAT** (order differs; "The Classification" and "Mole Escape Bonus" vs doc's "Voting Mode" / "Escape Points"), **DSD** (single "Hazard Control" card vs doc's three separate "X Ends Turn" rows), **BLD** (overlay contains only the Sylly Mode card; "Players" presumably setup-screen). Phase 3 must reconcile each table against the plugin + HTML (reality wins).
+- `[AUDIT FLAG]` LI5 and SS settings tables are legacy-format — missing Default and Internal variable columns. Enrich during Phase 3 when the plugins are read in full.

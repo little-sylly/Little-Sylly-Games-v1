@@ -37,6 +37,9 @@
 ### Overlay Types
 | Overlay | Pattern | Notes |
 |---------|---------|-------|
+| `settings-overlay` | Data (slide-up) z-[80] | "The Toy Box" — legacy ID, no `li5-` prefix (LI5 predates the prefix convention) |
+| `li5-how-to-overlay` | Data (slide-up) z-[90] | How to Play |
+| `li5-help-tip-overlay` | Decision modal z-[90] | Contextual `[?]` tip overlay |
 | `li5-play-again-overlay` | Decision modal z-[90] | "New Playgroup?" play-again confirmation |
 
 **Status:** Stable since Phase 7. No changes in Phase 10.x.
@@ -97,16 +100,20 @@
 - **Name Persistence:** `gmPlayerNames[2]` survives between games
 
 ### Overlay Types
-| Overlay | Pattern |
-|---------|---------|
-| `gm-settings-overlay` | Data (slide-up) |
-| `gm-how-to-overlay` | Data (slide-up) |
-| `gm-deck-panel` | Data (slide-up) |
-| `gm-boost-overlay` | Decision modal |
-| `gm-near-sync-overlay` | Decision modal |
-| `gm-override-overlay` | Decision modal |
-| `gm-new-frequency-overlay` (Session Terminal) | Decision modal |
-| `gm-neural-library-overlay` | Decision modal |
+| Overlay | Pattern | z-index |
+|---------|---------|---------|
+| `gm-settings-overlay` | Data (slide-up) | z-[80] |
+| `gm-how-to-overlay` | Data (slide-up) | z-[90] |
+| `gm-deck-panel` | Data (slide-up) | z-[100] |
+| `gm-quit-overlay` | Decision modal | z-[80] |
+| `gm-help-tip-overlay` | Decision modal | z-[90] |
+| `gm-boost-overlay` | Decision modal | z-[95] |
+| `gm-near-sync-overlay` | Decision modal | z-[95] |
+| `gm-override-overlay` | Decision modal | z-[95] |
+| `gm-new-frequency-overlay` (Session Terminal) | Decision modal | z-[95] |
+| `gm-concede-overlay` (Secret Mode: Sever Link) | Decision modal | z-[95] |
+| `gm-vocab-overlay` (Secret Mode terminal — shared via `smOpenVocabOverlay()`) | Data (slide-up, terminal-styled) | z-[95] |
+| `gm-neural-library-overlay` | Decision modal | z-[100] |
 
 ### Multiplayer (Phase 22 + Phase 24–25)
 - **Mode:** Individual Devices — both players on their own device simultaneously (no pass-gate or reveal-gate in Lobby Mode)
@@ -156,6 +163,17 @@
 ### Fuzzy Matching (`ssFuzzyMatch`)
 - Plural/singular aware + compound word aware (hyphen/space split, ≥3 char components)
 - Solid compounds (no separator) do NOT auto-split — store as "Weight-Lifting" to enable matching
+
+### Overlay Types
+| Overlay | Pattern | z-index |
+|---------|---------|---------|
+| `ss-settings-overlay` | Data (slide-up) | z-[80] |
+| `ss-how-to-overlay` | Data (slide-up) | z-[90] |
+| `ss-dossier-overlay` | Data (slide-up) | z-[90] |
+| `ss-quit-overlay` | Decision modal | z-[80] |
+| `ss-override-overlay` | Decision modal | z-[90] |
+| `ss-play-again-overlay` | Decision modal | z-[90] |
+| `ss-help-tip-overlay` | Decision modal | z-[90] |
 
 ### Team Setup
 - **Screen 1 heading:** "Establish Cover Identities"
@@ -427,11 +445,12 @@ On Send: `lttpSelectPlayer(targetIdx, inputValue.trim())`
 ### Settings
 | Setting | Options | Default | Internal value |
 |---------|---------|---------|----------------|
-| Players | 3–6 | 4 | `lttpPlayerCount` |
-| Difficulty | Local / Secret | Local | `'local'` / `'secret'` |
-| ✨ Sylly Mode (The Troublemaker) | OFF / ON | OFF | `lttpJokerMode` bool |
+| Party Destination (difficulty) | The Local Hang / The Secret Spot | The Local Hang | `lttpDifficulty` `'local'` / `'secret'` |
 | Group Vote | OFF / ON | ON | `lttpGroupVote` bool |
 | Small Talk Helper | OFF / ON | OFF | `lttpSmallTalk` bool |
+| ✨ Sylly Mode (The Troublemaker) | OFF / ON | OFF | `lttpJokerMode` bool |
+
+Player count (3–6, default 4, `lttpPlayerCount`) is set on the setup screen — not in the settings overlay.
 
 ### Screens
 | Screen ID | Purpose |
@@ -708,6 +727,7 @@ The captain screen legend dynamically shows outcome text based on current settin
 ```
 LOBBY (MDLM only) → GTH MENU → GTH PATIENT INTAKE (screen-gth-patient-intake) ← readyCheck gate
 → [Phase 1 — Patient Phase, simultaneous]:
+    GTH DISORDER REVEAL (screen-gth-disorder-reveal) ← disorder + definition + tip, shown before each drawing
     GTH CANVAS (screen-gth-canvas) ← drawing + countdown, repeated per disorder (no gate between)
     GTH WAITING ROOM (screen-gth-waiting-room) ← waits for all players
 → GTH SHRINK INTRO (screen-gth-shrink-intro)
@@ -741,11 +761,11 @@ LOBBY (MDLM only) → GTH MENU → GTH PATIENT INTAKE (screen-gth-patient-intake
 ### Settings
 | Setting | Options | Default | Internal value |
 |---------|---------|---------|----------------|
-| Disorders per Patient | 2 / 3 / 4 | 3 | `gthDisordersPerPatient` int |
-| Drawing Time | 20s / 30s / 45s | 30s | `gthDrawingTime` int |
+| Reportable Symptoms (disorders per patient) | 3 / 4 / 5 | 3 | `gthDisordersPerPatient` int |
+| Expression Window (drawing time) | 20s / 30s / 45s | 30s | `gthDrawingTime` int |
 | Diagnosis Window | 60s / 90s / 120s | 90s | `gthDiagnosisWindow` int |
-| Difficulty Mix | Everyday / Everyday + Phobias / All | Everyday + Phobias | `gthDifficultyMix` `'everyday'` / `'everyday+phobias'` / `'all'` |
-| Deep Dive | OFF / ON | OFF | `gthDeepDive` bool |
+| Symptom Severity (difficulty mix) | Episodic / Recurrent / Refractory | Recurrent | `gthDifficultyMix` `'episodic'` / `'recurrent'` / `'refractory'` |
+| Psychiatric Evaluation (Deep Dive) | OFF / ON | OFF | `gthDeepDive` bool |
 | ✨ Sylly Mode (Stroke or Genius) | OFF / ON | OFF | `gthSyllyMode` bool |
 
 ### Special Mechanics
@@ -782,6 +802,20 @@ LOBBY (MDLM only) → GTH MENU → GTH PATIENT INTAKE (screen-gth-patient-intake
 | `gth-quit-overlay` | Decision modal | z-[80] | "Walk Out?" |
 | `gth-new-session-overlay` | Decision modal | z-[90] | "New Session?" — play-again confirmation |
 
+### Screens
+| Screen ID | Purpose |
+|-----------|---------|
+| `screen-gth-menu` | Main hub |
+| `screen-gth-patient-intake` | Pre-Phase-1 readyCheck gate — each patient confirms ready |
+| `screen-gth-disorder-reveal` | Shows the disorder name + definition + drawing tip before each canvas round |
+| `screen-gth-canvas` | Phase 1 drawing screen — `CanvasDraw` + countdown |
+| `screen-gth-waiting-room` | Passive screen while other patients finish drawing |
+| `screen-gth-shrink-intro` | Phase 2 host gate — host taps "Open the Case Files →" |
+| `screen-gth-case` | Phase 2 diagnosis — Diagnostic Cards or Deep Dive text input |
+| `screen-gth-case-report` | Passive screen when queue exhausted before timer expiry |
+| `screen-gth-big-reveal` | Host-controlled drawing-by-drawing reveal |
+| `screen-gth-final-report` | Final scores |
+
 ### Data schema (`data/gth-data.json`)
 
 | Field | Type | Purpose |
@@ -809,7 +843,7 @@ LOBBY (MDLM only) → GTH MENU → GTH PATIENT INTAKE (screen-gth-patient-intake
 
 ---
 
-## Game 11: Dicey Bluffs (DYB)
+## Game 10: Dicey Bluffs (DYB)
 **Theme:** Liar's Dice — each player shakes a private hand of dice, then players take turns making escalating claims about the full table. Call someone's bluff or be caught lying.
 **Tagline:** "Trust no one. Count every face."
 **Key file:** `js/games/dyb.js`
@@ -910,7 +944,7 @@ After each Showdown, `dybCurrentOpenerIdx` = loser (if still active) or next act
 
 ---
 
-## Game 10: Bailed (BLD)
+## Game 11: Bailed (BLD)
 **Theme:** Social deduction + cooperative sabotage. Friends try to pull off 5 group plans; hidden Flakes try to derail them. Pass a majority vote on the group selection and complete mission cards — but Flakes will vote against and play bail cards.
 **Key file:** `js/games/bld.js`
 **Brand colour:** `yellow-500` | **Active pill:** `pill-active-yellow`
@@ -1081,7 +1115,6 @@ LOBBY (MDLM only) → PASS MENU
 | The Abyss | Sylly Mode: face-up central pool; grows on every Pass |
 | Detonation | Sylly Mode: a Bomb or Sequence triggers the Abyss to deal clockwise |
 | Fracture | Sylly Mode: Abyss reaches 13 cards — everyone draws |
-| Stealth Veil | 👁️ toggle to hide your own dice from screen peekers |
 | New Deal | Play again — resets chip stacks, preserves names + settings |
 | Walk Away | Quit during a match |
 | The House Rules 🃏 | Settings overlay title |
@@ -1143,4 +1176,4 @@ LOBBY (MDLM only) → PASS MENU
 - **Shared screens:** `screen-mp-mode`, `screen-mp-lobby-host`, `screen-mp-lobby-join` (parameterised)
 - **Roll privacy:** Each device holds its own hand (`passHands[mpMyPlayerIdx]`). Opponent hands are placeholder arrays of correct length — never sent to wrong devices.
 - **Key ACTION packets:** `PASS_PLAY_SUBMIT` (card indices → host validates), `PASS_PASS_SUBMIT` (player passes → host processes), `PASS_PLAYER_LEFT` (client quit → host dissolves match)
-- **Key SYNC packets:** `PASS_GAME_START` (hands + chips for new round), `PASS_TURN_RESULT` (table state after every play/pass), `PASS_ABYSS_DRAFT` (Sylly Mode detonation/fracture), `PASS_ROUND_END` (chip deltas + winner), `PASS_GAMEOVER` (final scores), `PASS_MATCH_DISSOLVED` (player left)
+- **Key SYNC packets:** `PASS_GAME_START` (hands + chips for new round), `PASS_TURN_RESULT` (table state after every play/pass), `PASS_ABYSS_DRAFT` (Sylly Mode detonation/fracture), `PASS_ROUND_END` (chip deltas + winner), `PASS_NEXT_ROUND` (new hands + chips + first player for the next round), `PASS_GAMEOVER` (final scores), `PASS_MATCH_DISSOLVED` (player left)
