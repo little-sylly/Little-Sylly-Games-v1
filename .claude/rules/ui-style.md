@@ -15,6 +15,58 @@ Every screen must have:
 
 ---
 
+## Sound Overlay — Positioning & Theming
+
+### Sound button positioning (game menus)
+
+Game menu sections that use `absolute top-4 right-4` for the sound button MUST NOT have `min-h-screen` on the `<section>` element. If `min-h-screen` is present, the section fills the full viewport and the button anchors to the very top of it — visually detached from the centred emoji/title.
+
+**Correct pattern** (all game menus):
+```html
+<section id="screen-[abbr]-menu" style="display:none"
+  class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
+  <button class="btn-open-sound absolute top-4 right-4 ...">🔊</button>
+  <!-- content naturally sized — section height = content height -->
+</section>
+```
+
+The section is content-height (no `min-h-screen`, no `h-screen`) so `absolute top-4 right-4` lands just above the emoji rather than at the viewport top.
+
+**History (Phase 31 Round 3):** LTTP, NAT, DSD, and GTH menus had `min-h-screen` — removed. GTH also had a non-standard `w-full` width with an inner `max-w-sm` wrapper div — restructured to match the standard pattern above.
+
+### Slider theming
+
+The sound overlay volume slider (`#global-sound-volume`) uses a CSS class set by `updateSliderTheme(gameId)` in `engine.js`. As of Phase 31 Round 3, this is called inside `openSoundOverlay()` automatically — no plugin needs to call it.
+
+**How it works:**
+- `openSoundOverlay()` calls `updateSliderTheme(activeGameId)` before showing the overlay — the slider always reflects the current game at the moment it's opened
+- `activeGameId` is set by each plugin's lobby button listener on game entry
+- `resetToLobby()` calls `updateSliderTheme(null)` → fallback `stone-range` (neutral grey)
+- Initial HTML class on the slider is `stone-range`
+
+**Adding a new game:**
+1. Add a CSS range class to `css/styles.css` — three rules: base, `::-webkit-slider-thumb`, `::-moz-range-thumb` (see `.gth-range` / `.bld-range` for the pattern)
+2. Add `'[abbr]': '[abbr]-range'` to the `map` in `updateSliderTheme()` in `engine.js`
+3. Ensure `activeGameId = '[abbr]'` is set in the lobby button listener — nothing else needed
+
+**Range class reference:**
+
+| Game | CSS class | Gradient |
+|------|-----------|----------|
+| None / lobby | `stone-range` | #d6d3d1 → #57534e |
+| LI5 | `li5-range` | pink-200 → pink-600 |
+| GM | `sylly-range` | purple-200 → purple-600 |
+| SS | `ss-range` | teal-200 → teal-600 |
+| JEC | `jec-range` | amber-200 → amber-600 |
+| YGI | `ygi-range` | orange-200 → orange-600 |
+| LTTP | `lttp-range` | red-200 → red-600 |
+| NAT | `nat-range` | lime-200 → lime-600 |
+| DSD | `dsd-range` | cyan-200 → cyan-700 |
+| GTH | `gth-range` | #d4dbc8 → #8a9a78 (sage) |
+| BLD | `bld-range` | #fde68a → #d97706 (yellow) |
+
+---
+
 ## Contextual Tip Icons `[?]`
 
 **Use for:** Inline help anchored to a specific mechanic — Planner role, scoring currency, group selection, voting, and role-specific decisions. Not for general rules (that's the How to Play overlay via the header `[?]`).
@@ -281,6 +333,17 @@ Every individual setting is wrapped in a white card. Do NOT use bare divs or `<h
 </div>
 ```
 
+**Pill toggle rule:** `.pill` base class must ALWAYS remain on every pill button. Never remove it. Only add/remove `.pill-active-[colour]`. The `pill-active-*` classes only define background-color and color — all structural styles (border-radius, padding, flex, font-size) live in `.pill`. Removing `.pill` leaves an unstyled box.
+
+Correct toggle pattern:
+```js
+document.querySelectorAll(`[data-group="${group}"]`).forEach(p => {
+  p.classList.remove('pill-active-[colour]');
+});
+pill.classList.add('pill-active-[colour]');
+```
+Never: `p.classList.toggle('pill', !isActive)` — this strips base styles from the active pill.
+
 **Toggle card** (on/off setting) — description sits *below* the title+toggle row, never nested inside it:
 ```html
 <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
@@ -292,6 +355,25 @@ Every individual setting is wrapped in a white card. Do NOT use bare divs or `<h
 </div>
 ```
 
+**Slider sub-option (intensity / level)** — used inside the Sylly Mode card when the game has a tuneable intensity. Shown only when the toggle is ON. The slider colour comes from the game's `[abbr]-range` CSS class; the label above it is always neutral stone.
+```html
+<!-- Sub-option container — shown only when toggle is ON -->
+<div id="[abbr]-sylly-sub-options" style="display:none" class="flex flex-col gap-2 mt-1">
+  <p class="text-stone-500 text-sm font-semibold">[Level Name]</p>
+  <input id="[abbr]-sylly-intensity-slider" type="range" min="[N]" max="[N]" step="[N]" value="[N]"
+    class="[abbr]-range w-full" />
+  <p id="[abbr]-sylly-intensity-label" class="text-stone-400 text-xs">[N]% [game-voiced noun]</p>
+</div>
+```
+Rules:
+- Container: `flex flex-col gap-2 mt-1`, `style="display:none"` — toggled via JS when Sylly Mode turns ON/OFF
+- Level name label: `text-stone-500 text-sm font-semibold` — no game colour, no uppercase, no tracking
+- Slider: `[abbr]-range w-full` — colour lives in CSS, not in the label
+- Descriptor below slider: `text-stone-400 text-xs`, format `N% [game-voiced noun]` (e.g. `30% wild cards`, `5% chaos per die`) — updated live on `input` event
+- No special-case emoji at max value
+- JS update pattern: `el.textContent = \`${val}% [noun]\`` — simple string, no branches
+- Reference implementations: LI5 (`sylly-pct-row` / "Wild Level"), DYB (`dyb-sylly-sub-options` / "Chaos Level")
+
 **Sylly Mode card** — always the last card in every settings overlay:
 ```html
 <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
@@ -301,7 +383,7 @@ Every individual setting is wrapped in a white card. Do NOT use bare divs or `<h
   </div>
   <p class="text-stone-600 text-sm font-semibold">[Thematic Name]</p>
   <p class="text-stone-400 text-sm">[Full description in one paragraph.]</p>
-  <!-- Sub-options only (e.g. intensity pills) — wrapped in a toggled div, shown when ON -->
+  <!-- Slider sub-option — use pattern above if the game has a tuneable level -->
 </div>
 ```
 Rules:

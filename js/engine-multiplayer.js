@@ -210,6 +210,69 @@ const MP_GAME_CONFIGS = {
     rosterConfig: { type: 'none', showTeamNamesInPreLobby: false, defaultTeamNames: null, hasCaptain: false },
     getMaxPlayers: () => 10,
   },
+  gth: {
+    gameName:        'Group Therapy',
+    emoji:           '🛋️',
+    brandBtnClass:   'bg-[#B1BCA0] hover:opacity-90',
+    ptpLabel:        'Start the Session 🛋️',
+    menuScreen:      'screen-gth-menu',
+    onPassThePhone: () => {
+      if (window.syllyMultiplayerMode === 'host') {
+        gthPlayerCount = mpPlayerSlots.length;
+        gthPlayerNames = mpPlayerSlots.map(p => p.nickname);
+        gthStartSession(); // settings already locked from lobby — skip menu re-visit
+      }
+      // 'client': waits for GTH_GAME_START SYNC from Host
+    },
+    recommendedMode: 'mdlm',
+    supportedModes:  ['mdlm'],
+    multiplayerOnly: true,
+    lobbyCtaLabel:   'Start the Session 🛋️',
+    rosterConfig: { type: 'none', showTeamNamesInPreLobby: false, defaultTeamNames: null, hasCaptain: false },
+    getMaxPlayers: () => 8,
+    getMinPlayers: () => 4,
+  },
+  dyb: {
+    gameName:       'Dicey Bluffs',
+    emoji:          '\u{1F3B2}',
+    brandBtnClass:  'bg-stone-400 hover:bg-stone-500',
+    ptpLabel:       "Let's Play!",
+    menuScreen:     'screen-dyb-menu',
+    onPassThePhone: () => {
+      if (window.syllyMultiplayerMode === 'host') {
+        dybPlayerCount = mpPlayerSlots.length;
+        dybPlayerNames = mpPlayerSlots.map(p => p.nickname);
+        dybShowSeating();
+      }
+      // 'client': waits for DYB_GAME_START SYNC
+    },
+    recommendedMode: 'mdlm',
+    supportedModes:  ['mdlm'],
+    multiplayerOnly: true,
+    lobbyCtaLabel:   "Let's Play!",
+    rosterConfig: { type: 'none', showTeamNamesInPreLobby: false, defaultTeamNames: null, hasCaptain: false },
+    getMaxPlayers:   () => 8,
+    getMinPlayers:   () => 3,
+  },
+  pass: {
+    gameId:         'pass',
+    menuScreen:     'screen-pass-menu',
+    onPassThePhone: () => {
+      if (window.syllyMultiplayerMode === 'host') {
+        passPlayerCount = mpPlayerSlots.length;
+        passPlayerNames = mpPlayerSlots.map(p => p.nickname);
+        passShowSeating();
+      }
+      // 'client': waits for PASS_GAME_START SYNC
+    },
+    recommendedMode: 'mdlm',
+    supportedModes:  ['mdlm'],
+    multiplayerOnly: true,
+    lobbyCtaLabel:   'Deal Me In',
+    rosterConfig: { type: 'none', showTeamNamesInPreLobby: false, defaultTeamNames: null, hasCaptain: false },
+    getMaxPlayers:   () => 6,
+    getMinPlayers:   () => 3,
+  },
 };
 
 // ── Nickname Helpers ──────────────────────────────────────────────────────────
@@ -529,6 +592,15 @@ function mpSerialiseSettings(abbr) {
       dsdHazardControl: { ...dsdHazardControl },
     };
     case 'bld': return { bldDramaMode };
+    case 'gth': return {
+      gthDisordersPerPatient, gthDrawingTime, gthDiagnosisWindow,
+      gthDifficultyMix, gthDeepDive, gthSyllyMode,
+    };
+    case 'dyb': return { dybWildcardsStyle, dybStartingHand, dybSyllyMode, dybSyllyIntensity };
+    case 'pass': return {
+      passHandSize, passChipStack, passMatchDuration, passBombStrictness,
+      passMidGameDraw, passMinSequenceLength, passJokerCount, passSkyJokerVariant, passSyllyMode,
+    };
     case 'ss': return {
       ssSettingInterceptsToWin, ssDifficultyLevel, ssRerollLimitSetting,
       ssTimerSetting, ssCustomiseVault, ssIntelSyllyMode,
@@ -633,6 +705,20 @@ function mpHandleEnvelope(env) {
           break;
         case 'bld':
           if (s.bldDramaMode !== undefined) bldDramaMode = s.bldDramaMode;
+          break;
+        case 'gth':
+          if (s.gthDisordersPerPatient !== undefined) gthDisordersPerPatient = s.gthDisordersPerPatient;
+          if (s.gthDrawingTime         !== undefined) gthDrawingTime         = s.gthDrawingTime;
+          if (s.gthDiagnosisWindow     !== undefined) gthDiagnosisWindow     = s.gthDiagnosisWindow;
+          if (s.gthDifficultyMix       !== undefined) gthDifficultyMix       = s.gthDifficultyMix;
+          if (s.gthDeepDive            !== undefined) gthDeepDive            = s.gthDeepDive;
+          if (s.gthSyllyMode           !== undefined) gthSyllyMode           = s.gthSyllyMode;
+          break;
+        case 'dyb':
+          if (s.dybWildcardsStyle !== undefined) dybWildcardsStyle = s.dybWildcardsStyle;
+          if (s.dybStartingHand   !== undefined) dybStartingHand   = s.dybStartingHand;
+          if (s.dybSyllyMode      !== undefined) dybSyllyMode      = s.dybSyllyMode;
+          if (s.dybSyllyIntensity !== undefined) dybSyllyIntensity = s.dybSyllyIntensity;
           break;
         case 'li5':
           if (s.settingTimer        !== undefined) settingTimer        = s.settingTimer;
@@ -1140,6 +1226,21 @@ function mpHandleEnvelope(env) {
   // ── Bailed ACTION/SYNC ────────────────────────────────────────────────────
   if (mpActiveGame === 'bld') {
     if (typeof bldHandleEnvelope === 'function') bldHandleEnvelope(env);
+  }
+
+  // ── Group Therapy ACTION/SYNC ─────────────────────────────────────────────
+  if (mpActiveGame === 'gth') {
+    if (typeof gthHandleEnvelope === 'function') gthHandleEnvelope(env);
+  }
+
+  // ── Dicey Bluffs ACTION/SYNC ──────────────────────────────────────────────
+  if (mpActiveGame === 'dyb') {
+    if (typeof dybHandleEnvelope === 'function') dybHandleEnvelope(env);
+  }
+
+  // ── Pass ACTION/SYNC ──────────────────────────────────────────────────────
+  if (mpActiveGame === 'pass') {
+    if (typeof passHandleEnvelope === 'function') passHandleEnvelope(env);
   }
 
   // ── Secret Signals ACTION/SYNC ─────────────────────────────────────────────
@@ -2063,7 +2164,11 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   document.getElementById('btn-mp-mode-exit').addEventListener('click', () => {
     playExit();
-    resetToLobby();
+    showScreen(mpActiveGameConfig.menuScreen);
+  });
+
+  document.querySelectorAll('#screen-mp-mode .btn-open-sound').forEach(btn => {
+    btn.addEventListener('click', openSoundOverlay);
   });
 
   // — Mode screen: single branded CTA —

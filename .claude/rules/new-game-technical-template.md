@@ -47,13 +47,23 @@ Run these checks against `game-identities.md` and `docs/code-map.md` before proc
 
 ## §2 — State Flow
 
-Full screen sequence from lobby entry to game over. Use screen IDs from §5.
+Full screen sequence from lobby entry to game over. Use screen IDs from §5. Express as a Mermaid diagram — GitHub renders these natively in markdown files:
 
+```mermaid
+stateDiagram-v2
+    [*] --> MENU : btn-[abbr]
+    MENU --> SETUP : Play CTA
+    SETUP --> MAIN_SCREEN
+    state ROUND_LOOP {
+        MAIN_SCREEN --> RESULT_SCREEN
+        RESULT_SCREEN --> MAIN_SCREEN : next round
+    }
+    ROUND_LOOP --> GAMEOVER : all rounds complete
+    GAMEOVER --> MENU : play again (confirmation overlay)
+    GAMEOVER --> [*] : exit
 ```
-LOBBY → [ABBR] MENU → [ABBR] SETUP
-→ [describe loop structure]
-→ [ABBR] GAMEOVER
-```
+
+Replace placeholder names with actual screen IDs from §5. Label transitions with the triggering button or event. Add nested state loops, conditional Sylly Mode branches, and pass-gate states as needed.
 
 **Sub-states within screens** (if any screen has internal phases, list them here with their state variable):
 
@@ -384,8 +394,7 @@ Tick each item as it is built. Do not mark complete until verified in the browse
 - [ ] All overlay teardown added to `resetToLobby()` in `engine.js` (§13)
 - [ ] Section header comment added to `index.html` (§14)
 - [ ] `pill-active-[colour]` confirmed in `css/styles.css` — added if missing
-- [ ] `activeGameId = '[abbr]'` set in lobby button listener
-- [ ] Lobby button (`#btn-[abbr]`) → game menu screen
+- [ ] Lobby button (`#btn-[abbr]`) → game menu screen with exact pattern: `playLaunch(); activeGameId = '[abbr]'; showScreen('screen-[abbr]-menu');` — `playLaunch()` is mandatory (omitting silently removes the entry sound)
 
 ### Game Menu
 - [ ] Play CTA, How to Play, Settings, ← Back to the Box — all four present

@@ -26,12 +26,17 @@
 │   │   ├── ygi.js                   # Plugin: You Get It? (all state + logic)
 │   │   ├── lttp.js                  # Plugin: Late to the Party (all state + logic)
 │   │   ├── nat.js                   # Plugin: Natural Selection (all state + logic)
-│   │   └── dsd.js                   # Plugin: Deep-Sea Deploy (all state + logic)
+│   │   ├── dsd.js                   # Plugin: Deep-Sea Deploy (all state + logic)
+│   │   ├── gth.js                   # Plugin: Group Therapy (all state + logic)
+│   │   ├── dyb.js                   # Plugin: Dicey Bluffs (all state + logic)
+│   │   └── pass.js                  # Plugin: Pass (all state + logic)
 │   ├── engine-multiplayer.js        # Multiplayer module: Firebase, lobby, sync, per-game envelopes
 │   ├── secret-mode.js               # Secret Mode: Konami gateway, Terminal, expansion proxy state
 │   ├── app.js                       # Bootstrapper only — no logic (3 lines)
 │   └── lib/
 │       ├── tailwind-play.js         # Local Tailwind (no CDN — fully offline)
+│       ├── canvas-draw.js           # Drawing module: CanvasDraw global (stroke capture, delta encoding, render)
+│       ├── cards.js                 # Card rendering module: Cards global (Cards.buildEl, Cards.buildBackEl)
 │       ├── firebase-app.js          # Firebase App (local copy — no CDN)
 │       ├── firebase-auth.js         # Firebase Auth (anonymous auth)
 │       ├── firebase-database.js     # Firebase Realtime Database
@@ -39,7 +44,8 @@
 ├── data/
 │   ├── words.json                   # Standard word bank (~433 words, 16 categories)
 │   ├── secret_words.json            # Expansion word bank: Dota 2 (35 words, 5 categories)
-│   └── ygi-data.json                # You Get It? prompts (55+ entries, {id, text, ringers[5]})
+│   ├── ygi-data.json                # You Get It? prompts (55+ entries, {id, text, ringers[5]})
+│   └── gth-data.json                # Group Therapy disorder bank (45 entries, 3 tiers: everyday/phobias/complex)
 ├── sw.js                            # Service Worker (currently v80)
 ├── manifest.json                    # PWA manifest
 ├── docs/expansion-guide.md          # Template + checklist for adding new expansion packs
@@ -54,7 +60,7 @@
 ├── docs/archive/                    # Retired snapshots + spent plan docs
 ```
 
-**Load order:** `engine.js` → `engine-multiplayer.js` → `li5.js` → `great-minds.js` → `secret-signals.js` → `jec.js` → `ygi.js` → `lttp.js` → `nat.js` → `dsd.js` → `secret-mode.js` → `app.js`
+**Load order:** `engine.js` → `engine-multiplayer.js` → `cards.js` → `li5.js` → `great-minds.js` → `secret-signals.js` → `jec.js` → `ygi.js` → `lttp.js` → `nat.js` → `dsd.js` → `gth.js` → `dyb.js` → `pass.js` → `secret-mode.js` → `app.js`
 All symbols are global (no ES modules). Forward references work at runtime.
 
 ---
@@ -65,6 +71,7 @@ All symbols are global (no ES modules). Forward references work at runtime.
 - **Hosting:** GitHub Pages ($0) — no backend
 - **Audio:** Web Audio API (synthesised tones) — no audio files
 - **Capabilities:** PWA (offline via Service Worker), Screen Wake Lock API
+- **Diagrams:** Mermaid (`stateDiagram-v2`) — used in tech specs for state flows; rendered natively by GitHub, no install required
 
 ---
 
@@ -101,7 +108,7 @@ All symbols are global (no ES modules). Forward references work at runtime.
 ---
 
 ## 📋 Documentation Integrity Protocol
-**Trigger:** After any completed phase, game addition, or permanent architectural change.
+**Trigger:** After any completed phase, game addition, permanent architectural change, or mid-session bug fix session. This protocol applies even when no phase snapshot is written — the snapshot is optional, the doc updates are not.
 **Mandatory updates (in this order, before the phase snapshot is written):**
 1. `docs/code-map.md` — add/update all new screen IDs, overlay IDs, key functions, and state variables introduced in the phase
 2. `game-identities.md` — add/update all new settings, terminology, overlay types, and screen entries for affected games
@@ -169,12 +176,18 @@ The animals category is shared by both Like I'm Five and Natural Selection. Ever
 1. If `docs/implementation-notes/[abbr]-implementation-notes.md` does not exist for the affected game, create it with four sections: Design Decisions / Bug Index / Multiplayer Lessons / Template Gaps
 2. Add a concise entry in the appropriate section: **What happened → Root cause → Lesson**
 3. At the end of any audit or testing session, review the Template Gaps section and flag items that should fold into `logic-engine.md`, `ui-style.md`, or the tech template
+**When:** Log entries in the same response that completes the fix — not in a follow-up session. If the fix is done and this skill hasn't run, the session is not complete.
 **Scope:** All games — new and existing. Log during any session that touches a game's code, not just at phase boundaries.
 **Cross-reference:** Before starting a new game's tech spec, read the Template Gaps section of all existing implementation notes files and resolve any gaps that apply to the new game before implementation begins.
 
 ### 🎯 Skill: Phase Gate — Studio Audit
 **Trigger:** After completing a game or entering a new phase. Before writing the phase snapshot. Before writing the first line of a new game's JS.
-**Action:** Run both protocols in `@phase-audit.md`. Do not write the phase snapshot until the Drift Check and Linguistic Sweep are clean. Do not write a line of game logic until the Skeleton-First protocol (Steps 1–4) is confirmed.
+**Action:** Run all three protocols in `@phase-audit.md`:
+- **Protocol A** — Phase Gate (drift check, tech debt, linguistic sweep, mobile layout). Run after every completed game/phase.
+- **Protocol B** — Skeleton-First. Run before any new game's first line of code.
+- **Protocol C** — Studio Sweep (impl notes harvest + cross-game consistency check). Run before any new game's Phase 1 brief. Both parts must pass before Protocol B Step 1 begins.
+
+Do not write the phase snapshot until Protocols A is clean. Do not write a line of game logic until Protocol B Steps 1–4 are confirmed. Do not start a new game's brief until Protocol C is complete.
 
 ### 🎯 Skill: Logic-First Teaching
 **Trigger:** Any new concept, pattern, or architectural decision.
@@ -187,12 +200,17 @@ The animals category is shared by both Like I'm Five and Natural Selection. Ever
 ---
 
 ## 🎯 Current Focus
-**Phase:** Phase 29 complete — Deferred fixes: LTTP L4 play-again modal, JEC scoring redesign (Option C: tiered positive rewards, penalties opt-in default OFF).
-**SW Version:** v96 (bump when assets change)
-**Gold Master:** 8 games complete + multiplayer (LI5, Great Minds, Secret Signals, JEC, YGI, LTTP, Natural Selection, Deep-Sea Deploy)
+**Phase:** Phase 32 — Pass (PASS) shipped; Gan Deng Yan climbing card game with The Abyss (Sylly Mode), MDLM-only, 3–6 players.
+**SW Version:** v101 (bump when assets change)
+**Gold Master:** 11 games complete + multiplayer (LI5, Great Minds, Secret Signals, JEC, YGI, LTTP, Natural Selection, Deep-Sea Deploy, Group Therapy, Dicey Bluffs, Pass)
 **BLD status:** In active testing — MDLM only, `js/games/bld.js`, multiplayer bugs being resolved round by round.
+**Pending before next game:** Protocol C Studio Sweep — impl notes harvest + cross-game consistency check across all 10 games. Run before writing the Phase 1 brief for any new game. See `@phase-audit.md` Protocol C.
 **Key references:**
+- `docs/implementation-notes/dyb-implementation-notes.md` — DYB bug log + design decisions (active)
 - `docs/implementation-notes/bld-implementation-notes.md` — BLD bug log + design decisions (active)
+- `docs/implementation-notes/gth-implementation-notes.md` — GTH bug log + design decisions
+- `docs/archive/phase31-snapshot.md` — Phase 31 snapshot (DYB shipped)
+- `docs/archive/phase30-snapshot.md` — Phase 30 snapshot (GTH shipped)
 - `docs/archive/phase29-snapshot.md` — Phase 29 snapshot (LTTP L4 modal, JEC scoring redesign)
 - `docs/archive/phase28-snapshot.md` — Phase 28 snapshot (JEC/YGI/LTTP/NAT/DSD audit & polish)
 - `docs/archive/phase27-snapshot.md` — Phase 27 snapshot (LI5/GM/SS polish pass)

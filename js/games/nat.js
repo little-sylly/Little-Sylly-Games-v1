@@ -61,7 +61,6 @@ let natMpVoteReadyCheck = []; // Lobby Mode (independent voting): tracks per-pla
 // ── Init & Menu ───────────────────────────────────────────────────────────────
 function natInit() {
   activeGameId = 'nat';
-  updateSliderTheme('nat');
   showScreen('screen-nat-menu');
 }
 

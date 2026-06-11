@@ -48,7 +48,6 @@ function jecShowHelpTip(emoji, heading, tip) {
 document.getElementById('btn-jec').addEventListener('click', () => {
   playLaunch();
   activeGameId = 'jec';
-  updateSliderTheme('jec');
   showScreen('screen-jec-menu');
 });
 

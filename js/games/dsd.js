@@ -1236,8 +1236,8 @@ function dsdTeamBtnClass(teamIdx) {
 
 // ── Lobby button ──────────────────────────────────────────────────────────────
 document.getElementById('btn-dsd').addEventListener('click', () => {
+  playLaunch();
   activeGameId = 'dsd';
-  updateSliderTheme('dsd');
   dsdShowMenu();
 });
 
@@ -1514,4 +1514,10 @@ document.getElementById('dsd-exec-hist-prev')?.addEventListener('click', () => {
 document.getElementById('dsd-exec-hist-next')?.addEventListener('click', () => {
   const deps = [...new Set(dsdTurnLog.map(t => t.deployment))];
   if (dsdHistoryPage < deps.length - 1) { dsdHistoryPage++; dsdRenderInGameHistory('exec'); }
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('#screen-dsd-menu .btn-open-sound').forEach(btn => {
+    btn.addEventListener('click', openSoundOverlay);
+  });
 });

@@ -37,6 +37,9 @@
 | `#btn-lttp` | Lobby → LTTP menu |
 | `#btn-nat` | Lobby → NAT menu |
 | `#btn-dsd` | Lobby → DSD menu |
+| `#btn-gth` | Lobby → GTH mode screen (`mpShowModeScreen('gth')`) — multiplayer-only |
+| `#btn-dyb` | Lobby → DYB menu screen |
+| `#btn-pass` | Lobby → PASS menu screen |
 | `#lobby-icon` | Secret Mode tap counter (7 taps → controller screen) |
 | `.btn-open-sound` | Opens `#sound-overlay` (on every screen) |
 | `#global-mute-toggle` | Mute toggle inside sound overlay |
@@ -628,6 +631,235 @@ Each plugin reads `window.activeExpansionOverrides` at its settings-apply point 
 
 ---
 
+## Group Therapy (GTH)
+
+**Game ID:** `gth`
+**JS file:** `js/games/gth.js`
+**Brand colour:** `#B1BCA0` (Muted Sage — CSS var `--color-gth-sage`) | **Active pill:** `pill-active-sage`
+**Lobby button:** `#btn-gth`
+**Data file:** `data/gth-data.json`
+**Infrastructure:** `js/lib/canvas-draw.js` — `window.CanvasDraw` global
+**Multiplayer-only:** MDLM, `rosterConfig: {type:'none'}`
+**Updated:** Phase 30
+
+### Screens
+| Screen ID | Purpose |
+|-----------|---------|
+| `screen-gth-menu` | Main menu — Start Session, How to Play, Settings, ← Back to the Box |
+| `screen-gth-disorder-reveal` | Pre-draw disorder info; sub-states `'preview'` (first view) + `'between'` (between drawings) |
+| `screen-gth-canvas` | Drawing screen — disorder name header, countdown timer, `<canvas id="gth-canvas">` inside `<div id="gth-canvas-wrapper">` |
+| `screen-gth-waiting-room` | Passive — waits for all players to finish Phase 1 |
+| `screen-gth-shrink-intro` | Phase 2 announcement; player taps to enter Shrink Phase |
+| `screen-gth-case` | Case screen — renders drawing, Diagnostic Cards (standard) or text input (Deep Dive) |
+| `screen-gth-case-report` | Queue exhausted before timer — passive waiting screen |
+| `screen-gth-big-reveal` | Host-controlled drawing reveal — host taps Next/Finish; clients advance on SYNC |
+| `screen-gth-final-report` | Leaderboard (Patient pts + Shrink pts = Total) + New Session |
+
+### Overlays
+| Overlay ID | Pattern | z-index | Purpose |
+|------------|---------|---------|---------|
+| `gth-settings-overlay` | Data (slide-up) | z-[80] | "Intake Form 📋" — session settings |
+| `gth-how-to-overlay` | Data (slide-up) | z-[90] | "The Disclaimer 🛋️" — how to play |
+| `gth-quit-overlay` | Decision modal | z-[80] | "Walk Out?" — mid-session exit confirm |
+| `gth-new-session-overlay` | Decision modal | z-[90] | "New Session?" — play-again confirmation |
+
+### Key State Variables
+| Variable | Type | Default | Purpose |
+|----------|------|---------|---------|
+| `gthDisordersPerPatient` | int | `3` | Disorders drawn per player per session (`2`/`3`/`4`) |
+| `gthDrawingTime` | int | `30` | Seconds per drawing (`20`/`30`/`45`) |
+| `gthDiagnosisWindow` | int | `90` | Phase 2 total seconds (`60`/`90`/`120`) |
+| `gthDifficultyMix` | string | `'everyday+phobias'` | Pool filter: `'everyday'`/`'everyday+phobias'`/`'all'` |
+| `gthDeepDive` | bool | `false` | Hard Mode — text input instead of Diagnostic Cards |
+| `gthSyllyMode` | bool | `false` | Stroke or Genius — tremor (Phase 1) + blur (Phase 2) |
+| `gthPlayerCount` | int | `0` | Total players (from lobby) |
+| `gthPlayerNames` | string[] | `[]` | Player display names (from `mpPlayerSlots`) |
+| `gthAssignedDisorders` | object[] | `[]` | This device's disorder assignments for Phase 1 |
+| `gthLocalDrawings` | object[] | `[]` | `{disorderId, playerIdx, drawingData}` — this device's completed drawings |
+| `gthRevealPool` | object[] | `[]` | All drawings (host-only accumulator; used for queue build + score resolution) |
+| `gthPhase1Ready` | bool[] | `[]` | readyCheck — per-player Phase 1 completion |
+| `gthQueue` | object[] | `[]` | This device's Phase 2 case queue |
+| `gthLocalDiagnoses` | object[] | `[]` | `{disorderId, selectedId, timestamp}` — this device's diagnoses |
+| `gthAllDiagnoses` | object | `{}` | Host-only — `{playerIdx: diagnoses[]}` accumulator |
+| `gthDiagnosesReady` | bool[] | `[]` | readyCheck — per-player Phase 2 batch submission |
+| `gthPhase2EndTimestamp` | int | `0` | Epoch ms — from `GTH_PHASE2_BEGIN` payload (set when host opens the gate) |
+| `gthRevealItems` | object[] | `[]` | Built by host in `gthResolveScores()` — one item per drawing for Big Reveal |
+| `gthScores` | object[] | `[]` | `{patientPts, shrinkPts, total}` per player index |
+| `gthAllDisorders` | object[] | `[]` | Full disorder bank loaded from `gth-data.json` |
+
+### Key Functions
+| Function | Purpose |
+|----------|---------|
+| `gthLoadData()` | Fetches and parses `data/gth-data.json` into `gthAllDisorders` |
+| `gthShowMenu()` | Routes to `screen-gth-menu` |
+| `gthResetState()` | Clears all phase state; called on new session and `resetToLobby()` |
+| `gthApplySettings()` | Reads pill/toggle DOM into state variables |
+| `gthStartSession()` | Host: builds pool, assigns disorders, broadcasts `GTH_GAME_START`, shows disorder reveal |
+| `gthShowDisorderReveal(idx)` | Shows `'preview'` or `'between'` sub-state on `screen-gth-disorder-reveal` |
+| `gthShowCanvas(disorder)` | Inits `CanvasDraw`, starts countdown, applies tremor if Sylly Mode |
+| `gthStartCountdown()` | setInterval countdown; tick on ≤5s; expiry → alarm + `gthFinishDrawing()` |
+| `gthFinishDrawing()` | Clears timer, stops tremor, calls `CanvasDraw.lock()`, calls `gthSubmitDrawing()` |
+| `gthSubmitDrawing(data)` | Stores locally; advances to next disorder or sends batch + shows waiting room |
+| `gthShowWaitingRoom()` | Shows `screen-gth-waiting-room`; marks local player done |
+| `gthBuildQueues()` | Host-only: assigns each drawing to exactly 2 non-artist queues; returns `queues[][]` |
+| `gthPickDecoys(disorder, count)` | Returns `count` wrong-answer disorders for Diagnostic Cards (same tier/category fallback chain) |
+| `gthShowShrinkIntro()` | Shows `screen-gth-shrink-intro` |
+| `gthShowCase()` | Renders current case drawing; builds Diagnostic Cards or Deep Dive input; handles queue-exhausted |
+| `gthSubmitDiagnosis(id)` | Records `{disorderId, selectedId, timestamp}`; advances queue |
+| `gthShowCaseReport()` | Shows `screen-gth-case-report` (queue exhausted before timer) |
+| `gthSubmitDiagnosisBatch()` | Idempotent — sends `GTH_DIAGNOSES_SUBMIT` ACTION once |
+| `gthStartPhase2Timer(ts)` | Wall-clock countdown; host broadcasts `GTH_PHASE2_END` on expiry |
+| `gthResolveScores()` | Host-only: patient pts, shrink pts, speed bonus, tier-3 bonus; broadcasts `GTH_FINAL_SCORES` |
+| `gthShowBigReveal()` | Renders current `gthRevealItems[gthRevealIdx]`; host shows Next/Finish; clients see passive view |
+| `gthShowFinalReport()` | Sorted leaderboard by total then shrinkPts; shows `screen-gth-final-report` |
+| `gthHandleEnvelope(env)` | Routes all GTH ACTION/SYNC packets; called from `engine-multiplayer.js` |
+
+---
+
+## Dicey Bluffs (DYB)
+
+**JS file:** `js/games/dyb.js`
+**Data:** none — word bank not used; dice outcomes are numeric
+**Brand colour:** `stone-700` / active pill: `pill-active-stone`
+
+### Screens
+| Screen ID | Purpose |
+|-----------|---------|
+| `screen-dyb-menu` | Main hub — Play, How to Play, Settings, ← Back to the Box |
+| `screen-dyb-seating` | MDLM host pre-game — shows lobby roster while host reviews player count |
+| `screen-dyb-shake` | Each player shakes and rolls; shows their private die results |
+| `screen-dyb-table` | Main round screen — full table view, bid history, allegation controls |
+| `screen-dyb-spirit-board` | Eliminated player screen — passive spectator view after losing all dice |
+| `screen-dyb-showdown` | Call Bluff! resolution — reveals all hands, animates count, shows verdict |
+| `screen-dyb-gameover` | Final scores, winner reveal, play-again / exit |
+
+### Overlays
+| Overlay ID | Pattern | z-index | Purpose |
+|------------|---------|---------|---------|
+| `dyb-settings-overlay` | Data (slide-up) | z-[80] | "The House Rules 🎲" — game settings |
+| `dyb-how-to-overlay` | Data (slide-up) | z-[90] | How to Play |
+| `dyb-quit-overlay` | Decision modal | z-[80] | "Fold?" — mid-game exit confirm |
+| `dyb-new-game-overlay` | Decision modal | z-[90] | "New Game?" — play-again confirmation |
+| `dyb-slick-picker-overlay` | Decision modal | z-[100] | Slick die face picker — opened on tap of a Slick die on the table screen |
+
+### Key State Variables
+| Variable | Type | Default | Purpose |
+|----------|------|---------|---------|
+| `dybPlayerCount` | int | `0` | Total players in session |
+| `dybPlayerNames` | string[] | `[]` | Player display names |
+| `dybDice` | int[][] | `[]` | Current dice values per player (`dybDice[playerIdx][dieIdx]`) |
+| `dybActivePlayers` | int[] | `[]` | Indices of players still in the game |
+| `dybCurrentBidderIdx` | int | `0` | Index of next-to-bid player (advances after each bid) |
+| `dybAllegationHistory` | object[] | `[]` | `{playerIdx, face, count}` — full bid history for the round |
+| `dybChallengerIdx` | int | `-1` | Player who called bluff (`-1` = no challenge yet) |
+| `dybSyllyMode` | bool | `false` | Chaos Mode — adds Slick dice |
+| `dybSyllyIntensity` | int | `7` | Chaos per die (5–10); % chance any die becomes Slick |
+| `dybDiceCount` | int | `5` | Starting dice per player (`3`/`4`/`5`/`6`) |
+
+### Key Functions
+| Function | Purpose |
+|----------|---------|
+| `dybShowMenu()` | Shows `screen-dyb-menu` |
+| `dybShowSeating()` | Renders lobby roster + shows `screen-dyb-seating` (host only) |
+| `dybStartGame()` | Assigns seats, builds dice arrays, broadcasts `DYB_GAME_START` |
+| `dybInitShake()` | Rolls dice for active players; routes each player to `screen-dyb-shake` |
+| `dybShowTable()` | Renders table view — all hands (from each player's perspective), bid history, action buttons |
+| `dybProcessAllegation(face, count)` | Validates and records a bid; advances `dybCurrentBidderIdx`; broadcasts `DYB_ALLEGATION_SYNC` |
+| `dybProcessCallBluff()` | Sets `dybChallengerIdx`; triggers `dybResolveShowdown()` on host |
+| `dybResolveShowdown()` | Counts real dice, determines loser, updates `dybDice` and `dybActivePlayers`; broadcasts `DYB_SHOWDOWN` |
+| `dybApplyShowdown(data)` | Applies showdown state; shows `screen-dyb-showdown`; calls `dybRenderShowdownScreen` with gameover callback |
+| `dybRenderShowdownScreen(data, onDone)` | Animated tally: count-up at 400ms/tick with `playTick()`, then verdict reveal; calls `onDone()` when complete |
+| `dybBroadcastShakeActive()` | Broadcasts `DYB_SPIRIT_SHAKE` (for eliminated) then `DYB_SHAKE_ACTIVE` (for active); sends `DYB_GAMEOVER` if 1 player remains |
+| `dybAdvanceFromShowdown()` | Cleans bid state; resets for next shake |
+| `dybShowGameover(payload)` | Renders final scores, winner, plan history; shows `screen-dyb-gameover` |
+| `dybHandleEnvelope(env)` | Routes all DYB ACTION/SYNC packets; called from `engine-multiplayer.js` |
+
+### Per-Game ACTION/SYNC Packet Types
+| Packet | Type | Direction | Payload |
+|--------|------|-----------|---------|
+| `DYB_ROLL_SUBMIT` | ACTION | Client → Host | `{playerIdx}` — client confirms roll complete |
+| `DYB_ALLEGATION` | ACTION | Client → Host | `{face, count, playerIdx}` |
+| `DYB_CALL_BLUFF` | ACTION | Client → Host | `{playerIdx}` |
+| `DYB_GAME_START` | SYNC | Host → All | `{playerNames, diceCount, syllyMode, syllyIntensity, seatNumbers}` |
+| `DYB_SHAKE_ACTIVE` | SYNC | Host → All | `{activePlayers, dice}` — start of each round; active devices show table |
+| `DYB_SPIRIT_SHAKE` | SYNC | Host → All | `{activePlayers}` — eliminated devices route to spirit board |
+| `DYB_ALLEGATION_SYNC` | SYNC | Host → All | `{playerIdx, face, count, nextBidderIdx, history}` |
+| `DYB_SHOWDOWN` | SYNC | Host → All | `{bidderIdx, challengerIdx, claimed, real, loserIdx, dice, activePlayers, gameOver}` |
+| `DYB_NEXT_SHAKE` | SYNC | Host → All | `{activePlayers, dice}` — after showdown if game continues |
+| `DYB_GAMEOVER` | SYNC | Host → All | `{winner, scores, planHistory}` |
+
+---
+
+## Pass (PASS)
+
+**JS file:** `js/games/pass.js`
+**Lib:** `js/lib/cards.js` — `window.Cards` global (`Cards.buildEl(card)`, `Cards.buildBackEl(deckIdx)`)
+**Data:** none — no word bank; uses a standard 52-card deck + Jokers built at runtime
+**Brand colour:** `zinc-900` (#18181b) / active pill: `pill-active-zinc`
+
+### Screens
+| Screen ID | Purpose |
+|-----------|---------|
+| `screen-pass-menu` | Main hub — Deal Me In, How to Play, Settings, ← Back to the Box |
+| `screen-pass-seating` | MDLM host pre-game — shows seat order (join order) before host deals |
+| `screen-pass-table` | Main gameplay — opponents strip, table combo, hand, Pass/Play controls |
+| `screen-pass-round-wrap` | Round result — chip deltas, winner, Next Round (host only) |
+| `screen-pass-gameover` | Match result — final rankings by chip total |
+
+### Overlays
+| Overlay ID | Pattern | z-index | Purpose |
+|------------|---------|---------|---------|
+| `pass-settings-overlay` | Data (slide-up) | z-[80] | "The House Rules 🃏" — game settings |
+| `pass-how-to-overlay` | Data (slide-up) | z-[90] | How to Play |
+| `pass-quit-overlay` | Decision modal | z-[80] | "Walk Away?" — mid-game exit confirm |
+| `pass-new-deal-overlay` | Decision modal | z-[90] | "New Deal?" — play-again confirmation |
+
+### Key State Variables
+| Variable | Type | Default | Purpose |
+|----------|------|---------|---------|
+| `passPlayerCount` | int | `0` | Total players |
+| `passPlayerNames` | string[] | `[]` | Player display names (join order = seat order) |
+| `passHands` | card[][] | `[]` | Per-player hand arrays |
+| `passChips` | int[] | `[]` | Current chip totals |
+| `passTableCombo` | object\|null | `null` | Current table combo `{type, rank, count}`; null = open table |
+| `passCurrentPlayerIdx` | int | `0` | Active player index |
+| `passAbyss` | card[] | `[]` | Sylly Mode: face-up central pool |
+| `passMatchRound` | int | `0` | Current round number |
+| `passSyllyMode` | bool | `false` | The Abyss |
+
+### Key Functions
+| Function | Purpose |
+|----------|---------|
+| `passShowSeating()` | Renders roster and shows `screen-pass-seating` (host only) |
+| `passStartGame()` | Deals hands, sets chip stacks, broadcasts `PASS_GAME_START` |
+| `passStartRound()` | Rebuilds deck, deals, determines leader, broadcasts `PASS_GAME_START` |
+| `passShowTable()` | Renders full table state; sets passPhase for active/waiting |
+| `passDetectCombo(cards)` | Returns `{type, rank, count}` or `null` |
+| `passIsValidPlay(combo, hand)` | Returns `{valid, msg}` — all climb + bomb + Joker rules |
+| `passSubmitPlay()` | Validates selection, sends ACTION or processes locally |
+| `passSubmitPass()` | Sends pass ACTION or processes locally |
+| `passProcessPlay(playerIdx, cardIndices, combo)` | Host: removes cards, updates state, broadcasts `PASS_TURN_RESULT` |
+| `passProcessPass(playerIdx)` | Host: increments pass streak, handles Abyss, broadcasts `PASS_TURN_RESULT` |
+| `passResolveRound(winnerIdx)` | Calculates chip deltas (×3/×2/×1 penalty tiers), broadcasts `PASS_ROUND_END` |
+| `passResolveAbyssDetonation(exemptIdx)` | Distributes Abyss cards clockwise; returns `{order, cards}` |
+| `passHandleEnvelope(env)` | Routes all PASS ACTION/SYNC packets; called from `engine-multiplayer.js` |
+
+### Per-Game ACTION/SYNC Packet Types
+| Packet | Type | Direction | Payload |
+|--------|------|-----------|---------|
+| `PASS_PLAY_SUBMIT` | ACTION | Client → Host | `{playerIdx, cardIndices[]}` |
+| `PASS_PASS_SUBMIT` | ACTION | Client → Host | `{playerIdx}` |
+| `PASS_PLAYER_LEFT` | ACTION | Client → Host | `{playerIdx}` — dissolves match |
+| `PASS_GAME_START` | SYNC | Host → All | `{playerNames, seatNumbers, hands, chips, handSize, roundNum, firstPlayer}` |
+| `PASS_TURN_RESULT` | SYNC | Host → All | `{playerIdx, action_type, tableCombo, nextPlayerIdx, abyss, passStreak, tableCleared, handCounts}` |
+| `PASS_ABYSS_DRAFT` | SYNC | Host → All | `{trigger, draftOrder, draftCards, newHands}` — trigger: `'detonation'`\|`'round-win'`\|`'fracture'` |
+| `PASS_ROUND_END` | SYNC | Host → All | `{winnerIdx, chipDeltas, newChips, badges, finalHandCounts, matchOver}` |
+| `PASS_NEXT_ROUND` | SYNC | Host → All | `{roundNum, hands, chips, firstPlayer}` |
+| `PASS_GAMEOVER` | SYNC | Host → All | `{winnerIdx, finalChips, roundsWon}` |
+| `PASS_MATCH_DISSOLVED` | SYNC | Host → All | `{leaverIdx}` |
+
+---
+
 ## Overlay Patterns Quick Reference
 
 | Pattern | Classes | Use for |
@@ -671,7 +903,7 @@ Three named modes (Phase 23). Each game has a `recommendedMode` and `supportedMo
 | `tlm` | Team Lobby Mode | Each team shares one device. Host/Join with room code. |
 | `mdlm` | Multi-device Lobby Mode | Each player uses their own phone. Host/Join with room code. |
 
-Per-game: LI5 `ptp`★/`tlm` · GM `ptp`★/`mdlm` · SS `tlm`★/`mdlm`/`ptp` · JEC `mdlm`★/`ptp` · YGI `mdlm`★/`ptp` · LTTP `mdlm`★/`ptp` · NAT `mdlm`★/`ptp` · DSD `tlm`★/`mdlm`/`ptp` (★ = recommended)
+Per-game: LI5 `ptp`★/`tlm` · GM `ptp`★/`mdlm` · SS `tlm`★/`mdlm`/`ptp` · JEC `mdlm`★/`ptp` · YGI `mdlm`★/`ptp` · LTTP `mdlm`★/`ptp` · NAT `mdlm`★/`ptp` · DSD `tlm`★/`mdlm`/`ptp` · GTH `mdlm`★ (multiplayer-only) (★ = recommended)
 
 ### Multiplayer Screens
 | Screen ID | Purpose |
@@ -747,3 +979,4 @@ Per-game: LI5 `ptp`★/`tlm` · GM `ptp`★/`mdlm` · SS `tlm`★/`mdlm`/`ptp` �
 | DSD | `DSD_PING_TRANSMIT`, `DSD_SEQUENCE_SUBMIT` | `DSD_CREW_ACTIVE`, `DSD_EXECUTION_RESULT`, `DSD_GAMEOVER` |
 | SS | `SS_VAULT_READY`, `SS_ENCODE_TRANSMIT`, `SS_INTERCEPT_SUBMIT`, `SS_DECODE_SUBMIT` | `SS_VAULT_DATA`, `SS_ENCRYPT_TURN`, `SS_BROADCAST`, `SS_START_INTERCEPT`, `SS_DECODE_GATE`, `SS_RESOLUTION`, `SS_ENDGAME` |
 | LTTP | `LTTP_MESSAGE_SEND` | `LTTP_GAME_START`, `LTTP_TURN_ADVANCE`, `LTTP_MESSAGE_INTERRUPT` |
+| GTH | `GTH_DRAWING_SUBMIT`, `GTH_DIAGNOSES_SUBMIT` | `GTH_GAME_START`, `GTH_PHASE1_START` (all patients ready — start drawing), `GTH_PHASE2_START` (all queues — no timestamp), `GTH_PHASE2_BEGIN` (host gate opened — carries `endTimestamp`; all devices start timer + show first case), `GTH_PHASE2_END` (timer expired — host authoritative), `GTH_REVEAL_NEXT`, `GTH_REVEAL_FINISH`, `GTH_FINAL_SCORES` |

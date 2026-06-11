@@ -56,6 +56,17 @@ const allScreens = [
   // Bailed
   'screen-bld-menu', 'screen-bld-setup', 'screen-bld-seating', 'screen-bld-pass-gate',
   'screen-bld-role-reveal', 'screen-bld-main', 'screen-bld-aftermath',
+  // Group Therapy
+  'screen-gth-menu', 'screen-gth-patient-intake', 'screen-gth-disorder-reveal', 'screen-gth-canvas',
+  'screen-gth-waiting-room', 'screen-gth-shrink-intro', 'screen-gth-case',
+  'screen-gth-case-report', 'screen-gth-big-reveal', 'screen-gth-final-report',
+  // Dicey Bluffs
+  'screen-dyb-menu', 'screen-dyb-seating', 'screen-dyb-shake',
+  'screen-dyb-table', 'screen-dyb-showdown', 'screen-dyb-gameover',
+  'screen-dyb-spirit-board',
+  // Pass
+  'screen-pass-menu', 'screen-pass-seating', 'screen-pass-table',
+  'screen-pass-round-wrap', 'screen-pass-gameover',
 ];
 
 // ── Web Audio API ─────────────────────────────────────────────────────────────
@@ -304,7 +315,7 @@ function toggleMute() {
   // Global overlay toggle
   const globalBtn = document.getElementById('global-mute-toggle');
   globalBtn.textContent = isMuted ? 'ON' : 'OFF';
-  globalBtn.className   = isMuted ? 'sylly-toggle-on' : 'sylly-toggle-off';
+  globalBtn.className   = isMuted ? getMuteToggleOnClass(activeGameId) : 'sylly-toggle-off';
   document.getElementById('global-volume-group').classList.toggle('volume-hidden', isMuted);
   // All screen speaker icons
   document.querySelectorAll('.btn-open-sound').forEach(b => {
@@ -313,6 +324,9 @@ function toggleMute() {
 }
 
 function openSoundOverlay() {
+  updateSliderTheme(activeGameId);
+  const muteBtn = document.getElementById('global-mute-toggle');
+  if (isMuted) muteBtn.className = getMuteToggleOnClass(activeGameId);
   document.getElementById('sound-overlay').style.display = 'flex';
 }
 
@@ -320,11 +334,24 @@ function updateSliderTheme(gameId) {
   const map = {
     'li5': 'li5-range', 'great-minds': 'sylly-range',
     'sylly-signals': 'ss-range', 'jec': 'jec-range',
-    'ce': 'ygi-range', 'lttp': 'lttp-range',
-    'nat': 'nat-range', 'dsd': 'dsd-range'
+    'ygi': 'ygi-range', 'lttp': 'lttp-range',
+    'nat': 'nat-range', 'dsd': 'dsd-range',
+    'gth': 'gth-range', 'bld': 'bld-range', 'dyb': 'dyb-range', 'pass': 'pass-range'
   };
   const el = document.getElementById('global-sound-volume');
-  el.className = (map[gameId] || 'sylly-range') + ' w-full';
+  el.className = (map[gameId] || 'stone-range') + ' w-full';
+}
+
+function getMuteToggleOnClass(gameId) {
+  const map = {
+    'li5': 'game-toggle-on-pink', 'great-minds': 'game-toggle-on-purple',
+    'sylly-signals': 'game-toggle-on-teal', 'jec': 'game-toggle-on-amber',
+    'ygi': 'game-toggle-on-orange', 'lttp': 'game-toggle-on-red',
+    'nat': 'game-toggle-on-lime', 'dsd': 'game-toggle-on-cyan',
+    'gth': 'game-toggle-on-sage', 'bld': 'game-toggle-on-yellow',
+    'dyb': 'game-toggle-on-stone', 'pass': 'game-toggle-on-zinc'
+  };
+  return map[gameId] || 'game-toggle-on-stone';
 }
 
 function shuffle(arr) {
@@ -421,6 +448,31 @@ function resetToLobby() {
   document.getElementById('bld-role-help-overlay').style.display       = 'none';
   document.getElementById('bld-tip-overlay').style.display             = 'none';
   if (typeof bldResetState === 'function') bldResetState();
+  // Group Therapy teardown
+  document.getElementById('gth-settings-overlay').style.display    = 'none';
+  document.getElementById('gth-how-to-overlay').style.display      = 'none';
+  document.getElementById('gth-quit-overlay').style.display        = 'none';
+  document.getElementById('gth-new-session-overlay').style.display = 'none';
+  if (typeof gthCountdownTimer !== 'undefined' && gthCountdownTimer) { clearInterval(gthCountdownTimer); gthCountdownTimer = null; }
+  if (typeof gthPhase2Timer !== 'undefined' && gthPhase2Timer) { clearInterval(gthPhase2Timer); gthPhase2Timer = null; }
+  if (typeof CanvasDraw !== 'undefined') {
+    const gthWrapper = document.getElementById('gth-canvas-wrapper');
+    if (gthWrapper) CanvasDraw.setTremor(gthWrapper, false);
+  }
+  if (typeof gthResetState === 'function') gthResetState();
+  // Dicey Bluffs teardown
+  document.getElementById('dyb-settings-overlay').style.display    = 'none';
+  document.getElementById('dyb-how-to-overlay').style.display      = 'none';
+  document.getElementById('dyb-quit-overlay').style.display        = 'none';
+  document.getElementById('dyb-new-game-overlay').style.display    = 'none';
+  document.getElementById('dyb-slick-picker-overlay').style.display = 'none';
+  dybMyRoll = []; dybAllRolls = []; dybActivePlayers = [];
+  dybOnesStripped = false; dybAllegationHistory = []; dybShakeReadyCheck = [];
+  // Pass teardown
+  document.getElementById('pass-settings-overlay').style.display = 'none';
+  document.getElementById('pass-how-to-overlay').style.display   = 'none';
+  document.getElementById('pass-quit-overlay').style.display     = 'none';
+  document.getElementById('pass-new-deal-overlay').style.display = 'none';
   // Help-tip overlay cleanup (Phase 21a)
   ['li5','gm','ss','jec','ygi','lttp','nat','dsd'].forEach(abbr => {
     const el = document.getElementById(`${abbr}-help-tip-overlay`);
@@ -458,6 +510,7 @@ function resetToLobby() {
     if (el) el.style.display = 'none';
   });
   updateSliderTheme(null);
+  if (isMuted) document.getElementById('global-mute-toggle').className = getMuteToggleOnClass(null);
   showScreen('screen-lobby');
 }
 
@@ -476,7 +529,7 @@ document.getElementById('btn-mute').textContent = isMuted ? '🔇' : '🔊';
 document.querySelectorAll('.btn-open-sound').forEach(b => { b.textContent = isMuted ? '🔇' : '🔊'; });
 const _globalMute = document.getElementById('global-mute-toggle');
 _globalMute.textContent = isMuted ? 'ON' : 'OFF';
-_globalMute.className   = isMuted ? 'sylly-toggle-on' : 'sylly-toggle-off';
+_globalMute.className   = isMuted ? getMuteToggleOnClass(activeGameId) : 'sylly-toggle-off';
 document.getElementById('global-sound-volume').value             = Math.round(masterVolume * 100);
 document.getElementById('global-volume-label').textContent       = `${Math.round(masterVolume * 100)}%`;
 document.getElementById('global-volume-group').classList.toggle('volume-hidden', isMuted);

@@ -1,4 +1,4 @@
-# Game Identities — Little Sylly Games
+﻿# Game Identities — Little Sylly Games
 
 ## Shared Rules (All Games)
 - **Sylly Mode** is always the **last setting** in every game's settings overlay — the "advanced rules signature"
@@ -695,3 +695,452 @@ The captain screen legend dynamically shows outcome text based on current settin
 - **Magnetic Drift (Sylly):** Applied by Host locally then reflected in `SYNC: DSD_EXECUTION_RESULT` grid state
 - **Key ACTION packets:** `DSD_PING_TRANSMIT` (Captain's clue word + number), `DSD_SEQUENCE_SUBMIT` (crew's ordered grid indices)
 - **Key SYNC packets:** `DSD_CREW_ACTIVE` (ping word + number for crew screen), `DSD_EXECUTION_RESULT` (tile outcomes + updated Valour + grid state), `DSD_GAMEOVER` (final scores)
+
+---
+
+## Game 9: Group Therapy (GTH)
+**Theme:** Simultaneous drawing + guessing party game. Everyone draws their assigned psychological disorders, then races to diagnose each other's anonymous scribbles.
+**Key file:** `js/games/gth.js`
+**Brand colour:** `#B1BCA0` (Muted Sage) — custom CSS variable `--color-gth-sage` | **Active pill:** `pill-active-sage`
+**Data file:** `data/gth-data.json`
+**Infrastructure:** `js/lib/canvas-draw.js` — `window.CanvasDraw` global drawing module
+**State flow:**
+```
+LOBBY (MDLM only) → GTH MENU → GTH PATIENT INTAKE (screen-gth-patient-intake) ← readyCheck gate
+→ [Phase 1 — Patient Phase, simultaneous]:
+    GTH CANVAS (screen-gth-canvas) ← drawing + countdown, repeated per disorder (no gate between)
+    GTH WAITING ROOM (screen-gth-waiting-room) ← waits for all players
+→ GTH SHRINK INTRO (screen-gth-shrink-intro)
+→ [Phase 2 — Shrink Phase, simultaneous]:
+    GTH CASE (screen-gth-case) ← standard (Diagnostic Cards) or Deep Dive (text input)
+    OR GTH CASE REPORT (screen-gth-case-report) ← queue exhausted before timer
+→ GTH BIG REVEAL (screen-gth-big-reveal) ← host-controlled, one drawing at a time
+→ GTH FINAL REPORT (screen-gth-final-report)
+```
+
+### Terminology
+| Term | Meaning |
+|------|---------|
+| The Session | A full game (one cycle of Phase 1 + Phase 2 + Reveal) |
+| Patient Phase | Phase 1 — each player draws their assigned disorders |
+| Shrink Phase | Phase 2 — each player diagnoses anonymous drawings |
+| The Disorder | The drawing prompt assigned to each patient |
+| The Grouping | `nono_list[0]` — not used in GTH; GTH uses its own `gth-data.json` |
+| Diagnostic Card | Multiple-choice answer card in standard mode |
+| Deep Dive | Hard Mode — Shrinks type their diagnosis; no Diagnostic Cards |
+| Case | One drawing in the Shrink Phase queue |
+| The Queue | Each player's personalised set of drawings to diagnose |
+| Waiting Room | `screen-gth-waiting-room` — passive screen while others finish drawing |
+| Case Report | `screen-gth-case-report` — passive screen when queue exhausted before timer |
+| The Big Reveal | `screen-gth-big-reveal` — host-controlled drawing-by-drawing reveal |
+| New Session | Play again — resets all state, preserves names + settings |
+| Walk Out | Quit during session |
+| Intake Form 📋 | Settings overlay title |
+| The Disclaimer 🛋️ | How-to overlay title |
+
+### Settings
+| Setting | Options | Default | Internal value |
+|---------|---------|---------|----------------|
+| Disorders per Patient | 2 / 3 / 4 | 3 | `gthDisordersPerPatient` int |
+| Drawing Time | 20s / 30s / 45s | 30s | `gthDrawingTime` int |
+| Diagnosis Window | 60s / 90s / 120s | 90s | `gthDiagnosisWindow` int |
+| Difficulty Mix | Everyday / Everyday + Phobias / All | Everyday + Phobias | `gthDifficultyMix` `'everyday'` / `'everyday+phobias'` / `'all'` |
+| Deep Dive | OFF / ON | OFF | `gthDeepDive` bool |
+| ✨ Sylly Mode (Stroke or Genius) | OFF / ON | OFF | `gthSyllyMode` bool |
+
+### Special Mechanics
+
+**Canvas drawing module (`CanvasDraw`):**
+- Exposes `window.CanvasDraw` global: `init(el)`, `clear()`, `lock()`, `render(el, data, opts)`, `setTremor(wrapperEl, bool)`, `setBlur(el, durationMs)`
+- Delta-encoded stroke format: `{ w, h, s: [[x0, y0, dx1, dy1, ...], ...] }` — deltas clamped to int8 (±127); strokes split on overflow
+- Tremor applies translate to `<div id="gth-canvas-wrapper">` NEVER to `<canvas>` itself — canvas coordinate system must be unaffected
+
+**Queue algorithm:** Each drawing assigned to exactly 2 player queues (never the artist's own). Gives `gthDisordersPerPatient × 2` drawings per queue.
+
+**Scoring:**
+| Outcome | Who scores | Points |
+|---------|-----------|--------|
+| Shrink diagnoses your drawing correctly | Patient (artist) | +2 |
+| Correct Shrink diagnosis | Shrink | +2 |
+| Speed bonus (fastest correct timestamp, one per drawing) | Shrink | +1 |
+| Tier 3 disorder correctly diagnosed | Shrink | +1 bonus |
+
+**Sylly Mode — Stroke or Genius:**
+- Phase 1: `CanvasDraw.setTremor(wrapper, true)` — canvas wrapper jiggles ±5px during drawing
+- Phase 2: `CanvasDraw.setBlur(renderCanvas, 3500)` — each case starts blurred, clears over 3.5s
+- Tremor applied to wrapper div only; never to canvas element (coordinate correctness)
+
+**Phase 2 timer sync:** `GTH_PHASE2_START` distributes queues only (no timestamp). Host shows the Shrink Phase intro gate; clients see a wait message. Host taps "Open the Case Files →" → broadcasts `GTH_PHASE2_BEGIN` with `endTimestamp`; all devices start the countdown from `Date.now()`. `GTH_PHASE2_END` SYNC from host is the authoritative timer-expiry trigger.
+
+**Big Reveal:** Host taps "Next Case →" → broadcasts `GTH_REVEAL_NEXT` with `revealIdx`; all devices advance. "Finish" button on last item → `GTH_REVEAL_FINISH` → all navigate to Final Report.
+
+### Overlay Types
+| Overlay | Pattern | z-index | Notes |
+|---------|---------|---------|-------|
+| `gth-settings-overlay` | Data (slide-up) | z-[80] | "Intake Form 📋" |
+| `gth-how-to-overlay` | Data (slide-up) | z-[90] | "The Disclaimer 🛋️" |
+| `gth-quit-overlay` | Decision modal | z-[80] | "Walk Out?" |
+| `gth-new-session-overlay` | Decision modal | z-[90] | "New Session?" — play-again confirmation |
+
+### Data schema (`data/gth-data.json`)
+
+| Field | Type | Purpose |
+|-------|------|---------|
+| `id` | string | `gth-NNN` — sequential, never reused |
+| `name` | string | Canonical answer — shown at Big Reveal and in Diagnostic Cards |
+| `display` | string | Patient-facing label on intake/reveal screen (usually = `name`) |
+| `definition` | string | One-sentence plain-English explanation shown before drawing |
+| `tip` | string | Drawable visual suggestion — one concrete scene in 30 seconds |
+| `category` | string | Thematic grouping for decoy selection (`neurosis`, `condition`, `phobia`, etc.) |
+| `difficulty` | number | `1` = everyday, `2` = classic phobia, `3` = complex condition. Tier 3 correct diagnosis gives a +1 Shrink bonus. |
+| `cluster` | string | **Optional.** Tight subgroup label (e.g. `"sleep"`). When set, 2 of 4 decoy cards come from the same cluster. Add only when ≥3 members exist. |
+| `aliases` | string[] | Deep Dive accepted answers — normalised lowercase; at least 3 per entry |
+
+### Multiplayer (Phase 30 + Phase 31)
+- **Mode:** MDLM only — `multiplayerOnly: true`, `supportedModes: ['mdlm']`, `recommendedMode: 'mdlm'`
+- **Min players:** 4 | **Max players:** 8
+- **rosterConfig:** `{ type: 'none' }` — no manual seat assignment; lobby fills automatically
+- **Shared screens:** `screen-mp-mode`, `screen-mp-lobby-host`, `screen-mp-lobby-join` (parameterised)
+- **No pass-gate screens** — same-room couch game; UX-based security
+- **Post-lobby routing:** `onPassThePhone` calls `gthStartSession()` directly — no menu re-visit
+- **Key ACTION packets:** `GTH_PATIENT_READY` (player ready on intake screen → host), `GTH_DRAWING_SUBMIT` (each player's drawings batch → host), `GTH_DIAGNOSES_SUBMIT` (each player's diagnoses batch → host; clients only — host stores directly)
+- **Key SYNC packets:** `GTH_GAME_START` (disorder assignments + playerNames for all players), `GTH_PHASE1_START` (all patients ready — start drawing simultaneously), `GTH_PHASE2_START` (all queues — no timestamp), `GTH_PHASE2_BEGIN` (host gate opened — carries `endTimestamp`; all devices start timer + show first case), `GTH_PHASE2_END` (timer expired — host authoritative), `GTH_REVEAL_NEXT` (host advances reveal), `GTH_REVEAL_FINISH` (host ends reveal), `GTH_FINAL_SCORES` (scores + revealItems for all)
+- **Host submission bypass:** Host stores own diagnoses directly into `gthAllDiagnoses` + `gthDiagnosesReady` without Firebase round-trip — avoids SYNC overwriting ACTION before `onValue` fires
+
+---
+
+## Game 11: Dicey Bluffs (DYB)
+**Theme:** Liar's Dice — each player shakes a private hand of dice, then players take turns making escalating claims about the full table. Call someone's bluff or be caught lying.
+**Tagline:** "Trust no one. Count every face."
+**Key file:** `js/games/dyb.js`
+**Brand colour:** `stone-700` | **Active pill:** `pill-active-stone`
+**State flow:**
+```
+LOBBY (MDLM only) → DYB MENU
+→ DYB SEATING (host only — shows roster before game starts)
+→ [Game loop:
+    DYB SHAKE (each player rolls privately) → DYB TABLE (bids escalate, Call Bluff ends the round)
+    → DYB SHOWDOWN (all hands revealed, animated tally, loser identified)
+    → (eliminated players routed to DYB SPIRIT BOARD from next Shake onwards)
+    → repeat until 1 player remains
+  ]
+→ DYB GAMEOVER
+```
+
+### Terminology
+| Term | Meaning |
+|------|---------|
+| Shake | One full round of rolling + bidding + showdown |
+| Allegation | A bid — the active player's claim about how many of a face exist across all dice on the table |
+| Call Bluff! | Challenge the previous allegation — triggers a Showdown |
+| Showdown | `screen-dyb-showdown` — all hands revealed; real count vs claimed count determines the loser |
+| The Table | `screen-dyb-table` — main gameplay screen showing pip row, bid history, and allegation controls |
+| Stealth Veil | The eye-icon toggle that hides/shows the player's own dice (prevents screen peeking) |
+| Slick Die | Chaos Mode die: face is privately assigned by the owner, opaque to all others |
+| Wild (1s) | Ones count as any face — behaviour depends on Wildcards Style setting |
+| Classic Wildcards | 1s count toward any bid |
+| Strict (No Wilds) | 1s are just 1s — no wild behaviour |
+| Volatile Wilds | 1s are wild UNTIL someone bids 1s directly — then they stop being wild for the round |
+| The Spirit Board | `screen-dyb-spirit-board` — eliminated player's passive spectator screen |
+| New Game | Play again — resets all match state, preserves names + settings |
+| Fold? | Quit confirm overlay heading |
+
+### Settings
+| Setting | Options | Default | Internal variable | Internal values |
+|---------|---------|---------|------------------|-----------------|
+| Wildcards Style | No Wilds / Classic / Volatile | Classic | `dybWildcardsStyle` | `'strict'` / `'classic'` / `'volatile'` |
+| Starting Hand | 3 / 4 / 5 | 5 | `dybStartingHand` | int |
+| ✨ Sylly Mode (Chaos Mode) | OFF / ON | OFF | `dybSyllyMode` | bool |
+| Chaos Level (sub-option) | slider 5–10 | 5 | `dybSyllyIntensity` | int — % chance per die of becoming Slick |
+
+### Scoring / Elimination
+| Outcome | Effect |
+|---------|--------|
+| `real < claimed` (bidder's claim was too high) | Bidder loses 1 die |
+| `real >= claimed` (challenger was wrong) | Challenger loses 1 die |
+| Player reaches 0 dice | Eliminated — added to `dybEliminationOrder`; moved to Spirit Board |
+| Last player standing | Winner |
+
+**Note:** There is no points currency — players are eliminated by losing dice. Rank at end = reverse elimination order (last eliminated = 2nd place).
+
+### Special Mechanics
+
+**Wildcards — Volatile mode:**
+`dybOnesStripped` starts `false` each Shake. If a player's allegation names face = 1, `dybOnesStripped = true` for the rest of the Shake. After that, 1s no longer count as wild — `dybComputeRealCount()` branches on this flag.
+
+**Slick dice (Chaos Mode):**
+`dybSyllyIntensity` % chance per die of becoming Slick on roll. Slick dice have no fixed face — owner chooses any face via `dyb-slick-picker-overlay` (z-[100]) at the table screen. Face is private; only the owner knows. Eliminated at showdown reveal alongside real dice.
+
+**Showdown animation (`dybRenderShowdownScreen`):**
+All hands revealed immediately. Count animates from 0 → real at 400ms/tick with `playTick()`. On reaching real: `playBoing()`, verdict shown (bidder/challenger label + loser name), `onDone()` callback fires. If real ≤ 0: 600ms pause then reveal (no ticking needed).
+
+**Opener rotation:**
+After each Showdown, `dybCurrentOpenerIdx` = loser (if still active) or next active player (if eliminated). The opener must place the first bid of the next Shake.
+
+### Overlay Types
+| Overlay | Pattern | z-index | Notes |
+|---------|---------|---------|-------|
+| `dyb-settings-overlay` | Data (slide-up) | z-[80] | "The House Rules 🎲" |
+| `dyb-how-to-overlay` | Data (slide-up) | z-[90] | How to Play |
+| `dyb-quit-overlay` | Decision modal | z-[80] | "Fold?" — mid-game exit |
+| `dyb-new-game-overlay` | Decision modal | z-[90] | "New Game?" — play-again confirm |
+| `dyb-slick-picker-overlay` | Decision modal | z-[100] | Slick die face picker — tapped from table screen; MUST be cleared in `resetToLobby()` AND in quit-confirm handler |
+
+### Screens
+| Screen ID | Purpose |
+|-----------|---------|
+| `screen-dyb-menu` | Main hub |
+| `screen-dyb-seating` | Host pre-game roster (MDLM only) |
+| `screen-dyb-shake` | Per-player private roll screen |
+| `screen-dyb-table` | Main bidding table — pip row, allegation controls, bid history |
+| `screen-dyb-spirit-board` | Eliminated player spectator view |
+| `screen-dyb-showdown` | Showdown reveal — animated count-up, verdict |
+| `screen-dyb-gameover` | Winner, elimination order, play-again / exit |
+
+### Multiplayer (Phase 31–32)
+- **Mode:** MDLM only — `multiplayerOnly: true`, `supportedModes: ['mdlm']`, `recommendedMode: 'mdlm'`
+- **Min players:** 3 | **Max players:** 8
+- **rosterConfig:** `{ type: 'none' }` — automatic seat assignment; no manual Assign Spots UI
+- **Shared screens:** `screen-mp-mode`, `screen-mp-lobby-host`, `screen-mp-lobby-join` (parameterised)
+- **Post-lobby routing:** `onPassThePhone` (host) → `dybShowSeating()` directly; clients wait for `DYB_GAME_START`
+- **Roll privacy:** Each device rolls and stores its own `dybMyRoll`. Rolls are NOT broadcast until Showdown — host collects them via `DYB_ROLL_SUBMIT` ACTION packets. `dybAllRolls` is host-only until `DYB_SHOWDOWN` SYNC.
+- **Slick picker:** Local only — owner chooses their Slick die face on their own device. Face is broadcast only in `DYB_SHOWDOWN` via `allSlickFaces`.
+- **Key ACTION packets:** `DYB_ROLL_SUBMIT` (player's dice + special types → host), `DYB_ALLEGATION` (bid face + qty → host), `DYB_CALL_BLUFF` (challenger → host)
+- **Key SYNC packets:** `DYB_GAME_START` (playerNames, diceCount, syllyMode, syllyIntensity, seatNumbers), `DYB_SPIRIT_SHAKE` (allRolls + activePlayers → eliminated devices route to Spirit Board), `DYB_SHAKE_ACTIVE` (activePlayers + dice — start shake for active players), `DYB_ALLEGATION_SYNC` (bid + nextBidderIdx + history), `DYB_SHOWDOWN` (all hands revealed + loser + elimination + gameOver), `DYB_GAMEOVER` (winner + elimination order)
+
+---
+
+## Game 10: Bailed (BLD)
+**Theme:** Social deduction + cooperative sabotage. Friends try to pull off 5 group plans; hidden Flakes try to derail them. Pass a majority vote on the group selection and complete mission cards — but Flakes will vote against and play bail cards.
+**Key file:** `js/games/bld.js`
+**Brand colour:** `yellow-500` | **Active pill:** `pill-active-yellow`
+**State flow:**
+```
+LOBBY (MDLM only) → BLD MENU
+→ BLD SETUP (PTP only — MDLM skips via onPassThePhone)
+→ BLD SEATING (MDLM only — random seat numbers assigned)
+→ [Role reveal loop: BLD PASS GATE → BLD ROLE REVEAL (×N players)]
+→ [Plan loop (5 plans):
+    NOMINATING (Planner selects group) → VOTING (all vote Sounds Good / No Way)
+    → (re-nominate if rejected, up to 5 attempts — Flakes win if 5th rejected)
+    → MISSION CARDS (selected group plays cards: In / Bail)
+    → PLAN RESULT (success or bail)
+    (Drama Mode: if 3+ successes, BIG FLAKE IDENTIFICATION → DRAMA GUESS before final plan)
+  ]
+→ BLD AFTERMATH
+```
+
+### Terminology
+| Term | Meaning |
+|------|---------|
+| Friends | Cooperative players — want all 5 plans to succeed |
+| Flakes | Hidden saboteurs — want plans to fail |
+| Pot-Stirrer | (Drama Mode) one Flake who knows the other Flakes' identities |
+| Big Flake | (Drama Mode) one Flake who must identify a Friend or forfeit bonus |
+| The Planner | The active player who nominates the group for the current plan |
+| The Group | The nominated subset of players who play mission cards |
+| Mission Card | Each selected player plays "In" or "Bail" — Flakes can bail |
+| Bail | Sabotage card — a bail in the group fails the plan |
+| Patience Meter | Tracks how many nomination attempts remain (5 max) |
+| Bailed | The game name — also used as the plan-failure verb |
+| Drama Mode | Sylly Mode — adds Pot-Stirrer + Big Flake roles and identification phase |
+| The Itinerary | End-of-game plan history overlay (aftermath screen) |
+| New Night Out | Play again — resets all state, preserves names + settings |
+| Walk Out | Quit during game |
+| The Group Chat | Settings overlay title |
+
+### Settings
+| Setting | Options | Default | Internal variable |
+|---------|---------|---------|------------------|
+| Players | 5 / 6 / 7 / 8 / 9 / 10 | 5 | `bldPlayerCount` int |
+| ✨ Sylly Mode (Drama Mode) | OFF / ON | OFF | `bldDramaMode` bool |
+
+### Role Distribution (`BLD_ROLE_TABLE`)
+| Players | Friends | Flakes |
+|---------|---------|--------|
+| 5 | 3 | 2 |
+| 6 | 4 | 2 |
+| 7 | 4 | 3 |
+| 8 | 5 | 3 |
+| 9 | 6 | 3 |
+| 10 | 6 | 4 |
+
+### Group Sizes Per Plan (`BLD_GROUP_TABLE`)
+Each row = [Plan1, Plan2, Plan3, Plan4, Plan5] group sizes for that player count.
+
+| Players | P1 | P2 | P3 | P4 | P5 |
+|---------|----|----|----|----|----|
+| 5 | 2 | 3 | 2 | 3 | 3 |
+| 6 | 2 | 3 | 4 | 3 | 4 |
+| 7 | 2 | 3 | 3 | 4 | 4 |
+| 8 | 3 | 4 | 4 | 5 | 5 |
+| 9 | 3 | 4 | 4 | 5 | 5 |
+| 10 | 3 | 4 | 4 | 5 | 5 |
+
+**Note:** Plan 4 with 7+ players requires 2 Bails to fail (not 1).
+
+### Plans (`BLD_PLANS`)
+In narrative sequence: Booking Accommodation 🏠 → Who's Driving 🚗 → Food Pickup 🍕 → Alcohol Run 🍾 → The Big Party 🎉
+
+### Scoring
+- **Friends win:** 3+ plans succeed → each Friend earns a point
+- **Flakes win:** 5th nomination rejected (patience exhausted) OR 3+ plans fail
+- **Drama Mode — Big Flake bonus:** +1 to Big Flake if they correctly identify a Friend after 3 successes
+
+### Special Mechanics
+
+**Nomination flow:**
+- Planner (rotates by seat number) selects a group → all players vote Sounds Good / No Way
+- Majority decides; ties go to Friends
+- 5th rejected nomination = Flakes win immediately (Patience Meter reaches 0)
+
+**Mission cards:**
+- Only selected group members play; others watch
+- Friends must play "In"; Flakes can choose "In" or "Bail"
+- 1 Bail fails the plan (except Plan 4 with 7+ players: 2 Bails required)
+- Cards submitted secretly, revealed simultaneously
+
+**Drama Mode (Sylly Mode):**
+- Adds Pot-Stirrer (knows all Flake identities) and Big Flake (one Flake who gets a bonus guess)
+- After 3 plan successes, triggers identification phase before the final plan
+- Big Flake must guess a Friend — correct = +1 Credibility; wrong = no bonus
+- Pot-Stirrer's identity is never revealed to Friends during the game
+
+**Seat numbers:**
+- Assigned randomly at game start (1..N, shuffled) — not manually assigned
+- Planner rotation follows seat order, not join order
+- Displayed in header and role reveal screen in MDLM
+
+**Fellow Flakes indicator:**
+- In MDLM, Flake devices show fellow Flakes' names in the header (`#bld-header-fellow-flakes`)
+- Hidden for Friends; also hidden in single-device (PTP) mode
+
+### Overlay Types
+| Overlay | Pattern | z-index | Notes |
+|---------|---------|---------|-------|
+| `bld-settings-overlay` | Data (slide-up) | z-[80] | "The Group Chat" |
+| `bld-how-to-overlay` | Data (slide-up) | z-[90] | "How to Play 📋" |
+| `bld-quit-overlay` | Decision modal | z-[80] | "Walk Out?" |
+| `bld-second-chances-overlay` | Decision modal | z-[90] | Patience-exhausted Flake win confirm |
+| `bld-pass-reveal-overlay` | Decision modal | z-[90] | Pass-the-phone handoff before role reveal |
+| `bld-role-help-overlay` | Decision modal | z-[90] | Role-specific rules reference |
+| `bld-plan-detail-overlay` | Decision modal | z-[90] | Per-plan history detail (aftermath tappable tiles) |
+| `bld-tip-overlay` | Decision modal | z-[90] | Shared tip overlay — `bldShowTip(emoji, heading, lines[])` drives all contextual `[?]` buttons |
+| `bld-new-night-overlay` | Decision modal | z-[90] | "New Night Out?" — play-again confirmation |
+
+### Screens
+| Screen ID | Purpose |
+|-----------|---------|
+| `screen-bld-menu` | Main menu |
+| `screen-bld-setup` | Player name entry (PTP only — MDLM skips) |
+| `screen-bld-seating` | Seat number assignment display (MDLM only) |
+| `screen-bld-pass-gate` | Pass-the-phone gate before role reveal |
+| `screen-bld-role-reveal` | Per-player role reveal — Friends, Flakes, Pot-Stirrer, Big Flake |
+| `screen-bld-main` | Main gameplay — plan tiles, patience meter, phase content |
+| `screen-bld-aftermath` | End-of-game itinerary + result reveal |
+
+### Multiplayer (Phase 30–31)
+- **Mode:** MDLM only — `multiplayerOnly: true`, `supportedModes: ['mdlm']`, `recommendedMode: 'mdlm'`
+- **Max players:** 10 | **Min players:** 5
+- **rosterConfig:** `{ type: 'none' }` — automatic seat assignment; no manual Assign Spots UI
+- **Shared screens:** `screen-mp-mode`, `screen-mp-lobby-host`, `screen-mp-lobby-join` (parameterised)
+- **Post-lobby routing:** `onPassThePhone` (host) → `bldShowSeatingSetup()` directly; clients wait for `BLD_GAME_START`
+- **PTP routing:** `onPassThePhone` (single) → `bldShowSetup()` for manual name entry
+- **Role security:** All role arrays broadcast in `BLD_GAME_START`; each device renders only its own slot (couch security — same pattern as NAT)
+- **Key ACTION packets:** `BLD_VOTE_SUBMIT` (player's vote: "Sounds Good" / "No Way"), `BLD_MISSION_SUBMIT` (player's mission card: "In" / "Bail"), `BLD_NOMINATION_CONFIRMED` (Planner locks group → Host re-broadcasts as SYNC), `BLD_DRAMA_GUESS` (Big Flake's Friend guess)
+- **Key SYNC packets:** `BLD_GAME_START` (playerCount, dramaMode, flakeIndices, bigFlakeIdx, potStirrerIdx, seatNumbers, playerNames), `BLD_NOMINATION_CONFIRMED` (group + currentPlanIdx), `BLD_VOTE_RESULT` (votes + outcome), `BLD_MISSION_START` (mission card phase begin), `BLD_MISSION_RESULT` (cards + bailCount + outcome), `BLD_NEXT_NOMINATION` (advance to next nomination), `BLD_DRAMA_IDENTIFICATION` (trigger Big Flake guess phase), `BLD_AFTERMATH` (final result + planHistory)`
+
+
+---
+
+## Game 12: Pass (PASS)
+**Theme:** Climbing card game (Gan Deng Yan style). Players shed cards by playing combos one rank higher than the table. Bombs override rank; Jokers act as wild cards. Last to empty their hand pays the most chips.
+**Tagline:** "Shed your hand, climb the table."
+**Key file:** `js/games/pass.js`
+**Brand colour:** `zinc-900` (#18181b) | **Active pill:** `pill-active-zinc`
+**State flow:**
+```
+LOBBY (MDLM only) → PASS MENU
+→ PASS SEATING (host only — shows seat order before deal)
+→ [Match loop:
+    PASS TABLE (bidding + playing + passing)
+    → PASS ROUND WRAP (chip deltas, winner, Next Round for host)
+    → repeat until match over
+  ]
+→ PASS GAMEOVER
+```
+
+### Terminology
+| Term | Meaning |
+|------|---------|
+| Combo | A valid group of cards played together (Single, Pair, Triplet, Quad, Sequence, Double Sequence) |
+| The Table | The current combo all players must beat — `passTableCombo` |
+| Bomb | A Triplet, Quad, or Double Joker — overrides any non-Bomb combo |
+| Sequence | M consecutive ranks (2s excluded; min length configurable) |
+| Double Sequence | N pairs of consecutive ranks (N ≥ 2 pairs; 2s excluded) |
+| The Abyss | Sylly Mode: face-up central pool; grows on every Pass |
+| Detonation | Sylly Mode: a Bomb or Sequence triggers the Abyss to deal clockwise |
+| Fracture | Sylly Mode: Abyss reaches 13 cards — everyone draws |
+| Stealth Veil | 👁️ toggle to hide your own dice from screen peekers |
+| New Deal | Play again — resets chip stacks, preserves names + settings |
+| Walk Away | Quit during a match |
+| The House Rules 🃏 | Settings overlay title |
+
+### Settings
+| Setting | Options | Default | Internal variable | Internal values |
+|---------|---------|---------|------------------|-----------------|
+| Starting Hand | 5 / 6 / 7 | 5 | `passHandSize` | int |
+| Chip Stack | 50 / 100 / 150 | 100 | `passChipStack` | int |
+| Match Length | 5 / 10 / Endless | 5 | `passMatchDuration` | `'5'` / `'10'` / `'endless'` |
+| Bomb Rules | Standard / Heavy | Standard | `passBombStrictness` | `'standard'` / `'heavy'` |
+| Minimum Sequence | 3 / 4 / 5 | 3 | `passMinSequenceLength` | int |
+| Jokers | None / 2 / 4 | 2 | `passJokerCount` | int |
+| Mid-Game Draw | OFF / ON | OFF | `passMidGameDraw` | bool |
+| Sky Joker | OFF / ON | OFF | `passSkyJokerVariant` | bool |
+| ✨ Sylly Mode (The Abyss) | OFF / ON | OFF | `passSyllyMode` | bool |
+
+### Scoring
+| Outcome | Who scores | Chips |
+|---------|-----------|-------|
+| Round winner (emptied hand) | Winner | +sum of all penalties |
+| Holding 13+ cards | Loser | −handLength × 3 |
+| Never played a card | Loser | −handLength × 2 |
+| Played at least once | Loser | −handLength × 1 |
+
+### Special Mechanics
+
+**Rank hierarchy:** 3 < 4 < 5 < 6 < 7 < 8 < 9 < 10 < J < Q < K < A < 2 < Joker (< Sky Joker)
+- 2s are NOT part of sequences; they beat any non-2 single/pair of their type but still must be +1 relative to K/A pairs when climbing rank-to-rank
+- Single Joker: only playable as your very last card on an open table (Sky Joker OFF); or freely as solo/combination (Sky Joker ON)
+- Double Joker: absolute max Bomb — nothing beats it
+
+**Climb rule:** Every valid play must be exactly one rank higher than `passTableCombo.rank` (except 2s and Jokers as described above; Bombs override this entirely).
+
+**Two-Natural-Card Anchor:** Sequences and Double Sequences with Jokers require at least 2 natural (non-Joker) cards. A combo of 1 natural + 3 Jokers is invalid.
+
+**Full-circuit pass:** If all players pass without anyone playing, the table clears (`passTableCombo = null`); the last player to lead plays again on an open table.
+
+**Seat order:** Join order = seat order. Host = seat 1. No shuffle. Deliberate design: no hidden roles, so join order is fair and predictable.
+
+**Sylly Mode — The Abyss:**
+- Every Pass feeds one card from the draw deck face-up into `passAbyss[]`
+- Bomb or Sequence played → detonation: Abyss cards deal clockwise to opponents (winner exempt); Abyss clears
+- Abyss reaches 13 → Fracture: all players draw one card clockwise; Abyss then continues from next pass
+- Abyss cards are rendered in a horizontal scroll strip above the hand (inline — not an overlay; DYB BUG-05 ghost-interceptor lesson applied)
+
+### Overlay Types
+| Overlay | Pattern | z-index | Notes |
+|---------|---------|---------|-------|
+| `pass-settings-overlay` | Data (slide-up) | z-[80] | "The House Rules 🃏" |
+| `pass-how-to-overlay` | Data (slide-up) | z-[90] | How to Play |
+| `pass-quit-overlay` | Decision modal | z-[80] | "Walk Away?" |
+| `pass-new-deal-overlay` | Decision modal | z-[90] | "New Deal?" — play-again confirmation |
+
+### Multiplayer (Phase 32)
+- **Mode:** MDLM only — `multiplayerOnly: true`, `supportedModes: ['mdlm']`, `recommendedMode: 'mdlm'`
+- **Min players:** 3 | **Max players:** 6
+- **rosterConfig:** `{ type: 'none' }` — automatic seat assignment (join order)
+- **Shared screens:** `screen-mp-mode`, `screen-mp-lobby-host`, `screen-mp-lobby-join` (parameterised)
+- **Roll privacy:** Each device holds its own hand (`passHands[mpMyPlayerIdx]`). Opponent hands are placeholder arrays of correct length — never sent to wrong devices.
+- **Key ACTION packets:** `PASS_PLAY_SUBMIT` (card indices → host validates), `PASS_PASS_SUBMIT` (player passes → host processes), `PASS_PLAYER_LEFT` (client quit → host dissolves match)
+- **Key SYNC packets:** `PASS_GAME_START` (hands + chips for new round), `PASS_TURN_RESULT` (table state after every play/pass), `PASS_ABYSS_DRAFT` (Sylly Mode detonation/fracture), `PASS_ROUND_END` (chip deltas + winner), `PASS_GAMEOVER` (final scores), `PASS_MATCH_DISSOLVED` (player left)

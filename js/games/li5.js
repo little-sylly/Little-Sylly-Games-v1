@@ -714,7 +714,7 @@ function li5ShowHelpTip(emoji, heading, tip) {
 
 // ── Event listeners ───────────────────────────────────────────────────────────
 document.getElementById('btn-dstw')
-  .addEventListener('click', () => { activeGameId = 'li5'; updateSliderTheme('li5'); playLaunch(); showScreen('screen-menu'); });
+  .addEventListener('click', () => { activeGameId = 'li5'; playLaunch(); showScreen('screen-menu'); });
 
 document.getElementById('btn-back-to-lobby')
   .addEventListener('click', () => { playExit(); resetToLobby(); });
@@ -830,8 +830,7 @@ document.getElementById('sylly-toggle').addEventListener('click', () => {
 
 document.getElementById('sylly-intensity').addEventListener('input', e => {
   settingSyllyPct = parseInt(e.target.value);
-  const label = document.getElementById('sylly-intensity-label');
-  label.textContent = settingSyllyPct === 100 ? '100% 🔥' : `${settingSyllyPct}%`;
+  document.getElementById('sylly-intensity-label').textContent = `${settingSyllyPct}% wild cards`;
   playSliderTick(settingSyllyPct);
 });
 

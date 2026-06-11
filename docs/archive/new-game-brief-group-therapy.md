@@ -1,14 +1,17 @@
 # New Game Brief — Group Therapy
 **Document type:** Phase 1 — Design Brief
-**Version:** v0.3 — FINAL. All design decisions confirmed and locked.
+**Version:** v0.5 — updated June 2026. Phase 30 active — technical spec written.
 **Template:** Follows `new-game-brief-template.md`
-**Status:** Parked pending Phase 21a + 21b (MFS) + Drawing Module build. Revisit before technical spec.
+**Status:** Phase 30 Active. Technical spec: `docs/new-game-tech-group-therapy.md`
 
-> ⚠️ **MFS Revisit Required**
-> Written before multiplayer implementation. Before converting to a technical spec, review §10 (Multiplayer) against completed MFS v1.4. Both phases are simultaneously-active individual-device flows depending on the readyCheck matrix and finish-then-push patterns.
+> ✅ **Multiplayer: confirmed in production (Phase 29)**
+> All 8 games are live with Firebase multiplayer as of Phase 29. The readyCheck matrix, finish-then-push writes, Firebase RTDB, individual device lobby, and room code patterns are all proven and stable. When writing the technical spec, reference BLD as the nearest comparable implementation — simultaneous individual-device input, finish-then-push draws, readyCheck matrix for phase transitions.
 
-> ⚠️ **Drawing Module Dependency**
-> This game requires the drawing canvas module (Option 1 — delta-compressed vector coordinates with relative delta encoding). The drawing module must be built and confirmed as shared infrastructure (`js/lib/canvas-draw.js`) before this game's technical spec is written. Group Therapy is the drawing module's first consumer, not its test-bed.
+> ✅ **Drawing Module Dependency — resolved**
+> `js/lib/canvas-draw.js` is specced and built as part of Phase 30. Group Therapy is the first consumer — the module is designed as shared infrastructure from day one. Technical spec §2 covers the full API.
+
+> ✅ **Big Reveal control — confirmed**
+> Host-controlled. Host taps "Next Case →" to advance each drawing in the reveal sequence. All devices advance simultaneously via `GTH_REVEAL_NEXT` SYNC broadcast. Rationale: gives the group time to react, laugh, and argue before moving on — the social payoff of the reveal.
 
 ---
 
@@ -288,14 +291,14 @@ Diagnostic Cards pull 3–5 decoys from the same `tier` and `category` as the co
 - Phase 2 writes: player accumulates diagnoses locally, writes full array at timer expiry to `/rooms/{code}/players/{idx}/diagnoses[]`. Finish-then-push.
 - Stroke or Genius effects: entirely client-side CSS. Zero Firebase involvement.
 
-> ⚠️ **MFS Revisit:** Confirm simultaneous Phase 1 write pattern (all players writing ~6 KB of drawing data within seconds of each other) against RTDB concurrent-write limits before implementation.
+> 📋 **Technical spec note:** The simultaneous Phase 1 write pattern (all players writing ~6 KB of drawing data within seconds of each other) should be validated against RTDB concurrent-write behaviour during the technical spec. BLD's simultaneous submission pattern is the closest existing reference — check whether its Phase 1 write volume is comparable and whether any throttling was needed.
 
 ---
 
 ## 11. Screens — Plain English List
 
 1. **Game menu** — title, tagline, The Disclaimer (how to play), Intake Form (settings), Stroke or Genius toggle, Back to the Box
-2. **Lobby** — players join, ready states, host starts when all ready (MFS v1.4 standard lobby)
+2. **Lobby** — players join, ready states, host starts when all ready (standard multiplayer lobby — same pattern as all 8 live games)
 3. **Disorder reveal** — each player privately sees their next disorder: name, definition, tip. Tap "Ready to Draw" to start clock.
 4. **The Canvas** — drawing screen. Disorder name at top, countdown, drawing canvas. "Done" to submit early; timer auto-submits. In Stroke or Genius: wrapper div receives tremor CSS.
 5. **Between disorders** — brief transition showing "Issue 2 of 3" + next disorder name and tip. Tap to start next countdown.

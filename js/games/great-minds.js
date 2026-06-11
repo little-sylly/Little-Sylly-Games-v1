@@ -631,7 +631,7 @@ function gmTriggerVictory() {
 
 // ── GM Event Listeners ────────────────────────────────────────────────────────
 document.getElementById('btn-great-minds')
-  .addEventListener('click', () => { activeGameId = 'great-minds'; updateSliderTheme('great-minds'); playLaunch(); showScreen('screen-gm-menu'); });
+  .addEventListener('click', () => { activeGameId = 'great-minds'; playLaunch(); showScreen('screen-gm-menu'); });
 
 document.getElementById('btn-gm-names-done').addEventListener('click', () => {
   const p1 = document.getElementById('gm-input-player1').value.trim() || 'Mind 1';

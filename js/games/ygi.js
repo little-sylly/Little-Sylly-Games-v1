@@ -65,8 +65,7 @@ function ygiShowHelpTip(emoji, heading, tip) {
 // ── Lobby → CE Menu ───────────────────────────────────────────────────────────
 document.getElementById('btn-ygi').addEventListener('click', () => {
   playLaunch();
-  activeGameId = 'ce';
-  updateSliderTheme('ce');
+  activeGameId = 'ygi';
   showScreen('screen-ygi-menu');
 });
 

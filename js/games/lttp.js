@@ -94,7 +94,6 @@ document.addEventListener('DOMContentLoaded', () => {
   // ── Lobby → LTTP Menu ──────────────────────────────────────────────────────
   document.getElementById('btn-lttp').addEventListener('click', () => {
     activeGameId = 'lttp';
-    updateSliderTheme('lttp');
     playLaunch();
     showScreen('screen-lttp-menu');
   });

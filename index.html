@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -64,6 +64,15 @@
       </button>
       <button id="btn-bld" class="min-h-14 w-full rounded-2xl bg-yellow-500 hover:bg-yellow-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
         Bailed
+      </button>
+      <button id="btn-gth" class="min-h-14 w-full rounded-2xl active:scale-95 text-white text-xl font-semibold transition-all duration-150" style="background-color:#B1BCA0">
+        Group Therapy
+      </button>
+      <button id="btn-dyb" class="min-h-14 w-full rounded-2xl bg-stone-400 hover:bg-stone-500 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Dicey Bluffs
+      </button>
+      <button id="btn-pass" class="min-h-14 w-full rounded-2xl bg-zinc-900 hover:bg-zinc-800 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Pass
       </button>
     </div>
   </section>
@@ -374,12 +383,11 @@
           </div>
           <p class="text-stone-600 text-sm font-semibold">Wild Words</p>
           <p class="text-stone-400 text-sm">Mixed in with the deck — correct answers score double, but also penalties!</p>
-          <div id="sylly-pct-row" style="display:none">
-            <p class="text-pink-400 text-sm font-semibold uppercase tracking-widest mb-2">
-              Sylly Intensity — <span id="sylly-intensity-label">30%</span>
-            </p>
+          <div id="sylly-pct-row" style="display:none" class="flex flex-col gap-2 mt-1">
+            <p class="text-stone-500 text-sm font-semibold">Wild Level</p>
             <input id="sylly-intensity" type="range" min="30" max="100" step="10" value="30"
               class="li5-range w-full" />
+            <p id="sylly-intensity-label" class="text-stone-400 text-xs">30% wild cards</p>
           </div>
         </div>
 
@@ -1056,7 +1064,7 @@
 
   <!-- Signal Boost overlay (Great Minds) — optional context before locking in -->
   <div id="gm-boost-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[95] flex overlay-modal-backdrop">
-    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 border border-purple-300 border border-purple-300">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 border border-purple-300">
       <div class="text-center">
         <p class="text-lg font-bold text-stone-800">Boost Signal ⚡</p>
         <p class="text-stone-400 text-sm mt-1">Hint at category, relationship, or part of speech (15 chars max).</p>
@@ -1080,7 +1088,7 @@
 
   <!-- Neural Library modal (Signal Boost guide) -->
   <div id="gm-neural-library-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[100] flex overlay-modal-backdrop">
-    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 border border-purple-300 border border-purple-300">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 border border-purple-300">
       <div class="text-center">
         <p class="text-lg font-bold text-stone-800">Boost Signal Guide ⚡</p>
         <p class="text-stone-400 text-sm mt-1 font-semibold">Provide Metadata, not Synonyms.</p>
@@ -1105,7 +1113,7 @@
 
   <!-- New Frequency confirmation overlay (Great Minds) -->
   <div id="gm-new-frequency-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[95] flex overlay-modal-backdrop">
-    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 border border-purple-300 border border-purple-300">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 border border-purple-300">
       <p class="text-lg font-bold text-stone-800 text-center">Session Terminal</p>
       <button id="btn-gm-new-game-confirm" class="min-h-14 w-full rounded-2xl bg-violet-500 hover:bg-violet-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
         Memory Purge ⚛️
@@ -1938,7 +1946,7 @@
       <div id="global-volume-group">
         <p class="text-stone-400 text-sm font-semibold mb-2">Volume — <span id="global-volume-label">60%</span></p>
         <input id="global-sound-volume" type="range" min="0" max="100" step="10" value="60"
-          class="sylly-range w-full" />
+          class="stone-range w-full" />
       </div>
       <button id="btn-sound-overlay-done" class="min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
         Done
@@ -3154,7 +3162,7 @@
   ════════════════════════════════════════════════════════════════ -->
 
   <!-- lttp-① MENU -->
-  <section id="screen-lttp-menu" style="display:none" class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6 min-h-screen">
+  <section id="screen-lttp-menu" style="display:none" class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
     <button class="btn-open-sound absolute top-4 right-4 text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
     <div class="text-6xl" role="img" aria-label="Running man">🏃‍♂️</div>
     <div>
@@ -3801,6 +3809,7 @@
   <!-- Load order: engine → multiplayer → plugins → secret-mode → bootstrapper -->
   <script src="js/engine.js"></script>
   <script src="js/engine-multiplayer.js"></script>
+  <script src="js/lib/canvas-draw.js"></script>
   <script src="js/games/li5.js"></script>
   <script src="js/games/great-minds.js"></script>
   <script src="js/games/secret-signals.js"></script>
@@ -3814,7 +3823,7 @@
   ════════════════════════════════════════════════════════════════ -->
 
   <!-- nat-① MENU -->
-  <section id="screen-nat-menu" style="display:none" class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6 min-h-screen">
+  <section id="screen-nat-menu" style="display:none" class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
     <button class="btn-open-sound absolute top-4 right-4 text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
     <div class="text-6xl" role="img" aria-label="Lion">🦁</div>
     <div>
@@ -4376,7 +4385,7 @@
 
   <!-- dsd-① MENU -->
   <section id="screen-dsd-menu" style="display:none"
-    class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6 min-h-screen">
+    class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
     <button class="btn-open-sound absolute top-4 right-4 text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
     <div class="text-6xl" role="img" aria-label="Anchor">⚓</div>
     <div>
@@ -5812,10 +5821,834 @@
 
   <script src="js/games/jec.js"></script>
   <script src="js/games/ygi.js"></script>
-  <script src="js/games/lttp.js"></script>
+
+  <!-- ════ GROUP THERAPY ════
+       Screens : screen-gth-menu, screen-gth-patient-intake, screen-gth-disorder-reveal, screen-gth-canvas,
+                 screen-gth-waiting-room, screen-gth-shrink-intro, screen-gth-case,
+                 screen-gth-case-report, screen-gth-big-reveal, screen-gth-final-report
+       Overlays: gth-settings-overlay, gth-how-to-overlay, gth-quit-overlay, gth-new-session-overlay
+    ════════════════════════════════════════════════════════════════════════════════════ -->
+
+  <!-- GTH MENU -->
+  <section id="screen-gth-menu" style="display:none"
+    class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
+    <button class="btn-open-sound absolute top-4 right-4 text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+    <div class="text-6xl" role="img" aria-label="Couch">🛋️</div>
+    <div>
+      <h1 class="text-4xl font-bold text-stone-800">Group Therapy</h1>
+      <p class="text-stone-400 text-base mt-1">We've all got issues. Now draw them.</p>
+    </div>
+    <div class="flex flex-col gap-4 w-full mt-2">
+      <button id="btn-gth-menu-play" class="min-h-14 w-full rounded-2xl active:scale-95 text-white text-xl font-semibold transition-all duration-150" style="background-color:#B1BCA0">Start the Session 🛋️</button>
+      <button id="btn-gth-menu-how-to" class="min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-xl font-semibold transition-all duration-150">How to Play</button>
+      <button id="btn-gth-menu-settings" class="min-h-14 w-full rounded-2xl active:scale-95 text-xl font-semibold transition-all duration-150" style="background-color:#e8ede3;color:#6b7a5f">Settings</button>
+      <button id="btn-gth-menu-back" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-base font-medium transition-all duration-150">← Back to the Box</button>
+    </div>
+  </section>
+
+  <!-- GTH PATIENT INTAKE -->
+  <section id="screen-gth-patient-intake" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-6">
+      <div class="flex items-center justify-end">
+        <div class="flex items-center gap-2">
+          <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+          <button class="btn-gth-quit-open text-xl text-stone-500 font-bold active:scale-90 transition-transform duration-100">✕</button>
+        </div>
+      </div>
+      <div class="text-center">
+        <div class="text-5xl mb-3">🛋️</div>
+        <h2 class="text-2xl font-bold text-stone-800">Welcome to Group Therapy</h2>
+        <p class="text-stone-400 text-sm mt-2 leading-relaxed">Thanks for checking yourself in. Our shrinks will be with you shortly. In the meantime, please illustrate your current symptoms.</p>
+      </div>
+      <div>
+        <p class="text-xs font-semibold uppercase tracking-widest mb-2" style="color:#B1BCA0">Your Symptoms</p>
+        <div id="gth-intake-disorders" class="flex flex-col gap-2"></div>
+      </div>
+      <button id="btn-gth-intake-ready" class="min-h-14 w-full rounded-2xl active:scale-95 text-white text-xl font-semibold transition-all duration-150" style="background-color:#B1BCA0">
+        I'm Ready to Draw →
+      </button>
+    </div>
+  </section>
+
+  <!-- GTH DISORDER REVEAL -->
+  <section id="screen-gth-disorder-reveal" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-6">
+      <div class="flex items-center justify-between">
+        <p id="gth-reveal-progress" class="text-stone-400 text-xs font-semibold uppercase tracking-widest"></p>
+        <div class="flex items-center gap-2">
+          <button id="btn-gth-how-to" class="text-stone-400 font-bold text-sm active:scale-90 transition-transform duration-100">[?]</button>
+          <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+          <button class="btn-gth-quit-open text-xl text-stone-500 font-bold active:scale-90 transition-transform duration-100">✕</button>
+        </div>
+      </div>
+
+      <!-- Preview sub-state -->
+      <div id="gth-reveal-preview" class="flex flex-col gap-4">
+        <div class="text-center">
+          <h2 id="gth-reveal-name" class="text-3xl font-bold text-stone-800"></h2>
+          <p id="gth-reveal-definition" class="text-stone-500 text-base mt-2 leading-relaxed"></p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm">
+          <p class="text-xs font-semibold uppercase tracking-widest mb-2" style="color:#B1BCA0">Drawing Tip 🎨</p>
+          <p id="gth-reveal-tip" class="text-stone-600 text-sm leading-relaxed"></p>
+        </div>
+        <button id="btn-gth-reveal-ready" class="min-h-14 w-full rounded-2xl active:scale-95 text-white text-xl font-semibold transition-all duration-150" style="background-color:#B1BCA0">
+          Ready to Draw →
+        </button>
+      </div>
+
+      <!-- Between sub-state -->
+      <div id="gth-reveal-between" class="hidden flex flex-col gap-4 text-center">
+        <div>
+          <p id="gth-between-progress" class="text-stone-400 text-sm font-semibold"></p>
+          <h2 id="gth-between-next-name" class="text-3xl font-bold text-stone-800 mt-2"></h2>
+          <p id="gth-between-next-def" class="text-stone-500 text-base mt-2 leading-relaxed"></p>
+        </div>
+        <button id="btn-gth-between-draw" class="min-h-14 w-full rounded-2xl active:scale-95 text-white text-xl font-semibold transition-all duration-150" style="background-color:#B1BCA0">
+          Draw Next →
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- GTH CANVAS -->
+  <section id="screen-gth-canvas" style="display:none"
+    class="flex flex-col w-full max-w-sm mx-auto h-screen overflow-hidden">
+    <!-- Header -->
+    <div class="flex items-center justify-between px-4 pt-4 pb-2 flex-shrink-0">
+      <div>
+        <p id="gth-canvas-disorder-name" class="text-stone-800 font-bold text-base"></p>
+        <p id="gth-canvas-progress" class="text-stone-400 text-xs"></p>
+      </div>
+      <div class="flex items-center gap-2">
+        <p id="gth-canvas-timer" class="text-stone-800 font-bold text-xl tabular-nums"></p>
+        <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+      </div>
+    </div>
+    <!-- Canvas body -->
+    <div class="flex-1 overflow-hidden flex items-center justify-center px-4 min-h-0">
+      <div id="gth-canvas-wrapper" class="w-full aspect-square max-h-full bg-white rounded-2xl shadow-sm border border-stone-200 overflow-hidden touch-none">
+        <canvas id="gth-canvas" class="w-full h-full block"></canvas>
+      </div>
+    </div>
+    <!-- Footer -->
+    <div class="px-4 pb-6 pt-3 flex-shrink-0 flex gap-3">
+      <button id="btn-gth-canvas-clear" class="min-h-12 rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-600 font-semibold text-sm transition-all duration-100 px-5">
+        Clear
+      </button>
+      <button id="btn-gth-canvas-done" class="min-h-12 flex-1 rounded-2xl active:scale-95 text-white text-lg font-semibold transition-all duration-150" style="background-color:#B1BCA0">
+        Done ✓
+      </button>
+    </div>
+  </section>
+
+  <!-- GTH WAITING ROOM -->
+  <section id="screen-gth-waiting-room" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-6 text-center">
+      <div class="text-5xl">⏳</div>
+      <div>
+        <h2 class="text-2xl font-bold text-stone-800">Waiting Room</h2>
+        <p class="text-stone-400 text-base mt-1">Everyone's finishing up their drawings.</p>
+      </div>
+      <div id="gth-waiting-progress" class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+        <!-- Populated dynamically: player name + ✓ / drawing... per player -->
+      </div>
+      <p class="text-stone-400 text-sm">The Shrink Phase begins when everyone's done.</p>
+    </div>
+  </section>
+
+  <!-- GTH SHRINK INTRO -->
+  <section id="screen-gth-shrink-intro" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-8 text-center">
+      <div>
+        <div class="text-5xl mb-4">🧠</div>
+        <h2 class="text-3xl font-bold text-stone-800">The Shrink Phase</h2>
+        <p class="text-stone-400 text-base mt-2">Diagnose each anonymous drawing before the time runs out.</p>
+      </div>
+      <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2 text-left">
+        <p class="text-xs font-semibold uppercase tracking-widest" style="color:#B1BCA0">How it works</p>
+        <p class="text-stone-600 text-sm">You'll see anonymous drawings one at a time. Pick the correct disorder from the options — or type it if Deep Dive is on. You <span class="font-semibold text-stone-700">won't</span> see your own drawings.</p>
+      </div>
+      <div class="bg-white rounded-2xl p-4 shadow-sm text-left">
+        <p class="text-xs font-semibold uppercase tracking-widest mb-1" style="color:#B1BCA0">Time limit</p>
+        <p id="gth-shrink-window-label" class="text-stone-600 text-sm"></p>
+      </div>
+      <button id="btn-gth-shrink-start" class="min-h-14 w-full rounded-2xl active:scale-95 text-white text-xl font-semibold transition-all duration-150" style="background-color:#B1BCA0">
+        Open the Case Files →
+      </button>
+      <p id="gth-shrink-wait-msg" style="display:none" class="text-stone-400 text-sm">Waiting for the host to open the files…</p>
+    </div>
+  </section>
+
+  <!-- GTH CASE (Shrink Phase) -->
+  <section id="screen-gth-case" style="display:none"
+    class="flex flex-col w-full max-w-sm mx-auto h-screen overflow-hidden">
+    <!-- Header -->
+    <div class="flex items-center justify-between px-4 pt-4 pb-2 flex-shrink-0">
+      <div>
+        <p id="gth-case-progress" class="text-stone-400 text-xs font-semibold uppercase tracking-widest"></p>
+      </div>
+      <div class="flex items-center gap-2">
+        <p id="gth-case-timer" class="text-stone-800 font-bold text-xl tabular-nums"></p>
+        <button id="btn-gth-how-to-case" class="text-stone-400 font-bold text-sm active:scale-90 transition-transform duration-100">[?]</button>
+        <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+        <button class="btn-gth-quit-open text-xl text-stone-500 font-bold active:scale-90 transition-transform duration-100">✕</button>
+      </div>
+    </div>
+    <!-- Drawing display -->
+    <div class="flex-shrink-0 px-4 pb-2">
+      <canvas id="gth-case-canvas" class="w-full aspect-square rounded-2xl bg-white shadow-sm border border-stone-200 block"></canvas>
+    </div>
+    <!-- Body: diagnostic cards or deep-dive input -->
+    <div class="flex-1 overflow-y-auto px-4 pb-2 min-h-0">
+      <!-- Standard mode: 4 Diagnostic Cards -->
+      <div id="gth-case-cards" class="grid grid-cols-2 gap-2">
+        <!-- Populated by gthShowCase() -->
+      </div>
+      <!-- Deep Dive mode: text input -->
+      <div id="gth-case-deepdive" class="hidden flex flex-col gap-3">
+        <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest text-center">Your Diagnosis</p>
+        <input id="gth-deepdive-input" type="text" placeholder="Type your diagnosis…"
+          class="w-full rounded-xl border-2 border-stone-200 bg-white px-4 py-3 text-base text-stone-800 placeholder-stone-300 focus:outline-none transition-colors"
+          style="focus-border-color:#B1BCA0" maxlength="60" autocomplete="off" autocorrect="off" />
+        <p id="gth-deepdive-error" class="text-red-500 text-xs text-center hidden"></p>
+        <button id="btn-gth-deepdive-submit" class="btn-mp-action min-h-14 w-full rounded-2xl active:scale-95 text-white text-xl font-semibold transition-all duration-150" style="background-color:#B1BCA0">
+          Submit Diagnosis →
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- GTH CASE REPORT -->
+  <section id="screen-gth-case-report" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-6 text-center">
+      <div class="text-5xl">📋</div>
+      <div>
+        <h2 class="text-2xl font-bold text-stone-800">All Cases Closed</h2>
+        <p class="text-stone-400 text-base mt-1">You finished your queue. Waiting for the rest of the group.</p>
+      </div>
+      <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2 text-left">
+        <p class="text-xs font-semibold uppercase tracking-widest" style="color:#B1BCA0">How it works</p>
+        <p class="text-stone-600 text-sm">Anonymous drawings are assigned to everyone — you won't see your own. Pick the correct disorder from four options, or type it in Deep Dive mode.</p>
+      </div>
+      <div class="bg-white rounded-2xl p-4 shadow-sm text-left">
+        <p class="text-xs font-semibold uppercase tracking-widest mb-1" style="color:#B1BCA0">Time remaining</p>
+        <p id="gth-case-report-time" class="text-stone-600 text-sm font-semibold tabular-nums"></p>
+      </div>
+      <div id="gth-case-report-stats" class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+        <!-- Populated dynamically -->
+      </div>
+      <div id="gth-case-report-progress" class="flex flex-col gap-2">
+        <!-- Per-player progress dots -->
+      </div>
+      <p class="text-stone-400 text-sm">The Big Reveal starts when everyone's done.</p>
+    </div>
+  </section>
+
+  <!-- GTH BIG REVEAL -->
+  <section id="screen-gth-big-reveal" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-5">
+      <div class="flex items-center justify-between">
+        <h2 class="text-xl font-bold text-stone-800">Case Files Unsealed 📂</h2>
+        <p id="gth-reveal-count" class="text-stone-400 text-sm font-semibold"></p>
+      </div>
+
+      <!-- Drawing display -->
+      <canvas id="gth-reveal-canvas" class="w-full aspect-square rounded-2xl bg-white shadow-sm border border-stone-200 block"></canvas>
+
+      <!-- Case info card -->
+      <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-widest" style="color:#B1BCA0">The Disorder</p>
+          <h3 id="gth-reveal-disorder" class="text-2xl font-bold text-stone-800 mt-1"></h3>
+        </div>
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-widest" style="color:#B1BCA0">Artist</p>
+          <p id="gth-reveal-artist" class="text-stone-700 font-semibold mt-1"></p>
+        </div>
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-widest" style="color:#B1BCA0">Correct Diagnoses</p>
+          <div id="gth-reveal-shrinks" class="text-stone-600 text-sm mt-1"></div>
+        </div>
+      </div>
+
+      <!-- Navigation -->
+      <div id="gth-reveal-next-wrap">
+        <button id="btn-gth-reveal-next" class="min-h-14 w-full rounded-2xl active:scale-95 text-white text-xl font-semibold transition-all duration-150" style="background-color:#B1BCA0">
+          Next Case →
+        </button>
+      </div>
+      <div id="gth-reveal-finish-wrap" class="hidden">
+        <button id="btn-gth-reveal-finish" class="min-h-14 w-full rounded-2xl active:scale-95 text-white text-xl font-semibold transition-all duration-150" style="background-color:#B1BCA0">
+          See Final Results →
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- GTH FINAL REPORT -->
+  <section id="screen-gth-final-report" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-5">
+      <div class="flex items-center justify-between">
+        <h2 class="text-xl font-bold text-stone-800">Session Summary 📋</h2>
+        <button id="btn-gth-final-exit" class="text-xl text-stone-500 font-bold active:scale-90 transition-transform duration-100">✕</button>
+      </div>
+
+      <!-- Leaderboard -->
+      <div id="gth-final-leaderboard" class="flex flex-col gap-2">
+        <!-- Populated by gthShowFinalReport() -->
+      </div>
+
+      <!-- Score breakdown legend -->
+      <div class="bg-white rounded-2xl p-4 shadow-sm">
+        <p class="text-xs font-semibold uppercase tracking-widest mb-2" style="color:#B1BCA0">How Sessions Work</p>
+        <div class="flex flex-col gap-1 text-stone-500 text-sm">
+          <p>🎨 Patient: <span class="font-semibold text-stone-700">+2</span> per correct Shrink diagnosis</p>
+          <p>🧠 Shrink correct: <span class="font-semibold text-stone-700">+2</span></p>
+          <p>⚡ Fastest correct: <span class="font-semibold text-stone-700">+1</span> bonus</p>
+          <p>🔬 Tier 3 disorder: <span class="font-semibold text-stone-700">+1</span> bonus</p>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <button id="btn-gth-new-session" class="min-h-14 w-full rounded-2xl active:scale-95 text-white text-xl font-semibold transition-all duration-150" style="background-color:#B1BCA0">
+        New Session 🛋️
+      </button>
+    </div>
+  </section>
+
+  <!-- GTH SETTINGS OVERLAY -->
+  <div id="gth-settings-overlay" style="display:none"
+    class="fixed inset-0 bg-black/40 z-[80] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
+      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
+        <h2 class="text-xl font-bold text-stone-800">Inpatient Admission Form 📋</h2>
+        <p class="text-xs text-stone-400 mt-1">Please complete all fields accurately to ensure an efficient institutional visit.</p>
+      </div>
+      <div class="overflow-y-auto flex flex-col gap-5 px-5 py-5">
+
+        <!-- Reportable Symptoms -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">Reportable Symptoms</p>
+            <p class="text-stone-400 text-sm mt-0.5">Number of disorders each patient must convey.</p>
+          </div>
+          <div class="flex gap-2">
+            <button class="pill pill-active-sage" data-group="gth-disorders" data-val="3">3</button>
+            <button class="pill" data-group="gth-disorders" data-val="4">4</button>
+            <button class="pill" data-group="gth-disorders" data-val="5">5</button>
+          </div>
+        </div>
+
+        <!-- Expression Window -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">Expression Window</p>
+            <p class="text-stone-400 text-sm mt-0.5">Time available to convey each disorder.</p>
+          </div>
+          <div class="flex gap-2">
+            <button class="pill" data-group="gth-drawtime" data-val="20">20s</button>
+            <button class="pill pill-active-sage" data-group="gth-drawtime" data-val="30">30s</button>
+            <button class="pill" data-group="gth-drawtime" data-val="45">45s</button>
+          </div>
+        </div>
+
+        <!-- Diagnosis Window -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">Diagnosis Window</p>
+            <p class="text-stone-400 text-sm mt-0.5">Total time for diagnosing patient disorders.</p>
+          </div>
+          <div class="flex gap-2">
+            <button class="pill" data-group="gth-window" data-val="60">60s</button>
+            <button class="pill pill-active-sage" data-group="gth-window" data-val="90">90s</button>
+            <button class="pill" data-group="gth-window" data-val="120">120s</button>
+          </div>
+          <div class="flex gap-2 text-stone-400 text-xs">
+            <p class="flex-1 text-center">Fast — ~4 cases</p>
+            <p class="flex-1 text-center">Balanced — ~6 cases</p>
+            <p class="flex-1 text-center">Relaxed — ~8 cases</p>
+          </div>
+        </div>
+
+        <!-- Symptom Severity -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">Symptom Severity</p>
+            <p class="text-stone-400 text-sm mt-0.5">Abstract visual complexity of the disorders in the pool.</p>
+          </div>
+          <div class="flex gap-2">
+            <button class="pill" data-group="gth-difficulty" data-val="episodic">Episodic</button>
+            <button class="pill pill-active-sage" data-group="gth-difficulty" data-val="recurrent">Recurrent</button>
+            <button class="pill" data-group="gth-difficulty" data-val="refractory">Refractory</button>
+          </div>
+        </div>
+
+        <!-- Psychiatric Evaluation -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <div class="flex items-center justify-between">
+            <p class="text-stone-800 font-semibold">Psychiatric Evaluation</p>
+            <button id="btn-gth-deepdive-toggle" class="game-toggle-off shrink-0">OFF</button>
+          </div>
+          <p class="text-stone-400 text-sm">Removes Diagnostic Cards — Shrinks must type their diagnosis. Leniency accounted for.</p>
+        </div>
+
+        <!-- Sylly Mode -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <div class="flex items-center justify-between">
+            <p class="text-stone-800 font-semibold">✨ Sylly Mode</p>
+            <button id="btn-gth-sylly-toggle" class="game-toggle-off shrink-0">OFF</button>
+          </div>
+          <p class="text-stone-600 text-sm font-semibold">Stroke or Genius</p>
+          <p class="text-stone-400 text-sm">Activates a low-frequency motor tremor on the artist's canvas while forcing Shrinks to decipher case files through a decaying cognitive blur.</p>
+        </div>
+
+        <button id="btn-gth-settings-done" class="min-h-14 w-full rounded-2xl active:scale-95 text-white text-xl font-semibold transition-all duration-150" style="background-color:#B1BCA0">
+          Done
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- GTH HOW-TO OVERLAY -->
+  <div id="gth-how-to-overlay" style="display:none"
+    class="fixed inset-0 bg-black/40 z-[90] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
+      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
+        <h2 class="text-xl font-bold text-stone-800">How to Play 🛋️</h2>
+        <p class="text-xs text-stone-400 mt-1">A drawing game about your issues.</p>
+      </div>
+      <div class="overflow-y-auto flex flex-col gap-4 px-5 py-5">
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest" style="color:#B1BCA0">Step 1</p>
+          <p class="font-bold text-stone-800">Everyone draws their disorders</p>
+          <p class="text-stone-500 text-sm">Each player is secretly assigned a few <span class="font-semibold text-stone-700">Disorders</span> and has to draw them — simultaneously, on their own device. A tip is shown before each drawing to help.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest" style="color:#B1BCA0">Step 2</p>
+          <p class="font-bold text-stone-800">Everyone becomes a Shrink</p>
+          <p class="text-stone-500 text-sm">The <span class="font-semibold text-stone-700">Shrink Phase</span> opens a queue of anonymous drawings. For each one, pick the correct disorder from the <span class="font-semibold text-stone-700">Diagnostic Cards</span>. You never see your own drawings.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest" style="color:#B1BCA0">Step 3</p>
+          <p class="font-bold text-stone-800">The Big Reveal</p>
+          <p class="text-stone-500 text-sm">After time runs out, all drawings are revealed one at a time — with who drew them and who guessed correctly.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest" style="color:#B1BCA0">Winning and Scoring</p>
+          <p class="font-bold text-stone-800">Two ways to earn Sessions</p>
+          <ul class="list-disc pl-5 flex flex-col gap-1 text-stone-500 text-sm">
+            <li><span class="font-semibold text-stone-700">Patient +2</span> — each time a Shrink correctly diagnoses your drawing.</li>
+            <li><span class="font-semibold text-stone-700">Shrink +2</span> — for each correct diagnosis you submit.</li>
+            <li><span class="font-semibold text-stone-700">Speed +1</span> — the fastest correct diagnosis per drawing.</li>
+            <li><span class="font-semibold text-stone-700">Tier 3 +1</span> — bonus for correctly diagnosing a Complex Condition.</li>
+          </ul>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest" style="color:#B1BCA0">✨ Sylly Mode</p>
+          <p class="font-bold text-stone-800">Stroke or Genius</p>
+          <p class="text-stone-500 text-sm">The canvas trembles while you draw. Drawings blur into focus during the Shrink Phase — a 3.5 second reveal that tests your eye.</p>
+        </div>
+        <button id="btn-gth-how-to-done" class="min-h-14 w-full rounded-2xl active:scale-95 text-white text-xl font-semibold transition-all duration-150" style="background-color:#B1BCA0">
+          Got it
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- GTH QUIT OVERLAY -->
+  <div id="gth-quit-overlay" style="display:none"
+    class="fixed inset-0 bg-black/40 z-[80] overlay-modal-backdrop flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-stone-300">
+      <div class="flex flex-col gap-2">
+        <p class="text-3xl">🛋️</p>
+        <h3 class="text-lg font-bold text-stone-800">Walk Out?</h3>
+        <p class="text-stone-500 text-sm">Your session will be lost. The waiting room will be very disappointed.</p>
+      </div>
+      <div class="flex flex-col gap-2">
+        <button id="btn-gth-quit-confirm" class="min-h-14 w-full rounded-2xl bg-red-500 hover:bg-red-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+          Yeah, I'm out.
+        </button>
+        <button id="btn-gth-quit-cancel" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-base font-medium transition-all duration-150">
+          Keep going!
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- GTH NEW SESSION OVERLAY -->
+  <div id="gth-new-session-overlay" style="display:none"
+    class="fixed inset-0 bg-black/40 z-[90] overlay-modal-backdrop flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-stone-300">
+      <div class="flex flex-col gap-2">
+        <p class="text-3xl">🛋️</p>
+        <h3 class="text-lg font-bold text-stone-800">New Session?</h3>
+        <p class="text-stone-500 text-sm">All drawings and diagnoses will be cleared. Names and settings stay.</p>
+      </div>
+      <div class="flex flex-col gap-2">
+        <button id="btn-gth-new-session-confirm" class="min-h-14 w-full rounded-2xl active:scale-95 text-white text-xl font-semibold transition-all duration-150" style="background-color:#B1BCA0">
+          Start New Session
+        </button>
+        <button id="btn-gth-new-session-cancel" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-base font-medium transition-all duration-150">
+          Stay here
+        </button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ════ DICEY BLUFFS ════
+       Screens : screen-dyb-menu, screen-dyb-seating, screen-dyb-shake,
+                 screen-dyb-table, screen-dyb-showdown, screen-dyb-gameover,
+                 screen-dyb-spirit-board
+       Overlays: dyb-settings-overlay, dyb-how-to-overlay, dyb-quit-overlay,
+                 dyb-new-game-overlay
+    ════════════════════════════════════════════════════════════════ -->
+
+  <!-- DYB MENU -->
+  <section id="screen-dyb-menu" style="display:none"
+    class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
+    <button class="btn-open-sound absolute top-4 right-4 text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+    <div class="text-6xl" role="img" aria-label="Dice">🎲</div>
+    <div>
+      <h1 class="text-3xl font-bold text-stone-800">Dicey Bluffs</h1>
+      <p class="text-stone-400 text-base mt-1">Trust no one, count every face.</p>
+    </div>
+    <div class="flex flex-col gap-3 w-full">
+      <button id="btn-dyb-menu-play" class="min-h-14 w-full rounded-2xl bg-stone-400 hover:bg-stone-500 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Let's Play!
+      </button>
+      <button id="btn-dyb-menu-how-to" class="min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        How to Play
+      </button>
+      <button id="btn-dyb-menu-settings" class="min-h-14 w-full rounded-2xl bg-stone-100 hover:bg-stone-200 active:scale-95 text-stone-700 text-xl font-semibold transition-all duration-150">
+        Settings
+      </button>
+      <button id="btn-dyb-menu-back" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-base font-medium transition-all duration-150">
+        ← Back to the Box
+      </button>
+    </div>
+  </section>
+
+  <!-- DYB SEATING -->
+  <section id="screen-dyb-seating" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-4">
+      <div class="text-center">
+        <p class="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-1">Dicey Bluffs</p>
+        <h2 class="text-2xl font-bold text-stone-800">Pull Up a Chair</h2>
+        <p class="text-stone-400 text-sm mt-1">Seat assignments for this session.</p>
+      </div>
+      <div id="dyb-seating-list" class="flex flex-col gap-2"></div>
+      <button id="btn-dyb-start-game" class="min-h-14 w-full rounded-2xl bg-stone-400 hover:bg-stone-500 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Deal the Dice 🎲
+      </button>
+      <p id="dyb-seating-client-wait" class="text-center text-stone-400 text-sm" style="display:none">Waiting for host to deal the seats…</p>
+    </div>
+  </section>
+
+  <!-- DYB SHAKE -->
+  <section id="screen-dyb-shake" style="display:none"
+    class="flex flex-col w-full max-w-sm mx-auto h-screen overflow-hidden">
+    <div class="flex items-center justify-between px-4 pt-4 pb-2 flex-shrink-0">
+      <div>
+        <p id="dyb-shake-number" class="text-xs font-semibold uppercase tracking-widest text-stone-400"></p>
+        <p id="dyb-shake-opener-label" class="text-sm font-semibold text-stone-600 mt-0.5"></p>
+      </div>
+      <div class="flex items-center gap-2">
+        <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+        <button class="btn-dyb-quit-open text-stone-400 font-bold text-xl active:scale-90 transition-transform duration-100">✕</button>
+      </div>
+    </div>
+    <div id="dyb-shake-dice-counts" class="flex flex-wrap gap-2 justify-center px-4 pb-2 flex-shrink-0 text-stone-400 text-sm"></div>
+    <div class="flex-1 overflow-y-auto flex flex-col min-h-0 items-center justify-center gap-4 px-5 py-4">
+      <div id="dyb-hand-dock-shake" class="flex gap-2 flex-wrap justify-center min-h-12"></div>
+      <div class="flex items-center gap-2">
+        <button id="btn-dyb-hand-veil" class="text-stone-300 text-xl active:scale-90 transition-transform duration-100">👁️</button>
+      </div>
+    </div>
+    <div class="px-5 pb-8 pt-2 flex-shrink-0 flex flex-col gap-3">
+      <button id="btn-dyb-roll" class="min-h-14 w-full rounded-2xl bg-stone-400 hover:bg-stone-500 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Shake 'Em Up 🎲
+      </button>
+      <button id="btn-dyb-roll-ready" class="min-h-14 w-full rounded-2xl bg-stone-600 hover:bg-stone-700 active:scale-95 text-white text-xl font-semibold transition-all duration-150 btn-mp-action" style="display:none">
+        Ready ✓
+      </button>
+      <p id="dyb-roll-waiting" class="text-center text-stone-400 text-sm" style="display:none">Waiting for others…</p>
+    </div>
+  </section>
+
+  <!-- DYB TABLE -->
+  <section id="screen-dyb-table" style="display:none"
+    class="flex flex-col w-full max-w-sm mx-auto h-screen overflow-hidden">
+    <div class="flex items-center justify-between px-4 pt-4 pb-2 flex-shrink-0">
+      <div class="flex items-center gap-2">
+        <button id="btn-dyb-how-to" class="text-stone-400 font-bold text-sm active:scale-90 transition-transform duration-100">[?]</button>
+      </div>
+      <div class="flex items-center gap-2">
+        <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+        <button class="btn-dyb-quit-open text-stone-400 font-bold text-xl active:scale-90 transition-transform duration-100">✕</button>
+      </div>
+    </div>
+    <div id="dyb-pip-row" class="flex gap-3 justify-center px-4 pb-2 flex-shrink-0 flex-wrap"></div>
+    <div class="px-6 py-2 text-center flex-shrink-0">
+      <p class="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-1">The Allegation</p>
+      <p id="dyb-allegation-display" class="text-3xl font-bold text-stone-800">No bid yet.</p>
+      <p id="dyb-last-bidder-label" class="text-stone-400 text-sm mt-1"></p>
+    </div>
+    <div class="flex-1 overflow-y-auto flex flex-col min-h-0 px-5 py-2 gap-3">
+      <p id="dyb-turn-label" class="text-center text-stone-500 text-sm font-semibold"></p>
+      <div id="dyb-bid-controls" class="flex flex-col gap-3" data-face="1" data-qty="1">
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest text-stone-400">Face Value</p>
+          <div class="flex items-center justify-between gap-3">
+            <button id="btn-dyb-face-dec" class="w-10 h-10 rounded-xl bg-stone-100 hover:bg-stone-200 active:scale-90 text-stone-700 font-bold text-lg transition-transform duration-100">-</button>
+            <span id="dyb-face-display" class="text-2xl font-bold text-stone-800 w-10 text-center">1</span>
+            <button id="btn-dyb-face-inc" class="w-10 h-10 rounded-xl bg-stone-100 hover:bg-stone-200 active:scale-90 text-stone-700 font-bold text-lg transition-transform duration-100">+</button>
+          </div>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest text-stone-400">Quantity</p>
+          <div class="flex items-center justify-between gap-3">
+            <button id="btn-dyb-qty-dec" class="w-10 h-10 rounded-xl bg-stone-100 hover:bg-stone-200 active:scale-90 text-stone-700 font-bold text-lg transition-transform duration-100">-</button>
+            <span id="dyb-qty-display" class="text-2xl font-bold text-stone-800 w-10 text-center">1</span>
+            <button id="btn-dyb-qty-inc" class="w-10 h-10 rounded-xl bg-stone-100 hover:bg-stone-200 active:scale-90 text-stone-700 font-bold text-lg transition-transform duration-100">+</button>
+          </div>
+        </div>
+      </div>
+      <p id="dyb-waiting-label" class="text-center text-stone-400 text-sm" style="display:none"></p>
+      <div id="dyb-allegation-history" class="flex flex-col gap-1"></div>
+    </div>
+    <div class="flex-shrink-0 bg-stone-50 border-t border-stone-200 px-5 py-3">
+      <div class="flex items-center justify-between mb-2">
+        <p class="text-xs font-semibold uppercase tracking-widest text-stone-400">Your Hand</p>
+        <button id="btn-dyb-table-veil" class="text-stone-300 text-lg active:scale-90 transition-transform duration-100">👁️</button>
+      </div>
+      <div id="dyb-hand-dock-table" class="flex gap-2 flex-wrap mb-3 min-h-12"></div>
+      <div class="flex gap-2">
+        <button id="btn-dyb-call-bluff" class="flex-1 min-h-12 rounded-2xl bg-red-500 hover:bg-red-600 active:scale-95 text-white font-semibold transition-all duration-150 btn-mp-action" disabled>
+          Call Bluff!
+        </button>
+        <button id="btn-dyb-raise" class="flex-1 min-h-12 rounded-2xl bg-stone-400 hover:bg-stone-500 active:scale-95 text-white font-semibold transition-all duration-150 btn-mp-action" disabled>
+          Raise the Stakes
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- DYB SHOWDOWN -->
+  <section id="screen-dyb-showdown" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-4">
+      <div class="text-center">
+        <p class="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-1">Slamming the Cup</p>
+        <h2 class="text-2xl font-bold text-stone-800">THE SHOWDOWN</h2>
+      </div>
+      <div class="bg-white rounded-2xl p-5 shadow-sm text-center flex flex-col gap-2">
+        <p id="dyb-showdown-claimed" class="text-stone-500 text-sm"></p>
+        <p id="dyb-showdown-real" class="text-xl font-bold text-stone-800"></p>
+        <p id="dyb-showdown-verdict" class="text-2xl font-bold text-stone-700"></p>
+        <p id="dyb-showdown-loser" class="text-stone-500 text-sm mt-1"></p>
+      </div>
+      <div id="dyb-showdown-hands" class="flex flex-col gap-2"></div>
+      <div class="flex items-center gap-2">
+        <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+        <button id="btn-dyb-next-shake" class="flex-1 min-h-14 rounded-2xl bg-stone-400 hover:bg-stone-500 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+          Next Shake →
+        </button>
+        <button id="btn-dyb-showdown-exit" class="text-stone-400 font-bold text-xl active:scale-90 transition-transform duration-100 px-2">✕</button>
+      </div>
+      <p id="dyb-showdown-client-waiting" class="text-center text-stone-400 text-sm" style="display:none">Waiting for host…</p>
+    </div>
+  </section>
+
+  <!-- DYB GAMEOVER -->
+  <section id="screen-dyb-gameover" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-4">
+      <div class="text-center">
+        <p class="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-1">The Clean Out</p>
+        <h2 class="text-2xl font-bold text-stone-800">GAME OVER</h2>
+        <p id="dyb-gameover-winner" class="text-xl font-bold text-stone-600 mt-2"></p>
+      </div>
+      <div id="dyb-gameover-standings" class="flex flex-col gap-2"></div>
+      <div class="flex items-center gap-2">
+        <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+        <button id="btn-dyb-gameover-again" class="flex-1 min-h-14 rounded-2xl bg-stone-400 hover:bg-stone-500 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+          Roll Again?
+        </button>
+        <button id="btn-dyb-gameover-exit" class="text-stone-400 font-bold text-xl active:scale-90 transition-transform duration-100 px-2">✕</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- DYB SPIRIT BOARD -->
+  <section id="screen-dyb-spirit-board" style="display:none"
+    class="flex flex-col w-full max-w-sm mx-auto h-screen overflow-hidden">
+    <div class="flex items-center justify-between px-4 pt-4 pb-2 flex-shrink-0">
+      <p class="text-sm font-bold text-stone-500">THE SPIRIT BOARD 👻</p>
+      <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+    </div>
+    <p id="dyb-spirit-allegation" class="text-center text-stone-400 text-sm px-4 pb-2 flex-shrink-0">No bid yet.</p>
+    <div id="dyb-spirit-grid" class="flex-1 overflow-y-auto min-h-0 flex flex-col gap-2 px-5 py-2"></div>
+    <p class="text-center text-stone-300 text-xs pb-4 px-4 flex-shrink-0">You can see everyone's dice. The living cannot.</p>
+  </section>
+
+  <!-- DYB SETTINGS OVERLAY -->
+  <div id="dyb-settings-overlay" style="display:none"
+    class="fixed inset-0 bg-black/40 z-[80] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
+      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
+        <h2 class="text-xl font-bold text-stone-800">House Rules 📋</h2>
+        <p class="text-xs text-stone-400 mt-1">Set the table before anyone picks up their cup.</p>
+      </div>
+      <div class="overflow-y-auto flex flex-col gap-5 px-5 py-5">
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">Wildcards Style</p>
+            <p class="text-stone-400 text-sm mt-0.5">How the 1-face behaves during active Allegations.</p>
+          </div>
+          <div class="flex gap-2 flex-wrap">
+            <button class="pill" data-dyb-wildcards="strict">Strict Numbers</button>
+            <button class="pill pill-active-stone" data-dyb-wildcards="classic">Classic Wilds</button>
+            <button class="pill" data-dyb-wildcards="volatile">Volatile Wilds</button>
+          </div>
+          <p id="dyb-wildcards-desc" class="text-stone-400 text-xs italic">1s count toward any face. Can't be directly alleged.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">Starting Hand</p>
+            <p class="text-stone-400 text-sm mt-0.5">How many dice each player holds at the start of the game.</p>
+          </div>
+          <div class="flex gap-2">
+            <button class="pill" data-dyb-hand="3">3 Dice</button>
+            <button class="pill" data-dyb-hand="4">4 Dice</button>
+            <button class="pill pill-active-stone" data-dyb-hand="5">5 Dice</button>
+          </div>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <div class="flex items-center justify-between">
+            <p class="text-stone-800 font-semibold">✨ Sylly Mode</p>
+            <button id="btn-dyb-sylly-toggle" class="game-toggle-off shrink-0">OFF</button>
+          </div>
+          <p class="text-stone-600 text-sm font-semibold">Devil's Luck</p>
+          <p class="text-stone-400 text-sm">Each die has a chance to be secretly modified — loaded, phantom, cracked, slick, or a snake.</p>
+          <div id="dyb-sylly-sub-options" style="display:none" class="flex flex-col gap-2 mt-1">
+            <p class="text-stone-500 text-sm font-semibold">Chaos level</p>
+            <input id="dyb-sylly-intensity-slider" type="range" min="5" max="10" step="1" value="5" class="dyb-range w-full">
+            <p id="dyb-sylly-intensity-label" class="text-stone-400 text-xs">5% chaos per die</p>
+          </div>
+        </div>
+        <button id="btn-dyb-settings-close" class="min-h-14 w-full rounded-2xl bg-stone-400 hover:bg-stone-500 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+          Done
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- DYB HOW TO PLAY OVERLAY -->
+  <div id="dyb-how-to-overlay" style="display:none"
+    class="fixed inset-0 bg-black/40 z-[90] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
+      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
+        <h2 class="text-xl font-bold text-stone-800">How to Play 🎲</h2>
+        <p class="text-xs text-stone-400 mt-1">A bluffing game where every claim must be worth believing.</p>
+      </div>
+      <div class="overflow-y-auto flex flex-col gap-4 px-5 py-5">
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest text-stone-400">Step 1</p>
+          <p class="font-bold text-stone-800">The Shake</p>
+          <p class="text-stone-500 text-sm">Everyone taps to roll their dice simultaneously. Your dice are <span class="font-semibold text-stone-700">private</span> — nobody else sees them until The Showdown.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest text-stone-400">Step 2</p>
+          <p class="font-bold text-stone-800">The Allegation</p>
+          <p class="text-stone-500 text-sm">The opener makes a claim: <span class="font-semibold text-stone-700">"At least X dice showing face Y exist across the whole table."</span> This becomes The Allegation.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest text-stone-400">Step 3</p>
+          <p class="font-bold text-stone-800">Raise or Challenge</p>
+          <p class="text-stone-500 text-sm">Each player must either <span class="font-semibold text-stone-700">raise the stakes</span> or tap <span class="font-semibold text-stone-700">Call Bluff!</span> to trigger The Showdown. Quantity can never decrease.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest text-stone-400">Winning and Scoring</p>
+          <p class="font-bold text-stone-800">Last Die Standing</p>
+          <ul class="list-disc pl-5 flex flex-col gap-1 text-stone-500 text-sm">
+            <li><span class="font-semibold text-stone-700">Bluff called correctly</span> — the bidder loses a die.</li>
+            <li><span class="font-semibold text-stone-700">Bluff called wrong</span> — the challenger loses a die.</li>
+            <li><span class="font-semibold text-stone-700">Out of dice</span> — you're eliminated. Watch from the Spirit Board.</li>
+            <li><span class="font-semibold text-stone-700">Last player with dice</span> — wins The Clean Out.</li>
+          </ul>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest text-stone-400">✨ Sylly Mode</p>
+          <p class="font-bold text-stone-800">Devil's Luck</p>
+          <p class="text-stone-500 text-sm">Some dice are secretly cursed. <span class="font-semibold text-stone-700">Loaded</span> count double, <span class="font-semibold text-stone-700">Phantom</span> hide their face until the showdown, <span class="font-semibold text-stone-700">Slick</span> let you assign any face, <span class="font-semibold text-stone-700">Cracked</span> count zero, and <span class="font-semibold text-stone-700">Snake Eyes</span> subtract from the tally.</p>
+        </div>
+        <button id="btn-dyb-howto-close" class="min-h-14 w-full rounded-2xl bg-stone-400 hover:bg-stone-500 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+          Got it
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- DYB QUIT OVERLAY -->
+  <div id="dyb-quit-overlay" style="display:none"
+    class="fixed inset-0 bg-black/40 z-[80] flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-stone-300">
+      <p class="text-3xl">🚪</p>
+      <h3 class="text-lg font-bold text-stone-800">Walk Away?</h3>
+      <p class="text-stone-500 text-sm">Your dice go with you. The game carries on without you.</p>
+      <button id="btn-dyb-quit-confirm" class="min-h-11 w-full rounded-2xl bg-red-500 hover:bg-red-600 active:scale-95 text-white font-semibold text-sm transition-all duration-100">
+        Yeah, I'm out.
+      </button>
+      <button id="btn-dyb-quit-cancel" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-sm transition-all duration-100">
+        Keep bluffing!
+      </button>
+    </div>
+  </div>
+
+  <!-- DYB NEW GAME OVERLAY -->
+  <div id="dyb-new-game-overlay" style="display:none"
+    class="fixed inset-0 bg-black/40 z-[90] flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-stone-300">
+      <p class="text-3xl">🎲</p>
+      <h3 class="text-lg font-bold text-stone-800">Roll Again?</h3>
+      <p class="text-stone-500 text-sm">New seats, new cups, same room code.</p>
+      <button id="btn-dyb-new-game-confirm" class="min-h-11 w-full rounded-2xl bg-stone-400 hover:bg-stone-500 active:scale-95 text-white font-semibold text-sm transition-all duration-100">
+        Roll Again 🎲
+      </button>
+      <button id="btn-dyb-new-game-cancel" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-sm transition-all duration-100">
+        Stay here
+      </button>
+    </div>
+  </div>
+
+  <!-- DYB SLICK PICKER (die-face assignment overlay) -->
+  <div id="dyb-slick-picker-overlay" style="display:none"
+    class="fixed inset-0 bg-black/40 z-[100] flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-stone-300">
+      <p class="text-stone-600 font-semibold text-sm">Assign this die's face</p>
+      <div id="dyb-slick-picker-content" class="flex gap-2 justify-center flex-wrap"></div>
+      <button onclick="document.getElementById('dyb-slick-picker-overlay').style.display='none'" class="min-h-10 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-sm transition-all duration-100">Cancel</button>
+    </div>
+  </div>
+
+    <script src="js/games/lttp.js"></script>
   <script src="js/games/nat.js"></script>
   <script src="js/games/dsd.js"></script>
   <script src="js/games/bld.js"></script>
+  <script src="js/games/gth.js"></script>
+  <script src="js/games/dyb.js"></script>
+  <script src="js/lib/cards.js"></script>
+  <script src="js/games/pass.js"></script>
   <script src="js/secret-mode.js"></script>
   <script src="js/app.js"></script>
 
@@ -5826,6 +6659,367 @@
     }
   </script>
 
+
+
+
+  <!-- ════ PASS ════
+       Screens : screen-pass-menu, screen-pass-seating, screen-pass-table,
+                 screen-pass-round-wrap, screen-pass-gameover
+       Overlays: pass-settings-overlay, pass-how-to-overlay, pass-quit-overlay,
+                 pass-new-deal-overlay
+       Ref     : js/games/pass.js
+    ════════════════════════════════════════════════════════════════ -->
+
+  <!-- PASS MENU -->
+  <section id="screen-pass-menu" style="display:none"
+    class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
+    <button class="btn-open-sound absolute top-4 right-4 text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+    <p id="pass-menu-status" style="display:none" class="text-red-500 text-sm font-medium"></p>
+    <div class="text-6xl" role="img" aria-label="Playing cards">🃏</div>
+    <div>
+      <h1 class="text-3xl font-bold text-stone-800">Pass</h1>
+      <p class="text-stone-400 text-base mt-1">Shed your hand, climb the table.</p>
+    </div>
+    <div class="flex flex-col gap-3 w-full">
+      <button id="btn-pass-menu-play" class="min-h-14 w-full rounded-2xl bg-zinc-900 hover:bg-zinc-800 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Deal Me In
+      </button>
+      <button id="btn-pass-menu-how-to" class="min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        How to Play
+      </button>
+      <button id="btn-pass-menu-settings" class="min-h-14 w-full rounded-2xl bg-zinc-100 hover:bg-zinc-200 active:scale-95 text-zinc-700 text-xl font-semibold transition-all duration-150">
+        Settings
+      </button>
+      <button id="btn-pass-menu-back" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-base font-medium transition-all duration-150">
+        ← Back to the Box
+      </button>
+    </div>
+  </section>
+
+  <!-- PASS SEATING -->
+  <section id="screen-pass-seating" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-4">
+      <div class="flex items-center justify-between">
+        <h2 class="text-2xl font-bold text-stone-800">The Table 🃏</h2>
+        <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+      </div>
+      <p class="text-stone-400 text-sm">Seat order follows join order. Host deals first.</p>
+      <div id="pass-seating-list" class="flex flex-col gap-2"></div>
+      <button id="btn-pass-seating-start" class="min-h-14 w-full rounded-2xl bg-zinc-900 hover:bg-zinc-800 active:scale-95 text-white text-xl font-semibold transition-all duration-150 btn-mp-action">
+        Deal the Cards
+      </button>
+    </div>
+  </section>
+
+  <!-- PASS TABLE (main gameplay) -->
+  <section id="screen-pass-table" style="display:none"
+    class="flex flex-col w-full max-w-sm mx-auto h-screen overflow-hidden">
+
+    <!-- HEADER -->
+    <div class="flex items-center justify-between px-4 pt-4 pb-2 flex-shrink-0">
+      <div>
+        <p id="pass-table-round-label" class="text-xs text-stone-400 font-semibold uppercase tracking-widest"></p>
+        <p id="pass-table-my-name" class="text-sm font-bold text-stone-700"></p>
+      </div>
+      <div class="flex items-center gap-2">
+        <p id="pass-table-my-chips" class="text-xs text-stone-400 font-semibold"></p>
+        <button id="btn-pass-how-to" class="text-stone-400 font-bold text-sm active:scale-90 transition-transform duration-100">[?]</button>
+        <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+        <button class="btn-pass-quit-open text-stone-400 font-bold text-xl active:scale-90 transition-transform duration-100">✕</button>
+      </div>
+    </div>
+
+    <!-- OPPONENTS STRIP -->
+    <div id="pass-table-opponents" class="flex gap-4 overflow-x-auto px-4 pb-2 flex-shrink-0"></div>
+
+    <!-- TABLE COMBO DISPLAY -->
+    <div class="px-4 py-2 flex-shrink-0">
+      <div id="pass-table-combo-display" class="bg-white rounded-xl px-4 py-2 text-stone-600 font-semibold text-sm shadow-sm text-center"></div>
+    </div>
+
+    <!-- ABYSS POOL (Sylly Mode) -->
+    <div id="pass-abyss-section" style="display:none" class="px-4 pb-2 flex-shrink-0 flex flex-col gap-1">
+      <p class="text-xs text-stone-400 font-semibold uppercase tracking-widest">The Abyss</p>
+      <div id="pass-abyss-pool" class="flex overflow-x-auto gap-0 py-1"></div>
+      <p id="pass-abyss-count" class="text-xs text-stone-300"></p>
+    </div>
+
+    <!-- STATUS / ERROR -->
+    <div class="px-4 flex-shrink-0">
+      <p id="pass-table-status" class="text-stone-500 text-xs text-center"></p>
+      <p id="pass-table-staring" style="display:none" class="text-stone-400 text-xs text-center mt-1"></p>
+      <p id="pass-table-error" style="display:none" class="text-red-500 text-xs text-center mt-1 font-semibold"></p>
+    </div>
+
+    <!-- HAND (scrollable body) -->
+    <div class="flex-1 overflow-y-auto min-h-0 px-4 py-2">
+      <div id="pass-hand-container" class="flex flex-wrap gap-2 justify-center"></div>
+    </div>
+
+    <!-- ACTION FOOTER -->
+    <div class="px-4 pb-6 pt-2 flex-shrink-0 flex gap-3">
+      <button id="btn-pass-pass" class="min-h-14 flex-1 rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-base transition-all duration-150 btn-mp-action">
+        Pass
+      </button>
+      <button id="btn-pass-play" class="min-h-14 flex-[2] rounded-2xl bg-zinc-900 hover:bg-zinc-800 active:scale-95 text-white font-bold text-base transition-all duration-150 btn-mp-action">
+        Play Selected
+      </button>
+    </div>
+  </section>
+
+  <!-- PASS ROUND WRAP -->
+  <section id="screen-pass-round-wrap" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-4">
+      <div class="flex items-center justify-between">
+        <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+      </div>
+      <p id="pass-round-wrap-winner" class="text-center text-2xl font-bold text-zinc-900"></p>
+      <div id="pass-round-wrap-scores" class="flex flex-col gap-2"></div>
+      <p id="pass-round-wrap-waiting" style="display:none" class="text-stone-400 text-sm text-center">Waiting for the host...</p>
+      <button id="btn-pass-next-round" class="min-h-14 w-full rounded-2xl bg-zinc-900 hover:bg-zinc-800 active:scale-95 text-white text-xl font-semibold transition-all duration-150 btn-mp-action">
+        Next Round →
+      </button>
+    </div>
+  </section>
+
+  <!-- PASS GAMEOVER -->
+  <section id="screen-pass-gameover" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-4">
+      <div class="flex items-center justify-between">
+        <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+        <button id="btn-pass-gameover-exit" class="text-stone-400 font-bold text-xl active:scale-90 transition-transform duration-100">✕</button>
+      </div>
+      <p id="pass-gameover-winner" class="text-center text-2xl font-bold text-zinc-900 mt-2"></p>
+      <div id="pass-gameover-list" class="flex flex-col gap-2"></div>
+      <button id="btn-pass-go-new" class="min-h-14 w-full rounded-2xl bg-zinc-900 hover:bg-zinc-800 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        New Deal?
+      </button>
+    </div>
+  </section>
+
+  <!-- PASS SETTINGS OVERLAY -->
+  <div id="pass-settings-overlay" style="display:none"
+    class="fixed inset-0 bg-black/40 z-[80] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
+      <!-- Title block -->
+      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
+        <h2 class="text-xl font-bold text-stone-800">The House Rules 🃏</h2>
+        <p class="text-xs text-stone-400 mt-1">Customise the deal before you sit down.</p>
+      </div>
+      <div class="overflow-y-auto flex flex-col gap-5 px-5 py-5">
+
+        <!-- Hand Size -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">Starting Hand</p>
+            <p class="text-stone-400 text-sm mt-0.5">Cards dealt to each player at the start of each round.</p>
+          </div>
+          <div class="flex gap-2">
+            <button class="pill" data-pass-hand="5">5</button>
+            <button class="pill" data-pass-hand="6">6</button>
+            <button class="pill" data-pass-hand="7">7</button>
+          </div>
+        </div>
+
+        <!-- Chip Stack -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">Chip Stack</p>
+            <p class="text-stone-400 text-sm mt-0.5">Starting chips per player. Lose chips when you're caught holding cards.</p>
+          </div>
+          <div class="flex gap-2">
+            <button class="pill" data-pass-chips="50">50</button>
+            <button class="pill" data-pass-chips="100">100</button>
+            <button class="pill" data-pass-chips="150">150</button>
+          </div>
+        </div>
+
+        <!-- Match Duration -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">Match Length</p>
+            <p class="text-stone-400 text-sm mt-0.5">Number of rounds. Endless keeps going until someone hits zero chips.</p>
+          </div>
+          <div class="flex gap-2">
+            <button class="pill" data-pass-duration="5">5 Rounds</button>
+            <button class="pill" data-pass-duration="10">10 Rounds</button>
+            <button class="pill" data-pass-duration="endless">Endless</button>
+          </div>
+        </div>
+
+        <!-- Bomb Strictness -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">Bomb Rules</p>
+            <p class="text-stone-400 text-sm mt-0.5">Standard: Triplets, Quads, and Double Joker are all Bombs. Heavy: only Quads and Double Joker detonate.</p>
+          </div>
+          <div class="flex gap-2">
+            <button class="pill" data-pass-bomb="standard">Standard</button>
+            <button class="pill" data-pass-bomb="heavy">Heavy</button>
+          </div>
+        </div>
+
+        <!-- Minimum Sequence Length -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">Minimum Sequence</p>
+            <p class="text-stone-400 text-sm mt-0.5">Fewest consecutive ranks allowed in a straight or double straight.</p>
+          </div>
+          <div class="flex gap-2">
+            <button class="pill" data-pass-seq="3">3</button>
+            <button class="pill" data-pass-seq="4">4</button>
+            <button class="pill" data-pass-seq="5">5</button>
+          </div>
+        </div>
+
+        <!-- Jokers -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">Jokers</p>
+            <p class="text-stone-400 text-sm mt-0.5">Jokers act as wild cards in combos. Double Joker = the strongest Bomb.</p>
+          </div>
+          <div class="flex gap-2">
+            <button class="pill" data-pass-jokers="0">None</button>
+            <button class="pill" data-pass-jokers="2">2 Jokers</button>
+            <button class="pill" data-pass-jokers="4">4 Jokers</button>
+          </div>
+        </div>
+
+        <!-- Mid-Game Draw -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <div class="flex items-center justify-between">
+            <p class="text-stone-800 font-semibold">Mid-Game Draw</p>
+            <button id="btn-pass-mid-draw-toggle" class="game-toggle-off shrink-0">OFF</button>
+          </div>
+          <p class="text-stone-400 text-sm">When a full circuit passes without a play, the trick winner deals one card from the deck to each player clockwise.</p>
+        </div>
+
+        <!-- Sky Joker Variant -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <div class="flex items-center justify-between">
+            <p class="text-stone-800 font-semibold">Sky Joker</p>
+            <button id="btn-pass-sky-joker-toggle" class="game-toggle-off shrink-0">OFF</button>
+          </div>
+          <p class="text-stone-400 text-sm">A solo Joker can lead or beat any single card — not just as your last card.</p>
+        </div>
+
+        <!-- Sylly Mode -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <div class="flex items-center justify-between">
+            <p class="text-stone-800 font-semibold">✨ Sylly Mode</p>
+            <button id="btn-pass-sylly-toggle" class="game-toggle-off shrink-0">OFF</button>
+          </div>
+          <p class="text-stone-600 text-sm font-semibold">The Abyss</p>
+          <p class="text-stone-400 text-sm">Every pass feeds a face-up central pool — The Abyss. Play a Bomb or Sequence and the Abyss detonates: cards deal clockwise to your opponents. Hit 13 cards and it fractures — everyone draws.</p>
+        </div>
+
+        <button id="btn-pass-settings-close" class="min-h-14 w-full rounded-2xl bg-zinc-900 hover:bg-zinc-800 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+          Done
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PASS HOW-TO OVERLAY -->
+  <div id="pass-how-to-overlay" style="display:none"
+    class="fixed inset-0 bg-black/40 z-[90] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
+      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
+        <h2 class="text-xl font-bold text-stone-800">How to Play 🃏</h2>
+        <p class="text-xs text-stone-400 mt-1">A climbing card game — shed your hand faster than everyone else.</p>
+      </div>
+      <div class="overflow-y-auto flex flex-col gap-4 px-5 py-5">
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest text-zinc-700">Step 1</p>
+          <p class="font-bold text-stone-800">Deal and sort</p>
+          <p class="text-stone-500 text-sm">Each player is dealt a hand of cards. Sort yours however you like — no one else can see them.</p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest text-zinc-700">Step 2</p>
+          <p class="font-bold text-stone-800">Play a combo or pass</p>
+          <p class="text-stone-500 text-sm">On your turn, play a <span class="font-semibold text-stone-700">combo</span> (Single, Pair, Triplet, Quad, Sequence, or Double Sequence) that is exactly one rank higher than the table — or pass. A <span class="font-semibold text-stone-700">Bomb</span> (Triplet+) beats any non-Bomb combo.</p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest text-zinc-700">Step 3</p>
+          <p class="font-bold text-stone-800">Clear the table</p>
+          <p class="text-stone-500 text-sm">If everyone passes in a full circuit, the table clears and the last player to play leads fresh. 2s beat everything except a Bomb — but still follow the +1 climb rule.</p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest text-zinc-700">Step 4</p>
+          <p class="font-bold text-stone-800">Empty your hand to win</p>
+          <p class="text-stone-500 text-sm">The first player to play their last card wins the round. The others lose chips based on how many cards remain.</p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest text-zinc-700">Winning and Scoring</p>
+          <p class="font-bold text-stone-800">Chips decide the match</p>
+          <ul class="list-disc pl-5 flex flex-col gap-1 text-stone-500 text-sm">
+            <li><span class="font-semibold text-stone-700">Still holding 13+ cards</span> — lose 3× your card count</li>
+            <li><span class="font-semibold text-stone-700">Never played a card</span> — lose 2× your card count</li>
+            <li><span class="font-semibold text-stone-700">Played at least once</span> — lose 1× your card count</li>
+            <li><span class="font-semibold text-stone-700">Winner</span> — collects everyone else's penalties</li>
+            <li>Match ends when rounds run out or any player hits zero chips</li>
+          </ul>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest text-zinc-700">✨ Sylly Mode</p>
+          <p class="font-bold text-stone-800">The Abyss</p>
+          <p class="text-stone-500 text-sm">Every <span class="font-semibold text-stone-700">Pass</span> feeds a card into a face-up central pool. Play a <span class="font-semibold text-stone-700">Bomb or Sequence</span> and the pool detonates — opponents draw the cards clockwise. Reach 13 cards and the Abyss <span class="font-semibold text-stone-700">fractures</span> — everyone draws one.</p>
+        </div>
+
+        <button id="btn-pass-howto-close" class="min-h-14 w-full rounded-2xl bg-zinc-900 hover:bg-zinc-800 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+          Got it
+        </button>
+        <button id="btn-pass-howto-close-settings" style="display:none" class="min-h-14 w-full rounded-2xl bg-zinc-900 hover:bg-zinc-800 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+          Got it
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PASS QUIT OVERLAY -->
+  <div id="pass-quit-overlay" style="display:none"
+    class="fixed inset-0 bg-black/40 z-[80] flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-zinc-300">
+      <p class="text-3xl">🃏</p>
+      <h3 class="text-lg font-bold text-stone-800">Walk Away?</h3>
+      <p class="text-stone-500 text-sm">The hand ends here. Chip totals are not saved.</p>
+      <div class="flex flex-col gap-2">
+        <button id="btn-pass-quit-confirm" class="min-h-11 w-full rounded-2xl bg-zinc-900 hover:bg-zinc-800 active:scale-95 text-white font-semibold text-sm transition-all duration-100">
+          Yeah, fold.
+        </button>
+        <button id="btn-pass-quit-cancel" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-sm transition-all duration-100">
+          Keep playing
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PASS NEW DEAL OVERLAY -->
+  <div id="pass-new-deal-overlay" style="display:none"
+    class="fixed inset-0 bg-black/40 z-[90] flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-zinc-300">
+      <p class="text-3xl">🃏</p>
+      <h3 class="text-lg font-bold text-stone-800">New Deal?</h3>
+      <p class="text-stone-500 text-sm">Chip stacks reset. Names and settings are kept.</p>
+      <div class="flex flex-col gap-2">
+        <button id="btn-pass-new-deal-confirm" class="min-h-11 w-full rounded-2xl bg-zinc-900 hover:bg-zinc-800 active:scale-95 text-white font-semibold text-sm transition-all duration-100">
+          Deal Me In
+        </button>
+        <button id="btn-pass-new-deal-cancel" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-sm transition-all duration-100">
+          Stay here
+        </button>
+      </div>
+    </div>
+  </div>
 
 </body>
 </html>

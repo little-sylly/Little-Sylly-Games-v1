@@ -1280,6 +1280,7 @@ function applyExpansionOverrides() {
 
 // ── Lobby button ──────────────────────────────────────────────────────────────
 document.getElementById('btn-bld').addEventListener('click', () => {
+  playLaunch();
   activeGameId = 'bld';
   bldShowMenu();
 });
@@ -1705,4 +1706,10 @@ document.getElementById('btn-bld-confirm-seating').addEventListener('click', () 
   bldSeatNumbers = new Array(bldPlayerCount);
   bldSeatOrder.forEach((playerIdx, seatPos) => { bldSeatNumbers[playerIdx] = seatPos + 1; });
   bldStartGame();
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('#screen-bld-menu .btn-open-sound').forEach(btn => {
+    btn.addEventListener('click', openSoundOverlay);
+  });
 });

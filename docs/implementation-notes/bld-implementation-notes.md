@@ -24,6 +24,18 @@ Flake players only see their fellow flakes on the role reveal screen — once th
 
 ## Bug Index
 
+### Bug: No entry sound on BLD lobby button (Phase 31 Round 3 — fixed)
+**Symptom:** Tapping "Bailed" on the main lobby made no sound.
+**Root cause:** The `btn-bld` listener called `activeGameId` and `bldShowMenu()` but omitted `playLaunch()`. Same omission pattern as GTH and DSD — the navigation was correct but audio was missed.
+**Fix:** Added `playLaunch()` as the first line of the `btn-bld` listener.
+**Lesson:** Every lobby button must call `playLaunch()` before navigating. See GTH entry.
+
+### Bug: Sound slider not themed on BLD menus (Phase 31 Round 3 — fixed)
+**Symptom:** Opening the sound overlay from the BLD menu showed the stone (grey) gradient instead of yellow, even though `bld-range` CSS and the map entry in `updateSliderTheme` were both present.
+**Root cause:** Same as GTH — `openSoundOverlay()` in `engine.js` never called `updateSliderTheme()`. BLD correctly set `activeGameId = 'bld'` in the lobby listener but the slider class was never updated.
+**Fix:** Added `updateSliderTheme(activeGameId)` as the first line of `openSoundOverlay()` in `engine.js`. Universal fix — all games benefit.
+**Lesson:** See GTH bug entry. The overlay open is the right sync point for slider theme, not individual game entry.
+
 ### Bug 1 — Crash: `mpWritePlayerPrivateData is not a function`
 **Symptom:** Game crashes immediately after "Deal the Roles" in MDLM.
 **Root cause:** `bldStartGameMdlm()` called `window.mpWritePlayerPrivateData()` — a function that was never implemented in `engine-multiplayer.js`.

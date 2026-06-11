@@ -64,6 +64,7 @@ STAGE 1 — Design Brief        STAGE 2 — Technical Spec       STAGE 3 — Imp
 2. Read all rule files listed above — do not skip any
 3. Run the Consistency Audit (top of technical template) before filling in anything else
 4. Fill in every section of the technical template
+4a. Express the §2 State Flow as a Mermaid `stateDiagram-v2` diagram — not ASCII arrows. GitHub renders Mermaid natively in all markdown files; the diagram will be visible directly in the repo.
 5. Where the brief is ambiguous or incomplete: use **[CLARIFICATION NEEDED]** — do not invent answers
 6. Where a technical decision deviates from the brief: document it in §17 (Deviations)
 7. Present the completed spec to the project owner for confirmation

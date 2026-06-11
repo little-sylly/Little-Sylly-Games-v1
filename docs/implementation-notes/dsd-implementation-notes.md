@@ -27,6 +27,12 @@ DSD was the first game to call `showWhoFirst()` from `engine.js`. The function w
 
 ## Bug Index
 
+**No entry sound on DSD lobby button (Phase 31 Round 3 — fixed)**
+- Symptom: Tapping "Deep-Sea Deploy" on the main lobby made no sound.
+- Root cause: `btn-dsd` listener called `updateSliderTheme('dsd')` and `dsdShowMenu()` but omitted `playLaunch()`. The `updateSliderTheme` call was itself redundant (now handled inside `openSoundOverlay()`).
+- Fix: Added `playLaunch()` as the first line; removed the now-redundant `updateSliderTheme('dsd')` call.
+- Lesson: Same as GTH/BLD — every lobby button must call `playLaunch()` before navigating.
+
 **`hasCaptain` as function — MDLM captain pre-lobby fix (Phase 28)**
 What happened: MDLM mode showed captain name input fields in the pre-lobby overlay even though no captain can be assigned before the roster is known (players join individually).
 Root cause: `hasCaptain: true` in DSD's rosterConfig was a static boolean, always showing captain fields regardless of `mpLobbyStyle`.

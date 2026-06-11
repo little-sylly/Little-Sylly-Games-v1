@@ -126,7 +126,9 @@ function [abbr]ShowPassGate({ heading, subtext, ctaLabel, onConfirm }) {
 | `mpPlayersListener` | function\|null | `null` | `onValue` unsubscribe for `/players` node; active during host lobby only; cancelled in `mpStopListeners()` and before GAME_START in `mpConfirmRoster()` |
 | `window.mpClientPlayerRef` | Firebase ref\|null | `null` | Reference to client's own `/players/{uid}` node; used for explicit removal on leave/cancel; set in `mpClientJoinRoom()`, cleared in `resetToLobby()` and cancel handler |
 
-**`window.` prefix rule:** All engine-multiplayer globals (`mpMyPlayerIdx`, `mpPlayerSlots`, `syllyMultiplayerMode`, `syllySyncLocked`, etc.) are `let`-declared at script top-level. `let` does NOT attach to `window`. Always access these directly — never `window.mpMyPlayerIdx`. That returns `undefined` silently. Only `var` attaches to `window`. Reference implementations: NAT.js and DSD.js.
+**`window.` prefix rule — split declaration types:**
+- `window.syllyMultiplayerMode`, `window.syllySyncLocked`, `window.syllyFirebase`, `window.syllyDeviceUid`, `window.mpLobbyStyle`, `window.mpClientPlayerRef`, `window.mpLobbyRoster`, `window.mpLobbyRosterTeamNames`, `window.mpLobbyRosterCaptainNames` — declared with `window.` explicitly at the top of `engine-multiplayer.js`. These ARE on `window` and must be accessed with the `window.` prefix. All game plugin files use `window.syllyMultiplayerMode` etc. — this is correct.
+- `mpMyPlayerIdx`, `mpPlayerSlots`, `mpActiveGame`, `mpActiveGameConfig`, `mpActiveRoomCode`, `mpRoomRef`, `mpEventsListener`, `mpRoomListener`, `mpPlayersListener`, `mpSyncLockTimer`, `mpJoinListenFrom` — declared with `let` at script top-level. These are NOT on `window`. Always access these directly — never `window.mpMyPlayerIdx`. That returns `undefined` silently. BLD Bug 8 was caused by this. Reference implementations for correct access: NAT.js, DSD.js.
 
 ### Envelope Schema
 
@@ -178,7 +180,24 @@ if (window.syllyMultiplayerMode !== 'single') {
 
 **Roster type `'none'`:** For games with automatic or random seating, use `rosterConfig.type: 'none'`. The `'individual'` type requires every player (including the host) to be manually assigned in the Assign Spots lobby UI — any player left unassigned produces `reordered[-1]` (a non-standard array property), corrupting the slot array. If the game handles seat labels internally, `'none'` is always safer.
 
+**Multiplayer-only game routing (`multiplayerOnly: true`):** The lobby-entry button on `screen-lobby` STILL routes to the game menu (`showScreen('screen-[abbr]-menu')`), not directly to `mpShowModeScreen()`. The game menu is always required — it holds Settings and How to Play before the host commits to a session.
+
+The game menu's Play CTA has **dual context** and must branch on `syllyMultiplayerMode`:
+```js
+document.getElementById('btn-[abbr]-menu-play').addEventListener('click', () => {
+  playLaunch();
+  if (syllyMultiplayerMode !== 'single') {
+    [abbr]StartSession(); // post-lobby: onPassThePhone fired, players ready
+  } else {
+    mpShowModeScreen('[abbr]'); // pre-lobby: create/join lobby first
+  }
+});
+```
+This branching is required because `onPassThePhone` calls the game's menu-show function after lobby setup, so the Play CTA appears in two contexts: once before the lobby exists, and once after it's fully configured. GTH is the reference implementation (Phase 31).
+
 **Firebase callback crash safety:** A crash inside a Firebase `onValue` callback (inside `mpHandleEnvelope`) has a cascade failure mode: the SYNC that would advance all devices is never sent; Firebase may re-deliver buffered events against partially-reset state, triggering spurious double-resolutions. Treat every function called from `mpHandleEnvelope` as safety-critical. Grep to confirm every function called from it exists before shipping.
+
+**Host-gate screens before timed phases:** Any screen that gates entry into a timed gameplay phase (e.g. diagnosis timer, drawing timer) must be host-only in MDLM. The host computes `endTimestamp` at the moment they click through the gate — not at queue-build time earlier in the flow. Clients show a "Waiting for the host…" message with no action button. Pattern: host click → `endTimestamp = Date.now() + window * 1000` → broadcast `SYNC: [ABBR]_PHASE_BEGIN { endTimestamp }` → all devices `startTimer(endTimestamp)` + navigate to gameplay screen. Reference implementation: `GTH_PHASE2_BEGIN` in `js/games/gth.js`.
 
 ### `resetToLobby()` Multiplayer Additions
 
@@ -269,15 +288,17 @@ Before implementing, answer:
 
 **SW versioning:** `CACHE_NAME = 'sylly-games-vN'` — bump N on **every deploy**.
 
-**Current SW version:** v96
+**Current SW version:** v101
 
 **Precached assets (relative paths — no leading `/`):**
 ```
 ./, index.html, css/styles.css,
 js/engine.js, js/games/li5.js, js/games/great-minds.js,
 js/games/secret-signals.js, js/games/jec.js, js/games/ygi.js,
-js/games/lttp.js, js/games/nat.js, js/games/dsd.js, js/secret-mode.js, js/app.js,
-js/lib/tailwind-play.js, data/words.json, data/secret_words.json, data/secret2_words.json, data/secret3_words.json, data/ygi-data.json, manifest.json
+js/games/lttp.js, js/games/nat.js, js/games/dsd.js, js/games/gth.js, js/games/dyb.js, js/games/pass.js,
+js/secret-mode.js, js/app.js,
+js/lib/tailwind-play.js, js/lib/canvas-draw.js, js/lib/cards.js,
+data/words.json, data/secret_words.json, data/secret2_words.json, data/secret3_words.json, data/ygi-data.json, data/gth-data.json, manifest.json
 ```
 
 ---
@@ -288,9 +309,8 @@ js/lib/tailwind-play.js, data/words.json, data/secret_words.json, data/secret2_w
 - [ ] Add all screen IDs to `allScreens[]` in `engine.js`
 - [ ] Add all overlay HTML to `index.html` **before** the `<script>` tags
 - [ ] Add `.btn-open-sound` + ✕ to every screen (see `@ui-style.md`)
-- [ ] Set `activeGameId = '[game-name]'` in lobby button listener
+- [ ] Wire lobby button → game menu screen (not directly into setup) — exact pattern: `playLaunch(); activeGameId = '[abbr]'; showScreen('screen-[abbr]-menu');`. `playLaunch()` is mandatory — omitting it silently removes the entry sound. Do NOT call `updateSliderTheme()` here; `openSoundOverlay()` handles that automatically.
 - [ ] Add game teardown to `resetToLobby()` in `engine.js`
-- [ ] Wire lobby button → game menu screen (not directly into setup)
 - [ ] Add game menu: Let's Play!, How to Play, Settings, ← Back to the Box (see `@ui-style.md` Universal Menu Standard)
 - [ ] Settings: game options first, ✨ Sylly Mode last; every setting in a white card (see `@ui-style.md` Settings Card Standard)
 - [ ] Settings: include a **difficulty setting** (themed name, plain-English description) — controls word difficulty tier (d1 / d1+d2 / d3); position it early, before timer/rounds
@@ -308,3 +328,7 @@ js/lib/tailwind-play.js, data/words.json, data/secret_words.json, data/secret2_w
 - [ ] **`[?]` how-to button:** Add `#btn-[abbr]-how-to` to every main gameplay screen header — always visible (no `hidden` class), wired to `[abbr]-how-to-overlay` (see `@ui-style.md` § Help icon `[?]`)
 - [ ] **Decision modal borders:** All `overlay-modal-inner` divs include `border border-[brand]-300` from day one (see `@ui-style.md` § Two-Pattern Overlay Library)
 - [ ] **Shared tip overlay (if applicable):** For games with 3+ contextual `[?]` tip points, implement a single `[abbr]-tip-overlay` (Decision Modal, z-[90]) + `[abbr]ShowTip(emoji, heading, lines[])` rather than per-tip overlays (see `@ui-style.md` § Contextual Tip Icons)
+- [ ] **Screen layout pattern — decide per screen at spec time:** `h-screen overflow-hidden` = sticky-footer CTA screens only (the button must stay visible regardless of content). All other screens: `min-h-screen overflow-y-auto flex items-center justify-center` (NAT pattern) — content centres when short, scrolls when tall. Never guess during implementation. See `@ui-style.md` § Centered Content Layout (Default) and § Gameplay Screen Layout — Header / Body / Footer.
+- [ ] **MDLM — missing handler audit:** Before shipping multiplayer, walk every screen phase and ask "can a non-host device submit something here?" Every "yes" is a required ACTION handler in `[abbr]HandleEnvelope`. Missing handlers silently drop submissions — they do not error. Log the full ACTION packet table in the tech spec §11 before implementation.
+- [ ] **MDLM — name population:** `mpPlayerSlots[i].name` is already populated when `onPassThePhone` fires. Skip the game's own name-entry setup screen for MDLM; populate the name array from `mpPlayerSlots` and call the start function directly. BLD is the reference implementation.
+- [ ] **Canvas drawing (if applicable):** If the game uses freehand drawing, reference `js/lib/canvas-draw.js` (`window.CanvasDraw` global). Call `CanvasDraw.init(canvasEl)` on screen show. Tremor/jiggle effects apply to the wrapper `<div>` — never to the `<canvas>` element itself (canvas coordinate system must be unaffected). GTH is the reference implementation.

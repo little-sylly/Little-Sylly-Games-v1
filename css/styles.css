@@ -2,6 +2,7 @@
 
 :root {
   overscroll-behavior-y: none;
+  --color-gth-sage: #B1BCA0;
 }
 
 body {
@@ -176,6 +177,23 @@ body.flash-red   { background-color: #fecaca; }
   border: none;
   cursor: pointer;
 }
+.game-toggle-on-sage {
+  background-color: var(--color-gth-sage);
+  color: #ffffff;
+  border-radius: 9999px;
+  padding: 0.4rem 1.2rem;
+  font-weight: 700;
+  font-size: 0.9rem;
+  transition: background 0.2s, color 0.2s;
+  border: none;
+  cursor: pointer;
+}
+
+/* ── GTH: Stroke or Genius tremor tuning ─────────────────────────────────── */
+:root {
+  --gth-tremor-max: 5;
+  --gth-tremor-interval: 1500;
+}
 
 /* ── Sylly Mode — word card glow + pulse ─────────────────────────────────── */
 @keyframes syllyPulse {
@@ -277,6 +295,13 @@ body.flash-red   { background-color: #fecaca; }
 .pill-active-yellow {
   background: #eab308;  /* yellow-500 */
   color: #fff;
+}
+
+/* ── Gather The Herd pill active state (sage) ────────────────────────────── */
+.pill-active-sage {
+  background-color: var(--color-gth-sage);
+  color: #ffffff;
+  font-weight: 600;
 }
 
 /* ── Global volume group — slides away when muted ───────────────────────── */
@@ -606,6 +631,175 @@ body.flash-red   { background-color: #fecaca; }
   border: none;
   box-shadow: 0 1px 4px rgba(0,0,0,0.2);
 }
+.stone-range {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 9999px;
+  background: linear-gradient(to right, #d6d3d1, #57534e);
+  outline: none;
+  cursor: pointer;
+}
+.stone-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: #57534e;
+  border: 3px solid #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
+.stone-range::-moz-range-thumb {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: #57534e;
+  border: none;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
+.gth-range {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 9999px;
+  background: linear-gradient(to right, #d4dbc8, #8a9a78);
+  outline: none;
+  cursor: pointer;
+}
+.gth-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: #8a9a78;
+  border: 3px solid #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
+.gth-range::-moz-range-thumb {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: #8a9a78;
+  border: none;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
+.bld-range {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 9999px;
+  background: linear-gradient(to right, #fde68a, #d97706);
+  outline: none;
+  cursor: pointer;
+}
+.bld-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: #d97706;
+  border: 3px solid #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
+.bld-range::-moz-range-thumb {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: #d97706;
+  border: none;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
+
+/* ── Dicey Bluffs — stone-400 (#a8a29e) ─────────────────────────────────── */
+.pill-active-stone {
+  background-color: #a8a29e;
+  color: #ffffff;
+  font-weight: 600;
+}
+.game-toggle-on-stone {
+  background-color: #a8a29e;
+  color: #ffffff;
+  border-radius: 9999px;
+  padding: 0.4rem 1.2rem;
+  font-weight: 700;
+  font-size: 0.9rem;
+  transition: background 0.2s, color 0.2s;
+  border: none;
+  cursor: pointer;
+}
+.dyb-range {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 9999px;
+  background: linear-gradient(to right, #e7e5e4, #a8a29e);
+  outline: none;
+  cursor: pointer;
+}
+.dyb-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: #a8a29e;
+  border: 3px solid #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
+.dyb-range::-moz-range-thumb {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: #a8a29e;
+  border: none;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
+
+/* ── Pass — zinc-900 (#18181b) ───────────────────────────────────────────── */
+.pill-active-zinc {
+  background-color: #18181b;
+  color: #ffffff;
+  font-weight: 600;
+}
+.game-toggle-on-zinc {
+  background-color: #18181b;
+  color: #ffffff;
+  border-radius: 9999px;
+  padding: 0.4rem 1.2rem;
+  font-weight: 700;
+  font-size: 0.9rem;
+  transition: background 0.2s, color 0.2s;
+  border: none;
+  cursor: pointer;
+}
+.pass-range {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 9999px;
+  background: linear-gradient(to right, #a1a1aa, #18181b);
+  outline: none;
+  cursor: pointer;
+}
+.pass-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: #18181b;
+  border: 3px solid #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
+.pass-range::-moz-range-thumb {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: #18181b;
+  border: none;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
+
+/* ── DYB Spirit Board — over-bid flash ──────────────────────────────────── */
+@keyframes dybSpiritFlash {
+  0%   { background-color: #dcfce7; }
+  60%  { background-color: #86efac; }
+  100% { background-color: #ffffff; }
+}
+.dyb-spirit-flash { animation: dybSpiritFlash 0.8s ease-out forwards; }
 
 /* ── Team score boxes — twin transition ──────────────────────────────────── */
 .team-box {
@@ -797,3 +991,114 @@ body.flash-red   { background-color: #fecaca; }
   background-color: #f5f5f4 !important;
   border-radius: 0.75rem;
 }
+
+
+/* ══════════════════════════════════════════════════════════════════════════
+   PASS — Playing card rendering (cards.js module)
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Base card ─────────────────────────────────────────────────────────── */
+.pass-card {
+  position: relative;
+  width: 3.5rem;
+  height: 5rem;
+  border-radius: 0.5rem;
+  background: #ffffff;
+  border: 1.5px solid #d4d4d4;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.12);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 0.2rem 0.3rem;
+  box-sizing: border-box;
+  user-select: none;
+  flex-shrink: 0;
+  cursor: default;
+}
+
+.pass-card-red  { color: #dc2626; }
+.pass-card-black { color: #18181b; }
+
+/* ── Rank + suit labels ────────────────────────────────────────────────── */
+.pass-card-rank {
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 1.1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.pass-card-rank-tl { align-self: flex-start; }
+.pass-card-rank-br { align-self: flex-end; }
+
+/* ── Centre suit symbol ────────────────────────────────────────────────── */
+.pass-card-center-suit {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+/* ── Joker centre ──────────────────────────────────────────────────────── */
+.pass-card-joker { background: linear-gradient(135deg, #fef9c3, #fde68a); border-color: #ca8a04; }
+.pass-card-center-joker {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 0.55rem;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  color: #92400e;
+}
+
+/* ── Card back ─────────────────────────────────────────────────────────── */
+.pass-card-back {
+  border-radius: 0.5rem;
+  width: 3.5rem;
+  height: 5rem;
+}
+.pass-card-back-deck1 {
+  background: repeating-linear-gradient(
+    45deg,
+    #3f3f46 0px, #3f3f46 3px,
+    #18181b 3px, #18181b 8px
+  );
+  border: 1.5px solid #52525b;
+}
+.pass-card-back-deck2 {
+  background: repeating-linear-gradient(
+    45deg,
+    #991b1b 0px, #991b1b 3px,
+    #7f1d1d 3px, #7f1d1d 8px
+  );
+  border: 1.5px solid #b91c1c;
+}
+
+/* ── Hand cards ────────────────────────────────────────────────────────── */
+.pass-hand-card {
+  cursor: pointer;
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+.pass-hand-card:active {
+  transform: scale(0.95);
+}
+.pass-card-selected {
+  transform: translateY(-10px) !important;
+  box-shadow: 0 6px 16px rgba(0,0,0,0.22) !important;
+  border-color: #18181b !important;
+  border-width: 2px !important;
+}
+
+/* ── Abyss cards (face-up pool, horizontal scroll) ─────────────────────── */
+.pass-abyss-card {
+  flex-shrink: 0;
+  width: 2.8rem;
+  height: 4rem;
+  font-size: 0.55rem;
+  border-radius: 0.4rem;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+}
+.pass-abyss-card .pass-card-center-suit { font-size: 1.1rem; }

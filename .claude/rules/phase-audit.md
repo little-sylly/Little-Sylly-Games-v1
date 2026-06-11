@@ -35,7 +35,7 @@ Scan the plugin JS for these specific anti-patterns:
 - [ ] **No global-scope event listeners** — all `addEventListener` calls for this game must live inside an init or start function, not at top-level script execution
 - [ ] **No surviving `TODO` / `FIXME` comments** — grep the plugin for these; resolve or consciously defer with a dated note
 - [ ] **No engine duplication** — check that no function in the plugin reimplements something already in `engine.js` (audio, `showScreen`, `normaliseWord`, overlay patterns)
-- [ ] **No `window.` prefix on engine-multiplayer globals** — grep the plugin for `window.mpMyPlayerIdx`, `window.mpPlayerSlots`, `window.syllyMultiplayerMode`, `window.syllySyncLocked`. Engine-multiplayer globals are `let`-declared — they are NOT on `window`. Any `window.` prefix returns `undefined` silently.
+- [ ] **No `window.` prefix on `let`-declared engine-multiplayer globals** — grep the plugin for `window.mpMyPlayerIdx`, `window.mpPlayerSlots`, `window.mpActiveGame`, `window.mpActiveRoomCode`. These are `let`-declared and NOT on `window` — any `window.` prefix returns `undefined` silently. Note: `window.syllyMultiplayerMode`, `window.syllySyncLocked`, `window.mpLobbyStyle`, `window.mpLobbyRoster` ARE on `window` (declared as `window.x = ...` in `engine-multiplayer.js`) — using `window.` prefix on these is correct and intentional.
 - [ ] **Team games use `showWhoFirst()`** — any game with two competing teams must call `showWhoFirst(config)` from `engine.js` for pre-game order selection. No plugin may define its own equivalent screen. Grep the plugin for `showScreen` and verify no bespoke first-team screen exists.
 - [ ] **Pass-gates on all role/team transitions** — every screen showing private information (Captain grid, role reveal, team-specific content) is preceded by a named `screen-[abbr]-pass-gate` confirmation screen. Grep the plugin for `showScreen('screen-[abbr]-captain')` and verify it is always called via the pass-gate function, never directly.
 - [ ] **Play-again uses confirmation modal** — no "New [Game]" / "Play Again" button calls reset state directly; must go through a Decision Modal (z-[90]) first. Grep for `addEventListener('click'` on the gameover play-again button and verify the handler shows an overlay, not `resetState()` or `showSetup()` directly.
@@ -113,3 +113,46 @@ Follow this sequence strictly. Do not skip ahead to logic injection.
 - Add settings, overlays, and Sylly Mode last — these are enhancements, not the skeleton
 - Run the Drift Check (Protocol A §1) after completing the final screen
 - **Gate:** Drift Check clean + Phase Gate passed → write phase snapshot
+
+---
+
+## Protocol C: Pre-Game Studio Sweep
+
+**When to run:** Before any new game's Phase 1 brief is written. Also valuable at the end of a major phase before the snapshot. Run alongside Protocol B Step 0 — both are pre-build gates.
+
+**Purpose:** Catch recurring cross-game bugs and propagate lessons into rule files before a new game has the chance to repeat them. Protocol B Step 0 reviews Template Gaps per-game; Protocol C is the broader cross-suite sweep.
+
+---
+
+### Part 1 — Implementation Notes Harvest
+
+Propagate general lessons from past bugs into rule files.
+
+1. Read every `docs/implementation-notes/[abbr]-implementation-notes.md` — focus on the **Template Gaps** section of each file
+2. Scan every **Bug Index** for bugs that appeared in 2+ games — these indicate a missing or under-specified rule, not a one-off
+3. Cross-reference each finding against `logic-engine.md`, `ui-style.md`, and `phase-audit.md`
+4. For any lesson not yet captured in a rule file: add it to the appropriate document before proceeding
+
+**Gate:** No unaddressed general lessons remain open → proceed to Part 2.
+
+---
+
+### Part 2 — Cross-Game Consistency Check
+
+Compare specific implementation elements across all game plugin files and `index.html`. Each row is a yes/no gate — flag and fix any failure before the new game's brief begins.
+
+| Element | Rule to verify |
+|---------|---------------|
+| **Lobby button listener** | Pattern is `playLaunch(); activeGameId = '[abbr]'; showScreen('screen-[abbr]-menu');` — in that order. No `updateSliderTheme()` call (handled by `openSoundOverlay()` automatically). |
+| **Menu section class** | No `min-h-screen` on any game menu section. Standard pattern: `relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6`. |
+| **Sound button position** | Sound button is `absolute top-4 right-4` within a `relative` section. Section must be content-height (no `min-h-screen`) or the button detaches visually from the content. |
+| **Sound button listeners** | `engine.js` attaches `openSoundOverlay` to all `.btn-open-sound` elements globally at script execution time (top-level `querySelectorAll` — line 534). Since all HTML is parsed before scripts run, this covers every game automatically. Newer games (NAT, DSD, GTH, BLD, DYB, PASS) also wire them explicitly inside their `DOMContentLoaded` block — redundant but harmless. Older games (LI5, GM, SS, JEC, YGI, LTTP) rely on the engine.js global only — confirmed correct. ✅ All 11 games audited June 2026. |
+| **Settings pill toggles** | Only `pill-active-[colour]` is added or removed — the `.pill` base class is NEVER removed from any pill. Grep for `classList.toggle('pill'` and `classList.remove('pill'` — both are prohibited. |
+| **Decision modal class strings** | Every `overlay-modal-inner` div has `border border-[brand]-300`. Data overlays (`overlay-data-inner`) are exempt. |
+| **Quit overlay copy** | Game-voiced heading, subtext, confirm label, cancel label. Grep for generic strings: `"Quit game"`, `"Are you sure"`, `"Yes"`, `"No"`. |
+| **How-to overlay structure** | Thematic title block (sticky) → step cards → "Winning and Scoring" card → ✨ Sylly Mode card → close button. See `ui-style.md` § How-to Overlay Standard. |
+| **Play-again flow** | Every gameover restart button opens a confirmation overlay — no direct call to a reset/start function on button click. |
+| **`allScreens[]` registration** | Every screen ID in every plugin appears in `engine.js` `allScreens[]`. |
+| **`resetToLobby()` teardown** | Every overlay from every game is hidden in `resetToLobby()` in `engine.js`. |
+
+**Gate:** All items pass (or failures are logged and fixed) → Protocol B Step 1 (brief) may begin.
