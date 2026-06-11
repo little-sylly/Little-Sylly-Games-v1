@@ -61,7 +61,7 @@ Update the status column as phases complete. A fresh session starts at the first
 | 0 — Housekeeping | ✅ | 12 June 2026 — pre-audit checkpoint commit `bb32291` (50 files); per-phase checkpoint convention active from here |
 | 1A — CLAUDE.md | ✅ | 12 June 2026 — structure map, load order, data counts, key references all corrected; see Audit Findings §Phase 1A |
 | 1B — game-identities.md | ✅ | 12 June 2026 — structural pass complete; GTH Screens table added, PASS packets corrected, numbering fixed; settings display-name drift forward-flagged to Phase 3; see Audit Findings §Phase 1B |
-| 1C — logic-engine.md | ☐ | |
+| 1C — logic-engine.md | ✅ | 12 June 2026 — precache list synced to sw.js, resetToLobby() MP block rewritten, getMuteToggleOnClass documented; see Audit Findings §Phase 1C |
 | 1D — ui-style.md | ☐ | |
 | 1E — phase-audit.md | ☐ | |
 | 1F — definitions.md | ☐ | |
@@ -280,7 +280,7 @@ Several of these checks are mechanical — write small throwaway Node scripts (r
 
 ### 2B-8 — Service worker integrity (scripted)
 - Every URL in `PRECACHE_URLS[]` exists on disk. **`cache.addAll()` is atomic — one 404 fails the entire SW install**, silently breaking offline mode for every user. Any missing file is `[CRITICAL]`.
-- Reverse: every file the app actually loads (`<script src>`, `fetch`ed data files, manifest) is either precached or deliberately runtime-only (Firebase libs are deliberately not precached — lazy-loaded). Flag undocumented omissions.
+- Reverse: every file the app actually loads (`<script src>`, `fetch`ed data files, manifest) is either precached or deliberately runtime-only. (Correction from Phase 1C: the four Firebase libs ARE in `PRECACHE_URLS[]` — they are lazy-*injected* at runtime but cached for offline.) Flag undocumented omissions.
 - `<script>` load order in `index.html` matches the documented load order in `CLAUDE.md`.
 
 ### 2B-9 — index.html section headers
@@ -693,3 +693,22 @@ Changes applied to `game-identities.md`:
 **Flags (forward-noted for Phase 3 — need plugin reads to resolve, out of 1B scope per the sequencing note):**
 - `[AUDIT FLAG]` Settings display-name drift exists in MORE games than GTH/LTTP. Observed card titles in `index.html` that don't match `game-identities.md` settings tables: **GM** ("Frequency Tuner", "Adjust Frequency Range"; no "Static Interference" card visible), **JEC** ("Dishes" card; no "Chefs" card in the overlay), **YGI** (no "Players" card in the overlay), **NAT** (order differs; "The Classification" and "Mole Escape Bonus" vs doc's "Voting Mode" / "Escape Points"), **DSD** (single "Hazard Control" card vs doc's three separate "X Ends Turn" rows), **BLD** (overlay contains only the Sylly Mode card; "Players" presumably setup-screen). Phase 3 must reconcile each table against the plugin + HTML (reality wins).
 - `[AUDIT FLAG]` LI5 and SS settings tables are legacy-format — missing Default and Internal variable columns. Enrich during Phase 3 when the plugins are read in full.
+
+### Phase 1C — logic-engine.md (12 June 2026)
+
+Changes applied to `logic-engine.md`:
+- **Engine/Plugin Split — engine.js owns list:** added `updateSliderTheme(gameId)` and `getMuteToggleOnClass(gameId)` (June 2026 addition, previously undocumented) with their fallback values and call sites.
+- **Globals table:** `syllyDeviceUid` default corrected `''` → `null` (set by `firebase-init.js` after `signInAnonymously` — verified against `engine-multiplayer.js` line 12).
+- **`resetToLobby()` Multiplayer Additions:** code block was stale — rewritten to match `engine.js` lines 489–513: host path (`HOST_END_GAME` LOBBY envelope → `syllyTeardownRoom()`, which calls `mpStopListeners()` internally), client path (explicit `mpClientPlayerRef` removal), resets of `mpLobbyStyle` + all three `mpLobbyRoster*` globals, and the `updateSliderTheme(null)` / `getMuteToggleOnClass(null)` theming reset. The old block showed a bare `mpStopListeners()` call and none of the above.
+- **PWA precache list:** synced to `sw.js` `PRECACHE_URLS[]` — was missing `js/games/bld.js`, `js/engine-multiplayer.js`, and all four Firebase lib files (`firebase-app/-database/-auth/-init.js`). Added note clarifying Firebase libs are precached but lazy-injected.
+- **Firebase Lazy-Load section:** added clarification that lazy-load refers to script injection timing, not caching — the libs are in the SW precache.
+
+Verified with no change needed:
+- **Audio Function Catalogue:** all 16 public `play*()` functions in `engine.js` are documented (`playTone` is an internal helper, correctly omitted). `playSonarPing`, `playHullThud`, `playAbyssThud` present ✓.
+- **`showWhoFirst()` config:** all keys (`emoji`, `eyebrow`, `heading`, `prompt`, `teamA/B`, `confirmLabel`, `accentBtnClass`, `accentTextClass`, `onResult`) and both defaults match `engine.js` lines 565–582 ✓.
+- **`window.` vs `let` declaration table:** matches `engine-multiplayer.js` declarations exactly (9 `window.`-declared listed, 11 `let`-declared listed; `mpSelectedMode` and the three `mpRosterPending*` working vars are unlisted but low-risk — internal to lobby UI, not referenced by plugins) ✓.
+- **SW version:** v101 in both `logic-engine.md` and `sw.js` ✓.
+- **Play-Again Return Pattern:** `mpReturnToLobby()` doc matches `engine-multiplayer.js` line 2141 (host: `LOBBY_RESET` broadcast → same-code host lobby → `mpStartPlayersWatcher()` re-subscribe; client: `resetToLobby()`) ✓.
+- **MDLM Patterns + Checklist (Adding a New Game):** read in full; current and accurate, no stale references found.
+
+Side-fix to this plan document: 2B-8's parenthetical claimed Firebase libs are "deliberately not precached" — corrected in place (they ARE precached; lazy refers to injection timing).

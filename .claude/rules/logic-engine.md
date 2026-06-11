@@ -12,6 +12,8 @@
 - `resetToMenu()` — DSTW in-game exit: stops timer, hides DSTW overlays → screen-menu
 - Global sound overlay (`#sound-overlay`) — mute toggle + volume slider
 - `openSoundOverlay()`, `toggleMute()` — syncs `#btn-mute`, `#global-mute-toggle`, all `.btn-open-sound` icons in one call
+- `updateSliderTheme(gameId)` — maps `activeGameId` to the volume slider's `[abbr]-range` CSS class (fallback `stone-range`); called automatically inside `openSoundOverlay()` and with `null` in `resetToLobby()`
+- `getMuteToggleOnClass(gameId)` — maps `activeGameId` to the mute toggle's `game-toggle-on-*` class (fallback `game-toggle-on-stone`); used by `toggleMute()`, `openSoundOverlay()`, and `resetToLobby()` so `#global-mute-toggle` shows the current game's brand colour when ON
 - `isMuted`, `masterVolume` (both localStorage-backed)
 
 **Each plugin owns:**
@@ -120,7 +122,7 @@ function [abbr]ShowPassGate({ heading, subtext, ctaLabel, onConfirm }) {
 |----------|------|---------|------|
 | `syllyMultiplayerMode` | string | `'single'` | `'single'` / `'host'` / `'client'` — every plugin branches on this |
 | `syllySyncLocked` | bool | `false` | True while awaiting Firebase; blocks resubmission |
-| `syllyDeviceUid` | string | `''` | Anonymous UID; memory-only (not localStorage) |
+| `syllyDeviceUid` | string | `null` | Anonymous UID; set by `firebase-init.js` after `signInAnonymously`; memory-only (not localStorage) |
 | `syllyFirebase` | object | `null` | Lazy-loaded — null on app boot; loaded when user taps "Host Lobby" or "Join Lobby" |
 | `mpLobbyStyle` | string | `'individual'` | `'team'` (TLM — teams share a device) / `'individual'` (MDLM — each player own device); set at mode selection; broadcast in `GAME_START`; reset in `resetToLobby()` |
 | `mpPlayersListener` | function\|null | `null` | `onValue` unsubscribe for `/players` node; active during host lobby only; cancelled in `mpStopListeners()` and before GAME_START in `mpConfirmRoster()` |
@@ -153,6 +155,8 @@ permanent lock on dropped packets.
 `syllyFirebase` is `null` on app boot. Firebase scripts are loaded only when the user enters
 Lobby Mode (taps Host or Join). This keeps the app fully functional offline without Firebase.
 If the load times out (4 seconds), `mp-network-error-overlay` is shown.
+The Firebase lib files are still listed in the `sw.js` precache — lazy-load refers to *when*
+the scripts are injected, not whether they are cached.
 
 ### Interceptor Pattern (per-plugin)
 
@@ -203,17 +207,35 @@ This branching is required because `onPassThePhone` calls the game's menu-show f
 
 Added to engine.js `resetToLobby()` after all game teardowns:
 ```js
-syllyMultiplayerMode = 'single';
-syllySyncLocked = false;
-mpStopListeners();       // detach Firebase listeners
+// Host: notify clients before room deletion so the disconnect overlay appears immediately,
+// then tear down the room (syllyTeardownRoom() closes lifecycle, removes the room node,
+// and calls mpStopListeners() internally)
+if (window.syllyFirebase && window.syllyMultiplayerMode === 'host') {
+  try { mpSendEnvelope({ type: 'LOBBY', payload: { action: 'HOST_END_GAME' } }); } catch (_) {}
+  syllyTeardownRoom();
+}
+// Client: explicitly remove own /players entry so the host's roster updates
+if (window.syllyFirebase && window.syllyMultiplayerMode === 'client' && window.mpClientPlayerRef) {
+  try { window.syllyFirebase.remove(window.mpClientPlayerRef); } catch (_) {}
+  window.mpClientPlayerRef = null;
+}
+window.syllyMultiplayerMode      = 'single';
+window.syllySyncLocked           = false;
+window.mpLobbyStyle              = 'individual';
+window.mpLobbyRoster             = null;
+window.mpLobbyRosterTeamNames    = null;
+window.mpLobbyRosterCaptainNames = null;
 document.body.classList.remove('mp-sync-locked');
 // hide all MP overlays
-['mp-network-error-overlay','mp-version-mismatch-overlay',
- 'mp-host-disconnected-overlay','mp-lttp-message-interrupt-overlay',
+['mp-version-mismatch-overlay','mp-host-disconnected-overlay',
+ 'mp-lttp-message-interrupt-overlay','mp-network-error-overlay',
  'mp-host-prelobby-overlay'].forEach(id => {
   const el = document.getElementById(id);
   if (el) el.style.display = 'none';
 });
+// Theming reset — slider back to neutral stone, mute toggle to neutral if ON
+updateSliderTheme(null);
+if (isMuted) document.getElementById('global-mute-toggle').className = getMuteToggleOnClass(null);
 ```
 
 ### Play-Again Return Pattern (`mpReturnToLobby`)
@@ -290,16 +312,24 @@ Before implementing, answer:
 
 **Current SW version:** v101
 
-**Precached assets (relative paths — no leading `/`):**
+**Precached assets (relative paths — no leading `/`; matches `sw.js` `PRECACHE_URLS[]`):**
 ```
 ./, index.html, css/styles.css,
-js/engine.js, js/games/li5.js, js/games/great-minds.js,
-js/games/secret-signals.js, js/games/jec.js, js/games/ygi.js,
-js/games/lttp.js, js/games/nat.js, js/games/dsd.js, js/games/gth.js, js/games/dyb.js, js/games/pass.js,
+js/engine.js,
+js/games/li5.js, js/games/great-minds.js, js/games/secret-signals.js,
+js/games/jec.js, js/games/ygi.js, js/games/lttp.js, js/games/nat.js,
+js/games/dsd.js, js/games/bld.js, js/games/gth.js, js/games/dyb.js, js/games/pass.js,
+js/lib/cards.js,
+data/ygi-data.json, data/gth-data.json,
 js/secret-mode.js, js/app.js,
-js/lib/tailwind-play.js, js/lib/canvas-draw.js, js/lib/cards.js,
-data/words.json, data/secret_words.json, data/secret2_words.json, data/secret3_words.json, data/ygi-data.json, data/gth-data.json, manifest.json
+js/lib/tailwind-play.js, js/lib/canvas-draw.js,
+data/words.json, data/secret_words.json, data/secret2_words.json, data/secret3_words.json,
+manifest.json,
+js/engine-multiplayer.js,
+js/lib/firebase-app.js, js/lib/firebase-database.js, js/lib/firebase-auth.js, js/lib/firebase-init.js
 ```
+
+Note: the four Firebase lib files ARE precached (so Lobby Mode works offline-first once installed) but are still lazy-loaded at runtime — they are not in the `index.html` `<script>` load order. See Firebase Lazy-Load below.
 
 ---
 
