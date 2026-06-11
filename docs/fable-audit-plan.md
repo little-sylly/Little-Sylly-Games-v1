@@ -58,7 +58,7 @@ Update the status column as phases complete. A fresh session starts at the first
 
 | Phase | Status | Notes |
 |-------|--------|-------|
-| 0 — Housekeeping | ☐ | |
+| 0 — Housekeeping | ✅ | 12 June 2026 — pre-audit checkpoint commit `bb32291` (50 files); per-phase checkpoint convention active from here |
 | 1A — CLAUDE.md | ☐ | |
 | 1B — game-identities.md | ☐ | |
 | 1C — logic-engine.md | ☐ | |
