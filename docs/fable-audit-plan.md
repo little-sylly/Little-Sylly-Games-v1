@@ -59,7 +59,7 @@ Update the status column as phases complete. A fresh session starts at the first
 | Phase | Status | Notes |
 |-------|--------|-------|
 | 0 — Housekeeping | ✅ | 12 June 2026 — pre-audit checkpoint commit `bb32291` (50 files); per-phase checkpoint convention active from here |
-| 1A — CLAUDE.md | ☐ | |
+| 1A — CLAUDE.md | ✅ | 12 June 2026 — structure map, load order, data counts, key references all corrected; see Audit Findings §Phase 1A |
 | 1B — game-identities.md | ☐ | |
 | 1C — logic-engine.md | ☐ | |
 | 1D — ui-style.md | ☐ | |
@@ -652,3 +652,23 @@ These are patterns already documented as recurring. Phase 3 should check every g
 | Screen in HTML but not in `allScreens[]` (ghost screen) | `logic-engine.md` Screen Routing | `<section id="screen-` diff against `allScreens[]` |
 | Precached URL missing on disk (SW install fails atomically) | `logic-engine.md` PWA Guardian | `PRECACHE_URLS[]` vs disk |
 | Call to undefined `play*()` audio function | `logic-engine.md` Audio Catalogue | `play[A-Z]\w*\(` call sites vs `engine.js` definitions |
+
+---
+
+## Audit Findings
+
+### Phase 1A — CLAUDE.md (12 June 2026)
+
+Changes applied to `CLAUDE.md`:
+- **Rule Files list:** `@new-game-template.md` does not exist — replaced with the three actual files: `new-game-process.md`, `new-game-brief-template.md`, `new-game-technical-template.md`. Same fix applied in Key references.
+- **Project Structure map:** added missing `js/games/bld.js`; added `data/secret2_words.json` (Monster Hunter, 50) and `data/secret3_words.json` (Pokémon Gen 1, 151); corrected stale counts — `words.json` ~433 → 850, `secret_words.json` 35 → 434, `ygi-data.json` 55+ → 50, `gth-data.json` 45 → 100; corrected `sw.js` comment v80 → v101; added `docs/gth-content-guide.md`, `docs/fable-audit-plan.md`, `docs/content-prompts/` to the docs listing.
+- **Load order:** corrected to match `index.html` — `canvas-draw.js` loads after `engine-multiplayer.js` (was absent); `bld.js` loads between `dsd.js` and `gth.js` (was absent); `cards.js` loads immediately before `pass.js` (was wrongly placed before `li5.js`). Noted `tailwind-play.js` loads in `<head>`.
+- **SW Version line:** v101 — already correct, no change.
+- **Current Focus:** updated Phase line to reflect the active studio audit (Phase 32/PASS noted as last shipped game phase); Protocol C pending note corrected "all 10 games" → "all 12 games"; added `fable-audit-plan.md` to Key references.
+- **Key references:** removed `docs/archive/phase27-snapshot.md` — file does not exist (see flag below).
+- **Skills / Anti-Patterns:** verified, no changes needed. "Bank size: 100 animals as of Phase 20" confirmed accurate (100 animals in `words.json`).
+
+**Flags (logged in `docs/fable-fix-plan.md`):**
+- `[AUDIT FLAG]` `phase27-snapshot.md` (LI5/GM/SS polish pass) was referenced but never existed in `docs/archive/` — either it was never written or never committed.
+- `[AUDIT FLAG]` No Phase 32 snapshot exists for the PASS ship — `docs/archive/` ends at `phase31-snapshot.md`.
+- `[AUDIT FLAG]` `data/secret_words.json` contains at least one entry with an empty-string `category` — forward-noted for Phase 4D verification.

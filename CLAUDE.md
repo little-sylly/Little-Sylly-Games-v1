@@ -6,7 +6,9 @@
 - `@logic-engine.md` — engine/plugin split, screen routing, audio catalogue, PWA, new-game checklist
 - `@definitions.md` — naming conventions, comment style, data schema, project-wide terms
 - `@game-identities.md` — per-game themes, terminology, settings tables, special mechanics
-- `@new-game-template.md` — fill this in before coding any new game (brief format + 10-section spec)
+- `@new-game-process.md` — three-stage protocol for adding a new game (brief → tech spec → implementation)
+- `@new-game-brief-template.md` — Phase 1 design brief template (filled by project owner + Gemini)
+- `@new-game-technical-template.md` — Phase 2 technical spec template (filled by Claude Code)
 - `@phase-audit.md` — run after every completed game and before every new game's first line of code
 
 ---
@@ -27,6 +29,7 @@
 │   │   ├── lttp.js                  # Plugin: Late to the Party (all state + logic)
 │   │   ├── nat.js                   # Plugin: Natural Selection (all state + logic)
 │   │   ├── dsd.js                   # Plugin: Deep-Sea Deploy (all state + logic)
+│   │   ├── bld.js                   # Plugin: Bailed (all state + logic — in active testing)
 │   │   ├── gth.js                   # Plugin: Group Therapy (all state + logic)
 │   │   ├── dyb.js                   # Plugin: Dicey Bluffs (all state + logic)
 │   │   └── pass.js                  # Plugin: Pass (all state + logic)
@@ -42,25 +45,30 @@
 │       ├── firebase-database.js     # Firebase Realtime Database
 │       └── firebase-init.js         # Firebase project config + initialisation
 ├── data/
-│   ├── words.json                   # Standard word bank (~433 words, 16 categories)
-│   ├── secret_words.json            # Expansion word bank: Dota 2 (35 words, 5 categories)
-│   ├── ygi-data.json                # You Get It? prompts (55+ entries, {id, text, ringers[5]})
-│   └── gth-data.json                # Group Therapy disorder bank (45 entries, 3 tiers: everyday/phobias/complex)
-├── sw.js                            # Service Worker (currently v80)
+│   ├── words.json                   # Standard word bank (850 words, 16 categories)
+│   ├── secret_words.json            # Expansion word bank: Dota 2 (434 words, 5 categories)
+│   ├── secret2_words.json           # Expansion word bank: Monster Hunter (50 words)
+│   ├── secret3_words.json           # Expansion word bank: Pokémon Gen 1 (151 words)
+│   ├── ygi-data.json                # You Get It? prompts (50 entries, {id, text, ringers[5]})
+│   └── gth-data.json                # Group Therapy disorder bank (100 entries, 3 tiers: everyday/phobias/complex)
+├── sw.js                            # Service Worker (currently v101)
 ├── manifest.json                    # PWA manifest
 ├── docs/expansion-guide.md          # Template + checklist for adding new expansion packs
 ├── docs/code-map.md                 # Surgical code reference — all game IDs, overlays, key functions
 ├── docs/multiplayer-feature-specification-v1.4.md  # MFS v1.4 — Phase 22 source of truth
 ├── docs/multiplayer-ui-components.md  # Multiplayer component catalogue (screens, overlays, CSS)
 ├── docs/ygi-content-guide.md        # Content creation guide for You Get It? prompts + ringers
+├── docs/gth-content-guide.md        # Content creation guide for Group Therapy disorders
+├── docs/fable-audit-plan.md         # Studio audit plan (June 2026) — progress tracker + findings
 ├── docs/implementation-notes/       # Per-game design decisions, bugs, lessons, template gaps
-│   ├── bld-implementation-notes.md  # BLD (active)
-│   └── [abbr]-implementation-notes.md  # One file per game
+│   └── [abbr]-implementation-notes.md  # One file per game (all 12 games covered)
+├── docs/content-prompts/            # Prompt templates for content generation
 ├── docs/new-ideas/                  # Unimplemented game briefs + brainstorms
 ├── docs/archive/                    # Retired snapshots + spent plan docs
 ```
 
-**Load order:** `engine.js` → `engine-multiplayer.js` → `cards.js` → `li5.js` → `great-minds.js` → `secret-signals.js` → `jec.js` → `ygi.js` → `lttp.js` → `nat.js` → `dsd.js` → `gth.js` → `dyb.js` → `pass.js` → `secret-mode.js` → `app.js`
+**Load order:** `engine.js` → `engine-multiplayer.js` → `canvas-draw.js` → `li5.js` → `great-minds.js` → `secret-signals.js` → `jec.js` → `ygi.js` → `lttp.js` → `nat.js` → `dsd.js` → `bld.js` → `gth.js` → `dyb.js` → `cards.js` → `pass.js` → `secret-mode.js` → `app.js`
+(`tailwind-play.js` loads in `<head>` before everything else.)
 All symbols are global (no ES modules). Forward references work at runtime.
 
 ---
@@ -200,11 +208,11 @@ Do not write the phase snapshot until Protocols A is clean. Do not write a line 
 ---
 
 ## 🎯 Current Focus
-**Phase:** Phase 32 — Pass (PASS) shipped; Gan Deng Yan climbing card game with The Abyss (Sylly Mode), MDLM-only, 3–6 players.
+**Phase:** Studio Audit (June 2026) — working through `docs/fable-audit-plan.md` phase by phase. Last shipped game phase: Phase 32 — Pass (PASS), Gan Deng Yan climbing card game with The Abyss (Sylly Mode), MDLM-only, 3–6 players.
 **SW Version:** v101 (bump when assets change)
 **Gold Master:** 11 games complete + multiplayer (LI5, Great Minds, Secret Signals, JEC, YGI, LTTP, Natural Selection, Deep-Sea Deploy, Group Therapy, Dicey Bluffs, Pass)
 **BLD status:** In active testing — MDLM only, `js/games/bld.js`, multiplayer bugs being resolved round by round.
-**Pending before next game:** Protocol C Studio Sweep — impl notes harvest + cross-game consistency check across all 10 games. Run before writing the Phase 1 brief for any new game. See `@phase-audit.md` Protocol C.
+**Pending before next game:** Protocol C Studio Sweep — impl notes harvest + cross-game consistency check across all 12 games. Run before writing the Phase 1 brief for any new game. See `@phase-audit.md` Protocol C. The current studio audit (`docs/fable-audit-plan.md`) supersets Protocol C — completing it satisfies this gate.
 **Key references:**
 - `docs/implementation-notes/dyb-implementation-notes.md` — DYB bug log + design decisions (active)
 - `docs/implementation-notes/bld-implementation-notes.md` — BLD bug log + design decisions (active)
@@ -213,7 +221,6 @@ Do not write the phase snapshot until Protocols A is clean. Do not write a line 
 - `docs/archive/phase30-snapshot.md` — Phase 30 snapshot (GTH shipped)
 - `docs/archive/phase29-snapshot.md` — Phase 29 snapshot (LTTP L4 modal, JEC scoring redesign)
 - `docs/archive/phase28-snapshot.md` — Phase 28 snapshot (JEC/YGI/LTTP/NAT/DSD audit & polish)
-- `docs/archive/phase27-snapshot.md` — Phase 27 snapshot (LI5/GM/SS polish pass)
 - `docs/archive/phase26-snapshot.md` — Phase 26 snapshot (studio audit — retrograde polish pass, all 8 games)
 - `docs/archive/phase25-snapshot.md` — Phase 25 snapshot (play-again lobby return all games, host-only audit)
 - `docs/archive/phase22-snapshot.md` — Phase 22 snapshot (multiplayer complete — MFS v1.4)
@@ -221,6 +228,7 @@ Do not write the phase snapshot until Protocols A is clean. Do not write a line 
 - `docs/multiplayer-feature-specification-v1.4.md` — MFS v1.4 spec (Phase 22 source of truth)
 - `docs/multiplayer-ui-components.md` — multiplayer component catalogue
 - `docs/code-map.md` — surgical reference: all game IDs, overlays, key functions
-- `.claude/rules/new-game-template.md` — fill this in before coding any new game
+- `docs/fable-audit-plan.md` — studio audit plan (active) — progress tracker + findings
+- `.claude/rules/new-game-process.md` — three-stage protocol for adding a new game (with `new-game-brief-template.md` + `new-game-technical-template.md`)
 - `docs/expansion-guide.md` — template for adding new expansion packs
 - `docs/ygi-content-guide.md` — content creation guide for You Get It? prompts
