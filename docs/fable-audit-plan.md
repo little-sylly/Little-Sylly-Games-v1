@@ -62,7 +62,7 @@ Update the status column as phases complete. A fresh session starts at the first
 | 1A — CLAUDE.md | ✅ | 12 June 2026 — structure map, load order, data counts, key references all corrected; see Audit Findings §Phase 1A |
 | 1B — game-identities.md | ✅ | 12 June 2026 — structural pass complete; GTH Screens table added, PASS packets corrected, numbering fixed; settings display-name drift forward-flagged to Phase 3; see Audit Findings §Phase 1B |
 | 1C — logic-engine.md | ✅ | 12 June 2026 — precache list synced to sw.js, resetToLobby() MP block rewritten, getMuteToggleOnClass documented; see Audit Findings §Phase 1C |
-| 1D — ui-style.md | ☐ | |
+| 1D — ui-style.md | ✅ | 12 June 2026 — all theming tables extended to 12 games, mute-toggle theming section added, menu CTA table synced to reality; see Audit Findings §Phase 1D |
 | 1E — phase-audit.md | ☐ | |
 | 1F — definitions.md | ☐ | |
 | 2 — Code Map | ☐ | |
@@ -712,3 +712,26 @@ Verified with no change needed:
 - **MDLM Patterns + Checklist (Adding a New Game):** read in full; current and accurate, no stale references found.
 
 Side-fix to this plan document: 2B-8's parenthetical claimed Firebase libs are "deliberately not precached" — corrected in place (they ARE precached; lazy refers to injection timing).
+
+### Phase 1D — ui-style.md (12 June 2026)
+
+Changes applied to `ui-style.md`:
+- **Range class reference table:** added DYB (`dyb-range`, #e7e5e4 → #a8a29e stone) and PASS (`pass-range`, #a1a1aa → #18181b zinc) — verified against `css/styles.css` and the `updateSliderTheme()` map in `engine.js` (all 12 games covered in both).
+- **New "Mute toggle theming" subsection:** documents `getMuteToggleOnClass(gameId)` (June 2026 addition, previously absent from ui-style.md) — call sites (`toggleMute()`, `openSoundOverlay()`, boot init, `resetToLobby(null)`), the full 12-game `game-toggle-on-*` map (verified against `engine.js`), fallback `game-toggle-on-stone`, and new-game steps.
+- **Toggle class rules made explicit:** `game-toggle-off` canonical / `sylly-toggle-off` legacy alias (shared CSS rule, both valid); **`sylly-toggle-on` explicitly deprecated** — verified zero usages in `index.html` and all JS (dead CSS rule remains — logged `[POLISH]`). Cross-reference added under Settings Card Standard rules.
+- **Settings active-pill table:** added DSD (`pill-active-cyan`), GTH (`pill-active-sage`), DYB (`pill-active-stone`), BLD (`pill-active-yellow`), PASS (`pill-active-zinc`) — all verified present in `css/styles.css`.
+- **Per-game brand reference table (Game Brand Colour — Scope):** added GTH (#B1BCA0 sage — inline styles, no Tailwind class), DYB (stone-700), BLD (yellow-500), PASS (zinc-900) with toggle + settings-button classes verified against `index.html`; note added that `accentBtnClass`/`accentTextClass` are unused for non-team games.
+- **How-to per-game table:** added GTH (🛋️, inline sage, "Stroke or Genius"), DYB (🎲, stone-400, "Devil's Luck"), PASS (🃏, zinc, "The Abyss"). Compliance-status line updated (Phase 29 covered 9 games; GTH/DYB/PASS pending Phase 3 structure verification).
+- **Universal Menu Standard:** restructured from a 7-game column table to a 12-game Play CTA row table, synced to `index.html` reality. Stale labels corrected: LI5 "Let's Play!" → "Play Time!", GM "Let's Play!" → "Begin Link", SS "Let's Play!" → "Start Mission", YGI "Show Your Take 🃏" → "Let's Get To It!".
+
+Verified with no change needed:
+- **Slider theming:** `updateSliderTheme()` auto-call inside `openSoundOverlay()` already documented ✓.
+- **Settings Card Standard:** `shrink-0` rule + sub-option slider pattern present ✓.
+- **Contextual Tip Icons:** pattern complete; `[abbr]-tip-overlay` `resetToLobby()` teardown rule present ✓.
+- **Two-Pattern Overlay Library:** both exact inner-div class strings present ✓.
+
+**Flags (logged in `docs/fable-fix-plan.md`):**
+- `[POLISH]` GTH Play CTA "Start the Session 🛋️" contains an emoji — violates the CTA emoji rule.
+- `[POLISH]` DYB how-to overlay uses muted `stone-400` step labels + close button instead of brand stone-700 — intentional-vs-drift to be resolved in Phase 3.
+- `[POLISH]` Dead `.sylly-toggle-on` rule remains in `css/styles.css` (zero usages).
+- `[DOC]` **DYB Sylly Mode drift:** shipped UI names it "Devil's Luck" with Loaded/Phantom/Slick/Cracked die types; `game-identities.md` documents "Chaos Mode" with Slick dice only. Forward-flagged to Phase 3 DYB (needs full `dyb.js` read).

@@ -64,6 +64,44 @@ The sound overlay volume slider (`#global-sound-volume`) uses a CSS class set by
 | DSD | `dsd-range` | cyan-200 → cyan-700 |
 | GTH | `gth-range` | #d4dbc8 → #8a9a78 (sage) |
 | BLD | `bld-range` | #fde68a → #d97706 (yellow) |
+| DYB | `dyb-range` | #e7e5e4 → #a8a29e (stone) |
+| PASS | `pass-range` | #a1a1aa → #18181b (zinc) |
+
+### Mute toggle theming
+
+The sound overlay mute toggle (`#global-mute-toggle`) shows the current game's brand colour when ON, via `getMuteToggleOnClass(gameId)` in `engine.js` (added June 2026).
+
+**How it works:**
+- `getMuteToggleOnClass(activeGameId)` maps the active game to its `game-toggle-on-[colour]` class — fallback `game-toggle-on-stone` for the lobby / unknown games
+- Called by `toggleMute()`, `openSoundOverlay()`, the audio-init block at boot, and `resetToLobby()` (which passes `null` → neutral stone if muted)
+- OFF state is always the neutral class — see toggle class rules below
+
+**Toggle class rules:**
+- **ON (active):** `game-toggle-on-[colour]` — one class per game, defined in `css/styles.css`. This applies to ALL ON/OFF toggles in the app (settings toggles, Sylly Mode toggles, the global mute toggle).
+- **OFF (inactive):** `game-toggle-off` is the canonical class; `sylly-toggle-off` is a legacy alias sharing the same CSS rule — both render identically and both remain valid.
+- **`sylly-toggle-on` is DEPRECATED** — zero usages remain in `index.html` or any JS file (verified June 2026 audit). The class definition still exists in `css/styles.css` as dead code. Never use it in new code.
+
+**Per-game toggle class map** (matches `getMuteToggleOnClass()` in `engine.js`):
+
+| Game | Toggle ON class |
+|------|----------------|
+| None / lobby | `game-toggle-on-stone` (fallback) |
+| LI5 | `game-toggle-on-pink` |
+| GM | `game-toggle-on-purple` |
+| SS | `game-toggle-on-teal` |
+| JEC | `game-toggle-on-amber` |
+| YGI | `game-toggle-on-orange` |
+| LTTP | `game-toggle-on-red` |
+| NAT | `game-toggle-on-lime` |
+| DSD | `game-toggle-on-cyan` |
+| GTH | `game-toggle-on-sage` |
+| BLD | `game-toggle-on-yellow` |
+| DYB | `game-toggle-on-stone` |
+| PASS | `game-toggle-on-zinc` |
+
+**Adding a new game:**
+1. Add a `game-toggle-on-[colour]` class to `css/styles.css` (copy an existing rule, swap the background colour)
+2. Add `'[abbr]': 'game-toggle-on-[colour]'` to the `map` in `getMuteToggleOnClass()` in `engine.js`
 
 ---
 
@@ -216,7 +254,7 @@ Every gameplay screen must use `h-screen` (not `min-h-screen`) on the section so
 
 ## How-to Overlay Standard
 
-**Compliance status (Phase 29+):** All 9 games ✅ — canonical structure applied. BLD rewritten from narrative format to Step-card format.
+**Compliance status:** Phase 29 audit confirmed the 9 games then shipped ✅ (BLD rewritten from narrative format to Step-card format). GTH, DYB, and PASS shipped after that audit — structure verification pending the Phase 3 per-game audit (June 2026).
 
 ### Canonical overlay structure
 
@@ -290,7 +328,12 @@ Every gameplay screen must use `h-screen` (not `min-h-screen`) on the section so
 | LTTP | 🏃‍♂️ | `text-red-500` | `bg-red-500 hover:bg-red-600` | The Troublemaker |
 | NAT | 🦁 | `text-lime-600` | `bg-lime-600 hover:bg-lime-700` | Survival of the Fittest |
 | DSD | ⚓ | `text-cyan-700` | `bg-cyan-700 hover:bg-cyan-800` | Mission Abyss |
+| GTH | 🛋️ | inline `style="color:#B1BCA0"` | inline `style="background-color:#B1BCA0"` | Stroke or Genius |
+| DYB | 🎲 | `text-stone-400` | `bg-stone-400 hover:bg-stone-500` | Devil's Luck |
 | BLD | 📋 | `text-yellow-500` | `bg-yellow-500 hover:bg-yellow-600` | Drama Mode |
+| PASS | 🃏 | `text-zinc-700` | `bg-zinc-900 hover:bg-zinc-800` | The Abyss |
+
+[AUDIT FLAG — June 2026]: DYB's how-to overlay uses `text-stone-400` step labels and a `bg-stone-400` close button in `index.html` — lighter than its stone-700 brand. Recorded as reality; reconcile (intentional muted choice vs drift) during Phase 3 DYB audit. DYB's Sylly Mode name also reads "Devil's Luck" in `index.html` (settings + how-to) while `game-identities.md` documents "Chaos Mode" — Phase 3 to reconcile.
 
 ---
 
@@ -399,6 +442,7 @@ Rules:
 - Setting name (`text-stone-800 font-semibold`): thematic name is fine here — this is where personality lives
 - Description (`text-stone-400 text-sm`): plain English only — no thematic language; always full-width below, never next to the toggle
 - Toggle buttons always get `shrink-0` to prevent flex squeeze
+- Toggle OFF state: `game-toggle-off` (canonical) — `sylly-toggle-off` is a legacy alias sharing the same CSS rule; `sylly-toggle-on` is deprecated (see Mute toggle theming § Toggle class rules)
 - Active pill colour is game-specific:
 
 | Game | Active pill class |
@@ -410,6 +454,11 @@ Rules:
 | You Get It? | `pill-active-orange` |
 | Late to the Party | `pill-active-red` |
 | Natural Selection | `pill-active-lime` |
+| Deep-Sea Deploy | `pill-active-cyan` |
+| Group Therapy | `pill-active-sage` |
+| Dicey Bluffs | `pill-active-stone` |
+| Bailed | `pill-active-yellow` |
+| Pass | `pill-active-zinc` |
 
 ---
 
@@ -447,6 +496,14 @@ Rules:
 | YGI | orange-500 | `bg-orange-500 hover:bg-orange-600` | `text-orange-600` | `game-toggle-on-orange` | `bg-orange-100 hover:bg-orange-200 text-orange-700` |
 | LTTP | red-500 | `bg-red-500 hover:bg-red-600` | `text-red-600` | `game-toggle-on-red` | `bg-red-100 hover:bg-red-200 text-red-700` |
 | NAT | lime-600 | `bg-lime-600 hover:bg-lime-700` | `text-lime-700` | `game-toggle-on-lime` | `bg-lime-100 hover:bg-lime-200 text-lime-700` |
+| GTH | #B1BCA0 (sage — custom) | — (inline `style="background-color:#B1BCA0"`) | — | `game-toggle-on-sage` | inline `style="background-color:#e8ede3;color:#6b7a5f"` |
+| DYB | stone-700 | `bg-stone-700 hover:bg-stone-800` | `text-stone-700` | `game-toggle-on-stone` | `bg-stone-100 hover:bg-stone-200 text-stone-700` |
+| BLD | yellow-500 | `bg-yellow-500 hover:bg-yellow-600` | `text-yellow-600` | `game-toggle-on-yellow` | `bg-yellow-100 hover:bg-yellow-200 text-yellow-700` |
+| PASS | zinc-900 | `bg-zinc-900 hover:bg-zinc-800` | `text-zinc-900` | `game-toggle-on-zinc` | `bg-zinc-100 hover:bg-zinc-200 text-zinc-700` |
+
+**Notes:**
+- **GTH:** Muted Sage (`#B1BCA0`) has no Tailwind utility class — GTH brand colours are applied via inline `style` attributes throughout its markup, hence the `—` entries.
+- `accentBtnClass`/`accentTextClass` only take effect when a game calls `showWhoFirst()` (team games). GTH, DYB, BLD, and PASS never call it; their values are derived from each game's primary CTA buttons and are listed for consistency should a future mechanic need them.
 
 ---
 
@@ -473,14 +530,26 @@ Look for ONE opportunity to inject playfulness — cheeky button labels, Austral
 ---
 
 ## Universal Menu Standard (All Games)
-Every game's main menu screen must have exactly these 4 buttons, in this order:
+Every game's main menu screen must have exactly these 4 buttons, in this order: **Play CTA** → **How to Play** → **Settings** → **← Back to the Box**. Only the Play CTA label is game-voiced — the other three are identical across all games (see Rules below).
 
-| Button         | LI5 (Like I'm Five)  | Great Minds          | Secret Signals       | Just Enough Cooks    | You Get It?          | Late to the Party    | Natural Selection    |
-|----------------|----------------------|----------------------|----------------------|----------------------|----------------------|----------------------|----------------------|
-| Play CTA       | Let's Play!          | Let's Play!          | Let's Play!          | Let's Cook!          | Show Your Take 🃏    | Find The Location!   | Begin Observation    |
-| How to Play    | How to Play          | How to Play          | How to Play          | How to Play          | How to Play          | How to Play          | How to Play          |
-| Settings       | Settings             | Settings             | Settings             | Settings             | Settings             | Settings             | Settings             |
-| Back to lobby  | ← Back to the Box    | ← Back to the Box    | ← Back to the Box    | ← Back to the Box    | ← Back to the Box    | ← Back to the Box    | ← Back to the Box    |
+**Play CTA labels** (as shipped in `index.html`):
+
+| Game | Play CTA |
+|------|----------|
+| LI5 | Play Time! |
+| GM | Begin Link |
+| SS | Start Mission |
+| JEC | Let's Cook! |
+| YGI | Let's Get To It! |
+| LTTP | Find The Location! |
+| NAT | Begin Observation |
+| DSD | Begin Deployment |
+| GTH | Start the Session 🛋️ |
+| DYB | Let's Play! |
+| BLD | Make the Plans |
+| PASS | Deal Me In |
+
+[AUDIT FLAG — June 2026]: GTH's Play CTA contains an emoji, violating the "CTA start-game buttons (game menu) must not contain emoji" rule (Settings Card Standard). Logged in the fix plan; reconcile during Phase 3 GTH audit.
 
 **Rules:**
 - "← Back to the Box" is always identical — never game-themed.
