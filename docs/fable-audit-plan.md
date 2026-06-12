@@ -66,7 +66,7 @@ Update the status column as phases complete. A fresh session starts at the first
 | 1E — phase-audit.md | ✅ | 12 June 2026 — When-to-Run gains Protocol C, stale paths/refs fixed, sound-listener row corrected (line 549, 12 games), 3 multiplayer rows added to Protocol C Part 2; see Audit Findings §Phase 1E |
 | 1F — definitions.md | ✅ | 12 June 2026 — legacy DSTW/Sylly Signals names purged, all 12 prefixes listed, MP/theming terms added, data-file pointer section added; see Audit Findings §Phase 1F |
 | 2 — Code Map | ✅ | 12 June 2026 — all 12 game sections verified against JS/HTML (scripted ID + function sweeps); BLD section added; LTTP/LI5/GM/SS/DSD/GTH/DYB drift corrected; see Audit Findings §Phase 2 |
-| 2B — Engine & Infrastructure | ☐ | |
+| 2B — Engine & Infrastructure | ✅ | 13 June 2026 — all 10 checks run (scripted); 2 new [BUG] (PASS mode-screen config fields, 17-overlay teardown gap), BLD min-players entry corrected (field absent, not `() => 4`); see Audit Findings §Phase 2B |
 | 3 — Per-Game (track per game in Notes) | ☐ | LI5 / GM / SS / JEC / YGI / LTTP / NAT / DSD / GTH / DYB / BLD / PASS |
 | 4 — Data | ☐ | |
 | 5 — Documentation Closure | ☐ | |
@@ -792,3 +792,29 @@ Changes applied to `docs/code-map.md`:
 - `[DOC]` GM violet-500 lobby card vs purple-500 everywhere else — Phase 3 GM to reconcile.
 
 **Forward notes for Phase 2B:** BLD min-players mismatch found here overlaps 2B-6 (MP_GAME_CONFIGS vs game-identities) — recheck remaining config fields then. The orphaned LTTP section pre-answers part of 2B-10. `screen-mp-roster` registration confirmed in `allScreens[]` (115 screens total extracted).
+
+### Phase 2B — Engine & Shared Infrastructure (13 June 2026)
+
+**Method:** Throwaway Node scripts (temp dir, not committed) for every mechanical check; targeted reads of `engine.js` `resetToLobby()`, `engine-multiplayer.js` `MP_GAME_CONFIGS` / `mpShowModeScreen()` / `mpSetModeSelection()`, and `pass.js` for verification.
+
+**Clean checks (no findings):**
+- **2B-1 screen registry:** 115 HTML screen elements ↔ 115 `allScreens[]` entries; no dead registrations. (`screen-menu` lives on a `<main>` not a `<section>` — LI5 legacy, fine. Sole ghost = the already-logged orphan `screen-lttp-smalltalk`, which is never shown.)
+- **2B-4 theming maps:** `updateSliderTheme()` and `getMuteToggleOnClass()` both cover all 12 games; every mapped class exists in `css/styles.css`.
+- **2B-5 forward direction:** every `pill-active-*`, `game-toggle-on-*`, and `*-range` class referenced in HTML/JS is defined in CSS.
+- **2B-7 function existence:** all 18 distinct `play*()` call names resolve to `engine.js` definitions; every function called from `mpHandleEnvelope` + the four per-game `[abbr]HandleEnvelope`s (BLD, DYB, GTH, PASS) is defined.
+- **2B-8 service worker:** all 33 `PRECACHE_URLS[]` entries exist on disk; CACHE_NAME v101 matches docs; all 19 `<script src>` tags precached; all `fetch()` targets precached; `<script>` load order matches CLAUDE.md exactly.
+
+**New issues logged in `docs/fable-fix-plan.md`:**
+- `[BUG]` **17 overlays never hidden by any reset path** (2B-3): scripted token-exact sweep of `resetToLobby()` + all 8 delegated reset functions. LI5 ×3 (`settings-overlay`, `deck-panel`, `skip-turn-overlay`), GM ×9 (settings, near-sync, boost, neural-library, new-frequency, vocab, concede, deck-panel, how-to), SS ×3 (settings, dossier, how-to), LTTP ×1 (`lttp-smalltalk-overlay`), global ×1 (`sound-overlay`). Reachable via the MP host-disconnect → `resetToLobby()` window (DYB BUG-05 class).
+- `[BUG]` **PASS `MP_GAME_CONFIGS` entry missing `gameName`/`emoji`/`ptpLabel`/`brandBtnClass`** (2B-6) + stray unread `gameId` key — `mpShowModeScreen()` writes all four unconditionally, so the PASS mode screen renders literal "undefined" name/emoji/CTA (CTA gets no background class). PASS routes through the mode screen on every multiplayer entry.
+- `[BUG]` **BLD min-players entry corrected** (2B-6): the existing fix-plan entry said `getMinPlayers: () => 4`; reality is the field is **absent** — engine fallback `?? 2` allows a 2-player lobby start against a role table that starts at 5. Fix-plan entry rewritten.
+- `[POLISH]` **Doubled `id` attribute on one tag** (2B-2): `btn-gm-how-to`, `btn-lttp-how-to`, `btn-nat-how-to` each have `id="…"` written twice on the same element. No true duplicate IDs exist anywhere in `index.html` (1377 unique).
+- `[POLISH]` **Dead `.pill.pill-active` CSS rule** (2B-5 reverse): bare `pill-active` (pink) defined but never referenced — predates the per-game colour family. (Joins the already-logged dead `.sylly-toggle-on`.)
+- `[POLISH]` **Google Fonts CDN dependency** (2B-8 reverse): `index.html` `<head>` links `fonts.googleapis.com` for Fredoka — not precached; offline sessions fall back to system font, contradicting the "no CDN / fully offline" constraint as documented.
+- `[DOC]` **index.html section headers stale across ~9 sections** (2B-9/2B-10): all 8 `[abbr]-help-tip-overlay`s, `lttp-tip-overlay`, `bld-tip-overlay`, `nat-new-expedition-overlay`, `dyb-slick-picker-overlay`, `ss-dossier-overlay`, `ss-inning-transition`, `ss-endgame-splash`, `lttp-smalltalk-overlay`, `mp-host-prelobby-overlay`, and `screen-mp-roster` exist but are claimed by no header. LTTP's header says "screen-lttp-smalltalk removed Phase 21a" while the section still exists. No phantom claims (every header-listed ID exists).
+- `[DOC]` **`multiplayerOnly` config field is never read by any code** — MDLM-only routing is enforced solely by `supportedModes: ['mdlm']`.
+
+**Doc corrections applied in place:**
+- `game-identities.md` SS Multiplayer: removed the non-existent `supportsHybrid: true` reference (no such field anywhere in code) — replaced with the real mechanism (`supportedModes: ['ptp','tlm','mdlm']`, `recommendedMode: 'tlm'`).
+
+**2B-6 full verification (MP_GAME_CONFIGS ↔ game-identities):** LI5 ptp/tlm max 2 ✓; GM ptp/mdlm max 2 ✓; SS hybrid ✓ (doc corrected as above); JEC/YGI/LTTP/NAT ptp+mdlm ✓; DSD tlm-recommended, ptp/tlm/mdlm ✓; GTH mdlm-only 4–8 ✓; DYB mdlm-only 3–8 ✓; PASS mdlm-only 3–6 ✓; BLD max 10 ✓ / min **missing** (see [BUG] above). All `rosterConfig` types match docs. Note: LTTP sets `getMinPlayers` = `getMaxPlayers` = `lttpPlayerCount` (lobby requires the exact host-configured count) — undocumented but intentional-looking; left as-is.

@@ -184,7 +184,7 @@
 - **Setup emoji:** 👥
 
 ### Multiplayer (Phase 22)
-- **Mode:** Hybrid — supports Individual Devices or 2-Device Teams (Zone 2 pill in host lobby, `supportsHybrid: true`)
+- **Mode:** Hybrid — supports Individual Devices or 2-Device Teams (`supportedModes: ['ptp', 'tlm', 'mdlm']`, `recommendedMode: 'tlm'`; there is no `supportsHybrid` field — hybrid behaviour comes from supporting both TLM and MDLM)
 - **Shared screens:** `screen-ss-mode`, `screen-ss-lobby-host`, `screen-ss-lobby-join` (parameterised)
 - **Game-specific screens:** none
 - **Security:** Team B's vault is sent ONLY to the Client device via `SYNC: SS_VAULT_DATA` (targeted write). Team A's vault never leaves the Host.
