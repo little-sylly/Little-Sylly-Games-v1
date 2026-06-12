@@ -64,7 +64,7 @@ Update the status column as phases complete. A fresh session starts at the first
 | 1C — logic-engine.md | ✅ | 12 June 2026 — precache list synced to sw.js, resetToLobby() MP block rewritten, getMuteToggleOnClass documented; see Audit Findings §Phase 1C |
 | 1D — ui-style.md | ✅ | 12 June 2026 — all theming tables extended to 12 games, mute-toggle theming section added, menu CTA table synced to reality; see Audit Findings §Phase 1D |
 | 1E — phase-audit.md | ✅ | 12 June 2026 — When-to-Run gains Protocol C, stale paths/refs fixed, sound-listener row corrected (line 549, 12 games), 3 multiplayer rows added to Protocol C Part 2; see Audit Findings §Phase 1E |
-| 1F — definitions.md | ☐ | |
+| 1F — definitions.md | ✅ | 12 June 2026 — legacy DSTW/Sylly Signals names purged, all 12 prefixes listed, MP/theming terms added, data-file pointer section added; see Audit Findings §Phase 1F |
 | 2 — Code Map | ☐ | |
 | 2B — Engine & Infrastructure | ☐ | |
 | 3 — Per-Game (track per game in Notes) | ☐ | LI5 / GM / SS / JEC / YGI / LTTP / NAT / DSD / GTH / DYB / BLD / PASS |
@@ -749,3 +749,17 @@ Changes applied to `phase-audit.md`:
 
 Verified with no change needed:
 - **Protocol A §2 `game-toggle-on-[colour]` rule (1E known check):** "ALL ON/OFF toggles (including Sylly Mode) use `game-toggle-on-[colour]` — `sylly-toggle-on` is no longer used anywhere" — confirmed current; matches the 1D verification (zero `sylly-toggle-on` usages in `index.html`/JS) ✓.
+
+### Phase 1F — definitions.md (12 June 2026)
+
+Changes applied to `definitions.md`:
+- **Variable Naming table:** legacy "DSTW state" row renamed to "LI5 state (legacy — no prefix)" — verified `li5.js` state vars are genuinely unprefixed (`currentWordData`, `settingRounds`, etc.; the file predates the prefix convention). The three per-game prefix rows (gm/ss/jec) replaced with one generic "`[abbr]` prefix" row plus an explicit list of all 12 active prefixes (`li5, gm, ss, jec, ygi, lttp, nat, dsd, gth, dyb, bld, pass`) — cross-referenced to Naming Collision Check 3. Constants examples refreshed (`BLD_ROLE_TABLE`, `LTTP_SMALL_TALK`).
+- **Function Naming table:** game-specific `gm*()` / `ss*()` rows generalised to `[abbr]*()`; added `[abbr]Show*()` (screen transitions), `[abbr]Mp*()` / `[abbr]HandleEnvelope()` (multiplayer interceptors), and `mp*()` (engine multiplayer module) rows. Every example function verified to exist via grep.
+- **"Sylly Signals" → "Secret Signals":** three stale occurrences fixed (Function Naming row removed in generalisation; Vault and Broadcast term rows renamed). Added an "Internal game id" term noting `activeGameId` for SS is still `'sylly-signals'` internally (verified in `engine.js` `getMuteToggleOnClass` map) while the display name is Secret Signals.
+- **Internal Enum Strings:** added `gthDifficultyMix`, `dybWildcardsStyle`, and `syllyMultiplayerMode` examples — pattern continues in newer games.
+- **Comment Style:** dependency-declaration example `dstw.js` → `li5.js` (file was renamed; same stale-name class as 1A/1E findings).
+- **Technical Project Terms (1F known checks):** added `mpClientPlayerRef` (window-declared, cleared in `resetToLobby()`), `mpPlayersListener` (let-declared — no `window.` prefix), `getMuteToggleOnClass(gameId)`, and the `game-toggle-on-[colour]` class family (with `game-toggle-off` canonical / `sylly-toggle-on` deprecated note). All verified against `engine.js` / `engine-multiplayer.js`.
+- **New "Other Data Files" section:** pointer entries for `ygi-data.json`, `gth-data.json`, and the three expansion banks — schema summaries only, with cross-references to `game-identities.md` and the content guides (full schemas deliberately not duplicated; single source of truth stays with the owning game).
+
+Verified with no change needed:
+- **words.json Data Schema + File Format sections:** field list, 16-category list, Great Minds 10-category subset, difficulty tiers, dual-use `nono_list[0]` note, and the one-entry-per-line serialiser rule all current ✓ (deep data verification deferred to Phase 4A per plan).
