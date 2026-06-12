@@ -27,6 +27,15 @@ Added `btn-gm-override-tip` inline next to `btn-gm-override` on the result scree
 **G3 — Button click on one device triggers screen refresh on the other in MDLM (open investigation)**
 User reports: any button press in GM multiplayer causes the other player's screen to refresh/navigate. Investigation: reviewed all `mpSendEnvelope` calls in `great-minds.js` — all action buttons have correct client/host guards (`if (syllyMultiplayerMode === 'client') return`). The originId guard in `mpHandleEnvelope` (`if (env.originId === window.syllyDeviceUid) return`) should prevent self-processing. `GM_ROUND_START`, `GM_SUBMIT`, and `GM_RESULT` envelope flows all appear correctly sequenced. Could not reproduce or isolate root cause through static analysis. **Next step:** Add `console.log(env.type, env.payload.action, 'from', env.originId)` at the top of `mpHandleEnvelope` and `console.log('sending', env)` in `mpSendEnvelope` to trace which envelopes fire unexpectedly during the reported scenario. Check for Firebase `onChildAdded` replaying buffered events on re-subscription.
 
+**G4 — Lobby Mode near-sync round is silently discarded (June 2026 audit — open)**
+Root cause: in `gmMpResolveRound()`, the branch structure is `if (isMatch) {…} else if (!isNearSync) {…mismatch…}` — when `isNearSync` is true, *neither* `gmHandleMatch()` nor `gmHandleMismatch()` runs. The round is never logged in `gmRoundLog`, `gmCurrentPair` never advances, `gmPrevRoundWords` isn't updated, and the host's result screen shows stale content from the previous round (or blank on round 1). The client receives `GM_RESULT { isMatch: false, isNearSync: true }` and renders it as a normal mismatch — but with the unchanged pair, so "New signal acquired ↑" is a lie. Reproduce: MDLM lobby, Resonance Tolerance = Resonant, submit "dog" / "dogs". Fix options: (a) treat MP near-sync as a host-side Near-Sync overlay (host decides, then broadcasts match or mismatch), or (b) genuinely treat it as a mismatch by calling `gmHandleMismatch()` in that branch. Lesson: a "treat as X for now" comment must be backed by actually calling X's handler.
+
+**G5 — Host and clients can show different mismatch phrases in Lobby Mode (June 2026 audit — open, cosmetic)**
+Root cause: `gmMpResolveRound()` picks `mismatchPhrase` once for the SYNC payload and writes it to `gm-result-heading` — but then calls `gmHandleMismatch()`, which overwrites the heading with a *fresh* random pick from `GM_MISMATCH_PHRASES`. Clients render the payload phrase; the host renders the second pick. Fix: have `gmHandleMismatch()` accept an optional phrase parameter, or set the heading after the call.
+
+**G6 — Quit overlay border is teal, not purple (June 2026 audit — open, cosmetic)**
+`gm-quit-overlay`'s `overlay-modal-inner` uses `border border-teal-300` (Secret Signals' brand) instead of `border-purple-300`. Likely a copy-paste from the SS quit overlay — the two sit adjacent in `index.html`. Every other GM decision modal correctly uses `border-purple-300`.
+
 ---
 
 ## Multiplayer Lessons

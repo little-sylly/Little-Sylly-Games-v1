@@ -36,6 +36,15 @@ Root cause: "No-No List" heading lacked `text-center`; `#taboo-card` had `pt-4` 
 **L5 — Monitor screen ✕ button does nothing; phantom `mpTeardown()` call**
 Root cause: `btn-li5-monitor-exit` handler called `mpTeardown()` — a function that does not exist. The `ReferenceError` aborted the handler before `resetToLobby()` was reached. Client was permanently stuck on the monitor screen. Fix: removed `mpTeardown()` call; `resetToLobby()` handles all client teardown internally. Additionally: `resetToLobby()` in `engine.js` now sends a `HOST_END_GAME` LOBBY envelope before calling `syllyTeardownRoom()` so clients see the disconnect overlay immediately via the envelope path, rather than relying solely on the async Firebase room deletion. File: `js/engine-multiplayer.js`, `js/engine.js`.
 
+**L6 — Toy Box deck panel renders behind the settings overlay (June 2026 audit — open)**
+Root cause: `deck-panel` is `z-[60]` while `settings-overlay` (which opens it via "Edit Toy Box ▸" and stays open) is `z-[80]`. Both are 80vh bottom sheets, so the deck panel is fully hidden and untappable — tapping "Edit Toy Box ▸" appears to do nothing. GM's equivalent `gm-deck-panel` is `z-[100]` (correct). Likely regressed when settings overlays were standardised to z-[80]. Fix: raise `deck-panel` to `z-[100]`. Lesson: any sub-panel opened *from* an overlay must sit on a higher z-layer than its opener.
+
+**L7 — Quit-cancel from the gatekeeper screen starts a phantom turn timer (June 2026 audit — open)**
+Root cause: `btn-gatekeeper-exit` opens `quit-overlay`, but `btn-quit-cancel` → `hideQuitConfirm()` unconditionally calls `startTimer()` when `!isPaused` — regardless of which screen opened the overlay. On the gatekeeper, the timer then ticks in the background (audible `playTick()`); if `timeLeft` reaches 0 it fires `endTurn()` → re-shows the previous turn's stale Report Card → advancing it double-advances the team rotation. Fix: only restart the timer if the quit overlay was opened from `screen-active-play` (track the opener, or check the visible screen). Lesson: shared cancel handlers must know their opening context before resuming timers.
+
+**L8 — Pinky Swear flips can desync the Report Card delta from the real score (June 2026 audit — open, minor)**
+Root cause: live play clamps a points penalty to the available score (`points = -Math.min(mult, teamScores[...])`), but `flipEntry()` recomputes flipped entries as a raw `-mult` with no clamp. The turn total is floored via `Math.max(0, scoreBeforeTurn + Σpoints)`, so the score itself stays sane — but the "−N pts this turn" delta label and per-row values can disagree with the actual score change when the floor engaged. Fix: apply the same clamp logic in `flipEntry()` (or recompute all entry points sequentially from `scoreBeforeTurn`).
+
 ---
 
 ## Multiplayer Lessons

@@ -17,16 +17,32 @@
 - The describing player: "Describer"
 - Skipping a word incurs a cost (configurable)
 
+| Screen / element | Display text |
+|-----------------|-------------|
+| Settings overlay title | "Learning Plan 📝" — *not* "The Toy Box" (that's the deck-picker setting + sub-panel) |
+| Deck picker card + sub-panel | "The Toy Box" / "Edit Toy Box ▸" (`deck-panel`) |
+| Intermission screen (`screen-gatekeeper`) | "Ready up, [team]" + rotating hype line |
+| Turn review overlay title | "Report Card" (also the difficulty card name — dual use) |
+| Action buttons | "Yay!" / "Nay!" / "Skip!" ("Double Yay! ✨" / "Double Nay! 🙊" on Sylly words) |
+| Pause overlay | "Time Out" |
+| Gameover heading | "Class Dismissed!" |
+| Match history overlay | "🏆/📊 [Team]'s Journey" |
+| Monitor screen (MP client) | "Tattletale Sheet" |
+
 ### Settings
-| Setting | Options |
-|---------|---------|
-| Timer | 30s / 60s / 90s |
-| Rounds | 3 / 5 / 10 |
-| No-No list size | 5 / 10 |
-| Penalty type | Configurable |
-| Skip cost | Configurable |
-| Pinky Swear Mode | ON / OFF |
-| Sylly Mode | ON / OFF |
+(Reality-synced June 2026 audit — display names + internals from `index.html` / `li5.js`.)
+
+| Setting (display) | Options | Default | Internal variable | Internal values |
+|------------------|---------|---------|------------------|-----------------|
+| The Toy Box (word decks) | ON (all 16 decks) / OFF + "Edit Toy Box ▸" picker | ON | `settingPlayAllDecks` + `settingCategories` | bool + `Set` of category strings |
+| Report Card (difficulty) | Gold Star ⭐ / Honour Roll 📚 | Honour Roll | `settingDifficulty` | `'easy'` (d1 only) / `'standard'` (d1+d2) |
+| Tick Tock Clock (timer) | 30s / 60s / 90s | 60s | `settingTimer` | int |
+| Roundy Rounds | 3 / 5 / 10 | 5 | `settingRounds` | int |
+| The No-No List! | 5 words / 10 words 🔥 | 5 | `settingTabooCount` | int |
+| Oopsie Daisy (penalty) | −1 Point / −N Secs | −1 Point | `settingPenaltyMode` | `'points'` / `'time'` — time penalty auto-scales with timer (30s→−5, 60s→−10, 90s→−20; `settingTimePenalty`) |
+| Skip | Free / Penalised | Free | `settingSkipFree` | bool (`true` = free) |
+| Pinky Swear Mode | OFF / ON | OFF | `settingCorrections` | bool — tap Report Card rows to flip outcomes |
+| ✨ Sylly Mode (Wild Words) | OFF / ON + Wild Level slider | OFF / 30% | `settingSylly` + `settingSyllyPct` | bool + int 30–100 step 10 — % chance per card of a difficulty-3 word (×2 points and penalties) |
 
 ### Team Setup
 - **Screen 1 heading:** "Name your Playgroups!"
@@ -37,25 +53,32 @@
 ### Overlay Types
 | Overlay | Pattern | Notes |
 |---------|---------|-------|
-| `settings-overlay` | Data (slide-up) z-[80] | "The Toy Box" — legacy ID, no `li5-` prefix (LI5 predates the prefix convention) |
+| `settings-overlay` | Data (slide-up) z-[80] | "Learning Plan 📝" — legacy ID, no `li5-` prefix (LI5 predates the prefix convention); legacy centred-h3 title (not the standard title-block structure) |
+| `deck-panel` | Data (slide-up) z-[60] | "Toy Box" category picker — ⚠️ z-[60] sits BELOW the z-[80] settings overlay that opens it (audit [BUG], June 2026) |
+| `quit-overlay` | Decision modal z-[80] | "Done explaining already? 🧒" |
+| `skip-turn-overlay` | Decision modal z-[80] | "All tuckered out?" — end-turn confirm |
+| `review-overlay` | Data (slide-up) z-[90] | "Report Card" — per-turn word review (Pinky Swear flips happen here) |
+| `history-overlay` | Data (slide-up) z-[90] | Match history per team, opened from gameover team cards |
 | `li5-how-to-overlay` | Data (slide-up) z-[90] | How to Play |
 | `li5-help-tip-overlay` | Decision modal z-[90] | Contextual `[?]` tip overlay |
 | `li5-play-again-overlay` | Decision modal z-[90] | "New Playgroup?" play-again confirmation |
+| `pause-overlay` | Inline div (not fixed) | Swapped with `active-content` inside `screen-active-play` |
 
-**Status:** Stable since Phase 7. No changes in Phase 10.x.
+**Status:** Stable since Phase 7. Settings table + terminology reality-synced in the June 2026 studio audit.
 
 ### Multiplayer (Phase 22)
 - **Mode:** 2-Device Teams — Host device = active describer team; Client device = `screen-li5-monitor` (Tattletale Sheet)
 - **Shared screens:** `screen-li5-mode`, `screen-li5-lobby-host`, `screen-li5-lobby-join` (parameterised)
 - **Game-specific screen:** `screen-li5-monitor` — shows current word + No-No List; CATCH! button sends ACTION
-- **Key ACTION packets:** `LI5_CATCH` (Client → Host: alert, no auto score change)
-- **Key SYNC packets:** `LI5_ROUND_START` (word + nonoList per new card)
+- **Key ACTION packets:** `LI5_CATCH` (Client → Host: alert, no auto score change; optional `word` field when a specific No-No word is tapped — host highlights it). 10s client-side cooldown after each CATCH.
+- **Key SYNC packets:** `LI5_ROUND_START` (word + nonoList per new card + `isClientTurn` — Phase 27: when `true` the client team is describing, so the monitor shows a large word card and hides the No-No List/CATCH)
 
 ---
 
 ## Game 2: Great Minds
 **Theme:** Telepathy / frequency / signal. Two players find a connecting word for a random pair.
 **Key file:** `js/games/great-minds.js`
+**Brand colour (reality, June 2026 audit):** split — ALL primary CTAs and accents use `violet-500/600` (lobby card, menu Play, lock-in, gates, deck-panel Done, near-sync/override/new-frequency confirms); `purple-*` is used for pills (`pill-active-purple`), toggles (`game-toggle-on-purple`), settings button tint, modal borders (`border-purple-300`), and the how-to step labels + close button. Unify or document — see fix plan.
 **State flow:** LOBBY → GM MENU → GM SETUP → GM INPUT → GM PASS GATE → GM REVEAL GATE → GM REVEAL → GM RESULT (loop until victory) → GM CONCEDE (Secret Mode only: Sever Link path from round 11)
 
 ### Terminology
@@ -75,18 +98,23 @@
 | Session Terminal — continue | "Resume Current Evaluation 📖" |
 | Round log label | "Psychic Echoes 📖" |
 | Boost guide | "Boost Signal Guide ⚡" |
+| Settings overlay title | "Frequency Configuration 📡" |
+| Quit overlay | "Cut the signal?" / "Yeah, disconnect." / "Stay on frequency." |
+| No-match round button | "Recalibrate 🔄" |
+| Concede end state | "No Link Could Be Established" |
 
 ### Settings
-| Setting | Options | Default | Internal value |
-|---------|---------|---------|----------------|
-| Customise Words | OFF / ON | OFF | `gmCustomWords` bool |
-| Memory Guard | OFF / ON | OFF | `gmMemoryGuard` bool |
-| Resonance Tolerance | High Fidelity / Resonant | High Fidelity | `'strict'` / `'normal'` |
-| Signal Boost | OFF / ON | OFF | `gmSignalBoost` bool |
-| Infinite Resync | OFF / ON | OFF | `gmInfiniteResync` bool |
-| Frequency Range | Stable / Unstable / Chaotic | Stable | `'stable'`/`'unstable'`/`'chaotic'` |
-| Static Interference | OFF / ON | OFF | `gmStaticInterference` bool |
-| Sylly Mode | Mental Fog / Neural Storm | Mental Fog | `'sub-atomic'` / `'supernova'` |
+(Reality-synced June 2026 audit — display names + overlay order from `index.html`. Sylly Mode's toggle IS Static Interference; the Mental Fog / Neural Storm pills are its sub-option.)
+
+| Setting (display) | Options | Default | Internal variable | Internal values |
+|------------------|---------|---------|------------------|-----------------|
+| Frequency Tuner (customise words) | OFF / ON + Word 1/2 Decks pickers (`gm-deck-panel`) | OFF | `gmCustomWords` + `gmPoolA`/`gmPoolB` | bool + `Set`s of GM categories |
+| Adjust Frequency Range | Stable / Unstable / Chaotic | Stable | `gmFrequencyRange` | `'stable'` / `'unstable'` / `'chaotic'` |
+| Memory Guard | OFF / ON | OFF | `gmMemoryGuard` | bool |
+| Resonance Tolerance | High Fidelity / Resonant | High Fidelity | `gmResonanceTolerance` | `'strict'` / `'normal'` |
+| Infinite Resync | OFF / ON | OFF | `gmInfiniteResync` | bool |
+| Signal Boost | OFF / ON | OFF | `gmSignalBoost` | bool |
+| ✨ Sylly Mode (Static Interference) | OFF / ON + intensity pills Mental Fog / Neural Storm | OFF / Mental Fog | `gmStaticInterference` + `gmSyllyIntensity` | bool + `'sub-atomic'` (consonant ban) / `'supernova'` (vowel ban) |
 
 ### Special Mechanics
 - **Cheap Move Guard:** blocks inputs that contain or are contained by either pair word
@@ -124,6 +152,7 @@
 - **Key SYNC packets:** `GM_ROUND_START` (pair + banned letter), `GM_RESULT` (both words + match outcome + round log + `isOverride: bool` + `overridePhrase: string`)
 - **Client guards (Phase 24):** `btn-gm-override` is a no-op for clients (host-only overlay). `btn-gm-next-round` is a no-op for clients (wait for `GM_ROUND_START` from host).
 - **Social Override (Phase 24):** Host broadcasts `GM_RESULT` with `isMatch: true`, `isOverride: true`, `overridePhrase`. Client `gmMpDisplayResult()` handles `isOverride` — shows `wordA / wordB` instead of single match word.
+- **Near-sync in Lobby Mode:** the Near-Sync overlay does NOT fire — `gmMpResolveRound()` is meant to treat near-sync as a mismatch, but currently calls neither handler (round unlogged, pair unchanged — audit [BUG], June 2026).
 - **Play-again (Phase 25):** Host confirm → `mpReturnToLobby()` (returns to same-code lobby). Client confirm → `resetToLobby()`.
 
 ---

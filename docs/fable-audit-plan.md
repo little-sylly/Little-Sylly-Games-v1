@@ -67,7 +67,7 @@ Update the status column as phases complete. A fresh session starts at the first
 | 1F — definitions.md | ✅ | 12 June 2026 — legacy DSTW/Sylly Signals names purged, all 12 prefixes listed, MP/theming terms added, data-file pointer section added; see Audit Findings §Phase 1F |
 | 2 — Code Map | ✅ | 12 June 2026 — all 12 game sections verified against JS/HTML (scripted ID + function sweeps); BLD section added; LTTP/LI5/GM/SS/DSD/GTH/DYB drift corrected; see Audit Findings §Phase 2 |
 | 2B — Engine & Infrastructure | ✅ | 13 June 2026 — all 10 checks run (scripted); 2 new [BUG] (PASS mode-screen config fields, 17-overlay teardown gap), BLD min-players entry corrected (field absent, not `() => 4`); see Audit Findings §Phase 2B |
-| 3 — Per-Game (track per game in Notes) | ☐ | LI5 / GM / SS / JEC / YGI / LTTP / NAT / DSD / GTH / DYB / BLD / PASS |
+| 3 — Per-Game (track per game in Notes) | 🔄 | **LI5 ✅ GM ✅** (13 June 2026) / SS / JEC / YGI / LTTP / NAT / DSD / GTH / DYB / BLD / PASS — see Audit Findings §Phase 3 |
 | 4 — Data | ☐ | |
 | 5 — Documentation Closure | ☐ | |
 | 6 — Summary & Fix Plan | ☐ | |
@@ -818,3 +818,23 @@ Changes applied to `docs/code-map.md`:
 - `game-identities.md` SS Multiplayer: removed the non-existent `supportsHybrid: true` reference (no such field anywhere in code) — replaced with the real mechanism (`supportedModes: ['ptp','tlm','mdlm']`, `recommendedMode: 'tlm'`).
 
 **2B-6 full verification (MP_GAME_CONFIGS ↔ game-identities):** LI5 ptp/tlm max 2 ✓; GM ptp/mdlm max 2 ✓; SS hybrid ✓ (doc corrected as above); JEC/YGI/LTTP/NAT ptp+mdlm ✓; DSD tlm-recommended, ptp/tlm/mdlm ✓; GTH mdlm-only 4–8 ✓; DYB mdlm-only 3–8 ✓; PASS mdlm-only 3–6 ✓; BLD max 10 ✓ / min **missing** (see [BUG] above). All `rosterConfig` types match docs. Note: LTTP sets `getMinPlayers` = `getMaxPlayers` = `lttpPlayerCount` (lobby requires the exact host-configured count) — undocumented but intentional-looking; left as-is.
+
+### Phase 3 — Per-Game: LI5 + Great Minds (13 June 2026)
+
+**Method:** Full reads of `li5.js` (977 lines) + `great-minds.js` (1151 lines), their `index.html` sections (LI5 ~115–628 + monitor screen ~5105; GM ~629–1196 + quit/how-to/deck-panel ~1958–2042), their `mpHandleEnvelope` branches + `mpSerialiseSettings` entries in `engine-multiplayer.js`, both impl-notes files; scripted sweeps for AU English, `window.` MP prefixes, TODO/FIXME, pill-stripping, `sylly-toggle-on`.
+
+**LI5:**
+- **[BUG] `deck-panel` z-[60] renders behind `settings-overlay` z-[80]** — "Edit Toy Box ▸" appears to do nothing; the category picker is unreachable (GM's `gm-deck-panel` is z-[100]). Logged L6 + fix plan.
+- **[BUG] Quit-cancel from the gatekeeper starts a phantom turn timer** — `hideQuitConfirm()` unconditionally `startTimer()`; can fire `endTurn()` → stale Report Card → double turn-advance. Logged L7 + fix plan.
+- **[POLISH] ×3:** `li5-play-again-overlay` non-canonical inner class string (`bg-white p-6`); settings overlay legacy centred title (no standard title block); `flipEntry()` skips the live-play penalty clamp (Report Card delta can disagree with the floored score — L8).
+- **Doc sync (game-identities):** settings table rewritten from reality — 9 settings incl. previously undocumented The Toy Box (`settingPlayAllDecks`/`settingCategories`) and Report Card difficulty (`settingDifficulty` `'easy'`/`'standard'`); settings overlay title corrected to "Learning Plan 📝" (was misdocumented as "The Toy Box"); overlay table extended to all 10 overlays; terminology table added; MP packet docs gained `isClientTurn` + `LI5_CATCH { word }` + 10s cooldown.
+- **Clean:** Check B (no `sylly-toggle-on`), Check C greps (no TODO, no wrong `window.` prefixes, all `setTimeout`s commented, no pill-stripping), Check D (LI5_ROUND_START/LI5_CATCH handlers present; serialiser covers all settings clients need — `settingCategories`/`settingCorrections` deliberately host-only, client is a passive monitor), Check F (all modal borders present), Check G (expansion overrides + secret pool in `startGame()`; no refill path exists by design — exhaustion ends the game), AU English, exit routing (quit→`resetToMenu`, post-game→`resetToLobby`, play-again confirm modal with dynamic MP labels + `mpReturnToLobby()`).
+
+**Great Minds:**
+- **[BUG] Lobby Mode near-sync round silently discarded** — `gmMpResolveRound()`'s `isNearSync` branch calls neither match nor mismatch handler: round unlogged, pair unchanged, host result screen stale, client renders a contradictory mismatch. Logged G4 + fix plan.
+- **[POLISH] ×3:** host/client mismatch phrase divergence (G5); `gm-quit-overlay` border is `teal-300` — SS copy-paste (G6); `btn-gm-custom-toggle` missing initial `shrink-0`.
+- **Violet/purple reconciled (Phase 1B/2 forward-flag):** the split is suite-wide within GM — all CTAs/accents violet-500, all pills/toggles/borders/settings-tint purple. Reality recorded in game-identities; fix-plan [DOC] entry rewritten (the old "lobby card only" claim was wrong).
+- **Doc sync (game-identities):** settings table rewritten to overlay order with display names ("Frequency Tuner", "Adjust Frequency Range") and the Sylly row merged (toggle IS `gmStaticInterference`; Mental Fog/Neural Storm pills = `gmSyllyIntensity` sub-option — the old table presented them as two settings); terminology gained settings title "Frequency Configuration 📡" + quit copy; MP section gained the near-sync limitation note.
+- **Clean:** Checks B/C greps, Check D (GM_ROUND_START/GM_SUBMIT/GM_RESULT handlers present; serialiser covers all 8 settings — `gmPoolA/B` not synced, harmless: host draws all pairs; client guards on next-round/override correct per G3 investigation), Check E (scroll reset ✓, pill toggling never strips `.pill`), Check F (borders present — teal one flagged above), Check G (`gmApplyExpansionOverrides()` + `gmGetWordPool()` round-2 switch in both initial and refill paths), AU English, quit/play-again routing (Session Terminal modal + `mpReturnToLobby()` ✓).
+
+**Recurring pattern elevated (2 games, expect more):** all event listeners at top-level script execution in both legacy plugins vs Protocol A §2's "no global-scope listeners" — functionally safe given script-after-markup load order; logged as a rule/reality [DOC] decision in the fix plan rather than per-game bugs.
