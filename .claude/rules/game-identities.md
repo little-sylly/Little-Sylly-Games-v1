@@ -164,21 +164,30 @@
 
 ### Terminology
 - **Vault:** Each team's private set of 4 keywords
-- **The Transmitter / Encoder:** The player sending the encrypted broadcast
+- **The Transmitter / Encoder / Broadcaster:** The player sending the encrypted broadcast (rotates per round via `ssGetBroadcaster`)
 - **Broadcast:** The encrypted clue transmitted to interceptors
 - **Intercept:** Team B attempting to decode Team A's broadcast
-- **Intel Phase:** Sylly Mode Phase 2 — final guessing round
+- **Intel Phase / Intelligence Reveal:** Sylly Mode Phase 2 — final guessing round
+- **Intelligence Archive:** Per-team clue-history table shown on broadcast/intercept/decode screens
+- **Clue Dossier 📖:** Slide-up overlay showing the encrypting team's own transmission history; also the per-keyword clue chips on the Intel guess screen
+- **Mission Journal:** Full round-by-round log on the gameover screens (incl. Intel Dossier section after Phase 2)
+- **Diplomatic Resolution:** Intel override modal — button label "Accept It 🤝", shown only after the third failed attempt
+- **Scramble Bonus:** +1.0 intel pts for finding all 4 keywords
+- **Settings overlay title:** "Operations Briefing 🔐" / "Configure before your first broadcast."
+- **Quit overlay:** 🏳️ "Abort the mission?" / "Your intel will be lost." / "Yeah, pull out" / "Stay in the field"
+- **Play-again overlay:** 🕵️ "New Mission?" / confirm "Start New Mission 📡" (single) — dynamic MP labels
 
 ### Settings
-| Setting | Notes |
-|---------|-------|
-| Intercepts to Win | Configurable target score |
-| Difficulty | Standard / Wild / Wilder |
-| Categories | Multi-select from curated list |
-| Reroll Limit | Per keyword reroll budget |
-| Timer | Countdown for broadcast phase |
-| Customise Vault | OFF = curated 10-cat pool; ON = full 16-cat picker |
-| Sylly Mode | Activates Intel Phase |
+(Reality-synced June 2026 audit — display names + internals from `index.html` / `secret-signals.js`. Note: the SS settings overlay is legacy format — bare divs with `<hr>` separators and a centred title, predating the Settings Card Standard.)
+
+| Setting (display) | Options | Default | Internal variable | Internal values |
+|------------------|---------|---------|------------------|-----------------|
+| Designate Vault Contents (Customise Vault) | OFF / ON + 16-category pill grid | OFF | `ssCustomiseVault` + `ssSelectedCategories` | bool + array of category strings (OFF = curated 10-cat pool `SS_CURATED_CATS`) |
+| Encryption Protocol (difficulty) | Clear / Scrambled / Deep Space | Clear | `ssDifficultyLevel` | `1` / `2` / `3` (single tier — not cumulative) |
+| Interceptions Required | 2 / 3 | 2 | `ssSettingInterceptsToWin` | int |
+| Vault Rotations (reroll limit) | Once / Twice / Unlimited | Once | `ssRerollLimitSetting` | `1` / `2` / `Infinity` |
+| ⏱ Broadcaster Timer | OFF / ON + 1 / 2 / 3 min | OFF (60s on first enable) | `ssTimerSetting` | `0` (off) / `60` / `120` / `180` seconds |
+| ✨ Sylly Mode (Intel Phase) | OFF / ON | OFF | `ssIntelSyllyMode` | bool |
 
 ### Key State Variables (ss prefix)
 - `ssSettingInterceptsToWin`, `ssDifficultyLevel`, `ssSelectedCategories`, `ssRerollLimitSetting`, `ssTimerSetting`
@@ -203,6 +212,10 @@
 | `ss-override-overlay` | Decision modal | z-[90] |
 | `ss-play-again-overlay` | Decision modal | z-[90] |
 | `ss-help-tip-overlay` | Decision modal | z-[90] |
+| `ss-inning-transition` | Custom full-screen splash (stone-900) | z-[95] |
+| `ss-endgame-splash` | Custom full-screen splash (stone-900) — mission result + Phase 2 bridge | z-[95] |
+
+Both splash elements are legacy custom patterns (neither data slide-up nor decision modal); both are hidden in `resetSyllySignals()`.
 
 ### Team Setup
 - **Screen 1 heading:** "Establish Cover Identities"
@@ -216,9 +229,11 @@
 - **Mode:** Hybrid — supports Individual Devices or 2-Device Teams (`supportedModes: ['ptp', 'tlm', 'mdlm']`, `recommendedMode: 'tlm'`; there is no `supportsHybrid` field — hybrid behaviour comes from supporting both TLM and MDLM)
 - **Shared screens:** `screen-ss-mode`, `screen-ss-lobby-host`, `screen-ss-lobby-join` (parameterised)
 - **Game-specific screens:** none
-- **Security:** Team B's vault is sent ONLY to the Client device via `SYNC: SS_VAULT_DATA` (targeted write). Team A's vault never leaves the Host.
+- **Security:** Team A's vault never leaves the Host. Team B's vault is sent via `SYNC: SS_VAULT_DATA` — note this is a **broadcast SYNC envelope, not a targeted write** (audit correction, June 2026): with exactly 2 devices the only client is Team B so it behaves like a targeted write, but any additional client device would also receive it.
+- **2-device assumption (audit [BUG], June 2026):** All SS lobby-mode guards use `mpMyPlayerIdx` as a *team* index (`ssMpVaultReady[mpMyPlayerIdx]`, `ssEncryptingTeam === mpMyPlayerIdx`, intercept/decode submit guards). SS multiplayer therefore only functions with exactly 2 devices (one per team) even though the MDLM roster permits up to `ssPlayerCount × 2` devices.
+- **Intel Phase not multiplayer-aware (audit [BUG], June 2026):** Phase 2 has zero MP packets; after `SS_ENDGAME` each device runs the pass-the-phone Intel Phase locally. The client never receives Team A's vault, so Team B's intel turn crashes on the client device. Client-side vault rerolls are likewise local-only (no ACTION) and never reach the Host.
 - **Key ACTION packets:** `SS_VAULT_READY`, `SS_ENCODE_TRANSMIT`, `SS_INTERCEPT_SUBMIT`, `SS_DECODE_SUBMIT`
-- **Key SYNC packets:** `SS_VAULT_DATA`, `SS_ENCRYPT_TURN`, `SS_BROADCAST`, `SS_START_INTERCEPT`, `SS_DECODE_GATE`, `SS_RESOLUTION`, `SS_ENDGAME`
+- **Key SYNC packets:** `SS_VAULT_DATA`, `SS_ENCRYPT_TURN`, `SS_BROADCAST`, `SS_START_INTERCEPT`, `SS_DECODE_GATE`, `SS_RESOLUTION`, `SS_ENDGAME` (the client-encoder path also emits `SS_START_INTERCEPT` from the client device — a client-sent SYNC, tolerated because only the Host consumes it)
 
 ---
 
@@ -233,9 +248,10 @@
 | Today's Order | The food word revealed at the start of each round |
 | Today's Recipe | Sub-header label above the ingredient list on the sifting screen |
 | The Sifting | Screen where ingredient frequency is revealed and Sous Chef merges applied |
-| Chef's Kiss ✨ | Golden status — ingredient hit the Sweet Spot count |
-| Too Many Cooks! | Spoilt status — word submitted by too many players |
-| A Bit Pongy! | Rotten status — unique ingredient nobody else submitted |
+| Chef's Kiss ✨ | Golden badge for exactly 2 Chefs — the Sweet Spot jackpot |
+| Nice Match! 👌 | Golden badge for 3 to N−1 Chefs — half score |
+| Too Many Cooks! 🍲 | Spoilt status — ALL N Chefs submitted the word (token reward, or Crowded Kitchen Tax if penalty on) |
+| A Bit Pongy! 🤢 | Rotten status — unique ingredient nobody else submitted |
 | Kitchen Nightmare! 🧪 | Poisoned status (KN mode only) — overrides all other status |
 | Signature Dish | Ingredient 1 in KN mode — scores double if Golden |
 | Poison Word | Word entered in KN mode to sabotage matching ingredients |
@@ -249,27 +265,30 @@
 | The Pantry Cabinet | Settings overlay label |
 
 ### Settings
-| Setting | Options | Default | Internal value |
-|---------|---------|---------|----------------|
-| Chefs (player count) | 3 / 4 / 5 / 6 | 4 | `jecPlayerCount` int |
-| Rounds | 3 / 5 / 10 | 3 | `jecRounds` int |
+(Reality-synced June 2026 audit — Phase 29 scoring redesign defaults. Player count is NOT in the settings overlay — it lives on the roster screen as "Number of Chefs" pills, 3/4/5/6, default 4, `jecPlayerCount`.)
+
+| Setting (display) | Options | Default | Internal value |
+|------------------|---------|---------|----------------|
+| Dishes (rounds) | 3 / 5 / 10 | 3 | `jecRounds` int |
 | Menu Complexity | Home Cook / Sous Chef / Head Chef | Sous Chef | `jecFoodDifficulty` `'easy'` / `'mixed'` / `'hard'` |
-| The Sweet Spot | 10 / 20 / 30 pts | 20 pts | `jecGoldenScore` int |
-| Rotten Penalty | Off / On | On — unique ingredients cost −10 pts | `jecRottenPenalty` bool |
-| Spoilt Penalty | Off / On | On — Crowded Kitchen Tax: −(count × 2) pts | `jecSpoiltPenalty` bool |
+| The Sweet Spot | 10 / 20 / 30 pts | 30 pts | `jecGoldenScore` int |
+| Rotten Penalty | Off / On | Off — when On, unique ingredients cost −5 pts | `jecRottenPenalty` bool |
+| Spoilt Penalty | Off / On | Off — when On, Crowded Kitchen Tax: −(count × 2) pts | `jecSpoiltPenalty` bool |
 | Sous Chef Oversight | Off / On | On | `jecSousChefOversight` bool |
 | Specials Board | Off / On | Off | `jecSpecialsBoard` bool |
 | ✨ Sylly Mode (Kitchen Nightmares) | Off / On | Off | `jecKitchenNightmares` bool |
 
 ### Special Mechanics
 
-**Scoring (inverse proportional):**
-- `goldenMax = Math.floor(N * 0.7)` — max count that stays Golden
-- Golden: `Math.round(jecGoldenScore * (goldenMax - count + 2) / goldenMax)` — count=2 always = full score
-- Spoilt: `-(count × 2)` if penalty on (scales with how crowded the kitchen was)
-- Rotten: `-10` flat if penalty on
-- Poisoned: 0 pts (KN mode — overrides all)
-- Signature Dish: Golden score × 2 (KN mode — always ingredient slot 0)
+**Scoring (tiered positive — Phase 29 redesign; `jecCalcPoints(count, N)`):**
+- count = 1 → Rotten: 0 pts (or −5 if Rotten Penalty on)
+- count = 2 → Chef's Kiss: full `jecGoldenScore` jackpot
+- count 3 to N−1 → Nice Match: `Math.round(jecGoldenScore * 0.5)`
+- count = N → Too Many Cooks: `Math.round(jecGoldenScore * 0.15)` token reward (or −(count × 2) if Spoilt Penalty on)
+- Opt-in penalties REPLACE the tier reward for that count (never stack)
+- Poisoned: 0 pts (KN mode — overrides all, including penalties)
+- Signature Dish: tier points × 2 (KN mode — always ingredient slot 0; only when not Poisoned)
+- The pre-Phase-29 inverse-proportional formula (`goldenMax = floor(N*0.7)` etc.) is retired — see `jec-implementation-notes.md` Design Decisions
 
 **Sous Chef Oversight:**
 - Tap any two `.jec-sift-card` or `.jec-poison-chip` elements to trigger merge modal
@@ -290,15 +309,17 @@
 |---------|---------|
 | `jec-settings-overlay` | Data (slide-up) — "The Pantry Cabinet" |
 | `jec-how-to-overlay` | Data (slide-up) |
-| `jec-quit-overlay` | Decision modal |
-| `jec-oversight-overlay` | Decision modal — merge confirm |
-| `jec-new-shift-overlay` | Decision modal — "New Shift?" |
+| `jec-quit-overlay` | Decision modal — z-[80] |
+| `jec-oversight-overlay` | Decision modal — merge confirm, z-[90] |
+| `jec-new-shift-overlay` | Decision modal — "New Shift?", z-[80] (audit note: play-again confirms should be z-[90] per `logic-engine.md`) |
+| `jec-help-tip-overlay` | Decision modal — contextual `[?]` tips, z-[90] |
 
 ### Multiplayer (Phase 22)
 - **Mode:** Individual Devices — all chefs on their own device
 - **Shared screens:** `screen-jec-mode`, `screen-jec-lobby-host`, `screen-jec-lobby-join` (parameterised)
 - **Game-specific screens:** none
-- **Key mechanic:** `jecMpReadyCheck[]` tracks prep submissions. Host runs sifting + Sous Chef oversight; all merges broadcast so all devices stay in sync.
+- **Key mechanic:** `jecMpReadyCheck[]` tracks prep submissions. Host runs sifting + Sous Chef oversight; all merges broadcast so all devices stay in sync. Host's own prep submission is processed directly (not via envelope) — self-sent envelopes are dropped by the dedup guard (Bug J1).
+- **Client-gating gaps (audit [BUG], June 2026):** the sifting "Taste Test", tally "Next Course", and Sous Chef merge taps are NOT host-gated — a client tapping them runs scoring/round-advance/merges locally and diverges until the next Host SYNC. `JEC_NEXT_ROUND` also makes clients pop their own local word pool (transient wrong word until `JEC_ORDER` lands).
 - **Key ACTION packets:** `JEC_PREP_SUBMIT` (each chef's ingredient + KN fields)
 - **Key SYNC packets:** `JEC_ORDER`, `JEC_SIFTING`, `JEC_MERGE`, `JEC_TALLY`, `JEC_NEXT_ROUND`, `JEC_WASHUP`
 

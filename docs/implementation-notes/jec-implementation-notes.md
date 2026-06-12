@@ -30,12 +30,29 @@ Root cause: The host sends its own JEC_PREP_SUBMIT via `mpSendEnvelope`. However
 Fix: In `js/games/jec.js` `jecSubmitIngredients()`, when `syllyMultiplayerMode === 'host'`, process the host's own submission directly (mark readycheck, check all-ready, broadcast JEC_SIFTING if complete) instead of sending via envelope.
 Status: Fixed Phase 28.
 
+**J2 — How-to overlay states the wrong Rotten penalty (June 2026 audit, open)**
+What happened: The "Winning and Scoring" card says "A Bit Pongy — (penalty on: −10 pts)". The actual Rotten penalty is −5 (code `roundScores[p] -= 5` and the settings-card copy both say −5). The same card's Too Many Cooks line says "−2 per extra Chef" where the formula is −2 per Chef who picked it (including you).
+Root cause: How-to copy written against the pre-Phase-29 penalty values and never re-synced after the scoring redesign.
+Lesson: A scoring redesign must sweep every place the numbers appear — code, settings copy, how-to copy, game-identities.
+
+**J3 — Client-side Sous Chef merges are unguarded in Lobby Mode (June 2026 audit, open)**
+What happened: The Multiplayer Lessons section below claims "Clients cannot initiate merges" — but nothing enforces it. `jecHandleOversightTap()` is wired on every device whenever `jecSousChefOversight` is on, and `jecApplyMerge()` only *broadcasts* when host — a client tapping two cards merges locally with no ACTION sent, silently diverging from the table until the next Host SYNC overwrites (or never).
+Root cause: The host-only contract existed in documentation, not in code.
+Lesson: Every "host-only" interaction needs a `syllyMultiplayerMode === 'client'` early-return, not just an absent broadcast branch.
+
+**J4 — Sifting/tally CTAs not host-gated in Lobby Mode (June 2026 audit, open)**
+What happened: "The Taste Test!" and "Next Course" have no client guard. A client tapping Taste Test runs `jecCalcRoundScores()` locally (mutating `jecScores` + pushing a duplicate `jecRoundLog` entry) and self-navigates to tally; tapping Next Course runs `jecStartRound()` locally, popping the client's own divergent word pool and flashing a wrong order word until `JEC_ORDER` arrives. The `JEC_NEXT_ROUND` SYNC handler itself causes the same transient on well-behaved clients (it calls full `jecStartRound()` instead of waiting for `JEC_ORDER`).
+Root cause: Phase-22 JEC relied on players not tapping; no host-only CTA pattern existed yet (the GTH host-gate pattern came later, Phase 30).
+Lesson: Apply the host-gate screen pattern: clients see a "Waiting for the Head Chef…" disabled state on sifting/tally CTAs.
+
 ---
 
 ## Multiplayer Lessons
 
 **Sous Chef Oversight in MDLM**
-Host runs all sifting + Sous Chef oversight. All merges are broadcast via `JEC_MERGE` so all devices stay in sync. Clients cannot initiate merges — they wait for the host's merge SYNC.
+Host runs all sifting + Sous Chef oversight. All merges are broadcast via `JEC_MERGE` so all devices stay in sync. Clients are *intended* not to initiate merges — but note this is not enforced in code (see Bug J3, June 2026 audit).
+
+**Polish (June 2026 audit): `jec-new-shift-overlay` is z-[80]** — play-again confirmation modals are z-[90] per `logic-engine.md` § Play-Again Confirmation.
 
 **MDLM host readycheck pattern (applies to all games with a readyCheck matrix)**
 `engine-multiplayer.js` line 486 drops all envelopes where `originId === syllyDeviceUid` as a deduplication guard. This means the host's own ACTION envelopes are NEVER processed by `mpHandleEnvelope`. Any readyCheck update that relies on the ACTION handler will silently skip the host's slot. Fix pattern: when `syllyMultiplayerMode === 'host'`, process the host's own submission directly in the game's submit function (mark readycheck, check `.every(Boolean)`, broadcast SYNC if all ready). Do NOT send via envelope for host-owned submissions in readyCheck games.

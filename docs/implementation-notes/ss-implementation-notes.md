@@ -3,10 +3,13 @@
 ## Design Decisions
 
 **Hybrid multiplayer mode**
-SS supports both Individual Devices and 2-Device Teams (Zone 2 pill in host lobby, `supportsHybrid: true`). Most games are one or the other — SS is the only hybrid game in the suite.
+SS supports both Individual Devices and 2-Device Teams (`supportedModes: ['ptp','tlm','mdlm']`, `recommendedMode: 'tlm'`). Most games are one or the other — SS is the only hybrid game in the suite. *(Corrected June 2026 audit: there is no `supportsHybrid` field anywhere in code — hybrid behaviour comes from supporting both TLM and MDLM.)*
 
-**Team B vault security — targeted Firebase write**
-Team B's vault is sent ONLY to the Client device via `SYNC: SS_VAULT_DATA` (targeted write). Team A's vault never leaves the Host. This is the one case in the codebase where targeted per-device Firebase writes are used — other games use couch security (broadcast all, render own slot only).
+**Team B vault security — broadcast SYNC, not a targeted write**
+Team B's vault is sent via `SYNC: SS_VAULT_DATA`. Team A's vault never leaves the Host. *(Corrected June 2026 audit: this is a normal broadcast SYNC envelope, NOT a targeted per-device Firebase write as previously documented. With exactly 2 devices it behaves identically; with >2 devices every client receives Team B's vault — see Bug S11.)*
+
+**Secret Mode expansion hook is inline, not a named function (June 2026 audit — Check G resolution)**
+SS has no `ssApplyExpansionOverrides()` — the override read is inline in `ssConfirmPlayers()` (applies `ssDifficultyLevel`, `ssSettingInterceptsToWin`, `ssRerollLimitSetting`, `ssIntelSyllyMode` and force-disables vault customisation), and `ssBuildVaults()` / `ssRerollWord()` branch on `isSecretMode` to draw from `secretWords`. The hook is functional; only the naming convention differs. Note: the Lobby Mode host path (`startSyllySignals()` → `ssBuildVaults()`) bypasses `ssConfirmPlayers()`, so expansion *overrides* (not the word pool) are skipped in multiplayer Secret Mode sessions.
 
 **Fuzzy matching — compound word handling**
 `ssFuzzyMatch` is plural/singular aware and compound-word aware (hyphen/space split, ≥3 char components). Solid compounds (no separator) do NOT auto-split — store as "Weight-Lifting" to enable matching. This is SS-specific; do not apply to other games without testing.
@@ -47,6 +50,27 @@ What happened: `ssLockAttemptInputs()` applied the red ring to the `.jec-attempt
 Root cause: Ring applied at row level, not input level.
 Fix: Rewrote `ssLockAttemptInputs()` to select only the `input` element within the locked row.
 
+**S9 — Lobby Mode client double-applies resolution (June 2026 audit, open)**
+What happened: The client's `SS_RESOLUTION` handler sets `ssTokens`/`ssMisfires`/`ssClueHistoryA/B`/`ssRoundHistory` from the Host payload (already post-increment), then calls `ssResolve()` — which increments tokens/misfires AGAIN, pushes a duplicate `ssRoundHistory` entry, and re-runs `ssArchiveClues()`.
+Root cause: `ssResolve()` is both the resolver and the renderer; the client needed only the rendering half.
+Effect: Client's resolution-screen scoreboard is inflated by one token/misfire whenever one was scored; the final round appears twice in the client's Mission Journal at gameover. Self-corrects on the next `SS_ENCRYPT_TURN`/`SS_RESOLUTION` sync; Host state and the win decision are unaffected.
+Lesson: Split resolve-and-render functions before reusing them in SYNC handlers — clients render authoritative payloads, they never re-resolve.
+
+**S10 — No `btn-mp-action` on any SS submit button; double-tap can double-resolve (June 2026 audit, open)**
+What happened: `mpLockSync()` only works through the `.btn-mp-action` CSS class, and no SS button has it (true of all eight Phase-22 games — only BLD/GTH/DYB/PASS apply it; `syllySyncLocked` itself is never read anywhere). A client double-tapping "Confirm Code" sends two `SS_DECODE_SUBMIT` ACTIONs; the Host runs `ssResolve()` twice — double token/misfire increments and a duplicated round-history entry on the authoritative device.
+Root cause: Sync-lock contract (every submittable MP button carries `btn-mp-action`) was introduced after Phase 22 and never retrofitted.
+Lesson: `mpLockSync()` is a no-op unless the button carries the class — audit Check D must verify the class, not just the lock call.
+
+**S11 — SS multiplayer assumes exactly 2 devices (June 2026 audit, open)**
+What happened: All lobby-mode guards treat `mpMyPlayerIdx` as a team index: `ssMpVaultReady[mpMyPlayerIdx]`, `ssEncryptingTeam === mpMyPlayerIdx`, the intercept/decode submit guards. With MDLM (roster permits `ssPlayerCount × 2` devices) any device with index ≥ 2 can never submit, and the broadcast `SS_VAULT_DATA` SYNC would hand Team B's vault to extra Team A devices. `mpSerialiseSettings('ss')` also omits `ssSelectedCategories`, and client vault rerolls are local-only (no ACTION) — the Host's copy of Team B's vault goes stale after any client reroll.
+Root cause: SS lobby mode was built and tested as TLM (2 devices); the MDLM mode pill was enabled without per-player plumbing.
+Lesson: If a game's MP guards are team-indexed, `supportedModes` must not offer MDLM beyond one device per team — or the roster mapping must translate device → team everywhere.
+
+**S12 — Intel Phase has no multiplayer support; client crashes on Team B's intel turn (June 2026 audit, open)**
+What happened: Phase 2 has zero MP packets. After `SS_ENDGAME`, both devices show the splash with the Phase 2 button; each device that taps it runs the pass-the-phone Intel Phase locally. The client never receives Team A's vault (`ssVaultA` is `[]` on a fresh client), so the moment Team B's guessing turn starts, `ssIntelTargetVault()[ssIntelKwIdx].word` throws.
+Root cause: Intel Phase shipped pre-multiplayer and was never intercepted; `ssIntelSyllyMode` is still serialised to clients, so the broken path is reachable.
+Lesson: Either run MP Intel pass-the-phone on the Host device only (client shows a standby), or force `ssIntelSyllyMode = false` in Lobby Mode until Phase 2 is properly synced.
+
 ---
 
 ## Multiplayer Lessons
@@ -59,6 +83,16 @@ In TLM SS, during the encrypt phase, one device is active (encoder's team) and t
 
 **Envelope handler safety: every function called from `mpHandleEnvelope` must exist before shipping (Phase 27)**
 If `ssShowEncryptStandby()` had been undefined when called from the CLIENT `SS_ENCRYPT_TURN` handler, the Firebase callback would silently crash, leaving both devices stuck. Grep-confirm every function called from `mpHandleEnvelope` before shipping.
+
+---
+
+## Polish Index (June 2026 audit)
+
+**S13 — Legacy settings overlay format.** Bare divs + `<hr>` separators, centred `h3` title — predates the Settings Card Standard (white cards) and Settings Layout Standard (left-aligned sticky title block). Same class as LI5's legacy settings finding. Note: the scroll-reset in `ssOpenSettings()` queries `.overflow-y-auto` and works here because the overlay has a fixed header + Tailwind-scrolled body — do not "fix" it to `.overlay-data-inner` without restructuring.
+**S14 — "Game Over" generic eyebrow** on `screen-ss-gameover` (Protocol A §3 legacy string) — every other label on the screen is mission-voiced.
+**S15 — `btn-ss-customise-toggle` initial class missing `shrink-0`** (JS-applied states include it).
+**S16 — No header `[?]` → How to Play on gameplay screens.** The encrypt screen's header `?` is a contextual tip (`btn-ss-encrypt-tip`); no SS gameplay screen offers the how-to overlay mid-game (ui-style § Help icon `[?]`).
+**S17 — Round numbering offset when Team B encrypts first.** `ssNextHalf()` increments `ssRound` after Team 1's half, so if Team B goes first, "Round 1" contains only Team B's broadcast and every later round pairs A-then-B. Alternation and scoring are unaffected; Mission Journal grouping is cosmetically lopsided.
 
 ---
 
