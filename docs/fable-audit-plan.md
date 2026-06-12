@@ -63,7 +63,7 @@ Update the status column as phases complete. A fresh session starts at the first
 | 1B — game-identities.md | ✅ | 12 June 2026 — structural pass complete; GTH Screens table added, PASS packets corrected, numbering fixed; settings display-name drift forward-flagged to Phase 3; see Audit Findings §Phase 1B |
 | 1C — logic-engine.md | ✅ | 12 June 2026 — precache list synced to sw.js, resetToLobby() MP block rewritten, getMuteToggleOnClass documented; see Audit Findings §Phase 1C |
 | 1D — ui-style.md | ✅ | 12 June 2026 — all theming tables extended to 12 games, mute-toggle theming section added, menu CTA table synced to reality; see Audit Findings §Phase 1D |
-| 1E — phase-audit.md | ☐ | |
+| 1E — phase-audit.md | ✅ | 12 June 2026 — When-to-Run gains Protocol C, stale paths/refs fixed, sound-listener row corrected (line 549, 12 games), 3 multiplayer rows added to Protocol C Part 2; see Audit Findings §Phase 1E |
 | 1F — definitions.md | ☐ | |
 | 2 — Code Map | ☐ | |
 | 2B — Engine & Infrastructure | ☐ | |
@@ -735,3 +735,17 @@ Verified with no change needed:
 - `[POLISH]` DYB how-to overlay uses muted `stone-400` step labels + close button instead of brand stone-700 — intentional-vs-drift to be resolved in Phase 3.
 - `[POLISH]` Dead `.sylly-toggle-on` rule remains in `css/styles.css` (zero usages).
 - `[DOC]` **DYB Sylly Mode drift:** shipped UI names it "Devil's Luck" with Loaded/Phantom/Slick/Cracked die types; `game-identities.md` documents "Chaos Mode" with Slick dice only. Forward-flagged to Phase 3 DYB (needs full `dyb.js` read).
+
+### Phase 1E — phase-audit.md (12 June 2026)
+
+Changes applied to `phase-audit.md`:
+- **When to Run:** added the missing Protocol C line — the section listed only Protocols A and B even though Protocol C has existed since it was added to the file. Now matches the CLAUDE.md skill description (three protocols).
+- **Protocol A §1 + Protocol B Step 0:** corrected stale implementation-notes path `docs/[abbr]-implementation-notes.md` → `docs/implementation-notes/[abbr]-implementation-notes.md` (files moved into the subdirectory; same class of stale reference 1A found in CLAUDE.md).
+- **Protocol B Step 1:** corrected `.claude/rules/new-game-template.md` (does not exist — same 1A finding) → `new-game-brief-template.md`, with a pointer to `new-game-process.md` for the full three-stage protocol.
+- **Protocol B Step 5:** added the pre-MDLM-test grep for `window.`-prefixed `let`-declared MP globals — this was an explicit open Template Gap in `bld-implementation-notes.md` ("Phase audit Protocol B: Add pre-MDLM-test grep") that had never been actioned.
+- **Protocol C Part 2 — Sound button listeners row (1E known check):** corrected `engine.js` line reference 534 → 549 (verified against current `engine.js`) and "All 11 games audited" → "All 12 games audited" (the row itself already listed 12 games — the count was self-contradictory).
+- **Protocol C Part 2 — three new rows from GTH/DYB/BLD/PASS lessons:** (1) **No `window.` prefix on `let`-declared MP globals** (BLD Bug 8 — was in Protocol A §2 but absent from the cross-suite sweep), (2) **ACTION handler completeness** (silent-drop pattern from the MDLM missing-handler audit in `logic-engine.md`), (3) **`mpSerialiseSettings` coverage** (clients silently playing with different rules). All three were already rules in `logic-engine.md` but had no Protocol C gate.
+- **Protocol C Part 2 — Play-again flow row extended:** now also requires the multiplayer branch (`mpReturnToLobby()` host / `resetToLobby()` client with dynamic confirm label) per `logic-engine.md` § Play-Again Return Pattern.
+
+Verified with no change needed:
+- **Protocol A §2 `game-toggle-on-[colour]` rule (1E known check):** "ALL ON/OFF toggles (including Sylly Mode) use `game-toggle-on-[colour]` — `sylly-toggle-on` is no longer used anywhere" — confirmed current; matches the 1D verification (zero `sylly-toggle-on` usages in `index.html`/JS) ✓.

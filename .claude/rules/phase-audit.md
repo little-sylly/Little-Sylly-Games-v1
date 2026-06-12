@@ -3,6 +3,7 @@
 ## When to Run
 - **Protocol A (Phase Gate):** After every completed game or major phase. Run BEFORE writing the phase snapshot — the snapshot is a confirmation, not a discovery.
 - **Protocol B (Skeleton-First):** At the start of coding any new game. No game logic until the skeleton passes.
+- **Protocol C (Pre-Game Studio Sweep):** Before any new game's Phase 1 brief is written. Both parts must pass before Protocol B Step 1 begins.
 
 ---
 
@@ -22,7 +23,7 @@ For the game just completed, verify these against the actual JS file:
 - [ ] **State variable list is complete** — all state vars declared in the plugin are listed under State Variables in `game-identities.md`
 - [ ] **`allScreens[]` is current** — every screen ID registered in `engine.js` matches the screens defined for this game
 - [ ] **SW precache is current** — `sw.js` lists the plugin file; `logic-engine.md` precache list matches `sw.js`; CACHE_NAME version is correct
-- [ ] **Implementation notes current** — `docs/[abbr]-implementation-notes.md` exists for this game; any bugs resolved or design decisions made during this phase are logged under the appropriate section (Design Decisions / Bug Index / Multiplayer Lessons / Template Gaps)
+- [ ] **Implementation notes current** — `docs/implementation-notes/[abbr]-implementation-notes.md` exists for this game; any bugs resolved or design decisions made during this phase are logged under the appropriate section (Design Decisions / Bug Index / Multiplayer Lessons / Template Gaps)
 
 ---
 
@@ -76,13 +77,13 @@ Static checklist — verify by reading the HTML and CSS, not by running a browse
 Follow this sequence strictly. Do not skip ahead to logic injection.
 
 ### Step 0 — Template Gap Review (before the brief)
-- Read the **Template Gaps** section of every existing `docs/[abbr]-implementation-notes.md` file
+- Read the **Template Gaps** section of every existing `docs/implementation-notes/[abbr]-implementation-notes.md` file
 - For each gap, assess whether it applies to the new game's design — if yes, resolve it in the tech spec before coding begins
 - This is how recurring bugs from past games get prevented proactively rather than discovered again
 - **Gate:** All applicable template gaps acknowledged → proceed to Step 1
 
 ### Step 1 — Brief (before any JS)
-- Fill out `docs/new-game-brief-[name].md` using `.claude/rules/new-game-template.md`
+- Fill out `docs/new-game-brief-[name].md` using `.claude/rules/new-game-brief-template.md` (full three-stage protocol: `.claude/rules/new-game-process.md`)
 - Every section must be complete (no blank cells, no TBD on core mechanics)
 - Review against `game-identities.md` for tone consistency and against `ui-style.md` for overlay/menu standards
 - **Gate:** Brief signed off → proceed to Step 2
@@ -111,6 +112,7 @@ Follow this sequence strictly. Do not skip ahead to logic injection.
 - Inject game logic screen by screen, in flow order (setup → handover → main play → scoring → gameover)
 - After each screen: verify the exit path from that screen still works
 - Add settings, overlays, and Sylly Mode last — these are enhancements, not the skeleton
+- **Before any MDLM testing:** grep the plugin for `window.mpMyPlayerIdx`, `window.mpPlayerSlots`, `window.mpActiveGame`, `window.mpActiveRoomCode` — these are `let`-declared and a `window.` prefix returns `undefined` silently (BLD Bug 8)
 - Run the Drift Check (Protocol A §1) after completing the final screen
 - **Gate:** Drift Check clean + Phase Gate passed → write phase snapshot
 
@@ -146,13 +148,16 @@ Compare specific implementation elements across all game plugin files and `index
 | **Lobby button listener** | Pattern is `playLaunch(); activeGameId = '[abbr]'; showScreen('screen-[abbr]-menu');` — in that order. No `updateSliderTheme()` call (handled by `openSoundOverlay()` automatically). |
 | **Menu section class** | No `min-h-screen` on any game menu section. Standard pattern: `relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6`. |
 | **Sound button position** | Sound button is `absolute top-4 right-4` within a `relative` section. Section must be content-height (no `min-h-screen`) or the button detaches visually from the content. |
-| **Sound button listeners** | `engine.js` attaches `openSoundOverlay` to all `.btn-open-sound` elements globally at script execution time (top-level `querySelectorAll` — line 534). Since all HTML is parsed before scripts run, this covers every game automatically. Newer games (NAT, DSD, GTH, BLD, DYB, PASS) also wire them explicitly inside their `DOMContentLoaded` block — redundant but harmless. Older games (LI5, GM, SS, JEC, YGI, LTTP) rely on the engine.js global only — confirmed correct. ✅ All 11 games audited June 2026. |
+| **Sound button listeners** | `engine.js` attaches `openSoundOverlay` to all `.btn-open-sound` elements globally at script execution time (top-level `querySelectorAll` — line 549). Since all HTML is parsed before scripts run, this covers every game automatically. Newer games (NAT, DSD, GTH, BLD, DYB, PASS) also wire them explicitly inside their `DOMContentLoaded` block — redundant but harmless. Older games (LI5, GM, SS, JEC, YGI, LTTP) rely on the engine.js global only — confirmed correct. ✅ All 12 games audited June 2026. |
 | **Settings pill toggles** | Only `pill-active-[colour]` is added or removed — the `.pill` base class is NEVER removed from any pill. Grep for `classList.toggle('pill'` and `classList.remove('pill'` — both are prohibited. |
 | **Decision modal class strings** | Every `overlay-modal-inner` div has `border border-[brand]-300`. Data overlays (`overlay-data-inner`) are exempt. |
 | **Quit overlay copy** | Game-voiced heading, subtext, confirm label, cancel label. Grep for generic strings: `"Quit game"`, `"Are you sure"`, `"Yes"`, `"No"`. |
 | **How-to overlay structure** | Thematic title block (sticky) → step cards → "Winning and Scoring" card → ✨ Sylly Mode card → close button. See `ui-style.md` § How-to Overlay Standard. |
-| **Play-again flow** | Every gameover restart button opens a confirmation overlay — no direct call to a reset/start function on button click. |
+| **Play-again flow** | Every gameover restart button opens a confirmation overlay — no direct call to a reset/start function on button click. In multiplayer, the confirm handler calls `mpReturnToLobby()` (host) / `resetToLobby()` (client) with the dynamic confirm label — see `logic-engine.md` § Play-Again Return Pattern. |
 | **`allScreens[]` registration** | Every screen ID in every plugin appears in `engine.js` `allScreens[]`. |
 | **`resetToLobby()` teardown** | Every overlay from every game is hidden in `resetToLobby()` in `engine.js`. |
+| **No `window.` prefix on `let`-declared MP globals** | Grep every plugin for `window.mpMyPlayerIdx`, `window.mpPlayerSlots`, `window.mpActiveGame`, `window.mpActiveRoomCode` — `let`-declared, so the `window.` prefix returns `undefined` silently (BLD Bug 8). `window.syllyMultiplayerMode` / `window.syllySyncLocked` / `window.mpLobbyStyle` / `window.mpLobbyRoster` are correct WITH the prefix. |
+| **ACTION handler completeness** | For every multiplayer game phase, every ACTION a non-host device can send has a handler in `[abbr]HandleEnvelope`. Missing handlers silently drop submissions — they do not error (see `logic-engine.md` § Missing handler audit). |
+| **`mpSerialiseSettings` coverage** | Every game's `mpSerialiseSettings` entry covers every setting the host can change. A missing field means clients silently play with different rules. |
 
 **Gate:** All items pass (or failures are logged and fixed) → Protocol B Step 1 (brief) may begin.
