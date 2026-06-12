@@ -65,7 +65,7 @@ Update the status column as phases complete. A fresh session starts at the first
 | 1D — ui-style.md | ✅ | 12 June 2026 — all theming tables extended to 12 games, mute-toggle theming section added, menu CTA table synced to reality; see Audit Findings §Phase 1D |
 | 1E — phase-audit.md | ✅ | 12 June 2026 — When-to-Run gains Protocol C, stale paths/refs fixed, sound-listener row corrected (line 549, 12 games), 3 multiplayer rows added to Protocol C Part 2; see Audit Findings §Phase 1E |
 | 1F — definitions.md | ✅ | 12 June 2026 — legacy DSTW/Sylly Signals names purged, all 12 prefixes listed, MP/theming terms added, data-file pointer section added; see Audit Findings §Phase 1F |
-| 2 — Code Map | ☐ | |
+| 2 — Code Map | ✅ | 12 June 2026 — all 12 game sections verified against JS/HTML (scripted ID + function sweeps); BLD section added; LTTP/LI5/GM/SS/DSD/GTH/DYB drift corrected; see Audit Findings §Phase 2 |
 | 2B — Engine & Infrastructure | ☐ | |
 | 3 — Per-Game (track per game in Notes) | ☐ | LI5 / GM / SS / JEC / YGI / LTTP / NAT / DSD / GTH / DYB / BLD / PASS |
 | 4 — Data | ☐ | |
@@ -763,3 +763,32 @@ Changes applied to `definitions.md`:
 
 Verified with no change needed:
 - **words.json Data Schema + File Format sections:** field list, 16-category list, Great Minds 10-category subset, difficulty tiers, dual-use `nono_list[0]` note, and the one-entry-per-line serialiser rule all current ✓ (deep data verification deferred to Phase 4A per plan).
+
+### Phase 2 — Code Map (12 June 2026)
+
+**Method:** Throwaway Node scripts (not committed) extracted `allScreens[]`, every plugin's top-level state vars / function definitions / packet strings, `MP_GAME_CONFIGS`, and all element IDs in `index.html`; then a verification sweep checked every ID and function name in `code-map.md` against the codebase. Plan note "GTH/DYB/BLD/PASS missing entirely" was stale — GTH, DYB, and PASS sections already existed (added post-Phase-25 without updating the header); only **BLD was missing entirely**.
+
+Changes applied to `docs/code-map.md`:
+- **Header:** "Updated: Phase 25" → "Phase 32 / June 2026".
+- **BLD section added in full** (between DYB and PASS): 7 screens, 8 overlays (with the dual-purpose `bld-second-chances-overlay` note), key buttons, 20 state vars, 17 key functions, full ACTION/SYNC packet table — all extracted from `bld.js` + `index.html`.
+- **Global/Engine:** added `toggleMute()`, `updateSliderTheme()`, `getMuteToggleOnClass()`; fixed `#btn-gth` row (routes to `screen-gth-menu`, NOT `mpShowModeScreen('gth')`); added missing `#btn-bld` row.
+- **LI5:** `#how-to-overlay` → `#li5-how-to-overlay`; added `#li5-help-tip-overlay`; play-again opener corrected to legacy `#btn-play-again`; `#btn-back-to-box` → `#btn-back-to-lobby`; Key functions table rewritten — `applySettings`/`startGatekeeper`/`startRound`/`endRound` do not exist (real: `handlePill`, `showGatekeeper`, `startGame`, `applyAndAdvance`, `endTurn`, …).
+- **GM:** `gmNewRound()` does not exist — replaced with `startGreatMinds()` / `gmStartInputPhase()` / `gmProcessLockIn()`; brand colour note expanded (violet lobby card vs purple in-game) with Phase 3 flag.
+- **SS:** `ssNextRound()` → `ssStartHalf()`/`ssNextHalf()`; **`ssApplyExpansionOverrides()` removed — function does not exist** (flag added; Phase 3 Check G).
+- **YGI:** `ygiShowSuddenDeathIntro()` → `ygiStartSuddenDeath()` (+ `ygiShowSDPassGate()`/`ygiResolveSuddenDeath()`).
+- **LTTP:** chat-screen element table rewritten for the current two-pane Map/Contacts layout (old `lttp-chat-player-list`/`-history`/`-notes`/`lttp-suspicion-list` IDs no longer exist); added `lttp-smalltalk-overlay` + `lttp-guess-map-overlay` rows; `lttpOpenSuspicionOverlay()`/`lttpOpenMapOverlay()` do not exist (real: `lttpOpenPlayerFolder()`, `lttpRenderMapPane()`, `lttpOpenGuessMapOverlay()`); added `lttpOpenSmallTalkOverlay()`, `lttpShowBriefing()`.
+- **Secret Mode:** `#sm-terminal-settings` does not exist → `#sm-terminal-subcategories`.
+- **DSD:** stamp Phase 19 → Phase 23/June 2026; added `screen-dsd-spectator` to the DSD screens table; `dsdInitSetup()`/`dsdValidateSetup()` do not exist (real: `dsdShowPlayers()`, `dsdValidatePlayers()`); added `dsdShowCaptain()`/`dsdShowCrew()`/`dsdShowSpectatorView()`/`dsdShowCrewStandby()`.
+- **GTH:** added missing `screen-gth-patient-intake` row; settings values corrected (`gthDisordersPerPatient` 3/4/5 not 2/3/4; `gthDifficultyMix` `'recurrent'` with `'episodic'/'recurrent'/'refractory'` — matches the 1B game-identities fix); added `gthPatientReady` var + `gthShowPatientIntake()`/`gthStartPhase1Drawing()`/`gthKickOffPhase2()` functions.
+- **DYB:** state table rewritten — `dybDice`/`dybDiceCount` do not exist (real: `dybStartingHand` 3/4/5, `dybMyRoll`/`dybAllRolls`/`dybDiceInHand`, plus `dybWildcardsStyle`, `dybOnesStripped`, `dybSeatNumbers`, elimination/opener state); `dybSyllyIntensity` default 5 not 7; `dybShowMenu()`/`dybShowTable()` do not exist (real: `dybStartSession()`, `dybRenderTableScreen()`); Devil's Luck flag embedded (die type strings `'loaded'/'phantom'/'slick'/'cracked'` confirmed in `dyb.js`).
+- **PASS:** added `passStartSession()`, `passShowRoundWrap()`/`passCheckMatchOver()`; rest verified accurate (incl. `passStartRound()` broadcasting `PASS_GAME_START` ✓).
+- **Multiplayer Module:** `mpRoomCode` → `mpActiveRoomCode` (with no-`window.`-prefix note); `syllyDeviceUid` default `''` → `null`; added `screen-mp-roster` to MP screens; mode-classification line extended to all 12 games with min/max; GTH packet row gains `GTH_PATIENT_READY`; DYB/BLD/PASS rows added (pointing at their per-game tables).
+
+**New issues logged in `docs/fable-fix-plan.md`:**
+- `[BUG]` **BLD `getMinPlayers: () => 4`** in `MP_GAME_CONFIGS` but `BLD_ROLE_TABLE` starts at 5 players (game-identities min 5) — a 4-player start would hit an undefined role-table row.
+- `[POLISH]` **Orphaned `screen-lttp-smalltalk` section** in `index.html` — never referenced by `lttp.js`, never in `allScreens[]`, never shown; leftover from the pre-Phase-21a Small Talk screen design (child IDs `lttp-st-ask-*`, `lttp-st-stamp-row` all unreferenced — verified). Early catch of a 2B-10 orphan.
+- `[DOC]` BLD `bld-new-night-overlay` documented in game-identities but does not exist — play-again reuses `bld-second-chances-overlay` with dynamic labels.
+- `[DOC]` SS has no expansion-hook function — deliberate skip or gap, Phase 3 Check G to resolve.
+- `[DOC]` GM violet-500 lobby card vs purple-500 everywhere else — Phase 3 GM to reconcile.
+
+**Forward notes for Phase 2B:** BLD min-players mismatch found here overlaps 2B-6 (MP_GAME_CONFIGS vs game-identities) — recheck remaining config fields then. The orphaned LTTP section pre-answers part of 2B-10. `screen-mp-roster` registration confirmed in `allScreens[]` (115 screens total extracted).

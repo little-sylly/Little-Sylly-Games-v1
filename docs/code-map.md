@@ -1,6 +1,6 @@
 # Code Map — Little Sylly Games
 **Purpose:** Surgical reference for editing. Uses element IDs (stable) not line numbers (shift).
-**Updated:** Phase 25 (multiplayer polish + host-only audit)
+**Updated:** Phase 32 / June 2026 (studio audit Phase 2 — all 12 games verified against code)
 
 ---
 
@@ -37,8 +37,9 @@
 | `#btn-lttp` | Lobby → LTTP menu |
 | `#btn-nat` | Lobby → NAT menu |
 | `#btn-dsd` | Lobby → DSD menu |
-| `#btn-gth` | Lobby → GTH mode screen (`mpShowModeScreen('gth')`) — multiplayer-only |
+| `#btn-gth` | Lobby → GTH menu screen (`screen-gth-menu`) — game menu always comes first, even for multiplayer-only games |
 | `#btn-dyb` | Lobby → DYB menu screen |
+| `#btn-bld` | Lobby → BLD menu screen (`bldShowMenu()`) |
 | `#btn-pass` | Lobby → PASS menu screen |
 | `#lobby-icon` | Secret Mode tap counter (7 taps → controller screen) |
 | `.btn-open-sound` | Opens `#sound-overlay` (on every screen) |
@@ -52,7 +53,10 @@
 | `resetToMenu()` | LI5 only — stops timer, hides LI5 overlays → `#screen-menu` |
 | `normaliseWord(w)` | Lowercase + trim + plural strip (used by GM, JEC) |
 | `shuffle(arr)` | Fisher-Yates, returns new array |
-| `openSoundOverlay()` | Opens `#sound-overlay`, syncs mute state |
+| `openSoundOverlay()` | Opens `#sound-overlay`, syncs mute state; calls `updateSliderTheme(activeGameId)` automatically |
+| `toggleMute()` | Flips `isMuted`, persists to localStorage, syncs `#btn-mute` / `#global-mute-toggle` / all `.btn-open-sound` icons |
+| `updateSliderTheme(gameId)` | Maps `activeGameId` → `[abbr]-range` CSS class on `#global-sound-volume` (fallback `stone-range`) |
+| `getMuteToggleOnClass(gameId)` | Maps `activeGameId` → `game-toggle-on-[colour]` class for `#global-mute-toggle` ON state (fallback `game-toggle-on-stone`) |
 | `showWhoFirst(config)` | Drives `#screen-who-first`; calls `config.onResult(goesFirstIdx)` on completion |
 
 ---
@@ -75,23 +79,24 @@
 ### Overlays
 | ID | Pattern | Opened by |
 |----|---------|-----------|
-| `#settings-overlay` | Data (slide-up) | `#btn-settings` |
-| `#how-to-overlay` | Data (slide-up) | `#btn-how-to` |
+| `#settings-overlay` | Data (slide-up) | `#btn-settings` — legacy ID, no `li5-` prefix |
+| `#li5-how-to-overlay` | Data (slide-up) | `#btn-how-to` |
+| `#li5-help-tip-overlay` | Decision modal | Contextual `[?]` tips — `li5ShowHelpTip()` |
 | `#quit-overlay` | Decision modal | ✕ during active play |
 | `#skip-turn-overlay` | Decision modal | Skip button |
 | `#review-overlay` | Data (slide-up) | Review edits button |
 | `#history-overlay` | Data (slide-up) | Score history button |
 | `#pause-overlay` | Inline (inside `#screen-active-play`) | Pause button |
 | `#deck-panel` | Data (slide-up) | Word deck button |
-| `#li5-play-again-overlay` | Decision modal | "New Playgroup?" play-again confirmation — `#btn-li5-play-again` |
+| `#li5-play-again-overlay` | Decision modal | "New Playgroup?" play-again confirmation — `#btn-play-again` (legacy unprefixed ID) |
 
 ### Key buttons
 | ID | Action |
 |----|--------|
 | `#btn-play` | Menu → setup |
 | `#btn-settings` | Open `#settings-overlay` |
-| `#btn-how-to` | Open `#how-to-overlay` |
-| `#btn-back-to-box` | `resetToLobby()` |
+| `#btn-how-to` | Open `#li5-how-to-overlay` |
+| `#btn-back-to-lobby` | `resetToLobby()` ("← Back to the Box" on LI5 menu) |
 | `#btn-quit-confirm` | Confirm quit → `resetToMenu()` → `#screen-menu` |
 | `#btn-quit-cancel` | Close `#quit-overlay` |
 | `#btn-mute` | Instant mute toggle (active play only — no overlay) |
@@ -100,18 +105,21 @@
 | Function | Purpose |
 |----------|---------|
 | `loadWords()` | Loads `data/words.json` into `allWords[]` (also used by JEC) |
-| `applySettings()` | Reads pill state → sets game settings |
-| `applyExpansionOverrides()` | Secret Mode hook — reads `window.activeExpansionOverrides` |
-| `startGatekeeper()` | Routes to `#screen-gatekeeper` |
-| `startRound()` | Draws word, starts timer, shows `#screen-active-play` |
-| `endRound()` | Stops timer, tallies scores, routes to `#screen-gameover` |
+| `handlePill(btn)` / `handleCategoryPill(btn)` | Settings pill toggles — write directly to setting vars |
+| `applyExpansionOverrides()` | Secret Mode hook — reads `window.activeExpansionOverrides` (global name — LI5 owns it; other games namespace theirs) |
+| `startGame()` | Resets match state, draws first word → `showGatekeeper()` |
+| `showGatekeeper()` | Pass-the-phone gate → `#screen-gatekeeper` |
+| `showActivePlay()` / `startTimer()` | Active describe screen + countdown |
+| `applyAndAdvance(points)` | Scores current word, draws next (`drawNextWord()`) |
+| `endTurn()` | Stops timer → round review (`showRoundReview()`) or `showGameOver()` |
+| `li5ShowHelpTip(key)` | Contextual `[?]` tip overlay content injector |
 
 ---
 
 ## Great Minds (GM)
 
 **JS file:** `js/games/great-minds.js`
-**Brand colour:** `violet-500`
+**Brand colour:** `violet-500` on the lobby card button; `purple-500` everywhere in-game (`pill-active-purple`, `bg-purple-500` CTAs, `game-toggle-on-purple`). [AUDIT FLAG — June 2026: reconcile violet-vs-purple during Phase 3 GM audit; `game-identities.md` documents `purple-500`.]
 **Lobby button:** `#btn-great-minds`
 
 ### Screens
@@ -155,8 +163,9 @@
 | Function | Purpose |
 |----------|---------|
 | `gmBuildPool()` | Builds word pair pool from selected categories |
-| `gmNewRound()` | Draws pair, sets up input screen |
-| `gmLockIn()` | Validates + processes player clue input |
+| `startGreatMinds()` | Entry point — resets state, picks starter pair (`gmPickStarterPair()`), shows pair reveal |
+| `gmStartInputPhase()` | Sets up the round's input flow; in Lobby Mode sets `gmActivePlayer = mpMyPlayerIdx` (both devices input simultaneously) |
+| `gmLockIn()` / `gmProcessLockIn()` | Validates + processes player clue input |
 | `gmHandleMatch()` | Win detection + Neural Link sequence |
 | `gmApplyExpansionOverrides()` | Secret Mode hook |
 | `smOpenVocabOverlay()` | *(in secret-mode.js)* Opens vocab reference overlay |
@@ -216,10 +225,13 @@
 |----------|---------|
 | `ssOpenSettings()` | Syncs UI state + opens `#ss-settings-overlay` |
 | `ssResetToMenu()` | Stops timers, resets round state, preserves names+settings → `#screen-ss-menu` |
-| `ssNextRound()` | Advances round, rotates encoder |
+| `ssStartHalf()` / `ssNextHalf()` | Round loop — starts each team's encoding half, rotates encoder |
+| `ssResolve()` | Resolves intercept + decode → `#screen-ss-resolution` |
 | `ssFuzzyMatch(a, b)` | Plural/compound-aware word equivalence check |
-| `ssApplyExpansionOverrides()` | Secret Mode hook |
+| `ssStartIntelPhase()` | Sylly Mode Phase 2 entry (tiebreak → intel intro → guesses → summary) |
 | *(Who Encrypts First)* | Handled by engine `showWhoFirst()` — see Engine section |
+
+> [AUDIT FLAG — June 2026]: SS has **no** `ssApplyExpansionOverrides()` function (previously listed here in error). Whether SS deliberately skips the Secret Mode expansion hook is unverified — resolve during Phase 3 SS audit (Check G).
 
 ---
 
@@ -330,8 +342,8 @@
 | `ygiShowResults()` | Round results with running totals + 🥇🥈🥉 medals |
 | `ygiShowFinalStandings()` | Final podium + seeds The Record, calls `ygiRenderRoundLog()` |
 | `ygiRenderRoundLog()` | Renders current Record card (driven by `ygiRoundLogIdx`) |
-| `ygiShowSuddenDeathIntro()` | Renders SD intro screen — tied finalist names + random question |
-| `ygiShowSDInput()` | SD number entry for current finalist; advances until all done |
+| `ygiStartSuddenDeath()` | Renders SD intro screen — tied finalist names + random question |
+| `ygiShowSDPassGate()` / `ygiShowSDInput()` | SD pass gate + number entry per finalist; `ygiResolveSuddenDeath()` settles the tie |
 
 ---
 
@@ -353,16 +365,19 @@
 | `#screen-lttp-guess` | Plan 4 vote + pin phase (pass-the-phone) |
 | `#screen-lttp-group-guess` | Group Vote mode — shared guess reveal screen |
 | `#screen-lttp-gameover` | Full reveal + Friendship Points tally |
+| `#screen-lttp-smalltalk` | ⚠️ ORPHANED dead markup — a `<section>` never referenced by `lttp.js`, never registered in `allScreens[]`, never shown (leftover from the pre-Phase-21a Small Talk screen design). The live Small Talk UI is the `#lttp-smalltalk-overlay` overlay. [AUDIT FLAG — June 2026: candidate for removal; logged `[POLISH]` in fix plan.] |
 
 ### Overlays
 | ID | Pattern | Opened by |
 |----|---------|-----------|
-| `#lttp-suspicion-overlay` | Data (slide-up) z-[80] | `lttpOpenSuspicionOverlay()` / `lttpOpenPlayerFolder()` |
+| `#lttp-suspicion-overlay` | Data (slide-up) z-[80] | `lttpOpenPlayerFolder(idx)` — per-player folder (status + notes) |
 | `#lttp-history-overlay` | Data (slide-up) z-[90] | `lttpOpenFullHistory()` |
 | `#lttp-settings-overlay` | Data (slide-up) z-[80] | `#btn-lttp-menu-settings` |
 | `#lttp-how-to-overlay` | Data (slide-up) z-[90] | `#btn-lttp-menu-how-to` |
+| `#lttp-smalltalk-overlay` | Data (slide-up) z-[80] | `lttpOpenSmallTalkOverlay(targetIdx)` — topic tabs + prompt pills (Small Talk Helper ON) |
 | `#lttp-confirm-overlay` | Decision modal z-[80] | `lttpOpenConfirmModal()` — free-text message input (Phase 21a) |
 | `#lttp-quit-overlay` | Decision modal z-[80] | `.btn-lttp-quit-open` (any gameplay screen) |
+| `#lttp-guess-map-overlay` | Custom full-width map panel z-[95] | Guess phase — Friend of a Friend pins the address (`lttpOpenGuessMapOverlay()`) |
 
 ### Message Flow state (Phase 21a — replaces Small Talk)
 | Variable | Purpose |
@@ -370,16 +385,16 @@
 | `lttpPendingTarget` | Player index currently being messaged |
 | `lttpHistory` | `[{asker, asked, plan, messageText}]` — full chat log; `messageText` is the free-text message |
 
-### Key chat elements
+### Key chat elements (current two-pane layout: Map / Contacts tabs)
 | ID | Purpose |
 |----|---------|
 | `#lttp-chat-plan-label` | "Plan N of 4" |
 | `#lttp-chat-player-label` | "IT'S [NAME]'S TURN" |
-| `#lttp-chat-player-list` | JS-rendered player buttons (greyed = already answered) |
-| `#lttp-chat-history` | Group Chatlog feed (most recent 6) |
-| `#lttp-chat-notes` | Private per-player scratchpad textarea |
-| `#lttp-map-grid` | 4×4 grid cells (role-aware, JS-rendered) |
-| `#lttp-suspicion-list` | Suspicion tracker rows (JS-rendered) |
+| `#lttp-chat-role-label` / `#lttp-chat-role-objective` | Active player's role reminder strip |
+| `#btn-lttp-tab-map` / `#btn-lttp-tab-contacts` | Pane tab buttons — `lttpSnapToPane()` |
+| `#lttp-pane-map` | Map pane — contains `#lttp-map-grid` (4×4, role-aware) + `#lttp-map-instruction` |
+| `#lttp-pane-contacts` | Contacts pane — `#lttp-contacts-list` (player rows with status chips, JS-rendered) |
+| `#lttp-chatlog-preview` | Group Chatlog feed preview; `#btn-lttp-open-history` opens the full log |
 
 ### Key guess-phase elements
 | ID | Purpose |
@@ -398,12 +413,15 @@
 | `lttpShowRoleReveal(idx)` | Role-aware private reveal screen |
 | `lttpShowHandover(toIdx, msg)` | Pass gate — `msg` non-null triggers plan-transition text; in chat mode shows message + "Read aloud" instruction |
 | `lttpShowChat(playerIdx)` | Main turn screen — renders player list + history + notes |
+| `lttpOpenSmallTalkOverlay(targetIdx)` | Small Talk Helper overlay — topic tabs + prompt pills (when `lttpSmallTalk` ON) |
 | `lttpOpenConfirmModal(targetIdx)` | Opens `lttp-confirm-overlay` with free-text message input for `targetIdx` |
 | `lttpSelectPlayer(targetIdx, messageText)` | Core lap logic — logs `{asker, asked, plan, messageText}` to history, checks lap complete, routes |
 | `lttpNarrowHighlights()` | 6→3→1 narrowing + logs plan snapshot |
-| `lttpOpenMapOverlay()` | Role-aware 4×4 grid — The Gang: red, The Troublemaker: gold+purple, Friend of a Friend: annotatable |
+| `lttpShowBriefing()` | Plan start/transition summary screen |
+| `lttpRenderMapPane()` | Role-aware 4×4 grid inside the chat screen's Map pane — The Gang: red, The Troublemaker: gold+purple, Friend of a Friend: annotatable |
+| `lttpOpenGuessMapOverlay()` | Guess-phase full-width pin map (`#lttp-guess-map-overlay`) |
 | `lttpOpenFullHistory()` | Full history log overlay |
-| `lttpOpenPlayerFolder(idx)` | Opens suspicion overlay at a specific player's folder |
+| `lttpOpenPlayerFolder(idx)` | Opens suspicion (Contacts) overlay at a specific player's folder |
 | `lttpStartGuessPhase()` | Begins Plan 4 vote/pin pass-the-phone sequence |
 | `lttpShowGuess(playerIdx)` | Role-aware action — Friend of a Friend pins, The Gang votes |
 | `lttpComputeAndShowGameover()` | Scores via priority cascade → gameover |
@@ -439,7 +457,7 @@
 | `#sm-terminal-log` | Typewriter output area |
 | `#sm-terminal-expansions` | Expansion selector buttons (injected by JS) |
 | `#sm-terminal-games` | Game selector buttons (injected by JS) |
-| `#sm-terminal-settings` | Active settings summary (injected by JS) |
+| `#sm-terminal-subcategories` | Expansion sub-category selector buttons (injected by JS) |
 | `#sm-terminal-launch-wrap` | Launch button container |
 | `#sm-terminal-launch` | `[ LAUNCH SEQUENCE ]` button |
 | `#sm-terminal-back` | ← BACK (returns to lobby) |
@@ -554,7 +572,7 @@ Each plugin reads `window.activeExpansionOverrides` at its settings-apply point 
 **JS file:** `js/games/dsd.js`
 **Brand colour:** `cyan-700` | **Active pill:** `pill-active-cyan`
 **Lobby button:** `#btn-dsd`
-**Updated:** Phase 19
+**Updated:** Phase 23 / June 2026 audit
 
 ### Screens
 | Screen ID | Purpose |
@@ -568,6 +586,7 @@ Each plugin reads `window.activeExpansionOverrides` at its settings-apply point 
 | `screen-dsd-crew` | Crew view — word-only grid, sequence builder |
 | `screen-dsd-execution` | Sequential tile reveal with Valour scoreboard |
 | `screen-dsd-sabotage` | Sylly Mode — Jammer placement by the placing team |
+| `screen-dsd-spectator` | TLM non-active team watch view — read-only crew grid + clue history (`dsdShowSpectatorView()`) |
 | `screen-dsd-gameover` | Winner display, Valour totals, deployment count |
 
 ### Overlays
@@ -607,14 +626,16 @@ Each plugin reads `window.activeExpansionOverrides` at its settings-apply point 
 | Function | Purpose |
 |----------|---------|
 | `dsdShowMenu()` | Routes to `screen-dsd-menu`; sets `activeGameId = 'dsd'` |
-| `dsdShowSetup()` / `dsdInitSetup()` | Renders team name inputs + player/captain inputs |
+| `dsdShowSetup()` / `dsdShowPlayers()` | Screen 1 (team names) / Screen 2 (player names + captain) |
 | `dsdRenderPlayerInputs()` | Rebuilds player name inputs + captain selector buttons |
-| `dsdValidateSetup()` | Validates all fields then calls `dsdLaunchWhoFirst()` |
+| `dsdValidatePlayers()` | Validates all fields then calls `dsdLaunchWhoFirst()` |
 | `dsdLaunchWhoFirst()` | Calls engine `showWhoFirst()` with DSD config; `onResult` sets `dsdFirstTeam` |
 | `dsdBuildGame()` | Async — awaits `loadWords()`, builds shuffled 25-cell grid by sea state tiers |
 | `dsdShowBriefing()` | Strategic Planning screen — renders 25-word tappable tiles (all always interactive) |
 | `dsdRerollWord(cellIdx)` | Swaps one grid word at `cellIdx` with next word from `dsdWordPool`; rebuilds pool (excluding on-board words) when exhausted — unlimited swaps |
 | `dsdUpdateLegend()` | Populates legend value labels dynamically from `dsdDangerLevel` + `dsdHazardControl` |
+| `dsdShowCaptain()` / `dsdShowCrew()` | Captain and Crew screen entry points (always via pass gate) |
+| `dsdShowSpectatorView()` / `dsdShowCrewStandby()` | TLM spectator view / MDLM crew standby for the non-active team |
 | `dsdRenderCaptainGrid()` | Full-width colour-coded grid; Jammer shown as placing team's colour + `?` badge |
 | `dsdTransmitPing()` | Validates word (single token, not in grid); sets `dsdPingClue/Number` |
 | `dsdRenderCrewGrid()` | Word-only grid with numbered sequence badges; enforces max N+1 taps |
@@ -639,13 +660,14 @@ Each plugin reads `window.activeExpansionOverrides` at its settings-apply point 
 **Lobby button:** `#btn-gth`
 **Data file:** `data/gth-data.json`
 **Infrastructure:** `js/lib/canvas-draw.js` — `window.CanvasDraw` global
-**Multiplayer-only:** MDLM, `rosterConfig: {type:'none'}`
-**Updated:** Phase 30
+**Multiplayer-only:** MDLM, `rosterConfig: {type:'none'}`, min 4 / max 8 players
+**Updated:** Phase 31 / June 2026 audit
 
 ### Screens
 | Screen ID | Purpose |
 |-----------|---------|
 | `screen-gth-menu` | Main menu — Start Session, How to Play, Settings, ← Back to the Box |
+| `screen-gth-patient-intake` | Pre-Phase-1 readyCheck gate — each patient confirms ready (`GTH_PATIENT_READY` ACTION) |
 | `screen-gth-disorder-reveal` | Pre-draw disorder info; sub-states `'preview'` (first view) + `'between'` (between drawings) |
 | `screen-gth-canvas` | Drawing screen — disorder name header, countdown timer, `<canvas id="gth-canvas">` inside `<div id="gth-canvas-wrapper">` |
 | `screen-gth-waiting-room` | Passive — waits for all players to finish Phase 1 |
@@ -666,10 +688,10 @@ Each plugin reads `window.activeExpansionOverrides` at its settings-apply point 
 ### Key State Variables
 | Variable | Type | Default | Purpose |
 |----------|------|---------|---------|
-| `gthDisordersPerPatient` | int | `3` | Disorders drawn per player per session (`2`/`3`/`4`) |
-| `gthDrawingTime` | int | `30` | Seconds per drawing (`20`/`30`/`45`) |
-| `gthDiagnosisWindow` | int | `90` | Phase 2 total seconds (`60`/`90`/`120`) |
-| `gthDifficultyMix` | string | `'everyday+phobias'` | Pool filter: `'everyday'`/`'everyday+phobias'`/`'all'` |
+| `gthDisordersPerPatient` | int | `3` | Disorders drawn per player per session (`3`/`4`/`5`) — "Reportable Symptoms" |
+| `gthDrawingTime` | int | `30` | Seconds per drawing (`20`/`30`/`45`) — "Expression Window" |
+| `gthDiagnosisWindow` | int | `90` | Phase 2 total seconds (`60`/`90`/`120`) — "Diagnosis Window" |
+| `gthDifficultyMix` | string | `'recurrent'` | Pool filter: `'episodic'`/`'recurrent'`/`'refractory'` — "Symptom Severity" |
 | `gthDeepDive` | bool | `false` | Hard Mode — text input instead of Diagnostic Cards |
 | `gthSyllyMode` | bool | `false` | Stroke or Genius — tremor (Phase 1) + blur (Phase 2) |
 | `gthPlayerCount` | int | `0` | Total players (from lobby) |
@@ -677,6 +699,7 @@ Each plugin reads `window.activeExpansionOverrides` at its settings-apply point 
 | `gthAssignedDisorders` | object[] | `[]` | This device's disorder assignments for Phase 1 |
 | `gthLocalDrawings` | object[] | `[]` | `{disorderId, playerIdx, drawingData}` — this device's completed drawings |
 | `gthRevealPool` | object[] | `[]` | All drawings (host-only accumulator; used for queue build + score resolution) |
+| `gthPatientReady` | bool[] | `[]` | readyCheck — per-player intake-screen confirmation (gates Phase 1 start) |
 | `gthPhase1Ready` | bool[] | `[]` | readyCheck — per-player Phase 1 completion |
 | `gthQueue` | object[] | `[]` | This device's Phase 2 case queue |
 | `gthLocalDiagnoses` | object[] | `[]` | `{disorderId, selectedId, timestamp}` — this device's diagnoses |
@@ -694,13 +717,16 @@ Each plugin reads `window.activeExpansionOverrides` at its settings-apply point 
 | `gthShowMenu()` | Routes to `screen-gth-menu` |
 | `gthResetState()` | Clears all phase state; called on new session and `resetToLobby()` |
 | `gthApplySettings()` | Reads pill/toggle DOM into state variables |
-| `gthStartSession()` | Host: builds pool, assigns disorders, broadcasts `GTH_GAME_START`, shows disorder reveal |
+| `gthStartSession()` | Host: builds pool, assigns disorders, broadcasts `GTH_GAME_START`, shows patient intake |
+| `gthShowPatientIntake()` | readyCheck gate before Phase 1 — sends `GTH_PATIENT_READY` on confirm |
+| `gthStartPhase1Drawing()` | All patients ready (`GTH_PHASE1_START`) — begins the drawing loop |
 | `gthShowDisorderReveal(idx)` | Shows `'preview'` or `'between'` sub-state on `screen-gth-disorder-reveal` |
 | `gthShowCanvas(disorder)` | Inits `CanvasDraw`, starts countdown, applies tremor if Sylly Mode |
 | `gthStartCountdown()` | setInterval countdown; tick on ≤5s; expiry → alarm + `gthFinishDrawing()` |
 | `gthFinishDrawing()` | Clears timer, stops tremor, calls `CanvasDraw.lock()`, calls `gthSubmitDrawing()` |
 | `gthSubmitDrawing(data)` | Stores locally; advances to next disorder or sends batch + shows waiting room |
-| `gthShowWaitingRoom()` | Shows `screen-gth-waiting-room`; marks local player done |
+| `gthShowWaitingRoom()` | Shows `screen-gth-waiting-room`; marks local player done (`gthUpdateWaitingProgress()` renders the tally) |
+| `gthKickOffPhase2()` | Host-only: builds queues + broadcasts `GTH_PHASE2_START` when all Phase 1 batches are in |
 | `gthBuildQueues()` | Host-only: assigns each drawing to exactly 2 non-artist queues; returns `queues[][]` |
 | `gthPickDecoys(disorder, count)` | Returns `count` wrong-answer disorders for Diagnostic Cards (same tier/category fallback chain) |
 | `gthShowShrinkIntro()` | Shows `screen-gth-shrink-intro` |
@@ -745,28 +771,44 @@ Each plugin reads `window.activeExpansionOverrides` at its settings-apply point 
 ### Key State Variables
 | Variable | Type | Default | Purpose |
 |----------|------|---------|---------|
+| `dybWildcardsStyle` | string | `'classic'` | Wildcards: `'strict'` / `'classic'` / `'volatile'` |
+| `dybStartingHand` | int | `5` | Starting dice per player (`3`/`4`/`5`) |
+| `dybSyllyMode` | bool | `false` | Devil's Luck — special dice (see flag below) |
+| `dybSyllyIntensity` | int | `5` | % chance per die of becoming a special die (slider 5–10) |
 | `dybPlayerCount` | int | `0` | Total players in session |
 | `dybPlayerNames` | string[] | `[]` | Player display names |
-| `dybDice` | int[][] | `[]` | Current dice values per player (`dybDice[playerIdx][dieIdx]`) |
+| `dybSeatNumbers` | int[] | `[]` | Seat assignment per player |
+| `dybDiceInHand` | int[] | `[]` | Dice count remaining per player |
+| `dybMyRoll` | int[] | `[]` | This device's private roll (never broadcast until Showdown) |
+| `dybSpecialTypes` / `dybSlickFaces` | arrays | `[]` | This device's special die types + chosen Slick faces |
+| `dybAllRolls` / `dybAllSpecialTypes` / `dybAllSlickFaces` | arrays | `[]` | Host-only accumulators until `DYB_SHOWDOWN` |
 | `dybActivePlayers` | int[] | `[]` | Indices of players still in the game |
+| `dybEliminationOrder` | int[] | `[]` | Order players were eliminated (drives final ranking) |
+| `dybCurrentOpenerIdx` | int | `0` | Player who must open the next Shake's bidding |
 | `dybCurrentBidderIdx` | int | `0` | Index of next-to-bid player (advances after each bid) |
 | `dybAllegationHistory` | object[] | `[]` | `{playerIdx, face, count}` — full bid history for the round |
 | `dybChallengerIdx` | int | `-1` | Player who called bluff (`-1` = no challenge yet) |
-| `dybSyllyMode` | bool | `false` | Chaos Mode — adds Slick dice |
-| `dybSyllyIntensity` | int | `7` | Chaos per die (5–10); % chance any die becomes Slick |
-| `dybDiceCount` | int | `5` | Starting dice per player (`3`/`4`/`5`/`6`) |
+| `dybOnesStripped` | bool | `false` | Volatile Wilds — set true once 1s are bid directly this Shake |
+| `dybHandVisible` | bool | `true` | Stealth Veil eye-toggle state |
+| `dybSlickPickerDie` | int | `-1` | Die index currently in the Slick picker overlay |
+
+> [AUDIT FLAG — June 2026]: shipped Sylly Mode is **"Devil's Luck"** with multiple secret die types — `'loaded'` / `'phantom'` / `'slick'` / `'cracked'` strings exist in `dyb.js`, and the settings card copy says "loaded, phantom, cracked, slick, or a snake". `game-identities.md` still documents "Chaos Mode" with Slick dice only — reconcile during Phase 3 DYB audit.
 
 ### Key Functions
 | Function | Purpose |
 |----------|---------|
-| `dybShowMenu()` | Shows `screen-dyb-menu` |
+| `dybStartSession()` | Post-lobby entry — host routes to seating, clients wait for `DYB_GAME_START` |
 | `dybShowSeating()` | Renders lobby roster + shows `screen-dyb-seating` (host only) |
 | `dybStartGame()` | Assigns seats, builds dice arrays, broadcasts `DYB_GAME_START` |
 | `dybInitShake()` | Rolls dice for active players; routes each player to `screen-dyb-shake` |
-| `dybShowTable()` | Renders table view — all hands (from each player's perspective), bid history, action buttons |
+| `dybGenerateRoll()` | Rolls this device's dice; applies Devil's Luck special-type chance per die |
+| `dybRenderTableScreen()` | Renders table view — pip row, bid history, allegation controls |
+| `dybComputeRealCount(face)` | Counts matching dice across all hands; branches on wildcards style + `dybOnesStripped` |
+| `dybOpenSlickPicker(dieIdx)` / `dybAssignSlickFace(face)` | Slick die face picker overlay (local only) |
+| `dybShowSpiritBoard()` | Eliminated-player spectator screen |
 | `dybProcessAllegation(face, count)` | Validates and records a bid; advances `dybCurrentBidderIdx`; broadcasts `DYB_ALLEGATION_SYNC` |
 | `dybProcessCallBluff()` | Sets `dybChallengerIdx`; triggers `dybResolveShowdown()` on host |
-| `dybResolveShowdown()` | Counts real dice, determines loser, updates `dybDice` and `dybActivePlayers`; broadcasts `DYB_SHOWDOWN` |
+| `dybResolveShowdown()` | Counts real dice, determines loser, updates `dybDiceInHand` and `dybActivePlayers`; broadcasts `DYB_SHOWDOWN` |
 | `dybApplyShowdown(data)` | Applies showdown state; shows `screen-dyb-showdown`; calls `dybRenderShowdownScreen` with gameover callback |
 | `dybRenderShowdownScreen(data, onDone)` | Animated tally: count-up at 400ms/tick with `playTick()`, then verdict reveal; calls `onDone()` when complete |
 | `dybBroadcastShakeActive()` | Broadcasts `DYB_SPIRIT_SHAKE` (for eliminated) then `DYB_SHAKE_ACTIVE` (for active); sends `DYB_GAMEOVER` if 1 player remains |
@@ -787,6 +829,112 @@ Each plugin reads `window.activeExpansionOverrides` at its settings-apply point 
 | `DYB_SHOWDOWN` | SYNC | Host → All | `{bidderIdx, challengerIdx, claimed, real, loserIdx, dice, activePlayers, gameOver}` |
 | `DYB_NEXT_SHAKE` | SYNC | Host → All | `{activePlayers, dice}` — after showdown if game continues |
 | `DYB_GAMEOVER` | SYNC | Host → All | `{winner, scores, planHistory}` |
+
+---
+
+## Bailed (BLD)
+
+**JS file:** `js/games/bld.js`
+**Data:** none — plans and roles are built-in constants (`BLD_PLANS`, `BLD_ROLE_TABLE`, `BLD_GROUP_TABLE`)
+**Brand colour:** `yellow-500` / active pill: `pill-active-yellow`
+**Lobby button:** `#btn-bld`
+**Multiplayer-only:** MDLM, `rosterConfig: {type:'none'}`, min 5 / max 10 players (PTP fallback via `bldShowSetup()`)
+**Status:** In active testing — cross-check `docs/implementation-notes/bld-implementation-notes.md` before logging new bugs
+
+### Screens
+| Screen ID | Purpose |
+|-----------|---------|
+| `screen-bld-menu` | Main menu — Make the Plans, How to Play, Settings, ← Back to the Box |
+| `screen-bld-setup` | Player name entry (PTP only — MDLM skips via `onPassThePhone`) |
+| `screen-bld-seating` | MDLM host pre-game — random seat numbers assigned + roster display |
+| `screen-bld-pass-gate` | Pass-the-phone gate before each role reveal (PTP) |
+| `screen-bld-role-reveal` | Per-player role reveal — Friend / Flake / Pot-Stirrer / Big Flake |
+| `screen-bld-main` | Main gameplay — plan tiles, patience meter, phase content (nominating / voting / mission / result / drama, driven by `bldGamePhase`) |
+| `screen-bld-aftermath` | End-of-game itinerary + result + role reveal |
+
+### Overlays
+| Overlay ID | Pattern | z-index | Purpose |
+|------------|---------|---------|---------|
+| `bld-settings-overlay` | Data (slide-up) | z-[80] | "The Group Chat" — players + Drama Mode |
+| `bld-how-to-overlay` | Data (slide-up) | z-[90] | How to Play |
+| `bld-quit-overlay` | Decision modal | z-[80] | "Walk Out?" — mid-game exit confirm |
+| `bld-pass-reveal-overlay` | Decision modal | z-[90] | Pass-the-phone handoff before role reveal |
+| `bld-role-help-overlay` | Decision modal | z-[90] | Role-specific rules reference |
+| `bld-plan-detail-overlay` | Decision modal | z-[90] | Per-plan history detail (aftermath tappable tiles) |
+| `bld-tip-overlay` | Decision modal | z-[90] | Shared tip overlay — `bldShowTip(emoji, heading, lines[])` drives all contextual `[?]` buttons |
+| `bld-second-chances-overlay` | Decision modal | z-[90] | Dual purpose: patience-exhausted Flake-win confirm AND the play-again confirmation opened by `#btn-bld-go-again` (dynamic confirm label: "Restart in Lobby 🔄" host / "Leave Session" client / "Second Chances 💬" single) |
+
+> [AUDIT FLAG — June 2026]: `game-identities.md` documents a `bld-new-night-overlay` ("New Night Out?") — **no such element exists in `index.html`**. Play-again reuses `bld-second-chances-overlay` (above). Reconcile during Phase 3 BLD audit.
+
+### Key buttons
+| ID | Action |
+|----|--------|
+| `#btn-bld-menu-play` | Menu Play CTA — dual context: post-lobby starts session, pre-lobby opens `mpShowModeScreen('bld')` |
+| `#btn-bld-confirm-seating` / `#btn-bld-randomise-seating` | Host seating screen — confirm / reshuffle seat numbers |
+| `#btn-bld-nominate-confirm` | Planner locks the nominated group |
+| `#btn-bld-vote-in` / `#btn-bld-vote-not-them` | Vote: Sounds Good / No Way |
+| `#btn-bld-mission-in` / `#btn-bld-mission-bailed` | Mission card: In / Bail |
+| `#btn-bld-drama-guess-confirm` | Big Flake locks their Friend guess (Drama Mode) |
+| `#btn-bld-go-again` | Aftermath play-again → opens `bld-second-chances-overlay` with dynamic label |
+| `#btn-bld-aftermath-exit` | Post-game exit → `resetToLobby()` |
+
+### Key State Variables
+| Variable | Type | Default | Purpose |
+|----------|------|---------|---------|
+| `bldPlayerCount` | int | `5` | Total players (5–10) |
+| `bldDramaMode` | bool | `false` | Sylly Mode — adds Pot-Stirrer + Big Flake |
+| `bldPlayerNames` | string[] | `[]` | Player display names |
+| `bldFlakeIndices` | int[] | `[]` | Indices of the Flakes |
+| `bldPotStirrerIdx` / `bldBigFlakeIdx` | int | `-1` | Drama Mode role indices |
+| `bldSeatNumbers` / `bldSeatOrder` | int[] | `[]` | Random seat assignment + planner rotation order |
+| `bldPlanTrack` | (bool\|null)[5] | nulls | Per-plan outcome (null = not played) |
+| `bldCurrentPlanIdx` | int | `0` | Active plan (0–4) |
+| `bldCurrentNominationAttempt` | int | `0` | Patience Meter counter (5th rejection = Flakes win) |
+| `bldCurrentPlannerIdx` | int | `0` | Active Planner (rotates by seat order) |
+| `bldNominatedGroup` | int[] | `[]` | Currently nominated group |
+| `bldVotes` / `bldVoteReady` | object / bool[] | `{}` / `[]` | Vote collection + readyCheck |
+| `bldMissionCards` / `bldMissionReady` | object / bool[] | `{}` / `[]` | Mission card collection + readyCheck |
+| `bldGamePhase` | string\|null | `null` | Main-screen phase: nominating / voting / mission / etc. |
+| `bldMyPlayerIdx` / `bldMyRoleData` | int / object | `-1` / `null` | This device's slot + role info (MDLM) |
+| `bldGameResult` / `bldDramaGuessResult` | object\|null | `null` | Final outcome + Big Flake guess outcome |
+| `bldPlanHistory` | object[] | `[]` | Per-plan record for aftermath detail overlay |
+| `bldPtpPhase` / `bldPtpQueue` | — | `null` / `[]` | Pass-the-phone sequencing (PTP mode) |
+
+### Key Functions
+| Function | Purpose |
+|----------|---------|
+| `bldShowMenu()` | Routes to `screen-bld-menu` |
+| `bldShowSetup()` | PTP name entry screen |
+| `bldShowSeatingSetup()` / `bldRenderSeatingList()` | MDLM host seating — random seat numbers (`onPassThePhone` host path) |
+| `bldStartGame()` / `bldStartGameMdlm()` | Assigns roles (`bldAssignRoles()`), broadcasts `BLD_GAME_START`, starts role reveals |
+| `bldShowRoleReveal(idx)` | Role-aware reveal — shows fellow Flakes to Flake devices |
+| `bldStartNominating()` / `bldRenderNominating()` | Planner group selection phase |
+| `bldRecordVote(idx, vote)` / `bldResolveVote()` | Vote collection (readyCheck) + majority resolution |
+| `bldRecordMissionCard(idx, card)` / `bldResolveMission()` | Mission card collection + bail-count resolution (`bldBailsRequired()` — Plan 4 with 7+ players needs 2 Bails) |
+| `bldShowPlanResult()` / `bldAdvanceAfterPlanResult()` | Plan outcome + advance to next plan / drama lock / aftermath |
+| `bldHandleRejection()` | Failed nomination — decrements patience, advances Planner; 5th rejection → Flakes win |
+| `bldTriggerDramaLock()` / `bldSubmitDramaGuess()` / `bldResolveDramaGuess()` | Drama Mode Big Flake identification phase |
+| `bldCheckWinCondition()` | 3+ successes = Friends win; 3+ fails or patience exhausted = Flakes win |
+| `bldShowAftermath()` / `bldRevealRoles()` / `bldOpenPlanDetail(idx)` | End-of-game itinerary, role reveal, per-plan detail |
+| `bldShowTip(emoji, heading, lines)` | Shared contextual tip overlay injector |
+| `bldRenderPatienceMeter()` / `bldRenderItinerary()` / `bldRenderMainHeader()` | Main-screen UI renderers |
+| `bldResetState()` | Full teardown; called by `resetToLobby()` |
+| `bldHandleEnvelope(env)` | Routes all BLD ACTION/SYNC packets; called from `engine-multiplayer.js` |
+
+### Per-Game ACTION/SYNC Packet Types
+| Packet | Type | Direction | Payload |
+|--------|------|-----------|---------|
+| `BLD_VOTE_SUBMIT` | ACTION | Client → Host | `{playerIdx, vote}` |
+| `BLD_MISSION_SUBMIT` | ACTION | Client → Host | `{playerIdx, card}` |
+| `BLD_NOMINATION_CONFIRMED` | ACTION + SYNC | Client Planner → Host → All | `{nominatedGroup, currentPlanIdx, nominationAttempt}` — host re-broadcasts as SYNC |
+| `BLD_DRAMA_GUESS` | ACTION | Client Big Flake → Host | `{guessIdx}` |
+| `BLD_GAME_START` | SYNC | Host → All | `{playerNames, playerCount, dramaMode, flakeIndices, bigFlakeIdx, potStirrerIdx, firstPlannerIdx, seatNumbers}` |
+| `BLD_VOTE_RESULT` | SYNC | Host → All | votes + outcome |
+| `BLD_MISSION_START` | SYNC | Host → All | mission card phase begin |
+| `BLD_MISSION_RESULT` | SYNC | Host → All | cards + bail count + outcome |
+| `BLD_NEXT_NOMINATION` | SYNC | Host → All | advance to next nomination |
+| `BLD_DRAMA_IDENTIFICATION` | SYNC | Host → All | trigger Big Flake guess phase |
+| `BLD_AFTERMATH` | SYNC | Host → All | final result + plan history |
 
 ---
 
@@ -830,6 +978,7 @@ Each plugin reads `window.activeExpansionOverrides` at its settings-apply point 
 ### Key Functions
 | Function | Purpose |
 |----------|---------|
+| `passStartSession()` | Post-lobby entry — host routes to seating, clients wait for `PASS_GAME_START` |
 | `passShowSeating()` | Renders roster and shows `screen-pass-seating` (host only) |
 | `passStartGame()` | Deals hands, sets chip stacks, broadcasts `PASS_GAME_START` |
 | `passStartRound()` | Rebuilds deck, deals, determines leader, broadcasts `PASS_GAME_START` |
@@ -842,6 +991,7 @@ Each plugin reads `window.activeExpansionOverrides` at its settings-apply point 
 | `passProcessPass(playerIdx)` | Host: increments pass streak, handles Abyss, broadcasts `PASS_TURN_RESULT` |
 | `passResolveRound(winnerIdx)` | Calculates chip deltas (×3/×2/×1 penalty tiers), broadcasts `PASS_ROUND_END` |
 | `passResolveAbyssDetonation(exemptIdx)` | Distributes Abyss cards clockwise; returns `{order, cards}` |
+| `passShowRoundWrap()` / `passCheckMatchOver()` | Round result screen + match-end check (`PASS_NEXT_ROUND` / `PASS_GAMEOVER`) |
 | `passHandleEnvelope(env)` | Routes all PASS ACTION/SYNC packets; called from `engine-multiplayer.js` |
 
 ### Per-Game ACTION/SYNC Packet Types
@@ -884,12 +1034,12 @@ Each plugin reads `window.activeExpansionOverrides` at its settings-apply point 
 |----------|------|---------|---------|
 | `syllyMultiplayerMode` | string | `'single'` | `'single'` / `'host'` / `'client'` — global gate for all MP branches in plugins |
 | `syllySyncLocked` | bool | `false` | true while awaiting Firebase response; blocks double-submit via `btn-mp-action` |
-| `syllyDeviceUid` | string | `''` | Anonymous Firebase UID; assigned on first room action; memory-only |
+| `syllyDeviceUid` | string | `null` | Anonymous Firebase UID; set by `firebase-init.js` after `signInAnonymously`; memory-only |
 | `syllyFirebase` | object | `null` | Lazy-loaded Firebase app instance; null until Lobby Mode entered |
 | `mpMyPlayerIdx` | int | `0` | This device's slot index (0 = Host) |
 | `mpPlayerSlots` | array | `[]` | `[{uid, nickname}]` — joined player list |
 | `mpActiveGame` | string | `''` | Current game abbreviation (set when Lobby Mode starts) |
-| `mpRoomCode` | string | `''` | Active 4-char room code |
+| `mpActiveRoomCode` | string | `''` | Active 4-char room code (`let`-declared — never `window.mpActiveRoomCode`) |
 | `mpJoinListenFrom` | int | `0` | Timestamp cutoff — events older than this are ignored by listener |
 | `mpLobbyStyle` | string | `'individual'` | `'team'` (TLM) / `'individual'` (MDLM) — set at mode selection; broadcast in GAME_START; reset in `resetToLobby()` |
 | `mpPlayersListener` | function\|null | `null` | `onValue` unsubscribe for `/players` node; active during host lobby only; cancelled in `mpStopListeners()` and before GAME_START in `mpConfirmRoster()` |
@@ -903,7 +1053,7 @@ Three named modes (Phase 23). Each game has a `recommendedMode` and `supportedMo
 | `tlm` | Team Lobby Mode | Each team shares one device. Host/Join with room code. |
 | `mdlm` | Multi-device Lobby Mode | Each player uses their own phone. Host/Join with room code. |
 
-Per-game: LI5 `ptp`★/`tlm` · GM `ptp`★/`mdlm` · SS `tlm`★/`mdlm`/`ptp` · JEC `mdlm`★/`ptp` · YGI `mdlm`★/`ptp` · LTTP `mdlm`★/`ptp` · NAT `mdlm`★/`ptp` · DSD `tlm`★/`mdlm`/`ptp` · GTH `mdlm`★ (multiplayer-only) (★ = recommended)
+Per-game: LI5 `ptp`★/`tlm` · GM `ptp`★/`mdlm` · SS `tlm`★/`mdlm`/`ptp` · JEC `mdlm`★/`ptp` · YGI `mdlm`★/`ptp` · LTTP `mdlm`★/`ptp` · NAT `mdlm`★/`ptp` · DSD `tlm`★/`mdlm`/`ptp` · GTH `mdlm`★ (MP-only, 4–8) · DYB `mdlm`★ (MP-only, 3–8) · BLD `mdlm`★ (MP-only, 4–10 per `getMinPlayers` — note `game-identities.md` says min 5) · PASS `mdlm`★ (MP-only, 3–6) (★ = recommended)
 
 ### Multiplayer Screens
 | Screen ID | Purpose |
@@ -911,6 +1061,7 @@ Per-game: LI5 `ptp`★/`tlm` · GM `ptp`★/`mdlm` · SS `tlm`★/`mdlm`/`ptp` �
 | `screen-mp-mode` | Mode selection — dynamically built by `mpShowModeScreen(abbr)` from `MP_GAME_CONFIGS.recommendedMode` + `supportedModes` |
 | `screen-mp-lobby-host` | Host waiting room — room code, player dock (shared) |
 | `screen-mp-lobby-join` | Client join flow — 4-char code input + nickname entry (shared) |
+| `screen-mp-roster` | Assign Spots — manual slot assignment for `rosterConfig.type: 'individual'` / `'teams'` games |
 | `screen-li5-monitor` | LI5-specific opposing team view — Tattletale Sheet (word + No-No List + CATCH! button) |
 | `screen-dsd-spectator` | DSD TLM non-active team view — read-only crew grid + clue history; shown by `dsdShowSpectatorView()` |
 
@@ -979,4 +1130,7 @@ Per-game: LI5 `ptp`★/`tlm` · GM `ptp`★/`mdlm` · SS `tlm`★/`mdlm`/`ptp` �
 | DSD | `DSD_PING_TRANSMIT`, `DSD_SEQUENCE_SUBMIT` | `DSD_CREW_ACTIVE`, `DSD_EXECUTION_RESULT`, `DSD_GAMEOVER` |
 | SS | `SS_VAULT_READY`, `SS_ENCODE_TRANSMIT`, `SS_INTERCEPT_SUBMIT`, `SS_DECODE_SUBMIT` | `SS_VAULT_DATA`, `SS_ENCRYPT_TURN`, `SS_BROADCAST`, `SS_START_INTERCEPT`, `SS_DECODE_GATE`, `SS_RESOLUTION`, `SS_ENDGAME` |
 | LTTP | `LTTP_MESSAGE_SEND` | `LTTP_GAME_START`, `LTTP_TURN_ADVANCE`, `LTTP_MESSAGE_INTERRUPT` |
-| GTH | `GTH_DRAWING_SUBMIT`, `GTH_DIAGNOSES_SUBMIT` | `GTH_GAME_START`, `GTH_PHASE1_START` (all patients ready — start drawing), `GTH_PHASE2_START` (all queues — no timestamp), `GTH_PHASE2_BEGIN` (host gate opened — carries `endTimestamp`; all devices start timer + show first case), `GTH_PHASE2_END` (timer expired — host authoritative), `GTH_REVEAL_NEXT`, `GTH_REVEAL_FINISH`, `GTH_FINAL_SCORES` |
+| GTH | `GTH_PATIENT_READY`, `GTH_DRAWING_SUBMIT`, `GTH_DIAGNOSES_SUBMIT` | `GTH_GAME_START`, `GTH_PHASE1_START` (all patients ready — start drawing), `GTH_PHASE2_START` (all queues — no timestamp), `GTH_PHASE2_BEGIN` (host gate opened — carries `endTimestamp`; all devices start timer + show first case), `GTH_PHASE2_END` (timer expired — host authoritative), `GTH_REVEAL_NEXT`, `GTH_REVEAL_FINISH`, `GTH_FINAL_SCORES` |
+| DYB | *(see Dicey Bluffs section packet table)* | *(see Dicey Bluffs section packet table)* |
+| BLD | *(see Bailed section packet table)* | *(see Bailed section packet table)* |
+| PASS | *(see Pass section packet table)* | *(see Pass section packet table)* |
