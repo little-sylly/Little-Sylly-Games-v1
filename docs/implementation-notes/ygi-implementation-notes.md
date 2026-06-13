@@ -29,6 +29,27 @@ What happened: The vote phase has the same root cause — host's YGI_VOTE_SUBMIT
 Fix: Same host-direct pattern. ygiVotes NOT pre-pushed, so host push + readycheck + full scoring computation all run in the host path.
 Status: Fixed Phase 28.
 
+**Y3 — MDLM: round-log double-pushed; one entry is malformed and crashes the carousel (Phase 3 audit, 13 June 2026)**
+What happened: In Lobby Mode the host pushes a round-log entry inside the vote-resolution path (`ygi.js` line ~561, and `engine-multiplayer.js` `YGI_VOTE_SUBMIT` line ~965) *and then* calls `ygiShowResults()`, which pushes a second entry (line ~694). Clients set `ygiRoundLog = p.roundLog` from the SYNC then also call `ygiShowResults()` → another push. So `ygiRoundLog` ends up with 2 entries per round on every device.
+Root cause: the manual push was added to populate the `roundLog` field of the `YGI_VERDICT` SYNC, but `ygiShowResults()` already owns the push (single-device path proves it — `ygiComputeAndShowResults()` does NOT push; only `ygiShowResults()` does). The manually-pushed entry is also malformed: `prompt: ygiCurrentPrompt` is the prompt **object**, not `.text`, and `entries` lacks the `name/pts/isGhost/isWinner` fields the renderer expects.
+Impact: The gameover carousel indicator shows a doubled count (e.g. "1 / 6" for a 3-round game). Navigating "prev" eventually lands on a malformed entry, where `ygiRenderRoundLog()` calls `entry.prompt.replace('[ ]', …)` on an object → **TypeError**, killing the carousel. MP-only.
+Fix (not yet applied — Principle 1): remove the manual `ygiRoundLog.push()` from both host paths; let `ygiShowResults()` own the push; build the SYNC `roundLog` after calling `ygiShowResults()`. On the client, don't both assign `p.roundLog` and re-push — assign and skip the push, or ignore the payload and let `ygiShowResults()` push locally.
+Status: Logged, fix plan. Not fixed.
+
+**Y4 — MDLM: Sudden Death (Solo Take tie-break) is not multiplayer-aware (Phase 3 audit, 13 June 2026)**
+What happened: When `ygiDecider === 'only-one'` (Solo Take) and the final standings tie, `ygiStartSuddenDeath()` runs a pass-the-phone flow (`screen-ygi-sd-intro` → `screen-ygi-sd-pass` → `screen-ygi-sd-input`) with zero MP packets.
+Root cause: Sudden Death was built for single-device play and never given ACTION/SYNC handlers. In MDLM each device independently calls `ygiShowGameOver()` (the `btn-ygi-results-next` handler is not host-gated) and runs its own local SD.
+Impact: Conditional (Solo Take + a tie). In MDLM the sudden-death is unplayable/divergent. Same class as SS Intel-Phase S12.
+Fix (not applied): force `ygiDecider = 'close-enough'` in Lobby Mode, or build SD packets + host gate. Logged, fix plan.
+Status: Logged. Not fixed.
+
+**Y5 — MDLM: `btn-ygi-results-next` not host-gated; clients advance the round locally (Phase 3 audit, 13 June 2026)**
+What happened: The results-screen "Next Situation →" button runs `ygiStartRound()` on whichever device taps it. On a client, `ygiStartRound()` pops the client's own (independently shuffled) `ygiPromptPool` and shows `screen-ygi-prompt` with the wrong situation until the host's `YGI_ROUND_START` SYNC arrives and overwrites it.
+Root cause: no `syllyMultiplayerMode` branch on the results-next handler — same client-gating-gap class as JEC J4.
+Impact: transient wrong-situation flash on clients + divergent `ygiRound` increments (self-corrects on the next `YGI_ROUND_START`). Low severity.
+Fix (not applied): gate results-next host-only (clients show "Waiting…"); let `YGI_ROUND_START` drive the client's round start.
+Status: Logged, fix plan.
+
 ---
 
 ## Multiplayer Lessons
@@ -48,3 +69,12 @@ Added a [?] button on the YGI input screen next to The Gap label, with sentence-
 
 **How-to overlay title missing emoji (Phase 28)**
 YGI how-to overlay title reads "How to Play" without an emoji. Per the standard established in Phase 28, it should read "How to Play 🃏". Low priority but flagged for next pass.
+
+**Duplicate `ygiShowHelpTip()` definition (Phase 3 audit, 13 June 2026)**
+`ygiShowHelpTip()` is defined twice, identically, at `ygi.js` lines ~58 and ~153 (the second wins). Harmless but dead duplication. [POLISH] — delete the first definition.
+
+**Legacy `sylly-toggle-off` OFF-state alias (Phase 3 audit)**
+YGI's settings toggles set the OFF class to `sylly-toggle-off` (lines ~130, ~138) rather than the canonical `game-toggle-off`. The alias is still valid (shared CSS rule) so this is not a bug, but YGI is one of the few games still on the legacy alias — flagged [POLISH] for consistency. (The deprecated class is `sylly-toggle-on`, which YGI does NOT use — Check B clean.)
+
+**`ygi-help-tip-overlay` not in teardown (Phase 3 audit)**
+`resetYouGetIt()` hides quit/settings/how-to/run-it-back but NOT `ygi-help-tip-overlay`; `engine.js` `resetToLobby()` doesn't either. DYB BUG-05 ghost-interceptor class — reachable if the tip is open when a host-disconnect fires `resetToLobby()`. Add to `resetYouGetIt()`. Augments the suite-wide 2B teardown [BUG].

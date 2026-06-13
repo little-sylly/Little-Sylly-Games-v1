@@ -355,7 +355,7 @@ Both splash elements are legacy custom patterns (neither data slide-up nor decis
 | Situations | 3 / 5 / 8 | 5 | `ygiRounds` |
 | The Decider | Split Take / Solo Take | Split Take | `'close-enough'` / `'only-one'` |
 | Full Tally | Off / On | Off — top 3 ranked only | `ygiFullTally` bool |
-| Verdict Style | Your Call / The Consensus | Your Call | `'secret-ballot'` / `'open-ballpark'` |
+| Verdict Style | Your Call / The Consensus | The Consensus | `'secret-ballot'` / `'open-ballpark'` (default `'open-ballpark'` = The Consensus; MDLM forces `'secret-ballot'`) |
 | ✨ Sylly Mode (The Ringer) | Off / On | Off | `ygiRinger` bool |
 
 ### Special Mechanics
@@ -372,8 +372,15 @@ Both splash elements are legacy custom patterns (neither data slide-up nor decis
 
 **Scoring:**
 - Rankings submitted per-voter (Your Call) or as one shared ranking (The Consensus).
-- Aggregated vote scores determine final round ranking; position drives score.
+- Each voter's ranking awards `VOTE_PTS = [3, 2, 1]` to the entries they place 1st / 2nd / 3rd (ranks beyond 3rd score nothing even in Full Tally).
+- Round winner (highest vote pts among humans, must be > 0) gets a **+2 "Local Legend ✨"** bonus on top.
+- **The Ringer (Sylly Mode):** if the ghost card receives more 1st-place votes than the best human, the Ringer "wins" and **every player loses 2 points** (`ygiScores[i] -= 2`). The Ringer never scores itself.
 - Running totals shown on `#screen-ygi-results` with 🥇🥈🥉 medals for positions 1–3.
+
+**Sudden Death (Solo Take tie-break):**
+- Triggered only when `ygiDecider === 'only-one'` (Solo Take) and the final standings tie for first.
+- Screens: `screen-ygi-sd-intro` → `screen-ygi-sd-input` (pass-the-phone per tied finalist) — drawn from `YGI_SUDDEN_DEATH_QS`.
+- Highest number wins. **Not multiplayer-aware** — has no MP packets; runs the pass-the-phone flow locally on every device in MDLM (audit [BUG], June 2026).
 
 **The Consensus voting:**
 - Single ranking screen labelled "The Consensus 🏟️".
@@ -437,7 +444,7 @@ Both splash elements are legacy custom patterns (neither data slide-up nor decis
 | Friendship Points | Score currency — Friend of a Friend +10 for correct pin, Troublemaker +20 for prank, The Gang +5 each for winning |
 
 ### Role-Specific Map Behaviour
-- **Friend of a Friend:** Sees all locations; can annotate cells as Safe (green) or Dead End (red)
+- **Friend of a Friend:** Sees all locations; can annotate cells as Maybe (green) or Nope (red). (Map sub-text: "Tap cells to mark Maybe or Nope.")
 - **The Gang:** Sees red highlights narrowing to the real address each plan (6→3→1)
 - **The Troublemaker:** Sees gold cell (real address) + purple cell (decoy they're planting)
 
@@ -445,8 +452,8 @@ Both splash elements are legacy custom patterns (neither data slide-up nor decis
 The 🕵️ button opens the Contacts overlay — a dual-view panel (roster → folder) for tracking suspicions and notes on each other player.
 
 **Status cycles (keyed to the ACTIVE player's role):**
-- The Gang: None → ✅ Safe → ❓ Sus → 🃏 Troublemaker → None
-- The Troublemaker: None → ✅ Safe → ❓ Sus → None
+- The Gang: None → ✅ Maybe → ❓ Sus → 🃏 Troublemaker → None
+- The Troublemaker: None → ✅ Maybe → ❓ Sus → None
 - Friend of a Friend (The Troublemaker mode ON): None → 🃏 Troublemaker → None
 - Friend of a Friend (The Troublemaker mode OFF): status section hidden
 
@@ -517,6 +524,9 @@ Player count (3–6, default 4, `lttpPlayerCount`) is set on the setup screen �
 | `lttp-smalltalk-overlay` | Data (slide-up) z-[80] | Small Talk Helper — topic tabs + prompt pills (+ "Other" free-form tab); shown before confirm when `lttpSmallTalk` ON |
 | `lttp-confirm-overlay` | Decision modal z-[80] | Free-text message input — always the final step; pre-filled if guided prompt selected |
 | `lttp-quit-overlay` | Decision modal z-[80] | Quit confirm |
+| `lttp-new-plans-overlay` | Decision modal z-[90] | "Head Out Again?" play-again confirm (Phase 29 — L4); hidden in `engine.js` `resetToLobby()` (not `resetLateToTheParty()`) |
+| `lttp-tip-overlay` | Decision modal z-[90] | Shared contextual tip overlay — `lttpShowTip(emoji, heading, lines[])`; ⚠️ not hidden by any reset path (audit [BUG], June 2026) |
+| `lttp-help-tip-overlay` | Decision modal z-[90] | Legacy single-string tip (`lttpShowHelpTip`); ⚠️ not hidden by any reset path (audit [BUG], June 2026) |
 | `lttp-guess-map-overlay` | Custom (full-width map panel) z-[95] | Guess phase — Friend of a Friend pins the address |
 
 ### Multiplayer (Phase 22)
@@ -528,6 +538,8 @@ Player count (3–6, default 4, `lttpPlayerCount`) is set on the setup screen �
 - **Map/Contacts state:** Local only — never synced. Each player maintains their own annotations.
 - **Key ACTION packets:** `LTTP_MESSAGE_SEND` (Client → Host: message text + from/to indices)
 - **Key SYNC packets:** `LTTP_GAME_START` (full world state including strayIdx, jokerIdx, addressIdx, gridLocations), `LTTP_TURN_ADVANCE` (nextPlayerIdx), `LTTP_MESSAGE_INTERRUPT` (fromName, toName, messageText → all devices)
+- **Plan narrowing/advancement NOT synced (audit [BUG], June 2026):** only the messaging loop has packets. There is no SYNC for `lttpNarrowHighlights()` / plan advance — the host's `LTTP_MESSAGE_SEND` handler never runs the lap-completion logic, and `lttpNarrowHighlights()` uses `shuffle()` (non-deterministic, so independent narrowing would diverge anyway). After the first full lap the host's `lttpPlan`/`lttpHighlights` are stale and devices show different remaining locations.
+- **Guess phase + gameover NOT MP-aware (audit [BUG], June 2026):** `lttpStartGuessPhase()`, the pin/vote screens, and `lttpComputeAndShowGameover()` have zero MP packets. In MDLM the Plan-4 endgame either never starts on clients (host completes the lap) or runs a divergent local pass-the-phone flow. Mirrors the SS Intel-Phase gap (S12).
 
 ---
 

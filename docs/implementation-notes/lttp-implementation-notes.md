@@ -40,6 +40,19 @@ Root cause: LTTP predates the play-again Decision Modal protocol established in 
 Fix: Added `lttp-new-plans-overlay` Decision Modal (z-[90], red border, "Head Out Again?" heading). `btn-lttp-new-plans` now opens the modal; confirm and cancel handlers added. Dynamic label on confirm button: "Restart in Lobby 🔄" (host) / "Leave Session" (client) / "Head Out Again 🏃‍♂️" (single). `mpReturnToLobby()` moved to confirm handler. Teardown added to `engine.js` `resetToLobby()`.
 Status: Fixed Phase 29.
 
+**L5 — MDLM: plan narrowing / plan advancement is not synced (Phase 3 audit, 13 June 2026)**
+What happened: Only the per-message loop has packets. When a lap completes, the highlights never narrow consistently across devices and the plan counter desyncs.
+Root cause: two-fold. (1) The host's `LTTP_MESSAGE_SEND` handler (`engine-multiplayer.js` ~1415) pushes history + sets `lttpActiveIdx` + broadcasts `LTTP_MESSAGE_INTERRUPT`, but never runs the lap-completion branch (`lttpNarrowHighlights()` / `lttpShowPlanUpdate()` / `lttpStartGuessPhase()`). So when a *client* completes a lap the host's `lttpPlan`/`lttpHighlights` stay stale. (2) The lap-completing client runs `lttpNarrowHighlights()` locally, but it's immediately clobbered by the interrupt-dismiss → `lttpShowChat()`. (3) Even if narrowing were broadcast, `lttpNarrowHighlights()` picks decoys via `shuffle([...lttpDecoys])` — non-deterministic, so independent narrowing per device would diverge regardless.
+Impact: after the first full lap, devices show different remaining locations and the plan can fail to advance. Primary MDLM mode partially broken. (Phase 28 MDLM testing likely covered only the first lap's messaging.)
+Fix (not applied — Principle 1): host owns lap-completion; add a `LTTP_PLAN_UPDATE` SYNC carrying the new `lttpHighlights`/`lttpFadedCells`/`lttpPlan` (host computes narrowing once, broadcasts the resulting sets — not a seed). Confirm in browser.
+Status: Logged, fix plan. Not fixed.
+
+**L6 — MDLM: guess phase + gameover have no MP packets (Phase 3 audit, 13 June 2026)**
+What happened: `lttpStartGuessPhase()`, the pin/vote screens, and `lttpComputeAndShowGameover()` carry zero ACTION/SYNC. In MDLM the Plan-4 endgame either never starts on client devices (when the host completes the lap) or runs a divergent local pass-the-phone flow.
+Root cause: the endgame was bolted on after the messaging-loop MP work and never made MP-aware — exact mirror of SS Intel-Phase S12.
+Fix (not applied): host-driven guess collection (clients submit pins/votes via ACTION; host resolves + broadcasts a `LTTP_GAMEOVER` SYNC), or document MDLM as messaging-only. Logged, fix plan.
+Status: Logged. Not fixed.
+
 ---
 
 ## Multiplayer Lessons
@@ -65,3 +78,12 @@ Added a contextual [?] to the `lttp-confirm-overlay` header with tips on what go
 
 **How-to overlay title non-compliant (Phase 28)**
 LTTP's how-to overlay title reads "Late To The Party 🏃‍♂️" — should read "How to Play 🏃‍♂️" per the standard established in Phase 28. Low priority but flagged for next LTTP audit pass.
+
+**Dead `lttpShowRoleReveal()` + implicit-global `lttpRoleRevealIdx` (Phase 3 audit, 13 June 2026)**
+`lttpShowRoleReveal()` (`lttp.js` ~525) and `screen-lttp-role-reveal` are never reached in any flow — roles are revealed on the chat screen (role label + objective). `lttpAssignRoles()` also has a dead `const indices = shuffle(...)` (line ~452, never used). `lttpRoleRevealIdx` is assigned (lines ~469, ~1504) but never declared with `let` → implicit global. [POLISH] — remove the dead function/screen/var or wire a real role-reveal gate; declare the var if kept.
+
+**Contacts/map labels reality-synced (Phase 3 audit)**
+The status label keyed `safe` displays "✅ Maybe" (not "Safe"); map annotations are "Maybe (green) / Nope (red)". `game-identities.md` was corrected to match (was "✅ Safe" / "Dead End"). Reality wins.
+
+**Tip overlays not in teardown (Phase 3 audit)**
+`lttp-tip-overlay`, `lttp-help-tip-overlay`, and `lttp-smalltalk-overlay` are hidden by neither `resetLateToTheParty()` nor `engine.js` `resetToLobby()`. (`lttp-new-plans-overlay` IS hidden, in `engine.js`.) DYB BUG-05 class — 2B's sweep caught only `lttp-smalltalk-overlay`; the two tip overlays were missed there. Add all three to `resetLateToTheParty()`.
