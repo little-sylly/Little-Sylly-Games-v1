@@ -114,6 +114,12 @@ Flake players only see their fellow flakes on the role reveal screen — once th
 **Fix:** Removed the `bldRenderPlanResult()` call from `bldRenderPhase()`. The phase div show/hide is sufficient; the content is already populated by `bldShowPlanResult()`.
 **Lesson:** Any crash inside a Firebase `onValue` callback produces a cascade: the SYNC that would have advanced all devices is never sent; Firebase may re-deliver previous events; the second delivery runs against partially-reset state and can trigger additional spurious resolutions. Keep Firebase callbacks crash-free — treat every function called from `bldHandleEnvelope` as safety-critical. Also: when a `bldRenderPhase()` branch calls a function, confirm that function exists before shipping.
 
+### Bug 16 — `applyExpansionOverrides()` clobbers LI5's global of the same name (Fable audit, June 2026)
+**Symptom:** In Secret Mode, Like I'm Five no longer applies its forced expansion settings (timer / rounds / taboo count / penalty / skip / Sylly). Silent — no error, the game just plays with the user's last manual settings instead of the expansion's forced ones.
+**Root cause:** `bld.js` line 1273 declares a global `function applyExpansionOverrides()` (a no-op) — the same generic name `li5.js` line 162 already uses for its real Secret Mode override reader. Because `bld.js` loads AFTER `li5.js`, BLD's hoisted top-level function declaration overwrites LI5's on `window`. LI5's `startGame()` (line 176) then calls BLD's no-op. This is exactly the collision the JEC naming note warns about ("`applyExpansionOverrides()` is already defined globally by dstw.js and would be overwritten if reused" — JEC avoided it with `jecApplyExpansionOverrides()`); BLD reused the generic name.
+**Fix:** Rename BLD's hook to `bldApplyExpansionOverrides()` and update the single call site in `bldStartGame()` (line 315). BLD's version is a no-op anyway, so the rename has zero behavioural effect on BLD and restores LI5's.
+**Lesson:** The expansion-override hook must always be plugin-prefixed (`[abbr]ApplyExpansionOverrides`). The bare `applyExpansionOverrides` name belongs to LI5 (legacy) only. Add a grep to the new-game checklist: a plugin must never declare a top-level function whose name is already global in another plugin.
+
 ---
 
 ## Multiplayer Lessons

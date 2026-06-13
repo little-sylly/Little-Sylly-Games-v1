@@ -1048,7 +1048,7 @@ LOBBY (MDLM only) → BLD MENU
 | Friends | Cooperative players — want all 5 plans to succeed |
 | Flakes | Hidden saboteurs — want plans to fail |
 | Pot-Stirrer | (Drama Mode) one Flake who knows the other Flakes' identities |
-| Big Flake | (Drama Mode) one Flake who must identify a Friend or forfeit bonus |
+| Big Flake | (Drama Mode) one Flake who, if the Friends would win, gets one guess at the Pot-Stirrer — a correct guess flips the result to a Flakes win |
 | The Planner | The active player who nominates the group for the current plan |
 | The Group | The nominated subset of players who play mission cards |
 | Mission Card | Each selected player plays "In" or "Bail" — Flakes can bail |
@@ -1057,9 +1057,9 @@ LOBBY (MDLM only) → BLD MENU
 | Bailed | The game name — also used as the plan-failure verb |
 | Drama Mode | Sylly Mode — adds Pot-Stirrer + Big Flake roles and identification phase |
 | The Itinerary | End-of-game plan history overlay (aftermath screen) |
-| New Night Out | Play again — resets all state, preserves names + settings |
-| Walk Out | Quit during game |
-| The Group Chat | Settings overlay title |
+| Second Chances | Play again — resets all state, preserves names + settings (overlay heading "Second Chances?"; aftermath button "Second Chances 💬") |
+| Leave the Chat? | Quit confirm overlay heading (confirm "Let's Bail", cancel "Not yet!") |
+| The Group Chat | Setup screen eyebrow label — NOT the settings overlay title (the settings overlay title is "Bailed 💬") |
 
 ### Settings
 | Setting | Options | Default | Internal variable |
@@ -1095,9 +1095,10 @@ Each row = [Plan1, Plan2, Plan3, Plan4, Plan5] group sizes for that player count
 In narrative sequence: Booking Accommodation 🏠 → Who's Driving 🚗 → Food Pickup 🍕 → Alcohol Run 🍾 → The Big Party 🎉
 
 ### Scoring
-- **Friends win:** 3+ plans succeed → each Friend earns a point
-- **Flakes win:** 5th nomination rejected (patience exhausted) OR 3+ plans fail
-- **Drama Mode — Big Flake bonus:** +1 to Big Flake if they correctly identify a Friend after 3 successes
+**There is no points or Credibility currency — BLD is pure win/loss.** `bldGameResult` is set to `'friends'` or `'flakes'`; the aftermath shows the winning team + a full role reveal. No per-player score is tracked or displayed.
+- **Friends win:** 3 plans succeed (`bldSuccessCount >= 3`) — UNLESS Drama Mode is on, in which case the Big Flake gets a guess first (see below).
+- **Flakes win:** 3 plans fail (`bldFailCount >= 3`) OR the 5th nomination for a single plan is rejected (patience exhausted). The fail-count win takes priority over the Friends' success-count win.
+- **Drama Mode — win-flip (not a bonus):** when the Friends reach 3 successes, the result does NOT lock yet. The Big Flake gets one guess at the Pot-Stirrer's identity. **Correct guess → `bldGameResult = 'flakes'` (Flakes steal the entire win); wrong guess → `'friends'` (Friends keep the win).**
 
 ### Special Mechanics
 
@@ -1113,14 +1114,16 @@ In narrative sequence: Booking Accommodation 🏠 → Who's Driving 🚗 → Foo
 - Cards submitted secretly, revealed simultaneously
 
 **Drama Mode (Sylly Mode):**
-- Adds Pot-Stirrer (knows all Flake identities) and Big Flake (one Flake who gets a bonus guess)
-- After 3 plan successes, triggers identification phase before the final plan
-- Big Flake must guess a Friend — correct = +1 Credibility; wrong = no bonus
-- Pot-Stirrer's identity is never revealed to Friends during the game
+- Adds the Pot-Stirrer (a Friend who knows all Flake identities) and the Big Flake (one Flake)
+- When the Friends would win (reach 3 successes), `bldCheckWinCondition()` returns `false` and `bldTriggerDramaLock()` runs the identification phase (`drama-lock` sub-phase on `screen-bld-main`) instead of ending the game
+- The Big Flake picks from the non-Flake players (`bld-drama-guess-list` excludes Flakes). **Guessing the Pot-Stirrer correctly flips the win to the Flakes (`bldResolveDramaGuess`); a wrong guess keeps the Friends' win.** This replaces the immediate Friends win — it is not an additive bonus.
+- The Pot-Stirrer's identity is never shown to Friends during the game (revealed only on the aftermath role list)
+- If the Flakes reach 3 fails first, they win outright — the drama lock never triggers
 
 **Seat numbers:**
-- Assigned randomly at game start (1..N, shuffled) — not manually assigned
-- Planner rotation follows seat order, not join order
+- **MDLM:** the host arranges seat order on `screen-bld-seating` (default = join order; ↑/↓ reorder + a "Randomise Order" button), then confirms — `bldSeatNumbers[playerIdx]` is derived from the final order. Not assigned via the lobby Assign Spots UI (`rosterConfig.type: 'none'`).
+- **PTP:** seat numbers are randomly shuffled in `bldAssignRoles()` (no seating screen)
+- Planner rotation follows seat order (`bldSeatOrder` / `bldAdvancePlanner`), not join order
 - Displayed in header and role reveal screen in MDLM
 
 **Fellow Flakes indicator:**
@@ -1130,15 +1133,14 @@ In narrative sequence: Booking Accommodation 🏠 → Who's Driving 🚗 → Foo
 ### Overlay Types
 | Overlay | Pattern | z-index | Notes |
 |---------|---------|---------|-------|
-| `bld-settings-overlay` | Data (slide-up) | z-[80] | "The Group Chat" |
+| `bld-settings-overlay` | Data (slide-up) | z-[80] | Title "Bailed 💬" (NOT "The Group Chat" — that is the setup-screen eyebrow). Single card: Drama Mode (Sylly) |
 | `bld-how-to-overlay` | Data (slide-up) | z-[90] | "How to Play 📋" |
-| `bld-quit-overlay` | Decision modal | z-[80] | "Walk Out?" |
-| `bld-second-chances-overlay` | Decision modal | z-[90] | Patience-exhausted Flake win confirm |
-| `bld-pass-reveal-overlay` | Decision modal | z-[90] | Pass-the-phone handoff before role reveal |
-| `bld-role-help-overlay` | Decision modal | z-[90] | Role-specific rules reference |
-| `bld-plan-detail-overlay` | Decision modal | z-[90] | Per-plan history detail (aftermath tappable tiles) |
+| `bld-quit-overlay` | Decision modal | z-[80] | "Leave the Chat?" — mid-game quit → game menu |
+| `bld-second-chances-overlay` | Decision modal | z-[90] | Play-again confirm only ("Second Chances?", opened from `#btn-bld-go-again` with dynamic MP labels). There is NO separate `bld-new-night-overlay`. (The patience-exhausted Flake win has no confirm overlay — `bldHandleRejection` goes straight to the aftermath.) |
+| `bld-pass-reveal-overlay` | Decision modal | z-[90] | PTP pass-the-phone gate before voting / mission card submit |
+| `bld-role-help-overlay` | Decision modal | z-[90] | Role-specific rules reference (opened from role-reveal `[?]`) |
+| `bld-plan-detail-overlay` | Data (slide-up) | z-[80] | "The Receipts" — per-plan history detail (in-game itinerary + aftermath tappable tiles) |
 | `bld-tip-overlay` | Decision modal | z-[90] | Shared tip overlay — `bldShowTip(emoji, heading, lines[])` drives all contextual `[?]` buttons |
-| `bld-new-night-overlay` | Decision modal | z-[90] | "New Night Out?" — play-again confirmation |
 
 ### Screens
 | Screen ID | Purpose |
@@ -1235,7 +1237,7 @@ LOBBY (MDLM only) → PASS MENU
 
 **Sylly Mode — The Abyss:**
 - Every Pass feeds one card from the draw deck face-up into `passAbyss[]`
-- Bomb or Sequence played → detonation: Abyss cards deal clockwise to opponents (winner exempt); Abyss clears
+- Bomb or Sequence played → detonation: Abyss cards deal clockwise to opponents (winner exempt); Abyss clears. **⚠️ audit [BUG] (June 2026): mid-trick detonation is not implemented.** `passResolveAbyssDetonation()` is only called on the round-winning play (`hand.length === 0`) and on a Fracture — never when a Bomb/Sequence is played that does *not* empty the hand. The code comment at `passProcessPlay` ("Abyss mid-trick detonation: table cleared by Bomb or Sequence") flags the intent, but no code wires it. In practice the Abyss only ever grows until a Fracture or until the round-winning combo happens to be a Bomb/Sequence. The how-to overlay + this bullet describe the *intended* behaviour; the code is incomplete. See `pass-implementation-notes.md` BUG-01.
 - Abyss reaches 13 → Fracture: all players draw one card clockwise; Abyss then continues from next pass
 - Abyss cards are rendered in a horizontal scroll strip above the hand (inline — not an overlay; DYB BUG-05 ghost-interceptor lesson applied)
 
@@ -1254,4 +1256,6 @@ LOBBY (MDLM only) → PASS MENU
 - **Shared screens:** `screen-mp-mode`, `screen-mp-lobby-host`, `screen-mp-lobby-join` (parameterised)
 - **Roll privacy:** Each device holds its own hand (`passHands[mpMyPlayerIdx]`). Opponent hands are placeholder arrays of correct length — never sent to wrong devices.
 - **Key ACTION packets:** `PASS_PLAY_SUBMIT` (card indices → host validates), `PASS_PASS_SUBMIT` (player passes → host processes), `PASS_PLAYER_LEFT` (client quit → host dissolves match)
-- **Key SYNC packets:** `PASS_GAME_START` (hands + chips for new round), `PASS_TURN_RESULT` (table state after every play/pass), `PASS_ABYSS_DRAFT` (Sylly Mode detonation/fracture), `PASS_ROUND_END` (chip deltas + winner), `PASS_NEXT_ROUND` (new hands + chips + first player for the next round), `PASS_GAMEOVER` (final scores), `PASS_MATCH_DISSOLVED` (player left)
+- **Key SYNC packets:** `PASS_GAME_START` (hands + chips for new round — **re-broadcast at the start of every round**, not just round 1: the host's "Next Round" → `passStartRound()` always sends it), `PASS_TURN_RESULT` (table state after every play/pass), `PASS_ABYSS_DRAFT` (Sylly Mode round-win/fracture draft — `trigger` field; only `'round-win'` and `'fracture'` are ever sent, not `'detonation'`), `PASS_ROUND_END` (chip deltas + winner; carries `matchOver`/`finalChips`/`roundsWon` → drives the gameover transition directly), `PASS_MATCH_DISSOLVED` (player left → all devices `resetToLobby()`)
+- **Defined-but-unused SYNC handlers (audit [BUG], June 2026):** `PASS_NEXT_ROUND` and `PASS_GAMEOVER` have handler branches in `passHandleEnvelope` but are **never broadcast** by any code path. Rounds 2+ reuse `PASS_GAME_START`; gameover is reached via `PASS_ROUND_END` with `matchOver: true`. `PASS_NEXT_ROUND` was the intended per-round packet — its absence is the root cause of the `passRoundsWon` client-reset bug (see `pass-implementation-notes.md` BUG-02).
+- **Mid-game quit dissolves the room (note, June 2026):** unlike GTH/DYB/BLD (which navigate to the game menu and leak the Firebase room), PASS's quit-confirm broadcasts `PASS_MATCH_DISSOLVED` (host) / sends `PASS_PLAYER_LEFT` (client) and calls `resetToLobby()`. One client leaving therefore dissolves the whole match for everyone — PASS does not tolerate a mid-match drop. This is the most correct teardown of the four MDLM games but deviates from the universal "✕ → game menu" rule (it goes straight to lobby). Candidate for a cross-game standardisation rule.
