@@ -27,12 +27,22 @@ Root cause: The role reveal (handover screen) is skipped in MDLM. The replacemen
 Fix: In the `NAT_MATCH_START` handler, after receiving all role assignments, each device must derive its own role from `mpMyPlayerIdx` and render only that role's information. A per-device role reveal state (brief screen showing "You are [role] — [your word]") is needed before the first observation.
 Status: Fixed Phase 28.
 
+**N2 — Selection voting + Last Stand not MP-distributed (audit June 2026)**
+What happened: In Lobby Mode, the observation loop is fully synced (`NAT_ACTIVE_PLAYER` gates who inputs), the clue reveal is broadcast (`NAT_SELECTION`), and the final scores are authoritative (`NAT_TALLY`). But the voting phase in between carries **no packets** — `btn-nat-sel-start` (→ `natStartVoting`), the consensus/independent vote controls (`natSubmitConsensusVote` / `natSubmitVote`), the mole guess (`natSubmitMoleGuess`), and the Biologist verdict (`natBiologistVerdict`) have no `syllyMultiplayerMode` branch and no host gate. Every device runs its own local vote → eviction → Last Stand. `natStartVoting()` also applies the peer-review −5 deductions locally on whichever device taps it.
+Root cause: `natMpVoteReadyCheck` is declared (`nat.js` line 58) and reset in two handlers (`NAT_MATCH_START`, `NAT_SELECTION`) but **read nowhere** — the intended per-device single-vote collection (each device submits its own player's vote, host aggregates) was scaffolded but never implemented. The Selection screen was treated as a synced reveal, but the vote that follows was left as the single-device pass-the-phone flow.
+Impact: End state converges because the host's `NAT_TALLY` overwrites client scores, but the voting UX is broken in MDLM — the host device would have to enter votes for all (remote) players via pass-the-phone, and ungated clients can run divergent local votes/Last-Stands until the tally lands.
+Lesson: Same class as SS Intel-Phase (S12), YGI Sudden Death (Y4), LTTP guess/gameover (L6) — a phase reachable after the core MP loop that was never given the MDLM missing-handler audit. Recurring across 4 games now → elevate as a rule (every phase including votes/tie-breaks/endgames needs the audit, not just the main loop).
+Status: Logged in fix plan (June 2026 audit); needs browser confirmation. Not fixed (audit is doc-only).
+
 ---
 
 ## Multiplayer Lessons
 
 **Per-device role reveal must be explicitly implemented when handover is skipped**
 In MDLM, any game that skips the handover screen (where private role info is shown) must have an explicit per-device role reveal mechanism driven by `mpMyPlayerIdx`. NAT's GAME_START handler broadcast all role data correctly, but there was no per-device render step. Each device must read its own slot from the payload using `mpMyPlayerIdx` and display only its own role.
+
+**A synced reveal does not make the following vote synced (N2)**
+`NAT_SELECTION` correctly broadcasts the clue reveal, which made the Selection screen *look* multiplayer-aware. But the vote, eviction, mole guess, and Biologist verdict that follow on the same screen had no packets and no host gate — so the "shared moment" was actually N independent local votes. When auditing any game where a synced screen is followed by interactive resolution, check each button on that screen for a `syllyMultiplayerMode` branch, not just the screen entry. The presence of a `*ReadyCheck` array that is reset but never read is a reliable tell that a per-device collection was scaffolded and abandoned.
 
 ---
 

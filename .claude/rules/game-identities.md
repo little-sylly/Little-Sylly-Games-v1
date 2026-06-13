@@ -570,6 +570,8 @@ LOBBY → NAT MENU → NAT SETUP
 | The Observation | `screen-nat-observation` — one word clue input per player per day |
 | The Daily Review | `screen-nat-daily-review` — Sylly Mode: all clues revealed before voting |
 | The Selection | `screen-nat-selection` — group votes to identify The Mole |
+| The Classification | The voting setting + the per-voter prompt header on the Independent vote screen ("[name]'s Classification"). The Mole's word-label on the observation screen is also "Classification" (`natGetWordLabel`) |
+| Field Consensus | Display label for the `'consensus'` voting mode (all players vote together on one screen) |
 | The Last Stand | `screen-nat-last-stand` — Mole's final specimen guess + Biologist verdict |
 | The Field Notes | `screen-nat-tally` — per-match score reveal |
 | The Final Report | `screen-nat-gameover` — expedition winner + match log |
@@ -577,16 +579,20 @@ LOBBY → NAT MENU → NAT SETUP
 | New Expedition | Play again (resets all state, preserves names + settings) |
 
 ### Settings
-| Setting | Options | Default | Internal value |
-|---------|---------|---------|----------------|
-| Habitats | 3 / 4 / 5 | 3 | `natMatchesSetting` int (data-habitats) |
-| Days Per Habitat | 2 / 3 / 4 | 2 | `natRoundsPerMatch` int (data-days) |
-| Research Log | OFF / ON | OFF | `natCumulativeClues` bool |
-| Field Difficulty | Shallow / Mixed / All | Mixed | `'d1'` / `'d1+d2'` / `'all'` |
-| Voting Mode | Consensus / Independent | Consensus | `'consensus'` / `'independent'` |
-| Scientific Integrity | Relaxed / Peer Review | Relaxed | `'relaxed'` / `'peer-review'` |
-| Escape Points | 10 / 15 / 20 | 10 | `natEscapePoints` int (data-escape) |
-| ✨ Sylly Mode (Survival of the Fittest) | OFF / ON | OFF | `natSyllyMode` bool |
+(Reality-synced June 2026 audit — display names, options, defaults, and overlay order from `index.html` / `nat.js`. Player count is NOT in the settings overlay — it lives on the setup screen as a 3/4/5/6 pill group, default 4, `natPlayerCount`.)
+
+| Setting (display) | Options (display) | Default | Internal variable | Internal values |
+|-------------------|-------------------|---------|-------------------|-----------------|
+| Days per Habitat | 2 / 3 / 4 | 2 | `natRoundsPerMatch` | int (data-days) |
+| Research Log | OFF / ON | OFF | `natCumulativeClues` | bool |
+| Habitats | 3 / 4 / 5 | 3 | `natMatchesSetting` | int (data-habitats) |
+| Field Difficulty | Common / Rare / Exotic | Rare | `natDifficulty` | `'d1'` / `'d1+d2'` / `'all'` |
+| The Classification (voting mode) | Field Consensus / Independent | Field Consensus | `natVotingMode` | `'consensus'` / `'independent'` |
+| Mole Escape Bonus | 10 / 15 / 20 | 10 | `natEscapePoints` | int (data-escape) |
+| Scientific Integrity | Relaxed / Peer Review | Relaxed | `natScientificIntegrity` | `'relaxed'` / `'peer-review'` |
+| ✨ Sylly Mode (Survival of the Fittest) | OFF / ON | OFF | `natSyllyMode` | bool |
+
+**Audit note (June 2026):** the previous table listed "Field Difficulty: Shallow / Mixed / All" and setting names "Voting Mode" / "Escape Points" — none of these strings exist in the overlay. Reality: pill labels are **Common / Rare / Exotic** (default Rare = `'d1+d2'`), the vote card is titled **"The Classification"** with a **"Field Consensus"** pill, and the escape card is **"Mole Escape Bonus"**. In MDLM, `natVotingMode` is forced to `'independent'` in `natShowSetup()`.
 
 ### Special Mechanics
 
@@ -643,6 +649,7 @@ No Lead Biologist role. All players (including the position normally assigned as
 - **Game-specific screens:** none
 - **Role security:** NAT role data is broadcast to all devices; each device renders only its own role (UX-based couch security — sufficient for a same-room couch game). For full separation, targeted Firebase writes per player would be required.
 - **Handover screen:** Skipped in Lobby Mode; replaced by `SYNC: NAT_ACTIVE_PLAYER` which drives who can input and who sees a standby placeholder
+- **Selection voting + Last Stand NOT MP-distributed (audit [BUG], June 2026):** only the observation loop, the clue reveal (`NAT_SELECTION`), and the final tally (`NAT_TALLY`) carry packets. The voting phase itself has none — `btn-nat-sel-start` (→ `natStartVoting`, which applies peer-review deductions locally), the consensus/independent vote controls, the mole guess, and the Biologist verdict are all ungated, so every device runs its own local vote/eviction/Last-Stand. `natMpVoteReadyCheck` is reset in two handlers but read nowhere — the intended per-device vote collection was never built. The host's result is authoritative via `NAT_TALLY` (end state converges), but in MDLM the host device would have to enter votes for absent players. Mirrors SS S12 / YGI Y4 / LTTP L6.
 - **Key ACTION packets:** `NAT_OBSERVATION` (player's clue word → Host validates + advances turn)
 - **Key SYNC packets:** `NAT_MATCH_START` (specimen + all role assignments), `NAT_ACTIVE_PLAYER` (current observer index), `NAT_DAY_END` (Sylly Mode daily review), `NAT_SELECTION` (all clue data for vote screen), `NAT_TALLY` (score results)
 
@@ -673,22 +680,22 @@ LOBBY → DSD MENU → DSD SETUP (team names) → DSD PLAYERS (player names + ca
 | Spiked Urchin | Hazard cell — costs 5 Valour |
 | The Manifest | Captain screen label |
 | The Console ⚓ | Settings overlay title |
-| Operations Manual ⚓ | How-to overlay title |
+| How to Play ⚓ | How-to overlay title (standard title block; renamed from "Operations Manual ⚓" Phase 28 — subtitle "How to run a successful deployment.") |
 | New Operation | Play again (resets game state, keeps names + settings) |
 | Mission Abyss | Sylly Mode name |
 | Jammer | Sylly Mode sabotage tile |
 | Magnetic Drift | Sylly Mode mechanic — unrevealed grid cells shuffle each deployment |
 
 ### Settings
-| Setting | Options | Default | Internal value |
-|---------|---------|---------|----------------|
-| Sea State | Calm / Turbulent / Tempest | Turbulent | `'calm'` / `'turbulent'` / `'tempest'` |
-| Strategic Planning | OFF / ON | OFF | `dsdStrategicPlanning` bool |
-| Danger Level | Pressure Mine / Nuclear Mine | Pressure | `'pressure'` / `'nuclear'` |
-| Urchin Ends Turn | OFF / ON | OFF | `dsdHazardControl.urchin` bool |
-| Mine Ends Turn | OFF / ON | ON | `dsdHazardControl.mine` bool |
-| Enemy Payload Ends Turn | OFF / ON | ON | `dsdHazardControl.enemy` bool |
-| ✨ Sylly Mode (Mission Abyss) | OFF / ON | OFF | `dsdSyllyMode` bool |
+(Reality-synced June 2026 audit — display names + overlay order from `index.html`. The three hazard "ends turn" controls live in a **single "Hazard Control" card** as a multi-select pill group, not three separate cards. An active pill = that hazard ends your turn on hit.)
+
+| Setting (display) | Options (display) | Default | Internal variable | Internal values |
+|-------------------|-------------------|---------|-------------------|-----------------|
+| Sea State (difficulty) | Calm / Turbulent / Tempest | Turbulent | `dsdSeaState` | `'calm'` / `'turbulent'` / `'tempest'` |
+| Strategic Planning | OFF / ON | OFF | `dsdStrategicPlanning` | bool |
+| Hazard Control | Urchin / Mine / Payload (multi-select pills) | Mine + Payload active, Urchin off | `dsdHazardControl.{urchin,mine,enemy}` | bools — active pill = ends turn on hit. **"Payload" pill = `enemy`** |
+| Danger Level | Pressure Mine / Nuclear Mine | Pressure Mine | `dsdDangerLevel` | `'pressure'` / `'nuclear'` |
+| ✨ Sylly Mode (Mission Abyss) | OFF / ON | OFF | `dsdSyllyMode` | bool |
 
 ### Scoring
 | Outcome | Who scores | Points | Turn End? |
@@ -746,7 +753,7 @@ LOBBY → DSD MENU → DSD SETUP (team names) → DSD PLAYERS (player names + ca
 | Overlay | Pattern | z-index | Notes |
 |---------|---------|---------|-------|
 | `dsd-settings-overlay` | Data (slide-up) | z-[80] | "The Console ⚓" |
-| `dsd-how-to-overlay` | Data (slide-up) | z-[90] | "Operations Manual ⚓" |
+| `dsd-how-to-overlay` | Data (slide-up) | z-[90] | "How to Play ⚓" (renamed from "Operations Manual ⚓" Phase 28) |
 | `dsd-quit-overlay` | Decision modal | z-[80] | "Scuttle the Ship?" |
 | `dsd-confirm-disarm` | Decision modal | z-[90] | "Confirm Sequence?" |
 | `dsd-new-op-overlay` | Decision modal | z-[90] | "New Operation?" — play-again confirmation |
@@ -774,8 +781,9 @@ The captain screen legend dynamically shows outcome text based on current settin
 - **Captain screen routing (MDLM):** Same but non-active team shows crew standby via `dsdShowCrewStandby()`
 - **Execution flow:** Client Captain sends `ACTION: DSD_PING_TRANSMIT`; Host validates + broadcasts `SYNC: DSD_CREW_ACTIVE`; Client Crew submits `ACTION: DSD_SEQUENCE_SUBMIT`; Host resolves + broadcasts `SYNC: DSD_EXECUTION_RESULT`
 - **Magnetic Drift (Sylly):** Applied by Host locally then reflected in `SYNC: DSD_EXECUTION_RESULT` grid state
+- **Nuclear Mine bypasses `DSD_GAMEOVER` (audit [BUG], June 2026):** the Nuclear Mine branch of `dsdResolveHit()` ends the game via `setTimeout(dsdShowGameover, 2600)`, bypassing `dsdAdvanceTurn()` — the only place that broadcasts `SYNC: DSD_GAMEOVER`. So when a Nuclear Mine detonates in Lobby Mode (Danger Level is serialised, so clients can have it), the non-active spectator/standby device receives `DSD_EXECUTION_RESULT` but never `DSD_GAMEOVER`, and is stranded on the spectator/execution screen. (Normal victory via `dsdAdvanceTurn` → `dsdCheckVictory` broadcasts correctly.)
 - **Key ACTION packets:** `DSD_PING_TRANSMIT` (Captain's clue word + number), `DSD_SEQUENCE_SUBMIT` (crew's ordered grid indices)
-- **Key SYNC packets:** `DSD_CREW_ACTIVE` (ping word + number for crew screen), `DSD_EXECUTION_RESULT` (tile outcomes + updated Valour + grid state), `DSD_GAMEOVER` (final scores)
+- **Key SYNC packets:** `DSD_CAPTAIN_ACTIVE` (turn state + grid for the next captain — TLM), `DSD_CREW_ACTIVE` (ping word + number for crew screen), `DSD_EXECUTION_RESULT` (tile outcomes + updated Valour + grid state), `DSD_GAMEOVER` (final scores)
 
 ---
 

@@ -44,12 +44,18 @@ What happened: `#btn-dsd-how-to` had `id="btn-dsd-how-to"` written twice on the 
 Root cause: Copy-paste error — likely duplicated when wiring up the help button.
 Fix: Removed the second `id` attribute. No functional impact (browsers use the first occurrence), but technically invalid HTML.
 
+**Nuclear Mine never broadcasts `DSD_GAMEOVER` in Lobby Mode (audit June 2026)**
+What happened: When a Nuclear Mine detonates (`dsdResolveHit()` mine branch, Danger Level = nuclear), the game ends via `setTimeout(() => dsdShowGameover(), 2600)` and returns `true` from `dsdResolveHit`, breaking the `dsdShowExecution()` loop. This path bypasses `dsdAdvanceTurn()` — the only function that broadcasts `SYNC: DSD_GAMEOVER`.
+Root cause: Two separate game-end paths exist. Normal victory flows through `dsdAdvanceTurn()` → `dsdCheckVictory()` → broadcast. The Nuclear Mine instant-loss is terminal inside `dsdResolveHit` and was wired straight to `dsdShowGameover()` for the dramatic 2.6s delay, without a corresponding broadcast. The active crew device (host or client preview) shows gameover via its own local `setTimeout`, masking the gap for that device — but the non-active **spectator/standby device** only ever receives `DSD_EXECUTION_RESULT` (grid + −1000 Valour) and is then stranded on the spectator/execution screen with no `DSD_GAMEOVER` SYNC.
+Lesson: Any terminal game-end path that bypasses the normal advance/victory function must replicate the `DSD_GAMEOVER` broadcast (host-side) before/around the `setTimeout`. When a game has more than one way to reach gameover, every path needs the SYNC, not just the common one.
+Status: Logged in fix plan (June 2026 audit); needs browser confirmation. Not fixed (audit is doc-only).
+
 ---
 
 ## Multiplayer Lessons
 
 **TLM captain routing**
-Active team's Captain device shows full colour grid. Non-active team shows `screen-dsd-spectator` (TLM) or crew standby (MDLM). The routing split is in `dsdShowCaptainPhase()` — check `mpLobbyStyle` and `bldCurrentTeam` to determine which view to show.
+Active team's Captain device shows full colour grid. Non-active team shows `screen-dsd-spectator` (TLM) or crew standby (MDLM). The routing split is in `dsdShowCaptain()` — check `window.mpLobbyStyle` and `dsdCurrentTeam` (vs `mpMyPlayerIdx`) to determine which view to show. (Function/variable names corrected June 2026 audit — this note previously read `dsdShowCaptainPhase()` and `bldCurrentTeam`, neither of which exists.)
 
 **MDLM pre-game — separate team naming from captain assignment (Phase 28)**
 The original MDLM setup combined team name entry with captain assignment before the roster was known. Changed so team names are entered before the lobby fills, and captain assignment is a separate step after all players have joined (roster visible). This is the correct UX for any MDLM game with team + role assignment.
