@@ -497,12 +497,14 @@ Rules:
 | LTTP | red-500 | `bg-red-500 hover:bg-red-600` | `text-red-600` | `game-toggle-on-red` | `bg-red-100 hover:bg-red-200 text-red-700` |
 | NAT | lime-600 | `bg-lime-600 hover:bg-lime-700` | `text-lime-700` | `game-toggle-on-lime` | `bg-lime-100 hover:bg-lime-200 text-lime-700` |
 | GTH | #B1BCA0 (sage — custom) | — (inline `style="background-color:#B1BCA0"`) | — | `game-toggle-on-sage` | inline `style="background-color:#e8ede3;color:#6b7a5f"` |
-| DYB | stone-700 | `bg-stone-700 hover:bg-stone-800` | `text-stone-700` | `game-toggle-on-stone` | `bg-stone-100 hover:bg-stone-200 text-stone-700` |
+| DYB | stone-400 | `bg-stone-400 hover:bg-stone-500` | `text-stone-700` | `game-toggle-on-stone` | `bg-stone-100 hover:bg-stone-200 text-stone-700` |
 | BLD | yellow-500 | `bg-yellow-500 hover:bg-yellow-600` | `text-yellow-600` | `game-toggle-on-yellow` | `bg-yellow-100 hover:bg-yellow-200 text-yellow-700` |
 | PASS | zinc-900 | `bg-zinc-900 hover:bg-zinc-800` | `text-zinc-900` | `game-toggle-on-zinc` | `bg-zinc-100 hover:bg-zinc-200 text-zinc-700` |
 
 **Notes:**
 - **GTH:** Muted Sage (`#B1BCA0`) has no Tailwind utility class — GTH brand colours are applied via inline `style` attributes throughout its markup, hence the `—` entries.
+- **DYB:** the brand is the muted `stone-400` (CTAs, how-to step labels + close button all use it consistently — see `game-identities.md` § Dicey Bluffs). The toggle/range map to the single `game-toggle-on-stone` / `dyb-range` (stone) classes, which serve any stone shade. (June 2026 audit: this table previously listed `stone-700` — corrected to match shipped reality and the how-to table above.)
+- **GM:** brand is **split** — `violet-500/600` for all primary CTAs and accents, `purple-*` for pills/toggles/settings tint/modal borders/how-to labels (the values in this table). This is a documented inconsistency, not drift — see `game-identities.md` § Great Minds and the fix plan (unify-or-document item).
 - `accentBtnClass`/`accentTextClass` only take effect when a game calls `showWhoFirst()` (team games). GTH, DYB, BLD, and PASS never call it; their values are derived from each game's primary CTA buttons and are listed for consistency should a future mechanic need them.
 
 ---

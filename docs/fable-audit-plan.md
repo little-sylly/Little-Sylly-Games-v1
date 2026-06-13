@@ -69,7 +69,7 @@ Update the status column as phases complete. A fresh session starts at the first
 | 2B — Engine & Infrastructure | ✅ | 13 June 2026 — all 10 checks run (scripted); 2 new [BUG] (PASS mode-screen config fields, 17-overlay teardown gap), BLD min-players entry corrected (field absent, not `() => 4`); see Audit Findings §Phase 2B |
 | 3 — Per-Game (track per game in Notes) | ✅ | **LI5 ✅ GM ✅ SS ✅ JEC ✅ YGI ✅ LTTP ✅ NAT ✅ DSD ✅ GTH ✅ DYB ✅** (13 June 2026) **BLD ✅ PASS ✅** (14 June 2026) — all 12 done; see Audit Findings §Phase 3 |
 | 4 — Data | ✅ | 14 June 2026 — all 6 data files parse; words.json format/order/schema clean except dup id `objects-053`; ygi + gth fully clean; secret banks no id collisions; 2 new `[BUG]` (dup id, world-001 11-word nono_list) + secret_words category flag resolved precisely (10 `world-*` missing key); see Audit Findings §Phase 4 |
-| 5 — Documentation Closure | ◐ | **5A ✅** (14 June 2026). **5B ✅** (14 June 2026 — 8 cross-game lessons elevated; `.name`→`.nickname` doc error corrected; 5D contract made durable). **5D ✅** (14 June 2026 — new-game-brief-prompt synced to 12-game roster; ygi-prompt `ce-`→`ygi-` ID convention drift fixed; words/gth prompts verified clean). **5C pending** (Rule File Final Pass — done out of order at user request). See Audit Findings §Phase 5A / §5B / §5D |
+| 5 — Documentation Closure | ✅ | **5A–5D all complete** (14 June 2026). 5A: impl notes verified. 5B: 8 cross-game lessons elevated + `.name`→`.nickname` fix + 5D contract made durable. 5D: new-game-brief-prompt synced to 12-game roster + ygi-prompt `ce-`→`ygi-` ID fix. 5C: SW/precache consistent; DYB brand drift `stone-700`→`stone-400` fixed in ui-style; GM split cross-referenced; Protocol C table confirmed current. See Audit Findings §Phase 5A / §5B / §5D / §5C |
 | 6 — Summary & Fix Plan | ☐ | |
 
 ---
@@ -1073,4 +1073,22 @@ Changes applied to `docs/code-map.md`:
 
 **`gth-prompt.md` — verified clean:** schema (category + difficulty + optional cluster + aliases) matches the Phase 31 data rehaul; cluster list and guardrails accurate; the "next available ID" note is informational per the plan (no audit action).
 
-**Files changed:** `new-game-brief-prompt.md`, `ygi-prompt.md`. **No new fix-plan entries** (content-prompt doc sync). Fix-plan total unchanged at **71**. **5D COMPLETE. Remaining: Phase 5C (Rule File Final Pass), then Phase 6 (Summary & Fix Plan).**
+**Files changed:** `new-game-brief-prompt.md`, `ygi-prompt.md`. **No new fix-plan entries** (content-prompt doc sync). Fix-plan total unchanged at **71**. **5D COMPLETE.**
+
+### Phase 5C — Rule File Final Pass (14 June 2026)
+
+**Done after 5D at user request (the only remaining Phase 5 sub-phase).** Final cross-file consistency read of the four checkpoints in the plan.
+
+**`CLAUDE.md` ↔ `logic-engine.md` ↔ `sw.js` — consistent ✓:**
+- SW version `v101` matches in all three (`sw.js` line 4 `CACHE_NAME`, CLAUDE.md, logic-engine.md).
+- Precache list: `logic-engine.md` (31 entries) matches `sw.js` `PRECACHE_URLS[]` exactly (re-confirmed against disk, not just Phase 1C/2B).
+- CLAUDE.md Current Focus (Studio Audit June 2026, v101, 11 gold-master + BLD in testing) is internally consistent; current-focus state lives only in CLAUDE.md, so nothing to reconcile.
+
+**`game-identities.md` ↔ `ui-style.md` (brand colours / toggle / how-to) — one drift fixed:**
+- **DYB brand drift [fixed]:** `ui-style.md` Per-game brand reference table listed DYB as `stone-700` / `bg-stone-700`, while its own how-to per-game table (line 332) AND `game-identities.md` § Dicey Bluffs (line 920) both say the muted `stone-400`. Corrected the brand-reference row to `stone-400` / `bg-stone-400 hover:bg-stone-500` and added a Notes bullet recording the correction. The toggle (`game-toggle-on-stone`) and range (`dyb-range`) classes are shade-agnostic and were already correct.
+- **GM split [cross-referenced]:** `game-identities.md` documents GM's `violet-500` CTA / `purple-*` pill split with a "see fix plan" pointer, but `ui-style.md` listed only `purple-500` with no note. Added a Notes bullet in `ui-style.md` flagging the documented split so the two files agree. This is a known logged item (GM unify-or-document), not new drift.
+- All other games' brand colours, toggle ON classes, range classes, and how-to Sylly-Mode names are consistent between the two files (DYB/BLD/PASS Sylly names re-confirmed post-5D: Devil's Luck / Drama Mode / The Abyss).
+
+**`phase-audit.md` Protocol C table — confirmed current ✓:** all 14 Part 2 rows still relevant and accurate; no conflict with the 4 MDLM rows added to Protocol A §2 in 5B (Protocol C is the pre-new-game cross-suite sweep; A §2 is the per-game phase gate — complementary). No edits.
+
+**Files changed:** `ui-style.md` (DYB brand-reference row + 2 Notes bullets). **No new fix-plan entries** (the DYB row was a doc-internal reconciliation per Principle 3; the GM split was already logged). Fix-plan total unchanged at **71**. **5C COMPLETE — Phase 5 (Documentation Closure) fully closed. Next: Phase 6 (Audit Summary & Fix Plan).**
