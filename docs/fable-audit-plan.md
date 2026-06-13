@@ -69,7 +69,7 @@ Update the status column as phases complete. A fresh session starts at the first
 | 2B — Engine & Infrastructure | ✅ | 13 June 2026 — all 10 checks run (scripted); 2 new [BUG] (PASS mode-screen config fields, 17-overlay teardown gap), BLD min-players entry corrected (field absent, not `() => 4`); see Audit Findings §Phase 2B |
 | 3 — Per-Game (track per game in Notes) | ✅ | **LI5 ✅ GM ✅ SS ✅ JEC ✅ YGI ✅ LTTP ✅ NAT ✅ DSD ✅ GTH ✅ DYB ✅** (13 June 2026) **BLD ✅ PASS ✅** (14 June 2026) — all 12 done; see Audit Findings §Phase 3 |
 | 4 — Data | ✅ | 14 June 2026 — all 6 data files parse; words.json format/order/schema clean except dup id `objects-053`; ygi + gth fully clean; secret banks no id collisions; 2 new `[BUG]` (dup id, world-001 11-word nono_list) + secret_words category flag resolved precisely (10 `world-*` missing key); see Audit Findings §Phase 4 |
-| 5 — Documentation Closure | ◐ | **5A ✅** (14 June 2026). **5B ✅** (14 June 2026 — 8 cross-game lessons elevated: 4 MDLM bugs → phase-audit Protocol A §2, 4 template gaps → logic-engine; `.name`→`.nickname` doc error corrected; 5D contract made durable in logic-engine + new-game-process). 5C–5D pending. See Audit Findings §Phase 5A / §Phase 5B |
+| 5 — Documentation Closure | ◐ | **5A ✅** (14 June 2026). **5B ✅** (14 June 2026 — 8 cross-game lessons elevated; `.name`→`.nickname` doc error corrected; 5D contract made durable). **5D ✅** (14 June 2026 — new-game-brief-prompt synced to 12-game roster; ygi-prompt `ce-`→`ygi-` ID convention drift fixed; words/gth prompts verified clean). **5C pending** (Rule File Final Pass — done out of order at user request). See Audit Findings §Phase 5A / §5B / §5D |
 | 6 — Summary & Fix Plan | ☐ | |
 
 ---
@@ -1053,4 +1053,24 @@ Changes applied to `docs/code-map.md`:
 
 **5D contract made durable (per 5B instruction):** Added a `new-game-brief-prompt.md` sync line to (a) `logic-engine.md` "Adding a New Game" closure and (b) `new-game-process.md` Stage 3 "complete when" checklist, requiring the roster table / taken-abbreviations / Sylly-name list to be synced from shipped reality on every new game. Without this the 5D going-forward rule would live only in this audit plan (archived at audit close).
 
-**Files changed:** `phase-audit.md` (4 new §2 items), `logic-engine.md` (2 `.nickname` fixes, host-readyCheck pattern, strengthened missing-handler note, 4 new checklist items), `new-game-process.md` (1 Stage 3 closure item). **No new fix-plan entries** (5B elevates lessons into rule files; the underlying bugs were already logged in Phases 3–4). Fix-plan total unchanged at **71**. **5B COMPLETE. Next: Phase 5C (Rule File Final Pass).**
+**Files changed:** `phase-audit.md` (4 new §2 items), `logic-engine.md` (2 `.nickname` fixes, host-readyCheck pattern, strengthened missing-handler note, 4 new checklist items), `new-game-process.md` (1 Stage 3 closure item). **No new fix-plan entries** (5B elevates lessons into rule files; the underlying bugs were already logged in Phases 3–4). Fix-plan total unchanged at **71**. **5B COMPLETE.**
+
+### Phase 5D — Content-Prompt Doc Sync (14 June 2026)
+
+**Done out of order at user request (5C — Rule File Final Pass — still pending).**
+
+**Method:** Read all 4 `docs/content-prompts/` files and checked each against shipped reality (`game-identities.md`, `definitions.md`, the data files) per the 5D source-of-truth caveat — never against the original briefs.
+
+**`new-game-brief-prompt.md` — 4 roster fixes (was stale at 9 games):**
+- Existing-games table: added `dyb` (Dicey Bluffs), `bld` (Bailed), `pass` (Pass) → now 12.
+- "Taken" abbreviations line: added `dyb, bld, pass` (was an abbreviation-collision risk).
+- Sylly-Mode tone references: added Devil's Luck (DYB), Drama Mode (BLD), The Abyss (PASS).
+- Thematic-vocabulary example: GTH settings title `Intake Form 📋` → `Inpatient Admission Form 📋` (the brief-era value that shipped differently — the exact drift the 5D caveat warns about).
+
+**`ygi-prompt.md` — ID-convention drift fixed (genuine 5D catch):** the prompt instructed new entries to use the legacy `ce-NNN` format, but the project convention (`game-identities.md` § YGI data format, `definitions.md`) is `ce-NNN` = legacy / new entries = `ygi-NNN` starting at `ygi-001`. Verified `data/ygi-data.json` holds 50 `ce-*` entries and zero `ygi-*`, so the next new entry is `ygi-001`. Updated the schema line, the ID guidance, the example entry (`ce-051` → `ygi-001`), the "Start IDs from" line, and the tip. Without this fix, the first batch of new YGI content would have re-imported the wrong ID series.
+
+**`words-json-prompt.md` — verified clean:** 16-category list, Broad-Shield rules, GM-compatibility category list, and schema all match `definitions.md`.
+
+**`gth-prompt.md` — verified clean:** schema (category + difficulty + optional cluster + aliases) matches the Phase 31 data rehaul; cluster list and guardrails accurate; the "next available ID" note is informational per the plan (no audit action).
+
+**Files changed:** `new-game-brief-prompt.md`, `ygi-prompt.md`. **No new fix-plan entries** (content-prompt doc sync). Fix-plan total unchanged at **71**. **5D COMPLETE. Remaining: Phase 5C (Rule File Final Pass), then Phase 6 (Summary & Fix Plan).**

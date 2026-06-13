@@ -23,10 +23,10 @@ Generate **[NUMBER]** new prompt entries. Each entry needs a neutral fill-in-the
 One JSON object per line — compact format:
 
 ```
-{"id":"ce-[NNN]","text":"[Prompt text with [ ] placeholder]","ringers":[{"number":[int],"metric":"[string]"},{"number":[int],"metric":"[string]"},{"number":[int],"metric":"[string]"},{"number":[int],"metric":"[string]"},{"number":[int],"metric":"[string]"}]}
+{"id":"ygi-[NNN]","text":"[Prompt text with [ ] placeholder]","ringers":[{"number":[int],"metric":"[string]"},{"number":[int],"metric":"[string]"},{"number":[int],"metric":"[string]"},{"number":[int],"metric":"[string]"},{"number":[int],"metric":"[string]"}]}
 ```
 
-The `id` should be sequential starting from where I tell you (I'll provide the next available number). Use format `ce-NNN` zero-padded to 3 digits.
+The `id` should be sequential starting from where I tell you (I'll provide the next available number). New entries use format `ygi-NNN` zero-padded to 3 digits (starting at `ygi-001`). The existing 50 entries use the legacy `ce-NNN` format — do not reuse or renumber those; new content continues in the `ygi-` series.
 
 ## The prompt text rules
 
@@ -80,10 +80,10 @@ The `number` field is always a plain integer. The `metric` string should not con
 ## Example — correct entry
 
 ```
-{"id":"ce-051","text":"My morning routine consists of exactly [ ].","ringers":[{"number":0,"metric":"minutes of anything I actually planned to do"},{"number":12,"metric":"snooze cycles that were definitely just 'resting my eyes'"},{"number":100,"metric":"percent chance the coffee is already cold"},{"number":1,"metric":"chaotic sprint that somehow gets me out the door on time"},{"number":47,"metric":"seconds of standing in front of the fridge achieving nothing"}]}
+{"id":"ygi-001","text":"My morning routine consists of exactly [ ].","ringers":[{"number":0,"metric":"minutes of anything I actually planned to do"},{"number":12,"metric":"snooze cycles that were definitely just 'resting my eyes'"},{"number":100,"metric":"percent chance the coffee is already cold"},{"number":1,"metric":"chaotic sprint that somehow gets me out the door on time"},{"number":47,"metric":"seconds of standing in front of the fridge achieving nothing"}]}
 ```
 
-## Now generate [NUMBER] entries. Start IDs from ce-[NEXT_ID].
+## Now generate [NUMBER] entries. Start IDs from ygi-[NEXT_ID].
 
 Output only the JSON lines. No commentary, no numbering, no markdown fences.
 
@@ -93,7 +93,7 @@ Output only the JSON lines. No commentary, no numbering, no markdown fences.
 
 ## Tips for best results
 
-- **Tell the AI the next available ID** before generating — check the last entry in `data/ygi-data.json` and add 1.
+- **Tell the AI the next available ID** before generating — new entries use the `ygi-NNN` series (the first new one is `ygi-001`; the existing 50 are legacy `ce-NNN` and are never renumbered). If `ygi-` entries already exist, take the highest `ygi-NNN` and add 1.
 - **Read the ringers aloud** as full sentences before committing. This catches grammar failures the AI misses.
 - **Taxonomy check:** AI tends to write 5 "time lost in a spiral" ringers. Push back and ask for variety.
 - **Verify with Claude Code:** Paste entries in and ask for a tense test + taxonomy review before committing.
