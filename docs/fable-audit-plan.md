@@ -68,7 +68,7 @@ Update the status column as phases complete. A fresh session starts at the first
 | 2 — Code Map | ✅ | 12 June 2026 — all 12 game sections verified against JS/HTML (scripted ID + function sweeps); BLD section added; LTTP/LI5/GM/SS/DSD/GTH/DYB drift corrected; see Audit Findings §Phase 2 |
 | 2B — Engine & Infrastructure | ✅ | 13 June 2026 — all 10 checks run (scripted); 2 new [BUG] (PASS mode-screen config fields, 17-overlay teardown gap), BLD min-players entry corrected (field absent, not `() => 4`); see Audit Findings §Phase 2B |
 | 3 — Per-Game (track per game in Notes) | ✅ | **LI5 ✅ GM ✅ SS ✅ JEC ✅ YGI ✅ LTTP ✅ NAT ✅ DSD ✅ GTH ✅ DYB ✅** (13 June 2026) **BLD ✅ PASS ✅** (14 June 2026) — all 12 done; see Audit Findings §Phase 3 |
-| 4 — Data | ☐ | |
+| 4 — Data | ✅ | 14 June 2026 — all 6 data files parse; words.json format/order/schema clean except dup id `objects-053`; ygi + gth fully clean; secret banks no id collisions; 2 new `[BUG]` (dup id, world-001 11-word nono_list) + secret_words category flag resolved precisely (10 `world-*` missing key); see Audit Findings §Phase 4 |
 | 5 — Documentation Closure | ☐ | |
 | 6 — Summary & Fix Plan | ☐ | |
 
@@ -960,3 +960,34 @@ Changes applied to `docs/code-map.md`:
 **Recurring patterns:** (1) **Dead SYNC handlers wired during spec, never sent** — PASS (`PASS_NEXT_ROUND`/`PASS_GAMEOVER`) joins BLD (`BLD_VOTE_PENDING`/`BLD_MISSION_PENDING`) and the GM/JEC near-sync gaps; a "grep every documented packet for a send site" step would catch these. (2) **A re-used "start" packet doubling as a per-round packet drops cumulative state** — PASS's `PASS_GAME_START`-every-round wiping `passRoundsWon` echoes JEC's `JEC_NEXT_ROUND` pool-pop transient; the lesson is that match-init and round-init packets must have distinct reset scopes. (3) **MDLM mid-game quit teardown** — now resolved across all four MDLM games: PASS dissolves correctly, GTH/DYB/BLD leak → `[DOC]` standardisation decision.
 
 **Net new fix-plan entries this session:** 2 `[BUG]` (PASS Abyss mid-trick detonation, PASS client roundsWon reset) + 2 `[POLISH]` (PASS dead SYNC handlers, PASS round-wrap/seating missing ✕) + 1 `[DOC]` (MDLM mid-game quit teardown standardisation). Doc corrections applied in place (game-identities PASS SYNC packets + Sylly detonation gap + quit-dissolve note) — not fix-plan entries. Fix-plan total: 64 → **69** (1 critical, 25 bugs, 32 polish, 11 doc). **Phase 3 COMPLETE — all 12 games audited. Next: Phase 4 (Data).**
+
+### Phase 4 — Data (14 June 2026)
+
+**Method:** Three throwaway Node scripts (temp dir, not committed) — 4E parse smoke test first, then full structural sweeps of all six `data/*.json` files: schema/field-shape per entry, id uniqueness (within-file and cross-file), category order + counts, difficulty distribution, animals `nono_list[0]` Broad-Shield analysis, DSD-eligible (space-free) counts, ygi `[ ]` gap count + ringer shape, gth cluster sizes + alias minimums. No data files were edited (Principle 1 — flag, don't rewrite).
+
+**4E — Parse smoke test:** All 6 files `JSON.parse` cleanly — `words.json` (850), `secret_words.json` (434), `secret2_words.json` (50), `secret3_words.json` (151), `ygi-data.json` (50), `gth-data.json` (100). No `[CRITICAL]` malformed-file catches.
+
+**4A — words.json:**
+- **Format ✓** — custom serialiser intact: array brackets + one compact `JSON.stringify(entry)` per line (2-space indent before `{`, no pretty-print of keys — 0 indented-key lines). 16 blank-line separators (15 between categories + 1 trailing before `]`).
+- **Category order ✓** — exact match to the canonical 16-category order; 850 entries; counts: animals 100, food 100, places 70, objects 55, sports 50, nature 50, vehicles 50, jobs 50, activities 50, aussie_slang 30, pop_culture 45, people 25, brands 30, emotions 50, actions 50, music 45.
+- **Schema ✓** — all 850 entries: string `id`, string `word`, `nono_list` array of exactly 10, valid `category`, `difficulty` ∈ {1,2,3}, no unexpected fields.
+- **[BUG] duplicate id `objects-053`** — shared by "Walkie-Talkie" (d2, idx 308) and "Stapler" (d1, idx 322); `objects-039` is the missing slot (objects runs 001–055). Stapler should be re-keyed to `objects-039`. Logged to fix plan.
+- **Animals Broad Shield ✓** — no scientific class names (no Mammalia/Aves/etc.); 22 distinct shields across 100 animals; largest is "Sea Creature" at 13% — under the 15% "too broad" threshold (Hoofed Animal 11%, Small Critter 10% next).
+- **Difficulty distribution** — most categories span all three tiers. Structural skews (by design, not bugs, noted for 4F): `aussie_slang` d1=0 (all d2/d3 — slang is inherently abstract), `emotions` d1=0 (abstract by nature), `brands` d3=0, `actions` d3=1. Flagged as future-proofing notes only.
+- **DSD eligibility** — 195 of 850 words contain a space (DSD excludes them). Per-category space-free counts healthy in every DSD-eligible category (lowest: vehicles 34/50, activities 35/50, sports 39/50; emotions/actions 50/50).
+
+**4B — ygi-data.json:** 50 entries, **fully clean** — every entry `{id, text, ringers}` only; every `text` contains `[ ]` exactly once; every `ringers` is an array of exactly 5 `{number:number, metric:string}` pairs; all ids `ce-NNN` (legacy format, no `ygi-NNN` yet — consistent, no mixing). Zero issues.
+
+**4C — gth-data.json:** 100 entries, **fully clean** — all required string fields present + non-empty (`id, name, display, definition, tip, category`); `difficulty` ∈ {1,2,3} spanning all tiers (d1=25, d2=42, d3=33); every entry has ≥3 `aliases`; all 9 `cluster` values have ≥3 members (existential 19, loops 18, impulses 12, social 12, environments 11, transit 10, sleep 8, medical 6, creatures 4). Zero issues.
+
+**4D — Expansion banks:** All three files exist and precache-referenced. No duplicate ids within any file; **no id collisions with `words.json`**; no cross-bank collisions. `secret2_words.json` (large_monsters 50) and `secret3_words.json` (gen1 151) fully clean.
+- **[DOC resolved precisely] secret_words.json — 10 `world-*` entries missing the `category` key entirely** (world-075, 081–087, 090, 095). The Phase-1A flag is now exact: the key is *absent* (parses to `undefined`), not an empty string; all 10 belong to category `World` by id/theme. Existing fix-plan `[DOC]` entry updated with the precise id list + fix.
+- **[BUG] secret_words.json — `world-001` ("Ancient") has an 11-word `nono_list`** (Throne…Victory) where the schema requires exactly 10. Low play impact (LI5 slices to 5/10) but a schema-length violation. Logged to fix plan.
+- Field-shape sweep: 424 entries have the full 5-key shape; the 10 category-less entries have the 4-key shape — no other shape variants.
+
+**4F — Schema future-proofing notes (no rewrites):**
+1. **`words.json` id integrity** — the `objects-053`/`objects-039` collision shows id numbering can drift during edits; a pre-commit `node` uniqueness check (the Verify one-liner in the fix plan) would catch this class permanently. Candidate for a content-tooling guard.
+2. **`secret_words.json` category hygiene** — category values are mixed-case Title Case (`Heroes`/`Items`/`World`/`Social`) whereas `words.json` uses lowercase_snake (`animals`/`pop_culture`). Not a bug (each bank is filtered independently), but worth standardising if a future game ever pools the standard + expansion banks together by category.
+3. **`difficulty` floor gaps** — `aussie_slang` and `emotions` have zero d1 entries and `brands` zero d3. Intentional given the category nature, but if a future game hard-requires a d1 word from an arbitrary category it would fail on these two. Noted, not flagged.
+
+**Net new fix-plan entries this session:** 2 `[BUG]` (words.json dup id `objects-053`, secret_words.json `world-001` 11-word nono_list). 1 prior `[DOC]` (secret_words empty category) made precise — not a new entry. No data files edited. Fix-plan total: 69 → **71** (1 critical, 27 bugs, 32 polish, 11 doc). **Phase 4 COMPLETE. Next: Phase 5 (Documentation Closure).**
