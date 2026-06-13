@@ -69,8 +69,19 @@ Both are fire-and-forget writes to Firebase. All devices receive both. The Spiri
 ---
 
 ## Multiplayer Lessons
+*(distilled from the Bug Index — Fable audit, Phase 5A, June 2026)*
 
-*(to be filled during testing)*
+**Guard every entry point that can show the Shake screen, not just the first one found**
+Eliminated devices must route to the Spirit Board, not the Shake screen. `DYB_SHAKE_ACTIVE` (BUG-02) and `DYB_NEXT_SHAKE` (BUG-08) both navigate there and both needed a `!dybActivePlayers.includes(mpMyPlayerIdx)` guard. When adding an eliminated/standby guard for one packet, grep for every other packet that reaches the same screen and guard them all in the same pass.
+
+**Track "last bidder" separately from "whose turn is next"**
+`dybCurrentBidderIdx` advances to the next player on each bid, so it is the wrong value at showdown resolution (BUG-03). Read the actual last bidder from `dybAllegationHistory[last].playerIdx`. A turn-pointer and a last-action index are different facts — never reuse one for the other.
+
+**Re-derive host-set counts in the SYNC handler on every device**
+`dybPlayerCount` is assigned only in the host-only `onPassThePhone`, so clients kept the default `0` and rendered zero hands at showdown (BUG-01). Any count/array a render loop depends on must be set from the `DYB_GAME_START` payload on every device, not assumed from setup.
+
+**Mid-game overlays must be torn down in both reset paths**
+`dyb-slick-picker-overlay` (`fixed inset-0 z-[100]`) survived a mid-game quit as an invisible full-screen tap interceptor over the menu (BUG-05). Any overlay openable during play must be hidden in `resetToLobby()` AND in every "return to menu" handler — same lesson as GTH canvas wrapper and LTTP message interrupt.
 
 ---
 

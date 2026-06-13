@@ -123,6 +123,7 @@ As each section of §15 is completed, update:
 - [ ] `game-identities.md` updated with full new game entry
 - [ ] `CLAUDE.md` project structure map updated
 - [ ] SW version bumped and precache updated
+- [ ] `docs/content-prompts/new-game-brief-prompt.md` synced — existing-games roster table, "taken" abbreviations line, and Sylly-Mode name list all include the new game. Values pulled from *shipped reality* (`game-identities.md` + plugin + impl notes), never from the original brief. This file is the first document a future game touches; a stale roster re-imports fixed errors and risks an abbreviation collision.
 - [ ] `docs/phase[N]-snapshot.md` written and confirmed
 
 ---

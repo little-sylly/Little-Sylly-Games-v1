@@ -69,7 +69,7 @@ Update the status column as phases complete. A fresh session starts at the first
 | 2B — Engine & Infrastructure | ✅ | 13 June 2026 — all 10 checks run (scripted); 2 new [BUG] (PASS mode-screen config fields, 17-overlay teardown gap), BLD min-players entry corrected (field absent, not `() => 4`); see Audit Findings §Phase 2B |
 | 3 — Per-Game (track per game in Notes) | ✅ | **LI5 ✅ GM ✅ SS ✅ JEC ✅ YGI ✅ LTTP ✅ NAT ✅ DSD ✅ GTH ✅ DYB ✅** (13 June 2026) **BLD ✅ PASS ✅** (14 June 2026) — all 12 done; see Audit Findings §Phase 3 |
 | 4 — Data | ✅ | 14 June 2026 — all 6 data files parse; words.json format/order/schema clean except dup id `objects-053`; ygi + gth fully clean; secret banks no id collisions; 2 new `[BUG]` (dup id, world-001 11-word nono_list) + secret_words category flag resolved precisely (10 `world-*` missing key); see Audit Findings §Phase 4 |
-| 5 — Documentation Closure | ☐ | |
+| 5 — Documentation Closure | ◐ | **5A ✅** (14 June 2026). **5B ✅** (14 June 2026 — 8 cross-game lessons elevated: 4 MDLM bugs → phase-audit Protocol A §2, 4 template gaps → logic-engine; `.name`→`.nickname` doc error corrected; 5D contract made durable in logic-engine + new-game-process). 5C–5D pending. See Audit Findings §Phase 5A / §Phase 5B |
 | 6 — Summary & Fix Plan | ☐ | |
 
 ---
@@ -535,6 +535,8 @@ After reviewing all 12 impl notes files, identify:
 
 Document each elevation decision with a one-line note: `[Elevated from [abbr]-impl-notes: short description]`.
 
+**Make the 5D contract durable:** Add a checklist line to the "Adding a New Game" closure step (`logic-engine.md`, and/or the new-game closure steps in `new-game-process.md`) requiring `new-game-brief-prompt.md` to be synced from shipped reality on every new game — roster table, taken-abbreviations line, Sylly-name list. Without this, the 5D going-forward rule lives only in this audit plan, which gets archived once the audit closes.
+
 ---
 
 ### 5C — Rule File Final Pass
@@ -543,6 +545,31 @@ After Phases 1–5 are complete, do a final read of these four files and confirm
 - `CLAUDE.md` ↔ `logic-engine.md` (SW version, precache list, current focus)
 - `game-identities.md` ↔ `ui-style.md` (brand colours, toggle classes, how-to overlay per-game table)
 - `phase-audit.md` Protocol C table ↔ current known patterns (all rows still relevant?)
+
+---
+
+### 5D — Content-Prompt Doc Sync
+
+**Goal:** The `docs/content-prompts/` files are the *first* documents a new game touches (brainstorming phase). They must reflect the full 12-game roster and the audit's corrected terminology, or every new game starts from a stale baseline and re-imports errors the audit just fixed.
+
+**Files to verify:**
+
+| File | Type | What to check |
+|------|------|--------------|
+| `new-game-brief-prompt.md` | Game-design prompt | **Roster-critical** — see checklist below |
+| `words-json-prompt.md` | Content-gen prompt | Category list still matches `definitions.md` (16 categories); animals Broad Shield rules current |
+| `ygi-prompt.md` | Content-gen prompt | Schema + next-ID guidance still accurate |
+| `gth-prompt.md` | Content-gen prompt | Schema, cluster list, guardrails still accurate; "next available ID" note is informational (no audit action) |
+
+**`new-game-brief-prompt.md` checklist (the roster-stale file):**
+- [ ] **Existing-games table** lists all 12 games (currently 9 — missing DYB, BLD, PASS)
+- [ ] **"Taken" abbreviations** line lists all 12 prefixes: `li5, gm, ss, jec, ygi, lttp, nat, dsd, gth, dyb, bld, pass` (currently missing `dyb, bld, pass` — abbreviation-collision risk)
+- [ ] **Sylly Mode tone references** list all 12 names — add Devil's Luck (DYB), Drama Mode (BLD), The Abyss (PASS)
+- [ ] **Thematic vocabulary example** uses the audit-corrected GTH settings title **"Inpatient Admission Form 📋"** (currently the pre-audit "Intake Form 📋")
+
+**Rule:** This sub-section must pass before the audit is considered closed. Going forward, the "Adding a New Game" closure step (and any future game's phase snapshot) must also update `new-game-brief-prompt.md`'s roster table, taken-abbreviations line, and Sylly-name list — the brief prompt is now part of the per-game documentation contract.
+
+**Source-of-truth caveat:** When syncing the brief prompt, pull every value from *shipped reality* — `game-identities.md`, the game's plugin file, and its implementation notes — **never from the original `docs/new-game-brief-[name].md`**. The brief is a starting point, not the final say: design changes routinely land post-brief and post-implementation (exactly why implementation notes exist — to store critical decisions, bug fixes, and issues that supersede the brief). The "Intake Form 📋" → "Inpatient Admission Form 📋" drift in this file is a live example of a brief-era value that shipped differently. Treat the brief prompt's examples as teaching material that must mirror what the games actually do today.
 
 **Output:** Any final reconciliation edits.
 
@@ -991,3 +1018,39 @@ Changes applied to `docs/code-map.md`:
 3. **`difficulty` floor gaps** — `aussie_slang` and `emotions` have zero d1 entries and `brands` zero d3. Intentional given the category nature, but if a future game hard-requires a d1 word from an arbitrary category it would fail on these two. Noted, not flagged.
 
 **Net new fix-plan entries this session:** 2 `[BUG]` (words.json dup id `objects-053`, secret_words.json `world-001` 11-word nono_list). 1 prior `[DOC]` (secret_words empty category) made precise — not a new entry. No data files edited. Fix-plan total: 69 → **71** (1 critical, 27 bugs, 32 polish, 11 doc). **Phase 4 COMPLETE. Next: Phase 5 (Documentation Closure).**
+
+### Phase 5A — Implementation Notes Review (14 June 2026)
+
+**Method:** Read all 12 `docs/implementation-notes/[abbr]-implementation-notes.md` files in full. Scripted grep confirmed the four canonical section headers (Design Decisions / Bug Index / Multiplayer Lessons / Template Gaps) in every file. Cross-checked each file's Bug Index against the per-game bugs logged in the Phase 3 Audit Findings above.
+
+**Four-section structure: all 12 present ✅.** No file is missing a required section. Three files carry extra/variant sections, all benign: SS has an added "Polish Index" (S13–S17) between Multiplayer Lessons and Template Gaps; BLD has two extra "Design Decisions (…)" subsections (how-to rewrite + polish round); GTH's Multiplayer Lessons is a deliberate one-line pointer to BLD (its MP patterns live in the extensive Design Decisions block, so not a stub).
+
+**Bug Index currency: every Phase 3 bug is already logged ✅.** The Phase 3 sessions logged to impl notes as they went, so 5A found zero missing entries. Confirmed present per game: LI5 L6/L7/L8; GM G4/G5/G6; SS S9/S10/S11/S12; JEC J2/J3/J4; YGI Y3/Y4/Y5; LTTP L5/L6; NAT N2; DSD Nuclear-Mine gameover gap; GTH dead case-`[?]` + `gth-case-report-progress` dead div; DYB BUG-06/07/08; BLD Bug 16 (CRITICAL `applyExpansionOverrides` clobber); PASS BUG-01/02 (+ 2 POLISH). Polish-only findings correctly live in the fix plan / Template Gaps rather than the Bug Index, per the Phase 3 output contract.
+
+**Phase 4 data bugs:** not per-game (they live in `words.json` / `secret_words.json`), so they belong to no game's impl notes — tracked in the fix plan only. No impl-notes action.
+
+**One gap closed (the only edit this sub-phase):** DYB's Multiplayer Lessons section was an empty `*(to be filled during testing)*` placeholder despite DYB being a shipped (Phase 31) MDLM-only game with six MP-related bugs. Filled it by distilling four lessons already evidenced in DYB's own Bug Index (no invention): guard every Shake-screen entry point not just the first (BUG-02/08); track last-bidder separately from next-turn (BUG-03); re-derive host-set counts in the SYNC handler on every device (BUG-01); tear down mid-game overlays in both reset paths (BUG-05).
+
+**No new fix-plan entries** (5A is a documentation-completeness review). Fix-plan total unchanged at **71**. **5A COMPLETE. Next: Phase 5B (Cross-Game Lessons Elevation).**
+
+### Phase 5B — Cross-Game Lessons Elevation (14 June 2026)
+
+**Method:** Re-read the Bug Index + Template Gaps of all 12 impl notes files. Identified patterns appearing in 2+ games that were NOT yet captured in a rule file, then elevated each to the correct destination with a `[Elevated from …]` tag at the elevation site. UI patterns were checked separately — all recurring UI lessons (how-to 3-level format, pill toggle, modal border, shared tip overlay, layout pattern, "How to Play" title) are already standardised in `ui-style.md`, so no new UI elevation was required.
+
+**Recurring multiplayer bugs → `phase-audit.md` Protocol A §2 (new "MDLM technical-debt checks" subsection):**
+1. **Host-only interactions need an explicit `client` early-return** — an absent broadcast branch is not a guard; clients run the logic locally and diverge. *(jec J3/J4, ygi Y5, nat N2, lttp L5 — 4 games.)*
+2. **Secondary-phase missing-handler audit** — votes, tie-breaks, sudden-death, intel/guess, endgame resolution are repeatedly shipped pass-the-phone-only with zero packets. A `*ReadyCheck` reset-but-never-read is the tell. *(ss S12, ygi Y4, lttp L6, nat N2 — 4 games; nat-impl-notes explicitly requested this elevation.)*
+3. **SYNC handlers render, never re-resolve / double-push** — clients apply the authoritative payload; they must not re-run the resolver or push a log entry the resolver already pushed. *(ss S9, ygi Y3, bld Bug 12 — 3 games.)*
+4. **Mid-game `fixed inset-0` overlays torn down in BOTH reset paths** — survives as an invisible full-screen tap interceptor otherwise. *(dyb BUG-05, gth canvas wrapper, lttp tip overlays, ygi help-tip — 4 games.)*
+
+**Template gaps → `logic-engine.md`:**
+5. **No global function-name collision across plugins** (new "Adding a New Game" item) — all plugins share `window`; a later plugin's hoisted `function` clobbers an earlier one. Expansion hook must be `[abbr]ApplyExpansionOverrides()`. *(bld Bug 16 clobbered LI5, jec naming note.)*
+6. **Contextual tip IDs uniquely named** `btn-[abbr]-[phase]-tip` vs `btn-[abbr]-how-to` (new "Adding a New Game" item) — duplicate IDs leave the second button unwired; wire the `[?]` on the *reachable* screen. *(ss S3, dsd dup id, gth btn-gth-how-to-case.)*
+7. **MDLM host readyCheck self-submission processed directly** (new MDLM Patterns entry + checklist item) — the dedup guard drops self-sent envelopes, hanging the round. *(jec J1, ygi Y1/Y2.)*
+8. **Secondary-phase coverage** added to the existing § Interceptor Pattern "Missing handler audit" note (strengthened, not duplicated).
+
+**Doc-error correction (Principle 3 — reality wins):** `logic-engine.md` stated `mpPlayerSlots[i].name` in both the MDLM Patterns section and the new-game checklist. Verified against `engine-multiplayer.js` (~line 624): the slot object is `{ uid, nickname }` — the field is `.nickname`; `.name` returns `undefined` silently. `pass-impl-notes` had caught this; `bld-impl-notes` carried the imprecise `.name`. Both `logic-engine.md` sites corrected.
+
+**5D contract made durable (per 5B instruction):** Added a `new-game-brief-prompt.md` sync line to (a) `logic-engine.md` "Adding a New Game" closure and (b) `new-game-process.md` Stage 3 "complete when" checklist, requiring the roster table / taken-abbreviations / Sylly-name list to be synced from shipped reality on every new game. Without this the 5D going-forward rule would live only in this audit plan (archived at audit close).
+
+**Files changed:** `phase-audit.md` (4 new §2 items), `logic-engine.md` (2 `.nickname` fixes, host-readyCheck pattern, strengthened missing-handler note, 4 new checklist items), `new-game-process.md` (1 Stage 3 closure item). **No new fix-plan entries** (5B elevates lessons into rule files; the underlying bugs were already logged in Phases 3–4). Fix-plan total unchanged at **71**. **5B COMPLETE. Next: Phase 5C (Rule File Final Pass).**
