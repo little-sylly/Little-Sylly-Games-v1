@@ -825,8 +825,8 @@ LOBBY (MDLM only) → GTH MENU → GTH PATIENT INTAKE (screen-gth-patient-intake
 | The Big Reveal | `screen-gth-big-reveal` — host-controlled drawing-by-drawing reveal |
 | New Session | Play again — resets all state, preserves names + settings |
 | Walk Out | Quit during session |
-| Intake Form 📋 | Settings overlay title |
-| The Disclaimer 🛋️ | How-to overlay title |
+| Inpatient Admission Form 📋 | Settings overlay title |
+| How to Play 🛋️ | How-to overlay title (standard title block — renamed from "The Disclaimer 🛋️"; June 2026 audit) |
 
 ### Settings
 | Setting | Options | Default | Internal value |
@@ -867,8 +867,8 @@ LOBBY (MDLM only) → GTH MENU → GTH PATIENT INTAKE (screen-gth-patient-intake
 ### Overlay Types
 | Overlay | Pattern | z-index | Notes |
 |---------|---------|---------|-------|
-| `gth-settings-overlay` | Data (slide-up) | z-[80] | "Intake Form 📋" |
-| `gth-how-to-overlay` | Data (slide-up) | z-[90] | "The Disclaimer 🛋️" |
+| `gth-settings-overlay` | Data (slide-up) | z-[80] | "Inpatient Admission Form 📋" |
+| `gth-how-to-overlay` | Data (slide-up) | z-[90] | "How to Play 🛋️" |
 | `gth-quit-overlay` | Decision modal | z-[80] | "Walk Out?" |
 | `gth-new-session-overlay` | Decision modal | z-[90] | "New Session?" — play-again confirmation |
 
@@ -917,7 +917,7 @@ LOBBY (MDLM only) → GTH MENU → GTH PATIENT INTAKE (screen-gth-patient-intake
 **Theme:** Liar's Dice — each player shakes a private hand of dice, then players take turns making escalating claims about the full table. Call someone's bluff or be caught lying.
 **Tagline:** "Trust no one. Count every face."
 **Key file:** `js/games/dyb.js`
-**Brand colour:** `stone-700` | **Active pill:** `pill-active-stone`
+**Brand colour:** `stone-400` (muted — all primary CTAs use `bg-stone-400`; how-to step labels + close button also stone-400) | **Active pill:** `pill-active-stone` | **Toggle ON:** `game-toggle-on-stone` (June 2026 audit: game-identities/ui-style previously said `stone-700`; reality is the lighter `stone-400`, applied consistently — an intentional muted choice, not drift)
 **State flow:**
 ```
 LOBBY (MDLM only) → DYB MENU
@@ -940,22 +940,23 @@ LOBBY (MDLM only) → DYB MENU
 | Showdown | `screen-dyb-showdown` — all hands revealed; real count vs claimed count determines the loser |
 | The Table | `screen-dyb-table` — main gameplay screen showing pip row, bid history, and allegation controls |
 | Stealth Veil | The eye-icon toggle that hides/shows the player's own dice (prevents screen peeking) |
-| Slick Die | Chaos Mode die: face is privately assigned by the owner, opaque to all others |
+| Devil's Luck | Sylly Mode name (UI: "Devil's Luck"; intensity = "Chaos level"). Each die may become one of five special types — see Special Mechanics |
+| Slick Die | One of the five Devil's Luck die types: face is privately assigned by the owner, opaque to all others |
 | Wild (1s) | Ones count as any face — behaviour depends on Wildcards Style setting |
 | Classic Wildcards | 1s count toward any bid |
 | Strict (No Wilds) | 1s are just 1s — no wild behaviour |
 | Volatile Wilds | 1s are wild UNTIL someone bids 1s directly — then they stop being wild for the round |
 | The Spirit Board | `screen-dyb-spirit-board` — eliminated player's passive spectator screen |
-| New Game | Play again — resets all match state, preserves names + settings |
-| Fold? | Quit confirm overlay heading |
+| New Game | Play again — overlay heading is "Roll Again?" (confirm "Roll Again 🎲" single / dynamic MP labels) |
+| Walk Away? | Quit confirm overlay heading (🚪; confirm "Yeah, I'm out." / cancel "Keep bluffing!") |
 
 ### Settings
 | Setting | Options | Default | Internal variable | Internal values |
 |---------|---------|---------|------------------|-----------------|
 | Wildcards Style | No Wilds / Classic / Volatile | Classic | `dybWildcardsStyle` | `'strict'` / `'classic'` / `'volatile'` |
 | Starting Hand | 3 / 4 / 5 | 5 | `dybStartingHand` | int |
-| ✨ Sylly Mode (Chaos Mode) | OFF / ON | OFF | `dybSyllyMode` | bool |
-| Chaos Level (sub-option) | slider 5–10 | 5 | `dybSyllyIntensity` | int — % chance per die of becoming Slick |
+| ✨ Sylly Mode (Devil's Luck) | OFF / ON | OFF | `dybSyllyMode` | bool |
+| Chaos level (sub-option) | slider 5–10 | 5 | `dybSyllyIntensity` | int — % chance per die *per special type* (cumulative across the 5 types; ≈ intensity×5 % of dice become special at intensity 5) |
 
 ### Scoring / Elimination
 | Outcome | Effect |
@@ -972,8 +973,15 @@ LOBBY (MDLM only) → DYB MENU
 **Wildcards — Volatile mode:**
 `dybOnesStripped` starts `false` each Shake. If a player's allegation names face = 1, `dybOnesStripped = true` for the rest of the Shake. After that, 1s no longer count as wild — `dybComputeRealCount()` branches on this flag.
 
-**Slick dice (Chaos Mode):**
-`dybSyllyIntensity` % chance per die of becoming Slick on roll. Slick dice have no fixed face — owner chooses any face via `dyb-slick-picker-overlay` (z-[100]) at the table screen. Face is private; only the owner knows. Eliminated at showdown reveal alongside real dice.
+**Devil's Luck — five special die types (Sylly Mode):**
+On each roll (`dybGenerateRoll`), every die has a cumulative chance to become one of five special types (`typeOrder = ['loaded','phantom','slick','cracked','snake']`, threshold `r < intensity/100 × (i+1)`). Counting is in `dybComputeRealCount()`:
+- **Loaded** (amber, ring) — counts as **2** toward its face value.
+- **Phantom** (grey italic "?") — face hidden from the owner; counts **normally** at its real rolled value. ⚠️ Currently the "?" persists even at the showdown reveal — see DYB Bug Index (the how-to promises a reveal).
+- **Slick** (blue) — no fixed face; owner assigns any face via `dyb-slick-picker-overlay` (z-[100]) at the table screen. Counts only toward the assigned face. Face is private until `DYB_SHOWDOWN` broadcasts `allSlickFaces`.
+- **Cracked** (line-through grey) — counts **0** always.
+- **Snake (Snake Eyes)** (red) — counts as **−1** toward its face value.
+
+Wild-1 behaviour (Classic/Volatile) applies to Loaded/Snake/standard via `matchesFace`; Slick uses its assigned face only; Cracked is always 0.
 
 **Showdown animation (`dybRenderShowdownScreen`):**
 All hands revealed immediately. Count animates from 0 → real at 400ms/tick with `playTick()`. On reaching real: `playBoing()`, verdict shown (bidder/challenger label + loser name), `onDone()` callback fires. If real ≤ 0: 600ms pause then reveal (no ticking needed).
@@ -984,10 +992,10 @@ After each Showdown, `dybCurrentOpenerIdx` = loser (if still active) or next act
 ### Overlay Types
 | Overlay | Pattern | z-index | Notes |
 |---------|---------|---------|-------|
-| `dyb-settings-overlay` | Data (slide-up) | z-[80] | "The House Rules 🎲" |
-| `dyb-how-to-overlay` | Data (slide-up) | z-[90] | How to Play |
-| `dyb-quit-overlay` | Decision modal | z-[80] | "Fold?" — mid-game exit |
-| `dyb-new-game-overlay` | Decision modal | z-[90] | "New Game?" — play-again confirm |
+| `dyb-settings-overlay` | Data (slide-up) | z-[80] | "House Rules 📋" |
+| `dyb-how-to-overlay` | Data (slide-up) | z-[90] | "How to Play 🎲" |
+| `dyb-quit-overlay` | Decision modal | z-[80] | "Walk Away?" — mid-game exit |
+| `dyb-new-game-overlay` | Decision modal | z-[90] | "Roll Again?" — play-again confirm |
 | `dyb-slick-picker-overlay` | Decision modal | z-[100] | Slick die face picker — tapped from table screen; MUST be cleared in `resetToLobby()` AND in quit-confirm handler |
 
 ### Screens

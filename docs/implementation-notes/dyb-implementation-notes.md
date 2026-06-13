@@ -46,6 +46,26 @@ Both are fire-and-forget writes to Firebase. All devices receive both. The Spiri
 - **Prior art:** Same pattern as GTH canvas wrapper and LTTP message interrupt overlay — any `fixed inset-0` overlay that can be opened mid-game must be explicitly cleared in both `resetToLobby()` and every "return to menu" path.
 - **Found during:** Live testing post-Phase Gate audit.
 
+**BUG-06: Gameover standings invert the loser ranking (June 2026 audit — logged, not yet fixed)**
+- **What happened:** Final standings rank the *first*-eliminated player as runner-up and the *last*-eliminated as wooden spoon — exactly backwards.
+- **Root cause:** `dybShowGameover()` reverses `eliminationOrder` into `order` (line ~833), then spreads `...order.reverse()` (line ~837) which reverses the same array in place *again*, netting `[winnerIdx, ...eliminationOrder]`. The two reverses cancel.
+- **Fix:** Use the already-reversed copy once: `const positions = [data.winnerIdx, ...order];` (drop the second `.reverse()`).
+- **Found during:** Phase 3 per-game audit (code trace).
+- **Lesson:** `Array.prototype.reverse()` mutates in place and returns the same array — a `[...arr].reverse()` followed by `arr.reverse()` is a double-reverse, not two independent copies.
+
+**BUG-07: Phantom die never reveals its face, even at showdown (June 2026 audit — logged, not yet fixed)**
+- **What happened:** A Devil's Luck phantom die shows "?" everywhere, including the showdown reveal — so the real count can't be audited, contradicting the how-to ("hide their face until the showdown").
+- **Root cause:** `dybDieHTML()`'s `phantom` case sets `display = '?'` unconditionally inside the `visible` branch; `dybRenderAllHandsOnShowdown()` calls it with `visible = true` but the phantom value is still hidden. `dybComputeRealCount()` counts the phantom at its real rolled value regardless.
+- **Fix:** When `visible` is true, render the phantom's real pip (`faces[val-1]`) instead of "?". Keep "?" only while the owner holds the die during play.
+- **Found during:** Phase 3 per-game audit (code trace).
+
+**BUG-08: Eliminated players pulled back to the Shake screen each round (June 2026 audit — logged, not yet fixed)**
+- **What happened:** After elimination, a player is navigated to `screen-dyb-shake` at the start of every subsequent shake and sits there (with a live "Shake 'Em Up" button) until `DYB_SPIRIT_SHAKE` arrives.
+- **Root cause:** BUG-02 added an eliminated guard to `DYB_SHAKE_ACTIVE`, but `DYB_NEXT_SHAKE` (from `dybAdvanceFromShowdown()`) calls `dybInitShake()` with no such guard. `DYB_SPIRIT_SHAKE` only fires after all survivors have rolled, so the wrong-screen window is the full roll-collection period.
+- **Fix:** In the `DYB_NEXT_SHAKE` handler, route `!dybActivePlayers.includes(mpMyPlayerIdx)` devices to `dybShowSpiritBoard()` instead of `dybInitShake()`'s Shake screen.
+- **Found during:** Phase 3 per-game audit (code trace).
+- **Lesson:** The BUG-02 eliminated-guard pattern must cover *every* handler that can show the Shake screen (`DYB_NEXT_SHAKE` as well as `DYB_SHAKE_ACTIVE`), not just the one found in the first trace.
+
 ---
 
 ## Multiplayer Lessons

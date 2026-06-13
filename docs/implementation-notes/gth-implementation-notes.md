@@ -1,4 +1,4 @@
-# Implementation Notes — Guess the Handicap (GTH)
+# Implementation Notes — Group Therapy (GTH)
 
 ## Design Decisions
 
@@ -83,6 +83,19 @@
 - Root cause: The "pick 2 lightest-loaded" heuristic used Fisher-Yates shuffle then sorted by queue length. Random tie-breaking during sort could consistently favour some players over others, producing ±1 variance.
 - Fix: Replaced with a per-artist round-robin. For each artist's drawings, shuffle the eligible player list once, then assign drawing `i` to `eligible[(i*2) % len]` and `eligible[(i*2+1) % len]`. For N=4, D=3: each eligible player gets exactly 2 drawings from each artist = exactly 6 total. Exact equality guaranteed when `D×2` is divisible by `N−1`.
 - Lesson: Implementation note #7 claimed the algorithm gave exact `D×2` per player but the heuristic didn't enforce it. When a design note promises exact counts, the algorithm must prove it — not approximate it.
+
+**Bug: Case-screen `[?]` button is dead — How to Play unreachable in MDLM (June 2026 audit — logged, not yet fixed)**
+- Symptom: Tapping `[?]` on the Case (Shrink Phase) screen does nothing.
+- Root cause: The Case screen's help button has id `btn-gth-how-to-case`, but `gth.js` only wires `btn-gth-how-to` (the disorder-reveal screen's button). No listener exists for `btn-gth-how-to-case`. Worse, `screen-gth-disorder-reveal` (which carries the working `[?]`) is only shown on the single-device dev path — MDLM routes Patient Intake → Canvas → Case directly, so the dead `[?]` on the Case screen is the only help button a player can reach in real play.
+- Fix: Add a `btn-gth-how-to-case` listener mirroring `btn-gth-how-to` (scroll-reset + show `gth-how-to-overlay`).
+- Lesson: When a screen exists in two routing contexts (single-device vs MDLM) and only one is reachable in production, the `[?]` audit must check the *reachable* screen's button, not just "a `[?]` exists somewhere". Two header help buttons sharing one overlay should share one id or both be wired.
+- Logged: fix plan [BUG] GTH — Case-screen `[?]`.
+
+**Bug: `gth-case-report-progress` container never populated (June 2026 audit — logged, not yet fixed)**
+- Symptom: The Case Report screen reserves a per-player progress area that always renders empty.
+- Root cause: `#gth-case-report-progress` ("Per-player progress dots") has no writer — `gthShowCaseReport()` only fills `gth-case-report-stats` + `gth-case-report-time`.
+- Fix: Either populate it (mirror `gthUpdateWaitingProgress` using `gthDiagnosesReady`) or remove the dead div.
+- Logged: fix plan [POLISH] GTH — case-report-progress.
 
 ## Multiplayer Lessons
 (reference BLD implementation notes for additional patterns)

@@ -333,7 +333,7 @@ Every gameplay screen must use `h-screen` (not `min-h-screen`) on the section so
 | BLD | 📋 | `text-yellow-500` | `bg-yellow-500 hover:bg-yellow-600` | Drama Mode |
 | PASS | 🃏 | `text-zinc-700` | `bg-zinc-900 hover:bg-zinc-800` | The Abyss |
 
-[AUDIT FLAG — June 2026]: DYB's how-to overlay uses `text-stone-400` step labels and a `bg-stone-400` close button in `index.html` — lighter than its stone-700 brand. Recorded as reality; reconcile (intentional muted choice vs drift) during Phase 3 DYB audit. DYB's Sylly Mode name also reads "Devil's Luck" in `index.html` (settings + how-to) while `game-identities.md` documents "Chaos Mode" — Phase 3 to reconcile.
+[RESOLVED — Phase 3 DYB audit, June 2026]: DYB's `text-stone-400` step labels + `bg-stone-400` close button are NOT drift — every DYB primary CTA (menu, seating, shake, settings, showdown, gameover) uses `bg-stone-400`. DYB's effective brand is the muted `stone-400`, applied consistently; `game-identities.md` brand line updated `stone-700` → `stone-400`. The "Devil's Luck" Sylly name is reality (settings + how-to); `game-identities.md` updated `Chaos Mode` → `Devil's Luck` with all five die types documented.
 
 ---
 
