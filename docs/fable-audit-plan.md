@@ -70,7 +70,7 @@ Update the status column as phases complete. A fresh session starts at the first
 | 3 — Per-Game (track per game in Notes) | ✅ | **LI5 ✅ GM ✅ SS ✅ JEC ✅ YGI ✅ LTTP ✅ NAT ✅ DSD ✅ GTH ✅ DYB ✅** (13 June 2026) **BLD ✅ PASS ✅** (14 June 2026) — all 12 done; see Audit Findings §Phase 3 |
 | 4 — Data | ✅ | 14 June 2026 — all 6 data files parse; words.json format/order/schema clean except dup id `objects-053`; ygi + gth fully clean; secret banks no id collisions; 2 new `[BUG]` (dup id, world-001 11-word nono_list) + secret_words category flag resolved precisely (10 `world-*` missing key); see Audit Findings §Phase 4 |
 | 5 — Documentation Closure | ✅ | **5A–5D all complete** (14 June 2026). 5A: impl notes verified. 5B: 8 cross-game lessons elevated + `.name`→`.nickname` fix + 5D contract made durable. 5D: new-game-brief-prompt synced to 12-game roster + ygi-prompt `ce-`→`ygi-` ID fix. 5C: SW/precache consistent; DYB brand drift `stone-700`→`stone-400` fixed in ui-style; GM split cross-referenced; Protocol C table confirmed current. See Audit Findings §Phase 5A / §5B / §5D / §5C |
-| 6 — Summary & Fix Plan | ☐ | |
+| 6 — Summary & Fix Plan | ✅ | 14 June 2026 — Output A (consolidated summary) appended to Audit Findings; Output B (`docs/fable-fix-plan.md`) finalised — status "Awaiting developer review", 71 issues (1 critical, 27 bug, 32 polish, 11 doc), 4 resolved in-audit. Audit complete |
 
 ---
 
@@ -1092,3 +1092,54 @@ Changes applied to `docs/code-map.md`:
 **`phase-audit.md` Protocol C table — confirmed current ✓:** all 14 Part 2 rows still relevant and accurate; no conflict with the 4 MDLM rows added to Protocol A §2 in 5B (Protocol C is the pre-new-game cross-suite sweep; A §2 is the per-game phase gate — complementary). No edits.
 
 **Files changed:** `ui-style.md` (DYB brand-reference row + 2 Notes bullets). **No new fix-plan entries** (the DYB row was a doc-internal reconciliation per Principle 3; the GM split was already logged). Fix-plan total unchanged at **71**. **5C COMPLETE — Phase 5 (Documentation Closure) fully closed. Next: Phase 6 (Audit Summary & Fix Plan).**
+
+### Phase 6 — Audit Summary (Consolidated, 14 June 2026)
+
+The detailed per-phase findings are above. This is the roll-up. **Deliverables:** this summary (Output A) + `docs/fable-fix-plan.md` (Output B — 71 issues, finalised, status "Awaiting developer review"). No game code was written (Principle 1); every code-level finding is logged, not fixed.
+
+#### Phase 1 — Rules & Meta-Docs (all 6 files synced to reality)
+- **CLAUDE.md (1A):** structure map + load order + data counts corrected; non-existent `@new-game-template.md` reference replaced with the 3 real files; phase27-snapshot reference removed.
+- **game-identities.md (1B):** game numbering fixed; GTH Screens table added; PASS packets + terminology corrected; LI5/SS overlay tables completed; settings display-name drift forward-flagged to Phase 3 (resolved there for all games).
+- **logic-engine.md (1C):** precache list synced to `sw.js`; `resetToLobby()` MP block rewritten to match `engine.js`; `updateSliderTheme`/`getMuteToggleOnClass` documented.
+- **ui-style.md (1D):** all theming tables extended to 12 games; mute-toggle theming section added; menu CTA labels synced to reality; `sylly-toggle-on` marked deprecated.
+- **phase-audit.md (1E):** Protocol C added to When-to-Run; stale paths fixed; 3 new MP rows added to Protocol C Part 2.
+- **definitions.md (1F):** legacy DSTW/Sylly Signals names purged; all 12 prefixes listed; MP/theming terms + data-file pointers added.
+
+#### Phase 2 + 2B — Code Map & Engine Infrastructure
+- **code-map.md (2):** stamped Phase 32/June 2026; **BLD section added in full**; LI5/GM/SS/YGI/LTTP/DSD/GTH/DYB function + ID drift corrected against scripted sweeps (115 screens, all plugins).
+- **2B (scripted cross-checks):** screen registry clean (115↔115); zero true duplicate IDs (1377 unique); function-existence + SW-precache + load-order all clean. New findings: 20-overlay teardown gap `[BUG]`, PASS mode-screen config `[BUG]`, BLD min-players absent `[BUG]`, doubled-`id` attributes + dead CSS + Google-Fonts-CDN `[POLISH]`, stale section headers + unread `multiplayerOnly` `[DOC]`. `game-identities.md` SS `supportsHybrid` (non-existent field) corrected.
+
+#### Phase 3 — Per-Game (all 12 audited)
+- **Bugs by game:** LI5 (deck-panel z-index, gatekeeper phantom timer); GM (near-sync round discarded); **suite-wide** (`mpLockSync` no-op for the 8 Phase-22 games — `btn-mp-action` never applied); SS (client double-resolve, 2-device assumption, Intel-Phase crash); JEC (unguarded client merges, ungated sifting/tally CTAs); YGI (round-log double-push TypeError, sudden-death not MP-aware, ungated results-next); LTTP (plan-narrowing not synced, guess/gameover no packets); NAT (selection voting + Last Stand not MP-distributed); DSD (Nuclear-Mine bypasses `DSD_GAMEOVER`); GTH (dead Case-screen `[?]`); DYB (inverted gameover standings, phantom-die never reveals, eliminated pulled to Shake); BLD (**[CRITICAL]** `applyExpansionOverrides` clobbers LI5's global); PASS (Abyss never detonates mid-trick, client rounds-won reset).
+- **Doc syncs applied in place (reality wins):** every game's settings table, terminology, overlay/screen tables reconciled against its plugin — biggest were JEC (Phase-29 tiered scoring never reached the doc), DYB (Sylly Mode "Chaos Mode/Slick-only" → "Devil's Luck/5 die types"), BLD (pure win/loss, not points; Drama Mode win-flip not bonus), NAT/DSD/GM/SS settings display names.
+
+#### Phase 4 — Data (all 6 files parse clean)
+- words.json: format/order/schema clean; **dup id `objects-053`** + missing `objects-039` `[BUG]`; animals Broad Shield ≤15% ✓.
+- secret_words.json: **`world-001` 11-word `nono_list`** `[BUG]`; **10 `world-*` entries missing `category` key** `[DOC]` (Phase-1A flag made precise — key absent, not empty string).
+- ygi-data.json (50) + gth-data.json (100): fully clean. Expansion banks: no id collisions.
+
+#### Phase 5 — Documentation Closure
+- **5A:** all 12 impl-notes files have the 4 canonical sections; every Phase-3 bug already logged; DYB Multiplayer Lessons placeholder filled.
+- **5B:** 8 cross-game lessons elevated to rule files (see below); `logic-engine.md` `.name`→`.nickname` correction; 5D sync contract made durable in `logic-engine.md` + `new-game-process.md`.
+- **5C:** SW/precache consistent across CLAUDE.md/logic-engine.md/sw.js; DYB brand drift `stone-700`→`stone-400` fixed in ui-style.md; GM split cross-referenced.
+- **5D:** `new-game-brief-prompt.md` synced to 12-game roster + abbreviations + Sylly names; `ygi-prompt.md` `ce-`→`ygi-` ID-convention fixed.
+
+#### Recurring Patterns Elevated to Rule Files
+- **Host-only interactions need an explicit `client` early-return** (jec/ygi/nat/lttp — 4 games) → `phase-audit.md` Protocol A §2 (new MDLM technical-debt subsection).
+- **Secondary-phase missing-handler audit** — votes/tie-breaks/sudden-death/intel/endgame shipped pass-the-phone-only; a reset-but-never-read `*ReadyCheck` is the tell (ss/ygi/lttp/nat — 4 games) → Protocol A §2 + § Interceptor Pattern note strengthened.
+- **SYNC handlers render, never re-resolve / double-push** (ss/ygi/bld — 3 games) → Protocol A §2.
+- **Mid-game `fixed inset-0` overlays torn down in BOTH reset paths** (dyb/gth/lttp/ygi — 4 games) → Protocol A §2.
+- **No global function-name collision across plugins** (bld clobbered LI5; jec naming note) → `logic-engine.md` "Adding a New Game".
+- **Contextual tip IDs uniquely named** `btn-[abbr]-[phase]-tip` vs `btn-[abbr]-how-to` (ss/dsd/gth) → `logic-engine.md` "Adding a New Game".
+- **MDLM host readyCheck self-submission processed directly** (jec/ygi) → `logic-engine.md` MDLM Patterns + checklist.
+- **`new-game-brief-prompt.md` sync on every ship** → `logic-engine.md` closure + `new-game-process.md` Stage 3.
+
+#### Open Flags (Require Developer Decision)
+- **GM brand split** `[DOC]` — unify violet→purple (Node script) or document the violet-CTA/purple-chrome scheme deliberately in ui-style.md.
+- **Legacy top-level event listeners** `[DOC]` — 7 plugins (LI5/GM/SS/JEC/YGI/DSD/BLD) fail Protocol A §2's "no global-scope listeners" but are functionally safe (script-after-markup load order). Relax the rule wording or schedule a refactor.
+- **MDLM mid-game quit teardown** `[DOC]` — PASS dissolves the room correctly; GTH/DYB/BLD navigate to menu and leak it. Standardise on one contract in `logic-engine.md`.
+- **`multiplayerOnly` config field unread** `[DOC]` — remove it or document it as informational (enforcement is `supportedModes`).
+- **Missing snapshots** `[DOC]` — `phase27-snapshot.md` (LI5/GM/SS polish) and `phase32-snapshot.md` (PASS ship) do not exist; write retroactively or accept the gap.
+- **Google Fonts CDN** `[POLISH]` — Fredoka loaded from CDN contradicts the "fully offline" constraint; self-host or document the exception.
+
+**Audit complete.** All 7 phases closed. Output B (`docs/fable-fix-plan.md`) is the actionable work list — work CRITICAL → BUG → POLISH → DOC; bump SW version once after all precached-asset fixes land.
