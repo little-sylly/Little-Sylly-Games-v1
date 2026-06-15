@@ -100,9 +100,8 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   document.getElementById('btn-dyb-quit-confirm').addEventListener('click', () => {
     playExit();
-    document.getElementById('dyb-quit-overlay').style.display        = 'none';
-    document.getElementById('dyb-slick-picker-overlay').style.display = 'none';
-    showScreen('screen-dyb-menu');
+    document.getElementById('dyb-quit-overlay').style.display = 'none';
+    resetToLobby();
   });
   document.getElementById('btn-dyb-quit-cancel').addEventListener('click', () => {
     playDone();
@@ -834,7 +833,7 @@ function dybShowGameover(data) {
   const standingsEl = document.getElementById('dyb-gameover-standings');
   standingsEl.innerHTML = '';
 
-  const positions = [data.winnerIdx, ...order.reverse()];
+  const positions = [data.winnerIdx, ...order];
   positions.forEach((pIdx, rank) => {
     const name = data.playerNames[pIdx] || ('P' + (pIdx + 1));
     standingsEl.innerHTML += `
@@ -912,7 +911,7 @@ function dybGenerateRoll(count) {
     }
     return 'standard';
   });
-  dybSlickFaces = dybSpecialTypes.map(t => t === 'slick' ? -1 : -1);
+  dybSlickFaces = Array(count).fill(-1);
   return roll;
 }
 
@@ -988,8 +987,15 @@ function dybDieHTML(val, type, slickFace, visible, dieIdx = -1) {
       bg = 'bg-amber-100 text-amber-700 ring-2 ring-amber-400';
       break;
     case 'phantom':
-      display = '?';
-      bg = 'bg-stone-200 text-stone-400 italic';
+      if (dieIdx >= 0) {
+        // Owner's live interactive hand — face stays hidden from the owner
+        display = '?';
+        bg = 'bg-stone-200 text-stone-400 italic';
+      } else {
+        // Showdown / spirit reveal (dieIdx === -1) — show the real face so the count is auditable
+        display = faces[val - 1] || val;
+        bg = 'bg-stone-200 text-stone-700 italic';
+      }
       break;
     case 'slick':
       display = slickFace > 0 ? (faces[slickFace - 1] || slickFace) : '—';
@@ -1151,7 +1157,11 @@ function dybHandleEnvelope(env) {
         dybCurrentOpenerIdx = payload.nextOpenerIdx;
         dybActivePlayers    = payload.activePlayers;
         dybDiceInHand       = payload.diceInHand;
-        dybInitShake();
+        if (!dybActivePlayers.includes(mpMyPlayerIdx)) {
+          dybShowSpiritBoard(); // eliminated players stay on the Spirit Board, not the Shake screen
+        } else {
+          dybInitShake();
+        }
         break;
 
       case 'DYB_GAMEOVER':

@@ -26,6 +26,7 @@ let mpPlayersListener = null;  // onValue unsubscribe for /players changes (host
 let mpPlayerSlots     = [];    // [{uid, nickname}] — index 0 = Host
 window.mpClientPlayerRef = null; // Firebase ref to this client's own player slot
 let mpSyncLockTimer   = null;  // timeout handle for 8-second sync lock fallback
+let mpActionAuthorised = false; // true for exactly one ACTION after a fresh mpLockSync(); blocks double-tap resubmits
 let mpJoinListenFrom  = 0;     // timestamp cutoff — ignore events older than this
 let mpMyPlayerIdx     = -1;    // this device's slot index in mpPlayerSlots; 0 = Host
 
@@ -209,6 +210,7 @@ const MP_GAME_CONFIGS = {
     lobbyCtaLabel:   'Make the Plans 💬',
     rosterConfig: { type: 'none', showTeamNamesInPreLobby: false, defaultTeamNames: null, hasCaptain: false },
     getMaxPlayers: () => 10,
+    getMinPlayers: () => 5,
   },
   gth: {
     gameName:        'Group Therapy',
@@ -255,7 +257,10 @@ const MP_GAME_CONFIGS = {
     getMinPlayers:   () => 3,
   },
   pass: {
-    gameId:         'pass',
+    gameName:       'Pass',
+    emoji:          '\u{1F0CF}',
+    brandBtnClass:  'bg-zinc-900 hover:bg-zinc-800',
+    ptpLabel:       'Deal Me In',
     menuScreen:     'screen-pass-menu',
     onPassThePhone: () => {
       if (window.syllyMultiplayerMode === 'host') {
@@ -521,7 +526,11 @@ async function syllyTeardownRoom() {
 
 // ── Sync lock ─────────────────────────────────────────────────────────────────
 function mpLockSync() {
+  // Already locked = a prior ACTION is still in flight (double-tap). Don't re-authorise:
+  // mpSendEnvelope() will drop the duplicate ACTION. Keep the existing lock + timer running.
+  if (window.syllySyncLocked) return;
   window.syllySyncLocked = true;
+  mpActionAuthorised = true; // authorise the single ACTION that follows this lock
   document.body.classList.add('mp-sync-locked');
   mpSyncLockTimer = setTimeout(() => {
     mpUnlockSync();
@@ -531,6 +540,7 @@ function mpLockSync() {
 }
 function mpUnlockSync() {
   window.syllySyncLocked = false;
+  mpActionAuthorised     = false;
   document.body.classList.remove('mp-sync-locked');
   if (mpSyncLockTimer) { clearTimeout(mpSyncLockTimer); mpSyncLockTimer = null; }
 }
@@ -538,6 +548,16 @@ function mpUnlockSync() {
 // ── Envelope: send ────────────────────────────────────────────────────────────
 async function mpSendEnvelope(envelope) {
   if (!mpActiveRoomCode || !window.syllyFirebase) return;
+  // Double-submission backstop (universal — works without .btn-mp-action being present):
+  // while the sync lock is held, only the single ACTION authorised by the matching
+  // mpLockSync() may pass. A rapid second tap re-enters mpLockSync() (no-op while locked,
+  // no re-authorise) and is dropped here — preventing e.g. two SS_DECODE_SUBMITs running
+  // ssResolve() twice. Fire-and-forget ACTIONs that never lock (votes, disputes, messages)
+  // see syllySyncLocked === false and are unaffected.
+  if (envelope.type === 'ACTION' && window.syllySyncLocked) {
+    if (!mpActionAuthorised) return;
+    mpActionAuthorised = false;
+  }
   await window.syllyFirebase.push(
     window.syllyFirebase.ref(`rooms/${mpActiveRoomCode}/events`),
     { ...envelope, originId: window.syllyDeviceUid, timestamp: Date.now() }
@@ -604,6 +624,7 @@ function mpSerialiseSettings(abbr) {
     case 'ss': return {
       ssSettingInterceptsToWin, ssDifficultyLevel, ssRerollLimitSetting,
       ssTimerSetting, ssCustomiseVault, ssIntelSyllyMode,
+      ssSelectedCategories: [...ssSelectedCategories],
     };
     case 'lttp': return {
       lttpPlayerCount, lttpDifficulty, lttpJokerMode, lttpGroupVote, lttpSmallTalk,
@@ -695,6 +716,7 @@ function mpHandleEnvelope(env) {
           if (s.ssTimerSetting           !== undefined) ssTimerSetting           = s.ssTimerSetting;
           if (s.ssCustomiseVault         !== undefined) ssCustomiseVault         = s.ssCustomiseVault;
           if (s.ssIntelSyllyMode         !== undefined) ssIntelSyllyMode         = s.ssIntelSyllyMode;
+          if (Array.isArray(s.ssSelectedCategories))    ssSelectedCategories     = [...s.ssSelectedCategories];
           break;
         case 'dsd':
           if (s.dsdSeaState          !== undefined) dsdSeaState          = s.dsdSeaState;
@@ -865,9 +887,12 @@ function mpHandleEnvelope(env) {
       showScreen('screen-jec-tally');
     }
 
-    // JEC_NEXT_ROUND — Client starts next round (triggered by Host from tally screen)
+    // JEC_NEXT_ROUND — deprecated no-op. The Host's tally-next now drives clients
+    // purely via JEC_ORDER (broadcast from jecStartRound). Running jecStartRound()
+    // here popped the client's own word pool and flashed a wrong order word before
+    // JEC_ORDER landed. Kept as a no-op in case a stale packet is re-delivered. (J4)
     if (env.type === 'SYNC' && env.payload.action === 'JEC_NEXT_ROUND') {
-      jecStartRound();
+      /* intentionally empty — JEC_ORDER drives the client's next round */
     }
 
     // JEC_WASHUP — Client shows final washup
@@ -961,15 +986,15 @@ function mpHandleEnvelope(env) {
             if (roundPts[idx] === maxRoundPts && maxRoundPts > 0) ygiScores[entry.playerIdx] += 2;
           }
         });
-        const roundLogEntry = { round: ygiRound, prompt: ygiCurrentPrompt, entries: ygiInputs.map(e => ({ ...e })) };
-        ygiRoundLog.push(roundLogEntry);
+        // ygiShowResults() owns the round-log push (single source of truth) — call it
+        // first so the SYNC carries the freshly-pushed, well-formed entry (Y3).
+        ygiShowResults(roundPts, ghostIdx, ghostWins, maxRoundPts);
         mpSendEnvelope({ type: 'SYNC', payload: {
           action: 'YGI_VERDICT',
           roundPts, ghostIdx, ghostWins, maxRoundPts,
           scores: [...ygiScores], roundLog: ygiRoundLog,
         }});
         mpUnlockSync();
-        ygiShowResults(roundPts, ghostIdx, ghostWins, maxRoundPts);
       }
     }
 
@@ -977,11 +1002,37 @@ function mpHandleEnvelope(env) {
     if (env.type === 'SYNC' && env.payload.action === 'YGI_VERDICT') {
       const p       = env.payload;
       ygiScores     = [...p.scores];
-      ygiRoundLog   = p.roundLog;
       mpUnlockSync();
       // Re-enable vote submit for next round
       document.getElementById('btn-ygi-vote-submit').classList.remove('opacity-50', 'pointer-events-none');
+      // ygiShowResults() pushes a local entry; overwrite afterwards with the host's
+      // authoritative log so the client never double-counts (Y3).
       ygiShowResults(p.roundPts, p.ghostIdx, p.ghostWins, p.maxRoundPts);
+      ygiRoundLog   = p.roundLog;
+    }
+
+    // YGI_SUDDEN_DEATH — clients enter the host-driven sudden death (Solo Take tie-break)
+    if (env.type === 'SYNC' && env.payload.action === 'YGI_SUDDEN_DEATH') {
+      ygiSuddenDeathPlayers  = [...env.payload.tiedPlayers];
+      ygiSuddenDeathQ        = env.payload.question;
+      ygiSuddenDeathInputs   = [];
+      ygiSuddenDeathInputIdx = 0;
+      ygiRenderSDIntro();
+    }
+
+    // YGI_SD_SUBMIT — Host collects one finalist's answer; resolves when all are in
+    if (env.type === 'ACTION' && env.payload.action === 'YGI_SD_SUBMIT' &&
+        window.syllyMultiplayerMode === 'host') {
+      ygiMpCollectSD(env.payload.playerIdx, env.payload.number);
+    }
+
+    // YGI_GAMEOVER — clients show the final standings (host is authoritative on winners)
+    if (env.type === 'SYNC' && env.payload.action === 'YGI_GAMEOVER') {
+      ygiScores = [...env.payload.scores];
+      if (env.payload.afterSD && env.payload.sdInputs) {
+        ygiSuddenDeathInputs = env.payload.sdInputs.map(e => ({ ...e }));
+      }
+      ygiShowFinalStandings(env.payload.winners, !!env.payload.afterSD);
     }
   }
 
@@ -1069,10 +1120,78 @@ function mpHandleEnvelope(env) {
     if (env.type === 'SYNC' && env.payload.action === 'NAT_SELECTION') {
       natCluesByRound = env.payload.cluesByRound;
       natWordsByDay   = env.payload.wordsByDay;
+      natClueStatuses = (env.payload.clueStatuses || []).map(row => [...row]);
       natMoleIdx      = env.payload.moleIdx;
       natBiologistIdx = env.payload.biologistIdx;
       natMpVoteReadyCheck = Array(natPlayerCount).fill(false);
       natShowSelection();
+    }
+
+    // NAT_DISPUTE — peer-review dispute toggle (host-authoritative; broadcast to all)
+    if (env.type === 'ACTION' && env.payload.action === 'NAT_DISPUTE' &&
+        window.syllyMultiplayerMode === 'host') {
+      const { playerIdx, dayIdx } = env.payload;
+      if (natClueStatuses[playerIdx]) {
+        const cycle = { 'normal': 'discredited', 'discredited': 'normal' };
+        natClueStatuses[playerIdx][dayIdx] = cycle[natClueStatuses[playerIdx][dayIdx]] || 'normal';
+      }
+      mpSendEnvelope({ type: 'SYNC', payload: { action: 'NAT_DISPUTE', clueStatuses: natClueStatuses } });
+    }
+    if (env.type === 'SYNC' && env.payload.action === 'NAT_DISPUTE') {
+      natClueStatuses = env.payload.clueStatuses.map(row => [...row]);
+      natRenderSelectionScreen();
+    }
+
+    // NAT_VOTE_START — clients enter per-device Independent voting with host's adjusted scores
+    if (env.type === 'SYNC' && env.payload.action === 'NAT_VOTE_START') {
+      natScores           = [...env.payload.scores];
+      natSelectionPhase   = 'vote';
+      natCurrentVoteStep  = 0;
+      natMpVoteReadyCheck = Array(natPlayerCount).fill(false);
+      natRenderSelectionScreen();
+    }
+
+    // NAT_VOTE — Host receives one device's vote; resolves eviction when all are in
+    if (env.type === 'ACTION' && env.payload.action === 'NAT_VOTE' &&
+        window.syllyMultiplayerMode === 'host') {
+      const { voterIdx, targetIdx } = env.payload;
+      natVotes[voterIdx] = targetIdx;
+      natMpVoteReadyCheck[voterIdx] = true;
+      if (natMpVoteReadyCheck.every(Boolean)) {
+        natResolveEviction(); // sets natEvictedIdx, then natShowLastStand broadcasts NAT_LAST_STAND
+      }
+    }
+
+    // NAT_LAST_STAND — clients enter the Last Stand with the host's eviction result
+    if (env.type === 'SYNC' && env.payload.action === 'NAT_LAST_STAND') {
+      natEvictedIdx     = env.payload.evictedIdx;
+      natVotes          = [...env.payload.votes];
+      natScores         = [...env.payload.scores];
+      natLastStandPhase = 'mole-guess';
+      natRenderLastStand();
+      showScreen('screen-nat-last-stand');
+    }
+
+    // NAT_MOLE_GUESS — Host receives the Mole's final guess; advances all to the verdict phase
+    if (env.type === 'ACTION' && env.payload.action === 'NAT_MOLE_GUESS' &&
+        window.syllyMultiplayerMode === 'host') {
+      natMoleGuess      = env.payload.guess;
+      natLastStandPhase = 'biologist-verdict';
+      mpSendEnvelope({ type: 'SYNC', payload: { action: 'NAT_BIO_PHASE', moleGuess: natMoleGuess } });
+      natRenderLastStand();
+    }
+
+    // NAT_BIO_PHASE — clients move to the Biologist verdict sub-phase
+    if (env.type === 'SYNC' && env.payload.action === 'NAT_BIO_PHASE') {
+      natMoleGuess      = env.payload.moleGuess;
+      natLastStandPhase = 'biologist-verdict';
+      natRenderLastStand();
+    }
+
+    // NAT_BIO_VERDICT — Host receives the verdict; resolves the round + broadcasts NAT_TALLY
+    if (env.type === 'ACTION' && env.payload.action === 'NAT_BIO_VERDICT' &&
+        window.syllyMultiplayerMode === 'host') {
+      natHostResolveVerdict(env.payload.confirmed);
     }
 
     // NAT_TALLY — Client applies results and shows tally screen
@@ -1081,6 +1200,14 @@ function mpHandleEnvelope(env) {
       natScores   = [...env.payload.scores];
       natMoleIdx  = env.payload.moleIdx;
       natShowTally();
+    }
+
+    // NAT_GAMEOVER — Client shows the final report
+    if (env.type === 'SYNC' && env.payload.action === 'NAT_GAMEOVER') {
+      natScores   = [...env.payload.scores];
+      natRoundLog = env.payload.roundLog;
+      natMoleIdx  = env.payload.moleIdx;
+      natShowGameover();
     }
   }
 
@@ -1245,38 +1372,35 @@ function mpHandleEnvelope(env) {
 
   // ── Secret Signals ACTION/SYNC ─────────────────────────────────────────────
   if (mpActiveGame === 'ss') {
-    // SS_VAULT_DATA — Client receives Team B vault data; shows vault gate
+    // SS_VAULT_DATA — every device receives BOTH vaults; renders only its own team's gate
     if (env.type === 'SYNC' && env.payload.action === 'SS_VAULT_DATA') {
+      ssVaultA = env.payload.vaultA.map(w => ({ word: w.word, id: w.id, category: w.category }));
       ssVaultB = env.payload.vaultB.map(w => ({ word: w.word, id: w.id, category: w.category }));
-      ssShowVaultGate(1); // Client is Team B
+      ssShowVaultGate(ssMyTeam());
     }
 
-    // SS_VAULT_READY — Host receives Client vault confirmation; starts game if both ready
+    // SS_VAULT_READY — Host marks a device's vault confirmation; starts when ALL devices ready
     if (env.type === 'ACTION' && env.payload.action === 'SS_VAULT_READY' &&
         window.syllyMultiplayerMode === 'host') {
-      ssMpVaultReady[env.payload.teamIdx] = true;
-      if (ssMpVaultReady[0] && ssMpVaultReady[1]) {
+      ssMpVaultReady[env.payload.deviceIdx] = true;
+      if (ssMpVaultReady.every(Boolean)) {
         ssEncryptingTeam = 0;
-        mpSendEnvelope({ type: 'SYNC', payload: {
-          action: 'SS_ENCRYPT_TURN', encryptingTeam: 0, round: 0,
-          tokens: [...ssTokens], misfires: [...ssMisfires],
-        }});
-        ssStartHalf();
+        ssStartHalf(); // host generates the code, broadcasts SS_ENCRYPT_TURN, routes itself
       }
     }
 
-    // SS_ENCRYPT_TURN — Client receives encrypt turn assignment; correct device activates
+    // SS_ENCRYPT_TURN — every device receives the new half; routes to transmit/standby.
+    // The code travels to all devices but only the broadcaster's screen reveals it.
     if (env.type === 'SYNC' && env.payload.action === 'SS_ENCRYPT_TURN') {
-      ssEncryptingTeam = env.payload.encryptingTeam;
-      ssRound          = env.payload.round ?? ssRound;
-      ssTokens         = [...env.payload.tokens];
-      ssMisfires       = [...env.payload.misfires];
-      // TLM: only the encrypting team's device generates a code and shows the encrypt screen
-      if (window.mpLobbyStyle === 'team' && ssEncryptingTeam !== mpMyPlayerIdx) {
-        ssShowEncryptStandby();
-        return;
-      }
-      ssStartHalf();
+      ssEncryptingTeam   = env.payload.encryptingTeam;
+      ssRound            = env.payload.round ?? ssRound;
+      ssCurrentCode      = [...env.payload.code];
+      ssCurrentClues     = ['', '', ''];
+      ssInterceptGuess   = [0, 0, 0];
+      ssDecodeGuess      = [0, 0, 0];
+      ssTokens           = [...env.payload.tokens];
+      ssMisfires         = [...env.payload.misfires];
+      ssRouteEncryptPhase();
     }
 
     // SS_BROADCAST — Intercepting device receives clues and shows intercept screen
@@ -1284,84 +1408,51 @@ function mpHandleEnvelope(env) {
       ssCurrentClues   = [...env.payload.clues];
       ssEncryptingTeam = env.payload.encryptingTeam;
       ssRound          = env.payload.round;
+      ssRouteGuessPhase(); // each device → decode / intercept / standby
     }
 
-    // SS_START_INTERCEPT — Intercepting device shows intercept screen
-    if (env.type === 'SYNC' && env.payload.action === 'SS_START_INTERCEPT') {
-      ssCurrentClues   = [...env.payload.clues];
-      ssEncryptingTeam = env.payload.encryptingTeam;
-      ssRound          = env.payload.round;
-      ssShowIntercept();
-    }
-
-    // SS_ENCODE_TRANSMIT — Host receives Client (Team B) encode data; broadcasts to Team A (intercept)
+    // SS_ENCODE_TRANSMIT — Host receives the client broadcaster's clues; emits SS_BROADCAST to all
     if (env.type === 'ACTION' && env.payload.action === 'SS_ENCODE_TRANSMIT' &&
         window.syllyMultiplayerMode === 'host') {
-      ssCurrentCode    = [...env.payload.code];
       ssCurrentClues   = [...env.payload.clues];
       ssEncryptingTeam = env.payload.team;
       ssRound          = env.payload.round;
-      mpUnlockSync();
-      // Host (Team A interceptor) shows intercept screen
-      ssShowIntercept();
+      // (host already holds the authoritative code from ssStartHalf)
+      ssEmitBroadcast();
     }
 
-    // SS_INTERCEPT_SUBMIT — Host receives Client (Team B intercepting) guess; shows decode gate to encoding device
+    // SS_INTERCEPT_SUBMIT — Host records the intercepting guesser's code; resolves when both in
     if (env.type === 'ACTION' && env.payload.action === 'SS_INTERCEPT_SUBMIT' &&
         window.syllyMultiplayerMode === 'host') {
-      ssInterceptGuess = [...env.payload.guess];
-      mpUnlockSync();
-      // Send decode gate trigger to encoding device (Team A = Host itself, or Team B = Client)
-      const encoder = ssEncryptingTeam;
-      if (encoder === 1) {
-        // Team B encoded → Client is encoding team → send decode gate to Client
-        mpSendEnvelope({ type: 'SYNC', payload: { action: 'SS_DECODE_GATE', encryptingTeam: encoder } });
-        // Host shows resolution standby (waits for decode)
-      } else {
-        // Team A encoded → Host is encoding team → Host shows decode gate locally
-        ssShowDecodeGate();
-      }
+      ssInterceptGuess   = [...env.payload.guess];
+      ssMpInterceptReady = true;
+      ssHostMaybeResolve();
     }
 
-    // SS_DECODE_GATE — Client receives decode gate trigger
-    if (env.type === 'SYNC' && env.payload.action === 'SS_DECODE_GATE') {
-      ssEncryptingTeam = env.payload.encryptingTeam;
-      ssShowDecodeGate();
-    }
-
-    // SS_DECODE_SUBMIT — Host receives Client (Team B decoding) guess; resolves
+    // SS_DECODE_SUBMIT — Host records the decoding guesser's code; resolves when both in
     if (env.type === 'ACTION' && env.payload.action === 'SS_DECODE_SUBMIT' &&
         window.syllyMultiplayerMode === 'host') {
-      ssDecodeGuess = [...env.payload.guess];
-      mpUnlockSync();
-      ssResolve(); // Host has both guesses now; resolves
-      const result = ssRoundHistory[ssRoundHistory.length - 1];
-      mpSendEnvelope({ type: 'SYNC', payload: {
-        action:       'SS_RESOLUTION',
-        result,
-        tokens:       [...ssTokens],
-        misfires:     [...ssMisfires],
-        clueHistoryA: ssClueHistoryA.map(h => [...h]),
-        clueHistoryB: ssClueHistoryB.map(h => [...h]),
-        roundHistory: ssRoundHistory,
-      }});
+      ssDecodeGuess   = [...env.payload.guess];
+      ssMpDecodeReady = true;
+      ssHostMaybeResolve();
     }
 
-    // SS_RESOLUTION — Client applies resolution state and shows resolution screen
+    // SS_RESOLUTION — Client applies the authoritative payload and RENDERS only (no re-resolve).
+    // (Fixes S9: the old handler re-ran ssResolve(), double-pushing round history + re-scoring.)
     if (env.type === 'SYNC' && env.payload.action === 'SS_RESOLUTION') {
-      const p       = env.payload;
-      ssTokens      = [...p.tokens];
-      ssMisfires    = [...p.misfires];
+      const p        = env.payload;
+      ssTokens       = [...p.tokens];
+      ssMisfires     = [...p.misfires];
       ssClueHistoryA = p.clueHistoryA.map(h => [...h]);
       ssClueHistoryB = p.clueHistoryB.map(h => [...h]);
       ssRoundHistory = p.roundHistory;
-      // Re-run ssResolve locally using the decoded state from payload
       ssInterceptGuess = [...p.result.interceptGuess];
       ssDecodeGuess    = [...p.result.decodeGuess];
       ssCurrentCode    = [...p.result.code];
       ssCurrentClues   = [...p.result.clues];
+      ssEncryptingTeam = p.result.encryptingTeam;
       mpUnlockSync();
-      ssResolve();
+      ssRenderResolution();
     }
 
     // SS_ENDGAME — Client shows endgame splash
@@ -1369,6 +1460,20 @@ function mpHandleEnvelope(env) {
       ssTokens   = [...env.payload.tokens];
       ssMisfires = [...env.payload.misfires];
       ssShowEndgameSplash(env.payload.winner);
+    }
+
+    // SS_INTEL_SYNC — Sylly Mode Intel Phase: every device applies the host's
+    // authoritative intel snapshot and routes to the right screen (active guesser
+    // vs board). Phases: tiebreak / intro / keyword / summary / gameover.
+    if (env.type === 'SYNC' && env.payload.action === 'SS_INTEL_SYNC') {
+      ssApplyIntelSnapshot(env.payload);
+    }
+
+    // SS_INTEL_GUESS — Host applies the active guesser's committed keyword outcome,
+    // then advances + broadcasts the next intel phase.
+    if (env.type === 'ACTION' && env.payload.action === 'SS_INTEL_GUESS' &&
+        window.syllyMultiplayerMode === 'host') {
+      ssIntelHostResolve(env.payload.outcome);
     }
   }
 
@@ -1412,30 +1517,55 @@ function mpHandleEnvelope(env) {
       document.getElementById('mp-lttp-message-interrupt-overlay').style.display = 'flex';
     }
 
-    // LTTP_MESSAGE_SEND — Host receives Client's message send; broadcasts interrupt to all
+    // LTTP_MESSAGE_SEND — Host receives a Client's message; processes it authoritatively
+    // (pushes history, broadcasts the interrupt, then drives turn advance / plan update / guess phase)
     if (env.type === 'ACTION' && env.payload.action === 'LTTP_MESSAGE_SEND' &&
         window.syllyMultiplayerMode === 'host') {
       const p = env.payload;
-      lttpHistory.push(p.history);
-      lttpLapAnswered = new Set(p.lapAnswered);
       mpUnlockSync();
-      // Advance active idx to target before broadcasting
-      lttpActiveIdx = p.targetIdx;
-      // Broadcast interrupt to all devices
-      mpSendEnvelope({ type: 'SYNC', payload: {
-        action:      'LTTP_MESSAGE_INTERRUPT',
-        fromName:    p.fromName,
-        toName:      p.toName,
-        messageText: p.messageText,
-        targetIdx:   p.targetIdx,
-        askerIdx:    p.askerIdx,
-      }});
-      // Show interrupt on Host device too
-      document.getElementById('mp-lttp-interrupt-heading').textContent =
-        `${p.fromName} → ${p.toName}`;
-      document.getElementById('mp-lttp-interrupt-body').textContent =
-        p.messageText ? `"${p.messageText}"` : '';
-      document.getElementById('mp-lttp-message-interrupt-overlay').style.display = 'flex';
+      lttpHostProcessMessage(p.askerIdx, p.targetIdx, p.messageText);
+    }
+
+    // LTTP_PLAN_UPDATE — clients apply the host's narrowing + plan advance (no local narrowing)
+    if (env.type === 'SYNC' && env.payload.action === 'LTTP_PLAN_UPDATE') {
+      const p = env.payload;
+      lttpPlan        = p.plan;
+      lttpHighlights  = new Set(p.highlights);
+      lttpFadedCells  = new Set(p.fadedCells);
+      lttpDecoys      = [...p.decoys];
+      lttpActiveIdx   = p.activeIdx;
+      lttpLapAnswered = new Set(p.lapAnswered);
+      lttpHistory     = p.history || lttpHistory;
+      lttpPlanLog     = p.planLog || lttpPlanLog;
+      lttpShowPlanUpdate(p.activeIdx);
+    }
+
+    // LTTP_GUESS_PHASE — clients enter the Plan-4 guess phase (each device guesses for its own player)
+    if (env.type === 'SYNC' && env.payload.action === 'LTTP_GUESS_PHASE') {
+      lttpShowGuessForDevice();
+    }
+
+    // LTTP_PIN_SUBMIT — Host receives the Stray's pin
+    if (env.type === 'ACTION' && env.payload.action === 'LTTP_PIN_SUBMIT' &&
+        window.syllyMultiplayerMode === 'host') {
+      lttpHostCollectGuess(lttpStrayIdx, env.payload.pin, null);
+    }
+
+    // LTTP_VOTE_SUBMIT — Host receives a non-Stray player's suspect vote
+    if (env.type === 'ACTION' && env.payload.action === 'LTTP_VOTE_SUBMIT' &&
+        window.syllyMultiplayerMode === 'host') {
+      lttpHostCollectGuess(env.payload.voterIdx, null, env.payload.suspectIdx);
+    }
+
+    // LTTP_GAMEOVER — clients apply the host's result and show the final screen
+    if (env.type === 'SYNC' && env.payload.action === 'LTTP_GAMEOVER') {
+      const p = env.payload;
+      lttpStrayPin   = p.strayPin;
+      lttpVotes      = p.votes || {};
+      lttpHighlights = new Set(p.highlights || []);
+      lttpPlanLog.push({ plan: 4, highlights: [...lttpHighlights] });
+      lttpPlanLogIdx = 0;
+      lttpShowGameover(p.winner, p.winReason);
     }
   }
 }
@@ -2329,11 +2459,10 @@ document.addEventListener('DOMContentLoaded', () => {
     resetToLobby();
   });
   document.getElementById('btn-mp-lttp-interrupt-ok').addEventListener('click', () => {
+    // Close the modal only. Navigation is host-SYNC-driven now (LTTP_TURN_ADVANCE /
+    // LTTP_PLAN_UPDATE / LTTP_GUESS_PHASE already set the underlying screen) — forcing
+    // lttpShowChat here would clobber a plan-update or guess screen the host just navigated to.
     document.getElementById('mp-lttp-message-interrupt-overlay').style.display = 'none';
-    // After dismissing interrupt: return to local player's chat screen (passive if not active turn)
-    if (mpActiveGame === 'lttp' && window.syllyMultiplayerMode !== 'single') {
-      lttpShowChat(lttpActiveIdx);
-    }
   });
   document.getElementById('btn-mp-network-error-ok').addEventListener('click', () => {
     document.getElementById('mp-network-error-overlay').style.display = 'none';

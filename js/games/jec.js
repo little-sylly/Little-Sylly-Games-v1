@@ -428,7 +428,7 @@ function jecStartSifting() {
   if (jecKitchenNightmares) jecBuildPoisonSet();
   document.getElementById('jec-sifting-order').textContent       = jecCurrentWord.toUpperCase();
   document.getElementById('jec-sifting-round-label').textContent = `Round ${jecRound} of ${jecRounds}`;
-  document.getElementById('jec-oversight-hint').style.display    = jecSousChefOversight ? '' : 'none';
+  document.getElementById('jec-oversight-hint').style.display    = jecCanOversee() ? '' : 'none';
   document.getElementById('jec-sifting-recipe-label').textContent =
     `Today's Recipe: ${jecCurrentWord.charAt(0).toUpperCase() + jecCurrentWord.slice(1)}`;
   const poisonSection = document.getElementById('jec-sifting-poison-section');
@@ -440,10 +440,10 @@ function jecStartSifting() {
       const norm = normaliseWord(p);
       const chip = document.createElement('span');
       chip.className   = 'jec-poison-chip px-3 py-1 rounded-full text-xs font-bold bg-purple-100 text-purple-700'
-        + (jecSousChefOversight ? ' cursor-pointer active:scale-95 transition-transform duration-100' : '');
+        + (jecCanOversee() ? ' cursor-pointer active:scale-95 transition-transform duration-100' : '');
       chip.dataset.norm = norm;
       chip.textContent = p.charAt(0).toUpperCase() + p.slice(1);
-      if (jecSousChefOversight) chip.addEventListener('click', () => jecHandleOversightTap(norm));
+      if (jecCanOversee()) chip.addEventListener('click', () => jecHandleOversightTap(norm));
       poisonList.appendChild(chip);
     });
     poisonSection.style.display = '';
@@ -451,6 +451,7 @@ function jecStartSifting() {
     poisonSection.style.display = 'none';
   }
   jecRenderSifting();
+  jecSetAdvanceCta('btn-jec-sifting-proceed', 'The Taste Test! 🍽️');
   showScreen('screen-jec-sifting');
 }
 
@@ -480,7 +481,7 @@ function jecRenderSifting() {
       : status === 'Poisoned' ? 'Kitchen Nightmare! 🧪'
       : 'A Bit Pongy! 🤢';
     const card = document.createElement('div');
-    card.className    = `jec-sift-card bg-white rounded-2xl p-4 shadow-sm flex items-center justify-between${jecSousChefOversight ? ' cursor-pointer active:scale-95 transition-transform duration-100' : ''}`;
+    card.className    = `jec-sift-card bg-white rounded-2xl p-4 shadow-sm flex items-center justify-between${jecCanOversee() ? ' cursor-pointer active:scale-95 transition-transform duration-100' : ''}`;
     card.dataset.norm = norm;
     card.innerHTML    = `
       <div>
@@ -488,7 +489,7 @@ function jecRenderSifting() {
         <p class="text-xs text-stone-400 mt-0.5">${chefs}</p>
       </div>
       <span class="px-3 py-1 rounded-full text-xs font-bold ${badgeClass}">${badgeText}</span>`;
-    if (jecSousChefOversight) card.addEventListener('click', () => jecHandleOversightTap(norm));
+    if (jecCanOversee()) card.addEventListener('click', () => jecHandleOversightTap(norm));
     list.appendChild(card);
   });
 }
@@ -498,7 +499,32 @@ function jecClearOversightHighlights() {
   document.querySelectorAll('.jec-poison-chip').forEach(c => c.classList.remove('ring-2', 'ring-purple-500'));
 }
 
+// Sous Chef Oversight is interactive only on the host (and single-device). In Lobby
+// Mode clients render a read-only sifting board — merges arrive via the JEC_MERGE SYNC,
+// never initiated locally. A client merging would silently diverge its board from the
+// table without sending any ACTION. (J3)
+function jecCanOversee() {
+  return jecSousChefOversight && window.syllyMultiplayerMode !== 'client';
+}
+
+// Host-gates a round-advance CTA in Lobby Mode: clients render a disabled
+// "Waiting for the Head Chef…" label and cannot run scoring/round-advance
+// locally; the Host (and single-device) sees the live label. (J4)
+function jecSetAdvanceCta(btnId, liveLabel) {
+  const btn = document.getElementById(btnId);
+  if (window.syllyMultiplayerMode === 'client') {
+    btn.disabled      = true;
+    btn.textContent   = 'Waiting for the Head Chef…';
+    btn.style.opacity = '0.5';
+  } else {
+    btn.disabled      = false;
+    btn.textContent   = liveLabel;
+    btn.style.opacity = '';
+  }
+}
+
 function jecHandleOversightTap(norm) {
+  if (window.syllyMultiplayerMode === 'client') return; // J3: clients never merge
   if (jecOversightSelected === null) {
     jecOversightSelected = norm;
     document.querySelectorAll('.jec-sift-card').forEach(c => {
@@ -612,8 +638,8 @@ function jecRenderTally(roundScores) {
       <span class="text-xl font-bold ${rsColour}">${rsText} pts</span>`;
     list.appendChild(card);
   });
-  document.getElementById('btn-jec-tally-next').textContent =
-    jecRound < jecRounds ? 'Next Course 🍽️' : 'Final Wash-up 🏆';
+  jecSetAdvanceCta('btn-jec-tally-next',
+    jecRound < jecRounds ? 'Next Course 🍽️' : 'Final Wash-up 🏆');
 }
 
 function jecRenderCookBook() {
@@ -736,6 +762,10 @@ document.getElementById('btn-jec-sifting-exit').addEventListener('click', () => 
 });
 
 document.getElementById('btn-jec-sifting-proceed').addEventListener('click', () => {
+  // Host-gated in Lobby Mode — only the Head Chef runs scoring; clients wait for
+  // the Host's JEC_TALLY SYNC. A client running jecCalcRoundScores() locally would
+  // mutate jecScores, double-log the round, and self-navigate ahead of the table. (J4)
+  if (window.syllyMultiplayerMode === 'client') return;
   playSuccess();
   const roundScores = jecCalcRoundScores();
 
@@ -772,18 +802,19 @@ document.getElementById('btn-jec-tally-exit').addEventListener('click', () => {
 });
 
 document.getElementById('btn-jec-tally-next').addEventListener('click', () => {
+  // Host-gated in Lobby Mode — only the Head Chef advances; clients wait for the
+  // Host's JEC_ORDER (next round) / JEC_WASHUP (final) SYNC. A client running
+  // jecStartRound() locally pops its own word pool and flashes a wrong order. (J4)
+  if (window.syllyMultiplayerMode === 'client') return;
   playLaunch();
-  if (window.syllyMultiplayerMode === 'host') {
-    // Lobby Mode: Host triggers next phase for all devices
-    if (jecRound < jecRounds) {
-      mpSendEnvelope({ type: 'SYNC', payload: { action: 'JEC_NEXT_ROUND' } });
-    } else {
-      mpSendEnvelope({ type: 'SYNC', payload: { action: 'JEC_WASHUP', scores: [...jecScores], roundLog: jecRoundLog } });
-    }
-  }
   if (jecRound < jecRounds) {
+    // Host: jecStartRound() broadcasts JEC_ORDER, which fully drives all clients
+    // into the next round — no separate JEC_NEXT_ROUND packet needed. (J4)
     jecStartRound();
   } else {
+    if (window.syllyMultiplayerMode === 'host') {
+      mpSendEnvelope({ type: 'SYNC', payload: { action: 'JEC_WASHUP', scores: [...jecScores], roundLog: jecRoundLog } });
+    }
     jecShowWashup();
   }
 });

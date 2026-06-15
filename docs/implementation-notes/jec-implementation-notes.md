@@ -35,22 +35,24 @@ What happened: The "Winning and Scoring" card says "A Bit Pongy — (penalty on:
 Root cause: How-to copy written against the pre-Phase-29 penalty values and never re-synced after the scoring redesign.
 Lesson: A scoring redesign must sweep every place the numbers appear — code, settings copy, how-to copy, game-identities.
 
-**J3 — Client-side Sous Chef merges are unguarded in Lobby Mode (June 2026 audit, open)**
-What happened: The Multiplayer Lessons section below claims "Clients cannot initiate merges" — but nothing enforces it. `jecHandleOversightTap()` is wired on every device whenever `jecSousChefOversight` is on, and `jecApplyMerge()` only *broadcasts* when host — a client tapping two cards merges locally with no ACTION sent, silently diverging from the table until the next Host SYNC overwrites (or never).
+**J3 — Client-side Sous Chef merges are unguarded in Lobby Mode (June 2026 audit, RESOLVED)**
+What happened: The Multiplayer Lessons section below claims "Clients cannot initiate merges" — but nothing enforced it. `jecHandleOversightTap()` is wired on every device whenever `jecSousChefOversight` is on, and `jecApplyMerge()` only *broadcasts* when host — a client tapping two cards merges locally with no ACTION sent, silently diverging from the table until the next Host SYNC overwrites (or never).
 Root cause: The host-only contract existed in documentation, not in code.
-Lesson: Every "host-only" interaction needs a `syllyMultiplayerMode === 'client'` early-return, not just an absent broadcast branch.
+Resolution (June 2026): Added a `jecCanOversee()` helper (`jecSousChefOversight && window.syllyMultiplayerMode !== 'client'`) and routed every oversight affordance through it — the oversight hint, the sift-card + poison-chip cursor styling, and their click listeners. Clients now render a fully read-only sifting board; merges arrive only via the `JEC_MERGE` SYNC (which re-renders via the pure `jecRenderSifting`). Added a belt-and-braces `if (window.syllyMultiplayerMode === 'client') return;` at the top of `jecHandleOversightTap()`. Host + single-device behaviour unchanged.
+Lesson: Every "host-only" interaction needs a `syllyMultiplayerMode === 'client'` early-return, not just an absent broadcast branch — and the interactive *affordance* (cursor/listener/hint) should be suppressed too, so a client never sees a tappable-looking control that does nothing.
 
-**J4 — Sifting/tally CTAs not host-gated in Lobby Mode (June 2026 audit, open)**
+**J4 — Sifting/tally CTAs not host-gated in Lobby Mode (June 2026 audit, RESOLVED)**
 What happened: "The Taste Test!" and "Next Course" have no client guard. A client tapping Taste Test runs `jecCalcRoundScores()` locally (mutating `jecScores` + pushing a duplicate `jecRoundLog` entry) and self-navigates to tally; tapping Next Course runs `jecStartRound()` locally, popping the client's own divergent word pool and flashing a wrong order word until `JEC_ORDER` arrives. The `JEC_NEXT_ROUND` SYNC handler itself causes the same transient on well-behaved clients (it calls full `jecStartRound()` instead of waiting for `JEC_ORDER`).
 Root cause: Phase-22 JEC relied on players not tapping; no host-only CTA pattern existed yet (the GTH host-gate pattern came later, Phase 30).
-Lesson: Apply the host-gate screen pattern: clients see a "Waiting for the Head Chef…" disabled state on sifting/tally CTAs.
+Resolution (June 2026): Added `if (window.syllyMultiplayerMode === 'client') return;` to both the `btn-jec-sifting-proceed` and `btn-jec-tally-next` listeners (mirroring the J3 oversight guard). Added a `jecSetAdvanceCta(btnId, liveLabel)` helper that renders a disabled "Waiting for the Head Chef…" label on clients (`disabled = true`, `opacity = 0.5` — the GTH host-gate visual) and the live label on host/single-device; called from `jecStartSifting()` (proceed CTA) and `jecRenderTally()` (next CTA). Dropped the redundant `JEC_NEXT_ROUND` broadcast from the host tally-next path — the Host's `jecStartRound()` already broadcasts `JEC_ORDER`, which fully drives clients into the next round; the `JEC_NEXT_ROUND` SYNC handler is now a defensive no-op. Host + single-device behaviour unchanged.
+Lesson: A SYNC packet that fully drives a phase (JEC_ORDER resets word/round/inputs and shows the screen) makes any *second* packet for the same transition (JEC_NEXT_ROUND) not just redundant but harmful — it ran ahead with the client's own state. Prefer one authoritative packet per transition; gate every round-advance CTA host-only with a visible waiting state.
 
 ---
 
 ## Multiplayer Lessons
 
 **Sous Chef Oversight in MDLM**
-Host runs all sifting + Sous Chef oversight. All merges are broadcast via `JEC_MERGE` so all devices stay in sync. Clients are *intended* not to initiate merges — but note this is not enforced in code (see Bug J3, June 2026 audit).
+Host runs all sifting + Sous Chef oversight. All merges are broadcast via `JEC_MERGE` so all devices stay in sync. Clients cannot initiate merges — enforced in code via `jecCanOversee()` (oversight affordances are host/single-device only) plus a client early-return in `jecHandleOversightTap()` (see Bug J3, RESOLVED June 2026).
 
 **Polish (June 2026 audit): `jec-new-shift-overlay` is z-[80]** — play-again confirmation modals are z-[90] per `logic-engine.md` § Play-Again Confirmation.
 

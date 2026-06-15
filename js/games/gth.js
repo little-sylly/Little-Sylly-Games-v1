@@ -438,6 +438,18 @@ function gthSubmitDiagnosis(selectedDisorderId) {
   gthShowCase(); // next case (handles queue-exhausted check internally)
 }
 
+function gthUpdateCaseReportProgress() {
+  const container = document.getElementById('gth-case-report-progress');
+  if (!container) return;
+  container.innerHTML = gthPlayerNames.map((name, i) => {
+    const done = gthDiagnosesReady[i];
+    return `<div class="flex items-center justify-between py-1">
+      <p class="text-stone-700 font-medium">${name || 'Player ' + (i + 1)}</p>
+      <p class="text-sm ${done ? 'text-green-600 font-semibold' : 'text-stone-400'}">${done ? '✓ Done' : 'Diagnosing…'}</p>
+    </div>`;
+  }).join('');
+}
+
 function gthShowCaseReport() {
   const total = gthQueue.length;
   const done  = gthLocalDiagnoses.length;
@@ -448,6 +460,7 @@ function gthShowCaseReport() {
       <span class="font-semibold text-stone-700">${total}</span> case${total !== 1 ? 's' : ''}.
     </p>
   `;
+  gthUpdateCaseReportProgress();
   // Seed the time-remaining label for the first render (timer interval keeps it updated)
   const remaining = gthPhase2EndTimestamp
     ? Math.max(0, Math.ceil((gthPhase2EndTimestamp - Date.now()) / 1000))
@@ -758,6 +771,7 @@ function gthHandleEnvelope(envelope) {
     if (syllyMultiplayerMode !== 'host') return;
     gthAllDiagnoses[payload.playerIdx] = payload.diagnoses;
     gthDiagnosesReady[payload.playerIdx] = true;
+    gthUpdateCaseReportProgress();
     mpUnlockSync();
     if (gthDiagnosesReady.every(Boolean)) gthResolveScores();
     return;
@@ -1013,6 +1027,15 @@ document.addEventListener('DOMContentLoaded', () => {
     el.style.display = 'flex';
   });
 
+  // Case screen [?] — the only help button reachable in MDLM play (disorder-reveal,
+  // which carries the other [?], is skipped in MDLM). Mirrors btn-gth-how-to.
+  document.getElementById('btn-gth-how-to-case').addEventListener('click', () => {
+    playDone();
+    const el = document.getElementById('gth-how-to-overlay');
+    el.querySelector('.overlay-data-inner').scrollTop = 0;
+    el.style.display = 'flex';
+  });
+
   // ── Quit overlay ────────────────────────────────────────────────
   document.querySelectorAll('.btn-gth-quit-open').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -1027,8 +1050,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-gth-quit-confirm').addEventListener('click', () => {
     playExit();
     document.getElementById('gth-quit-overlay').style.display = 'none';
-    gthResetState();
-    gthShowMenu();
+    resetToLobby();
   });
 
   // ── New Session overlay ─────────────────────────────────────────

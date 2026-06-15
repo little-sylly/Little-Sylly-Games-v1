@@ -41,7 +41,7 @@
       <button id="btn-dstw" class="min-h-14 w-full rounded-2xl bg-pink-500 hover:bg-pink-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
         Like I'm Five
       </button>
-      <button id="btn-great-minds" class="min-h-14 w-full rounded-2xl bg-violet-500 hover:bg-violet-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      <button id="btn-great-minds" class="min-h-14 w-full rounded-2xl bg-purple-500 hover:bg-purple-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
         Great Minds
       </button>
       <button id="btn-sylly-signals" class="min-h-14 w-full rounded-2xl bg-teal-500 hover:bg-teal-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
@@ -120,7 +120,8 @@
                  #screen-active-play, #screen-gameover
        Overlays: #settings-overlay, #li5-how-to-overlay, #quit-overlay,
                  #li5-play-again-overlay, #skip-turn-overlay, #review-overlay,
-                 #history-overlay, #pause-overlay (inline), #deck-panel
+                 #history-overlay, #pause-overlay (inline), #deck-panel,
+                 #li5-help-tip-overlay
        Ref     : js/games/li5.js  (was dstw.js)
   ════════════════════════════════════════════════════════════════ -->
   <!-- ② MENU screen — Don't Say Those Words -->
@@ -270,14 +271,15 @@
 
   <!-- ⑦ SETTINGS MODAL — slide-up overlay -->
   <div id="settings-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[80] flex items-end justify-center">
-    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl px-6 pt-5 pb-5 flex flex-col">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
 
-      <!-- Fixed header — never scrolls -->
-      <h3 class="text-xl font-bold text-stone-800 text-center">Learning Plan 📝</h3>
-      <p class="text-stone-400 text-xs text-center mt-1 mb-3">Adults make the rules! ✋</p>
+      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
+        <h2 class="text-xl font-bold text-stone-800">Learning Plan 📝</h2>
+        <p class="text-xs text-stone-400 mt-1">Adults make the rules! ✋</p>
+      </div>
 
       <!-- Scrollable settings body -->
-      <div class="flex-1 overflow-y-auto flex flex-col gap-5 pb-1">
+      <div class="flex-1 overflow-y-auto flex flex-col gap-5 px-6 pt-5 pb-3">
 
         <!-- Decks -->
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
@@ -393,8 +395,7 @@
 
       </div><!-- end scrollable body -->
 
-      <!-- Sticky Done — always visible -->
-      <div class="pt-4">
+      <div class="px-6 pb-8 pt-3 border-t border-stone-200">
         <button id="btn-settings-done" class="min-h-14 w-full rounded-2xl bg-pink-500 hover:bg-pink-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
           Done
         </button>
@@ -438,7 +439,7 @@
 
   <!-- Custom Deck sub-panel -->
   <div id="deck-panel" style="display:none"
-    class="fixed inset-0 bg-black/40 z-[60] flex items-end justify-center">
+    class="fixed inset-0 bg-black/40 z-[100] flex items-end justify-center">
     <div class="overlay-data-inner deck-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl px-6 pt-5 pb-10 flex flex-col gap-4">
 
       <!-- Header -->
@@ -504,7 +505,7 @@
 
   <!-- Play-again confirmation overlay -->
   <div id="li5-play-again-overlay" style="display:none" class="fixed inset-0 bg-black/60 z-[90] flex items-center justify-center px-6">
-    <div class="overlay-modal-inner bg-white rounded-3xl p-6 flex flex-col gap-4 w-full max-w-sm text-center border border-pink-300">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-pink-300">
       <div class="text-4xl">📚</div>
       <h3 class="text-xl font-bold text-stone-800">New Playgroup?</h3>
       <p class="text-stone-400 text-sm">Your stars and word pile will be packed away.</p>
@@ -636,7 +637,8 @@
        Overlays: #gm-settings-overlay, #gm-near-sync-overlay,
                  #gm-boost-overlay, #gm-neural-library-overlay,
                  #gm-new-frequency-overlay, #gm-vocab-overlay,
-                 #gm-concede-overlay, #gm-override-overlay, #gm-deck-panel
+                 #gm-concede-overlay, #gm-override-overlay, #gm-deck-panel,
+                 #gm-help-tip-overlay
        Note    : #gm-quit-overlay and #gm-how-to-overlay placed near
                  line ~1794 (after SS, before Secret Mode)
        Ref     : js/games/great-minds.js
@@ -647,11 +649,11 @@
     <div class="text-6xl" role="img" aria-label="Brain">🧠</div>
     <div>
       <h1 class="text-5xl font-bold leading-tight text-stone-800">Great</h1>
-      <h1 class="text-5xl font-bold leading-tight text-violet-500">Minds</h1>
+      <h1 class="text-5xl font-bold leading-tight text-purple-500">Minds</h1>
     </div>
     <p class="text-stone-500 text-lg">Think alike. And say the same.</p>
     <div class="flex flex-col gap-4 w-full mt-2">
-      <button id="btn-gm-menu-play" class="min-h-14 w-full rounded-2xl bg-violet-500 hover:bg-violet-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      <button id="btn-gm-menu-play" class="min-h-14 w-full rounded-2xl bg-purple-500 hover:bg-purple-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
         Begin Link
       </button>
       <button id="btn-gm-menu-how-to" class="min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
@@ -685,11 +687,11 @@
       </div>
       <div class="flex flex-col gap-3 w-full">
         <input id="gm-input-player1" type="text" maxlength="20" placeholder="Mind 1" autocomplete="off"
-          class="w-full rounded-2xl border-2 border-stone-200 px-4 py-3 text-lg text-center text-stone-800 focus:outline-none focus:border-violet-400" />
+          class="w-full rounded-2xl border-2 border-stone-200 px-4 py-3 text-lg text-center text-stone-800 focus:outline-none focus:border-purple-400" />
         <input id="gm-input-player2" type="text" maxlength="20" placeholder="Mind 2" autocomplete="off"
-          class="w-full rounded-2xl border-2 border-stone-200 px-4 py-3 text-lg text-center text-stone-800 focus:outline-none focus:border-violet-400" />
+          class="w-full rounded-2xl border-2 border-stone-200 px-4 py-3 text-lg text-center text-stone-800 focus:outline-none focus:border-purple-400" />
       </div>
-      <button id="btn-gm-names-done" class="min-h-14 w-full rounded-2xl bg-violet-500 hover:bg-violet-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      <button id="btn-gm-names-done" class="min-h-14 w-full rounded-2xl bg-purple-500 hover:bg-purple-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
         Begin Link 🧠
       </button>
     </div>
@@ -715,7 +717,7 @@
         class="min-h-11 w-full rounded-2xl bg-stone-100 hover:bg-stone-200 active:scale-95 text-stone-500 text-base font-medium transition-all duration-150">
         New Frequency 🔄
       </button>
-      <button id="btn-gm-start-round" class="min-h-14 w-full rounded-2xl bg-violet-500 hover:bg-violet-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      <button id="btn-gm-start-round" class="min-h-14 w-full rounded-2xl bg-purple-500 hover:bg-purple-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
         Start! 🚀
       </button>
     </div>
@@ -726,7 +728,7 @@
   <section id="screen-gm-input" style="display:none" class="flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-5">
     <div class="flex justify-end gap-2 w-full">
       <button class="btn-open-sound w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-lg">🔊</button>
-      <button id="btn-gm-how-to" id="btn-gm-how-to" class="btn-gm-help-open w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-stone-300 font-mono font-bold">?</button>
+      <button id="btn-gm-how-to" class="btn-gm-help-open w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-stone-300 font-mono font-bold">?</button>
       <button id="btn-gm-input-exit" class="w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-stone-500 font-bold">✕</button>
     </div>
     <p class="text-stone-300 text-xs font-semibold uppercase tracking-widest">Round <span id="gm-round-num-input"></span></p>
@@ -748,8 +750,8 @@
     </div>
     <!-- Boost context banner — shown to receiver when transmitter sent a boost -->
     <div id="gm-boost-context-banner" style="display:none"
-         class="w-full rounded-2xl bg-violet-50 border border-violet-200 px-4 py-3 text-center">
-      <p class="text-xs text-violet-400 uppercase tracking-widest font-semibold mb-1">Boost Signal ⚡</p>
+         class="w-full rounded-2xl bg-purple-50 border border-purple-200 px-4 py-3 text-center">
+      <p class="text-xs text-purple-400 uppercase tracking-widest font-semibold mb-1">Boost Signal ⚡</p>
       <p id="gm-boost-context-text" class="text-stone-700 font-semibold text-base"></p>
     </div>
     <div class="flex items-center gap-2 w-full">
@@ -757,14 +759,14 @@
       <button id="btn-gm-input-tip" class="text-stone-300 font-mono font-bold text-xl active:scale-90 transition-transform duration-100 flex-shrink-0">?</button>
     </div>
     <input id="gm-word-input" type="text" maxlength="30" placeholder="Your clue…" autocomplete="off"
-      class="w-full rounded-2xl border-2 border-stone-200 px-4 py-4 text-xl text-center text-stone-800 focus:outline-none focus:border-violet-400" />
+      class="w-full rounded-2xl border-2 border-stone-200 px-4 py-4 text-xl text-center text-stone-800 focus:outline-none focus:border-purple-400" />
     <p id="gm-input-error" style="display:none" class="text-pink-500 text-sm font-semibold text-center"></p>
     <!-- Secret Mode vocab list trigger — hidden until first vocab guard failure -->
     <button id="gm-vocab-list-btn" style="display:none"
       class="text-xs font-mono text-green-400 border border-green-800 bg-black rounded-xl px-4 py-2 min-h-11 w-full active:scale-95 transition-transform duration-75">
       📋 VIEW WORD LIST
     </button>
-    <button id="btn-gm-lock-in" class="min-h-14 w-full rounded-2xl bg-violet-500 hover:bg-violet-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+    <button id="btn-gm-lock-in" class="btn-mp-action min-h-14 w-full rounded-2xl bg-purple-500 hover:bg-purple-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
       Lock it in 🔒
     </button>
     <!-- Psychic Echoes — round history visible while typing -->
@@ -789,9 +791,9 @@
     <div class="text-6xl">🙈</div>
     <div>
       <h2 class="text-2xl font-bold text-stone-800">Finding Wavelength 📡</h2>
-      <p id="gm-pass-prompt" class="text-stone-500 text-lg mt-2">Pass the phone to <span id="gm-pass-name" class="font-semibold text-violet-500"></span></p>
+      <p id="gm-pass-prompt" class="text-stone-500 text-lg mt-2">Pass the phone to <span id="gm-pass-name" class="font-semibold text-purple-500"></span></p>
     </div>
-    <button id="btn-gm-ready" class="min-h-14 w-full rounded-2xl bg-violet-500 hover:bg-violet-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+    <button id="btn-gm-ready" class="min-h-14 w-full rounded-2xl bg-purple-500 hover:bg-purple-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
       I've got it 👋
     </button>
   </section>
@@ -806,9 +808,9 @@
     <div class="text-6xl">🤝</div>
     <div>
       <h2 class="text-2xl font-bold text-stone-800">Frequencies Locked... 📡</h2>
-      <p class="text-stone-500 text-lg mt-2">Pass to <span id="gm-ready-pass-name" class="font-semibold text-violet-500"></span> — both watch together!</p>
+      <p class="text-stone-500 text-lg mt-2">Pass to <span id="gm-ready-pass-name" class="font-semibold text-purple-500"></span> — both watch together!</p>
     </div>
-    <button id="btn-gm-countdown-ready" class="min-h-14 w-full rounded-2xl bg-violet-500 hover:bg-violet-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+    <button id="btn-gm-countdown-ready" class="min-h-14 w-full rounded-2xl bg-purple-500 hover:bg-purple-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
       Matching Wavelength 🚀
     </button>
   </section>
@@ -821,7 +823,7 @@
     </div>
     <p class="text-stone-300 text-xs font-semibold uppercase tracking-widest">Round <span id="gm-round-num-countdown"></span></p>
     <p class="text-stone-400 text-sm font-semibold uppercase tracking-widest">Revealing in…</p>
-    <p id="gm-countdown-number" class="text-9xl font-bold text-violet-500 leading-none">3</p>
+    <p id="gm-countdown-number" class="text-9xl font-bold text-purple-500 leading-none">3</p>
   </section>
 
   <!-- GM⑤ RESULT — match or no match -->
@@ -851,7 +853,7 @@
       </div>
       <p id="gm-result-pair-hint" class="text-stone-400 text-sm">New signal acquired ↑</p>
       <div id="gm-result-echoes" class="w-full max-h-32 overflow-y-auto text-left"></div>
-      <button id="btn-gm-next-round" class="min-h-14 w-full rounded-2xl bg-violet-500 hover:bg-violet-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      <button id="btn-gm-next-round" class="min-h-14 w-full rounded-2xl bg-purple-500 hover:bg-purple-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
         Recalibrate 🔄
       </button>
       <button id="btn-gm-reroll-result" style="display:none"
@@ -874,7 +876,7 @@
       </div>
       <div class="text-6xl">🎉</div>
       <div>
-        <h2 class="text-3xl font-bold text-violet-500">NEURAL LINK!</h2>
+        <h2 class="text-3xl font-bold text-purple-500">NEURAL LINK!</h2>
         <p id="gm-match-subtext" class="text-stone-500 text-sm mt-1"></p>
       </div>
       <div class="bg-white rounded-2xl py-6 px-8 shadow-sm w-full">
@@ -892,7 +894,7 @@
         <div class="pointer-events-none absolute inset-x-0 bottom-0 h-6 bg-gradient-to-t from-stone-50 to-transparent"></div>
         </div>
       </div>
-      <button id="btn-gm-new-frequency" class="min-h-14 w-full rounded-2xl bg-violet-500 hover:bg-violet-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      <button id="btn-gm-new-frequency" class="min-h-14 w-full rounded-2xl bg-purple-500 hover:bg-purple-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
         New Frequency ⚛️
       </button>
     </div>
@@ -926,7 +928,7 @@
       <div id="gm-concede-log" class="w-full max-h-48 overflow-y-auto text-left"></div>
     </div>
     <button id="btn-gm-concede-new-frequency"
-      class="min-h-14 w-full rounded-2xl bg-violet-500 hover:bg-violet-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      class="min-h-14 w-full rounded-2xl bg-purple-500 hover:bg-purple-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
       New Frequency ⚛️
     </button>
     <button id="btn-gm-concede-back"
@@ -951,7 +953,7 @@
             <p class="text-stone-800 font-semibold">Frequency Tuner</p>
             <p class="text-stone-400 text-sm">Tune which category each word is drawn from.</p>
           </div>
-          <button id="btn-gm-custom-toggle" class="sylly-toggle-off">OFF</button>
+          <button id="btn-gm-custom-toggle" class="sylly-toggle-off shrink-0">OFF</button>
         </div>
 
         <div id="gm-custom-pickers" style="display:none" class="flex flex-col gap-2">
@@ -1035,7 +1037,7 @@
         </div>
       </div>
 
-      <button id="btn-gm-settings-done" class="min-h-14 w-full rounded-2xl bg-violet-500 hover:bg-violet-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      <button id="btn-gm-settings-done" class="min-h-14 w-full rounded-2xl bg-purple-500 hover:bg-purple-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
         Done 
       </button>
 
@@ -1053,7 +1055,7 @@
         <span class="text-stone-300 text-xl">≈</span>
         <span id="gm-near-sync-word-b" class="text-lg font-bold text-stone-800"></span>
       </div>
-      <button id="btn-gm-near-sync-accept" class="min-h-14 w-full rounded-2xl bg-violet-500 hover:bg-violet-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      <button id="btn-gm-near-sync-accept" class="min-h-14 w-full rounded-2xl bg-purple-500 hover:bg-purple-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
         Accept Sync ⚛️
       </button>
       <button id="btn-gm-near-sync-reject" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-base font-medium transition-all duration-150">
@@ -1071,13 +1073,13 @@
       </div>
       <div class="flex gap-2 items-center">
         <input id="gm-boost-input" type="text" maxlength="15" placeholder='"noun", "shape", "feeling"…' autocomplete="off"
-          class="flex-1 rounded-2xl border-2 border-stone-200 px-4 py-3 text-base text-center text-stone-800 focus:outline-none focus:border-violet-400" />
+          class="flex-1 rounded-2xl border-2 border-stone-200 px-4 py-3 text-base text-center text-stone-800 focus:outline-none focus:border-purple-400" />
         <button id="btn-gm-boost-help" class="min-h-11 min-w-11 rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 text-stone-500 font-bold text-base flex items-center justify-center transition-all duration-150">?</button>
       </div>
       <p id="gm-boost-error" style="display:none" class="text-pink-500 text-sm font-semibold text-center">
         Static Interference! Context cannot match your clue.
       </p>
-      <button id="btn-gm-boost-confirm" class="min-h-14 w-full rounded-2xl bg-violet-500 hover:bg-violet-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      <button id="btn-gm-boost-confirm" class="min-h-14 w-full rounded-2xl bg-purple-500 hover:bg-purple-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
         Boost Signal ⚡
       </button>
       <button id="btn-gm-raw-signal" class="min-h-11 w-full rounded-2xl bg-stone-100 hover:bg-stone-200 active:scale-95 text-stone-500 text-base font-medium transition-all duration-150">
@@ -1099,8 +1101,8 @@
         <div class="rounded-xl bg-stone-100 px-4 py-2"><span class="font-semibold text-stone-700">Physical</span> — Scale · Colour · Shape · Texture</div>
         <div class="rounded-xl bg-stone-100 px-4 py-2"><span class="font-semibold text-stone-700">Conceptual</span> — Feeling · Location · Time Period · Relationship</div>
       </div>
-      <div class="rounded-xl bg-violet-50 border border-violet-200 px-4 py-3 text-sm">
-        <p class="text-xs text-violet-400 uppercase tracking-widest font-semibold mb-1">Example</p>
+      <div class="rounded-xl bg-purple-50 border border-purple-200 px-4 py-3 text-sm">
+        <p class="text-xs text-purple-400 uppercase tracking-widest font-semibold mb-1">Example</p>
         <p class="text-stone-500 mb-1">Pair: <span class="font-semibold text-stone-700">Elephant · Whale</span> — Clue: "Big"</p>
         <p class="text-green-600 font-semibold">✅ "Scale" or "Size" — metadata</p>
         <p class="text-pink-500 font-semibold">❌ "Huge" or "Enormous" — exploit</p>
@@ -1115,7 +1117,7 @@
   <div id="gm-new-frequency-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[95] flex overlay-modal-backdrop">
     <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 border border-purple-300">
       <p class="text-lg font-bold text-stone-800 text-center">Session Terminal</p>
-      <button id="btn-gm-new-game-confirm" class="min-h-14 w-full rounded-2xl bg-violet-500 hover:bg-violet-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      <button id="btn-gm-new-game-confirm" class="min-h-14 w-full rounded-2xl bg-purple-500 hover:bg-purple-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
         Memory Purge ⚛️
       </button>
       <button id="btn-gm-new-game-cancel" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-base font-medium transition-all duration-150">
@@ -1173,7 +1175,7 @@
       <p class="text-4xl">⚛️</p>
       <p class="text-xl font-bold text-stone-800">Quantum Entanglement?</p>
       <p class="text-stone-500 text-sm">Unorthodox frequency… but does it sync?</p>
-      <button id="btn-gm-override-confirm" class="min-h-14 w-full rounded-2xl bg-violet-500 hover:bg-violet-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      <button id="btn-gm-override-confirm" class="min-h-14 w-full rounded-2xl bg-purple-500 hover:bg-purple-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
         Confirm sync ⚛️
       </button>
       <button id="btn-gm-override-cancel" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-base font-medium transition-all duration-150">
@@ -1211,7 +1213,8 @@
                  #screen-ss-standby
        Overlays: #ss-settings-overlay, #ss-how-to-overlay,
                  #ss-quit-overlay, #ss-play-again-overlay,
-                 #ss-override-overlay, #ss-help-tip-overlay
+                 #ss-override-overlay, #ss-help-tip-overlay,
+                 #ss-dossier-overlay, #ss-inning-transition, #ss-endgame-splash
        Ref     : js/games/secret-signals.js  (was sylly-signals.js)
   ════════════════════════════════════════════════════════════════ -->
   <!-- SS-① MENU -->
@@ -1352,7 +1355,7 @@
     </div>
     <p id="ss-vault-reroll-note" class="text-stone-400 text-xs text-center" style="display:none"></p>
     <p id="ss-vault-instruction" class="text-stone-500 text-sm text-center" style="display:none"></p>
-    <button id="btn-ss-vault-done" class="min-h-14 w-full rounded-2xl bg-teal-500 hover:bg-teal-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+    <button id="btn-ss-vault-done" class="btn-mp-action min-h-14 w-full rounded-2xl bg-teal-500 hover:bg-teal-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
       Got it! I've memorised my vault 👁️
     </button>
   </section>
@@ -1363,6 +1366,7 @@
       <button id="btn-ss-dossier" class="w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-lg">📖</button>
       <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest">Encrypt</p>
       <div class="flex items-center gap-2">
+        <button id="btn-ss-how-to-game" class="text-stone-400 font-bold text-sm active:scale-90 transition-transform duration-100">[?]</button>
         <button class="btn-open-sound w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-lg">🔊</button>
         <button id="btn-ss-encrypt-tip" class="w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-stone-300 font-mono font-bold">?</button>
         <button id="btn-ss-encrypt-exit" class="w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-stone-500 font-bold">✕</button>
@@ -1391,7 +1395,7 @@
     </div>
     <div id="ss-clue-inputs" class="w-full flex flex-col gap-3"></div>
     <p id="ss-clue-error" style="display:none" class="text-red-500 text-xs font-semibold -mt-2"></p>
-    <button id="btn-ss-transmit" class="min-h-14 w-full rounded-2xl bg-teal-500 hover:bg-teal-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed" disabled>
+    <button id="btn-ss-transmit" class="btn-mp-action min-h-14 w-full rounded-2xl bg-teal-500 hover:bg-teal-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed" disabled>
       Transmit 📡
     </button>
   </section>
@@ -1407,10 +1411,14 @@
       <div class="flex flex-col items-center gap-4">
         <p class="text-5xl">📡</p>
         <div>
-          <p class="text-2xl font-bold text-stone-800">Interceptors Ready</p>
-          <p class="text-stone-400 text-sm mt-2">Waiting for <span id="ss-standby-team" class="font-semibold text-stone-600"></span> to transmit…</p>
+          <p id="ss-standby-heading" class="text-2xl font-bold text-stone-800">Interceptors Ready</p>
+          <p id="ss-standby-subtext" class="text-stone-400 text-sm mt-2">Waiting for <span id="ss-standby-team" class="font-semibold text-stone-600"></span> to transmit…</p>
         </div>
         <p class="text-stone-300 text-xs mt-2">Listen carefully — the broadcast is coming.</p>
+      </div>
+      <div id="ss-standby-board" style="display:none" class="w-full flex flex-col gap-2 text-left">
+        <p class="text-xs font-semibold uppercase tracking-widest text-stone-400">Your Board 🗒️</p>
+        <div id="ss-standby-archive" class="w-full bg-white rounded-2xl p-3 shadow-sm overflow-x-auto"></div>
       </div>
     </div>
   </section>
@@ -1462,7 +1470,7 @@
       </div>
       <div id="ss-intercept-guess-ui" class="flex flex-col gap-3"></div>
     </div>
-    <button id="btn-ss-submit-intercept" class="min-h-14 w-full rounded-2xl bg-teal-500 hover:bg-teal-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed" disabled>
+    <button id="btn-ss-submit-intercept" class="btn-mp-action min-h-14 w-full rounded-2xl bg-teal-500 hover:bg-teal-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed" disabled>
       Submit Intercept
     </button>
   </section>
@@ -1508,7 +1516,7 @@
       <p class="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-3">Your code</p>
       <div id="ss-decode-guess-ui" class="flex flex-col gap-3"></div>
     </div>
-    <button id="btn-ss-submit-decode" class="min-h-14 w-full rounded-2xl bg-teal-500 hover:bg-teal-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed" disabled>
+    <button id="btn-ss-submit-decode" class="btn-mp-action min-h-14 w-full rounded-2xl bg-teal-500 hover:bg-teal-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed" disabled>
       Confirm Code
     </button>
   </section>
@@ -1538,7 +1546,7 @@
   <section id="screen-ss-gameover" style="display:none" class="flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
     <div id="ss-gameover-emoji" class="text-6xl">🏆</div>
     <div>
-      <p class="text-stone-400 text-sm font-semibold uppercase tracking-widest">Game Over</p>
+      <p class="text-stone-400 text-sm font-semibold uppercase tracking-widest">Mission Debrief</p>
       <h2 id="ss-gameover-title" class="text-3xl font-bold text-stone-800 mt-1">Team A wins!</h2>
       <p id="ss-gameover-reason" class="text-stone-500 text-base mt-2"></p>
     </div>
@@ -1694,20 +1702,19 @@
   <!-- SS Settings overlay -->
   <div id="ss-settings-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[80] flex items-end justify-center">
     <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
-      <!-- Fixed header -->
-      <div class="flex-shrink-0 px-6 pt-6 pb-3 text-center border-b border-stone-100">
-        <h3 class="text-xl font-bold text-stone-800">Operations Briefing 🔐</h3>
-        <p class="text-stone-400 text-sm mt-0.5">Configure before your first broadcast.</p>
+      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
+        <h2 class="text-xl font-bold text-stone-800">Operations Briefing 🔐</h2>
+        <p class="text-xs text-stone-400 mt-1">Configure before your first broadcast.</p>
       </div>
       <!-- Scrollable body -->
       <div class="flex-1 overflow-y-auto px-6 py-5 flex flex-col gap-5">
         <!-- 1. Customise Vault -->
-        <div>
-          <div class="flex items-center justify-between mb-2">
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <div class="flex items-center justify-between">
             <p class="text-stone-800 font-semibold">Designate Vault Contents</p>
-            <button id="btn-ss-customise-toggle" class="sylly-toggle-off">OFF</button>
+            <button id="btn-ss-customise-toggle" class="sylly-toggle-off shrink-0">OFF</button>
           </div>
-          <p class="text-stone-400 text-sm mb-1">OFF uses the standard curated word pool. Turn on to pick specific categories.</p>
+          <p class="text-stone-400 text-sm">OFF uses the standard curated word pool. Turn on to pick specific categories.</p>
           <div id="ss-customise-body" style="display:none" class="flex flex-col gap-2 mt-3">
             <div class="flex items-center justify-between">
               <p class="text-stone-500 text-xs font-semibold">Categories</p>
@@ -1722,56 +1729,51 @@
             <p id="ss-cat-warn" style="display:none" class="text-amber-500 text-xs mt-1">⚠️ Fewer than 4 categories may cause repeated keywords.</p>
           </div>
         </div>
-        <hr class="border-stone-200" />
         <!-- 2. Difficulty -->
-        <div>
-          <p class="text-stone-800 font-semibold mb-2">Encryption Protocol</p>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-stone-800 font-semibold">Encryption Protocol</p>
           <div class="flex gap-2">
             <button class="pill pill-active-teal" data-ss-setting="difficulty" data-value="1">Clear</button>
             <button class="pill" data-ss-setting="difficulty" data-value="2">Scrambled</button>
             <button class="pill" data-ss-setting="difficulty" data-value="3">Deep Space</button>
           </div>
-          <p class="text-stone-400 text-sm mt-1.5">Controls how abstract the vault keywords are.</p>
+          <p class="text-stone-400 text-sm">Controls how abstract the vault keywords are.</p>
         </div>
-        <hr class="border-stone-200" />
         <!-- 3. Intercepts to Win -->
-        <div>
-          <p class="text-stone-800 font-semibold mb-2">Interceptions Required</p>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-stone-800 font-semibold">Interceptions Required</p>
           <div class="flex gap-2">
             <button class="pill pill-active-teal" data-ss-setting="interceptsToWin" data-value="2">2</button>
             <button class="pill" data-ss-setting="interceptsToWin" data-value="3">3</button>
           </div>
-          <p class="text-stone-400 text-sm mt-1.5">First team to intercept this many codes wins.</p>
+          <p class="text-stone-400 text-sm">First team to intercept this many codes wins.</p>
         </div>
-        <hr class="border-stone-200" />
         <!-- 4. Vault Word Rerolls -->
-        <div>
-          <p class="text-stone-800 font-semibold mb-2">Vault Rotations</p>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-stone-800 font-semibold">Vault Rotations</p>
           <div class="flex gap-2">
             <button class="pill pill-active-teal" data-ss-setting="rerollLimit" data-value="1">Once</button>
             <button class="pill" data-ss-setting="rerollLimit" data-value="2">Twice</button>
             <button class="pill" data-ss-setting="rerollLimit" data-value="Infinity">Unlimited</button>
           </div>
-          <p class="text-stone-400 text-sm mt-1.5">How many times each vault keyword can be rerolled.</p>
+          <p class="text-stone-400 text-sm">How many times each vault keyword can be rerolled.</p>
         </div>
-        <hr class="border-stone-200" />
         <!-- 5. Broadcaster Timer -->
-        <div>
-          <p class="text-stone-800 font-semibold mb-2">⏱ Broadcaster Timer</p>
-          <div class="flex items-center gap-3 mb-2">
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-stone-800 font-semibold">⏱ Broadcaster Timer</p>
+          <div class="flex items-center gap-3">
             <button id="btn-ss-timer-toggle" class="sylly-toggle-off flex-shrink-0">OFF</button>
             <p class="text-stone-400 text-sm">Countdown during clue-giving</p>
           </div>
-          <div id="ss-timer-duration-row" style="display:none" class="flex gap-2 mt-1">
+          <div id="ss-timer-duration-row" style="display:none" class="flex gap-2">
             <button class="pill" data-ss-setting="timer" data-value="60">1 min</button>
             <button class="pill" data-ss-setting="timer" data-value="120">2 min</button>
             <button class="pill" data-ss-setting="timer" data-value="180">3 min</button>
           </div>
-          <p class="text-stone-400 text-sm mt-1.5">Alarm sounds at 0 — stops on Transmit.</p>
+          <p class="text-stone-400 text-sm">Alarm sounds at 0 — stops on Transmit.</p>
         </div>
-        <hr class="border-stone-200" />
         <!-- 6. Sylly Mode (always last) -->
-        <div class="flex flex-col gap-2">
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
           <div class="flex items-center justify-between">
             <p class="text-stone-800 font-semibold">✨ Sylly Mode</p>
             <button id="ss-sylly-toggle" class="sylly-toggle-off flex-shrink-0">OFF</button>
@@ -1964,7 +1966,7 @@
       <p class="text-stone-400 text-xs text-center -mt-2">Tap to include or exclude a category</p>
 
       <div class="flex justify-end -mt-1">
-        <button id="btn-gm-deck-toggle-all" class="text-xs font-semibold text-violet-500 active:opacity-60 transition-opacity">Deselect All</button>
+        <button id="btn-gm-deck-toggle-all" class="text-xs font-semibold text-purple-500 active:opacity-60 transition-opacity">Deselect All</button>
       </div>
 
       <div id="gm-deck-grid" class="grid grid-cols-2 gap-3">
@@ -1980,7 +1982,7 @@
         <button class="deck-card" data-gm-deck="actions">⚡ Actions</button>
       </div>
 
-      <button id="btn-gm-deck-done" class="min-h-14 w-full rounded-2xl bg-violet-500 hover:bg-violet-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      <button id="btn-gm-deck-done" class="min-h-14 w-full rounded-2xl bg-purple-500 hover:bg-purple-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
         Done
       </button>
     </div>
@@ -1988,7 +1990,7 @@
 
   <!-- Great Minds quit confirmation overlay -->
   <div id="gm-quit-overlay" style="display:none" class="fixed inset-0 bg-black/50 z-[80] flex items-center justify-center px-6">
-    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-teal-300">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-purple-300">
       <p class="text-4xl">📡</p>
       <h3 class="text-xl font-bold text-stone-800">Cut the signal?</h3>
       <p class="text-stone-400 text-sm">The link will be severed. All progress lost.</p>
@@ -2179,7 +2181,7 @@
                  #screen-jec-washup
        Overlays: #jec-settings-overlay, #jec-how-to-overlay,
                  #jec-quit-overlay, #jec-oversight-overlay,
-                 #jec-new-shift-overlay
+                 #jec-new-shift-overlay, #jec-help-tip-overlay
        Ref     : js/games/jec.js
   ════════════════════════════════════════════════════════════════ -->
   <!-- JEC MENU screen -->
@@ -2311,7 +2313,7 @@
         <p class="text-purple-400 text-xs">This word will Spoil any matching ingredient in the pot.</p>
       </div>
       <p id="jec-prep-error" class="text-pink-500 text-sm font-semibold text-center w-full min-h-5"></p>
-      <button id="btn-jec-serve" class="min-h-14 w-full rounded-2xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      <button id="btn-jec-serve" class="btn-mp-action min-h-14 w-full rounded-2xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
         Serve it Up! 🍽️
       </button>
     </div>
@@ -2541,8 +2543,8 @@
           <p class="font-bold text-stone-800">Most Golden ingredients wins.</p>
           <ul class="list-disc pl-5 flex flex-col gap-1 text-stone-500 text-sm">
             <li>✨ <span class="font-semibold text-stone-700">Chef's Kiss</span> — hit the Sweet Spot. Full points!</li>
-            <li>🤢 <span class="font-semibold text-stone-700">Too Many Cooks</span> — too common. Points drop (penalty on: −2 per extra Chef).</li>
-            <li>🍂 <span class="font-semibold text-stone-700">A Bit Pongy</span> — nobody else picked it (penalty on: −10 pts).</li>
+            <li>🤢 <span class="font-semibold text-stone-700">Too Many Cooks</span> — too common. Points drop (penalty on: −2 per Chef who picked it).</li>
+            <li>🍂 <span class="font-semibold text-stone-700">A Bit Pongy</span> — nobody else picked it (penalty on: −5 pts).</li>
           </ul>
         </div>
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
@@ -2585,7 +2587,7 @@
   </section>
 
   <!-- JEC New Shift modal (Pattern 2) -->
-  <div id="jec-new-shift-overlay" style="display:none" class="fixed inset-0 bg-black/50 z-[80] flex items-center justify-center px-6">
+  <div id="jec-new-shift-overlay" style="display:none" class="fixed inset-0 bg-black/50 z-[90] flex items-center justify-center px-6">
     <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-amber-300">
       <p class="text-4xl">👨‍🍳</p>
       <h3 class="text-xl font-bold text-stone-800">New Shift?</h3>
@@ -2632,7 +2634,8 @@
                  #screen-ygi-pass, #screen-ygi-prompt, #screen-ygi-input,
                  #screen-ygi-reveal, #screen-ygi-vote, #screen-ygi-results,
                  #screen-ygi-gameover, #screen-ygi-sd-intro, #screen-ygi-sd-input
-       Overlays: #ygi-settings-overlay, #ygi-how-to-overlay, #ygi-quit-overlay, #ygi-run-it-back-overlay
+       Overlays: #ygi-settings-overlay, #ygi-how-to-overlay, #ygi-quit-overlay, #ygi-run-it-back-overlay,
+                 #ygi-help-tip-overlay
   ════════════════════════════════════════════════════════════════════ -->
 
   <!-- ygi-① MENU -->
@@ -2774,7 +2777,7 @@
 
     <p id="ygi-input-error" class="text-red-500 text-sm text-center min-h-5"></p>
 
-    <button id="btn-ygi-input-confirm" class="min-h-14 w-full rounded-2xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+    <button id="btn-ygi-input-confirm" class="btn-mp-action min-h-14 w-full rounded-2xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
       That's My Take
     </button>
   </section>
@@ -2836,7 +2839,7 @@
 
     <div class="px-6 pb-8 pt-2 flex-shrink-0">
       <p id="ygi-vote-error" class="text-red-500 text-sm text-center mb-2 min-h-5"></p>
-      <button id="btn-ygi-vote-submit" class="min-h-14 w-full rounded-2xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      <button id="btn-ygi-vote-submit" class="btn-mp-action min-h-14 w-full rounded-2xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
         Lock In My Verdict
       </button>
     </div>
@@ -2987,7 +2990,7 @@
 
     <p id="ygi-sd-input-error" class="text-red-500 text-sm text-center min-h-5"></p>
 
-    <button id="btn-ygi-sd-input-confirm" class="min-h-14 w-full rounded-2xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+    <button id="btn-ygi-sd-input-confirm" class="btn-mp-action min-h-14 w-full rounded-2xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
       Lock In My Answer ⚡
     </button>
   </section>
@@ -3156,8 +3159,9 @@
                  screen-lttp-guess, screen-lttp-group-guess, screen-lttp-gameover
        Overlays: lttp-suspicion-overlay (folder), lttp-history-overlay, lttp-guess-map-overlay,
                  lttp-confirm-overlay (free-text message), lttp-settings-overlay,
-                 lttp-how-to-overlay, lttp-quit-overlay, lttp-new-plans-overlay
-       Note    : screen-lttp-smalltalk removed Phase 21a (SmallTalk setting replaced by free-text)
+                 lttp-how-to-overlay, lttp-quit-overlay, lttp-new-plans-overlay,
+                 lttp-help-tip-overlay, lttp-tip-overlay, lttp-smalltalk-overlay
+       Note    : screen-lttp-smalltalk (screen) removed Phase 21a; lttp-smalltalk-overlay data overlay retained
        Ref     : js/games/lttp.js
   ════════════════════════════════════════════════════════════════ -->
 
@@ -3267,25 +3271,6 @@
     </div>
   </section>
 
-  <!-- lttp-⑤ SMALL TALK — Pro mode only (Guided uses lttp-smalltalk-overlay) -->
-  <section id="screen-lttp-smalltalk" style="display:none"
-    class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6 min-h-screen">
-    <div class="absolute top-4 right-4 flex items-center gap-2">
-      <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
-      <button class="btn-lttp-quit-open w-10 h-10 flex items-center justify-center text-stone-500 font-bold text-xl active:scale-90 transition-transform duration-100">✕</button>
-    </div>
-
-    <!-- Ask phase (Pro mode) -->
-    <div id="lttp-st-ask-phase" style="display:none" class="flex flex-col items-center gap-3">
-      <p class="text-5xl" id="lttp-st-ask-emoji"></p>
-      <p class="text-2xl font-bold text-stone-800" id="lttp-st-ask-label">Ask your question!</p>
-      <p class="text-stone-400 text-sm" id="lttp-st-ask-sub"></p>
-    </div>
-
-    <!-- Pro: Root stamp row -->
-    <div id="lttp-st-stamp-row" style="display:none" class="flex gap-2 w-full"></div>
-  </section>
-
   <!-- lttp-⑥ HANDOVER (pass gate between turns + plan transitions) -->
   <section id="screen-lttp-handover" style="display:none" class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6 min-h-screen">
     <div class="absolute top-4 right-4 flex items-center gap-2">
@@ -3320,7 +3305,7 @@
       </div>
       <div class="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-3">
         <button class="btn-open-sound text-white text-xl active:scale-90 transition-transform duration-100">🔊</button>
-        <button id="btn-lttp-how-to" id="btn-lttp-how-to" class="btn-lttp-help-open text-white/50 font-mono font-bold text-xl active:scale-90 transition-transform duration-100">?</button>
+        <button id="btn-lttp-how-to" class="btn-lttp-help-open text-white/50 font-mono font-bold text-xl active:scale-90 transition-transform duration-100">?</button>
         <button class="btn-lttp-quit-open text-white text-2xl active:scale-90 transition-transform duration-100">✕</button>
       </div>
     </div>
@@ -3700,7 +3685,7 @@
         class="w-full rounded-xl border-2 border-stone-200 bg-white px-3 py-2.5 text-stone-800 text-sm resize-none focus:border-red-400 focus:outline-none transition-colors"></textarea>
       <p id="lttp-char-counter" class="text-stone-400 text-xs text-right">0 / 80</p>
       <button id="btn-lttp-message-send" disabled
-        class="min-h-12 w-full rounded-xl bg-red-500 hover:bg-red-600 active:scale-95 text-white text-lg font-semibold transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed">
+        class="btn-mp-action min-h-12 w-full rounded-xl bg-red-500 hover:bg-red-600 active:scale-95 text-white text-lg font-semibold transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed">
         Send 📨
       </button>
       <button id="btn-lttp-message-cancel"
@@ -3818,7 +3803,8 @@
        Screens : screen-nat-menu, screen-nat-setup, screen-nat-handover,
                  screen-nat-observation, screen-nat-daily-review, screen-nat-selection,
                  screen-nat-last-stand, screen-nat-tally, screen-nat-gameover
-       Overlays: nat-settings-overlay, nat-how-to-overlay, nat-quit-overlay
+       Overlays: nat-settings-overlay, nat-how-to-overlay, nat-quit-overlay,
+                 nat-new-expedition-overlay, nat-help-tip-overlay
        Ref     : js/games/nat.js
   ════════════════════════════════════════════════════════════════ -->
 
@@ -3886,7 +3872,7 @@
     class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6 min-h-screen">
     <div class="absolute top-4 right-4 flex items-center gap-2">
       <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
-      <button id="btn-nat-how-to" id="btn-nat-how-to" class="btn-nat-help-open text-stone-300 font-mono font-bold text-xl active:scale-90 transition-transform duration-100">?</button>
+      <button id="btn-nat-how-to" class="btn-nat-help-open text-stone-300 font-mono font-bold text-xl active:scale-90 transition-transform duration-100">?</button>
       <button id="btn-nat-handover-quit" class="text-stone-400 text-2xl active:scale-90 transition-transform duration-100">✕</button>
     </div>
     <div class="text-6xl">📱</div>
@@ -3949,7 +3935,7 @@
       <p class="text-stone-400 text-xs text-center -mt-2">Say your clue aloud, then submit.</p>
 
       <button id="btn-nat-obs-submit" disabled
-        class="min-h-14 w-full rounded-2xl bg-lime-600 hover:bg-lime-700 active:scale-95 text-white text-xl font-semibold transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed">
+        class="btn-mp-action min-h-14 w-full rounded-2xl bg-lime-600 hover:bg-lime-700 active:scale-95 text-white text-xl font-semibold transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed">
         Add to Journal
       </button>
 
@@ -4028,7 +4014,7 @@
       <div id="nat-sel-consensus-footer" style="display:none" class="flex flex-col gap-2">
         <p id="nat-sel-consensus-total" class="text-stone-400 text-xs text-center">0 of N votes assigned</p>
         <button id="btn-nat-sel-consensus-submit" disabled
-          class="min-h-14 w-full rounded-2xl bg-lime-600 hover:bg-lime-700 active:scale-95 text-white text-xl font-semibold transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed">
+          class="btn-mp-action min-h-14 w-full rounded-2xl bg-lime-600 hover:bg-lime-700 active:scale-95 text-white text-xl font-semibold transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed">
           Identify the Mole 🔬
         </button>
       </div>
@@ -4081,9 +4067,12 @@
         <p class="text-stone-400 text-sm">Is this close enough?</p>
       </div>
 
+      <!-- MDLM standby (non-active devices during Mole guess / Biologist verdict) -->
+      <p id="nat-ls-standby" style="display:none" class="text-stone-400 text-sm text-center"></p>
+
       <div class="flex flex-col gap-3">
         <button id="btn-nat-ls-submit" disabled
-          class="min-h-14 w-full rounded-2xl bg-lime-600 hover:bg-lime-700 active:scale-95 text-white text-xl font-semibold transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed">
+          class="btn-mp-action min-h-14 w-full rounded-2xl bg-lime-600 hover:bg-lime-700 active:scale-95 text-white text-xl font-semibold transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed">
           Submit Identification
         </button>
         <button id="btn-nat-ls-confirmed" class="hidden min-h-14 w-full rounded-2xl bg-lime-600 hover:bg-lime-700 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
@@ -4379,7 +4368,7 @@
                  screen-dsd-execution, screen-dsd-sabotage, screen-dsd-spectator,
                  screen-dsd-gameover
        Overlays: dsd-settings-overlay, dsd-how-to-overlay, dsd-quit-overlay,
-                 dsd-confirm-disarm, dsd-new-op-overlay
+                 dsd-confirm-disarm, dsd-new-op-overlay, dsd-help-tip-overlay
        Ref     : js/games/dsd.js
     ════════════════════════════════════════════════════════════════ -->
 
@@ -4577,7 +4566,7 @@
         <button id="btn-dsd-captain-tip" class="text-stone-300 font-mono font-bold text-xl active:scale-90 transition-transform duration-100 flex-shrink-0">?</button>
       </div>
       <p id="dsd-ping-error" class="text-red-500 text-xs text-center mb-2 hidden"></p>
-      <button id="btn-dsd-transmit" class="min-h-14 w-full rounded-2xl bg-cyan-700 hover:bg-cyan-800 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      <button id="btn-dsd-transmit" class="btn-mp-action min-h-14 w-full rounded-2xl bg-cyan-700 hover:bg-cyan-800 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
         Transmit Ping ⚓
       </button>
     </div>
@@ -4912,7 +4901,7 @@
       <h2 class="text-xl font-bold text-stone-800">Confirm Sequence?</h2>
       <ol id="dsd-disarm-list" class="flex flex-col gap-1 text-stone-700 text-sm list-decimal list-inside"></ol>
       <div class="flex flex-col gap-3 mt-1">
-        <button id="btn-dsd-disarm-confirm" class="min-h-14 w-full rounded-2xl bg-cyan-700 hover:bg-cyan-800 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        <button id="btn-dsd-disarm-confirm" class="btn-mp-action min-h-14 w-full rounded-2xl bg-cyan-700 hover:bg-cyan-800 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
           Launch Sequence ⚓
         </button>
         <button id="btn-dsd-disarm-cancel" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-base font-medium transition-all duration-150">
@@ -4926,9 +4915,11 @@
        Screens : screen-mp-mode (shared, parameterised by mpShowModeScreen)
                  screen-mp-lobby-host (shared, parameterised by mpShowLobbyHost)
                  screen-mp-lobby-join (shared, parameterised by mpShowLobbyJoin)
-                 screen-li5-monitor (LI5-specific opposing team view)
+                 screen-li5-monitor (LI5-specific opposing team view),
+                 screen-mp-roster (host lobby roster assignment — conditional)
        Overlays: mp-version-mismatch-overlay, mp-host-disconnected-overlay,
-                 mp-lttp-message-interrupt-overlay, mp-network-error-overlay
+                 mp-lttp-message-interrupt-overlay, mp-network-error-overlay,
+                 mp-host-prelobby-overlay
        Ref     : js/engine-multiplayer.js
     ════════════════════════════════════════════════════════════════ -->
 
@@ -5136,7 +5127,7 @@
       <!-- CATCH! button -->
       <div id="li5-monitor-catch-section">
       <button id="btn-li5-catch"
-        class="min-h-16 w-full rounded-2xl bg-pink-500 hover:bg-pink-600 active:scale-95 text-white text-2xl font-bold transition-all duration-150">
+        class="btn-mp-action min-h-16 w-full rounded-2xl bg-pink-500 hover:bg-pink-600 active:scale-95 text-white text-2xl font-bold transition-all duration-150">
         CATCH! 🚨
       </button>
       </div>
@@ -5274,7 +5265,7 @@
                  screen-bld-role-reveal, screen-bld-main, screen-bld-aftermath
        Overlays: bld-settings-overlay, bld-how-to-overlay, bld-quit-overlay,
                  bld-second-chances-overlay, bld-plan-detail-overlay, bld-pass-reveal-overlay,
-                 bld-role-help-overlay
+                 bld-role-help-overlay, bld-tip-overlay
     ════════════════════════════════════════════════════════════════════════════════════ -->
 
   <!-- BLD MENU -->
@@ -5672,7 +5663,7 @@
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
           <p class="text-xs font-semibold uppercase tracking-widest text-yellow-500">Step 2</p>
           <p class="font-bold text-stone-800">Picking the group</p>
-          <p class="text-stone-500 text-sm">The <span class="font-semibold text-stone-700">Planner</span> nominates a group to carry out the plan. Everyone votes: <span class="font-semibold text-stone-700">I'm In</span> or <span class="font-semibold text-stone-700">Not Them</span>. Majority rules. If a group is rejected <span class="font-semibold text-stone-700">5 times in a row</span>, the Flakes win immediately.</p>
+          <p class="text-stone-500 text-sm">The <span class="font-semibold text-stone-700">Planner</span> nominates a group to carry out the plan. Everyone votes: <span class="font-semibold text-stone-700">Sounds Good</span> or <span class="font-semibold text-stone-700">No Way</span>. Majority rules. If a group is rejected <span class="font-semibold text-stone-700">5 times in a row</span>, the Flakes win immediately.</p>
         </div>
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
           <p class="text-xs font-semibold uppercase tracking-widest text-yellow-500">Step 3</p>
@@ -5839,7 +5830,7 @@
       <p class="text-stone-400 text-base mt-1">We've all got issues. Now draw them.</p>
     </div>
     <div class="flex flex-col gap-4 w-full mt-2">
-      <button id="btn-gth-menu-play" class="min-h-14 w-full rounded-2xl active:scale-95 text-white text-xl font-semibold transition-all duration-150" style="background-color:#B1BCA0">Start the Session 🛋️</button>
+      <button id="btn-gth-menu-play" class="min-h-14 w-full rounded-2xl active:scale-95 text-white text-xl font-semibold transition-all duration-150" style="background-color:#B1BCA0">Start the Session</button>
       <button id="btn-gth-menu-how-to" class="min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-xl font-semibold transition-all duration-150">How to Play</button>
       <button id="btn-gth-menu-settings" class="min-h-14 w-full rounded-2xl active:scale-95 text-xl font-semibold transition-all duration-150" style="background-color:#e8ede3;color:#6b7a5f">Settings</button>
       <button id="btn-gth-menu-back" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-base font-medium transition-all duration-150">← Back to the Box</button>
@@ -6309,7 +6300,7 @@
                  screen-dyb-table, screen-dyb-showdown, screen-dyb-gameover,
                  screen-dyb-spirit-board
        Overlays: dyb-settings-overlay, dyb-how-to-overlay, dyb-quit-overlay,
-                 dyb-new-game-overlay
+                 dyb-new-game-overlay, dyb-slick-picker-overlay
     ════════════════════════════════════════════════════════════════ -->
 
   <!-- DYB MENU -->
@@ -6474,8 +6465,7 @@
     class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
     <div class="flex flex-col w-full max-w-sm gap-4">
       <div class="text-center">
-        <p class="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-1">The Clean Out</p>
-        <h2 class="text-2xl font-bold text-stone-800">GAME OVER</h2>
+        <h2 class="text-2xl font-bold text-stone-800">The Clean Out 🎲</h2>
         <p id="dyb-gameover-winner" class="text-xl font-bold text-stone-600 mt-2"></p>
       </div>
       <div id="dyb-gameover-standings" class="flex flex-col gap-2"></div>
@@ -6702,7 +6692,10 @@
     <div class="flex flex-col w-full max-w-sm gap-4">
       <div class="flex items-center justify-between">
         <h2 class="text-2xl font-bold text-stone-800">The Table 🃏</h2>
-        <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+        <div class="flex items-center gap-2">
+          <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+          <button class="btn-pass-quit-open text-stone-400 font-bold text-xl active:scale-90 transition-transform duration-100">✕</button>
+        </div>
       </div>
       <p class="text-stone-400 text-sm">Seat order follows join order. Host deals first.</p>
       <div id="pass-seating-list" class="flex flex-col gap-2"></div>
@@ -6772,8 +6765,9 @@
   <section id="screen-pass-round-wrap" style="display:none"
     class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
     <div class="flex flex-col w-full max-w-sm gap-4">
-      <div class="flex items-center justify-between">
+      <div class="flex items-center justify-end gap-2">
         <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+        <button class="btn-pass-quit-open text-stone-400 font-bold text-xl active:scale-90 transition-transform duration-100">✕</button>
       </div>
       <p id="pass-round-wrap-winner" class="text-center text-2xl font-bold text-zinc-900"></p>
       <div id="pass-round-wrap-scores" class="flex flex-col gap-2"></div>
@@ -6913,7 +6907,7 @@
             <button id="btn-pass-sylly-toggle" class="game-toggle-off shrink-0">OFF</button>
           </div>
           <p class="text-stone-600 text-sm font-semibold">The Abyss</p>
-          <p class="text-stone-400 text-sm">Every pass feeds a face-up central pool — The Abyss. Play a Bomb or Sequence and the Abyss detonates: cards deal clockwise to your opponents. Hit 13 cards and it fractures — everyone draws.</p>
+          <p class="text-stone-400 text-sm">Every pass feeds a face-up central pool — The Abyss. Win a trick with a Detonation Combo (Triplet, Quad, Double Joker, Sequence or Double Sequence) and the Abyss detonates: its cards deal clockwise to everyone but the winner. Singles and Pairs stay quiet. Hit 13 cards and it fractures — everyone draws.</p>
         </div>
 
         <button id="btn-pass-settings-close" class="min-h-14 w-full rounded-2xl bg-zinc-900 hover:bg-zinc-800 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
@@ -6972,7 +6966,7 @@
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
           <p class="text-xs font-semibold uppercase tracking-widest text-zinc-700">✨ Sylly Mode</p>
           <p class="font-bold text-stone-800">The Abyss</p>
-          <p class="text-stone-500 text-sm">Every <span class="font-semibold text-stone-700">Pass</span> feeds a card into a face-up central pool. Play a <span class="font-semibold text-stone-700">Bomb or Sequence</span> and the pool detonates — opponents draw the cards clockwise. Reach 13 cards and the Abyss <span class="font-semibold text-stone-700">fractures</span> — everyone draws one.</p>
+          <p class="text-stone-500 text-sm">Every <span class="font-semibold text-stone-700">Pass</span> feeds a card into a face-up central pool. Win a trick with a <span class="font-semibold text-stone-700">Detonation Combo</span> (Triplet, Quad, Double Joker, Sequence or Double Sequence) and the pool detonates — its cards deal clockwise to everyone but the winner. <span class="font-semibold text-stone-700">Singles and Pairs</span> keep the trick quiet, even on a winning play. A Detonation Combo that empties your hand distributes the pool before scoring. Reach 13 cards and the Abyss <span class="font-semibold text-stone-700">fractures</span> — everyone draws one.</p>
         </div>
 
         <button id="btn-pass-howto-close" class="min-h-14 w-full rounded-2xl bg-zinc-900 hover:bg-zinc-800 active:scale-95 text-white text-xl font-semibold transition-all duration-150">

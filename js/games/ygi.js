@@ -41,6 +41,7 @@ let ygiSuddenDeathQ        = '';   // selected question
 let ygiSuddenDeathPlayers  = [];   // [playerIdx...] tied finalists
 let ygiSuddenDeathInputs   = [];   // [{playerIdx, number}]
 let ygiSuddenDeathInputIdx = 0;    // current finalist's turn
+let ygiSdReadyCheck        = [];   // MDLM: per-finalist SD submission tracker (host-only)
 let ygiDataLoaded      = false;
 let ygiAllPrompts      = [];        // raw data from ygi-data.json
 let ygiMpReadyCheck    = [];        // Lobby Mode: tracks which players have submitted their take
@@ -52,14 +53,6 @@ async function ygiLoadData() {
   const res  = await fetch('data/ygi-data.json');
   ygiAllPrompts = await res.json();
   ygiDataLoaded = true;
-}
-
-// ── YGI Help tip overlay ──────────────────────────────────────────────────────
-function ygiShowHelpTip(emoji, heading, tip) {
-  document.getElementById('ygi-help-tip-emoji').textContent   = emoji;
-  document.getElementById('ygi-help-tip-heading').textContent = heading;
-  document.getElementById('ygi-help-tip-text').textContent    = tip;
-  document.getElementById('ygi-help-tip-overlay').style.display = 'flex';
 }
 
 // ── Lobby → CE Menu ───────────────────────────────────────────────────────────
@@ -127,7 +120,7 @@ document.getElementById('btn-ygi-full-tally-toggle').addEventListener('click', (
   ygiFullTally = !ygiFullTally;
   const btn = document.getElementById('btn-ygi-full-tally-toggle');
   btn.textContent = ygiFullTally ? 'ON' : 'OFF';
-  btn.className   = ygiFullTally ? 'game-toggle-on-orange shrink-0' : 'sylly-toggle-off shrink-0';
+  btn.className   = ygiFullTally ? 'game-toggle-on-orange shrink-0' : 'game-toggle-off shrink-0';
   playPillClick();
 });
 
@@ -135,7 +128,7 @@ document.getElementById('btn-ygi-sylly-toggle').addEventListener('click', () => 
   ygiRinger = !ygiRinger;
   const btn = document.getElementById('btn-ygi-sylly-toggle');
   btn.textContent = ygiRinger ? 'ON' : 'OFF';
-  btn.className   = ygiRinger ? 'game-toggle-on-orange shrink-0' : 'sylly-toggle-off shrink-0';
+  btn.className   = ygiRinger ? 'game-toggle-on-orange shrink-0' : 'game-toggle-off shrink-0';
   ygiRinger ? playSyllyOn() : playSyllyOff();
 });
 
@@ -557,15 +550,15 @@ document.getElementById('btn-ygi-vote-submit').addEventListener('click', () => {
             if (roundPts[idx] === maxRoundPts && maxRoundPts > 0) ygiScores[entry.playerIdx] += 2;
           }
         });
-        const roundLogEntry = { round: ygiRound, prompt: ygiCurrentPrompt, entries: ygiInputs.map(e => ({ ...e })) };
-        ygiRoundLog.push(roundLogEntry);
+        // ygiShowResults() owns the round-log push (single source of truth) — call it
+        // first so the SYNC carries the freshly-pushed, well-formed entry (Y3).
+        ygiShowResults(roundPts, ghostIdx, ghostWins, maxRoundPts);
         mpSendEnvelope({ type: 'SYNC', payload: {
           action: 'YGI_VERDICT',
           roundPts, ghostIdx, ghostWins, maxRoundPts,
           scores: [...ygiScores], roundLog: ygiRoundLog,
         }});
         mpUnlockSync();
-        ygiShowResults(roundPts, ghostIdx, ghostWins, maxRoundPts);
       }
     } else {
       mpSendEnvelope({ type: 'ACTION', payload: {
@@ -687,9 +680,15 @@ function ygiShowResults(roundPts, ghostIdx, ghostWins, maxRoundPts) {
       scoresContainer.appendChild(row);
     });
 
-  document.getElementById('btn-ygi-results-next').textContent = ygiRound >= ygiRounds
-    ? 'Final Standings 🏆'
-    : 'Next Situation →';
+  const resultsNextBtn = document.getElementById('btn-ygi-results-next');
+  resultsNextBtn.textContent = ygiRound >= ygiRounds ? 'Final Standings 🏆' : 'Next Situation →';
+  // MDLM: only the host advances the round / ends the game; clients follow the SYNC.
+  if (window.syllyMultiplayerMode === 'client') {
+    resultsNextBtn.disabled    = true;
+    resultsNextBtn.textContent = 'Waiting for the host…';
+  } else {
+    resultsNextBtn.disabled = false;
+  }
 
   ygiRoundLog.push({
     round:   ygiRound,
@@ -709,6 +708,7 @@ function ygiShowResults(roundPts, ghostIdx, ghostWins, maxRoundPts) {
 }
 
 document.getElementById('btn-ygi-results-next').addEventListener('click', () => {
+  if (window.syllyMultiplayerMode === 'client') return; // host advances; clients follow the SYNC
   playLaunch();
   if (ygiRound >= ygiRounds) {
     ygiShowGameOver();
@@ -725,8 +725,13 @@ function ygiShowGameOver() {
   const winners  = ygiScores.map((_, i) => i).filter(i => ygiScores[i] === maxScore);
 
   if (ygiDecider === 'only-one' && winners.length > 1) {
-    ygiStartSuddenDeath(winners);
+    ygiStartSuddenDeath(winners); // host broadcasts YGI_SUDDEN_DEATH inside
   } else {
+    if (window.syllyMultiplayerMode === 'host') {
+      mpSendEnvelope({ type: 'SYNC', payload: {
+        action: 'YGI_GAMEOVER', winners, afterSD: false, scores: [...ygiScores],
+      }});
+    }
     ygiShowFinalStandings(winners, false);
   }
 }
@@ -737,15 +742,82 @@ function ygiStartSuddenDeath(tiedPlayers) {
   ygiSuddenDeathInputIdx = 0;
   ygiSuddenDeathQ        = YGI_SUDDEN_DEATH_QS[Math.floor(Math.random() * YGI_SUDDEN_DEATH_QS.length)];
 
-  document.getElementById('ygi-sd-tied-names').textContent = tiedPlayers.map(i => ygiPlayerNames[i]).join(' vs ');
+  // MDLM: host drives the SD — broadcast the chosen question + finalists so every device
+  // runs the same sudden death (was previously a divergent local pass-the-phone on each device).
+  if (window.syllyMultiplayerMode === 'host') {
+    ygiSdReadyCheck = Array(ygiPlayerCount).fill(false);
+    mpSendEnvelope({ type: 'SYNC', payload: {
+      action: 'YGI_SUDDEN_DEATH', tiedPlayers: [...tiedPlayers], question: ygiSuddenDeathQ,
+    }});
+  }
+  ygiRenderSDIntro();
+}
+
+// Renders the SD intro on every device; in MDLM only finalists get an active Begin button.
+function ygiRenderSDIntro() {
+  document.getElementById('ygi-sd-tied-names').textContent = ygiSuddenDeathPlayers.map(i => ygiPlayerNames[i]).join(' vs ');
   document.getElementById('ygi-sd-question').textContent   = `"${ygiSuddenDeathQ}"`;
+  const beginBtn = document.getElementById('btn-ygi-sd-begin');
+  if (window.syllyMultiplayerMode !== 'single') {
+    const iAmFinalist = ygiSuddenDeathPlayers.includes(mpMyPlayerIdx);
+    beginBtn.disabled    = !iAmFinalist;
+    beginBtn.textContent = iAmFinalist ? 'Begin Sudden Death ⚡' : 'Sudden death in progress…';
+    beginBtn.classList.toggle('opacity-50', !iAmFinalist);
+  } else {
+    beginBtn.disabled    = false;
+    beginBtn.textContent = 'Begin Sudden Death ⚡';
+    beginBtn.classList.remove('opacity-50');
+  }
   showScreen('screen-ygi-sd-intro');
 }
 
 document.getElementById('btn-ygi-sd-begin').addEventListener('click', () => {
   playLaunch();
+  if (window.syllyMultiplayerMode !== 'single') {
+    ygiShowSDInputForSelf(); // only finalists reach here (button disabled for others)
+    return;
+  }
   ygiShowSDPassGate();
 });
+
+// MDLM: each finalist enters their own answer on their own device.
+function ygiShowSDInputForSelf() {
+  document.getElementById('ygi-sd-input-player-label').textContent = `${ygiPlayerNames[mpMyPlayerIdx]}'s Final Answer`;
+  document.getElementById('ygi-sd-input-question').textContent     = ygiSuddenDeathQ;
+  document.getElementById('ygi-sd-input-number').value             = '';
+  document.getElementById('ygi-sd-input-number').style.display     = '';
+  document.getElementById('btn-ygi-sd-input-confirm').style.display = '';
+  document.getElementById('ygi-sd-input-error').textContent        = '';
+  showScreen('screen-ygi-sd-input');
+  document.getElementById('ygi-sd-input-number').focus();
+}
+
+// MDLM: standby after this finalist has locked in their answer.
+function ygiShowSDWaiting() {
+  document.getElementById('ygi-sd-input-player-label').textContent  = 'Answer locked in ⚡';
+  document.getElementById('ygi-sd-input-question').textContent      = 'Waiting for the other finalists…';
+  document.getElementById('ygi-sd-input-number').style.display      = 'none';
+  document.getElementById('btn-ygi-sd-input-confirm').style.display = 'none';
+  document.getElementById('ygi-sd-input-error').textContent         = '';
+  showScreen('screen-ygi-sd-input');
+}
+
+// Host aggregates SD answers; resolves + broadcasts gameover when every finalist is in.
+function ygiMpCollectSD(playerIdx, number) {
+  if (window.syllyMultiplayerMode !== 'host') return;
+  if (ygiSdReadyCheck[playerIdx]) return; // dedup
+  ygiSdReadyCheck[playerIdx] = true;
+  ygiSuddenDeathInputs.push({ playerIdx, number });
+  if (ygiSuddenDeathPlayers.every(p => ygiSdReadyCheck[p])) {
+    const maxNum    = Math.max(...ygiSuddenDeathInputs.map(e => e.number));
+    const sdWinners = ygiSuddenDeathInputs.filter(e => e.number === maxNum).map(e => e.playerIdx);
+    mpSendEnvelope({ type: 'SYNC', payload: {
+      action: 'YGI_GAMEOVER', winners: sdWinners, afterSD: true,
+      scores: [...ygiScores], sdInputs: [...ygiSuddenDeathInputs],
+    }});
+    ygiShowFinalStandings(sdWinners, true);
+  }
+}
 
 function ygiShowSDPassGate() {
   ygiPassPhase = 'sd';
@@ -774,6 +846,18 @@ document.getElementById('btn-ygi-sd-input-confirm').addEventListener('click', ()
   if (!rawNum) { errEl.textContent = 'Enter a number first.'; return; }
   const num = parseInt(rawNum, 10);
   if (num > 1_000_000) { errEl.textContent = 'Keep it under a million!'; return; }
+
+  // MDLM: each finalist submits on their own device; host aggregates.
+  if (window.syllyMultiplayerMode !== 'single') {
+    const myIdx = mpMyPlayerIdx;
+    if (window.syllyMultiplayerMode === 'client') {
+      mpSendEnvelope({ type: 'ACTION', payload: { action: 'YGI_SD_SUBMIT', playerIdx: myIdx, number: num } });
+    } else {
+      ygiMpCollectSD(myIdx, num);
+    }
+    ygiShowSDWaiting();
+    return;
+  }
 
   ygiSuddenDeathInputs.push({ playerIdx: ygiSuddenDeathPlayers[ygiSuddenDeathInputIdx], number: num });
   ygiSuddenDeathInputIdx++;

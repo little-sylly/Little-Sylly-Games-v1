@@ -312,7 +312,7 @@ function bldAdvancePlanner() {
 
 // ── Start game — kicks off PTP role reveal chain ──────────────────────────────
 function bldStartGame() {
-  applyExpansionOverrides(); // no-op for Bailed; hook required by checklist
+  bldApplyExpansionOverrides(); // no-op for Bailed; hook required by checklist
   bldResetState();
   bldAssignRoles();
 
@@ -493,8 +493,6 @@ function bldRenderPatienceMeter() {
   const container = document.getElementById('bld-patience-dots');
   container.innerHTML = '';
   for (let i = 0; i < 5; i++) {
-    const filled = i < bldCurrentNominationAttempt - (bldPlanTrack[bldCurrentPlanIdx] ? 0 : 0);
-    // Count rejections for current plan from history
     const rejectionsThisPlan = bldPlanHistory.filter(
       r => r.planNumber === bldCurrentPlanIdx + 1 && r.status === 'Rejected'
     ).length;
@@ -1205,14 +1203,6 @@ function bldHandleEnvelope(env) {
     bldResolveDramaGuess(env.payload.guessIdx);
   }
 
-  if (action === 'BLD_VOTE_PENDING') {
-    if (window.syllyMultiplayerMode === 'client') {
-      mpUnlockSync();
-      bldGamePhase = 'vote-pending';
-      bldRenderPhase();
-    }
-  }
-
   if (action === 'BLD_VOTE_RESULT') {
     mpUnlockSync();
     bldVotes = env.payload.votes;
@@ -1233,14 +1223,6 @@ function bldHandleEnvelope(env) {
       bldCurrentNominationAttempt = env.payload.nominationAttempt;
     }
     bldStartNominating();
-  }
-
-  if (action === 'BLD_MISSION_PENDING') {
-    if (window.syllyMultiplayerMode === 'client') {
-      mpUnlockSync();
-      bldGamePhase = 'mission-pending';
-      bldRenderPhase();
-    }
   }
 
   if (action === 'BLD_MISSION_RESULT') {
@@ -1270,7 +1252,7 @@ function bldHandleEnvelope(env) {
 }
 
 // ── Expansion override hook (required; no-op for Bailed) ─────────────────────
-function applyExpansionOverrides() {
+function bldApplyExpansionOverrides() {
   // Bailed has no word bank — hook is a no-op
 }
 
@@ -1673,8 +1655,7 @@ document.querySelectorAll('.btn-bld-quit-open').forEach(btn =>
 document.getElementById('btn-bld-quit-confirm').addEventListener('click', () => {
   playExit();
   document.getElementById('bld-quit-overlay').style.display = 'none';
-  bldResetState();
-  bldShowMenu();
+  resetToLobby();
 });
 document.getElementById('btn-bld-quit-cancel').addEventListener('click', () => {
   document.getElementById('bld-quit-overlay').style.display = 'none';

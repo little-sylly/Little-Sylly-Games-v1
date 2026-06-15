@@ -33,6 +33,7 @@ let ssRerollCounts = [[0,0,0,0],[0,0,0,0]]; // [team][kwIdx]
 
 // ── SS Round state ────────────────────────────────────────────────────────────
 let ssEncryptingTeam    = 0;        // 0 = Team A encrypts, 1 = Team B encrypts
+let ssFirstEncryptingTeam = 0;      // which team went first — round increments when we return to them
 let ssSecondVaultShown  = false;    // true once the non-first team has viewed their vault
 let ssCurrentCode    = [];       // e.g. [3, 1, 4] — three distinct ints 1–4
 let ssCurrentClues   = ['', '', ''];
@@ -74,7 +75,11 @@ let ssIntelPreviousGuesses    = [];   // stores rawInputs for previous failed at
 let ssIntelAttempts           = [];   // all 3 raw attempt strings (current keyword) — for Dip Res selection
 let ssOverrideSelectedAttempt = '';   // which attempt the player tapped to argue for
 let ssIntelHistory            = [];   // [{team, kwIdx, word, attempts, found}] — for Mission Journal
-let ssMpVaultReady            = [false, false]; // Lobby Mode: tracks which teams confirmed vault
+let ssMpVaultReady            = [false, false]; // Lobby Mode: per-DEVICE vault confirmation (length = total players in MDLM/TLM)
+let ssTeamDevices             = [[], []];       // Lobby Mode: [team] -> player indices, roster order. TLM = [[0],[1]]; MDLM = full split
+let ssMpDecodeReady           = false;          // Lobby Mode host: decode guess received this half
+let ssMpInterceptReady        = false;          // Lobby Mode host: intercept guess received this half
+let ssIntelPendingOutcome     = null;           // Lobby Mode: active guesser's resolved keyword outcome, committed on Continue/Next
 
 // ── SS Fuzzy Matching ─────────────────────────────────────────────────────────
 
@@ -235,6 +240,43 @@ function ssInterceptingTeam() {
   return 1 - ssEncryptingTeam;
 }
 
+// ── Lobby Mode device→team routing ─────────────────────────────────────────────
+// Which team is THIS device on? Single-device falls back to the encrypting team.
+function ssMyTeam() {
+  if (window.syllyMultiplayerMode === 'single') return ssEncryptingTeam;
+  for (let t = 0; t < 2; t++) if (ssTeamDevices[t].includes(mpMyPlayerIdx)) return t;
+  return 0;
+}
+// The broadcaster of record for a team this round (rotates by round; = the transmitter).
+function ssBroadcasterIdx(team) {
+  const d = ssTeamDevices[team];
+  return d.length ? d[ssRound % d.length] : -1;
+}
+// The guesser of record for a team = the player who transmits NEXT (one ahead in rotation).
+// For a team of 1 device (TLM) this collapses to the broadcaster — correct: the one shared
+// device does both transmit and decode for that team.
+function ssGuesserIdx(team) {
+  const d = ssTeamDevices[team];
+  return d.length ? d[(ssRound + 1) % d.length] : -1;
+}
+// Total devices in the current Lobby session (per-device readyCheck length).
+function ssTotalDevices() {
+  return ssTeamDevices[0].length + ssTeamDevices[1].length;
+}
+
+// Intel Phase nominated guesser for a team = lowest seat number (first device in the team list).
+// One device per team locks in guesses; teammates + opponents watch the board and discuss verbally.
+function ssIntelGuesserDevice(team) {
+  const d = ssTeamDevices[team];
+  return (d && d.length) ? d[0] : -1;
+}
+
+// Normalise a Firebase-round-tripped 4-slot array (clue history / found / done):
+// Firebase can drop empty/falsy slots, so rebuild a dense 4-length array.
+function ssNormalise4(arr, fill) {
+  return [0, 1, 2, 3].map(i => (arr && arr[i] !== undefined && arr[i] !== null) ? arr[i] : fill);
+}
+
 // Archives current round clues into the encrypting team's spy log
 function ssArchiveClues() {
   const history = ssGetHistory(ssEncryptingTeam);
@@ -391,6 +433,122 @@ function ssFormatPts(n) {
   return n % 1 === 0 ? n.toFixed(1) : String(n);
 }
 
+// ── SS Intel Phase — Lobby Mode sync ───────────────────────────────────────────
+// The Intel Phase is fully sequential: exactly one team guesses one keyword at a
+// time, and within that team exactly one device (the lowest-seat guesser) is active.
+// Every other device is a passive board viewer. Host is authoritative for scoring,
+// history, and phase transitions; the active guesser device drives its own input UI
+// and commits a resolved outcome to the host on Continue/Next.
+
+// Build the full intel state snapshot — carries everything any intel screen needs.
+function ssIntelSnapshot(phase, extra) {
+  return Object.assign({
+    action:       'SS_INTEL_SYNC',
+    phase:        phase,                 // 'tiebreak' | 'intro' | 'keyword' | 'summary' | 'gameover'
+    leader:       ssIntelLeader,
+    guessingTeam: ssIntelGuessingTeam,
+    kwIdx:        ssIntelKwIdx,
+    scoreA:       ssIntelScoreA,
+    scoreB:       ssIntelScoreB,
+    found:        ssIntelFound,
+    done:         ssIntelDone,
+    history:      ssIntelHistory,
+    clueHistoryA: ssClueHistoryA,        // dossier source — clients never archive these locally
+    clueHistoryB: ssClueHistoryB,
+  }, extra || {});
+}
+
+// Host: broadcast a phase to all clients AND render locally (own SYNC is dropped by the dedup guard).
+function ssBroadcastIntel(phase, extra) {
+  const snap = ssIntelSnapshot(phase, extra);
+  mpSendEnvelope({ type: 'SYNC', payload: snap });
+  ssApplyIntelSnapshot(snap);   // host renders too — its own echoed SYNC won't come back
+}
+
+// Host: tell clients to show a tiebreak standby while the host works the picker.
+// (Host shows the picker itself via ssShowTiebreak — it must NOT route to standby,
+//  so this sends the SYNC only and does not apply locally.)
+function ssBroadcastTiebreakStandby() {
+  mpSendEnvelope({ type: 'SYNC', payload: ssIntelSnapshot('tiebreak') });
+}
+
+// Any device: apply an intel snapshot, then route to the correct screen for this device.
+function ssApplyIntelSnapshot(p) {
+  ssIntelLeader       = p.leader;
+  ssIntelGuessingTeam = p.guessingTeam;
+  ssIntelKwIdx        = p.kwIdx;
+  ssIntelScoreA       = p.scoreA;
+  ssIntelScoreB       = p.scoreB;
+  ssIntelFound        = ssNormalise4(p.found, [false,false,false,false]).map(t => ssNormalise4(t, false));
+  ssIntelDone         = ssNormalise4(p.done,  [false,false,false,false]).map(t => ssNormalise4(t, false));
+  ssIntelHistory      = Array.isArray(p.history) ? p.history : [];
+  if (p.clueHistoryA) ssClueHistoryA = ssNormalise4(p.clueHistoryA, []).map(s => Array.isArray(s) ? s : []);
+  if (p.clueHistoryB) ssClueHistoryB = ssNormalise4(p.clueHistoryB, []).map(s => Array.isArray(s) ? s : []);
+  // Leaving the endgame splash / clearing any leftover override overlay
+  document.getElementById('ss-endgame-splash').style.display = 'none';
+  document.getElementById('ss-override-overlay').style.display = 'none';
+  mpUnlockSync();
+  ssRouteIntel(p.phase);
+}
+
+// Route THIS device to the right intel screen for the given phase.
+function ssRouteIntel(phase) {
+  switch (phase) {
+    case 'tiebreak': ssShowStandby('Intelligence Reveal 🔍', 'The host is deciding which team guesses first…'); break;
+    case 'intro':    ssShowIntelIntro(ssIntelGuessingTeam); break;
+    case 'keyword':  ssStartIntelKeyword(); break;
+    case 'summary':  ssShowIntelSummary(); break;
+    case 'gameover': ssShowFinalGameOver(); break;
+  }
+}
+
+// Host (or single via ssIntelContinue): apply a committed keyword outcome to shared state.
+function ssIntelApplyOutcome(o) {
+  ssIntelHistory.push({ team: o.team, kwIdx: o.kwIdx, word: o.word, attempts: o.attempts, found: o.found });
+  if (o.found) {
+    ssIntelFound[o.team][o.kwIdx] = true;
+    ssIntelAddScore(o.team, SS_INTEL_KW_PTS);
+  }
+}
+
+// Host: apply the active guesser's outcome, advance the keyword/team, broadcast next phase.
+function ssIntelHostResolve(outcome) {
+  ssIntelApplyOutcome(outcome);
+  ssIntelDone[outcome.team][outcome.kwIdx] = true;
+  const other = 1 - outcome.team;
+  if (!ssIntelDone[other][outcome.kwIdx]) {
+    // Other team hasn't done this keyword yet — switch teams, same keyword
+    ssIntelGuessingTeam = other;
+    ssBroadcastIntel('keyword');
+  } else if (outcome.kwIdx < 3) {
+    // Both teams done with this keyword — advance, leader goes first
+    ssIntelKwIdx        = outcome.kwIdx + 1;
+    ssIntelGuessingTeam = ssIntelLeader;
+    ssBroadcastIntel('keyword');
+  } else {
+    // All 4 keywords done — scramble bonuses, then leader's summary
+    ssCheckScrambleBonus(ssIntelLeader);
+    ssCheckScrambleBonus(1 - ssIntelLeader);
+    ssIntelGuessingTeam = ssIntelLeader;
+    ssBroadcastIntel('summary');
+  }
+}
+
+// Active guesser: Continue/Next tapped — commit the pending outcome.
+function ssIntelContinue() {
+  if (window.syllyMultiplayerMode === 'single') { ssIntelAdvance(); return; }
+  const outcome = ssIntelPendingOutcome;
+  ssIntelPendingOutcome = null;
+  if (window.syllyMultiplayerMode === 'client') {
+    mpLockSync();
+    mpSendEnvelope({ type: 'ACTION', payload: { action: 'SS_INTEL_GUESS', outcome: outcome } });
+    ssShowStandby('Locked In 🔒', 'Waiting for the next keyword…');
+    return;
+  }
+  // host
+  ssIntelHostResolve(outcome);
+}
+
 // ── SS Intel Phase ────────────────────────────────────────────────────────────
 
 function ssStartIntelPhase() {
@@ -401,8 +559,11 @@ function ssStartIntelPhase() {
   ssIntelAttemptNum = 0;
   ssIntelFound     = [[false,false,false,false],[false,false,false,false]];
   ssIntelDone      = [[false,false,false,false],[false,false,false,false]];
+  ssIntelHistory   = [];
+  ssIntelPendingOutcome = null;
 
   // Determine leader (goes first — going second is the strategic advantage)
+  let tied = false;
   if (ssTokens[0] > ssTokens[1]) {
     ssIntelLeader = 0;
   } else if (ssTokens[1] > ssTokens[0]) {
@@ -414,12 +575,23 @@ function ssStartIntelPhase() {
     } else if (ssMisfires[1] < ssMisfires[0]) {
       ssIntelLeader = 1;
     } else {
-      // Still tied — show tiebreak screen
-      ssShowTiebreak();
-      return;
+      tied = true;
     }
   }
-  ssShowIntelIntro(ssIntelLeader);
+
+  // This function only ever runs on the host (Lobby Mode) or in single device.
+  if (tied) {
+    // Still tied — host works the picker; clients show a standby until the leader is chosen.
+    if (window.syllyMultiplayerMode === 'host') ssBroadcastTiebreakStandby();
+    ssShowTiebreak();
+    return;
+  }
+  ssIntelGuessingTeam = ssIntelLeader;
+  if (window.syllyMultiplayerMode === 'host') {
+    ssBroadcastIntel('intro');
+  } else {
+    ssShowIntelIntro(ssIntelLeader);
+  }
 }
 
 function ssShowTiebreak() {
@@ -473,6 +645,16 @@ function ssShowIntelIntro(team) {
     targetCard.style.display = 'none';
   }
 
+  // Lobby Mode: the host drives the intro → keyword transition (it happens once).
+  const beginBtn = document.getElementById('btn-ss-intel-begin');
+  if (window.syllyMultiplayerMode === 'client') {
+    beginBtn.disabled = true;
+    beginBtn.textContent = '⏳ Waiting for the host…';
+  } else {
+    beginBtn.disabled = false;
+    beginBtn.textContent = 'Begin Intel Sweep 🔍';
+  }
+
   showScreen('screen-ss-intel-intro');
 }
 
@@ -504,7 +686,18 @@ function ssStartIntelKeyword() {
   ssIntelPreviousGuesses    = [];
   ssIntelAttempts           = [];
   ssOverrideSelectedAttempt = '';
-  ssIntelRenderAttempts();
+  ssIntelPendingOutcome     = null;
+
+  // Lobby Mode: only the guessing team's nominated device (lowest seat) gets the input UI.
+  // Everyone else sees the clue dossier (the board) and a "discuss" note.
+  const guesserDevice = ssIntelGuesserDevice(ssIntelGuessingTeam);
+  const active = (window.syllyMultiplayerMode === 'single') || (mpMyPlayerIdx === guesserDevice);
+  if (active) {
+    ssIntelRenderAttempts();
+  } else {
+    document.getElementById('ss-intel-attempts').innerHTML =
+      `<p class="text-stone-400 text-sm italic text-center py-6">${ssPlayerNameByIdx(guesserDevice)} is locking in the guess for ${ssTeamName(ssIntelGuessingTeam)}.<br>Read the clues and discuss! 🗣️</p>`;
+  }
 
   // Hide feedback + continue button; show override button
   const fb = document.getElementById('ss-intel-feedback');
@@ -623,21 +816,23 @@ function ssLockAttemptInputs() {
 }
 
 function ssIntelOnFound(rawInput) {
-  ssIntelHistory.push({
+  const outcome = {
     team: ssIntelGuessingTeam, kwIdx: ssIntelKwIdx,
     word: ssIntelTargetVault()[ssIntelKwIdx].word,
     attempts: [...ssIntelPreviousGuesses, rawInput],
     found: true,
-  });
-  ssIntelFound[ssIntelGuessingTeam][ssIntelKwIdx] = true;
-  ssIntelAddScore(ssIntelGuessingTeam, SS_INTEL_KW_PTS);
+  };
+  // Single device mutates shared state now; Lobby Mode defers to the host on commit.
+  if (window.syllyMultiplayerMode === 'single') ssIntelApplyOutcome(outcome);
+  else                                          ssIntelPendingOutcome = outcome;
+
   const fb  = document.getElementById('ss-intel-feedback');
   const btn = document.getElementById('btn-ss-intel-continue');
   fb.textContent = '✅ Correct!';
   fb.style.cssText = 'display:block; color: #14b8a6; font-size: 1.25rem; font-weight: 700;';
   btn.textContent = 'Continue →';
   btn.style.display = 'block';
-  btn.onclick = () => { playPillClick(); btn.style.display = 'none'; ssIntelAdvance(); };
+  btn.onclick = () => { playPillClick(); btn.style.display = 'none'; ssIntelContinue(); };
   document.querySelectorAll('#ss-intel-attempts input, #ss-intel-attempts button').forEach(el => {
     el.disabled = true;
   });
@@ -646,19 +841,22 @@ function ssIntelOnFound(rawInput) {
 }
 
 function ssIntelOnNotFound() {
-  ssIntelHistory.push({
+  const outcome = {
     team: ssIntelGuessingTeam, kwIdx: ssIntelKwIdx,
     word: ssIntelTargetVault()[ssIntelKwIdx].word,
     attempts: [...ssIntelPreviousGuesses],
     found: false,
-  });
+  };
+  if (window.syllyMultiplayerMode === 'single') ssIntelApplyOutcome(outcome);
+  else                                          ssIntelPendingOutcome = outcome;
+
   const fb  = document.getElementById('ss-intel-feedback');
   const btn = document.getElementById('btn-ss-intel-continue');
   fb.textContent = `❌ The word was "${ssIntelTargetVault()[ssIntelKwIdx].word}"`;
   fb.style.cssText = 'display:block; color: #78716c; font-weight: 600;';
   btn.textContent = 'Next Word →';
   btn.style.display = 'block';
-  btn.onclick = () => { playPillClick(); btn.style.display = 'none'; ssIntelAdvance(); };
+  btn.onclick = () => { playPillClick(); btn.style.display = 'none'; ssIntelContinue(); };
   document.getElementById('btn-ss-intel-override').style.display = 'block';
   playBoing();
 }
@@ -737,15 +935,33 @@ function ssShowIntelSummary() {
   // Button label + handler
   const nextBtn = document.getElementById('btn-ss-intel-summary-next');
   const underdog = 1 - ssIntelLeader;
+  const isLeaderSummary = (team === ssIntelLeader);
 
-  if (team === ssIntelLeader) {
-    // Leader's summary shown first — underdog already finished too, skip straight to their summary
-    nextBtn.textContent = `${ssTeamName(underdog)} Summary →`;
-    nextBtn.onclick = () => { playDone(); ssIntelGuessingTeam = underdog; ssShowIntelSummary(); };
+  if (window.syllyMultiplayerMode === 'client') {
+    // Host drives summary → summary → gameover transitions
+    nextBtn.disabled = true;
+    nextBtn.textContent = '⏳ Waiting for the host…';
+    nextBtn.onclick = null;
   } else {
-    // Both summaries shown — final result
-    nextBtn.textContent = 'Final Mission Report 📑';
-    nextBtn.onclick = () => { playLaunch(); ssShowFinalGameOver(); };
+    nextBtn.disabled = false;
+    if (isLeaderSummary) {
+      // Leader's summary shown first — underdog already finished too, advance to their summary
+      nextBtn.textContent = `${ssTeamName(underdog)} Summary →`;
+      nextBtn.onclick = () => {
+        playDone();
+        ssIntelGuessingTeam = underdog;
+        if (window.syllyMultiplayerMode === 'host') ssBroadcastIntel('summary');
+        else                                        ssShowIntelSummary();
+      };
+    } else {
+      // Both summaries shown — final result
+      nextBtn.textContent = 'Final Mission Report 📑';
+      nextBtn.onclick = () => {
+        playLaunch();
+        if (window.syllyMultiplayerMode === 'host') ssBroadcastIntel('gameover');
+        else                                        ssShowFinalGameOver();
+      };
+    }
   }
 
   showScreen('screen-ss-intel-summary');
@@ -824,19 +1040,17 @@ function startSyllySignals() {
   }
 
   if (window.syllyMultiplayerMode !== 'single') {
-    // Apply roster data if present (MDLM with full assignment)
+    ssTeamDevices = [[], []];
+    // Apply roster data if present (MDLM with full team assignment)
     if (window.mpLobbyRoster?.teamNames) {
       const r = window.mpLobbyRoster;
-      ssTeamNames    = [...r.teamNames];
-      ssPlayerNamesA = mpPlayerSlots
-        .filter((_, i) => r.playerTeamIdx[i] === 0)
-        .map(p => p.nickname);
-      ssPlayerNamesB = mpPlayerSlots
-        .filter((_, i) => r.playerTeamIdx[i] === 1)
-        .map(p => p.nickname);
-      ssPlayerCount = ssPlayerNamesA.length;
+      ssTeamNames = [...r.teamNames];
+      mpPlayerSlots.forEach((_, i) => { ssTeamDevices[r.playerTeamIdx[i]].push(i); });
+      ssPlayerNamesA = ssTeamDevices[0].map(i => mpPlayerSlots[i].nickname);
+      ssPlayerNamesB = ssTeamDevices[1].map(i => mpPlayerSlots[i].nickname);
+      ssPlayerCount  = ssPlayerNamesA.length;
     } else {
-      // Fallback: TLM — device nicknames as team names, 1 player per team
+      // Fallback: TLM — device 0 = Team A, device 1 = Team B (1 device per team)
       ssTeamNames    = [
         mpPlayerSlots[0]?.nickname || 'Alpha Echo',
         mpPlayerSlots[1]?.nickname || 'Bravo Zulu',
@@ -844,17 +1058,21 @@ function startSyllySignals() {
       ssPlayerNamesA = [mpPlayerSlots[0]?.nickname || ''];
       ssPlayerNamesB = [mpPlayerSlots[1]?.nickname || ''];
       ssPlayerCount  = 1;
+      ssTeamDevices  = [[0], [1]];
     }
+    // Per-device vault readyCheck (one slot per device across both teams)
+    ssMpVaultReady = new Array(ssTotalDevices()).fill(false);
     if (window.syllyMultiplayerMode === 'host') {
-      // Host builds both vaults; sends Team B's vault to Client
+      // Host builds both vaults; broadcasts BOTH to all devices (each renders only its own team)
       loadWords().then(() => {
         ssBuildVaults();
         mpSendEnvelope({ type: 'SYNC', payload: {
           action: 'SS_VAULT_DATA',
+          vaultA: ssVaultA.map(w => ({ word: w.word, id: w.id, category: w.category })),
           vaultB: ssVaultB.map(w => ({ word: w.word, id: w.id, category: w.category })),
         }});
-        // Host shows Team A's vault gate
-        ssShowVaultGate(0);
+        // Host shows its own team's vault gate
+        ssShowVaultGate(ssMyTeam());
       });
     }
     // Client waits for SS_VAULT_DATA SYNC before showing vault gate
@@ -929,8 +1147,9 @@ function ssConfirmPlayers() {
       accentBtnClass:  'bg-teal-500 hover:bg-teal-600',
       accentTextClass: 'text-teal-600',
       onResult(goesFirstIdx) {
-        ssEncryptingTeam   = goesFirstIdx;
-        ssRound            = 0;
+        ssEncryptingTeam      = goesFirstIdx;
+        ssFirstEncryptingTeam = goesFirstIdx;
+        ssRound               = 0;
         ssSecondVaultShown = false;
         ssShowVaultGate(ssEncryptingTeam);
       },
@@ -971,17 +1190,127 @@ function ssShowVault(team) {
 
 // ── SS Round flow ─────────────────────────────────────────────────────────────
 
+// Host (or single device) begins a transmit half: generate the secret code, reset half state.
+// In Lobby Mode the host broadcasts the half so every device routes to the right screen
+// (only the broadcaster's device reveals the code).
 function ssStartHalf() {
-  ssCurrentCode   = ssGenerateCode();
-  ssCurrentClues  = ['', '', ''];
-  ssInterceptGuess = [0, 0, 0];
-  ssDecodeGuess    = [0, 0, 0];
-  ssShowEncrypt();
+  ssCurrentCode      = ssGenerateCode();
+  ssCurrentClues     = ['', '', ''];
+  ssInterceptGuess   = [0, 0, 0];
+  ssDecodeGuess      = [0, 0, 0];
+  ssMpDecodeReady    = false;
+  ssMpInterceptReady = false;
+  if (window.syllyMultiplayerMode === 'host') {
+    mpSendEnvelope({ type: 'SYNC', payload: {
+      action:         'SS_ENCRYPT_TURN',
+      encryptingTeam: ssEncryptingTeam,
+      round:          ssRound,
+      code:           [...ssCurrentCode],
+      tokens:         [...ssTokens],
+      misfires:       [...ssMisfires],
+    }});
+  }
+  ssRouteEncryptPhase();
+}
+
+// Route THIS device to the correct encrypt-phase screen.
+// Broadcaster of the encrypting team → transmit screen; everyone else → standby.
+function ssRouteEncryptPhase() {
+  if (window.syllyMultiplayerMode === 'single') { ssShowEncrypt(); return; }
+  if (mpMyPlayerIdx === ssBroadcasterIdx(ssEncryptingTeam)) ssShowEncrypt();
+  else ssShowEncryptStandby();
+}
+
+// Generic standby — dynamic heading + subtext on screen-ss-standby.
+// In Lobby Mode it also renders THIS device's own-team board (vault keywords + clue
+// archive) — the information a player would have in front of them in the physical game.
+function ssShowStandby(heading, subtext) {
+  document.getElementById('ss-standby-heading').textContent = heading;
+  document.getElementById('ss-standby-subtext').textContent = subtext;
+  const board = document.getElementById('ss-standby-board');
+  if (window.syllyMultiplayerMode !== 'single') {
+    ssRenderArchive(document.getElementById('ss-standby-archive'), ssMyTeam(), true);
+    board.style.display = 'flex';
+  } else {
+    board.style.display = 'none';
+  }
+  showScreen('screen-ss-standby');
 }
 
 function ssShowEncryptStandby() {
-  document.getElementById('ss-standby-team').textContent = ssTeamName(ssEncryptingTeam);
-  showScreen('screen-ss-standby');
+  const E = ssEncryptingTeam;
+  const b = ssGetBroadcaster(E);
+  const who = b !== ssTeamName(E) ? `${b} (${ssTeamName(E)})` : ssTeamName(E);
+  ssShowStandby('Standby 📡', `${who} is transmitting…`);
+}
+
+// Route THIS device for the guess phase (after clues are broadcast).
+// Encrypting team: broadcaster waits, guesser decodes, others watch.
+// Intercepting team: guesser intercepts, others watch.
+function ssRouteGuessPhase() {
+  if (window.syllyMultiplayerMode === 'single') { ssShowBroadcast(); return; }
+  const E      = ssEncryptingTeam;
+  const myTeam = ssMyTeam();
+  if (myTeam === E) {
+    const guesser = ssGuesserIdx(E);
+    if (mpMyPlayerIdx === guesser) {
+      ssShowDecode();
+    } else if (mpMyPlayerIdx === ssBroadcasterIdx(E)) {
+      ssShowStandby('Transmission Sent 📡', 'Waiting for both teams to lock in their codes…');
+    } else {
+      ssShowStandby('Decoding 🔑', `${ssGetBroadcaster(E)}'s transmission — ${ssPlayerNameByIdx(guesser)} is decoding for ${ssTeamName(E)}…`);
+    }
+  } else {
+    const guesser = ssGuesserIdx(myTeam);
+    if (mpMyPlayerIdx === guesser) {
+      ssShowIntercept();
+    } else {
+      ssShowStandby('Intercepting 🔍', `${ssPlayerNameByIdx(guesser)} is intercepting for ${ssTeamName(myTeam)}…`);
+    }
+  }
+}
+
+// Display name for a given player index (across both teams).
+function ssPlayerNameByIdx(idx) {
+  for (let t = 0; t < 2; t++) {
+    const pos = ssTeamDevices[t].indexOf(idx);
+    if (pos !== -1) {
+      const names = t === 0 ? ssPlayerNamesA : ssPlayerNamesB;
+      return (names[pos] && names[pos].trim()) ? names[pos] : `${ssTeamName(t)} player`;
+    }
+  }
+  return 'Teammate';
+}
+
+// Host broadcasts the clues to all devices and routes itself into the guess phase.
+function ssEmitBroadcast() {
+  mpSendEnvelope({ type: 'SYNC', payload: {
+    action:         'SS_BROADCAST',
+    clues:          [...ssCurrentClues],
+    encryptingTeam: ssEncryptingTeam,
+    round:          ssRound,
+  }});
+  ssRouteGuessPhase();
+}
+
+// Host gate: resolve only once BOTH the decode and intercept guesses have arrived.
+function ssHostMaybeResolve() {
+  if (!(ssMpDecodeReady && ssMpInterceptReady)) return;
+  ssResolve();              // host computes outcome + renders locally
+  ssBroadcastResolution();  // clients render from the authoritative payload
+}
+
+function ssBroadcastResolution() {
+  const result = ssRoundHistory[ssRoundHistory.length - 1];
+  mpSendEnvelope({ type: 'SYNC', payload: {
+    action:       'SS_RESOLUTION',
+    result,
+    tokens:       [...ssTokens],
+    misfires:     [...ssMisfires],
+    clueHistoryA: ssClueHistoryA.map(h => [...h]),
+    clueHistoryB: ssClueHistoryB.map(h => [...h]),
+    roundHistory: ssRoundHistory,
+  }});
 }
 
 function ssShowEncrypt() {
@@ -1147,30 +1476,22 @@ function ssTransmit() {
   if (ssCurrentClues.some(c => !c)) return;
   ssStopTimer();
 
-  if (window.syllyMultiplayerMode !== 'single') {
-    if (window.syllyMultiplayerMode === 'client' && ssEncryptingTeam === mpMyPlayerIdx) {
-      // Client (Team B) is encoding: send code + clues to Host so Host can resolve later
-      mpSendEnvelope({ type: 'ACTION', payload: {
-        action: 'SS_ENCODE_TRANSMIT',
-        code:   [...ssCurrentCode],
-        clues:  [...ssCurrentClues],
-        round:  ssRound,
-        team:   ssEncryptingTeam,
-      }});
-    } else if (window.syllyMultiplayerMode === 'host') {
-      // Host (Team A) is encoding: broadcast clues to intercepting device
-      mpSendEnvelope({ type: 'SYNC', payload: {
-        action:          'SS_BROADCAST',
-        clues:           [...ssCurrentClues],
-        round:           ssRound,
-        encryptingTeam:  ssEncryptingTeam,
-      }});
-    }
-    ssShowBroadcast();
+  if (window.syllyMultiplayerMode === 'single') { ssShowBroadcast(); return; }
+
+  if (window.syllyMultiplayerMode === 'client') {
+    // Client broadcaster: send clues to host (host already holds the authoritative code),
+    // then wait for resolution. Host broadcasts SS_BROADCAST to route every device.
+    mpSendEnvelope({ type: 'ACTION', payload: {
+      action: 'SS_ENCODE_TRANSMIT',
+      clues:  [...ssCurrentClues],
+      round:  ssRound,
+      team:   ssEncryptingTeam,
+    }});
+    ssShowStandby('Transmission Sent 📡', 'Waiting for both teams to lock in their codes…');
     return;
   }
-
-  ssShowBroadcast();
+  // Host broadcaster: broadcast clues + route everyone into the guess phase
+  ssEmitBroadcast();
 }
 
 function ssShowBroadcast() {
@@ -1247,6 +1568,9 @@ function ssShowDecode() {
   showScreen('screen-ss-decode');
 }
 
+// Compute outcome + mutate authoritative state (HOST or single device ONLY — never a client;
+// clients render from the SS_RESOLUTION payload via ssRenderResolution). Splitting compute from
+// render is what fixes the S9 double-resolution bug.
 function ssResolve() {
   const interceptCorrect = ssCurrentCode.every((v, i) => ssInterceptGuess[i] === v);
   const decodeCorrect    = ssCurrentCode.every((v, i) => ssDecodeGuess[i] === v);
@@ -1254,9 +1578,8 @@ function ssResolve() {
   const interceptor = ssInterceptingTeam();
   const encoder     = ssEncryptingTeam;
 
-  if (interceptCorrect) { ssTokens[interceptor]++; playSuccess(); }
-  else                  { playBoing(); }
-  if (!decodeCorrect)     ssMisfires[encoder]++;
+  if (interceptCorrect) ssTokens[interceptor]++;
+  if (!decodeCorrect)   ssMisfires[encoder]++;
 
   // Log this half for Mission Journal
   ssRoundHistory.push({
@@ -1271,6 +1594,19 @@ function ssResolve() {
   });
 
   ssArchiveClues();
+  ssRenderResolution();
+}
+
+// Render the resolution screen from current state — safe on any device (pure read + sound).
+function ssRenderResolution() {
+  const interceptCorrect = ssCurrentCode.every((v, i) => ssInterceptGuess[i] === v);
+  const decodeCorrect    = ssCurrentCode.every((v, i) => ssDecodeGuess[i] === v);
+
+  const interceptor = ssInterceptingTeam();
+  const encoder     = ssEncryptingTeam;
+
+  if (interceptCorrect) playSuccess();
+  else                  playBoing();
 
   // ── Side-by-side comparison ──────────────────────────────────────────────
   function digitRow(guessArr, correct) {
@@ -1343,11 +1679,20 @@ function ssShowEndgameSplash(winner) {
     if (ssIntelSyllyMode) {
       const p2Btn = document.getElementById('btn-ss-splash-phase2');
       p2Btn.style.display = 'block';
-      p2Btn.onclick = () => {
-        playLaunch();
-        document.getElementById('ss-endgame-splash').style.display = 'none';
-        ssStartIntelPhase();
-      };
+      if (window.syllyMultiplayerMode === 'client') {
+        // Intel Phase is host-driven — clients wait for the host's SS_INTEL_START
+        p2Btn.disabled    = true;
+        p2Btn.textContent = '⏳ Waiting for the host…';
+        p2Btn.onclick     = null;
+      } else {
+        p2Btn.disabled    = false;
+        p2Btn.textContent = '⚠️ Urgent mission received: Phase 2 incoming';
+        p2Btn.onclick = () => {
+          playLaunch();
+          document.getElementById('ss-endgame-splash').style.display = 'none';
+          ssStartIntelPhase();
+        };
+      }
     } else {
       const resBtn = document.getElementById('btn-ss-splash-results');
       resBtn.style.display = 'block';
@@ -1361,6 +1706,7 @@ function ssShowEndgameSplash(winner) {
 }
 
 function ssNextHalf() {
+  if (window.syllyMultiplayerMode === 'client') return; // clients advance via host SS_ENCRYPT_TURN / SS_ENDGAME
   const winner = ssCheckWin();
   if (winner !== null) {
     if (window.syllyMultiplayerMode === 'host') {
@@ -1372,34 +1718,18 @@ function ssNextHalf() {
     return;
   }
 
-  if (ssEncryptingTeam === 0) {
-    ssEncryptingTeam = 1;
-  } else {
-    ssRound++;
-    ssEncryptingTeam = 0;
-  }
-
-  if (window.syllyMultiplayerMode === 'host') {
-    // Lobby Mode: broadcast next encrypt turn so correct device activates
-    mpSendEnvelope({ type: 'SYNC', payload: {
-      action: 'SS_ENCRYPT_TURN',
-      encryptingTeam: ssEncryptingTeam,
-      round: ssRound,
-      tokens: [...ssTokens],
-      misfires: [...ssMisfires],
-    }});
-  }
+  const nextTeam = ssEncryptingTeam === 0 ? 1 : 0;
+  if (nextTeam === ssFirstEncryptingTeam) ssRound++;
+  ssEncryptingTeam = nextTeam;
 
   if (!ssSecondVaultShown && window.syllyMultiplayerMode === 'single') {
     ssSecondVaultShown = true;
     ssShowVaultGate(ssEncryptingTeam);
     return;
   }
-  // TLM: HOST = Team 0; if Team 1 (CLIENT) is encrypting, HOST waits — no code generation
-  if (window.syllyMultiplayerMode === 'host' && window.mpLobbyStyle === 'team' && ssEncryptingTeam !== 0) {
-    ssShowEncryptStandby();
-    return;
-  }
+  // Host (and single device) generate the code and broadcast the half; ssStartHalf routes
+  // every device to transmit/standby. (No TLM special-case — the broadcaster's device shows
+  // the code regardless of which physical device is the host.)
   ssStartHalf();
 }
 
@@ -1593,6 +1923,9 @@ function resetSyllySignals() {
   document.getElementById('ss-inning-transition').style.display     = 'none';
   document.getElementById('ss-endgame-splash').style.display        = 'none';
   document.getElementById('ss-play-again-overlay').style.display    = 'none';
+  document.getElementById('ss-settings-overlay').style.display      = 'none';
+  document.getElementById('ss-dossier-overlay').style.display       = 'none';
+  document.getElementById('ss-how-to-overlay').style.display        = 'none';
 }
 
 // ── SS Settings ───────────────────────────────────────────────────────────────
@@ -1765,24 +2098,22 @@ document.getElementById('btn-ss-vault-gate-ready').addEventListener('click', () 
 document.getElementById('btn-ss-vault-done').addEventListener('click', () => {
   playLaunch();
   if (window.syllyMultiplayerMode !== 'single') {
-    // Lobby Mode: signal vault readiness to Host; wait for SS_ENCRYPT_TURN
+    // Lobby Mode: every device confirms its own vault (per-device readyCheck)
     ssMpVaultReady[mpMyPlayerIdx] = true;
     if (window.syllyMultiplayerMode === 'client') {
       mpSendEnvelope({ type: 'ACTION', payload: {
-        action: 'SS_VAULT_READY', teamIdx: mpMyPlayerIdx,
+        action: 'SS_VAULT_READY', deviceIdx: mpMyPlayerIdx,
       }});
-      return; // Client waits for Host to broadcast encrypt turn
+      ssShowEncryptStandby(); // wait for the host to start the first half
+      return;
     }
-    // Host: record own vault readiness; if both ready → broadcast encrypt turn
-    if (ssMpVaultReady[0] && ssMpVaultReady[1]) {
+    // Host: start the first half once every device has confirmed
+    if (ssMpVaultReady.every(Boolean)) {
       ssEncryptingTeam = 0;
-      mpSendEnvelope({ type: 'SYNC', payload: {
-        action: 'SS_ENCRYPT_TURN', encryptingTeam: 0, round: ssRound,
-        tokens: [...ssTokens], misfires: [...ssMisfires],
-      }});
       ssStartHalf();
+    } else {
+      ssShowEncryptStandby(); // host waits for the remaining devices
     }
-    // If Client hasn't confirmed vault yet, Host waits
     return;
   }
   ssStartHalf();
@@ -1819,19 +2150,7 @@ document.getElementById('btn-ss-broadcast-exit').addEventListener('click', () =>
 // Broadcast → intercept
 document.getElementById('btn-ss-to-intercept').addEventListener('click', () => {
   playPillClick();
-  if (window.syllyMultiplayerMode !== 'single') {
-    // In lobby mode, only the encoding team's device has the broadcast screen
-    // Signal to intercepting device to show intercept screen
-    mpSendEnvelope({ type: 'SYNC', payload: {
-      action:         'SS_START_INTERCEPT',
-      clues:          [...ssCurrentClues],
-      encryptingTeam: ssEncryptingTeam,
-      round:          ssRound,
-    }});
-    // Encoding device waits for resolution (shows broadcast screen until resolved)
-    return;
-  }
-  ssShowIntercept();
+  ssShowIntercept(); // single-device only — Lobby Mode routes via host SS_BROADCAST
 });
 
 // Intercept screen
@@ -1841,31 +2160,24 @@ document.getElementById('btn-ss-intercept-exit').addEventListener('click', () =>
 });
 document.getElementById('btn-ss-submit-intercept').addEventListener('click', () => {
   playDone();
-  if (window.syllyMultiplayerMode !== 'single') {
-    const interceptor = ssInterceptingTeam();
-    if (interceptor !== mpMyPlayerIdx) return; // safety: only intercepting device submits
-    if (window.syllyMultiplayerMode === 'client') {
-      // Client is intercepting: send guess to Host
-      mpLockSync();
-      mpSendEnvelope({ type: 'ACTION', payload: {
-        action: 'SS_INTERCEPT_SUBMIT',
-        guess:  [...ssInterceptGuess],
-        team:   interceptor,
-      }});
-      return;
-    }
-    // Host is intercepting (Team A): record locally, then send decode-gate SYNC to Client
-    mpSendEnvelope({ type: 'SYNC', payload: {
-      action: 'SS_DECODE_GATE',
-      encryptingTeam: ssEncryptingTeam,
+  if (window.syllyMultiplayerMode === 'single') { ssShowDecodeGate(); return; }
+  // Lobby: only the intercepting team's guesser of record submits
+  if (mpMyPlayerIdx !== ssGuesserIdx(ssInterceptingTeam())) return;
+  if (window.syllyMultiplayerMode === 'client') {
+    mpLockSync();
+    mpSendEnvelope({ type: 'ACTION', payload: {
+      action: 'SS_INTERCEPT_SUBMIT', guess: [...ssInterceptGuess],
     }});
-    ssShowDecodeGate();
+    ssShowStandby('Intercept Locked 🔍', 'Waiting for the other team to decode…');
     return;
   }
-  ssShowDecodeGate();
+  // Host is the intercept guesser: record + maybe resolve
+  ssMpInterceptReady = true;
+  ssShowStandby('Intercept Locked 🔍', 'Waiting for the other team to decode…');
+  ssHostMaybeResolve();
 });
 
-// Decode gate
+// Decode gate (single-device pass-the-phone only — Lobby Mode skips it)
 document.getElementById('btn-ss-decode-gate-ready').addEventListener('click', () => {
   playPillClick();
   ssShowDecode();
@@ -1880,34 +2192,21 @@ document.getElementById('btn-ss-decode-exit').addEventListener('click', () => {
 // Decode screen
 document.getElementById('btn-ss-submit-decode').addEventListener('click', () => {
   playDone();
-  if (window.syllyMultiplayerMode !== 'single') {
-    const encoder = ssEncryptingTeam;
-    if (encoder !== mpMyPlayerIdx) return; // only encoding team decodes
-    if (window.syllyMultiplayerMode === 'client') {
-      // Client (Team B encoding) decodes: send to Host for resolution
-      mpLockSync();
-      mpSendEnvelope({ type: 'ACTION', payload: {
-        action: 'SS_DECODE_SUBMIT',
-        guess:  [...ssDecodeGuess],
-        team:   encoder,
-      }});
-      return;
-    }
-    // Host (Team A encoding) decodes: resolve locally and broadcast results
-    ssResolve();
-    const result = ssRoundHistory[ssRoundHistory.length - 1];
-    mpSendEnvelope({ type: 'SYNC', payload: {
-      action:         'SS_RESOLUTION',
-      result,
-      tokens:         [...ssTokens],
-      misfires:       [...ssMisfires],
-      clueHistoryA:   ssClueHistoryA.map(h => [...h]),
-      clueHistoryB:   ssClueHistoryB.map(h => [...h]),
-      roundHistory:   ssRoundHistory,
+  if (window.syllyMultiplayerMode === 'single') { ssResolve(); return; }
+  // Lobby: only the encrypting team's guesser of record submits
+  if (mpMyPlayerIdx !== ssGuesserIdx(ssEncryptingTeam)) return;
+  if (window.syllyMultiplayerMode === 'client') {
+    mpLockSync();
+    mpSendEnvelope({ type: 'ACTION', payload: {
+      action: 'SS_DECODE_SUBMIT', guess: [...ssDecodeGuess],
     }});
+    ssShowStandby('Decode Locked 🔑', 'Waiting for the other team to intercept…');
     return;
   }
-  ssResolve();
+  // Host is the decode guesser: record + maybe resolve
+  ssMpDecodeReady = true;
+  ssShowStandby('Decode Locked 🔑', 'Waiting for the other team to intercept…');
+  ssHostMaybeResolve();
 });
 
 // Resolution exit → quit overlay
@@ -1919,6 +2218,7 @@ document.getElementById('btn-ss-resolution-exit').addEventListener('click', () =
 // Resolution → next half
 document.getElementById('btn-ss-continue').addEventListener('click', () => {
   playPillClick();
+  if (window.syllyMultiplayerMode === 'client') return; // host drives the next half via SS_ENCRYPT_TURN
   ssNextHalf();
 });
 
@@ -2133,14 +2433,18 @@ document.getElementById('btn-ss-rps-b-won').addEventListener('click', () => {
 
 document.getElementById('btn-ss-tiebreak-go-first').addEventListener('click', () => {
   playLaunch();
-  ssIntelLeader = ssTiebreakWinner;
-  ssShowIntelIntro(ssIntelLeader);
+  ssIntelLeader       = ssTiebreakWinner;
+  ssIntelGuessingTeam = ssIntelLeader;
+  if (window.syllyMultiplayerMode === 'host') ssBroadcastIntel('intro');
+  else                                        ssShowIntelIntro(ssIntelLeader);
 });
 
 document.getElementById('btn-ss-tiebreak-go-second').addEventListener('click', () => {
   playLaunch();
-  ssIntelLeader = 1 - ssTiebreakWinner;
-  ssShowIntelIntro(ssIntelLeader);
+  ssIntelLeader       = 1 - ssTiebreakWinner;
+  ssIntelGuessingTeam = ssIntelLeader;
+  if (window.syllyMultiplayerMode === 'host') ssBroadcastIntel('intro');
+  else                                        ssShowIntelIntro(ssIntelLeader);
 });
 
 // ── Intel intro ───────────────────────────────────────────────────────────────
@@ -2151,7 +2455,8 @@ document.getElementById('btn-ss-intel-intro-exit').addEventListener('click', () 
 
 document.getElementById('btn-ss-intel-begin').addEventListener('click', () => {
   playLaunch();
-  ssStartIntelKeyword();
+  if (window.syllyMultiplayerMode === 'host') { ssBroadcastIntel('keyword'); return; }
+  ssStartIntelKeyword();  // single (clients see this button disabled)
 });
 
 // ── Intel guess ───────────────────────────────────────────────────────────────
@@ -2228,6 +2533,13 @@ document.querySelectorAll('.btn-ss-help-open').forEach(btn => {
   });
 });
 document.getElementById('btn-ss-how-to')?.addEventListener('click', () => {
+  playDone();
+  const el = document.getElementById('ss-how-to-overlay');
+  const inner = el.querySelector('.overlay-data-inner');
+  if (inner) inner.scrollTop = 0;
+  el.style.display = 'flex';
+});
+document.getElementById('btn-ss-how-to-game')?.addEventListener('click', () => {
   playDone();
   const el = document.getElementById('ss-how-to-overlay');
   const inner = el.querySelector('.overlay-data-inner');

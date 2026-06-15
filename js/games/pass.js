@@ -50,8 +50,6 @@ let passDeckIdx        = 0;     // 0 = Deck 1 (charcoal grey), 1 = Deck 2 (crims
 let passCurrentPlayerIdx = 0;
 let passSelectedCardIdxs = [];        // indices into passHands[mpMyPlayerIdx]
 let passPhase            = 'your-turn'; // 'your-turn' | 'waiting' | 'abyss-draft' | 'round-over'
-// Combo played most recently — Sylly Mode audit at round-win
-let passLastWinningCombo = null;
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const PASS_RANK_VALUES = {
@@ -378,7 +376,6 @@ function passStartRound() {
   passAbyss          = [];
   passRoundWinnerIdx = -1;
   passConsecPasses   = 0;
-  passLastWinningCombo = null;
 
   // Deal hands
   for (let i = 0; i < passHandSize; i++) {
@@ -637,6 +634,15 @@ function passSubmitPass() {
   }
 }
 
+// Detonation Combos trigger the Abyss when they WIN a trick or empty a hand.
+// Standard Combos (Single, Pair) keep the trick quiet — they never detonate, so a
+// trick or match won on a Single/Pair leaves the pool untouched. Fracture (13) is
+// independent of this gate.
+const PASS_DETONATION_TYPES = new Set(['Triplet', 'Quad', 'DoubleJoker', 'Sequence', 'DoubleSequence']);
+function passIsDetonationCombo(combo) {
+  return !!combo && PASS_DETONATION_TYPES.has(combo.type);
+}
+
 // ── Core turn processing (runs on host / single device) ──────────────────────
 
 function passProcessPlay(playerIdx, cardIndices, combo) {
@@ -649,43 +655,32 @@ function passProcessPlay(playerIdx, cardIndices, combo) {
   passHasPlayedCard[playerIdx] = true;
   passConsecPasses   = 0;
   passPassCount[playerIdx] = 0;
-  passLastWinningCombo = combo;
-
-  // Abyss mid-trick detonation: table cleared by Bomb or Sequence
-  // (full-circle pass clears the table, checked in passProcessPass)
 
   // Check round win: hand empty after play
   if (hand.length === 0) {
     passRoundWinnerIdx = playerIdx;
     if (window.syllyMultiplayerMode !== 'single') {
-      // Check Sylly detonation before scoring
-      if (passSyllyMode) {
-        const detonatingTypes = new Set(['Triplet','Quad','DoubleJoker','Sequence','DoubleSequence']);
-        if (detonatingTypes.has(passLastWinningCombo.type) && passAbyss.length > 0) {
-          const draftResult = passResolveAbyssDetonation(playerIdx);
-          mpSendEnvelope({ type: 'SYNC', payload: {
-            action:     'PASS_ABYSS_DRAFT',
-            trigger:    'round-win',
-            draftOrder: draftResult.order,
-            draftCards: draftResult.cards,
-            newHands:   passHands,
-          }});
-          // passResolveRound() called after draft display time — via broadcastRoundEnd
-          setTimeout(() => passBroadcastRoundEnd(), 2000); // brief pause for abyss reveal
-          return;
-        } else {
-          passAbyss = []; // silent discard
-        }
+      // Abyss detonates only when the round is won by a Detonation Combo — the pool
+      // is distributed to opponents BEFORE scoring; the winner is exempt. A Standard
+      // Combo (Single/Pair) ends the match peacefully with no draft.
+      if (passSyllyMode && passAbyss.length > 0 && passIsDetonationCombo(combo)) {
+        const draftResult = passResolveAbyssDetonation(playerIdx);
+        mpSendEnvelope({ type: 'SYNC', payload: {
+          action:     'PASS_ABYSS_DRAFT',
+          trigger:    'round-win',
+          draftOrder: draftResult.order,
+          draftCards: draftResult.cards,
+          newHands:   passHands,
+        }});
+        // passResolveRound() runs after the abyss reveal — via broadcastRoundEnd
+        setTimeout(() => passBroadcastRoundEnd(), 2000); // brief pause for abyss reveal
+        return;
       }
       passBroadcastRoundEnd();
     } else {
-      if (passSyllyMode) {
-        const detonatingTypes = new Set(['Triplet','Quad','DoubleJoker','Sequence','DoubleSequence']);
-        if (detonatingTypes.has(passLastWinningCombo.type) && passAbyss.length > 0) {
-          passResolveAbyssDetonation(playerIdx);
-        } else {
-          passAbyss = [];
-        }
+      // Distribute the Abyss before scoring — only on a Detonation Combo win; winner exempt.
+      if (passSyllyMode && passAbyss.length > 0 && passIsDetonationCombo(combo)) {
+        passResolveAbyssDetonation(playerIdx);
       }
       passResolveRound(playerIdx);
     }
@@ -736,22 +731,31 @@ function passProcessPass(playerIdx) {
     }
   }
 
-  // Full-circle pass: everyone passed since last play — clear the table
+  // Full-circle pass: everyone passed since last play — the trick resolves.
   if (passConsecPasses >= passPlayerCount) {
+    // The trick winner is whoever's combo no one beat = the current table leader.
+    // Capture it before clearing — it drives both the Abyss exemption and the
+    // talon-draw start seat. (In this flow the last passer always cycles back to
+    // the leader, but passTableLeaderIdx is the unambiguous source of truth.)
+    const trickWinner  = passTableLeaderIdx;
+    const winningCombo = passTableCombo; // capture before reset — gates Abyss detonation
     passTableCombo     = null;
     passTableLeaderIdx = -1;
     passConsecPasses   = 0;
 
+    // Abyss detonation (Sylly Mode): only when the trick was WON by a Detonation
+    // Combo does the pool deal clockwise to everyone EXCEPT the trick winner and
+    // clear. A trick won by a Standard Combo (Single/Pair) leaves the pool intact —
+    // it persists and keeps growing on future passes.
+    let abyssDraft = null;
+    if (passSyllyMode && passAbyss.length > 0 && passIsDetonationCombo(winningCombo)) {
+      const draftResult = passResolveAbyssDetonation(trickWinner);
+      abyssDraft = { order: draftResult.order, cards: draftResult.cards };
+    }
+
     let talonDraws = [];
     if (passMidGameDraw) {
-      // All players draw 1 clockwise from trick winner (previous leader, now current player after clear)
-      let drawIdx = playerIdx; // last passer = full circle complete; winner was the one who led
-      // Winner is passTableLeaderIdx which got cleared — use who led last (back one step: playerIdx before advancing)
-      // Actually full-circle-pass winner = the player who led the last combo = old passTableLeaderIdx.
-      // But passTableLeaderIdx is now -1 after clear. We need to track who won the trick.
-      // The trick winner is the player whose combo cleared. When passConsecPasses reaches passPlayerCount,
-      // the player who led last was the trick winner. We can derive: advance from playerIdx backward.
-      const trickWinner = (playerIdx + 1) % passPlayerCount; // last person to pass was playerIdx; they wrap
+      // All players draw 1 clockwise, starting from the trick winner.
       for (let step = 0; step < passPlayerCount; step++) {
         const drawP = (trickWinner + step) % passPlayerCount;
         if (passDeck.length > 0) {
@@ -774,6 +778,7 @@ function passProcessPass(playerIdx) {
         tableCleared:  true,
         handCounts:    passHands.map(h => h.length),
       };
+      if (abyssDraft) payload.abyssDraft = abyssDraft;
       if (talonDraws.length > 0) {
         payload.talonDraws = talonDraws;
         payload.talonRemaining = passDeck.length;
@@ -1090,7 +1095,10 @@ function passHandleEnvelope(env) {
       passMatchRound       = payload.roundNum || 1;
       passCurrentPlayerIdx = payload.firstPlayer || 0;
       passChips            = payload.chips.map(c => c);
-      passRoundsWon        = Array(passPlayerCount).fill(0);
+      // Only zero the cumulative tally at a true match start (round 1). Rounds 2+
+      // re-broadcast PASS_GAME_START but must preserve the running rounds-won count,
+      // otherwise the client gameover subline shows only the final round (BUG-02).
+      if ((payload.roundNum || 1) === 1) passRoundsWon = Array(passPlayerCount).fill(0);
       passMatchOver        = false;
       passTableCombo       = null;
       passTableLeaderIdx   = -1;
@@ -1098,7 +1106,6 @@ function passHandleEnvelope(env) {
       passHasPlayedCard    = Array(passPlayerCount).fill(false);
       passAbyss            = [];
       passConsecPasses     = 0;
-      passLastWinningCombo = null;
       mpUnlockSync();
       passShowTable();
       return;
@@ -1116,6 +1123,14 @@ function passHandleEnvelope(env) {
           if (i === mpMyPlayerIdx) return h;
           // Create placeholder arrays for opponents' hand length display
           return Array(payload.handCounts[i]).fill(null);
+        });
+      }
+      // Abyss trick-clear detonation: add our drafted card to our own hand
+      if (payload.abyssDraft && payload.abyssDraft.order) {
+        payload.abyssDraft.order.forEach((pIdx, i) => {
+          if (pIdx === mpMyPlayerIdx && payload.abyssDraft.cards[i]) {
+            passHands[mpMyPlayerIdx].push(payload.abyssDraft.cards[i]);
+          }
         });
       }
       // Mid-Game Draw: update own hand if we received a card
@@ -1155,33 +1170,11 @@ function passHandleEnvelope(env) {
       passRoundsWon[payload.winnerIdx]++;
       mpUnlockSync();
       if (payload.matchOver) {
-        passShowGameover(payload.winnerIdx, payload.newChips, passRoundsWon);
+        // Host is authoritative for the final tally; fall back to local only if absent (BUG-02).
+        passShowGameover(payload.winnerIdx, payload.newChips, payload.roundsWon || passRoundsWon);
       } else {
         passShowRoundWrap(payload.winnerIdx, payload.chipDeltas, payload.badges, false);
       }
-      return;
-    }
-
-    if (payload.action === 'PASS_NEXT_ROUND') {
-      passMatchRound       = payload.roundNum;
-      passTableCombo       = null;
-      passTableLeaderIdx   = -1;
-      passPassCount        = Array(passPlayerCount).fill(0);
-      passHasPlayedCard    = Array(passPlayerCount).fill(false);
-      passAbyss            = [];
-      passConsecPasses     = 0;
-      passLastWinningCombo = null;
-      passHands            = (payload.hands || []).map((h, i) => i === mpMyPlayerIdx ? h || [] : Array(passHandSize).fill(null));
-      passChips            = payload.chips || passChips;
-      passCurrentPlayerIdx = payload.firstPlayer || 0;
-      mpUnlockSync();
-      passShowTable();
-      return;
-    }
-
-    if (payload.action === 'PASS_GAMEOVER') {
-      mpUnlockSync();
-      passShowGameover(payload.winnerIdx, payload.finalChips, payload.roundsWon);
       return;
     }
 

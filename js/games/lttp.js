@@ -74,6 +74,7 @@ let lttpGuessOrder   = [];        // player indices in order for the guess phase
 let lttpGuessStep    = 0;         // current step through lttpGuessOrder
 let lttpVotes        = {};        // {voterIdx: guessPlayerIdx} — non-Stray votes
 let lttpStrayPin     = -1;        // grid index pinned by the Stray
+let lttpGuessReadyCheck = [];     // MDLM: per-player guess-phase submission tracker (host-only)
 let lttpPlanLog      = [];        // [{plan, highlights: [...]}] for gameover carousel
 let lttpPlanLogIdx   = 0;
 
@@ -449,8 +450,6 @@ function lttpBuildGrid(allWords) {
 // ROLE ASSIGNMENT
 // ═══════════════════════════════════════════════════════════════════════════
 function lttpAssignRoles() {
-  const indices = shuffle(lttpGridLocations.map((_, i) => i));
-  // Use a player indices shuffle instead
   const playerOrder = shuffle([...Array(lttpPlayerCount).keys()]);
   lttpStrayIdx = playerOrder[0];
   lttpJokerIdx = lttpJokerMode ? playerOrder[1] : -1;
@@ -466,7 +465,6 @@ function lttpStartGame() {
   lttpPlan        = 0;
   lttpActiveIdx   = -1;
   lttpLapAnswered = new Set();
-  lttpRoleRevealIdx = 0;
   lttpHistory     = [];
   lttpNotes       = {};
   lttpSuspicionMap = {};
@@ -519,53 +517,6 @@ function lttpStartGame() {
     });
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// ROLE REVEAL SCREEN
-// ═══════════════════════════════════════════════════════════════════════════
-function lttpShowRoleReveal(idx) {
-  lttpActiveIdx = idx;
-  const name   = lttpPlayerNames[idx];
-  const isStray  = idx === lttpStrayIdx;
-  const isJoker  = lttpJokerMode && idx === lttpJokerIdx;
-
-  document.getElementById('lttp-reveal-name').textContent = name;
-
-  const badge  = document.getElementById('lttp-reveal-badge');
-  const info   = document.getElementById('lttp-reveal-info');
-  const grid   = document.getElementById('lttp-reveal-grid');
-
-  if (isStray) {
-    badge.textContent  = '🚨 YOU ARE LATE.';
-    badge.className    = 'text-2xl font-black text-red-600 tracking-wide text-center';
-    info.textContent   = 'Listen carefully. Find the location before the Uber arrives.';
-    info.className     = 'text-stone-500 text-sm text-center mt-1';
-    lttpRenderRevealGrid(grid, 'stray');
-  } else if (isJoker) {
-    badge.textContent  = '🃏 You\'re The Troublemaker.';
-    badge.className    = 'text-2xl font-black text-orange-500 tracking-wide text-center';
-    info.textContent   = 'Lead the Friend of a Friend to a fake location. Don\'t blow your cover.';
-    info.className     = 'text-stone-500 text-sm text-center mt-1';
-    lttpRenderRevealGrid(grid, 'joker');
-  } else {
-    badge.textContent  = '📍 The Gang.';
-    badge.className    = 'text-2xl font-black text-stone-800 tracking-wide text-center';
-    info.textContent   = 'The party is somewhere here. Don\'t give it away.';
-    info.className     = 'text-stone-500 text-sm text-center mt-1';
-    lttpRenderRevealGrid(grid, 'ic');
-  }
-
-  showScreen('screen-lttp-role-reveal');
-}
-
-function lttpRenderRevealGrid(container, role) {
-  container.innerHTML = '';
-  lttpGridLocations.forEach((loc, idx) => {
-    const cell = document.createElement('div');
-    cell.textContent = loc;
-    cell.className   = 'rounded-lg p-1 text-center text-xs leading-tight hyphens-auto ' + lttpCellClass(idx, role);
-    container.appendChild(cell);
-  });
-}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // BRIEFING SCREEN (settings recap + first player callout)
@@ -923,69 +874,92 @@ document.addEventListener('DOMContentLoaded', () => {
 // ── Player selection — core lap logic ────────────────────────────────────────
 function lttpSelectPlayer(targetIdx, messageText = '') {
   playLaunch();
-  lttpHistory.push({ asker: lttpActiveIdx, asked: targetIdx, plan: lttpPlan, messageText });
-  lttpLapAnswered.add(lttpActiveIdx);
+  const askerIdx = lttpActiveIdx;
 
-  if (window.syllyMultiplayerMode !== 'single') {
-    // Lobby Mode: broadcast message interrupt to all devices before advancing
-    const fromName = lttpPlayerNames[lttpActiveIdx] || '';
+  if (window.syllyMultiplayerMode === 'client') {
+    // Client: the host is authoritative over lap completion / plan advancement / guess phase.
+    // Send the message and show the interrupt locally; do NOT compute advancement here.
+    const fromName = lttpPlayerNames[askerIdx] || '';
     const toName   = lttpPlayerNames[targetIdx] || '';
-    if (window.syllyMultiplayerMode === 'host') {
-      mpSendEnvelope({ type: 'SYNC', payload: {
-        action:      'LTTP_MESSAGE_INTERRUPT',
-        fromName,
-        toName,
-        messageText,
-        targetIdx,
-        askerIdx:    lttpActiveIdx,
-      }});
-    } else {
-      mpSendEnvelope({ type: 'ACTION', payload: {
-        action:      'LTTP_MESSAGE_SEND',
-        fromName,
-        toName,
-        messageText,
-        targetIdx,
-        askerIdx:    lttpActiveIdx,
-        history:     { asker: lttpActiveIdx, asked: targetIdx, plan: lttpPlan, messageText },
-        lapAnswered: [...lttpLapAnswered],
-      }});
-      // Client shows interrupt locally while waiting for Host to broadcast
-      document.getElementById('mp-lttp-interrupt-heading').textContent = `${fromName} → ${toName}`;
-      document.getElementById('mp-lttp-interrupt-body').textContent    = messageText ? `"${messageText}"` : '';
-      document.getElementById('mp-lttp-message-interrupt-overlay').style.display = 'flex';
-    }
+    lttpHistory.push({ asker: askerIdx, asked: targetIdx, plan: lttpPlan, messageText }); // own history log
+    mpSendEnvelope({ type: 'ACTION', payload: {
+      action: 'LTTP_MESSAGE_SEND', fromName, toName, messageText, targetIdx, askerIdx,
+    }});
+    document.getElementById('mp-lttp-interrupt-heading').textContent = `${fromName} → ${toName}`;
+    document.getElementById('mp-lttp-interrupt-body').textContent    = messageText ? `"${messageText}"` : '';
+    document.getElementById('mp-lttp-message-interrupt-overlay').style.display = 'flex';
+    return;
   }
 
-  // Check if lap is complete (all players except active have been covered)
-  const allGone = [...Array(lttpPlayerCount).keys()]
-    .filter(i => i !== targetIdx)
-    .every(i => lttpLapAnswered.has(i) || i === lttpActiveIdx);
+  if (window.syllyMultiplayerMode === 'host') {
+    lttpHostProcessMessage(askerIdx, targetIdx, messageText);
+    return;
+  }
 
-  // A lap is done when every player has held the phone (been in lttpLapAnswered)
-  // lttpLapAnswered tracks who has ASKED (held phone). Lap ends when N-1 players have gone
-  // (the final target will become active next; when they ask, they close the loop)
-  // Simpler: lap ends when all N players will have had the phone after this pass.
-  // After this pass, targetIdx becomes active. They haven't asked yet.
-  // Lap is complete when lttpLapAnswered.size === lttpPlayerCount - 1
-  // (everyone except the last target has already held the phone this lap)
+  // Single-device: apply locally.
+  lttpHistory.push({ asker: askerIdx, asked: targetIdx, plan: lttpPlan, messageText });
+  lttpLapAnswered.add(askerIdx);
+  lttpAdvanceAfterMessage(targetIdx);
+}
+
+// Host: process one message (own or a client's), broadcast the interrupt, then advance authoritatively.
+function lttpHostProcessMessage(askerIdx, targetIdx, messageText) {
+  const fromName = lttpPlayerNames[askerIdx] || '';
+  const toName   = lttpPlayerNames[targetIdx] || '';
+  lttpHistory.push({ asker: askerIdx, asked: targetIdx, plan: lttpPlan, messageText });
+  lttpLapAnswered.add(askerIdx);
+  mpSendEnvelope({ type: 'SYNC', payload: {
+    action: 'LTTP_MESSAGE_INTERRUPT', fromName, toName, messageText, targetIdx, askerIdx,
+  }});
+  document.getElementById('mp-lttp-interrupt-heading').textContent = `${fromName} → ${toName}`;
+  document.getElementById('mp-lttp-interrupt-body').textContent    = messageText ? `"${messageText}"` : '';
+  document.getElementById('mp-lttp-message-interrupt-overlay').style.display = 'flex';
+  lttpAdvanceAfterMessage(targetIdx);
+}
+
+// Host + single: authoritative lap-completion → turn advance / plan update / guess phase.
+// In Lobby Mode the host broadcasts the resolved state (no client ever narrows locally — L5/L6 fix).
+function lttpAdvanceAfterMessage(targetIdx) {
+  // Lap is complete when every player except the last target has already held the phone this lap.
   const lapComplete = lttpLapAnswered.size === lttpPlayerCount - 1;
 
   if (lapComplete) {
-    // targetIdx is the last person in the lap — they complete the lap by holding the phone
-    // but they don't get another question; the lap closes.
     lttpLapAnswered.add(targetIdx);
     lttpActiveIdx = targetIdx;
 
     if (lttpPlan < 4) {
-      lttpNarrowHighlights();
+      lttpNarrowHighlights(); // advances lttpPlan + narrows highlights (also clears lttpLapAnswered)
+      if (window.syllyMultiplayerMode === 'host') {
+        mpSendEnvelope({ type: 'SYNC', payload: {
+          action:      'LTTP_PLAN_UPDATE',
+          plan:        lttpPlan,
+          highlights:  [...lttpHighlights],
+          fadedCells:  [...lttpFadedCells],
+          decoys:      [...lttpDecoys],
+          activeIdx:   lttpActiveIdx,
+          lapAnswered: [...lttpLapAnswered],
+          history:     lttpHistory,
+          planLog:     lttpPlanLog,
+        }});
+      }
       lttpShowPlanUpdate(targetIdx);
     } else {
-      // Plan 4 lap complete → enter guess phase
-      lttpStartGuessPhase();
+      lttpStartGuessPhase(); // host broadcasts LTTP_GUESS_PHASE inside
     }
   } else {
-    lttpShowHandover(targetIdx, null);
+    lttpActiveIdx = targetIdx;
+    if (window.syllyMultiplayerMode === 'host') {
+      mpSendEnvelope({ type: 'SYNC', payload: {
+        action:      'LTTP_TURN_ADVANCE',
+        activeIdx:   lttpActiveIdx,
+        plan:        lttpPlan,
+        history:     lttpHistory,
+        lapAnswered: [...lttpLapAnswered],
+      }});
+      lttpShowChat(lttpActiveIdx);
+    } else {
+      lttpShowHandover(targetIdx, null); // single-device pass-the-phone gate
+    }
   }
 }
 
@@ -1204,6 +1178,17 @@ function lttpOpenPlayerFolder(playerIdx) {
 function lttpStartGuessPhase() {
   lttpGuessStep = 0;
 
+  if (window.syllyMultiplayerMode !== 'single') {
+    // MDLM (lttpGroupVote is forced off): every device guesses for its own player simultaneously —
+    // the Stray pins, everyone else votes. The host collects all submissions and resolves.
+    if (window.syllyMultiplayerMode === 'host') {
+      lttpGuessReadyCheck = Array(lttpPlayerCount).fill(false);
+      mpSendEnvelope({ type: 'SYNC', payload: { action: 'LTTP_GUESS_PHASE' } });
+    }
+    lttpShowGuessForDevice();
+    return;
+  }
+
   if (lttpGroupVote) {
     // Stray pins privately first; IC/Joker vote together after
     lttpGuessOrder = [lttpStrayIdx];
@@ -1213,6 +1198,35 @@ function lttpStartGuessPhase() {
   }
 
   lttpShowGuessHandover(lttpGuessOrder[0]);
+}
+
+// MDLM: show this device's own guess UI directly (no pass-gate, no handover).
+function lttpShowGuessForDevice() {
+  lttpShowGuess(mpMyPlayerIdx);
+}
+
+// MDLM: standby after this device has locked in its pin/vote.
+function lttpShowGuessWaiting() {
+  document.getElementById('lttp-guess-pass-gate').style.display = 'none';
+  document.getElementById('lttp-guess-action').style.display    = 'flex';
+  document.getElementById('lttp-guess-action-header').textContent = '✅ Locked in';
+  document.getElementById('lttp-guess-action-sub').textContent    = 'Waiting for the other guests…';
+  document.getElementById('lttp-guess-pin-area').style.display  = 'none';
+  document.getElementById('lttp-guess-vote-area').style.display = 'none';
+  document.getElementById('btn-lttp-guess-confirm').style.display = 'none';
+  showScreen('screen-lttp-guess');
+}
+
+// Host: collect one device's pin/vote; resolve + broadcast gameover once all are in.
+function lttpHostCollectGuess(playerIdx, pin, suspectIdx) {
+  if (window.syllyMultiplayerMode !== 'host') return;
+  if (lttpGuessReadyCheck[playerIdx]) return; // dedup
+  lttpGuessReadyCheck[playerIdx] = true;
+  if (playerIdx === lttpStrayIdx) lttpStrayPin = pin;
+  else lttpVotes[playerIdx] = suspectIdx;
+  if (lttpGuessReadyCheck.every(Boolean)) {
+    lttpComputeAndShowGameover(); // broadcasts LTTP_GAMEOVER inside
+  }
 }
 
 function lttpShowGuessHandover(playerIdx) {
@@ -1230,6 +1244,7 @@ function lttpShowGuess(playerIdx) {
 
   document.getElementById('lttp-guess-pass-gate').style.display = 'none';
   document.getElementById('lttp-guess-action').style.display    = 'flex';
+  document.getElementById('btn-lttp-guess-confirm').style.display = ''; // restore (waiting state hides it)
 
   const header = document.getElementById('lttp-guess-action-header');
   const sub    = document.getElementById('lttp-guess-action-sub');
@@ -1344,7 +1359,8 @@ function lttpShowGroupGuess() {
 // ── Confirm action button ────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-lttp-guess-confirm').addEventListener('click', () => {
-    const playerIdx = lttpGuessOrder[lttpGuessStep];
+    const isMp      = window.syllyMultiplayerMode !== 'single';
+    const playerIdx = isMp ? mpMyPlayerIdx : lttpGuessOrder[lttpGuessStep];
     const isStray   = playerIdx === lttpStrayIdx;
 
     // Validation
@@ -1352,8 +1368,23 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!isStray && lttpVotes[playerIdx] === undefined) return; // must vote
 
     playLaunch();
-    lttpGuessStep++;
 
+    if (isMp) {
+      // MDLM: submit own pin/vote to the host, then stand by.
+      if (window.syllyMultiplayerMode === 'client') {
+        if (isStray) {
+          mpSendEnvelope({ type: 'ACTION', payload: { action: 'LTTP_PIN_SUBMIT', pin: lttpStrayPin } });
+        } else {
+          mpSendEnvelope({ type: 'ACTION', payload: { action: 'LTTP_VOTE_SUBMIT', voterIdx: playerIdx, suspectIdx: lttpVotes[playerIdx] } });
+        }
+      } else {
+        lttpHostCollectGuess(playerIdx, isStray ? lttpStrayPin : null, isStray ? null : lttpVotes[playerIdx]);
+      }
+      lttpShowGuessWaiting();
+      return;
+    }
+
+    lttpGuessStep++;
     if (lttpGuessStep < lttpGuessOrder.length) {
       lttpShowGuessHandover(lttpGuessOrder[lttpGuessStep]);
     } else if (lttpGroupVote) {
@@ -1389,6 +1420,17 @@ function lttpComputeAndShowGameover() {
   // Append final Plan 4 snapshot
   lttpPlanLog.push({ plan: 4, highlights: [...lttpHighlights] });
   lttpPlanLogIdx = 0;
+
+  // MDLM: host is authoritative on the result — broadcast so all devices land on the same gameover.
+  if (window.syllyMultiplayerMode === 'host') {
+    mpSendEnvelope({ type: 'SYNC', payload: {
+      action:     'LTTP_GAMEOVER',
+      winner, winReason,
+      strayPin:   lttpStrayPin,
+      votes:      lttpVotes,
+      highlights: [...lttpHighlights],
+    }});
+  }
 
   lttpShowGameover(winner, winReason);
 }
@@ -1492,7 +1534,7 @@ function resetLateToTheParty() {
   // Hide all overlays
   ['lttp-suspicion-overlay', 'lttp-history-overlay', 'lttp-guess-map-overlay',
    'lttp-settings-overlay', 'lttp-how-to-overlay', 'lttp-quit-overlay',
-   'lttp-confirm-overlay'].forEach(id => {
+   'lttp-confirm-overlay', 'lttp-smalltalk-overlay'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = 'none';
   });
@@ -1501,7 +1543,6 @@ function resetLateToTheParty() {
   lttpPlan          = 0;
   lttpActiveIdx     = -1;
   lttpLapAnswered   = new Set();
-  lttpRoleRevealIdx = 0;
   lttpStrayIdx      = -1;
   lttpJokerIdx      = -1;
   lttpGridLocations = [];

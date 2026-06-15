@@ -24,7 +24,7 @@ Run these checks against `game-identities.md` and `docs/code-map.md` before proc
 | Does the proposed abbreviation conflict with any existing plugin prefix? | |
 | Does any proposed screen ID conflict with any existing screen in `allScreens[]`? | |
 | Does the game need a new data file, or can it reuse `words.json` or `ygi-data.json`? | |
-| Are there any engine functions already built that this game can reuse (e.g. `showWhoFirst`, `normaliseWord`, pass-gate pattern)? | |
+| Are there engine functions OR shared library modules already built that this game can reuse — `showWhoFirst`, `normaliseWord`, pass-gate pattern, and the `Cards` / `CanvasDraw` modules (see `logic-engine.md` § Shared Library Modules)? | |
 
 **Flags:** (list any collisions or concerns found)
 

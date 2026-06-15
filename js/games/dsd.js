@@ -923,6 +923,17 @@ function dsdResolveHit(gridIdx) {
         pingNumber: dsdPingNumber,
         outcomes: [...dsdTurnOutcomes],
       });
+      // Nuclear Mine is terminal and bypasses dsdAdvanceTurn() — the only other
+      // DSD_GAMEOVER broadcaster. Broadcast here so the non-active spectator/standby
+      // device isn't stranded (it only receives DSD_EXECUTION_RESULT otherwise).
+      if (window.syllyMultiplayerMode === 'host') {
+        mpSendEnvelope({ type: 'SYNC', payload: {
+          action: 'DSD_GAMEOVER',
+          valour: [...dsdValour],
+          grid:   dsdGrid.map(c => ({ ...c })),
+          turnLog: dsdTurnLog,
+        }});
+      }
       setTimeout(() => dsdShowGameover(), 2600); // 2600ms matches playAbyssThud() decay
       return true;
     }

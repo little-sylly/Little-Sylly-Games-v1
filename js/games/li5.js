@@ -555,7 +555,13 @@ function flipEntry(idx) {
     }
   }
 
-  teamScores[currentTeam] = Math.max(0, scoreBeforeTurn + roundLog.reduce((s, x) => s + x.points, 0));
+  // Clamp each entry sequentially so per-row display matches the actual score contribution
+  let _r = scoreBeforeTurn;
+  for (const x of roundLog) {
+    if (x.points < 0) x.points = -Math.min(-x.points, _r);
+    _r = Math.max(0, _r + x.points);
+  }
+  teamScores[currentTeam] = _r;
   document.getElementById('score-display').textContent = teamScores[currentTeam];
   renderReviewList();
   renderReviewHeader();
@@ -635,7 +641,12 @@ function showQuitConfirm() {
 
 function hideQuitConfirm() {
   document.getElementById('quit-overlay').style.display = 'none';
-  if (!isPaused) startTimer();
+  // Only resume the turn timer if a turn is actually running. The gatekeeper screen opens
+  // this same overlay with no active turn — restarting the timer there spawns a phantom
+  // turn timer (ticks, then fires endTurn on a stale Report Card). Guard on the active-play
+  // screen being visible.
+  const activePlay = document.getElementById('screen-active-play');
+  if (!isPaused && activePlay && activePlay.style.display !== 'none') startTimer();
 }
 
 function showSkipTurnConfirm() {

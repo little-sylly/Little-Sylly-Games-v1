@@ -51,7 +51,7 @@
 │   ├── secret3_words.json           # Expansion word bank: Pokémon Gen 1 (151 words)
 │   ├── ygi-data.json                # You Get It? prompts (50 entries, {id, text, ringers[5]})
 │   └── gth-data.json                # Group Therapy disorder bank (100 entries, 3 tiers: everyday/phobias/complex)
-├── sw.js                            # Service Worker (currently v101)
+├── sw.js                            # Service Worker (currently v103)
 ├── manifest.json                    # PWA manifest
 ├── docs/expansion-guide.md          # Template + checklist for adding new expansion packs
 ├── docs/code-map.md                 # Surgical code reference — all game IDs, overlays, key functions
@@ -80,6 +80,7 @@ All symbols are global (no ES modules). Forward references work at runtime.
 - **Audio:** Web Audio API (synthesised tones) — no audio files
 - **Capabilities:** PWA (offline via Service Worker), Screen Wake Lock API
 - **Diagrams:** Mermaid (`stateDiagram-v2`) — used in tech specs for state flows; rendered natively by GitHub, no install required
+- **Font exception (Fredoka):** The Fredoka brand font is loaded from Google Fonts (`fonts.googleapis.com`/`fonts.gstatic.com`) at runtime and is NOT precached by the SW. In offline/installed sessions the app falls back to the system sans-serif font. This is a deliberate exception — self-hosting Fredoka would require woff2 files, a local `@font-face`, and SW precache entries that add network-install weight. The app is fully functional offline; only the brand typography is affected. Do NOT remove the `<link>` tags — the offline fallback is acceptable.
 
 ---
 
@@ -208,14 +209,15 @@ Do not write the phase snapshot until Protocols A is clean. Do not write a line 
 ---
 
 ## 🎯 Current Focus
-**Phase:** Studio Audit (June 2026) — working through `docs/fable-audit-plan.md` phase by phase. Last shipped game phase: Phase 32 — Pass (PASS), Gan Deng Yan climbing card game with The Abyss (Sylly Mode), MDLM-only, 3–6 players.
-**SW Version:** v101 (bump when assets change)
-**Gold Master:** 11 games complete + multiplayer (LI5, Great Minds, Secret Signals, JEC, YGI, LTTP, Natural Selection, Deep-Sea Deploy, Group Therapy, Dicey Bluffs, Pass)
-**BLD status:** In active testing — MDLM only, `js/games/bld.js`, multiplayer bugs being resolved round by round.
-**Pending before next game:** Protocol C Studio Sweep — impl notes harvest + cross-game consistency check across all 12 games. Run before writing the Phase 1 brief for any new game. See `@phase-audit.md` Protocol C. The current studio audit (`docs/fable-audit-plan.md`) supersets Protocol C — completing it satisfies this gate.
+**Phase:** Studio Audit COMPLETE (June 2026). All 71 audit items resolved + all deferred items done. Protocol C gate is satisfied — next step is a new game brief.
+**Last shipped game:** Phase 32 — Pass (PASS), Gan Deng Yan climbing card game with The Abyss (Sylly Mode), MDLM-only, 3–6 players.
+**SW Version:** v103 (bump when assets change)
+**Gold Master:** 12 games complete + multiplayer (LI5, Great Minds, Secret Signals, JEC, YGI, LTTP, Natural Selection, Deep-Sea Deploy, Bailed, Group Therapy, Dicey Bluffs, Pass)
+**Pending before next game:** None — Protocol C is satisfied by the completed studio audit. Start with a new game Phase 1 brief using `@new-game-process.md`.
 **Key references:**
-- `docs/implementation-notes/dyb-implementation-notes.md` — DYB bug log + design decisions (active)
-- `docs/implementation-notes/bld-implementation-notes.md` — BLD bug log + design decisions (active)
+- `docs/archive/fable-audit-snapshot.md` — Studio Audit fix campaign snapshot (June 2026) — all 71 items + deferred items
+- `docs/implementation-notes/dyb-implementation-notes.md` — DYB bug log + design decisions
+- `docs/implementation-notes/bld-implementation-notes.md` — BLD bug log + design decisions
 - `docs/implementation-notes/gth-implementation-notes.md` — GTH bug log + design decisions
 - `docs/archive/phase31-snapshot.md` — Phase 31 snapshot (DYB shipped)
 - `docs/archive/phase30-snapshot.md` — Phase 30 snapshot (GTH shipped)
@@ -228,7 +230,6 @@ Do not write the phase snapshot until Protocols A is clean. Do not write a line 
 - `docs/multiplayer-feature-specification-v1.4.md` — MFS v1.4 spec (Phase 22 source of truth)
 - `docs/multiplayer-ui-components.md` — multiplayer component catalogue
 - `docs/code-map.md` — surgical reference: all game IDs, overlays, key functions
-- `docs/fable-audit-plan.md` — studio audit plan (active) — progress tracker + findings
 - `.claude/rules/new-game-process.md` — three-stage protocol for adding a new game (with `new-game-brief-template.md` + `new-game-technical-template.md`)
 - `docs/expansion-guide.md` — template for adding new expansion packs
 - `docs/ygi-content-guide.md` — content creation guide for You Get It? prompts

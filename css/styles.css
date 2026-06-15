@@ -45,10 +45,6 @@ body.flash-red   { background-color: #fecaca; }
   border: none;
   cursor: pointer;
 }
-.pill.pill-active {
-  background: #ec4899;   /* pink-500 */
-  color: #fff;
-}
 .pill.pill-active-purple {
   background: #a855f7;   /* purple-500 */
   color: #fff;
@@ -59,17 +55,6 @@ body.flash-red   { background-color: #fecaca; }
 .sylly-toggle-off {
   background: #e7e5e4;
   color: #78716c;
-  border-radius: 9999px;
-  padding: 0.4rem 1.2rem;
-  font-weight: 700;
-  font-size: 0.9rem;
-  transition: background 0.2s, color 0.2s;
-  border: none;
-  cursor: pointer;
-}
-.sylly-toggle-on {
-  background: #a855f7;
-  color: #fff;
   border-radius: 9999px;
   padding: 0.4rem 1.2rem;
   font-weight: 700;

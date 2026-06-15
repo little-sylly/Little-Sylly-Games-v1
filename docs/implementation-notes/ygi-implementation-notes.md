@@ -33,22 +33,22 @@ Status: Fixed Phase 28.
 What happened: In Lobby Mode the host pushes a round-log entry inside the vote-resolution path (`ygi.js` line ~561, and `engine-multiplayer.js` `YGI_VOTE_SUBMIT` line ~965) *and then* calls `ygiShowResults()`, which pushes a second entry (line ~694). Clients set `ygiRoundLog = p.roundLog` from the SYNC then also call `ygiShowResults()` → another push. So `ygiRoundLog` ends up with 2 entries per round on every device.
 Root cause: the manual push was added to populate the `roundLog` field of the `YGI_VERDICT` SYNC, but `ygiShowResults()` already owns the push (single-device path proves it — `ygiComputeAndShowResults()` does NOT push; only `ygiShowResults()` does). The manually-pushed entry is also malformed: `prompt: ygiCurrentPrompt` is the prompt **object**, not `.text`, and `entries` lacks the `name/pts/isGhost/isWinner` fields the renderer expects.
 Impact: The gameover carousel indicator shows a doubled count (e.g. "1 / 6" for a 3-round game). Navigating "prev" eventually lands on a malformed entry, where `ygiRenderRoundLog()` calls `entry.prompt.replace('[ ]', …)` on an object → **TypeError**, killing the carousel. MP-only.
-Fix (not yet applied — Principle 1): remove the manual `ygiRoundLog.push()` from both host paths; let `ygiShowResults()` own the push; build the SYNC `roundLog` after calling `ygiShowResults()`. On the client, don't both assign `p.roundLog` and re-push — assign and skip the push, or ignore the payload and let `ygiShowResults()` push locally.
-Status: Logged, fix plan. Not fixed.
+Fix (RESOLVED, Phase 3 audit, 15 June 2026): removed the manual malformed `ygiRoundLog.push()` from both host paths (`ygi.js` vote-resolution + `engine-multiplayer.js` `YGI_VOTE_SUBMIT`). `ygiShowResults()` is now the single source of truth for the round-log push; both host paths call it *first*, then build the `YGI_VERDICT` SYNC with `roundLog: ygiRoundLog` so the broadcast carries the freshly-pushed, well-formed entry. The client `YGI_VERDICT` handler now calls `ygiShowResults()` (which pushes a local entry) and *then* overwrites `ygiRoundLog = p.roundLog` with the host's authoritative log — assign-after-render, never both a push and a stale assign. Result: exactly one well-formed entry per round on every device. Verified `node --check` clean. Needs live 3-round MDLM browser confirmation (carousel reads "1 / 3").
+Status: RESOLVED (Phase 3 audit).
 
 **Y4 — MDLM: Sudden Death (Solo Take tie-break) is not multiplayer-aware (Phase 3 audit, 13 June 2026)**
 What happened: When `ygiDecider === 'only-one'` (Solo Take) and the final standings tie, `ygiStartSuddenDeath()` runs a pass-the-phone flow (`screen-ygi-sd-intro` → `screen-ygi-sd-pass` → `screen-ygi-sd-input`) with zero MP packets.
 Root cause: Sudden Death was built for single-device play and never given ACTION/SYNC handlers. In MDLM each device independently calls `ygiShowGameOver()` (the `btn-ygi-results-next` handler is not host-gated) and runs its own local SD.
 Impact: Conditional (Solo Take + a tie). In MDLM the sudden-death is unplayable/divergent. Same class as SS Intel-Phase S12.
-Fix (not applied): force `ygiDecider = 'close-enough'` in Lobby Mode, or build SD packets + host gate. Logged, fix plan.
-Status: Logged. Not fixed.
+Fix (RESOLVED, June 2026 — Group B, host-driven SD): built the full host-authoritative sudden death. New packets: `YGI_SUDDEN_DEATH` (SYNC — host broadcasts the chosen question + tied finalists so every device runs the same SD), `YGI_SD_SUBMIT` (ACTION — each finalist submits their number from their OWN device; the pass-the-phone gate is bypassed in MDLM), `YGI_GAMEOVER` (SYNC — host resolves the winner and broadcasts final standings; carries `afterSD` + `sdInputs` so clients can render the SD answer reveal). Host aggregates via the new `ygiSdReadyCheck[]` and resolves once all finalists are in. `ygiRenderSDIntro()` factored out so host + client share the intro render; in MDLM only finalists get an active Begin button, non-finalists see "Sudden death in progress…", and finalists who have answered see a "Waiting for the other finalists…" standby (`ygiShowSDWaiting`). Single-device pass-the-phone path unchanged. Verified `node --check` clean. Needs live MDLM browser confirmation.
+Status: RESOLVED (Group B).
 
 **Y5 — MDLM: `btn-ygi-results-next` not host-gated; clients advance the round locally (Phase 3 audit, 13 June 2026)**
 What happened: The results-screen "Next Situation →" button runs `ygiStartRound()` on whichever device taps it. On a client, `ygiStartRound()` pops the client's own (independently shuffled) `ygiPromptPool` and shows `screen-ygi-prompt` with the wrong situation until the host's `YGI_ROUND_START` SYNC arrives and overwrites it.
 Root cause: no `syllyMultiplayerMode` branch on the results-next handler — same client-gating-gap class as JEC J4.
 Impact: transient wrong-situation flash on clients + divergent `ygiRound` increments (self-corrects on the next `YGI_ROUND_START`). Low severity.
-Fix (not applied): gate results-next host-only (clients show "Waiting…"); let `YGI_ROUND_START` drive the client's round start.
-Status: Logged, fix plan.
+Fix (RESOLVED, June 2026 — folded into the Y4 fix): the `btn-ygi-results-next` handler now early-returns for clients, and `ygiShowResults()` disables the button + relabels it "Waiting for the host…" on clients. The host owns both the round advance (`ygiStartRound` → `YGI_ROUND_START`) and the gameover transition (`ygiShowGameOver` → `YGI_GAMEOVER` / `YGI_SUDDEN_DEATH`). Same seam as Y4, so fixed together.
+Status: RESOLVED (Group B, with Y4).
 
 ---
 

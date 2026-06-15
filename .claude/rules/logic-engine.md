@@ -23,6 +23,22 @@
 
 ---
 
+## Shared Library Modules
+
+`js/lib/` holds reusable, game-agnostic UI engines exposed as `window` globals.
+**Before building a card or drawing feature, reuse these — do not re-invent them.**
+
+| Module | Global | API | Reference user |
+|--------|--------|-----|----------------|
+| `js/lib/cards.js` | `Cards` | `Cards.buildEl({ rank, suit, deckIdx })` → card-face DOM node; `Cards.buildBackEl(deckIdx)` → face-down node. Joker = `{ rank: 'Joker', suit: '', deckIdx }`. Layered by DOM order — no per-card z-index. | PASS |
+| `js/lib/canvas-draw.js` | `CanvasDraw` | `init(canvasEl, { onStrokeEnd })`, `clear()`, `lock()` → `{ w, h, s }` stroke data, `render(canvasEl, data, opts)`, `setTremor(wrapperEl, bool)`, `setBlur(canvasEl, ms)`. **Tremor applies to the wrapper `<div>` only — never the `<canvas>` (coordinate system must stay unaffected).** | GTH |
+
+**Dice is deliberately NOT shared** — all dice logic lives in `js/games/dyb.js`
+(`dybGenerateRoll`, `dybComputeRealCount`, `dybDieHTML`) coupled to DYB state.
+Extract into a shared module only if a second dice game appears (YAGNI until then).
+
+---
+
 ## Screen Routing
 - `showScreen(id)` hides ALL `allScreens[]` entries, then shows target with CSS fadeIn
 - **Rule:** Every new screen ID must be added to `allScreens[]` in `engine.js`
@@ -132,6 +148,33 @@ function [abbr]ShowPassGate({ heading, subtext, ctaLabel, onConfirm }) {
 - `window.syllyMultiplayerMode`, `window.syllySyncLocked`, `window.syllyFirebase`, `window.syllyDeviceUid`, `window.mpLobbyStyle`, `window.mpClientPlayerRef`, `window.mpLobbyRoster`, `window.mpLobbyRosterTeamNames`, `window.mpLobbyRosterCaptainNames` — declared with `window.` explicitly at the top of `engine-multiplayer.js`. These ARE on `window` and must be accessed with the `window.` prefix. All game plugin files use `window.syllyMultiplayerMode` etc. — this is correct.
 - `mpMyPlayerIdx`, `mpPlayerSlots`, `mpActiveGame`, `mpActiveGameConfig`, `mpActiveRoomCode`, `mpRoomRef`, `mpEventsListener`, `mpRoomListener`, `mpPlayersListener`, `mpSyncLockTimer`, `mpJoinListenFrom` — declared with `let` at script top-level. These are NOT on `window`. Always access these directly — never `window.mpMyPlayerIdx`. That returns `undefined` silently. BLD Bug 8 was caused by this. Reference implementations for correct access: NAT.js, DSD.js.
 
+### MP_GAME_CONFIGS Entry Schema
+
+Every game registers one entry in `MP_GAME_CONFIGS` (`engine-multiplayer.js`). The
+mode/lobby screens read these fields directly — **a missing display field renders the
+literal string `undefined` on `screen-mp-mode`**, and a missing player-count getter
+lets the lobby start a game outside its real bounds.
+
+Required fields for every entry (grounded in the `li5` entry, `engine-multiplayer.js`):
+
+| Field | Type | Purpose / failure mode |
+|-------|------|------------------------|
+| `gameName` | string | Title on the mode/lobby screens — missing → "undefined" |
+| `emoji` | string | Icon on the mode/lobby screens |
+| `brandBtnClass` | string | `bg-[brand] hover:bg-[brand-dark]` for the primary lobby CTA |
+| `ptpLabel` / `lobbyCtaLabel` | string | CTA labels — missing → "undefined" on the button |
+| `menuScreen` | string | Screen the game returns to from the lobby |
+| `onPassThePhone` | function | Post-lobby entry — populates names + starts the game (host) / shows standby (client) |
+| `recommendedMode` | string | `'ptp'` / `'tlm'` / `'mdlm'` |
+| `supportedModes` | string[] | The modes offered on `screen-mp-mode`; an MDLM-only game lists `['mdlm']` |
+| `multiplayerOnly` | bool | Informational only — enforcement comes from `supportedModes` (see § MDLM Patterns) |
+| `rosterConfig` | object | `{ type, ... }` — use `type: 'none'` for automatic/random seating |
+| `getMaxPlayers` | () => int | Upper bound enforced by the lobby |
+| `getMinPlayers` | () => int | Lower bound — **mandatory for any game with a minimum above 2** (role-table games, e.g. BLD min 5). Omitting it let BLD start under-strength. Defaults to the engine minimum when absent. |
+
+Run this check when adding a game: every display field present (no "undefined" on
+the mode screen) and both player-count getters return the game's real bounds.
+
 ### Envelope Schema
 
 All Firebase messages follow this shape:
@@ -144,11 +187,30 @@ All Firebase messages follow this shape:
 
 ### Sync Lock
 
-`mpLockSync()` — adds `mp-sync-locked` class to `document.body`. CSS rule greys and disables all
-`.btn-mp-action` buttons across every screen. An 8-second timeout auto-releases to prevent
-permanent lock on dropped packets.
+`mpLockSync()` — sets `window.syllySyncLocked = true` and adds the `mp-sync-locked` class to
+`document.body`. Two layers of protection:
+1. **Correctness (universal, class-independent):** while locked, `mpSendEnvelope()` drops every
+   `type: 'ACTION'` envelope except the single one authorised by the `mpLockSync()` that opened
+   the lock (`mpActionAuthorised`). A double-tap re-enters `mpLockSync()` — a **no-op while
+   already locked**, so it does not re-authorise — and the duplicate ACTION is dropped at the
+   send choke point. This is what prevents a double-tap from running the host's resolve twice
+   (e.g. two `SS_DECODE_SUBMIT` → `ssResolve()` twice). It works whether or not the button
+   carries `.btn-mp-action`.
+2. **Visual (opt-in per button):** the CSS rule greys and disables all `.btn-mp-action` buttons
+   while `mp-sync-locked` is on `document.body`. Apply `btn-mp-action` to every submittable MP
+   button for the grey-out feedback — but it is no longer the correctness mechanism. (The four
+   MDLM games carry it; the eight Phase-22 games do not yet — cosmetic gap only.)
 
-`mpUnlockSync()` — removes `mp-sync-locked`. Called by every SYNC handler after applying state.
+An 8-second timeout auto-releases to prevent a permanent lock on dropped packets.
+
+**Important:** the correctness layer only blocks ACTIONs sent *while the lock is held*. Fire-and-forget
+ACTIONs that intentionally never call `mpLockSync()` (e.g. NAT votes/disputes/guesses, YGI
+takes/votes, JEC prep, LTTP messages) see `syllySyncLocked === false` and pass through normally —
+do **not** add a blanket "drop all ACTIONs while locked" guard, and do not lock those flows unless
+single-submission is actually required.
+
+`mpUnlockSync()` — clears `syllySyncLocked` + `mpActionAuthorised` and removes `mp-sync-locked`.
+Called by every SYNC handler after applying state.
 
 ### Firebase Lazy-Load
 
@@ -186,7 +248,7 @@ if (window.syllyMultiplayerMode !== 'single') {
 
 **Roster type `'none'`:** For games with automatic or random seating, use `rosterConfig.type: 'none'`. The `'individual'` type requires every player (including the host) to be manually assigned in the Assign Spots lobby UI — any player left unassigned produces `reordered[-1]` (a non-standard array property), corrupting the slot array. If the game handles seat labels internally, `'none'` is always safer.
 
-**Multiplayer-only game routing (`multiplayerOnly: true`):** The lobby-entry button on `screen-lobby` STILL routes to the game menu (`showScreen('screen-[abbr]-menu')`), not directly to `mpShowModeScreen()`. The game menu is always required — it holds Settings and How to Play before the host commits to a session.
+**Multiplayer-only game routing (`multiplayerOnly: true`):** The `multiplayerOnly` field in `MP_GAME_CONFIGS` is **informational only** — no engine code reads it to gate or enforce anything. The actual enforcement comes from `supportedModes` (a game with only `['mdlm']` has no single-device path in `mpShowModeScreen`) and the game's lobby button listener (which calls `mpShowModeScreen` directly, bypassing any single-device setup flow). The lobby-entry button on `screen-lobby` STILL routes to the game menu (`showScreen('screen-[abbr]-menu')`), not directly to `mpShowModeScreen()`. The game menu is always required — it holds Settings and How to Play before the host commits to a session.
 
 The game menu's Play CTA has **dual context** and must branch on `syllyMultiplayerMode`:
 ```js
@@ -262,6 +324,18 @@ if (window.syllyMultiplayerMode !== 'single') {
 - Client: `'Leave Session'`
 - Single: original thematic label (e.g. `'New Expedition 🦁'`)
 
+### MDLM Mid-Game Quit Contract
+
+**Preferred pattern (PASS reference implementation):** When a player quits mid-game in MDLM, the correct teardown is:
+- **Host quits:** `resetToLobby()` broadcasts `HOST_END_GAME` (standard engine behaviour), tears down the Firebase room, and returns to the lobby. All clients receive the disconnect overlay.
+- **Client quits:** the client's quit-confirm handler broadcasts `PASS_PLAYER_LEFT` (game-specific) then calls `resetToLobby()`. The host receives the notification, dissolves the match for all remaining players, and returns everyone to lobby.
+
+This means **one client leaving dissolves the entire match** — PASS does not tolerate a mid-game drop. This is the correct contract: it prevents ghost rooms and stranded devices.
+
+**Current divergence (GTH / DYB / BLD — deferred code work):** These three games navigate to the game menu on quit confirm, leaving the Firebase room node and listeners alive. The host can return to lobby from the game menu, but clients left waiting may see a stale room. This divergence is logged as deferred code work in `docs/fable-fix-plan.md` (Deferred Items section) — the fix is to change each game's quit confirm destination from game-menu navigation to `resetToLobby()`, matching PASS.
+
+**Rule for new games:** Always use `resetToLobby()` (not game menu navigation) as the quit confirm destination in MDLM. Match the PASS contract: host dissolves the room; a client leaving individually dissolves for everyone.
+
 ### localStorage Exception
 
 `sylly_nickname` is stored in `localStorage` via `mpGetNickname()` / `mpSaveNickname(v)`. This
@@ -302,6 +376,25 @@ This is always required — skipping `void el.offsetWidth` silently no-ops.
 
 ---
 
+## Timer Lifecycle
+
+Any plugin that starts a `setInterval` / `setTimeout` countdown or turn timer must
+store the handle in a named state variable and clear it on **every** exit from the
+timed phase — not only on natural expiry.
+
+**Clear the handle in all three places:**
+1. The quit-confirm handler (mid-game ✕)
+2. `resetToLobby()` teardown in `engine.js`
+3. Any state transition that ends the timed phase early (skip, manual end-turn, advance)
+
+**Why:** a handle left running fires its callback against the next screen's state —
+e.g. quitting LI5 mid-turn once started a phantom turn timer that ticked into the
+menu. Reference implementation: `li5.js` `timerHandle` guarded by
+`if (timerHandle) { clearTimeout(timerHandle); timerHandle = null; }` before each
+new turn and on teardown.
+
+---
+
 ## PWA Guardian
 **Trigger:** Any new feature that fetches data, loads assets, or changes app state.
 
@@ -310,9 +403,11 @@ Before implementing, answer:
 2. Does `sw.js` need updating to pre-cache new files?
 3. Are we using any APIs that require network (and gracefully fail if unavailable)?
 
+**Deliberate offline exception — Fredoka font:** The Fredoka brand font loads from `fonts.googleapis.com` / `fonts.gstatic.com` at runtime and is not precached by the SW. Offline/installed sessions fall back to the system sans-serif. This is accepted: self-hosting would require woff2 files, a local `@font-face`, and precache entries. The app is functional offline; only brand typography is affected. Do not remove the Google Fonts `<link>` tags or add a "will this work offline?" flag to the font — the exception is documented here.
+
 **SW versioning:** `CACHE_NAME = 'sylly-games-vN'` — bump N on **every deploy**.
 
-**Current SW version:** v101
+**Current SW version:** v103
 
 **Precached assets (relative paths — no leading `/`; matches `sw.js` `PRECACHE_URLS[]`):**
 ```

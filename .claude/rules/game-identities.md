@@ -228,12 +228,12 @@ Both splash elements are legacy custom patterns (neither data slide-up nor decis
 ### Multiplayer (Phase 22)
 - **Mode:** Hybrid — supports Individual Devices or 2-Device Teams (`supportedModes: ['ptp', 'tlm', 'mdlm']`, `recommendedMode: 'tlm'`; there is no `supportsHybrid` field — hybrid behaviour comes from supporting both TLM and MDLM)
 - **Shared screens:** `screen-ss-mode`, `screen-ss-lobby-host`, `screen-ss-lobby-join` (parameterised)
-- **Game-specific screens:** none
-- **Security:** Team A's vault never leaves the Host. Team B's vault is sent via `SYNC: SS_VAULT_DATA` — note this is a **broadcast SYNC envelope, not a targeted write** (audit correction, June 2026): with exactly 2 devices the only client is Team B so it behaves like a targeted write, but any additional client device would also receive it.
-- **2-device assumption (audit [BUG], June 2026):** All SS lobby-mode guards use `mpMyPlayerIdx` as a *team* index (`ssMpVaultReady[mpMyPlayerIdx]`, `ssEncryptingTeam === mpMyPlayerIdx`, intercept/decode submit guards). SS multiplayer therefore only functions with exactly 2 devices (one per team) even though the MDLM roster permits up to `ssPlayerCount × 2` devices.
-- **Intel Phase not multiplayer-aware (audit [BUG], June 2026):** Phase 2 has zero MP packets; after `SS_ENDGAME` each device runs the pass-the-phone Intel Phase locally. The client never receives Team A's vault, so Team B's intel turn crashes on the client device. Client-side vault rerolls are likewise local-only (no ACTION) and never reach the Host.
-- **Key ACTION packets:** `SS_VAULT_READY`, `SS_ENCODE_TRANSMIT`, `SS_INTERCEPT_SUBMIT`, `SS_DECODE_SUBMIT`
-- **Key SYNC packets:** `SS_VAULT_DATA`, `SS_ENCRYPT_TURN`, `SS_BROADCAST`, `SS_START_INTERCEPT`, `SS_DECODE_GATE`, `SS_RESOLUTION`, `SS_ENDGAME` (the client-encoder path also emits `SS_START_INTERCEPT` from the client device — a client-sent SYNC, tolerated because only the Host consumes it)
+- **Game-specific screens:** `screen-ss-standby` — passive board view (own-team vault keywords + clue archive via `ssRenderArchive`) shown to any device that is not the active broadcaster/guesser; heading/subtext set by `ssShowStandby(heading, subtext)`
+- **Device→team routing (S11 RESOLVED, June 2026):** TLM and MDLM run ONE device-routed code path. `ssTeamDevices[team] = [playerIdx,…]` is built from `mpLobbyRoster.playerTeamIdx` (TLM falls back to `[[0],[1]]`). Per-device readyChecks (`ssMpVaultReady` length = `ssTotalDevices()`). Broadcaster of record = `ssBroadcasterIdx(team) = devices[ssRound % n]`; guesser of record = `ssGuesserIdx(team) = devices[(ssRound+1) % n]` (the next transmitter decodes — a team of 1 collapses to broadcaster === guesser, which is correct TLM behaviour). `ssMyTeam()` maps the device to its team. Non-active devices route to `screen-ss-standby`.
+- **Security — couch model:** Both vaults are broadcast in `SYNC: SS_VAULT_DATA` (`vaultA` + `vaultB`); each device renders only its own team via `ssMyTeam()`. Same UX-based couch security as NAT (role data broadcast, each device shows only its own). Sufficient for a same-room game; full separation would need targeted per-device writes.
+- **Intel Phase — host-authoritative (S12 RESOLVED, June 2026):** Sylly Mode Phase 2 is fully MP-aware. One snapshot packet `SS_INTEL_SYNC` carries the whole intel state and routes every device per phase (`tiebreak`/`intro`/`keyword`/`summary`/`gameover`). The phase is sequential — one team guesses one keyword at a time; within it only the **lowest-seat nominated device** (`ssTeamDevices[team][0]`) gets the input UI, everyone else sees the clue dossier (the board) and a "discuss!" note. The active guesser resolves locally (found / 3-fail / Diplomatic Resolution override) and commits one outcome on Continue/Next (`SS_INTEL_GUESS` ACTION from a client; host applies + advances + broadcasts the next snapshot). Phase transitions (Phase-2 splash, intro Begin, summary Next, tiebreak picker) are host-driven; clients show "⏳ Waiting for the host…". Clue histories ride in every `SS_INTEL_SYNC` (clients never run `ssArchiveClues` — it's host-only in `ssResolve`).
+- **Key ACTION packets:** `SS_VAULT_READY`, `SS_ENCODE_TRANSMIT`, `SS_INTERCEPT_SUBMIT`, `SS_DECODE_SUBMIT`, `SS_INTEL_GUESS` (active intel guesser's committed keyword outcome → Host)
+- **Key SYNC packets:** `SS_VAULT_DATA` (both vaults), `SS_ENCRYPT_TURN`, `SS_BROADCAST`, `SS_RESOLUTION`, `SS_ENDGAME`, `SS_INTEL_SYNC` (full intel state snapshot + phase router). *(`SS_START_INTERCEPT` and `SS_DECODE_GATE` were removed in the S9/S11 rework — the guess phase now routes via `SS_BROADCAST` → `ssRouteGuessPhase()`.)*
 
 ---
 
@@ -319,9 +319,9 @@ Both splash elements are legacy custom patterns (neither data slide-up nor decis
 - **Shared screens:** `screen-jec-mode`, `screen-jec-lobby-host`, `screen-jec-lobby-join` (parameterised)
 - **Game-specific screens:** none
 - **Key mechanic:** `jecMpReadyCheck[]` tracks prep submissions. Host runs sifting + Sous Chef oversight; all merges broadcast so all devices stay in sync. Host's own prep submission is processed directly (not via envelope) — self-sent envelopes are dropped by the dedup guard (Bug J1).
-- **Client-gating gaps (audit [BUG], June 2026):** the sifting "Taste Test", tally "Next Course", and Sous Chef merge taps are NOT host-gated — a client tapping them runs scoring/round-advance/merges locally and diverges until the next Host SYNC. `JEC_NEXT_ROUND` also makes clients pop their own local word pool (transient wrong word until `JEC_ORDER` lands).
+- **Client-gating (J3 + J4 RESOLVED, June 2026):** all three divergence paths are now host-gated. Sous Chef merge taps are suppressed on clients via `jecCanOversee()` + a client early-return in `jecHandleOversightTap()` (J3). The sifting "Taste Test" and tally "Next Course" CTAs early-return for clients and render a disabled "Waiting for the Head Chef…" state via `jecSetAdvanceCta()` (J4). The redundant `JEC_NEXT_ROUND` broadcast was dropped — the Host's `jecStartRound()` broadcasts `JEC_ORDER` which fully drives clients into the next round; its SYNC handler is now a defensive no-op (J4).
 - **Key ACTION packets:** `JEC_PREP_SUBMIT` (each chef's ingredient + KN fields)
-- **Key SYNC packets:** `JEC_ORDER`, `JEC_SIFTING`, `JEC_MERGE`, `JEC_TALLY`, `JEC_NEXT_ROUND`, `JEC_WASHUP`
+- **Key SYNC packets:** `JEC_ORDER`, `JEC_SIFTING`, `JEC_MERGE`, `JEC_TALLY`, `JEC_WASHUP` (`JEC_NEXT_ROUND` is deprecated — never broadcast; its handler is a defensive no-op)
 
 ---
 
@@ -380,7 +380,7 @@ Both splash elements are legacy custom patterns (neither data slide-up nor decis
 **Sudden Death (Solo Take tie-break):**
 - Triggered only when `ygiDecider === 'only-one'` (Solo Take) and the final standings tie for first.
 - Screens: `screen-ygi-sd-intro` → `screen-ygi-sd-input` (pass-the-phone per tied finalist) — drawn from `YGI_SUDDEN_DEATH_QS`.
-- Highest number wins. **Not multiplayer-aware** — has no MP packets; runs the pass-the-phone flow locally on every device in MDLM (audit [BUG], June 2026).
+- Highest number wins. **Host-driven in MDLM (RESOLVED June 2026, Group B; was Y4 [BUG]):** the host broadcasts the chosen question + finalists (`YGI_SUDDEN_DEATH`); each finalist submits on their own device (`YGI_SD_SUBMIT`, no pass-the-phone gate); the host resolves and broadcasts final standings (`YGI_GAMEOVER`). Non-finalists see "Sudden death in progress…"; answered finalists see a waiting standby. Single-device keeps the pass-the-phone flow.
 
 **The Consensus voting:**
 - Single ranking screen labelled "The Consensus 🏟️".
@@ -420,8 +420,8 @@ Both splash elements are legacy custom patterns (neither data slide-up nor decis
 - **Shared screens:** `screen-ygi-mode`, `screen-ygi-lobby-host`, `screen-ygi-lobby-join` (parameterised)
 - **Game-specific screens:** none
 - **Mandatory override:** `ygiVerdictStyle` forced to `'secret-ballot'` in Lobby Mode (The Consensus requires a shared device — not viable with individual devices)
-- **Key ACTION packets:** `YGI_TAKE_SUBMIT` (player's number + metric), `YGI_VOTE_SUBMIT` (player's vote ranking)
-- **Key SYNC packets:** `YGI_ROUND_START` (prompt + round number), `YGI_LINEUP` (all takes + optional ringer), `YGI_VERDICT` (scores + standings)
+- **Key ACTION packets:** `YGI_TAKE_SUBMIT` (player's number + metric), `YGI_VOTE_SUBMIT` (player's vote ranking), `YGI_SD_SUBMIT` (a finalist's sudden-death number)
+- **Key SYNC packets:** `YGI_ROUND_START` (prompt + round number), `YGI_LINEUP` (all takes + optional ringer), `YGI_VERDICT` (scores + standings), `YGI_SUDDEN_DEATH` (tie-break question + finalists), `YGI_GAMEOVER` (final standings; host-authoritative — also gates the results→gameover transition so clients no longer advance locally, resolving Y5)
 
 ---
 
@@ -536,10 +536,10 @@ Player count (3–6, default 4, `lttpPlayerCount`) is set on the setup screen �
 - **Message interrupt:** When any player sends a message, `mp-lttp-message-interrupt-overlay` (z-[105]) fires on ALL devices simultaneously
 - **Passive device behaviour:** Map and Contacts navigation permitted; `.lttp-send-trigger` and `#btn-lttp-confirm-send` locked when device is not the active player
 - **Map/Contacts state:** Local only — never synced. Each player maintains their own annotations.
-- **Key ACTION packets:** `LTTP_MESSAGE_SEND` (Client → Host: message text + from/to indices)
-- **Key SYNC packets:** `LTTP_GAME_START` (full world state including strayIdx, jokerIdx, addressIdx, gridLocations), `LTTP_TURN_ADVANCE` (nextPlayerIdx), `LTTP_MESSAGE_INTERRUPT` (fromName, toName, messageText → all devices)
-- **Plan narrowing/advancement NOT synced (audit [BUG], June 2026):** only the messaging loop has packets. There is no SYNC for `lttpNarrowHighlights()` / plan advance — the host's `LTTP_MESSAGE_SEND` handler never runs the lap-completion logic, and `lttpNarrowHighlights()` uses `shuffle()` (non-deterministic, so independent narrowing would diverge anyway). After the first full lap the host's `lttpPlan`/`lttpHighlights` are stale and devices show different remaining locations.
-- **Guess phase + gameover NOT MP-aware (audit [BUG], June 2026):** `lttpStartGuessPhase()`, the pin/vote screens, and `lttpComputeAndShowGameover()` have zero MP packets. In MDLM the Plan-4 endgame either never starts on clients (host completes the lap) or runs a divergent local pass-the-phone flow. Mirrors the SS Intel-Phase gap (S12).
+- **Key ACTION packets:** `LTTP_MESSAGE_SEND` (Client → Host: message text + from/to indices), `LTTP_PIN_SUBMIT` (Stray's pinned grid index), `LTTP_VOTE_SUBMIT` (a non-Stray player's suspect vote)
+- **Key SYNC packets:** `LTTP_GAME_START` (full world state), `LTTP_MESSAGE_INTERRUPT` (fromName/toName/messageText → all devices; informational only — no longer navigates), `LTTP_TURN_ADVANCE` (nextPlayerIdx + plan + history + lapAnswered), `LTTP_PLAN_UPDATE` (host's resolved narrowing: highlights/fadedCells/decoys/plan/activeIdx/lapAnswered/planLog), `LTTP_GUESS_PHASE` (enter Plan-4 per-device guess), `LTTP_GAMEOVER` (winner/reason/pin/votes/highlights)
+- **Plan narrowing/advancement — host-authoritative (RESOLVED June 2026, Group B; was L5 [BUG]):** the host now owns lap completion. `lttpSelectPlayer` defers to the host for clients; `lttpHostProcessMessage()` → `lttpAdvanceAfterMessage()` narrows **once** on the host and broadcasts the resolved sets via `LTTP_PLAN_UPDATE`. No client runs `lttpNarrowHighlights()` (so the `shuffle()` can't diverge). The interrupt-dismiss no longer navigates — navigation is host-SYNC-driven (`LTTP_TURN_ADVANCE`/`LTTP_PLAN_UPDATE`/`LTTP_GUESS_PHASE`).
+- **Guess phase + gameover — host-driven (RESOLVED June 2026, Group B; was L6 [BUG]):** `lttpStartGuessPhase()` broadcasts `LTTP_GUESS_PHASE`; with `lttpGroupVote` forced off in MDLM, every device guesses for its own player simultaneously (Stray pins → `LTTP_PIN_SUBMIT`; others vote → `LTTP_VOTE_SUBMIT`). The host aggregates via `lttpGuessReadyCheck[]`, resolves, and broadcasts `LTTP_GAMEOVER`. Non-active devices show a waiting standby.
 
 ---
 
@@ -649,9 +649,9 @@ No Lead Biologist role. All players (including the position normally assigned as
 - **Game-specific screens:** none
 - **Role security:** NAT role data is broadcast to all devices; each device renders only its own role (UX-based couch security — sufficient for a same-room couch game). For full separation, targeted Firebase writes per player would be required.
 - **Handover screen:** Skipped in Lobby Mode; replaced by `SYNC: NAT_ACTIVE_PLAYER` which drives who can input and who sees a standby placeholder
-- **Selection voting + Last Stand NOT MP-distributed (audit [BUG], June 2026):** only the observation loop, the clue reveal (`NAT_SELECTION`), and the final tally (`NAT_TALLY`) carry packets. The voting phase itself has none — `btn-nat-sel-start` (→ `natStartVoting`, which applies peer-review deductions locally), the consensus/independent vote controls, the mole guess, and the Biologist verdict are all ungated, so every device runs its own local vote/eviction/Last-Stand. `natMpVoteReadyCheck` is reset in two handlers but read nowhere — the intended per-device vote collection was never built. The host's result is authoritative via `NAT_TALLY` (end state converges), but in MDLM the host device would have to enter votes for absent players. Mirrors SS S12 / YGI Y4 / LTTP L6.
-- **Key ACTION packets:** `NAT_OBSERVATION` (player's clue word → Host validates + advances turn)
-- **Key SYNC packets:** `NAT_MATCH_START` (specimen + all role assignments), `NAT_ACTIVE_PLAYER` (current observer index), `NAT_DAY_END` (Sylly Mode daily review), `NAT_SELECTION` (all clue data for vote screen), `NAT_TALLY` (score results)
+- **Selection voting + Last Stand — host-authoritative (RESOLVED June 2026, Group B; was N2 [BUG]):** the full Selection → Last Stand → tally → gameover flow is now host-driven. MDLM is always Independent voting (consensus forced off), so only the independent path was built. `btn-nat-sel-start` and `btn-nat-tally-next` are host-only; each device submits **its own** vote (`NAT_VOTE`) which the host aggregates via `natMpVoteReadyCheck.every(Boolean)`; the host broadcasts the eviction (`NAT_LAST_STAND`); only the Mole's device guesses (`NAT_MOLE_GUESS` → `NAT_BIO_PHASE`) and only the Biologist's device rules (`NAT_BIO_VERDICT`; in Sylly the host adjudicates the group verdict). Peer-review disputes are host-authoritative (`NAT_DISPUTE`) so the −5 deductions stay consistent. Non-active devices show standby states.
+- **Key ACTION packets:** `NAT_OBSERVATION` (clue word → Host), `NAT_DISPUTE` (peer-review dispute toggle → Host), `NAT_VOTE` (one device's Mole vote → Host), `NAT_MOLE_GUESS` (Mole's final guess → Host), `NAT_BIO_VERDICT` (Biologist's confirmed/disputed → Host)
+- **Key SYNC packets:** `NAT_MATCH_START` (specimen + all role assignments), `NAT_ACTIVE_PLAYER` (current observer index), `NAT_DAY_END` (Sylly Mode daily review), `NAT_SELECTION` (all clue data + clue statuses for the reveal screen), `NAT_DISPUTE` (updated clue statuses), `NAT_VOTE_START` (open voting + peer-review-adjusted scores), `NAT_LAST_STAND` (eviction result), `NAT_BIO_PHASE` (Mole guess → verdict sub-phase), `NAT_TALLY` (per-match scores), `NAT_GAMEOVER` (final report)
 
 ---
 
@@ -1193,7 +1193,9 @@ LOBBY (MDLM only) → PASS MENU
 | Sequence | M consecutive ranks (2s excluded; min length configurable) |
 | Double Sequence | N pairs of consecutive ranks (N ≥ 2 pairs; 2s excluded) |
 | The Abyss | Sylly Mode: face-up central pool; grows on every Pass |
-| Detonation | Sylly Mode: a Bomb or Sequence triggers the Abyss to deal clockwise |
+| Standard Combo | Single or Pair — keeps a trick quiet; never detonates the Abyss (even on a winning play) |
+| Detonation Combo | Triplet, Quad, Double Joker, Sequence, or Double Sequence — the only combos that detonate the Abyss when they win a trick or empty a hand. Classified by `passIsDetonationCombo(combo)` (set `PASS_DETONATION_TYPES`) |
+| Detonation | Sylly Mode: when a trick is **won by a Detonation Combo**, the Abyss deals clockwise to everyone but the trick winner |
 | Fracture | Sylly Mode: Abyss reaches 13 cards — everyone draws |
 | New Deal | Play again — resets chip stacks, preserves names + settings |
 | Walk Away | Quit during a match |
@@ -1235,9 +1237,13 @@ LOBBY (MDLM only) → PASS MENU
 
 **Seat order:** Join order = seat order. Host = seat 1. No shuffle. Deliberate design: no hidden roles, so join order is fair and predictable.
 
-**Sylly Mode — The Abyss:**
+**Sylly Mode — The Abyss:** *(RESOLVED June 2026 — detonation gated on combo class: only a **Detonation Combo** detonates. See `pass-implementation-notes.md` BUG-01.)*
 - Every Pass feeds one card from the draw deck face-up into `passAbyss[]`
-- Bomb or Sequence played → detonation: Abyss cards deal clockwise to opponents (winner exempt); Abyss clears. **⚠️ audit [BUG] (June 2026): mid-trick detonation is not implemented.** `passResolveAbyssDetonation()` is only called on the round-winning play (`hand.length === 0`) and on a Fracture — never when a Bomb/Sequence is played that does *not* empty the hand. The code comment at `passProcessPlay` ("Abyss mid-trick detonation: table cleared by Bomb or Sequence") flags the intent, but no code wires it. In practice the Abyss only ever grows until a Fracture or until the round-winning combo happens to be a Bomb/Sequence. The how-to overlay + this bullet describe the *intended* behaviour; the code is incomplete. See `pass-implementation-notes.md` BUG-01.
+- **Detonation is gated on the winning combo's class** via `passIsDetonationCombo()`. A **Standard Combo** (Single/Pair) that wins a trick or empties a hand never detonates — the pool stays quiet and persists. Three triggers:
+  1. **Trick clears** (full-circle pass — everyone passes since the last play) **AND the winning combo is a Detonation Combo**: `passProcessPass()` detonates, exempting the trick winner (`passTableLeaderIdx`; the winning combo `passTableCombo` is captured before both are reset). Folded into the single `PASS_TURN_RESULT` (`tableCleared:true`) packet via a new `abyssDraft: {order, cards}` field — no separate packet, no pause (trick-clear is frequent). A trick won by a Standard Combo sends `PASS_TURN_RESULT` with no `abyssDraft`.
+  2. **Round win** (`hand.length === 0`) **by a Detonation Combo**: `passProcessPlay()` detonates (winner exempt), distributing **before scoring**, then broadcasts `PASS_ABYSS_DRAFT` (`trigger:'round-win'`) with a 2 s reveal pause before `PASS_ROUND_END`. A Single/Pair finish ends the match peacefully — no draft.
+  3. **Fracture** (Abyss reaches 13): `passHandleAbyssFracture()` → `PASS_ABYSS_DRAFT` (`trigger:'fracture'`); no one is exempt, combo class irrelevant.
+- `passResolveAbyssDetonation(exemptIdx)` deals one card per non-exempt player clockwise (starting after `exemptIdx`); any surplus beyond one-per-player stays in `passAbyss`.
 - Abyss reaches 13 → Fracture: all players draw one card clockwise; Abyss then continues from next pass
 - Abyss cards are rendered in a horizontal scroll strip above the hand (inline — not an overlay; DYB BUG-05 ghost-interceptor lesson applied)
 
@@ -1256,6 +1262,6 @@ LOBBY (MDLM only) → PASS MENU
 - **Shared screens:** `screen-mp-mode`, `screen-mp-lobby-host`, `screen-mp-lobby-join` (parameterised)
 - **Roll privacy:** Each device holds its own hand (`passHands[mpMyPlayerIdx]`). Opponent hands are placeholder arrays of correct length — never sent to wrong devices.
 - **Key ACTION packets:** `PASS_PLAY_SUBMIT` (card indices → host validates), `PASS_PASS_SUBMIT` (player passes → host processes), `PASS_PLAYER_LEFT` (client quit → host dissolves match)
-- **Key SYNC packets:** `PASS_GAME_START` (hands + chips for new round — **re-broadcast at the start of every round**, not just round 1: the host's "Next Round" → `passStartRound()` always sends it), `PASS_TURN_RESULT` (table state after every play/pass), `PASS_ABYSS_DRAFT` (Sylly Mode round-win/fracture draft — `trigger` field; only `'round-win'` and `'fracture'` are ever sent, not `'detonation'`), `PASS_ROUND_END` (chip deltas + winner; carries `matchOver`/`finalChips`/`roundsWon` → drives the gameover transition directly), `PASS_MATCH_DISSOLVED` (player left → all devices `resetToLobby()`)
+- **Key SYNC packets:** `PASS_GAME_START` (hands + chips for new round — **re-broadcast at the start of every round**, not just round 1: the host's "Next Round" → `passStartRound()` always sends it), `PASS_TURN_RESULT` (table state after every play/pass; on a trick-clear in Sylly Mode it also carries `abyssDraft: {order, cards}` — the trick-clear detonation is folded into this packet, with each device adding its own drafted card to its hand), `PASS_ABYSS_DRAFT` (Sylly Mode round-win/fracture draft — `trigger` field carries `'round-win'` or `'fracture'`; trick-clear detonation rides on `PASS_TURN_RESULT.abyssDraft` instead), `PASS_ROUND_END` (chip deltas + winner; carries `matchOver`/`finalChips`/`roundsWon` → drives the gameover transition directly), `PASS_MATCH_DISSOLVED` (player left → all devices `resetToLobby()`)
 - **Defined-but-unused SYNC handlers (audit [BUG], June 2026):** `PASS_NEXT_ROUND` and `PASS_GAMEOVER` have handler branches in `passHandleEnvelope` but are **never broadcast** by any code path. Rounds 2+ reuse `PASS_GAME_START`; gameover is reached via `PASS_ROUND_END` with `matchOver: true`. `PASS_NEXT_ROUND` was the intended per-round packet — its absence is the root cause of the `passRoundsWon` client-reset bug (see `pass-implementation-notes.md` BUG-02).
 - **Mid-game quit dissolves the room (note, June 2026):** unlike GTH/DYB/BLD (which navigate to the game menu and leak the Firebase room), PASS's quit-confirm broadcasts `PASS_MATCH_DISSOLVED` (host) / sends `PASS_PLAYER_LEFT` (client) and calls `resetToLobby()`. One client leaving therefore dissolves the whole match for everyone — PASS does not tolerate a mid-match drop. This is the most correct teardown of the four MDLM games but deviates from the universal "✕ → game menu" rule (it goes straight to lobby). Candidate for a cross-game standardisation rule.

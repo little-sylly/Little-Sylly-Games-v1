@@ -669,6 +669,9 @@ function natRenderSelectionScreen() {
     consensusFooter.style.display = 'none';
     tallyWrapper.style.display    = 'none';
     indepWrapper.style.display    = 'none';
+    // MDLM: only the host begins The Selection; clients study and wait.
+    const startBtn = document.getElementById('btn-nat-sel-start');
+    if (startBtn) startBtn.style.display = (window.syllyMultiplayerMode === 'client') ? 'none' : '';
   } else if (natVotingMode === 'consensus') {
     revealFooter.style.display    = 'none';
     consensusFooter.style.display = 'flex';
@@ -685,8 +688,16 @@ function natRenderSelectionScreen() {
 }
 
 function natDispute(playerIdx, dayIdx) {
+  // MDLM: disputes are host-authoritative so the −5 deductions stay consistent across devices.
+  if (window.syllyMultiplayerMode === 'client') {
+    mpSendEnvelope({ type: 'ACTION', payload: { action: 'NAT_DISPUTE', playerIdx, dayIdx } });
+    return;
+  }
   const cycle = { 'normal': 'discredited', 'discredited': 'normal' };
   natClueStatuses[playerIdx][dayIdx] = cycle[natClueStatuses[playerIdx][dayIdx]] || 'normal';
+  if (window.syllyMultiplayerMode === 'host') {
+    mpSendEnvelope({ type: 'SYNC', payload: { action: 'NAT_DISPUTE', clueStatuses: natClueStatuses } });
+  }
   natRenderSelectionScreen();
 }
 
@@ -697,6 +708,7 @@ function natMpBroadcastSelection() {
     action:       'NAT_SELECTION',
     cluesByRound: natCluesByRound,
     wordsByDay:   natWordsByDay,
+    clueStatuses: natClueStatuses,
     moleIdx:      natMoleIdx,
     biologistIdx: natBiologistIdx,
     match:        natCurrentMatch,
@@ -705,7 +717,9 @@ function natMpBroadcastSelection() {
 }
 
 function natStartVoting() {
-  if (natScientificIntegrity === 'peer-review') {
+  // Peer-review deductions are host/single-authoritative; clients receive the updated
+  // scores via NAT_VOTE_START and never re-deduct.
+  if (natScientificIntegrity === 'peer-review' && window.syllyMultiplayerMode !== 'client') {
     natClueStatuses.forEach((playerStatuses, pIdx) => {
       const count = playerStatuses.filter(s => s === 'discredited').length;
       if (count > 0) natScores[pIdx] = Math.max(0, natScores[pIdx] - count * 5);
@@ -713,6 +727,12 @@ function natStartVoting() {
   }
   natSelectionPhase  = 'vote';
   natCurrentVoteStep = 0;
+  if (window.syllyMultiplayerMode === 'host') {
+    // MDLM is always Independent voting — collect one vote per device.
+    natVotes            = Array(natPlayerCount).fill(-1);
+    natMpVoteReadyCheck = Array(natPlayerCount).fill(false);
+    mpSendEnvelope({ type: 'SYNC', payload: { action: 'NAT_VOTE_START', scores: [...natScores] } });
+  }
   natRenderSelectionScreen();
 }
 
@@ -764,12 +784,23 @@ function natSubmitConsensusVote() {
 
 // ── Independent Verification voting ──────────────────────────────────────────
 function natRenderVoterTurn() {
-  const voterIdx = natVoteOrder[natCurrentVoteStep];
-  document.getElementById('nat-sel-voter').textContent     = `${natPlayerNames[voterIdx]}'s Classification`;
-  document.getElementById('nat-sel-vote-step').textContent =
-    `Classification ${natCurrentVoteStep + 1} of ${natPlayerCount}`;
+  const isMp     = window.syllyMultiplayerMode !== 'single';
+  const voterIdx = isMp ? mpMyPlayerIdx : natVoteOrder[natCurrentVoteStep];
+  const voterEl  = document.getElementById('nat-sel-voter');
+  const stepEl   = document.getElementById('nat-sel-vote-step');
+  const btns     = document.getElementById('nat-sel-vote-buttons');
 
-  const btns = document.getElementById('nat-sel-vote-buttons');
+  // MDLM: this device has already cast its vote → standby until the host resolves.
+  if (isMp && natMpVoteReadyCheck[voterIdx]) {
+    voterEl.textContent = 'Classification recorded';
+    stepEl.textContent  = 'Waiting for the rest of the field team…';
+    btns.innerHTML = '';
+    return;
+  }
+
+  voterEl.textContent = isMp ? 'Your Classification' : `${natPlayerNames[voterIdx]}'s Classification`;
+  stepEl.textContent  = isMp ? 'Who is The Mole?' : `Classification ${natCurrentVoteStep + 1} of ${natPlayerCount}`;
+
   btns.innerHTML = '';
   for (let i = 0; i < natPlayerCount; i++) {
     if (i === voterIdx) continue;
@@ -783,6 +814,23 @@ function natRenderVoterTurn() {
 }
 
 function natSubmitVote(targetIdx) {
+  if (window.syllyMultiplayerMode !== 'single') {
+    const voterIdx = mpMyPlayerIdx;
+    if (natMpVoteReadyCheck[voterIdx]) return; // guard double-vote
+    natMpVoteReadyCheck[voterIdx] = true;
+    playPillClick();
+    if (window.syllyMultiplayerMode === 'client') {
+      mpSendEnvelope({ type: 'ACTION', payload: { action: 'NAT_VOTE', voterIdx, targetIdx } });
+      natRenderVoterTurn(); // standby
+      return;
+    }
+    // Host: record own vote and aggregate; resolve when every device has voted.
+    natVotes[voterIdx] = targetIdx;
+    natRenderVoterTurn(); // standby
+    if (natMpVoteReadyCheck.every(Boolean)) natResolveEviction();
+    return;
+  }
+  // Single-device pass-the-phone
   natVotes[natVoteOrder[natCurrentVoteStep]] = targetIdx;
   playPillClick();
   natCurrentVoteStep++;
@@ -812,6 +860,16 @@ function natResolveEviction() {
 // ── Last Stand ────────────────────────────────────────────────────────────────
 function natShowLastStand() {
   natLastStandPhase = 'mole-guess';
+  // MDLM: host owns the eviction result and broadcasts it so all devices enter the
+  // Last Stand together with the same evicted player and scores.
+  if (window.syllyMultiplayerMode === 'host') {
+    mpSendEnvelope({ type: 'SYNC', payload: {
+      action:     'NAT_LAST_STAND',
+      evictedIdx: natEvictedIdx,
+      votes:      [...natVotes],
+      scores:     [...natScores],
+    }});
+  }
   natRenderLastStand();
   showScreen('screen-nat-last-stand');
 }
@@ -819,6 +877,13 @@ function natShowLastStand() {
 function natRenderLastStand() {
   const moleSection = document.getElementById('nat-ls-mole-section');
   const bioSection  = document.getElementById('nat-ls-bio-section');
+  const standbyEl   = document.getElementById('nat-ls-standby');
+  const submitBtn   = document.getElementById('btn-nat-ls-submit');
+  const confirmBtn  = document.getElementById('btn-nat-ls-confirmed');
+  const disputeBtn  = document.getElementById('btn-nat-ls-disputed');
+  const inputEl     = document.getElementById('nat-ls-guess-input');
+  const isMp        = window.syllyMultiplayerMode !== 'single';
+  if (standbyEl) { standbyEl.style.display = 'none'; standbyEl.textContent = ''; }
 
   if (natLastStandPhase === 'mole-guess') {
     moleSection.classList.remove('hidden');
@@ -826,10 +891,23 @@ function natRenderLastStand() {
     document.getElementById('nat-ls-mole-name').textContent   = natPlayerNames[natMoleIdx];
     document.getElementById('nat-ls-guess-input').value       = '';
     document.getElementById('nat-ls-guess-error').textContent = '';
-    document.getElementById('btn-nat-ls-submit').disabled     = true;
-    document.getElementById('btn-nat-ls-submit').classList.remove('hidden');
-    document.getElementById('btn-nat-ls-confirmed').classList.add('hidden');
-    document.getElementById('btn-nat-ls-disputed').classList.add('hidden');
+    confirmBtn.classList.add('hidden');
+    disputeBtn.classList.add('hidden');
+
+    // MDLM: only the Mole's device makes the guess; everyone else stands by.
+    const iAmMole = !isMp || mpMyPlayerIdx === natMoleIdx;
+    if (iAmMole) {
+      inputEl.style.display = '';
+      submitBtn.classList.remove('hidden');
+      submitBtn.disabled = true;
+    } else {
+      inputEl.style.display = 'none';
+      submitBtn.classList.add('hidden');
+      if (standbyEl) {
+        standbyEl.textContent   = `${natPlayerNames[natMoleIdx]} is making their final identification…`;
+        standbyEl.style.display = 'block';
+      }
+    }
   } else {
     moleSection.classList.add('hidden');
     bioSection.classList.remove('hidden');
@@ -837,23 +915,60 @@ function natRenderLastStand() {
     document.getElementById('nat-ls-bio-name').textContent      = verifierName;
     document.getElementById('nat-ls-guess-display').textContent = natMoleGuess;
     document.getElementById('nat-ls-specimen-reveal').textContent = natSpecimen.word;
-    document.getElementById('btn-nat-ls-submit').classList.add('hidden');
-    document.getElementById('btn-nat-ls-confirmed').classList.remove('hidden');
-    document.getElementById('btn-nat-ls-disputed').classList.remove('hidden');
+    submitBtn.classList.add('hidden');
+
+    // MDLM: the Biologist's device rules (in Sylly there is no Biologist, so the host adjudicates
+    // the group's verdict); everyone else stands by.
+    const iAmVerifier = !isMp
+      ? true
+      : (natSyllyMode ? window.syllyMultiplayerMode === 'host' : mpMyPlayerIdx === natBiologistIdx);
+    if (iAmVerifier) {
+      confirmBtn.classList.remove('hidden');
+      disputeBtn.classList.remove('hidden');
+    } else {
+      confirmBtn.classList.add('hidden');
+      disputeBtn.classList.add('hidden');
+      if (standbyEl) {
+        standbyEl.textContent   = natSyllyMode ? 'Awaiting the group verdict…' : `Waiting for ${verifierName} to rule…`;
+        standbyEl.style.display = 'block';
+      }
+    }
   }
 }
 
 function natSubmitMoleGuess() {
   const val = document.getElementById('nat-ls-guess-input').value.trim();
   if (!val) return;
-  natMoleGuess      = val;
+  natMoleGuess = val;
+  if (window.syllyMultiplayerMode === 'client') {
+    // Mole is a client — send the guess; host advances all devices to the verdict phase.
+    mpSendEnvelope({ type: 'ACTION', payload: { action: 'NAT_MOLE_GUESS', guess: val } });
+    document.getElementById('nat-ls-guess-error').textContent = 'Identification sent. Awaiting the verdict…';
+    document.getElementById('btn-nat-ls-submit').disabled     = true;
+    playDone();
+    return;
+  }
   natLastStandPhase = 'biologist-verdict';
+  if (window.syllyMultiplayerMode === 'host') {
+    mpSendEnvelope({ type: 'SYNC', payload: { action: 'NAT_BIO_PHASE', moleGuess: natMoleGuess } });
+  }
   natRenderLastStand();
   playDone();
 }
 
 function natBiologistVerdict(confirmed) {
+  if (window.syllyMultiplayerMode === 'client') {
+    // Biologist is a client — send the verdict; host resolves the round and broadcasts NAT_TALLY.
+    mpSendEnvelope({ type: 'ACTION', payload: { action: 'NAT_BIO_VERDICT', confirmed } });
+    playExit();
+    return;
+  }
   playExit();
+  natHostResolveVerdict(confirmed);
+}
+
+// Host/single: apply the verdict, score the round, and show (host broadcasts) the tally.
+function natHostResolveVerdict(confirmed) {
   const caught = natEvictedIdx === natMoleIdx;
   natResolveRound(caught, confirmed);
   natShowTally();
@@ -941,7 +1056,15 @@ function natShowTally() {
     suspicionEl.style.display = 'none';
   }
 
-  document.getElementById('btn-nat-tally-next').textContent = isLast ? 'View Final Report' : 'Next Habitat';
+  const nextBtn = document.getElementById('btn-nat-tally-next');
+  nextBtn.textContent = isLast ? 'View Final Report' : 'Next Habitat';
+  // MDLM: only the host advances; clients follow NAT_MATCH_START / NAT_GAMEOVER.
+  if (window.syllyMultiplayerMode === 'client') {
+    nextBtn.disabled    = true;
+    nextBtn.textContent = 'Waiting for the host…';
+  } else {
+    nextBtn.disabled = false;
+  }
 
   if (window.syllyMultiplayerMode === 'host') {
     // Lobby Mode: broadcast tally so all devices render the same result
@@ -959,6 +1082,15 @@ function natShowTally() {
 
 function natNextMatch() {
   if (natCurrentMatch >= natMatchesSetting - 1) {
+    // MDLM: broadcast the final report so all devices reach gameover together.
+    if (window.syllyMultiplayerMode === 'host') {
+      mpSendEnvelope({ type: 'SYNC', payload: {
+        action:   'NAT_GAMEOVER',
+        scores:   [...natScores],
+        roundLog: natRoundLog,
+        moleIdx:  natMoleIdx,
+      }});
+    }
     natShowGameover();
   } else {
     natCurrentMatch++;
@@ -1142,6 +1274,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ── The Selection ──
   document.getElementById('btn-nat-sel-start')?.addEventListener('click', () => {
+    if (window.syllyMultiplayerMode === 'client') return; // host begins The Selection
     playLaunch(); natStartVoting();
   });
   document.getElementById('btn-nat-sel-consensus-submit')?.addEventListener('click', () => {
@@ -1170,6 +1303,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ── Tally ──
   document.getElementById('btn-nat-tally-next')?.addEventListener('click', () => {
+    if (window.syllyMultiplayerMode === 'client') return; // host advances; clients follow the SYNC
     playLaunch(); natNextMatch();
   });
   document.getElementById('btn-nat-tally-quit')?.addEventListener('click', () => {

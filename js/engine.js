@@ -377,8 +377,20 @@ function resetToLobby() {
   document.getElementById('li5-how-to-overlay').style.display     = 'none';
   document.getElementById('review-overlay').style.display        = 'none';
   document.getElementById('history-overlay').style.display       = 'none';
+  document.getElementById('settings-overlay').style.display      = 'none';
+  document.getElementById('deck-panel').style.display            = 'none';
+  document.getElementById('skip-turn-overlay').style.display     = 'none';
   document.getElementById('gm-override-overlay').style.display = 'none';
   document.getElementById('gm-quit-overlay').style.display     = 'none';
+  document.getElementById('gm-settings-overlay').style.display      = 'none';
+  document.getElementById('gm-near-sync-overlay').style.display     = 'none';
+  document.getElementById('gm-boost-overlay').style.display         = 'none';
+  document.getElementById('gm-neural-library-overlay').style.display = 'none';
+  document.getElementById('gm-new-frequency-overlay').style.display = 'none';
+  document.getElementById('gm-vocab-overlay').style.display         = 'none';
+  document.getElementById('gm-concede-overlay').style.display       = 'none';
+  document.getElementById('gm-deck-panel').style.display            = 'none';
+  document.getElementById('gm-how-to-overlay').style.display        = 'none';
   document.getElementById('input-team1').value    = '';
   document.getElementById('input-team2').value    = '';
   document.getElementById('input-team1').disabled = false;
@@ -509,6 +521,7 @@ function resetToLobby() {
     const el = document.getElementById(id);
     if (el) el.style.display = 'none';
   });
+  document.getElementById('sound-overlay').style.display = 'none';
   updateSliderTheme(null);
   if (isMuted) document.getElementById('global-mute-toggle').className = getMuteToggleOnClass(null);
   showScreen('screen-lobby');

@@ -324,7 +324,7 @@
   {"id":"objects-050","word":"Prism","nono_list":["rainbow","glass","light","refract","spectrum","colours","triangle","beam","split","crystal"],"category":"objects","difficulty":3},
   {"id":"objects-051","word":"Drone","nono_list":["fly","remote","camera","propeller","air","hover","pilot","quadcopter","aerial","controller"],"category":"objects","difficulty":2},
   {"id":"objects-052","word":"Seashell","nono_list":["beach","ocean","ear","listen","sand","shore","spiral","collect","marine","calcium"],"category":"objects","difficulty":1},
-  {"id":"objects-053","word":"Stapler","nono_list":["paper","office","desk","bind","fasten","swingline","refill","metal","stationary","sheets"],"category":"objects","difficulty":1},
+  {"id":"objects-039","word":"Stapler","nono_list":["paper","office","desk","bind","fasten","swingline","refill","metal","stationary","sheets"],"category":"objects","difficulty":1},
   {"id":"objects-054","word":"Hammer","nono_list":["nail","tool","hit","pound","wood","build","hand","heavy","strike","claw"],"category":"objects","difficulty":1},
   {"id":"objects-055","word":"Teapot","nono_list":["tea","hot","pour","handle","spout","brew","cup","drink","kettle","steaming"],"category":"objects","difficulty":1},
 

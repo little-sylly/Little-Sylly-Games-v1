@@ -419,7 +419,7 @@ function gmRenderInputEchoes(containerId = 'gm-input-echoes') {
   const rows = gmRoundLog.map(e => {
     const clueA = e.traceA ? `${e.guessA} <span class="text-stone-400">(${e.traceA})</span>` : e.guessA;
     const clueB = e.traceB ? `${e.guessB} <span class="text-stone-400">(${e.traceB})</span>` : e.guessB;
-    const rowClass = e.isWin ? ' text-violet-500 font-bold' : '';
+    const rowClass = e.isWin ? ' text-purple-500 font-bold' : '';
     return `<div class="grid grid-cols-[2rem_1fr_1fr_1fr] text-[11px] text-stone-600 py-1 border-b border-stone-100 last:border-0 items-start${rowClass}">
       <span class="text-stone-300 font-mono">${e.round}</span>
       <span>${e.pair[0]} · ${e.pair[1]}</span>
@@ -440,7 +440,7 @@ function gmRenderPsychicEchoes(containerId = 'gm-journey-log') {
   const rows = gmRoundLog.map(e => {
     const clueA = e.traceA ? `${e.guessA} <span class="text-stone-400 text-[10px]">(${e.traceA})</span>` : e.guessA;
     const clueB = e.traceB ? `${e.guessB} <span class="text-stone-400 text-[10px]">(${e.traceB})</span>` : e.guessB;
-    const rowClass = e.isWin ? ' text-violet-500 font-bold' : '';
+    const rowClass = e.isWin ? ' text-purple-500 font-bold' : '';
     return `<div class="grid grid-cols-[2rem_1fr_1fr_1fr] text-[11px] text-stone-600 py-1.5 border-b border-stone-100 last:border-0 items-start${rowClass}">
       <span class="text-stone-300 font-mono">${e.round}</span>
       <span>${e.pair[0]} · ${e.pair[1]}</span>
@@ -528,12 +528,15 @@ function gmMpResolveRound() {
 
   if (isMatch) {
     gmHandleMatch();
-  } else if (!isNearSync) {
-    // Apply mismatch phrase picked here so clients render the same phrase
-    document.getElementById('gm-result-heading').textContent = mismatchPhrase;
+  } else {
+    // Mismatch — and a near-sync is treated as a mismatch in Lobby Mode (social override
+    // stays Host-only). Both paths must run gmHandleMismatch() so the round is logged and
+    // gmCurrentPair / gmPrevRoundWords advance; otherwise a near-sync round vanishes.
     gmHandleMismatch();
+    // Override the random phrase gmHandleMismatch() picked with the one we're broadcasting,
+    // so host and clients show the identical phrase for this round.
+    document.getElementById('gm-result-heading').textContent = mismatchPhrase;
   }
-  // Near-sync: treat as mismatch for now (social override stays Host-only in Lobby Mode)
 
   mpSendEnvelope({ type: 'SYNC', payload: {
     action:        'GM_RESULT',
