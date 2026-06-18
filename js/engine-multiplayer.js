@@ -278,6 +278,45 @@ const MP_GAME_CONFIGS = {
     getMaxPlayers:   () => 6,
     getMinPlayers:   () => 3,
   },
+  nt: {
+    gameName:       'Net-Trace',
+    emoji:          '⚡',
+    brandBtnClass:  'bg-emerald-500 hover:bg-emerald-600',
+    ptpLabel:       'Initialise System',
+    lobbyCtaLabel:  'Initialise System',
+    menuScreen:     'screen-nt-menu',
+    onPassThePhone: () => {
+      if (window.syllyMultiplayerMode === 'host') {
+        ntPlayerCount = mpPlayerSlots.length;
+        ntPlayerNames = mpPlayerSlots.map(p => p.nickname);
+        if (window.mpLobbyRoster?.playerTeamIdx) {
+          ntTeamIdx      = window.mpLobbyRoster.playerTeamIdx;
+          ntTeamNames    = window.mpLobbyRoster.teamNames    || ntTeamNames;
+          ntCaptainSlots = window.mpLobbyRoster.captainSlots || [-1, -1];
+        }
+        showScreen('screen-nt-menu');
+      } else if (window.syllyMultiplayerMode === 'single') {
+        // PTP selected: route to setup screen for player count + names
+        ntShowSetup();
+      }
+      // 'client': waits for NT_GENERATE / NT_BUILD_BEGIN SYNCs (Phase C)
+    },
+    recommendedMode: 'mdlm',
+    supportedModes:  ['ptp', 'mdlm'],
+    multiplayerOnly: false,
+    // PTP is locked when DNP (Sylly) is active — DNP requires a team
+    getLockedModes: () => (typeof ntSyllyMode !== 'undefined' && ntSyllyMode)
+      ? [{ mode: 'ptp', reason: 'DNP requires Multiplayer. Disable Sylly Mode in Settings to play solo.' }]
+      : [],
+    rosterConfig: {
+      type:                  () => (typeof ntSyllyMode !== 'undefined' && ntSyllyMode) ? 'teams' : 'none',
+      showTeamNamesInPreLobby: false,
+      defaultTeamNames:      ['Amaze Inc.', 'Pender Securities'],
+      hasCaptain:            () => (typeof ntSyllyMode !== 'undefined' && ntSyllyMode),
+    },
+    getMaxPlayers:   () => 8,
+    getMinPlayers:   () => 2,
+  },
 };
 
 // ── Nickname Helpers ──────────────────────────────────────────────────────────
@@ -340,15 +379,21 @@ function mpBuildModeSection(modes, isRecommended, online) {
   `;
   wrap.appendChild(labelRow);
 
+  // Generic locked-mode hook — game config may declare getLockedModes() to disable
+  // specific modes with a reason string. Used by NT to lock PTP when DNP (Sylly) is on.
+  const lockedModes = mpActiveGameConfig?.getLockedModes?.() || [];
+
   for (const modeKey of modes) {
     const info       = MODE_INFO[modeKey];
     const isLobby    = (modeKey === 'tlm' || modeKey === 'mdlm');
     const lobbyStyle = modeKey === 'tlm' ? 'team' : 'individual';
     const dimmed     = isLobby && !online;
+    const lockInfo   = lockedModes.find(l => l.mode === modeKey);
+    const locked     = !!lockInfo;
 
     // Mode description chip
     const chip = document.createElement('div');
-    chip.className = `rounded-2xl px-4 py-3 flex flex-col gap-1 ${dimmed ? 'bg-stone-100 opacity-40' : 'bg-stone-50'}`;
+    chip.className = `rounded-2xl px-4 py-3 flex flex-col gap-1 ${(dimmed || locked) ? 'bg-stone-100 opacity-40' : 'bg-stone-50'}`;
     chip.innerHTML = `
       <p class="text-stone-700 font-semibold text-sm">${info.label}</p>
       <p class="text-stone-400 text-xs">${info.desc}</p>
@@ -362,10 +407,10 @@ function mpBuildModeSection(modes, isRecommended, online) {
       ];
       rows.forEach(({ selMode, lobbyStyle: ls, icon, label, sub }) => {
         const btn = document.createElement('button');
-        btn.className = `flex items-center gap-3 w-full p-4 rounded-2xl border-2 border-stone-200 bg-white active:scale-95 transition-all duration-150 text-left mp-mode-dot-btn${dimmed ? ' opacity-40 pointer-events-none' : ''}`;
+        btn.className = `flex items-center gap-3 w-full p-4 rounded-2xl border-2 border-stone-200 bg-white active:scale-95 transition-all duration-150 text-left mp-mode-dot-btn${(dimmed || locked) ? ' opacity-40 pointer-events-none' : ''}`;
         btn.dataset.selMode    = selMode;
         btn.dataset.lobbyStyle = ls;
-        btn.disabled           = dimmed;
+        btn.disabled           = dimmed || locked;
         btn.innerHTML = `
           <span class="mp-mode-dot w-5 h-5 rounded-full border-2 border-stone-300 bg-transparent flex-shrink-0 transition-all duration-150"></span>
           <div>
@@ -379,8 +424,9 @@ function mpBuildModeSection(modes, isRecommended, online) {
     } else {
       // PTP: single selectable row
       const btn = document.createElement('button');
-      btn.className = 'flex items-center gap-3 w-full p-4 rounded-2xl border-2 border-stone-200 bg-white active:scale-95 transition-all duration-150 text-left mp-mode-dot-btn';
+      btn.className = `flex items-center gap-3 w-full p-4 rounded-2xl border-2 border-stone-200 bg-white active:scale-95 transition-all duration-150 text-left mp-mode-dot-btn${locked ? ' opacity-40 pointer-events-none' : ''}`;
       btn.dataset.selMode = 'ptp';
+      btn.disabled        = locked;
       btn.innerHTML = `
         <span class="mp-mode-dot w-5 h-5 rounded-full border-2 border-stone-300 bg-transparent flex-shrink-0 transition-all duration-150"></span>
         <div>
@@ -390,6 +436,14 @@ function mpBuildModeSection(modes, isRecommended, online) {
       `;
       btn.addEventListener('click', () => { playPillClick(); mpSetModeSelection('ptp', null); });
       wrap.appendChild(btn);
+    }
+
+    // Locked reason note — shown below the button(s) for this mode
+    if (locked && lockInfo.reason) {
+      const note = document.createElement('p');
+      note.className = 'text-stone-400 text-xs text-center italic px-2';
+      note.textContent = '🔒 ' + lockInfo.reason;
+      wrap.appendChild(note);
     }
   }
 
@@ -621,6 +675,9 @@ function mpSerialiseSettings(abbr) {
       passHandSize, passChipStack, passMatchDuration, passBombStrictness,
       passMidGameDraw, passMinSequenceLength, passJokerCount, passSkyJokerVariant, passSyllyMode,
     };
+    case 'nt': return {
+      ntMatrixScale, ntIterations, ntHardeningWin, ntNativeHoneypots, ntSyllyMode,
+    };
     case 'ss': return {
       ssSettingInterceptsToWin, ssDifficultyLevel, ssRerollLimitSetting,
       ssTimerSetting, ssCustomiseVault, ssIntelSyllyMode,
@@ -762,6 +819,13 @@ function mpHandleEnvelope(env) {
           if (s.natVotingMode       !== undefined) natVotingMode       = s.natVotingMode;
           if (s.natScientificIntegrity !== undefined) natScientificIntegrity = s.natScientificIntegrity;
           if (s.natEscapePoints     !== undefined) natEscapePoints     = s.natEscapePoints;
+          break;
+        case 'nt':
+          if (s.ntMatrixScale      !== undefined) ntMatrixScale      = s.ntMatrixScale;
+          if (s.ntIterations       !== undefined) ntIterations       = s.ntIterations;
+          if (s.ntHardeningWin     !== undefined) ntHardeningWin     = s.ntHardeningWin;
+          if (s.ntNativeHoneypots  !== undefined) ntNativeHoneypots  = s.ntNativeHoneypots;
+          if (s.ntSyllyMode        !== undefined) ntSyllyMode        = s.ntSyllyMode;
           break;
         // Additional games added as Sprint 4 progresses
       }
@@ -1368,6 +1432,11 @@ function mpHandleEnvelope(env) {
   // ── Pass ACTION/SYNC ──────────────────────────────────────────────────────
   if (mpActiveGame === 'pass') {
     if (typeof passHandleEnvelope === 'function') passHandleEnvelope(env);
+  }
+
+  // ── Net-Trace ACTION/SYNC ─────────────────────────────────────────────────
+  if (mpActiveGame === 'nt') {
+    if (typeof ntHandleEnvelope === 'function') ntHandleEnvelope(env);
   }
 
   // ── Secret Signals ACTION/SYNC ─────────────────────────────────────────────

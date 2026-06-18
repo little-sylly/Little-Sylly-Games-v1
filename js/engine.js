@@ -67,6 +67,9 @@ const allScreens = [
   // Pass
   'screen-pass-menu', 'screen-pass-seating', 'screen-pass-table',
   'screen-pass-round-wrap', 'screen-pass-gameover',
+  // Net-Trace
+  'screen-nt-menu', 'screen-nt-setup', 'screen-nt-handshake', 'screen-nt-allocation', 'screen-nt-gate',
+  'screen-nt-build', 'screen-nt-playback', 'screen-nt-summary', 'screen-nt-standby',
 ];
 
 // ── Web Audio API ─────────────────────────────────────────────────────────────
@@ -336,7 +339,8 @@ function updateSliderTheme(gameId) {
     'sylly-signals': 'ss-range', 'jec': 'jec-range',
     'ygi': 'ygi-range', 'lttp': 'lttp-range',
     'nat': 'nat-range', 'dsd': 'dsd-range',
-    'gth': 'gth-range', 'bld': 'bld-range', 'dyb': 'dyb-range', 'pass': 'pass-range'
+    'gth': 'gth-range', 'bld': 'bld-range', 'dyb': 'dyb-range', 'pass': 'pass-range',
+    'nt': 'nt-range'
   };
   const el = document.getElementById('global-sound-volume');
   el.className = (map[gameId] || 'stone-range') + ' w-full';
@@ -349,7 +353,8 @@ function getMuteToggleOnClass(gameId) {
     'ygi': 'game-toggle-on-orange', 'lttp': 'game-toggle-on-red',
     'nat': 'game-toggle-on-lime', 'dsd': 'game-toggle-on-cyan',
     'gth': 'game-toggle-on-sage', 'bld': 'game-toggle-on-yellow',
-    'dyb': 'game-toggle-on-stone', 'pass': 'game-toggle-on-zinc'
+    'dyb': 'game-toggle-on-stone', 'pass': 'game-toggle-on-zinc',
+    'nt': 'game-toggle-on-emerald'
   };
   return map[gameId] || 'game-toggle-on-stone';
 }
@@ -485,6 +490,12 @@ function resetToLobby() {
   document.getElementById('pass-how-to-overlay').style.display   = 'none';
   document.getElementById('pass-quit-overlay').style.display     = 'none';
   document.getElementById('pass-new-deal-overlay').style.display = 'none';
+  // Net-Trace teardown
+  ['nt-settings-overlay','nt-how-to-overlay','nt-quit-overlay','nt-reboot-overlay','nt-logs-overlay'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.style.display = 'none';
+  });
+  document.body.classList.remove('nt-overclock'); // easter-egg theme off
+  if (typeof ntResetState === 'function') ntResetState();
   // Help-tip overlay cleanup (Phase 21a)
   ['li5','gm','ss','jec','ygi','lttp','nat','dsd'].forEach(abbr => {
     const el = document.getElementById(`${abbr}-help-tip-overlay`);

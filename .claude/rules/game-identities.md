@@ -1265,3 +1265,127 @@ LOBBY (MDLM only) → PASS MENU
 - **Key SYNC packets:** `PASS_GAME_START` (hands + chips for new round — **re-broadcast at the start of every round**, not just round 1: the host's "Next Round" → `passStartRound()` always sends it), `PASS_TURN_RESULT` (table state after every play/pass; on a trick-clear in Sylly Mode it also carries `abyssDraft: {order, cards}` — the trick-clear detonation is folded into this packet, with each device adding its own drafted card to its hand), `PASS_ABYSS_DRAFT` (Sylly Mode round-win/fracture draft — `trigger` field carries `'round-win'` or `'fracture'`; trick-clear detonation rides on `PASS_TURN_RESULT.abyssDraft` instead), `PASS_ROUND_END` (chip deltas + winner; carries `matchOver`/`finalChips`/`roundsWon` → drives the gameover transition directly), `PASS_MATCH_DISSOLVED` (player left → all devices `resetToLobby()`)
 - **Defined-but-unused SYNC handlers (audit [BUG], June 2026):** `PASS_NEXT_ROUND` and `PASS_GAMEOVER` have handler branches in `passHandleEnvelope` but are **never broadcast** by any code path. Rounds 2+ reuse `PASS_GAME_START`; gameover is reached via `PASS_ROUND_END` with `matchOver: true`. `PASS_NEXT_ROUND` was the intended per-round packet — its absence is the root cause of the `passRoundsWon` client-reset bug (see `pass-implementation-notes.md` BUG-02).
 - **Mid-game quit dissolves the room (note, June 2026):** unlike GTH/DYB/BLD (which navigate to the game menu and leak the Firebase room), PASS's quit-confirm broadcasts `PASS_MATCH_DISSOLVED` (host) / sends `PASS_PLAYER_LEFT` (client) and calls `resetToLobby()`. One client leaving therefore dissolves the whole match for everyone — PASS does not tolerate a mid-match drop. This is the most correct teardown of the four MDLM games but deviates from the universal "✕ → game menu" rule (it goes straight to lobby). Candidate for a cross-game standardisation rule.
+
+---
+
+## Game 13: Net-Trace (NT)
+**Theme:** Network engineering / cybersecurity. Each player hardens their own relay-leg node by placing firewall and honeypot components; a BFS simulation routes packets and reveals each player's Signal Error Rate (SER).
+**Tagline:** "Harden your node. Route the signal."
+**Key file:** `js/games/nt.js`
+**Brand colour:** `emerald-600` | **Active pill:** `pill-active-emerald`
+**State flow:**
+```
+LOBBY (MDLM only) → NT MENU
+→ NT SETUP (node generation + preview — host deals)
+→ [Cycle loop:
+    [PTP: NT HANDSHAKE (pass-gate) → NT BUILD (hardening + countdown) → repeat per player]
+    [MDLM standard: all players harden simultaneously → NT WAITING (standby)]
+    [MDLM DNP: NT ALLOCATION (captain huddle) → all players harden simultaneously → NT WAITING]
+    → NT PLAYBACK (BFS canvas animation + SER reveal)
+    → NT RESULTS (per-cycle SER leaderboard)
+  ]
+→ NT GAMEOVER (final SER rankings across all cycles)
+```
+
+### Terminology
+| Term | Meaning |
+|------|---------|
+| Relay-Leg Node | A player's section of the network topology — the segment they own and harden |
+| Hardening | The act of placing firewall/honeypot components on a relay-leg node to reduce SER |
+| SER | Signal Error Rate — latency as a percentage of the max (or cluster ceiling in DNP); lower = better |
+| Firewall | Defensive component — reduces base latency on a path segment |
+| Honeypot | Deceptive component — reduces latency on a path segment; different tradeoffs from firewall |
+| BFS | Breadth-first search — the traversal algorithm that simulates packet routing across all nodes |
+| The Cluster Ceiling | DNP scoring: Σ of per-leg max(teamA_latency, teamB_latency) across all matched legs |
+| Player SER | Standard: `latency / maxLatency × 100`; DNP: `latency / clusterCeiling × 100` |
+| Team SER | DNP: `Σ team_latencies / clusterCeiling × 100` |
+| Hardening Window | The countdown timer for each player's build phase (`ntHardeningWin` seconds) |
+| Huddle Timer | DNP allocation phase timer: `ntHardeningWin × teamSize` seconds |
+| Shared Allocation Hub | DNP pre-hardening screen — team captain distributes a pool across all relay legs |
+| Team Pool | DNP: combined firewall + honeypot budget shared across one team's legs |
+| DNP | Devil's Network Protocol — Sylly Mode name; two teams compete on matched relay legs |
+| New Trace | Play again — resets all state, preserves names + settings |
+| Drop Connection? | Quit overlay heading |
+| Network Config ⚙️ | Settings overlay title |
+
+### Settings
+| Setting (display) | Options | Default | Internal variable | Internal values |
+|------------------|---------|---------|------------------|-----------------|
+| Routing Cycles | 3 / 5 | 3 | `ntCycles` | int |
+| Hardening Window | 30s / 60s / 90s | 60s | `ntHardeningWin` | int |
+| Component Density | Minimal / Standard / Heavy | Standard | `ntComponentDensity` | `'minimal'` / `'standard'` / `'heavy'` |
+| ✨ Sylly Mode (Devil's Network Protocol) | OFF / ON | OFF | `ntSyllyMode` | bool |
+
+Player count (3–8, default 4, `ntPlayerCount`) is set from the lobby roster in MDLM — not in the settings overlay.
+
+### Special Mechanics
+
+**Node generation:**
+- `ntGenerateNode(opts)` builds a relay-leg node with `paths[]` (BFS edges) and `placeholders[]` (component slots)
+- `opts.keepInventory = true` — DNP batch mode: first call sets the team's shared inventory; subsequent N-1 calls regenerate geometry only, preserving the same inventory object
+- `ntTeamNodes[playerIdx]` stores each player's own node geometry for per-player BFS simulation
+
+**BFS simulation:**
+- `ntComputeTimeline_local()` traverses `ntNode` using `ntMyPlacements` — returns an ordered array of latency contributions
+- `ntResolveCycleMdlm(allPlacements)` runs `ntComputeTimeline_local()` for every player by temporarily swapping `ntNode` and `ntMyPlacements` per player, then restoring the saved values
+
+**DNP scoring — Cluster Ceiling:**
+- For each matched leg n: `ceiling_n = max(teamA_leg_n.latency, teamB_leg_n.latency)`
+- `clusterCeiling = Σ ceiling_n` across all matched legs
+- `playerSER_n = player_latency / clusterCeiling × 100`
+- `teamSER = Σ team_latencies / clusterCeiling × 100`
+- Stored in `ntTeamCycleSERs[cycle][team]` for the gameover screen
+
+**Shared Allocation Hub (DNP):**
+- Shows before hardening begins each cycle
+- Captain: interactive [−]/[+] per leg per component type; "Lock Allocation" CTA commits
+- Non-captain: same UI, all controls disabled; live-synced via `NT_ALLOCATION_SYNC`
+- Huddle timer: `ntHardeningWin × teamSize` seconds; auto-locks on expiry via `ntCommitAllocation()`
+- If captain locks before timer expires, `ntCheckBothTeamsLocked()` cancels the timer and broadcasts `NT_BUILD_BEGIN` immediately when both teams are locked
+- Unallocated-pool warning: tapping Lock with remaining budget flashes `#nt-alloc-warning` via `nt-flash-warning` CSS animation; allocation still commits
+
+**Host captain self-send guard:**
+- The `engine-multiplayer.js` dedup guard drops envelopes where `originId === syllyDeviceUid`
+- Host captain must update `ntTeamWorkingAllocs[myTeam]` directly and call `ntBroadcastAllocationSync()` — never send `NT_ALLOCATION_UPDATE` ACTION to itself
+
+**Build timer — wall-clock anchor (GTH pattern):**
+- Host computes `endTimestamp = Date.now() + (ntHardeningWin * 1000)` at gate-tap time
+- `NT_BUILD_BEGIN` carries `endTimestamp`; all devices call `ntStartBuildTimer(endTimestamp)` from the received value — no drift possible
+
+**Mid-game quit — PASS contract:**
+- Host quit: `resetToLobby()` broadcasts `HOST_END_GAME`; all clients receive disconnect overlay
+- Client quit: sends `NT_PLAYER_LEFT` ACTION → host broadcasts `NT_MATCH_DISSOLVED` → all devices `resetToLobby()`
+- One client leaving dissolves the entire match
+
+### Overlay Types
+| Overlay | Pattern | z-index | Notes |
+|---------|---------|---------|-------|
+| `nt-settings-overlay` | Data (slide-up) | z-[80] | "Network Config ⚙️" |
+| `nt-how-to-overlay` | Data (slide-up) | z-[90] | How to Play |
+| `nt-quit-overlay` | Decision modal | z-[80] | "Drop Connection?" — mid-game quit |
+| `nt-new-trace-overlay` | Decision modal | z-[90] | "New Trace?" — play-again confirmation |
+
+### Screens
+| Screen ID | Purpose |
+|-----------|---------|
+| `screen-nt-menu` | Main hub |
+| `screen-nt-setup` | Node generation preview — host deals and shows all players their relay-leg |
+| `screen-nt-handshake` | Pass-the-phone gate before each player's hardening turn (PTP only) |
+| `screen-nt-allocation` | DNP Shared Allocation Hub — captain distributes team pool across legs |
+| `screen-nt-build` | Hardening screen — player places components on their relay-leg node |
+| `screen-nt-waiting` | Passive standby — shown while other players are hardening (MDLM) |
+| `screen-nt-playback` | Animated BFS traversal canvas + per-player latency/SER comparison panel |
+| `screen-nt-results` | Per-cycle SER leaderboard |
+| `screen-nt-gameover` | Final report — SER rankings across all cycles |
+
+### Multiplayer (Phase 33)
+- **Mode:** MDLM only — `multiplayerOnly: true`, `supportedModes: ['mdlm']`, `recommendedMode: 'mdlm'`
+- **Min players:** 3 | **Max players:** 8
+- **rosterConfig:** `{ type: 'none' }` — automatic seat assignment (join order)
+- **Shared screens:** `screen-mp-mode`, `screen-mp-lobby-host`, `screen-mp-lobby-join` (parameterised)
+- **Post-lobby routing:** `onPassThePhone` (host) → `ntStartSession()` directly; clients wait for `NT_GENERATE`
+- **Hardening privacy:** Each device hardens its own node locally. Placements are not broadcast until `NT_PLACEMENT_SUBMIT` ACTION at end of hardening window.
+- **DNP team assignment:** `ntTeamIdx[playerIdx]` and `ntCaptainSlots[team]` populated from `mpLobbyRoster` in `onPassThePhone`. Team captains are the `rosterConfig.captainSlots` values.
+- **Mid-game quit dissolves the room:** same PASS contract — host `HOST_END_GAME` / client `NT_PLAYER_LEFT` → host `NT_MATCH_DISSOLVED` → all `resetToLobby()`
+- **Key ACTION packets:** `NT_PLACEMENT_SUBMIT` (player's final placements → host), `NT_PLAYER_LEFT` (client quit → host dissolves), `NT_ALLOCATION_UPDATE` (client captain live adjustment → host), `NT_ALLOCATION_LOCK` (client captain commits allocation → host)
+- **Key SYNC packets:** `NT_GENERATE` (all player nodes + initial inventory; DNP: includes `isDNP`, `allPlayerNodes`, `teamIdx`, `captainSlots`), `NT_HUDDLE_START` (DNP allocation phase — carries `allPlayerNodes`, `teamIdx`, `captainSlots`, `teamPools`, `cycle`), `NT_ALLOCATION_SYNC` (live captain adjustments — both teams' working state), `NT_BUILD_BEGIN` (both teams locked — carries `endTimestamp`; all devices start hardening simultaneously), `NT_PLAYBACK` (all timelines + latencies + SERs; DNP: includes `teamCycleSERs`), `NT_RESULTS` (per-cycle SER leaderboard), `NT_GAMEOVER` (final rankings), `NT_MATCH_DISSOLVED` (player left → all `resetToLobby()`)

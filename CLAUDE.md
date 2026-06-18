@@ -32,7 +32,8 @@
 │   │   ├── bld.js                   # Plugin: Bailed (all state + logic — in active testing)
 │   │   ├── gth.js                   # Plugin: Group Therapy (all state + logic)
 │   │   ├── dyb.js                   # Plugin: Dicey Bluffs (all state + logic)
-│   │   └── pass.js                  # Plugin: Pass (all state + logic)
+│   │   ├── pass.js                  # Plugin: Pass (all state + logic)
+│   │   └── nt.js                    # Plugin: Net-Trace (all state + logic)
 │   ├── engine-multiplayer.js        # Multiplayer module: Firebase, lobby, sync, per-game envelopes
 │   ├── secret-mode.js               # Secret Mode: Konami gateway, Terminal, expansion proxy state
 │   ├── app.js                       # Bootstrapper only — no logic (3 lines)
@@ -51,7 +52,7 @@
 │   ├── secret3_words.json           # Expansion word bank: Pokémon Gen 1 (151 words)
 │   ├── ygi-data.json                # You Get It? prompts (50 entries, {id, text, ringers[5]})
 │   └── gth-data.json                # Group Therapy disorder bank (100 entries, 3 tiers: everyday/phobias/complex)
-├── sw.js                            # Service Worker (currently v103)
+├── sw.js                            # Service Worker (currently v104)
 ├── manifest.json                    # PWA manifest
 ├── docs/expansion-guide.md          # Template + checklist for adding new expansion packs
 ├── docs/code-map.md                 # Surgical code reference — all game IDs, overlays, key functions
@@ -67,7 +68,7 @@
 ├── docs/archive/                    # Retired snapshots + spent plan docs
 ```
 
-**Load order:** `engine.js` → `engine-multiplayer.js` → `canvas-draw.js` → `li5.js` → `great-minds.js` → `secret-signals.js` → `jec.js` → `ygi.js` → `lttp.js` → `nat.js` → `dsd.js` → `bld.js` → `gth.js` → `dyb.js` → `cards.js` → `pass.js` → `secret-mode.js` → `app.js`
+**Load order:** `engine.js` → `engine-multiplayer.js` → `canvas-draw.js` → `li5.js` → `great-minds.js` → `secret-signals.js` → `jec.js` → `ygi.js` → `lttp.js` → `nat.js` → `dsd.js` → `bld.js` → `gth.js` → `dyb.js` → `cards.js` → `pass.js` → `nt.js` → `secret-mode.js` → `app.js`
 (`tailwind-play.js` loads in `<head>` before everything else.)
 All symbols are global (no ES modules). Forward references work at runtime.
 
@@ -135,6 +136,7 @@ All symbols are global (no ES modules). Forward references work at runtime.
 - **Lean Context:** Avoid repetitive explanations. Assume technical competence.
 - **Australian English:** Use Australian spelling (e.g., "colour", "synthesised"). Metric units only.
 - **Session Cleanup:** If a sub-task is complete, suggest running /compact to clear history.
+- **End every response with "what's next":** Always close with 1–2 sentences naming what was just completed AND what comes next — the next phase, next item, or a recommendation if the task is done. For multi-phase work, name upcoming phases so the roadmap is visible. This applies even to short responses. The user may return after a gap with incomplete context; explicit next-step visibility removes the ambiguity.
 
 ---
 
@@ -209,12 +211,14 @@ Do not write the phase snapshot until Protocols A is clean. Do not write a line 
 ---
 
 ## 🎯 Current Focus
-**Phase:** Studio Audit COMPLETE (June 2026). All 71 audit items resolved + all deferred items done. Protocol C gate is satisfied — next step is a new game brief.
-**Last shipped game:** Phase 32 — Pass (PASS), Gan Deng Yan climbing card game with The Abyss (Sylly Mode), MDLM-only, 3–6 players.
-**SW Version:** v103 (bump when assets change)
-**Gold Master:** 12 games complete + multiplayer (LI5, Great Minds, Secret Signals, JEC, YGI, LTTP, Natural Selection, Deep-Sea Deploy, Bailed, Group Therapy, Dicey Bluffs, Pass)
-**Pending before next game:** None — Protocol C is satisfied by the completed studio audit. Start with a new game Phase 1 brief using `@new-game-process.md`.
+**Phase:** Phase 33 — Net-Trace (NT) shipped. BFS pathfinding + MDLM Standard + DNP/Teams (Sylly Mode). Game 13 complete.
+**Last shipped game:** Phase 33 — Net-Trace (NT), BFS packet-routing game, MDLM-only, 1–8 players (Standard) / 4–8 players (DNP Sylly Mode).
+**SW Version:** v104 (bump when assets change)
+**Gold Master:** 13 games complete + multiplayer (LI5, Great Minds, Secret Signals, JEC, YGI, LTTP, Natural Selection, Deep-Sea Deploy, Bailed, Group Therapy, Dicey Bluffs, Pass, Net-Trace)
+**Pending before next game:** Protocol C studio sweep — run Protocols A + C before the next Phase 1 brief.
 **Key references:**
+- `docs/implementation-notes/nt-implementation-notes.md` — NT bug log + design decisions
+- `docs/new-game-tech-net-trace.md` — Phase 2 technical spec (NT source of truth)
 - `docs/archive/fable-audit-snapshot.md` — Studio Audit fix campaign snapshot (June 2026) — all 71 items + deferred items
 - `docs/implementation-notes/dyb-implementation-notes.md` — DYB bug log + design decisions
 - `docs/implementation-notes/bld-implementation-notes.md` — BLD bug log + design decisions

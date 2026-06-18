@@ -778,6 +778,68 @@ body.flash-red   { background-color: #fecaca; }
   box-shadow: 0 1px 4px rgba(0,0,0,0.2);
 }
 
+/* ── Net-Trace — emerald-500 (#10b981) UI chrome ─────────────────────────── */
+.pill-active-emerald {
+  background-color: #10b981;
+  color: #ffffff;
+  font-weight: 600;
+}
+.game-toggle-on-emerald {
+  background-color: #10b981;
+  color: #ffffff;
+  border-radius: 9999px;
+  padding: 0.4rem 1.2rem;
+  font-weight: 700;
+  font-size: 0.9rem;
+  transition: background 0.2s, color 0.2s;
+  border: none;
+  cursor: pointer;
+}
+.nt-range {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 9999px;
+  background: linear-gradient(to right, #a7f3d0, #059669);
+  outline: none;
+  cursor: pointer;
+}
+.nt-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: #10b981;
+  border: 3px solid #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
+.nt-range::-moz-range-thumb {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: #10b981;
+  border: none;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
+/* Build-grid cell base + invalid-placement reject flash */
+.nt-cell { border-radius: 2px; cursor: pointer; }
+@keyframes ntCellReject {
+  0%   { background-color: #ef4444; }
+  100% { background-color: inherit; }
+}
+.nt-cell-reject { animation: ntCellReject 0.45s ease-out; }
+@keyframes ntCounterFlash {
+  0%   { opacity: 1; color: #6ee7b7; }
+  40%  { opacity: 1; color: #fff; }
+  100% { opacity: 1; }
+}
+.nt-counter-flash { animation: ntCounterFlash 0.4s ease-out; }
+@keyframes ntWarningFlash {
+  0%, 100% { transform: scale(1);    color: #f59e0b; }
+  30%       { transform: scale(1.06); color: #ef4444; }
+  60%       { transform: scale(1);    color: #ef4444; }
+}
+.nt-flash-warning { animation: ntWarningFlash 0.4s ease-in-out; }
+
 /* ── DYB Spirit Board — over-bid flash ──────────────────────────────────── */
 @keyframes dybSpiritFlash {
   0%   { background-color: #dcfce7; }

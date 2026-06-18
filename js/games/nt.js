@@ -1,0 +1,2693 @@
+// ═══════════════════════════════════════════════════════════════════════════
+// nt.js — Net-Trace (mazing / spatial-optimisation grid router)
+// Game 13. Theme: AMAZE_INC / AMAZE_OS security terminal. Build a Node so the
+// automated Breach Vector takes the LONGEST path Ingress→Egress. Highest System
+// Efficiency Rating (SER) wins. Sylly Mode = DNP (Distributed Network Protocol):
+// 2 corporate clusters chain their Nodes into one continuous relay.
+//
+// Spec: docs/new-game-tech-net-trace.md  |  Brief: docs/new-ideas/new-game-brief-net-trace.md
+//
+// Depends on: engine.js (showScreen, playLaunch, playSuccess, playBoing,
+//             playWhoosh, playDone, playExit, playAlarm, playTick, playPillClick,
+//             resetToLobby, shuffle, formatTime),
+//             engine-multiplayer.js (mpSendEnvelope, mpLockSync, mpUnlockSync,
+//             mpMyPlayerIdx, mpPlayerSlots, mpReturnToLobby, mpShowModeScreen,
+//             mpLobbyRoster, syllyMultiplayerMode, syllyDeviceUid)
+//
+// ARCHITECTURE NOTE (first-in-suite): NT ships its OWN game-local RAF canvas
+// renderer (NOT js/lib/canvas-draw.js — that is a stroke-capture module) and a
+// vanilla BFS pathfinder. ntRafHandle is a TIMER — cancel it in every teardown
+// path (quit, resetToLobby, early playback exit) or it ticks against the next
+// screen (Timer Lifecycle rule).
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ── ENGINE BALANCING CONSTANTS ──────────────────────────────────────────────
+// Model (faithful to maze.game / WC3 CUSTOM mazing — see plan + docs/new-ideas/net-trace-issues.md):
+// ONE uniform N×N TILE grid (Matrix Scale = N directly, 16/18/20). Every block is a
+// 2×2-TILE footprint anchored at ANY integer tile (1-tile placement resolution,
+// STRICT zero-overlap — staggered disjoint blocks make the 1-tile corridors).
+// The runner is a 0.5-tile SQUARE body: pathfinding runs on a ¼-tile config-space
+// lattice with every solid inflated by the runner half-width (0.25 tile = exactly
+// ONE sub-cell — clean integer inflation). Corners stay SHARP, just offset outward,
+// so the runner must clear a corner before turning → organic turn delay, NO turn timer.
+// Score = pure latency = travel distance × NT_BASE_TILE_TIME + duration-based slows.
+const NT_GRID_DEFAULT       = 18;       // default tile grid side (16/18/20 selectable)
+const NT_BLOCK              = 2;        // every placed block is NT_BLOCK×NT_BLOCK tiles
+const NT_LATTICE_K          = 4;        // config-space sub-cells per tile (¼-tile = 0.25 = runner half-width ⇒ 1-sub-cell inflation)
+const NT_RUNNER_HALF        = 0.25;     // runner square half-width in tiles (0.5 body ⇒ 0.25 clearance each side of a 1-tile corridor)
+
+// TIMING & MOVEMENT (abstract "latency" units; calibrated to maze.game ratios —
+//   straight full-height run ≈ 18000 on an 18 grid, one full slow ≈ +15000)
+const NT_BASE_TILE_TIME     = 1000;     // latency per 1 tile of straight travel (18 tall ⇒ 18000)
+const NT_DIAG = Math.SQRT2;             // diagonal lattice-step length
+const NT_SUBSTEP            = 0.25;      // tiles per timeline integration tick (fixed-distance; AoE checked each tick)
+
+// SLOW (honeypot) — 0.5× speed for a FIXED duration (timer, persists outside the AoE);
+//   non-stacking (re-trigger extends, never deepens); cooldown gates the quad re-trigger.
+const NT_HONEYPOT_RADIUS    = 3 * Math.SQRT2; // ≈4.243 tiles from block dead-centre (3× the unit-square diagonal)
+const NT_HONEYPOT_RADIUS_SQ = 18;       // (dx*dx)+(dy*dy) <= 18 — the per-tick squared AoE check (= (3√2)²)
+const NT_HONEYPOT_SLOW      = 0.50;     // speed multiplier while slowed
+const NT_HONEYPOT_DURATION  = 35000;    // slow lifetime in latency units; matches cooldown → ~7s real at 5× playback
+const NT_HONEYPOT_COOLDOWN  = 35000;    // re-trigger lockout per honeypot; ≥ NT_HONEYPOT_DURATION → one trigger per slow window (~7s real at 5×)
+
+// PLAYBACK
+const NT_PLAYBACK_SPEED     = 5;        // time-compression factor (§16-Q5 — start 5×, dial by feel)
+
+// VISUAL THEME — PLAYFIELD palette (canvas only; NOT the emerald UI chrome)
+const NT_COLOR_BASE         = '#0f172a';  // slate-900 — canvas base
+const NT_COLOR_FIREWALL     = '#06b6d4';  // cyan-500 — user-built firewall segments
+const NT_COLOR_BAD_SECTOR   = '#334155';  // slate-700 — fixed obstacles (flat, no glow)
+const NT_COLOR_HONEYPOT        = '#d946ef';  // fuchsia-500 — slow traps (player-placed)
+const NT_COLOR_NATIVE_HONEYPOT = '#5b21b6';  // violet-800 — fixed map obstacles (muted structural amethyst)
+const NT_COLOR_BREACH       = '#ef4444';  // red-500 — the breach vector signal head
+const NT_TRAIL_ALPHA        = 0.20;       // canvas overfill alpha for the fading neon trail
+
+// INVENTORY GENERATION BANDS (calibration — §10)
+const NT_BADSECTOR_MIN_PCT  = 0.02;     // density floor (% of tiles) — lowered for sparse open-maze variety
+const NT_BADSECTOR_MAX_PCT  = 0.18;     // density ceiling (% of tiles)
+const NT_FIREWALL_MIN_PCT   = 0.06;     // firewall inventory floor (% of tiles) — lowered for scarcity nodes (~5 min on 18-grid)
+const NT_FIREWALL_MAX_PCT   = 0.30;     // firewall inventory ceiling (% of tiles)
+const NT_HONEYPOT_CAP       = 4;        // total honeypots per Node (≤2 Native + ≤2 Allocated)
+const NT_ALLOC_HONEYPOT_CAP = 2;        // max allocated honeypots per cycle
+const NT_LONGPRESS_MS       = 400;      // long-press threshold (honeypot place / firewall upgrade)
+
+// ═══════════════════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ── Settings (persist between play-agains) ──────────────────────────────────
+let ntMatrixScale    = 18;       // 16 | 18 | 20 — tile grid side (N)
+let ntIterations     = 5;        // 5 | 7 | 10  — Simulation Iterations (rounds)
+let ntHardeningWin   = 90;       // 45 | 60 | 90 | 120 (seconds) — build timer
+let ntNativeHoneypots= 2;        // 0 | 1 | 2   — max Native Honeypots baked into seed
+let ntSyllyMode      = false;    // DNP (Distributed Network Protocol) — always last setting
+
+// ── Roster (set in lobby, persist across play-agains) ───────────────────────
+let ntPlayerCount    = 1;        // total players (1 solo … 8 MDLM)
+let ntPlayerNames    = [];       // from mpPlayerSlots[i].nickname
+let ntTeamIdx        = [];       // DNP: per-player team (0|1) from mpLobbyRoster.playerTeamIdx
+let ntTeamNames      = ['Amaze Inc.', 'Pender Securities']; // DNP team names
+let ntCaptainSlots   = [-1, -1]; // DNP: per-team captain player index
+
+// ── Match state (reset each play-again / Reboot) ────────────────────────────
+let ntCycle          = 0;        // current Simulation Cycle (0-indexed)
+let ntCycleSERs      = [];       // [cycleIdx][playerIdx] = number (%) — Standard
+let ntTeamCycleSERs  = [];       // [cycleIdx][teamIdx]   = number (%) — DNP
+let ntOverallSER     = [];       // rolling average per player (Standard) / team (DNP)
+let ntCycleLatencies = [];       // [cycleIdx][playerIdx] = raw latency ms (solo: [latency])
+
+// ── Playback render state (reset each playback) ─────────────────────────────
+let ntPlaybackTimeline = null;   // { path, segments, fires, latencyMs }
+let ntPlaybackStartTs  = 0;      // performance.now() at playback start
+let ntPlaybackScrubMs  = null;   // non-null = scrubbing (paused at this sim-ms)
+let ntRoutingTimer     = null;   // status-bar EXCEPTION flash revert handle
+let ntRafHandle      = null;     // requestAnimationFrame handle — TIMER, cancel everywhere
+let ntBuildTimer     = null;     // setInterval — Hardening countdown
+let ntHuddleTimer    = null;     // setInterval — DNP huddle countdown
+
+// ── Cycle / Node state (reset each cycle) ───────────────────────────────────
+// ntNode = { n,                                  // tile grid side (16/18/20)
+//            ingress:{edge,idx}, egress:{edge,idx},   // border ports — edge + tile index along it (never same edge)
+//            badSectors:[{ax,ay}], nativeHoneypots:[{ax,ay}] }   // 2×2-block top-left tile anchors
+let ntNode           = null;
+let ntInventory      = { firewall: 0, honeypot: 0 }; // block budget, randomised per cycle, same for all
+let ntMyPlacements   = [];       // this device's [{ax,ay,type:'firewall'|'honeypot'}] — 2×2-block anchors (top-left tile)
+let ntBuildCells     = [];       // [ty][tx] DOM cell refs for the build grid (rebuilt each render)
+let ntFirewallUsed   = 0;        // live counters (cached from ntMyPlacements for UI)
+let ntHoneypotUsed   = 0;
+let ntPlaybackData   = null;     // host-broadcast: per-player/per-team { timeline, latencyMs }
+let ntViewingUid     = null;     // which player's maze is loaded in the playback comparison slot
+
+// ── DNP cycle state ──────────────────────────────────────────────────────────
+let ntTeamNodes      = [];       // [playerIdx] = Node for that player's relay leg (all players, DNP)
+let ntAllocationPool = { firewall: 0, honeypot: 0 }; // my team's total pool (from team members' base inventories)
+let ntAllocations    = [];       // [legIdx within my team] = { firewall, honeypot } captain assignment
+let ntHuddlePhase    = 'editing';// 'editing' | 'locked'
+let ntTeamAllocLocked      = [false, false]; // host-only: which team's captain has locked
+let ntTeamWorkingAllocs    = [[], []];       // host-only: [team][legIdx] = {firewall,honeypot} current state
+let ntAllPlayerAllocations = [];            // host-only: [playerIdx] = { firewall, honeypot } final per-leg alloc
+
+// ── MP readyCheck matrices (reset each phase) ───────────────────────────────
+let ntGateReadyCheck   = [];     // per-player ready at Cycle Initialization Gate
+let ntCommitReadyCheck = [];     // per-player committed at build phase
+
+// ── PTP state (reset each cycle in ntBeginCycle; reset on reboot in ntResetState) ──
+let ntPtpTurn            = 0;    // index of the player whose turn it currently is (0..ntPlayerCount-1)
+let ntPtpTimelines       = [];   // [playerIdx] = committed timeline (filled as each player finishes)
+let ntPtpPlacements      = [];   // [playerIdx] = placement array snapshot (for comparison render)
+let ntViewingPlayerIdx   = 0;    // which player's trace is loaded in the main playback canvas
+// ── Match-level PTP log (persists across cycles for System Logs) ─────────────
+let ntAllCycleTimelines  = [];   // [cycleIdx][playerIdx] = timeline
+let ntAllCyclePlacements = [];   // [cycleIdx][playerIdx] = placements snapshot
+let ntAllCycleNodes      = [];   // [cycleIdx] = node object (for thumbnail re-rendering)
+// Gate button callback — changed per gate context (default → ntShowBuild, gather → ntShowComparisonPlayback)
+let ntGateCallback              = null;
+// Playback Continue callback — null = normal cycle advance; set when viewing a log round → returns to logs
+let ntPlaybackContinueCallback  = null;
+
+// ── UI / transient state ─────────────────────────────────────────────────────
+let ntRoutingState   = 'valid';  // 'valid' | 'exception' (drives status-bar flash)
+let ntPlaybackPhase  = 'tracing';
+let ntSummaryMode    = 'cycle';  // 'cycle' | 'match'
+let ntOverclockTheme = false;    // easter-egg monochrome/amber theme (triple-tap AMAZE_INC_v1.2)
+let ntLongPressTimer = null;     // long-press gesture threshold handle (build screen)
+let ntGhostAnchor    = null;     // {ax,ay} of current 2×2 ghost preview, or null when hidden
+let ntPlaybackPaused = false;    // true when manually paused via play/pause button
+let ntPlaybackLoopFn = null;     // stored RAF loop fn ref (set in ntStartPlayback — enables pause/resume)
+
+// ── Derived at runtime (never persisted) ────────────────────────────────────
+// ntIsDNP() = ntSyllyMode === true (mirrors isSylly pattern)
+function ntIsDNP() { return ntSyllyMode === true; }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SCREEN TRANSITIONS  (Step 3 navigation wired; logic injected in Step 5)
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Solo single-device entry (skips MODE/LOBBY/ROSTER — always Standard).
+// Step 5: generate cycle-1 Node before the handshake. For now drives the flow.
+function ntStartSolo() {
+  ntPlayerCount = 1;
+  ntCycle = 0;
+  ntBeginCycle();
+}
+
+// ── PTP setup screen ─────────────────────────────────────────────────────────
+
+function ntShowSetup() {
+  ntSelectPill('nt-count', ntPlayerCount);
+  document.querySelectorAll('.nt-setup-name-input').forEach(inp => {
+    const idx = parseInt(inp.dataset.ntPlayer, 10);
+    inp.style.display = idx < ntPlayerCount ? '' : 'none';
+    const defaultName = 'ADMIN-' + (idx + 1);
+    inp.value = (ntPlayerNames[idx] && ntPlayerNames[idx] !== defaultName) ? ntPlayerNames[idx] : '';
+  });
+  showScreen('screen-nt-setup');
+}
+
+function ntStartPTP() {
+  ntPlayerNames = [];
+  document.querySelectorAll('.nt-setup-name-input').forEach(inp => {
+    const idx = parseInt(inp.dataset.ntPlayer, 10);
+    if (idx < ntPlayerCount) {
+      ntPlayerNames[idx] = inp.value.trim() || ('ADMIN-' + (idx + 1));
+    }
+  });
+  ntCycle = 0;
+  ntCycleSERs = [];
+  ntTeamCycleSERs = [];
+  ntCycleLatencies = [];
+  ntOverallSER = [];
+  ntBeginCycle();
+}
+
+// ── PTP turn management ───────────────────────────────────────────────────────
+
+// Show the gate screen configured for the current PTP player's handover.
+function ntBeginPtpTurn() {
+  const name = ntPlayerNames[ntPtpTurn] || ('ADMIN-' + (ntPtpTurn + 1));
+  const sub = document.getElementById('nt-gate-sub');
+  const btn = document.getElementById('btn-nt-gate-ready');
+  if (sub) sub.textContent = ntPtpTurn === 0
+    ? 'Your turn first, ' + name + '. Tap when ready.'
+    : 'Hand the phone to ' + name + '.';
+  if (btn) btn.textContent = 'Ready — ' + name + ' ▶';
+  ntGateCallback = () => ntShowBuild();
+  showScreen('screen-nt-gate');
+}
+
+// Called after each player commits their build in PTP mode.
+function ntCommitPtp() {
+  const timeline = ntComputeTimeline_local();
+  ntPtpTimelines[ntPtpTurn] = timeline;
+  ntPtpPlacements[ntPtpTurn] = ntMyPlacements.slice();
+  ntPtpTurn++;
+  if (ntPtpTurn < ntPlayerCount) {
+    // Reset build state for next player's fresh start on the same node
+    ntMyPlacements = [];
+    ntFirewallUsed = 0;
+    ntHoneypotUsed = 0;
+    ntBeginPtpTurn();
+  } else {
+    // All players done — score, then gather gate before comparison playback
+    ntResolveCyclePtp();
+    if (ntPlayerCount > 1) {
+      ntShowGatherGate();
+    } else {
+      ntShowComparisonPlayback();
+    }
+  }
+}
+
+// Gather gate shown after the last PTP player commits — everyone assembles to watch playback.
+function ntShowGatherGate() {
+  const sub = document.getElementById('nt-gate-sub');
+  const btn = document.getElementById('btn-nt-gate-ready');
+  const count = ntPlayerCount;
+  if (sub) sub.textContent = count > 1
+    ? 'All ' + count + ' admins done. Gather around to watch the playback.'
+    : 'Analysis complete. Tap to view playback.';
+  if (btn) btn.textContent = 'Launch Playback ▶';
+  ntGateCallback = () => ntShowComparisonPlayback();
+  showScreen('screen-nt-gate');
+}
+
+// Relative-ceiling SER: player with the highest latency = 100% (longest path wins).
+function ntResolveCyclePtp() {
+  const latencies = ntPtpTimelines.map(tl => (tl ? tl.latencyMs : 0));
+  ntCycleLatencies[ntCycle] = latencies.slice();
+  const maxLat = Math.max(...latencies) || 1;
+  const sers = latencies.map(lat => (lat / maxLat) * 100);
+  ntCycleSERs[ntCycle] = sers.slice();
+  ntOverallSER = Array.from({ length: ntPlayerCount }, (_, i) => {
+    let sum = 0, n = 0;
+    ntCycleSERs.forEach(c => { if (c && typeof c[i] === 'number') { sum += c[i]; n++; } });
+    return n ? sum / n : 0;
+  });
+  // Persist for System Logs (node is immutable after generation — safe to reference directly)
+  ntAllCycleTimelines[ntCycle]  = ntPtpTimelines.slice();
+  ntAllCyclePlacements[ntCycle] = ntPtpPlacements.map(p => p.slice());
+  ntAllCycleNodes[ntCycle]      = ntNode;
+}
+
+// ── Comparison playback ───────────────────────────────────────────────────────
+
+// Load player 0 into the main playback canvas, render the panel, open screen.
+function ntShowComparisonPlayback() {
+  ntViewingPlayerIdx = 0;
+  ntPlaybackTimeline = ntPtpTimelines[0];
+  ntMyPlacements = ntPtpPlacements[0];
+  const panel = document.getElementById('nt-comparison-panel');
+  if (panel) panel.style.display = ntPlayerCount > 1 ? 'flex' : 'none';
+  ntRenderComparisonPanel();
+  ntShowPlayback();
+}
+
+// Build player chip row + thumbnail canvases inside #nt-comparison-panel.
+function ntRenderComparisonPanel() {
+  const chipsEl = document.getElementById('nt-player-chips');
+  const thumbsEl = document.getElementById('nt-thumbnail-row');
+  if (!chipsEl || !thumbsEl || !ntNode) return;
+
+  chipsEl.innerHTML = '';
+  thumbsEl.innerHTML = '';
+
+  const savedPlacements = ntMyPlacements;
+  const THUMB = 80;
+
+  ntPtpPlacements.forEach((placements, idx) => {
+    const name = ntPlayerNames[idx] || ('OP-' + (idx + 1));
+    const cycleSers = ntCycleSERs[ntCycle];
+    const ser = (cycleSers && cycleSers[idx] != null) ? cycleSers[idx].toFixed(1) + '%' : '--';
+
+    // Chip
+    const chip = document.createElement('button');
+    chip.className = 'pill flex-shrink-0' + (idx === ntViewingPlayerIdx ? ' pill-active-emerald' : '');
+    chip.dataset.ntPlayerIdx = String(idx);
+    chip.textContent = name + ' · ' + ser;
+    chip.addEventListener('click', () => { playPillClick(); ntSelectComparisonPlayer(idx); });
+    chipsEl.appendChild(chip);
+
+    // Thumbnail canvas — maze layout only (no runner animation)
+    const canvas = document.createElement('canvas');
+    canvas.width = THUMB;
+    canvas.height = THUMB;
+    canvas.className = 'rounded cursor-pointer flex-shrink-0';
+    canvas.style.cssText = 'width:' + THUMB + 'px;height:' + THUMB + 'px;border:2px solid ' +
+      (idx === ntViewingPlayerIdx ? '#10b981' : '#334155') + ';display:block';
+    canvas.dataset.ntPlayerIdx = String(idx);
+    canvas.addEventListener('click', () => { playPillClick(); ntSelectComparisonPlayer(idx); });
+
+    // Draw using this player's placements (temporarily swap global)
+    ntMyPlacements = placements;
+    const ctx = canvas.getContext('2d');
+    const px = THUMB / ntNode.n;
+    ctx.fillStyle = NT_COLOR_BASE;
+    ctx.fillRect(0, 0, THUMB, THUMB);
+    ctx.save();
+    ctx.strokeStyle = 'rgba(52,211,153,0.12)';
+    ctx.lineWidth = 0.3;
+    for (let li = 0; li <= ntNode.n; li++) {
+      ctx.beginPath(); ctx.moveTo(li * px, 0); ctx.lineTo(li * px, THUMB); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, li * px); ctx.lineTo(THUMB, li * px); ctx.stroke();
+    }
+    ctx.restore();
+    ntDrawMaze(ctx, px);
+    thumbsEl.appendChild(canvas);
+  });
+
+  ntMyPlacements = savedPlacements;
+}
+
+// ── System Logs overlay ───────────────────────────────────────────────────────
+
+function ntOpenLogs() {
+  playDone();
+  const overlay = document.getElementById('nt-logs-overlay');
+  if (!overlay) return;
+  overlay.querySelector('.overlay-data-inner').scrollTop = 0;
+  ntRenderLogs();
+  overlay.style.display = 'flex';
+}
+
+// Render per-cycle cards inside #nt-logs-content — static thumbnails, no RAF.
+function ntRenderLogs() {
+  const container = document.getElementById('nt-logs-content');
+  if (!container) return;
+  container.innerHTML = '';
+  const THUMB = 64;
+
+  const savedPlacements = ntMyPlacements;
+  const savedNode = ntNode;
+
+  ntAllCycleNodes.forEach((node, cycleIdx) => {
+    const placements = ntAllCyclePlacements[cycleIdx] || [];
+    const sers       = ntCycleSERs[cycleIdx] || [];
+    const winnerIdx  = sers.reduce((best, v, i) => v > (sers[best] || 0) ? i : best, 0);
+    const winnerName = ntPlayerNames[winnerIdx] || ('ADMIN-' + (winnerIdx + 1));
+
+    const card = document.createElement('div');
+    card.className = 'bg-white rounded-2xl shadow-sm p-4 flex flex-col gap-3 active:scale-[0.98] transition-transform duration-100 cursor-pointer';
+    card.title = 'Tap to replay VS-' + String(cycleIdx + 1).padStart(2, '0');
+    card.addEventListener('click', () => ntOpenLogRound(cycleIdx));
+
+    // Header: cycle label + winner
+    const header = document.createElement('div');
+    header.className = 'flex items-center justify-between';
+    header.innerHTML =
+      `<p class="text-xs font-mono font-semibold text-stone-500 uppercase tracking-widest">VS-${String(cycleIdx + 1).padStart(2, '0')}</p>` +
+      `<p class="text-xs font-mono text-emerald-600 font-semibold">&#x26A1; ${winnerName}</p>`;
+    card.appendChild(header);
+
+    // Thumbnail row: one canvas per player
+    const thumbRow = document.createElement('div');
+    thumbRow.className = 'flex gap-3 overflow-x-auto pb-0.5';
+
+    ntNode = node; // use this cycle's node for ntDrawMaze
+    placements.forEach((p, idx) => {
+      const name = ntPlayerNames[idx] || ('ADMIN-' + (idx + 1));
+      const ser  = sers[idx] != null ? sers[idx].toFixed(1) + '%' : '--';
+      const wrapper = document.createElement('div');
+      wrapper.className = 'flex flex-col items-center gap-1 flex-shrink-0';
+
+      const canvas = document.createElement('canvas');
+      canvas.width  = THUMB;
+      canvas.height = THUMB;
+      canvas.style.cssText = 'width:' + THUMB + 'px;height:' + THUMB + 'px;border-radius:8px;border:2px solid ' +
+        (idx === winnerIdx ? '#10b981' : '#334155') + ';display:block';
+
+      ntMyPlacements = p;
+      const ctx = canvas.getContext('2d');
+      const px  = THUMB / node.n;
+      ctx.fillStyle = NT_COLOR_BASE;
+      ctx.fillRect(0, 0, THUMB, THUMB);
+      ctx.save();
+      ctx.strokeStyle = 'rgba(52,211,153,0.12)';
+      ctx.lineWidth = 0.3;
+      for (let li = 0; li <= node.n; li++) {
+        ctx.beginPath(); ctx.moveTo(li * px, 0); ctx.lineTo(li * px, THUMB); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0, li * px); ctx.lineTo(THUMB, li * px); ctx.stroke();
+      }
+      ctx.restore();
+      ntDrawMaze(ctx, px);
+
+      const label = document.createElement('p');
+      label.className = 'text-xs font-mono text-stone-400 text-center leading-tight';
+      label.textContent = name.length > 8 ? name.slice(0, 7) + '…' : name;
+
+      const serLabel = document.createElement('p');
+      serLabel.className = 'text-xs font-mono text-emerald-600 font-semibold text-center';
+      serLabel.textContent = ser;
+
+      wrapper.appendChild(canvas);
+      wrapper.appendChild(label);
+      wrapper.appendChild(serLabel);
+      thumbRow.appendChild(wrapper);
+    });
+
+    card.appendChild(thumbRow);
+    container.appendChild(card);
+  });
+
+  ntMyPlacements = savedPlacements;
+  ntNode = savedNode;
+
+  if (container.children.length === 0) {
+    const empty = document.createElement('p');
+    empty.className = 'text-stone-400 text-sm text-center font-mono';
+    empty.textContent = '// NO CYCLES LOGGED';
+    container.appendChild(empty);
+  }
+}
+
+// Open the animated comparison playback for a historical cycle from System Logs.
+// On Continue, returns to the logs overlay instead of advancing the match.
+function ntOpenLogRound(cycleIdx) {
+  playLaunch();
+  const overlay = document.getElementById('nt-logs-overlay');
+  if (overlay) overlay.style.display = 'none';
+
+  const originalCycle      = ntCycle;
+  const originalNode       = ntNode;
+  const originalTimelines  = ntPtpTimelines;
+  const originalPlacements = ntPtpPlacements;
+
+  // Load historical cycle data into the comparison globals
+  ntNode           = ntAllCycleNodes[cycleIdx];
+  ntPtpTimelines   = ntAllCycleTimelines[cycleIdx];
+  ntPtpPlacements  = ntAllCyclePlacements[cycleIdx];
+  ntCycle          = cycleIdx; // so SER labels in comparison panel are correct
+
+  // Continue → restore state and re-open logs
+  ntPlaybackContinueCallback = () => {
+    ntCycle          = originalCycle;
+    ntNode           = originalNode;
+    ntPtpTimelines   = originalTimelines;
+    ntPtpPlacements  = originalPlacements;
+    ntOpenLogs();
+  };
+
+  const btn = document.getElementById('btn-nt-playback-continue');
+  if (btn) btn.textContent = '← Back to Logs';
+
+  ntShowComparisonPlayback();
+}
+
+// Switch main playback canvas to show a different player.
+function ntSelectComparisonPlayer(idx) {
+  if (idx === ntViewingPlayerIdx) return;
+  ntViewingPlayerIdx = idx;
+  ntPlaybackTimeline = ntPtpTimelines[idx];
+  ntMyPlacements = ntPtpPlacements[idx];
+  // Update chip highlight
+  document.querySelectorAll('#nt-player-chips .pill').forEach((chip, i) => {
+    chip.classList.toggle('pill-active-emerald', i === idx);
+  });
+  // Update thumbnail borders
+  document.querySelectorAll('#nt-thumbnail-row canvas').forEach((c, i) => {
+    c.style.borderColor = i === idx ? '#10b981' : '#334155';
+  });
+  // Restart playback from beginning for this player
+  ntStartPlayback();
+}
+
+// Post-lobby menu Play (MDLM): onPassThePhone has fired, players are ready.
+// Host calls ntStartMatch(); clients already showing standby or handshake.
+function ntStartSession() {
+  ntCycle = 0;
+  ntCycleSERs = [];
+  ntTeamCycleSERs = [];
+  ntCycleLatencies = [];
+  ntOverallSER = [];
+  ntAllCycleTimelines  = [];
+  ntAllCyclePlacements = [];
+  ntAllCycleNodes      = [];
+  ntShowHandshake();
+  if (window.syllyMultiplayerMode === 'host') {
+    ntStartMatch();
+  }
+}
+
+// Host: generate cycle Node + broadcast NT_GENERATE; then route to gate (Standard) or huddle (DNP).
+function ntStartMatch() {
+  ntMyPlacements = [];
+  ntFirewallUsed = 0;
+  ntHoneypotUsed = 0;
+  ntPlaybackTimeline = null;
+  ntPtpTurn      = 0;
+  ntPtpTimelines = [];
+  ntPtpPlacements = [];
+  ntGateReadyCheck   = new Array(ntPlayerCount).fill(false);
+  ntCommitReadyCheck = new Array(ntPlayerCount).fill(false);
+  ntTeamAllocLocked      = [false, false];
+  ntTeamWorkingAllocs    = [[], []];
+  ntAllPlayerAllocations = [];
+
+  if (ntIsDNP()) {
+    // Generate one node per player (DNP edge-pinned: ingress LEFT, egress RIGHT).
+    // First call sets ntInventory; subsequent calls keep it (keepInventory = true).
+    ntTeamNodes = [];
+    ntGenerateNode();                     // sets ntInventory + node for player 0
+    ntTeamNodes[0] = ntNode;
+    for (let i = 1; i < ntPlayerCount; i++) {
+      ntGenerateNode(true);               // geometry only, same ntInventory
+      ntTeamNodes[i] = ntNode;
+    }
+    // Host's own leg
+    ntNode = ntTeamNodes[mpMyPlayerIdx];
+
+    // Each team's pool = ntInventory × members on that team
+    const teamSizes = [0, 0];
+    ntTeamIdx.forEach(t => teamSizes[t]++);
+    const myTeam = ntTeamIdx[mpMyPlayerIdx];
+    ntAllocationPool = {
+      firewall: ntInventory.firewall * teamSizes[myTeam],
+      honeypot: ntInventory.honeypot * teamSizes[myTeam],
+    };
+    // Captain starts with all unassigned (legCount = members on my team)
+    const myTeamMembers = ntTeamIdx.reduce((acc, t, i) => { if (t === myTeam) acc.push(i); return acc; }, []);
+    ntAllocations = myTeamMembers.map(() => ({ firewall: 0, honeypot: 0 }));
+    // Initialise host-side working alloc arrays to zero for both teams
+    ntTeamWorkingAllocs = [0, 1].map(team => {
+      const members = ntTeamIdx.reduce((acc, t, i) => { if (t === team) acc.push(i); return acc; }, []);
+      return members.map(() => ({ firewall: 0, honeypot: 0 }));
+    });
+    ntHuddlePhase = 'editing';
+
+    const allPoolsPayload = [0, 1].map(team => ({
+      members: ntTeamIdx.reduce((acc, t, i) => { if (t === team) acc.push(i); return acc; }, []),
+      pool: {
+        firewall: ntInventory.firewall * teamSizes[team],
+        honeypot: ntInventory.honeypot * teamSizes[team],
+      },
+    }));
+
+    mpSendEnvelope({
+      type: 'SYNC',
+      payload: {
+        action: 'NT_GENERATE',
+        cycle: ntCycle,
+        node: null,               // DNP: each device derives its node from allPlayerNodes
+        inventory: ntInventory,
+        allPlayerNodes: ntTeamNodes.slice(),
+        isDNP: true,
+      },
+    });
+    mpSendEnvelope({
+      type: 'SYNC',
+      payload: {
+        action: 'NT_HUDDLE_START',
+        allPlayerNodes: ntTeamNodes.slice(),
+        allPools: allPoolsPayload,
+        // initial zero allocations per team
+        allAllocations: [0, 1].map(team => {
+          const members = allPoolsPayload[team].members;
+          return members.map(() => ({ firewall: 0, honeypot: 0 }));
+        }),
+        huddleDuration: ntHardeningWin * teamSizes[0], // both teams same size (validated)
+      },
+    });
+    const myTeamForCap = ntTeamIdx[mpMyPlayerIdx];
+    const isCaptain    = mpMyPlayerIdx === ntCaptainSlots[myTeamForCap];
+    ntShowAllocationScreen(isCaptain);
+    ntStartHuddleTimer(ntHardeningWin * teamSizes[myTeamForCap]);
+  } else {
+    ntGenerateNode();
+    mpSendEnvelope({
+      type: 'SYNC',
+      payload: { action: 'NT_GENERATE', cycle: ntCycle, node: ntNode, inventory: ntInventory },
+    });
+    ntShowMdlmGate();
+  }
+}
+
+function ntShowHandshake() { showScreen('screen-nt-handshake'); }
+
+// ── DNP Allocation Hub ─────────────────────────────────────────────────────
+
+// Show the allocation screen and render the current team's leg list.
+// captainMode: true = show active [+]/[-] buttons; false = read-only display.
+function ntShowAllocationScreen(captainMode) {
+  ntRenderAllocationScreen(captainMode);
+  showScreen('screen-nt-allocation');
+}
+
+// Returns the ordered list of global player indices on myTeam.
+function ntMyTeamMembers() {
+  const myTeam = ntTeamIdx[mpMyPlayerIdx];
+  return ntTeamIdx.reduce((acc, t, i) => { if (t === myTeam) acc.push(i); return acc; }, []);
+}
+
+function ntRenderAllocationScreen(captainMode) {
+  const body    = document.getElementById('nt-alloc-body');
+  const warning = document.getElementById('nt-alloc-warning');
+  const lockBtn = document.getElementById('btn-nt-alloc-lock');
+  if (!body) return;
+
+  const myTeam   = ntTeamIdx[mpMyPlayerIdx];
+  const myCapIdx = ntCaptainSlots[myTeam];
+  const isCap    = captainMode === true;
+  const members  = ntMyTeamMembers(); // global player indices
+
+  // Pool remaining
+  const usedFW = ntAllocations.reduce((s, a) => s + (a.firewall || 0), 0);
+  const usedHP = ntAllocations.reduce((s, a) => s + (a.honeypot || 0), 0);
+  const remFW  = ntAllocationPool.firewall  - usedFW;
+  const remHP  = ntAllocationPool.honeypot  - usedHP;
+
+  // Pool banner
+  let html = `<div class="text-center mb-3">
+    <p class="text-emerald-400 text-xs font-semibold uppercase tracking-widest">${ntTeamNames[myTeam] || 'My Team'} — Allocation Hub</p>
+    <p class="text-stone-400 text-xs mt-1">Pool remaining: <span class="text-white font-mono">${remFW}</span> FW · <span class="text-white font-mono">${remHP}</span> HP</p>
+  </div>`;
+
+  // Per-leg rows
+  members.forEach((pIdx, legIdx) => {
+    const name  = ntPlayerNames[pIdx] || ('ADMIN-' + (pIdx + 1));
+    const legTag = 'LEG-' + String(legIdx + 1).padStart(2, '0');
+    const isMe  = pIdx === mpMyPlayerIdx;
+    const alloc = ntAllocations[legIdx] || { firewall: 0, honeypot: 0 };
+
+    const adjBtnClass = isCap
+      ? 'w-7 h-7 rounded-lg bg-stone-700 hover:bg-stone-600 text-white text-sm font-bold flex items-center justify-center active:scale-90 transition-transform'
+      : 'w-7 h-7 rounded-lg bg-stone-800 text-stone-600 text-sm font-bold flex items-center justify-center cursor-not-allowed';
+
+    html += `<div class="bg-stone-800/60 rounded-2xl p-3 mb-2 flex flex-col gap-2">
+      <div class="flex items-center justify-between">
+        <p class="text-stone-300 text-xs font-semibold">${name}${isMe ? ' <span class="text-emerald-400">(you)</span>' : ''}</p>
+        <p class="text-stone-500 text-[10px] font-mono">${legTag}</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <span class="text-stone-400 text-xs w-12">Firewall</span>
+        <button ${isCap ? '' : 'disabled'} data-leg="${legIdx}" data-type="firewall" data-dir="-1" class="nt-alloc-adj ${adjBtnClass}">−</button>
+        <span class="text-white font-mono text-sm w-4 text-center" id="nt-alloc-fw-${legIdx}">${alloc.firewall}</span>
+        <button ${isCap ? '' : 'disabled'} data-leg="${legIdx}" data-type="firewall" data-dir="1" class="nt-alloc-adj ${adjBtnClass}">+</button>
+      </div>
+      <div class="flex items-center gap-3">
+        <span class="text-stone-400 text-xs w-12">Honeypot</span>
+        <button ${isCap ? '' : 'disabled'} data-leg="${legIdx}" data-type="honeypot" data-dir="-1" class="nt-alloc-adj ${adjBtnClass}">−</button>
+        <span class="text-white font-mono text-sm w-4 text-center" id="nt-alloc-hp-${legIdx}">${alloc.honeypot}</span>
+        <button ${isCap ? '' : 'disabled'} data-leg="${legIdx}" data-type="honeypot" data-dir="1" class="nt-alloc-adj ${adjBtnClass}">+</button>
+      </div>
+    </div>`;
+  });
+
+  body.innerHTML = html;
+
+  // Wire adjuster taps (captain only)
+  if (isCap) {
+    body.querySelectorAll('.nt-alloc-adj').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const legIdx = parseInt(btn.dataset.leg, 10);
+        const type   = btn.dataset.type;
+        const dir    = parseInt(btn.dataset.dir, 10);
+        ntAdjustAllocation(legIdx, type, dir);
+      });
+    });
+  }
+
+  // Show/hide warning + lock button visibility
+  const hasUnallocated = remFW > 0 || remHP > 0;
+  if (warning) warning.style.display = hasUnallocated ? 'block' : 'none';
+  if (lockBtn) {
+    lockBtn.style.display = isCap ? 'block' : 'none';
+    lockBtn.textContent   = ntHuddlePhase === 'locked' ? 'Locked ✓' : 'Lock Allocations';
+    lockBtn.disabled      = ntHuddlePhase === 'locked';
+  }
+}
+
+// Captain taps a +/- button — update local alloc and propagate.
+function ntAdjustAllocation(legIdx, type, dir) {
+  const alloc = ntAllocations[legIdx] || { firewall: 0, honeypot: 0 };
+  const usedFW = ntAllocations.reduce((s, a) => s + (a.firewall || 0), 0);
+  const usedHP = ntAllocations.reduce((s, a) => s + (a.honeypot || 0), 0);
+
+  const newVal = (alloc[type] || 0) + dir;
+  if (newVal < 0) return;
+  if (type === 'firewall' && dir > 0 && usedFW >= ntAllocationPool.firewall) return;
+  if (type === 'honeypot' && dir > 0 && usedHP >= ntAllocationPool.honeypot) return;
+
+  ntAllocations[legIdx] = { ...alloc, [type]: newVal };
+  playPillClick();
+  ntRenderAllocationScreen(true);
+
+  if (window.syllyMultiplayerMode === 'host') {
+    // Host updates its own team's working state directly — self-sent ACTIONs are dropped by dedup guard
+    const myTeam = ntTeamIdx[mpMyPlayerIdx];
+    ntTeamWorkingAllocs[myTeam] = ntAllocations.map(a => ({ ...a }));
+    ntBroadcastAllocationSync();
+  } else if (window.syllyMultiplayerMode === 'client') {
+    mpSendEnvelope({
+      type: 'ACTION',
+      payload: { action: 'NT_ALLOCATION_UPDATE', allocations: ntAllocations.map(a => ({ ...a })) },
+    });
+  }
+}
+
+// Start the huddle countdown. On expiry, auto-lock the captain's team.
+function ntStartHuddleTimer(durationSecs) {
+  ntStopHuddleTimer();
+  const label = document.getElementById('nt-alloc-warning');
+  let secs = durationSecs;
+  ntHuddleTimer = setInterval(() => {
+    secs--;
+    // Show remaining time in the top eyebrow on the allocation screen
+    const eyebrow = document.querySelector('#screen-nt-allocation .text-stone-400.text-xs.font-semibold.uppercase');
+    if (eyebrow) {
+      const m = String(Math.floor(Math.max(0, secs) / 60)).padStart(2, '0');
+      const s = String(Math.max(0, secs) % 60).padStart(2, '0');
+      eyebrow.textContent = `Shared Allocation Hub — ${m}:${s}`;
+    }
+    if (secs <= 10 && secs > 0) playTick();
+    if (secs <= 0) {
+      ntStopHuddleTimer();
+      playAlarm();
+      // Auto-lock this device's team
+      ntCommitAllocation();
+    }
+  }, 1000);
+}
+function ntStopHuddleTimer() {
+  if (ntHuddleTimer) { clearInterval(ntHuddleTimer); ntHuddleTimer = null; }
+}
+
+// Captain (or timer) commits the allocation — sends NT_ALLOCATION_LOCK to host.
+function ntCommitAllocation() {
+  if (ntHuddlePhase === 'locked') return;
+  ntHuddlePhase = 'locked';
+  ntRenderAllocationScreen(true);
+  if (window.syllyMultiplayerMode === 'host') {
+    // Host marks own team directly
+    const myTeam = ntTeamIdx[mpMyPlayerIdx];
+    ntTeamAllocLocked[myTeam] = true;
+    ntApplyAllocationLock(myTeam, ntAllocations.map(a => ({ ...a })));
+    ntCheckBothTeamsLocked();
+  } else {
+    mpLockSync();
+    mpSendEnvelope({ type: 'ACTION', payload: { action: 'NT_ALLOCATION_LOCK', allocations: ntAllocations.map(a => ({ ...a })) } });
+  }
+}
+
+// Host: apply a team's locked allocations into ntAllPlayerAllocations + broadcast SYNC.
+function ntApplyAllocationLock(teamIdx, allocations) {
+  ntTeamWorkingAllocs[teamIdx] = allocations.map(a => ({ ...a }));
+  const members = ntTeamIdx.reduce((acc, t, i) => { if (t === teamIdx) acc.push(i); return acc; }, []);
+  members.forEach((pIdx, legIdx) => {
+    const a = allocations[legIdx] || { firewall: 0, honeypot: 0 };
+    ntAllPlayerAllocations[pIdx] = { firewall: a.firewall, honeypot: a.honeypot };
+  });
+  ntBroadcastAllocationSync();
+}
+
+// Host: re-broadcast current working allocation state to all devices.
+function ntBroadcastAllocationSync() {
+  mpSendEnvelope({
+    type: 'SYNC',
+    payload: {
+      action:   'NT_ALLOCATION_SYNC',
+      teamData: [0, 1].map(team => ({
+        locked:      ntTeamAllocLocked[team],
+        allocations: (ntTeamWorkingAllocs[team] || []).map(a => ({ ...a })),
+      })),
+    },
+  });
+}
+
+// Host: check if both captains have locked — if so, broadcast NT_BUILD_BEGIN.
+function ntCheckBothTeamsLocked() {
+  if (!ntTeamAllocLocked[0] || !ntTeamAllocLocked[1]) return;
+  ntStopHuddleTimer();
+  // Build assigned inventory array (per global player index)
+  const assignedInventory = (ntAllPlayerAllocations || []).map(a => ({ ...a }));
+  const endTimestamp = Date.now() + (ntHardeningWin * 1000);
+  mpSendEnvelope({
+    type: 'SYNC',
+    payload: { action: 'NT_BUILD_BEGIN', endTimestamp, cycle: ntCycle, assignedInventory },
+  });
+  // Host applies its own assigned inventory
+  const myAlloc = (ntAllPlayerAllocations || [])[mpMyPlayerIdx] || ntInventory;
+  ntInventory = { ...myAlloc };
+  ntStartBuildTimer(endTimestamp);
+  ntShowBuild();
+}
+
+function ntShowAllocation() { showScreen('screen-nt-allocation'); }
+function ntShowGate() {
+  // Restore default gate text + callback for solo/MDLM paths (PTP overrides in ntBeginPtpTurn/ntShowGatherGate)
+  const sub = document.getElementById('nt-gate-sub');
+  const btn = document.getElementById('btn-nt-gate-ready');
+  if (sub) sub.textContent = 'Hand the phone to the active admin.';
+  if (btn) btn.textContent = 'Ready ▶';
+  ntGateCallback = () => ntShowBuild();
+  showScreen('screen-nt-gate');
+}
+
+function ntShowMdlmGate() {
+  const sub     = document.getElementById('nt-gate-sub');
+  const btn     = document.getElementById('btn-nt-gate-ready');
+  const heading = document.getElementById('nt-gate-heading');
+
+  const cycleTag = 'VS-' + String(ntCycle + 1).padStart(2, '0');
+  if (heading) heading.textContent = cycleTag + ' — Initialising';
+
+  if (window.syllyMultiplayerMode === 'client') {
+    if (sub) sub.textContent = 'Waiting for all analysts to ready up…';
+    if (btn) { btn.textContent = 'Ready ▶'; btn.classList.add('btn-mp-action'); btn.disabled = false; }
+    ntGateCallback = () => {
+      if (btn) { btn.textContent = 'Waiting…'; btn.disabled = true; }
+      if (sub) sub.textContent = 'Waiting for host to begin…';
+      mpLockSync();
+      mpSendEnvelope({ type: 'ACTION', payload: { action: 'NT_GATE_READY' } });
+    };
+  } else {
+    // Host — marks own slot directly, enables Begin Hardening when all ready
+    if (sub) sub.textContent = 'Waiting for all analysts to ready up…';
+    if (btn) { btn.textContent = 'Begin Hardening ▶'; btn.classList.add('btn-mp-action'); btn.disabled = true; }
+    ntGateReadyCheck[mpMyPlayerIdx] = true;
+    ntGateCallback = () => {
+      const endTimestamp = Date.now() + (ntHardeningWin * 1000);
+      mpSendEnvelope({ type: 'SYNC', payload: { action: 'NT_BUILD_BEGIN', endTimestamp, cycle: ntCycle } });
+      ntStartBuildTimer(endTimestamp);
+      ntShowBuild();
+    };
+    if (ntGateReadyCheck.every(Boolean) && btn) btn.disabled = false;
+  }
+  showScreen('screen-nt-gate');
+}
+
+function ntShowBuild() {
+  const counter = document.getElementById('nt-build-counter');
+  if (counter) counter.textContent = `${ntCycle + 1}/${ntIterations}`;
+  const name = document.getElementById('nt-node-name');
+  const nodeTag = 'NT-NODE-' + String(ntCycle + 1).padStart(2, '0');
+  if (name) name.innerHTML = 'SYS_INIT // BOUBOU-6D617A65 // <span class="text-emerald-400">' + nodeTag + '</span>';
+  showScreen('screen-nt-build');
+  ntRenderBuildGrid();
+  ntSetRouting('valid');
+  ntStartBuildTimer();
+}
+
+function ntShowPlayback() {
+  // Reset the scrubber + live latency each cycle (else they carry over).
+  const scrub = document.getElementById('nt-playback-scrubber');
+  if (scrub) scrub.value = 0;
+  const lat = document.getElementById('nt-playback-latency');
+  if (lat) lat.textContent = '0 ms';
+  // Playback terminal: node id in top bar, full homage in bottom bar
+  const nodeTag = 'NT-NODE-' + String(ntCycle + 1).padStart(2, '0');
+  const pbNodeName = document.getElementById('nt-playback-node-name');
+  if (pbNodeName) pbNodeName.textContent = nodeTag;
+  const pbStatus = document.getElementById('nt-playback-status');
+  const pillBase = 'px-1.5 py-0.5 rounded-full text-[9px] font-bold whitespace-nowrap flex-shrink-0';
+  if (pbStatus) { pbStatus.textContent = 'OPERATIONAL'; pbStatus.className = pillBase + ' bg-emerald-900/60 text-emerald-400'; }
+  ntPlaybackPhase = 'tracing';
+  showScreen('screen-nt-playback');
+  ntStartPlayback();
+}
+
+function ntShowSummary(mode) {
+  ntStopPlayback();
+  ntSummaryMode = mode || 'cycle';
+  const heading  = document.getElementById('nt-summary-heading');
+  const nextBtn  = document.getElementById('btn-nt-summary-next');
+  const rebootBtn = document.getElementById('btn-nt-reboot');
+  const logsBtn  = document.getElementById('btn-nt-logs-open');
+  const isFinalMatch = ntSummaryMode === 'match';
+  if (isFinalMatch) {
+    if (heading) heading.textContent = 'Diagnostic Summary // FINAL';
+    if (nextBtn) nextBtn.style.display = 'none';
+    if (rebootBtn) rebootBtn.style.display = 'block';
+  } else {
+    if (heading) heading.textContent = 'Diagnostic Summary';
+    if (nextBtn) nextBtn.style.display = 'block';
+    if (rebootBtn) rebootBtn.style.display = 'none';
+  }
+  // Show System Logs button whenever there is at least one logged cycle (PTP only)
+  if (logsBtn) logsBtn.style.display = ntAllCycleNodes.length > 0 ? 'block' : 'none';
+  showScreen('screen-nt-summary');
+  ntRenderSummary();
+}
+
+function ntShowStandby(msg) {
+  const el = document.getElementById('nt-standby-msg');
+  if (el && msg) el.textContent = msg;
+  showScreen('screen-nt-standby');
+}
+
+// Open the how-to overlay (shared by menu + in-game [?] buttons).
+function ntOpenHowTo() {
+  playDone();
+  const overlay = document.getElementById('nt-how-to-overlay');
+  overlay.querySelector('.overlay-data-inner').scrollTop = 0;
+  overlay.style.display = 'flex';
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// GRID HELPERS  (single N×N tile grid + ¼-tile config-space lattice)
+// ═══════════════════════════════════════════════════════════════════════════
+
+function ntRandInt(min, max) { return min + Math.floor(Math.random() * (max - min + 1)); }
+function ntKey(x, y) { return x + ',' + y; }
+
+// The 4 tiles a 2×2 block anchored at (ax,ay) occupies (ax,ay = top-left tile).
+function ntBlockTiles(ax, ay) { return [[ax, ay], [ax + 1, ay], [ax, ay + 1], [ax + 1, ay + 1]]; }
+
+// Does block anchored at (ax,ay) cover tile (tx,ty)?
+function ntCovers(ax, ay, tx, ty) { return tx >= ax && tx <= ax + 1 && ty >= ay && ty <= ay + 1; }
+
+// Boolean [n][n] of solid tiles (bad sectors, native + allocated honeypots, firewalls).
+function ntSolidGrid(node, placements) {
+  const n = node.n, g = [];
+  for (let y = 0; y < n; y++) g.push(new Array(n).fill(false));
+  const mark = (ax, ay) => ntBlockTiles(ax, ay).forEach(([tx, ty]) => {
+    if (tx >= 0 && tx < n && ty >= 0 && ty < n) g[ty][tx] = true;
+  });
+  (node.badSectors || []).forEach(c => mark(c.ax, c.ay));
+  (node.nativeHoneypots || []).forEach(c => mark(c.ax, c.ay));
+  (placements || []).forEach(p => mark(p.ax, p.ay));
+  return g;
+}
+
+// Config-space lattice [n·k][n·k] of cells the runner CENTRE may not occupy.
+// Every solid tile is inflated by the runner half-width (0.25 = exactly ONE sub-cell):
+// a tile owning sub-cells [tx·k … tx·k+k-1] blocks [tx·k-1 … tx·k+k] → sharp +0.25 offset.
+function ntConfigGrid(node, placements) {
+  const n = node.n, k = NT_LATTICE_K, W = n * k, H = n * k;
+  const solid = ntSolidGrid(node, placements);
+  const g = [];
+  for (let y = 0; y < H; y++) g.push(new Array(W).fill(false));
+  for (let ty = 0; ty < n; ty++) for (let tx = 0; tx < n; tx++) {
+    if (!solid[ty][tx]) continue;
+    for (let sy = ty * k - 1; sy <= ty * k + k; sy++) {
+      if (sy < 0 || sy >= H) continue;
+      for (let sx = tx * k - 1; sx <= tx * k + k; sx++) {
+        if (sx < 0 || sx >= W) continue;
+        g[sy][sx] = true;
+      }
+    }
+  }
+  return g;
+}
+
+// 8-neighbour steps; diagonals carry their orthogonal pair for the no-corner-cut test.
+const NT_STEPS = [
+  { dx: 0, dy: -1, cost: 1 }, { dx: 1, dy: 0, cost: 1 }, { dx: 0, dy: 1, cost: 1 }, { dx: -1, dy: 0, cost: 1 },
+  { dx: 1, dy: -1, cost: NT_DIAG * 1.05, ox: [[1, 0], [0, -1]] },
+  { dx: 1, dy: 1, cost: NT_DIAG * 1.05, ox: [[1, 0], [0, 1]] },
+  { dx: -1, dy: 1, cost: NT_DIAG * 1.05, ox: [[-1, 0], [0, 1]] },
+  { dx: -1, dy: -1, cost: NT_DIAG * 1.05, ox: [[-1, 0], [0, -1]] },
+];
+
+function ntInBounds(g, x, y) { return y >= 0 && y < g.length && x >= 0 && x < g[0].length; }
+
+// A step (cur → nx,ny) is legal if the target is open AND, for a diagonal, BOTH
+// orthogonally-adjacent cells it clips are open (NO corner-cutting).
+function ntStepLegal(g, cx, cy, step) {
+  const nx = cx + step.dx, ny = cy + step.dy;
+  if (!ntInBounds(g, nx, ny) || g[ny][nx]) return false;
+  if (step.ox) for (const [ox, oy] of step.ox) { const x = cx + ox, y = cy + oy; if (!ntInBounds(g, x, y) || g[y][x]) return false; }
+  return true;
+}
+
+// ── Perimeter ports — edge + tile index along it (rectangle straddling the border)
+function ntPortMouth(port, n) {              // the tile just inside the border (must stay open)
+  if (port.edge === 'top')    return [port.idx, 0];
+  if (port.edge === 'bottom') return [port.idx, n - 1];
+  if (port.edge === 'left')   return [0, port.idx];
+  return [n - 1, port.idx];                  // right
+}
+function ntPortInterior(node, port) {        // tile-space centre of the mouth tile (path endpoint)
+  const [tx, ty] = ntPortMouth(port, node.n);
+  return { x: tx + 0.5, y: ty + 0.5 };
+}
+function ntPortBorder(port, n) {             // the point ON the border line
+  if (port.edge === 'top')    return { x: port.idx + 0.5, y: 0 };
+  if (port.edge === 'bottom') return { x: port.idx + 0.5, y: n };
+  if (port.edge === 'left')   return { x: 0, y: port.idx + 0.5 };
+  return { x: n, y: port.idx + 0.5 };        // right
+}
+function ntPortOutside(port, n) {            // a point just OFF the board (visual entry/exit stub)
+  if (port.edge === 'top')    return { x: port.idx + 0.5, y: -0.6 };
+  if (port.edge === 'bottom') return { x: port.idx + 0.5, y: n + 0.6 };
+  if (port.edge === 'left')   return { x: -0.6, y: port.idx + 0.5 };
+  return { x: n + 0.6, y: port.idx + 0.5 };  // right
+}
+function ntPortSub(node, port) {             // config-lattice sub-cell of the mouth interior
+  const k = NT_LATTICE_K, p = ntPortInterior(node, port), m = node.n * k - 1;
+  return { sx: Math.max(0, Math.min(m, Math.floor(p.x * k))), sy: Math.max(0, Math.min(m, Math.floor(p.y * k))) };
+}
+function ntIsMouthTile(tx, ty) {
+  const n = ntNode.n, [ix, iy] = ntPortMouth(ntNode.ingress, n), [ex, ey] = ntPortMouth(ntNode.egress, n);
+  return (tx === ix && ty === iy) || (tx === ex && ty === ey);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PATHFINDING  (¼-tile config lattice, 8-dir, no corner-cut — §7)
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Build-time reachability: BFS on the config lattice (port mouth → port mouth).
+function ntPathExists(node, placements) {
+  const k = NT_LATTICE_K, g = ntConfigGrid(node, placements), W = node.n * k, H = node.n * k;
+  const s = ntPortSub(node, node.ingress), t = ntPortSub(node, node.egress);
+  if (g[s.sy][s.sx] || g[t.sy][t.sx]) return false;
+  const seen = new Uint8Array(W * H), goal = t.sy * W + t.sx;
+  let head = 0; const q = [s.sy * W + s.sx]; seen[q[0]] = 1;
+  while (head < q.length) {
+    const u = q[head++];
+    if (u === goal) return true;
+    const ux = u % W, uy = (u - ux) / W;
+    for (const st of NT_STEPS) {
+      if (!ntStepLegal(g, ux, uy, st)) continue;
+      const v = (uy + st.dy) * W + (ux + st.dx);
+      if (seen[v]) continue;
+      seen[v] = 1; q.push(v);
+    }
+  }
+  return false;
+}
+
+// Weighted shortest path (Dijkstra; ortho 1 / diagonal √2) on the config lattice.
+// Returns sub-cells [{x,y}, …] inclusive, or null. Deterministic (NT_STEPS order).
+function ntDijkstraSub(node, placements) {
+  const k = NT_LATTICE_K, g = ntConfigGrid(node, placements), W = node.n * k, H = node.n * k;
+  const s = ntPortSub(node, node.ingress), t = ntPortSub(node, node.egress);
+  if (g[s.sy][s.sx] || g[t.sy][t.sx]) return null;
+  const dist = new Float64Array(W * H).fill(Infinity);
+  const prev = new Int32Array(W * H).fill(-1);
+  const done = new Uint8Array(W * H);
+  const idx = (x, y) => y * W + x;
+  const start = idx(s.sx, s.sy), goal = idx(t.sx, t.sy);
+  dist[start] = 0;
+  while (true) {
+    let u = -1, best = Infinity;
+    for (let i = 0; i < dist.length; i++) if (!done[i] && dist[i] < best) { best = dist[i]; u = i; }
+    if (u === -1 || u === goal) break;
+    done[u] = 1;
+    const ux = u % W, uy = (u - ux) / W;
+    for (const st of NT_STEPS) {
+      if (!ntStepLegal(g, ux, uy, st)) continue;
+      const v = idx(ux + st.dx, uy + st.dy);
+      if (done[v]) continue;
+      const nd = dist[u] + st.cost;
+      if (nd < dist[v]) { dist[v] = nd; prev[v] = u; }
+    }
+  }
+  if (!isFinite(dist[goal])) return null;
+  const path = [];
+  for (let v = goal; v !== -1; v = prev[v]) path.push({ x: v % W, y: (v - (v % W)) / W });
+  return path.reverse();
+}
+
+// ── String-pull (funnel) — taut the sub-cell path against the (inflated) corners.
+// LOS in sub-cell space on the config grid: clearance is already baked in, so the
+// pulled polyline keeps the runner's 0.25 buffer and bends sharply round offset corners.
+function ntLineOfSight(g, ax, ay, bx, by) {
+  const dx = bx - ax, dy = by - ay;
+  const steps = Math.max(1, Math.ceil(Math.hypot(dx, dy) * 2));
+  let pcx = -1, pcy = -1;
+  for (let i = 0; i <= steps; i++) {
+    const x = ax + (dx * i) / steps, y = ay + (dy * i) / steps;
+    const cx = Math.round(x), cy = Math.round(y);
+    if (!ntInBounds(g, cx, cy) || g[cy][cx]) return false;
+    if (pcx !== -1 && cx !== pcx && cy !== pcy) {
+      if ((ntInBounds(g, pcx, cy) && g[cy][pcx]) || (ntInBounds(g, cx, pcy) && g[pcy][cx])) return false;
+    }
+    pcx = cx; pcy = cy;
+  }
+  return true;
+}
+
+function ntStringPull(subPath, g) {
+  if (!subPath || subPath.length <= 2) return (subPath || []).map(p => ({ x: p.x, y: p.y }));
+  const out = [subPath[0]];
+  let anchor = 0;
+  for (let i = 1; i < subPath.length - 1; i++) {
+    // i is a necessary corner if the anchor can no longer see the NEXT vertex.
+    if (!ntLineOfSight(g, subPath[anchor].x, subPath[anchor].y, subPath[i + 1].x, subPath[i + 1].y)) {
+      out.push(subPath[i]); anchor = i;
+    }
+  }
+  out.push(subPath[subPath.length - 1]);
+  return out.map(p => ({ x: p.x, y: p.y }));
+}
+
+// Full route → taut TILE-space polyline, with the off-board entry/exit stubs.
+// Returns [outside, border, interior, …taut…, interior, border, outside] or null.
+function ntShortestPath(node, placements) {
+  const sub = ntDijkstraSub(node, placements);
+  if (!sub) return null;
+  const k = NT_LATTICE_K, g = ntConfigGrid(node, placements);
+  const pulled = ntStringPull(sub, g);
+  const poly = pulled.map(p => ({ x: (p.x + 0.5) / k, y: (p.y + 0.5) / k }));
+  // Snap the two ends to the exact mouth centres, then add the border + off-board points.
+  poly[0] = ntPortInterior(node, node.ingress);
+  poly[poly.length - 1] = ntPortInterior(node, node.egress);
+  poly.unshift(ntPortBorder(node.ingress, node.n));
+  poly.unshift(ntPortOutside(node.ingress, node.n));
+  poly.push(ntPortBorder(node.egress, node.n));
+  poly.push(ntPortOutside(node.egress, node.n));
+  return poly;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// MAP GENERATION  (host-side, §10 — single-grid gen, config-lattice validity, border ports)
+// ═══════════════════════════════════════════════════════════════════════════
+
+function ntRandomEdgePort(n) { return { edge: ['top', 'right', 'bottom', 'left'][ntRandInt(0, 3)], idx: ntRandInt(0, n - 1) }; }
+
+// §10 pipeline → sets ntNode + ntInventory. Re-rolls until Ingress→Egress is valid
+// on the config lattice. Ports never share an edge (DNP pins left→right).
+// Budgets scale to "block slots" ≈ (N/2)² so they read like the old coarse counts.
+// keepInventory = true: only regenerate node geometry; leave ntInventory unchanged.
+// Used in DNP to generate one node per player while sharing the same cycle inventory.
+function ntGenerateNode(keepInventory = false) {
+  const n = ntMatrixScale;
+  const slots = Math.pow(Math.floor(n / NT_BLOCK), 2);
+  const floor = Math.max(Math.ceil(NT_BADSECTOR_MIN_PCT * slots), ntNativeHoneypots + 2);
+  const ceil  = Math.round(NT_BADSECTOR_MAX_PCT * slots);
+
+  let node = null;
+  for (let attempt = 0; attempt < 400; attempt++) {
+    let ingress, egress;
+    if (ntIsDNP()) {
+      ingress = { edge: 'left',  idx: ntRandInt(0, n - 1) };
+      egress  = { edge: 'right', idx: ntRandInt(0, n - 1) };
+    } else {
+      ingress = ntRandomEdgePort(n);
+      do { egress = ntRandomEdgePort(n); } while (egress.edge === ingress.edge);
+    }
+    const [imx, imy] = ntPortMouth(ingress, n), [emx, emy] = ntPortMouth(egress, n);
+    if (Math.abs(imx - emx) + Math.abs(imy - emy) < 8) continue; // corner-proximity guard — re-roll if ports too close
+    const isMouth = (tx, ty) => (tx === imx && ty === imy) || (tx === emx && ty === emy);
+    // Place disjoint 2×2 bad-sector blocks (zero-overlap; never on a port mouth tile).
+    const occupied = []; for (let y = 0; y < n; y++) occupied.push(new Array(n).fill(false));
+    const tryMark = (ax, ay) => {
+      const tiles = ntBlockTiles(ax, ay);
+      for (const [tx, ty] of tiles) { if (tx >= n || ty >= n || occupied[ty][tx] || isMouth(tx, ty)) return false; }
+      for (const [tx, ty] of tiles) occupied[ty][tx] = true;
+      return true;
+    };
+    const badCount = ntRandInt(floor, Math.max(floor, ceil));
+    const badSectors = [];
+    let guard = 0;
+    while (badSectors.length < badCount && guard++ < slots * 8) {
+      const ax = ntRandInt(0, n - 2), ay = ntRandInt(0, n - 2);
+      if (occupied[ay][ax]) continue;
+      if (tryMark(ax, ay)) badSectors.push({ ax, ay });
+    }
+    const candidate = { n, ingress, egress, badSectors, nativeHoneypots: [] };
+    if (!ntPathExists(candidate, [])) continue;  // config-lattice validity gate
+    // Native Honeypot conversion (still solid; cannot break validity).
+    const convertN = ntRandInt(0, Math.min(ntNativeHoneypots, badSectors.length));
+    const shuffled = shuffle(badSectors.slice());
+    candidate.nativeHoneypots = shuffled.slice(0, convertN);
+    candidate.badSectors      = shuffled.slice(convertN);
+    node = candidate;
+    break;
+  }
+  if (!node) { // pathological fallback — empty board, opposite-edge ports
+    node = { n, ingress: { edge: 'left', idx: (n >> 1) }, egress: { edge: 'right', idx: (n >> 1) }, badSectors: [], nativeHoneypots: [] };
+  }
+
+  ntNode = node;
+  if (!keepInventory) {
+    // Inventory — block budget, randomised per cycle, identical for all players.
+    const firewall = ntRandInt(Math.round(NT_FIREWALL_MIN_PCT * slots), Math.round(NT_FIREWALL_MAX_PCT * slots));
+    const honeypot = ntRandInt(0, Math.min(NT_ALLOC_HONEYPOT_CAP, NT_HONEYPOT_CAP - node.nativeHoneypots.length));
+    ntInventory = { firewall, honeypot };
+  }
+  return node;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PLAYBACK TIMELINE + RAF RENDERER  (Step 5 — §16)
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Tile-space dead centres of every honeypot block (native + allocated) for the AoE check.
+// A 2×2 block anchored at (ax,ay) spans tiles [ax,ax+2]×[ay,ay+2] ⇒ centre (ax+1, ay+1).
+function ntHoneypotCentres(node, placements) {
+  return [
+    ...(node.nativeHoneypots || []).map(h => ({ x: h.ax + 1, y: h.ay + 1 })),
+    ...(placements || []).filter(p => p.type === 'honeypot').map(p => ({ x: p.ax + 1, y: p.ay + 1 })),
+  ];
+}
+
+// Simulate the Breach Vector along the taut TILE-space POLYLINE at a fixed sim tick:
+//   latency = Σ travel distance × NT_BASE_TILE_TIME (×1/slow while slowed).
+// NO artificial turn cost — corner delay is already in the polyline geometry (the
+// runner's 0.25 clearance pushes the taut path out around every offset corner).
+// Slow = 0.5× speed for NT_HONEYPOT_DURATION after a trigger (timer; persists outside
+// the AoE); per-honeypot cooldown; non-stacking (re-trigger extends the window).
+// AoE is the per-tick squared check (dx*dx + dy*dy <= 18).
+// Returns { polyline, fires:[{x,y,atMs}], slowSpans:[[startMs,endMs]], samples, latencyMs }.
+function ntComputeTimeline(polyline, honeypots) {
+  if (!polyline || polyline.length < 2) return { polyline: polyline || [], fires: [], slowSpans: [], samples: [], latencyMs: 0 };
+  let elapsed = 0;
+  const fires = [];
+  const slowSpans = [];
+  const samples = [{ t: 0, x: polyline[0].x, y: polyline[0].y }]; // trajectory for the renderer
+  const lastFired = honeypots.map(() => -Infinity);
+  let slowUntil = -Infinity;
+
+  const checkFires = (x, y) => {
+    honeypots.forEach((h, i) => {
+      const dx = h.x - x, dy = h.y - y;
+      if (dx * dx + dy * dy <= NT_HONEYPOT_RADIUS_SQ && elapsed >= lastFired[i] + NT_HONEYPOT_COOLDOWN) {
+        lastFired[i] = elapsed;
+        const prevUntil = slowUntil;
+        slowUntil = Math.max(slowUntil, elapsed + NT_HONEYPOT_DURATION);
+        if (prevUntil <= elapsed) slowSpans.push([elapsed, slowUntil]); else slowSpans[slowSpans.length - 1][1] = slowUntil;
+        fires.push({ x: h.x, y: h.y, atMs: elapsed });
+      }
+    });
+  };
+
+  checkFires(polyline[0].x, polyline[0].y);
+  for (let i = 1; i < polyline.length; i++) {
+    const from = polyline[i - 1], to = polyline[i];
+    const segLen = Math.hypot(to.x - from.x, to.y - from.y);
+    let travelled = 0;
+    while (travelled < segLen - 1e-9) {
+      const ds = Math.min(NT_SUBSTEP, segLen - travelled);
+      const slowed = elapsed < slowUntil;
+      elapsed += (ds * NT_BASE_TILE_TIME) / (slowed ? NT_HONEYPOT_SLOW : 1);
+      travelled += ds;
+      const t = travelled / segLen;
+      const x = from.x + (to.x - from.x) * t, y = from.y + (to.y - from.y) * t;
+      checkFires(x, y);
+      samples.push({ t: elapsed, x, y });
+    }
+  }
+  return { polyline, fires, slowSpans, samples, latencyMs: Math.round(elapsed) };
+}
+
+// Solo/local: route → taut tile polyline (with edge stubs) → timeline + latency.
+function ntComputeTimeline_local() {
+  const polyline = ntShortestPath(ntNode, ntMyPlacements);
+  if (!polyline) return { polyline: [], fires: [], slowSpans: [], samples: [], latencyMs: 0 };
+  return ntComputeTimeline(polyline, ntHoneypotCentres(ntNode, ntMyPlacements));
+}
+
+// Host: shortest path + timeline + latency for every player (Standard) / relay (DNP).
+function ntComputePlayback() { /* §11 — TODO Multiplayer step */ }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SCORING  (Step 5 — §6)
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Solo/local cycle resolve: record this cycle's latency + SER, recompute rolling avg.
+// (Multiplayer host-authoritative cluster/ceiling scoring lands in the MP step.)
+function ntResolveCycle() {
+  const latency = ntPlaybackTimeline ? ntPlaybackTimeline.latencyMs : 0;
+  ntCycleLatencies[ntCycle] = [latency];
+  // Solo: the only player is always the ceiling ⇒ SER 100.00%.
+  ntCycleSERs[ntCycle] = [100];
+  // Rolling average per player.
+  let sum = 0, n = 0;
+  ntCycleSERs.forEach(c => { if (c && typeof c[0] === 'number') { sum += c[0]; n++; } });
+  ntOverallSER = [n ? sum / n : 0];
+}
+
+function ntFmtMs(ms) { return Math.round(ms).toLocaleString('en-AU') + ' ms'; }
+
+function ntRenderSummary() {
+  const serEl   = document.getElementById('nt-summary-ser');
+  const rawEl   = document.getElementById('nt-summary-rawms');
+  const labelEl = document.getElementById('nt-summary-ser-label');
+  const board   = document.getElementById('nt-summary-board');
+  const isFinal = ntSummaryMode === 'match';
+
+  // Solo: raw latency is the headline (SER is trivially 100%); show accumulated on final.
+  if (ntPlayerCount <= 1) {
+    const cycleMs = (ntCycleLatencies[ntCycle] || [0])[0];
+    const totalMs = ntCycleLatencies.reduce((a, c) => a + ((c && c[0]) || 0), 0);
+    if (labelEl) labelEl.textContent = isFinal ? 'Total Accumulated Latency' : 'Cycle Latency';
+    if (serEl)   serEl.textContent   = ntFmtMs(isFinal ? totalMs : cycleMs);
+    if (rawEl)   rawEl.textContent   = 'SER 100.00%';
+    if (board) {
+      board.innerHTML = '';
+      ntCycleLatencies.forEach((c, i) => {
+        const row = document.createElement('div');
+        row.className = 'flex items-center justify-between bg-white rounded-xl px-4 py-2 text-sm';
+        row.innerHTML = `<span class="text-stone-500 font-mono">VS-${i + 1}</span>` +
+                        `<span class="text-stone-800 font-mono font-semibold">${ntFmtMs((c || [0])[0])}</span>`;
+        board.appendChild(row);
+      });
+    }
+    return;
+  }
+
+  // PTP multi-player: show per-player SER leaderboard using local scoring.
+  if (ntPlayerCount > 1 && window.syllyMultiplayerMode === 'single') {
+    const overallSERs = ntOverallSER.length ? ntOverallSER : (ntCycleSERs[ntCycle] || []);
+    const winnerIdx = overallSERs.reduce((best, v, i) => v > overallSERs[best] ? i : best, 0);
+    const winnerName = ntPlayerNames[winnerIdx] || ('ADMIN-' + (winnerIdx + 1));
+    if (labelEl) labelEl.textContent = isFinal ? 'Match Winner' : 'Cycle Leader';
+    if (serEl)   serEl.textContent   = winnerName;
+    if (rawEl)   rawEl.textContent   = 'SER ' + (overallSERs[winnerIdx] || 0).toFixed(2) + '%';
+    if (board) {
+      board.innerHTML = '';
+      const sorted = overallSERs.map((ser, i) => ({ i, ser })).sort((a, b) => b.ser - a.ser);
+      sorted.forEach(({ i, ser }) => {
+        const name = ntPlayerNames[i] || ('ADMIN-' + (i + 1));
+        const row = document.createElement('div');
+        row.className = 'flex items-center justify-between bg-white rounded-xl px-4 py-2 text-sm';
+        row.innerHTML = `<span class="text-stone-500 font-mono">${name}</span>` +
+                        `<span class="text-stone-800 font-mono font-semibold">${ser.toFixed(2)}%</span>`;
+        board.appendChild(row);
+      });
+    }
+    return;
+  }
+
+  // MDLM multiplayer rendering arrives with host-authoritative scoring (MP step).
+  if (labelEl) labelEl.textContent = 'System Efficiency Rating';
+}
+
+// DNP: require equal team sizes (4/6/8 only) before match start (§12).
+function ntValidateTeams() { /* TODO Step 5 */ return true; }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CYCLE ORCHESTRATION  (solo/local — host broadcast lands in the MP step)
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Generate this cycle's Node, clear placements, show the flavour handshake.
+function ntBeginCycle() {
+  ntGenerateNode();
+  ntMyPlacements = [];
+  ntFirewallUsed = 0;
+  ntHoneypotUsed = 0;
+  ntPlaybackTimeline = null;
+  // PTP resets — clear per-cycle comparison state each new cycle
+  ntPtpTurn       = 0;
+  ntPtpTimelines  = [];
+  ntPtpPlacements = [];
+  if (ntPlayerCount > 1 && window.syllyMultiplayerMode === 'single') {
+    // PTP multi-player: skip handshake, go straight to first player's gate
+    ntBeginPtpTurn();
+  } else {
+    ntShowHandshake();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// BUILD SCREEN  (DOM grid + contextual gestures + preventive validity, §17)
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Which discrete block (if any) covers tile (tx,ty)? Blocks are disjoint, so ≤1 match.
+function ntBlockAt(tx, ty) {
+  const n = ntNode;
+  let b = n.badSectors.find(c => ntCovers(c.ax, c.ay, tx, ty));      if (b) return { ax: b.ax, ay: b.ay, type: 'bad',  source: 'bad' };
+  b = n.nativeHoneypots.find(c => ntCovers(c.ax, c.ay, tx, ty));     if (b) return { ax: b.ax, ay: b.ay, type: 'native', source: 'native' };
+  b = ntMyPlacements.find(p => ntCovers(p.ax, p.ay, tx, ty));        if (b) return { ax: b.ax, ay: b.ay, type: b.type, source: 'placement' };
+  return null;
+}
+
+function ntCellType(tx, ty) {
+  const b = ntBlockAt(tx, ty);
+  if (b) return b.type;                       // 'bad' | 'native' | 'firewall' | 'honeypot'
+  if (ntIsMouthTile(tx, ty)) return 'port';   // the runner enters/exits here — reserved
+  return 'null';
+}
+
+function ntPaintCell(cell, tx, ty) {
+  const type = ntCellType(tx, ty);
+  cell.textContent = '';
+  cell.className = 'nt-cell flex items-center justify-center text-[9px] font-bold select-none';
+  const styles = {
+    port:     ['bg-slate-900',   'text-emerald-400', '◦'],
+    bad:      ['bg-slate-600',   'text-slate-400', ''],
+    native:   ['bg-purple-900', 'text-purple-400', ''],  // muted structural obstacle — not player-placed
+    firewall: ['bg-cyan-500',    'text-white', ''],
+    honeypot: ['bg-fuchsia-500', 'text-white', ''],
+    null:     ['bg-slate-800',   'text-slate-700', ''],
+  }[type];
+  cell.classList.add(styles[0], styles[1]);
+  if (styles[2]) cell.textContent = styles[2];
+}
+
+function ntRepaintFootprint(ax, ay) {
+  ntBlockTiles(ax, ay).forEach(([tx, ty]) => {
+    if (ntBuildCells[ty] && ntBuildCells[ty][tx]) ntPaintCell(ntBuildCells[ty][tx], tx, ty);
+  });
+}
+
+// ── Ghost preview helpers ────────────────────────────────────────────────────
+function ntClearGhost() {
+  if (!ntGhostAnchor) return;
+  const { ax, ay } = ntGhostAnchor;
+  ntGhostAnchor = null;
+  ntBlockTiles(ax, ay).forEach(([tx, ty]) => {
+    const cell = ntBuildCells[ty] && ntBuildCells[ty][tx];
+    if (!cell) return;
+    cell.style.backgroundColor = '';
+    ntPaintCell(cell, tx, ty);
+  });
+  // Restore routing status to valid (unless a transient timer is already running)
+  if (!ntRoutingTimer) {
+    const el = document.getElementById('nt-routing-status');
+    if (el) { el.textContent = 'ROUTING: VALID'; el.className = 'text-emerald-400 whitespace-nowrap'; }
+  }
+}
+
+function ntShowGhost(ax, ay, validity) {
+  // Clear any ghost at a different anchor first
+  if (ntGhostAnchor && (ntGhostAnchor.ax !== ax || ntGhostAnchor.ay !== ay)) ntClearGhost();
+  ntGhostAnchor = { ax, ay };
+  const ghostBg = validity === 'valid'     ? 'rgba(52,211,153,0.45)'  // emerald-400 tint
+                : validity === 'exception' ? 'rgba(239,68,68,0.45)'   // red-500 tint
+                :                           'rgba(100,116,139,0.45)'; // slate-500 tint (out-of-stock)
+  ntBlockTiles(ax, ay).forEach(([tx, ty]) => {
+    const cell = ntBuildCells[ty] && ntBuildCells[ty][tx];
+    if (!cell) return;
+    cell.className = 'nt-cell flex items-center justify-center text-[9px] font-bold select-none';
+    cell.style.backgroundColor = ghostBg;
+    cell.textContent = '';
+  });
+}
+
+// Called on every pointermove; computes the anchor from (tx,ty) and runs BFS only
+// when the anchor changes — throttles the ~5k-cell BFS to anchor steps, not pixels.
+function ntUpdateGhostAt(tx, ty) {
+  if (!ntNode) return;
+  const n = ntNode.n;
+  const ax = Math.max(0, Math.min(tx, n - 2));
+  const ay = Math.max(0, Math.min(ty, n - 2));
+
+  // Tapping an existing user placement → they'll remove it on tap; no ghost.
+  const b = ntBlockAt(tx, ty);
+  if (b && b.source === 'placement') { ntClearGhost(); return; }
+
+  // Reserved (bad / native / port mouth) → silent, no ghost.
+  let blocked = false;
+  for (const [fx, fy] of ntBlockTiles(ax, ay)) {
+    if (ntBlockAt(fx, fy) || ntIsMouthTile(fx, fy)) { blocked = true; break; }
+  }
+  if (blocked) { ntClearGhost(); return; }
+
+  // Ghost already at this anchor → nothing to change.
+  if (ntGhostAnchor && ntGhostAnchor.ax === ax && ntGhostAnchor.ay === ay) return;
+
+  // New anchor: compute validity (BFS only fires here, not on every pixel).
+  let validity;
+  if (ntFirewallUsed >= ntInventory.firewall) {
+    validity = 'outofstock';
+  } else {
+    const candidate = ntMyPlacements.concat([{ ax, ay, type: 'firewall' }]);
+    validity = ntPathExists(ntNode, candidate) ? 'valid' : 'exception';
+  }
+
+  ntShowGhost(ax, ay, validity);
+
+  // Update status bar to reflect ghost state (no transient timer — ghost IS the state).
+  if (ntRoutingTimer) { clearTimeout(ntRoutingTimer); ntRoutingTimer = null; }
+  const el = document.getElementById('nt-routing-status');
+  if (el) {
+    if (validity === 'valid') {
+      el.textContent = 'ROUTING: VALID'; el.className = 'text-emerald-400 whitespace-nowrap';
+    } else if (validity === 'exception') {
+      el.textContent = 'ROUTING: EXCEPTION'; el.className = 'text-red-500 whitespace-nowrap';
+    } else {
+      el.textContent = 'STORAGE: INSUFFICIENT'; el.className = 'text-amber-400 whitespace-nowrap';
+    }
+  }
+}
+
+function ntRenderBuildGrid() {
+  const old = document.getElementById('nt-build-grid');
+  if (!old || !ntNode) return;
+  // Strip stale listeners from prior cycles by replacing the element with a shallow clone.
+  // grid.innerHTML = '' removes child nodes but NOT grid-level listeners — causing cycle 2 to
+  // fire the old pointerup first (places block) then the new one (immediately removes it).
+  const grid = old.cloneNode(false);
+  old.parentNode.replaceChild(grid, old);
+  const n = ntNode.n;
+  grid.innerHTML = '';
+  grid.style.display = 'grid';
+  grid.style.position = 'relative';
+  grid.style.gridTemplateColumns = `repeat(${n}, 1fr)`;
+  grid.style.gap = '1px';
+  grid.style.touchAction = 'none';
+  ntBuildCells = [];
+
+  for (let ty = 0; ty < n; ty++) {
+    ntBuildCells.push([]);
+    for (let tx = 0; tx < n; tx++) {
+      const cell = document.createElement('div');
+      cell.style.aspectRatio = '1';
+      ntPaintCell(cell, tx, ty);
+      ntBuildCells[ty].push(cell);
+      grid.appendChild(cell);
+    }
+  }
+
+  // Grid-level pointer handlers — ghost preview on hover/drag, commit on tap/long-press.
+  const getTile = (e) => {
+    const rect = grid.getBoundingClientRect();
+    return {
+      tx: Math.max(0, Math.min(n - 1, Math.floor((e.clientX - rect.left) / rect.width * n))),
+      ty: Math.max(0, Math.min(n - 1, Math.floor((e.clientY - rect.top) / rect.height * n))),
+    };
+  };
+
+  grid.addEventListener('pointermove', (e) => {
+    e.preventDefault();
+    const { tx, ty } = getTile(e);
+    ntUpdateGhostAt(tx, ty);
+  });
+
+  grid.addEventListener('pointerleave', () => {
+    ntClearGhost();
+    if (ntLongPressTimer) { clearTimeout(ntLongPressTimer); ntLongPressTimer = null; }
+  });
+
+  let longFired = false, rightClickPending = false;
+  grid.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    rightClickPending = e.button === 2; // contextmenu fires AFTER pointerup — flag so pointerup skips
+    longFired = false;
+    const { tx, ty } = getTile(e);
+    ntUpdateGhostAt(tx, ty); // ensure ghost is up-to-date at press point
+    if (ntLongPressTimer) { clearTimeout(ntLongPressTimer); ntLongPressTimer = null; }
+    if (rightClickPending) return; // right-click handled entirely by contextmenu — no long-press timer
+    ntLongPressTimer = setTimeout(() => {
+      longFired = true;
+      ntLongPressTimer = null;
+      // Long-press: upgrade existing firewall → honeypot, or place new honeypot.
+      if (ntGhostAnchor) {
+        const { ax, ay } = ntGhostAnchor;
+        ntClearGhost();
+        const existing = ntMyPlacements.find(p => p.ax === ax && p.ay === ay);
+        if (existing && existing.type === 'firewall') ntUpgradeToHoneypot(ax, ay);
+        else ntAttemptPlace(ax, ay, true);
+      } else {
+        ntHandleLongPress(tx, ty);
+      }
+    }, NT_LONGPRESS_MS);
+  });
+
+  grid.addEventListener('pointerup', (e) => {
+    e.preventDefault();
+    if (rightClickPending) { rightClickPending = false; return; } // contextmenu event will handle it
+    if (longFired) return; // long-press already handled
+    if (ntLongPressTimer) { clearTimeout(ntLongPressTimer); ntLongPressTimer = null; }
+    const { tx, ty } = getTile(e);
+    const b = ntBlockAt(tx, ty);
+    if (b && b.source === 'placement') {
+      // Tap-cycle on existing placement: firewall → honeypot (if stock); honeypot → empty.
+      ntClearGhost();
+      if (b.type === 'firewall') {
+        if (ntHoneypotUsed < ntInventory.honeypot) {
+          ntUpgradeToHoneypot(b.ax, b.ay);
+        } else {
+          ntRemoveBlock(b.ax, b.ay); // no honeypot stock — skip honeypot step, go to empty
+        }
+      } else {
+        ntRemoveBlock(b.ax, b.ay); // honeypot → empty
+      }
+    } else if (ntGhostAnchor) {
+      // Empty cell: prefer firewall; fall through to honeypot if out of firewall stock.
+      const { ax, ay } = ntGhostAnchor;
+      ntClearGhost();
+      if (ntFirewallUsed < ntInventory.firewall) {
+        ntAttemptPlace(ax, ay, false);
+      } else if (ntHoneypotUsed < ntInventory.honeypot) {
+        ntAttemptPlace(ax, ay, true); // skip firewall step — none in stock
+      } else {
+        playBoing(); ntSetRouting('storage_insufficient');
+      }
+    }
+  });
+
+  // Right-click on an empty valid cell → place honeypot directly (desktop power user shortcut).
+  grid.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    if (ntLongPressTimer) { clearTimeout(ntLongPressTimer); ntLongPressTimer = null; } // defence: cancel any stale long-press
+    const { tx, ty } = getTile(e);
+    const b = ntBlockAt(tx, ty);
+    if (b || ntIsMouthTile(tx, ty)) return; // occupied or port — ignore
+    const ax = Math.max(0, Math.min(tx, n - 2));
+    const ay = Math.max(0, Math.min(ty, n - 2));
+    for (const [fx, fy] of ntBlockTiles(ax, ay)) { if (ntBlockAt(fx, fy) || ntIsMouthTile(fx, fy)) return; }
+    ntClearGhost();
+    ntAttemptPlace(ax, ay, true);
+  });
+
+  // Port markers — rectangle straddling the border; ingress green/inward, egress grey/outward.
+  const ARROWS = { top: { in: '▼', out: '▲' }, bottom: { in: '▲', out: '▼' },
+                   left: { in: '▶', out: '◀' }, right:  { in: '◀', out: '▶' } };
+  const portBar = (port, color, inward) => {
+    const m = document.createElement('div');
+    m.className = 'absolute pointer-events-none rounded-sm flex items-center justify-center';
+    m.style.background = color;
+    m.style.boxShadow = `0 0 6px ${color}`;
+    const span = `calc(${100 / n}%)`, off = '-3px', thick = '6px';
+    if (port.edge === 'top')         { m.style.left = `${(port.idx / n) * 100}%`; m.style.width = span; m.style.top = off; m.style.height = thick; }
+    else if (port.edge === 'bottom') { m.style.left = `${(port.idx / n) * 100}%`; m.style.width = span; m.style.bottom = off; m.style.height = thick; }
+    else if (port.edge === 'left')   { m.style.top = `${(port.idx / n) * 100}%`; m.style.height = span; m.style.left = off; m.style.width = thick; }
+    else                             { m.style.top = `${(port.idx / n) * 100}%`; m.style.height = span; m.style.right = off; m.style.width = thick; }
+    const a = document.createElement('span');
+    a.style.cssText = 'font-size:5px;line-height:1;color:#fff;pointer-events:none';
+    a.textContent = ARROWS[port.edge][inward ? 'in' : 'out'];
+    m.appendChild(a);
+    grid.appendChild(m);
+  };
+  portBar(ntNode.ingress, '#34d399', true);         // INGRESS — green, inward arrow
+  portBar(ntNode.egress,  NT_COLOR_BAD_SECTOR, false); // EGRESS  — grey, outward arrow
+  ntUpdateBuildCounters();
+}
+
+function ntHandleTap(tx, ty) {
+  const b = ntBlockAt(tx, ty);
+  if (b && b.source === 'placement') { ntRemoveBlock(b.ax, b.ay); return; }
+  if (b) return;                       // bad / native — reserved
+  if (ntIsMouthTile(tx, ty)) return;   // port mouth — reserved
+  ntAttemptPlace(tx, ty, false);
+}
+
+function ntHandleLongPress(tx, ty) {
+  const b = ntBlockAt(tx, ty);
+  if (b && b.source === 'placement' && b.type === 'firewall') { ntUpgradeToHoneypot(b.ax, b.ay); return; }
+  if (b) return;                       // honeypot / bad / native — reserved
+  if (ntIsMouthTile(tx, ty)) return;
+  ntAttemptPlace(tx, ty, true);
+}
+
+// Place a 2×2 block anchored at the tapped tile (clamped so the footprint stays in bounds).
+function ntAttemptPlace(tx, ty, asHoneypot) {
+  ntClearGhost();
+  const n = ntNode.n;
+  const ax = Math.max(0, Math.min(tx, n - 2)), ay = Math.max(0, Math.min(ty, n - 2));
+  // Strict zero-overlap: all 4 footprint tiles must be vacant and clear of port mouths.
+  for (const [fx, fy] of ntBlockTiles(ax, ay)) {
+    if (ntBlockAt(fx, fy) || ntIsMouthTile(fx, fy)) { ntFlashReject(ntBuildCells[ty] && ntBuildCells[ty][tx]); return; }
+  }
+  if (asHoneypot) {
+    if (ntHoneypotUsed >= ntInventory.honeypot) { playBoing(); ntSetRouting('storage_insufficient'); return; }
+  } else {
+    if (ntFirewallUsed >= ntInventory.firewall)  { playBoing(); ntSetRouting('storage_insufficient'); return; }
+  }
+  // Connectivity gate (config lattice, no-corner-cut): would this seal the Egress?
+  const candidate = ntMyPlacements.concat([{ ax, ay, type: asHoneypot ? 'honeypot' : 'firewall' }]);
+  if (!ntPathExists(ntNode, candidate)) { ntFlashReject(ntBuildCells[ty] && ntBuildCells[ty][tx]); return; }
+  ntMyPlacements.push({ ax, ay, type: asHoneypot ? 'honeypot' : 'firewall' });
+  playPillClick();
+  ntSetRouting('valid');
+  ntRepaintFootprint(ax, ay);
+  ntUpdateBuildCounters();
+}
+
+function ntRemoveBlock(ax, ay) {
+  ntClearGhost();
+  ntMyPlacements = ntMyPlacements.filter(p => !(p.ax === ax && p.ay === ay));
+  playWhoosh();
+  ntRepaintFootprint(ax, ay);
+  ntUpdateBuildCounters();
+}
+
+function ntUpgradeToHoneypot(ax, ay) {
+  ntClearGhost();
+  if (ntHoneypotUsed >= ntInventory.honeypot) { playBoing(); ntSetRouting('storage_insufficient'); return; }
+  const p = ntMyPlacements.find(c => c.ax === ax && c.ay === ay);
+  if (!p) return;
+  p.type = 'honeypot'; // footprint stays solid → connectivity unchanged
+  playPillClick();
+  ntRepaintFootprint(ax, ay);
+  ntUpdateBuildCounters();
+}
+
+function ntUpdateBuildCounters() {
+  const prevFw = ntFirewallUsed, prevHp = ntHoneypotUsed;
+  ntFirewallUsed = ntMyPlacements.filter(p => p.type === 'firewall').length;
+  ntHoneypotUsed = ntMyPlacements.filter(p => p.type === 'honeypot').length;
+  const fw = document.getElementById('nt-fw-counter');
+  const hp = document.getElementById('nt-hp-counter');
+  if (fw) {
+    fw.textContent = `${ntInventory.firewall - ntFirewallUsed}/${ntInventory.firewall}`;
+    if (ntFirewallUsed !== prevFw) { fw.classList.remove('nt-counter-flash'); void fw.offsetWidth; fw.classList.add('nt-counter-flash'); }
+  }
+  if (hp) {
+    hp.textContent = `${ntInventory.honeypot - ntHoneypotUsed}/${ntInventory.honeypot}`;
+    if (ntHoneypotUsed !== prevHp) { hp.classList.remove('nt-counter-flash'); void hp.offsetWidth; hp.classList.add('nt-counter-flash'); }
+  }
+}
+
+function ntFlashReject(cell) {
+  playBoing();
+  ntSetRouting('exception');
+  if (cell) {
+    cell.classList.remove('nt-cell-reject'); void cell.offsetWidth; cell.classList.add('nt-cell-reject');
+  }
+}
+
+function ntSetRouting(state) {
+  const el = document.getElementById('nt-routing-status');
+  if (!el) return;
+  if (state === 'exception') {
+    ntRoutingState = 'exception';
+    el.textContent = 'ROUTING: EXCEPTION';
+    el.className = 'text-red-500 whitespace-nowrap';
+    if (ntRoutingTimer) clearTimeout(ntRoutingTimer);
+    ntRoutingTimer = setTimeout(() => { ntRoutingTimer = null; ntSetRouting('valid'); }, 700);
+  } else if (state === 'storage_insufficient') {
+    el.textContent = 'STORAGE: INSUFFICIENT';
+    el.className = 'text-amber-400 whitespace-nowrap';
+    if (ntRoutingTimer) clearTimeout(ntRoutingTimer);
+    ntRoutingTimer = setTimeout(() => { ntRoutingTimer = null; ntSetRouting('valid'); }, 1200);
+  } else {
+    ntRoutingState = 'valid';
+    el.textContent = 'ROUTING: VALID';
+    el.className = 'text-emerald-400 whitespace-nowrap';
+  }
+}
+
+// Playback status — driven by slowSpans at the current sim position.
+function ntSetStatus(simMs) {
+  const el = document.getElementById('nt-playback-status');
+  if (!el) return;
+  const tl = ntPlaybackTimeline;
+  const inSlow = tl && (tl.slowSpans || []).some(sp => simMs >= sp[0] && simMs < sp[1]);
+  const pillBase = 'px-1.5 py-0.5 rounded-full text-[9px] font-bold whitespace-nowrap flex-shrink-0';
+  if (inSlow) {
+    el.textContent = 'THROTTLED';
+    el.className = pillBase + ' bg-red-900/60 text-red-400';
+  } else {
+    el.textContent = 'OPERATIONAL';
+    el.className = pillBase + ' bg-emerald-900/60 text-emerald-400';
+  }
+}
+
+// ── Hardening (build) timer ──────────────────────────────────────────────────
+// Optional endTimestamp — when provided, derives remaining secs from wall-clock
+// (MDLM sync: host computes endTimestamp, broadcasts it; all devices start from same anchor).
+function ntStartBuildTimer(endTimestamp) {
+  ntStopBuildTimer();
+  const label = document.getElementById('nt-build-timer');
+  const getSecs = () => endTimestamp
+    ? Math.ceil((endTimestamp - Date.now()) / 1000)
+    : ntHardeningWin;
+  let secs = getSecs();
+  if (label) label.textContent = formatTime(Math.max(0, secs));
+  ntBuildTimer = setInterval(() => {
+    secs = endTimestamp ? getSecs() : secs - 1;
+    if (label) label.textContent = formatTime(Math.max(0, secs));
+    if (secs <= 10 && secs > 0) playTick();
+    if (secs <= 0) { ntStopBuildTimer(); playAlarm(); ntCommit(); }
+  }, 1000);
+}
+function ntStopBuildTimer() {
+  if (ntBuildTimer) { clearInterval(ntBuildTimer); ntBuildTimer = null; }
+}
+
+// ── Commit ─────────────────────────────────────────────────────────────────
+function ntCommit() {
+  ntStopBuildTimer();
+  if (window.syllyMultiplayerMode === 'host') {
+    // Host marks own slot directly — dedup guard drops self-sent ACTIONs
+    ntCommitReadyCheck[mpMyPlayerIdx] = true;
+    ntPtpPlacements[mpMyPlayerIdx]    = ntMyPlacements.slice();
+    if (ntCommitReadyCheck.every(Boolean)) {
+      ntResolveCycleMdlm(ntPtpPlacements.slice());
+    } else {
+      const btn = document.getElementById('btn-nt-commit');
+      if (btn) { btn.textContent = 'Waiting for team…'; btn.disabled = true; }
+    }
+  } else if (window.syllyMultiplayerMode === 'client') {
+    // Client sends placements to host
+    const btn = document.getElementById('btn-nt-commit');
+    if (btn) { btn.textContent = 'Submitted…'; btn.disabled = true; }
+    mpLockSync();
+    mpSendEnvelope({ type: 'ACTION', payload: { action: 'NT_COMMIT', placements: ntMyPlacements.slice() } });
+  } else if (ntPlayerCount > 1) {
+    // PTP path — delegate scoring + navigation to ntCommitPtp
+    ntCommitPtp();
+  } else {
+    ntPlaybackTimeline = ntComputeTimeline_local();
+    ntResolveCycle(); // solo — latency now known
+    ntShowPlayback();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PLAYBACK CANVAS RENDERER  (game-local RAF — §16)
+// ═══════════════════════════════════════════════════════════════════════════
+
+function ntStopPlayback() {
+  if (ntRafHandle) { cancelAnimationFrame(ntRafHandle); ntRafHandle = null; }
+}
+
+// Playback palette
+const NT_TRAIL_BLUE   = '#3b82f6';  // normal trail (blue, fades by length)
+const NT_TRAIL_SLOW   = '#8b5cf6';  // slowed trail = Fuchsia + Blue (violet)
+const NT_PING_CORE    = '#a5f3fc';  // signal-ping core (cyan-white)
+const NT_PING_SLOW    = '#f43f9d';  // slowed core = Red + Fuchsia (hot pink)
+
+// All playback rendering is in TILE units (px = canvas / n). A 2×2 block is one
+// (2·px) rect; the polyline + honeypot centres are continuous tile coords (× px directly).
+function ntDrawMaze(ctx, px) {
+  const n = ntNode.n;
+  const fill = (ax, ay, color, glow) => {
+    ctx.save();
+    if (glow) { ctx.shadowColor = color; ctx.shadowBlur = 8; }
+    ctx.fillStyle = color;
+    ctx.fillRect(ax * px + 1, ay * px + 1, NT_BLOCK * px - 2, NT_BLOCK * px - 2);
+    ctx.restore();
+  };
+  ntNode.badSectors.forEach(c => fill(c.ax, c.ay, NT_COLOR_BAD_SECTOR, false));
+  ntNode.nativeHoneypots.forEach(c => fill(c.ax, c.ay, NT_COLOR_NATIVE_HONEYPOT, false)); // muted structural — no glow
+  ntMyPlacements.forEach(p => fill(p.ax, p.ay, p.type === 'honeypot' ? NT_COLOR_HONEYPOT : NT_COLOR_FIREWALL, true));
+  // Static AoE threat rings are now drawn by ntRenderFrame (suppressed during active cooldown disc).
+  // Port bars — straddling the border line; ingress green+inward arrow, egress grey+outward.
+  const canvas = ctx.canvas;
+  const t = Math.max(4, px * 0.4);
+  const BARROWS = { top: { in: '▼', out: '▲' }, bottom: { in: '▲', out: '▼' },
+                    left: { in: '▶', out: '◀' }, right:  { in: '◀', out: '▶' } };
+  const bar = (port, color, inward) => {
+    ctx.save(); ctx.fillStyle = color; ctx.shadowColor = color; ctx.shadowBlur = 8;
+    let cx, cy;
+    if (port.edge === 'top')         { ctx.fillRect(port.idx * px, -t / 2, px, t);                       cx = port.idx * px + px / 2; cy = 0; }
+    else if (port.edge === 'bottom') { ctx.fillRect(port.idx * px, canvas.height - t / 2, px, t);         cx = port.idx * px + px / 2; cy = canvas.height; }
+    else if (port.edge === 'left')   { ctx.fillRect(-t / 2, port.idx * px, t, px);                        cx = 0;            cy = port.idx * px + px / 2; }
+    else                             { ctx.fillRect(canvas.width - t / 2, port.idx * px, t, px);          cx = canvas.width; cy = port.idx * px + px / 2; }
+    // Tiny direction arrow centred on the bar
+    ctx.shadowBlur = 0; ctx.fillStyle = '#fff';
+    ctx.font = `bold ${Math.max(5, Math.round(t * 0.85))}px sans-serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(BARROWS[port.edge][inward ? 'in' : 'out'], cx, cy);
+    ctx.restore();
+  };
+  bar(ntNode.ingress, '#34d399', true);            // INGRESS — green, inward arrow
+  bar(ntNode.egress,  NT_COLOR_BAD_SECTOR, false); // EGRESS  — bad-sector grey, outward arrow
+}
+
+// Trajectory position at sim-ms (binary search over timeline samples).
+function ntSampleAt(simMs) {
+  const s = ntPlaybackTimeline && ntPlaybackTimeline.samples;
+  if (!s || !s.length) return null;
+  if (simMs <= s[0].t) return { x: s[0].x, y: s[0].y };
+  if (simMs >= s[s.length - 1].t) { const e = s[s.length - 1]; return { x: e.x, y: e.y }; }
+  let lo = 0, hi = s.length - 1;
+  while (lo + 1 < hi) { const mid = (lo + hi) >> 1; (s[mid].t <= simMs ? lo = mid : hi = mid); }
+  const a = s[lo], b = s[hi], f = (simMs - a.t) / (b.t - a.t || 1);
+  return { x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f };
+}
+
+function ntRenderFrame(simMs, updateScrubber) {
+  const canvas = document.getElementById('nt-playback-canvas');
+  if (!canvas || !ntNode) return;
+  const ctx = canvas.getContext('2d');
+  const px = canvas.width / ntNode.n;
+
+  ctx.fillStyle = NT_COLOR_BASE;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  // Faint structural grid overlay — gives tile-scale reference without competing with the trail.
+  ctx.save();
+  ctx.strokeStyle = 'rgba(52,211,153,0.15)';
+  ctx.lineWidth = 0.5;
+  for (let li = 0; li <= ntNode.n; li++) {
+    ctx.beginPath(); ctx.moveTo(li * px, 0); ctx.lineTo(li * px, canvas.height); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, li * px); ctx.lineTo(canvas.width, li * px); ctx.stroke();
+  }
+  ctx.restore();
+  ntDrawMaze(ctx, px);
+
+  const tl = ntPlaybackTimeline;
+  if (tl && tl.samples && tl.samples.length) {
+    const head = ntSampleAt(simMs);
+    const isSlowAt = (t) => (tl.slowSpans || []).some(sp => t >= sp[0] && t < sp[1]);
+    // Track which honeypots are currently within cooldown — suppresses static ring on those cells.
+    const activeFires = new Set();
+    tl.fires.forEach(f => {
+      const age = simMs - f.atMs;
+      if (age >= 0 && age < NT_HONEYPOT_COOLDOWN) activeFires.add(`${f.x},${f.y}`);
+    });
+    // Static AoE threat ring — faint always-on indicator; hidden while draining disc is active.
+    ntHoneypotCentres(ntNode, ntMyPlacements).forEach(h => {
+      if (activeFires.has(`${h.x},${h.y}`)) return;
+      ctx.save(); ctx.globalAlpha = 0.16; ctx.strokeStyle = NT_COLOR_HONEYPOT; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(h.x * px, h.y * px, NT_HONEYPOT_RADIUS * px, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+    });
+    // Traversed trail — smooth tail→head alpha gradient; colour by slow state at each segment.
+    // Batched in groups of FADE_BATCH so lineJoin='round' handles corner smoothing within each batch.
+    const pts = [];
+    for (const s of tl.samples) { if (s.t > simMs) break; pts.push(s); }
+    if (head) pts.push({ t: simMs, x: head.x, y: head.y });
+    const count = pts.length;
+    if (count > 1) {
+      ctx.save();
+      ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+      ctx.lineWidth = Math.max(2, px * 0.42);
+      // Single-path blue trail with canvas linear gradient fade (tail→head) — no batch-boundary dots.
+      const t0 = pts[0], t1 = pts[count - 1];
+      const grad = ctx.createLinearGradient(t0.x * px, t0.y * px, t1.x * px, t1.y * px);
+      grad.addColorStop(0, 'rgba(59,130,246,0.08)');
+      grad.addColorStop(1, 'rgba(59,130,246,0.90)');
+      ctx.strokeStyle = grad;
+      ctx.shadowColor = NT_TRAIL_BLUE; ctx.shadowBlur = 5;
+      ctx.beginPath();
+      ctx.moveTo(t0.x * px, t0.y * px);
+      for (let j = 1; j < count; j++) ctx.lineTo(pts[j].x * px, pts[j].y * px);
+      ctx.stroke();
+      // Overlay slowed segments in violet — all subpaths collected into one stroke call.
+      if (tl.slowSpans && tl.slowSpans.length) {
+        ctx.strokeStyle = NT_TRAIL_SLOW; ctx.globalAlpha = 0.80;
+        ctx.shadowColor = NT_TRAIL_SLOW; ctx.shadowBlur = 5;
+        ctx.beginPath();
+        for (let j = 1; j < count; j++) {
+          if (!isSlowAt(pts[j].t)) continue;
+          if (j === 1 || !isSlowAt(pts[j - 1].t)) ctx.moveTo(pts[j - 1].x * px, pts[j - 1].y * px);
+          ctx.lineTo(pts[j].x * px, pts[j].y * px);
+        }
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    // Draining AoE disc + clock-wipe — both animate for the full cooldown window (~7s real at 5×).
+    tl.fires.forEach(f => {
+      const age = simMs - f.atMs;
+      if (age < 0 || age >= NT_HONEYPOT_COOLDOWN) return;
+      const progress = age / NT_HONEYPOT_COOLDOWN; // 0.0 = just triggered → 1.0 = recharged
+      const cx = f.x * px, cy = f.y * px;
+      const half = px; // 1 tile in canvas-px; the 2×2 block half-size = px
+
+      // AoE disc — filled fuchsia circle that starts at full threat radius and drains to zero.
+      const discR = NT_HONEYPOT_RADIUS * px * (1 - progress);
+      if (discR > px * 0.3) {
+        ctx.save();
+        ctx.globalAlpha = 0.11 * (1 - progress * 0.6); // fades out gently as disc shrinks
+        ctx.fillStyle = NT_COLOR_HONEYPOT;
+        ctx.beginPath(); ctx.arc(cx, cy, discR, 0, Math.PI * 2); ctx.fill();
+        ctx.globalAlpha = 0.40 * (1 - progress * 0.5); // ring outline — more visible
+        ctx.strokeStyle = NT_COLOR_HONEYPOT; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.arc(cx, cy, discR, 0, Math.PI * 2); ctx.stroke();
+        ctx.restore();
+      }
+
+      // Clock-wipe on tile — fuchsia wedge fills from 12 o'clock as the trap recharges.
+      ctx.save();
+      ctx.beginPath(); ctx.rect(cx - half, cy - half, 2 * half, 2 * half); ctx.clip();
+      // Dark dead background — tile goes offline
+      ctx.globalAlpha = 0.88; ctx.fillStyle = NT_COLOR_BASE;
+      ctx.fillRect(cx - half, cy - half, 2 * half, 2 * half);
+      // Clockwise fuchsia wedge — refills from 12 o'clock as cooldown expires
+      if (progress > 0.01) {
+        ctx.globalAlpha = 0.85; ctx.fillStyle = NT_COLOR_HONEYPOT;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.arc(cx, cy, half * 1.5, -Math.PI / 2, -Math.PI / 2 + progress * Math.PI * 2);
+        ctx.closePath(); ctx.fill();
+      }
+      // Border ring — tile boundary indicator during dark phase
+      ctx.globalAlpha = 0.45; ctx.strokeStyle = NT_COLOR_HONEYPOT; ctx.lineWidth = 1.2;
+      ctx.strokeRect(cx - half, cy - half, 2 * half, 2 * half);
+      ctx.restore();
+      // White flash on trigger frame
+      if (age < 80) {
+        ctx.save(); ctx.globalAlpha = 0.8 - (age / 80) * 0.7; ctx.fillStyle = '#fff';
+        ctx.fillRect(cx - half, cy - half, 2 * half, 2 * half); ctx.restore();
+      }
+    });
+
+    // Signal-ping head — layered glow for vivid focus; pulse ring marks the hitbox boundary.
+    if (head) {
+      const slowed = isSlowAt(simMs);
+      const core = slowed ? NT_PING_SLOW : NT_PING_CORE;
+      const HX = head.x * px, HY = head.y * px;
+      const pulse = 0.5 + 0.5 * Math.sin(simMs / 120);     // 0..1 ping cadence
+      const coreR = Math.max(3, px * 0.26);
+      const ringR = Math.max(5, NT_RUNNER_HALF * px) * (0.6 + 0.4 * pulse);
+      // Pulse ring — marks hitbox boundary; fades in/out with ping cadence
+      ctx.save();
+      ctx.globalAlpha = 0.30 + 0.45 * (1 - pulse);
+      ctx.strokeStyle = core; ctx.lineWidth = 1.5; ctx.shadowColor = core; ctx.shadowBlur = 12;
+      ctx.beginPath(); ctx.arc(HX, HY, ringR, 0, Math.PI * 2); ctx.stroke();
+      ctx.restore();
+      // Layered glow core: outer halo → mid-bloom → solid centre
+      for (const [blur, alpha] of [[28, 0.28], [14, 0.60], [5, 1.0]]) {
+        ctx.save();
+        ctx.globalAlpha = alpha; ctx.shadowColor = core; ctx.shadowBlur = blur; ctx.fillStyle = core;
+        ctx.beginPath(); ctx.arc(HX, HY, coreR, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+      }
+    }
+  }
+
+  const lat = document.getElementById('nt-playback-latency');
+  if (lat) lat.textContent = ntFmtMs(simMs);
+  ntSetStatus(simMs);
+  if (updateScrubber) {
+    const sc = document.getElementById('nt-playback-scrubber');
+    if (sc && tl && tl.latencyMs > 0) sc.value = Math.round((simMs / tl.latencyMs) * 100);
+  }
+}
+
+function ntStartPlayback() {
+  const canvas = document.getElementById('nt-playback-canvas');
+  if (!canvas || !ntPlaybackTimeline) return;
+  const size = canvas.clientWidth || 320;
+  canvas.width = size;
+  canvas.height = size;
+  ntPlaybackScrubMs = null;
+  ntPlaybackPaused = false;
+  ntPlaybackPhase = 'tracing';
+  ntPlaybackStartTs = performance.now();
+  ntStopPlayback();
+  // Module-scope ref so ntTogglePlayback / ntResumeAfterScrub can restart the RAF.
+  ntPlaybackLoopFn = () => {
+    const tl = ntPlaybackTimeline;
+    if (!tl) { ntRafHandle = null; return; }
+    if (ntPlaybackScrubMs !== null) {
+      // Scrub/paused hold — just keep rendering the frozen frame.
+      ntRenderFrame(ntPlaybackScrubMs, false);
+      ntRafHandle = requestAnimationFrame(ntPlaybackLoopFn);
+      return;
+    }
+    const simMs = (performance.now() - ntPlaybackStartTs) * NT_PLAYBACK_SPEED;
+    if (simMs >= tl.latencyMs) {
+      ntRenderFrame(tl.latencyMs, true);
+      if (ntPlaybackPhase !== 'ended') {
+        ntPlaybackPhase = 'ended';
+        playSuccess();
+        const pb = document.getElementById('btn-nt-playback-pause');
+        if (pb) { pb.textContent = '▶'; pb.style.opacity = '0.45'; } // ▶ dimmed = at end
+      }
+      ntRafHandle = null;
+      return;
+    }
+    ntRenderFrame(simMs, true);
+    ntRafHandle = requestAnimationFrame(ntPlaybackLoopFn);
+  };
+  const pb = document.getElementById('btn-nt-playback-pause');
+  if (pb) { pb.textContent = '⏸'; pb.style.opacity = '1'; } // ⏸ = playing
+  ntRafHandle = requestAnimationFrame(ntPlaybackLoopFn);
+}
+
+function ntTogglePlayback() {
+  const tl = ntPlaybackTimeline;
+  if (!tl) return;
+  const pb = document.getElementById('btn-nt-playback-pause');
+  if (!ntRafHandle || ntPlaybackPaused) {
+    // Play / resume
+    ntPlaybackPaused = false;
+    const resumeMs = ntPlaybackScrubMs !== null ? ntPlaybackScrubMs : 0;
+    if (resumeMs >= tl.latencyMs) {
+      // Was at end — restart from beginning
+      ntPlaybackStartTs = performance.now();
+      ntPlaybackScrubMs = null;
+    } else {
+      ntPlaybackStartTs = performance.now() - resumeMs / NT_PLAYBACK_SPEED;
+      ntPlaybackScrubMs = null;
+    }
+    ntPlaybackPhase = 'tracing';
+    if (pb) { pb.textContent = '⏸'; pb.style.opacity = '1'; } // ⏸
+    if (!ntRafHandle && ntPlaybackLoopFn) ntRafHandle = requestAnimationFrame(ntPlaybackLoopFn);
+  } else {
+    // Pause — capture current sim position, cancel RAF to save power
+    ntPlaybackPaused = true;
+    const simMs = (performance.now() - ntPlaybackStartTs) * NT_PLAYBACK_SPEED;
+    ntPlaybackScrubMs = Math.min(simMs, tl.latencyMs);
+    if (pb) { pb.textContent = '▶'; pb.style.opacity = '1'; } // ▶
+    ntStopPlayback();
+  }
+}
+
+function ntResumeAfterScrub() {
+  if (ntPlaybackPaused) return; // user manually paused — stay frozen
+  const tl = ntPlaybackTimeline;
+  if (!tl) return;
+  const resumeMs = ntPlaybackScrubMs !== null ? ntPlaybackScrubMs : 0;
+  if (resumeMs >= tl.latencyMs) return; // scrubbed to end — let RAF re-enter on next play tap
+  ntPlaybackStartTs = performance.now() - resumeMs / NT_PLAYBACK_SPEED;
+  ntPlaybackScrubMs = null;
+  ntPlaybackPhase = 'tracing';
+  if (!ntRafHandle && ntPlaybackLoopFn) ntRafHandle = requestAnimationFrame(ntPlaybackLoopFn);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// MULTIPLAYER  (§11 packet table — Phase C Standard / Phase D DNP)
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Host-authoritative cycle resolution for MDLM: runs BFS for every player's
+// submitted placements, computes SERs, persists log arrays, broadcasts NT_PLAYBACK.
+function ntResolveCycleMdlm(allPlacements) {
+  // In DNP mode each player has their own relay-leg node — swap node + placements per player.
+  const savedNode         = ntNode;
+  const savedPlacements   = ntMyPlacements;
+
+  const timelines = allPlacements.map((placements, idx) => {
+    if (ntIsDNP() && ntTeamNodes[idx]) ntNode = ntTeamNodes[idx];
+    ntMyPlacements = placements;
+    const tl = ntComputeTimeline_local();
+    ntMyPlacements = savedPlacements;
+    ntNode = savedNode;
+    return tl;
+  });
+
+  ntPtpTimelines  = timelines.slice();
+  ntPtpPlacements = allPlacements.map(p => p.slice());
+
+  const latencies = timelines.map(tl => (tl ? tl.latencyMs : 0));
+  ntCycleLatencies[ntCycle] = latencies.slice();
+
+  let sers;
+  if (ntIsDNP()) {
+    // Cluster Ceiling scoring: ceiling per leg = max(teamA_leg_n_latency, teamB_leg_n_latency)
+    const teamMembers = [0, 1].map(team =>
+      ntTeamIdx.reduce((acc, t, i) => { if (t === team) acc.push(i); return acc; }, [])
+    );
+    const legCount = Math.min(teamMembers[0].length, teamMembers[1].length);
+    let clusterCeiling = 0;
+    for (let n = 0; n < legCount; n++) {
+      const latA = latencies[teamMembers[0][n]] || 0;
+      const latB = latencies[teamMembers[1][n]] || 0;
+      clusterCeiling += Math.max(latA, latB);
+    }
+    if (clusterCeiling === 0) clusterCeiling = 1;
+
+    // Per-player SER = latency / clusterCeiling × 100 (contribution relative to ceiling)
+    sers = latencies.map(lat => (lat / clusterCeiling) * 100);
+
+    // Per-team SER = Σ team_member_latencies / clusterCeiling × 100
+    const teamSERs = [0, 1].map(team => {
+      const total = teamMembers[team].reduce((s, pIdx) => s + (latencies[pIdx] || 0), 0);
+      return (total / clusterCeiling) * 100;
+    });
+    ntTeamCycleSERs[ntCycle] = teamSERs;
+  } else {
+    const maxLat = Math.max(...latencies) || 1;
+    sers = latencies.map(lat => (lat / maxLat) * 100);
+  }
+
+  ntCycleSERs[ntCycle] = sers.slice();
+  ntOverallSER = Array.from({ length: ntPlayerCount }, (_, i) => {
+    let sum = 0, n = 0;
+    ntCycleSERs.forEach(c => { if (c && typeof c[i] === 'number') { sum += c[i]; n++; } });
+    return n ? sum / n : 0;
+  });
+
+  ntAllCycleTimelines[ntCycle]  = ntPtpTimelines.slice();
+  ntAllCyclePlacements[ntCycle] = ntPtpPlacements.map(p => p.slice());
+  ntAllCycleNodes[ntCycle]      = ntNode;
+
+  mpSendEnvelope({
+    type: 'SYNC',
+    payload: {
+      action:         'NT_PLAYBACK',
+      cycle:          ntCycle,
+      timelines,
+      allPlacements,
+      cycleSERs:      ntCycleSERs[ntCycle],
+      overallSER:     ntOverallSER,
+      cycleLatencies: ntCycleLatencies[ntCycle],
+      teamCycleSERs:  ntTeamCycleSERs[ntCycle] || null,
+    },
+  });
+}
+
+function ntHandleEnvelope(envelope) {
+  const { type, payload } = envelope;
+
+  // ── ACTION (client → host) ────────────────────────────────────────────────
+  if (type === 'ACTION') {
+    if (window.syllyMultiplayerMode !== 'host') return;
+
+    if (payload.action === 'NT_GATE_READY') {
+      const senderIdx = mpPlayerSlots.findIndex(p => p.uid === envelope.originId);
+      if (senderIdx === -1) return;
+      ntGateReadyCheck[senderIdx] = true;
+      mpUnlockSync();
+      if (ntGateReadyCheck.every(Boolean)) {
+        const btn = document.getElementById('btn-nt-gate-ready');
+        if (btn) btn.disabled = false;
+      }
+      return;
+    }
+
+    if (payload.action === 'NT_COMMIT') {
+      const senderIdx = mpPlayerSlots.findIndex(p => p.uid === envelope.originId);
+      if (senderIdx === -1) return;
+      ntCommitReadyCheck[senderIdx] = true;
+      ntPtpPlacements[senderIdx]    = payload.placements || [];
+      mpUnlockSync();
+      if (ntCommitReadyCheck.every(Boolean)) {
+        ntResolveCycleMdlm(ntPtpPlacements.slice());
+      }
+      return;
+    }
+
+    if (payload.action === 'NT_ALLOCATION_UPDATE') {
+      // Client captain sends updated allocations; host validates then re-broadcasts
+      const senderIdx = mpPlayerSlots.findIndex(p => p.uid === envelope.originId);
+      if (senderIdx === -1) return;
+      const senderTeam = ntTeamIdx[senderIdx];
+      const teamSizes  = [0, 0]; ntTeamIdx.forEach(t => teamSizes[t]++);
+      const pool = {
+        firewall: ntInventory.firewall * teamSizes[senderTeam],
+        honeypot: ntInventory.honeypot * teamSizes[senderTeam],
+      };
+      const allocs = (payload.allocations || []).map(a => ({
+        firewall: Math.max(0, a.firewall || 0),
+        honeypot: Math.max(0, a.honeypot || 0),
+      }));
+      const usedFW = allocs.reduce((s, a) => s + a.firewall, 0);
+      const usedHP = allocs.reduce((s, a) => s + a.honeypot, 0);
+      if (usedFW > pool.firewall || usedHP > pool.honeypot) return; // reject out-of-bounds
+      ntTeamWorkingAllocs[senderTeam] = allocs;
+      ntBroadcastAllocationSync();
+      mpUnlockSync();
+      return;
+    }
+
+    if (payload.action === 'NT_ALLOCATION_LOCK') {
+      const senderIdx = mpPlayerSlots.findIndex(p => p.uid === envelope.originId);
+      if (senderIdx === -1) return;
+      const senderTeam = ntTeamIdx[senderIdx];
+      mpUnlockSync();
+      ntTeamAllocLocked[senderTeam] = true;
+      ntApplyAllocationLock(senderTeam, payload.allocations || []);
+      ntCheckBothTeamsLocked();
+      return;
+    }
+
+    if (payload.action === 'NT_PLAYER_LEFT') {
+      mpSendEnvelope({ type: 'SYNC', payload: { action: 'NT_MATCH_DISSOLVED' } });
+      resetToLobby();
+      return;
+    }
+  }
+
+  // ── SYNC (host → all) ─────────────────────────────────────────────────────
+  if (type === 'SYNC') {
+    mpUnlockSync();
+
+    if (payload.action === 'NT_GENERATE') {
+      ntCycle     = payload.cycle;
+      ntInventory = payload.inventory;
+      ntMyPlacements  = [];
+      ntFirewallUsed  = 0;
+      ntHoneypotUsed  = 0;
+      ntGateReadyCheck   = new Array(ntPlayerCount).fill(false);
+      ntCommitReadyCheck = new Array(ntPlayerCount).fill(false);
+
+      if (payload.isDNP) {
+        // DNP: each player has their own relay-leg node; wait for NT_HUDDLE_START
+        ntTeamNodes = payload.allPlayerNodes;
+        ntNode      = ntTeamNodes[mpMyPlayerIdx];
+        // ntHuddleStart will show the allocation screen
+      } else {
+        ntNode = payload.node;
+        ntShowMdlmGate();
+      }
+      return;
+    }
+
+    if (payload.action === 'NT_HUDDLE_START') {
+      // DNP: captain sets allocation screen; others see read-only view
+      ntTeamNodes    = payload.allPlayerNodes;
+      ntNode         = ntTeamNodes[mpMyPlayerIdx];
+      ntHuddlePhase  = 'editing';
+
+      const myTeam   = ntTeamIdx[mpMyPlayerIdx];
+      const myCapIdx = ntCaptainSlots[myTeam];
+      const isCap    = mpMyPlayerIdx === myCapIdx;
+
+      const myTeamPool = payload.allPools.find(p => p.members.includes(mpMyPlayerIdx));
+      ntAllocationPool = myTeamPool ? myTeamPool.pool : { firewall: 0, honeypot: 0 };
+
+      const myTeamAllocs = payload.allAllocations[myTeam];
+      ntAllocations = myTeamAllocs ? myTeamAllocs.map(a => ({ ...a })) : [];
+
+      const teamSizes = [0, 0];
+      ntTeamIdx.forEach(t => teamSizes[t]++);
+      const huddleDuration = payload.huddleDuration || (ntHardeningWin * teamSizes[myTeam]);
+
+      ntShowAllocationScreen(isCap);
+      ntStartHuddleTimer(huddleDuration);
+      return;
+    }
+
+    if (payload.action === 'NT_ALLOCATION_SYNC') {
+      // Render the updated allocation state for this device's team (read-only unless captain)
+      const myTeam   = ntTeamIdx[mpMyPlayerIdx];
+      const myCapIdx = ntCaptainSlots[myTeam];
+      const isCap    = mpMyPlayerIdx === myCapIdx;
+      const teamData = payload.teamData[myTeam];
+      if (teamData) {
+        ntAllocations = teamData.allocations.map(a => ({ ...a }));
+        if (teamData.locked) ntHuddlePhase = 'locked';
+      }
+      ntRenderAllocationScreen(isCap && ntHuddlePhase !== 'locked');
+      return;
+    }
+
+    if (payload.action === 'NT_BUILD_BEGIN') {
+      // Apply per-player assigned inventory if present (DNP); otherwise use ntInventory as-is
+      if (payload.assignedInventory) {
+        const myAlloc = payload.assignedInventory[mpMyPlayerIdx];
+        if (myAlloc) ntInventory = { ...myAlloc };
+      }
+      ntStopHuddleTimer();
+      ntStartBuildTimer(payload.endTimestamp);
+      ntShowBuild();
+      return;
+    }
+
+    if (payload.action === 'NT_PLAYBACK') {
+      // Render-only — host already resolved; clients just store + display
+      ntPtpTimelines   = payload.timelines;
+      ntPtpPlacements  = payload.allPlacements;
+      ntCycleSERs[ntCycle]      = payload.cycleSERs;
+      ntOverallSER              = payload.overallSER;
+      ntCycleLatencies[ntCycle] = payload.cycleLatencies;
+      if (payload.teamCycleSERs) ntTeamCycleSERs[ntCycle] = payload.teamCycleSERs;
+
+      // In DNP, load this device's own relay-leg node for playback
+      if (ntIsDNP() && ntTeamNodes[mpMyPlayerIdx]) ntNode = ntTeamNodes[mpMyPlayerIdx];
+
+      ntAllCycleTimelines[ntCycle]  = ntPtpTimelines.slice();
+      ntAllCyclePlacements[ntCycle] = ntPtpPlacements.map(p => p.slice());
+      ntAllCycleNodes[ntCycle]      = ntNode;
+
+      ntViewingPlayerIdx = mpMyPlayerIdx;
+      ntPlaybackTimeline = ntPtpTimelines[mpMyPlayerIdx];
+      ntMyPlacements     = ntPtpPlacements[mpMyPlayerIdx] || [];
+      const panel = document.getElementById('nt-comparison-panel');
+      if (panel) panel.style.display = ntPlayerCount > 1 ? 'flex' : 'none';
+      ntRenderComparisonPanel();
+      ntShowPlayback();
+      return;
+    }
+
+    if (payload.action === 'NT_SUMMARY') {
+      // Render-only — host already computed; apply and navigate
+      if (payload.cycleSERs)     ntCycleSERs[ntCycle]      = payload.cycleSERs;
+      if (payload.overallSER)    ntOverallSER               = payload.overallSER;
+      if (payload.type === 'match') ntShowSummary('match');
+      else                          ntShowSummary('cycle');
+      return;
+    }
+
+    if (payload.action === 'NT_GAMEOVER') {
+      if (payload.overallSER)    ntOverallSER   = payload.overallSER;
+      if (payload.playerNames)   ntPlayerNames  = payload.playerNames;
+      ntShowMatchSummary();
+      return;
+    }
+
+    if (payload.action === 'NT_MATCH_DISSOLVED') {
+      resetToLobby();
+      return;
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// STATE RESET  (called from engine.js resetToLobby — §13)
+// ═══════════════════════════════════════════════════════════════════════════
+
+function ntResetState() {
+  if (ntRafHandle)     { cancelAnimationFrame(ntRafHandle); ntRafHandle = null; }
+  if (ntBuildTimer)    { clearInterval(ntBuildTimer);  ntBuildTimer  = null; }
+  if (ntHuddleTimer)   { clearInterval(ntHuddleTimer); ntHuddleTimer = null; }
+  if (ntLongPressTimer){ clearTimeout(ntLongPressTimer); ntLongPressTimer = null; }
+  ntCycle          = 0;
+  ntCycleSERs      = [];
+  ntTeamCycleSERs  = [];
+  ntOverallSER     = [];
+  ntCycleLatencies = [];
+  ntPlaybackTimeline = null;
+  ntPlaybackScrubMs  = null;
+  ntNode           = null;
+  ntInventory      = { firewall: 0, honeypot: 0 };
+  ntMyPlacements   = [];
+  ntFirewallUsed   = 0;
+  ntHoneypotUsed   = 0;
+  ntPlaybackData   = null;
+  ntViewingUid     = null;
+  ntTeamNodes      = [];
+  ntAllocationPool  = { firewall: 0, honeypot: 0 };
+  ntAllocations     = [];
+  ntHuddlePhase     = 'editing';
+  ntTeamAllocLocked      = [false, false];
+  ntTeamWorkingAllocs    = [[], []];
+  ntAllPlayerAllocations = [];
+  ntGateReadyCheck   = [];
+  ntCommitReadyCheck = [];
+  ntRoutingState   = 'valid';
+  ntPlaybackPhase  = 'tracing';
+  ntPlaybackPaused = false;
+  ntPlaybackLoopFn = null;
+  ntSummaryMode    = 'cycle';
+  ntOverclockTheme = false;
+  ntGhostAnchor    = null;
+  // PTP state
+  ntPtpTurn        = 0;
+  ntPtpTimelines   = [];
+  ntPtpPlacements  = [];
+  ntViewingPlayerIdx = 0;
+  // Match-level log
+  ntAllCycleTimelines  = [];
+  ntAllCyclePlacements = [];
+  ntAllCycleNodes      = [];
+  ntGateCallback              = null;
+  ntPlaybackContinueCallback  = null;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SETTINGS UI  (pill/toggle visual state; apply-effects land in Step 5)
+// ═══════════════════════════════════════════════════════════════════════════
+
+function ntSelectPill(group, value) {
+  document.querySelectorAll(`[data-${group}]`).forEach(p => p.classList.remove('pill-active-emerald'));
+  const target = document.querySelector(`[data-${group}="${value}"]`);
+  if (target) target.classList.add('pill-active-emerald');
+}
+
+// Reflect current settings state into the overlay controls before opening.
+function ntSyncSettingsUI() {
+  ntSelectPill('nt-scale', ntMatrixScale);
+  ntSelectPill('nt-iters', ntIterations);
+  ntSelectPill('nt-win', ntHardeningWin);
+  ntSelectPill('nt-native', ntNativeHoneypots);
+  const t = document.getElementById('btn-nt-sylly-toggle');
+  if (t) {
+    t.textContent = ntSyllyMode ? 'ON' : 'OFF';
+    t.className = (ntSyllyMode ? 'game-toggle-on-emerald' : 'game-toggle-off') + ' shrink-0';
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// DOM READY — wire all event listeners
+// ═══════════════════════════════════════════════════════════════════════════
+
+document.addEventListener('DOMContentLoaded', () => {
+
+  // ── Lobby button ──────────────────────────────────────────────────────────
+  document.getElementById('btn-nt').addEventListener('click', () => {
+    playLaunch();
+    activeGameId = 'nt';
+    const banner = document.getElementById('nt-menu-status');
+    if (banner) banner.style.display = 'none';
+    showScreen('screen-nt-menu');
+  });
+
+  // ── Game menu ───────────────────────────────────────────────────────────────
+  document.getElementById('btn-nt-menu-play').addEventListener('click', () => {
+    playLaunch();
+    // Post-lobby (host/client): start session. Pre-lobby: mode screen for PTP/MDLM choice.
+    if (window.syllyMultiplayerMode !== 'single') {
+      ntStartSession();
+    } else {
+      mpShowModeScreen('nt');
+    }
+  });
+
+  document.getElementById('btn-nt-menu-how-to').addEventListener('click', ntOpenHowTo);
+
+  document.getElementById('btn-nt-menu-settings').addEventListener('click', () => {
+    playDone();
+    ntSyncSettingsUI();
+    const overlay = document.getElementById('nt-settings-overlay');
+    overlay.querySelector('.overlay-data-inner').scrollTop = 0;
+    overlay.style.display = 'flex';
+  });
+
+  document.getElementById('btn-nt-menu-back').addEventListener('click', () => {
+    playExit();
+    resetToLobby();
+  });
+
+  // ── How-to overlay ──────────────────────────────────────────────────────────
+  document.getElementById('btn-nt-howto-close').addEventListener('click', () => {
+    playDone();
+    document.getElementById('nt-how-to-overlay').style.display = 'none';
+  });
+  ['btn-nt-how-to', 'btn-nt-playback-how-to', 'btn-nt-alloc-how-to'].forEach(id => {
+    const b = document.getElementById(id);
+    if (b) b.addEventListener('click', ntOpenHowTo);
+  });
+
+  // ── Settings overlay ──────────────────────────────────────────────────────────
+  document.getElementById('btn-nt-settings-close').addEventListener('click', () => {
+    playDone();
+    document.getElementById('nt-settings-overlay').style.display = 'none';
+  });
+
+  // Pills — visual select + state write (apply-effects use these globals in Step 5)
+  document.querySelectorAll('[data-nt-scale]').forEach(b => b.addEventListener('click', () => {
+    playPillClick(); ntMatrixScale = parseInt(b.dataset.ntScale, 10); ntSelectPill('nt-scale', ntMatrixScale);
+  }));
+  document.querySelectorAll('[data-nt-iters]').forEach(b => b.addEventListener('click', () => {
+    playPillClick(); ntIterations = parseInt(b.dataset.ntIters, 10); ntSelectPill('nt-iters', ntIterations);
+  }));
+  document.querySelectorAll('[data-nt-win]').forEach(b => b.addEventListener('click', () => {
+    playPillClick(); ntHardeningWin = parseInt(b.dataset.ntWin, 10); ntSelectPill('nt-win', ntHardeningWin);
+  }));
+  document.querySelectorAll('[data-nt-native]').forEach(b => b.addEventListener('click', () => {
+    playPillClick(); ntNativeHoneypots = parseInt(b.dataset.ntNative, 10); ntSelectPill('nt-native', ntNativeHoneypots);
+  }));
+
+  // Sylly Mode (DNP) toggle
+  document.getElementById('btn-nt-sylly-toggle').addEventListener('click', () => {
+    ntSyllyMode = !ntSyllyMode;
+    if (ntSyllyMode) playSyllyOn(); else playSyllyOff();
+    ntSyncSettingsUI();
+  });
+
+  // ── Flow advance (Step 3 — linear navigation; branching/logic in Step 5) ──────
+  document.getElementById('btn-nt-handshake-continue').addEventListener('click', () => {
+    playLaunch();
+    // DNP inserts the allocation huddle here (Step 5); Standard goes straight to the gate.
+    if (ntIsDNP()) ntShowAllocation(); else ntShowGate();
+  });
+  document.getElementById('btn-nt-alloc-lock').addEventListener('click', () => {
+    playLaunch();
+    // Flash warning if pool is not fully allocated (non-blocking — captain can still lock)
+    const usedFW = ntAllocations.reduce((s, a) => s + (a.firewall || 0), 0);
+    const usedHP = ntAllocations.reduce((s, a) => s + (a.honeypot || 0), 0);
+    const warning = document.getElementById('nt-alloc-warning');
+    if ((usedFW < ntAllocationPool.firewall || usedHP < ntAllocationPool.honeypot) && warning) {
+      warning.classList.remove('nt-flash-warning');
+      void warning.offsetWidth;
+      warning.classList.add('nt-flash-warning');
+    }
+    ntCommitAllocation();
+  });
+  document.getElementById('btn-nt-gate-ready').addEventListener('click', () => { playLaunch(); if (ntGateCallback) ntGateCallback(); else ntShowBuild(); });
+  document.getElementById('btn-nt-commit').addEventListener('click', () => { playLaunch(); ntCommit(); });
+
+  // Playback scrubber — drag to scrub; drives ntRenderFrame directly when auto-play has ended.
+  document.getElementById('nt-playback-scrubber').addEventListener('input', (e) => {
+    if (!ntPlaybackTimeline) return;
+    ntPlaybackScrubMs = (parseInt(e.target.value, 10) / 100) * ntPlaybackTimeline.latencyMs;
+    if (!ntRafHandle) ntRenderFrame(ntPlaybackScrubMs, false);
+  });
+  document.getElementById('nt-playback-scrubber').addEventListener('change', () => {
+    ntResumeAfterScrub(); // auto-resume on drag release (no-op when manually paused)
+  });
+  document.getElementById('btn-nt-playback-pause').addEventListener('click', () => {
+    playPillClick();
+    ntTogglePlayback();
+  });
+  document.getElementById('btn-nt-playback-skip-end').addEventListener('click', () => {
+    const tl = ntPlaybackTimeline;
+    if (!tl) return;
+    ntPlaybackScrubMs = tl.latencyMs;
+    ntPlaybackPaused = true;
+    ntStopPlayback();
+    ntRenderFrame(tl.latencyMs, true);
+    const pb = document.getElementById('btn-nt-playback-pause');
+    if (pb) { pb.textContent = '▶'; pb.style.opacity = '1'; }
+    if (ntPlaybackPhase !== 'ended') { ntPlaybackPhase = 'ended'; playSuccess(); }
+    const sc = document.getElementById('nt-playback-scrubber');
+    if (sc) sc.value = 100;
+  });
+  document.getElementById('btn-nt-playback-continue').addEventListener('click', () => {
+    playDone();
+    if (ntPlaybackContinueCallback) {
+      const cb = ntPlaybackContinueCallback;
+      ntPlaybackContinueCallback = null;
+      // Reset button label for next normal use
+      const btn = document.getElementById('btn-nt-playback-continue');
+      if (btn) btn.textContent = 'Continue ▶';
+      cb();
+      return;
+    }
+    // Last cycle → final (match) summary; otherwise the per-cycle summary.
+    if (ntCycle >= ntIterations - 1) ntShowSummary('match');
+    else ntShowSummary('cycle');
+  });
+  document.getElementById('btn-nt-summary-next').addEventListener('click', () => {
+    if (window.syllyMultiplayerMode === 'client') return; // host-only; client waits for NT_GENERATE
+    playLaunch();
+    ntCycle++;
+    if (window.syllyMultiplayerMode === 'host') {
+      ntStartMatch(); // re-generates node, broadcasts NT_GENERATE, shows MDLM gate
+    } else {
+      ntBeginCycle();
+    }
+  });
+
+  // ── Quit (mid-game ✕ → quit overlay → game menu) ──────────────────────────────
+  document.querySelectorAll('.btn-nt-quit-open').forEach(b => b.addEventListener('click', () => {
+    playExit();
+    document.getElementById('nt-quit-overlay').style.display = 'flex';
+  }));
+  document.getElementById('btn-nt-quit-cancel').addEventListener('click', () => {
+    playDone();
+    document.getElementById('nt-quit-overlay').style.display = 'none';
+  });
+  document.getElementById('btn-nt-quit-confirm').addEventListener('click', () => {
+    playExit();
+    document.getElementById('nt-quit-overlay').style.display = 'none';
+    if (window.syllyMultiplayerMode === 'host') {
+      // Host dissolves the whole match for everyone (PASS contract)
+      try { mpSendEnvelope({ type: 'SYNC', payload: { action: 'NT_MATCH_DISSOLVED' } }); } catch (_) {}
+      resetToLobby();
+      return;
+    }
+    if (window.syllyMultiplayerMode === 'client') {
+      // Client notifies host then leaves
+      try { mpSendEnvelope({ type: 'ACTION', payload: { action: 'NT_PLAYER_LEFT' } }); } catch (_) {}
+      resetToLobby();
+      return;
+    }
+    ntResetState();
+    showScreen('screen-nt-menu');
+  });
+
+  // ── Post-game exit (✕ on summary → resetToLobby) ──────────────────────────────
+  document.getElementById('btn-nt-summary-exit').addEventListener('click', () => {
+    playExit();
+    resetToLobby();
+  });
+
+  // ── Reboot (play-again confirm) ───────────────────────────────────────────────
+  document.getElementById('btn-nt-reboot').addEventListener('click', () => {
+    playDone();
+    document.getElementById('nt-reboot-overlay').style.display = 'flex';
+  });
+  document.getElementById('btn-nt-reboot-cancel').addEventListener('click', () => {
+    playDone();
+    document.getElementById('nt-reboot-overlay').style.display = 'none';
+  });
+  document.getElementById('btn-nt-reboot-confirm').addEventListener('click', () => {
+    playLaunch();
+    document.getElementById('nt-reboot-overlay').style.display = 'none';
+    if (window.syllyMultiplayerMode !== 'single') { mpReturnToLobby(); return; }
+    ntResetState();
+    ntShowSetup(); // reboot returns to setup so operator count can be changed
+  });
+
+  // ── Setup screen (PTP) ──────────────────────────────────────────────────────
+
+  document.getElementById('nt-setup-count-pills').addEventListener('click', e => {
+    const btn = e.target.closest('[data-nt-count]');
+    if (!btn) return;
+    playPillClick();
+    ntPlayerCount = parseInt(btn.dataset.ntCount, 10);
+    ntSelectPill('nt-count', ntPlayerCount);
+    // Show/hide name inputs to match selected count
+    document.querySelectorAll('.nt-setup-name-input').forEach(inp => {
+      const idx = parseInt(inp.dataset.ntPlayer, 10);
+      inp.style.display = idx < ntPlayerCount ? '' : 'none';
+    });
+  });
+
+  document.getElementById('btn-nt-setup-back').addEventListener('click', () => {
+    playExit();
+    showScreen('screen-nt-menu');
+  });
+
+  document.getElementById('btn-nt-setup-start').addEventListener('click', () => {
+    playLaunch();
+    ntStartPTP();
+  });
+
+  // ── System Logs overlay ──────────────────────────────────────────────────────
+  document.getElementById('btn-nt-logs-open').addEventListener('click', ntOpenLogs);
+  document.getElementById('btn-nt-logs-close').addEventListener('click', () => {
+    playDone();
+    document.getElementById('nt-logs-overlay').style.display = 'none';
+  });
+});

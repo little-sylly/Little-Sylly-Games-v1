@@ -41,6 +41,7 @@
 | `#btn-dyb` | Lobby → DYB menu screen |
 | `#btn-bld` | Lobby → BLD menu screen (`bldShowMenu()`) |
 | `#btn-pass` | Lobby → PASS menu screen |
+| `#btn-nt` | Lobby → NT menu screen |
 | `#lobby-icon` | Secret Mode tap counter (7 taps → controller screen) |
 | `.btn-open-sound` | Opens `#sound-overlay` (on every screen) |
 | `#global-mute-toggle` | Mute toggle inside sound overlay |
@@ -1010,6 +1011,103 @@ Each plugin reads `window.activeExpansionOverrides` at its settings-apply point 
 
 ---
 
+## Net-Trace (NT)
+
+**JS file:** `js/games/nt.js`
+**Data:** `data/words.json` — uses only the `objects` category (standard + wild tiers); secondary fallback `data/secret_words.json` / `secret2_words.json` / `secret3_words.json` in Secret Mode
+**Brand colour:** `emerald-600` / active pill: `pill-active-emerald`
+
+### Screens
+| Screen ID | Purpose |
+|-----------|---------|
+| `screen-nt-menu` | Main hub — Trace the Route!, How to Play, Settings, ← Back to the Box |
+| `screen-nt-setup` | Node generation + network preview — host deals; all players see their assigned node |
+| `screen-nt-handshake` | Pass-the-phone gate before each player's hardening turn |
+| `screen-nt-allocation` | DNP (Sylly Mode) Shared Allocation Hub — captain assigns firewall/honeypot across legs; non-captain sees read-only |
+| `screen-nt-build` | Hardening screen — player places firewall/honeypot components on their own relay-leg node |
+| `screen-nt-waiting` | Passive standby — shown while other players are hardening |
+| `screen-nt-playback` | Animated BFS traversal — canvas shows packet routing with latency result |
+| `screen-nt-results` | Per-cycle SER leaderboard + cycle summary |
+| `screen-nt-gameover` | Final report — SER rankings across all cycles |
+
+### Overlays
+| Overlay ID | Pattern | z-index | Purpose |
+|------------|---------|---------|---------|
+| `nt-settings-overlay` | Data (slide-up) | z-[80] | "Network Config ⚙️" — game settings |
+| `nt-how-to-overlay` | Data (slide-up) | z-[90] | How to Play |
+| `nt-quit-overlay` | Decision modal | z-[80] | "Drop Connection?" — mid-game exit confirm |
+| `nt-new-trace-overlay` | Decision modal | z-[90] | "New Trace?" — play-again confirmation |
+
+### Key State Variables
+| Variable | Type | Default | Purpose |
+|----------|------|---------|---------|
+| `ntPlayerCount` | int | `4` | Total players (PTP: user-set; MDLM: from lobby) |
+| `ntPlayerNames` | string[] | `[]` | Player display names |
+| `ntCycles` | int | `3` | Number of routing cycles per session (setting) |
+| `ntCycle` | int | `0` | Current cycle index |
+| `ntHardeningWin` | int | `60` | Hardening window in seconds (setting) |
+| `ntNode` | object | `null` | Current player's relay-leg node geometry `{word, paths, placeholders[]}` |
+| `ntMyPlacements` | object[] | `[]` | Current player's placed components `[{type, pathIdx, segIdx}]` |
+| `ntInventory` | object | `{firewall:0, honeypot:0}` | Current player's available components |
+| `ntAllPlacements` | object[][] | `[]` | Host-only: all players' placements (MDLM) |
+| `ntAllPlayerNodes` | object[] | `[]` | All players' node geometries (MDLM) |
+| `ntBuildTimer` | int\|null | `null` | `setInterval` handle for hardening countdown |
+| `ntHuddleTimer` | int\|null | `null` | `setInterval` handle for DNP huddle countdown |
+| `ntSyllyMode` | bool | `false` | DNP (Devil's Network Protocol) |
+| `ntTeamIdx` | int[] | `[]` | MDLM DNP: team index per player slot |
+| `ntCaptainSlots` | int[] | `[]` | MDLM DNP: global player index of each team's captain `[team0Cap, team1Cap]` |
+| `ntTeamNodes` | object[] | `[]` | MDLM DNP: each player's own relay-leg node (indexed by player slot) |
+| `ntTeamAllocLocked` | bool[] | `[false,false]` | Host-only DNP: which team's captain has locked their allocation |
+| `ntTeamWorkingAllocs` | object[][] | `[[],[]]` | Host-only DNP: live `[team][legIdx] = {firewall,honeypot}` during huddle |
+| `ntAllPlayerAllocations` | object[] | `[]` | Host-only DNP: final per-player inventory `[playerIdx] = {firewall,honeypot}` |
+| `ntHuddlePhase` | string | `'open'` | `'open'` / `'locked'` — captain's allocation lock state |
+| `ntAllocations` | object[] | `[]` | Current player's per-leg allocation view (own team's legs) |
+| `ntAllocationPool` | object | `{firewall:0,honeypot:0}` | Team pool total available for distribution |
+| `ntCycleSERs` | number[] | `[]` | SER per player per cycle (standard) |
+| `ntTeamCycleSERs` | number[][] | `[]` | SER per team per cycle (DNP) `[cycle][team]` |
+
+### Key Functions
+| Function | Purpose |
+|----------|---------|
+| `ntStartSession()` | Post-lobby entry — host generates node + routes; MDLM starts GAME_START flow |
+| `ntGenerateNode(opts)` | Generates relay-leg node geometry — `opts.keepInventory=true` reuses inventory for DNP N-node batch |
+| `ntShowHandshake()` | Shows `screen-nt-handshake` — pass-the-phone gate |
+| `ntShowAllocationScreen(captainMode)` | Renders + shows `screen-nt-allocation` (captain interactive / non-captain read-only) |
+| `ntRenderAllocationScreen(captainMode)` | Injects pool banner + per-leg rows with [−]/[+] adjusters |
+| `ntAdjustAllocation(legIdx, type, dir)` | Validates pool bounds; host updates `ntTeamWorkingAllocs` direct; client sends `NT_ALLOCATION_UPDATE` |
+| `ntStartHuddleTimer(durationSecs)` | Countdown with `playTick()` at ≤10s; auto-calls `ntCommitAllocation()` on expiry |
+| `ntStopHuddleTimer()` | Clears `ntHuddleTimer` handle |
+| `ntCommitAllocation()` | Locks captain's allocation — host applies directly + checks both teams; client sends `NT_ALLOCATION_LOCK` |
+| `ntApplyAllocationLock(teamIdx, allocations)` | Migrates working allocs → `ntAllPlayerAllocations`; calls `ntBroadcastAllocationSync()` |
+| `ntBroadcastAllocationSync()` | Broadcasts `NT_ALLOCATION_SYNC` with both teams' locked state + working allocations |
+| `ntCheckBothTeamsLocked()` | Host: when both teams locked, stops huddle timer, broadcasts `NT_BUILD_BEGIN` with `endTimestamp` |
+| `ntShowBuild()` | Shows `screen-nt-build` — hardening phase |
+| `ntStartBuildTimer(endTimestamp)` | Wall-clock–anchored countdown (GTH pattern); auto-submits on expiry |
+| `ntComputeTimeline_local()` | BFS traversal on current `ntNode` with `ntMyPlacements` → returns latency timeline |
+| `ntResolveCycleMdlm(allPlacements)` | Host: computes timelines for all players (swapping `ntNode` + `ntMyPlacements` per player for DNP); derives SERs using cluster ceiling formula for DNP |
+| `ntShowPlayback()` | Shows `screen-nt-playback` + starts canvas BFS animation |
+| `ntShowResults()` | Shows `screen-nt-results` with per-cycle SER leaderboard |
+| `ntHandleEnvelope(env)` | Routes all NT ACTION/SYNC packets; called from `engine-multiplayer.js` |
+| `ntResetState()` | Full state teardown (called from `resetToLobby()` in `engine.js`) |
+
+### Per-Game ACTION/SYNC Packet Types
+| Packet | Type | Direction | Payload |
+|--------|------|-----------|---------|
+| `NT_PLACEMENT_SUBMIT` | ACTION | Client → Host | `{playerIdx, placements[]}` |
+| `NT_PLAYER_LEFT` | ACTION | Client → Host | `{playerIdx}` — dissolves match |
+| `NT_ALLOCATION_UPDATE` | ACTION | Client captain → Host | `{playerIdx, legIdx, type, dir}` — live adjustment during huddle |
+| `NT_ALLOCATION_LOCK` | ACTION | Client captain → Host | `{playerIdx, allocations[]}` — commits captain's allocation |
+| `NT_GENERATE` | SYNC | Host → All | `{playerNames, nodeWord, paths, placeholders, inventory, isDNP, allPlayerNodes?, teamIdx?, captainSlots?}` |
+| `NT_HUDDLE_START` | SYNC | Host → All | `{allPlayerNodes, teamIdx, captainSlots, teamPools, cycle}` — DNP allocation phase begins |
+| `NT_ALLOCATION_SYNC` | SYNC | Host → All | `{teamData: [{locked, allocations[]}]}` — live sync during huddle |
+| `NT_BUILD_BEGIN` | SYNC | Host → All | `{endTimestamp, cycle, assignedInventory}` — both teams locked; start hardening |
+| `NT_PLAYBACK` | SYNC | Host → All | `{timelines[], latencies[], sers[], teamCycleSERs?, cycle}` |
+| `NT_RESULTS` | SYNC | Host → All | `{cycleSERs[], playerNames, cycle, totalCycles}` |
+| `NT_GAMEOVER` | SYNC | Host → All | `{finalSERs[], playerNames, cycleSERs[][]}` |
+| `NT_MATCH_DISSOLVED` | SYNC | Host → All | `{leaverIdx}` |
+
+---
+
 ## Overlay Patterns Quick Reference
 
 | Pattern | Classes | Use for |
@@ -1053,7 +1151,7 @@ Three named modes (Phase 23). Each game has a `recommendedMode` and `supportedMo
 | `tlm` | Team Lobby Mode | Each team shares one device. Host/Join with room code. |
 | `mdlm` | Multi-device Lobby Mode | Each player uses their own phone. Host/Join with room code. |
 
-Per-game: LI5 `ptp`★/`tlm` · GM `ptp`★/`mdlm` · SS `tlm`★/`mdlm`/`ptp` · JEC `mdlm`★/`ptp` · YGI `mdlm`★/`ptp` · LTTP `mdlm`★/`ptp` · NAT `mdlm`★/`ptp` · DSD `tlm`★/`mdlm`/`ptp` · GTH `mdlm`★ (MP-only, 4–8) · DYB `mdlm`★ (MP-only, 3–8) · BLD `mdlm`★ (MP-only, 4–10 per `getMinPlayers` — note `game-identities.md` says min 5) · PASS `mdlm`★ (MP-only, 3–6) (★ = recommended)
+Per-game: LI5 `ptp`★/`tlm` · GM `ptp`★/`mdlm` · SS `tlm`★/`mdlm`/`ptp` · JEC `mdlm`★/`ptp` · YGI `mdlm`★/`ptp` · LTTP `mdlm`★/`ptp` · NAT `mdlm`★/`ptp` · DSD `tlm`★/`mdlm`/`ptp` · GTH `mdlm`★ (MP-only, 4–8) · DYB `mdlm`★ (MP-only, 3–8) · BLD `mdlm`★ (MP-only, 4–10 per `getMinPlayers` — note `game-identities.md` says min 5) · PASS `mdlm`★ (MP-only, 3–6) · NT `mdlm`★ (MP-only, 3–8) (★ = recommended)
 
 ### Multiplayer Screens
 | Screen ID | Purpose |
@@ -1134,3 +1232,4 @@ Per-game: LI5 `ptp`★/`tlm` · GM `ptp`★/`mdlm` · SS `tlm`★/`mdlm`/`ptp` �
 | DYB | *(see Dicey Bluffs section packet table)* | *(see Dicey Bluffs section packet table)* |
 | BLD | *(see Bailed section packet table)* | *(see Bailed section packet table)* |
 | PASS | *(see Pass section packet table)* | *(see Pass section packet table)* |
+| NT | *(see Net-Trace section packet table)* | *(see Net-Trace section packet table)* |
