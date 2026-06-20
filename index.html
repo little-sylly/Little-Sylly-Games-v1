@@ -77,6 +77,9 @@
       <button id="btn-nt" class="min-h-14 w-full rounded-2xl bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
         Net-Trace
       </button>
+      <button id="btn-frt" class="min-h-14 w-full rounded-2xl bg-[#FFC700] hover:bg-[#E6B400] active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Fruit Salad
+      </button>
     </div>
   </section>
 
@@ -6643,6 +6646,7 @@
   <script src="js/lib/cards.js"></script>
   <script src="js/games/pass.js"></script>
   <script src="js/games/nt.js"></script>
+  <script src="js/games/frt.js"></script>
   <script src="js/secret-mode.js"></script>
   <script src="js/app.js"></script>
 
@@ -7464,6 +7468,240 @@
     </div>
   </div>
 
+
+
+  <!-- ════ FRUIT SALAD ════
+       Screens : screen-frt-menu, screen-frt-deal, screen-frt-table, screen-frt-gameover
+       Overlays: frt-settings-overlay, frt-how-to-overlay, frt-quit-overlay, frt-new-game-overlay, frt-tip-overlay
+       MDLM-only · couch security · 2-player "Pear of Fruits" duel auto-engages
+    ════════════════════════════════════════════════════════════════ -->
+  <section id="screen-frt-menu" style="display:none"
+    class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
+    <button class="btn-open-sound absolute top-4 right-4 text-xl text-stone-400 active:scale-90 transition-transform duration-100">&#x1F50A;</button>
+    <p id="frt-menu-status" style="display:none" class="text-red-500 text-sm font-medium"></p>
+    <div class="text-6xl" role="img" aria-label="Banana">&#x1F34C;</div>
+    <div>
+      <h1 class="text-3xl font-bold text-stone-800">Fruit Salad</h1>
+      <p class="text-stone-400 text-base mt-1">"This is definitely a banana. Trust me."</p>
+    </div>
+    <div class="flex flex-col gap-3 w-full">
+      <button id="btn-frt-menu-play" class="min-h-14 w-full rounded-2xl bg-[#FFC700] hover:bg-[#E6B400] active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Start Serving
+      </button>
+      <button id="btn-frt-menu-how-to" class="min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        How to Play
+      </button>
+      <button id="btn-frt-menu-settings" class="min-h-14 w-full rounded-2xl bg-[#FFF4CC] hover:bg-[#FFE9A6] active:scale-95 text-[#854d0e] text-xl font-semibold transition-all duration-150">
+        Settings
+      </button>
+      <button id="btn-frt-menu-back" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-base font-medium transition-all duration-150">
+        &#x2190; Back to the Box
+      </button>
+    </div>
+  </section>
+
+  <!-- FRT DEAL — dealing interstitial (skeleton placeholder) -->
+  <section id="screen-frt-deal" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col items-center w-full max-w-sm gap-4 text-center">
+      <div class="text-5xl" role="img">&#x1F34C;</div>
+      <h2 class="text-2xl font-bold text-stone-800">Tossing the Salad…</h2>
+      <p id="frt-deal-sub" class="text-stone-400 text-sm">Dealing the stashes.</p>
+    </div>
+  </section>
+
+  <!-- FRT TABLE — main play (sticky-footer; sub-states fill body/footer in Step 5) -->
+  <section id="screen-frt-table" style="display:none"
+    class="flex flex-col w-full max-w-sm mx-auto h-screen overflow-hidden">
+    <div class="flex items-center justify-between px-4 pt-4 pb-2 flex-shrink-0">
+      <p id="frt-table-round" class="text-stone-400 text-xs font-semibold uppercase tracking-widest">Fruit-Off 1</p>
+      <div class="flex items-center gap-2">
+        <button id="btn-frt-log" class="text-stone-400 text-base active:scale-90 transition-transform duration-100" title="Pass-off log">&#x1F4CB;</button>
+        <button id="btn-frt-how-to" class="text-stone-400 font-bold text-sm active:scale-90 transition-transform duration-100">[?]</button>
+        <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">&#x1F50A;</button>
+        <button class="btn-frt-quit-open text-stone-500 font-bold text-xl active:scale-90 transition-transform duration-100">&#x2715;</button>
+      </div>
+    </div>
+    <div id="frt-table-opponents" class="px-4 pb-2 flex-shrink-0"></div>
+    <div id="frt-table-body" class="flex-1 overflow-y-auto flex flex-col min-h-0 px-4"></div>
+    <div id="frt-table-footer" class="px-4 pb-6 pt-2 flex-shrink-0"></div>
+  </section>
+
+  <!-- FRT GAMEOVER -->
+  <section id="screen-frt-gameover" style="display:none"
+    class="relative flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <button class="btn-open-sound absolute top-4 right-4 text-xl text-stone-400 active:scale-90 transition-transform duration-100">&#x1F50A;</button>
+    <div class="flex flex-col items-center w-full max-w-sm gap-4 text-center">
+      <div class="text-5xl" role="img">&#x1F34A;</div>
+      <h2 class="text-2xl font-bold text-stone-800">Orange You Glad It's Over?</h2>
+      <div id="frt-gameover-standings" class="w-full flex flex-col gap-2"></div>
+      <button id="btn-frt-go-again" class="min-h-14 w-full rounded-2xl bg-[#FFC700] hover:bg-[#E6B400] active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        More Fruit
+      </button>
+      <button id="btn-frt-gameover-exit" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-base font-medium transition-all duration-150">
+        &#x2715; Done
+      </button>
+    </div>
+  </section>
+
+  <!-- FRT SETTINGS (data slide-up — cards filled in Step 5) -->
+  <div id="frt-settings-overlay" style="display:none"
+    class="fixed inset-0 bg-black/40 z-[80] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
+      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
+        <h2 class="text-xl font-bold text-stone-800">Fruit Selection &#x1F34C;</h2>
+        <p class="text-xs text-stone-400 mt-1">Stock the salad before the first serve.</p>
+      </div>
+      <div class="overflow-y-auto flex flex-col gap-5 px-5 py-5" id="frt-settings-body">
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">Fruit Stock</p>
+            <p class="text-stone-400 text-sm mt-0.5">Bigger salad, longer game. Mega needs 5+ chefs.</p>
+          </div>
+          <div class="flex gap-2 flex-wrap">
+            <button class="pill pill-active-frt" data-frt-stock="standard">Standard</button>
+            <button class="pill" data-frt-stock="swift">Swift</button>
+            <button class="pill" id="frt-pill-mega" data-frt-stock="mega">Mega Salad</button>
+          </div>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">Fruit-Offs</p>
+            <p class="text-stone-400 text-sm mt-0.5">How many rounds before the overall winner.</p>
+          </div>
+          <div class="flex gap-2 flex-wrap">
+            <button class="pill" data-frt-rounds="1">1</button>
+            <button class="pill pill-active-frt" data-frt-rounds="3">3</button>
+            <button class="pill" data-frt-rounds="5">5</button>
+          </div>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">Think Before You Fruit</p>
+            <p class="text-stone-400 text-sm mt-0.5">A turn timer for snap decisions. Off for relaxed bluffing.</p>
+          </div>
+          <div class="flex gap-2 flex-wrap">
+            <button class="pill pill-active-frt" data-frt-timer="0">Off</button>
+            <button class="pill" data-frt-timer="15">15s</button>
+            <button class="pill" data-frt-timer="30">30s</button>
+            <button class="pill" data-frt-timer="60">60s</button>
+          </div>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <div class="flex items-center justify-between">
+            <p class="text-stone-800 font-semibold">&#x2728; Sylly Mode</p>
+            <button id="btn-frt-sylly-toggle" class="game-toggle-off shrink-0">OFF</button>
+          </div>
+          <p class="text-stone-600 text-sm font-semibold">Fruity Personalities</p>
+          <p class="text-stone-400 text-sm">Every fruit variety gains a unique, rule-breaking quirk. Requires 3+ players.</p>
+          <p id="frt-sylly-locked-note" style="display:none" class="text-amber-600 text-xs font-medium">Fruity Personalities require 3+ players.</p>
+        </div>
+        <button id="btn-frt-settings-done" class="min-h-14 w-full rounded-2xl bg-[#FFC700] hover:bg-[#E6B400] active:scale-95 text-white text-xl font-semibold transition-all duration-150">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- FRT HOW-TO (data slide-up — cards filled in Step 5) -->
+  <div id="frt-how-to-overlay" style="display:none"
+    class="fixed inset-0 bg-black/40 z-[90] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
+      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
+        <h2 class="text-xl font-bold text-stone-800">How to Play &#x1F34C;</h2>
+        <p class="text-xs text-stone-400 mt-1">Bluff your fruit. Don't get caught holding four.</p>
+      </div>
+      <div class="overflow-y-auto flex flex-col gap-4 px-5 py-5" id="frt-how-to-body">
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2" id="frt-howto-step1">
+          <p class="text-xs font-semibold uppercase tracking-widest" style="color:#047857">Step 1</p>
+          <p class="font-bold text-stone-800">The Serve</p>
+          <p class="text-stone-500 text-sm">On your turn, slide one card from your <span class="font-semibold text-stone-700">Fruit Stash</span> face-down to another player and <span class="font-semibold text-stone-700">declare a fruit</span> — the truth, or a bald-faced lie. 🍌</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest" style="color:#047857">Step 2</p>
+          <p class="font-bold text-stone-800">The Stare Down</p>
+          <p class="text-stone-500 text-sm">The receiver judges you. They <span class="font-semibold text-stone-700">Call True</span>, <span class="font-semibold text-stone-700">Call False</span>, or <span class="font-semibold text-stone-700">Peek &amp; Pass</span> — sneak a look, then slide it onward to someone who hasn’t handled it yet, with a fresh claim.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest" style="color:#047857">Step 3</p>
+          <p class="font-bold text-stone-800">Getting Caught</p>
+          <p class="text-stone-500 text-sm">When someone calls, the card flips. Guess wrong, or get caught in a lie, and the card lands <span class="font-semibold text-stone-700">face-up in your Fruit Bowl</span>. Whoever just collected it serves next.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest" style="color:#047857">Step 4</p>
+          <p class="font-bold text-stone-800">Fruit Looped</p>
+          <p class="text-stone-500 text-sm">Collect <span class="font-semibold text-stone-700">4 of the same fruit</span> in your bowl (5 in a 2-player duel), or get stuck with <span class="font-semibold text-stone-700">no cards to serve</span>, and you’re <span class="font-semibold text-stone-700">Fruit Looped</span> — the round ends.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest" style="color:#047857">Winning and Scoring</p>
+          <p class="font-bold text-stone-800">Fruit Tokens across the Fruit-Offs</p>
+          <ul class="list-disc pl-5 flex flex-col gap-1 text-stone-500 text-sm">
+            <li><span class="font-semibold text-stone-700">Fruit Looped</span> — 0 tokens that round.</li>
+            <li><span class="font-semibold text-stone-700">Survived the Salad</span> — +5 tokens.</li>
+            <li><span class="font-semibold text-stone-700">Pristine Clean Escape</span> — +10 if your bowl is empty.</li>
+            <li><span class="font-semibold text-stone-700">The Silver Lining</span> — +2 for the most correct calls all game (“Fruit Master” ✨).</li>
+          </ul>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest" style="color:#047857">✨ Sylly Mode</p>
+          <p class="font-bold text-stone-800">Fruity Personalities</p>
+          <p class="text-stone-500 text-sm">Every fruit gains a rule-breaking quirk — the <span class="font-semibold text-stone-700">Smug Banana</span> keeps your turn, the <span class="font-semibold text-stone-700">Angry Apple</span> starts a duel, the <span class="font-semibold text-stone-700">Sus Pear</span> lets you pocket and swap, and more. Requires 3+ players.</p>
+        </div>
+        <button id="btn-frt-howto-close" class="min-h-14 w-full rounded-2xl bg-[#FFC700] hover:bg-[#E6B400] active:scale-95 text-white text-xl font-semibold transition-all duration-150">Got it</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- FRT QUIT -->
+  <div id="frt-quit-overlay" style="display:none"
+    class="fixed inset-0 z-[80] overlay-modal-backdrop flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center" style="border:1px solid #FFE9A6">
+      <p class="text-3xl">&#x1F966;</p>
+      <h3 class="text-lg font-bold text-stone-800">Vegetables Instead?</h3>
+      <p class="text-stone-500 text-sm">Your salad will be tossed.</p>
+      <div class="flex flex-col gap-2">
+        <button id="btn-frt-quit-confirm" class="min-h-14 w-full rounded-2xl bg-[#FFC700] hover:bg-[#E6B400] active:scale-95 text-white font-semibold text-lg transition-all duration-150">Yeah, I'm out.</button>
+        <button id="btn-frt-quit-cancel" class="min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-lg transition-all duration-150">Keep bluffing!</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- FRT NEW GAME (play-again) -->
+  <div id="frt-new-game-overlay" style="display:none"
+    class="fixed inset-0 z-[90] overlay-modal-backdrop flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center" style="border:1px solid #FFE9A6">
+      <p class="text-3xl">&#x1F353;</p>
+      <h3 class="text-lg font-bold text-stone-800">More Fruit?</h3>
+      <p class="text-stone-500 text-sm">Fresh decks, scores reset.</p>
+      <div class="flex flex-col gap-2">
+        <button id="btn-frt-new-confirm" class="min-h-14 w-full rounded-2xl bg-[#FFC700] hover:bg-[#E6B400] active:scale-95 text-white font-semibold text-lg transition-all duration-150">More Fruit</button>
+        <button id="btn-frt-new-cancel" class="min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-lg transition-all duration-150">Stay here</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- FRT PASS-OFF LOG -->
+  <div id="frt-log-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[90] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
+      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
+        <h2 class="text-xl font-bold text-stone-800">Pass-Off Log &#x1F4CB;</h2>
+        <p class="text-xs text-stone-400 mt-1">Who caught who, this Fruit-Off.</p>
+      </div>
+      <div class="overflow-y-auto flex flex-col gap-2 px-5 py-5" id="frt-log-body"></div>
+      <div class="px-5 pb-5 flex-shrink-0">
+        <button id="btn-frt-log-close" class="min-h-12 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold transition-all duration-150">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- FRT TIP (shared contextual [?]) -->
+  <div id="frt-tip-overlay" style="display:none"
+    class="fixed inset-0 z-[90] overlay-modal-backdrop flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center" style="border:1px solid #FFE9A6">
+      <p id="frt-tip-emoji" class="text-3xl"></p>
+      <h3 id="frt-tip-heading" class="text-lg font-bold text-stone-800"></h3>
+      <div id="frt-tip-body" class="text-stone-500 text-sm text-left flex flex-col gap-1.5"></div>
+      <button id="btn-frt-tip-close" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-sm transition-all duration-100">Got it</button>
+    </div>
+  </div>
 
 </body>
 </html>

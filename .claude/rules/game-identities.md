@@ -1316,7 +1316,7 @@ LOBBY (MDLM only) → NT MENU
 | Component Density | Minimal / Standard / Heavy | Standard | `ntComponentDensity` | `'minimal'` / `'standard'` / `'heavy'` |
 | ✨ Sylly Mode (Devil's Network Protocol) | OFF / ON | OFF | `ntSyllyMode` | bool |
 
-Player count (3–8, default 4, `ntPlayerCount`) is set from the lobby roster in MDLM — not in the settings overlay.
+Player count (`ntPlayerCount`, default 4) is set from the lobby roster in MDLM (lobby min 2, max 8) or on `screen-nt-setup` in PTP — not in the settings overlay. DNP/Sylly requires two teams (min 4).
 
 ### Special Mechanics
 
@@ -1379,11 +1379,11 @@ Player count (3–8, default 4, `ntPlayerCount`) is set from the lobby roster in
 | `screen-nt-gameover` | Final report — SER rankings across all cycles |
 
 ### Multiplayer (Phase 33)
-- **Mode:** MDLM only — `multiplayerOnly: true`, `supportedModes: ['mdlm']`, `recommendedMode: 'mdlm'`
-- **Min players:** 3 | **Max players:** 8
-- **rosterConfig:** `{ type: 'none' }` — automatic seat assignment (join order)
-- **Shared screens:** `screen-mp-mode`, `screen-mp-lobby-host`, `screen-mp-lobby-join` (parameterised)
-- **Post-lobby routing:** `onPassThePhone` (host) → `ntStartSession()` directly; clients wait for `NT_GENERATE`
+- **Mode:** PTP + MDLM — `multiplayerOnly: false`, `supportedModes: ['ptp', 'mdlm']`, `recommendedMode: 'mdlm'`. PTP (single-device) is locked when DNP/Sylly Mode is on, via `getLockedModes()` (DNP requires teams). *(Reconciled to shipped code — Protocol C, June 2026; this subsection previously read "MDLM only / `['mdlm']` / min 3", which contradicted both the config and NT's own PTP state-flow + `screen-nt-handshake`.)*
+- **Min players:** 2 (`getMinPlayers → 2`, Standard) / 4 for DNP (two teams) | **Max players:** 8 (`getMaxPlayers → 8`)
+- **rosterConfig:** `type` is a **function** — `'teams'` (with `hasCaptain`) when DNP/Sylly is on, else `'none'` (automatic seat assignment, join order)
+- **Shared screens:** `screen-mp-mode`, `screen-mp-lobby-host`, `screen-mp-lobby-join` (parameterised); PTP additionally uses the `screen-nt-handshake` pass-gate per player
+- **Post-lobby routing:** `onPassThePhone` (host, MDLM) → `screen-nt-menu` (Play CTA then starts the session); (single/PTP) → `ntShowSetup()`; clients wait for `NT_GENERATE`
 - **Hardening privacy:** Each device hardens its own node locally. Placements are not broadcast until `NT_PLACEMENT_SUBMIT` ACTION at end of hardening window.
 - **DNP team assignment:** `ntTeamIdx[playerIdx]` and `ntCaptainSlots[team]` populated from `mpLobbyRoster` in `onPassThePhone`. Team captains are the `rosterConfig.captainSlots` values.
 - **Mid-game quit dissolves the room:** same PASS contract — host `HOST_END_GAME` / client `NT_PLAYER_LEFT` → host `NT_MATCH_DISSOLVED` → all `resetToLobby()`

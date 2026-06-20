@@ -820,6 +820,69 @@ body.flash-red   { background-color: #fecaca; }
   border: none;
   box-shadow: 0 1px 4px rgba(0,0,0,0.2);
 }
+/* ── Fruit Salad (banana #FFD93B + dark-ink #022c22 + leaf #047857) ── */
+.pill-active-frt {
+  background-color: #FFC700;
+  color: #ffffff;
+  font-weight: 600;
+}
+.game-toggle-on-frt {
+  background-color: #FFC700;
+  color: #ffffff;
+  border-radius: 9999px;
+  padding: 0.4rem 1.2rem;
+  font-weight: 700;
+  font-size: 0.9rem;
+  transition: background 0.2s, color 0.2s;
+  border: none;
+  cursor: pointer;
+}
+.frt-range {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 9999px;
+  background: linear-gradient(to right, #FFE89A, #FFC700);
+  outline: none;
+  cursor: pointer;
+}
+.frt-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: #FFC700;
+  border: 3px solid #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
+.frt-range::-moz-range-thumb {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: #FFC700;
+  border: none;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
+/* Fruit cards — v1 emoji skin (render seam: frtRenderCard) */
+.frt-card {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 0.25rem;
+  width: 4.5rem; height: 6rem;
+  border-radius: 0.75rem;
+  background: #fffdf5;
+  border: 2px solid #FFE9A6;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  user-select: none;
+}
+.frt-card-emoji { font-size: 2rem; line-height: 1; }
+.frt-card-name { font-size: 0.6rem; font-weight: 600; color: #854d0e; text-align: center; }
+.frt-card-back {
+  width: 4.5rem; height: 6rem;
+  border-radius: 0.75rem;
+  background: repeating-linear-gradient(45deg, #FFC700, #FFC700 8px, #E6B400 8px, #E6B400 16px);
+  border: 2px solid #E6B400;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+}
+
 /* Build-grid cell base + invalid-placement reject flash */
 .nt-cell { border-radius: 2px; cursor: pointer; }
 @keyframes ntCellReject {

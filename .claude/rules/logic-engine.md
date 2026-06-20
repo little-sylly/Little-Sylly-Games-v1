@@ -246,6 +246,8 @@ if (window.syllyMultiplayerMode !== 'single') {
 
 **Host readyCheck — process the host's own submission directly:** For any phase with a `[abbr]ReadyCheck[]` matrix where all players submit simultaneously, the host must mark its own slot in its local submit function — NOT by sending its own ACTION envelope. `engine-multiplayer.js` drops every envelope where `originId === syllyDeviceUid` (the dedup guard), so a host that submits via `mpSendEnvelope` never has its slot set and `.every(Boolean)` never fires (the round hangs). Pattern: when `syllyMultiplayerMode === 'host'`, set `[abbr]ReadyCheck[mpMyPlayerIdx] = true`, check `.every(Boolean)`, and broadcast the resolving SYNC directly. *[Elevated from jec-impl-notes J1, ygi-impl-notes Y1/Y2.]*
 
+**Generalisation — the dedup guard drops ALL self-sent ACTIONs, not just readyCheck submissions:** the same `originId === syllyDeviceUid` guard means **any** phase where the host is also an active *submitting* participant must use the direct-update-then-broadcast pattern, never a self-sent ACTION. This extends beyond readyCheck matrices to live-adjustment phases (e.g. NT's host captain sending allocation updates to itself — `NT_ALLOCATION_UPDATE` was silently dropped, leaving working state at zero). Rule: if the host can submit an ACTION in a phase, branch on `syllyMultiplayerMode === 'host'` and mutate host state + broadcast the resulting SYNC directly; reserve `mpSendEnvelope({type:'ACTION'})` for clients only. *[Elevated from nt-impl-notes BUG-05 / TG-05.]*
+
 **Roster type `'none'`:** For games with automatic or random seating, use `rosterConfig.type: 'none'`. The `'individual'` type requires every player (including the host) to be manually assigned in the Assign Spots lobby UI — any player left unassigned produces `reordered[-1]` (a non-standard array property), corrupting the slot array. If the game handles seat labels internally, `'none'` is always safer.
 
 **Multiplayer-only game routing (`multiplayerOnly: true`):** The `multiplayerOnly` field in `MP_GAME_CONFIGS` is **informational only** — no engine code reads it to gate or enforce anything. The actual enforcement comes from `supportedModes` (a game with only `['mdlm']` has no single-device path in `mpShowModeScreen`) and the game's lobby button listener (which calls `mpShowModeScreen` directly, bypassing any single-device setup flow). The lobby-entry button on `screen-lobby` STILL routes to the game menu (`showScreen('screen-[abbr]-menu')`), not directly to `mpShowModeScreen()`. The game menu is always required — it holds Settings and How to Play before the host commits to a session.
@@ -393,6 +395,14 @@ menu. Reference implementation: `li5.js` `timerHandle` guarded by
 `if (timerHandle) { clearTimeout(timerHandle); timerHandle = null; }` before each
 new turn and on teardown.
 
+**`requestAnimationFrame` is a timer too.** A game using RAF as a continuous game
+clock / physics loop (first instance: NT's `ntRafHandle`) has the identical
+lifecycle requirement — cancel it in the quit-confirm handler, in `resetToLobby()`,
+and on any early phase transition (build-phase exit, summary-screen entry). Only the
+type differs: cancel with `cancelAnimationFrame(handle)`, not `clearInterval`. A live
+RAF loop left running repaints/advances against the next screen's state. Reference:
+`nt.js` `ntStopPlayback()` clears `ntRafHandle`. *[Elevated from nt-impl-notes TG-01.]*
+
 ---
 
 ## PWA Guardian
@@ -440,7 +450,7 @@ Note: the four Firebase lib files ARE precached (so Lobby Mode works offline-fir
 - [ ] Add game teardown to `resetToLobby()` in `engine.js`
 - [ ] Add game menu: Let's Play!, How to Play, Settings, ← Back to the Box (see `@ui-style.md` Universal Menu Standard)
 - [ ] Settings: game options first, ✨ Sylly Mode last; every setting in a white card (see `@ui-style.md` Settings Card Standard)
-- [ ] Settings: include a **difficulty setting** (themed name, plain-English description) — controls word difficulty tier (d1 / d1+d2 / d3); position it early, before timer/rounds
+- [ ] Settings: include a **difficulty setting** (themed name, plain-English description) — controls word difficulty tier (d1 / d1+d2 / d3); position it early, before timer/rounds. **Exception — non-word-bank games:** games that do not draw from `words.json` (fixed-deck card games, drawing games, custom-data games — e.g. PASS, DYB, GTH) have no word-difficulty tier and are **exempt** from this item. Use whatever velocity/complexity dial the game actually has (deck size, round count, content tier) instead, and note the exemption in the tech spec so the Phase-Gate audit does not flag the absence. *[Elevated from pass-impl-notes Template Gaps; applies to any fixed-content game.]*
 - [ ] Overlays: data overlay (slide-up) or decision modal — no third pattern
 - [ ] Add precache entries to `sw.js` and bump SW version
 - [ ] Add `applyExpansionOverrides()` read at the plugin's settings-apply point — reads `window.activeExpansionOverrides` if `isSecretMode` is true; see `js/secret-mode.js` for the established pattern (required from Secret Mode onwards; retrofit existing games during Secret Mode build)

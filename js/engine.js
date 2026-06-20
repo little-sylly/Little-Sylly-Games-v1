@@ -70,6 +70,8 @@ const allScreens = [
   // Net-Trace
   'screen-nt-menu', 'screen-nt-setup', 'screen-nt-handshake', 'screen-nt-allocation', 'screen-nt-gate',
   'screen-nt-build', 'screen-nt-playback', 'screen-nt-summary', 'screen-nt-standby',
+  // Fruit Salad
+  'screen-frt-menu', 'screen-frt-deal', 'screen-frt-table', 'screen-frt-gameover',
 ];
 
 // ── Web Audio API ─────────────────────────────────────────────────────────────
@@ -496,6 +498,8 @@ function resetToLobby() {
   });
   document.body.classList.remove('nt-overclock'); // easter-egg theme off
   if (typeof ntResetState === 'function') ntResetState();
+  // Fruit Salad teardown
+  if (typeof frtResetState === 'function') frtResetState();
   // Help-tip overlay cleanup (Phase 21a)
   ['li5','gm','ss','jec','ygi','lttp','nat','dsd'].forEach(abbr => {
     const el = document.getElementById(`${abbr}-help-tip-overlay`);

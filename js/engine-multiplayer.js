@@ -118,6 +118,7 @@ const MP_GAME_CONFIGS = {
     lobbyCtaLabel:   "Let's Cook!",
     rosterConfig: { type: 'individual', showTeamNamesInPreLobby: false, defaultTeamNames: null, hasCaptain: false },
     getMaxPlayers: () => (typeof jecPlayerCount !== 'undefined' ? jecPlayerCount : 4),
+    getMinPlayers: () => 3,
   },
   ygi: {
     gameName:        'You Get It?',
@@ -132,6 +133,7 @@ const MP_GAME_CONFIGS = {
     lobbyCtaLabel:   'Show Your Take 🃏',
     rosterConfig: { type: 'individual', showTeamNamesInPreLobby: false, defaultTeamNames: null, hasCaptain: false },
     getMaxPlayers: () => (typeof ygiPlayerCount !== 'undefined' ? ygiPlayerCount : 4),
+    getMinPlayers: () => 3,
   },
   lttp: {
     gameName:        'Late to the Party',
@@ -173,6 +175,7 @@ const MP_GAME_CONFIGS = {
     lobbyCtaLabel:   'Begin Observation',
     rosterConfig: { type: 'individual', showTeamNamesInPreLobby: false, defaultTeamNames: null, hasCaptain: false },
     getMaxPlayers: () => 8,
+    getMinPlayers: () => 3,
   },
   dsd: {
     gameName:        'Deep-Sea Deploy',
@@ -316,6 +319,28 @@ const MP_GAME_CONFIGS = {
     },
     getMaxPlayers:   () => 8,
     getMinPlayers:   () => 2,
+  },
+  frt: {
+    gameName:       'Fruit Salad',
+    emoji:          '🍌',
+    brandBtnClass:  'bg-[#FFC700] hover:bg-[#E6B400] text-white',
+    ptpLabel:       'Start Serving',
+    lobbyCtaLabel:  'Start Serving',
+    menuScreen:     'screen-frt-menu',
+    onPassThePhone: () => {
+      if (window.syllyMultiplayerMode === 'host') {
+        frtPlayerCount = mpPlayerSlots.length;
+        frtPlayerNames = mpPlayerSlots.map(p => p.nickname);
+        frtStartSession(); // deal straight into play (settings were set on the menu pre-lobby)
+      }
+      // 'client': waits for FRT_DEAL SYNC
+    },
+    recommendedMode: 'mdlm',
+    supportedModes:  ['mdlm'],
+    multiplayerOnly: true,
+    rosterConfig:    { type: 'none' },
+    getMaxPlayers:   () => 8,
+    getMinPlayers:   () => (typeof frtSyllyMode !== 'undefined' && frtSyllyMode ? 3 : 2),
   },
 };
 
@@ -678,6 +703,9 @@ function mpSerialiseSettings(abbr) {
     case 'nt': return {
       ntMatrixScale, ntIterations, ntHardeningWin, ntNativeHoneypots, ntSyllyMode,
     };
+    case 'frt': return {
+      frtFruitStock, frtRounds, frtTurnTimer, frtSyllyMode,
+    };
     case 'ss': return {
       ssSettingInterceptsToWin, ssDifficultyLevel, ssRerollLimitSetting,
       ssTimerSetting, ssCustomiseVault, ssIntelSyllyMode,
@@ -826,6 +854,12 @@ function mpHandleEnvelope(env) {
           if (s.ntHardeningWin     !== undefined) ntHardeningWin     = s.ntHardeningWin;
           if (s.ntNativeHoneypots  !== undefined) ntNativeHoneypots  = s.ntNativeHoneypots;
           if (s.ntSyllyMode        !== undefined) ntSyllyMode        = s.ntSyllyMode;
+          break;
+        case 'frt':
+          if (s.frtFruitStock !== undefined) frtFruitStock = s.frtFruitStock;
+          if (s.frtRounds     !== undefined) frtRounds     = s.frtRounds;
+          if (s.frtTurnTimer  !== undefined) frtTurnTimer  = s.frtTurnTimer;
+          if (s.frtSyllyMode  !== undefined) frtSyllyMode  = s.frtSyllyMode;
           break;
         // Additional games added as Sprint 4 progresses
       }
@@ -1437,6 +1471,11 @@ function mpHandleEnvelope(env) {
   // ── Net-Trace ACTION/SYNC ─────────────────────────────────────────────────
   if (mpActiveGame === 'nt') {
     if (typeof ntHandleEnvelope === 'function') ntHandleEnvelope(env);
+  }
+
+  // ── Fruit Salad ACTION/SYNC ───────────────────────────────────────────────
+  if (mpActiveGame === 'frt') {
+    if (typeof frtHandleEnvelope === 'function') frtHandleEnvelope(env);
   }
 
   // ── Secret Signals ACTION/SYNC ─────────────────────────────────────────────

@@ -33,7 +33,8 @@
 │   │   ├── gth.js                   # Plugin: Group Therapy (all state + logic)
 │   │   ├── dyb.js                   # Plugin: Dicey Bluffs (all state + logic)
 │   │   ├── pass.js                  # Plugin: Pass (all state + logic)
-│   │   └── nt.js                    # Plugin: Net-Trace (all state + logic)
+│   │   ├── nt.js                    # Plugin: Net-Trace (all state + logic)
+│   │   └── frt.js                   # Plugin: Fruit Salad (Cockroach Poker — all state + logic)
 │   ├── engine-multiplayer.js        # Multiplayer module: Firebase, lobby, sync, per-game envelopes
 │   ├── secret-mode.js               # Secret Mode: Konami gateway, Terminal, expansion proxy state
 │   ├── app.js                       # Bootstrapper only — no logic (3 lines)
@@ -68,7 +69,7 @@
 ├── docs/archive/                    # Retired snapshots + spent plan docs
 ```
 
-**Load order:** `engine.js` → `engine-multiplayer.js` → `canvas-draw.js` → `li5.js` → `great-minds.js` → `secret-signals.js` → `jec.js` → `ygi.js` → `lttp.js` → `nat.js` → `dsd.js` → `bld.js` → `gth.js` → `dyb.js` → `cards.js` → `pass.js` → `nt.js` → `secret-mode.js` → `app.js`
+**Load order:** `engine.js` → `engine-multiplayer.js` → `canvas-draw.js` → `li5.js` → `great-minds.js` → `secret-signals.js` → `jec.js` → `ygi.js` → `lttp.js` → `nat.js` → `dsd.js` → `bld.js` → `gth.js` → `dyb.js` → `cards.js` → `pass.js` → `nt.js` → `frt.js` → `secret-mode.js` → `app.js`
 (`tailwind-play.js` loads in `<head>` before everything else.)
 All symbols are global (no ES modules). Forward references work at runtime.
 
@@ -211,11 +212,11 @@ Do not write the phase snapshot until Protocols A is clean. Do not write a line 
 ---
 
 ## 🎯 Current Focus
-**Phase:** Phase 33 — Net-Trace (NT) shipped. BFS pathfinding + MDLM Standard + DNP/Teams (Sylly Mode). Game 13 complete.
-**Last shipped game:** Phase 33 — Net-Trace (NT), BFS packet-routing game, MDLM-only, 1–8 players (Standard) / 4–8 players (DNP Sylly Mode).
-**SW Version:** v104 (bump when assets change)
-**Gold Master:** 13 games complete + multiplayer (LI5, Great Minds, Secret Signals, JEC, YGI, LTTP, Natural Selection, Deep-Sea Deploy, Bailed, Group Therapy, Dicey Bluffs, Pass, Net-Trace)
-**Pending before next game:** Protocol C studio sweep — run Protocols A + C before the next Phase 1 brief.
+**Phase:** Phase 34 — Fruit Salad (`frt`) IN IMPLEMENTATION (Cockroach Poker). Core loop + all 8 Sylly personalities + settings + turn timer complete & syntax-verified; pending live MDLM browser test + full reference-doc entries + optional deal-interstitial polish. Game 14.
+**Last shipped game:** Phase 33 — Net-Trace (NT), BFS packet-routing game, PTP + MDLM (`supportedModes: ['ptp','mdlm']`; PTP locked under DNP), 2–8 players (Standard) / 4–8 players (DNP Sylly Mode).
+**SW Version:** v105 (frt.js precached; engine-multiplayer.js changed)
+**Gold Master:** 13 games complete + multiplayer (LI5, Great Minds, Secret Signals, JEC, YGI, LTTP, Natural Selection, Deep-Sea Deploy, Bailed, Group Therapy, Dicey Bluffs, Pass, Net-Trace) — Fruit Salad (14th) in active build
+**Fruit Salad key refs:** `docs/new-game-tech-fruit-salad.md` (confirmed spec), `docs/implementation-notes/frt-implementation-notes.md`, `docs/new-ideas/new-game-fruit-salad.md` (Phase-1 brief). MDLM-only, couch security, host-authoritative sequential; 2-player "Pear of Fruits" duel auto-engages; banana `#FFD93B` + dark-ink `#022c22` + leaf `#047857` palette; all card rendering through `frtRenderCard` (asset-pack seam).
 **Key references:**
 - `docs/implementation-notes/nt-implementation-notes.md` — NT bug log + design decisions
 - `docs/new-game-tech-net-trace.md` — Phase 2 technical spec (NT source of truth)
