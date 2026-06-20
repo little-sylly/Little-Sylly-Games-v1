@@ -46,6 +46,7 @@ let gthScores = [];
 let gthDisorderSubState = 'preview';
 let gthCanvasInstance   = null;
 let gthCountdownTimer   = null;
+let gthIntakeTimer      = null;
 
 // ── Data ───────────────────────────────────────────────────────────
 let gthAllDisorders = [];
@@ -118,6 +119,21 @@ function gthShowPatientIntake() {
   btn.textContent = "I'm Ready to Draw →";
   btn.style.opacity = '';
 
+  // 30-second auto-start countdown — prevents over-thinking before drawing
+  if (gthIntakeTimer) { clearInterval(gthIntakeTimer); gthIntakeTimer = null; }
+  let intakeSecsLeft = 30;
+  const countdownEl = document.getElementById('gth-intake-countdown');
+  if (countdownEl) countdownEl.textContent = intakeSecsLeft;
+  gthIntakeTimer = setInterval(() => {
+    intakeSecsLeft--;
+    if (countdownEl) countdownEl.textContent = intakeSecsLeft;
+    if (intakeSecsLeft <= 0) {
+      clearInterval(gthIntakeTimer);
+      gthIntakeTimer = null;
+      document.getElementById('btn-gth-intake-ready').click();
+    }
+  }, 1000);
+
   showScreen('screen-gth-patient-intake');
 }
 
@@ -130,6 +146,7 @@ function gthShowCanvas(disorderEntry) {
   const total = gthAssignedDisorders.length;
   document.getElementById('gth-canvas-disorder-name').textContent =
     disorderEntry.display || disorderEntry.name;
+  document.getElementById('gth-canvas-tip').textContent = disorderEntry.tip || '';
   document.getElementById('gth-canvas-progress').textContent =
     `Drawing ${gthCurrentDisorderIdx + 1} of ${total}`;
 
@@ -150,6 +167,7 @@ function gthShowCanvas(disorderEntry) {
 }
 
 function gthStartCountdown() {
+  if (gthCountdownTimer) { clearInterval(gthCountdownTimer); gthCountdownTimer = null; }
   let secondsLeft = gthDrawingTime;
   const timerEl   = document.getElementById('gth-canvas-timer');
 
@@ -495,6 +513,7 @@ function gthSubmitDiagnosisBatch() {
 }
 
 function gthStartPhase2Timer(endTimestamp) {
+  if (gthPhase2Timer) { clearInterval(gthPhase2Timer); gthPhase2Timer = null; }
   gthPhase2EndTimestamp = endTimestamp;
   const timerEl = document.getElementById('gth-case-timer');
 
@@ -715,6 +734,7 @@ function gthHandleEnvelope(envelope) {
 
   // ── SYNC: GTH_PHASE1_START ────────────────────────────────────────
   if (type === 'SYNC' && payload.action === 'GTH_PHASE1_START') {
+    if (syllyMultiplayerMode === 'host') return; // host already called gthStartPhase1Drawing() directly
     mpUnlockSync();
     gthStartPhase1Drawing();
     return;
@@ -722,6 +742,7 @@ function gthHandleEnvelope(envelope) {
 
   // ── SYNC: GTH_GAME_START ───────────────────────────────────────────
   if (type === 'SYNC' && payload.action === 'GTH_GAME_START') {
+    if (syllyMultiplayerMode === 'host') return; // host already set up state and called gthShowPatientIntake() directly
     // Apply host settings to this client device
     gthDisordersPerPatient = payload.disordersPerPatient;
     gthDrawingTime         = payload.drawingTime;
@@ -748,6 +769,7 @@ function gthHandleEnvelope(envelope) {
 
   // ── SYNC: GTH_PHASE2_START ────────────────────────────────────────
   if (type === 'SYNC' && payload.action === 'GTH_PHASE2_START') {
+    if (syllyMultiplayerMode === 'host') return; // host already set up queues and called gthShowShrinkIntro() directly
     // Each client extracts its own queue by device player index
     gthQueue              = (payload.allQueues || [])[mpMyPlayerIdx] || [];
     gthQueueIdx           = 0;
@@ -761,6 +783,7 @@ function gthHandleEnvelope(envelope) {
 
   // ── SYNC: GTH_PHASE2_BEGIN ────────────────────────────────────────
   if (type === 'SYNC' && payload.action === 'GTH_PHASE2_BEGIN') {
+    if (syllyMultiplayerMode === 'host') return; // host already called gthStartPhase2Timer() + gthShowCase() directly
     gthStartPhase2Timer(payload.endTimestamp);
     gthShowCase();
     return;
@@ -779,6 +802,7 @@ function gthHandleEnvelope(envelope) {
 
   // ── SYNC: GTH_PHASE2_END ──────────────────────────────────────────
   if (type === 'SYNC' && payload.action === 'GTH_PHASE2_END') {
+    if (syllyMultiplayerMode === 'host') return; // host's own timer already handled this
     // Stop timer if still running (timer may have fired locally already)
     if (gthPhase2Timer) { clearInterval(gthPhase2Timer); gthPhase2Timer = null; }
     gthSubmitDiagnosisBatch();
@@ -788,6 +812,7 @@ function gthHandleEnvelope(envelope) {
 
   // ── SYNC: GTH_FINAL_SCORES ────────────────────────────────────────
   if (type === 'SYNC' && payload.action === 'GTH_FINAL_SCORES') {
+    if (syllyMultiplayerMode === 'host') return; // host already called gthShowBigReveal() directly in gthResolveScores()
     gthScores      = payload.scores;
     gthRevealItems = payload.revealItems;
     gthRevealIdx   = 0;
@@ -798,6 +823,7 @@ function gthHandleEnvelope(envelope) {
 
   // ── SYNC: GTH_REVEAL_NEXT ─────────────────────────────────────────
   if (type === 'SYNC' && payload.action === 'GTH_REVEAL_NEXT') {
+    if (syllyMultiplayerMode === 'host') return; // host already called gthShowBigReveal() in the click handler
     gthRevealIdx = payload.revealIdx;
     gthShowBigReveal();
     return;
@@ -805,6 +831,7 @@ function gthHandleEnvelope(envelope) {
 
   // ── SYNC: GTH_REVEAL_FINISH ───────────────────────────────────────
   if (type === 'SYNC' && payload.action === 'GTH_REVEAL_FINISH') {
+    if (syllyMultiplayerMode === 'host') return; // host already called gthShowFinalReport() in the click handler
     gthShowFinalReport();
     return;
   }
@@ -841,6 +868,7 @@ function gthResetState() {
   gthPhase2EndTimestamp = 0;
   if (gthPhase2Timer)    { clearInterval(gthPhase2Timer);    gthPhase2Timer    = null; }
   if (gthCountdownTimer) { clearInterval(gthCountdownTimer); gthCountdownTimer = null; }
+  if (gthIntakeTimer)    { clearInterval(gthIntakeTimer);    gthIntakeTimer    = null; }
   gthPhase2Complete     = false;
   gthDiagnosesSubmitted = false;
   gthDiagnosesReady     = [];
@@ -1083,6 +1111,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ── Patient Intake ready button ──────────────────────────────────
   document.getElementById('btn-gth-intake-ready').addEventListener('click', () => {
+    if (gthIntakeTimer) { clearInterval(gthIntakeTimer); gthIntakeTimer = null; }
     playLaunch();
     const btn = document.getElementById('btn-gth-intake-ready');
     btn.disabled    = true;

@@ -473,7 +473,8 @@ function resetToLobby() {
   document.getElementById('gth-quit-overlay').style.display        = 'none';
   document.getElementById('gth-new-session-overlay').style.display = 'none';
   if (typeof gthCountdownTimer !== 'undefined' && gthCountdownTimer) { clearInterval(gthCountdownTimer); gthCountdownTimer = null; }
-  if (typeof gthPhase2Timer !== 'undefined' && gthPhase2Timer) { clearInterval(gthPhase2Timer); gthPhase2Timer = null; }
+  if (typeof gthPhase2Timer    !== 'undefined' && gthPhase2Timer)    { clearInterval(gthPhase2Timer);    gthPhase2Timer    = null; }
+  if (typeof gthIntakeTimer    !== 'undefined' && gthIntakeTimer)    { clearInterval(gthIntakeTimer);    gthIntakeTimer    = null; }
   if (typeof CanvasDraw !== 'undefined') {
     const gthWrapper = document.getElementById('gth-canvas-wrapper');
     if (gthWrapper) CanvasDraw.setTremor(gthWrapper, false);

@@ -945,12 +945,12 @@
 
   <!-- Great Minds Settings overlay -->
   <div id="gm-settings-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[80] flex items-end justify-center">
-    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl px-6 pt-6 pb-8 flex flex-col gap-5">
-
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
       <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
         <h2 class="text-xl font-bold text-stone-800">Frequency Configuration 📡</h2>
         <p class="text-stone-400 text-xs mt-1">Calibrate before you sync.</p>
       </div>
+      <div class="overflow-y-auto flex flex-col gap-5 px-5 py-5">
 
       <!-- 1. Frequency Tuner (Custom Words toggle + pickers) -->
       <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-4">
@@ -1046,6 +1046,7 @@
       <button id="btn-gm-settings-done" class="min-h-14 w-full rounded-2xl bg-purple-500 hover:bg-purple-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
         Done 
       </button>
+      </div>
 
     </div>
   </div>
@@ -2414,12 +2415,12 @@
 
   <!-- JEC Pantry Cabinet — settings overlay (Pattern 1) -->
   <div id="jec-settings-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[80] flex items-end justify-center">
-    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl px-6 pt-6 pb-8 flex flex-col gap-5">
-
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
       <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
-        <h2 class="text-xl font-bold text-stone-800">The Pantry Cabinet</h2>
+        <h2 class="text-xl font-bold text-stone-800">The Pantry Cabinet 🍳</h2>
         <p class="text-stone-400 text-xs mt-1">Prep before you cook.</p>
       </div>
+      <div class="overflow-y-auto flex flex-col gap-5 px-5 py-5">
 
       <!-- 1. Dishes (Rounds) -->
       <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
@@ -2517,6 +2518,7 @@
       <button id="btn-jec-settings-done" class="min-h-14 w-full rounded-2xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
         Done
       </button>
+      </div>
 
     </div>
   </div>
@@ -3003,11 +3005,12 @@
 
   <!-- YGI Settings overlay (Pattern 1) -->
   <div id="ygi-settings-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[80] flex items-end justify-center">
-    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl px-6 pt-6 pb-8 flex flex-col gap-5">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
       <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
         <h2 class="text-xl font-bold text-stone-800">House Rules 💡</h2>
         <p class="text-stone-400 text-xs mt-1">Set it before you take it.</p>
       </div>
+      <div class="overflow-y-auto flex flex-col gap-5 px-5 py-5">
 
       <!-- Inquiries (rounds) -->
       <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
@@ -3068,6 +3071,7 @@
       <button id="btn-ygi-settings-done" class="min-h-14 w-full rounded-2xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
         Done
       </button>
+      </div>
     </div>
   </div>
 
@@ -3582,11 +3586,12 @@
 
   <!-- SETTINGS OVERLAY (Pattern 1 — slide-up) -->
   <div id="lttp-settings-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[80] flex items-end justify-center">
-    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl px-6 pt-6 pb-8 flex flex-col gap-5">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
       <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
         <h2 class="text-xl font-bold text-stone-800">Night Out Settings 🗺️</h2>
         <p class="text-xs text-stone-400 mt-1">What's the plan tonight?</p>
       </div>
+      <div class="overflow-y-auto flex flex-col gap-5 px-5 py-5">
 
       <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
         <div>
@@ -3627,6 +3632,7 @@
       <button id="btn-lttp-settings-done" class="min-h-14 w-full rounded-2xl bg-red-500 hover:bg-red-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
         Done
       </button>
+      </div>
     </div>
   </div>
 
@@ -5862,6 +5868,7 @@
         <p class="text-xs font-semibold uppercase tracking-widest mb-2" style="color:#B1BCA0">Your Symptoms</p>
         <div id="gth-intake-disorders" class="flex flex-col gap-2"></div>
       </div>
+      <p class="text-stone-400 text-xs text-center">Auto-starting in <span id="gth-intake-countdown" class="font-semibold text-stone-600 tabular-nums">30</span>s — tap when ready</p>
       <button id="btn-gth-intake-ready" class="min-h-14 w-full rounded-2xl active:scale-95 text-white text-xl font-semibold transition-all duration-150" style="background-color:#B1BCA0">
         I'm Ready to Draw →
       </button>
@@ -5917,7 +5924,8 @@
     <div class="flex items-center justify-between px-4 pt-4 pb-2 flex-shrink-0">
       <div>
         <p id="gth-canvas-disorder-name" class="text-stone-800 font-bold text-base"></p>
-        <p id="gth-canvas-progress" class="text-stone-400 text-xs"></p>
+        <p id="gth-canvas-tip" class="text-stone-500 text-xs mt-0.5 leading-snug"></p>
+        <p id="gth-canvas-progress" class="text-stone-400 text-xs mt-0.5"></p>
       </div>
       <div class="flex items-center gap-2">
         <p id="gth-canvas-timer" class="text-stone-800 font-bold text-xl tabular-nums"></p>
@@ -6365,11 +6373,8 @@
       </div>
     </div>
     <div id="dyb-shake-dice-counts" class="flex flex-wrap gap-2 justify-center px-4 pb-2 flex-shrink-0 text-stone-400 text-sm"></div>
-    <div class="flex-1 overflow-y-auto flex flex-col min-h-0 items-center justify-center gap-4 px-5 py-4">
-      <div id="dyb-hand-dock-shake" class="flex gap-2 flex-wrap justify-center min-h-12"></div>
-      <div class="flex items-center gap-2">
-        <button id="btn-dyb-hand-veil" class="text-stone-300 text-xl active:scale-90 transition-transform duration-100">👁️</button>
-      </div>
+    <div class="flex-1 overflow-y-auto flex flex-col min-h-0 items-center justify-center px-5 py-4">
+      <div id="dyb-hand-dock-shake" class="flex gap-3 flex-wrap justify-center min-h-12"></div>
     </div>
     <div class="px-5 pb-8 pt-2 flex-shrink-0 flex flex-col gap-3">
       <button id="btn-dyb-roll" class="min-h-14 w-full rounded-2xl bg-stone-400 hover:bg-stone-500 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
@@ -6384,56 +6389,58 @@
 
   <!-- DYB TABLE -->
   <section id="screen-dyb-table" style="display:none"
-    class="flex flex-col w-full max-w-sm mx-auto h-screen overflow-hidden">
-    <div class="flex items-center justify-between px-4 pt-4 pb-2 flex-shrink-0">
-      <div class="flex items-center gap-2">
+    class="flex items-center justify-center w-full min-h-screen px-5 py-6 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-4">
+      <!-- header row -->
+      <div class="flex items-center justify-between">
         <button id="btn-dyb-how-to" class="text-stone-400 font-bold text-sm active:scale-90 transition-transform duration-100">[?]</button>
+        <div class="flex items-center gap-2">
+          <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+          <button class="btn-dyb-quit-open text-stone-400 font-bold text-xl active:scale-90 transition-transform duration-100">✕</button>
+        </div>
       </div>
-      <div class="flex items-center gap-2">
-        <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
-        <button class="btn-dyb-quit-open text-stone-400 font-bold text-xl active:scale-90 transition-transform duration-100">✕</button>
+      <!-- player pip row -->
+      <div id="dyb-pip-row" class="flex gap-3 justify-center flex-wrap"></div>
+      <!-- allegation card -->
+      <div class="bg-white rounded-2xl p-4 shadow-sm text-center">
+        <p class="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-1">The Allegation</p>
+        <p id="dyb-allegation-display" class="text-3xl font-bold text-stone-800">No bid yet.</p>
+        <p id="dyb-last-bidder-label" class="text-stone-400 text-sm mt-1"></p>
       </div>
-    </div>
-    <div id="dyb-pip-row" class="flex gap-3 justify-center px-4 pb-2 flex-shrink-0 flex-wrap"></div>
-    <div class="px-6 py-2 text-center flex-shrink-0">
-      <p class="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-1">The Allegation</p>
-      <p id="dyb-allegation-display" class="text-3xl font-bold text-stone-800">No bid yet.</p>
-      <p id="dyb-last-bidder-label" class="text-stone-400 text-sm mt-1"></p>
-    </div>
-    <div class="flex-1 overflow-y-auto flex flex-col min-h-0 px-5 py-2 gap-3">
+      <!-- turn label -->
       <p id="dyb-turn-label" class="text-center text-stone-500 text-sm font-semibold"></p>
+      <!-- bid picker controls -->
       <div id="dyb-bid-controls" class="flex flex-col gap-3" data-face="1" data-qty="1">
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
           <p class="text-xs font-semibold uppercase tracking-widest text-stone-400">Face Value</p>
           <div class="flex items-center justify-between gap-3">
-            <button id="btn-dyb-face-dec" class="w-10 h-10 rounded-xl bg-stone-100 hover:bg-stone-200 active:scale-90 text-stone-700 font-bold text-lg transition-transform duration-100">-</button>
+            <button id="btn-dyb-face-dec" class="w-12 h-12 rounded-xl bg-stone-100 hover:bg-stone-200 active:scale-90 text-stone-700 font-bold text-xl transition-transform duration-100">−</button>
             <span id="dyb-face-display" class="text-2xl font-bold text-stone-800 w-10 text-center">1</span>
-            <button id="btn-dyb-face-inc" class="w-10 h-10 rounded-xl bg-stone-100 hover:bg-stone-200 active:scale-90 text-stone-700 font-bold text-lg transition-transform duration-100">+</button>
+            <button id="btn-dyb-face-inc" class="w-12 h-12 rounded-xl bg-stone-100 hover:bg-stone-200 active:scale-90 text-stone-700 font-bold text-xl transition-transform duration-100">+</button>
           </div>
         </div>
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
           <p class="text-xs font-semibold uppercase tracking-widest text-stone-400">Quantity</p>
           <div class="flex items-center justify-between gap-3">
-            <button id="btn-dyb-qty-dec" class="w-10 h-10 rounded-xl bg-stone-100 hover:bg-stone-200 active:scale-90 text-stone-700 font-bold text-lg transition-transform duration-100">-</button>
+            <button id="btn-dyb-qty-dec" class="w-12 h-12 rounded-xl bg-stone-100 hover:bg-stone-200 active:scale-90 text-stone-700 font-bold text-xl transition-transform duration-100">−</button>
             <span id="dyb-qty-display" class="text-2xl font-bold text-stone-800 w-10 text-center">1</span>
-            <button id="btn-dyb-qty-inc" class="w-10 h-10 rounded-xl bg-stone-100 hover:bg-stone-200 active:scale-90 text-stone-700 font-bold text-lg transition-transform duration-100">+</button>
+            <button id="btn-dyb-qty-inc" class="w-12 h-12 rounded-xl bg-stone-100 hover:bg-stone-200 active:scale-90 text-stone-700 font-bold text-xl transition-transform duration-100">+</button>
           </div>
         </div>
       </div>
       <p id="dyb-waiting-label" class="text-center text-stone-400 text-sm" style="display:none"></p>
       <div id="dyb-allegation-history" class="flex flex-col gap-1"></div>
-    </div>
-    <div class="flex-shrink-0 bg-stone-50 border-t border-stone-200 px-5 py-3">
-      <div class="flex items-center justify-between mb-2">
-        <p class="text-xs font-semibold uppercase tracking-widest text-stone-400">Your Hand</p>
-        <button id="btn-dyb-table-veil" class="text-stone-300 text-lg active:scale-90 transition-transform duration-100">👁️</button>
+      <!-- hand section -->
+      <div class="bg-stone-50 rounded-2xl p-4">
+        <p class="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-3">Your Hand</p>
+        <div id="dyb-hand-dock-table" class="flex gap-3 flex-wrap min-h-12"></div>
       </div>
-      <div id="dyb-hand-dock-table" class="flex gap-2 flex-wrap mb-3 min-h-12"></div>
-      <div class="flex gap-2">
-        <button id="btn-dyb-call-bluff" class="flex-1 min-h-12 rounded-2xl bg-red-500 hover:bg-red-600 active:scale-95 text-white font-semibold transition-all duration-150 btn-mp-action" disabled>
+      <!-- action buttons -->
+      <div class="flex gap-3">
+        <button id="btn-dyb-call-bluff" class="flex-1 min-h-14 rounded-2xl bg-red-500 hover:bg-red-600 active:scale-95 text-white font-semibold transition-all duration-150 btn-mp-action" disabled>
           Call Bluff!
         </button>
-        <button id="btn-dyb-raise" class="flex-1 min-h-12 rounded-2xl bg-stone-400 hover:bg-stone-500 active:scale-95 text-white font-semibold transition-all duration-150 btn-mp-action" disabled>
+        <button id="btn-dyb-raise" class="flex-1 min-h-14 rounded-2xl bg-stone-400 hover:bg-stone-500 active:scale-95 text-white font-semibold transition-all duration-150 btn-mp-action" disabled>
           Raise the Stakes
         </button>
       </div>
@@ -7102,21 +7109,17 @@
     </div>
   </section>
 
-  <!-- NT HANDSHAKE (System Flavour Handshake — boot/sync) — TODO Step 5: boot animation -->
+  <!-- NT HANDSHAKE (System Flavour Handshake — boot/sync) -->
   <section id="screen-nt-handshake" style="display:none"
-    class="flex flex-col w-full max-w-sm mx-auto h-screen overflow-hidden">
-    <div class="flex items-center justify-end px-4 pt-4 pb-2 flex-shrink-0">
-      <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
-    </div>
-    <div class="flex-1 overflow-y-auto flex flex-col items-center justify-center min-h-0 px-6 text-center gap-4">
+    class="relative flex items-center justify-center w-full min-h-screen px-6 py-8 overflow-y-auto">
+    <button class="btn-open-sound absolute top-4 right-4 text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+    <div class="flex flex-col items-center w-full max-w-sm gap-6 text-center">
       <p class="text-5xl">⚡</p>
       <div class="font-mono text-emerald-400 text-sm leading-relaxed">
         <p>INITIALISING OS…</p>
         <p>CONNECTING TO CLUSTER…</p>
         <p>SECURING INGRESS</p>
       </div>
-    </div>
-    <div class="px-6 pb-8 pt-2 flex-shrink-0">
       <button id="btn-nt-handshake-continue" class="min-h-14 w-full rounded-2xl bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
         Continue ▶
       </button>
@@ -7510,21 +7513,23 @@
     </div>
   </section>
 
-  <!-- FRT TABLE — main play (sticky-footer; sub-states fill body/footer in Step 5) -->
+  <!-- FRT TABLE — main play (centred column; all sub-states flow inside one wrapper) -->
   <section id="screen-frt-table" style="display:none"
-    class="flex flex-col w-full max-w-sm mx-auto h-screen overflow-hidden">
-    <div class="flex items-center justify-between px-4 pt-4 pb-2 flex-shrink-0">
-      <p id="frt-table-round" class="text-stone-400 text-xs font-semibold uppercase tracking-widest">Fruit-Off 1</p>
-      <div class="flex items-center gap-2">
-        <button id="btn-frt-log" class="text-stone-400 text-base active:scale-90 transition-transform duration-100" title="Pass-off log">&#x1F4CB;</button>
-        <button id="btn-frt-how-to" class="text-stone-400 font-bold text-sm active:scale-90 transition-transform duration-100">[?]</button>
-        <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">&#x1F50A;</button>
-        <button class="btn-frt-quit-open text-stone-500 font-bold text-xl active:scale-90 transition-transform duration-100">&#x2715;</button>
+    class="flex items-center justify-center w-full min-h-screen px-4 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-3">
+      <div class="flex items-center justify-between">
+        <p id="frt-table-round" class="text-stone-400 text-xs font-semibold uppercase tracking-widest">Fruit-Off 1</p>
+        <div class="flex items-center gap-2">
+          <button id="btn-frt-log" class="text-stone-400 text-base active:scale-90 transition-transform duration-100" title="Pass-off log">&#x1F4CB;</button>
+          <button id="btn-frt-how-to" class="text-stone-400 font-bold text-sm active:scale-90 transition-transform duration-100">[?]</button>
+          <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">&#x1F50A;</button>
+          <button class="btn-frt-quit-open text-stone-500 font-bold text-xl active:scale-90 transition-transform duration-100">&#x2715;</button>
+        </div>
       </div>
+      <div id="frt-table-opponents"></div>
+      <div id="frt-table-body" class="flex flex-col gap-2"></div>
+      <div id="frt-table-footer"></div>
     </div>
-    <div id="frt-table-opponents" class="px-4 pb-2 flex-shrink-0"></div>
-    <div id="frt-table-body" class="flex-1 overflow-y-auto flex flex-col min-h-0 px-4"></div>
-    <div id="frt-table-footer" class="px-4 pb-6 pt-2 flex-shrink-0"></div>
   </section>
 
   <!-- FRT GAMEOVER -->
@@ -7589,12 +7594,21 @@
         </div>
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
           <div class="flex items-center justify-between">
+            <p class="text-stone-800 font-semibold">Pear-Off</p>
+            <button id="btn-frt-pearoff-toggle" class="game-toggle-off shrink-0">OFF</button>
+          </div>
+          <p class="text-stone-600 text-sm font-semibold">1v1 Duel Mode</p>
+          <p class="text-stone-400 text-sm">Locks to 2 players. 10 cards are burned before dealing — each player gets 27. Peek &amp; Pass is stripped out; every serve is a direct True or False. Fruit Loop threshold rises to 5 cards (from 4). Empty hand still loses.</p>
+          <p id="frt-pearoff-locked-note" style="display:none" class="text-amber-600 text-xs font-medium">Pear-Off is unavailable while Fruity Personalities is on.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <div class="flex items-center justify-between">
             <p class="text-stone-800 font-semibold">&#x2728; Sylly Mode</p>
             <button id="btn-frt-sylly-toggle" class="game-toggle-off shrink-0">OFF</button>
           </div>
           <p class="text-stone-600 text-sm font-semibold">Fruity Personalities</p>
           <p class="text-stone-400 text-sm">Every fruit variety gains a unique, rule-breaking quirk. Requires 3+ players.</p>
-          <p id="frt-sylly-locked-note" style="display:none" class="text-amber-600 text-xs font-medium">Fruity Personalities require 3+ players.</p>
+          <p id="frt-sylly-locked-note" style="display:none" class="text-amber-600 text-xs font-medium">Fruity Personalities is unavailable while Pear-Off is on.</p>
         </div>
         <button id="btn-frt-settings-done" class="min-h-14 w-full rounded-2xl bg-[#FFC700] hover:bg-[#E6B400] active:scale-95 text-white text-xl font-semibold transition-all duration-150">Done</button>
       </div>

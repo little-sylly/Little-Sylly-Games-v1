@@ -417,7 +417,7 @@ Before implementing, answer:
 
 **SW versioning:** `CACHE_NAME = 'sylly-games-vN'` — bump N on **every deploy**.
 
-**Current SW version:** v104
+**Current SW version:** v106
 
 **Precached assets (relative paths — no leading `/`; matches `sw.js` `PRECACHE_URLS[]`):**
 ```
@@ -425,7 +425,7 @@ Before implementing, answer:
 js/engine.js,
 js/games/li5.js, js/games/great-minds.js, js/games/secret-signals.js,
 js/games/jec.js, js/games/ygi.js, js/games/lttp.js, js/games/nat.js,
-js/games/dsd.js, js/games/bld.js, js/games/gth.js, js/games/dyb.js, js/games/pass.js, js/games/nt.js,
+js/games/dsd.js, js/games/bld.js, js/games/gth.js, js/games/dyb.js, js/games/pass.js, js/games/nt.js, js/games/frt.js,
 js/lib/cards.js,
 data/ygi-data.json, data/gth-data.json,
 js/secret-mode.js, js/app.js,

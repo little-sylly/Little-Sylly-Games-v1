@@ -53,11 +53,11 @@ Both are fire-and-forget writes to Firebase. All devices receive both. The Spiri
 - **Found during:** Phase 3 per-game audit (code trace).
 - **Lesson:** `Array.prototype.reverse()` mutates in place and returns the same array — a `[...arr].reverse()` followed by `arr.reverse()` is a double-reverse, not two independent copies.
 
-**BUG-07: Phantom die never reveals its face, even at showdown (June 2026 audit — logged, not yet fixed)**
-- **What happened:** A Devil's Luck phantom die shows "?" everywhere, including the showdown reveal — so the real count can't be audited, contradicting the how-to ("hide their face until the showdown").
-- **Root cause:** `dybDieHTML()`'s `phantom` case sets `display = '?'` unconditionally inside the `visible` branch; `dybRenderAllHandsOnShowdown()` calls it with `visible = true` but the phantom value is still hidden. `dybComputeRealCount()` counts the phantom at its real rolled value regardless.
-- **Fix:** When `visible` is true, render the phantom's real pip (`faces[val-1]`) instead of "?". Keep "?" only while the owner holds the die during play.
-- **Found during:** Phase 3 per-game audit (code trace).
+**BUG-07: Phantom die never reveals its face, even at showdown (RESOLVED — post-Phase-34 backlog testing)**
+- **What happened:** A Devil's Luck phantom die showed "?" everywhere, including the showdown reveal — so the real count couldn't be audited.
+- **Root cause:** `dybDieHTML()`'s `phantom` case set `display = '?'` unconditionally.
+- **Fix:** Redesigned `dybDieHTML` to CSS pip dice (`DYB_PIP_LAYOUTS`). The phantom case now uses `dieIdx >= 0` to distinguish owner's live hand (show "?" text label) from showdown render (`dieIdx = -1`, show real pip face). The `visible` param is removed from the distinction — always true now that the veil is gone.
+- **Found during:** Post-Phase-34 backlog testing.
 
 **BUG-08: Eliminated players pulled back to the Shake screen each round (June 2026 audit — logged, not yet fixed)**
 - **What happened:** After elimination, a player is navigated to `screen-dyb-shake` at the start of every subsequent shake and sits there (with a live "Shake 'Em Up" button) until `DYB_SPIRIT_SHAKE` arrives.
@@ -82,6 +82,28 @@ Eliminated devices must route to the Spirit Board, not the Shake screen. `DYB_SH
 
 **Mid-game overlays must be torn down in both reset paths**
 `dyb-slick-picker-overlay` (`fixed inset-0 z-[100]`) survived a mid-game quit as an invisible full-screen tap interceptor over the menu (BUG-05). Any overlay openable during play must be hidden in `resetToLobby()` AND in every "return to menu" handler — same lesson as GTH canvas wrapper and LTTP message interrupt.
+
+---
+
+**BUG-09 (Critical): `env.originIdx` is always `undefined` — all ACTION handlers broken (RESOLVED — post-Phase-34 backlog testing)**
+- **What happened:** The game was completely non-functional in MDLM. The opener's dice appeared but the bid controls were absent; rolls from clients were never recorded; the game would hang on the shake screen forever.
+- **Root cause:** Every ACTION handler in `dybHandleEnvelope` used `env.originIdx` to identify the submitting player. Firebase envelopes carry `env.originId` (a string UID, set by `engine-multiplayer.js` line 642). `env.originIdx` does not exist and evaluates to `undefined`. As a result: `dybShakeReadyCheck[undefined] = true` — the array slot was never filled, `.every(Boolean)` on `[false, false, ...]` never fired, and `dybBroadcastShakeActive()` was never called. Any allegation or call-bluff from a client was also silently dropped (`undefined !== dybCurrentBidderIdx` always true → early return).
+- **Fix:** Added `const originIdx = mpPlayerSlots.findIndex(p => p.uid === env.originId);` at the top of the ACTION block. All three handlers now use `originIdx`. Pattern from `nt.js` lines 2195/2207/2220/2242.
+- **Lesson:** Firebase envelopes never carry a player index — the engine only supplies `originId` (UID). Always resolve player index from `mpPlayerSlots.findIndex(p => p.uid === env.originId)`. Never assume `env.originIdx` exists.
+
+**BUG-10: First bid quantity initialised to 0 (RESOLVED — post-Phase-34 backlog testing)**
+- **What happened:** When no previous bid existed (`dybCurrentQty = 0`, `dybCurrentFace = 0`), the bid picker displayed quantity 0.
+- **Root cause:** `minQty = dybCurrentQty + (selectedFace === dybCurrentFace ? 1 : 0)`. With no prior bid: `minQty = 0 + (2 === 0 ? 1 : 0) = 0`. `selectedQty = max(0, 0) = 0`.
+- **Fix:** `const minQty = Math.max(1, dybCurrentQty + (...))` — floors the minimum at 1.
+
+**BUG-11: Veil toggle (👁️) not appropriate for MDLM (RESOLVED — post-Phase-34 backlog testing)**
+- **What happened:** Shake and table screens had a veil eye-icon toggle (btn-dyb-hand-veil / btn-dyb-table-veil) to hide the player's own dice. Not needed in MDLM (each player on their own device, no peeking risk) and was confusing UI clutter.
+- **Fix:** Removed `dybHandVisible` state, `dybRenderHandVeil()`, both veil button listeners, both `btn-dyb-hand-veil`/`btn-dyb-table-veil` HTML buttons. `dybRenderHandDock()` now always passes `visible = true`.
+
+**BUG-12: Table screen split h-screen body/footer layout (RESOLVED — post-Phase-34 backlog testing)**
+- **What happened:** Table screen used `h-screen overflow-hidden` with separate body (scrollable bid controls) and footer (hand + action buttons). Created visual disconnection — too much white space between sections, buttons not aligned with content.
+- **Root cause:** Split body/footer pattern instead of single-wrapper centered layout. Violates CLAUDE.md rule: "the entire stack must be siblings inside the single inner wrapper."
+- **Fix:** Changed section to `flex items-center justify-center w-full min-h-screen px-5 py-6 overflow-y-auto` with a single inner `div.flex.flex-col.max-w-sm.gap-4` containing all content as siblings. Removed the `border-t` footer separator. Action buttons upgraded to `min-h-14`.
 
 ---
 

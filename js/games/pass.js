@@ -604,6 +604,13 @@ function passSubmitPlay() {
         playerIdx: myIdx,
         cardIndices: [...passSelectedCardIdxs],
       }});
+      // Optimistically remove the played cards from our own hand so they leave the
+      // hand immediately. The client already validated identically to the host, and
+      // PASS_TURN_RESULT keeps our own hand authoritative (it sends counts for others
+      // only), so the trimmed hand stays consistent when the SYNC lands.
+      [...passSelectedCardIdxs].sort((a, b) => b - a).forEach(i => hand.splice(i, 1));
+      passSelectedCardIdxs = [];
+      passRenderHand();
       return;
     }
     // Host processes locally then broadcasts
@@ -707,6 +714,8 @@ function passProcessPlay(playerIdx, cardIndices, combo) {
       tableCleared:   false,
       handCounts:     passHands.map(h => h.length),
     }});
+    // Host is a participant but never receives its own SYNC (dedup guard) — re-render locally.
+    passShowTable();
   } else {
     passShowTable();
   }
@@ -784,6 +793,9 @@ function passProcessPass(playerIdx) {
         payload.talonRemaining = passDeck.length;
       }
       mpSendEnvelope({ type: 'SYNC', payload });
+      // Host never receives its own SYNC — advance + re-render its own view here.
+      passCurrentPlayerIdx = (playerIdx + 1) % passPlayerCount;
+      passShowTable();
     } else {
       passCurrentPlayerIdx = (playerIdx + 1) % passPlayerCount;
       passShowTable();
@@ -807,6 +819,8 @@ function passProcessPass(playerIdx) {
       tableCleared:  false,
       handCounts:    passHands.map(h => h.length),
     }});
+    // Host never receives its own SYNC — re-render its own view.
+    passShowTable();
   } else {
     passShowTable();
   }
@@ -849,6 +863,8 @@ function passProcessPassAfterAbyss(playerIdx) {
       tableCleared:  false,
       handCounts:    passHands.map(h => h.length),
     }});
+    // Host never receives its own SYNC — re-render its own view.
+    passShowTable();
   } else {
     passShowTable();
   }
@@ -935,6 +951,15 @@ function passBroadcastRoundEnd(winnerIdx, chipDeltas, badges, matchOver) {
     finalChips:      matchOver ? passChips : undefined,
     roundsWon:       matchOver ? passRoundsWon : undefined,
   }});
+  // Host never receives its own SYNC — navigate locally (mirrors the PASS_ROUND_END
+  // SYNC handler; passRoundsWon was already incremented in passResolveRound, so don't
+  // re-increment here). Without this the round winner (the player who emptied their
+  // hand) is stranded on the table screen.
+  if (matchOver) {
+    passShowGameover(winnerIdx, passChips, passRoundsWon);
+  } else {
+    passShowRoundWrap(winnerIdx, chipDeltas, badges, false);
+  }
 }
 
 function passCheckMatchOver() {

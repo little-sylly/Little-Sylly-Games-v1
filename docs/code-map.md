@@ -42,6 +42,7 @@
 | `#btn-bld` | Lobby → BLD menu screen (`bldShowMenu()`) |
 | `#btn-pass` | Lobby → PASS menu screen |
 | `#btn-nt` | Lobby → NT menu screen |
+| `#btn-frt` | Lobby → FRT menu screen |
 | `#lobby-icon` | Secret Mode tap counter (7 taps → controller screen) |
 | `.btn-open-sound` | Opens `#sound-overlay` (on every screen) |
 | `#global-mute-toggle` | Mute toggle inside sound overlay |
@@ -1089,6 +1090,112 @@ Each plugin reads `window.activeExpansionOverrides` at its settings-apply point 
 | `ntShowResults()` | Shows `screen-nt-results` with per-cycle SER leaderboard |
 | `ntHandleEnvelope(env)` | Routes all NT ACTION/SYNC packets; called from `engine-multiplayer.js` |
 | `ntResetState()` | Full state teardown (called from `resetToLobby()` in `engine.js`) |
+
+---
+
+## Fruit Salad (FRT)
+
+**JS file:** `js/games/frt.js`
+**Data:** Fixed `FRT_FRUITS` constant (8 fruits, no `words.json`) — exempt from word-difficulty setting per non-word-bank carve-out
+**Brand colour:** Banana `#FFC700` (fill) / white ink / leaf accent `#047857` (text-on-white, e.g. how-to step labels) | **Active pill:** `pill-active-[#FFC700]` (inline style — no Tailwind class; mirrors GTH sage pattern)
+
+### Screens
+| Screen ID | Purpose |
+|-----------|---------|
+| `screen-frt-menu` | Main hub — Start Serving!, How to Play, Settings, ← Back to the Box |
+| `screen-frt-deal` | Transient deal interstitial (polish placeholder — gameplay currently routes straight to table) |
+| `screen-frt-table` | Main gameplay table — all phases (serving compose, await/challenge, reveal, round-end) controlled by `frtTablePhase` |
+| `screen-frt-gameover` | Final results — Fruit Tokens + Silver Lining leaderboard |
+
+### Overlays
+| Overlay ID | Pattern | z-index | Purpose |
+|------------|---------|---------|---------|
+| `frt-settings-overlay` | Data (slide-up) | z-[80] | "Fruit Stock 🍉" — game settings |
+| `frt-how-to-overlay` | Data (slide-up) | z-[90] | How to Play |
+| `frt-quit-overlay` | Decision modal | z-[80] | "Put the fruits down?" — mid-game exit confirm |
+| `frt-new-game-overlay` | Decision modal | z-[90] | "New Fruit-Off?" — play-again confirmation |
+| `frt-tip-overlay` | Decision modal | z-[90] | Shared contextual tips — `frtShowTip(emoji, heading, lines[])` |
+| `frt-log-overlay` | Data (slide-up) | z-[90] | "Fruit Journal 📋" — pass-off log for current Fruit-Off |
+
+### Key State Variables
+| Variable | Type | Default | Purpose |
+|----------|------|---------|---------|
+| `frtFruitStock` | string | `'standard'` | Deck size: `'standard'`(64) \| `'swift'`(48) \| `'mega'`(80) |
+| `frtRounds` | int | `3` | Number of Fruit-Offs per session: 1 \| 3 \| 5 |
+| `frtTurnTimer` | int | `0` | Think Before You Fruit timer (s): 0(off) \| 15 \| 30 \| 60 |
+| `frtPearOff` | bool | `false` | Pear-Off 1v1 duel mode (locks lobby to 2; mutually exclusive with Sylly) |
+| `frtSyllyMode` | bool | `false` | Fruity Personalities — 8 Sylly abilities active |
+| `frtPlayerCount` | int | `0` | From lobby roster |
+| `frtPlayerNames` | string[] | `[]` | From lobby roster (`mpPlayerSlots[i].nickname`) |
+| `frtScores` | int[] | `[]` | Fruit Tokens per player (session total) |
+| `frtBluffWins` | int[] | `[]` | Correct True/False resolutions per player (Silver Lining tally) |
+| `frtRoundNum` | int | `0` | Current Fruit-Off number (1-indexed) |
+| `frtRoundLog` | object[] | `[]` | Pass-off log for current Fruit-Off: `{from, to, fruit, outcome}` |
+| `frtStashes` | int[][] | `[]` | `frtStashes[p]` = hidden hand (fruit IDs) |
+| `frtBowls` | int[][] | `[]` | `frtBowls[p]` = face-up penalty pile (fruit IDs) |
+| `frtActivePlayer` | int | `0` | Index of current server |
+| `frtAppleLockTarget` | int | `-1` | Angry Apple forced next-serve target (-1 = none) |
+| `frtPassFruit` | int | `-1` | TRUE fruit ID in flight (masked client-side — couch security) |
+| `frtPassDeclaration` | int | `-1` | Claimed fruit ID |
+| `frtPassFromIdx` | int | `-1` | Current server index |
+| `frtPassToIdx` | int | `-1` | Current receiver index |
+| `frtPassHandledBy` | int[] | `[]` | Players who handled this card this serve (Peek legality) |
+| `frtTablePhase` | string | `'serving'` | `'serving'` \| `'await'` \| `'reveal'` |
+| `frtPeeked` | bool | `false` | Receiver peeked the in-flight card (local device only) |
+| `frtPeekComposing` | bool | `false` | Receiver is choosing a new target/declaration to pass on |
+| `frtTurnTimerHandle` | int\|null | `null` | `setInterval` handle for turn countdown (Timer Lifecycle) |
+| `frtTurnEndTs` | int\|null | `null` | Wall-clock expiry for turn timer (GTH pattern) |
+
+### Key Functions
+| Function | Purpose |
+|----------|---------|
+| `frtStartSession()` | Post-lobby entry — host deals first Fruit-Off via `frtStartRoundHost(0)` |
+| `frtStartRoundHost(openerIdx)` | Host: deals hands, sets active player, arms timer, broadcasts `FRT_DEAL`, shows table |
+| `frtBuildDeck()` | Returns shuffled deck of 8×copies fruit IDs based on `frtFruitStock` |
+| `frtDealRound()` | Resets stashes/bowls, deals 6 cards per player from deck |
+| `frtShowTable()` | Shows `screen-frt-table`; calls `frtRenderTableBody()` |
+| `frtRenderTableBody()` | Branches on `frtTablePhase` → `frtRenderServing` / `frtRenderAwait` / `frtRenderReveal` |
+| `frtRenderOpponents()` | Renders opponent stash counts + bowl cards in the table header area |
+| `frtRenderServing()` | Compose UI — stash card picker → target picker → declaration picker → submit |
+| `frtSubmitServe()` | Host: `frtHostProcessServe`; Client: ACTION `FRT_SERVE` |
+| `frtHostProcessServe(fromIdx, toIdx, declaration, stashIdx)` | Remove card from server stash; Strawberry panic check (25%); `frtBroadcastServed()` |
+| `frtBroadcastServed()` | SYNC `FRT_SERVED` (fruit/declaration/from/to/handledBy/stashes/turnEndTs) |
+| `frtRenderAwait()` | Receiver UI — True/False buttons OR "Pass it on →" if `frtPeeked && canPeek` |
+| `frtLegalPeekTargets()` | Returns valid Peek pass targets (excludes self + `frtPassHandledBy`; returns `[]` in duel) |
+| `frtCall(verdict)` | Host: `frtHostResolveChallenge`; Client: ACTION `FRT_CALL` |
+| `frtSubmitPeekPass()` | Host: `frtHostProcessPeekPass`; Client: ACTION `FRT_PEEK_PASS` |
+| `frtHostProcessPeekPass(fromIdx, toIdx, declaration, swapStashIdx)` | Swap stash cards (Sus Pear), re-route card to new target, `frtBroadcastServed()` |
+| `frtHostResolveChallenge(callerIdx, verdict)` | Determine correct result, run `frtSyllyResolve`, set `frtRevealData`, `frtBroadcastReveal()` |
+| `frtComputeEliminated()` | Returns Set of player indices whose bowls ≥ `frtElimThreshold()` |
+| `frtSyllyResolve(fruit, loserIdx, callerIdx, callerCorrect)` | Dispatches Sylly ability by fruit category (A/B/C); isolated function per ability |
+| `frtBroadcastReveal()` | SYNC `FRT_REVEAL` |
+| `frtScheduleAfterReveal()` | Host-only: 2.6s timeout then `frtAfterRevealHost()` |
+| `frtAfterRevealHost()` | Check eliminated → `frtHostRoundEnd` or `frtBroadcastContinue` |
+| `frtBroadcastContinue()` | SYNC `FRT_CONTINUE` (activePlayer/stashes/bowls/appleLock/turnEndTs) |
+| `frtHostRoundEnd(eliminatedSet)` | Award Fruit Tokens, compute Silver Lining, SYNC `FRT_ROUND_END`; auto-advance to next round or gameover |
+| `frtRenderReveal()` | Reveal screen UI (card flip, True/False verdict, loser info) |
+| `frtRenderRoundEnd(eliminatedSet)` | Round-end summary state in `screen-frt-table` |
+| `frtRenderGameover(silver)` | Gameover screen — Fruit Token totals + Silver Lining leaderboard |
+| `frtRenderSpectator()` | Non-active player standby (during other's serve/await phases) |
+| `frtRenderCard(fruitId, opts)` | **Asset-pack render seam** — all card DOM goes through here; `opts.faceDown` for back-of-card |
+| `frtNorm2D(raw, n)` | Rebuilds a length-n 2D array with `[]` for Firebase-stripped empty arrays |
+| `frtHandleEnvelope(env)` | Routes all FRT ACTION/SYNC packets; called from `engine-multiplayer.js` |
+| `frtResetState()` | Full state teardown (called from `resetToLobby()` in `engine.js`) |
+
+### Per-Game ACTION/SYNC Packet Types
+| Packet | Type | Direction | Payload |
+|--------|------|-----------|---------|
+| `FRT_SERVE` | ACTION | Client → Host | `{fromIdx, toIdx, declaration, stashIdx}` |
+| `FRT_CALL` | ACTION | Client → Host | `{callerIdx, verdict}` |
+| `FRT_PEEK_PASS` | ACTION | Client → Host | `{fromIdx, toIdx, declaration, swapStashIdx}` |
+| `FRT_PLAYER_LEFT` | ACTION | Client → Host | `{}` — dissolves match |
+| `FRT_DEAL` | SYNC | Host → All | `{stashes, activePlayer, roundNum, playerCount, playerNames, syllyMode, fruitStock, scores, bluffWins, turnEndTs}` (bowls reconstructed empty client-side) |
+| `FRT_SERVED` | SYNC | Host → All | `{fruit, declaration, fromIdx, toIdx, handledBy, stashes, turnEndTs}` |
+| `FRT_REVEAL` | SYNC | Host → All | `{reveal, bowls, stashes, bluffWins}` |
+| `FRT_CONTINUE` | SYNC | Host → All | `{activePlayer, stashes, bowls, appleLock, turnEndTs}` |
+| `FRT_ROUND_END` | SYNC | Host → All | `{eliminatedSet, scores, bowls, roundNum, gameOver, opener}` |
+| `FRT_GAMEOVER` | SYNC | Host → All | `{scores, silver}` |
+| `FRT_MATCH_DISSOLVED` | SYNC | Host → All | `{}` |
 
 ### Per-Game ACTION/SYNC Packet Types
 | Packet | Type | Direction | Payload |

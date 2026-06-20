@@ -262,7 +262,7 @@ Both splash elements are legacy custom patterns (neither data slide-up nor decis
 | Final Wash-up | End-of-game leaderboard screen |
 | Chef's Cook Book 📖 | Per-round score log shown on the washup screen |
 | New Shift | "Play again" — resets round state, preserves names + settings |
-| The Pantry Cabinet | Settings overlay label |
+| The Pantry Cabinet 🍳 | Settings overlay label |
 
 ### Settings
 (Reality-synced June 2026 audit — Phase 29 scoring redesign defaults. Player count is NOT in the settings overlay — it lives on the roster screen as "Number of Chefs" pills, 3/4/5/6, default 4, `jecPlayerCount`.)
@@ -307,7 +307,7 @@ Both splash elements are legacy custom patterns (neither data slide-up nor decis
 ### Overlay Types
 | Overlay | Pattern |
 |---------|---------|
-| `jec-settings-overlay` | Data (slide-up) — "The Pantry Cabinet" |
+| `jec-settings-overlay` | Data (slide-up) — "The Pantry Cabinet 🍳" |
 | `jec-how-to-overlay` | Data (slide-up) |
 | `jec-quit-overlay` | Decision modal — z-[80] |
 | `jec-oversight-overlay` | Decision modal — merge confirm, z-[90] |
@@ -1389,3 +1389,138 @@ Player count (`ntPlayerCount`, default 4) is set from the lobby roster in MDLM (
 - **Mid-game quit dissolves the room:** same PASS contract — host `HOST_END_GAME` / client `NT_PLAYER_LEFT` → host `NT_MATCH_DISSOLVED` → all `resetToLobby()`
 - **Key ACTION packets:** `NT_PLACEMENT_SUBMIT` (player's final placements → host), `NT_PLAYER_LEFT` (client quit → host dissolves), `NT_ALLOCATION_UPDATE` (client captain live adjustment → host), `NT_ALLOCATION_LOCK` (client captain commits allocation → host)
 - **Key SYNC packets:** `NT_GENERATE` (all player nodes + initial inventory; DNP: includes `isDNP`, `allPlayerNodes`, `teamIdx`, `captainSlots`), `NT_HUDDLE_START` (DNP allocation phase — carries `allPlayerNodes`, `teamIdx`, `captainSlots`, `teamPools`, `cycle`), `NT_ALLOCATION_SYNC` (live captain adjustments — both teams' working state), `NT_BUILD_BEGIN` (both teams locked — carries `endTimestamp`; all devices start hardening simultaneously), `NT_PLAYBACK` (all timelines + latencies + SERs; DNP: includes `teamCycleSERs`), `NT_RESULTS` (per-cycle SER leaderboard), `NT_GAMEOVER` (final rankings), `NT_MATCH_DISSOLVED` (player left → all `resetToLobby()`)
+
+---
+
+## Game 14: Fruit Salad (FRT)
+**Theme:** Cockroach Poker-style bluffing. Players pass a face-down fruit card to someone and declare a fruit name — the receiver must call True or False, or peek and pass it on. Each fruit has a personality in Sylly Mode.
+**Tagline:** "This is definitely a banana. Trust me." 🍌
+**Key file:** `js/games/frt.js`
+**Brand colour:** Banana `#FFC700` (fill) + white ink on banana + leaf `#047857` (text-on-white) — three-token palette, same custom exception as GTH sage. | **Active pill:** `pill-active-frt` (custom CSS — no Tailwind class)
+**State flow:**
+```
+LOBBY (MDLM only) → FRT MENU → [onPassThePhone: host deals]
+→ [Session loop (frtRounds Fruit-Offs):
+    FRT TABLE (serving → await-response → challenge-reveal, all within screen-frt-table)
+    → [ROUND END: token award; next Fruit-Off or GAMEOVER]
+  ]
+→ FRT GAMEOVER
+```
+
+### Terminology
+| Term | Meaning |
+|------|---------|
+| Fruit Salad | The overall game |
+| Fruit-Off | One round (deck dealt fresh per Fruit-Off) |
+| The Stash | A player's hidden hand of fruit cards |
+| The Bowl | A player's face-up penalty pile (fruits they lost challenges with) |
+| Fruit Loop | Elimination trigger — accumulating 4 of the same fruit in your Bowl (5 in the Pear-Off duel) |
+| Serving | The act of passing a card face-down with a (possibly false) declaration |
+| Peek & Pass | Option to secretly look at the card before passing it on to someone else |
+| True / False | The challenge — True = you believe the declaration; False = you call bluff |
+| Fruit Tokens | Score currency — cumulative across all Fruit-Offs in a session |
+| Pristine | Surviving a Fruit-Off with 0 bowl cards — earns +10 tokens |
+| Survived | Surviving with ≥1 bowl card — earns +5 tokens |
+| Fruit Looped | Being eliminated (4th same-fruit; 5th in duel) — earns 0 tokens |
+| The Silver Lining | Session bonus (+2 tokens) for the player(s) with the most correct True/False calls across the whole session (`frtBluffWins`) |
+| Fruit Master | The "Silver Lining" badge displayed on the gameover screen |
+| Fruity Personalities | Sylly Mode name — each fruit gains a rule-breaking ability |
+| Think Before You Fruit | Turn timer setting name |
+| Pear of Fruits | 2-player auto-duel variant (engaged when lobby = 2 players) |
+| Pear-Off | Informal name for the duel (5-fruit elimination threshold; no Peek & Pass; Sylly mutually exclusive) |
+| Fruit Selection 🍌 | Settings overlay title |
+| Fruit Journal 📋 | Pass-off log overlay (one entry per resolved serving per Fruit-Off) |
+| Orange You Glad It's Over? 🍊 | Gameover screen heading |
+| More Fruit? | Play-again overlay heading |
+
+### Fruit Personalities (Sylly Mode — Fruity Personalities)
+| Fruit | Category | Personality |
+|-------|----------|-------------|
+| Smug Banana 🍌 | A | Wrong challenge on a Banana → challenger's penalty; server keeps initiative |
+| Sour Lemon 🍋 | A | Lose with a Lemon → your challenger flips one random card from their own stash |
+| Charming Peach 🍑 | A | A Peach lands in a Bowl → the challenger must flip one of their own Peaches (if held) |
+| Dramatic Grape 🍇 | A | A Grape flips → whoever holds the most hidden Grapes flips one (ties: all of them) |
+| Chill Watermelon 🍉 | B | A public counter shows how many Watermelons each player is hiding |
+| Sus Pear 🍐 | C | Peek and find a Pear → pocket it and swap any card from your stash before passing on |
+| Panicked Strawberry 🍓 | C | Serving a Strawberry has a 25% chance to panic — it auto-reveals into your own Bowl |
+| Angry Apple 🍎 | C | An Apple flips → the loser must serve the winner next, and that target cannot Peek |
+
+Category A = resolution-trigger (fires on a lost challenge); B = passive (always active); C = interaction (fires on serve/peek).
+
+### Settings
+(Reality-synced June 2026 — display names + internals from `index.html` / `frt.js`.)
+
+| Setting (display) | Options | Default | Internal variable | Internal values |
+|------------------|---------|---------|------------------|-----------------|
+| Fruit Stock | Standard (8 each) / Swift (6 each) / Mega Salad (10 each) | Standard | `frtFruitStock` | `'standard'` / `'swift'` / `'mega'` |
+| Fruit-Offs | 1 / 3 / 5 | 3 | `frtRounds` | int |
+| Think Before You Fruit (timer) | Off / 15s / 30s / 60s | Off | `frtTurnTimer` | `0` / `15` / `30` / `60` |
+| Pear-Off (1v1 duel) | OFF / ON | OFF | `frtPearOff` | bool — auto-engaged at 2 players; mutually exclusive with Sylly |
+| ✨ Sylly Mode (Fruity Personalities) | OFF / ON | OFF | `frtSyllyMode` | bool — disabled at 2 players |
+
+**Settings overlay title:** "Fruit Selection 🍌" · Subtitle: "Stock the salad before the first serve."
+
+**No difficulty setting** — FRT uses a fixed `FRT_FRUITS` constant, not `words.json`. Exempt per the non-word-bank carve-out (`logic-engine.md` PWA Guardian checklist). Fruit Stock is the velocity dial.
+
+### Scoring
+| Outcome | Who | Fruit Tokens |
+|---------|-----|-------------|
+| Fruit Looped (eliminated) | Eliminated player(s) | 0 |
+| Pristine (0 bowl cards) | Survivor with empty bowl | +10 |
+| Survived (≥1 bowl card) | All other survivors | +5 |
+| The Silver Lining (gameover bonus) | Player(s) with most correct True/False calls (`frtBluffWins`) | +2 (all tied for lead) |
+
+### Overlay Types
+| Overlay | Pattern | z-index | Notes |
+|---------|---------|---------|-------|
+| `frt-settings-overlay` | Data (slide-up) | z-[80] | "Fruit Selection 🍌" |
+| `frt-how-to-overlay` | Data (slide-up) | z-[90] | How to Play |
+| `frt-quit-overlay` | Decision modal | z-[80] | "Put the fruits down?" |
+| `frt-new-game-overlay` | Decision modal | z-[90] | "More Fruit?" — play-again confirm |
+| `frt-tip-overlay` | Decision modal | z-[90] | Shared contextual tips — `frtShowTip(emoji, heading, lines[])` |
+| `frt-log-overlay` | Data (slide-up) | z-[90] | "Fruit Journal 📋" — per-serving pass-off log for the current Fruit-Off |
+
+### Screens
+| Screen ID | Purpose |
+|-----------|---------|
+| `screen-frt-menu` | Main hub |
+| `screen-frt-deal` | Transient deal interstitial (static placeholder — polish deferred post-launch) |
+| `screen-frt-table` | Main play — all serving/await/reveal/round-end sub-states; spectator standby for non-active devices |
+| `screen-frt-gameover` | Final token totals + Silver Lining leaderboard |
+
+**No `screen-frt-setup`** — names come from the lobby roster. **No pass-gate** — MDLM, each player on own device.
+
+### Special Mechanics
+
+**`frtRenderCard(fruitId, opts)` — asset-pack render seam:**
+All card DOM goes through this single function. Game logic and packets deal only in `fruitId` (0–7 stable integers). `FRT_FRUITS[id].emoji` is the v1 "skin". A future image pack changes only this function's body — zero packet or logic churn.
+
+**Pear-Off (2-player duel):**
+`frtIsDuel()` = `frtPlayerCount === 2` — auto-engaged, no toggle. Differences: 5-card elimination threshold (not 4), no Peek & Pass (`frtLegalPeekTargets()` returns `[]` in duel), Sylly Mode is mutually exclusive.
+
+**`frtLegalPeekTargets()`:**
+Returns array of valid pass-to indices for Peek & Pass. Excludes self and any player already in `frtPassHandledBy` (avoids re-peeking an infinite loop). Returns `[]` in duel.
+
+**Firebase empty-array guard — `frtNorm2D(raw, n)`:**
+Firebase strips empty arrays and holes from 2D arrays. `frtNorm2D` rebuilds a length-n 2D array with `[]` for any missing entries. Applied to every received `stashes`/`bowls`. `FRT_DEAL` skips sending bowls entirely (reconstructed empty client-side). (Same trap as GTH/PASS.)
+
+**Single-pass Sylly resolver:**
+`frtSyllyResolve(fruit, loserIdx, callerIdx, callerCorrect)` dispatches on `fruit.cat` (A/B/C). Category-A abilities are isolated functions (`frtSyllyLemon`/`frtSyllyPeach`/`frtSyllyGrape`). The invariant: one primary flip fires its trigger once → forced secondary flips push to bowls but fire nothing → one `frtComputeEliminated()` call after. Cascades are structurally impossible.
+
+**Turn timer (GTH wall-clock pattern):**
+Host computes `endTimestamp` at each timed-phase entry and carries it in `FRT_DEAL`/`FRT_SERVED`/`FRT_CONTINUE`. All devices call `frtStartTurnTimer(endTimestamp)` from the received value — no drift. Host-only on expiry (`frtTimerExpire` → auto-serve truthful / auto-call TRUE).
+
+### Colour exception note (mirrors GTH sage)
+Banana `#FFC700` has no Tailwind utility class. Three custom CSS classes added to `css/styles.css`: `pill-active-frt` (bg `#FFC700`, text `white`), `game-toggle-on-frt` (bg `#FFC700`), `frt-range` (fill `#FFC700`). Primary CTA buttons and the how-to close button use inline `style="background:#FFC700"` + `text-white`. Text-on-white accent uses leaf `#047857` (Tailwind `text-emerald-700`). Settings button uses light-tint `bg-[#FFF4CC] hover:bg-[#FFE9A6] text-[#854d0e]`. Decision-modal border: `border border-[#FFE9A6]`.
+
+### Multiplayer (Phase 34)
+- **Mode:** MDLM only — `multiplayerOnly: true`, `supportedModes: ['mdlm']`, `recommendedMode: 'mdlm'`
+- **Min players:** 2 | **Max players:** 8
+- **rosterConfig:** `{ type: 'none' }` — automatic seat assignment (join order)
+- **Shared screens:** `screen-mp-mode`, `screen-mp-lobby-host`, `screen-mp-lobby-join` (parameterised)
+- **Post-lobby routing:** `onPassThePhone` (host) → `frtStartSession()` directly (deals + broadcasts `FRT_DEAL`); clients wait for `FRT_DEAL`
+- **Card privacy (couch security):** `frtPassFruit` (true card ID) is host-owned and masked client-side. `FRT_SERVED` broadcasts fruit to all devices, but each device only renders what its role permits. True card identity rides in the public room node — same accepted model as NAT/SS/BLD. Sufficient for a same-room couch game.
+- **Host-as-participant:** Host is also a player. Serve/call/peek-pass from the host device run `frtHostProcessServe`/`frtHostResolveChallenge`/`frtHostProcessPeekPass` directly — never via self-sent ACTION (dedup guard drops `originId === syllyDeviceUid`).
+- **Mid-game quit dissolves the room:** same PASS/NT contract — host `HOST_END_GAME` / client `FRT_PLAYER_LEFT` → host `FRT_MATCH_DISSOLVED` → all `resetToLobby()`
+- **Key ACTION packets:** `FRT_SERVE` (client server → host: card + declaration + target), `FRT_CALL` (client receiver → host: True/False verdict), `FRT_PEEK_PASS` (client peeking receiver → host: new target + declaration + optional Sus Pear swap), `FRT_PLAYER_LEFT` (client quit)
+- **Key SYNC packets:** `FRT_DEAL` (host → all: stashes + activePlayer + roundNum + session state + turnEndTs; bowls reconstructed empty client-side), `FRT_SERVED` (card in flight: fruit/declaration/from/to/handledBy/stashes/turnEndTs), `FRT_REVEAL` (resolution: reveal object + bowls + stashes + bluffWins), `FRT_CONTINUE` (next server: activePlayer/stashes/bowls/appleLock/turnEndTs), `FRT_ROUND_END` (token award: eliminatedSet/scores/bowls/roundNum/gameOver/opener), `FRT_GAMEOVER` (final: scores + silver), `FRT_MATCH_DISSOLVED` (player left → all resetToLobby)`

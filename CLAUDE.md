@@ -29,7 +29,7 @@
 │   │   ├── lttp.js                  # Plugin: Late to the Party (all state + logic)
 │   │   ├── nat.js                   # Plugin: Natural Selection (all state + logic)
 │   │   ├── dsd.js                   # Plugin: Deep-Sea Deploy (all state + logic)
-│   │   ├── bld.js                   # Plugin: Bailed (all state + logic — in active testing)
+│   │   ├── bld.js                   # Plugin: Bailed (all state + logic)
 │   │   ├── gth.js                   # Plugin: Group Therapy (all state + logic)
 │   │   ├── dyb.js                   # Plugin: Dicey Bluffs (all state + logic)
 │   │   ├── pass.js                  # Plugin: Pass (all state + logic)
@@ -212,12 +212,15 @@ Do not write the phase snapshot until Protocols A is clean. Do not write a line 
 ---
 
 ## 🎯 Current Focus
-**Phase:** Phase 34 — Fruit Salad (`frt`) IN IMPLEMENTATION (Cockroach Poker). Core loop + all 8 Sylly personalities + settings + turn timer complete & syntax-verified; pending live MDLM browser test + full reference-doc entries + optional deal-interstitial polish. Game 14.
-**Last shipped game:** Phase 33 — Net-Trace (NT), BFS packet-routing game, PTP + MDLM (`supportedModes: ['ptp','mdlm']`; PTP locked under DNP), 2–8 players (Standard) / 4–8 players (DNP Sylly Mode).
-**SW Version:** v105 (frt.js precached; engine-multiplayer.js changed)
-**Gold Master:** 13 games complete + multiplayer (LI5, Great Minds, Secret Signals, JEC, YGI, LTTP, Natural Selection, Deep-Sea Deploy, Bailed, Group Therapy, Dicey Bluffs, Pass, Net-Trace) — Fruit Salad (14th) in active build
-**Fruit Salad key refs:** `docs/new-game-tech-fruit-salad.md` (confirmed spec), `docs/implementation-notes/frt-implementation-notes.md`, `docs/new-ideas/new-game-fruit-salad.md` (Phase-1 brief). MDLM-only, couch security, host-authoritative sequential; 2-player "Pear of Fruits" duel auto-engages; banana `#FFD93B` + dark-ink `#022c22` + leaf `#047857` palette; all card rendering through `frtRenderCard` (asset-pack seam).
+**Phase:** Phase 34 — Fruit Salad (`frt`) COMPLETE (Cockroach Poker). Core loop + all 8 Sylly personalities + settings + turn timer + MDLM tested. Phase snapshot pending. Game 14.
+**Last shipped game:** Phase 34 — Fruit Salad (FRT), Cockroach Poker bluffing game, MDLM-only, 2–8 players; 2-player Pear-Off duel auto-engages.
+**Previous shipped game:** Phase 33 — Net-Trace (NT), BFS packet-routing game, PTP + MDLM.
+**SW Version:** v106 (backlog testing fixes: Pass host re-render/round-end navigation; NT handshake layout + DNP allocation visibility/maze previews)
+**Gold Master:** 14 games complete + multiplayer (LI5, Great Minds, Secret Signals, JEC, YGI, LTTP, Natural Selection, Deep-Sea Deploy, Bailed, Group Therapy, Dicey Bluffs, Pass, Net-Trace, Fruit Salad)
+**Fruit Salad key refs:** `docs/new-game-tech-fruit-salad.md` (confirmed spec), `docs/implementation-notes/frt-implementation-notes.md`, `docs/new-ideas/new-game-fruit-salad.md` (Phase-1 brief). MDLM-only, couch security, host-authoritative sequential; 2-player "Pear of Fruits" duel auto-engages; bright banana `#FFC700` + white ink + leaf `#047857` (text-on-white) palette; all card rendering through `frtRenderCard` (asset-pack seam).
 **Key references:**
+- `docs/implementation-notes/frt-implementation-notes.md` — FRT bug log + design decisions
+- `docs/new-game-tech-fruit-salad.md` — Phase 2 technical spec (FRT source of truth)
 - `docs/implementation-notes/nt-implementation-notes.md` — NT bug log + design decisions
 - `docs/new-game-tech-net-trace.md` — Phase 2 technical spec (NT source of truth)
 - `docs/archive/fable-audit-snapshot.md` — Studio Audit fix campaign snapshot (June 2026) — all 71 items + deferred items

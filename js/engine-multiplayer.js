@@ -339,8 +339,8 @@ const MP_GAME_CONFIGS = {
     supportedModes:  ['mdlm'],
     multiplayerOnly: true,
     rosterConfig:    { type: 'none' },
-    getMaxPlayers:   () => 8,
-    getMinPlayers:   () => (typeof frtSyllyMode !== 'undefined' && frtSyllyMode ? 3 : 2),
+    getMaxPlayers:   () => (typeof frtPearOff !== 'undefined' && frtPearOff) ? 2 : 8,
+    getMinPlayers:   () => (typeof frtPearOff !== 'undefined' && frtPearOff) ? 2 : 3,
   },
 };
 
@@ -704,7 +704,7 @@ function mpSerialiseSettings(abbr) {
       ntMatrixScale, ntIterations, ntHardeningWin, ntNativeHoneypots, ntSyllyMode,
     };
     case 'frt': return {
-      frtFruitStock, frtRounds, frtTurnTimer, frtSyllyMode,
+      frtFruitStock, frtRounds, frtTurnTimer, frtSyllyMode, frtPearOff,
     };
     case 'ss': return {
       ssSettingInterceptsToWin, ssDifficultyLevel, ssRerollLimitSetting,
@@ -860,6 +860,7 @@ function mpHandleEnvelope(env) {
           if (s.frtRounds     !== undefined) frtRounds     = s.frtRounds;
           if (s.frtTurnTimer  !== undefined) frtTurnTimer  = s.frtTurnTimer;
           if (s.frtSyllyMode  !== undefined) frtSyllyMode  = s.frtSyllyMode;
+          if (s.frtPearOff    !== undefined) frtPearOff    = s.frtPearOff;
           break;
         // Additional games added as Sprint 4 progresses
       }

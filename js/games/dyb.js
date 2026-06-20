@@ -45,7 +45,6 @@ let dybSpecialTypes = []; // string[] — die types for this device's roll
 let dybSlickFaces   = []; // int[] — assigned face per die (-1 = unassigned, Slick only)
 
 // ── UI state ─────────────────────────────────────────────────────────────────
-let dybHandVisible   = true;  // stealth veil toggle
 let dybSlickPickerDie = -1;   // which die index the slick picker is open for
 
 // ── Init ─────────────────────────────────────────────────────────────────────
@@ -130,10 +129,6 @@ document.addEventListener('DOMContentLoaded', () => {
     playDone();
     dybSubmitRoll();
   });
-  document.getElementById('btn-dyb-hand-veil').addEventListener('click', () => {
-    dybHandVisible = !dybHandVisible;
-    dybRenderHandVeil();
-  });
 
   // ── Table screen
   document.getElementById('btn-dyb-call-bluff').addEventListener('click', () => {
@@ -143,10 +138,6 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-dyb-raise').addEventListener('click', () => {
     playDone();
     dybSubmitAllegation();
-  });
-  document.getElementById('btn-dyb-table-veil').addEventListener('click', () => {
-    dybHandVisible = !dybHandVisible;
-    dybRenderHandVeil();
   });
   document.getElementById('btn-dyb-face-dec').addEventListener('click', () => {
     playPillClick();
@@ -353,7 +344,6 @@ function dybInitShake() {
   dybMyRoll = [];
   dybSpecialTypes = [];
   dybSlickFaces = [];
-  dybHandVisible = true;
   dybShakeReadyCheck = new Array(dybPlayerCount).fill(false);
 
   dybCurrentFace = 0;
@@ -526,7 +516,7 @@ function dybRenderBidPicker() {
   if (selectedFace < minFace) selectedFace = minFace;
   if (selectedFace > maxFace) selectedFace = maxFace;
 
-  const minQty = dybCurrentQty + (selectedFace === dybCurrentFace ? 1 : 0);
+  const minQty = Math.max(1, dybCurrentQty + (selectedFace === dybCurrentFace ? 1 : 0));
   const selectedQty = Math.max(dybCurrentQty, minQty);
 
   document.getElementById('dyb-face-display').textContent = selectedFace;
@@ -958,7 +948,7 @@ function dybRenderHandDock(containerId) {
   container.innerHTML = dybMyRoll.map((val, i) => {
     const type  = dybSpecialTypes[i] || 'standard';
     const slick = dybSlickFaces[i]   || -1;
-    return dybDieHTML(val, type, slick, dybHandVisible, i);
+    return dybDieHTML(val, type, slick, true, i); // always visible — MDLM, own device
   }).join('');
 
   // Slick die tap handlers
@@ -972,53 +962,72 @@ function dybRenderHandDock(containerId) {
   }
 }
 
+// Pip-position grid (1-indexed): 1=top-left  2=top-mid  3=top-right
+//                                  4=mid-left  5=center   6=mid-right
+//                                  7=bot-left  8=bot-mid  9=bot-right
+const DYB_PIP_LAYOUTS = { 1:[5], 2:[3,7], 3:[3,5,7], 4:[1,3,7,9], 5:[1,3,5,7,9], 6:[1,3,4,6,7,9] };
+
 function dybDieHTML(val, type, slickFace, visible, dieIdx = -1) {
-  const faces = ['⚀','⚁','⚂','⚃','⚄','⚅']; // die face symbols
-  let bg      = 'bg-stone-100 text-stone-700';
-  let display = visible ? (faces[val - 1] || val) : '●';
   const idAttr = dieIdx >= 0 ? ` id="dyb-die-${dieIdx}"` : '';
 
-  if (!visible) {
-    return `<div${idAttr} class="w-10 h-10 rounded-xl flex items-center justify-center text-xl font-bold ${bg} select-none">${display}</div>`;
-  }
+  let borderCls = 'border-stone-200';
+  let bgCls     = 'bg-stone-50';
+  let pipCls    = 'bg-stone-700';
+  let extraCls  = '';
+  let textLabel  = null;
+  let textStyle  = 'text-stone-500 font-bold text-base';
 
   switch (type) {
     case 'loaded':
-      bg = 'bg-amber-100 text-amber-700 ring-2 ring-amber-400';
+      borderCls = 'border-amber-400';
+      bgCls     = 'bg-amber-50';
+      pipCls    = 'bg-amber-600';
       break;
     case 'phantom':
+      borderCls = 'border-stone-300';
+      bgCls     = 'bg-stone-200';
       if (dieIdx >= 0) {
-        // Owner's live interactive hand — face stays hidden from the owner
-        display = '?';
-        bg = 'bg-stone-200 text-stone-400 italic';
+        // Owner's live hand — face stays hidden (shown as ?)
+        textLabel = '?';
+        textStyle = 'text-stone-400 font-bold text-lg italic';
       } else {
-        // Showdown / spirit reveal (dieIdx === -1) — show the real face so the count is auditable
-        display = faces[val - 1] || val;
-        bg = 'bg-stone-200 text-stone-700 italic';
+        // Showdown reveal — real face shown via pip grid
+        pipCls = 'bg-stone-500';
       }
       break;
     case 'slick':
-      display = slickFace > 0 ? (faces[slickFace - 1] || slickFace) : '—';
-      bg = 'bg-blue-50 text-blue-600 ring-2 ring-blue-300 cursor-pointer';
+      borderCls = 'border-blue-300';
+      bgCls     = 'bg-blue-50';
+      pipCls    = 'bg-blue-500';
+      extraCls  = 'cursor-pointer';
+      if (slickFace > 0) {
+        val = slickFace; // render assigned face
+      } else {
+        textLabel = '—';
+        textStyle = 'text-blue-400 font-bold text-lg';
+      }
       break;
     case 'cracked':
-      bg = 'bg-stone-50 text-stone-300 line-through';
+      pipCls   = 'bg-stone-300';
+      extraCls = 'opacity-40';
       break;
     case 'snake':
-      bg = 'bg-red-100 text-red-700';
+      borderCls = 'border-red-300';
+      bgCls     = 'bg-red-50';
+      pipCls    = 'bg-red-500';
       break;
   }
 
-  return `<div${idAttr} class="w-10 h-10 rounded-xl flex items-center justify-center text-xl font-bold ${bg} select-none">${display}</div>`;
-}
+  if (textLabel !== null) {
+    return `<div${idAttr} class="dyb-die ${borderCls} ${bgCls} ${extraCls} select-none" style="display:flex;align-items:center;justify-content:center;padding:0;"><span class="${textStyle}">${textLabel}</span></div>`;
+  }
 
-function dybRenderHandVeil() {
-  const icon = document.getElementById('btn-dyb-hand-veil');
-  const icon2 = document.getElementById('btn-dyb-table-veil');
-  if (icon)  icon.textContent  = dybHandVisible ? '👁️' : '👁️‍🗨️';
-  if (icon2) icon2.textContent = dybHandVisible ? '👁️' : '👁️‍🗨️';
-  dybRenderHandDock('dyb-hand-dock-shake');
-  dybRenderHandDock('dyb-hand-dock-table');
+  const pips = DYB_PIP_LAYOUTS[val] || [];
+  let cells = '';
+  for (let i = 1; i <= 9; i++) {
+    cells += pips.includes(i) ? `<span class="dyb-pip ${pipCls}"></span>` : '<span></span>';
+  }
+  return `<div${idAttr} class="dyb-die ${borderCls} ${bgCls} ${extraCls} select-none">${cells}</div>`;
 }
 
 function dybOpenSlickPicker(dieIdx) {
@@ -1077,19 +1086,23 @@ function dybHandleEnvelope(env) {
   if (type === 'ACTION') {
     if (window.syllyMultiplayerMode !== 'host') return;
 
+    // Resolve player index from Firebase UID — env.originId is the UID, never an index
+    const originIdx = mpPlayerSlots.findIndex(p => p.uid === env.originId);
+    if (originIdx === -1) return;
+
     switch (payload.action) {
       case 'DYB_ROLL_SUBMIT':
-        dybRecordRoll(env.originIdx, payload.roll, payload.specialTypes || [], payload.slickFaces || []);
+        dybRecordRoll(originIdx, payload.roll, payload.specialTypes || [], payload.slickFaces || []);
         break;
 
       case 'DYB_ALLEGATION':
-        if (env.originIdx !== dybCurrentBidderIdx) return; // stale action
-        dybProcessAllegation(env.originIdx, payload.face, payload.qty);
+        if (originIdx !== dybCurrentBidderIdx) return; // stale / wrong bidder
+        dybProcessAllegation(originIdx, payload.face, payload.qty);
         break;
 
       case 'DYB_CALL_BLUFF':
-        if (env.originIdx !== dybCurrentBidderIdx) return;
-        dybProcessCallBluff(env.originIdx);
+        if (originIdx !== dybCurrentBidderIdx) return;
+        dybProcessCallBluff(originIdx);
         break;
     }
     return;

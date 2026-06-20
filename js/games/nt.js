@@ -636,8 +636,9 @@ function ntRenderAllocationScreen(captainMode) {
 
   // Pool banner
   let html = `<div class="text-center mb-3">
-    <p class="text-emerald-400 text-xs font-semibold uppercase tracking-widest">${ntTeamNames[myTeam] || 'My Team'} — Allocation Hub</p>
-    <p class="text-stone-400 text-xs mt-1">Pool remaining: <span class="text-white font-mono">${remFW}</span> FW · <span class="text-white font-mono">${remHP}</span> HP</p>
+    <p class="text-emerald-600 text-xs font-semibold uppercase tracking-widest">${ntTeamNames[myTeam] || 'My Team'} — Allocation Hub</p>
+    <p class="text-stone-500 text-xs mt-1">Pool remaining: <span class="text-stone-800 font-mono font-bold">${remFW}</span> FW · <span class="text-stone-800 font-mono font-bold">${remHP}</span> HP</p>
+    <p class="text-stone-400 text-[10px] mt-1">Study each leg's maze, then distribute the cluster's inventory.</p>
   </div>`;
 
   // Per-leg rows
@@ -656,6 +657,7 @@ function ntRenderAllocationScreen(captainMode) {
         <p class="text-stone-300 text-xs font-semibold">${name}${isMe ? ' <span class="text-emerald-400">(you)</span>' : ''}</p>
         <p class="text-stone-500 text-[10px] font-mono">${legTag}</p>
       </div>
+      <canvas id="nt-alloc-maze-${legIdx}" class="w-24 h-24 mx-auto bg-slate-950 rounded"></canvas>
       <div class="flex items-center gap-3">
         <span class="text-stone-400 text-xs w-12">Firewall</span>
         <button ${isCap ? '' : 'disabled'} data-leg="${legIdx}" data-type="firewall" data-dir="-1" class="nt-alloc-adj ${adjBtnClass}">−</button>
@@ -672,6 +674,13 @@ function ntRenderAllocationScreen(captainMode) {
   });
 
   body.innerHTML = html;
+
+  // Draw each leg's relay-node maze so captains can see the terrain before allocating.
+  members.forEach((pIdx, legIdx) => {
+    const cv = document.getElementById('nt-alloc-maze-' + legIdx);
+    const node = ntTeamNodes[pIdx];
+    if (cv && node) ntDrawNodePreview(cv, node);
+  });
 
   // Wire adjuster taps (captain only)
   if (isCap) {
@@ -1823,6 +1832,36 @@ const NT_PING_SLOW    = '#f43f9d';  // slowed core = Red + Fuchsia (hot pink)
 
 // All playback rendering is in TILE units (px = canvas / n). A 2×2 block is one
 // (2·px) rect; the polyline + honeypot centres are continuous tile coords (× px directly).
+// Static maze preview of an arbitrary node (no placements/trail). Used on the DNP
+// allocation screen so captains can study each leg's terrain before distributing
+// inventory. Self-contained — never reads ntNode/ntMyPlacements.
+function ntDrawNodePreview(canvas, node) {
+  if (!canvas || !node || !node.n) return;
+  canvas.width = canvas.height = 120;
+  const ctx = canvas.getContext('2d');
+  const px  = canvas.width / node.n;
+  ctx.fillStyle = NT_COLOR_BASE;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  const fill = (ax, ay, color) => {
+    ctx.fillStyle = color;
+    ctx.fillRect(ax * px + 1, ay * px + 1, NT_BLOCK * px - 2, NT_BLOCK * px - 2);
+  };
+  (node.badSectors      || []).forEach(c => fill(c.ax, c.ay, NT_COLOR_BAD_SECTOR));
+  (node.nativeHoneypots || []).forEach(c => fill(c.ax, c.ay, NT_COLOR_NATIVE_HONEYPOT));
+  // Ingress (green) / egress (grey) port bars on the edges.
+  const t = Math.max(3, px * 0.4);
+  const bar = (port, color) => {
+    if (!port) return;
+    ctx.fillStyle = color;
+    if      (port.edge === 'top')    ctx.fillRect(port.idx * px, 0, px, t);
+    else if (port.edge === 'bottom') ctx.fillRect(port.idx * px, canvas.height - t, px, t);
+    else if (port.edge === 'left')   ctx.fillRect(0, port.idx * px, t, px);
+    else                             ctx.fillRect(canvas.width - t, port.idx * px, t, px);
+  };
+  bar(node.ingress, '#34d399');
+  bar(node.egress,  NT_COLOR_BAD_SECTOR);
+}
+
 function ntDrawMaze(ctx, px) {
   const n = ntNode.n;
   const fill = (ax, ay, color, glow) => {

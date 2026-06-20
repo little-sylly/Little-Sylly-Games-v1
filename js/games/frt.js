@@ -33,7 +33,8 @@ const FRT_DARK = '#44403c';   // dark chip (stack count badges)
 let frtFruitStock = 'standard'; // 'standard'(64) | 'swift'(48) | 'mega'(80)
 let frtRounds     = 3;          // Fruit-Offs: 1 | 3 | 5
 let frtTurnTimer  = 0;          // Think Before You Fruit: 0(off, default) | 15 | 30 | 60 (s)
-let frtSyllyMode  = false;      // Fruity Personalities — last setting; forced OFF at 2 players
+let frtPearOff    = false;      // Pear-Off 1v1 duel mode — locks lobby to exactly 2 players; mutually exclusive with Sylly
+let frtSyllyMode  = false;      // Fruity Personalities — last setting; forced OFF with Pear-Off
 
 // ── Roster (from lobby; persist across play-agains) ────────────────────────
 let frtPlayerCount = 0;
@@ -75,7 +76,7 @@ let frtTurnEndTs        = null;      // wall-clock expiry for the turn timer (GT
 function frtIsDuel()        { return frtPlayerCount === 2; }
 function frtElimThreshold() { return frtIsDuel() ? 5 : 4; }
 function frtFruitById(id)   { return FRT_FRUITS[id]; }
-function frtShort(id)       { return FRT_FRUITS[id].name.split(' ').pop(); } // "Smug Banana" → "Banana"
+function frtShort(id)       { const n = FRT_FRUITS[id].name.split(' ').pop(); return n === 'Watermelon' ? 'Melon' : n === 'Strawberry' ? 'Straw' : n; }
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Render seam — ALL fruit-card DOM goes through here (asset-pack ready, spec §10).
@@ -318,7 +319,7 @@ function frtRenderServing() {
   h.className = 'text-center text-sm font-semibold text-stone-700 my-2';
   h.textContent = frtAppleLockTarget >= 0
     ? 'Vendetta! You must serve ' + (frtPlayerNames[frtAppleLockTarget] || ('P'+(frtAppleLockTarget+1))) + '.'
-    : 'Your serve — pick a card, a target, and what you’ll call it.';
+    : 'Your serve — pick a card, a target, and what you\'ll call it.';
   body.appendChild(h);
 
   body.appendChild(frtMiniLabel('Your stash'));
@@ -346,10 +347,10 @@ function frtRenderServing() {
 
   body.appendChild(frtMiniLabel('Call it a…'));
   const dRow = document.createElement('div');
-  dRow.className = 'flex flex-wrap gap-1.5 justify-center';
+  dRow.className = 'grid grid-cols-4 gap-2';
   FRT_FRUITS.forEach(f => {
     const b = document.createElement('button');
-    b.className = 'pill' + (f.id === frtServeDeclaration ? ' pill-active-frt' : '');
+    b.className = 'pill w-full text-center' + (f.id === frtServeDeclaration ? ' pill-active-frt' : '');
     b.innerHTML = f.emoji + ' ' + frtShort(f.id);
     b.addEventListener('click', () => { frtServeDeclaration = f.id; frtRenderServing(); });
     dRow.appendChild(b);
@@ -440,7 +441,7 @@ function frtRenderAwait() {
     const f = FRT_FRUITS[frtPassFruit];
     const pm = document.createElement('p');
     pm.className = 'text-center text-sm text-stone-700 my-2';
-    pm.innerHTML = 'It’s really a <span class="font-bold">' + f.emoji + ' ' + f.name + '</span>. Pass it on…';
+    pm.innerHTML = 'It\'s really a <span class="font-bold">' + f.emoji + ' ' + f.name + '</span>. Pass it on…';
     body.appendChild(pm);
 
     // Sus Pear (Sylly, Category C) — pocket the Pear, send a swapped card instead
@@ -477,10 +478,10 @@ function frtRenderAwait() {
     body.appendChild(tRow);
     body.appendChild(frtMiniLabel('Call it a…'));
     const dRow = document.createElement('div');
-    dRow.className = 'flex flex-wrap gap-1.5 justify-center';
+    dRow.className = 'grid grid-cols-4 gap-2';
     FRT_FRUITS.forEach(fr => {
       const b = document.createElement('button');
-      b.className = 'pill' + (fr.id === frtServeDeclaration ? ' pill-active-frt' : '');
+      b.className = 'pill w-full text-center' + (fr.id === frtServeDeclaration ? ' pill-active-frt' : '');
       b.innerHTML = fr.emoji + ' ' + frtShort(fr.id);
       b.addEventListener('click', () => { frtServeDeclaration = fr.id; frtRenderAwait(); });
       dRow.appendChild(b);
@@ -499,24 +500,31 @@ function frtRenderAwait() {
 
   // Standard await
   const fromName = frtPlayerNames[frtPassFromIdx] || ('P' + (frtPassFromIdx + 1));
+  const awaitCenter = document.createElement('div');
+  awaitCenter.className = 'flex flex-col items-center gap-6 w-full py-2';
   const msg = document.createElement('p');
-  msg.className = 'text-center text-sm text-stone-700 my-3';
-  msg.innerHTML = '<span class="font-bold">' + fromName + '</span> served you a card and swears it’s a <span class="font-bold">' + decl.emoji + ' ' + decl.name + '</span>.';
-  body.appendChild(msg);
+  msg.className = 'text-center text-sm text-stone-700';
+  msg.innerHTML = '<span class="font-bold">' + fromName + '</span> served you a card and swears it\'s a <span class="font-bold">' + decl.emoji + ' ' + decl.name + '</span>.';
+  awaitCenter.appendChild(msg);
   const cw = document.createElement('div');
-  cw.className = 'flex justify-center my-3';
+  cw.className = 'flex justify-center';
   cw.appendChild(frtPeeked ? frtRenderCard(frtPassFruit) : frtRenderCard(0, { faceDown: true }));
-  body.appendChild(cw);
+  awaitCenter.appendChild(cw);
+  body.appendChild(awaitCenter);
   const wrap = document.createElement('div');
   wrap.className = 'flex flex-col gap-2';
-  wrap.appendChild(mk('Call TRUE — it’s a ' + decl.name, FRT_LEAF, () => frtCall('true')));
-  wrap.appendChild(mk('Call FALSE — they’re bluffing', '#dc2626', () => frtCall('false')));
   const appleLocked = frtAppleLockTarget >= 0 && frtPassToIdx === frtAppleLockTarget;
   const canPeek = frtLegalPeekTargets().length > 0 && !appleLocked;
-  if (!frtPeeked && canPeek) {
-    wrap.appendChild(mk('Peek & Pass', FRT_FILL, () => { frtPeeked = true; frtRenderAwait(); }));
-  } else if (frtPeeked && canPeek) {
+  if (frtPeeked && canPeek) {
+    // Peeked — True/False locked out; must pass the card on
     wrap.appendChild(mk('Pass it on →', FRT_FILL, () => { frtPeekComposing = true; frtServeTarget = -1; frtServeDeclaration = -1; frtRenderAwait(); }));
+  } else {
+    // Standard challenge (or peeked but no valid pass targets — fallback to call)
+    wrap.appendChild(mk('Call TRUE — it\'s a ' + decl.name, FRT_LEAF, () => frtCall('true')));
+    wrap.appendChild(mk('Call FALSE — they\'re bluffing', '#dc2626', () => frtCall('false')));
+    if (!frtPeeked && canPeek) {
+      wrap.appendChild(mk('Peek & Pass', FRT_FILL, () => { frtPeeked = true; frtRenderAwait(); }));
+    }
   }
   footer.appendChild(wrap);
 }
@@ -745,24 +753,27 @@ function frtRenderReveal() {
   if (footer) footer.innerHTML = '';
   body.innerHTML = '';
   const f = FRT_FRUITS[rd.fruit], decl = FRT_FRUITS[rd.declared];
+  const revealCenter = document.createElement('div');
+  revealCenter.className = 'flex flex-col items-center gap-6 w-full py-2';
   const cw = document.createElement('div');
-  cw.className = 'flex justify-center my-4';
+  cw.className = 'flex justify-center';
   const card = frtRenderCard(rd.fruit);
   card.style.transform = 'scale(1.15)';
   cw.appendChild(card);
-  body.appendChild(cw);
+  revealCenter.appendChild(cw);
   const callerName = frtPlayerNames[rd.callerIdx] || ('P' + (rd.callerIdx + 1));
   const loserName  = frtPlayerNames[rd.loserIdx]  || ('P' + (rd.loserIdx + 1));
   const t = document.createElement('div');
   t.className = 'text-center text-sm text-stone-700';
   if (rd.panic) {
-    t.innerHTML = '<span class="font-bold">' + loserName + '</span>’s Strawberry 🍓 panicked — it bolted face-up straight into their own bowl!';
+    t.innerHTML = '<span class="font-bold">' + loserName + '</span>\'s Strawberry 🍓 panicked — it bolted face-up straight into their own bowl!';
   } else {
     t.innerHTML = 'It was a <span class="font-bold">' + f.emoji + ' ' + f.name + '</span> — claimed ' + decl.emoji + ' ' + decl.name + '.<br>' +
       '<span class="font-bold">' + callerName + '</span> ' + (rd.callerCorrect ? 'was right!' : 'was wrong!') +
       ' <span class="font-bold">' + loserName + '</span> takes it.';
   }
-  body.appendChild(t);
+  revealCenter.appendChild(t);
+  body.appendChild(revealCenter);
 }
 
 // ── Round end + gameover ─────────────────────────────────────────────────────
@@ -796,19 +807,22 @@ function frtRenderRoundEnd(eliminatedSet) {
   const footer = document.getElementById('frt-table-footer');
   if (footer) footer.innerHTML = '';
   body.innerHTML = '';
+  const roundEndCenter = document.createElement('div');
+  roundEndCenter.className = 'flex flex-col items-center gap-4 w-full py-2';
   const h = document.createElement('p');
-  h.className = 'text-center text-lg font-bold text-stone-800 my-2';
+  h.className = 'text-center text-lg font-bold text-stone-800';
   h.textContent = eliminatedSet.map(p => frtPlayerNames[p] || ('P' + (p + 1))).join(' & ') + ' got Fruit Looped! 🍌';
-  body.appendChild(h);
+  roundEndCenter.appendChild(h);
   const list = document.createElement('div');
-  list.className = 'flex flex-col gap-1 mt-2';
+  list.className = 'flex flex-col gap-1 w-full';
   frtScores.map((s, i) => ({ i, s })).sort((a, b) => b.s - a.s).forEach(({ i, s }) => {
     const r = document.createElement('p');
     r.className = 'text-center text-sm text-stone-600';
     r.textContent = (frtPlayerNames[i] || ('P' + (i + 1))) + ': ' + s + ' 🍒';
     list.appendChild(r);
   });
-  body.appendChild(list);
+  roundEndCenter.appendChild(list);
+  body.appendChild(roundEndCenter);
 }
 
 function frtHostGameover() {
@@ -850,21 +864,23 @@ function frtRenderSpectator() {
   const footer = document.getElementById('frt-table-footer');
   if (footer) footer.innerHTML = '';
   body.innerHTML = '';
+  const center = document.createElement('div');
+  center.className = 'flex flex-col items-center gap-4 w-full py-2';
   const msg = document.createElement('p');
-  msg.className = 'text-center text-sm text-stone-500 my-5';
+  msg.className = 'text-center text-sm text-stone-500';
   if (frtTablePhase === 'serving') msg.textContent = (frtPlayerNames[frtActivePlayer] || ('P'+(frtActivePlayer+1))) + ' is choosing a card to serve…';
   else if (frtTablePhase === 'await') msg.textContent = (frtPlayerNames[frtPassToIdx] || ('P'+(frtPassToIdx+1))) + ' is deciding…';
   else msg.textContent = 'Watching the table…';
-  body.appendChild(msg);
-
+  center.appendChild(msg);
   const me = frtMyIdx();
   if (frtStashes[me] && frtStashes[me].length) {
-    body.appendChild(frtMiniLabel('Your stash'));
+    center.appendChild(frtMiniLabel('Your stash'));
     const row = document.createElement('div');
     row.className = 'flex flex-wrap gap-1.5 justify-center';
     frtRenderStashGrouped(row, frtStashes[me], {});
-    body.appendChild(row);
+    center.appendChild(row);
   }
+  body.appendChild(center);
 }
 
 // Overlays
@@ -875,6 +891,13 @@ function frtSyncSyllyToggle() {
   t.className = (frtSyllyMode ? 'game-toggle-on-frt' : 'game-toggle-off') + ' shrink-0';
 }
 
+function frtSyncPearOffToggle() {
+  const t = document.getElementById('btn-frt-pearoff-toggle');
+  if (!t) return;
+  t.textContent = frtPearOff ? 'ON' : 'OFF';
+  t.className = (frtPearOff ? 'game-toggle-on-frt' : 'game-toggle-off') + ' shrink-0';
+}
+
 function frtSyncSettingsUI() {
   const setGroup = (attr, val) => document.querySelectorAll('[' + attr + ']').forEach(b =>
     b.classList.toggle('pill-active-frt', b.getAttribute(attr) === String(val)));
@@ -882,6 +905,7 @@ function frtSyncSettingsUI() {
   setGroup('data-frt-rounds', frtRounds);
   setGroup('data-frt-timer', frtTurnTimer);
   frtSyncSyllyToggle();
+  frtSyncPearOffToggle();
 }
 
 function frtBindPills(attr, apply) {
@@ -903,14 +927,23 @@ function frtOpenSettings() {
     mega.disabled = !ok; mega.style.opacity = ok ? '' : '0.4';
     if (!ok && frtFruitStock === 'mega') frtFruitStock = 'standard';
   }
-  // Sylly Mode mutually exclusive with the 2-player duel
+  // Sylly Mode: locked when Pear-Off is on
   const syllyT = document.getElementById('btn-frt-sylly-toggle');
-  const note = document.getElementById('frt-sylly-locked-note');
+  const syllyNote = document.getElementById('frt-sylly-locked-note');
   if (syllyT) {
-    const locked = (n === 2);
+    const locked = frtPearOff;
     syllyT.disabled = locked; syllyT.style.opacity = locked ? '0.4' : '';
     if (locked) frtSyllyMode = false;
-    if (note) note.style.display = locked ? '' : 'none';
+    if (syllyNote) syllyNote.style.display = locked ? '' : 'none';
+  }
+  // Pear-Off: locked when Sylly Mode is on
+  const pearT = document.getElementById('btn-frt-pearoff-toggle');
+  const pearNote = document.getElementById('frt-pearoff-locked-note');
+  if (pearT) {
+    const locked = frtSyllyMode;
+    pearT.disabled = locked; pearT.style.opacity = locked ? '0.4' : '';
+    if (locked) frtPearOff = false;
+    if (pearNote) pearNote.style.display = locked ? '' : 'none';
   }
   frtSyncSettingsUI();
   const inner = document.querySelector('#frt-settings-overlay .overlay-data-inner');
@@ -928,81 +961,85 @@ function frtShowTip(emoji, heading, lines) { /* Step 5: inject + show frt-tip-ov
 // Multiplayer envelope handler  (Step 5 — ACTION/SYNC per spec §11)
 // ═══════════════════════════════════════════════════════════════════════════
 function frtHandleEnvelope(env) {
-  const a = env.payload.action, p = env.payload;
+  try {
+    const a = env.payload.action, p = env.payload;
 
-  // ── SYNC (host → all devices apply + render) ──
-  if (env.type === 'SYNC') {
-    if (a === 'FRT_DEAL') {
-      frtPlayerCount = p.playerCount; frtPlayerNames = p.playerNames || [];
-      frtStashes = frtNorm2D(p.stashes, frtPlayerCount);
-      frtBowls   = Array.from({ length: frtPlayerCount }, () => []); // always empty at deal (Firebase drops empties)
-      frtActivePlayer = p.activePlayer; frtRoundNum = p.roundNum;
-      frtSyllyMode = p.syllyMode; frtFruitStock = p.fruitStock;
-      frtScores = p.scores || []; frtBluffWins = p.bluffWins || [];
-      frtResetServeState(); frtAppleLockTarget = -1; frtTablePhase = 'serving'; frtRoundLog = [];
-      if (typeof mpUnlockSync === 'function') mpUnlockSync();
-      frtShowTable();
-      frtStartTurnTimer(p.turnEndTs);
+    // ── SYNC (host → all devices apply + render) ──
+    if (env.type === 'SYNC') {
+      if (a === 'FRT_DEAL') {
+        frtPlayerCount = p.playerCount; frtPlayerNames = p.playerNames || [];
+        frtStashes = frtNorm2D(p.stashes, frtPlayerCount);
+        frtBowls   = Array.from({ length: frtPlayerCount }, () => []); // always empty at deal (Firebase drops empties)
+        frtActivePlayer = p.activePlayer; frtRoundNum = p.roundNum;
+        frtSyllyMode = p.syllyMode; frtFruitStock = p.fruitStock;
+        frtScores = p.scores || []; frtBluffWins = p.bluffWins || [];
+        frtResetServeState(); frtAppleLockTarget = -1; frtTablePhase = 'serving'; frtRoundLog = [];
+        if (typeof mpUnlockSync === 'function') mpUnlockSync();
+        frtShowTable();
+        frtStartTurnTimer(p.turnEndTs);
+        return;
+      }
+      if (a === 'FRT_SERVED') {
+        frtStashes = frtNorm2D(p.stashes, frtPlayerCount);
+        frtPassFruit = p.fruit; frtPassDeclaration = p.declaration;
+        frtPassFromIdx = p.fromIdx; frtPassToIdx = p.toIdx;
+        frtPassHandledBy = p.handledBy || [];
+        frtPeeked = false; frtTablePhase = 'await';
+        if (typeof mpUnlockSync === 'function') mpUnlockSync();
+        frtShowTable();
+        frtStartTurnTimer(p.turnEndTs);
+        return;
+      }
+      if (a === 'FRT_REVEAL') {
+        frtBowls = frtNorm2D(p.bowls, frtPlayerCount);
+        frtStashes = frtNorm2D(p.stashes, frtPlayerCount);
+        if (p.bluffWins) frtBluffWins = p.bluffWins;
+        frtRevealData = p.reveal; frtLogReveal(p.reveal); frtTablePhase = 'reveal';
+        if (typeof mpUnlockSync === 'function') mpUnlockSync();
+        frtShowTable();
+        return;
+      }
+      if (a === 'FRT_CONTINUE') {
+        frtStashes = frtNorm2D(p.stashes, frtPlayerCount);
+        frtBowls = frtNorm2D(p.bowls, frtPlayerCount);
+        frtActivePlayer = p.activePlayer; frtResetServeState(); frtTablePhase = 'serving';
+        frtAppleLockTarget = (p.appleLock != null ? p.appleLock : -1); // vendetta lock for this serve
+        if (typeof mpUnlockSync === 'function') mpUnlockSync();
+        frtShowTable();
+        frtStartTurnTimer(p.turnEndTs);
+        return;
+      }
+      if (a === 'FRT_ROUND_END') {
+        frtBowls = frtNorm2D(p.bowls, frtPlayerCount);
+        if (p.scores) frtScores = p.scores;
+        frtRoundNum = p.roundNum;
+        if (typeof mpUnlockSync === 'function') mpUnlockSync();
+        frtRenderRoundEnd(p.eliminatedSet || []); // render only — host already awarded
+        return;
+      }
+      if (a === 'FRT_GAMEOVER') {
+        if (p.scores) frtScores = p.scores;
+        if (typeof mpUnlockSync === 'function') mpUnlockSync();
+        frtRenderGameover(p.silver || []);
+        return;
+      }
+      if (a === 'FRT_MATCH_DISSOLVED') { resetToLobby(); return; }
       return;
     }
-    if (a === 'FRT_SERVED') {
-      frtStashes = frtNorm2D(p.stashes, frtPlayerCount);
-      frtPassFruit = p.fruit; frtPassDeclaration = p.declaration;
-      frtPassFromIdx = p.fromIdx; frtPassToIdx = p.toIdx;
-      frtPassHandledBy = p.handledBy || [];
-      frtPeeked = false; frtTablePhase = 'await';
-      if (typeof mpUnlockSync === 'function') mpUnlockSync();
-      frtShowTable();
-      frtStartTurnTimer(p.turnEndTs);
-      return;
-    }
-    if (a === 'FRT_REVEAL') {
-      frtBowls = frtNorm2D(p.bowls, frtPlayerCount);
-      frtStashes = frtNorm2D(p.stashes, frtPlayerCount);
-      if (p.bluffWins) frtBluffWins = p.bluffWins;
-      frtRevealData = p.reveal; frtLogReveal(p.reveal); frtTablePhase = 'reveal';
-      if (typeof mpUnlockSync === 'function') mpUnlockSync();
-      frtShowTable();
-      return;
-    }
-    if (a === 'FRT_CONTINUE') {
-      frtStashes = frtNorm2D(p.stashes, frtPlayerCount);
-      frtBowls = frtNorm2D(p.bowls, frtPlayerCount);
-      frtActivePlayer = p.activePlayer; frtResetServeState(); frtTablePhase = 'serving';
-      frtAppleLockTarget = (p.appleLock != null ? p.appleLock : -1); // vendetta lock for this serve
-      if (typeof mpUnlockSync === 'function') mpUnlockSync();
-      frtShowTable();
-      frtStartTurnTimer(p.turnEndTs);
-      return;
-    }
-    if (a === 'FRT_ROUND_END') {
-      frtBowls = frtNorm2D(p.bowls, frtPlayerCount);
-      if (p.scores) frtScores = p.scores;
-      frtRoundNum = p.roundNum;
-      if (typeof mpUnlockSync === 'function') mpUnlockSync();
-      frtRenderRoundEnd(p.eliminatedSet || []); // render only — host already awarded
-      return;
-    }
-    if (a === 'FRT_GAMEOVER') {
-      if (p.scores) frtScores = p.scores;
-      if (typeof mpUnlockSync === 'function') mpUnlockSync();
-      frtRenderGameover(p.silver || []);
-      return;
-    }
-    if (a === 'FRT_MATCH_DISSOLVED') { resetToLobby(); return; }
-    return;
-  }
 
-  // ── ACTION (client → host; host resolves) ──
-  if (env.type === 'ACTION' && window.syllyMultiplayerMode === 'host') {
-    if (a === 'FRT_SERVE')     { frtHostProcessServe(p.fromIdx, p.toIdx, p.declaration, p.stashIdx); return; }
-    if (a === 'FRT_CALL')      { frtHostResolveChallenge(p.callerIdx, p.verdict); return; }
-    if (a === 'FRT_PEEK_PASS') { frtHostProcessPeekPass(p.fromIdx, p.toIdx, p.declaration, p.swapStashIdx); return; }
-    if (a === 'FRT_PLAYER_LEFT') {
-      mpSendEnvelope({ type: 'SYNC', payload: { action: 'FRT_MATCH_DISSOLVED' } });
-      resetToLobby(); // PASS contract — one leaver dissolves the match
-      return;
+    // ── ACTION (client → host; host resolves) ──
+    if (env.type === 'ACTION' && window.syllyMultiplayerMode === 'host') {
+      if (a === 'FRT_SERVE')     { frtHostProcessServe(p.fromIdx, p.toIdx, p.declaration, p.stashIdx); return; }
+      if (a === 'FRT_CALL')      { frtHostResolveChallenge(p.callerIdx, p.verdict); return; }
+      if (a === 'FRT_PEEK_PASS') { frtHostProcessPeekPass(p.fromIdx, p.toIdx, p.declaration, p.swapStashIdx); return; }
+      if (a === 'FRT_PLAYER_LEFT') {
+        mpSendEnvelope({ type: 'SYNC', payload: { action: 'FRT_MATCH_DISSOLVED' } });
+        resetToLobby(); // PASS contract — one leaver dissolves the match
+        return;
+      }
     }
+  } catch (e) {
+    console.error('[FRT] envelope handler crash:', e, env);
   }
 }
 
@@ -1060,7 +1097,42 @@ document.addEventListener('DOMContentLoaded', () => {
     if (syllyT.disabled) return;
     frtSyllyMode = !frtSyllyMode;
     frtSyllyMode ? playSyllyOn() : playSyllyOff();
+    // Mutual exclusion: Sylly on → lock Pear-Off
+    if (frtSyllyMode) {
+      frtPearOff = false;
+      const pearT = document.getElementById('btn-frt-pearoff-toggle');
+      const pearNote = document.getElementById('frt-pearoff-locked-note');
+      if (pearT) { pearT.disabled = true; pearT.style.opacity = '0.4'; }
+      if (pearNote) pearNote.style.display = '';
+      frtSyncPearOffToggle();
+    } else {
+      const pearT = document.getElementById('btn-frt-pearoff-toggle');
+      const pearNote = document.getElementById('frt-pearoff-locked-note');
+      if (pearT) { pearT.disabled = false; pearT.style.opacity = ''; }
+      if (pearNote) pearNote.style.display = 'none';
+    }
     frtSyncSyllyToggle();
+  });
+  const pearOffT = document.getElementById('btn-frt-pearoff-toggle');
+  if (pearOffT) pearOffT.addEventListener('click', () => {
+    if (pearOffT.disabled) return;
+    frtPearOff = !frtPearOff;
+    playPillClick();
+    // Mutual exclusion: Pear-Off on → lock Sylly
+    if (frtPearOff) {
+      frtSyllyMode = false;
+      const syllyToggle = document.getElementById('btn-frt-sylly-toggle');
+      const syllyNote = document.getElementById('frt-sylly-locked-note');
+      if (syllyToggle) { syllyToggle.disabled = true; syllyToggle.style.opacity = '0.4'; }
+      if (syllyNote) syllyNote.style.display = '';
+      frtSyncSyllyToggle();
+    } else {
+      const syllyToggle = document.getElementById('btn-frt-sylly-toggle');
+      const syllyNote = document.getElementById('frt-sylly-locked-note');
+      if (syllyToggle) { syllyToggle.disabled = false; syllyToggle.style.opacity = ''; }
+      if (syllyNote) syllyNote.style.display = 'none';
+    }
+    frtSyncPearOffToggle();
   });
 
   // ── Exit routing (Step 4) ──

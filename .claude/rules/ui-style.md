@@ -211,6 +211,12 @@ This is the **default pattern** for new screens. Use it for: setup, observation,
 - Inner `div.max-w-sm.w-full.gap-4` — constrains and spaces content; no separate header/body/footer wrappers needed
 - **NOT for:** screens that need a footer button visible at all times regardless of content (e.g. LTTP chat flow) — use the sticky-footer pattern below instead
 
+**Critical anti-pattern — split body/footer breaks centering:**
+If the render function splits content into a separate body div and a separate footer div, the two zones are no longer siblings inside the same centered column — the footer is detached at the bottom of the screen and the header is detached at the top. The *entire stack* (header + content + buttons) must be siblings inside the **single inner wrapper div**. Never split a screen's content and its buttons into separate body/footer regions unless you are deliberately using the sticky-footer pattern.
+
+**Critical anti-pattern — `my-auto` inside `overflow-y-auto` does NOT center vertically:**
+`my-auto` distributes free space above and below a flex child. Inside an `overflow-y: auto` container, the container's computed height equals its content height — there is no free space to distribute. The result: content pins to the top and `my-auto` is silently a no-op. This was the broken attempted workaround used in FRT before the fix. Use `flex items-center justify-center` on the **section** instead. *[Elevated from frt-implementation-notes BUG-02, June 2026.]*
+
 ---
 
 ## Gameplay Screen Layout — Header / Body / Footer (Sticky Footer)
@@ -242,6 +248,8 @@ Every gameplay screen must use `h-screen` (not `min-h-screen`) on the section so
   </div>
 </section>
 ```
+
+**⚠️ Use this pattern only when the button genuinely cannot be reached by scrolling.** If the action button can sit below the content as part of one natural column, use the Centered Content Layout instead. Overuse of `h-screen` is the most common layout error in the suite — it detaches the header at the top and footer at the bottom, with a gap around the body content. When in doubt, default to `min-h-screen`.
 
 **Rules:**
 - `h-screen overflow-hidden` on the `<section>` — `h-screen` sets the cap; `overflow-hidden` tells the browser the container cannot grow past it

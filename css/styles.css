@@ -820,7 +820,7 @@ body.flash-red   { background-color: #fecaca; }
   border: none;
   box-shadow: 0 1px 4px rgba(0,0,0,0.2);
 }
-/* ── Fruit Salad (banana #FFD93B + dark-ink #022c22 + leaf #047857) ── */
+/* ── Fruit Salad (bright banana #FFC700 + white ink + leaf #047857 on white) ── */
 .pill-active-frt {
   background-color: #FFC700;
   color: #ffffff;
@@ -910,6 +910,28 @@ body.flash-red   { background-color: #fecaca; }
   100% { background-color: #ffffff; }
 }
 .dyb-spirit-flash { animation: dybSpiritFlash 0.8s ease-out forwards; }
+
+/* ── DYB CSS Dice ────────────────────────────────────────────────────────── */
+.dyb-die {
+  width: 52px;
+  height: 52px;
+  border-radius: 10px;
+  border-width: 2px;
+  border-style: solid;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  padding: 7px;
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+.dyb-pip {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  margin: auto;
+  display: block;
+}
 
 /* ── Team score boxes — twin transition ──────────────────────────────────── */
 .team-box {
