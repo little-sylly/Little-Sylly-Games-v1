@@ -744,11 +744,12 @@ Each plugin reads `window.activeExpansionOverrides` at its settings-apply point 
 
 ---
 
-## Dicey Bluffs (DYB)
+## The Bluff (DYB)
+*(display name "The Bluff" since June 2026 — renamed from "Dicey Bluffs"; the `dyb` prefix and all code identifiers below are unchanged.)*
 
 **JS file:** `js/games/dyb.js`
 **Data:** none — word bank not used; dice outcomes are numeric
-**Brand colour:** `stone-700` / active pill: `pill-active-stone`
+**Brand colour:** `#1E4D8C` (ocean blue — custom; classes `dyb-cta`, `dyb-label`, `pill-active-dyb`, `game-toggle-on-dyb`)
 
 ### Screens
 | Screen ID | Purpose |
@@ -775,7 +776,7 @@ Each plugin reads `window.activeExpansionOverrides` at its settings-apply point 
 |----------|------|---------|---------|
 | `dybWildcardsStyle` | string | `'classic'` | Wildcards: `'strict'` / `'classic'` / `'volatile'` |
 | `dybStartingHand` | int | `5` | Starting dice per player (`3`/`4`/`5`) |
-| `dybSyllyMode` | bool | `false` | Devil's Luck — special dice (see flag below) |
+| `dybSyllyMode` | bool | `false` | The Tempest — special dice (see flag below) |
 | `dybSyllyIntensity` | int | `5` | % chance per die of becoming a special die (slider 5–10) |
 | `dybPlayerCount` | int | `0` | Total players in session |
 | `dybPlayerNames` | string[] | `[]` | Player display names |
@@ -791,10 +792,9 @@ Each plugin reads `window.activeExpansionOverrides` at its settings-apply point 
 | `dybAllegationHistory` | object[] | `[]` | `{playerIdx, face, count}` — full bid history for the round |
 | `dybChallengerIdx` | int | `-1` | Player who called bluff (`-1` = no challenge yet) |
 | `dybOnesStripped` | bool | `false` | Volatile Wilds — set true once 1s are bid directly this Shake |
-| `dybHandVisible` | bool | `true` | Stealth Veil eye-toggle state |
 | `dybSlickPickerDie` | int | `-1` | Die index currently in the Slick picker overlay |
 
-> [AUDIT FLAG — June 2026]: shipped Sylly Mode is **"Devil's Luck"** with multiple secret die types — `'loaded'` / `'phantom'` / `'slick'` / `'cracked'` strings exist in `dyb.js`, and the settings card copy says "loaded, phantom, cracked, slick, or a snake". `game-identities.md` still documents "Chaos Mode" with Slick dice only — reconcile during Phase 3 DYB audit.
+> [RESOLVED — June 2026]: shipped Sylly Mode is now **"The Tempest"** (renamed from "Devil's Luck" in the thematic sweep) with five secret die types — `'loaded'` / `'phantom'` / `'slick'` / `'cracked'` / `'snake'` strings in `dyb.js`. `game-identities.md` § The Bluff documents all five. The internal die-type strings are unchanged by the rename.
 
 ### Key Functions
 | Function | Purpose |
@@ -803,7 +803,7 @@ Each plugin reads `window.activeExpansionOverrides` at its settings-apply point 
 | `dybShowSeating()` | Renders lobby roster + shows `screen-dyb-seating` (host only) |
 | `dybStartGame()` | Assigns seats, builds dice arrays, broadcasts `DYB_GAME_START` |
 | `dybInitShake()` | Rolls dice for active players; routes each player to `screen-dyb-shake` |
-| `dybGenerateRoll()` | Rolls this device's dice; applies Devil's Luck special-type chance per die |
+| `dybGenerateRoll()` | Rolls this device's dice; applies The Tempest special-type chance per die |
 | `dybRenderTableScreen()` | Renders table view — pip row, bid history, allegation controls |
 | `dybComputeRealCount(face)` | Counts matching dice across all hands; branches on wildcards style + `dybOnesStripped` |
 | `dybOpenSlickPicker(dieIdx)` / `dybAssignSlickFace(face)` | Slick die face picker overlay (local only) |
@@ -1336,7 +1336,7 @@ Per-game: LI5 `ptp`★/`tlm` · GM `ptp`★/`mdlm` · SS `tlm`★/`mdlm`/`ptp` �
 | SS | `SS_VAULT_READY`, `SS_ENCODE_TRANSMIT`, `SS_INTERCEPT_SUBMIT`, `SS_DECODE_SUBMIT` | `SS_VAULT_DATA`, `SS_ENCRYPT_TURN`, `SS_BROADCAST`, `SS_START_INTERCEPT`, `SS_DECODE_GATE`, `SS_RESOLUTION`, `SS_ENDGAME` |
 | LTTP | `LTTP_MESSAGE_SEND` | `LTTP_GAME_START`, `LTTP_TURN_ADVANCE`, `LTTP_MESSAGE_INTERRUPT` |
 | GTH | `GTH_PATIENT_READY`, `GTH_DRAWING_SUBMIT`, `GTH_DIAGNOSES_SUBMIT` | `GTH_GAME_START`, `GTH_PHASE1_START` (all patients ready — start drawing), `GTH_PHASE2_START` (all queues — no timestamp), `GTH_PHASE2_BEGIN` (host gate opened — carries `endTimestamp`; all devices start timer + show first case), `GTH_PHASE2_END` (timer expired — host authoritative), `GTH_REVEAL_NEXT`, `GTH_REVEAL_FINISH`, `GTH_FINAL_SCORES` |
-| DYB | *(see Dicey Bluffs section packet table)* | *(see Dicey Bluffs section packet table)* |
+| DYB | *(see The Bluff section packet table)* | *(see The Bluff section packet table)* |
 | BLD | *(see Bailed section packet table)* | *(see Bailed section packet table)* |
 | PASS | *(see Pass section packet table)* | *(see Pass section packet table)* |
 | NT | *(see Net-Trace section packet table)* | *(see Net-Trace section packet table)* |

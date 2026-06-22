@@ -104,6 +104,9 @@ let ntRoutingTimer     = null;   // status-bar EXCEPTION flash revert handle
 let ntRafHandle      = null;     // requestAnimationFrame handle — TIMER, cancel everywhere
 let ntBuildTimer     = null;     // setInterval — Hardening countdown
 let ntHuddleTimer    = null;     // setInterval — DNP huddle countdown
+let ntResolveGuard   = null;     // setTimeout — host build-resolve fallback (prevents permanent hang)
+let ntCycleResolved  = false;    // host: true once this cycle's playback has been resolved (guards double-resolve)
+let ntCommitted      = false;    // true once this device has committed its build (guards double-commit)
 
 // ── Cycle / Node state (reset each cycle) ───────────────────────────────────
 // ntNode = { n,                                  // tile grid side (16/18/20)
@@ -122,6 +125,7 @@ let ntViewingUid     = null;     // which player's maze is loaded in the playbac
 let ntTeamNodes      = [];       // [playerIdx] = Node for that player's relay leg (all players, DNP)
 let ntAllocationPool = { firewall: 0, honeypot: 0 }; // my team's total pool (from team members' base inventories)
 let ntAllocations    = [];       // [legIdx within my team] = { firewall, honeypot } captain assignment
+let ntAllocSelectedLeg = 0;      // DNP allocation screen: which leg the control hub targets / expands
 let ntHuddlePhase    = 'editing';// 'editing' | 'locked'
 let ntTeamAllocLocked      = [false, false]; // host-only: which team's captain has locked
 let ntTeamWorkingAllocs    = [[], []];       // host-only: [team][legIdx] = {firewall,honeypot} current state
@@ -136,6 +140,10 @@ let ntPtpTurn            = 0;    // index of the player whose turn it currently 
 let ntPtpTimelines       = [];   // [playerIdx] = committed timeline (filled as each player finishes)
 let ntPtpPlacements      = [];   // [playerIdx] = placement array snapshot (for comparison render)
 let ntViewingPlayerIdx   = 0;    // which player's trace is loaded in the main playback canvas
+// ── DNP continuous-bridge playback (team-sequence journey) ───────────────────
+let ntPbTeam      = 0;           // which team's bridge is being watched (default = own team)
+let ntPbJourney   = null;        // { team, legs:[{pIdx,legIdx,name,node,timeline,placements,offset,latency}], total }
+let ntPbActiveLeg = -1;          // active leg index in the journey (drives slide + top bar)
 // ── Match-level PTP log (persists across cycles for System Logs) ─────────────
 let ntAllCycleTimelines  = [];   // [cycleIdx][playerIdx] = timeline
 let ntAllCyclePlacements = [];   // [cycleIdx][playerIdx] = placements snapshot
@@ -515,22 +523,32 @@ function ntStartMatch() {
   ntPlaybackTimeline = null;
   ntPtpTurn      = 0;
   ntPtpTimelines = [];
-  ntPtpPlacements = [];
+  ntPtpPlacements = Array.from({ length: ntPlayerCount }, () => []); // pre-sized — no holes
   ntGateReadyCheck   = new Array(ntPlayerCount).fill(false);
   ntCommitReadyCheck = new Array(ntPlayerCount).fill(false);
+  ntCycleResolved        = false;
   ntTeamAllocLocked      = [false, false];
   ntTeamWorkingAllocs    = [[], []];
   ntAllPlayerAllocations = [];
 
   if (ntIsDNP()) {
-    // Generate one node per player (DNP edge-pinned: ingress LEFT, egress RIGHT).
-    // First call sets ntInventory; subsequent calls keep it (keepInventory = true).
-    ntTeamNodes = [];
-    ntGenerateNode();                     // sets ntInventory + node for player 0
-    ntTeamNodes[0] = ntNode;
-    for (let i = 1; i < ntPlayerCount; i++) {
-      ntGenerateNode(true);               // geometry only, same ntInventory
-      ntTeamNodes[i] = ntNode;
+    // Generate ONE shared chain of legCount nodes (chained egress→ingress so the bridge
+    // connects edge-to-edge). BOTH teams harden the SAME geometry per leg position — leg k
+    // of team A and leg k of team B are the identical node — so the Cluster Ceiling
+    // comparison (max of the two teams' latencies per leg) is a fair like-for-like.
+    // First generated node sets ntInventory; the rest keep it (keepInventory = true).
+    ntTeamNodes = new Array(ntPlayerCount);
+    const teamMembersOf = team => ntTeamIdx.reduce((acc, t, i) => { if (t === team) acc.push(i); return acc; }, []);
+    const teamAMembers = teamMembersOf(0);
+    const teamBMembers = teamMembersOf(1);
+    const legCount = Math.max(teamAMembers.length, teamBMembers.length);
+    let invSet = false, prevEgressIdx = null;
+    for (let k = 0; k < legCount; k++) {
+      ntGenerateNode(invSet, prevEgressIdx);   // one shared node for leg position k
+      invSet = true;
+      if (teamAMembers[k] != null) ntTeamNodes[teamAMembers[k]] = ntNode;
+      if (teamBMembers[k] != null) ntTeamNodes[teamBMembers[k]] = ntNode;
+      prevEgressIdx = ntNode.egress.idx;
     }
     // Host's own leg
     ntNode = ntTeamNodes[mpMyPlayerIdx];
@@ -543,18 +561,15 @@ function ntStartMatch() {
       firewall: ntInventory.firewall * teamSizes[myTeam],
       honeypot: ntInventory.honeypot * teamSizes[myTeam],
     };
-    // Captain starts with all unassigned (legCount = members on my team)
-    const myTeamMembers = ntTeamIdx.reduce((acc, t, i) => { if (t === myTeam) acc.push(i); return acc; }, []);
-    ntAllocations = myTeamMembers.map(() => ({ firewall: 0, honeypot: 0 }));
-    // Initialise host-side working alloc arrays to zero for both teams
-    ntTeamWorkingAllocs = [0, 1].map(team => {
-      const members = ntTeamIdx.reduce((acc, t, i) => { if (t === team) acc.push(i); return acc; }, []);
-      return members.map(() => ({ firewall: 0, honeypot: 0 }));
-    });
+    // Default allocation = each leg gets its BASE inventory (sum = pool, transfer 0).
+    // Captains REBALANCE from this default; doing nothing plays every leg at base.
+    const baseAlloc = () => ({ firewall: ntInventory.firewall, honeypot: ntInventory.honeypot });
+    ntAllocations = teamMembersOf(myTeam).map(baseAlloc);
+    ntTeamWorkingAllocs = [0, 1].map(team => teamMembersOf(team).map(baseAlloc));
     ntHuddlePhase = 'editing';
 
     const allPoolsPayload = [0, 1].map(team => ({
-      members: ntTeamIdx.reduce((acc, t, i) => { if (t === team) acc.push(i); return acc; }, []),
+      members: teamMembersOf(team),
       pool: {
         firewall: ntInventory.firewall * teamSizes[team],
         honeypot: ntInventory.honeypot * teamSizes[team],
@@ -578,11 +593,8 @@ function ntStartMatch() {
         action: 'NT_HUDDLE_START',
         allPlayerNodes: ntTeamNodes.slice(),
         allPools: allPoolsPayload,
-        // initial zero allocations per team
-        allAllocations: [0, 1].map(team => {
-          const members = allPoolsPayload[team].members;
-          return members.map(() => ({ firewall: 0, honeypot: 0 }));
-        }),
+        // default base allocations per team (legs start at base, transfer pool 0)
+        allAllocations: [0, 1].map(team => teamMembersOf(team).map(baseAlloc)),
         huddleDuration: ntHardeningWin * teamSizes[0], // both teams same size (validated)
       },
     });
@@ -604,9 +616,12 @@ function ntShowHandshake() { showScreen('screen-nt-handshake'); }
 
 // ── DNP Allocation Hub ─────────────────────────────────────────────────────
 
-// Show the allocation screen and render the current team's leg list.
-// captainMode: true = show active [+]/[-] buttons; false = read-only display.
+// Show the allocation screen and render the current team's leg lanes.
+// captainMode: true = captain (tap-a-leg + control hub); false = read-only.
 function ntShowAllocationScreen(captainMode) {
+  const members = ntMyTeamMembers();
+  const ownLeg  = members.indexOf(mpMyPlayerIdx);   // expand the device's own leg by default
+  ntAllocSelectedLeg = ownLeg >= 0 ? ownLeg : 0;
   ntRenderAllocationScreen(captainMode);
   showScreen('screen-nt-allocation');
 }
@@ -617,91 +632,132 @@ function ntMyTeamMembers() {
   return ntTeamIdx.reduce((acc, t, i) => { if (t === myTeam) acc.push(i); return acc; }, []);
 }
 
+// Captain taps a lane → it becomes the control-hub target (and the hero map).
+function ntSelectAllocLeg(legIdx) {
+  if (legIdx === ntAllocSelectedLeg) return;
+  ntAllocSelectedLeg = legIdx;
+  playPillClick();
+  ntRenderAllocationScreen(true);
+}
+
+// Map-hero allocation screen (fixed viewport, no scroll): directive + a tight row of
+// the non-selected legs as mini-cards, then the selected leg as a centre-stage hero
+// map that fills the remaining space. Asset numbers live in the mini-cards + control
+// hub only (no redundant bars). The control hub + Lock sit in the fixed footer.
 function ntRenderAllocationScreen(captainMode) {
   const body    = document.getElementById('nt-alloc-body');
   const warning = document.getElementById('nt-alloc-warning');
   const lockBtn = document.getElementById('btn-nt-alloc-lock');
   if (!body) return;
 
-  const myTeam   = ntTeamIdx[mpMyPlayerIdx];
-  const myCapIdx = ntCaptainSlots[myTeam];
-  const isCap    = captainMode === true;
-  const members  = ntMyTeamMembers(); // global player indices
+  const isCap   = captainMode === true;
+  const members = ntMyTeamMembers(); // global player indices, in leg order
+  if (ntAllocSelectedLeg >= members.length || ntAllocSelectedLeg < 0) ntAllocSelectedLeg = 0;
 
-  // Pool remaining
   const usedFW = ntAllocations.reduce((s, a) => s + (a.firewall || 0), 0);
   const usedHP = ntAllocations.reduce((s, a) => s + (a.honeypot || 0), 0);
-  const remFW  = ntAllocationPool.firewall  - usedFW;
-  const remHP  = ntAllocationPool.honeypot  - usedHP;
+  const bankFW = ntAllocationPool.firewall - usedFW;
+  const bankHP = ntAllocationPool.honeypot - usedHP;
 
-  // Pool banner
-  let html = `<div class="text-center mb-3">
-    <p class="text-emerald-600 text-xs font-semibold uppercase tracking-widest">${ntTeamNames[myTeam] || 'My Team'} — Allocation Hub</p>
-    <p class="text-stone-500 text-xs mt-1">Pool remaining: <span class="text-stone-800 font-mono font-bold">${remFW}</span> FW · <span class="text-stone-800 font-mono font-bold">${remHP}</span> HP</p>
-    <p class="text-stone-400 text-[10px] mt-1">Study each leg's maze, then distribute the cluster's inventory.</p>
+  // Console directive (single terminal voice).
+  let html = `<p class="text-emerald-400 font-mono text-[11px] leading-snug shrink-0 mb-2">&gt; ALERT: CLUSTER I/O IMBALANCE.<br>RECONFIGURE CORRIDOR ROUTING MATRICES ${isCap ? '— TAP A LEG, REBALANCE FROM THE BANK.' : '— CAPTAIN IS BALANCING.'}</p>`;
+
+  // Mini-cards row — the non-selected legs, compact + horizontal (tap to promote to hero).
+  const others = members.map((p, i) => i).filter(i => i !== ntAllocSelectedLeg);
+  if (others.length) {
+    html += `<div class="flex gap-2 overflow-x-auto shrink-0 mb-2 pb-1">`;
+    others.forEach(legIdx => {
+      const pIdx = members[legIdx];
+      const name = ntPlayerNames[pIdx] || ('ADMIN-' + (pIdx + 1));
+      const isMe = pIdx === mpMyPlayerIdx;
+      const a    = ntAllocations[legIdx] || { firewall: 0, honeypot: 0 };
+      html += `<div data-leg="${legIdx}" class="nt-alloc-lane ${isCap ? 'cursor-pointer' : ''} bg-slate-900 rounded-xl p-2 ring-1 ring-slate-700 flex items-center gap-2 shrink-0">
+        <canvas id="nt-lane-maze-${legIdx}" class="bg-slate-950 rounded shrink-0" style="image-rendering:pixelated;width:44px;height:44px;"></canvas>
+        <div class="min-w-0">
+          <p class="font-mono text-[10px] ${isMe ? 'text-emerald-400' : 'text-stone-300'} font-semibold whitespace-nowrap">LEG_${String(legIdx + 1).padStart(2, '0')} · ${name}${isMe ? ' [YOU]' : ''}</p>
+          <p class="font-mono text-[10px] text-stone-500 whitespace-nowrap">FW ${a.firewall} · HP ${a.honeypot}</p>
+        </div>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+
+  // Hero — the selected leg as a centre-stage map filling the remaining space.
+  const selP    = members[ntAllocSelectedLeg];
+  const selName = ntPlayerNames[selP] || ('ADMIN-' + (selP + 1));
+  const selIsMe = selP === mpMyPlayerIdx;
+  html += `<div data-leg="${ntAllocSelectedLeg}" class="nt-alloc-lane ${isCap ? 'cursor-pointer' : ''} flex flex-col flex-1 min-h-0 bg-slate-900 rounded-2xl ring-2 ring-emerald-400 p-3">
+    <p class="font-mono text-[11px] ${selIsMe ? 'text-emerald-400' : 'text-stone-300'} font-semibold shrink-0 mb-2">▸ LEG_${String(ntAllocSelectedLeg + 1).padStart(2, '0')} · ${selName}${selIsMe ? ' [YOU]' : ''}</p>
+    <div class="flex-1 min-h-0 flex items-center justify-center">
+      <canvas id="nt-lane-maze-${ntAllocSelectedLeg}" class="bg-slate-950 rounded max-w-full max-h-full" style="image-rendering:pixelated;"></canvas>
+    </div>
   </div>`;
-
-  // Per-leg rows
-  members.forEach((pIdx, legIdx) => {
-    const name  = ntPlayerNames[pIdx] || ('ADMIN-' + (pIdx + 1));
-    const legTag = 'LEG-' + String(legIdx + 1).padStart(2, '0');
-    const isMe  = pIdx === mpMyPlayerIdx;
-    const alloc = ntAllocations[legIdx] || { firewall: 0, honeypot: 0 };
-
-    const adjBtnClass = isCap
-      ? 'w-7 h-7 rounded-lg bg-stone-700 hover:bg-stone-600 text-white text-sm font-bold flex items-center justify-center active:scale-90 transition-transform'
-      : 'w-7 h-7 rounded-lg bg-stone-800 text-stone-600 text-sm font-bold flex items-center justify-center cursor-not-allowed';
-
-    html += `<div class="bg-stone-800/60 rounded-2xl p-3 mb-2 flex flex-col gap-2">
-      <div class="flex items-center justify-between">
-        <p class="text-stone-300 text-xs font-semibold">${name}${isMe ? ' <span class="text-emerald-400">(you)</span>' : ''}</p>
-        <p class="text-stone-500 text-[10px] font-mono">${legTag}</p>
-      </div>
-      <canvas id="nt-alloc-maze-${legIdx}" class="w-24 h-24 mx-auto bg-slate-950 rounded"></canvas>
-      <div class="flex items-center gap-3">
-        <span class="text-stone-400 text-xs w-12">Firewall</span>
-        <button ${isCap ? '' : 'disabled'} data-leg="${legIdx}" data-type="firewall" data-dir="-1" class="nt-alloc-adj ${adjBtnClass}">−</button>
-        <span class="text-white font-mono text-sm w-4 text-center" id="nt-alloc-fw-${legIdx}">${alloc.firewall}</span>
-        <button ${isCap ? '' : 'disabled'} data-leg="${legIdx}" data-type="firewall" data-dir="1" class="nt-alloc-adj ${adjBtnClass}">+</button>
-      </div>
-      <div class="flex items-center gap-3">
-        <span class="text-stone-400 text-xs w-12">Honeypot</span>
-        <button ${isCap ? '' : 'disabled'} data-leg="${legIdx}" data-type="honeypot" data-dir="-1" class="nt-alloc-adj ${adjBtnClass}">−</button>
-        <span class="text-white font-mono text-sm w-4 text-center" id="nt-alloc-hp-${legIdx}">${alloc.honeypot}</span>
-        <button ${isCap ? '' : 'disabled'} data-leg="${legIdx}" data-type="honeypot" data-dir="1" class="nt-alloc-adj ${adjBtnClass}">+</button>
-      </div>
-    </div>`;
-  });
 
   body.innerHTML = html;
 
-  // Draw each leg's relay-node maze so captains can see the terrain before allocating.
+  // Draw each leg's maze (no seam walls — lanes are not edge-to-edge here).
   members.forEach((pIdx, legIdx) => {
-    const cv = document.getElementById('nt-alloc-maze-' + legIdx);
-    const node = ntTeamNodes[pIdx];
-    if (cv && node) ntDrawNodePreview(cv, node);
+    const cv = document.getElementById('nt-lane-maze-' + legIdx);
+    if (cv && ntTeamNodes[pIdx]) ntDrawLegCanvas(cv, ntTeamNodes[pIdx], legIdx === ntAllocSelectedLeg ? 16 : 4, {});
   });
 
-  // Wire adjuster taps (captain only)
+  // Lane tap → select (captain only)
   if (isCap) {
-    body.querySelectorAll('.nt-alloc-adj').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const legIdx = parseInt(btn.dataset.leg, 10);
-        const type   = btn.dataset.type;
-        const dir    = parseInt(btn.dataset.dir, 10);
-        ntAdjustAllocation(legIdx, type, dir);
-      });
+    body.querySelectorAll('.nt-alloc-lane').forEach(lane => {
+      lane.addEventListener('click', () => ntSelectAllocLeg(parseInt(lane.dataset.leg, 10)));
     });
   }
 
-  // Show/hide warning + lock button visibility
-  const hasUnallocated = remFW > 0 || remHP > 0;
-  if (warning) warning.style.display = hasUnallocated ? 'block' : 'none';
+  // Morphing control hub (captain only)
+  ntRenderAllocControlHub(isCap, members, bankFW, bankHP);
+
+  // Warning (captain only — unassigned bank) + lock button visibility
+  const hasUnallocated = bankFW > 0 || bankHP > 0;
+  if (warning) warning.style.display = (isCap && hasUnallocated) ? 'block' : 'none';
   if (lockBtn) {
     lockBtn.style.display = isCap ? 'block' : 'none';
     lockBtn.textContent   = ntHuddlePhase === 'locked' ? 'Locked ✓' : 'Lock Allocations';
     lockBtn.disabled      = ntHuddlePhase === 'locked';
   }
+}
+
+// The single reusable control panel — targets ntAllocSelectedLeg, shows the shared bank,
+// and a draw/push stepper per asset. Hidden for non-captains.
+function ntRenderAllocControlHub(isCap, members, bankFW, bankHP) {
+  const hub = document.getElementById('nt-alloc-controlhub');
+  if (!hub) return;
+  if (!isCap) { hub.innerHTML = ''; hub.style.display = 'none'; return; }
+  hub.style.display = 'block';
+
+  const legIdx = ntAllocSelectedLeg;
+  const pIdx   = members[legIdx];
+  const name   = ntPlayerNames[pIdx] || ('ADMIN-' + (pIdx + 1));
+  const alloc  = ntAllocations[legIdx] || { firewall: 0, honeypot: 0 };
+  const step = 'w-9 h-9 rounded-lg bg-slate-700 hover:bg-slate-600 text-white text-base font-bold flex items-center justify-center active:scale-90 transition-transform shrink-0 disabled:opacity-30 disabled:cursor-not-allowed';
+  const row = (type, label, val, bank) => `
+    <div class="flex items-center gap-2">
+      <span class="text-stone-400 text-xs w-16 shrink-0">${label}</span>
+      <button data-type="${type}" data-dir="-1" class="nt-hub-adj ${step}" ${val <= 0 ? 'disabled' : ''}>−</button>
+      <span class="text-emerald-300 font-mono text-base w-8 text-center">${val}</span>
+      <button data-type="${type}" data-dir="1" class="nt-hub-adj ${step}" ${bank <= 0 ? 'disabled' : ''}>+</button>
+      <span class="text-stone-500 text-[10px] ml-auto font-mono">− RECALL · + DEPLOY</span>
+    </div>`;
+  hub.innerHTML = `<div class="bg-slate-900 rounded-2xl p-3 ring-1 ring-emerald-500/40">
+    <div class="flex items-center justify-between mb-2 gap-2">
+      <p class="font-mono text-[11px] text-emerald-400 font-semibold truncate">MODIFYING ▸ LEG_${String(legIdx + 1).padStart(2, '0')} · ${name}</p>
+      <p class="text-emerald-300 text-[11px] font-mono font-semibold bg-emerald-950/60 rounded px-2 py-0.5 whitespace-nowrap shrink-0">BANK ${bankFW} FW · ${bankHP} HP</p>
+    </div>
+    <div class="flex flex-col gap-1.5">
+      ${row('firewall', 'Firewall', alloc.firewall, bankFW)}
+      ${row('honeypot', 'Honeypot', alloc.honeypot, bankHP)}
+    </div>
+  </div>`;
+  hub.querySelectorAll('.nt-hub-adj').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      ntAdjustAllocation(ntAllocSelectedLeg, btn.dataset.type, parseInt(btn.dataset.dir, 10));
+    });
+  });
 }
 
 // Captain taps a +/- button — update local alloc and propagate.
@@ -739,12 +795,12 @@ function ntStartHuddleTimer(durationSecs) {
   let secs = durationSecs;
   ntHuddleTimer = setInterval(() => {
     secs--;
-    // Show remaining time in the top eyebrow on the allocation screen
-    const eyebrow = document.querySelector('#screen-nt-allocation .text-stone-400.text-xs.font-semibold.uppercase');
+    // Show remaining time in the terminal header banner on the allocation screen
+    const eyebrow = document.getElementById('nt-alloc-header');
     if (eyebrow) {
       const m = String(Math.floor(Math.max(0, secs) / 60)).padStart(2, '0');
       const s = String(Math.max(0, secs) % 60).padStart(2, '0');
-      eyebrow.textContent = `Shared Allocation Hub — ${m}:${s}`;
+      eyebrow.textContent = `SYS_PARTITION // HUB · ${m}:${s}`;
     }
     if (secs <= 10 && secs > 0) playTick();
     if (secs <= 0) {
@@ -815,8 +871,7 @@ function ntCheckBothTeamsLocked() {
   // Host applies its own assigned inventory
   const myAlloc = (ntAllPlayerAllocations || [])[mpMyPlayerIdx] || ntInventory;
   ntInventory = { ...myAlloc };
-  ntStartBuildTimer(endTimestamp);
-  ntShowBuild();
+  ntShowBuild(endTimestamp);
 }
 
 function ntShowAllocation() { showScreen('screen-nt-allocation'); }
@@ -855,15 +910,21 @@ function ntShowMdlmGate() {
     ntGateCallback = () => {
       const endTimestamp = Date.now() + (ntHardeningWin * 1000);
       mpSendEnvelope({ type: 'SYNC', payload: { action: 'NT_BUILD_BEGIN', endTimestamp, cycle: ntCycle } });
-      ntStartBuildTimer(endTimestamp);
-      ntShowBuild();
+      ntShowBuild(endTimestamp);
     };
     if (ntGateReadyCheck.every(Boolean) && btn) btn.disabled = false;
   }
   showScreen('screen-nt-gate');
 }
 
-function ntShowBuild() {
+function ntShowBuild(endTimestamp) {
+  // Per-build-phase reset: re-enable the grid, clear the commit/resolve guards.
+  ntCommitted     = false;
+  ntCycleResolved = false;
+  const grid0 = document.getElementById('nt-build-grid');
+  if (grid0) grid0.style.pointerEvents = '';
+  const commitBtn = document.getElementById('btn-nt-commit');
+  if (commitBtn) { commitBtn.disabled = false; commitBtn.textContent = 'COMMIT RUNTIME ▶'; }
   const counter = document.getElementById('nt-build-counter');
   if (counter) counter.textContent = `${ntCycle + 1}/${ntIterations}`;
   const name = document.getElementById('nt-node-name');
@@ -872,7 +933,7 @@ function ntShowBuild() {
   showScreen('screen-nt-build');
   ntRenderBuildGrid();
   ntSetRouting('valid');
-  ntStartBuildTimer();
+  ntStartBuildTimer(endTimestamp); // MDLM: wall-clock anchor; solo/PTP: undefined → local countdown
 }
 
 function ntShowPlayback() {
@@ -881,14 +942,22 @@ function ntShowPlayback() {
   if (scrub) scrub.value = 0;
   const lat = document.getElementById('nt-playback-latency');
   if (lat) lat.textContent = '0 ms';
-  // Playback terminal: node id in top bar, full homage in bottom bar
-  const nodeTag = 'NT-NODE-' + String(ntCycle + 1).padStart(2, '0');
-  const pbNodeName = document.getElementById('nt-playback-node-name');
-  if (pbNodeName) pbNodeName.textContent = nodeTag;
   const pbStatus = document.getElementById('nt-playback-status');
   const pillBase = 'px-1.5 py-0.5 rounded-full text-[9px] font-bold whitespace-nowrap flex-shrink-0';
   if (pbStatus) { pbStatus.textContent = 'OPERATIONAL'; pbStatus.className = pillBase + ' bg-emerald-900/60 text-emerald-400'; }
   ntPlaybackPhase = 'tracing';
+
+  // DNP → continuous team-bridge journey (default = own team); else single-node playback.
+  if (ntIsDNP()) {
+    ntPbTeam = ntTeamIdx[mpMyPlayerIdx];
+    ntShowJourneyPlayback();
+    return;
+  }
+  // Non-DNP: hide journey UI, show single-node trace.
+  const tabs = document.getElementById('nt-journey-tabs');     if (tabs)   tabs.style.display = 'none';
+  const segWrap = document.getElementById('nt-journey-segwrap'); if (segWrap) segWrap.style.display = 'none';
+  const pbNodeName = document.getElementById('nt-playback-node-name');
+  if (pbNodeName) pbNodeName.textContent = 'NT-NODE-' + String(ntCycle + 1).padStart(2, '0');
   showScreen('screen-nt-playback');
   ntStartPlayback();
 }
@@ -1148,7 +1217,9 @@ function ntRandomEdgePort(n) { return { edge: ['top', 'right', 'bottom', 'left']
 // Budgets scale to "block slots" ≈ (N/2)² so they read like the old coarse counts.
 // keepInventory = true: only regenerate node geometry; leave ntInventory unchanged.
 // Used in DNP to generate one node per player while sharing the same cycle inventory.
-function ntGenerateNode(keepInventory = false) {
+// forcedIngressIdx (DNP only): pin this leg's left-edge ingress to a specific row so
+// it lines up with the previous leg's egress — chains the cluster bridge edge-to-edge.
+function ntGenerateNode(keepInventory = false, forcedIngressIdx = null) {
   const n = ntMatrixScale;
   const slots = Math.pow(Math.floor(n / NT_BLOCK), 2);
   const floor = Math.max(Math.ceil(NT_BADSECTOR_MIN_PCT * slots), ntNativeHoneypots + 2);
@@ -1158,7 +1229,7 @@ function ntGenerateNode(keepInventory = false) {
   for (let attempt = 0; attempt < 400; attempt++) {
     let ingress, egress;
     if (ntIsDNP()) {
-      ingress = { edge: 'left',  idx: ntRandInt(0, n - 1) };
+      ingress = { edge: 'left',  idx: (forcedIngressIdx != null ? forcedIngressIdx : ntRandInt(0, n - 1)) };
       egress  = { edge: 'right', idx: ntRandInt(0, n - 1) };
     } else {
       ingress = ntRandomEdgePort(n);
@@ -1194,7 +1265,7 @@ function ntGenerateNode(keepInventory = false) {
     break;
   }
   if (!node) { // pathological fallback — empty board, opposite-edge ports
-    node = { n, ingress: { edge: 'left', idx: (n >> 1) }, egress: { edge: 'right', idx: (n >> 1) }, badSectors: [], nativeHoneypots: [] };
+    node = { n, ingress: { edge: 'left', idx: (forcedIngressIdx != null ? forcedIngressIdx : (n >> 1)) }, egress: { edge: 'right', idx: (n >> 1) }, badSectors: [], nativeHoneypots: [] };
   }
 
   ntNode = node;
@@ -1782,14 +1853,37 @@ function ntStartBuildTimer(endTimestamp) {
     if (secs <= 10 && secs > 0) playTick();
     if (secs <= 0) { ntStopBuildTimer(); playAlarm(); ntCommit(); }
   }, 1000);
+  // Host safety net: a few seconds after the hardening window closes, force-resolve
+  // even if a commit packet was lost — guarantees the round can never hang on the
+  // build screen ("waiting for team…" forever). No-op if everyone committed in time.
+  if (window.syllyMultiplayerMode === 'host' && endTimestamp) {
+    ntClearResolveGuard();
+    ntResolveGuard = setTimeout(ntForceResolveCycle, Math.max(0, endTimestamp - Date.now()) + 4000);
+  }
 }
 function ntStopBuildTimer() {
   if (ntBuildTimer) { clearInterval(ntBuildTimer); ntBuildTimer = null; }
 }
+function ntClearResolveGuard() {
+  if (ntResolveGuard) { clearTimeout(ntResolveGuard); ntResolveGuard = null; }
+}
+// Host-only fallback: resolve the cycle with whatever placements have arrived, filling
+// any missing player with an empty (un-hardened) leg so the BFS still has valid input.
+function ntForceResolveCycle() {
+  ntResolveGuard = null;
+  if (window.syllyMultiplayerMode !== 'host' || ntCycleResolved) return;
+  for (let i = 0; i < ntPlayerCount; i++) { if (!ntPtpPlacements[i]) ntPtpPlacements[i] = []; }
+  ntResolveCycleMdlm(ntPtpPlacements.slice());
+}
 
 // ── Commit ─────────────────────────────────────────────────────────────────
 function ntCommit() {
+  if (ntCommitted) return;        // one commit per build phase (timer expiry + manual tap both call this)
+  ntCommitted = true;
   ntStopBuildTimer();
+  // Lock the grid so it can't be edited after submitting.
+  const grid = document.getElementById('nt-build-grid');
+  if (grid) grid.style.pointerEvents = 'none';
   if (window.syllyMultiplayerMode === 'host') {
     // Host marks own slot directly — dedup guard drops self-sent ACTIONs
     ntCommitReadyCheck[mpMyPlayerIdx] = true;
@@ -1801,10 +1895,12 @@ function ntCommit() {
       if (btn) { btn.textContent = 'Waiting for team…'; btn.disabled = true; }
     }
   } else if (window.syllyMultiplayerMode === 'client') {
-    // Client sends placements to host
+    // Client sends placements to host. Fire-and-forget readyCheck submit — NO mpLockSync
+    // (a residual lock would otherwise silently drop this ACTION, stranding the round);
+    // the ntCommitted guard prevents a double-send, and the host's resolve-guard is the
+    // backstop if the packet is ever lost.
     const btn = document.getElementById('btn-nt-commit');
     if (btn) { btn.textContent = 'Submitted…'; btn.disabled = true; }
-    mpLockSync();
     mpSendEnvelope({ type: 'ACTION', payload: { action: 'NT_COMMIT', placements: ntMyPlacements.slice() } });
   } else if (ntPlayerCount > 1) {
     // PTP path — delegate scoring + navigation to ntCommitPtp
@@ -1832,34 +1928,87 @@ const NT_PING_SLOW    = '#f43f9d';  // slowed core = Red + Fuchsia (hot pink)
 
 // All playback rendering is in TILE units (px = canvas / n). A 2×2 block is one
 // (2·px) rect; the polyline + honeypot centres are continuous tile coords (× px directly).
-// Static maze preview of an arbitrary node (no placements/trail). Used on the DNP
-// allocation screen so captains can study each leg's terrain before distributing
-// inventory. Self-contained — never reads ntNode/ntMyPlacements.
-function ntDrawNodePreview(canvas, node) {
+// Draw ONE relay leg for the cluster bridge. Ports are chained at node-gen time so a
+// leg's egress row equals the next leg's ingress row; rendered edge-to-edge the legs
+// connect only through that egress▸ingress channel. The rest of each shared (seam) edge
+// is walled off in bad-sector grey so it's clear you can't cross elsewhere.
+// Self-contained — never reads ntNode/ntMyPlacements. opts = { wallLeft, wallRight }.
+function ntDrawLegCanvas(canvas, node, cell, opts) {
   if (!canvas || !node || !node.n) return;
-  canvas.width = canvas.height = 120;
+  opts = opts || {};
+  const c = cell || 8;
+  const n = node.n;
+  canvas.width  = n * c;
+  canvas.height = n * c;
   const ctx = canvas.getContext('2d');
-  const px  = canvas.width / node.n;
   ctx.fillStyle = NT_COLOR_BASE;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillRect(0, 0, n * c, n * c);
+  // Faint structural gridlines (one per 2×2 block unit) so the corridor layout reads.
+  ctx.strokeStyle = 'rgba(100,116,139,0.28)';
+  ctx.lineWidth = 1;
+  for (let g = 0; g <= n; g += NT_BLOCK) {
+    ctx.beginPath(); ctx.moveTo(g * c + 0.5, 0);     ctx.lineTo(g * c + 0.5, n * c); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, g * c + 0.5);     ctx.lineTo(n * c, g * c + 0.5); ctx.stroke();
+  }
   const fill = (ax, ay, color) => {
     ctx.fillStyle = color;
-    ctx.fillRect(ax * px + 1, ay * px + 1, NT_BLOCK * px - 2, NT_BLOCK * px - 2);
+    ctx.fillRect(ax * c + 1, ay * c + 1, NT_BLOCK * c - 2, NT_BLOCK * c - 2);
   };
-  (node.badSectors      || []).forEach(c => fill(c.ax, c.ay, NT_COLOR_BAD_SECTOR));
-  (node.nativeHoneypots || []).forEach(c => fill(c.ax, c.ay, NT_COLOR_NATIVE_HONEYPOT));
-  // Ingress (green) / egress (grey) port bars on the edges.
-  const t = Math.max(3, px * 0.4);
-  const bar = (port, color) => {
-    if (!port) return;
-    ctx.fillStyle = color;
-    if      (port.edge === 'top')    ctx.fillRect(port.idx * px, 0, px, t);
-    else if (port.edge === 'bottom') ctx.fillRect(port.idx * px, canvas.height - t, px, t);
-    else if (port.edge === 'left')   ctx.fillRect(0, port.idx * px, t, px);
-    else                             ctx.fillRect(canvas.width - t, port.idx * px, t, px);
-  };
-  bar(node.ingress, '#34d399');
-  bar(node.egress,  NT_COLOR_BAD_SECTOR);
+  (node.badSectors      || []).forEach(p => fill(p.ax, p.ay, NT_COLOR_BAD_SECTOR));
+  (node.nativeHoneypots || []).forEach(p => fill(p.ax, p.ay, NT_COLOR_NATIVE_HONEYPOT));
+  // Grey seam walls on shared edges — full height except the one connecting port row.
+  const wallT = Math.max(2, Math.round(c * 0.5));
+  ctx.fillStyle = NT_COLOR_BAD_SECTOR;
+  if (opts.wallLeft && node.ingress) {
+    for (let row = 0; row < n; row++) { if (row === node.ingress.idx) continue; ctx.fillRect(0, row * c, wallT, c); }
+  }
+  if (opts.wallRight && node.egress) {
+    for (let row = 0; row < n; row++) { if (row === node.egress.idx) continue; ctx.fillRect(n * c - wallT, row * c, wallT, c); }
+  }
+  // Port channel bars (drawn over the wall gap): green ingress, amber egress.
+  const t = Math.max(2, Math.round(c * 0.5));
+  if (node.ingress) { ctx.fillStyle = '#34d399'; ctx.fillRect(0, node.ingress.idx * c, t, c); }
+  if (node.egress)  { ctx.fillStyle = '#f59e0b'; ctx.fillRect(n * c - t, node.egress.idx * c, t, c); }
+}
+
+// Build a team's full bridge into `container`: a horizontal row of (name + maze)
+// columns, edge-to-edge so the chained ports connect visually. `members` = global
+// player indices in leg order; `cell` = px per tile (small inline, large for overlay).
+function ntBuildBridgeInto(container, members, cell) {
+  if (!container) return;
+  container.innerHTML = '';
+  const row = document.createElement('div');
+  row.className = 'flex items-end w-max mx-auto';
+  const teamSize = members.length;
+  members.forEach((pIdx, legIdx) => {
+    const col = document.createElement('div');
+    col.className = 'flex flex-col items-center';
+    const isMe = pIdx === mpMyPlayerIdx;
+    const name = ntPlayerNames[pIdx] || ('ADMIN-' + (pIdx + 1));
+    const label = document.createElement('p');
+    label.className = 'text-[10px] font-semibold mb-1 whitespace-nowrap ' + (isMe ? 'text-emerald-400' : 'text-stone-300');
+    label.textContent = name + (isMe ? ' (you)' : '');
+    const cv = document.createElement('canvas');
+    cv.className = 'bg-slate-950';
+    cv.style.imageRendering = 'pixelated';
+    col.appendChild(label);
+    col.appendChild(cv);
+    row.appendChild(col);
+    const node = ntTeamNodes[pIdx];
+    if (node) ntDrawLegCanvas(cv, node, cell, { wallLeft: legIdx > 0, wallRight: legIdx < teamSize - 1 });
+  });
+  container.appendChild(row);
+}
+
+// Open the enlarged bridge overlay (tap-to-close). `members` in leg order.
+function ntOpenBridgePreview(members) {
+  const ov   = document.getElementById('nt-bridge-preview-overlay');
+  const host = document.getElementById('nt-bridge-preview-host');
+  if (!ov || !host || !members || !members.length) return;
+  ntBuildBridgeInto(host, members, 16);
+  ov.onclick = () => { ov.style.display = 'none'; };
+  ov.style.display = 'flex';
+  playPillClick();
 }
 
 function ntDrawMaze(ctx, px) {
@@ -2143,19 +2292,241 @@ function ntResumeAfterScrub() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// DNP CONTINUOUS-BRIDGE PLAYBACK  (team-sequence journey)
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Build a team's journey: its legs in order, each leg's timeline offset so the packet
+// flows ingress → leg 1 → leg 2 → … → egress as one continuous timeline. Timelines are
+// normalised (Firebase strips empty arrays) so the renderer never hits undefined.
+function ntBuildJourney(team) {
+  const members = ntTeamIdx.reduce((acc, t, i) => { if (t === team) acc.push(i); return acc; }, []);
+  let offset = 0;
+  const legs = members.map((pIdx, legIdx) => {
+    const raw = ntPtpTimelines[pIdx] || {};
+    const timeline = {
+      samples:   raw.samples   || [],
+      fires:     raw.fires     || [],
+      slowSpans: raw.slowSpans || [],
+      latencyMs: raw.latencyMs || 0,
+    };
+    const leg = {
+      pIdx, legIdx,
+      name:       ntPlayerNames[pIdx] || ('ADMIN-' + (pIdx + 1)),
+      node:       ntTeamNodes[pIdx],
+      timeline,
+      placements: ntPtpPlacements[pIdx] || [],
+      offset,
+      latency:    timeline.latencyMs,
+    };
+    offset += leg.latency;
+    return leg;
+  });
+  return { team, legs, total: offset };
+}
+
+// Which leg is active at journey time simMs (skips zero-latency legs; clamps to last).
+function ntJourneyLegAt(journey, simMs) {
+  const legs = journey.legs;
+  for (let i = 0; i < legs.length; i++) {
+    if (simMs < legs[i].offset + legs[i].latency) return i;
+  }
+  return legs.length - 1;
+}
+
+// Enter DNP playback: build my team's journey, render tabs + segmented scrubber, play.
+function ntShowJourneyPlayback() {
+  ntPbJourney   = ntBuildJourney(ntPbTeam);
+  ntPbActiveLeg = -1;
+  // Hide the per-player comparison panel; show the team tabs + segmented track.
+  const panel = document.getElementById('nt-comparison-panel');
+  if (panel) panel.style.display = 'none';
+  const segWrap = document.getElementById('nt-journey-segwrap');
+  if (segWrap) segWrap.style.display = 'block';
+  ntRenderJourneyTabs();
+  ntRenderJourneySegments();
+  showScreen('screen-nt-playback');
+  ntStartJourneyPlayback();
+}
+
+// The journey RAF loop — advances one continuous sim clock across all legs.
+function ntStartJourneyPlayback() {
+  const canvas = document.getElementById('nt-playback-canvas');
+  if (!canvas || !ntPbJourney) return;
+  const size = canvas.clientWidth || 320;
+  canvas.width = size; canvas.height = size;
+  ntPlaybackScrubMs = null;
+  ntPlaybackPaused  = false;
+  ntPlaybackPhase   = 'tracing';
+  ntPlaybackStartTs = performance.now();
+  ntStopPlayback();
+  const pb = document.getElementById('btn-nt-playback-pause');
+  if (ntPbJourney.total <= 0) {
+    // Nothing to animate (all legs un-hardened) — render a static first leg.
+    ntPbActiveLeg = -1;
+    ntRenderJourneyFrame(0);
+    if (pb) { pb.textContent = '▶'; pb.style.opacity = '0.45'; }
+    return;
+  }
+  ntPlaybackLoopFn = () => {
+    const j = ntPbJourney;
+    if (!j) { ntRafHandle = null; return; }
+    if (ntPlaybackScrubMs !== null) {           // scrub/pause hold — keep the frozen frame
+      ntRenderJourneyFrame(ntPlaybackScrubMs);
+      ntRafHandle = requestAnimationFrame(ntPlaybackLoopFn);
+      return;
+    }
+    const simMs = (performance.now() - ntPlaybackStartTs) * NT_PLAYBACK_SPEED;
+    if (simMs >= j.total) {
+      ntRenderJourneyFrame(j.total);
+      if (ntPlaybackPhase !== 'ended') {
+        ntPlaybackPhase = 'ended';
+        playSuccess();
+        if (pb) { pb.textContent = '▶'; pb.style.opacity = '0.45'; }
+      }
+      ntRafHandle = null;
+      return;
+    }
+    ntRenderJourneyFrame(simMs);
+    ntRafHandle = requestAnimationFrame(ntPlaybackLoopFn);
+  };
+  if (pb) { pb.textContent = '⏸'; pb.style.opacity = '1'; }
+  ntRafHandle = requestAnimationFrame(ntPlaybackLoopFn);
+}
+
+// Render one journey frame: point the renderer globals at the active leg, draw it at
+// local time, then drive the cumulative latency label + journey scrubber.
+function ntRenderJourneyFrame(simMs) {
+  const j = ntPbJourney;
+  if (!j || !j.legs.length) return;
+  const legIdx = ntJourneyLegAt(j, simMs);
+  const leg    = j.legs[legIdx];
+  if (legIdx !== ntPbActiveLeg) {       // boundary cross — slide the next node in
+    ntPbActiveLeg = legIdx;
+    ntJourneySlide();
+  }
+  // Point the shared renderer at the active leg (ntRenderFrame/ntSampleAt/ntSetStatus read these).
+  ntNode             = leg.node;
+  ntPlaybackTimeline = leg.timeline;
+  ntMyPlacements     = leg.placements;
+  ntRenderFrame(simMs - leg.offset, false);
+  // Top bar: per-leg node id + name; cumulative journey latency.
+  const nm = document.getElementById('nt-playback-node-name');
+  if (nm) nm.textContent = `NT-NODE-${String(legIdx + 1).padStart(2, '0')} · ${leg.name}`;
+  const lat = document.getElementById('nt-playback-latency');
+  if (lat) lat.textContent = ntFmtMs(simMs);
+  const sc = document.getElementById('nt-playback-scrubber');
+  if (sc && j.total > 0) sc.value = Math.round((simMs / j.total) * 100);
+}
+
+// Quick horizontal slide-in on the canvas when the active leg changes (viewport-slider feel).
+function ntJourneySlide() {
+  const cv = document.getElementById('nt-playback-canvas');
+  if (!cv) return;
+  cv.style.transition = 'none';
+  cv.style.transform  = 'translateX(16%)';
+  cv.style.opacity    = '0.35';
+  void cv.offsetWidth; // force reflow so the transition runs
+  cv.style.transition = 'transform 220ms ease-out, opacity 220ms ease-out';
+  cv.style.transform  = 'translateX(0)';
+  cv.style.opacity    = '1';
+}
+
+// Macro team tabs — watch your team's bridge or the opponent's.
+function ntRenderJourneyTabs() {
+  const tabs = document.getElementById('nt-journey-tabs');
+  if (!tabs) return;
+  tabs.style.display = 'flex';
+  const myTeam = ntTeamIdx[mpMyPlayerIdx];
+  const label  = t => (ntTeamNames[t] || ('TEAM ' + (t === 0 ? 'A' : 'B'))).toUpperCase();
+  tabs.innerHTML = [0, 1].map(t => {
+    const active = t === ntPbTeam;
+    const mine   = t === myTeam;
+    return `<button data-team="${t}" class="nt-journey-tab flex-1 min-h-9 rounded-lg font-mono text-[11px] font-semibold truncate px-1 transition-colors ${active ? 'bg-emerald-500 text-white' : 'bg-slate-800 text-stone-400'}">${label(t)}${mine ? ' ◂YOU' : ''}</button>`;
+  }).join('');
+  tabs.querySelectorAll('.nt-journey-tab').forEach(b => {
+    b.addEventListener('click', () => ntSwitchJourneyTeam(parseInt(b.dataset.team, 10)));
+  });
+}
+
+function ntSwitchJourneyTeam(team) {
+  if (team === ntPbTeam) return;
+  ntPbTeam = team;
+  playPillClick();
+  ntStopPlayback();
+  ntPbJourney   = ntBuildJourney(team);
+  ntPbActiveLeg = -1;
+  ntRenderJourneyTabs();
+  ntRenderJourneySegments();
+  ntStartJourneyPlayback(); // restart from ingress for the newly-selected team
+}
+
+// Segmented scrubber track — one labelled section per leg, width ∝ that leg's latency.
+function ntRenderJourneySegments() {
+  const seg = document.getElementById('nt-journey-segments');
+  if (!seg) return;
+  const j = ntPbJourney;
+  if (!j || j.total <= 0) { seg.innerHTML = '<div class="flex-1"></div>'; return; }
+  seg.innerHTML = j.legs.map((l, i) => {
+    const w = (l.latency / j.total) * 100;
+    if (w <= 0) return '';
+    const bg = i % 2 === 0 ? 'bg-emerald-900/40' : 'bg-slate-700/40';
+    return `<div class="h-full flex items-center justify-center overflow-hidden ${bg}" style="width:${w}%"><span class="text-[8px] font-mono text-stone-400 truncate px-1">${l.name}</span></div>`;
+  }).join('');
+}
+
+// Journey-aware pause/resume (mirrors ntTogglePlayback but against the journey total).
+function ntToggleJourneyPlayback() {
+  const j = ntPbJourney;
+  if (!j || j.total <= 0) return;
+  const pb = document.getElementById('btn-nt-playback-pause');
+  if (!ntRafHandle || ntPlaybackPaused) {
+    ntPlaybackPaused = false;
+    const resumeMs = ntPlaybackScrubMs !== null ? ntPlaybackScrubMs : 0;
+    ntPlaybackStartTs = (resumeMs >= j.total)
+      ? performance.now()                                   // was at end → restart
+      : performance.now() - resumeMs / NT_PLAYBACK_SPEED;
+    ntPlaybackScrubMs = null;
+    ntPlaybackPhase   = 'tracing';
+    if (pb) { pb.textContent = '⏸'; pb.style.opacity = '1'; }
+    if (!ntRafHandle && ntPlaybackLoopFn) ntRafHandle = requestAnimationFrame(ntPlaybackLoopFn);
+  } else {
+    ntPlaybackPaused = true;
+    const simMs = (performance.now() - ntPlaybackStartTs) * NT_PLAYBACK_SPEED;
+    ntPlaybackScrubMs = Math.min(simMs, j.total);
+    if (pb) { pb.textContent = '▶'; pb.style.opacity = '1'; }
+    ntStopPlayback();
+  }
+}
+
+function ntResumeJourneyAfterScrub() {
+  if (ntPlaybackPaused) return;
+  const j = ntPbJourney;
+  if (!j || j.total <= 0) return;
+  const resumeMs = ntPlaybackScrubMs !== null ? ntPlaybackScrubMs : 0;
+  if (resumeMs >= j.total) return;
+  ntPlaybackStartTs = performance.now() - resumeMs / NT_PLAYBACK_SPEED;
+  ntPlaybackScrubMs = null;
+  ntPlaybackPhase   = 'tracing';
+  if (!ntRafHandle && ntPlaybackLoopFn) ntRafHandle = requestAnimationFrame(ntPlaybackLoopFn);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // MULTIPLAYER  (§11 packet table — Phase C Standard / Phase D DNP)
 // ═══════════════════════════════════════════════════════════════════════════
 
 // Host-authoritative cycle resolution for MDLM: runs BFS for every player's
 // submitted placements, computes SERs, persists log arrays, broadcasts NT_PLAYBACK.
 function ntResolveCycleMdlm(allPlacements) {
+  if (ntCycleResolved) return;   // guard: last-commit and the resolve-fallback can both fire
+  ntCycleResolved = true;
+  ntClearResolveGuard();
   // In DNP mode each player has their own relay-leg node — swap node + placements per player.
   const savedNode         = ntNode;
   const savedPlacements   = ntMyPlacements;
 
   const timelines = allPlacements.map((placements, idx) => {
     if (ntIsDNP() && ntTeamNodes[idx]) ntNode = ntTeamNodes[idx];
-    ntMyPlacements = placements;
+    ntMyPlacements = placements || [];
     const tl = ntComputeTimeline_local();
     ntMyPlacements = savedPlacements;
     ntNode = savedNode;
@@ -2221,6 +2592,18 @@ function ntResolveCycleMdlm(allPlacements) {
       teamCycleSERs:  ntTeamCycleSERs[ntCycle] || null,
     },
   });
+
+  // Host is also a participant and never receives its own SYNC (dedup guard), so it
+  // must mirror the NT_PLAYBACK navigation locally — otherwise it strands on the build
+  // screen ("waiting for team…") even though resolution completed.
+  if (ntIsDNP() && ntTeamNodes[mpMyPlayerIdx]) ntNode = ntTeamNodes[mpMyPlayerIdx];
+  ntViewingPlayerIdx = mpMyPlayerIdx;
+  ntPlaybackTimeline = ntPtpTimelines[mpMyPlayerIdx];
+  ntMyPlacements     = ntPtpPlacements[mpMyPlayerIdx] || [];
+  const panel = document.getElementById('nt-comparison-panel');
+  if (panel) panel.style.display = ntPlayerCount > 1 ? 'flex' : 'none';
+  ntRenderComparisonPanel();
+  ntShowPlayback();
 }
 
 function ntHandleEnvelope(envelope) {
@@ -2366,8 +2749,7 @@ function ntHandleEnvelope(envelope) {
         if (myAlloc) ntInventory = { ...myAlloc };
       }
       ntStopHuddleTimer();
-      ntStartBuildTimer(payload.endTimestamp);
-      ntShowBuild();
+      ntShowBuild(payload.endTimestamp);
       return;
     }
 
@@ -2429,6 +2811,17 @@ function ntResetState() {
   if (ntBuildTimer)    { clearInterval(ntBuildTimer);  ntBuildTimer  = null; }
   if (ntHuddleTimer)   { clearInterval(ntHuddleTimer); ntHuddleTimer = null; }
   if (ntLongPressTimer){ clearTimeout(ntLongPressTimer); ntLongPressTimer = null; }
+  if (ntResolveGuard)  { clearTimeout(ntResolveGuard); ntResolveGuard = null; }
+  ntCycleResolved  = false;
+  ntCommitted      = false;
+  // DNP journey playback teardown
+  ntPbJourney   = null;
+  ntPbActiveLeg = -1;
+  const pbCanvas = document.getElementById('nt-playback-canvas');
+  if (pbCanvas) { pbCanvas.style.transform = ''; pbCanvas.style.transition = ''; pbCanvas.style.opacity = ''; }
+  ['nt-journey-tabs', 'nt-journey-segwrap'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
+  const bridgeOv = document.getElementById('nt-bridge-preview-overlay');
+  if (bridgeOv) bridgeOv.style.display = 'none';
   ntCycle          = 0;
   ntCycleSERs      = [];
   ntTeamCycleSERs  = [];
@@ -2595,30 +2988,50 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-nt-gate-ready').addEventListener('click', () => { playLaunch(); if (ntGateCallback) ntGateCallback(); else ntShowBuild(); });
   document.getElementById('btn-nt-commit').addEventListener('click', () => { playLaunch(); ntCommit(); });
 
-  // Playback scrubber — drag to scrub; drives ntRenderFrame directly when auto-play has ended.
+  // Playback scrubber — drag to scrub; drives the renderer directly when auto-play has ended.
   document.getElementById('nt-playback-scrubber').addEventListener('input', (e) => {
+    const pct = parseInt(e.target.value, 10) / 100;
+    if (ntIsDNP()) {
+      if (!ntPbJourney || ntPbJourney.total <= 0) return;
+      ntPlaybackScrubMs = pct * ntPbJourney.total;
+      if (!ntRafHandle) ntRenderJourneyFrame(ntPlaybackScrubMs);
+      return;
+    }
     if (!ntPlaybackTimeline) return;
-    ntPlaybackScrubMs = (parseInt(e.target.value, 10) / 100) * ntPlaybackTimeline.latencyMs;
+    ntPlaybackScrubMs = pct * ntPlaybackTimeline.latencyMs;
     if (!ntRafHandle) ntRenderFrame(ntPlaybackScrubMs, false);
   });
   document.getElementById('nt-playback-scrubber').addEventListener('change', () => {
+    if (ntIsDNP()) { ntResumeJourneyAfterScrub(); return; }
     ntResumeAfterScrub(); // auto-resume on drag release (no-op when manually paused)
   });
   document.getElementById('btn-nt-playback-pause').addEventListener('click', () => {
     playPillClick();
+    if (ntIsDNP()) { ntToggleJourneyPlayback(); return; }
     ntTogglePlayback();
   });
   document.getElementById('btn-nt-playback-skip-end').addEventListener('click', () => {
+    const pb = document.getElementById('btn-nt-playback-pause');
+    const sc = document.getElementById('nt-playback-scrubber');
+    if (ntIsDNP()) {
+      if (!ntPbJourney || ntPbJourney.total <= 0) return;
+      ntPlaybackScrubMs = ntPbJourney.total;
+      ntPlaybackPaused = true;
+      ntStopPlayback();
+      ntRenderJourneyFrame(ntPbJourney.total);
+      if (pb) { pb.textContent = '▶'; pb.style.opacity = '1'; }
+      if (ntPlaybackPhase !== 'ended') { ntPlaybackPhase = 'ended'; playSuccess(); }
+      if (sc) sc.value = 100;
+      return;
+    }
     const tl = ntPlaybackTimeline;
     if (!tl) return;
     ntPlaybackScrubMs = tl.latencyMs;
     ntPlaybackPaused = true;
     ntStopPlayback();
     ntRenderFrame(tl.latencyMs, true);
-    const pb = document.getElementById('btn-nt-playback-pause');
     if (pb) { pb.textContent = '▶'; pb.style.opacity = '1'; }
     if (ntPlaybackPhase !== 'ended') { ntPlaybackPhase = 'ended'; playSuccess(); }
-    const sc = document.getElementById('nt-playback-scrubber');
     if (sc) sc.value = 100;
   });
   document.getElementById('btn-nt-playback-continue').addEventListener('click', () => {

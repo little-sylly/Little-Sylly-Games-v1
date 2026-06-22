@@ -34,7 +34,7 @@ Single-page mobile app. Pass-the-phone style, or individual devices depending on
 | `nat` | Natural Selection | Role-based wildlife clue-giving, find the mole |
 | `dsd` | Deep-Sea Deploy | Codenames-style sequential deduction for two teams |
 | `gth` | Group Therapy | Simultaneous drawing + diagnosing psychological disorders |
-| `dyb` | Dicey Bluffs | Liar's Dice — escalating bluffs about hidden dice |
+| `dyb` | The Bluff | Liar's Dice — escalating bluffs about hidden dice (cliff/climb theme) |
 | `bld` | Bailed | Hidden-role social deduction + cooperative sabotage |
 | `pass` | Pass | Climbing card game — shed your hand to win |
 | `nt` | Net-Trace | Network engineering — harden your relay-leg node, route the signal, minimise SER |
@@ -89,7 +89,7 @@ Every game in the suite replaces generic game language with words from its theme
 | Settings overlay title | *(not used)* | The Pantry Cabinet 🧂 | Inpatient Admission Form 📋 |
 
 And Sylly Mode names from the existing games, as tone references:
-Wild Words (LI5) · Static Interference (GM) · Intel Phase (SS) · Kitchen Nightmares (JEC) · The Ringer (YGI) · The Troublemaker (LTTP) · Survival of the Fittest (NAT) · Mission Abyss (DSD) · Stroke or Genius (GTH) · Devil's Luck (DYB) · Drama Mode (BLD) · The Abyss (PASS) · Devil's Network Protocol (NT) · Fruity Personalities (FRT)
+Wild Words (LI5) · Static Interference (GM) · Intel Phase (SS) · Kitchen Nightmares (JEC) · The Ringer (YGI) · The Troublemaker (LTTP) · Survival of the Fittest (NAT) · Mission Abyss (DSD) · Stroke or Genius (GTH) · The Tempest (DYB) · Drama Mode (BLD) · The Abyss (PASS) · Devil's Network Protocol (NT) · Fruity Personalities (FRT)
 
 ---
 

@@ -1,6 +1,13 @@
-# DYB Implementation Notes — Dicey Bluffs
+# DYB Implementation Notes — The Bluff (internal `dyb`)
 
 ## Design Decisions
+
+**Thematic rename: "Dicey Bluffs" → "The Bluff" (June 2026 backlog sweep).**
+The title was reworked around the geological double meaning of *bluff* (a high sea-cliff), giving the whole game a climb/cliff metaphor. Display mapping: Allegation → **The Claim**, Raise the Stakes → **Climb Higher**, Call Bluff! → **Call the Bluff**, The Showdown → **The Overlook** (eyebrow "Reaching the Edge"), The Spirit Board → **The Depths** (🌊), The Clean Out → **The Summit**, Devil's Luck → **The Tempest**, House Rules → **Ground Rules**, Walk Away? → **Back Down?**, Roll Again? → **Climb Again?**, seating "Pull Up a Chair" → "Take Your Position". "Shake" (round + roll action) and the dice/pip mechanics were deliberately kept — they are literal, not flavour.
+- **Scope discipline:** view-layer strings ONLY. The `dyb` prefix and every code identifier (`dybAllegationHistory`, `DYB_ALLEGATION`, `screen-dyb-showdown`, `screen-dyb-spirit-board`, die-type strings `'loaded'`/…/`'snake'`) are untouched — renaming functional identifiers across `index.html`/`engine-multiplayer.js`/`sw.js` would be pure churn with a large breakage surface for zero player-facing gain. The abstraction stays strictly in the view layer.
+- **Files touched:** `index.html` (lobby card + DYB section), `dyb.js` (`'No bid yet.'`→`'No claim yet.'`, single-device play-again label `'Roll Again'`→`'Climb Again'`), `engine-multiplayer.js` (`gameName`), plus docs + SW bump to v113. The verdict strings `'CLAIM HOLDS'`/`'BLUFF CALLED'` and `Claimed:` already aligned with the new vocabulary and were left as-is.
+- **Method:** `index.html` was swept with a throwaway Node script (per the project's index.html-encoding rule — never the Edit tool for systematic index.html changes), scoped to the substring between the DICEY BLUFFS and PASS section markers so PASS's identical `"Walk Away?"` quit heading was provably untouched, with a per-replacement count assertion that aborts before writing if any expected count is wrong (it caught "The Allegation" appearing 3× not 2× — the how-to body "This becomes The Allegation." was the third).
+- **Stale doc cleanup found en route:** the terminology table still listed "Stealth Veil" (the dice-hiding eye toggle) — removed in BUG-11 but never struck from `game-identities.md`. Dropped during the sweep.
 
 **Seating screen is host-only.**
 `screen-dyb-seating` is shown exclusively to the host after `onPassThePhone` fires. Clients remain on `screen-mp-lobby-join` until `DYB_GAME_START` is received, at which point they navigate directly to the Shake screen. The seating screen is purely a pre-game waiting room and player-count confirmation — no mechanics depend on it.
@@ -104,6 +111,13 @@ Eliminated devices must route to the Spirit Board, not the Shake screen. `DYB_SH
 - **What happened:** Table screen used `h-screen overflow-hidden` with separate body (scrollable bid controls) and footer (hand + action buttons). Created visual disconnection — too much white space between sections, buttons not aligned with content.
 - **Root cause:** Split body/footer pattern instead of single-wrapper centered layout. Violates CLAUDE.md rule: "the entire stack must be siblings inside the single inner wrapper."
 - **Fix:** Changed section to `flex items-center justify-center w-full min-h-screen px-5 py-6 overflow-y-auto` with a single inner `div.flex.flex-col.max-w-sm.gap-4` containing all content as siblings. Removed the `border-t` footer separator. Action buttons upgraded to `min-h-14`.
+
+**BUG-13: Raise gate is face-primary — a legal quantity-increase with a lower face is blocked (RESOLVED — post-Phase-34 backlog testing)**
+- **What happened:** With a standing allegation of 9 × [6], setting 11 × [2] (or even 10 × [2]) left the "Raise the Stakes" button greyed out, despite 11 > 9 being a legal raise (quantity increases, face is free).
+- **Root cause:** `dybUpdateBidButtonState()` checked `(face > dybCurrentFace || (face === dybCurrentFace && qty > dybCurrentQty))` — it asked "is the face higher?" first. The Liar's Dice rule is quantity-primary: legal if `qty > currentQty` (any face) OR `qty === currentQty && face > currentFace`. The three picker-floor sites (`dybRenderBidPicker`/`dybAdjustFacePicker`/`dybAdjustQtyPicker`) carried the inverse error — their `face === dybCurrentFace ? +1 : +0` floor let quantity sit at `currentQty` for a *lower* face (the illegal same-quantity-lower-face bid), masked only because the button rejected everything.
+- **Fix:** Added one canonical `dybIsLegalRaise(face, qty)` (button gate) plus `dybMinQtyForFace(face)` (picker floors: higher face may keep quantity, same/lower face must raise it). Both replace the four duplicated inline predicates. The `dybMinQtyForFace` opener case still floors at 1 (preserves BUG-10). Host path doesn't re-validate, so the button + picker gate is the only guard.
+- **Found during:** Post-Phase-34 backlog testing (user report).
+- **Lesson:** When the same raise/escalation rule drives both a picker floor and a submit-button gate, derive both from one predicate. Four independent copies of "what's a legal raise" drifted into two *opposite* errors that masked each other.
 
 ---
 

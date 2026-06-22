@@ -203,8 +203,8 @@ function dybInitSettingsListeners() {
   document.querySelectorAll('[data-dyb-wildcards]').forEach(pill => {
     pill.addEventListener('click', () => {
       playPillClick();
-      document.querySelectorAll('[data-dyb-wildcards]').forEach(p => p.classList.remove('pill-active-stone'));
-      pill.classList.add('pill-active-stone');
+      document.querySelectorAll('[data-dyb-wildcards]').forEach(p => p.classList.remove('pill-active-dyb'));
+      pill.classList.add('pill-active-dyb');
       dybWildcardsStyle = pill.dataset.dybWildcards;
       dybUpdateWildcardsDesc();
     });
@@ -214,8 +214,8 @@ function dybInitSettingsListeners() {
   document.querySelectorAll('[data-dyb-hand]').forEach(pill => {
     pill.addEventListener('click', () => {
       playPillClick();
-      document.querySelectorAll('[data-dyb-hand]').forEach(p => p.classList.remove('pill-active-stone'));
-      pill.classList.add('pill-active-stone');
+      document.querySelectorAll('[data-dyb-hand]').forEach(p => p.classList.remove('pill-active-dyb'));
+      pill.classList.add('pill-active-dyb');
       dybStartingHand = parseInt(pill.dataset.dybHand);
     });
   });
@@ -226,7 +226,7 @@ function dybInitSettingsListeners() {
     const btn = document.getElementById('btn-dyb-sylly-toggle');
     btn.textContent = dybSyllyMode ? 'ON' : 'OFF';
     btn.className = dybSyllyMode
-      ? 'game-toggle-on-stone shrink-0'
+      ? 'game-toggle-on-dyb shrink-0'
       : 'game-toggle-off shrink-0';
     document.getElementById('dyb-sylly-sub-options').style.display = dybSyllyMode ? 'block' : 'none';
     if (dybSyllyMode) { playSyllyOn(); } else { playSyllyOff(); }
@@ -251,20 +251,20 @@ function dybInitSettingsListeners() {
 
 function dybApplySettingsToUI() {
   // Wildcards Style pills
-  document.querySelectorAll('[data-dyb-wildcards]').forEach(p => p.classList.remove('pill-active-stone'));
+  document.querySelectorAll('[data-dyb-wildcards]').forEach(p => p.classList.remove('pill-active-dyb'));
   const activeWild = document.querySelector(`[data-dyb-wildcards="${dybWildcardsStyle}"]`);
-  if (activeWild) activeWild.classList.add('pill-active-stone');
+  if (activeWild) activeWild.classList.add('pill-active-dyb');
   dybUpdateWildcardsDesc();
 
   // Starting Hand pills
-  document.querySelectorAll('[data-dyb-hand]').forEach(p => p.classList.remove('pill-active-stone'));
+  document.querySelectorAll('[data-dyb-hand]').forEach(p => p.classList.remove('pill-active-dyb'));
   const activeHand = document.querySelector(`[data-dyb-hand="${dybStartingHand}"]`);
-  if (activeHand) activeHand.classList.add('pill-active-stone');
+  if (activeHand) activeHand.classList.add('pill-active-dyb');
 
   // Sylly Mode toggle
   const btn = document.getElementById('btn-dyb-sylly-toggle');
   btn.textContent = dybSyllyMode ? 'ON' : 'OFF';
-  btn.className = dybSyllyMode ? 'game-toggle-on-stone shrink-0' : 'game-toggle-off shrink-0';
+  btn.className = dybSyllyMode ? 'game-toggle-on-dyb shrink-0' : 'game-toggle-off shrink-0';
   document.getElementById('dyb-sylly-sub-options').style.display = dybSyllyMode ? 'block' : 'none';
 
   // Intensity slider
@@ -471,7 +471,7 @@ function dybRenderTableScreen() {
 
   // Current allegation
   if (dybCurrentFace === 0) {
-    document.getElementById('dyb-allegation-display').textContent = 'No bid yet.';
+    document.getElementById('dyb-allegation-display').textContent = 'No claim yet.';
   } else {
     document.getElementById('dyb-allegation-display').textContent =
       `${dybCurrentQty} × [${dybCurrentFace}]`;
@@ -505,6 +505,21 @@ function dybRenderTableScreen() {
   dybRenderAllegationHistory();
 }
 
+// Canonical raise rule (single source of truth for picker floors + button gate):
+// a raise is legal if the quantity goes UP (any face), or the quantity stays the
+// same AND the face goes up. Quantity must never decrease.
+function dybIsLegalRaise(face, qty) {
+  const minFace = dybOnesStripped ? 1 : (dybWildcardsStyle === 'classic' ? 2 : 1);
+  if (face < minFace || qty < 1) return false;
+  return qty > dybCurrentQty || (qty === dybCurrentQty && face > dybCurrentFace);
+}
+
+// Lowest legal quantity for a given face against the standing allegation.
+// Higher face → may keep the same quantity; same/lower face → must raise quantity.
+function dybMinQtyForFace(face) {
+  return face > dybCurrentFace ? Math.max(1, dybCurrentQty) : dybCurrentQty + 1;
+}
+
 function dybRenderBidPicker() {
   // Compute legal face range
   const minFace = dybOnesStripped ? 1
@@ -516,7 +531,7 @@ function dybRenderBidPicker() {
   if (selectedFace < minFace) selectedFace = minFace;
   if (selectedFace > maxFace) selectedFace = maxFace;
 
-  const minQty = Math.max(1, dybCurrentQty + (selectedFace === dybCurrentFace ? 1 : 0));
+  const minQty = dybMinQtyForFace(selectedFace);
   const selectedQty = Math.max(dybCurrentQty, minQty);
 
   document.getElementById('dyb-face-display').textContent = selectedFace;
@@ -541,7 +556,7 @@ function dybAdjustFacePicker(delta) {
   document.getElementById('dyb-face-display').textContent = face;
 
   // Recompute min qty for new face
-  const minQty = dybCurrentQty + (face === dybCurrentFace ? 1 : 0);
+  const minQty = dybMinQtyForFace(face);
   let qty = Math.max(parseInt(picker.dataset.qty), minQty);
   picker.dataset.qty = qty;
   document.getElementById('dyb-qty-display').textContent = qty;
@@ -552,7 +567,7 @@ function dybAdjustFacePicker(delta) {
 function dybAdjustQtyPicker(delta) {
   const picker = document.getElementById('dyb-bid-controls');
   const face = parseInt(picker.dataset.face);
-  const minQty = dybCurrentQty + (face === dybCurrentFace ? 1 : 0);
+  const minQty = dybMinQtyForFace(face);
 
   let qty = parseInt(picker.dataset.qty) + delta;
   qty = Math.max(minQty, qty);
@@ -566,13 +581,8 @@ function dybUpdateBidButtonState() {
   const picker = document.getElementById('dyb-bid-controls');
   const face = parseInt(picker.dataset.face);
   const qty  = parseInt(picker.dataset.qty);
-  const minFace = dybOnesStripped ? 1 : (dybWildcardsStyle === 'classic' ? 2 : 1);
 
-  const isLegal = face >= minFace
-    && (face > dybCurrentFace || (face === dybCurrentFace && qty > dybCurrentQty))
-    && qty >= dybCurrentQty;
-
-  document.getElementById('btn-dyb-raise').disabled = !isLegal;
+  document.getElementById('btn-dyb-raise').disabled = !dybIsLegalRaise(face, qty);
 
   // Call Bluff only allowed when there's an active bid
   document.getElementById('btn-dyb-call-bluff').disabled = dybCurrentFace === 0;
@@ -844,7 +854,7 @@ function dybRenderNewGameOverlay() {
   } else if (window.syllyMultiplayerMode === 'client') {
     confirmBtn.textContent = 'Leave Session';
   } else {
-    confirmBtn.textContent = 'Roll Again \u{1F3B2}';
+    confirmBtn.textContent = 'Climb Again \u{1F3B2}';
   }
 }
 

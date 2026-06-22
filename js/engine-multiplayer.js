@@ -238,9 +238,9 @@ const MP_GAME_CONFIGS = {
     getMinPlayers: () => 4,
   },
   dyb: {
-    gameName:       'Dicey Bluffs',
+    gameName:       'The Bluff',
     emoji:          '\u{1F3B2}',
-    brandBtnClass:  'bg-stone-400 hover:bg-stone-500',
+    brandBtnClass:  'dyb-cta',
     ptpLabel:       "Let's Play!",
     menuScreen:     'screen-dyb-menu',
     onPassThePhone: () => {
@@ -289,20 +289,30 @@ const MP_GAME_CONFIGS = {
     lobbyCtaLabel:  'Initialise System',
     menuScreen:     'screen-nt-menu',
     onPassThePhone: () => {
-      if (window.syllyMultiplayerMode === 'host') {
-        ntPlayerCount = mpPlayerSlots.length;
-        ntPlayerNames = mpPlayerSlots.map(p => p.nickname);
-        if (window.mpLobbyRoster?.playerTeamIdx) {
-          ntTeamIdx      = window.mpLobbyRoster.playerTeamIdx;
-          ntTeamNames    = window.mpLobbyRoster.teamNames    || ntTeamNames;
-          ntCaptainSlots = window.mpLobbyRoster.captainSlots || [-1, -1];
-        }
-        showScreen('screen-nt-menu');
-      } else if (window.syllyMultiplayerMode === 'single') {
+      if (window.syllyMultiplayerMode === 'single') {
         // PTP selected: route to setup screen for player count + names
         ntShowSetup();
+        return;
       }
-      // 'client': waits for NT_GENERATE / NT_BUILD_BEGIN SYNCs (Phase C)
+      // Host AND client must both derive team/captain/name state from the confirmed
+      // roster. Clients receive it via GAME_START (window.mpLobbyRoster is set just
+      // before this fires). Previously only the host populated these — so on every
+      // client ntTeamIdx stayed [] and ntCaptainSlots [-1,-1], breaking DNP routing:
+      // no team members rendered (empty "My Team" hub), no second-team captain was
+      // recognised, and ntCheckBothTeamsLocked() never fired (stuck after lock).
+      ntPlayerCount = mpPlayerSlots.length;
+      ntPlayerNames = mpPlayerSlots.map(p => p.nickname);
+      if (window.mpLobbyRoster?.playerTeamIdx) {
+        ntTeamIdx      = window.mpLobbyRoster.playerTeamIdx;
+        ntTeamNames    = window.mpLobbyRoster.teamNames    || ntTeamNames;
+        ntCaptainSlots = window.mpLobbyRoster.captainSlots || [-1, -1];
+      }
+      if (window.syllyMultiplayerMode === 'host') {
+        // Go straight into the game (handshake → match), not back to the menu —
+        // settings were configured pre-lobby. Matches FRT/GTH post-lobby routing.
+        ntStartSession();
+      }
+      // 'client': waits for NT_GENERATE / NT_HUDDLE_START / NT_BUILD_BEGIN SYNCs
     },
     recommendedMode: 'mdlm',
     supportedModes:  ['ptp', 'mdlm'],
@@ -316,6 +326,7 @@ const MP_GAME_CONFIGS = {
       showTeamNamesInPreLobby: false,
       defaultTeamNames:      ['Amaze Inc.', 'Pender Securities'],
       hasCaptain:            () => (typeof ntSyllyMode !== 'undefined' && ntSyllyMode),
+      captainIcon:           '⚡',
     },
     getMaxPlayers:   () => 8,
     getMinPlayers:   () => 2,
@@ -1459,7 +1470,7 @@ function mpHandleEnvelope(env) {
     if (typeof gthHandleEnvelope === 'function') gthHandleEnvelope(env);
   }
 
-  // ── Dicey Bluffs ACTION/SYNC ──────────────────────────────────────────────
+  // ── The Bluff (dyb) ACTION/SYNC ───────────────────────────────────────────
   if (mpActiveGame === 'dyb') {
     if (typeof dybHandleEnvelope === 'function') dybHandleEnvelope(env);
   }
@@ -1779,26 +1790,35 @@ function mpRosterPlaceChipInZone(uid, teamIdx, dropZone, rc, rosterType) {
   });
   if (mpRcHasCaptain(rc)) {
     const capBtn = document.createElement('button');
-    capBtn.className = 'shrink-0 text-base px-1 transition-all duration-150 mp-roster-cap-btn';
+    capBtn.className = 'shrink-0 text-base px-1 rounded transition-all duration-150 mp-roster-cap-btn';
     capBtn.dataset.slotIdx = selIdx;
     capBtn.dataset.team = teamIdx;
-    capBtn.textContent = '⚓';
+    capBtn.textContent = rc.captainIcon || '⚓';
     capBtn.title = 'Set as Captain';
+    // Colour-emoji glyphs (⚓/⚡) ignore CSS `color`, so a captain highlighted only via
+    // text-cyan vs text-stone is indistinguishable — every marker looks identical. Show
+    // captain-state via opacity + a background pill instead (both DO affect emoji).
+    const setCapState = (btn, active) => {
+      btn.classList.toggle('opacity-100',      active);
+      btn.classList.toggle('bg-emerald-100',   active);
+      btn.classList.toggle('ring-1',           active);
+      btn.classList.toggle('ring-emerald-400', active);
+      btn.classList.toggle('opacity-30',      !active);
+    };
     capBtn.addEventListener('click', e => {
       e.stopPropagation();
       mpRosterPendingCaptain[teamIdx] = parseInt(capBtn.dataset.slotIdx);
       document.querySelectorAll(`.mp-roster-cap-btn[data-team="${teamIdx}"]`).forEach(b => {
-        b.classList.toggle('text-cyan-700', b === capBtn);
-        b.classList.toggle('text-stone-300', b !== capBtn);
+        setCapState(b, b === capBtn);
       });
       playPillClick();
       mpRosterCheckConfirm(rosterType);
     });
     if (mpRosterPendingCaptain[teamIdx] === -1) {
       mpRosterPendingCaptain[teamIdx] = selIdx;
-      capBtn.classList.add('text-cyan-700');
+      setCapState(capBtn, true);
     } else {
-      capBtn.classList.add('text-stone-300');
+      setCapState(capBtn, false);
     }
     teamEntry.appendChild(capBtn);
   }

@@ -64,7 +64,7 @@ The sound overlay volume slider (`#global-sound-volume`) uses a CSS class set by
 | DSD | `dsd-range` | cyan-200 → cyan-700 |
 | GTH | `gth-range` | #d4dbc8 → #8a9a78 (sage) |
 | BLD | `bld-range` | #fde68a → #d97706 (yellow) |
-| DYB | `dyb-range` | #e7e5e4 → #a8a29e (stone) |
+| DYB | `dyb-range` | #dce8f7 → #1E4D8C (ocean blue) |
 | PASS | `pass-range` | #a1a1aa → #18181b (zinc) |
 
 ### Mute toggle theming
@@ -96,7 +96,7 @@ The sound overlay mute toggle (`#global-mute-toggle`) shows the current game's b
 | DSD | `game-toggle-on-cyan` |
 | GTH | `game-toggle-on-sage` |
 | BLD | `game-toggle-on-yellow` |
-| DYB | `game-toggle-on-stone` |
+| DYB | `game-toggle-on-dyb` |
 | PASS | `game-toggle-on-zinc` |
 
 **Adding a new game:**
@@ -337,11 +337,11 @@ Every gameplay screen must use `h-screen` (not `min-h-screen`) on the section so
 | NAT | 🦁 | `text-lime-600` | `bg-lime-600 hover:bg-lime-700` | Survival of the Fittest |
 | DSD | ⚓ | `text-cyan-700` | `bg-cyan-700 hover:bg-cyan-800` | Mission Abyss |
 | GTH | 🛋️ | inline `style="color:#B1BCA0"` | inline `style="background-color:#B1BCA0"` | Stroke or Genius |
-| DYB | 🎲 | `text-stone-400` | `bg-stone-400 hover:bg-stone-500` | Devil's Luck |
+| DYB | 🎲 | `dyb-label` (custom) | `dyb-cta` (custom) | The Tempest |
 | BLD | 📋 | `text-yellow-500` | `bg-yellow-500 hover:bg-yellow-600` | Drama Mode |
 | PASS | 🃏 | `text-zinc-700` | `bg-zinc-900 hover:bg-zinc-800` | The Abyss |
 
-[RESOLVED — Phase 3 DYB audit, June 2026]: DYB's `text-stone-400` step labels + `bg-stone-400` close button are NOT drift — every DYB primary CTA (menu, seating, shake, settings, showdown, gameover) uses `bg-stone-400`. DYB's effective brand is the muted `stone-400`, applied consistently; `game-identities.md` brand line updated `stone-700` → `stone-400`. The "Devil's Luck" Sylly name is reality (settings + how-to); `game-identities.md` updated `Chaos Mode` → `Devil's Luck` with all five die types documented.
+[RESOLVED — Phase 3 DYB audit, June 2026]: DYB was originally `stone-400` — verified consistent at the audit. Renamed Dicey Bluffs → The Bluff and Sylly Mode renamed Devil's Luck → The Tempest in the June 2026 thematic sweep. **Recoloured stone-400 → #1E4D8C (ocean blue)** post-audit: new custom classes `dyb-cta`, `dyb-label`, `pill-active-dyb`, `game-toggle-on-dyb` added to `css/styles.css`; `game-toggle-on-stone` is now the neutral lobby fallback only. All five die types remain documented in `game-identities.md`.
 
 ---
 
@@ -464,7 +464,7 @@ Rules:
 | Natural Selection | `pill-active-lime` |
 | Deep-Sea Deploy | `pill-active-cyan` |
 | Group Therapy | `pill-active-sage` |
-| Dicey Bluffs | `pill-active-stone` |
+| The Bluff | `pill-active-dyb` |
 | Bailed | `pill-active-yellow` |
 | Pass | `pill-active-zinc` |
 
@@ -505,13 +505,13 @@ Rules:
 | LTTP | red-500 | `bg-red-500 hover:bg-red-600` | `text-red-600` | `game-toggle-on-red` | `bg-red-100 hover:bg-red-200 text-red-700` |
 | NAT | lime-600 | `bg-lime-600 hover:bg-lime-700` | `text-lime-700` | `game-toggle-on-lime` | `bg-lime-100 hover:bg-lime-200 text-lime-700` |
 | GTH | #B1BCA0 (sage — custom) | — (inline `style="background-color:#B1BCA0"`) | — | `game-toggle-on-sage` | inline `style="background-color:#e8ede3;color:#6b7a5f"` |
-| DYB | stone-400 | `bg-stone-400 hover:bg-stone-500` | `text-stone-700` | `game-toggle-on-stone` | `bg-stone-100 hover:bg-stone-200 text-stone-700` |
+| DYB | #1E4D8C (ocean blue — custom) | `dyb-cta` (custom) | `dyb-label` (custom) | `game-toggle-on-dyb` | `bg-[#dce8f7] hover:bg-[#c8daf0] text-[#1E4D8C]` |
 | BLD | yellow-500 | `bg-yellow-500 hover:bg-yellow-600` | `text-yellow-600` | `game-toggle-on-yellow` | `bg-yellow-100 hover:bg-yellow-200 text-yellow-700` |
 | PASS | zinc-900 | `bg-zinc-900 hover:bg-zinc-800` | `text-zinc-900` | `game-toggle-on-zinc` | `bg-zinc-100 hover:bg-zinc-200 text-zinc-700` |
 
 **Notes:**
 - **GTH:** Muted Sage (`#B1BCA0`) has no Tailwind utility class — GTH brand colours are applied via inline `style` attributes throughout its markup, hence the `—` entries.
-- **DYB:** the brand is the muted `stone-400` (CTAs, how-to step labels + close button all use it consistently — see `game-identities.md` § Dicey Bluffs). The toggle/range map to the single `game-toggle-on-stone` / `dyb-range` (stone) classes, which serve any stone shade. (June 2026 audit: this table previously listed `stone-700` — corrected to match shipped reality and the how-to table above.)
+- **DYB:** Ocean blue `#1E4D8C` — custom colour like GTH sage and FRT banana. All brand surfaces use custom CSS classes: `dyb-cta` (CTAs + hover `#183d70`), `dyb-label` (section/step labels), `pill-active-dyb`, `game-toggle-on-dyb`. Range gradient `#dce8f7 → #1E4D8C`. Settings button light tint: `bg-[#dce8f7] hover:bg-[#c8daf0] text-[#1E4D8C]`. Modal border: `border-[#9db8d9]`. `game-toggle-on-stone` is now the neutral lobby fallback only (not DYB's brand).
 - **GM:** brand is **split** — `violet-500/600` for all primary CTAs and accents, `purple-*` for pills/toggles/settings tint/modal borders/how-to labels (the values in this table). This is a documented inconsistency, not drift — see `game-identities.md` § Great Minds and the fix plan (unify-or-document item).
 - `accentBtnClass`/`accentTextClass` only take effect when a game calls `showWhoFirst()` (team games). GTH, DYB, BLD, and PASS never call it; their values are derived from each game's primary CTA buttons and are listed for consistency should a future mechanic need them.
 

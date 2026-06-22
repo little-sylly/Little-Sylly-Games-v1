@@ -60,7 +60,7 @@ const allScreens = [
   'screen-gth-menu', 'screen-gth-patient-intake', 'screen-gth-disorder-reveal', 'screen-gth-canvas',
   'screen-gth-waiting-room', 'screen-gth-shrink-intro', 'screen-gth-case',
   'screen-gth-case-report', 'screen-gth-big-reveal', 'screen-gth-final-report',
-  // Dicey Bluffs
+  // The Bluff (dyb)
   'screen-dyb-menu', 'screen-dyb-seating', 'screen-dyb-shake',
   'screen-dyb-table', 'screen-dyb-showdown', 'screen-dyb-gameover',
   'screen-dyb-spirit-board',
@@ -355,7 +355,7 @@ function getMuteToggleOnClass(gameId) {
     'ygi': 'game-toggle-on-orange', 'lttp': 'game-toggle-on-red',
     'nat': 'game-toggle-on-lime', 'dsd': 'game-toggle-on-cyan',
     'gth': 'game-toggle-on-sage', 'bld': 'game-toggle-on-yellow',
-    'dyb': 'game-toggle-on-stone', 'pass': 'game-toggle-on-zinc',
+    'dyb': 'game-toggle-on-dyb', 'pass': 'game-toggle-on-zinc',
     'nt': 'game-toggle-on-emerald'
   };
   return map[gameId] || 'game-toggle-on-stone';
@@ -480,7 +480,7 @@ function resetToLobby() {
     if (gthWrapper) CanvasDraw.setTremor(gthWrapper, false);
   }
   if (typeof gthResetState === 'function') gthResetState();
-  // Dicey Bluffs teardown
+  // The Bluff (dyb) teardown
   document.getElementById('dyb-settings-overlay').style.display    = 'none';
   document.getElementById('dyb-how-to-overlay').style.display      = 'none';
   document.getElementById('dyb-quit-overlay').style.display        = 'none';
@@ -494,7 +494,7 @@ function resetToLobby() {
   document.getElementById('pass-quit-overlay').style.display     = 'none';
   document.getElementById('pass-new-deal-overlay').style.display = 'none';
   // Net-Trace teardown
-  ['nt-settings-overlay','nt-how-to-overlay','nt-quit-overlay','nt-reboot-overlay','nt-logs-overlay'].forEach(id => {
+  ['nt-settings-overlay','nt-how-to-overlay','nt-quit-overlay','nt-reboot-overlay','nt-logs-overlay','nt-bridge-preview-overlay'].forEach(id => {
     const el = document.getElementById(id); if (el) el.style.display = 'none';
   });
   document.body.classList.remove('nt-overclock'); // easter-egg theme off

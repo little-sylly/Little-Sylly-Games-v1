@@ -68,8 +68,8 @@
       <button id="btn-gth" class="min-h-14 w-full rounded-2xl active:scale-95 text-white text-xl font-semibold transition-all duration-150" style="background-color:#B1BCA0">
         Group Therapy
       </button>
-      <button id="btn-dyb" class="min-h-14 w-full rounded-2xl bg-stone-400 hover:bg-stone-500 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
-        Dicey Bluffs
+      <button id="btn-dyb" class="min-h-14 w-full rounded-2xl dyb-cta active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        The Bluff
       </button>
       <button id="btn-pass" class="min-h-14 w-full rounded-2xl bg-zinc-900 hover:bg-zinc-800 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
         Pass
@@ -6323,17 +6323,17 @@
     <button class="btn-open-sound absolute top-4 right-4 text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
     <div class="text-6xl" role="img" aria-label="Dice">🎲</div>
     <div>
-      <h1 class="text-3xl font-bold text-stone-800">Dicey Bluffs</h1>
+      <h1 class="text-3xl font-bold text-stone-800">The Bluff</h1>
       <p class="text-stone-400 text-base mt-1">Trust no one, count every face.</p>
     </div>
     <div class="flex flex-col gap-3 w-full">
-      <button id="btn-dyb-menu-play" class="min-h-14 w-full rounded-2xl bg-stone-400 hover:bg-stone-500 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      <button id="btn-dyb-menu-play" class="min-h-14 w-full rounded-2xl dyb-cta active:scale-95 text-white text-xl font-semibold transition-all duration-150">
         Let's Play!
       </button>
       <button id="btn-dyb-menu-how-to" class="min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
         How to Play
       </button>
-      <button id="btn-dyb-menu-settings" class="min-h-14 w-full rounded-2xl bg-stone-100 hover:bg-stone-200 active:scale-95 text-stone-700 text-xl font-semibold transition-all duration-150">
+      <button id="btn-dyb-menu-settings" class="min-h-14 w-full rounded-2xl bg-[#dce8f7] hover:bg-[#c8daf0] active:scale-95 text-[#1E4D8C] text-xl font-semibold transition-all duration-150">
         Settings
       </button>
       <button id="btn-dyb-menu-back" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-base font-medium transition-all duration-150">
@@ -6347,12 +6347,12 @@
     class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
     <div class="flex flex-col w-full max-w-sm gap-4">
       <div class="text-center">
-        <p class="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-1">Dicey Bluffs</p>
-        <h2 class="text-2xl font-bold text-stone-800">Pull Up a Chair</h2>
-        <p class="text-stone-400 text-sm mt-1">Seat assignments for this session.</p>
+        <p class="text-xs font-semibold uppercase tracking-widest dyb-label mb-1">The Bluff</p>
+        <h2 class="text-2xl font-bold text-stone-800">Take Your Position</h2>
+        <p class="text-stone-400 text-sm mt-1">Positions for this climb.</p>
       </div>
       <div id="dyb-seating-list" class="flex flex-col gap-2"></div>
-      <button id="btn-dyb-start-game" class="min-h-14 w-full rounded-2xl bg-stone-400 hover:bg-stone-500 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      <button id="btn-dyb-start-game" class="min-h-14 w-full rounded-2xl dyb-cta active:scale-95 text-white text-xl font-semibold transition-all duration-150">
         Deal the Dice 🎲
       </button>
       <p id="dyb-seating-client-wait" class="text-center text-stone-400 text-sm" style="display:none">Waiting for host to deal the seats…</p>
@@ -6364,7 +6364,7 @@
     class="flex flex-col w-full max-w-sm mx-auto h-screen overflow-hidden">
     <div class="flex items-center justify-between px-4 pt-4 pb-2 flex-shrink-0">
       <div>
-        <p id="dyb-shake-number" class="text-xs font-semibold uppercase tracking-widest text-stone-400"></p>
+        <p id="dyb-shake-number" class="text-xs font-semibold uppercase tracking-widest dyb-label"></p>
         <p id="dyb-shake-opener-label" class="text-sm font-semibold text-stone-600 mt-0.5"></p>
       </div>
       <div class="flex items-center gap-2">
@@ -6377,7 +6377,7 @@
       <div id="dyb-hand-dock-shake" class="flex gap-3 flex-wrap justify-center min-h-12"></div>
     </div>
     <div class="px-5 pb-8 pt-2 flex-shrink-0 flex flex-col gap-3">
-      <button id="btn-dyb-roll" class="min-h-14 w-full rounded-2xl bg-stone-400 hover:bg-stone-500 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      <button id="btn-dyb-roll" class="min-h-14 w-full rounded-2xl dyb-cta active:scale-95 text-white text-xl font-semibold transition-all duration-150">
         Shake 'Em Up 🎲
       </button>
       <button id="btn-dyb-roll-ready" class="min-h-14 w-full rounded-2xl bg-stone-600 hover:bg-stone-700 active:scale-95 text-white text-xl font-semibold transition-all duration-150 btn-mp-action" style="display:none">
@@ -6403,8 +6403,8 @@
       <div id="dyb-pip-row" class="flex gap-3 justify-center flex-wrap"></div>
       <!-- allegation card -->
       <div class="bg-white rounded-2xl p-4 shadow-sm text-center">
-        <p class="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-1">The Allegation</p>
-        <p id="dyb-allegation-display" class="text-3xl font-bold text-stone-800">No bid yet.</p>
+        <p class="text-xs font-semibold uppercase tracking-widest dyb-label mb-1">The Claim</p>
+        <p id="dyb-allegation-display" class="text-3xl font-bold text-stone-800">No claim yet.</p>
         <p id="dyb-last-bidder-label" class="text-stone-400 text-sm mt-1"></p>
       </div>
       <!-- turn label -->
@@ -6412,7 +6412,7 @@
       <!-- bid picker controls -->
       <div id="dyb-bid-controls" class="flex flex-col gap-3" data-face="1" data-qty="1">
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
-          <p class="text-xs font-semibold uppercase tracking-widest text-stone-400">Face Value</p>
+          <p class="text-xs font-semibold uppercase tracking-widest dyb-label">Face Value</p>
           <div class="flex items-center justify-between gap-3">
             <button id="btn-dyb-face-dec" class="w-12 h-12 rounded-xl bg-stone-100 hover:bg-stone-200 active:scale-90 text-stone-700 font-bold text-xl transition-transform duration-100">−</button>
             <span id="dyb-face-display" class="text-2xl font-bold text-stone-800 w-10 text-center">1</span>
@@ -6420,7 +6420,7 @@
           </div>
         </div>
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
-          <p class="text-xs font-semibold uppercase tracking-widest text-stone-400">Quantity</p>
+          <p class="text-xs font-semibold uppercase tracking-widest dyb-label">Quantity</p>
           <div class="flex items-center justify-between gap-3">
             <button id="btn-dyb-qty-dec" class="w-12 h-12 rounded-xl bg-stone-100 hover:bg-stone-200 active:scale-90 text-stone-700 font-bold text-xl transition-transform duration-100">−</button>
             <span id="dyb-qty-display" class="text-2xl font-bold text-stone-800 w-10 text-center">1</span>
@@ -6432,16 +6432,16 @@
       <div id="dyb-allegation-history" class="flex flex-col gap-1"></div>
       <!-- hand section -->
       <div class="bg-stone-50 rounded-2xl p-4">
-        <p class="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-3">Your Hand</p>
+        <p class="text-xs font-semibold uppercase tracking-widest dyb-label mb-3">Your Hand</p>
         <div id="dyb-hand-dock-table" class="flex gap-3 flex-wrap min-h-12"></div>
       </div>
       <!-- action buttons -->
       <div class="flex gap-3">
         <button id="btn-dyb-call-bluff" class="flex-1 min-h-14 rounded-2xl bg-red-500 hover:bg-red-600 active:scale-95 text-white font-semibold transition-all duration-150 btn-mp-action" disabled>
-          Call Bluff!
+          Call the Bluff
         </button>
-        <button id="btn-dyb-raise" class="flex-1 min-h-14 rounded-2xl bg-stone-400 hover:bg-stone-500 active:scale-95 text-white font-semibold transition-all duration-150 btn-mp-action" disabled>
-          Raise the Stakes
+        <button id="btn-dyb-raise" class="flex-1 min-h-14 rounded-2xl dyb-cta active:scale-95 text-white font-semibold transition-all duration-150 btn-mp-action" disabled>
+          Climb Higher
         </button>
       </div>
     </div>
@@ -6452,8 +6452,8 @@
     class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
     <div class="flex flex-col w-full max-w-sm gap-4">
       <div class="text-center">
-        <p class="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-1">Slamming the Cup</p>
-        <h2 class="text-2xl font-bold text-stone-800">THE SHOWDOWN</h2>
+        <p class="text-xs font-semibold uppercase tracking-widest dyb-label mb-1">Reaching the Edge</p>
+        <h2 class="text-2xl font-bold text-stone-800">THE OVERLOOK</h2>
       </div>
       <div class="bg-white rounded-2xl p-5 shadow-sm text-center flex flex-col gap-2">
         <p id="dyb-showdown-claimed" class="text-stone-500 text-sm"></p>
@@ -6464,7 +6464,7 @@
       <div id="dyb-showdown-hands" class="flex flex-col gap-2"></div>
       <div class="flex items-center gap-2">
         <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
-        <button id="btn-dyb-next-shake" class="flex-1 min-h-14 rounded-2xl bg-stone-400 hover:bg-stone-500 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        <button id="btn-dyb-next-shake" class="flex-1 min-h-14 rounded-2xl dyb-cta active:scale-95 text-white text-xl font-semibold transition-all duration-150">
           Next Shake →
         </button>
         <button id="btn-dyb-showdown-exit" class="text-stone-400 font-bold text-xl active:scale-90 transition-transform duration-100 px-2">✕</button>
@@ -6478,14 +6478,14 @@
     class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
     <div class="flex flex-col w-full max-w-sm gap-4">
       <div class="text-center">
-        <h2 class="text-2xl font-bold text-stone-800">The Clean Out 🎲</h2>
+        <h2 class="text-2xl font-bold text-stone-800">The Summit 🎲</h2>
         <p id="dyb-gameover-winner" class="text-xl font-bold text-stone-600 mt-2"></p>
       </div>
       <div id="dyb-gameover-standings" class="flex flex-col gap-2"></div>
       <div class="flex items-center gap-2">
         <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
-        <button id="btn-dyb-gameover-again" class="flex-1 min-h-14 rounded-2xl bg-stone-400 hover:bg-stone-500 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
-          Roll Again?
+        <button id="btn-dyb-gameover-again" class="flex-1 min-h-14 rounded-2xl dyb-cta active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+          Climb Again?
         </button>
         <button id="btn-dyb-gameover-exit" class="text-stone-400 font-bold text-xl active:scale-90 transition-transform duration-100 px-2">✕</button>
       </div>
@@ -6496,12 +6496,12 @@
   <section id="screen-dyb-spirit-board" style="display:none"
     class="flex flex-col w-full max-w-sm mx-auto h-screen overflow-hidden">
     <div class="flex items-center justify-between px-4 pt-4 pb-2 flex-shrink-0">
-      <p class="text-sm font-bold text-stone-500">THE SPIRIT BOARD 👻</p>
+      <p class="text-sm font-bold text-stone-500">THE DEPTHS 🌊</p>
       <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
     </div>
-    <p id="dyb-spirit-allegation" class="text-center text-stone-400 text-sm px-4 pb-2 flex-shrink-0">No bid yet.</p>
+    <p id="dyb-spirit-allegation" class="text-center text-stone-400 text-sm px-4 pb-2 flex-shrink-0">No claim yet.</p>
     <div id="dyb-spirit-grid" class="flex-1 overflow-y-auto min-h-0 flex flex-col gap-2 px-5 py-2"></div>
-    <p class="text-center text-stone-300 text-xs pb-4 px-4 flex-shrink-0">You can see everyone's dice. The living cannot.</p>
+    <p class="text-center text-stone-300 text-xs pb-4 px-4 flex-shrink-0">You can see everyone's dice. Those still climbing cannot.</p>
   </section>
 
   <!-- DYB SETTINGS OVERLAY -->
@@ -6509,18 +6509,18 @@
     class="fixed inset-0 bg-black/40 z-[80] flex items-end justify-center">
     <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
       <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
-        <h2 class="text-xl font-bold text-stone-800">House Rules 📋</h2>
-        <p class="text-xs text-stone-400 mt-1">Set the table before anyone picks up their cup.</p>
+        <h2 class="text-xl font-bold text-stone-800">Ground Rules 📋</h2>
+        <p class="text-xs text-stone-400 mt-1">Set the ground rules before the first climb.</p>
       </div>
       <div class="overflow-y-auto flex flex-col gap-5 px-5 py-5">
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
           <div>
             <p class="text-stone-800 font-semibold">Wildcards Style</p>
-            <p class="text-stone-400 text-sm mt-0.5">How the 1-face behaves during active Allegations.</p>
+            <p class="text-stone-400 text-sm mt-0.5">How the 1-face behaves during active Claims.</p>
           </div>
           <div class="flex gap-2 flex-wrap">
             <button class="pill" data-dyb-wildcards="strict">Strict Numbers</button>
-            <button class="pill pill-active-stone" data-dyb-wildcards="classic">Classic Wilds</button>
+            <button class="pill pill-active-dyb" data-dyb-wildcards="classic">Classic Wilds</button>
             <button class="pill" data-dyb-wildcards="volatile">Volatile Wilds</button>
           </div>
           <p id="dyb-wildcards-desc" class="text-stone-400 text-xs italic">1s count toward any face. Can't be directly alleged.</p>
@@ -6533,7 +6533,7 @@
           <div class="flex gap-2">
             <button class="pill" data-dyb-hand="3">3 Dice</button>
             <button class="pill" data-dyb-hand="4">4 Dice</button>
-            <button class="pill pill-active-stone" data-dyb-hand="5">5 Dice</button>
+            <button class="pill pill-active-dyb" data-dyb-hand="5">5 Dice</button>
           </div>
         </div>
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
@@ -6541,7 +6541,7 @@
             <p class="text-stone-800 font-semibold">✨ Sylly Mode</p>
             <button id="btn-dyb-sylly-toggle" class="game-toggle-off shrink-0">OFF</button>
           </div>
-          <p class="text-stone-600 text-sm font-semibold">Devil's Luck</p>
+          <p class="text-stone-600 text-sm font-semibold">The Tempest</p>
           <p class="text-stone-400 text-sm">Each die has a chance to be secretly modified — loaded, phantom, cracked, slick, or a snake.</p>
           <div id="dyb-sylly-sub-options" style="display:none" class="flex flex-col gap-2 mt-1">
             <p class="text-stone-500 text-sm font-semibold">Chaos level</p>
@@ -6549,7 +6549,7 @@
             <p id="dyb-sylly-intensity-label" class="text-stone-400 text-xs">5% chaos per die</p>
           </div>
         </div>
-        <button id="btn-dyb-settings-close" class="min-h-14 w-full rounded-2xl bg-stone-400 hover:bg-stone-500 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        <button id="btn-dyb-settings-close" class="min-h-14 w-full rounded-2xl dyb-cta active:scale-95 text-white text-xl font-semibold transition-all duration-150">
           Done
         </button>
       </div>
@@ -6566,36 +6566,36 @@
       </div>
       <div class="overflow-y-auto flex flex-col gap-4 px-5 py-5">
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
-          <p class="text-xs font-semibold uppercase tracking-widest text-stone-400">Step 1</p>
+          <p class="text-xs font-semibold uppercase tracking-widest dyb-label">Step 1</p>
           <p class="font-bold text-stone-800">The Shake</p>
-          <p class="text-stone-500 text-sm">Everyone taps to roll their dice simultaneously. Your dice are <span class="font-semibold text-stone-700">private</span> — nobody else sees them until The Showdown.</p>
+          <p class="text-stone-500 text-sm">Everyone taps to roll their dice simultaneously. Your dice are <span class="font-semibold text-stone-700">private</span> — nobody else sees them until The Overlook.</p>
         </div>
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
-          <p class="text-xs font-semibold uppercase tracking-widest text-stone-400">Step 2</p>
-          <p class="font-bold text-stone-800">The Allegation</p>
-          <p class="text-stone-500 text-sm">The opener makes a claim: <span class="font-semibold text-stone-700">"At least X dice showing face Y exist across the whole table."</span> This becomes The Allegation.</p>
+          <p class="text-xs font-semibold uppercase tracking-widest dyb-label">Step 2</p>
+          <p class="font-bold text-stone-800">The Claim</p>
+          <p class="text-stone-500 text-sm">The opener makes a claim: <span class="font-semibold text-stone-700">"At least X dice showing face Y exist across the whole table."</span> This becomes The Claim.</p>
         </div>
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
-          <p class="text-xs font-semibold uppercase tracking-widest text-stone-400">Step 3</p>
-          <p class="font-bold text-stone-800">Raise or Challenge</p>
-          <p class="text-stone-500 text-sm">Each player must either <span class="font-semibold text-stone-700">raise the stakes</span> or tap <span class="font-semibold text-stone-700">Call Bluff!</span> to trigger The Showdown. Quantity can never decrease.</p>
+          <p class="text-xs font-semibold uppercase tracking-widest dyb-label">Step 3</p>
+          <p class="font-bold text-stone-800">Climb or Challenge</p>
+          <p class="text-stone-500 text-sm">Each player must either <span class="font-semibold text-stone-700">climb higher</span> or tap <span class="font-semibold text-stone-700">Call the Bluff</span> to trigger The Overlook. Quantity can never decrease.</p>
         </div>
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
-          <p class="text-xs font-semibold uppercase tracking-widest text-stone-400">Winning and Scoring</p>
+          <p class="text-xs font-semibold uppercase tracking-widest dyb-label">Winning and Scoring</p>
           <p class="font-bold text-stone-800">Last Die Standing</p>
           <ul class="list-disc pl-5 flex flex-col gap-1 text-stone-500 text-sm">
             <li><span class="font-semibold text-stone-700">Bluff called correctly</span> — the bidder loses a die.</li>
             <li><span class="font-semibold text-stone-700">Bluff called wrong</span> — the challenger loses a die.</li>
-            <li><span class="font-semibold text-stone-700">Out of dice</span> — you're eliminated. Watch from the Spirit Board.</li>
-            <li><span class="font-semibold text-stone-700">Last player with dice</span> — wins The Clean Out.</li>
+            <li><span class="font-semibold text-stone-700">Out of dice</span> — you're eliminated. Watch from The Depths.</li>
+            <li><span class="font-semibold text-stone-700">Last player with dice</span> — reaches The Summit.</li>
           </ul>
         </div>
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
-          <p class="text-xs font-semibold uppercase tracking-widest text-stone-400">✨ Sylly Mode</p>
-          <p class="font-bold text-stone-800">Devil's Luck</p>
-          <p class="text-stone-500 text-sm">Some dice are secretly cursed. <span class="font-semibold text-stone-700">Loaded</span> count double, <span class="font-semibold text-stone-700">Phantom</span> hide their face until the showdown, <span class="font-semibold text-stone-700">Slick</span> let you assign any face, <span class="font-semibold text-stone-700">Cracked</span> count zero, and <span class="font-semibold text-stone-700">Snake Eyes</span> subtract from the tally.</p>
+          <p class="text-xs font-semibold uppercase tracking-widest dyb-label">✨ Sylly Mode</p>
+          <p class="font-bold text-stone-800">The Tempest</p>
+          <p class="text-stone-500 text-sm">Some dice are secretly cursed. <span class="font-semibold text-stone-700">Loaded</span> count double, <span class="font-semibold text-stone-700">Phantom</span> hide their face until The Overlook, <span class="font-semibold text-stone-700">Slick</span> let you assign any face, <span class="font-semibold text-stone-700">Cracked</span> count zero, and <span class="font-semibold text-stone-700">Snake Eyes</span> subtract from the tally.</p>
         </div>
-        <button id="btn-dyb-howto-close" class="min-h-14 w-full rounded-2xl bg-stone-400 hover:bg-stone-500 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        <button id="btn-dyb-howto-close" class="min-h-14 w-full rounded-2xl dyb-cta active:scale-95 text-white text-xl font-semibold transition-all duration-150">
           Got it
         </button>
       </div>
@@ -6605,10 +6605,10 @@
   <!-- DYB QUIT OVERLAY -->
   <div id="dyb-quit-overlay" style="display:none"
     class="fixed inset-0 bg-black/40 z-[80] flex items-center justify-center px-6">
-    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-stone-300">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-[#9db8d9]">
       <p class="text-3xl">🚪</p>
-      <h3 class="text-lg font-bold text-stone-800">Walk Away?</h3>
-      <p class="text-stone-500 text-sm">Your dice go with you. The game carries on without you.</p>
+      <h3 class="text-lg font-bold text-stone-800">Back Down?</h3>
+      <p class="text-stone-500 text-sm">Your dice go with you. The climb carries on without you.</p>
       <button id="btn-dyb-quit-confirm" class="min-h-11 w-full rounded-2xl bg-red-500 hover:bg-red-600 active:scale-95 text-white font-semibold text-sm transition-all duration-100">
         Yeah, I'm out.
       </button>
@@ -6621,12 +6621,12 @@
   <!-- DYB NEW GAME OVERLAY -->
   <div id="dyb-new-game-overlay" style="display:none"
     class="fixed inset-0 bg-black/40 z-[90] flex items-center justify-center px-6">
-    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-stone-300">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-[#9db8d9]">
       <p class="text-3xl">🎲</p>
-      <h3 class="text-lg font-bold text-stone-800">Roll Again?</h3>
-      <p class="text-stone-500 text-sm">New seats, new cups, same room code.</p>
-      <button id="btn-dyb-new-game-confirm" class="min-h-11 w-full rounded-2xl bg-stone-400 hover:bg-stone-500 active:scale-95 text-white font-semibold text-sm transition-all duration-100">
-        Roll Again 🎲
+      <h3 class="text-lg font-bold text-stone-800">Climb Again?</h3>
+      <p class="text-stone-500 text-sm">New positions, fresh dice, same room code.</p>
+      <button id="btn-dyb-new-game-confirm" class="min-h-11 w-full rounded-2xl dyb-cta active:scale-95 text-white font-semibold text-sm transition-all duration-100">
+        Climb Again 🎲
       </button>
       <button id="btn-dyb-new-game-cancel" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-sm transition-all duration-100">
         Stay here
@@ -6637,7 +6637,7 @@
   <!-- DYB SLICK PICKER (die-face assignment overlay) -->
   <div id="dyb-slick-picker-overlay" style="display:none"
     class="fixed inset-0 bg-black/40 z-[100] flex items-center justify-center px-6">
-    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-stone-300">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-[#9db8d9]">
       <p class="text-stone-600 font-semibold text-sm">Assign this die's face</p>
       <div id="dyb-slick-picker-content" class="flex gap-2 justify-center flex-wrap"></div>
       <button onclick="document.getElementById('dyb-slick-picker-overlay').style.display='none'" class="min-h-10 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-sm transition-all duration-100">Cancel</button>
@@ -7130,17 +7130,18 @@
   <section id="screen-nt-allocation" style="display:none"
     class="flex flex-col w-full max-w-sm mx-auto h-screen overflow-hidden">
     <div class="flex items-center justify-between px-4 pt-4 pb-2 flex-shrink-0">
-      <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest">Shared Allocation Hub</p>
+      <p id="nt-alloc-header" class="text-stone-400 text-[11px] font-mono font-semibold uppercase tracking-widest">SYS_PARTITION // SHARED_ALLOCATION_HUB</p>
       <div class="flex items-center gap-2">
         <button id="btn-nt-alloc-how-to" class="text-stone-400 font-bold text-sm active:scale-90 transition-transform duration-100">[?]</button>
         <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
         <button class="btn-nt-quit-open text-stone-500 font-bold text-xl active:scale-90 transition-transform duration-100">✕</button>
       </div>
     </div>
-    <div class="flex-1 overflow-y-auto flex flex-col min-h-0 px-6 py-2">
-      <div id="nt-alloc-body" class="my-auto text-center text-stone-400 text-sm">Pre-Planning huddle — allocate the cluster's inventory.</div>
+    <div class="flex-1 min-h-0 overflow-hidden px-6 py-2 flex flex-col">
+      <div id="nt-alloc-body" class="flex flex-col flex-1 min-h-0 text-stone-400 text-sm">Pre-Planning huddle — allocate the cluster's inventory.</div>
     </div>
     <div class="px-6 pb-8 pt-2 flex-shrink-0">
+      <div id="nt-alloc-controlhub" class="mb-2"></div>
       <p id="nt-alloc-warning" style="display:none" class="text-amber-500 text-xs font-semibold text-center mb-2 animate-pulse">UNALLOCATED INVENTORY</p>
       <button id="btn-nt-alloc-lock" class="min-h-14 w-full rounded-2xl bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150 btn-mp-action">
         Lock Allocations
@@ -7212,13 +7213,19 @@
           <button class="btn-nt-quit-open text-stone-500 font-bold text-xl active:scale-90 transition-transform duration-100">&#x2715;</button>
         </div>
       </div>
+      <!-- DNP team tabs — watch your team's bridge or the opponent's (hidden in non-DNP) -->
+      <div id="nt-journey-tabs" style="display:none" class="flex gap-2"></div>
       <div class="w-full rounded-xl border border-emerald-700/40 bg-slate-900 p-2 flex flex-col gap-1">
         <div class="flex items-center justify-between px-1 text-[10px] font-mono min-w-0 gap-1">
-          <span id="nt-playback-node-name" class="text-emerald-400 font-bold whitespace-nowrap flex-shrink-0">NT-NODE-01</span>
+          <span id="nt-playback-node-name" class="text-emerald-400 font-bold whitespace-nowrap flex-shrink-0 truncate">NT-NODE-01</span>
           <span id="nt-playback-latency" class="text-red-400 font-bold tabular-nums">0 ms</span>
           <span id="nt-playback-status" class="px-1.5 py-0.5 rounded-full text-[9px] font-bold whitespace-nowrap flex-shrink-0 bg-emerald-900/60 text-emerald-400">OPERATIONAL</span>
         </div>
         <canvas id="nt-playback-canvas" class="w-full aspect-square bg-slate-900 rounded"></canvas>
+        <!-- DNP segmented journey track — one labelled section per leg (hidden in non-DNP) -->
+        <div id="nt-journey-segwrap" style="display:none" class="px-1">
+          <div id="nt-journey-segments" class="flex w-full h-4 rounded overflow-hidden bg-slate-800"></div>
+        </div>
         <div class="flex items-center gap-2 px-1 pb-0.5 text-[10px] font-mono">
           <button id="btn-nt-playback-pause" class="text-emerald-400 font-bold text-base leading-none w-5 text-center flex-shrink-0 active:scale-90 transition-transform duration-100">&#x25B6;</button>
           <input id="nt-playback-scrubber" type="range" min="0" max="100" value="0" class="nt-range flex-1 min-w-0" />
@@ -7468,6 +7475,16 @@
           Stay here
         </button>
       </div>
+    </div>
+  </div>
+
+  <!-- NT BRIDGE PREVIEW OVERLAY (enlarged DNP cluster bridge — tap to close) -->
+  <div id="nt-bridge-preview-overlay" style="display:none"
+    class="fixed inset-0 bg-black/80 z-[95] flex items-center justify-center px-4">
+    <div class="flex flex-col items-center gap-3 w-full max-w-2xl">
+      <p class="text-emerald-400 font-mono text-xs uppercase tracking-widest">Cluster Bridge · Ingress ▸ Egress</p>
+      <div class="w-full overflow-x-auto"><div id="nt-bridge-preview-host" class="mx-auto"></div></div>
+      <p class="text-stone-400 text-xs">Tap anywhere to close</p>
     </div>
   </div>
 

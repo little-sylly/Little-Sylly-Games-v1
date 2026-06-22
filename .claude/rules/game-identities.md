@@ -913,11 +913,12 @@ LOBBY (MDLM only) → GTH MENU → GTH PATIENT INTAKE (screen-gth-patient-intake
 
 ---
 
-## Game 10: Dicey Bluffs (DYB)
+## Game 10: The Bluff (DYB)
+**Display name:** "The Bluff" (renamed from "Dicey Bluffs", June 2026). The rename leans into the geological double meaning of *bluff* — a high sea-cliff — so the language sweep is built on a climb/cliff metaphor: escalation is *climbing higher*, a challenge is doubting someone can hold their footing, losing is *the plunge*, and the winner reaches *The Summit*. **The internal `dyb` prefix and ALL code identifiers (variables, packet names, screen IDs, e.g. `dybAllegationHistory`, `DYB_ALLEGATION`, `screen-dyb-showdown`, `screen-dyb-spirit-board`) are unchanged** — the rename is view-layer strings only.
 **Theme:** Liar's Dice — each player shakes a private hand of dice, then players take turns making escalating claims about the full table. Call someone's bluff or be caught lying.
 **Tagline:** "Trust no one. Count every face."
 **Key file:** `js/games/dyb.js`
-**Brand colour:** `stone-400` (muted — all primary CTAs use `bg-stone-400`; how-to step labels + close button also stone-400) | **Active pill:** `pill-active-stone` | **Toggle ON:** `game-toggle-on-stone` (June 2026 audit: game-identities/ui-style previously said `stone-700`; reality is the lighter `stone-400`, applied consistently — an intentional muted choice, not drift)
+**Brand colour:** `#1E4D8C` (ocean blue — all primary CTAs use `dyb-cta`; section/step labels use `dyb-label`) | **Active pill:** `pill-active-dyb` | **Toggle ON:** `game-toggle-on-dyb` (recoloured from stone-400 → #1E4D8C; `game-toggle-on-stone` now serves as the neutral lobby fallback only)
 **State flow:**
 ```
 LOBBY (MDLM only) → DYB MENU
@@ -932,30 +933,33 @@ LOBBY (MDLM only) → DYB MENU
 ```
 
 ### Terminology
+*Display terms below; code identifiers in `code font` are unchanged by the rename.*
+
 | Term | Meaning |
 |------|---------|
-| Shake | One full round of rolling + bidding + showdown |
-| Allegation | A bid — the active player's claim about how many of a face exist across all dice on the table |
-| Call Bluff! | Challenge the previous allegation — triggers a Showdown |
-| Showdown | `screen-dyb-showdown` — all hands revealed; real count vs claimed count determines the loser |
-| The Table | `screen-dyb-table` — main gameplay screen showing pip row, bid history, and allegation controls |
-| Stealth Veil | The eye-icon toggle that hides/shows the player's own dice (prevents screen peeking) |
-| Devil's Luck | Sylly Mode name (UI: "Devil's Luck"; intensity = "Chaos level"). Each die may become one of five special types — see Special Mechanics |
-| Slick Die | One of the five Devil's Luck die types: face is privately assigned by the owner, opaque to all others |
+| Shake | One full round of rolling + bidding + The Overlook |
+| The Claim | A bid — the active player's claim about how many of a face exist across all dice on the table. *Display term (was "The Allegation"). Code keeps `dybAllegationHistory`, `DYB_ALLEGATION`, the `dyb-allegation-*` element IDs.* |
+| Call the Bluff | Challenge the previous Claim — triggers The Overlook. *Display term (was "Call Bluff!")* |
+| Climb Higher | The escalate/raise button — bid a higher quantity (any face) or the same quantity with a higher face. *Display term (was "Raise the Stakes")* |
+| The Overlook | `screen-dyb-showdown` — all hands revealed; real count vs claimed count determines the loser. *Display term (was "The Showdown"; eyebrow "Reaching the Edge")* |
+| The Table | `screen-dyb-table` — main gameplay screen (no on-screen title); pip row, bid history, Claim controls |
+| The Tempest | Sylly Mode name (UI: "The Tempest"; intensity slider still labelled "Chaos level"). Each die may become one of five special types — see Special Mechanics. *Display term (was "Devil's Luck")* |
+| Slick Die | One of the five The Tempest die types: face is privately assigned by the owner, opaque to all others |
 | Wild (1s) | Ones count as any face — behaviour depends on Wildcards Style setting |
 | Classic Wildcards | 1s count toward any bid |
 | Strict (No Wilds) | 1s are just 1s — no wild behaviour |
 | Volatile Wilds | 1s are wild UNTIL someone bids 1s directly — then they stop being wild for the round |
-| The Spirit Board | `screen-dyb-spirit-board` — eliminated player's passive spectator screen |
-| New Game | Play again — overlay heading is "Roll Again?" (confirm "Roll Again 🎲" single / dynamic MP labels) |
-| Walk Away? | Quit confirm overlay heading (🚪; confirm "Yeah, I'm out." / cancel "Keep bluffing!") |
+| The Depths | `screen-dyb-spirit-board` — eliminated player's passive spectator screen (header "THE DEPTHS 🌊"). *Display term (was "The Spirit Board")* |
+| The Summit | Gameover win state + `screen-dyb-gameover` heading ("The Summit 🎲") — the last player with dice reaches The Summit. *Display term (was "The Clean Out")* |
+| New Game | Play again — overlay heading "Climb Again?" (confirm "Climb Again 🎲" single / dynamic MP labels) |
+| Back Down? | Quit confirm overlay heading (🚪; confirm "Yeah, I'm out." / cancel "Keep bluffing!"). *Display term (was "Walk Away?")* |
 
 ### Settings
 | Setting | Options | Default | Internal variable | Internal values |
 |---------|---------|---------|------------------|-----------------|
 | Wildcards Style | No Wilds / Classic / Volatile | Classic | `dybWildcardsStyle` | `'strict'` / `'classic'` / `'volatile'` |
 | Starting Hand | 3 / 4 / 5 | 5 | `dybStartingHand` | int |
-| ✨ Sylly Mode (Devil's Luck) | OFF / ON | OFF | `dybSyllyMode` | bool |
+| ✨ Sylly Mode (The Tempest) | OFF / ON | OFF | `dybSyllyMode` | bool |
 | Chaos level (sub-option) | slider 5–10 | 5 | `dybSyllyIntensity` | int — % chance per die *per special type* (cumulative across the 5 types; ≈ intensity×5 % of dice become special at intensity 5) |
 
 ### Scoring / Elimination
@@ -973,7 +977,7 @@ LOBBY (MDLM only) → DYB MENU
 **Wildcards — Volatile mode:**
 `dybOnesStripped` starts `false` each Shake. If a player's allegation names face = 1, `dybOnesStripped = true` for the rest of the Shake. After that, 1s no longer count as wild — `dybComputeRealCount()` branches on this flag.
 
-**Devil's Luck — five special die types (Sylly Mode):**
+**The Tempest — five special die types (Sylly Mode):**
 On each roll (`dybGenerateRoll`), every die has a cumulative chance to become one of five special types (`typeOrder = ['loaded','phantom','slick','cracked','snake']`, threshold `r < intensity/100 × (i+1)`). Counting is in `dybComputeRealCount()`:
 - **Loaded** (amber, ring) — counts as **2** toward its face value.
 - **Phantom** (grey italic "?") — face hidden from the owner; counts **normally** at its real rolled value. ⚠️ Currently the "?" persists even at the showdown reveal — see DYB Bug Index (the how-to promises a reveal).
@@ -992,10 +996,10 @@ After each Showdown, `dybCurrentOpenerIdx` = loser (if still active) or next act
 ### Overlay Types
 | Overlay | Pattern | z-index | Notes |
 |---------|---------|---------|-------|
-| `dyb-settings-overlay` | Data (slide-up) | z-[80] | "House Rules 📋" |
+| `dyb-settings-overlay` | Data (slide-up) | z-[80] | "Ground Rules 📋" (was "House Rules 📋") |
 | `dyb-how-to-overlay` | Data (slide-up) | z-[90] | "How to Play 🎲" |
-| `dyb-quit-overlay` | Decision modal | z-[80] | "Walk Away?" — mid-game exit |
-| `dyb-new-game-overlay` | Decision modal | z-[90] | "Roll Again?" — play-again confirm |
+| `dyb-quit-overlay` | Decision modal | z-[80] | "Back Down?" — mid-game exit (was "Walk Away?") |
+| `dyb-new-game-overlay` | Decision modal | z-[90] | "Climb Again?" — play-again confirm (was "Roll Again?") |
 | `dyb-slick-picker-overlay` | Decision modal | z-[100] | Slick die face picker — tapped from table screen; MUST be cleared in `resetToLobby()` AND in quit-confirm handler |
 
 ### Screens
@@ -1338,8 +1342,10 @@ Player count (`ntPlayerCount`, default 4) is set from the lobby roster in MDLM (
 
 **Shared Allocation Hub (DNP):**
 - Shows before hardening begins each cycle
-- Captain: interactive [−]/[+] per leg per component type; "Lock Allocation" CTA commits
-- Non-captain: same UI, all controls disabled; live-synced via `NT_ALLOCATION_SYNC`
+- Each team's captain (per `ntCaptainSlots[team]`) drives **their own** team's hub; the other team's captain drives theirs independently. Both `ntTeamIdx` and `ntCaptainSlots` are populated on host AND clients from `window.mpLobbyRoster` in NT's `onPassThePhone` (an empty client branch was the root cause of BUG-09: clients had no team/captain → empty hub, no second captain, stuck-on-lock)
+- **Cluster bridge** at the top of the hub: a horizontal-scroll row of per-leg mazes (player name above each), drawn edge-to-edge by `ntBuildBridgeInto` → `ntDrawLegCanvas`. DNP node generation chains each leg's egress row to the next leg's ingress row (`ntGenerateNode(keepInventory, forcedIngressIdx)`), so neighbouring legs connect only through the green-ingress ▸ amber-egress channel; the rest of each shared edge is walled off in bad-sector grey. Tap the bridge to open the enlarged `nt-bridge-preview-overlay`. Shown to captains AND non-captains
+- **Allocation = rebalance, not from-scratch:** every leg starts at its BASE inventory (sum = pool, transfer pool 0). Captains shift firewalls/honeypots between legs via [−]/[+]; doing nothing plays every leg at base (skippable — preserves flow). The transfer-pool counter is grouped in the captain-only "Rebalance Cluster" card with the controls
+- Non-captain: bridge only (no allocation controls — removed as clutter; they can't see live updates anyway). "Lock Allocation" CTA commits (captain only)
 - Huddle timer: `ntHardeningWin × teamSize` seconds; auto-locks on expiry via `ntCommitAllocation()`
 - If captain locks before timer expires, `ntCheckBothTeamsLocked()` cancels the timer and broadcasts `NT_BUILD_BEGIN` immediately when both teams are locked
 - Unallocated-pool warning: tapping Lock with remaining budget flashes `#nt-alloc-warning` via `nt-flash-warning` CSS animation; allocation still commits
@@ -1364,6 +1370,7 @@ Player count (`ntPlayerCount`, default 4) is set from the lobby roster in MDLM (
 | `nt-how-to-overlay` | Data (slide-up) | z-[90] | How to Play |
 | `nt-quit-overlay` | Decision modal | z-[80] | "Drop Connection?" — mid-game quit |
 | `nt-new-trace-overlay` | Decision modal | z-[90] | "New Trace?" — play-again confirmation |
+| `nt-bridge-preview-overlay` | Custom (full-screen tap-to-close) | z-[95] | DNP only — enlarged cluster-bridge preview (all legs ingress ▸ egress); opened by tapping the inline bridge on the Shared Allocation Hub |
 
 ### Screens
 | Screen ID | Purpose |

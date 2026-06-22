@@ -31,7 +31,7 @@
 │   │   ├── dsd.js                   # Plugin: Deep-Sea Deploy (all state + logic)
 │   │   ├── bld.js                   # Plugin: Bailed (all state + logic)
 │   │   ├── gth.js                   # Plugin: Group Therapy (all state + logic)
-│   │   ├── dyb.js                   # Plugin: Dicey Bluffs (all state + logic)
+│   │   ├── dyb.js                   # Plugin: The Bluff (formerly Dicey Bluffs — all state + logic)
 │   │   ├── pass.js                  # Plugin: Pass (all state + logic)
 │   │   ├── nt.js                    # Plugin: Net-Trace (all state + logic)
 │   │   └── frt.js                   # Plugin: Fruit Salad (Cockroach Poker — all state + logic)
@@ -215,8 +215,8 @@ Do not write the phase snapshot until Protocols A is clean. Do not write a line 
 **Phase:** Phase 34 — Fruit Salad (`frt`) COMPLETE (Cockroach Poker). Core loop + all 8 Sylly personalities + settings + turn timer + MDLM tested. Phase snapshot pending. Game 14.
 **Last shipped game:** Phase 34 — Fruit Salad (FRT), Cockroach Poker bluffing game, MDLM-only, 2–8 players; 2-player Pear-Off duel auto-engages.
 **Previous shipped game:** Phase 33 — Net-Trace (NT), BFS packet-routing game, PTP + MDLM.
-**SW Version:** v106 (backlog testing fixes: Pass host re-render/round-end navigation; NT handshake layout + DNP allocation visibility/maze previews)
-**Gold Master:** 14 games complete + multiplayer (LI5, Great Minds, Secret Signals, JEC, YGI, LTTP, Natural Selection, Deep-Sea Deploy, Bailed, Group Therapy, Dicey Bluffs, Pass, Net-Trace, Fruit Salad)
+**SW Version:** v113 (DYB backlog fixes + thematic rename: "Dicey Bluffs" → **"The Bluff"** — cliff/geology language sweep (The Claim / Climb Higher / Call the Bluff / The Overlook / The Depths / The Summit / The Tempest / Back Down? / Climb Again?), view-layer strings only, `dyb` code prefix unchanged; raise-validation bug fixed — escalation is now quantity-primary via canonical `dybIsLegalRaise`/`dybMinQtyForFace`)
+**Gold Master:** 14 games complete + multiplayer (LI5, Great Minds, Secret Signals, JEC, YGI, LTTP, Natural Selection, Deep-Sea Deploy, Bailed, Group Therapy, The Bluff [internal `dyb`], Pass, Net-Trace, Fruit Salad)
 **Fruit Salad key refs:** `docs/new-game-tech-fruit-salad.md` (confirmed spec), `docs/implementation-notes/frt-implementation-notes.md`, `docs/new-ideas/new-game-fruit-salad.md` (Phase-1 brief). MDLM-only, couch security, host-authoritative sequential; 2-player "Pear of Fruits" duel auto-engages; bright banana `#FFC700` + white ink + leaf `#047857` (text-on-white) palette; all card rendering through `frtRenderCard` (asset-pack seam).
 **Key references:**
 - `docs/implementation-notes/frt-implementation-notes.md` — FRT bug log + design decisions

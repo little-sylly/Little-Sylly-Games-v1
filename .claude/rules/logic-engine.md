@@ -417,7 +417,7 @@ Before implementing, answer:
 
 **SW versioning:** `CACHE_NAME = 'sylly-games-vN'` — bump N on **every deploy**.
 
-**Current SW version:** v106
+**Current SW version:** v113
 
 **Precached assets (relative paths — no leading `/`; matches `sw.js` `PRECACHE_URLS[]`):**
 ```

@@ -692,7 +692,7 @@ body.flash-red   { background-color: #fecaca; }
   box-shadow: 0 1px 4px rgba(0,0,0,0.2);
 }
 
-/* ── Dicey Bluffs — stone-400 (#a8a29e) ─────────────────────────────────── */
+/* ── Neutral fallback / lobby — stone-400 (#a8a29e) ─────────────────────── */
 .pill-active-stone {
   background-color: #a8a29e;
   color: #ffffff;
@@ -709,12 +709,32 @@ body.flash-red   { background-color: #fecaca; }
   border: none;
   cursor: pointer;
 }
+/* ── The Bluff (dyb) — #1E4D8C (ocean blue) ─────────────────────────────── */
+.pill-active-dyb {
+  background-color: #1E4D8C;
+  color: #ffffff;
+  font-weight: 600;
+}
+.game-toggle-on-dyb {
+  background-color: #1E4D8C;
+  color: #ffffff;
+  border-radius: 9999px;
+  padding: 0.4rem 1.2rem;
+  font-weight: 700;
+  font-size: 0.9rem;
+  transition: background 0.2s, color 0.2s;
+  border: none;
+  cursor: pointer;
+}
+.dyb-cta { background-color: #1E4D8C; }
+.dyb-cta:hover { background-color: #183d70; }
+.dyb-label { color: #1E4D8C; }
 .dyb-range {
   -webkit-appearance: none;
   appearance: none;
   height: 6px;
   border-radius: 9999px;
-  background: linear-gradient(to right, #e7e5e4, #a8a29e);
+  background: linear-gradient(to right, #dce8f7, #1E4D8C);
   outline: none;
   cursor: pointer;
 }
@@ -723,14 +743,14 @@ body.flash-red   { background-color: #fecaca; }
   appearance: none;
   width: 22px; height: 22px;
   border-radius: 50%;
-  background: #a8a29e;
+  background: #1E4D8C;
   border: 3px solid #fff;
   box-shadow: 0 1px 4px rgba(0,0,0,0.2);
 }
 .dyb-range::-moz-range-thumb {
   width: 22px; height: 22px;
   border-radius: 50%;
-  background: #a8a29e;
+  background: #1E4D8C;
   border: none;
   box-shadow: 0 1px 4px rgba(0,0,0,0.2);
 }
