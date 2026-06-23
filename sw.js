@@ -1,7 +1,7 @@
-// Little Sylly Games — Service Worker v113
+// Little Sylly Games — Service Worker v114
 // All assets are local — no external CDN URLs, no opaque response issues.
 
-const CACHE_NAME = 'sylly-games-v113';
+const CACHE_NAME = 'sylly-games-v114';
 
 const PRECACHE_URLS = [
   './',
@@ -22,6 +22,7 @@ const PRECACHE_URLS = [
   'js/games/pass.js',
   'js/games/nt.js',
   'js/games/frt.js',
+  'js/games/shp.js',
   'js/lib/cards.js',
   'data/ygi-data.json',
   'data/gth-data.json',

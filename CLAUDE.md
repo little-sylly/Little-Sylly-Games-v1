@@ -34,7 +34,8 @@
 │   │   ├── dyb.js                   # Plugin: The Bluff (formerly Dicey Bluffs — all state + logic)
 │   │   ├── pass.js                  # Plugin: Pass (all state + logic)
 │   │   ├── nt.js                    # Plugin: Net-Trace (all state + logic)
-│   │   └── frt.js                   # Plugin: Fruit Salad (Cockroach Poker — all state + logic)
+│   │   ├── frt.js                   # Plugin: Fruit Salad (Cockroach Poker — all state + logic)
+│   │   └── shp.js                   # Plugin: Counting Sheep (O'NO-99 survival — all state + logic)
 │   ├── engine-multiplayer.js        # Multiplayer module: Firebase, lobby, sync, per-game envelopes
 │   ├── secret-mode.js               # Secret Mode: Konami gateway, Terminal, expansion proxy state
 │   ├── app.js                       # Bootstrapper only — no logic (3 lines)
@@ -69,7 +70,7 @@
 ├── docs/archive/                    # Retired snapshots + spent plan docs
 ```
 
-**Load order:** `engine.js` → `engine-multiplayer.js` → `canvas-draw.js` → `li5.js` → `great-minds.js` → `secret-signals.js` → `jec.js` → `ygi.js` → `lttp.js` → `nat.js` → `dsd.js` → `bld.js` → `gth.js` → `dyb.js` → `cards.js` → `pass.js` → `nt.js` → `frt.js` → `secret-mode.js` → `app.js`
+**Load order:** `engine.js` → `engine-multiplayer.js` → `canvas-draw.js` → `li5.js` → `great-minds.js` → `secret-signals.js` → `jec.js` → `ygi.js` → `lttp.js` → `nat.js` → `dsd.js` → `bld.js` → `gth.js` → `dyb.js` → `cards.js` → `pass.js` → `nt.js` → `frt.js` → `shp.js` → `secret-mode.js` → `app.js`
 (`tailwind-play.js` loads in `<head>` before everything else.)
 All symbols are global (no ES modules). Forward references work at runtime.
 
@@ -212,13 +213,16 @@ Do not write the phase snapshot until Protocols A is clean. Do not write a line 
 ---
 
 ## 🎯 Current Focus
-**Phase:** Phase 34 — Fruit Salad (`frt`) COMPLETE (Cockroach Poker). Core loop + all 8 Sylly personalities + settings + turn timer + MDLM tested. Phase snapshot pending. Game 14.
-**Last shipped game:** Phase 34 — Fruit Salad (FRT), Cockroach Poker bluffing game, MDLM-only, 2–8 players; 2-player Pear-Off duel auto-engages.
-**Previous shipped game:** Phase 33 — Net-Trace (NT), BFS packet-routing game, PTP + MDLM.
-**SW Version:** v113 (DYB backlog fixes + thematic rename: "Dicey Bluffs" → **"The Bluff"** — cliff/geology language sweep (The Claim / Climb Higher / Call the Bluff / The Overlook / The Depths / The Summit / The Tempest / Back Down? / Climb Again?), view-layer strings only, `dyb` code prefix unchanged; raise-validation bug fixed — escalation is now quantity-primary via canonical `dybIsLegalRaise`/`dybMinQtyForFace`)
-**Gold Master:** 14 games complete + multiplayer (LI5, Great Minds, Secret Signals, JEC, YGI, LTTP, Natural Selection, Deep-Sea Deploy, Bailed, Group Therapy, The Bluff [internal `dyb`], Pass, Net-Trace, Fruit Salad)
+**Phase:** Phase 35 — Counting Sheep (`shp`) gameplay COMPLETE (O'NO-99 survival). Base loop + ghost system (Sleepwalkers / Nightmare Lottery) + Night Terrors (Plunge) all built and headlessly verified (400-game sim). Browser visual pass + Phase-Gate audit + snapshot pending. Game 15.
+**Last shipped game:** Phase 35 — Counting Sheep (SHP), O'NO-99 climbing/survival card game, MDLM-only, 3–8 players; Sylly Mode = Night Terrors (oscillating Climb ⇄ Plunge).
+**Previous shipped game:** Phase 34 — Fruit Salad (FRT), Cockroach Poker bluffing game, MDLM-only, 2–8 players; 2-player Pear-Off duel auto-engages.
+**SW Version:** v114 (Counting Sheep added — `js/games/shp.js` precached; v113 = DYB rename "Dicey Bluffs" → "The Bluff")
+**Gold Master:** 15 games complete + multiplayer (LI5, Great Minds, Secret Signals, JEC, YGI, LTTP, Natural Selection, Deep-Sea Deploy, Bailed, Group Therapy, The Bluff [internal `dyb`], Pass, Net-Trace, Fruit Salad, Counting Sheep)
 **Fruit Salad key refs:** `docs/new-game-tech-fruit-salad.md` (confirmed spec), `docs/implementation-notes/frt-implementation-notes.md`, `docs/new-ideas/new-game-fruit-salad.md` (Phase-1 brief). MDLM-only, couch security, host-authoritative sequential; 2-player "Pear of Fruits" duel auto-engages; bright banana `#FFC700` + white ink + leaf `#047857` (text-on-white) palette; all card rendering through `frtRenderCard` (asset-pack seam).
+**Counting Sheep key refs:** `docs/new-game-tech-counting-sheep.md` (confirmed spec — Night Terrors + ghost rework in v1), `docs/implementation-notes/shp-implementation-notes.md` (bug log incl. Wolf-deal fix + design decisions), `docs/new-ideas/counting-sheep-notes.md` (final design notes). MDLM-only, host-authoritative, host-as-participant; couch security; moonlit indigo (native Tailwind); all card rendering through `shpRenderCard` (asset-pack seam); single-source herd math `shpHerdAfterCard` (Plunge sign-flip).
 **Key references:**
+- `docs/implementation-notes/shp-implementation-notes.md` — SHP bug log + design decisions
+- `docs/new-game-tech-counting-sheep.md` — Phase 2 technical spec (SHP source of truth)
 - `docs/implementation-notes/frt-implementation-notes.md` — FRT bug log + design decisions
 - `docs/new-game-tech-fruit-salad.md` — Phase 2 technical spec (FRT source of truth)
 - `docs/implementation-notes/nt-implementation-notes.md` — NT bug log + design decisions

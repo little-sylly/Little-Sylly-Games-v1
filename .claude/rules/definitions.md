@@ -11,7 +11,7 @@
 | Sets / Arrays | Pluralised camelCase | `allScreens`, `gmSessionGuesses`, `gmRoundLog` |
 | Constants | `SCREAMING_SNAKE_CASE` | `GM_CATEGORIES`, `BLD_ROLE_TABLE`, `LTTP_SMALL_TALK` |
 
-**Active plugin prefixes (14 games):** `li5` (state vars unprefixed — see above), `gm`, `ss`, `jec`, `ygi`, `lttp`, `nat`, `dsd`, `gth`, `dyb`, `bld`, `pass`, `nt`, `frt`. A new game's abbreviation must not collide with any of these (Naming Collision Check 3, `new-game-process.md`).
+**Active plugin prefixes (15 games):** `li5` (state vars unprefixed — see above), `gm`, `ss`, `jec`, `ygi`, `lttp`, `nat`, `dsd`, `gth`, `dyb`, `bld`, `pass`, `nt`, `frt`, `shp`. A new game's abbreviation must not collide with any of these (Naming Collision Check 3, `new-game-process.md`).
 
 ## Function Naming
 

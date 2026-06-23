@@ -66,6 +66,9 @@ The sound overlay volume slider (`#global-sound-volume`) uses a CSS class set by
 | BLD | `bld-range` | #fde68a → #d97706 (yellow) |
 | DYB | `dyb-range` | #dce8f7 → #1E4D8C (ocean blue) |
 | PASS | `pass-range` | #a1a1aa → #18181b (zinc) |
+| NT | `nt-range` | #a7f3d0 → #059669 (emerald) |
+| FRT | `frt-range` | #FFE89A → #FFC700 (banana) |
+| SHP | `shp-range` | #c7d2fe → #4338ca (indigo) |
 
 ### Mute toggle theming
 
@@ -98,6 +101,9 @@ The sound overlay mute toggle (`#global-mute-toggle`) shows the current game's b
 | BLD | `game-toggle-on-yellow` |
 | DYB | `game-toggle-on-dyb` |
 | PASS | `game-toggle-on-zinc` |
+| NT | `game-toggle-on-emerald` |
+| FRT | `game-toggle-on-frt` |
+| SHP | `game-toggle-on-indigo` |
 
 **Adding a new game:**
 1. Add a `game-toggle-on-[colour]` class to `css/styles.css` (copy an existing rule, swap the background colour)
@@ -340,6 +346,9 @@ Every gameplay screen must use `h-screen` (not `min-h-screen`) on the section so
 | DYB | 🎲 | `dyb-label` (custom) | `dyb-cta` (custom) | The Tempest |
 | BLD | 📋 | `text-yellow-500` | `bg-yellow-500 hover:bg-yellow-600` | Drama Mode |
 | PASS | 🃏 | `text-zinc-700` | `bg-zinc-900 hover:bg-zinc-800` | The Abyss |
+| NT | ⚡ | `text-emerald-600` | `bg-emerald-500 hover:bg-emerald-600` | Devil's Network Protocol |
+| FRT | 🍌 | inline `style="color:#047857"` | `bg-[#FFC700] hover:bg-[#E6B400]` | Fruity Personalities |
+| SHP | 🐑 | `text-indigo-600` | `bg-indigo-600 hover:bg-indigo-700` | Night Terrors |
 
 [RESOLVED — Phase 3 DYB audit, June 2026]: DYB was originally `stone-400` — verified consistent at the audit. Renamed Dicey Bluffs → The Bluff and Sylly Mode renamed Devil's Luck → The Tempest in the June 2026 thematic sweep. **Recoloured stone-400 → #1E4D8C (ocean blue)** post-audit: new custom classes `dyb-cta`, `dyb-label`, `pill-active-dyb`, `game-toggle-on-dyb` added to `css/styles.css`; `game-toggle-on-stone` is now the neutral lobby fallback only. All five die types remain documented in `game-identities.md`.
 
@@ -467,6 +476,9 @@ Rules:
 | The Bluff | `pill-active-dyb` |
 | Bailed | `pill-active-yellow` |
 | Pass | `pill-active-zinc` |
+| Net-Trace | `pill-active-emerald` |
+| Fruit Salad | `pill-active-frt` |
+| Counting Sheep | `pill-active-indigo` |
 
 ---
 
@@ -508,6 +520,9 @@ Rules:
 | DYB | #1E4D8C (ocean blue — custom) | `dyb-cta` (custom) | `dyb-label` (custom) | `game-toggle-on-dyb` | `bg-[#dce8f7] hover:bg-[#c8daf0] text-[#1E4D8C]` |
 | BLD | yellow-500 | `bg-yellow-500 hover:bg-yellow-600` | `text-yellow-600` | `game-toggle-on-yellow` | `bg-yellow-100 hover:bg-yellow-200 text-yellow-700` |
 | PASS | zinc-900 | `bg-zinc-900 hover:bg-zinc-800` | `text-zinc-900` | `game-toggle-on-zinc` | `bg-zinc-100 hover:bg-zinc-200 text-zinc-700` |
+| NT | emerald-500 | `bg-emerald-500 hover:bg-emerald-600` | `text-emerald-600` | `game-toggle-on-emerald` | `bg-emerald-100 hover:bg-emerald-200 text-emerald-700` |
+| FRT | #FFC700 (banana — custom) | inline `style="background:#FFC700"` | inline `text-[#047857]` | `game-toggle-on-frt` | `bg-[#FFF4CC] hover:bg-[#FFE9A6] text-[#854d0e]` |
+| SHP | indigo-600 | `bg-indigo-600 hover:bg-indigo-700` | `text-indigo-600` | `game-toggle-on-indigo` | `bg-indigo-100 hover:bg-indigo-200 text-indigo-700` |
 
 **Notes:**
 - **GTH:** Muted Sage (`#B1BCA0`) has no Tailwind utility class — GTH brand colours are applied via inline `style` attributes throughout its markup, hence the `—` entries.
@@ -558,6 +573,9 @@ Every game's main menu screen must have exactly these 4 buttons, in this order: 
 | DYB | Let's Play! |
 | BLD | Make the Plans |
 | PASS | Deal Me In |
+| NT | Initialise System |
+| FRT | Start Serving |
+| SHP | Lights Out |
 
 [AUDIT FLAG — June 2026]: GTH's Play CTA contains an emoji, violating the "CTA start-game buttons (game menu) must not contain emoji" rule (Settings Card Standard). Logged in the fix plan; reconcile during Phase 3 GTH audit.
 

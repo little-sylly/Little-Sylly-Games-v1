@@ -80,6 +80,9 @@
       <button id="btn-frt" class="min-h-14 w-full rounded-2xl bg-[#FFC700] hover:bg-[#E6B400] active:scale-95 text-white text-xl font-semibold transition-all duration-150">
         Fruit Salad
       </button>
+      <button id="btn-shp" class="min-h-14 w-full rounded-2xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Counting Sheep
+      </button>
     </div>
   </section>
 
@@ -6654,6 +6657,7 @@
   <script src="js/games/pass.js"></script>
   <script src="js/games/nt.js"></script>
   <script src="js/games/frt.js"></script>
+  <script src="js/games/shp.js"></script>
   <script src="js/secret-mode.js"></script>
   <script src="js/app.js"></script>
 
@@ -7731,6 +7735,217 @@
       <h3 id="frt-tip-heading" class="text-lg font-bold text-stone-800"></h3>
       <div id="frt-tip-body" class="text-stone-500 text-sm text-left flex flex-col gap-1.5"></div>
       <button id="btn-frt-tip-close" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-sm transition-all duration-100">Got it</button>
+    </div>
+  </div>
+
+  <!-- &#x2550;&#x2550;&#x2550;&#x2550; COUNTING SHEEP (shp) &#x2550;&#x2550;&#x2550;&#x2550;
+       Screens : screen-shp-menu, screen-shp-table, screen-shp-gameover
+       Overlays: shp-settings-overlay, shp-how-to-overlay, shp-quit-overlay,
+                 shp-new-night-overlay, shp-tip-overlay
+       Render  : shpRenderCard(cardId, opts) - asset-pack seam (no cards.js reuse)
+       MDLM-only - couch security - Sylly Mode = Night Terrors (Climb <-> Plunge)
+    &#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550; -->
+  <section id="screen-shp-menu" style="display:none"
+    class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
+    <button class="btn-open-sound absolute top-4 right-4 text-xl text-stone-400 active:scale-90 transition-transform duration-100">&#x1F50A;</button>
+    <p id="shp-menu-status" style="display:none" class="text-red-500 text-sm font-medium"></p>
+    <div class="text-6xl" role="img" aria-label="Sheep">&#x1F411;</div>
+    <div>
+      <h1 class="text-3xl font-bold text-stone-800">Counting Sheep</h1>
+      <p class="text-stone-400 text-base mt-1">Stay awake. Pass the herd.</p>
+    </div>
+    <div class="flex flex-col gap-3 w-full">
+      <button id="btn-shp-menu-play" class="min-h-14 w-full rounded-2xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Lights Out
+      </button>
+      <button id="btn-shp-menu-how-to" class="min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        How to Play
+      </button>
+      <button id="btn-shp-menu-settings" class="min-h-14 w-full rounded-2xl bg-indigo-100 hover:bg-indigo-200 active:scale-95 text-indigo-700 text-xl font-semibold transition-all duration-150">
+        Settings
+      </button>
+      <button id="btn-shp-menu-back" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-base font-medium transition-all duration-150">
+        &#x2190; Back to the Box
+      </button>
+    </div>
+  </section>
+
+  <!-- SHP TABLE - main play (h-screen sticky-footer: the Pen stays visible) -->
+  <section id="screen-shp-table" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-4 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-3">
+      <div class="flex items-center justify-between">
+        <p id="shp-table-status" class="text-indigo-400 text-xs font-semibold uppercase tracking-widest">Night</p>
+        <div class="flex items-center gap-2">
+          <button id="btn-shp-how-to" class="text-stone-400 font-bold text-sm active:scale-90 transition-transform duration-100">[?]</button>
+          <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">&#x1F50A;</button>
+          <button class="btn-shp-quit-open text-stone-500 font-bold text-xl active:scale-90 transition-transform duration-100">&#x2715;</button>
+        </div>
+      </div>
+      <div id="shp-table-body" class="flex flex-col gap-4"></div>
+      <div id="shp-table-footer" class="flex flex-col gap-2"></div>
+    </div>
+  </section>
+
+  <!-- SHP GAMEOVER (Daybreak) -->
+  <section id="screen-shp-gameover" style="display:none"
+    class="relative flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <button class="btn-open-sound absolute top-4 right-4 text-xl text-stone-400 active:scale-90 transition-transform duration-100">&#x1F50A;</button>
+    <div class="flex flex-col items-center w-full max-w-sm gap-4 text-center">
+      <div class="text-5xl" role="img" aria-label="Sunrise">&#x2600;&#xFE0F;</div>
+      <h2 class="text-2xl font-bold text-stone-800">Daybreak</h2>
+      <div id="shp-gameover-standings" class="w-full flex flex-col gap-2"></div>
+      <button id="btn-shp-go-again" class="min-h-14 w-full rounded-2xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Another Night
+      </button>
+      <button id="btn-shp-gameover-exit" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-base font-medium transition-all duration-150">
+        &#x2715; Done
+      </button>
+    </div>
+  </section>
+
+  <!-- SHP SETTINGS (data slide-up) -->
+  <div id="shp-settings-overlay" style="display:none"
+    class="fixed inset-0 bg-black/40 z-[80] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
+      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
+        <h2 class="text-xl font-bold text-stone-800">Bedtime Routine &#x1F319;</h2>
+        <p class="text-xs text-stone-400 mt-1">Set the scene before lights out.</p>
+      </div>
+      <div class="overflow-y-auto flex flex-col gap-5 px-5 py-5" id="shp-settings-body">
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">Hand Size</p>
+            <p class="text-stone-400 text-sm mt-0.5">How many cards you hold. More cards, more options - and fewer forced crashes.</p>
+          </div>
+          <div class="flex gap-2 flex-wrap">
+            <button class="pill" data-shp-hand="3">3</button>
+            <button class="pill pill-active-indigo" data-shp-hand="4">4</button>
+            <button class="pill" data-shp-hand="5">5</button>
+          </div>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">Moons</p>
+            <p class="text-stone-400 text-sm mt-0.5">Lives. Lose one each time you fall into Deep Sleep. More Moons = a longer, gentler night.</p>
+          </div>
+          <div class="flex gap-2 flex-wrap">
+            <button class="pill pill-active-indigo" data-shp-moons="3">3</button>
+            <button class="pill" data-shp-moons="5">5</button>
+            <button class="pill" data-shp-moons="7">7</button>
+          </div>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <div class="flex items-center justify-between">
+            <p class="text-stone-800 font-semibold">Dream Acceleration</p>
+            <button id="btn-shp-dream-toggle" class="game-toggle-on-indigo shrink-0">ON</button>
+          </div>
+          <p class="text-stone-400 text-sm">Below 50, every number card counts double. Skips the slow climb and gets to the danger zone fast.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <div class="flex items-center justify-between">
+            <p class="text-stone-800 font-semibold">Sleepwalkers</p>
+            <button id="btn-shp-sleepwalk-toggle" class="game-toggle-on-indigo shrink-0">ON</button>
+          </div>
+          <p class="text-stone-400 text-sm">When you're knocked out, you linger as a Sleepwalker and can nudge the dream. Off for a clean elimination.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <div class="flex items-center justify-between">
+            <p class="text-stone-800 font-semibold">&#x2728; Sylly Mode</p>
+            <button id="btn-shp-sylly-toggle" class="game-toggle-off shrink-0">OFF</button>
+          </div>
+          <p class="text-stone-600 text-sm font-semibold">Night Terrors</p>
+          <p class="text-stone-400 text-sm">Reach 99 and the dream inverts: the count plunges, every number flips its sign, and the ceiling falls each turn. Last one awake survives.</p>
+        </div>
+        <button id="btn-shp-settings-done" class="min-h-14 w-full rounded-2xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-xl font-semibold transition-all duration-150">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SHP HOW-TO (data slide-up) -->
+  <div id="shp-how-to-overlay" style="display:none"
+    class="fixed inset-0 bg-black/40 z-[90] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
+      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
+        <h2 class="text-xl font-bold text-stone-800">How to Play &#x1F411;</h2>
+        <p class="text-xs text-stone-400 mt-1">Keep the herd below 99. Don't be the one who nods off.</p>
+      </div>
+      <div class="overflow-y-auto flex flex-col gap-4 px-5 py-5" id="shp-how-to-body">
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest text-indigo-600">Step 1</p>
+          <p class="font-bold text-stone-800">The Count</p>
+          <p class="text-stone-500 text-sm">On your turn, play one card to change the <span class="font-semibold text-stone-700">Herd</span>. Number cards add sheep - but if your play would push the count <span class="font-semibold text-stone-700">past 99</span>, it's illegal.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest text-indigo-600">Step 2</p>
+          <p class="font-bold text-stone-800">Pillows &amp; Alarms</p>
+          <p class="text-stone-500 text-sm"><span class="font-semibold text-stone-700">Pillows</span> stall or shrink the count (Doze, Counting Backwards, Lullaby). <span class="font-semibold text-stone-700">Alarms</span> shake it up - Skip a Few, the Black Sheep (snaps to 99), Wide Awake and Heavy Eyelids.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest text-indigo-600">Step 3</p>
+          <p class="font-bold text-stone-800">Deep Sleep</p>
+          <p class="text-stone-500 text-sm">If you have no card that keeps the Herd at or below the ceiling, you nod off - <span class="font-semibold text-stone-700">lose a Moon</span>, the Herd resets to 0, and everyone gets a fresh hand.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest text-indigo-600">Step 4</p>
+          <p class="font-bold text-stone-800">Sleepwalkers</p>
+          <p class="text-stone-500 text-sm">Out of Moons? You become a <span class="font-semibold text-stone-700">Sleepwalker</span>. Every Pasture card played charges the <span class="font-semibold text-stone-700">Nightmare Meter</span> - when it fills, you flip one of three face-down nightmares onto the living. &#x1F4A4;</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest text-indigo-600">Winning and Scoring</p>
+          <p class="font-bold text-stone-800">Last one awake</p>
+          <ul class="list-disc pl-5 flex flex-col gap-1 text-stone-500 text-sm">
+            <li><span class="font-semibold text-stone-700">Deep Sleep</span> - costs one Moon and resets the Herd.</li>
+            <li><span class="font-semibold text-stone-700">Out of Moons</span> - you're a Sleepwalker, haunting the dream.</li>
+            <li><span class="font-semibold text-stone-700">Daybreak</span> - the last player still awake wins.</li>
+          </ul>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest text-indigo-600">&#x2728; Sylly Mode</p>
+          <p class="font-bold text-stone-800">Night Terrors</p>
+          <p class="text-stone-500 text-sm">Reach 99 and the dream inverts - <span class="font-semibold text-stone-700">the Plunge</span>. Every number card flips its sign, the ceiling <span class="font-semibold text-stone-700">falls a little each turn</span>, and you must keep dropping the Herd. Last one awake survives the night.</p>
+        </div>
+        <button id="btn-shp-howto-close" class="min-h-14 w-full rounded-2xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-xl font-semibold transition-all duration-150">Got it</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SHP QUIT -->
+  <div id="shp-quit-overlay" style="display:none"
+    class="fixed inset-0 z-[80] overlay-modal-backdrop flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-indigo-300">
+      <p class="text-3xl">&#x1F6CF;&#xFE0F;</p>
+      <h3 class="text-lg font-bold text-stone-800">Tuck In?</h3>
+      <p class="text-stone-500 text-sm">Give in to sleep now and you're out for the night.</p>
+      <div class="flex flex-col gap-2">
+        <button id="btn-shp-quit-confirm" class="min-h-14 w-full rounded-2xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-semibold text-lg transition-all duration-150">Yeah, lights out.</button>
+        <button id="btn-shp-quit-cancel" class="min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-lg transition-all duration-150">Stay awake!</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SHP NEW NIGHT (play-again) -->
+  <div id="shp-new-night-overlay" style="display:none"
+    class="fixed inset-0 z-[90] overlay-modal-backdrop flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-indigo-300">
+      <p class="text-3xl">&#x1F319;</p>
+      <h3 class="text-lg font-bold text-stone-800">Another Night?</h3>
+      <p class="text-stone-500 text-sm">Fresh Flock, full Moons, everyone wakes up.</p>
+      <div class="flex flex-col gap-2">
+        <button id="btn-shp-new-confirm" class="min-h-14 w-full rounded-2xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-semibold text-lg transition-all duration-150">Count Again &#x1F411;</button>
+        <button id="btn-shp-new-cancel" class="min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-lg transition-all duration-150">Stay here</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SHP TIP (shared contextual [?]) -->
+  <div id="shp-tip-overlay" style="display:none"
+    class="fixed inset-0 z-[90] overlay-modal-backdrop flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-indigo-300">
+      <p id="shp-tip-emoji" class="text-3xl"></p>
+      <h3 id="shp-tip-heading" class="text-lg font-bold text-stone-800"></h3>
+      <div id="shp-tip-body" class="text-stone-500 text-sm text-left flex flex-col gap-1.5"></div>
+      <button id="btn-shp-tip-close" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-sm transition-all duration-100">Got it</button>
     </div>
   </div>
 

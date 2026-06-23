@@ -39,6 +39,7 @@ Single-page mobile app. Pass-the-phone style, or individual devices depending on
 | `pass` | Pass | Climbing card game — shed your hand to win |
 | `nt` | Net-Trace | Network engineering — harden your relay-leg node, route the signal, minimise SER |
 | `frt` | Fruit Salad | Cockroach Poker bluffing — pass a face-down fruit card with a (possibly false) declaration; call bluff or pass it on |
+| `shp` | Counting Sheep | O'NO-99 climbing/survival — keep the Herd ≤ 99 or fall into Deep Sleep; Sylly Mode = Night Terrors (Climb ⇄ Plunge) |
 
 ---
 
@@ -70,7 +71,7 @@ Factor these into every section of the brief:
 - **Sylly Mode is required in every game.** Sylly Mode is the "wild" variant — makes the game harder, weirder, or more chaotic. It's always the last setting. If you can't design it yet, write "None — will design later" in §7, but you must address it
 - **Thematic vocabulary is mandatory.** Every generic term that appears on-screen must have a game-specific name. No bare "Round", "Score", "Game Over", "Settings", "Player" etc. — everything must be voiced through the game's theme
 - **Settings:** difficulty-style setting first (controls word/prompt complexity or challenge level), ✨ Sylly Mode last
-- **Abbreviation:** 3–4 characters, not already used. Taken: `li5`, `gm`, `ss`, `jec`, `ygi`, `lttp`, `nat`, `dsd`, `gth`, `dyb`, `bld`, `pass`, `nt`, `frt`
+- **Abbreviation:** 3–4 characters, not already used. Taken: `li5`, `gm`, `ss`, `jec`, `ygi`, `lttp`, `nat`, `dsd`, `gth`, `dyb`, `bld`, `pass`, `nt`, `frt`, `shp`
 - **Australian English throughout:** colour, flavour, organise, recognise, °C, km, kg. No American spellings
 
 ---
@@ -89,7 +90,7 @@ Every game in the suite replaces generic game language with words from its theme
 | Settings overlay title | *(not used)* | The Pantry Cabinet 🧂 | Inpatient Admission Form 📋 |
 
 And Sylly Mode names from the existing games, as tone references:
-Wild Words (LI5) · Static Interference (GM) · Intel Phase (SS) · Kitchen Nightmares (JEC) · The Ringer (YGI) · The Troublemaker (LTTP) · Survival of the Fittest (NAT) · Mission Abyss (DSD) · Stroke or Genius (GTH) · The Tempest (DYB) · Drama Mode (BLD) · The Abyss (PASS) · Devil's Network Protocol (NT) · Fruity Personalities (FRT)
+Wild Words (LI5) · Static Interference (GM) · Intel Phase (SS) · Kitchen Nightmares (JEC) · The Ringer (YGI) · The Troublemaker (LTTP) · Survival of the Fittest (NAT) · Mission Abyss (DSD) · Stroke or Genius (GTH) · The Tempest (DYB) · Drama Mode (BLD) · The Abyss (PASS) · Devil's Network Protocol (NT) · Fruity Personalities (FRT) · Night Terrors (SHP)
 
 ---
 

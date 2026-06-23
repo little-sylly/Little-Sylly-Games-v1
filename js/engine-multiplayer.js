@@ -353,6 +353,29 @@ const MP_GAME_CONFIGS = {
     getMaxPlayers:   () => (typeof frtPearOff !== 'undefined' && frtPearOff) ? 2 : 8,
     getMinPlayers:   () => (typeof frtPearOff !== 'undefined' && frtPearOff) ? 2 : 3,
   },
+
+  shp: {
+    gameName:       'Counting Sheep',
+    emoji:          '\u{1F411}',
+    brandBtnClass:  'bg-indigo-600 hover:bg-indigo-700 text-white',
+    ptpLabel:       'Lights Out',
+    lobbyCtaLabel:  'Lights Out',
+    menuScreen:     'screen-shp-menu',
+    onPassThePhone: () => {
+      if (window.syllyMultiplayerMode === 'host') {
+        shpPlayerCount = mpPlayerSlots.length;
+        shpPlayerNames = mpPlayerSlots.map(p => p.nickname);
+        shpStartSession();
+      }
+      // 'client': waits for SHP_DEAL SYNC
+    },
+    recommendedMode: 'mdlm',
+    supportedModes:  ['mdlm'],
+    multiplayerOnly: true,
+    rosterConfig:    { type: 'none' },
+    getMaxPlayers:   () => 8,
+    getMinPlayers:   () => 3,
+  },
 };
 
 // ── Nickname Helpers ──────────────────────────────────────────────────────────
@@ -717,6 +740,9 @@ function mpSerialiseSettings(abbr) {
     case 'frt': return {
       frtFruitStock, frtRounds, frtTurnTimer, frtSyllyMode, frtPearOff,
     };
+    case 'shp': return {
+      shpHandSize, shpMoons, shpDreamAccel, shpSleepwalkers, shpSyllyMode,
+    };
     case 'ss': return {
       ssSettingInterceptsToWin, ssDifficultyLevel, ssRerollLimitSetting,
       ssTimerSetting, ssCustomiseVault, ssIntelSyllyMode,
@@ -872,6 +898,13 @@ function mpHandleEnvelope(env) {
           if (s.frtTurnTimer  !== undefined) frtTurnTimer  = s.frtTurnTimer;
           if (s.frtSyllyMode  !== undefined) frtSyllyMode  = s.frtSyllyMode;
           if (s.frtPearOff    !== undefined) frtPearOff    = s.frtPearOff;
+          break;
+        case 'shp':
+          if (s.shpHandSize     !== undefined) shpHandSize     = s.shpHandSize;
+          if (s.shpMoons        !== undefined) shpMoons        = s.shpMoons;
+          if (s.shpDreamAccel   !== undefined) shpDreamAccel   = s.shpDreamAccel;
+          if (s.shpSleepwalkers !== undefined) shpSleepwalkers = s.shpSleepwalkers;
+          if (s.shpSyllyMode    !== undefined) shpSyllyMode    = s.shpSyllyMode;
           break;
         // Additional games added as Sprint 4 progresses
       }
@@ -1488,6 +1521,11 @@ function mpHandleEnvelope(env) {
   // ── Fruit Salad ACTION/SYNC ───────────────────────────────────────────────
   if (mpActiveGame === 'frt') {
     if (typeof frtHandleEnvelope === 'function') frtHandleEnvelope(env);
+  }
+
+  // ── Counting Sheep ACTION/SYNC ────────────────────────────────────────────
+  if (mpActiveGame === 'shp') {
+    if (typeof shpHandleEnvelope === 'function') shpHandleEnvelope(env);
   }
 
   // ── Secret Signals ACTION/SYNC ─────────────────────────────────────────────

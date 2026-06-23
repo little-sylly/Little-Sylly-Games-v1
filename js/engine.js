@@ -72,6 +72,8 @@ const allScreens = [
   'screen-nt-build', 'screen-nt-playback', 'screen-nt-summary', 'screen-nt-standby',
   // Fruit Salad
   'screen-frt-menu', 'screen-frt-deal', 'screen-frt-table', 'screen-frt-gameover',
+  // Counting Sheep
+  'screen-shp-menu', 'screen-shp-table', 'screen-shp-gameover',
 ];
 
 // ── Web Audio API ─────────────────────────────────────────────────────────────
@@ -342,7 +344,7 @@ function updateSliderTheme(gameId) {
     'ygi': 'ygi-range', 'lttp': 'lttp-range',
     'nat': 'nat-range', 'dsd': 'dsd-range',
     'gth': 'gth-range', 'bld': 'bld-range', 'dyb': 'dyb-range', 'pass': 'pass-range',
-    'nt': 'nt-range'
+    'nt': 'nt-range', 'shp': 'shp-range'
   };
   const el = document.getElementById('global-sound-volume');
   el.className = (map[gameId] || 'stone-range') + ' w-full';
@@ -356,7 +358,7 @@ function getMuteToggleOnClass(gameId) {
     'nat': 'game-toggle-on-lime', 'dsd': 'game-toggle-on-cyan',
     'gth': 'game-toggle-on-sage', 'bld': 'game-toggle-on-yellow',
     'dyb': 'game-toggle-on-dyb', 'pass': 'game-toggle-on-zinc',
-    'nt': 'game-toggle-on-emerald'
+    'nt': 'game-toggle-on-emerald', 'shp': 'game-toggle-on-indigo'
   };
   return map[gameId] || 'game-toggle-on-stone';
 }
@@ -501,6 +503,12 @@ function resetToLobby() {
   if (typeof ntResetState === 'function') ntResetState();
   // Fruit Salad teardown
   if (typeof frtResetState === 'function') frtResetState();
+  // Counting Sheep teardown
+  ['shp-settings-overlay','shp-how-to-overlay','shp-quit-overlay',
+   'shp-new-night-overlay','shp-tip-overlay'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.style.display = 'none';
+  });
+  if (typeof shpResetState === 'function') shpResetState();
   // Help-tip overlay cleanup (Phase 21a)
   ['li5','gm','ss','jec','ygi','lttp','nat','dsd'].forEach(abbr => {
     const el = document.getElementById(`${abbr}-help-tip-overlay`);

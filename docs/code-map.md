@@ -43,6 +43,7 @@
 | `#btn-pass` | Lobby → PASS menu screen |
 | `#btn-nt` | Lobby → NT menu screen |
 | `#btn-frt` | Lobby → FRT menu screen |
+| `#btn-shp` | Lobby → SHP menu screen |
 | `#lobby-icon` | Secret Mode tap counter (7 taps → controller screen) |
 | `.btn-open-sound` | Opens `#sound-overlay` (on every screen) |
 | `#global-mute-toggle` | Mute toggle inside sound overlay |
@@ -1197,6 +1198,20 @@ Each plugin reads `window.activeExpansionOverrides` at its settings-apply point 
 | `FRT_GAMEOVER` | SYNC | Host → All | `{scores, silver}` |
 | `FRT_MATCH_DISSOLVED` | SYNC | Host → All | `{}` |
 
+### Counting Sheep (SHP) ACTION/SYNC Packet Types
+| Packet | Type | Direction | Payload |
+|--------|------|-----------|---------|
+| `SHP_PLAY` | ACTION | Client → Host | `{handIdx}` single, or `{idxA, idxB}` for a Heavy-Eyelids two-card play |
+| `SHP_DISRUPT` | ACTION | Client (spend-holder) → Host | `{choice}` — index 0–2 of the blind Nightmare Lottery pick |
+| `SHP_PLAYER_LEFT` | ACTION | Client → Host | PASS-contract mid-game quit — host dissolves the match |
+| `SHP_DEAL` | SYNC | Host → All | `{hands, handCaps, wolfActive, herd, direction, activePlayer, lives, eliminated, elimOrder, playerCount, playerNames, meter, echo}` — game start + every Deep-Sleep redeal |
+| `SHP_TURN_RESULT` | SYNC | Host → All | `{herd, direction, nextActive, forcedCards, played, rolled, byIdx, hands, handCaps, wolfActive, meter, phase, ceiling, grace}` |
+| `SHP_DEEP_SLEEP` | SYNC | Host → All | `{crasher, reason, elim, over, lives, eliminated, elimOrder}` — crash banner (host taps continue → `SHP_DEAL` or `SHP_GAMEOVER`) |
+| `SHP_GHOST_READY` | SYNC | Host → All | `{holderIdx, optionIds}` — Nightmare Lottery opens for the spend-holder |
+| `SHP_DISRUPT_RESOLVED` | SYNC | Host → All | `{nightmareId, targetIdx, text, herd, direction, nextActive, forcedCards, hands, handCaps, wolfActive, echo, meter, phase, ceiling}` |
+| `SHP_GAMEOVER` | SYNC | Host → All | `{winner, standings}` — Daybreak |
+| `SHP_MATCH_DISSOLVED` | SYNC | Host → All | `{}` — a player left → all `resetToLobby()` (PASS contract) |
+
 ### Per-Game ACTION/SYNC Packet Types
 | Packet | Type | Direction | Payload |
 |--------|------|-----------|---------|
@@ -1214,6 +1229,67 @@ Each plugin reads `window.activeExpansionOverrides` at its settings-apply point 
 | `NT_MATCH_DISSOLVED` | SYNC | Host → All | `{leaverIdx}` |
 
 ---
+
+## Counting Sheep (SHP)
+
+**JS file:** `js/games/shp.js`
+**Data:** Fixed `SHP_CARDS` (14 card types incl. id 13 Fogged Dream phantom) + `SHP_DECK_COUNTS` (62-card deck) + `SHP_NIGHTMARES` (5, weighted) — no `words.json`; exempt from word-difficulty per non-word-bank carve-out (Hand Size is the velocity dial)
+**Brand colour:** Moonlit indigo (`indigo-600`/`indigo-700`, native Tailwind) | **Active pill:** `pill-active-indigo` | **Toggle ON:** `game-toggle-on-indigo` | **Range:** `shp-range`
+**MDLM-only**, host-authoritative, host-as-participant. **Sylly Mode = Night Terrors** (oscillating Climb ⇄ Plunge).
+
+### Screens
+| Screen ID | Purpose |
+|-----------|---------|
+| `screen-shp-menu` | Main hub — Lights Out, How to Play, Settings, ← Back to the Box |
+| `screen-shp-table` | All play sub-states (your-turn / waiting / sleepwalker spectator / Nightmare Lottery / Deep-Sleep banner / Plunge re-skin) — `h-screen` sticky-footer |
+| `screen-shp-gameover` | Daybreak — reverse-elimination standings |
+
+### Overlays
+| Overlay ID | Pattern | z-index | Purpose |
+|------------|---------|---------|---------|
+| `shp-settings-overlay` | Data (slide-up) | z-[80] | "Bedtime Routine 🌙" |
+| `shp-how-to-overlay` | Data (slide-up) | z-[90] | How to Play |
+| `shp-quit-overlay` | Decision modal | z-[80] | "Tuck In?" — mid-game exit |
+| `shp-new-night-overlay` | Decision modal | z-[90] | "Another Night?" — play-again |
+| `shp-tip-overlay` | Decision modal | z-[90] | Shared contextual tips — `shpShowTip(emoji, heading, lines[])` |
+
+### Key State Variables
+| Variable | Type | Default | Purpose |
+|----------|------|---------|---------|
+| `shpHandSize` | int | `4` | Pen cap (3/4/5) |
+| `shpMoons` | int | `3` | Starting lives (3/5/7) |
+| `shpDreamAccel` | bool | `true` | Number cards double while Herd < 50 |
+| `shpSleepwalkers` | bool | `true` | Ghost / Nightmare-Meter system on |
+| `shpSyllyMode` | bool | `false` | Night Terrors (Climb ⇄ Plunge) |
+| `shpHerd` | int | `0` | Running count |
+| `shpCeiling` | int | `99` | Bust boundary — Climb 99; Plunge descends from overflow total. NEVER a literal in checks |
+| `shpDirection` | int | `1` | 1 forward / −1 reversed |
+| `shpLives`/`shpEliminated`/`shpElimOrder` | arrays | `[]` | Moons, Sleepwalker flags, elimination order |
+| `shpHands`/`shpHandCap`/`shpWolfActive` | arrays | `[]` | 2D hand ids, per-player cap, Wolf-shut flag |
+| `shpFlock`/`shpDiscard` | int[] | `[]` | Draw pile / discard |
+| `shpForcedCards` | int | `1` | 2 for Heavy Eyelids / Sleep Paralysis |
+| `shpMeter`/`shpMeterFill` | int | `0`/`3` | Nightmare Meter charge / threshold |
+| `shpGhostTurnIdx`/`shpSpendHolder`/`shpGhostOptions`/`shpGhostPending` | mixed | — | Lottery rotation, holder, 3 offered ids, gate flag |
+| `shpEcho` | int | `0` | Global Echo modifier (+2 Pasture until next disruption) |
+| `shpPhase`/`shpPlungeGrace`/`shpDrop`/`shpPlungeFlash` | mixed | `'climb'`/`0`/`7`/`false` | Night Terrors phase state |
+| `shpPlayerCount`/`shpPlayerNames` | int/[] | from lobby | Roster |
+
+### Key Functions
+| Function | Purpose |
+|----------|---------|
+| `shpStartSession()` | Host-only entry — init lives/elim, random opener → `shpDealNight` |
+| `shpDealNight(openerIdx)` | Fresh 62-card deck, deal to living, broadcast `SHP_DEAL` |
+| `shpBuildFlock()` / `shpDrawUp(p)` | Deck build / draw to cap (Wolf trap shrinks cap, `continue` not break) |
+| `shpRenderCard(id, opts)` | Asset-pack render seam (face / faceDown / wolf / inverted / cursed id 13) |
+| `shpHerdAfterCard(herd, id, rolled)` | Single-source herd math — sign-flips arithmetic in the Plunge |
+| `shpIsPlayable` / `shpLegalCards` / `shpHasLegalLine` | Phase-aware legality (Climb-sylly adds always legal; over-ceiling → reducers only) |
+| `shpHostPlayCard` / `shpHostPlayTwoCard` | Resolve, draw, `shpPostResolve`, advance, `shpPlungeTick`, broadcast |
+| `shpPostResolve(p)` | Plunge entry (overflow runway) / bust / mercy backstop |
+| `shpHostDeepSleep(p, reason)` | −1 Moon, elimination, win-check, banner |
+| `shpChargeMeter` / `shpHostOpenLottery` / `shpPickNightmare` / `shpHostResolveDisrupt` / `shpApplyNightmare` | Ghost system: charge → Lottery → blind pick → resolve at turn-gate |
+| `shpEnterPlunge` / `shpExitPlunge` / `shpPlungeTick` / `shpCheckMercy` | Night Terrors phase machine |
+| `shpHandleEnvelope(env)` | MDLM ACTION/SYNC router |
+| `shpResetState()` | Full teardown (from `resetToLobby()`) |
 
 ## Overlay Patterns Quick Reference
 

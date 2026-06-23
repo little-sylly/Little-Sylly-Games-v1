@@ -1531,3 +1531,78 @@ Banana `#FFC700` has no Tailwind utility class. Three custom CSS classes added t
 - **Mid-game quit dissolves the room:** same PASS/NT contract — host `HOST_END_GAME` / client `FRT_PLAYER_LEFT` → host `FRT_MATCH_DISSOLVED` → all `resetToLobby()`
 - **Key ACTION packets:** `FRT_SERVE` (client server → host: card + declaration + target), `FRT_CALL` (client receiver → host: True/False verdict), `FRT_PEEK_PASS` (client peeking receiver → host: new target + declaration + optional Sus Pear swap), `FRT_PLAYER_LEFT` (client quit)
 - **Key SYNC packets:** `FRT_DEAL` (host → all: stashes + activePlayer + roundNum + session state + turnEndTs; bowls reconstructed empty client-side), `FRT_SERVED` (card in flight: fruit/declaration/from/to/handledBy/stashes/turnEndTs), `FRT_REVEAL` (resolution: reveal object + bowls + stashes + bluffWins), `FRT_CONTINUE` (next server: activePlayer/stashes/bowls/appleLock/turnEndTs), `FRT_ROUND_END` (token award: eliminatedSet/scores/bowls/roundNum/gameOver/opener), `FRT_GAMEOVER` (final: scores + silver), `FRT_MATCH_DISSOLVED` (player left → all resetToLobby)`
+
+---
+
+## Game 15: Counting Sheep (SHP)
+**Theme:** Sleepy bedtime / dream logic. An O'NO-99-style climbing/survival card game — keep the Herd at or below the fence (99); whoever can't is dragged into Deep Sleep and loses a Moon.
+**Tagline:** "Stay awake. Pass the herd."
+**Key file:** `js/games/shp.js`
+**Brand colour:** Moonlit indigo (`indigo-600` primary / `indigo-700` hover — native Tailwind) | **Active pill:** `pill-active-indigo` | **Toggle ON:** `game-toggle-on-indigo` | **Range:** `shp-range`
+**Data:** fixed `SHP_CARDS` (14 types incl. id 13 Fogged Dream phantom) + `SHP_DECK_COUNTS` (62-card deck) + `SHP_NIGHTMARES` (5, weighted) — no `words.json`; exempt from the word-difficulty setting (Hand Size is the velocity dial).
+**State flow:**
+```
+LOBBY (MDLM only) → SHP MENU → [onPassThePhone: host deals]
+→ [Night loop: SHP TABLE (your-turn / waiting / sleepwalker spectator / Nightmare Lottery / Deep-Sleep banner)
+    → Deep Sleep (−1 Moon, redeal) repeats until one player remains]
+→ SHP GAMEOVER (Daybreak)
+```
+Sylly Mode (Night Terrors) adds an oscillating **Climb ⇄ Plunge** mode *within* `screen-shp-table` — no new screen.
+
+### Terminology
+| Term | Meaning |
+|------|---------|
+| The Herd | Running count (target ≤ 99) |
+| The Flock / Your Pen | Draw pile / a player's hand |
+| Moons | Lives (−1 per Deep Sleep) |
+| Deep Sleep | Crash (no legal line or busted gamble) → −1 Moon + full redeal |
+| Sleepwalker | Eliminated player (0 Moons) — haunts the dream via the Nightmare Meter |
+| Nightmare Meter / Lottery | Charges per Pasture card; fills → 3 face-down nightmares, flip one blind |
+| The Plunge | Night Terrors inverted descent phase |
+| Daybreak | Game over — last awake wins |
+| Another Night? | Play again · **Tuck In?** quit · **Bedtime Routine 🌙** settings title |
+
+### Card families (`SHP_CARDS`)
+- **Pasture** (`add`): +1/+2/+5/+10 (doubled while Herd < 50 if Dream Acceleration; +`shpEcho` under Global Echo). *Charges the meter.*
+- **Pillow:** Doze (skip), Toss & Turn (reverse), Counting Backwards (−10 floored 0), Lullaby (set 20, 1-of).
+- **Alarm:** Skip a Few (random +2..+12 gamble), Black Sheep (set 99), Wide Awake (next turn → leader), Heavy Eyelids (next player plays two).
+- **Trap:** Big Bad Wolf — consumed on draw, shrinks the cap by 1 (restored on redeal).
+- **Phantom (id 13):** Fogged Dream — conjured by the Fog nightmare; hidden random +2..+12, cursed render; dissolves on play/redeal.
+
+### Settings
+| Setting (display) | Options | Default | Internal variable | Values |
+|-------------------|---------|---------|------------------|--------|
+| Hand Size | 3 / 4 / 5 | 4 | `shpHandSize` | int |
+| Moons | 3 / 5 / 7 | 3 | `shpMoons` | int |
+| Dream Acceleration | OFF / ON | ON | `shpDreamAccel` | bool — doubles number cards under 50 |
+| Sleepwalkers | OFF / ON | ON | `shpSleepwalkers` | bool — ghost / Nightmare-Meter system |
+| ✨ Sylly Mode (Night Terrors) | OFF / ON | OFF | `shpSyllyMode` | bool — Climb ⇄ Plunge |
+
+### Scoring / Win
+No points — survival is the score. Deep Sleep costs a Moon; 0 Moons → Sleepwalker (appended to `shpElimOrder`). Last awake wins; standings = `[winner, ...elimOrder.reversed()]`.
+
+### Special Mechanics
+- **Legality:** no card keeping Herd ≤ `shpCeiling` (or no safe two-card combo under Heavy Eyelids) → auto Deep Sleep on turn entry. Random-adds are always tappable gambles.
+- **Ghost system:** Pasture-triggered meter (only once a Sleepwalker exists) → next Sleepwalker (rotation) flips one of 3 weighted face-down nightmares; the table gates on the pick; the effect fires at the turn-gate. Five: Cold Feet (±1..4), Restless Leg (reverse/skip), **Fog** (rare cursed-card swap), Sleep Paralysis (forced two-card), Global Echo (+2 Pasture until next disruption).
+- **Night Terrors (Plunge):** Herd ≥ 99 in Climb → Plunge with **overflow runway** (`shpCeiling = shpHerd`); arithmetic sign-flips; ceiling falls `shpDrop` (7)/turn after a one-cycle grace. Bust → Deep Sleep + revert to Climb; Herd 0 → mercy exit (no Moon). Crimson re-skin + inverted faces.
+
+### Overlay Types
+| Overlay | Pattern | z-index |
+|---------|---------|---------|
+| `shp-settings-overlay` | Data (slide-up) | z-[80] |
+| `shp-how-to-overlay` | Data (slide-up) | z-[90] |
+| `shp-quit-overlay` | Decision modal | z-[80] |
+| `shp-new-night-overlay` | Decision modal | z-[90] |
+| `shp-tip-overlay` | Decision modal | z-[90] |
+
+### Screens
+`screen-shp-menu` (hub) · `screen-shp-table` (all play sub-states; `h-screen` sticky-footer with the Pen) · `screen-shp-gameover` (Daybreak standings).
+
+### Multiplayer (Phase 35)
+- **Mode:** MDLM only — `multiplayerOnly: true`, `supportedModes: ['mdlm']`, `recommendedMode: 'mdlm'`. **Min 3 / Max 8.** `rosterConfig: { type: 'none' }` (join-order).
+- **Shared screens:** `screen-mp-mode` / `-lobby-host` / `-lobby-join`. **Post-lobby:** `onPassThePhone` (host) → `shpStartSession()`; clients wait for `SHP_DEAL`.
+- **Host-authoritative, host-as-participant:** host taps run `shpHostPlayCard`/`shpHostPlayTwoCard` directly; clients send `SHP_PLAY`; host resolves for `shpActivePlayer` (only the active device sends).
+- **Card privacy (couch security):** all hands broadcast in `SHP_DEAL`/`SHP_TURN_RESULT`; each device renders only its own (NAT/FRT model). `shpNorm2D` guards received 2D hands.
+- **Mid-game quit (PASS contract):** client quit → `SHP_PLAYER_LEFT` ACTION → host broadcasts `SHP_MATCH_DISSOLVED` → all `resetToLobby()`; host quit → `resetToLobby()` (broadcasts `HOST_END_GAME`). One leaver dissolves the match.
+- **Key ACTION packets:** `SHP_PLAY`, `SHP_DISRUPT`, `SHP_PLAYER_LEFT`.
+- **Key SYNC packets:** `SHP_DEAL`, `SHP_TURN_RESULT` (carries phase/ceiling/grace), `SHP_DEEP_SLEEP`, `SHP_GHOST_READY`, `SHP_DISRUPT_RESOLVED`, `SHP_GAMEOVER`, `SHP_MATCH_DISSOLVED`.

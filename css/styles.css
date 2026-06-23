@@ -882,6 +882,48 @@ body.flash-red   { background-color: #fecaca; }
   border: none;
   box-shadow: 0 1px 4px rgba(0,0,0,0.2);
 }
+/* ── Counting Sheep (shp) — Moonlit indigo (native Tailwind palette) ── */
+.pill-active-indigo {
+  background-color: #4f46e5; /* indigo-600 */
+  color: #ffffff;
+  font-weight: 600;
+}
+.game-toggle-on-indigo {
+  background-color: #4f46e5;
+  color: #ffffff;
+  border-radius: 9999px;
+  padding: 0.4rem 1.2rem;
+  font-weight: 700;
+  font-size: 0.9rem;
+  transition: background 0.2s, color 0.2s;
+  border: none;
+  cursor: pointer;
+}
+.shp-range {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 9999px;
+  background: linear-gradient(to right, #c7d2fe, #4338ca); /* indigo-200 → indigo-700 */
+  outline: none;
+  cursor: pointer;
+}
+.shp-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: #4f46e5;
+  border: 3px solid #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
+.shp-range::-moz-range-thumb {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: #4f46e5;
+  border: none;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
 /* Fruit cards — v1 emoji skin (render seam: frtRenderCard) */
 .frt-card {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -902,6 +944,43 @@ body.flash-red   { background-color: #fecaca; }
   border: 2px solid #E6B400;
   box-shadow: 0 1px 4px rgba(0,0,0,0.08);
 }
+
+/* Counting Sheep cards — v1 emoji skin (render seam: shpRenderCard) */
+.shp-card {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 0.2rem;
+  width: 4rem; height: 5.5rem;
+  border-radius: 0.75rem;
+  background: #f8f9ff;
+  border: 2px solid #c7d2fe; /* indigo-200 */
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  user-select: none;
+}
+.shp-card-emoji { font-size: 1.7rem; line-height: 1; }
+.shp-card-label { font-size: 0.62rem; font-weight: 700; color: #3730a3; text-align: center; line-height: 1.1; padding: 0 2px; }
+.shp-card-pasture { border-color: #818cf8; }                 /* indigo-400 */
+.shp-card-pillow  { border-color: #a5b4fc; background: #eef0ff; } /* calming */
+.shp-card-alarm   { border-color: #fca5a5; }                 /* red-300 — wakeful */
+.shp-card-alarm .shp-card-label { color: #b91c1c; }
+.shp-card-trap    { border-color: #44403c; background: #f5f5f4; }
+.shp-card-trap .shp-card-label { color: #44403c; }
+.shp-card-cursed  { border-color: #7c3aed; background: #f3e8ff; } /* violet fog */
+.shp-card-cursed .shp-card-label { font-size: 1.4rem; color: #6d28d9; }
+.shp-card-wolf    { border-color: #78716c; background: #e7e5e4; opacity: 0.75; }
+.shp-card-wolf .shp-card-label { color: #57534e; font-style: italic; }
+.shp-card-back {
+  width: 4rem; height: 5.5rem;
+  border-radius: 0.75rem;
+  background: repeating-linear-gradient(45deg, #4f46e5, #4f46e5 8px, #4338ca 8px, #4338ca 16px);
+  border: 2px solid #4338ca;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+}
+@keyframes shpShake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-5px); }
+  40%, 80% { transform: translateX(5px); }
+}
+.shp-shake { animation: shpShake 0.35s ease-in-out; }
 
 /* Build-grid cell base + invalid-placement reject flash */
 .nt-cell { border-radius: 2px; cursor: pointer; }
