@@ -1,4 +1,4 @@
-// ═══════════════════════════════════════════════════════════════════════════
+﻿// ═══════════════════════════════════════════════════════════════════════════
 // Counting Sheep (shp) — O'NO-99-style climbing/survival card game.
 // MDLM-only, host-as-participant. Sylly Mode = Night Terrors (Climb ⇄ Plunge).
 // Spec: docs/new-game-tech-counting-sheep.md
@@ -64,6 +64,17 @@ let shpTwoSel       = [];      // staged hand indices for a Heavy Eyelids two-ca
 let shpDeepSleepInfo = null;   // { crasher, reason, elim, over } while a crash banner is shown
 let shpGameStandings = [];     // final standings (winner first)
 let shpGameWinner    = -1;
+let shpNightNum      = 0;      // Night counter (increments in shpDealNight)
+let shpCardTapReady  = true;   // 1-second turn-start buffer — false while cards should be non-tappable
+let shpTapReadyTimer = null;   // handle for the tap-ready timer
+let shpTapReadyForPlayer = -1; // which player index the buffer was set up for
+
+// ── Play history / animation ────────────────────────────────────────────────
+let shpPlayHistory   = [];     // [{ cardIds[], rolledVal, byIdx, byName }] — last 20 entries, newest first
+let shpAnimSheep     = 0;      // how many 🐑 emojis to parade on the next render (0 = none)
+let shpDeepSleepAcks = 0;      // how many players have tapped "Got it" this Deep Sleep
+let shpDeepSleepAckNeeded = 0; // total acks required (= shpPlayerCount)
+let shpIAcked        = false;  // per-device: true once this device has sent/recorded its ack
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Locked data constants (spec §10) — stable integer ids; packets deal only in ids
@@ -85,13 +96,18 @@ const SHP_CARDS = [
   { id:13, family:'phantom', label:'Fogged Dream',      emoji:'🌫️', kind:'random-add',min:2, max:12 },
   // ↑ id 13 NOT in the starting deck — conjured only by the Fog nightmare (swaps in for a Pasture).
   //   Renders a cursed face-down face to everyone incl. its owner. Dissolves on play or redeal.
+  { id:14, family:'pillow',  label:'−1',               emoji:'⏪', kind:'subtract', value:1  },
+  { id:15, family:'pillow',  label:'−2',               emoji:'⏪', kind:'subtract', value:2  },
+  { id:16, family:'pillow',  label:'−5',               emoji:'⏪', kind:'subtract', value:5  },
 ];
 
 const SHP_DECK_COUNTS = {
-  0:10, 1:10, 2:10, 3:10,   // Pasture +1/+2/+5/+10
-  4:4,  5:4,  6:3,  7:1,    // Doze / Toss & Turn / Counting Backwards / Lullaby (1-of)
+  0:12, 1:12, 2:10, 3:8,    // Pasture +1/+2/+5/+10 (42 total — more absolute Pastures)
+  4:4,  5:4,  6:1,  7:1,    // Doze / Toss & Turn / CB-10 (cut 3→1) / Lullaby (1-of)
+  14:3, 15:3, 16:3,          // CB-1 / CB-2 / CB-5 (9 playable subtracts — less hoarding)
   8:3,  9:2,  10:2, 11:1,   // Skip a Few / Black Sheep / Wide Awake / Heavy Eyelids
-  12:2,                     // Big Bad Wolf trap
+  12:2,                     // Big Bad Wolf trap (unchanged)
+  // Total: 42+14+9+2 = 71 cards
 };
 
 const SHP_NIGHTMARES = [
@@ -133,7 +149,7 @@ function shpHerdAfterCard(herd, cardId, rolledVal) {
     case 'add':        { let v = c.value; if (shpDreamAccel && herd < 50) v *= 2; v += shpEcho; h = herd + sgn * v; break; }
     case 'subtract':   h = herd - sgn * c.value; break;
     case 'random-add': h = herd + sgn * (rolledVal != null ? rolledVal : c.min); break;
-    case 'set':
+    case 'set':        h = (shpPhase === 'plunge') ? Math.min(c.value, shpCeiling) : c.value; break;
     case 'reset':      h = c.value; break;
     default:           h = herd; break;            // skip/reverse/wake-leader/two-card unchanged
   }
@@ -248,7 +264,8 @@ function shpDrawUp(playerIdx) {
 
 // Display label — flips the sign of Pasture adders during the Plunge (Night Terrors).
 function shpCardFaceLabel(c, inverted) {
-  if (inverted && c.kind === 'add') return '−' + c.value;   // +N → −N
+  if (inverted && c.kind === 'add')      return '−' + c.value;  // +N → −N in Plunge
+  if (inverted && c.kind === 'subtract') return '+' + c.value;  // −N → +N in Plunge
   return c.label;
 }
 
@@ -301,14 +318,18 @@ function shpStartSession() {
   shpWolfActive = Array(shpPlayerCount).fill(false);
   shpMeter = 0; shpGhostTurnIdx = 0; shpSpendHolder = -1; shpEcho = 0; shpPendingDisrupt = null;
   shpGameStandings = []; shpGameWinner = -1; shpDeepSleepInfo = null;
+  shpNightNum = 0;
   shpOpenerIdx = Math.floor(Math.random() * shpPlayerCount);
   shpDealNight(shpOpenerIdx);
 }
 
 // Deal a fresh Night (game start AND every Deep-Sleep redeal). Living players only.
 function shpDealNight(openerIdx) {
+  shpNightNum++;
   shpHerd = 0; shpDirection = 1; shpPhase = 'climb'; shpCeiling = 99; shpPlungeGrace = 0; shpPlungeFlash = false;
   shpForcedCards = 1; shpTwoSel = []; shpPendingSkip = null; shpDeepSleepInfo = null;
+  shpPlayHistory = []; shpAnimSheep = 0;
+  shpDeepSleepAcks = 0; shpDeepSleepAckNeeded = 0; shpIAcked = false;
   shpFlock = shpBuildFlock(); shpDiscard = [];
   shpHands = [];
   for (let i = 0; i < shpPlayerCount; i++) {
@@ -331,14 +352,27 @@ function shpDealNight(openerIdx) {
 
 function shpShowTable() {
   showScreen('screen-shp-table');
-  if (shpDeepSleepInfo) shpRenderDeepSleep();
-  else shpRenderTable();
+  if (shpDeepSleepInfo) { shpRenderDeepSleep(); return; }
+  const me = shpMyIdx();
+  // When the turn first becomes mine, gate card taps for 1 second (prevents accidental plays
+  // on the turn-transition render before the player has oriented themselves).
+  if (me >= 0 && shpActivePlayer === me && shpTapReadyForPlayer !== me) {
+    shpTapReadyForPlayer = me;
+    shpCardTapReady = false;
+    if (shpTapReadyTimer) { clearTimeout(shpTapReadyTimer); shpTapReadyTimer = null; }
+    shpTapReadyTimer = setTimeout(() => { shpCardTapReady = true; shpTapReadyTimer = null; shpRenderTable(); }, 1000);
+  } else if (me < 0 || shpActivePlayer !== me) {
+    // Not my turn — reset so the buffer fires next time my turn comes around.
+    shpTapReadyForPlayer = -1;
+    shpCardTapReady = true;
+  }
+  shpRenderTable();
 }
 
 // ── Playing a card ─────────────────────────────────────────────────────────
 function shpTapCard(handIdx) {
   const me = shpMyIdx();
-  if (shpActivePlayer !== me || shpEliminated[me]) return;
+  if (shpActivePlayer !== me || shpEliminated[me] || !shpCardTapReady) return;
   if (shpForcedCards === 2 && (shpHands[me] || []).length >= 2) { shpStageTwoCard(handIdx); return; }
   if (!shpIsPlayable(me, handIdx)) { playBoing(); return; }
   playTick();
@@ -388,7 +422,7 @@ function shpHostPlayCard(playerIdx, handIdx) {
   if (playerIdx !== shpActivePlayer) return;
   const cardId = shpHands[playerIdx][handIdx];
   if (cardId === undefined) return;
-  if (SHP_CARDS[cardId].kind === 'add' && !shpIsPlayable(playerIdx, handIdx)) return; // illegal guard
+  if (!shpIsPlayable(playerIdx, handIdx)) return; // full legality guard (all card kinds)
   shpHands[playerIdx].splice(handIdx, 1);
   shpDiscard.push(cardId);
   const r = shpResolveCard(cardId);
@@ -421,6 +455,29 @@ function shpHostPlayTwoCard(playerIdx, a, b) {
 
 function shpBroadcastTurn(playedIds, rolled, byIdx) {
   shpLastDisrupt = null;                          // a new play ends the dream-shift banner
+
+  // Push to play history (newest-first, cap at 20)
+  const entry = { cardIds: playedIds.slice(), rolledVal: rolled, byIdx, byName: shpName(byIdx) };
+  shpPlayHistory.unshift(entry);
+  if (shpPlayHistory.length > 20) shpPlayHistory.length = 20;
+
+  // Sheep parade: count add/set cards; set=99 (Black Sheep) gets a fixed 7 sheep (Climb only)
+  if (shpPhase === 'climb') {
+    let count = 0;
+    for (const cid of playedIds) {
+      const c = SHP_CARDS[cid];
+      if (!c) continue;
+      if (c.kind === 'add')  count += Math.min(c.value, 10);
+      if (c.kind === 'set')  count += 7;
+    }
+    shpAnimSheep = Math.min(count, 8);
+  }
+  // Clear the parade after 1500ms
+  if (shpAnimTimer) { clearTimeout(shpAnimTimer); shpAnimTimer = null; }
+  if (shpAnimSheep > 0) {
+    shpAnimTimer = setTimeout(() => { shpAnimSheep = 0; shpAnimTimer = null; shpRenderTable(); }, 1500);
+  }
+
   if (window.syllyMultiplayerMode !== 'single') {
     mpSendEnvelope({ type: 'SYNC', payload: {
       action: 'SHP_TURN_RESULT',
@@ -428,6 +485,7 @@ function shpBroadcastTurn(playedIds, rolled, byIdx) {
       played: playedIds, rolled, byIdx,
       hands: shpHands, handCaps: shpHandCap, wolfActive: shpWolfActive, meter: shpMeter,
       phase: shpPhase, ceiling: shpCeiling, grace: shpPlungeGrace,
+      playHistory: shpPlayHistory,
     }});
   }
   shpShowTable();
@@ -446,11 +504,18 @@ function shpHostDeepSleep(crasherIdx, reason) {
   }
   shpForcedCards = 1; shpTwoSel = [];
   const over = shpAliveCount() <= 1;
+
+  // Initialise per-player ack readyCheck (host marks own slot directly — dedup guard blocks self-send)
+  shpDeepSleepAckNeeded = shpPlayerCount;
+  shpDeepSleepAcks = window.syllyMultiplayerMode === 'single' ? shpPlayerCount : 1; // host counts itself
+  shpIAcked = true;
+
   shpDeepSleepInfo = { crasher: crasherIdx, reason, elim, over };
   if (window.syllyMultiplayerMode !== 'single') {
     mpSendEnvelope({ type: 'SYNC', payload: {
       action: 'SHP_DEEP_SLEEP', crasher: crasherIdx, reason, elim, over,
       lives: shpLives, eliminated: shpEliminated, elimOrder: shpElimOrder,
+      acksNeeded: shpDeepSleepAckNeeded,
     }});
   }
   shpShowTable();
@@ -483,7 +548,12 @@ function shpRenderTable() {
   if (!body || !footer) return;
   const me = shpMyIdx();
   const plunge = (shpPhase === 'plunge');
-  if (status) status.textContent = plunge ? 'THE PLUNGE 🔻' : 'Night';
+
+  // Status bar — night number + red in Plunge
+  if (status) {
+    status.textContent = plunge ? ('THE PLUNGE 🔻 \xB7 Night ' + shpNightNum) : ('Night ' + shpNightNum);
+    status.className = 'text-xs font-semibold uppercase tracking-widest ' + (plunge ? 'text-red-500' : 'text-indigo-400');
+  }
 
   body.innerHTML = '';
   const wrap = document.createElement('div');
@@ -498,15 +568,64 @@ function shpRenderTable() {
     shpPlungeFlash = false;
   }
 
+  // ── Herd display ──
   const herdBox = document.createElement('div');
-  herdBox.className = 'flex flex-col items-center gap-1';
-  herdBox.innerHTML =
-    '<p class="text-stone-400 text-xs uppercase tracking-widest">The Herd</p>' +
-    '<p class="text-6xl font-bold ' + (plunge ? 'text-red-600' : 'text-indigo-700') + '">' + shpHerd + '</p>' +
-    '<p class="text-stone-400 text-xs">ceiling ' + shpCeiling + (plunge ? ' 🔻 falling' : '') + (shpDirection < 0 ? ' · ↺ reversed' : '') + '</p>' +
-    (plunge ? '<p class="text-red-500 text-[11px] font-semibold">Numbers flip — drive the herd to 0.</p>' : '');
+  if (plunge) {
+    // Spike-trap stack: ceiling (falling) → gap → herd (at bottom)
+    const gap = shpCeiling - shpHerd;
+    herdBox.className = 'flex flex-col items-center gap-2 w-full bg-red-50 border border-red-200 rounded-2xl px-4 py-3';
+    herdBox.innerHTML =
+      '<div class="flex flex-col items-center">' +
+        '<p class="text-red-400 text-xs uppercase tracking-widest">The Sky is Falling 🔻</p>' +
+        '<p class="text-3xl font-bold text-red-600">' + shpCeiling + '</p>' +
+        '<p class="text-red-400 text-xs">−' + shpDrop + '/turn</p>' +
+      '</div>' +
+      '<p class="text-stone-400 text-xs font-semibold">↕ ' + gap + ' sheep left</p>' +
+      '<div class="flex flex-col items-center">' +
+        '<p class="text-stone-400 text-xs uppercase tracking-widest">The Herd</p>' +
+        '<p class="text-5xl font-bold text-red-700">' + shpHerd + '</p>' +
+        '<p class="text-red-500 text-xs font-semibold">Drive to 0 to escape.</p>' +
+      '</div>';
+  } else {
+    herdBox.className = 'flex flex-col items-center gap-1';
+    // Sheep parade — animate proportionally to cards played (Climb only)
+    let sheepHtml = '';
+    if (shpAnimSheep > 0) {
+      let spans = '';
+      for (let s = 0; s < shpAnimSheep; s++) {
+        spans += '<span class="shp-sheep-jump" style="animation-delay:' + (s * 80) + 'ms">🐑</span>';
+      }
+      sheepHtml = '<p class="flex gap-0.5 text-xl justify-center">' + spans + '</p>';
+    }
+    herdBox.innerHTML =
+      sheepHtml +
+      '<p class="text-stone-400 text-xs uppercase tracking-widest">The Herd</p>' +
+      '<p class="text-6xl font-bold text-indigo-700">' + shpHerd + '</p>' +
+      '<p class="text-stone-400 text-xs">ceiling ' + shpCeiling + '</p>' +
+      (shpDirection < 0 ? '<p class="text-stone-400 text-xs">↺ reversed</p>' : '');
+  }
   wrap.appendChild(herdBox);
 
+  // ── Play pile / last-played indicator ──
+  if (shpPlayHistory.length > 0) {
+    const last = shpPlayHistory[0];
+    const lastLabel = last.cardIds.map(id => {
+      const c = SHP_CARDS[id]; return c ? (c.emoji + '\xA0' + c.label) : '?';
+    }).join(' + ');
+    const pileBtn = document.createElement('button');
+    pileBtn.className = 'flex items-center gap-1 text-stone-400 text-xs active:text-stone-600 transition-colors';
+    pileBtn.innerHTML = 'Last: <span class="text-stone-600 font-medium">' + lastLabel + '</span>&nbsp;<span class="underline">Log →</span>';
+    pileBtn.addEventListener('click', shpOpenLog);
+    wrap.appendChild(pileBtn);
+  }
+
+  // ── Direction arrows (forward above chips, reverse below) ──
+  const fwdArrow = document.createElement('p');
+  fwdArrow.className = 'text-center text-sm font-semibold ' + (shpDirection === 1 ? (plunge ? 'text-red-500' : 'text-indigo-600') : 'text-stone-300');
+  fwdArrow.textContent = '→ Forward';
+  wrap.appendChild(fwdArrow);
+
+  // ── Player chips ──
   const opp = document.createElement('div');
   opp.className = 'flex flex-wrap justify-center gap-2 w-full';
   for (let i = 0; i < shpPlayerCount; i++) {
@@ -514,9 +633,12 @@ function shpRenderTable() {
     const chip = document.createElement('div');
     chip.className = 'flex flex-col items-center px-2.5 py-1 rounded-xl text-xs ' +
       (shpEliminated[i] ? 'bg-stone-200 text-stone-400'
-        : isActive ? 'bg-indigo-600 text-white'
+        : isActive ? (plunge ? 'bg-red-600 text-white' : 'bg-indigo-600 text-white')
         : 'bg-white text-stone-600 border border-stone-200');
-    const moons = shpEliminated[i] ? '\u{1F4A4}' : '\u{1F319}'.repeat(Math.max(0, shpLives[i]));
+    const rawMoons = shpLives[i] || 0;
+    const moons = shpEliminated[i] ? '💤'
+      : rawMoons <= 5 ? '\u{1F319}'.repeat(Math.max(0, rawMoons))
+      : '\u{1F319}\xD7' + rawMoons;
     const cards = shpEliminated[i] ? 'asleep' : ((shpHands[i] ? shpHands[i].length : 0) + ' cards');
     chip.innerHTML =
       '<span class="font-semibold">' + shpName(i) + (i === me ? ' (you)' : '') + '</span>' +
@@ -526,33 +648,39 @@ function shpRenderTable() {
   }
   wrap.appendChild(opp);
 
-  // Nightmare Meter — visible once the ghost system is active
+  const revArrow = document.createElement('p');
+  revArrow.className = 'text-center text-sm font-semibold ' + (shpDirection === -1 ? (plunge ? 'text-red-500' : 'text-indigo-600') : 'text-stone-300');
+  revArrow.textContent = '↺ Reverse';
+  wrap.appendChild(revArrow);
+
+  // ── Nightmare Meter — visible once the ghost system is active ──
   if (shpSleepwalkers && shpElimOrder.length > 0) {
     const meterEl = document.createElement('div');
-    meterEl.className = 'flex flex-col items-center gap-0.5';
+    meterEl.className = 'flex flex-col items-center gap-1 bg-violet-50 border border-violet-200 rounded-xl px-3 py-2';
     let dots = '';
     for (let k = 0; k < shpMeterFill; k++) dots += (k < shpMeter ? '🌑' : '⚪');
     meterEl.innerHTML =
-      '<p class="text-stone-400 text-[10px] uppercase tracking-widest">Nightmare Meter</p>' +
-      '<p class="text-sm leading-none">' + dots + '</p>' +
-      (shpEcho > 0 ? '<p class="text-[10px] text-violet-600">🔊 Global Echo · Pasture +' + shpEcho + '</p>' : '');
+      '<p class="text-violet-500 text-xs font-semibold uppercase tracking-wide">Nightmare Meter</p>' +
+      '<p class="text-lg leading-none">' + dots + '</p>' +
+      (shpEcho > 0 ? '<p class="text-xs text-violet-600">🔊 Global Echo \xB7 Pasture +' + shpEcho + '</p>' : '');
     wrap.appendChild(meterEl);
   }
 
-  // Dream-shift banner — the last resolved nightmare
+  // ── Dream-shift banner — last resolved nightmare ──
   if (shpLastDisrupt) {
     const ds = document.createElement('p');
-    ds.className = 'text-violet-700 text-sm text-center font-semibold';
+    ds.className = 'text-violet-700 text-sm text-center font-semibold bg-violet-50 border border-violet-200 rounded-xl px-3 py-2';
     ds.textContent = '🌙 ' + shpLastDisrupt.text;
     wrap.appendChild(ds);
   }
 
+  // ── Action banner ──
   const banner = document.createElement('p');
   banner.className = 'text-stone-500 text-sm text-center';
   if (shpGhostPending) {
     banner.textContent = (shpEliminated[me] && shpSpendHolder === me)
       ? 'Your nightmare to choose… 💤'
-      : '💤 A Sleepwalker is choosing a nightmare…';
+      : '💤 ' + shpName(shpSpendHolder) + ' is picking a nightmare…';
   } else {
     banner.textContent = shpEliminated[me] ? 'You are a Sleepwalker, haunting the dream…'
       : (shpActivePlayer === me
@@ -567,9 +695,9 @@ function shpRenderTable() {
     if (shpEliminated[me] && shpSpendHolder === me) footer.appendChild(shpRenderLottery());
     return;
   }
-  if (shpEliminated[me]) return;                  // sleepwalker spectator (no input)
-  if (shpActivePlayer !== me) { footer.appendChild(shpWaitFooter()); return; }
-  footer.appendChild(shpHandFooter(me));
+  if (shpEliminated[me]) return;                  // sleepwalker: no hand, no input
+  const tappable = (shpActivePlayer === me) && shpCardTapReady;
+  footer.appendChild(shpHandFooter(me, tappable));
 }
 
 // The facedown Nightmare Lottery — 3 card-backs the spend-holder flips one of.
@@ -592,42 +720,186 @@ function shpRenderLottery() {
   return col;
 }
 
-function shpWaitFooter() {
-  const p = document.createElement('p');
-  p.className = 'text-center text-stone-400 text-sm py-4';
-  p.textContent = '⏳ Waiting for ' + shpName(shpActivePlayer) + '…';
-  return p;
+function shpOpenLog() {
+  playDone();
+  const overlay = document.getElementById('shp-play-log-overlay');
+  const list = document.getElementById('shp-play-log-list');
+  if (!overlay || !list) return;
+  list.innerHTML = '';
+  if (shpPlayHistory.length === 0) {
+    const empty = document.createElement('p');
+    empty.className = 'text-stone-400 text-sm text-center';
+    empty.textContent = 'No cards played yet.';
+    list.appendChild(empty);
+  } else {
+    shpPlayHistory.forEach((entry, i) => {
+      const row = document.createElement('div');
+      row.className = 'flex items-start gap-3 py-2' + (i < shpPlayHistory.length - 1 ? ' border-b border-stone-100' : '');
+      const label = entry.cardIds.map(id => {
+        const c = SHP_CARDS[id]; return c ? (c.emoji + '\xA0' + c.label) : '?';
+      }).join(' + ');
+      row.innerHTML =
+        '<span class="text-stone-400 text-xs w-5 text-right flex-shrink-0">' + (i + 1) + '</span>' +
+        '<div class="flex flex-col">' +
+          '<span class="text-stone-800 text-sm font-medium">' + label + '</span>' +
+          '<span class="text-stone-400 text-xs">' + entry.byName + (entry.rolledVal != null ? ' \xB7 rolled ' + entry.rolledVal : '') + '</span>' +
+        '</div>';
+      list.appendChild(row);
+    });
+  }
+  overlay.style.display = 'flex';
 }
 
-function shpHandFooter(me) {
+// shpWaitFooter removed — non-active players now receive shpHandFooter(me, false) (grayed hand)
+
+function shpHandFooter(me, tappable) {
+  const plunge = (shpPhase === 'plunge');
   const col = document.createElement('div');
   col.className = 'flex flex-col gap-2';
+  const h = shpHands[me] || [];
+  const twoMode = tappable && (shpForcedCards === 2 && h.length >= 2);
+  const legal = tappable ? shpLegalCards(me) : [];
+
+  // Sort by family: Pasture → Pillow → Alarm → Trap/Phantom
+  const FAMILY_ORDER = { pasture:0, pillow:1, alarm:2, trap:3, phantom:4 };
+  const sortedHand = h.map((cardId, idx) => ({ cardId, idx }))
+    .sort((a, b) => {
+      const ca = SHP_CARDS[a.cardId], cb = SHP_CARDS[b.cardId];
+      return (FAMILY_ORDER[ca ? ca.family : 'alarm'] || 2) - (FAMILY_ORDER[cb ? cb.family : 'alarm'] || 2);
+    });
+
   const row = document.createElement('div');
   row.className = 'flex flex-wrap justify-center gap-2';
-  const h = shpHands[me] || [];
-  const twoMode = (shpForcedCards === 2 && h.length >= 2);
-  const legal = shpLegalCards(me);
-  h.forEach((cardId, idx) => {
-    const card = shpRenderCard(cardId, { inverted: shpPhase === 'plunge' });
-    card.style.cursor = 'pointer';
-    if (twoMode) {
-      if (shpTwoSel.indexOf(idx) >= 0) card.classList.add('ring-2', 'ring-indigo-500');
-    } else if (legal.indexOf(idx) < 0) {
+
+  sortedHand.forEach(({ cardId, idx }) => {
+    const card = shpRenderCard(cardId, { inverted: plunge });
+    if (!tappable) {
       card.classList.add('opacity-40');
+    } else if (twoMode) {
+      card.style.cursor = 'pointer';
+      if (shpTwoSel.indexOf(idx) >= 0) card.classList.add('ring-2', plunge ? 'ring-red-400' : 'ring-indigo-500');
+      card.addEventListener('click', () => shpTapCard(idx));
+    } else {
+      card.style.cursor = 'pointer';
+      if (legal.indexOf(idx) < 0) card.classList.add('opacity-40');
+      card.addEventListener('click', () => shpTapCard(idx));
     }
-    card.addEventListener('click', () => shpTapCard(idx));
+    shpBindCardHold(card, cardId, false);
     row.appendChild(card);
   });
+
+  // Wolf slot placeholder — locked card slot from a consumed Big Bad Wolf
+  if (shpWolfActive[me]) {
+    const wolfEl = shpRenderCard(null, { wolf: true });
+    wolfEl.classList.add('opacity-60');
+    shpBindCardHold(wolfEl, null, true);
+    row.appendChild(wolfEl);
+  }
+
   col.appendChild(row);
+
   if (twoMode) {
+    const hint = document.createElement('p');
+    hint.className = 'text-stone-400 text-xs text-center';
+    hint.textContent = "Select two that won't break " + shpCeiling + " — a bad pair Deep Sleeps you.";
+    col.appendChild(hint);
     const btn = document.createElement('button');
     const ready = shpTwoSel.length === 2;
-    btn.className = 'min-h-12 w-full rounded-2xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-semibold text-base transition-all duration-150' + (ready ? '' : ' opacity-40 pointer-events-none');
+    btn.className = 'min-h-12 w-full rounded-2xl ' + (plunge ? 'bg-red-600 hover:bg-red-700' : 'bg-indigo-600 hover:bg-indigo-700') + ' active:scale-95 text-white font-semibold text-base transition-all duration-150' + (ready ? '' : ' opacity-40 pointer-events-none');
     btn.textContent = 'Play Both';
     btn.addEventListener('click', shpConfirmTwoCard);
     col.appendChild(btn);
   }
+
   return col;
+}
+
+// 500ms long-press: show card-info overlay. Cancelled on release/move.
+function shpBindCardHold(el, cardId, isWolf) {
+  let timer = null;
+  const cancel = () => { if (timer) { clearTimeout(timer); timer = null; } };
+  const start  = () => { cancel(); timer = setTimeout(() => { timer = null; shpShowCardInfo(cardId, isWolf); }, 500); };
+  el.addEventListener('touchstart', start,  { passive: true });
+  el.addEventListener('touchend',   cancel);
+  el.addEventListener('touchmove',  cancel, { passive: true });
+  el.addEventListener('mousedown',  start);
+  el.addEventListener('mouseup',    cancel);
+  el.addEventListener('mouseleave', cancel);
+}
+
+function shpShowCardInfo(cardId, isWolf) {
+  const overlay = document.getElementById('shp-card-info-overlay');
+  if (!overlay) return;
+  let emoji, name, family, effect;
+  if (isWolf) {
+    emoji = '\u{1F43A}'; name = 'Big Bad Wolf'; family = 'Trap';
+    effect = 'A Wolf was hiding in your Flock — it consumed a card slot. This slot is locked for the rest of the Night.';
+  } else {
+    const c = SHP_CARDS[cardId];
+    if (!c) return;
+    emoji = c.emoji; name = c.label;
+    const fam = { pasture:'Pasture', pillow:'Pillow', alarm:'Alarm', phantom:'Phantom', trap:'Trap' };
+    family = fam[c.family] || c.family;
+    const plunge = (shpPhase === 'plunge');
+    switch (c.kind) {
+      case 'add':
+        if (plunge) {
+          effect = 'PLUNGE: reduces the Herd by ' + c.value + (shpDreamAccel ? ' (doubles below 50)' : '') + '. Push towards 0.';
+        } else {
+          effect = '+' + c.value + ' to the Herd' + (shpDreamAccel ? ' — doubles below 50' : '') + '.';
+        }
+        break;
+      case 'subtract':
+        if (plunge) {
+          effect = 'PLUNGE: adds ' + c.value + ' to the Herd. Pushes you closer to the ceiling — dangerous!';
+        } else {
+          effect = '−' + c.value + ' from the Herd (minimum 0).';
+        }
+        break;
+      case 'skip':
+        effect = "Skips the next player's turn.";
+        break;
+      case 'reverse':
+        effect = 'Reverses the direction of play.';
+        break;
+      case 'reset':
+        effect = plunge
+          ? 'PLUNGE: sets the Herd to ' + c.value + '. Handy if the Herd is stuck high.'
+          : 'Sets the Herd to ' + c.value + '.';
+        break;
+      case 'set':
+        effect = plunge
+          ? 'PLUNGE: snaps the Herd to the ceiling (' + shpCeiling + ') — just below the bust. Very dangerous.'
+          : 'Snaps the Herd to ' + c.value + '.';
+        break;
+      case 'random-add':
+        if (cardId === 13) {
+          effect = plunge
+            ? "PLUNGE: a cursed Fogged Dream — plays a random −2..−12. You can't see the value until it lands."
+            : "A cursed Fogged Dream — plays a random 2–12. You can't see the value until it lands.";
+        } else {
+          effect = plunge
+            ? 'PLUNGE: reduces the Herd by a random 2–12. Always playable — gamble for safety.'
+            : 'Adds a random 2–12 to the Herd. Always playable — gamble wisely.';
+        }
+        break;
+      case 'wake-leader':
+        effect = 'The next turn goes to whoever holds the most cards.';
+        break;
+      case 'two-card':
+        effect = 'Forces the NEXT player to play two cards on their turn.';
+        break;
+      default:
+        effect = c.label;
+    }
+  }
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  set('shp-card-info-emoji',  emoji);
+  set('shp-card-info-name',   name);
+  set('shp-card-info-family', family);
+  set('shp-card-info-effect', effect);
+  overlay.style.display = 'flex';
+  playDone();
 }
 
 function shpRenderDeepSleep() {
@@ -635,31 +907,94 @@ function shpRenderDeepSleep() {
   const footer = document.getElementById('shp-table-footer');
   if (!body || !footer) return;
   const info = shpDeepSleepInfo || {};
+
+  // One-shot boing — only fires the first time this Deep Sleep renders
+  if (!info._boingPlayed) { info._boingPlayed = true; playBoing(); }
+
   body.innerHTML = '';
   const wrap = document.createElement('div');
-  wrap.className = 'flex flex-col items-center gap-3 text-center';
+  wrap.className = 'flex flex-col items-center gap-4 text-center w-full';
+  // Crash header
+  const crashReason = info.reason === 'busted'
+    ? 'Gambled too high — the herd broke loose.'
+    : 'No safe card to play — sleep claimed them.';
   wrap.innerHTML =
     '<div class="text-5xl">\u{1F634}</div>' +
-    '<h2 class="text-xl font-bold text-stone-800">' + shpName(info.crasher) + ' drifts off</h2>' +
-    '<p class="text-stone-500 text-sm">' +
-      (info.reason === 'busted' ? 'Gambled and broke the fence' : 'Nowhere left to play') +
-      ' — −1 Moon.' + (info.elim ? ' Out of Moons — now a Sleepwalker.' : '') + '</p>';
+    '<div class="flex flex-col gap-1">' +
+      '<h2 class="text-xl font-bold text-stone-800">' + shpName(info.crasher) + ' drifts off…</h2>' +
+      '<p class="text-stone-500 text-sm">' + crashReason + ' −1 Moon.' + (info.elim ? ' No Moons left — now a Sleepwalker. \u{1F4A4}' : '') + '</p>' +
+    '</div>';
+  // Moon status for all players (sorted: most moons → eliminated at bottom)
+  const sorted = Array.from({ length: shpPlayerCount }, (_, i) => i)
+    .sort((a, b) => {
+      if (shpEliminated[a] !== shpEliminated[b]) return shpEliminated[a] ? 1 : -1;
+      return (shpLives[b] || 0) - (shpLives[a] || 0);
+    });
+  const moonList = document.createElement('div');
+  moonList.className = 'flex flex-col gap-1.5 w-full';
+  sorted.forEach(i => {
+    const row = document.createElement('div');
+    row.className = 'flex items-center justify-between px-3 py-1.5 rounded-xl text-sm ' +
+      (shpEliminated[i] ? 'bg-stone-100 text-stone-400' : 'bg-white border border-stone-200 text-stone-700');
+    const rawMoons = shpLives[i] || 0;
+    const moonStr = shpEliminated[i] ? '\u{1F4A4} Sleepwalker'
+      : rawMoons <= 5 ? '\u{1F319}'.repeat(rawMoons) || 'Out'
+      : '\u{1F319}\xD7' + rawMoons;
+    row.innerHTML =
+      '<span class="font-semibold">' + shpName(i) + '</span>' +
+      '<span>' + moonStr + '</span>';
+    moonList.appendChild(row);
+  });
+  wrap.appendChild(moonList);
   body.appendChild(wrap);
 
   footer.innerHTML = '';
-  if (window.syllyMultiplayerMode === 'client') {
-    const p = document.createElement('p');
-    p.className = 'text-center text-stone-400 text-sm py-4';
-    p.textContent = '⏳ Waiting for the host…';
-    footer.appendChild(p);
-  } else {
+  const mpMode = window.syllyMultiplayerMode;
+
+  if (mpMode === 'single') {
+    // Single-device: direct continue (unchanged)
     const btn = document.createElement('button');
     btn.className = 'min-h-14 w-full rounded-2xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-semibold text-lg transition-all duration-150';
     btn.textContent = info.over ? 'See Daybreak ☀️' : 'Deal the next Night';
     btn.addEventListener('click', () => { playLaunch(); shpHostContinue(); });
     footer.appendChild(btn);
+
+  } else if (mpMode === 'host') {
+    // Host: ack counter + Continue (locked until all players confirm)
+    const allAcked = shpDeepSleepAcks >= shpDeepSleepAckNeeded;
+    const countEl = document.createElement('p');
+    countEl.className = 'text-stone-400 text-xs text-center mb-2';
+    countEl.textContent = shpDeepSleepAcks + ' / ' + shpDeepSleepAckNeeded + ' confirmed';
+    footer.appendChild(countEl);
+    const btn = document.createElement('button');
+    btn.className = 'min-h-14 w-full rounded-2xl font-semibold text-lg transition-all duration-150 ' +
+      (allAcked ? 'bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white' : 'bg-stone-200 text-stone-400 cursor-not-allowed');
+    btn.textContent = info.over ? 'See Daybreak ☀️' : 'Deal the next Night';
+    btn.disabled = !allAcked;
+    if (allAcked) btn.addEventListener('click', () => { playLaunch(); shpHostContinue(); });
+    footer.appendChild(btn);
+
+  } else {
+    // Client: Got it button until this device acks, then waiting message
+    if (shpIAcked) {
+      const p = document.createElement('p');
+      p.className = 'text-center text-stone-400 text-sm py-4';
+      p.textContent = '⏳ Waiting for others…';
+      footer.appendChild(p);
+    } else {
+      const btn = document.createElement('button');
+      btn.className = 'min-h-14 w-full rounded-2xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-semibold text-lg transition-all duration-150';
+      btn.textContent = 'Got it \u{1F634}';
+      btn.addEventListener('click', () => {
+        playDone();
+        shpIAcked = true;
+        mpLockSync();
+        mpSendEnvelope({ type: 'ACTION', payload: { action: 'SHP_SLEEP_ACK' } });
+        shpRenderDeepSleep();
+      });
+      footer.appendChild(btn);
+    }
   }
-  playBoing();
 }
 
 function shpRenderGameover() {
@@ -667,14 +1002,16 @@ function shpRenderGameover() {
   const box = document.getElementById('shp-gameover-standings');
   if (!box) return;
   box.innerHTML = '';
+  const ordinal = n => n + (n === 1 ? 'st' : n === 2 ? 'nd' : n === 3 ? 'rd' : 'th');
   (shpGameStandings || []).forEach((pIdx, rank) => {
     const row = document.createElement('div');
     row.className = 'flex items-center justify-between px-4 py-2 rounded-xl ' +
       (rank === 0 ? 'bg-indigo-600 text-white' : 'bg-white border border-stone-200 text-stone-600');
     const medal = rank === 0 ? '\u{1F451}' : (rank + 1) + '.';
+    const sub   = rank === 0 ? 'Last one awake' : ordinal(rank + 1) + ' place';
     row.innerHTML =
       '<span class="font-semibold">' + medal + ' ' + shpName(pIdx) + '</span>' +
-      '<span class="text-xs opacity-80">' + (rank === 0 ? 'Last one awake' : '') + '</span>';
+      '<span class="text-xs opacity-80">' + sub + '</span>';
     box.appendChild(row);
   });
   playSuccess();
@@ -879,6 +1216,9 @@ function shpHandleEnvelope(env) {
         shpMeter = p.meter || 0; shpEcho = p.echo || 0; shpForcedCards = 1; shpTwoSel = []; shpDeepSleepInfo = null;
         shpGhostPending = false; shpGhostOptions = []; shpLastDisrupt = null;
         shpPhase = 'climb'; shpCeiling = 99; shpPlungeFlash = false;
+        if (shpAnimTimer) { clearTimeout(shpAnimTimer); shpAnimTimer = null; }
+        shpPlayHistory = []; shpAnimSheep = 0;
+        shpDeepSleepAcks = 0; shpDeepSleepAckNeeded = 0; shpIAcked = false;
         shpShowTable(); if (typeof mpUnlockSync === 'function') mpUnlockSync();
       } else if (a === 'SHP_TURN_RESULT') {
         if (p.phase) { if (shpPhase === 'climb' && p.phase === 'plunge') shpPlungeFlash = true; shpPhase = p.phase; }
@@ -891,6 +1231,22 @@ function shpHandleEnvelope(env) {
         shpWolfActive= p.wolfActive|| shpWolfActive;
         shpMeter = p.meter || 0; shpTwoSel = []; shpDeepSleepInfo = null;
         shpGhostPending = false; shpLastDisrupt = null;
+        if (p.playHistory) shpPlayHistory = p.playHistory;
+        // Sheep parade on client (Climb only)
+        const postPhase = p.phase || shpPhase;
+        if (p.played && p.played.length > 0 && postPhase === 'climb') {
+          let count = 0;
+          for (const cid of p.played) {
+            const c = SHP_CARDS[cid]; if (!c) continue;
+            if (c.kind === 'add') count += Math.min(c.value, 10);
+            if (c.kind === 'set') count += 7;
+          }
+          shpAnimSheep = Math.min(count, 8);
+        }
+        if (shpAnimTimer) { clearTimeout(shpAnimTimer); shpAnimTimer = null; }
+        if (shpAnimSheep > 0) {
+          shpAnimTimer = setTimeout(() => { shpAnimSheep = 0; shpAnimTimer = null; shpRenderTable(); }, 1500);
+        }
         shpShowTable(); if (typeof mpUnlockSync === 'function') mpUnlockSync();
       } else if (a === 'SHP_GHOST_READY') {
         shpGhostPending = true; shpSpendHolder = p.holderIdx; shpGhostOptions = p.optionIds || [];
@@ -906,6 +1262,7 @@ function shpHandleEnvelope(env) {
       } else if (a === 'SHP_DEEP_SLEEP') {
         shpLives = p.lives; shpEliminated = p.eliminated; shpElimOrder = p.elimOrder || [];
         shpDeepSleepInfo = { crasher: p.crasher, reason: p.reason, elim: p.elim, over: p.over };
+        shpDeepSleepAcks = 0; shpDeepSleepAckNeeded = p.acksNeeded || shpPlayerCount; shpIAcked = false;
         shpShowTable(); if (typeof mpUnlockSync === 'function') mpUnlockSync();
       } else if (a === 'SHP_GAMEOVER') {
         shpGameStandings = p.standings; shpGameWinner = p.winner;
@@ -920,6 +1277,9 @@ function shpHandleEnvelope(env) {
         else shpHostPlayCard(shpActivePlayer, p.handIdx);
       } else if (a === 'SHP_DISRUPT') {
         shpHostResolveDisrupt(p.choice);
+      } else if (a === 'SHP_SLEEP_ACK') {
+        shpDeepSleepAcks++;
+        shpRenderDeepSleep();           // re-render to update count + unlock Continue when all confirmed
       } else if (a === 'SHP_PLAYER_LEFT') {
         mpSendEnvelope({ type: 'SYNC', payload: { action: 'SHP_MATCH_DISSOLVED' } });
         resetToLobby();                            // one leaver dissolves the match (PASS contract)
@@ -946,6 +1306,16 @@ function shpResetState() {
   shpPhase = 'climb';  shpPlungeGrace = 0;   shpPlungeFlash = false;
   shpTwoSel = [];      shpDeepSleepInfo = null;
   shpGameStandings = []; shpGameWinner = -1;
+  shpNightNum = 0;
+  shpCardTapReady = true;
+  if (shpTapReadyTimer) { clearTimeout(shpTapReadyTimer); shpTapReadyTimer = null; }
+  shpTapReadyForPlayer = -1;
+  shpPlayHistory = []; shpAnimSheep = 0;
+  shpDeepSleepAcks = 0; shpDeepSleepAckNeeded = 0; shpIAcked = false;
+  const infoOverlay = document.getElementById('shp-card-info-overlay');
+  if (infoOverlay) infoOverlay.style.display = 'none';
+  const logOverlay = document.getElementById('shp-play-log-overlay');
+  if (logOverlay) logOverlay.style.display = 'none';
   // Settings (shpHandSize/Moons/DreamAccel/Sleepwalkers/SyllyMode) intentionally preserved.
 }
 
@@ -971,7 +1341,9 @@ document.addEventListener('DOMContentLoaded', () => {
   // Overlay closers
   on('btn-shp-settings-done', () => { playDone(); document.getElementById('shp-settings-overlay').style.display = 'none'; });
   on('btn-shp-howto-close',   () => { playDone(); document.getElementById('shp-how-to-overlay').style.display = 'none'; });
-  on('btn-shp-tip-close',     () => { playDone(); document.getElementById('shp-tip-overlay').style.display = 'none'; });
+  on('btn-shp-tip-close',      () => { playDone(); document.getElementById('shp-tip-overlay').style.display = 'none'; });
+  on('btn-shp-card-info-close',() => { playDone(); document.getElementById('shp-card-info-overlay').style.display = 'none'; });
+  on('btn-shp-play-log-close', () => { playDone(); document.getElementById('shp-play-log-overlay').style.display = 'none'; });
 
   // Settings controls — pills + toggles
   shpBindPills('data-shp-hand',  v => shpHandSize = parseInt(v, 10));

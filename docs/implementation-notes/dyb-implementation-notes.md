@@ -53,11 +53,10 @@ Both are fire-and-forget writes to Firebase. All devices receive both. The Spiri
 - **Prior art:** Same pattern as GTH canvas wrapper and LTTP message interrupt overlay — any `fixed inset-0` overlay that can be opened mid-game must be explicitly cleared in both `resetToLobby()` and every "return to menu" path.
 - **Found during:** Live testing post-Phase Gate audit.
 
-**BUG-06: Gameover standings invert the loser ranking (June 2026 audit — logged, not yet fixed)**
+**BUG-06: Gameover standings invert the loser ranking (RESOLVED — confirmed correct in June 2026 playtest audit)**
 - **What happened:** Final standings rank the *first*-eliminated player as runner-up and the *last*-eliminated as wooden spoon — exactly backwards.
-- **Root cause:** `dybShowGameover()` reverses `eliminationOrder` into `order` (line ~833), then spreads `...order.reverse()` (line ~837) which reverses the same array in place *again*, netting `[winnerIdx, ...eliminationOrder]`. The two reverses cancel.
-- **Fix:** Use the already-reversed copy once: `const positions = [data.winnerIdx, ...order];` (drop the second `.reverse()`).
-- **Found during:** Phase 3 per-game audit (code trace).
+- **Root cause (logged):** `dybShowGameover()` would reverse `eliminationOrder` into `order`, then spread `...order.reverse()` — reversing the same in-place array twice, netting the original forward order. The double-reverse cancels.
+- **Status:** Code audit confirmed the current `dybShowGameover()` already reads `const positions = [data.winnerIdx, ...order]` (no second `.reverse()`). The bug was resolved prior to this playtest session — most likely during an earlier backlog pass. Verified correct: last-eliminated = rank 2, first-eliminated = last rank.
 - **Lesson:** `Array.prototype.reverse()` mutates in place and returns the same array — a `[...arr].reverse()` followed by `arr.reverse()` is a double-reverse, not two independent copies.
 
 **BUG-07: Phantom die never reveals its face, even at showdown (RESOLVED — post-Phase-34 backlog testing)**
@@ -66,12 +65,11 @@ Both are fire-and-forget writes to Firebase. All devices receive both. The Spiri
 - **Fix:** Redesigned `dybDieHTML` to CSS pip dice (`DYB_PIP_LAYOUTS`). The phantom case now uses `dieIdx >= 0` to distinguish owner's live hand (show "?" text label) from showdown render (`dieIdx = -1`, show real pip face). The `visible` param is removed from the distinction — always true now that the veil is gone.
 - **Found during:** Post-Phase-34 backlog testing.
 
-**BUG-08: Eliminated players pulled back to the Shake screen each round (June 2026 audit — logged, not yet fixed)**
-- **What happened:** After elimination, a player is navigated to `screen-dyb-shake` at the start of every subsequent shake and sits there (with a live "Shake 'Em Up" button) until `DYB_SPIRIT_SHAKE` arrives.
-- **Root cause:** BUG-02 added an eliminated guard to `DYB_SHAKE_ACTIVE`, but `DYB_NEXT_SHAKE` (from `dybAdvanceFromShowdown()`) calls `dybInitShake()` with no such guard. `DYB_SPIRIT_SHAKE` only fires after all survivors have rolled, so the wrong-screen window is the full roll-collection period.
-- **Fix:** In the `DYB_NEXT_SHAKE` handler, route `!dybActivePlayers.includes(mpMyPlayerIdx)` devices to `dybShowSpiritBoard()` instead of `dybInitShake()`'s Shake screen.
-- **Found during:** Phase 3 per-game audit (code trace).
-- **Lesson:** The BUG-02 eliminated-guard pattern must cover *every* handler that can show the Shake screen (`DYB_NEXT_SHAKE` as well as `DYB_SHAKE_ACTIVE`), not just the one found in the first trace.
+**BUG-08: Eliminated players pulled back to the Shake screen each round (RESOLVED — confirmed correct in June 2026 playtest audit)**
+- **What happened:** After elimination, a player navigated to `screen-dyb-shake` at the start of every subsequent shake and sat there until `DYB_SPIRIT_SHAKE` arrived.
+- **Root cause:** BUG-02 added an eliminated guard to `DYB_SHAKE_ACTIVE`, but `DYB_NEXT_SHAKE` (from `dybAdvanceFromShowdown()`) called `dybInitShake()` with no such guard.
+- **Status:** Code audit confirmed the fix is already in place at `DYB_NEXT_SHAKE` handler: `if (!dybActivePlayers.includes(mpMyPlayerIdx)) { dybShowSpiritBoard(); } else { dybInitShake(); }`. The fix was applied prior to this playtest session.
+- **Lesson:** The eliminated-guard pattern must cover *every* handler that can show the Shake screen (`DYB_NEXT_SHAKE` as well as `DYB_SHAKE_ACTIVE`), not just the one found in the first trace.
 
 ---
 
@@ -119,9 +117,183 @@ Eliminated devices must route to the Spirit Board, not the Shake screen. `DYB_SH
 - **Found during:** Post-Phase-34 backlog testing (user report).
 - **Lesson:** When the same raise/escalation rule drives both a picker floor and a submit-button gate, derive both from one predicate. Four independent copies of "what's a legal raise" drifted into two *opposite* errors that masked each other.
 
+**BUG-14: Action buttons (`Call the Bluff`, `Climb Higher`) not locked for non-active players (RESOLVED — June 2026 playtest)**
+- **What happened:** Non-active players could tap `btn-dyb-call-bluff` and `btn-dyb-raise` and trigger a bid/challenge even when it wasn't their turn.
+- **Root cause:** Both buttons sit outside `#dyb-bid-controls` in a separate `<div class="flex gap-3">`. Hiding `#dyb-bid-controls` for non-active players (which was the prior guard) had no effect on these two buttons.
+- **Fix:** In `dybRenderTableScreen()`, when `!isMyTurn`, explicitly set `disabled = true` and add `opacity-40` to both `callBtn` and `raiseBtn`. Re-enable and remove `opacity-40` in the `isMyTurn` branch.
+
+**BUG-15: "Last bidder" label showed the wrong player name (RESOLVED — June 2026 playtest)**
+- **What happened:** The "X alleged N × [F]." label on the table screen showed the name of the *next* bidder instead of the player who made the last bid.
+- **Root cause:** `dybCurrentBidderIdx` has already advanced to the next player by the time `dybRenderTableScreen` runs. The label was reading `dybPlayerNames[dybCurrentBidderIdx]`.
+- **Fix:** Read last bidder from `dybAllegationHistory[dybAllegationHistory.length - 1].playerIdx`. This same root cause was documented in BUG-03 for the showdown; it also appeared in the turn label context here.
+
+**BUG-16: `Climb Higher` and `Call the Bluff` lacked `opacity-40` visual state (RESOLVED — June 2026 playtest)**
+- **What happened:** `dybUpdateBidButtonState()` set `raiseBtn.disabled = true` and `callBtn.disabled = true` when the raise was illegal / no bid existed, but no opacity change accompanied it. The buttons appeared enabled even when inactive.
+- **Fix:** Added `raiseBtn.classList.toggle('opacity-40', raiseBtn.disabled)` and `callBtn.classList.toggle('opacity-40', noBid)` in `dybUpdateBidButtonState()`.
+
+**BUG-17: Showdown and gameover screens had 🔊/✕ inline with the CTA, not in a header row (RESOLVED — June 2026 playtest)**
+- **What happened:** Both screens used a `flex items-center gap-2` row containing `[🔊] [CTA flex-1] [✕]`, which squeezed the CTA and violated the global UI Protocol (chrome buttons must be in a header row, CTAs must be full-width).
+- **Fix:** Applied via Node.js script: split into a proper header row (`flex items-center justify-between`: eyebrow label on left, `[🔊][✕]` on right) + separate full-width `<button>` below the content. For gameover, the eyebrow space is an empty placeholder div since there's no sub-label needed.
+
+**BUG-18: Seating screen had no 🔊 or ✕ chrome (RESOLVED — June 2026 playtest)**
+- **What happened:** `screen-dyb-seating` was missing both the sound button and the exit button entirely.
+- **Fix:** Added a header row (`flex items-center justify-between`: placeholder left, `[btn-open-sound 🔊][btn-dyb-quit-open ✕]` right) as the first child of the inner wrapper div. Applied via Node.js script.
+
+**BUG-19: Spirit Board (The Depths) had no ✕ exit button (RESOLVED — June 2026 playtest audit)**
+- **What happened:** Eliminated players on `screen-dyb-spirit-board` had no way to quit mid-game. The header only contained the 🔊 sound button — no ✕.
+- **Root cause:** The Spirit Board screen was built as a pure spectator view and the exit button was never added.
+- **Fix:** Added `<button class="btn-dyb-quit-open ...">✕</button>` alongside the 🔊 button, wrapped in a `<div class="flex items-center gap-2">` group. Uses the existing `.btn-dyb-quit-open` class, already wired by the global `querySelectorAll('.btn-dyb-quit-open')` listener. Applied via Node.js script (`scripts/dyb-spirit-board-quit.js`). The quit overlay and confirm path are unchanged.
+- **Lesson:** The "every screen must have 🔊 and ✕" rule (Protocol A §4) applies to passive spectator screens too — eliminated players should always be able to exit cleanly.
+
+**Showdown dice highlight — tick-by-tick tally animation (June 2026 playtest audit)**
+- **Design:** During the count-up animation in `dybRenderShowdownScreen`, all dice start dimmed (CSS `.dyb-die-dim`, opacity 0.2). On each 400ms tick, the next counting die un-dims — making the tally visual and theatrical. At the verdict, all remaining dimmed dice un-dim so the full table is visible.
+- **Implementation:** `dybGetCountingDice(face)` builds an ordered `[{pIdx, dieIdx}]` list using the same logic as `dybComputeRealCount` (respects wildcards, Loaded adds two entries for its +2 contribution, Cracked/Snake excluded). `dybRenderAllHandsOnShowdown()` injects `data-p`/`data-d` attributes and `dyb-die-dim` class into each die via string replace on the generated HTML. The `step()` loop queries `[data-p="${p}"][data-d="${d}"]` to remove the dim class one per tick. CSS: `.dyb-die.dyb-die-dim { opacity: 0.2; transition: opacity 0.25s ease; }`.
+- **Edge case:** `real <= 0` — `reveal()` is called after 600ms with no ticks; all dice un-dim immediately at the verdict.
+
+**Shake screen redesign — two-button → single "Ready!" with tappable cup area (June 2026 playtest)**
+The original Shake screen had two sequential buttons ("Shake 'Em Up" → hidden → "Ready ✓"). Replaced with:
+- A tappable `#dyb-shake-cup-area` div in the body showing face-down dice (`bg-slate-800` tiles) before rolling and real dice after rolling, with a "Tap to shake 'em up" / "Your hand." label.
+- A single `#btn-dyb-ready` CTA always visible at the bottom.
+- **Path A (tactile):** tap cup → `playWhoosh()` + `dybCupShake` CSS animation (0.55s) → dice reveal → Ready! submits.
+- **Path B (speedrun):** tap Ready! immediately → `dybDoRoll()` fires silently → submits in one step.
+- Both paths write `dybMyRoll` exactly once (idempotency guards in `dybHandleCupTap` and `dybDoRoll`).
+- `dybAssignSlickFace` updated to be context-aware: refreshes `dyb-hand-dock-shake` when the shake screen is active, `dyb-hand-dock-table` otherwise (fixes pre-existing wrong-dock-refresh issue).
+- `.dyb-cta` fixed to include `display:flex; align-items:center; justify-content:center` — root cause of the recurring centering issue on DYB and other custom-colour games (see Template Gaps).
+
 ---
 
 ## Template Gaps
 
 **Sound button listeners — engine.js global covers all games (June 2026)**
 Investigated a report that the DYB menu sound button wasn't working. Found that `engine.js` attaches `openSoundOverlay` to all `.btn-open-sound` elements globally at script execution time (top-level `querySelectorAll`). Since all HTML is parsed before any script runs, every game's sound buttons are covered automatically — no per-game listener is needed. DYB and several newer games (NAT, DSD, GTH, BLD, PASS) have explicit plugin-level listeners too, which are harmless duplicates. Phase-audit Protocol C cross-game check updated to document this. Lesson: when investigating a sound button report, first confirm whether an old SW cache might be serving stale JS before assuming a wiring gap.
+
+**Custom CSS CTA class centering — flex properties must be declared in the class (June 2026 playtest)**
+DYB uses `.dyb-cta` (custom ocean blue `#1E4D8C`) instead of a Tailwind utility class for its primary CTAs. The class only declared `background-color` and hover. When JS sets `style.display = 'flex'` (the `display` Tailwind utility does this), the button becomes a flex container without `align-items: center` or `justify-content: center`, causing text to top-left-align. Fix: add `display: flex; align-items: center; justify-content: center;` directly to the custom class. **This applies to every custom-colour game:** GTH sage (`.gth-...` inline styles), FRT banana (`.frt-...` style attributes), and any future game that uses a non-Tailwind colour for its CTA. For Tailwind-based games this is not an issue because Tailwind's `flex items-center justify-center` utilities are applied in HTML directly. Template gap: `logic-engine.md` new-game checklist should warn that custom CSS brand classes used on `<button>` elements must always include flex centering properties — not just colour.
+
+---
+
+## Bug Index (continued — June 2026 playtest audit, round 2)
+
+**BUG-20: `hand-dock-spread` — shake screen dice wrap to a second row with 5 dice (RESOLVED)**
+- **What happened:** With 5 dice, `#dyb-hand-dock-shake` (and `#dyb-hand-dock-table`) overflowed its parent container and wrapped. Shortcut phrase: **`hand-dock-spread`** (maps to `dyb-hand-dock-*` element + spread/gap symptom).
+- **Root cause:** Cup area used `px-8` (32px each side). Inner width ≈ 280px. 5 dice × 52px + 4 gaps × 12px (`gap-3`) = 308px > 280px → wraps. On the table screen the hand dock also lacked `justify-center`.
+- **Fix:** Cup area `px-8` → `px-5` (20px padding → inner 304px). Hand dock `gap-3` → `gap-2` (4 × 8px = 32px gap total → 5×52+32 = 292px ≤ 304px). Added `justify-center` to `#dyb-hand-dock-table`. Applied via `scripts/dyb-ascent-polish.js`.
+- **Root cause of detection failure:** The `includes()` needle used a straight apostrophe `'` but the HTML file stored a right single quotation mark U+2019 (`'`) in "Tap to shake 'em up". Fix: split replacement into three smaller targeted replacements — `px-8 py-6` attribute only (no apostrophe in string), `gap-3` → `gap-2` attribute only, cup-label wrapping separately using `’` escape in the needle.
+
+**BUG-21: `[?]` placement violations on shake and table screens (RESOLVED)**
+- **What happened:** (1) Shake screen (`screen-dyb-shake`) header had no `[?]` button at all — rules violation per `ui-style.md` (every gameplay screen header must have `[?]` in the right group alongside 🔊 and ✕). (2) Table screen had `[?]` on the top-left as a lone button, but `ui-style.md` mandates it be in the right group alongside 🔊 and ✕.
+- **Fix:** Shake screen: added `#btn-dyb-shake-how-to` to the right group, wired to open `dyb-how-to-overlay`. Table screen: moved `#btn-dyb-how-to` into the right group (alongside 🔊 and ✕); replaced left slot with `<div></div>` placeholder. Applied via `scripts/dyb-ascent-polish.js`.
+
+---
+
+## Design Decisions (continued — June 2026 playtest audit, round 2)
+
+**"The Ascent" — bid history redesign**
+The original allegation history rendered a vertical list of `N × [die graphic]` entries (last 3 bids). This was visually noisy and took up prime vertical real-estate in the table screen's compact single-column layout.
+- **New design:** A compact single-line preview row (`#dyb-ascent-section`) showing the last 2–3 bids inline: `Syl: 2×[6] → Sam: 3×[6]`, with a 📋 button that opens `#dyb-ascent-overlay` — a bottom sheet (max 60vh, scrollable) with the full bid history as numbered rows.
+- **Plain text format:** bids shown as `N×[F]` (plain text, not pip dice graphics) — faster to read at a glance and unambiguous.
+- **Section hidden until first bid:** `dyb-ascent-section` starts `display:none`; `dybRenderAscentPreview()` shows it only once `dybAllegationHistory` has at least one entry.
+- **Rationale:** The log is reference information — not the primary focus. Compressing it to one line with an expand affordance keeps the claim card and bid stepper front and centre.
+
+**Tempest die contextual help — [?] guide + tap-hold per-die info**
+Players seeing special Tempest dice for the first time (or after forgetting) had no in-context help.
+- **General guide:** After rolling in Sylly Mode, `#btn-dyb-tempest-guide` appears next to the "Your hand." label. Opens `dybShowTempestGuide()` — a single tip overlay listing all 5 die types. Hidden before rolling (starts `display:none` in HTML; shown in `dybDoRoll()`).
+- **Per-die tap-hold:** In `dybRenderHandDock()`, every special die (non-standard type) gets a 500ms long-press handler (`touchstart`/`mousedown` + cancel on `touchend`/`touchmove`/`mouseup`/`mouseleave`). On fire: `_didLP = true` + `dybShowDieInfo(type)`. The Slick die click handler checks `_didLP` and skips the slick picker if a long press fired, preventing the die-info and picker from both opening.
+- **Overlay:** Reuses the new `#dyb-tip-overlay` (Decision Modal, z-[90], border `border border-[#9db8d9]`) driven by `dybShowTip(emoji, heading, lines[])`. Lines support inline HTML (for `<strong>` emphasis). Consistent with `shp-tip-overlay`/`frt-tip-overlay` pattern.
+- **SW:** bumped v118 → v119.
+
+**Snake die visual redesign — sinister dark toxic green (June 2026 polish pass)**
+The original Snake die used red, visually clashing with the pressure mine and injury states.
+- **New design:** Dark toxic green `#064E3B` border + subtle `rgba(6,78,59,0.07)` background tint + `box-shadow: 0 0 8px rgba(6,78,59,0.4)` toxic glow. Pips are diamond-shaped: 7×7px squares rotated 45°, dark green fill (`#064E3B`), no `border-radius`.
+- **CSS approach:** Two compound classes — `.dyb-die.dyb-die-snake` (specificity 0,2,0) overrides Tailwind's border/bg (specificity 0,1,0) so `borderCls`/`bgCls` in `dybDieHTML` don't need clearing. `.dyb-pip.dyb-pip-snake` similarly overrides `.dyb-pip` defaults. Added after `.dyb-die.dyb-die-dim` in `css/styles.css`.
+- **Pip sizing rationale:** 7×7px at 45° = diagonal ~9.9px. Grid cells are (52px − 14px padding) ÷ 3 ≈ 12.67px, so the diamond fits comfortably.
+
+**Slick die clarity + unassigned-0 rule (June 2026 polish pass)**
+`dybShowDieInfo('slick')` description updated to state: (1) you can only assign a face during your own turn; (2) if The Overlook fires before you assign, the Slick die counts as 0. The second rule was already implemented (`assigned === -1` never matches any face 1–6 in `dybComputeRealCount` so the die contributes 0) but was undocumented to players.
+
+**Venom Wilds (Option B) — description-only update (June 2026 polish pass)**
+A Snake rolling 1 with Classic or Volatile Wildcards active targets the bid face with −1 (counts as −1 toward whatever face is bid). This was already implemented in `dybComputeRealCount` via `matchesFace = val === face || (wildOnes && val === 1 && face !== 1)` — a matching Snake applies `total -= 1`. Only the die-info description and Tempest guide entry were updated to document this as "Venom Wilds".
+
+**BUG-22: Per-die `_lpTimer`/`_didLP` shared-variable bug in `dybRenderHandDock` (RESOLVED)**
+- **What happened:** `_lpTimer` and `_didLP` were declared once outside the `forEach((_,i) => …)` loop, shared across all dice. After a long-press on any die, `_didLP` remained `true`. On mobile, the synthetic `click` event fires after `touchend` — the Slick die's click handler checked `_didLP` and found it `true` even for unrelated subsequent taps, permanently suppressing the slick picker.
+- **Root cause:** Variable declaration scope — one `let _lpTimer; let _didLP` for all N dice.
+- **Fix:** Moved both declarations inside the `forEach` body so each die instance gets its own isolated timer and flag.
+- **Lesson:** Any per-element event handler that uses shared mutable state inside a `forEach` is a latent race condition. Always scope per-element state inside the iterator.
+
+**BUG-23: Tempest guide `[?]` button hidden before rolling (RESOLVED)**
+- **What happened:** `#btn-dyb-tempest-guide` was only shown inside `dybDoRoll()` — players on the shake screen before tapping could not access the special die guide.
+- **Fix:** Added `document.getElementById('btn-dyb-tempest-guide').style.display = dybSyllyMode ? '' : 'none';` to `dybRenderShakeScreen()` (shown immediately when the shake screen is displayed in Sylly Mode).
+
+**Summit screen expansion — Clashes W/L + Lucky Face + Post-Climb Chronicle (June 2026 polish pass)**
+The original gameover screen only showed a ranked standings list. Expanded to:
+- **Clashes column:** W/L per player, tracked in `dybClashWins[]`/`dybClashLosses[]` by `dybResolveShowdown()` (host only).
+- **Lucky Face column:** most-frequently rolled raw face per player, shown as a mini die graphic via `dybDieHTML(bestFace, 'standard', -1, true)`. Tracked in `dybFaceFreq[playerIdx][1..6]` by `dybRecordRoll()` (host only; phantom dice excluded since their face is hidden).
+- **Post-Climb Chronicle:** paginated per-shake log. Each entry: bid sequence (`Name: qty×[face] → …`) + conclusion sentence. Stored in `dybShakeLogs[]` by `dybResolveShowdown()`; passed in `DYB_GAMEOVER` payload; rendered by `dybRenderChronicle()` with `btn-dyb-chronicle-prev`/`next` navigation.
+- **All stats sent in `DYB_GAMEOVER`** payload fields `clashWins`, `clashLosses`, `faceFreq`, `shakeLogs` — host-authoritative, received by all devices.
+- **SW:** bumped v119 → v120.
+
+**BUG-24: Opener's "Call the Bluff" button not faded despite being disabled (RESOLVED)**
+- **What happened:** On the opener's turn (no bid yet, `dybCurrentFace === 0`), `callBtn.disabled = true` but `opacity-40` was absent — the button appeared live.
+- **Root cause:** `dybRenderTableScreen()` called `dybUpdateBidButtonState()` (via `dybRenderBidPicker`) which correctly applied `opacity-40`. Then in the active-player else branch, two unconditional `classList.remove('opacity-40')` calls immediately overrode the correct state.
+- **Fix:** Removed both `classList.remove` lines from the else branch. Comment added explaining that `dybUpdateBidButtonState` already owns that state.
+
+**BUG-25: Long-press and Slick tap handlers attached to wrong DOM elements due to ID collision (RESOLVED)**
+- **What happened:** Both `dyb-hand-dock-shake` and `dyb-hand-dock-table` render dice with IDs `dyb-die-0`, `dyb-die-1`, etc. Both hand docks exist in the DOM simultaneously (the shake screen remains when the table screen is shown). `document.getElementById('dyb-die-0')` always returns the first match — the shake screen's hidden dice. Long-press and Slick picker listeners were wired to invisible elements and never fired.
+- **Root cause:** Duplicate element IDs across two hand docks. `getElementById` is document-scoped and non-deterministic when IDs collide.
+- **Fix:** Changed `document.getElementById('dyb-die-${i}')` to `container.querySelectorAll('.dyb-die')[i]` in `dybRenderHandDock()`. The lookup is now scoped to the specific container that was just populated, so both docks always wire their own elements.
+- **Lesson:** Any function that renders multiple DOM instances of elements with shared IDs must use container-scoped queries (`el.querySelectorAll`) rather than document-global `getElementById`. Elevate to audit checklist: whenever `dybRenderHandDock` (or any multi-dock render) is called, verify the listener-attachment query is scoped.
+
+**BUG-26: DYB quit and new-game overlay button text too small (RESOLVED)**
+- **What happened:** Both buttons in `dyb-quit-overlay` and `dyb-new-game-overlay` used `min-h-11 text-sm` — significantly smaller than the `min-h-14 text-lg` standard used in FRT, SHP, and other recent games.
+- **Root cause:** Template gap — the original DYB overlay buttons were written before the current button-sizing standard was established.
+- **Fix:** Updated both overlays' buttons to `min-h-14 text-lg`. Note: the tip overlay close button (`#btn-dyb-tip-close`) intentionally stays at `min-h-11 text-sm` — tip overlays use the compact "Got it" style across all games.
+- **Audit item:** Recurring across games. Any DYB polish pass should cross-check quit/play-again modal button height against `min-h-14 text-lg` standard.
+
+**Slick die one-time face lock (June 2026 polish pass — updated pass 3)**
+`dybOpenSlickPicker` guards against reassignment: if `dybSlickFaces[dieIdx] > 0` (already committed), the picker is silently ignored. Face assignment is now permitted on **both** the shake screen and the table screen:
+- **Shake screen:** always open (no turn restriction). All players roll simultaneously, so a player who won't get a bid turn this Shake should still be able to declare their Slick face and contribute to the count.
+- **Table screen:** restricted to the active bidder's turn in MDLM (unchanged from pass 2).
+The lock fires once per Shake. The guard `shakeScreen.style.display !== 'none'` distinguishes the two contexts.
+
+**Special dice visual polish — Loaded / Phantom / Cracked / Slick (June 2026 polish pass)**
+All four remaining Tempest die types upgraded to be visually distinctive:
+- **Loaded:** Amber glow breathing pulse via `@keyframes dybLoadedGlow` (CSS compound class `.dyb-die.dyb-die-loaded`). Background `rgba(251,191,36,0.08)`, amber border, amber pips `bg-amber-700`. Glow oscillates 6→14px over 2.4s.
+- **Phantom:** Purple tint background `rgba(139,92,246,0.08)` + lavender border `#C4B5FD` via `.dyb-die.dyb-die-phantom`. Live-hand `?` glyph rendered with `.dyb-phantom-glyph` class — indigo `#4338CA` with `text-shadow` neon glow. Showdown reveal: real pip grid with `bg-indigo-400` pips.
+- **Cracked:** Removed `opacity-40`. Now `bg-stone-100` + `border-stone-200` (light and visually dead). Pips stripped; shows `✕` in muted stone text — unambiguous zero-value signal.
+- **Slick:** Border upgraded `border-blue-300` → `border-cyan-400`. Unassigned: `~` tilde with `.dyb-tilde-breathe` CSS animation (opacity 0.55↔1 over 1.8s). Assigned: standard cyan pips `bg-cyan-600` + retained cyan border. The `cursor-pointer` class removed from the `extraCls` (border and bg now drive via Tailwind directly in the switch).
+- **Implementation:** All four use Tailwind utility classes where available; CSS compound classes (same pattern as `.dyb-die-snake`) for rgba backgrounds, box-shadows, and animations that local Tailwind cannot express.
+- **SW:** bumped v120 → v121.
+
+**Polish pass 4 — Phantom compound types, Slick redesign, Slick sync fix, Summit grid (June 2026)**
+
+**Phantom compound types (Phantom dual-type mechanic):**
+Each Phantom die has a `specialRate`-probability chance of harbouring a secondary type (`loaded`, `slick`, `cracked`, or `snake`). Stored in `dybPhantomTypes[]` (per-device) and `dybAllPhantomTypes[][]` (host-only), populated by `dybGenerateRoll`, broadcast in `DYB_ROLL_SUBMIT`, and received on all devices via `DYB_SHOWDOWN` → `dybApplyShowdown`.
+- **During gameplay:** ALL phantom dice (including compound) show only `?` to their owner and to spectators on the Spirit Board (dieIdx !== -1 sentinel handles both live-hand and spectator modes).
+- **At the Overlook (showdown reveal):** compound phantoms unmask as their secondary type WITH an additive indigo phantom-ring glow (`dyb-die-phantom-ring`: `box-shadow: 0 0 0 2px #818cf8, 0 0 12px rgba(99,102,241,0.6)`). Phantom+Loaded = amber glow die + ring. Phantom+Snake = dark green die + ring. Phantom+Cracked = ✕ die + ring. Phantom+Slick = cyan pip die + ring.
+- **Counting:** `dybComputeRealCount` and `dybGetCountingDice` both read `dybAllPhantomTypes[pIdx][j]` and apply the secondary type's counting rule (loaded=+2, snake=−1, cracked=0, slick=locked face only).
+- **Phantom+Slick:** At generation time, `dybSlickFaces[i] = roll[i]` and `dybSlickAssigned[i] = true` — face is locked immediately. Picker cannot be opened for this die. At the Overlook, revealed as cyan die + phantom ring at the auto-assigned face value.
+- **Spectator mode fix (incidental):** Previously, `dybRenderSpiritBoard` called `dybDieHTML` with no `dieIdx` argument (defaulting to `dieIdx = -1` = reveal mode). This was a latent couch-security gap — phantom dice would show their real face on the Spirit Board before the Overlook. Fixed by passing `dieIdx = -2` (new spectator sentinel) so phantom continues to show `?` on the Spirit Board.
+
+**Slick redesign — X* pre-assignment visual:**
+Previously, a Slick die always initialised with `dybSlickFaces[i] = -1` (unassigned), showing `~` until the player committed a face via the picker. New behaviour: Slick dice auto-assign their rolled face at generation time (`dybSlickFaces[i] = roll[i]`). Visual changes:
+- **Unassigned (not yet committed):** Shows `X*` (the rolled number + asterisk) in cyan text — communicates the pending auto-face clearly. The picker can still be used to change it.
+- **Committed:** Shows cyan pip grid at the assigned face (same as before). Once committed, picker is blocked.
+- **Guard change:** `dybOpenSlickPicker` previously used `if (dybSlickFaces[dieIdx] > 0) return` — with auto-assignment this would ALWAYS block the picker (face is > 0 from roll time). Changed to `if (dybSlickAssigned[dieIdx]) return`.
+- **`dybSlickAssigned[]`:** New boolean array tracking whether the player has exercised their one-time face change. Set `true` at committed by picker OR at generation time for Phantom+Slick.
+
+**BUG-27: Slick sync bug — `~` shown at Overlook after face assigned during table phase (RESOLVED)**
+- **What happened:** During the TABLE phase (after `DYB_ROLL_SUBMIT` was already sent), a player assigned their Slick face via the picker. The local `dybSlickFaces[i]` was updated, but `dybAllSlickFaces[mpMyPlayerIdx]` on the host was never updated — it still held the initial value from `DYB_ROLL_SUBMIT`. At the Overlook, the host used the stale value, so the Slick die rendered as `~` (unassigned) rather than the committed face.
+- **Root cause:** `dybAssignSlickFace` only mutated local `dybSlickFaces[dieIdx]` — no sync to host.
+- **Fix:** Added `DYB_SLICK_UPDATE` ACTION packet (fire-and-forget, no lock). `dybAssignSlickFace` now: (1) sets `dybSlickAssigned[dieIdx] = true`; (2) if host → directly mutates `dybAllSlickFaces[mpMyPlayerIdx][dieIdx]`; (3) if client → sends `DYB_SLICK_UPDATE { dieIdx, face }` ACTION. Host handler in `dybHandleEnvelope` writes `dybAllSlickFaces[originIdx][payload.dieIdx] = payload.face`. No lock needed — fire-and-forget, last-write-wins, resolves before showdown.
+- **Why no lock:** The Slick picker is a local one-time commit, not a phase-advance. Adding a sync lock here would block the entire table UI for an unnecessarily long round-trip.
+
+**Summit standings grid layout fix (Point 0):**
+The previous flex layout used `flex-1` on the Climber column — giving it ALL remaining space regardless of name length, creating a large visual gap between the name and the Challenges column. Fixed by switching to CSS grid (`grid-template-columns: 28px 1fr 80px [40px]`) on both the header row and all data rows. The Challenges column now always appears at a fixed visual position. The `luckyFaceHtml` div simplified to `<div class="flex justify-center items-center">…</div>` — no fixed-width wrapper needed (grid column handles the fixed width).
+
+- **SW:** bumped v122 → v123.
+
+**Polish pass 3 — shake screen layout, Slick on shake, Summit redesign (June 2026)**
+- **Shake screen:** Switched from `h-screen overflow-hidden` sticky-footer to `min-h-screen overflow-y-auto flex items-center justify-center` centred layout. All elements (header, dice count row, cup area, Ready button) are now siblings inside a `gap-4` column — no empty floating space between header and dice. Matches the table screen pattern.
+- **Slick on shake screen:** See updated Slick die one-time face lock note above.
+- **Summit standings redesign:** Single header row replaces per-card mini-labels. Columns: RANK (w-6) | CLIMBER (flex-1 truncate) | CHALLENGES (w-[72px] shrink-0) | FAVOURED (w-10 shrink-0). Column widths match between header and data rows via identical Tailwind classes. `hasFaceData` guard controls whether the FAVOURED column appears at all (so non-Sylly sessions don't show an empty column). Renamed: "Clashes" → "Challenges", "Face" → "Favoured".
+- **SW:** bumped v121 → v122.

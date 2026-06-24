@@ -2604,7 +2604,18 @@ document.addEventListener('DOMContentLoaded', () => {
   codeBoxes.forEach((box, i) => {
     box.addEventListener('input', () => {
       box.value = box.value.toUpperCase().slice(-1);
-      if (box.value && i < 3) codeBoxes[i + 1].focus();
+      if (box.value && i < 3) {
+        codeBoxes[i + 1].focus();
+      } else if (box.value && i === 3) {
+        const hasNick = document.getElementById('mp-join-nickname-input').value.trim().length > 0;
+        if (hasNick) {
+          mpUpdateJoinCta();
+          mpClientJoinRoom();
+          return;
+        } else {
+          document.getElementById('mp-join-nickname-input').focus();
+        }
+      }
       mpUpdateJoinCta();
     });
     box.addEventListener('keydown', e => {

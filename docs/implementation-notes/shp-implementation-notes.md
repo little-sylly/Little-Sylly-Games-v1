@@ -32,6 +32,8 @@ Spec: `docs/new-game-tech-counting-sheep.md`. MDLM-only, host-authoritative, hos
 
 ## Bug Index
 
+- **Black Sheep bypassed the Plunge ceiling guard → unexpected moon loss.** *What happened:* In Plunge with a fallen ceiling (e.g. 92), playing Black Sheep (kind:'set', value:99) landed above the ceiling → bust → −1 Moon with no warning. *Root cause 1:* `shpHostPlayCard` guarded only `kind:'add'` — Black Sheep (kind:'set') skipped the legality check entirely. *Root cause 2:* `shpHerdAfterCard` 'set' case was absolute (h = c.value), ignoring the Plunge ceiling. *Fix:* Guard changed to `!shpIsPlayable(playerIdx, handIdx)` (all card kinds); 'set' case clamps in Plunge: `Math.min(c.value, shpCeiling)`. Lesson: the `shpIsPlayable` route should gate every card kind in `shpHostPlayCard`; never short-circuit to a single-kind check.
+
 - **Wolf draw-trap aborted the initial deal → empty/under-dealt hands.** *What happened:* headless simulation (200 games) threw "no legal line but not auto-deep-slept"; a living opener had an empty hand at Herd 0. *Root cause:* `shpDrawUp` did `break` after consuming a Big Bad Wolf. That's right for a mid-game single-card refill (draw 1 to replace the played card) but wrong at the deal, where the player draws `shpHandSize` cards — a Wolf drawn early aborted the whole deal, leaving 0–N cards instead of the (reduced) cap. *Lesson:* the same draw-up routine serves both single refills and multi-card deals; use `continue` (re-evaluate the `while` against the reduced cap) instead of `break`. Mid-game it stops immediately (hand already at reduced cap); at deal it fills the shrunk hand. Spec §7's "stop drawing" was describing the single-draw case only.
 
 ---
@@ -47,6 +49,34 @@ Spec: `docs/new-game-tech-counting-sheep.md`. MDLM-only, host-authoritative, hos
 - **Host-as-participant + ACTION routing:** host processes its own taps directly (`shpHostPlayCard`); clients send `SHP_PLAY`; host resolves for `shpActivePlayer` (only the active player's device sends, so seat is unambiguous). Self-sent ACTIONs are dropped by the dedup guard — host never routes its own play through `mpSendEnvelope`.
 
 ---
+
+### Polish pass (post-playtest)
+- **Tap buffer on turn entry.** A 1-second `shpCardTapReady` gate fires when the active player's turn first activates (`shpTapReadyForPlayer !== me`). Prevents accidental card plays when a new SYNC arrives and the screen re-renders under a player's finger. State: `shpCardTapReady` (bool), `shpTapReadyTimer` (handle), `shpTapReadyForPlayer` (idx). Auto-resets when turn leaves the player.
+- **Hand sorted by family.** `shpHandFooter` now sorts the display by `FAMILY_ORDER` (pasture→pillow→alarm→trap/phantom) while preserving original hand indices for `shpTapCard`. Wolf placeholder rendered after live cards when `shpWolfActive[me]`.
+- **Long-press card info.** 500ms touchstart/mousedown via `shpBindCardHold` shows `shp-card-info-overlay` (z-[90], Decision Modal) with card name, family, and plain-English effect. Works on wolf placeholder (shows "slot locked" message). Wired to all cards and the wolf slot in `shpHandFooter`.
+- **Waiting hand not hidden.** Non-active players (and active player during the tap buffer) see their cards at `opacity-40` — never hidden. No `shpWaitFooter` function needed; removed.
+- **Plunge spike-trap herd display.** In Plunge, the herd box switches to a three-element vertical stack (red bg-red-50 container): ceiling at top descending → "X sheep left" gap label → Herd at bottom. Plunge reminder text promoted to `text-xs font-semibold text-red-500` inside the container.
+- **Direction arrows.** "→ Forward" rendered above player chips, "↺ Reverse" below; whichever is active gets the brand colour (indigo/red), the inactive one is stone-300.
+- **Status bar.** Shows "Night N" with night number; turns `text-red-500` in Plunge. Night counter increments in `shpDealNight`.
+- **Moon cap.** Chip moon display caps at 5 emoji; 6+ renders as `🌙×N`.
+- **Active chip in Plunge.** Active player chip switches to `bg-red-600` during Plunge.
+- **Nightmare meter.** Wrapped in `bg-violet-50 border border-violet-200 rounded-xl` container; label promoted to `text-xs font-semibold`; dots to `text-lg`.
+- **Ghost banner.** Names the spend-holder: `"💤 [Name] is picking a nightmare…"` instead of generic "A Sleepwalker".
+- **Dream-shift banner.** Wrapped in `bg-violet-50 border border-violet-200 rounded-xl` container.
+- **Deep Sleep screen.** Crash reason copy improved ("Gambled too high — the herd broke loose." / "No safe card to play — sleep claimed them."). Adds a sorted vertical moon-status list (most moons on top, Sleepwalkers at bottom) so all players can see standings after a crash.
+- **Gameover sub-labels.** Non-winner rows show ordinal place ("2nd place", "3rd place", etc.).
+- **Two-card bust hint.** In two-card mode, a hint line "Select two that won't break [ceiling] — a bad pair Deep Sleeps you." appears below the hand.
+- **Two-card Play Both colour.** Play Both button uses `bg-red-600` during Plunge (was always indigo).
+- **Dream Acceleration description fixed.** Settings card now reads: "Below 50, every Pasture card counts double — Skip a Few and other specials aren't affected." (previously implied random-adds also doubled).
+- **How-to Wolf note added.** Step 2 now mentions: "The Big Bad Wolf hides in the Flock — draw one and a card slot locks for the Night."
+
+### Post-playtest polish (this session)
+- **Deck rebalanced — 62 → 71 cards.** Pasture count increased (12/12/10/8 = 42 total) to reduce hoarding. Three new subtract cards added (ids 14/15/16: −1/−2/−5, family `pillow`, kind `subtract`) alongside the existing −10 (9 playable subtracts total). Big Bad Wolves kept at 2. `SHP_DECK_COUNTS` updated; `SHP_CARDS` extended; `shpCardFaceLabel` updated to flip subtract signs in Plunge (−N → +N).
+- **Plunge herd box updated.** "Ceiling 🔻 falling" label renamed to "The Sky is Falling 🔻" and a "−N/turn" sub-label added directly under the ceiling number.
+- **Long-press card info is now Plunge-aware.** `shpShowCardInfo` now branches on `shpPhase === 'plunge'` for all card kinds — Pasture says "PLUNGE: reduces the Herd by N", subtract says "PLUNGE: increases the Herd by N", etc. Smart-quote encoding introduced in the previous session required a two-step fix: blanket replace curly quotes → straight, then convert apostrophe-in-single-quoted-string cases to double-quoted strings (lines 804, 860, 878–879).
+- **Sheep jump animation.** When a Pasture or Black Sheep is played (Climb only), `shpAnimSheep` is set (1 per +1 value, capped at 8; Black Sheep = 7). `shpRenderTable` emits a row of `<span class="shp-sheep-jump">🐑</span>` with staggered 80ms delays via the `animation-delay` inline style. A 1500ms clear timer resets `shpAnimSheep` and re-renders. CSS `@keyframes shpSheepJump` (translateY 0→−12px→0, fade in/out) added to `styles.css`. Clients receive `shpAnimSheep` via `SHP_TURN_RESULT.played` — the SYNC handler rebuilds the count from the `played` array.
+- **Play log.** `shpPlayHistory` array (newest-first, capped at 20) accumulates `{ cardIds[], rolledVal, byIdx, byName }` entries in `shpBroadcastTurn` and is serialised in `SHP_TURN_RESULT`. A "Last: [card] Log →" indicator appears below the herd box; tapping opens `shp-play-log-overlay` (data slide-up, z-[90]) via `shpOpenLog()`. Overlay inserted via Node.js script (avoiding Edit-tool mojibake). Close button wired in `DOMContentLoaded`. Teardown added to `shpResetState` and `engine.js resetToLobby()`.
+- **Deep Sleep per-player confirm (MDLM ack readyCheck).** Host initialises `shpDeepSleepAckNeeded = shpPlayerCount`, `shpDeepSleepAcks = 1` (host counts itself) in `shpHostDeepSleep`. `SHP_DEEP_SLEEP` carries `acksNeeded`. Clients see a "Got it 😴" button → sends `SHP_SLEEP_ACK` ACTION; host handler increments `shpDeepSleepAcks` and calls `shpRenderDeepSleep()` to update the count. Continue CTA is locked (`bg-stone-200 cursor-not-allowed`) until `shpDeepSleepAcks >= shpDeepSleepAckNeeded`. Single-device: unchanged — direct Continue button, no counter. `shpIAcked` prevents double-submission per device. `playBoing()` moved to one-shot flag `info._boingPlayed` to avoid replaying on re-renders.
 
 ## Template Gaps
 

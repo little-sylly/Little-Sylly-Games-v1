@@ -6312,7 +6312,7 @@
   </div>
 
 
-  <!-- ════ DICEY BLUFFS ════
+  <!-- ════ THE BLUFF ════
        Screens : screen-dyb-menu, screen-dyb-seating, screen-dyb-shake,
                  screen-dyb-table, screen-dyb-showdown, screen-dyb-gameover,
                  screen-dyb-spirit-board
@@ -6349,6 +6349,13 @@
   <section id="screen-dyb-seating" style="display:none"
     class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
     <div class="flex flex-col w-full max-w-sm gap-4">
+      <div class="flex items-center justify-between">
+        <div></div>
+        <div class="flex items-center gap-2">
+          <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+          <button class="btn-dyb-quit-open text-stone-400 font-bold text-xl active:scale-90 transition-transform duration-100">✕</button>
+        </div>
+      </div>
       <div class="text-center">
         <p class="text-xs font-semibold uppercase tracking-widest dyb-label mb-1">The Bluff</p>
         <h2 class="text-2xl font-bold text-stone-800">Take Your Position</h2>
@@ -6364,40 +6371,42 @@
 
   <!-- DYB SHAKE -->
   <section id="screen-dyb-shake" style="display:none"
-    class="flex flex-col w-full max-w-sm mx-auto h-screen overflow-hidden">
-    <div class="flex items-center justify-between px-4 pt-4 pb-2 flex-shrink-0">
-      <div>
-        <p id="dyb-shake-number" class="text-xs font-semibold uppercase tracking-widest dyb-label"></p>
-        <p id="dyb-shake-opener-label" class="text-sm font-semibold text-stone-600 mt-0.5"></p>
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-4">
+      <div class="flex items-center justify-between">
+        <div>
+          <p id="dyb-shake-number" class="text-xs font-semibold uppercase tracking-widest dyb-label"></p>
+          <p id="dyb-shake-opener-label" class="text-sm font-semibold text-stone-600 mt-0.5"></p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button id="btn-dyb-shake-how-to" class="text-stone-400 font-bold text-sm active:scale-90 transition-transform duration-100">[?]</button>
+          <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+          <button class="btn-dyb-quit-open text-stone-400 font-bold text-xl active:scale-90 transition-transform duration-100">✕</button>
+        </div>
       </div>
-      <div class="flex items-center gap-2">
-        <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
-        <button class="btn-dyb-quit-open text-stone-400 font-bold text-xl active:scale-90 transition-transform duration-100">✕</button>
+      <div id="dyb-shake-dice-counts" class="flex flex-wrap gap-2 justify-center text-stone-400 text-sm"></div>
+      <div id="dyb-shake-cup-area" class="flex flex-col items-center gap-3 cursor-pointer active:scale-95 transition-transform duration-150 px-4 py-5 rounded-3xl bg-stone-100" role="button">
+        <div id="dyb-hand-dock-shake" class="flex gap-2 flex-wrap justify-center"></div>
+        <div class="flex items-center gap-1.5">
+          <p id="dyb-shake-cup-label" class="text-stone-400 text-sm font-semibold">Tap to shake 'em up</p>
+          <button id="btn-dyb-tempest-guide" class="text-stone-300 font-bold text-xs leading-none active:scale-90 transition-transform duration-100" style="display:none">[?]</button>
+        </div>
       </div>
-    </div>
-    <div id="dyb-shake-dice-counts" class="flex flex-wrap gap-2 justify-center px-4 pb-2 flex-shrink-0 text-stone-400 text-sm"></div>
-    <div class="flex-1 overflow-y-auto flex flex-col min-h-0 items-center justify-center px-5 py-4">
-      <div id="dyb-hand-dock-shake" class="flex gap-3 flex-wrap justify-center min-h-12"></div>
-    </div>
-    <div class="px-5 pb-8 pt-2 flex-shrink-0 flex flex-col gap-3">
-      <button id="btn-dyb-roll" class="min-h-14 w-full rounded-2xl dyb-cta active:scale-95 text-white text-xl font-semibold transition-all duration-150">
-        Shake 'Em Up 🎲
-      </button>
-      <button id="btn-dyb-roll-ready" class="min-h-14 w-full rounded-2xl bg-stone-600 hover:bg-stone-700 active:scale-95 text-white text-xl font-semibold transition-all duration-150 btn-mp-action" style="display:none">
-        Ready ✓
+      <button id="btn-dyb-ready" class="min-h-14 w-full rounded-2xl dyb-cta active:scale-95 text-white text-xl font-semibold transition-all duration-150 btn-mp-action">
+        Ready!
       </button>
       <p id="dyb-roll-waiting" class="text-center text-stone-400 text-sm" style="display:none">Waiting for others…</p>
     </div>
   </section>
-
   <!-- DYB TABLE -->
   <section id="screen-dyb-table" style="display:none"
     class="flex items-center justify-center w-full min-h-screen px-5 py-6 overflow-y-auto">
     <div class="flex flex-col w-full max-w-sm gap-4">
       <!-- header row -->
       <div class="flex items-center justify-between">
-        <button id="btn-dyb-how-to" class="text-stone-400 font-bold text-sm active:scale-90 transition-transform duration-100">[?]</button>
+        <div></div>
         <div class="flex items-center gap-2">
+          <button id="btn-dyb-how-to" class="text-stone-400 font-bold text-sm active:scale-90 transition-transform duration-100">[?]</button>
           <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
           <button class="btn-dyb-quit-open text-stone-400 font-bold text-xl active:scale-90 transition-transform duration-100">✕</button>
         </div>
@@ -6413,30 +6422,30 @@
       <!-- turn label -->
       <p id="dyb-turn-label" class="text-center text-stone-500 text-sm font-semibold"></p>
       <!-- bid picker controls -->
-      <div id="dyb-bid-controls" class="flex flex-col gap-3" data-face="1" data-qty="1">
-        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
-          <p class="text-xs font-semibold uppercase tracking-widest dyb-label">Face Value</p>
-          <div class="flex items-center justify-between gap-3">
-            <button id="btn-dyb-face-dec" class="w-12 h-12 rounded-xl bg-stone-100 hover:bg-stone-200 active:scale-90 text-stone-700 font-bold text-xl transition-transform duration-100">−</button>
-            <span id="dyb-face-display" class="text-2xl font-bold text-stone-800 w-10 text-center">1</span>
-            <button id="btn-dyb-face-inc" class="w-12 h-12 rounded-xl bg-stone-100 hover:bg-stone-200 active:scale-90 text-stone-700 font-bold text-xl transition-transform duration-100">+</button>
-          </div>
-        </div>
-        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
-          <p class="text-xs font-semibold uppercase tracking-widest dyb-label">Quantity</p>
-          <div class="flex items-center justify-between gap-3">
-            <button id="btn-dyb-qty-dec" class="w-12 h-12 rounded-xl bg-stone-100 hover:bg-stone-200 active:scale-90 text-stone-700 font-bold text-xl transition-transform duration-100">−</button>
-            <span id="dyb-qty-display" class="text-2xl font-bold text-stone-800 w-10 text-center">1</span>
-            <button id="btn-dyb-qty-inc" class="w-12 h-12 rounded-xl bg-stone-100 hover:bg-stone-200 active:scale-90 text-stone-700 font-bold text-xl transition-transform duration-100">+</button>
-          </div>
+      <div id="dyb-bid-controls" class="bg-white rounded-2xl p-4 shadow-sm" data-face="1" data-qty="1">
+        <div class="flex items-center justify-center gap-2">
+          <button id="btn-dyb-qty-dec" class="w-10 h-10 rounded-xl bg-stone-100 hover:bg-stone-200 active:scale-90 text-stone-700 font-bold text-xl transition-transform duration-100">−</button>
+          <span id="dyb-qty-display" class="text-2xl font-bold text-stone-800 w-8 text-center">1</span>
+          <button id="btn-dyb-qty-inc" class="w-10 h-10 rounded-xl bg-stone-100 hover:bg-stone-200 active:scale-90 text-stone-700 font-bold text-xl transition-transform duration-100">+</button>
+          <span class="text-stone-400 font-bold text-xl mx-1">×</span>
+          <button id="btn-dyb-face-dec" class="w-10 h-10 rounded-xl bg-stone-100 hover:bg-stone-200 active:scale-90 text-stone-700 font-bold text-xl transition-transform duration-100">−</button>
+          <div id="dyb-face-display" class="flex items-center justify-center" style="width:38px;height:38px;"></div>
+          <button id="btn-dyb-face-inc" class="w-10 h-10 rounded-xl bg-stone-100 hover:bg-stone-200 active:scale-90 text-stone-700 font-bold text-xl transition-transform duration-100">+</button>
         </div>
       </div>
       <p id="dyb-waiting-label" class="text-center text-stone-400 text-sm" style="display:none"></p>
-      <div id="dyb-allegation-history" class="flex flex-col gap-1"></div>
+      <div id="dyb-ascent-section" style="display:none" class="flex items-center gap-2">
+        <p class="text-xs font-semibold uppercase tracking-widest dyb-label shrink-0">The Ascent</p>
+        <p id="dyb-ascent-preview" class="text-stone-400 text-xs flex-1 overflow-hidden text-ellipsis whitespace-nowrap"></p>
+        <button id="btn-dyb-ascent-open" class="text-stone-400 text-xs font-semibold shrink-0 active:scale-90 transition-transform duration-100">📋</button>
+      </div>
       <!-- hand section -->
       <div class="bg-stone-50 rounded-2xl p-4">
-        <p class="text-xs font-semibold uppercase tracking-widest dyb-label mb-3">Your Hand</p>
-        <div id="dyb-hand-dock-table" class="flex gap-3 flex-wrap min-h-12"></div>
+        <div class="flex items-center gap-1.5 mb-3">
+          <p class="text-xs font-semibold uppercase tracking-widest dyb-label">Your Hand</p>
+          <button id="btn-dyb-hand-tip" class="text-stone-300 font-bold text-xs leading-none active:scale-90 transition-transform duration-100" style="display:none">[?]</button>
+        </div>
+        <div id="dyb-hand-dock-table" class="flex gap-3 flex-wrap justify-center min-h-12"></div>
       </div>
       <!-- action buttons -->
       <div class="flex gap-3">
@@ -6454,24 +6463,24 @@
   <section id="screen-dyb-showdown" style="display:none"
     class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
     <div class="flex flex-col w-full max-w-sm gap-4">
-      <div class="text-center">
-        <p class="text-xs font-semibold uppercase tracking-widest dyb-label mb-1">Reaching the Edge</p>
-        <h2 class="text-2xl font-bold text-stone-800">THE OVERLOOK</h2>
+      <div class="flex items-center justify-between">
+        <p class="text-xs font-semibold uppercase tracking-widest dyb-label">Reaching the Edge</p>
+        <div class="flex items-center gap-2">
+          <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+          <button id="btn-dyb-showdown-exit" class="text-stone-400 font-bold text-xl active:scale-90 transition-transform duration-100 px-2">✕</button>
+        </div>
       </div>
+      <h2 class="text-2xl font-bold text-stone-800 text-center">THE OVERLOOK</h2>
       <div class="bg-white rounded-2xl p-5 shadow-sm text-center flex flex-col gap-2">
-        <p id="dyb-showdown-claimed" class="text-stone-500 text-sm"></p>
+        <p id="dyb-showdown-claimed" class="text-2xl font-bold text-stone-800"></p>
         <p id="dyb-showdown-real" class="text-xl font-bold text-stone-800"></p>
         <p id="dyb-showdown-verdict" class="text-2xl font-bold text-stone-700"></p>
         <p id="dyb-showdown-loser" class="text-stone-500 text-sm mt-1"></p>
       </div>
       <div id="dyb-showdown-hands" class="flex flex-col gap-2"></div>
-      <div class="flex items-center gap-2">
-        <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
-        <button id="btn-dyb-next-shake" class="flex-1 min-h-14 rounded-2xl dyb-cta active:scale-95 text-white text-xl font-semibold transition-all duration-150">
-          Next Shake →
-        </button>
-        <button id="btn-dyb-showdown-exit" class="text-stone-400 font-bold text-xl active:scale-90 transition-transform duration-100 px-2">✕</button>
-      </div>
+      <button id="btn-dyb-next-shake" class="min-h-14 w-full rounded-2xl dyb-cta active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Next Shake →
+      </button>
       <p id="dyb-showdown-client-waiting" class="text-center text-stone-400 text-sm" style="display:none">Waiting for host…</p>
     </div>
   </section>
@@ -6480,18 +6489,33 @@
   <section id="screen-dyb-gameover" style="display:none"
     class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
     <div class="flex flex-col w-full max-w-sm gap-4">
+      <div class="flex items-center justify-between">
+        <div></div>
+        <div class="flex items-center gap-2">
+          <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+          <button id="btn-dyb-gameover-exit" class="text-stone-400 font-bold text-xl active:scale-90 transition-transform duration-100 px-2">✕</button>
+        </div>
+      </div>
       <div class="text-center">
         <h2 class="text-2xl font-bold text-stone-800">The Summit 🎲</h2>
         <p id="dyb-gameover-winner" class="text-xl font-bold text-stone-600 mt-2"></p>
       </div>
       <div id="dyb-gameover-standings" class="flex flex-col gap-2"></div>
-      <div class="flex items-center gap-2">
-        <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
-        <button id="btn-dyb-gameover-again" class="flex-1 min-h-14 rounded-2xl dyb-cta active:scale-95 text-white text-xl font-semibold transition-all duration-150">
-          Climb Again?
-        </button>
-        <button id="btn-dyb-gameover-exit" class="text-stone-400 font-bold text-xl active:scale-90 transition-transform duration-100 px-2">✕</button>
+      <!-- Post-Climb Chronicle -->
+      <div id="dyb-chronicle-section" style="display:none" class="flex flex-col gap-2">
+        <div class="flex items-center justify-between">
+          <p class="text-xs font-semibold uppercase tracking-widest dyb-label">Post-Climb Chronicle</p>
+          <div class="flex items-center gap-2">
+            <button id="btn-dyb-chronicle-prev" class="w-7 h-7 rounded-lg bg-stone-100 hover:bg-stone-200 active:scale-90 text-stone-500 font-bold text-sm transition-all duration-100 disabled:opacity-30">&#8678;</button>
+            <span id="dyb-chronicle-label" class="text-xs text-stone-500 font-semibold w-14 text-center"></span>
+            <button id="btn-dyb-chronicle-next" class="w-7 h-7 rounded-lg bg-stone-100 hover:bg-stone-200 active:scale-90 text-stone-500 font-bold text-sm transition-all duration-100 disabled:opacity-30">&#8680;</button>
+          </div>
+        </div>
+        <div id="dyb-chronicle-card" class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-1 min-h-[60px]"></div>
       </div>
+            <button id="btn-dyb-gameover-again" class="min-h-14 w-full rounded-2xl dyb-cta active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Climb Again?
+      </button>
     </div>
   </section>
 
@@ -6500,7 +6524,10 @@
     class="flex flex-col w-full max-w-sm mx-auto h-screen overflow-hidden">
     <div class="flex items-center justify-between px-4 pt-4 pb-2 flex-shrink-0">
       <p class="text-sm font-bold text-stone-500">THE DEPTHS 🌊</p>
-      <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+      <div class="flex items-center gap-2">
+        <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+        <button class="btn-dyb-quit-open text-stone-500 font-bold text-lg active:scale-90 transition-transform duration-100">✕</button>
+      </div>
     </div>
     <p id="dyb-spirit-allegation" class="text-center text-stone-400 text-sm px-4 pb-2 flex-shrink-0">No claim yet.</p>
     <div id="dyb-spirit-grid" class="flex-1 overflow-y-auto min-h-0 flex flex-col gap-2 px-5 py-2"></div>
@@ -6530,8 +6557,8 @@
         </div>
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
           <div>
-            <p class="text-stone-800 font-semibold">Starting Hand</p>
-            <p class="text-stone-400 text-sm mt-0.5">How many dice each player holds at the start of the game.</p>
+            <p class="text-stone-800 font-semibold">Starting Dice</p>
+            <p class="text-stone-400 text-sm mt-0.5">How many dice each player starts with.</p>
           </div>
           <div class="flex gap-2">
             <button class="pill" data-dyb-hand="3">3 Dice</button>
@@ -6612,10 +6639,10 @@
       <p class="text-3xl">🚪</p>
       <h3 class="text-lg font-bold text-stone-800">Back Down?</h3>
       <p class="text-stone-500 text-sm">Your dice go with you. The climb carries on without you.</p>
-      <button id="btn-dyb-quit-confirm" class="min-h-11 w-full rounded-2xl bg-red-500 hover:bg-red-600 active:scale-95 text-white font-semibold text-sm transition-all duration-100">
+      <button id="btn-dyb-quit-confirm" class="min-h-14 w-full rounded-2xl bg-red-500 hover:bg-red-600 active:scale-95 text-white font-semibold text-lg transition-all duration-100">
         Yeah, I'm out.
       </button>
-      <button id="btn-dyb-quit-cancel" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-sm transition-all duration-100">
+      <button id="btn-dyb-quit-cancel" class="min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-lg transition-all duration-100">
         Keep bluffing!
       </button>
     </div>
@@ -6628,10 +6655,10 @@
       <p class="text-3xl">🎲</p>
       <h3 class="text-lg font-bold text-stone-800">Climb Again?</h3>
       <p class="text-stone-500 text-sm">New positions, fresh dice, same room code.</p>
-      <button id="btn-dyb-new-game-confirm" class="min-h-11 w-full rounded-2xl dyb-cta active:scale-95 text-white font-semibold text-sm transition-all duration-100">
+      <button id="btn-dyb-new-game-confirm" class="min-h-14 w-full rounded-2xl dyb-cta active:scale-95 text-white font-semibold text-lg transition-all duration-100">
         Climb Again 🎲
       </button>
-      <button id="btn-dyb-new-game-cancel" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-sm transition-all duration-100">
+      <button id="btn-dyb-new-game-cancel" class="min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-lg transition-all duration-100">
         Stay here
       </button>
     </div>
@@ -6644,6 +6671,35 @@
       <p class="text-stone-600 font-semibold text-sm">Assign this die's face</p>
       <div id="dyb-slick-picker-content" class="flex gap-2 justify-center flex-wrap"></div>
       <button onclick="document.getElementById('dyb-slick-picker-overlay').style.display='none'" class="min-h-10 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-sm transition-all duration-100">Cancel</button>
+    </div>
+  </div>
+
+
+  <!-- DYB ASCENT OVERLAY -->
+  <div id="dyb-ascent-overlay" style="display:none"
+    class="fixed inset-0 bg-black/50 z-[90] flex items-end justify-center">
+    <div class="bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col" style="max-height:60vh">
+      <div class="px-5 pt-5 pb-3 border-b border-stone-200 flex items-center justify-between flex-shrink-0">
+        <div>
+          <h3 class="text-base font-bold text-stone-800">The Ascent</h3>
+          <p class="text-xs text-stone-400 mt-0.5">Full bid history this Shake</p>
+        </div>
+        <button id="btn-dyb-ascent-close" class="text-stone-400 font-bold text-xl active:scale-90 transition-transform duration-100">✕</button>
+      </div>
+      <div id="dyb-ascent-history" class="overflow-y-auto flex flex-col px-5 py-4 flex-1 min-h-0"></div>
+    </div>
+  </div>
+
+  <!-- DYB TIP OVERLAY -->
+  <div id="dyb-tip-overlay" style="display:none"
+    class="fixed inset-0 bg-black/40 z-[90] flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-[#9db8d9]">
+      <div class="flex flex-col gap-2">
+        <p id="dyb-tip-emoji" class="text-3xl"></p>
+        <h3 id="dyb-tip-heading" class="text-lg font-bold text-stone-800"></h3>
+        <div id="dyb-tip-body" class="text-stone-500 text-sm text-left flex flex-col gap-1.5"></div>
+      </div>
+      <button id="btn-dyb-tip-close" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-sm transition-all duration-100">Got it</button>
     </div>
   </div>
 
@@ -7741,7 +7797,8 @@
   <!-- &#x2550;&#x2550;&#x2550;&#x2550; COUNTING SHEEP (shp) &#x2550;&#x2550;&#x2550;&#x2550;
        Screens : screen-shp-menu, screen-shp-table, screen-shp-gameover
        Overlays: shp-settings-overlay, shp-how-to-overlay, shp-quit-overlay,
-                 shp-new-night-overlay, shp-tip-overlay
+                 shp-new-night-overlay, shp-tip-overlay, shp-card-info-overlay,
+                 shp-play-log-overlay
        Render  : shpRenderCard(cardId, opts) - asset-pack seam (no cards.js reuse)
        MDLM-only - couch security - Sylly Mode = Night Terrors (Climb <-> Plunge)
     &#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550; -->
@@ -7840,7 +7897,7 @@
             <p class="text-stone-800 font-semibold">Dream Acceleration</p>
             <button id="btn-shp-dream-toggle" class="game-toggle-on-indigo shrink-0">ON</button>
           </div>
-          <p class="text-stone-400 text-sm">Below 50, every number card counts double. Skips the slow climb and gets to the danger zone fast.</p>
+          <p class="text-stone-400 text-sm">Below 50, every Pasture card counts double — Skip a Few and other specials aren't affected.</p>
         </div>
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
           <div class="flex items-center justify-between">
@@ -7879,7 +7936,7 @@
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
           <p class="text-xs font-semibold uppercase tracking-widest text-indigo-600">Step 2</p>
           <p class="font-bold text-stone-800">Pillows &amp; Alarms</p>
-          <p class="text-stone-500 text-sm"><span class="font-semibold text-stone-700">Pillows</span> stall or shrink the count (Doze, Counting Backwards, Lullaby). <span class="font-semibold text-stone-700">Alarms</span> shake it up - Skip a Few, the Black Sheep (snaps to 99), Wide Awake and Heavy Eyelids.</p>
+          <p class="text-stone-500 text-sm"><span class="font-semibold text-stone-700">Pillows</span> stall or shrink the count (Doze, Counting Backwards, Lullaby). <span class="font-semibold text-stone-700">Alarms</span> shake it up — Skip a Few, the Black Sheep (snaps to 99), Wide Awake and Heavy Eyelids. The <span class="font-semibold text-stone-700">Big Bad Wolf</span> hides in the Flock — draw one and a card slot locks for the Night.</p>
         </div>
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
           <p class="text-xs font-semibold uppercase tracking-widest text-indigo-600">Step 3</p>
@@ -7946,6 +8003,34 @@
       <h3 id="shp-tip-heading" class="text-lg font-bold text-stone-800"></h3>
       <div id="shp-tip-body" class="text-stone-500 text-sm text-left flex flex-col gap-1.5"></div>
       <button id="btn-shp-tip-close" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-sm transition-all duration-100">Got it</button>
+    </div>
+  </div>
+
+  <!-- SHP CARD INFO (long-press card inspect) -->
+  <div id="shp-play-log-overlay" style="display:none"
+    class="fixed inset-0 bg-black/40 z-[90] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
+      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
+        <h2 class="text-xl font-bold text-stone-800">Play Log 📋</h2>
+        <p class="text-xs text-stone-400 mt-1">Cards played this Night, newest first.</p>
+      </div>
+      <div id="shp-play-log-list" class="overflow-y-auto flex flex-col px-5 py-4 gap-0"></div>
+      <div class="px-5 pb-8 flex-shrink-0">
+        <button id="btn-shp-play-log-close" class="min-h-14 w-full rounded-2xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-lg font-semibold transition-all duration-150">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="shp-card-info-overlay" style="display:none"
+    class="fixed inset-0 z-[90] overlay-modal-backdrop flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-indigo-300">
+      <div class="flex flex-col gap-1">
+        <p id="shp-card-info-emoji" class="text-4xl"></p>
+        <h3 id="shp-card-info-name" class="text-lg font-bold text-stone-800"></h3>
+        <p id="shp-card-info-family" class="text-xs font-semibold uppercase tracking-widest text-indigo-500"></p>
+      </div>
+      <p id="shp-card-info-effect" class="text-stone-500 text-sm text-center"></p>
+      <button id="btn-shp-card-info-close" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-sm transition-all duration-100">Got it</button>
     </div>
   </div>
 

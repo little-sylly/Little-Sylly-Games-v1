@@ -958,7 +958,7 @@ LOBBY (MDLM only) → DYB MENU
 | Setting | Options | Default | Internal variable | Internal values |
 |---------|---------|---------|------------------|-----------------|
 | Wildcards Style | No Wilds / Classic / Volatile | Classic | `dybWildcardsStyle` | `'strict'` / `'classic'` / `'volatile'` |
-| Starting Hand | 3 / 4 / 5 | 5 | `dybStartingHand` | int |
+| Starting Dice | 3 / 4 / 5 | 5 | `dybStartingHand` | int |
 | ✨ Sylly Mode (The Tempest) | OFF / ON | OFF | `dybSyllyMode` | bool |
 | Chaos level (sub-option) | slider 5–10 | 5 | `dybSyllyIntensity` | int — % chance per die *per special type* (cumulative across the 5 types; ≈ intensity×5 % of dice become special at intensity 5) |
 

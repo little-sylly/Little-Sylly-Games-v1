@@ -488,6 +488,9 @@ function resetToLobby() {
   document.getElementById('dyb-quit-overlay').style.display        = 'none';
   document.getElementById('dyb-new-game-overlay').style.display    = 'none';
   document.getElementById('dyb-slick-picker-overlay').style.display = 'none';
+  document.getElementById('dyb-ascent-overlay').style.display      = 'none';
+  document.getElementById('dyb-tip-overlay').style.display         = 'none';
+  document.getElementById('dyb-chronicle-section').style.display   = 'none';
   dybMyRoll = []; dybAllRolls = []; dybActivePlayers = [];
   dybOnesStripped = false; dybAllegationHistory = []; dybShakeReadyCheck = [];
   // Pass teardown
@@ -505,7 +508,7 @@ function resetToLobby() {
   if (typeof frtResetState === 'function') frtResetState();
   // Counting Sheep teardown
   ['shp-settings-overlay','shp-how-to-overlay','shp-quit-overlay',
-   'shp-new-night-overlay','shp-tip-overlay'].forEach(id => {
+   'shp-new-night-overlay','shp-tip-overlay','shp-card-info-overlay','shp-play-log-overlay'].forEach(id => {
     const el = document.getElementById(id); if (el) el.style.display = 'none';
   });
   if (typeof shpResetState === 'function') shpResetState();

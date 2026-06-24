@@ -213,10 +213,10 @@ Do not write the phase snapshot until Protocols A is clean. Do not write a line 
 ---
 
 ## 🎯 Current Focus
-**Phase:** Phase 35 — Counting Sheep (`shp`) gameplay COMPLETE (O'NO-99 survival). Base loop + ghost system (Sleepwalkers / Nightmare Lottery) + Night Terrors (Plunge) all built and headlessly verified (400-game sim). Browser visual pass + Phase-Gate audit + snapshot pending. Game 15.
+**Phase:** Phase 35 — Counting Sheep (`shp`) gameplay COMPLETE. Active sub-task: The Bluff (DYB) playtest audit + polish pass COMPLETE (BUG-06 through BUG-19 all resolved; showdown dice highlight added; claim display + bid picker refactored to pip dice).
 **Last shipped game:** Phase 35 — Counting Sheep (SHP), O'NO-99 climbing/survival card game, MDLM-only, 3–8 players; Sylly Mode = Night Terrors (oscillating Climb ⇄ Plunge).
 **Previous shipped game:** Phase 34 — Fruit Salad (FRT), Cockroach Poker bluffing game, MDLM-only, 2–8 players; 2-player Pear-Off duel auto-engages.
-**SW Version:** v114 (Counting Sheep added — `js/games/shp.js` precached; v113 = DYB rename "Dicey Bluffs" → "The Bluff")
+**SW Version:** v123 (DYB polish pass 4 — Phantom compound types at Overlook with indigo ring, Slick redesign X* pre-assignment visual, Slick sync fix DYB_SLICK_UPDATE, Summit grid layout fix; v122 = DYB polish pass 3)
 **Gold Master:** 15 games complete + multiplayer (LI5, Great Minds, Secret Signals, JEC, YGI, LTTP, Natural Selection, Deep-Sea Deploy, Bailed, Group Therapy, The Bluff [internal `dyb`], Pass, Net-Trace, Fruit Salad, Counting Sheep)
 **Fruit Salad key refs:** `docs/new-game-tech-fruit-salad.md` (confirmed spec), `docs/implementation-notes/frt-implementation-notes.md`, `docs/new-ideas/new-game-fruit-salad.md` (Phase-1 brief). MDLM-only, couch security, host-authoritative sequential; 2-player "Pear of Fruits" duel auto-engages; bright banana `#FFC700` + white ink + leaf `#047857` (text-on-white) palette; all card rendering through `frtRenderCard` (asset-pack seam).
 **Counting Sheep key refs:** `docs/new-game-tech-counting-sheep.md` (confirmed spec — Night Terrors + ghost rework in v1), `docs/implementation-notes/shp-implementation-notes.md` (bug log incl. Wolf-deal fix + design decisions), `docs/new-ideas/counting-sheep-notes.md` (final design notes). MDLM-only, host-authoritative, host-as-participant; couch security; moonlit indigo (native Tailwind); all card rendering through `shpRenderCard` (asset-pack seam); single-source herd math `shpHerdAfterCard` (Plunge sign-flip).

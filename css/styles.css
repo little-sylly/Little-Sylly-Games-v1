@@ -726,7 +726,7 @@ body.flash-red   { background-color: #fecaca; }
   border: none;
   cursor: pointer;
 }
-.dyb-cta { background-color: #1E4D8C; }
+.dyb-cta { background-color: #1E4D8C; display: flex; align-items: center; justify-content: center; }
 .dyb-cta:hover { background-color: #183d70; }
 .dyb-label { color: #1E4D8C; }
 .dyb-range {
@@ -981,6 +981,16 @@ body.flash-red   { background-color: #fecaca; }
   40%, 80% { transform: translateX(5px); }
 }
 .shp-shake { animation: shpShake 0.35s ease-in-out; }
+@keyframes shpSheepJump {
+  0%   { transform: translateY(0);    opacity: 0; }
+  20%  { transform: translateY(-12px); opacity: 1; }
+  60%  { transform: translateY(-8px);  opacity: 1; }
+  100% { transform: translateY(0);    opacity: 0; }
+}
+.shp-sheep-jump {
+  display: inline-block;
+  animation: shpSheepJump 1s ease-in-out both;
+}
 
 /* Build-grid cell base + invalid-placement reject flash */
 .nt-cell { border-radius: 2px; cursor: pointer; }
@@ -1010,6 +1020,18 @@ body.flash-red   { background-color: #fecaca; }
 }
 .dyb-spirit-flash { animation: dybSpiritFlash 0.8s ease-out forwards; }
 
+/* ── DYB Shake cup animation ─────────────────────────────────────────────── */
+@keyframes dybCupShake {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  10% { transform: translate(-8px, 2px) rotate(-5deg); }
+  25% { transform: translate(8px, -4px) rotate(5deg); }
+  40% { transform: translate(-6px, 3px) rotate(-3deg); }
+  55% { transform: translate(6px, -2px) rotate(3deg); }
+  70% { transform: translate(-3px, 2px) rotate(-1deg); }
+  85% { transform: translate(2px, -1px) rotate(1deg); }
+}
+.dyb-cup-shaking { animation: dybCupShake 0.55s ease-in-out; }
+
 /* ── DYB CSS Dice ────────────────────────────────────────────────────────── */
 .dyb-die {
   width: 52px;
@@ -1030,6 +1052,63 @@ body.flash-red   { background-color: #fecaca; }
   border-radius: 50%;
   margin: auto;
   display: block;
+}
+.dyb-die.dyb-die-sm { width: 38px; height: 38px; border-radius: 8px; padding: 5px; }
+.dyb-die.dyb-die-xs { width: 26px; height: 26px; border-radius: 6px; padding: 3px; border-width: 1.5px; }
+.dyb-die.dyb-die-dim { opacity: 0.2; transition: opacity 0.25s ease; }
+
+/* Snake die — sinister dark toxic green, diamond pips */
+.dyb-die.dyb-die-snake {
+  border-color: #064E3B;
+  background-color: rgba(6, 78, 59, 0.07);
+  box-shadow: 0 0 8px rgba(6, 78, 59, 0.4);
+}
+.dyb-pip.dyb-pip-snake {
+  background-color: #064E3B;
+  border-radius: 0;
+  width: 7px;
+  height: 7px;
+  transform: rotate(45deg);
+}
+
+/* Loaded die — amber glow with slow breathing pulse (glow only, not the die itself) */
+@keyframes dybLoadedGlow {
+  0%, 100% { box-shadow: 0 0 6px 1px rgba(251, 191, 36, 0.4); }
+  50%       { box-shadow: 0 0 14px 3px rgba(251, 191, 36, 0.75); }
+}
+.dyb-die.dyb-die-loaded {
+  border-color: #F59E0B;
+  background-color: rgba(251, 191, 36, 0.08);
+  animation: dybLoadedGlow 2.4s ease-in-out infinite;
+}
+
+/* Phantom die — ghostly purple tint, lavender border, neon indigo ? glyph */
+.dyb-die.dyb-die-phantom {
+  border-color: #C4B5FD;
+  background-color: rgba(139, 92, 246, 0.08);
+}
+.dyb-phantom-glyph {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #4338CA;
+  text-shadow: 0 0 6px rgba(99, 102, 241, 0.7), 0 0 12px rgba(99, 102, 241, 0.35);
+}
+
+/* Phantom-ring glow — additive indigo ring for compound phantom dice at the Overlook */
+.dyb-die-phantom-ring {
+  box-shadow: 0 0 0 2px #818cf8, 0 0 12px rgba(99, 102, 241, 0.6);
+}
+
+/* Slick die — tilde breathing animation for unassigned face */
+@keyframes dybTildePulse {
+  0%, 100% { opacity: 0.55; }
+  50%       { opacity: 1; }
+}
+.dyb-tilde-breathe {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #0891B2;
+  animation: dybTildePulse 1.8s ease-in-out infinite;
 }
 
 /* ── Team score boxes — twin transition ──────────────────────────────────── */

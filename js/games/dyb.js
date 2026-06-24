@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════════════════
-// DICEY BLUFFS (DYB)
+// THE BLUFF (DYB)
 // Trust no one, count every face.
 // Depends on: engine.js (showScreen, play*, resetToLobby, allScreens),
 //             engine-multiplayer.js (mpSendEnvelope, mpLockSync, mpUnlockSync,
@@ -25,11 +25,20 @@ let dybCurrentOpenerIdx = 0;  // who opens the next Shake
 let dybShakeNumber      = 0;
 let dybEliminationOrder = []; // int[] — playerIdx in elimination order
 
+// ── Summit stats (accumulated by host; sent in DYB_GAMEOVER payload) ─────────
+let dybClashWins   = []; // int[N] — showdown wins per player
+let dybClashLosses = []; // int[N] — showdown losses per player
+let dybFaceFreq    = []; // int[N][7] — raw face roll frequency (indices 1–6)
+let dybShakeLogs   = []; // {shakeNum, bids:{playerIdx,qty,face}[], conclusion}[]
+let dybAllShakeLogs = []; // set from gameover payload for Chronicle rendering
+let dybChronicleIdx = 0; // current Chronicle page
+
 // ── Shake state (reset each Shake) ───────────────────────────────────────────
 let dybShakeReadyCheck = []; // bool[N] — true when player submitted their roll
 let dybAllRolls        = []; // int[][] — host only; all players' dice this shake
 let dybAllSpecialTypes = []; // string[][] — host only; per-player special types
 let dybAllSlickFaces   = []; // int[][] — host only; per-player slick assignments
+let dybAllPhantomTypes = []; // (string|null)[][] — host only; secondary type per phantom die
 
 // ── Round state (reset each Shake) ───────────────────────────────────────────
 let dybCurrentFace       = 0;     // current alleged face (0 = no bid yet)
@@ -40,9 +49,11 @@ let dybOnesStripped      = false; // Volatile Wilds: true after 1s directly alle
 let dybAllegationHistory = [];    // {playerIdx, qty, face}[]
 
 // ── Per-device roll state (private; not broadcast until showdown) ─────────────
-let dybMyRoll       = []; // int[] — this device's current dice values
-let dybSpecialTypes = []; // string[] — die types for this device's roll
-let dybSlickFaces   = []; // int[] — assigned face per die (-1 = unassigned, Slick only)
+let dybMyRoll        = []; // int[] — this device's current dice values
+let dybSpecialTypes  = []; // string[] — die types for this device's roll
+let dybSlickFaces    = []; // int[] — current face per die (-1 = hidden/unknown, Slick only)
+let dybSlickAssigned = []; // bool[] — true if player has exercised their one-time Slick change
+let dybPhantomTypes  = []; // (string|null)[] — secondary type per phantom die (null = pure phantom)
 
 // ── UI state ─────────────────────────────────────────────────────────────────
 let dybSlickPickerDie = -1;   // which die index the slick picker is open for
@@ -107,11 +118,47 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('dyb-quit-overlay').style.display = 'none';
   });
 
-  // ── How-to button in gameplay header
+  // ── How-to button in gameplay header (table screen)
   document.getElementById('btn-dyb-how-to').addEventListener('click', () => {
     playDone();
     document.querySelector('#dyb-how-to-overlay .overlay-data-inner').scrollTop = 0;
     document.getElementById('dyb-how-to-overlay').style.display = 'flex';
+  });
+
+  // ── How-to button in shake screen header
+  document.getElementById('btn-dyb-shake-how-to').addEventListener('click', () => {
+    playDone();
+    document.querySelector('#dyb-how-to-overlay .overlay-data-inner').scrollTop = 0;
+    document.getElementById('dyb-how-to-overlay').style.display = 'flex';
+  });
+
+  // ── Tempest guide [?] — shake screen
+  document.getElementById('btn-dyb-tempest-guide').addEventListener('click', () => {
+    playDone();
+    dybShowTempestGuide();
+  });
+
+  // ── Tempest guide [?] — table screen "Your Hand" label
+  document.getElementById('btn-dyb-hand-tip').addEventListener('click', () => {
+    playDone();
+    dybShowTempestGuide();
+  });
+
+  // ── Tip overlay close
+  document.getElementById('btn-dyb-tip-close').addEventListener('click', () => {
+    playDone();
+    document.getElementById('dyb-tip-overlay').style.display = 'none';
+  });
+
+  // ── Ascent overlay
+  document.getElementById('btn-dyb-ascent-open').addEventListener('click', () => {
+    playDone();
+    dybRenderAscentHistory();
+    document.getElementById('dyb-ascent-overlay').style.display = 'flex';
+  });
+  document.getElementById('btn-dyb-ascent-close').addEventListener('click', () => {
+    playDone();
+    document.getElementById('dyb-ascent-overlay').style.display = 'none';
   });
 
   // ── Seating screen
@@ -121,11 +168,12 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // ── Shake screen
-  document.getElementById('btn-dyb-roll').addEventListener('click', () => {
-    playLaunch();
-    dybDoRoll();
+  document.getElementById('dyb-shake-cup-area').addEventListener('click', () => {
+    if (dybMyRoll && dybMyRoll.length) return;
+    playWhoosh();
+    dybHandleCupTap();
   });
-  document.getElementById('btn-dyb-roll-ready').addEventListener('click', () => {
+  document.getElementById('btn-dyb-ready').addEventListener('click', () => {
     playDone();
     dybSubmitRoll();
   });
@@ -189,6 +237,14 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-dyb-new-game-cancel').addEventListener('click', () => {
     playDone();
     document.getElementById('dyb-new-game-overlay').style.display = 'none';
+  });
+
+  // ── Chronicle nav ─────────────────────────────────────────────────────────
+  document.getElementById('btn-dyb-chronicle-prev').addEventListener('click', () => {
+    if (dybChronicleIdx > 0) { dybChronicleIdx--; dybRenderChronicle(); }
+  });
+  document.getElementById('btn-dyb-chronicle-next').addEventListener('click', () => {
+    if (dybChronicleIdx < dybAllShakeLogs.length - 1) { dybChronicleIdx++; dybRenderChronicle(); }
   });
 
   // ── Sound buttons ─────────────────────────────────────────────────────────
@@ -351,9 +407,10 @@ function dybInitShake() {
   dybOnesStripped = false;
   dybAllegationHistory = [];
   dybChallengerIdx = -1;
-  dybAllRolls = [];
+  dybAllRolls        = [];
   dybAllSpecialTypes = [];
-  dybAllSlickFaces = [];
+  dybAllSlickFaces   = [];
+  dybAllPhantomTypes = [];
 
   dybRenderShakeScreen();
   showScreen('screen-dyb-shake');
@@ -369,7 +426,6 @@ function dybRenderShakeScreen() {
     : `${openerName}'s deal.`;
   document.getElementById('dyb-shake-number').textContent = `Shake #${dybShakeNumber}`;
 
-  // Show dice count per active player
   const diceRow = document.getElementById('dyb-shake-dice-counts');
   diceRow.innerHTML = dybActivePlayers.map(i => {
     const name = dybPlayerNames[i] || ('P' + (i + 1));
@@ -377,50 +433,79 @@ function dybRenderShakeScreen() {
     return `<span class="text-stone-500 text-sm">${name}: ${count}</span>`;
   }).join('<span class="text-stone-300 mx-1">|</span>');
 
-  // Reset roll state
-  document.getElementById('btn-dyb-roll').disabled = false;
-  document.getElementById('btn-dyb-roll').style.display = 'flex';
+  // Render face-down dice in cup area
+  const count = dybDiceInHand[myIdx];
+  document.getElementById('dyb-hand-dock-shake').innerHTML = Array.from({ length: count }, () =>
+    `<div class="dyb-die border-slate-500 bg-slate-800 select-none"></div>`
+  ).join('');
+  document.getElementById('dyb-shake-cup-label').textContent = "Tap to shake 'em up";
+  // Show the Tempest guide [?] before rolling too, so players can review special dice
+  document.getElementById('btn-dyb-tempest-guide').style.display = dybSyllyMode ? '' : 'none';
+
+  const readyBtn = document.getElementById('btn-dyb-ready');
+  readyBtn.disabled = false;
+  readyBtn.textContent = 'Ready!';
   document.getElementById('dyb-roll-waiting').style.display = 'none';
-  document.getElementById('dyb-hand-dock-shake').innerHTML = '';
+}
+
+function dybHandleCupTap() {
+  if (dybMyRoll && dybMyRoll.length) return;
+  const cup = document.getElementById('dyb-shake-cup-area');
+  cup.classList.remove('dyb-cup-shaking');
+  void cup.offsetWidth;
+  cup.classList.add('dyb-cup-shaking');
+  setTimeout(() => {
+    cup.classList.remove('dyb-cup-shaking');
+    dybDoRoll();
+  }, 550);
 }
 
 function dybDoRoll() {
+  if (dybMyRoll && dybMyRoll.length) return;
   const count = dybDiceInHand[mpMyPlayerIdx];
   dybMyRoll = dybGenerateRoll(count);
-
-  // Render hand
   dybRenderHandDock('dyb-hand-dock-shake');
-
-  // Show roll button → ready button
-  document.getElementById('btn-dyb-roll').style.display = 'none';
-  document.getElementById('btn-dyb-roll-ready').disabled = false;
-  document.getElementById('btn-dyb-roll-ready').style.display = 'flex';
+  document.getElementById('dyb-shake-cup-label').textContent = "Your hand.";
+  if (dybSyllyMode) {
+    document.getElementById('btn-dyb-tempest-guide').style.display = '';
+  }
 }
 
 function dybSubmitRoll() {
+  // Path B: player tapped Ready! without shaking first — roll instantly
+  if (!dybMyRoll || !dybMyRoll.length) {
+    dybDoRoll();
+  }
   const payload = {
     action: 'DYB_ROLL_SUBMIT',
     roll: dybMyRoll,
     specialTypes: dybSpecialTypes,
     slickFaces: dybSlickFaces,
+    phantomTypes: dybPhantomTypes,
   };
   mpLockSync();
   if (window.syllyMultiplayerMode === 'client') {
     mpSendEnvelope({ type: 'ACTION', payload });
   } else {
     // Host: record own roll and check ready
-    dybRecordRoll(mpMyPlayerIdx, dybMyRoll, dybSpecialTypes, dybSlickFaces);
+    dybRecordRoll(mpMyPlayerIdx, dybMyRoll, dybSpecialTypes, dybSlickFaces, dybPhantomTypes);
   }
-
-  document.getElementById('btn-dyb-roll-ready').disabled = true;
+  document.getElementById('btn-dyb-ready').disabled = true;
   document.getElementById('dyb-roll-waiting').style.display = 'block';
 }
 
-function dybRecordRoll(playerIdx, roll, specialTypes, slickFaces) {
+function dybRecordRoll(playerIdx, roll, specialTypes, slickFaces, phantomTypes) {
   dybAllRolls[playerIdx]        = roll;
   dybAllSpecialTypes[playerIdx] = specialTypes;
   dybAllSlickFaces[playerIdx]   = slickFaces;
+  dybAllPhantomTypes[playerIdx] = phantomTypes || Array(roll.length).fill(null);
   dybShakeReadyCheck[playerIdx] = true;
+
+  // Track face frequency for Lucky Face stat (host only; phantom faces excluded)
+  if (!dybFaceFreq[playerIdx]) dybFaceFreq[playerIdx] = Array(7).fill(0);
+  roll.forEach((val, j) => {
+    if ((specialTypes[j] || 'standard') !== 'phantom') dybFaceFreq[playerIdx][val]++;
+  });
 
   if (dybActivePlayers.every(i => dybShakeReadyCheck[i])) {
     dybBroadcastShakeActive();
@@ -455,7 +540,7 @@ function dybBroadcastShakeActive() {
 function dybRenderTableScreen() {
   const myIdx = mpMyPlayerIdx;
   const isMyTurn = dybCurrentBidderIdx === myIdx;
-  const bidderName = dybPlayerNames[dybCurrentBidderIdx] || 'Player';
+  const nextBidderName = dybPlayerNames[dybCurrentBidderIdx] || 'Player';
 
   // Player pip row
   const pipRow = document.getElementById('dyb-pip-row');
@@ -469,40 +554,62 @@ function dybRenderTableScreen() {
     </div>`;
   }).join('');
 
-  // Current allegation
+  // Current allegation display
+  const dispEl = document.getElementById('dyb-allegation-display');
   if (dybCurrentFace === 0) {
-    document.getElementById('dyb-allegation-display').textContent = 'No claim yet.';
+    dispEl.style.cssText = '';
+    dispEl.textContent = 'No claim yet.';
   } else {
-    document.getElementById('dyb-allegation-display').textContent =
-      `${dybCurrentQty} × [${dybCurrentFace}]`;
+    dispEl.style.cssText = 'display:flex;align-items:center;justify-content:center;gap:8px;';
+    dispEl.innerHTML = `<span>${dybCurrentQty} ×</span>${dybDieHTMLSm(dybCurrentFace)}`;
   }
 
-  // Last bidder label
+  // Last bidder label — read from history so name is correct after dybCurrentBidderIdx advances
+  const lastBid = dybAllegationHistory.length > 0
+    ? dybAllegationHistory[dybAllegationHistory.length - 1] : null;
+  const lastBidderName = lastBid ? (dybPlayerNames[lastBid.playerIdx] || 'Player') : '';
   document.getElementById('dyb-last-bidder-label').textContent =
-    dybAllegationHistory.length > 0
-      ? `${bidderName} alleged ${dybCurrentQty} × ${dybCurrentFace}.`
-      : '';
+    lastBid ? `${lastBidderName} alleged ${lastBid.qty} × ${lastBid.face}.` : '';
 
   // Turn label
   document.getElementById('dyb-turn-label').textContent = isMyTurn
     ? 'Your turn.'
-    : `Waiting for ${bidderName}…`;
+    : `Waiting for ${nextBidderName}…`;
 
-  // Show/hide controls
+  // Show/hide picker controls
   const controls = document.getElementById('dyb-bid-controls');
   const waiting  = document.getElementById('dyb-waiting-label');
   controls.style.display = isMyTurn ? 'flex' : 'none';
   waiting.style.display  = isMyTurn ? 'none' : 'block';
 
   if (isMyTurn) {
-    dybRenderBidPicker();
+    dybRenderBidPicker(); // calls dybUpdateBidButtonState() which manages action button state
   }
 
-  // Hand dock
+  // Action button locking — BUG-14: buttons sit outside #dyb-bid-controls so must be
+  // managed explicitly; non-active players must never be able to submit an allegation
+  const callBtn  = document.getElementById('btn-dyb-call-bluff');
+  const raiseBtn = document.getElementById('btn-dyb-raise');
+  if (!isMyTurn) {
+    callBtn.disabled  = true;
+    raiseBtn.disabled = true;
+    callBtn.classList.add('opacity-40');
+    raiseBtn.classList.add('opacity-40');
+    raiseBtn.textContent = dybCurrentFace === 0 ? 'Make the Call' : 'Climb Higher';
+  } else {
+    // dybUpdateBidButtonState() (called via dybRenderBidPicker above) handles opacity
+    // Do NOT call remove('opacity-40') here — dybUpdateBidButtonState already set the
+    // correct state; overriding it caused the opener's "Call the Bluff" to appear enabled
+    // even though dybCurrentFace === 0 makes it a no-op (BUG-24)
+  }
+
+  // Hand dock — show [?] Tempest Guide button only in Sylly Mode
+  const handTipBtn = document.getElementById('btn-dyb-hand-tip');
+  if (handTipBtn) handTipBtn.style.display = dybSyllyMode ? 'inline-flex' : 'none';
   dybRenderHandDock('dyb-hand-dock-table');
 
-  // Allegation history (last 3)
-  dybRenderAllegationHistory();
+  // Ascent preview (last 3 bids)
+  dybRenderAscentPreview();
 }
 
 // Canonical raise rule (single source of truth for picker floors + button gate):
@@ -534,7 +641,7 @@ function dybRenderBidPicker() {
   const minQty = dybMinQtyForFace(selectedFace);
   const selectedQty = Math.max(dybCurrentQty, minQty);
 
-  document.getElementById('dyb-face-display').textContent = selectedFace;
+  document.getElementById('dyb-face-display').innerHTML = dybDieHTMLSm(selectedFace);
   document.getElementById('dyb-qty-display').textContent  = selectedQty;
 
   // Store current picker values in data attrs for adjustment functions
@@ -553,7 +660,7 @@ function dybAdjustFacePicker(delta) {
   let face = parseInt(picker.dataset.face) + delta;
   face = Math.max(minFace, Math.min(maxFace, face));
   picker.dataset.face = face;
-  document.getElementById('dyb-face-display').textContent = face;
+  document.getElementById('dyb-face-display').innerHTML = dybDieHTMLSm(face);
 
   // Recompute min qty for new face
   const minQty = dybMinQtyForFace(face);
@@ -581,11 +688,17 @@ function dybUpdateBidButtonState() {
   const picker = document.getElementById('dyb-bid-controls');
   const face = parseInt(picker.dataset.face);
   const qty  = parseInt(picker.dataset.qty);
+  const noBid = dybCurrentFace === 0;
 
-  document.getElementById('btn-dyb-raise').disabled = !dybIsLegalRaise(face, qty);
+  const raiseBtn = document.getElementById('btn-dyb-raise');
+  const callBtn  = document.getElementById('btn-dyb-call-bluff');
 
-  // Call Bluff only allowed when there's an active bid
-  document.getElementById('btn-dyb-call-bluff').disabled = dybCurrentFace === 0;
+  raiseBtn.disabled = !dybIsLegalRaise(face, qty);
+  raiseBtn.classList.toggle('opacity-40', raiseBtn.disabled);
+  raiseBtn.textContent = noBid ? 'Make the Call' : 'Climb Higher';
+
+  callBtn.disabled = noBid;
+  callBtn.classList.toggle('opacity-40', noBid);
 }
 
 function dybSubmitAllegation() {
@@ -684,6 +797,27 @@ function dybResolveShowdown() {
     dybCurrentOpenerIdx = dybActivePlayers[0];
   }
 
+  // ── Clash tracking (host only) ────────────────────────────────────────────
+  const clashWinner = real < claimed ? challengerIdx : bidderIdx;
+  if (!dybClashWins[clashWinner]) dybClashWins[clashWinner] = 0;
+  dybClashWins[clashWinner]++;
+  if (!dybClashLosses[loserIdx]) dybClashLosses[loserIdx] = 0;
+  dybClashLosses[loserIdx]++;
+
+  // ── Save shake log for Chronicle (host only) ──────────────────────────────
+  const _loserName     = dybPlayerNames[loserIdx]    || ('P' + (loserIdx + 1));
+  const _challName     = dybPlayerNames[challengerIdx] || ('P' + (challengerIdx + 1));
+  const _shakeConclusion = eliminatedIdx !== -1
+    ? `${_loserName} lost their last foothold and fell from the climb.`
+    : real < claimed
+      ? `${_challName} called the bluff. ${_loserName} loses a die.`
+      : `The claim held. ${_loserName} loses a die.`;
+  dybShakeLogs.push({
+    shakeNum:   dybShakeNumber,
+    bids:       [...dybAllegationHistory],
+    conclusion: _shakeConclusion,
+  });
+
   const gameOver = dybActivePlayers.length <= 1;
 
   const syncPayload = {
@@ -695,6 +829,7 @@ function dybResolveShowdown() {
     allRolls: dybAllRolls,
     allSpecialTypes: dybAllSpecialTypes,
     allSlickFaces: dybAllSlickFaces,
+    allPhantomTypes: dybAllPhantomTypes,
     playerNames: dybPlayerNames,
     gameOver,
     winnerIdx: gameOver && dybActivePlayers.length === 1 ? dybActivePlayers[0] : -1,
@@ -716,6 +851,7 @@ function dybApplyShowdown(data) {
   dybAllRolls        = data.allRolls        || dybAllRolls;
   dybAllSpecialTypes = data.allSpecialTypes || dybAllSpecialTypes;
   dybAllSlickFaces   = data.allSlickFaces   || dybAllSlickFaces;
+  dybAllPhantomTypes = data.allPhantomTypes || dybAllPhantomTypes;
 
   showScreen('screen-dyb-showdown');
   dybRenderShowdownScreen(data, () => {
@@ -727,6 +863,10 @@ function dybApplyShowdown(data) {
           eliminationOrder: data.eliminationOrder,
           playerNames: dybPlayerNames,
           finalDiceInHand: dybDiceInHand,
+          clashWins:   dybClashWins,
+          clashLosses: dybClashLosses,
+          faceFreq:    dybFaceFreq,
+          shakeLogs:   dybShakeLogs,
         };
         mpSendEnvelope({ type: 'SYNC', payload: goPayload });
         dybShowGameover(goPayload);
@@ -748,7 +888,10 @@ function dybRenderShowdownScreen(data, onDone) {
   document.getElementById('dyb-showdown-verdict').textContent = '';
   document.getElementById('dyb-showdown-loser').textContent   = '';
 
-  dybRenderAllHandsOnShowdown(); // reveal all hands immediately — the cup is slammed
+  dybRenderAllHandsOnShowdown(); // reveal all hands immediately — the cup is slammed, all dice start dimmed
+
+  const container    = document.getElementById('dyb-showdown-hands');
+  const countingDice = dybGetCountingDice(data.face);
 
   // Hide action buttons until animation completes
   document.getElementById('btn-dyb-next-shake').style.display          = 'none';
@@ -761,6 +904,8 @@ function dybRenderShowdownScreen(data, onDone) {
       : 'text-2xl font-bold text-red-600';
     document.getElementById('dyb-showdown-loser').textContent =
       eliminated ? `${loserName} is out!` : `${loserName} loses a die.`;
+    // un-dim all remaining dice so the full table is visible at the verdict
+    container.querySelectorAll('.dyb-die-dim').forEach(el => el.classList.remove('dyb-die-dim'));
     playBoing();
     if (window.syllyMultiplayerMode !== 'client') {
       document.getElementById('btn-dyb-next-shake').style.display = data.gameOver ? 'none' : 'flex';
@@ -776,9 +921,17 @@ function dybRenderShowdownScreen(data, onDone) {
   }
 
   let count = 0;
+  let highlightIdx = 0;
   const step = () => {
     count++;
     document.getElementById('dyb-showdown-real').textContent = `Real count: ${count}`;
+    // un-dim the next counting die so the tally is visual
+    if (highlightIdx < countingDice.length) {
+      const { pIdx, dieIdx } = countingDice[highlightIdx];
+      const el = container.querySelector(`[data-p="${pIdx}"][data-d="${dieIdx}"]`);
+      if (el) el.classList.remove('dyb-die-dim');
+      highlightIdx++;
+    }
     playTick();
     if (count < real) {
       setTimeout(step, 400); // 400ms per tick
@@ -794,13 +947,16 @@ function dybRenderAllHandsOnShowdown() {
   container.innerHTML = '';
   for (let i = 0; i < dybPlayerCount; i++) {
     if (!dybAllRolls[i]) continue;
-    const name = dybPlayerNames[i] || ('P' + (i + 1));
-    const roll = dybAllRolls[i];
-    const types = dybAllSpecialTypes[i] || [];
-    const slicks = dybAllSlickFaces[i] || [];
+    const name    = dybPlayerNames[i] || ('P' + (i + 1));
+    const roll    = dybAllRolls[i];
+    const types   = dybAllSpecialTypes[i]  || [];
+    const slicks  = dybAllSlickFaces[i]    || [];
+    const phantoms = dybAllPhantomTypes[i] || [];
     const diceHtml = roll.map((val, j) => {
       const type = types[j] || 'standard';
-      return dybDieHTML(val, type, slicks[j] || -1, true);
+      // dieIdx=-1 = reveal mode; pass phantom secondary for compound unmask
+      return dybDieHTML(val, type, slicks[j] !== undefined ? slicks[j] : -1, true, -1, true, phantoms[j] || null)
+        .replace('<div class="dyb-die ', `<div data-p="${i}" data-d="${j}" class="dyb-die dyb-die-dim `);
     }).join('');
     container.innerHTML += `
       <div class="bg-white rounded-2xl p-3 shadow-sm">
@@ -808,6 +964,50 @@ function dybRenderAllHandsOnShowdown() {
         <div class="flex gap-2 flex-wrap">${diceHtml}</div>
       </div>`;
   }
+}
+
+// Returns ordered list of {pIdx, dieIdx} for dice that contribute positively to a face count.
+// Loaded dice appear twice (they contribute +2). Snake/Cracked/negative phantoms are excluded.
+function dybGetCountingDice(face) {
+  const wildOnes = dybWildcardsStyle !== 'strict' && !dybOnesStripped;
+  const list = [];
+  for (let pIdx = 0; pIdx < dybPlayerCount; pIdx++) {
+    const roll         = dybAllRolls[pIdx]         || [];
+    const types        = dybAllSpecialTypes[pIdx]  || [];
+    const slicks       = dybAllSlickFaces[pIdx]    || [];
+    const phantomTypes = dybAllPhantomTypes[pIdx]  || [];
+    roll.forEach((val, dieIdx) => {
+      const type        = types[dieIdx] || 'standard';
+      const matchesFace = val === face || (wildOnes && val === 1 && face !== 1);
+
+      if (type === 'phantom') {
+        const secondary = phantomTypes[dieIdx] || null;
+        if (!secondary) {
+          // Pure phantom — counts normally (+1)
+          if (matchesFace) list.push({ pIdx, dieIdx });
+        } else if (secondary === 'loaded') {
+          // Phantom+Loaded counts +2: push twice
+          if (matchesFace) { list.push({ pIdx, dieIdx }); list.push({ pIdx, dieIdx }); }
+        } else if (secondary === 'slick') {
+          // Phantom+Slick: face locked at roll time
+          if ((slicks[dieIdx] !== undefined ? slicks[dieIdx] : -1) === face) list.push({ pIdx, dieIdx });
+        }
+        // cracked/snake compound phantoms contribute 0 or negative — excluded
+        return;
+      }
+
+      if (type === 'cracked' || type === 'snake') return;
+      if (type === 'slick') {
+        if ((slicks[dieIdx] !== undefined ? slicks[dieIdx] : -1) === face) list.push({ pIdx, dieIdx });
+        return;
+      }
+      if (matchesFace) {
+        list.push({ pIdx, dieIdx });
+        if (type === 'loaded') list.push({ pIdx, dieIdx }); // second entry for +2
+      }
+    });
+  }
+  return list;
 }
 
 function dybAdvanceFromShowdown() {
@@ -826,25 +1026,103 @@ function dybAdvanceFromShowdown() {
 
 // ── Gameover ──────────────────────────────────────────────────────────────────
 function dybShowGameover(data) {
-  const winnerName = data.playerNames[data.winnerIdx] || 'Player';
-  document.getElementById('dyb-gameover-winner').textContent = `${winnerName} wins!`;
+  // Store for Chronicle rendering on all devices
+  dybAllShakeLogs = data.shakeLogs || [];
+  dybChronicleIdx = 0;
 
-  const order = [...data.eliminationOrder].reverse();
+  const winnerName = data.playerNames[data.winnerIdx] || 'Player';
+  document.getElementById('dyb-gameover-winner').textContent = `${winnerName} reaches The Summit!`;
+
+  const order      = [...data.eliminationOrder].reverse();
+  const positions  = [data.winnerIdx, ...order];
+  const clashWins  = data.clashWins  || [];
+  const clashLosses = data.clashLosses || [];
+  const faceFreq   = data.faceFreq   || [];
+  const rankEmojis = ['\u{1F3C6}', '\u{1F948}', '\u{1F949}'];
+
   const standingsEl = document.getElementById('dyb-gameover-standings');
   standingsEl.innerHTML = '';
 
-  const positions = [data.winnerIdx, ...order];
+  const hasFaceData = faceFreq && positions.some(p => faceFreq[p]);
+
+  // Grid columns: rank(28px) | name(1fr) | challenges(80px) | favoured(40px optional)
+  const gridCols = hasFaceData ? '28px 1fr 80px 40px' : '28px 1fr 80px';
+
+  // Header row
+  standingsEl.innerHTML = `
+    <div class="grid px-4" style="grid-template-columns:${gridCols};gap:12px;align-items:center;">
+      <span class="text-[9px] font-semibold uppercase tracking-wide text-stone-400 text-center">Rank</span>
+      <span class="text-[9px] font-semibold uppercase tracking-wide text-stone-400">Climber</span>
+      <span class="text-[9px] font-semibold uppercase tracking-wide text-stone-400 text-center">Challenges</span>
+      ${hasFaceData ? '<span class="text-[9px] font-semibold uppercase tracking-wide text-stone-400 text-center">Favoured</span>' : ''}
+    </div>`;
+
   positions.forEach((pIdx, rank) => {
     const name = data.playerNames[pIdx] || ('P' + (pIdx + 1));
+    const w    = clashWins[pIdx]   || 0;
+    const l    = clashLosses[pIdx] || 0;
+
+    let luckyFaceHtml = '';
+    const freq = faceFreq[pIdx];
+    if (hasFaceData) {
+      if (freq) {
+        let bestFace = 1, bestCount = 0;
+        for (let f = 1; f <= 6; f++) {
+          if ((freq[f] || 0) > bestCount) { bestCount = freq[f]; bestFace = f; }
+        }
+        const miniPips = dybDieHTML(bestFace, 'standard', -1, true);
+        luckyFaceHtml = `<div class="flex justify-center items-center"><div class="scale-75 origin-center">${miniPips}</div></div>`;
+      } else {
+        luckyFaceHtml = `<div></div>`;
+      }
+    }
+
     standingsEl.innerHTML += `
-      <div class="bg-white rounded-2xl px-4 py-3 shadow-sm flex items-center justify-between">
-        <span class="text-stone-500 text-sm font-medium">${rank + 1}${rank === 0 ? ' \u{1F3C6}' : ''}</span>
-        <span class="text-stone-800 font-semibold">${name}</span>
+      <div class="bg-white rounded-2xl px-4 py-3 shadow-sm grid items-center" style="grid-template-columns:${gridCols};gap:12px;">
+        <span class="text-sm text-center">${rankEmojis[rank] || (rank + 1)}</span>
+        <span class="text-stone-800 font-semibold truncate">${name}</span>
+        <span class="text-xs font-bold text-stone-700 text-center">${w}W / ${l}L</span>
+        ${luckyFaceHtml}
       </div>`;
   });
 
+  // Chronicle
+  const chronicleSection = document.getElementById('dyb-chronicle-section');
+  if (chronicleSection) {
+    if (dybAllShakeLogs.length > 0) {
+      chronicleSection.style.display = '';
+      dybRenderChronicle();
+    } else {
+      chronicleSection.style.display = 'none';
+    }
+  }
+
+  dybRenderNewGameOverlay();
   playSuccess();
   showScreen('screen-dyb-gameover');
+}
+
+function dybRenderChronicle() {
+  const logs = dybAllShakeLogs;
+  if (!logs.length) return;
+  const idx  = dybChronicleIdx;
+  const log  = logs[idx];
+  document.getElementById('dyb-chronicle-label').textContent = `Shake ${log.shakeNum}`;
+  const prev = document.getElementById('btn-dyb-chronicle-prev');
+  const next = document.getElementById('btn-dyb-chronicle-next');
+  if (prev) prev.disabled = idx === 0;
+  if (next) next.disabled = idx === logs.length - 1;
+  const bids = (log.bids || []).map(h => {
+    const name = (dybPlayerNames[h.playerIdx] || ('P' + (h.playerIdx + 1))).split(' ')[0];
+    return `<span class="text-stone-500">${name}: ${h.qty}&times;[${h.face}]</span>`;
+  }).join('<span class="text-stone-300 mx-0.5">&rarr;</span>');
+  const card = document.getElementById('dyb-chronicle-card');
+  if (card) {
+    card.innerHTML = `
+      <div class="flex flex-wrap gap-1 text-xs leading-5">${bids || '<span class="text-stone-300 text-xs">No bids recorded.</span>'}</div>
+      <p class="text-xs text-stone-400 mt-1 border-t border-stone-100 pt-1">${log.conclusion}</p>
+    `;
+  }
 }
 
 function dybRenderNewGameOverlay() {
@@ -870,7 +1148,7 @@ function dybRenderSpiritBoard(allRolls, allSpecialTypes, activePlayers, playerNa
     const name  = playerNames[i] || ('P' + (i + 1));
     const roll  = allRolls[i] || [];
     const types = allSpecialTypes[i] || [];
-    const diceHtml = roll.map((val, j) => dybDieHTML(val, types[j] || 'standard', -1, true)).join('');
+    const diceHtml = roll.map((val, j) => dybDieHTML(val, types[j] || 'standard', -1, true, -2)).join('');
     grid.innerHTML += `
       <div id="dyb-spirit-row-${i}" class="bg-white rounded-2xl p-3 shadow-sm">
         <p class="text-xs font-semibold text-stone-500 mb-2">${name} (${diceInHand[i]} left)</p>
@@ -897,8 +1175,10 @@ function dybGenerateRoll(count) {
   const roll = Array.from({length: count}, () => Math.floor(Math.random() * 6) + 1);
 
   if (!dybSyllyMode) {
-    dybSpecialTypes = Array(count).fill('standard');
-    dybSlickFaces   = Array(count).fill(-1);
+    dybSpecialTypes  = Array(count).fill('standard');
+    dybSlickFaces    = Array(count).fill(-1);
+    dybSlickAssigned = Array(count).fill(false);
+    dybPhantomTypes  = Array(count).fill(null);
     return roll;
   }
 
@@ -911,7 +1191,26 @@ function dybGenerateRoll(count) {
     }
     return 'standard';
   });
-  dybSlickFaces = Array(count).fill(-1);
+
+  // Slick dice auto-initialise to their rolled face value (shown as X* until the player commits)
+  dybSlickFaces    = roll.map((val, i) => dybSpecialTypes[i] === 'slick' ? val : -1);
+  dybSlickAssigned = Array(count).fill(false);
+
+  // Phantom secondary types: each Phantom die has specialRate chance of harbouring a secondary type
+  const secondaryOrder = ['loaded', 'slick', 'cracked', 'snake'];
+  dybPhantomTypes = dybSpecialTypes.map((type, i) => {
+    if (type !== 'phantom') return null;
+    const r2 = Math.random();
+    if (r2 >= specialRate) return null; // pure phantom
+    const secondary = secondaryOrder[Math.floor(r2 / specialRate * secondaryOrder.length)];
+    // Phantom+Slick: lock the rolled face immediately; no picker allowed
+    if (secondary === 'slick') {
+      dybSlickFaces[i]    = roll[i];
+      dybSlickAssigned[i] = true;
+    }
+    return secondary;
+  });
+
   return roll;
 }
 
@@ -921,13 +1220,33 @@ function dybComputeRealCount(face) {
   let total = 0;
 
   for (let pIdx = 0; pIdx < dybPlayerCount; pIdx++) {
-    const roll  = dybAllRolls[pIdx]        || [];
-    const types = dybAllSpecialTypes[pIdx] || [];
-    const slicks = dybAllSlickFaces[pIdx]  || [];
+    const roll         = dybAllRolls[pIdx]         || [];
+    const types        = dybAllSpecialTypes[pIdx]  || [];
+    const slicks       = dybAllSlickFaces[pIdx]    || [];
+    const phantomTypes = dybAllPhantomTypes[pIdx]  || [];
 
     roll.forEach((val, j) => {
-      const type = types[j] || 'standard';
+      const type        = types[j] || 'standard';
       const matchesFace = val === face || (wildOnes && val === 1 && face !== 1);
+
+      if (type === 'phantom') {
+        const secondary = phantomTypes[j] || null;
+        if (!secondary) {
+          // Pure phantom — counts normally
+          if (matchesFace) total += 1;
+        } else if (secondary === 'cracked') {
+          // counts 0
+        } else if (secondary === 'loaded') {
+          if (matchesFace) total += 2;
+        } else if (secondary === 'snake') {
+          if (matchesFace) total -= 1;
+        } else if (secondary === 'slick') {
+          // Phantom+Slick: locked face at roll time, cannot be reassigned
+          const locked = slicks[j] !== undefined ? slicks[j] : -1;
+          if (locked === face) total += 1;
+        }
+        return;
+      }
 
       if (type === 'cracked') return; // counts 0
       if (type === 'slick') {
@@ -943,7 +1262,7 @@ function dybComputeRealCount(face) {
         if (matchesFace) total += 2;
         return;
       }
-      // standard or phantom — counts normally
+      // standard — counts normally
       if (matchesFace) total += 1;
     });
   }
@@ -956,17 +1275,36 @@ function dybRenderHandDock(containerId) {
   const container = document.getElementById(containerId);
   if (!container) return;
   container.innerHTML = dybMyRoll.map((val, i) => {
-    const type  = dybSpecialTypes[i] || 'standard';
-    const slick = dybSlickFaces[i]   || -1;
-    return dybDieHTML(val, type, slick, true, i); // always visible — MDLM, own device
+    const type     = dybSpecialTypes[i]  || 'standard';
+    const slick    = dybSlickFaces[i]    !== undefined ? dybSlickFaces[i] : -1;
+    const assigned = dybSlickAssigned[i] || false;
+    return dybDieHTML(val, type, slick, true, i, assigned); // always visible — MDLM, own device
   }).join('');
 
-  // Slick die tap handlers
+  // Sylly Mode: long-press any special die for info; tap Slick to assign face.
+  // Each die gets its own _lpTimer / _didLP so a long-press on one die never
+  // blocks a subsequent tap on a different die (shared-variable bug fixed).
   if (dybSyllyMode) {
+    const dieDivs = container.querySelectorAll('.dyb-die'); // scoped lookup prevents ID collision when both docks are in the DOM (BUG-25)
     dybMyRoll.forEach((_, i) => {
-      const el = document.getElementById(`dyb-die-${i}`);
-      if (el && dybSpecialTypes[i] === 'slick') {
-        el.addEventListener('click', () => dybOpenSlickPicker(i));
+      const el   = dieDivs[i];
+      const type = dybSpecialTypes[i] || 'standard';
+      if (!el || type === 'standard') return;
+
+      let _lpTimer = null; // per-die
+      let _didLP   = false; // per-die
+
+      const startLP  = () => { _lpTimer = setTimeout(() => { _didLP = true; dybShowDieInfo(type); }, 500); };
+      const cancelLP = () => clearTimeout(_lpTimer);
+      el.addEventListener('touchstart',  startLP,  { passive: true });
+      el.addEventListener('touchend',    cancelLP);
+      el.addEventListener('touchmove',   cancelLP);
+      el.addEventListener('mousedown',   startLP);
+      el.addEventListener('mouseup',     cancelLP);
+      el.addEventListener('mouseleave',  cancelLP);
+
+      if (type === 'slick') {
+        el.addEventListener('click', () => { if (_didLP) { _didLP = false; return; } dybOpenSlickPicker(i); });
       }
     });
   }
@@ -977,7 +1315,10 @@ function dybRenderHandDock(containerId) {
 //                                  7=bot-left  8=bot-mid  9=bot-right
 const DYB_PIP_LAYOUTS = { 1:[5], 2:[3,7], 3:[3,5,7], 4:[1,3,7,9], 5:[1,3,5,7,9], 6:[1,3,4,6,7,9] };
 
-function dybDieHTML(val, type, slickFace, visible, dieIdx = -1) {
+// dieIdx >= 0 : owner's live hand (phantom shows ?)
+// dieIdx === -1: showdown reveal (phantom unmasked — compound type shown with ring)
+// dieIdx === -2: spectator view — Spirit Board (phantom shows ?)
+function dybDieHTML(val, type, slickFace, visible, dieIdx = -1, isSlickAssigned = true, phantomSecondary = null) {
   const idAttr = dieIdx >= 0 ? ` id="dyb-die-${dieIdx}"` : '';
 
   let borderCls = 'border-stone-200';
@@ -989,42 +1330,68 @@ function dybDieHTML(val, type, slickFace, visible, dieIdx = -1) {
 
   switch (type) {
     case 'loaded':
-      borderCls = 'border-amber-400';
-      bgCls     = 'bg-amber-50';
-      pipCls    = 'bg-amber-600';
+      extraCls = 'dyb-die-loaded'; // amber glow breathing pulse via CSS compound class
+      pipCls   = 'bg-amber-700';
       break;
     case 'phantom':
-      borderCls = 'border-stone-300';
-      bgCls     = 'bg-stone-200';
-      if (dieIdx >= 0) {
-        // Owner's live hand — face stays hidden (shown as ?)
+      extraCls = 'dyb-die-phantom'; // purple tint + lavender border via CSS compound class
+      if (dieIdx !== -1) {
+        // Owner's live hand OR spectator view — face stays hidden
         textLabel = '?';
-        textStyle = 'text-stone-400 font-bold text-lg italic';
+        textStyle = 'dyb-phantom-glyph'; // indigo ? with glow text-shadow
       } else {
-        // Showdown reveal — real face shown via pip grid
-        pipCls = 'bg-stone-500';
+        // Showdown reveal — unmask: pure phantom shows real face; compound shows secondary type with ring
+        if (!phantomSecondary) {
+          pipCls = 'bg-indigo-400'; // pure phantom — indigo pips
+        } else if (phantomSecondary === 'loaded') {
+          extraCls = 'dyb-die-loaded dyb-die-phantom-ring'; // amber glow + indigo ring
+          pipCls   = 'bg-amber-700';
+        } else if (phantomSecondary === 'snake') {
+          extraCls = 'dyb-die-snake dyb-die-phantom-ring'; // dark green + indigo ring
+          pipCls   = 'dyb-pip-snake';
+        } else if (phantomSecondary === 'cracked') {
+          extraCls  = 'dyb-die-phantom-ring'; // indigo ring only; cracked styling below
+          bgCls     = 'bg-stone-100';
+          borderCls = 'border-stone-200';
+          textLabel = '✕';
+          textStyle = 'text-stone-300 font-bold text-xl';
+        } else if (phantomSecondary === 'slick') {
+          extraCls  = 'dyb-die-phantom-ring'; // indigo ring + cyan styling
+          borderCls = 'border-cyan-400';
+          bgCls     = 'bg-cyan-50';
+          pipCls    = 'bg-cyan-600';
+          // Use locked slick face (assigned at generation time)
+          if (slickFace > 0) val = slickFace;
+        }
       }
       break;
     case 'slick':
-      borderCls = 'border-blue-300';
-      bgCls     = 'bg-blue-50';
-      pipCls    = 'bg-blue-500';
-      extraCls  = 'cursor-pointer';
-      if (slickFace > 0) {
-        val = slickFace; // render assigned face
+      borderCls = 'border-cyan-400';
+      bgCls     = 'bg-cyan-50';
+      if (!isSlickAssigned) {
+        // Pre-assignment: show auto-rolled face as X* with cyan text (tappable)
+        extraCls  = 'cursor-pointer';
+        textLabel = `${slickFace > 0 ? slickFace : '?'}*`;
+        textStyle = 'text-cyan-600 font-bold text-sm';
+      } else if (slickFace > 0) {
+        // Committed — show assigned face via pip grid
+        val    = slickFace;
+        pipCls = 'bg-cyan-600';
       } else {
-        textLabel = '—';
-        textStyle = 'text-blue-400 font-bold text-lg';
+        // Fallback (shouldn't occur post-redesign): unassigned with no auto-face
+        textLabel = '~';
+        textStyle = 'dyb-tilde-breathe';
       }
       break;
     case 'cracked':
-      pipCls   = 'bg-stone-300';
-      extraCls = 'opacity-40';
+      bgCls     = 'bg-stone-100';
+      borderCls = 'border-stone-200';
+      textLabel = '✕';
+      textStyle = 'text-stone-300 font-bold text-xl'; // muted cross signals zero value
       break;
     case 'snake':
-      borderCls = 'border-red-300';
-      bgCls     = 'bg-red-50';
-      pipCls    = 'bg-red-500';
+      extraCls = 'dyb-die-snake'; // sinister dark green; overrides default border/bg via specificity
+      pipCls   = 'dyb-pip-snake'; // dark green diamond pip
       break;
   }
 
@@ -1040,7 +1407,26 @@ function dybDieHTML(val, type, slickFace, visible, dieIdx = -1) {
   return `<div${idAttr} class="dyb-die ${borderCls} ${bgCls} ${extraCls} select-none">${cells}</div>`;
 }
 
+function dybDieHTMLSm(face) {
+  return dybDieHTML(face, 'standard', -1, true).replace('class="dyb-die ', 'class="dyb-die dyb-die-sm ');
+}
+function dybDieHTMLXs(face) {
+  return dybDieHTML(face, 'standard', -1, true).replace('class="dyb-die ', 'class="dyb-die dyb-die-xs ');
+}
+
 function dybOpenSlickPicker(dieIdx) {
+  // One-time lock: once a Slick face is committed (assigned) it cannot be changed
+  if (dybSlickAssigned[dieIdx]) return;
+  // Shake screen: always allow — all players roll simultaneously, so any player can
+  // pre-assign their Slick face even if they won't get a bid turn this shake.
+  // Table screen: only allow if it is currently this player's turn.
+  const shakeScreen = document.getElementById('screen-dyb-shake');
+  const isOnShake   = shakeScreen && shakeScreen.style.display !== 'none';
+  if (!isOnShake) {
+    const tableScreen = document.getElementById('screen-dyb-table');
+    if (!tableScreen || tableScreen.style.display === 'none') return;
+    if (window.syllyMultiplayerMode !== 'single' && dybCurrentBidderIdx !== mpMyPlayerIdx) return;
+  }
   dybSlickPickerDie = dieIdx;
   // Simple inline: show a small face-picker modal
   const faces = ['1','2','3','4','5','6'];
@@ -1052,19 +1438,86 @@ function dybOpenSlickPicker(dieIdx) {
 }
 
 function dybAssignSlickFace(dieIdx, face) {
-  dybSlickFaces[dieIdx] = face;
+  dybSlickFaces[dieIdx]    = face;
+  dybSlickAssigned[dieIdx] = true;
   document.getElementById('dyb-slick-picker-overlay').style.display = 'none';
-  dybRenderHandDock('dyb-hand-dock-table');
+  // Sync the committed face to host so allSlickFaces is accurate at showdown
+  if (window.syllyMultiplayerMode === 'client') {
+    mpSendEnvelope({ type: 'ACTION', payload: { action: 'DYB_SLICK_UPDATE', dieIdx, face } });
+  } else if (window.syllyMultiplayerMode === 'host') {
+    if (!dybAllSlickFaces[mpMyPlayerIdx]) dybAllSlickFaces[mpMyPlayerIdx] = [];
+    dybAllSlickFaces[mpMyPlayerIdx][dieIdx] = face;
+  }
+  const shakeScreen = document.getElementById('screen-dyb-shake');
+  const dockId = shakeScreen && shakeScreen.style.display !== 'none'
+    ? 'dyb-hand-dock-shake'
+    : 'dyb-hand-dock-table';
+  dybRenderHandDock(dockId);
 }
 
-function dybRenderAllegationHistory() {
-  const el = document.getElementById('dyb-allegation-history');
-  if (!el) return;
-  const recent = dybAllegationHistory.slice(-3);
-  el.innerHTML = recent.map(h => {
+// ── The Ascent — bid history ──────────────────────────────────────────────────
+
+function dybRenderAscentPreview() {
+  const section = document.getElementById('dyb-ascent-section');
+  const preview = document.getElementById('dyb-ascent-preview');
+  if (!section || !preview) return;
+  if (!dybAllegationHistory.length) {
+    section.style.display = 'none';
+    return;
+  }
+  section.style.display = 'flex';
+  preview.textContent = dybAllegationHistory.slice(-3).map(h => {
     const name = dybPlayerNames[h.playerIdx] || ('P' + (h.playerIdx + 1));
-    return `<p class="text-stone-400 text-sm">${name}: ${h.qty} × [${h.face}]</p>`;
+    return `${name}: ${h.qty}×[${h.face}]`;
+  }).join(' → ');
+}
+
+function dybRenderAscentHistory() {
+  const el = document.getElementById('dyb-ascent-history');
+  if (!el) return;
+  if (!dybAllegationHistory.length) {
+    el.innerHTML = '<p class="text-stone-400 text-sm text-center">No bids yet.</p>';
+    return;
+  }
+  el.innerHTML = dybAllegationHistory.map((h, idx) => {
+    const name = dybPlayerNames[h.playerIdx] || ('P' + (h.playerIdx + 1));
+    return `<div class="flex items-center gap-3 py-2 ${idx > 0 ? 'border-t border-stone-100' : ''}">
+      <span class="text-xs text-stone-400 w-4 text-right">${idx + 1}</span>
+      <span class="text-sm text-stone-600 font-semibold flex-1">${name}</span>
+      <span class="text-sm text-stone-800 font-bold">${h.qty} × [${h.face}]</span>
+    </div>`;
   }).join('');
+}
+
+// ── Tip / die-info overlay ────────────────────────────────────────────────────
+
+function dybShowTip(emoji, heading, lines) {
+  document.getElementById('dyb-tip-emoji').textContent = emoji;
+  document.getElementById('dyb-tip-heading').textContent = heading;
+  document.getElementById('dyb-tip-body').innerHTML = lines.map(l => `<p>${l}</p>`).join('');
+  document.getElementById('dyb-tip-overlay').style.display = 'flex';
+}
+
+function dybShowDieInfo(type) {
+  const info = {
+    loaded:  ['🪙', 'Loaded Die',   ['This die counts as <strong>2</strong> toward its face value.', 'A bid of 3×4 with a Loaded 4 means the real count is actually 4.']],
+    phantom: ['👻', 'Phantom Die',  ['The face is <strong>hidden from you</strong> — even you don\'t know what it rolled.', 'It counts normally at its real value during the Overlook.', 'It may also be <strong>hiding a special type</strong> underneath — Loaded, Snake, Cracked, or Slick — revealed only when the hands are shown.']],
+    slick:   ['🔵', 'Slick Die',    ['It rolled a face automatically — shown as <strong>X*</strong> until you commit.', '<strong>Tap it</strong> to change to any face you like — but only once, and only during your turn.', 'Once committed the face is locked until the next Shake.']],
+    cracked: ['💀', 'Cracked Die',  ['This die is <strong>worthless</strong> — counts as 0 toward any face.', 'Dead weight in your hand, but opponents don\'t know which die it is.']],
+    snake:   ['🐍', 'Snake Die',    ['This die counts as <strong>−1</strong> toward its face value — it drags the real count down.', 'With Classic or Volatile Wildcards: a Snake rolling a 1 is <strong>Venom Wilds</strong> — it counts −1 toward whatever face is being bid.']],
+  };
+  const [emoji, heading, lines] = info[type] || ['🎲', 'Standard Die', ['A regular, fair die. Nothing special here.']];
+  dybShowTip(emoji, heading, lines);
+}
+
+function dybShowTempestGuide() {
+  dybShowTip('🌩️', 'The Tempest — Special Dice', [
+    '🪙 <strong>Loaded</strong> — counts as 2 toward its face.',
+    '👻 <strong>Phantom</strong> — face hidden even from you. Counts normally.',
+    '🔵 <strong>Slick</strong> — tap to secretly assign any face.',
+    '💀 <strong>Cracked</strong> — counts as 0. Dead weight.',
+    '🐍 <strong>Snake</strong> — counts as −1 toward its face. Rolling a 1 with Wildcards on targets the bid face (Venom Wilds).',
+  ]);
 }
 
 // ── Match reset ───────────────────────────────────────────────────────────────
@@ -1087,6 +1540,13 @@ function dybResetMatchState() {
   dybMyRoll           = [];
   dybSpecialTypes     = [];
   dybSlickFaces       = [];
+  // Summit stats
+  dybClashWins    = [];
+  dybClashLosses  = [];
+  dybFaceFreq     = [];
+  dybShakeLogs    = [];
+  dybAllShakeLogs = [];
+  dybChronicleIdx = 0;
 }
 
 // ── Multiplayer envelope handler ──────────────────────────────────────────────
@@ -1102,7 +1562,13 @@ function dybHandleEnvelope(env) {
 
     switch (payload.action) {
       case 'DYB_ROLL_SUBMIT':
-        dybRecordRoll(originIdx, payload.roll, payload.specialTypes || [], payload.slickFaces || []);
+        dybRecordRoll(originIdx, payload.roll, payload.specialTypes || [], payload.slickFaces || [], payload.phantomTypes || []);
+        break;
+
+      case 'DYB_SLICK_UPDATE':
+        // Fire-and-forget: player committed their Slick face during table phase after initial roll submit
+        if (!dybAllSlickFaces[originIdx]) dybAllSlickFaces[originIdx] = [];
+        dybAllSlickFaces[originIdx][payload.dieIdx] = payload.face;
         break;
 
       case 'DYB_ALLEGATION':
