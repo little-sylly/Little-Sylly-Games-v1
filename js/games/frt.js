@@ -68,9 +68,11 @@ let frtPeeked           = false;     // receiver peeked the in-flight card (loca
 let frtPeekComposing    = false;     // receiver is choosing a new target/declaration to pass on
 let frtPeekSwapIdx      = -1;        // Sus Pear (Sylly): stash card chosen to send instead of the Pear
 let frtRevealData       = null;      // { fruit, loserIdx, callerIdx, callerCorrect, declared, ... }
-let frtRevealTimer      = null;      // host-only setTimeout handle (reveal → continue/round-end)
-let frtTurnTimerHandle  = null;      // setInterval handle — Timer Lifecycle (clear in 3 places)
-let frtTurnEndTs        = null;      // wall-clock expiry for the turn timer (GTH pattern)
+let frtRevealTimer          = null;  // host-only setTimeout handle (reveal → frtAfterRevealHost)
+let frtTurnTimerHandle      = null;  // setInterval handle — Timer Lifecycle (clear in 3 places)
+let frtTurnEndTs            = null;  // wall-clock expiry for the turn timer (GTH pattern)
+let frtPendingRoundGameOver = false; // host-only: stored during round-end; drives Continue button
+let frtPendingRoundOpener   = 0;     // host-only: next Fruit-Off opener index
 
 // ── Derived helpers (never stored) ──────────────────────────────────────────
 function frtIsDuel()        { return frtPlayerCount === 2; }
@@ -239,7 +241,7 @@ function frtRenderTableBody() {
   else frtRenderSpectator();
 }
 
-// Top grid — every other player's face-up Fruit Bowl (+ Watermelon counter in Sylly)
+// Top grid — all players' face-up Fruit Bowls (self included, clearly marked)
 function frtRenderOpponents() {
   const me = frtMyIdx();
   const wrap = document.getElementById('frt-table-opponents');
@@ -248,13 +250,15 @@ function frtRenderOpponents() {
   const row = document.createElement('div');
   row.className = 'flex gap-2 overflow-x-auto pb-1';
   for (let p = 0; p < frtPlayerCount; p++) {
-    if (p === me) continue;
+    const isSelf = p === me;
     const cell = document.createElement('div');
-    cell.className = 'flex flex-col items-center gap-0.5 px-2 py-1 rounded-xl flex-shrink-0 ' +
-      (p === frtActivePlayer ? 'bg-[#FFF4CC]' : 'bg-stone-50');
+    // Self gets a ring; active non-self gets yellow tint; others neutral
+    let cellBg = isSelf ? 'bg-stone-100 ring-1 ring-stone-300' :
+                 (p === frtActivePlayer ? 'bg-[#FFF4CC]' : 'bg-stone-50');
+    cell.className = 'flex flex-col items-center gap-0.5 px-2 py-1 rounded-xl flex-shrink-0 ' + cellBg;
     const name = document.createElement('p');
     name.className = 'text-xs font-semibold text-stone-700 truncate max-w-20';
-    name.textContent = frtPlayerNames[p] || ('P' + (p + 1));
+    name.textContent = (frtPlayerNames[p] || ('P' + (p + 1))) + (isSelf ? ' 👤' : '');
     const bowl = document.createElement('p');
     bowl.className = 'text-base leading-none';
     bowl.textContent = (frtBowls[p] && frtBowls[p].length)
@@ -322,27 +326,50 @@ function frtRenderServing() {
     : 'Your serve — pick a card, a target, and what you\'ll call it.';
   body.appendChild(h);
 
-  body.appendChild(frtMiniLabel('Your stash'));
+  // Stash label: add [?] next to label when Sylly Mode is ON so players can check personalities
+  if (frtSyllyMode) {
+    const stashLabelRow = document.createElement('div');
+    stashLabelRow.className = 'flex items-center justify-center gap-1.5';
+    stashLabelRow.appendChild(frtMiniLabel('Your stash'));
+    const stashQ = document.createElement('button');
+    stashQ.id = 'btn-frt-personalities-stash';
+    stashQ.className = 'text-stone-300 font-bold text-xs leading-none active:scale-90 transition-transform duration-100 mb-1.5 mt-2';
+    stashQ.textContent = '[?]';
+    stashQ.addEventListener('click', frtOpenPersonalities);
+    stashLabelRow.appendChild(stashQ);
+    body.appendChild(stashLabelRow);
+  } else {
+    body.appendChild(frtMiniLabel('Your stash'));
+  }
   const stashRow = document.createElement('div');
-  stashRow.className = 'flex flex-wrap gap-1.5 justify-center';
+  stashRow.className = 'grid grid-cols-4 gap-1.5';
   frtRenderStashGrouped(stashRow, frtStashes[me], {
     selectedIdx: frtSelectedStashIdx,
-    onPick: idx => { frtSelectedStashIdx = idx; frtRenderServing(); },
+    onPick: idx => { playPillClick(); frtSelectedStashIdx = idx; frtRenderServing(); },
   });
   body.appendChild(stashRow);
+
+  // Build valid target list; auto-select when only one option
+  const validTargets = [];
+  for (let p = 0; p < frtPlayerCount; p++) {
+    if (p === me) continue;
+    if (frtAppleLockTarget >= 0 && p !== frtAppleLockTarget) continue;
+    validTargets.push(p);
+  }
+  if (validTargets.length === 1 && frtServeTarget !== validTargets[0]) {
+    frtServeTarget = validTargets[0];
+  }
 
   body.appendChild(frtMiniLabel('Serve to'));
   const tRow = document.createElement('div');
   tRow.className = 'flex flex-wrap gap-2 justify-center';
-  for (let p = 0; p < frtPlayerCount; p++) {
-    if (p === me) continue;
-    if (frtAppleLockTarget >= 0 && p !== frtAppleLockTarget) continue; // Sylly Apple lock
+  validTargets.forEach(p => {
     const b = document.createElement('button');
     b.className = 'pill' + (p === frtServeTarget ? ' pill-active-frt' : '');
     b.textContent = frtPlayerNames[p] || ('P' + (p + 1));
-    b.addEventListener('click', () => { frtServeTarget = p; frtRenderServing(); });
+    b.addEventListener('click', () => { playPillClick(); frtServeTarget = p; frtRenderServing(); });
     tRow.appendChild(b);
-  }
+  });
   body.appendChild(tRow);
 
   body.appendChild(frtMiniLabel('Call it a…'));
@@ -352,7 +379,7 @@ function frtRenderServing() {
     const b = document.createElement('button');
     b.className = 'pill w-full text-center' + (f.id === frtServeDeclaration ? ' pill-active-frt' : '');
     b.innerHTML = f.emoji + ' ' + frtShort(f.id);
-    b.addEventListener('click', () => { frtServeDeclaration = f.id; frtRenderServing(); });
+    b.addEventListener('click', () => { playPillClick(); frtServeDeclaration = f.id; frtRenderServing(); });
     dRow.appendChild(b);
   });
   body.appendChild(dRow);
@@ -363,7 +390,7 @@ function frtRenderServing() {
   serve.style.background = FRT_FILL; serve.style.color = FRT_INK;
   serve.disabled = !ready;
   serve.textContent = 'Serve →';
-  serve.addEventListener('click', () => { if (ready) frtSubmitServe(); });
+  serve.addEventListener('click', () => { if (ready) { playLaunch(); frtSubmitServe(); } });
   footer.appendChild(serve);
 }
 
@@ -453,26 +480,32 @@ function frtRenderAwait() {
       const keep = document.createElement('button');
       keep.className = 'pill' + (frtPeekSwapIdx < 0 ? ' pill-active-frt' : '');
       keep.innerHTML = '🍐 Send the Pear';
-      keep.addEventListener('click', () => { frtPeekSwapIdx = -1; frtRenderAwait(); });
+      keep.addEventListener('click', () => { playPillClick(); frtPeekSwapIdx = -1; frtRenderAwait(); });
       keepRow.appendChild(keep);
       body.appendChild(keepRow);
       const swapRow = document.createElement('div');
       swapRow.className = 'flex flex-wrap gap-1.5 justify-center items-center';
       frtRenderStashGrouped(swapRow, frtStashes[me], {
         selectedIdx: frtPeekSwapIdx,
-        onPick: idx => { frtPeekSwapIdx = idx; frtRenderAwait(); },
+        onPick: idx => { playPillClick(); frtPeekSwapIdx = idx; frtRenderAwait(); },
       });
       body.appendChild(swapRow);
+    }
+
+    // Auto-select when only one legal peek target
+    const peekTargets = frtLegalPeekTargets();
+    if (peekTargets.length === 1 && frtServeTarget !== peekTargets[0]) {
+      frtServeTarget = peekTargets[0];
     }
 
     body.appendChild(frtMiniLabel('Pass to'));
     const tRow = document.createElement('div');
     tRow.className = 'flex flex-wrap gap-2 justify-center';
-    frtLegalPeekTargets().forEach(p => {
+    peekTargets.forEach(p => {
       const b = document.createElement('button');
       b.className = 'pill' + (p === frtServeTarget ? ' pill-active-frt' : '');
       b.textContent = frtPlayerNames[p] || ('P' + (p + 1));
-      b.addEventListener('click', () => { frtServeTarget = p; frtRenderAwait(); });
+      b.addEventListener('click', () => { playPillClick(); frtServeTarget = p; frtRenderAwait(); });
       tRow.appendChild(b);
     });
     body.appendChild(tRow);
@@ -483,17 +516,17 @@ function frtRenderAwait() {
       const b = document.createElement('button');
       b.className = 'pill w-full text-center' + (fr.id === frtServeDeclaration ? ' pill-active-frt' : '');
       b.innerHTML = fr.emoji + ' ' + frtShort(fr.id);
-      b.addEventListener('click', () => { frtServeDeclaration = fr.id; frtRenderAwait(); });
+      b.addEventListener('click', () => { playPillClick(); frtServeDeclaration = fr.id; frtRenderAwait(); });
       dRow.appendChild(b);
     });
     body.appendChild(dRow);
     const ready = frtServeTarget >= 0 && frtServeDeclaration >= 0;
     const wrap = document.createElement('div');
     wrap.className = 'flex flex-col gap-2';
-    const slide = mk('Slide it →', FRT_FILL, () => { if (ready) frtSubmitPeekPass(); });
+    const slide = mk('Slide it →', FRT_FILL, () => { if (ready) { playLaunch(); frtSubmitPeekPass(); } });
     if (!ready) { slide.classList.add('opacity-50'); slide.disabled = true; }
     wrap.appendChild(slide);
-    wrap.appendChild(mk('Back', '#78716c', () => { frtPeekComposing = false; frtRenderAwait(); }));
+    wrap.appendChild(mk('Back', '#78716c', () => { playDone(); frtPeekComposing = false; frtRenderAwait(); }));
     footer.appendChild(wrap);
     return;
   }
@@ -517,13 +550,13 @@ function frtRenderAwait() {
   const canPeek = frtLegalPeekTargets().length > 0 && !appleLocked;
   if (frtPeeked && canPeek) {
     // Peeked — True/False locked out; must pass the card on
-    wrap.appendChild(mk('Pass it on →', FRT_FILL, () => { frtPeekComposing = true; frtServeTarget = -1; frtServeDeclaration = -1; frtRenderAwait(); }));
+    wrap.appendChild(mk('Pass it on →', FRT_FILL, () => { playLaunch(); frtPeekComposing = true; frtServeTarget = -1; frtServeDeclaration = -1; frtRenderAwait(); }));
   } else {
     // Standard challenge (or peeked but no valid pass targets — fallback to call)
-    wrap.appendChild(mk('Call TRUE — it\'s a ' + decl.name, FRT_LEAF, () => frtCall('true')));
-    wrap.appendChild(mk('Call FALSE — they\'re bluffing', '#dc2626', () => frtCall('false')));
+    wrap.appendChild(mk('Call TRUE — it\'s a ' + decl.name, FRT_LEAF, () => { playDone(); frtCall('true'); }));
+    wrap.appendChild(mk('Call FALSE — they\'re bluffing', '#dc2626', () => { playBoing(); frtCall('false'); }));
     if (!frtPeeked && canPeek) {
-      wrap.appendChild(mk('Peek & Pass', FRT_FILL, () => { frtPeeked = true; frtRenderAwait(); }));
+      wrap.appendChild(mk('Peek & Pass', FRT_FILL, () => { playWhoosh(); frtPeeked = true; frtRenderAwait(); }));
     }
   }
   footer.appendChild(wrap);
@@ -682,7 +715,7 @@ function frtBroadcastReveal() {
 function frtScheduleAfterReveal() {
   if (window.syllyMultiplayerMode === 'client') return;
   if (frtRevealTimer) clearTimeout(frtRevealTimer);
-  frtRevealTimer = setTimeout(() => { frtRevealTimer = null; frtAfterRevealHost(); }, 2600);
+  frtRevealTimer = setTimeout(() => { frtRevealTimer = null; frtAfterRevealHost(); }, 5000);
 }
 
 function frtAfterRevealHost() {
@@ -790,13 +823,9 @@ function frtHostRoundEnd(eliminatedSet) {
       action: 'FRT_ROUND_END', eliminatedSet, scores: frtScores, bowls: frtBowls, roundNum: frtRoundNum, gameOver, opener,
     }});
   }
+  frtPendingRoundGameOver = gameOver;
+  frtPendingRoundOpener   = opener;
   frtRenderRoundEnd(eliminatedSet);
-  if (frtRevealTimer) clearTimeout(frtRevealTimer);
-  frtRevealTimer = setTimeout(() => {
-    frtRevealTimer = null;
-    if (gameOver) frtHostGameover();
-    else frtStartRoundHost(opener);
-  }, 3200);
 }
 
 function frtRenderRoundEnd(eliminatedSet) {
@@ -823,6 +852,24 @@ function frtRenderRoundEnd(eliminatedSet) {
   });
   roundEndCenter.appendChild(list);
   body.appendChild(roundEndCenter);
+  if (!footer) return;
+  if (window.syllyMultiplayerMode === 'client') {
+    const wait = document.createElement('p');
+    wait.className = 'text-center text-stone-400 text-sm py-2';
+    wait.textContent = 'Waiting for host…';
+    footer.appendChild(wait);
+  } else {
+    const btn = document.createElement('button');
+    btn.className = 'min-h-14 w-full rounded-2xl active:scale-95 text-xl font-semibold transition-all duration-150 text-white';
+    btn.style.background = FRT_FILL;
+    btn.textContent = frtPendingRoundGameOver ? 'See Final Scores →' : 'Next Fruit-Off →';
+    btn.addEventListener('click', () => {
+      playLaunch();
+      if (frtPendingRoundGameOver) frtHostGameover();
+      else frtStartRoundHost(frtPendingRoundOpener);
+    });
+    footer.appendChild(btn);
+  }
 }
 
 function frtHostGameover() {
@@ -876,7 +923,7 @@ function frtRenderSpectator() {
   if (frtStashes[me] && frtStashes[me].length) {
     center.appendChild(frtMiniLabel('Your stash'));
     const row = document.createElement('div');
-    row.className = 'flex flex-wrap gap-1.5 justify-center';
+    row.className = 'grid grid-cols-4 gap-1.5';
     frtRenderStashGrouped(row, frtStashes[me], {});
     center.appendChild(row);
   }
@@ -919,6 +966,7 @@ function frtBindPills(attr, apply) {
 }
 
 function frtOpenSettings() {
+  playPillClick();
   const n = frtPlayerCount || 0;
   // Mega Salad needs 5+ players
   const mega = document.getElementById('frt-pill-mega');
@@ -954,6 +1002,12 @@ function frtOpenHowTo() {
   const inner = document.querySelector('#frt-how-to-overlay .overlay-data-inner');
   if (inner) inner.scrollTop = 0;
   document.getElementById('frt-how-to-overlay').style.display = 'flex';
+}
+function frtOpenPersonalities() {
+  playPillClick();
+  const inner = document.querySelector('#frt-personalities-overlay .overlay-data-inner');
+  if (inner) inner.scrollTop = 0;
+  document.getElementById('frt-personalities-overlay').style.display = 'flex';
 }
 function frtShowTip(emoji, heading, lines) { /* Step 5: inject + show frt-tip-overlay */ }
 
@@ -1051,7 +1105,8 @@ function frtResetState() {
   if (frtRevealTimer)     { clearTimeout(frtRevealTimer); frtRevealTimer = null; }
   frtRevealData = null; frtPeekComposing = false; frtPeeked = false;
   ['frt-settings-overlay', 'frt-how-to-overlay', 'frt-quit-overlay',
-   'frt-new-game-overlay', 'frt-tip-overlay', 'frt-log-overlay'].forEach(id => {
+   'frt-new-game-overlay', 'frt-tip-overlay', 'frt-log-overlay',
+   'frt-personalities-overlay'].forEach(id => {
     const el = document.getElementById(id); if (el) el.style.display = 'none';
   });
   frtStashes = []; frtBowls = []; frtScores = []; frtBluffWins = [];
@@ -1161,6 +1216,17 @@ document.addEventListener('DOMContentLoaded', () => {
     if (window.syllyMultiplayerMode !== 'single') { mpReturnToLobby(); return; }
     frtShowMenu(); // single-device fallback (frt is MDLM-only)
   });
+
+  // ── Sound buttons (engine.js querySelectorAll runs before FRT markup is parsed) ──
+  document.querySelectorAll('#screen-frt-menu .btn-open-sound, #screen-frt-table .btn-open-sound, #screen-frt-deal .btn-open-sound, #screen-frt-gameover .btn-open-sound').forEach(btn => {
+    btn.addEventListener('click', openSoundOverlay);
+  });
+
+  // ── Personalities overlay ──
+  on('btn-frt-personalities-close',    () => { playDone(); document.getElementById('frt-personalities-overlay').style.display = 'none'; });
+  on('btn-frt-personalities-howto',    () => frtOpenPersonalities());
+  on('btn-frt-personalities-settings', () => frtOpenPersonalities());
+  // btn-frt-personalities-stash is dynamically created in frtRenderServing() — wired inline there
 
   // Step 5 (gameplay) listeners wired in their own passes.
 });

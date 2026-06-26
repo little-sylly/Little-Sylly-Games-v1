@@ -81,13 +81,13 @@ Replace placeholder names with actual screen IDs from §5. Label transitions wit
 - Config values: `emoji`, `eyebrow`, `heading`, `prompt`, `teamA/B`, `confirmLabel`, `accentBtnClass`, `accentTextClass`
 - `onResult` handler: [describe what happens when first team is determined]
 
-**Screen layout pattern decision** — decide at spec time for every screen; wrong choices require structural rework during testing:
+**Screen layout — every screen is the Stack.** There is no per-screen pattern decision. Every screen is built as the Stack (Header → Stage → Controls, siblings in one centred `max-w-sm` column). Confirm in this table that each screen has its three zones identified — not which "pattern" it uses:
 
-| Screen ID | Layout pattern | Reason |
-|-----------|---------------|--------|
-| | `min-h-screen` centred (default) / `h-screen` sticky-footer | |
+| Screen ID | Header (title / round-info) | Stage (central content) | Controls (action buttons) |
+|-----------|-----------------------------|-------------------------|----------------------------|
+| | | | |
 
-Rule: `h-screen overflow-hidden` only when a primary CTA must stay visible regardless of content height. Everything else: `min-h-screen overflow-y-auto flex items-center justify-center` (the NAT pattern).
+Rule: `<section class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">` wrapping ONE `flex flex-col w-full max-w-sm gap-4` column. No `h-screen` sticky-footer for new games. See `ui-style.md` § The Stack.
 
 ---
 

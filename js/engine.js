@@ -498,6 +498,7 @@ function resetToLobby() {
   document.getElementById('pass-how-to-overlay').style.display   = 'none';
   document.getElementById('pass-quit-overlay').style.display     = 'none';
   document.getElementById('pass-new-deal-overlay').style.display = 'none';
+  document.getElementById('pass-history-overlay').style.display  = 'none';
   // Net-Trace teardown
   ['nt-settings-overlay','nt-how-to-overlay','nt-quit-overlay','nt-reboot-overlay','nt-logs-overlay','nt-bridge-preview-overlay'].forEach(id => {
     const el = document.getElementById(id); if (el) el.style.display = 'none';

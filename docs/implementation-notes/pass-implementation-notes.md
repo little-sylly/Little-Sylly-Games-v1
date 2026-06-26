@@ -20,6 +20,9 @@ A single SYNC packet covers all three Abyss draft triggers (detonation, round-wi
 **Round-end trigger: `hand.length === 0` only**
 A full-circuit pass (everyone passes) clears the table but does NOT end the round — it's a table-clear only. The round ends solely when a player's hand reaches length 0. This distinction is critical: the early spec draft incorrectly described full-circle-pass as a potential round-end trigger.
 
+**`screen-pass-table` migrated to the Stack (26 June 2026)**
+The table screen was the last PASS screen still on the legacy `h-screen overflow-hidden` sticky-footer layout (header + opponents + combo + abyss + status all `flex-shrink-0`, the hand the lone `flex-1 overflow-y-auto min-h-0` body, action buttons a `flex-shrink-0` footer). On a phone the stacked fixed zones starve the hand's `flex-1` band down toward zero height, so cards render into a clipped/near-invisible strip — the "table shows nothing after cards played" symptom in playtesting. Migrated to the centred **Stack** (`<section class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">` → one `flex flex-col w-full max-w-sm gap-4` column; Header / Stage / Controls as siblings; whole-Stack vertical scroll). All element IDs and JS render code (`passRenderTable`/`passRenderHand`/`passRenderAbyss`) unchanged — pure markup change. This migration accompanied the project-wide decision to make the Stack the single screen-layout standard (`ui-style.md` § The Stack) and to deprecate the sticky-footer pattern for new screens (the owner chose whole-Stack scrolling over a docked footer even for long card hands, prioritising consistency). The other three PASS screens (seating/round-wrap/gameover) were already Stack-compliant. SW → v127.
+
 ---
 
 ## Bug Index
@@ -75,3 +78,92 @@ Card CSS classes (`.pass-card`, `.pass-hand-card`, `.pass-card-selected`, etc.) 
 
 **No difficulty setting for card games**
 The `logic-engine.md` checklist item "include a difficulty setting" assumes word bank games. Card games using a standard deck have no equivalent difficulty tier. The template should note this exception for non-word-bank games. Currently waived for Pass — no word bank used.
+
+---
+
+## Play Screen Polish Pass (26 June 2026)
+
+Four UX improvements added to `screen-pass-table` to make the game legible in playtesting:
+
+**Feature 1 — Dynamic Player Status Tracker**
+Replaced the opponents card-back strip (`pass-table-opponents`) with a full horizontal player tracker (`pass-player-tracker`) showing ALL players (including "Me ★") in seat/turn order. Each node renders a short name + `🂠 N` card-count badge. The active player's node scales up (1.06×) and pulses with a zinc-900 outline animation (`.pass-player-active`); non-active nodes sit at 55% opacity (`.pass-player-inactive`). Chevron arrows `›` between nodes visualise turn flow. The tracker is rebuilt by `passRenderTable()` on every state update, so it is always current. CSS lives in `css/styles.css`; renderer rewritten in the tracker block of `passRenderTable()`.
+
+**Feature 2 — Trick-grouped History Log (The Table Log)**
+Added `pass-history-overlay` (z-[90], data slide-up) accessible via a `📋` button next to the table combo display. Opened by `passOpenHistoryOverlay()` → `passRenderHistoryOverlay()`. Groups plays by trick (sequence from fresh lead to full-circuit clear), most-recent trick first. Active in-progress trick shown at the top with an "Active" chip; cleared tricks labelled "Cleared". Each play row shows player name + combo label (or "Pass" in subdued style). Three new state variables: `passCurrentTrickPlays`, `passTrickLog`, `passCurrentTrickNum`. Three helpers: `passRecordPlay(playerIdx, combo)`, `passRecordPass(playerIdx)`, `passCompleteTrick(winnerIdx)`. Integration points: `passProcessPlay` (play recorded + trick completed on round win), `passProcessPass` (pass recorded + trick completed on full-circuit clear), SYNC handler (clients record from payload `action_type` + `trickWinner`). `pass-history-overlay` added to `resetToLobby()` teardown.
+
+**Feature 3 — Hand Sorting + Dynamic Play Button**
+All hands sorted lowest→highest (3→K→A→2→Joker) on deal via `passCardSortKey(card)`. Sort applied in `passStartRound()` (single/host) and in the `PASS_GAME_START` SYNC handler (clients). The "Play Selected" button (`btn-pass-play`) now uses opacity-based validity feedback instead of `disabled` (which was removed). After every card tap, `passUpdatePlayButton()` checks `passDetectCombo` + `passIsValidPlay` on the current selection and sets `btn-pass-play` opacity to `1` (valid) or `0.45` (nothing selected or invalid). The button remains untouched (`disabled` removed) so taps on an invalid selection still produce the shake/error-message feedback from `passSubmitPlay()`. `passUpdatePlayButton()` is also called from `passRenderTable()` to reset the button on every full render.
+
+**Feature 4 — Action button balance**
+Confirmed existing layout correct during design discussion — no changes required. "Play Selected" wide-dominant on the right, "Pass" smaller on the left.
+
+**SW:** v129
+
+---
+
+## Play Screen Polish Pass 2 (26 June 2026)
+
+Five bug fixes and one feature addition to `screen-pass-table`. SW → v130.
+
+**BUG-05 — Trick does not clear until the table leader passes their own combo** *(found: playtesting)*
+- **What happened:** In a 4-player game, after A lays a combo and B/C/D all pass in turn, the table does not clear — the game then awaits A passing their own combo before the trick clears, incorrectly giving the re-lead to B (not A).
+- **Root cause:** `passProcessPass()` checked `passConsecPasses >= passPlayerCount`. After the last non-leader passes, consec reaches `passPlayerCount - 1` (e.g. 3 in a 4-player game), not `passPlayerCount`. The leader had to pass their own combo as pass #4 to trigger the clear. The correct threshold is `passPlayerCount - 1` (all OTHER players have passed consecutively).
+- **Cascading effects:** (a) the wrong player received the open-table lead after the clear; (b) a player could pass on an open table because the pass counter would then hit the (incorrect) trigger, making an entirely separate "clear" fire with a wrong winner — see BUG-06 below.
+- **Fix:** Changed `>= passPlayerCount` to `>= passPlayerCount - 1` in `passProcessPass()`. After the fix, `(playerIdx + 1) % n` naturally equals `passTableLeaderIdx` because the last passer is always the seat immediately before the leader in the clockwise circuit.
+
+**BUG-06 — Passing permitted on an open table** *(found: playtesting)*
+- **What happened:** When the table was open (leader's turn to play first), the Pass button was enabled and clickable. Submitting a pass on an open table corrupted the consecutive-pass counter, eventually triggering phantom trick-clears with the wrong winner.
+- **Root cause:** `btn-pass-pass.disabled` only checked `!isMyTurn` — no check for `passTableCombo === null`. `passSubmitPass()` had no open-table guard either.
+- **Fix:** `btn-pass-pass.disabled = !isMyTurn || passTableCombo === null;` in `passRenderTable()`. Added a guard in `passSubmitPass()` that calls `passShakeButton('btn-pass-pass')` and `passShowError('Open table — you must lead.')` when `passTableCombo === null`, then returns early.
+
+**BUG-07 — Shake animation persists for the entire game after the first invalid play** *(found: playtesting)*
+- **What happened:** After any invalid play attempt, the Play button shook continuously until the end of the game.
+- **Root cause:** `passShakeButton()` calls `classList.add('shake')` but never removes the class. The global `.shake` CSS rule uses `animation: shake 0.55s ease-in-out infinite` — `infinite` keeps it running forever.
+- **Fix:** Added `clearTimeout(el._shakeTimer); el._shakeTimer = setTimeout(() => el.classList.remove('shake'), 600);` in `passShakeButton()` after adding the class. One full animation cycle (600ms) plays then stops cleanly.
+- **Note:** The `infinite` keyword in the global `.shake` class is shared across other games that manage it differently. The fix is in the caller, not the CSS.
+- **Pattern to propagate:** Any game using `.shake` must pair `classList.add('shake')` with a timed `classList.remove('shake')` or an `animationend` listener. Failing to remove a persistent-animation class is a recurring trap.
+
+**BUG-08 — Leftmost player node clipped at the tracker container edge** *(found: playtesting)*
+- **What happened:** The leftmost player bubble in `pass-player-tracker` had its left border shadow and pulse animation clipped — the glow appeared to cut off mid-element.
+- **Root cause:** `.pass-player-active` applies `box-shadow: 0 0 0 5px rgba(24,24,27,0.18)` (5px at its peak) and `transform: scale(1.06)`. Both extend beyond the element boundary. `overflow-x-auto` on the container clips any content extending past the scroll-port edge — no breathing room on the left side.
+- **Fix:** Added `px-1 pt-1` to `#pass-player-tracker` in `index.html` so the leftmost node's shadow and scale have room to render without clipping.
+
+**Feature — Active Play Arena** *(26 June 2026)*
+- **What changed:** The flat text pod (`#pass-table-combo-display`, showing e.g. "Single — Alice") was replaced with a three-zone visual pod (`#pass-arena-pod`) that renders the actual played cards using `Cards.buildEl()`:
+  - `#pass-arena-label` — combo type label in small-caps (0.6rem) anchored to top of pod
+  - `#pass-arena-cards` — rendered card elements using `.pass-arena-card` sizing
+  - `#pass-arena-leader` — player name in subdued 0.6rem text anchored below cards
+  - Open-table state: label "Open Table", placeholder text "Lead anything." in stone-400
+- **Overlap rules (negative `marginLeft` on cards[i>0]):** 0px (1 card), −4px (pair), −10px (3–4 cards), −14px (5–6 cards), −18px (7+). Cards sorted ascending by `passCardSortKey()` for left-to-right readability. Fine enough that rank/suit corner text remains readable at all combo sizes.
+- **New state:** `passTableCards = []` stores the card objects currently on the table. Captured in `passProcessPlay()` from `passHands[playerIdx]` *before* the `splice` loop removes them. Cleared in `passStartRound()`, `passProcessPass()` on trick-clear, and `PASS_GAME_START` client handler.
+- **SYNC propagation:** `tableCards` added to all three `PASS_TURN_RESULT` SYNC payloads: the valid-play path in `passProcessPlay`, the trick-clear path in `passProcessPass`, and the simple-pass path in `passProcessPass`. Also added to `passProcessPassAfterAbyss`'s SYNC. Client `PASS_TURN_RESULT` handler applies `passTableCards = payload.tableCards || []`.
+- **New function:** `passRenderArena()` — called from `passRenderTable()` in place of the old text-block update. Reads `passTableCombo` and `passTableCards`; renders cards using `Cards.buildEl(card)` with `.pass-arena-card` added.
+- **New CSS (css/styles.css):** `.pass-arena-card` (2.4rem × 3.4rem, `flex-shrink:0`, 0.55rem base font, 0.4rem border-radius), `.pass-arena-card .pass-card-center-suit` (0.9rem), `.pass-arena-card .pass-card-rank` (0.6rem). Placed immediately after the `.pass-abyss-card` block.
+
+**SW:** v130
+
+---
+
+## Play Screen Polish Pass 3 (26 June 2026)
+
+Four fixes from continued playtesting. SW → v131.
+
+**BUG-08 (re-fix) — Leftmost player node still clipping after `px-1 pt-1` fix**
+- **What happened:** The `px-1` (4px) left padding added in Polish Pass 2 was still not enough — the peak shadow is 5px and `scale(1.06)` on a ~40px node pushes 2px further out, requiring ~7px of breathing room on the left.
+- **Fix:** Increased to `px-2 pt-2` (8px each side) so the pulse glow and scale have clear runway on both the left and top edges.
+
+**BUG-09 — Firebase null stripping: `passTableCombo = undefined` after every trick clear; pass permitted on open table in MDLM**
+- **What happened:** After a trick cleared in multiplayer, the arena permanently showed "Open Table / Lead anything." on all client devices, and the active player could pass on the open table — corrupting the consecutive-pass counter and causing phantom trick-clears.
+- **Root cause:** Firebase Realtime Database silently strips `null` values from JSON objects on write. When `passProcessPass()` sent `PASS_TURN_RESULT { tableCombo: null }` for a trick-clear, clients received `payload.tableCombo = undefined`. The SYNC handler set `passTableCombo = undefined`, not `null`. All three `=== null` guards (`passRenderTable` button disable, `passSubmitPass` early-return, and `passProcessPass` guard added later) use strict equality and pass through `undefined`, leaving the table in a permanently-open state.
+- **Root cause (compounding):** `passProcessPass()` itself had no guard at all — it accepted calls with an already-open table and immediately recorded the pass and incremented `passConsecPasses`, propagating the corruption before any SYNC was sent.
+- **Fix:** Three changes: (1) `passTableCombo = payload.tableCombo ?? null` in the SYNC handler (null-coalescing guarantees `null` when Firebase strips the field); (2) all `=== null` checks changed to `== null` (catches both `null` and `undefined`); (3) guard added at the very top of `passProcessPass()`: `if (passTableCombo == null) return;` — the host rejects the call entirely before any state mutation.
+- **Lesson:** When a state variable must be `null` (not `undefined`) to gate downstream logic, always use `?? null` when populating it from Firebase payloads. The broader rule is already documented in the Joker `suit` design decision — this bug proves it applies to *every* nullable field in every SYNC handler, not just schema-level choices.
+
+**BUG-10 — Mid-game draw cards appear unsorted in the hand**
+- **What happened:** With "Mid-Game Draw" on, cards dealt after a trick clear pushed to the right end of the hand array instead of their sorted position.
+- **Root cause:** `passHands[drawP].push(drawn)` in `passProcessPass()` appends to the array but `passCardSortKey`-based sort is only applied at deal time (`passStartRound()`), not on incremental draws. The SYNC handler's `push` on the client side had the same gap.
+- **Fix:** After the talon loop in `passProcessPass()`, added a post-draw sort for every player that received a card: `talonDraws.forEach(({ playerIdx: p }) => passHands[p].sort(...))`. In the client SYNC handler, after applying the player's drawn card, if `ownDrawn` a sort of `passHands[mpMyPlayerIdx]` is run. Same fix applied in the `PASS_ABYSS_DRAFT` handler for consistency.
+
+**Feature — History log shows actual cards played**
+- **What changed:** The trick-history log previously showed only the combo type label (e.g. "Single"). The play entry chip now shows a second subdued line with the actual cards (e.g. "♠2" or "♥K ♦K") directly beneath the combo label.
+- **Implementation:** `passRecordPlay(playerIdx, combo)` gained a third `cards` parameter; `passCurrentTrickPlays` entries now carry `cards: []`. The call in `passProcessPlay` passes `passTableCards.slice()` (captured before splice). The client SYNC handler passes `payload.tableCards || []`. `passRenderHistoryOverlay` renders the cards line as `suit+rank` strings (Joker → "🃏") in a `text-stone-400 font-normal text-[0.65rem]` span beneath the combo label. No Firebase payload changes — `tableCards` was already sent in all `PASS_TURN_RESULT` packets from Polish Pass 2.

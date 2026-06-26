@@ -16,6 +16,15 @@ Only one actor is live at a time (server → receiver), so there is no simultane
 **Render seam `frtRenderCard(fruitId, {faceDown})` — asset-pack ready**
 All card DOM goes through this one function; game logic + packets deal only in `fruitId` (0–7). `FRT_FRUITS` is the stable data contract (the `emoji` field is the v1 "skin"). A future image pack changes only this function's body — zero game-logic/packet churn. First emoji-card game; promote to a shared `js/lib/` skin registry only when a 2nd game needs packs (see [[project-asset-pack-direction]]).
 
+**Reveal timer extended to 5s; no confirmation overlay (playtest, June 2026)**
+The challenge-resolution screen auto-advanced after 2.6s — players couldn't read the result. Decision: extend to 5s rather than adding a confirmation overlay (a confirmation would drag out every serve). 5s is long enough to process the outcome without feeling like dead time, especially since the fruit log is available. If future playtests still feel rushed, the alternative is a host-controlled Continue button on the reveal screen (same pattern as Fruit Looped).
+
+**Single-target auto-select (playtest, June 2026)**
+When only one serve target (or peek-compose target) is valid, the player was forced to tap the only available pill before proceeding. Now auto-selected: `validTargets.length === 1` sets `frtServeTarget` without a tap. Same in peek-compose. Saves a pointless interaction in duel mode and Apple-lock situations.
+
+**Sounds added throughout gameplay (playtest, June 2026)**
+No audio feedback existed during play. Added: `playPillClick()` on stash card, target, and declaration pill selections in both serving and peek-compose; `playLaunch()` on Serve, "Slide it →", "Pass it on →"; `playDone()` on Call TRUE and Back; `playBoing()` on Call FALSE; `playWhoosh()` on Peek & Pass. Selection sounds make the game feel responsive; distinct sounds for True/False communicate the action's nature.
+
 **2-player "Pear of Fruits" duel auto-engages**
 Player count is lobby-driven in MDLM, so the duel isn't a manual toggle — `frtIsDuel()` = `frtPlayerCount === 2`. Duel changes: 10-card burn pile (54-card deal), no Peek & Pass, 5-card elimination threshold. Sylly Mode is mutually exclusive with the duel (greyed at 2 players), which deletes the entire 1v1 edge-case surface for Apple/Pear/cascades.
 
@@ -38,6 +47,33 @@ After tapping "Peek & Pass", `frtPeeked` was set to `true` and `frtRenderAwait()
 
 **Disconnection — non-host players dropping mid-game (found in live test, June 2026)**
 Reproduced consistently enough to rule out network loss. Likely candidates: (a) uncaught JS exception inside a Firebase `onValue` callback (`mpHandleEnvelope`) silently kills the listener — Firebase re-delivers buffered events against partially-reset state, or the listener detaches entirely; (b) `FRT_MATCH_DISSOLVED` re-delivery on reconnect triggering a spurious `resetToLobby()`; (c) mobile WebSocket being killed by the OS when backgrounded. Defensive fix applied: `frtHandleEnvelope` now wrapped in a top-level try-catch with `console.error('[FRT] envelope handler crash', e, env)` so crashes are logged rather than silently detaching the listener. Root cause not confirmed — open until a crash log is captured in a live session. **Next step:** enable remote debugging on a client device during the next MDLM test and check the console for `[FRT]` errors after a drop.
+
+**Fruit Looped screen auto-advanced with no readycheck (found in playtest, June 2026)**
+`frtHostRoundEnd()` stored round-end state and then fired a 3200ms auto-timeout to advance into `frtHostGameover()` or `frtStartRoundHost()`. Players had no time to read/react — the screen flashed past. Fix: removed the timeout entirely. Instead, `frtPendingRoundGameOver` and `frtPendingRoundOpener` hold the round-end decision; `frtRenderRoundEnd()` now renders a Continue button ("See Final Scores →" or "Next Fruit-Off →") for the host/single path, and "Waiting for host…" for clients. Clients already waited on `FRT_DEAL` or `FRT_GAMEOVER` — no new packets needed.
+
+**Own bowl invisible to active player (found in playtest, June 2026)**
+`frtRenderOpponents()` skipped `p === me`. Active player could not see their own Fruit Bowl at all. Fix: removed the skip; self renders with `bg-stone-100 ring-1 ring-stone-300` + `👤` suffix to distinguish from opponents. This matters because a player's own bowl drives elimination logic and is strategically relevant.
+
+**Sound button floats detached on gameover screen (found in playtest, June 2026)**
+`screen-frt-gameover` had `relative` on the section + `absolute top-4 right-4` on the sound button, combined with `min-h-screen`. Per the audit rule: a `min-h-screen` section makes the button anchor to the very top of the viewport, visually disconnected from the content stack. Fix: removed `relative` from section, moved the button inside the content div as the first child with `self-end` — it now sits in-line with the content stack at the top-right of the centred column.
+
+**Exit button was "✕ Done" routing to lobby (found in playtest, June 2026)**
+The gameover exit was labelled "✕ Done" — "tacky" per owner. The ✕ icon implies mid-game quit; a gameover exit should be a calm back-navigation. Fix: relabelled to "← Back to the Box" (standard pattern per `ui-style.md`). JS already called `resetToLobby()` — no logic change needed.
+
+**Sound button broken on all FRT screens (found in playtest, June 2026)**
+`engine.js` wires `.btn-open-sound` via a top-level `querySelectorAll` that runs at script-execution time (~line 3810 of `index.html`). FRT's HTML section is at ~line 7558 — it doesn't exist in the DOM yet when the engine selector fires. All newer MDLM games (DYB, GTH, BLD, PASS, NT, SHP) work around this by re-wiring in `DOMContentLoaded`. FRT was the only game still missing this. Fix: added explicit `DOMContentLoaded` wiring for all FRT screen sound buttons (menu, table, deal, gameover). **Lesson:** any game whose HTML appears after `engine.js` in `index.html` must re-wire `.btn-open-sound` in its own `DOMContentLoaded` block.
+
+**Settings button had no audio feedback (found in playtest, June 2026)**
+`frtOpenSettings()` opened the overlay without calling any audio function. All other game settings buttons use `playPillClick()`. Fix: added `playPillClick()` at the top of `frtOpenSettings()`.
+
+**Fruit Stock pill order adjusted (playtest, June 2026)**
+User requested reorder from Standard | Swift | Mega Salad → Swift | Standard | Mega Salad. Standard remains the default (still carries `pill-active-frt`). Rationale: Swift is the lighter/faster option and reads naturally at the start; Mega Salad is the extreme edge-case and reads naturally at the end.
+
+**Stash grid forced to 4-across (playtest, June 2026)**
+`frtRenderServing()` stash row used `flex flex-wrap`, which allowed uneven splits (5/3 at wider viewport widths). With exactly 8 unique fruit types (max 8 stash cards in the grouped view), `grid grid-cols-4` gives a clean 2×4 regardless of viewport width. Same fix applied to `frtRenderStandby()` which also displayed the player's stash. Narrower widths (3/3/2 → 2/2/2/2) are acceptable; 5/3 is not.
+
+**Fruity Personalities modal added (playtest, June 2026)**
+Sylly Mode personalities existed in game logic (`frtSyllyResolve`) but were never surfaced to players during a game. Added a new `frt-personalities-overlay` (data slide-up, z-[95]) listing all 8 fruit personalities with their trigger type (on-challenge / passive / on-peek / on-serve). Reachable from: (1) a `[?]` button next to "Fruity Personalities" in the How to Play overlay; (2) a `[?]` button next to "Your stash" label on the serving screen when Sylly Mode is ON. z-[95] is necessary because the overlay can be opened from within `frt-how-to-overlay` at z-[90].
 
 *Build syntax-verified via `node --check`; full live MDLM playthrough still pending.*
 

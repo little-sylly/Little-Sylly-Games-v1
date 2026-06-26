@@ -1412,3 +1412,41 @@ body.flash-red   { background-color: #fecaca; }
   box-shadow: 0 2px 6px rgba(0,0,0,0.15);
 }
 .pass-abyss-card .pass-card-center-suit { font-size: 1.1rem; }
+
+/* ── Arena pod cards (table combo visual display) ───────────────────────── */
+.pass-arena-card {
+  flex-shrink: 0;
+  width: 2.4rem;
+  height: 3.4rem;
+  font-size: 0.55rem;
+  border-radius: 0.4rem;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+}
+.pass-arena-card .pass-card-center-suit { font-size: 0.9rem; }
+.pass-arena-card .pass-card-rank       { font-size: 0.6rem; }
+
+/* ── Player status tracker ──────────────────────────────────────────────── */
+.pass-player-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 6px 8px;
+  border-radius: 10px;
+  border: 2px solid transparent;
+  flex-shrink: 0;
+  transition: transform 0.2s ease, border-color 0.2s ease, opacity 0.2s ease;
+}
+.pass-player-node.pass-player-active {
+  border-color: #18181b;
+  background: #fff;
+  transform: scale(1.06);
+  animation: pass-tracker-pulse 1.8s ease-in-out infinite;
+}
+.pass-player-node.pass-player-inactive {
+  opacity: 0.55;
+}
+@keyframes pass-tracker-pulse {
+  0%, 100% { box-shadow: 0 0 0 2px rgba(24,24,27,0.08); }
+  50%       { box-shadow: 0 0 0 5px rgba(24,24,27,0.18); }
+}

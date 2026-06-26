@@ -44,12 +44,18 @@ let passHasPlayedCard  = [];    // [playerCount] bool — played any card this r
 let passAbyss          = [];    // Sylly Mode: face-up central pool
 let passRoundWinnerIdx = -1;
 let passConsecPasses   = 0;     // consecutive passes since last valid play — table-clear trigger only
+let passTableCards     = [];    // the card objects currently on the table — for arena display only
 let passDeckIdx        = 0;     // 0 = Deck 1 (charcoal grey), 1 = Deck 2 (crimson red)
 
 // ── Turn state (reset each turn) ─────────────────────────────────────────────
 let passCurrentPlayerIdx = 0;
 let passSelectedCardIdxs = [];        // indices into passHands[mpMyPlayerIdx]
 let passPhase            = 'your-turn'; // 'your-turn' | 'waiting' | 'abyss-draft' | 'round-over'
+
+// ── Trick history (round-scoped) ──────────────────────────────────────────────
+let passCurrentTrickPlays = [];  // [{ playerIdx, action, comboLabel }]
+let passTrickLog          = [];  // [{ trickNum, plays, winnerIdx }]
+let passCurrentTrickNum   = 1;
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const PASS_RANK_VALUES = {
@@ -58,6 +64,11 @@ const PASS_RANK_VALUES = {
 };
 const PASS_SUITS = ['♠','♥','♦','♣'];
 const PASS_RANKS = ['3','4','5','6','7','8','9','10','J','Q','K','A','2'];
+
+function passCardSortKey(card) {
+  if (card.rank === 'Joker') return passSkyJokerVariant ? 16 : 14;
+  return PASS_RANK_VALUES[card.rank] || 0;
+}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // DECK BUILDING
@@ -371,6 +382,7 @@ function passStartRound() {
   passHands   = Array.from({ length: passPlayerCount }, () => []);
   passTableCombo     = null;
   passTableLeaderIdx = -1;
+  passTableCards     = [];
   passPassCount      = Array(passPlayerCount).fill(0);
   passHasPlayedCard  = Array(passPlayerCount).fill(false);
   passAbyss          = [];
@@ -383,6 +395,14 @@ function passStartRound() {
       if (passDeck.length > 0) passHands[p].push(passDeck.pop());
     }
   }
+
+  // Sort all hands lowest→highest so the display is immediately readable
+  passHands.forEach(h => h.sort((a, b) => passCardSortKey(a) - passCardSortKey(b)));
+
+  // Reset trick history for the new round
+  passCurrentTrickPlays = [];
+  passTrickLog          = [];
+  passCurrentTrickNum   = 1;
 
   // Determine who leads first
   if (passMatchRound === 1) {
@@ -442,31 +462,35 @@ function passRenderTable() {
   const durLabel = passMatchDuration === 'endless' ? '∞' : passMatchDuration;
   document.getElementById('pass-table-round-label').textContent = `Round ${passMatchRound} of ${durLabel}`;
 
-  // ── Opponents strip ──────────────────────────────────────────────────────
-  const strip = document.getElementById('pass-table-opponents');
-  strip.innerHTML = '';
+  // ── Player status tracker (all players, turn order, chevrons) ───────────
+  const tracker = document.getElementById('pass-player-tracker');
+  tracker.innerHTML = '';
   for (let p = 0; p < passPlayerCount; p++) {
-    if (p === myIdx) continue;
+    if (p > 0) {
+      const chevron = document.createElement('span');
+      chevron.className = 'text-stone-300 text-xs self-center flex-shrink-0';
+      chevron.textContent = '›';
+      tracker.appendChild(chevron);
+    }
     const isActive = p === passCurrentPlayerIdx;
-    const el = document.createElement('div');
-    el.className = 'flex flex-col items-center gap-1 ' + (isActive ? 'opacity-100' : 'opacity-50');
-    el.innerHTML = `
-      <div class="w-8 h-12 relative">${Cards.buildBackEl(passDeckIdx).outerHTML}</div>
-      <span class="text-xs text-stone-500 font-semibold">${passHands[p] ? passHands[p].length : '?'}</span>
-      <span class="text-xs text-stone-700 font-medium truncate max-w-[4rem]">${passPlayerNames[p] || 'P' + (p + 1)}</span>
-      ${isActive ? '<span class="text-xs text-zinc-900 font-bold">▲</span>' : ''}
+    const isMe     = p === myIdx;
+    const cardCount = passHands[p] ? passHands[p].length : 0;
+    const name = (passPlayerNames[p] || ('P' + (p + 1))) + (isMe ? ' ★' : '');
+
+    const node = document.createElement('div');
+    node.className = 'pass-player-node ' + (isActive ? 'pass-player-active' : 'pass-player-inactive');
+    node.innerHTML = `
+      <span class="text-xs font-semibold text-stone-800 truncate max-w-[4rem]">${name}</span>
+      <div class="flex items-center gap-0.5 bg-stone-100 rounded-lg px-1.5 py-0.5">
+        <span class="text-[0.6rem] leading-none">🂠</span>
+        <span class="text-xs font-bold text-stone-700 leading-none">${cardCount}</span>
+      </div>
     `;
-    strip.appendChild(el);
+    tracker.appendChild(node);
   }
 
-  // ── Table combo display ──────────────────────────────────────────────────
-  const tableDisplay = document.getElementById('pass-table-combo-display');
-  if (passTableCombo) {
-    tableDisplay.textContent = passComboLabel(passTableCombo) +
-      (passTableLeaderIdx >= 0 ? ` (${passPlayerNames[passTableLeaderIdx]})` : '');
-  } else {
-    tableDisplay.textContent = 'Open table — lead anything.';
-  }
+  // ── Active play arena ────────────────────────────────────────────────────
+  passRenderArena();
 
   // ── Abyss pool (Sylly Mode) ──────────────────────────────────────────────
   const abyssSection = document.getElementById('pass-abyss-section');
@@ -482,9 +506,10 @@ function passRenderTable() {
 
   // ── Controls ─────────────────────────────────────────────────────────────
   const isMyTurn = myIdx === passCurrentPlayerIdx && passPhase === 'your-turn';
-  document.getElementById('btn-pass-play').disabled  = !isMyTurn;
-  document.getElementById('btn-pass-pass').disabled  = !isMyTurn;
+  // Cannot pass on an open table — the table leader must play something first
+  document.getElementById('btn-pass-pass').disabled = !isMyTurn || passTableCombo == null;
   document.getElementById('pass-table-status').textContent = passTableStatusText();
+  passUpdatePlayButton();
 
   // Staring escalation text
   const myPassStreak = passPassCount[myIdx] || 0;
@@ -517,6 +542,155 @@ function passComboLabel(combo) {
     'Sequence': `Sequence (${combo.count})`, 'DoubleSequence': `Double Sequence (${combo.count} pairs)`,
   };
   return typeNames[combo.type] || combo.type;
+}
+
+function passRenderArena() {
+  const labelEl   = document.getElementById('pass-arena-label');
+  const cardsEl   = document.getElementById('pass-arena-cards');
+  const leaderEl  = document.getElementById('pass-arena-leader');
+  if (!cardsEl) return;
+  cardsEl.innerHTML = '';
+
+  if (!passTableCombo || passTableCards.length === 0) {
+    labelEl.textContent  = 'Open Table';
+    leaderEl.textContent = '';
+    const ph = document.createElement('p');
+    ph.className   = 'text-stone-400 text-xs text-center';
+    ph.textContent = 'Lead anything.';
+    cardsEl.appendChild(ph);
+    return;
+  }
+
+  labelEl.textContent  = passComboLabel(passTableCombo);
+  leaderEl.textContent = passTableLeaderIdx >= 0
+    ? (passPlayerNames[passTableLeaderIdx] || '') : '';
+
+  // Sort cards ascending by rank for a readable left-to-right display
+  const sorted = passTableCards.slice().sort((a, b) => passCardSortKey(a) - passCardSortKey(b));
+  const n = sorted.length;
+
+  // Overlap increases with hand size so corner indices always stay visible
+  const overlapPx = n <= 1 ? 0
+    : n === 2      ? -4
+    : n <= 4       ? -10
+    : n <= 6       ? -14
+    : -18;
+
+  sorted.forEach((card, i) => {
+    const el = Cards.buildEl(card);
+    el.classList.add('pass-arena-card');
+    if (i > 0) el.style.marginLeft = overlapPx + 'px';
+    cardsEl.appendChild(el);
+  });
+}
+
+// ── Trick history helpers ─────────────────────────────────────────────────────
+
+function passRecordPlay(playerIdx, combo, cards) {
+  const label = combo ? passComboLabel(combo) : 'played';
+  passCurrentTrickPlays.push({ playerIdx, action: 'play', comboLabel: label, cards: cards || [] });
+}
+
+function passRecordPass(playerIdx) {
+  passCurrentTrickPlays.push({ playerIdx, action: 'pass', comboLabel: null });
+}
+
+function passCompleteTrick(winnerIdx) {
+  if (passCurrentTrickPlays.length === 0) return;
+  passTrickLog.push({
+    trickNum: passCurrentTrickNum,
+    plays: passCurrentTrickPlays.slice(),
+    winnerIdx,
+  });
+  passCurrentTrickNum++;
+  passCurrentTrickPlays = [];
+}
+
+// ── History overlay ───────────────────────────────────────────────────────────
+
+function passOpenHistoryOverlay() {
+  passRenderHistoryOverlay();
+  document.getElementById('pass-history-overlay').style.display = 'flex';
+}
+
+function passRenderHistoryOverlay() {
+  const body = document.getElementById('pass-history-body');
+  body.innerHTML = '';
+
+  const allTricks = passTrickLog.slice().reverse(); // most recent first
+  // Also include the in-progress trick if it has plays
+  if (passCurrentTrickPlays.length > 0) {
+    allTricks.unshift({
+      trickNum: passCurrentTrickNum,
+      plays: passCurrentTrickPlays.slice(),
+      winnerIdx: null, // still active
+    });
+  }
+
+  if (allTricks.length === 0) {
+    const empty = document.createElement('p');
+    empty.className = 'text-stone-400 text-sm text-center py-4';
+    empty.textContent = 'No plays yet this round.';
+    body.appendChild(empty);
+    return;
+  }
+
+  allTricks.forEach(trick => {
+    const section = document.createElement('div');
+    section.className = 'flex flex-col gap-2';
+
+    const isActive = trick.winnerIdx === null;
+    const header = document.createElement('div');
+    header.className = 'flex items-center gap-2';
+    const badge = document.createElement('span');
+    badge.className = isActive
+      ? 'text-xs font-bold uppercase tracking-widest text-zinc-900'
+      : 'text-xs font-bold uppercase tracking-widest text-stone-400';
+    badge.textContent = `Trick ${trick.trickNum}`;
+    const statusChip = document.createElement('span');
+    statusChip.className = isActive
+      ? 'text-[0.65rem] font-semibold bg-zinc-900 text-white rounded-full px-2 py-0.5'
+      : 'text-[0.65rem] font-semibold bg-stone-200 text-stone-500 rounded-full px-2 py-0.5';
+    statusChip.textContent = isActive ? 'Active' : 'Cleared';
+    header.appendChild(badge);
+    header.appendChild(statusChip);
+    section.appendChild(header);
+
+    const card = document.createElement('div');
+    card.className = 'bg-white rounded-xl px-4 py-3 shadow-sm flex flex-col gap-1.5';
+
+    trick.plays.forEach(play => {
+      const row = document.createElement('div');
+      row.className = 'flex items-center justify-between gap-2';
+      const name = document.createElement('span');
+      name.className = 'text-stone-700 text-sm font-semibold truncate';
+      name.textContent = passPlayerNames[play.playerIdx] || ('P' + (play.playerIdx + 1));
+      const action = document.createElement('span');
+      if (play.action === 'pass') {
+        action.className = 'text-stone-400 text-xs font-semibold';
+        action.textContent = 'Pass';
+      } else {
+        action.className = 'text-zinc-900 text-xs font-semibold bg-stone-100 rounded-lg px-2 py-0.5 flex flex-col items-end gap-0.5';
+        const comboLine = document.createElement('span');
+        comboLine.textContent = play.comboLabel;
+        action.appendChild(comboLine);
+        if (play.cards && play.cards.length > 0) {
+          const cardsLine = document.createElement('span');
+          cardsLine.className = 'text-stone-400 font-normal text-[0.65rem]';
+          cardsLine.textContent = play.cards.map(c =>
+            c.rank === 'Joker' ? '🃏' : c.suit + c.rank
+          ).join(' ');
+          action.appendChild(cardsLine);
+        }
+      }
+      row.appendChild(name);
+      row.appendChild(action);
+      card.appendChild(row);
+    });
+
+    section.appendChild(card);
+    body.appendChild(section);
+  });
 }
 
 function passRenderHand() {
@@ -554,6 +728,21 @@ function passToggleCardSelect(idx) {
     passSelectedCardIdxs.splice(i, 1);
   }
   passRenderHand();
+  passUpdatePlayButton();
+}
+
+function passUpdatePlayButton() {
+  const btn = document.getElementById('btn-pass-play');
+  if (!btn) return;
+  if (passPhase !== 'your-turn' || passSelectedCardIdxs.length === 0) {
+    btn.style.opacity = '0.45';
+    return;
+  }
+  const hand = passHands[mpMyPlayerIdx] || [];
+  const selectedCards = passSelectedCardIdxs.map(i => hand[i]);
+  const combo = passDetectCombo(selectedCards);
+  const valid = combo && passIsValidPlay(combo, hand).valid;
+  btn.style.opacity = valid ? '1' : '0.45';
 }
 
 // ── Submit play ───────────────────────────────────────────────────────────────
@@ -623,6 +812,12 @@ function passSubmitPlay() {
 function passSubmitPass() {
   const myIdx = mpMyPlayerIdx;
   if (myIdx !== passCurrentPlayerIdx) return;
+  if (passTableCombo == null) {
+    // Cannot pass on an open table — the leader must play
+    passShakeButton('btn-pass-pass');
+    passShowError('Open table — you must lead.');
+    return;
+  }
 
   playWhoosh();
 
@@ -654,6 +849,8 @@ function passIsDetonationCombo(combo) {
 
 function passProcessPlay(playerIdx, cardIndices, combo) {
   const hand = passHands[playerIdx];
+  // Capture the played cards BEFORE removing from hand — needed for arena display
+  passTableCards = cardIndices.slice().sort((a, b) => a - b).map(i => hand[i]);
   // Remove played cards (sort descending to preserve indices)
   cardIndices.sort((a, b) => b - a).forEach(i => hand.splice(i, 1));
 
@@ -662,10 +859,12 @@ function passProcessPlay(playerIdx, cardIndices, combo) {
   passHasPlayedCard[playerIdx] = true;
   passConsecPasses   = 0;
   passPassCount[playerIdx] = 0;
+  passRecordPlay(playerIdx, combo, passTableCards.slice());
 
   // Check round win: hand empty after play
   if (hand.length === 0) {
     passRoundWinnerIdx = playerIdx;
+    passCompleteTrick(playerIdx);
     if (window.syllyMultiplayerMode !== 'single') {
       // Abyss detonates only when the round is won by a Detonation Combo — the pool
       // is distributed to opponents BEFORE scoring; the winner is exempt. A Standard
@@ -708,6 +907,7 @@ function passProcessPlay(playerIdx, cardIndices, combo) {
       playerIdx,
       action_type:    'play',
       tableCombo:     passTableCombo,
+      tableCards:     passTableCards,
       nextPlayerIdx:  passCurrentPlayerIdx,
       abyss:          passAbyss,
       passStreak:     passPassCount[playerIdx],
@@ -722,8 +922,11 @@ function passProcessPlay(playerIdx, cardIndices, combo) {
 }
 
 function passProcessPass(playerIdx) {
+  // Guard: cannot pass on an open table (Firebase may deliver null as undefined)
+  if (passTableCombo == null) return;
   passPassCount[playerIdx]++;
   passConsecPasses++;
+  passRecordPass(playerIdx);
 
   // Abyss: draw 1 card into pool on every pass (Sylly Mode)
   if (passSyllyMode && passDeck.length > 0) {
@@ -740,16 +943,20 @@ function passProcessPass(playerIdx) {
     }
   }
 
-  // Full-circle pass: everyone passed since last play — the trick resolves.
-  if (passConsecPasses >= passPlayerCount) {
+  // Full-circle pass: all OTHER players have passed — the trick resolves.
+  // Threshold is passPlayerCount - 1 (everyone except the table leader who played
+  // the winning combo). When the last passer triggers this, (playerIdx + 1) % n
+  // naturally resolves to trickWinner (the leader is next after the full rotation).
+  if (passConsecPasses >= passPlayerCount - 1) {
     // The trick winner is whoever's combo no one beat = the current table leader.
     // Capture it before clearing — it drives both the Abyss exemption and the
-    // talon-draw start seat. (In this flow the last passer always cycles back to
-    // the leader, but passTableLeaderIdx is the unambiguous source of truth.)
+    // talon-draw start seat.
     const trickWinner  = passTableLeaderIdx;
     const winningCombo = passTableCombo; // capture before reset — gates Abyss detonation
+    passCompleteTrick(trickWinner);
     passTableCombo     = null;
     passTableLeaderIdx = -1;
+    passTableCards     = [];
     passConsecPasses   = 0;
 
     // Abyss detonation (Sylly Mode): only when the trick was WON by a Detonation
@@ -773,6 +980,10 @@ function passProcessPass(playerIdx) {
           talonDraws.push({ playerIdx: drawP, card: drawn });
         }
       }
+      // Re-sort every hand that received a card so rank order is preserved
+      talonDraws.forEach(({ playerIdx: p }) => {
+        passHands[p].sort((a, b) => passCardSortKey(a) - passCardSortKey(b));
+      });
     }
 
     if (window.syllyMultiplayerMode !== 'single') {
@@ -781,10 +992,12 @@ function passProcessPass(playerIdx) {
         playerIdx,
         action_type:   'pass',
         tableCombo:    null,
+        tableCards:    [],
         nextPlayerIdx: (playerIdx + 1) % passPlayerCount,
         abyss:         passAbyss,
         passStreak:    passPassCount[playerIdx],
         tableCleared:  true,
+        trickWinner,
         handCounts:    passHands.map(h => h.length),
       };
       if (abyssDraft) payload.abyssDraft = abyssDraft;
@@ -813,6 +1026,7 @@ function passProcessPass(playerIdx) {
       playerIdx,
       action_type:   'pass',
       tableCombo:    passTableCombo,
+      tableCards:    passTableCards,
       nextPlayerIdx: passCurrentPlayerIdx,
       abyss:         passAbyss,
       passStreak:    passPassCount[playerIdx],
@@ -857,6 +1071,7 @@ function passProcessPassAfterAbyss(playerIdx) {
       playerIdx,
       action_type:   'pass',
       tableCombo:    passTableCombo,
+      tableCards:    passTableCards,
       nextPlayerIdx: passCurrentPlayerIdx,
       abyss:         passAbyss,
       passStreak:    passPassCount[playerIdx],
@@ -1127,17 +1342,26 @@ function passHandleEnvelope(env) {
       passMatchOver        = false;
       passTableCombo       = null;
       passTableLeaderIdx   = -1;
+      passTableCards       = [];
       passPassCount        = Array(passPlayerCount).fill(0);
       passHasPlayedCard    = Array(passPlayerCount).fill(false);
       passAbyss            = [];
       passConsecPasses     = 0;
+      // Sort all hands lowest→highest so display is immediately readable
+      passHands.forEach(h => h.sort((a, b) => passCardSortKey(a) - passCardSortKey(b)));
+      // Reset trick history for the new round
+      passCurrentTrickPlays = [];
+      passTrickLog          = [];
+      passCurrentTrickNum   = 1;
       mpUnlockSync();
       passShowTable();
       return;
     }
 
     if (payload.action === 'PASS_TURN_RESULT') {
-      passTableCombo       = payload.tableCombo;
+      // Firebase strips null fields — use ?? null so passTableCombo is never undefined
+      passTableCombo       = payload.tableCombo ?? null;
+      passTableCards       = payload.tableCards || [];
       passCurrentPlayerIdx = payload.nextPlayerIdx;
       passAbyss            = payload.abyss || [];
       passPassCount[payload.playerIdx] = payload.passStreak || 0;
@@ -1158,17 +1382,31 @@ function passHandleEnvelope(env) {
           }
         });
       }
-      // Mid-Game Draw: update own hand if we received a card
+      // Mid-Game Draw: update own hand if we received a card, then re-sort
       if (payload.talonDraws) {
+        let ownDrawn = false;
         payload.talonDraws.forEach(draw => {
           if (draw.playerIdx === mpMyPlayerIdx && draw.card) {
             passHands[mpMyPlayerIdx].push(draw.card);
+            ownDrawn = true;
           }
         });
+        if (ownDrawn) {
+          passHands[mpMyPlayerIdx].sort((a, b) => passCardSortKey(a) - passCardSortKey(b));
+        }
       }
       // Clear selection from remote play
       if (payload.playerIdx === mpMyPlayerIdx) {
         passSelectedCardIdxs = [];
+      }
+      // ── History recording (clients only — host records via processPlay/processPass) ──
+      if (payload.action_type === 'play') {
+        passRecordPlay(payload.playerIdx, payload.tableCombo, payload.tableCards || []);
+      } else if (payload.action_type === 'pass') {
+        passRecordPass(payload.playerIdx);
+        if (payload.tableCleared && payload.trickWinner != null) {
+          passCompleteTrick(payload.trickWinner);
+        }
       }
       mpUnlockSync();
       passShowTable();
@@ -1177,13 +1415,18 @@ function passHandleEnvelope(env) {
 
     if (payload.action === 'PASS_ABYSS_DRAFT') {
       passAbyss = []; // pool distributed
-      // Apply draft cards to own hand
+      // Apply draft cards to own hand, then re-sort
       if (payload.draftCards && payload.draftOrder) {
+        let ownDrawn = false;
         payload.draftOrder.forEach((pIdx, i) => {
           if (pIdx === mpMyPlayerIdx && payload.draftCards[i]) {
             passHands[mpMyPlayerIdx].push(payload.draftCards[i]);
+            ownDrawn = true;
           }
         });
+        if (ownDrawn) {
+          passHands[mpMyPlayerIdx].sort((a, b) => passCardSortKey(a) - passCardSortKey(b));
+        }
       }
       mpUnlockSync();
       passRenderTable();
@@ -1270,6 +1513,10 @@ function passShakeButton(id) {
   el.classList.remove('shake');
   void el.offsetWidth;
   el.classList.add('shake');
+  // Remove after one animation cycle — the global .shake class uses `infinite`
+  // so it must be explicitly stopped; without this the button shakes for the entire game.
+  clearTimeout(el._shakeTimer);
+  el._shakeTimer = setTimeout(() => el.classList.remove('shake'), 600);
 }
 
 function passShowError(msg) {
@@ -1462,6 +1709,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('btn-pass-pass').addEventListener('click', () => {
     passSubmitPass();
+  });
+
+  // ── Table log overlay ──────────────────────────────────────────────────────
+  document.getElementById('btn-pass-open-history').addEventListener('click', () => {
+    playDone();
+    passOpenHistoryOverlay();
+  });
+  document.getElementById('btn-pass-history-close').addEventListener('click', () => {
+    playDone();
+    document.getElementById('pass-history-overlay').style.display = 'none';
   });
 
   // ── Seating confirm (host only) ───────────────────────────────────────────

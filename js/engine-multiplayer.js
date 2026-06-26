@@ -729,7 +729,7 @@ function mpSerialiseSettings(abbr) {
       gthDisordersPerPatient, gthDrawingTime, gthDiagnosisWindow,
       gthDifficultyMix, gthDeepDive, gthSyllyMode,
     };
-    case 'dyb': return { dybWildcardsStyle, dybStartingHand, dybSyllyMode, dybSyllyIntensity };
+    case 'dyb': return { dybWildcardsStyle, dybStartingHand, dybFootholdsMode, dybFootholdsCount, dybSyllyMode, dybSyllyIntensity };
     case 'pass': return {
       passHandSize, passChipStack, passMatchDuration, passBombStrictness,
       passMidGameDraw, passMinSequenceLength, passJokerCount, passSkyJokerVariant, passSyllyMode,
@@ -859,10 +859,12 @@ function mpHandleEnvelope(env) {
           if (s.gthSyllyMode           !== undefined) gthSyllyMode           = s.gthSyllyMode;
           break;
         case 'dyb':
-          if (s.dybWildcardsStyle !== undefined) dybWildcardsStyle = s.dybWildcardsStyle;
-          if (s.dybStartingHand   !== undefined) dybStartingHand   = s.dybStartingHand;
-          if (s.dybSyllyMode      !== undefined) dybSyllyMode      = s.dybSyllyMode;
-          if (s.dybSyllyIntensity !== undefined) dybSyllyIntensity = s.dybSyllyIntensity;
+          if (s.dybWildcardsStyle  !== undefined) dybWildcardsStyle  = s.dybWildcardsStyle;
+          if (s.dybStartingHand    !== undefined) dybStartingHand    = s.dybStartingHand;
+          if (s.dybFootholdsMode   !== undefined) dybFootholdsMode   = s.dybFootholdsMode;
+          if (s.dybFootholdsCount  !== undefined) dybFootholdsCount  = s.dybFootholdsCount;
+          if (s.dybSyllyMode       !== undefined) dybSyllyMode       = s.dybSyllyMode;
+          if (s.dybSyllyIntensity  !== undefined) dybSyllyIntensity  = s.dybSyllyIntensity;
           break;
         case 'li5':
           if (s.settingTimer        !== undefined) settingTimer        = s.settingTimer;

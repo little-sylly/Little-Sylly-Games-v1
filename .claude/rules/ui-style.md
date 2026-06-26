@@ -195,74 +195,82 @@ Not `bg-white`, not `shadow-xl`, not `p-8`, not `rounded-2xl`, not `border-2`.
 
 ---
 
-## Centered Content Layout (Default — Phone Screens)
+## The Stack — Canonical Screen Layout (read this before building ANY screen)
 
-**Trigger:** Any gameplay flow screen where content flows naturally without a required sticky footer.
+Every screen in every game is built from **the Stack**: three zones stacked in one vertical column, held together and floated in the middle of the viewport. This is the *single* layout standard — there is no per-screen "which pattern?" decision to make. Pick the Stack. Always.
 
-This is the **default pattern** for new screens. Use it for: setup, observation, handover, tally, gameover, last stand, review screens — any screen where the button can sit below the content.
+### Terminology (use these exact words in code comments, specs, and audits)
+
+| Term | What it is |
+|------|-----------|
+| **The Stack** | The whole screen — the three zones as one unit, centred in the viewport |
+| **Header** (zone 1) | Title / round-info (e.g. "Round 1 of 2", the screen name) on the left or centre; `[?]` + 🔊 + ✕ on the right |
+| **Stage** (zone 2) | The central play/info area — cards, board, prompt, inputs, the thing the player looks at |
+| **Controls** (zone 3) | The proceed/action buttons that move the game forward |
+
+### The one pattern
 
 ```html
-<section id="screen-game-foo" style="display:none"
+<section id="screen-[abbr]-foo" style="display:none"
   class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+
+  <!-- THE STACK — Header, Stage, Controls are ALL siblings in this one column -->
   <div class="flex flex-col w-full max-w-sm gap-4">
-    <!-- header row, cards, inputs, button — all flow naturally -->
-  </div>
-</section>
-```
 
-**Rules:**
-- `flex items-center justify-center` on section — centers the content block when short; has no effect when content overflows
-- `min-h-screen overflow-y-auto` on section — fills the viewport; scrolls when content is taller than screen
-- `px-5 py-8` on section — outer breathing room; `px-5` safely handles narrow screens
-- Inner `div.max-w-sm.w-full.gap-4` — constrains and spaces content; no separate header/body/footer wrappers needed
-- **NOT for:** screens that need a footer button visible at all times regardless of content (e.g. LTTP chat flow) — use the sticky-footer pattern below instead
+    <!-- HEADER -->
+    <div class="flex items-center justify-between">
+      <div><!-- title / round label --></div>
+      <div class="flex items-center gap-2">
+        <button id="btn-[abbr]-how-to" class="...">[?]</button>
+        <button class="btn-open-sound ...">🔊</button>
+        <button class="btn-[abbr]-quit-open ...">✕</button>
+      </div>
+    </div>
 
-**Critical anti-pattern — split body/footer breaks centering:**
-If the render function splits content into a separate body div and a separate footer div, the two zones are no longer siblings inside the same centered column — the footer is detached at the bottom of the screen and the header is detached at the top. The *entire stack* (header + content + buttons) must be siblings inside the **single inner wrapper div**. Never split a screen's content and its buttons into separate body/footer regions unless you are deliberately using the sticky-footer pattern.
+    <!-- STAGE -->
+    <div><!-- cards, board, prompt, inputs --></div>
 
-**Critical anti-pattern — `my-auto` inside `overflow-y-auto` does NOT center vertically:**
-`my-auto` distributes free space above and below a flex child. Inside an `overflow-y: auto` container, the container's computed height equals its content height — there is no free space to distribute. The result: content pins to the top and `my-auto` is silently a no-op. This was the broken attempted workaround used in FRT before the fix. Use `flex items-center justify-center` on the **section** instead. *[Elevated from frt-implementation-notes BUG-02, June 2026.]*
-
----
-
-## Gameplay Screen Layout — Header / Body / Footer (Sticky Footer)
-
-**Trigger:** Screens where the primary action button MUST remain visible at all times, independent of content height (e.g. a long scrollable list with a persistent "Submit" button).
-
-Every gameplay screen must use `h-screen` (not `min-h-screen`) on the section so the flex container is viewport-capped and the scroll body actually constrains:
-
-```html
-<section id="screen-game-foo" style="display:none"
-  class="flex flex-col w-full max-w-sm mx-auto h-screen overflow-hidden">
-
-  <!-- HEADER — always visible, never shrinks -->
-  <div class="flex items-center justify-between px-4 pt-4 pb-2 flex-shrink-0">
-    <!-- round label | speaker + ✕ -->
-  </div>
-
-  <!-- Optional fixed subheader (prompt text, section title, etc.) -->
-  <div class="px-6 pt-2 pb-3 flex-shrink-0 text-center">...</div>
-
-  <!-- BODY — scrolls when content overflows -->
-  <div class="flex-1 overflow-y-auto flex flex-col min-h-0">
-    <!-- cards, lists, etc. -->
-  </div>
-
-  <!-- FOOTER — always visible, sticks to bottom -->
-  <div class="px-6 pb-8 pt-2 flex-shrink-0">
+    <!-- CONTROLS -->
     <button class="min-h-14 w-full ...">Primary Action</button>
   </div>
 </section>
 ```
 
-**⚠️ Use this pattern only when the button genuinely cannot be reached by scrolling.** If the action button can sit below the content as part of one natural column, use the Centered Content Layout instead. Overuse of `h-screen` is the most common layout error in the suite — it detaches the header at the top and footer at the bottom, with a gap around the body content. When in doubt, default to `min-h-screen`.
+**Why this gives "tight + centred" automatically:**
+- `flex items-center justify-center` on the `<section>` (default flex-direction `row`, single child) centres the whole Stack **both axes** when it's shorter than the screen.
+- `min-h-screen overflow-y-auto` fills the viewport and, when the Stack is taller than the screen, scrolls the **whole Stack as a unit** — Header, Stage and Controls stay locked together; nothing pins to a screen edge.
+- `gap-4` on the inner column is the *only* thing setting spacing between zones — so the Stack is tight by construction.
+- The Controls sit directly under the Stage. A button does **not** need to be glued to the bottom of the glass — it needs to be *reachable*, and in a scrolling column it always is.
 
-**Rules:**
-- `h-screen overflow-hidden` on the `<section>` — `h-screen` sets the cap; `overflow-hidden` tells the browser the container cannot grow past it
-- `flex-shrink-0` on header and footer — they never compress
-- `flex-1 overflow-y-auto min-h-0` on the body — `min-h-0` is the critical line; without it, flex items default to `min-height: auto` and the body still expands to fit its content instead of scrolling
-- For centering short content inside the body: add `flex flex-col` on the body and `my-auto` on the inner content wrapper (collapses to 0 when overflowing — safe for both short and long content)
-- `min-h-screen` is only correct for lobby/menu screens that don't need a sticky footer
+### The three rules that keep the Stack from breaking
+
+These are the only ways the Stack has ever broken in this codebase. All three are the same mistake — **splitting the column** — wearing different clothes:
+
+1. **One column, no exceptions.** Header + Stage + Controls are *siblings inside the single `max-w-sm` inner div*. Never render the content into one wrapper and the buttons into a separate footer wrapper — the moment they're in different parents, the footer detaches to the bottom and the header detaches to the top, and the Stack stops reading as one unit. (FRT BUG-02.)
+
+2. **Never use `my-auto` to centre.** `my-auto` distributes *free space*, and inside an `overflow-y-auto` column there is none (the column's height equals its content). It is a silent no-op. Centring is the `<section>`'s job via `items-center justify-center` — never the child's. (FRT BUG-02.)
+
+3. **No `h-screen` / `flex-1` / `flex-shrink-0` split.** That trio is the old "sticky-footer" pattern — it deliberately inflates the Stage (`flex-1`) to eat all leftover space and shoves Header to the top edge and Controls to the bottom edge. That is the *opposite* of the Stack. Do not use it for new screens. (See the legacy note below.)
+
+### Legacy sticky-footer pattern — do NOT use for new screens
+
+A handful of older screens across the suite use `h-screen overflow-hidden` with a `flex-1 overflow-y-auto min-h-0` Stage between `flex-shrink-0` Header/Controls. This was previously documented as a second valid pattern. **It is now deprecated for new work** — it is the single largest source of "not together, not centred" screens, because a screen can be technically correct (button visible, content reachable) while looking sparse and edge-pinned. New games use the Stack for *every* screen, including the main gameplay screen. Existing sticky-footer screens are migrated to the Stack opportunistically; log each migration in the game's implementation notes.
+
+If you ever think a screen *needs* the legacy pattern, you almost certainly don't: the only real trigger is a Stage that must scroll **independently** while the Controls stay frozen, and the project decision (June 2026) is to prefer whole-Stack scrolling over that even for long card hands. When in genuine doubt, use the Stack.
+
+### Legacy `h-screen` whitelist (baseline sweep, 26 June 2026)
+
+A suite-wide Stack sweep migrated every content/results screen off `h-screen`. The screens below are the **only** remaining legacy sticky-footer screens — each is a deliberate, justified exception. If one of these looks sparse/edge-pinned, that's expected; if any **other** screen does, it's a new bug, not this one.
+
+| Screen(s) | Why it keeps the sticky footer |
+|-----------|-------------------------------|
+| `screen-gth-canvas` | Freehand drawing surface — the canvas must **not** scroll while drawing (a page-scroll would hijack the stroke). Fixed Stage is mandatory. |
+| `screen-gth-case` | Rendered drawing + answer cards + live countdown — fixed Stage with the diagnosis action always visible. |
+| `screen-dsd-captain`, `screen-dsd-crew`, `screen-dsd-execution`, `screen-dsd-sabotage`, `screen-dsd-spectator` | 5×5 grid + legend with an always-visible Sonar/sequence/disarm CTA while tapping tiles. |
+| `screen-nt-allocation` | DNP captain huddle — cluster bridge + rebalance controls + Lock CTA + huddle timer; controls must stay put while scanning legs. |
+| `screen-mp-mode`, `screen-mp-lobby-host`, `screen-mp-lobby-join`, `screen-mp-roster` | Shared multiplayer infrastructure (all 4 MDLM games) — roster lists with a frozen primary CTA. High blast radius; migrate only if visibly broken. |
+
+**Migrated in the sweep (now Stack):** `screen-ygi-reveal`, `screen-ygi-vote`, `screen-ygi-results`, `screen-ygi-gameover`, `screen-lttp-role-reveal`, `screen-lttp-gameover`, `screen-dyb-spirit-board`, plus `screen-pass-table` (done first). Additionally migrated when LTTP was next touched (26 June 2026): `screen-lttp-guess`, `screen-lttp-group-guess` (inner sub-states toggled via JS within the single Stack column; sticky-footer removed). The sweep used a scoped class-transform (reclass section + wrap zones in one centred column + strip `flex-1`/`flex-shrink-0`/`min-h-0`/`my-auto`), so a few migrated screens carry a residual nested wrapper or uneven per-zone padding — functional and centred; polish opportunistically. Also fixed: gameover footer `pb-8` → `pb-2` on `screen-lttp-gameover` and `screen-ygi-gameover` (bottom-heavy column weight).
 
 ---
 

@@ -11,6 +11,9 @@ The guided path (Small Talk Helper ON) opens `lttp-smalltalk-overlay` first. Sel
 **Contacts — local only, never synced**
 Map annotations and Contacts status/notes are local to each device in Lobby Mode. They are intentionally not synced — each player maintains their own suspicion tracking. This is a deliberate privacy/UX decision, not a gap.
 
+**Stack sweep (26 June 2026) — all LTTP screens now Stack**
+`screen-lttp-role-reveal` and `screen-lttp-gameover` migrated in the suite sweep. `screen-lttp-guess` and `screen-lttp-group-guess` migrated in the follow-up visual audit (26 June 2026): `h-screen overflow-hidden` removed; both sub-states inside `screen-lttp-guess` (`lttp-guess-pass-gate` and `lttp-guess-action`) now sit inside the single Stack column and are toggled via JS (`display:none`) — no sticky-footer scaffolding. All IDs, event handlers, and render logic unchanged. Also fixed: `screen-lttp-gameover` inner footer `pb-8` → `pb-2` (was causing the column to appear bottom-heavy despite correct section centring). SW → v128.
+
 **Rotating folder hints — global index, not per-player**
 The hint index increments globally each time any folder is opened (6 phrases per role, cycles via modulo). This means the same device cycling through multiple players' folders will show sequential hints, not the same hint repeated.
 

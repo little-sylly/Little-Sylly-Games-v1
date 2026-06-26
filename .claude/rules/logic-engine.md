@@ -417,7 +417,7 @@ Before implementing, answer:
 
 **SW versioning:** `CACHE_NAME = 'sylly-games-vN'` — bump N on **every deploy**.
 
-**Current SW version:** v121
+**Current SW version:** v130
 
 **Precached assets (relative paths — no leading `/`; matches `sw.js` `PRECACHE_URLS[]`):**
 ```
@@ -465,7 +465,7 @@ Note: the four Firebase lib files ARE precached (so Lobby Mode works offline-fir
 - [ ] **`[?]` how-to button:** Add `#btn-[abbr]-how-to` to every main gameplay screen header — always visible (no `hidden` class), wired to `[abbr]-how-to-overlay` (see `@ui-style.md` § Help icon `[?]`)
 - [ ] **Decision modal borders:** All `overlay-modal-inner` divs include `border border-[brand]-300` from day one (see `@ui-style.md` § Two-Pattern Overlay Library)
 - [ ] **Shared tip overlay (if applicable):** For games with 3+ contextual `[?]` tip points, implement a single `[abbr]-tip-overlay` (Decision Modal, z-[90]) + `[abbr]ShowTip(emoji, heading, lines[])` rather than per-tip overlays (see `@ui-style.md` § Contextual Tip Icons)
-- [ ] **Screen layout pattern — decide per screen at spec time:** `h-screen overflow-hidden` = sticky-footer CTA screens only (the button must stay visible regardless of content). All other screens: `min-h-screen overflow-y-auto flex items-center justify-center` (NAT pattern) — content centres when short, scrolls when tall. Never guess during implementation. See `@ui-style.md` § Centered Content Layout (Default) and § Gameplay Screen Layout — Header / Body / Footer.
+- [ ] **The Stack — every screen, no exceptions:** Build every screen as the Stack — `<section class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">` wrapping ONE `flex flex-col w-full max-w-sm gap-4` column that holds Header + Stage + Controls as siblings. No per-screen pattern decision; no `h-screen` sticky-footer for new games (deprecated — whole-Stack scrolling is preferred even for long card hands). See `@ui-style.md` § The Stack.
 - [ ] **MDLM — missing handler audit:** Before shipping multiplayer, walk every screen phase and ask "can a non-host device submit something here?" Every "yes" is a required ACTION handler in `[abbr]HandleEnvelope`. Missing handlers silently drop submissions — they do not error. Log the full ACTION packet table in the tech spec §11 before implementation.
 - [ ] **MDLM — name population:** `mpPlayerSlots[i].nickname` is already populated when `onPassThePhone` fires (the slot object is `{ uid, nickname }` — read `.nickname`, never `.name`). Skip the game's own name-entry setup screen for MDLM; populate the name array from `mpPlayerSlots` and call the start function directly. BLD is the reference implementation.
 - [ ] **MDLM — host readyCheck self-submission:** For simultaneous-submit phases, the host marks its own `[abbr]ReadyCheck` slot directly in its local submit function — never via its own ACTION envelope (the dedup guard drops self-sent envelopes, hanging the round). See § MDLM Patterns → Host readyCheck.

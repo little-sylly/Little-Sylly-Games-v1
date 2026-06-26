@@ -2794,8 +2794,9 @@
   </section>
 
   <!-- ygi-⑥ REVEAL — The Lineup (Piece 2) -->
-  <section id="screen-ygi-reveal" style="display:none" class="flex flex-col w-full max-w-sm mx-auto h-screen overflow-hidden">
-    <div class="flex items-center justify-between px-4 pt-4 pb-2 flex-shrink-0">
+  <section id="screen-ygi-reveal" style="display:none" class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-4">
+    <div class="flex items-center justify-between px-4 pt-4 pb-2 ">
       <p id="ygi-reveal-round-label" class="text-stone-400 text-xs font-semibold uppercase tracking-widest"></p>
       <div class="flex items-center gap-2">
         <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
@@ -2803,8 +2804,8 @@
       </div>
     </div>
 
-    <div class="flex-1 overflow-y-auto overflow-x-hidden flex flex-col min-h-0">
-      <div class="my-auto px-6 py-4 flex flex-col gap-4">
+    <div class="  overflow-x-hidden flex flex-col ">
+      <div class=" px-6 py-4 flex flex-col gap-4">
         <div class="text-center">
           <p class="text-base font-bold uppercase tracking-widest text-orange-400 mb-2">The Lineup 🃏</p>
           <p id="ygi-reveal-prompt-text" class="text-stone-700 font-semibold text-base leading-snug"></p>
@@ -2815,16 +2816,19 @@
       </div>
     </div>
 
-    <div class="px-6 pb-8 pt-2 flex-shrink-0">
+    <div class="px-6 pb-8 pt-2 ">
       <button id="btn-ygi-reveal-next" class="min-h-14 w-full rounded-2xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
         Start the Verdict 🏆
       </button>
     </div>
+  
+    </div>
   </section>
 
   <!-- ygi-⑦ VOTE — The Verdict (Piece 3) -->
-  <section id="screen-ygi-vote" style="display:none" class="flex flex-col w-full max-w-sm mx-auto h-screen overflow-hidden">
-    <div class="flex items-center justify-between px-4 pt-4 pb-2 flex-shrink-0">
+  <section id="screen-ygi-vote" style="display:none" class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-4">
+    <div class="flex items-center justify-between px-4 pt-4 pb-2 ">
       <p id="ygi-vote-round-label" class="text-stone-400 text-xs font-semibold uppercase tracking-widest"></p>
       <div class="flex items-center gap-2">
         <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
@@ -2832,34 +2836,37 @@
       </div>
     </div>
 
-    <div class="px-6 pt-1 pb-3 flex-shrink-0 text-center">
+    <div class="px-6 pt-1 pb-3  text-center">
       <p id="ygi-vote-player-label" class="text-stone-800 font-bold text-lg"></p>
       <p class="text-xs font-semibold uppercase tracking-widest text-orange-400 mt-1 mb-2">The Verdict 🏆</p>
       <p id="ygi-vote-prompt-text" class="text-stone-500 text-sm leading-snug"></p>
     </div>
 
-    <p id="ygi-vote-instruction" class="px-6 text-xs text-stone-400 text-center mb-2 flex-shrink-0"></p>
+    <p id="ygi-vote-instruction" class="px-6 text-xs text-stone-400 text-center mb-2 "></p>
 
-    <div class="flex-1 overflow-y-auto overflow-x-hidden flex flex-col min-h-0">
-      <div class="my-auto px-6 py-4 flex flex-col gap-3">
+    <div class="  overflow-x-hidden flex flex-col ">
+      <div class=" px-6 py-4 flex flex-col gap-3">
         <div id="ygi-vote-cards" class="flex flex-col gap-3">
           <!-- Populated by ygiRenderVoteCards() -->
         </div>
       </div>
     </div>
 
-    <div class="px-6 pb-8 pt-2 flex-shrink-0">
+    <div class="px-6 pb-8 pt-2 ">
       <p id="ygi-vote-error" class="text-red-500 text-sm text-center mb-2 min-h-5"></p>
       <button id="btn-ygi-vote-submit" class="btn-mp-action min-h-14 w-full rounded-2xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
         Lock In My Verdict
       </button>
     </div>
+  
+    </div>
   </section>
 
   <!-- ygi-⑧ RESULTS — Round Tally (Piece 3) -->
-  <section id="screen-ygi-results" style="display:none" class="flex flex-col w-full max-w-sm mx-auto h-screen overflow-hidden">
+  <section id="screen-ygi-results" style="display:none" class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-4">
     <!-- Fixed header -->
-    <div class="flex items-center justify-between px-4 pt-4 pb-2 flex-shrink-0">
+    <div class="flex items-center justify-between px-4 pt-4 pb-2 ">
       <p id="ygi-results-round-label" class="text-stone-400 text-xs font-semibold uppercase tracking-widest"></p>
       <div class="flex items-center gap-2">
         <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
@@ -2868,14 +2875,14 @@
     </div>
 
     <!-- Fixed subheader — prompt always visible -->
-    <div class="px-6 pt-2 pb-3 flex-shrink-0 text-center">
+    <div class="px-6 pt-2 pb-3  text-center">
       <p class="text-xs font-semibold uppercase tracking-widest text-orange-400 mb-2">The Tally</p>
       <p id="ygi-results-prompt-text" class="text-stone-700 font-semibold text-base leading-snug"></p>
     </div>
 
     <!-- Scrollable body — cards + running total -->
-    <div class="flex-1 overflow-y-auto overflow-x-hidden flex flex-col min-h-0">
-      <div class="my-auto px-6 py-4 flex flex-col gap-3">
+    <div class="  overflow-x-hidden flex flex-col ">
+      <div class=" px-6 py-4 flex flex-col gap-3">
         <div id="ygi-results-ghost-banner" style="display:none" class="bg-red-50 border border-red-200 rounded-2xl p-3 text-center">
           <p class="text-red-600 font-bold text-sm">👻 The Ringer Won! Everyone loses 2 points.</p>
         </div>
@@ -2894,30 +2901,33 @@
     </div>
 
     <!-- Sticky footer -->
-    <div class="px-6 pb-8 pt-2 flex-shrink-0">
+    <div class="px-6 pb-8 pt-2 ">
       <button id="btn-ygi-results-next" class="min-h-14 w-full rounded-2xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
         Next Situation →
       </button>
     </div>
+  
+    </div>
   </section>
 
   <!-- ygi-⑨ GAMEOVER — Final Standings (Piece 4) -->
-  <section id="screen-ygi-gameover" style="display:none" class="flex flex-col w-full max-w-sm mx-auto h-screen overflow-hidden">
+  <section id="screen-ygi-gameover" style="display:none" class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-4">
     <!-- Fixed header -->
-    <div class="flex items-center justify-between px-4 pt-4 pb-2 flex-shrink-0">
+    <div class="flex items-center justify-between px-4 pt-4 pb-2 ">
       <button id="btn-ygi-gameover-exit" class="w-10 h-10 flex items-center justify-center text-stone-500 font-bold text-xl active:scale-90 transition-transform duration-100">✕</button>
       <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
     </div>
 
     <!-- Fixed hero -->
-    <div class="px-6 pt-2 pb-4 flex-shrink-0 text-center">
+    <div class="px-6 pt-2 pb-4  text-center">
       <p class="text-5xl mb-2">💡</p>
       <h2 class="text-2xl font-bold text-stone-800">Final Standings</h2>
       <p class="text-stone-400 text-sm mt-1">Does everyone get it? Yeah, you get it.</p>
     </div>
 
     <!-- Scrollable body — SD reveal + standings + record -->
-    <div class="flex-1 overflow-y-auto overflow-x-hidden flex flex-col gap-3 px-6 pb-3 min-h-0">
+    <div class="  overflow-x-hidden flex flex-col gap-3 px-6 pb-3 ">
       <div id="ygi-gameover-sd-reveal" style="display:none" class="bg-amber-50 border border-amber-200 rounded-2xl p-4">
         <p class="text-xs font-semibold uppercase tracking-widest text-amber-500 mb-2">⚡ Sudden Death</p>
         <div id="ygi-gameover-sd-answers" class="flex flex-col gap-1"></div>
@@ -2944,13 +2954,15 @@
     </div>
 
     <!-- Sticky footer -->
-    <div class="px-6 pb-8 pt-2 flex-shrink-0 flex flex-col gap-3">
+    <div class="px-6 pb-2 pt-2 flex flex-col gap-3">
       <button id="btn-ygi-play-again" class="min-h-14 w-full rounded-2xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
         Run It Back 
       </button>
       <button id="btn-ygi-gameover-back" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-base font-medium transition-all duration-150">
         ← Back to the Box
       </button>
+    </div>
+  
     </div>
   </section>
 
@@ -3240,23 +3252,26 @@
   </section>
 
   <!-- lttp-③ ROLE REVEAL (private — shown after pass-gate handover) -->
-  <section id="screen-lttp-role-reveal" style="display:none" class="flex flex-col w-full max-w-sm mx-auto h-screen overflow-hidden">
-    <div class="flex items-center justify-between px-4 pt-4 pb-2 flex-shrink-0">
+  <section id="screen-lttp-role-reveal" style="display:none" class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-4">
+    <div class="flex items-center justify-between px-4 pt-4 pb-2 ">
       <button class="btn-lttp-quit-open w-10 h-10 flex items-center justify-center text-stone-500 font-bold text-xl active:scale-90 transition-transform duration-100">✕</button>
       <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
     </div>
-    <div class="flex-1 overflow-y-auto flex flex-col">
-      <div class="my-auto px-6 py-8 flex flex-col items-center gap-5 text-center">
+    <div class="  flex flex-col">
+      <div class=" px-6 py-8 flex flex-col items-center gap-5 text-center">
         <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest" id="lttp-reveal-name"></p>
         <div id="lttp-reveal-badge" class="text-2xl font-black text-red-600 tracking-wide"></div>
         <div id="lttp-reveal-info" class="text-stone-500 text-sm"></div>
         <div id="lttp-reveal-grid" class="grid grid-cols-4 gap-1 w-full max-w-xs mt-2"></div>
       </div>
     </div>
-    <div class="px-6 pb-8 pt-2 flex-shrink-0">
+    <div class="px-6 pb-8 pt-2 ">
       <button id="btn-lttp-role-got-it" class="min-h-14 w-full rounded-2xl bg-red-500 hover:bg-red-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
         Got it →
       </button>
+    </div>
+  
     </div>
   </section>
 
@@ -3380,83 +3395,75 @@
   </section>
 
   <!-- lttp-⑥ GUESS (Plan 4 vote + pin — pass-the-phone) -->
-  <section id="screen-lttp-guess" style="display:none" class="flex flex-col w-full max-w-sm mx-auto h-screen overflow-hidden">
+  <section id="screen-lttp-guess" style="display:none" class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-4">
 
-    <!-- Pass gate state -->
-    <div id="lttp-guess-pass-gate" class="relative flex flex-col items-center justify-center px-6 py-12 text-center gap-6 flex-1">
-      <div class="absolute top-4 right-4 flex items-center gap-2">
-        <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
-        <button class="btn-lttp-quit-open w-10 h-10 flex items-center justify-center text-stone-500 font-bold text-xl active:scale-90 transition-transform duration-100">✕</button>
+      <!-- Pass gate sub-state -->
+      <div id="lttp-guess-pass-gate" class="flex flex-col gap-4">
+        <div class="flex items-center justify-end">
+          <div class="flex items-center gap-2">
+            <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+            <button class="btn-lttp-quit-open w-10 h-10 flex items-center justify-center text-stone-500 font-bold text-xl active:scale-90 transition-transform duration-100">✕</button>
+          </div>
+        </div>
+        <div class="flex flex-col items-center gap-4 text-center">
+          <div class="text-6xl">📱</div>
+          <div>
+            <h2 class="text-2xl font-bold text-stone-800" id="lttp-guess-pass-name"></h2>
+            <p class="text-stone-500 text-base mt-2">Don't peek — it's time to find the Friend of a Friend.</p>
+          </div>
+          <button id="btn-lttp-guess-ready" class="min-h-14 w-full rounded-2xl bg-red-500 hover:bg-red-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+            I'm Ready
+          </button>
+        </div>
       </div>
-      <div class="text-6xl">📱</div>
-      <div>
-        <h2 class="text-2xl font-bold text-stone-800" id="lttp-guess-pass-name"></h2>
-        <p class="text-stone-500 text-base mt-2">Don't peek — it's time to find the Friend of a Friend.</p>
-      </div>
-      <button id="btn-lttp-guess-ready" class="min-h-14 w-full rounded-2xl bg-red-500 hover:bg-red-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
-        I'm Ready
-      </button>
-    </div>
 
-    <!-- Action state (vote or pin) -->
-    <div id="lttp-guess-action" style="display:none" class="flex flex-col h-full">
-
-      <!-- Header -->
-      <div class="flex items-center justify-between px-4 pt-4 pb-2 flex-shrink-0">
+      <!-- Action sub-state (vote or pin) -->
+      <div id="lttp-guess-action" style="display:none" class="flex flex-col gap-4">
+        <div class="flex items-center justify-between">
+          <div>
+            <p id="lttp-guess-action-header" class="text-stone-800 font-black text-xl"></p>
+            <p id="lttp-guess-action-sub" class="text-stone-400 text-sm mt-0.5"></p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button id="btn-lttp-guess-map" class="text-stone-400 text-xl active:scale-90 transition-transform duration-100">🗺️</button>
+            <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+            <button class="btn-lttp-quit-open w-10 h-10 flex items-center justify-center text-stone-500 font-bold text-xl active:scale-90 transition-transform duration-100">✕</button>
+          </div>
+        </div>
         <div>
-          <p id="lttp-guess-action-header" class="text-stone-800 font-black text-xl"></p>
-          <p id="lttp-guess-action-sub" class="text-stone-400 text-sm mt-0.5"></p>
+          <!-- Pin grid (Stray only) -->
+          <div id="lttp-guess-pin-area" style="display:none" class="flex flex-col gap-3">
+            <div id="lttp-guess-grid" class="grid grid-cols-4 gap-1.5"></div>
+          </div>
+          <!-- Vote list (non-Stray) -->
+          <div id="lttp-guess-vote-area" style="display:none" class="flex flex-col gap-2">
+            <div id="lttp-guess-vote-list" class="flex flex-col gap-2"></div>
+          </div>
         </div>
-        <div class="flex items-center gap-2">
-          <button id="btn-lttp-guess-map" class="text-stone-400 text-xl active:scale-90 transition-transform duration-100">🗺️</button>
-          <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
-          <button class="btn-lttp-quit-open w-10 h-10 flex items-center justify-center text-stone-500 font-bold text-xl active:scale-90 transition-transform duration-100">✕</button>
-        </div>
-      </div>
-
-      <!-- Scrollable content area -->
-      <div class="flex-1 overflow-y-auto min-h-0 px-4 py-2">
-        <!-- Pin grid (Stray only) -->
-        <div id="lttp-guess-pin-area" style="display:none" class="flex flex-col gap-3">
-          <div id="lttp-guess-grid" class="grid grid-cols-4 gap-1.5"></div>
-        </div>
-        <!-- Vote list (non-Stray) -->
-        <div id="lttp-guess-vote-area" style="display:none" class="flex flex-col gap-2">
-          <div id="lttp-guess-vote-list" class="flex flex-col gap-2"></div>
-        </div>
-      </div>
-
-      <!-- Footer -->
-      <div class="px-4 pb-8 pt-2 flex-shrink-0">
         <button id="btn-lttp-guess-confirm" class="min-h-14 w-full rounded-2xl bg-red-500 hover:bg-red-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
           Lock It In
         </button>
       </div>
+
     </div>
   </section>
 
   <!-- lttp-⑦ GROUP GUESS -->
-  <section id="screen-lttp-group-guess" style="display:none" class="flex flex-col w-full max-w-sm mx-auto h-screen overflow-hidden">
-    <!-- Header -->
-    <div class="flex items-center justify-between px-4 pt-4 pb-2 flex-shrink-0">
-      <span class="text-stone-400 text-sm font-medium">Plan 4 — Last Drinks</span>
-      <div class="flex items-center gap-2">
-        <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
-        <button class="btn-lttp-quit-open w-10 h-10 flex items-center justify-center text-stone-500 font-bold text-xl active:scale-90 transition-transform duration-100">✕</button>
+  <section id="screen-lttp-group-guess" style="display:none" class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-4">
+      <div class="flex items-center justify-between">
+        <span class="text-stone-400 text-sm font-medium">Plan 4 — Last Drinks</span>
+        <div class="flex items-center gap-2">
+          <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+          <button class="btn-lttp-quit-open w-10 h-10 flex items-center justify-center text-stone-500 font-bold text-xl active:scale-90 transition-transform duration-100">✕</button>
+        </div>
       </div>
-    </div>
-
-    <!-- Subheader -->
-    <div class="px-6 pt-1 pb-3 flex-shrink-0 text-center">
-      <p class="text-stone-800 text-lg font-bold">Who's the Friend of a Friend?</p>
-      <p class="text-stone-400 text-sm mt-1">Discuss as a group, then tap to select.</p>
-    </div>
-
-    <!-- Player list -->
-    <div id="lttp-group-guess-list" class="flex-1 overflow-y-auto flex flex-col gap-3 px-6 py-2 min-h-0"></div>
-
-    <!-- Footer -->
-    <div class="px-6 pb-8 pt-3 flex-shrink-0">
+      <div class="text-center">
+        <p class="text-stone-800 text-lg font-bold">Who's the Friend of a Friend?</p>
+        <p class="text-stone-400 text-sm mt-1">Discuss as a group, then tap to select.</p>
+      </div>
+      <div id="lttp-group-guess-list" class="flex flex-col gap-3"></div>
       <button id="btn-lttp-group-guess-confirm" disabled
         class="min-h-14 w-full rounded-2xl bg-stone-300 text-white text-xl font-semibold transition-all duration-150 cursor-not-allowed">
         Lock It In 🔒
@@ -3465,10 +3472,11 @@
   </section>
 
   <!-- lttp-⑧ GAMEOVER -->
-  <section id="screen-lttp-gameover" style="display:none" class="flex flex-col w-full max-w-sm mx-auto h-screen overflow-hidden">
+  <section id="screen-lttp-gameover" style="display:none" class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-4">
 
     <!-- Fixed header -->
-    <div class="flex items-center justify-between px-4 pt-4 pb-2 flex-shrink-0">
+    <div class="flex items-center justify-between px-4 pt-4 pb-2 ">
       <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest">How It All Played Out</p>
       <div class="flex items-center gap-2">
         <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
@@ -3477,7 +3485,7 @@
     </div>
 
     <!-- Scrollable body -->
-    <div class="flex-1 overflow-y-auto min-h-0 px-6 py-3 flex flex-col gap-5">
+    <div class="   px-6 py-3 flex flex-col gap-5">
 
       <!-- Win banner -->
       <div class="flex flex-col items-center gap-1">
@@ -3514,13 +3522,15 @@
     </div>
 
     <!-- Footer -->
-    <div class="px-6 pb-8 pt-2 flex-shrink-0 flex flex-col gap-3">
+    <div class="px-6 pb-2 pt-2 flex flex-col gap-3">
       <button id="btn-lttp-new-plans" class="min-h-14 w-full rounded-2xl bg-red-500 hover:bg-red-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
         New Plans
       </button>
       <button id="btn-lttp-gameover-back" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-base font-medium transition-all duration-150">
         ← Back to the Box
       </button>
+    </div>
+  
     </div>
   </section>
 
@@ -6521,17 +6531,20 @@
 
   <!-- DYB SPIRIT BOARD -->
   <section id="screen-dyb-spirit-board" style="display:none"
-    class="flex flex-col w-full max-w-sm mx-auto h-screen overflow-hidden">
-    <div class="flex items-center justify-between px-4 pt-4 pb-2 flex-shrink-0">
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-4">
+    <div class="flex items-center justify-between px-4 pt-4 pb-2 ">
       <p class="text-sm font-bold text-stone-500">THE DEPTHS 🌊</p>
       <div class="flex items-center gap-2">
         <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
         <button class="btn-dyb-quit-open text-stone-500 font-bold text-lg active:scale-90 transition-transform duration-100">✕</button>
       </div>
     </div>
-    <p id="dyb-spirit-allegation" class="text-center text-stone-400 text-sm px-4 pb-2 flex-shrink-0">No claim yet.</p>
-    <div id="dyb-spirit-grid" class="flex-1 overflow-y-auto min-h-0 flex flex-col gap-2 px-5 py-2"></div>
-    <p class="text-center text-stone-300 text-xs pb-4 px-4 flex-shrink-0">You can see everyone's dice. Those still climbing cannot.</p>
+    <p id="dyb-spirit-allegation" class="text-center text-stone-400 text-sm px-4 pb-2 ">No claim yet.</p>
+    <div id="dyb-spirit-grid" class="   flex flex-col gap-2 px-5 py-2"></div>
+    <p class="text-center text-stone-300 text-xs pb-4 px-4 ">You can see everyone's dice. Those still climbing cannot.</p>
+  
+    </div>
   </section>
 
   <!-- DYB SETTINGS OVERLAY -->
@@ -6564,6 +6577,18 @@
             <button class="pill" data-dyb-hand="3">3 Dice</button>
             <button class="pill" data-dyb-hand="4">4 Dice</button>
             <button class="pill pill-active-dyb" data-dyb-hand="5">5 Dice</button>
+          </div>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <div class="flex items-center justify-between">
+            <p class="text-stone-800 font-semibold">Footholds</p>
+            <button id="btn-dyb-footholds-toggle" class="game-toggle-off shrink-0">OFF</button>
+          </div>
+          <p class="text-stone-400 text-sm">Lose a foothold instead of a die when you fall. Dice stay fixed — only footholds count down.</p>
+          <div id="dyb-footholds-sub-options" style="display:none" class="flex gap-2 mt-1">
+            <button class="pill" data-dyb-footholds="3">3</button>
+            <button class="pill pill-active-dyb" data-dyb-footholds="5">5</button>
+            <button class="pill" data-dyb-footholds="10">10</button>
           </div>
         </div>
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
@@ -6730,8 +6755,8 @@
   <!-- ════ PASS ════
        Screens : screen-pass-menu, screen-pass-seating, screen-pass-table,
                  screen-pass-round-wrap, screen-pass-gameover
-       Overlays: pass-settings-overlay, pass-how-to-overlay, pass-quit-overlay,
-                 pass-new-deal-overlay
+       Overlays: pass-settings-overlay, pass-how-to-overlay, pass-history-overlay,
+                 pass-quit-overlay, pass-new-deal-overlay
        Ref     : js/games/pass.js
     ════════════════════════════════════════════════════════════════ -->
 
@@ -6782,57 +6807,63 @@
 
   <!-- PASS TABLE (main gameplay) -->
   <section id="screen-pass-table" style="display:none"
-    class="flex flex-col w-full max-w-sm mx-auto h-screen overflow-hidden">
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-4">
 
-    <!-- HEADER -->
-    <div class="flex items-center justify-between px-4 pt-4 pb-2 flex-shrink-0">
-      <div>
-        <p id="pass-table-round-label" class="text-xs text-stone-400 font-semibold uppercase tracking-widest"></p>
-        <p id="pass-table-my-name" class="text-sm font-bold text-stone-700"></p>
+      <!-- HEADER -->
+      <div class="flex items-center justify-between">
+        <div>
+          <p id="pass-table-round-label" class="text-xs text-stone-400 font-semibold uppercase tracking-widest"></p>
+          <p id="pass-table-my-name" class="text-sm font-bold text-stone-700"></p>
+        </div>
+        <div class="flex items-center gap-2">
+          <p id="pass-table-my-chips" class="text-xs text-stone-400 font-semibold"></p>
+          <button id="btn-pass-how-to" class="text-stone-400 font-bold text-sm active:scale-90 transition-transform duration-100">[?]</button>
+          <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+          <button class="btn-pass-quit-open text-stone-400 font-bold text-xl active:scale-90 transition-transform duration-100">✕</button>
+        </div>
       </div>
+
+      <!-- STAGE: player status tracker (all players in turn order) -->
+      <!-- px-2 pt-2 prevents the leftmost active-node pulse/scale from clipping (peak shadow 5px + 1.06× scale ≈ 7px) -->
+      <div id="pass-player-tracker" class="flex items-center gap-1 overflow-x-auto pb-1 px-2 pt-2 min-h-[4.5rem]"></div>
+
+      <!-- STAGE: active play arena + history button -->
       <div class="flex items-center gap-2">
-        <p id="pass-table-my-chips" class="text-xs text-stone-400 font-semibold"></p>
-        <button id="btn-pass-how-to" class="text-stone-400 font-bold text-sm active:scale-90 transition-transform duration-100">[?]</button>
-        <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
-        <button class="btn-pass-quit-open text-stone-400 font-bold text-xl active:scale-90 transition-transform duration-100">✕</button>
+        <div id="pass-arena-pod" class="flex-1 bg-white rounded-xl px-3 pt-2 pb-2.5 shadow-sm flex flex-col items-center gap-1 min-h-[6.5rem]">
+          <p id="pass-arena-label" class="text-[0.6rem] text-stone-400 font-bold uppercase tracking-widest w-full text-center"></p>
+          <div id="pass-arena-cards" class="flex items-center justify-center flex-1 w-full"></div>
+          <p id="pass-arena-leader" class="text-[0.6rem] text-stone-300 font-semibold text-center"></p>
+        </div>
+        <button id="btn-pass-open-history" class="bg-white rounded-xl px-3 py-2 text-stone-400 text-sm shadow-sm active:bg-stone-100 transition-colors flex-shrink-0 self-stretch flex items-center justify-center" title="Table log">📋</button>
       </div>
-    </div>
 
-    <!-- OPPONENTS STRIP -->
-    <div id="pass-table-opponents" class="flex gap-4 overflow-x-auto px-4 pb-2 flex-shrink-0"></div>
+      <!-- STAGE: abyss pool (Sylly Mode) -->
+      <div id="pass-abyss-section" style="display:none" class="flex flex-col gap-1">
+        <p class="text-xs text-stone-400 font-semibold uppercase tracking-widest">The Abyss</p>
+        <div id="pass-abyss-pool" class="flex overflow-x-auto gap-0 py-1"></div>
+        <p id="pass-abyss-count" class="text-xs text-stone-300"></p>
+      </div>
 
-    <!-- TABLE COMBO DISPLAY -->
-    <div class="px-4 py-2 flex-shrink-0">
-      <div id="pass-table-combo-display" class="bg-white rounded-xl px-4 py-2 text-stone-600 font-semibold text-sm shadow-sm text-center"></div>
-    </div>
+      <!-- STAGE: status / error -->
+      <div>
+        <p id="pass-table-status" class="text-stone-500 text-xs text-center"></p>
+        <p id="pass-table-staring" style="display:none" class="text-stone-400 text-xs text-center mt-1"></p>
+        <p id="pass-table-error" style="display:none" class="text-red-500 text-xs text-center mt-1 font-semibold"></p>
+      </div>
 
-    <!-- ABYSS POOL (Sylly Mode) -->
-    <div id="pass-abyss-section" style="display:none" class="px-4 pb-2 flex-shrink-0 flex flex-col gap-1">
-      <p class="text-xs text-stone-400 font-semibold uppercase tracking-widest">The Abyss</p>
-      <div id="pass-abyss-pool" class="flex overflow-x-auto gap-0 py-1"></div>
-      <p id="pass-abyss-count" class="text-xs text-stone-300"></p>
-    </div>
-
-    <!-- STATUS / ERROR -->
-    <div class="px-4 flex-shrink-0">
-      <p id="pass-table-status" class="text-stone-500 text-xs text-center"></p>
-      <p id="pass-table-staring" style="display:none" class="text-stone-400 text-xs text-center mt-1"></p>
-      <p id="pass-table-error" style="display:none" class="text-red-500 text-xs text-center mt-1 font-semibold"></p>
-    </div>
-
-    <!-- HAND (scrollable body) -->
-    <div class="flex-1 overflow-y-auto min-h-0 px-4 py-2">
+      <!-- STAGE: hand -->
       <div id="pass-hand-container" class="flex flex-wrap gap-2 justify-center"></div>
-    </div>
 
-    <!-- ACTION FOOTER -->
-    <div class="px-4 pb-6 pt-2 flex-shrink-0 flex gap-3">
-      <button id="btn-pass-pass" class="min-h-14 flex-1 rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-base transition-all duration-150 btn-mp-action">
-        Pass
-      </button>
-      <button id="btn-pass-play" class="min-h-14 flex-[2] rounded-2xl bg-zinc-900 hover:bg-zinc-800 active:scale-95 text-white font-bold text-base transition-all duration-150 btn-mp-action">
-        Play Selected
-      </button>
+      <!-- CONTROLS -->
+      <div class="flex gap-3">
+        <button id="btn-pass-pass" class="min-h-14 flex-1 rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-base transition-all duration-150 btn-mp-action">
+          Pass
+        </button>
+        <button id="btn-pass-play" class="min-h-14 flex-[2] rounded-2xl bg-zinc-900 hover:bg-zinc-800 active:scale-95 text-white font-bold text-base transition-all duration-150 btn-mp-action">
+          Play Selected
+        </button>
+      </div>
     </div>
   </section>
 
@@ -7048,6 +7079,23 @@
           Got it
         </button>
         <button id="btn-pass-howto-close-settings" style="display:none" class="min-h-14 w-full rounded-2xl bg-zinc-900 hover:bg-zinc-800 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+          Got it
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PASS HISTORY OVERLAY -->
+  <div id="pass-history-overlay" style="display:none"
+    class="fixed inset-0 bg-black/40 z-[90] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
+      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
+        <h2 class="text-xl font-bold text-stone-800">The Table Log 📋</h2>
+        <p class="text-xs text-stone-400 mt-1">Trick-by-trick history this round.</p>
+      </div>
+      <div class="overflow-y-auto flex flex-col gap-4 px-5 py-5">
+        <div id="pass-history-body" class="flex flex-col gap-4"></div>
+        <button id="btn-pass-history-close" class="min-h-14 w-full rounded-2xl bg-zinc-900 hover:bg-zinc-800 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
           Got it
         </button>
       </div>
@@ -7611,9 +7659,9 @@
 
   <!-- FRT GAMEOVER -->
   <section id="screen-frt-gameover" style="display:none"
-    class="relative flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
-    <button class="btn-open-sound absolute top-4 right-4 text-xl text-stone-400 active:scale-90 transition-transform duration-100">&#x1F50A;</button>
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
     <div class="flex flex-col items-center w-full max-w-sm gap-4 text-center">
+      <button class="btn-open-sound self-end text-xl text-stone-400 active:scale-90 transition-transform duration-100">&#x1F50A;</button>
       <div class="text-5xl" role="img">&#x1F34A;</div>
       <h2 class="text-2xl font-bold text-stone-800">Orange You Glad It's Over?</h2>
       <div id="frt-gameover-standings" class="w-full flex flex-col gap-2"></div>
@@ -7621,7 +7669,7 @@
         More Fruit
       </button>
       <button id="btn-frt-gameover-exit" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-base font-medium transition-all duration-150">
-        &#x2715; Done
+        &#x2190; Back to the Box
       </button>
     </div>
   </section>
@@ -7638,11 +7686,11 @@
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
           <div>
             <p class="text-stone-800 font-semibold">Fruit Stock</p>
-            <p class="text-stone-400 text-sm mt-0.5">Bigger salad, longer game. Mega needs 5+ chefs.</p>
+            <p class="text-stone-400 text-sm mt-0.5">Copies of each fruit in the deck — Standard: 8, Swift: 6, Mega: 10 (best with 5+). Fewer copies = faster game.</p>
           </div>
           <div class="flex gap-2 flex-wrap">
-            <button class="pill pill-active-frt" data-frt-stock="standard">Standard</button>
             <button class="pill" data-frt-stock="swift">Swift</button>
+            <button class="pill pill-active-frt" data-frt-stock="standard">Standard</button>
             <button class="pill" id="frt-pill-mega" data-frt-stock="mega">Mega Salad</button>
           </div>
         </div>
@@ -7683,7 +7731,10 @@
             <p class="text-stone-800 font-semibold">&#x2728; Sylly Mode</p>
             <button id="btn-frt-sylly-toggle" class="game-toggle-off shrink-0">OFF</button>
           </div>
-          <p class="text-stone-600 text-sm font-semibold">Fruity Personalities</p>
+          <div class="flex items-center gap-1.5">
+            <p class="text-stone-600 text-sm font-semibold">Fruity Personalities</p>
+            <button id="btn-frt-personalities-settings" class="text-stone-300 font-bold text-xs leading-none active:scale-90 transition-transform duration-100">[?]</button>
+          </div>
           <p class="text-stone-400 text-sm">Every fruit variety gains a unique, rule-breaking quirk. Requires 3+ players.</p>
           <p id="frt-sylly-locked-note" style="display:none" class="text-amber-600 text-xs font-medium">Fruity Personalities is unavailable while Pear-Off is on.</p>
         </div>
@@ -7733,7 +7784,10 @@
         </div>
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
           <p class="text-xs font-semibold uppercase tracking-widest" style="color:#047857">✨ Sylly Mode</p>
-          <p class="font-bold text-stone-800">Fruity Personalities</p>
+          <div class="flex items-center gap-1.5">
+            <p class="font-bold text-stone-800">Fruity Personalities</p>
+            <button id="btn-frt-personalities-howto" class="text-stone-300 font-bold text-xs leading-none active:scale-90 transition-transform duration-100">[?]</button>
+          </div>
           <p class="text-stone-500 text-sm">Every fruit gains a rule-breaking quirk — the <span class="font-semibold text-stone-700">Smug Banana</span> keeps your turn, the <span class="font-semibold text-stone-700">Angry Apple</span> starts a duel, the <span class="font-semibold text-stone-700">Sus Pear</span> lets you pocket and swap, and more. Requires 3+ players.</p>
         </div>
         <button id="btn-frt-howto-close" class="min-h-14 w-full rounded-2xl bg-[#FFC700] hover:bg-[#E6B400] active:scale-95 text-white text-xl font-semibold transition-all duration-150">Got it</button>
@@ -7791,6 +7845,61 @@
       <h3 id="frt-tip-heading" class="text-lg font-bold text-stone-800"></h3>
       <div id="frt-tip-body" class="text-stone-500 text-sm text-left flex flex-col gap-1.5"></div>
       <button id="btn-frt-tip-close" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-sm transition-all duration-100">Got it</button>
+    </div>
+  </div>
+
+  <!-- FRT PERSONALITIES (data slide-up — z-[95] opens from within how-to z-[90]) -->
+  <div id="frt-personalities-overlay" style="display:none"
+    class="fixed inset-0 bg-black/40 z-[95] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
+      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
+        <h2 class="text-xl font-bold text-stone-800">Fruity Personalities &#x1F353;</h2>
+        <p class="text-xs text-stone-400 mt-1">Every fruit's rule-breaking quirk in Sylly Mode.</p>
+      </div>
+      <div class="overflow-y-auto flex flex-col gap-3 px-5 py-5">
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-1.5">
+          <p class="font-bold text-stone-800">&#x1F34C; Smug Banana <span class="text-xs font-normal text-stone-400 ml-1">on-challenge</span></p>
+          <p class="text-stone-500 text-sm">If someone calls False on a Banana and it really is a Banana, the <span class="font-semibold text-stone-700">challenger</span> gets the card — not you. You keep the serve.</p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-1.5">
+          <p class="font-bold text-stone-800">&#x1F34B; Sour Lemon <span class="text-xs font-normal text-stone-400 ml-1">on-challenge</span></p>
+          <p class="text-stone-500 text-sm">If you lose a challenge with a Lemon in play, your <span class="font-semibold text-stone-700">challenger flips one random card</span> from their own Stash into their Bowl.</p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-1.5">
+          <p class="font-bold text-stone-800">&#x1F351; Charming Peach <span class="text-xs font-normal text-stone-400 ml-1">on-challenge</span></p>
+          <p class="text-stone-500 text-sm">If a Peach lands in a Bowl, the <span class="font-semibold text-stone-700">challenger must flip one of their own Peaches</span> from their Stash — if they're holding one.</p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-1.5">
+          <p class="font-bold text-stone-800">&#x1F347; Dramatic Grape <span class="text-xs font-normal text-stone-400 ml-1">on-challenge</span></p>
+          <p class="text-stone-500 text-sm">When a Grape is flipped, <span class="font-semibold text-stone-700">whoever is hiding the most Grapes</span> must flip one into their Bowl. Ties? Everyone tied flips one.</p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-1.5">
+          <p class="font-bold text-stone-800">&#x1F349; Chill Watermelon <span class="text-xs font-normal text-stone-400 ml-1">passive</span></p>
+          <p class="text-stone-500 text-sm">A <span class="font-semibold text-stone-700">live counter</span> shows the whole table how many Watermelons each player is hiding. No secrets.</p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-1.5">
+          <p class="font-bold text-stone-800">&#x1F350; Sus Pear <span class="text-xs font-normal text-stone-400 ml-1">on-peek</span></p>
+          <p class="text-stone-500 text-sm">If you Peek and find a Pear, you can <span class="font-semibold text-stone-700">pocket it and swap</span> any card from your Stash to pass on instead, with a fresh claim.</p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-1.5">
+          <p class="font-bold text-stone-800">&#x1F353; Panicked Strawberry <span class="text-xs font-normal text-stone-400 ml-1">on-serve</span></p>
+          <p class="text-stone-500 text-sm">Every time you serve a Strawberry, there's a <span class="font-semibold text-stone-700">1-in-4 chance it panics</span> and auto-reveals into your own Bowl. No bluffing required.</p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-1.5">
+          <p class="font-bold text-stone-800">&#x1F34E; Angry Apple <span class="text-xs font-normal text-stone-400 ml-1">on-challenge</span></p>
+          <p class="text-stone-500 text-sm">When an Apple is flipped, the <span class="font-semibold text-stone-700">loser must serve the winner</span> on their next turn — and the winner <span class="font-semibold text-stone-700">cannot Peek</span>.</p>
+        </div>
+
+        <button id="btn-frt-personalities-close" class="min-h-14 w-full rounded-2xl bg-[#FFC700] hover:bg-[#E6B400] active:scale-95 text-white text-xl font-semibold transition-all duration-150">Got it</button>
+      </div>
     </div>
   </div>
 

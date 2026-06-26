@@ -8,10 +8,12 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 // ── Settings (persist between play-agains) ───────────────────────────────────
-let dybWildcardsStyle = 'classic'; // 'strict' | 'classic' | 'volatile'
-let dybStartingHand   = 5;         // 3 | 4 | 5
-let dybSyllyMode      = false;
-let dybSyllyIntensity = 5;         // 5–10 (% per special die type)
+let dybWildcardsStyle  = 'classic'; // 'strict' | 'classic' | 'volatile'
+let dybStartingHand    = 5;         // 3 | 4 | 5
+let dybFootholdsMode   = false;     // OFF by default — lose a foothold instead of a die
+let dybFootholdsCount  = 5;         // 3 | 5 | 10 (lives per player in foothold mode)
+let dybSyllyMode       = false;
+let dybSyllyIntensity  = 5;         // 5–10 (% per special die type)
 
 // ── Roster (from mpPlayerSlots; persists across play-agains) ─────────────────
 let dybPlayerCount = 0;
@@ -19,7 +21,8 @@ let dybPlayerNames = []; // string[N]
 let dybSeatNumbers = []; // int[N] — seatNumbers[playerIdx] = seat (1..N)
 
 // ── Match state (reset each play-again) ──────────────────────────────────────
-let dybDiceInHand       = []; // int[N] — dice remaining per player
+let dybDiceInHand       = []; // int[N] — dice per shake (constant in foothold mode)
+let dybLives            = []; // int[N] — footholds remaining (foothold mode only)
 let dybActivePlayers    = []; // int[] — playerIdx of non-eliminated players
 let dybCurrentOpenerIdx = 0;  // who opens the next Shake
 let dybShakeNumber      = 0;
@@ -276,6 +279,26 @@ function dybInitSettingsListeners() {
     });
   });
 
+  // Footholds toggle
+  document.getElementById('btn-dyb-footholds-toggle').addEventListener('click', () => {
+    dybFootholdsMode = !dybFootholdsMode;
+    const btn = document.getElementById('btn-dyb-footholds-toggle');
+    btn.textContent = dybFootholdsMode ? 'ON' : 'OFF';
+    btn.className = dybFootholdsMode ? 'game-toggle-on-dyb shrink-0' : 'game-toggle-off shrink-0';
+    document.getElementById('dyb-footholds-sub-options').style.display = dybFootholdsMode ? 'flex' : 'none';
+    if (dybFootholdsMode) { playPillClick(); } else { playPillClick(); }
+  });
+
+  // Footholds count pills
+  document.querySelectorAll('[data-dyb-footholds]').forEach(pill => {
+    pill.addEventListener('click', () => {
+      playPillClick();
+      document.querySelectorAll('[data-dyb-footholds]').forEach(p => p.classList.remove('pill-active-dyb'));
+      pill.classList.add('pill-active-dyb');
+      dybFootholdsCount = parseInt(pill.dataset.dybFootholds);
+    });
+  });
+
   // Sylly Mode toggle
   document.getElementById('btn-dyb-sylly-toggle').addEventListener('click', () => {
     dybSyllyMode = !dybSyllyMode;
@@ -316,6 +339,16 @@ function dybApplySettingsToUI() {
   document.querySelectorAll('[data-dyb-hand]').forEach(p => p.classList.remove('pill-active-dyb'));
   const activeHand = document.querySelector(`[data-dyb-hand="${dybStartingHand}"]`);
   if (activeHand) activeHand.classList.add('pill-active-dyb');
+
+  // Footholds toggle
+  const fhBtn = document.getElementById('btn-dyb-footholds-toggle');
+  fhBtn.textContent = dybFootholdsMode ? 'ON' : 'OFF';
+  fhBtn.className = dybFootholdsMode ? 'game-toggle-on-dyb shrink-0' : 'game-toggle-off shrink-0';
+  document.getElementById('dyb-footholds-sub-options').style.display = dybFootholdsMode ? 'flex' : 'none';
+  // Footholds count pills
+  document.querySelectorAll('[data-dyb-footholds]').forEach(p => p.classList.remove('pill-active-dyb'));
+  const activeFH = document.querySelector(`[data-dyb-footholds="${dybFootholdsCount}"]`);
+  if (activeFH) activeFH.classList.add('pill-active-dyb');
 
   // Sylly Mode toggle
   const btn = document.getElementById('btn-dyb-sylly-toggle');
@@ -373,8 +406,9 @@ function dybStartGame() {
   // Pick random opener
   dybCurrentOpenerIdx = Math.floor(Math.random() * dybPlayerCount);
 
-  // Init dice in hand
+  // Init dice in hand + lives
   dybDiceInHand = Array(dybPlayerCount).fill(dybStartingHand);
+  dybLives = dybFootholdsMode ? Array(dybPlayerCount).fill(dybFootholdsCount) : [];
   dybActivePlayers = Array.from({length: dybPlayerCount}, (_, i) => i);
   dybEliminationOrder = [];
   dybShakeNumber = 0;
@@ -384,9 +418,12 @@ function dybStartGame() {
     playerNames: dybPlayerNames,
     seatNumbers: dybSeatNumbers,
     diceInHand: dybDiceInHand,
+    lives: dybLives,
     firstOpenerIdx: dybCurrentOpenerIdx,
     wildcards: dybWildcardsStyle,
     startingHand: dybStartingHand,
+    footholdsMode: dybFootholdsMode,
+    footholdsCount: dybFootholdsCount,
     syllyMode: dybSyllyMode,
     syllyIntensity: dybSyllyIntensity,
   };
@@ -428,9 +465,10 @@ function dybRenderShakeScreen() {
 
   const diceRow = document.getElementById('dyb-shake-dice-counts');
   diceRow.innerHTML = dybActivePlayers.map(i => {
-    const name = dybPlayerNames[i] || ('P' + (i + 1));
-    const count = dybDiceInHand[i];
-    return `<span class="text-stone-500 text-sm">${name}: ${count}</span>`;
+    const name  = dybPlayerNames[i] || ('P' + (i + 1));
+    const count = dybFootholdsMode ? dybLives[i] : dybDiceInHand[i];
+    const unit  = dybFootholdsMode ? (count === 1 ? 'foothold' : 'footholds') : (count === 1 ? 'die' : 'dice');
+    return `<span class="text-stone-500 text-sm">${name}: ${count} ${unit}</span>`;
   }).join('<span class="text-stone-300 mx-1">|</span>');
 
   // Render face-down dice in cup area
@@ -524,6 +562,7 @@ function dybBroadcastShakeActive() {
       activePlayers:   dybActivePlayers,
       playerNames:     dybPlayerNames,
       diceInHand:      dybDiceInHand,
+      lives:           dybLives,
     },
   });
   // Advance active players to table
@@ -545,12 +584,13 @@ function dybRenderTableScreen() {
   // Player pip row
   const pipRow = document.getElementById('dyb-pip-row');
   pipRow.innerHTML = dybActivePlayers.map(i => {
-    const name = dybPlayerNames[i] || ('P' + (i + 1));
-    const count = dybDiceInHand[i];
+    const name    = dybPlayerNames[i] || ('P' + (i + 1));
+    const count   = dybFootholdsMode ? dybLives[i] : dybDiceInHand[i];
+    const symbol  = dybFootholdsMode ? '◆' : '■';
     const isActive = i === dybCurrentBidderIdx;
     return `<div class="flex flex-col items-center gap-0.5 ${isActive ? 'opacity-100' : 'opacity-40'}">
       <span class="text-xs font-semibold ${isActive ? 'text-stone-800' : 'text-stone-400'}">${name}</span>
-      <span class="text-base">${'■'.repeat(count)}</span>
+      <span class="text-base">${symbol.repeat(count)}</span>
     </div>`;
   }).join('');
 
@@ -781,13 +821,23 @@ function dybResolveShowdown() {
   // loser: bidder if real < claimed, else challenger
   const loserIdx = real < claimed ? bidderIdx : challengerIdx;
 
-  dybDiceInHand[loserIdx]--;
   let eliminatedIdx = -1;
-  if (dybDiceInHand[loserIdx] <= 0) {
-    dybDiceInHand[loserIdx] = 0;
-    dybEliminationOrder.push(loserIdx);
-    dybActivePlayers = dybActivePlayers.filter(i => i !== loserIdx);
-    eliminatedIdx = loserIdx;
+  if (dybFootholdsMode) {
+    dybLives[loserIdx]--;
+    if (dybLives[loserIdx] <= 0) {
+      dybLives[loserIdx] = 0;
+      dybEliminationOrder.push(loserIdx);
+      dybActivePlayers = dybActivePlayers.filter(i => i !== loserIdx);
+      eliminatedIdx = loserIdx;
+    }
+  } else {
+    dybDiceInHand[loserIdx]--;
+    if (dybDiceInHand[loserIdx] <= 0) {
+      dybDiceInHand[loserIdx] = 0;
+      dybEliminationOrder.push(loserIdx);
+      dybActivePlayers = dybActivePlayers.filter(i => i !== loserIdx);
+      eliminatedIdx = loserIdx;
+    }
   }
 
   // Next opener = loser (or next active if eliminated)
@@ -807,11 +857,12 @@ function dybResolveShowdown() {
   // ── Save shake log for Chronicle (host only) ──────────────────────────────
   const _loserName     = dybPlayerNames[loserIdx]    || ('P' + (loserIdx + 1));
   const _challName     = dybPlayerNames[challengerIdx] || ('P' + (challengerIdx + 1));
+  const _loseVerb = dybFootholdsMode ? 'loses a foothold' : 'loses a die';
   const _shakeConclusion = eliminatedIdx !== -1
     ? `${_loserName} lost their last foothold and fell from the climb.`
     : real < claimed
-      ? `${_challName} called the bluff. ${_loserName} loses a die.`
-      : `The claim held. ${_loserName} loses a die.`;
+      ? `${_challName} called the bluff. ${_loserName} ${_loseVerb}.`
+      : `The claim held. ${_loserName} ${_loseVerb}.`;
   dybShakeLogs.push({
     shakeNum:   dybShakeNumber,
     bids:       [...dybAllegationHistory],
@@ -826,6 +877,7 @@ function dybResolveShowdown() {
     loserIdx,
     eliminatedIdx,
     newDiceInHand: [...dybDiceInHand],
+    newLives: [...dybLives],
     allRolls: dybAllRolls,
     allSpecialTypes: dybAllSpecialTypes,
     allSlickFaces: dybAllSlickFaces,
@@ -844,7 +896,10 @@ function dybResolveShowdown() {
 
 function dybApplyShowdown(data) {
   dybDiceInHand = data.newDiceInHand;
-  dybActivePlayers = dybActivePlayers.filter(i => dybDiceInHand[i] > 0);
+  if (dybFootholdsMode && data.newLives) dybLives = data.newLives;
+  dybActivePlayers = dybActivePlayers.filter(i =>
+    dybFootholdsMode ? dybLives[i] > 0 : dybDiceInHand[i] > 0
+  );
   if (data.eliminatedIdx !== -1) {
     dybEliminationOrder = [...data.eliminationOrder];
   }
@@ -902,8 +957,9 @@ function dybRenderShowdownScreen(data, onDone) {
     document.getElementById('dyb-showdown-verdict').className   = held
       ? 'text-2xl font-bold text-stone-700'
       : 'text-2xl font-bold text-red-600';
+    const _loseMsg = dybFootholdsMode ? 'loses a foothold.' : 'loses a die.';
     document.getElementById('dyb-showdown-loser').textContent =
-      eliminated ? `${loserName} is out!` : `${loserName} loses a die.`;
+      eliminated ? `${loserName} is out!` : `${loserName} ${_loseMsg}`;
     // un-dim all remaining dice so the full table is visible at the verdict
     container.querySelectorAll('.dyb-die-dim').forEach(el => el.classList.remove('dyb-die-dim'));
     playBoing();
@@ -1020,6 +1076,7 @@ function dybAdvanceFromShowdown() {
       nextOpenerIdx: dybCurrentOpenerIdx,
       activePlayers: dybActivePlayers,
       diceInHand:    dybDiceInHand,
+      lives:         dybLives,
     },
   });
 }
@@ -1141,7 +1198,7 @@ function dybShowSpiritBoard() {
   showScreen('screen-dyb-spirit-board');
 }
 
-function dybRenderSpiritBoard(allRolls, allSpecialTypes, activePlayers, playerNames, diceInHand) {
+function dybRenderSpiritBoard(allRolls, allSpecialTypes, activePlayers, playerNames, diceInHand, lives) {
   const grid = document.getElementById('dyb-spirit-grid');
   grid.innerHTML = '';
   activePlayers.forEach(i => {
@@ -1149,9 +1206,10 @@ function dybRenderSpiritBoard(allRolls, allSpecialTypes, activePlayers, playerNa
     const roll  = allRolls[i] || [];
     const types = allSpecialTypes[i] || [];
     const diceHtml = roll.map((val, j) => dybDieHTML(val, types[j] || 'standard', -1, true, -2)).join('');
+    const remaining = dybFootholdsMode && lives ? `${lives[i]} foothold${lives[i] === 1 ? '' : 's'} left` : `${diceInHand[i]} left`;
     grid.innerHTML += `
       <div id="dyb-spirit-row-${i}" class="bg-white rounded-2xl p-3 shadow-sm">
-        <p class="text-xs font-semibold text-stone-500 mb-2">${name} (${diceInHand[i]} left)</p>
+        <p class="text-xs font-semibold text-stone-500 mb-2">${name} (${remaining})</p>
         <div class="flex gap-2 flex-wrap">${diceHtml}</div>
       </div>`;
   });
@@ -1523,6 +1581,7 @@ function dybShowTempestGuide() {
 // ── Match reset ───────────────────────────────────────────────────────────────
 function dybResetMatchState() {
   dybDiceInHand       = [];
+  dybLives            = [];
   dybActivePlayers    = [];
   dybCurrentOpenerIdx = 0;
   dybShakeNumber      = 0;
@@ -1590,9 +1649,12 @@ function dybHandleEnvelope(env) {
         dybPlayerNames      = payload.playerNames;
         dybSeatNumbers      = payload.seatNumbers;
         dybDiceInHand       = payload.diceInHand;
+        dybLives            = payload.lives || [];
         dybCurrentOpenerIdx = payload.firstOpenerIdx;
         dybWildcardsStyle   = payload.wildcards;
         dybStartingHand     = payload.startingHand;
+        dybFootholdsMode    = payload.footholdsMode  || false;
+        dybFootholdsCount   = payload.footholdsCount || 5;
         dybSyllyMode        = payload.syllyMode;
         dybSyllyIntensity   = payload.syllyIntensity;
         dybPlayerCount      = payload.playerNames.length;
@@ -1616,7 +1678,7 @@ function dybHandleEnvelope(env) {
         if (dybActivePlayers.includes(mpMyPlayerIdx)) return;
         dybRenderSpiritBoard(
           payload.allRolls, payload.allSpecialTypes,
-          payload.activePlayers, payload.playerNames, payload.diceInHand
+          payload.activePlayers, payload.playerNames, payload.diceInHand, payload.lives
         );
         dybShowSpiritBoard();
         break;
@@ -1646,6 +1708,7 @@ function dybHandleEnvelope(env) {
         dybCurrentOpenerIdx = payload.nextOpenerIdx;
         dybActivePlayers    = payload.activePlayers;
         dybDiceInHand       = payload.diceInHand;
+        if (payload.lives) dybLives = payload.lives;
         if (!dybActivePlayers.includes(mpMyPlayerIdx)) {
           dybShowSpiritBoard(); // eliminated players stay on the Spirit Board, not the Shake screen
         } else {

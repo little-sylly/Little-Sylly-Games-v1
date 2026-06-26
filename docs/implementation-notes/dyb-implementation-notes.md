@@ -2,6 +2,9 @@
 
 ## Design Decisions
 
+**Stack sweep (26 June 2026) — `screen-dyb-spirit-board` migrated to the centred Stack.**
+The eliminated-player spectator screen (The Depths 🌊) was the only DYB screen on the legacy `h-screen overflow-hidden` sticky-footer pattern. Migrated to the centred **Stack** (`ui-style.md` § The Stack) in the suite-wide sweep via the scoped class-transform — markup-only, IDs (`dyb-spirit-allegation`, `dyb-spirit-grid`) and render code unchanged. The main `screen-dyb-table` and other DYB screens were already Stack/centred-compliant. Method: throwaway Node script (per the index.html-encoding rule), SW → v127.
+
 **Thematic rename: "Dicey Bluffs" → "The Bluff" (June 2026 backlog sweep).**
 The title was reworked around the geological double meaning of *bluff* (a high sea-cliff), giving the whole game a climb/cliff metaphor. Display mapping: Allegation → **The Claim**, Raise the Stakes → **Climb Higher**, Call Bluff! → **Call the Bluff**, The Showdown → **The Overlook** (eyebrow "Reaching the Edge"), The Spirit Board → **The Depths** (🌊), The Clean Out → **The Summit**, Devil's Luck → **The Tempest**, House Rules → **Ground Rules**, Walk Away? → **Back Down?**, Roll Again? → **Climb Again?**, seating "Pull Up a Chair" → "Take Your Position". "Shake" (round + roll action) and the dice/pip mechanics were deliberately kept — they are literal, not flavour.
 - **Scope discipline:** view-layer strings ONLY. The `dyb` prefix and every code identifier (`dybAllegationHistory`, `DYB_ALLEGATION`, `screen-dyb-showdown`, `screen-dyb-spirit-board`, die-type strings `'loaded'`/…/`'snake'`) are untouched — renaming functional identifiers across `index.html`/`engine-multiplayer.js`/`sw.js` would be pure churn with a large breakage surface for zero player-facing gain. The abstraction stays strictly in the view layer.
@@ -297,3 +300,16 @@ The previous flex layout used `flex-1` on the Climber column — giving it ALL r
 - **Slick on shake screen:** See updated Slick die one-time face lock note above.
 - **Summit standings redesign:** Single header row replaces per-card mini-labels. Columns: RANK (w-6) | CLIMBER (flex-1 truncate) | CHALLENGES (w-[72px] shrink-0) | FAVOURED (w-10 shrink-0). Column widths match between header and data rows via identical Tailwind classes. `hasFaceData` guard controls whether the FAVOURED column appears at all (so non-Sylly sessions don't show an empty column). Renamed: "Clashes" → "Challenges", "Face" → "Favoured".
 - **SW:** bumped v121 → v122.
+
+---
+
+## Design Decisions (continued — June 2026)
+
+**Footholds Mode — lives separate from dice (Phase 35 backlog)**
+New setting in The Bluff: `dybFootholdsMode` (toggle OFF/ON, default OFF) + `dybFootholdsCount` sub-option pills (3/5/10, default 5).
+- **What changes:** When ON, losing a showdown costs 1 foothold (`dybLives[loserIdx]--`) instead of 1 die. Dice count stays constant all game — you always roll `dybStartingHand` dice per shake regardless of losses. Footholds reaching 0 triggers elimination, same as dice reaching 0 in the standard path.
+- **What stays the same:** "Starting Dice" was not renamed — it still accurately describes how many dice you roll per shake (unchanged in foothold mode). The setting remains in the Ground Rules overlay with its original label.
+- **Display changes:** Pip row uses `◆` symbol for footholds vs `■` for dice; shake screen count row says "X footholds" vs "X dice"; verdict text says "loses a foothold" vs "loses a die".
+- **MDLM:** `dybLives` is carried in `DYB_GAME_START`, `DYB_NEXT_SHAKE`, and `DYB_SPIRIT_SHAKE` payloads; `dybFootholdsMode`/`dybFootholdsCount` included in `mpSerialiseSettings` and the `SETTINGS_SYNC` applier. All existing SYNC handlers branch on `dybFootholdsMode` to apply the correct elimination logic.
+- **Non-impact on existing path:** All new logic is gated behind `if (dybFootholdsMode)` — the default OFF path is structurally unchanged. `dybLives` initialises to `[]` and is never read in standard mode.
+- **SW:** bumped v125 → v126.
