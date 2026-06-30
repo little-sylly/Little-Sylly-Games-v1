@@ -88,7 +88,18 @@ function frtRenderCard(fruitId, opts) {
   opts = opts || {};
   const el = document.createElement('div');
   if (opts.faceDown) {
-    el.className = 'frt-card frt-card-back';
+    // Asset-pack back (device-local skin) if one is active; else the default CSS back.
+    const back = (typeof assetBack === 'function') && assetBack('frt');
+    el.className = back ? 'frt-card frt-card-asset' : 'frt-card frt-card-back';
+    if (back) el.style.backgroundImage = 'url("' + back + '")';
+    return el;
+  }
+  // Asset-pack face (device-local skin) if one covers this fruit; else the default emoji card.
+  const url = (typeof assetFace === 'function') && assetFace('frt', fruitId);
+  if (url) {
+    el.className = 'frt-card frt-card-asset';
+    el.dataset.fruit = fruitId;
+    el.style.backgroundImage = 'url("' + url + '")';
     return el;
   }
   const f = FRT_FRUITS[fruitId];

@@ -479,7 +479,7 @@ function dybRenderShakeScreen() {
   // Render face-down dice in cup area
   const count = dybDiceInHand[myIdx];
   document.getElementById('dyb-hand-dock-shake').innerHTML = Array.from({ length: count }, () =>
-    `<div class="dyb-die border-slate-500 bg-slate-800 select-none"></div>`
+    dybDieBackHTML()
   ).join('');
   document.getElementById('dyb-shake-cup-label').textContent = "Tap to shake 'em up";
   // Show the Tempest guide [?] before rolling too, so players can review special dice
@@ -1462,6 +1462,15 @@ function dybDieHTML(val, type, slickFace, visible, dieIdx = -1, isSlickAssigned 
     return `<div${idAttr} class="dyb-die ${borderCls} ${bgCls} ${extraCls} select-none" style="display:flex;align-items:center;justify-content:center;padding:0;"><span class="${textStyle}">${textLabel}</span></div>`;
   }
 
+  // Asset-pack standard die face (device-local skin). Only standard faces are skinned —
+  // special dice (loaded/slick/snake/phantom) keep pip styling so the die type stays legible.
+  if (type === 'standard') {
+    const url = (typeof assetFace === 'function') && assetFace('dyb', val);
+    if (url) {
+      return `<div${idAttr} class="dyb-die dyb-die-asset select-none" style="background-image:url('${url}')"></div>`;
+    }
+  }
+
   const pips = DYB_PIP_LAYOUTS[val] || [];
   let cells = '';
   for (let i = 1; i <= 9; i++) {
@@ -1475,6 +1484,13 @@ function dybDieHTMLSm(face) {
 }
 function dybDieHTMLXs(face) {
   return dybDieHTML(face, 'standard', -1, true).replace('class="dyb-die ', 'class="dyb-die dyb-die-xs ');
+}
+
+// Face-down die (cup, pre-shake). Routes through the seam so an asset pack can skin the back.
+function dybDieBackHTML() {
+  const back = (typeof assetBack === 'function') && assetBack('dyb');
+  if (back) return `<div class="dyb-die dyb-die-asset select-none" style="background-image:url('${back}')"></div>`;
+  return `<div class="dyb-die border-slate-500 bg-slate-800 select-none"></div>`;
 }
 
 function dybOpenSlickPicker(dieIdx) {

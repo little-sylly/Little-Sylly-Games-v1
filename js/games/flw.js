@@ -111,9 +111,24 @@ function flwRenderCard(gemId, opts = {}) {
   const g = FLW_GEM[gemId] || {};
   const el = document.createElement('div');
   if (opts.faceDown) {
+    // Asset-pack back (device-local skin) if active; else default gradient back.
+    const back = (typeof assetBack === 'function') && assetBack('flw');
     el.className = 'flw-card-back';
+    if (back) {
+      el.style.cssText = 'width:4.5rem;height:6.5rem;border-radius:0.75rem;background-size:cover;background-position:center;background-image:url("' + back + '");';
+      return el;
+    }
     el.style.cssText = 'width:4.5rem;height:6.5rem;border-radius:0.75rem;display:flex;align-items:center;justify-content:center;background:linear-gradient(145deg,#7a1840,#D6336C);border:2px solid #C9A227;color:#fff;font-size:1.5rem;';
     el.textContent = '\u{1F48E}';
+    return el;
+  }
+  // Asset-pack face (device-local skin) if one covers this gem; else default luxury-token card.
+  const faceUrl = (typeof assetFace === 'function') && assetFace('flw', gemId);
+  if (faceUrl) {
+    el.className = 'flw-card';
+    el.dataset.gemId = gemId;
+    el.style.cssText = 'width:4.5rem;height:6.5rem;border-radius:0.75rem;background-size:cover;background-position:center;background-image:url("' + faceUrl + '");'
+      + (opts.dimmed ? 'opacity:0.35;' : '') + (opts.selectable ? 'cursor:pointer;' : '');
     return el;
   }
   el.className = 'flw-card';

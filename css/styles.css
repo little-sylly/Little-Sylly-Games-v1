@@ -991,6 +991,14 @@ body.flash-red   { background-color: #fecaca; }
   border: 2px solid #E6B400;
   box-shadow: 0 1px 4px rgba(0,0,0,0.08);
 }
+/* Asset-pack (skin) face — overrides the default emoji card with a pack image.
+   Keeps .frt-card sizing; the image fills the card. Render seam: frtRenderCard. */
+.frt-card-asset {
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  border-color: transparent;
+}
 
 /* Counting Sheep cards — v1 emoji skin (render seam: shpRenderCard) */
 .shp-card {
@@ -1002,6 +1010,13 @@ body.flash-red   { background-color: #fecaca; }
   border: 2px solid #c7d2fe; /* indigo-200 */
   box-shadow: 0 1px 4px rgba(0,0,0,0.08);
   user-select: none;
+}
+/* Asset-pack (skin) face — overrides the default emoji card. Render seam: shpRenderCard. */
+.shp-card-asset {
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  border-color: transparent;
 }
 .shp-card-emoji { font-size: 1.7rem; line-height: 1; }
 .shp-card-label { font-size: 0.62rem; font-weight: 700; color: #3730a3; text-align: center; line-height: 1.1; padding: 0 2px; }
@@ -1045,20 +1060,28 @@ body.flash-red   { background-color: #fecaca; }
   line-height: 1;
   opacity: 0;
   animation-duration: 1.2s;
-  animation-timing-function: ease-in-out;
+  /* linear timing — the parabolic keyframes below supply the natural "gravity" feel
+     (fast launch, hang at the apex, fast descent), like a sheep jumping a fence. */
+  animation-timing-function: linear;
   animation-fill-mode: both;
 }
+/* Steady horizontal travel (x evenly spaced) + a parabolic vertical arc (apex at 50%)
+   so the sheep curve over a fence into the counter rather than tracking a straight vector. */
 @keyframes shpSheepArcIn {
-  0%   { opacity: 0; transform: translate(-130px, 8px)  scale(0.6); }
-  20%  { opacity: 1; }
-  55%  { transform: translate(-60px, -42px) scale(1.1); }
-  100% { opacity: 0; transform: translate(0, 0) scale(0.85); }
+  0%   { opacity: 0; transform: translate(-130px, 6px)  scale(0.7); }
+  15%  { opacity: 1; }
+  25%  { transform: translate(-97px, -34px)  scale(0.95); }
+  50%  { transform: translate(-65px, -52px)  scale(1.08); }
+  75%  { transform: translate(-33px, -34px)  scale(1); }
+  100% { opacity: 0; transform: translate(0, 2px) scale(0.85); }
 }
 @keyframes shpSheepArcOut {
-  0%   { opacity: 0; transform: translate(0, 0) scale(0.85); }
-  20%  { opacity: 1; }
-  55%  { transform: translate(-60px, -42px) scale(1.1); }
-  100% { opacity: 0; transform: translate(-130px, 8px) scale(0.6); }
+  0%   { opacity: 0; transform: translate(0, 2px) scale(0.85); }
+  15%  { opacity: 1; }
+  25%  { transform: translate(-33px, -34px)  scale(1); }
+  50%  { transform: translate(-65px, -52px)  scale(1.08); }
+  75%  { transform: translate(-97px, -34px)  scale(0.95); }
+  100% { opacity: 0; transform: translate(-130px, 6px) scale(0.7); }
 }
 
 /* Build-grid cell base + invalid-placement reject flash */
@@ -1125,6 +1148,16 @@ body.flash-red   { background-color: #fecaca; }
 .dyb-die.dyb-die-sm { width: 38px; height: 38px; border-radius: 8px; padding: 5px; }
 .dyb-die.dyb-die-xs { width: 26px; height: 26px; border-radius: 6px; padding: 3px; border-width: 1.5px; }
 .dyb-die.dyb-die-dim { opacity: 0.2; transition: opacity 0.25s ease; }
+/* Asset-pack (skin) die face/back — overrides the pip grid with a pack image.
+   Render seam: dybDieHTML (standard faces) + dybDieBackHTML. Keeps .dyb-die sizing. */
+.dyb-die-asset {
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  border-color: transparent;
+  padding: 0;
+  display: block;
+}
 
 /* Snake die — sinister dark toxic green, diamond pips */
 .dyb-die.dyb-die-snake {
@@ -1395,6 +1428,13 @@ body.flash-red   { background-color: #fecaca; }
   cursor: default;
 }
 
+/* Asset-pack (skin) face/back — overrides the SVG card. Render seam: Cards.buildEl/buildBackEl. */
+.pass-card-asset {
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  border-color: transparent;
+}
 .pass-card-red  { color: #dc2626; }
 .pass-card-black { color: #18181b; }
 

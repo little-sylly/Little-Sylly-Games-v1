@@ -282,15 +282,28 @@ function shpCardFaceLabel(c, inverted) {
 function shpRenderCard(cardId, opts) {
   opts = opts || {};
   const el = document.createElement('div');
-  if (opts.faceDown) { el.className = 'shp-card shp-card-back'; return el; }
+  if (opts.faceDown) {
+    // Asset-pack back (device-local skin) if active; else default CSS back.
+    const back = (typeof assetBack === 'function') && assetBack('shp');
+    el.className = back ? 'shp-card shp-card-asset' : 'shp-card shp-card-back';
+    if (back) el.style.backgroundImage = 'url("' + back + '")';
+    return el;
+  }
   if (opts.wolf)     { el.className = 'shp-card shp-card-wolf';
                        el.innerHTML = '<span class="shp-card-emoji">\u{1F43A}</span><span class="shp-card-label">asleep</span>';
                        return el; }
   const c = SHP_CARDS[cardId];
   el.dataset.card = cardId;
-  if (cardId === 13) {   // Fogged Dream — cursed, value hidden from everyone incl. owner
+  if (cardId === 13) {   // Fogged Dream — cursed, value hidden from everyone incl. owner (not skinned)
     el.className = 'shp-card shp-card-cursed';
     el.innerHTML = '<span class="shp-card-emoji">' + c.emoji + '</span><span class="shp-card-label">?</span>';
+    return el;
+  }
+  // Asset-pack face (device-local skin) if one covers this card; else default emoji card.
+  const url = (typeof assetFace === 'function') && assetFace('shp', cardId);
+  if (url) {
+    el.className = 'shp-card shp-card-asset';
+    el.style.backgroundImage = 'url("' + url + '")';
     return el;
   }
   el.className = 'shp-card shp-card-' + c.family;
@@ -1212,7 +1225,7 @@ function shpPostResolve(playerIdx) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// Overlays — TODO
+// Overlays
 // ═══════════════════════════════════════════════════════════════════════════
 function shpSyncToggle(id, on) {
   const t = document.getElementById(id);
@@ -1262,7 +1275,7 @@ function shpShowTip(emoji, heading, lines) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// Multiplayer — TODO (§11)
+// Multiplayer (§11)
 // ═══════════════════════════════════════════════════════════════════════════
 function shpHandleEnvelope(env) {
   try {

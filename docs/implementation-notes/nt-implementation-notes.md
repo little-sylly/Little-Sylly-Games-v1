@@ -94,6 +94,9 @@ The scrubber pauses physics on drag; releases resume from that exact millisecond
 **What:** The build screen header `SYS_INIT // BOUBOU-6D617A65 // NT-NODE-01` is intentional. The playback top bar showed the same string, but on mobile the easter egg portion cut off `NT-NODE-01` — the most important identifier.
 **Fix:** Playback top bar shows `NT-NODE-NN` only. Easter egg string kept on build screen exclusively. See D9.
 
+### Cleanup — dead skeleton stubs removed (Phase-audit Protocol A, 30 June 2026)
+**What:** Two skeleton-build stubs survived to ship with stale `TODO` comments and zero references anywhere in the codebase — `ntComputePlayback()` (empty body) and `ntValidateTeams()` (`return true`). The real DNP implementations landed elsewhere (`ntComputeTimeline`, the allocation/SYNC path), leaving these orphaned. **Fix:** deleted both. **Lesson:** Protocol B skeleton stubs that get superseded by differently-named real functions don't error and don't get caught at ship — grep for self-references on every scaffold function name before the phase snapshot.
+
 ---
 
 ## Design Decisions (Phase D additions — DNP Multiplayer)

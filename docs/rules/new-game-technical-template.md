@@ -294,8 +294,28 @@ Map existing `play*()` functions to game moments. Do not create new audio functi
 - Add to `sw.js` precache
 
 **Secret Mode / expansion pack:**
-- `applyExpansionOverrides()` hook: added at [specify location in settings-apply flow]
+- `[abbr]ApplyExpansionOverrides()` hook (plugin-prefixed — never bare `applyExpansionOverrides`): added at [specify location in settings-apply flow]
 - Word pool substitution: in `[abbr]StartGame()` and pool-refill path — pattern from `nat.js` `natDrawSpecimen()`
+
+**Custom assets (asset-pack readiness)** — from brief §9A. If the game has a repeated visual
+primitive (cards/dice/gems/tiles/tokens), it MUST be drawn through a single **render seam** so a
+skin can be added later with no game-logic change. Skins are device-local cosmetic (ids-only
+packets → no multiplayer sync). See `logic-engine.md` § Shared Library Modules and
+`docs/expansion-guide.md` § Add an asset (skin) pack.
+
+| Field | Value |
+|-------|-------|
+| Visual primitive (or "None") | |
+| Render-seam function | `[abbr]RenderX(id, opts)` → DOM node; face-down variant `opts.faceDown` |
+| Id key (stable, packet-safe) | [e.g. numeric id 0–N, or a derived string] |
+| Asset `kind` string (if/when skinned) | `[abbr]` (or shared family, e.g. `cards`) |
+| Default v1 look (no skin) | [emoji / CSS / text] |
+
+Seam contract (reuse, don't reinvent — PASS uses the shared `Cards` module; FRT/SHP/FLW use
+plugin seams): at the top of the seam, `const url = (typeof assetFace==='function') && assetFace('<kind>', id);`
+→ if `url`, return an image node (`background-image`, `.<family>-card-asset` CSS) ; else build the
+default face. Same for the back via `assetBack('<kind>')`. **Never build that primitive's DOM
+anywhere outside the seam** (a bypass is unskinnable — see DYB's old cup-die bypass).
 
 ---
 
@@ -438,6 +458,13 @@ Tick each item as it is built. Do not mark complete until verified in the browse
 - [ ] Word pool build logic matches §10 (correct categories, difficulty tiers, exclusions)
 - [ ] Secret Mode pool substitution in `startGame()` and refill path
 - [ ] New data file added to `sw.js` precache if applicable
+
+### Custom Assets (if the game has a visual primitive — §10)
+- [ ] ALL of the primitive's DOM is built in one `[abbr]RenderX(id, opts)` seam — no inline bypass
+- [ ] Seam reads `assetFace('<kind>', id)` / face-down reads `assetBack('<kind>')`, falls back to default art
+- [ ] `.<family>-card-asset` (or equivalent) CSS rule added — cover/centre, transparent border
+- [ ] If a skin should be selectable: `SM_GAMES` entry added so the terminal can launch it under `GAME SKINS`
+- [ ] Id key is stable + packet-safe (skins carry no art over the wire — device-local only)
 
 ### Service Worker
 - [ ] `sw.js` precache updated with any new files

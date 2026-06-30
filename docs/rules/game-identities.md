@@ -681,7 +681,7 @@ LOBBY → DSD MENU → DSD SETUP (team names) → DSD PLAYERS (player names + ca
 | The Console ⚓ | Settings overlay title |
 | How to Play ⚓ | How-to overlay title (standard title block; renamed from "Operations Manual ⚓" Phase 28 — subtitle "How to run a successful deployment.") |
 | New Operation | Play again (resets game state, keeps names + settings) |
-| Mission Abyss | Sylly Mode name |
+| Silent Running | Sylly Mode name |
 | Jammer | Sylly Mode sabotage tile |
 | Magnetic Drift | Sylly Mode mechanic — unrevealed grid cells shuffle each deployment |
 
@@ -694,7 +694,7 @@ LOBBY → DSD MENU → DSD SETUP (team names) → DSD PLAYERS (player names + ca
 | Strategic Planning | OFF / ON | OFF | `dsdStrategicPlanning` | bool |
 | Hazard Control | Urchin / Mine / Payload (multi-select pills) | Mine + Payload active, Urchin off | `dsdHazardControl.{urchin,mine,enemy}` | bools — active pill = ends turn on hit. **"Payload" pill = `enemy`** |
 | Danger Level | Pressure Mine / Nuclear Mine | Pressure Mine | `dsdDangerLevel` | `'pressure'` / `'nuclear'` |
-| ✨ Sylly Mode (Mission Abyss) | OFF / ON | OFF | `dsdSyllyMode` | bool |
+| ✨ Sylly Mode (Silent Running) | OFF / ON | OFF | `dsdSyllyMode` | bool |
 
 ### Scoring
 | Outcome | Who scores | Points | Turn End? |

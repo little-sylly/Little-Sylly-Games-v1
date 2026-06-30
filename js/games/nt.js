@@ -1352,9 +1352,6 @@ function ntComputeTimeline_local() {
   return ntComputeTimeline(polyline, ntHoneypotCentres(ntNode, ntMyPlacements));
 }
 
-// Host: shortest path + timeline + latency for every player (Standard) / relay (DNP).
-function ntComputePlayback() { /* §11 — TODO Multiplayer step */ }
-
 // ═══════════════════════════════════════════════════════════════════════════
 // SCORING  (Step 5 — §6)
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1427,9 +1424,6 @@ function ntRenderSummary() {
   // MDLM multiplayer rendering arrives with host-authoritative scoring (MP step).
   if (labelEl) labelEl.textContent = 'System Efficiency Rating';
 }
-
-// DNP: require equal team sizes (4/6/8 only) before match start (§12).
-function ntValidateTeams() { /* TODO Step 5 */ return true; }
 
 // ═══════════════════════════════════════════════════════════════════════════
 // CYCLE ORCHESTRATION  (solo/local — host broadcast lands in the MP step)

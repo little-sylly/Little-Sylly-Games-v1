@@ -1,0 +1,25 @@
+{
+  "id": "neon-gems",
+  "label": "NEON GEMS",
+  "locked": false,
+  "games": [
+    "flw"
+  ],
+  "assets": {
+    "kind": "flw",
+    "basePath": "img/",
+    "faces": {
+      "0": "gem0.svg",
+      "1": "gem1.svg",
+      "2": "gem2.svg",
+      "3": "gem3.svg",
+      "4": "gem4.svg",
+      "5": "gem5.svg",
+      "6": "gem6.svg",
+      "7": "gem7.svg",
+      "8": "gem8.svg",
+      "9": "gem9.svg"
+    },
+    "back": "back.svg"
+  }
+}

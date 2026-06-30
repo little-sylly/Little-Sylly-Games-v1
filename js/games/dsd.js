@@ -37,7 +37,7 @@ let dsdTurnLog     = []; // [{deployment, team, teamName, captainName, ping, pin
 let dsdHistoryIdx  = 0;  // active carousel card index (per-deployment) — gameover screen
 let dsdHistoryPage = 0;  // deployment shown in in-game history carousel
 
-// ── Sylly Mode only (Mission Abyss) ──────────────────────────────────────────
+// ── Sylly Mode only (Silent Running) ─────────────────────────────────────────
 let dsdJammers       = [-1, -1]; // dsdJammers[t] = grid index jammed BY team t; -1 = none
 let dsdUpgradedMines = [];       // indices upgraded urchin→mine this cycle; reverted before next jam
 
@@ -983,7 +983,7 @@ function dsdAdvanceTurn() {
     dsdRevertUpgradedMines();
     dsdShowPassGate({
       heading: `Pass to ${dsdCaptainName[placingTeam] || dsdTeamNames[placingTeam]}`,
-      subtext: 'Mission Abyss: the Captain sabotages in secret.',
+      subtext: 'Silent Running: the Captain sabotages in secret.',
       ctaLabel: 'Deploy Jammer ⚡',
       teamIdx: placingTeam,
       onConfirm: () => dsdShowSabotage(placingTeam),

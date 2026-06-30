@@ -508,17 +508,62 @@ Each game's `<!-- ════ NAME ════ -->` section-header comment is 
 ### Key functions
 | Function | Purpose |
 |----------|---------|
-| `smLaunch()` | Fetches expansion JSON, builds data, writes overrides, navigates |
+| `smLoadPacks()` | **(Cartridge, Phase A)** One-time: fetches `data/packs/registry.json` + each `<id>/pack.json`, builds `SM_TERMINAL_CONFIG.expansions` / `SM_EXPANSION_OVERRIDES` / `SM_PACK_WORDS`, appends the locked `classified` sentinel. `await`ed by `smOpenTerminal()` before the boot sequence renders the list |
+| `smReviveSettings(settings)` | **(Cartridge, Phase A)** Converts the string `"Infinity"` → JS `Infinity` in a pack's settings (JSON has no Infinity literal) |
+| `smRunBootError()` | **(Cartridge, Phase A)** Boot-sequence variant shown when `smLoadPacks()` fails (e.g. first-ever terminal open while offline) |
+| `smOpenTerminal()` | **async** — resets UI, shows terminal, `await smLoadPacks()`, then runs boot sequence (or `smRunBootError()` on failure) |
+| `smLaunch()` | Loads word bank from the manifest's inline `words` (or `wordFile` fallback), builds data, writes overrides, navigates |
 | `smBuildExpansionData(words)` | Builds `window.activeExpansionData` vocab Set + category map |
 | `smOpenVocabOverlay()` | Opens GM vocab reference overlay |
 | `resetSecretMode()` | Full teardown; called by `resetToLobby()` |
 
-### Key config objects
+### Key config objects (built at runtime by `smLoadPacks()` — Phase A)
 | Name | Purpose |
 |------|---------|
-| `SM_TERMINAL_CONFIG` | Expansion list + game list (add new expansions/games here) |
-| `SM_EXPANSION_OVERRIDES` | Per-expansion forced settings pushed to plugins |
-| `SM_SETTINGS_DISPLAY` | Per-game setting label/formatter map for terminal summary |
+| `SM_GAMES` | **const** — game catalogue (id/label/screen); engine knowledge, not pack data |
+| `SM_TERMINAL_CONFIG` | `let` — `{ expansions: [], games: SM_GAMES }`; `.expansions` populated from manifests at terminal open |
+| `SM_EXPANSION_OVERRIDES` | `let {}` — per-pack forced settings pushed to plugins (Infinity-revived) |
+| `SM_PACK_WORDS` | `let {}` — id → inline word array (or `null` if the pack uses `wordFile`) |
+| `SM_PACK_ASSETS` | `let {}` — id → `assets` block (asset/skin packs only; `null` otherwise) **(Phase B)** |
+| `smPacksLoaded` | `let bool` — one-time load guard |
+| `SM_SETTINGS_DISPLAY` | **const** — per-game setting label/formatter map for terminal summary (stays hardcoded — engine knowledge, not pack data) |
+
+### Asset (skin) packs — Phase B
+Device-local cosmetic skins. Packets/logic carry ids only, so **no multiplayer sync**; a missing
+id falls back to default art. `window.activeAssetPack` is set in `smLaunch()` (asset branch) and
+cleared in `resetSecretMode()`.
+
+| Function (in `secret-mode.js`) | Purpose |
+|--------------------------------|---------|
+| `assetFace(kind, id)` | Resolved image URL for `(kind, id)` from the active pack, or `null` (→ seam draws default). |
+| `assetBack(kind)` | Resolved face-down image URL for the active pack, or `null`. |
+
+**Render seams (the only place art is built — each calls `assetFace`/`assetBack` then falls back):**
+
+| Family | `kind` | Seam | File | Id key |
+|--------|--------|------|------|--------|
+| Fruit | `frt` | `frtRenderCard(fruitId, opts)` | `js/games/frt.js` | `fruitId` 0–7 |
+| Sheep | `shp` | `shpRenderCard(cardId, opts)` | `js/games/shp.js` | `cardId` 0–16 (13 cursed = not skinned) |
+| Gems | `flw` | `flwRenderCard(gemId, opts)` | `js/games/flw.js` | `gemId` 0–9 |
+| Cards | `cards` | `Cards.buildEl/buildBackEl` | `js/lib/cards.js` | `rank`+suit-letter (`AH`,`10S`,`Joker`) via `cardAssetId()` |
+| Dice | `dyb` | `dybDieHTML` (standard faces) + `dybDieBackHTML()` | `js/games/dyb.js` | face value 1–6 (special dice keep pips) |
+
+Per-game `faces` id cheat-sheet + authoring steps: `docs/expansion-guide.md` § Add an asset (skin) pack.
+CSS: `.frt-card-asset`, `.shp-card-asset`, `.pass-card-asset`, `.dyb-die-asset` (cover/centre, transparent border).
+
+**Nested terminal (Phase B):** top level is content **categories** — `smRenderExpansions()` shows
+`WORD PACKS` / `GAME SKINS` / locked sentinel. `smSelectCategory()` → `smRenderWordPacks()`
+(theme-first, → `smSelectExpansion`) or `smRenderSkinGames()` (game-first, → `smSelectSkinGroup`
+→ `smRenderSkins` → `smSelectSkin`). `smReturnToCategories()` is the `[←] BACK` on each member list.
+Helpers: `smLogLine`/`smLogSpacer`/`smShowList`/`smAppendBackButton`, consts `SM_BTN_CLS`/`SM_BTN_LOCKED_CLS`.
+
+### Cartridge pack files (Phase A/B, June 2026)
+| Path | Purpose |
+|------|---------|
+| `data/packs/registry.json` | The ONE list of live pack ids — edit this to add/remove a pack |
+| `data/packs/<id>/pack.json` | Self-contained manifest: `{ id, label, locked, games, subCategories?, settings, words \| wordFile, assets }` |
+| `data/packs/<id>/img/*` | Asset-pack images (skins). SVG or PNG. |
+| — | Runtime-cached (not precached): network-first for `.json`, cache-first for images. No SW version bump to add a pack. See `docs/expansion-guide.md` + `docs/cartridge-system-plan.md` |
 
 ---
 
@@ -638,7 +683,7 @@ Each plugin reads `window.activeExpansionOverrides` at its settings-apply point 
 | `dsdSeaState` | string | `'turbulent'` | Word difficulty tier: `'calm'`/`'turbulent'`/`'tempest'` |
 | `dsdHazardControl` | object | `{urchin:false, mine:true, enemy:true}` | Turn-end toggles per hazard type |
 | `dsdDangerLevel` | string | `'pressure'` | Mine type: `'pressure'`/`'nuclear'` |
-| `dsdSyllyMode` | bool | `false` | Mission Abyss — enables Drift + Jammer |
+| `dsdSyllyMode` | bool | `false` | Silent Running — enables Drift + Jammer |
 | `dsdStrategicPlanning` | bool | `false` | Shows word preview screen before first deployment; unlimited per-word swaps |
 | `dsdTeamNames` | array[2] | `['Kraken','Leviathan']` | Custom team display names |
 | `dsdPlayersPerTeam` | int | `2` | 2 or 3 players per team |
@@ -1051,7 +1096,7 @@ Each plugin reads `window.activeExpansionOverrides` at its settings-apply point 
 ## Net-Trace (NT)
 
 **JS file:** `js/games/nt.js`
-**Data:** `data/words.json` — uses only the `objects` category (standard + wild tiers); secondary fallback `data/secret_words.json` / `secret2_words.json` / `secret3_words.json` in Secret Mode
+**Data:** `data/words.json` — uses only the `objects` category (standard + wild tiers); in Secret Mode the word pool comes from the active pack's manifest (`data/packs/<id>/pack.json`, inline `words`) via `secretWords`
 **Brand colour:** `emerald-600` / active pill: `pill-active-emerald`
 
 ### Screens

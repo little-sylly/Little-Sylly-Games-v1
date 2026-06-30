@@ -7,83 +7,92 @@
 let isSecretMode = false;
 let activeExpansion = null;
 window.activeExpansionOverrides = null;
+window.activeAssetPack = null;   // set when an asset pack launches (device-local skin); null otherwise
 
-// ── Terminal config — add new expansions/games here only ─────────────────────
-const SM_TERMINAL_CONFIG = {
-  expansions: [
-    { id: 'dota2',         label: 'DOTA 2',           locked: false, file: 'data/secret_words.json',  games: ['li5', 'gm', 'ss', 'jec'] },
-    { id: 'monsterhunter', label: 'MONSTER HUNTER',   locked: false, file: 'data/secret2_words.json', games: ['li5', 'nat'] },
-    { id: 'pokemon', label: 'POKÉMON', locked: false, file: 'data/secret3_words.json', games: ['li5', 'nat'], subCategories: [{ id: 'gen1', label: 'GEN 1' }] },
-    { id: 'classified',    label: '??? [CLASSIFIED]',  locked: true,  file: null },
-  ],
-  games: [
-    { id: 'li5', label: "LIKE I'M FIVE",      screen: 'screen-menu'     },
-    { id: 'gm',  label: 'GREAT MINDS',        screen: 'screen-gm-menu'  },
-    { id: 'ss',  label: 'SECRET SIGNALS',     screen: 'screen-ss-menu'  },
-    { id: 'jec', label: 'JUST ENOUGH COOKS',  screen: 'screen-jec-menu' },
-    { id: 'nat', label: 'NATURAL SELECTION',  screen: 'screen-nat-menu' },
-  ],
-};
+// ── Game catalogue — engine knowledge (not pack data); stays hardcoded ───────
+const SM_GAMES = [
+  { id: 'li5', label: "LIKE I'M FIVE",      screen: 'screen-menu'     },
+  { id: 'gm',  label: 'GREAT MINDS',        screen: 'screen-gm-menu'  },
+  { id: 'ss',  label: 'SECRET SIGNALS',     screen: 'screen-ss-menu'  },
+  { id: 'jec', label: 'JUST ENOUGH COOKS',  screen: 'screen-jec-menu' },
+  { id: 'nat', label: 'NATURAL SELECTION',  screen: 'screen-nat-menu' },
+  // Card/dice games — added for asset (skin) packs. A game appears in the terminal only
+  // for packs whose `games` array lists it, so these never surface for word packs.
+  { id: 'frt',  label: 'FRUIT SALAD',     screen: 'screen-frt-menu'  },
+  { id: 'shp',  label: 'COUNTING SHEEP',  screen: 'screen-shp-menu'  },
+  { id: 'flw',  label: 'FLAWLESS',        screen: 'screen-flw-menu'  },
+  { id: 'pass', label: 'PASS',            screen: 'screen-pass-menu' },
+  { id: 'dyb',  label: 'THE BLUFF',       screen: 'screen-dyb-menu'  },
+];
 
-// ── Expansion overrides — pushed to window.activeExpansionOverrides at launch ─
-// Keys match exact plugin variable names so SM-4/5 can apply directly.
-const SM_EXPANSION_OVERRIDES = {
-  dota2: {
-    // LI5 (li5.js)
-    teamNames:          ['The Radiant', 'The Dire'],
-    settingTimer:       60,
-    settingRounds:      5,
-    settingTabooCount:  10,
-    settingPenaltyMode: 'points',
-    settingSkipFree:    false,
-    settingSylly:       true,
-    settingSyllyPct:    40,
-    // GM (great-minds.js)
-    gmFrequencyRange:     'chaotic',
-    gmMemoryGuard:        true,
-    gmResonanceTolerance: 'normal',   // "Resonant" display label
-    gmInfiniteResync:     true,
-    gmSignalBoost:        false,
-    gmSyllyIntensity:     'sub-atomic', // Sylly Mode OFF
-    // SS (secret-signals.js)
-    ssDifficultyLevel:        3,
-    ssSettingInterceptsToWin: 2,
-    ssRerollLimitSetting:     Infinity, // unlimited rerolls
-    ssIntelSyllyMode:         true,
-  },
-  monsterhunter: {
-    // LI5 (li5.js)
-    teamNames:          ["Hunter's Guild", 'The Commission'],
-    settingTimer:       60,
-    settingRounds:      5,
-    settingTabooCount:  10,
-    settingPenaltyMode: 'points',
-    settingSkipFree:    false,
-    settingSylly:       true,
-    settingSyllyPct:    40,
-    // NAT (nat.js)
-    natMatchesSetting:  3,
-    natRoundsPerMatch:  2,
-    natDifficulty:      'd1+d2',
-    natSyllyMode:       false,
-  },
-  pokemon: {
-    // LI5 (li5.js)
-    teamNames:          ['Team Red', 'Team Blue'],
-    settingTimer:       60,
-    settingRounds:      5,
-    settingTabooCount:  10,
-    settingPenaltyMode: 'points',
-    settingSkipFree:    false,
-    settingSylly:       true,
-    settingSyllyPct:    40,
-    // NAT (nat.js)
-    natMatchesSetting:  3,
-    natRoundsPerMatch:  2,
-    natDifficulty:      'd1+d2',
-    natSyllyMode:       false,
-  },
-};
+// ── Terminal config — expansions are built at runtime from data/packs/ ───────
+// To add/remove a pack: drop a folder in data/packs/ + edit data/packs/registry.json.
+// No edits here, no sw.js edit, no version bump. See docs/expansion-guide.md.
+let SM_TERMINAL_CONFIG     = { expansions: [], games: SM_GAMES };
+let SM_EXPANSION_OVERRIDES = {};      // id -> settings overrides (built by smLoadPacks)
+let SM_PACK_WORDS          = {};      // id -> inline word array (or null if wordFile is used)
+let SM_PACK_ASSETS         = {};      // id -> assets block (asset packs only; null otherwise)
+let smPacksLoaded          = false;
+
+// Build the runtime consts from data/packs/registry.json + each pack.json manifest.
+// One-time; cached after first success. Throws on fetch/parse failure (caller shows error).
+async function smLoadPacks() {
+  if (smPacksLoaded) return;
+  const ids = await (await fetch('data/packs/registry.json')).json();
+  const manifests = await Promise.all(
+    ids.map(id => fetch(`data/packs/${id}/pack.json`).then(r => {
+      if (!r.ok) throw new Error(`pack ${id}: HTTP ${r.status}`);
+      return r.json();
+    }))
+  );
+  SM_TERMINAL_CONFIG.expansions = manifests.map(m => ({
+    id: m.id, label: m.label, locked: !!m.locked,
+    games: m.games, subCategories: m.subCategories || [],
+    wordFile: m.wordFile || null,
+    // Asset (skin) packs are grouped per-game in the terminal instead of listed individually.
+    isAsset: !!m.assets,
+    game: m.assets ? ((m.games && m.games[0]) || m.assets.kind) : null,
+  }));
+  // Locked teaser sentinel — appended by the loader, always last, never a real pack.
+  SM_TERMINAL_CONFIG.expansions.push({ id: 'classified', label: '??? [CLASSIFIED]', locked: true });
+  manifests.forEach(m => {
+    SM_EXPANSION_OVERRIDES[m.id] = smReviveSettings(m.settings || {});
+    SM_PACK_WORDS[m.id]          = m.words || null;   // null => fetch wordFile at launch
+    SM_PACK_ASSETS[m.id]         = m.assets || null;  // present only for asset (skin) packs
+  });
+  smPacksLoaded = true;
+}
+
+// JSON has no Infinity literal — manifests store it as the string "Infinity".
+// Convert it back to the JS Infinity number so === Infinity checks (e.g.
+// ssRerollLimitSetting → "Unlimited" rerolls) keep working after the round-trip.
+function smReviveSettings(settings) {
+  const out = {};
+  for (const [k, v] of Object.entries(settings)) {
+    out[k] = (v === 'Infinity') ? Infinity : v;
+  }
+  return out;
+}
+
+// ── Asset packs (Phase B) — device-local cosmetic skins, zero multiplayer impact ──
+// Render seams (frtRenderCard, shpRenderCard, flwRenderCard, Cards) call assetFace(kind, id)
+// at draw time. Returns a resolved image URL when an active pack covers (kind, id), else null
+// (→ the seam falls back to its default emoji/CSS face). Game logic + packets carry ids only,
+// so two players can run different skins in the same match. window.activeAssetPack is set in
+// smLaunch() and cleared in resetSecretMode().
+function assetFace(kind, id) {
+  const p = window.activeAssetPack;
+  if (!p || !p.assets || p.assets.kind !== kind) return null;
+  const file = p.assets.faces && p.assets.faces[id];
+  return file ? `data/packs/${p.id}/${p.assets.basePath || ''}${file}` : null;
+}
+
+// The face-down image for the active card pack, or null (→ seam draws its default back).
+function assetBack(kind) {
+  const p = window.activeAssetPack;
+  if (!p || !p.assets || p.assets.kind !== kind || !p.assets.back) return null;
+  return `data/packs/${p.id}/${p.assets.basePath || ''}${p.assets.back}`;
+}
 
 // ── Settings display map — human-readable labels for the terminal summary ─────
 const SM_SETTINGS_DISPLAY = {
@@ -164,6 +173,7 @@ function resetSecretMode() {
   isSecretMode  = false;
   activeExpansion = null;
   window.activeExpansionOverrides = null;
+  window.activeAssetPack = null;
   smKonamiBuffer        = [];
   secretWords           = [];
   smSelectedExpansion   = null;
@@ -229,7 +239,7 @@ function smHandleButton(code) {
 // ── Sylly-OS Terminal ─────────────────────────────────────────────────────
 // ═══════════════════════════════════════════════════════════════════════════
 
-function smOpenTerminal() {
+async function smOpenTerminal() {
   smSelectedExpansion   = null;
   smSelectedGame        = null;
   smSelectedSubCategory = null;
@@ -245,7 +255,23 @@ function smOpenTerminal() {
   const sp = document.getElementById('sm-terminal-settings');
   if (sp) sp.remove();
   showScreen('screen-secret-terminal');
-  smRunBootSequence();
+  // Build the expansion list from data/packs/ before the boot sequence renders it.
+  let loadOk = true;
+  try { await smLoadPacks(); }
+  catch (e) { console.error('[Secret Mode] Pack load failed:', e); loadOk = false; }
+  if (loadOk) smRunBootSequence();
+  else        smRunBootError();
+}
+
+// Pack registry/manifest fetch failed (e.g. first-ever terminal open while offline).
+function smRunBootError() {
+  smTypeLines([
+    '> BOOTING SYLLY-OS v1.0...',
+    '> LOADING EXPANSION DATABASE...',
+    '> [ LOAD FAILED ] — DATABASE UNREACHABLE',
+    '',
+    '> CONNECT TO NETWORK AND RE-ENTER THE CODE.',
+  ], 0, 220, null);
 }
 
 // Typewriter: reveals an array of strings line by line, then calls callback
@@ -279,27 +305,157 @@ function smRunBootSequence() {
     '> LOADING EXPANSION DATABASE...',
     '> AUTHENTICATION: VERIFIED',
     '',
-    '> SELECT EXPANSION PACK:',
+    '> SELECT CATEGORY:',
   ];
   smTypeLines(lines, 0, 220, smRenderExpansions);
 }
 
+// Style helpers for terminal list buttons (kept identical to the original markup).
+const SM_BTN_CLS        = 'w-full text-left text-xs font-mono px-3 py-3 border-2 border-green-400 text-green-400 rounded active:scale-95 transition-transform duration-75 min-h-11';
+const SM_BTN_LOCKED_CLS = 'w-full text-left text-xs font-mono px-3 py-3 border-2 border-green-900 text-green-900 rounded opacity-50 cursor-not-allowed min-h-11';
+
+// Tiny log helpers for the terminal console.
+function smLogLine(text)  { const p = document.createElement('p'); p.textContent = text; document.getElementById('sm-terminal-log').appendChild(p); }
+function smLogSpacer()    { const p = document.createElement('p'); p.innerHTML = '&nbsp;'; p.style.lineHeight = '0.5'; document.getElementById('sm-terminal-log').appendChild(p); }
+
+function smShowList(wrap) { wrap.style.display = 'flex'; wrap.style.flexDirection = 'column'; wrap.style.gap = '8px'; }
+
+// "← BACK" entry prepended to a category-member list — returns to the top-level categories.
+function smAppendBackButton(wrap) {
+  const btn = document.createElement('button');
+  btn.className = 'w-full text-left text-xs font-mono px-3 py-2 text-green-600 active:scale-95 transition-transform duration-75 min-h-11';
+  btn.textContent = '  [←] BACK';
+  btn.addEventListener('click', smReturnToCategories);
+  wrap.appendChild(btn);
+}
+
+// ── Top level: content CATEGORIES (Word Packs / Game Skins) — nested so the
+// structure survives a category being emptied (e.g. IP word packs pulled at go-live).
 function smRenderExpansions() {
   const wrap = document.getElementById('sm-terminal-expansions');
   wrap.innerHTML = '';
-  SM_TERMINAL_CONFIG.expansions.forEach((exp, i) => {
+  const all = SM_TERMINAL_CONFIG.expansions;
+  const hasWords = all.some(e => !e.isAsset && !e.locked);
+  const hasSkins = all.some(e => e.isAsset);
+  const cats = [];
+  if (hasWords) cats.push({ id: 'words', label: 'WORD PACKS' });
+  if (hasSkins) cats.push({ id: 'skins', label: 'GAME SKINS' });
+  all.filter(e => e.locked).forEach(e => cats.push({ id: e.id, label: e.label, locked: true }));
+
+  cats.forEach((c, i) => {
     const btn = document.createElement('button');
-    btn.className = exp.locked
-      ? 'w-full text-left text-xs font-mono px-3 py-3 border-2 border-green-900 text-green-900 rounded opacity-50 cursor-not-allowed min-h-11'
-      : 'w-full text-left text-xs font-mono px-3 py-3 border-2 border-green-400 text-green-400 rounded active:scale-95 transition-transform duration-75 min-h-11';
-    btn.textContent = `  [${i + 1}] ${exp.label}${exp.locked ? ' — LOCKED' : ''}`;
-    btn.disabled = exp.locked;
-    if (!exp.locked) btn.addEventListener('click', () => smSelectExpansion(exp.id));
+    btn.className = c.locked ? SM_BTN_LOCKED_CLS : SM_BTN_CLS;
+    btn.textContent = `  [${i + 1}] ${c.label}${c.locked ? ' — LOCKED' : ''}`;
+    btn.disabled = !!c.locked;
+    if (!c.locked) btn.addEventListener('click', () => smSelectCategory(c.id));
+    wrap.appendChild(btn);
+  });
+  smShowList(wrap);
+}
+
+function smReturnToCategories() {
+  playSecretBeep(440);
+  smSelectedExpansion = null; smSelectedGame = null; smSelectedSubCategory = null;
+  const prevSp = document.getElementById('sm-terminal-settings'); if (prevSp) prevSp.remove();
+  document.getElementById('sm-terminal-subcategories').style.display = 'none';
+  document.getElementById('sm-terminal-games').style.display = 'none';
+  document.getElementById('sm-terminal-launch-wrap').style.display = 'none';
+  smLogSpacer(); smLogLine('  └─ SELECT CATEGORY:');
+  smRenderExpansions();
+  document.getElementById('sm-terminal-expansions').style.display = 'flex';
+}
+
+function smSelectCategory(cat) {
+  playSecretBeep(660);
+  const label = cat === 'words' ? 'WORD PACKS' : 'GAME SKINS';
+  smLogLine(`> CATEGORY: ${label} SELECTED`);
+  smLogSpacer();
+  smLogLine(cat === 'words' ? '  └─ SELECT PACK:' : '  └─ SELECT GAME:');
+  document.getElementById('sm-terminal-log').scrollTop = document.getElementById('sm-terminal-log').scrollHeight;
+  if (cat === 'words') smRenderWordPacks();
+  else                 smRenderSkinGames();
+}
+
+// Word-pack themes (theme-first; multi-game). Reuses the existing smSelectExpansion flow.
+function smRenderWordPacks() {
+  const wrap = document.getElementById('sm-terminal-expansions');
+  wrap.innerHTML = '';
+  smAppendBackButton(wrap);
+  SM_TERMINAL_CONFIG.expansions.filter(e => !e.isAsset && !e.locked).forEach((exp, i) => {
+    const btn = document.createElement('button');
+    btn.className = SM_BTN_CLS;
+    btn.textContent = `  [${i + 1}] ${exp.label}`;
+    btn.addEventListener('click', () => smSelectExpansion(exp.id));
+    wrap.appendChild(btn);
+  });
+  smShowList(wrap);
+}
+
+// Games that have at least one skin (game-first). Drills into that game's skin list.
+function smRenderSkinGames() {
+  const wrap = document.getElementById('sm-terminal-expansions');
+  wrap.innerHTML = '';
+  smAppendBackButton(wrap);
+  const games = [];
+  SM_TERMINAL_CONFIG.expansions.filter(e => e.isAsset).forEach(e => { if (e.game && !games.includes(e.game)) games.push(e.game); });
+  games.forEach((g, i) => {
+    const label = (SM_GAMES.find(x => x.id === g) || {}).label || g.toUpperCase();
+    const btn = document.createElement('button');
+    btn.className = SM_BTN_CLS;
+    btn.textContent = `  [${i + 1}] ${label}`;
+    btn.addEventListener('click', () => smSelectSkinGroup(g, label));
+    wrap.appendChild(btn);
+  });
+  smShowList(wrap);
+}
+
+// ── Asset-pack drill-down: <GAME> SKINS → skin list → arm + launch ─────────────
+function smSelectSkinGroup(gameId, groupLabel) {
+  playSecretBeep(660);
+  smSelectedExpansion   = null;
+  smSelectedGame        = null;
+  smSelectedSubCategory = null;
+  const prevSp = document.getElementById('sm-terminal-settings');
+  if (prevSp) prevSp.remove();
+  const log = document.getElementById('sm-terminal-log');
+  const p = document.createElement('p'); p.textContent = `> ${groupLabel} SELECTED`; log.appendChild(p);
+  const sp = document.createElement('p'); sp.innerHTML = '&nbsp;'; sp.style.lineHeight = '0.5'; log.appendChild(sp);
+  const p3 = document.createElement('p'); p3.textContent = '  └─ SELECT SKIN:'; log.appendChild(p3);
+  log.scrollTop = log.scrollHeight;
+  document.getElementById('sm-terminal-expansions').style.display = 'none';
+  document.getElementById('sm-terminal-launch-wrap').style.display = 'none';
+  smRenderSkins(gameId);
+}
+
+function smRenderSkins(gameId) {
+  const wrap = document.getElementById('sm-terminal-subcategories');   // reuse the mid-level list container
+  wrap.innerHTML = '';
+  SM_TERMINAL_CONFIG.expansions.filter(e => e.isAsset && e.game === gameId).forEach((skin, i) => {
+    const btn = document.createElement('button');
+    btn.className = SM_BTN_CLS;
+    btn.textContent = `  [${i + 1}] ${skin.label}`;
+    btn.addEventListener('click', () => smSelectSkin(skin.id, gameId, skin.label));
     wrap.appendChild(btn);
   });
   wrap.style.display = 'flex';
   wrap.style.flexDirection = 'column';
   wrap.style.gap = '8px';
+}
+
+function smSelectSkin(packId, gameId, skinLabel) {
+  playSecretBeep(660);
+  smSelectedExpansion = packId;   // the asset pack id (still a first-class expansion entry)
+  smSelectedGame      = gameId;   // game is implicit for a skin — no game-selection step
+  const prevSp = document.getElementById('sm-terminal-settings');
+  if (prevSp) prevSp.remove();
+  const log = document.getElementById('sm-terminal-log');
+  const p = document.createElement('p'); p.textContent = `> SKIN: ${skinLabel} ARMED`; log.appendChild(p);
+  const sp = document.createElement('p'); sp.innerHTML = '&nbsp;'; sp.style.lineHeight = '0.5'; log.appendChild(sp);
+  log.scrollTop = log.scrollHeight;
+  document.getElementById('sm-terminal-subcategories').style.display = 'none';
+  document.getElementById('sm-terminal-launch-wrap').style.display = 'block';
+  const terminal = document.getElementById('screen-secret-terminal');
+  setTimeout(() => { terminal.scrollTop = terminal.scrollHeight; }, 30);
 }
 
 function smSelectExpansion(expansionId) {
@@ -445,11 +601,24 @@ async function smLaunch() {
   btn.disabled = true;
 
   try {
-    // Load expansion word bank before navigating — solves GM Round 2 race condition
+    // Load expansion word bank before navigating — solves GM Round 2 race condition.
+    // Inline words come straight from the manifest; wordFile is the escape-hatch path.
     const expansion = SM_TERMINAL_CONFIG.expansions.find(e => e.id === smSelectedExpansion);
-    const res = await fetch(expansion.file);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    secretWords = await res.json();
+    const inline = SM_PACK_WORDS[smSelectedExpansion];
+    const assets = SM_PACK_ASSETS[smSelectedExpansion];
+    // Asset pack: device-local skin read by the render seams via assetFace(). No MP sync.
+    window.activeAssetPack = assets ? { id: smSelectedExpansion, assets } : null;
+    if (inline) {
+      secretWords = inline.slice();
+    } else if (expansion && expansion.wordFile) {
+      const res = await fetch(`data/packs/${smSelectedExpansion}/${expansion.wordFile}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      secretWords = await res.json();
+    } else if (assets) {
+      secretWords = [];   // pure asset (skin) pack — no word bank
+    } else {
+      throw new Error('pack has neither words/wordFile nor assets');
+    }
     if (smSelectedSubCategory) {
       secretWords = secretWords.filter(w => w.category === smSelectedSubCategory);
     }

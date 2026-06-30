@@ -130,7 +130,7 @@ Sylly Mode is always the last setting in every game — it's the "wild" variant 
 
 | Field | Your answer |
 |-------|-------------|
-| **Thematic name** (e.g. "Survival of the Fittest", "Mission Abyss", "Kitchen Nightmares") | |
+| **Thematic name** (e.g. "Survival of the Fittest", "Silent Running", "Kitchen Nightmares") | |
 | **In one sentence — what changes?** | |
 | **Does it add new screens or phases?** (yes/no — describe if yes) | |
 | **Does it change scoring?** (yes/no — describe if yes) | |
@@ -166,6 +166,27 @@ Replace generic game terms with game-voiced equivalents. Plain English descripti
 
 **If a new data file is needed — describe one example entry in plain English:**
 (What information does each card / prompt / entry contain?)
+
+---
+
+## 9A. Custom Visual Assets (if applicable)
+
+Does this game have a **visual primitive that players look at repeatedly** and might one day be
+re-skinned with custom art — cards, dice, gems, tiles, tokens, fruit, a board? If so, it should
+ship **asset-pack ready** (all of that primitive's art drawn through one render seam from day one,
+keyed by id). See the cartridge system: `docs/expansion-guide.md` § Add an asset (skin) pack.
+
+| Field | Your answer |
+|-------|-------------|
+| **Is there a repeated visual primitive?** (yes/no — name it) | |
+| **How many distinct faces/types does it have?** (e.g. 8 fruit, 54 cards, 6 die faces) | |
+| **Should it be skinnable with custom art later?** (yes / no / maybe) | |
+| **Default look for v1** (emoji? CSS shapes? text? — what ships before any skin) | |
+
+> Even a "maybe" means Claude Code routes **all** of that primitive's DOM through a single
+> `[abbr]RenderX(id, opts)` seam (and a face-down/back variant), keyed by a stable id, so a skin
+> can be added later with **no game-logic changes**. Skins are device-local cosmetic — no
+> multiplayer impact. If "no" (e.g. a pure word game), write "None" and skip.
 
 ---
 

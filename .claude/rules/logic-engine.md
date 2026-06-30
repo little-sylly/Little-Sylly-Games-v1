@@ -423,7 +423,7 @@ Before implementing, answer:
 
 **SW versioning:** `CACHE_NAME = 'sylly-games-vN'` — bump N on **every deploy**.
 
-**Current SW version:** v139
+**Current SW version:** v142
 
 **Precached assets (relative paths — no leading `/`; matches `sw.js` `PRECACHE_URLS[]`):**
 ```
@@ -436,13 +436,22 @@ js/lib/cards.js,
 data/ygi-data.json, data/gth-data.json,
 js/secret-mode.js, js/app.js,
 js/lib/tailwind-play.js, js/lib/canvas-draw.js,
-data/words.json, data/secret_words.json, data/secret2_words.json, data/secret3_words.json,
+data/words.json,
 manifest.json,
 js/engine-multiplayer.js,
 js/lib/firebase-app.js, js/lib/firebase-database.js, js/lib/firebase-auth.js, js/lib/firebase-init.js
 ```
 
 Note: the four Firebase lib files ARE precached (so Lobby Mode works offline-first once installed) but are still lazy-loaded at runtime — they are not in the `index.html` `<script>` load order. See Firebase Lazy-Load below.
+
+**Cartridge packs — runtime-cached, NOT precached (Phase A, June 2026):** Everything under
+`data/packs/` (the `registry.json`, each `<id>/pack.json`, and any asset images) is deliberately
+absent from `PRECACHE_URLS`. The `sw.js` fetch handler serves it with a split strategy:
+**`.json` config is network-first** (so a newly-added pack is discovered on the next online terminal
+open with no version bump), **images are cache-first** (instant + lean). This is what lets a word/
+asset pack be added or removed by dropping a folder + editing `data/packs/registry.json` — no `sw.js`
+edit, no SW version bump. The legacy `data/secret*_words.json` files were migrated into
+`data/packs/<id>/pack.json` manifests (inline `words`) and deleted. See `docs/expansion-guide.md`.
 
 ---
 
@@ -479,5 +488,6 @@ Note: the four Firebase lib files ARE precached (so Lobby Mode works offline-fir
 - [ ] **No global function-name collision across plugins:** A plugin must never declare a top-level `function name()` whose bare name is already global in another plugin (all plugins share `window`; a later-loaded plugin's hoisted declaration silently clobbers an earlier one). The expansion-override hook must always be plugin-prefixed — `[abbr]ApplyExpansionOverrides()`, never bare `applyExpansionOverrides()` (that name belongs to LI5 legacy only). Grep all plugins for a proposed function name before declaring it. *[Elevated from bld-impl-notes Bug 16 (clobbered LI5), jec-impl-notes naming note.]*
 - [ ] **Contextual tip IDs are uniquely named:** In-game `[?]` tip buttons use `btn-[abbr]-[phase]-tip`; the menu/header How to Play button is `btn-[abbr]-how-to`. Never reuse `btn-[abbr]-how-to` for an in-game tip — `getElementById` returns only the first match, leaving the duplicate permanently unwired. Where one screen exists in two routing contexts (single-device vs MDLM), wire the `[?]` on the *reachable* screen. *[Elevated from ss-impl-notes S3, dsd-impl-notes duplicate id, gth-impl-notes btn-gth-how-to-case.]*
 - [ ] **Canvas drawing (if applicable):** If the game uses freehand drawing, reference `js/lib/canvas-draw.js` (`window.CanvasDraw` global). Call `CanvasDraw.init(canvasEl)` on screen show. Tremor/jiggle effects apply to the wrapper `<div>` — never to the `<canvas>` element itself (canvas coordinate system must be unaffected). GTH is the reference implementation.
+- [ ] **Asset-pack readiness (if the game has a visual primitive — cards/dice/gems/tiles/tokens):** Build ALL of that primitive's DOM through ONE render seam `[abbr]RenderX(id, opts)` (+ a face-down/back variant), keyed by a stable packet-safe id. At the top of the seam check `assetFace('<kind>', id)` (and `assetBack('<kind>')` for backs) — if it returns a URL, render an image node with a `.<family>-card-asset` cover CSS class; else draw the default face. Never build that primitive anywhere outside the seam (a bypass is unskinnable — DYB's old cup-die bypass). Skins are device-local cosmetic (ids-only packets → no MP sync). To make skins selectable, add the game to `SM_GAMES` in `secret-mode.js`. Reference seams: `frtRenderCard`, `shpRenderCard`, `flwRenderCard`, `Cards.buildEl`, `dybDieHTML`. See `docs/expansion-guide.md` § Add an asset (skin) pack. *[Cartridge Phase B, June 2026.]*
 - [ ] **Custom CSS brand classes on `<button>` elements must include flex centering:** When a game's brand colour has no Tailwind utility class (e.g. DYB ocean blue `#1E4D8C`, GTH sage `#B1BCA0`, FRT banana `#FFC700`), a custom CSS class is used for the CTA button background. That class MUST declare `display: flex; align-items: center; justify-content: center;` — not just `background-color`. Without these, when JS (or Tailwind) sets the display to `flex`, button text top-left-aligns instead of centring. For Tailwind-colour games this is not an issue because `flex items-center justify-center` are applied as HTML utility classes directly. *[Elevated from dyb-impl-notes, June 2026.]*
 - [ ] **Closure — sync `docs/content-prompts/new-game-brief-prompt.md`:** On shipping the game, update that file's existing-games roster table, the "taken" abbreviations line, and the Sylly-Mode name list to include the new game. Pull every value from *shipped reality* (`game-identities.md` + the plugin + impl notes), never from the original brief. The brief prompt is the first doc a future game touches; a stale roster re-imports errors and risks an abbreviation collision. See `docs/rules/new-game-process.md` Stage 3 closure.

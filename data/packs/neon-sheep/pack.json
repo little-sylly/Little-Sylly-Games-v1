@@ -1,0 +1,31 @@
+{
+  "id": "neon-sheep",
+  "label": "NEON SHEEP",
+  "locked": false,
+  "games": [
+    "shp"
+  ],
+  "assets": {
+    "kind": "shp",
+    "basePath": "img/",
+    "faces": {
+      "0": "card0.svg",
+      "1": "card1.svg",
+      "2": "card2.svg",
+      "3": "card3.svg",
+      "4": "card4.svg",
+      "5": "card5.svg",
+      "6": "card6.svg",
+      "7": "card7.svg",
+      "8": "card8.svg",
+      "9": "card9.svg",
+      "10": "card10.svg",
+      "11": "card11.svg",
+      "12": "card12.svg",
+      "14": "card14.svg",
+      "15": "card15.svg",
+      "16": "card16.svg"
+    },
+    "back": "back.svg"
+  }
+}

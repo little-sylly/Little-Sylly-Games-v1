@@ -1,0 +1,21 @@
+{
+  "id": "neon-dice",
+  "label": "NEON DICE",
+  "locked": false,
+  "games": [
+    "dyb"
+  ],
+  "assets": {
+    "kind": "dyb",
+    "basePath": "img/",
+    "faces": {
+      "1": "1.svg",
+      "2": "2.svg",
+      "3": "3.svg",
+      "4": "4.svg",
+      "5": "5.svg",
+      "6": "6.svg"
+    },
+    "back": "back.svg"
+  }
+}

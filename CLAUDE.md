@@ -93,12 +93,14 @@ For where each game's screens/overlays live in `index.html`, see the **Per-Game 
 │       └── firebase-init.js         # Firebase project config + initialisation
 ├── data/
 │   ├── words.json                   # Standard word bank (850 words, 16 categories)
-│   ├── secret_words.json            # Expansion word bank: Dota 2 (434 words, 5 categories)
-│   ├── secret2_words.json           # Expansion word bank: Monster Hunter (50 words)
-│   ├── secret3_words.json           # Expansion word bank: Pokémon Gen 1 (151 words)
+│   ├── packs/                       # Secret Mode expansion CARTRIDGES (runtime-loaded, not precached)
+│   │   ├── registry.json            #   live pack ids — edit this + drop a folder to add/remove a pack
+│   │   ├── dota2/pack.json          #   DOTA 2 (434 words, inline)
+│   │   ├── monsterhunter/pack.json  #   Monster Hunter (50 words, inline)
+│   │   └── pokemon/pack.json        #   Pokémon Gen 1 (151 words, inline; gen1 sub-cat)
 │   ├── ygi-data.json                # You Get It? prompts (50 entries, {id, text, ringers[5]})
 │   └── gth-data.json                # Group Therapy disorder bank (100 entries, 3 tiers: everyday/phobias/complex)
-├── sw.js                            # Service Worker (currently v130)
+├── sw.js                            # Service Worker (currently v140)
 ├── manifest.json                    # PWA manifest
 ├── docs/expansion-guide.md          # Template + checklist for adding new expansion packs
 ├── docs/code-map.md                 # Surgical code reference — all game IDs, overlays, key functions
@@ -111,7 +113,7 @@ For where each game's screens/overlays live in `index.html`, see the **Per-Game 
 │   └── [abbr]-implementation-notes.md  # One file per game (all 12 games covered)
 ├── docs/content-prompts/            # Prompt templates for content generation
 ├── docs/new-ideas/                  # Unimplemented game briefs + brainstorms
-├── docs/archive/                    # Retired snapshots + spent plan docs
+├── docs/archive/                    # Empty by design — phase snapshots live OUT-OF-REPO (external archive); only spent plan docs may land here
 ```
 
 **Load order:** `engine.js` → `engine-multiplayer.js` → `canvas-draw.js` → `li5.js` → `great-minds.js` → `secret-signals.js` → `jec.js` → `ygi.js` → `lttp.js` → `nat.js` → `dsd.js` → `bld.js` → `gth.js` → `dyb.js` → `cards.js` → `pass.js` → `nt.js` → `frt.js` → `shp.js` → `flw.js` → `secret-mode.js` → `app.js`
@@ -260,35 +262,29 @@ Do not write the phase snapshot until Protocols A is clean. Do not write a line 
 ---
 
 ## 🎯 Current Focus
-**Phase:** Phase 36 — Flawless (`flw`) COMPLETE. Private-hand multiplayer model (`mpSendPrivate` + `mpStartPrivateListener`) introduced. Closure documentation in progress.
+**Phase:** Cartridge System **Phase A COMPLETE** (word expansions → runtime-loaded `data/packs/` cartridges). Phase 36 — Flawless (`flw`) COMPLETE. Private-hand multiplayer model (`mpSendPrivate` + `mpStartPrivateListener`) introduced.
+**Cartridge (Phase A):** The 3 expansions are now `data/packs/<id>/pack.json` manifests (inline `words`), listed in `data/packs/registry.json`; `secret-mode.js` builds the terminal consts at runtime via `smLoadPacks()`; `sw.js` runtime-caches `data/packs/` (network-first JSON, cache-first images). Adding a word pack = drop folder + edit registry, no JS/SW edit. Defaults locked: inline words, terminal selector, single-purpose packs.
+**Cartridge (Phase B — IN PROGRESS):** Asset (skin) packs share the same manifest/registry format with an `assets` block instead of `words`; render seams call `assetFace(kind,id)`/`assetBack(kind)` (in `secret-mode.js`) at draw time, falling back to default art when no pack covers an id. Device-local cosmetic — ids-only packets mean zero MP sync. Terminal is now **nested by category** (`WORD PACKS` theme→game; `GAME SKINS` game→skin) so pulling IP word packs at go-live just drops the `WORD PACKS` category. **Done:** general system (`window.activeAssetPack`, `assetFace`/`assetBack`, `smLaunch` asset branch, `resetSecretMode` teardown), B0 seam audit, **asset guards in all FIVE seams** — frt (`frtRenderCard`), shp (`shpRenderCard`), flw (`flwRenderCard`), cards (`Cards.buildEl/buildBackEl`, id scheme `rank`+suit-letter e.g. `QH`/`Joker`), and **dyb** (`dybDieHTML` standard faces only + `dybDieBackHTML` — special dice keep pips so type stays legible; the old face-down cup-die bypass at `dyb.js:482` now routes through the seam) — plus `.frt/shp/pass/dyb-die-asset` CSS, `SM_GAMES` entries for frt/shp/flw/pass/dyb, and **five sample SVG skins**: `neon-fruit`, `neon-sheep`, `neon-gems`, `neon-deck` (full 54), `neon-dice`. **Phase B doc closure DONE:** code-map seam table, `expansion-guide.md` § Add an asset (skin) pack (per-game id cheat-sheets + install steps), decision-log entry, brief template §9A + tech template §10 asset-readiness, `docs/content-prompts/asset-pack-prompt.md`, logic-engine new-game checklist item. DYB dice skins keyed by face value 1–6 only (no per-type skinning — YAGNI). Spec: `docs/cartridge-system-plan.md` Part B. **Phase B COMPLETE.**
 **Last shipped game:** Phase 36 — Flawless (FLW), gem-trading bluffing game, MDLM-only, 3–4 players; True Network Privacy (private Firebase channel); Sylly Mode = The Counterfeit Run.
 **Previous shipped game:** Phase 35 — Counting Sheep (SHP), O'NO-99 climbing/survival card game, MDLM-only, 3–8 players; Sylly Mode = Night Terrors (oscillating Climb ⇄ Plunge).
-**SW Version:** v139 (Lobby min-players hint: host lobby now shows "Need N more players to start (min M)" below the capacity line while the start CTA is locked — `mpRenderHostPlayerList()` + `#mp-lobby-min-hint`. Previous: v138 — Counting Sheep playtest round 2: hand-sort falsy-zero fix [Pastures leftmost, +1/+2/+5/+10], card-info tap-outside-to-close, sheep animation reworked to an absolutely-positioned arc-from-left overlay [no layout jank] with in/out direction by net Herd delta, deck rebalanced 71→73 [~66% pasture], "Counting Backwards −N" restored in inspect modal, Last/Dream Journal moved to right whitespace + rename "Log →"→"Dream Journal", "The Sky is Falling"→"The Dream is Collapsing", Night Terrors drop softened to round-based escalation −2 base +2/round. Previous: v137 — PASS playtest fixes)
+**SW Version:** v142 (DSD Sylly Mode renamed Mission Abyss → **Silent Running** to resolve a vocab clash with PASS's Sylly Mode "The Abyss" — PASS keeps the name [it's a load-bearing mechanic: `passAbyss` pool, `abyss-draft` phase, "the abyss gazes back"]; DSD's was a cosmetic display string only. Display strings in `index.html` [sabotage header, settings, how-to] + `dsd.js` pass-gate subtext changed; internal `playAbyssThud()` audio left as-is. Previous: v141 — Phase-audit Protocol A polish sweep: Counting Sheep sheep flight reworked into a smooth parabolic fence-jump arc [multi-point `@keyframes shpSheepArcIn/Out` + `linear` timing]; stale skeleton `TODO` markers + two dead NT stubs [`ntComputePlayback`, `ntValidateTeams`] removed. Previous: v140 — Cartridge Phase A: `data/packs/` runtime-cached — network-first JSON, cache-first images; legacy `data/secret*_words.json` migrated into manifests + removed from precache. Previous: v139 — Lobby min-players hint: host lobby now shows "Need N more players to start (min M)" below the capacity line while the start CTA is locked — `mpRenderHostPlayerList()` + `#mp-lobby-min-hint`. Previous: v138 — Counting Sheep playtest round 2: hand-sort falsy-zero fix [Pastures leftmost, +1/+2/+5/+10], card-info tap-outside-to-close, sheep animation reworked to an absolutely-positioned arc-from-left overlay [no layout jank] with in/out direction by net Herd delta, deck rebalanced 71→73 [~66% pasture], "Counting Backwards −N" restored in inspect modal, Last/Dream Journal moved to right whitespace + rename "Log →"→"Dream Journal", "The Sky is Falling"→"The Dream is Collapsing", Night Terrors drop softened to round-based escalation −2 base +2/round. Previous: v137 — PASS playtest fixes)
 **Gold Master:** 16 games complete + multiplayer (LI5, Great Minds, Secret Signals, JEC, YGI, LTTP, Natural Selection, Deep-Sea Deploy, Bailed, Group Therapy, The Bluff [internal `dyb`], Pass, Net-Trace, Fruit Salad, Counting Sheep, Flawless)
 **Flawless key refs:** `docs/new-game-tech-flawless.md` (confirmed spec), `docs/implementation-notes/flw-implementation-notes.md`, `docs/new-ideas/new-game-brief-flawless.md` (Phase-1 brief). MDLM-only, True Network Privacy (`mpSendPrivate`), host-as-participant, host-authoritative; rose-pink `#E879A8` + Exhibition gold `#C9A227`; all card rendering through `flwRenderCard` (asset-pack seam); 10 gems (`FLW_GEMS`); Sylly Mode = The Counterfeit Run (1 token + 2 audit charges per Showing).
 **Counting Sheep key refs:** `docs/new-game-tech-counting-sheep.md` (confirmed spec — Night Terrors + ghost rework in v1), `docs/implementation-notes/shp-implementation-notes.md` (bug log incl. Wolf-deal fix + design decisions), `docs/new-ideas/counting-sheep-notes.md` (final design notes). MDLM-only, host-authoritative, host-as-participant; couch security; moonlit indigo (native Tailwind); all card rendering through `shpRenderCard` (asset-pack seam); single-source herd math `shpHerdAfterCard` (Plunge sign-flip).
+**Phase snapshots are OUT-OF-REPO** — historical `phase[N]-snapshot.md` / `fable-audit-snapshot.md` records were moved to an external archive folder (outside the project) so in-repo sweeps don't scan them. They are *pointer detail only* — nothing in the code or build depends on one. The three the decision-log still anchors to are **phase36** (FLW + private-hand model), **fable-audit** (the 71-item Studio Audit campaign), and **phase22** (multiplayer complete — MFS v1.4); ask the owner for the external archive if you need to read one. New snapshots are written there too, not into `docs/archive/` (kept empty by design).
+
 **Key references:**
 - `docs/implementation-notes/flw-implementation-notes.md` — FLW bug log + design decisions
 - `docs/new-game-tech-flawless.md` — Phase 2 technical spec (FLW source of truth)
-- `docs/archive/phase36-snapshot.md` — Phase 36 snapshot (FLW shipped, private-hand model)
 - `docs/implementation-notes/shp-implementation-notes.md` — SHP bug log + design decisions
 - `docs/new-game-tech-counting-sheep.md` — Phase 2 technical spec (SHP source of truth)
 - `docs/implementation-notes/frt-implementation-notes.md` — FRT bug log + design decisions
 - `docs/new-game-tech-fruit-salad.md` — Phase 2 technical spec (FRT source of truth)
 - `docs/implementation-notes/nt-implementation-notes.md` — NT bug log + design decisions
 - `docs/new-game-tech-net-trace.md` — Phase 2 technical spec (NT source of truth)
-- `docs/archive/fable-audit-snapshot.md` — Studio Audit fix campaign snapshot (June 2026) — all 71 items + deferred items
 - `docs/implementation-notes/dyb-implementation-notes.md` — DYB bug log + design decisions
 - `docs/implementation-notes/bld-implementation-notes.md` — BLD bug log + design decisions
 - `docs/implementation-notes/gth-implementation-notes.md` — GTH bug log + design decisions
-- `docs/archive/phase31-snapshot.md` — Phase 31 snapshot (DYB shipped)
-- `docs/archive/phase30-snapshot.md` — Phase 30 snapshot (GTH shipped)
-- `docs/archive/phase29-snapshot.md` — Phase 29 snapshot (LTTP L4 modal, JEC scoring redesign)
-- `docs/archive/phase28-snapshot.md` — Phase 28 snapshot (JEC/YGI/LTTP/NAT/DSD audit & polish)
-- `docs/archive/phase26-snapshot.md` — Phase 26 snapshot (studio audit — retrograde polish pass, all 8 games)
-- `docs/archive/phase25-snapshot.md` — Phase 25 snapshot (play-again lobby return all games, host-only audit)
-- `docs/archive/phase22-snapshot.md` — Phase 22 snapshot (multiplayer complete — MFS v1.4)
-- `docs/archive/phase21a-snapshot.md` — Phase 21a snapshot (8 games, pre-multiplayer gold master)
 - `docs/multiplayer-feature-specification-v1.4.md` — MFS v1.4 spec (Phase 22 source of truth)
 - `docs/multiplayer-ui-components.md` — multiplayer component catalogue
 - `docs/code-map.md` — surgical reference: all game IDs, overlays, key functions

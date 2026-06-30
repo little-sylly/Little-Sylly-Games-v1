@@ -1,6 +1,6 @@
 # Cartridge System — Expansion & Asset Packs Implementation Plan
 
-**Status:** Approved direction (30 June 2026). Plan only — no code written yet.
+**Status:** ✅ SHIPPED (30 June 2026). Phase A (word-pack cartridges) + Phase B (asset/skin packs, all five seams) complete. Authoring guide: `docs/expansion-guide.md`. Decisions: `docs/decision-log.md`. This doc is retained as the design rationale.
 **Author:** Claude Code
 **Covers:** (Item 2) turn word expansions into true plug-and-play cartridges; (Item 3) add swappable asset packs (custom cards/dice/gems) on the same cartridge format.
 
@@ -152,18 +152,36 @@ plugin code keep working exactly as they do now.
 
 **4. `sw.js` — runtime-cache anything under `data/packs/` (no precache).**
 
+Split the strategy by file type: **config JSON is network-first** (the registry and
+manifests must be fresh so a newly-added pack is discovered without a version bump);
+**images are cache-first** (heavy, immutable, instant). A single cache-first rule for the
+whole folder would cache `registry.json` on first terminal open and then serve that stale
+copy forever — defeating the no-version-bump promise for every returning user.
+
 ```js
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
   if (url.pathname.includes('/data/packs/')) {
-    // Runtime cache-on-first-use: packs never bloat the precache and never need a version bump
-    event.respondWith(
-      caches.match(event.request).then(cached => cached || fetch(event.request).then(res => {
-        const copy = res.clone();
-        caches.open(CACHE_NAME).then(c => c.put(event.request, copy));
-        return res;
-      }))
-    );
+    if (url.pathname.endsWith('.json')) {
+      // Config (registry + manifests): network-first so new/updated packs are
+      // discovered without a version bump; fall back to cache when offline.
+      event.respondWith(
+        fetch(event.request).then(res => {
+          const copy = res.clone();
+          caches.open(CACHE_NAME).then(c => c.put(event.request, copy));
+          return res;
+        }).catch(() => caches.match(event.request))
+      );
+    } else {
+      // Media (skin images): cache-first — instant + lean.
+      event.respondWith(
+        caches.match(event.request).then(cached => cached || fetch(event.request).then(res => {
+          const copy = res.clone();
+          caches.open(CACHE_NAME).then(c => c.put(event.request, copy));
+          return res;
+        }))
+      );
+    }
     return;
   }
   event.respondWith(caches.match(event.request).then(cached => cached || fetch(event.request)));
@@ -171,9 +189,17 @@ self.addEventListener('fetch', event => {
 ```
 
 Consequence: **adding a pack does not touch `sw.js` and does not need a SW version bump.**
-A pack becomes available offline after it has been opened once while online — perfect for
-a drop-in/drop-out test workflow, and it keeps the base app lean (the whole point of the
-cartridge idea).
+A new pack reaches existing installed users on their next *online* terminal open (network-first
+config), and its images cache themselves on first use. The base app stays lean (the whole point
+of the cartridge idea).
+
+**Cost & offline floor (flag, don't hide):**
+- Network-first config means each terminal open re-fetches `registry.json` plus every manifest
+  while online. With inline word banks (~50 KB each — Decision 1 default) that is a few hundred
+  KB on a deliberate, rare action — acceptable, but a mild argument for `wordFile` over inline if
+  any single pack's bank grows large (network-first re-pulls the whole manifest, words included).
+- A pack added while the user is offline will not appear until they are next online (network-first
+  falls back to cache offline). This is correct and unavoidable — not a bug.
 
 ### A.5 Migration of the three existing packs
 
@@ -355,9 +381,12 @@ the lean/removable property you asked for.
 ### C.3 Test workflow notes
 
 - **No build step, no version bump, no `sw.js` edit** for any pack add/remove.
+- New packs reach existing installed users on their **next online terminal open** — no version
+  bump, but not instant offline (config is network-first, so it needs one online fetch to be seen;
+  see A.4).
 - While developing online, a hard refresh picks up registry/manifest changes. (Runtime cache
   is keyed per-URL; if you overwrite an image in place, bump its filename or clear the SW
-  cache from DevTools to force a re-fetch.)
+  cache from DevTools to force a re-fetch — images are cache-first.)
 - Keep art reasonably sized (these load on phones). Suggested ≤ ~100 KB per image.
 
 ---

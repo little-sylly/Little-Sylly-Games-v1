@@ -56,6 +56,9 @@ syllyMultiplayerMode: 'single' | 'host' | 'client'
 | `nono_list` | The forbidden words in Like I'm Five (deliberate name — not `taboo_list`) |
 | `isSylly` | Derived at runtime as `difficulty === 3`; never stored in data |
 | `activeGameId` | String set by plugin on entry; null when in lobby |
+| Pack (cartridge) | A self-contained Secret Mode expansion folder `data/packs/<id>/` with one `pack.json` manifest. Added/removed by dropping the folder + editing `registry.json` — no `.js`/`sw.js` edit, no SW version bump. Word packs carry `words`; asset packs (Phase B) carry `assets`. See `docs/cartridge-system-plan.md` |
+| `registry.json` | `data/packs/registry.json` — the single array of live pack ids; the ONE line edited to add/remove a pack |
+| `smReviveSettings()` | Converts the string `"Infinity"` → JS `Infinity` in a pack's settings on load (JSON has no Infinity literal); currently only `ssRerollLimitSetting` |
 | Pill Button | Multi-choice setting UI: `.pill` (inactive) / `.pill-active-purple` (active) |
 | Mind Meld | Great Minds: both players matched — win condition |
 | Neural Link | Great Minds: victory state label shown on screen |
@@ -99,7 +102,7 @@ syllyMultiplayerMode: 'single' | 'host' | 'client'
 Schemas for the other data files are documented next to their owning game — do not duplicate them here:
 - `data/ygi-data.json` — `{ id, text, ringers[5] }` — full schema in `game-identities.md` § You Get It? and `docs/ygi-content-guide.md`
 - `data/gth-data.json` — `{ id, name, display, definition, tip, category, difficulty, cluster?, aliases[] }` — full schema in `game-identities.md` § Group Therapy and `docs/gth-content-guide.md`
-- `data/secret_words.json` / `secret2_words.json` / `secret3_words.json` — same schema as `words.json`; see `docs/expansion-guide.md`
+- `data/packs/<id>/pack.json` — Secret Mode expansion **cartridge** manifest `{ id, label, locked, games, subCategories?, settings, words | wordFile }`; its `words` array uses the same schema as `words.json` (inline). Live packs are listed in `data/packs/registry.json`. See `docs/expansion-guide.md`. (Replaced the legacy `data/secret*_words.json` files — migrated into manifests + deleted in Phase A, June 2026.)
 
 ## File Format: words.json
 - **One entry per line** (compact `JSON.stringify(entry)` — no multi-line pretty-print)

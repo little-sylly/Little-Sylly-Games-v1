@@ -334,7 +334,7 @@ A suite-wide Stack sweep migrated every content/results screen off `h-screen`. T
 - **Body text:** `text-stone-500 text-sm`; keywords as `font-semibold text-stone-700`; emojis in body are OK.
 - **Card ordering:** Steps → Winning and Scoring → ✨ Sylly Mode → close button.
 - **Winning and Scoring:** always this exact label — never just "Winning" or "Scoring".
-- **Sylly Mode card:** present for every game. Label is `✨ Sylly Mode` (literal — the `✨` is part of the label text, styled with `text-[brand]`). Heading is the thematic name (e.g. "Wild Words", "Mission Abyss").
+- **Sylly Mode card:** present for every game. Label is `✨ Sylly Mode` (literal — the `✨` is part of the label text, styled with `text-[brand]`). Heading is the thematic name (e.g. "Wild Words", "Silent Running").
 - **Close button:** game brand primary colour (`bg-[brand] hover:bg-[brand-dark]`).
 - **Inner div:** must include `flex flex-col` — title block is `flex-shrink-0`, body is `overflow-y-auto`.
 
@@ -349,7 +349,7 @@ A suite-wide Stack sweep migrated every content/results screen off `h-screen`. T
 | YGI | 🃏 | `text-orange-500` | `bg-orange-500 hover:bg-orange-600` | The Ringer |
 | LTTP | 🏃‍♂️ | `text-red-500` | `bg-red-500 hover:bg-red-600` | The Troublemaker |
 | NAT | 🦁 | `text-lime-600` | `bg-lime-600 hover:bg-lime-700` | Survival of the Fittest |
-| DSD | ⚓ | `text-cyan-700` | `bg-cyan-700 hover:bg-cyan-800` | Mission Abyss |
+| DSD | ⚓ | `text-cyan-700` | `bg-cyan-700 hover:bg-cyan-800` | Silent Running |
 | GTH | 🛋️ | inline `style="color:#B1BCA0"` | inline `style="background-color:#B1BCA0"` | Stroke or Genius |
 | DYB | 🎲 | `dyb-label` (custom) | `dyb-cta` (custom) | The Tempest |
 | BLD | 📋 | `text-yellow-500` | `bg-yellow-500 hover:bg-yellow-600` | Drama Mode |

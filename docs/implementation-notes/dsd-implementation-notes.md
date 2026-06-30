@@ -11,6 +11,9 @@ DSD was the first game to call `showWhoFirst()` from `engine.js`. The function w
 **Word curation filter at runtime**
 `dsdBuildGame()` excludes `aussie_slang`, `pop_culture`, `people`, `brands` categories and any word containing a space. Hyphenated entries are kept. This filter runs at game start — not at data load time.
 
+**Sylly Mode renamed Mission Abyss → Silent Running (30 June 2026)**
+The Sylly Mode name clashed with PASS's Sylly Mode "The Abyss". PASS keeps "Abyss" because it is a load-bearing mechanic there (`passAbyss` pool, `abyss-draft` phase); DSD's was a cosmetic display string only, so DSD was the cheaper side to rename. "Silent Running" (a real submarine stealth tactic) maps cleanly onto the hidden-saboteur Captain mechanic. Only user-facing strings changed (sabotage header, settings subtitle, how-to heading, pass-gate subtext). The internal audio function `playAbyssThud()` keeps its name — its "abyss" refers to the deep-ocean abyss the Nuclear Mine sinks into, not the Sylly Mode label. See decision-log 2026-06-30.
+
 **Nuclear Mine — 2.6s delay before gameover**
 `dsdValour[me] -= 1000` then `setTimeout(() => dsdShowGameover(), 2600)` — the delay allows `playAbyssThud()` to play out fully. This is a deliberate UX choice, not a workaround.
 

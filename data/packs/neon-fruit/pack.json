@@ -1,0 +1,23 @@
+{
+  "id": "neon-fruit",
+  "label": "NEON FRUIT",
+  "locked": false,
+  "games": [
+    "frt"
+  ],
+  "assets": {
+    "kind": "frt",
+    "basePath": "img/",
+    "faces": {
+      "0": "banana.svg",
+      "1": "lemon.svg",
+      "2": "peach.svg",
+      "3": "grape.svg",
+      "4": "watermelon.svg",
+      "5": "pear.svg",
+      "6": "strawberry.svg",
+      "7": "apple.svg"
+    },
+    "back": "back.svg"
+  }
+}

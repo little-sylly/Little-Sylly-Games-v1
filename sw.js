@@ -1,7 +1,7 @@
-// Little Sylly Games — Service Worker v139
+// Little Sylly Games — Service Worker v142
 // All assets are local — no external CDN URLs, no opaque response issues.
 
-const CACHE_NAME = 'sylly-games-v139';
+const CACHE_NAME = 'sylly-games-v142';
 
 const PRECACHE_URLS = [
   './',
@@ -32,9 +32,8 @@ const PRECACHE_URLS = [
   'js/lib/tailwind-play.js',
   'js/lib/canvas-draw.js',
   'data/words.json',
-  'data/secret_words.json',
-  'data/secret2_words.json',
-  'data/secret3_words.json',
+  // Expansion/asset packs (data/packs/) are NOT precached — they are runtime-cached
+  // on first use so adding a pack needs no version bump. See the fetch handler below.
   'manifest.json',
   'js/engine-multiplayer.js',
   'js/lib/firebase-app.js',
@@ -60,7 +59,34 @@ self.addEventListener('activate', event => {
 });
 
 self.addEventListener('fetch', event => {
-  // Cache-first for all requests — all assets are local and same-origin
+  const url = new URL(event.request.url);
+
+  // Expansion/asset packs (data/packs/) — runtime cache, no precache, no version bump.
+  if (url.pathname.includes('/data/packs/')) {
+    if (url.pathname.endsWith('.json')) {
+      // Config (registry + manifests): network-first so new/updated packs are
+      // discovered without a version bump; fall back to cache when offline.
+      event.respondWith(
+        fetch(event.request).then(res => {
+          const copy = res.clone();
+          caches.open(CACHE_NAME).then(c => c.put(event.request, copy));
+          return res;
+        }).catch(() => caches.match(event.request))
+      );
+    } else {
+      // Media (skin images): cache-first — instant + lean.
+      event.respondWith(
+        caches.match(event.request).then(cached => cached || fetch(event.request).then(res => {
+          const copy = res.clone();
+          caches.open(CACHE_NAME).then(c => c.put(event.request, copy));
+          return res;
+        }))
+      );
+    }
+    return;
+  }
+
+  // Everything else: cache-first — all assets are local and same-origin.
   event.respondWith(
     caches.match(event.request).then(cached => cached || fetch(event.request))
   );

@@ -16,6 +16,28 @@
 
   const RED_SUITS = new Set(['♥', '♦']);
 
+  // ── Asset-pack id scheme ──────────────────────────────────────────────────
+  // Stable string id per card for asset packs: rank + suit-letter (e.g. 'QH',
+  // '10S', 'AD'), Joker → 'Joker'. Pack `faces` keys use these; `back` is the
+  // single face-down image. Render seam: only the buildEl/buildBackEl internals.
+  const SUIT_LETTER = { '♥': 'H', '♦': 'D', '♣': 'C', '♠': 'S' };
+  function cardAssetId(cardData) {
+    return cardData.rank === 'Joker' ? 'Joker' : (cardData.rank + (SUIT_LETTER[cardData.suit] || ''));
+  }
+  function renderAssetCard(url, cardData) {
+    const wrap = document.createElement('div');
+    wrap.className = 'pass-card pass-card-asset';
+    wrap.dataset.card = cardAssetId(cardData);
+    wrap.style.backgroundImage = 'url("' + url + '")';
+    return wrap;
+  }
+  function renderAssetBack(url) {
+    const wrap = document.createElement('div');
+    wrap.className = 'pass-card pass-card-asset';
+    wrap.style.backgroundImage = 'url("' + url + '")';
+    return wrap;
+  }
+
   // ── SVG card face renderer ────────────────────────────────────────────────
 
   function renderSvgCard(cardData) {
@@ -55,9 +77,16 @@
   // ── Public API ─────────────────────────────────────────────────────────────
 
   window.Cards = {
-    // v1: SVG inline rendering — swap only this internals in v2
-    buildEl:     function (cardData)  { return renderSvgCard(cardData); },
-    buildBackEl: function (deckIdx)   { return renderCardBack(deckIdx);  },
+    // Asset-pack skin (device-local) takes precedence when one covers this card;
+    // else v1 SVG inline rendering. assetFace/assetBack live in secret-mode.js.
+    buildEl: function (cardData) {
+      const url = (typeof assetFace === 'function') && assetFace('cards', cardAssetId(cardData));
+      return url ? renderAssetCard(url, cardData) : renderSvgCard(cardData);
+    },
+    buildBackEl: function (deckIdx) {
+      const back = (typeof assetBack === 'function') && assetBack('cards');
+      return back ? renderAssetBack(back) : renderCardBack(deckIdx);
+    },
   };
 
 })();
