@@ -19,7 +19,7 @@ const SS_CATEGORIES   = ['animals','food','places','objects','sports','nature','
 let ssSelectedCategories = [];     // empty = use curated/all pool; non-empty = filtered
 let ssCustomiseVault     = false;  // false = curated pool; true = full picker visible
 
-let ssRerollLimitSetting = 1;      // max rerolls per keyword: 1 | 2 | Infinity
+let ssRerollLimitSetting = 0;      // vault rotations: 0 = OFF (default) | Infinity = ON (unlimited rerolls)
 let ssTimerSetting       = 0;      // countdown seconds (0 = off)
 
 // ── SS Team + vault state ─────────────────────────────────────────────────────
@@ -203,24 +203,25 @@ function ssRerollWord(team, kwIdx) {
 }
 
 function ssShowVaultAfterReroll(team) {
-  const vault  = ssGetVault(team);
-  const limit  = ssRerollLimitSetting === Infinity ? '∞' : ssRerollLimitSetting;
+  const vault     = ssGetVault(team);
+  const rerollsOn = ssRerollLimitSetting === Infinity;  // Vault Rotations ON = unlimited; OFF = no rerolls
   document.getElementById('ss-vault-grid').innerHTML = vault.map((w, i) => {
-    const used   = ssRerollCounts[team][i];
-    const canRoll = ssRerollLimitSetting === Infinity || used < ssRerollLimitSetting;
+    const used = ssRerollCounts[team][i];
     return `<div class="bg-white rounded-xl p-3 shadow-sm text-center relative">
       <p class="text-2xl font-bold text-teal-500">${i + 1}</p>
       <p class="text-stone-800 font-bold text-base mt-0.5 leading-tight">${w.word.toUpperCase()}</p>
-      <button onclick="ssRerollWord(${team},${i})" ${canRoll ? '' : 'disabled'}
-        class="mt-2 text-xs px-2 py-1 rounded-full ${canRoll ? 'bg-stone-100 hover:bg-stone-200 text-stone-500 active:scale-90' : 'bg-stone-50 text-stone-300 cursor-not-allowed'} transition-all">
-        ${canRoll ? '🔄' : '🚫'} ${used}/${limit}
-      </button>
+      ${rerollsOn ? `<button onclick="ssRerollWord(${team},${i})"
+        class="mt-2 text-xs px-2 py-1 rounded-full bg-stone-100 hover:bg-stone-200 text-stone-500 active:scale-90 transition-all">
+        🔄 ${used}
+      </button>` : ''}
     </div>`;
   }).join('');
   const note = document.getElementById('ss-vault-reroll-note');
-  if (ssRerollLimitSetting > 0 || ssRerollLimitSetting === Infinity) {
+  if (rerollsOn) {
     note.style.display = 'block';
-    note.textContent   = `Tap 🔄 to cycle a word (${limit === '∞' ? 'unlimited' : limit + ' time' + (limit > 1 ? 's' : '')} per keyword)`;
+    note.textContent   = 'Tap 🔄 to cycle any word (unlimited).';
+  } else {
+    note.style.display = 'none';
   }
 }
 
@@ -1578,8 +1579,10 @@ function ssResolve() {
   const interceptor = ssInterceptingTeam();
   const encoder     = ssEncryptingTeam;
 
-  if (interceptCorrect) ssTokens[interceptor]++;
-  if (!decodeCorrect)   ssMisfires[encoder]++;
+  // Round 1 (ssRound === 0) is a warm-up: interceptions don't score. With no clue history yet a
+  // correct intercept would be pure luck — tokens are only awarded from round 2 onward.
+  if (interceptCorrect && ssRound > 0) ssTokens[interceptor]++;
+  if (!decodeCorrect)                  ssMisfires[encoder]++;
 
   // Log this half for Mission Journal
   ssRoundHistory.push({
@@ -1605,6 +1608,9 @@ function ssRenderResolution() {
   const interceptor = ssInterceptingTeam();
   const encoder     = ssEncryptingTeam;
 
+  const firstRound      = ssRound === 0;                      // round 1 = warm-up, interceptions don't score
+  const interceptScored = interceptCorrect && !firstRound;
+
   if (interceptCorrect) playSuccess();
   else                  playBoing();
 
@@ -1624,13 +1630,14 @@ function ssRenderResolution() {
     ssCurrentCode.join(' — ');
 
   // Hype message
-  const hypeMsg = interceptCorrect && decodeCorrect
+  let hypeMsg = interceptScored && decodeCorrect
     ? '📡 Signals crossed — both teams nailed it!'
-    : interceptCorrect && !decodeCorrect
+    : interceptScored && !decodeCorrect
       ? '🎯 Interception! Their signal was compromised.'
-      : !interceptCorrect && decodeCorrect
+      : !interceptScored && decodeCorrect
         ? '🔒 Transmission secured — code held!'
         : '📻 Static on all frequencies…';
+  if (firstRound && interceptCorrect) hypeMsg = '🎯 Nice read — but round 1 interceptions are a free warm-up (no points yet).';
   document.getElementById('ss-resolution-hype').textContent = hypeMsg;
 
   document.getElementById('ss-resolution-results').innerHTML = `
@@ -1640,7 +1647,9 @@ function ssRenderResolution() {
           ${ssTeamName(interceptor)} — intercept attempt
         </p>
         ${digitRow(ssInterceptGuess, interceptCorrect)}
-        ${interceptCorrect ? '<p class="text-teal-600 text-xs font-bold mt-0.5">+1 🔍 Interception!</p>' : ''}
+        ${interceptScored
+          ? '<p class="text-teal-600 text-xs font-bold mt-0.5">+1 🔍 Interception!</p>'
+          : (firstRound && interceptCorrect ? '<p class="text-stone-400 text-xs font-bold mt-0.5">🔍 Correct — warm-up round, no points</p>' : '')}
       </div>
       <hr class="border-stone-100" />
       <div>
@@ -1949,6 +1958,13 @@ function ssyncCustomiseToggleUI() {
   document.getElementById('ss-customise-body').style.display = ssCustomiseVault ? 'flex' : 'none';
 }
 
+function ssyncRerollToggleUI() {
+  const on = ssRerollLimitSetting === Infinity;
+  const toggleBtn = document.getElementById('btn-ss-reroll-toggle');
+  toggleBtn.textContent = on ? 'ON' : 'OFF';
+  toggleBtn.className   = on ? 'game-toggle-on-teal shrink-0' : 'sylly-toggle-off shrink-0';
+}
+
 function ssOpenSettings() {
   // Sync customise vault toggle
   ssyncCustomiseToggleUI();
@@ -1962,11 +1978,8 @@ function ssOpenSettings() {
   });
   // Sync timer toggle
   ssyncTimerToggleUI();
-  // Sync reroll limit
-  document.querySelectorAll('[data-ss-setting="rerollLimit"]').forEach(btn => {
-    const val = btn.dataset.value === 'Infinity' ? Infinity : parseInt(btn.dataset.value);
-    btn.className = `pill${val === ssRerollLimitSetting ? ' pill-active-teal' : ''}`;
-  });
+  // Sync vault rotations toggle
+  ssyncRerollToggleUI();
   // Sync Sylly Mode toggle
   const toggle = document.getElementById('ss-sylly-toggle');
   toggle.textContent = ssIntelSyllyMode ? 'ON' : 'OFF';
@@ -2333,17 +2346,11 @@ document.querySelectorAll('[data-ss-setting="timer"]').forEach(btn => {
   });
 });
 
-// Settings — reroll limit
-document.querySelectorAll('[data-ss-setting="rerollLimit"]').forEach(btn => {
-  btn.addEventListener('click', () => {
-    playPillClick();
-    const raw = btn.dataset.value;
-    ssRerollLimitSetting = raw === 'Infinity' ? Infinity : parseInt(raw);
-    document.querySelectorAll('[data-ss-setting="rerollLimit"]').forEach(b => {
-      const bv = b.dataset.value === 'Infinity' ? Infinity : parseInt(b.dataset.value);
-      b.className = `pill${bv === ssRerollLimitSetting ? ' pill-active-teal' : ''}`;
-    });
-  });
+// Settings — vault rotations toggle (OFF = no rerolls | ON = unlimited)
+document.getElementById('btn-ss-reroll-toggle').addEventListener('click', () => {
+  playPillClick();
+  ssRerollLimitSetting = ssRerollLimitSetting === Infinity ? 0 : Infinity;
+  ssyncRerollToggleUI();
 });
 
 // Players screen

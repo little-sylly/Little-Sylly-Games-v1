@@ -8,8 +8,11 @@ LI5 tracks teams (Crayon Crew / Glue Stick Gang), not individual players. No Scr
 **nono_list dual-use — Broad Shield + Natural Selection**
 `nono_list[0]` serves as the Broad Shield in LI5 (describer cannot hint at the category) AND as The Mole's Grouping in NAT. Any edit to an animal's `nono_list[0]` affects both games. See Dual-Use Contract in `CLAUDE.md`.
 
+**Sylly Mode — renamed "Extra Credit"; The No-No List! setting removed (playtest feedback)**
+Sylly Mode was renamed from "Wild Words" to "Extra Credit" and the "The No-No List!" setting (5 / 10 words) was removed from settings. Extra Credit words now always display 10 nono words; regular words always display 5. `settingTabooCount` variable removed entirely — `renderTabooList` uses `currentWordIsSylly ? 10 : 5` inline. The `LI5_ROUND_START` broadcast slice uses the same inline logic. `settingTabooCount` also removed from `engine-multiplayer.js` serialise/deserialise for the `li5` case. Playtest rationale: the 10-word option was only interesting in the context of harder Sylly words anyway, so tying it automatically to Extra Credit mode removes a flat/redundant setting.
+
 **Sylly Mode — difficulty 3 words + intensity slider**
-`isSylly` is derived at runtime as `difficulty === 3` — never stored. The intensity slider (`#sylly-pct-row`) is shown only when Sylly Mode is toggled ON. Uses the sub-options pattern (hidden div revealed on toggle).
+`isSylly` is derived at runtime as `difficulty === 3` — never stored. The intensity slider (`#sylly-pct-row`, labelled "Extra Credit Level") is shown only when Sylly Mode is toggled ON. Uses the sub-options pattern (hidden div revealed on toggle).
 
 **TLM alternating roles (Phase 27 — L2)**
 Before Phase 27, Host device was permanently the active describer and Client was permanently the tattletale. This was wrong — teams must alternate. Fix: `isClientTurn` field added to `LI5_ROUND_START` payload. When `true`, the Client shows a large word card (their team is describing) and hides the No-No List and CATCH section. Host shows active play as normal (they're the judging team). `isClientTurn` is derived from `currentTeam === 1` which is the alternating index driven by `roundCount`.

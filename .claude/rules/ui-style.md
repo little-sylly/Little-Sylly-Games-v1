@@ -342,7 +342,7 @@ A suite-wide Stack sweep migrated every content/results screen off `h-screen`. T
 
 | Game | Emoji | Step label class | Close button | Sylly Mode name |
 |------|-------|-----------------|--------------|----------------|
-| LI5 | 💬 | `text-pink-500` | `bg-pink-500 hover:bg-pink-600` | Wild Words |
+| LI5 | 💬 | `text-pink-500` | `bg-pink-500 hover:bg-pink-600` | Extra Credit |
 | GM | 🧠 | `text-purple-500` | `bg-purple-500 hover:bg-purple-600` | Static Interference |
 | SS | 📡 | `text-teal-500` | `bg-teal-500 hover:bg-teal-600` | Intel Phase |
 | JEC | 🍳 | `text-amber-500` | `bg-amber-500 hover:bg-amber-600` | Kitchen Nightmares |
@@ -387,6 +387,8 @@ All multi-choice settings use the **Pill Button** style:
 
 ### Settings Card Standard
 Every individual setting is wrapped in a white card. Do NOT use bare divs or `<hr>` separators.
+
+**Emoji rule — only Sylly Mode gets one:** Setting card titles carry **no emoji prefix**. The single exception is the `✨ Sylly Mode` card, whose label is literally `✨ Sylly Mode` (the `✨` is part of the label). Do not prefix any other setting name with an emoji — it dilutes the signal that `✨` marks the advanced/last card. (Fixed June 2026: SS "⏱ Broadcaster Timer" → "Broadcaster Timer".)
 
 **Pill-group card** (timer, rounds, difficulty, etc.):
 ```html
@@ -440,7 +442,7 @@ Rules:
 - Descriptor below slider: `text-stone-400 text-xs`, format `N% [game-voiced noun]` (e.g. `30% wild cards`, `5% chaos per die`) — updated live on `input` event
 - No special-case emoji at max value
 - JS update pattern: `el.textContent = \`${val}% [noun]\`` — simple string, no branches
-- Reference implementations: LI5 (`sylly-pct-row` / "Wild Level"), DYB (`dyb-sylly-sub-options` / "Chaos Level")
+- Reference implementations: LI5 (`sylly-pct-row` / "Extra Credit Level"), DYB (`dyb-sylly-sub-options` / "Chaos Level")
 
 **Sylly Mode card** — always the last card in every settings overlay:
 ```html
@@ -459,7 +461,7 @@ Rules:
 - Description (`text-stone-400 text-sm`): one paragraph, always visible — even when toggle is OFF
 - Sub-options (pills, sliders): wrapped in a separate `style="display:none"` div, shown only when toggle is ON — only used when there is a meaningful sub-choice (e.g. GM intensity)
 - CTA start-game buttons (game menu) must not contain emoji
-- LI5: subtitle is "Wild Words"; intensity slider (`#sylly-pct-row`) is revealed on toggle ON (same sub-options pattern as GM)
+- LI5: subtitle is "Extra Credit"; intensity slider (`#sylly-pct-row`) is revealed on toggle ON (same sub-options pattern as GM)
 
 **Outer scrollable body** between cards: `flex flex-col gap-5` — keep consistent across all games.
 

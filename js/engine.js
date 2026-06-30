@@ -74,6 +74,8 @@ const allScreens = [
   'screen-frt-menu', 'screen-frt-deal', 'screen-frt-table', 'screen-frt-gameover',
   // Counting Sheep
   'screen-shp-menu', 'screen-shp-table', 'screen-shp-gameover',
+  // Flawless
+  'screen-flw-menu', 'screen-flw-table', 'screen-flw-showing-result', 'screen-flw-gameover',
 ];
 
 // ── Web Audio API ─────────────────────────────────────────────────────────────
@@ -344,7 +346,7 @@ function updateSliderTheme(gameId) {
     'ygi': 'ygi-range', 'lttp': 'lttp-range',
     'nat': 'nat-range', 'dsd': 'dsd-range',
     'gth': 'gth-range', 'bld': 'bld-range', 'dyb': 'dyb-range', 'pass': 'pass-range',
-    'nt': 'nt-range', 'shp': 'shp-range'
+    'nt': 'nt-range', 'frt': 'frt-range', 'shp': 'shp-range', 'flw': 'flw-range'
   };
   const el = document.getElementById('global-sound-volume');
   el.className = (map[gameId] || 'stone-range') + ' w-full';
@@ -358,7 +360,8 @@ function getMuteToggleOnClass(gameId) {
     'nat': 'game-toggle-on-lime', 'dsd': 'game-toggle-on-cyan',
     'gth': 'game-toggle-on-sage', 'bld': 'game-toggle-on-yellow',
     'dyb': 'game-toggle-on-dyb', 'pass': 'game-toggle-on-zinc',
-    'nt': 'game-toggle-on-emerald', 'shp': 'game-toggle-on-indigo'
+    'nt': 'game-toggle-on-emerald', 'shp': 'game-toggle-on-indigo',
+    'flw': 'game-toggle-on-flw'
   };
   return map[gameId] || 'game-toggle-on-stone';
 }
@@ -513,6 +516,13 @@ function resetToLobby() {
     const el = document.getElementById(id); if (el) el.style.display = 'none';
   });
   if (typeof shpResetState === 'function') shpResetState();
+  // Flawless teardown
+  ['flw-settings-overlay','flw-how-to-overlay','flw-gems-overlay','flw-target-overlay',
+   'flw-scratch-overlay','flw-peek-overlay','flw-appraisal-overlay','flw-emerald-overlay',
+   'flw-quit-overlay','flw-new-showing-overlay'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.style.display = 'none';
+  });
+  if (typeof flwResetState === 'function') flwResetState();
   // Help-tip overlay cleanup (Phase 21a)
   ['li5','gm','ss','jec','ygi','lttp','nat','dsd'].forEach(abbr => {
     const el = document.getElementById(`${abbr}-help-tip-overlay`);

@@ -83,6 +83,9 @@
       <button id="btn-shp" class="min-h-14 w-full rounded-2xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
         Counting Sheep
       </button>
+      <button id="btn-flw" class="flw-cta min-h-14 w-full rounded-2xl active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Flawless
+      </button>
     </div>
   </section>
 
@@ -341,18 +344,6 @@
           </div>
         </div>
 
-        <!-- The No-No List -->
-        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
-          <div>
-            <p class="text-stone-800 font-semibold">The No-No List!</p>
-            <p class="text-stone-400 text-sm mt-0.5">How many forbidden words appear with each clue.</p>
-          </div>
-          <div class="flex gap-2">
-            <button class="pill pill-active-pink" data-group="taboo-count" data-value="5">5 words</button>
-            <button class="pill" data-group="taboo-count" data-value="10">10 words 🔥</button>
-          </div>
-        </div>
-
         <!-- Penalty Type -->
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
           <div>
@@ -392,13 +383,13 @@
             <p class="text-stone-800 font-semibold">✨ Sylly Mode</p>
             <button id="sylly-toggle" class="sylly-toggle-off shrink-0">OFF</button>
           </div>
-          <p class="text-stone-600 text-sm font-semibold">Wild Words</p>
-          <p class="text-stone-400 text-sm">Mixed in with the deck — correct answers score double, but also penalties!</p>
+          <p class="text-stone-600 text-sm font-semibold">Extra Credit</p>
+          <p class="text-stone-400 text-sm">Mixed in with the deck — correct answers score double, but also penalties! Extra Credit words always show the full No-No List.</p>
           <div id="sylly-pct-row" style="display:none" class="flex flex-col gap-2 mt-1">
-            <p class="text-stone-500 text-sm font-semibold">Wild Level</p>
+            <p class="text-stone-500 text-sm font-semibold">Extra Credit Level</p>
             <input id="sylly-intensity" type="range" min="30" max="100" step="10" value="30"
               class="li5-range w-full" />
-            <p id="sylly-intensity-label" class="text-stone-400 text-xs">30% wild cards</p>
+            <p id="sylly-intensity-label" class="text-stone-400 text-xs">30% extra credit words</p>
           </div>
         </div>
 
@@ -614,8 +605,8 @@
         </div>
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
           <p class="text-xs font-semibold uppercase tracking-widest text-pink-500">✨ Sylly Mode</p>
-          <p class="font-bold text-stone-800">Wild Words</p>
-          <p class="text-stone-500 text-sm">Wilder words are shuffled into the deck. Correct answers score double, but Sylly Mode words carry penalties too.</p>
+          <p class="font-bold text-stone-800">Extra Credit</p>
+          <p class="text-stone-500 text-sm">Extra Credit words are shuffled into the deck. Correct answers score double, but they carry penalties too — and show all 10 No-No words.</p>
         </div>
         <button id="btn-li5-how-to-close" class="min-h-14 w-full rounded-2xl bg-pink-500 hover:bg-pink-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
           Got it
@@ -1760,17 +1751,15 @@
         </div>
         <!-- 4. Vault Word Rerolls -->
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
-          <p class="text-stone-800 font-semibold">Vault Rotations</p>
-          <div class="flex gap-2">
-            <button class="pill pill-active-teal" data-ss-setting="rerollLimit" data-value="1">Once</button>
-            <button class="pill" data-ss-setting="rerollLimit" data-value="2">Twice</button>
-            <button class="pill" data-ss-setting="rerollLimit" data-value="Infinity">Unlimited</button>
+          <div class="flex items-center justify-between">
+            <p class="text-stone-800 font-semibold">Vault Rotations</p>
+            <button id="btn-ss-reroll-toggle" class="sylly-toggle-off shrink-0">OFF</button>
           </div>
-          <p class="text-stone-400 text-sm">How many times each vault keyword can be rerolled.</p>
+          <p class="text-stone-400 text-sm">Let broadcasters reroll any vault keyword as many times as they like. Off by default.</p>
         </div>
         <!-- 5. Broadcaster Timer -->
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
-          <p class="text-stone-800 font-semibold">⏱ Broadcaster Timer</p>
+          <p class="text-stone-800 font-semibold">Broadcaster Timer</p>
           <div class="flex items-center gap-3">
             <button id="btn-ss-timer-toggle" class="sylly-toggle-off flex-shrink-0">OFF</button>
             <p class="text-stone-400 text-sm">Countdown during clue-giving</p>
@@ -5022,6 +5011,7 @@
         Waiting for players to join…
       </p>
       <p id="mp-lobby-capacity-display" class="text-stone-400 text-xs text-center"></p>
+      <p id="mp-lobby-min-hint" class="text-stone-500 text-xs font-semibold text-center" style="display:none"></p>
     </div>
 
     <!-- Footer: CTA -->
@@ -5956,6 +5946,9 @@
       <button id="btn-gth-canvas-clear" class="min-h-12 rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-600 font-semibold text-sm transition-all duration-100 px-5">
         Clear
       </button>
+      <button id="btn-gth-canvas-undo" class="min-h-12 rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-600 font-semibold text-sm transition-all duration-100 px-5">
+        Undo
+      </button>
       <button id="btn-gth-canvas-done" class="min-h-12 flex-1 rounded-2xl active:scale-95 text-white text-lg font-semibold transition-all duration-150" style="background-color:#B1BCA0">
         Done ✓
       </button>
@@ -5981,24 +5974,34 @@
   <!-- GTH SHRINK INTRO -->
   <section id="screen-gth-shrink-intro" style="display:none"
     class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
-    <div class="flex flex-col w-full max-w-sm gap-8 text-center">
-      <div>
-        <div class="text-5xl mb-4">🧠</div>
-        <h2 class="text-3xl font-bold text-stone-800">The Shrink Phase</h2>
-        <p class="text-stone-400 text-base mt-2">Diagnose each anonymous drawing before the time runs out.</p>
+    <div class="flex flex-col w-full max-w-sm gap-4">
+      <div class="flex items-center justify-between">
+        <div></div>
+        <div class="flex items-center gap-2">
+          <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+          <button class="btn-gth-quit-open text-xl text-stone-500 font-bold active:scale-90 transition-transform duration-100">✕</button>
+        </div>
       </div>
-      <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2 text-left">
-        <p class="text-xs font-semibold uppercase tracking-widest" style="color:#B1BCA0">How it works</p>
-        <p class="text-stone-600 text-sm">You'll see anonymous drawings one at a time. Pick the correct disorder from the options — or type it if Deep Dive is on. You <span class="font-semibold text-stone-700">won't</span> see your own drawings.</p>
+      <div class="text-center flex flex-col gap-8">
+        <div>
+          <div class="text-5xl mb-4">🧠</div>
+          <h2 class="text-3xl font-bold text-stone-800">The Shrink Phase</h2>
+          <p class="text-stone-400 text-base mt-2">Diagnose each anonymous drawing before the time runs out.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2 text-left">
+          <p class="text-xs font-semibold uppercase tracking-widest" style="color:#B1BCA0">How it works</p>
+          <p class="text-stone-600 text-sm">You'll see anonymous drawings one at a time. Pick the correct disorder from the options — or type it if Deep Dive is on. You <span class="font-semibold text-stone-700">won't</span> see your own drawings.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm text-left">
+          <p class="text-xs font-semibold uppercase tracking-widest mb-1" style="color:#B1BCA0">Time limit</p>
+          <p id="gth-shrink-window-label" class="text-stone-600 text-sm"></p>
+        </div>
+        <button id="btn-gth-shrink-start" class="min-h-14 w-full rounded-2xl active:scale-95 text-white text-xl font-semibold transition-all duration-150" style="background-color:#B1BCA0">
+          Open the Case Files →
+        </button>
+        <p id="gth-shrink-countdown-label" class="text-stone-400 text-sm">Auto-starting in <span id="gth-shrink-countdown">15</span>s — tap when ready</p>
+        <p id="gth-shrink-wait-msg" style="display:none" class="text-stone-400 text-sm">Waiting for the host to open the files…</p>
       </div>
-      <div class="bg-white rounded-2xl p-4 shadow-sm text-left">
-        <p class="text-xs font-semibold uppercase tracking-widest mb-1" style="color:#B1BCA0">Time limit</p>
-        <p id="gth-shrink-window-label" class="text-stone-600 text-sm"></p>
-      </div>
-      <button id="btn-gth-shrink-start" class="min-h-14 w-full rounded-2xl active:scale-95 text-white text-xl font-semibold transition-all duration-150" style="background-color:#B1BCA0">
-        Open the Case Files →
-      </button>
-      <p id="gth-shrink-wait-msg" style="display:none" class="text-stone-400 text-sm">Waiting for the host to open the files…</p>
     </div>
   </section>
 
@@ -6044,10 +6047,18 @@
   <!-- GTH CASE REPORT -->
   <section id="screen-gth-case-report" style="display:none"
     class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
-    <div class="flex flex-col w-full max-w-sm gap-6 text-center">
+    <div class="flex flex-col w-full max-w-sm gap-4">
+      <div class="flex items-center justify-between">
+        <div></div>
+        <div class="flex items-center gap-2">
+          <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+          <button class="btn-gth-quit-open text-xl text-stone-500 font-bold active:scale-90 transition-transform duration-100">✕</button>
+        </div>
+      </div>
+      <div class="flex flex-col gap-6 text-center">
       <div class="text-5xl">📋</div>
       <div>
-        <h2 class="text-2xl font-bold text-stone-800">All Cases Closed</h2>
+        <h2 class="text-2xl font-bold text-stone-800">Session Notes Filed</h2>
         <p class="text-stone-400 text-base mt-1">You finished your queue. Waiting for the rest of the group.</p>
       </div>
       <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2 text-left">
@@ -6065,6 +6076,7 @@
         <!-- Per-player progress dots -->
       </div>
       <p class="text-stone-400 text-sm">The Big Reveal starts when everyone's done.</p>
+      </div>
     </div>
   </section>
 
@@ -6074,7 +6086,11 @@
     <div class="flex flex-col w-full max-w-sm gap-5">
       <div class="flex items-center justify-between">
         <h2 class="text-xl font-bold text-stone-800">Case Files Unsealed 📂</h2>
-        <p id="gth-reveal-count" class="text-stone-400 text-sm font-semibold"></p>
+        <div class="flex items-center gap-2">
+          <p id="gth-reveal-count" class="text-stone-400 text-sm font-semibold"></p>
+          <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+          <button id="btn-gth-big-reveal-exit" class="text-xl text-stone-500 font-bold active:scale-90 transition-transform duration-100">✕</button>
+        </div>
       </div>
 
       <!-- Drawing display -->
@@ -6137,7 +6153,7 @@
 
       <!-- Actions -->
       <button id="btn-gth-new-session" class="min-h-14 w-full rounded-2xl active:scale-95 text-white text-xl font-semibold transition-all duration-150" style="background-color:#B1BCA0">
-        New Session 🛋️
+        New Session
       </button>
     </div>
   </section>
@@ -6172,9 +6188,9 @@
             <p class="text-stone-400 text-sm mt-0.5">Time available to convey each disorder.</p>
           </div>
           <div class="flex gap-2">
-            <button class="pill" data-group="gth-drawtime" data-val="20">20s</button>
-            <button class="pill pill-active-sage" data-group="gth-drawtime" data-val="30">30s</button>
-            <button class="pill" data-group="gth-drawtime" data-val="45">45s</button>
+            <button class="pill" data-group="gth-drawtime" data-val="30">30s</button>
+            <button class="pill pill-active-sage" data-group="gth-drawtime" data-val="60">60s</button>
+            <button class="pill" data-group="gth-drawtime" data-val="0">No Limit</button>
           </div>
         </div>
 
@@ -6596,7 +6612,10 @@
             <p class="text-stone-800 font-semibold">✨ Sylly Mode</p>
             <button id="btn-dyb-sylly-toggle" class="game-toggle-off shrink-0">OFF</button>
           </div>
-          <p class="text-stone-600 text-sm font-semibold">The Tempest</p>
+          <div class="flex items-center gap-1.5">
+            <p class="text-stone-600 text-sm font-semibold">The Tempest</p>
+            <button id="btn-dyb-settings-tempest-tip" class="text-stone-300 font-bold text-xs leading-none active:scale-90 transition-transform duration-100">[?]</button>
+          </div>
           <p class="text-stone-400 text-sm">Each die has a chance to be secretly modified — loaded, phantom, cracked, slick, or a snake.</p>
           <div id="dyb-sylly-sub-options" style="display:none" class="flex flex-col gap-2 mt-1">
             <p class="text-stone-500 text-sm font-semibold">Chaos level</p>
@@ -6739,6 +6758,7 @@
   <script src="js/games/nt.js"></script>
   <script src="js/games/frt.js"></script>
   <script src="js/games/shp.js"></script>
+  <script src="js/games/flw.js"></script>
   <script src="js/secret-mode.js"></script>
   <script src="js/app.js"></script>
 
@@ -7006,6 +7026,15 @@
           <p class="text-stone-400 text-sm">A solo Joker can lead or beat any single card — not just as your last card.</p>
         </div>
 
+        <!-- Open Climbing Mode -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <div class="flex items-center justify-between">
+            <p class="text-stone-800 font-semibold">Open Climbing Mode</p>
+            <button id="btn-pass-open-climb-toggle" class="game-toggle-off shrink-0">OFF</button>
+          </div>
+          <p class="text-stone-400 text-sm">Play any higher card of the same combination type instead of advancing by exactly +1.</p>
+        </div>
+
         <!-- Sylly Mode -->
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
           <div class="flex items-center justify-between">
@@ -7041,18 +7070,24 @@
 
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
           <p class="text-xs font-semibold uppercase tracking-widest text-zinc-700">Step 2</p>
+          <p class="font-bold text-stone-800">Lowest card leads first</p>
+          <p class="text-stone-500 text-sm">Whoever holds the lowest card starts the very first round — that's the <span class="font-semibold text-stone-700">3♦</span> (ties break by suit: ♦, ♣, ♥, ♠). Their opening combo must <span class="font-semibold text-stone-700">include that card</span>. After round one, the winner of each round leads the next with anything.</p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest text-zinc-700">Step 3</p>
           <p class="font-bold text-stone-800">Play a combo or pass</p>
           <p class="text-stone-500 text-sm">On your turn, play a <span class="font-semibold text-stone-700">combo</span> (Single, Pair, Triplet, Quad, Sequence, or Double Sequence) that is exactly one rank higher than the table — or pass. A <span class="font-semibold text-stone-700">Bomb</span> (Triplet+) beats any non-Bomb combo.</p>
         </div>
 
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
-          <p class="text-xs font-semibold uppercase tracking-widest text-zinc-700">Step 3</p>
+          <p class="text-xs font-semibold uppercase tracking-widest text-zinc-700">Step 4</p>
           <p class="font-bold text-stone-800">Clear the table</p>
           <p class="text-stone-500 text-sm">If everyone passes in a full circuit, the table clears and the last player to play leads fresh. 2s beat everything except a Bomb — but still follow the +1 climb rule.</p>
         </div>
 
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
-          <p class="text-xs font-semibold uppercase tracking-widest text-zinc-700">Step 4</p>
+          <p class="text-xs font-semibold uppercase tracking-widest text-zinc-700">Step 5</p>
           <p class="font-bold text-stone-800">Empty your hand to win</p>
           <p class="text-stone-500 text-sm">The first player to play their last card wins the round. The others lose chips based on how many cards remain.</p>
         </div>
@@ -7124,14 +7159,14 @@
   <div id="pass-new-deal-overlay" style="display:none"
     class="fixed inset-0 bg-black/40 z-[90] flex items-center justify-center px-6">
     <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-zinc-300">
-      <p class="text-3xl">🃏</p>
-      <h3 class="text-lg font-bold text-stone-800">New Deal?</h3>
-      <p class="text-stone-500 text-sm">Chip stacks reset. Names and settings are kept.</p>
+      <p class="text-5xl">🃏</p>
+      <h3 class="text-xl font-bold text-stone-800">New Deal?</h3>
+      <p class="text-stone-500 text-base">Chip stacks reset. Names and settings are kept.</p>
       <div class="flex flex-col gap-2">
-        <button id="btn-pass-new-deal-confirm" class="min-h-11 w-full rounded-2xl bg-zinc-900 hover:bg-zinc-800 active:scale-95 text-white font-semibold text-sm transition-all duration-100">
+        <button id="btn-pass-new-deal-confirm" class="min-h-14 w-full rounded-2xl bg-zinc-900 hover:bg-zinc-800 active:scale-95 text-white font-semibold text-lg transition-all duration-150">
           Deal Me In
         </button>
-        <button id="btn-pass-new-deal-cancel" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-sm transition-all duration-100">
+        <button id="btn-pass-new-deal-cancel" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-medium text-base transition-all duration-150">
           Stay here
         </button>
       </div>
@@ -7457,7 +7492,7 @@
             <button class="pill" data-nt-win="45">45s</button>
             <button class="pill" data-nt-win="60">60s</button>
             <button class="pill pill-active-emerald" data-nt-win="90">90s</button>
-            <button class="pill" data-nt-win="120">120s</button>
+            <button class="pill" data-nt-win="0">No Limit</button>
           </div>
         </div>
 
@@ -7860,12 +7895,12 @@
 
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-1.5">
           <p class="font-bold text-stone-800">&#x1F34C; Smug Banana <span class="text-xs font-normal text-stone-400 ml-1">on-challenge</span></p>
-          <p class="text-stone-500 text-sm">If someone calls False on a Banana and it really is a Banana, the <span class="font-semibold text-stone-700">challenger</span> gets the card — not you. You keep the serve.</p>
+          <p class="text-stone-500 text-sm">When an opponent loses a challenge against a Banana, they take the card as normal — but <span class="font-semibold text-stone-700">you keep the serve</span>.</p>
         </div>
 
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-1.5">
           <p class="font-bold text-stone-800">&#x1F34B; Sour Lemon <span class="text-xs font-normal text-stone-400 ml-1">on-challenge</span></p>
-          <p class="text-stone-500 text-sm">If you lose a challenge with a Lemon in play, your <span class="font-semibold text-stone-700">challenger flips one random card</span> from their own Stash into their Bowl.</p>
+          <p class="text-stone-500 text-sm">Whenever a Lemon is revealed, the <span class="font-semibold text-stone-700">other party flips one random card</span> from their own Stash — win or lose, nobody walks away clean.</p>
         </div>
 
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-1.5">
@@ -8120,7 +8155,7 @@
     class="fixed inset-0 bg-black/40 z-[90] flex items-end justify-center">
     <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
       <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
-        <h2 class="text-xl font-bold text-stone-800">Play Log 📋</h2>
+        <h2 class="text-xl font-bold text-stone-800">Dream Journal 📖</h2>
         <p class="text-xs text-stone-400 mt-1">Cards played this Night, newest first.</p>
       </div>
       <div id="shp-play-log-list" class="overflow-y-auto flex flex-col px-5 py-4 gap-0"></div>
@@ -8140,6 +8175,372 @@
       </div>
       <p id="shp-card-info-effect" class="text-stone-500 text-sm text-center"></p>
       <button id="btn-shp-card-info-close" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-sm transition-all duration-100">Got it</button>
+    </div>
+  </div>
+
+  <!-- ════ FLAWLESS (flw) — Love Letter (Master Jeweller's Exhibition) ════
+       Screens : screen-flw-menu, screen-flw-table, screen-flw-showing-result, screen-flw-gameover
+       Overlays: flw-settings-overlay, flw-how-to-overlay, flw-gems-overlay, flw-target-overlay,
+                 flw-scratch-overlay, flw-peek-overlay, flw-appraisal-overlay, flw-emerald-overlay,
+                 flw-quit-overlay, flw-new-showing-overlay
+    ══════════════════════════════════════════════════ -->
+
+  <!-- FLW MENU -->
+  <section id="screen-flw-menu" style="display:none"
+    class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
+    <button class="btn-open-sound absolute top-4 right-4 text-2xl">🔊</button>
+    <div class="text-6xl" role="img" aria-label="diamond">💎</div>
+    <div>
+      <h1 class="text-4xl font-bold text-stone-800">Flawless</h1>
+      <p class="text-stone-400 text-base mt-2">The flawless one wins. Don't get exposed.</p>
+    </div>
+    <div class="flex flex-col gap-3 w-full">
+      <button id="btn-flw-menu-play" class="flw-cta min-h-14 w-full rounded-2xl text-white text-xl font-semibold active:scale-95 transition-all duration-150">Enter the Exhibition</button>
+      <button id="btn-flw-menu-how-to" class="min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 text-white text-xl font-semibold active:scale-95 transition-all duration-150">How to Play</button>
+      <button id="btn-flw-menu-settings" class="min-h-14 w-full rounded-2xl bg-[#FBE0EA] hover:bg-[#F6C9DA] text-[#A02050] text-xl font-semibold active:scale-95 transition-all duration-150">Settings</button>
+      <button id="btn-flw-menu-back" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 text-stone-500 text-base font-medium active:scale-95 transition-all duration-150">← Back to the Box</button>
+    </div>
+  </section>
+
+  <!-- FLW TABLE (the Exhibition) -->
+  <section id="screen-flw-table" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-4">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <div id="flw-turn-label" class="text-sm font-semibold text-stone-500">The Exhibition</div>
+          <span id="flw-timer" class="text-sm font-bold text-stone-500"></span>
+        </div>
+        <div class="flex items-center gap-2">
+          <button id="btn-flw-how-to" class="text-stone-400 font-bold text-sm">[?]</button>
+          <button class="btn-open-sound text-xl">🔊</button>
+          <button class="btn-flw-quit-open text-stone-500 font-bold text-xl">✕</button>
+        </div>
+      </div>
+      <div class="flex flex-col gap-3">
+        <div id="flw-rival-strip" class="flex flex-wrap gap-2 justify-center"></div>
+        <div class="flex items-center justify-between bg-white rounded-2xl p-3 shadow-sm">
+          <span class="text-stone-500 text-sm font-semibold">The Vault</span>
+          <span id="flw-vault-count" class="flw-label font-bold">—</span>
+        </div>
+        <div class="bg-white rounded-2xl p-3 shadow-sm flex flex-col gap-2">
+          <div class="flex items-center justify-between">
+            <p class="text-[0.6rem] font-semibold uppercase tracking-wide text-stone-400">Appraiser's Ledger</p>
+            <button id="btn-flw-gem-manifest" class="text-[0.65rem] font-semibold uppercase tracking-wide active:scale-90 transition-transform duration-100" style="color:#E879A8">[?] Gem Manifest</button>
+          </div>
+          <div id="flw-ledger"></div>
+        </div>
+        <div class="bg-stone-100 rounded-2xl p-3 flex flex-col gap-1.5">
+          <p class="text-[0.6rem] font-semibold uppercase tracking-wide text-stone-400">The Showroom Journal</p>
+          <div id="flw-log" class="text-stone-500 text-xs max-h-20 overflow-y-auto"></div>
+        </div>
+      </div>
+      <div class="flex flex-col gap-3">
+        <div id="flw-hand-row" class="flex items-center justify-center gap-3"></div>
+        <button id="btn-flw-audit" style="display:none" class="min-h-11 w-full rounded-2xl bg-[#FBE0EA] hover:bg-[#F6C9DA] text-[#A02050] font-semibold text-sm active:scale-95 transition-all duration-100">🔍 Audit</button>
+        <button id="btn-flw-action" class="flw-cta min-h-14 w-full rounded-2xl text-white text-lg font-semibold active:scale-95 transition-all duration-150" disabled>Waiting…</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- FLW SHOWING RESULT -->
+  <section id="screen-flw-showing-result" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-4">
+      <div class="flex items-center justify-between">
+        <div id="flw-showing-result-num" class="text-sm font-semibold text-stone-500">The Showing</div>
+        <div class="flex items-center gap-2">
+          <button class="btn-open-sound text-xl">🔊</button>
+          <button class="btn-flw-quit-open text-stone-500 font-bold text-xl">✕</button>
+        </div>
+      </div>
+      <div id="flw-showing-result-body" class="flex flex-col items-center gap-3 text-center"></div>
+      <button id="btn-flw-next-showing" class="flw-cta min-h-14 w-full rounded-2xl text-white text-lg font-semibold active:scale-95 transition-all duration-150">Next Showing</button>
+    </div>
+  </section>
+
+  <!-- FLW GAMEOVER (Best in Show) -->
+  <section id="screen-flw-gameover" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-4">
+      <div class="flex items-center justify-between">
+        <h2 class="text-xl font-bold text-stone-800">Best in Show 🏆</h2>
+        <div class="flex items-center gap-2">
+          <button class="btn-open-sound text-xl">🔊</button>
+          <button id="btn-flw-gameover-exit" class="text-stone-500 font-bold text-xl">✕</button>
+        </div>
+      </div>
+      <div id="flw-gameover-body" class="flex flex-col gap-2"></div>
+      <button id="btn-flw-go-again" class="flw-cta min-h-14 w-full rounded-2xl text-white text-lg font-semibold active:scale-95 transition-all duration-150">Another Showing?</button>
+    </div>
+  </section>
+
+  <!-- FLW SETTINGS (The Display Case) -->
+  <div id="flw-settings-overlay" style="display:none"
+    class="fixed inset-0 bg-black/40 z-[80] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
+      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
+        <h2 class="text-xl font-bold text-stone-800">The Display Case 💎</h2>
+        <p class="text-xs text-stone-400 mt-1">Set the scene before the first Showing.</p>
+      </div>
+      <div class="overflow-y-auto flex flex-col gap-5 px-5 py-5">
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <div class="flex items-center justify-between">
+            <p class="text-stone-800 font-semibold">Appraiser's Ledger</p>
+            <button id="btn-flw-ledger-toggle" class="game-toggle-on-flw shrink-0">ON</button>
+          </div>
+          <p class="text-stone-400 text-sm">Show a running tally of every gem already exposed — or switch off for a pure memory game.</p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">Diamonds to Win</p>
+            <p class="text-stone-400 text-sm mt-0.5">Auto picks the right target for your table size. Custom sets your own.</p>
+          </div>
+          <div class="flex gap-2">
+            <button class="pill pill-active-flw" data-flw-tokmode="auto">Auto</button>
+            <button class="pill" data-flw-tokmode="custom">Custom</button>
+          </div>
+          <div id="flw-custom-target-row" style="display:none" class="flex gap-2">
+            <button class="pill" data-flw-target="3">3</button>
+            <button class="pill pill-active-flw" data-flw-target="5">5</button>
+            <button class="pill" data-flw-target="7">7</button>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">Smoke &amp; Mirrors</p>
+            <p class="text-stone-400 text-sm mt-0.5">How many random gems are burned out of the Vault each Showing — more burned, harder to read the deck.</p>
+          </div>
+          <div class="flex gap-2">
+            <button class="pill pill-active-flw" data-flw-burn="1">1 Gem</button>
+            <button class="pill" data-flw-burn="3">3 Gems</button>
+            <button class="pill" data-flw-burn="5">5 Gems</button>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">Appraisal Clock</p>
+            <p class="text-stone-400 text-sm mt-0.5">A gentle countdown each turn. On time-out, your drawn gem is played for you.</p>
+          </div>
+          <div class="flex gap-2">
+            <button class="pill pill-active-flw" data-flw-timer="0">Off</button>
+            <button class="pill" data-flw-timer="30">30s</button>
+            <button class="pill" data-flw-timer="60">60s</button>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <div class="flex items-center justify-between">
+            <p class="text-stone-800 font-semibold">✨ Sylly Mode</p>
+            <button id="btn-flw-sylly-toggle" class="game-toggle-off shrink-0">OFF</button>
+          </div>
+          <p class="text-stone-600 text-sm font-semibold">The Counterfeit Run</p>
+          <p class="text-stone-400 text-sm">Each jeweller gets one Counterfeit gem to bluff any effect, plus two Audit Charges to expose rivals' fakes. Hold the fake to Vault Lock and it collapses to nothing.</p>
+        </div>
+        <button id="btn-flw-settings-done" class="flw-cta min-h-14 w-full rounded-2xl text-white text-xl font-semibold active:scale-95 transition-all duration-150">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLW HOW TO PLAY -->
+  <div id="flw-how-to-overlay" style="display:none"
+    class="fixed inset-0 bg-black/40 z-[90] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
+      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
+        <h2 class="text-xl font-bold text-stone-800">How to Play 💎</h2>
+        <p class="text-xs text-stone-400 mt-1">Hold the most flawless stone when the vault locks.</p>
+      </div>
+      <div class="overflow-y-auto flex flex-col gap-4 px-5 py-5">
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest" style="color:#E879A8">Step 1</p>
+          <p class="font-bold text-stone-800">Draw and place</p>
+          <p class="text-stone-500 text-sm">Draw one gem so you're holding two, then place one face-up and resolve its effect — keep the other as your secret <span class="font-semibold text-stone-700">Showpiece</span>.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest" style="color:#E879A8">Step 2</p>
+          <p class="font-bold text-stone-800">Read your rivals</p>
+          <p class="text-stone-500 text-sm">Effects let you peek, compare, swap, or expose. Get <span class="font-semibold text-stone-700">Exposed</span> — a correct guess, a lost appraisal, or being forced to discard the Pink Diamond — and you're out for this Showing.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest" style="color:#E879A8">Step 3</p>
+          <p class="font-bold text-stone-800">Lock the Vault</p>
+          <p class="text-stone-500 text-sm">When the Vault runs dry it's <span class="font-semibold text-stone-700">Vault Lock</span> — every survivor reveals, highest carat wins. Or simply be the last one standing.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest" style="color:#E879A8">The Gems</p>
+          <ul class="list-none flex flex-col gap-1 text-stone-500 text-sm">
+            <li><span class="font-semibold text-stone-700">9 Pink Diamond</span> — no effect, but you're out if ever forced to discard it.</li>
+            <li><span class="font-semibold text-stone-700">8 Blood Ruby</span> — must be played if held with the 7 or 5.</li>
+            <li><span class="font-semibold text-stone-700">7 Blue Sapphire</span> — The Trade: swap Showpieces with a rival.</li>
+            <li><span class="font-semibold text-stone-700">6 Green Emerald</span> — The Deep Vault: draw 2, keep the best of 3.</li>
+            <li><span class="font-semibold text-stone-700">5 Yellow Topaz</span> — The Recut: a player (or you) discards and redraws.</li>
+            <li><span class="font-semibold text-stone-700">4 Imperial Jade</span> — Under Glass: untargetable until your next turn.</li>
+            <li><span class="font-semibold text-stone-700">3 Black Opal</span> — The Private Appraisal: lower carat is Exposed.</li>
+            <li><span class="font-semibold text-stone-700">2 Purple Amethyst</span> — The Loupe: secretly view a Showpiece.</li>
+            <li><span class="font-semibold text-stone-700">1 Clear Quartz</span> — The Scratch Test: name a gem to Expose a rival (six in the deck).</li>
+            <li><span class="font-semibold text-stone-700">0 Raw Obsidian</span> — worthless at Vault Lock, but a bonus if you're the sole survivor who played one.</li>
+          </ul>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest" style="color:#E879A8">Winning and Scoring</p>
+          <ul class="list-disc pl-5 flex flex-col gap-1 text-stone-500 text-sm">
+            <li><span class="font-semibold text-stone-700">Win a Showing</span> — last one standing, or highest carat at Vault Lock — earns one Cut Diamond.</li>
+            <li><span class="font-semibold text-stone-700">First to the target</span> Cut Diamonds is Best in Show.</li>
+            <li><span class="font-semibold text-stone-700">Ties</span> at Vault Lock break on the higher sum of your own discards.</li>
+          </ul>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest" style="color:#E879A8">✨ Sylly Mode</p>
+          <p class="font-bold text-stone-800">The Counterfeit Run</p>
+          <p class="text-stone-500 text-sm">Everyone gets one <span class="font-semibold text-stone-700">Counterfeit</span> gem to bluff any effect, plus two <span class="font-semibold text-stone-700">Audit Charges</span> to expose a rival's fake. Get caught auditing a real gem and you leak your hand. Hold the fake to Vault Lock and it's worth nothing.</p>
+        </div>
+        <button id="btn-flw-howto-close" class="flw-cta min-h-14 w-full rounded-2xl text-white text-xl font-semibold active:scale-95 transition-all duration-150">Got it</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLW QUIT -->
+  <div id="flw-quit-overlay" style="display:none"
+    class="fixed inset-0 z-[80] overlay-modal-backdrop flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-[#E9A8C0]">
+      <div class="flex flex-col gap-2">
+        <p class="text-3xl">💼</p>
+        <h3 class="text-lg font-bold text-stone-800">Pack Up Your Case?</h3>
+        <p class="text-stone-500 text-sm">You'll forfeit this Showing and leave the table.</p>
+      </div>
+      <div class="flex flex-col gap-2">
+        <button id="btn-flw-quit-confirm" class="min-h-11 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 text-white font-semibold text-sm active:scale-95 transition-all duration-100">Yeah, pack up.</button>
+        <button id="btn-flw-quit-cancel" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 text-stone-700 font-semibold text-sm active:scale-95 transition-all duration-100">Keep showing.</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLW NEW SHOWING (play-again) -->
+  <div id="flw-new-showing-overlay" style="display:none"
+    class="fixed inset-0 z-[90] overlay-modal-backdrop flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-[#E9A8C0]">
+      <div class="flex flex-col gap-2">
+        <p class="text-3xl">💎</p>
+        <h3 class="text-lg font-bold text-stone-800">Another Showing?</h3>
+        <p class="text-stone-500 text-sm">Tokens reset; everyone re-enters the lobby.</p>
+      </div>
+      <div class="flex flex-col gap-2">
+        <button id="btn-flw-new-confirm" class="flw-cta min-h-11 w-full rounded-2xl text-white font-semibold text-sm active:scale-95 transition-all duration-100">Another Showing</button>
+        <button id="btn-flw-new-cancel" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 text-stone-700 font-semibold text-sm active:scale-95 transition-all duration-100">Stay here.</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLW TARGET (Sapphire / Topaz / Opal / Amethyst) -->
+  <div id="flw-target-overlay" style="display:none"
+    class="fixed inset-0 z-[90] overlay-modal-backdrop flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-[#E9A8C0]">
+      <div class="flex flex-col gap-1">
+        <p class="text-3xl">🎯</p>
+        <h3 id="flw-target-heading" class="text-lg font-bold text-stone-800">Choose a target</h3>
+        <p id="flw-target-sub" class="text-stone-500 text-sm"></p>
+      </div>
+      <div id="flw-target-list" class="flex flex-col gap-2"></div>
+      <button id="btn-flw-target-cancel" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 text-stone-700 font-semibold text-sm active:scale-95 transition-all duration-100">Cancel</button>
+    </div>
+  </div>
+
+  <!-- FLW SCRATCH TEST (Clear Quartz) -->
+  <div id="flw-scratch-overlay" style="display:none"
+    class="fixed inset-0 z-[90] overlay-modal-backdrop flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-[#E9A8C0]">
+      <div class="flex flex-col gap-1">
+        <p class="text-3xl">🔍</p>
+        <h3 class="text-lg font-bold text-stone-800">The Scratch Test</h3>
+        <p class="text-stone-500 text-sm">Name a rival and guess their gem.</p>
+      </div>
+      <div>
+        <p class="text-xs font-semibold uppercase tracking-wide text-stone-400 mb-1 text-left">Target</p>
+        <div id="flw-scratch-target-list" class="flex flex-wrap gap-2"></div>
+      </div>
+      <div>
+        <p class="text-xs font-semibold uppercase tracking-wide text-stone-400 mb-1 text-left">Guess</p>
+        <div id="flw-scratch-guess-list" class="flex flex-wrap gap-2"></div>
+      </div>
+      <div class="flex flex-col gap-2">
+        <button id="btn-flw-scratch-confirm" class="flw-cta min-h-11 w-full rounded-2xl text-white font-semibold text-sm active:scale-95 transition-all duration-100" disabled>Make the Call</button>
+        <button id="btn-flw-scratch-cancel" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 text-stone-700 font-semibold text-sm active:scale-95 transition-all duration-100">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLW LOUPE (Amethyst peek — Peek Guard) -->
+  <div id="flw-peek-overlay" style="display:none"
+    class="fixed inset-0 z-[100] overlay-modal-backdrop flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-[#E9A8C0]">
+      <div class="flex flex-col gap-1">
+        <p class="text-3xl">🔎</p>
+        <h3 class="text-lg font-bold text-stone-800">The Loupe</h3>
+        <p id="flw-peek-sub" class="text-stone-500 text-sm">Press and hold to view their Showpiece.</p>
+      </div>
+      <div id="flw-peek-hold" class="select-none flex items-center justify-center min-h-[8rem] rounded-2xl bg-stone-200 text-stone-500 text-sm font-semibold"
+        style="touch-action:none;-webkit-user-select:none;user-select:none;">Hold to reveal</div>
+      <button id="btn-flw-peek-close" class="min-h-11 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 text-white font-semibold text-sm active:scale-95 transition-all duration-100">Done</button>
+    </div>
+  </div>
+
+  <!-- FLW PRIVATE APPRAISAL (Opal outcome) -->
+  <div id="flw-appraisal-overlay" style="display:none"
+    class="fixed inset-0 z-[90] overlay-modal-backdrop flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-[#E9A8C0]">
+      <div class="flex flex-col gap-1">
+        <p class="text-3xl">⚖️</p>
+        <h3 class="text-lg font-bold text-stone-800">The Private Appraisal</h3>
+        <p id="flw-appraisal-text" class="text-stone-500 text-sm"></p>
+      </div>
+      <button id="btn-flw-appraisal-close" class="flw-cta min-h-11 w-full rounded-2xl text-white font-semibold text-sm active:scale-95 transition-all duration-100">Got it</button>
+    </div>
+  </div>
+
+  <!-- FLW DEEP VAULT (Green Emerald — keep one of three) -->
+  <div id="flw-emerald-overlay" style="display:none"
+    class="fixed inset-0 bg-black/40 z-[100] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
+      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
+        <h2 class="text-xl font-bold text-stone-800">The Deep Vault 💚</h2>
+        <p class="text-xs text-stone-400 mt-1">Keep one. The other two return to the bottom of the Vault.</p>
+      </div>
+      <div class="overflow-y-auto flex flex-col gap-4 px-5 py-5">
+        <div id="flw-emerald-keep" class="flex gap-3 justify-center flex-wrap"></div>
+        <button id="btn-flw-emerald-confirm" class="flw-cta min-h-14 w-full rounded-2xl text-white text-lg font-semibold active:scale-95 transition-all duration-150" disabled>Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLW COUNTERFEIT claim grid (Sylly — The Counterfeit Run) -->
+  <div id="flw-cf-overlay" style="display:none"
+    class="fixed inset-0 z-[90] overlay-modal-backdrop flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-[#E9A8C0]">
+      <div class="flex flex-col gap-1">
+        <p class="text-3xl">🎭</p>
+        <h3 class="text-lg font-bold text-stone-800">Forge a Gem</h3>
+        <p class="text-stone-500 text-sm">Claim any effect (1–7). Its effect fires for real — but it's a fake on the books.</p>
+      </div>
+      <div id="flw-cf-grid" class="flex flex-wrap gap-2 justify-center"></div>
+      <button id="btn-flw-cf-cancel" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 text-stone-700 font-semibold text-sm active:scale-95 transition-all duration-100">Cancel</button>
+    </div>
+  </div>
+
+  <!-- FLW GEM MANIFEST -->
+  <div id="flw-gems-overlay" style="display:none"
+    class="fixed inset-0 bg-black/40 z-[90] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
+      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
+        <h2 class="text-xl font-bold text-stone-800">Gem Manifest 💎</h2>
+        <p class="text-xs text-stone-400 mt-1">Every gem in the Vault and what it does.</p>
+      </div>
+      <div class="overflow-y-auto flex flex-col gap-3 px-5 py-5">
+        <div id="flw-gems-list" class="flex flex-col gap-2"></div>
+        <button id="btn-flw-gems-close" class="flw-cta min-h-14 w-full rounded-2xl text-white text-xl font-semibold active:scale-95 transition-all duration-150">Got it</button>
+      </div>
     </div>
   </div>
 

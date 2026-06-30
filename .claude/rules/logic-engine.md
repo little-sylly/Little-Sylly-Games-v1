@@ -143,10 +143,16 @@ function [abbr]ShowPassGate({ heading, subtext, ctaLabel, onConfirm }) {
 | `mpLobbyStyle` | string | `'individual'` | `'team'` (TLM — teams share a device) / `'individual'` (MDLM — each player own device); set at mode selection; broadcast in `GAME_START`; reset in `resetToLobby()` |
 | `mpPlayersListener` | function\|null | `null` | `onValue` unsubscribe for `/players` node; active during host lobby only; cancelled in `mpStopListeners()` and before GAME_START in `mpConfirmRoster()` |
 | `window.mpClientPlayerRef` | Firebase ref\|null | `null` | Reference to client's own `/players/{uid}` node; used for explicit removal on leave/cancel; set in `mpClientJoinRoom()`, cleared in `resetToLobby()` and cancel handler |
+| `mpPrivateListener` | function\|null | `null` | `onChildAdded` unsubscribe for this device's own `/private/{uid}` queue node; started via `mpStartPrivateListener()` after room create/join; cleared in `mpStopListeners()` |
+
+**Private channel (Phase 36 — True Network Privacy):**
+`mpSendPrivate(targetUid, envelope)` — writes an envelope to `rooms/{code}/private/{targetUid}` in Firebase instead of the public `/events` channel. Used for hand distribution when card content must not be visible to other devices at the network level. First use: FLW (`FLW_HAND`, `FLW_DRAW`, `FLW_PEEK`, `FLW_LEAK`, `FLW_EMERALD_OFFER`). This is a stronger privacy model than the couch-security broadcast-and-render-own pattern (NAT/FRT/BLD/SHP) — appropriate when any game mechanic depends on opponents not knowing a player's hand even if they inspect Firebase.
+
+`mpStartPrivateListener()` — attaches `onChildAdded` to `rooms/{code}/private/{syllyDeviceUid}`. Events are ts-filtered (ignores events before join time) and self-origin-filtered (drops own writes that also appear via indexing). Routes all received packets through `mpHandleEnvelope`. Called in both `mpHostCreateRoom()` and `mpClientJoinRoom()` immediately after `mpStartEventListener()`. **Rule:** any game using `mpSendPrivate` for any phase must call `mpStartPrivateListener()` in its `onPassThePhone` — the engine already calls it globally, but if a game adds private-channel phase handling after the fact, verify the listener is active.
 
 **`window.` prefix rule — split declaration types:**
 - `window.syllyMultiplayerMode`, `window.syllySyncLocked`, `window.syllyFirebase`, `window.syllyDeviceUid`, `window.mpLobbyStyle`, `window.mpClientPlayerRef`, `window.mpLobbyRoster`, `window.mpLobbyRosterTeamNames`, `window.mpLobbyRosterCaptainNames` — declared with `window.` explicitly at the top of `engine-multiplayer.js`. These ARE on `window` and must be accessed with the `window.` prefix. All game plugin files use `window.syllyMultiplayerMode` etc. — this is correct.
-- `mpMyPlayerIdx`, `mpPlayerSlots`, `mpActiveGame`, `mpActiveGameConfig`, `mpActiveRoomCode`, `mpRoomRef`, `mpEventsListener`, `mpRoomListener`, `mpPlayersListener`, `mpSyncLockTimer`, `mpJoinListenFrom` — declared with `let` at script top-level. These are NOT on `window`. Always access these directly — never `window.mpMyPlayerIdx`. That returns `undefined` silently. BLD Bug 8 was caused by this. Reference implementations for correct access: NAT.js, DSD.js.
+- `mpMyPlayerIdx`, `mpPlayerSlots`, `mpActiveGame`, `mpActiveGameConfig`, `mpActiveRoomCode`, `mpRoomRef`, `mpEventsListener`, `mpRoomListener`, `mpPlayersListener`, `mpPrivateListener`, `mpSyncLockTimer`, `mpJoinListenFrom` — declared with `let` at script top-level. These are NOT on `window`. Always access these directly — never `window.mpMyPlayerIdx`. That returns `undefined` silently. BLD Bug 8 was caused by this. Reference implementations for correct access: NAT.js, DSD.js.
 
 ### MP_GAME_CONFIGS Entry Schema
 
@@ -417,7 +423,7 @@ Before implementing, answer:
 
 **SW versioning:** `CACHE_NAME = 'sylly-games-vN'` — bump N on **every deploy**.
 
-**Current SW version:** v130
+**Current SW version:** v139
 
 **Precached assets (relative paths — no leading `/`; matches `sw.js` `PRECACHE_URLS[]`):**
 ```
@@ -425,7 +431,7 @@ Before implementing, answer:
 js/engine.js,
 js/games/li5.js, js/games/great-minds.js, js/games/secret-signals.js,
 js/games/jec.js, js/games/ygi.js, js/games/lttp.js, js/games/nat.js,
-js/games/dsd.js, js/games/bld.js, js/games/gth.js, js/games/dyb.js, js/games/pass.js, js/games/nt.js, js/games/frt.js, js/games/shp.js,
+js/games/dsd.js, js/games/bld.js, js/games/gth.js, js/games/dyb.js, js/games/pass.js, js/games/nt.js, js/games/frt.js, js/games/shp.js, js/games/flw.js,
 js/lib/cards.js,
 data/ygi-data.json, data/gth-data.json,
 js/secret-mode.js, js/app.js,
@@ -447,6 +453,7 @@ Note: the four Firebase lib files ARE precached (so Lobby Mode works offline-fir
 - [ ] Add all overlay HTML to `index.html` **before** the `<script>` tags
 - [ ] Add `.btn-open-sound` + ✕ to every screen (see `@ui-style.md`)
 - [ ] Wire lobby button → game menu screen (not directly into setup) — exact pattern: `playLaunch(); activeGameId = '[abbr]'; showScreen('screen-[abbr]-menu');`. `playLaunch()` is mandatory — omitting it silently removes the entry sound. Do NOT call `updateSliderTheme()` here; `openSoundOverlay()` handles that automatically.
+- [ ] **Sound button re-wiring (new games only):** New games are added at the end of `index.html`, after the `<script>` block (~line 6774). `engine.js` wires `.btn-open-sound` via a top-level `querySelectorAll` that runs at parse time and will NOT reach any HTML that comes after it. Add explicit re-wiring inside the plugin's `DOMContentLoaded` callback: `document.querySelectorAll('#screen-[abbr]-* .btn-open-sound').forEach(btn => btn.addEventListener('click', openSoundOverlay))`. FRT is the reference implementation. Games added before the script block (LI5 → PASS) rely on the engine global correctly; NT, FRT, SHP, FLW (added after the script block) all require this fix. *[Elevated from nt-BUG-12, shp-BUG-03, flw-BUG-02, June 2026.]*
 - [ ] Add game teardown to `resetToLobby()` in `engine.js`
 - [ ] Add game menu: Let's Play!, How to Play, Settings, ← Back to the Box (see `@ui-style.md` Universal Menu Standard)
 - [ ] Settings: game options first, ✨ Sylly Mode last; every setting in a white card (see `@ui-style.md` Settings Card Standard)
@@ -473,4 +480,4 @@ Note: the four Firebase lib files ARE precached (so Lobby Mode works offline-fir
 - [ ] **Contextual tip IDs are uniquely named:** In-game `[?]` tip buttons use `btn-[abbr]-[phase]-tip`; the menu/header How to Play button is `btn-[abbr]-how-to`. Never reuse `btn-[abbr]-how-to` for an in-game tip — `getElementById` returns only the first match, leaving the duplicate permanently unwired. Where one screen exists in two routing contexts (single-device vs MDLM), wire the `[?]` on the *reachable* screen. *[Elevated from ss-impl-notes S3, dsd-impl-notes duplicate id, gth-impl-notes btn-gth-how-to-case.]*
 - [ ] **Canvas drawing (if applicable):** If the game uses freehand drawing, reference `js/lib/canvas-draw.js` (`window.CanvasDraw` global). Call `CanvasDraw.init(canvasEl)` on screen show. Tremor/jiggle effects apply to the wrapper `<div>` — never to the `<canvas>` element itself (canvas coordinate system must be unaffected). GTH is the reference implementation.
 - [ ] **Custom CSS brand classes on `<button>` elements must include flex centering:** When a game's brand colour has no Tailwind utility class (e.g. DYB ocean blue `#1E4D8C`, GTH sage `#B1BCA0`, FRT banana `#FFC700`), a custom CSS class is used for the CTA button background. That class MUST declare `display: flex; align-items: center; justify-content: center;` — not just `background-color`. Without these, when JS (or Tailwind) sets the display to `flex`, button text top-left-aligns instead of centring. For Tailwind-colour games this is not an issue because `flex items-center justify-center` are applied as HTML utility classes directly. *[Elevated from dyb-impl-notes, June 2026.]*
-- [ ] **Closure — sync `docs/content-prompts/new-game-brief-prompt.md`:** On shipping the game, update that file's existing-games roster table, the "taken" abbreviations line, and the Sylly-Mode name list to include the new game. Pull every value from *shipped reality* (`game-identities.md` + the plugin + impl notes), never from the original brief. The brief prompt is the first doc a future game touches; a stale roster re-imports errors and risks an abbreviation collision. See `@new-game-process.md` Stage 3 closure.
+- [ ] **Closure — sync `docs/content-prompts/new-game-brief-prompt.md`:** On shipping the game, update that file's existing-games roster table, the "taken" abbreviations line, and the Sylly-Mode name list to include the new game. Pull every value from *shipped reality* (`game-identities.md` + the plugin + impl notes), never from the original brief. The brief prompt is the first doc a future game touches; a stale roster re-imports errors and risks an abbreviation collision. See `docs/rules/new-game-process.md` Stage 3 closure.

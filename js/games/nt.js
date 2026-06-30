@@ -791,6 +791,11 @@ function ntAdjustAllocation(legIdx, type, dir) {
 // Start the huddle countdown. On expiry, auto-lock the captain's team.
 function ntStartHuddleTimer(durationSecs) {
   ntStopHuddleTimer();
+  if (durationSecs === 0) {
+    const eyebrow = document.getElementById('nt-alloc-header');
+    if (eyebrow) eyebrow.textContent = 'SYS_PARTITION \\ HUB · ∞';
+    return;
+  }
   const label = document.getElementById('nt-alloc-warning');
   let secs = durationSecs;
   ntHuddleTimer = setInterval(() => {
@@ -863,7 +868,7 @@ function ntCheckBothTeamsLocked() {
   ntStopHuddleTimer();
   // Build assigned inventory array (per global player index)
   const assignedInventory = (ntAllPlayerAllocations || []).map(a => ({ ...a }));
-  const endTimestamp = Date.now() + (ntHardeningWin * 1000);
+  const endTimestamp = ntHardeningWin > 0 ? Date.now() + (ntHardeningWin * 1000) : null;
   mpSendEnvelope({
     type: 'SYNC',
     payload: { action: 'NT_BUILD_BEGIN', endTimestamp, cycle: ntCycle, assignedInventory },
@@ -908,7 +913,7 @@ function ntShowMdlmGate() {
     if (btn) { btn.textContent = 'Begin Hardening ▶'; btn.classList.add('btn-mp-action'); btn.disabled = true; }
     ntGateReadyCheck[mpMyPlayerIdx] = true;
     ntGateCallback = () => {
-      const endTimestamp = Date.now() + (ntHardeningWin * 1000);
+      const endTimestamp = ntHardeningWin > 0 ? Date.now() + (ntHardeningWin * 1000) : null;
       mpSendEnvelope({ type: 'SYNC', payload: { action: 'NT_BUILD_BEGIN', endTimestamp, cycle: ntCycle } });
       ntShowBuild(endTimestamp);
     };
@@ -1842,6 +1847,10 @@ function ntSetStatus(simMs) {
 function ntStartBuildTimer(endTimestamp) {
   ntStopBuildTimer();
   const label = document.getElementById('nt-build-timer');
+  if (ntHardeningWin === 0) {
+    if (label) label.textContent = '∞';
+    return;
+  }
   const getSecs = () => endTimestamp
     ? Math.ceil((endTimestamp - Date.now()) / 1000)
     : ntHardeningWin;
@@ -3141,5 +3150,10 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-nt-logs-close').addEventListener('click', () => {
     playDone();
     document.getElementById('nt-logs-overlay').style.display = 'none';
+  });
+
+  // ── Sound buttons (engine.js querySelectorAll runs before NT markup is parsed) ──
+  document.querySelectorAll('#screen-nt-menu .btn-open-sound, #screen-nt-setup .btn-open-sound, #screen-nt-handshake .btn-open-sound, #screen-nt-allocation .btn-open-sound, #screen-nt-gate .btn-open-sound, #screen-nt-build .btn-open-sound, #screen-nt-playback .btn-open-sound, #screen-nt-summary .btn-open-sound, #screen-nt-standby .btn-open-sound').forEach(btn => {
+    btn.addEventListener('click', openSoundOverlay);
   });
 });

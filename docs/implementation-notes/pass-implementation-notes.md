@@ -167,3 +167,36 @@ Four fixes from continued playtesting. SW → v131.
 **Feature — History log shows actual cards played**
 - **What changed:** The trick-history log previously showed only the combo type label (e.g. "Single"). The play entry chip now shows a second subdued line with the actual cards (e.g. "♠2" or "♥K ♦K") directly beneath the combo label.
 - **Implementation:** `passRecordPlay(playerIdx, combo)` gained a third `cards` parameter; `passCurrentTrickPlays` entries now carry `cards: []`. The call in `passProcessPlay` passes `passTableCards.slice()` (captured before splice). The client SYNC handler passes `payload.tableCards || []`. `passRenderHistoryOverlay` renders the cards line as `suit+rank` strings (Joker → "🃏") in a `text-stone-400 font-normal text-[0.65rem]` span beneath the combo label. No Firebase payload changes — `tableCards` was already sent in all `PASS_TURN_RESULT` packets from Polish Pass 2.
+
+---
+
+## Playtest Fixes (30 June 2026)
+
+Six items from a multiplayer playtest. SW → v137. All in `js/games/pass.js` unless noted.
+
+**BUG-11 — MDLM: only the host advances to the round-wrap; clients stay on the play screen** *(found: playtesting)*
+- **What happened:** When any player emptied their hand, the host moved to "X wins the round" but every client stayed on `screen-pass-table`.
+- **Root cause:** `passPhase` had a documented `'round-over'` value that was **never assigned**. The host reaches the round-wrap via a *local* call in `passBroadcastRoundEnd` (the BUG-03 fix) and the engine drops the host's own re-delivered SYNCs (`originId === syllyDeviceUid`), so the host is immune to stray packets. Clients navigate via the `PASS_ROUND_END` SYNC — but a late / re-delivered `PASS_TURN_RESULT` (Firebase buffers and can re-fire `onChildAdded`) then calls `passShowTable()` → `showScreen('screen-pass-table')`, bouncing the client back. The host-local-nav vs client-SYNC-nav asymmetry is exactly why only clients were affected.
+- **Fix:** Set `passPhase = 'round-over'` at the top of `passShowRoundWrap()` and `passShowGameover()`, and bail at the top of the `PASS_TURN_RESULT` SYNC handler when `passPhase === 'round-over'`. The next round re-enables play via `PASS_GAME_START` → `passShowTable()` (resets the phase).
+- **Lesson:** A host-authoritative game whose terminal screen is reached by a broadcast SYNC must gate its per-turn SYNC handlers behind a terminal-phase flag — otherwise a re-delivered mid-round packet navigates clients backwards. Logged to `docs/decision-log.md` as a candidate cross-game rule.
+
+**Feature — Round-1 starting rules (3♦ leads + mandatory opening card)**
+- The round-1 leader is now the holder of the single lowest card, ties broken by suit **♦<♣<♥<♠** (so **3♦** is the absolute lowest), replacing the old "3♠ holder, else lowest rank by seat". That card (`passMandatoryCard`) **must** appear in the leader's opening combo. Set in `passFindLeader()`, broadcast in `PASS_GAME_START`, enforced in `passSubmitPlay` + the host `PASS_PLAY_SUBMIT` handler, auto-clears once `passHasPlayedCard` shows anyone has played. The suit ranking is the starting-player tie-break ONLY — never in play comparison. Documented in How to Play (new Step 2) and `game-identities.md`.
+
+**Feature — Open Climbing Mode setting (`passOpenClimbing`, default OFF)**
+- ON relaxes the exact-`+1` climb to *any strictly-higher* rank of the same combo type. Same-type and sequence-length checks still apply; Bombs, 2s and Sky Joker are unaffected (resolved before the climb gate in `passIsValidPlay`). New toggle `btn-pass-open-climb-toggle`; added to `passSyncSettingsUI`, `mpSerialiseSettings` (`engine-multiplayer.js`) and the plugin's `SETTINGS_SYNC` apply block.
+
+**Polish — Joker honours selection order in the arena**
+- The arena previously re-sorted played cards by rank, so 7+Joker+9 displayed as 7,9,Joker. Played cards are now captured in the player's **selection (tap) order** (`passProcessPlay` maps `cardIndices` directly; `passRenderArena` no longer sorts), so a Joker keeps the slot the player chose (7→Joker→9 reads 7-8-9). Validity is order-independent; the order travels the wire via the existing `tableCards` payload.
+
+**Polish — Round-wrap two-column layout + green/red deltas**
+- The round result row now shows two right-aligned columns ("Change" and "Chips") instead of the delta stacked above the chip count. Gains render **green** (`text-green-600`), losses **red** (`text-red-500`), no-change neutral; the winner (always a gain) is green. (`passShowRoundWrap`.)
+
+**Polish — Enlarged "New Deal?" modal**
+- The play-again modal was undersized vs. the suite standard. Bumped to match (emoji `text-5xl`, heading `text-xl`, body `text-base`, confirm `min-h-14 text-lg`). (`index.html`.)
+
+**BUG-12 — Round-1 mandatory-card gate fired for the SECOND player too (immediate follow-up to the starting-rules feature)** *(found: playtesting, same session)*
+- **What happened:** The round-1 leader correctly played the 3♦, but the next player was then blocked from playing anything with "Your opening play must include 3♦." — a card they cannot possibly hold (it was just played).
+- **Root cause:** The gate condition was `passMandatoryCard && passHasPlayedCard.every(v => !v)`. `passHasPlayedCard` is **never synced to clients** — the `PASS_TURN_RESULT` handler updates `passPassCount` but not `passHasPlayedCard` — so on every client device `.every(v => !v)` stays `true` for the whole round, and `passMandatoryCard` (sent once in `PASS_GAME_START`) was never cleared. The gate therefore kept firing for every subsequent player on every client.
+- **Fix:** Clear `passMandatoryCard` the instant the opening play lands, on every device: in `passProcessPlay` (host/single) right after `passHasPlayedCard[playerIdx] = true`, and in the client `PASS_TURN_RESULT` handler on `action_type === 'play'`. The gate condition is now just `if (passMandatoryCard)` — the unsynced `passHasPlayedCard.every(...)` clause was dropped. This also auto-handles round-1 tables that re-open after a full-circuit pass (the cleared card means the re-leading player isn't gated).
+- **Lesson:** A per-turn gate must never depend on state that isn't part of the SYNC contract. `passHasPlayedCard` is host-only; the synced, self-clearing `passMandatoryCard` is the correct single source of truth. When adding a "first move only" rule, clear the marker on first move rather than inferring "first move" from unsynced counters.

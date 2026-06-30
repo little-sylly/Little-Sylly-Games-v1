@@ -35,7 +35,6 @@ const CATEGORY_EMOJI = {
 };
 
 let settingPlayAllDecks = true;
-let settingTabooCount   = 5;
 let settingPenaltyMode  = 'points';
 let settingSkipFree     = true;
 let settingTimePenalty  = 10;
@@ -164,7 +163,6 @@ function applyExpansionOverrides() {
   const ov = window.activeExpansionOverrides;
   if (ov.settingTimer       !== undefined) settingTimer       = ov.settingTimer;
   if (ov.settingRounds      !== undefined) settingRounds      = ov.settingRounds;
-  if (ov.settingTabooCount  !== undefined) settingTabooCount  = ov.settingTabooCount;
   if (ov.settingPenaltyMode !== undefined) settingPenaltyMode = ov.settingPenaltyMode;
   if (ov.settingSkipFree    !== undefined) settingSkipFree    = ov.settingSkipFree;
   if (ov.settingSylly       !== undefined) settingSylly       = ov.settingSylly;
@@ -219,13 +217,10 @@ async function startGame() {
 
 // ── Taboo list renderer ───────────────────────────────────────────────────────
 function renderTabooList(containerId, tabooList) {
-  const words = tabooList.slice(0, settingTabooCount);
+  const count = currentWordIsSylly ? 10 : 5;
+  const words = tabooList.slice(0, count);
   const el = document.getElementById(containerId);
-  if (settingTabooCount >= 10) {
-    el.className = 'taboo-list-hard';
-  } else {
-    el.className = 'taboo-list-clean';
-  }
+  el.className = currentWordIsSylly ? 'taboo-list-hard' : 'taboo-list-clean';
   el.innerHTML = words.map(t => `<li data-word="${t}">${t}</li>`).join('');
 }
 
@@ -336,7 +331,7 @@ function renderCurrentWord() {
     mpSendEnvelope({ type: 'SYNC', payload: {
       action:       'LI5_ROUND_START',
       word:         currentWordData.word,
-      nonoList:     currentWordData.nono_list.slice(0, settingTabooCount),
+      nonoList:     currentWordData.nono_list.slice(0, currentWordIsSylly ? 10 : 5),
       isClientTurn: currentTeam === 1,
     }});
   }
@@ -695,7 +690,6 @@ function handlePill(btn) {
   }
   if (group === 'rounds')       settingRounds      = parseInt(value);
   if (group === 'difficulty')   settingDifficulty  = value;
-  if (group === 'taboo-count')  settingTabooCount  = parseInt(value);
   if (group === 'penalty-mode') settingPenaltyMode = value;
   if (group === 'skip-cost')    settingSkipFree    = (value === 'free');
 }
@@ -841,7 +835,7 @@ document.getElementById('sylly-toggle').addEventListener('click', () => {
 
 document.getElementById('sylly-intensity').addEventListener('input', e => {
   settingSyllyPct = parseInt(e.target.value);
-  document.getElementById('sylly-intensity-label').textContent = `${settingSyllyPct}% wild cards`;
+  document.getElementById('sylly-intensity-label').textContent = `${settingSyllyPct}% extra credit words`;
   playSliderTick(settingSyllyPct);
 });
 

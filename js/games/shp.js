@@ -55,7 +55,13 @@ let shpEcho         = 0;       // Global Echo modifier: 0 or 2; cleared when the
 // ── Night Terrors / Plunge (v1 — behind shpSyllyMode) ──────────────────────
 let shpPhase        = 'climb'; // 'climb' | 'plunge'
 let shpPlungeGrace  = 0;       // grace turns remaining at Plunge open (1 cycle = shpPlayerCount)
-let shpDrop         = 7;       // ceiling fall per turn in the Plunge — PLAYTEST DIAL (band 6–8)
+// Round-based ceiling descent: −2 base, +2 each FULL round of turns (every living player faces the
+// same drop before the screw tightens — fair across any player count). shpPlungeDescentTurns counts
+// post-grace ticks (host-side); shpCurrentDrop is the value applied this tick (synced for display).
+const SHP_DROP_BASE = 2;       // ceiling fall on the first full round of the descent
+const SHP_DROP_STEP = 2;       // extra fall added each subsequent full round
+let shpPlungeDescentTurns = 0; // host-side: ticks since the descent began (after the grace cycle)
+let shpCurrentDrop  = 0;       // the drop applied this turn (0 during grace) — rides in SYNC for display
 let shpPlungeFlash  = false;   // one-shot "THE PLUNGE BEGINS" banner flag
 
 // ── UI / animation ─────────────────────────────────────────────────────────
@@ -72,6 +78,7 @@ let shpTapReadyForPlayer = -1; // which player index the buffer was set up for
 // ── Play history / animation ────────────────────────────────────────────────
 let shpPlayHistory   = [];     // [{ cardIds[], rolledVal, byIdx, byName }] — last 20 entries, newest first
 let shpAnimSheep     = 0;      // how many 🐑 emojis to parade on the next render (0 = none)
+let shpAnimDir       = 'in';   // 'in' (herd grew → arc into the counter) | 'out' (counting backwards → arc out)
 let shpDeepSleepAcks = 0;      // how many players have tapped "Got it" this Deep Sleep
 let shpDeepSleepAckNeeded = 0; // total acks required (= shpPlayerCount)
 let shpIAcked        = false;  // per-device: true once this device has sent/recorded its ack
@@ -86,7 +93,7 @@ const SHP_CARDS = [
   { id:3,  family:'pasture', label:'+10',               emoji:'🐑', kind:'add',        value:10 },
   { id:4,  family:'pillow',  label:'Doze',              emoji:'😴', kind:'skip'    },
   { id:5,  family:'pillow',  label:'Toss & Turn',       emoji:'🔄', kind:'reverse' },
-  { id:6,  family:'pillow',  label:'Counting Backwards',emoji:'⏪', kind:'subtract', value:10 },
+  { id:6,  family:'pillow',  label:'−10',              emoji:'⏪', kind:'subtract', value:10 },
   { id:7,  family:'pillow',  label:'Lullaby',           emoji:'🎵', kind:'reset',    value:20 },
   { id:8,  family:'alarm',   label:'1, 2, Skip a Few…', emoji:'💤', kind:'random-add',min:2, max:12 },
   { id:9,  family:'alarm',   label:'The Black Sheep',   emoji:'🐏', kind:'set',      value:99 },
@@ -102,12 +109,13 @@ const SHP_CARDS = [
 ];
 
 const SHP_DECK_COUNTS = {
-  0:12, 1:12, 2:10, 3:8,    // Pasture +1/+2/+5/+10 (42 total — more absolute Pastures)
-  4:4,  5:4,  6:1,  7:1,    // Doze / Toss & Turn / CB-10 (cut 3→1) / Lullaby (1-of)
-  14:3, 15:3, 16:3,          // CB-1 / CB-2 / CB-5 (9 playable subtracts — less hoarding)
-  8:3,  9:2,  10:2, 11:1,   // Skip a Few / Black Sheep / Wide Awake / Heavy Eyelids
+  0:14, 1:14, 2:12, 3:8,    // Pasture +1/+2/+5/+10 (48 total — pastures bumped to cut special-hoarding)
+  4:3,  5:3,  6:1,  7:1,    // Doze / Toss & Turn / CB-10 / Lullaby (1-of) — hoardable specials trimmed
+  14:3, 15:3, 16:3,          // CB-1 / CB-2 / CB-5 (10 playable subtracts incl. CB-10)
+  8:2,  9:2,  10:1, 11:1,   // Skip a Few / Black Sheep / Wide Awake / Heavy Eyelids — trimmed
   12:2,                     // Big Bad Wolf trap (unchanged)
-  // Total: 42+14+9+2 = 71 cards
+  // Total: 48 pasture + 17 pillow(4/5/6/7/14/15/16) + 6 alarm(8/9/10/11) + 2 wolf = 73 cards
+  //        (pasture share 48/73 ≈ 66%, up from 59% — fewer specials to sit on)
 };
 
 const SHP_NIGHTMARES = [
@@ -327,6 +335,7 @@ function shpStartSession() {
 function shpDealNight(openerIdx) {
   shpNightNum++;
   shpHerd = 0; shpDirection = 1; shpPhase = 'climb'; shpCeiling = 99; shpPlungeGrace = 0; shpPlungeFlash = false;
+  shpPlungeDescentTurns = 0; shpCurrentDrop = 0;
   shpForcedCards = 1; shpTwoSel = []; shpPendingSkip = null; shpDeepSleepInfo = null;
   shpPlayHistory = []; shpAnimSheep = 0;
   shpDeepSleepAcks = 0; shpDeepSleepAckNeeded = 0; shpIAcked = false;
@@ -461,22 +470,8 @@ function shpBroadcastTurn(playedIds, rolled, byIdx) {
   shpPlayHistory.unshift(entry);
   if (shpPlayHistory.length > 20) shpPlayHistory.length = 20;
 
-  // Sheep parade: count add/set cards; set=99 (Black Sheep) gets a fixed 7 sheep (Climb only)
-  if (shpPhase === 'climb') {
-    let count = 0;
-    for (const cid of playedIds) {
-      const c = SHP_CARDS[cid];
-      if (!c) continue;
-      if (c.kind === 'add')  count += Math.min(c.value, 10);
-      if (c.kind === 'set')  count += 7;
-    }
-    shpAnimSheep = Math.min(count, 8);
-  }
-  // Clear the parade after 1500ms
-  if (shpAnimTimer) { clearTimeout(shpAnimTimer); shpAnimTimer = null; }
-  if (shpAnimSheep > 0) {
-    shpAnimTimer = setTimeout(() => { shpAnimSheep = 0; shpAnimTimer = null; shpRenderTable(); }, 1500);
-  }
+  // Sheep parade — arc into the counter when the Herd grows, arc back out when counting backwards.
+  shpStartSheepAnim(playedIds, rolled);
 
   if (window.syllyMultiplayerMode !== 'single') {
     mpSendEnvelope({ type: 'SYNC', payload: {
@@ -484,7 +479,7 @@ function shpBroadcastTurn(playedIds, rolled, byIdx) {
       herd: shpHerd, direction: shpDirection, nextActive: shpActivePlayer, forcedCards: shpForcedCards,
       played: playedIds, rolled, byIdx,
       hands: shpHands, handCaps: shpHandCap, wolfActive: shpWolfActive, meter: shpMeter,
-      phase: shpPhase, ceiling: shpCeiling, grace: shpPlungeGrace,
+      phase: shpPhase, ceiling: shpCeiling, grace: shpPlungeGrace, drop: shpCurrentDrop,
       playHistory: shpPlayHistory,
     }});
   }
@@ -541,6 +536,29 @@ function shpHostGameover() {
 }
 
 // ── Rendering ──────────────────────────────────────────────────────────────
+// Sheep flight: net Herd movement from a play → a parade of 🐑 that arc IN to the counter (growth)
+// or OUT to the left (counting backwards). Climb-only; identical on host and client (both read the
+// synced played/rolled arrays). One 1500ms clear timer; capped at 8 sheep.
+function shpStartSheepAnim(playedIds, rolled) {
+  if (shpAnimTimer) { clearTimeout(shpAnimTimer); shpAnimTimer = null; }
+  shpAnimSheep = 0;
+  if (shpPhase !== 'climb' || !playedIds || !playedIds.length) return;
+  let net = 0, ri = 0;
+  for (const cid of playedIds) {
+    const c = SHP_CARDS[cid];
+    if (!c) continue;
+    if (c.kind === 'add')             net += Math.min(c.value, 10);
+    else if (c.kind === 'set')        net += 7;
+    else if (c.kind === 'subtract')   net -= Math.min(c.value, 10);
+    else if (c.kind === 'random-add') { const v = (rolled && rolled[ri] != null) ? rolled[ri] : c.min; net += Math.min(v, 10); }
+    if (c.kind === 'random-add') ri++;
+  }
+  if (net === 0) return;
+  shpAnimDir   = net > 0 ? 'in' : 'out';
+  shpAnimSheep = Math.min(Math.abs(net), 8);
+  shpAnimTimer = setTimeout(() => { shpAnimSheep = 0; shpAnimTimer = null; shpRenderTable(); }, 1500);
+}
+
 function shpRenderTable() {
   const body = document.getElementById('shp-table-body');
   const footer = document.getElementById('shp-table-footer');
@@ -576,9 +594,9 @@ function shpRenderTable() {
     herdBox.className = 'flex flex-col items-center gap-2 w-full bg-red-50 border border-red-200 rounded-2xl px-4 py-3';
     herdBox.innerHTML =
       '<div class="flex flex-col items-center">' +
-        '<p class="text-red-400 text-xs uppercase tracking-widest">The Sky is Falling 🔻</p>' +
+        '<p class="text-red-400 text-xs uppercase tracking-widest">The Dream is Collapsing 🔻</p>' +
         '<p class="text-3xl font-bold text-red-600">' + shpCeiling + '</p>' +
-        '<p class="text-red-400 text-xs">−' + shpDrop + '/turn</p>' +
+        '<p class="text-red-400 text-xs">' + (shpPlungeGrace > 0 ? 'steady…' : '−' + shpCurrentDrop + '/turn') + '</p>' +
       '</div>' +
       '<p class="text-stone-400 text-xs font-semibold">↕ ' + gap + ' sheep left</p>' +
       '<div class="flex flex-col items-center">' +
@@ -587,34 +605,62 @@ function shpRenderTable() {
         '<p class="text-red-500 text-xs font-semibold">Drive to 0 to escape.</p>' +
       '</div>';
   } else {
-    herdBox.className = 'flex flex-col items-center gap-1';
-    // Sheep parade — animate proportionally to cards played (Climb only)
+    // Three-column band: empty left spacer (sheep arc into this whitespace), centred counter, and the
+    // Last-played / Dream Journal on the right (previously a separate centred row below the counter).
+    herdBox.className = 'grid grid-cols-3 items-center w-full';
+
+    // Sheep flight — absolutely positioned (a .shp-sheep-layer overlay) so it NEVER shifts the layout.
+    // The old inline row pushed a row in/out between the header and counter on every play (the jank).
     let sheepHtml = '';
     if (shpAnimSheep > 0) {
+      const anim = (shpAnimDir === 'out') ? 'shpSheepArcOut' : 'shpSheepArcIn';
       let spans = '';
       for (let s = 0; s < shpAnimSheep; s++) {
-        spans += '<span class="shp-sheep-jump" style="animation-delay:' + (s * 80) + 'ms">🐑</span>';
+        spans += '<span class="shp-sheep-fly" style="animation-name:' + anim + ';animation-delay:' + (s * 90) + 'ms">🐑</span>';
       }
-      sheepHtml = '<p class="flex gap-0.5 text-xl justify-center">' + spans + '</p>';
+      sheepHtml = '<div class="shp-sheep-layer">' + spans + '</div>';
     }
+
+    // Right column — Last played (own row) + Dream Journal link below it (only after a card is played)
+    let rightHtml = '';
+    if (shpPlayHistory.length > 0) {
+      const lastLabel = shpPlayHistory[0].cardIds.map(id => {
+        const c = SHP_CARDS[id]; return c ? (c.emoji + '\xA0' + c.label) : '?';
+      }).join(' + ');
+      rightHtml =
+        '<div class="flex flex-col items-end text-right gap-1 pr-0.5">' +
+          '<div>' +
+            '<p class="text-stone-300 text-[10px] uppercase tracking-wider leading-none">Last</p>' +
+            '<p class="text-stone-600 text-xs font-medium leading-tight">' + lastLabel + '</p>' +
+          '</div>' +
+          '<button id="shp-journal-btn" class="text-indigo-500 text-xs font-semibold active:text-indigo-700 transition-colors">Dream Journal →</button>' +
+        '</div>';
+    }
+
     herdBox.innerHTML =
-      sheepHtml +
-      '<p class="text-stone-400 text-xs uppercase tracking-widest">The Herd</p>' +
-      '<p class="text-6xl font-bold text-indigo-700">' + shpHerd + '</p>' +
-      '<p class="text-stone-400 text-xs">ceiling ' + shpCeiling + '</p>' +
-      (shpDirection < 0 ? '<p class="text-stone-400 text-xs">↺ reversed</p>' : '');
+      '<div></div>' +                                   // left spacer — keeps the counter centred
+      '<div class="relative flex flex-col items-center">' +
+        sheepHtml +
+        '<p class="text-stone-400 text-xs uppercase tracking-widest">The Herd</p>' +
+        '<p class="text-6xl font-bold text-indigo-700">' + shpHerd + '</p>' +
+        '<p class="text-stone-400 text-xs">ceiling ' + shpCeiling + '</p>' +
+        (shpDirection < 0 ? '<p class="text-stone-400 text-xs">↺ reversed</p>' : '') +
+      '</div>' +
+      rightHtml;
   }
   wrap.appendChild(herdBox);
+  const journalBtn = herdBox.querySelector('#shp-journal-btn');
+  if (journalBtn) journalBtn.addEventListener('click', shpOpenLog);
 
-  // ── Play pile / last-played indicator ──
-  if (shpPlayHistory.length > 0) {
+  // ── Play pile / last-played indicator (Plunge only — Climb shows it in the herd band above) ──
+  if (shpPlayHistory.length > 0 && plunge) {
     const last = shpPlayHistory[0];
     const lastLabel = last.cardIds.map(id => {
       const c = SHP_CARDS[id]; return c ? (c.emoji + '\xA0' + c.label) : '?';
     }).join(' + ');
     const pileBtn = document.createElement('button');
     pileBtn.className = 'flex items-center gap-1 text-stone-400 text-xs active:text-stone-600 transition-colors';
-    pileBtn.innerHTML = 'Last: <span class="text-stone-600 font-medium">' + lastLabel + '</span>&nbsp;<span class="underline">Log →</span>';
+    pileBtn.innerHTML = 'Last: <span class="text-stone-600 font-medium">' + lastLabel + '</span>&nbsp;<span class="underline">Dream Journal →</span>';
     pileBtn.addEventListener('click', shpOpenLog);
     wrap.appendChild(pileBtn);
   }
@@ -760,12 +806,16 @@ function shpHandFooter(me, tappable) {
   const twoMode = tappable && (shpForcedCards === 2 && h.length >= 2);
   const legal = tappable ? shpLegalCards(me) : [];
 
-  // Sort by family: Pasture → Pillow → Alarm → Trap/Phantom
+  // Sort by family (Pasture → Pillow → Alarm → Trap/Phantom), then by number ascending within a family
+  // (+1, +2, +5, +10). NOTE: must use a nullish fallback, not `|| 2` — pasture rank is 0, which is
+  // falsy, so `|| 2` was pushing every Pasture card behind Pillows. That was the "pillows leftmost" bug.
   const FAMILY_ORDER = { pasture:0, pillow:1, alarm:2, trap:3, phantom:4 };
+  const famRank = c => { const r = c && FAMILY_ORDER[c.family]; return (r === undefined || r === null) ? 2 : r; };
+  const numRank = c => (c && typeof c.value === 'number') ? c.value : 99;   // non-numeric cards sort last in-family
   const sortedHand = h.map((cardId, idx) => ({ cardId, idx }))
     .sort((a, b) => {
       const ca = SHP_CARDS[a.cardId], cb = SHP_CARDS[b.cardId];
-      return (FAMILY_ORDER[ca ? ca.family : 'alarm'] || 2) - (FAMILY_ORDER[cb ? cb.family : 'alarm'] || 2);
+      return (famRank(ca) - famRank(cb)) || (numRank(ca) - numRank(cb));
     });
 
   const row = document.createElement('div');
@@ -838,6 +888,9 @@ function shpShowCardInfo(cardId, isWolf) {
     const c = SHP_CARDS[cardId];
     if (!c) return;
     emoji = c.emoji; name = c.label;
+    // Pillow subtract cards show just "−N" on the face, but name them "Counting Backwards −N" in the
+    // inspect modal so the family reads clearly (and flips sign in the Plunge, matching the face).
+    if (c.kind === 'subtract') name = 'Counting Backwards ' + shpCardFaceLabel(c, shpPhase === 'plunge');
     const fam = { pasture:'Pasture', pillow:'Pillow', alarm:'Alarm', phantom:'Phantom', trap:'Trap' };
     family = fam[c.family] || c.family;
     const plunge = (shpPhase === 'plunge');
@@ -1122,18 +1175,27 @@ function shpEnterPlunge() {
   shpPhase = 'plunge';
   shpCeiling = shpHerd;               // overflow runway — anchor to the exact total the card landed on
   shpPlungeGrace = shpPlayerCount;    // one full cycle held before the ceiling starts falling
+  shpPlungeDescentTurns = 0;          // descent escalation counter resets each Plunge
+  shpCurrentDrop = 0;
   shpPlungeFlash = true;
 }
 function shpExitPlunge() {
   shpPhase = 'climb';
   shpCeiling = 99;
   shpPlungeGrace = 0;
+  shpPlungeDescentTurns = 0;
+  shpCurrentDrop = 0;
 }
 // Ceiling descent at each Plunge turn entry (held during the grace cycle).
+// Round-based escalation: the drop is locked for a full round of turns, then increases — so every
+// living player faces the same hazard level before it tightens. Round 0 = −2, round 1 = −4, etc.
 function shpPlungeTick() {
   if (shpPhase !== 'plunge') return;
-  if (shpPlungeGrace > 0) { shpPlungeGrace--; return; }
-  shpCeiling = Math.max(0, shpCeiling - shpDrop);
+  if (shpPlungeGrace > 0) { shpPlungeGrace--; shpCurrentDrop = 0; return; }
+  const round = Math.floor(shpPlungeDescentTurns / Math.max(1, shpPlayerCount));
+  shpCurrentDrop = SHP_DROP_BASE + round * SHP_DROP_STEP;
+  shpCeiling = Math.max(0, shpCeiling - shpCurrentDrop);
+  shpPlungeDescentTurns++;
 }
 // Mercy backstop — driving the Herd to 0 in the Plunge exits to Climb with NO Moon lost.
 function shpCheckMercy() {
@@ -1215,7 +1277,7 @@ function shpHandleEnvelope(env) {
         shpLives = p.lives; shpEliminated = p.eliminated; shpElimOrder = p.elimOrder || [];
         shpMeter = p.meter || 0; shpEcho = p.echo || 0; shpForcedCards = 1; shpTwoSel = []; shpDeepSleepInfo = null;
         shpGhostPending = false; shpGhostOptions = []; shpLastDisrupt = null;
-        shpPhase = 'climb'; shpCeiling = 99; shpPlungeFlash = false;
+        shpPhase = 'climb'; shpCeiling = 99; shpPlungeFlash = false; shpCurrentDrop = 0;
         if (shpAnimTimer) { clearTimeout(shpAnimTimer); shpAnimTimer = null; }
         shpPlayHistory = []; shpAnimSheep = 0;
         shpDeepSleepAcks = 0; shpDeepSleepAckNeeded = 0; shpIAcked = false;
@@ -1224,6 +1286,7 @@ function shpHandleEnvelope(env) {
         if (p.phase) { if (shpPhase === 'climb' && p.phase === 'plunge') shpPlungeFlash = true; shpPhase = p.phase; }
         if (p.ceiling !== undefined) shpCeiling = p.ceiling;
         if (p.grace !== undefined) shpPlungeGrace = p.grace;
+        if (p.drop !== undefined) shpCurrentDrop = p.drop;
         shpHerd = p.herd; shpDirection = p.direction; shpActivePlayer = p.nextActive;
         shpForcedCards = p.forcedCards || 1;
         shpHands     = shpNorm2D(p.hands, shpPlayerCount);
@@ -1232,21 +1295,7 @@ function shpHandleEnvelope(env) {
         shpMeter = p.meter || 0; shpTwoSel = []; shpDeepSleepInfo = null;
         shpGhostPending = false; shpLastDisrupt = null;
         if (p.playHistory) shpPlayHistory = p.playHistory;
-        // Sheep parade on client (Climb only)
-        const postPhase = p.phase || shpPhase;
-        if (p.played && p.played.length > 0 && postPhase === 'climb') {
-          let count = 0;
-          for (const cid of p.played) {
-            const c = SHP_CARDS[cid]; if (!c) continue;
-            if (c.kind === 'add') count += Math.min(c.value, 10);
-            if (c.kind === 'set') count += 7;
-          }
-          shpAnimSheep = Math.min(count, 8);
-        }
-        if (shpAnimTimer) { clearTimeout(shpAnimTimer); shpAnimTimer = null; }
-        if (shpAnimSheep > 0) {
-          shpAnimTimer = setTimeout(() => { shpAnimSheep = 0; shpAnimTimer = null; shpRenderTable(); }, 1500);
-        }
+        shpStartSheepAnim(p.played, p.rolled);   // sheep flight (Climb only — phase already applied above)
         shpShowTable(); if (typeof mpUnlockSync === 'function') mpUnlockSync();
       } else if (a === 'SHP_GHOST_READY') {
         shpGhostPending = true; shpSpendHolder = p.holderIdx; shpGhostOptions = p.optionIds || [];
@@ -1304,6 +1353,7 @@ function shpResetState() {
   shpGhostOptions = [];shpPendingDisrupt = null; shpEcho = 0;
   shpGhostPending = false; shpLastDisrupt = null;
   shpPhase = 'climb';  shpPlungeGrace = 0;   shpPlungeFlash = false;
+  shpPlungeDescentTurns = 0; shpCurrentDrop = 0;
   shpTwoSel = [];      shpDeepSleepInfo = null;
   shpGameStandings = []; shpGameWinner = -1;
   shpNightNum = 0;
@@ -1343,6 +1393,11 @@ document.addEventListener('DOMContentLoaded', () => {
   on('btn-shp-howto-close',   () => { playDone(); document.getElementById('shp-how-to-overlay').style.display = 'none'; });
   on('btn-shp-tip-close',      () => { playDone(); document.getElementById('shp-tip-overlay').style.display = 'none'; });
   on('btn-shp-card-info-close',() => { playDone(); document.getElementById('shp-card-info-overlay').style.display = 'none'; });
+  // Tap the backdrop (outside the card) to dismiss the inspect modal
+  const shpCardInfoOv = document.getElementById('shp-card-info-overlay');
+  if (shpCardInfoOv) shpCardInfoOv.addEventListener('click', e => {
+    if (e.target === shpCardInfoOv) { playDone(); shpCardInfoOv.style.display = 'none'; }
+  });
   on('btn-shp-play-log-close', () => { playDone(); document.getElementById('shp-play-log-overlay').style.display = 'none'; });
 
   // Settings controls — pills + toggles
@@ -1378,5 +1433,10 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('shp-new-night-overlay').style.display = 'none';
     if (window.syllyMultiplayerMode !== 'single') { mpReturnToLobby(); return; } // §11 play-again return
     shpStartSession(); // single-device dev path
+  });
+
+  // ── Sound buttons (engine.js querySelectorAll runs before SHP markup is parsed) ──
+  document.querySelectorAll('#screen-shp-menu .btn-open-sound, #screen-shp-table .btn-open-sound, #screen-shp-gameover .btn-open-sound').forEach(btn => {
+    btn.addEventListener('click', openSoundOverlay);
   });
 });

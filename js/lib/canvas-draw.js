@@ -13,7 +13,10 @@
   let _isDrawing     = false;
   let _lastX         = 0;
   let _lastY         = 0;
-  let _tremorInterval = null;
+  let _tremorInterval   = null;
+  let _tremorWrapperEl  = null;   // reference held so setTremorScale can apply transforms
+  let _tremorProgress   = 0;      // 0–1, set by setTremorScale(); drives amplitude + frequency
+  let _lastTremorFire   = 0;      // timestamp of last actual jiggle
   let _lastData      = null;
   let _listeners     = []; // [{ el, type, fn }]
   let _onStrokeEnd   = null;
@@ -173,6 +176,31 @@
       }
     },
 
+    undo() {
+      if (!_canvas || _strokes.length === 0) return;
+      _strokes.pop();
+      // redraw remaining strokes
+      _ctx.clearRect(0, 0, _canvas.width, _canvas.height);
+      _ctx.lineCap     = 'round';
+      _ctx.lineJoin    = 'round';
+      _ctx.lineWidth   = 3;
+      _ctx.strokeStyle = '#1c1917';
+      for (const stroke of _strokes) {
+        if (stroke.length < 2) continue;
+        let x = stroke[0];
+        let y = stroke[1];
+        _ctx.beginPath();
+        _ctx.moveTo(x, y);
+        for (let i = 2; i < stroke.length - 1; i += 2) {
+          x += stroke[i];
+          y += stroke[i + 1];
+          _ctx.lineTo(x, y);
+        }
+        _ctx.stroke();
+      }
+      if (_onStrokeEnd) _onStrokeEnd();
+    },
+
     setTremor(wrapperEl, enabled) {
       if (enabled) {
         // clear any existing interval before starting a new one — no stacking
@@ -181,23 +209,36 @@
           _tremorInterval = null;
         }
 
-        const style    = getComputedStyle(wrapperEl);
-        const rawMax   = style.getPropertyValue('--gth-tremor-max').trim();
-        const rawMs    = style.getPropertyValue('--gth-tremor-interval').trim();
-        const max      = rawMax ? parseFloat(rawMax) : 5;
-        const interval = rawMs  ? parseFloat(rawMs)  : 1500;
+        _tremorWrapperEl = wrapperEl;
+        _tremorProgress  = 0;
+        _lastTremorFire  = 0;
 
+        // fast poll at 100ms; actual jiggle fires based on _tremorProgress-derived interval
         _tremorInterval = setInterval(() => {
-          const x = (Math.random() * 2 - 1) * max;
-          const y = (Math.random() * 2 - 1) * max;
-          wrapperEl.style.transform = `translate(${x}px, ${y}px)`;
-        }, interval);
+          const now = Date.now();
+          // amplitude: 5px at start → 20px at end; interval: 1500ms at start → 150ms at end
+          const amplitude      = 5 + _tremorProgress * 15;
+          const effectiveMs    = 1500 - _tremorProgress * 1350;
+          if (now - _lastTremorFire >= effectiveMs) {
+            const x = (Math.random() * 2 - 1) * amplitude;
+            const y = (Math.random() * 2 - 1) * amplitude;
+            wrapperEl.style.transform = `translate(${x}px, ${y}px)`;
+            _lastTremorFire = now;
+          }
+        }, 100);
 
       } else {
         clearInterval(_tremorInterval);
-        _tremorInterval = null;
-        wrapperEl.style.transform = '';
+        _tremorInterval  = null;
+        _tremorWrapperEl = null;
+        _tremorProgress  = 0;
+        if (wrapperEl) wrapperEl.style.transform = '';
       }
+    },
+
+    // progress: 0–1. Called on each countdown tick to scale tremor intensity.
+    setTremorScale(progress) {
+      _tremorProgress = Math.max(0, Math.min(1, progress));
     },
 
     setBlur(canvasEl, durationMs) {

@@ -199,5 +199,15 @@ All existing PTP games run players simultaneously on one device (JEC, YGI) or pa
 ### TG-05 — Host captain direct-update rule (Phase D — candidate for logic-engine.md)
 The dedup guard in `engine-multiplayer.js` drops envelopes where `originId === syllyDeviceUid`. This already covers readyCheck self-submission (documented in logic-engine.md). Phase D revealed it also applies to ALL ACTION types where the host is an active participant. A host captain sending `NT_ALLOCATION_UPDATE` to itself is dropped. The general rule — "any phase where the host is also a submitting participant must use direct-update + broadcast rather than a self-sent ACTION" — should be added to `logic-engine.md` § MDLM Patterns as an explicit extension of the existing readyCheck rule.
 
+---
+
+## Bug Index (post-Phase-D fixes — June 2026)
+
+### BUG-12 — Sound buttons inert on all NT screens (June 2026, RESOLVED)
+**What:** The 🔊 button on every NT screen did nothing when tapped.
+**Root cause:** `engine.js` attaches `openSoundOverlay` to all `.btn-open-sound` elements at parse time via a top-level `querySelectorAll`. NT's HTML section sits at ~line 7174 in `index.html`, well **after** the `<script>` tags (~line 6771). The querySelectorAll runs before that HTML exists, so NT's sound buttons are never captured.
+**Fix:** Added explicit re-wiring inside NT's `DOMContentLoaded` callback (bottom of `nt.js`), scoped to NT screen IDs: `document.querySelectorAll('#screen-nt-menu .btn-open-sound, #screen-nt-setup .btn-open-sound, …').forEach(btn => btn.addEventListener('click', openSoundOverlay))`.
+**Lesson:** Any game whose HTML section in `index.html` appears after the `<script>` block must re-wire its `.btn-open-sound` buttons inside a `DOMContentLoaded` callback. FRT is the established reference implementation. The pattern is safe to add to all future late-HTML games at scaffolding time. See also SHP BUG-03 and FLW BUG-02 (same bug, same fix).
+
 ### TG-06 — `keepInventory` batch-node pattern (Phase D — candidate for new-game-technical-template.md)
 DNP generates N nodes sharing one inventory pool using `ntGenerateNode({keepInventory: true})` for N-1 subsequent calls. This pattern (one shared resource distributed across N individually-generated elements) is novel to NT. If a future game has shared team resources distributed across per-player elements, this pattern applies. Consider a note in `new-game-technical-template.md` § Word Bank & Data.

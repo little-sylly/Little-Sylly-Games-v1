@@ -1,13 +1,43 @@
 # Code Map — Little Sylly Games
-**Purpose:** Surgical reference for editing. Uses element IDs (stable) not line numbers (shift).
+**Purpose:** Surgical reference for editing. Element IDs are the stable authority; the offset map below gives coarse line anchors purely to accelerate `Read`, never as a source of truth.
 **Updated:** Phase 32 / June 2026 (studio audit Phase 2 — all 12 games verified against code)
 
 ---
 
-## How to use this
-1. Find the game you're editing below.
-2. Copy the relevant ID and `Ctrl+F` it in `index.html` or the JS file.
-3. Cross-reference the key functions list to find the right entry point.
+## How to use this (token-lean — never full-read `index.html`)
+`index.html` is ~515 KB / ~7900 lines — a full read nearly fills the context window. Always work in slices:
+1. Find the game you're editing in the **Per-Game Offset Map** below, or copy a known element ID.
+2. **Grep the ID** (`screen-[abbr]-*`, `[abbr]-*-overlay`) to get its live line number — this is the authority.
+3. **`Read` with `offset`/`limit`** around that line (or around the offset-map anchor) — read only the slice you need.
+4. Cross-reference the key functions list to find the right entry point in the JS file.
+
+---
+
+## Per-Game Offset Map (`index.html`)
+**Coarse `Read` anchors only — APPROXIMATE, captured 29 Jun 2026.** Line numbers drift on every `index.html` edit; treat ±a few hundred lines as normal and **always Grep the actual ID to confirm** before editing. Each game's block runs roughly from its anchor to the next game's anchor.
+
+| Section | ≈ Start line |
+|---------|-------------|
+| Like I'm Five (LI5) | ~125 |
+| Great Minds (GM) | ~639 |
+| Secret Signals (SS) | ~1209 |
+| Just Enough Cooks (JEC) | ~2185 |
+| You Get It? (YGI) | ~2642 |
+| Late to the Party (LTTP) | ~3180 |
+| Natural Selection (NAT) | ~3826 |
+| Deep-Sea Deploy (DSD) | ~4389 |
+| Multiplayer engine / lobby | ~4939 |
+| Multiplayer global overlays | ~5163 |
+| Bailed (BLD) | ~5288 |
+| Group Therapy (GTH) | ~5841 |
+| The Bluff (DYB) | ~6325 |
+| Pass (PASS) | ~6758 |
+| Net-Trace (NT) | ~7144 |
+| Fruit Salad (FRT) | ~7604 |
+| Counting Sheep (SHP) | ~7909 |
+| Flawless (FLW) | ~8153 |
+
+Each game's `<!-- ════ NAME ════ -->` section-header comment is itself a reliable Grep anchor if the line numbers have drifted.
 
 ---
 
@@ -44,6 +74,7 @@
 | `#btn-nt` | Lobby → NT menu screen |
 | `#btn-frt` | Lobby → FRT menu screen |
 | `#btn-shp` | Lobby → SHP menu screen |
+| `#btn-flw` | Lobby → FLW menu screen |
 | `#lobby-icon` | Secret Mode tap counter (7 taps → controller screen) |
 | `.btn-open-sound` | Opens `#sound-overlay` (on every screen) |
 | `#global-mute-toggle` | Mute toggle inside sound overlay |
@@ -977,6 +1008,9 @@ Each plugin reads `window.activeExpansionOverrides` at its settings-apply point 
 | `passAbyss` | card[] | `[]` | Sylly Mode: face-up central pool |
 | `passMatchRound` | int | `0` | Current round number |
 | `passSyllyMode` | bool | `false` | The Abyss |
+| `passOpenClimbing` | bool | `false` | Open Climbing Mode — any strictly-higher same-type combo beats the table (relaxes exact +1) |
+| `passMandatoryCard` | object\|null | `null` | Round-1 lowest card (e.g. 3♦) that the leader's opening combo must contain; null for rounds 2+ |
+| `passPhase` | string | `'your-turn'` | `'your-turn'`/`'waiting'`/`'abyss-draft'`/`'round-over'` — `'round-over'` gates stray `PASS_TURN_RESULT` packets from re-showing the table |
 
 ### Key Functions
 | Function | Purpose |
@@ -985,6 +1019,7 @@ Each plugin reads `window.activeExpansionOverrides` at its settings-apply point 
 | `passShowSeating()` | Renders roster and shows `screen-pass-seating` (host only) |
 | `passStartGame()` | Deals hands, sets chip stacks, broadcasts `PASS_GAME_START` |
 | `passStartRound()` | Rebuilds deck, deals, determines leader, broadcasts `PASS_GAME_START` |
+| `passFindLeader()` | Round-1 leader = holder of the single lowest card (3♦; ties by suit ♦<♣<♥<♠); sets `passMandatoryCard` (opening combo must contain it). Suit order used here ONLY — never in play comparison. |
 | `passShowTable()` | Renders full table state; sets passPhase for active/waiting |
 | `passDetectCombo(cards)` | Returns `{type, rank, count}` or `null` |
 | `passIsValidPlay(combo, hand)` | Returns `{valid, msg}` — all climb + bomb + Joker rules |
@@ -1003,7 +1038,7 @@ Each plugin reads `window.activeExpansionOverrides` at its settings-apply point 
 | `PASS_PLAY_SUBMIT` | ACTION | Client → Host | `{playerIdx, cardIndices[]}` |
 | `PASS_PASS_SUBMIT` | ACTION | Client → Host | `{playerIdx}` |
 | `PASS_PLAYER_LEFT` | ACTION | Client → Host | `{playerIdx}` — dissolves match |
-| `PASS_GAME_START` | SYNC | Host → All | `{playerNames, seatNumbers, hands, chips, handSize, roundNum, firstPlayer}` |
+| `PASS_GAME_START` | SYNC | Host → All | `{playerNames, seatNumbers, hands, chips, handSize, roundNum, firstPlayer, mandatoryCard}` |
 | `PASS_TURN_RESULT` | SYNC | Host → All | `{playerIdx, action_type, tableCombo, nextPlayerIdx, abyss, passStreak, tableCleared, handCounts}` |
 | `PASS_ABYSS_DRAFT` | SYNC | Host → All | `{trigger, draftOrder, draftCards, newHands}` — trigger: `'detonation'`\|`'round-win'`\|`'fracture'` |
 | `PASS_ROUND_END` | SYNC | Host → All | `{winnerIdx, chipDeltas, newChips, badges, finalHandCounts, matchOver}` |
@@ -1233,7 +1268,7 @@ Each plugin reads `window.activeExpansionOverrides` at its settings-apply point 
 ## Counting Sheep (SHP)
 
 **JS file:** `js/games/shp.js`
-**Data:** Fixed `SHP_CARDS` (14 card types incl. id 13 Fogged Dream phantom) + `SHP_DECK_COUNTS` (62-card deck) + `SHP_NIGHTMARES` (5, weighted) — no `words.json`; exempt from word-difficulty per non-word-bank carve-out (Hand Size is the velocity dial)
+**Data:** Fixed `SHP_CARDS` (17 card types incl. id 13 Fogged Dream phantom; ids 14/15/16 = Counting-Backwards −1/−2/−5) + `SHP_DECK_COUNTS` (73-card deck, ≈66% pasture) + `SHP_NIGHTMARES` (5, weighted) — no `words.json`; exempt from word-difficulty per non-word-bank carve-out (Hand Size is the velocity dial)
 **Brand colour:** Moonlit indigo (`indigo-600`/`indigo-700`, native Tailwind) | **Active pill:** `pill-active-indigo` | **Toggle ON:** `game-toggle-on-indigo` | **Range:** `shp-range`
 **MDLM-only**, host-authoritative, host-as-participant. **Sylly Mode = Night Terrors** (oscillating Climb ⇄ Plunge).
 
@@ -1271,14 +1306,17 @@ Each plugin reads `window.activeExpansionOverrides` at its settings-apply point 
 | `shpMeter`/`shpMeterFill` | int | `0`/`3` | Nightmare Meter charge / threshold |
 | `shpGhostTurnIdx`/`shpSpendHolder`/`shpGhostOptions`/`shpGhostPending` | mixed | — | Lottery rotation, holder, 3 offered ids, gate flag |
 | `shpEcho` | int | `0` | Global Echo modifier (+2 Pasture until next disruption) |
-| `shpPhase`/`shpPlungeGrace`/`shpDrop`/`shpPlungeFlash` | mixed | `'climb'`/`0`/`7`/`false` | Night Terrors phase state |
+| `shpPhase`/`shpPlungeGrace`/`shpPlungeFlash` | mixed | `'climb'`/`0`/`false` | Night Terrors phase state |
+| `shpPlungeDescentTurns`/`shpCurrentDrop` | int | `0`/`0` | Round-based ceiling descent: −2 base, +2 per full round (`SHP_DROP_BASE`/`SHP_DROP_STEP`). `shpCurrentDrop` rides in SYNC for display |
+| `shpAnimSheep`/`shpAnimDir` | int/str | `0`/`'in'` | Sheep-flight parade count + direction (`'in'` grow / `'out'` counting-backwards) |
 | `shpPlayerCount`/`shpPlayerNames` | int/[] | from lobby | Roster |
 
 ### Key Functions
 | Function | Purpose |
 |----------|---------|
 | `shpStartSession()` | Host-only entry — init lives/elim, random opener → `shpDealNight` |
-| `shpDealNight(openerIdx)` | Fresh 62-card deck, deal to living, broadcast `SHP_DEAL` |
+| `shpDealNight(openerIdx)` | Fresh 73-card deck, deal to living, broadcast `SHP_DEAL` |
+| `shpStartSheepAnim(played, rolled)` | Sheep-flight parade: net Herd delta → arc-in/out count+dir (Climb-only; host + client) |
 | `shpBuildFlock()` / `shpDrawUp(p)` | Deck build / draw to cap (Wolf trap shrinks cap, `continue` not break) |
 | `shpRenderCard(id, opts)` | Asset-pack render seam (face / faceDown / wolf / inverted / cursed id 13) |
 | `shpHerdAfterCard(herd, id, rolled)` | Single-source herd math — sign-flips arithmetic in the Plunge |
@@ -1290,6 +1328,118 @@ Each plugin reads `window.activeExpansionOverrides` at its settings-apply point 
 | `shpEnterPlunge` / `shpExitPlunge` / `shpPlungeTick` / `shpCheckMercy` | Night Terrors phase machine |
 | `shpHandleEnvelope(env)` | MDLM ACTION/SYNC router |
 | `shpResetState()` | Full teardown (from `resetToLobby()`) |
+
+---
+
+## Flawless (FLW)
+
+**JS file:** `js/games/flw.js`
+**Data:** Fixed `FLW_GEMS` constant (10 gems — no `words.json`); exempt from word-difficulty per non-word-bank carve-out
+**Brand colour:** `#E879A8` (rose-pink — custom; hover `#CF5A8D`) + `#C9A227` (Exhibition gold for labels) | **Active pill:** `pill-active-flw` | **Toggle ON:** `game-toggle-on-flw` | **Range:** `flw-range`
+**MDLM-only**, host-authoritative, host-as-participant, **True Network Privacy** (private `/private/{uid}` channel). **Sylly Mode = The Counterfeit Run.**
+**Lobby button:** `#btn-flw`
+
+### Screens
+| Screen ID | Purpose |
+|-----------|---------|
+| `screen-flw-menu` | Main hub — Start the Exhibition, How to Play, Settings, ← Back to the Box |
+| `screen-flw-table` | All play sub-states (compose / await / reveal / result / under-glass) — Stack layout |
+| `screen-flw-showing-result` | Per-Showing score summary (Ledger totals, Diamonds awarded) |
+| `screen-flw-gameover` | Final scores + Diamonds tally (first to `flwDiamondsToWin` wins) |
+
+### Overlays
+| Overlay ID | Pattern | z-index | Purpose |
+|------------|---------|---------|---------|
+| `flw-settings-overlay` | Data (slide-up) | z-[80] | "The Exhibition Brief 💎" — game settings |
+| `flw-how-to-overlay` | Data (slide-up) | z-[90] | How to Play |
+| `flw-target-overlay` | Decision modal | z-[90] | Choose a target player to pass the Showpiece to |
+| `flw-scratch-overlay` | Decision modal | z-[90] | Gem identity selector for serving — picks which gem to declare |
+| `flw-peek-overlay` | Decision modal | z-[100] | Peek result reveal — shows the true gem identity after peeking (tap-and-hold) |
+| `flw-appraisal-overlay` | Decision modal | z-[90] | Appraisal Clock turn timer warning (fires at ≤5s remaining) |
+| `flw-emerald-overlay` | Data (slide-up) | z-[100] | Emerald gem offer — receiver chooses to accept or block the Emerald |
+| `flw-quit-overlay` | Decision modal | z-[80] | "Pack up the Exhibition?" — mid-game exit confirm |
+| `flw-new-showing-overlay` | Decision modal | z-[90] | "New Showing?" — play-again confirmation |
+| `flw-cf-overlay` | Decision modal | z-[90] | "Forge a Gem" — The Counterfeit Run: pick gem 1–7 to counterfeit (Sylly Mode) |
+
+### Key buttons
+| ID | Action |
+|----|--------|
+| `#btn-flw-menu-play` | Menu Play CTA — dual context: post-lobby starts session, pre-lobby opens `mpShowModeScreen('flw')` |
+| `#btn-flw-action` | Primary action on table screen (context-driven — Play, Accept, Block, etc.) |
+| `#btn-flw-audit` | Audit the most recent play (shown only when `flwAuditCharges > 0` + auditable play exists) |
+| `#btn-flw-gameover-exit` | Post-game exit → `resetToLobby()` |
+
+### Key State Variables
+| Variable | Type | Default | Purpose |
+|----------|------|---------|---------|
+| `flwLedger` | bool | `true` | Show Ledger (Diamond scoring tracker) — setting |
+| `flwDiamondsToWin` | int | `'auto'` | Target Diamonds: `'auto'` (player-count-scaled) / `3` / `5` / `7` |
+| `flwSmokeMirrors` | int | `1` | Gems burned face-down from deck per Showing: 1 / 3 / 5 |
+| `flwAppraisalClock` | int | `0` | Turn timer (s): 0(off) / 30 / 60 |
+| `flwSyllyMode` | bool | `false` | The Counterfeit Run — counterfeit tokens + audit system |
+| `flwPlayerCount` | int | `0` | From lobby roster |
+| `flwPlayerNames` | string[] | `[]` | From lobby roster (`mpPlayerSlots[i].nickname`) |
+| `flwScores` | int[] | `[]` | Diamond totals per player (session) |
+| `flwLedgerTally` | int[] | `[]` | Per-player Ledger count for the current Showing |
+| `flwDiamonds` | int[] | `[]` | Diamonds awarded this Showing (Ledger winners) |
+| `flwHands` | int[][] | `[]` | Host-only: all Showpiece hands (gem IDs). Distributed via `mpSendPrivate`. |
+| `flwMyHand` | int[] | `[]` | This device's current Showpiece hand (from `FLW_HAND` private packet) |
+| `flwTopPlay` | object[] | `[]` | Host-only: `{claimedId, realId, counterfeit, audited}` per most-recent play per player |
+| `flwTopClaims` | int[] | `[]` | Public mirror: claimed gem ID per player (distributed to all via SYNC) |
+| `flwPassFruit` | int | `-1` | TRUE gem ID of in-flight Showpiece (host-only until `FLW_REVEAL`) |
+| `flwPassDeclaration` | int | `-1` | Claimed gem ID declared by server |
+| `flwPassFromIdx` | int | `-1` | Current server index |
+| `flwPassToIdx` | int | `-1` | Current receiver index |
+| `flwActivePlayer` | int | `0` | Index of current active player |
+| `flwTablePhase` | string | `'serving'` | `'serving'` \| `'await'` \| `'reveal'` \| `'under-glass'` |
+| `flwAuditCharges` | int | `0` | Remaining audits this Showing (Sylly: 2 per Showing; standard: 0) |
+| `flwCfToken` | int | `0` | Remaining Counterfeit tokens this Showing (Sylly: 1 per Showing) |
+| `flwUnderGlass` | int | `-1` | Player index currently under audit scrutiny (`-1` = none); cleared in `flwBeginTurn()` + broadcast via `FLW_TURN_START.underGlass` |
+| `flwTurnEndTs` | int\|null | `null` | Wall-clock expiry for Appraisal Clock (GTH pattern) |
+| `flwTurnTimerHandle` | int\|null | `null` | `setInterval` handle for turn countdown |
+| `flwShowingNum` | int | `0` | Current Showing number (1-indexed) |
+| `flwEliminatedSet` | Set | `new Set()` | Players who lost all Showpieces this Showing |
+
+### Key Functions
+| Function | Purpose |
+|----------|---------|
+| `flwStartSession()` | Post-lobby entry — host deals first Showing via `flwStartShowingHost()` |
+| `flwStartShowingHost(openerIdx)` | Host: deals hands, burns Smoke & Mirrors, sets active player, broadcasts `FLW_SHOWING_START`, distributes private hands |
+| `flwBuildDeck()` | Returns shuffled deck of gem IDs based on player count |
+| `flwDealHands()` | Assigns `flwHands[p]` per player; private distribution via `mpSendPrivate` → `FLW_HAND` |
+| `flwShowTable()` | Shows `screen-flw-table`; calls `flwRenderTableBody()` |
+| `flwRenderTableBody()` | Branches on `flwTablePhase` → serve / await / reveal sub-renderers |
+| `flwBeginTurn(playerIdx)` | Clears `flwUnderGlass`, resets composing state, shows active player's compose UI |
+| `flwSubmitServe(toIdx, declaration, handIdx)` | Host: `flwHostProcessServe`; Client: ACTION `FLW_PLAY` |
+| `flwHostProcessServe(fromIdx, toIdx, declaration, handIdx)` | Remove card from server hand; broadcast `FLW_TURN_START` to receiver |
+| `flwHostResolveChallenge(callerIdx, verdict)` | Determine correct result; run gem effects; broadcast `FLW_RESOLVE` |
+| `flwHostAudit(auditorIdx, targetIdx)` | Deduct audit charge; set `flwUnderGlass`; broadcast `FLW_AUDIT_RESULT` |
+| `flwHostEmeraldOffer(toIdx)` | Sends `FLW_EMERALD_OFFER` private packet to receiver; waits for `FLW_EMERALD_RESOLVE` ACTION |
+| `flwComputeShowingEnd()` | Award Diamonds (Ledger winners), advance scores, check game-win condition |
+| `flwRenderCard(gemId, opts)` | **Asset-pack render seam** — all gem card DOM goes through here; `opts.faceDown` for back |
+| `flwShowTip(emoji, heading, lines)` | Shared contextual tip overlay injector (uses `flw-tip-overlay` sub-element of settings/how-to) |
+| `flwHandleEnvelope(env)` | Routes all FLW ACTION/SYNC + private packets; called from `engine-multiplayer.js` |
+| `flwResetState()` | Full state teardown (called from `resetToLobby()` in `engine.js`) |
+
+### Per-Game ACTION/SYNC/Private Packet Types
+| Packet | Type | Channel | Direction | Payload |
+|--------|------|---------|-----------|---------|
+| `FLW_PLAY` | ACTION | public | Client → Host | `{fromIdx, toIdx, declaration, handIdx}` |
+| `FLW_AUDIT` | ACTION | public | Client → Host | `{auditorIdx, targetIdx}` |
+| `FLW_EMERALD_RESOLVE` | ACTION | public | Client receiver → Host | `{accept}` — boolean |
+| `FLW_PLAYER_LEFT` | ACTION | public | Client → Host | `{}` — dissolves match |
+| `FLW_HAND` | PRIVATE | `/private/{uid}` | Host → device | `{hand}` — this device's Showpiece array |
+| `FLW_DRAW` | PRIVATE | `/private/{uid}` | Host → device | `{gemId}` — single drawn card after a play |
+| `FLW_PEEK` | PRIVATE | `/private/{uid}` | Host → peeking device | `{realId, gemId}` — true identity of peeked card |
+| `FLW_LEAK` | PRIVATE | `/private/{uid}` | Host → device | `{gemId, slotIdx}` — Sylly: single-Showpiece leak reveals one opponent gem |
+| `FLW_EMERALD_OFFER` | PRIVATE | `/private/{uid}` | Host → receiver | `{emeraldIdx}` — Emerald gem offered to receiver |
+| `FLW_SHOWING_START` | SYNC | public | Host → All | `{showingNum, playerCount, playerNames, handSize, smokeCount, ledger, diamondsToWin, syllyMode, appraisalClock, topClaims}` |
+| `FLW_TURN_START` | SYNC | public | Host → All | `{fromIdx, toIdx, declaration, topClaims, underGlass, turnEndTs}` |
+| `FLW_RESOLVE` | SYNC | public | Host → All | `{correct, loserIdx, gemId, realId, topClaims, ledgerTally, handCounts}` |
+| `FLW_AUDIT_RESULT` | SYNC | public | Host → All | `{auditorIdx, targetIdx, underGlass, auditCharges}` |
+| `FLW_SHOWING_END` | SYNC | public | Host → All | `{diamonds, scores, showingNum, gameOver}` |
+| `FLW_GAMEOVER` | SYNC | public | Host → All | `{winner, scores}` |
+| `FLW_MATCH_DISSOLVED` | SYNC | public | Host → All | `{}` |
 
 ## Overlay Patterns Quick Reference
 
@@ -1334,7 +1484,7 @@ Three named modes (Phase 23). Each game has a `recommendedMode` and `supportedMo
 | `tlm` | Team Lobby Mode | Each team shares one device. Host/Join with room code. |
 | `mdlm` | Multi-device Lobby Mode | Each player uses their own phone. Host/Join with room code. |
 
-Per-game: LI5 `ptp`★/`tlm` · GM `ptp`★/`mdlm` · SS `tlm`★/`mdlm`/`ptp` · JEC `mdlm`★/`ptp` · YGI `mdlm`★/`ptp` · LTTP `mdlm`★/`ptp` · NAT `mdlm`★/`ptp` · DSD `tlm`★/`mdlm`/`ptp` · GTH `mdlm`★ (MP-only, 4–8) · DYB `mdlm`★ (MP-only, 3–8) · BLD `mdlm`★ (MP-only, 4–10 per `getMinPlayers` — note `game-identities.md` says min 5) · PASS `mdlm`★ (MP-only, 3–6) · NT `mdlm`★ (MP-only, 3–8) (★ = recommended)
+Per-game: LI5 `ptp`★/`tlm` · GM `ptp`★/`mdlm` · SS `tlm`★/`mdlm`/`ptp` · JEC `mdlm`★/`ptp` · YGI `mdlm`★/`ptp` · LTTP `mdlm`★/`ptp` · NAT `mdlm`★/`ptp` · DSD `tlm`★/`mdlm`/`ptp` · GTH `mdlm`★ (MP-only, 4–8) · DYB `mdlm`★ (MP-only, 3–8) · BLD `mdlm`★ (MP-only, 4–10 per `getMinPlayers` — note `game-identities.md` says min 5) · PASS `mdlm`★ (MP-only, 3–6) · NT `mdlm`★/`ptp` (2–8; DNP requires min 4) · FRT `mdlm`★ (MP-only, 2–8) · SHP `mdlm`★ (MP-only, 3–8) · FLW `mdlm`★ (MP-only, 3–4) (★ = recommended)
 
 ### Multiplayer Screens
 | Screen ID | Purpose |
@@ -1364,7 +1514,9 @@ Per-game: LI5 `ptp`★/`tlm` · GM `ptp`★/`mdlm` · SS `tlm`★/`mdlm`/`ptp` �
 | `mpSetModeSelection(mode)` | Updates mode card radio state + enables CTA |
 | `mpLockSync()` | Activates sync lock — greys all `btn-mp-action` buttons; 8-second auto-release |
 | `mpUnlockSync()` | Releases sync lock |
-| `mpSendEnvelope(env)` | Async — writes `{type, payload, originId, timestamp}` envelope to Firebase |
+| `mpSendEnvelope(env)` | Async — writes `{type, payload, originId, timestamp}` envelope to Firebase public `/events` channel |
+| `mpSendPrivate(targetUid, envelope)` | Async — writes envelope to `rooms/{code}/private/{targetUid}` (True Network Privacy — used for FLW private hand distribution) |
+| `mpStartPrivateListener()` | Attaches `onChildAdded` to `rooms/{code}/private/{syllyDeviceUid}`; ts-filtered + self-origin-filtered; routes to `mpHandleEnvelope`. Called after room create/join. Cleared in `mpStopListeners()` via `mpPrivateListener` handle |
 | `mpHandleEnvelope(env)` | Routes incoming envelopes to game-specific ACTION/SYNC handlers |
 | `mpSerialiseSettings(abbr)` | Serialises host's current game settings object for `SETTINGS_SYNC` packet |
 | `mpRenderHostPlayerList()` | Renders joined player chips in host lobby dock |
@@ -1416,3 +1568,6 @@ Per-game: LI5 `ptp`★/`tlm` · GM `ptp`★/`mdlm` · SS `tlm`★/`mdlm`/`ptp` �
 | BLD | *(see Bailed section packet table)* | *(see Bailed section packet table)* |
 | PASS | *(see Pass section packet table)* | *(see Pass section packet table)* |
 | NT | *(see Net-Trace section packet table)* | *(see Net-Trace section packet table)* |
+| FRT | *(see Fruit Salad section packet table)* | *(see Fruit Salad section packet table)* |
+| SHP | *(see Counting Sheep section packet table)* | *(see Counting Sheep section packet table)* |
+| FLW | `FLW_PLAY`, `FLW_AUDIT`, `FLW_EMERALD_RESOLVE`, `FLW_PLAYER_LEFT` (public); private channel: `FLW_HAND`, `FLW_DRAW`, `FLW_PEEK`, `FLW_LEAK`, `FLW_EMERALD_OFFER` | `FLW_SHOWING_START`, `FLW_TURN_START`, `FLW_RESOLVE`, `FLW_AUDIT_RESULT`, `FLW_SHOWING_END`, `FLW_GAMEOVER`, `FLW_MATCH_DISSOLVED` |

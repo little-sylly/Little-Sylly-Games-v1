@@ -1,15 +1,58 @@
 # Project: Little Sylly Games (The "Word" Series)
 # Brand Inspiration: Sylvia (Nickname: Little Sylly)
 
-## 📂 Rule Files — Load When Relevant
-- `@ui-style.md` — overlays, buttons, speaker/exit protocol, settings layout, Sylly Tone
-- `@logic-engine.md` — engine/plugin split, screen routing, audio catalogue, PWA, new-game checklist
+## 📂 Rule Files
+
+**Always loaded (auto-imported via `@` — keep this list lean; every file here costs baseline tokens in EVERY session):**
+- `@ui-style.md` — overlays, buttons, speaker/exit protocol, settings layout, Sylly Tone (apply-on-every-edit pattern rules)
+- `@logic-engine.md` — engine/plugin split, screen routing, audio catalogue, PWA, new-game checklist (apply-on-every-edit pattern rules)
 - `@definitions.md` — naming conventions, comment style, data schema, project-wide terms
-- `@game-identities.md` — per-game themes, terminology, settings tables, special mechanics
-- `@new-game-process.md` — three-stage protocol for adding a new game (brief → tech spec → implementation)
-- `@new-game-brief-template.md` — Phase 1 design brief template (filled by project owner + Gemini)
-- `@new-game-technical-template.md` — Phase 2 technical spec template (filled by Claude Code)
-- `@phase-audit.md` — run after every completed game and before every new game's first line of code
+
+**On-demand — READ with the Read tool only when the trigger applies (NOT auto-loaded; do not read these during routine bug/polish work):**
+> ⚠️ These live in `docs/rules/`, NOT `.claude/rules/`, **on purpose**. The harness auto-loads every file in `.claude/rules/` into baseline context every turn — keeping the big on-demand docs there cost ~50k tokens/turn and caused mid-task auto-compact spirals. Do NOT move them back into `.claude/rules/`. Only the three always-loaded files above belong there.
+- `docs/rules/game-identities.md` — per-game themes, terminology, settings tables, special mechanics. **135 KB / 16 game sections — never read whole.** **Read when:** doing non-trivial work on a specific game — Grep for that game's `## Game N:` heading and offset-Read only that one section. The quick index below covers most "which colour / which file / which abbr" lookups without opening it.
+- `docs/rules/new-game-process.md` — three-stage protocol for adding a new game (brief → tech spec → implementation). **Read when:** starting a new game.
+- `docs/rules/new-game-brief-template.md` — Phase 1 design brief template (filled by project owner + Gemini). **Read when:** new-game Stage 1.
+- `docs/rules/new-game-technical-template.md` — Phase 2 technical spec template (filled by Claude Code). **Read when:** new-game Stage 2.
+- `docs/rules/phase-audit.md` — Protocols A/B/C (drift check, skeleton-first, studio sweep). **Read when:** a phase boundary, or before a new game's first line of code.
+
+### 🎮 Per-Game Quick Index
+Always-on pointer so single-game work doesn't need the 128 KB `game-identities.md`. For terminology, settings tables, overlays, multiplayer packets → read that game's `## Game N:` section in `game-identities.md`. Brand colour rarely changes; everything else, confirm in-section.
+
+| # | Game | `activeGameId` | Plugin file | Brand / active-pill |
+|---|------|---------------|-------------|---------------------|
+| 1 | Like I'm Five | `li5` | `li5.js` | pink-500 / `pill-active-pink` |
+| 2 | Great Minds | `great-minds` | `great-minds.js` | violet-500 CTAs + purple-* pills / `pill-active-purple` |
+| 3 | Secret Signals | `sylly-signals` *(legacy id)* | `secret-signals.js` | teal-500 / `pill-active-teal` |
+| 4 | Just Enough Cooks | `jec` | `jec.js` | amber-500 / `pill-active-amber` |
+| 5 | You Get It? | `ygi` | `ygi.js` | orange-500 / `pill-active-orange` |
+| 6 | Late to the Party | `lttp` | `lttp.js` | red-500 / `pill-active-red` |
+| 7 | Natural Selection | `nat` | `nat.js` | lime-600 / `pill-active-lime` |
+| 8 | Deep-Sea Deploy | `dsd` | `dsd.js` | cyan-700 / `pill-active-cyan` |
+| 9 | Group Therapy | `gth` | `gth.js` | sage `#B1BCA0` / `pill-active-sage` |
+| 10 | The Bluff *(internal `dyb`)* | `dyb` | `dyb.js` | ocean `#1E4D8C` / `pill-active-dyb` |
+| 11 | Bailed | `bld` | `bld.js` | yellow-500 / `pill-active-yellow` |
+| 12 | Pass | `pass` | `pass.js` | zinc-900 / `pill-active-zinc` |
+| 13 | Net-Trace | `nt` | `nt.js` | emerald-600 / `pill-active-emerald` |
+| 14 | Fruit Salad | `frt` | `frt.js` | banana `#FFC700` / `pill-active-frt` |
+| 15 | Counting Sheep | `shp` | `shp.js` | indigo-600 / `pill-active-indigo` |
+| 16 | Flawless | `flw` | `flw.js` | rose-pink `#E879A8` / `pill-active-flw` |
+
+For where each game's screens/overlays live in `index.html`, see the **Per-Game Offset Map** at the top of `docs/code-map.md`.
+
+---
+
+## 🧭 Task Playbooks & Decision Log
+
+**Front door for any task — open the matching workflow, then record the outcome in the listed doc.** All of these are on-demand reads (not auto-loaded).
+
+| Starting a… | Open this workflow | Record the outcome in |
+|-------------|--------------------|------------------------|
+| **New game** | `docs/rules/new-game-process.md` (3-stage: brief → tech spec → implementation) | tech spec `docs/new-game-tech-[name].md` + phase snapshot + `docs/decision-log.md` |
+| **Audit / phase gate** | `docs/rules/phase-audit.md` (Protocols A/B/C) | phase snapshot + `docs/decision-log.md` |
+| **Bug / update / polish** | `docs/templates/task-bug-polish.md` (fill the intake form first) | `docs/implementation-notes/[abbr]-implementation-notes.md` (+ `docs/decision-log.md` if it became architectural) |
+
+**`docs/decision-log.md`** — the running index of big architectural / strategic / process decisions (newest on top). Read it to recall *why* something was done; append a one-line entry whenever a change is architectural, strategic, or process-level (wired into the Documentation Integrity Protocol below).
 
 ---
 
@@ -35,7 +78,8 @@
 │   │   ├── pass.js                  # Plugin: Pass (all state + logic)
 │   │   ├── nt.js                    # Plugin: Net-Trace (all state + logic)
 │   │   ├── frt.js                   # Plugin: Fruit Salad (Cockroach Poker — all state + logic)
-│   │   └── shp.js                   # Plugin: Counting Sheep (O'NO-99 survival — all state + logic)
+│   │   ├── shp.js                   # Plugin: Counting Sheep (O'NO-99 survival — all state + logic)
+│   │   └── flw.js                   # Plugin: Flawless (gem-trading bluffing game — all state + logic)
 │   ├── engine-multiplayer.js        # Multiplayer module: Firebase, lobby, sync, per-game envelopes
 │   ├── secret-mode.js               # Secret Mode: Konami gateway, Terminal, expansion proxy state
 │   ├── app.js                       # Bootstrapper only — no logic (3 lines)
@@ -70,7 +114,7 @@
 ├── docs/archive/                    # Retired snapshots + spent plan docs
 ```
 
-**Load order:** `engine.js` → `engine-multiplayer.js` → `canvas-draw.js` → `li5.js` → `great-minds.js` → `secret-signals.js` → `jec.js` → `ygi.js` → `lttp.js` → `nat.js` → `dsd.js` → `bld.js` → `gth.js` → `dyb.js` → `cards.js` → `pass.js` → `nt.js` → `frt.js` → `shp.js` → `secret-mode.js` → `app.js`
+**Load order:** `engine.js` → `engine-multiplayer.js` → `canvas-draw.js` → `li5.js` → `great-minds.js` → `secret-signals.js` → `jec.js` → `ygi.js` → `lttp.js` → `nat.js` → `dsd.js` → `bld.js` → `gth.js` → `dyb.js` → `cards.js` → `pass.js` → `nt.js` → `frt.js` → `shp.js` → `flw.js` → `secret-mode.js` → `app.js`
 (`tailwind-play.js` loads in `<head>` before everything else.)
 All symbols are global (no ES modules). Forward references work at runtime.
 
@@ -127,6 +171,7 @@ All symbols are global (no ES modules). Forward references work at runtime.
 3. `CLAUDE.md` — update SW version, current focus, and key references
 4. `logic-engine.md` — update any new universal rules, audio functions, or engine patterns introduced
 5. `docs/implementation-notes/[abbr]-implementation-notes.md` — log any design decisions made, bugs found and resolved, or lessons learned during the phase (create the file if it doesn't exist for this game)
+6. `docs/decision-log.md` — if the work included any **architectural, strategic, or process-level** decision, append a one-line entry (newest on top, ~4 lines, pointer not deep-doc). Skip only when the work was purely routine bug/polish with no cross-cutting decision.
 
 **Rule:** No phase snapshot may be written until all five documents are verified current. The snapshot itself is the final deliverable — not the starting point for cleanup.
 
@@ -135,6 +180,8 @@ All symbols are global (no ES modules). Forward references work at runtime.
 ---
 
 ## 🧼 Token Hygiene & Context Management
+- **Never full-read `index.html`:** It is ~515 KB (~128k tokens) — a single full read nearly fills the context window and is the largest avoidable token sink in this project. To work on a screen or overlay, **Grep first** for its identifier (`screen-[abbr]-*`, an `[abbr]-*-overlay` ID, or the `<!-- ════ GAME NAME ════ -->` section header), then **Read with `offset`/`limit`** around the hit — never read the whole file to "get oriented".
+- **Same rule for any file over ~40 KB** (e.g. `js/games/nt.js`, `engine-multiplayer.js`, `secret-signals.js`, and `game-identities.md` itself): locate the relevant section with Grep, then read only that slice. Reading a large file in full to orient yourself is the single most common cause of the mid-task auto-compact spiral.
 - **Lean Context:** Avoid repetitive explanations. Assume technical competence.
 - **Australian English:** Use Australian spelling (e.g., "colour", "synthesised"). Metric units only.
 - **Session Cleanup:** If a sub-task is complete, suggest running /compact to clear history.
@@ -195,7 +242,7 @@ The animals category is shared by both Like I'm Five and Natural Selection. Ever
 
 ### 🎯 Skill: Phase Gate — Studio Audit
 **Trigger:** After completing a game or entering a new phase. Before writing the phase snapshot. Before writing the first line of a new game's JS.
-**Action:** Run all three protocols in `@phase-audit.md`:
+**Action:** Read `docs/rules/phase-audit.md` (on-demand — not auto-loaded) and run all three protocols:
 - **Protocol A** — Phase Gate (drift check, tech debt, linguistic sweep, mobile layout). Run after every completed game/phase.
 - **Protocol B** — Skeleton-First. Run before any new game's first line of code.
 - **Protocol C** — Studio Sweep (impl notes harvest + cross-game consistency check). Run before any new game's Phase 1 brief. Both parts must pass before Protocol B Step 1 begins.
@@ -213,14 +260,17 @@ Do not write the phase snapshot until Protocols A is clean. Do not write a line 
 ---
 
 ## 🎯 Current Focus
-**Phase:** Phase 35 — Counting Sheep (`shp`) gameplay COMPLETE. Active sub-task: The Bluff (DYB) playtest audit + polish pass COMPLETE (BUG-06 through BUG-19 all resolved; showdown dice highlight added; claim display + bid picker refactored to pip dice).
-**Last shipped game:** Phase 35 — Counting Sheep (SHP), O'NO-99 climbing/survival card game, MDLM-only, 3–8 players; Sylly Mode = Night Terrors (oscillating Climb ⇄ Plunge).
-**Previous shipped game:** Phase 34 — Fruit Salad (FRT), Cockroach Poker bluffing game, MDLM-only, 2–8 players; 2-player Pear-Off duel auto-engages.
-**SW Version:** v131 (Pass playtest audit 2: Firebase null stripping fix, tracker clip fix, mid-game draw sort, history log shows cards. Previous: v130 — Pass playtest audit 1)
-**Gold Master:** 15 games complete + multiplayer (LI5, Great Minds, Secret Signals, JEC, YGI, LTTP, Natural Selection, Deep-Sea Deploy, Bailed, Group Therapy, The Bluff [internal `dyb`], Pass, Net-Trace, Fruit Salad, Counting Sheep)
-**Fruit Salad key refs:** `docs/new-game-tech-fruit-salad.md` (confirmed spec), `docs/implementation-notes/frt-implementation-notes.md`, `docs/new-ideas/new-game-fruit-salad.md` (Phase-1 brief). MDLM-only, couch security, host-authoritative sequential; 2-player "Pear of Fruits" duel auto-engages; bright banana `#FFC700` + white ink + leaf `#047857` (text-on-white) palette; all card rendering through `frtRenderCard` (asset-pack seam).
+**Phase:** Phase 36 — Flawless (`flw`) COMPLETE. Private-hand multiplayer model (`mpSendPrivate` + `mpStartPrivateListener`) introduced. Closure documentation in progress.
+**Last shipped game:** Phase 36 — Flawless (FLW), gem-trading bluffing game, MDLM-only, 3–4 players; True Network Privacy (private Firebase channel); Sylly Mode = The Counterfeit Run.
+**Previous shipped game:** Phase 35 — Counting Sheep (SHP), O'NO-99 climbing/survival card game, MDLM-only, 3–8 players; Sylly Mode = Night Terrors (oscillating Climb ⇄ Plunge).
+**SW Version:** v139 (Lobby min-players hint: host lobby now shows "Need N more players to start (min M)" below the capacity line while the start CTA is locked — `mpRenderHostPlayerList()` + `#mp-lobby-min-hint`. Previous: v138 — Counting Sheep playtest round 2: hand-sort falsy-zero fix [Pastures leftmost, +1/+2/+5/+10], card-info tap-outside-to-close, sheep animation reworked to an absolutely-positioned arc-from-left overlay [no layout jank] with in/out direction by net Herd delta, deck rebalanced 71→73 [~66% pasture], "Counting Backwards −N" restored in inspect modal, Last/Dream Journal moved to right whitespace + rename "Log →"→"Dream Journal", "The Sky is Falling"→"The Dream is Collapsing", Night Terrors drop softened to round-based escalation −2 base +2/round. Previous: v137 — PASS playtest fixes)
+**Gold Master:** 16 games complete + multiplayer (LI5, Great Minds, Secret Signals, JEC, YGI, LTTP, Natural Selection, Deep-Sea Deploy, Bailed, Group Therapy, The Bluff [internal `dyb`], Pass, Net-Trace, Fruit Salad, Counting Sheep, Flawless)
+**Flawless key refs:** `docs/new-game-tech-flawless.md` (confirmed spec), `docs/implementation-notes/flw-implementation-notes.md`, `docs/new-ideas/new-game-brief-flawless.md` (Phase-1 brief). MDLM-only, True Network Privacy (`mpSendPrivate`), host-as-participant, host-authoritative; rose-pink `#E879A8` + Exhibition gold `#C9A227`; all card rendering through `flwRenderCard` (asset-pack seam); 10 gems (`FLW_GEMS`); Sylly Mode = The Counterfeit Run (1 token + 2 audit charges per Showing).
 **Counting Sheep key refs:** `docs/new-game-tech-counting-sheep.md` (confirmed spec — Night Terrors + ghost rework in v1), `docs/implementation-notes/shp-implementation-notes.md` (bug log incl. Wolf-deal fix + design decisions), `docs/new-ideas/counting-sheep-notes.md` (final design notes). MDLM-only, host-authoritative, host-as-participant; couch security; moonlit indigo (native Tailwind); all card rendering through `shpRenderCard` (asset-pack seam); single-source herd math `shpHerdAfterCard` (Plunge sign-flip).
 **Key references:**
+- `docs/implementation-notes/flw-implementation-notes.md` — FLW bug log + design decisions
+- `docs/new-game-tech-flawless.md` — Phase 2 technical spec (FLW source of truth)
+- `docs/archive/phase36-snapshot.md` — Phase 36 snapshot (FLW shipped, private-hand model)
 - `docs/implementation-notes/shp-implementation-notes.md` — SHP bug log + design decisions
 - `docs/new-game-tech-counting-sheep.md` — Phase 2 technical spec (SHP source of truth)
 - `docs/implementation-notes/frt-implementation-notes.md` — FRT bug log + design decisions
@@ -242,6 +292,6 @@ Do not write the phase snapshot until Protocols A is clean. Do not write a line 
 - `docs/multiplayer-feature-specification-v1.4.md` — MFS v1.4 spec (Phase 22 source of truth)
 - `docs/multiplayer-ui-components.md` — multiplayer component catalogue
 - `docs/code-map.md` — surgical reference: all game IDs, overlays, key functions
-- `.claude/rules/new-game-process.md` — three-stage protocol for adding a new game (with `new-game-brief-template.md` + `new-game-technical-template.md`)
+- `docs/rules/new-game-process.md` — three-stage protocol for adding a new game (with `new-game-brief-template.md` + `new-game-technical-template.md`)
 - `docs/expansion-guide.md` — template for adding new expansion packs
 - `docs/ygi-content-guide.md` — content creation guide for You Get It? prompts

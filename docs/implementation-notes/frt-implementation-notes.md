@@ -104,3 +104,6 @@ Any screen that renders content + buttons as one visual unit must put everything
 
 **Deferred (post-build): deal-interstitial animation**
 `screen-frt-deal` is currently a static placeholder — gameplay routes straight to the table after a brief beat. Animation deferred post-launch.
+
+**Banana slider appeared black (post-launch, June 2026, RESOLVED)**
+The sound overlay volume slider rendered in the browser's default black/grey instead of the banana `#FFC700` theme colour when FRT was the active game. Root cause: `updateSliderTheme()` in `engine.js` maps `activeGameId` → a CSS range class, but the `'frt'` key was missing from the map — it fell through to the stone-range fallback. Fix: added `'frt': 'frt-range'` to the map. The `frt-range` CSS class already existed in `css/styles.css`; only the JS mapping was absent. Lesson: whenever a new game's range CSS class is added, the `updateSliderTheme` map in `engine.js` must be updated in the same change. The map and the CSS class are a matched pair.

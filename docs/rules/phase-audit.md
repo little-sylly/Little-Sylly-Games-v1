@@ -95,7 +95,7 @@ Follow this sequence strictly. Do not skip ahead to logic injection.
 - **Gate:** All applicable template gaps acknowledged → proceed to Step 1
 
 ### Step 1 — Brief (before any JS)
-- Fill out `docs/new-game-brief-[name].md` using `.claude/rules/new-game-brief-template.md` (full three-stage protocol: `.claude/rules/new-game-process.md`)
+- Fill out `docs/new-game-brief-[name].md` using `docs/rules/new-game-brief-template.md` (full three-stage protocol: `docs/rules/new-game-process.md`)
 - Every section must be complete (no blank cells, no TBD on core mechanics)
 - Review against `game-identities.md` for tone consistency and against `ui-style.md` for overlay/menu standards
 - **Gate:** Brief signed off → proceed to Step 2
@@ -160,7 +160,7 @@ Compare specific implementation elements across all game plugin files and `index
 | **Lobby button listener** | Pattern is `playLaunch(); activeGameId = '[abbr]'; showScreen('screen-[abbr]-menu');` — in that order. No `updateSliderTheme()` call (handled by `openSoundOverlay()` automatically). |
 | **Menu section class** | No `min-h-screen` on any game menu section. Standard pattern: `relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6`. |
 | **Sound button position** | Sound button is `absolute top-4 right-4` within a `relative` section. Section must be content-height (no `min-h-screen`) or the button detaches visually from the content. |
-| **Sound button listeners** | `engine.js` attaches `openSoundOverlay` to all `.btn-open-sound` elements globally at script execution time (top-level `querySelectorAll` — line 549). Since all HTML is parsed before scripts run, this covers every game automatically. Newer games (NAT, DSD, GTH, BLD, DYB, PASS) also wire them explicitly inside their `DOMContentLoaded` block — redundant but harmless. Older games (LI5, GM, SS, JEC, YGI, LTTP) rely on the engine.js global only — confirmed correct. ✅ All 12 games audited June 2026. |
+| **Sound button listeners** | `engine.js` attaches `openSoundOverlay` to all `.btn-open-sound` elements via a top-level `querySelectorAll` at script-execution time. **This only covers games whose HTML appears BEFORE the `<script>` block.** In `index.html` the scripts sit at ~line 3823–6774; games whose HTML sections appear after line 6774 (NT ~7174, FRT ~7558, SHP ~7939, FLW ~8179) are NOT covered by the engine selector — their sound buttons are inert unless re-wired in `DOMContentLoaded`. FRT is the reference implementation; NT, SHP, and FLW were fixed June 2026. Any future game added at the end of `index.html` **must** include DOMContentLoaded re-wiring in its plugin file — do not rely on the engine global alone. Older games (LI5, GM, SS, JEC, YGI, LTTP, NAT, DSD, GTH, BLD, DYB, PASS) have HTML before the scripts and are covered by the engine global. ✅ All 16 games verified June 2026. |
 | **Settings pill toggles** | Only `pill-active-[colour]` is added or removed — the `.pill` base class is NEVER removed from any pill. Grep for `classList.toggle('pill'` and `classList.remove('pill'` — both are prohibited. |
 | **Decision modal class strings** | Every `overlay-modal-inner` div has `border border-[brand]-300`. Data overlays (`overlay-data-inner`) are exempt. |
 | **Quit overlay copy** | Game-voiced heading, subtext, confirm label, cancel label. Grep for generic strings: `"Quit game"`, `"Are you sure"`, `"Yes"`, `"No"`. |

@@ -5,7 +5,7 @@
 
 // ── Settings (persist between sessions) ────────────────────────────
 let gthDisordersPerPatient = 3;
-let gthDrawingTime         = 30;
+let gthDrawingTime         = 60;
 let gthDiagnosisWindow     = 90;
 let gthDifficultyMix       = 'recurrent';
 let gthDeepDive            = false;
@@ -43,10 +43,11 @@ let gthRevealItems = [];
 let gthScores = [];
 
 // ── UI state ───────────────────────────────────────────────────────
-let gthDisorderSubState = 'preview';
-let gthCanvasInstance   = null;
-let gthCountdownTimer   = null;
-let gthIntakeTimer      = null;
+let gthDisorderSubState  = 'preview';
+let gthCanvasInstance    = null;
+let gthCountdownTimer    = null;
+let gthIntakeTimer       = null;
+let gthShrinkIntroTimer  = null;
 
 // ── Data ───────────────────────────────────────────────────────────
 let gthAllDisorders = [];
@@ -119,9 +120,9 @@ function gthShowPatientIntake() {
   btn.textContent = "I'm Ready to Draw →";
   btn.style.opacity = '';
 
-  // 30-second auto-start countdown — prevents over-thinking before drawing
+  // 15-second auto-start countdown — prevents over-thinking before drawing
   if (gthIntakeTimer) { clearInterval(gthIntakeTimer); gthIntakeTimer = null; }
-  let intakeSecsLeft = 30;
+  let intakeSecsLeft = 15;
   const countdownEl = document.getElementById('gth-intake-countdown');
   if (countdownEl) countdownEl.textContent = intakeSecsLeft;
   gthIntakeTimer = setInterval(() => {
@@ -168,11 +169,23 @@ function gthShowCanvas(disorderEntry) {
 
 function gthStartCountdown() {
   if (gthCountdownTimer) { clearInterval(gthCountdownTimer); gthCountdownTimer = null; }
+  const timerEl = document.getElementById('gth-canvas-timer');
+
+  // No Limit mode — show ∞ and skip auto-submit; tremor stays at starting level
+  if (gthDrawingTime === 0) {
+    timerEl.textContent = '∞';
+    return;
+  }
+
   let secondsLeft = gthDrawingTime;
-  const timerEl   = document.getElementById('gth-canvas-timer');
+  const total     = gthDrawingTime;
 
   function tick() {
     timerEl.textContent = secondsLeft;
+    // Scale tremor: 0 at start → 1 at end
+    if (gthSyllyMode) {
+      CanvasDraw.setTremorScale((total - secondsLeft) / total);
+    }
     if (secondsLeft <= 5 && secondsLeft > 0) playTick();
     if (secondsLeft <= 0) {
       clearInterval(gthCountdownTimer);
@@ -303,10 +316,31 @@ function gthShowShrinkIntro() {
   document.getElementById('gth-shrink-window-label').textContent =
     `You have ${label} to diagnose ${gthQueue.length} case${gthQueue.length !== 1 ? 's' : ''}.`;
 
-  // Host controls the gate; clients wait for GTH_PHASE2_BEGIN
-  const isHost = syllyMultiplayerMode === 'host';
+  // Host (or single-device) controls the gate; clients wait for GTH_PHASE2_BEGIN
+  const isHost = syllyMultiplayerMode !== 'client';
   document.getElementById('btn-gth-shrink-start').style.display = isHost ? '' : 'none';
   document.getElementById('gth-shrink-wait-msg').style.display  = isHost ? 'none' : '';
+
+  // 15-second auto-start for the host/single-device
+  if (gthShrinkIntroTimer) { clearInterval(gthShrinkIntroTimer); gthShrinkIntroTimer = null; }
+  const shrinkCountLabelEl = document.getElementById('gth-shrink-countdown-label');
+  if (isHost) {
+    let shrinkSecsLeft = 15;
+    const shrinkCountEl = document.getElementById('gth-shrink-countdown');
+    if (shrinkCountEl) shrinkCountEl.textContent = shrinkSecsLeft;
+    if (shrinkCountLabelEl) shrinkCountLabelEl.style.display = '';
+    gthShrinkIntroTimer = setInterval(() => {
+      shrinkSecsLeft--;
+      if (shrinkCountEl) shrinkCountEl.textContent = shrinkSecsLeft;
+      if (shrinkSecsLeft <= 0) {
+        clearInterval(gthShrinkIntroTimer);
+        gthShrinkIntroTimer = null;
+        document.getElementById('btn-gth-shrink-start').click();
+      }
+    }, 1000);
+  } else {
+    if (shrinkCountLabelEl) shrinkCountLabelEl.style.display = 'none';
+  }
 
   showScreen('screen-gth-shrink-intro');
 }
@@ -537,7 +571,8 @@ function gthStartPhase2Timer(endTimestamp) {
       gthPhase2Timer = null;
       playAlarm();
       gthSubmitDiagnosisBatch();
-      gthShowCaseReport();
+      // Only show case-report if scoring hasn't already resolved (all submitted before timer)
+      if (!gthPhase2Complete) gthShowCaseReport();
 
       // Host broadcasts phase end so all clients stop their timers and move to report
       if (syllyMultiplayerMode === 'host') {
@@ -621,6 +656,8 @@ function gthResolveScores() {
       correctShrinks,
     };
   });
+
+  gthPhase2Complete = true; // prevent case-report screen from overriding navigation
 
   // Broadcast to all clients (host already has everything)
   mpSendEnvelope({
@@ -866,9 +903,10 @@ function gthResetState() {
   gthQueueIdx           = 0;
   gthLocalDiagnoses     = [];
   gthPhase2EndTimestamp = 0;
-  if (gthPhase2Timer)    { clearInterval(gthPhase2Timer);    gthPhase2Timer    = null; }
-  if (gthCountdownTimer) { clearInterval(gthCountdownTimer); gthCountdownTimer = null; }
-  if (gthIntakeTimer)    { clearInterval(gthIntakeTimer);    gthIntakeTimer    = null; }
+  if (gthPhase2Timer)       { clearInterval(gthPhase2Timer);       gthPhase2Timer       = null; }
+  if (gthCountdownTimer)    { clearInterval(gthCountdownTimer);    gthCountdownTimer    = null; }
+  if (gthIntakeTimer)       { clearInterval(gthIntakeTimer);       gthIntakeTimer       = null; }
+  if (gthShrinkIntroTimer)  { clearInterval(gthShrinkIntroTimer);  gthShrinkIntroTimer  = null; }
   gthPhase2Complete     = false;
   gthDiagnosesSubmitted = false;
   gthDiagnosesReady     = [];
@@ -1150,6 +1188,10 @@ document.addEventListener('DOMContentLoaded', () => {
     playWhoosh();
     CanvasDraw.clear();
   });
+  document.getElementById('btn-gth-canvas-undo').addEventListener('click', () => {
+    playPillClick();
+    CanvasDraw.undo();
+  });
   document.getElementById('btn-gth-canvas-done').addEventListener('click', () => {
     gthFinishDrawing();
   });
@@ -1185,9 +1227,16 @@ document.addEventListener('DOMContentLoaded', () => {
     resetToLobby();
   });
 
+  // ── Big Reveal: exit button (mid-game quit → game menu) ───────────
+  document.getElementById('btn-gth-big-reveal-exit').addEventListener('click', () => {
+    playExit();
+    document.getElementById('gth-quit-overlay').style.display = 'flex';
+  });
+
   // ── Shrink intro (Phase E) ────────────────────────────────────────
   document.getElementById('btn-gth-shrink-start').addEventListener('click', () => {
-    if (syllyMultiplayerMode !== 'host') return; // clients have no button — safety guard
+    if (syllyMultiplayerMode === 'client') return; // clients have no button — safety guard
+    if (gthShrinkIntroTimer) { clearInterval(gthShrinkIntroTimer); gthShrinkIntroTimer = null; }
     playLaunch();
     const endTimestamp = Date.now() + gthDiagnosisWindow * 1000;
     mpSendEnvelope({

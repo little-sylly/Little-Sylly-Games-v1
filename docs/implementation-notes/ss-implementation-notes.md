@@ -29,6 +29,15 @@ When the non-encrypting team's device receives `SS_ENCRYPT_TURN` in TLM, two app
 **S7 — Word-by-word alternation for intel phase (Phase 27)**
 Original: all 4 keywords for Team Leader, then all 4 for Underdog. New: kw0 Team A → kw0 Team B → kw1 Team A → kw1 Team B → etc. Requires `ssIntelDone[team][kwIdx]` tracking matrix. `ssShowIntelSummary()` updated so leader's summary "next" button calls underdog's summary directly — not `ssShowInningTransition` (which would restart guessing).
 
+**S13 — Round 1 is a no-score warm-up for interceptions (June 2026, playtest)**
+What/why: a correct intercept in round 1 is pure luck — there's no prior clue history to read, so it shouldn't decide the game. `ssResolve()` now only awards a token when `interceptCorrect && ssRound > 0`. `ssRenderResolution()` mirrors this: a round-1 correct intercept shows a neutral "Correct — warm-up round, no points" badge and a dedicated hype line instead of "+1 Interception". Misfires still count in round 1 (they aren't luck-based). Clients render correctly because `ssRound` is set from `SS_ENCRYPT_TURN` and unchanged during resolution. `ssRound === 0` is round 1 (history stores `round: ssRound + 1`).
+
+**S14 — Vault Rotations: 3-pill → ON/OFF toggle, default OFF (June 2026, playtest)**
+The Once/Twice options added no real depth — the meaningful choice is "can broadcasters reroll at all". Collapsed to an ON/OFF toggle (`btn-ss-reroll-toggle`): OFF (`ssRerollLimitSetting = 0`, the new default) hides the reroll affordance entirely; ON (`Infinity`) gives unlimited rerolls. Reroll buttons are only rendered when ON, and the per-keyword count is shown for feedback (no "used/limit" since unlimited). **MP serialisation:** `Infinity` is not JSON-safe (`JSON.stringify` → `null`), so `mpSerialiseSettings` sends the string `'Infinity'` and the receiver restores it — this also fixes the pre-existing bug where the old "Unlimited" pill broke over the wire.
+
+**S15 — Settings label emoji convention (June 2026)**
+Removed the `⏱` prefix from "Broadcaster Timer". Established the rule (now in `ui-style.md` § Settings Card Standard): only the `✨ Sylly Mode` card carries an emoji on its label — every other setting title is plain text, so `✨` stays a clear marker for the advanced/last card.
+
 ---
 
 ## Bug Index

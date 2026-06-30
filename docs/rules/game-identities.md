@@ -38,11 +38,10 @@
 | Report Card (difficulty) | Gold Star ⭐ / Honour Roll 📚 | Honour Roll | `settingDifficulty` | `'easy'` (d1 only) / `'standard'` (d1+d2) |
 | Tick Tock Clock (timer) | 30s / 60s / 90s | 60s | `settingTimer` | int |
 | Roundy Rounds | 3 / 5 / 10 | 5 | `settingRounds` | int |
-| The No-No List! | 5 words / 10 words 🔥 | 5 | `settingTabooCount` | int |
 | Oopsie Daisy (penalty) | −1 Point / −N Secs | −1 Point | `settingPenaltyMode` | `'points'` / `'time'` — time penalty auto-scales with timer (30s→−5, 60s→−10, 90s→−20; `settingTimePenalty`) |
 | Skip | Free / Penalised | Free | `settingSkipFree` | bool (`true` = free) |
 | Pinky Swear Mode | OFF / ON | OFF | `settingCorrections` | bool — tap Report Card rows to flip outcomes |
-| ✨ Sylly Mode (Wild Words) | OFF / ON + Wild Level slider | OFF / 30% | `settingSylly` + `settingSyllyPct` | bool + int 30–100 step 10 — % chance per card of a difficulty-3 word (×2 points and penalties) |
+| ✨ Sylly Mode (Extra Credit) | OFF / ON + Extra Credit Level slider | OFF / 30% | `settingSylly` + `settingSyllyPct` | bool + int 30–100 step 10 — % chance per card of a difficulty-3 word (×2 points and penalties; always shows 10 No-No words) |
 
 ### Team Setup
 - **Screen 1 heading:** "Name your Playgroups!"
@@ -166,7 +165,7 @@
 - **Vault:** Each team's private set of 4 keywords
 - **The Transmitter / Encoder / Broadcaster:** The player sending the encrypted broadcast (rotates per round via `ssGetBroadcaster`)
 - **Broadcast:** The encrypted clue transmitted to interceptors
-- **Intercept:** Team B attempting to decode Team A's broadcast
+- **Intercept:** Team B attempting to decode Team A's broadcast. **Round 1 is a no-score warm-up** — a correct intercept in round 1 (`ssRound === 0`) does not award a token (no clue history yet → pure luck); tokens only count from round 2. Misfires still count in round 1. (`ssResolve`: `interceptCorrect && ssRound > 0`.)
 - **Intel Phase / Intelligence Reveal:** Sylly Mode Phase 2 — final guessing round
 - **Intelligence Archive:** Per-team clue-history table shown on broadcast/intercept/decode screens
 - **Clue Dossier 📖:** Slide-up overlay showing the encrypting team's own transmission history; also the per-keyword clue chips on the Intel guess screen
@@ -178,15 +177,15 @@
 - **Play-again overlay:** 🕵️ "New Mission?" / confirm "Start New Mission 📡" (single) — dynamic MP labels
 
 ### Settings
-(Reality-synced June 2026 audit — display names + internals from `index.html` / `secret-signals.js`. Note: the SS settings overlay is legacy format — bare divs with `<hr>` separators and a centred title, predating the Settings Card Standard.)
+(Reality-synced June 2026 audit — display names + internals from `index.html` / `secret-signals.js`. The SS settings overlay uses the modern Settings Card Standard — white cards + left-aligned title block. *[Corrected June 2026: an earlier note claimed legacy bare-div/`<hr>` format; the markup is actually modern cards.]*)
 
 | Setting (display) | Options | Default | Internal variable | Internal values |
 |------------------|---------|---------|------------------|-----------------|
 | Designate Vault Contents (Customise Vault) | OFF / ON + 16-category pill grid | OFF | `ssCustomiseVault` + `ssSelectedCategories` | bool + array of category strings (OFF = curated 10-cat pool `SS_CURATED_CATS`) |
 | Encryption Protocol (difficulty) | Clear / Scrambled / Deep Space | Clear | `ssDifficultyLevel` | `1` / `2` / `3` (single tier — not cumulative) |
 | Interceptions Required | 2 / 3 | 2 | `ssSettingInterceptsToWin` | int |
-| Vault Rotations (reroll limit) | Once / Twice / Unlimited | Once | `ssRerollLimitSetting` | `1` / `2` / `Infinity` |
-| ⏱ Broadcaster Timer | OFF / ON + 1 / 2 / 3 min | OFF (60s on first enable) | `ssTimerSetting` | `0` (off) / `60` / `120` / `180` seconds |
+| Vault Rotations | OFF / ON | OFF | `ssRerollLimitSetting` | `0` (off) / `Infinity` (on = unlimited rerolls). MP: serialised as string `'Infinity'` (JSON-safe). |
+| Broadcaster Timer | OFF / ON + 1 / 2 / 3 min | OFF (60s on first enable) | `ssTimerSetting` | `0` (off) / `60` / `120` / `180` seconds |
 | ✨ Sylly Mode (Intel Phase) | OFF / ON | OFF | `ssIntelSyllyMode` | bool |
 
 ### Key State Variables (ss prefix)
@@ -832,7 +831,7 @@ LOBBY (MDLM only) → GTH MENU → GTH PATIENT INTAKE (screen-gth-patient-intake
 | Setting | Options | Default | Internal value |
 |---------|---------|---------|----------------|
 | Reportable Symptoms (disorders per patient) | 3 / 4 / 5 | 3 | `gthDisordersPerPatient` int |
-| Expression Window (drawing time) | 20s / 30s / 45s | 30s | `gthDrawingTime` int |
+| Expression Window (drawing time) | 30s / 60s / No Limit | 60s | `gthDrawingTime` int — `0` = No Limit (no auto-submit, shows ∞) |
 | Diagnosis Window | 60s / 90s / 120s | 90s | `gthDiagnosisWindow` int |
 | Symptom Severity (difficulty mix) | Episodic / Recurrent / Refractory | Recurrent | `gthDifficultyMix` `'episodic'` / `'recurrent'` / `'refractory'` |
 | Psychiatric Evaluation (Deep Dive) | OFF / ON | OFF | `gthDeepDive` bool |
@@ -1216,6 +1215,7 @@ LOBBY (MDLM only) → PASS MENU
 | Jokers | None / 2 / 4 | 2 | `passJokerCount` | int |
 | Mid-Game Draw | OFF / ON | OFF | `passMidGameDraw` | bool |
 | Sky Joker | OFF / ON | OFF | `passSkyJokerVariant` | bool |
+| Open Climbing Mode | OFF / ON | OFF | `passOpenClimbing` | bool |
 | ✨ Sylly Mode (The Abyss) | OFF / ON | OFF | `passSyllyMode` | bool |
 
 ### Scoring
@@ -1233,13 +1233,15 @@ LOBBY (MDLM only) → PASS MENU
 - Single Joker: only playable as your very last card on an open table (Sky Joker OFF); or freely as solo/combination (Sky Joker ON)
 - Double Joker: absolute max Bomb — nothing beats it
 
-**Climb rule:** Every valid play must be exactly one rank higher than `passTableCombo.rank` (except 2s and Jokers as described above; Bombs override this entirely).
+**Climb rule:** Every valid play must be exactly one rank higher than `passTableCombo.rank` (except 2s and Jokers as described above; Bombs override this entirely). **Open Climbing Mode** (`passOpenClimbing`, default OFF) relaxes this to *any strictly-higher* rank of the same combo type — the same-type and sequence-length checks still apply; Bombs, 2s and Sky Joker are unaffected (resolved before the climb gate).
 
 **Two-Natural-Card Anchor:** Sequences and Double Sequences with Jokers require at least 2 natural (non-Joker) cards. A combo of 1 natural + 3 Jokers is invalid.
 
 **Full-circuit pass:** If all players pass without anyone playing, the table clears (`passTableCombo = null`); the last player to lead plays again on an open table.
 
 **Seat order:** Join order = seat order. Host = seat 1. No shuffle. Deliberate design: no hidden roles, so join order is fair and predictable.
+
+**Starting the match (round 1 only):** The holder of the single lowest card leads round 1 — the **3♦** (lowest rank; ties break by suit ♦<♣<♥<♠, so 3♦ is the absolute lowest). The leader's opening combo **must contain that card** (`passMandatoryCard`, set in `passFindLeader()`, broadcast in `PASS_GAME_START`, enforced in `passSubmitPlay` + the host `PASS_PLAY_SUBMIT` handler; auto-clears once `passHasPlayedCard` shows anyone has played). The suit ranking is for the starting-player tie-break ONLY — never in play comparison. Rounds 2+: the previous round's winner leads with anything (`passMandatoryCard = null`).
 
 **Sylly Mode — The Abyss:** *(RESOLVED June 2026 — detonation gated on combo class: only a **Detonation Combo** detonates. See `pass-implementation-notes.md` BUG-01.)*
 - Every Pass feeds one card from the draw deck face-up into `passAbyss[]`
@@ -1316,7 +1318,7 @@ LOBBY (MDLM only) → NT MENU
 | Setting (display) | Options | Default | Internal variable | Internal values |
 |------------------|---------|---------|------------------|-----------------|
 | Routing Cycles | 3 / 5 | 3 | `ntCycles` | int |
-| Hardening Window | 30s / 60s / 90s | 60s | `ntHardeningWin` | int |
+| Hardening Window | 45s / 60s / 90s / No Limit | 90s | `ntHardeningWin` | int — `0` = no limit (shows ∞, no auto-commit) |
 | Component Density | Minimal / Standard / Heavy | Standard | `ntComponentDensity` | `'minimal'` / `'standard'` / `'heavy'` |
 | ✨ Sylly Mode (Devil's Network Protocol) | OFF / ON | OFF | `ntSyllyMode` | bool |
 
@@ -1539,7 +1541,7 @@ Banana `#FFC700` has no Tailwind utility class. Three custom CSS classes added t
 **Tagline:** "Stay awake. Pass the herd."
 **Key file:** `js/games/shp.js`
 **Brand colour:** Moonlit indigo (`indigo-600` primary / `indigo-700` hover — native Tailwind) | **Active pill:** `pill-active-indigo` | **Toggle ON:** `game-toggle-on-indigo` | **Range:** `shp-range`
-**Data:** fixed `SHP_CARDS` (14 types incl. id 13 Fogged Dream phantom) + `SHP_DECK_COUNTS` (62-card deck) + `SHP_NIGHTMARES` (5, weighted) — no `words.json`; exempt from the word-difficulty setting (Hand Size is the velocity dial).
+**Data:** fixed `SHP_CARDS` (17 types incl. id 13 Fogged Dream phantom; ids 14/15/16 = Counting-Backwards −1/−2/−5) + `SHP_DECK_COUNTS` (73-card deck, ≈66% pasture) + `SHP_NIGHTMARES` (5, weighted) — no `words.json`; exempt from the word-difficulty setting (Hand Size is the velocity dial).
 **State flow:**
 ```
 LOBBY (MDLM only) → SHP MENU → [onPassThePhone: host deals]
@@ -1564,7 +1566,7 @@ Sylly Mode (Night Terrors) adds an oscillating **Climb ⇄ Plunge** mode *within
 
 ### Card families (`SHP_CARDS`)
 - **Pasture** (`add`): +1/+2/+5/+10 (doubled while Herd < 50 if Dream Acceleration; +`shpEcho` under Global Echo). *Charges the meter.*
-- **Pillow:** Doze (skip), Toss & Turn (reverse), Counting Backwards (−10 floored 0), Lullaby (set 20, 1-of).
+- **Pillow:** Doze (skip), Toss & Turn (reverse), Counting Backwards −1/−2/−5/−10 (`subtract`, floored 0; faces show "−N", inspect modal names them "Counting Backwards −N"), Lullaby (set 20, 1-of).
 - **Alarm:** Skip a Few (random +2..+12 gamble), Black Sheep (set 99), Wide Awake (next turn → leader), Heavy Eyelids (next player plays two).
 - **Trap:** Big Bad Wolf — consumed on draw, shrinks the cap by 1 (restored on redeal).
 - **Phantom (id 13):** Fogged Dream — conjured by the Fog nightmare; hidden random +2..+12, cursed render; dissolves on play/redeal.
@@ -1584,7 +1586,7 @@ No points — survival is the score. Deep Sleep costs a Moon; 0 Moons → Sleepw
 ### Special Mechanics
 - **Legality:** no card keeping Herd ≤ `shpCeiling` (or no safe two-card combo under Heavy Eyelids) → auto Deep Sleep on turn entry. Random-adds are always tappable gambles.
 - **Ghost system:** Pasture-triggered meter (only once a Sleepwalker exists) → next Sleepwalker (rotation) flips one of 3 weighted face-down nightmares; the table gates on the pick; the effect fires at the turn-gate. Five: Cold Feet (±1..4), Restless Leg (reverse/skip), **Fog** (rare cursed-card swap), Sleep Paralysis (forced two-card), Global Echo (+2 Pasture until next disruption).
-- **Night Terrors (Plunge):** Herd ≥ 99 in Climb → Plunge with **overflow runway** (`shpCeiling = shpHerd`); arithmetic sign-flips; ceiling falls `shpDrop` (7)/turn after a one-cycle grace. Bust → Deep Sleep + revert to Climb; Herd 0 → mercy exit (no Moon). Crimson re-skin + inverted faces.
+- **Night Terrors (Plunge):** Herd ≥ 99 in Climb → Plunge with **overflow runway** (`shpCeiling = shpHerd`); arithmetic sign-flips. After a one-cycle grace the ceiling falls by a **round-based escalating drop** (`SHP_DROP_BASE` 2 + `SHP_DROP_STEP` 2 per full round of turns — locked per round so every player faces the same hazard; `shpCurrentDrop` synced for display). Bust → Deep Sleep + revert to Climb; Herd 0 → mercy exit (no Moon). Crimson re-skin + inverted faces; header reads "The Dream is Collapsing 🔻".
 
 ### Overlay Types
 | Overlay | Pattern | z-index |
@@ -1606,3 +1608,142 @@ No points — survival is the score. Deep Sleep costs a Moon; 0 Moons → Sleepw
 - **Mid-game quit (PASS contract):** client quit → `SHP_PLAYER_LEFT` ACTION → host broadcasts `SHP_MATCH_DISSOLVED` → all `resetToLobby()`; host quit → `resetToLobby()` (broadcasts `HOST_END_GAME`). One leaver dissolves the match.
 - **Key ACTION packets:** `SHP_PLAY`, `SHP_DISRUPT`, `SHP_PLAYER_LEFT`.
 - **Key SYNC packets:** `SHP_DEAL`, `SHP_TURN_RESULT` (carries phase/ceiling/grace), `SHP_DEEP_SLEEP`, `SHP_GHOST_READY`, `SHP_DISRUPT_RESOLVED`, `SHP_GAMEOVER`, `SHP_MATCH_DISSOLVED`.
+
+---
+
+## Game 16: Flawless (FLW)
+**Theme:** Competitive gem-trading bluffing game. Players pass face-down Showpieces and declare a gem identity — the receiver must decide whether to accept or challenge. Hidden hands, deceptive declarations, and the Diamond Ledger.
+**Tagline:** "Every gem has a secret. So does every player." 💎
+**Key file:** `js/games/flw.js`
+**Brand colour:** `#E879A8` (rose-pink — custom; hover `#CF5A8D`) + `#C9A227` (Exhibition gold for step/section labels) | **Active pill:** `pill-active-flw` | **Toggle ON:** `game-toggle-on-flw`
+**State flow:**
+```
+LOBBY (MDLM only) → FLW MENU → [onPassThePhone: host deals first Showing]
+→ [Session loop (Showings until diamonds-to-win reached):
+    FLW TABLE (serving → await-response → reveal → under-glass, all within screen-flw-table)
+    → FLW SHOWING RESULT (Diamonds awarded, Ledger reset)
+    → repeat or GAMEOVER
+  ]
+→ FLW GAMEOVER (The Vault)
+```
+
+### Terminology
+| Term | Meaning |
+|------|---------|
+| Showpiece | A gem card in a player's private hand |
+| The Stash | A player's hidden hand of Showpiece gem cards |
+| The Appraisal | Receiving a Showpiece — accepting or challenging the declaration |
+| The Declaration | The gem identity stated by the server (may be false) |
+| Bluff | Declaring a gem identity that is not the true gem |
+| Call the Bluff | Challenge the declaration — triggers The Reveal |
+| Accept | Believe the declaration and add the gem to The Ledger tally |
+| The Ledger | The per-Showing running tally of declared gem identities; winners of each gem category earn Diamonds |
+| Diamond | Score currency; first to `flwDiamondsToWin` wins the session |
+| Showing | One full round: all players pass until a player runs out of Showpieces or a win condition triggers |
+| The Vault | Gameover screen — "The Vault" heading |
+| Under Glass | The state when a player's most-recent play is being audited (Sylly Mode) |
+| Start the Exhibition | Menu Play CTA label |
+| The Exhibition Brief 💎 | Settings overlay title |
+| Another Showing? | Play-again overlay heading |
+| Pack up the Exhibition? | Quit overlay heading |
+
+### The 10 Gems (`FLW_GEMS`)
+| ID | Name | Emoji | Scope | Effect on play / reveal |
+|----|------|-------|-------|------------------------|
+| 0 | Diamond | 💎 | Declaration target | No effect — counts toward Ledger |
+| 1 | Ruby | ❤️‍🔥 | Scope 1–7 | Server gains 1 Ledger point if bluff succeeds |
+| 2 | Sapphire | 💙 | Scope 1–7 | Receiver draw +1 card from deck if they Accept |
+| 3 | Emerald | 💚 | Scope 1–7 | Receiver offered choice to trade into server's remaining hand |
+| 4 | Amethyst | 💜 | Scope 1–7 | Challenger loses 1 Ledger point if wrong call |
+| 5 | Topaz | 💛 | Scope 1–7 | Server draws +1 from deck if correctly accepted |
+| 6 | Obsidian | 🖤 | Scope 1–7 | Correct challenger does NOT gain Ledger point (silent effect) |
+| 7 | Opal | 🤍 | Scope 1–7 | Declared gem changes to the previous Showpiece's declared ID; server picks True or False |
+| 8 | Pearl | 🩵 | Special | Server may Peek at receiver's top card before declaring |
+| 9 | Onyx | 🩶 | Special | All players pass 1 Showpiece simultaneously; no challenge possible |
+
+### Settings
+| Setting (display) | Options | Default | Internal variable | Internal values |
+|------------------|---------|---------|------------------|-----------------|
+| The Ledger | OFF / ON | ON | `flwLedger` | bool |
+| Diamonds to Win | Auto / 3 / 5 / 7 | Auto | `flwDiamondsToWin` | `'auto'` (player-count-scaled) / `3` / `5` / `7` |
+| Smoke & Mirrors | 1 / 3 / 5 | 1 | `flwSmokeMirrors` | int — gems burned face-down from deck per Showing |
+| Appraisal Clock | Off / 30s / 60s | Off | `flwAppraisalClock` | `0` / `30` / `60` |
+| ✨ Sylly Mode (The Counterfeit Run) | OFF / ON | OFF | `flwSyllyMode` | bool |
+
+### Special Mechanics
+
+**The Ledger (Diamond Scoring):**
+- Tracks declared gem IDs across the Showing (not real IDs — uses claimed identity until audited)
+- At Showing end: player with the most accepted declarations for each gem category earns 1 Diamond
+- `flwLedger = false` disables the tracker display but scoring still applies
+
+**Gem Effects:**
+- **Emerald (3):** Server privately offers the receiver the Emerald via `FLW_EMERALD_OFFER` private packet; receiver gets `flw-emerald-overlay` to Accept or Block. If accepted, receiver swaps their top-Stash card for the Emerald (server loses 1 card, receiver gains 1).
+- **Pearl (8):** When served, host sends `FLW_PEEK` private packet to the receiver showing the card's real ID. Receiver sees `flw-peek-overlay` (tap-and-hold reveals). Not a challenge trigger.
+- **Onyx (9):** Simultaneous pass — host triggers a group rotation (each player passes their top-Stash card to the next player clockwise). No challenge is possible for this card. Host resolves and broadcasts `FLW_RESOLVE` with `onyx: true`.
+
+**Asset-pack render seam:**
+All gem card DOM is created by `flwRenderCard(gemId, opts)`. Game logic and packets use `gemId` (0–9). A future skin pack changes only this function.
+
+**`flwNorm2D(raw, n)` (Firebase empty-array guard):**
+Firebase strips trailing empty arrays from 2D structures. Same pattern as FRT/SHP/GTH — applied to every received `hands`/`stashes` 2D array.
+
+### The Counterfeit Run (Sylly Mode)
+
+**Per Showing:** 1 Counterfeit token + 2 Audit charges reset at each `FLW_SHOWING_START`.
+
+**Counterfeit token (1 use):**
+- Active player may forge a fake gem instead of serving a genuine one
+- Counterfeit scope: gems 1–7 only (mimic any regular gem)
+- The real card is NOT removed from the hand; a "counterfeit" ghost is passed with `realId` hidden
+- The Ledger records the event under `claimedId` until audited, then scrubs to `realId`
+- The `FLW_LEAK` private packet is NOT sent for Counterfeit plays (no Showpiece leak)
+- `flwCfToken` tracks remaining uses; shown as a forge button when > 0
+
+**Audit charges (2 per Showing):**
+- Any player may audit another player's most-recent play (the `Under Glass` mechanic)
+- Only the most-recent play of any target player is auditable (`flwTopPlay[targetIdx]`)
+- `FLW_AUDIT` ACTION → host sets `flwUnderGlass = targetIdx` + deducts 1 charge + broadcasts `FLW_AUDIT_RESULT`
+- On audit: host broadcasts `FLW_AUDIT_RESULT` with the real gem ID; if counterfeit, Ledger scrubbed + `claimedId → realId`
+- `flwUnderGlass` is cleared at the start of each new turn (`flwBeginTurn()`) and broadcast in `FLW_TURN_START.underGlass`
+
+**Single-Showpiece Leak:**
+- Only the active server's own Showpiece can be Counterfeit-played (players cannot forge on behalf of others)
+- If Sylly Mode: after each genuine serve, the server's remaining top-Stash card is leaked to one randomly chosen non-active player via `FLW_LEAK` private packet
+
+### Overlay Types
+| Overlay | Pattern | z-index | Notes |
+|---------|---------|---------|-------|
+| `flw-settings-overlay` | Data (slide-up) | z-[80] | "The Exhibition Brief 💎" |
+| `flw-how-to-overlay` | Data (slide-up) | z-[90] | How to Play |
+| `flw-target-overlay` | Decision modal | z-[90] | Choose pass target |
+| `flw-scratch-overlay` | Decision modal | z-[90] | Gem identity declaration selector |
+| `flw-peek-overlay` | Decision modal | z-[100] | Peek result (tap-and-hold) — Pearl gem effect |
+| `flw-appraisal-overlay` | Decision modal | z-[90] | Appraisal Clock ≤5s warning |
+| `flw-emerald-overlay` | Data (slide-up) | z-[100] | Emerald gem offer — Accept or Block |
+| `flw-quit-overlay` | Decision modal | z-[80] | "Pack up the Exhibition?" |
+| `flw-new-showing-overlay` | Decision modal | z-[90] | "Another Showing?" play-again confirm |
+| `flw-cf-overlay` | Decision modal | z-[90] | "Forge a Gem" — Counterfeit Run picker (gems 1–7); Sylly Mode only |
+
+### Screens
+| Screen ID | Purpose |
+|-----------|---------|
+| `screen-flw-menu` | Main hub |
+| `screen-flw-table` | Main play — all sub-states (serving / await / reveal / under-glass) |
+| `screen-flw-showing-result` | Per-Showing Diamond summary + Ledger final tally |
+| `screen-flw-gameover` | Final session scores + winner ("The Vault") |
+
+**No `screen-flw-setup`** — names come from the lobby roster. No pass-gate — MDLM, each player on their own device.
+
+### Multiplayer (Phase 36)
+- **Mode:** MDLM only — `multiplayerOnly: true`, `supportedModes: ['mdlm']`, `recommendedMode: 'mdlm'`
+- **Min players:** 3 | **Max players:** 4
+- **rosterConfig:** `{ type: 'none' }` — automatic seat assignment (join order)
+- **Shared screens:** `screen-mp-mode`, `screen-mp-lobby-host`, `screen-mp-lobby-join` (parameterised)
+- **Post-lobby routing:** `onPassThePhone` (host) → `flwStartSession()` directly (deals + distributes via private channel); clients wait for `FLW_HAND` private packet
+- **True Network Privacy — private channel:** `mpSendPrivate(targetUid, envelope)` writes to `rooms/{code}/private/{uid}`; `mpStartPrivateListener()` uses `onChildAdded` on each device's own private queue, ts-filtered + self-origin-filtered. The public `/events` channel NEVER carries hand data. This is the suite's first genuinely private multiplayer model (vs couch security / broadcast-and-render-own-only in NAT/FRT/BLD/SHP).
+- **Host-as-participant:** host taps run `flwHostProcessServe` / `flwHostResolveChallenge` / `flwHostAudit` directly — never via self-sent ACTION (dedup guard drops `originId === syllyDeviceUid`).
+- **Mid-game quit (PASS contract):** client quit → `FLW_PLAYER_LEFT` ACTION → host broadcasts `FLW_MATCH_DISSOLVED` → all `resetToLobby()`; host quit → `resetToLobby()` (broadcasts `HOST_END_GAME`). One leaver dissolves the match.
+- **Key ACTION packets (public channel):** `FLW_PLAY` (client server → host: `fromIdx, toIdx, declaration, handIdx`), `FLW_AUDIT` (client auditor → host: `auditorIdx, targetIdx`), `FLW_EMERALD_RESOLVE` (client receiver → host: `{accept}`), `FLW_PLAYER_LEFT` (client quit)
+- **Key SYNC packets (public channel):** `FLW_SHOWING_START` (full session config for new Showing), `FLW_TURN_START` (`fromIdx, toIdx, declaration, topClaims, underGlass, turnEndTs`), `FLW_RESOLVE` (challenge result + Ledger update), `FLW_AUDIT_RESULT` (audit outcome), `FLW_SHOWING_END` (Diamonds awarded + session scores), `FLW_GAMEOVER` (winner + final scores), `FLW_MATCH_DISSOLVED`
+- **Key private-channel packets (per-device):** `FLW_HAND` (this device's Showpiece hand), `FLW_DRAW` (single drawn card), `FLW_PEEK` (Pearl peek result — true gem ID), `FLW_LEAK` (Sylly Showpiece leak — one opponent gem revealed), `FLW_EMERALD_OFFER` (Emerald trade offer to receiver)

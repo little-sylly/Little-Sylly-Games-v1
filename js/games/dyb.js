@@ -321,6 +321,11 @@ function dybInitSettingsListeners() {
     });
   }
 
+  // Tempest guide tip
+  document.getElementById('btn-dyb-settings-tempest-tip').addEventListener('click', () => {
+    dybShowTempestGuide();
+  });
+
   // Close settings
   document.getElementById('btn-dyb-settings-close').addEventListener('click', () => {
     playDone();

@@ -14,6 +14,7 @@ let passChipStack         = 100;         // 50 | 100 | 150
 let passMatchDuration     = '5';         // '5' | '10' | 'endless'
 let passBombStrictness    = 'standard';  // 'standard' | 'heavy'
 let passMidGameDraw       = false;
+let passOpenClimbing      = false;       // relax exact +1 climb -> any higher of same type
 let passMinSequenceLength = 3;           // 3 | 4 | 5
 let passJokerCount        = 2;           // 0 | 2 | 4
 let passSkyJokerVariant   = false;
@@ -45,6 +46,7 @@ let passAbyss          = [];    // Sylly Mode: face-up central pool
 let passRoundWinnerIdx = -1;
 let passConsecPasses   = 0;     // consecutive passes since last valid play — table-clear trigger only
 let passTableCards     = [];    // the card objects currently on the table — for arena display only
+let passMandatoryCard  = null;  // round-1 opening lead must contain this card (lowest, e.g. 3♦); null otherwise
 let passDeckIdx        = 0;     // 0 = Deck 1 (charcoal grey), 1 = Deck 2 (crimson red)
 
 // ── Turn state (reset each turn) ─────────────────────────────────────────────
@@ -64,6 +66,9 @@ const PASS_RANK_VALUES = {
 };
 const PASS_SUITS = ['♠','♥','♦','♣'];
 const PASS_RANKS = ['3','4','5','6','7','8','9','10','J','Q','K','A','2'];
+// Suit order for the round-1 starting-player tie-break ONLY (never used in play comparison):
+// ♦ lowest → ♣ → ♥ → ♠ highest, so 3♦ is the absolute lowest card.
+const PASS_LEAD_SUIT_ORDER = { '♦': 0, '♣': 1, '♥': 2, '♠': 3 };
 
 function passCardSortKey(card) {
   if (card.rank === 'Joker') return passSkyJokerVariant ? 16 : 14;
@@ -329,6 +334,14 @@ function passIsValidPlay(combo, hand) {
   // Sky Joker single (rank 16) beats any single
   if (passSkyJokerVariant && combo.type === 'Single' && combo.rank === 16) return { valid: true };
 
+  // Open Climbing Mode: any strictly-higher rank of the same type beats the table
+  if (passOpenClimbing) {
+    if (combo.rank <= passTableCombo.rank) {
+      return { valid: false, msg: "Must be a higher rank." };
+    }
+    return { valid: true };
+  }
+
   // Standard: must be exactly +1
   if (combo.rank !== passTableCombo.rank + 1) {
     return { valid: false, msg: "Must be one rank higher." };
@@ -388,6 +401,7 @@ function passStartRound() {
   passAbyss          = [];
   passRoundWinnerIdx = -1;
   passConsecPasses   = 0;
+  passMandatoryCard  = null;
 
   // Deal hands
   for (let i = 0; i < passHandSize; i++) {
@@ -420,21 +434,24 @@ function passStartRound() {
       handSize:    passHandSize,
       roundNum:    passMatchRound,
       firstPlayer: passCurrentPlayerIdx,
+      mandatoryCard: passMandatoryCard,
     }});
   }
   passShowTable();
 }
 
-// Determine leader for round 1: 3♠ holder leads if dealt; else lowest rank (tie → lowest seat)
+// Determine the round-1 leader: the holder of the single lowest card (3♦ is the absolute
+// lowest — lowest rank, ties broken by suit ♦<♣<♥<♠). That card becomes the mandatory
+// opening card: the leader's first combo must contain it. Jokers are never the mandatory
+// card. The suit ranking is used HERE ONLY — it never affects play comparison.
 function passFindLeader() {
-  for (let p = 0; p < passPlayerCount; p++) {
-    if (passHands[p].some(c => c.rank === '3' && c.suit === '♠')) return p;
-  }
-  let lowestRank = 999, leader = 0;
+  let bestKey = Infinity, leader = 0;
+  passMandatoryCard = null;
   for (let p = 0; p < passPlayerCount; p++) {
     for (const c of passHands[p]) {
-      const v = PASS_RANK_VALUES[c.rank] || 99;
-      if (v < lowestRank) { lowestRank = v; leader = p; }
+      if (c.rank === 'Joker') continue;
+      const key = (PASS_RANK_VALUES[c.rank] || 99) * 10 + (PASS_LEAD_SUIT_ORDER[c.suit] ?? 9);
+      if (key < bestKey) { bestKey = key; leader = p; passMandatoryCard = c; }
     }
   }
   return leader;
@@ -565,8 +582,8 @@ function passRenderArena() {
   leaderEl.textContent = passTableLeaderIdx >= 0
     ? (passPlayerNames[passTableLeaderIdx] || '') : '';
 
-  // Sort cards ascending by rank for a readable left-to-right display
-  const sorted = passTableCards.slice().sort((a, b) => passCardSortKey(a) - passCardSortKey(b));
+  // Render in the player's selection (tap) order — a Joker keeps the slot it was played in
+  const sorted = passTableCards;
   const n = sorted.length;
 
   // Overlap increases with hand size so corner indices always stay visible
@@ -783,6 +800,19 @@ function passSubmitPlay() {
     return;
   }
 
+  // Round-1 opening lead must include the mandatory lowest card (e.g. 3♦). passMandatoryCard
+  // is cleared the moment the opening play lands (locally + via SYNC), so this gates ONLY the
+  // round-1 leader — never the players after them (their device no longer has it set).
+  if (passMandatoryCard) {
+    const hasIt = selectedCards.some(c =>
+      c.rank === passMandatoryCard.rank && c.suit === passMandatoryCard.suit && c.deckIdx === passMandatoryCard.deckIdx);
+    if (!hasIt) {
+      passShakeButton('btn-pass-play');
+      passShowError(`Your opening play must include ${passMandatoryCard.rank}${passMandatoryCard.suit}.`);
+      return;
+    }
+  }
+
   playSuccess();
 
   if (window.syllyMultiplayerMode !== 'single') {
@@ -849,14 +879,17 @@ function passIsDetonationCombo(combo) {
 
 function passProcessPlay(playerIdx, cardIndices, combo) {
   const hand = passHands[playerIdx];
-  // Capture the played cards BEFORE removing from hand — needed for arena display
-  passTableCards = cardIndices.slice().sort((a, b) => a - b).map(i => hand[i]);
-  // Remove played cards (sort descending to preserve indices)
-  cardIndices.sort((a, b) => b - a).forEach(i => hand.splice(i, 1));
+  // Capture the played cards BEFORE removing from hand, in the player's SELECTION (tap)
+  // order so a Joker keeps the slot the player chose for it (e.g. 7→Joker→9 reads 7-8-9).
+  // Display honours this order; combo validity is order-independent.
+  passTableCards = cardIndices.map(i => hand[i]);
+  // Remove played cards from a descending-sorted copy so indices stay valid during splice
+  [...cardIndices].sort((a, b) => b - a).forEach(i => hand.splice(i, 1));
 
   passTableCombo     = combo;
   passTableLeaderIdx = playerIdx;
   passHasPlayedCard[playerIdx] = true;
+  passMandatoryCard  = null;   // opening lead satisfied — clear so later players aren't gated
   passConsecPasses   = 0;
   passPassCount[playerIdx] = 0;
   passRecordPlay(playerIdx, combo, passTableCards.slice());
@@ -1186,21 +1219,29 @@ function passCheckMatchOver() {
 // ── Round wrap screen ─────────────────────────────────────────────────────────
 
 function passShowRoundWrap(winnerIdx, chipDeltas, badges, matchOver) {
+  passPhase = 'round-over'; // gate stray PASS_TURN_RESULT packets from re-showing the table
   const container = document.getElementById('pass-round-wrap-scores');
   container.innerHTML = '';
   for (let p = 0; p < passPlayerCount; p++) {
-    const isWinner = p === winnerIdx;
     const delta    = chipDeltas[p];
     const el       = document.createElement('div');
-    el.className   = 'bg-white rounded-2xl px-4 py-3 shadow-sm flex items-center justify-between';
+    el.className   = 'bg-white rounded-2xl px-4 py-3 shadow-sm flex items-center justify-between gap-3';
+    // Gains green, losses red, no change neutral — applies to the winner too (always a gain)
+    const deltaColour = delta > 0 ? 'text-green-600' : (delta < 0 ? 'text-red-500' : 'text-stone-400');
     el.innerHTML   = `
-      <div>
-        <p class="font-semibold text-stone-800">${passPlayerNames[p] || 'Player ' + (p + 1)}</p>
+      <div class="min-w-0 flex-1">
+        <p class="font-semibold text-stone-800 truncate">${passPlayerNames[p] || 'Player ' + (p + 1)}</p>
         ${badges[p] ? `<p class="text-xs text-stone-400">${badges[p]}</p>` : ''}
       </div>
-      <div class="text-right">
-        <p class="font-bold ${isWinner ? 'text-zinc-900' : (delta < 0 ? 'text-red-500' : 'text-stone-400')}">${delta >= 0 ? '+' : ''}${delta}</p>
-        <p class="text-xs text-stone-500">${passChips[p]} chips</p>
+      <div class="flex items-stretch gap-5 flex-shrink-0 text-right">
+        <div>
+          <p class="text-[0.6rem] uppercase tracking-wider text-stone-400 font-semibold">Change</p>
+          <p class="font-bold ${deltaColour}">${delta >= 0 ? '+' : ''}${delta}</p>
+        </div>
+        <div>
+          <p class="text-[0.6rem] uppercase tracking-wider text-stone-400 font-semibold">Chips</p>
+          <p class="font-bold text-stone-700">${passChips[p]}</p>
+        </div>
       </div>
     `;
     container.appendChild(el);
@@ -1233,6 +1274,7 @@ function passShowRoundWrap(winnerIdx, chipDeltas, badges, matchOver) {
 // ── Gameover ──────────────────────────────────────────────────────────────────
 
 function passShowGameover(winnerIdx, finalChips, roundsWon) {
+  passPhase = 'round-over'; // gate stray PASS_TURN_RESULT packets from re-showing the table
   // Use stored state if not provided
   if (winnerIdx === undefined) {
     winnerIdx  = passChips.indexOf(Math.max(...passChips));
@@ -1284,6 +1326,7 @@ function passHandleEnvelope(env) {
     passMatchDuration     = s.passMatchDuration     ?? passMatchDuration;
     passBombStrictness    = s.passBombStrictness    ?? passBombStrictness;
     passMidGameDraw       = s.passMidGameDraw       ?? passMidGameDraw;
+    passOpenClimbing      = s.passOpenClimbing      ?? passOpenClimbing;
     passMinSequenceLength = s.passMinSequenceLength ?? passMinSequenceLength;
     passJokerCount        = s.passJokerCount        ?? passJokerCount;
     passSkyJokerVariant   = s.passSkyJokerVariant   ?? passSkyJokerVariant;
@@ -1303,6 +1346,12 @@ function passHandleEnvelope(env) {
       if (!check.valid) {
         // Invalid play from client — ignore (shouldn't happen with correct client validation)
         return;
+      }
+      // Authoritative round-1 opening-lead check (mirrors passSubmitPlay)
+      if (passMandatoryCard) {
+        const hasIt = cards.some(c =>
+          c.rank === passMandatoryCard.rank && c.suit === passMandatoryCard.suit && c.deckIdx === passMandatoryCard.deckIdx);
+        if (!hasIt) return;
       }
       passProcessPlay(payload.playerIdx, payload.cardIndices, combo);
       return;
@@ -1334,6 +1383,7 @@ function passHandleEnvelope(env) {
       passPlayerCount      = passPlayerNames.length;
       passMatchRound       = payload.roundNum || 1;
       passCurrentPlayerIdx = payload.firstPlayer || 0;
+      passMandatoryCard    = payload.mandatoryCard || null;
       passChips            = payload.chips.map(c => c);
       // Only zero the cumulative tally at a true match start (round 1). Rounds 2+
       // re-broadcast PASS_GAME_START but must preserve the running rounds-won count,
@@ -1359,6 +1409,11 @@ function passHandleEnvelope(env) {
     }
 
     if (payload.action === 'PASS_TURN_RESULT') {
+      // Once the round has ended, ignore late / re-delivered turn packets — applying one
+      // would call passShowTable() and yank the client back to the play screen while the
+      // host (which navigates locally) stays on the round-wrap. (Firebase can re-deliver
+      // buffered events.) The next round re-enables play via PASS_GAME_START → passShowTable.
+      if (passPhase === 'round-over') return;
       // Firebase strips null fields — use ?? null so passTableCombo is never undefined
       passTableCombo       = payload.tableCombo ?? null;
       passTableCards       = payload.tableCards || [];
@@ -1401,6 +1456,7 @@ function passHandleEnvelope(env) {
       }
       // ── History recording (clients only — host records via processPlay/processPass) ──
       if (payload.action_type === 'play') {
+        passMandatoryCard = null; // opening lead has landed — clear the round-1 gate on this client
         passRecordPlay(payload.playerIdx, payload.tableCombo, payload.tableCards || []);
       } else if (payload.action_type === 'pass') {
         passRecordPass(payload.playerIdx);
@@ -1494,6 +1550,7 @@ function passSyncSettingsUI() {
   });
   // Toggles
   passSetToggle('btn-pass-mid-draw-toggle', passMidGameDraw);
+  passSetToggle('btn-pass-open-climb-toggle', passOpenClimbing);
   passSetToggle('btn-pass-sky-joker-toggle', passSkyJokerVariant);
   passSetToggle('btn-pass-sylly-toggle', passSyllyMode);
 }
@@ -1652,6 +1709,12 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-pass-mid-draw-toggle').addEventListener('click', () => {
     playPillClick();
     passMidGameDraw = !passMidGameDraw;
+    passSyncSettingsUI();
+  });
+
+  document.getElementById('btn-pass-open-climb-toggle').addEventListener('click', () => {
+    playPillClick();
+    passOpenClimbing = !passOpenClimbing;
     passSyncSettingsUI();
   });
 

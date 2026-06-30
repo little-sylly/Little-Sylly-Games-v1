@@ -1,4 +1,4 @@
-/* Little Sylly Games — Custom Styles */
+﻿/* Little Sylly Games — Custom Styles */
 
 :root {
   overscroll-behavior-y: none;
@@ -924,6 +924,53 @@ body.flash-red   { background-color: #fecaca; }
   border: none;
   box-shadow: 0 1px 4px rgba(0,0,0,0.2);
 }
+/* ── Flawless (flw) — Pink Diamond rose #E879A8 + Exhibition gold #C9A227 (custom) ── */
+.pill-active-flw {
+  background-color: #E879A8;
+  color: #ffffff;
+  font-weight: 600;
+}
+.game-toggle-on-flw {
+  background-color: #E879A8;
+  color: #ffffff;
+  border-radius: 9999px;
+  padding: 0.4rem 1.2rem;
+  font-weight: 700;
+  font-size: 0.9rem;
+  transition: background 0.2s, color 0.2s;
+  border: none;
+  cursor: pointer;
+}
+/* Custom CTA: MUST declare flex centering — when JS/Tailwind sets display:flex the
+   label would top-left-align without these (DYB/GTH/FRT lesson). */
+.flw-cta { background-color: #E879A8; color: #ffffff; display: flex; align-items: center; justify-content: center; }
+.flw-cta:hover { background-color: #CF5A8D; }
+.flw-label { color: #C9A227; }
+.flw-range {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 9999px;
+  background: linear-gradient(to right, #F4B8D0, #E879A8); /* rose-200 → Pink Diamond rose */
+  outline: none;
+  cursor: pointer;
+}
+.flw-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: #E879A8;
+  border: 3px solid #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
+.flw-range::-moz-range-thumb {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: #E879A8;
+  border: none;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
 /* Fruit cards — v1 emoji skin (render seam: frtRenderCard) */
 .frt-card {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -981,15 +1028,37 @@ body.flash-red   { background-color: #fecaca; }
   40%, 80% { transform: translateX(5px); }
 }
 .shp-shake { animation: shpShake 0.35s ease-in-out; }
-@keyframes shpSheepJump {
-  0%   { transform: translateY(0);    opacity: 0; }
-  20%  { transform: translateY(-12px); opacity: 1; }
-  60%  { transform: translateY(-8px);  opacity: 1; }
-  100% { transform: translateY(0);    opacity: 0; }
+/* Sheep flight: an absolutely-positioned overlay so the parade never shifts the table layout.
+   Anchored to the top-centre of the Herd counter; sheep arc in from (or out to) the left whitespace. */
+.shp-sheep-layer {
+  position: absolute;
+  left: 50%;
+  top: 6px;
+  width: 0; height: 0;
+  pointer-events: none;
+  z-index: 5;
 }
-.shp-sheep-jump {
-  display: inline-block;
-  animation: shpSheepJump 1s ease-in-out both;
+.shp-sheep-fly {
+  position: absolute;
+  left: 0; top: 0;
+  font-size: 1.5rem;
+  line-height: 1;
+  opacity: 0;
+  animation-duration: 1.2s;
+  animation-timing-function: ease-in-out;
+  animation-fill-mode: both;
+}
+@keyframes shpSheepArcIn {
+  0%   { opacity: 0; transform: translate(-130px, 8px)  scale(0.6); }
+  20%  { opacity: 1; }
+  55%  { transform: translate(-60px, -42px) scale(1.1); }
+  100% { opacity: 0; transform: translate(0, 0) scale(0.85); }
+}
+@keyframes shpSheepArcOut {
+  0%   { opacity: 0; transform: translate(0, 0) scale(0.85); }
+  20%  { opacity: 1; }
+  55%  { transform: translate(-60px, -42px) scale(1.1); }
+  100% { opacity: 0; transform: translate(-130px, 8px) scale(0.6); }
 }
 
 /* Build-grid cell base + invalid-placement reject flash */
@@ -1450,3 +1519,5 @@ body.flash-red   { background-color: #fecaca; }
   0%, 100% { box-shadow: 0 0 0 2px rgba(24,24,27,0.08); }
   50%       { box-shadow: 0 0 0 5px rgba(24,24,27,0.18); }
 }
+
+

@@ -21,6 +21,7 @@ let mpSelectedMode     = 'host'; // 'host' | 'join' | 'ptp'
 let mpActiveRoomCode  = null;  // '4-char code' when in a room
 let mpRoomRef         = null;  // Firebase DatabaseReference to /rooms/{code}
 let mpEventsListener  = null;  // onValue unsubscribe for /events
+let mpPrivateListener = null;  // onChildAdded unsubscribe for private/{myUid} (hidden-info games — FLW)
 let mpRoomListener    = null;  // onValue unsubscribe for room deletion detection (client)
 let mpPlayersListener = null;  // onValue unsubscribe for /players changes (host lobby)
 let mpPlayerSlots     = [];    // [{uid, nickname}] — index 0 = Host
@@ -376,6 +377,28 @@ const MP_GAME_CONFIGS = {
     getMaxPlayers:   () => 8,
     getMinPlayers:   () => 3,
   },
+  flw: {
+    gameName:       'Flawless',
+    emoji:          '\u{1F48E}',
+    brandBtnClass:  'flw-cta',
+    ptpLabel:       'Enter the Exhibition',
+    lobbyCtaLabel:  'Enter the Exhibition',
+    menuScreen:     'screen-flw-menu',
+    onPassThePhone: () => {
+      if (window.syllyMultiplayerMode === 'host') {
+        flwPlayerCount = mpPlayerSlots.length;
+        flwPlayerNames = mpPlayerSlots.map(p => p.nickname);
+        flwStartSession();
+      }
+      // 'client': waits for FLW_SHOWING_START SYNC
+    },
+    recommendedMode: 'mdlm',
+    supportedModes:  ['mdlm'],
+    multiplayerOnly: true,
+    rosterConfig:    { type: 'none' },
+    getMaxPlayers:   () => 4,
+    getMinPlayers:   () => 3,
+  },
 };
 
 // ── Nickname Helpers ──────────────────────────────────────────────────────────
@@ -693,8 +716,49 @@ function mpStartEventListener() {
 
 function mpStopListeners() {
   if (mpEventsListener)  { mpEventsListener();  mpEventsListener  = null; }
+  if (mpPrivateListener) { mpPrivateListener(); mpPrivateListener = null; }
   if (mpRoomListener)    { mpRoomListener();    mpRoomListener    = null; }
   if (mpPlayersListener) { mpPlayersListener(); mpPlayersListener = null; }
+}
+
+// ── Private envelope: Host → ONE device (bypasses the public /events stream) ──
+// First true private-write primitive (Flawless / hidden-information games). The host
+// delivers a single player's secret state — their hand, an Amethyst peek result, a
+// failed-audit leak — to that device's own queue under rooms/{code}/private/{uid},
+// so secrets NEVER enter the shared /events log every device reads.
+//
+// Contract:
+//   • HOST-ONLY writer. A client must never write here.
+//   • `envelope` is a FULL envelope ({ type, payload }) — same shape as mpSendEnvelope —
+//     so the recipient routes it through mpHandleEnvelope() unchanged.
+//   • Never call with the host's OWN uid: the host already holds all private state
+//     locally (host-as-participant). A self-write would be filtered out by the
+//     originId === syllyDeviceUid guard in mpStartPrivateListener anyway.
+//   • Privacy note: this gives ORGANISATIONAL privacy (each device only subscribes to
+//     its own queue; secrets stay out of /events). True at-rest network privacy also
+//     requires Firebase RTDB rules scoping private/{uid} reads to that uid.
+async function mpSendPrivate(targetUid, envelope) {
+  if (!mpActiveRoomCode || !window.syllyFirebase || !targetUid) return;
+  await window.syllyFirebase.push(
+    window.syllyFirebase.ref(`rooms/${mpActiveRoomCode}/private/${targetUid}`),
+    { ...envelope, originId: window.syllyDeviceUid, timestamp: Date.now() }
+  );
+}
+
+// Every device subscribes to its OWN private queue (mirrors mpStartEventListener).
+// Started for host + clients alongside the events listener; the private/* node is torn
+// down transitively by syllyTeardownRoom()'s remove(mpRoomRef) (whole-room delete).
+function mpStartPrivateListener() {
+  if (!mpActiveRoomCode || !window.syllyFirebase || !window.syllyDeviceUid) return;
+  const privRef = window.syllyFirebase.ref(`rooms/${mpActiveRoomCode}/private/${window.syllyDeviceUid}`);
+  // onChildAdded fires once per new private write to THIS device's queue.
+  // mpJoinListenFrom is already set by mpStartEventListener (host) / pre-handshake (client).
+  mpPrivateListener = window.syllyFirebase.onChildAdded(privRef, childSnap => {
+    const env = childSnap.val();
+    if (!env || env.timestamp < mpJoinListenFrom) return;
+    if (env.originId === window.syllyDeviceUid) return; // never receive own writes
+    mpHandleEnvelope(env);
+  });
 }
 
 // ── Settings serialiser (Host → SETTINGS_SYNC payload) ───────────────────────
@@ -717,7 +781,7 @@ function mpSerialiseSettings(abbr) {
       natSyllyMode, natVotingMode, natScientificIntegrity, natEscapePoints,
     };
     case 'li5': return {
-      settingTimer, settingRounds, settingDifficulty, settingSylly, settingTabooCount,
+      settingTimer, settingRounds, settingDifficulty, settingSylly,
       settingPenaltyMode, settingSkipFree, settingTimePenalty, settingPlayAllDecks,
     };
     case 'dsd': return {
@@ -732,7 +796,7 @@ function mpSerialiseSettings(abbr) {
     case 'dyb': return { dybWildcardsStyle, dybStartingHand, dybFootholdsMode, dybFootholdsCount, dybSyllyMode, dybSyllyIntensity };
     case 'pass': return {
       passHandSize, passChipStack, passMatchDuration, passBombStrictness,
-      passMidGameDraw, passMinSequenceLength, passJokerCount, passSkyJokerVariant, passSyllyMode,
+      passMidGameDraw, passOpenClimbing, passMinSequenceLength, passJokerCount, passSkyJokerVariant, passSyllyMode,
     };
     case 'nt': return {
       ntMatrixScale, ntIterations, ntHardeningWin, ntNativeHoneypots, ntSyllyMode,
@@ -740,11 +804,15 @@ function mpSerialiseSettings(abbr) {
     case 'frt': return {
       frtFruitStock, frtRounds, frtTurnTimer, frtSyllyMode, frtPearOff,
     };
+    case 'flw': return {
+      flwLedgerOn, flwTokenMode, flwCustomTarget, flwTurnTimer, flwBurnSetting, flwSyllyMode,
+    };
     case 'shp': return {
       shpHandSize, shpMoons, shpDreamAccel, shpSleepwalkers, shpSyllyMode,
     };
     case 'ss': return {
-      ssSettingInterceptsToWin, ssDifficultyLevel, ssRerollLimitSetting,
+      ssSettingInterceptsToWin, ssDifficultyLevel,
+      ssRerollLimitSetting: ssRerollLimitSetting === Infinity ? 'Infinity' : ssRerollLimitSetting,  // JSON-safe (Infinity → null otherwise)
       ssTimerSetting, ssCustomiseVault, ssIntelSyllyMode,
       ssSelectedCategories: [...ssSelectedCategories],
     };
@@ -834,7 +902,7 @@ function mpHandleEnvelope(env) {
         case 'ss':
           if (s.ssSettingInterceptsToWin !== undefined) ssSettingInterceptsToWin = s.ssSettingInterceptsToWin;
           if (s.ssDifficultyLevel        !== undefined) ssDifficultyLevel        = s.ssDifficultyLevel;
-          if (s.ssRerollLimitSetting     !== undefined) ssRerollLimitSetting     = s.ssRerollLimitSetting;
+          if (s.ssRerollLimitSetting     !== undefined) ssRerollLimitSetting     = s.ssRerollLimitSetting === 'Infinity' ? Infinity : s.ssRerollLimitSetting;
           if (s.ssTimerSetting           !== undefined) ssTimerSetting           = s.ssTimerSetting;
           if (s.ssCustomiseVault         !== undefined) ssCustomiseVault         = s.ssCustomiseVault;
           if (s.ssIntelSyllyMode         !== undefined) ssIntelSyllyMode         = s.ssIntelSyllyMode;
@@ -871,7 +939,6 @@ function mpHandleEnvelope(env) {
           if (s.settingRounds       !== undefined) settingRounds       = s.settingRounds;
           if (s.settingDifficulty   !== undefined) settingDifficulty   = s.settingDifficulty;
           if (s.settingSylly        !== undefined) settingSylly        = s.settingSylly;
-          if (s.settingTabooCount   !== undefined) settingTabooCount   = s.settingTabooCount;
           if (s.settingPenaltyMode  !== undefined) settingPenaltyMode  = s.settingPenaltyMode;
           if (s.settingSkipFree     !== undefined) settingSkipFree     = s.settingSkipFree;
           if (s.settingTimePenalty  !== undefined) settingTimePenalty  = s.settingTimePenalty;
@@ -907,6 +974,14 @@ function mpHandleEnvelope(env) {
           if (s.shpDreamAccel   !== undefined) shpDreamAccel   = s.shpDreamAccel;
           if (s.shpSleepwalkers !== undefined) shpSleepwalkers = s.shpSleepwalkers;
           if (s.shpSyllyMode    !== undefined) shpSyllyMode    = s.shpSyllyMode;
+          break;
+        case 'flw':
+          if (s.flwLedgerOn     !== undefined) flwLedgerOn     = s.flwLedgerOn;
+          if (s.flwTokenMode    !== undefined) flwTokenMode    = s.flwTokenMode;
+          if (s.flwCustomTarget !== undefined) flwCustomTarget = s.flwCustomTarget;
+          if (s.flwTurnTimer    !== undefined) flwTurnTimer    = s.flwTurnTimer;
+          if (s.flwBurnSetting  !== undefined) flwBurnSetting  = s.flwBurnSetting;
+          if (s.flwSyllyMode    !== undefined) flwSyllyMode    = s.flwSyllyMode;
           break;
         // Additional games added as Sprint 4 progresses
       }
@@ -1530,6 +1605,11 @@ function mpHandleEnvelope(env) {
     if (typeof shpHandleEnvelope === 'function') shpHandleEnvelope(env);
   }
 
+  // ── Flawless ACTION/SYNC/private ──────────────────────────────────────────
+  if (mpActiveGame === 'flw') {
+    if (typeof flwHandleEnvelope === 'function') flwHandleEnvelope(env);
+  }
+
   // ── Secret Signals ACTION/SYNC ─────────────────────────────────────────────
   if (mpActiveGame === 'ss') {
     // SS_VAULT_DATA — every device receives BOTH vaults; renders only its own team's gate
@@ -1760,6 +1840,19 @@ function mpRenderHostPlayerList() {
   const cta   = document.getElementById('btn-mp-lobby-host-cta');
   const minP  = mpActiveGameConfig?.getMinPlayers?.() ?? 2;
   const ready = mpPlayerSlots.length >= minP;
+
+  // Min-players hint: tell the host how many more are needed while the CTA is locked
+  const hint = document.getElementById('mp-lobby-min-hint');
+  if (hint) {
+    if (!ready) {
+      const need = minP - mpPlayerSlots.length;
+      hint.textContent = `Need ${need} more ${need === 1 ? 'player' : 'players'} to start (min ${minP})`;
+      hint.style.display = 'block';
+    } else {
+      hint.style.display = 'none';
+    }
+  }
+
   cta.disabled = !ready;
   cta.classList.toggle('opacity-50',          !ready);
   cta.classList.toggle('pointer-events-none', !ready);
@@ -2277,6 +2370,7 @@ function mpHostCreateRoom() {
 
       // Listen for client handshakes
       mpStartEventListener();
+      mpStartPrivateListener(); // own private queue (hidden-info games)
 
       // Watch for player departures while in the lobby
       mpStartPlayersWatcher();
@@ -2317,6 +2411,23 @@ function mpClientJoinRoom() {
   btn.disabled    = true;
 
   const status = document.getElementById('mp-join-status');
+
+  // Already connected to this room — update nickname in-place, don't create a second slot
+  if (window.mpClientPlayerRef && window.syllyMultiplayerMode === 'client' && window.syllyFirebase && mpActiveRoomCode === code) {
+    btn.textContent = 'Updating…';
+    window.syllyFirebase.set(window.mpClientPlayerRef, { uid: window.syllyDeviceUid, nickname })
+      .then(() => {
+        btn.textContent    = 'Waiting…';
+        status.textContent = 'Nickname updated — waiting for the host to start…';
+        status.className   = 'text-stone-500 text-sm text-center mt-2';
+      })
+      .catch(() => {
+        btn.textContent = 'Enter Room →';
+        btn.disabled    = false;
+        mpUpdateJoinCta();
+      });
+    return;
+  }
 
   syllyLoadFirebase(async () => {
     const fb = window.syllyFirebase;
@@ -2367,6 +2478,7 @@ function mpClientJoinRoom() {
 
       // Listen for LOBBY/SYNC events from Host
       mpStartEventListener();
+      mpStartPrivateListener(); // own private queue (hidden-info games)
 
       // Watch for room deletion (host disconnect / session end)
       mpRoomListener = fb.onValue(roomRef, roomSnap => {
