@@ -1,0 +1,25 @@
+{
+  "id": "prismatic-gems",
+  "label": "PRISMATIC GEMS",
+  "locked": false,
+  "games": [
+    "flw"
+  ],
+  "assets": {
+    "kind": "flw",
+    "basePath": "img/",
+    "faces": {
+      "0": "gem0.png",
+      "1": "gem1.png",
+      "2": "gem2.png",
+      "3": "gem3.png",
+      "4": "gem4.png",
+      "5": "gem5.png",
+      "6": "gem6.png",
+      "7": "gem7.png",
+      "8": "gem8.png",
+      "9": "gem9.png"
+    },
+    "back": "back.png"
+  }
+}

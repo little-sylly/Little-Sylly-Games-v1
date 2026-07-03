@@ -1,0 +1,31 @@
+{
+  "id": "plush-sheeps",
+  "label": "PLUSH SHEEP",
+  "locked": false,
+  "games": [
+    "shp"
+  ],
+  "assets": {
+    "kind": "shp",
+    "basePath": "img/",
+    "faces": {
+      "0": "card0.png",
+      "1": "card1.png",
+      "2": "card2.png",
+      "3": "card3.png",
+      "4": "card4.png",
+      "5": "card5.png",
+      "6": "card6.png",
+      "7": "card7.png",
+      "8": "card8.png",
+      "9": "card9.png",
+      "10": "card10.png",
+      "11": "card11.png",
+      "12": "card12.png",
+      "14": "card14.png",
+      "15": "card15.png",
+      "16": "card16.png"
+    },
+    "back": "back.png"
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "id": "fruity-fruits",
+  "label": "FRUITY FRUITS",
+  "locked": false,
+  "games": [
+    "frt"
+  ],
+  "assets": {
+    "kind": "frt",
+    "basePath": "img/",
+    "faces": {
+      "0": "banana.png",
+      "1": "lemon.png",
+      "2": "peach.png",
+      "3": "grape.png",
+      "4": "watermelon.png",
+      "5": "pear.png",
+      "6": "strawberry.png",
+      "7": "apple.png"
+    },
+    "back": "back.png"
+  }
+}

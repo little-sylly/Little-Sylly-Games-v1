@@ -1,8 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 90 124">
-  <defs><filter id="g" x="-30%" y="-30%" width="160%" height="160%">
-    <feGaussianBlur stdDeviation="2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
-  </filter></defs>
-  <rect x="2.5" y="2.5" width="85" height="119" rx="11" fill="#0a0a14" stroke="#36D399" stroke-width="3" filter="url(#g)"/>
-  <text x="45" y="56" font-size="46" text-anchor="middle" dominant-baseline="central" fill="#36D399" font-family="Arial, sans-serif" font-weight="800">6</text>
-  <text x="45" y="106" font-size="8.5" fill="#36D399" text-anchor="middle" font-family="Arial, sans-serif" font-weight="700">EMERALD</text>
-</svg>
