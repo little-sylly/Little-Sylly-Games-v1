@@ -460,7 +460,7 @@
     {"id":"social-055","word":"KDA","nono_list":["Kills","Deaths","Assists","Score","Stats","Ratio","Kill","Death","Assist","Numbers"],"category":"Social","difficulty":1},
     {"id":"social-056","word":"Report Mid","nono_list":["Toxic","Lose","Lane","Bad","Blame","Chat","All","Complaint","Noob","Feeding"],"category":"Social","difficulty":1},
     {"id":"social-057","word":"End","nono_list":["Finish","Ancient","Throne","GG","Chat","All","Win","Lose","Victory","Done"],"category":"Social","difficulty":1},
-    {"id":"social-058","word":"Commend Me","nono_list":["Post-game","End","Like","Support","Star","Trade","Report","Beg","Carry","Good"],"category":"Social","difficulty":2},
+    {"id":"social-058","word":"Commend","nono_list":["Post-game","End","Like","Support","Star","Trade","Report","Beg","Carry","Good"],"category":"Social","difficulty":2},
     {"id":"social-059","word":"Ranked","nono_list":["Matchmaking","Points","MMR","Competitive","Medal","Serious","Win","Lose","Rating","Roles"],"category":"Social","difficulty":1},
     {"id":"social-060","word":"GG","nono_list":["Good","Game","End","Finish","Surrender","Win","Lose","Chat","WP","Victory"],"category":"Social","difficulty":1},
     {"id":"social-061","word":"Patch Notes","nono_list":["Update","Changes","Buff","Nerf","Balance","Icefrog","Valve","Read","New","Version"],"category":"Social","difficulty":2},

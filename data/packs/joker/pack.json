@@ -1,0 +1,14 @@
+{
+  "id": "JOKER",
+  "label": "JOKER",
+  "locked": false,
+  "games": ["pass"],
+  "assets": {
+    "kind": "cards",
+    "basePath": "img/",
+    "faces": {
+      "Joker": "Joker.png"
+    },
+    "back": "back.svg"
+  }
+}
