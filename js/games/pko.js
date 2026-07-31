@@ -670,7 +670,7 @@ function pkoRefreshActionLabels() {
     const started  = pkoMarks.length ? pkoDraft.flat().length : 0;
     chal.textContent = pkoDraftComplete()
       ? `Challenge with ${pkoSummariseCards(pkoDraft.flat().map(p => sorted[p]))}`
-      : (started ? `Challenge — ${answered} of ${pkoMarks.length} answered` : 'Challenge');
+      : (started ? `Challenge — ${answered} of ${pkoMarks.length} challenged` : 'Challenge');
   }
 }
 
@@ -869,7 +869,7 @@ function pkoRenderChallenge() {
   if (btn) {
     btn.disabled      = !done;
     btn.style.opacity = done ? '1' : '0.45';
-    btn.textContent   = done ? 'Challenge' : `${filled} of ${pkoDraft.length} answered`;
+    btn.textContent   = done ? 'Challenge' : `${filled} of ${pkoDraft.length} challenged`;
   }
 
   // A half-built Swarm is the one state where the board looks answered but isn't, so it
@@ -1103,15 +1103,29 @@ function pkoHoldsAll(hoard, cards) {
 // if a packet is ever missed. Without this a client's pkoMyHoard was only ever written
 // by the initial deal, so every card it played stayed in its fan and every attempt to
 // replay one was silently dropped by pkoHoldsAll() on the host (BUG-02).
-function pkoRemoveFromHoard(playerIdx, cards) {
-  const hoard = pkoHoards[playerIdx];
-  cards.forEach(c => { const i = hoard.indexOf(c); if (i !== -1) hoard.splice(i, 1); });
+//
+// The SEND is deliberately its own function rather than living inside
+// pkoRemoveFromHoard: Force of Nature's Culling, Extinction and Migration all change a
+// Hoard without a card being played, and a repair keyed to "a card was played" would
+// miss all three. pkoSyncHand means "this Hoard changed" — the only precondition that
+// is actually true at every call site.
+function pkoSyncHand(playerIdx) {
+  const hoard = pkoHoards[playerIdx] || [];
   pkoHoardCounts[playerIdx] = hoard.length;
   if (playerIdx === pkoMyIdx()) { pkoMyHoard = hoard; return; }   // host's own seat — aliased, nothing to send
   const uid = mpPlayerSlots[playerIdx] && mpPlayerSlots[playerIdx].uid;
   if (uid && window.syllyMultiplayerMode !== 'single') {
     mpSendPrivate(uid, { type: 'SYNC', payload: { action: 'PKO_HAND_SYNC', cards: hoard } });
   }
+}
+function pkoSyncAllHands() {
+  for (let i = 0; i < pkoPlayerCount; i++) pkoSyncHand(i);
+}
+
+function pkoRemoveFromHoard(playerIdx, cards) {
+  const hoard = pkoHoards[playerIdx];
+  cards.forEach(c => { const i = hoard.indexOf(c); if (i !== -1) hoard.splice(i, 1); });
+  pkoSyncHand(playerIdx);
 }
 
 // The spent board goes to the Watering Hole as ONE batch record, not loose cards, so the
@@ -1215,10 +1229,9 @@ function pkoApplyRetreat(playerIdx) {
   if (pkoScavenge && pkoReserve.length) {
     const card = pkoReserve.shift();
     pkoHoards[playerIdx].push(card);
-    pkoHoardCounts[playerIdx] = pkoHoards[playerIdx].length;
     const uid = mpPlayerSlots[playerIdx] && mpPlayerSlots[playerIdx].uid;
-    if (playerIdx === pkoMyIdx()) pkoMyHoard = pkoHoards[playerIdx];
-    else if (uid && window.syllyMultiplayerMode !== 'single') {
+    pkoSyncHand(playerIdx);                     // count + host-seat alias, one place
+    if (playerIdx !== pkoMyIdx() && uid && window.syllyMultiplayerMode !== 'single') {
       mpSendPrivate(uid, { type: 'SYNC', payload: { action: 'PKO_DRAW', card } });
     }
   }
