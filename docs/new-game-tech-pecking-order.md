@@ -231,7 +231,7 @@ let pkoBeatsMap       = {};        // id -> Set(prey ids)       — DERIVED at l
 - Every later Clash: opened by the previous Clash's winner.
 - Within a Clash: each Encounter is opened by the previous Encounter's Unchallenged winner.
 
-**Scoring function:** `pkoResolveClash(winnerIdx)` — increments `pkoScores`, pushes a row onto `pkoClashHistory`, decides Clash-vs-Match end.
+**Scoring function:** `pkoResolveClash(winnerIdxs)` — increments `pkoScores` for every winner, pushes one row onto `pkoClashHistory`, decides Clash-vs-Match end. Took a single index until Force of Nature; Extinction Event can empty several Hoards at once.
 
 **Zero-sum check:** exactly 1 point enters the game per Clash, and a Match is 3–7 Clashes. Spread is tight and readable; the Clash history grid (brief §18) carries the narrative that a bare score can't.
 

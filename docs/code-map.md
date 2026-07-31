@@ -1737,7 +1737,7 @@ Per-game: LI5 `ptp`★/`tlm` · GM `ptp`★/`mdlm` · SS `tlm`★/`mdlm`/`ptp` �
 | `pkoRenderWateringHole()` / `pkoOpenHole()` / `pkoSetHoleTab(tab)` / `pkoRenderDiscards()` | The discard pile in the Marks row (face-down top card + count, dashed placeholder when empty) and its two-tab overlay; Discards groups spent cards with ×N counts |
 | `pkoSubmit*()` / `pkoApply*()` | Client sends ACTION; **host mutates directly then broadcasts SYNC** — the host is a full player and self-sent ACTIONs are dropped by the dedup guard |
 | `pkoCheckEncounterEnd()` | Every player other than the board owner has Retreated since the last board change |
-| `pkoResolveClash(winnerIdx)` | +1 point, push a `pkoClashHistory` row, decide Clash-end vs Match-end |
+| `pkoResolveClash(winnerIdxs)` | +1 point per winner, push one `pkoClashHistory` row with a 1 per winner, decide Clash-end vs Match-end (joint winners share the Match) |
 | `pkoHandleEnvelope(env)` | Routes all PKO ACTION/SYNC + private packets; called from `engine-multiplayer.js` |
 | `pkoResetState()` | Full state teardown (called from `resetToLobby()` in `engine.js`) |
 

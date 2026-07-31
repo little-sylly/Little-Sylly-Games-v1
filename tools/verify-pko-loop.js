@@ -138,7 +138,8 @@ const section = t => console.log(`\n${t}`);
 (async () => {
   await sandbox.pkoLoadChain();
   const P = sandbox.__pko;
-  const { pkoApplyStake, pkoApplyChallenge, pkoApplyStampede, pkoApplyRetreat } = sandbox;
+  const { pkoApplyStake, pkoApplyChallenge, pkoApplyStampede, pkoApplyRetreat,
+          pkoResolveClash } = sandbox;
 
   console.log('Pecking Order — turn loop verification\n' + '='.repeat(48));
 
@@ -607,6 +608,36 @@ const section = t => console.log(`\n${t}`);
   check('three Fish answered by two Mongooses and an Octopus',
     P.marks, ['mongoose', 'mongoose', 'octopus']);
   check('…all three cards left the Hoard', P.hoards[1], []);
+
+  section('Joint Clash resolution (FoN §6 — Extinction can empty several Hoards)');
+  P.seat({ hoards: [['bee'], ['mouse'], ['fish'], ['eagle']], turn: 0, scores: [0, 0, 0, 0] });
+  P.set('clashTarget', 3);
+  pkoResolveClash([1, 3]);
+  check('every winner scores', P.scores, [0, 1, 0, 1]);
+  check('one history row, multiple 1s', P.history, [[0, 1, 0, 1]]);
+  check('the next opener is one OF the winners', [1, 3].includes(P.leader), true);
+  check('the clash-result screen is shown', screens.pop(), 'screen-pko-clash-result');
+
+  section('Joint Match end — they all win together (brief §4)');
+  P.seat({ hoards: [['bee'], ['mouse'], ['fish'], ['eagle']], turn: 0, scores: [0, 2, 0, 2] });
+  P.set('clashTarget', 3);
+  pkoResolveClash([1, 3]);
+  check('both cross the target on the same Clash', P.scores, [0, 3, 0, 3]);
+  check('the Hierarchy is shown, not the clash result', screens.pop(), 'screen-pko-hierarchy');
+
+  section('Next opener among joint winners prefers the most Match points');
+  P.seat({ hoards: [['bee'], ['mouse'], ['fish'], ['eagle']], turn: 0, scores: [0, 0, 0, 4] });
+  P.set('clashTarget', 99);
+  pkoResolveClash([1, 3]);
+  check('the winner with more Match points opens the next Clash', P.leader, 3);
+
+  section('A single winner is unchanged — the array is the only difference');
+  P.seat({ hoards: [['bee'], ['mouse'], ['fish'], ['eagle']], turn: 0, scores: [0, 0, 0, 0] });
+  P.set('clashTarget', 99);
+  pkoResolveClash([2]);
+  check('one winner scores once', P.scores, [0, 0, 1, 0]);
+  check('the single winner leads the next Clash', P.leader, 2);
+  check('history row has exactly one 1', P.history, [[0, 0, 1, 0]]);
 
   console.log('\n' + '='.repeat(48));
   console.log(failures === 0 ? 'ALL CHECKS PASSED' : `${failures} CHECK(S) FAILED`);

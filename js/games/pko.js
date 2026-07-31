@@ -1157,7 +1157,7 @@ function pkoSummariseCards(ids) {
 function pkoAfterBoardChange(playerIdx) {
   // Clash end fires BEFORE the board resolves (§6): emptying your Hoard wins immediately,
   // whether you emptied it Staking, Challenging or Stampeding.
-  if ((pkoHoards[playerIdx] || []).length === 0) { pkoResolveClash(playerIdx); return; }
+  if ((pkoHoards[playerIdx] || []).length === 0) { pkoResolveClash([playerIdx]); return; }
   // The response window restarts clockwise from the player after the one who changed
   // the board, and every Retreat is forgiven — a Retreat is not a lock-out.
   pkoRetreatedSince = new Array(pkoPlayerCount).fill(false);
@@ -1329,20 +1329,40 @@ function pkoShowUnchallenged(winnerIdx, marks) {
   pkoUnchallengedTimer = setTimeout(() => { pkoUnchallengedTimer = null; pkoStartEncounter(); }, 2500);
 }
 
-// Host: exactly one point enters the game per Clash, and only by emptying a Hoard.
-function pkoResolveClash(winnerIdx) {
+// Which of several joint winners opens the next Clash: most Match points, then random
+// (brief §5). With one winner it is that winner — the shipped behaviour, unchanged.
+function pkoNextOpener(winnerIdxs) {
+  if (winnerIdxs.length === 1) return winnerIdxs[0];
+  const best = Math.max(...winnerIdxs.map(i => pkoScores[i] || 0));
+  const tied = winnerIdxs.filter(i => (pkoScores[i] || 0) === best);
+  return tied[Math.floor(Math.random() * tied.length)];
+}
+
+// Host: a point enters the game only by emptying a Hoard — but Extinction Event can empty
+// SEVERAL at once, so this takes an array. One point per emptied Hoard, one history row per
+// Clash with a 1 in every winning column, and if more than one player crosses the target on
+// the same Clash they win the Match jointly (brief §4: "they all win together").
+function pkoResolveClash(winnerIdxs) {
   if (window.syllyMultiplayerMode === 'client') return;
-  pkoScores[winnerIdx]++;
-  pkoClashHistory.push(pkoPlayerNames.map((_, i) => (i === winnerIdx ? 1 : 0)));
-  pkoLeaderIdx = winnerIdx;                     // the Clash winner opens the next one
-  pkoLogTrail(`${pkoPlayerNames[winnerIdx]} emptied their Hoard and took the Clash.`);
+  // Defensive unwrap: a bare int would silently no-op on pkoScores[[0]]++ rather than throw.
+  const winners = (Array.isArray(winnerIdxs) ? winnerIdxs : [winnerIdxs])
+    .filter(i => i >= 0 && i < pkoPlayerCount).sort((a, b) => a - b);
+  if (!winners.length) return;
+
+  winners.forEach(i => pkoScores[i]++);
+  pkoClashHistory.push(pkoPlayerNames.map((_, i) => (winners.includes(i) ? 1 : 0)));
+  pkoLeaderIdx = pkoNextOpener(winners);
+  const names = winners.map(i => pkoPlayerNames[i]);
+  pkoLogTrail(winners.length === 1
+    ? `${names[0]} emptied their Hoard and took the Clash.`
+    : `${names.join(' and ')} emptied their Hoards and took the Clash together.`);
   playClashWin();
 
-  if (pkoScores[winnerIdx] >= pkoClashTarget) {
+  if (winners.some(i => pkoScores[i] >= pkoClashTarget)) {
     if (window.syllyMultiplayerMode !== 'single') {
       mpSendEnvelope({ type: 'SYNC', payload: {
         action: 'PKO_MATCH_END', finalScores: pkoScores, clashHistory: pkoClashHistory,
-        playerNames: pkoPlayerNames,
+        playerNames: pkoPlayerNames, winnerIdxs: winners,
       }});
     }
     pkoShowHierarchy();
@@ -1350,14 +1370,15 @@ function pkoResolveClash(winnerIdx) {
   }
   if (window.syllyMultiplayerMode !== 'single') {
     mpSendEnvelope({ type: 'SYNC', payload: {
-      action: 'PKO_CLASH_END', winnerIdx, scores: pkoScores,
+      action: 'PKO_CLASH_END', winnerIdxs: winners, scores: pkoScores,
       clashHistory: pkoClashHistory, clashNum: pkoClashNum, trail: pkoTrail,
     }});
   }
-  pkoShowClashResult(winnerIdx);
+  pkoShowClashResult(winners);
 }
 
-function pkoShowClashResult(winnerIdx) {
+function pkoShowClashResult(winnerIdxs) {
+  const winners = Array.isArray(winnerIdxs) ? winnerIdxs : [winnerIdxs];
   showScreen('screen-pko-clash-result');
   const num = document.getElementById('pko-clash-result-num');
   if (num) num.textContent = `Clash ${pkoClashNum} Summary`;
@@ -1368,10 +1389,13 @@ function pkoShowClashResult(winnerIdx) {
     emoji.className = 'text-5xl'; emoji.textContent = '🐘';
     const head = document.createElement('h2');
     head.className = 'text-2xl font-bold text-stone-800';
-    head.textContent = `${pkoPlayerNames[winnerIdx]} takes the Clash`;
+    const names = winners.map(i => pkoPlayerNames[i]);
+    head.textContent = names.length === 1
+      ? `${names[0]} takes the Clash`
+      : `${names.join(' & ')} share the Clash`;
     const sub = document.createElement('p');
     sub.className = 'text-stone-400 text-sm';
-    sub.textContent = 'They lead the next one.';
+    sub.textContent = names.length === 1 ? 'They lead the next one.' : 'One of them leads the next one.';
     body.append(emoji, head, sub, pkoBuildStandings());
   }
   // Host-gated: only the host opens the next Clash.
@@ -1389,6 +1413,7 @@ function pkoBuildStandings() {
   wrap.className = 'flex flex-col gap-2 w-full';
   const order = pkoPlayerNames.map((n, i) => ({ n, i, s: pkoScores[i] || 0 }))
     .sort((a, b) => b.s - a.s);
+  const top = order.length ? order[0].s : 0;
   order.forEach((p, pos) => {
     const rank = order.findIndex(q => q.s === p.s) + 1;   // ties share a rank
     const row = document.createElement('div');
@@ -1400,7 +1425,9 @@ function pkoBuildStandings() {
     right.className = 'pko-label font-bold text-sm';
     right.textContent = p.s === 1 ? '1 Clash' : `${p.s} Clashes`;
     // Top and bottom of the pile get named — a bare score doesn't carry the story.
-    if (pos === 0 && p.s > 0)                      left.textContent += ' — Apex Predator';
+    // Joint Apex Predator: equal top scores share rank 1, so they share the title too —
+    // there is no arbitrary ordering to break the tie with (FoN §6).
+    if (p.s === top && p.s > 0)                     left.textContent += ' — Apex Predator';
     else if (pos === order.length - 1 && p.s === 0) left.textContent += ' — Bottom Feeder';
     row.append(left, right);
     wrap.appendChild(row);
@@ -1590,7 +1617,7 @@ function pkoHandleEnvelope(env) {
       pkoTrail        = p.trail || pkoTrail;
       pkoDismissChallenge();
       playClashWin();
-      pkoShowClashResult(p.winnerIdx);
+      pkoShowClashResult(p.winnerIdxs || (p.winnerIdx === undefined ? [] : [p.winnerIdx]));
       mpUnlockSync();
       break;
 
