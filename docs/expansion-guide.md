@@ -221,3 +221,88 @@ all its weight.
 > **Tip:** start partial. Skin a few ids, register, and check it in-game — the rest stay default
 > until you add them. The bundled `neon-*` packs (one per game) are working SVG references you can
 > copy and replace image-by-image.
+
+---
+
+## Core art packs — a game's *default* artwork (`data/art/`)
+
+A game's own default art uses the **same manifest format** as a skin pack, so there is one art
+pipeline, not two. It lives in a separate tree because it has the opposite caching contract:
+
+| | Skin pack | Core art pack |
+|---|---|---|
+| Folder | `data/packs/<id>/` | `data/art/<kind>/` |
+| Registry | `data/packs/registry.json` | `data/art/registry.json` |
+| Appears in the Terminal | Yes, under `GAME SKINS` | **Never** |
+| Caching | Runtime (network-first JSON, cache-first images) | **Precached in `sw.js`** |
+| Adding/changing it needs an SW bump | No | **Yes** — default art is part of the app version |
+| Loaded | Lazily, when the Terminal opens | Eagerly at boot (`artLoadCore()` in `js/lib/art.js`) |
+
+**Resolution order** — one seam, three tiers (`js/lib/art.js`):
+
+```
+assetFace('pko', 'elephant')
+  → active skin pack covers that id?  → skin image
+  → core art pack covers that id?     → default artwork
+  → null                              → the seam draws its emoji/CSS face
+```
+
+So a skin still overrides the default per-id, a partial skin falls back to the *real* art rather
+than to emoji, and a game with no core art behaves exactly as it did before this tier existed.
+
+### Add or change a game's core art
+
+1. **Convert the art.** Target **≤ 40 KB per card** and roughly the card's aspect ratio. There is
+   no `cwebp`/ImageMagick/`sharp` on the build machine and the project forbids npm, so the
+   established route is a PowerShell + `System.Drawing` script that downscales and walks JPEG
+   quality down until each file fits (PKO's run: 896×1200 PNGs → 360 px-wide JPEGs, 26 MB → 682 KB).
+   JPEG is fine for full-bleed art with no transparency; use PNG/SVG if you need alpha.
+2. **Create `data/art/<kind>/pack.json`** — same `assets` block as a skin, plus `"core": true`:
+   ```json
+   {
+     "id": "pko", "label": "PECKING ORDER — CORE ART", "core": true, "games": ["pko"],
+     "assets": {
+       "kind": "pko", "basePath": "img/",
+       "faces": { "elephant": "elephant.jpg", "polar_bear": "polar_bear.jpg" },
+       "back": "back.jpg",
+       "extras": { "chain": "chain.jpg" }
+     }
+   }
+   ```
+   `extras` is core art's one addition to the format: **non-card game art** (reference diagrams,
+   board furniture), read via `assetExtra(kind, key)`. Skins may override an extra but rarely do.
+3. **Register it** — add the id to `data/art/registry.json`.
+4. **Precache it** — add the manifest *and every image* to `PRECACHE_URLS` in `sw.js`, then bump
+   `CACHE_NAME`. This is the step that differs most from a skin pack: miss it and the art simply
+   won't be there on a cold offline install.
+
+**The manifest owns the id → filename mapping**, so art filenames never have to match the game's
+internal ids (PKO's `poacher.png` serves the chain id `human`). Never hardcode an art path or a
+filename lookup table in a plugin — that's what the manifest is for.
+
+### Rollout tracker — which games have core art
+
+Deliberately game-by-game. **Nothing in a game's code changes when it converts** — every seam
+below already calls `assetFace`/`assetBack`, so a conversion is art + manifest + registry +
+precache, with no JS edit at all. Use the `faces` id cheat-sheet above for that game's id keys.
+
+| Game | `kind` | Seam | Core art | Notes for whoever converts it |
+|------|--------|------|----------|-------------------------------|
+| Pecking Order | `pko` | `pkoRenderCard` | ✅ `data/art/pko/` | Reference implementation — 15 faces + back + a `chain` extra |
+| Fruit Salad | `frt` | `frtRenderCard` | ⬜ emoji default | 8 fruit faces + back; ids are `0`–`7` |
+| Counting Sheep | `shp` | `shpRenderCard` | ⬜ emoji default | ids `0`–`16`; **id 13 (Fogged Dream) must stay unskinned** |
+| Flawless | `flw` | `flwRenderCard` | ⬜ emoji default | 10 gems, id = carat value `0`–`9` |
+| PASS | `cards` | `Cards.buildEl` | ⬜ CSS default | 54 faces (`AH`…`Joker`) — by far the biggest precache; budget before generating |
+| The Bluff | `dyb` | `dybDieHTML` | ⬜ pip default | Die faces `1`–`6` only. **Needs alpha** if the die isn't a full square — JPEG won't do; use PNG |
+
+Steps for each: run `tools/convert-core-art.ps1` (edit its CONFIG block) → write
+`data/art/<kind>/pack.json` → add the id to `data/art/registry.json` → add the manifest **and every
+image** to `PRECACHE_URLS` in `sw.js` and bump `CACHE_NAME` → tick the row above.
+
+**Two things to decide before generating art for a game, not after:** the per-file ceiling (PASS's
+54 cards at 40 KB is 2.2 MB of install on its own) and whether that primitive needs transparency
+(JPEG has none — see the script header).
+
+**Decision record:** `docs/decision-log.md` → *2026-07-31 — Default game art becomes a precached
+"core art" pack*. Architecture lives in `js/lib/art.js`; the PKO build notes are in
+`docs/implementation-notes/pko-implementation-notes.md` DD-05.

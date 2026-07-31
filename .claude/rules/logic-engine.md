@@ -66,6 +66,10 @@ All audio is synthesised via Web Audio API — no audio files.
 | `playSonarPing()` | DSD: Sonar Ping transmit (captain only) | Dual sine 880→440Hz + 1760Hz harmonic, lowpass filter, 1.2s decay |
 | `playHullThud()` | DSD: Pressure Mine / Urchin / Jammer hit | White noise + resonant lowpass (80Hz Q8) + triangle sub 70Hz, 0.4s |
 | `playAbyssThud()` | DSD: Nuclear Mine hit | `playHullThud()` + 35Hz sawtooth rumble through lowpass, 2.5s decay |
+| `playStampede()` | PKO: Stampede confirmed — **and a Swarm** (the same gesture at smaller scale) | Sub-bass sawtooth swell 38→55Hz + noise through a rising lowpass 120→900Hz, ~1.2s |
+| `playUnchallenged()` | PKO: winning an Encounter | Rising three-note sting G3–D4–G4, sawtooth through lowpass |
+| `playPoacher()` | PKO: Poacher played | Dry highpassed click + two detuned square partials — deliberately out-of-ecosystem |
+| `playClashWin()` | PKO: emptying your Hoard | Deepened, slower `playSuccess()` (C4–E4–G4) over a sine sub |
 
 Global audio state: `isMuted` (bool), `masterVolume` (0–1), `audioCtx` (Web Audio context).
 
@@ -147,6 +151,8 @@ function [abbr]ShowPassGate({ heading, subtext, ctaLabel, onConfirm }) {
 
 **Private channel (Phase 36 — True Network Privacy):**
 `mpSendPrivate(targetUid, envelope)` — writes an envelope to `rooms/{code}/private/{targetUid}` in Firebase instead of the public `/events` channel. Used for hand distribution when card content must not be visible to other devices at the network level. First use: FLW (`FLW_HAND`, `FLW_DRAW`, `FLW_PEEK`, `FLW_LEAK`, `FLW_EMERALD_OFFER`). This is a stronger privacy model than the couch-security broadcast-and-render-own pattern (NAT/FRT/BLD/SHP) — appropriate when any game mechanic depends on opponents not knowing a player's hand even if they inspect Firebase.
+
+**Private hands need a private REPAIR packet, not just a private deal.** Any state a game keeps privately per device (a hand, a rack, a secret tile set) has a host-side mirror, and **every** operation that mutates the mirror — deal, draw, **play**, discard, steal — needs its own private packet to that state's owner. The public SYNC cannot carry the repair: the whole point of the model is that the public channel carries *counts*, never contents. Two rules that make this reliable: (1) send the **whole** collection, not a delta, so a dropped packet self-corrects on the next mutation; (2) put the send inside the **single function where cards leave the collection**, never once per applier — a new applier added later then inherits it for free. PKO BUG-02 was exactly this: `pkoRemoveFromHoard` repaired only the host's own seat, so a client's hand froze at the deal, and every replay of a card it had already played was silently dropped by the host's re-validation — presenting as a dead button rather than a desync. Reference: `PKO_HAND_SYNC` in `js/games/pko.js`. *[Elevated from pko-impl-notes ML-06, July 2026.]*
 
 `mpStartPrivateListener()` — attaches `onChildAdded` to `rooms/{code}/private/{syllyDeviceUid}`. Events are ts-filtered (ignores events before join time) and self-origin-filtered (drops own writes that also appear via indexing). Routes all received packets through `mpHandleEnvelope`. Called in both `mpHostCreateRoom()` and `mpClientJoinRoom()` immediately after `mpStartEventListener()`. **Rule:** any game using `mpSendPrivate` for any phase must call `mpStartPrivateListener()` in its `onPassThePhone` — the engine already calls it globally, but if a game adds private-channel phase handling after the fact, verify the listener is active.
 
@@ -253,6 +259,10 @@ if (window.syllyMultiplayerMode !== 'single') {
 **Host readyCheck — process the host's own submission directly:** For any phase with a `[abbr]ReadyCheck[]` matrix where all players submit simultaneously, the host must mark its own slot in its local submit function — NOT by sending its own ACTION envelope. `engine-multiplayer.js` drops every envelope where `originId === syllyDeviceUid` (the dedup guard), so a host that submits via `mpSendEnvelope` never has its slot set and `.every(Boolean)` never fires (the round hangs). Pattern: when `syllyMultiplayerMode === 'host'`, set `[abbr]ReadyCheck[mpMyPlayerIdx] = true`, check `.every(Boolean)`, and broadcast the resolving SYNC directly. *[Elevated from jec-impl-notes J1, ygi-impl-notes Y1/Y2.]*
 
 **Generalisation — the dedup guard drops ALL self-sent ACTIONs, not just readyCheck submissions:** the same `originId === syllyDeviceUid` guard means **any** phase where the host is also an active *submitting* participant must use the direct-update-then-broadcast pattern, never a self-sent ACTION. This extends beyond readyCheck matrices to live-adjustment phases (e.g. NT's host captain sending allocation updates to itself — `NT_ALLOCATION_UPDATE` was silently dropped, leaving working state at zero). Rule: if the host can submit an ACTION in a phase, branch on `syllyMultiplayerMode === 'host'` and mutate host state + broadcast the resulting SYNC directly; reserve `mpSendEnvelope({type:'ACTION'})` for clients only. *[Elevated from nt-impl-notes BUG-05 / TG-05.]*
+
+**Accumulator arrays must be reset *in the SYNC payload*, not just locally:** any state that resets between rounds/sessions — log arrays, tally arrays, history lists, per-round matrices — must be included in the round-start SYNC payload **even when its value is `[]` or all-`false`**. The host resets it locally when it builds the new round; clients never do, so they carry the previous round's values forward until a payload field overwrites them. The symptom is a client showing a stale log or a readyCheck that fires instantly. Rule: when writing a round-start SYNC, list every accumulator the round touches and include each one at its reset value. *[Elevated from flw-impl-notes BUG-01, June 2026.]*
+
+**Single-source card/board arithmetic:** when a game has any rule-mutating mode (a Sylly Mode that inverts scoring, reverses a chain, or changes what beats what), route **resolution, legality checking, and any simulation/preview** through one shared function rather than duplicating the comparison at each call site. SHP's `shpHerdAfterCard` made Night Terrors' sign inversion a one-line change instead of an edit at every call site; the same applies to any `[abbr]Beats(a, b)` style predicate. Duplicated comparisons are where mode-mutations silently miss a path. *[Elevated from shp-impl-notes Template Gaps, June 2026.]*
 
 **Roster type `'none'`:** For games with automatic or random seating, use `rosterConfig.type: 'none'`. The `'individual'` type requires every player (including the host) to be manually assigned in the Assign Spots lobby UI — any player left unassigned produces `reordered[-1]` (a non-standard array property), corrupting the slot array. If the game handles seat labels internally, `'none'` is always safer.
 
@@ -418,12 +428,17 @@ Before implementing, answer:
 1. Will this work offline? If not, how do we cache it?
 2. Does `sw.js` need updating to pre-cache new files?
 3. Are we using any APIs that require network (and gracefully fail if unavailable)?
+4. **What does this add to the install?** Any precached binary asset (art, audio) needs a
+   per-file ceiling agreed *before* it is generated, not after. PKO's card art arrived as 17
+   PNGs totalling **26 MB** — a precache that size makes the app effectively uninstallable on
+   mobile data. Converted to 360 px JPEGs at a 40 KB/card ceiling it is 682 KB. Set the ceiling
+   at spec time and state it in the tech spec. *[Elevated from pko-impl-notes TG-02, July 2026.]*
 
 **Deliberate offline exception — Fredoka font:** The Fredoka brand font loads from `fonts.googleapis.com` / `fonts.gstatic.com` at runtime and is not precached by the SW. Offline/installed sessions fall back to the system sans-serif. This is accepted: self-hosting would require woff2 files, a local `@font-face`, and precache entries. The app is functional offline; only brand typography is affected. Do not remove the Google Fonts `<link>` tags or add a "will this work offline?" flag to the font — the exception is documented here.
 
 **SW versioning:** `CACHE_NAME = 'sylly-games-vN'` — bump N on **every deploy**.
 
-**Current SW version:** v142
+**Current SW version:** v147
 
 **Precached assets (relative paths — no leading `/`; matches `sw.js` `PRECACHE_URLS[]`):**
 ```
@@ -431,18 +446,31 @@ Before implementing, answer:
 js/engine.js,
 js/games/li5.js, js/games/great-minds.js, js/games/secret-signals.js,
 js/games/jec.js, js/games/ygi.js, js/games/lttp.js, js/games/nat.js,
-js/games/dsd.js, js/games/bld.js, js/games/gth.js, js/games/dyb.js, js/games/pass.js, js/games/nt.js, js/games/frt.js, js/games/shp.js, js/games/flw.js,
-js/lib/cards.js,
-data/ygi-data.json, data/gth-data.json,
+js/games/dsd.js, js/games/bld.js, js/games/gth.js, js/games/dyb.js, js/games/pass.js, js/games/nt.js, js/games/frt.js, js/games/shp.js, js/games/flw.js, js/games/pko.js,
+js/lib/cards.js, js/lib/art.js,
+data/ygi-data.json, data/gth-data.json, data/pko-data.json,
 js/secret-mode.js, js/app.js,
 js/lib/tailwind-play.js, js/lib/canvas-draw.js,
 data/words.json,
+data/art/registry.json, data/art/pko/pack.json, data/art/pko/img/*.jpg (17 files),
 manifest.json,
 js/engine-multiplayer.js,
 js/lib/firebase-app.js, js/lib/firebase-database.js, js/lib/firebase-auth.js, js/lib/firebase-init.js
 ```
 
 Note: the four Firebase lib files ARE precached (so Lobby Mode works offline-first once installed) but are still lazy-loaded at runtime — they are not in the `index.html` `<script>` load order. See Firebase Lazy-Load below.
+
+**Core art — precached (`data/art/`, July 2026):** A game's *default* artwork lives in
+`data/art/<kind>/` using the **same manifest format** as a skin pack, but with the opposite caching
+contract: it **is** listed in `PRECACHE_URLS` (manifest + every image) and changing it **does** need
+an SW version bump, because default art is part of the app version. It is never listed in
+`data/packs/registry.json` and never appears in the Terminal. Resolution is three-tier in
+`js/lib/art.js` — active skin → core art → emoji fallback — so `assetFace`/`assetBack` call sites
+did not change. `assetExtra(kind, key)` covers non-card game art (reference diagrams). First user:
+`pko`; the other games adopt it one at a time — the **rollout tracker** (which games are still on
+emoji defaults, the 4 conversion steps, per-game gotchas) is in `docs/expansion-guide.md` § Core art
+packs, and `tools/convert-core-art.ps1` is the converter. Converting a game needs **no JS edit** —
+its seam already calls `assetFace`/`assetBack`.
 
 **Cartridge packs — runtime-cached, NOT precached (Phase A, June 2026):** Everything under
 `data/packs/` (the `registry.json`, each `<id>/pack.json`, and any asset images) is deliberately
@@ -488,6 +516,11 @@ edit, no SW version bump. The legacy `data/secret*_words.json` files were migrat
 - [ ] **No global function-name collision across plugins:** A plugin must never declare a top-level `function name()` whose bare name is already global in another plugin (all plugins share `window`; a later-loaded plugin's hoisted declaration silently clobbers an earlier one). The expansion-override hook must always be plugin-prefixed — `[abbr]ApplyExpansionOverrides()`, never bare `applyExpansionOverrides()` (that name belongs to LI5 legacy only). Grep all plugins for a proposed function name before declaring it. *[Elevated from bld-impl-notes Bug 16 (clobbered LI5), jec-impl-notes naming note.]*
 - [ ] **Contextual tip IDs are uniquely named:** In-game `[?]` tip buttons use `btn-[abbr]-[phase]-tip`; the menu/header How to Play button is `btn-[abbr]-how-to`. Never reuse `btn-[abbr]-how-to` for an in-game tip — `getElementById` returns only the first match, leaving the duplicate permanently unwired. Where one screen exists in two routing contexts (single-device vs MDLM), wire the `[?]` on the *reachable* screen. *[Elevated from ss-impl-notes S3, dsd-impl-notes duplicate id, gth-impl-notes btn-gth-how-to-case.]*
 - [ ] **Canvas drawing (if applicable):** If the game uses freehand drawing, reference `js/lib/canvas-draw.js` (`window.CanvasDraw` global). Call `CanvasDraw.init(canvasEl)` on screen show. Tremor/jiggle effects apply to the wrapper `<div>` — never to the `<canvas>` element itself (canvas coordinate system must be unaffected). GTH is the reference implementation.
-- [ ] **Asset-pack readiness (if the game has a visual primitive — cards/dice/gems/tiles/tokens):** Build ALL of that primitive's DOM through ONE render seam `[abbr]RenderX(id, opts)` (+ a face-down/back variant), keyed by a stable packet-safe id. At the top of the seam check `assetFace('<kind>', id)` (and `assetBack('<kind>')` for backs) — if it returns a URL, render an image node with a `.<family>-card-asset` cover CSS class; else draw the default face. Never build that primitive anywhere outside the seam (a bypass is unskinnable — DYB's old cup-die bypass). Skins are device-local cosmetic (ids-only packets → no MP sync). To make skins selectable, add the game to `SM_GAMES` in `secret-mode.js`. Reference seams: `frtRenderCard`, `shpRenderCard`, `flwRenderCard`, `Cards.buildEl`, `dybDieHTML`. See `docs/expansion-guide.md` § Add an asset (skin) pack. *[Cartridge Phase B, June 2026.]*
-- [ ] **Custom CSS brand classes on `<button>` elements must include flex centering:** When a game's brand colour has no Tailwind utility class (e.g. DYB ocean blue `#1E4D8C`, GTH sage `#B1BCA0`, FRT banana `#FFC700`), a custom CSS class is used for the CTA button background. That class MUST declare `display: flex; align-items: center; justify-content: center;` — not just `background-color`. Without these, when JS (or Tailwind) sets the display to `flex`, button text top-left-aligns instead of centring. For Tailwind-colour games this is not an issue because `flex items-center justify-center` are applied as HTML utility classes directly. *[Elevated from dyb-impl-notes, June 2026.]*
+- [ ] **Asset-pack readiness (if the game has a visual primitive — cards/dice/gems/tiles/tokens):** Build ALL of that primitive's DOM through ONE render seam `[abbr]RenderX(id, opts)` (+ a face-down/back variant), keyed by a stable packet-safe id. At the top of the seam check `assetFace('<kind>', id)` (and `assetBack('<kind>')` for backs) — if it returns a URL, render an image node with a `.<family>-card-asset` cover CSS class; else draw the default face. Never build that primitive anywhere outside the seam (a bypass is unskinnable — DYB's old cup-die bypass). Skins are device-local cosmetic (ids-only packets → no MP sync). To make skins selectable, add the game to `SM_GAMES` in `secret-mode.js`. Reference seams: `pkoRenderCard`, `frtRenderCard`, `shpRenderCard`, `flwRenderCard`, `Cards.buildEl`, `dybDieHTML`. **The same seam also delivers the game's *default* art** — ship it as a core art pack in `data/art/<kind>/` (same manifest, precached, invisible to the Terminal) rather than hardcoding paths or a filename lookup table in the plugin; the manifest owns the id → filename mapping. Resolution is skin → core art → emoji, all inside `assetFace`/`assetBack` (`js/lib/art.js`). See `docs/expansion-guide.md` §§ Add an asset (skin) pack / Core art packs. *[Cartridge Phase B, June 2026; core art tier July 2026.]*
+- [ ] **Any button a script reveals with `display:flex` must carry flex centering.** A `<button>` centres its label by default — until something sets `display:flex`, which swaps in the flex defaults (`align-items:stretch; justify-content:flex-start`) and pins the label top-left. Two ways this bites, and you need **both** covered:
+  - **Custom brand CSS classes.** When a game's brand colour has no Tailwind utility (DYB ocean `#1E4D8C`, GTH sage `#B1BCA0`, FRT banana `#FFC700`, PKO `#854D0E`), the custom class MUST declare `display:flex; align-items:center; justify-content:center;` — not just `background-color`.
+  - **Buttons a show/hide helper reveals.** A helper like `el.style.display = on ? 'flex' : 'none'` applies to *every* button it touches, including ones coloured with ordinary Tailwind utilities that have no custom class to carry the centering. Those need `flex items-center justify-center` in the HTML. This is exactly how PKO's Retreat and Stampede shipped mis-aligned while Stake and Challenge (which had `.pko-cta`) looked fine — the rule was previously scoped only to custom classes, so Tailwind-coloured buttons read as out of scope. *[Widened from pko-impl-notes BUG-03, July 2026; originally dyb-impl-notes, June 2026.]*
+- [ ] **Rules-engine verification harness (any game with a deck, chain, or scoring table — MANDATORY for MDLM-only games):** Commit `tools/verify-[abbr]-*.js` — a Node `vm` harness that evaluates the real plugin (re-implementing nothing) and asserts the spec's own numbers and rules, exiting non-zero on failure. In an MDLM-only game the rules engine is unreachable from a single browser, so without one the first real play is also the first execution. **This constrains how you write the appliers:** they must take an explicit `playerIdx` and skip every broadcast in `'single'` mode, so one process can play all N seats — an applier that reads `mpMyPlayerIdx` internally cannot be tested at all. Reference: `tools/verify-pko-chain.js` (data layer) + `tools/verify-pko-loop.js` (turn loop), which caught PKO BUG-01 on its first run. Method + sandbox gotchas: `docs/rules/new-game-process.md` § Stage 3.
+  **Scope the harness by what a function DECIDES, not by which layer it lives in.** A tap handler that works out where a card may legally go is rules logic wearing a UI hat, and it belongs in the harness — its render calls are already `getElementById`-guarded, so it runs unmodified against the sandbox's null document. PKO's quick-play tap path was left out on "it's UI" grounds and shipped BUG-05 (a mixed-species answer refused from the table while the builder accepted it) past 111 green checks. *[Elevated from pko-impl-notes BUG-05, July 2026.]*
+- [ ] **One widget serving two actions must not carry either action's rules.** Reusing an interaction (a tap, a cycle, a drag) across two game actions silently imports the first action's constraints into the second. PKO reused the Stake's group-cycling for the Challenge and inherited *"a Stake is one species only"*, making mixed answers impossible from the table. Either the shared part holds **no** rules at all, or the two paths are **separate functions** — and each names the other in a comment, so the next reader sees the fork. *[Elevated from pko-impl-notes BUG-05, July 2026.]*
 - [ ] **Closure — sync `docs/content-prompts/new-game-brief-prompt.md`:** On shipping the game, update that file's existing-games roster table, the "taken" abbreviations line, and the Sylly-Mode name list to include the new game. Pull every value from *shipped reality* (`game-identities.md` + the plugin + impl notes), never from the original brief. The brief prompt is the first doc a future game touches; a stale roster re-imports errors and risks an abbreviation collision. See `docs/rules/new-game-process.md` Stage 3 closure.

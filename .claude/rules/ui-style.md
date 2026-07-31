@@ -12,6 +12,7 @@ Every screen must have:
    - Post-game ✕ → `resetToLobby()` directly (game is over, no state to preserve)
    - "← Back to the Box" on game menu → `resetToLobby()` — the **only** path to lobby from within a game
 4. **Active play exception:** `#btn-mute` stays as instant tap-to-mute (no overlay — timer running). Pixel-exact rule applies to `.btn-open-sound` only.
+5. **Interstitial exception:** A screen that **auto-advances** AND has **no interactive element** is exempt from 1–3 — chrome there is tappable for less time than it takes to aim at it. Both conditions required; "it's brief" alone is not a licence. If it ever becomes dismissible or user-paced, the full chrome returns. Reference: `screen-pko-unchallenged` (2.5 s).
 
 ---
 
@@ -251,6 +252,23 @@ These are the only ways the Stack has ever broken in this codebase. All three ar
 2. **Never use `my-auto` to centre.** `my-auto` distributes *free space*, and inside an `overflow-y-auto` column there is none (the column's height equals its content). It is a silent no-op. Centring is the `<section>`'s job via `items-center justify-center` — never the child's. (FRT BUG-02.)
 
 3. **No `h-screen` / `flex-1` / `flex-shrink-0` split.** That trio is the old "sticky-footer" pattern — it deliberately inflates the Stage (`flex-1`) to eat all leftover space and shoves Header to the top edge and Controls to the bottom edge. That is the *opposite* of the Stack. Do not use it for new screens. (See the legacy note below.)
+
+### Transient animations must float, never sit in the flow
+
+Any repeating, transient animation inside a Stack — a card lifting out of a hand, a token flying to a pile, a creature crossing the screen, a score popping — must live in an **absolutely-positioned layer over a `position: relative` parent**, never as an inline child of the column.
+
+An in-flow animated element changes the column's height while it plays, and because the Stack is centred by the `<section>`, that height change re-centres the *entire* Stack — Header and Controls visibly bounce on every play. SHP's first sheep parade was an inline child of the herd column and did exactly this; the fix was a `position:absolute` `.shp-sheep-layer` over a `relative` counter.
+
+```html
+<div class="relative">           <!-- anchor -->
+  <div><!-- the real, layout-owning content --></div>
+  <div class="absolute inset-0 pointer-events-none">
+    <!-- animation layer: floats, contributes zero height -->
+  </div>
+</div>
+```
+
+Add `pointer-events-none` to the layer unless the animation is interactive. *[Elevated from shp-impl-notes Template Gaps, June 2026.]*
 
 ### Legacy sticky-footer pattern — do NOT use for new screens
 

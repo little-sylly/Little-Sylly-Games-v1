@@ -1,0 +1,31 @@
+{
+  "id": "pko",
+  "label": "PECKING ORDER — CORE ART",
+  "core": true,
+  "games": ["pko"],
+  "assets": {
+    "kind": "pko",
+    "basePath": "img/",
+    "faces": {
+      "mouse": "mouse.jpg",
+      "mongoose": "mongoose.jpg",
+      "leopard": "leopard.jpg",
+      "eagle": "eagle.jpg",
+      "bear": "bear.jpg",
+      "elephant": "elephant.jpg",
+      "bee": "bee.jpg",
+      "fish": "fish.jpg",
+      "octopus": "octopus.jpg",
+      "seal": "seal.jpg",
+      "polar_bear": "polar_bear.jpg",
+      "orca": "orca.jpg",
+      "stingray": "stingray.jpg",
+      "human": "human.jpg",
+      "mimic": "mimic.jpg"
+    },
+    "back": "back.jpg",
+    "extras": {
+      "chain": "chain.jpg"
+    }
+  }
+}

@@ -399,6 +399,28 @@ const MP_GAME_CONFIGS = {
     getMaxPlayers:   () => 4,
     getMinPlayers:   () => 3,
   },
+  pko: {
+    gameName:       'Pecking Order',
+    emoji:          '\u{1F418}',
+    brandBtnClass:  'pko-cta',
+    ptpLabel:       'Enter the Wild',
+    lobbyCtaLabel:  'Enter the Wild',
+    menuScreen:     'screen-pko-menu',
+    onPassThePhone: () => {
+      // Names come straight from the lobby — PKO has no setup screen (spec §17 D2).
+      // Every device populates them; only the host deals.
+      pkoPlayerCount = mpPlayerSlots.length;
+      pkoPlayerNames = mpPlayerSlots.map(p => p.nickname);   // {uid, nickname} — never .name
+      if (window.syllyMultiplayerMode === 'host') pkoStartSession();
+      else pkoShowClientStandby();                            // waits for PKO_CLASH_BEGIN
+    },
+    recommendedMode: 'mdlm',
+    supportedModes:  ['mdlm'],
+    multiplayerOnly: true,
+    rosterConfig:    { type: 'none' },
+    getMaxPlayers:   () => 6,
+    getMinPlayers:   () => 3,
+  },
 };
 
 // ── Nickname Helpers ──────────────────────────────────────────────────────────
@@ -810,6 +832,15 @@ function mpSerialiseSettings(abbr) {
     case 'shp': return {
       shpHandSize, shpMoons, shpDreamAccel, shpSleepwalkers, shpSyllyMode,
     };
+    // pkoSyllyMode is inert in v1 (Force of Nature is Phase 2) but ships serialised
+    // from day one so Phase 2 is a pure addition — spec §12/§16 Q7.
+    // pkoAppetite is load-bearing, not cosmetic: the host re-validates every Challenge with
+    // pkoBeats(), so a client on a different Appetite would have legal plays silently
+    // rejected — the dead-button shape of BUG-02.
+    case 'pko': return {
+      pkoClashTarget, pkoHoardSize, pkoPoacherSetting, pkoScavenge, pkoStartSmall,
+      pkoAppetite, pkoSyllyMode,
+    };
     case 'ss': return {
       ssSettingInterceptsToWin, ssDifficultyLevel,
       ssRerollLimitSetting: ssRerollLimitSetting === Infinity ? 'Infinity' : ssRerollLimitSetting,  // JSON-safe (Infinity → null otherwise)
@@ -982,6 +1013,15 @@ function mpHandleEnvelope(env) {
           if (s.flwTurnTimer    !== undefined) flwTurnTimer    = s.flwTurnTimer;
           if (s.flwBurnSetting  !== undefined) flwBurnSetting  = s.flwBurnSetting;
           if (s.flwSyllyMode    !== undefined) flwSyllyMode    = s.flwSyllyMode;
+          break;
+        case 'pko':
+          if (s.pkoClashTarget    !== undefined) pkoClashTarget    = s.pkoClashTarget;
+          if (s.pkoHoardSize      !== undefined) pkoHoardSize      = s.pkoHoardSize;
+          if (s.pkoPoacherSetting !== undefined) pkoPoacherSetting = s.pkoPoacherSetting;
+          if (s.pkoScavenge       !== undefined) pkoScavenge       = s.pkoScavenge;
+          if (s.pkoStartSmall     !== undefined) pkoStartSmall     = s.pkoStartSmall;
+          if (s.pkoAppetite       !== undefined) pkoAppetite       = s.pkoAppetite;
+          if (s.pkoSyllyMode      !== undefined) pkoSyllyMode      = s.pkoSyllyMode;
           break;
         // Additional games added as Sprint 4 progresses
       }
@@ -1608,6 +1648,11 @@ function mpHandleEnvelope(env) {
   // ── Flawless ACTION/SYNC/private ──────────────────────────────────────────
   if (mpActiveGame === 'flw') {
     if (typeof flwHandleEnvelope === 'function') flwHandleEnvelope(env);
+  }
+
+  // ── Pecking Order ACTION/SYNC/private ─────────────────────────────────────
+  if (mpActiveGame === 'pko') {
+    if (typeof pkoHandleEnvelope === 'function') pkoHandleEnvelope(env);
   }
 
   // ── Secret Signals ACTION/SYNC ─────────────────────────────────────────────

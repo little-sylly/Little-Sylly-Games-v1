@@ -86,6 +86,9 @@
       <button id="btn-flw" class="flw-cta min-h-14 w-full rounded-2xl active:scale-95 text-white text-xl font-semibold transition-all duration-150">
         Flawless
       </button>
+      <button id="btn-pko" class="pko-cta min-h-14 w-full rounded-2xl active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Pecking Order
+      </button>
     </div>
   </section>
 
@@ -3807,6 +3810,7 @@
 
   <!-- Load order: engine → multiplayer → plugins → secret-mode → bootstrapper -->
   <script src="js/engine.js"></script>
+  <script src="js/lib/art.js"></script>
   <script src="js/engine-multiplayer.js"></script>
   <script src="js/lib/canvas-draw.js"></script>
   <script src="js/games/li5.js"></script>
@@ -6759,6 +6763,7 @@
   <script src="js/games/frt.js"></script>
   <script src="js/games/shp.js"></script>
   <script src="js/games/flw.js"></script>
+  <script src="js/games/pko.js"></script>
   <script src="js/secret-mode.js"></script>
   <script src="js/app.js"></script>
 
@@ -8540,6 +8545,450 @@
       <div class="overflow-y-auto flex flex-col gap-3 px-5 py-5">
         <div id="flw-gems-list" class="flex flex-col gap-2"></div>
         <button id="btn-flw-gems-close" class="flw-cta min-h-14 w-full rounded-2xl text-white text-xl font-semibold active:scale-95 transition-all duration-150">Got it</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════ PECKING ORDER (pko) — adjacency climbing card game ════
+       Screens : screen-pko-menu, screen-pko-hoard, screen-pko-table,
+                 screen-pko-unchallenged, screen-pko-clash-result, screen-pko-hierarchy
+       Overlays: pko-settings-overlay, pko-challenge-overlay, pko-how-to-overlay, pko-chain-overlay,
+                 pko-trail-overlay, pko-quit-overlay, pko-stampede-overlay, pko-new-match-overlay
+    ══════════════════════════════════════════════════ -->
+
+  <!-- PKO MENU -->
+  <section id="screen-pko-menu" style="display:none"
+    class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
+    <button class="btn-open-sound absolute top-4 right-4 text-2xl">🔊</button>
+    <div class="text-6xl" role="img" aria-label="elephant">🐘</div>
+    <div>
+      <h1 class="text-4xl font-bold text-stone-800">Pecking Order</h1>
+      <p class="text-stone-400 text-base mt-2">Know the food chain. Become the Apex.</p>
+    </div>
+    <div class="flex flex-col gap-3 w-full">
+      <button id="btn-pko-menu-play" class="pko-cta min-h-14 w-full rounded-2xl text-white text-xl font-semibold active:scale-95 transition-all duration-150">Enter the Wild</button>
+      <button id="btn-pko-menu-how-to" class="min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 text-white text-xl font-semibold active:scale-95 transition-all duration-150">How to Play</button>
+      <button id="btn-pko-menu-settings" class="min-h-14 w-full rounded-2xl bg-[#F5E6C8] hover:bg-[#EBD5A8] text-[#854D0E] text-xl font-semibold active:scale-95 transition-all duration-150">Settings</button>
+      <button id="btn-pko-menu-back" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 text-stone-500 text-base font-medium active:scale-95 transition-all duration-150">← Back to the Box</button>
+    </div>
+  </section>
+
+  <!-- PKO HOARD (private deal reveal) -->
+  <section id="screen-pko-hoard" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-4">
+      <div class="flex items-center justify-between">
+        <div id="pko-hoard-clash" class="text-sm font-semibold text-stone-500">Clash 1</div>
+        <div class="flex items-center gap-2">
+          <button id="btn-pko-how-to" class="text-stone-400 font-bold text-sm">[?]</button>
+          <button class="btn-open-sound text-xl">🔊</button>
+          <button class="btn-pko-quit-open text-stone-500 font-bold text-xl">✕</button>
+        </div>
+      </div>
+      <div class="flex flex-col gap-3">
+        <div class="text-center">
+          <h2 class="text-2xl font-bold text-stone-800">Your Hoard</h2>
+          <p class="text-stone-400 text-sm mt-1">Only you can see these. Empty it first and the Clash is yours.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-3 shadow-sm flex flex-col gap-2">
+          <div class="flex items-center justify-between">
+            <p class="text-[0.6rem] font-semibold uppercase tracking-wide text-stone-400">Dealt</p>
+            <span id="pko-hoard-count" class="pko-label font-bold text-sm">—</span>
+          </div>
+          <div id="pko-hoard-fan" class="pko-fan flex justify-center overflow-x-auto pt-2 pb-1"></div>
+        </div>
+        <div id="pko-hoard-waiting" class="text-center text-stone-400 text-xs"></div>
+      </div>
+      <button id="btn-pko-hoard-ready" class="btn-mp-action pko-cta min-h-14 w-full rounded-2xl text-white text-lg font-semibold active:scale-95 transition-all duration-150">I'm Ready</button>
+    </div>
+  </section>
+
+  <!-- PKO TABLE (the field) -->
+  <section id="screen-pko-table" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-4">
+      <div class="flex items-center justify-between">
+        <div id="pko-table-clash" class="text-sm font-semibold text-stone-500">Clash 1 · Encounter 1</div>
+        <div class="flex items-center gap-2">
+          <button id="btn-pko-table-how-to" class="text-stone-400 font-bold text-sm">[?]</button>
+          <button class="btn-open-sound text-xl">🔊</button>
+          <button class="btn-pko-quit-open text-stone-500 font-bold text-xl">✕</button>
+        </div>
+      </div>
+      <div class="flex flex-col gap-3">
+        <div id="pko-turn-banner" class="text-center text-stone-500 text-sm font-semibold">—</div>
+        <div class="bg-white rounded-2xl p-3 shadow-sm flex flex-col gap-2">
+          <div class="flex items-center justify-between">
+            <p class="text-[0.6rem] font-semibold uppercase tracking-wide text-stone-400">Active Marks</p>
+            <button id="btn-pko-chain" class="text-[0.65rem] font-semibold uppercase tracking-wide pko-label active:scale-90 transition-transform duration-100">[?] The Chain</button>
+          </div>
+          <div class="flex items-center gap-2">
+            <button id="btn-pko-hole" aria-label="Watering Hole — spent cards and the Trail"
+              class="flex flex-col items-center gap-1 shrink-0 active:scale-95 transition-transform duration-100">
+              <div id="pko-hole-pile" class="flex items-center justify-center"></div>
+              <p class="text-[0.55rem] font-semibold tracking-wide text-stone-400">💧 <span id="pko-hole-count" class="pko-label">0</span></p>
+            </button>
+            <div id="pko-marks-row" class="flex gap-1.5 justify-center flex-wrap min-h-[5.75rem] items-center flex-1"></div>
+          </div>
+          <p id="pko-table-hint" class="text-center text-xs text-[#854D0E] min-h-4"></p>
+          <div id="pko-fon-label" style="display:none" class="text-center text-[0.65rem] font-semibold uppercase tracking-wide pko-label"></div>
+        </div>
+        <div id="pko-player-strip" class="flex flex-wrap gap-2 justify-center"></div>
+        <div class="bg-white rounded-2xl p-3 shadow-sm flex flex-col gap-2">
+          <p class="text-[0.6rem] font-semibold uppercase tracking-wide text-stone-400">Your Hoard</p>
+          <div id="pko-my-fan" class="pko-fan flex justify-center overflow-x-auto pt-2 pb-1"></div>
+        </div>
+      </div>
+      <div class="flex flex-col gap-2">
+        <button id="btn-pko-stake" style="display:none" class="btn-mp-action pko-cta min-h-14 w-full rounded-2xl text-white text-lg font-semibold active:scale-95 transition-all duration-150">Stake</button>
+        <button id="btn-pko-challenge" style="display:none" class="btn-mp-action pko-cta min-h-14 w-full rounded-2xl text-white text-lg font-semibold active:scale-95 transition-all duration-150">Challenge</button>
+        <button id="btn-pko-stampede" style="display:none" class="btn-mp-action flex items-center justify-center min-h-14 w-full rounded-2xl bg-[#F5E6C8] hover:bg-[#EBD5A8] text-[#854D0E] text-lg font-semibold active:scale-95 transition-all duration-150">Stampede</button>
+        <button id="btn-pko-retreat" style="display:none" class="btn-mp-action flex items-center justify-center min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 text-stone-600 text-lg font-semibold active:scale-95 transition-all duration-150">Retreat</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- PKO UNCHALLENGED (interstitial — auto-advances) -->
+  <section id="screen-pko-unchallenged" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-4 text-center items-center">
+      <div class="text-5xl" role="img" aria-label="paw prints">🐾</div>
+      <div>
+        <p class="text-xs font-semibold uppercase tracking-widest pko-label">Unchallenged</p>
+        <h2 id="pko-unchallenged-name" class="text-3xl font-bold text-stone-800 mt-1">—</h2>
+        <p class="text-stone-400 text-sm mt-1">Everyone else Retreated. They lead the next Encounter.</p>
+      </div>
+      <div id="pko-unchallenged-marks" class="flex gap-1.5 justify-center flex-wrap"></div>
+    </div>
+  </section>
+
+  <!-- PKO CLASH RESULT -->
+  <section id="screen-pko-clash-result" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-4">
+      <div class="flex items-center justify-between">
+        <div id="pko-clash-result-num" class="text-sm font-semibold text-stone-500">Clash Summary</div>
+        <div class="flex items-center gap-2">
+          <button class="btn-open-sound text-xl">🔊</button>
+          <button class="btn-pko-quit-open text-stone-500 font-bold text-xl">✕</button>
+        </div>
+      </div>
+      <div id="pko-clash-result-body" class="flex flex-col items-center gap-3 text-center"></div>
+      <button id="btn-pko-next-clash" class="pko-cta min-h-14 w-full rounded-2xl text-white text-lg font-semibold active:scale-95 transition-all duration-150">Next Clash</button>
+      <button id="btn-pko-result-trail" class="flex items-center justify-center min-h-11 w-full rounded-2xl bg-[#F5E6C8] hover:bg-[#EBD5A8] text-[#854D0E] text-base font-semibold active:scale-95 transition-all duration-150">Trail &amp; Discards →</button>
+      <p id="pko-clash-result-waiting" style="display:none" class="text-center text-stone-400 text-xs">Waiting for the host to open the next Clash…</p>
+    </div>
+  </section>
+
+  <!-- PKO HIERARCHY (game over) -->
+  <section id="screen-pko-hierarchy" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-4">
+      <div class="flex items-center justify-between">
+        <h2 class="text-xl font-bold text-stone-800">The Hierarchy 🐘</h2>
+        <div class="flex items-center gap-2">
+          <button class="btn-open-sound text-xl">🔊</button>
+          <button id="btn-pko-hierarchy-exit" class="text-stone-500 font-bold text-xl">✕</button>
+        </div>
+      </div>
+      <div id="pko-hierarchy-body" class="flex flex-col gap-2"></div>
+      <div class="bg-white rounded-2xl p-3 shadow-sm flex flex-col gap-2">
+        <p class="text-[0.6rem] font-semibold uppercase tracking-wide text-stone-400">Clash History</p>
+        <div id="pko-hierarchy-grid" class="overflow-x-auto"></div>
+      </div>
+      <div class="flex flex-col gap-2">
+        <button id="btn-pko-go-new" class="pko-cta min-h-14 w-full rounded-2xl text-white text-lg font-semibold active:scale-95 transition-all duration-150">Enter the Wild</button>
+        <button id="btn-pko-go-leave" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 text-stone-500 font-semibold text-sm active:scale-95 transition-all duration-100">Leave the Wild</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- PKO SETTINGS (The Conditions) -->
+  <div id="pko-settings-overlay" style="display:none"
+    class="fixed inset-0 bg-black/40 z-[80] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
+      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
+        <h2 class="text-xl font-bold text-stone-800">The Conditions 🌿</h2>
+        <p class="text-xs text-stone-400 mt-1">Set the terms of the territory.</p>
+      </div>
+      <div class="overflow-y-auto flex flex-col gap-5 px-5 py-5">
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">Clashes to Win</p>
+            <p class="text-stone-400 text-sm mt-0.5">How many Clashes it takes to win the Match.</p>
+          </div>
+          <div class="flex gap-2">
+            <button class="pill pill-active-pko" data-pko-target="3">3</button>
+            <button class="pill" data-pko-target="5">5</button>
+            <button class="pill" data-pko-target="7">7</button>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">Hoard Size</p>
+            <p class="text-stone-400 text-sm mt-0.5">How many cards each player is dealt at the start of every Clash. Bigger Hoards mean longer Clashes.</p>
+          </div>
+          <div class="flex gap-2">
+            <button class="pill" data-pko-hoard="10">10</button>
+            <button class="pill pill-active-pko" data-pko-hoard="12">12</button>
+            <button class="pill" data-pko-hoard="15">15</button>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">Appetite</p>
+            <p class="text-stone-400 text-sm mt-0.5">How far down the chain a predator will reach. Ravenous means a Leopard also takes Mice, not just Mongooses — fewer Encounters go unanswered, which suits smaller tables. Sated is the strict chain: you only ever eat your direct prey.</p>
+          </div>
+          <div class="flex gap-2">
+            <button class="pill pill-active-pko" data-pko-appetite="sated">Sated</button>
+            <button class="pill" data-pko-appetite="ravenous">Ravenous</button>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">Poacher Cards</p>
+            <p class="text-stone-400 text-sm mt-0.5">How many Human wildcards go into the Pool. A Poacher wins any single Mark outright — and nothing else. One Each keeps pace with bigger tables.</p>
+          </div>
+          <div class="flex gap-2">
+            <button class="pill" data-pko-poacher="none">None</button>
+            <button class="pill" data-pko-poacher="flat3">Three</button>
+            <button class="pill pill-active-pko" data-pko-poacher="perPlayer">One Each</button>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <div class="flex items-center justify-between">
+            <p class="text-stone-800 font-semibold">Scavenge on Retreat</p>
+            <button id="btn-pko-scavenge-toggle" class="game-toggle-off shrink-0">OFF</button>
+          </div>
+          <p class="text-stone-400 text-sm">Draw a card when you Retreat. More options for later — but this is a race to empty your Hoard, so it's one more card to shed.</p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">Small Fry</p>
+            <p class="text-stone-400 text-sm mt-0.5">The player who opens must Stake their smallest animal. How many is still their call. Bees, Eagles and Stingrays sit outside the size ladder, so they never count as your smallest.</p>
+          </div>
+          <div class="flex gap-2">
+            <button class="pill" data-pko-smallfry="off">Off</button>
+            <button class="pill pill-active-pko" data-pko-smallfry="match">Match Start</button>
+            <button class="pill" data-pko-smallfry="clash">Every Clash</button>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <div class="flex items-center justify-between">
+            <p class="text-stone-800 font-semibold">✨ Sylly Mode</p>
+            <button id="btn-pko-sylly-toggle" class="game-toggle-off shrink-0">OFF</button>
+          </div>
+          <p class="text-stone-600 text-sm font-semibold">Force of Nature</p>
+          <p class="text-stone-400 text-sm">A random event reshapes the rules at the start of every Encounter — Migration, Dark Forest, Extinction Event, and more. Every Clash opens with Invasive Mimicry. Arriving in a later update.</p>
+        </div>
+        <button id="btn-pko-settings-done" class="pko-cta min-h-14 w-full rounded-2xl text-white text-xl font-semibold active:scale-95 transition-all duration-150">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PKO CHALLENGE BUILDER (spec §17 D1 — overlay, not a screen) -->
+  <div id="pko-challenge-overlay" style="display:none"
+    class="fixed inset-0 bg-black/40 z-[80] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
+      <div class="px-5 pt-4 pb-3 border-b border-stone-200 flex-shrink-0 flex items-center justify-between">
+        <div>
+          <h2 class="text-lg font-bold text-stone-800">Answer the Marks</h2>
+          <p class="text-xs text-stone-400 mt-0.5">One card per Mark, or two of its own kind to Swarm it — all or nothing.</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button id="btn-pko-challenge-chain" class="text-stone-400 font-bold text-sm">[?]</button>
+          <button class="btn-open-sound text-xl">🔊</button>
+          <button id="btn-pko-challenge-cancel" class="text-stone-500 font-bold text-xl">✕</button>
+        </div>
+      </div>
+      <div class="overflow-y-auto flex flex-col gap-3 px-5 py-4">
+        <div class="flex flex-col gap-1.5">
+          <p class="text-[0.6rem] font-semibold uppercase tracking-wide text-stone-400">Active Marks</p>
+          <div id="pko-challenge-marks" class="flex gap-1.5 justify-center flex-wrap"></div>
+        </div>
+        <div class="flex flex-col gap-1.5">
+          <div class="flex items-center justify-between">
+            <p class="text-[0.6rem] font-semibold uppercase tracking-wide text-stone-400">Your Challenge</p>
+            <button id="btn-pko-challenge-reset" class="text-[0.6rem] font-semibold uppercase tracking-wide text-stone-400 hover:text-stone-600 active:scale-90 transition-all duration-100">↺ Reset</button>
+          </div>
+          <div id="pko-challenge-slots" class="flex gap-1.5 justify-center flex-wrap"></div>
+          <p id="pko-challenge-hint" class="text-center text-xs text-[#854D0E] min-h-4"></p>
+        </div>
+        <div class="flex flex-col gap-1.5">
+          <p class="text-[0.6rem] font-semibold uppercase tracking-wide text-stone-400">Your Hoard</p>
+          <div id="pko-challenge-fan" class="pko-fan flex justify-center overflow-x-auto pt-2 pb-1"></div>
+        </div>
+        <div class="flex flex-col gap-2">
+          <button id="btn-pko-challenge-confirm" class="btn-mp-action pko-cta min-h-14 w-full rounded-2xl text-white text-lg font-semibold active:scale-95 transition-all duration-150" disabled>Challenge</button>
+          <button id="btn-pko-challenge-back" class="min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 text-stone-600 text-lg font-semibold active:scale-95 transition-all duration-150">← Back</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PKO HOW TO PLAY -->
+  <div id="pko-how-to-overlay" style="display:none"
+    class="fixed inset-0 bg-black/40 z-[90] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
+      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
+        <h2 class="text-xl font-bold text-stone-800">How to Play 🐘</h2>
+        <p class="text-xs text-stone-400 mt-1">Shed your whole hand by playing each animal's natural predator.</p>
+      </div>
+      <div class="overflow-y-auto flex flex-col gap-4 px-5 py-5">
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest pko-label">Step 1</p>
+          <p class="font-bold text-stone-800">The food chain</p>
+          <p class="text-stone-500 text-sm">Every animal has a natural predator, and only its <span class="font-semibold text-stone-700">immediate</span> predator counts. Eagles don't answer to Elephants. <button class="btn-pko-chain-open pko-label font-semibold">[?] See the chain</button></p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest pko-label">Step 2</p>
+          <p class="font-bold text-stone-800">Staking your claim</p>
+          <p class="text-stone-500 text-sm">Open an Encounter by <span class="font-semibold text-stone-700">Staking</span> — put down one or more cards of the same species. Each one becomes a <span class="font-semibold text-stone-700">Mark</span> the next player has to answer.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest pko-label">Small Fry</p>
+          <p class="font-bold text-stone-800">Open at the bottom</p>
+          <p class="text-stone-500 text-sm">If <span class="font-semibold text-stone-700">Small Fry</span> is on, whoever opens has to Stake their <span class="font-semibold text-stone-700">smallest</span> animal — Mouse and Fish are the bottom of their chains. You still choose how many. Bees, Eagles, Stingrays and Poachers sit outside the ladder and never count as your smallest.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest pko-label">Step 3</p>
+          <p class="font-bold text-stone-800">The Challenge</p>
+          <p class="text-stone-500 text-sm">Beat <span class="font-semibold text-stone-700">every</span> Mark, one card per Mark, each a natural predator of the Mark it answers. Miss one and you can't Challenge at all — it's all or nothing.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest pko-label">Step 4</p>
+          <p class="font-bold text-stone-800">Stampede</p>
+          <p class="text-stone-500 text-sm">When every Mark is the same species, play one more copy of that species than there are Marks and the whole field is yours. The button appears on its own when you hold enough.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest pko-label">Step 5</p>
+          <p class="font-bold text-stone-800">Retreat and rejoin</p>
+          <p class="text-stone-500 text-sm">Can't beat everything? <span class="font-semibold text-stone-700">Retreat</span> — you're not out. The moment the Marks change you're back in and can Challenge again.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest pko-label">Step 6</p>
+          <p class="font-bold text-stone-800">Going Unchallenged</p>
+          <p class="text-stone-500 text-sm">When everyone else has Retreated you go <span class="font-semibold text-stone-700">Unchallenged</span>, win the Encounter, and lead the next one.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest pko-label">The Poacher</p>
+          <p class="font-bold text-stone-800">Answers to no one</p>
+          <p class="text-stone-500 text-sm">The Human wildcard wins any single Mark outright — no predator relationship needed. That's the whole of it: it can't stand in as an animal and it can't help you Stampede. There are only a handful in the Pool.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest pko-label">The Eagle</p>
+          <p class="font-bold text-stone-800">Nothing eats an Eagle</p>
+          <p class="text-stone-500 text-sm">If there's an Eagle among the Marks, a <span class="font-semibold text-stone-700">Poacher</span> is your only answer — unless the whole field is Eagles and you can Stampede it.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest pko-label">Winning and Scoring</p>
+          <ul class="list-disc pl-5 flex flex-col gap-1 text-stone-500 text-sm">
+            <li><span class="font-semibold text-stone-700">Empty your Hoard</span> — play your last card and you win the Clash for 1 point.</li>
+            <li><span class="font-semibold text-stone-700">First to the target</span> Clash wins takes the Match.</li>
+            <li><span class="font-semibold text-stone-700">The Hierarchy</span> ranks everyone at the end — Apex Predator down to the Bottom Feeder.</li>
+          </ul>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest pko-label">✨ Sylly Mode</p>
+          <p class="font-bold text-stone-800">Force of Nature</p>
+          <p class="text-stone-500 text-sm">A random event reshapes the rules at the start of every Encounter — <span class="font-semibold text-stone-700">Migration</span>, <span class="font-semibold text-stone-700">Dark Forest</span>, <span class="font-semibold text-stone-700">Extinction Event</span> and more, with every Clash opening on Invasive Mimicry. Arriving in a later update.</p>
+        </div>
+        <button id="btn-pko-howto-close" class="pko-cta min-h-14 w-full rounded-2xl text-white text-xl font-semibold active:scale-95 transition-all duration-150">Got it</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PKO CHAIN DIAGRAM (one overlay, three entry points) -->
+  <div id="pko-chain-overlay" style="display:none"
+    class="fixed inset-0 bg-black/40 z-[90] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
+      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
+        <h2 class="text-xl font-bold text-stone-800">The Chain 🌿</h2>
+        <p class="text-xs text-stone-400 mt-1">Who eats whom. Only the immediate predator counts.</p>
+        <div class="flex gap-2 mt-3">
+          <button id="btn-pko-chain-tab-diagram" class="pill pill-active-pko">Diagram</button>
+          <button id="btn-pko-chain-tab-animals" class="pill">Animals</button>
+        </div>
+      </div>
+      <div class="overflow-y-auto flex flex-col gap-3 px-5 py-5">
+        <div id="pko-chain-diagram" class="flex flex-col items-center gap-2"></div>
+        <div id="pko-chain-body" style="display:none" class="flex flex-col gap-2"></div>
+        <button id="btn-pko-chain-close" class="pko-cta min-h-14 w-full rounded-2xl text-white text-xl font-semibold active:scale-95 transition-all duration-150">Got it</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PKO THE TRAIL (match log) -->
+  <div id="pko-trail-overlay" style="display:none"
+    class="fixed inset-0 bg-black/40 z-[90] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
+      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
+        <h2 class="text-xl font-bold text-stone-800">The Watering Hole 💧</h2>
+        <p class="text-xs text-stone-400 mt-1">Where spent cards go — and everything that put them there.</p>
+        <div class="flex gap-2 mt-3">
+          <button id="btn-pko-hole-tab-trail" class="pill pill-active-pko">Trail</button>
+          <button id="btn-pko-hole-tab-discards" class="pill">Discards</button>
+        </div>
+      </div>
+      <div class="overflow-y-auto flex flex-col gap-3 px-5 py-5">
+        <div id="pko-trail-body" class="flex flex-col gap-2 text-stone-500 text-sm"></div>
+        <div id="pko-hole-body" style="display:none" class="flex flex-col gap-3"></div>
+        <button id="btn-pko-trail-close" class="pko-cta min-h-14 w-full rounded-2xl text-white text-xl font-semibold active:scale-95 transition-all duration-150">Got it</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PKO QUIT -->
+  <div id="pko-quit-overlay" style="display:none"
+    class="fixed inset-0 z-[80] overlay-modal-backdrop flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-[#C9A227]">
+      <div class="flex flex-col gap-2">
+        <p class="text-3xl">🐾</p>
+        <h3 class="text-lg font-bold text-stone-800">Abandon your territory?</h3>
+        <p class="text-stone-500 text-sm">This Clash ends here. Your Hoard, your Marks, and everything you've claimed go back to the wild.</p>
+      </div>
+      <div class="flex flex-col gap-2">
+        <button id="btn-pko-quit-confirm" class="min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 text-white font-semibold text-lg active:scale-95 transition-all duration-150">Yeah, walk away.</button>
+        <button id="btn-pko-quit-cancel" class="min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 text-stone-700 font-semibold text-lg active:scale-95 transition-all duration-150">Not yet!</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PKO STAMPEDE CONFIRM -->
+  <div id="pko-stampede-overlay" style="display:none"
+    class="fixed inset-0 z-[90] overlay-modal-backdrop flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-[#C9A227]">
+      <div class="flex flex-col gap-2">
+        <p class="text-3xl">🐃</p>
+        <h3 id="pko-stampede-heading" class="text-lg font-bold text-stone-800">Stampede?</h3>
+        <p class="text-stone-500 text-sm">The whole field goes to the Watering Hole and the board comes back one Mark wider.</p>
+      </div>
+      <div id="pko-stampede-preview" class="flex gap-1.5 justify-center flex-wrap"></div>
+      <div class="flex flex-col gap-2">
+        <button id="btn-pko-stampede-confirm" class="btn-mp-action pko-cta min-h-14 w-full rounded-2xl text-white font-semibold text-lg active:scale-95 transition-all duration-150">Charge!</button>
+        <button id="btn-pko-stampede-cancel" class="min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 text-stone-700 font-semibold text-lg active:scale-95 transition-all duration-150">Hold back</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PKO NEW MATCH (play-again confirm) -->
+  <div id="pko-new-match-overlay" style="display:none"
+    class="fixed inset-0 z-[90] overlay-modal-backdrop flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-[#C9A227]">
+      <div class="flex flex-col gap-2">
+        <p class="text-3xl">🐘</p>
+        <h3 class="text-lg font-bold text-stone-800">New Match?</h3>
+        <p class="text-stone-500 text-sm">Scores reset and the Pool is rebuilt from scratch. Same players, same conditions.</p>
+      </div>
+      <div class="flex flex-col gap-2">
+        <button id="btn-pko-new-confirm" class="pko-cta min-h-14 w-full rounded-2xl text-white font-semibold text-lg active:scale-95 transition-all duration-150">Enter the Wild</button>
+        <button id="btn-pko-new-cancel" class="min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 text-stone-700 font-semibold text-lg active:scale-95 transition-all duration-150">Stay here</button>
       </div>
     </div>
   </div>

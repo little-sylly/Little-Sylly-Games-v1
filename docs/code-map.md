@@ -36,6 +36,7 @@
 | Fruit Salad (FRT) | ~7604 |
 | Counting Sheep (SHP) | ~7909 |
 | Flawless (FLW) | ~8153 |
+| Pecking Order (PKO) | ~8551 |
 
 Each game's `<!-- ════ NAME ════ -->` section-header comment is itself a reliable Grep anchor if the line numbers have drifted.
 
@@ -75,6 +76,7 @@ Each game's `<!-- ════ NAME ════ -->` section-header comment is 
 | `#btn-frt` | Lobby → FRT menu screen |
 | `#btn-shp` | Lobby → SHP menu screen |
 | `#btn-flw` | Lobby → FLW menu screen |
+| `#btn-pko` | Lobby → PKO menu screen |
 | `#lobby-icon` | Secret Mode tap counter (7 taps → controller screen) |
 | `.btn-open-sound` | Opens `#sound-overlay` (on every screen) |
 | `#global-mute-toggle` | Mute toggle inside sound overlay |
@@ -538,7 +540,10 @@ cleared in `resetSecretMode()`.
 | `assetFace(kind, id)` | Resolved image URL for `(kind, id)` from the active pack, or `null` (→ seam draws default). |
 | `assetBack(kind)` | Resolved face-down image URL for the active pack, or `null`. |
 
-**Render seams (the only place art is built — each calls `assetFace`/`assetBack` then falls back):**
+**Render seams (the only place art is built — each calls `assetFace`/`assetBack`, which resolve
+skin pack → core art → emoji fallback in `js/lib/art.js`; `assetExtra(kind,key)` covers non-card
+game art. Core art packs live in `data/art/<kind>/` and ARE precached — see `docs/expansion-guide.md`
+§ Core art packs):**
 
 | Family | `kind` | Seam | File | Id key |
 |--------|--------|------|------|--------|
@@ -547,6 +552,7 @@ cleared in `resetSecretMode()`.
 | Gems | `flw` | `flwRenderCard(gemId, opts)` | `js/games/flw.js` | `gemId` 0–9 |
 | Cards | `cards` | `Cards.buildEl/buildBackEl` | `js/lib/cards.js` | `rank`+suit-letter (`AH`,`10S`,`Joker`) via `cardAssetId()` |
 | Dice | `dyb` | `dybDieHTML` (standard faces) + `dybDieBackHTML()` | `js/games/dyb.js` | face value 1–6 (special dice keep pips) |
+| Animals | `pko` | `pkoRenderCard(id, opts)` | `js/games/pko.js` | chain id string (`elephant`, `polar_bear`, `human`) |
 
 Per-game `faces` id cheat-sheet + authoring steps: `docs/expansion-guide.md` § Add an asset (skin) pack.
 CSS: `.frt-card-asset`, `.shp-card-asset`, `.pass-card-asset`, `.dyb-die-asset` (cover/centre, transparent border).
@@ -1616,3 +1622,141 @@ Per-game: LI5 `ptp`★/`tlm` · GM `ptp`★/`mdlm` · SS `tlm`★/`mdlm`/`ptp` �
 | FRT | *(see Fruit Salad section packet table)* | *(see Fruit Salad section packet table)* |
 | SHP | *(see Counting Sheep section packet table)* | *(see Counting Sheep section packet table)* |
 | FLW | `FLW_PLAY`, `FLW_AUDIT`, `FLW_EMERALD_RESOLVE`, `FLW_PLAYER_LEFT` (public); private channel: `FLW_HAND`, `FLW_DRAW`, `FLW_PEEK`, `FLW_LEAK`, `FLW_EMERALD_OFFER` | `FLW_SHOWING_START`, `FLW_TURN_START`, `FLW_RESOLVE`, `FLW_AUDIT_RESULT`, `FLW_SHOWING_END`, `FLW_GAMEOVER`, `FLW_MATCH_DISSOLVED` |
+
+---
+
+## Pecking Order (PKO)
+
+**JS file:** `js/games/pko.js`
+**Data:** `data/pko-data.json` — 14 entries (13 animals + Poacher). `beaten_by` is the strict (Sated) chain; `reach_beaten_by` carries the six **Ravenous** two-tier edges and is never merged into it. Both forward maps (`pkoBeatsMap` / `pkoBeatsWideMap`) are derived at load, never stored. Exempt from word-difficulty per the non-word-bank carve-out (Hoard Size is the velocity dial).
+**Brand colour:** `#854D0E` (savanna amber-brown — custom; hover `#6B3E0B`) | **Active pill:** `pill-active-pko` | **Toggle ON:** `game-toggle-on-pko` | **Range:** `pko-range` | **CTA/label:** `pko-cta` / `pko-label`
+**MDLM-only**, 3–6 players, host-authoritative, host-as-participant, private Hoards over the `/private/{uid}` channel. **Sylly Mode = Force of Nature (Phase 2 — setting wired, no gameplay branch).**
+**Lobby button:** `#btn-pko` | **Spec:** `docs/new-game-tech-pecking-order.md`
+
+### Screens
+| Screen ID | Purpose |
+|-----------|---------|
+| `screen-pko-menu` | Main hub — Enter the Wild, How to Play, Settings, ← Back to the Box |
+| `screen-pko-hoard` | Private deal reveal at the start of each Clash; "I'm Ready" readyCheck |
+| `screen-pko-table` | Main play — Active Marks, player strip, own Hoard fan, Stake/Challenge/Stampede/Retreat |
+| `screen-pko-unchallenged` | Encounter-winner interstitial — auto-advances after 2.5 s (`pkoUnchallengedTimer`) |
+| `screen-pko-clash-result` | Clash winner + Match standings; "Next Clash" is host-gated |
+| `screen-pko-hierarchy` | Game over — ranked standings (Apex Predator / Bottom Feeder) + Clash history grid |
+
+### Overlays
+| Overlay ID | Pattern | z-index | Purpose |
+|------------|---------|---------|---------|
+| `pko-settings-overlay` | Data (slide-up) | z-[80] | "The Conditions 🌿" — game settings |
+| `pko-challenge-overlay` | Data (slide-up) | z-[80] | Challenge builder — Marks row → slot row → Hoard fan (spec §17 D1: an overlay, **not** a screen) |
+| `pko-how-to-overlay` | Data (slide-up) | z-[90] | How to Play |
+| `pko-chain-overlay` | Data (slide-up) | z-[90] | The Chain — **two tabs: Diagram (default) \| Animals**. Diagram is `assetExtra('pko','chain')`; Animals is the per-card `beaten_by` list. Three entry points; tap-hold a card opens on **Animals**, scrolled to it |
+| `pko-trail-overlay` | Data (slide-up) | z-[90] | **The Watering Hole** — **two tabs: Trail (default) \| Discards**. Opened by tapping the pile (`#btn-pko-hole`); the standalone "The Trail →" link is retired. Id kept for the `resetToLobby()` teardown list |
+| `pko-quit-overlay` | Decision modal | z-[80] | "Abandon your territory?" — mid-game exit confirm |
+| `pko-stampede-overlay` | Decision modal | z-[90] | "Stampede with [species] ×N?" confirm |
+| `pko-new-match-overlay` | Decision modal | z-[90] | "New Match?" — play-again confirmation |
+
+### Key buttons
+| ID | Action |
+|----|--------|
+| `#btn-pko-menu-play` | Menu Play CTA — dual context: post-lobby `pkoStartSession()`, pre-lobby `mpShowModeScreen('pko')` |
+| `#btn-pko-hoard-ready` | readyCheck submit on the deal screen |
+| `#btn-pko-stake` / `#btn-pko-challenge` / `#btn-pko-stampede` / `#btn-pko-retreat` | The four table actions (active player only) |
+| `#btn-pko-chain` / `#btn-pko-challenge-chain` / `.btn-pko-chain-open` | The three entry points into `pko-chain-overlay` |
+| `#btn-pko-hole` | The Watering Hole pile in the Marks row → `pko-trail-overlay` (Trail tab) |
+| `#btn-pko-chain-tab-diagram` / `#btn-pko-chain-tab-animals` | Chain overlay tabs |
+| `#btn-pko-hole-tab-trail` / `#btn-pko-hole-tab-discards` | Watering Hole overlay tabs |
+| `#btn-pko-challenge-confirm` / `#btn-pko-challenge-back` / `#btn-pko-challenge-reset` | Builder controls — Challenge (primary, label doubles as the `N of M answered` progress readout) / ← Back (closes + clears the draft) / small inline ↺ Reset beside "Your Challenge" |
+| `#btn-pko-how-to` (hoard) / `#btn-pko-table-how-to` (table) | Header `[?]` → How to Play. Distinct IDs — a duplicate would leave one permanently unwired |
+| `#btn-pko-hierarchy-exit` / `#btn-pko-go-leave` | Post-game exit → `resetToLobby()` |
+
+### Key State Variables
+| Variable | Type | Default | Purpose |
+|----------|------|---------|---------|
+| `pkoClashTarget` | int | `3` | Clashes to Win: 3 / 5 / 7 |
+| `pkoHoardSize` | int | `12` | Cards dealt per player: 10 / 12 / 15 |
+| `pkoPoacherSetting` | string | `'perPlayer'` | Poacher Cards: `'none'` / `'flat3'` / `'perPlayer'` |
+| `pkoScavenge` | bool | `false` | Draw 1 from the Reserve on Retreat |
+| `pkoStartSmall` | string | `'match'` | **Small Fry** — the opening Stake must be the player's smallest animal: `'off'` / `'match'` (first Encounter of the Match) / `'clash'` (first Encounter of every Clash) |
+| `pkoSyllyMode` | bool | `false` | Force of Nature — wired + serialised, **no gameplay branch in v1** |
+| `pkoScores` / `pkoClashHistory` | int[] / int[][] | `[]` | Match points; one history row per Clash (drives the Hierarchy grid) |
+| `pkoHoards` | string[][] | `[]` | **Host only** — every player's Hoard |
+| `pkoMyHoard` | string[] | `[]` | **This device only** — own cards. Written by the private `PKO_HAND` (deal), `PKO_DRAW` (Scavenge) and `PKO_HAND_SYNC` (repair after this device played — BUG-02) packets |
+| `pkoHoardCounts` | int[] | `[]` | Public mirror of Hoard sizes (counts, never contents) |
+| `pkoReserve` | string[] | `[]` | **Host only** — undealt Pool; Scavenge draws from it |
+| `pkoWateringHole` | `{enc,cards[]}[]` | `[]` | The discard pile as **batch records** — one per spent board, so it stays grouped by the play that spent it (total via `pkoHoleCount()`). Host-authored but **mirrored to every device** (broadcast in `PKO_BOARD` / `PKO_UNCHALLENGED` / `PKO_ENCOUNTER_BEGIN` / `PKO_CLASH_BEGIN`). Public by design: every card in it was face-up on the board first |
+| `pkoMarks` | string[] | `[]` | The board — **always one card id per Mark, never nested** |
+| `pkoMarkOwnerIdx` / `pkoTurnIdx` / `pkoLeaderIdx` | int | `-1` / `0` / `0` | Board owner, whose turn, who opened the Encounter |
+| `pkoRetreatedSince` | bool[] | `[]` | Resets on **every** board change — the Encounter's termination condition |
+| `pkoDraft` | int[][] | `[]` | Challenge builder — one **array of fan positions** per Mark (not card ids — Hoards hold duplicates; see impl-notes DD-16). `[]` = unanswered, 1 = a predator answer, 2 = a **Swarm**; never longer. Confirm needs every slot to satisfy `pkoAnswers()`; positions map to ids at the wire |
+| `pkoStakeSel` vs `pkoDraft` | — | — | **Two selection models, never interchangeable.** `pkoStakeSel` is a flat position list for a Stake (one species only, §7); `pkoDraft` is per-Mark and freely mixed for a Challenge. Running the Challenge through `pkoStakeSel` imported the Stake's single-species refusal — impl-notes BUG-05 |
+| `pkoAppetite` | string | `'sated'` | `'sated'` / `'ravenous'` — how far down the chain a predator reaches. **Load-bearing in MP**: the host re-validates with `pkoBeats()`, so it must travel in SETTINGS_SYNC |
+| `pkoSelectedSlot` | int | `-1` | Challenge builder Method A — the armed Mark slot; `-1` = none armed (taps then use Method B) |
+| `pkoBeatenByMap` / `pkoBeatsMap` | object | `{}` | Strict (Sated) chain: from the data file / **derived by inversion at load** |
+| `pkoBeatenByWide` / `pkoBeatsWideMap` | object | `{}` | Ravenous chain: `beaten_by ∪ reach_beaten_by` / derived. Built at load alongside the strict pair — `pkoAppetite` only *chooses*, so changing the setting never reloads |
+| `pkoUnchallengedTimer` | int\|null | `null` | Interstitial auto-advance — cleared in quit-confirm, `resetToLobby()`, and early transitions |
+
+### Key Functions
+| Function | Purpose |
+|----------|---------|
+| `pkoLoadChain()` | Loads `data/pko-data.json`; derives **both** forward maps by inverting `beaten_by` and `beaten_by ∪ reach_beaten_by`; `await artReady` so the first render already has core art. Async + idempotent; called from the `#btn-pko` lobby-entry handler so the chain overlay works before a Match exists |
+| `PKO_PREY_RANK` (const) | The size ladder for Small Fry — land and sea as parallel rungs (mouse/fish 1 … elephant/orca 5). **Not derived from `beaten_by`**: the chain has cycles, so it has no well-defined depth. Bee / Eagle / Stingray / Poacher are deliberately unranked |
+| `pkoSmallFryActive()` / `pkoOpenerSpecies(hoard)` | Is this board state a Small-Fry-constrained opener; and which species may open given a Hoard (`null` = unconstrained, including when the Hoard holds no ranked card at all, which prevents a deadlock). Takes the hoard as an argument so the host can re-validate a client's Stake against its own mirror |
+| `pkoBeats(markId, cardId)` | **The single-source chain predicate** — builder highlighting, confirm gating, host re-validation, Stampede availability all route through it. Reads the active predator set via `pkoPredators()`. No track check (track-locking is emergent) |
+| `pkoPredators(markId)` | The active predator Set for the current `pkoAppetite`. Also backs the chain overlay, so the reference can never disagree with combat |
+| `pkoAnswers(markId, cards)` | **The single-source per-slot predicate.** 1 card → the chain; 2 → a **Swarm** (two of the Mark's own species, never a Poacher, never 3+). The only version that crosses the wire |
+| `pkoSlotAccepts(markId, cards)` | Builder-only: may this group *sit* here while still being built? Accepts a lone card that matches its Mark as half a Swarm. Never used for submission |
+| `pkoCycleAnswerGroup(grp)` | The TABLE fan's answer path — the Challenge counterpart of `pkoCycleStakeGroup`. Builds `pkoDraft` via the builder's own `pkoAutoFillSlot`, so mixed answers work by construction (BUG-05). Tap cycle wraps like the Stake's: once every copy of a species is committed, one more tap releases the whole group |
+| `pkoDraftComplete()` | Does `pkoDraft` legally answer every Mark? Drives the Challenge button's dual behaviour — commit when true, open the builder when false |
+| `pkoDiscardBoard()` / `pkoHoleCount()` | Pushes the spent board to the Watering Hole as ONE batch record / totals the pile. Every discard site funnels through the first so the shape cannot drift |
+| `pkoChallengeHint(text)` / `pkoRejectionReason(markId, cardId)` | The builder's named-refusal line (BUG-04). Reasons derive from `pkoPredators()`, so help cannot drift from `pkoBeats` |
+| `pkoBuildPool(n)` | Builds the Pool — totals **110 / 146 / 183 / 219** at n=3/4/5/6 on defaults; Eagle is `Math.ceil(1.5 * n)` |
+| `pkoRenderCard(id, opts)` | **Asset-pack render seam** — all animal-card DOM goes through here. `opts: { faceDown, size: 'sm', selected, dimmed }` (`alpha` is Phase 2). Resolves skin → core art → emoji via `assetFace('pko', id)` / `assetBack('pko')`; sets `dataset.cardId` so handlers read ids, never indices |
+| `pkoStartSession()` / `pkoStartClash()` / `pkoStartEncounter()` | Match / Clash / Encounter lifecycle (host-authoritative). `pkoStartSession()` is async — it awaits `pkoLoadChain()` before dealing |
+| `pkoSendPrivateHands()` | Host → each device its OWN Hoard via `mpSendPrivate`; the host keeps its own locally (contents never touch `/events`) |
+| `pkoShowClientStandby()` | Client's post-lobby home — `screen-pko-hoard` in its empty "waiting for the deal" state (no separate standby screen) |
+| `pkoMyIdx()` / `pkoSortHoard()` / `pkoRenderFan(el, opts)` | This device's seat; chain-order sort; the ONE fan renderer shared by the deal screen and the table |
+| `pkoGroupHoard(sorted)` | Collapses a sorted Hoard into runs of one species → `[{ id, positions[] }]`. Positions index the **sorted** list — the coordinate `pkoStakeSel` and `pkoDraft` speak |
+| `pkoLayoutFan(el)` | **The overlap layout.** Applies a negative `margin-left` per card — heavy stride within a species (~0.20×W), light between (~0.64×W) — shrinking both toward a floor so a 15-card hand fits the column instead of scrolling. Reads card width from the **DOM**, not the CSS constant; sets an explicit `z-index` per card (a dimmed card's `opacity` makes its own stacking context). Re-runs on the next frame if measured while hidden |
+| `pkoRenderHoardScreen()` / `pkoRenderPlayerStrip()` | Deal-screen render (fan, count, ready state, waiting line); table player strip — names + counts + Retreated flags, never contents |
+| `pkoCanStampede()` | Derived: all Marks one species, not a Poacher, and you hold ≥ `pkoMarks.length + 1` real copies |
+| `pkoAfterBoardChange(playerIdx)` | The shared tail of Stake / Challenge / Stampede — Clash-end check first (§6), then reset `pkoRetreatedSince`, restart the window clockwise, broadcast, re-render |
+| `pkoHoldsAll(hoard, cards)` / `pkoRemoveFromHoard()` / `pkoCardName(id)` | Host-side board helpers; `pkoHoldsAll` counts duplicates, so a client cannot claim cards it doesn't hold |
+| `pkoAdvanceTurn()` / `pkoCheckEncounterEnd()` / `pkoEndEncounter()` | Clockwise skip of the board owner and anyone Retreated since the last board change; the termination test; the Unchallenged resolution. **`pkoEndEncounter()` clears `pkoMarks` synchronously** — not on the interstitial's 2.5 s timer — so a late in-flight Retreat cannot resolve the Encounter twice (BUG-01) |
+| `pkoCycleStakeGroup(grp)` / `pkoShakeFan(pos, containerId)` / `pkoBindChainHold(el, id)` | **The species group is the tap target** (overlap leaves ~7px of a single card): a tap cycles the staked count 0 → 1 → … → N → 0, selecting the group's *last* positions so the lift stays on top. Refuses Poacher, a mixed species, and a Small-Fry-barred species. `pkoShakeFan` queries `[data-pos]` — grouping means a fan position is no longer its DOM index |
+| `pkoOpenChallenge()` / `pkoRenderChallenge()` | Opens the builder (arms a fresh `pkoDraft`, one empty array per Mark); renders Marks row → slot row → Hoard fan and gates Confirm, whose label reads `N of M answered` until every slot satisfies `pkoAnswers()`. A half-built Swarm renders `.pko-slot-partial` with a prompt |
+| `pkoTapSlot(i)` / `pkoTapFanCard(pos)` | Slot tap arms/disarms it — tapping a **filled** slot returns its card to the fan and stays armed (the only un-assign path, DD-17). Fan tap routes to Method A when a slot is armed, Method B when not |
+| `pkoAssignToSlot(slotIdx, pos)` / `pkoAutoFillSlot(pos, containerId)` | **Method A** (Mark-first — the armed slot or nothing; stays armed while a Swarm is half-built) / **Method B** (card-first — completes a started Swarm *first*, else the leftmost empty Mark the card answers, else starts a Swarm). Both gate on `pkoSlotAccepts()`; both shake + `playBoing()` + a named reason on refusal |
+| `pkoSubmitChallenge()` / `pkoSendChallenge(assignments)` | Reads `pkoDraft` → **the single validated exit**. `assignments` is one id array PER SLOT — `[['bear'],['mouse','mouse']]`. The table and the builder share one draft, so there is no second route to bypass a check |
+| `pkoResetChallenge()` / `pkoDismissChallenge()` | Reset returns every card to the fan; **Dismiss** closes the overlay *and* clears the draft, called from every SYNC that replaces the board so a stale draft can never be Confirmed against gone Marks |
+| `pkoRenderStampede()` | Populates the Stampede confirm modal — heading names species + count, preview shows the N+1 Marks it will leave |
+| `pkoSummariseCards(ids)` | Trail text helper — groups duplicates (`"Bear ×2, Poacher"`) so a six-wide board reads in one line |
+| `pkoApplyExpansionOverrides()` | Documented **no-op** — PKO has no word pool (fixed chain); skins arrive through `assetFace()` inside the render seam. Kept plugin-prefixed so it can never clobber LI5's bare `applyExpansionOverrides()` |
+| `pkoBuildStandings()` | Shared ranking block for the Clash result and the Hierarchy — ties share a rank; names Apex Predator / Bottom Feeder |
+| `pkoRenderChain(highlightId)` / `pkoRenderTrail()` | The chain reference (reads `beaten_by` directly — it *is* the rules); the public match log grouped by Encounter |
+| `pkoOpenChain(id)` / `pkoSetChainTab(tab, id)` / `pkoRenderChainDiagram()` | Chain overlay tabs. Opens on **Diagram** from a button, on **Animals** (scrolled to the card) from a tap-hold. The diagram is `assetExtra('pko','chain')` — the first call site for that seam |
+| `pkoRenderWateringHole()` / `pkoOpenHole()` / `pkoSetHoleTab(tab)` / `pkoRenderDiscards()` | The discard pile in the Marks row (face-down top card + count, dashed placeholder when empty) and its two-tab overlay; Discards groups spent cards with ×N counts |
+| `pkoSubmit*()` / `pkoApply*()` | Client sends ACTION; **host mutates directly then broadcasts SYNC** — the host is a full player and self-sent ACTIONs are dropped by the dedup guard |
+| `pkoCheckEncounterEnd()` | Every player other than the board owner has Retreated since the last board change |
+| `pkoResolveClash(winnerIdx)` | +1 point, push a `pkoClashHistory` row, decide Clash-end vs Match-end |
+| `pkoHandleEnvelope(env)` | Routes all PKO ACTION/SYNC + private packets; called from `engine-multiplayer.js` |
+| `pkoResetState()` | Full state teardown (called from `resetToLobby()` in `engine.js`) |
+
+### Per-Game ACTION/SYNC/Private Packet Types
+| Packet | Type | Channel | Notes |
+|--------|------|---------|-------|
+| `PKO_HOARD_READY`, `PKO_STAKE`, `PKO_CHALLENGE`, `PKO_STAMPEDE`, `PKO_RETREAT`, `PKO_PLAYER_LEFT` | ACTION | public | Client → host only. Host re-validates every one against its own board |
+| `PKO_CLASH_BEGIN`, `PKO_ENCOUNTER_BEGIN`, `PKO_BOARD`, `PKO_UNCHALLENGED`, `PKO_CLASH_END`, `PKO_MATCH_END` | SYNC | public | `PKO_CLASH_BEGIN` must carry every accumulator at its reset value |
+| `PKO_READY_STATE` | SYNC | public | Not in the spec's original list — added during implementation. Broadcasts the `pkoHoardReady` matrix after each confirmation so every device's "Waiting on …" line is live, rather than only revealing progress when the Encounter finally begins |
+| `PKO_HAND`, `PKO_DRAW` | SYNC | **private** (`mpSendPrivate`) | Dealt Hoard / Scavenge draw — one player only |
+| `PKO_HAND_SYNC` | SYNC | **private** (`mpSendPrivate`) | The acting player's **whole** authoritative Hoard, sent from `pkoRemoveFromHoard()` whenever the actor is not this device. Fixes BUG-02: `PKO_BOARD` carries counts, never contents, so without this a client's fan froze at the deal. A full replacement (not a delta) so a dropped packet self-corrects. **Must not call `mpUnlockSync()`** — the paired `PKO_BOARD` owns the unlock |
+
+### Verification tools (run from the repo root; both exit non-zero on failure)
+
+| Tool | Covers |
+|------|--------|
+| `node tools/verify-pko-chain.js` | **Data layer** — 38 checks: the four chain invariants, the Poacher wildcard, absence of a track check, Pool totals 110/146/183/219, Eagle `Math.ceil` |
+| `node tools/verify-pko-loop.js` | **Turn loop** — 92 checks: Stake / Challenge / Stampede / Retreat, slot-order legality, the Poacher-as-Mark, the response-window reset, Encounter end + the late-ACTION guard, Clash end on all three play types, Match end, every host rejection path, **Small Fry** (all three modes + the unranked-only and cross-track edge cases), and a **card-conservation census** (`Σ hoards + marks + reserve + wateringHole` invariant across every applier) |
+
+**Known blind spot:** the loop tool runs in `'single'` mode, where `pkoMyHoard` is an *alias* of `pkoHoards[0]`, so per-device mirror bugs are invisible to it by construction — BUG-02 passed 75 green checks. It verifies the **rules engine**, not per-device view sync; that still needs three devices. See impl-notes TG-07.
+
+Both evaluate the real `js/games/pko.js` in a Node `vm` sandbox — they re-implement no rules and so cannot drift from shipped code. **Re-run both after any change to the appliers, the chain, or the balance numbers.** The loop tool works because the host appliers take an explicit `playerIdx` and skip every broadcast in `'single'` mode, letting one process play all N seats; preserve that property.

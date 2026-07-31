@@ -76,6 +76,9 @@ const allScreens = [
   'screen-shp-menu', 'screen-shp-table', 'screen-shp-gameover',
   // Flawless
   'screen-flw-menu', 'screen-flw-table', 'screen-flw-showing-result', 'screen-flw-gameover',
+  // Pecking Order
+  'screen-pko-menu', 'screen-pko-hoard', 'screen-pko-table',
+  'screen-pko-unchallenged', 'screen-pko-clash-result', 'screen-pko-hierarchy',
 ];
 
 // ── Web Audio API ─────────────────────────────────────────────────────────────
@@ -306,6 +309,103 @@ function playAbyssThud() {
   rumble.start(now); rumble.stop(now + 2.55);
 }
 
+// ── Pecking Order (spec §9) ───────────────────────────────────────────────────
+// The brief asked for animal calls, roars and herd thunder. Those are sample-based
+// and the suite ships no audio files, so these four are abstract-texture re-briefs.
+
+// STAMPEDE — PKO: the herd takes the board. Sub-bass swell + rising filtered noise (~1.2s)
+function playStampede() {
+  if (isMuted) return;
+  const ctx = getAudioCtx(), now = ctx.currentTime;
+  // Sub-bass swell — the weight of the herd
+  const sub = ctx.createOscillator();
+  const sEnv = ctx.createGain();
+  sub.type = 'sawtooth';
+  sub.frequency.setValueAtTime(38, now);
+  sub.frequency.linearRampToValueAtTime(55, now + 1.0);
+  sEnv.gain.setValueAtTime(0.0001, now);
+  sEnv.gain.exponentialRampToValueAtTime(0.4, now + 0.5);
+  sEnv.gain.exponentialRampToValueAtTime(0.001, now + 1.2);
+  sub.connect(sEnv); sEnv.connect(ctx.destination);
+  sub.start(now); sub.stop(now + 1.25);
+  // Rising filtered noise — hooves closing in
+  const bufLen = Math.floor(ctx.sampleRate * 1.2);
+  const buf = ctx.createBuffer(1, bufLen, ctx.sampleRate);
+  const data = buf.getChannelData(0);
+  for (let i = 0; i < bufLen; i++) data[i] = Math.random() * 2 - 1;
+  const noise = ctx.createBufferSource();
+  noise.buffer = buf;
+  const nFilt = ctx.createBiquadFilter();
+  nFilt.type = 'lowpass'; nFilt.Q.value = 4;
+  nFilt.frequency.setValueAtTime(120, now);
+  nFilt.frequency.linearRampToValueAtTime(900, now + 1.0);
+  const nEnv = ctx.createGain();
+  nEnv.gain.setValueAtTime(0.0001, now);
+  nEnv.gain.exponentialRampToValueAtTime(0.3, now + 0.6);
+  nEnv.gain.exponentialRampToValueAtTime(0.001, now + 1.2);
+  noise.connect(nFilt); nFilt.connect(nEnv); nEnv.connect(ctx.destination);
+  noise.start(now); noise.stop(now + 1.25);
+}
+
+// UNCHALLENGED — PKO: you win an Encounter. Rising three-note sting, brass-ish
+function playUnchallenged() {
+  if (isMuted) return;
+  const ctx = getAudioCtx(), now = ctx.currentTime;
+  [[196, 0], [294, 0.10], [392, 0.20]].forEach(([freq, at]) => {
+    const osc = ctx.createOscillator();
+    const filt = ctx.createBiquadFilter();
+    const env = ctx.createGain();
+    osc.type = 'sawtooth'; osc.frequency.value = freq;
+    filt.type = 'lowpass'; filt.frequency.value = 1400; filt.Q.value = 1;
+    env.gain.setValueAtTime(0.0001, now + at);
+    env.gain.exponentialRampToValueAtTime(0.18, now + at + 0.03);
+    env.gain.exponentialRampToValueAtTime(0.001, now + at + (at === 0.20 ? 0.5 : 0.18));
+    osc.connect(filt); filt.connect(env); env.connect(ctx.destination);
+    osc.start(now + at); osc.stop(now + at + 0.55);
+  });
+}
+
+// POACHER — PKO: the wildcard lands. Dry mechanical click + metallic ring —
+// deliberately out-of-ecosystem: nothing else in this game sounds man-made.
+function playPoacher() {
+  if (isMuted) return;
+  const ctx = getAudioCtx(), now = ctx.currentTime;
+  // Dry click — a trap snapping shut
+  const bufLen = Math.floor(ctx.sampleRate * 0.05);
+  const buf = ctx.createBuffer(1, bufLen, ctx.sampleRate);
+  const data = buf.getChannelData(0);
+  for (let i = 0; i < bufLen; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / bufLen);
+  const click = ctx.createBufferSource();
+  click.buffer = buf;
+  const cFilt = ctx.createBiquadFilter();
+  cFilt.type = 'highpass'; cFilt.frequency.value = 1800;
+  const cEnv = ctx.createGain();
+  cEnv.gain.setValueAtTime(0.5, now);
+  click.connect(cFilt); cFilt.connect(cEnv); cEnv.connect(ctx.destination);
+  click.start(now); click.stop(now + 0.06);
+  // Metallic ring — two detuned partials, no musical interval
+  [2350, 3130].forEach((freq, i) => {
+    const osc = ctx.createOscillator();
+    const env = ctx.createGain();
+    osc.type = 'square'; osc.frequency.value = freq;
+    env.gain.setValueAtTime(0.0001, now + 0.02);
+    env.gain.exponentialRampToValueAtTime(i ? 0.05 : 0.09, now + 0.04);
+    env.gain.exponentialRampToValueAtTime(0.001, now + 0.7);
+    osc.connect(env); env.connect(ctx.destination);
+    osc.start(now + 0.02); osc.stop(now + 0.75);
+  });
+}
+
+// CLASH WIN — PKO: you empty your Hoard. A deepened, slower playSuccess
+function playClashWin() {
+  if (isMuted) return;
+  const ctx = getAudioCtx(), now = ctx.currentTime;
+  playTone({ type: 'triangle', freq: 262, startTime: now,        duration: 0.18, gain: 0.26 });
+  playTone({ type: 'triangle', freq: 330, startTime: now + 0.14, duration: 0.18, gain: 0.26 });
+  playTone({ type: 'triangle', freq: 392, startTime: now + 0.28, duration: 0.35, gain: 0.26 });
+  playTone({ type: 'sine',     freq: 131, startTime: now,        duration: 0.7,  gain: 0.18 });
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function showScreen(id) {
   allScreens.forEach(s => { const el = document.getElementById(s); if (el) el.style.display = 'none'; });
@@ -346,7 +446,8 @@ function updateSliderTheme(gameId) {
     'ygi': 'ygi-range', 'lttp': 'lttp-range',
     'nat': 'nat-range', 'dsd': 'dsd-range',
     'gth': 'gth-range', 'bld': 'bld-range', 'dyb': 'dyb-range', 'pass': 'pass-range',
-    'nt': 'nt-range', 'frt': 'frt-range', 'shp': 'shp-range', 'flw': 'flw-range'
+    'nt': 'nt-range', 'frt': 'frt-range', 'shp': 'shp-range', 'flw': 'flw-range',
+    'pko': 'pko-range'
   };
   const el = document.getElementById('global-sound-volume');
   el.className = (map[gameId] || 'stone-range') + ' w-full';
@@ -361,7 +462,7 @@ function getMuteToggleOnClass(gameId) {
     'gth': 'game-toggle-on-sage', 'bld': 'game-toggle-on-yellow',
     'dyb': 'game-toggle-on-dyb', 'pass': 'game-toggle-on-zinc',
     'nt': 'game-toggle-on-emerald', 'shp': 'game-toggle-on-indigo',
-    'flw': 'game-toggle-on-flw'
+    'flw': 'game-toggle-on-flw', 'pko': 'game-toggle-on-pko'
   };
   return map[gameId] || 'game-toggle-on-stone';
 }
@@ -523,6 +624,12 @@ function resetToLobby() {
     const el = document.getElementById(id); if (el) el.style.display = 'none';
   });
   if (typeof flwResetState === 'function') flwResetState();
+  // Pecking Order teardown
+  ['pko-settings-overlay','pko-challenge-overlay','pko-how-to-overlay','pko-chain-overlay',
+   'pko-trail-overlay','pko-quit-overlay','pko-stampede-overlay','pko-new-match-overlay'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.style.display = 'none';
+  });
+  if (typeof pkoResetState === 'function') pkoResetState();
   // Help-tip overlay cleanup (Phase 21a)
   ['li5','gm','ss','jec','ygi','lttp','nat','dsd'].forEach(abbr => {
     const el = document.getElementById(`${abbr}-help-tip-overlay`);

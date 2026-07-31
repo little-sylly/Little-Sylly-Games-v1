@@ -1,0 +1,18 @@
+[
+{"id":"mouse","name":"Mouse","emoji":"🐭","track":"land","beaten_by":["mongoose","eagle"],"reach_beaten_by":["leopard"],"special":null,"copy_formula":"4n","force_of_nature_only":false},
+{"id":"mongoose","name":"Mongoose","emoji":"🦡","track":"land","beaten_by":["eagle","leopard"],"reach_beaten_by":["bear"],"special":"cross-track-reach","copy_formula":"3n","force_of_nature_only":false},
+{"id":"leopard","name":"Leopard","emoji":"🐆","track":"land","beaten_by":["bear"],"reach_beaten_by":["elephant"],"special":null,"copy_formula":"3n","force_of_nature_only":false},
+{"id":"eagle","name":"Eagle","emoji":"🦅","track":"land","beaten_by":[],"reach_beaten_by":[],"special":"cross-track-reach","copy_formula":"1.5n","force_of_nature_only":false},
+{"id":"bear","name":"Bear","emoji":"🐻","track":"land","beaten_by":["elephant"],"reach_beaten_by":[],"special":null,"copy_formula":"3n","force_of_nature_only":false},
+{"id":"elephant","name":"Elephant","emoji":"🐘","track":"land","beaten_by":["bee"],"reach_beaten_by":[],"special":"giant-killer-target","copy_formula":"2n","force_of_nature_only":false},
+{"id":"bee","name":"Bee","emoji":"🐝","track":"land","beaten_by":["bear"],"reach_beaten_by":[],"special":"giant-killer","copy_formula":"3n","force_of_nature_only":false},
+
+{"id":"fish","name":"Fish","emoji":"🐟","track":"sea","beaten_by":["mongoose","octopus","eagle"],"reach_beaten_by":["seal"],"special":null,"copy_formula":"4n","force_of_nature_only":false},
+{"id":"octopus","name":"Octopus","emoji":"🐙","track":"sea","beaten_by":["seal"],"reach_beaten_by":["polar_bear"],"special":null,"copy_formula":"3n","force_of_nature_only":false},
+{"id":"seal","name":"Seal","emoji":"🦭","track":"sea","beaten_by":["polar_bear"],"reach_beaten_by":["orca"],"special":null,"copy_formula":"3n","force_of_nature_only":false},
+{"id":"polar_bear","name":"Polar Bear","emoji":"🐻‍❄️","track":"sea","beaten_by":["orca"],"reach_beaten_by":[],"special":null,"copy_formula":"2n","force_of_nature_only":false},
+{"id":"orca","name":"Orca","emoji":"🐋","track":"sea","beaten_by":["stingray"],"reach_beaten_by":[],"special":"closed-pair","copy_formula":"2n","force_of_nature_only":false},
+{"id":"stingray","name":"Stingray","emoji":"🪼","track":"sea","beaten_by":["orca"],"reach_beaten_by":[],"special":"closed-pair","copy_formula":"2n","force_of_nature_only":false},
+
+{"id":"human","name":"Poacher","emoji":"🪤","track":"wild","beaten_by":[],"reach_beaten_by":[],"special":"wildcard","copy_formula":"n","force_of_nature_only":false}
+]

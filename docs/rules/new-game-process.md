@@ -116,8 +116,27 @@ As each section of §15 is completed, update:
 - `docs/code-map.md` — add new screen IDs, overlay IDs, and key functions as they are created (not at the end — during)
 - `game-identities.md` — add the new game entry as the game takes shape (not at the end)
 
+### Verifying the rules engine — the `tools/` harness
+
+Any game with a deck, a chain, or a scoring table commits a Node `vm` harness under `tools/verify-[abbr]-*.js`. For an **MDLM-only** game this is mandatory, not optional.
+
+**Why.** In an MDLM-only game the rules engine cannot be reached from a single browser — it needs three devices and a live Firebase room. Without a harness, the first Challenge (or trick, or trade) ever played is also the first time that code runs, and anything wrong surfaces as an intermittent multi-device symptom, which is the hardest possible way to find a bug. PKO's harness found BUG-01 on its first run: a board that outlived its Encounter by 2.5 s, letting a client's in-flight packet resolve the same Encounter twice. In playtest that would have read as "the screen flashed twice, sometimes".
+
+**How.** Evaluate the real plugin file in a `vm` sandbox — re-implement no rules, so the harness cannot drift from shipped code. Stub `document.getElementById` to return `null` throughout: every render function then short-circuits on its own existing guard, so there is no stub markup to maintain. Drive the host appliers directly, passing an explicit `playerIdx` for each seat in turn.
+
+**The architectural precondition — this shapes the plugin, not just the test.** Host appliers must take an explicit `playerIdx` and skip every broadcast in `'single'` mode. That is what lets one process play all N seats. An applier that reads `mpMyPlayerIdx` internally instead of accepting a seat argument is untestable this way, so decide it at Stage 2, not after the code is written.
+
+**Two sandbox rules that earn their keep:**
+- **Capture `setTimeout`, never fire it.** Auto-advance timers (interstitials, countdowns) get stepped deliberately by the test, and the fact that one was *scheduled* becomes an assertion in its own right.
+- **Make `mpSendEnvelope` / `mpSendPrivate` throw, not no-op.** A broadcast leaking into single-device mode then fails loudly instead of passing silently.
+
+**The `vm` gotcha.** `let` declarations in a vm-evaluated script create lexical bindings, **not** properties on the context object — so plugin state is invisible from outside the sandbox (`sandbox.pkoMarks` is `undefined`). `function` declarations *do* land on the object, which is why the functions under test are callable directly. Append a small accessor bridge to the source to reach the state.
+
+**Re-run trigger:** after any change to the appliers, the chain/deck, or the balance numbers. Both PKO tools are listed in `docs/code-map.md` § Verification tools.
+
 ### Stage 3 complete when:
 - [ ] All items in §15 checked
+- [ ] `tools/verify-[abbr]-*.js` committed and passing (mandatory for MDLM-only games — see above)
 - [ ] Protocol A audit passes for all new screens
 - [ ] `docs/code-map.md` updated
 - [ ] `game-identities.md` updated with full new game entry

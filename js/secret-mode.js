@@ -7,7 +7,10 @@
 let isSecretMode = false;
 let activeExpansion = null;
 window.activeExpansionOverrides = null;
-window.activeAssetPack = null;   // set when an asset pack launches (device-local skin); null otherwise
+// window.activeAssetPack is DECLARED in js/lib/art.js (which loads first) and only
+// assigned here — set in smLaunch() when a skin pack launches, cleared in
+// resetSecretMode(). Do not re-initialise it at load: this file loads last, so a
+// bare `= null` here would wipe any skin state art.js is holding.
 
 // ── Game catalogue — engine knowledge (not pack data); stays hardcoded ───────
 const SM_GAMES = [
@@ -23,6 +26,7 @@ const SM_GAMES = [
   { id: 'flw',  label: 'FLAWLESS',        screen: 'screen-flw-menu'  },
   { id: 'pass', label: 'PASS',            screen: 'screen-pass-menu' },
   { id: 'dyb',  label: 'THE BLUFF',       screen: 'screen-dyb-menu'  },
+  { id: 'pko',  label: 'PECKING ORDER',   screen: 'screen-pko-menu'  },
 ];
 
 // ── Terminal config — expansions are built at runtime from data/packs/ ───────
@@ -75,24 +79,12 @@ function smReviveSettings(settings) {
 }
 
 // ── Asset packs (Phase B) — device-local cosmetic skins, zero multiplayer impact ──
-// Render seams (frtRenderCard, shpRenderCard, flwRenderCard, Cards) call assetFace(kind, id)
-// at draw time. Returns a resolved image URL when an active pack covers (kind, id), else null
-// (→ the seam falls back to its default emoji/CSS face). Game logic + packets carry ids only,
-// so two players can run different skins in the same match. window.activeAssetPack is set in
-// smLaunch() and cleared in resetSecretMode().
-function assetFace(kind, id) {
-  const p = window.activeAssetPack;
-  if (!p || !p.assets || p.assets.kind !== kind) return null;
-  const file = p.assets.faces && p.assets.faces[id];
-  return file ? `data/packs/${p.id}/${p.assets.basePath || ''}${file}` : null;
-}
-
-// The face-down image for the active card pack, or null (→ seam draws its default back).
-function assetBack(kind) {
-  const p = window.activeAssetPack;
-  if (!p || !p.assets || p.assets.kind !== kind || !p.assets.back) return null;
-  return `data/packs/${p.id}/${p.assets.basePath || ''}${p.assets.back}`;
-}
+// Secret Mode's job is only to SET the active skin: smLaunch() assigns
+// window.activeAssetPack, resetSecretMode() clears it. Resolution itself lives in
+// js/lib/art.js (assetFace / assetBack / assetExtra), which loads before every game
+// plugin and layers skin → core art (data/art/) → emoji fallback. Do NOT redeclare
+// those functions here: secret-mode.js loads last, so a duplicate declaration would
+// silently clobber the three-tier resolver with a skins-only one.
 
 // ── Settings display map — human-readable labels for the terminal summary ─────
 const SM_SETTINGS_DISPLAY = {

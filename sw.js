@@ -1,7 +1,7 @@
-// Little Sylly Games — Service Worker v142
+// Little Sylly Games — Service Worker v143
 // All assets are local — no external CDN URLs, no opaque response issues.
 
-const CACHE_NAME = 'sylly-games-v142';
+const CACHE_NAME = 'sylly-games-v147';
 
 const PRECACHE_URLS = [
   './',
@@ -24,16 +24,43 @@ const PRECACHE_URLS = [
   'js/games/frt.js',
   'js/games/shp.js',
   'js/games/flw.js',
+  'js/games/pko.js',
   'js/lib/cards.js',
+  'js/lib/art.js',
   'data/ygi-data.json',
   'data/gth-data.json',
+  'data/pko-data.json',
   'js/secret-mode.js',
   'js/app.js',
   'js/lib/tailwind-play.js',
   'js/lib/canvas-draw.js',
   'data/words.json',
-  // Expansion/asset packs (data/packs/) are NOT precached — they are runtime-cached
+  // Expansion/skin packs (data/packs/) are NOT precached — they are runtime-cached
   // on first use so adding a pack needs no version bump. See the fetch handler below.
+  //
+  // CORE ART (data/art/) IS precached — it is a game's default artwork, so it must be
+  // present on a cold offline install. Same manifest format as a skin pack, opposite
+  // caching contract: changing core art IS an app change and DOES need a version bump.
+  // Resolution order (js/lib/art.js): skin pack → core art → emoji fallback.
+  'data/art/registry.json',
+  'data/art/pko/pack.json',
+  'data/art/pko/img/mouse.jpg',
+  'data/art/pko/img/mongoose.jpg',
+  'data/art/pko/img/leopard.jpg',
+  'data/art/pko/img/eagle.jpg',
+  'data/art/pko/img/bear.jpg',
+  'data/art/pko/img/elephant.jpg',
+  'data/art/pko/img/bee.jpg',
+  'data/art/pko/img/fish.jpg',
+  'data/art/pko/img/octopus.jpg',
+  'data/art/pko/img/seal.jpg',
+  'data/art/pko/img/polar_bear.jpg',
+  'data/art/pko/img/orca.jpg',
+  'data/art/pko/img/stingray.jpg',
+  'data/art/pko/img/human.jpg',
+  'data/art/pko/img/mimic.jpg',
+  'data/art/pko/img/back.jpg',
+  'data/art/pko/img/chain.jpg',
   'manifest.json',
   'js/engine-multiplayer.js',
   'js/lib/firebase-app.js',

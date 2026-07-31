@@ -1561,3 +1561,129 @@ body.flash-red   { background-color: #fecaca; }
 }
 
 
+
+/* ── Pecking Order (pko) — savanna deep amber-brown #854D0E (yellow-800, custom) ── */
+.pill-active-pko {
+  background-color: #854D0E;
+  color: #ffffff;
+  font-weight: 600;
+}
+.game-toggle-on-pko {
+  background-color: #854D0E;
+  color: #ffffff;
+  border-radius: 9999px;
+  padding: 0.4rem 1.2rem;
+  font-weight: 700;
+  font-size: 0.9rem;
+  transition: background 0.2s, color 0.2s;
+  border: none;
+  cursor: pointer;
+}
+/* Custom CTA: MUST declare flex centering — when JS/Tailwind sets display:flex the
+   label would top-left-align without these (DYB/GTH/FRT/FLW lesson). */
+.pko-cta { background-color: #854D0E; color: #ffffff; display: flex; align-items: center; justify-content: center; }
+.pko-cta:hover { background-color: #6B3E0B; }
+.pko-label { color: #854D0E; }
+.pko-range {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 9999px;
+  background: linear-gradient(to right, #F5E6C8, #854D0E); /* dry grass → savanna earth */
+  outline: none;
+  cursor: pointer;
+}
+.pko-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: #854D0E;
+  border: 3px solid #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
+.pko-range::-moz-range-thumb {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: #854D0E;
+  border: none;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
+/* Animal cards — default face is illustrated art with an emoji fallback
+   (render seam: pkoRenderCard — no card DOM is built anywhere else). */
+.pko-card {
+  position: relative;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 0.2rem;
+  width: 4.25rem; height: 5.75rem;
+  border-radius: 0.75rem;
+  background: #FDF8EE;
+  border: 2px solid #E4CFA3;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  user-select: none;
+  flex-shrink: 0;
+}
+.pko-card-emoji { font-size: 1.8rem; line-height: 1; }
+.pko-card-name  { font-size: 0.6rem; font-weight: 700; color: #854D0E; text-align: center; line-height: 1.1; padding: 0 2px; }
+.pko-card-sea   { border-color: #9DC2D6; }
+.pko-card-wild  { border-color: #7C6A55; background: #F2EDE4; }
+.pko-card-wild .pko-card-name { color: #57493A; }
+/* Illustrated / asset-pack face — fills the card, keeps .pko-card sizing. */
+.pko-card-asset {
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  border-color: transparent;
+}
+.pko-card-asset .pko-card-emoji { display: none; }
+.pko-card-back {
+  width: 4.25rem; height: 5.75rem;
+  border-radius: 0.75rem;
+  background: repeating-linear-gradient(45deg, #854D0E, #854D0E 8px, #6B3E0B 8px, #6B3E0B 16px);
+  border: 2px solid #6B3E0B;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  flex-shrink: 0;
+}
+/* Selected in the Challenge builder / Stake selection.
+   NOTE: outline only — the lift is baked into the inline transform pkoLayoutFan writes,
+   because the fan rotates each card and two sources of `transform` on one element fight
+   (the class would silently overwrite the fan's rotation, or vice versa). */
+.pko-card-selected { outline: 3px solid #854D0E; outline-offset: 2px; }
+/* A Challenge slot holding a completed Swarm — two cards, overlapped so the pair still
+   reads as one slot in the row. */
+.pko-slot-swarm { display: flex; align-items: center; flex-shrink: 0; }
+/* A slot holding half a Swarm: legal to build, not yet an answer. */
+.pko-slot-partial { outline: 2px dashed #C9A227; outline-offset: 2px; }
+/* One-shot rejection shake for an illegal card tap (spec §7). Deliberately NOT the
+   global .shake — that one loops forever and is for a persistent tremor. */
+@keyframes pkoShake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-5px); }
+  40%, 80% { transform: translateX(5px); }
+}
+.pko-shake { animation: pkoShake 0.35s ease-in-out; }
+/* An empty Challenge slot awaiting a card */
+.pko-slot-empty {
+  width: 4.25rem; height: 5.75rem;
+  border-radius: 0.75rem;
+  border: 2px dashed #C9A227;
+  background: rgba(133,77,14,0.04);
+  flex-shrink: 0;
+}
+.pko-slot-active { border-color: #854D0E; background: rgba(133,77,14,0.12); }
+/* Overlap fan. No `gap` on purpose: pkoLayoutFan drives spacing entirely through a
+   negative margin-left per card (heavy within a species, light between), so a gap here
+   would fight the measured layout. min-height reserves the row while it's empty. */
+/* No fixed min-height: pkoLayoutFan COMPUTES it from the hand it just laid out, because the
+   arch peak scales with card count. A fixed value either clips the fan or leaves dead space.
+   The 7.75rem here is only a pre-layout floor so the row doesn't collapse before the first
+   measure. */
+.pko-fan { min-height: 7.75rem; align-items: center; padding-top: 0.5rem; }
+/* The Watering Hole's empty state — a dashed footprint the same size as a small card,
+   so the Marks row doesn't jump the moment the first card is spent. */
+.pko-hole-empty {
+  border-radius: 0.6rem;
+  border: 2px dashed #D6C6A8;
+  background: rgba(133,77,14,0.03);
+  flex-shrink: 0;
+}
