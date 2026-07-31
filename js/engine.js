@@ -77,7 +77,7 @@ const allScreens = [
   // Flawless
   'screen-flw-menu', 'screen-flw-table', 'screen-flw-showing-result', 'screen-flw-gameover',
   // Pecking Order
-  'screen-pko-menu', 'screen-pko-hoard', 'screen-pko-table',
+  'screen-pko-menu', 'screen-pko-hoard', 'screen-pko-table', 'screen-pko-event',
   'screen-pko-unchallenged', 'screen-pko-clash-result', 'screen-pko-hierarchy',
 ];
 

@@ -68,6 +68,14 @@ let pkoBeatenByWide   = {};           // id -> Set(predator ids)  — beaten_by 
 let pkoBeatsWideMap   = {};           // id -> Set(prey ids)      — DERIVED, never stored
 let pkoUnchallengedTimer = null;      // auto-advance handle on the interstitial (cleared in 3 places)
 
+// ── Force of Nature (Sylly Mode) state ────────────────────────────────────
+let pkoEvent          = null;         // active event id for this Encounter, or null
+let pkoEventsFired    = [];           // ids fired this Clash — ACCUMULATOR, resets in-payload
+let pkoAlphaIdx       = -1;           // index into pkoMarks; -1 = no Alpha
+let pkoCarrionSel     = [];           // device-local Mark indices selected to keep
+let pkoEventTimer     = null;         // interstitial auto-advance (cleared in 3 places)
+let pkoCarrionTimer   = null;         // Carrion window (cleared in 3 places)
+
 // ── Constants ─────────────────────────────────────────────────────────────
 const PKO_POACHER_ID  = 'human';      // the Poacher card's chain id
 // The small card footprint — shared by pkoRenderCard's 'sm' size and the empty
@@ -85,6 +93,10 @@ const PKO_PREY_RANK   = {
   bear:    4, polar_bear: 4,
   elephant: 5, orca:     5,
 };
+const PKO_MIMIC_ID           = 'mimic';
+const PKO_FON_DEAL_BONUS_DIV = 4;      // bonus = round(pkoHoardSize / 4) → 3 / 3 / 4
+const PKO_CARRION_WINDOW_MS  = 5000;   // first playtest dial — FoN spec §17 D31
+const PKO_EVENT_SCREEN_MS    = 2500;   // matches screen-pko-unchallenged
 // Card art is resolved through js/lib/art.js — assetFace('pko', id) / assetBack('pko'),
 // backed by the core art pack data/art/pko/pack.json. The manifest owns the id →
 // filename mapping, so no lookup table lives here.
@@ -200,6 +212,75 @@ function pkoBuildPool(n) {
     for (let i = 0; i < count; i++) pool.push(e.id);
   });
   return shuffle(pool);
+}
+
+// ── Force of Nature — the event registry ──────────────────────────────────
+// Plain data. A MUTATING event owns an onFire() that runs host-side on an empty board
+// and returns the seats it emptied; a PASSIVE event sets a flag that an existing
+// single-source predicate reads, so no new branch appears at any call site.
+// canFire() is checked against host state BEFORE the event is committed — that gate is
+// what deletes the brief's Deluge/Dry Season skip loop rather than capping it (D34).
+const PKO_EVENTS = [
+  { id: 'invasive-mimicry', name: 'Invasive Mimicry', emoji: '🎭',
+    blurb: 'Mimics have infiltrated the Pool. Everyone draws a few more cards.',
+    canFire: null, onFire: null, track: null, reversal: false, alpha: false, carrion: false },
+  { id: 'culling', name: 'The Culling', emoji: '🍂',
+    blurb: 'The season takes the rarest species from every Hoard.',
+    canFire: null, onFire: () => pkoFireCulling(), track: null, reversal: false, alpha: false, carrion: false },
+  { id: 'great-reversal', name: 'The Great Reversal', emoji: '🔄',
+    blurb: 'The chain runs backwards. Prey becomes predator.',
+    canFire: null, onFire: null, track: null, reversal: true, alpha: false, carrion: false },
+  { id: 'deluge', name: 'The Deluge', emoji: '🌊',
+    blurb: 'The waters rise — only the sea may hunt.',
+    canFire: () => pkoHoards.some(h => pkoCanActUnderTrack(h, 'sea')),
+    onFire: null, track: 'sea', reversal: false, alpha: false, carrion: false },
+  { id: 'dry-season', name: 'The Dry Season', emoji: '☀️',
+    blurb: 'The water is gone — only the land may hunt.',
+    canFire: () => pkoHoards.some(h => pkoCanActUnderTrack(h, 'land')),
+    onFire: null, track: 'land', reversal: false, alpha: false, carrion: false },
+  { id: 'extinction', name: 'Extinction Event', emoji: '☄️',
+    blurb: 'The rarest species in the whole wild is wiped out entirely.',
+    canFire: () => !pkoEventsFired.includes('extinction'),
+    onFire: () => pkoFireExtinction(), track: null, reversal: false, alpha: false, carrion: false },
+  { id: 'migration', name: 'Migration', emoji: '🧭',
+    blurb: 'Every Hoard moves one seat to the left.',
+    canFire: null, onFire: () => pkoFireMigration(), track: null, reversal: false, alpha: false, carrion: false },
+  { id: 'alpha', name: 'Alpha', emoji: '👑',
+    blurb: 'One Mark is the Alpha. Nothing played against it is discarded.',
+    canFire: null, onFire: null, track: null, reversal: false, alpha: true, carrion: false },
+  { id: 'carrion', name: 'Carrion', emoji: '🦅',
+    blurb: 'The spoils of a kill may be taken back into your Hoard.',
+    canFire: null, onFire: null, track: null, reversal: false, alpha: false, carrion: true },
+];
+
+// The active event's value for one key, or null when no event is live. Every Force of
+// Nature branch reads through here — an effect is never tested by comparing pkoEvent to a
+// string at a call site, so adding an event never edits a seam.
+function pkoEventFlag(key) {
+  if (!pkoEvent) return null;
+  const e = PKO_EVENTS.find(x => x.id === pkoEvent);
+  return e ? (e[key] || null) : null;
+}
+
+// Can this player act at all under a track lock? ONE definition, two consumers —
+// canFire() and the Leader pass — which must never disagree, or an event fires that
+// nobody can answer. A Poacher always qualifies; a lone Mimic never does (its track is
+// 'wild', so it can only ride along with a real card of the locked track).
+function pkoCanActUnderTrack(hoard, track) {
+  return (hoard || []).some(c =>
+    c === PKO_POACHER_ID || (((pkoChain && pkoChain[c]) || {}).track === track));
+}
+
+// Draw the Encounter's event. GATE, never redraw: an event canFire() rejects is simply
+// not in the pool, so there is no skip, no re-roll, no loop and no cap to tune (D34).
+// pkoEvent = null (nothing eligible) is a legal outcome — the Encounter then runs under
+// standard rules with no interstitial.
+function pkoDrawEvent() {
+  const pool = PKO_EVENTS.filter(e =>
+       e.id !== 'invasive-mimicry'
+    && (!e.canFire || e.canFire()));
+  pkoEvent = pool.length ? pool[Math.floor(Math.random() * pool.length)].id : null;
+  if (pkoEvent) pkoEventsFired.push(pkoEvent);
 }
 
 // ── Render seam — ALL card DOM is built here, nowhere else ────────────────
@@ -396,6 +477,9 @@ function pkoStartClash() {
   pkoMarkOwnerIdx   = -1;
   pkoRetreatedSince = new Array(pkoPlayerCount).fill(false);
   pkoEncounterNum   = 0;
+  pkoEvent          = null;
+  pkoEventsFired    = [];
+  pkoAlphaIdx       = -1;
   pkoMyHoard        = pkoHoards[pkoMyIdx()] || [];
 
   if (window.syllyMultiplayerMode !== 'single') {
@@ -409,6 +493,7 @@ function pkoStartClash() {
       hoardReady: pkoHoardReady, retreatedSince: pkoRetreatedSince,
       marks: pkoMarks, markOwnerIdx: pkoMarkOwnerIdx,
       encounterNum: pkoEncounterNum, trail: pkoTrail, wateringHole: pkoWateringHole,
+      event: pkoEvent, eventsFired: pkoEventsFired, alphaIdx: pkoAlphaIdx,
     }});
   }
   pkoShowHoard();
@@ -460,23 +545,48 @@ function pkoShowClientStandby() {
 }
 
 // Host: open a new Encounter. The leader faces an empty board and must Stake.
+// Under Force of Nature the event is drawn FIRST, because a mutating event runs against
+// an empty board and may end the Clash outright before a card is ever played (§6).
 function pkoStartEncounter() {
   if (window.syllyMultiplayerMode === 'client') return;
   pkoEncounterNum++;
   pkoMarks          = [];
   pkoMarkOwnerIdx   = -1;
+  pkoAlphaIdx       = -1;
   pkoTurnIdx        = pkoLeaderIdx;
   pkoRetreatedSince = new Array(pkoPlayerCount).fill(false);
+
+  // Encounter 1's event is Invasive Mimicry, already set AND already applied by
+  // pkoStartClash — it mutates the DEAL, so it cannot wait until here (§9).
+  if (pkoSyllyMode && pkoEncounterNum > 1) pkoDrawEvent();
+  const ev = pkoEvent && PKO_EVENTS.find(x => x.id === pkoEvent);
+  if (ev && ev.onFire) {
+    const emptied = ev.onFire() || [];
+    if (emptied.length) { pkoResolveClash(emptied); return; }   // Clash over before a card is played
+  }
+  // Track lock: the Leader may be unable to open, so the Stake passes clockwise to the
+  // first player who can. This does NOT transfer leadership — the next Encounter's
+  // leader is still whoever goes Unchallenged (§7.3).
+  const lock = pkoEventFlag('track');
+  if (lock) {
+    for (let s = 0; s < pkoPlayerCount; s++) {
+      const i = (pkoLeaderIdx + s) % pkoPlayerCount;
+      if (pkoCanActUnderTrack(pkoHoards[i] || [], lock)) { pkoTurnIdx = i; break; }
+    }
+  }
+
   if (window.syllyMultiplayerMode !== 'single') {
     mpSendEnvelope({ type: 'SYNC', payload: {
       action: 'PKO_ENCOUNTER_BEGIN',
       encounterNum: pkoEncounterNum, leaderIdx: pkoLeaderIdx, turnIdx: pkoTurnIdx,
       marks: pkoMarks, markOwnerIdx: pkoMarkOwnerIdx,
       retreatedSince: pkoRetreatedSince, hoardCounts: pkoHoardCounts,
-      wateringHole: pkoWateringHole,
+      wateringHole: pkoWateringHole, trail: pkoTrail,
+      event: pkoEvent, eventsFired: pkoEventsFired, alphaIdx: pkoAlphaIdx,
     }});
   }
-  pkoShowTable();
+  if (pkoEvent) pkoShowEvent(pkoEvent, pkoShowTable);
+  else pkoShowTable();
 }
 
 // ── Table ─────────────────────────────────────────────────────────────────
@@ -1329,6 +1439,39 @@ function pkoShowUnchallenged(winnerIdx, marks) {
   pkoUnchallengedTimer = setTimeout(() => { pkoUnchallengedTimer = null; pkoStartEncounter(); }, 2500);
 }
 
+// Which sound each event announces itself with. No new synthesised functions — §13
+// reuses the catalogue, and the mapping lives in one place so an event's identity
+// (data) and its voice (audio) cannot drift apart.
+const PKO_EVENT_SOUND = {
+  'invasive-mimicry': 'playPoacher',   // out-of-ecosystem, like the Poacher itself
+  'culling':          'playAbyssThud',
+  'extinction':       'playAbyssThud',
+  'great-reversal':   'playWhoosh',
+  'migration':        'playWhoosh',
+  'alpha':            'playSonarPing',
+  'carrion':          'playSonarPing',
+  'deluge':           'playDone',
+  'dry-season':       'playDone',
+};
+
+// The event interstitial. Unlike screen-pko-unchallenged, BOTH sides schedule their own
+// advance: after this screen the table renders from already-synced state, so no host
+// decision is pending. There (§11) the advance STARTS the next Encounter, which IS a
+// host decision, so only the host may time it.
+function pkoShowEvent(eventId, then) {
+  const e = PKO_EVENTS.find(x => x.id === eventId);
+  if (!e) { then(); return; }
+  const set = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
+  set('pko-event-emoji', e.emoji);
+  set('pko-event-name',  e.name);
+  set('pko-event-blurb', e.blurb);
+  const snd = globalThis[PKO_EVENT_SOUND[e.id] || 'playDone'];
+  if (typeof snd === 'function') snd();
+  showScreen('screen-pko-event');
+  if (pkoEventTimer) clearTimeout(pkoEventTimer);
+  pkoEventTimer = setTimeout(() => { pkoEventTimer = null; then(); }, PKO_EVENT_SCREEN_MS);
+}
+
 // Which of several joint winners opens the next Clash: most Match points, then random
 // (brief §5). With one winner it is that winner — the shipped behaviour, unchanged.
 function pkoNextOpener(winnerIdxs) {
@@ -1552,6 +1695,9 @@ function pkoHandleEnvelope(env) {
       pkoEncounterNum   = p.encounterNum;
       pkoTrail          = p.trail || [];
       pkoWateringHole   = p.wateringHole || [];
+      pkoEvent          = p.event === undefined ? null : p.event;
+      pkoEventsFired    = p.eventsFired || [];    // reset value travels explicitly (ML-03)
+      pkoAlphaIdx       = p.alphaIdx === undefined ? -1 : p.alphaIdx;
       pkoDismissChallenge();
       pkoShowHoard();                             // PKO_HAND may arrive either side of this
       mpUnlockSync();
@@ -1565,6 +1711,7 @@ function pkoHandleEnvelope(env) {
 
     case 'PKO_ENCOUNTER_BEGIN':
       if (pkoUnchallengedTimer) { clearTimeout(pkoUnchallengedTimer); pkoUnchallengedTimer = null; }
+      if (pkoEventTimer) { clearTimeout(pkoEventTimer); pkoEventTimer = null; }
       pkoEncounterNum   = p.encounterNum;
       pkoLeaderIdx      = p.leaderIdx;
       pkoTurnIdx        = p.turnIdx;
@@ -1573,8 +1720,13 @@ function pkoHandleEnvelope(env) {
       pkoRetreatedSince = p.retreatedSince || [];
       pkoHoardCounts    = p.hoardCounts || pkoHoardCounts;
       pkoWateringHole   = p.wateringHole || pkoWateringHole;
+      pkoTrail          = p.trail || pkoTrail;
+      pkoEvent          = p.event === undefined ? null : p.event;
+      pkoEventsFired    = p.eventsFired || [];     // accumulator — trust the payload, never carry forward
+      pkoAlphaIdx       = p.alphaIdx === undefined ? -1 : p.alphaIdx;
       pkoDismissChallenge();
-      pkoShowTable();
+      if (pkoEvent) pkoShowEvent(pkoEvent, pkoShowTable);
+      else pkoShowTable();
       mpUnlockSync();
       break;
 
@@ -1643,6 +1795,9 @@ function pkoApplyExpansionOverrides() { /* no-op — no word pool (forward-compa
 // ── Teardown (called by resetToLobby in engine.js) ────────────────────────
 function pkoResetState() {
   if (pkoUnchallengedTimer) { clearTimeout(pkoUnchallengedTimer); pkoUnchallengedTimer = null; }
+  if (pkoEventTimer)        { clearTimeout(pkoEventTimer);        pkoEventTimer = null; }
+  if (pkoCarrionTimer)      { clearTimeout(pkoCarrionTimer);      pkoCarrionTimer = null; }
+  pkoEvent = null; pkoEventsFired = []; pkoAlphaIdx = -1; pkoCarrionSel = [];
   pkoScores = []; pkoClashNum = 0; pkoClashHistory = [];
   pkoHoards = []; pkoMyHoard = []; pkoHoardCounts = []; pkoReserve = []; pkoWateringHole = [];
   pkoLeaderIdx = 0; pkoEncounterNum = 0; pkoTrail = []; pkoHoardReady = [];
@@ -1943,6 +2098,8 @@ document.addEventListener('DOMContentLoaded', () => {
   on('btn-pko-quit-confirm', () => {
     playExit();
     if (pkoUnchallengedTimer) { clearTimeout(pkoUnchallengedTimer); pkoUnchallengedTimer = null; }
+    if (pkoEventTimer)   { clearTimeout(pkoEventTimer);   pkoEventTimer = null; }
+    if (pkoCarrionTimer) { clearTimeout(pkoCarrionTimer); pkoCarrionTimer = null; }
     pkoClose('pko-quit-overlay');
     pkoClose('pko-challenge-overlay');
     if (window.syllyMultiplayerMode === 'client' && typeof mpSendEnvelope === 'function') {
