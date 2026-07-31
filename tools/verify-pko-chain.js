@@ -78,7 +78,7 @@ const section = t => console.log(`\n${t}`);
   console.log('Pecking Order — data layer verification\n' + '='.repeat(48));
 
   section('Data file');
-  check('14 entries (Mimic is Phase 2 — spec §17 D8)', ids.length, 14);
+  check('15 entries (the Mimic landed with Force of Nature — FoN spec §10)', ids.length, 15);
   check('no entry stores a `beats` field (derived only)',
     ids.filter(id => 'beats' in pkoChain[id]), []);
   check('no entry stores a `reach_beats` field (derived only)',
@@ -182,6 +182,25 @@ const section = t => console.log(`\n${t}`);
     check(`'${setting}' at n=4 → ${expected} Poachers`,
       pkoBuildPool(4).filter(c => c === 'human').length, expected);
   }
+
+  section('The Mimic (Force of Nature — spec §10)');
+  const mimic = pkoChain.mimic;
+  check('the Mimic entry exists', !!mimic, true);
+  check('it is force_of_nature_only', !!(mimic && mimic.force_of_nature_only), true);
+  check('track is wild — so a track lock can never let a lone Mimic act',
+    mimic && mimic.track, 'wild');
+  check('beaten_by is empty — a Mimic never becomes a Mark, so nothing beats it',
+    mimic && mimic.beaten_by, []);
+  check('copy_formula is 2n — the exact mirror of the Poacher’s solo-only n',
+    mimic && mimic.copy_formula, '2n');
+  check('it is NOT ranked by Small Fry (a Hoard of Mimics + one Mouse opens with the Mouse)',
+    sandbox.PKO_PREY_RANK === undefined || !('mimic' in (sandbox.PKO_PREY_RANK || {})), true);
+  section('The Mimic never reaches a standard Pool');
+  for (const n of [3, 4, 5, 6]) {
+    check(`n=${n} → zero Mimics in the Pool`, pkoBuildPool(n).filter(c => c === 'mimic').length, 0);
+  }
+  check('Pool totals are unchanged by the new entry — 110/146/183/219',
+    [3, 4, 5, 6].map(n => pkoBuildPool(n).length), [110, 146, 183, 219]);
 
   console.log('\n' + '='.repeat(48));
   console.log(failures === 0 ? 'ALL CHECKS PASSED' : `${failures} CHECK(S) FAILED`);

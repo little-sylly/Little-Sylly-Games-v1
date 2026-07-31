@@ -14,5 +14,7 @@
 {"id":"orca","name":"Orca","emoji":"🐋","track":"sea","beaten_by":["stingray"],"reach_beaten_by":[],"special":"closed-pair","copy_formula":"2n","force_of_nature_only":false},
 {"id":"stingray","name":"Stingray","emoji":"🪼","track":"sea","beaten_by":["orca"],"reach_beaten_by":[],"special":"closed-pair","copy_formula":"2n","force_of_nature_only":false},
 
-{"id":"human","name":"Poacher","emoji":"🪤","track":"wild","beaten_by":[],"reach_beaten_by":[],"special":"wildcard","copy_formula":"n","force_of_nature_only":false}
+{"id":"human","name":"Poacher","emoji":"🪤","track":"wild","beaten_by":[],"reach_beaten_by":[],"special":"wildcard","copy_formula":"n","force_of_nature_only":false},
+
+{"id":"mimic","name":"Mimic","emoji":"🎭","track":"wild","beaten_by":[],"reach_beaten_by":[],"special":"copycat","copy_formula":"2n","force_of_nature_only":true}
 ]
