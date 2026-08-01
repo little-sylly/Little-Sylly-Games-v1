@@ -20,7 +20,7 @@ For the game just completed, verify these against the actual JS file:
 - [ ] **Screen IDs match** — every `screen-[abbr]-*` ID in the plugin exists verbatim in `game-identities.md` State Flow
 - [ ] **Settings table matches** — every `let [abbr]Setting` variable in the plugin matches the Settings table (name, options, default value, internal identifier)
 - [ ] **Scoring values match** — every points value in the resolve/score function matches the Scoring table in `game-identities.md`
-- [ ] **State variable list is complete** — all state vars declared in the plugin are listed under State Variables in `game-identities.md`
+- [ ] **State variable list is complete** — all state vars declared in the plugin appear in `docs/code-map.md` (no game has ever carried a separate "State Variables" table in `game-identities.md` — code-map is the actual source of truth here; don't add a 17th redundant table)
 - [ ] **`allScreens[]` is current** — every screen ID registered in `engine.js` matches the screens defined for this game
 - [ ] **SW precache is current** — `sw.js` lists the plugin file; `logic-engine.md` precache list matches `sw.js`; CACHE_NAME version is correct
 - [ ] **Implementation notes current** — `docs/implementation-notes/[abbr]-implementation-notes.md` exists for this game; any bugs resolved or design decisions made during this phase are logged under the appropriate section (Design Decisions / Bug Index / Multiplayer Lessons / Template Gaps)

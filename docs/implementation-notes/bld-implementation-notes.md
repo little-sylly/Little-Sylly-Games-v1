@@ -134,6 +134,8 @@ Flake players only see their fellow flakes on the role reveal screen — once th
 
 5. **Couch security is sufficient for same-room games** — `mpWritePlayerPrivateData` was never implemented and likely won't be. For couch games, broadcast all roles and render only the device's own slot. Only implement targeted writes if glimpsing the host screen would genuinely break the game.
 
+6. **`resetToLobby()` on quit is per-device, not a dissolution broadcast [MDLM quit contract fix, 1 Aug 2026]** — BLD's quit-confirm already called `resetToLobby()` unconditionally (a `deferred-work.md` note claiming it still navigated to the game menu was stale by the time this was checked — see the GTH note for the root cause of the stale claim). The actual gap: when a client quits, `resetToLobby()` only removes that client's own `/players` node; the host has no listener on it mid-game, so the match silently hangs for everyone else. Fix, matching PASS: client quit-confirm now sends `BLD_PLAYER_LEFT` before its local `resetToLobby()`; `bldHandleEnvelope` calls `resetToLobby()` on the host when it arrives, which broadcasts `HOST_END_GAME` and lets the existing generic disconnect overlay handle the remaining clients.
+
 ---
 
 ---

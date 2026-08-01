@@ -91,6 +91,9 @@ Eliminated devices must route to the Spirit Board, not the Shake screen. `DYB_SH
 **Mid-game overlays must be torn down in both reset paths**
 `dyb-slick-picker-overlay` (`fixed inset-0 z-[100]`) survived a mid-game quit as an invisible full-screen tap interceptor over the menu (BUG-05). Any overlay openable during play must be hidden in `resetToLobby()` AND in every "return to menu" handler — same lesson as GTH canvas wrapper and LTTP message interrupt.
 
+**`resetToLobby()` tears down one device, never notifies the rest [MDLM quit contract fix, 1 Aug 2026]**
+DYB's quit-confirm already called `resetToLobby()` unconditionally (the docs claiming it still navigated to the game menu were stale — see the equivalent GTH note for the full root cause). What was missing was the PASS contract's other half: a **client** quitting mid-game removes only its own `/players` node, which the host isn't listening for mid-game, so the host and any surviving clients are left waiting on a player who will never move. Fix: client quit-confirm now sends `DYB_PLAYER_LEFT` before its local `resetToLobby()`; the host's existing host-only ACTION gate in `dybHandleEnvelope` calls `resetToLobby()` on receipt, which broadcasts `HOST_END_GAME` and lets the generic disconnect overlay do the rest.
+
 ---
 
 **BUG-09 (Critical): `env.originIdx` is always `undefined` — all ACTION handlers broken (RESOLVED — post-Phase-34 backlog testing)**
@@ -313,3 +316,45 @@ New setting in The Bluff: `dybFootholdsMode` (toggle OFF/ON, default OFF) + `dyb
 - **MDLM:** `dybLives` is carried in `DYB_GAME_START`, `DYB_NEXT_SHAKE`, and `DYB_SPIRIT_SHAKE` payloads; `dybFootholdsMode`/`dybFootholdsCount` included in `mpSerialiseSettings` and the `SETTINGS_SYNC` applier. All existing SYNC handlers branch on `dybFootholdsMode` to apply the correct elimination logic.
 - **Non-impact on existing path:** All new logic is gated behind `if (dybFootholdsMode)` — the default OFF path is structurally unchanged. `dybLives` initialises to `[]` and is never read in standard mode.
 - **SW:** bumped v125 → v126.
+
+---
+
+## Design Decisions (continued — August 2026, Tempest asset seam)
+
+### The frame is the type, the image is the face
+
+**What happened:** DYB's asset seam was gated to `type === 'standard'` because
+`.dyb-die-asset` sets `border-color: transparent; padding: 0`, discarding every
+channel the type `switch` had just computed. A skinned hand mixed real art with raw
+CSS pips.
+
+**Root cause:** the seam replaced the whole die rather than its face. Type identity
+lived in four channels (border, tint, glow, pip colour) and three of them are things
+an image covers.
+
+**Lesson:** when a render seam has to preserve a signal, give the signal its own DOM
+layer instead of asking the art to carry it. `.dyb-die-framed` keeps the frame on the
+outer div and insets the art in a child — so the engine keeps every channel that
+lives outside the image, and the pack owns everything inside it.
+
+### A skin opt-out must be provenance-gated
+
+`"frame": false` lets a pack suppress the engine chrome for a type. It applies **only**
+to a die whose special art actually resolved. Without that gate, a pack that opts out
+and then omits one face ships a die that is neither marked by the engine nor by the
+art — the exact failure the frame exists to prevent.
+
+### `blank` keys must not share the face fallback chain
+
+**What happened:** the first draft of the resolver was one chain,
+`assetSpecial(...) || assetFace(val)`. For a concealed phantom that is a
+hidden-information leak: the real rolled value *is* passed to `dybDieHTML` as `val`
+and only the `?` glyph hides it, so a pack with phantom face art but no `blank` would
+have rendered the true face to its owner and to every spectator on the Depths screen.
+
+**Root cause:** treating "no art for this key" as one situation when it is two —
+"draw the plain face instead" and "draw nothing that reveals anything".
+
+**Lesson:** a fallback chain crossing a privacy boundary needs its own branch, and a
+test that names the leak. `tools/verify-dyb-dice.js` asserts the concealed value
+appears nowhere in the markup, so a future tidy-up that merges the chains fails loudly.

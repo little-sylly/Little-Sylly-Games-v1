@@ -539,6 +539,8 @@ cleared in `resetSecretMode()`.
 |--------------------------------|---------|
 | `assetFace(kind, id)` | Resolved image URL for `(kind, id)` from the active pack, or `null` (→ seam draws default). |
 | `assetBack(kind)` | Resolved face-down image URL for the active pack, or `null`. |
+| `assetSpecial(kind, type, id)` | Resolved image URL for a face that carries a *type* on top of its value (`id` is a face value or the reserved `'blank'`), same skin → core → null chain, per-key fallthrough. First user: DYB's Tempest dice. |
+| `assetSpecialFrame(kind, type)` | Whether the engine still draws its own type chrome (border/tint/glow) around that art; `true` unless a tier opts out with `"frame": false`. |
 
 **Render seams (the only place art is built — each calls `assetFace`/`assetBack`, which resolve
 skin pack → core art → emoji fallback in `js/lib/art.js`; `assetExtra(kind,key)` covers non-card
@@ -551,8 +553,17 @@ game art. Core art packs live in `data/art/<kind>/` and ARE precached — see `d
 | Sheep | `shp` | `shpRenderCard(cardId, opts)` | `js/games/shp.js` | `cardId` 0–16 (13 cursed = not skinned) |
 | Gems | `flw` | `flwRenderCard(gemId, opts)` | `js/games/flw.js` | `gemId` 0–9 |
 | Cards | `cards` | `Cards.buildEl/buildBackEl` | `js/lib/cards.js` | `rank`+suit-letter (`AH`,`10S`,`Joker`) via `cardAssetId()` |
-| Dice | `dyb` | `dybDieHTML` (standard faces) + `dybDieBackHTML()` | `js/games/dyb.js` | face value 1–6 (special dice keep pips) |
+| Dice | `dyb` | `dybDieHTML` + `dybDieBackHTML()` | `js/games/dyb.js` | face value 1–6; Tempest dice (loaded/phantom/slick/cracked/snake) additionally resolve via `assetSpecial`/`assetSpecialFrame`. `dybDieHTML` now returns one of three shapes: framed asset (`.dyb-die-framed` + inner `.dyb-die-art` span, engine chrome around pack art), edge-to-edge asset (`.dyb-die-asset`, standard faces or a type that opted out with `"frame": false`), or the original glyph/pip markup |
 | Animals | `pko` | `pkoRenderCard(id, opts)` | `js/games/pko.js` | chain id string (`elephant`, `polar_bear`, `human`) |
+
+**Core art shipped so far:** `pko` (`data/art/pko/` — 15 faces + back + a `chain` extra), `flw`
+(`data/art/flw/` — 10 gem faces keyed `0`–`9` + back, 217 KB), `frt` (`data/art/frt/` — 8 fruit
+faces keyed `0`–`7` + back, 220 KB), and `shp` (`data/art/shp/` — 16 faces keyed `0`–`12`/`14`–`16`
++ back, 640 KB; id `13` Fogged Dream has no `faces` entry and never will — `shpRenderCard` renders
+it as a cursed placeholder before ever calling `assetFace`, since its value is hidden even from its
+own owner). Every other family above still draws its emoji/CSS default. Converting a game needs
+**no JS edit** — the seam already resolves all three tiers; rollout tracker in
+`docs/expansion-guide.md` § Core art packs.
 
 Per-game `faces` id cheat-sheet + authoring steps: `docs/expansion-guide.md` § Add an asset (skin) pack.
 CSS: `.frt-card-asset`, `.shp-card-asset`, `.pass-card-asset`, `.dyb-die-asset` (cover/centre, transparent border).
@@ -1639,9 +1650,9 @@ Per-game: LI5 `ptp`★/`tlm` · GM `ptp`★/`mdlm` · SS `tlm`★/`mdlm`/`ptp` �
 |-----------|---------|
 | `screen-pko-menu` | Main hub — Enter the Wild, How to Play, Settings, ← Back to the Box |
 | `screen-pko-hoard` | Private deal reveal at the start of each Clash; "I'm Ready" readyCheck |
-| `screen-pko-table` | Main play — Active Marks, player strip, own Hoard fan, Stake/Challenge/Stampede/Retreat |
-| `screen-pko-event` | **Force of Nature** event interstitial — emoji, name, blurb; auto-advances after 2.5 s (`pkoEventTimer`, `PKO_EVENT_SCREEN_MS`). Takes the **interstitial exception** (`ui-style.md` Global UI Protocol item 5): no `[?]`/🔊/✕ chrome. Unlike `screen-pko-unchallenged`, **both** sides schedule their own advance — after it the table renders from already-synced state, so no host decision is pending |
-| `screen-pko-unchallenged` | Encounter-winner interstitial — auto-advances after 2.5 s (`pkoUnchallengedTimer`). **Host only** schedules the advance (it *starts* the next Encounter, which is a host decision) |
+| `screen-pko-table` | Main play — Active Marks, player strip, own Hoard fan, Stake/Challenge/Stampede/Retreat. Header is `#pko-table-clash` (`Clash X · Encounter Y`) + `#pko-table-event` (`· emoji Name`, the live Force of Nature event) + `#btn-pko-events` — all three written by `pkoRenderTable()`; the event span and the `[?]` are hidden outside Force of Nature |
+| `screen-pko-event` | **Force of Nature** event interstitial — emoji, name, blurb; auto-advances after **5 s** (`pkoEventTimer`, `PKO_INTERSTITIAL_MS`). Takes the **interstitial exception** (`ui-style.md` Global UI Protocol item 5): no `[?]`/🔊/✕ chrome. Unlike `screen-pko-unchallenged`, **both** sides schedule their own advance — after it the table renders from already-synced state, so no host decision is pending |
+| `screen-pko-unchallenged` | Encounter-winner interstitial — auto-advances after **5 s** (`pkoUnchallengedTimer`, same `PKO_INTERSTITIAL_MS`). **Host only** schedules the advance (it *starts* the next Encounter, which is a host decision) |
 | `screen-pko-clash-result` | Clash winner + Match standings; "Next Clash" is host-gated |
 | `screen-pko-hierarchy` | Game over — ranked standings (Apex Predator / Bottom Feeder) + Clash history grid |
 
@@ -1653,6 +1664,7 @@ Per-game: LI5 `ptp`★/`tlm` · GM `ptp`★/`mdlm` · SS `tlm`★/`mdlm`/`ptp` �
 | `pko-how-to-overlay` | Data (slide-up) | z-[90] | How to Play |
 | `pko-chain-overlay` | Data (slide-up) | z-[90] | The Chain — **two tabs: Diagram (default) \| Animals**. Diagram is `assetExtra('pko','chain')`; Animals is the per-card `beaten_by` list. Three entry points; tap-hold a card opens on **Animals**, scrolled to it |
 | `pko-trail-overlay` | Data (slide-up) | z-[90] | **The Watering Hole** — **two tabs: Trail (default) \| Discards**. Opened by tapping the pile (`#btn-pko-hole`); the standalone "The Trail →" link is retired. Id kept for the `resetToLobby()` teardown list |
+| `pko-events-overlay` | Data (slide-up) | z-[95] | **Force of Nature 🌿** — the nine-event roster. Body (`#pko-events-body`) is **rendered from `PKO_EVENTS`** by `pkoRenderEvents()`, so it cannot drift from the registry; rules copy comes from `PKO_EVENT_DETAIL` (keyed by event id, beside the registry). The live event is ringed with `.pko-event-live` and tagged "now"; Invasive Mimicry is tagged "every Clash". **z-[95] because it opens from inside the how-to (z-[90])** — the FRT `frt-personalities-overlay` precedent. Three entry points, all `.btn-pko-events-open`: `#btn-pko-events` (table header), `#btn-pko-events-settings`, `#btn-pko-events-howto` |
 | `pko-quit-overlay` | Decision modal | z-[80] | "Abandon your territory?" — mid-game exit confirm |
 | `pko-stampede-overlay` | Decision modal | z-[90] | "Stampede with [species] ×N?" confirm |
 | `pko-new-match-overlay` | Decision modal | z-[90] | "New Match?" — play-again confirmation |
@@ -1760,7 +1772,8 @@ Per-game: LI5 `ptp`★/`tlm` · GM `ptp`★/`mdlm` · SS `tlm`★/`mdlm`/`ptp` �
 | `PKO_EVENTS` (const) | The nine events as **plain data** — `{ id, name, emoji, blurb, canFire, onFire, track, reversal, alpha, carrion }`. A **mutating** event owns an `onFire()` returning `int[]` of seats it emptied; a **passive** event sets a flag an existing predicate reads, so no new branch appears at any call site |
 | `pkoEventFlag(key)` | The active event's value for one key, else `null`. **Every** Force of Nature branch reads through here — an effect is never tested by comparing `pkoEvent` to a string, so adding an event never edits a seam |
 | `pkoDrawEvent()` | Draws the Encounter's event. **A gate, never a redraw**: an event `canFire()` rejects is simply absent from the pool — no skip, no re-roll, no loop, no cap to tune (D34). `pkoEvent = null` is a legal outcome |
-| `pkoShowEvent(eventId, then)` | The interstitial. `PKO_EVENT_SOUND` maps each event to an existing audio function — no new synthesised sounds |
+| `pkoShowEvent(eventId, then)` | The interstitial. `PKO_EVENT_SOUND` maps each event to an existing audio function — no new synthesised sounds. Dwells `PKO_INTERSTITIAL_MS` (5 s), the same constant `pkoShowUnchallenged` uses |
+| `pkoOpenEvents()` / `pkoRenderEvents()` | The Force of Nature roster overlay. Rebuilt on every open from `PKO_EVENTS` + `PKO_EVENT_DETAIL` — **adding a tenth event needs no markup and no doc edit**, only a registry entry, a detail string and a sound (the events harness asserts all three side tables cover the registry exactly) |
 | `pkoCanActUnderTrack(hoard, track)` / `pkoTrackOk(id)` / `pkoTrackReason()` | The **track lock** (Deluge / Dry Season). `pkoCanActUnderTrack` has two consumers that must never disagree — `canFire()` and the Leader pass. `pkoTrackOk` is folded into `pkoAnswers` so every Challenge path inherits it, and applied to **resolved** ids so a Mimic inherits its claim's track. `pkoTrackReason` names the rule rather than showing a dead button (BUG-04) |
 | `pkoResolveGroup(cards)` | **The ONLY place a Mimic is interpreted.** → `{ok:false}` or `{ok, claim, resolved}`. One rule: a play containing a Mimic must also contain a real card of the claimed species, which makes the claim inferable (no claim UI) and mirrors the Poacher exactly — Poacher solo-**only**, Mimic **never** solo (D32). ⚠️ Callers need **both** arrays: raw for `pkoHoldsAll`/`pkoRemoveFromHoard`, `resolved` for `pkoMarks`. A Poacher claim is rejected **only when a Mimic is present** — an unconditional rejection outlaws the plain Poacher play (Spec Correction C1) |
 | `pkoStampedeSpend(hoard, species, count)` | Which **raw** cards a Stampede spends: real copies first, then Mimics; `null` when the Hoard can't pay. At least one real copy required |

@@ -14,7 +14,10 @@
 - `docs/rules/new-game-process.md` — three-stage protocol for adding a new game (brief → tech spec → implementation). **Read when:** starting a new game.
 - `docs/rules/new-game-brief-template.md` — Phase 1 design brief template (filled by project owner + Gemini). **Read when:** new-game Stage 1.
 - `docs/rules/new-game-technical-template.md` — Phase 2 technical spec template (filled by Claude Code). **Read when:** new-game Stage 2.
+- `docs/rules/new-game-checklist.md` — the ~40-item build checklist (engine registration, settings/overlay standards, MP handler audit, render seam, verification harness, closure). **Read when:** implementing a new game — before its first line of code. *(Moved out of `logic-engine.md`, 1 Aug 2026; still binding.)*
 - `docs/rules/phase-audit.md` — Protocols A/B/C (drift check, skeleton-first, studio sweep). **Read when:** a phase boundary, or before a new game's first line of code.
+- `docs/sw-changelog.md` — SW release notes v148 and earlier. **Read when:** you need the history behind a past version; the current version's notes stay in § Current Focus.
+- `docs/deferred-work.md` — the parked-work list: the **retest backlog for the older games**, the MDLM quit-contract divergence (GTH/DYB/BLD), and smaller flagged items. **Read when:** picking up maintenance work, or at a phase gate. *(Replaces the missing `fable-fix-plan.md`.)*
 
 ### 🎮 Per-Game Quick Index
 Always-on pointer so single-game work doesn't need the 128 KB `game-identities.md`. For terminology, settings tables, overlays, multiplayer packets → read that game's `## Game N:` section in `game-identities.md`. Brand colour rarely changes; everything else, confirm in-section.
@@ -37,8 +40,11 @@ Always-on pointer so single-game work doesn't need the 128 KB `game-identities.m
 | 14 | Fruit Salad | `frt` | `frt.js` | banana `#FFC700` / `pill-active-frt` |
 | 15 | Counting Sheep | `shp` | `shp.js` | indigo-600 / `pill-active-indigo` |
 | 16 | Flawless | `flw` | `flw.js` | rose-pink `#E879A8` / `pill-active-flw` |
+| 17 | Pecking Order | `pko` | `pko.js` | `#854D0E` / `pill-active-pko` |
 
-For where each game's screens/overlays live in `index.html`, see the **Per-Game Offset Map** at the top of `docs/code-map.md`.
+For per-game classes (range / toggle / pill / CTA / how-to / brand class strings) see `ui-style.md` § **Per-Game Reference** — the single source for those; don't duplicate them here.
+
+For where each game's screens/overlays live in `index.html`, see the **Per-Game Offset Map** at the top of `docs/code-map.md`. **`code-map.md` is ~132 KB (~33k tokens) — never read it whole.** Same rule as `game-identities.md`: Grep for the game or element ID, then offset-Read that slice. One careless full read costs more than the entire always-loaded rule set.
 
 ---
 
@@ -56,73 +62,7 @@ For where each game's screens/overlays live in `index.html`, see the **Per-Game 
 
 ---
 
-## 📁 Project Structure
-```
-/
-├── index.html                       # Single entry point — all screens in one file
-├── css/styles.css                   # Custom styles (Tailwind overrides + animations)
-├── js/
-│   ├── engine.js                    # Shared engine: audio, navigation, allScreens[], normaliseWord()
-│   ├── games/
-│   │   ├── li5.js                   # Plugin: Like I'm Five (all state + logic)
-│   │   ├── great-minds.js           # Plugin: Great Minds (all state + logic)
-│   │   ├── secret-signals.js        # Plugin: Secret Signals (all state + logic)
-│   │   ├── jec.js                   # Plugin: Just Enough Cooks (all state + logic)
-│   │   ├── ygi.js                   # Plugin: You Get It? (all state + logic)
-│   │   ├── lttp.js                  # Plugin: Late to the Party (all state + logic)
-│   │   ├── nat.js                   # Plugin: Natural Selection (all state + logic)
-│   │   ├── dsd.js                   # Plugin: Deep-Sea Deploy (all state + logic)
-│   │   ├── bld.js                   # Plugin: Bailed (all state + logic)
-│   │   ├── gth.js                   # Plugin: Group Therapy (all state + logic)
-│   │   ├── dyb.js                   # Plugin: The Bluff (formerly Dicey Bluffs — all state + logic)
-│   │   ├── pass.js                  # Plugin: Pass (all state + logic)
-│   │   ├── nt.js                    # Plugin: Net-Trace (all state + logic)
-│   │   ├── frt.js                   # Plugin: Fruit Salad (Cockroach Poker — all state + logic)
-│   │   ├── shp.js                   # Plugin: Counting Sheep (O'NO-99 survival — all state + logic)
-│   │   ├── flw.js                   # Plugin: Flawless (gem-trading bluffing game — all state + logic)
-│   │   └── pko.js                   # Plugin: Pecking Order (adjacency climbing card game — all state + logic)
-│   ├── engine-multiplayer.js        # Multiplayer module: Firebase, lobby, sync, per-game envelopes
-│   ├── secret-mode.js               # Secret Mode: Konami gateway, Terminal, expansion proxy state
-│   ├── app.js                       # Bootstrapper only — no logic (3 lines)
-│   └── lib/
-│       ├── art.js                   # Asset seam: assetFace/assetBack/assetExtra — skin pack → core art → emoji
-│       ├── tailwind-play.js         # Local Tailwind (no CDN — fully offline)
-│       ├── canvas-draw.js           # Drawing module: CanvasDraw global (stroke capture, delta encoding, render)
-│       ├── cards.js                 # Card rendering module: Cards global (Cards.buildEl, Cards.buildBackEl)
-│       ├── firebase-app.js          # Firebase App (local copy — no CDN)
-│       ├── firebase-auth.js         # Firebase Auth (anonymous auth)
-│       ├── firebase-database.js     # Firebase Realtime Database
-│       └── firebase-init.js         # Firebase project config + initialisation
-├── data/
-│   ├── words.json                   # Standard word bank (850 words, 16 categories)
-│   ├── pko-data.json                # Pecking Order chain (14 cards, `beaten_by` only)
-│   ├── art/                         # CORE ART packs — a game's DEFAULT artwork (precached)
-│   │   ├── registry.json            #   live core-art ids (currently just `pko`)
-│   │   └── pko/pack.json + img/     #   same manifest format as a skin pack; never in the Terminal
-│   ├── packs/                       # Secret Mode expansion CARTRIDGES (runtime-loaded, not precached)
-│   │   ├── registry.json            #   live pack ids — edit this + drop a folder to add/remove a pack
-│   │   ├── dota2/pack.json          #   DOTA 2 (434 words, inline)
-│   │   ├── monsterhunter/pack.json  #   Monster Hunter (50 words, inline)
-│   │   └── pokemon/pack.json        #   Pokémon Gen 1 (151 words, inline; gen1 sub-cat)
-│   ├── ygi-data.json                # You Get It? prompts (50 entries, {id, text, ringers[5]})
-│   └── gth-data.json                # Group Therapy disorder bank (100 entries, 3 tiers: everyday/phobias/complex)
-├── sw.js                            # Service Worker (currently v140)
-├── manifest.json                    # PWA manifest
-├── tools/convert-core-art.ps1       # Downscales/compresses source art into a core art pack (data/art/)
-├── docs/expansion-guide.md          # Adding expansion packs, skin packs, AND core art packs (+ rollout tracker)
-├── docs/code-map.md                 # Surgical code reference — all game IDs, overlays, key functions
-├── docs/multiplayer-feature-specification-v1.4.md  # MFS v1.4 — Phase 22 source of truth
-├── docs/multiplayer-ui-components.md  # Multiplayer component catalogue (screens, overlays, CSS)
-├── docs/ygi-content-guide.md        # Content creation guide for You Get It? prompts + ringers
-├── docs/gth-content-guide.md        # Content creation guide for Group Therapy disorders
-├── docs/fable-audit-plan.md         # Studio audit plan (June 2026) — progress tracker + findings
-├── docs/implementation-notes/       # Per-game design decisions, bugs, lessons, template gaps
-│   └── [abbr]-implementation-notes.md  # One file per game (all 12 games covered)
-├── docs/content-prompts/            # Prompt templates for content generation
-├── docs/new-ideas/                  # Unimplemented game briefs + brainstorms
-├── docs/archive/                    # Empty by design — phase snapshots live OUT-OF-REPO (external archive); only spent plan docs may land here
-```
-
+## 📁 Load Order
 **Load order:** `engine.js` → `art.js` → `engine-multiplayer.js` → `canvas-draw.js` → `li5.js` → `great-minds.js` → `secret-signals.js` → `jec.js` → `ygi.js` → `lttp.js` → `nat.js` → `dsd.js` → `bld.js` → `gth.js` → `dyb.js` → `cards.js` → `pass.js` → `nt.js` → `frt.js` → `shp.js` → `flw.js` → `pko.js` → `secret-mode.js` → `app.js`
 (`tailwind-play.js` loads in `<head>` before everything else.)
 All symbols are global (no ES modules). Forward references work at runtime.
@@ -194,7 +134,78 @@ All symbols are global (no ES modules). Forward references work at runtime.
 - **Lean Context:** Avoid repetitive explanations. Assume technical competence.
 - **Australian English:** Use Australian spelling (e.g., "colour", "synthesised"). Metric units only.
 - **Session Cleanup:** If a sub-task is complete, suggest running /compact to clear history.
-- **End every response with "what's next":** Always close with 1–2 sentences naming what was just completed AND what comes next — the next phase, next item, or a recommendation if the task is done. For multi-phase work, name upcoming phases so the roadmap is visible. This applies even to short responses. The user may return after a gap with incomplete context; explicit next-step visibility removes the ambiguity.
+- **End every response with "what's next":** Always close with 1–2 sentences naming what was just completed AND what comes next — the next phase, next item, or a recommendation if the task is done. For multi-phase work, name upcoming phases so the roadmap is visible. This applies even to short responses. The user may return after a gap with incomplete context; explicit next-step visibility removes the ambiguity. **Also name the model + effort level the next task warrants** (e.g. "next: Sonnet, medium effort" or "next: Opus/Fable, high effort") using the table below — the user is not yet confident picking these themselves, so the recommendation must be explicit, not implied. **And name the session call** — `same session`, `/compact then continue`, or `fresh session` — using the second table. All three (task, model+effort, session) go in the closing line; never leave the session call implied.
+
+**Model & effort picker (for the "what's next" line):**
+
+| Task shape | Model | Effort | Why |
+|-----------|-------|--------|-----|
+| Single known fix, exact file/line already identified | Sonnet | low–medium | Mechanical edit, no design judgement needed |
+| Bug/polish following `task-bug-polish.md` intake | Sonnet | medium | Bounded scope, established pattern to follow |
+| Doc-only updates (code-map, impl-notes, decision-log) | Sonnet or Haiku | low | Pure transcription/summarising, no logic risk |
+| Content authoring (words.json, categories, copy) | Sonnet | medium | Needs the Consistent Word Expansion rules applied, not novel reasoning |
+| New game implementation (Stage 3 build) | Opus or Fable | high | Multi-file, cross-cutting (MP handlers, render seam, checklist) — mistakes compound silently |
+| Architecture/strategic decision (spec write, MP pattern design, refactor plan) | Opus or Fable | high–xhigh | Wrong call here becomes a decision-log entry and future rework |
+| Phase-gate audit (Protocol A/B/C, studio sweep) | Opus or Fable | high | Needs to catch subtle drift across many files, not just pattern-match |
+| Large exploratory search ("find every place X happens") | dispatch to Explore/general-purpose subagent | medium | Keeps the fan-out out of the main context window regardless of which model runs it |
+| Quick lookup / "what does X do" | Haiku or Sonnet | low | No edit risk, cost matters more than depth |
+
+Default when unsure: **Sonnet, medium** — escalate to Opus/Fable + high only when the task is architectural, touches 3+ files with cross-cutting rules (MP sync, render seams), or is a phase-gate audit. Escalating "just in case" burns budget for no benefit on mechanical tasks; under-calling it on an architectural task risks a silent rule violation that surfaces as a bug days later.
+
+**Session picker (same session / compact / fresh):**
+
+The whole question is one trade: a fresh session re-pays this project's **~30k-token baseline** (CLAUDE.md + the three always-loaded rule files) but starts clean; continuing pays the **entire transcript on every single turn**, whether or not any of it still matters. So the test is not "how long have we been going" — it is **how much of what's loaded is still relevant to the next task**.
+
+| Signal | Call | Why |
+|--------|------|-----|
+| Next task is the **same game / same files** already read into context | **same session** | Re-reading those slices in a fresh session costs more than carrying them |
+| Next task is a **direct follow-on** (fix → test it, build → document it) | **same session** | The reasoning behind the change is the context |
+| Sub-task done, next task is **adjacent but narrower** (e.g. finished a PKO fix, now writing PKO impl-notes) | **/compact then continue** | Keeps the conclusions, drops the exploration that produced them |
+| **Switching games** (PKO work → FRT bug) | **fresh session** | Nothing loaded transfers; you're paying rent on dead context |
+| **Switching mode of work** (build → doc-only, code → design/spec) | **fresh session** | Different rule files, different reading pattern |
+| **Auto-compact has already fired once** | **fresh session** | The cheap context is gone. A summary-of-a-summary is worse than a clean start with a pointer to the impl-notes |
+| A **big file slice was read** and is now irrelevant (a 3k-line `index.html` window, `game-identities.md` section) | **fresh session** | That slice re-costs on every turn forever |
+| Escalating model **up** for the next task (Sonnet → Opus) | **fresh session** | Opus turns are the expensive ones — don't feed them a transcript of Sonnet's exploration |
+| Dropping model **down** for the next task (Opus → Sonnet/Haiku) | **same session** ok | Cheap turns can afford the carried context |
+
+Default when unsure: **fresh session, with an explicit pointer** — name the file(s) and the doc (impl-notes / tech spec / decision-log) the new session should read first. That pointer is what makes a fresh start cheap: it's the difference between 30k of baseline plus one targeted read, and a fresh session flailing to re-orient. **Never start fresh without one.** If the last session produced anything a fresh one would need to know, the Documentation Integrity Protocol above should already have written it down — if it hasn't, that's the real signal to stay put and finish the docs first.
+
+### 🤝 Handoff Prompt (mandatory whenever the session call is `fresh session`)
+
+**Rule:** Any response whose closing line says **fresh session** MUST end with a ready-to-paste handoff prompt in a fenced code block — no exceptions, no "let me know if you want one". The user should be able to copy it straight into the new session and start working. A `fresh session` call without a handoff block is an incomplete response.
+
+**The handoff is a pointer, not a summary.** It says where to read, not what was read. Anything longer than ~15 lines means facts are being smuggled in that belong in a doc — put them in the impl-notes and link there instead. Docs first, handoff second: if writing the handoff surfaces something not yet recorded anywhere, that's a Documentation Integrity Protocol miss — fix the doc, then write the pointer to it.
+
+**Template:**
+
+````markdown
+```
+**Task:** [one sentence — the single next action, not the whole roadmap]
+
+**Read first:** [1–3 files max, with the Grep term or offset if it's a big file]
+- `docs/implementation-notes/[abbr]-implementation-notes.md` — [why: which entry matters]
+- `js/games/[abbr].js` — Grep `[functionName]`
+
+**State:** [what is already done + what is verifiably true right now — SW version, which
+verification harnesses pass, what shipped. One or two lines.]
+
+**Constraints / gotchas:** [only the ones that would cause a wrong turn — e.g. "host-as-participant
+means the host path proves nothing about clients"; "re-run tools/verify-pko-loop.js after any
+applier change". Omit the section entirely if there are none.]
+
+**Model + effort:** [from the picker table]
+```
+````
+
+**The five fields, and why each is there:**
+
+1. **Task** — one action. A handoff listing three tasks produces a session that context-switches between them and finishes none.
+2. **Read first** — the whole point. Names the file *and* the Grep term, so the new session never full-reads `index.html`, `code-map.md`, or `game-identities.md` (see Token Hygiene above). Three files is the ceiling; more than that and the fresh session isn't cheaper than continuing.
+3. **State** — the ground truth a fresh session cannot infer: current SW version, which verification tools pass, what already shipped. Prevents the classic fresh-session failure of re-fixing something already fixed.
+4. **Constraints / gotchas** — only load-bearing ones. This is the field that pays for the handoff; it is where "the host path proves nothing about clients" lives, and it is the reason a fresh session doesn't repeat the last one's dead end. Never pad it with generic rules already in the always-loaded files.
+5. **Model + effort** — so the user opens the new session on the right model *before* the first turn, not after.
+
+**Do NOT include:** a recap of what was tried and rejected (belongs in the impl-notes), code snippets (the new session reads the real file), or restatements of anything in CLAUDE.md / the three rule files — those load automatically and repeating them is pure waste.
 
 ---
 
@@ -269,38 +280,40 @@ Do not write the phase snapshot until Protocols A is clean. Do not write a line 
 ---
 
 ## 🎯 Current Focus
-**IN PROGRESS — Phase 37: Pecking Order (`pko`), game 17.** Adjacency climbing/shedding card game, MDLM-only, 3–6 players. Stage 1 brief (v7) ✅, Stage 2 spec ✅ confirmed 31 July 2026 (`docs/new-game-tech-pecking-order.md` — the source of truth), Stage 3 Step 5 logic injection ✅, playtest round 1 ✅ (SW v145), **playtest round 2 findings shipped ✅ (SW v146) + follow-up ✅ (SW v147).** The turn loop is verified headlessly by `tools/verify-pko-loop.js` (123 checks) alongside `tools/verify-pko-chain.js` (58) — **re-run both after any change to the appliers, the chain, or the balance numbers.** Sylly Mode (Force of Nature) is deferred to Phase 2 — the setting ships live but inert (documented exception, spec §16 Q7).
+**COMPLETE — Phase 38: Force of Nature (PKO Sylly Mode).** Shipped at **SW v149**, raised to **v150** after playtest round 4 (see § SW Version). Built against the confirmed spec `docs/new-game-tech-pecking-order-fon.md`, built task-by-task from the plan `docs/superpowers/plans/2026-08-01-pko-force-of-nature.md` (all 12 tasks done — **Task 12, the three-device multi-device pass, ran clean on v150**, non-host moving first: see D38, `docs/phase38-snapshot.md`). Nine events: the fixed opener **Invasive Mimicry** plus eight drawn per Encounter — **The Culling, The Great Reversal, The Deluge, The Dry Season, Extinction Event, Migration, Alpha, Carrion**. Plus the **Mimic** card (15th chain entry), `screen-pko-event`, `pko-carrion-overlay`, and a multi-winner `pkoResolveClash(winnerIdxs)`. **Dark Forest was cut** (D26).
+
+**Three headless harnesses, all green — re-run all three after any change to the appliers, the chain, the balance numbers or the event rules:**
+```bash
+node tools/verify-pko-chain.js && node tools/verify-pko-loop.js && node tools/verify-pko-events.js
+```
+`verify-pko-chain.js` **68** (data layer) · `verify-pko-loop.js` **132** (turn loop) · `verify-pko-events.js` **148** (Force of Nature). **TG-07 still binds:** all three run in `'single'` mode where `pkoMyHoard` *aliases* `pkoHoards[0]`, so per-device mirror bugs are invisible to them by construction — that is exactly how BUG-02 survived 75 green checks. The Mimic's raw-vs-resolved removal, the three `pkoSyncAllHands()` senders and `PKO_CARRION_OPEN` are all that class and **can only be proven on three devices**.
+
+**Phase 37: Pecking Order (`pko`), game 17 — COMPLETE.** Adjacency climbing/shedding card game, MDLM-only, 3–6 players. Stage 1 brief (v7) ✅, Stage 2 spec ✅ confirmed 31 July 2026 (`docs/new-game-tech-pecking-order.md`), Stage 3 ✅, playtest rounds 1–3 ✅ (SW v145 → v147).
 
 **Round 2 shipped two rules changes.** **Swarm restored** (cut in brief v6): any single Mark may be answered with **two cards of its own species**, and each becomes a Mark of its own — so a slot never holds depth, which is precisely the ambiguity the v6 cut was about. **Mob stays cut.** Swarm is the second outlet for shedding Mouse/Fish that `pko_log1.md` item F named and the v6 cut removed; its absence is the stall round 2 found. Plus **Appetite** (`pkoAppetite`) — `Sated` (strict chain) / `Ravenous` (predators also eat two tiers down, six new edges, apex band untouched). **Appetite defaults to Sated on purpose:** both changes attack the same symptom, so round 3 measures Swarm against the known baseline and flips Appetite mid-session as a free A/B. See spec §7/§17 D10–D11 and impl-notes DD-21…DD-24.
 
-**Remaining before the Protocol A phase gate:** (a) **playtest round 3** on three real devices — start with a *non-host* player taking the first turn (host-as-participant means the host path proves nothing about clients; that's how BUG-02 hid), confirm the host accepts a **client's Swarm**, play Clashes 1–2 on Sated then flip to Ravenous, and read the Trail afterwards to count Swarms / plain Challenges / Stampedes / Unchallenged Encounters; (b) **PKO has no `game-identities.md` section yet** and is absent from this file's Per-Game Quick Index — both are phase-closure work. Key refs: `docs/implementation-notes/pko-implementation-notes.md`, `docs/pko-stage2-handoff.md`.
-**Core art tier (July 2026):** default game artwork now ships as a **core art pack** — `data/art/<kind>/pack.json` + images, same manifest format as a Secret Mode skin pack but **precached** and never listed in the Terminal. Resolution moved out of `secret-mode.js` into `js/lib/art.js`: `assetFace`/`assetBack`/`assetExtra` layer **skin → core art → emoji fallback**, so existing seams were untouched. Rolled out **game by game** — only `pko` uses it so far; FRT/SHP/FLW/PASS/DYB keep their emoji defaults until converted. Source art originals stay out of the repo. See `docs/expansion-guide.md` § Core art packs.
+**`game-identities.md` § Game 17 now written** (1 Aug 2026) — terminology, full chain table under both Appetites, settings (incl. Small Fry, added since the Stage 2 spec), Swarm/Stampede/Poacher mechanics, the Force of Nature Phase 2 record, overlays, screens, MP packets — sourced from shipped `pko.js`/`index.html`, not the spec draft. PKO was already present in this file's Per-Game Quick Index (row 17) — the earlier note claiming it was missing was itself stale and has been corrected. Trail terminology fixed: "answered" → "**challenged**" in the Challenge builder + button label, matching the Trail's own verb (`pko.js`, `index.html`).
+
+**New-game brief template/prompt superseded (1 Aug 2026):** the `v2` rewrite triggered by PKO's own brief (Rule Relationships/Interaction Matrix, Complex Interaction UI, Rule Reference, Sound Design, End Screen Content — all sections PKO had to invent from scratch) is now the canonical `docs/rules/new-game-brief-template.md` / `docs/content-prompts/new-game-brief-prompt.md`. The v1 originals were replaced in place (same filenames), so every existing pointer (this file, `new-game-process.md`, `phase-audit.md`, the checklist) needed no edits.
+
+**Playtest round 4 (1 Aug 2026) — a 3-player session ran with a non-host moving first, no blocking bug reported.** It produced two legibility changes, both shipped at **v150**: the 5 s interstitial dwell and the live event in the table header + the nine-event roster overlay.
+
+**Playtest round 5 (1 Aug 2026) — the deferred multi-device pass, run clean.** 3 players, SW v150, non-host moving first, several Encounters played: no mirror desync, no frozen fan, no dead button. This is the session TG-07 said no harness could substitute for, and it closes the per-device mirror class BUG-02 opened. **One path stayed unverified live:** no client Challenge in this session happened to beat a Mark, so `PKO_CARRION_OPEN` (gap C5) is confirmed by code audit — every Hoard-mutation site pairs with a `pkoSyncHand`/`pkoSyncAllHands` repair, and the SYNC is sent and handled unconditionally — rather than by a live client-side overlay open. See D38, `docs/phase38-snapshot.md`, decision-log 2026-08-01 "Phase 38 gate closed".
+
+**The 5 s dial is one number for three things** — `PKO_INTERSTITIAL_MS` (both interstitials) and `PKO_CARRION_WINDOW_MS` (the spoils window) are separate constants held deliberately equal (D31, D35); if 5 s ever reads wrong at the table, decide whether it's the *reading* budget or the *acting* budget that's off before changing either, and re-run the events harness (it asserts they match). Key refs: `docs/new-game-tech-pecking-order-fon.md`, `docs/implementation-notes/pko-implementation-notes.md`, `docs/phase38-snapshot.md`.
+**Core art tier (July–Aug 2026):** default game artwork now ships as a **core art pack** — `data/art/<kind>/pack.json` + images, same manifest format as a Secret Mode skin pack but **precached** and never listed in the Terminal. Resolution moved out of `secret-mode.js` into `js/lib/art.js`: `assetFace`/`assetBack`/`assetExtra` layer **skin → core art → emoji fallback**, so existing seams were untouched. Rolled out **game by game** — `pko`, `flw`, `frt`, and **`shp`** (Aug 2026) ship core art; PASS/DYB keep their emoji/CSS defaults until converted. **Promoting a skin to core art unlists the skin** — FLW's art came from `prismatic-gems`, FRT's from `fruity-fruits`, SHP's from `plush-sheeps`; all three left `data/packs/registry.json` in the same change (a Terminal entry identical to the default is only confusing). Candidate masters for the remaining two are already in `data/packs/`: `sea-cliff-dice`/`deep-ocean-dice` (DYB — **needs alpha, so PNG not JPEG**), `joker` (PASS — only 1 of 54 faces; budget the precache before generating the rest). **SHP's id 13 (Fogged Dream) is permanently unskinned** — its whole mechanic is a hidden value, so `shpRenderCard` never asks `assetFace` for it; the manifest simply has no `"13"` key, and `SHP_CARDS`' ids were deliberately NOT renumbered to close the gap (owner call, 1 Aug 2026 — those ids are locked across MP packets). Gotchas learned from the FLW/FRT/SHP runs: **check the masters' dimensions before setting the converter's target width** (all three sets of masters were already near the card aspect and small — upscaling would only cost bytes), and a conversion is not done until `sw.js` carries the manifest + every image and `CACHE_NAME` is bumped. See `docs/expansion-guide.md` § Core art packs (rollout tracker) and `tools/convert-core-art.ps1`.
 **Phase:** Cartridge System **Phase A COMPLETE** (word expansions → runtime-loaded `data/packs/` cartridges). Phase 36 — Flawless (`flw`) COMPLETE. Private-hand multiplayer model (`mpSendPrivate` + `mpStartPrivateListener`) introduced.
 **Cartridge (Phase A):** The 3 expansions are now `data/packs/<id>/pack.json` manifests (inline `words`), listed in `data/packs/registry.json`; `secret-mode.js` builds the terminal consts at runtime via `smLoadPacks()`; `sw.js` runtime-caches `data/packs/` (network-first JSON, cache-first images). Adding a word pack = drop folder + edit registry, no JS/SW edit. Defaults locked: inline words, terminal selector, single-purpose packs.
-**Cartridge (Phase B — IN PROGRESS):** Asset (skin) packs share the same manifest/registry format with an `assets` block instead of `words`; render seams call `assetFace(kind,id)`/`assetBack(kind)` (in `secret-mode.js`) at draw time, falling back to default art when no pack covers an id. Device-local cosmetic — ids-only packets mean zero MP sync. Terminal is now **nested by category** (`WORD PACKS` theme→game; `GAME SKINS` game→skin) so pulling IP word packs at go-live just drops the `WORD PACKS` category. **Done:** general system (`window.activeAssetPack`, `assetFace`/`assetBack`, `smLaunch` asset branch, `resetSecretMode` teardown), B0 seam audit, **asset guards in all FIVE seams** — frt (`frtRenderCard`), shp (`shpRenderCard`), flw (`flwRenderCard`), cards (`Cards.buildEl/buildBackEl`, id scheme `rank`+suit-letter e.g. `QH`/`Joker`), and **dyb** (`dybDieHTML` standard faces only + `dybDieBackHTML` — special dice keep pips so type stays legible; the old face-down cup-die bypass at `dyb.js:482` now routes through the seam) — plus `.frt/shp/pass/dyb-die-asset` CSS, `SM_GAMES` entries for frt/shp/flw/pass/dyb, and **five sample SVG skins**: `neon-fruit`, `neon-sheep`, `neon-gems`, `neon-deck` (full 54), `neon-dice`. **Phase B doc closure DONE:** code-map seam table, `expansion-guide.md` § Add an asset (skin) pack (per-game id cheat-sheets + install steps), decision-log entry, brief template §9A + tech template §10 asset-readiness, `docs/content-prompts/asset-pack-prompt.md`, logic-engine new-game checklist item. DYB dice skins keyed by face value 1–6 only (no per-type skinning — YAGNI). Spec: `docs/cartridge-system-plan.md` Part B. **Phase B COMPLETE.**
+**Cartridge (Phase B — IN PROGRESS):** Asset (skin) packs share the same manifest/registry format with an `assets` block instead of `words`; render seams call `assetFace(kind,id)`/`assetBack(kind)` (in `secret-mode.js`) at draw time, falling back to default art when no pack covers an id. Device-local cosmetic — ids-only packets mean zero MP sync. Terminal is now **nested by category** (`WORD PACKS` theme→game; `GAME SKINS` game→skin) so pulling IP word packs at go-live just drops the `WORD PACKS` category. **Done:** general system (`window.activeAssetPack`, `assetFace`/`assetBack`, `smLaunch` asset branch, `resetSecretMode` teardown), B0 seam audit, **asset guards in all FIVE seams** — frt (`frtRenderCard`), shp (`shpRenderCard`), flw (`flwRenderCard`), cards (`Cards.buildEl/buildBackEl`, id scheme `rank`+suit-letter e.g. `QH`/`Joker`), and **dyb** (`dybDieHTML` standard faces only + `dybDieBackHTML` — special dice keep pips so type stays legible; the old face-down cup-die bypass at `dyb.js:482` now routes through the seam) — plus `.frt/shp/pass/dyb-die-asset` CSS, `SM_GAMES` entries for frt/shp/flw/pass/dyb, and sample SVG skins incl. `neon-fruit`, `neon-sheep`, `neon-deck` (full 54) — DYB's two live skins are `sea-cliff-dice` (faces-only) and `deep-ocean-dice` (a bundled `neon-dice` pack was never shipped, despite this paragraph previously claiming otherwise). **Phase B doc closure DONE:** code-map seam table, `expansion-guide.md` § Add an asset (skin) pack (per-game id cheat-sheets + install steps), decision-log entry, brief template §9A + tech template §10 asset-readiness, `docs/content-prompts/asset-pack-prompt.md`, logic-engine new-game checklist item. DYB dice skins keyed by face value 1–6 only (no per-type skinning — YAGNI). Spec: `docs/cartridge-system-plan.md` Part B. **Phase B COMPLETE.**
 **Last shipped game:** Phase 36 — Flawless (FLW), gem-trading bluffing game, MDLM-only, 3–4 players; True Network Privacy (private Firebase channel); Sylly Mode = The Counterfeit Run.
 **Previous shipped game:** Phase 35 — Counting Sheep (SHP), O'NO-99 climbing/survival card game, MDLM-only, 3–8 players; Sylly Mode = Night Terrors (oscillating Climb ⇄ Plunge).
-**SW Version:** v147 (**PKO round-2 follow-up** — one bug + three polishes, no rules or packet change. **BUG-05**: a mixed answer (Mongoose, Mongoose, Octopus vs three Fish) was refused from the table fan while the Challenge builder accepted it — v146 built quick-play by reusing the Stake's group-cycling and so inherited the Stake-only *"one species only"* refusal. The two selections are now separate models by construction: `pkoStakeSel` (flat, one species) for a Stake, `pkoDraft` (per-Mark, mixed) for a Challenge, with the table's new `pkoCycleAnswerGroup` calling the **builder's own** `pkoAutoFillSlot(pos, containerId)`. `pkoQuickPick`/`pkoSubmitQuickChallenge` deleted; the Challenge button commits when `pkoDraftComplete()` and otherwise opens the builder **carrying the partial draft in** (`pkoOpenChallenge` re-arms only a *stale* draft). Swarms are now reachable from the table too. Also: **"Build a Challenge…" button removed** (the brand-coloured Challenge button is dual-purpose); rejection hints now render on the **table** as well as in the builder (`pko-table-hint`); **fan polish** — the horizontal scrollbar was the *rotation*, not the strides (`transform: rotate()` doesn't change the layout box but does create visual overflow, and both fans are `overflow-x-auto`), so `pkoLayoutFan` now reserves the true sweep `2·H·sin(span/2)` and tightens both strides [0.20W→0.16W within species, 0.64W→0.50W between] so **Hoard 12 never scrolls**, and the container's height is **computed** from the layout rather than fixed in CSS; "Clash N complete" → **"Clash N Summary"**. Harness extended to **123 loop checks** — §12 now drives the table tap path directly (mixed answers both orders, the wrap-release cycle, a table-built Swarm, an illegal tap), the gap that let BUG-05 ship past 111 green checks. Previous: v146 (**PKO playtest round 2** — two rules changes + five UI fixes, no precache list change [`data/pko-data.json` was already listed]. **Swarm restored** — `pkoDraft` becomes an array-of-arrays [one slot may hold 2 positions], new single-source per-slot predicate `pkoAnswers(markId, cards)` beside `pkoBeats`, plus builder-only `pkoSlotAccepts` for half-built Swarms; `PKO_CHALLENGE.assignments` is now **one id array PER SLOT** [`[['bear'],['mouse','mouse']]`] and the host flattens it into the new board. **Appetite** setting [`pkoAppetite` `'sated'`/`'ravenous'`, **default Sated**] — `data/pko-data.json` gains `reach_beaten_by` carrying six two-tier edges, `pkoLoadChain` builds both predator maps at load and `pkoPredators()` chooses; it is **load-bearing in MP** [host re-validates with `pkoBeats`] so it ships in `mpSerialiseSettings` + SETTINGS_SYNC. UI: **BUG-03** Retreat + Stampede got `flex items-center justify-center` [revealed with `display:flex`, no centering utilities — rule widened in `logic-engine.md` beyond custom brand classes]; **BUG-04** the builder now gives a *named reason* on refusal and **Stampede shows disabled with its price** on a uniform board instead of vanishing [spec §7 deviation, §17 D10]; **quick Challenge** from the table fan [`pkoQuickPick` + `pkoSendChallenge` as the single validated exit] with `Build a Challenge…` always available; **true fanned hand** [`pkoLayoutFan` rotates each card; the selection lift moved INTO the inline transform because `.pko-card-selected`'s `transform` would fight it]; Watering Hole is now **batch records** `{enc,cards[]}` so Discards group by encounter, Trail + Discards render **newest first**, and the Clash Complete screen gets a `Trail & Discards →` button; PKO's three decision modals raised `min-h-11/text-sm` → `min-h-14/text-lg` [it was the smallest of 16 games]. Harnesses extended to **58 chain + 111 loop** checks — every invariant now runs under BOTH Appetites, the apex band is asserted identical in both, and Swarm has every rejection path covered. Previous: v145 (**PKO playtest round 1** — seven fixes. **BUG-02** [the blocker]: `pkoRemoveFromHoard` now sends the acting player their whole authoritative Hoard over the private channel as `PKO_HAND_SYNC` whenever the actor isn't this device — a client's `pkoMyHoard` was previously only ever written by the deal, so every card it played stayed in its fan and was then silently rejected by the host's `pkoHoldsAll`. Plus: **Small Fry** opener setting [`pkoStartSmall` off/match/clash + `PKO_PREY_RANK`, enforced at tap, client submit and host re-validation]; **overlap Hoard fan** [`pkoLayoutFan`/`pkoGroupHoard`, no more horizontal scroll] with the **species group as the tap target** [`pkoCycleStakeGroup` replaces `pkoToggleStakeCard`]; **Watering Hole** made visible + broadcast, now the home of the Trail [two-tab overlay: Trail | Discards]; **Chain overlay tabbed** Diagram | Animals — the first call site for `assetExtra('pko','chain')`; Challenge builder → **Challenge + ← Back** with Reset demoted inline; all four table actions matched to `min-h-14 text-lg` and the two missing `btn-mp-action` hooks added. Harness extended to 92 checks [Small Fry + a card-conservation census]. No precache change — `chain.jpg` was already listed. Previous: v144 (**PKO Step 5 logic injection** — Challenge builder [`pkoOpenChallenge`/`pkoRenderChallenge`/`pkoTapSlot`/`pkoTapFanCard`/`pkoAssignToSlot`/`pkoAutoFillSlot`/`pkoResetChallenge`/`pkoDismissChallenge`], Stampede [`pkoSubmitStampede`/`pkoApplyStampede`/`pkoRenderStampede`], `pkoSubmitChallenge`/`pkoApplyChallenge`, the missing `PKO_CHALLENGE` + `PKO_STAMPEDE` ACTION handlers, and `pkoApplyExpansionOverrides` as a documented no-op. Fixes **BUG-01**: `pkoEndEncounter()` now clears `pkoMarks` synchronously instead of leaving the board standing until the interstitial's 2.5 s timer, closing a window where a late client Retreat resolved the Encounter twice. New tool `tools/verify-pko-loop.js`. No precache list change — `js/games/pko.js` was already listed. Previous: v143 — **Core art tier** — `data/art/<kind>/` packs hold a game's *default* artwork using the skin-pack manifest format but precached + invisible to the Terminal; `assetFace`/`assetBack` moved out of `secret-mode.js` into the new always-loaded `js/lib/art.js` and now resolve skin → core art → emoji, plus `assetExtra(kind,key)` for non-card art. First user `data/art/pko/` — 17 images, 26 MB of PNGs converted to 360 px JPEGs at a 40 KB/card ceiling = **682 KB**. Also adds `js/games/pko.js` + `data/pko-data.json` to precache. Previous: v142 — DSD Sylly Mode renamed Mission Abyss → **Silent Running** to resolve a vocab clash with PASS's Sylly Mode "The Abyss" — PASS keeps the name [it's a load-bearing mechanic: `passAbyss` pool, `abyss-draft` phase, "the abyss gazes back"]; DSD's was a cosmetic display string only. Display strings in `index.html` [sabotage header, settings, how-to] + `dsd.js` pass-gate subtext changed; internal `playAbyssThud()` audio left as-is. Previous: v141 — Phase-audit Protocol A polish sweep: Counting Sheep sheep flight reworked into a smooth parabolic fence-jump arc [multi-point `@keyframes shpSheepArcIn/Out` + `linear` timing]; stale skeleton `TODO` markers + two dead NT stubs [`ntComputePlayback`, `ntValidateTeams`] removed. Previous: v140 — Cartridge Phase A: `data/packs/` runtime-cached — network-first JSON, cache-first images; legacy `data/secret*_words.json` migrated into manifests + removed from precache. Previous: v139 — Lobby min-players hint: host lobby now shows "Need N more players to start (min M)" below the capacity line while the start CTA is locked — `mpRenderHostPlayerList()` + `#mp-lobby-min-hint`. Previous: v138 — Counting Sheep playtest round 2: hand-sort falsy-zero fix [Pastures leftmost, +1/+2/+5/+10], card-info tap-outside-to-close, sheep animation reworked to an absolutely-positioned arc-from-left overlay [no layout jank] with in/out direction by net Herd delta, deck rebalanced 71→73 [~66% pasture], "Counting Backwards −N" restored in inspect modal, Last/Dream Journal moved to right whitespace + rename "Log →"→"Dream Journal", "The Sky is Falling"→"The Dream is Collapsing", Night Terrors drop softened to round-based escalation −2 base +2/round. Previous: v137 — PASS playtest fixes)
+**SW Version:** v155 (**DYB Tempest asset seam — the five special die types are now skinnable.** Rules-neutral, packet-neutral: `dybGenerateRoll`'s odds and `dybComputeRealCount`'s arithmetic are untouched. The asset manifest gains an optional `specials` block (per-type face keys `1`–`6`, a reserved `blank` key for faceless dice, and a `"frame": false` opt-out), resolved by two new functions in `js/lib/art.js` — `assetSpecial(kind,type,id)` / `assetSpecialFrame(kind,type)` — alongside `assetFace`/`assetBack`/`assetExtra`. `dybDieHTML` (`js/games/dyb.js`) draws special-die art *inside* the engine's own type frame (new `.dyb-die-framed` + inner `.dyb-die-art` CSS) rather than replacing the frame, so a Loaded die stays legible as loaded under any skin; the opt-out is provenance-gated (only applies to a die whose special art actually resolved) and the `blank` key never falls back to the ordinary face chain, so a concealed phantom's real value can never leak through a partial pack. `data/packs/deep-ocean-dice/` is the reference pack (hand-authored SVG loaded/snake faces + ghost/broken blanks); `sea-cliff-dice` stays faces-only on purpose as the fallback path's live test. New harness `tools/verify-dyb-dice.js` (90+ checks incl. the leak guard) — add it to the standard re-run list alongside the three PKO harnesses whenever `js/lib/art.js` or `dybDieHTML` change. Also dropped `dybDieHTML`'s dead `visible` parameter (six call sites). Full history for v137–v154: `docs/sw-changelog.md`.)
+
+**Previous versions:** v154 and earlier — `docs/sw-changelog.md` (the outgoing entry moves there on each bump; only the current version keeps its notes here).
+**DYB harness:** `node tools/verify-dyb-dice.js` — re-run after any change to `js/lib/art.js`, `dybDieHTML`/`dybDieBackHTML`, or `.dyb-die-*` CSS. Covers the `specials` manifest block, the engine frame contract and its per-type opt-out, and the leak guard that stops a concealed phantom's real face reaching the DOM.
 **Gold Master:** 16 games complete + multiplayer (LI5, Great Minds, Secret Signals, JEC, YGI, LTTP, Natural Selection, Deep-Sea Deploy, Bailed, Group Therapy, The Bluff [internal `dyb`], Pass, Net-Trace, Fruit Salad, Counting Sheep, Flawless)
 **Flawless key refs:** `docs/new-game-tech-flawless.md` (confirmed spec), `docs/implementation-notes/flw-implementation-notes.md`, `docs/new-ideas/new-game-brief-flawless.md` (Phase-1 brief). MDLM-only, True Network Privacy (`mpSendPrivate`), host-as-participant, host-authoritative; rose-pink `#E879A8` + Exhibition gold `#C9A227`; all card rendering through `flwRenderCard` (asset-pack seam); 10 gems (`FLW_GEMS`); Sylly Mode = The Counterfeit Run (1 token + 2 audit charges per Showing).
 **Counting Sheep key refs:** `docs/new-game-tech-counting-sheep.md` (confirmed spec — Night Terrors + ghost rework in v1), `docs/implementation-notes/shp-implementation-notes.md` (bug log incl. Wolf-deal fix + design decisions), `docs/new-ideas/counting-sheep-notes.md` (final design notes). MDLM-only, host-authoritative, host-as-participant; couch security; moonlit indigo (native Tailwind); all card rendering through `shpRenderCard` (asset-pack seam); single-source herd math `shpHerdAfterCard` (Plunge sign-flip).
-**Phase snapshots are OUT-OF-REPO** — historical `phase[N]-snapshot.md` / `fable-audit-snapshot.md` records were moved to an external archive folder (outside the project) so in-repo sweeps don't scan them. They are *pointer detail only* — nothing in the code or build depends on one. The three the decision-log still anchors to are **phase36** (FLW + private-hand model), **fable-audit** (the 71-item Studio Audit campaign), and **phase22** (multiplayer complete — MFS v1.4); ask the owner for the external archive if you need to read one. New snapshots are written there too, not into `docs/archive/` (kept empty by design).
+**Phase snapshots live in `docs/`** — corrected 1 Aug 2026 (owner clarification): the earlier "external archive" move was housekeeping to get old files out of the way of in-repo sweeps, not a standing rule to write new ones externally. The owner keeps their own running Confluence separately; an in-repo snapshot is Claude Code's own reference, so **new snapshots are written to `docs/phase[N]-snapshot.md`** (see `docs/phase37-snapshot.md` for the current template). Historical snapshots up to and including **phase36** (FLW + private-hand model), **fable-audit** (the 71-item Studio Audit campaign), and **phase22** (multiplayer complete — MFS v1.4) remain in the external archive the decision-log anchors to — ask the owner if you need to read one of those specifically. `docs/archive/` still holds the one pre-existing Protocol-A sweep snapshot from 30 June 2026.
 
-**Key references:**
-- `docs/implementation-notes/flw-implementation-notes.md` — FLW bug log + design decisions
-- `docs/new-game-tech-flawless.md` — Phase 2 technical spec (FLW source of truth)
-- `docs/implementation-notes/shp-implementation-notes.md` — SHP bug log + design decisions
-- `docs/new-game-tech-counting-sheep.md` — Phase 2 technical spec (SHP source of truth)
-- `docs/implementation-notes/frt-implementation-notes.md` — FRT bug log + design decisions
-- `docs/new-game-tech-fruit-salad.md` — Phase 2 technical spec (FRT source of truth)
-- `docs/implementation-notes/nt-implementation-notes.md` — NT bug log + design decisions
-- `docs/new-game-tech-net-trace.md` — Phase 2 technical spec (NT source of truth)
-- `docs/implementation-notes/dyb-implementation-notes.md` — DYB bug log + design decisions
-- `docs/implementation-notes/bld-implementation-notes.md` — BLD bug log + design decisions
-- `docs/implementation-notes/gth-implementation-notes.md` — GTH bug log + design decisions
-- `docs/multiplayer-feature-specification-v1.4.md` — MFS v1.4 spec (Phase 22 source of truth)
-- `docs/multiplayer-ui-components.md` — multiplayer component catalogue
-- `docs/code-map.md` — surgical reference: all game IDs, overlays, key functions
-- `docs/rules/new-game-process.md` — three-stage protocol for adding a new game (with `new-game-brief-template.md` + `new-game-technical-template.md`)
-- `docs/expansion-guide.md` — template for adding new expansion packs
-- `docs/ygi-content-guide.md` — content creation guide for You Get It? prompts
+**Key references:** see the Task Playbooks table above, plus `docs/code-map.md` (surgical code reference) and `docs/implementation-notes/[abbr]-implementation-notes.md` (one per game — bug log + design decisions).

@@ -91,3 +91,45 @@ Count-first grep (`output_mode: "count"` / `files_with_matches`) → `content` w
 ---
 
 *Authored 2026-06-30 at end of the session that completed fix (a) + the Secret Signals playtest tweaks (SW v136).*
+
+---
+
+## 8. Update 2026-07-31 — `/doctor` is now the tool for levers B and C
+
+**Claude Code updated v2.1.114 -> v2.1.220.** As of **v2.1.205**, `/doctor` (alias `/checkup`) is no longer a read-only report — it diagnoses *and fixes*. Its built-in job list overlaps this document almost exactly:
+
+- prices **unused skills, MCP servers, and plugins against their context cost**
+- **dedupes local `CLAUDE.md` against the checked-in one**
+- **proposes trimming `CLAUDE.md` content Claude could derive from the codebase** (this is lever C, automated)
+- flags slow hooks and installation-health issues
+
+It reports findings first and asks before changing anything. **Run it early in a fresh session, then accept selectively.**
+
+### Two proposals that must be REFUSED
+
+`/doctor` does not know this project's context architecture and will likely suggest both:
+
+1. **Moving `docs/rules/*` back into `.claude/rules/`.** That split *is* fix (a). Reversing it re-imports ~50k tokens/turn. `CLAUDE.md` carries the warning note — keep it.
+2. **Trimming the Per-Game Quick Index out of `CLAUDE.md`.** It reads as derivable, but it exists so single-game work never opens the 140 KB `game-identities.md`. It is a net context *saving*.
+
+**Accept freely:** installation health, hook warnings, `CLAUDE.md` dedupe, and dropping the two attached-but-unauthenticated MCP servers (claude.ai Gmail, claude.ai Google Calendar) — pure cost, zero use in this project.
+
+### Baseline moved the wrong way this session (deliberately)
+
+| Measure | 2026-06-30 | 2026-07-31 |
+|---|---|---|
+| `CLAUDE.md` | 40,846 | 42,110 |
+| `.claude/rules/ui-style.md` | 44,237 | 47,493 |
+| `.claude/rules/logic-engine.md` | 50,004 | 50,004 |
+| `.claude/rules/definitions.md` | 9,341 | 9,341 |
+| **Always-on total** | **144,428 (~36k tok)** | **148,948 (~37k tok)** |
+
+The SW v148 work **added ~4.5 KB** to the baseline (§ Motion Standard in `ui-style.md`, plus the v148 changelog entry in `CLAUDE.md`). That is an honest regression, accepted because both are load-bearing rules. It also makes the point that the changelog-in-`CLAUDE.md` convention grows the baseline on *every single deploy* — the single strongest argument for lever C, and the first thing to hand `/doctor`.
+
+`.claude/skills/emil-design-eng/SKILL.md` (27 KB) was added this session but is **on-demand** — the harness lists a skill's name and description only, loading the body on invocation. **Verify this next session:** confirm it appears in the available-skills list rather than as full injected content. If this harness turns out to auto-load `.claude/skills/` the way it auto-loads `.claude/rules/`, that is a 27 KB baseline regression and the skill must move out of `.claude/`.
+
+### Correction to § 6
+
+The constraint *"the `Bash` tool returns no output in this environment — use the `PowerShell` tool"* is **stale**. `Bash` (Git Bash) worked normally throughout the 2026-07-31 session — `wc`, `grep`, `curl`, heredoc appends and `git diff --stat` all returned output. Either tool is fine. Every other constraint in § 6 still stands, **especially the `index.html` / Edit-tool mojibake rule.**
+
+*Appended 2026-07-31 during the toolchain side-track (SW v148). See `docs/decision-log.md` — "Toolchain: adopt /doctor + /goal ...".*

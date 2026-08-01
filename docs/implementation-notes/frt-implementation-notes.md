@@ -107,3 +107,15 @@ Any screen that renders content + buttons as one visual unit must put everything
 
 **Banana slider appeared black (post-launch, June 2026, RESOLVED)**
 The sound overlay volume slider rendered in the browser's default black/grey instead of the banana `#FFC700` theme colour when FRT was the active game. Root cause: `updateSliderTheme()` in `engine.js` maps `activeGameId` → a CSS range class, but the `'frt'` key was missing from the map — it fell through to the stone-range fallback. Fix: added `'frt': 'frt-range'` to the map. The `frt-range` CSS class already existed in `css/styles.css`; only the JS mapping was absent. Lesson: whenever a new game's range CSS class is added, the `updateSliderTheme` map in `engine.js` must be updated in the same change. The map and the CSS class are a matched pair.
+
+---
+
+## Core Art (2026-08-01, SW v153)
+
+**What happened:** FRT became the third game (after PKO, FLW) to ship a **core art pack** — the 8 fruit faces are now real bitmap art (`data/art/frt/`) instead of the emoji-on-banana-fill card. Zero JS changed: `frtRenderCard` already resolved `assetFace('frt', fruitId)` / `assetBack('frt')` through `js/lib/art.js`, so this was art + manifest + registry + precache only, exactly as `docs/expansion-guide.md` § Core art packs promises. Third run through `tools/convert-core-art.ps1` — id map came straight from the shipped `fruity-fruits` skin's `pack.json` (banana→0 … apple→7), no ambiguity to resolve.
+
+**Where the art came from:** the **`fruity-fruits` skin pack** (`data/packs/fruity-fruits/`). Promoting it meant the same three things as the FLW run: (1) convert the 9 masters (8 fruits + back) into `data/art/frt/img/`, (2) add `frt` to `data/art/registry.json`, (3) remove `fruity-fruits` from `data/packs/registry.json` — a Terminal skin identical to the new default is a pointless re-download. `data/packs/fruity-fruits/` itself was left in place (matches the FLW precedent: `prismatic-gems` folder wasn't deleted either).
+
+**Dimensions — no upscale needed, same call as FLW:** the masters were 337×450 PNGs, already close to card aspect and already small (a 1× card render is ~72px wide), so the converter held `$cardWidth` at the source width (337) rather than PKO's 360px default. All 9 files landed well under the 40 KB/card ceiling: 1.0 MB PNG → **220 KB JPEG** total. 8 of 9 landed at q88 (the quality walk's top step); only `back.jpg` (busier repeating leaf pattern) needed a step down to q72 to fit, same pattern as PKO's bee.jpg bottoming out on busy art.
+
+**Skipped deliberately:** an `await artReady` guard at FRT's entry point, same reasoning as the FLW run — `frtRenderCard`'s first live call is several screens past app boot (menu → settings → lobby → deal), far longer than the two local fetches (`registry.json` + `pack.json`) `artLoadCore()` needs. Revisit only if a fruit card is ever observed rendering the old CSS/emoji token instead of art.

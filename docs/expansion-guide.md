@@ -216,11 +216,65 @@ all its weight.
 | Counting Sheep | `shp` | `0` +1 · `1` +2 · `2` +5 · `3` +10 · `4` Doze · `5` Toss&Turn · `6` −10 · `7` Lullaby · `8` Skip-a-Few · `9` Black Sheep · `10` Wide Awake · `11` Heavy Eyelids · `12` Big Bad Wolf · `14` −1 · `15` −2 · `16` −5 (**id 13 Fogged Dream is NOT skinnable** — it stays hidden) | ~4 : 5.5 |
 | Flawless | `flw` | gem id = carat value: `0` Obsidian · `1` Quartz · `2` Amethyst · `3` Opal · `4` Jade · `5` Topaz · `6` Emerald · `7` Sapphire · `8` Ruby · `9` Diamond | ~4.5 : 6.5 |
 | PASS | `cards` | `rank` + suit-letter: rank ∈ `3 4 5 6 7 8 9 10 J Q K A 2`; suit ∈ `H D C S`. e.g. `AH`, `10S`, `KD`. Joker = `Joker` | ~3.5 : 5 |
-| The Bluff | `dyb` | die face value `1`–`6` (**standard dice only** — special Tempest dice keep their pip styling so the type stays legible) | square |
+| The Bluff | `dyb` | die face value `1`–`6`, plus an optional `specials` block for the five Tempest die types — see below | square |
 
 > **Tip:** start partial. Skin a few ids, register, and check it in-game — the rest stay default
 > until you add them. The bundled `neon-*` packs (one per game) are working SVG references you can
 > copy and replace image-by-image.
+
+### Optional: `specials` — art for a face that carries a *type*
+
+Some games modify a face without changing its value. The Bluff's Sylly Mode
+(**The Tempest**) turns dice into one of five types — `loaded`, `phantom`, `slick`,
+`cracked`, `snake` — and the type has to stay readable at a glance no matter what
+art you supply. The optional `specials` block is how you skin those.
+
+```json
+"assets": {
+  "kind": "dyb", "basePath": "img/",
+  "faces": { "1": "1.svg", "…": "…", "6": "6.svg" },
+  "back":  "back.svg",
+  "specials": {
+    "loaded":  { "1": "l1.svg", "…": "…", "6": "l6.svg" },
+    "snake":   { "3": "s3.svg", "frame": false },
+    "phantom": { "blank": "ghost.svg" },
+    "cracked": { "blank": "broken.svg" }
+  }
+}
+```
+
+Three key shapes inside a type:
+
+| Key | Meaning |
+|-----|---------|
+| `"1"`–`"6"` | That type showing that face value |
+| `"blank"` | That type when it shows **no** face value — a concealed phantom, a cracked die |
+| `"frame"` | Boolean, default `true` — see below |
+
+**The frame is the type; the image is the face.** By default the engine still draws
+its own coloured border, tint and glow *around* your art, so a Loaded die is
+unmistakably loaded however you paint it. Anything you leave out falls back to the
+plain face from `faces`, still framed — so a `specials`-less pack already looks
+right, and a partial one degrades instead of breaking.
+
+Set `"frame": false` on a type when your art already carries that identity itself
+and the engine border would just double it up. Two things you should know before you
+do: the opt-out is **ignored** for any face you didn't supply (otherwise a missing
+face would quietly ship an unmarked die), and you are taking responsibility for
+keeping that type distinguishable from the other four.
+
+**`"blank"` never falls back to a face image.** If you supply phantom face art but no
+`blank`, a concealed phantom draws the engine's `?` glyph — it will not fall back to
+`faces`, because that would render the hidden value and leak it to the whole table.
+
+**Not everything is skinnable.** An unassigned Slick keeps its engine `4*` glyph: the
+digit is the live auto-rolled face the player needs in order to choose, not decoration.
+
+`data/packs/deep-ocean-dice/` is a complete working example — it uses per-type faces,
+the frame opt-out, both `blank` keys, and one deliberately omitted type.
+`data/packs/sea-cliff-dice/` is deliberately faces-only, so you can see the fallback.
+
+Verify any change to this seam with `node tools/verify-dyb-dice.js`.
 
 ---
 
@@ -289,9 +343,9 @@ precache, with no JS edit at all. Use the `faces` id cheat-sheet above for that 
 | Game | `kind` | Seam | Core art | Notes for whoever converts it |
 |------|--------|------|----------|-------------------------------|
 | Pecking Order | `pko` | `pkoRenderCard` | ✅ `data/art/pko/` | Reference implementation — 15 faces + back + a `chain` extra |
-| Fruit Salad | `frt` | `frtRenderCard` | ⬜ emoji default | 8 fruit faces + back; ids are `0`–`7` |
-| Counting Sheep | `shp` | `shpRenderCard` | ⬜ emoji default | ids `0`–`16`; **id 13 (Fogged Dream) must stay unskinned** |
-| Flawless | `flw` | `flwRenderCard` | ⬜ emoji default | 10 gems, id = carat value `0`–`9` |
+| Fruit Salad | `frt` | `frtRenderCard` | ✅ `data/art/frt/` | 8 fruit faces + back, id = `0`–`7`. Promoted from the `fruity-fruits` skin (Aug 2026) — 337×450 masters were already near card aspect and small, so the converter held the width: 1.0 MB PNG → **220 KB JPEG**, all at q88 except `back.jpg` (q72, busier art) |
+| Counting Sheep | `shp` | `shpRenderCard` | ✅ `data/art/shp/` | 16 faces (ids `0`–`12`, `14`–`16`) + back. Promoted from the `plush-sheeps` skin (Aug 2026) — 400×550 masters held at source width, all 17 files under 40 KB, 640 KB total. **id 13 (Fogged Dream) stays permanently unskinned by design** — `shpRenderCard` hardcodes its cursed placeholder before ever calling `assetFace`, because its value is hidden from every player including its own owner; the manifest's `faces` block simply has no `"13"` key, same as the source skin already didn't |
+| Flawless | `flw` | `flwRenderCard` | ✅ `data/art/flw/` | 10 gems, id = carat value `0`–`9`. Promoted from the `prismatic-gems` skin (Aug 2026) — 338×488 masters were already the exact card aspect, so the converter held the width and only re-encoded: 1.1 MB PNG → **217 KB JPEG**, all 11 at q88 |
 | PASS | `cards` | `Cards.buildEl` | ⬜ CSS default | 54 faces (`AH`…`Joker`) — by far the biggest precache; budget before generating |
 | The Bluff | `dyb` | `dybDieHTML` | ⬜ pip default | Die faces `1`–`6` only. **Needs alpha** if the die isn't a full square — JPEG won't do; use PNG |
 

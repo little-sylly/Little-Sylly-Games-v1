@@ -93,6 +93,22 @@ The following UI improvements were made during first playtest session (SW v133):
 
 ---
 
+## Core Art (2026-08-01, SW v152)
+
+**What happened:** FLW became the second game (after PKO) to ship a **core art pack** — the default gem faces are now real bitmap art (`data/art/flw/`) instead of the gold-framed carat/swatch/name CSS token. Zero JS changed: `flwRenderCard` already resolved `assetFace('flw', gemId)` / `assetBack('flw')` through `js/lib/art.js`, so this was art + manifest + registry + precache only, exactly as `docs/expansion-guide.md` § Core art packs promises.
+
+**Where the art came from:** it was already in the repo as the **`prismatic-gems` skin pack**. Promoting it meant three things, not one:
+
+1. `tools/convert-core-art.ps1` re-encoded `data/packs/prismatic-gems/img/*.png` → `data/art/flw/img/*.jpg`. **1.1 MB → 217 KB**, all 11 files landing at the top quality step (q88) without the walk-down ever engaging.
+2. `data/art/registry.json` → `["pko","flw"]`, and the manifest **plus all 11 images** added to `PRECACHE_URLS` with `CACHE_NAME` bumped v151 → v152. This is the step with no skin-pack equivalent — miss it and the art is simply absent on a cold offline install.
+3. `prismatic-gems` was **removed from `data/packs/registry.json`**, so it no longer appears under `GAME SKINS`. The folder stays on disk as the masters; unlisted means never fetched.
+
+**Lesson — check the masters' aspect before setting a target width.** The converter's default is to downscale (PKO: 896×1200 → 360 px). The gem masters were already 338×488, which is *exactly* the 4.5rem × 6.5rem card ratio and ~4.7× a 1× render. Feeding it PKO's `$cardWidth = 360` would have **upscaled** them — more bytes, no more detail. Holding the width at the source width and letting only the JPEG quality walk do the work is what produced 19 KB average files at full quality. Read the masters' dimensions first; the target width is a decision, not a constant.
+
+**Known non-issue — the boot race.** `artLoadCore()` is async and kicked off at script load, so `window.coreArt` is briefly empty. PKO guards this with `await artReady` inside `pkoLoadChain()`, which FLW has no equivalent of. Deliberately not added: FLW's first card render is several screens deep (lobby → menu → MP lobby → roster → deal), which is orders of magnitude longer than two local `fetch`es. If a gem ever renders as the CSS token on a cold first load, that assumption is what broke — the fix is an `await artReady` at FLW's entry point, not a change to the seam.
+
+---
+
 ## Template Gaps
 
 **Accumulator-array reset pattern (elevated from BUG-01):** Any game state that resets between rounds/sessions (log arrays, tally arrays, history lists) must be included in the round-start SYNC payload even if it's `[]`. The host resets it locally; clients will carry stale values unless the payload includes the reset state. Consider adding this to the MDLM section of `logic-engine.md` as a standing rule alongside the readyCheck pattern.

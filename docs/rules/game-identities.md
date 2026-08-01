@@ -986,6 +986,14 @@ On each roll (`dybGenerateRoll`), every die has a cumulative chance to become on
 
 Wild-1 behaviour (Classic/Volatile) applies to Loaded/Snake/standard via `matchesFace`; Slick uses its assigned face only; Cracked is always 0.
 
+**Skinning the Tempest dice:** all five types are skinnable via the asset manifest's
+optional `specials` block — face keys `1`–`6`, the reserved `blank` key for the
+faceless dice (concealed phantom, cracked), and `"frame": false` to opt a type out of
+the engine's border/tint/glow. The engine frame is the type signal by default, so a
+skin cannot make a type illegible by accident. An unassigned Slick is deliberately
+never skinned — its `4*` glyph carries the live auto-rolled face. See
+`docs/expansion-guide.md` § `specials`.
+
 **Showdown animation (`dybRenderShowdownScreen`):**
 All hands revealed immediately. Count animates from 0 → real at 400ms/tick with `playTick()`. On reaching real: `playBoing()`, verdict shown (bidder/challenger label + loser name), `onDone()` callback fires. If real ≤ 0: 600ms pause then reveal (no ticking needed).
 
@@ -1683,7 +1691,9 @@ LOBBY (MDLM only) → FLW MENU → [onPassThePhone: host deals first Showing]
 - **Onyx (9):** Simultaneous pass — host triggers a group rotation (each player passes their top-Stash card to the next player clockwise). No challenge is possible for this card. Host resolves and broadcasts `FLW_RESOLVE` with `onyx: true`.
 
 **Asset-pack render seam:**
-All gem card DOM is created by `flwRenderCard(gemId, opts)`. Game logic and packets use `gemId` (0–9). A future skin pack changes only this function.
+All gem card DOM is created by `flwRenderCard(gemId, opts)`. Game logic and packets use `gemId` (0–9), never an image path — two devices may run different skins in the same match. `assetFace('flw', gemId)` / `assetBack('flw')` resolve skin → core art → the built-in CSS token in three tiers (`js/lib/art.js`); a skin changes only what those return, never this function.
+
+**Core art (Aug 2026):** FLW is the second game after PKO to ship a **core art pack** — `data/art/flw/` — so the default gem faces are real bitmap art rather than the gold-framed carat/swatch/name token. 10 faces keyed `0`–`9` (the id *is* the carat value) + `back.jpg`, 338×488 JPEG, 217 KB precached. Promoted from what shipped as the `prismatic-gems` skin, which was unlisted from the Terminal at the same time — an offered skin identical to the default is only confusing. The CSS token in `flwRenderCard` is untouched and still renders if the art ever fails to load.
 
 **`flwNorm2D(raw, n)` (Firebase empty-array guard):**
 Firebase strips trailing empty arrays from 2D structures. Same pattern as FRT/SHP/GTH — applied to every received `hands`/`stashes` 2D array.
@@ -1747,3 +1757,195 @@ Firebase strips trailing empty arrays from 2D structures. Same pattern as FRT/SH
 - **Key ACTION packets (public channel):** `FLW_PLAY` (client server → host: `fromIdx, toIdx, declaration, handIdx`), `FLW_AUDIT` (client auditor → host: `auditorIdx, targetIdx`), `FLW_EMERALD_RESOLVE` (client receiver → host: `{accept}`), `FLW_PLAYER_LEFT` (client quit)
 - **Key SYNC packets (public channel):** `FLW_SHOWING_START` (full session config for new Showing), `FLW_TURN_START` (`fromIdx, toIdx, declaration, topClaims, underGlass, turnEndTs`), `FLW_RESOLVE` (challenge result + Ledger update), `FLW_AUDIT_RESULT` (audit outcome), `FLW_SHOWING_END` (Diamonds awarded + session scores), `FLW_GAMEOVER` (winner + final scores), `FLW_MATCH_DISSOLVED`
 - **Key private-channel packets (per-device):** `FLW_HAND` (this device's Showpiece hand), `FLW_DRAW` (single drawn card), `FLW_PEEK` (Pearl peek result — true gem ID), `FLW_LEAK` (Sylly Showpiece leak — one opponent gem revealed), `FLW_EMERALD_OFFER` (Emerald trade offer to receiver)
+
+## Game 17: Pecking Order (PKO)
+**Theme:** Adjacency-based predator-chain climbing/shedding card game. "Who eats whom" replaces numeric rank — a Leopard beats a Mongoose because a Leopard is a Mongoose's actual predator, not because it outranks it. Two parallel tracks (Land/Sea) with a handful of cross-track links. Raw nature: predator/prey drama, tense and occasionally dramatic.
+**Tagline:** "Know the food chain. Become the Apex." 🐘
+**Key file:** `js/games/pko.js`
+**Brand colour:** `#854D0E` (deep amber-brown — custom; hover `#6B3E0B`) | **Active pill:** `pill-active-pko` | **Toggle ON:** `game-toggle-on-pko` | **Range:** `pko-range` (gradient `#F5E6C8 → #854D0E`)
+**State flow:**
+```
+LOBBY (MDLM only) → PKO MENU → [onPassThePhone: names from mpPlayerSlots]
+→ [Match loop (Clashes until pkoClashTarget reached):
+    PKO HOARD (private deal reveal, readyCheck)
+    → [Clash loop (Encounters until a Hoard empties):
+        PKO TABLE (active-stake / active-respond / waiting)
+        → pko-challenge-overlay (Answer the Marks — one card per Mark, or a Swarm)
+        → PKO UNCHALLENGED (2.5s auto-advance interstitial, winner leads next Encounter)
+      ]
+    → PKO CLASH RESULT (host-gated "Next Clash")
+    → repeat or PKO HIERARCHY
+  ]
+→ PKO HIERARCHY (Apex Predator → Bottom Feeder, Clash history grid)
+```
+
+### Terminology
+| Term | Meaning |
+|------|---------|
+| Mark | A single card sitting on the board that must be beaten to stay in the Encounter — always one card, never a stack |
+| Stake | Opening play of an Encounter — one or more cards of the same species, each becomes its own Mark |
+| Encounter | One contested round within a Clash — ends when everyone but the board owner has Retreated |
+| Challenge | Answering every Mark on the board, one card (or a Swarm) per Mark, in a single all-or-nothing play |
+| Swarm | Answering a single Mark with two cards of that Mark's own species instead of its predator — each becomes a Mark of its own, so the board grows one wider |
+| Stampede | Answering a uniform board with one more card of the SAME species than the board holds (`pkoMarks.length + 1`) — the whole field goes to the Watering Hole and the board returns one Mark wider |
+| Retreat | Sitting out of the current Encounter — not a lock-out; a successful board change forgives every Retreat and reopens the window |
+| Scavenge | Optional setting — draw one card from the Reserve on Retreat |
+| Small Fry | Optional setting — the Encounter opener must Stake their smallest-ranked animal (Mouse/Fish are the bottom of their ladders; Bee/Eagle/Stingray/Poacher sit outside the ladder and never count) |
+| Clash | One hand — plays out until a player empties their Hoard; that player scores 1 point |
+| Match | The full session — first to `pkoClashTarget` Clashes wins |
+| Hoard | A player's private hand of dealt cards |
+| Pool | The full card set built at Match start — `pkoBuildPool(n)`, scaled by player count |
+| Reserve | Undealt cards remaining in the Pool after the deal |
+| Watering Hole | Where spent boards go — batch records `{ enc, cards[] }`, one per board that was beaten, grouped by the play that spent it |
+| The Trail | The Match log — one array per Encounter, listing every Stake/Challenge/Swarm/Stampede/Retreat/Unchallenged in order |
+| Poacher | The wildcard (Human) — beats any single Mark outright, including another Poacher-Mark; cannot be Staked as an animal, cannot Swarm or pad a Stampede, and nothing but a Poacher beats a Poacher-Mark |
+| Appetite | Setting controlling how far down the chain a predator reaches — Sated (strict chain, direct prey only) or Ravenous (also reaches one tier further, six extra edges, apex band untouched) |
+| Unchallenged | The result label when an Encounter closes with no successful Challenge against the leader — that player leads the next Encounter |
+| The Conditions 🌿 | Settings overlay title |
+| Answer the Marks | Challenge builder overlay title |
+| The Watering Hole 💧 | Discard/Trail overlay title (tabs: Trail / discards) |
+| Abandon your territory? | Quit overlay heading |
+| The Hierarchy | Gameover screen — final standings, Apex Predator down to the Bottom Feeder. Equal top scores **share** the Apex Predator title |
+| Enter the Wild | Menu Play CTA label / play-again confirm (host) |
+
+**Force of Nature vocabulary (Sylly Mode).** All player-facing; the event names are the exact strings shown on `screen-pko-event`.
+
+| Term | Meaning |
+|------|---------|
+| Force of Nature | The Sylly Mode itself — an event reshapes the rules before each Encounter |
+| Invasive Mimicry | The fixed opener, once per Clash — Mimics join the Reserve and everyone draws extra |
+| The Culling | Each player discards their fewest-held species |
+| Extinction Event | The globally rarest species (all tied) is wiped from every Hoard. Once per Clash |
+| Migration | Every Hoard moves one seat to the left |
+| The Great Reversal | The chain runs backwards — prey becomes predator |
+| The Deluge / The Dry Season | Track locks — only the sea / only the land may hunt |
+| Alpha | The crowned Mark; nothing played against it is discarded, so the board compounds |
+| Carrion | The timed window in which the Challenger may take back Marks they just beat |
+| Spoils | The Marks a Challenge actually beat — what Carrion offers back. A survived Alpha is never spoils |
+| Mimic | The copycat card. Copies whatever it is played with, never acts alone, never copies a Poacher, never becomes a Mark |
+
+### The Predator Chain (`data/pko-data.json`, 15 entries)
+| Species | Track | Beaten by (Sated) | Extra Ravenous predator | Copies |
+|---|---|---|---|---|
+| Mouse | Land | Mongoose, Eagle | — | 4n |
+| Mongoose | Land | Eagle, Leopard | — | 3n |
+| Leopard | Land | Bear | Elephant | 3n |
+| Eagle | Land | *(none — apex)* | — | ceil(1.5n) |
+| Bear | Land | Elephant | — | 3n |
+| Elephant | Land | Bee | — | 2n |
+| Bee | Land | Bear | — | 3n |
+| Fish | Sea | Mongoose, Octopus, Eagle | — | 4n |
+| Octopus | Sea | Seal | — | 3n |
+| Seal | Sea | Polar Bear | — | 3n |
+| Polar Bear | Sea | Orca | — | 2n |
+| Orca | Sea | Stingray | — | 2n |
+| Stingray | Sea | Orca | — | 2n |
+| Human (Poacher) | Wild | *(beats everything, beaten by nothing but itself)* | — | setting-driven, default n |
+| Mimic | Wild | *(never becomes a Mark — nothing beats it)* | — | 2n, **`force_of_nature_only`** |
+
+**The Mimic is not really a chain entry.** It has no `beaten_by`, no `reach_beaten_by`, is excluded from every standard Pool, and never reaches the board — it resolves to the species it copies at play time. `track: 'wild'` is what makes a lone Mimic fail a track lock for free. It is deliberately **absent from `PKO_PREY_RANK`**, so a Hoard of Mimics plus one Mouse must still open with the Mouse under Small Fry.
+
+**Invariants (hold under both Appetites):** Eagle has no predator. Eagle and Leopard are siblings — neither beats the other. Orca ⇄ Stingray is a closed pair. Mongoose and Eagle are the only cross-track predators (Ravenous adds Seal → Fish, still sea-side). The apex band (Bear/Elephant/Polar Bear/Orca/Stingray/Eagle) is untouched by Ravenous — big cards stay scary in both modes. Track-locking (land never beats sea) is emergent from the data, never a coded check. `pkoBeatsMap` is derived by inverting `beaten_by` at load — never stored. `tools/verify-pko-chain.js` re-runs every invariant under both Appetites.
+
+### Settings
+| Setting (display) | Options | Default | Internal variable | Internal values |
+|------------------|---------|---------|------------------|-----------------|
+| Clashes to Win | 3 / 5 / 7 | 3 | `pkoClashTarget` | `3` / `5` / `7` |
+| Hoard Size | 10 / 12 / 15 | 12 | `pkoHoardSize` | `10` / `12` / `15` |
+| Appetite | Sated / Ravenous | Sated | `pkoAppetite` | `'sated'` / `'ravenous'` |
+| Poacher Cards | None / Three / One Each | One Each | `pkoPoacherSetting` | `'none'` / `'flat3'` / `'perPlayer'` |
+| Scavenge on Retreat | OFF / ON | OFF | `pkoScavenge` | bool |
+| Small Fry | Off / Match Start / Every Clash | Match Start | `pkoStartSmall` | `'off'` / `'match'` / `'clash'` |
+| ✨ Sylly Mode (Force of Nature) | OFF / ON | OFF | `pkoSyllyMode` | bool — **shipped SW v149, see the Force of Nature section below** |
+
+**No word-difficulty tier** — PKO has a fixed 15-entry data file, not a `words.json` bank. Exempt under the non-word-bank carve-out (same basis as PASS/DYB/GTH/FRT); Hoard Size is the velocity dial.
+
+**Why Appetite defaults to Sated.** Appetite and Swarm both attack the same symptom — too many Unchallenged (walkover) Encounters — by different routes. Swarm is the stronger, always-on fix (it directly answers the Mouse/Fish stall a brief-v6 cut created); Appetite ships fully built but off, as a table-side A/B dial measured against the Sated baseline. Revisit the default once enough playtest rounds have data. **Appetite is load-bearing, not cosmetic:** the host re-validates every Challenge through `pkoBeats()`, so it must appear in both `mpSerialiseSettings` and the SETTINGS_SYNC applier — a client on a different Appetite would have legal plays silently rejected.
+
+### Special Mechanics
+
+**Swarm** *(restored playtest round 2, July 2026 — cut from brief v6, reinstated once the original ambiguity was found not to apply):* any single Mark may be answered with exactly two cards of that Mark's own species instead of its predator. Each Swarmed card immediately becomes a Mark of its own, so a slot never holds more than one card — the v6 cut (`pko_log1.md` blocker: "does one Leopard beat a slot holding Mongoose ×2, or two?") was protecting against stacked depth, which this avoids by construction. A Challenge may mix ordinary answers and Swarms across different slots in the same play. Poachers can neither Swarm nor be Swarmed (solo-only wildcard). The separate v6 casualty **Mob** (answers that stay stacked rather than becoming new Marks) remains cut.
+
+**Stampede:** answering a uniform board (all Marks the same species) with `pkoMarks.length + 1` copies of that species. Cheaper than Swarming every slot individually on a wide uniform board; the two mechanics coincide harmlessly on a 1-Mark board. The Stampede button shows disabled with its exact price (e.g. "Stampede — needs 3 × Fish") whenever the board is uniform but the player is short, so the option is visible even when unaffordable; it's hidden entirely only on a mixed board where it can never apply.
+
+**The single-source predicate:** `pkoBeats(markId, cardId)` is the only place "does A beat B?" is decided — builder highlighting, Confirm gating, host re-validation, and Stampede availability all read through it. `pkoPredators(markId)` returns the active predator set for the current Appetite so Sated/Ravenous can never disagree at a call site. `pkoAnswers(markId, cards)` is the per-slot legality check (one card = chain lookup, two = Swarm).
+
+**Poacher wildcard:** beats any single Mark outright, including a Poacher already sitting on the board as a Mark from a prior Challenge — this is a species check on the played card, not a chain lookup, so no special-casing is needed inside `pkoBeats()`. Cannot be Staked as an animal, cannot Swarm, cannot pad a Stampede threshold.
+
+**Small Fry (opener constraint):** when active, whoever opens an Encounter (Match Start = only the very first Stake of the Match; Every Clash = the first Stake of every Clash) must Stake their lowest-ranked held species on its ladder. Land and sea run parallel rank ladders; Bee/Eagle/Stingray/Poacher sit outside both and never count as "smallest." Re-validated host-side against the host's mirror of that player's Hoard, not the client's local view.
+
+**Scoring:** emptying your Hoard via Stake, Challenge, or Stampede scores 1 point and ends the Clash **immediately** — the Encounter does not resolve, scoring pre-empts it. Clash-end detection is host-authoritative and fires before the board is processed further. Exactly one point enters the Match per Clash, so simultaneous scoring is impossible and no tiebreak is needed at the Clash level (players can still finish the Match level-pegged on total points).
+
+**Leadership:** first Clash of a Match — random host pick. Every later Clash — opened by the previous Clash's winner. Within a Clash — each Encounter opened by the previous Encounter's Unchallenged winner.
+
+**Turn-window / termination rule:** after every board change, the response window restarts clockwise from the player after whoever changed the board, and every Retreat flag resets. The Encounter ends when everyone but the board owner has Retreated since the last change — a Retreat is not a lock-out, it's forgiven by the next board change. This terminates because each board change requires N−1 Retreats to close it, against a finite Hoard.
+
+**Asset-pack render seam:** all card DOM goes through `pkoRenderCard(id, opts)` — `assetFace('pko', id)` / `assetBack('pko')` resolve skin → core art → emoji fallback (`js/lib/art.js`). PKO is the suite's first game to ship a **core art pack** (`data/art/pko/`, precached bitmap art) rather than emoji-only defaults. Card ids are stable species strings (`'elephant'`, `'human'`), packet-safe and identical across all skins.
+
+### The Force of Nature (Sylly Mode) — SHIPPED (SW v149)
+Spec: `docs/new-game-tech-pecking-order-fon.md`. Nine events — one **fixed opener** plus eight drawn per Encounter. Verified by `tools/verify-pko-events.js` (143 checks).
+
+**The shape of the system.** Events are plain data in `PKO_EVENTS`. A **mutating** event owns an `onFire()` that runs host-side against an empty board and returns the seats it emptied; a **passive** event sets a flag that an existing single-source predicate already reads, so no new branch appears at any call site. Every effect is read through `pkoEventFlag(key)` — `pkoEvent` is never compared to a string at a call site, so adding an event never edits a seam.
+
+| Event | Kind | What it does |
+|-------|------|--------------|
+| **Invasive Mimicry** | fixed opener | Fires in `pkoStartClash` (it mutates the *deal*). Base deal is Mimic-free → **2n Mimics** into the Reserve → everyone draws `round(HoardSize / 4)` more: **10→13, 12→15, 15→19**. Displayed as Encounter 1's event. Hoards are *not* refilled between Encounters — the bonus is once per Clash |
+| **The Culling** | mutating | Each player discards their **fewest-held species**; ties break by `PKO_PREY_RANK` then chain order. Holding one species discards nothing, so it **structurally cannot empty a Hoard** and never scores |
+| **Extinction Event** | mutating | Global census across **all** Hoards; wipes **every** tied-minimum species. Once per Clash. The **only** event that can empty a Hoard — and it can empty several at once, which is why `pkoResolveClash` takes an array |
+| **Migration** | mutating | Every Hoard moves one seat clockwise. Conserves every card, discards nothing, empties nobody |
+| **The Great Reversal** | passive | The chain runs backwards — the prey set becomes the predator set. Zero new data: `pkoPredators` just reads the already-derived forward map, and it **composes with Appetite** across four pre-built graphs. The Eagle becoming beatable and the Elephant becoming weakest is **intended chaos** — do not "fix" it. A Poacher still beats every Mark and nothing but a Poacher beats a Poacher-Mark, both for free |
+| **The Deluge** / **The Dry Season** | passive | Only the sea / only the land may hunt. A Poacher hunts in any weather. The lock folds into `pkoAnswers` so every Challenge path inherits it, and is applied to **resolved** ids so a Mimic inherits its claim's track. If the Leader can't open, the Stake passes clockwise to the first seat that can — **leadership itself does not transfer**. A player with no legal card sees the button **disabled with the reason written on it**; Retreat always works and there is deliberately **no auto-Retreat** |
+| **Alpha** | passive | One Mark is the Alpha and **nothing played against it is discarded**, so the board compounds. Designated on the **opening Stake**, not at Encounter start (at Encounter start the board is empty, so the brief's wording has no referent). Reassigned over the new board after each Challenge; cleared by a Stampede and at Encounter end. Rendered as `.pko-card-alpha` — crown + glow, never art |
+| **Carrion** | passive | The Challenger may take back some of the Marks they just beat, on a 5 s window (`PKO_CARRION_WINDOW_MS`) |
+
+**The Mimic — one rule, three mechanics.** *"A play containing a Mimic must also contain at least one real card of the species being claimed."* That makes the claim **inferable**, so there is no claim UI to build, and it makes the Mimic the exact mirror of the Poacher: the Poacher is solo-**only**, the Mimic is **never** solo. `pkoResolveGroup` is the only place a Mimic is ever interpreted, and `pkoAnswers` routes through it, so the builder, the confirm gate, the table's quick path and the host's re-validation all became Mimic-aware from one edit. **Mimics never reach the board** — they resolve to the claimed species at play time, so `pkoMarks` stays a flat array of real species ids and `pkoBeats()` needed no changes at all. A Mimic cannot copy a Poacher; it can pad a Swarm, a Stake or a Stampede (real copies are always spent first); Small Fry ignores it entirely.
+
+**Two properties that are placement, not rules — do not reorder them.**
+- **Carrion can never un-win a Clash.** The empty-Hoard check in `pkoAfterBoardChange` runs *before* the Carrion branch. That ordering is the whole mechanism.
+- **The Carrion window RESOLVES the selection, it does not cancel it.** On expiry whatever is selected is kept and the rest discarded — so selecting nothing, including doing nothing at all, is exactly the shipped non-Carrion behaviour. A slow player is never punished, only unlucky.
+
+**Resolved from the brief's §7 known-issues banner:** Carrion un-winning a Clash (fixed by ordering); the Deluge/Dry Season skip loop (deleted, not capped — `canFire()` **gates the draw**, so an event nobody can answer is simply never selected: no skip, no re-roll, no cap to tune); Extinction's scoring inconsistency (Extinction empties Hoards and emptying a Hoard *is* the win condition, while The Culling structurally cannot — the two are consistent, not contradictory); the Invasive Mimicry arithmetic (scaled to `round(size/4)`, holding ~25% across all three Hoard settings, instead of the brief's flat +5 written against a 20-card base). **Dark Forest was cut** — its per-player concealment cost was high for its effect, since the host holds all state regardless. Mimic × Swarm, Great Reversal × Appetite, and Extinction/Culling × Swarm are all resolved above.
+
+### Overlay Types
+| Overlay | Pattern | z-index | Notes |
+|---------|---------|---------|-------|
+| `pko-settings-overlay` | Data (slide-up) | z-[80] | "The Conditions 🌿" |
+| `pko-challenge-overlay` | Data (slide-up) | z-[80] | "Answer the Marks" — Challenge builder (reversed from a full screen to an overlay, spec §17 D1); Marks row → slot row → Hoard fan → Confirm/Reset/Cancel |
+| `pko-how-to-overlay` | Data (slide-up) | z-[90] | How to Play |
+| `pko-chain-overlay` | Data (slide-up) | z-[90] | The food-chain reference — three entry points (menu how-to, in-game `[?]`, challenge builder `[?]`), one overlay |
+| `pko-trail-overlay` | Data (slide-up) | z-[90] | "The Watering Hole 💧" — Trail / discards tabs |
+| `pko-quit-overlay` | Decision modal | z-[80] | "Abandon your territory?" — `border-[#C9A227]` |
+| `pko-stampede-overlay` | Decision modal | z-[90] | "Stampede with [species] ×N?" confirm |
+| `pko-new-match-overlay` | Decision modal | z-[90] | "New Match?" play-again confirm |
+| `pko-carrion-overlay` | Decision modal | z-[90] | **Force of Nature — Carrion.** "Carrion — take the spoils?" Timed 5 s window; `border-[#E4CFA3]` |
+| `pko-events-overlay` | Data (slide-up) | z-[95] | **"Force of Nature 🌿"** — the nine-event roster with what each does to your turn. Body rendered from `PKO_EVENTS` + `PKO_EVENT_DETAIL`, live event ringed. Three entry points (`.btn-pko-events-open`): the table header, the Sylly Mode card in settings, the Sylly Mode card in how-to. z-[95] so it can open over the how-to — the FRT Fruity Personalities pattern |
+
+**No shared tip overlay** — the chain overlay and the events overlay are the game's two contextual references (still fewer than 3 distinct tip topics), each reachable from every entry point listed above instead of via a generic `pko-tip-overlay`.
+
+### Screens
+| Screen ID | Purpose |
+|-----------|---------|
+| `screen-pko-menu` | Main hub |
+| `screen-pko-hoard` | Private deal reveal at the start of each Clash; own Hoard only, readyCheck |
+| `screen-pko-table` | Main play — Marks, player strip, Stake/Challenge/Stampede/Retreat. Header reads `Clash X · Encounter Y · [emoji] [Event]` under Force of Nature, with a `[?]` to the event roster |
+| `screen-pko-event` | **Force of Nature** event interstitial — emoji, name, blurb; no chrome, **5s** auto-advance (same documented interstitial exception). Both sides time it locally |
+| `screen-pko-unchallenged` | Encounter-winner interstitial — no chrome, **5s** auto-advance (documented `ui-style.md` interstitial exception). Host-only advance |
+| `screen-pko-clash-result` | Clash winner + Match standings, host-gated "Next Clash" |
+| `screen-pko-hierarchy` | Gameover — Apex Predator → Bottom Feeder standings + Clash history grid |
+
+**No `screen-pko-setup`** — names come from the lobby roster. No pass-gate — MDLM, every player on their own device, private Hoards over the private Firebase channel.
+
+### Multiplayer
+- **Mode:** MDLM only — `multiplayerOnly: true`, `supportedModes: ['mdlm']`
+- **Min players:** 3 | **Max players:** 6
+- **rosterConfig:** `{ type: 'none' }` — automatic seat assignment, never `'individual'`
+- **Host-as-participant:** every host-submittable action (Stake, Challenge, Stampede, Retreat, Hoard-ready) branches on `syllyMultiplayerMode === 'host'` and mutates host state directly before broadcasting SYNC — never a self-sent ACTION (the dedup guard drops `originId === syllyDeviceUid`, which would otherwise hang the round). This was flagged as the spec's highest-risk item.
+- **True Network Privacy — private channel:** `mpSendPrivate(uid, envelope)` writes each player's dealt Hoard and any Scavenge draw to `rooms/{code}/private/{uid}`; the public channel only ever carries `hoardCounts`, never Hoard contents. Same model as FLW.
+- **Mid-game quit (PASS contract):** client quit → `PKO_PLAYER_LEFT` ACTION → host `resetToLobby()` dissolves the match for everyone; host quit → `resetToLobby()` (broadcasts `HOST_END_GAME`). One leaver dissolves the match — correct here, since a climbing game cannot continue with a missing Hoard.
+- **Accumulator reset in-payload:** `pkoTrail`, `pkoHoardReady`, `pkoRetreatedSince`, `pkoClashHistory` all reset between Clashes and must appear in `PKO_CLASH_BEGIN` at their reset value, not just reset on the host locally.
+- **Key ACTION packets (public channel):** `PKO_HOARD_READY`, `PKO_STAKE { cards }`, `PKO_CHALLENGE { assignments }` (one array of ids per slot — `[['bear'], ['mouse','mouse']]` — because a slot may hold a Swarm), `PKO_STAMPEDE { species, count }`, `PKO_RETREAT`, `PKO_PLAYER_LEFT`, **`PKO_CARRION { keep }`**
+- **Key SYNC packets (public channel):** `PKO_CLASH_BEGIN { hoardCounts, leaderIdx, clashNum, event, eventsFired, alphaIdx }`, `PKO_ENCOUNTER_BEGIN { …, event, eventsFired, alphaIdx, trail }`, `PKO_BOARD` (current Marks + hoardCounts + `alphaIdx`), `PKO_UNCHALLENGED { winnerIdx, marks }`, `PKO_CLASH_END { winnerIdxs[], scores, clashHistory }`, `PKO_MATCH_END { finalScores, clashHistory, winnerIdxs[] }`, **`PKO_CARRION_OPEN { playerIdx, spoils, marks, alphaIdx, … }`**
+- **`PKO_CARRION_OPEN` is not optional (spec gap C5).** The Challenger may be a client, and the host is the **only** device that knows the window opened. Without this SYNC the overlay appears only when the host happens to be the Challenger — which is BUG-02's shape exactly, and would pass every host-side test. There is deliberately **no client-side timer**: the host owns the clock and closes the window with `PKO_BOARD`, so a client whose packet was dropped is still moved on by the board rebroadcast.
+- **Key private-channel packets (per-device):** `PKO_HAND` (this device's dealt Hoard), `PKO_DRAW` (single Scavenge draw), `PKO_HAND_SYNC` (whole-hand repair — see below)
+- **`PKO_HAND_SYNC` must key on "this Hoard changed", not "a card was played."** The Culling, Extinction and Migration all mutate Hoards with **no card played**, so the send lives in `pkoSyncHand(playerIdx)` / `pkoSyncAllHands()` rather than inside `pkoRemoveFromHoard`. Carrion's returned cards go the same way. See `logic-engine.md` ML-06.
+- **Force of Nature accumulator:** `pkoEventsFired` resets at Clash start and must travel in `PKO_CLASH_BEGIN` at `[]`, alongside the four existing accumulators.

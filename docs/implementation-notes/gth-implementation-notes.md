@@ -146,6 +146,12 @@
 ## Multiplayer Lessons
 (reference BLD implementation notes for additional patterns)
 
+**`resetToLobby()` alone does not dissolve a match for a client-initiated quit. [MDLM quit contract fix, 1 Aug 2026]**
+*What happened:* `logic-engine.md` documented GTH as diverging from the PASS quit contract by navigating to the game menu on quit — but the shipped code already called `resetToLobby()` unconditionally (fixed in an earlier, undocumented pass). What was actually still missing: when a **client** quits mid-game, `resetToLobby()` only tears down that client's own device — it removes the client's `/players` node and returns *that device* to the lobby, but the host has no listener on `/players` mid-game (only during host lobby), so the host and any other clients never learn a player left and are stranded waiting on a turn that will never come.
+*Root cause:* the deferred-work.md item was written from spec intent ("these games navigate to game menu") without re-verifying it against the shipped code — same shape as TG-06/TG-09 in the PKO notes. The actual gap was one level deeper: the *host-dissolves-for-everyone* half of the PASS contract, which requires a game-specific notification, not a generic engine behaviour.
+*Fix:* client quit-confirm now sends `GTH_PLAYER_LEFT` (ACTION) before calling `resetToLobby()` locally; the host's `gthHandleEnvelope` calls `resetToLobby()` on receipt, which broadcasts `HOST_END_GAME` to the remaining clients (the existing generic `mp-host-disconnected-overlay` handles the rest — no game-specific banner needed).
+*Lesson:* a documented "divergence from the reference pattern" is a claim about the code at the time it was written, not a live fact — grep the actual quit-confirm handler before believing a fix note. And: `resetToLobby()` is a **per-device** teardown, not a broadcast — a client calling it does not, by itself, notify anyone.
+
 ## Template Gaps
 
 - **Drawing module not in new-game-checklist:** Future games that include drawing mechanics should reference `canvas-draw.js`. The checklist in `logic-engine.md` and `new-game-technical-template.md` does not mention this. Consider adding a `[ ] If game uses drawing: wire CanvasDraw.init() on canvas screen entry; verify tremor targets wrapper div not canvas element` item.

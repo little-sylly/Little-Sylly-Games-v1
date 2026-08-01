@@ -71,6 +71,8 @@ All audio is synthesised via Web Audio API — no audio files.
 | `playPoacher()` | PKO: Poacher played | Dry highpassed click + two detuned square partials — deliberately out-of-ecosystem |
 | `playClashWin()` | PKO: emptying your Hoard | Deepened, slower `playSuccess()` (C4–E4–G4) over a sine sub |
 
+**Force of Nature adds NO new audio functions.** PKO's nine events announce themselves by **reusing** the catalogue above, mapped in one place — `PKO_EVENT_SOUND` in `js/games/pko.js`: `playPoacher` (Invasive Mimicry — out-of-ecosystem, like the Poacher itself), `playAbyssThud` (The Culling, Extinction Event), `playWhoosh` (The Great Reversal, Migration), `playSonarPing` (Alpha, Carrion), `playDone` (The Deluge, The Dry Season). Keeping the map beside the registry is deliberate: an event's identity (data) and its voice (audio) cannot drift apart, and a new event needs no new synthesised sound.
+
 Global audio state: `isMuted` (bool), `masterVolume` (0–1), `audioCtx` (Web Audio context).
 
 ---
@@ -350,7 +352,7 @@ if (window.syllyMultiplayerMode !== 'single') {
 
 This means **one client leaving dissolves the entire match** — PASS does not tolerate a mid-game drop. This is the correct contract: it prevents ghost rooms and stranded devices.
 
-**Current divergence (GTH / DYB / BLD — deferred code work):** These three games navigate to the game menu on quit confirm, leaving the Firebase room node and listeners alive. The host can return to lobby from the game menu, but clients left waiting may see a stale room. This divergence is logged as deferred code work in `docs/fable-fix-plan.md` (Deferred Items section) — the fix is to change each game's quit confirm destination from game-menu navigation to `resetToLobby()`, matching PASS.
+**Resolved (GTH / DYB / BLD — 1 Aug 2026):** All three already called `resetToLobby()` on quit confirm (an earlier, undocumented fix — the "navigates to game menu" description above was stale by the time it was checked). What was still missing was the other half of the PASS contract: a client's `resetToLobby()` only tears down that client's own device (removes its `/players` node) — the host has no listener on `/players` mid-game, so a client quitting left the host and any other clients stranded waiting on a turn that would never come. Fixed by adding `[ABBR]_PLAYER_LEFT` (ACTION, client→host) to all three: client quit-confirm sends it before its local `resetToLobby()`; the host's handler calls `resetToLobby()` on receipt, which broadcasts the generic `HOST_END_GAME` and lets the existing `mp-host-disconnected-overlay` handle the remaining clients — no game-specific banner needed, unlike PASS's richer `PASS_MATCH_DISSOLVED`. See `docs/implementation-notes/gth-implementation-notes.md` § Multiplayer Lessons for the full root cause (a documented divergence that had drifted from the shipped code).
 
 **Rule for new games:** Always use `resetToLobby()` (not game menu navigation) as the quit confirm destination in MDLM. Match the PASS contract: host dissolves the room; a client leaving individually dissolves for everyone.
 
@@ -438,25 +440,10 @@ Before implementing, answer:
 
 **SW versioning:** `CACHE_NAME = 'sylly-games-vN'` — bump N on **every deploy**.
 
-**Current SW version:** v147
+**Current SW version:** v155
 
-**Precached assets (relative paths — no leading `/`; matches `sw.js` `PRECACHE_URLS[]`):**
-```
-./, index.html, css/styles.css,
-js/engine.js,
-js/games/li5.js, js/games/great-minds.js, js/games/secret-signals.js,
-js/games/jec.js, js/games/ygi.js, js/games/lttp.js, js/games/nat.js,
-js/games/dsd.js, js/games/bld.js, js/games/gth.js, js/games/dyb.js, js/games/pass.js, js/games/nt.js, js/games/frt.js, js/games/shp.js, js/games/flw.js, js/games/pko.js,
-js/lib/cards.js, js/lib/art.js,
-data/ygi-data.json, data/gth-data.json, data/pko-data.json,
-js/secret-mode.js, js/app.js,
-js/lib/tailwind-play.js, js/lib/canvas-draw.js,
-data/words.json,
-data/art/registry.json, data/art/pko/pack.json, data/art/pko/img/*.jpg (17 files),
-manifest.json,
-js/engine-multiplayer.js,
-js/lib/firebase-app.js, js/lib/firebase-database.js, js/lib/firebase-auth.js, js/lib/firebase-init.js
-```
+**Precached assets:** the authoritative list is `PRECACHE_URLS[]` in `sw.js` — read it there, never from a copy.
+Adding a file to the app means adding it to that array AND bumping `CACHE_NAME`.
 
 Note: the four Firebase lib files ARE precached (so Lobby Mode works offline-first once installed) but are still lazy-loaded at runtime — they are not in the `index.html` `<script>` load order. See Firebase Lazy-Load below.
 
@@ -466,11 +453,14 @@ contract: it **is** listed in `PRECACHE_URLS` (manifest + every image) and chang
 an SW version bump, because default art is part of the app version. It is never listed in
 `data/packs/registry.json` and never appears in the Terminal. Resolution is three-tier in
 `js/lib/art.js` — active skin → core art → emoji fallback — so `assetFace`/`assetBack` call sites
-did not change. `assetExtra(kind, key)` covers non-card game art (reference diagrams). First user:
-`pko`; the other games adopt it one at a time — the **rollout tracker** (which games are still on
-emoji defaults, the 4 conversion steps, per-game gotchas) is in `docs/expansion-guide.md` § Core art
-packs, and `tools/convert-core-art.ps1` is the converter. Converting a game needs **no JS edit** —
-its seam already calls `assetFace`/`assetBack`.
+did not change. `assetExtra(kind, key)` covers non-card game art (reference diagrams). Shipped for
+`pko` and `flw`; the other games adopt it one at a time — the **rollout tracker** (which games are
+still on emoji defaults, the 4 conversion steps, per-game gotchas) is in `docs/expansion-guide.md`
+§ Core art packs, and `tools/convert-core-art.ps1` is the converter. Converting a game needs **no JS
+edit** — its seam already calls `assetFace`/`assetBack`. **A conversion is not done until `sw.js`
+carries the manifest AND every image in `PRECACHE_URLS` and `CACHE_NAME` is bumped** — that step is
+the whole difference from a skin pack, and missing it means the art is simply absent on a cold
+offline install.
 
 **Cartridge packs — runtime-cached, NOT precached (Phase A, June 2026):** Everything under
 `data/packs/` (the `registry.json`, each `<id>/pack.json`, and any asset images) is deliberately
@@ -484,43 +474,6 @@ edit, no SW version bump. The legacy `data/secret*_words.json` files were migrat
 ---
 
 ## Checklist: Adding a New Game
-- [ ] Create `js/games/[game-name].js`
-- [ ] Add `<script>` tag to `index.html` (after `engine.js`, before `app.js`)
-- [ ] Add all screen IDs to `allScreens[]` in `engine.js`
-- [ ] Add all overlay HTML to `index.html` **before** the `<script>` tags
-- [ ] Add `.btn-open-sound` + ✕ to every screen (see `@ui-style.md`)
-- [ ] Wire lobby button → game menu screen (not directly into setup) — exact pattern: `playLaunch(); activeGameId = '[abbr]'; showScreen('screen-[abbr]-menu');`. `playLaunch()` is mandatory — omitting it silently removes the entry sound. Do NOT call `updateSliderTheme()` here; `openSoundOverlay()` handles that automatically.
-- [ ] **Sound button re-wiring (new games only):** New games are added at the end of `index.html`, after the `<script>` block (~line 6774). `engine.js` wires `.btn-open-sound` via a top-level `querySelectorAll` that runs at parse time and will NOT reach any HTML that comes after it. Add explicit re-wiring inside the plugin's `DOMContentLoaded` callback: `document.querySelectorAll('#screen-[abbr]-* .btn-open-sound').forEach(btn => btn.addEventListener('click', openSoundOverlay))`. FRT is the reference implementation. Games added before the script block (LI5 → PASS) rely on the engine global correctly; NT, FRT, SHP, FLW (added after the script block) all require this fix. *[Elevated from nt-BUG-12, shp-BUG-03, flw-BUG-02, June 2026.]*
-- [ ] Add game teardown to `resetToLobby()` in `engine.js`
-- [ ] Add game menu: Let's Play!, How to Play, Settings, ← Back to the Box (see `@ui-style.md` Universal Menu Standard)
-- [ ] Settings: game options first, ✨ Sylly Mode last; every setting in a white card (see `@ui-style.md` Settings Card Standard)
-- [ ] Settings: include a **difficulty setting** (themed name, plain-English description) — controls word difficulty tier (d1 / d1+d2 / d3); position it early, before timer/rounds. **Exception — non-word-bank games:** games that do not draw from `words.json` (fixed-deck card games, drawing games, custom-data games — e.g. PASS, DYB, GTH) have no word-difficulty tier and are **exempt** from this item. Use whatever velocity/complexity dial the game actually has (deck size, round count, content tier) instead, and note the exemption in the tech spec so the Phase-Gate audit does not flag the absence. *[Elevated from pass-impl-notes Template Gaps; applies to any fixed-content game.]*
-- [ ] Overlays: data overlay (slide-up) or decision modal — no third pattern
-- [ ] Add precache entries to `sw.js` and bump SW version
-- [ ] Add `applyExpansionOverrides()` read at the plugin's settings-apply point — reads `window.activeExpansionOverrides` if `isSecretMode` is true; see `js/secret-mode.js` for the established pattern (required from Secret Mode onwards; retrofit existing games during Secret Mode build)
-- [ ] In Secret Mode, substitute `secretWords` (or the appropriate category subset) for `allWords` in the word pool. Default pattern: `if (isSecretMode && secretWords && secretWords.length) { const sub = secretWords.filter(w => w.category === 'food').map(w => w.word); pool = shuffle(sub.length ? sub : secretWords.map(w => w.word)); }` — apply in both `startGame()` and the pool-refill path in `startRound()`
-- [ ] Settings and how-to overlays: add thematic title block as first child of `overlay-data-inner`; call `scrollTop = 0` on open (see `@ui-style.md` Settings Layout Standard)
-- [ ] Quit overlay: game-voiced emoji + heading + subtext + themed confirm + neutral cancel (see `@ui-style.md` Quit Overlay Checklist)
-- [ ] Exit routing: mid-game ✕ → quit overlay → game menu screen; post-game ✕ → `resetToLobby()`; never call `resetToLobby()` from quit confirm
-- [ ] Vocab Lock (if game uses word validation in Secret Mode): use `window.activeExpansionData.vocab.has(normaliseWord(input))`; wire a "VIEW WORD LIST" button to `smOpenVocabOverlay()` (see `@ui-style.md` Vocab Lock Reuse Pattern)
-- [ ] Add section header comment block to `index.html` (see existing `<!-- ════ GAME NAME ════ -->` pattern) and update `docs/code-map.md`
-- [ ] **Team games — setup screens:** Screen 1 = team names only (per-input labels + "Leave blank to use X & Y" hint + themed placeholders, no size pills); screen 2 = team size pills first then player inputs — see `@ui-style.md` § Team Setup Screen Standard
-- [ ] **Multiplayer:** Add game entry to `MP_GAME_CONFIGS` in `engine-multiplayer.js`; add per-game interceptor branches (ACTION/SYNC) to `mpHandleEnvelope`; add per-game SETTINGS_SYNC serialiser entry to `mpSerialiseSettings`; add packet types to `docs/code-map.md` (Multiplayer Module → Per-Game ACTION/SYNC Packet Types table); add multiplayer subsection to `game-identities.md`
-- [ ] **`[?]` how-to button:** Add `#btn-[abbr]-how-to` to every main gameplay screen header — always visible (no `hidden` class), wired to `[abbr]-how-to-overlay` (see `@ui-style.md` § Help icon `[?]`)
-- [ ] **Decision modal borders:** All `overlay-modal-inner` divs include `border border-[brand]-300` from day one (see `@ui-style.md` § Two-Pattern Overlay Library)
-- [ ] **Shared tip overlay (if applicable):** For games with 3+ contextual `[?]` tip points, implement a single `[abbr]-tip-overlay` (Decision Modal, z-[90]) + `[abbr]ShowTip(emoji, heading, lines[])` rather than per-tip overlays (see `@ui-style.md` § Contextual Tip Icons)
-- [ ] **The Stack — every screen, no exceptions:** Build every screen as the Stack — `<section class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">` wrapping ONE `flex flex-col w-full max-w-sm gap-4` column that holds Header + Stage + Controls as siblings. No per-screen pattern decision; no `h-screen` sticky-footer for new games (deprecated — whole-Stack scrolling is preferred even for long card hands). See `@ui-style.md` § The Stack.
-- [ ] **MDLM — missing handler audit:** Before shipping multiplayer, walk every screen phase and ask "can a non-host device submit something here?" Every "yes" is a required ACTION handler in `[abbr]HandleEnvelope`. Missing handlers silently drop submissions — they do not error. Log the full ACTION packet table in the tech spec §11 before implementation.
-- [ ] **MDLM — name population:** `mpPlayerSlots[i].nickname` is already populated when `onPassThePhone` fires (the slot object is `{ uid, nickname }` — read `.nickname`, never `.name`). Skip the game's own name-entry setup screen for MDLM; populate the name array from `mpPlayerSlots` and call the start function directly. BLD is the reference implementation.
-- [ ] **MDLM — host readyCheck self-submission:** For simultaneous-submit phases, the host marks its own `[abbr]ReadyCheck` slot directly in its local submit function — never via its own ACTION envelope (the dedup guard drops self-sent envelopes, hanging the round). See § MDLM Patterns → Host readyCheck.
-- [ ] **No global function-name collision across plugins:** A plugin must never declare a top-level `function name()` whose bare name is already global in another plugin (all plugins share `window`; a later-loaded plugin's hoisted declaration silently clobbers an earlier one). The expansion-override hook must always be plugin-prefixed — `[abbr]ApplyExpansionOverrides()`, never bare `applyExpansionOverrides()` (that name belongs to LI5 legacy only). Grep all plugins for a proposed function name before declaring it. *[Elevated from bld-impl-notes Bug 16 (clobbered LI5), jec-impl-notes naming note.]*
-- [ ] **Contextual tip IDs are uniquely named:** In-game `[?]` tip buttons use `btn-[abbr]-[phase]-tip`; the menu/header How to Play button is `btn-[abbr]-how-to`. Never reuse `btn-[abbr]-how-to` for an in-game tip — `getElementById` returns only the first match, leaving the duplicate permanently unwired. Where one screen exists in two routing contexts (single-device vs MDLM), wire the `[?]` on the *reachable* screen. *[Elevated from ss-impl-notes S3, dsd-impl-notes duplicate id, gth-impl-notes btn-gth-how-to-case.]*
-- [ ] **Canvas drawing (if applicable):** If the game uses freehand drawing, reference `js/lib/canvas-draw.js` (`window.CanvasDraw` global). Call `CanvasDraw.init(canvasEl)` on screen show. Tremor/jiggle effects apply to the wrapper `<div>` — never to the `<canvas>` element itself (canvas coordinate system must be unaffected). GTH is the reference implementation.
-- [ ] **Asset-pack readiness (if the game has a visual primitive — cards/dice/gems/tiles/tokens):** Build ALL of that primitive's DOM through ONE render seam `[abbr]RenderX(id, opts)` (+ a face-down/back variant), keyed by a stable packet-safe id. At the top of the seam check `assetFace('<kind>', id)` (and `assetBack('<kind>')` for backs) — if it returns a URL, render an image node with a `.<family>-card-asset` cover CSS class; else draw the default face. Never build that primitive anywhere outside the seam (a bypass is unskinnable — DYB's old cup-die bypass). Skins are device-local cosmetic (ids-only packets → no MP sync). To make skins selectable, add the game to `SM_GAMES` in `secret-mode.js`. Reference seams: `pkoRenderCard`, `frtRenderCard`, `shpRenderCard`, `flwRenderCard`, `Cards.buildEl`, `dybDieHTML`. **The same seam also delivers the game's *default* art** — ship it as a core art pack in `data/art/<kind>/` (same manifest, precached, invisible to the Terminal) rather than hardcoding paths or a filename lookup table in the plugin; the manifest owns the id → filename mapping. Resolution is skin → core art → emoji, all inside `assetFace`/`assetBack` (`js/lib/art.js`). See `docs/expansion-guide.md` §§ Add an asset (skin) pack / Core art packs. *[Cartridge Phase B, June 2026; core art tier July 2026.]*
-- [ ] **Any button a script reveals with `display:flex` must carry flex centering.** A `<button>` centres its label by default — until something sets `display:flex`, which swaps in the flex defaults (`align-items:stretch; justify-content:flex-start`) and pins the label top-left. Two ways this bites, and you need **both** covered:
-  - **Custom brand CSS classes.** When a game's brand colour has no Tailwind utility (DYB ocean `#1E4D8C`, GTH sage `#B1BCA0`, FRT banana `#FFC700`, PKO `#854D0E`), the custom class MUST declare `display:flex; align-items:center; justify-content:center;` — not just `background-color`.
-  - **Buttons a show/hide helper reveals.** A helper like `el.style.display = on ? 'flex' : 'none'` applies to *every* button it touches, including ones coloured with ordinary Tailwind utilities that have no custom class to carry the centering. Those need `flex items-center justify-center` in the HTML. This is exactly how PKO's Retreat and Stampede shipped mis-aligned while Stake and Challenge (which had `.pko-cta`) looked fine — the rule was previously scoped only to custom classes, so Tailwind-coloured buttons read as out of scope. *[Widened from pko-impl-notes BUG-03, July 2026; originally dyb-impl-notes, June 2026.]*
-- [ ] **Rules-engine verification harness (any game with a deck, chain, or scoring table — MANDATORY for MDLM-only games):** Commit `tools/verify-[abbr]-*.js` — a Node `vm` harness that evaluates the real plugin (re-implementing nothing) and asserts the spec's own numbers and rules, exiting non-zero on failure. In an MDLM-only game the rules engine is unreachable from a single browser, so without one the first real play is also the first execution. **This constrains how you write the appliers:** they must take an explicit `playerIdx` and skip every broadcast in `'single'` mode, so one process can play all N seats — an applier that reads `mpMyPlayerIdx` internally cannot be tested at all. Reference: `tools/verify-pko-chain.js` (data layer) + `tools/verify-pko-loop.js` (turn loop), which caught PKO BUG-01 on its first run. Method + sandbox gotchas: `docs/rules/new-game-process.md` § Stage 3.
-  **Scope the harness by what a function DECIDES, not by which layer it lives in.** A tap handler that works out where a card may legally go is rules logic wearing a UI hat, and it belongs in the harness — its render calls are already `getElementById`-guarded, so it runs unmodified against the sandbox's null document. PKO's quick-play tap path was left out on "it's UI" grounds and shipped BUG-05 (a mixed-species answer refused from the table while the builder accepted it) past 111 green checks. *[Elevated from pko-impl-notes BUG-05, July 2026.]*
-- [ ] **One widget serving two actions must not carry either action's rules.** Reusing an interaction (a tap, a cycle, a drag) across two game actions silently imports the first action's constraints into the second. PKO reused the Stake's group-cycling for the Challenge and inherited *"a Stake is one species only"*, making mixed answers impossible from the table. Either the shared part holds **no** rules at all, or the two paths are **separate functions** — and each names the other in a comment, so the next reader sees the fork. *[Elevated from pko-impl-notes BUG-05, July 2026.]*
-- [ ] **Closure — sync `docs/content-prompts/new-game-brief-prompt.md`:** On shipping the game, update that file's existing-games roster table, the "taken" abbreviations line, and the Sylly-Mode name list to include the new game. Pull every value from *shipped reality* (`game-identities.md` + the plugin + impl notes), never from the original brief. The brief prompt is the first doc a future game touches; a stale roster re-imports errors and risks an abbreviation collision. See `docs/rules/new-game-process.md` Stage 3 closure.
+**Moved — read `docs/rules/new-game-checklist.md` (on-demand) before writing a new game’s first line of code.**
+Every item there is binding: engine registration, settings/overlay standards, MP handler audit, the render seam,
+the verification harness, and the closure steps. Do not start a new game without it.
