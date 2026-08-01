@@ -92,6 +92,7 @@ globalThis.__fon = {
     if (k === 'clashTarget') pkoClashTarget = v;
     if (k === 'marks')       pkoMarks = [...v];
     if (k === 'myHoard')     pkoMyHoard = [...v];
+    if (k === 'startSmallOn') { pkoStartSmall = v ? 'match' : 'off'; pkoClashNum = 1; pkoEncounterNum = 1; }
   },
   flag(k)        { return pkoEventFlag(k); },
   predators(id)  { return [...(pkoPredators(id) || [])].sort(); },
@@ -324,6 +325,108 @@ const section = t => console.log(`\n${t}`);
     F.trail.some(e => /The Culling/.test(e.text)), true);
   check('a per-player line names what was lost',
     F.trail.filter(e => /was Culled/.test(e.text)).length >= 1, true);
+
+  section('pkoResolveGroup — the ONLY place a Mimic is interpreted (§7.1)');
+  F.seat({ hoards: [['mouse']], event: null });
+  const RG = id => sandbox.pkoResolveGroup(id);
+  check('a Mimic is never solo', RG(['mimic']).ok, false);
+  check('an all-Mimic group is never legal', RG(['mimic', 'mimic']).ok, false);
+  check('two different real species is not one claim', RG(['mouse', 'bear']).ok, false);
+  check('a real card plus a Mimic claims that species',
+    [RG(['mouse', 'mimic']).ok, RG(['mouse', 'mimic']).claim], [true, 'mouse']);
+  check('the resolved array replaces the Mimic with the claim',
+    RG(['mouse', 'mimic']).resolved, ['mouse', 'mouse']);
+  check('a Mimic cannot copy a Poacher', RG(['human', 'mimic']).ok, false);
+  check('C1 — a PLAIN Poacher is still legal (no Mimic in the group)',
+    [RG(['human']).ok, RG(['human']).claim], [true, 'human']);
+  check('a plain single card is unchanged',
+    [RG(['bear']).ok, RG(['bear']).resolved], [true, ['bear']]);
+  check('an empty group is illegal', RG([]).ok, false);
+
+  section('pkoAnswers is unchanged for every Mimic-free input');
+  F.seat({ hoards: [['mouse']], marks: ['leopard'], event: null });
+  check('a predator still answers', F.answers('leopard', ['bear']), true);
+  check('a non-predator still does not', F.answers('leopard', ['mouse']), false);
+  check('a Swarm still answers', F.answers('leopard', ['leopard', 'leopard']), true);
+  check('a Poacher still answers anything', F.answers('eagle', ['human']), true);
+  check('a Poacher-Mark still cannot be Swarmed', F.answers('human', ['human', 'human']), false);
+
+  section('The Mimic in a Swarm slot (§7.1)');
+  check('Mouse + Mimic Swarms a Mouse-Mark', F.answers('mouse', ['mouse', 'mimic']), true);
+  check('Mimic + Mouse — order does not matter', F.answers('mouse', ['mimic', 'mouse']), true);
+  check('Mimic + Mimic never Swarms anything', F.answers('mouse', ['mimic', 'mimic']), false);
+  check('Mouse + Mimic does NOT Swarm a Fish-Mark', F.answers('fish', ['mouse', 'mimic']), false);
+  check('Poacher + Mimic cannot Swarm', F.answers('human', ['human', 'mimic']), false);
+  check('a lone Mimic answers nothing', F.answers('mouse', ['mimic']), false);
+
+  section('The classic bug site — removal uses RAW ids, the board uses RESOLVED');
+  F.seat({
+    hoards: [['bee'], ['mouse', 'mimic', 'bear']],
+    marks: ['mouse'], owner: 0, turn: 1, event: null,
+  });
+  sandbox.pkoApplyChallenge(1, { assignments: [['mouse', 'mimic']] });
+  check('the Mimic left the Hoard — the RAW id was removed', F.hoards[1].sort(), ['bear']);
+  check('no Mimic ever reaches the board', F.marks, ['mouse', 'mouse']);
+  check('the board grew by one — a Swarm is still a Swarm', F.marks.length, 2);
+  check('the Hoard count follows', F.counts[1], 1);
+
+  section('A Mimic-padded Stake');
+  F.seat({ hoards: [['mouse', 'mimic', 'bear'], ['eagle']], turn: 0, event: null });
+  sandbox.pkoApplyStake(0, { cards: ['mouse', 'mimic'] });
+  check('the board is two Mice, not a Mouse and a Mimic', F.marks, ['mouse', 'mouse']);
+  check('both raw cards left the Hoard', F.hoards[0], ['bear']);
+  F.seat({ hoards: [['mimic', 'mimic', 'bear'], ['eagle']], turn: 0, event: null });
+  sandbox.pkoApplyStake(0, { cards: ['mimic', 'mimic'] });
+  check('an all-Mimic Stake is refused — the board stays empty', F.marks, []);
+  check('nothing left the Hoard on a refused Stake', F.hoards[0].length, 3);
+
+  section('A Mimic-padded Stampede');
+  F.seat({
+    hoards: [['bee'], ['mouse', 'mouse', 'mimic', 'bear']],
+    marks: ['mouse', 'mouse'], owner: 0, turn: 1, event: null,
+  });
+  sandbox.pkoApplyStampede(1, { species: 'mouse', count: 3 });
+  check('the board is three real Mice', F.marks, ['mouse', 'mouse', 'mouse']);
+  check('real copies are spent before Mimics, and the Mimic was spent too',
+    F.hoards[1], ['bear']);
+  F.seat({
+    hoards: [['bee'], ['mimic', 'mimic', 'mimic', 'bear']],
+    marks: ['mouse', 'mouse'], owner: 0, turn: 1, event: null,
+  });
+  sandbox.pkoApplyStampede(1, { species: 'mouse', count: 3 });
+  check('an all-Mimic Stampede is refused — needs at least one real copy',
+    F.marks, ['mouse', 'mouse']);
+
+  section('Small Fry ignores Mimics entirely (§10)');
+  F.seat({ hoards: [['mimic', 'mimic', 'mouse', 'bear'], ['eagle']], turn: 0, event: null });
+  F.set('startSmallOn', true);   // bridge setter
+  check('a Hoard of Mimics plus one Mouse must open with the Mouse',
+    [...(sandbox.pkoOpenerSpecies(F.hoards[0]) || [])], ['mouse']);
+
+  section('Invasive Mimicry — the deal (§9)');
+  for (const [size, bonus] of [[10, 3], [12, 3], [15, 4]]) {
+    check(`Hoard ${size} → bonus ${bonus} (round(size/4), not the brief’s flat +5 — D25)`,
+      Math.round(size / 4), bonus);
+  }
+  check('2n Mimics enter the Reserve and the base deal is Mimic-free',
+    (() => {
+      F.seat({ hoards: [[], [], []], event: null });
+      F.set('hoardSize', 12); F.set('sylly', true);
+      sandbox.pkoStartClash();
+      const total = F.hoards.flat().length;
+      const mimics = F.hoards.flat().filter(c => c === 'mimic').length;
+      return [F.hoards.every(h => h.length === 15), total === 45, mimics <= 6, mimics >= 0];
+    })(), [true, true, true, true]);
+  check('the fixed opener is recorded as Encounter 1’s event', F.event, 'invasive-mimicry');
+  check('pkoEventsFired holds exactly the opener', F.fired, ['invasive-mimicry']);
+  check('with Sylly Mode OFF nothing changes',
+    (() => {
+      F.seat({ hoards: [[], [], []], event: null });
+      F.set('hoardSize', 12); F.set('sylly', false);
+      sandbox.pkoStartClash();
+      return [F.hoards.every(h => h.length === 12),
+              F.hoards.flat().filter(c => c === 'mimic').length, F.event];
+    })(), [true, 0, null]);
 
   console.log('\n' + '='.repeat(48));
   console.log(failures === 0 ? 'ALL CHECKS PASSED' : `${failures} CHECK(S) FAILED`);

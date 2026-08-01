@@ -171,6 +171,34 @@ function pkoTrackOk(id) {
   return (((pkoChain && pkoChain[id]) || {}).track === lock);
 }
 
+// ── Force of Nature — the Mimic ───────────────────────────────────────────
+// ONE rule covering three mechanics (§7.1):
+//   "A play containing a Mimic must also contain at least one real card of the
+//    species being claimed."
+// That makes the claim INFERABLE, so there is no claim UI to build, and it makes the
+// Mimic the exact mirror of the Poacher: the Poacher is solo-ONLY, the Mimic is
+// NEVER solo (D32).
+//
+// This is the ONLY place a Mimic is interpreted. Mimics resolve to the claimed species
+// at play time and never reach the board, so pkoMarks stays a flat array of real
+// species ids and pkoBeats() needs no changes at all (D33).
+//
+// ⚠️ Callers need BOTH arrays: the RAW `cards` for pkoHoldsAll/pkoRemoveFromHoard, and
+// `resolved` for pkoMarks. Removing the resolved ids would delete cards the player
+// never held — the classic bug site the spec calls out.
+function pkoResolveGroup(cards) {
+  if (!Array.isArray(cards) || !cards.length) return { ok: false };
+  const real = cards.filter(c => c !== PKO_MIMIC_ID);
+  if (!real.length) return { ok: false };                        // never solo, never all-Mimic
+  if (new Set(real).size !== 1) return { ok: false };            // one claimed species only
+  const claim = real[0];
+  // A Mimic cannot copy a Poacher. Guarded on a Mimic actually being present: a PLAIN
+  // Poacher answer is legal and is the only thing that beats an Eagle-Mark, so an
+  // unconditional rejection here would quietly outlaw it (Spec Correction C1).
+  if (claim === PKO_POACHER_ID && real.length !== cards.length) return { ok: false };
+  return { ok: true, claim, resolved: cards.map(() => claim) };
+}
+
 // ── Per-slot legality — the Swarm predicate ───────────────────────────────
 // Does this GROUP of cards legally answer one Mark? The only place a slot's legality is
 // decided: builder highlighting, the confirm gate, and the host's re-validation all call it.
@@ -182,15 +210,19 @@ function pkoTrackOk(id) {
 // dumping five cards onto one Mark to build an unanswerable board.
 function pkoAnswers(markId, cards) {
   if (!Array.isArray(cards)) return false;
-  // A track lock is per-CARD legality, checked here so every Challenge consumer —
+  const g = pkoResolveGroup(cards);
+  if (!g.ok) return false;
+  const res = g.resolved;                       // Mimics are already the claimed species
+  // A track lock is per-CARD legality, applied to RESOLVED ids so a Mimic inherits its
+  // claim's track automatically (§7.3). Checked here so every Challenge consumer —
   // builder highlighting, the confirm gate, the table's quick path and the host's
   // re-validation — inherits it from the one predicate they already share.
-  if (!cards.every(pkoTrackOk)) return false;
-  if (cards.length === 1) return pkoBeats(markId, cards[0]);
-  if (cards.length !== 2) return false;
+  if (!res.every(pkoTrackOk)) return false;
+  if (res.length === 1) return pkoBeats(markId, res[0]);
+  if (res.length !== 2) return false;
   // Poacher is solo-only (brief v6): it can neither Swarm nor be Swarmed.
   if (markId === PKO_POACHER_ID) return false;
-  return cards.every(c => c === markId && c !== PKO_POACHER_ID);
+  return res.every(c => c === markId && c !== PKO_POACHER_ID);
 }
 
 // ── Small Fry: the opener rule ────────────────────────────────────────────
@@ -387,6 +419,26 @@ function pkoFireMigration() {
   return [];
 }
 
+// Invasive Mimicry — the fixed opener. Fires in pkoStartClash, NOT pkoStartEncounter:
+// it mutates the DEAL, and players must see their full Hoard on the deal screen. It is
+// DISPLAYED as Encounter 1's event, but the mutation happens before PKO_CLASH_BEGIN.
+// Order matters and matches the brief exactly (§9): the base deal is Mimic-free, then
+// 2n Mimics go into the Reserve, then everyone draws from the now Mimic-rich Reserve.
+// Hoards are NOT refilled between Encounters — the bonus is once per Clash.
+function pkoApplyInvasiveMimicry() {
+  const n = pkoPlayerCount;
+  for (let i = 0; i < 2 * n; i++) pkoReserve.push(PKO_MIMIC_ID);
+  pkoReserve = shuffle(pkoReserve);
+  // The brief's flat +5 was written against a 20-card Hoard and would be a 42% boost
+  // against today's 12. Scaling holds it at ~25% across all three settings (D25).
+  const bonus = Math.round(pkoHoardSize / PKO_FON_DEAL_BONUS_DIV);
+  for (let i = 0; i < n; i++) pkoHoards[i].push(...pkoReserve.splice(0, bonus));
+  pkoEvent       = 'invasive-mimicry';
+  pkoEventsFired = ['invasive-mimicry'];
+  pkoLogTrail(`Force of Nature — Invasive Mimicry. Everyone drew ${bonus} more cards `
+    + 'from a Mimic-rich Reserve.');
+}
+
 // ── Render seam — ALL card DOM is built here, nowhere else ────────────────
 // A bypass is unskinnable (DYB's old cup-die bypass is the cautionary case).
 // opts: { faceDown, size, alpha (Phase 2), selected, dimmed }
@@ -574,7 +626,6 @@ function pkoStartClash() {
 
   // Every accumulator resets HERE and must travel in the payload at its reset value —
   // the host resets locally, clients never do, and would carry stale values forward.
-  pkoHoardCounts    = pkoHoards.map(h => h.length);
   pkoHoardReady     = new Array(pkoPlayerCount).fill(false);
   pkoTrail          = [];
   pkoMarks          = [];
@@ -584,6 +635,13 @@ function pkoStartClash() {
   pkoEvent          = null;
   pkoEventsFired    = [];
   pkoAlphaIdx       = -1;
+
+  // Invasive Mimicry mutates the DEAL, so it runs AFTER the accumulator resets (it sets
+  // pkoEvent and writes the Trail, both of which the resets above would wipe) and BEFORE
+  // the counts and the private-hand send below, which must see the bonus cards.
+  if (pkoSyllyMode) pkoApplyInvasiveMimicry();
+
+  pkoHoardCounts    = pkoHoards.map(h => h.length);
   pkoMyHoard        = pkoHoards[pkoMyIdx()] || [];
 
   if (window.syllyMultiplayerMode !== 'single') {
@@ -829,7 +887,7 @@ function pkoRenderMyHoard() {
   // species group (see pkoCycleStakeGroup): at the tightest stride a single card exposes
   // ~7px, far under a thumb, and duplicates are interchangeable anyway.
   pkoGroupHoard(pkoSortHoard(pkoMyHoard)).forEach(grp => {
-    const barred = staking && opener && !opener.has(grp.id);
+    const barred = staking && opener && grp.id !== PKO_MIMIC_ID && !opener.has(grp.id);
     grp.positions.forEach((pos, k) => {
       const card = pkoRenderCard(grp.id, {
         selected: staking   && pkoStakeSel.includes(pos),
@@ -870,21 +928,34 @@ function pkoBindChainHold(el, id) {
 // A Stake is one species only, and a Poacher can never be Staked as an animal (§7).
 // STAKE ONLY — the Challenge path is pkoCycleAnswerGroup, deliberately not this one.
 function pkoCycleStakeGroup(grp) {
-  const refuse  = () => { playBoing(); pkoShakeFan(grp.positions[grp.positions.length - 1]); };
-  if (grp.id === PKO_POACHER_ID) return refuse();
-  const opener = pkoOpenerSpecies(pkoMyHoard);            // Small Fry — null when unconstrained
-  if (opener && !opener.has(grp.id)) return refuse();
+  const refuse = msg => {
+    playBoing(); pkoShakeFan(grp.positions[grp.positions.length - 1]);
+    if (msg) pkoChallengeHint(msg);
+  };
   const sorted  = pkoSortHoard(pkoMyHoard);
-  const current = pkoStakeSel.length ? sorted[pkoStakeSel[0]] : null;
-  if (current && current !== grp.id) return refuse();     // mixed species — refuse the tap
+  const real    = pkoStakeSel.map(p => sorted[p]).filter(c => c !== PKO_MIMIC_ID);
+  const current = real.length ? real[0] : null;
+  const mine    = pkoStakeSel.filter(p => grp.positions.includes(p)).length;
+  const step    = n => (n >= grp.positions.length ? 0 : n + 1);   // 0 → 1 → … → N → 0
 
-  const max  = grp.positions.length;
-  const next = (current === grp.id ? pkoStakeSel.length : 0) >= max
-    ? 0                                                   // full → wrap back to none
-    : (current === grp.id ? pkoStakeSel.length : 0) + 1;
-  pkoStakeSel = next === 0 ? [] : grp.positions.slice(-next);
+  // A Mimic can only ever ride along with a real card of the species being claimed, so
+  // it cannot start a selection — it copies whatever is already picked (§7.1).
+  if (grp.id === PKO_MIMIC_ID) {
+    if (!current) return refuse('A Mimic can’t be Staked alone — pick the animal it copies first.');
+    const next = step(mine);
+    pkoStakeSel = pkoStakeSel.filter(p => !grp.positions.includes(p))
+      .concat(next === 0 ? [] : grp.positions.slice(-next));
+  } else {
+    if (grp.id === PKO_POACHER_ID) return refuse();
+    const opener = pkoOpenerSpecies(pkoMyHoard);            // Small Fry — null when unconstrained
+    if (opener && !opener.has(grp.id)) return refuse();
+    if (current && current !== grp.id) return refuse();     // mixed real species — refuse the tap
+    const next = step(mine);
+    // Dropping the real species to zero drops any Mimics with it — they cannot stand alone.
+    const mimics = next === 0 ? [] : pkoStakeSel.filter(p => sorted[p] === PKO_MIMIC_ID);
+    pkoStakeSel = next === 0 ? [] : grp.positions.slice(-next).concat(mimics);
+  }
   playPillClick();
-
   pkoRenderMyHoard();
   pkoRefreshActionLabels();
 }
@@ -894,9 +965,12 @@ function pkoCycleStakeGroup(grp) {
 function pkoRefreshActionLabels() {
   const sorted = pkoSortHoard(pkoMyHoard);
   const stake  = document.getElementById('btn-pko-stake');
-  if (stake) stake.textContent = pkoStakeSel.length
-    ? `Stake ${pkoStakeSel.length} × ${pkoCardName(sorted[pkoStakeSel[0]])}`
-    : 'Stake';
+  if (stake) {
+    const g = pkoStakeSel.length ? pkoResolveGroup(pkoStakeSel.map(p => sorted[p])) : { ok: false };
+    stake.textContent = g.ok
+      ? `Stake ${pkoStakeSel.length} × ${pkoCardName(g.claim)}`
+      : (pkoStakeSel.length ? 'Stake — pick the animal the Mimic copies' : 'Stake');
+  }
   const chal = document.getElementById('btn-pko-challenge');
   if (chal) {
     // Complete → the button commits and names the play. Part-built → the same `N of M`
@@ -960,7 +1034,20 @@ function pkoCanStampede() {
   const species = pkoMarks[0];
   if (species === PKO_POACHER_ID) return false;
   if (!pkoTrackOk(species)) return false;
-  return pkoMyHoard.filter(c => c === species).length >= pkoMarks.length + 1;
+  return !!pkoStampedeSpend(pkoMyHoard, species, pkoMarks.length + 1);
+}
+
+// Which RAW cards a Stampede spends: real copies first, then Mimics. Returns null when
+// the Hoard cannot pay. At least one real copy is required — a Stampede is a play
+// containing Mimics, so §7.1's one rule applies here exactly as it does to a Swarm.
+function pkoStampedeSpend(hoard, species, count) {
+  const real = (hoard || []).filter(c => c === species).length;
+  const mim  = (hoard || []).filter(c => c === PKO_MIMIC_ID).length;
+  if (real < 1 || real + mim < count) return null;
+  const spend = [];
+  for (let i = 0; i < Math.min(real, count); i++) spend.push(species);
+  while (spend.length < count) spend.push(PKO_MIMIC_ID);
+  return spend;
 }
 
 // ── Challenge builder (pko-challenge-overlay — an overlay, not a screen: §17 D1) ──
@@ -1005,6 +1092,9 @@ function pkoTrackReason() {
 }
 function pkoRejectionReason(markId, cardId) {
   if (!pkoTrackOk(cardId)) return pkoTrackReason();
+  if (cardId === PKO_MIMIC_ID) {
+    return `A Mimic copies — it can’t act alone. Pair it with a real ${pkoCardName(markId)}.`;
+  }
   const mark = pkoCardName(markId);
   if (markId === PKO_POACHER_ID) return `Only a Poacher answers a Poacher. It can't be Swarmed.`;
   const preds = [...(pkoPredators(markId) || [])].map(pkoCardName);
@@ -1021,6 +1111,9 @@ function pkoRejectionReason(markId, cardId) {
 // half-built Swarm renders as unanswered and cannot Confirm.
 function pkoSlotAccepts(markId, cards) {
   if (cards.length === 1) {
+    // A lone Mimic is always a legal partial — the second tap names the species it
+    // copies, and completeness is still pkoAnswers(), which rejects an all-Mimic pair.
+    if (cards[0] === PKO_MIMIC_ID) return markId !== PKO_POACHER_ID;
     return pkoBeats(markId, cards[0])
         || (cards[0] === markId && markId !== PKO_POACHER_ID);
   }
@@ -1125,7 +1218,9 @@ function pkoRenderChallenge() {
   // render — rejections deliberately do not re-render.
   const partial = pkoDraft.findIndex((g, i) => g.length === 1 && !pkoAnswers(pkoMarks[i], [sorted[g[0]]]));
   pkoChallengeHint(partial === -1 ? ''
-    : `Tap one more ${pkoCardName(pkoMarks[partial])} to finish the Swarm.`);
+    : (sorted[pkoDraft[partial][0]] === PKO_MIMIC_ID
+        ? `Tap a real ${pkoCardName(pkoMarks[partial])} — that’s what the Mimic copies.`
+        : `Tap one more ${pkoCardName(pkoMarks[partial])} to finish the Swarm.`));
 }
 
 function pkoTapSlot(slotIdx) {
@@ -1182,6 +1277,10 @@ function pkoAutoFillSlot(pos, containerId = 'pko-challenge-fan') {
   if (slot === -1) slot = pkoDraft.findIndex((g, i) => !g.length && pkoBeats(pkoMarks[i], id));
   //  3. else start a Swarm on the leftmost empty Mark of this card's own species
   if (slot === -1) slot = pkoDraft.findIndex((g, i) => !g.length && pkoSlotAccepts(pkoMarks[i], [id]));
+  //  4. else a Mimic starts a pair on the leftmost empty non-Poacher Mark
+  if (slot === -1 && id === PKO_MIMIC_ID) {
+    slot = pkoDraft.findIndex((g, i) => !g.length && pkoMarks[i] !== PKO_POACHER_ID);
+  }
 
   if (slot === -1) {
     playBoing(); pkoShakeFan(pos, containerId);
@@ -1317,20 +1416,22 @@ function pkoApplyStake(playerIdx, payload) {
   // Small Fry is re-checked against the HOST's mirror of that player's Hoard — a client
   // could otherwise open with anything by skipping its own gate.
   const opener = pkoOpenerSpecies(hoard);
+  const g = pkoResolveGroup(cards);
   const valid = playerIdx === pkoTurnIdx
     && pkoMarks.length === 0
-    && cards.length > 0
-    && new Set(cards).size === 1
-    && cards[0] !== PKO_POACHER_ID
-    && (!opener || opener.has(cards[0]))
-    && cards.every(pkoTrackOk)
-    && pkoHoldsAll(hoard, cards);
+    && g.ok
+    && g.claim !== PKO_POACHER_ID              // a Poacher is never Staked as an animal
+    && g.resolved.every(pkoTrackOk)
+    && (!opener || opener.has(g.claim))        // Small Fry judges the CLAIM, never the Mimic
+    && pkoHoldsAll(hoard, cards);              // RAW ids — the Hoard holds Mimics, not claims
   if (!valid) { pkoBroadcastBoard(); return; }
 
-  pkoRemoveFromHoard(playerIdx, cards);
-  pkoMarks        = cards.slice();             // each card becomes its OWN Mark — never a stack
+  pkoRemoveFromHoard(playerIdx, cards);        // RAW
+  pkoMarks        = g.resolved.slice();        // RESOLVED — no Mimic ever becomes a Mark
   pkoMarkOwnerIdx = playerIdx;
-  pkoLogTrail(`${pkoPlayerNames[playerIdx]} Staked ${cards.length} × ${pkoCardName(cards[0])}.`);
+  const mimicsUsed = cards.filter(c => c === PKO_MIMIC_ID).length;
+  pkoLogTrail(`${pkoPlayerNames[playerIdx]} Staked ${cards.length} × ${pkoCardName(g.claim)}`
+    + (mimicsUsed ? ` (${mimicsUsed} Mimic${mimicsUsed > 1 ? 's' : ''}).` : '.'));
   pkoAfterBoardChange(playerIdx);
 }
 
@@ -1432,15 +1533,21 @@ function pkoApplyChallenge(playerIdx, payload) {
     && pkoHoldsAll(hoard, flat);
   if (!valid) { pkoBroadcastBoard(); return; }
 
-  pkoRemoveFromHoard(playerIdx, flat);
+  // BOTH arrays. `flat` is raw (it may contain 'mimic') and is what leaves the Hoard;
+  // `resolved` is what becomes the board. Swapping them deletes cards the player never
+  // held — the classic bug site (§7.1).
+  const resolved = groups.map(g => pkoResolveGroup(g).resolved).flat();
+  pkoRemoveFromHoard(playerIdx, flat);         // RAW
   pkoDiscardBoard();
   // Every card played becomes its own Mark, so a Swarm returns the board one Mark wider —
   // the same shape Stampede already had. Slots never stay stacked (the cut Mob idea).
-  pkoMarks        = flat;
+  pkoMarks        = resolved;                  // RESOLVED
   pkoMarkOwnerIdx = playerIdx;
   const swarms = groups.filter(g => g.length === 2).length;
-  pkoLogTrail(`${pkoPlayerNames[playerIdx]} Challenged with ${pkoSummariseCards(flat)}`
-    + (swarms ? ` — ${swarms} Swarm${swarms > 1 ? 's' : ''}.` : '.'));
+  const mimicsUsed = flat.filter(c => c === PKO_MIMIC_ID).length;
+  pkoLogTrail(`${pkoPlayerNames[playerIdx]} Challenged with ${pkoSummariseCards(resolved)}`
+    + (swarms ? ` — ${swarms} Swarm${swarms > 1 ? 's' : ''}` : '')
+    + (mimicsUsed ? ` (${mimicsUsed} Mimic${mimicsUsed > 1 ? 's' : ''})` : '') + '.');
   pkoAfterBoardChange(playerIdx);
 }
 
@@ -1451,6 +1558,7 @@ function pkoApplyStampede(playerIdx, payload) {
   const species = payload && payload.species;
   const count   = parseInt((payload && payload.count), 10);
   const hoard   = pkoHoards[playerIdx] || [];
+  const spend = pkoStampedeSpend(hoard, species, count);
   const valid = playerIdx === pkoTurnIdx
     && pkoMarks.length > 0
     && new Set(pkoMarks).size === 1
@@ -1458,13 +1566,12 @@ function pkoApplyStampede(playerIdx, payload) {
     && species !== PKO_POACHER_ID
     && pkoTrackOk(species)
     && count === pkoMarks.length + 1
-    && hoard.filter(c => c === species).length >= count;
+    && !!spend;
   if (!valid) { pkoBroadcastBoard(); return; }
 
-  const cards = new Array(count).fill(species);
-  pkoRemoveFromHoard(playerIdx, cards);
+  pkoRemoveFromHoard(playerIdx, spend);        // RAW — may include Mimics
   pkoDiscardBoard();
-  pkoMarks        = cards;
+  pkoMarks        = new Array(count).fill(species);   // RESOLVED — always real species
   pkoMarkOwnerIdx = playerIdx;
   pkoLogTrail(`${pkoPlayerNames[playerIdx]} Stampeded with ${count} × ${pkoCardName(species)}.`);
   pkoAfterBoardChange(playerIdx);
