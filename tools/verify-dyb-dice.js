@@ -279,6 +279,57 @@ check('loaded 3 with no tiers → pips, amber, no image',
    hasClass(dybDieHTML(3, 'loaded', -1), 'dyb-die-framed')],
   [null, true, false]);
 
+section('Blank keys — faceless dice, and the leak guard');
+setSkin(FACES_PLUS_SPECIALS); setCore(null);
+
+const ghost = dybDieHTML(6, 'phantom', -1, 0);
+check('concealed phantom uses the blank image, not the ? glyph',
+  [imgUrl(ghost), glyphText(ghost)],
+  ['data/packs/testskin/img/ghost.svg', null]);
+check('concealed phantom art is framed and keeps its type class',
+  [hasClass(ghost, 'dyb-die-framed'), hasClass(ghost, 'dyb-die-phantom')],
+  [true, true]);
+check('concealed phantom leaks no face: no pips, no digit',
+  [ghost.includes('dyb-pip'), /[1-6]\.svg/.test(ghost)],
+  [false, false]);
+
+const ghostSpec = dybDieHTML(6, 'phantom', -1, -2);
+check('spectator view is concealed the same way',
+  [imgUrl(ghostSpec), glyphText(ghostSpec)],
+  ['data/packs/testskin/img/ghost.svg', null]);
+
+const crackedArt = dybDieHTML(5, 'cracked', -1);
+check('cracked uses its blank image instead of the ✕ glyph',
+  [imgUrl(crackedArt), glyphText(crackedArt)],
+  ['data/packs/testskin/img/broken.svg', null]);
+
+// ── THE LEAK GUARD ────────────────────────────────────────────────────────
+// A pack that supplies phantom FACE art but no `blank` must fall back to the
+// ? glyph — never to assetFace(val), which would render the concealed value.
+// If anyone ever "simplifies" the two fallback chains in dybDieHTML into one,
+// this is the check that fails.
+const LEAKY = {
+  kind: 'dyb', basePath: 'img/',
+  faces: { '1': '1.svg', '2': '2.svg', '3': '3.svg', '4': '4.svg', '5': '5.svg', '6': '6.svg' },
+  specials: { phantom: { '6': 'ph6.svg' }, cracked: { '5': 'cr5.svg' } },
+};
+setSkin(LEAKY);
+const noLeak = dybDieHTML(6, 'phantom', -1, 0);
+check('LEAK GUARD — phantom face art but no blank → ? glyph, no image',
+  [glyphText(noLeak), imgUrl(noLeak)], ['?', null]);
+check('LEAK GUARD — the concealed value 6 appears nowhere in the markup',
+  /6/.test(noLeak.replace(/dyb-die-\d+/g, '')), false);
+check('LEAK GUARD — cracked with no blank → ✕ glyph, no image',
+  [glyphText(dybDieHTML(5, 'cracked', -1)), imgUrl(dybDieHTML(5, 'cracked', -1))],
+  ['✕', null]);
+
+section('Unassigned slick is never skinnable');
+setSkin(FACES_PLUS_SPECIALS);
+const unassigned = dybDieHTML(9, 'slick', 4, 0, false);
+check('unassigned slick keeps its live "4*" glyph and takes no art',
+  [glyphText(unassigned), imgUrl(unassigned), hasClass(unassigned, 'cursor-pointer')],
+  ['4*', null, true]);
+
 // ── Result ────────────────────────────────────────────────────────────────
 console.log(`\n${failures === 0 ? 'ALL CHECKS PASSED' : `${failures} CHECK(S) FAILED`}`);
 process.exit(failures === 0 ? 0 : 1);
