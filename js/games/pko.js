@@ -134,11 +134,20 @@ async function pkoLoadChain() {
   if (typeof artReady !== 'undefined') await artReady;
 }
 
-// The active predator set for a Mark, under the current Appetite. Every "what beats this?"
-// question — combat, builder highlighting, the chain overlay's Animals tab — reads through
-// here, so Sated and Ravenous can never disagree with each other at a single call site.
+// The active predator set for a Mark, under the current Appetite AND the current event.
+// Every "what beats this?" question — combat, builder highlighting, the chain overlay's
+// Animals tab — reads through here, so Sated/Ravenous and Force of Nature's Great
+// Reversal can never disagree with each other at a single call site.
+// Reversal COMPOSES with Appetite rather than overriding it: all four graphs are derived
+// at load, so this only chooses between them and adds no data (§7.2). Apex/dead-end
+// inversion (the Eagle becomes beatable, the Elephant becomes weakest) is intended
+// chaos — brief §7 flags it explicitly. Do not "fix" it.
 function pkoPredators(markId) {
-  return (pkoAppetite === 'ravenous' ? pkoBeatenByWide : pkoBeatenByMap)[markId];
+  const rev  = pkoEventFlag('reversal');
+  const wide = pkoAppetite === 'ravenous';
+  const map  = rev ? (wide ? pkoBeatsWideMap : pkoBeatsMap)      // prey set becomes predator set
+                   : (wide ? pkoBeatenByWide : pkoBeatenByMap);
+  return map[markId];
 }
 
 // The ONLY place "does A beat B?" is decided — builder highlighting, confirm gating,
@@ -152,6 +161,16 @@ function pkoBeats(markId, cardId) {
   return !!(predators && predators.has(cardId));
 }
 
+// ── Force of Nature — the track lock (§7.3) ───────────────────────────────
+// May this card be played at all right now? Applied to RESOLVED ids, so a Mimic
+// inherits its claimed species' track automatically and needs no special case here.
+function pkoTrackOk(id) {
+  const lock = pkoEventFlag('track');
+  if (!lock) return true;
+  if (id === PKO_POACHER_ID) return true;              // the Poacher hunts in any weather
+  return (((pkoChain && pkoChain[id]) || {}).track === lock);
+}
+
 // ── Per-slot legality — the Swarm predicate ───────────────────────────────
 // Does this GROUP of cards legally answer one Mark? The only place a slot's legality is
 // decided: builder highlighting, the confirm gate, and the host's re-validation all call it.
@@ -163,6 +182,10 @@ function pkoBeats(markId, cardId) {
 // dumping five cards onto one Mark to build an unanswerable board.
 function pkoAnswers(markId, cards) {
   if (!Array.isArray(cards)) return false;
+  // A track lock is per-CARD legality, checked here so every Challenge consumer —
+  // builder highlighting, the confirm gate, the table's quick path and the host's
+  // re-validation — inherits it from the one predicate they already share.
+  if (!cards.every(pkoTrackOk)) return false;
   if (cards.length === 1) return pkoBeats(markId, cards[0]);
   if (cards.length !== 2) return false;
   // Poacher is solo-only (brief v6): it can neither Swarm nor be Swarmed.
@@ -638,6 +661,25 @@ function pkoRenderTable() {
   show('btn-pko-challenge', myTurn && !empty);
   show('btn-pko-retreat',   myTurn && !empty);
 
+  // Under a track lock a player may hold no legal card at all. The action button stays
+  // VISIBLE and disabled with the reason written on it — a vanished button teaches
+  // nothing. Retreat is always still available; there is deliberately no auto-Retreat.
+  const lock = pkoEventFlag('track');
+  const lockMsg = lock === 'sea' ? 'The Deluge — only the sea may hunt'
+                                 : 'The Dry Season — only the land may hunt';
+  [['btn-pko-stake', empty], ['btn-pko-challenge', !empty]].forEach(([id, live]) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (myTurn && live && lock && !pkoCanActUnderTrack(pkoMyHoard, lock)) {
+      el.disabled = true; el.style.opacity = '0.45'; el.textContent = lockMsg;
+    } else {
+      // The reset is NOT optional: pkoRefreshActionLabels rewrites textContent every
+      // render, but `disabled` and `opacity` are sticky — without this a button
+      // disabled under the Deluge stays dead for the rest of the Clash.
+      el.disabled = false; el.style.opacity = '1';
+    }
+  });
+
   // Stampede is SHOWN whenever it could conceptually apply (a uniform board), disabled with
   // its price when the player is short — rather than vanishing. Hiding it meant the N+1 rule
   // was invisible at the one moment it mattered, and a player could finish a whole match
@@ -832,6 +874,7 @@ function pkoCanStampede() {
   if (new Set(pkoMarks).size !== 1) return false;
   const species = pkoMarks[0];
   if (species === PKO_POACHER_ID) return false;
+  if (!pkoTrackOk(species)) return false;
   return pkoMyHoard.filter(c => c === species).length >= pkoMarks.length + 1;
 }
 
@@ -866,7 +909,17 @@ function pkoChallengeHint(text) {
     if (el) el.textContent = text || '';
   });
 }
+// The track lock's own message. A disabled button with no reason is exactly the BUG-04
+// failure mode — PKO surfaces WHY a play is illegal, always.
+function pkoTrackReason() {
+  const lock = pkoEventFlag('track');
+  if (!lock) return '';
+  return lock === 'sea'
+    ? 'The Deluge — only the sea may hunt. A Poacher still can.'
+    : 'The Dry Season — only the land may hunt. A Poacher still can.';
+}
 function pkoRejectionReason(markId, cardId) {
+  if (!pkoTrackOk(cardId)) return pkoTrackReason();
   const mark = pkoCardName(markId);
   if (markId === PKO_POACHER_ID) return `Only a Poacher answers a Poacher. It can't be Swarmed.`;
   const preds = [...(pkoPredators(markId) || [])].map(pkoCardName);
@@ -1082,6 +1135,7 @@ function pkoSubmitStake() {
   const sorted = pkoSortHoard(pkoMyHoard);
   const cards  = pkoStakeSel.map(p => sorted[p]);
   if (new Set(cards).size !== 1 || cards[0] === PKO_POACHER_ID) { playBoing(); return; }
+  if (!cards.every(pkoTrackOk)) { playBoing(); pkoChallengeHint(pkoTrackReason()); return; }
   const opener = pkoOpenerSpecies(pkoMyHoard);            // Small Fry — null when unconstrained
   if (opener && !opener.has(cards[0])) { playBoing(); return; }
   playLaunch();
@@ -1184,6 +1238,7 @@ function pkoApplyStake(playerIdx, payload) {
     && new Set(cards).size === 1
     && cards[0] !== PKO_POACHER_ID
     && (!opener || opener.has(cards[0]))
+    && cards.every(pkoTrackOk)
     && pkoHoldsAll(hoard, cards);
   if (!valid) { pkoBroadcastBoard(); return; }
 
@@ -1316,6 +1371,7 @@ function pkoApplyStampede(playerIdx, payload) {
     && new Set(pkoMarks).size === 1
     && species === pkoMarks[0]
     && species !== PKO_POACHER_ID
+    && pkoTrackOk(species)
     && count === pkoMarks.length + 1
     && hoard.filter(c => c === species).length >= count;
   if (!valid) { pkoBroadcastBoard(); return; }

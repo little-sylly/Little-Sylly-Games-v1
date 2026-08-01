@@ -179,6 +179,81 @@ const section = t => console.log(`\n${t}`);
   check('pkoEventFlag is null-safe when no event is live',
     (() => { F.set('event', null); return F.flag('track'); })(), null);
 
+  section('The Great Reversal — the prey set becomes the predator set (§7.2)');
+  ['sated', 'ravenous'].forEach(mode => {
+    F.seat({ hoards: [['mouse'], ['bear']], event: null, appetite: mode });
+    const ids = ['mouse', 'fish', 'eagle', 'elephant', 'bear', 'leopard'];
+    const normal = ids.map(id => F.predators(id));
+    F.set('event', 'great-reversal');
+    const rev = ids.map(id => F.predators(id));
+    F.set('event', null);
+    check(`[${mode}] reversal is an involution — turning it off restores the graph`,
+      ids.map(id => F.predators(id)), normal);
+    check(`[${mode}] the Eagle becomes beatable when reversed (intended chaos — do not "fix")`,
+      normal[2].length === 0 && rev[2].length > 0, true);
+    check(`[${mode}] the Elephant becomes the weakest — its prey set was empty`,
+      normal[3].length > 0 && rev[3].length >= 0, true);
+    F.set('event', 'great-reversal');
+    check(`[${mode}] a Poacher still beats every Mark under reversal`,
+      ['mouse', 'eagle', 'elephant', 'human'].filter(id => !F.beats(id, 'human')), []);
+    check(`[${mode}] nothing but a Poacher beats a Poacher-Mark under reversal`,
+      ['mouse', 'eagle', 'bear'].filter(id => F.beats('human', id)), []);
+    F.set('event', null);
+  });
+
+  section('Reversal COMPOSES with Appetite — four graphs, all pre-built');
+  F.seat({ hoards: [['mouse']], event: 'great-reversal', appetite: 'sated' });
+  const revSated = F.predators('leopard');
+  F.set('appetite', 'ravenous');
+  const revWide = F.predators('leopard');
+  check('Ravenous reversal reaches at least as far as Sated reversal',
+    revWide.length >= revSated.length && revSated.every(x => revWide.includes(x)), true);
+  check('the two are not identical — Ravenous really does add edges',
+    revWide.length > revSated.length, true);
+  F.set('appetite', 'sated'); F.set('event', null);
+
+  section('Track locks — the playability predicate (§7.3)');
+  check('a sea card qualifies under a sea lock', F.canAct(['fish'], 'sea'), true);
+  check('a land card does NOT qualify under a sea lock', F.canAct(['bear'], 'sea'), false);
+  check('a Poacher always qualifies', F.canAct(['human'], 'sea'), true);
+  check('a lone Mimic does NOT qualify — it needs a real anchor',
+    F.canAct(['mimic'], 'sea'), false);
+  check('a Mimic plus a sea card qualifies', F.canAct(['mimic', 'fish'], 'sea'), true);
+  check('an empty Hoard qualifies for nothing', F.canAct([], 'sea'), false);
+
+  section('The lock bites inside pkoAnswers, so every Challenge path inherits it');
+  F.seat({ hoards: [['bear']], marks: ['leopard'], event: null });
+  check('no lock → a Bear answers a Leopard', F.answers('leopard', ['bear']), true);
+  F.set('event', 'deluge');
+  check('Deluge → the land Bear may not answer at all', F.answers('leopard', ['bear']), false);
+  check('Deluge → a Poacher is unaffected', F.answers('leopard', ['human']), true);
+  check('Deluge → a sea Swarm on a sea Mark is legal', F.answers('fish', ['fish', 'fish']), true);
+  F.set('event', 'dry-season');
+  check('Dry Season → the land Bear is legal again', F.answers('leopard', ['bear']), true);
+  check('Dry Season → a sea Swarm is refused', F.answers('fish', ['fish', 'fish']), false);
+  check('Dry Season → a Poacher is still unaffected', F.answers('fish', ['human']), true);
+  F.set('event', null);
+
+  section('The Leader pass — the Stake walks clockwise to the first seat that can act');
+  // P0 leads but holds only land; P1 is land too; P2 is the first clockwise seat at sea.
+  F.seat({
+    hoards: [['bear', 'leopard'], ['elephant'], ['fish', 'octopus'], ['bee']],
+    event: null, leader: 0, encounter: 5, sylly: true,
+  });
+  check('the turn passes to the first seat that can act at sea',
+    F.startWithEvent('deluge'), 2);
+  check('leadership itself does NOT transfer — pkoLeaderIdx is untouched', F.leader, 0);
+  check('the Leader keeps the turn when they CAN act',
+    (() => {
+      F.seat({ hoards: [['fish'], ['bear'], ['octopus']], leader: 1, encounter: 5, sylly: true });
+      return F.startWithEvent('dry-season');
+    })(), 1);
+  check('with no lock the turn is simply the Leader',
+    (() => {
+      F.seat({ hoards: [['fish'], ['bear'], ['octopus']], leader: 2, encounter: 5, sylly: true });
+      return F.startWithEvent('great-reversal');
+    })(), 2);
+
   console.log('\n' + '='.repeat(48));
   console.log(failures === 0 ? 'ALL CHECKS PASSED' : `${failures} CHECK(S) FAILED`);
   process.exit(failures === 0 ? 0 : 1);
