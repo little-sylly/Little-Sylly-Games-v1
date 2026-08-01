@@ -75,6 +75,7 @@ let pkoAlphaIdx       = -1;           // index into pkoMarks; -1 = no Alpha
 let pkoCarrionSel     = [];           // device-local Mark indices selected to keep
 let pkoEventTimer     = null;         // interstitial auto-advance (cleared in 3 places)
 let pkoCarrionTimer   = null;         // Carrion window (cleared in 3 places)
+let pkoCarrionPending = null;         // HOST ONLY: { playerIdx, spoils[] } while the window is open
 
 // ── Constants ─────────────────────────────────────────────────────────────
 const PKO_POACHER_ID  = 'human';      // the Poacher card's chain id
@@ -1522,10 +1523,20 @@ function pkoSummariseCards(ids) {
 
 // Every successful board change funnels through here — Stake, Challenge and Stampede
 // all end the same way, so the Clash-end check and the window reset live in ONE place.
-function pkoAfterBoardChange(playerIdx) {
+// `spoils` is the Marks this play actually BEAT, and only a Challenge passes it: a Stake
+// beats nothing and a Stampede is a rout that discards the board wholesale (§2).
+function pkoAfterBoardChange(playerIdx, spoils) {
   // Clash end fires BEFORE the board resolves (§6): emptying your Hoard wins immediately,
-  // whether you emptied it Staking, Challenging or Stampeding.
+  // whether you emptied it Staking, Challenging or Stampeding. Carrion sits BELOW this
+  // line on purpose — that placement, not a new rule, is what stops Carrion un-winning a
+  // Clash (§7.5). Do not reorder it.
   if ((pkoHoards[playerIdx] || []).length === 0) { pkoResolveClash([playerIdx]); return; }
+  if (spoils && spoils.length && pkoEventFlag('carrion')) { pkoOpenCarrion(playerIdx, spoils); return; }
+  pkoResumeAfterBoardChange(playerIdx);
+}
+
+// The tail of a board change, split out so the Carrion window can defer it.
+function pkoResumeAfterBoardChange(playerIdx) {
   // The response window restarts clockwise from the player after the one who changed
   // the board, and every Retreat is forgiven — a Retreat is not a lock-out.
   pkoRetreatedSince = new Array(pkoPlayerCount).fill(false);
@@ -1533,6 +1544,125 @@ function pkoAfterBoardChange(playerIdx) {
   pkoAdvanceTurn();
   pkoBroadcastBoard();
   pkoShowTable();
+}
+
+// ── Force of Nature — Carrion (§7.5) ──────────────────────────────────────
+// Host: hold the beaten Marks open for PKO_CARRION_WINDOW_MS while the Challenger picks
+// which to take back. The Challenger may be a client, so the host must SYNC the window
+// open — it is the only device that knows it happened (spec gap C5).
+function pkoOpenCarrion(playerIdx, spoils) {
+  pkoCarrionPending = { playerIdx, spoils: spoils.slice() };
+  pkoLogTrail(`${pkoPlayerNames[playerIdx]} may scavenge ${pkoSummariseCards(spoils)}.`);
+  if (window.syllyMultiplayerMode !== 'single') {
+    mpSendEnvelope({ type: 'SYNC', payload: {
+      action: 'PKO_CARRION_OPEN', playerIdx, spoils,
+      marks: pkoMarks, markOwnerIdx: pkoMarkOwnerIdx, alphaIdx: pkoAlphaIdx,
+      hoardCounts: pkoHoardCounts, trail: pkoTrail,
+    }});
+  }
+  pkoShowCarrion(playerIdx, spoils);
+  if (pkoCarrionTimer) clearTimeout(pkoCarrionTimer);
+  // The host's timer is the backstop. Whichever lands first — this or the Challenger's
+  // PKO_CARRION packet — resolves; pkoResolveCarrion drops the second (ML-05).
+  pkoCarrionTimer = setTimeout(() => {
+    pkoCarrionTimer = null;
+    if (pkoCarrionPending) pkoResolveCarrion(pkoCarrionPending.playerIdx, pkoCarrionSelForHost());
+  }, PKO_CARRION_WINDOW_MS);
+}
+
+// What the host itself has selected, when the host IS the Challenger. A client's choice
+// arrives in the packet instead.
+function pkoCarrionSelForHost() {
+  return (pkoCarrionPending && pkoCarrionPending.playerIdx === pkoMyIdx()) ? pkoCarrionSel : [];
+}
+
+// Host: resolve the window. Kept Marks rejoin the Challenger's Hoard, the rest go to the
+// Watering Hole, and the deferred board change resumes. Selecting nothing — including
+// doing nothing at all — discards everything, which is exactly the shipped non-Carrion
+// behaviour, so a slow player is never punished, only unlucky.
+function pkoResolveCarrion(playerIdx, keepIdxs) {
+  if (window.syllyMultiplayerMode === 'client') return;
+  if (!pkoCarrionPending || pkoCarrionPending.playerIdx !== playerIdx) return;  // race guard (ML-05)
+  const { spoils } = pkoCarrionPending;
+  pkoCarrionPending = null;
+  if (pkoCarrionTimer) { clearTimeout(pkoCarrionTimer); pkoCarrionTimer = null; }
+  pkoClose('pko-carrion-overlay');
+
+  const keep = (keepIdxs || []).filter(i => i >= 0 && i < spoils.length);
+  const kept = keep.map(i => spoils[i]);
+  const rest = spoils.filter((_, i) => !keep.includes(i));
+  if (kept.length) {
+    pkoHoards[playerIdx].push(...kept);
+    pkoSyncHand(playerIdx);                     // the Hoard changed — repair the owning device
+    playSuccess();
+    pkoLogTrail(`${pkoPlayerNames[playerIdx]} scavenged ${pkoSummariseCards(kept)}.`);
+  }
+  pkoDiscardCards(rest);                        // the board was already replaced — discard by list
+  pkoCarrionSel = [];
+  pkoResumeAfterBoardChange(playerIdx);
+}
+
+// The Challenger's tap on "Take these". Host-as-participant: the host mutates directly
+// and broadcasts — never a self-sent ACTION (the dedup guard drops originId === self).
+function pkoSubmitCarrion() {
+  if (!pkoEventFlag('carrion')) return;
+  const me = pkoMyIdx();
+  if (window.syllyMultiplayerMode === 'client') {
+    mpLockSync();
+    mpSendEnvelope({ type: 'ACTION', payload: { action: 'PKO_CARRION', keep: pkoCarrionSel } });
+    pkoClose('pko-carrion-overlay');
+    return;
+  }
+  pkoResolveCarrion(me, pkoCarrionSel);
+}
+
+// The Challenger taps Marks to toggle them into the keep set; everyone else waits.
+// The countdown bar is a CSS transition on transform, so it needs no timer of its own.
+function pkoShowCarrion(playerIdx, spoils) {
+  pkoCarrionSel = [];
+  const mine = playerIdx === pkoMyIdx();
+  const row  = document.getElementById('pko-carrion-row');
+  if (row) {
+    row.innerHTML = '';
+    spoils.forEach((id, i) => {
+      const card = pkoRenderCard(id, { size: 'sm' });
+      if (mine) {
+        card.style.cursor = 'pointer';
+        card.addEventListener('click', () => {
+          const at = pkoCarrionSel.indexOf(i);
+          if (at === -1) pkoCarrionSel.push(i); else pkoCarrionSel.splice(at, 1);
+          playPillClick();
+          pkoShowCarrionSelection(spoils);
+        });
+      }
+      row.appendChild(card);
+    });
+  }
+  const btn  = document.getElementById('btn-pko-carrion-take');
+  const wait = document.getElementById('pko-carrion-waiting');
+  if (btn)  btn.style.display  = mine ? 'flex' : 'none';
+  if (wait) wait.style.display = mine ? 'none' : 'block';
+  if (wait) wait.textContent = `${pkoPlayerNames[playerIdx] || '—'} is picking over the remains…`;
+  const bar = document.getElementById('pko-carrion-bar');
+  if (bar) {                                    // restart the transition — reflow or it no-ops
+    bar.style.transition = 'none';
+    bar.style.transform  = 'scaleX(1)';
+    void bar.offsetWidth;
+    bar.style.transition = `transform ${PKO_CARRION_WINDOW_MS}ms linear`;
+    bar.style.transform  = 'scaleX(0)';
+  }
+  pkoShowCarrionSelection(spoils);
+  pkoOpen('pko-carrion-overlay');
+}
+
+function pkoShowCarrionSelection(spoils) {
+  const row = document.getElementById('pko-carrion-row');
+  if (row) [...row.children].forEach((el, i) =>
+    el.classList.toggle('pko-card-selected', pkoCarrionSel.includes(i)));
+  const btn = document.getElementById('btn-pko-carrion-take');
+  if (btn) btn.textContent = pkoCarrionSel.length
+    ? `Take ${pkoCarrionSel.length} ${pkoCarrionSel.length === 1 ? 'card' : 'cards'}`
+    : 'Leave it all';
 }
 // A Challenge answers every Mark or it is not a Challenge — the host re-checks each
 // slot through pkoBeats() against ITS OWN board, because a client's UI can be one
@@ -1562,7 +1692,10 @@ function pkoApplyChallenge(playerIdx, payload) {
   const alphaLive = pkoAlphaIdx >= 0 && pkoAlphaIdx < pkoMarks.length;
   const survivor  = alphaLive ? pkoMarks[pkoAlphaIdx] : null;
   const beaten    = pkoMarks.filter((_, i) => i !== (alphaLive ? pkoAlphaIdx : -1));
-  pkoDiscardBoard(alphaLive ? pkoAlphaIdx : -1);
+  // Carrion defers the discard: the beaten Marks are the spoils, and they must still
+  // exist when the window resolves. Without Carrion they go straight to the pile.
+  const carrion = !!pkoEventFlag('carrion');
+  if (!carrion) pkoDiscardBoard(alphaLive ? pkoAlphaIdx : -1);
   // Every card played becomes its own Mark, so a Swarm returns the board one Mark wider —
   // the same shape Stampede already had. Slots never stay stacked (the cut Mob idea).
   pkoMarks        = survivor === null ? resolved : resolved.concat([survivor]);
@@ -1577,7 +1710,7 @@ function pkoApplyChallenge(playerIdx, payload) {
   pkoLogTrail(`${pkoPlayerNames[playerIdx]} Challenged with ${pkoSummariseCards(resolved)}`
     + (swarms ? ` — ${swarms} Swarm${swarms > 1 ? 's' : ''}` : '')
     + (mimicsUsed ? ` (${mimicsUsed} Mimic${mimicsUsed > 1 ? 's' : ''})` : '') + '.');
-  pkoAfterBoardChange(playerIdx);
+  pkoAfterBoardChange(playerIdx, carrion ? beaten : undefined);
 }
 
 // Stampede takes the board and returns N+1 SEPARATE single-card Marks — never a stack.
@@ -1934,6 +2067,7 @@ function pkoHandleEnvelope(env) {
       case 'PKO_CHALLENGE':   pkoApplyChallenge(senderIdx(), p); break;
       case 'PKO_STAMPEDE':    pkoApplyStampede(senderIdx(), p); break;
       case 'PKO_RETREAT':     pkoApplyRetreat(senderIdx()); break;
+      case 'PKO_CARRION':     pkoResolveCarrion(senderIdx(), p.keep || []); break;
       case 'PKO_PLAYER_LEFT':
         // One player leaving dissolves the match — a climbing game cannot continue
         // with a missing Hoard, and it prevents ghost rooms (the PASS contract).
@@ -2026,6 +2160,22 @@ function pkoHandleEnvelope(env) {
       mpUnlockSync();
       break;
 
+    // The Challenger may be a client, and the host is the ONLY device that knows the
+    // window opened — without this SYNC the overlay would appear only when the host
+    // happens to be the Challenger (BUG-02's shape; spec gap C5).
+    // No client-side timer: the host owns the clock and closes the window with PKO_BOARD
+    // via pkoResumeAfterBoardChange, so a dropped packet still moves everyone on.
+    case 'PKO_CARRION_OPEN':
+      pkoMarks        = p.marks || [];
+      pkoMarkOwnerIdx = p.markOwnerIdx;
+      pkoAlphaIdx     = p.alphaIdx === undefined ? -1 : p.alphaIdx;
+      pkoHoardCounts  = p.hoardCounts || pkoHoardCounts;
+      pkoTrail        = p.trail || pkoTrail;
+      pkoDismissChallenge();
+      pkoShowCarrion(p.playerIdx, p.spoils || []);
+      mpUnlockSync();
+      break;
+
     case 'PKO_DRAW':                            // private — this device's Scavenge card
       pkoMyHoard.push(p.card);
       pkoRenderTable();
@@ -2078,7 +2228,8 @@ function pkoResetState() {
   if (pkoUnchallengedTimer) { clearTimeout(pkoUnchallengedTimer); pkoUnchallengedTimer = null; }
   if (pkoEventTimer)        { clearTimeout(pkoEventTimer);        pkoEventTimer = null; }
   if (pkoCarrionTimer)      { clearTimeout(pkoCarrionTimer);      pkoCarrionTimer = null; }
-  pkoEvent = null; pkoEventsFired = []; pkoAlphaIdx = -1; pkoCarrionSel = [];
+  pkoEvent = null; pkoEventsFired = []; pkoAlphaIdx = -1;
+  pkoCarrionSel = []; pkoCarrionPending = null;
   pkoScores = []; pkoClashNum = 0; pkoClashHistory = [];
   pkoHoards = []; pkoMyHoard = []; pkoHoardCounts = []; pkoReserve = []; pkoWateringHole = [];
   pkoLeaderIdx = 0; pkoEncounterNum = 0; pkoTrail = []; pkoHoardReady = [];
@@ -2362,6 +2513,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   on('btn-pko-stampede-cancel',  () => { playDone(); pkoClose('pko-stampede-overlay'); });
   on('btn-pko-stampede-confirm', () => { pkoClose('pko-stampede-overlay'); pkoSubmitStampede(); });
+  on('btn-pko-carrion-take',     () => pkoSubmitCarrion());
 
   // Gameplay actions (logic injected Step 5)
   on('btn-pko-hoard-ready', () => pkoSubmitReady());

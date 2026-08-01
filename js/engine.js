@@ -626,7 +626,8 @@ function resetToLobby() {
   if (typeof flwResetState === 'function') flwResetState();
   // Pecking Order teardown
   ['pko-settings-overlay','pko-challenge-overlay','pko-how-to-overlay','pko-chain-overlay',
-   'pko-trail-overlay','pko-quit-overlay','pko-stampede-overlay','pko-new-match-overlay'].forEach(id => {
+   'pko-trail-overlay','pko-quit-overlay','pko-stampede-overlay','pko-new-match-overlay',
+   'pko-carrion-overlay'].forEach(id => {
     const el = document.getElementById(id); if (el) el.style.display = 'none';
   });
   if (typeof pkoResetState === 'function') pkoResetState();

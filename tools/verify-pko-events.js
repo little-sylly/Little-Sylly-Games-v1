@@ -49,6 +49,8 @@ vm.createContext(sandbox);
 const BRIDGE = `
 globalThis.__fon = {
   get registry()    { return PKO_EVENTS; },
+  get carrionOpen()   { return pkoCarrionPending !== null; },
+  get carrionSpoils() { return pkoCarrionPending ? pkoCarrionPending.spoils : null; },
   get event()       { return pkoEvent; },
   get fired()       { return pkoEventsFired; },
   get alpha()       { return pkoAlphaIdx; },
@@ -469,6 +471,75 @@ const section = t => console.log(`\n${t}`);
   sandbox.pkoApplyChallenge(1, { assignments: [['mongoose']] });
   const n1 = F.marks.length;
   check('after one Challenge the index is in range', F.alpha >= 0 && F.alpha < n1, true);
+
+  section('Carrion — never offered on a hand-emptying Challenge (§7.5)');
+  F.seat({ hoards: [['bee'], ['mongoose']], marks: ['mouse'], owner: 0, turn: 1,
+           event: 'carrion', scores: [0, 0] });
+  F.set('clashTarget', 9);
+  sandbox.pkoApplyChallenge(1, { assignments: [['mongoose']] });
+  check('emptying the Hoard wins the Clash outright', F.scores, [0, 1]);
+  check('Carrion was never opened — the empty-Hoard check comes first', F.carrionOpen, false);
+
+  section('Carrion — the spoils are the Marks that were actually beaten');
+  F.seat({ hoards: [['bee'], ['mongoose', 'bear']], marks: ['mouse'], owner: 0, turn: 1,
+           event: 'carrion' });
+  sandbox.pkoApplyChallenge(1, { assignments: [['mongoose']] });
+  check('the window is open', F.carrionOpen, true);
+  check('the spoils are the beaten Marks', F.carrionSpoils, ['mouse']);
+  check('the beaten Marks are NOT yet in the Watering Hole', F.wateringFlat, []);
+
+  section('Carrion — keeping a card puts it back in the Hoard');
+  sandbox.pkoResolveCarrion(1, [0]);
+  check('the kept card joined the Challenger’s Hoard', F.hoards[1].sort(), ['bear', 'mouse']);
+  check('nothing was discarded', F.wateringFlat, []);
+  check('play resumed — the board is the Challenge', F.marks, ['mongoose']);
+  check('the window closed', F.carrionOpen, false);
+
+  section('Carrion — keeping nothing is exactly the shipped behaviour');
+  F.seat({ hoards: [['bee'], ['mongoose', 'bear']], marks: ['mouse'], owner: 0, turn: 1,
+           event: 'carrion' });
+  sandbox.pkoApplyChallenge(1, { assignments: [['mongoose']] });
+  sandbox.pkoResolveCarrion(1, []);
+  check('everything beaten went to the Watering Hole', F.wateringFlat, ['mouse']);
+  check('the Hoard is untouched', F.hoards[1], ['bear']);
+  check('play resumed', F.marks, ['mongoose']);
+
+  section('Carrion — a partial keep splits the spoils');
+  F.seat({ hoards: [['bee'], ['mongoose', 'eagle', 'bear']],
+           marks: ['mouse', 'fish'], owner: 0, turn: 1, event: 'carrion' });
+  sandbox.pkoApplyChallenge(1, { assignments: [['mongoose'], ['eagle']] });
+  sandbox.pkoResolveCarrion(1, [1]);
+  check('the kept Mark returned', F.hoards[1].sort(), ['bear', 'fish']);
+  check('the rest was discarded', F.wateringFlat, ['mouse']);
+
+  section('Carrion — the race guard drops the second resolution (ML-05)');
+  F.seat({ hoards: [['bee'], ['mongoose', 'bear']], marks: ['mouse'], owner: 0, turn: 1,
+           event: 'carrion' });
+  sandbox.pkoApplyChallenge(1, { assignments: [['mongoose']] });
+  sandbox.pkoResolveCarrion(1, [0]);
+  sandbox.pkoResolveCarrion(1, [0]);            // a client ACTION landing after the timer
+  check('the card is returned exactly once', F.hoards[1].sort(), ['bear', 'mouse']);
+  check('the board was not advanced twice', F.marks, ['mongoose']);
+
+  section('Carrion — a survived Alpha is not spoils (§7.5)');
+  F.seat({ hoards: [['bee'], ['mongoose', 'eagle', 'bear']],
+           marks: ['mouse', 'fish'], owner: 0, turn: 1, event: 'carrion', alphaIdx: 0 });
+  // The Alpha event is not live (carrion is), so alphaIdx is inert here by design —
+  // this asserts the two never stack a survivor into the spoils.
+  sandbox.pkoApplyChallenge(1, { assignments: [['mongoose'], ['eagle']] });
+  check('every offered spoil was genuinely beaten',
+    F.carrionSpoils.every(c => ['mouse', 'fish'].includes(c)), true);
+  sandbox.pkoResolveCarrion(1, []);
+
+  section('Carrion is never offered by a Stake or a Stampede (§2)');
+  F.seat({ hoards: [['mouse', 'mouse', 'bear'], ['bee']], turn: 0, event: 'carrion' });
+  sandbox.pkoApplyStake(0, { cards: ['mouse', 'mouse'] });
+  check('a Stake beats nothing, so there is nothing to scavenge', F.carrionOpen, false);
+  F.seat({ hoards: [['bee'], ['mouse', 'mouse', 'mouse', 'bear']],
+           marks: ['mouse', 'mouse'], owner: 0, turn: 1, event: 'carrion' });
+  sandbox.pkoApplyStampede(1, { species: 'mouse', count: 3 });
+  check('a Stampede is a rout, not a hunt', F.carrionOpen, false);
+  check('the Stampede discarded the board immediately', F.wateringFlat, ['mouse', 'mouse']);
 
   console.log('\n' + '='.repeat(48));
   console.log(failures === 0 ? 'ALL CHECKS PASSED' : `${failures} CHECK(S) FAILED`);
