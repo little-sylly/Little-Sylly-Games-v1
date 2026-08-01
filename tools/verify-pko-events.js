@@ -428,6 +428,48 @@ const section = t => console.log(`\n${t}`);
               F.hoards.flat().filter(c => c === 'mimic').length, F.event];
     })(), [true, 0, null]);
 
+  section('Alpha — designated on the opening Stake (D29)');
+  F.seat({ hoards: [['mouse', 'mouse', 'mouse'], ['mongoose'], ['eagle']],
+           turn: 0, event: 'alpha' });
+  sandbox.pkoApplyStake(0, { cards: ['mouse', 'mouse', 'mouse'] });
+  check('an Alpha index is assigned', F.alpha >= 0 && F.alpha < 3, true);
+  check('the board is otherwise normal', F.marks, ['mouse', 'mouse', 'mouse']);
+  F.seat({ hoards: [['mouse', 'mouse'], ['mongoose']], turn: 0, event: null });
+  sandbox.pkoApplyStake(0, { cards: ['mouse', 'mouse'] });
+  check('no Alpha event → no Alpha', F.alpha, -1);
+
+  section('Alpha — the survivor is not discarded, so the board grows');
+  F.seat({ hoards: [['bee'], ['mongoose', 'eagle', 'bear']],
+           marks: ['mouse', 'mouse'], owner: 0, turn: 1, event: 'alpha', alphaIdx: 0 });
+  sandbox.pkoApplyChallenge(1, { assignments: [['mongoose'], ['eagle']] });
+  check('board grows by 1 on a normal beat — 2 played + 1 survivor', F.marks.length, 3);
+  check('the survivor is on the board', F.marks.filter(c => c === 'mouse').length, 1);
+  check('only the BEATEN Marks were discarded', F.wateringFlat, ['mouse']);
+  check('the Alpha is reassigned within the new board', F.alpha >= 0 && F.alpha < 3, true);
+
+  section('Swarming the Alpha grows the board by 2 (D30)');
+  F.seat({ hoards: [['bee'], ['mouse', 'mouse', 'bear']],
+           marks: ['mouse'], owner: 0, turn: 1, event: 'alpha', alphaIdx: 0 });
+  sandbox.pkoApplyChallenge(1, { assignments: [['mouse', 'mouse']] });
+  check('one Mark became three — both Swarm cards plus the survivor', F.marks.length, 3);
+  check('nothing was discarded at all — the only Mark was the Alpha', F.wateringFlat, []);
+
+  section('Stampede wipes the Alpha (brief §7)');
+  F.seat({ hoards: [['bee'], ['mouse', 'mouse', 'mouse', 'bear']],
+           marks: ['mouse', 'mouse'], owner: 0, turn: 1, event: 'alpha', alphaIdx: 1 });
+  sandbox.pkoApplyStampede(1, { species: 'mouse', count: 3 });
+  check('a Stampede replaces the board wholesale', F.marks, ['mouse', 'mouse', 'mouse']);
+  check('the whole previous board went to the Watering Hole',
+    F.wateringFlat, ['mouse', 'mouse']);
+  check('the Alpha is cleared', F.alpha, -1);
+
+  section('Alpha reassignment stays in range across repeated Challenges');
+  F.seat({ hoards: [['bee'], ['mongoose', 'eagle', 'bear', 'elephant']],
+           marks: ['mouse'], owner: 0, turn: 1, event: 'alpha', alphaIdx: 0 });
+  sandbox.pkoApplyChallenge(1, { assignments: [['mongoose']] });
+  const n1 = F.marks.length;
+  check('after one Challenge the index is in range', F.alpha >= 0 && F.alpha < n1, true);
+
   console.log('\n' + '='.repeat(48));
   console.log(failures === 0 ? 'ALL CHECKS PASSED' : `${failures} CHECK(S) FAILED`);
   process.exit(failures === 0 ? 0 : 1);

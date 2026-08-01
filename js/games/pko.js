@@ -458,7 +458,7 @@ function pkoRenderCard(id, opts = {}) {
 
   const entry = (pkoChain && pkoChain[id]) || {};
   const track = entry.track === 'sea' ? ' pko-card-sea' : entry.track === 'wild' ? ' pko-card-wild' : '';
-  const state = (opts.selected ? ' pko-card-selected' : '');
+  const state = (opts.selected ? ' pko-card-selected' : '') + (opts.alpha ? ' pko-card-alpha' : '');
 
   // Three-tier art (skin → core art → emoji) resolves inside assetFace — see js/lib/art.js.
   const faceUrl = (typeof assetFace === 'function') && assetFace('pko', id);
@@ -788,7 +788,7 @@ function pkoRenderTable() {
       p.textContent = 'The field is open.';
       marks.appendChild(p);
     } else {
-      pkoMarks.forEach(id => marks.appendChild(pkoRenderCard(id)));
+      pkoMarks.forEach((id, i) => marks.appendChild(pkoRenderCard(id, { alpha: i === pkoAlphaIdx })));
     }
   }
 
@@ -1129,8 +1129,8 @@ function pkoRenderChallenge() {
   const marksEl = document.getElementById('pko-challenge-marks');
   if (marksEl) {
     marksEl.innerHTML = '';
-    pkoMarks.forEach(id => {
-      const card = pkoRenderCard(id, { size: 'sm' });
+    pkoMarks.forEach((id, i) => {
+      const card = pkoRenderCard(id, { size: 'sm', alpha: i === pkoAlphaIdx });
       pkoBindChainHold(card, id);
       marksEl.appendChild(card);
     });
@@ -1429,6 +1429,12 @@ function pkoApplyStake(playerIdx, payload) {
   pkoRemoveFromHoard(playerIdx, cards);        // RAW
   pkoMarks        = g.resolved.slice();        // RESOLVED — no Mimic ever becomes a Mark
   pkoMarkOwnerIdx = playerIdx;
+  // Designated on the opening STAKE, not at Encounter start: at Encounter start the
+  // board is empty, so the brief's wording has no referent (D29). One random index.
+  if (pkoEventFlag('alpha') && pkoMarks.length) {
+    pkoAlphaIdx = Math.floor(Math.random() * pkoMarks.length);
+    playSonarPing();
+  }
   const mimicsUsed = cards.filter(c => c === PKO_MIMIC_ID).length;
   pkoLogTrail(`${pkoPlayerNames[playerIdx]} Staked ${cards.length} × ${pkoCardName(g.claim)}`
     + (mimicsUsed ? ` (${mimicsUsed} Mimic${mimicsUsed > 1 ? 's' : ''}).` : '.'));
@@ -1483,9 +1489,20 @@ function pkoRemoveFromHoard(playerIdx, cards) {
 // pile stays grouped by the play that spent it — which is how a real discard pile reads,
 // and what the Discards tab renders. Every push site funnels through here so the shape
 // can never drift between Challenge, Stampede and Encounter close.
-function pkoDiscardBoard() {
-  if (!pkoMarks.length) return;
-  pkoWateringHole.push({ enc: pkoEncounterNum, cards: pkoMarks.slice() });
+// `exceptIdx` spares a single Mark: Force of Nature's Alpha survives whatever is played
+// against it, so it is never spoils and never reaches the pile (§7.4).
+function pkoDiscardBoard(exceptIdx) {
+  const keep  = (exceptIdx === undefined ? -1 : exceptIdx);
+  const cards = pkoMarks.filter((_, i) => i !== keep);
+  if (!cards.length) return;
+  pkoWateringHole.push({ enc: pkoEncounterNum, cards });
+}
+// Discard an explicit list rather than the live board. Used by the deferred Carrion
+// path, where the board has already been replaced by the time the leftovers are known.
+// Same batch shape, so the Discards tab cannot tell the two apart.
+function pkoDiscardCards(cards) {
+  if (!cards || !cards.length) return;
+  pkoWateringHole.push({ enc: pkoEncounterNum, cards: cards.slice() });
 }
 // Total cards in the pile — the count the table shows. Tolerates a legacy flat id (a
 // string) so a mid-session packet from an older shape can never NaN the counter.
@@ -1538,11 +1555,23 @@ function pkoApplyChallenge(playerIdx, payload) {
   // held — the classic bug site (§7.1).
   const resolved = groups.map(g => pkoResolveGroup(g).resolved).flat();
   pkoRemoveFromHoard(playerIdx, flat);         // RAW
-  pkoDiscardBoard();
+  // Alpha: the Alpha Mark is excluded from the discard, and the new board is everything
+  // played PLUS the survivor. No special case for a Swarm — Alpha's rule is "nothing
+  // played against the Alpha is discarded" and Swarm's is "each card becomes its own
+  // Mark"; both already hold, so Swarming the Alpha grows the board by 2 (D30).
+  const alphaLive = pkoAlphaIdx >= 0 && pkoAlphaIdx < pkoMarks.length;
+  const survivor  = alphaLive ? pkoMarks[pkoAlphaIdx] : null;
+  const beaten    = pkoMarks.filter((_, i) => i !== (alphaLive ? pkoAlphaIdx : -1));
+  pkoDiscardBoard(alphaLive ? pkoAlphaIdx : -1);
   // Every card played becomes its own Mark, so a Swarm returns the board one Mark wider —
   // the same shape Stampede already had. Slots never stay stacked (the cut Mob idea).
-  pkoMarks        = resolved;                  // RESOLVED
+  pkoMarks        = survivor === null ? resolved : resolved.concat([survivor]);
   pkoMarkOwnerIdx = playerIdx;
+  if (alphaLive && pkoMarks.length) {
+    // Reassign over the NEW board, the survivor included — compounding is Alpha's purpose.
+    pkoAlphaIdx = Math.floor(Math.random() * pkoMarks.length);
+    playSonarPing();
+  }
   const swarms = groups.filter(g => g.length === 2).length;
   const mimicsUsed = flat.filter(c => c === PKO_MIMIC_ID).length;
   pkoLogTrail(`${pkoPlayerNames[playerIdx]} Challenged with ${pkoSummariseCards(resolved)}`
@@ -1573,6 +1602,7 @@ function pkoApplyStampede(playerIdx, payload) {
   pkoDiscardBoard();
   pkoMarks        = new Array(count).fill(species);   // RESOLVED — always real species
   pkoMarkOwnerIdx = playerIdx;
+  pkoAlphaIdx     = -1;                         // a Stampede replaces the board wholesale
   pkoLogTrail(`${pkoPlayerNames[playerIdx]} Stampeded with ${count} × ${pkoCardName(species)}.`);
   pkoAfterBoardChange(playerIdx);
 }
@@ -1618,6 +1648,7 @@ function pkoBroadcastBoard() {
     marks: pkoMarks, markOwnerIdx: pkoMarkOwnerIdx, turnIdx: pkoTurnIdx,
     retreatedSince: pkoRetreatedSince, hoardCounts: pkoHoardCounts,
     encounterNum: pkoEncounterNum, trail: pkoTrail, wateringHole: pkoWateringHole,
+    alphaIdx: pkoAlphaIdx,
   }});
 }
 
@@ -1658,6 +1689,7 @@ function pkoEndEncounter() {
   // time: the interstitial re-shows, the advance is rescheduled, and the board is
   // pushed to the Watering Hole twice. An empty board is the guard that drops it.
   pkoMarks = [];
+  pkoAlphaIdx = -1;                             // the board is gone; so is its Alpha
 
   pkoLeaderIdx = winner;
   pkoLogTrail(`${pkoPlayerNames[winner]} went Unchallenged and leads the next Encounter.`);
@@ -1987,6 +2019,7 @@ function pkoHandleEnvelope(env) {
       pkoEncounterNum   = p.encounterNum;
       pkoTrail          = p.trail || pkoTrail;
       pkoWateringHole   = p.wateringHole || pkoWateringHole;
+      pkoAlphaIdx       = p.alphaIdx === undefined ? -1 : p.alphaIdx;
       pkoStakeSel       = [];                   // the board moved — any draft is stale
       pkoDismissChallenge();
       pkoShowTable();

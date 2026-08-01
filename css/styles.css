@@ -1649,6 +1649,24 @@ body.flash-red   { background-color: #fecaca; }
    because the fan rotates each card and two sources of `transform` on one element fight
    (the class would silently overwrite the fan's rotation, or vice versa). */
 .pko-card-selected { outline: 3px solid #854D0E; outline-offset: 2px; }
+/* Force of Nature — the Alpha Mark. Crown + glow, never art (§14). The ::after crown
+   sits outside the card box so it survives the asset-pack background-image branch. */
+.pko-card-alpha {
+  outline: 3px solid #C9A227;
+  outline-offset: 2px;
+  box-shadow: 0 0 12px 2px rgba(201, 162, 39, 0.55);
+  position: relative;
+}
+.pko-card-alpha::after {
+  content: '👑';
+  position: absolute;
+  top: -0.7rem;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.95rem;
+  line-height: 1;
+  pointer-events: none;
+}
 /* A Challenge slot holding a completed Swarm — two cards, overlapped so the pair still
    reads as one slot in the row. */
 .pko-slot-swarm { display: flex; align-items: center; flex-shrink: 0; }
