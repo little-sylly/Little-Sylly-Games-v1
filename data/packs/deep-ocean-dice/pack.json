@@ -16,6 +16,31 @@
       "5": "5.svg",
       "6": "6.svg"
     },
-    "back": "back.svg"
+    "back": "back.svg",
+    "specials": {
+      "loaded": {
+        "1": "loaded-1.svg",
+        "2": "loaded-2.svg",
+        "3": "loaded-3.svg",
+        "4": "loaded-4.svg",
+        "5": "loaded-5.svg",
+        "6": "loaded-6.svg"
+      },
+      "snake": {
+        "frame": false,
+        "1": "snake-1.svg",
+        "2": "snake-2.svg",
+        "3": "snake-3.svg",
+        "4": "snake-4.svg",
+        "5": "snake-5.svg",
+        "6": "snake-6.svg"
+      },
+      "phantom": {
+        "blank": "ghost.svg"
+      },
+      "cracked": {
+        "blank": "broken.svg"
+      }
+    }
   }
 }
