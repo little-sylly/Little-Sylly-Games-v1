@@ -306,6 +306,87 @@ function pkoDrawEvent() {
   if (pkoEvent) pkoEventsFired.push(pkoEvent);
 }
 
+// ── Force of Nature — the mutating events (onFire) ────────────────────────
+// Each runs HOST-SIDE against an empty board, mutates Hoards, batches its discards
+// into the Watering Hole as ONE record (so the Discards tab stays grouped by the play
+// that spent the cards), and returns the seats it emptied. Only Extinction can ever
+// return a non-empty array.
+
+// Every copy of `ids` leaves `playerIdx` and joins one shared discard batch.
+function pkoCullFrom(playerIdx, ids, batch) {
+  const hoard = pkoHoards[playerIdx] || [];
+  const set   = new Set(ids);
+  const gone  = hoard.filter(c => set.has(c));
+  if (!gone.length) return [];
+  pkoHoards[playerIdx] = hoard.filter(c => !set.has(c));
+  batch.push(...gone);
+  return gone;
+}
+
+// The Culling — each player discards their FEWEST-held species. Ties resolve host-side
+// by lowest PKO_PREY_RANK (the table Small Fry already uses) then by chain order, so the
+// event stays a pure interstitial: no player choice, no ACTION, no readyCheck (D28).
+// Holding exactly one species discards nothing, which is why this can never empty a
+// Hoard and therefore never scores (§6 / D27).
+function pkoFireCulling() {
+  const batch = [];
+  for (let i = 0; i < pkoPlayerCount; i++) {
+    const hoard = pkoHoards[i] || [];
+    const counts = new Map();
+    hoard.forEach(c => counts.set(c, (counts.get(c) || 0) + 1));
+    if (counts.size <= 1) continue;                       // one species (or none) → nothing to cull
+    const min = Math.min(...counts.values());
+    const tied = [...counts.keys()].filter(c => counts.get(c) === min);
+    const order = Object.keys(pkoChain || {});
+    tied.sort((a, b) =>
+      (PKO_PREY_RANK[a] ?? 99) - (PKO_PREY_RANK[b] ?? 99) || order.indexOf(a) - order.indexOf(b));
+    const gone = pkoCullFrom(i, [tied[0]], batch);        // exactly ONE species, even on a tie
+    if (gone.length) {
+      pkoLogTrail(`${pkoPlayerNames[i]} was Culled — lost ${pkoSummariseCards(gone)}.`);
+    }
+  }
+  if (batch.length) pkoWateringHole.push({ enc: pkoEncounterNum, cards: batch });
+  pkoSyncAllHands();
+  return [];                                              // structurally cannot empty a Hoard
+}
+
+// Extinction Event — count every species across ALL Hoards combined and wipe the
+// minimum. ALL tied species are wiped, not one of them: the census is global, so a tie
+// means several species are equally on the brink. Once per Clash (its own canFire).
+// This is the ONLY event that can empty a Hoard, and it can empty several at once —
+// which is the whole reason pkoResolveClash takes an array (§6).
+function pkoFireExtinction() {
+  const census = new Map();
+  pkoHoards.forEach(h => h.forEach(c => census.set(c, (census.get(c) || 0) + 1)));
+  if (!census.size) { pkoSyncAllHands(); return []; }
+  const min  = Math.min(...census.values());
+  const doomed = [...census.keys()].filter(c => census.get(c) === min);
+  const batch = [];
+  const emptied = [];
+  for (let i = 0; i < pkoPlayerCount; i++) {
+    const gone = pkoCullFrom(i, doomed, batch);
+    if (gone.length) {
+      pkoLogTrail(`${pkoPlayerNames[i]} lost ${pkoSummariseCards(gone)} to the Extinction Event.`);
+    }
+    if ((pkoHoards[i] || []).length === 0) emptied.push(i);
+  }
+  if (batch.length) pkoWateringHole.push({ enc: pkoEncounterNum, cards: batch });
+  pkoLogTrail(`${doomed.map(pkoCardName).join(', ')} went extinct.`);
+  pkoSyncAllHands();
+  return emptied;
+}
+
+// Migration — every Hoard moves one seat clockwise, to the player on your left. Total
+// card count is conserved, nothing is discarded, and nobody can be emptied.
+function pkoFireMigration() {
+  const moved = [];
+  for (let i = 0; i < pkoPlayerCount; i++) moved[(i + 1) % pkoPlayerCount] = pkoHoards[i];
+  pkoHoards = moved;
+  pkoLogTrail('All Hoards migrated one seat to the left.');
+  pkoSyncAllHands();
+  return [];
+}
+
 // ── Render seam — ALL card DOM is built here, nowhere else ────────────────
 // A bypass is unskinnable (DYB's old cup-die bypass is the cautionary case).
 // opts: { faceDown, size, alpha (Phase 2), selected, dimmed }
@@ -582,6 +663,10 @@ function pkoStartEncounter() {
   // Encounter 1's event is Invasive Mimicry, already set AND already applied by
   // pkoStartClash — it mutates the DEAL, so it cannot wait until here (§9).
   if (pkoSyllyMode && pkoEncounterNum > 1) pkoDrawEvent();
+  if (pkoEvent) {
+    const named = PKO_EVENTS.find(x => x.id === pkoEvent);
+    if (named) pkoLogTrail(`Force of Nature — ${named.name}. ${named.blurb}`);
+  }
   const ev = pkoEvent && PKO_EVENTS.find(x => x.id === pkoEvent);
   if (ev && ev.onFire) {
     const emptied = ev.onFire() || [];

@@ -254,6 +254,77 @@ const section = t => console.log(`\n${t}`);
       return F.startWithEvent('great-reversal');
     })(), 2);
 
+  section('The Culling — discard your fewest-held species (§7.6)');
+  F.seat({ hoards: [['mouse', 'mouse', 'mouse', 'bear'], ['fish', 'fish', 'octopus', 'octopus']],
+           event: null, encounter: 5, sylly: true });
+  F.startWithEvent('culling');
+  check('the singleton species is culled', F.hoards[0], ['mouse', 'mouse', 'mouse']);
+  check('a tie culls exactly ONE species, not both', F.hoards[1].length, 2);
+  check('the tie broke to the lower PKO_PREY_RANK — Fish (1) before Octopus (2)',
+    F.hoards[1], ['octopus', 'octopus']);
+  check('counts follow the Hoards', F.counts, [3, 2]);
+  check('the culled cards reached the Watering Hole',
+    F.wateringFlat.sort(), ['bear', 'fish', 'fish']);
+  check('one batch record for the whole event, not one per player', F.watering.length, 1);
+
+  section('The Culling can NEVER empty a Hoard (§6 / D27)');
+  F.seat({ hoards: [['mouse'], ['fish', 'fish']], event: null, encounter: 5, sylly: true });
+  check('holding one species discards nothing at all',
+    F.startWithEvent('culling') >= 0 && F.hoards[0].length === 1 && F.hoards[1].length === 2, true);
+  check('nobody scored', F.scores, [0, 0]);
+  F.seat({ hoards: [['mouse', 'bear', 'fish'], ['eagle', 'eagle']], event: null, encounter: 5, sylly: true });
+  F.startWithEvent('culling');
+  check('a three-way tie still leaves two cards', F.hoards[0].length, 2);
+  check('a single-species Hoard is untouched', F.hoards[1], ['eagle', 'eagle']);
+
+  section('Extinction Event — the globally rarest species is wiped (§8)');
+  F.seat({ hoards: [['mouse', 'mouse', 'bear'], ['mouse', 'bear', 'bear'], ['mouse', 'eagle']],
+           event: null, encounter: 5, sylly: true });
+  // Census: mouse 4, bear 3, eagle 1 → eagle is the minimum.
+  F.startWithEvent('extinction');
+  check('every copy of the rarest species is gone',
+    F.hoards.flat().filter(c => c === 'eagle'), []);
+  check('nothing else was touched', F.hoards.flat().sort(),
+    ['bear', 'bear', 'bear', 'mouse', 'mouse', 'mouse', 'mouse']);
+  check('the wiped cards reached the Watering Hole', F.wateringFlat, ['eagle']);
+
+  section('Extinction wipes ALL tied-minimum species');
+  F.seat({ hoards: [['mouse', 'mouse', 'bear'], ['mouse', 'eagle', 'fish']],
+           event: null, encounter: 5, sylly: true });
+  // Census: mouse 3, bear 1, eagle 1, fish 1 → three species tie at the minimum.
+  F.startWithEvent('extinction');
+  check('all three minimum species are wiped together', F.hoards.flat().sort(),
+    ['mouse', 'mouse', 'mouse']);
+
+  section('Extinction can empty several Hoards → joint scorers (§6)');
+  F.seat({ hoards: [['mouse', 'mouse'], ['eagle'], ['fish'], ['mouse', 'bear', 'bear']],
+           event: null, encounter: 5, sylly: true, scores: [0, 0, 0, 0] });
+  F.set('clashTarget', 9);
+  // Census: mouse 3, bear 2, eagle 1, fish 1 → Eagle and Fish tie at 1; P1 and P2 empty.
+  F.startWithEvent('extinction');
+  check('both emptied seats score', F.scores, [0, 1, 1, 0]);
+  check('the Clash ended before a card was played', F.marks, []);
+
+  section('Migration — every Hoard moves one seat to the left');
+  F.seat({ hoards: [['mouse'], ['bear', 'bear'], ['fish', 'fish', 'fish']],
+           event: null, encounter: 5, sylly: true });
+  F.startWithEvent('migration');
+  check('P0 receives what P2 held — one seat clockwise', F.hoards[0], ['fish', 'fish', 'fish']);
+  check('P1 receives what P0 held', F.hoards[1], ['mouse']);
+  check('P2 receives what P1 held', F.hoards[2], ['bear', 'bear']);
+  check('counts follow the Hoards', F.counts, [3, 1, 2]);
+  check('total card count is conserved', F.hoards.flat().length, 6);
+  check('Migration discards nothing', F.wateringFlat, []);
+  check('Migration never scores', F.scores, [0, 0, 0]);
+
+  section('Every mutating event writes the Trail');
+  F.seat({ hoards: [['mouse', 'bear'], ['fish', 'fish']], event: null, encounter: 5, sylly: true });
+  F.startWithEvent('culling');
+  check('the event names itself at the head of the Encounter',
+    F.trail.some(e => /The Culling/.test(e.text)), true);
+  check('a per-player line names what was lost',
+    F.trail.filter(e => /was Culled/.test(e.text)).length >= 1, true);
+
   console.log('\n' + '='.repeat(48));
   console.log(failures === 0 ? 'ALL CHECKS PASSED' : `${failures} CHECK(S) FAILED`);
   process.exit(failures === 0 ? 0 : 1);
