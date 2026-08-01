@@ -1628,10 +1628,11 @@ Per-game: LI5 `ptp`★/`tlm` · GM `ptp`★/`mdlm` · SS `tlm`★/`mdlm`/`ptp` �
 ## Pecking Order (PKO)
 
 **JS file:** `js/games/pko.js`
-**Data:** `data/pko-data.json` — 14 entries (13 animals + Poacher). `beaten_by` is the strict (Sated) chain; `reach_beaten_by` carries the six **Ravenous** two-tier edges and is never merged into it. Both forward maps (`pkoBeatsMap` / `pkoBeatsWideMap`) are derived at load, never stored. Exempt from word-difficulty per the non-word-bank carve-out (Hoard Size is the velocity dial).
+**Data:** `data/pko-data.json` — 15 entries (13 animals + Poacher + **Mimic**). `beaten_by` is the strict (Sated) chain; `reach_beaten_by` carries the six **Ravenous** two-tier edges and is never merged into it. Both forward maps (`pkoBeatsMap` / `pkoBeatsWideMap`) are derived at load, never stored. The Mimic is `force_of_nature_only` and `track: 'wild'` — it never enters a standard Pool and never becomes a Mark. Exempt from word-difficulty per the non-word-bank carve-out (Hoard Size is the velocity dial).
 **Brand colour:** `#854D0E` (savanna amber-brown — custom; hover `#6B3E0B`) | **Active pill:** `pill-active-pko` | **Toggle ON:** `game-toggle-on-pko` | **Range:** `pko-range` | **CTA/label:** `pko-cta` / `pko-label`
-**MDLM-only**, 3–6 players, host-authoritative, host-as-participant, private Hoards over the `/private/{uid}` channel. **Sylly Mode = Force of Nature (Phase 2 — setting wired, no gameplay branch).**
-**Lobby button:** `#btn-pko` | **Spec:** `docs/new-game-tech-pecking-order.md`
+**MDLM-only**, 3–6 players, host-authoritative, host-as-participant, private Hoards over the `/private/{uid}` channel. **Sylly Mode = Force of Nature — SHIPPED (SW v149).** Nine events: the fixed opener `invasive-mimicry` plus eight drawn per Encounter (`culling`, `great-reversal`, `deluge`, `dry-season`, `extinction`, `migration`, `alpha`, `carrion`).
+**Lobby button:** `#btn-pko` | **Spec:** `docs/new-game-tech-pecking-order.md`, Force of Nature: `docs/new-game-tech-pecking-order-fon.md`
+**Verification:** three headless harnesses — `tools/verify-pko-chain.js` (68 checks, data layer), `tools/verify-pko-loop.js` (132, turn loop), `tools/verify-pko-events.js` (143, Force of Nature). Re-run all three after any change to the chain, the appliers, the balance numbers or the event rules.
 
 ### Screens
 | Screen ID | Purpose |
@@ -1639,7 +1640,8 @@ Per-game: LI5 `ptp`★/`tlm` · GM `ptp`★/`mdlm` · SS `tlm`★/`mdlm`/`ptp` �
 | `screen-pko-menu` | Main hub — Enter the Wild, How to Play, Settings, ← Back to the Box |
 | `screen-pko-hoard` | Private deal reveal at the start of each Clash; "I'm Ready" readyCheck |
 | `screen-pko-table` | Main play — Active Marks, player strip, own Hoard fan, Stake/Challenge/Stampede/Retreat |
-| `screen-pko-unchallenged` | Encounter-winner interstitial — auto-advances after 2.5 s (`pkoUnchallengedTimer`) |
+| `screen-pko-event` | **Force of Nature** event interstitial — emoji, name, blurb; auto-advances after 2.5 s (`pkoEventTimer`, `PKO_EVENT_SCREEN_MS`). Takes the **interstitial exception** (`ui-style.md` Global UI Protocol item 5): no `[?]`/🔊/✕ chrome. Unlike `screen-pko-unchallenged`, **both** sides schedule their own advance — after it the table renders from already-synced state, so no host decision is pending |
+| `screen-pko-unchallenged` | Encounter-winner interstitial — auto-advances after 2.5 s (`pkoUnchallengedTimer`). **Host only** schedules the advance (it *starts* the next Encounter, which is a host decision) |
 | `screen-pko-clash-result` | Clash winner + Match standings; "Next Clash" is host-gated |
 | `screen-pko-hierarchy` | Game over — ranked standings (Apex Predator / Bottom Feeder) + Clash history grid |
 
@@ -1654,6 +1656,7 @@ Per-game: LI5 `ptp`★/`tlm` · GM `ptp`★/`mdlm` · SS `tlm`★/`mdlm`/`ptp` �
 | `pko-quit-overlay` | Decision modal | z-[80] | "Abandon your territory?" — mid-game exit confirm |
 | `pko-stampede-overlay` | Decision modal | z-[90] | "Stampede with [species] ×N?" confirm |
 | `pko-new-match-overlay` | Decision modal | z-[90] | "New Match?" — play-again confirmation |
+| `pko-carrion-overlay` | Decision modal | z-[90] | **Force of Nature — Carrion.** Timed spoils window (`PKO_CARRION_WINDOW_MS`, 5 s). The Challenger taps beaten Marks to keep; everyone else sees a waiting line. Countdown bar is a pure `transform` transition (`.pko-carrion-track` / `.pko-carrion-bar`), no timer of its own. Border `border-[#E4CFA3]` matching `pko-quit-overlay` |
 
 ### Key buttons
 | ID | Action |
@@ -1677,7 +1680,7 @@ Per-game: LI5 `ptp`★/`tlm` · GM `ptp`★/`mdlm` · SS `tlm`★/`mdlm`/`ptp` �
 | `pkoPoacherSetting` | string | `'perPlayer'` | Poacher Cards: `'none'` / `'flat3'` / `'perPlayer'` |
 | `pkoScavenge` | bool | `false` | Draw 1 from the Reserve on Retreat |
 | `pkoStartSmall` | string | `'match'` | **Small Fry** — the opening Stake must be the player's smallest animal: `'off'` / `'match'` (first Encounter of the Match) / `'clash'` (first Encounter of every Clash) |
-| `pkoSyllyMode` | bool | `false` | Force of Nature — wired + serialised, **no gameplay branch in v1** |
+| `pkoSyllyMode` | bool | `false` | **Force of Nature** — the Sylly Mode gate. Read in `pkoStartClash` (Invasive Mimicry on the deal) and `pkoStartEncounter` (`pkoDrawEvent` from Encounter 2 on) |
 | `pkoScores` / `pkoClashHistory` | int[] / int[][] | `[]` | Match points; one history row per Clash (drives the Hierarchy grid) |
 | `pkoHoards` | string[][] | `[]` | **Host only** — every player's Hoard |
 | `pkoMyHoard` | string[] | `[]` | **This device only** — own cards. Written by the private `PKO_HAND` (deal), `PKO_DRAW` (Scavenge) and `PKO_HAND_SYNC` (repair after this device played — BUG-02) packets |
@@ -1694,6 +1697,12 @@ Per-game: LI5 `ptp`★/`tlm` · GM `ptp`★/`mdlm` · SS `tlm`★/`mdlm`/`ptp` �
 | `pkoBeatenByMap` / `pkoBeatsMap` | object | `{}` | Strict (Sated) chain: from the data file / **derived by inversion at load** |
 | `pkoBeatenByWide` / `pkoBeatsWideMap` | object | `{}` | Ravenous chain: `beaten_by ∪ reach_beaten_by` / derived. Built at load alongside the strict pair — `pkoAppetite` only *chooses*, so changing the setting never reloads |
 | `pkoUnchallengedTimer` | int\|null | `null` | Interstitial auto-advance — cleared in quit-confirm, `resetToLobby()`, and early transitions |
+| `pkoEvent` | string\|null | `null` | The active Force of Nature event id for this Encounter, or `null`. **Never compared to a string at a call site** — every branch reads `pkoEventFlag(key)` |
+| `pkoEventsFired` | string[] | `[]` | Event ids fired this Clash. **ACCUMULATOR — resets in-payload** (`PKO_CLASH_BEGIN` carries `[]`). Drives Extinction's once-per-Clash `canFire()` |
+| `pkoAlphaIdx` | int | `-1` | Index into `pkoMarks` of the **Alpha** Mark; `-1` = none. Assigned on the opening Stake (D29), reassigned over the new board after each Challenge, cleared by Stampede and Encounter end. Travels on `PKO_BOARD` |
+| `pkoCarrionSel` | int[] | `[]` | **This device only** — Mark indices the Challenger has tapped to keep in the Carrion window |
+| `pkoCarrionPending` | object\|null | `null` | **Host only** — `{ playerIdx, spoils[] }` while a Carrion window is open. Doubles as the race guard: `pkoResolveCarrion` drops any second resolution (ML-05) |
+| `pkoEventTimer` / `pkoCarrionTimer` | int\|null | `null` | Force of Nature timer handles — both cleared in **three** places: quit-confirm, `pkoResetState()`, and `PKO_ENCOUNTER_BEGIN` / `pkoResolveCarrion` |
 
 ### Key Functions
 | Function | Purpose |
@@ -1738,14 +1747,36 @@ Per-game: LI5 `ptp`★/`tlm` · GM `ptp`★/`mdlm` · SS `tlm`★/`mdlm`/`ptp` �
 | `pkoSubmit*()` / `pkoApply*()` | Client sends ACTION; **host mutates directly then broadcasts SYNC** — the host is a full player and self-sent ACTIONs are dropped by the dedup guard |
 | `pkoCheckEncounterEnd()` | Every player other than the board owner has Retreated since the last board change |
 | `pkoResolveClash(winnerIdxs)` | +1 point per winner, push one `pkoClashHistory` row with a 1 per winner, decide Clash-end vs Match-end (joint winners share the Match) |
+| `pkoNextOpener(winnerIdxs)` | Which of several joint winners opens the next Clash: most Match points, then random. With one winner it is that winner (shipped behaviour) |
+| `pkoDiscardBoard(exceptIdx)` / `pkoDiscardCards(cards)` | The board → one Watering Hole batch record, sparing `exceptIdx` (the **Alpha**; default `-1` spares nothing). `pkoDiscardCards` discards an explicit list — used by Carrion, where the board has already been replaced by the time the leftovers are known |
+| `pkoAfterBoardChange(playerIdx, spoils)` / `pkoResumeAfterBoardChange(playerIdx)` | Every successful board change funnels here. Order is load-bearing: the **empty-Hoard check runs first**, which is what stops Carrion un-winning a Clash (§7.5) — do not reorder. `spoils` is passed **only by a Challenge**; a Stake beats nothing and a Stampede is a rout. The tail is split out so the Carrion window can defer it |
+| `pkoSyncHand(playerIdx)` / `pkoSyncAllHands()` | The private hand-repair packet. Means **"this Hoard changed"**, not "a card was played" — The Culling, Extinction and Migration all mutate Hoards with no card played, and a repair keyed to a play would miss all three (logic-engine ML-06, BUG-02's class) |
 | `pkoHandleEnvelope(env)` | Routes all PKO ACTION/SYNC + private packets; called from `engine-multiplayer.js` |
 | `pkoResetState()` | Full state teardown (called from `resetToLobby()` in `engine.js`) |
+
+#### Force of Nature (Sylly Mode)
+| Function | Purpose |
+|----------|---------|
+| `PKO_EVENTS` (const) | The nine events as **plain data** — `{ id, name, emoji, blurb, canFire, onFire, track, reversal, alpha, carrion }`. A **mutating** event owns an `onFire()` returning `int[]` of seats it emptied; a **passive** event sets a flag an existing predicate reads, so no new branch appears at any call site |
+| `pkoEventFlag(key)` | The active event's value for one key, else `null`. **Every** Force of Nature branch reads through here — an effect is never tested by comparing `pkoEvent` to a string, so adding an event never edits a seam |
+| `pkoDrawEvent()` | Draws the Encounter's event. **A gate, never a redraw**: an event `canFire()` rejects is simply absent from the pool — no skip, no re-roll, no loop, no cap to tune (D34). `pkoEvent = null` is a legal outcome |
+| `pkoShowEvent(eventId, then)` | The interstitial. `PKO_EVENT_SOUND` maps each event to an existing audio function — no new synthesised sounds |
+| `pkoCanActUnderTrack(hoard, track)` / `pkoTrackOk(id)` / `pkoTrackReason()` | The **track lock** (Deluge / Dry Season). `pkoCanActUnderTrack` has two consumers that must never disagree — `canFire()` and the Leader pass. `pkoTrackOk` is folded into `pkoAnswers` so every Challenge path inherits it, and applied to **resolved** ids so a Mimic inherits its claim's track. `pkoTrackReason` names the rule rather than showing a dead button (BUG-04) |
+| `pkoResolveGroup(cards)` | **The ONLY place a Mimic is interpreted.** → `{ok:false}` or `{ok, claim, resolved}`. One rule: a play containing a Mimic must also contain a real card of the claimed species, which makes the claim inferable (no claim UI) and mirrors the Poacher exactly — Poacher solo-**only**, Mimic **never** solo (D32). ⚠️ Callers need **both** arrays: raw for `pkoHoldsAll`/`pkoRemoveFromHoard`, `resolved` for `pkoMarks`. A Poacher claim is rejected **only when a Mimic is present** — an unconditional rejection outlaws the plain Poacher play (Spec Correction C1) |
+| `pkoStampedeSpend(hoard, species, count)` | Which **raw** cards a Stampede spends: real copies first, then Mimics; `null` when the Hoard can't pay. At least one real copy required |
+| `pkoFireCulling()` | Each player discards their fewest-held species; ties break by `PKO_PREY_RANK` then chain order. Returns `[]` — **structurally cannot empty a Hoard** (holding one species discards nothing) so it never scores (D27) |
+| `pkoFireExtinction()` | Global census across **all** Hoards; wipes **every** tied-minimum species. The only event that can empty a Hoard — and it can empty several at once, which is why `pkoResolveClash` takes an array |
+| `pkoFireMigration()` | Every Hoard moves one seat clockwise. Conserves every card, discards nothing, empties nobody |
+| `pkoApplyInvasiveMimicry()` | The fixed opener. Fires in **`pkoStartClash`, not `pkoStartEncounter`** — it mutates the *deal*. Order: base deal is Mimic-free → 2n Mimics into the Reserve → everyone draws `round(pkoHoardSize / 4)` (10→13 / 12→15 / 15→19, D25). Must run **after** the accumulator resets (it sets `pkoEvent` and writes the Trail) and **before** `pkoHoardCounts` / `pkoSendPrivateHands()` |
+| `pkoOpenCarrion()` / `pkoResolveCarrion()` / `pkoSubmitCarrion()` / `pkoShowCarrion()` | The Carrion window. It **resolves** the selection, never cancels it: on expiry whatever is selected is kept, so selecting nothing — including doing nothing — is exactly the shipped non-Carrion behaviour (D31). Host timer is the backstop; whichever lands first resolves and the second is dropped |
 
 ### Per-Game ACTION/SYNC/Private Packet Types
 | Packet | Type | Channel | Notes |
 |--------|------|---------|-------|
 | `PKO_HOARD_READY`, `PKO_STAKE`, `PKO_CHALLENGE`, `PKO_STAMPEDE`, `PKO_RETREAT`, `PKO_PLAYER_LEFT` | ACTION | public | Client → host only. Host re-validates every one against its own board |
-| `PKO_CLASH_BEGIN`, `PKO_ENCOUNTER_BEGIN`, `PKO_BOARD`, `PKO_UNCHALLENGED`, `PKO_CLASH_END`, `PKO_MATCH_END` | SYNC | public | `PKO_CLASH_BEGIN` must carry every accumulator at its reset value |
+| `PKO_CARRION` | ACTION | public | Client → host: the Challenger's `keep[]` (indices into the spoils). Host resolves; a duplicate arriving after the timer already fired is dropped by the `pkoCarrionPending` race guard |
+| `PKO_CLASH_BEGIN`, `PKO_ENCOUNTER_BEGIN`, `PKO_BOARD`, `PKO_UNCHALLENGED`, `PKO_CLASH_END`, `PKO_MATCH_END` | SYNC | public | `PKO_CLASH_BEGIN` must carry every accumulator at its reset value. **Force of Nature additions:** `PKO_CLASH_BEGIN` / `PKO_ENCOUNTER_BEGIN` carry `event`, `eventsFired` (at `[]` on reset) and `alphaIdx`; `PKO_BOARD` carries `alphaIdx`; `PKO_CLASH_END` / `PKO_MATCH_END` carry `winnerIdxs[]` (was a single `winnerIdx`) |
+| `PKO_CARRION_OPEN` | SYNC | public | Host → all: opens the Carrion overlay on the **Challenger's** device and a waiting line elsewhere. Required because the Challenger may be a client and the host is the only device that knows the window opened — without it the overlay appears only when the host happens to be the Challenger, which is BUG-02's shape (spec gap **C5**). No client-side timer: the host owns the clock and closes the window with `PKO_BOARD` |
 | `PKO_READY_STATE` | SYNC | public | Not in the spec's original list — added during implementation. Broadcasts the `pkoHoardReady` matrix after each confirmation so every device's "Waiting on …" line is live, rather than only revealing progress when the Encounter finally begins |
 | `PKO_HAND`, `PKO_DRAW` | SYNC | **private** (`mpSendPrivate`) | Dealt Hoard / Scavenge draw — one player only |
 | `PKO_HAND_SYNC` | SYNC | **private** (`mpSendPrivate`) | The acting player's **whole** authoritative Hoard, sent from `pkoRemoveFromHoard()` whenever the actor is not this device. Fixes BUG-02: `PKO_BOARD` carries counts, never contents, so without this a client's fan froze at the deal. A full replacement (not a delta) so a dropped packet self-corrects. **Must not call `mpUnlockSync()`** — the paired `PKO_BOARD` owns the unlock |
@@ -1754,9 +1785,10 @@ Per-game: LI5 `ptp`★/`tlm` · GM `ptp`★/`mdlm` · SS `tlm`★/`mdlm`/`ptp` �
 
 | Tool | Covers |
 |------|--------|
-| `node tools/verify-pko-chain.js` | **Data layer** — 38 checks: the four chain invariants, the Poacher wildcard, absence of a track check, Pool totals 110/146/183/219, Eagle `Math.ceil` |
-| `node tools/verify-pko-loop.js` | **Turn loop** — 92 checks: Stake / Challenge / Stampede / Retreat, slot-order legality, the Poacher-as-Mark, the response-window reset, Encounter end + the late-ACTION guard, Clash end on all three play types, Match end, every host rejection path, **Small Fry** (all three modes + the unranked-only and cross-track edge cases), and a **card-conservation census** (`Σ hoards + marks + reserve + wateringHole` invariant across every applier) |
+| `node tools/verify-pko-chain.js` | **Data layer** — 68 checks: the four chain invariants (under **both** Appetites), the six Ravenous edges, the Poacher wildcard, absence of a track check, Pool totals 110/146/183/219, Eagle `Math.ceil`, and the **Mimic** (shape + never in a standard Pool) |
+| `node tools/verify-pko-loop.js` | **Turn loop** — 132 checks: Stake / Challenge / Stampede / Retreat, slot-order legality, the Poacher-as-Mark, the response-window reset, Encounter end + the late-ACTION guard, Clash end on all three play types, Match end, every host rejection path, **Small Fry** (all three modes + the unranked-only and cross-track edge cases), **joint-winner Clash resolution**, and a **card-conservation census** (`Σ hoards + marks + reserve + wateringHole` invariant across every applier) |
+| `node tools/verify-pko-events.js` | **Force of Nature** — 143 checks: the registry's shape, the draw gate (an ineligible event is never selected), Extinction's once-per-Clash gate, the Great Reversal as an involution composing with Appetite, the track locks through `pkoAnswers`, the Leader pass, all three mutating events, the **Mimic** (raw-vs-resolved removal, Swarm/Stake/Stampede padding, Small Fry ignoring it), Invasive Mimicry's deal, **Alpha** (board growth, Swarm growing it by 2, Stampede clearing it) and **Carrion** (spoils, partial keep, race guard, never on a hand-emptying Challenge, never from a Stake or Stampede) |
 
-**Known blind spot:** the loop tool runs in `'single'` mode, where `pkoMyHoard` is an *alias* of `pkoHoards[0]`, so per-device mirror bugs are invisible to it by construction — BUG-02 passed 75 green checks. It verifies the **rules engine**, not per-device view sync; that still needs three devices. See impl-notes TG-07.
+**Known blind spot:** the loop **and events** tools both run in `'single'` mode, where `pkoMyHoard` is an *alias* of `pkoHoards[0]`, so per-device mirror bugs are invisible to them by construction — BUG-02 passed 75 green checks. They verify the **rules engine**, not per-device view sync; that still needs three devices. This is why the three `pkoSyncAllHands()` senders and the Mimic's raw-vs-resolved removal cannot be proven here — the protection is the *shape* of the call, not a test. See impl-notes TG-07.
 
-Both evaluate the real `js/games/pko.js` in a Node `vm` sandbox — they re-implement no rules and so cannot drift from shipped code. **Re-run both after any change to the appliers, the chain, or the balance numbers.** The loop tool works because the host appliers take an explicit `playerIdx` and skip every broadcast in `'single'` mode, letting one process play all N seats; preserve that property.
+All three evaluate the real `js/games/pko.js` in a Node `vm` sandbox — they re-implement no rules and so cannot drift from shipped code. **Re-run all three after any change to the appliers, the chain, the balance numbers or the event rules.** They work because the host appliers take an explicit `playerIdx` and skip every broadcast in `'single'` mode, letting one process play all N seats; preserve that property. Note the `vm` gotcha: `let` **and `const`** create lexical bindings, not properties on the context object, so state and consts (`PKO_EVENTS`) are reachable only through each tool's appended bridge — only `function` declarations land on the sandbox directly.
