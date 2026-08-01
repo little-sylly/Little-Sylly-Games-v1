@@ -20,6 +20,8 @@
 // Depends on: nothing. Loaded before every game plugin.
 // Read by: pkoRenderCard, frtRenderCard, shpRenderCard, flwRenderCard,
 //          Cards.buildEl/buildBackEl, dybDieHTML/dybDieBackHTML.
+//          dybDieHTML additionally reads assetSpecial/assetSpecialFrame — the
+//          `specials` block, for faces that carry a type as well as a value.
 // Written by: secret-mode.js (sets window.activeAssetPack when a skin launches).
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -101,4 +103,42 @@ function assetExtra(kind, key) {
   const core = window.coreArt[kind];
   if (core) return artResolve(`data/art/${core.id}/`, core.assets, core.assets.extras && core.assets.extras[key]);
   return null;
+}
+
+// The image for a MODIFIED face — a face that carries a type on top of its value.
+// First user: DYB's Tempest dice (loaded / phantom / slick / cracked / snake).
+// `id` is a face value, or the reserved string 'blank' for a variant that shows no
+// face at all (a concealed phantom, a cracked die).
+// Same skin → core → null chain as assetFace, resolved per key, so a partial
+// specials block falls through rather than falling off.
+function assetSpecial(kind, type, id) {
+  const skin = artSkin(kind);
+  if (skin) {
+    const t = skin.assets.specials && skin.assets.specials[type];
+    const url = t && artResolve(`data/packs/${skin.id}/`, skin.assets, t[id]);
+    if (url) return url;
+  }
+  const core = window.coreArt[kind];
+  if (core) {
+    const t = core.assets.specials && core.assets.specials[type];
+    if (t) return artResolve(`data/art/${core.id}/`, core.assets, t[id]);
+  }
+  return null;
+}
+
+// Whether the engine draws its own type chrome (border + tint + glow) around that
+// art. False only where a tier explicitly opts out with "frame": false — a pack
+// author taking responsibility for keeping the type legible themselves.
+function assetSpecialFrame(kind, type) {
+  const skin = artSkin(kind);
+  if (skin) {
+    const t = skin.assets.specials && skin.assets.specials[type];
+    if (t && typeof t.frame === 'boolean') return t.frame;
+  }
+  const core = window.coreArt[kind];
+  if (core) {
+    const t = core.assets.specials && core.assets.specials[type];
+    if (t && typeof t.frame === 'boolean') return t.frame;
+  }
+  return true;
 }

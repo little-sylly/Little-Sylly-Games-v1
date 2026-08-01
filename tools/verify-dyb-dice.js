@@ -63,7 +63,7 @@ function load(rel) {
 load('js/lib/art.js');
 load('js/games/dyb.js');
 
-for (const fn of ['assetFace', 'dybDieHTML']) {
+for (const fn of ['assetFace', 'dybDieHTML', 'assetSpecial', 'assetSpecialFrame']) {
   if (typeof sandbox[fn] !== 'function') {
     console.error(`FATAL: ${fn} is not defined after load — the harness cannot run.`);
     process.exit(1);
@@ -80,6 +80,28 @@ const FACES = {
   kind: 'dyb', basePath: 'img/',
   faces: { '1': '1.svg', '2': '2.svg', '3': '3.svg', '4': '4.svg', '5': '5.svg', '6': '6.svg' },
   back: 'back.svg',
+};
+
+// A skin that also covers special dice. Deliberately partial: loaded has 3 but
+// not 4, snake opts out of the engine frame, phantom has `blank` but no faces.
+const FACES_PLUS_SPECIALS = {
+  kind: 'dyb', basePath: 'img/',
+  faces: { '1': '1.svg', '2': '2.svg', '3': '3.svg', '4': '4.svg', '5': '5.svg', '6': '6.svg' },
+  back: 'back.svg',
+  specials: {
+    loaded:  { '3': 'l3.svg' },
+    snake:   { '2': 's2.svg', frame: false },
+    slick:   { '5': 'k5.svg' },
+    phantom: { blank: 'ghost.svg' },
+    cracked: { blank: 'broken.svg' },
+  },
+};
+
+// A core-art tier used to prove per-key fallthrough from the skin.
+const CORE_SPECIALS = {
+  kind: 'dyb', basePath: 'img/',
+  faces: { '4': 'core4.svg' },
+  specials: { loaded: { '4': 'coreL4.svg' } },
 };
 
 // ── Tiny assertion harness ────────────────────────────────────────────────
@@ -169,6 +191,36 @@ check('dieIdx -1 emits the bare prefix dyb.js:1025 string-replaces on',
   dybDieHTML(4, 'standard', -1, true, -1).startsWith('<div class="dyb-die '), true);
 check('dybDieHTMLSm injects the sm class via that same prefix',
   hasClass(sandbox.dybDieHTMLSm(4), 'dyb-die-sm'), true);
+
+section('Resolver — assetSpecial / assetSpecialFrame');
+const { assetSpecial, assetSpecialFrame } = sandbox;
+
+noArt();
+check('no tiers → null', assetSpecial('dyb', 'loaded', 3), null);
+check('no tiers → frame defaults true', assetSpecialFrame('dyb', 'loaded'), true);
+
+setSkin(FACES);
+check('skin without a specials block → null', assetSpecial('dyb', 'loaded', 3), null);
+check('skin without a specials block → frame true', assetSpecialFrame('dyb', 'loaded'), true);
+
+setSkin(FACES_PLUS_SPECIALS);
+check('skin covers loaded 3', assetSpecial('dyb', 'loaded', 3), 'data/packs/testskin/img/l3.svg');
+check('skin does not cover loaded 4', assetSpecial('dyb', 'loaded', 4), null);
+check('skin covers the blank key', assetSpecial('dyb', 'phantom', 'blank'), 'data/packs/testskin/img/ghost.svg');
+check('unknown type → null', assetSpecial('dyb', 'nosuchtype', 3), null);
+check('"frame" is not addressable as an id', assetSpecial('dyb', 'snake', 'frame'), null);
+check('frame defaults true when unset', assetSpecialFrame('dyb', 'loaded'), true);
+check('frame false when the type opts out', assetSpecialFrame('dyb', 'snake'), false);
+check('opt-out does not leak to other types', assetSpecialFrame('dyb', 'slick'), true);
+
+setSkin(FACES_PLUS_SPECIALS); setCore(CORE_SPECIALS);
+check('skin wins over core for a covered key', assetSpecial('dyb', 'loaded', 3), 'data/packs/testskin/img/l3.svg');
+check('per-key fallthrough to core for an uncovered key', assetSpecial('dyb', 'loaded', 4), 'data/art/dyb/img/coreL4.svg');
+
+setSkin(null); setCore(CORE_SPECIALS);
+check('core tier alone resolves', assetSpecial('dyb', 'loaded', 4), 'data/art/dyb/img/coreL4.svg');
+check('core tier, uncovered key → null', assetSpecial('dyb', 'snake', 4), null);
+check('wrong kind → null', assetSpecial('frt', 'loaded', 4), null);
 
 // ── Result ────────────────────────────────────────────────────────────────
 console.log(`\n${failures === 0 ? 'ALL CHECKS PASSED' : `${failures} CHECK(S) FAILED`}`);
