@@ -3,7 +3,10 @@
 **Date:** 1 August 2026
 **Game:** The Bluff (`dyb`), game 10
 **Type:** Shared asset-pack schema extension + DYB render-seam rework
-**Closes:** the `deferred-work.md` item "DYB special dice keep pips so the type stays legible"
+**Closes:** the standing caveat in `docs/expansion-guide.md`'s `faces` cheat-sheet — "**standard
+dice only** — special Tempest dice keep their pip styling so the type stays legible". (Checked:
+this limitation is *not* recorded in `docs/deferred-work.md`; the cheat-sheet row is its only
+home.)
 
 ---
 
@@ -313,7 +316,8 @@ required, which also keeps this clear of the known `index.html` UTF-8 mojibake h
 4. `docs/implementation-notes/dyb-implementation-notes.md` — design decisions: why the frame is
    engine-owned, why the opt-out is provenance-gated, why unassigned Slick stays a glyph
 5. `docs/decision-log.md` — one line: shared asset manifest gains `specials` (architectural)
-6. `docs/deferred-work.md` — close the DYB special-dice item
+6. `docs/deferred-work.md` — nothing to close (the limitation was never logged there; verify with
+   a grep and, if an entry has since appeared, mark it Closed rather than deleting it)
 7. `CLAUDE.md` — SW version, current focus, and the stale `neon-dice` reference (§ 8)
 
 ## 11. Decisions taken
