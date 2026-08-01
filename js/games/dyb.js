@@ -114,6 +114,12 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-dyb-quit-confirm').addEventListener('click', () => {
     playExit();
     document.getElementById('dyb-quit-overlay').style.display = 'none';
+    // MDLM quit contract (PASS pattern): a client leaving mid-game must tell the host,
+    // which dissolves the match for every remaining device — resetToLobby() alone only
+    // tears down THIS device's view.
+    if (window.syllyMultiplayerMode === 'client') {
+      mpSendEnvelope({ type: 'ACTION', payload: { action: 'DYB_PLAYER_LEFT', playerIdx: mpMyPlayerIdx } });
+    }
     resetToLobby();
   });
   document.getElementById('btn-dyb-quit-cancel').addEventListener('click', () => {
@@ -1016,7 +1022,7 @@ function dybRenderAllHandsOnShowdown() {
     const diceHtml = roll.map((val, j) => {
       const type = types[j] || 'standard';
       // dieIdx=-1 = reveal mode; pass phantom secondary for compound unmask
-      return dybDieHTML(val, type, slicks[j] !== undefined ? slicks[j] : -1, true, -1, true, phantoms[j] || null)
+      return dybDieHTML(val, type, slicks[j] !== undefined ? slicks[j] : -1, -1, true, phantoms[j] || null)
         .replace('<div class="dyb-die ', `<div data-p="${i}" data-d="${j}" class="dyb-die dyb-die-dim `);
     }).join('');
     container.innerHTML += `
@@ -1132,7 +1138,7 @@ function dybShowGameover(data) {
         for (let f = 1; f <= 6; f++) {
           if ((freq[f] || 0) > bestCount) { bestCount = freq[f]; bestFace = f; }
         }
-        const miniPips = dybDieHTML(bestFace, 'standard', -1, true);
+        const miniPips = dybDieHTML(bestFace, 'standard', -1);
         luckyFaceHtml = `<div class="flex justify-center items-center"><div class="scale-75 origin-center">${miniPips}</div></div>`;
       } else {
         luckyFaceHtml = `<div></div>`;
@@ -1210,7 +1216,7 @@ function dybRenderSpiritBoard(allRolls, allSpecialTypes, activePlayers, playerNa
     const name  = playerNames[i] || ('P' + (i + 1));
     const roll  = allRolls[i] || [];
     const types = allSpecialTypes[i] || [];
-    const diceHtml = roll.map((val, j) => dybDieHTML(val, types[j] || 'standard', -1, true, -2)).join('');
+    const diceHtml = roll.map((val, j) => dybDieHTML(val, types[j] || 'standard', -1, -2)).join('');
     const remaining = dybFootholdsMode && lives ? `${lives[i]} foothold${lives[i] === 1 ? '' : 's'} left` : `${diceInHand[i]} left`;
     grid.innerHTML += `
       <div id="dyb-spirit-row-${i}" class="bg-white rounded-2xl p-3 shadow-sm">
@@ -1341,7 +1347,7 @@ function dybRenderHandDock(containerId) {
     const type     = dybSpecialTypes[i]  || 'standard';
     const slick    = dybSlickFaces[i]    !== undefined ? dybSlickFaces[i] : -1;
     const assigned = dybSlickAssigned[i] || false;
-    return dybDieHTML(val, type, slick, true, i, assigned); // always visible — MDLM, own device
+    return dybDieHTML(val, type, slick, i, assigned); // always visible — MDLM, own device
   }).join('');
 
   // Sylly Mode: long-press any special die for info; tap Slick to assign face.
@@ -1381,7 +1387,7 @@ const DYB_PIP_LAYOUTS = { 1:[5], 2:[3,7], 3:[3,5,7], 4:[1,3,7,9], 5:[1,3,5,7,9],
 // dieIdx >= 0 : owner's live hand (phantom shows ?)
 // dieIdx === -1: showdown reveal (phantom unmasked — compound type shown with ring)
 // dieIdx === -2: spectator view — Spirit Board (phantom shows ?)
-function dybDieHTML(val, type, slickFace, visible, dieIdx = -1, isSlickAssigned = true, phantomSecondary = null) {
+function dybDieHTML(val, type, slickFace, dieIdx = -1, isSlickAssigned = true, phantomSecondary = null) {
   const idAttr = dieIdx >= 0 ? ` id="dyb-die-${dieIdx}"` : '';
 
   let borderCls = 'border-stone-200';
@@ -1480,10 +1486,10 @@ function dybDieHTML(val, type, slickFace, visible, dieIdx = -1, isSlickAssigned 
 }
 
 function dybDieHTMLSm(face) {
-  return dybDieHTML(face, 'standard', -1, true).replace('class="dyb-die ', 'class="dyb-die dyb-die-sm ');
+  return dybDieHTML(face, 'standard', -1).replace('class="dyb-die ', 'class="dyb-die dyb-die-sm ');
 }
 function dybDieHTMLXs(face) {
-  return dybDieHTML(face, 'standard', -1, true).replace('class="dyb-die ', 'class="dyb-die dyb-die-xs ');
+  return dybDieHTML(face, 'standard', -1).replace('class="dyb-die ', 'class="dyb-die dyb-die-xs ');
 }
 
 // Face-down die (cup, pre-shake). Routes through the seam so an asset pack can skin the back.
@@ -1739,6 +1745,12 @@ function dybHandleEnvelope(env) {
 
       case 'DYB_GAMEOVER':
         dybShowGameover(payload);
+        break;
+
+      // A client quit mid-game; dissolve for everyone (MDLM quit contract, PASS pattern —
+      // logic-engine.md § MDLM Mid-Game Quit Contract). Host-only gate already applied above.
+      case 'DYB_PLAYER_LEFT':
+        resetToLobby(); // broadcasts HOST_END_GAME to remaining clients
         break;
     }
   }

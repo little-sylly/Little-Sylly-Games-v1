@@ -132,63 +132,62 @@ function glyphText(html) {
 }
 
 // ═══ Characterisation — today's behaviour, locked in before anything changes ═══
-// NOTE: these calls use the CURRENT 7-parameter signature
-//   dybDieHTML(val, type, slickFace, visible, dieIdx, isSlickAssigned, phantomSecondary)
-// Task 3 drops the dead `visible` parameter and updates every call below.
+// NOTE: the signature is
+//   dybDieHTML(val, type, slickFace, dieIdx, isSlickAssigned, phantomSecondary)
 
 section('Characterisation — no art pack loaded');
 noArt();
 check('standard 4 → pip grid, no image',
-  [hasClass(dybDieHTML(4, 'standard', -1, true), 'dyb-die'), imgUrl(dybDieHTML(4, 'standard', -1, true))],
+  [hasClass(dybDieHTML(4, 'standard', -1), 'dyb-die'), imgUrl(dybDieHTML(4, 'standard', -1))],
   [true, null]);
 check('standard 4 → 4 pips',
-  (dybDieHTML(4, 'standard', -1, true).match(/dyb-pip/g) || []).length, 4);
+  (dybDieHTML(4, 'standard', -1).match(/dyb-pip/g) || []).length, 4);
 check('loaded 3 → amber glow class + amber pips',
-  [hasClass(dybDieHTML(3, 'loaded', -1, true), 'dyb-die-loaded'),
-   dybDieHTML(3, 'loaded', -1, true).includes('bg-amber-700')],
+  [hasClass(dybDieHTML(3, 'loaded', -1), 'dyb-die-loaded'),
+   dybDieHTML(3, 'loaded', -1).includes('bg-amber-700')],
   [true, true]);
 check('snake 2 → snake classes',
-  [hasClass(dybDieHTML(2, 'snake', -1, true), 'dyb-die-snake'),
-   dybDieHTML(2, 'snake', -1, true).includes('dyb-pip-snake')],
+  [hasClass(dybDieHTML(2, 'snake', -1), 'dyb-die-snake'),
+   dybDieHTML(2, 'snake', -1).includes('dyb-pip-snake')],
   [true, true]);
-check('cracked → ✕ glyph', glyphText(dybDieHTML(5, 'cracked', -1, true)), '✕');
+check('cracked → ✕ glyph', glyphText(dybDieHTML(5, 'cracked', -1)), '✕');
 check('phantom in hand → ? glyph (real face never rendered)',
-  [glyphText(dybDieHTML(6, 'phantom', -1, true, 0)),
-   dybDieHTML(6, 'phantom', -1, true, 0).includes('dyb-pip')],
+  [glyphText(dybDieHTML(6, 'phantom', -1, 0)),
+   dybDieHTML(6, 'phantom', -1, 0).includes('dyb-pip')],
   ['?', false]);
 check('phantom spectator (dieIdx -2) → ? glyph',
-  glyphText(dybDieHTML(6, 'phantom', -1, true, -2)), '?');
+  glyphText(dybDieHTML(6, 'phantom', -1, -2)), '?');
 check('phantom revealed pure → indigo pips, no glyph',
-  [glyphText(dybDieHTML(6, 'phantom', -1, true, -1)),
-   dybDieHTML(6, 'phantom', -1, true, -1).includes('bg-indigo-400')],
+  [glyphText(dybDieHTML(6, 'phantom', -1, -1)),
+   dybDieHTML(6, 'phantom', -1, -1).includes('bg-indigo-400')],
   [null, true]);
 check('phantom + loaded compound → both loaded class and ring',
-  [hasClass(dybDieHTML(3, 'phantom', -1, true, -1, true, 'loaded'), 'dyb-die-loaded'),
-   hasClass(dybDieHTML(3, 'phantom', -1, true, -1, true, 'loaded'), 'dyb-die-phantom-ring')],
+  [hasClass(dybDieHTML(3, 'phantom', -1, -1, true, 'loaded'), 'dyb-die-loaded'),
+   hasClass(dybDieHTML(3, 'phantom', -1, -1, true, 'loaded'), 'dyb-die-phantom-ring')],
   [true, true]);
 check('slick unassigned → "4*" glyph + cursor-pointer',
-  [glyphText(dybDieHTML(9, 'slick', 4, true, 0, false)),
-   hasClass(dybDieHTML(9, 'slick', 4, true, 0, false), 'cursor-pointer')],
+  [glyphText(dybDieHTML(9, 'slick', 4, 0, false)),
+   hasClass(dybDieHTML(9, 'slick', 4, 0, false), 'cursor-pointer')],
   ['4*', true]);
 check('slick assigned → pips at the ASSIGNED face, not the roll',
-  (dybDieHTML(9, 'slick', 2, true, 0, true).match(/dyb-pip/g) || []).length, 2);
+  (dybDieHTML(9, 'slick', 2, 0, true).match(/dyb-pip/g) || []).length, 2);
 
 section('Characterisation — skin with faces only (the shipped seam)');
 setSkin(FACES);
 check('standard 4 → skin image, edge-to-edge asset class',
-  [imgUrl(dybDieHTML(4, 'standard', -1, true)),
-   hasClass(dybDieHTML(4, 'standard', -1, true), 'dyb-die-asset')],
+  [imgUrl(dybDieHTML(4, 'standard', -1)),
+   hasClass(dybDieHTML(4, 'standard', -1), 'dyb-die-asset')],
   ['data/packs/testskin/img/4.svg', true]);
 check('loaded 3 → still pips today (this is what the plan changes)',
-  imgUrl(dybDieHTML(3, 'loaded', -1, true)), null);
+  imgUrl(dybDieHTML(3, 'loaded', -1)), null);
 check('cup back → skin back image',
   imgUrl(sandbox.dybDieBackHTML()), 'data/packs/testskin/img/back.svg');
 
 section('Characterisation — id attribute and replace-prefix contracts');
 check('dieIdx >= 0 emits an id attribute',
-  dybDieHTML(4, 'standard', -1, true, 2).startsWith('<div id="dyb-die-2" class="dyb-die '), true);
+  dybDieHTML(4, 'standard', -1, 2).startsWith('<div id="dyb-die-2" class="dyb-die '), true);
 check('dieIdx -1 emits the bare prefix dyb.js:1025 string-replaces on',
-  dybDieHTML(4, 'standard', -1, true, -1).startsWith('<div class="dyb-die '), true);
+  dybDieHTML(4, 'standard', -1, -1).startsWith('<div class="dyb-die '), true);
 check('dybDieHTMLSm injects the sm class via that same prefix',
   hasClass(sandbox.dybDieHTMLSm(4), 'dyb-die-sm'), true);
 
