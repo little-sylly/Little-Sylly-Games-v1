@@ -330,6 +330,48 @@ check('unassigned slick keeps its live "4*" glyph and takes no art',
   [glyphText(unassigned), imgUrl(unassigned), hasClass(unassigned, 'cursor-pointer')],
   ['4*', null, true]);
 
+section('Compound phantom — secondary art, phantom keeps its ring');
+setSkin(FACES_PLUS_SPECIALS); setCore(null);
+
+const pLoaded = dybDieHTML(3, 'phantom', -1, -1, true, 'loaded');
+check('phantom+loaded resolves the LOADED art',
+  imgUrl(pLoaded), 'data/packs/testskin/img/l3.svg');
+check('phantom+loaded keeps the ring and the loaded chrome',
+  [hasClass(pLoaded, 'dyb-die-phantom-ring'), hasClass(pLoaded, 'dyb-die-loaded'),
+   hasClass(pLoaded, 'dyb-die-framed')],
+  [true, true, true]);
+
+const pSlick = dybDieHTML(9, 'phantom', 5, -1, true, 'slick');
+check('phantom+slick resolves on the ASSIGNED face, not the roll',
+  imgUrl(pSlick), 'data/packs/testskin/img/k5.svg');
+check('phantom+slick keeps the ring', hasClass(pSlick, 'dyb-die-phantom-ring'), true);
+
+const pCracked = dybDieHTML(4, 'phantom', -1, -1, true, 'cracked');
+check('phantom+cracked resolves the cracked blank image, no face leaked',
+  [imgUrl(pCracked), pCracked.includes('4.svg')],
+  ['data/packs/testskin/img/broken.svg', false]);
+check('phantom+cracked keeps the ring', hasClass(pCracked, 'dyb-die-phantom-ring'), true);
+
+// snake opted out of its frame in FACES_PLUS_SPECIALS — the ring must survive it.
+const pSnake = dybDieHTML(2, 'phantom', -1, -1, true, 'snake');
+check('phantom+snake resolves the SNAKE art', imgUrl(pSnake), 'data/packs/testskin/img/s2.svg');
+check('RING SURVIVES OPT-OUT — secondary frame:false does not suppress phantom\'s ring',
+  [hasClass(pSnake, 'dyb-die-phantom-ring'), hasClass(pSnake, 'dyb-die-framed'),
+   hasClass(pSnake, 'dyb-die-snake')],
+  [true, false, false]);
+
+section('Compound phantom — no art pack, chrome unchanged');
+noArt();
+const bareSnake = dybDieHTML(2, 'phantom', -1, -1, true, 'snake');
+check('phantom+snake with no art → snake chrome, ring, diamond pips',
+  [hasClass(bareSnake, 'dyb-die-snake'), hasClass(bareSnake, 'dyb-die-phantom-ring'),
+   bareSnake.includes('dyb-pip-snake')],
+  [true, true, true]);
+const bareCracked = dybDieHTML(4, 'phantom', -1, -1, true, 'cracked');
+check('phantom+cracked with no art → ✕ glyph plus the ring',
+  [glyphText(bareCracked), hasClass(bareCracked, 'dyb-die-phantom-ring')],
+  ['✕', true]);
+
 // ── Result ────────────────────────────────────────────────────────────────
 console.log(`\n${failures === 0 ? 'ALL CHECKS PASSED' : `${failures} CHECK(S) FAILED`}`);
 process.exit(failures === 0 ? 0 : 1);
