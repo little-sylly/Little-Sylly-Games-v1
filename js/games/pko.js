@@ -2397,9 +2397,10 @@ function pkoRenderChain(highlightId) {
 
   const mode = document.createElement('p');
   mode.className = 'text-stone-400 text-xs mb-1';
-  mode.textContent = pkoAppetite === 'ravenous'
+  const revNote = pkoEventFlag('reversal') ? ' The Great Reversal is live — the chain runs backwards.' : '';
+  mode.textContent = (pkoAppetite === 'ravenous'
     ? 'Ravenous — a predator also eats two tiers below it. Plus: two of a Mark’s own kind Swarm it.'
-    : 'Sated — you only ever eat your direct prey. Plus: two of a Mark’s own kind Swarm it.';
+    : 'Sated — you only ever eat your direct prey. Plus: two of a Mark’s own kind Swarm it.') + revNote;
   body.appendChild(mode);
 
   Object.values(pkoChain).forEach(e => {
@@ -2416,10 +2417,12 @@ function pkoRenderChain(highlightId) {
     const b = document.createElement('p');
     b.className = 'text-stone-500 text-xs';
     const preds = [...(pkoPredators(e.id) || [])];
-    b.textContent = preds.length
-      ? 'Beaten by ' + preds.map(pkoCardName).join(', ')
-      : (e.id === PKO_POACHER_ID ? 'Answers to no one. Wins any one Mark outright.'
-                                 : 'Nothing in the chain beats it. Only a Poacher — or a Swarm.');
+    b.textContent = e.id === PKO_MIMIC_ID
+      ? 'Copies whatever it’s played with. Never alone, never a Poacher, and it never becomes a Mark.'
+      : preds.length
+        ? 'Beaten by ' + preds.map(pkoCardName).join(', ')
+        : (e.id === PKO_POACHER_ID ? 'Answers to no one. Wins any one Mark outright.'
+                                   : 'Nothing in the chain beats it. Only a Poacher — or a Swarm.');
     txt.append(n, b);
     row.appendChild(txt);
     body.appendChild(row);
