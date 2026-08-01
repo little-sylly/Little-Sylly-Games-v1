@@ -1394,13 +1394,21 @@ function dybDieHTML(val, type, slickFace, dieIdx = -1, isSlickAssigned = true, p
   let bgCls     = 'bg-stone-50';
   let pipCls    = 'bg-stone-700';
   let extraCls  = '';
+  let ringCls   = ''; // phantom's additive ring — held OUT of extraCls so a secondary
+                      // type's "frame": false can never suppress phantom's own identity
   let textLabel  = null;
   let textStyle  = 'text-stone-500 font-bold text-base';
+
+  // Which `specials` entry this die wants, if any.
+  // artKey is a face value, or 'blank' for a die that shows no face at all.
+  let artType = null;
+  let artKey  = null;
 
   switch (type) {
     case 'loaded':
       extraCls = 'dyb-die-loaded'; // amber glow breathing pulse via CSS compound class
       pipCls   = 'bg-amber-700';
+      artType  = 'loaded'; artKey = val;
       break;
     case 'phantom':
       extraCls = 'dyb-die-phantom'; // purple tint + lavender border via CSS compound class
@@ -1408,29 +1416,35 @@ function dybDieHTML(val, type, slickFace, dieIdx = -1, isSlickAssigned = true, p
         // Owner's live hand OR spectator view — face stays hidden
         textLabel = '?';
         textStyle = 'dyb-phantom-glyph'; // indigo ? with glow text-shadow
+        artType   = 'phantom'; artKey = 'blank';
       } else {
         // Showdown reveal — unmask: pure phantom shows real face; compound shows secondary type with ring
         if (!phantomSecondary) {
-          pipCls = 'bg-indigo-400'; // pure phantom — indigo pips
+          pipCls  = 'bg-indigo-400'; // pure phantom — indigo pips
+          artType = 'phantom'; artKey = val;
         } else if (phantomSecondary === 'loaded') {
-          extraCls = 'dyb-die-loaded dyb-die-phantom-ring'; // amber glow + indigo ring
+          extraCls = 'dyb-die-loaded'; ringCls = 'dyb-die-phantom-ring'; // amber glow + indigo ring
           pipCls   = 'bg-amber-700';
+          artType  = 'loaded'; artKey = val;
         } else if (phantomSecondary === 'snake') {
-          extraCls = 'dyb-die-snake dyb-die-phantom-ring'; // dark green + indigo ring
+          extraCls = 'dyb-die-snake'; ringCls = 'dyb-die-phantom-ring'; // dark green + indigo ring
           pipCls   = 'dyb-pip-snake';
+          artType  = 'snake'; artKey = val;
         } else if (phantomSecondary === 'cracked') {
-          extraCls  = 'dyb-die-phantom-ring'; // indigo ring only; cracked styling below
+          ringCls   = 'dyb-die-phantom-ring'; // indigo ring only; cracked styling below
           bgCls     = 'bg-stone-100';
           borderCls = 'border-stone-200';
           textLabel = '✕';
           textStyle = 'text-stone-300 font-bold text-xl';
+          artType   = 'cracked'; artKey = 'blank';
         } else if (phantomSecondary === 'slick') {
-          extraCls  = 'dyb-die-phantom-ring'; // indigo ring + cyan styling
+          ringCls   = 'dyb-die-phantom-ring'; // indigo ring + cyan styling
           borderCls = 'border-cyan-400';
           bgCls     = 'bg-cyan-50';
           pipCls    = 'bg-cyan-600';
           // Use locked slick face (assigned at generation time)
           if (slickFace > 0) val = slickFace;
+          artType   = 'slick'; artKey = val;
         }
       }
       break;
@@ -1438,14 +1452,17 @@ function dybDieHTML(val, type, slickFace, dieIdx = -1, isSlickAssigned = true, p
       borderCls = 'border-cyan-400';
       bgCls     = 'bg-cyan-50';
       if (!isSlickAssigned) {
-        // Pre-assignment: show auto-rolled face as X* with cyan text (tappable)
+        // Pre-assignment: show auto-rolled face as X* with cyan text (tappable).
+        // Deliberately NOT skinnable — the digit is live information the player
+        // needs in order to choose, not decoration.
         extraCls  = 'cursor-pointer';
         textLabel = `${slickFace > 0 ? slickFace : '?'}*`;
         textStyle = 'text-cyan-600 font-bold text-sm';
       } else if (slickFace > 0) {
-        // Committed — show assigned face via pip grid
-        val    = slickFace;
-        pipCls = 'bg-cyan-600';
+        // Committed — show assigned face
+        val     = slickFace;
+        pipCls  = 'bg-cyan-600';
+        artType = 'slick'; artKey = val;
       } else {
         // Fallback (shouldn't occur post-redesign): unassigned with no auto-face
         textLabel = '~';
@@ -1457,24 +1474,44 @@ function dybDieHTML(val, type, slickFace, dieIdx = -1, isSlickAssigned = true, p
       borderCls = 'border-stone-200';
       textLabel = '✕';
       textStyle = 'text-stone-300 font-bold text-xl'; // muted cross signals zero value
+      artType   = 'cracked'; artKey = 'blank';
       break;
     case 'snake':
       extraCls = 'dyb-die-snake'; // sinister dark green; overrides default border/bg via specificity
       pipCls   = 'dyb-pip-snake'; // dark green diamond pip
+      artType  = 'snake'; artKey = val;
       break;
   }
 
-  if (textLabel !== null) {
-    return `<div${idAttr} class="dyb-die ${borderCls} ${bgCls} ${extraCls} select-none" style="display:flex;align-items:center;justify-content:center;padding:0;"><span class="${textStyle}">${textLabel}</span></div>`;
+  // ── Asset seam ────────────────────────────────────────────────────────────
+  // Standard faces keep the shipped edge-to-edge look. A SPECIAL die draws the
+  // pack's art inside the engine's type frame, so the type stays legible under
+  // any skin — unless the pack opts that type out, and then only for a die whose
+  // special art actually resolved (otherwise a missing face silently ships an
+  // unmarked die). A 'blank' key NEVER falls back to assetFace: for a concealed
+  // phantom that would render its real value and leak it.
+  let url = null, framed = false;
+  if (artType) {
+    const special = (typeof assetSpecial === 'function') && assetSpecial('dyb', artType, artKey);
+    if (special) {
+      url    = special;
+      framed = !((typeof assetSpecialFrame === 'function') && assetSpecialFrame('dyb', artType) === false);
+    } else if (artKey !== 'blank') {
+      url    = (typeof assetFace === 'function') && assetFace('dyb', artKey);
+      framed = !!url;
+    }
+  } else if (type === 'standard') {
+    url = (typeof assetFace === 'function') && assetFace('dyb', val);
   }
 
-  // Asset-pack standard die face (device-local skin). Only standard faces are skinned —
-  // special dice (loaded/slick/snake/phantom) keep pip styling so the die type stays legible.
-  if (type === 'standard') {
-    const url = (typeof assetFace === 'function') && assetFace('dyb', val);
-    if (url) {
-      return `<div${idAttr} class="dyb-die dyb-die-asset select-none" style="background-image:url('${url}')"></div>`;
-    }
+  if (url) {
+    return framed
+      ? `<div${idAttr} class="dyb-die ${borderCls} ${bgCls} ${extraCls} ${ringCls} dyb-die-framed select-none"><span class="dyb-die-art" style="background-image:url('${url}')"></span></div>`
+      : `<div${idAttr} class="dyb-die dyb-die-asset ${ringCls} select-none" style="background-image:url('${url}')"></div>`;
+  }
+
+  if (textLabel !== null) {
+    return `<div${idAttr} class="dyb-die ${borderCls} ${bgCls} ${extraCls} ${ringCls} select-none" style="display:flex;align-items:center;justify-content:center;padding:0;"><span class="${textStyle}">${textLabel}</span></div>`;
   }
 
   const pips = DYB_PIP_LAYOUTS[val] || [];
@@ -1482,7 +1519,7 @@ function dybDieHTML(val, type, slickFace, dieIdx = -1, isSlickAssigned = true, p
   for (let i = 1; i <= 9; i++) {
     cells += pips.includes(i) ? `<span class="dyb-pip ${pipCls}"></span>` : '<span></span>';
   }
-  return `<div${idAttr} class="dyb-die ${borderCls} ${bgCls} ${extraCls} select-none">${cells}</div>`;
+  return `<div${idAttr} class="dyb-die ${borderCls} ${bgCls} ${extraCls} ${ringCls} select-none">${cells}</div>`;
 }
 
 function dybDieHTMLSm(face) {

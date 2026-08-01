@@ -178,8 +178,9 @@ check('standard 4 → skin image, edge-to-edge asset class',
   [imgUrl(dybDieHTML(4, 'standard', -1)),
    hasClass(dybDieHTML(4, 'standard', -1), 'dyb-die-asset')],
   ['data/packs/testskin/img/4.svg', true]);
-check('loaded 3 → still pips today (this is what the plan changes)',
-  imgUrl(dybDieHTML(3, 'loaded', -1)), null);
+check('loaded 3, skin has standard faces only → falls back to STANDARD face art, framed',
+  [imgUrl(dybDieHTML(3, 'loaded', -1)), hasClass(dybDieHTML(3, 'loaded', -1), 'dyb-die-framed')],
+  ['data/packs/testskin/img/3.svg', true]);
 check('cup back → skin back image',
   imgUrl(sandbox.dybDieBackHTML()), 'data/packs/testskin/img/back.svg');
 
@@ -220,6 +221,63 @@ setSkin(null); setCore(CORE_SPECIALS);
 check('core tier alone resolves', assetSpecial('dyb', 'loaded', 4), 'data/art/dyb/img/coreL4.svg');
 check('core tier, uncovered key → null', assetSpecial('dyb', 'snake', 4), null);
 check('wrong kind → null', assetSpecial('frt', 'loaded', 4), null);
+
+section('Seam — special faces draw pack art inside the engine frame');
+setSkin(FACES_PLUS_SPECIALS); setCore(null);
+
+const loaded3 = dybDieHTML(3, 'loaded', -1);
+check('loaded 3, skin covers it → framed art, not pips',
+  [imgUrl(loaded3), hasClass(loaded3, 'dyb-die-framed'), loaded3.includes('dyb-pip')],
+  ['data/packs/testskin/img/l3.svg', true, false]);
+check('loaded 3 keeps its amber type class', hasClass(loaded3, 'dyb-die-loaded'), true);
+check('framed art lives in an inner span', loaded3.includes('<span class="dyb-die-art"'), true);
+check('framed dice never use the edge-to-edge asset class',
+  hasClass(loaded3, 'dyb-die-asset'), false);
+
+const loaded4 = dybDieHTML(4, 'loaded', -1);
+check('loaded 4, skin lacks it → falls back to the STANDARD face art',
+  imgUrl(loaded4), 'data/packs/testskin/img/4.svg');
+check('...and is still framed, so the type stays legible',
+  [hasClass(loaded4, 'dyb-die-framed'), hasClass(loaded4, 'dyb-die-loaded')],
+  [true, true]);
+
+const snake2 = dybDieHTML(2, 'snake', -1);
+check('snake opted out of the frame → edge-to-edge asset class',
+  [imgUrl(snake2), hasClass(snake2, 'dyb-die-asset'), hasClass(snake2, 'dyb-die-framed')],
+  ['data/packs/testskin/img/s2.svg', true, false]);
+check('opted-out die drops the engine type chrome',
+  hasClass(snake2, 'dyb-die-snake'), false);
+
+const snake5 = dybDieHTML(5, 'snake', -1);
+check('SAFETY RULE — opt-out + uncovered face → frame draws anyway',
+  [imgUrl(snake5), hasClass(snake5, 'dyb-die-framed'), hasClass(snake5, 'dyb-die-snake')],
+  ['data/packs/testskin/img/5.svg', true, true]);
+
+const slick5 = dybDieHTML(9, 'slick', 5, 0, true);
+check('assigned slick resolves on the ASSIGNED face, not the roll',
+  imgUrl(slick5), 'data/packs/testskin/img/k5.svg');
+
+const phantomRevealed = dybDieHTML(1, 'phantom', -1, -1);
+check('revealed pure phantom falls back to the standard face, framed',
+  [imgUrl(phantomRevealed), hasClass(phantomRevealed, 'dyb-die-framed')],
+  ['data/packs/testskin/img/1.svg', true]);
+
+section('Seam — standard faces and the cup back are unchanged');
+check('standard 4 still edge-to-edge, never framed',
+  [hasClass(dybDieHTML(4, 'standard', -1), 'dyb-die-asset'),
+   hasClass(dybDieHTML(4, 'standard', -1), 'dyb-die-framed')],
+  [true, false]);
+check('cup back still edge-to-edge',
+  [imgUrl(sandbox.dybDieBackHTML()), hasClass(sandbox.dybDieBackHTML(), 'dyb-die-asset')],
+  ['data/packs/testskin/img/back.svg', true]);
+
+section('Seam — a pack with no art at all still renders pips');
+noArt();
+check('loaded 3 with no tiers → pips, amber, no image',
+  [imgUrl(dybDieHTML(3, 'loaded', -1)),
+   dybDieHTML(3, 'loaded', -1).includes('bg-amber-700'),
+   hasClass(dybDieHTML(3, 'loaded', -1), 'dyb-die-framed')],
+  [null, true, false]);
 
 // ── Result ────────────────────────────────────────────────────────────────
 console.log(`\n${failures === 0 ? 'ALL CHECKS PASSED' : `${failures} CHECK(S) FAILED`}`);
