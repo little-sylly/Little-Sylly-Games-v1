@@ -118,7 +118,45 @@ function apLoop(now) {
   if (!apRafHandle) apRafHandle = requestAnimationFrame(apLoop);
 }
 
+// ── Difficulty — both curves are clamped so it gets harder, never impossible.
+// At +10/car: score 100 => ~780 ms spawns; score 500 => the 280 ms floor.
+function apSpawnInterval() { return Math.max(280, 900 - apScore * 1.2); }
+function apCarSpeed()      { return 70 + Math.min(90, apScore * 0.35); }
+
+function apSpawnCar() {
+  apCars.push({
+    x: 8 + Math.random() * (AP_W - 44),
+    y: -50,
+    w: 28,
+    h: 44,
+    speed: apCarSpeed() * (0.85 + Math.random() * 0.4),
+    colour: AP_CAR_COLOURS[Math.floor(Math.random() * AP_CAR_COLOURS.length)],
+  });
+}
+
+// Axis-Aligned Bounding Box overlap. apPlayer.x is a CENTRE; cars and bullets
+// use a top-left origin, so the player is converted before comparing.
+function apAABB(a, b) {
+  return a.x < b.x + b.w && a.x + a.w > b.x &&
+         a.y < b.y + b.h && a.y + a.h > b.y;
+}
+
+function apPlayerBox() {
+  return { x: apPlayer.x - apPlayer.w / 2, y: apPlayer.y - apPlayer.h / 2,
+           w: apPlayer.w, h: apPlayer.h };
+}
+
+function apBurst(x, y, colour) {
+  for (let i = 0; i < 12; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const s = 40 + Math.random() * 120;
+    apParts.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s,
+                   life: 0.45 + Math.random() * 0.25, max: 0.7, colour });
+  }
+}
+
 function apUpdate(dt) {
+  // Player
   const keyDir = (apKeys.right ? 1 : 0) - (apKeys.left ? 1 : 0);
   const dir    = keyDir !== 0 ? keyDir : apDir;
   apPlayer.x  += dir * AP_PLAYER_SPEED * dt;
@@ -126,6 +164,61 @@ function apUpdate(dt) {
   apPlayer.x   = Math.max(half, Math.min(AP_W - half, apPlayer.x));
   if (apShake  > 0) apShake  = Math.max(0, apShake - dt);
   if (apInvuln > 0) apInvuln = Math.max(0, apInvuln - dt * 1000);
+
+  // Auto-fire — nothing to press.
+  apFireT += dt * 1000;
+  if (apFireT >= AP_FIRE_MS) {
+    apFireT = 0;
+    apBullets.push({ x: apPlayer.x - 2, y: apPlayer.y - 18, w: 4, h: 11 });
+  }
+  apBullets.forEach(b => { b.y -= AP_BULLET_SPEED * dt; });
+  apBullets = apBullets.filter(b => b.y + b.h > 0);
+
+  // Spawning
+  apSpawnT += dt * 1000;
+  if (apSpawnT >= apSpawnInterval()) { apSpawnT = 0; apSpawnCar(); }
+  apCars.forEach(c => { c.y += c.speed * dt; });
+  apCars = apCars.filter(c => c.y < AP_H + 60);
+
+  // Dart hits car
+  for (let i = apCars.length - 1; i >= 0; i--) {
+    const car = apCars[i];
+    for (let j = apBullets.length - 1; j >= 0; j--) {
+      if (!apAABB(apBullets[j], car)) continue;
+      apBurst(car.x + car.w / 2, car.y + car.h / 2, car.colour);
+      AP_SOUND.explode();
+      apCars.splice(i, 1);
+      apBullets.splice(j, 1);
+      apScore += 10;
+      break;
+    }
+  }
+
+  // Car hits player
+  if (apInvuln <= 0) {
+    const box = apPlayerBox();
+    for (let i = apCars.length - 1; i >= 0; i--) {
+      if (!apAABB(box, apCars[i])) continue;
+      apBurst(apCars[i].x + apCars[i].w / 2, apCars[i].y + apCars[i].h / 2, apCars[i].colour);
+      apCars.splice(i, 1);
+      apLives -= 1;
+      apShake  = 0.35;
+      apInvuln = AP_INVULN_MS;
+      AP_SOUND.hit();
+      if (apLives <= 0) { AP_SOUND.gameOver(); apEndRun(); return; }
+      break;
+    }
+  }
+
+  // Particles
+  apParts.forEach(p => { p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt; });
+  apParts = apParts.filter(p => p.life > 0);
+}
+
+// Placeholder until Task 6 adds the leaderboard. Task 6 replaces this whole
+// function — do not build on it.
+function apEndRun() {
+  apEnterState('attract');
 }
 
 function apDraw(dt) {
@@ -146,12 +239,40 @@ function apDraw(dt) {
   });
 
   if (apState === 'playing') {
+    apCars.forEach(apDrawCar);
+    apCtx.fillStyle = '#FDE68A';
+    apBullets.forEach(b => apCtx.fillRect(b.x, b.y, b.w, b.h));
     apDrawGlider(apPlayer.x, apPlayer.y, apInvuln > 0 && Math.floor(apInvuln / 100) % 2 === 0);
+    apParts.forEach(p => {
+      apCtx.globalAlpha = Math.max(0, p.life / p.max);
+      apCtx.fillStyle   = p.colour;
+      apCtx.fillRect(p.x - 2, p.y - 2, 4, 4);
+    });
+    apCtx.globalAlpha = 1;
     apDrawHud();
   } else if (apState === 'attract') {
     apDrawAttract();
   }
   g.restore();
+}
+
+// Top-down toy car. Deliberately generic — a coloured body, two light windows
+// and four dark tyres. No branding, no badges.
+function apDrawCar(car) {
+  const g = apCtx, x = car.x, y = car.y, w = car.w, h = car.h;
+  g.fillStyle = '#0B0B0B';
+  g.fillRect(x - 3,     y + 6,      4, 11);
+  g.fillRect(x + w - 1, y + 6,      4, 11);
+  g.fillRect(x - 3,     y + h - 17, 4, 11);
+  g.fillRect(x + w - 1, y + h - 17, 4, 11);
+  g.fillStyle = car.colour;
+  g.fillRect(x, y + 3, w, h - 6);
+  g.fillRect(x + 3, y, w - 6, h);
+  g.fillStyle = 'rgba(255,255,255,0.72)';
+  g.fillRect(x + 5, y + 8,      w - 10, 8);
+  g.fillRect(x + 5, y + h - 18, w - 10, 7);
+  g.fillStyle = 'rgba(0,0,0,0.18)';
+  g.fillRect(x + 5, y + 20, w - 10, h - 40);
 }
 
 function apDrawGlider(x, y, dim) {
