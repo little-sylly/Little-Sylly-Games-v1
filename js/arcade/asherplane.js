@@ -50,6 +50,14 @@ let apSpawnT  = 0;
 let apDir  = 0;                            // -1 left, 0 still, 1 right
 let apKeys = { left: false, right: false };
 
+// The single pointer currently allowed to steer #ap-stage — null when free.
+// apPtrSteer distinguishes a pointer that claimed the stage to steer (its
+// down happened while apState was already 'playing') from one that merely
+// tapped a menu button (its down changed apState to 'playing' itself); the
+// latter must never steer off its own down-and-hold. See Important 2/3/4.
+let apPtrId    = null;
+let apPtrSteer = false;
+
 // Session leaderboard. Deliberately NOT cleared by resetArcade() — it survives
 // trips to the lobby so two kids can compare scores across an afternoon.
 let apLeaderboard = [];
@@ -89,9 +97,11 @@ function apResetRun() {
   apParts   = [];
   apFireT   = 0;
   apSpawnT  = 0;
+  apDir     = 0;   // otherwise a PLAY tap held from the attract screen starts the run already drifting (Important 3)
 }
 
 function apLoop(now) {
+  apRafHandle = null;   // this frame's handle is spent — see Important 1 below
   if (!apLastT) apLastT = now;
   // Clamp dt so a backgrounded tab cannot teleport every entity across the
   // screen on the first frame back.
@@ -101,7 +111,11 @@ function apLoop(now) {
   if (apState === 'playing') apUpdate(dt);
   apDraw(dt);
 
-  apRafHandle = requestAnimationFrame(apLoop);
+  // apUpdate may itself call apEnterState() mid-frame (e.g. a car ends the
+  // run), which schedules its own next frame and leaves apRafHandle non-null
+  // — in that case standing down here is what stops a second apLoop chain
+  // running alongside the first (the double-speed bug).
+  if (!apRafHandle) apRafHandle = requestAnimationFrame(apLoop);
 }
 
 function apUpdate(dt) {
@@ -216,20 +230,49 @@ function apHit(r, p) {
 // steers. During play only the half of the stage matters, so a thumb never has
 // to find a button; on menu screens the tap is hit-tested against the drawn
 // button rects instead.
+//
+// Only one pointer is ever tracked at a time (apPtrId) — a second finger
+// touching the stage is ignored entirely, so it can neither steer nor stop
+// the first finger's steering by lifting (Important 2). apPtrSteer is fixed
+// at the moment a pointer is claimed, from the apState that was current
+// BEFORE this same down event might change it — a finger that taps PLAY
+// claims the stage with apPtrSteer = false, so its own held-down jitter can
+// never be read as steering once apState flips to 'playing' a line later
+// (Important 3). A claimed pointer's 'up' always zeroes apDir, whatever
+// apState is by the time it lifts (Important 4).
 function apStagePointer(e, phase) {
   const stage = document.getElementById('ap-stage');
-  if (apState === 'playing') {
-    if (phase === 'up') { apDir = 0; return; }
-    const r = stage.getBoundingClientRect();
-    apDir = e.clientX < r.left + r.width / 2 ? -1 : 1;
+
+  if (phase === 'down') {
+    if (apPtrId !== null) return;               // stage already claimed by another finger
+    apPtrId    = e.pointerId;
+    apPtrSteer = apState === 'playing';
+    if (apPtrSteer) {
+      const r = stage.getBoundingClientRect();
+      apDir = e.clientX < r.left + r.width / 2 ? -1 : 1;
+      return;
+    }
+    const p = apToLogical(e);
+    if (apState === 'attract' && apHit(AP_BTN_PLAY, p)) {
+      AP_SOUND.select();
+      apEnterState('playing');
+    }
     return;
   }
-  if (phase !== 'down') return;
-  const p = apToLogical(e);
-  if (apState === 'attract' && apHit(AP_BTN_PLAY, p)) {
-    AP_SOUND.select();
-    apEnterState('playing');
+
+  if (e.pointerId !== apPtrId) return;           // not the pointer we claimed — ignore
+
+  if (phase === 'up') {
+    apPtrId    = null;
+    apPtrSteer = false;
+    apDir      = 0;
+    return;
   }
+
+  // phase === 'move'
+  if (!apPtrSteer) return;                       // this pointer began as a menu tap — its drag never steers
+  const r = stage.getBoundingClientRect();
+  apDir = e.clientX < r.left + r.width / 2 ? -1 : 1;
 }
 
 (function apBindInput() {
@@ -269,7 +312,11 @@ function apStagePointer(e, phase) {
 })();
 
 // Fit the fixed 360x640 logical canvas into its container, preserving aspect,
-// and scale the backing store by devicePixelRatio so it stays sharp on Retina.
+// and size the backing store at (CSS scale × devicePixelRatio) so the canvas
+// renders at native resolution instead of being upscaled from a fixed
+// 360x640 buffer — on a full-size iPad `scale` alone is already ~1.9, so
+// omitting it left the canvas visibly soft. The logical coordinate space
+// every draw call uses is unaffected — it stays exactly 360x640.
 function apResize() {
   if (!apCanvas) return;
   const box   = apCanvas.parentElement;
@@ -277,16 +324,18 @@ function apResize() {
   const dpr   = Math.min(window.devicePixelRatio || 1, 2);
   apCanvas.style.width  = Math.floor(AP_W * scale) + 'px';
   apCanvas.style.height = Math.floor(AP_H * scale) + 'px';
-  apCanvas.width        = Math.floor(AP_W * dpr);
-  apCanvas.height       = Math.floor(AP_H * dpr);
-  apCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  apCanvas.width        = Math.floor(AP_W * scale * dpr);
+  apCanvas.height       = Math.floor(AP_H * scale * dpr);
+  apCtx.setTransform(scale * dpr, 0, 0, scale * dpr, 0, 0);
 }
 
 // Called from engine.js resetToLobby() via forward reference.
 function resetArcade() {
   if (apRafHandle) { cancelAnimationFrame(apRafHandle); apRafHandle = null; }
-  apState = 'attract';
-  apDir   = 0;
+  apState    = 'attract';
+  apDir      = 0;
+  apPtrId    = null;
+  apPtrSteer = false;
   apKeys.left = apKeys.right = false;
   // apLeaderboard is NOT cleared — see the declaration above.
 }
