@@ -21,15 +21,11 @@ Detail: pointer to the canonical doc (snapshot / impl note / spec / memory).
 ---
 
 ## 2026-08-03 — Arcade Mode added behind Secret Mode; cabinets are not Sylly Games
-Secret Mode gains a third content type: **arcade cabinets** — small standalone canvas
-games, listed under a new `ARCADE` category placed **first**, ahead of WORD PACKS and
-GAME SKINS. Cabinets are neither packs (they modify no host game, so they get
-`smLaunchArcade()` beside an untouched `smLaunch()`) nor Sylly Games (no MP config, no
-`game-identities.md` section, no Sylly Mode, no `new-game-checklist.md`, not the Stack).
-First cabinet: **Asherplane**, `js/arcade/asherplane.js`. A session-sticky unlock puts a
-`🕹️` tile on the lobby which routes through `smOpenArcadeMenu()` — deliberately never
-awaiting `smLoadPacks()`, so the arcade opens on a cold offline start. Spec:
-`docs/superpowers/specs/2026-08-03-arcade-asherplane-design.md`.
+**Category:** Architecture
+**Decision:** Secret Mode gains a third content type — **arcade cabinets**, small standalone canvas games listed under a new `ARCADE` category placed **first**, ahead of WORD PACKS and GAME SKINS. Cabinets are neither packs (they modify no host game, so they get `smLaunchArcade()` beside an untouched `smLaunch()`) nor Sylly Games (no MP config, no `game-identities.md` section, no Sylly Mode, no `new-game-checklist.md`, not the Stack). First cabinet: **Asherplane**, `js/arcade/asherplane.js`.
+**Why:** Secret Mode was already the backdoor for content the lobby does not advertise, and a cabinet is exactly that — but modelling one as a pack would have forced it through `smLaunch()`'s host-game plumbing, and modelling it as a Sylly Game would have dragged in the entire new-game checklist for something with no multiplayer, no settings and no shared UI. A separate content type keeps both paths honest.
+**Changed:** `js/secret-mode.js` (`SM_ARCADE`, `smLaunchArcade()`, `smOpenArcadeMenu()`, `smShowArcadeTile()`), new `js/arcade/asherplane.js`, `index.html` (arcade screen + stage), `js/engine.js` (`allScreens` entry + a `resetArcade()` forward ref in `resetToLobby()`), `sw.js` precache + `CACHE_NAME` v163. A session-sticky unlock puts a `🕹️` tile on the lobby which routes through `smOpenArcadeMenu()` — deliberately never awaiting `smLoadPacks()`, so the arcade opens on a cold offline start.
+**Detail:** `docs/superpowers/specs/2026-08-03-arcade-asherplane-design.md`.
 
 ## 2026-08-03 — Dibber Dobber's first flip is guaranteed safe, without weakening the blind commit
 **Category:** Architecture

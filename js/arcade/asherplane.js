@@ -15,6 +15,7 @@ const AP_BULLET_SPEED = 420;
 const AP_FIRE_MS      = 200;
 const AP_INVULN_MS    = 1500;
 const AP_START_LIVES  = 2;
+const AP_DYING_MS     = 700;   // the death beat — shake decays, particles fly
 const AP_CAR_COLOURS  = ['#E63946', '#FFB703', '#52B788', '#9B5DE5', '#00B4D8'];
 
 // ── Audio — one map of moments onto the existing NES-style beep. Same shape as
@@ -39,6 +40,7 @@ let apScore   = 0;
 let apLives   = AP_START_LIVES;
 let apShake   = 0;        // seconds remaining
 let apInvuln  = 0;        // ms remaining
+let apDyingT  = 0;        // ms remaining in the 'dying' state
 let apPlayer  = { x: AP_W / 2, y: AP_H - 70, w: 34, h: 30 };
 let apBullets = [];
 let apCars    = [];
@@ -94,6 +96,16 @@ function apEnterState(next) {
   apRafHandle = requestAnimationFrame(apLoop);
 }
 
+// The death beat. Deliberately NOT routed through apEnterState(): that zeroes
+// apShake and apInvuln on every transition (which is correct — it stops the
+// attract screen shaking forever), and doing so here would kill the very
+// feedback this state exists to show. It also must not cancel the RAF loop —
+// the loop is what plays the beat.
+function apEnterDying() {
+  apState  = 'dying';
+  apDyingT = AP_DYING_MS;
+}
+
 function apResetRun() {
   apScore   = 0;
   apLives   = AP_START_LIVES;
@@ -106,6 +118,7 @@ function apResetRun() {
   apFireT   = 0;
   apSpawnT  = 0;
   apDir     = 0;   // otherwise a PLAY tap held from the attract screen starts the run already drifting (Important 3)
+  apDyingT  = 0;
 }
 
 function apLoop(now) {
@@ -116,8 +129,17 @@ function apLoop(now) {
   const dt = Math.min((now - apLastT) / 1000, 0.05);
   apLastT = now;
 
-  if (apState === 'playing') apUpdate(dt);
-  apDraw(dt);
+  // The global sound overlay is fixed inset-0 at z-[110], so it covers the
+  // stage completely: a child adjusting the volume cannot steer and would
+  // otherwise lose the run behind it. Freeze rather than fight it.
+  const so     = document.getElementById('sound-overlay');
+  const paused = !!so && so.style.display !== 'none' && so.style.display !== '';
+
+  // apLastT is updated unconditionally above and dt is clamped, so no time
+  // banks up while paused — the run resumes at exactly normal speed. Passing
+  // dt 0 to apDraw also holds the star field still rather than scrolling it.
+  if (!paused && (apState === 'playing' || apState === 'dying')) apUpdate(dt);
+  apDraw(paused ? 0 : dt);
 
   // apUpdate may itself call apEnterState() mid-frame (e.g. a car ends the
   // run), which schedules its own next frame and leaves apRafHandle non-null
@@ -173,6 +195,18 @@ function apUpdate(dt) {
   if (apShake  > 0) apShake  = Math.max(0, apShake - dt);
   if (apInvuln > 0) apInvuln = Math.max(0, apInvuln - dt * 1000);
 
+  // Particles — above the 'dying' guard on purpose: the death burst is the
+  // whole point of that state, so it must keep integrating after the hit.
+  apParts.forEach(p => { p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt; });
+  apParts = apParts.filter(p => p.life > 0);
+
+  if (apState === 'dying') {
+    apDyingT -= dt * 1000;
+    if (apDyingT <= 0) apEndRun();
+    return;
+  }
+  if (apState !== 'playing') return;
+
   // Auto-fire — nothing to press.
   apFireT += dt * 1000;
   if (apFireT >= AP_FIRE_MS) {
@@ -213,14 +247,19 @@ function apUpdate(dt) {
       apShake  = 0.35;
       apInvuln = AP_INVULN_MS;
       AP_SOUND.hit();
-      if (apLives <= 0) { AP_SOUND.gameOver(); apEndRun(); return; }
+      if (apLives <= 0) {
+        // Three sounds, three beats. Fired in one frame they stacked into a
+        // chord: 110 Hz hit + 160 Hz game-over + 1046 Hz high-score all read
+        // the same ctx.currentTime. hit() has already played above; gameOver()
+        // is staggered, and apEndRun()'s highScore() now lands a further
+        // AP_DYING_MS later because the dying countdown is what calls it.
+        setTimeout(() => AP_SOUND.gameOver(), 220);
+        apEnterDying();
+        return;
+      }
       break;
     }
   }
-
-  // Particles
-  apParts.forEach(p => { p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt; });
-  apParts = apParts.filter(p => p.life > 0);
 }
 
 // ── Session leaderboard ──────────────────────────────────────────────────────
@@ -280,7 +319,7 @@ function apDraw(dt) {
     g.fillRect(s.x, s.y, 2, s.l);
   });
 
-  if (apState === 'playing') {
+  if (apState === 'playing' || apState === 'dying') {
     apCars.forEach(apDrawCar);
     apCtx.fillStyle = '#FDE68A';
     apBullets.forEach(b => apCtx.fillRect(b.x, b.y, b.w, b.h));
@@ -540,6 +579,9 @@ function apStagePointer(e, phase) {
     if (document.getElementById('screen-arcade-asherplane').style.display === 'none') return;
     if (document.hidden) {
       if (apRafHandle) { cancelAnimationFrame(apRafHandle); apRafHandle = null; }
+      // Desktop: a key held while the window blurs never delivers its keyup
+      // here, so the plane would slide forever on return.
+      apKeys.left = apKeys.right = false;
     } else if (!apRafHandle) {
       apLastT = 0;
       apRafHandle = requestAnimationFrame(apLoop);

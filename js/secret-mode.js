@@ -281,7 +281,8 @@ function smRunBootError() {
     '> LOADING EXPANSION DATABASE...',
     '> [ LOAD FAILED ] — DATABASE UNREACHABLE',
     '',
-    '> CONNECT TO NETWORK AND RE-ENTER THE CODE.',
+    '> WORD PACKS AND SKINS NEED A NETWORK. RECONNECT, THEN RE-ENTER THE CODE.',
+    '> THE ARCADE NEEDS NO NETWORK — TAP THE JOYSTICK BACK IN THE BOX.',
   ], 0, 220, null);
 }
 
@@ -904,6 +905,10 @@ document.addEventListener('keydown', e => {
   const code = SM_KEY_MAP[e.key];
   if (!code) return;
   if (document.getElementById('screen-secret-controller').style.display !== 'none') return;
+  // Asherplane's RAF loop reschedules unconditionally, so navigating away from
+  // the cabinet without tearing it down leaves it updating and painting under
+  // every later screen. The arrow keys are also its steering — see Small 3.
+  if (document.getElementById('screen-arcade-asherplane').style.display !== 'none') return;
   smKonamiBuffer.push(code);
   if (smKonamiBuffer.length > SM_KONAMI.length) smKonamiBuffer.shift();
   if (smKonamiBuffer.join('') === SM_KONAMI.join('')) {
