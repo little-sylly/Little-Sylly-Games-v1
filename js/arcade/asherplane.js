@@ -223,10 +223,44 @@ function apUpdate(dt) {
   apParts = apParts.filter(p => p.life > 0);
 }
 
-// Placeholder until Task 6 adds the leaderboard. Task 6 replaces this whole
-// function — do not build on it.
+// ── Session leaderboard ──────────────────────────────────────────────────────
+// Top 5, memory only. Survives resetToLobby() (see resetSecretMode's carve-out)
+// but not a page reload — "scores last the afternoon, not forever".
+const AP_TOP_N = 5;
+
+function apQualifies(score) {
+  if (score <= 0) return false;
+  if (apLeaderboard.length < AP_TOP_N) return true;
+  return score > apLeaderboard[apLeaderboard.length - 1].score;
+}
+
+function apSubmitScore(name, score) {
+  apLeaderboard.push({ name, score });
+  apLeaderboard.sort((a, b) => b.score - a.score);
+  apLeaderboard = apLeaderboard.slice(0, AP_TOP_N);
+}
+
+// Three tap-cycling A-Z slots. No <input> anywhere: an iOS keyboard popping up
+// over the canvas rescales the whole stage, which is the failure this avoids.
+const AP_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+let apInitials = [0, 0, 0];
+
+const AP_SLOTS = [
+  { x:  60, y: 300, w: 66, h: 84 },
+  { x: 147, y: 300, w: 66, h: 84 },
+  { x: 234, y: 300, w: 66, h: 84 },
+];
+const AP_BTN_OK    = { x: 80, y: 430, w: 200, h: 62 };
+const AP_BTN_AGAIN = { x: 60, y: 500, w: 240, h: 62 };
+
 function apEndRun() {
-  apEnterState('attract');
+  if (apQualifies(apScore)) {
+    apInitials = [0, 0, 0];
+    AP_SOUND.highScore();
+    apEnterState('nameEntry');
+  } else {
+    apEnterState('leaderboard');
+  }
 }
 
 function apDraw(dt) {
@@ -260,6 +294,10 @@ function apDraw(dt) {
     apDrawHud();
   } else if (apState === 'attract') {
     apDrawAttract();
+  } else if (apState === 'nameEntry') {
+    apDrawNameEntry();
+  } else if (apState === 'leaderboard') {
+    apDrawLeaderboard();
   }
   g.restore();
 }
@@ -327,6 +365,56 @@ function apDrawAttract() {
   apDrawButton(AP_BTN_PLAY, 'PLAY');
 }
 
+function apDrawNameEntry() {
+  const g = apCtx;
+  g.textAlign = 'center';
+  g.fillStyle = '#FDE68A';
+  g.font = 'bold 26px monospace';
+  g.fillText('NEW HIGH SCORE!', AP_W / 2, 170);
+  g.fillStyle = '#4ADE80';
+  g.font = 'bold 34px monospace';
+  g.fillText(String(apScore).padStart(6, '0'), AP_W / 2, 215);
+  g.font = '12px monospace';
+  g.fillText('TAP A LETTER TO CHANGE IT', AP_W / 2, 260);
+  AP_SLOTS.forEach((r, i) => {
+    g.strokeStyle = '#4ADE80';
+    g.lineWidth = 3;
+    g.strokeRect(r.x, r.y, r.w, r.h);
+    g.fillStyle = '#4ADE80';
+    g.font = 'bold 44px monospace';
+    g.textBaseline = 'middle';
+    g.fillText(AP_ALPHABET[apInitials[i]], r.x + r.w / 2, r.y + r.h / 2 + 2);
+    g.textBaseline = 'alphabetic';
+  });
+  apDrawButton(AP_BTN_OK, 'OK');
+}
+
+function apDrawLeaderboard() {
+  const g = apCtx;
+  g.textAlign = 'center';
+  g.fillStyle = '#4ADE80';
+  g.font = 'bold 24px monospace';
+  g.fillText('HIGH SCORES', AP_W / 2, 130);
+  g.font = '13px monospace';
+  g.fillStyle = '#94A3B8';
+  g.fillText(`THIS RUN: ${String(apScore).padStart(6, '0')}`, AP_W / 2, 158);
+  g.font = 'bold 20px monospace';
+  if (apLeaderboard.length === 0) {
+    g.fillStyle = '#334155';
+    g.font = '14px monospace';
+    g.fillText('NO SCORES YET', AP_W / 2, 250);
+  }
+  apLeaderboard.forEach((e, i) => {
+    const y = 210 + i * 38;
+    g.fillStyle = i === 0 ? '#FDE68A' : '#4ADE80';
+    g.textAlign = 'left';
+    g.fillText(`${i + 1}. ${e.name}`, 80, y);
+    g.textAlign = 'right';
+    g.fillText(String(e.score).padStart(6, '0'), AP_W - 80, y);
+  });
+  apDrawButton(AP_BTN_AGAIN, 'PLAY AGAIN');
+}
+
 // Shared big-target button. Menu screens are drawn on the canvas and hit-tested
 // against these rects, so there is one input path rather than a DOM overlay.
 const AP_BTN_PLAY = { x: 80, y: 430, w: 200, h: 62 };
@@ -383,6 +471,25 @@ function apStagePointer(e, phase) {
     }
     const p = apToLogical(e);
     if (apState === 'attract' && apHit(AP_BTN_PLAY, p)) {
+      AP_SOUND.select();
+      apEnterState('playing');
+      return;
+    }
+    if (apState === 'nameEntry') {
+      for (let i = 0; i < AP_SLOTS.length; i++) {
+        if (!apHit(AP_SLOTS[i], p)) continue;
+        apInitials[i] = (apInitials[i] + 1) % AP_ALPHABET.length;
+        AP_SOUND.select();
+        return;
+      }
+      if (apHit(AP_BTN_OK, p)) {
+        AP_SOUND.select();
+        apSubmitScore(apInitials.map(i => AP_ALPHABET[i]).join(''), apScore);
+        apEnterState('leaderboard');
+      }
+      return;
+    }
+    if (apState === 'leaderboard' && apHit(AP_BTN_AGAIN, p)) {
       AP_SOUND.select();
       apEnterState('playing');
     }

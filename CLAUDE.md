@@ -281,6 +281,17 @@ Do not write the phase snapshot until Protocols A is clean. Do not write a line 
 ---
 
 ## 🎯 Current Focus
+**Side project — Arcade Mode (3 Aug 2026).** Secret Mode now holds **arcade cabinets**
+alongside word packs and skins: small standalone canvas games under a new `ARCADE`
+category, first in the terminal list. **Cabinets are NOT Sylly Games and NOT packs** —
+no MP config, no `game-identities.md` section, no Sylly Mode, no verification harness,
+and explicitly not `docs/rules/new-game-checklist.md`. They use the terminal's CRT
+green-on-black language, not the Stack or the brand palette. First cabinet:
+**Asherplane** (`js/arcade/asherplane.js`), a top-down shmup. Adding cabinet #2 = one
+`SM_ARCADE` entry + one file. Spec:
+`docs/superpowers/specs/2026-08-03-arcade-asherplane-design.md`; plan:
+`docs/superpowers/plans/2026-08-03-arcade-asherplane.md`.
+
 **COMPLETE — Phase 39: Cookie Jar (`cjar`), game 18.** Built task-by-task from `docs/superpowers/plans/2026-08-02-cookie-jar.md` (all 17 tasks done) against the confirmed spec `docs/new-game-tech-cookie-jar.md`. **The phase gate is CLOSED** — see `docs/phase39-snapshot.md`. Both required checks are satisfied: playtest rounds 1 and 2 were **live 3–4 device sessions** (a snapshot-drafting error earlier treated the plan's "three-device session" as a separate, still-unrun gate — it wasn't; the owner confirmed every gameplay round was real multi-device play), and the offline install check passed, single-device, exactly as designed. What remains is deliberately deferred suite-wide sweeps (see below), none of which block Cookie Jar.
 
 **Playtest round 1 ran 3 Aug 2026 and found the blocker: BUG-06.** Every client froze on the Raid 1 intro and the host played the whole match alone. Root cause was **the wire, not the logic** — Firebase RTDB erases `null`, `{}` and `[]`, which is exactly the shape of cjar's explicitly-broadcast reset values (`seen: {}`, `trail: []`, `choices: [null,…]`, `counterTreat: null`), so `CJAR_FLIP_START` threw inside the client's warning-strip render one line before `showScreen`. Fixed at **SW v158** (current build v159) with three normalisers applied in all five SYNC appliers. The lesson is now a universal rule in `logic-engine.md` (§ MDLM Patterns) — every other MDLM game already reached the same place via the `p.x || []` idiom; cjar had none. Full account: impl-notes **BUG-06** + **ML-03**.

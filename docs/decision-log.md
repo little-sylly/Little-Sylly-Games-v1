@@ -20,6 +20,17 @@ Detail: pointer to the canonical doc (snapshot / impl note / spec / memory).
 
 ---
 
+## 2026-08-03 — Arcade Mode added behind Secret Mode; cabinets are not Sylly Games
+Secret Mode gains a third content type: **arcade cabinets** — small standalone canvas
+games, listed under a new `ARCADE` category placed **first**, ahead of WORD PACKS and
+GAME SKINS. Cabinets are neither packs (they modify no host game, so they get
+`smLaunchArcade()` beside an untouched `smLaunch()`) nor Sylly Games (no MP config, no
+`game-identities.md` section, no Sylly Mode, no `new-game-checklist.md`, not the Stack).
+First cabinet: **Asherplane**, `js/arcade/asherplane.js`. A session-sticky unlock puts a
+`🕹️` tile on the lobby which routes through `smOpenArcadeMenu()` — deliberately never
+awaiting `smLoadPacks()`, so the arcade opens on a cold offline start. Spec:
+`docs/superpowers/specs/2026-08-03-arcade-asherplane-design.md`.
+
 ## 2026-08-03 — Dibber Dobber's first flip is guaranteed safe, without weakening the blind commit
 **Category:** Architecture
 **Decision:** `cjarBuildDeck()`'s Sylly branch now floats one cookie to position 0 of the built deck — via `cjarFloatCookies(deck, 1)`, applied after the branch's own final shuffle so it can't be undone by it. The blind commit (Delta 7) is untouched: nothing is revealed before the choice, only which card is guaranteed to sit at the position that gets revealed first.
