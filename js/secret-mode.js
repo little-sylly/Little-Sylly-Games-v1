@@ -186,6 +186,11 @@ function resetSecretMode() {
   smTypewriterTimers  = [];
   document.querySelectorAll('.sm-menu-banner').forEach(el => el.remove());
   window.activeExpansionData = null;
+  // DELIBERATELY NOT CLEARED: smArcadeUnlocked, smArcadeLastId and the
+  // Asherplane session leaderboard. This function runs on every resetToLobby(),
+  // so clearing them would re-lock the arcade and wipe the scores each time a
+  // child backs out to the menu. That is the whole problem the sticky unlock
+  // solves. Do not "tidy" these into the list above.
   smUpdateProgress();
 }
 
@@ -225,6 +230,9 @@ function smHandleButton(code) {
   if (smKonamiBuffer.join('') === SM_KONAMI.join('')) {
     smKonamiBuffer = [];
     smUpdateProgress();
+    // Discovery beat — the arcade stays unlocked for the rest of the session.
+    smArcadeUnlocked = true;
+    smShowArcadeTile();
     // Victory arpeggio
     playSecretBeep(523);
     setTimeout(() => playSecretBeep(659), 100);
@@ -449,6 +457,60 @@ function smLaunchArcade(id) {
   playSecretBeep(523);
   setTimeout(() => playSecretBeep(784), 120);
   setTimeout(() => cab.start(), 260);
+}
+
+// ── Sticky session unlock ─────────────────────────────────────────────────────
+// Flips true the moment the Konami sequence lands — the discovery beat. Stays
+// true until the page is reloaded, so the arcade needs unlocking once per
+// session rather than once per visit to the lobby. Memory only: no
+// localStorage, and "scores last the afternoon, not forever" is the intent.
+let smArcadeUnlocked = false;
+
+// Injects the 🕹️ shortcut beside the lobby's 🎮. Built in JS rather than in
+// index.html because the tile only exists once unlocked — this keeps the whole
+// arcade self-contained and leaves the lobby markup alone. Idempotent.
+function smShowArcadeTile() {
+  if (document.getElementById('sm-arcade-tile')) return;
+  const icon = document.getElementById('lobby-icon');
+  if (!icon) return;
+  const row = document.createElement('div');
+  row.className = 'flex items-center justify-center gap-4';
+  icon.parentElement.insertBefore(row, icon);
+  row.appendChild(icon);
+  const btn = document.createElement('button');
+  btn.id = 'sm-arcade-tile';
+  btn.className = 'text-5xl active:scale-90 transition-transform duration-100 min-h-11 min-w-11';
+  btn.setAttribute('aria-label', 'Arcade');
+  btn.textContent = '🕹️';
+  btn.addEventListener('click', () => { playSecretBeep(660); smOpenArcadeMenu(); });
+  row.appendChild(btn);
+}
+
+// Lean sibling of smOpenTerminal(). Critically it does NOT await smLoadPacks():
+// cabinets need no pack data, so the arcade still opens on a cold offline start
+// — exactly the case where the registry fetch fails and smRunBootError() would
+// otherwise block entry.
+function smOpenArcadeMenu() {
+  smSelectedExpansion   = null;
+  smSelectedGame        = null;
+  smSelectedSubCategory = null;
+  document.getElementById('sm-terminal-log').innerHTML            = '';
+  document.getElementById('sm-terminal-expansions').innerHTML     = '';
+  document.getElementById('sm-terminal-expansions').style.display = 'none';
+  document.getElementById('sm-terminal-subcategories').innerHTML     = '';
+  document.getElementById('sm-terminal-subcategories').style.display = 'none';
+  document.getElementById('sm-terminal-games').innerHTML          = '';
+  document.getElementById('sm-terminal-games').style.display      = 'none';
+  document.getElementById('sm-terminal-launch-wrap').style.display = 'none';
+  const sp = document.getElementById('sm-terminal-settings');
+  if (sp) sp.remove();
+  showScreen('screen-secret-terminal');
+  smTypeLines([
+    '> SYLLY-OS ARCADE',
+    '> INSERT COIN...',
+    '',
+    '  └─ SELECT CABINET:',
+  ], 0, 200, smRenderArcade);
 }
 
 // ── Asset-pack drill-down: <GAME> SKINS → skin list → arm + launch ─────────────
