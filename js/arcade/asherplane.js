@@ -82,6 +82,14 @@ function apEnterState(next) {
   apState = next;
   if (apRafHandle) { cancelAnimationFrame(apRafHandle); apRafHandle = null; }
   if (next === 'playing') apResetRun();
+  // A fatal hit sets apShake/apInvuln, then apEndRun() lands here with
+  // next === 'attract' — apUpdate (the only code that ever decrements them)
+  // never runs again outside 'playing', so without this they would be stuck
+  // at their hit values and apDraw's unconditional shake translate would
+  // jitter the attract screen forever. Cleared on every transition, not only
+  // inside apResetRun, precisely because a state change can arrive mid-shake.
+  apShake  = 0;
+  apInvuln = 0;
   apLastT = 0;
   apRafHandle = requestAnimationFrame(apLoop);
 }
