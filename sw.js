@@ -1,7 +1,7 @@
 // Little Sylly Games — Service Worker v157
 // All assets are local — no external CDN URLs, no opaque response issues.
 
-const CACHE_NAME = 'sylly-games-v162';
+const CACHE_NAME = 'sylly-games-v163';
 
 const PRECACHE_URLS = [
   './',
@@ -33,6 +33,7 @@ const PRECACHE_URLS = [
   'data/pko-data.json',
   'data/cjar-data.json',
   'js/secret-mode.js',
+  'js/arcade/asherplane.js',
   'js/app.js',
   'js/lib/tailwind-play.js',
   'js/lib/canvas-draw.js',

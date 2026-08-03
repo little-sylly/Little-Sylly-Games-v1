@@ -82,6 +82,8 @@ const allScreens = [
   // Cookie Jar
   'screen-cjar-menu', 'screen-cjar-raid-intro', 'screen-cjar-table',
   'screen-cjar-busted', 'screen-cjar-raid-summary', 'screen-cjar-gameover',
+  // Arcade cabinets (Secret Mode) — not Sylly Games, but still real screens.
+  'screen-arcade-asherplane',
 ];
 
 // ── Web Audio API ─────────────────────────────────────────────────────────────
@@ -529,6 +531,9 @@ function resetToLobby() {
   resetSyllySignals();
   // Secret Mode hard-reset (forward ref — safe at runtime)
   if (typeof resetSecretMode === 'function') resetSecretMode();
+  // Arcade cabinet teardown (forward ref) — cancels the RAF loop. Deliberately
+  // does NOT clear the session leaderboard; see asherplane.js.
+  if (typeof resetArcade === 'function') resetArcade();
   // JEC teardown
   document.getElementById('jec-quit-overlay').style.display        = 'none';
   document.getElementById('jec-settings-overlay').style.display    = 'none';
