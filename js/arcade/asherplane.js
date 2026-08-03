@@ -9,10 +9,46 @@
 const AP_W = 360;
 const AP_H = 640;
 
+// ── Tuning ───────────────────────────────────────────────────────────────────
+const AP_PLAYER_SPEED = 260;   // logical px/sec
+const AP_BULLET_SPEED = 420;
+const AP_FIRE_MS      = 200;
+const AP_INVULN_MS    = 1500;
+const AP_START_LIVES  = 2;
+const AP_CAR_COLOURS  = ['#E63946', '#FFB703', '#52B788', '#9B5DE5', '#00B4D8'];
+
+// ── Audio — one map of moments onto the existing NES-style beep. Same shape as
+// CJAR_SOUND / PKO_EVENT_SOUND. Inherits isMuted and masterVolume for free.
+// There is deliberately no per-shot sound: at 5 shots/sec it grates.
+const AP_SOUND = {
+  explode:   () => playSecretBeep(220),
+  hit:       () => playSecretBeep(110),
+  gameOver:  () => playSecretBeep(160),
+  highScore: () => playSecretBeep(1046),
+  select:    () => playSecretBeep(660),
+};
+
 // ── Runtime state ────────────────────────────────────────────────────────────
 let apCanvas    = null;
 let apCtx       = null;
 let apRafHandle = null;   // TIMER — cancel in every teardown (logic-engine.md)
+let apLastT     = 0;
+let apState     = 'attract';
+
+let apScore   = 0;
+let apLives   = AP_START_LIVES;
+let apShake   = 0;        // seconds remaining
+let apInvuln  = 0;        // ms remaining
+let apPlayer  = { x: AP_W / 2, y: AP_H - 70, w: 34, h: 30 };
+let apBullets = [];
+let apCars    = [];
+let apParts   = [];
+let apStars   = [];
+let apFireT   = 0;
+let apSpawnT  = 0;
+
+let apDir  = 0;                            // -1 left, 0 still, 1 right
+let apKeys = { left: false, right: false };
 
 // Session leaderboard. Deliberately NOT cleared by resetArcade() — it survives
 // trips to the lobby so two kids can compare scores across an afternoon.
@@ -21,15 +57,216 @@ let apLeaderboard = [];
 function apStart() {
   apCanvas = document.getElementById('ap-canvas');
   apCtx    = apCanvas.getContext('2d');
+  if (apStars.length === 0) {
+    for (let i = 0; i < 40; i++) {
+      apStars.push({ x: Math.random() * AP_W, y: Math.random() * AP_H,
+                     s: 20 + Math.random() * 50, l: 2 + Math.random() * 6 });
+    }
+  }
   showScreen('screen-arcade-asherplane');
   apResize();
-  apCtx.fillStyle = '#000';
-  apCtx.fillRect(0, 0, AP_W, AP_H);
-  apCtx.fillStyle = '#4ADE80';
-  apCtx.font = 'bold 24px monospace';
-  apCtx.textAlign = 'center';
-  apCtx.fillText('ASHERPLANE', AP_W / 2, AP_H / 2);
+  apEnterState('attract');
 }
+
+// Every exit from 'playing' cancels the loop; every entry starts it. Keeping
+// both in one place is what stops a stray loop ticking against a dead screen.
+function apEnterState(next) {
+  apState = next;
+  if (apRafHandle) { cancelAnimationFrame(apRafHandle); apRafHandle = null; }
+  if (next === 'playing') apResetRun();
+  apLastT = 0;
+  apRafHandle = requestAnimationFrame(apLoop);
+}
+
+function apResetRun() {
+  apScore   = 0;
+  apLives   = AP_START_LIVES;
+  apShake   = 0;
+  apInvuln  = 0;
+  apPlayer.x = AP_W / 2;
+  apBullets = [];
+  apCars    = [];
+  apParts   = [];
+  apFireT   = 0;
+  apSpawnT  = 0;
+}
+
+function apLoop(now) {
+  if (!apLastT) apLastT = now;
+  // Clamp dt so a backgrounded tab cannot teleport every entity across the
+  // screen on the first frame back.
+  const dt = Math.min((now - apLastT) / 1000, 0.05);
+  apLastT = now;
+
+  if (apState === 'playing') apUpdate(dt);
+  apDraw(dt);
+
+  apRafHandle = requestAnimationFrame(apLoop);
+}
+
+function apUpdate(dt) {
+  const keyDir = (apKeys.right ? 1 : 0) - (apKeys.left ? 1 : 0);
+  const dir    = keyDir !== 0 ? keyDir : apDir;
+  apPlayer.x  += dir * AP_PLAYER_SPEED * dt;
+  const half   = apPlayer.w / 2;
+  apPlayer.x   = Math.max(half, Math.min(AP_W - half, apPlayer.x));
+  if (apShake  > 0) apShake  = Math.max(0, apShake - dt);
+  if (apInvuln > 0) apInvuln = Math.max(0, apInvuln - dt * 1000);
+}
+
+function apDraw(dt) {
+  const g = apCtx;
+  g.save();
+  if (apShake > 0) {
+    g.translate((Math.random() - 0.5) * 8 * apShake * 6,
+                (Math.random() - 0.5) * 8 * apShake * 6);
+  }
+  g.fillStyle = '#05070D';
+  g.fillRect(-20, -20, AP_W + 40, AP_H + 40);
+
+  // Scrolling star field — cheap, and it is what sells the sense of flying.
+  g.fillStyle = '#1E3A5F';
+  apStars.forEach(s => {
+    if (apState === 'playing') { s.y += s.s * dt; if (s.y > AP_H) { s.y = -s.l; s.x = Math.random() * AP_W; } }
+    g.fillRect(s.x, s.y, 2, s.l);
+  });
+
+  if (apState === 'playing') {
+    apDrawGlider(apPlayer.x, apPlayer.y, apInvuln > 0 && Math.floor(apInvuln / 100) % 2 === 0);
+    apDrawHud();
+  } else if (apState === 'attract') {
+    apDrawAttract();
+  }
+  g.restore();
+}
+
+function apDrawGlider(x, y, dim) {
+  const g = apCtx;
+  g.save();
+  g.translate(x, y);
+  if (dim) g.globalAlpha = 0.3;
+  g.fillStyle = '#2E7FD4';
+  g.beginPath();                                   // wings
+  g.moveTo(-17, 6); g.lineTo(0, -2); g.lineTo(17, 6);
+  g.lineTo(17, 11); g.lineTo(0, 7);  g.lineTo(-17, 11);
+  g.closePath(); g.fill();
+  g.beginPath();                                   // fuselage
+  g.moveTo(0, -15); g.lineTo(5, 10); g.lineTo(0, 15); g.lineTo(-5, 10);
+  g.closePath(); g.fill();
+  g.fillRect(-8, 11, 16, 4);                       // tail
+  g.fillStyle = '#9BD1FF';                         // nose highlight
+  g.beginPath();
+  g.moveTo(0, -15); g.lineTo(2, -6); g.lineTo(-2, -6);
+  g.closePath(); g.fill();
+  g.restore();
+}
+
+function apDrawHud() {
+  const g = apCtx;
+  g.fillStyle = '#4ADE80';
+  g.font = 'bold 14px monospace';
+  g.textAlign = 'left';
+  g.fillText(String(apScore).padStart(6, '0'), 10, 22);
+  g.textAlign = 'right';
+  g.fillText('✈'.repeat(Math.max(0, apLives)), AP_W - 10, 22);
+}
+
+function apDrawAttract() {
+  const g = apCtx;
+  g.textAlign = 'center';
+  g.fillStyle = '#4ADE80';
+  g.font = 'bold 30px monospace';
+  g.fillText('ASHERPLANE', AP_W / 2, 190);
+  g.font = '12px monospace';
+  g.fillText('HOLD LEFT OR RIGHT TO FLY', AP_W / 2, 225);
+  g.fillText('YOU SHOOT ALL BY YOURSELF', AP_W / 2, 245);
+  apDrawGlider(AP_W / 2, 330, false);
+  apDrawButton(AP_BTN_PLAY, 'PLAY');
+}
+
+// Shared big-target button. Menu screens are drawn on the canvas and hit-tested
+// against these rects, so there is one input path rather than a DOM overlay.
+const AP_BTN_PLAY = { x: 80, y: 430, w: 200, h: 62 };
+
+function apDrawButton(r, label) {
+  const g = apCtx;
+  g.strokeStyle = '#4ADE80';
+  g.lineWidth = 3;
+  g.strokeRect(r.x, r.y, r.w, r.h);
+  g.fillStyle = '#4ADE80';
+  g.font = 'bold 22px monospace';
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.fillText(label, r.x + r.w / 2, r.y + r.h / 2 + 1);
+  g.textBaseline = 'alphabetic';
+}
+
+// Convert a pointer event to logical 360x640 canvas coordinates.
+function apToLogical(e) {
+  const r = apCanvas.getBoundingClientRect();
+  return { x: (e.clientX - r.left) * AP_W / r.width,
+           y: (e.clientY - r.top)  * AP_H / r.height };
+}
+
+function apHit(r, p) {
+  return p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h;
+}
+
+// Pointer lives on #ap-stage, not the canvas, so the whole letterboxed area
+// steers. During play only the half of the stage matters, so a thumb never has
+// to find a button; on menu screens the tap is hit-tested against the drawn
+// button rects instead.
+function apStagePointer(e, phase) {
+  const stage = document.getElementById('ap-stage');
+  if (apState === 'playing') {
+    if (phase === 'up') { apDir = 0; return; }
+    const r = stage.getBoundingClientRect();
+    apDir = e.clientX < r.left + r.width / 2 ? -1 : 1;
+    return;
+  }
+  if (phase !== 'down') return;
+  const p = apToLogical(e);
+  if (apState === 'attract' && apHit(AP_BTN_PLAY, p)) {
+    AP_SOUND.select();
+    apEnterState('playing');
+  }
+}
+
+(function apBindInput() {
+  const stage = document.getElementById('ap-stage');
+  stage.addEventListener('pointerdown',   e => { stage.setPointerCapture(e.pointerId); apStagePointer(e, 'down'); });
+  stage.addEventListener('pointermove',   e => { if (e.buttons) apStagePointer(e, 'move'); });
+  stage.addEventListener('pointerup',     e => apStagePointer(e, 'up'));
+  stage.addEventListener('pointercancel', e => apStagePointer(e, 'up'));
+
+  document.addEventListener('keydown', e => {
+    if (document.getElementById('screen-arcade-asherplane').style.display === 'none') return;
+    if (e.key === 'ArrowLeft'  || e.key === 'a' || e.key === 'A') apKeys.left  = true;
+    if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') apKeys.right = true;
+  });
+  document.addEventListener('keyup', e => {
+    if (e.key === 'ArrowLeft'  || e.key === 'a' || e.key === 'A') apKeys.left  = false;
+    if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') apKeys.right = false;
+  });
+
+  document.getElementById('btn-ap-exit').addEventListener('click', () => {
+    resetArcade();
+    resetToLobby();
+  });
+
+  // A child WILL put the iPad down mid-run. Without this the loop keeps ticking
+  // against a hidden screen, and the dt clamp alone would not stop the run
+  // continuing unseen.
+  document.addEventListener('visibilitychange', () => {
+    if (document.getElementById('screen-arcade-asherplane').style.display === 'none') return;
+    if (document.hidden) {
+      if (apRafHandle) { cancelAnimationFrame(apRafHandle); apRafHandle = null; }
+    } else if (!apRafHandle) {
+      apLastT = 0;
+      apRafHandle = requestAnimationFrame(apLoop);
+    }
+  });
+})();
 
 // Fit the fixed 360x640 logical canvas into its container, preserving aspect,
 // and scale the backing store by devicePixelRatio so it stays sharp on Retina.
@@ -48,6 +285,10 @@ function apResize() {
 // Called from engine.js resetToLobby() via forward reference.
 function resetArcade() {
   if (apRafHandle) { cancelAnimationFrame(apRafHandle); apRafHandle = null; }
+  apState = 'attract';
+  apDir   = 0;
+  apKeys.left = apKeys.right = false;
+  // apLeaderboard is NOT cleared — see the declaration above.
 }
 
 window.addEventListener('resize', () => {
