@@ -1831,9 +1831,8 @@ All three evaluate the real `js/games/pko.js` in a Node `vm` sandbox — they re
 | Overlay ID | Pattern | z-index | Purpose |
 |------------|---------|---------|---------|
 | `cjar-settings-overlay` | Data (slide-up) | z-[80] | Snack Friendly / House Rules / Match Length / Decision Time (Blitz·Standard·No Rush, DD-10) / Open Book / ✨ Sylly Mode |
-| `cjar-how-to-overlay` | Data (slide-up) | z-[90] | How to Play — includes an entry point into the card gallery |
+| `cjar-how-to-overlay` | Data (slide-up) | z-[90] | How to Play — **two tabs: The Rules (default) \| The Cards**. The Cards body (`cjar-cards-body`) is the card gallery (DD-09/DD-14), built from `CJAR_DATA` on every switch into the tab, every tile through `cjarRenderCard`. First gallery in the suite; makes the offline install check single-device on an MDLM-only game. 14 tiles = the 14 shipped art files (harness-asserted). Each tab body is its own scroll region with its own close button |
 | `cjar-trail-overlay` | Data (slide-up) | z-[90] | The Crumb Trail — this Raid's flip-by-flip log (never "Cookie Trail" — PKO owns *The Trail*) |
-| `cjar-cards-overlay` | Data (slide-up) | z-[90] | **The card gallery (DD-09)** — built from `CJAR_DATA` on every open, every tile through `cjarRenderCard`. First gallery in the suite; makes the offline install check single-device on an MDLM-only game. 14 tiles = the 14 shipped art files (harness-asserted) |
 | `cjar-tip-overlay` | Decision modal | z-[90] | Contextual `[?]` tip — e.g. the family-card mechanic (`btn-cjar-family-tip`) |
 | `cjar-quit-overlay` | Decision modal | z-[80] | Mid-game exit confirm |
 | `cjar-new-raid-overlay` | Decision modal | z-[90] | "New Raid?" / play-again confirmation |
@@ -1842,7 +1841,9 @@ All three evaluate the real `js/games/pko.js` in a Node `vm` sandbox — they re
 | ID | Action |
 |----|--------|
 | `#btn-cjar-menu-play` | Menu Play CTA — dual context: post-lobby `cjarStartMatch()` (BUG-07 fix; cjar no longer bounces through the menu), pre-lobby `mpShowModeScreen('cjar')` |
-| `#btn-cjar-menu-cards` / `#btn-cjar-howto-cards` | The gallery's two entry points (menu + inside How to Play) |
+| `#btn-cjar-menu-cards` | "See the Cards" on the game menu → `cjarOpenHowTo('cards')`, landing straight on the gallery tab. **This is the offline install check's entry point** — it must not require a tab tap |
+| `#btn-cjar-howto-tab-rules` / `#btn-cjar-howto-tab-cards` | How to Play tab bar (`data-cjar-howto-tab`) |
+| `#btn-cjar-trail-open` | The "what's come out ›" label under the history strip → Crumb Trail overlay. The strip itself carries **no** click handler — it is a scroll container |
 | `#btn-cjar-openbook-toggle` | Settings — Open Book on/off |
 | `#btn-cjar-sylly-toggle` | Settings — Dibber Dobber on/off |
 | `#btn-cjar-next-raid` | Raid summary → next Raid intro (host-gated in MDLM) |
@@ -1906,7 +1907,7 @@ All three evaluate the real `js/games/pko.js` in a Node `vm` sandbox — they re
 | `node tools/verify-cjar-deck.js` | **Data layer** — 73 checks: constants, `data/cjar-data.json` schema, the Snack Friendly float, treat schedules at both match lengths, `cjarRenderCard`'s art-key seam, and the core-art manifest |
 | `node tools/verify-cjar-loop.js` | **Base game + match** — 102 checks: `cjarSplit`, sneak/bust resolution, House Rules (incl. the Delta 6 escalation-pool exclusion), `cjarAllIn()` in both modes (incl. the vacuous-`[].every()` regression, BUG-05), deck exhaustion, a full 3-Raid match, tie-break/Red-Handed edge cases (BUG-03) |
 | `node tools/verify-cjar-dd.js` | **Dibber Dobber** — 47 checks: all three card types × every action combination, the scare-off, Treat priority (Take > Dob > Innocent), Crumb Debt, affinities |
-| `node tools/verify-cjar-loopback.js` | **The standard fifth MP tool (ML-01/ML-03)** — 108/87 checks: a real `fbWrite`/`fbRead` pair reproducing Firebase's erasure (not live JS references) plus a DOM of **real mock elements** so render code actually executes — the only harness that would have caught BUG-06. Both modes end to end, 4- and 3-player, all three Decision Times, host↔client state agreement after every resolve, the blind window, the private affinity channel, `CJAR_PLAYER_LEFT`. Takes `CJAR_SRC=` so a deliberately-broken copy can be driven through the same wire |
+| `node tools/verify-cjar-loopback.js` | **The standard fifth MP tool (ML-01/ML-03)** — 110 checks: a real `fbWrite`/`fbRead` pair reproducing Firebase's erasure (not live JS references) plus a DOM of **real mock elements** so render code actually executes — the only harness that would have caught BUG-06. Both modes end to end, 4- and 3-player, all three Decision Times, host↔client state agreement after every resolve, the blind window, the private affinity channel, the How-to tab switch + 14 gallery tiles, `CJAR_PLAYER_LEFT`. Takes `CJAR_SRC=` so a deliberately-broken copy can be driven through the same wire |
 | `node tools/simulate-cjar-dd.js` | **Balance instrument** (spec §17 D-11 mitigation) — asserts nothing, always exits 0; prints win-rate spread, action lean, debt-at-cap %, Treats-claimed % at 5 and 8 players. Baseline: Innocent-leaning wins ~52–53% at both sizes (DD-06, flagged, not retuned) |
 
 The other three harnesses run in `'single'` mode with `getElementById: () => null`, which is exactly what lets one process drive all N seats — and exactly what blinds them to the packet layer and every line of render code (TG-07, ML-03). `verify-cjar-loopback.js` closes both gaps; reach for it on anything MP- or render-shaped.

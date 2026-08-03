@@ -151,17 +151,6 @@ body.flash-red   { background-color: #fecaca; }
   border: none;
   cursor: pointer;
 }
-.game-toggle-on-yellow {
-  background: #eab308;
-  color: #fff;
-  border-radius: 9999px;
-  padding: 0.4rem 1.2rem;
-  font-weight: 700;
-  font-size: 0.9rem;
-  transition: background 0.2s, color 0.2s;
-  border: none;
-  cursor: pointer;
-}
 .game-toggle-on-sage {
   background-color: var(--color-gth-sage);
   color: #ffffff;
@@ -273,12 +262,6 @@ body.flash-red   { background-color: #fecaca; }
 /* ── Deep-Sea Deploy pill active state (cyan) ────────────────────────────── */
 .pill-active-cyan {
   background: #0e7490;  /* cyan-700 */
-  color: #fff;
-}
-
-/* ── Bailed pill active state (yellow) ───────────────────────────────────── */
-.pill-active-yellow {
-  background: #eab308;  /* yellow-500 */
   color: #fff;
 }
 
@@ -666,12 +649,33 @@ body.flash-red   { background-color: #fecaca; }
   border: none;
   box-shadow: 0 1px 4px rgba(0,0,0,0.2);
 }
+/* ── Bailed (bld) — dark red #991b1b, recoloured from yellow 2 Aug 2026:
+   clears the amber/cookie-brown space for Cookie Jar and fixes a white-on-yellow
+   contrast failure (see docs/new-ideas/new-game-brief-cookie-jar.md §1/§19) ── */
+.pill-active-bld {
+  background: #991b1b; /* red-800 */
+  color: #fff;
+}
+.game-toggle-on-bld {
+  background: #991b1b;
+  color: #fff;
+  border-radius: 9999px;
+  padding: 0.4rem 1.2rem;
+  font-weight: 700;
+  font-size: 0.9rem;
+  transition: background 0.2s, color 0.2s;
+  border: none;
+  cursor: pointer;
+}
+.bld-cta { background-color: #991b1b; color: #ffffff; display: flex; align-items: center; justify-content: center; }
+.bld-cta:hover { background-color: #7f1d1d; } /* red-900 */
+.bld-label { color: #991b1b; }
 .bld-range {
   -webkit-appearance: none;
   appearance: none;
   height: 6px;
   border-radius: 9999px;
-  background: linear-gradient(to right, #fde68a, #d97706);
+  background: linear-gradient(to right, #fca5a5, #991b1b);
   outline: none;
   cursor: pointer;
 }
@@ -680,14 +684,14 @@ body.flash-red   { background-color: #fecaca; }
   appearance: none;
   width: 22px; height: 22px;
   border-radius: 50%;
-  background: #d97706;
+  background: #991b1b;
   border: 3px solid #fff;
   box-shadow: 0 1px 4px rgba(0,0,0,0.2);
 }
 .bld-range::-moz-range-thumb {
   width: 22px; height: 22px;
   border-radius: 50%;
-  background: #d97706;
+  background: #991b1b;
   border: none;
   box-shadow: 0 1px 4px rgba(0,0,0,0.2);
 }
@@ -840,15 +844,18 @@ body.flash-red   { background-color: #fecaca; }
   border: none;
   box-shadow: 0 1px 4px rgba(0,0,0,0.2);
 }
-/* ── Fruit Salad (bright banana #FFC700 + white ink + leaf #047857 on white) ── */
+/* ── Fruit Salad (electric lemon #FFE500 + dark ink + leaf #047857 on white) —
+   recoloured from banana #FFC700 2 Aug 2026: the white-on-yellow toggle/pill
+   combo failed WCAG contrast (1.57:1); dark ink on the brighter lemon fixes it.
+   See docs/new-ideas/new-game-brief-cookie-jar.md §1/§19. ── */
 .pill-active-frt {
-  background-color: #FFC700;
-  color: #ffffff;
+  background-color: #FFE500;
+  color: #292524; /* stone-800 */
   font-weight: 600;
 }
 .game-toggle-on-frt {
-  background-color: #FFC700;
-  color: #ffffff;
+  background-color: #FFE500;
+  color: #292524; /* stone-800 */
   border-radius: 9999px;
   padding: 0.4rem 1.2rem;
   font-weight: 700;
@@ -862,7 +869,7 @@ body.flash-red   { background-color: #fecaca; }
   appearance: none;
   height: 6px;
   border-radius: 9999px;
-  background: linear-gradient(to right, #FFE89A, #FFC700);
+  background: linear-gradient(to right, #FFF6B3, #FFE500);
   outline: none;
   cursor: pointer;
 }
@@ -871,14 +878,14 @@ body.flash-red   { background-color: #fecaca; }
   appearance: none;
   width: 22px; height: 22px;
   border-radius: 50%;
-  background: #FFC700;
+  background: #FFE500;
   border: 3px solid #fff;
   box-shadow: 0 1px 4px rgba(0,0,0,0.2);
 }
 .frt-range::-moz-range-thumb {
   width: 22px; height: 22px;
   border-radius: 50%;
-  background: #FFC700;
+  background: #FFE500;
   border: none;
   box-shadow: 0 1px 4px rgba(0,0,0,0.2);
 }
@@ -978,7 +985,7 @@ body.flash-red   { background-color: #fecaca; }
   width: 4.5rem; height: 6rem;
   border-radius: 0.75rem;
   background: #fffdf5;
-  border: 2px solid #FFE9A6;
+  border: 2px solid #FFF3A6;
   box-shadow: 0 1px 4px rgba(0,0,0,0.08);
   user-select: none;
 }
@@ -987,8 +994,8 @@ body.flash-red   { background-color: #fecaca; }
 .frt-card-back {
   width: 4.5rem; height: 6rem;
   border-radius: 0.75rem;
-  background: repeating-linear-gradient(45deg, #FFC700, #FFC700 8px, #E6B400 8px, #E6B400 16px);
-  border: 2px solid #E6B400;
+  background: repeating-linear-gradient(45deg, #FFE500, #FFE500 8px, #E6D200 8px, #E6D200 16px);
+  border: 2px solid #E6D200;
   box-shadow: 0 1px 4px rgba(0,0,0,0.08);
 }
 /* Asset-pack (skin) face — overrides the default emoji card with a pack image.
@@ -1753,3 +1760,164 @@ body.flash-red   { background-color: #fecaca; }
     scroll-behavior: auto !important;
   }
 }
+
+/* ── Cookie Jar (cjar) — honey-gold #D4A017 with DARK ink ──────────────────
+   White on #D4A017 measures 2.38:1, below the 3:1 floor. stone-800 is 6.39:1.
+   This is the same failure class the v156 recolour phase existed to remove —
+   never put white text on this fill. */
+.pill-active-cjar {
+  background-color: #D4A017;
+  color: #292524; /* stone-800 */
+  font-weight: 600;
+}
+.game-toggle-on-cjar {
+  background-color: #D4A017;
+  color: #292524;
+  border-radius: 9999px;
+  padding: 0.4rem 1.2rem;
+  font-weight: 700;
+  font-size: 0.9rem;
+  transition: background 0.2s, color 0.2s;
+  border: none;
+  cursor: pointer;
+}
+/* Custom CTA: MUST declare flex centering — when JS/Tailwind sets display:flex the
+   label would top-left-align without these (DYB/GTH/FRT/FLW/PKO lesson). */
+.cjar-cta { background-color: #D4A017; color: #292524; display: flex; align-items: center; justify-content: center; }
+.cjar-cta:hover { background-color: #B8860B; }
+/* Raw #D4A017 on bg-stone-50 measures under 3:1 — labels take the darkened brand. */
+.cjar-label { color: #7A5C0A; }
+.cjar-range {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 9999px;
+  background: linear-gradient(to right, #F7E9C4, #D4A017); /* biscuit → honey */
+  outline: none;
+  cursor: pointer;
+}
+.cjar-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: #D4A017;
+  border: 3px solid #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
+.cjar-range::-moz-range-thumb {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: #D4A017;
+  border: none;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
+
+/* Cookie Jar cards — default face is illustrated art with an emoji fallback
+   (render seam: cjarRenderCard — no card DOM is built anywhere else). */
+.cjar-card {
+  position: relative;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 0.25rem;
+  border-radius: 0.9rem;
+  background: #FFFBF0;
+  border: 2px solid #E5C97A;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+  user-select: none;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+/* hero = the gallery's showcase size. stage = the in-play "just revealed" card, which
+   shares its row with the trail and the deck. Dropping the table card 15rem -> 8.5rem
+   also IMPROVES sharpness: the 360 px art was only ~1.1x the old 240 px render after
+   `cover` cropped the square master (impl-notes TG-02b); at 136 px it is ~2.6x. */
+.cjar-card-hero    { width: 15rem;   height: 20.6rem; }
+.cjar-card-stage   { width: 8.5rem;  height: 11.7rem; }
+/* `next` is the face-down deck on the stage. It is deliberately close to .cjar-card-stage
+   and nowhere near .cjar-card-thumb: it is the card you are actually betting on, and at
+   counter size it read as just another spent card, which killed the past → present →
+   future progression the stage is built around. */
+.cjar-card-next    { width: 6.5rem;  height: 8.9rem; }
+.cjar-card-counter { width: 3.5rem;  height: 4.75rem; }
+.cjar-card-thumb   { width: 3rem;    height: 4.1rem; }
+.cjar-card-emoji   { font-size: 2.4rem; line-height: 1; }
+.cjar-card-stage .cjar-card-emoji   { font-size: 2rem; }
+.cjar-card-thumb .cjar-card-emoji,
+.cjar-card-counter .cjar-card-emoji { font-size: 1.4rem; }
+.cjar-card-stage .cjar-card-value   { font-size: 1.2rem; bottom: 0.3rem; right: 0.35rem; }
+.cjar-card-name {
+  font-size: 0.7rem; font-weight: 700; color: #7A5C0A;
+  text-align: center; line-height: 1.15; padding: 0 4px;
+}
+.cjar-card-thumb .cjar-card-name { display: none; }
+/* The value overlay is what lets 15 cookie values share 3 tier assets. It sits
+   ABOVE the art, so it needs its own stacking context and a readable plate. */
+.cjar-card-value {
+  position: absolute; bottom: 0.4rem; right: 0.5rem;
+  font-size: 1.6rem; font-weight: 800; color: #292524;
+  background: rgba(255,251,240,0.88);
+  border-radius: 0.6rem; padding: 0 0.45rem; line-height: 1.25;
+}
+.cjar-card-thumb .cjar-card-value,
+.cjar-card-counter .cjar-card-value { font-size: 0.85rem; bottom: 0.15rem; right: 0.15rem; }
+.cjar-card-family { border-color: #C08A5A; }
+.cjar-card-treat  { border-color: #D48FB0; }
+/* Illustrated / asset-pack face — fills the card, keeps the size classes. */
+.cjar-card-asset {
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  border-color: transparent;
+}
+.cjar-card-asset .cjar-card-emoji,
+.cjar-card-asset .cjar-card-name { display: none; }
+.cjar-card-back {
+  border-radius: 0.9rem;
+  background: repeating-linear-gradient(45deg, #D4A017, #D4A017 8px, #B8860B 8px, #B8860B 16px);
+  border: 2px solid #B8860B;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+  flex-shrink: 0;
+}
+/* A cookie delta flying to a player row. Transform + opacity only — both are
+   GPU-composited; animating top/left would jank on a mid-range phone. */
+@keyframes cjar-delta-fly {
+  0%   { transform: translateY(0) scale(0.95); opacity: 0; }
+  20%  { transform: translateY(-6px) scale(1); opacity: 1; }
+  100% { transform: translateY(-38px) scale(1); opacity: 0; }
+}
+.cjar-delta {
+  position: absolute;
+  font-weight: 800; font-size: 1.1rem; color: #7A5C0A;
+  animation: cjar-delta-fly 380ms ease-out forwards;
+  will-change: transform, opacity;
+}
+
+/* The decision-timer fill drains RIGHT TO LEFT via scaleX. Without an explicit
+   origin the default (centre) shrinks it symmetrically from both ends, which reads
+   as a shrinking pill rather than a countdown. transform + opacity only, per the
+   Motion Standard — never animate width here. */
+#cjar-timer-fill { transform-origin: left; will-change: transform; }
+
+/* ── The flip ───────────────────────────────────────────────────────────────
+   A card turning off the pile into the stage slot. transform + opacity ONLY, so it
+   composites on the GPU; 260 ms ease-out is inside the Motion Standard's 300 ms
+   ceiling for a non-overlay. `perspective` lives on the row (it is not animated) —
+   without it rotateY reads as a horizontal squash rather than a turn. Nothing
+   depends on animationend, so the global prefers-reduced-motion block collapsing
+   the duration leaves nothing stranded. */
+#cjar-stage-row { perspective: 700px; }
+@keyframes cjar-card-flip {
+  0%   { transform: translateX(30%) rotateY(-88deg); opacity: 0; }
+  65%  { transform: translateX(0)   rotateY(6deg);   opacity: 1; }
+  100% { transform: translateX(0)   rotateY(0deg);   opacity: 1; }
+}
+.cjar-card-flipin { animation: cjar-card-flip 260ms ease-out; will-change: transform; }
+
+/* The demotion: the previous stage card has just become the newest thumb. Settling it
+   in from slightly larger is what sells "that one moved down here" without the
+   bookkeeping a true FLIP transition between two parents would need. */
+@keyframes cjar-trail-settle {
+  from { transform: scale(1.25); opacity: 0.35; }
+  to   { transform: scale(1);    opacity: 1; }
+}
+.cjar-trail-settle { animation: cjar-trail-settle 200ms ease-out; }

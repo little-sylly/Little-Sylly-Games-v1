@@ -62,7 +62,7 @@
       <button id="btn-dsd" class="min-h-14 w-full rounded-2xl bg-cyan-700 hover:bg-cyan-800 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
         Deep-Sea Deploy
       </button>
-      <button id="btn-bld" class="min-h-14 w-full rounded-2xl bg-yellow-500 hover:bg-yellow-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      <button id="btn-bld" class="min-h-14 w-full rounded-2xl bld-cta active:scale-95 text-white text-xl font-semibold transition-all duration-150">
         Bailed
       </button>
       <button id="btn-gth" class="min-h-14 w-full rounded-2xl active:scale-95 text-white text-xl font-semibold transition-all duration-150" style="background-color:#B1BCA0">
@@ -77,7 +77,7 @@
       <button id="btn-nt" class="min-h-14 w-full rounded-2xl bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
         Net-Trace
       </button>
-      <button id="btn-frt" class="min-h-14 w-full rounded-2xl bg-[#FFC700] hover:bg-[#E6B400] active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      <button id="btn-frt" class="min-h-14 w-full rounded-2xl bg-[#FFE500] hover:bg-[#E6D200] active:scale-95 text-stone-800 text-xl font-semibold transition-all duration-150">
         Fruit Salad
       </button>
       <button id="btn-shp" class="min-h-14 w-full rounded-2xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
@@ -88,6 +88,9 @@
       </button>
       <button id="btn-pko" class="pko-cta min-h-14 w-full rounded-2xl active:scale-95 text-white text-xl font-semibold transition-all duration-150">
         Pecking Order
+      </button>
+      <button id="btn-cjar" class="cjar-cta min-h-14 w-full rounded-2xl active:scale-95 text-xl font-semibold transition-all duration-150">
+        Cookie Jar
       </button>
     </div>
   </section>
@@ -5299,13 +5302,13 @@
       <p class="text-stone-400 text-base mt-1">Making plans is easy. Showing up is hard.</p>
     </div>
     <div class="flex flex-col gap-4 w-full mt-2">
-      <button id="btn-bld-menu-play" class="min-h-14 w-full rounded-2xl bg-yellow-500 hover:bg-yellow-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      <button id="btn-bld-menu-play" class="min-h-14 w-full rounded-2xl bld-cta active:scale-95 text-white text-xl font-semibold transition-all duration-150">
         Make the Plans
       </button>
       <button id="btn-bld-menu-how-to" class="min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
         How to Play
       </button>
-      <button id="btn-bld-menu-settings" class="min-h-14 w-full rounded-2xl bg-yellow-100 hover:bg-yellow-200 active:scale-95 text-yellow-700 text-xl font-semibold transition-all duration-150">
+      <button id="btn-bld-menu-settings" class="min-h-14 w-full rounded-2xl bg-red-100 hover:bg-red-200 active:scale-95 text-red-700 text-xl font-semibold transition-all duration-150">
         Settings
       </button>
       <button id="btn-bld-menu-back" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-base font-medium transition-all duration-150">
@@ -5331,7 +5334,7 @@
       <div>
         <p class="text-stone-600 text-sm font-semibold mb-2">Players</p>
         <div id="bld-player-count-pills" class="flex gap-2">
-          <button class="pill pill-active-yellow" data-count="5">5</button>
+          <button class="pill pill-active-bld" data-count="5">5</button>
           <button class="pill" data-count="6">6</button>
           <button class="pill" data-count="7">7</button>
           <button class="pill" data-count="8">8</button>
@@ -5344,7 +5347,7 @@
       <!-- Role hint: Flake count -->
       <p id="bld-setup-flake-hint" class="text-stone-400 text-sm text-center"></p>
       <p id="bld-setup-error" class="text-red-500 text-sm text-center hidden"></p>
-      <button id="btn-bld-setup-start" class="min-h-14 w-full rounded-2xl bg-yellow-500 hover:bg-yellow-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      <button id="btn-bld-setup-start" class="min-h-14 w-full rounded-2xl bld-cta active:scale-95 text-white text-xl font-semibold transition-all duration-150">
         Deal the Roles →
       </button>
     </div>
@@ -5370,7 +5373,7 @@
         🔀 Randomise Order
       </button>
       <button id="btn-bld-confirm-seating"
-        class="min-h-14 w-full rounded-2xl bg-yellow-500 hover:bg-yellow-600 text-white text-lg font-bold active:scale-95 transition-all duration-100">
+        class="min-h-14 w-full rounded-2xl bld-cta text-white text-lg font-bold active:scale-95 transition-all duration-100">
         Confirm Seating →
       </button>
     </div>
@@ -5385,7 +5388,7 @@
         <h2 id="bld-gate-name" class="text-3xl font-bold text-stone-800"></h2>
         <p class="text-stone-400 text-base mt-2">Don't look until it's yours.</p>
       </div>
-      <button id="btn-bld-gate-reveal" class="min-h-14 w-full rounded-2xl bg-yellow-500 hover:bg-yellow-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      <button id="btn-bld-gate-reveal" class="min-h-14 w-full rounded-2xl bld-cta active:scale-95 text-white text-xl font-semibold transition-all duration-150">
         Tap to Reveal 👁️
       </button>
     </div>
@@ -5412,10 +5415,10 @@
           <p id="bld-reveal-extra-names" class="text-stone-700 font-semibold text-sm"></p>
         </div>
         <div id="bld-reveal-drama-label" class="hidden">
-          <p id="bld-reveal-drama-text" class="text-yellow-600 text-sm font-semibold"></p>
+          <p id="bld-reveal-drama-text" class="text-red-600 text-sm font-semibold"></p>
         </div>
       </div>
-      <button id="btn-bld-reveal-confirm" class="min-h-14 w-full rounded-2xl bg-yellow-500 hover:bg-yellow-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      <button id="btn-bld-reveal-confirm" class="min-h-14 w-full rounded-2xl bld-cta active:scale-95 text-white text-xl font-semibold transition-all duration-150">
         Got it — pass the phone
       </button>
     </div>
@@ -5430,7 +5433,7 @@
         <div>
           <p id="bld-main-plan-label" class="text-stone-800 font-bold text-base leading-tight"></p>
           <p id="bld-header-role-subtitle" class="hidden text-xs text-stone-400 mt-0.5"></p>
-          <p id="bld-header-fellow-flakes" class="hidden text-xs text-yellow-600 font-semibold mt-0.5"></p>
+          <p id="bld-header-fellow-flakes" class="hidden text-xs text-red-600 font-semibold mt-0.5"></p>
         </div>
         <div class="flex items-center gap-2 mt-0.5">
           <button id="btn-bld-how-to" class="text-xs text-stone-400 font-bold active:scale-90 transition-transform duration-100">[?]</button>
@@ -5468,7 +5471,7 @@
               <div id="bld-nominating-player-list" class="flex flex-col gap-2 mt-3"></div>
             </div>
             <p id="bld-nominating-error" class="text-red-500 text-xs text-center hidden"></p>
-            <button id="btn-bld-nominate-confirm" class="min-h-14 w-full rounded-2xl bg-yellow-500 hover:bg-yellow-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150 shake-target">
+            <button id="btn-bld-nominate-confirm" class="min-h-14 w-full rounded-2xl bld-cta active:scale-95 text-white text-xl font-semibold transition-all duration-150 shake-target">
               Lock in the Group →
             </button>
           </div>
@@ -5490,7 +5493,7 @@
             <p id="bld-vote-group-display" class="text-stone-800 font-bold text-base text-center"></p>
           </div>
           <div class="flex flex-col gap-3">
-            <button id="btn-bld-vote-in" class="btn-mp-action min-h-14 w-full rounded-2xl bg-yellow-500 hover:bg-yellow-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+            <button id="btn-bld-vote-in" class="btn-mp-action min-h-14 w-full rounded-2xl bld-cta active:scale-95 text-white text-xl font-semibold transition-all duration-150">
               Sounds Good ✅
             </button>
             <button id="btn-bld-vote-not-them" class="btn-mp-action min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
@@ -5513,7 +5516,7 @@
             <div id="bld-vote-result-list" class="flex flex-col gap-1.5"></div>
           </div>
           <div id="bld-vote-result-outcome" class="bg-white rounded-2xl p-4 shadow-sm text-center"></div>
-          <button id="btn-bld-vote-result-next" class="min-h-12 w-full rounded-2xl bg-yellow-500 hover:bg-yellow-600 active:scale-95 text-white text-base font-semibold transition-all duration-150">
+          <button id="btn-bld-vote-result-next" class="min-h-12 w-full rounded-2xl bld-cta active:scale-95 text-white text-base font-semibold transition-all duration-150">
             Continue →
           </button>
         </div>
@@ -5528,7 +5531,7 @@
               </div>
               <p class="text-stone-600 text-sm text-center">Submit your decision.</p>
             </div>
-            <button id="btn-bld-mission-in" class="btn-mp-action min-h-14 w-full rounded-2xl bg-yellow-500 hover:bg-yellow-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+            <button id="btn-bld-mission-in" class="btn-mp-action min-h-14 w-full rounded-2xl bld-cta active:scale-95 text-white text-xl font-semibold transition-all duration-150">
               I'm In ✅
             </button>
             <button id="btn-bld-mission-bailed" class="btn-mp-action min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-xl font-semibold transition-all duration-150 hidden">
@@ -5554,7 +5557,7 @@
         <div id="bld-phase-plan-result" class="hidden flex flex-col gap-4">
           <div id="bld-plan-result-card" class="bg-white rounded-2xl p-5 shadow-sm text-center flex flex-col gap-2"></div>
           <p id="bld-plan-result-phrase" class="text-stone-500 text-sm italic text-center px-2"></p>
-          <button id="btn-bld-plan-result-next" class="min-h-12 w-full rounded-2xl bg-yellow-500 hover:bg-yellow-600 active:scale-95 text-white text-base font-semibold transition-all duration-150">
+          <button id="btn-bld-plan-result-next" class="min-h-12 w-full rounded-2xl bld-cta active:scale-95 text-white text-base font-semibold transition-all duration-150">
             Next Plan →
           </button>
         </div>
@@ -5562,18 +5565,18 @@
         <!-- Drama lock phase -->
         <div id="bld-phase-drama-lock" class="hidden flex flex-col gap-4">
           <div id="bld-drama-lock-waiting" class="hidden">
-            <div class="bg-yellow-50 border border-yellow-200 rounded-2xl p-6 text-center">
+            <div class="bg-red-50 border border-red-200 rounded-2xl p-6 text-center">
               <p class="text-2xl mb-2">🤫</p>
-              <p class="text-yellow-700 font-semibold text-sm">The Flakes are plotting…</p>
+              <p class="text-red-700 font-semibold text-sm">The Flakes are plotting…</p>
             </div>
           </div>
           <div id="bld-drama-lock-active" class="hidden flex flex-col gap-3">
-            <div class="bg-yellow-50 border border-yellow-200 rounded-2xl p-4 text-center">
-              <p class="text-yellow-700 font-semibold text-sm">Who is The Pot-Stirrer?</p>
-              <p class="text-yellow-600 text-xs mt-1">They're a Friend who knew all along.</p>
+            <div class="bg-red-50 border border-red-200 rounded-2xl p-4 text-center">
+              <p class="text-red-700 font-semibold text-sm">Who is The Pot-Stirrer?</p>
+              <p class="text-red-600 text-xs mt-1">They're a Friend who knew all along.</p>
             </div>
             <div id="bld-drama-guess-list" class="flex flex-col gap-2"></div>
-            <button id="btn-bld-drama-guess-confirm" class="btn-mp-action min-h-14 w-full rounded-2xl bg-yellow-500 hover:bg-yellow-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150" disabled>
+            <button id="btn-bld-drama-guess-confirm" class="btn-mp-action min-h-14 w-full rounded-2xl bld-cta active:scale-95 text-white text-xl font-semibold transition-all duration-150" disabled>
               Make the Accusation →
             </button>
           </div>
@@ -5598,7 +5601,7 @@
       <!-- Drama Mode identification result (shown before roles revealed, Drama Mode only) -->
       <div id="bld-aftermath-drama" class="hidden">
         <div id="bld-aftermath-drama-card" class="bg-white rounded-2xl p-5 shadow-sm text-center flex flex-col gap-2"></div>
-        <button id="btn-bld-aftermath-drama-continue" class="mt-4 min-h-12 w-full rounded-2xl bg-yellow-500 hover:bg-yellow-600 active:scale-95 text-white text-base font-semibold transition-all duration-150">
+        <button id="btn-bld-aftermath-drama-continue" class="mt-4 min-h-12 w-full rounded-2xl bld-cta active:scale-95 text-white text-base font-semibold transition-all duration-150">
           Reveal Everyone →
         </button>
       </div>
@@ -5614,7 +5617,7 @@
       </div>
       <!-- Actions -->
       <div id="bld-aftermath-actions" class="hidden flex flex-col gap-3 mt-2">
-        <button id="btn-bld-go-again" class="min-h-14 w-full rounded-2xl bg-yellow-500 hover:bg-yellow-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        <button id="btn-bld-go-again" class="min-h-14 w-full rounded-2xl bld-cta active:scale-95 text-white text-xl font-semibold transition-all duration-150">
           Second Chances 💬
         </button>
         <button id="btn-bld-aftermath-exit-2" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-base font-medium transition-all duration-150">
@@ -5661,7 +5664,7 @@
       </div>
       <div class="overflow-y-auto flex flex-col gap-4 px-5 py-5">
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
-          <p class="text-xs font-semibold uppercase tracking-widest text-yellow-500">Step 1</p>
+          <p class="text-xs font-semibold uppercase tracking-widest bld-label">Step 1</p>
           <p class="font-bold text-stone-800">Everyone gets a secret role</p>
           <p class="text-stone-500 text-sm">Players are split into <span class="font-semibold text-stone-700">Friends</span> and <span class="font-semibold text-stone-700">Flakes</span>. Friends want the plans to succeed. Flakes want them to fail — without getting caught.</p>
           <div class="mt-1">
@@ -5680,17 +5683,17 @@
           </div>
         </div>
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
-          <p class="text-xs font-semibold uppercase tracking-widest text-yellow-500">Step 2</p>
+          <p class="text-xs font-semibold uppercase tracking-widest bld-label">Step 2</p>
           <p class="font-bold text-stone-800">Picking the group</p>
           <p class="text-stone-500 text-sm">The <span class="font-semibold text-stone-700">Planner</span> nominates a group to carry out the plan. Everyone votes: <span class="font-semibold text-stone-700">Sounds Good</span> or <span class="font-semibold text-stone-700">No Way</span>. Majority rules. If a group is rejected <span class="font-semibold text-stone-700">5 times in a row</span>, the Flakes win immediately.</p>
         </div>
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
-          <p class="text-xs font-semibold uppercase tracking-widest text-yellow-500">Step 3</p>
+          <p class="text-xs font-semibold uppercase tracking-widest bld-label">Step 3</p>
           <p class="font-bold text-stone-800">The mission cards</p>
           <p class="text-stone-500 text-sm">Once the group is approved, each member privately submits a card. <span class="font-semibold text-stone-700">Friends must submit I'm In</span>. <span class="font-semibold text-stone-700">Flakes can choose to bail</span> — anonymously. Even one bail causes the plan to fail.</p>
         </div>
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
-          <p class="text-xs font-semibold uppercase tracking-widest text-yellow-500">Step 4</p>
+          <p class="text-xs font-semibold uppercase tracking-widest bld-label">Step 4</p>
           <p class="font-bold text-stone-800">Five plans, pass the phone</p>
           <p class="text-stone-500 text-sm">The game runs for up to 5 plans. Group sizes grow as the game progresses.</p>
           <div class="mt-1">
@@ -5709,7 +5712,7 @@
           </div>
         </div>
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
-          <p class="text-xs font-semibold uppercase tracking-widest text-yellow-500">Winning and Scoring</p>
+          <p class="text-xs font-semibold uppercase tracking-widest bld-label">Winning and Scoring</p>
           <p class="font-bold text-stone-800">First to three wins</p>
           <ul class="list-disc pl-5 flex flex-col gap-1 text-stone-500 text-sm">
             <li><span class="font-semibold text-stone-700">Friends</span> — win when 3 plans succeed.</li>
@@ -5718,11 +5721,11 @@
           </ul>
         </div>
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
-          <p class="text-xs font-semibold uppercase tracking-widest text-yellow-500">✨ Sylly Mode</p>
+          <p class="text-xs font-semibold uppercase tracking-widest bld-label">✨ Sylly Mode</p>
           <p class="font-bold text-stone-800">Drama Mode</p>
           <p class="text-stone-500 text-sm">One Friend secretly knows all the Flakes — <span class="font-semibold text-stone-700">The Pot-Stirrer</span>. One Flake becomes <span class="font-semibold text-stone-700">The Big Flake</span>. If the Friends win, the Big Flake gets one shot to name The Pot-Stirrer. A correct guess steals the win.</p>
         </div>
-        <button id="btn-bld-how-to-done" class="min-h-14 w-full rounded-2xl bg-yellow-500 hover:bg-yellow-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        <button id="btn-bld-how-to-done" class="min-h-14 w-full rounded-2xl bld-cta active:scale-95 text-white text-xl font-semibold transition-all duration-150">
           Got it
         </button>
       </div>
@@ -5732,7 +5735,7 @@
     <!-- BLD QUIT OVERLAY -->
   <div id="bld-quit-overlay" style="display:none"
     class="fixed inset-0 z-[80] overlay-modal-backdrop flex items-center justify-center px-6">
-    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-yellow-300">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-red-300">
       <p class="text-4xl">💬</p>
       <div>
         <h3 class="text-xl font-bold text-stone-800">Leave the Chat?</h3>
@@ -5752,7 +5755,7 @@
   <!-- BLD ROLE HELP OVERLAY -->
   <div id="bld-role-help-overlay" style="display:none"
     class="fixed inset-0 z-[90] overlay-modal-backdrop flex items-center justify-center px-6">
-    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-yellow-300">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-red-300">
       <div id="bld-role-help-emoji" class="text-4xl"></div>
       <div>
         <h3 id="bld-role-help-name" class="text-xl font-bold text-stone-800"></h3>
@@ -5767,14 +5770,14 @@
   <!-- BLD SECOND CHANCES (play again) OVERLAY -->
   <div id="bld-second-chances-overlay" style="display:none"
     class="fixed inset-0 z-[90] overlay-modal-backdrop flex items-center justify-center px-6">
-    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-yellow-300">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-red-300">
       <p class="text-4xl">💬</p>
       <div>
         <h3 class="text-xl font-bold text-stone-800">Second Chances?</h3>
         <p class="text-stone-500 text-sm mt-1">Roles will be reshuffled. The group plans a new party.</p>
       </div>
       <div class="flex flex-col gap-2 mt-2">
-        <button id="btn-bld-second-chances-confirm" class="min-h-14 w-full rounded-2xl bg-yellow-500 hover:bg-yellow-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        <button id="btn-bld-second-chances-confirm" class="min-h-14 w-full rounded-2xl bld-cta active:scale-95 text-white text-xl font-semibold transition-all duration-150">
           Second Chances 💬
         </button>
         <button id="btn-bld-second-chances-cancel" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-base font-medium transition-all duration-150">
@@ -5804,7 +5807,7 @@
   <!-- BLD TIP OVERLAY (contextual [?] tips throughout gameplay) -->
   <div id="bld-tip-overlay" style="display:none"
     class="fixed inset-0 z-[90] overlay-modal-backdrop flex items-center justify-center px-6">
-    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-yellow-300">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-red-300">
       <div class="flex flex-col gap-2">
         <p id="bld-tip-emoji" class="text-3xl"></p>
         <h3 id="bld-tip-heading" class="text-lg font-bold text-stone-800"></h3>
@@ -5817,13 +5820,13 @@
   <!-- BLD PASS-REVEAL OVERLAY (voting / mission PTP gate) -->
   <div id="bld-pass-reveal-overlay" style="display:none"
     class="fixed inset-0 z-[90] overlay-modal-backdrop flex items-center justify-center px-6">
-    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-yellow-300">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-red-300">
       <p class="text-4xl">💬</p>
       <div>
         <h3 id="bld-pass-reveal-heading" class="text-xl font-bold text-stone-800"></h3>
         <p class="text-stone-500 text-sm mt-1">Don't look until it's yours.</p>
       </div>
-      <button id="btn-bld-pass-reveal-confirm" class="min-h-14 w-full rounded-2xl bg-yellow-500 hover:bg-yellow-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      <button id="btn-bld-pass-reveal-confirm" class="min-h-14 w-full rounded-2xl bld-cta active:scale-95 text-white text-xl font-semibold transition-all duration-150">
         Tap to Vote
       </button>
     </div>
@@ -6764,6 +6767,7 @@
   <script src="js/games/shp.js"></script>
   <script src="js/games/flw.js"></script>
   <script src="js/games/pko.js"></script>
+  <script src="js/games/cjar.js"></script>
   <script src="js/secret-mode.js"></script>
   <script src="js/app.js"></script>
 
@@ -7653,13 +7657,13 @@
       <p class="text-stone-400 text-base mt-1">"This is definitely a banana. Trust me."</p>
     </div>
     <div class="flex flex-col gap-3 w-full">
-      <button id="btn-frt-menu-play" class="min-h-14 w-full rounded-2xl bg-[#FFC700] hover:bg-[#E6B400] active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      <button id="btn-frt-menu-play" class="min-h-14 w-full rounded-2xl bg-[#FFE500] hover:bg-[#E6D200] active:scale-95 text-stone-800 text-xl font-semibold transition-all duration-150">
         Start Serving
       </button>
       <button id="btn-frt-menu-how-to" class="min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
         How to Play
       </button>
-      <button id="btn-frt-menu-settings" class="min-h-14 w-full rounded-2xl bg-[#FFF4CC] hover:bg-[#FFE9A6] active:scale-95 text-[#854d0e] text-xl font-semibold transition-all duration-150">
+      <button id="btn-frt-menu-settings" class="min-h-14 w-full rounded-2xl bg-[#FFF4CC] hover:bg-[#FFF3A6] active:scale-95 text-[#854d0e] text-xl font-semibold transition-all duration-150">
         Settings
       </button>
       <button id="btn-frt-menu-back" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-base font-medium transition-all duration-150">
@@ -7705,7 +7709,7 @@
       <div class="text-5xl" role="img">&#x1F34A;</div>
       <h2 class="text-2xl font-bold text-stone-800">Orange You Glad It's Over?</h2>
       <div id="frt-gameover-standings" class="w-full flex flex-col gap-2"></div>
-      <button id="btn-frt-go-again" class="min-h-14 w-full rounded-2xl bg-[#FFC700] hover:bg-[#E6B400] active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      <button id="btn-frt-go-again" class="min-h-14 w-full rounded-2xl bg-[#FFE500] hover:bg-[#E6D200] active:scale-95 text-stone-800 text-xl font-semibold transition-all duration-150">
         More Fruit
       </button>
       <button id="btn-frt-gameover-exit" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-base font-medium transition-all duration-150">
@@ -7778,7 +7782,7 @@
           <p class="text-stone-400 text-sm">Every fruit variety gains a unique, rule-breaking quirk. Requires 3+ players.</p>
           <p id="frt-sylly-locked-note" style="display:none" class="text-amber-600 text-xs font-medium">Fruity Personalities is unavailable while Pear-Off is on.</p>
         </div>
-        <button id="btn-frt-settings-done" class="min-h-14 w-full rounded-2xl bg-[#FFC700] hover:bg-[#E6B400] active:scale-95 text-white text-xl font-semibold transition-all duration-150">Done</button>
+        <button id="btn-frt-settings-done" class="min-h-14 w-full rounded-2xl bg-[#FFE500] hover:bg-[#E6D200] active:scale-95 text-stone-800 text-xl font-semibold transition-all duration-150">Done</button>
       </div>
     </div>
   </div>
@@ -7830,7 +7834,7 @@
           </div>
           <p class="text-stone-500 text-sm">Every fruit gains a rule-breaking quirk — the <span class="font-semibold text-stone-700">Smug Banana</span> keeps your turn, the <span class="font-semibold text-stone-700">Angry Apple</span> starts a duel, the <span class="font-semibold text-stone-700">Sus Pear</span> lets you pocket and swap, and more. Requires 3+ players.</p>
         </div>
-        <button id="btn-frt-howto-close" class="min-h-14 w-full rounded-2xl bg-[#FFC700] hover:bg-[#E6B400] active:scale-95 text-white text-xl font-semibold transition-all duration-150">Got it</button>
+        <button id="btn-frt-howto-close" class="min-h-14 w-full rounded-2xl bg-[#FFE500] hover:bg-[#E6D200] active:scale-95 text-stone-800 text-xl font-semibold transition-all duration-150">Got it</button>
       </div>
     </div>
   </div>
@@ -7838,12 +7842,12 @@
   <!-- FRT QUIT -->
   <div id="frt-quit-overlay" style="display:none"
     class="fixed inset-0 z-[80] overlay-modal-backdrop flex items-center justify-center px-6">
-    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center" style="border:1px solid #FFE9A6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center" style="border:1px solid #FFF3A6">
       <p class="text-3xl">&#x1F966;</p>
       <h3 class="text-lg font-bold text-stone-800">Vegetables Instead?</h3>
       <p class="text-stone-500 text-sm">Your salad will be tossed.</p>
       <div class="flex flex-col gap-2">
-        <button id="btn-frt-quit-confirm" class="min-h-14 w-full rounded-2xl bg-[#FFC700] hover:bg-[#E6B400] active:scale-95 text-white font-semibold text-lg transition-all duration-150">Yeah, I'm out.</button>
+        <button id="btn-frt-quit-confirm" class="min-h-14 w-full rounded-2xl bg-[#FFE500] hover:bg-[#E6D200] active:scale-95 text-stone-800 font-semibold text-lg transition-all duration-150">Yeah, I'm out.</button>
         <button id="btn-frt-quit-cancel" class="min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-lg transition-all duration-150">Keep bluffing!</button>
       </div>
     </div>
@@ -7852,12 +7856,12 @@
   <!-- FRT NEW GAME (play-again) -->
   <div id="frt-new-game-overlay" style="display:none"
     class="fixed inset-0 z-[90] overlay-modal-backdrop flex items-center justify-center px-6">
-    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center" style="border:1px solid #FFE9A6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center" style="border:1px solid #FFF3A6">
       <p class="text-3xl">&#x1F353;</p>
       <h3 class="text-lg font-bold text-stone-800">More Fruit?</h3>
       <p class="text-stone-500 text-sm">Fresh decks, scores reset.</p>
       <div class="flex flex-col gap-2">
-        <button id="btn-frt-new-confirm" class="min-h-14 w-full rounded-2xl bg-[#FFC700] hover:bg-[#E6B400] active:scale-95 text-white font-semibold text-lg transition-all duration-150">More Fruit</button>
+        <button id="btn-frt-new-confirm" class="min-h-14 w-full rounded-2xl bg-[#FFE500] hover:bg-[#E6D200] active:scale-95 text-stone-800 font-semibold text-lg transition-all duration-150">More Fruit</button>
         <button id="btn-frt-new-cancel" class="min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-lg transition-all duration-150">Stay here</button>
       </div>
     </div>
@@ -7880,7 +7884,7 @@
   <!-- FRT TIP (shared contextual [?]) -->
   <div id="frt-tip-overlay" style="display:none"
     class="fixed inset-0 z-[90] overlay-modal-backdrop flex items-center justify-center px-6">
-    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center" style="border:1px solid #FFE9A6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center" style="border:1px solid #FFF3A6">
       <p id="frt-tip-emoji" class="text-3xl"></p>
       <h3 id="frt-tip-heading" class="text-lg font-bold text-stone-800"></h3>
       <div id="frt-tip-body" class="text-stone-500 text-sm text-left flex flex-col gap-1.5"></div>
@@ -7938,7 +7942,7 @@
           <p class="text-stone-500 text-sm">When an Apple is flipped, the <span class="font-semibold text-stone-700">loser must serve the winner</span> on their next turn — and the winner <span class="font-semibold text-stone-700">cannot Peek</span>.</p>
         </div>
 
-        <button id="btn-frt-personalities-close" class="min-h-14 w-full rounded-2xl bg-[#FFC700] hover:bg-[#E6B400] active:scale-95 text-white text-xl font-semibold transition-all duration-150">Got it</button>
+        <button id="btn-frt-personalities-close" class="min-h-14 w-full rounded-2xl bg-[#FFE500] hover:bg-[#E6D200] active:scale-95 text-stone-800 text-xl font-semibold transition-all duration-150">Got it</button>
       </div>
     </div>
   </div>
@@ -8607,9 +8611,13 @@
   <section id="screen-pko-table" style="display:none"
     class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
     <div class="flex flex-col w-full max-w-sm gap-4">
-      <div class="flex items-center justify-between">
-        <div id="pko-table-clash" class="text-sm font-semibold text-stone-500">Clash 1 · Encounter 1</div>
-        <div class="flex items-center gap-2">
+      <div class="flex items-center justify-between gap-2">
+        <div class="flex items-center gap-1.5 flex-wrap min-w-0">
+          <span id="pko-table-clash" class="text-sm font-semibold text-stone-500">Clash 1 · Encounter 1</span>
+          <span id="pko-table-event" style="display:none" class="text-sm font-semibold pko-label"></span>
+          <button id="btn-pko-events" style="display:none" class="btn-pko-events-open text-stone-300 font-bold text-xs leading-none active:scale-90 transition-transform duration-100">[?]</button>
+        </div>
+        <div class="flex items-center gap-2 flex-shrink-0">
           <button id="btn-pko-table-how-to" class="text-stone-400 font-bold text-sm">[?]</button>
           <button class="btn-open-sound text-xl">🔊</button>
           <button class="btn-pko-quit-open text-stone-500 font-bold text-xl">✕</button>
@@ -8620,7 +8628,7 @@
         <div class="bg-white rounded-2xl p-3 shadow-sm flex flex-col gap-2">
           <div class="flex items-center justify-between">
             <p class="text-[0.6rem] font-semibold uppercase tracking-wide text-stone-400">Active Marks</p>
-            <button id="btn-pko-chain" class="text-[0.65rem] font-semibold uppercase tracking-wide pko-label active:scale-90 transition-transform duration-100">[?] The Chain</button>
+            <button id="btn-pko-chain" class="text-[0.65rem] font-semibold uppercase tracking-wide pko-label active:scale-90 transition-transform duration-100 p-2 -m-2">[?] The Chain</button>
           </div>
           <div class="flex items-center gap-2">
             <button id="btn-pko-hole" aria-label="Watering Hole — spent cards and the Trail"
@@ -8631,7 +8639,6 @@
             <div id="pko-marks-row" class="flex gap-1.5 justify-center flex-wrap min-h-[5.75rem] items-center flex-1"></div>
           </div>
           <p id="pko-table-hint" class="text-center text-xs text-[#854D0E] min-h-4"></p>
-          <div id="pko-fon-label" style="display:none" class="text-center text-[0.65rem] font-semibold uppercase tracking-wide pko-label"></div>
         </div>
         <div id="pko-player-strip" class="flex flex-wrap gap-2 justify-center"></div>
         <div class="bg-white rounded-2xl p-3 shadow-sm flex flex-col gap-2">
@@ -8752,7 +8759,7 @@
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
           <div>
             <p class="text-stone-800 font-semibold">Appetite</p>
-            <p class="text-stone-400 text-sm mt-0.5">How far down the chain a predator will reach. Ravenous means a Leopard also takes Mice, not just Mongooses — fewer Encounters go unanswered, which suits smaller tables. Sated is the strict chain: you only ever eat your direct prey.</p>
+            <p class="text-stone-400 text-sm mt-0.5">How far down the chain a predator will reach. Ravenous means a Leopard also takes Mice, not just Mongooses — fewer Encounters go Unchallenged, which suits smaller tables. Sated is the strict chain: you only ever eat your direct prey.</p>
           </div>
           <div class="flex gap-2">
             <button class="pill pill-active-pko" data-pko-appetite="sated">Sated</button>
@@ -8797,7 +8804,10 @@
             <p class="text-stone-800 font-semibold">✨ Sylly Mode</p>
             <button id="btn-pko-sylly-toggle" class="game-toggle-off shrink-0">OFF</button>
           </div>
-          <p class="text-stone-600 text-sm font-semibold">Force of Nature</p>
+          <div class="flex items-center gap-1.5">
+            <p class="text-stone-600 text-sm font-semibold">Force of Nature</p>
+            <button id="btn-pko-events-settings" class="btn-pko-events-open text-stone-300 font-bold text-xs leading-none active:scale-90 transition-transform duration-100">[?]</button>
+          </div>
           <p class="text-stone-400 text-sm">Before each Encounter, a random event reshapes the rules — the chain flips, a species is wiped out, or everyone swaps Hoards. Mimic cards join the deck. Not recommended for your first game.</p>
         </div>
         <button id="btn-pko-settings-done" class="pko-cta min-h-14 w-full rounded-2xl text-white text-xl font-semibold active:scale-95 transition-all duration-150">Done</button>
@@ -8828,7 +8838,7 @@
         <div class="flex flex-col gap-1.5">
           <div class="flex items-center justify-between">
             <p class="text-[0.6rem] font-semibold uppercase tracking-wide text-stone-400">Your Challenge</p>
-            <button id="btn-pko-challenge-reset" class="text-[0.6rem] font-semibold uppercase tracking-wide text-stone-400 hover:text-stone-600 active:scale-90 transition-all duration-100">↺ Reset</button>
+            <button id="btn-pko-challenge-reset" class="text-[0.6rem] font-semibold uppercase tracking-wide text-stone-400 hover:text-stone-600 active:scale-90 transition-all duration-100 p-2 -m-2">↺ Reset</button>
           </div>
           <div id="pko-challenge-slots" class="flex gap-1.5 justify-center flex-wrap"></div>
           <p id="pko-challenge-hint" class="text-center text-xs text-[#854D0E] min-h-4"></p>
@@ -8857,7 +8867,7 @@
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
           <p class="text-xs font-semibold uppercase tracking-widest pko-label">Step 1</p>
           <p class="font-bold text-stone-800">The food chain</p>
-          <p class="text-stone-500 text-sm">Every animal has a natural predator, and only its <span class="font-semibold text-stone-700">immediate</span> predator counts. Eagles don't answer to Elephants. <button class="btn-pko-chain-open pko-label font-semibold">[?] See the chain</button></p>
+          <p class="text-stone-500 text-sm">Every animal has a natural predator, and only its <span class="font-semibold text-stone-700">immediate</span> predator counts. Eagles don't answer to Elephants. <button class="btn-pko-chain-open pko-label font-semibold p-1 -m-1">[?] See the chain</button></p>
         </div>
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
           <p class="text-xs font-semibold uppercase tracking-widest pko-label">Step 2</p>
@@ -8872,32 +8882,37 @@
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
           <p class="text-xs font-semibold uppercase tracking-widest pko-label">Step 3</p>
           <p class="font-bold text-stone-800">The Challenge</p>
-          <p class="text-stone-500 text-sm">Beat <span class="font-semibold text-stone-700">every</span> Mark, one card per Mark, each a natural predator of the Mark it answers. Miss one and you can't Challenge at all — it's all or nothing.</p>
+          <p class="text-stone-500 text-sm">Beat <span class="font-semibold text-stone-700">every</span> Mark — one predator per Mark, or Swarm it. Miss one and you can't Challenge at all — it's all or nothing.</p>
         </div>
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
           <p class="text-xs font-semibold uppercase tracking-widest pko-label">Step 4</p>
+          <p class="font-bold text-stone-800">Swarm it instead</p>
+          <p class="text-stone-500 text-sm">No predator on hand? Play <span class="font-semibold text-stone-700">two cards of the Mark's own species</span> and Swarm it. Each becomes a Mark of its own, so the board grows one wider. A Poacher-Mark can't be Swarmed.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest pko-label">Step 5</p>
           <p class="font-bold text-stone-800">Stampede</p>
           <p class="text-stone-500 text-sm">When every Mark is the same species, play one more copy of that species than there are Marks and the whole field is yours. The button appears on its own when you hold enough.</p>
         </div>
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
-          <p class="text-xs font-semibold uppercase tracking-widest pko-label">Step 5</p>
+          <p class="text-xs font-semibold uppercase tracking-widest pko-label">Step 6</p>
           <p class="font-bold text-stone-800">Retreat and rejoin</p>
           <p class="text-stone-500 text-sm">Can't beat everything? <span class="font-semibold text-stone-700">Retreat</span> — you're not out. The moment the Marks change you're back in and can Challenge again.</p>
         </div>
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
-          <p class="text-xs font-semibold uppercase tracking-widest pko-label">Step 6</p>
+          <p class="text-xs font-semibold uppercase tracking-widest pko-label">Step 7</p>
           <p class="font-bold text-stone-800">Going Unchallenged</p>
           <p class="text-stone-500 text-sm">When everyone else has Retreated you go <span class="font-semibold text-stone-700">Unchallenged</span>, win the Encounter, and lead the next one.</p>
         </div>
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
           <p class="text-xs font-semibold uppercase tracking-widest pko-label">The Poacher</p>
           <p class="font-bold text-stone-800">Answers to no one</p>
-          <p class="text-stone-500 text-sm">The Human wildcard wins any single Mark outright — no predator relationship needed. That's the whole of it: it can't stand in as an animal and it can't help you Stampede. There are only a handful in the Pool.</p>
+          <p class="text-stone-500 text-sm">The Human wildcard wins any single Mark outright — no predator relationship needed. That's the whole of it: it can't stand in as an animal, it can't help you Stampede, and it can neither Swarm nor be Swarmed. There are only a handful in the Pool.</p>
         </div>
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
           <p class="text-xs font-semibold uppercase tracking-widest pko-label">The Eagle</p>
           <p class="font-bold text-stone-800">Nothing eats an Eagle</p>
-          <p class="text-stone-500 text-sm">If there's an Eagle among the Marks, a <span class="font-semibold text-stone-700">Poacher</span> is your only answer — unless the whole field is Eagles and you can Stampede it.</p>
+          <p class="text-stone-500 text-sm">If there's an Eagle among the Marks, only a <span class="font-semibold text-stone-700">Poacher</span> or a Swarm of two Eagles can answer it — unless the whole field is Eagles and you can Stampede it.</p>
         </div>
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
           <p class="text-xs font-semibold uppercase tracking-widest pko-label">Winning and Scoring</p>
@@ -8909,7 +8924,10 @@
         </div>
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
           <p class="text-xs font-semibold uppercase tracking-widest pko-label">✨ Sylly Mode</p>
-          <p class="font-bold text-stone-800">Force of Nature</p>
+          <div class="flex items-center gap-1.5">
+            <p class="font-bold text-stone-800">Force of Nature</p>
+            <button id="btn-pko-events-howto" class="btn-pko-events-open text-stone-300 font-bold text-xs leading-none active:scale-90 transition-transform duration-100">[?]</button>
+          </div>
           <p class="text-stone-500 text-sm">Every Clash opens with <span class="font-semibold text-stone-700">Invasive Mimicry</span> — Mimics join the Pool and everyone draws a few extra. After that, each Encounter opens on one of eight events: <span class="font-semibold text-stone-700">The Culling</span>, <span class="font-semibold text-stone-700">The Great Reversal</span>, <span class="font-semibold text-stone-700">The Deluge</span>, <span class="font-semibold text-stone-700">The Dry Season</span>, <span class="font-semibold text-stone-700">Extinction Event</span>, <span class="font-semibold text-stone-700">Migration</span>, <span class="font-semibold text-stone-700">Alpha</span> or <span class="font-semibold text-stone-700">Carrion</span>. A <span class="font-semibold text-stone-700">Mimic</span> copies whatever it's played with, so it always needs a real animal beside it — and it can never copy a Poacher.</p>
         </div>
         <button id="btn-pko-howto-close" class="pko-cta min-h-14 w-full rounded-2xl text-white text-xl font-semibold active:scale-95 transition-all duration-150">Got it</button>
@@ -8937,6 +8955,22 @@
     </div>
   </div>
 
+  <!-- PKO FORCE OF NATURE EVENTS (data slide-up — z-[95] opens from within how-to z-[90];
+       body rendered from PKO_EVENTS by pkoRenderEvents() so it cannot drift from the registry) -->
+  <div id="pko-events-overlay" style="display:none"
+    class="fixed inset-0 bg-black/40 z-[95] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
+      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
+        <h2 class="text-xl font-bold text-stone-800">Force of Nature 🌿</h2>
+        <p class="text-xs text-stone-400 mt-1">Every event that can open an Encounter in Sylly Mode.</p>
+      </div>
+      <div class="overflow-y-auto flex flex-col gap-3 px-5 py-5">
+        <div id="pko-events-body" class="flex flex-col gap-3"></div>
+        <button id="btn-pko-events-close" class="pko-cta min-h-14 w-full rounded-2xl text-white text-xl font-semibold active:scale-95 transition-all duration-150">Got it</button>
+      </div>
+    </div>
+  </div>
+
   <!-- PKO THE TRAIL (match log) -->
   <div id="pko-trail-overlay" style="display:none"
     class="fixed inset-0 bg-black/40 z-[90] flex items-end justify-center">
@@ -8960,7 +8994,7 @@
   <!-- PKO QUIT -->
   <div id="pko-quit-overlay" style="display:none"
     class="fixed inset-0 z-[80] overlay-modal-backdrop flex items-center justify-center px-6">
-    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-[#C9A227]">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-[#E4CFA3]">
       <div class="flex flex-col gap-2">
         <p class="text-3xl">🐾</p>
         <h3 class="text-lg font-bold text-stone-800">Abandon your territory?</h3>
@@ -8976,7 +9010,7 @@
   <!-- PKO STAMPEDE CONFIRM -->
   <div id="pko-stampede-overlay" style="display:none"
     class="fixed inset-0 z-[90] overlay-modal-backdrop flex items-center justify-center px-6">
-    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-[#C9A227]">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-[#E4CFA3]">
       <div class="flex flex-col gap-2">
         <p class="text-3xl">🐃</p>
         <h3 id="pko-stampede-heading" class="text-lg font-bold text-stone-800">Stampede?</h3>
@@ -9010,7 +9044,7 @@
   <!-- PKO NEW MATCH (play-again confirm) -->
   <div id="pko-new-match-overlay" style="display:none"
     class="fixed inset-0 z-[90] overlay-modal-backdrop flex items-center justify-center px-6">
-    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-[#C9A227]">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-[#E4CFA3]">
       <div class="flex flex-col gap-2">
         <p class="text-3xl">🐘</p>
         <h3 class="text-lg font-bold text-stone-800">New Match?</h3>
@@ -9020,6 +9054,410 @@
         <button id="btn-pko-new-confirm" class="pko-cta min-h-14 w-full rounded-2xl text-white font-semibold text-lg active:scale-95 transition-all duration-150">Enter the Wild</button>
         <button id="btn-pko-new-cancel" class="min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 text-stone-700 font-semibold text-lg active:scale-95 transition-all duration-150">Stay here</button>
       </div>
+    </div>
+  </div>
+
+  <!-- ════ COOKIE JAR (cjar) — simultaneous-choice push-your-luck ════
+       Screens : screen-cjar-menu, screen-cjar-raid-intro, screen-cjar-table,
+                 screen-cjar-busted, screen-cjar-raid-summary, screen-cjar-gameover
+       Overlays: cjar-settings-overlay, cjar-how-to-overlay, cjar-trail-overlay,
+                 cjar-quit-overlay, cjar-new-raid-overlay, cjar-tip-overlay
+    ══════════════════════════════════════════════════ -->
+
+  <!-- CJAR MENU — content-height section (NO min-h-screen, or the 🔊 detaches to
+       the viewport top and reads as unattached to the title) -->
+  <section id="screen-cjar-menu" style="display:none"
+    class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
+    <button class="btn-open-sound absolute top-4 right-4 text-2xl active:scale-90 transition-transform duration-100">🔊</button>
+    <div class="text-5xl" role="img" aria-label="Cookie Jar">🍪</div>
+    <div>
+      <h2 class="text-3xl font-bold text-stone-800">Cookie Jar</h2>
+      <p class="text-stone-400 text-base mt-1">Who took the cookies from the cookie jar?</p>
+    </div>
+    <div class="flex flex-col gap-3 w-full">
+      <button id="btn-cjar-menu-play" class="cjar-cta min-h-14 w-full rounded-2xl active:scale-95 text-xl font-semibold transition-all duration-150">Raid the Jar!</button>
+      <button id="btn-cjar-menu-how-to" class="min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-xl font-semibold transition-all duration-150">How to Play</button>
+      <button id="btn-cjar-menu-cards" class="min-h-14 w-full rounded-2xl bg-[#F7E9C4] hover:bg-[#EFDCA8] active:scale-95 text-[#7A5C0A] text-xl font-semibold transition-all duration-150">See the Cards</button>
+      <button id="btn-cjar-menu-settings" class="min-h-14 w-full rounded-2xl bg-[#F7E9C4] hover:bg-[#EFDCA8] active:scale-95 text-[#7A5C0A] text-xl font-semibold transition-all duration-150">Settings</button>
+      <button id="btn-cjar-menu-back" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-base font-medium transition-all duration-150">← Back to the Box</button>
+    </div>
+  </section>
+
+  <!-- CJAR RAID INTRO — interstitial. NO [?] / 🔊 / ✕: it auto-advances AND has no
+       interactive element, both conditions of the ui-style.md rule-5 exemption. -->
+  <section id="screen-cjar-raid-intro" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-4 text-center">
+      <div class="text-6xl" role="img" aria-label="Cookie jar">🍪</div>
+      <h2 id="cjar-intro-heading" class="text-3xl font-bold text-stone-800"></h2>
+      <p id="cjar-intro-sub" class="text-stone-500 text-base"></p>
+      <div id="cjar-intro-affinity" style="display:none" class="flex flex-col gap-2 bg-white rounded-2xl p-4 shadow-sm"></div>
+    </div>
+  </section>
+
+  <!-- CJAR TABLE — THE gameplay screen. Four sub-states via cjarTablePhase. -->
+  <section id="screen-cjar-table" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-4">
+
+      <!-- HEADER — title row + the family warning strip on a second row INSIDE the header zone -->
+      <div class="flex flex-col gap-2">
+        <div class="flex items-center justify-between">
+          <p id="cjar-table-raid" class="text-stone-500 text-sm font-semibold uppercase tracking-widest"></p>
+          <div class="flex items-center gap-2">
+            <button id="btn-cjar-how-to" class="text-stone-400 font-bold text-sm active:scale-90 transition-transform duration-100">[?]</button>
+            <button class="btn-open-sound text-xl active:scale-90 transition-transform duration-100">🔊</button>
+            <button class="btn-cjar-quit-open text-stone-500 font-bold text-xl active:scale-90 transition-transform duration-100">✕</button>
+          </div>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <div id="cjar-warning-strip" class="flex items-center gap-1.5 flex-1"></div>
+          <button id="btn-cjar-family-tip" class="text-stone-300 font-bold text-xs leading-none active:scale-90 transition-transform duration-100">[?]</button>
+        </div>
+      </div>
+
+      <!-- STAGE — THREE BANDS, because one row was doing three different jobs and none
+           of them well. Band 1 is TABLE state (shared, up for grabs), band 2 is the
+           DECISION (what just resolved + what you are betting on), band 3 is the HISTORY.
+           All three previously shared one ~350px row: the trail was left ~142px — 2.6
+           thumbs of a Raid that runs 10+ flips — and the `next` card rendered at nearly
+           the same size as the spent ones, which undercut the past → present → future
+           read entirely. The Treat also stacked UNDER the deck in that same 56px column,
+           where it read as a card stuck below the deck rather than as the most valuable
+           object on the table (playtest round 2 reported it as a rendering bug; the
+           mechanic was correct, the presentation was not). -->
+      <div class="flex flex-col gap-2">
+
+        <!-- BAND 1 — table state. Crumbs live HERE, not in the private strip: they are
+             shared and up for grabs, and sitting them beside two personal numbers
+             (Cookie Stash, This Raid) is exactly what made all three unreadable. -->
+        <div class="flex items-center justify-center gap-1.5">
+          <span id="cjar-crumbs-line" class="text-xs font-semibold text-[#7A5C0A]"></span>
+          <button id="btn-cjar-crumbs-tip" class="text-stone-300 font-bold text-xs leading-none active:scale-90 transition-transform duration-100">[?]</button>
+        </div>
+
+        <!-- BAND 2 — the decision. Labels sit UNDER each card so they cannot drift from
+             what they name. `just revealed` toggles VISIBILITY, never display: hiding it
+             during Dibber Dobber's blind window must not shift the cards. -->
+        <div id="cjar-stage-row" class="relative flex items-end justify-center gap-3">
+          <div class="flex flex-col items-center gap-1">
+            <div id="cjar-table-hero" class="flex items-end"></div>
+            <span id="cjar-stage-label-now" class="text-[0.65rem] uppercase tracking-widest text-[#7A5C0A]">just revealed</span>
+          </div>
+          <div class="flex flex-col items-center gap-1">
+            <div id="cjar-deck-badge" class="flex flex-col items-center justify-end"></div>
+            <span class="text-[0.65rem] uppercase tracking-widest text-stone-300">next</span>
+          </div>
+          <div id="cjar-treat-slot" style="display:none" class="flex-col items-center gap-1">
+            <div id="cjar-treat-card"></div>
+            <span class="text-[0.65rem] uppercase tracking-widest text-[#7A5C0A]">on the counter</span>
+          </div>
+          <!-- Delta animation layer: absolute so a flying cookie contributes ZERO height.
+               In-flow it would change the column height and re-centre the whole Stack on
+               every flip — the SHP sheep-parade bug, and this fires ~55× a match. -->
+          <div id="cjar-delta-layer" class="absolute inset-0 pointer-events-none"></div>
+        </div>
+
+        <!-- BAND 3 — history, full width: ~6.5 thumbs visible with real room to scroll.
+             The strip carries NO click handler of its own — it is a scroll container, and
+             a tap-to-open handler on it fights the swipe. The label is the affordance. -->
+        <div class="flex flex-col gap-1">
+          <div id="cjar-trail-strip" class="flex items-end gap-1.5 overflow-x-auto py-1 min-h-[4.6rem]"></div>
+          <button id="btn-cjar-trail-open" class="self-start text-[0.65rem] uppercase tracking-widest text-stone-300 active:scale-95 transition-transform duration-100">what's come out &rsaquo;</button>
+        </div>
+      </div>
+
+      <!-- CONTROLS — timer, then the phase-dependent action area, then the private strip -->
+      <div class="flex flex-col gap-3">
+        <div id="cjar-timer-bar" class="h-1.5 w-full rounded-full bg-stone-200 overflow-hidden">
+          <div id="cjar-timer-fill" class="h-full w-full rounded-full" style="background-color:#D4A017"></div>
+        </div>
+        <div id="cjar-controls" class="flex flex-col gap-2"></div>
+        <div id="cjar-reveal-rows" class="flex flex-col gap-1.5"></div>
+        <div id="cjar-private-strip" class="flex flex-wrap items-center gap-2 border-t border-stone-200 pt-3"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CJAR BUSTED — interstitial, base game only. Chrome-exempt, same two conditions. -->
+  <section id="screen-cjar-busted" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-4 text-center">
+      <div id="cjar-busted-emoji" class="text-6xl" role="img" aria-label="Caught"></div>
+      <h2 class="text-4xl font-bold" style="color:#991b1b">BUSTED!</h2>
+      <p id="cjar-busted-who" class="text-xl font-bold text-stone-800"></p>
+      <p id="cjar-busted-line" class="text-stone-500 text-base italic"></p>
+    </div>
+  </section>
+
+  <!-- CJAR RAID SUMMARY — host-gated CTA -->
+  <section id="screen-cjar-raid-summary" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-4">
+      <div class="flex items-center justify-between">
+        <p id="cjar-summary-raid" class="text-stone-500 text-sm font-semibold uppercase tracking-widest"></p>
+        <div class="flex items-center gap-2">
+          <button id="btn-cjar-summary-how-to" class="text-stone-400 font-bold text-sm active:scale-90 transition-transform duration-100">[?]</button>
+          <button class="btn-open-sound text-xl active:scale-90 transition-transform duration-100">🔊</button>
+          <button class="btn-cjar-quit-open text-stone-500 font-bold text-xl active:scale-90 transition-transform duration-100">✕</button>
+        </div>
+      </div>
+      <div id="cjar-summary-rows" class="flex flex-col gap-2"></div>
+      <button id="btn-cjar-next-raid" class="cjar-cta min-h-14 w-full rounded-2xl active:scale-95 text-xl font-semibold transition-all duration-150">Next Raid</button>
+      <p id="cjar-summary-waiting" style="display:none" class="text-stone-400 text-sm text-center">Waiting for the host…</p>
+    </div>
+  </section>
+
+  <!-- CJAR GAMEOVER -->
+  <section id="screen-cjar-gameover" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-4">
+      <!-- "The Haul" closes the arc the Play CTA opens ("Raid the Jar!") and follows the
+           suite's gameover shape — PKO's The Hierarchy, FLW's The Vault. The nursery
+           rhyme stays as the subtitle, where it reads as flavour rather than as a title. -->
+      <div class="flex items-start justify-between">
+        <div>
+          <h2 class="text-2xl font-bold text-stone-800">The Haul 🍪</h2>
+          <p class="text-stone-400 text-sm mt-0.5">Who took the cookies from the cookie jar?</p>
+        </div>
+        <div class="flex items-center gap-2 shrink-0">
+          <button class="btn-open-sound text-xl active:scale-90 transition-transform duration-100">🔊</button>
+          <button id="btn-cjar-go-exit" class="text-stone-500 font-bold text-xl active:scale-90 transition-transform duration-100">✕</button>
+        </div>
+      </div>
+      <div id="cjar-podium" class="flex flex-col gap-2"></div>
+      <div id="cjar-history-grid" class="overflow-x-auto"></div>
+      <button id="btn-cjar-go-new" class="cjar-cta min-h-14 w-full rounded-2xl active:scale-95 text-xl font-semibold transition-all duration-150">Another Raid?</button>
+      <button id="btn-cjar-go-leave" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-sm font-semibold transition-all duration-150">Leave the Jar</button>
+    </div>
+  </section>
+
+  <!-- CJAR SETTINGS — shell; cards authored in Task 14 -->
+  <div id="cjar-settings-overlay" style="display:none"
+    class="fixed inset-0 bg-black/40 z-[80] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
+      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
+        <h2 class="text-xl font-bold text-stone-800">Cookie Playbook 🍪</h2>
+        <p class="text-xs text-stone-400 mt-1">How the raid runs — and how much trouble you're in.</p>
+      </div>
+      <div id="cjar-settings-body" class="overflow-y-auto flex flex-col gap-5 px-5 py-5">
+        <div id="cjar-set-snack" class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">Snack Friendly</p>
+            <p class="text-stone-400 text-sm mt-0.5">Guarantees the first card or two of every Raid is cookies, so nobody gets busted before they've grabbed anything.</p>
+          </div>
+          <div class="flex flex-col gap-2">
+            <div class="flex gap-2">
+              <button class="pill" data-group="cjar-snack" data-val="off">Off</button>
+              <button class="pill pill-active-cjar" data-group="cjar-snack" data-val="safe">Safe First Grab</button>
+              <button class="pill" data-group="cjar-snack" data-val="warmup">Warm-Up</button>
+            </div>
+            <p id="cjar-val-snack" class="text-stone-400 text-xs"></p>
+          </div>
+        </div>
+
+        <div id="cjar-set-house" class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">House Rules</p>
+            <p class="text-stone-400 text-sm mt-0.5">What happens to a family member after they catch you. Standard Burn makes them a little less likely next time; High Alert makes someone <span class="font-semibold text-stone-700">more</span> likely.</p>
+          </div>
+          <div class="flex flex-col gap-2">
+            <div class="flex gap-2">
+              <button class="pill pill-active-cjar" data-group="cjar-house" data-val="burn">Standard Burn</button>
+              <button class="pill" data-group="cjar-house" data-val="on-guard">On Guard</button>
+              <button class="pill" data-group="cjar-house" data-val="high-alert">High Alert</button>
+            </div>
+            <p id="cjar-val-house" class="text-stone-400 text-xs"></p>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">Match Length</p>
+            <p class="text-stone-400 text-sm mt-0.5">How many Cookie Raids before the biggest Cookie Stash wins.</p>
+          </div>
+          <div class="flex flex-col gap-2">
+            <div class="flex gap-2">
+              <button class="pill" data-group="cjar-length" data-val="3">Quick Snack</button>
+              <button class="pill pill-active-cjar" data-group="cjar-length" data-val="5">Full Feast</button>
+            </div>
+            <p id="cjar-val-length" class="text-stone-400 text-xs"></p>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">Decision Time</p>
+            <p class="text-stone-400 text-sm mt-0.5">How long everyone gets to choose each flip. No Rush turns the clock off completely — the jar waits for the slowest hand.</p>
+          </div>
+          <div class="flex flex-col gap-2">
+            <div class="flex gap-2">
+              <button class="pill" data-group="cjar-time" data-val="blitz">Blitz</button>
+              <button class="pill pill-active-cjar" data-group="cjar-time" data-val="standard">Standard</button>
+              <button class="pill" data-group="cjar-time" data-val="norush">No Rush</button>
+            </div>
+            <p id="cjar-val-time" class="text-stone-400 text-xs"></p>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <div class="flex items-center justify-between">
+            <p class="text-stone-800 font-semibold">Open Book</p>
+            <button id="btn-cjar-openbook-toggle" class="game-toggle-on-cjar shrink-0">ON</button>
+          </div>
+          <p class="text-stone-400 text-sm">Shows everyone's cookies to everyone. Turn it off and you'll only see your own numbers — you'll hear what happened to the others, just not how much.</p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <div class="flex items-center justify-between">
+            <p class="text-stone-800 font-semibold">✨ Sylly Mode</p>
+            <button id="btn-cjar-sylly-toggle" class="game-toggle-off shrink-0">OFF</button>
+          </div>
+          <p class="text-stone-600 text-sm font-semibold">Dibber Dobber</p>
+          <p class="text-stone-400 text-sm">Three moves instead of two. Take grabs cookies, Play Innocent keeps you safe and sweeps the crumbs, and Dob points the finger at whoever's taking. Nobody leaves, nobody busts, and nobody ever loses everything.</p>
+        </div>
+
+        <button id="btn-cjar-settings-close" class="cjar-cta min-h-14 w-full rounded-2xl text-xl font-semibold active:scale-95 transition-all duration-150">Got it</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CJAR HOW TO PLAY — shell; step cards authored in Task 14 -->
+  <div id="cjar-how-to-overlay" style="display:none"
+    class="fixed inset-0 bg-black/40 z-[90] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
+      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
+        <h2 class="text-xl font-bold text-stone-800">How to Play 🍪</h2>
+        <p class="text-xs text-stone-400 mt-1">Grab cookies, don't get caught twice.</p>
+      </div>
+      <!-- TAB BAR — the card gallery used to be its own overlay opened from a button at
+           the bottom of this one. Knowing what cards exist IS learning the game, so it
+           belongs here rather than one overlay further away; folding it in also removes
+           a z-index stack and one overlay from the teardown list. Sticky with the title
+           block, never scrolling with the body. -->
+      <div class="px-5 pt-3 pb-3 border-b border-stone-200 flex-shrink-0 flex gap-2">
+        <button id="btn-cjar-howto-tab-rules" class="pill pill-active-cjar" data-cjar-howto-tab="rules">The Rules</button>
+        <button id="btn-cjar-howto-tab-cards" class="pill" data-cjar-howto-tab="cards">The Cards</button>
+      </div>
+      <div id="cjar-how-to-body" class="overflow-y-auto flex flex-col gap-4 px-5 py-5">
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest cjar-label">Step 1</p>
+          <p class="font-bold text-stone-800">A card comes out of the jar</p>
+          <p class="text-stone-500 text-sm">Everyone sees it at once. It's either <span class="font-semibold text-stone-700">cookies</span> 🍪, a member of the <span class="font-semibold text-stone-700">family</span> 👪, or a <span class="font-semibold text-stone-700">Treat</span> 🍰 that lands on the counter.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest cjar-label">Step 2</p>
+          <p class="font-bold text-stone-800">Cookies get shared out straight away</p>
+          <p class="text-stone-500 text-sm">Split evenly between everyone still raiding. Anything left over that won't divide becomes <span class="font-semibold text-stone-700">Cookie Crumbs</span>, sitting on the bench.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest cjar-label">Step 3</p>
+          <p class="font-bold text-stone-800">Then everyone decides, at the same time</p>
+          <p class="text-stone-500 text-sm"><span class="font-semibold text-stone-700">Take a Cookie</span> to stay in for the next card, or <span class="font-semibold text-stone-700">Sneak Out</span> to bank everything you've collected this Raid. You've got 15 seconds.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest cjar-label">Step 4</p>
+          <p class="font-bold text-stone-800">Sneak out alone and you take the crumbs</p>
+          <p class="text-stone-500 text-sm">The only one leaving? You scoop <span class="font-semibold text-stone-700">every crumb</span> on the bench and any Treat on the counter. Leave with someone else and you just split the crumbs.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest cjar-label">Step 5</p>
+          <p class="font-bold text-stone-800">The family is watching</p>
+          <p class="text-stone-500 text-sm">The first time someone turns up, it's just a scare. The <span class="font-semibold text-stone-700">second time the same person turns up</span>, it's BUSTED! — everyone still in the kitchen loses the lot.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest cjar-label">Step 6</p>
+          <p class="font-bold text-stone-800">Banked cookies are safe forever</p>
+          <p class="text-stone-500 text-sm">A bust only costs you what you were carrying <span class="font-semibold text-stone-700">this Raid</span>. Your <span class="font-semibold text-stone-700">Cookie Stash</span> can never go down.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest cjar-label">Step 7</p>
+          <p class="font-bold text-stone-800">Five Raids, one jar</p>
+          <p class="text-stone-500 text-sm">Each Raid starts a fresh jar. Check the <span class="font-semibold text-stone-700">Crumb Trail</span> 🔍 any time to see every flip and who's still lurking in the deck.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest cjar-label">Winning and Scoring</p>
+          <p class="font-bold text-stone-800">Biggest Cookie Stash takes it</p>
+          <ul class="list-disc pl-5 flex flex-col gap-1 text-stone-500 text-sm">
+            <li><span class="font-semibold text-stone-700">Most cookies banked</span> — Top Cookie Thief 🍪.</li>
+            <li><span class="font-semibold text-stone-700">Tied?</span> Whoever grabbed more Treats wins it.</li>
+            <li><span class="font-semibold text-stone-700">Still tied?</span> You share the spot.</li>
+            <li><span class="font-semibold text-stone-700">Last place</span> gets caught Red-Handed.</li>
+          </ul>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest cjar-label">✨ Sylly Mode</p>
+          <p class="font-bold text-stone-800">Dibber Dobber</p>
+          <p class="text-stone-500 text-sm">Three moves instead of two. <span class="font-semibold text-stone-700">Take</span> grabs cookies, <span class="font-semibold text-stone-700">Play Innocent</span> keeps you safe and sweeps the crumbs, and <span class="font-semibold text-stone-700">Dob</span> points the finger at whoever's taking — but it backfires if nobody was. Every Raid you get a secret <span class="font-semibold text-stone-700">Favourite</span> who lets you off and a <span class="font-semibold text-stone-700">Watcher</span> who costs you double. Nobody leaves, nobody busts, and nobody ever loses everything.</p>
+        </div>
+        <button id="btn-cjar-howto-close" class="cjar-cta min-h-14 w-full rounded-2xl text-xl font-semibold active:scale-95 transition-all duration-150">Got it</button>
+      </div>
+
+      <!-- THE CARDS tab. Body is built from CJAR_DATA on every open, so it can never
+           drift from the live deck the way a hand-written list would, and every tile
+           goes through cjarRenderCard — a gallery that built its own markup would be
+           unskinnable. This is also what makes the offline install check a SINGLE-DEVICE
+           job: open it offline and illustrated cards mean the art precached, emoji mean
+           it did not. On an MDLM-only game the alternative is four phones and a live
+           Firebase room to answer a service-worker question. -->
+      <div id="cjar-how-to-cards" style="display:none" class="overflow-y-auto flex-col gap-5 px-5 py-5">
+        <div id="cjar-cards-body" class="flex flex-col gap-5"></div>
+        <button id="btn-cjar-howto-close-cards" class="cjar-cta min-h-14 w-full rounded-2xl text-xl font-semibold active:scale-95 transition-all duration-150">Got it</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CJAR CRUMB TRAIL — the flip log. Title must read as a LOG, never just "Crumbs"
+       (the scoring currency is Cookie Crumbs; PKO owns "The Trail"). -->
+  <div id="cjar-trail-overlay" style="display:none"
+    class="fixed inset-0 bg-black/40 z-[90] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
+      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
+        <h2 class="text-xl font-bold text-stone-800">Crumb Trail 🔍</h2>
+        <p class="text-xs text-stone-400 mt-1">Every flip this Raid.</p>
+      </div>
+      <div class="overflow-y-auto flex flex-col gap-3 px-5 py-5">
+        <div id="cjar-trail-copies" class="flex flex-col gap-2"></div>
+        <div id="cjar-trail-log" class="flex flex-col gap-2"></div>
+        <button id="btn-cjar-trail-close" class="cjar-cta min-h-14 w-full rounded-2xl text-xl font-semibold active:scale-95 transition-all duration-150">Got it</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CJAR QUIT -->
+  <div id="cjar-quit-overlay" style="display:none"
+    class="fixed inset-0 z-[80] overlay-modal-backdrop flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-[#E5C97A]">
+      <p class="text-3xl">🍪</p>
+      <h3 class="text-lg font-bold text-stone-800">Giving up on the jar?</h3>
+      <p class="text-stone-500 text-sm">Your Cookie Stash will be lost.</p>
+      <button id="btn-cjar-quit-confirm" class="cjar-cta min-h-14 w-full rounded-2xl active:scale-95 font-semibold text-lg transition-all duration-150">Yeah, sneak off.</button>
+      <button id="btn-cjar-quit-cancel" class="min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-lg transition-all duration-150">Keep raiding!</button>
+    </div>
+  </div>
+
+  <!-- CJAR PLAY AGAIN -->
+  <div id="cjar-new-raid-overlay" style="display:none"
+    class="fixed inset-0 z-[90] overlay-modal-backdrop flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-[#E5C97A]">
+      <p class="text-3xl">🍪</p>
+      <h3 class="text-lg font-bold text-stone-800">Another Raid?</h3>
+      <p class="text-stone-500 text-sm">Everyone's Cookie Stash goes back to zero.</p>
+      <button id="btn-cjar-new-confirm" class="cjar-cta min-h-14 w-full rounded-2xl active:scale-95 font-semibold text-lg transition-all duration-150">Restart in Lobby 🔄</button>
+      <button id="btn-cjar-new-cancel" class="min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-lg transition-all duration-150">Stay here</button>
+    </div>
+  </div>
+
+  <!-- CJAR SHARED TIP — content injected by cjarShowTip(emoji, heading, lines[]) -->
+  <div id="cjar-tip-overlay" style="display:none"
+    class="fixed inset-0 z-[90] overlay-modal-backdrop flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-[#E5C97A]">
+      <div class="flex flex-col gap-2">
+        <p id="cjar-tip-emoji" class="text-3xl"></p>
+        <h3 id="cjar-tip-heading" class="text-lg font-bold text-stone-800"></h3>
+        <div id="cjar-tip-body" class="text-stone-500 text-sm text-left flex flex-col gap-1.5"></div>
+      </div>
+      <button id="btn-cjar-tip-close" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-sm transition-all duration-100">Got it</button>
     </div>
   </div>
 

@@ -1,4 +1,4 @@
-# Phase Snapshot — Phase 39: Cookie Jar (CJAR) (3 Aug 2026, SW v159)
+# Phase Snapshot — Phase 39: Cookie Jar (CJAR) (3 Aug 2026, SW v160)
 
 **Type:** New game (game 18) — base game + Sylly Mode built in a single phase.
 **Follows:** Phase 38 (Force of Nature — PKO Sylly Mode, three-device session confirmed clean).
@@ -35,7 +35,27 @@ Two further items were owner calls made during the same triage but not bugs: **D
 
 ---
 
-## Changes Shipped (v156 → v159, this phase)
+## Playtest Round 2 Results (3 Aug 2026, SW v159 → v160)
+
+| What ran | Result |
+|---|---|
+| **Offline install check** — unregister SW → hard reload → Offline → menu → "See the Cards" | **PASSED.** Illustrated cards rendered, so the 14 core-art JPEGs and the manifest are precached. **This deferred item is now closed.** |
+| Single-device review of the table, settings and end screen | Five changes, all owner-raised, all shipped at v160 |
+
+**The headline finding was a diagnosis, not a fix.** The reported "card stuck under the next one" was **the Treat**, not a render leak: `cjarRenderStage` appended the deck's face-down card *and* `cjarCounterTreat` into the same 56 px column, so the unclaimed Treat drew as an unlabelled thumbnail wedged under the deck in the slot that means "next". Different each Raid because the Treat is scheduled per Raid; persistent across flips because that is its rule. Every harness was right to pass — the mechanic worked, the object had no home (BUG-08).
+
+**The five changes:**
+1. **DD-12 — the stage became three bands**, superseding DD-11's single row in part. The row had left the history 142 px (~2.6 thumbs of a 10+ flip Raid) and `strip.onclick` fought the swipe that would scroll it. Now: table state → the decision → full-width scrollable history, with `.cjar-card-next` sizing the deck near the live card rather than near the spent ones.
+2. **Crumbs moved out of the private strip** onto the stage — it is shared table state, and sitting it between two personal numbers is what made all three unreadable. The two that remain are told apart by shape (filled = banked, outlined = at risk).
+3. **DD-13 — settings pills carry the thematic name; the value is a live line below the row.** Decision Time had shipped with its seconds written nowhere; Match Length baked them into labels. Now a `ui-style.md` rule.
+4. **DD-14 — the card gallery became a How to Play tab**, `cjar-cards-overlay` deleted. `ui-style.md`'s How-to Overlay Standard gained an optional tab bar with the line drawn: teaching material earns a tab, a mid-play reference keeps its own overlay.
+5. **Gameover gained a title — The Haul 🍪**, matching the suite's "The [Noun]" shape.
+
+**One question raised and deliberately not acted on.** In Dibber Dobber the first decision of every Raid is made on an empty stage, and `cjarBuildDeck`'s Sylly branch returns before `cjarFloatCookies` — so **Snack Friendly does nothing in Sylly** (its card is hidden, so this is honest rather than a lie). Floating a cookie to the front would keep the commit blind while making it unpunishable. Left alone: it is a rules change to an economy whose balance baseline (DD-06) was measured without it, and the standing discipline is not to retune pre-playtest. **Owner call.**
+
+---
+
+## Changes Shipped (v156 → v160, this phase)
 
 1. **The whole Cookie Jar plugin** — base game (Incan Gold 1:1) + Dibber Dobber Sylly Mode, both built against the confirmed spec in one 17-task phase.
 2. **BUG-06 fix and the wire/DOM upgrade to the loopback harness** — the standard fifth MP tool gained the two properties (`fbWrite`/`fbRead`, real mock elements) that make it able to catch a render-time throw, elevated to `logic-engine.md` § MDLM Patterns as a universal rule.
@@ -77,12 +97,14 @@ Two further items were owner calls made during the same triage but not bugs: **D
 
 **This phase gate is explicitly NOT closed.** Following the same discipline as PKO's `PKO_CARRION_OPEN` (recording an unverified path honestly rather than implying coverage):
 
-1. **The three-device session (plan Task 15 Step 10) has never been run.** Playtest round 1 was the first live multi-device exposure, and it never got past flip 1 (BUG-06). Nothing downstream of the decision window — the reveal, a bust, a Sneak-Out, a full Raid, a full match, Dibber Dobber live — has been observed on real devices. No harness substitutes for this.
-2. **The offline install check (Task 16 Step 6) has never been run.** Procedure (single device, no lobby, made possible by the DD-09 gallery): unregister the v159 SW → hard reload → tick Offline → open Cookie Jar → "See the Cards" → confirm illustrated cards, not emoji fallback.
+1. **The three-device session (plan Task 15 Step 10) has never been run — and is now the ONLY blocking item.** Playtest round 1 was the first live multi-device exposure and never got past flip 1 (BUG-06); round 2 was single-device. Nothing downstream of the decision window — the reveal, a bust, a Sneak-Out, a full Raid, a full match, Dibber Dobber live — has been observed across real devices. No harness substitutes for this.
+2. ~~The offline install check~~ — **DONE and PASSED, 3 Aug 2026 (round 2).** See above.
 3. **A suite-wide sweep for the BUG-06 class is not done.** cjar is fixed; whether any of the other 17 games assigns a raw payload collection Firebase could erase has not been audited. Worth a Protocol A pass.
 4. **DD-06 (Play Innocent wins ~52–53% at both table sizes) is flagged, not retuned** — deliberate, so playtest has a stable baseline to compare against. If a lever is ever needed, the candidates are the scare-off's unconditional full-pool sweep and the Dob backfire severity, not the Treat rule (a mechanism probe disconfirmed that).
 5. **3-player balance is unsimulated** — `simulate-cjar-dd.js` only ran at 5 and 8 players; the min-player drop to 3 (DD-08) is an owner call not yet checked against the solo-Sneak-Out jackpot's higher hit rate at small tables.
 6. **The FRT `getMuteToggleOnClass()` gap** is logged (`frt-implementation-notes.md`) but deliberately not fixed in this phase — a separate, unrelated commit.
+7. **Two sweeps opened by round 2, both deferred on purpose.** The DD-13 settings dynamic-value line across the other 17 games, and a card gallery / How-to tab for the other core-art games (FLW, SHP, FRT, PKO) — those four still have DD-09's original problem, where the offline check for their art needs a running match.
+8. **The Dibber Dobber blind-first-flip question** (Snack Friendly is inert in Sylly) — diagnosed, one-line fix available, deliberately unactioned because it changes an economy whose baseline was measured without it. Owner call.
 
 ---
 
@@ -91,5 +113,5 @@ Two further items were owner calls made during the same triage but not bugs: **D
 - `node tools/verify-cjar-deck.js` — 73/73 PASS.
 - `node tools/verify-cjar-loop.js` — 102/102 PASS.
 - `node tools/verify-cjar-dd.js` — 47/47 PASS.
-- `node tools/verify-cjar-loopback.js` — 108/108 PASS.
-- Live: playtest round 1 only (4 devices, unplayable as found, five fixes applied and not yet re-tested live). **No clean live session has been recorded for Cookie Jar.**
+- `node tools/verify-cjar-loopback.js` — 110/110 PASS (gained the How-to tab-switch assertions in round 2).
+- Live: playtest round 1 (4 devices, unplayable as found, five fixes applied) and round 2 (single device — the offline install check **passed**, plus five UI changes). **No clean MULTI-DEVICE session has been recorded for Cookie Jar.**

@@ -358,6 +358,38 @@ A suite-wide Stack sweep migrated every content/results screen off `h-screen`. T
 - **Close button:** game brand primary colour (`bg-[brand] hover:bg-[brand-dark]`).
 - **Inner div:** must include `flex flex-col` — title block is `flex-shrink-0`, body is `overflow-y-auto`.
 
+### Optional tab bar (added Aug 2026 — CJAR is the reference)
+
+A game with **reference content that is itself part of learning the game** — every card in the
+deck, a chain diagram, a role roster — may add a tab bar rather than pushing that content into a
+second overlay. Sits directly under the sticky title block, sticky with it, never scrolling:
+
+```html
+<div class="px-5 pt-3 pb-3 border-b border-stone-200 flex-shrink-0 flex gap-2">
+  <button class="pill pill-active-[colour]" data-[abbr]-howto-tab="rules">The Rules</button>
+  <button class="pill" data-[abbr]-howto-tab="cards">The Cards</button>
+</div>
+```
+
+**Rules:**
+- The **first tab is always the Step cards** — the canonical How-to structure above is unchanged
+  and still mandatory. A tab bar adds a sibling body; it never reorders or removes the Steps.
+- Each tab body is its **own** `overflow-y-auto` region with its **own** close button, so each
+  scrolls independently and "Got it" is always reachable from the bottom of what you are reading.
+- Bodies are **siblings toggled by display**, not one body repainted — flicking across and back
+  must not lose the other tab's scroll position.
+- Tab buttons use the standard `.pill` / `pill-active-[colour]` classes and the same toggle rule
+  (never remove `.pill`).
+- Content that is **not** teaching material still belongs in its own overlay. This is not a
+  licence to fold Settings, a match log, or a live game reference into How to Play.
+
+**Why:** cjar's card gallery began as its own overlay opened by a button at the bottom of How to
+Play — one overlay further away than the thing it explains, plus a z-index stack and an extra
+entry in the `resetToLobby()` teardown list. Knowing what cards exist *is* learning the game.
+PKO's `pko-chain-overlay` (Diagram | Animals) is the existing two-tab precedent for the tab
+mechanics themselves; it stays a separate overlay because it is a mid-play reference, not a
+teaching aid.
+
 ### Per-game reference
 
 See **§ Per-Game Reference** at the end of this file — **Table B** for emoji + Sylly Mode name, **Table C** for the step-label and close-button classes.
@@ -406,6 +438,33 @@ Every individual setting is wrapped in a white card. Do NOT use bare divs or `<h
   </div>
 </div>
 ```
+
+**Dynamic value line (added Aug 2026 — CJAR is the reference).** A pill label carries the
+**thematic name and nothing else**. When the option also encodes a concrete value the player
+needs — a duration, a count, a threshold, a percentage — that value goes on its own live line
+**below** the pill row, never inside the label:
+
+```html
+<div class="flex flex-col gap-2">
+  <div class="flex gap-2"><!-- pills, thematic names only --></div>
+  <p id="[abbr]-val-[group]" class="text-stone-400 text-xs"></p>
+</div>
+```
+
+- **Required** when the option encodes a concrete value not visible in its label. **Optional**
+  otherwise — an ON/OFF toggle whose description already says what it does does not need one.
+- The **static description above the pills stays**, and keeps its own job: it says what the
+  setting *controls*, and it is the only thing there to read before a choice has been made.
+  The dynamic line says what you have just *picked*. Collapsing the two loses the first.
+- Repaint it from the game's `[abbr]SyncSettingsUI()` **and** from the pill click handler.
+- This is the same shape as the Sylly intensity slider's live descriptor below — same class
+  (`text-stone-400 text-xs`), same job — generalised from sliders to pill groups.
+
+**Why the rule exists:** cjar shipped Decision Time as `Blitz / Standard / No Rush` with the
+actual seconds written nowhere in the app, while Match Length baked its values into the labels
+(`Quick Snack (3)`), which lengthens pills unevenly and breaks the row's alignment. Both are the
+same gap. Keeping values off the labels is also what protects thematic setting names, which are
+close to a suite signature.
 
 **Pill toggle rule:** `.pill` base class must ALWAYS remain on every pill button. Never remove it. Only add/remove `.pill-active-[colour]`. The `pill-active-*` classes only define background-color and color — all structural styles (border-radius, padding, flex, font-size) live in `.pill`. Removing `.pill` leaves an unstyled box.
 

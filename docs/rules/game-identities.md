@@ -2017,10 +2017,12 @@ LOBBY (MDLM only) → CJAR MENU → [onPassThePhone: cjarStartMatch(), BUG-07 �
 |---|---|---|---|---|
 | Snack Friendly | Off / Safe / Warm-Up | Safe | `cjarSnackFriendly` | `'off'` / `'safe'` / `'warmup'` |
 | House Rules | Standard Burn / On Guard / High Alert | Standard Burn | `cjarHouseRules` | `'burn'` / `'on-guard'` / `'high-alert'` |
-| Match Length | Quick Snack (3) / Full Feast (5) | Full Feast | `cjarMatchLength` | `3` / `5` |
-| Decision Time | Blitz (10s) / Standard (20s) / No Rush | Standard | `cjarDecisionTime` | `'blitz'` / `'standard'` / `'norush'` |
+| Match Length | Quick Snack / Full Feast | Full Feast | `cjarMatchLength` | `3` / `5` |
+| Decision Time | Blitz / Standard / No Rush | Standard | `cjarDecisionTime` | `'blitz'` / `'standard'` / `'norush'` |
 | Open Book | OFF / ON | ON | `cjarOpenBook` | bool — shows every Cookie Stash live, in every phase (DD-11), not only at reveal |
 | ✨ Sylly Mode (Dibber Dobber) | OFF / ON | OFF | `cjarSyllyMode` | bool |
+
+**Pill labels carry the thematic name only; the value is a live line below the row** (`cjar-val-snack` / `-house` / `-length` / `-time`, repainted by `cjarSyncSettingsUI()`). cjar is the reference implementation for `ui-style.md`'s Dynamic value line rule — Match Length dropped its baked-in `(3)`/`(5)`, and Decision Time gained the seconds it had never shown anywhere (DD-13).
 
 **Decision Time's No Rush is a genuine no-clock, not a very long timer** — `cjarDecisionMs()` returns `null` rather than a large number, so a caller that forgets to branch fails loudly. `cjarAllIn()` was already the sole gate (the host timeout is only a safety net), so removing the clock changes nothing structural; the timer bar is hidden outright rather than shown full (DD-10).
 
@@ -2040,7 +2042,7 @@ LOBBY (MDLM only) → CJAR MENU → [onPassThePhone: cjarStartMatch(), BUG-07 �
 
 **Asset-pack render seam:** all card DOM goes through `cjarRenderCard(card, opts)` — `assetFace('cjar', key)` / `assetBack('cjar')` resolve skin → core art → emoji fallback. Core art ships from day one (`data/art/cjar/`, 14 JPEGs, 492 KB precached) — cjar is the first game to launch with default art rather than adding it after the fact.
 
-**The card gallery (DD-09).** `cjar-cards-overlay` builds from `CJAR_DATA` on every open, every tile through `cjarRenderCard` — reachable from the menu and from inside How to Play. First gallery in the suite. Exists because cjar's art otherwise only renders *inside a running Raid*, which on an MDLM-only game turned the offline install check into a four-phone live-Firebase exercise; the gallery makes it single-device.
+**The card gallery (DD-09, relocated DD-14).** The gallery is **the second tab of How to Play** — `The Rules | The Cards` — not its own overlay. It builds from `CJAR_DATA` on every switch into the tab, every tile through `cjarRenderCard`. First gallery in the suite. Exists because cjar's art otherwise only renders *inside a running Raid*, which on an MDLM-only game turned the offline install check into a four-phone live-Firebase exercise; the gallery makes it single-device, and "See the Cards" on the game menu lands on the tab directly. cjar is the reference for `ui-style.md`'s **optional How-to tab bar** — teaching material earns a tab, a mid-play reference (PKO's chain) keeps its own overlay.
 
 ### The One-Row Stage (DD-11)
 The table reads left → right: **what's come out (trail) → just-revealed card → face-down deck**. The newest revealed card *is* the trail strip's rightmost entry at `cjar-card-stage` size (8.5rem) — never drawn a second time as a separate hero. Persistent standings (`cjarRenderRevealRows`) render in every phase, not only during reveal, so Open Book is visible while deciding — the one moment it's worth anything.
@@ -2049,9 +2051,8 @@ The table reads left → right: **what's come out (trail) → just-revealed card
 | Overlay | Pattern | z-index | Notes |
 |---------|---------|---------|-------|
 | `cjar-settings-overlay` | Data (slide-up) | z-[80] | Snack Friendly, House Rules, Match Length, Decision Time, Open Book, ✨ Sylly Mode |
-| `cjar-how-to-overlay` | Data (slide-up) | z-[90] | How to Play — includes an entry point into the card gallery |
+| `cjar-how-to-overlay` | Data (slide-up) | z-[90] | How to Play — **two tabs: The Rules (default) \| The Cards** (the gallery, DD-09/DD-14). Each tab body scrolls independently and carries its own close button |
 | `cjar-trail-overlay` | Data (slide-up) | z-[90] | "Crumb Trail 🔍" — this Raid's flip-by-flip log |
-| `cjar-cards-overlay` | Data (slide-up) | z-[90] | The card gallery (DD-09) |
 | `cjar-tip-overlay` | Decision modal | z-[90] | Contextual `[?]` tip (e.g. the family-card mechanic) |
 | `cjar-quit-overlay` | Decision modal | z-[80] | Mid-game exit confirm |
 | `cjar-new-raid-overlay` | Decision modal | z-[90] | "New Raid?" play-again confirm |

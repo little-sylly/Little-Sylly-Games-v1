@@ -79,6 +79,9 @@ const allScreens = [
   // Pecking Order
   'screen-pko-menu', 'screen-pko-hoard', 'screen-pko-table', 'screen-pko-event',
   'screen-pko-unchallenged', 'screen-pko-clash-result', 'screen-pko-hierarchy',
+  // Cookie Jar
+  'screen-cjar-menu', 'screen-cjar-raid-intro', 'screen-cjar-table',
+  'screen-cjar-busted', 'screen-cjar-raid-summary', 'screen-cjar-gameover',
 ];
 
 // ── Web Audio API ─────────────────────────────────────────────────────────────
@@ -447,7 +450,7 @@ function updateSliderTheme(gameId) {
     'nat': 'nat-range', 'dsd': 'dsd-range',
     'gth': 'gth-range', 'bld': 'bld-range', 'dyb': 'dyb-range', 'pass': 'pass-range',
     'nt': 'nt-range', 'frt': 'frt-range', 'shp': 'shp-range', 'flw': 'flw-range',
-    'pko': 'pko-range'
+    'pko': 'pko-range', 'cjar': 'cjar-range'
   };
   const el = document.getElementById('global-sound-volume');
   el.className = (map[gameId] || 'stone-range') + ' w-full';
@@ -459,10 +462,11 @@ function getMuteToggleOnClass(gameId) {
     'sylly-signals': 'game-toggle-on-teal', 'jec': 'game-toggle-on-amber',
     'ygi': 'game-toggle-on-orange', 'lttp': 'game-toggle-on-red',
     'nat': 'game-toggle-on-lime', 'dsd': 'game-toggle-on-cyan',
-    'gth': 'game-toggle-on-sage', 'bld': 'game-toggle-on-yellow',
+    'gth': 'game-toggle-on-sage', 'bld': 'game-toggle-on-bld',
     'dyb': 'game-toggle-on-dyb', 'pass': 'game-toggle-on-zinc',
     'nt': 'game-toggle-on-emerald', 'shp': 'game-toggle-on-indigo',
-    'flw': 'game-toggle-on-flw', 'pko': 'game-toggle-on-pko'
+    'flw': 'game-toggle-on-flw', 'pko': 'game-toggle-on-pko',
+    'cjar': 'game-toggle-on-cjar'
   };
   return map[gameId] || 'game-toggle-on-stone';
 }
@@ -627,10 +631,16 @@ function resetToLobby() {
   // Pecking Order teardown
   ['pko-settings-overlay','pko-challenge-overlay','pko-how-to-overlay','pko-chain-overlay',
    'pko-trail-overlay','pko-quit-overlay','pko-stampede-overlay','pko-new-match-overlay',
-   'pko-carrion-overlay'].forEach(id => {
+   'pko-carrion-overlay','pko-events-overlay'].forEach(id => {
     const el = document.getElementById(id); if (el) el.style.display = 'none';
   });
   if (typeof pkoResetState === 'function') pkoResetState();
+  // Cookie Jar teardown
+  ['cjar-settings-overlay','cjar-how-to-overlay','cjar-trail-overlay',
+   'cjar-quit-overlay','cjar-new-raid-overlay','cjar-tip-overlay'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.style.display = 'none';
+  });
+  if (typeof cjarResetState === 'function') cjarResetState();
   // Help-tip overlay cleanup (Phase 21a)
   ['li5','gm','ss','jec','ygi','lttp','nat','dsd'].forEach(abbr => {
     const el = document.getElementById(`${abbr}-help-tip-overlay`);

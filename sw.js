@@ -1,7 +1,7 @@
-// Little Sylly Games — Service Worker v154
+// Little Sylly Games — Service Worker v157
 // All assets are local — no external CDN URLs, no opaque response issues.
 
-const CACHE_NAME = 'sylly-games-v155';
+const CACHE_NAME = 'sylly-games-v160';
 
 const PRECACHE_URLS = [
   './',
@@ -25,11 +25,13 @@ const PRECACHE_URLS = [
   'js/games/shp.js',
   'js/games/flw.js',
   'js/games/pko.js',
+  'js/games/cjar.js',
   'js/lib/cards.js',
   'js/lib/art.js',
   'data/ygi-data.json',
   'data/gth-data.json',
   'data/pko-data.json',
+  'data/cjar-data.json',
   'js/secret-mode.js',
   'js/app.js',
   'js/lib/tailwind-play.js',
@@ -61,6 +63,21 @@ const PRECACHE_URLS = [
   'data/art/pko/img/mimic.jpg',
   'data/art/pko/img/back.jpg',
   'data/art/pko/img/chain.jpg',
+  'data/art/cjar/pack.json',
+  'data/art/cjar/img/cookie-handful.jpg',
+  'data/art/cjar/img/cookie-batch.jpg',
+  'data/art/cjar/img/cookie-mountain.jpg',
+  'data/art/cjar/img/family-mum.jpg',
+  'data/art/cjar/img/family-dad.jpg',
+  'data/art/cjar/img/family-big.jpg',
+  'data/art/cjar/img/family-grandma.jpg',
+  'data/art/cjar/img/family-pet.jpg',
+  'data/art/cjar/img/treat-shortbread.jpg',
+  'data/art/cjar/img/treat-redvelvet.jpg',
+  'data/art/cjar/img/treat-macadamia.jpg',
+  'data/art/cjar/img/treat-macarons.jpg',
+  'data/art/cjar/img/treat-brownies.jpg',
+  'data/art/cjar/img/back.jpg',
   'data/art/flw/pack.json',
   'data/art/flw/img/0.jpg',
   'data/art/flw/img/1.jpg',
