@@ -1,0 +1,111 @@
+{
+  "cookieValues": [1, 2, 3, 4, 5, 5, 7, 7, 9, 11, 11, 13, 14, 15, 17],
+  "cookieTiers": {
+    "handful":  { "label": "Handful of Cookies",  "min": 1,  "max": 5  },
+    "batch":    { "label": "Batch of Cookies",    "min": 6,  "max": 12 },
+    "mountain": { "label": "Mountain of Cookies", "min": 13, "max": 17 }
+  },
+  "family": [
+    {
+      "id": "mum",
+      "name": "Mum",
+      "emoji": "👩",
+      "copies": 3,
+      "warn": [
+        "Was that the pantry door?",
+        "I can hear you from the laundry, you know.",
+        "Told you — no cookies before dinner!",
+        "Don't make me come in there."
+      ],
+      "bust": [
+        "Hand out of the jar. NOW.",
+        "Right. Jar goes on top of the fridge.",
+        "I wasn't born yesterday, love.",
+        "That's it — everyone out of the kitchen."
+      ]
+    },
+    {
+      "id": "dad",
+      "name": "Dad",
+      "emoji": "🧔",
+      "copies": 3,
+      "warn": [
+        "Oi. I heard that lid.",
+        "You right in there, mate?",
+        "That'd better be the fruit bowl.",
+        "I'm counting them, you know."
+      ],
+      "bust": [
+        "Caught you red-handed, mate.",
+        "That's the last one. I mean it this time.",
+        "Told your mother you'd crack before dinner.",
+        "Jar's coming with me to the shed."
+      ]
+    },
+    {
+      "id": "big",
+      "name": "Big Sister",
+      "emoji": "🙋",
+      "copies": 3,
+      "warn": [
+        "I saw that.",
+        "Interesting. Very interesting.",
+        "Keep going. I'm just watching.",
+        "Mum's going to LOVE this."
+      ],
+      "bust": [
+        "MUUUUM! They're in the cookies!",
+        "Told you I'd tell. Nobody believes me until I do.",
+        "Screenshotted. Metaphorically.",
+        "You had one job: don't get caught by me."
+      ]
+    },
+    {
+      "id": "grandma",
+      "name": "Grandma",
+      "emoji": "👵",
+      "copies": 3,
+      "warn": [
+        "Ooh, is that the biscuit tin?",
+        "Come here a sec. Let me look at you.",
+        "Your mother was exactly the same, you know.",
+        "I won't say a word. Not yet."
+      ],
+      "bust": [
+        "Sit down, love. I'm putting the kettle on.",
+        "Not before dinner. I'll be telling your mother.",
+        "You'll have a proper sandwich first, thank you.",
+        "I've moved the tin. You'll never find it."
+      ]
+    },
+    {
+      "id": "pet",
+      "name": "The Dog",
+      "emoji": "🐕",
+      "copies": 3,
+      "warn": [
+        "A hopeful tail thumps against the cupboard.",
+        "Nails clicking across the lino. Coming closer.",
+        "Sits. Stares. Does not blink.",
+        "One ear up. Very much awake now."
+      ],
+      "bust": [
+        "Barks. Loudly. Repeatedly. At you.",
+        "Bolts for the kitchen and takes the whole jar down.",
+        "Someone's coming to see what the fuss is.",
+        "Drops the evidence at Mum's feet. Traitor."
+      ]
+    }
+  ],
+  "treats": [
+    { "id": "shortbread", "name": "Strawberry Shortbread Cookies",        "tier": "special", "points": 5 },
+    { "id": "redvelvet",  "name": "Red Velvet Cookies",                   "tier": "special", "points": 5 },
+    { "id": "macadamia",  "name": "White Chocolate Macadamia Nut Cookies","tier": "special", "points": 5 },
+    { "id": "macarons",   "name": "French Macarons",                      "tier": "super",   "points": 10 },
+    { "id": "brownies",   "name": "Chocolate Truffle Brownies",           "tier": "super",   "points": 10 }
+  ],
+  "treatSchedule": {
+    "3": ["shortbread", "redvelvet", "brownies"],
+    "5": ["shortbread", "redvelvet", "macadamia", "macarons", "brownies"]
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "id": "cjar",
+  "label": "COOKIE JAR — CORE ART",
+  "core": true,
+  "games": ["cjar"],
+  "assets": {
+    "kind": "cjar",
+    "basePath": "img/",
+    "faces": {
+      "cookie-handful":  "cookie-handful.jpg",
+      "cookie-batch":    "cookie-batch.jpg",
+      "cookie-mountain": "cookie-mountain.jpg",
+      "family-mum":      "family-mum.jpg",
+      "family-dad":      "family-dad.jpg",
+      "family-big":      "family-big.jpg",
+      "family-grandma":  "family-grandma.jpg",
+      "family-pet":      "family-pet.jpg",
+      "treat-shortbread": "treat-shortbread.jpg",
+      "treat-redvelvet":  "treat-redvelvet.jpg",
+      "treat-macadamia":  "treat-macadamia.jpg",
+      "treat-macarons":   "treat-macarons.jpg",
+      "treat-brownies":   "treat-brownies.jpg"
+    },
+    "back": "back.jpg"
+  }
+}

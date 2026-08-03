@@ -195,7 +195,7 @@ const MP_GAME_CONFIGS = {
   bld: {
     gameName:        'Bailed',
     emoji:           '💬',
-    brandBtnClass:   'bg-yellow-500 hover:bg-yellow-600',
+    brandBtnClass:   'bld-cta',
     ptpLabel:        'Make the Plans 💬',
     menuScreen:      'screen-bld-menu',
     onPassThePhone: () => {
@@ -335,7 +335,8 @@ const MP_GAME_CONFIGS = {
   frt: {
     gameName:       'Fruit Salad',
     emoji:          '🍌',
-    brandBtnClass:  'bg-[#FFC700] hover:bg-[#E6B400] text-white',
+    brandBtnClass:  'bg-[#FFE500] hover:bg-[#E6D200]',
+    ctaTextClass:   'text-stone-800',
     ptpLabel:       'Start Serving',
     lobbyCtaLabel:  'Start Serving',
     menuScreen:     'screen-frt-menu',
@@ -420,6 +421,39 @@ const MP_GAME_CONFIGS = {
     rosterConfig:    { type: 'none' },
     getMaxPlayers:   () => 6,
     getMinPlayers:   () => 3,
+  },
+  cjar: {
+    gameName:       'Cookie Jar',
+    emoji:          '\u{1F36A}',
+    brandBtnClass:  'cjar-cta',
+    // REQUIRED. #D4A017 measures 2.38:1 against white — below the 3:1 floor. cjar is
+    // the second consumer of this field after FRT (v156).
+    ctaTextClass:   'text-stone-800',
+    ptpLabel:       'Raid the Jar!',
+    lobbyCtaLabel:  'Raid the Jar!',
+    menuScreen:     'screen-cjar-menu',
+    onPassThePhone: () => {
+      // Names come straight from the lobby — cjar has no setup screen (spec D-01).
+      // The slot object is { uid, nickname }: .name returns undefined silently.
+      cjarPlayerCount = mpPlayerSlots.length;
+      cjarPlayerNames = mpPlayerSlots.map(p => p.nickname);
+      // Straight into Raid 1 — NOT back to the game menu. Settings were locked in
+      // before the lobby (menu → Settings → Play → mode screen → host lobby), so a
+      // menu re-visit just makes the host tap "Raid the Jar!" a second time. This is
+      // what GTH, FRT, SHP, FLW and PKO all do; cjar was the only game that bounced.
+      if (window.syllyMultiplayerMode === 'host') cjarStartMatch();
+      else cjarShowClientStandby();
+    },
+    recommendedMode: 'mdlm',
+    supportedModes:  ['mdlm'],
+    multiplayerOnly: true,
+    // 'individual' requires every player to be hand-assigned in Assign Spots; anyone
+    // left unassigned produces reordered[-1] and corrupts the slot array.
+    rosterConfig:    { type: 'none' },
+    getMaxPlayers:   () => 8,
+    getMinPlayers:   () => 3,   // 4 → 3, owner call 3 Aug 2026. Nothing in the deck,
+    // bust odds or the affinity draw is player-count dependent; 3-player balance is
+    // UNSIMULATED (the balance tool ran 5 and 8) — watch it at the next playtest.
   },
 };
 
@@ -565,7 +599,7 @@ function mpShowModeScreen(gameAbbr) {
 
   const cta = document.getElementById('btn-mp-mode-cta');
   cta.textContent = cfg.ptpLabel;
-  cta.className   = `min-h-14 w-full rounded-2xl ${cfg.brandBtnClass} active:scale-95 text-white text-xl font-semibold transition-all duration-150`;
+  cta.className   = `min-h-14 w-full rounded-2xl ${cfg.brandBtnClass} active:scale-95 ${cfg.ctaTextClass || 'text-white'} text-xl font-semibold transition-all duration-150`;
 
   const online     = navigator.onLine;
   document.getElementById('mp-mode-offline-notice').style.display = online ? 'none' : 'block';
@@ -841,6 +875,13 @@ function mpSerialiseSettings(abbr) {
       pkoClashTarget, pkoHoardSize, pkoPoacherSetting, pkoScavenge, pkoStartSmall,
       pkoAppetite, pkoSyllyMode,
     };
+    // All five are host-owned; a missing field means clients silently play with
+    // different rules. cjarOpenBook is render-layer only but still must match, or
+    // two devices disagree about what they are allowed to show.
+    case 'cjar': return {
+      cjarSnackFriendly, cjarHouseRules, cjarMatchLength, cjarDecisionTime,
+      cjarOpenBook, cjarSyllyMode,
+    };
     case 'ss': return {
       ssSettingInterceptsToWin, ssDifficultyLevel,
       ssRerollLimitSetting: ssRerollLimitSetting === Infinity ? 'Infinity' : ssRerollLimitSetting,  // JSON-safe (Infinity → null otherwise)
@@ -1022,6 +1063,19 @@ function mpHandleEnvelope(env) {
           if (s.pkoStartSmall     !== undefined) pkoStartSmall     = s.pkoStartSmall;
           if (s.pkoAppetite       !== undefined) pkoAppetite       = s.pkoAppetite;
           if (s.pkoSyllyMode      !== undefined) pkoSyllyMode      = s.pkoSyllyMode;
+          break;
+        // The deserialise half of the pair above. Without it SETTINGS_SYNC arrives and
+        // is silently discarded, so a client's read-only settings overlay shows its own
+        // defaults instead of the host's while the lobby is still open. CJAR_MATCH_START
+        // also carries all five, so the in-match rules would still agree — this is the
+        // pre-game view only, but every other game wires both halves.
+        case 'cjar':
+          if (s.cjarSnackFriendly !== undefined) cjarSnackFriendly = s.cjarSnackFriendly;
+          if (s.cjarHouseRules    !== undefined) cjarHouseRules    = s.cjarHouseRules;
+          if (s.cjarMatchLength   !== undefined) cjarMatchLength   = s.cjarMatchLength;
+          if (s.cjarDecisionTime  !== undefined) cjarDecisionTime  = s.cjarDecisionTime;
+          if (s.cjarOpenBook      !== undefined) cjarOpenBook      = s.cjarOpenBook;
+          if (s.cjarSyllyMode     !== undefined) cjarSyllyMode     = s.cjarSyllyMode;
           break;
         // Additional games added as Sprint 4 progresses
       }
@@ -1653,6 +1707,11 @@ function mpHandleEnvelope(env) {
   // ── Pecking Order ACTION/SYNC/private ─────────────────────────────────────
   if (mpActiveGame === 'pko') {
     if (typeof pkoHandleEnvelope === 'function') pkoHandleEnvelope(env);
+  }
+
+  // ── Cookie Jar ACTION/SYNC/private ────────────────────────────────────────
+  if (mpActiveGame === 'cjar') {
+    if (typeof cjarHandleEnvelope === 'function') cjarHandleEnvelope(env);
   }
 
   // ── Secret Signals ACTION/SYNC ─────────────────────────────────────────────
