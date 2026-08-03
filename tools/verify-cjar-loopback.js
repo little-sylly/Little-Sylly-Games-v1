@@ -183,7 +183,17 @@ globalThis.__cjar = {
     cjarDecisionTime  = o.time || 'standard';
   },
   openCards()        { cjarOpenCards(); },
-  stageThumbs()      { return document.getElementById('cjar-trail-strip').children.length; },
+  // Counts REAL card thumbs only — the empty-state placeholder (round 2) shares the
+  // strip but carries no 'cjar-card' token (only 'cjar-card-thumb cjar-placeholder-dashed'),
+  // same distinction galleryTiles() below already draws.
+  stageThumbs() {
+    const isCard = c => /(^| )cjar-card( |$)/.test(c || '');
+    return document.getElementById('cjar-trail-strip').children.filter(c => isCard(c.className)).length;
+  },
+  stagePlaceholder() {
+    const kids = document.getElementById('cjar-trail-strip').children;
+    return kids.length === 1 && /cjar-placeholder-dashed/.test(kids[0].className || '');
+  },
   standingsRows()    { return document.getElementById('cjar-reveal-rows').children.length; },
   timerHidden()      { return document.getElementById('cjar-timer-bar').style.display === 'none'; },
   // Counts CARDS, not card parts: .cjar-card-value / -emoji / -name are children of a
@@ -503,6 +513,7 @@ const section = t => console.log(`\n${t}`);
   // holds only what has moved on. Drawing it in both places is what made the biggest
   // element look like the card under decision.
   check('one card out, trail empty', C5.stageThumbs(), 0);
+  check('  empty trail shows a placeholder, not dead space', C5.stagePlaceholder(), true);
   check('  but a card IS on stage',  C5.card !== null, true);
   for (let i = 0; i < 4; i++) if (!H5.ready[i]) H5.applyChoice(i, 'take');
   H5.resolve();

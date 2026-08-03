@@ -1836,10 +1836,22 @@ body.flash-red   { background-color: #fecaca; }
 /* `next` is the face-down deck on the stage. It is deliberately close to .cjar-card-stage
    and nowhere near .cjar-card-thumb: it is the card you are actually betting on, and at
    counter size it read as just another spent card, which killed the past → present →
-   future progression the stage is built around. */
-.cjar-card-next    { width: 6.5rem;  height: 8.9rem; }
+   future progression the stage is built around. Bumped again in round 2 (6.5 → 7.2rem) —
+   "important to know, make it slightly bigger" — while staying under the hero: the deck
+   is what you're betting ON, not the bet itself. */
+.cjar-card-next    { width: 7.2rem;  height: 9.9rem; }
 .cjar-card-counter { width: 3.5rem;  height: 4.75rem; }
 .cjar-card-thumb   { width: 3rem;    height: 4.1rem; }
+/* A fixed footprint for something that isn't there YET — the Treat slot before a Treat
+   is scheduled, and the history strip before the first card flips. Same size as the real
+   card that will eventually sit there, so its arrival fills the space rather than
+   inserting into it — nothing shifts. */
+.cjar-placeholder-dashed {
+  border-radius: 0.9rem;
+  border: 2px dashed #D8C79A;
+  background: transparent;
+  flex-shrink: 0;
+}
 .cjar-card-emoji   { font-size: 2.4rem; line-height: 1; }
 .cjar-card-stage .cjar-card-emoji   { font-size: 2rem; }
 .cjar-card-thumb .cjar-card-emoji,

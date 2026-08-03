@@ -519,11 +519,29 @@ function cjarEndRaid(reason) {
 // Every renderer starts with a null-guard so it runs unmodified against the
 // harness's null document and against a screen that isn't mounted yet.
 function cjarRenderStage() {
-  // BAND 1 — table state. Crumbs are shared and up for grabs; they used to sit in the
-  // private strip between two PERSONAL numbers, which is what made all three illegible.
-  const crumbs = document.getElementById('cjar-crumbs-line');
-  if (crumbs) crumbs.textContent = `Crumbs up for grabs · ${cjarCrumbs} 🍪`;
+  // COLUMN 1, top — the Treat slot. ALWAYS renders something at the same footprint: a
+  // dashed placeholder marking where a Treat will land, or the Treat itself once one is
+  // scheduled. Fixed footprint is the point — a Treat appearing is a fill-in, not a
+  // layout jump, the same idea as the history strip's empty-state placeholder below.
+  const treatSlot = document.getElementById('cjar-treat-slot');
+  if (treatSlot) {
+    treatSlot.innerHTML = '';
+    if (cjarCounterTreat) {
+      treatSlot.appendChild(cjarRenderCard(cjarCounterTreat, { size: 'counter' }));
+    } else {
+      const ph = document.createElement('div');
+      ph.className = 'cjar-card-counter cjar-placeholder-dashed';
+      treatSlot.appendChild(ph);
+    }
+  }
 
+  // COLUMN 1, bottom — Crumbs. Shared table state, so it lives on the Stage, not in the
+  // private strip beside two PERSONAL numbers (that combination is what made all three
+  // illegible — see cjarRenderPrivateStrip).
+  const crumbsVal = document.getElementById('cjar-crumbs-value');
+  if (crumbsVal) crumbsVal.textContent = `🍪 ${cjarCrumbs}`;
+
+  // COLUMN 2 — just revealed. Unchanged: still the largest single image on the stage.
   const hero = document.getElementById('cjar-table-hero');
   if (hero) {
     hero.innerHTML = '';
@@ -540,32 +558,21 @@ function cjarRenderStage() {
     hero.onclick = () => { playDone(); cjarOpenTrail(); };
   }
 
-  // The deck — face-down card + how many are left, and NOTHING else. The Treat used to
-  // be appended into this same column, so it rendered as a second card wedged under the
-  // deck in the slot labelled "next": it read as a stuck card, and it buried the one
-  // object on the table actually worth playing for. It has its own slot now.
+  // COLUMN 3 — the deck: face-down card + how many are left, and NOTHING else. The Treat
+  // used to be appended into this same column, so it rendered as a second card wedged
+  // under the deck in the slot labelled "next": it read as a stuck card, and it buried
+  // the one object on the table actually worth playing for. It has its own column now.
+  // The count is a bigger, bolder readout than round 1's — "important to know" — which
+  // is also what lets col 3's two stacked pieces reach col 2's (the hero's) height.
   const badge = document.getElementById('cjar-deck-badge');
   if (badge) {
     badge.innerHTML = '';
     if (cjarDeck.length) {
       badge.appendChild(cjarRenderCard(null, { faceDown: true, size: 'next' }));
       const n = document.createElement('div');
-      n.className = 'text-xs font-bold text-stone-500 text-center mt-1';
+      n.className = 'text-sm font-bold text-stone-600 text-center mt-1';
       n.textContent = cjarDeck.length;
       badge.appendChild(n);
-    }
-  }
-
-  // The Treat, only while one is sitting unclaimed on the counter.
-  const treatSlot = document.getElementById('cjar-treat-slot');
-  const treatCard = document.getElementById('cjar-treat-card');
-  if (treatSlot && treatCard) {
-    treatCard.innerHTML = '';
-    if (cjarCounterTreat) {
-      treatCard.appendChild(cjarRenderCard(cjarCounterTreat, { size: 'counter' }));
-      treatSlot.style.display = 'flex';
-    } else {
-      treatSlot.style.display = 'none';
     }
   }
 
@@ -623,15 +630,24 @@ function cjarRenderTrailStrip() {
   // is precisely the duplication this layout exists to remove. It joins the strip on
   // the next flip, when the slot moves on.
   const spent = cjarCard ? cards.slice(0, -1) : cards;
-  spent.forEach((entry, i) => {
-    const card = entry.type === 'cookie' ? { type: 'cookie', value: entry.value }
-               : entry.type === 'family' ? { type: 'family', id: entry.id }
-                                         : { type: 'treat',  id: entry.id, points: entry.points };
-    const el = cjarRenderCard(card, { size: 'thumb', dimmed: true });
-    // Only the newest thumb settles in — it is the one that just arrived from the slot.
-    if (i === spent.length - 1 && spent.length !== cjarLastTrailLen) el.className += ' cjar-trail-settle';
-    strip.appendChild(el);
-  });
+  if (!spent.length) {
+    // Before the first flip lands here, the strip would otherwise just be dead space —
+    // exactly the same "is this broken?" read as the Treat slot before a Treat exists.
+    // One dashed placeholder at thumb size says "this is where history starts."
+    const ph = document.createElement('div');
+    ph.className = 'cjar-card-thumb cjar-placeholder-dashed';
+    strip.appendChild(ph);
+  } else {
+    spent.forEach((entry, i) => {
+      const card = entry.type === 'cookie' ? { type: 'cookie', value: entry.value }
+                 : entry.type === 'family' ? { type: 'family', id: entry.id }
+                                           : { type: 'treat',  id: entry.id, points: entry.points };
+      const el = cjarRenderCard(card, { size: 'thumb', dimmed: true });
+      // Only the newest thumb settles in — it is the one that just arrived from the slot.
+      if (i === spent.length - 1 && spent.length !== cjarLastTrailLen) el.className += ' cjar-trail-settle';
+      strip.appendChild(el);
+    });
+  }
   cjarLastTrailLen = spent.length;
   // Deliberately NO click handler on the strip. It is a horizontal scroll container, and
   // a tap-to-open-the-overlay handler on it competes with the swipe that scrolls it —
@@ -848,10 +864,18 @@ function cjarRenderRevealRows() {
 
 // This device's own numbers. Always visible regardless of Open Book — it is your
 // own hand, and Open Book only governs whether you can see OTHERS.
+// SYLLY-ONLY personal chips. Cookie Stash and This Raid used to live here too — round 2
+// removed both, because cjar-reveal-rows already shows them for your own seat: Open Book
+// gates OTHERS' numbers, never your own (cjarStashVisible checks `idx === mpMyPlayerIdx`
+// unconditionally), so your row there is already live at every setting. That leaves this
+// strip with nothing to say in the base game, so it hides itself entirely rather than
+// showing an empty bordered row.
 function cjarRenderPrivateStrip() {
   const box = document.getElementById('cjar-private-strip');
   if (!box) return;
   box.innerHTML = '';
+  if (!cjarIsSylly()) { box.style.display = 'none'; return; }
+
   const me = mpMyPlayerIdx;
   const chip = (label, value, extraClass) => {
     const c = document.createElement('span');
@@ -859,33 +883,22 @@ function cjarRenderPrivateStrip() {
     c.textContent = label + ' ' + value;
     box.appendChild(c);
   };
-  // Crumbs are NOT here — they are shared table state and live on the Stage (band 1).
-  // What remains is only ever YOUR numbers, which is what lets the two be told apart:
-  // a FILLED chip is banked and safe, an OUTLINED chip is provisional and still at risk.
-  chip('Cookie Stash', (cjarStashes[me] || 0) + ' 🍪');
-  if (!cjarIsSylly()) {
-    chip('This Raid', '+' + (cjarRaidTotals[me] || 0) + ' 🍪',
-         'bg-white text-[#7A5C0A] ring-1 ring-[#E5C97A]');
-  }
-  if (cjarIsSylly()) {
-    if (cjarCrumbDebt[me] > 0) chip('Owes', cjarCrumbDebt[me] + ' 🍪', 'bg-red-100 text-red-800');
-    const fam = id => ((CJAR_DATA.family || []).find(f => f.id === id) || {}).name || '—';
-    chip('⭐ Favourite', fam(cjarMyFavourite));
-    chip('👁 Watcher', fam(cjarMyWatcher));
-  }
+  if (cjarCrumbDebt[me] > 0) chip('Owes', cjarCrumbDebt[me] + ' 🍪', 'bg-red-100 text-red-800');
+  const fam = id => ((CJAR_DATA.family || []).find(f => f.id === id) || {}).name || '—';
+  chip('⭐ Favourite', fam(cjarMyFavourite));
+  chip('👁 Watcher', fam(cjarMyWatcher));
+
   const tip = document.createElement('button');
   tip.id = 'btn-cjar-mine-tip';
   tip.className = 'text-stone-300 font-bold text-xs leading-none active:scale-90 transition-transform duration-100';
   tip.textContent = '[?]';
   tip.addEventListener('click', () => {
     playDone();
-    cjarShowTip('🍪', 'Your Cookies', cjarIsSylly()
-      ? ['Cookie Stash — everything you’ve got, banked and safe.',
-         'Owes — a debt paid out of your next winnings, not out of your Stash.']
-      : ['Cookie Stash — banked. Nothing can take it off you.',
-         'This Raid — riding on this Raid. Sneak Out and it banks; get caught and it’s gone.']);
+    cjarShowTip('🍪', 'Your Cookies', ['Owes — a debt paid out of your next winnings, not out of your Cookie Stash.',
+                                       'Your Cookie Stash and this Raid’s running total are always on the scoreboard above, in your own row.']);
   });
   box.appendChild(tip);
+  box.style.display = 'flex';
 }
 
 // ── The decision timer ─────────────────────────────────────────────────────
@@ -1676,7 +1689,11 @@ function cjarOpenCards() {
     b.className = 'text-stone-500 text-sm';
     b.textContent = blurb;
     const row = document.createElement('div');
-    row.className = 'flex flex-wrap gap-3 justify-center pt-1';
+    // Fixed 3-column grid, not flex-wrap: 5 tiles (Family, Treats) wrapped as an uneven
+    // 4-then-1 under flex-wrap, purely a function of how many happened to fit per the
+    // container's measured width. Forcing 3 columns makes it a deliberate 3-then-2 no
+    // matter how many tiles a section has.
+    row.className = 'grid grid-cols-3 gap-3 justify-items-center pt-1';
     wrap.appendChild(h); wrap.appendChild(b); wrap.appendChild(row);
     box.appendChild(wrap);
     return row;
@@ -2008,9 +2025,10 @@ document.addEventListener('DOMContentLoaded', () => {
   on('btn-cjar-menu-how-to',    () => { playDone(); cjarOpenHowTo('rules'); });
   on('btn-cjar-how-to',         () => { playDone(); cjarOpenHowTo('rules'); });
   on('btn-cjar-summary-how-to', () => { playDone(); cjarOpenHowTo('rules'); });
-  // "See the Cards" from the game menu jumps straight to the gallery tab — that is the
-  // single-device offline install check, and it should not need a tab tap to reach.
-  on('btn-cjar-menu-cards',     () => { playDone(); cjarOpenHowTo('cards'); });
+  // The game menu no longer has its own "See the Cards" button — with the gallery living
+  // inside How to Play (DD-14), a second entry point on the menu was a redundant fifth
+  // button on a screen the Universal Menu Standard fixes at four. The offline install
+  // check now reads: How to Play → The Cards tab.
   document.querySelectorAll('[data-cjar-howto-tab]').forEach(b => {
     b.addEventListener('click', () => { playPillClick(); cjarSetHowToTab(b.dataset.cjarHowtoTab); });
   });

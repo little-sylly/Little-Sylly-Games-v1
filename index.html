@@ -9077,7 +9077,6 @@
     <div class="flex flex-col gap-3 w-full">
       <button id="btn-cjar-menu-play" class="cjar-cta min-h-14 w-full rounded-2xl active:scale-95 text-xl font-semibold transition-all duration-150">Raid the Jar!</button>
       <button id="btn-cjar-menu-how-to" class="min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-xl font-semibold transition-all duration-150">How to Play</button>
-      <button id="btn-cjar-menu-cards" class="min-h-14 w-full rounded-2xl bg-[#F7E9C4] hover:bg-[#EFDCA8] active:scale-95 text-[#7A5C0A] text-xl font-semibold transition-all duration-150">See the Cards</button>
       <button id="btn-cjar-menu-settings" class="min-h-14 w-full rounded-2xl bg-[#F7E9C4] hover:bg-[#EFDCA8] active:scale-95 text-[#7A5C0A] text-xl font-semibold transition-all duration-150">Settings</button>
       <button id="btn-cjar-menu-back" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-base font-medium transition-all duration-150">← Back to the Box</button>
     </div>
@@ -9128,29 +9127,36 @@
            mechanic was correct, the presentation was not). -->
       <div class="flex flex-col gap-2">
 
-        <!-- BAND 1 — table state. Crumbs live HERE, not in the private strip: they are
-             shared and up for grabs, and sitting them beside two personal numbers
-             (Cookie Stash, This Raid) is exactly what made all three unreadable. -->
-        <div class="flex items-center justify-center gap-1.5">
-          <span id="cjar-crumbs-line" class="text-xs font-semibold text-[#7A5C0A]"></span>
-          <button id="btn-cjar-crumbs-tip" class="text-stone-300 font-bold text-xs leading-none active:scale-90 transition-transform duration-100">[?]</button>
-        </div>
-
-        <!-- BAND 2 — the decision. Labels sit UNDER each card so they cannot drift from
-             what they name. `just revealed` toggles VISIBILITY, never display: hiding it
-             during Dibber Dobber's blind window must not shift the cards. -->
-        <div id="cjar-stage-row" class="relative flex items-end justify-center gap-3">
-          <div class="flex flex-col items-center gap-1">
+        <!-- BAND 2 — the decision, THREE COLUMNS via CSS grid (not flex): grid is what
+             lets columns 1 and 3 STRETCH to column 2's (the hero's) height automatically,
+             which is what makes their two stacked items span the same visual row as the
+             single big hero — no explicit height math needed anywhere.
+             Col 1 — "on the table": the Treat slot (art, or a dashed placeholder in the
+               exact same footprint before one appears — art fills the same spot it will
+               occupy) on top, Crumbs below. Crumbs lived in its own band above this row
+               until round 2 folded it in here: it is part of what's sitting on the table,
+               same as the Treat.
+             Col 2 — just revealed. Unchanged, still the largest single image.
+             Col 3 — the jar: the face-down deck, sized up from round 1 (still smaller
+               than the hero — the deck is what you're betting ON, not the bet itself) with
+               a more prominent count, so col 3's two stacked items also reach hero height. -->
+        <div id="cjar-stage-row" class="relative grid grid-cols-3 items-stretch gap-2">
+          <div class="flex flex-col items-center justify-between">
+            <!-- Fixed footprint whether empty or full: a dashed placeholder marks WHERE a
+                 Treat will land, so one appearing is a fill-in, not a layout jump. -->
+            <div id="cjar-treat-slot" class="flex flex-col items-center"></div>
+            <div class="flex flex-col items-center gap-0.5">
+              <span id="cjar-crumbs-value" class="text-sm font-bold text-[#7A5C0A]"></span>
+              <button id="btn-cjar-crumbs-tip" class="text-stone-300 font-bold text-[0.65rem] leading-none active:scale-90 transition-transform duration-100">[?]</button>
+            </div>
+          </div>
+          <div class="flex flex-col items-center justify-center gap-1">
             <div id="cjar-table-hero" class="flex items-end"></div>
             <span id="cjar-stage-label-now" class="text-[0.65rem] uppercase tracking-widest text-[#7A5C0A]">just revealed</span>
           </div>
-          <div class="flex flex-col items-center gap-1">
-            <div id="cjar-deck-badge" class="flex flex-col items-center justify-end"></div>
+          <div class="flex flex-col items-center justify-between">
+            <div id="cjar-deck-badge" class="flex flex-col items-center"></div>
             <span class="text-[0.65rem] uppercase tracking-widest text-stone-300">next</span>
-          </div>
-          <div id="cjar-treat-slot" style="display:none" class="flex-col items-center gap-1">
-            <div id="cjar-treat-card"></div>
-            <span class="text-[0.65rem] uppercase tracking-widest text-[#7A5C0A]">on the counter</span>
           </div>
           <!-- Delta animation layer: absolute so a flying cookie contributes ZERO height.
                In-flow it would change the column height and re-centre the whole Stack on
@@ -9167,14 +9173,25 @@
         </div>
       </div>
 
-      <!-- CONTROLS — timer, then the phase-dependent action area, then the private strip -->
+      <!-- SCORE TABLE — sits between the Stage and the action buttons in every phase, so
+           Open Book's live standings are readable at the exact moment they matter: while
+           deciding, not just at reveal. -->
+      <div id="cjar-reveal-rows" class="flex flex-col gap-1.5"></div>
+
+      <!-- SYLLY-ONLY personal chips (Favourite / Watcher / Owes). Cookie Stash and This
+           Raid used to live here too, but they duplicated exactly what cjar-reveal-rows
+           already shows for your own seat — Open Book gates OTHERS' numbers, never your
+           own, so your row there is always live regardless of the setting. Hidden
+           entirely in the base game, where this strip now has nothing to say. -->
+      <div id="cjar-private-strip" style="display:none" class="flex flex-wrap items-center gap-2"></div>
+
+      <!-- CONTROLS — the action buttons stay the fixed floor of the screen; the timer
+           bar sits directly above them because it is counting down for THEM. -->
       <div class="flex flex-col gap-3">
         <div id="cjar-timer-bar" class="h-1.5 w-full rounded-full bg-stone-200 overflow-hidden">
           <div id="cjar-timer-fill" class="h-full w-full rounded-full" style="background-color:#D4A017"></div>
         </div>
         <div id="cjar-controls" class="flex flex-col gap-2"></div>
-        <div id="cjar-reveal-rows" class="flex flex-col gap-1.5"></div>
-        <div id="cjar-private-strip" class="flex flex-wrap items-center gap-2 border-t border-stone-200 pt-3"></div>
       </div>
     </div>
   </section>

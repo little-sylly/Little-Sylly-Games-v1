@@ -1822,7 +1822,7 @@ All three evaluate the real `js/games/pko.js` in a Node `vm` sandbox — they re
 |-----------|---------|
 | `screen-cjar-menu` | Main hub — Raid the Jar!, How to Play, Settings, ← Back to the Box |
 | `screen-cjar-raid-intro` | Raid-N intro interstitial — **5 s auto-advance** (`CJAR_INTERSTITIAL_MS`), takes the Global UI Protocol interstitial exception |
-| `screen-cjar-table` | Main play — the ONE-ROW stage (trail → just-revealed card → face-down deck, DD-11), warning strip, persistent standings, decision controls (Take / Sneak Out, or the three DD actions) |
+| `screen-cjar-table` | Main play — the THREE-COLUMN stage (on-the-table / just-revealed / the jar, DD-12), warning strip, full-width history, standings (sitting between the stage and the buttons), decision controls (Take / Sneak Out, or the three DD actions) fixed at the floor |
 | `screen-cjar-busted` | BUSTED! interstitial — family + line, **5 s auto-advance**, same exemption |
 | `screen-cjar-raid-summary` | Per-Raid bank recap before the next Raid intro |
 | `screen-cjar-gameover` | Match end — ranks, Top Cookie Thief, Red-Handed (never both on an all-square match, BUG-03) |
@@ -1841,8 +1841,7 @@ All three evaluate the real `js/games/pko.js` in a Node `vm` sandbox — they re
 | ID | Action |
 |----|--------|
 | `#btn-cjar-menu-play` | Menu Play CTA — dual context: post-lobby `cjarStartMatch()` (BUG-07 fix; cjar no longer bounces through the menu), pre-lobby `mpShowModeScreen('cjar')` |
-| `#btn-cjar-menu-cards` | "See the Cards" on the game menu → `cjarOpenHowTo('cards')`, landing straight on the gallery tab. **This is the offline install check's entry point** — it must not require a tab tap |
-| `#btn-cjar-howto-tab-rules` / `#btn-cjar-howto-tab-cards` | How to Play tab bar (`data-cjar-howto-tab`) |
+| `#btn-cjar-howto-tab-rules` / `#btn-cjar-howto-tab-cards` | How to Play tab bar (`data-cjar-howto-tab`). **The offline install check's entry point** is How to Play → The Cards tab — round 2 removed the menu's own "See the Cards" button (a redundant fifth button on a screen the Universal Menu Standard fixes at four) |
 | `#btn-cjar-trail-open` | The "what's come out ›" label under the history strip → Crumb Trail overlay. The strip itself carries **no** click handler — it is a scroll container |
 | `#btn-cjar-openbook-toggle` | Settings — Open Book on/off |
 | `#btn-cjar-sylly-toggle` | Settings — Dibber Dobber on/off |
@@ -1885,8 +1884,10 @@ All three evaluate the real `js/games/pko.js` in a Node `vm` sandbox — they re
 | `cjarAssignAffinities()` | Sylly — Favourite/Watcher never the same family member per seat |
 | `cjarRanks()` / `cjarRedHanded()` / `cjarRankLabel(n)` | Standings — `cjarRedHanded()` returns `[]` on an all-square match (`max(ranks) === min(ranks)`, BUG-03) rather than reporting every seat |
 | `cjarRenderCard(card, opts)` | **Asset-pack render seam** — all cjar card DOM goes through here. Resolves skin → core art → emoji via `assetFace('cjar', key)` / `assetBack('cjar')` |
-| `cjarRenderStage()` / `cjarRenderTrailStrip()` | **DD-11's one-row stage** — trail → just-revealed → face-down deck; `cjarRenderTrailStrip` renders `cards.slice(0,-1)` whenever a card is face-up so nothing is drawn twice |
-| `cjarRenderRevealRows()` | Persistent standings (DD-11) — renders every phase, not only `'revealing'`, so Open Book is visible while deciding |
+| `cjarRenderStage()` | **DD-12's three-column grid** — CSS `grid-cols-3` (not flex) is what lets columns 1 and 3 stretch to column 2's (the hero's) height. Col 1: the Treat slot (art, or a `.cjar-placeholder-dashed` box at the same footprint before one exists) over the Crumbs value. Col 2: `just revealed`, unchanged, the largest single image. Col 3: the deck, sized up again (`.cjar-card-next`, 7.2rem) with a bolder count |
+| `cjarRenderTrailStrip()` | The full-width history strip. Renders `cards.slice(0,-1)` whenever a card is face-up so nothing is drawn twice (DD-11); when nothing has flipped yet it renders a single `.cjar-placeholder-dashed` thumb rather than dead space (DD-12) |
+| `cjarRenderRevealRows()` | Persistent standings (DD-11) — renders every phase, not only `'revealing'`, so Open Book is visible while deciding. Moved (DD-12) to sit directly above the action buttons rather than below them, on the way to making Cookie Stash/This Raid chips in the private strip fully redundant |
+| `cjarRenderPrivateStrip()` | **Sylly-only now (DD-12).** Cookie Stash and This Raid were removed — `cjarRenderRevealRows` already shows both for the viewer's own seat at every Open Book setting (`cjarStashVisible()` is unconditionally true for `idx === mpMyPlayerIdx`). What remains is Favourite/Watcher/Owes; the strip hides itself (`display:none`) entirely in the base game |
 | `cjarRenderWarningStrip()` | Two real states, not three (TG-06) — `cjarSeen[id]` is only 0 or 1; the amber "seen once, danger pending" rung exists for Sylly (which forces `danger` false) and is unreachable in the base game |
 | `cjarStartTimer(endTimestamp, windowMs)` | Countdown bar — `transform: scaleX(n)` with an explicit `transform-origin: left` (see `css/styles.css`) |
 | `cjarOpenCards()` | Renders the card gallery from `CJAR_DATA` (DD-09) |
@@ -1907,7 +1908,7 @@ All three evaluate the real `js/games/pko.js` in a Node `vm` sandbox — they re
 | `node tools/verify-cjar-deck.js` | **Data layer** — 73 checks: constants, `data/cjar-data.json` schema, the Snack Friendly float, treat schedules at both match lengths, `cjarRenderCard`'s art-key seam, and the core-art manifest |
 | `node tools/verify-cjar-loop.js` | **Base game + match** — 102 checks: `cjarSplit`, sneak/bust resolution, House Rules (incl. the Delta 6 escalation-pool exclusion), `cjarAllIn()` in both modes (incl. the vacuous-`[].every()` regression, BUG-05), deck exhaustion, a full 3-Raid match, tie-break/Red-Handed edge cases (BUG-03) |
 | `node tools/verify-cjar-dd.js` | **Dibber Dobber** — 47 checks: all three card types × every action combination, the scare-off, Treat priority (Take > Dob > Innocent), Crumb Debt, affinities |
-| `node tools/verify-cjar-loopback.js` | **The standard fifth MP tool (ML-01/ML-03)** — 110 checks: a real `fbWrite`/`fbRead` pair reproducing Firebase's erasure (not live JS references) plus a DOM of **real mock elements** so render code actually executes — the only harness that would have caught BUG-06. Both modes end to end, 4- and 3-player, all three Decision Times, host↔client state agreement after every resolve, the blind window, the private affinity channel, the How-to tab switch + 14 gallery tiles, `CJAR_PLAYER_LEFT`. Takes `CJAR_SRC=` so a deliberately-broken copy can be driven through the same wire |
+| `node tools/verify-cjar-loopback.js` | **The standard fifth MP tool (ML-01/ML-03)** — 111 checks: a real `fbWrite`/`fbRead` pair reproducing Firebase's erasure (not live JS references) plus a DOM of **real mock elements** so render code actually executes — the only harness that would have caught BUG-06. Both modes end to end, 4- and 3-player, all three Decision Times, host↔client state agreement after every resolve, the blind window, the private affinity channel, the How-to tab switch + 14 gallery tiles, the empty-trail placeholder, `CJAR_PLAYER_LEFT`. Takes `CJAR_SRC=` so a deliberately-broken copy can be driven through the same wire |
 | `node tools/simulate-cjar-dd.js` | **Balance instrument** (spec §17 D-11 mitigation) — asserts nothing, always exits 0; prints win-rate spread, action lean, debt-at-cap %, Treats-claimed % at 5 and 8 players. Baseline: Innocent-leaning wins ~52–53% at both sizes (DD-06, flagged, not retuned) |
 
 The other three harnesses run in `'single'` mode with `getElementById: () => null`, which is exactly what lets one process drive all N seats — and exactly what blinds them to the packet layer and every line of render code (TG-07, ML-03). `verify-cjar-loopback.js` closes both gaps; reach for it on anything MP- or render-shaped.

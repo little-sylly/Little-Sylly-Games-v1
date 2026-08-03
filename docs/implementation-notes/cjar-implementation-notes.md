@@ -9,7 +9,65 @@ Spec: `docs/new-game-tech-cookie-jar.md` · Plan: `docs/superpowers/plans/2026-0
 
 ## Design Decisions
 
-**DD-14 — The card gallery became a How to Play TAB, and the How-to Standard gained one.** *(Owner call, playtest round 2, 3 Aug 2026)*
+**DD-16 — The private strip loses Cookie Stash and This Raid outright; they were never needed once the standings moved.** *(Owner call, playtest round 2 second pass, 3 Aug 2026)*
+The owner's own diagnosis, mid-round: "since moving the Crumbs, the rest of this information
+doesn't need to be stated again — it shows the same info as the score table." Checked against
+the code and it's exactly right: `cjarStashVisible(i)` is `cjarOpenBook || idx === mpMyPlayerIdx`
+— **unconditionally true for the viewer's own seat**, so `cjarRenderRevealRows` already shows the
+viewer's own Cookie Stash and, in the base game, `(+N in)` for the current Raid, at every Open
+Book setting. The private strip's Cookie Stash/This Raid chips were duplicating that, not adding
+to it.
+**The owner also raised the Open-Book-off case directly** — "the only thing I can think of is if
+we have Open Book closed, what we should display (maybe just table of 1 — the player)." No new
+element was needed: that's already what the standings table does today, because Open Book only
+gates *other* players' numbers, never the viewer's own row. Worth stating plainly since it wasn't
+obvious from the UI alone — this is a case where the fix was recognising something already worked,
+not building something new.
+**What remains in the strip is Sylly-only** (Favourite / Watcher / Owes), and the strip hides
+itself (`display:none`) entirely in the base game rather than rendering an empty bordered row —
+the base game literally has nothing left to put there.
+**Screen order changed alongside it:** Stage → standings → Sylly chips → timer → buttons, buttons
+fixed at the floor. The owner's framing: "we need to keep this consistent and have the buttons at
+the bottom." Every other MDLM game already reads Header → Stage → Controls top-to-bottom per the
+Stack; cjar's table screen had drifted into standings *below* the controls, which the reorder
+corrects — the timer bar stays directly above the buttons because it is counting down for them.
+
+**DD-15 — The stage becomes THREE COLUMNS, superseding DD-12's three-band layout.** *(Owner call, playtest round 2 second pass, 3 Aug 2026)*
+DD-12 fixed the Treat's mislabelled slot and widened the history, but band 2 (the decision) still
+had three elements of visibly different sizes sitting in a row with no structural relationship
+between them — the owner's read: "with all 3 of different sizes it's causing a visual disconnect."
+**CSS grid is the mechanism, not just a styling choice.** `grid grid-cols-3 items-stretch` on the
+row means columns 1 and 3 automatically stretch to column 2's (the hero's) content height — no
+explicit height math anywhere, which is what makes "combined we've got the height of the stage"
+(the owner's own framing) fall out for free rather than needing a hardcoded value that would drift
+the moment any card size changes again.
+**Column 1 — "on the table":** the Treat slot on top, Crumbs below, `justify-between` spreading
+the two across the full stretched height. **The Treat slot is now ALWAYS rendered at a fixed
+footprint** — a `.cjar-placeholder-dashed` box at `cjar-card-counter` size when no Treat exists,
+the real card at the same size once one appears. This generalises the same idea DD-12 hadn't yet
+reached for the Treat specifically: "when no treat has shown up, let's just have a dotted outline
+… and then once one is revealed, the art image can take that spot" — no layout jump either way, the
+same principle now also applied to the history strip (below).
+**Column 2** is unchanged — `just revealed`, still the single largest image.
+**Column 3 — "the jar":** the deck bumped again, `.cjar-card-next` 6.5rem → **7.2rem** ("slightly
+bigger… important to know"), with the count promoted from `text-xs text-stone-500` to
+`text-sm font-bold text-stone-600`. The owner's own suggestion — split column 3 "just like column
+one" — is exactly what makes the two-piece stack (card + bolder count) reach column 2's height
+without the deck card itself needing to rival the hero, which would have undercut "still the
+largest" for column 2.
+**The history strip gets the same fixed-footprint treatment its neighbour just established:**
+"since at the start there's no card on the history strip, it feels strange seeing that empty
+space… we can have a placeholder in the strip until the first card replaces it." One
+`.cjar-placeholder-dashed` thumb renders when `spent.length === 0`; the harness's `stageThumbs()`
+now filters to the `cjar-card` token specifically (the same distinction `galleryTiles()` already
+drew) so it keeps counting *real* thumbs while a new `stagePlaceholder()` check asserts the
+placeholder's presence in the empty case.
+**One class does both jobs.** `.cjar-placeholder-dashed` (dashed border, transparent fill, no
+shadow) is applied to both the Treat slot's empty state and the history strip's empty state —
+one visual language for "nothing here yet, but this is where it goes" everywhere the stage needs
+it, rather than two bespoke empty-state treatments.
+
+**DD-14 — The card gallery became a How to Play TAB, and the How-to Standard gained one.** *(Owner call, playtest round 2, 3 Aug 2026 — addendum below, second pass)*
 DD-09 shipped the gallery as its own overlay, opened by a "See the Cards" button at the bottom
 of How to Play. Round 2's call: knowing what cards exist **is** learning the game, so it belongs
 *in* How to Play rather than one overlay further away.
@@ -27,11 +85,20 @@ structure is untouched. Each tab body is its own `overflow-y-auto` region with i
 button — one shared button would sit at the bottom of whichever body happens to be showing and be
 unreachable from the other. And the two bodies are **siblings toggled by display**, not one body
 repainted, so flicking across and back keeps the rules' scroll position.
-**The offline install check is unaffected** — `btn-cjar-menu-cards` still exists and now calls
-`cjarOpenHowTo('cards')`, landing directly on the gallery without a tab tap. The procedure in
-CLAUDE.md § Offline is still accurate word for word.
 **Harness:** the loopback now drives `cjarOpenHowTo(tab)` rather than `cjarOpenCards()` directly
 and asserts which body is showing, because the tab switch is the part that can now break. 108 → 110.
+
+**Addendum (second pass, same day) — the menu's own gallery button was removed, and the gallery
+grid was fixed to a deliberate 3-then-2.** The first pass kept `btn-cjar-menu-cards` on the game
+menu as a shortcut into the gallery tab, reasoning it protected the offline install check. The
+owner's read: it made the menu **five** buttons where the Universal Menu Standard fixes every
+other game at four, and having just moved the gallery *into* How to Play, a second doorway to the
+same place undercut the point of moving it. Removed; the offline check now reads exactly what
+every other game's does — How to Play → the tab that shows the art — with no special-cased
+shortcut. Separately, the gallery's tile rows were `flex flex-wrap`, which put Family (5 tiles)
+and Treats (5 tiles) at 4-then-1 purely as a function of how many tiles the container's measured
+width happened to fit — not a choice, an accident of layout. Switched to `grid grid-cols-3`, which
+wraps 5 tiles as a deliberate 3-then-2 regardless of container width.
 
 **DD-13 — Settings pills carry the thematic name; the VALUE gets its own live line.** *(Owner call, playtest round 2)*
 Decision Time shipped as `Blitz / Standard / No Rush` with the actual seconds written **nowhere in
