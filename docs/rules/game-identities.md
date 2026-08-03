@@ -1987,7 +1987,7 @@ LOBBY (MDLM only) → CJAR MENU → [onPassThePhone: cjarStartMatch(), BUG-07 �
 | Treat | A bonus card worth 5 (special) or 10 (super) points, claimable only by a lone Sneak-Out (base game) or by the Treat-priority rule (Dibber Dobber) |
 | Red-Handed | The last-place label. **Never awarded on an all-square match** — `cjarRedHanded()` returns `[]` when every rank ties (BUG-03) |
 | Top Cookie Thief | The winner's label on the gameover screen |
-| Snack Friendly | Setting that guarantees a cookie card floats near the top of the deal, never prepended |
+| Snack Friendly | Base-game setting that guarantees a cookie card floats near the top of the deal, never prepended. Its card is hidden in Dibber Dobber (the setting itself doesn't apply there), but its **spirit** does — DD-17 unconditionally floats one cookie to flip 1 of every Sylly deck, so the blind commit is never punished before a player has seen a single card |
 | Leave the Jar | Gameover screen exit label |
 
 **Dibber Dobber vocabulary (Sylly Mode).**

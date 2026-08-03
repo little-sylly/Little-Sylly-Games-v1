@@ -20,6 +20,13 @@ Detail: pointer to the canonical doc (snapshot / impl note / spec / memory).
 
 ---
 
+## 2026-08-03 — Dibber Dobber's first flip is guaranteed safe, without weakening the blind commit
+**Category:** Architecture
+**Decision:** `cjarBuildDeck()`'s Sylly branch now floats one cookie to position 0 of the built deck — via `cjarFloatCookies(deck, 1)`, applied after the branch's own final shuffle so it can't be undone by it. The blind commit (Delta 7) is untouched: nothing is revealed before the choice, only which card is guaranteed to sit at the position that gets revealed first.
+**Why:** the base game's flip 1 auto-resolves before any choice is offered, and Snack Friendly protects the cards you do see; Dibber Dobber had neither — its first decision every Raid was made on an empty stage with no protection, so a new player's first move could cost 4 of 5 starting cookies with zero information to act on. Re-measured against the DD-06/Delta-7 baseline (`simulate-cjar-dd.js`, 20,000 matches/table size): 5p spread 34.3 → 31.4 pts, Innocent-leaning win rate 53.5% → 51.4%; 8p spread 37.4 → 37.6 pts, Innocent 52.9% → 52.3% — all within the noise band the same tool already established for Delta 7. The flagged imbalance (DD-06) is untouched, as expected: this targets a single-flip fairness gap, not the scare-off economics.
+**Changed:** `js/games/cjar.js` (`cjarBuildDeck`), `tools/verify-cjar-loopback.js` (new assertion — the only harness with a real shuffle, so the only one that can prove the float landed rather than a false pass from the other three's identity-shuffle stub; 111 → 112).
+**Detail:** `docs/implementation-notes/cjar-implementation-notes.md` DD-17.
+
 ## 2026-08-03 — Cookie Jar's stage becomes a 3-column grid; the private strip drops two redundant chips
 **Category:** Architecture
 **Decision:** The Stage's decision area moves from a flex row (DD-12) to a CSS `grid grid-cols-3`, which stretches columns 1 and 3 to column 2's (the hero's) height automatically. Col 1 ("on the table") is the Treat slot — now ALWAYS rendered at a fixed footprint, a dashed placeholder when empty, the real card at the same size once one exists — over the Crumbs value. Col 3 (the deck) is sized up again (6.5 → 7.2rem) with a bolder count. The history strip gets the same fixed-footprint placeholder before the first flip. Separately, the private strip loses **Cookie Stash and This Raid entirely** — the standings table already shows both for the viewer's own seat at every Open Book setting, so the chips were pure duplication — and the screen reorders to Stage → standings → Sylly-only chips → timer → buttons, with the action buttons fixed at the floor.

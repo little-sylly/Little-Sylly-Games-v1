@@ -9,6 +9,34 @@ Spec: `docs/new-game-tech-cookie-jar.md` · Plan: `docs/superpowers/plans/2026-0
 
 ## Design Decisions
 
+**DD-17 — Dibber Dobber's flip 1 is guaranteed a cookie, without breaking the blind commit.** *(Owner call, 3 Aug 2026)*
+Flagged in the round-2 write-up and left alone pending a decision: the base game's flip 1
+auto-resolves before any choice is offered (correct Incan Gold — you cannot decline to enter the
+temple), but Dibber Dobber's first decision of every Raid was made on a totally empty stage, with
+no protection at all. Snack Friendly's settings card is hidden in Sylly (its whole point is
+guaranteeing early cards are cookies), so there was nothing standing between a brand-new player
+and losing 4 of their 5 starting cookies on a move made with zero information.
+**Fix:** `cjarBuildDeck()`'s Sylly branch now calls `cjarFloatCookies(deck, 1)` — but only **after**
+the branch's own final `shuffle(deck)`, which runs after the Treat is appended. Floating before that
+shuffle would have been silently undone by it; the float has to be the last thing that touches the
+array.
+**This does not weaken the blind commit (Delta 7).** Nothing is revealed before the choice — the
+window is exactly as blind as it was. All that changed is which card is guaranteed to occupy
+position 0 of an already-random 11-card deck; every Caught! card that would have appeared in a
+Raid still appears somewhere in it, just never on the one flip where a player has had zero chances
+to learn the rules yet.
+**Re-measured against the DD-06/Delta-7 baseline** (`simulate-cjar-dd.js`, 20,000 matches/table
+size): 5p spread 34.3 → 31.4 pts, Innocent-leaning win rate 53.5% → 51.4%; 8p spread 37.4 → 37.6
+pts, Innocent 52.9% → 52.3%. All movement is within the noise band the same tool already
+established for Delta 7 — the flagged imbalance (DD-06) is untouched, which is the correct outcome:
+this fix targets a single-flip fairness gap, not the scare-off economics DD-06 is about.
+**Harness:** `verify-cjar-deck.js` cannot assert this — it stubs `shuffle` as identity (TG-03),
+which deals a family-first deck with zero cookies in the Sylly cut, so `cjarFloatCookies` would
+correctly find nothing to float and the assertion would be a false failure of the harness's own
+determinism, not of the fix. `verify-cjar-loopback.js` is the one harness with a **real** shuffle
+and is where the new check lives: `H2.deck[0].type === 'cookie'` immediately after `startMatch()`
+in Sylly mode. 111 → 112.
+
 **DD-16 — The private strip loses Cookie Stash and This Raid outright; they were never needed once the standings moved.** *(Owner call, playtest round 2 second pass, 3 Aug 2026)*
 The owner's own diagnosis, mid-round: "since moving the Crumbs, the rest of this information
 doesn't need to be stated again — it shows the same info as the score table." Checked against

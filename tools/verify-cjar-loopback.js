@@ -414,6 +414,12 @@ const section = t => console.log(`\n${t}`);
   H2.seat({ players: 4, names: NAMES, sylly: true, length: 3 });
   C2.standby();
   H2.startMatch();
+  // Flip 1's card is guaranteed a cookie (never Caught!) even though the commit is
+  // still fully blind — this is the ONLY harness with a real shuffle, so it's the one
+  // place that can prove cjarFloatCookies(deck, 1) actually landed a cookie at index 0
+  // rather than the identity-shuffle stub the other three harnesses use, which would
+  // never surface a family-first deck as a false pass.
+  check('flip 1 is never Caught! (blind, but not punishing)', H2.deck[0].type, 'cookie');
   check('client knows it is Sylly',   C2.sylly, true);
   check('affinity arrived privately', typeof C2.favourite === 'string', true);
   check('DD seeds 5 each',            C2.stashes, [5, 5, 5, 5]);

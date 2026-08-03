@@ -1,4 +1,4 @@
-# Phase Snapshot — Phase 39: Cookie Jar (CJAR) (3 Aug 2026, SW v161)
+# Phase Snapshot — Phase 39: Cookie Jar (CJAR) (3 Aug 2026, SW v162)
 
 **Type:** New game (game 18) — base game + Sylly Mode built in a single phase.
 **Follows:** Phase 38 (Force of Nature — PKO Sylly Mode, three-device session confirmed clean).
@@ -71,11 +71,11 @@ Two further items were owner calls made during the same triage but not bugs: **D
 4. **The game menu's "See the Cards" button removed** — the gallery lives only in How to Play now, restoring cjar's menu to the Universal Menu Standard's canonical 4 buttons instead of a 5th deviation.
 5. **The gallery grid switched `flex-wrap` → `grid-cols-3`** — Family and Treats (5 tiles each) now wrap a deliberate 3-then-2 instead of whatever `flex-wrap` happened to fit (previously 4-then-1).
 
-**One question raised and deliberately not acted on.** In Dibber Dobber the first decision of every Raid is made on an empty stage, and `cjarBuildDeck`'s Sylly branch returns before `cjarFloatCookies` — so **Snack Friendly does nothing in Sylly** (its card is hidden, so this is honest rather than a lie). Floating a cookie to the front would keep the commit blind while making it unpunishable. Left alone: it is a rules change to an economy whose balance baseline (DD-06) was measured without it, and the standing discipline is not to retune pre-playtest. **Owner call.**
+**The blind-first-flip question is now resolved (DD-17).** Dibber Dobber's first decision of every Raid was made on an empty stage with no protection — `cjarBuildDeck`'s Sylly branch returned before `cjarFloatCookies` ran, so Snack Friendly's guarantee never applied there. Fixed: `cjarFloatCookies(deck, 1)` now runs at the end of the Sylly branch, after its own final shuffle, without weakening the blind commit (Delta 7) — nothing is revealed before the choice, only the guaranteed card at position 0 changed. Re-measured against the DD-06 baseline: 5p spread 34.3 → 31.4 pts, Innocent 53.5% → 51.4%; 8p spread 37.4 → 37.6 pts, Innocent 52.9% → 52.3% — within the noise band Delta 7 itself established. SW v161 → v162.
 
 ---
 
-## Changes Shipped (v156 → v161, this phase)
+## Changes Shipped (v156 → v162, this phase)
 
 1. **The whole Cookie Jar plugin** — base game (Incan Gold 1:1) + Dibber Dobber Sylly Mode, both built against the confirmed spec in one 17-task phase.
 2. **BUG-06 fix and the wire/DOM upgrade to the loopback harness** — the standard fifth MP tool gained the two properties (`fbWrite`/`fbRead`, real mock elements) that make it able to catch a render-time throw, elevated to `logic-engine.md` § MDLM Patterns as a universal rule.
@@ -84,6 +84,7 @@ Two further items were owner calls made during the same triage but not bugs: **D
 5. **Two Task-17 documentation gaps closed in passing** — DD-01 (Grandma archetype, art didn't match the spec's "Little Brother") and Delta 6/DD-04 (High Alert's escalation-pool exclusion), both recorded in the decision log alongside the round-1 items.
 6. **The pre-existing FRT `getMuteToggleOnClass()` gap found and logged, not fixed** — an unrelated game's bug, deliberately left for its own commit.
 7. **The repo's commit history was incomplete and has been closed.** `js/games/cjar.js` had been committed during Task 17, but `data/cjar-data.json`, the core art, and `js/engine-multiplayer.js`'s `MP_GAME_CONFIGS.cjar` entry (the lobby config — cjar is MDLM-only, so without it the game cannot be entered at all) had not. All committed now, along with the four verify tools, the simulator, the spec, the plan, and the content guide.
+8. **DD-17 — Dibber Dobber's flip 1 is guaranteed a cookie, without weakening the blind commit.** `cjarFloatCookies(deck, 1)` now runs at the end of the Sylly branch's deck build, after its own final shuffle. Re-measured against the DD-06 baseline and confirmed noise-level movement only.
 
 ---
 
@@ -124,7 +125,7 @@ Two further items were owner calls made during the same triage but not bugs: **D
 3. **3-player balance is unsimulated** — `simulate-cjar-dd.js` only ran at 5 and 8 players; the min-player drop to 3 (DD-08) is an owner call not yet checked against the solo-Sneak-Out jackpot's higher hit rate at small tables.
 4. **The FRT `getMuteToggleOnClass()` gap** is logged (`frt-implementation-notes.md`) but deliberately not fixed in this phase — a separate, unrelated commit.
 5. **Two sweeps opened by round 2, both deferred on purpose.** The DD-13 settings dynamic-value line across the other 17 games, and a card gallery / How-to tab for the other core-art games (FLW, SHP, FRT, PKO) — those four still have DD-09's original problem, where the offline check for their art needs a running match.
-6. **The Dibber Dobber blind-first-flip question** (Snack Friendly is inert in Sylly) — diagnosed, one-line fix available, deliberately unactioned because it changes an economy whose baseline was measured without it. Owner call.
+6. ~~The Dibber Dobber blind-first-flip question~~ — **RESOLVED, DD-17, SW v162.** See above.
 
 ---
 
@@ -133,5 +134,5 @@ Two further items were owner calls made during the same triage but not bugs: **D
 - `node tools/verify-cjar-deck.js` — 73/73 PASS.
 - `node tools/verify-cjar-loop.js` — 102/102 PASS.
 - `node tools/verify-cjar-dd.js` — 47/47 PASS.
-- `node tools/verify-cjar-loopback.js` — 111/111 PASS (gained the How-to tab-switch, empty-trail-placeholder, and real-card-only `stageThumbs()` assertions across round 2).
+- `node tools/verify-cjar-loopback.js` — 112/112 PASS (gained the How-to tab-switch, empty-trail-placeholder, real-card-only `stageThumbs()`, and DD-17's flip-1-is-a-cookie assertions).
 - Live: playtest round 1 (4 devices, unplayable as found — BUG-06 — five fixes applied) and playtest round 2, two passes (3–4 devices, full Raids/matches/Dibber Dobber played live; offline install check passed single-device, by design; ten UI/UX fixes applied, zero correctness bugs found). **Multi-device play is confirmed across both rounds.**

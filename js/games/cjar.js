@@ -220,7 +220,15 @@ function cjarBuildDeck() {
     deck = shuffle(deck);
     deck.length = CJAR_DD_CUT;                     // genuine random cut to 10
     deck.push(cjarTreatCard(cjarScheduledTreat()));    // Treat added AFTER the cut, so it
-    return shuffle(deck);                          // is always in play → ~11 cards
+    deck = shuffle(deck);                          // is always in play → ~11 cards
+    // Snack Friendly is hidden in Sylly (its setting card has nowhere to live once
+    // House Rules is gone too), but its SPIRIT still applies: the blind commit is the
+    // point (Delta 7), not being punished before you've seen a single card. Float
+    // ONE cookie to the front — after the final shuffle above, or it would be undone
+    // by it. This does not touch total risk: every Caught! card that would have
+    // appeared still appears somewhere in the Raid, just never on flip 1.
+    cjarFloatCookies(deck, 1);
+    return deck;
   }
 
   // Base game: live family copies, which House Rules mutates across the match.
