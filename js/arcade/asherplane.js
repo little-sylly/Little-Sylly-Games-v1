@@ -41,6 +41,10 @@ let apLives   = AP_START_LIVES;
 let apShake   = 0;        // seconds remaining
 let apInvuln  = 0;        // ms remaining
 let apDyingT  = 0;        // ms remaining in the 'dying' state
+// TIMER — logic-engine.md § Timer Lifecycle: clear it everywhere apRafHandle is
+// cleared, not only on natural expiry. It is armed on the fatal hit and would
+// otherwise beep over the lobby if the player taps ✕ inside its 220 ms window.
+let apGameOverT = null;
 let apPlayer  = { x: AP_W / 2, y: AP_H - 70, w: 34, h: 30 };
 let apBullets = [];
 let apCars    = [];
@@ -106,6 +110,13 @@ function apEnterDying() {
   apDyingT = AP_DYING_MS;
 }
 
+// Cancels the staggered game-over beep. Called from resetArcade() (which covers
+// both the ✕ handler and resetToLobby()) and from apResetRun() (so a PLAY AGAIN
+// tapped inside the 220 ms window cannot carry a beep into the new run).
+function apClearGameOverT() {
+  if (apGameOverT) { clearTimeout(apGameOverT); apGameOverT = null; }
+}
+
 function apResetRun() {
   apScore   = 0;
   apLives   = AP_START_LIVES;
@@ -119,6 +130,7 @@ function apResetRun() {
   apSpawnT  = 0;
   apDir     = 0;   // otherwise a PLAY tap held from the attract screen starts the run already drifting (Important 3)
   apDyingT  = 0;
+  apClearGameOverT();
 }
 
 function apLoop(now) {
@@ -253,7 +265,10 @@ function apUpdate(dt) {
         // the same ctx.currentTime. hit() has already played above; gameOver()
         // is staggered, and apEndRun()'s highScore() now lands a further
         // AP_DYING_MS later because the dying countdown is what calls it.
-        setTimeout(() => AP_SOUND.gameOver(), 220);
+        apGameOverT = setTimeout(() => {
+          apGameOverT = null;   // fired and finished — never leave a stale handle
+          AP_SOUND.gameOver();
+        }, 220);
         apEnterDying();
         return;
       }
@@ -610,6 +625,7 @@ function apResize() {
 // Called from engine.js resetToLobby() via forward reference.
 function resetArcade() {
   if (apRafHandle) { cancelAnimationFrame(apRafHandle); apRafHandle = null; }
+  apClearGameOverT();
   apState    = 'attract';
   apDir      = 0;
   apPtrId    = null;
