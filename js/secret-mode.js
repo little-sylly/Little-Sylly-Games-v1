@@ -29,6 +29,17 @@ const SM_GAMES = [
   { id: 'pko',  label: 'PECKING ORDER',   screen: 'screen-pko-menu'  },
 ];
 
+// ── Arcade cabinets — standalone canvas games, NOT packs and NOT Sylly Games.
+// Adding a cabinet = one entry here + one file in js/arcade/. No pack manifest,
+// no MP config, no game-identities entry. See the spec § 2 for the exemption.
+const SM_ARCADE = [
+  { id: 'asherplane', label: 'ASHERPLANE', screen: 'screen-arcade-asherplane',
+    start: () => apStart() },
+];
+
+// Last cabinet played this session — survives resetSecretMode() (see below).
+let smArcadeLastId = null;
+
 // ── Terminal config — expansions are built at runtime from data/packs/ ───────
 // To add/remove a pack: drop a folder in data/packs/ + edit data/packs/registry.json.
 // No edits here, no sw.js edit, no version bump. See docs/expansion-guide.md.
@@ -329,7 +340,10 @@ function smRenderExpansions() {
   const all = SM_TERMINAL_CONFIG.expansions;
   const hasWords = all.some(e => !e.isAsset && !e.locked);
   const hasSkins = all.some(e => e.isAsset);
-  const cats = [];
+  // ARCADE leads: Secret Mode is broader than "packs that change existing games".
+  // It is unconditional — cabinets are engine knowledge, not pack data, so it
+  // renders even when the pack registry failed to load.
+  const cats = [{ id: 'arcade', label: 'ARCADE' }];
   if (hasWords) cats.push({ id: 'words', label: 'WORD PACKS' });
   if (hasSkins) cats.push({ id: 'skins', label: 'GAME SKINS' });
   all.filter(e => e.locked).forEach(e => cats.push({ id: e.id, label: e.label, locked: true }));
@@ -359,13 +373,18 @@ function smReturnToCategories() {
 
 function smSelectCategory(cat) {
   playSecretBeep(660);
-  const label = cat === 'words' ? 'WORD PACKS' : 'GAME SKINS';
+  const label = cat === 'arcade' ? 'ARCADE'
+              : cat === 'words'  ? 'WORD PACKS'
+              :                    'GAME SKINS';
   smLogLine(`> CATEGORY: ${label} SELECTED`);
   smLogSpacer();
-  smLogLine(cat === 'words' ? '  └─ SELECT PACK:' : '  └─ SELECT GAME:');
+  smLogLine(cat === 'arcade' ? '  └─ SELECT CABINET:'
+          : cat === 'words'  ? '  └─ SELECT PACK:'
+          :                    '  └─ SELECT GAME:');
   document.getElementById('sm-terminal-log').scrollTop = document.getElementById('sm-terminal-log').scrollHeight;
-  if (cat === 'words') smRenderWordPacks();
-  else                 smRenderSkinGames();
+  if      (cat === 'arcade') smRenderArcade();
+  else if (cat === 'words')  smRenderWordPacks();
+  else                       smRenderSkinGames();
 }
 
 // Word-pack themes (theme-first; multi-game). Reuses the existing smSelectExpansion flow.
@@ -399,6 +418,37 @@ function smRenderSkinGames() {
     wrap.appendChild(btn);
   });
   smShowList(wrap);
+}
+
+// ── Arcade drill-down: cabinet list → launch ──────────────────────────────────
+// Tapping a cabinet launches it immediately. This diverges from the skin flow
+// (which arms, then needs a LAUNCH tap) on purpose: skins arm first so the
+// active settings can be reviewed before committing, and a cabinet has none.
+function smRenderArcade() {
+  const wrap = document.getElementById('sm-terminal-expansions');
+  wrap.innerHTML = '';
+  smAppendBackButton(wrap);
+  SM_ARCADE.forEach((cab, i) => {
+    const btn = document.createElement('button');
+    btn.className = SM_BTN_CLS;
+    btn.textContent = `  [${i + 1}] ${cab.label}`;
+    btn.addEventListener('click', () => smLaunchArcade(cab.id));
+    wrap.appendChild(btn);
+  });
+  smShowList(wrap);
+}
+
+// Lean sibling of smLaunch(). No word bank, no settings overrides, no asset
+// pack, no breadcrumb banner — a cabinet has no host game to decorate.
+// smLaunch() is deliberately left untouched.
+function smLaunchArcade(id) {
+  const cab = SM_ARCADE.find(c => c.id === id);
+  if (!cab) return;
+  isSecretMode   = true;
+  smArcadeLastId = id;
+  playSecretBeep(523);
+  setTimeout(() => playSecretBeep(784), 120);
+  setTimeout(() => cab.start(), 260);
 }
 
 // ── Asset-pack drill-down: <GAME> SKINS → skin list → arm + launch ─────────────
