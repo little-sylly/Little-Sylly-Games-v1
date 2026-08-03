@@ -24,8 +24,8 @@ const FRT_FRUITS = [
 ];
 
 // Banana-leaf palette (see spec §1)
-const FRT_FILL = '#FFC700';   // bright banana fill
-const FRT_INK  = '#ffffff';   // white text on banana (owner preference)
+const FRT_FILL = '#FFE500';   // electric lemon fill
+const FRT_INK  = '#292524';   // stone-800 — dark ink on lemon (was white; fixed a WCAG contrast failure)
 const FRT_LEAF = '#047857';   // leaf accent — text-on-white + True button + selection outline
 const FRT_DARK = '#44403c';   // dark chip (stack count badges)
 
@@ -263,7 +263,7 @@ function frtRenderOpponents() {
   for (let p = 0; p < frtPlayerCount; p++) {
     const isSelf = p === me;
     const cell = document.createElement('div');
-    // Self gets a ring; active non-self gets yellow tint; others neutral
+    // Self gets a ring; active non-self gets a pale lemon tint; others neutral
     let cellBg = isSelf ? 'bg-stone-100 ring-1 ring-stone-300' :
                  (p === frtActivePlayer ? 'bg-[#FFF4CC]' : 'bg-stone-50');
     cell.className = 'flex flex-col items-center gap-0.5 px-2 py-1 rounded-xl flex-shrink-0 ' + cellBg;
@@ -469,8 +469,9 @@ function frtRenderAwait() {
   const decl = FRT_FRUITS[frtPassDeclaration];
   const mk = (label, bg, fn) => {
     const b = document.createElement('button');
-    b.className = 'btn-mp-action min-h-12 w-full rounded-2xl active:scale-95 text-base font-semibold transition-all duration-150 text-white';
-    b.style.background = bg; b.textContent = label; b.addEventListener('click', fn);
+    const ink = bg === FRT_FILL ? FRT_INK : '#ffffff';
+    b.className = 'btn-mp-action min-h-12 w-full rounded-2xl active:scale-95 text-base font-semibold transition-all duration-150';
+    b.style.background = bg; b.style.color = ink; b.textContent = label; b.addEventListener('click', fn);
     return b;
   };
 
@@ -871,8 +872,8 @@ function frtRenderRoundEnd(eliminatedSet) {
     footer.appendChild(wait);
   } else {
     const btn = document.createElement('button');
-    btn.className = 'min-h-14 w-full rounded-2xl active:scale-95 text-xl font-semibold transition-all duration-150 text-white';
-    btn.style.background = FRT_FILL;
+    btn.className = 'min-h-14 w-full rounded-2xl active:scale-95 text-xl font-semibold transition-all duration-150';
+    btn.style.background = FRT_FILL; btn.style.color = FRT_INK;
     btn.textContent = frtPendingRoundGameOver ? 'See Final Scores →' : 'Next Fruit-Off →';
     btn.addEventListener('click', () => {
       playLaunch();

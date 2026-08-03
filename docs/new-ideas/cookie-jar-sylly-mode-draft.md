@@ -1,8 +1,10 @@
 # Cookie Jar — Sylly Mode Design (Final Draft)
 **Name:** Dibber Dobber *(name flagged for review — see §10)*
-**Status:** Mechanics settled and balance-tested via simulation; terminology re-synced. **v2: terminology matched to `new-game-brief-cookie-jar.md` (Cookie Raid / Take / Play Innocent), Treat priority reversed, Treat deck-entry guaranteed, Crumb Debt added.**
+**Status:** Mechanics settled and balance-tested via simulation, at the deck size in effect when that testing was run; terminology re-synced. **v3 (2 Aug 2026): deck shortened from 16 cards to ~10 + Treat (~11) — see §2 and the note below — plus the Open Book setting from the main brief's §7 threaded through the reveal rules (§6, §9). v2: terminology matched to `new-game-brief-cookie-jar.md` (Cookie Raid / Take / Play Innocent), Treat priority reversed, Treat deck-entry guaranteed, Crumb Debt added.**
 
-**Soft-locked, not frozen.** The *mechanics* here are firm — they're the output of real simulation work and shouldn't be changed casually. But this document was written without codebase access, so anything about screens, dimensions, timings or implementation (§9 in particular) is a starting point for whoever has the project in front of them. Three v2 changes are reasoned but unsimulated and are marked `[FLAGGED]` where they appear. See the brief §0.1 for the FIRM / SOFT / OPEN convention used across both documents.
+**Why the deck shortened in v3.** This mode has no bust and no leaving, so a Raid always plays out its entire deck — at 16 cards, a Full Feast (5 Raids) was a fixed 80 decision points at a 15-second timer each, which breaks the main brief's "10–15 minute" time estimate (that estimate was computed for the base game, where a Raid self-terminates early on a bust or a last-player-leaving). Cutting to ~10+1 was chosen over shortening the timer or capping Raid count because it also concentrates the Favourite/Watcher mechanic — the actual hook of this mode — into fewer flips per Raid, and because more (shorter) Raids preserve more rolls of that per-Raid-reassigned mechanic than fewer (longer) ones would. **Every balance number in this document below was tested at the old 16-card size and needs a re-run at ~11 cards** — the *rules* are unaffected by deck size, but exact win-rates, wipeout probabilities, and the Play-Innocent-lean percentage all move with fewer flips per Raid to accumulate in.
+
+**Soft-locked, not frozen.** The *mechanics* here are firm — they're the output of real simulation work and shouldn't be changed casually. But this document was written without codebase access, so anything about screens, dimensions, timings or implementation (§9 in particular) is a starting point for whoever has the project in front of them. Several v2/v3 changes are reasoned but unsimulated and are marked `[FLAGGED]` where they appear. See the brief §0.1 for the FIRM / SOFT / OPEN convention used across both documents.
 **Theme:** "Who took the cookies from the cookie jar?" — accusation, denial, and pointing fingers.
 **Companion to:** `new-game-brief-cookie-jar.md` §8, §19
 
@@ -36,14 +38,18 @@ Take is the core, highest-ceiling path to winning — the actual "do I dare grab
 
 ## 2. Deck Construction
 
+**Shortened in v3** — the cut size changed from 15 to ~10 cards; the two-step structure and the reasoning for cutting after the Treat is added are unchanged from v2.
+
 Each Raid's deck is built in two steps:
 
-1. Combine the full 15 Cookie cards + full 15 Caught! (Family) cards into one 30-card pool and **cut it randomly in half** — 15 cards.
-2. **Add that Raid's scheduled Treat** (per the fixed Raid 1–5 schedule in the brief §10) and shuffle. **16-card deck.**
+1. Combine the full 15 Cookie cards + full 15 Caught! (Family) cards into one 30-card pool and **cut it randomly to ~10 cards.**
+2. **Add that Raid's scheduled Treat** (per the fixed Raid 1–5 schedule in the brief §10) and shuffle. **~11-card deck.**
 
 The Treat is added *after* the cut, so **the Raid's Treat is always in the deck.** *(Changed from v1, where the Treat went into the pool before the cut and therefore had a ~50% chance of never being dealt at all — across a 5-Raid match that meant roughly half the Treat cards, and half the Treat art, would never be seen.)*
 
-**The Cookie/Family cut is a genuine random cut of the combined pool, not a proportional per-type split.** A Raid's resulting 15 Cookie/Family cards can skew Cookie-heavy or Family-heavy purely by luck — some Raids will feel generous, others hostile. This is intentional: it shortens Raids (a function of deck size, not composition), and it means players can never count cards to calculate safe odds, since even the deck's *makeup* for that Raid is unknown until cards start flipping.
+**Why ~10 instead of 15 (v3):** this mode has no bust and no early leave, so every Raid plays its *entire* deck — a 15+1 deck at 5 Raids was a fixed 80 flips at a 15-second timer each, well past the main brief's "10–15 minute" target (which was computed for the base game's self-terminating Raids, not this mode's fixed-length ones). Cutting to ~10+1 brings a Full Feast down to a fixed ~55 flips, and concentrates the Favourite/Watcher reassignment — the mechanic that gives this mode its replay value — into fewer flips per Raid rather than diluting it. **This changes the deck's variance profile and invalidates the specific percentages in §8's "Dibber Dobber deck variance" note below, which were computed for a 15-card cut — re-run required before those numbers are cited again.**
+
+**The Cookie/Family cut is a genuine random cut of the combined pool, not a proportional per-type split.** A Raid's resulting ~10 Cookie/Family cards can skew Cookie-heavy or Family-heavy purely by luck — some Raids will feel generous, others hostile. This is intentional: it shortens Raids (a function of deck size, not composition), and it means players can never count cards to calculate safe odds, since even the deck's *makeup* for that Raid is unknown until cards start flipping. **At a smaller cut size, this variance is proportionally larger than it was at 15 cards** — worth watching for in the simulation re-run, since a ~10-card cut has more room to land unusually Family-heavy than a 15-card one did.
 
 ---
 
@@ -147,7 +153,7 @@ Each player's outcome depends on their own action, plus the "scare-off" exceptio
 - **Affinities:** each Raid, every player is secretly assigned one family member as their **Favourite** (that family member goes easy on them — the +affinity mechanic) and one as their **Watcher** (that family member's onto them — the −affinity mechanic). Visible to that player only, hidden from everyone else. Reassigned at random each Raid, doesn't carry over.
 - **Crumbs:** a single pool that persists and accumulates across the whole Raid — fed by caught Takers' losses, Dob backfires, Crumb Debt repayments, and unclaimed remainders. Available to Innocents instantly, same flip — except when the scare-off rule applies (Dobber present on Cookie or Family cards). Crumbs do not carry between Raids.
 - **No bust, no negative cookies, no leaving:** nobody ever loses more than they have, and nobody exits a Raid early. A player at zero cookies keeps playing normally and can still win Crumb splits.
-- **Raid end:** when the Raid's 16-card deck runs out.
+- **Raid end:** when the Raid's ~11-card deck runs out (shortened from 16 in v3 — see §2).
 - **Starting stash: 5 cookies, granted ONCE at the start of the match.** *(Clarified in v2 — this is not a per-Raid top-up. Cookies carry across Raids as a single running total; a 5-Raid match grants 5 cookies total, not 25. A per-Raid grant would hand out 25 free cookies over a Full Feast and badly dilute the skill signal.)* Flagged for tuning after playtesting if players feel insufficiently pressured early.
 - **Settings hidden while this mode is active:**
   - **Kitchen Rules** — all 3 options (Standard Burn / On Guard / High Alert) govern what happens on a bust. This mode has no bust, so none of them have anything to act on.
@@ -195,19 +201,21 @@ v1 ran **Sneak > Dob > Reach**, inherited from the base game where Sneaking Out 
 Sylly-Mode-specific requirements:
 
 - **Three action buttons** instead of two: Take / Play Innocent / Dob. Same suite button component, one per row — no bespoke art needed for Dob.
-- **Affinity display:** two persistent text lines on the player's own device (Favourite / Watcher). Text only, no icon assets required.
+- **Affinity display:** two persistent text lines on the player's own device (Favourite / Watcher). Text only, no icon assets required. **Never gated by Open Book (new in v3)** — this is a different kind of information from a running score (assigned once per Raid, strategic for the owning player specifically), so it stays private to that player regardless of the Open Book setting. Delivered via `mpSendPrivate` — one send per player at Raid-start, with no repair packet needed since the value never mutates mid-Raid (see the main brief §12 for why this is the one place that channel is used at all in this game).
 - **Crumb pile "locked" state:** when a Dobber is present, the Crumb pile is visible but unclaimable this flip. Needs a distinct visual state (dimmed + a short label) or players will read the scare-off rule as a bug.
-- **Crumb Debt chip:** small "owes N 🍪" indicator next to an affected player's count.
+- **Crumb Debt chip:** small "owes N 🍪" indicator next to an affected player's count. Reset to zero for every player inside each Raid-start SYNC payload, not just in the host's local state — an accumulator a client isn't sent a reset for carries the previous Raid's values forward.
 - **No bust screen, no BUSTED! animation** in this mode — the Raid always ends by the deck running out.
-- **Reveal must show per-player deltas, not just who chose what.** A single flip can contain a steal, a split and a scare-off simultaneously; names-in-zones alone doesn't communicate it.
-- **Decision timer, auto-resolving to Play Innocent** (the safe action) on timeout. **[SOFT] 15 seconds as a starting value.**
+- **Reveal must show per-player deltas — gated by the new Open Book setting (v3), not unconditionally.** With Open Book On (default), every player's exact delta is shown — a single flip can contain a steal, a split and a scare-off simultaneously, and names-in-zones alone doesn't communicate that. With Open Book Off, only the viewing player's own delta is exact; every other player's outcome is shown as a qualitative flavour line (see §6's reveal-line examples — e.g. "Ben tried to dob — but nobody was taking. Backfired!"), which still teaches the rule without exposing the number.
+- **Decision timer, host-authoritative, auto-resolving to Play Innocent** (the safe action) on timeout. **[SOFT] 15 seconds as a starting value.** There is no server in this project's architecture — the host computes and broadcasts an `endTimestamp` at flip-start (matching GTH's `GTH_PHASE2_BEGIN` pattern) and is the only device that resolves the timeout; clients display the countdown but never self-resolve. **This collides with the engine's global 8-second sync-lock auto-release** (`mpLockSync()`), which is shorter than the 15-second decision window — the Waiting-state UI must be driven by this mode's own ready-check flag, not by the shared `mp-sync-locked` CSS class, or a fast player's buttons will visually unlock mid-flip while the table is still waiting on someone slower.
 
 ---
 
 ## 10. Open Items
 
 - **Mode and action naming — "Dibber Dobber" / "Dob".** Australian/British slang; won't parse for US or international players on first read. *Recommendation: keep it.* "Point" collides with *points* (the Treat scoring currency), the reveal copy already carries the meaning without a glossary, and a Sylly Mode is the right place for regional charm. If a global-legibility swap is ever wanted, **"Tattle" / mode "Tattletale"** is the clean one-for-one replacement — a single find-replace in both docs.
-- Crumb Debt: cap value (currently 6) and per-Raid clear — proposed, needs simulation
-- Treat priority reversal (Take > Dob > Play Innocent) — reasoned, needs simulation
-- Whether the 7–8 player Family-card softness persists under the final scare-off ruleset specifically (tested separately, not yet re-verified together)
-- Real playtesting to confirm the simulated balance holds up with actual kids at the table, not just modelled populations
+- **New in v3 — the deck-size cut itself (16 → ~11 cards, §2) needs a full simulation re-run before this document's balance numbers can be trusted again.** Every percentage below this line, and the "12 Family / 3 Cookie" variance figures in the main brief §19, were computed at the old 15-card cut and are now stale.
+- Crumb Debt: cap value (currently 6) and per-Raid clear — proposed, needs simulation (at the new deck size)
+- Treat priority reversal (Take > Dob > Play Innocent) — reasoned, needs simulation (at the new deck size)
+- Whether the 7–8 player Family-card softness persists under the final scare-off ruleset specifically (tested separately, not yet re-verified together, and not yet re-verified at the new deck size either)
+- Real playtesting to confirm the simulated balance holds up with actual kids at the table, not just modelled populations — now more valuable than ever, since a shorter Raid changes how much a session-opening bad Favourite/Watcher draw can be recovered from within one Raid
+- **Open Book interaction (new in v3):** with Open Book Off, the qualitative-only reveal lines in §6 are this mode's sole way of teaching the scare-off rule to a new player — worth a specific playtest check that the flavour-line wording alone (without seeing numbers) actually communicates what happened, rather than assuming it does because it reads clearly on paper.

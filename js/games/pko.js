@@ -97,7 +97,11 @@ const PKO_PREY_RANK   = {
 const PKO_MIMIC_ID           = 'mimic';
 const PKO_FON_DEAL_BONUS_DIV = 4;      // bonus = round(pkoHoardSize / 4) → 3 / 3 / 4
 const PKO_CARRION_WINDOW_MS  = 5000;   // first playtest dial — FoN spec §17 D31
-const PKO_EVENT_SCREEN_MS    = 2500;   // matches screen-pko-unchallenged
+// ONE dwell for BOTH auto-advancing interstitials (screen-pko-event, screen-pko-unchallenged),
+// deliberately equal to PKO_CARRION_WINDOW_MS. Playtest 1 found 2.5 s too short to read an
+// event name + blurb, and a table that changes at a different tempo to the Carrion window
+// reads as two different games. One constant so they can never drift apart again (D35).
+const PKO_INTERSTITIAL_MS    = 5000;
 // Card art is resolved through js/lib/art.js — assetFace('pko', id) / assetBack('pko'),
 // backed by the core art pack data/art/pko/pack.json. The manifest owns the id →
 // filename mapping, so no lookup table lives here.
@@ -766,6 +770,25 @@ function pkoRenderTable() {
 
   const head = document.getElementById('pko-table-clash');
   if (head) head.textContent = `Clash ${pkoClashNum} · Encounter ${pkoEncounterNum}`;
+
+  // Force of Nature rides in the header beside the Encounter: the live event by name, and a
+  // [?] to the full roster. The interstitial is 5 s and gone — an event that silently changes
+  // what beats what needs to stay legible for the whole Encounter, not just its announcement.
+  // Gated on the SAME state the header displays, not on pkoSyllyMode. (pkoSyllyMode does
+  // reach clients — it is in mpSerialiseSettings — so either would work; this is the tighter
+  // of the two.) pkoEvent and pkoEventsFired travel in both CLASH_BEGIN and ENCOUNTER_BEGIN,
+  // and under Force of Nature Encounter 1 always fires Invasive Mimicry, so eventsFired is
+  // non-empty on every device from the first Encounter on and stays empty forever with Sylly
+  // Mode off. The [?] therefore cannot appear on a table that has never seen an event.
+  const ev    = pkoEvent ? PKO_EVENTS.find(x => x.id === pkoEvent) : null;
+  const inFon = !!(pkoEvent || pkoEventsFired.length);
+  const evEl  = document.getElementById('pko-table-event');
+  if (evEl) {
+    evEl.textContent   = ev ? `· ${ev.emoji} ${ev.name}` : '';
+    evEl.style.display = ev ? '' : 'none';
+  }
+  const evBtn = document.getElementById('btn-pko-events');
+  if (evBtn) evBtn.style.display = inFon ? '' : 'none';
 
   const banner = document.getElementById('pko-turn-banner');
   if (banner) {
@@ -1815,9 +1838,11 @@ function pkoEndEncounter() {
   const won    = pkoMarks.slice();              // captured before the board is cleared
   pkoDiscardBoard();                            // the board goes to the Watering Hole
 
-  // Clear the board HERE, not on the interstitial's 2.5 s timer. The Encounter is over
-  // the moment this runs, but pkoStartEncounter() — which resets pkoMarks — is 2.5 s
-  // away. In that window a PKO_RETREAT submitted by a client just before the Encounter
+  // Clear the board HERE, not on the interstitial's timer. The Encounter is over the
+  // moment this runs, but pkoStartEncounter() — which resets pkoMarks — is a full
+  // PKO_INTERSTITIAL_MS away (5 s since playtest 1 — the window this guard has to survive
+  // DOUBLED, which is exactly why it must not depend on the dwell being short).
+  // In that window a PKO_RETREAT submitted by a client just before the Encounter
   // closed still passes pkoApplyRetreat's guards, and resolves the Encounter a SECOND
   // time: the interstitial re-shows, the advance is rescheduled, and the board is
   // pushed to the Watering Hole twice. An empty board is the guard that drops it.
@@ -1849,7 +1874,7 @@ function pkoShowUnchallenged(winnerIdx, marks) {
   // Only the host schedules the advance — clients move on the PKO_ENCOUNTER_BEGIN SYNC.
   if (pkoUnchallengedTimer) clearTimeout(pkoUnchallengedTimer);
   if (window.syllyMultiplayerMode === 'client') return;
-  pkoUnchallengedTimer = setTimeout(() => { pkoUnchallengedTimer = null; pkoStartEncounter(); }, 2500);
+  pkoUnchallengedTimer = setTimeout(() => { pkoUnchallengedTimer = null; pkoStartEncounter(); }, PKO_INTERSTITIAL_MS);
 }
 
 // Which sound each event announces itself with. No new synthesised functions — §13
@@ -1882,7 +1907,7 @@ function pkoShowEvent(eventId, then) {
   if (typeof snd === 'function') snd();
   showScreen('screen-pko-event');
   if (pkoEventTimer) clearTimeout(pkoEventTimer);
-  pkoEventTimer = setTimeout(() => { pkoEventTimer = null; then(); }, PKO_EVENT_SCREEN_MS);
+  pkoEventTimer = setTimeout(() => { pkoEventTimer = null; then(); }, PKO_INTERSTITIAL_MS);
 }
 
 // Which of several joint winners opens the next Clash: most Match points, then random
@@ -2258,6 +2283,53 @@ function pkoOpenChain(highlightId) {
   pkoOpen('pko-chain-overlay');
 }
 
+// The Force of Nature roster. Rendered FROM PKO_EVENTS rather than written into index.html,
+// for the same reason PKO_EVENT_SOUND sits beside the registry: an event's rules and the card
+// that explains them cannot drift apart, and a tenth event needs no markup. The extra rules
+// text is the one thing not in the registry — the blurb is a one-line announcement, this is
+// what the event actually does to your turn — so it lives here, keyed by id.
+const PKO_EVENT_DETAIL = {
+  'invasive-mimicry': 'Opens every Clash. Mimics join the Pool and everyone is dealt a few extra. A Mimic copies whatever real card it is played with, so it can never be played alone — and it can never copy a Poacher.',
+  'culling':          'Each player discards every copy of the species they hold fewest of. It can never empty a Hoard, so nobody wins the Clash on a Culling.',
+  'great-reversal':   'The chain runs backwards for the Encounter — prey eats predator. The Eagle becomes beatable and the Elephant becomes the weakest thing on the board.',
+  'deluge':           'Only sea animals may be played this Encounter. Poachers hunt in any weather. If nobody could act at sea, the Deluge is never drawn.',
+  'dry-season':       'Only land animals may be played this Encounter. Poachers hunt in any weather. If nobody could act on land, the Dry Season is never drawn.',
+  'extinction':       'The rarest species across every Hoard is wiped out completely. Fires at most once per Clash — and if it empties a Hoard, that player takes the Clash on the spot.',
+  'migration':        'Every Hoard passes one seat to the left. Nothing is discarded; you simply inherit somebody else\'s problem.',
+  'alpha':            'One Mark on the opening Stake wears the crown. Whatever is played against the Alpha still counts, but the Alpha itself is never discarded — so the board grows instead of shrinking.',
+  'carrion':          'Win a Challenge and you get a short window to take any of the Marks you just beat back into your Hoard, instead of letting them go to the Watering Hole.',
+};
+
+function pkoOpenEvents() { pkoRenderEvents(); pkoOpen('pko-events-overlay'); }
+
+function pkoRenderEvents() {
+  const body = document.getElementById('pko-events-body');
+  if (!body) return;
+  body.innerHTML = '';
+  PKO_EVENTS.forEach(e => {
+    const live = e.id === pkoEvent;
+    const card = document.createElement('div');
+    card.className = 'bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-1.5'
+      + (live ? ' pko-event-live' : '');
+    const h = document.createElement('p');
+    h.className = 'font-bold text-stone-800';
+    h.textContent = `${e.emoji} ${e.name}`;
+    if (e.id === 'invasive-mimicry' || live) {
+      const tag = document.createElement('span');
+      tag.className = 'text-xs font-normal text-stone-400 ml-1';
+      // "Now" beats "active" at a glance, and the opener is worth naming as fixed so a
+      // player does not wait for it to come round again.
+      tag.textContent = live ? 'now' : 'every Clash';
+      h.appendChild(tag);
+    }
+    const p = document.createElement('p');
+    p.className = 'text-stone-500 text-sm';
+    p.textContent = PKO_EVENT_DETAIL[e.id] || e.blurb;
+    card.append(h, p);
+    body.appendChild(card);
+  });
+}
+
 function pkoSetChainTab(tab, highlightId) {
   const isDiagram = tab === 'diagram';
   const pills = { 'btn-pko-chain-tab-diagram': isDiagram, 'btn-pko-chain-tab-animals': !isDiagram };
@@ -2458,12 +2530,16 @@ document.addEventListener('DOMContentLoaded', () => {
   on('btn-pko-challenge-chain',  () => pkoOpenChain());
   on('btn-pko-hole',             () => pkoOpenHole());   // the Watering Hole pile IS the log's entry point
   document.querySelectorAll('.btn-pko-chain-open').forEach(b => b.addEventListener('click', () => pkoOpenChain()));
+  // Two entry points, one overlay — the table header (in-play) and the how-to's Sylly Mode
+  // card (pre-play), the same pairing FRT uses for Fruity Personalities.
+  document.querySelectorAll('.btn-pko-events-open').forEach(b => b.addEventListener('click', () => pkoOpenEvents()));
 
   // Overlay closers
   on('btn-pko-settings-done', () => { playDone(); pkoClose('pko-settings-overlay'); });
   on('btn-pko-howto-close',   () => { playDone(); pkoClose('pko-how-to-overlay'); });
   on('btn-pko-chain-close',   () => { playDone(); pkoClose('pko-chain-overlay'); });
   on('btn-pko-trail-close',   () => { playDone(); pkoClose('pko-trail-overlay'); });
+  on('btn-pko-events-close',  () => { playDone(); pkoClose('pko-events-overlay'); });
 
   // Tabbed overlays — the Chain (Diagram | Animals) and the Watering Hole (Trail | Discards)
   on('btn-pko-chain-tab-diagram',  () => { playPillClick(); pkoSetChainTab('diagram'); });

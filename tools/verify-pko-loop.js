@@ -252,7 +252,7 @@ const section = t => console.log(`\n${t}`);
   check('the board owner takes it and leads next', P.leader, 0);
   check('the winning board goes to the Watering Hole', P.wateringFlat, ['mouse', 'mouse']);
   check('the board is cleared immediately, not on the timer', P.marks, []);
-  check('the host scheduled the 2.5 s auto-advance', timers[timers.length - 1].ms, 2500);
+  check('the host scheduled the 5 s auto-advance', timers[timers.length - 1].ms, 5000);
 
   // A client that tapped Retreat just before the Encounter closed still has an ACTION
   // in flight. It must be dropped, not resolve the Encounter a second time.

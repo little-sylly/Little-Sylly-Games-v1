@@ -173,7 +173,7 @@ function bldSetToggle(id, isOn) {
   if (!btn) return;
   if (isOn) {
     btn.textContent = 'ON';
-    btn.className = 'game-toggle-on-yellow shrink-0';
+    btn.className = 'game-toggle-on-bld shrink-0';
   } else {
     btn.textContent = 'OFF';
     btn.className = 'game-toggle-off shrink-0';
@@ -229,7 +229,7 @@ function bldRenderSetupInputs() {
     const div = document.createElement('div');
     div.innerHTML = `
       <label class="text-stone-500 text-sm font-semibold uppercase tracking-widest block mb-1">Player ${i + 1}</label>
-      <input type="text" class="bld-player-input w-full rounded-xl border-2 border-stone-200 bg-white px-4 py-3 text-lg text-stone-800 placeholder-stone-300 focus:border-yellow-400 focus:outline-none transition-colors"
+      <input type="text" class="bld-player-input w-full rounded-xl border-2 border-stone-200 bg-white px-4 py-3 text-lg text-stone-800 placeholder-stone-300 focus:border-red-400 focus:outline-none transition-colors"
         placeholder="Name..." maxlength="20" data-idx="${i}" value="${bldPlayerNames[i] || ''}">
     `;
     container.appendChild(div);
@@ -481,7 +481,7 @@ function bldRenderItinerary() {
     if (status === 'success') { bg = 'bg-green-100 text-green-700'; icon = '✅'; }
     if (status === 'fail')    { bg = 'bg-red-100 text-red-700';   icon = '❌'; }
     const isCurrent = i === bldCurrentPlanIdx && !status;
-    const border = isCurrent ? 'ring-2 ring-yellow-400' : '';
+    const border = isCurrent ? 'ring-2 ring-red-400' : '';
     return `<button class="bld-itinerary-box flex-1 rounded-xl p-1.5 ${bg} ${border} text-center text-xs font-semibold leading-tight active:scale-95 transition-transform" data-plan-idx="${i}">
       <span class="block text-base">${icon}</span>
       <span class="block" style="font-size:10px">${'👤'.repeat(BLD_GROUP_TABLE[bldPlayerCount][i])}</span>
@@ -497,7 +497,7 @@ function bldRenderPatienceMeter() {
       r => r.planNumber === bldCurrentPlanIdx + 1 && r.status === 'Rejected'
     ).length;
     const dot = document.createElement('div');
-    dot.className = `w-3 h-3 rounded-full ${i < rejectionsThisPlan ? 'bg-yellow-500' : 'bg-stone-200'}`;
+    dot.className = `w-3 h-3 rounded-full ${i < rejectionsThisPlan ? 'bg-red-500' : 'bg-stone-200'}`;
     container.appendChild(dot);
   }
 }
@@ -536,7 +536,7 @@ function bldRenderNominating() {
     const list = document.getElementById('bld-nominating-player-list');
     list.innerHTML = bldPlayerNames.map((name, i) => {
       const selected = bldNominatedGroup.includes(i);
-      const bg = selected ? 'bg-yellow-100 ring-2 ring-yellow-400 text-yellow-800' : 'bg-stone-100 text-stone-700';
+      const bg = selected ? 'bg-red-100 ring-2 ring-red-400 text-red-800' : 'bg-stone-100 text-stone-700';
       return `<button class="bld-nominate-player min-h-12 w-full rounded-xl px-4 py-2 text-base font-semibold text-left ${bg} active:scale-95 transition-all duration-100" data-idx="${i}">
         ${name}${selected ? ' ✓' : ''}
       </button>`;
@@ -847,7 +847,7 @@ function bldShowPlanResult(bailCount, planOutcome) {
     phrase.textContent = `"${failPhrase}"`;
   } else {
     // survived-one-bail
-    card.innerHTML = `<p class="text-3xl">⚠️</p><p class="text-yellow-600 font-bold text-xl">Someone bailed — but the plan survived.</p>
+    card.innerHTML = `<p class="text-3xl">⚠️</p><p class="text-red-600 font-bold text-xl">Someone bailed — but the plan survived.</p>
       <p class="text-stone-500 text-sm">1/2 bails needed. The plan goes ahead.</p>`;
     phrase.textContent = '';
   }
@@ -1055,11 +1055,11 @@ function bldRevealRoles() {
 
     if (i === bldPotStirrerIdx) {
       roleLabel = 'The Pot-Stirrer';
-      colour    = 'text-yellow-600';
+      colour    = 'text-red-600';
       extra     = ' 🤫';
     } else if (bldFlakeIndices.includes(i)) {
       roleLabel = 'The Flake';
-      colour    = 'text-yellow-500';
+      colour    = 'text-red-500';
       if (i === bldBigFlakeIdx && bldDramaMode) extra = ' (Big Flake)';
     }
 
@@ -1249,6 +1249,12 @@ function bldHandleEnvelope(env) {
     bldPlanTrack         = env.payload.planTrack;
     bldShowAftermath();
   }
+
+  // A client quit mid-game; dissolve for everyone (MDLM quit contract, PASS pattern —
+  // logic-engine.md § MDLM Mid-Game Quit Contract).
+  if (action === 'BLD_PLAYER_LEFT' && window.syllyMultiplayerMode === 'host') {
+    resetToLobby(); // broadcasts HOST_END_GAME to remaining clients
+  }
 }
 
 // ── Expansion override hook (required; no-op for Bailed) ─────────────────────
@@ -1319,7 +1325,7 @@ document.getElementById('bld-player-count-pills').addEventListener('click', e =>
   bldPlayerCount = parseInt(btn.dataset.count, 10);
   document.querySelectorAll('#bld-player-count-pills .pill').forEach(p => {
     p.className = parseInt(p.dataset.count, 10) === bldPlayerCount
-      ? 'pill pill-active-yellow'
+      ? 'pill pill-active-bld'
       : 'pill';
   });
   bldRenderSetupInputs();
@@ -1496,7 +1502,7 @@ document.getElementById('bld-drama-guess-list').addEventListener('click', e => {
   bldDramaGuessIdx = parseInt(btn.dataset.idx, 10);
   document.querySelectorAll('.bld-drama-guess-btn').forEach(b => {
     b.className = parseInt(b.dataset.idx, 10) === bldDramaGuessIdx
-      ? 'bld-drama-guess-btn min-h-12 w-full rounded-xl px-4 py-2 text-base font-semibold text-left bg-yellow-100 ring-2 ring-yellow-400 text-yellow-800 active:scale-95 transition-all duration-100'
+      ? 'bld-drama-guess-btn min-h-12 w-full rounded-xl px-4 py-2 text-base font-semibold text-left bg-red-100 ring-2 ring-red-400 text-red-800 active:scale-95 transition-all duration-100'
       : 'bld-drama-guess-btn min-h-12 w-full rounded-xl px-4 py-2 text-base font-semibold text-left bg-stone-100 text-stone-700 active:scale-95 transition-all duration-100';
   });
   document.getElementById('btn-bld-drama-guess-confirm').disabled = false;
@@ -1655,6 +1661,12 @@ document.querySelectorAll('.btn-bld-quit-open').forEach(btn =>
 document.getElementById('btn-bld-quit-confirm').addEventListener('click', () => {
   playExit();
   document.getElementById('bld-quit-overlay').style.display = 'none';
+  // MDLM quit contract (PASS pattern): a client leaving mid-game must tell the host,
+  // which dissolves the match for every remaining device — resetToLobby() alone only
+  // tears down THIS device's view.
+  if (window.syllyMultiplayerMode === 'client') {
+    mpSendEnvelope({ type: 'ACTION', payload: { action: 'BLD_PLAYER_LEFT', playerIdx: mpMyPlayerIdx } });
+  }
   resetToLobby();
 });
 document.getElementById('btn-bld-quit-cancel').addEventListener('click', () => {

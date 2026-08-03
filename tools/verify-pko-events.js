@@ -103,6 +103,9 @@ globalThis.__fon = {
   canAct(h, t)   { return pkoCanActUnderTrack(h, t); },
   draw()         { pkoDrawEvent(); return pkoEvent; },
   events()       { return PKO_EVENTS.map(e => e.id); },
+  detailIds()    { return Object.keys(PKO_EVENT_DETAIL); },
+  soundIds()     { return Object.keys(PKO_EVENT_SOUND); },
+  dwell()        { return [PKO_INTERSTITIAL_MS, PKO_CARRION_WINDOW_MS]; },
   // Runs the REAL pkoStartEncounter but pins the event, so the Leader pass and every
   // onFire can be tested against a chosen event instead of whatever the draw picked.
   // pkoDrawEvent is a function declaration, so it lands on the context and is
@@ -140,6 +143,17 @@ const section = t => console.log(`\n${t}`);
   check('no event is both mutating and passive',
     F.registry.filter(e => e.onFire && (e.track || e.reversal || e.alpha || e.carrion))
       .map(e => e.id), []);
+  // The three id-keyed side tables (voice, roster copy) must cover the registry exactly.
+  // A tenth event added with no sound or no roster card is a silent gap in-game — the
+  // player sees an unexplained event name in the header and nothing behind the [?].
+  check('every event has a roster description', F.events().filter(id => !F.detailIds().includes(id)), []);
+  check('no orphan roster description', F.detailIds().filter(id => !F.events().includes(id)), []);
+  check('every event has a sound', F.events().filter(id => !F.soundIds().includes(id)), []);
+  check('no orphan sound mapping', F.soundIds().filter(id => !F.events().includes(id)), []);
+
+  section('Interstitial dwell');
+  // Both auto-advancing interstitials and the Carrion window run off ONE number (D35).
+  check('the interstitial and Carrion windows are the same 5 s', F.dwell(), [5000, 5000]);
 
   section('pkoEventFlag reads the ACTIVE event only');
   F.seat({ hoards: [['mouse'], ['bear']], event: null });

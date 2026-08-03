@@ -886,6 +886,14 @@ function gthHandleEnvelope(envelope) {
     }
     return;
   }
+
+  // ── ACTION: GTH_PLAYER_LEFT — a client quit mid-game; dissolve for everyone ────────
+  // (MDLM quit contract, PASS pattern — logic-engine.md § MDLM Mid-Game Quit Contract)
+  if (type === 'ACTION' && payload.action === 'GTH_PLAYER_LEFT') {
+    if (syllyMultiplayerMode !== 'host') return;
+    resetToLobby(); // broadcasts HOST_END_GAME to remaining clients
+    return;
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1116,6 +1124,12 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-gth-quit-confirm').addEventListener('click', () => {
     playExit();
     document.getElementById('gth-quit-overlay').style.display = 'none';
+    // MDLM quit contract (PASS pattern): a client leaving mid-game must tell the host,
+    // which dissolves the match for every remaining device — resetToLobby() alone only
+    // tears down THIS device's view.
+    if (syllyMultiplayerMode === 'client') {
+      mpSendEnvelope({ type: 'ACTION', payload: { action: 'GTH_PLAYER_LEFT', playerIdx: mpMyPlayerIdx } });
+    }
     resetToLobby();
   });
 

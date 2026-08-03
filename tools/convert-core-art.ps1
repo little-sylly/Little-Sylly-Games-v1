@@ -29,26 +29,49 @@
 Add-Type -AssemblyName System.Drawing
 
 # ── CONFIG ─────────────────────────────────────────────────────────────────
-# Source folder of original art (keep this OUT of the repo — masters only).
-$src = "d:\Coding Projects\Little-Sylly-Games\data\pko"
+# Edited per run — one game at a time. A previous run's id map is never lost:
+# it is preserved verbatim in that game's data/art/<kind>/pack.json `faces` block.
+#
+# CURRENT RUN: Cookie Jar (cjar) — 14 owner-supplied masters become CJAR's default.
+#
+# Source folder of original art (masters; a skin-pack folder here, normally kept
+# out of the repo).
+$src = "d:\Coding Projects\Little-Sylly-Games\data\cjar"
 # Destination — always data/art/<kind>/img.
-$dst = "d:\Coding Projects\Little-Sylly-Games\data\art\pko\img"
+$dst = "d:\Coding Projects\Little-Sylly-Games\data\art\cjar\img"
 # source filename (no extension) -> the game's own card id / asset key.
 # Art filenames do NOT have to match the game's ids: that is what this map and the
 # manifest are for. Use 'back' for the face-down image; anything that isn't a card
 # face (reference diagrams, board art) goes in the manifest's `extras` block.
 # The per-game id keys are in docs/expansion-guide.md § `faces` id cheat-sheet.
+# cjar's masters are named for their SUBJECT, not their manifest key, so this map is
+# doing real work. treat1..treat5 are in REVEAL order, which is exactly
+# treatSchedule["5"] — so treat5 (brownies) is the one that lands on the final Raid at
+# either match length, and 1-3 are the 5-point specials while 4-5 are the 10-point
+# supers. Owner-confirmed 2 Aug 2026; do not reorder.
 $map = @{
-  'mouse'='mouse'; 'mongoose'='mongoose'; 'leopard'='leopard'; 'eagle'='eagle';
-  'bear'='bear'; 'elephant'='elephant'; 'bee'='bee'; 'fish'='fish';
-  'octopus'='octopus'; 'seal'='seal'; 'polarbear'='polar_bear'; 'orca'='orca';
-  'stingray'='stingray'; 'poacher'='human'; 'mimic'='mimic';
-  'cardback'='back'; 'chaindiagram'='chain'
+  'handful'='cookie-handful';  'batch'='cookie-batch';  'mountain'='cookie-mountain'
+  'mum'='family-mum';          'dad'='family-dad';      'bigsib'='family-big'
+  'grandma'='family-grandma';  'fampet'='family-pet'
+  'treat1'='treat-shortbread'; 'treat2'='treat-redvelvet'
+  'treat3'='treat-macadamia';  'treat4'='treat-macarons'
+  'treat5'='treat-brownies'
+  'cardback'='back'
 }
-# Cards render at ~68×92 CSS px, so 360 px wide is ~1.5× a 3×-DPR render — plenty.
-# Anything read rather than glanced at (a chain/reference diagram) gets more pixels.
+# The masters are 1024x1024 SQUARE but the hero card is portrait (15rem x 20.6rem,
+# ratio 0.728), so background-size:cover discards ~27% horizontally. Width chosen by
+# MEASUREMENT, not by copying an earlier run: at 480px the busiest cards (mountain,
+# treat1) are forced to q58 by the 40KB cap and show JPEG blocking; 560px and 640px
+# breach the cap outright. 360px holds every file at q80-88 for ~472KB total.
+# NOTE this game breaks the suite's usual comfortable margin: PKO's card renders at
+# 4.25rem so 360px is 5.3x its CSS width, whereas cjar's 15rem hero makes the same
+# 360px only ~1.1x effective after the cover-crop. Illustrated art upscales far more
+# gracefully than blocky JPEG, hence clean-and-soft over sharp-and-artefacted. If a
+# sharper hero is ever wanted, pre-cropping the masters to the card aspect buys ~1.9x
+# more VISIBLE pixels per byte — but it permanently discards 27% of the artwork, so
+# that is an owner call, not a converter default.
 $cardWidth  = 360;  $cardCap  = 40KB
-$extraKeys  = @('chain')          # ids that use the looser budget below
+$extraKeys  = @()                 # SHP has no non-card art
 $extraWidth = 800;  $extraCap = 160KB
 # ───────────────────────────────────────────────────────────────────────────
 
