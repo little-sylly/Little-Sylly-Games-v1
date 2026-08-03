@@ -1036,7 +1036,7 @@ After each Showdown, `dybCurrentOpenerIdx` = loser (if still active) or next act
 ## Game 11: Bailed (BLD)
 **Theme:** Social deduction + cooperative sabotage. Friends try to pull off 5 group plans; hidden Flakes try to derail them. Pass a majority vote on the group selection and complete mission cards — but Flakes will vote against and play bail cards.
 **Key file:** `js/games/bld.js`
-**Brand colour:** `yellow-500` | **Active pill:** `pill-active-yellow`
+**Brand colour:** Dark red `#991b1b` (red-800, recoloured from yellow-500 2 Aug 2026 — see decision-log) | **Active pill:** `pill-active-bld`
 **State flow:**
 ```
 LOBBY (MDLM only) → BLD MENU
@@ -1413,7 +1413,7 @@ Player count (`ntPlayerCount`, default 4) is set from the lobby roster in MDLM (
 **Theme:** Cockroach Poker-style bluffing. Players pass a face-down fruit card to someone and declare a fruit name — the receiver must call True or False, or peek and pass it on. Each fruit has a personality in Sylly Mode.
 **Tagline:** "This is definitely a banana. Trust me." 🍌
 **Key file:** `js/games/frt.js`
-**Brand colour:** Banana `#FFC700` (fill) + white ink on banana + leaf `#047857` (text-on-white) — three-token palette, same custom exception as GTH sage. | **Active pill:** `pill-active-frt` (custom CSS — no Tailwind class)
+**Brand colour:** Electric lemon `#FFE500` (fill, recoloured from banana `#FFC700` 2 Aug 2026) + dark ink (stone-800, fixed a white-on-yellow WCAG contrast failure) + leaf `#047857` (text-on-white) — three-token palette, same custom exception as GTH sage. | **Active pill:** `pill-active-frt` (custom CSS — no Tailwind class)
 **State flow:**
 ```
 LOBBY (MDLM only) → FRT MENU → [onPassThePhone: host deals]
@@ -1949,3 +1949,135 @@ Spec: `docs/new-game-tech-pecking-order-fon.md`. Nine events — one **fixed ope
 - **Key private-channel packets (per-device):** `PKO_HAND` (this device's dealt Hoard), `PKO_DRAW` (single Scavenge draw), `PKO_HAND_SYNC` (whole-hand repair — see below)
 - **`PKO_HAND_SYNC` must key on "this Hoard changed", not "a card was played."** The Culling, Extinction and Migration all mutate Hoards with **no card played**, so the send lives in `pkoSyncHand(playerIdx)` / `pkoSyncAllHands()` rather than inside `pkoRemoveFromHoard`. Carrion's returned cards go the same way. See `logic-engine.md` ML-06.
 - **Force of Nature accumulator:** `pkoEventsFired` resets at Clash start and must travel in `PKO_CLASH_BEGIN` at `[]`, alongside the four existing accumulators.
+
+## Game 18: Cookie Jar (CJAR)
+**Theme:** Simultaneous-choice push-your-luck. Every player raids the same jar at once — a card flips, everyone secretly decides Take or Sneak Out, and greed is punished by a second sighting of the same family member. Base mode is Incan Gold 1:1; the whole table either keeps grabbing or banks what they've got before someone gets caught.
+**Tagline:** "Raid the Jar! 🍪"
+**Key file:** `js/games/cjar.js` (1777 lines, zero stubs)
+**Brand colour:** `#D4A017` honey-gold (custom; hover `#B8860B`) — **dark ink** `#292524` (stone-800), never white (2.38:1 fails the 3:1 floor) | **Active pill:** `pill-active-cjar` | **Toggle ON:** `game-toggle-on-cjar` | **Range:** `cjar-range`
+**State flow:**
+```
+LOBBY (MDLM only) → CJAR MENU → [onPassThePhone: cjarStartMatch(), BUG-07 — no menu bounce]
+→ [Match loop (Raids until cjarMatchLength reached):
+    CJAR RAID INTRO (5s auto-advance interstitial)
+    → [Flip loop (until a bust or a deck-out or everyone has left):
+        CJAR TABLE — card resolves (Delta 3: BEFORE the decision window), everyone
+        secretly chooses Take/Sneak (or the three Dibber Dobber actions), reveal
+        → BUSTED! interstitial (5s) on a second sighting of the same family member
+      ]
+    → CJAR RAID SUMMARY (bank recap, host-gated "Next Raid")
+    → repeat or GAMEOVER
+  ]
+→ CJAR GAMEOVER (ranks, Top Cookie Thief, Red-Handed)
+```
+
+### Terminology
+| Term | Meaning |
+|------|---------|
+| Raid | One hand — flips continue until a bust, the deck runs out, or every player has Sneaked Out |
+| Cookie Stash | A player's private banked score, running across the whole Match. **Never write the bare word "Stash" in user-facing copy** — always "Cookie Stash" (collision with FRT's/FLW's "The Stash" hand-of-cards term, accepted with this copy rule) |
+| Cookie Crumbs | The shared, unbanked pool that every indivisible remainder falls into — the counter label is "Crumbs" |
+| Crumb Trail | This Raid's flip-by-flip log overlay. **Renamed from "Cookie Trail"** — collides with PKO's *The Trail* |
+| House Rules | The setting governing what a bust does to the family's remaining copies. **Renamed from "Kitchen Rules"** — JEC owns the kitchen metaphor suite-wide |
+| Take | Stay in the Raid for this flip (base game) |
+| Sneak Out | Leave the Raid now, banking your share of this Raid's total plus a split of the Crumbs. Alone in a bucket, a leaver also claims any unclaimed Treat |
+| BUSTED! | The bust moment — a family member sighted a second time this Raid. Raid totals wipe for everyone still in; Cookie Stashes are untouched |
+| Family card | A card bearing one of the five family archetypes — the second sighting of the same one busts the Raid |
+| Cookie card | A card bearing a cookie-count value (15 values, 3 tiers: Handful 1–5 / Batch 6–12 / Mountain 13–17) — splits among everyone still in, remainder to Crumbs |
+| Treat | A bonus card worth 5 (special) or 10 (super) points, claimable only by a lone Sneak-Out (base game) or by the Treat-priority rule (Dibber Dobber) |
+| Red-Handed | The last-place label. **Never awarded on an all-square match** — `cjarRedHanded()` returns `[]` when every rank ties (BUG-03) |
+| Top Cookie Thief | The winner's label on the gameover screen |
+| Snack Friendly | Setting that guarantees a cookie card floats near the top of the deal, never prepended |
+| Leave the Jar | Gameover screen exit label |
+
+**Dibber Dobber vocabulary (Sylly Mode).**
+
+| Term | Meaning |
+|------|---------|
+| Dibber Dobber | The Sylly Mode itself — no bust, nobody leaves, three actions instead of two. **The word "Sneak" never appears** — reusing the base game's verb would teach the wrong rule |
+| Take | Claim a share of the flipped cookie/Treat (Dibber Dobber's version — a straightforward claim, not a stay-vs-leave choice) |
+| Play Innocent | Pretend not to be involved. Costs nothing on a Cookie card; on a Caught! card the cost depends on your secret **Favourite/Watcher** affinity (Favourite 0, neutral 2, Watcher 4). If nobody Dobs, the sole or joint Innocents sweep the entire Crumb pool (the scare-off) |
+| Dob | Accuse — steals a fixed amount from the Takers on a Cookie card (capped at the card's value), but **always backfires** (a flat cost) on a Caught! card, whether or not anyone else Dobs |
+| Affinity | Each player's private Favourite family member (never costs on a Caught! card) and Watcher (always costs double) — assigned once per Raid, delivered over the private channel, never the same member for one seat |
+| Crumb Debt | A capped IOU (`CJAR_DD_DEBT_CAP` = 6) recorded when a player can't fully pay a loss — repaid out of future gains before they reach the Cookie Stash. Forgiven at every Raid boundary along with leftover Crumbs. **Is a side-ledger, not a negative balance** — it never subtracts from `held = Σ cjarStashes + cjarCrumbs` (DD-05) |
+| The scare-off | The informal name for Play Innocent's Crumb-pool sweep when no Dobber is present — the dominant strategy identified in balance simulation (DD-06, not retuned pre-playtest) |
+
+### Card Data (`data/cjar-data.json`)
+| Group | Contents |
+|---|---|
+| Cookie values | 15 values (1–17) totalling 124, in three tier bands: **Handful** 1–5, **Batch** 6–12, **Mountain** 13–17 |
+| Family archetypes | Mum 👩, Dad 🧔, Big Sister 🙋, **Grandma** 👵, The Dog 🐕 — each starts at 3 copies, ≥4 warn lines + ≥4 bust lines (drawn without replacement within a Raid). **Grandma replaces the spec's "Little Brother"** — the delivered art showed a grandmother, and the archetype is a pure data key with no mechanics attached to its identity (DD-01) |
+| Treats | Strawberry Shortbread Cookies (5), Red Velvet Cookies (5), White Chocolate Macadamia Nut Cookies (5), French Macarons (10), Chocolate Truffle Brownies (10) |
+| Treat schedule | Quick Snack (3 Raids): shortbread → red velvet → brownies. Full Feast (5 Raids): shortbread → red velvet → macadamia → macarons → brownies. Both schedules deliberately end on a 10-point super |
+| Base deck | 31 cards: 15 family + 15 cookie + 1 scheduled Treat |
+| Dibber Dobber deck | Cut to 10 cards (`CJAR_DD_CUT`), **then** the Treat is added — 11 cards total, ignoring any burnt copies |
+
+### Settings
+| Setting (display) | Options | Default | Internal variable | Internal values |
+|---|---|---|---|---|
+| Snack Friendly | Off / Safe / Warm-Up | Safe | `cjarSnackFriendly` | `'off'` / `'safe'` / `'warmup'` |
+| House Rules | Standard Burn / On Guard / High Alert | Standard Burn | `cjarHouseRules` | `'burn'` / `'on-guard'` / `'high-alert'` |
+| Match Length | Quick Snack (3) / Full Feast (5) | Full Feast | `cjarMatchLength` | `3` / `5` |
+| Decision Time | Blitz (10s) / Standard (20s) / No Rush | Standard | `cjarDecisionTime` | `'blitz'` / `'standard'` / `'norush'` |
+| Open Book | OFF / ON | ON | `cjarOpenBook` | bool — shows every Cookie Stash live, in every phase (DD-11), not only at reveal |
+| ✨ Sylly Mode (Dibber Dobber) | OFF / ON | OFF | `cjarSyllyMode` | bool |
+
+**Decision Time's No Rush is a genuine no-clock, not a very long timer** — `cjarDecisionMs()` returns `null` rather than a large number, so a caller that forgets to branch fails loudly. `cjarAllIn()` was already the sole gate (the host timeout is only a safety net), so removing the clock changes nothing structural; the timer bar is hidden outright rather than shown full (DD-10).
+
+### Special Mechanics
+
+**`cjarSplit(total, headCount)` is the ONE place a remainder reaches Crumbs** — every cookie split, every Sneak-Out share, every Dibber Dobber cost or steal funnels through it.
+
+**Card effects resolve BEFORE the decision window opens (Delta 3), in the base game.** A revealed card's effect (the cookie split, the bust check) happens first; the choice on the table is always about the *next, unseen* card. The spec's literal reading — resolve after the window closes — would let a player look at a second Caught! card and Sneak Out for free, or look at a 17-cookie card and always Take.
+
+**Dibber Dobber inverts that order on purpose (Delta 7): choose blind → reveal → resolve.** Because every DD outcome is choice-driven, it cannot resolve a card before choices exist. Both modes are still a gamble on an unseen card — the base game just resolves the *previous* card's effect before you choose, and DD resolves *your* choice against the *next* card once it's revealed. `cjarResolveFlipDD` and the whole ledger are otherwise byte-identical; only *when* `cjarCard`/`cjarChoices` populate moved.
+
+**High Alert excludes the busting family from its own escalation pool (Delta 6).** The spec's literal `cjarResolveBust` could re-pick the family that just burnt, sending it 3→2 then 2→3 — cancelling out so nothing burns and nothing escalates, contradicting the setting's own description. Fixed by filtering `id !== familyId` from the escalation pool.
+
+**Treat priority in Dibber Dobber is Take > Dob > Play Innocent, evaluated in order** — the first tier with exactly one player claims it; a tie at any tier re-contests on a later flip while the Treat sits unclaimed on the counter.
+
+**The warning strip has two real states, not three (TG-06).** `cjarSeen[id]` is only ever 0 or 1 — the second sighting busts immediately, so there is no "seen twice" to escalate to. The amber "danger pending" rung exists structurally for Dibber Dobber (which forces `danger` false, since DD has no bust) and never renders in the base game.
+
+**Asset-pack render seam:** all card DOM goes through `cjarRenderCard(card, opts)` — `assetFace('cjar', key)` / `assetBack('cjar')` resolve skin → core art → emoji fallback. Core art ships from day one (`data/art/cjar/`, 14 JPEGs, 492 KB precached) — cjar is the first game to launch with default art rather than adding it after the fact.
+
+**The card gallery (DD-09).** `cjar-cards-overlay` builds from `CJAR_DATA` on every open, every tile through `cjarRenderCard` — reachable from the menu and from inside How to Play. First gallery in the suite. Exists because cjar's art otherwise only renders *inside a running Raid*, which on an MDLM-only game turned the offline install check into a four-phone live-Firebase exercise; the gallery makes it single-device.
+
+### The One-Row Stage (DD-11)
+The table reads left → right: **what's come out (trail) → just-revealed card → face-down deck**. The newest revealed card *is* the trail strip's rightmost entry at `cjar-card-stage` size (8.5rem) — never drawn a second time as a separate hero. Persistent standings (`cjarRenderRevealRows`) render in every phase, not only during reveal, so Open Book is visible while deciding — the one moment it's worth anything.
+
+### Overlay Types
+| Overlay | Pattern | z-index | Notes |
+|---------|---------|---------|-------|
+| `cjar-settings-overlay` | Data (slide-up) | z-[80] | Snack Friendly, House Rules, Match Length, Decision Time, Open Book, ✨ Sylly Mode |
+| `cjar-how-to-overlay` | Data (slide-up) | z-[90] | How to Play — includes an entry point into the card gallery |
+| `cjar-trail-overlay` | Data (slide-up) | z-[90] | "Crumb Trail 🔍" — this Raid's flip-by-flip log |
+| `cjar-cards-overlay` | Data (slide-up) | z-[90] | The card gallery (DD-09) |
+| `cjar-tip-overlay` | Decision modal | z-[90] | Contextual `[?]` tip (e.g. the family-card mechanic) |
+| `cjar-quit-overlay` | Decision modal | z-[80] | Mid-game exit confirm |
+| `cjar-new-raid-overlay` | Decision modal | z-[90] | "New Raid?" play-again confirm |
+
+### Screens
+| Screen ID | Purpose |
+|-----------|---------|
+| `screen-cjar-menu` | Main hub |
+| `screen-cjar-raid-intro` | Raid-N intro — 5s auto-advance interstitial |
+| `screen-cjar-table` | Main play — the one-row stage, warning strip, persistent standings, decision controls |
+| `screen-cjar-busted` | BUSTED! — family + flavour line, 5s auto-advance interstitial |
+| `screen-cjar-raid-summary` | Per-Raid bank recap, host-gated "Next Raid" |
+| `screen-cjar-gameover` | Match end — ranks, Top Cookie Thief, Red-Handed |
+
+**No `screen-cjar-setup`** — names come from the lobby roster, same as PKO. No pass-gate — MDLM, every player on their own device.
+
+### Multiplayer
+- **Mode:** MDLM only — `multiplayerOnly: true`, `supportedModes: ['mdlm']`
+- **Min players:** 3 (dropped from the spec's 4, owner call — DD-08; 3-player balance is unsimulated) | **Max players:** 8
+- **rosterConfig:** `{ type: 'none' }` — automatic seat assignment
+- **Host-as-participant:** every host-submittable action mutates host state directly then broadcasts SYNC — never a self-sent ACTION
+- **True Network Privacy — private channel:** `mpSendPrivate` delivers each seat's Dibber Dobber Favourite/Watcher affinity pair (`CJAR_AFFINITY`) — never broadcast publicly
+- **Mid-game quit (PASS contract):** client quit → `CJAR_PLAYER_LEFT` ACTION → host `resetToLobby()` dissolves the match for everyone; host quit → `resetToLobby()` (`HOST_END_GAME`)
+- **Accumulator reset in-payload, and rebuilt on receipt (BUG-06):** `cjarChoices`, `cjarReadyCheck`, `cjarCrumbDebt`, `cjarSeen`, `cjarTrail`, `cjarHighAlertId`, `cjarCounterTreat` all reset inside `CJAR_FLIP_START`/`CJAR_RAID_START` **and** every client applier rebuilds them via `cjarWireArr`/`cjarWireList`/`cjarWireObj` rather than assigning the raw payload field — Firebase erases `null`/`{}`/`[]` in flight, so the reset value never arrives as sent. See `logic-engine.md` § MDLM Patterns.
+- **`cjarAllIn()` branches by mode (BUG-05):** base game reads `cjarActive.every((a,i) => !a || cjarReadyCheck[i])`; Dibber Dobber reads plain `cjarReadyCheck.every(Boolean)`, because `cjarActive` is deliberately empty in Sylly and `[].every()` is vacuously `true`.
+- **`windowMs` travels per flip, not from the local setting:** `CJAR_FLIP_START` carries the host's actual decision-window length; `null` (itself erased and repaired by the wire discipline above) is the No Rush signal every client must honour.
+- **Key ACTION packets (public channel):** `CJAR_CHOICE { choice, flipSeq }` (stale `flipSeq` dropped — the PKO BUG-01 class), `CJAR_PLAYER_LEFT`
+- **Key SYNC packets (public channel):** `CJAR_MATCH_START`, `CJAR_RAID_START`, `CJAR_FLIP_START { windowMs, card? }` (Sylly omits `card` — the window is blind), `CJAR_FLIP_RESOLVE { card, deltas, lines }` (carries `card` so a Sylly client's hero can flip face-down → face-up at reveal), `CJAR_RAID_END`, `CJAR_MATCH_END`
+- **Key private-channel packet:** `CJAR_AFFINITY` — this seat's own Favourite/Watcher pair

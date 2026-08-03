@@ -52,6 +52,7 @@ Single-page mobile app. Pass-the-phone style, or individual devices depending on
 | `shp` | Counting Sheep | O'NO-99 climbing/survival — keep the Herd ≤ 99 or fall into Deep Sleep; Sylly Mode = Night Terrors (Climb ⇄ Plunge) |
 | `flw` | Flawless | Gem-trading bluffing — pass a face-down Showpiece and declare its identity; the receiver challenges or accepts; Diamonds awarded via the Ledger; Sylly Mode = The Counterfeit Run |
 | `pko` | Pecking Order | Adjacency-based predator-chain climbing card game — beat Marks with their specific immediate predator, not numeric rank; two parallel tracks (Land/Sea) with cross-links; Sylly Mode = Force of Nature |
+| `cjar` | Cookie Jar | Simultaneous-choice push-your-luck — a card flips, everyone secretly Takes or Sneaks Out, a second sighting of the same family member busts the Raid; Sylly Mode = Dibber Dobber |
 
 ---
 
@@ -84,7 +85,7 @@ Factor these into every section of the brief:
 - **Thematic vocabulary is mandatory.** Every generic term that appears on-screen must have a game-specific name. No bare "Round", "Score", "Game Over", "Settings", "Player" etc. — everything must be voiced through the game's theme
 - **If the game has any "beats / outranks / unlocks / is immune to" relationship between elements, it must be resolved as an explicit table in §4 — not just described in prose.** A prose description ("predators beat their prey") reads fine to a human but is genuinely ambiguous the moment there's a fork, a loop, a cross-category link, or an exception — and every section downstream (sample rounds, diagrams, art direction) will silently inherit whichever interpretation gets guessed first. Resolve it once, in the table, and have every other section reference it rather than re-describing it.
 - **Settings:** difficulty-style setting first (controls word/prompt complexity or challenge level), ✨ Sylly Mode last
-- **Abbreviation:** 3–4 characters, not already used. Taken: `li5`, `gm`, `ss`, `jec`, `ygi`, `lttp`, `nat`, `dsd`, `gth`, `dyb`, `bld`, `pass`, `nt`, `frt`, `shp`, `flw`, `pko`
+- **Abbreviation:** 3–4 characters, not already used. Taken: `li5`, `gm`, `ss`, `jec`, `ygi`, `lttp`, `nat`, `dsd`, `gth`, `dyb`, `bld`, `pass`, `nt`, `frt`, `shp`, `flw`, `pko`, `cjar`
 - **Australian English throughout:** colour, flavour, organise, recognise, °C, km, kg. No American spellings
 
 ---
@@ -103,7 +104,7 @@ Every game in the suite replaces generic game language with words from its theme
 | Settings overlay title | *(not used)* | The Pantry Cabinet 🧂 | Inpatient Admission Form 📋 |
 
 And Sylly Mode names from the existing games, as tone references:
-Wild Words (LI5) · Static Interference (GM) · Intel Phase (SS) · Kitchen Nightmares (JEC) · The Ringer (YGI) · The Troublemaker (LTTP) · Survival of the Fittest (NAT) · Silent Running (DSD) · Stroke or Genius (GTH) · The Tempest (DYB) · Drama Mode (BLD) · The Abyss (PASS) · Devil's Network Protocol (NT) · Fruity Personalities (FRT) · Night Terrors (SHP) · The Counterfeit Run (FLW) · Force of Nature (PKO)
+Wild Words (LI5) · Static Interference (GM) · Intel Phase (SS) · Kitchen Nightmares (JEC) · The Ringer (YGI) · The Troublemaker (LTTP) · Survival of the Fittest (NAT) · Silent Running (DSD) · Stroke or Genius (GTH) · The Tempest (DYB) · Drama Mode (BLD) · The Abyss (PASS) · Devil's Network Protocol (NT) · Fruity Personalities (FRT) · Night Terrors (SHP) · The Counterfeit Run (FLW) · Force of Nature (PKO) · Dibber Dobber (CJAR)
 
 ---
 

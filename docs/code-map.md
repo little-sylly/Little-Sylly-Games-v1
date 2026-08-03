@@ -37,6 +37,7 @@
 | Counting Sheep (SHP) | ~7909 |
 | Flawless (FLW) | ~8153 |
 | Pecking Order (PKO) | ~8551 |
+| Cookie Jar (CJAR) | ~9060 |
 
 Each game's `<!-- ════ NAME ════ -->` section-header comment is itself a reliable Grep anchor if the line numbers have drifted.
 
@@ -932,7 +933,7 @@ Each plugin reads `window.activeExpansionOverrides` at its settings-apply point 
 
 **JS file:** `js/games/bld.js`
 **Data:** none — plans and roles are built-in constants (`BLD_PLANS`, `BLD_ROLE_TABLE`, `BLD_GROUP_TABLE`)
-**Brand colour:** `yellow-500` / active pill: `pill-active-yellow`
+**Brand colour:** Dark red `#991b1b` (red-800, recoloured from yellow-500 2 Aug 2026) / active pill: `pill-active-bld`
 **Lobby button:** `#btn-bld`
 **Multiplayer-only:** MDLM, `rosterConfig: {type:'none'}`, min 5 / max 10 players (PTP fallback via `bldShowSetup()`)
 **Status:** In active testing — cross-check `docs/implementation-notes/bld-implementation-notes.md` before logging new bugs
@@ -1195,7 +1196,7 @@ Each plugin reads `window.activeExpansionOverrides` at its settings-apply point 
 
 **JS file:** `js/games/frt.js`
 **Data:** Fixed `FRT_FRUITS` constant (8 fruits, no `words.json`) — exempt from word-difficulty setting per non-word-bank carve-out
-**Brand colour:** Banana `#FFC700` (fill) / white ink / leaf accent `#047857` (text-on-white, e.g. how-to step labels) | **Active pill:** `pill-active-[#FFC700]` (inline style — no Tailwind class; mirrors GTH sage pattern)
+**Brand colour:** Electric lemon `#FFE500` (fill, recoloured from banana `#FFC700` 2 Aug 2026) / dark ink (stone-800) / leaf accent `#047857` (text-on-white, e.g. how-to step labels) | **Active pill:** `pill-active-frt` (custom CSS — no Tailwind class)
 
 ### Screens
 | Screen ID | Purpose |
@@ -1805,3 +1806,107 @@ Per-game: LI5 `ptp`★/`tlm` · GM `ptp`★/`mdlm` · SS `tlm`★/`mdlm`/`ptp` �
 **Known blind spot:** the loop **and events** tools both run in `'single'` mode, where `pkoMyHoard` is an *alias* of `pkoHoards[0]`, so per-device mirror bugs are invisible to them by construction — BUG-02 passed 75 green checks. They verify the **rules engine**, not per-device view sync; that still needs three devices. This is why the three `pkoSyncAllHands()` senders and the Mimic's raw-vs-resolved removal cannot be proven here — the protection is the *shape* of the call, not a test. See impl-notes TG-07.
 
 All three evaluate the real `js/games/pko.js` in a Node `vm` sandbox — they re-implement no rules and so cannot drift from shipped code. **Re-run all three after any change to the appliers, the chain, the balance numbers or the event rules.** They work because the host appliers take an explicit `playerIdx` and skip every broadcast in `'single'` mode, letting one process play all N seats; preserve that property. Note the `vm` gotcha: `let` **and `const`** create lexical bindings, not properties on the context object, so state and consts (`PKO_EVENTS`) are reachable only through each tool's appended bridge — only `function` declarations land on the sandbox directly.
+
+---
+
+## Cookie Jar (CJAR)
+
+**JS file:** `js/games/cjar.js` (1777 lines) **Data:** `data/cjar-data.json` — 15 cookie values (3 tier bands), 5 family archetypes (4 warn + 4 bust lines each), 5 treats, both treat schedules (Quick Snack 3 / Full Feast 5). **Content guide:** `docs/cjar-content-guide.md`.
+**Brand colour:** `#D4A017` honey-gold (custom, hover `#B8860B`) — **dark ink** `#292524` (stone-800), never white (2.38:1 fails the 3:1 floor) | **Active pill:** `pill-active-cjar` | **Toggle ON:** `game-toggle-on-cjar` | **Range:** `cjar-range` | **CTA/label:** `cjar-cta` (carries its own `color:#292524`) / `cjar-label` (`#7A5C0A`)
+**MDLM-only**, 3–8 players (`getMinPlayers` dropped 4→3, DD-08), host-authoritative, host-as-participant. Base mode is **Incan Gold 1:1** — reveal → resolve → choose about the *next, unseen* card (Delta 3: a card's effect resolves before the decision window, not after). **Sylly Mode = Dibber Dobber** — three actions (Take / Play Innocent / Dob), no bust, nobody leaves, choices commit **blind** and the card reveals at resolve (Delta 7) so both modes share one mental model.
+**Lobby button:** `#btn-cjar` | **Spec:** `docs/new-game-tech-cookie-jar.md` | **Plan:** `docs/superpowers/plans/2026-08-02-cookie-jar.md`
+**Verification:** four headless harnesses plus a simulator — `tools/verify-cjar-deck.js` (73, data layer), `tools/verify-cjar-loop.js` (102, base game + match), `tools/verify-cjar-dd.js` (47, Dibber Dobber), `tools/verify-cjar-loopback.js` (108, host↔client over a Firebase-shaped wire with a real-element DOM — see § Verification tools below), `tools/simulate-cjar-dd.js` (balance instrument, asserts nothing, always exits 0). Re-run all four after any change to the appliers, the deck, the ledger or the packets.
+
+### Screens
+| Screen ID | Purpose |
+|-----------|---------|
+| `screen-cjar-menu` | Main hub — Raid the Jar!, How to Play, Settings, ← Back to the Box |
+| `screen-cjar-raid-intro` | Raid-N intro interstitial — **5 s auto-advance** (`CJAR_INTERSTITIAL_MS`), takes the Global UI Protocol interstitial exception |
+| `screen-cjar-table` | Main play — the ONE-ROW stage (trail → just-revealed card → face-down deck, DD-11), warning strip, persistent standings, decision controls (Take / Sneak Out, or the three DD actions) |
+| `screen-cjar-busted` | BUSTED! interstitial — family + line, **5 s auto-advance**, same exemption |
+| `screen-cjar-raid-summary` | Per-Raid bank recap before the next Raid intro |
+| `screen-cjar-gameover` | Match end — ranks, Top Cookie Thief, Red-Handed (never both on an all-square match, BUG-03) |
+
+### Overlays
+| Overlay ID | Pattern | z-index | Purpose |
+|------------|---------|---------|---------|
+| `cjar-settings-overlay` | Data (slide-up) | z-[80] | Snack Friendly / House Rules / Match Length / Decision Time (Blitz·Standard·No Rush, DD-10) / Open Book / ✨ Sylly Mode |
+| `cjar-how-to-overlay` | Data (slide-up) | z-[90] | How to Play — includes an entry point into the card gallery |
+| `cjar-trail-overlay` | Data (slide-up) | z-[90] | The Crumb Trail — this Raid's flip-by-flip log (never "Cookie Trail" — PKO owns *The Trail*) |
+| `cjar-cards-overlay` | Data (slide-up) | z-[90] | **The card gallery (DD-09)** — built from `CJAR_DATA` on every open, every tile through `cjarRenderCard`. First gallery in the suite; makes the offline install check single-device on an MDLM-only game. 14 tiles = the 14 shipped art files (harness-asserted) |
+| `cjar-tip-overlay` | Decision modal | z-[90] | Contextual `[?]` tip — e.g. the family-card mechanic (`btn-cjar-family-tip`) |
+| `cjar-quit-overlay` | Decision modal | z-[80] | Mid-game exit confirm |
+| `cjar-new-raid-overlay` | Decision modal | z-[90] | "New Raid?" / play-again confirmation |
+
+### Key buttons
+| ID | Action |
+|----|--------|
+| `#btn-cjar-menu-play` | Menu Play CTA — dual context: post-lobby `cjarStartMatch()` (BUG-07 fix; cjar no longer bounces through the menu), pre-lobby `mpShowModeScreen('cjar')` |
+| `#btn-cjar-menu-cards` / `#btn-cjar-howto-cards` | The gallery's two entry points (menu + inside How to Play) |
+| `#btn-cjar-openbook-toggle` | Settings — Open Book on/off |
+| `#btn-cjar-sylly-toggle` | Settings — Dibber Dobber on/off |
+| `#btn-cjar-next-raid` | Raid summary → next Raid intro (host-gated in MDLM) |
+| `#btn-cjar-family-tip` | Inline `[?]` → `cjar-tip-overlay` |
+| `#btn-cjar-go-exit` / `#btn-cjar-go-leave` / `#btn-cjar-go-new` | Gameover exits and play-again |
+
+### Key State Variables
+| Variable | Type | Default | Purpose |
+|----------|------|---------|---------|
+| `cjarSnackFriendly` | string | `'safe'` | `'off'` / `'safe'` / `'warmup'` — `cjarFloatCookies` guarantee for the deal |
+| `cjarHouseRules` | string | `'burn'` | `'burn'` / `'on-guard'` / `'high-alert'` — family-copy mutation on a bust |
+| `cjarMatchLength` | int | `5` | `3` (Quick Snack) / `5` (Full Feast) Raids |
+| `cjarDecisionTime` | string | `'standard'` | `'blitz'` (10 s) / `'standard'` (20 s) / `'norush'` (no clock — DD-10). `cjarDecisionMs()` returns `null` for No Rush; never falls back to a number |
+| `cjarOpenBook` | bool | `true` | Show every player's Cookie Stash live |
+| `cjarSyllyMode` | bool | `false` | Dibber Dobber gate |
+| `cjarStashes` / `cjarTreatsWon` / `cjarRaidHistory` | int[] / int[] / int[][] | `[]` | Match score, Treat tie-break count, per-Raid bank history |
+| `cjarFamilyCopies` | object | `{}` | `{ mum:3, ... }` — mutated live by House Rules across the match |
+| `cjarDeck` / `cjarSeen` / `cjarCrumbs` / `cjarActive` | array/object/int/bool[] | — | Live Raid deck (index 0 = next), per-family sighting this Raid, the Crumb pool, base-game-only active-seat flags |
+| `cjarCounterTreat` / `cjarTrail` / `cjarHighAlertId` | object\|null / array / string\|null | `null` / `[]` / `null` | Unclaimed Treat on the counter; this Raid's Crumb Trail entries; the family High Alert escalated to 4 copies (Delta 6 excludes the busting family from this pick) |
+| `cjarFavourite` / `cjarWatcher` / `cjarCrumbDebt` | string[] / string[] / int[] | `[]` | Dibber Dobber only — host-side full affinity arrays and capped debt ledger (`CJAR_DD_DEBT_CAP` = 6) |
+| `cjarCard` / `cjarFlipSeq` / `cjarChoices` / `cjarReadyCheck` / `cjarEndTimestamp` | — | — | Current flip state; `cjarFlipSeq` is the idempotency tag that drops a stale `CJAR_CHOICE` (the PKO BUG-01 class); `cjarEndTimestamp` is the absolute ms every device counts down against |
+| `cjarWindowMs` | int\|null | `null` | This flip's decision-window length, from the host — travels **per flip** on `CJAR_FLIP_START`; `null` (erased by Firebase, BUG-06) is itself the No Rush signal |
+| `cjarTablePhase` | string | `'deciding'` | `'deciding'` / `'waiting'` / `'revealing'` / `'spectating'` — drives `cjarRenderControls`/`cjarRenderRevealRows` |
+| `cjarMyFavourite` / `cjarMyWatcher` | string\|null | `null` | This device only — delivered via `mpSendPrivate` (`CJAR_AFFINITY`) |
+| `cjarTimerHandle` / `cjarRevealHandle` / `cjarHostTimeoutHandle` / `cjarInterstitialHandle` | int\|null | `null` | The four timer handles — all cleared in quit-confirm, `resetToLobby()`, and every early phase transition (Timer Lifecycle rule) |
+
+### Key Functions
+| Function | Purpose |
+|----------|---------|
+| `cjarWireArr(v, n, fill)` / `cjarWireList(v)` / `cjarWireObj(v)` | **The BUG-06 fix.** Every SYNC applier rebuilds its collection fields through these instead of assigning a raw payload — Firebase erases `null`/`{}`/`[]` in flight, so a reset value never arrives as sent. `cjarWireArr` takes the seat count and a fill and reads `v[i]`, repairing the erased-array, null-hole and came-back-as-object cases in one pass |
+| `cjarAllIn()` | The readyCheck gate — branches per mode (BUG-05): base game reads `cjarActive.every((a,i) => !a || cjarReadyCheck[i])`; Sylly reads plain `cjarReadyCheck.every(Boolean)` because `cjarActive` is deliberately empty and `[].every()` is vacuously `true` |
+| `cjarBuildDeck()` / `cjarFloatCookies(deck, n)` | Deck builder (15 family + 15 cookie + 1 Treat, or the 11-card Sylly cut) and the Snack Friendly float — floats a cookie to the front without ever prepending |
+| `cjarSplit(total, headCount)` | The ONE place a remainder reaches Crumbs — every split in the game funnels through here |
+| `cjarApplyCardEffect()` | **Base game only** (guarded before the pop, Delta 3) — resolves a revealed card's effect BEFORE the decision window opens; a bust skips the window entirely |
+| `cjarOpenBlindWindow()` / `cjarRevealSyllyCard()` | Dibber Dobber's inverted order (Delta 7) — open the window blind (`cjarCard = null`), then reveal-and-log after choices are in |
+| `cjarResolveFlip(choices)` / `cjarResolveFlipDD(lines)` | Base-game and Dibber Dobber resolvers — byte-identical ledger logic in DD across Delta 7; only *when* `cjarCard`/`cjarChoices` populate moved |
+| `cjarResolveBust(familyId)` | House Rules burn/on-guard/high-alert; excludes the busting family from the escalation pool (Delta 6/DD-04) |
+| `cjarDDGain(i, amt)` / `cjarDDPay(i, amt)` | The Dibber Dobber ledger primitives — `held = Σ cjarStashes + cjarCrumbs`; Crumb Debt is a side-ledger that redirects value, never holds any (DD-05) |
+| `cjarAssignAffinities()` | Sylly — Favourite/Watcher never the same family member per seat |
+| `cjarRanks()` / `cjarRedHanded()` / `cjarRankLabel(n)` | Standings — `cjarRedHanded()` returns `[]` on an all-square match (`max(ranks) === min(ranks)`, BUG-03) rather than reporting every seat |
+| `cjarRenderCard(card, opts)` | **Asset-pack render seam** — all cjar card DOM goes through here. Resolves skin → core art → emoji via `assetFace('cjar', key)` / `assetBack('cjar')` |
+| `cjarRenderStage()` / `cjarRenderTrailStrip()` | **DD-11's one-row stage** — trail → just-revealed → face-down deck; `cjarRenderTrailStrip` renders `cards.slice(0,-1)` whenever a card is face-up so nothing is drawn twice |
+| `cjarRenderRevealRows()` | Persistent standings (DD-11) — renders every phase, not only `'revealing'`, so Open Book is visible while deciding |
+| `cjarRenderWarningStrip()` | Two real states, not three (TG-06) — `cjarSeen[id]` is only 0 or 1; the amber "seen once, danger pending" rung exists for Sylly (which forces `danger` false) and is unreachable in the base game |
+| `cjarStartTimer(endTimestamp, windowMs)` | Countdown bar — `transform: scaleX(n)` with an explicit `transform-origin: left` (see `css/styles.css`) |
+| `cjarOpenCards()` | Renders the card gallery from `CJAR_DATA` (DD-09) |
+| `cjarHandleEnvelope(env)` | Routes all CJAR ACTION/SYNC + private packets; called from `engine-multiplayer.js` |
+| `cjarResetState()` | Full state teardown (called from `resetToLobby()` in `engine.js`) |
+
+### Per-Game ACTION/SYNC/Private Packet Types
+| Packet | Type | Channel | Notes |
+|--------|------|---------|-------|
+| `CJAR_CHOICE` | ACTION | public | Client → host: Take/Sneak or the three DD actions. Host re-validates `cjarFlipSeq`; a stale tag is dropped (the PKO BUG-01 class) |
+| `CJAR_PLAYER_LEFT` | ACTION | public | Client → host mid-game quit — host calls `resetToLobby()`, dissolving the match for everyone (the PASS/GTH/DYB/BLD contract) |
+| `CJAR_MATCH_START`, `CJAR_RAID_START`, `CJAR_FLIP_START`, `CJAR_FLIP_RESOLVE`, `CJAR_RAID_END`, `CJAR_MATCH_END` | SYNC | public | Every accumulator resets **in the payload** (`cjarChoices`, `cjarReadyCheck`, `cjarCrumbDebt`, `cjarSeen`, `cjarTrail`, `cjarHighAlertId`, `cjarCounterTreat`) — and every client applier rebuilds them via `cjarWireArr`/`cjarWireList`/`cjarWireObj` rather than assigning the raw field (BUG-06). `CJAR_FLIP_START` carries `windowMs` (per-flip, `null` = No Rush) and, in Sylly, omits `card` (the window is blind). `CJAR_FLIP_RESOLVE` carries `card` so a Sylly client's hero can flip from face-down to face-up at reveal |
+| `CJAR_AFFINITY` | SYNC | **private** (`mpSendPrivate`) | Dibber Dobber — this seat's own Favourite/Wataffinity pair, never broadcast publicly |
+
+### Verification tools
+| Tool | Covers |
+|------|--------|
+| `node tools/verify-cjar-deck.js` | **Data layer** — 73 checks: constants, `data/cjar-data.json` schema, the Snack Friendly float, treat schedules at both match lengths, `cjarRenderCard`'s art-key seam, and the core-art manifest |
+| `node tools/verify-cjar-loop.js` | **Base game + match** — 102 checks: `cjarSplit`, sneak/bust resolution, House Rules (incl. the Delta 6 escalation-pool exclusion), `cjarAllIn()` in both modes (incl. the vacuous-`[].every()` regression, BUG-05), deck exhaustion, a full 3-Raid match, tie-break/Red-Handed edge cases (BUG-03) |
+| `node tools/verify-cjar-dd.js` | **Dibber Dobber** — 47 checks: all three card types × every action combination, the scare-off, Treat priority (Take > Dob > Innocent), Crumb Debt, affinities |
+| `node tools/verify-cjar-loopback.js` | **The standard fifth MP tool (ML-01/ML-03)** — 108/87 checks: a real `fbWrite`/`fbRead` pair reproducing Firebase's erasure (not live JS references) plus a DOM of **real mock elements** so render code actually executes — the only harness that would have caught BUG-06. Both modes end to end, 4- and 3-player, all three Decision Times, host↔client state agreement after every resolve, the blind window, the private affinity channel, `CJAR_PLAYER_LEFT`. Takes `CJAR_SRC=` so a deliberately-broken copy can be driven through the same wire |
+| `node tools/simulate-cjar-dd.js` | **Balance instrument** (spec §17 D-11 mitigation) — asserts nothing, always exits 0; prints win-rate spread, action lean, debt-at-cap %, Treats-claimed % at 5 and 8 players. Baseline: Innocent-leaning wins ~52–53% at both sizes (DD-06, flagged, not retuned) |
+
+The other three harnesses run in `'single'` mode with `getElementById: () => null`, which is exactly what lets one process drive all N seats — and exactly what blinds them to the packet layer and every line of render code (TG-07, ML-03). `verify-cjar-loopback.js` closes both gaps; reach for it on anything MP- or render-shaped.

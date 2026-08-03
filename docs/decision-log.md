@@ -20,6 +20,97 @@ Detail: pointer to the canonical doc (snapshot / impl note / spec / memory).
 
 ---
 
+## 2026-08-03 — Cookie Jar's stage was drawing the same card twice; rebuilt as one row
+**Category:** Architecture
+**Decision:** The table stage is now a single row read left→right: trail → just-revealed card → face-down deck. The newest revealed card *is* the trail strip's rightmost entry at a new, smaller `cjar-card-stage` size (15rem → 8.5rem) — never rendered a second time as a separate hero above it. Standings became persistent in the same pass: they now render in every table phase, not only during reveal, so Open Book is visible while deciding.
+**Why:** playtest round 1 found the hero card confusing — it looked like the card under decision, when it was in fact the card that had already resolved, because the strip's rightmost thumb was the same card drawn a second time, larger. The size drop is also a quality win: at the smaller render size the same 360 px art goes from ~1.1× to ~2.6× effective resolution (TG-02b), so the "clean but soft" complaint improved for free.
+**Changed:** `js/games/cjar.js` (`cjarRenderStage`, `cjarRenderTrailStrip` now slices off the last card whenever one is face-up, `cjarRenderRevealRows` runs every phase), `css/styles.css` (`cjar-card-stage`, `cjar-card-flipin`, `cjar-trail-settle` — transform/opacity only, fire only on a real card-key change).
+**Detail:** `docs/implementation-notes/cjar-implementation-notes.md` DD-11.
+
+## 2026-08-03 — Decision Time becomes a setting, and "No Rush" removes the clock entirely
+**Category:** Architecture
+**Decision:** The old fixed 15 s decision window is now a pill setting: Blitz (10 s) / Standard (20 s) / No Rush (none). Standard is deliberately set *above* the old value rather than at it. `cjarDecisionMs()` returns `null` for No Rush instead of a large number, so a caller that forgets to branch fails loudly instead of silently re-arming the auto-resolve.
+**Why:** 15 s measured too short at a real table in playtest round 1. Keeping 15 s as the "middle" option would have shipped the same complaint with more choices around it, so the whole scale moved.
+**Changed:** `js/games/cjar.js` (`CJAR_DECISION_TIMES`, `cjarDecisionMs()`, `windowMs` now travels **per flip** on `CJAR_FLIP_START` rather than being read from the local setting), settings overlay. Nothing structural changed in the gate itself — `cjarAllIn()` was already the sole resolve condition, the host timeout was only ever a safety net.
+**Detail:** `docs/implementation-notes/cjar-implementation-notes.md` DD-10.
+
+## 2026-08-03 — The lobby bounced Cookie Jar's host back to its own menu instead of into Raid 1
+**Category:** Process
+**Decision:** `onPassThePhone` now calls `cjarStartMatch()` directly instead of `cjarShowMenu()`.
+**Why:** cjar was the only MDLM game that routed post-lobby back through its own game menu — GTH, FRT, SHP, FLW and PKO all go straight into play once the lobby closes. The build had read `logic-engine.md`'s note that the menu's Play CTA has "dual context" (pre-lobby opens the mode screen, post-lobby starts the match) as a routing recommendation, when it only describes what the *CTA* itself must handle defensively; the *reference implementation it named, GTH, does not route through the menu post-lobby at all*.
+**Changed:** `js/games/cjar.js` (`onPassThePhone`). The dual-context branch on `btn-cjar-menu-play` stays as the same defensive fallback every other MDLM game keeps.
+**Detail:** `docs/implementation-notes/cjar-implementation-notes.md` BUG-07.
+
+## 2026-08-03 — Cookie Jar's lobby minimum drops from 4 to 3
+**Category:** Strategy
+**Decision:** `getMinPlayers: () => 3` in `MP_GAME_CONFIGS`, matching the range Incan Gold itself supports rather than the spec's fixed 4–8.
+**Why:** owner call. Every player-count-independent mechanic (deck composition, bust odds, `cjarSplit`, both Treat schedules, the Dibber Dobber affinity draw) is unaffected — the loopback now covers a full 3-player match on both modes. **What is not measured:** the solo-Sneak-Out jackpot (sweeping the whole Crumb pool) lands more often at 3 seats than at the 5/8 the balance simulator actually ran. 3-player balance is carried as an explicit unsimulated watch item, not pre-emptively tuned.
+**Changed:** `js/engine-multiplayer.js` (`MP_GAME_CONFIGS.cjar.getMinPlayers`).
+**Detail:** `docs/implementation-notes/cjar-implementation-notes.md` DD-08.
+
+## 2026-08-03 — The Universal Menu Standard gained an explicit type scale, after Cookie Jar shipped without one
+**Category:** Process
+**Decision:** `ui-style.md` § Universal Menu Standard now states the exact Tailwind classes for all four game-menu buttons (Play CTA / How to Play / Settings at `text-xl font-semibold`; Back to the Box steps down to `text-base font-medium`) — previously the standard specified button order and colour but not size.
+**Why:** Cookie Jar shipped How to Play/Settings at `text-base` and Back to the Box at `text-sm font-semibold`, invisible in isolation but obviously wrong beside any other shipped game menu (checked unanimous across PKO, FLW, SHP, FRT, NT, PASS). The gap in the written standard is exactly why a build that was otherwise following it could still drift.
+**Changed:** `.claude/rules/ui-style.md` § Universal Menu Standard (new type-scale table), `index.html` (cjar's menu buttons corrected).
+**Detail:** `docs/implementation-notes/cjar-implementation-notes.md` DD-07.
+
+## 2026-08-03 — A game's default art needs a way to be SEEN outside a running match
+**Category:** Architecture
+**Decision:** Cookie Jar gains `cjar-cards-overlay`, a gallery built from `CJAR_DATA` on every open with every tile rendered through `cjarRenderCard`. Reachable from the game menu and from inside How to Play. Scoped to cjar for now; FLW/SHP/FRT/PKO have the same need and the same seam, deferred until the shape is proven.
+**Why:** the owner went to run the offline install check — the one that confirms the 14 core-art JPEGs precached — and found cjar's art only renders *inside a running Raid*. On an MDLM-only game that turns a pure service-worker question into a four-phone, live-Firebase exercise, and the documented procedure ("open Settings and How to Play") was simply wrong because those overlays are text. The gallery makes the check single-device. It is also the thing players asked for on its own merits.
+**Changed:** `index.html` (`cjar-cards-overlay`, menu + how-to entry points), `js/games/cjar.js` (`cjarOpenCards`), `js/engine.js` teardown, `CLAUDE.md` § Offline procedure rewritten. `tools/verify-cjar-loopback.js` asserts **14 tiles = 14 shipped art files**, so adding a manifest key without a gallery tile breaks the build rather than quietly breaking the offline check. **Deferred:** the generic multi-game version.
+**Detail:** `docs/implementation-notes/cjar-implementation-notes.md` DD-09.
+
+## 2026-08-03 — A SYNC applier must rebuild every collection, because Firebase erases empty values
+**Category:** Architecture
+**Decision:** Payload collections are **never** assigned raw from an envelope. Firebase RTDB stores no `null`, no `{}` and no `[]` — a key holding any of them is deleted and arrives as `undefined`, an all-null array vanishes whole, and a half-dense one comes back as an object keyed by index. That collides directly with the existing (correct) rule to broadcast reset values explicitly: the reset values *are* the erasable shapes. Both halves are now required — send the reset value **and** rebuild it on receipt. `false`, `0` and `''` are never at risk; only emptiness is erased.
+**Why:** Cookie Jar's playtest round 1 was unplayable — every client threw inside a render one line before `showScreen` and froze on the Raid intro for the whole match while the host played alone. The other MDLM games had reached the same protection informally via `p.x || []`; cjar had zero, and nothing in the rules said why the idiom existed.
+**Changed:** `logic-engine.md` § MDLM Patterns gains the rule + upgrades the two-device-loopback rule (it must have a **wire** and a **real-element DOM**, or it passes while the game is broken). `js/games/cjar.js` — `cjarWireArr`/`cjarWireList`/`cjarWireObj` applied across all five SYNC appliers. New `tools/verify-cjar-loopback.js` (87 checks, `CJAR_SRC=` overridable). SW v157 → v158. **Deferred:** no suite-wide audit of the other 17 games for the same class — scoped out deliberately; worth a Protocol A pass.
+**Detail:** `docs/implementation-notes/cjar-implementation-notes.md` BUG-06 + ML-03.
+
+## 2026-08-02 — Dibber Dobber commits BLIND, so both Cookie Jar modes share one mental model
+**Category:** Architecture
+**Decision:** Cookie Jar's Sylly Mode resolves its choices against the **next, unseen** card, not the face-up one. The confirmed spec (§6.3) had Dibber Dobber resolve against the card already revealed — you could read "it's Mum" off the table and then choose. The owner's call is that a mode which turns a push-your-luck gamble into an informed reaction is a *different game*, and both modes must feel the same. Because every DD outcome is choice-driven it cannot resolve a card before choices exist, so it inverts the base game's order instead: **choose blind → reveal → resolve**. Base mode is unchanged and remains Incan Gold 1:1 (verified against the published rules: reveal → resolve → decide about the next card).
+**Why:** the mental model is the product. A Sylly Mode is meant to change the *rules*, not the kind of decision the player is making — and an informed risk-free option is strictly stronger than a gamble, which is a balance problem as well as a feel problem.
+**Changed:** `js/games/cjar.js` — `cjarApplyCardEffect` became base-game-only (guarded before the pop); new `cjarOpenBlindWindow()` / `cjarRevealSyllyCard()`; `cjarHostNextFlip`/`cjarHostResolveFlip` re-ordered; the shared tail factored into `cjarOpenDecisionWindow()` so the two paths cannot drift; `CJAR_FLIP_RESOLVE` gained a `card` field (Sylly's `FLIP_START` carries `card: null`, so without it a client's hero stayed face-down through the whole reveal). **`cjarResolveFlipDD` and the entire ledger are byte-identical** — only *when* `cjarCard`/`cjarChoices` are populated moved. Fixed BUG-04 on the way past (DD's Crumb Trail had been empty for a whole match, because trail logging was coupled to the reveal-time effect Sylly doesn't have). **Balance baseline survived**: the simulator's agents were always card-blind, so it had been measuring this model all along — spread 33.1 → 34.3 pts, Innocent 52.4% → 53.5%, all within noise. **Deferred:** spec §6.3 and Delta 3's DD carve-out still need reconciling at Task 17.
+**Detail:** `docs/superpowers/plans/2026-08-02-cookie-jar.md` § Spec deltas (Delta 7); `docs/implementation-notes/cjar-implementation-notes.md` DD-06 + BUG-04.
+
+## 2026-08-02 — A two-device loopback becomes the standard fifth MP tool
+**Category:** Process
+**Decision:** Before the real multi-device session, prove an MDLM game's packet contract with a **second `vm` acting as a client**, piping the host's `mpSendEnvelope` straight into its `[abbr]HandleEnvelope`. Adopted after it found two defects in Cookie Jar that had passed **222 green harness checks** — including BUG-05, where `cjarAllIn()` was vacuously `true` in Dibber Dobber (`[].every()` is `true`, and Sylly deliberately has no `cjarActive`), so the host resolved on the **first** player's tap and seats 2..N never chose at all.
+**Why:** every headless harness in this project runs in `'single'` mode — that is precisely what lets one process drive all N seats, and precisely what blinds it to the packet layer. The loopback closes that gap for ~40 lines and catches the class of bug where a payload field is simply absent, plus host/client divergence, stale-tag rejection, private-channel delivery and the mid-game-quit contract. It is **not** a substitute for the three-device session (no clock skew, no Firebase ordering, nothing visual) — it runs first, not instead.
+**Changed:** `.claude/rules/logic-engine.md` § MDLM Patterns gains the loopback rule and the `[].every()` gate rule (both lean pointers; detail stays in the impl notes). No shipped-code change beyond the BUG-05 fix in `js/games/cjar.js` and its per-mode regression test in `tools/verify-cjar-loop.js`, which was verified to fail against the pre-fix implementation.
+**Detail:** `docs/implementation-notes/cjar-implementation-notes.md` ML-01 + ML-02 + BUG-05.
+
+## 2026-08-02 — Cookie Jar (cjar) shipped as game 18, base + Sylly in one phase
+**Category:** Strategy
+**Decision:** Owner chose a single build phase over PKO-style staging (base game, then a separate Sylly Mode phase), accepting that the Dibber Dobber balance numbers were simulated at a 16-card deck and ship at ~11 cards.
+**Why:** `tools/simulate-cjar-dd.js` is the agreed mitigation for that gap and produced a pre-playtest baseline (spec §17 D-11); card effects resolve at reveal rather than after the decision window (Delta 3) because the spec's literal reading made the base-game choice degenerate.
+**Changed:** `js/games/cjar.js` (new, 1777 lines), `data/cjar-data.json`, `data/art/cjar/` (core art), six screens, six-then-seven overlays, five headless tools.
+**Detail:** `docs/new-game-tech-cookie-jar.md`, `docs/superpowers/plans/2026-08-02-cookie-jar.md`, `docs/phase39-snapshot.md`.
+
+## 2026-08-02 — Cookie Jar's fifth family archetype is Grandma, not the spec's Little Brother
+**Category:** Strategy
+**Decision:** The shipped fifth family archetype is `id: "grandma"`, name "Grandma", emoji 👵 — not the confirmed spec's `little` / "Little Brother" 🧒.
+**Why:** the delivered core art contained `grandma.png` and no younger-child card — the owner could not get usable art generations of young children, and shipping a card whose name contradicts its art was rejected. The archetype is a pure data key with no mechanic attached to its identity: `copies` stays 3, deck composition, bust odds and the Snack Friendly float are all untouched. What did cost real work was re-voicing all eight flavour lines — Grandma's register (delighted to see you, going to make this take much longer) is genuinely different from a younger sibling's.
+**Changed:** `data/cjar-data.json` (family entry + flavour lines), `docs/cjar-content-guide.md`, `docs/rules/game-identities.md` § Game 18. Swept everywhere the spec's `little` id appeared before any code was written against it.
+**Detail:** `docs/implementation-notes/cjar-implementation-notes.md` DD-01.
+
+## 2026-08-02 — High Alert no longer re-picks the family that just busted
+**Category:** Architecture
+**Decision:** `cjarResolveBust`'s High Alert escalation pool excludes the busting family (`id !== familyId`), plus an empty-pool guard.
+**Why:** the spec's own `cjarResolveBust` block allowed re-picking the just-burnt family, sending it 3→2 on the burn and back 2→3 on the escalation — cancelling out so nothing burns and nothing escalates, contradicting the setting's own description ("escalated to 4 copies", "more likely"). Found by re-running `verify-cjar-loop.js` across five seeds: only seed 0 exposed it, because `pool[0]` happened to be the busting family at every other seed — a green run at the default seed was a property of the seed, not the rule.
+**Changed:** `js/games/cjar.js` (`cjarResolveBust`), `tools/verify-cjar-loop.js` (new assertion: escalation never re-picks the busting family, run across six seeds).
+**Detail:** `docs/implementation-notes/cjar-implementation-notes.md` DD-04 (plan Delta 6).
+
+## 2026-08-02 — BLD and FRT recoloured off yellow ahead of Cookie Jar
+**Category:** Strategy
+**Decision:** BLD moved yellow-500 → dark red `#991b1b` (red-800); FRT moved banana `#FFC700` → electric lemon `#FFE500` with dark ink (stone-800) replacing white. Both were flagged in the Cookie Jar design review (`docs/new-ideas/new-game-brief-cookie-jar.md` §1/§19): the amber/cookie-brown space needed to be clear of collision with PKO's `#854D0E` brand and with Cookie Jar's own incoming honey-gold, and both games' white-on-yellow toggle/pill combos were failing WCAG contrast (1.92:1 and 1.57:1 against the 3:1 floor).
+**Why:** a colour clash discovered after a new game ships is much more expensive to fix (skins, docs, muscle memory) than clearing the space before it exists; the WCAG failures were real bugs independent of Cookie Jar and worth fixing regardless.
+**Changed:** `css/styles.css` (new `pill-active-bld`/`game-toggle-on-bld`/`bld-cta`/`bld-label`; recoloured `pill-active-frt`/`game-toggle-on-frt`/`.frt-range`/`.frt-card-back`; deleted the now-orphaned generic `.pill-active-yellow`/`.game-toggle-on-yellow`), `js/engine.js`, `js/engine-multiplayer.js`, `js/games/bld.js` (`yellow-*` → `red-*` throughout), `js/games/frt.js` (`FRT_FILL`/`FRT_INK` + the `mk()` button helper's hardcoded white ink), `index.html` (~49 occurrences via a scoped Node script, never Edit — see the encoding-corruption rule), `.claude/rules/ui-style.md` Tables A/C, `docs/rules/game-identities.md`, `docs/code-map.md`. Deliberately left unchanged: FRT's card-name/settings-button ink `#854d0e` (coincidentally equals PKO's hex but isn't FRT's brand identity, and isn't a contrast failure). SW v155 → v156.
+**Detail:** `docs/implementation-notes/bld-implementation-notes.md` § Design Decisions (recolour entry); `docs/implementation-notes/frt-implementation-notes.md` § Design Decisions (recolour entry).
+
 ## 2026-08-02 — Shared asset manifest gains an optional `specials` block
 **Category:** Architecture
 **Decision:** A face that carries a *type* on top of its value (DYB's five Tempest dice — loaded/phantom/slick/cracked/snake) can now be skinned, via a new `specials` block in the existing asset manifest and two new resolvers, `assetSpecial`/`assetSpecialFrame`, in `js/lib/art.js`. Engine chrome (border/tint/glow) stays the type signal by default; a pack can opt a type out with `"frame": false`, but only for a die whose special art actually resolved — the opt-out is provenance-gated so a missing face can never ship unmarked. A reserved `blank` key covers faceless dice (concealed phantom, cracked) through its own fallback branch, never the ordinary face chain — merging the two would leak a concealed phantom's real value.

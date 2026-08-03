@@ -12,7 +12,7 @@ Every screen must have:
    - Post-game ✕ → `resetToLobby()` directly (game is over, no state to preserve)
    - "← Back to the Box" on game menu → `resetToLobby()` — the **only** path to lobby from within a game
 4. **Active play exception:** `#btn-mute` stays as instant tap-to-mute (no overlay — timer running). Pixel-exact rule applies to `.btn-open-sound` only.
-5. **Interstitial exception:** A screen that **auto-advances** AND has **no interactive element** is exempt from 1–3 — chrome there is tappable for less time than it takes to aim at it. Both conditions required; "it's brief" alone is not a licence. If it ever becomes dismissible or user-paced, the full chrome returns. Reference: `screen-pko-unchallenged` (2.5 s).
+5. **Interstitial exception:** A screen that **auto-advances** AND has **no interactive element** is exempt from 1–3 — chrome there is tappable for less time than it takes to aim at it. Both conditions required; "it's brief" alone is not a licence. If it ever becomes dismissible or user-paced, the full chrome returns. Reference: `screen-pko-unchallenged` and `screen-pko-event` (**5 s** each — `PKO_INTERSTITIAL_MS`), and `screen-cjar-raid-intro` / `screen-cjar-busted` (**5 s** each — `CJAR_INTERSTITIAL_MS`). **Duration is not the test** — the two conditions are. Both PKO screens were raised 2.5 s → 5 s in Aug 2026 after playtest round 4 found 2.5 s too short to read an event name plus its blurb, and both keep the exemption: still auto-advancing, still nothing to tap. Treat ~5 s as the practical ceiling, though: past that a player with no ✕ and no 🔊 is genuinely stuck, and the exemption should be reconsidered rather than stretched.
 
 ---
 
@@ -52,24 +52,7 @@ The sound overlay volume slider (`#global-sound-volume`) uses a CSS class set by
 
 **Range class reference:**
 
-| Game | CSS class | Gradient |
-|------|-----------|----------|
-| None / lobby | `stone-range` | #d6d3d1 → #57534e |
-| LI5 | `li5-range` | pink-200 → pink-600 |
-| GM | `sylly-range` | purple-200 → purple-600 |
-| SS | `ss-range` | teal-200 → teal-600 |
-| JEC | `jec-range` | amber-200 → amber-600 |
-| YGI | `ygi-range` | orange-200 → orange-600 |
-| LTTP | `lttp-range` | red-200 → red-600 |
-| NAT | `nat-range` | lime-200 → lime-600 |
-| DSD | `dsd-range` | cyan-200 → cyan-700 |
-| GTH | `gth-range` | #d4dbc8 → #8a9a78 (sage) |
-| BLD | `bld-range` | #fde68a → #d97706 (yellow) |
-| DYB | `dyb-range` | #dce8f7 → #1E4D8C (ocean blue) |
-| PASS | `pass-range` | #a1a1aa → #18181b (zinc) |
-| NT | `nt-range` | #a7f3d0 → #059669 (emerald) |
-| FRT | `frt-range` | #FFE89A → #FFC700 (banana) |
-| SHP | `shp-range` | #c7d2fe → #4338ca (indigo) |
+See **§ Per-Game Reference → Table A** at the end of this file. (Gradient values live in `css/styles.css` on each `.[abbr]-range` rule — read them there.)
 
 ### Mute toggle theming
 
@@ -87,24 +70,7 @@ The sound overlay mute toggle (`#global-mute-toggle`) shows the current game's b
 
 **Per-game toggle class map** (matches `getMuteToggleOnClass()` in `engine.js`):
 
-| Game | Toggle ON class |
-|------|----------------|
-| None / lobby | `game-toggle-on-stone` (fallback) |
-| LI5 | `game-toggle-on-pink` |
-| GM | `game-toggle-on-purple` |
-| SS | `game-toggle-on-teal` |
-| JEC | `game-toggle-on-amber` |
-| YGI | `game-toggle-on-orange` |
-| LTTP | `game-toggle-on-red` |
-| NAT | `game-toggle-on-lime` |
-| DSD | `game-toggle-on-cyan` |
-| GTH | `game-toggle-on-sage` |
-| BLD | `game-toggle-on-yellow` |
-| DYB | `game-toggle-on-dyb` |
-| PASS | `game-toggle-on-zinc` |
-| NT | `game-toggle-on-emerald` |
-| FRT | `game-toggle-on-frt` |
-| SHP | `game-toggle-on-indigo` |
+See **§ Per-Game Reference → Table A** at the end of this file.
 
 **Adding a new game:**
 1. Add a `game-toggle-on-[colour]` class to `css/styles.css` (copy an existing rule, swap the background colour)
@@ -270,6 +236,42 @@ An in-flow animated element changes the column's height while it plays, and beca
 
 Add `pointer-events-none` to the layer unless the animation is interactive. *[Elevated from shp-impl-notes Template Gaps, June 2026.]*
 
+### Motion Standard — timing, easing, and what may be animated
+
+Applies to every transition and `@keyframes` in `css/styles.css` and every inline Tailwind transition. The reference skill is `.claude/skills/emil-design-eng/` (on-demand — invoke it for a deeper animation review; it is not auto-loaded).
+
+**Duration — match the distance travelled.** A small thing moving a short way should be quick; only a full-width panel earns the long end.
+
+| Element | Duration |
+|---------|----------|
+| Button press / tap feedback | 100–160 ms |
+| Contextual tip, small popover | 125–200 ms |
+| Dropdown, pill group, inline reveal | 150–250 ms |
+| Decision modal, data slide-up overlay | 200–500 ms |
+| Stagger between list items | 30–80 ms |
+
+**Hard ceiling: 300 ms** for anything that is not a full overlay. Past that a phone UI feels laggy rather than smooth. The Stack's overlays (`settings-slide-up`) are the documented exception at up to 500 ms.
+
+**Easing — pick by what the element is doing, not by taste:**
+- Entering or exiting the screen → `ease-out`
+- Moving around on-screen → `ease-in-out`
+- Hover / colour change → `ease`
+- Continuous motion (a spinner, a timer sweep) → `linear`
+- **Never `ease-in` for UI.** It starts slow and reads as unresponsive — the tap feels dropped.
+
+**Only animate `transform` and `opacity`.** Both are GPU-composited; anything else (width, height, top/left, margin, padding) triggers layout on every frame and janks on a mid-range phone — which is most of this suite's audience.
+- Never scale from `scale(0)` — it pops. Use `scale(0.95)` plus an opacity fade.
+- Use `translateY(100%)` to move an element by its own height rather than a hardcoded pixel value.
+- Tap feedback is `transform: scale(0.97)` on `:active` — this is what `active:scale-95` already gives us across the suite.
+
+**`transition-all` is known debt — do not add more.** `index.html` carries ~487 uses of it. `transition-all` animates *every* animatable property including layout ones, so it is the transform-only rule's blind spot. Existing uses are left alone (a sweep of `index.html` is off-limits — see the encoding warning). For new markup, name the property: `transition-transform`, `transition-opacity`, `transition-colors`.
+
+**Reduced motion is mandatory and already global.** `css/styles.css` ends with a `@media (prefers-reduced-motion: reduce)` block that collapses every duration to `0.01ms`. Two rules follow from *how* it is written:
+- It sets `animation-duration`/`transition-duration` to near-zero — **never `animation: none`**. `js/games/li5.js` has four `animationend` listeners (`card-enter`, `streak-fire-shake`, and two `hype-pop`) that do the *cleanup*; killing the animation outright means the event never fires and the class and its text stay stranded on screen. Any new `animationend`-driven cleanup inherits this protection for free — but only while the block stays duration-based.
+- Because it is global, a new animation needs no per-feature reduced-motion handling. Do not add a second `prefers-reduced-motion` block.
+
+**Test it:** DevTools → Rendering → Emulate `prefers-reduced-motion: reduce`, then exercise the animation. Nothing should travel, and nothing should be left behind.
+
 ### Legacy sticky-footer pattern — do NOT use for new screens
 
 A handful of older screens across the suite use `h-screen overflow-hidden` with a `flex-1 overflow-y-auto min-h-0` Stage between `flex-shrink-0` Header/Controls. This was previously documented as a second valid pattern. **It is now deprecated for new work** — it is the single largest source of "not together, not centred" screens, because a screen can be technically correct (button visible, content reachable) while looking sparse and edge-pinned. New games use the Stack for *every* screen, including the main gameplay screen. Existing sticky-footer screens are migrated to the Stack opportunistically; log each migration in the game's implementation notes.
@@ -327,7 +329,7 @@ A suite-wide Stack sweep migrated every content/results screen off `h-screen`. T
         </ul>
       </div>
 
-      <!-- Last card — present only if the game has a Sylly Mode (omit for LTTP which has none) -->
+      <!-- Last card — every game has a Sylly Mode; see § Per-Game Reference → Table B for the name -->
       <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
         <p class="text-xs font-semibold uppercase tracking-widest text-[brand]">✨ Sylly Mode</p>
         <p class="font-bold text-stone-800">[Thematic Name]</p>
@@ -358,23 +360,7 @@ A suite-wide Stack sweep migrated every content/results screen off `h-screen`. T
 
 ### Per-game reference
 
-| Game | Emoji | Step label class | Close button | Sylly Mode name |
-|------|-------|-----------------|--------------|----------------|
-| LI5 | 💬 | `text-pink-500` | `bg-pink-500 hover:bg-pink-600` | Extra Credit |
-| GM | 🧠 | `text-purple-500` | `bg-purple-500 hover:bg-purple-600` | Static Interference |
-| SS | 📡 | `text-teal-500` | `bg-teal-500 hover:bg-teal-600` | Intel Phase |
-| JEC | 🍳 | `text-amber-500` | `bg-amber-500 hover:bg-amber-600` | Kitchen Nightmares |
-| YGI | 🃏 | `text-orange-500` | `bg-orange-500 hover:bg-orange-600` | The Ringer |
-| LTTP | 🏃‍♂️ | `text-red-500` | `bg-red-500 hover:bg-red-600` | The Troublemaker |
-| NAT | 🦁 | `text-lime-600` | `bg-lime-600 hover:bg-lime-700` | Survival of the Fittest |
-| DSD | ⚓ | `text-cyan-700` | `bg-cyan-700 hover:bg-cyan-800` | Silent Running |
-| GTH | 🛋️ | inline `style="color:#B1BCA0"` | inline `style="background-color:#B1BCA0"` | Stroke or Genius |
-| DYB | 🎲 | `dyb-label` (custom) | `dyb-cta` (custom) | The Tempest |
-| BLD | 📋 | `text-yellow-500` | `bg-yellow-500 hover:bg-yellow-600` | Drama Mode |
-| PASS | 🃏 | `text-zinc-700` | `bg-zinc-900 hover:bg-zinc-800` | The Abyss |
-| NT | ⚡ | `text-emerald-600` | `bg-emerald-500 hover:bg-emerald-600` | Devil's Network Protocol |
-| FRT | 🍌 | inline `style="color:#047857"` | `bg-[#FFC700] hover:bg-[#E6B400]` | Fruity Personalities |
-| SHP | 🐑 | `text-indigo-600` | `bg-indigo-600 hover:bg-indigo-700` | Night Terrors |
+See **§ Per-Game Reference** at the end of this file — **Table B** for emoji + Sylly Mode name, **Table C** for the step-label and close-button classes.
 
 [RESOLVED — Phase 3 DYB audit, June 2026]: DYB was originally `stone-400` — verified consistent at the audit. Renamed Dicey Bluffs → The Bluff and Sylly Mode renamed Devil's Luck → The Tempest in the June 2026 thematic sweep. **Recoloured stone-400 → #1E4D8C (ocean blue)** post-audit: new custom classes `dyb-cta`, `dyb-label`, `pill-active-dyb`, `game-toggle-on-dyb` added to `css/styles.css`; `game-toggle-on-stone` is now the neutral lobby fallback only. All five die types remain documented in `game-identities.md`.
 
@@ -490,23 +476,7 @@ Rules:
 - Toggle OFF state: `game-toggle-off` (canonical) — `sylly-toggle-off` is a legacy alias sharing the same CSS rule; `sylly-toggle-on` is deprecated (see Mute toggle theming § Toggle class rules)
 - Active pill colour is game-specific:
 
-| Game | Active pill class |
-|------|------------------|
-| Like I'm Five | `pill-active-pink` |
-| Great Minds | `pill-active-purple` |
-| Secret Signals | `pill-active-teal` |
-| Just Enough Cooks | `pill-active-amber` |
-| You Get It? | `pill-active-orange` |
-| Late to the Party | `pill-active-red` |
-| Natural Selection | `pill-active-lime` |
-| Deep-Sea Deploy | `pill-active-cyan` |
-| Group Therapy | `pill-active-sage` |
-| The Bluff | `pill-active-dyb` |
-| Bailed | `pill-active-yellow` |
-| Pass | `pill-active-zinc` |
-| Net-Trace | `pill-active-emerald` |
-| Fruit Salad | `pill-active-frt` |
-| Counting Sheep | `pill-active-indigo` |
+See **§ Per-Game Reference → Table A** at the end of this file.
 
 ---
 
@@ -534,23 +504,7 @@ Rules:
 | How to Play button | `bg-stone-700 hover:bg-stone-800 text-white` |
 
 ### Per-game brand reference:
-| Game | Brand colour | `accentBtnClass` | `accentTextClass` | Toggle class | Settings button |
-|------|-------------|-----------------|------------------|-------------|----------------|
-| LI5 | pink-500 | `bg-pink-500 hover:bg-pink-600` | `text-pink-600` | `game-toggle-on-pink` | `bg-pink-100 hover:bg-pink-200 text-pink-700` |
-| SS | teal-500 | `bg-teal-500 hover:bg-teal-600` | `text-teal-600` | `game-toggle-on-teal` | `bg-teal-100 hover:bg-teal-200 text-teal-700` |
-| DSD | cyan-700 | `bg-cyan-700 hover:bg-cyan-800` | `text-cyan-700` | `game-toggle-on-cyan` | `bg-cyan-100 hover:bg-cyan-200 text-cyan-700` |
-| GM | purple-500 | `bg-purple-500 hover:bg-purple-600` | `text-purple-600` | `game-toggle-on-purple` | `bg-purple-100 hover:bg-purple-200 text-purple-700` |
-| JEC | amber-500 | `bg-amber-500 hover:bg-amber-600` | `text-amber-600` | `game-toggle-on-amber` | `bg-amber-100 hover:bg-amber-200 text-amber-700` |
-| YGI | orange-500 | `bg-orange-500 hover:bg-orange-600` | `text-orange-600` | `game-toggle-on-orange` | `bg-orange-100 hover:bg-orange-200 text-orange-700` |
-| LTTP | red-500 | `bg-red-500 hover:bg-red-600` | `text-red-600` | `game-toggle-on-red` | `bg-red-100 hover:bg-red-200 text-red-700` |
-| NAT | lime-600 | `bg-lime-600 hover:bg-lime-700` | `text-lime-700` | `game-toggle-on-lime` | `bg-lime-100 hover:bg-lime-200 text-lime-700` |
-| GTH | #B1BCA0 (sage — custom) | — (inline `style="background-color:#B1BCA0"`) | — | `game-toggle-on-sage` | inline `style="background-color:#e8ede3;color:#6b7a5f"` |
-| DYB | #1E4D8C (ocean blue — custom) | `dyb-cta` (custom) | `dyb-label` (custom) | `game-toggle-on-dyb` | `bg-[#dce8f7] hover:bg-[#c8daf0] text-[#1E4D8C]` |
-| BLD | yellow-500 | `bg-yellow-500 hover:bg-yellow-600` | `text-yellow-600` | `game-toggle-on-yellow` | `bg-yellow-100 hover:bg-yellow-200 text-yellow-700` |
-| PASS | zinc-900 | `bg-zinc-900 hover:bg-zinc-800` | `text-zinc-900` | `game-toggle-on-zinc` | `bg-zinc-100 hover:bg-zinc-200 text-zinc-700` |
-| NT | emerald-500 | `bg-emerald-500 hover:bg-emerald-600` | `text-emerald-600` | `game-toggle-on-emerald` | `bg-emerald-100 hover:bg-emerald-200 text-emerald-700` |
-| FRT | #FFC700 (banana — custom) | inline `style="background:#FFC700"` | inline `text-[#047857]` | `game-toggle-on-frt` | `bg-[#FFF4CC] hover:bg-[#FFE9A6] text-[#854d0e]` |
-| SHP | indigo-600 | `bg-indigo-600 hover:bg-indigo-700` | `text-indigo-600` | `game-toggle-on-indigo` | `bg-indigo-100 hover:bg-indigo-200 text-indigo-700` |
+See **§ Per-Game Reference → Table A** (brand colour) and **Table C** (the class strings) at the end of this file.
 
 **Notes:**
 - **GTH:** Muted Sage (`#B1BCA0`) has no Tailwind utility class — GTH brand colours are applied via inline `style` attributes throughout its markup, hence the `—` entries.
@@ -587,25 +541,24 @@ Every game's main menu screen must have exactly these 4 buttons, in this order: 
 
 **Play CTA labels** (as shipped in `index.html`):
 
-| Game | Play CTA |
-|------|----------|
-| LI5 | Play Time! |
-| GM | Begin Link |
-| SS | Start Mission |
-| JEC | Let's Cook! |
-| YGI | Let's Get To It! |
-| LTTP | Find The Location! |
-| NAT | Begin Observation |
-| DSD | Begin Deployment |
-| GTH | Start the Session 🛋️ |
-| DYB | Let's Play! |
-| BLD | Make the Plans |
-| PASS | Deal Me In |
-| NT | Initialise System |
-| FRT | Start Serving |
-| SHP | Lights Out |
+See **§ Per-Game Reference → Table B** at the end of this file.
 
 [AUDIT FLAG — June 2026]: GTH's Play CTA contains an emoji, violating the "CTA start-game buttons (game menu) must not contain emoji" rule (Settings Card Standard). Logged in the fix plan; reconcile during Phase 3 GTH audit.
+
+**Type scale (added Aug 2026 — was previously unstated, and cjar shipped wrong because of it):**
+
+| Button | Classes |
+|--------|---------|
+| Play CTA | `min-h-14 w-full rounded-2xl [brand] text-xl font-semibold` |
+| How to Play | `min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 text-white text-xl font-semibold` |
+| Settings | `min-h-14 w-full rounded-2xl [light brand tint] text-xl font-semibold` |
+| ← Back to the Box | `min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 text-stone-500 text-base font-medium` |
+
+All four also carry `active:scale-95 transition-all duration-150`. The three top buttons are
+`text-xl`; **only** Back to the Box steps down, and it steps down on *both* size and weight
+(`text-base font-medium`) because it is navigation, not an action. Verified unanimous across
+PKO, FLW, SHP, FRT, NT and PASS. cjar shipped How-to/Settings at `text-base` and Back at
+`text-sm font-semibold` — invisible in isolation, obvious beside any other game (cjar DD-07).
 
 **Rules:**
 - "← Back to the Box" is always identical — never game-themed.
@@ -705,6 +658,18 @@ Every game's quit overlay (Pattern 2 — Decision Modal) must have ALL of:
 - Themed confirm button (e.g. "Yeah, pack up!", "Yeah, disconnect.", "Yeah, close the kitchen.")
 - Neutral cancel button ("Keep going!" or "Not yet!")
 
+**Button sizing (added Aug 2026 — previously unstated, and the suite drifted into three variants because of it).** Both buttons in a Decision Modal — quit confirm/cancel, play-again confirm/cancel — use:
+
+```
+min-h-14 w-full rounded-2xl … font-semibold text-lg active:scale-95 transition-all duration-150
+```
+
+Confirm takes the game's `accentBtnClass` (or `bg-stone-700` where the brand fill would read as "safe"); cancel is always `bg-stone-200 hover:bg-stone-300 text-stone-700`. **`min-h-11` / `text-sm` is not a valid Decision Modal button** — it clears the 44 px touch minimum but reads as a dismissible toast rather than a decision you are being asked to make.
+
+Note this is *different* from the **tip overlay's** close button, which is deliberately `min-h-11 … text-sm` (see § Contextual Tip Icons) — a tip has one acknowledging button and no decision in it.
+
+**Known divergences, not yet swept** (logged in `docs/deferred-work.md`, Aug 2026): FLW and PASS use `min-h-11`/`text-sm` on both buttons; GTH and BLD use a mismatched pair (`min-h-14 text-xl` confirm + `min-h-11 text-base` cancel). Conforming: SHP, FRT, NT, DYB, PKO, CJAR.
+
 ---
 
 ## Vocab Lock Reuse Pattern
@@ -713,3 +678,96 @@ The vocab lock is game-agnostic and available to any future game:
 - **Open vocab overlay:** `smOpenVocabOverlay()` — opens the terminal-style `#gm-vocab-overlay`
 - **"VIEW WORD LIST" button:** show `#gm-vocab-list-btn` reactively on vocab-lock failure; reset (hide) at the start of each turn's input setup
 - Any future game can wire a "VIEW WORD LIST" button to `smOpenVocabOverlay()` with zero changes to `secret-mode.js`
+
+---
+
+## Per-Game Reference
+
+**Single source of truth for every per-game value in this file** — six tables merged into three, so
+**adding a game = three rows**, not six. Notes stay in their own sections above; not repeated here.
+
+### Table A — Brand colour and the four themed classes
+
+| Game | Brand colour | Range (`updateSliderTheme`) | Toggle ON (`getMuteToggleOnClass`) | Active pill |
+|------|-------------|------------------------------|-------------------------------------|-------------|
+| None / lobby | neutral stone | `stone-range` | `game-toggle-on-stone` | — |
+| LI5 | pink-500 | `li5-range` | `game-toggle-on-pink` | `pill-active-pink` |
+| GM | violet-500 CTAs / purple-* pills | `sylly-range` | `game-toggle-on-purple` | `pill-active-purple` |
+| SS | teal-500 | `ss-range` | `game-toggle-on-teal` | `pill-active-teal` |
+| JEC | amber-500 | `jec-range` | `game-toggle-on-amber` | `pill-active-amber` |
+| YGI | orange-500 | `ygi-range` | `game-toggle-on-orange` | `pill-active-orange` |
+| LTTP | red-500 | `lttp-range` | `game-toggle-on-red` | `pill-active-red` |
+| NAT | lime-600 | `nat-range` | `game-toggle-on-lime` | `pill-active-lime` |
+| DSD | cyan-700 | `dsd-range` | `game-toggle-on-cyan` | `pill-active-cyan` |
+| GTH | `#B1BCA0` sage (custom) | `gth-range` | `game-toggle-on-sage` | `pill-active-sage` |
+| DYB | `#1E4D8C` ocean (custom) | `dyb-range` | `game-toggle-on-dyb` | `pill-active-dyb` |
+| BLD | `#991b1b` dark red (red-800, custom) | `bld-range` | `game-toggle-on-bld` | `pill-active-bld` |
+| PASS | zinc-900 | `pass-range` | `game-toggle-on-zinc` | `pill-active-zinc` |
+| NT | emerald-500 | `nt-range` | `game-toggle-on-emerald` | `pill-active-emerald` |
+| FRT | `#FFE500` electric lemon (custom) | `frt-range` | `game-toggle-on-frt` | `pill-active-frt` |
+| SHP | indigo-600 | `shp-range` | `game-toggle-on-indigo` | `pill-active-indigo` |
+| FLW | `#E879A8` rose-pink (custom) | `flw-range` | `game-toggle-on-flw` | `pill-active-flw` |
+| PKO | `#854D0E` (custom) | `pko-range` | `game-toggle-on-pko` | `pill-active-pko` |
+| CJAR | `#D4A017` honey-gold (custom) | `cjar-range` | `game-toggle-on-cjar` | `pill-active-cjar` |
+
+`sylly-range` is GM's alone — it predates the `[abbr]-range` convention every other game follows. Never reuse it.
+Gradient values live on each `.[abbr]-range` rule in `css/styles.css`.
+
+### Table B — Game-voiced strings
+
+| Game | Play CTA (menu) | How-to emoji | Sylly Mode name |
+|------|-----------------|--------------|-----------------|
+| LI5 | Play Time! | 💬 | Extra Credit |
+| GM | Begin Link | 🧠 | Static Interference |
+| SS | Start Mission | 📡 | Intel Phase |
+| JEC | Let's Cook! | 🍳 | Kitchen Nightmares |
+| YGI | Let's Get To It! | 🃏 | The Ringer |
+| LTTP | Find The Location! | 🏃‍♂️ | The Troublemaker † |
+| NAT | Begin Observation | 🦁 | Survival of the Fittest |
+| DSD | Begin Deployment | ⚓ | Silent Running |
+| GTH | Start the Session 🛋️ | 🛋️ | Stroke or Genius |
+| DYB | Let's Play! | 🎲 | The Tempest |
+| BLD | Make the Plans | 📋 | Drama Mode |
+| PASS | Deal Me In | 🃏 | The Abyss |
+| NT | Initialise System | ⚡ | Devil's Network Protocol |
+| FRT | Start Serving | 🍌 | Fruity Personalities |
+| SHP | Lights Out | 🐑 | Night Terrors |
+| FLW | Enter the Exhibition | 💎 | The Counterfeit Run |
+| PKO | Enter the Wild | 🐘 | Force of Nature |
+| CJAR | Raid the Jar! | 🍪 | Dibber Dobber |
+
+**†  Resolved 1 Aug 2026 — LTTP's Sylly Mode is real and shipped.** The How-to Standard's old parenthetical
+("omit for LTTP which has none") was wrong and has been corrected. Verified in code: `lttpJokerMode`, the
+`The Troublemaker` role with 2 decoys, and three-way scoring (`lttp.js`; settings + how-to cards in `index.html`).
+**Every game in Table B has a Sylly Mode** — there is no exception.
+
+### Table C — Brand class strings
+
+The how-to **close button is always the game's `accentBtnClass`**, so it no longer has its own column. The
+**step label** does keep one — it is usually the -500 shade where `accentTextClass` is -600.
+
+| Game | `accentBtnClass` (= how-to close) | `accentTextClass` | How-to step label | Settings button (light tint) |
+|------|-----------------------------------|-------------------|-------------------|------------------------------|
+| LI5 | `bg-pink-500 hover:bg-pink-600` | `text-pink-600` | `text-pink-500` | `bg-pink-100 hover:bg-pink-200 text-pink-700` |
+| GM | `bg-purple-500 hover:bg-purple-600` | `text-purple-600` | `text-purple-500` | `bg-purple-100 hover:bg-purple-200 text-purple-700` |
+| SS | `bg-teal-500 hover:bg-teal-600` | `text-teal-600` | `text-teal-500` | `bg-teal-100 hover:bg-teal-200 text-teal-700` |
+| JEC | `bg-amber-500 hover:bg-amber-600` | `text-amber-600` | `text-amber-500` | `bg-amber-100 hover:bg-amber-200 text-amber-700` |
+| YGI | `bg-orange-500 hover:bg-orange-600` | `text-orange-600` | `text-orange-500` | `bg-orange-100 hover:bg-orange-200 text-orange-700` |
+| LTTP | `bg-red-500 hover:bg-red-600` | `text-red-600` | `text-red-500` | `bg-red-100 hover:bg-red-200 text-red-700` |
+| NAT | `bg-lime-600 hover:bg-lime-700` | `text-lime-700` | `text-lime-600` | `bg-lime-100 hover:bg-lime-200 text-lime-700` |
+| DSD | `bg-cyan-700 hover:bg-cyan-800` | `text-cyan-700` | `text-cyan-700` | `bg-cyan-100 hover:bg-cyan-200 text-cyan-700` |
+| GTH | inline `style="background-color:#B1BCA0"` | — | inline `style="color:#B1BCA0"` | inline `style="background-color:#e8ede3;color:#6b7a5f"` |
+| DYB | `dyb-cta` | `dyb-label` | `dyb-label` | `bg-[#dce8f7] hover:bg-[#c8daf0] text-[#1E4D8C]` |
+| BLD | `bld-cta` | `bld-label` | `bld-label` | `bg-red-100 hover:bg-red-200 text-red-700` |
+| PASS | `bg-zinc-900 hover:bg-zinc-800` | `text-zinc-900` | `text-zinc-700` | `bg-zinc-100 hover:bg-zinc-200 text-zinc-700` |
+| NT | `bg-emerald-500 hover:bg-emerald-600` | `text-emerald-600` | `text-emerald-600` | `bg-emerald-100 hover:bg-emerald-200 text-emerald-700` |
+| FRT | inline `style="background:#FFE500"` § | inline `text-[#047857]` | inline `style="color:#047857"` | `bg-[#FFF4CC] hover:bg-[#FFF3A6] text-[#854d0e]` |
+| SHP | `bg-indigo-600 hover:bg-indigo-700` | `text-indigo-600` | `text-indigo-600` | `bg-indigo-100 hover:bg-indigo-200 text-indigo-700` |
+| FLW | `flw-cta` | — | inline `style="color:#E879A8"` | `bg-[#FBE0EA] hover:bg-[#F6C9DA] text-[#A02050]` |
+| PKO | `pko-cta` | — | `pko-label` | `bg-[#F5E6C8] hover:bg-[#EBD5A8] text-[#854D0E]` |
+| CJAR | `cjar-cta` ‡ | — | `cjar-label` | `bg-[#F7E9C4] hover:bg-[#EFDCA8] text-[#7A5C0A]` |
+
+**‡** CJAR is the second game after FRT whose fill takes **dark ink, never white** — `#D4A017` measures **2.38:1** against white (below the 3:1 large-text floor) and **6.39:1** against stone-800. `.cjar-cta` supplies `color:#292524` itself, so never add a Tailwind `text-white` alongside it; that is also why the `MP_GAME_CONFIGS` entry sets `ctaTextClass: 'text-stone-800'`. Labels use the darkened `#7A5C0A`, because raw `#D4A017` on `bg-stone-50` is itself under 3:1. Modal border `border-[#E5C97A]`.
+
+**§** FRT’s how-to close button is the one exception — `bg-[#FFE500] hover:bg-[#E6D200] text-stone-800`, same colour as utilities (recoloured from banana `#FFC700` + white ink 2 Aug 2026 — the white text failed WCAG contrast on the brighter lemon fill; see decision-log).
+A `—` in the `accentTextClass` column means the game never calls `showWhoFirst()` (GTH, FLW, PKO). Don’t invent one.
