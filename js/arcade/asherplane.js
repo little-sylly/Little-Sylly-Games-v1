@@ -17,6 +17,15 @@ const AP_INVULN_MS    = 1500;
 const AP_START_LIVES  = 2;
 const AP_DYING_MS     = 700;   // the death beat — shake decays, particles fly
 const AP_CAR_COLOURS  = ['#E63946', '#FFB703', '#52B788', '#9B5DE5', '#00B4D8'];
+const AP_HIT_FLASH_MS = 120;   // a medium vehicle's "took a hit but survived" flash
+
+// Per-type stats for every enemy that presents a single hit box (car, medium
+// — rocket joins this table in Task 3). Trains are handled separately: a
+// train's length varies per spawn, so it has no single w/h/hp to put here.
+const AP_ENEMY_STATS = {
+  car:    { w: 28, h: 44, hp: 1, baseSpeedMul: 1.0,  points: 10 },
+  medium: { w: 36, h: 56, hp: 2, baseSpeedMul: 0.85, points: 25 },
+};
 
 // ── Audio — one map of moments onto the existing NES-style beep. Same shape as
 // CJAR_SOUND / PKO_EVENT_SOUND. Inherits isMuted and masterVolume for free.
@@ -165,13 +174,25 @@ function apLoop(now) {
 function apSpawnInterval() { return Math.max(280, 900 - apScore * 1.2); }
 function apCarSpeed()      { return 70 + Math.min(90, apScore * 0.35); }
 
-function apSpawnCar() {
+// Interim weighting — Task 3 extends this to 4 types, Task 5 replaces it
+// entirely with distance-gated unlocking. Until then this always offers both
+// car and medium so medium vehicles can be manually verified in isolation.
+function apPickEnemyType() {
+  return Math.random() < 0.7 ? 'car' : 'medium';
+}
+
+function apSpawnEnemy() {
+  const type  = apPickEnemyType();
+  const stats = AP_ENEMY_STATS[type];
   apCars.push({
-    x: 8 + Math.random() * (AP_W - 44),
-    y: -50,
-    w: 28,
-    h: 44,
-    speed: apCarSpeed() * (0.85 + Math.random() * 0.4),
+    type,
+    x: 8 + Math.random() * (AP_W - stats.w - 16),
+    y: -stats.h - 10,
+    w: stats.w,
+    h: stats.h,
+    speed: apCarSpeed() * stats.baseSpeedMul * (0.85 + Math.random() * 0.4),
+    hp: stats.hp,
+    hitFlashT: 0,
     colour: AP_CAR_COLOURS[Math.floor(Math.random() * AP_CAR_COLOURS.length)],
   });
 }
@@ -195,6 +216,30 @@ function apBurst(x, y, colour) {
     apParts.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s,
                    life: 0.45 + Math.random() * 0.25, max: 0.7, colour });
   }
+}
+
+// Returns the currently-hittable boxes for an enemy entity. A simple entity
+// (car, medium — and rocket from Task 3) has exactly one: its own box. A
+// train (Task 2) returns one per alive carriage. Both collision loops below
+// call this instead of reading e.x/e.y/e.w/e.h directly, so a multi-box
+// enemy needs no special-casing in the loops themselves — only here.
+function apEnemyHitBoxes(e) {
+  return [{ x: e.x, y: e.y, w: e.w, h: e.h, segIndex: -1 }];
+}
+
+// Registers one bullet hit against a specific hit-box (as returned by
+// apEnemyHitBoxes). Decrements the entity's hp, flashes it if it survives,
+// or bursts + scores it if this hit was lethal. Returns true when the WHOLE
+// entity is now destroyed, so the caller knows to remove it from apCars.
+function apDamageEnemy(e, box) {
+  e.hp -= 1;
+  if (e.hp > 0) {
+    e.hitFlashT = AP_HIT_FLASH_MS;
+    return false;
+  }
+  apBurst(e.x + e.w / 2, e.y + e.h / 2, e.colour);
+  apScore += AP_ENEMY_STATS[e.type].points;
+  return true;
 }
 
 function apUpdate(dt) {
@@ -230,49 +275,63 @@ function apUpdate(dt) {
 
   // Spawning
   apSpawnT += dt * 1000;
-  if (apSpawnT >= apSpawnInterval()) { apSpawnT = 0; apSpawnCar(); }
-  apCars.forEach(c => { c.y += c.speed * dt; });
+  if (apSpawnT >= apSpawnInterval()) { apSpawnT = 0; apSpawnEnemy(); }
+  apCars.forEach(c => {
+    c.y += c.speed * dt;
+    if (c.hitFlashT > 0) c.hitFlashT = Math.max(0, c.hitFlashT - dt * 1000);
+  });
   apCars = apCars.filter(c => c.y < AP_H + 60);
 
-  // Dart hits car
+  // Dart hits enemy — an enemy may present multiple hit boxes (train
+  // carriages, from Task 2); each bullet can only ever resolve against one
+  // box, and a box that's already been hit this frame must not be hit again
+  // (two simultaneous bullets — the Task 4 powerup — could otherwise both
+  // land on the same box in one frame). Both guarantees come from splicing
+  // the matched bullet AND the matched box out of their local lists the
+  // moment they're used.
   for (let i = apCars.length - 1; i >= 0; i--) {
-    const car = apCars[i];
-    for (let j = apBullets.length - 1; j >= 0; j--) {
-      if (!apAABB(apBullets[j], car)) continue;
-      apBurst(car.x + car.w / 2, car.y + car.h / 2, car.colour);
+    const e = apCars[i];
+    const boxes = apEnemyHitBoxes(e);
+    let destroyed = false;
+    for (let bi = boxes.length - 1; bi >= 0; bi--) {
+      const box = boxes[bi];
+      const j = apBullets.findIndex(b => apAABB(b, box));
+      if (j === -1) continue;
       AP_SOUND.explode();
-      apCars.splice(i, 1);
       apBullets.splice(j, 1);
-      apScore += 10;
-      break;
+      boxes.splice(bi, 1);
+      if (apDamageEnemy(e, box)) destroyed = true;
     }
+    if (destroyed) apCars.splice(i, 1);
   }
 
-  // Car hits player
+  // Enemy hits player. Iterates entities, then each entity's currently-
+  // hittable boxes (apEnemyHitBoxes) — stops after resolving exactly one
+  // collision per frame, same as v1.
   if (apInvuln <= 0) {
     const box = apPlayerBox();
+    hitSearch:
     for (let i = apCars.length - 1; i >= 0; i--) {
-      if (!apAABB(box, apCars[i])) continue;
-      apBurst(apCars[i].x + apCars[i].w / 2, apCars[i].y + apCars[i].h / 2, apCars[i].colour);
-      apCars.splice(i, 1);
-      apLives -= 1;
-      apShake  = 0.35;
-      apInvuln = AP_INVULN_MS;
-      AP_SOUND.hit();
-      if (apLives <= 0) {
-        // Three sounds, three beats. Fired in one frame they stacked into a
-        // chord: 110 Hz hit + 160 Hz game-over + 1046 Hz high-score all read
-        // the same ctx.currentTime. hit() has already played above; gameOver()
-        // is staggered, and apEndRun()'s highScore() now lands a further
-        // AP_DYING_MS later because the dying countdown is what calls it.
-        apGameOverT = setTimeout(() => {
-          apGameOverT = null;   // fired and finished — never leave a stale handle
-          AP_SOUND.gameOver();
-        }, 220);
-        apEnterDying();
-        return;
+      const e = apCars[i];
+      const eBoxes = apEnemyHitBoxes(e);
+      for (const eb of eBoxes) {
+        if (!apAABB(box, eb)) continue;
+        apBurst(eb.x + eb.w / 2, eb.y + eb.h / 2, e.colour);
+        apCars.splice(i, 1);
+        apLives -= 1;
+        apShake  = 0.35;
+        apInvuln = AP_INVULN_MS;
+        AP_SOUND.hit();
+        if (apLives <= 0) {
+          apGameOverT = setTimeout(() => {
+            apGameOverT = null;
+            AP_SOUND.gameOver();
+          }, 220);
+          apEnterDying();
+          return;
+        }
+        break hitSearch;
       }
-      break;
     }
   }
 }
@@ -335,7 +394,7 @@ function apDraw(dt) {
   });
 
   if (apState === 'playing' || apState === 'dying') {
-    apCars.forEach(apDrawCar);
+    apCars.forEach(apDrawEnemy);
     apCtx.fillStyle = '#FDE68A';
     apBullets.forEach(b => apCtx.fillRect(b.x, b.y, b.w, b.h));
     apDrawGlider(apPlayer.x, apPlayer.y, apInvuln > 0 && Math.floor(apInvuln / 100) % 2 === 0);
@@ -373,6 +432,19 @@ function apDrawCar(car) {
   g.fillRect(x + 5, y + h - 18, w - 10, 7);
   g.fillStyle = 'rgba(0,0,0,0.18)';
   g.fillRect(x + 5, y + 20, w - 10, h - 40);
+  // Medium vehicles take 2 hits; this is the only signal a young player gets
+  // that the first shot connected but didn't destroy it.
+  if (car.hitFlashT > 0) {
+    g.fillStyle = `rgba(255,255,255,${0.55 * (car.hitFlashT / AP_HIT_FLASH_MS)})`;
+    g.fillRect(x - 3, y, w + 6, h);
+  }
+}
+
+// Dispatches by enemy type. A passthrough for now — Task 2 adds the train
+// branch, Task 3 adds the rocket branch. car/medium share apDrawCar's
+// silhouette, scaled by e.w/e.h.
+function apDrawEnemy(e) {
+  apDrawCar(e);
 }
 
 function apDrawGlider(x, y, dim) {
