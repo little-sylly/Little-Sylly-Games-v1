@@ -42,6 +42,7 @@ const AP_ROCKET_TRAIL_MS    = 70;    // how often it emits a trail puff while bo
 
 const AP_POWERUP_INTERVAL_MS = 9000;   // roughly one chance every 9s of play
 const AP_POWERUP_SPEED       = 90;
+const AP_POWERUP_DURATION_MS = 10000;   // how long a picked-up buff lasts if untouched
 
 const AP_SCORE_PER_SECOND = 4;   // the "staying alive" trickle
 
@@ -88,6 +89,7 @@ let apSpawnT  = 0;
 let apPowerups   = [];
 let apPowerupT   = 0;
 let apDoubleShot = false;
+let apDoubleShotT = 0;   // ms remaining on the current buff, while apDoubleShot is true
 
 let apDir  = 0;                            // -1 left, 0 still, 1 right
 let apKeys = { left: false, right: false };
@@ -153,6 +155,17 @@ function apClearGameOverT() {
   if (apGameOverT) { clearTimeout(apGameOverT); apGameOverT = null; }
 }
 
+// Clears the double-shot buff AND immediately restarts the wait-for-next-
+// powerup timer. Called from both places the buff can end (the 10s
+// countdown running out, or a hit) — "return to normal" is whichever of
+// those happens first, and apPowerupT only starts counting a fresh
+// interval from that moment, not from when the buff started.
+function apClearDoubleShot() {
+  apDoubleShot  = false;
+  apDoubleShotT = 0;
+  apPowerupT    = 0;
+}
+
 function apResetRun() {
   apScore   = 0;
   apDistance = 0;
@@ -170,6 +183,7 @@ function apResetRun() {
   apPowerups   = [];
   apPowerupT   = 0;
   apDoubleShot = false;
+  apDoubleShotT = 0;
   apClearGameOverT();
 }
 
@@ -433,24 +447,36 @@ function apUpdate(dt) {
   apCars = apCars.filter(c => c.y < AP_H + 60 && c.x > -80 && c.x < AP_W + 80);
 
   // Powerup: falls independently of enemy spawns, on its own timer. At most
-  // one on screen at a time — simplest way to guarantee "no stacking" without
-  // a cooldown-after-pickup mechanism.
+  // one on screen at a time, and NONE while the buff is already active —
+  // apPowerupT only starts counting toward the next one once
+  // apClearDoubleShot() resets it, i.e. once the player is genuinely back
+  // to normal (see below).
   apPowerupT += dt * 1000;
-  if (apPowerupT >= AP_POWERUP_INTERVAL_MS && apPowerups.length === 0) {
+  if (apPowerupT >= AP_POWERUP_INTERVAL_MS && apPowerups.length === 0 && !apDoubleShot) {
     apPowerupT = 0;
-    apPowerups.push({ x: 8 + Math.random() * (AP_W - 26 - 16), y: -30, w: 26, h: 26 });
+    apPowerups.push({ x: 8 + Math.random() * (AP_W - 26 - 16), y: -30, w: 26, h: 26, glowT: 0 });
   }
-  apPowerups.forEach(p => { p.y += AP_POWERUP_SPEED * dt; });
+  apPowerups.forEach(p => { p.y += AP_POWERUP_SPEED * dt; p.glowT += dt; });
   apPowerups = apPowerups.filter(p => p.y < AP_H + 40);
 
   const powerupPlayerBox = apPlayerBox();
   apPowerups = apPowerups.filter(p => {
     if (!apAABB(powerupPlayerBox, p)) return true;
-    apDoubleShot = true;
+    apDoubleShot  = true;
+    apDoubleShotT = AP_POWERUP_DURATION_MS;
     AP_SOUND.powerup();
     apBurst(p.x + p.w / 2, p.y + p.h / 2, '#38BDF8');
     return false;
   });
+
+  // Double-shot countdown — separate from the pickup handling above, since
+  // this keeps running long after the powerup entity itself is gone. Ends
+  // the buff exactly like a hit does (apClearDoubleShot), just from time
+  // running out instead of a collision.
+  if (apDoubleShot) {
+    apDoubleShotT -= dt * 1000;
+    if (apDoubleShotT <= 0) apClearDoubleShot();
+  }
 
   // Dart hits enemy — an enemy may present multiple hit boxes (train
   // carriages, from Task 2); each bullet can only ever resolve against one
@@ -494,7 +520,7 @@ function apUpdate(dt) {
           apCars.splice(i, 1);
         }
         apLives -= 1;
-        apDoubleShot = false;
+        apClearDoubleShot();
         apShake  = 0.35;
         apInvuln = AP_INVULN_MS;
         AP_SOUND.hit();
@@ -619,15 +645,32 @@ function apDrawCar(car) {
 }
 
 function apDrawPowerup(p) {
-  const g = apCtx;
-  g.fillStyle = '#38BDF8';
-  g.fillRect(p.x, p.y, p.w, p.h);
-  g.fillStyle = '#0B0B0B';
-  g.font = 'bold 16px monospace';
-  g.textAlign = 'center';
-  g.textBaseline = 'middle';
-  g.fillText('2', p.x + p.w / 2, p.y + p.h / 2 + 1);
-  g.textBaseline = 'alphabetic';
+  const g  = apCtx;
+  const cx = p.x + p.w / 2, cy = p.y + p.h / 2, r = p.w / 2;
+  const pulse = 0.55 + 0.35 * Math.sin(p.glowT * 4);
+
+  // Glow: shadowBlur/shadowColor persist on the context until changed, so
+  // this MUST be its own save/restore — otherwise the glow would bleed
+  // onto the bullets, glider, particles and HUD text drawn right after it.
+  g.save();
+  g.shadowColor = '#38BDF8';
+  g.shadowBlur  = 14 * pulse;
+  g.fillStyle   = `rgba(56,189,248,${pulse})`;
+  g.beginPath();
+  g.arc(cx, cy, r, 0, Math.PI * 2);
+  g.fill();
+  g.restore();
+
+  // Up arrow — a filled triangle head plus a short stem, same construction
+  // style as apDrawGlider's nose highlight.
+  g.fillStyle = '#FFFFFF';
+  g.beginPath();
+  g.moveTo(cx, cy - r * 0.6);
+  g.lineTo(cx - r * 0.45, cy + r * 0.05);
+  g.lineTo(cx + r * 0.45, cy + r * 0.05);
+  g.closePath();
+  g.fill();
+  g.fillRect(cx - r * 0.16, cy, r * 0.32, r * 0.55);
 }
 
 // Dispatches by enemy type. A passthrough for now — Task 2 adds the train
