@@ -27,6 +27,13 @@ const AP_ENEMY_STATS = {
   medium: { w: 36, h: 56, hp: 2, baseSpeedMul: 0.85, points: 25 },
 };
 
+const AP_TRAIN_CARRIAGE_W          = 30;
+const AP_TRAIN_CARRIAGE_H          = 40;
+const AP_TRAIN_GAP                 = 4;
+const AP_TRAIN_MIN_CARS            = 3;
+const AP_TRAIN_MAX_CARS            = 5;
+const AP_TRAIN_POINTS_PER_CARRIAGE = 15;
+
 // ── Audio — one map of moments onto the existing NES-style beep. Same shape as
 // CJAR_SOUND / PKO_EVENT_SOUND. Inherits isMuted and masterVolume for free.
 // There is deliberately no per-shot sound: at 5 shots/sec it grates.
@@ -174,15 +181,18 @@ function apLoop(now) {
 function apSpawnInterval() { return Math.max(280, 900 - apScore * 1.2); }
 function apCarSpeed()      { return 70 + Math.min(90, apScore * 0.35); }
 
-// Interim weighting — Task 3 extends this to 4 types, Task 5 replaces it
-// entirely with distance-gated unlocking. Until then this always offers both
-// car and medium so medium vehicles can be manually verified in isolation.
+// Interim weighting — Task 3 adds rocket cars here too, Task 5 replaces this
+// whole function with distance-gated unlocking.
 function apPickEnemyType() {
-  return Math.random() < 0.7 ? 'car' : 'medium';
+  const r = Math.random();
+  if (r < 0.55) return 'car';
+  if (r < 0.85) return 'medium';
+  return 'train';
 }
 
 function apSpawnEnemy() {
-  const type  = apPickEnemyType();
+  const type = apPickEnemyType();
+  if (type === 'train') { apSpawnTrainEntity(); return; }
   const stats = AP_ENEMY_STATS[type];
   apCars.push({
     type,
@@ -194,6 +204,21 @@ function apSpawnEnemy() {
     hp: stats.hp,
     hitFlashT: 0,
     colour: AP_CAR_COLOURS[Math.floor(Math.random() * AP_CAR_COLOURS.length)],
+  });
+}
+
+function apSpawnTrainEntity() {
+  const n = AP_TRAIN_MIN_CARS + Math.floor(Math.random() * (AP_TRAIN_MAX_CARS - AP_TRAIN_MIN_CARS + 1));
+  const w = AP_TRAIN_CARRIAGE_W;
+  const totalH = n * AP_TRAIN_CARRIAGE_H + (n - 1) * AP_TRAIN_GAP;
+  apCars.push({
+    type: 'train',
+    x: 8 + Math.random() * (AP_W - w - 16),
+    y: -totalH - 10,
+    w, h: totalH,   // the whole train's span — used only for the off-screen cull
+    speed: apCarSpeed() * (0.85 + Math.random() * 0.4),
+    colour: AP_CAR_COLOURS[Math.floor(Math.random() * AP_CAR_COLOURS.length)],
+    segments: Array.from({ length: n }, () => ({ alive: true })),
   });
 }
 
@@ -224,6 +249,20 @@ function apBurst(x, y, colour) {
 // call this instead of reading e.x/e.y/e.w/e.h directly, so a multi-box
 // enemy needs no special-casing in the loops themselves — only here.
 function apEnemyHitBoxes(e) {
+  if (e.type === 'train') {
+    const boxes = [];
+    e.segments.forEach((seg, i) => {
+      if (!seg.alive) return;
+      boxes.push({
+        x: e.x,
+        y: e.y + i * (AP_TRAIN_CARRIAGE_H + AP_TRAIN_GAP),
+        w: AP_TRAIN_CARRIAGE_W,
+        h: AP_TRAIN_CARRIAGE_H,
+        segIndex: i,
+      });
+    });
+    return boxes;
+  }
   return [{ x: e.x, y: e.y, w: e.w, h: e.h, segIndex: -1 }];
 }
 
@@ -232,6 +271,13 @@ function apEnemyHitBoxes(e) {
 // or bursts + scores it if this hit was lethal. Returns true when the WHOLE
 // entity is now destroyed, so the caller knows to remove it from apCars.
 function apDamageEnemy(e, box) {
+  if (e.type === 'train') {
+    const seg = e.segments[box.segIndex];
+    seg.alive = false;
+    apBurst(box.x + box.w / 2, box.y + box.h / 2, e.colour);
+    apScore += AP_TRAIN_POINTS_PER_CARRIAGE;
+    return e.segments.every(s => !s.alive);
+  }
   e.hp -= 1;
   if (e.hp > 0) {
     e.hitFlashT = AP_HIT_FLASH_MS;
@@ -317,7 +363,12 @@ function apUpdate(dt) {
       for (const eb of eBoxes) {
         if (!apAABB(box, eb)) continue;
         apBurst(eb.x + eb.w / 2, eb.y + eb.h / 2, e.colour);
-        apCars.splice(i, 1);
+        if (e.type === 'train') {
+          e.segments[eb.segIndex].alive = false;
+          if (e.segments.every(s => !s.alive)) apCars.splice(i, 1);
+        } else {
+          apCars.splice(i, 1);
+        }
         apLives -= 1;
         apShake  = 0.35;
         apInvuln = AP_INVULN_MS;
@@ -444,7 +495,20 @@ function apDrawCar(car) {
 // branch, Task 3 adds the rocket branch. car/medium share apDrawCar's
 // silhouette, scaled by e.w/e.h.
 function apDrawEnemy(e) {
+  if (e.type === 'train') { apDrawTrain(e); return; }
   apDrawCar(e);
+}
+
+// Draws each alive carriage with the same tyre/window motif as apDrawCar,
+// scaled to carriage size, with a small gap between carriages — so a
+// destroyed middle carriage reads as a visible hole in the train, and the
+// remaining carriages keep moving together at the train's shared speed.
+function apDrawTrain(e) {
+  e.segments.forEach((seg, i) => {
+    if (!seg.alive) return;
+    const y = e.y + i * (AP_TRAIN_CARRIAGE_H + AP_TRAIN_GAP);
+    apDrawCar({ x: e.x, y, w: AP_TRAIN_CARRIAGE_W, h: AP_TRAIN_CARRIAGE_H, colour: e.colour, hitFlashT: 0 });
+  });
 }
 
 function apDrawGlider(x, y, dim) {
