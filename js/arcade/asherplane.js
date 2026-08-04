@@ -40,6 +40,9 @@ const AP_ROCKET_IDLE_MAX_MS = 800;
 const AP_ROCKET_BOOST_MUL   = 1.2;   // vs. apCarSpeed() at the moment it boosts
 const AP_ROCKET_TRAIL_MS    = 70;    // how often it emits a trail puff while boosting
 
+const AP_POWERUP_INTERVAL_MS = 9000;   // roughly one chance every 9s of play
+const AP_POWERUP_SPEED       = 90;
+
 // ── Audio — one map of moments onto the existing NES-style beep. Same shape as
 // CJAR_SOUND / PKO_EVENT_SOUND. Inherits isMuted and masterVolume for free.
 // There is deliberately no per-shot sound: at 5 shots/sec it grates.
@@ -49,6 +52,7 @@ const AP_SOUND = {
   gameOver:  () => playSecretBeep(160),
   highScore: () => playSecretBeep(1046),
   select:    () => playSecretBeep(660),
+  powerup:   () => playSecretBeep(880),
 };
 
 // ── Runtime state ────────────────────────────────────────────────────────────
@@ -74,6 +78,9 @@ let apParts   = [];
 let apStars   = [];
 let apFireT   = 0;
 let apSpawnT  = 0;
+let apPowerups   = [];
+let apPowerupT   = 0;
+let apDoubleShot = false;
 
 let apDir  = 0;                            // -1 left, 0 still, 1 right
 let apKeys = { left: false, right: false };
@@ -152,6 +159,9 @@ function apResetRun() {
   apSpawnT  = 0;
   apDir     = 0;   // otherwise a PLAY tap held from the attract screen starts the run already drifting (Important 3)
   apDyingT  = 0;
+  apPowerups   = [];
+  apPowerupT   = 0;
+  apDoubleShot = false;
   apClearGameOverT();
 }
 
@@ -370,7 +380,12 @@ function apUpdate(dt) {
   apFireT += dt * 1000;
   if (apFireT >= AP_FIRE_MS) {
     apFireT = 0;
-    apBullets.push({ x: apPlayer.x - 2, y: apPlayer.y - 18, w: 4, h: 11 });
+    if (apDoubleShot) {
+      apBullets.push({ x: apPlayer.x - 10, y: apPlayer.y - 18, w: 4, h: 11 });
+      apBullets.push({ x: apPlayer.x + 6,  y: apPlayer.y - 18, w: 4, h: 11 });
+    } else {
+      apBullets.push({ x: apPlayer.x - 2, y: apPlayer.y - 18, w: 4, h: 11 });
+    }
   }
   apBullets.forEach(b => { b.y -= AP_BULLET_SPEED * dt; });
   apBullets = apBullets.filter(b => b.y + b.h > 0);
@@ -399,6 +414,26 @@ function apUpdate(dt) {
     if (c.hitFlashT > 0) c.hitFlashT = Math.max(0, c.hitFlashT - dt * 1000);
   });
   apCars = apCars.filter(c => c.y < AP_H + 60 && c.x > -80 && c.x < AP_W + 80);
+
+  // Powerup: falls independently of enemy spawns, on its own timer. At most
+  // one on screen at a time — simplest way to guarantee "no stacking" without
+  // a cooldown-after-pickup mechanism.
+  apPowerupT += dt * 1000;
+  if (apPowerupT >= AP_POWERUP_INTERVAL_MS && apPowerups.length === 0) {
+    apPowerupT = 0;
+    apPowerups.push({ x: 8 + Math.random() * (AP_W - 26 - 16), y: -30, w: 26, h: 26 });
+  }
+  apPowerups.forEach(p => { p.y += AP_POWERUP_SPEED * dt; });
+  apPowerups = apPowerups.filter(p => p.y < AP_H + 40);
+
+  const powerupPlayerBox = apPlayerBox();
+  apPowerups = apPowerups.filter(p => {
+    if (!apAABB(powerupPlayerBox, p)) return true;
+    apDoubleShot = true;
+    AP_SOUND.powerup();
+    apBurst(p.x + p.w / 2, p.y + p.h / 2, '#38BDF8');
+    return false;
+  });
 
   // Dart hits enemy — an enemy may present multiple hit boxes (train
   // carriages, from Task 2); each bullet can only ever resolve against one
@@ -442,6 +477,7 @@ function apUpdate(dt) {
           apCars.splice(i, 1);
         }
         apLives -= 1;
+        apDoubleShot = false;
         apShake  = 0.35;
         apInvuln = AP_INVULN_MS;
         AP_SOUND.hit();
@@ -518,6 +554,7 @@ function apDraw(dt) {
 
   if (apState === 'playing' || apState === 'dying') {
     apCars.forEach(apDrawEnemy);
+    apPowerups.forEach(apDrawPowerup);
     apCtx.fillStyle = '#FDE68A';
     apBullets.forEach(b => apCtx.fillRect(b.x, b.y, b.w, b.h));
     apDrawGlider(apPlayer.x, apPlayer.y, apInvuln > 0 && Math.floor(apInvuln / 100) % 2 === 0);
@@ -561,6 +598,18 @@ function apDrawCar(car) {
     g.fillStyle = `rgba(255,255,255,${0.55 * (car.hitFlashT / AP_HIT_FLASH_MS)})`;
     g.fillRect(x - 3, y, w + 6, h);
   }
+}
+
+function apDrawPowerup(p) {
+  const g = apCtx;
+  g.fillStyle = '#38BDF8';
+  g.fillRect(p.x, p.y, p.w, p.h);
+  g.fillStyle = '#0B0B0B';
+  g.font = 'bold 16px monospace';
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.fillText('2', p.x + p.w / 2, p.y + p.h / 2 + 1);
+  g.textBaseline = 'alphabetic';
 }
 
 // Dispatches by enemy type. A passthrough for now — Task 2 adds the train
