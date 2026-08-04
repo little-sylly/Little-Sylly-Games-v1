@@ -25,7 +25,7 @@ const AP_HIT_FLASH_MS = 120;   // a medium vehicle's "took a hit but survived" f
 const AP_ENEMY_STATS = {
   car:    { w: 28, h: 44, hp: 1, baseSpeedMul: 1.0,  points: 10 },
   medium: { w: 36, h: 56, hp: 2, baseSpeedMul: 0.85, points: 25 },
-  rocket: { w: 28, h: 44, hp: 1, baseSpeedMul: 1.0,  points: 20 },
+  rocket: { w: 28, h: 44, hp: 2, baseSpeedMul: 1.0,  points: 30 },
 };
 
 const AP_TRAIN_CARRIAGE_W          = 30;
@@ -37,7 +37,7 @@ const AP_TRAIN_POINTS_PER_CARRIAGE = 15;
 
 const AP_ROCKET_IDLE_MIN_MS = 500;
 const AP_ROCKET_IDLE_MAX_MS = 800;
-const AP_ROCKET_BOOST_MUL   = 1.2;   // vs. apCarSpeed() at the moment it boosts
+const AP_ROCKET_BOOST_MUL   = 1.45;   // vs. apCarSpeed() at the moment it boosts
 const AP_ROCKET_TRAIL_MS    = 70;    // how often it emits a trail puff while boosting
 
 const AP_POWERUP_INTERVAL_MS = 9000;   // roughly one chance every 9s of play
@@ -682,19 +682,21 @@ function apDrawEnemy(e) {
   apDrawCar(e);
 }
 
-// Small-car silhouette plus two rear wing fins. The flame trail is drawn
-// through the shared particle system (apRocketTrail, emitted from apUpdate)
-// — this only draws the vehicle body.
+// Small-car silhouette plus a rear-mounted spoiler: two struts and a
+// crossbar at the TOP edge — the true rear, since the rocket travels
+// downward and the top is opposite its direction of travel. (The previous
+// version drew fins near the bottom edge, which is the front — that was
+// the bug.) The spoiler does not rotate to track the boost direction;
+// nothing in this game rotates a sprite to face its travel direction, not
+// even the player's own glider while steering, so this is consistent with
+// the rest of the game rather than a shortcut.
 function apDrawRocket(e) {
   apDrawCar(e);
-  const g = apCtx, x = e.x, y = e.y, w = e.w, h = e.h;
+  const g = apCtx, x = e.x, y = e.y, w = e.w;
   g.fillStyle = '#7C2D12';
-  g.beginPath();
-  g.moveTo(x - 2, y + h - 6);  g.lineTo(x - 9, y + h + 4); g.lineTo(x - 2, y + h - 14);
-  g.closePath(); g.fill();
-  g.beginPath();
-  g.moveTo(x + w + 2, y + h - 6); g.lineTo(x + w + 9, y + h + 4); g.lineTo(x + w + 2, y + h - 14);
-  g.closePath(); g.fill();
+  g.fillRect(x + 4,     y - 6, 4, 7);   // left strut
+  g.fillRect(x + w - 8, y - 6, 4, 7);   // right strut
+  g.fillRect(x - 2, y - 9, w + 4, 4);   // crossbar — the wing itself
 }
 
 // Draws each alive carriage with the same tyre/window motif as apDrawCar,
