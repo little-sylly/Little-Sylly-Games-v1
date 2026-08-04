@@ -247,7 +247,7 @@ function apSpawnTrainEntity() {
     type: 'train',
     x: 8 + Math.random() * (AP_W - w - 16),
     y: -totalH - 10,
-    w, h: totalH,   // the whole train's span — used only for the off-screen cull
+    w, h: totalH,   // bounding span for reference only — neither the cull (y-only) nor the renderer reads these
     speed: apCarSpeed() * (0.85 + Math.random() * 0.4),
     colour: AP_CAR_COLOURS[Math.floor(Math.random() * AP_CAR_COLOURS.length)],
     segments: Array.from({ length: n }, () => ({ alive: true })),
@@ -609,8 +609,9 @@ function apDrawCar(car) {
   g.fillRect(x + 5, y + h - 18, w - 10, 7);
   g.fillStyle = 'rgba(0,0,0,0.18)';
   g.fillRect(x + 5, y + 20, w - 10, h - 40);
-  // Medium vehicles take 2 hits; this is the only signal a young player gets
-  // that the first shot connected but didn't destroy it.
+  // Medium vehicles take 2 hits; this flash (plus the explode() sound that
+  // already plays on every hit) is how a young player learns the first shot
+  // connected but didn't destroy it.
   if (car.hitFlashT > 0) {
     g.fillStyle = `rgba(255,255,255,${0.55 * (car.hitFlashT / AP_HIT_FLASH_MS)})`;
     g.fillRect(x - 3, y, w + 6, h);
