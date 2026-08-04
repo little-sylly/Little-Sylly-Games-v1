@@ -25,6 +25,7 @@ const AP_HIT_FLASH_MS = 120;   // a medium vehicle's "took a hit but survived" f
 const AP_ENEMY_STATS = {
   car:    { w: 28, h: 44, hp: 1, baseSpeedMul: 1.0,  points: 10 },
   medium: { w: 36, h: 56, hp: 2, baseSpeedMul: 0.85, points: 25 },
+  rocket: { w: 28, h: 44, hp: 1, baseSpeedMul: 1.0,  points: 20 },
 };
 
 const AP_TRAIN_CARRIAGE_W          = 30;
@@ -33,6 +34,11 @@ const AP_TRAIN_GAP                 = 4;
 const AP_TRAIN_MIN_CARS            = 3;
 const AP_TRAIN_MAX_CARS            = 5;
 const AP_TRAIN_POINTS_PER_CARRIAGE = 15;
+
+const AP_ROCKET_IDLE_MIN_MS = 500;
+const AP_ROCKET_IDLE_MAX_MS = 800;
+const AP_ROCKET_BOOST_MUL   = 1.2;   // vs. apCarSpeed() at the moment it boosts
+const AP_ROCKET_TRAIL_MS    = 70;    // how often it emits a trail puff while boosting
 
 // ── Audio — one map of moments onto the existing NES-style beep. Same shape as
 // CJAR_SOUND / PKO_EVENT_SOUND. Inherits isMuted and masterVolume for free.
@@ -181,18 +187,20 @@ function apLoop(now) {
 function apSpawnInterval() { return Math.max(280, 900 - apScore * 1.2); }
 function apCarSpeed()      { return 70 + Math.min(90, apScore * 0.35); }
 
-// Interim weighting — Task 3 adds rocket cars here too, Task 5 replaces this
-// whole function with distance-gated unlocking.
+// Interim weighting — Task 5 replaces this whole function with
+// distance-gated unlocking.
 function apPickEnemyType() {
   const r = Math.random();
-  if (r < 0.55) return 'car';
-  if (r < 0.85) return 'medium';
+  if (r < 0.45) return 'car';
+  if (r < 0.70) return 'medium';
+  if (r < 0.85) return 'rocket';
   return 'train';
 }
 
 function apSpawnEnemy() {
   const type = apPickEnemyType();
-  if (type === 'train') { apSpawnTrainEntity(); return; }
+  if (type === 'train')  { apSpawnTrainEntity(); return; }
+  if (type === 'rocket') { apSpawnRocket();      return; }
   const stats = AP_ENEMY_STATS[type];
   apCars.push({
     type,
@@ -220,6 +228,54 @@ function apSpawnTrainEntity() {
     colour: AP_CAR_COLOURS[Math.floor(Math.random() * AP_CAR_COLOURS.length)],
     segments: Array.from({ length: n }, () => ({ alive: true })),
   });
+}
+
+function apSpawnRocket() {
+  const stats = AP_ENEMY_STATS.rocket;
+  apCars.push({
+    type: 'rocket',
+    x: 8 + Math.random() * (AP_W - stats.w - 16),
+    y: -stats.h - 10,
+    w: stats.w,
+    h: stats.h,
+    speed: apCarSpeed() * stats.baseSpeedMul * (0.85 + Math.random() * 0.4),
+    hp: stats.hp,
+    hitFlashT: 0,
+    phase: 'idle',
+    idleT: AP_ROCKET_IDLE_MIN_MS + Math.random() * (AP_ROCKET_IDLE_MAX_MS - AP_ROCKET_IDLE_MIN_MS),
+    trailT: 0,
+    vx: 0,
+    vy: 0,
+    colour: '#F97316',   // distinct burnt-orange — reads differently from the random car palette
+  });
+}
+
+// Aims once at the player's position at THIS exact instant, then never
+// re-aims — a straight line, not a homing missile. Called when a rocket
+// car's idle window expires.
+function apBoostRocket(c) {
+  const dx  = apPlayer.x - (c.x + c.w / 2);
+  const dy  = apPlayer.y - (c.y + c.h / 2);
+  const len = Math.max(1, Math.hypot(dx, dy));
+  const spd = apCarSpeed() * AP_ROCKET_BOOST_MUL;
+  c.vx = (dx / len) * spd;
+  c.vy = (dy / len) * spd;
+  c.phase = 'boost';
+}
+
+// A light trail puff — deliberately NOT apBurst (12 particles is an
+// explosion, too heavy to emit every 70ms for a couple of seconds of boost).
+function apRocketTrail(x, y) {
+  for (let i = 0; i < 3; i++) {
+    const a = Math.PI / 2 + (Math.random() - 0.5) * 0.8;
+    const s = 20 + Math.random() * 40;
+    apParts.push({
+      x, y,
+      vx: Math.cos(a) * s, vy: Math.sin(a) * s,
+      life: 0.2 + Math.random() * 0.15, max: 0.35,
+      colour: '#FDBA74',
+    });
+  }
 }
 
 // Axis-Aligned Bounding Box overlap. apPlayer.x is a CENTRE; cars and bullets
@@ -323,10 +379,26 @@ function apUpdate(dt) {
   apSpawnT += dt * 1000;
   if (apSpawnT >= apSpawnInterval()) { apSpawnT = 0; apSpawnEnemy(); }
   apCars.forEach(c => {
-    c.y += c.speed * dt;
+    if (c.type === 'rocket') {
+      if (c.phase === 'idle') {
+        c.y += c.speed * dt;
+        c.idleT -= dt * 1000;
+        if (c.idleT <= 0) apBoostRocket(c);
+      } else {
+        c.x += c.vx * dt;
+        c.y += c.vy * dt;
+        c.trailT += dt * 1000;
+        if (c.trailT >= AP_ROCKET_TRAIL_MS) {
+          c.trailT = 0;
+          apRocketTrail(c.x + c.w / 2, c.y + c.h);
+        }
+      }
+    } else {
+      c.y += c.speed * dt;
+    }
     if (c.hitFlashT > 0) c.hitFlashT = Math.max(0, c.hitFlashT - dt * 1000);
   });
-  apCars = apCars.filter(c => c.y < AP_H + 60);
+  apCars = apCars.filter(c => c.y < AP_H + 60 && c.x > -80 && c.x < AP_W + 80);
 
   // Dart hits enemy — an enemy may present multiple hit boxes (train
   // carriages, from Task 2); each bullet can only ever resolve against one
@@ -495,8 +567,24 @@ function apDrawCar(car) {
 // branch, Task 3 adds the rocket branch. car/medium share apDrawCar's
 // silhouette, scaled by e.w/e.h.
 function apDrawEnemy(e) {
-  if (e.type === 'train') { apDrawTrain(e); return; }
+  if (e.type === 'train')  { apDrawTrain(e);  return; }
+  if (e.type === 'rocket') { apDrawRocket(e); return; }
   apDrawCar(e);
+}
+
+// Small-car silhouette plus two rear wing fins. The flame trail is drawn
+// through the shared particle system (apRocketTrail, emitted from apUpdate)
+// — this only draws the vehicle body.
+function apDrawRocket(e) {
+  apDrawCar(e);
+  const g = apCtx, x = e.x, y = e.y, w = e.w, h = e.h;
+  g.fillStyle = '#7C2D12';
+  g.beginPath();
+  g.moveTo(x - 2, y + h - 6);  g.lineTo(x - 9, y + h + 4); g.lineTo(x - 2, y + h - 14);
+  g.closePath(); g.fill();
+  g.beginPath();
+  g.moveTo(x + w + 2, y + h - 6); g.lineTo(x + w + 9, y + h + 4); g.lineTo(x + w + 2, y + h - 14);
+  g.closePath(); g.fill();
 }
 
 // Draws each alive carriage with the same tyre/window motif as apDrawCar,
