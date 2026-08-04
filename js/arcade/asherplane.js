@@ -43,6 +43,12 @@ const AP_ROCKET_TRAIL_MS    = 70;    // how often it emits a trail puff while bo
 const AP_POWERUP_INTERVAL_MS = 9000;   // roughly one chance every 9s of play
 const AP_POWERUP_SPEED       = 90;
 
+const AP_SCORE_PER_SECOND = 4;   // the "staying alive" trickle
+
+const AP_UNLOCK_MEDIUM_S = 20;
+const AP_UNLOCK_ROCKET_S = 40;
+const AP_UNLOCK_TRAIN_S  = 65;
+
 // ── Audio — one map of moments onto the existing NES-style beep. Same shape as
 // CJAR_SOUND / PKO_EVENT_SOUND. Inherits isMuted and masterVolume for free.
 // There is deliberately no per-shot sound: at 5 shots/sec it grates.
@@ -63,6 +69,7 @@ let apLastT     = 0;
 let apState     = 'attract';
 
 let apScore   = 0;
+let apDistance = 0;   // seconds survived while 'playing' — drives difficulty, not score
 let apLives   = AP_START_LIVES;
 let apShake   = 0;        // seconds remaining
 let apInvuln  = 0;        // ms remaining
@@ -148,6 +155,7 @@ function apClearGameOverT() {
 
 function apResetRun() {
   apScore   = 0;
+  apDistance = 0;
   apLives   = AP_START_LIVES;
   apShake   = 0;
   apInvuln  = 0;
@@ -164,6 +172,11 @@ function apResetRun() {
   apDoubleShot = false;
   apClearGameOverT();
 }
+
+// apScore accumulates fractionally (the survival trickle below is added
+// every frame), so every place that DISPLAYS or SUBMITS a score must floor
+// it first — this is the one place that happens.
+function apScoreInt() { return Math.floor(apScore); }
 
 function apLoop(now) {
   apRafHandle = null;   // this frame's handle is spent — see Important 1 below
@@ -192,19 +205,20 @@ function apLoop(now) {
   if (!apRafHandle) apRafHandle = requestAnimationFrame(apLoop);
 }
 
-// ── Difficulty — both curves are clamped so it gets harder, never impossible.
-// At +10/car: score 100 => ~780 ms spawns; score 500 => the 280 ms floor.
-function apSpawnInterval() { return Math.max(280, 900 - apScore * 1.2); }
-function apCarSpeed()      { return 70 + Math.min(90, apScore * 0.35); }
+// ── Difficulty — driven by apDistance (seconds survived), not apScore, so a
+// kill streak can't spiral the spawn rate on its own. Both curves stay
+// clamped: harder, then flat, never impossible. First-pass numbers, tunable.
+function apSpawnInterval() { return Math.max(280, 900 - apDistance * 9); }
+function apCarSpeed()      { return 70 + Math.min(90, apDistance * 3); }
 
-// Interim weighting — Task 5 replaces this whole function with
-// distance-gated unlocking.
+// The enemy pool. Once a type unlocks (by apDistance) it joins at equal
+// weight with everything already unlocked — no per-type ramp beyond that.
 function apPickEnemyType() {
-  const r = Math.random();
-  if (r < 0.45) return 'car';
-  if (r < 0.70) return 'medium';
-  if (r < 0.85) return 'rocket';
-  return 'train';
+  const pool = ['car'];
+  if (apDistance >= AP_UNLOCK_MEDIUM_S) pool.push('medium');
+  if (apDistance >= AP_UNLOCK_ROCKET_S) pool.push('rocket');
+  if (apDistance >= AP_UNLOCK_TRAIN_S)  pool.push('train');
+  return pool[Math.floor(Math.random() * pool.length)];
 }
 
 function apSpawnEnemy() {
@@ -376,6 +390,9 @@ function apUpdate(dt) {
   }
   if (apState !== 'playing') return;
 
+  apDistance += dt;
+  apScore    += dt * AP_SCORE_PER_SECOND;
+
   // Auto-fire — nothing to press.
   apFireT += dt * 1000;
   if (apFireT >= AP_FIRE_MS) {
@@ -526,7 +543,7 @@ const AP_BTN_OK    = { x: 80, y: 430, w: 200, h: 62 };
 const AP_BTN_AGAIN = { x: 60, y: 500, w: 240, h: 62 };
 
 function apEndRun() {
-  if (apQualifies(apScore)) {
+  if (apQualifies(apScoreInt())) {
     apInitials = [0, 0, 0];
     AP_SOUND.highScore();
     apEnterState('nameEntry');
@@ -674,7 +691,7 @@ function apDrawHud() {
   g.fillStyle = '#4ADE80';
   g.font = 'bold 14px monospace';
   g.textAlign = 'left';
-  g.fillText(String(apScore).padStart(6, '0'), 10, 22);
+  g.fillText(String(apScoreInt()).padStart(6, '0'), 10, 22);
   g.textAlign = 'right';
   g.fillText('✈'.repeat(Math.max(0, apLives)), AP_W - 10, 22);
 }
@@ -700,7 +717,7 @@ function apDrawNameEntry() {
   g.fillText('NEW HIGH SCORE!', AP_W / 2, 170);
   g.fillStyle = '#4ADE80';
   g.font = 'bold 34px monospace';
-  g.fillText(String(apScore).padStart(6, '0'), AP_W / 2, 215);
+  g.fillText(String(apScoreInt()).padStart(6, '0'), AP_W / 2, 215);
   g.font = '12px monospace';
   g.fillText('TAP A LETTER TO CHANGE IT', AP_W / 2, 260);
   AP_SLOTS.forEach((r, i) => {
@@ -724,7 +741,7 @@ function apDrawLeaderboard() {
   g.fillText('HIGH SCORES', AP_W / 2, 130);
   g.font = '13px monospace';
   g.fillStyle = '#94A3B8';
-  g.fillText(`THIS RUN: ${String(apScore).padStart(6, '0')}`, AP_W / 2, 158);
+  g.fillText(`THIS RUN: ${String(apScoreInt()).padStart(6, '0')}`, AP_W / 2, 158);
   g.font = 'bold 20px monospace';
   if (apLeaderboard.length === 0) {
     g.fillStyle = '#334155';
@@ -811,7 +828,7 @@ function apStagePointer(e, phase) {
       }
       if (apHit(AP_BTN_OK, p)) {
         AP_SOUND.select();
-        apSubmitScore(apInitials.map(i => AP_ALPHABET[i]).join(''), apScore);
+        apSubmitScore(apInitials.map(i => AP_ALPHABET[i]).join(''), apScoreInt());
         apEnterState('leaderboard');
       }
       return;
