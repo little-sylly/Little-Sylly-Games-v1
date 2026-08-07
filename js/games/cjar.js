@@ -580,19 +580,17 @@ function cjarRenderStage() {
   const badge = document.getElementById('cjar-deck-badge');
   if (badge) {
     badge.innerHTML = '';
-    // badge IS the stack — no wrapper div. The backs must be badge's own direct
-    // children for `.cjar-deck-stack > .cjar-card-back` (and the loopback bridge's
-    // deckBacks() accessor, which reads badge.children directly) to see them.
-    badge.classList.remove('cjar-deck-stack');
     if (cjarDeck.length) {
-      badge.classList.add('cjar-deck-stack');
+      const stack = document.createElement('div');
+      stack.className = 'cjar-deck-stack';
       // Three backs regardless of depth — this is an icon meaning "the deck", not a
       // gauge. The COUNT below is the gauge, and it is the precise one.
       for (let k = 0; k < 3; k++) {
         const back = cjarRenderCard(null, { faceDown: true, size: 'next' });
         back.style.cssText += `left:${k * 3}px;top:${k * -3}px;z-index:${k};`;
-        badge.appendChild(back);
+        stack.appendChild(back);
       }
+      badge.appendChild(stack);
       const n = document.createElement('div');
       n.className = 'text-base font-bold text-stone-600 text-center mt-1';
       n.textContent = cjarDeck.length;

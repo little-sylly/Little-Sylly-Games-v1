@@ -202,8 +202,11 @@ globalThis.__cjar = {
   grabsCaption() { return document.getElementById('cjar-grabs-caption').textContent; },
   crumbsValue()  { return document.getElementById('cjar-crumbs-value').textContent; },
   deckBacks() {
-    return document.getElementById('cjar-deck-badge').children
-      .filter(c => /cjar-card-back/.test(c.className || '')).length;
+    let n = 0;
+    const walk = el => { if (/cjar-card-back/.test(el.className || '')) n++;
+                         (el.children || []).forEach(walk); };
+    (document.getElementById('cjar-deck-badge').children || []).forEach(walk);
+    return n;
   },
   timerHidden()      { return document.getElementById('cjar-timer-bar').style.display === 'none'; },
   // Counts CARDS, not card parts: .cjar-card-value / -emoji / -name are children of a
