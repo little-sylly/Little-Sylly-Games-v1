@@ -109,6 +109,7 @@ let cjarEndTimestamp = 0;        // absolute ms — every device counts down aga
 // submission). Neither is game state: both are reset with the Raid.
 let cjarLastHeroKey  = null;
 let cjarLastTrailLen = 0;
+let cjarLastTreatId  = null;     // so a Treat animates in ONCE, not on every re-render
 let cjarWindowMs     = null;     // the OPEN window's length, from the host; null = No Rush.
                                  // Travels per flip so a client never scales its bar
                                  // against its own pills instead of the host's clock.
@@ -125,6 +126,7 @@ let cjarHostTimeoutHandle  = null;       // setTimeout — decision-timer auto-r
 let cjarInterstitialHandle = null;       // setTimeout — raid-intro / BUSTED! advance
 let cjarFlipAnim           = false;      // true while the reveal choreography owns the stage
 let cjarAnimHandle         = null;       // setTimeout — the choreography's own clock
+let cjarPayoutHandle       = null;       // setTimeout — the payout beat inside the choreography
 
 let CJAR_DATA = null;                    // hydrated from data/cjar-data.json
 
@@ -547,8 +549,17 @@ function cjarRenderStage() {
   if (treatSlot) {
     treatSlot.innerHTML = '';
     if (cjarCounterTreat) {
-      treatSlot.appendChild(cjarRenderCard(cjarCounterTreat, { size: 'counter' }));
+      const tEl = cjarRenderCard(cjarCounterTreat, { size: 'counter' });
+      // Travel in from up-and-right — where the hero sits relative to this column —
+      // so a Treat is seen ARRIVING on the counter rather than materialising there.
+      // Once per Treat, not per render: cjarRenderTable runs on every tap.
+      if (cjarCounterTreat.id !== cjarLastTreatId) {
+        tEl.className += ' cjar-treat-arrive';
+        cjarLastTreatId = cjarCounterTreat.id;
+      }
+      treatSlot.appendChild(tEl);
     } else {
+      cjarLastTreatId = null;
       const ph = document.createElement('div');
       ph.className = 'cjar-card-counter cjar-placeholder-dashed';
       treatSlot.appendChild(ph);
@@ -656,7 +667,9 @@ function cjarRenderWarningStrip() {
          : danger     ? 'bg-red-100 ring-2 ring-red-400'
          : seen       ? 'bg-[#F7E9C4]'
                       : 'bg-stone-100 opacity-50')
-      + (cjarHighAlertId === f.id ? ' ring-2 ring-offset-1 ring-[#D4A017]' : '');
+      + (cjarHighAlertId === f.id ? ' ring-2 ring-offset-1 ring-[#D4A017]' : '')
+      + (cjarFlipAnim && cjarCard && cjarCard.type === 'family' && cjarCard.id === f.id
+         ? ' cjar-warn-pulse' : '');
     slot.textContent = f.emoji || '👪';
     slot.title = f.name + (copies ? '' : ' — all gone');
     strip.appendChild(slot);
@@ -771,6 +784,32 @@ function cjarFlyDelta(amount) {
   // Duration-based reduced-motion means animationend still fires, so this cleanup
   // is safe under prefers-reduced-motion. Never switch that block to animation:none.
   el.addEventListener('animationend', () => el.remove());
+}
+
+// The payout beat, made visible. NO per-player flight paths: animating a token to each
+// row needs live getBoundingClientRect geometry, which is fragile under scroll, wrong
+// when the score table is off-screen, and invisible to every harness (DD-20).
+//
+// Direction carries the destination instead — down toward the score table, left toward
+// the Crumb pile — and the COUNT carries the split, so the burst's weight tracks how
+// many seats are sharing. The actual per-player payload lands as the score pill.
+//
+// Same absolute-layer discipline as cjarFlyDelta: in-flow tokens change the column's
+// height, and because the <section> centres the Stack that re-centres the whole screen.
+function cjarFlyTokens(count, direction) {
+  const layer = document.getElementById('cjar-delta-layer');
+  if (!layer || count <= 0) return;
+  for (let k = 0; k < Math.min(count, 8); k++) {
+    const el = document.createElement('div');
+    el.className = 'cjar-token cjar-token-' + direction;
+    el.textContent = '🍪';
+    el.style.left = (44 + (k - count / 2) * 6) + '%';
+    el.style.animationDelay = (k * 45) + 'ms';   // 30-80 ms stagger, Motion Standard
+    layer.appendChild(el);
+    // Duration-based reduced motion means animationend still fires, so this cleanup is
+    // safe. Never switch that media block to animation:none.
+    el.addEventListener('animationend', () => el.remove());
+  }
 }
 
 // ── Table: master renderer ─────────────────────────────────────────────────
@@ -1024,7 +1063,8 @@ function cjarStopTimer() {
 // let that stale timer survive into the reveal phase and paint a bar against the
 // just-closed flip's deadline.
 function cjarCancelFlipAnim() {
-  if (cjarAnimHandle) { clearTimeout(cjarAnimHandle); cjarAnimHandle = null; }
+  if (cjarAnimHandle)   { clearTimeout(cjarAnimHandle);   cjarAnimHandle = null; }
+  if (cjarPayoutHandle) { clearTimeout(cjarPayoutHandle); cjarPayoutHandle = null; }
   cjarFlipAnim = false;
 }
 
@@ -1245,7 +1285,7 @@ function cjarShowRaidIntro(onDone) {
   }
   // A fresh Raid means a fresh strip — clear the render memory so the first flip
   // animates in rather than being mistaken for "the same card as last Raid's last".
-  cjarLastHeroKey = null; cjarLastTrailLen = 0;
+  cjarLastHeroKey = null; cjarLastTrailLen = 0; cjarLastTreatId = null;
   showScreen('screen-cjar-raid-intro');
   if (cjarInterstitialHandle) clearTimeout(cjarInterstitialHandle);
   cjarInterstitialHandle = setTimeout(() => { cjarInterstitialHandle = null; onDone(); }, CJAR_INTERSTITIAL_MS);
@@ -1422,6 +1462,24 @@ function cjarBeginFlipAnim(startsClock) {
   cjarCancelFlipAnim();
   cjarFlipAnim = true;
   cjarRenderTable();
+
+  // Beat 3 — payout, at 900 ms: flip (0-300) and hold (300-900) have played, so the
+  // card has been readable for 600 ms before anything moves.
+  const card = cjarCard;
+  cjarPayoutHandle = setTimeout(() => {
+    cjarPayoutHandle = null;
+    if (!card) return;
+    if (card.type === 'cookie') {
+      // One token per seat sharing it, plus one drifting left if a remainder went to
+      // Crumbs. cjarSplit already did the arithmetic; this only reports it.
+      const heads = cjarIsSylly() ? cjarPlayerCount : cjarActiveCount();
+      cjarFlyTokens(heads, 'down');
+      if (card.value % Math.max(1, heads) !== 0) cjarFlyTokens(1, 'left');
+    }
+    // A family or treat card throws no tokens: the warning strip pulses for the first,
+    // and the Treat card's own travel into column 1 is the second's payout.
+  }, 900);
+
   cjarAnimHandle = setTimeout(() => {
     cjarAnimHandle = null;
     cjarFlipAnim = false;
@@ -2099,11 +2157,12 @@ function cjarResetState() {
   if (cjarHostTimeoutHandle)  { clearTimeout(cjarHostTimeoutHandle);  cjarHostTimeoutHandle = null; }
   if (cjarInterstitialHandle) { clearTimeout(cjarInterstitialHandle); cjarInterstitialHandle = null; }
   if (cjarAnimHandle)         { clearTimeout(cjarAnimHandle);         cjarAnimHandle = null; }
+  if (cjarPayoutHandle)       { clearTimeout(cjarPayoutHandle);       cjarPayoutHandle = null; }
   cjarFlipAnim = false;
   cjarRaidNo = 0; cjarStashes = []; cjarTreatsWon = []; cjarRaidHistory = [];
   cjarDeck = []; cjarCrumbs = 0; cjarCounterTreat = null; cjarTrail = [];
   cjarChoices = []; cjarReadyCheck = []; cjarEndTimestamp = 0; cjarFlipSeq = 0;
-  cjarWindowMs = null; cjarLastHeroKey = null; cjarLastTrailLen = 0;
+  cjarWindowMs = null; cjarLastHeroKey = null; cjarLastTrailLen = 0; cjarLastTreatId = null;
   cjarRaidTotals = []; cjarActive = []; cjarSeen = {}; cjarHighAlertId = null;
   cjarFavourite = []; cjarWatcher = []; cjarCrumbDebt = [];
   cjarMyFavourite = null; cjarMyWatcher = null;

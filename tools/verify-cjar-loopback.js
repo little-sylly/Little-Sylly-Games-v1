@@ -195,6 +195,7 @@ globalThis.__cjar = {
     return kids.length === 1 && /cjar-placeholder-dashed/.test(kids[0].className || '');
   },
   standingsRows()    { return document.getElementById('cjar-reveal-rows').children.length; },
+  tokenCount()       { return document.getElementById('cjar-delta-layer').children.length; },
   flipAnim()     { return cjarFlipAnim; },
   animMs()       { return CJAR_FLIP_ANIM_MS; },
   controlsIdle() { return /cjar-controls-idle/.test(document.getElementById('cjar-controls').className); },
@@ -357,6 +358,16 @@ const section = t => console.log(`\n${t}`);
   check('client parks on the Raid intro', lastScreen(client), 'screen-cjar-raid-intro');
 
   H.startMatch();
+  // Flip 1's card is otherwise random (this is the one harness with a REAL shuffle),
+  // and the payout-beat check below only means anything for a cookie card. Move the
+  // first cookie to the top of the deck rather than special-casing the check on
+  // whatever type happened to land — same technique hostNextRaid() already uses to
+  // drive state directly through the same vm context.
+  vm.runInContext(
+    "{ const i = cjarDeck.findIndex(c => c.type === 'cookie'); " +
+    "  if (i > 0) cjarDeck.unshift(cjarDeck.splice(i, 1)[0]); }",
+    host
+  );
   check('MATCH_START then RAID_START', sent.slice(0, 2), ['CJAR_MATCH_START', 'CJAR_RAID_START']);
   check('client took the roster',      C.names, NAMES);
   check('client shows the Raid intro', lastScreen(client), 'screen-cjar-raid-intro');
@@ -408,9 +419,20 @@ const section = t => console.log(`\n${t}`);
   check('card is face-up while animating', C.heroFaceDown(), false);
   check('label reads just revealed',       C.stageLabel(), 'just revealed');
 
+  section('The payout beat fires independently on each device (DD-20)');
+  // cjarBeginFlipAnim now arms TWO timers, payout (900 ms) then handover (2100 ms) —
+  // step() only ever fires the earliest pending one, so this is the payout beat on
+  // its own, before the handover below. Flip 1 was forced to a cookie card above so
+  // this is never a coin-flip against the real shuffle.
+  step(host);
+  step(client);
+  check('host threw a payout token',                          H.tokenCount() >= 1, true);
+  check('a cookie card throws one token per splitting seat',   C.tokenCount() >= 1, true);
+
   // Let the reveal choreography hand over on BOTH devices before any real submission —
   // cjarSubmitChoice is now guarded by cjarFlipAnim (Step 6), and each device runs its
-  // own independent animation timer.
+  // own independent animation timer. The payout beat above already consumed each
+  // device's first (900 ms) timer, so this fires the second (2100 ms) one.
   step(host);
   step(client);
   check('card is face-down while deciding', C.heroFaceDown(), true);
@@ -554,13 +576,15 @@ const section = t => console.log(`\n${t}`);
   check('no window length',         H4.windowMs, null);
   // Both devices' reveal choreography must hand over before checking the SETTLED
   // state — cjarStartTimer (the thing that hides the bar) is now inside the
-  // deferred half of cjarBeginFlipAnim, not the FLIP_START applier itself.
-  step(host4);
-  step(client4);
+  // deferred half of cjarBeginFlipAnim, not the FLIP_START applier itself. Each
+  // device now carries TWO choreography timers (payout at 900 ms, handover at
+  // 2100 ms), so draining both takes two step() calls apiece.
+  step(host4); step(host4);
+  step(client4); step(client4);
   check('client hid the timer bar', C4.timerHidden(), true);
   // The auto-resolve timer is the ONLY thing that should be absent. If it were still
   // armed, No Rush would silently resolve on the fallback choice after 20 s. The
-  // reveal-choreography timer has already been consumed by the step() above.
+  // reveal-choreography timers (payout + handover) have already been consumed above.
   check('no auto-resolve is armed', host4.__timers.length, 0);
   check('and nothing resolved',     H4.ready.every(Boolean), false);
   C4.submit('take');
@@ -616,7 +640,7 @@ const section = t => console.log(`\n${t}`);
   // client5 also carries its OWN never-fired raid-intro interstitial handle (a
   // pre-existing, unrelated timer — cjarShowRaidIntro schedules one on every device,
   // including a client whose onDone is a no-op) — so the assertion below is a DELTA,
-  // not an absolute count, to isolate the anim handle from that unrelated one.
+  // not an absolute count, to isolate the anim handles from that unrelated one.
   const client5TimersBeforeResolve = client5.__timers.length;
   for (let i = 0; i < 4; i++) if (!H5.ready[i]) H5.applyChoice(i, i === 1 ? 'sneak' : 'take');
   check('all four in', H5.allIn(), true);
@@ -624,11 +648,13 @@ const section = t => console.log(`\n${t}`);
   check('client applied resolve clean', client5.__errors, []);
   check('the stale animation was cancelled, not left running', C5.flipAnim(), false);
   // The decisive check: a base-game resolve schedules NO new timer of its own, so the
-  // ONLY change to client5's timer queue should be the stale anim handle disappearing.
+  // ONLY change to client5's timer queue should be the stale choreography handles
+  // disappearing — now TWO of them (payout + handover), not one, since
+  // cjarCancelFlipAnim clears cjarPayoutHandle alongside cjarAnimHandle (Task 7).
   // Pre-fix it would have survived (delta 0) and later fired mid-'revealing', painting
   // the bar against the just-closed deadline.
   check('no lingering timer to later paint a stale bar',
-        client5.__timers.length, client5TimersBeforeResolve - 1);
+        client5.__timers.length, client5TimersBeforeResolve - 2);
 
   section('The card gallery is a How to Play TAB, and builds with no match running');
   const solo = makeDevice('solo', 'single', 0, SLOTS);

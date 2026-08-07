@@ -1953,6 +1953,44 @@ body.flash-red   { background-color: #fecaca; }
 }
 .cjar-trail-settle { animation: cjar-trail-settle 200ms ease-out; }
 
+/* A Treat arriving on the counter, and the family slot that just came out. Both are
+   direction-only — no getBoundingClientRect anywhere in the choreography (DD-20). */
+@keyframes cjar-treat-arrive {
+  from { transform: translate3d(38px, -34px, 0) scale(1.35); opacity: 0; }
+  to   { transform: translate3d(0, 0, 0) scale(1); opacity: 1; }
+}
+.cjar-treat-arrive { animation: cjar-treat-arrive 380ms ease-out; }
+
+@keyframes cjar-warn-pulse {
+  0%, 100% { transform: scale(1); }
+  40%      { transform: scale(1.18); }
+}
+.cjar-warn-pulse { animation: cjar-warn-pulse 300ms ease-out 2; }
+
+/* Payout tokens. Direction is the message — down means "to the players", left means
+   "to the Crumb pile". transform + opacity only. */
+@keyframes cjar-token-down {
+  0%   { transform: translate3d(0, 0, 0) scale(0.7); opacity: 0; }
+  25%  { transform: translate3d(0, 10px, 0) scale(1); opacity: 1; }
+  100% { transform: translate3d(0, 74px, 0) scale(0.85); opacity: 0; }
+}
+@keyframes cjar-token-left {
+  0%   { transform: translate3d(0, 0, 0) scale(0.7); opacity: 0; }
+  25%  { transform: translate3d(-14px, 0, 0) scale(1); opacity: 1; }
+  100% { transform: translate3d(-92px, 12px, 0) scale(0.85); opacity: 0; }
+}
+.cjar-token {
+  position: absolute;
+  top: 42%;
+  font-size: 1rem;
+  will-change: transform, opacity;
+  animation-duration: 380ms;   /* the .cjar-delta precedent, and what the beat allows */
+  animation-timing-function: ease-out;
+  animation-fill-mode: forwards;
+}
+.cjar-token-down { animation-name: cjar-token-down; }
+.cjar-token-left { animation-name: cjar-token-left; }
+
 /* Controls are present but inert while the reveal choreography plays, so the column's
    height never changes. Opacity only — a display toggle would collapse the height and
    re-centre the whole Stack. */
