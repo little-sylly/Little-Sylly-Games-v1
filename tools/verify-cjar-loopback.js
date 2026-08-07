@@ -198,6 +198,11 @@ globalThis.__cjar = {
   flipAnim()     { return cjarFlipAnim; },
   animMs()       { return CJAR_FLIP_ANIM_MS; },
   controlsIdle() { return /cjar-controls-idle/.test(document.getElementById('cjar-controls').className); },
+  heroFaceDown() {
+    const kids = document.getElementById('cjar-table-hero').children;
+    return kids.length === 1 && /cjar-card-back/.test(kids[0].className || '');
+  },
+  stageLabel() { return document.getElementById('cjar-stage-label-now').textContent; },
   controlLabels() {
     return document.getElementById('cjar-controls').children
       .filter(c => c.tagName === 'button').map(c => c.textContent);
@@ -400,12 +405,16 @@ const section = t => console.log(`\n${t}`);
   // below), so it is read as a property here, not called.
   check('deadline includes the animation',
         H.endTs - Date.now() > H.animMs(), true);
+  check('card is face-up while animating', C.heroFaceDown(), false);
+  check('label reads just revealed',       C.stageLabel(), 'just revealed');
 
   // Let the reveal choreography hand over on BOTH devices before any real submission —
   // cjarSubmitChoice is now guarded by cjarFlipAnim (Step 6), and each device runs its
   // own independent animation timer.
   step(host);
   step(client);
+  check('card is face-down while deciding', C.heroFaceDown(), true);
+  check('label reads next out of the jar',  C.stageLabel(), 'next out of the jar');
 
   section('A choice travels client → host and back');
   C.submit('take');

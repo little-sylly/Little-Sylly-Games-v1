@@ -564,15 +564,27 @@ function cjarRenderStage() {
     ? 'Play innocent alone and the pile is yours.'
     : 'Sneak out alone and you take the lot.';
 
-  // COLUMN 2 — just revealed. Unchanged: still the largest single image on the stage.
+  // COLUMN 2 — the card you are BETTING ON, face-down, except during the choreography
+  // where it is the card that just came out. This is the whole fix: what sits directly
+  // above the action buttons is now the object those buttons act on (DD-18).
+  //
+  // Dibber Dobber has always worked this way — cjarOpenBlindWindow sets cjarCard = null
+  // so cjarRenderCard(null) yields the back. This makes the base game match Sylly and
+  // removes a mode divergence rather than adding one.
+  //
+  // Nothing is lost: which family member appeared is on the warning strip (in red when
+  // one more busts the Raid), the card itself is the newest thumb in the history strip,
+  // and the full log is one tap into cjar-trail-overlay.
+  const faceUp = cjarFlipAnim && !!cjarCard;
   const hero = document.getElementById('cjar-table-hero');
   if (hero) {
     hero.innerHTML = '';
-    const card = cjarRenderCard(cjarCard, { size: 'stage' });
-    // Flip ONLY when the card actually changed. cjarRenderTable is called on every
-    // choice submission and every re-render, so animating unconditionally would
-    // re-flip the same card every time anybody tapped anything.
-    const key = cjarCard ? (cjarCard.type + ':' + (cjarCard.id || cjarCard.value)) : 'down';
+    const card = faceUp ? cjarRenderCard(cjarCard, { size: 'stage' })
+                        : cjarRenderCard(null, { faceDown: true, size: 'stage' });
+    // Flip ONLY when the card actually changed. cjarRenderTable runs on every choice
+    // submission and every re-render, so animating unconditionally would re-flip the
+    // same card every time anybody tapped anything.
+    const key = faceUp ? (cjarCard.type + ':' + (cjarCard.id || cjarCard.value)) : 'down';
     if (key !== cjarLastHeroKey) {
       card.className += ' cjar-card-flipin';
       cjarLastHeroKey = key;
@@ -608,11 +620,11 @@ function cjarRenderStage() {
     }
   }
 
-  // The "just revealed" label is only true while a card is face-up in the slot. In
-  // Dibber Dobber's blind window there is no card, so it would be a lie. VISIBILITY,
-  // not display — collapsing the label would shift the cards it sits under.
+  // The label is now honest in both states, so it never needs hiding — which also means
+  // nothing under it shifts. Round 2 toggled `visibility` for exactly that reason; a
+  // text swap removes the need.
   const now = document.getElementById('cjar-stage-label-now');
-  if (now) now.style.visibility = cjarCard ? 'visible' : 'hidden';
+  if (now) now.textContent = faceUp ? 'just revealed' : 'next out of the jar';
   cjarRenderWarningStrip();
   cjarRenderTrailStrip();
 }
