@@ -571,19 +571,30 @@ function cjarRenderStage() {
     hero.onclick = () => { playDone(); cjarOpenTrail(); };
   }
 
-  // COLUMN 3 — the deck: face-down card + how many are left, and NOTHING else. The Treat
-  // used to be appended into this same column, so it rendered as a second card wedged
-  // under the deck in the slot labelled "next": it read as a stuck card, and it buried
-  // the one object on the table actually worth playing for. It has its own column now.
-  // The count is a bigger, bolder readout than round 1's — "important to know" — which
-  // is also what lets col 3's two stacked pieces reach col 2's (the hero's) height.
+  // COLUMN 3 — the jar the centre card came from. Round 2 sized this near the hero
+  // "because it is the card you are actually betting on"; DD-18 moved that job to
+  // column 2, so the rationale inverts and the size follows (DD-24). It renders as an
+  // OFFSET STACK rather than a single back: two lone face-down cards side by side read
+  // as "which one is next?", where a stack reads unambiguously as the reservoir — and
+  // it is literally where the settle beat lifts the replacement from.
   const badge = document.getElementById('cjar-deck-badge');
   if (badge) {
     badge.innerHTML = '';
+    // badge IS the stack — no wrapper div. The backs must be badge's own direct
+    // children for `.cjar-deck-stack > .cjar-card-back` (and the loopback bridge's
+    // deckBacks() accessor, which reads badge.children directly) to see them.
+    badge.classList.remove('cjar-deck-stack');
     if (cjarDeck.length) {
-      badge.appendChild(cjarRenderCard(null, { faceDown: true, size: 'next' }));
+      badge.classList.add('cjar-deck-stack');
+      // Three backs regardless of depth — this is an icon meaning "the deck", not a
+      // gauge. The COUNT below is the gauge, and it is the precise one.
+      for (let k = 0; k < 3; k++) {
+        const back = cjarRenderCard(null, { faceDown: true, size: 'next' });
+        back.style.cssText += `left:${k * 3}px;top:${k * -3}px;z-index:${k};`;
+        badge.appendChild(back);
+      }
       const n = document.createElement('div');
-      n.className = 'text-sm font-bold text-stone-600 text-center mt-1';
+      n.className = 'text-base font-bold text-stone-600 text-center mt-1';
       n.textContent = cjarDeck.length;
       badge.appendChild(n);
     }

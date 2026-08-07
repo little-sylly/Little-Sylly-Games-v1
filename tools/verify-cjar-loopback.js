@@ -201,6 +201,10 @@ globalThis.__cjar = {
   },
   grabsCaption() { return document.getElementById('cjar-grabs-caption').textContent; },
   crumbsValue()  { return document.getElementById('cjar-crumbs-value').textContent; },
+  deckBacks() {
+    return document.getElementById('cjar-deck-badge').children
+      .filter(c => /cjar-card-back/.test(c.className || '')).length;
+  },
   timerHidden()      { return document.getElementById('cjar-timer-bar').style.display === 'none'; },
   // Counts CARDS, not card parts: .cjar-card-value / -emoji / -name are children of a
   // card and also match a naive 'cjar-card' substring test.
@@ -359,6 +363,7 @@ const section = t => console.log(`\n${t}`);
   check('base-game button labels', C.controlLabels(), ['Reach In Again', 'Sneak Out']);
   check('grabs caption, base game', C.grabsCaption(), 'Sneak out alone and you take the lot.');
   check('crumbs render as a count',  /^\d+$/.test(C.crumbsValue()), true);
+  check('deck renders as a stack, not one card', C.deckBacks(), 3);
   check('client sees the card',    C.card && C.card.type, host.__cjar.card.type);
   check('client deck count',       (C.deck || []).length, H.deck.length);
 

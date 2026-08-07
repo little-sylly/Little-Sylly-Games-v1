@@ -1834,13 +1834,14 @@ body.flash-red   { background-color: #fecaca; }
    `cover` cropped the square master (impl-notes TG-02b); at 136 px it is ~2.6x. */
 .cjar-card-hero    { width: 15rem;   height: 20.6rem; }
 .cjar-card-stage   { width: 8.5rem;  height: 11.7rem; }
-/* `next` is the face-down deck on the stage. It is deliberately close to .cjar-card-stage
-   and nowhere near .cjar-card-thumb: it is the card you are actually betting on, and at
-   counter size it read as just another spent card, which killed the past → present →
-   future progression the stage is built around. Bumped again in round 2 (6.5 → 7.2rem) —
-   "important to know, make it slightly bigger" — while staying under the hero: the deck
-   is what you're betting ON, not the bet itself. */
-.cjar-card-next    { width: 7.2rem;  height: 9.9rem; }
+/* `next` is the DECK — the reservoir the centre card is drawn from, not the bet
+   itself. It sized near .cjar-card-stage while column 3 held the card you were
+   betting on; DD-18 moved that to column 2 and this shrank to match its new job
+   (DD-24). Still clearly larger than .cjar-card-thumb: a spent card is history,
+   this is live. */
+.cjar-card-next    { width: 4.4rem;  height: 6rem; }
+.cjar-deck-stack   { position: relative; width: 4.7rem; height: 6.3rem; }
+.cjar-deck-stack > .cjar-card-back { position: absolute; }
 .cjar-card-counter { width: 3.5rem;  height: 4.75rem; }
 .cjar-card-thumb   { width: 3rem;    height: 4.1rem; }
 /* A fixed footprint for something that isn't there YET — the Treat slot before a Treat
