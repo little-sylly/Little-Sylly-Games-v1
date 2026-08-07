@@ -1021,7 +1021,7 @@ function shpRenderDeepSleep() {
     // Single-device: direct continue (unchanged)
     const btn = document.createElement('button');
     btn.className = 'min-h-14 w-full rounded-2xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-semibold text-lg transition-all duration-150';
-    btn.textContent = info.over ? 'See Daybreak ☀️' : 'Deal the next Night';
+    btn.textContent = info.over ? 'See Daybreak' : 'Deal the next Night';
     btn.addEventListener('click', () => { playLaunch(); shpHostContinue(); });
     footer.appendChild(btn);
 
@@ -1035,7 +1035,7 @@ function shpRenderDeepSleep() {
     const btn = document.createElement('button');
     btn.className = 'min-h-14 w-full rounded-2xl font-semibold text-lg transition-all duration-150 ' +
       (allAcked ? 'bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white' : 'bg-stone-200 text-stone-400 cursor-not-allowed');
-    btn.textContent = info.over ? 'See Daybreak ☀️' : 'Deal the next Night';
+    btn.textContent = info.over ? 'See Daybreak' : 'Deal the next Night';
     btn.disabled = !allAcked;
     if (allAcked) btn.addEventListener('click', () => { playLaunch(); shpHostContinue(); });
     footer.appendChild(btn);
@@ -1050,7 +1050,7 @@ function shpRenderDeepSleep() {
     } else {
       const btn = document.createElement('button');
       btn.className = 'min-h-14 w-full rounded-2xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-semibold text-lg transition-all duration-150';
-      btn.textContent = 'Got it \u{1F634}';
+      btn.textContent = 'Got it';
       btn.addEventListener('click', () => {
         playDone();
         shpIAcked = true;

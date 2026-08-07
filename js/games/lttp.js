@@ -341,9 +341,9 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-lttp-new-plans').addEventListener('click', () => {
     playLaunch();
     const btn = document.getElementById('btn-lttp-new-plans-confirm');
-    if (window.syllyMultiplayerMode === 'host')        btn.textContent = 'Restart in Lobby 🔄';
+    if (window.syllyMultiplayerMode === 'host')        btn.textContent = 'Restart in Lobby';
     else if (window.syllyMultiplayerMode === 'client') btn.textContent = 'Leave Session';
-    else                                               btn.textContent = 'Head Out Again 🏃‍♂️';
+    else                                               btn.textContent = 'Head Out Again';
     document.getElementById('lttp-new-plans-overlay').style.display = 'flex';
   });
   document.getElementById('btn-lttp-new-plans-confirm').addEventListener('click', () => {
@@ -531,7 +531,7 @@ function lttpShowBriefing(firstIdx) {
   document.getElementById('lttp-briefing-joker').textContent   = `🃏 Troublemaker Mode: ${lttpJokerMode ? 'ON' : 'OFF'}`;
   document.getElementById('lttp-briefing-joker').style.display = '';
   document.getElementById('lttp-briefing-first').textContent   = `📱 ${lttpPlayerNames[firstIdx]}, you're up first.`;
-  document.getElementById('lttp-briefing-btn-label').textContent = 'Let\'s Go 🚀';
+  document.getElementById('lttp-briefing-btn-label').textContent = 'Let\'s Go';
   showScreen('screen-lttp-briefing');
 }
 

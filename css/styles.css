@@ -953,6 +953,7 @@ body.flash-red   { background-color: #fecaca; }
 .flw-cta { background-color: #E879A8; color: #ffffff; display: flex; align-items: center; justify-content: center; }
 .flw-cta:hover { background-color: #CF5A8D; }
 .flw-label { color: #C9A227; }
+.flw-step-label { color: #E879A8; }
 .flw-range {
   -webkit-appearance: none;
   appearance: none;

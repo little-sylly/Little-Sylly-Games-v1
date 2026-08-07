@@ -653,7 +653,7 @@ function ssShowIntelIntro(team) {
     beginBtn.textContent = '⏳ Waiting for the host…';
   } else {
     beginBtn.disabled = false;
-    beginBtn.textContent = 'Begin Intel Sweep 🔍';
+    beginBtn.textContent = 'Begin Intel Sweep';
   }
 
   showScreen('screen-ss-intel-intro');
@@ -956,7 +956,7 @@ function ssShowIntelSummary() {
       };
     } else {
       // Both summaries shown — final result
-      nextBtn.textContent = 'Final Mission Report 📑';
+      nextBtn.textContent = 'Final Mission Report';
       nextBtn.onclick = () => {
         playLaunch();
         if (window.syllyMultiplayerMode === 'host') ssBroadcastIntel('gameover');
@@ -1144,7 +1144,7 @@ function ssConfirmPlayers() {
       prompt:          'Decide which team transmits the first signal.',
       teamA:           ssTeamName(0),
       teamB:           ssTeamName(1),
-      confirmLabel:    'Start Encrypting 📡',
+      confirmLabel:    'Start Encrypting',
       accentBtnClass:  'bg-teal-500 hover:bg-teal-600',
       accentTextClass: 'text-teal-600',
       onResult(goesFirstIdx) {
@@ -1184,7 +1184,7 @@ function ssShowVault(team) {
   const playerLabel   = hasPlayerName ? broadcaster : 'Player 1';
   instrEl.innerHTML     = `Once memorised, pass the phone to <strong>${playerLabel}</strong> only.`;
   instrEl.style.display = 'block';
-  doneBtn.textContent   = `${ssTeamName(team)}, ${playerLabel} ready? Let's Transmit! 📡`;
+  doneBtn.textContent   = `${ssTeamName(team)}, ${playerLabel} ready? Let's Transmit!`;
   ssShowVaultAfterReroll(team);
   showScreen('screen-ss-vault');
 }
@@ -1695,7 +1695,7 @@ function ssShowEndgameSplash(winner) {
         p2Btn.onclick     = null;
       } else {
         p2Btn.disabled    = false;
-        p2Btn.textContent = '⚠️ Urgent mission received: Phase 2 incoming';
+        p2Btn.textContent = 'Urgent mission received: Phase 2 incoming';
         p2Btn.onclick = () => {
           playLaunch();
           document.getElementById('ss-endgame-splash').style.display = 'none';
@@ -2240,11 +2240,11 @@ document.getElementById('btn-ss-play-again').addEventListener('click', () => {
   playPillClick();
   const confirmBtn = document.getElementById('btn-ss-play-again-confirm');
   if (window.syllyMultiplayerMode === 'host') {
-    confirmBtn.textContent = 'Restart in Lobby 🔄';
+    confirmBtn.textContent = 'Restart in Lobby';
   } else if (window.syllyMultiplayerMode === 'client') {
     confirmBtn.textContent = 'Leave Session';
   } else {
-    confirmBtn.textContent = 'Start New Mission 📡';
+    confirmBtn.textContent = 'Start New Mission';
   }
   document.getElementById('ss-play-again-overlay').style.display = 'flex';
 });

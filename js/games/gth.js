@@ -1138,7 +1138,7 @@ document.addEventListener('DOMContentLoaded', () => {
     playDone();
     const confirmBtn = document.getElementById('btn-gth-new-session-confirm');
     if (syllyMultiplayerMode === 'host') {
-      confirmBtn.textContent = 'Restart in Lobby 🔄';
+      confirmBtn.textContent = 'Restart in Lobby';
     } else if (syllyMultiplayerMode === 'client') {
       confirmBtn.textContent = 'Leave Session';
     } else {

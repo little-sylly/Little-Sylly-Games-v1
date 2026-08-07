@@ -721,11 +721,11 @@ document.getElementById('btn-jec-new-game').addEventListener('click', () => {
   playPillClick();
   const confirmBtn = document.getElementById('btn-jec-new-shift-start');
   if (window.syllyMultiplayerMode === 'host') {
-    confirmBtn.textContent = 'Restart in Lobby 🔄';
+    confirmBtn.textContent = 'Restart in Lobby';
   } else if (window.syllyMultiplayerMode === 'client') {
     confirmBtn.textContent = 'Leave Session';
   } else {
-    confirmBtn.textContent = 'Yeah, fire it up! 🍳';
+    confirmBtn.textContent = 'Yeah, fire it up!';
   }
   document.getElementById('jec-new-shift-overlay').style.display = 'flex';
 });

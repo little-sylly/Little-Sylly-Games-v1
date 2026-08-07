@@ -56,7 +56,7 @@ function dsdLaunchWhoFirst() {
     prompt: 'First team arms 9 payloads. Second team arms 8.',
     teamA: dsdTeamNames[0],
     teamB: dsdTeamNames[1],
-    confirmLabel: 'Begin Deployment ⚓',
+    confirmLabel: 'Begin Deployment',
     accentBtnClass:  'bg-cyan-700 hover:bg-cyan-800',
     accentTextClass: 'text-cyan-700',
     onResult: (idx) => {
@@ -137,7 +137,7 @@ function dsdShowSetup() {
             prompt:          'Decide which task force strikes first.',
             teamA:           dsdTeamNames[0],
             teamB:           dsdTeamNames[1],
-            confirmLabel:    'Commence Operation ⚓',
+            confirmLabel:    'Commence Operation',
             accentBtnClass:  'bg-cyan-700 hover:bg-cyan-800',
             accentTextClass: 'text-cyan-700',
             onResult: goesFirstIdx => {
@@ -375,7 +375,7 @@ function dsdShowCaptain() {
       dsdShowPassGate({
         heading:  `Pass to ${dsdCaptainName[dsdCurrentTeam]}`,
         subtext:  `${dsdTeamNames[dsdCurrentTeam]} — your turn to deploy.`,
-        ctaLabel: `Ready, Captain ⚓`,
+        ctaLabel: `Ready, Captain`,
         teamIdx:  dsdCurrentTeam,
         onConfirm: () => {
           dsdMpStandby = false;
@@ -409,7 +409,7 @@ function dsdShowCaptain() {
   dsdShowPassGate({
     heading: `Pass to ${captainName}`,
     subtext: `${teamName} — Captain ⚓`,
-    ctaLabel: `I'm ${captainName} ⚓`,
+    ctaLabel: `I'm ${captainName}`,
     teamIdx: team,
     onConfirm: () => {
       dsdCaptainFilter.clear();
@@ -632,7 +632,7 @@ function dsdTransmitPing() {
         dsdShowPassGate({
           heading:  `Pass to ${dsdTeamNames[dsdCurrentTeam]} Crew`,
           subtext:  `${word.toUpperCase()} — ${num} · Confirm the sequence.`,
-          ctaLabel: `We're Ready ⚓`,
+          ctaLabel: `We're Ready`,
           teamIdx:  dsdCurrentTeam,
           onConfirm: () => { dsdMpStandby = false; dsdShowCrew(); },
         });
@@ -651,7 +651,7 @@ function dsdTransmitPing() {
       dsdShowPassGate({
         heading:  `Pass to ${dsdTeamNames[dsdCurrentTeam]} Crew`,
         subtext:  `${word.toUpperCase()} — ${num} · Confirm the sequence.`,
-        ctaLabel: `We're Ready ⚓`,
+        ctaLabel: `We're Ready`,
         teamIdx:  dsdCurrentTeam,
         onConfirm: () => { dsdMpStandby = false; dsdShowCrew(); },
       });
@@ -666,7 +666,7 @@ function dsdTransmitPing() {
   dsdShowPassGate({
     heading: `Pass to ${teamName} Crew`,
     subtext: `${teamName} — your sequence awaits`,
-    ctaLabel: `We're Ready ⚓`,
+    ctaLabel: `We're Ready`,
     teamIdx: dsdCurrentTeam,
     onConfirm: dsdShowCrew
   });
@@ -984,7 +984,7 @@ function dsdAdvanceTurn() {
     dsdShowPassGate({
       heading: `Pass to ${dsdCaptainName[placingTeam] || dsdTeamNames[placingTeam]}`,
       subtext: 'Silent Running: the Captain sabotages in secret.',
-      ctaLabel: 'Deploy Jammer ⚡',
+      ctaLabel: 'Deploy Jammer',
       teamIdx: placingTeam,
       onConfirm: () => dsdShowSabotage(placingTeam),
     });
@@ -1145,7 +1145,7 @@ function dsdRenderSabotageGrid(placingTeam) {
 
   if (!upgradeMode) {
     label.innerHTML = `<strong>${teamName}</strong>: tap an enemy Payload to plant your Jammer — triggering it costs them 5 Valour and ends their turn.`;
-    confirmBtn.textContent = 'Plant Jammer ⚡';
+    confirmBtn.textContent = 'Plant Jammer';
     confirmBtn.onclick = () => {
       if (selectedIdx === -1) return;
       dsdJammers[placingTeam] = selectedIdx;
@@ -1156,7 +1156,7 @@ function dsdRenderSabotageGrid(placingTeam) {
     label.innerHTML = urchinsLeft > 0
       ? `<strong>${teamName}</strong>: enemy is nearly out — upgrade an Urchin to a ${dsdDangerLevel === 'nuclear' ? 'Nuclear' : 'Pressure'} Mine instead.`
       : `<strong>${teamName}</strong>: enemy is nearly out, and no Urchins remain. Skip or carry on.`;
-    confirmBtn.textContent = 'Upgrade Urchin 💣';
+    confirmBtn.textContent = 'Upgrade Urchin';
     confirmBtn.onclick = () => {
       if (selectedIdx === -1) return;
       dsdGrid[selectedIdx].role = 'mine';
@@ -1459,11 +1459,11 @@ document.getElementById('btn-dsd-gameover-exit').addEventListener('click', () =>
 document.getElementById('btn-dsd-new-operation').addEventListener('click', () => {
   const confirmBtn = document.getElementById('btn-dsd-new-op-confirm');
   if (window.syllyMultiplayerMode === 'host') {
-    confirmBtn.textContent = 'Restart in Lobby 🔄';
+    confirmBtn.textContent = 'Restart in Lobby';
   } else if (window.syllyMultiplayerMode === 'client') {
     confirmBtn.textContent = 'Leave Session';
   } else {
-    confirmBtn.textContent = 'New Operation ⚓';
+    confirmBtn.textContent = 'New Operation';
   }
   document.getElementById('dsd-new-op-overlay').style.display = 'flex';
 });

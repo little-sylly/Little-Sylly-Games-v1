@@ -681,7 +681,7 @@ function ygiShowResults(roundPts, ghostIdx, ghostWins, maxRoundPts) {
     });
 
   const resultsNextBtn = document.getElementById('btn-ygi-results-next');
-  resultsNextBtn.textContent = ygiRound >= ygiRounds ? 'Final Standings 🏆' : 'Next Situation →';
+  resultsNextBtn.textContent = ygiRound >= ygiRounds ? 'Final Standings' : 'Next Situation →';
   // MDLM: only the host advances the round / ends the game; clients follow the SYNC.
   if (window.syllyMultiplayerMode === 'client') {
     resultsNextBtn.disabled    = true;
@@ -761,11 +761,11 @@ function ygiRenderSDIntro() {
   if (window.syllyMultiplayerMode !== 'single') {
     const iAmFinalist = ygiSuddenDeathPlayers.includes(mpMyPlayerIdx);
     beginBtn.disabled    = !iAmFinalist;
-    beginBtn.textContent = iAmFinalist ? 'Begin Sudden Death ⚡' : 'Sudden death in progress…';
+    beginBtn.textContent = iAmFinalist ? 'Begin Sudden Death' : 'Sudden death in progress…';
     beginBtn.classList.toggle('opacity-50', !iAmFinalist);
   } else {
     beginBtn.disabled    = false;
-    beginBtn.textContent = 'Begin Sudden Death ⚡';
+    beginBtn.textContent = 'Begin Sudden Death';
     beginBtn.classList.remove('opacity-50');
   }
   showScreen('screen-ygi-sd-intro');
@@ -965,11 +965,11 @@ document.getElementById('btn-ygi-play-again').addEventListener('click', () => {
   playDone();
   const confirmBtn = document.getElementById('btn-ygi-run-confirm');
   if (window.syllyMultiplayerMode === 'host') {
-    confirmBtn.textContent = 'Restart in Lobby 🔄';
+    confirmBtn.textContent = 'Restart in Lobby';
   } else if (window.syllyMultiplayerMode === 'client') {
     confirmBtn.textContent = 'Leave Session';
   } else {
-    confirmBtn.textContent = 'Run It Back! 🃏';
+    confirmBtn.textContent = 'Run It Back!';
   }
   document.getElementById('ygi-run-it-back-overlay').style.display = 'flex';
 });

@@ -1539,11 +1539,11 @@ document.getElementById('btn-bld-aftermath-drama-continue').addEventListener('cl
 document.getElementById('btn-bld-go-again').addEventListener('click', () => {
   const confirmBtn = document.getElementById('btn-bld-second-chances-confirm');
   if (window.syllyMultiplayerMode === 'host') {
-    confirmBtn.textContent = 'Restart in Lobby 🔄';
+    confirmBtn.textContent = 'Restart in Lobby';
   } else if (window.syllyMultiplayerMode === 'client') {
     confirmBtn.textContent = 'Leave Session';
   } else {
-    confirmBtn.textContent = 'Second Chances 💬';
+    confirmBtn.textContent = 'Second Chances';
   }
   document.getElementById('bld-second-chances-overlay').style.display = 'flex';
 });

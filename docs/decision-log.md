@@ -20,6 +20,26 @@ Detail: pointer to the canonical doc (snapshot / impl note / spec / memory).
 
 ---
 
+## 2026-08-07 — Action Button Standard: no emoji, colour must be brand/neutral/destructive-red
+**Category:** Process
+**Decision:** New suite-wide rule in `ui-style.md` § Action Button Standard — Play CTAs, Decision Modal confirm/cancel buttons, and primary in-game submit/decision buttons may not carry an emoji in their label, and their background colour must be one of exactly three things: the game's own brand colour, neutral stone (cancel/exit, or a "safe" confirm), or semantic destructive red on a confirm button for an irreversible action. A narrow fourth exception allows red on an interrupt/alert screen when the copy itself signals urgency. Icon-only utility buttons, pills, toggles, and non-button text (headings, the `✨ Sylly Mode` label) are explicitly out of scope and keep their emoji.
+**Why:** Owner-requested full sweep — action-button emoji had drifted in across most games with no rule against it, and two buttons (DSD's sabotage-confirm, SS's intercept-gate) had picked up the wrong game's brand colour or defaulted to neutral where brand was called for, most likely via copy-paste from another game's markup.
+**Changed:** Three passes — `index.html` (~80 static action buttons had emoji stripped), then `js/games/*.js`
+id-list-driven (46 more string sites across 14 files, after CJAR's dynamically-built Take/Play Innocent/Dob/
+Sneak Out buttons turned up as a gap the static-HTML pass couldn't see; the "Restart in Lobby 🔄" play-again
+confirm label, set per multiplayer mode in every MDLM game's JS, accounted for most of it), then an exhaustive
+regex pass over every `[Bb]tn.textContent =` in `js/games/` (4 more: CJAR's play-again button had a *second*
+assignment overwriting the fix when the modal opens, SS's `btn-ss-vault-done`, NT's lock-allocations button,
+YGI's results-next button) — the id-list pass had only checked strings it already knew were bad, not every
+assignment site. DSD's `btn-dsd-sabotage-confirm`
+recoloured amber→cyan and SS's `btn-ss-to-intercept` recoloured stone→teal to match their own brand. Also
+folded in three smaller fixes from the same session: Decision Modal button sizing conformed in FLW/PASS/GTH/
+BLD, FLW's how-to step labels moved from inline style to a new `.flw-step-label` class, and two stale
+`deferred-work.md` items (GTH CTA emoji, `docs/archive/` claim) were confirmed already resolved and closed.
+**Detail:** `ui-style.md` § Action Button Standard (the rule); `docs/deferred-work.md` (sweep history + what was already-stale before this pass).
+
+---
+
 ## 2026-08-03 — Arcade Mode added behind Secret Mode; cabinets are not Sylly Games
 **Category:** Architecture
 **Decision:** Secret Mode gains a third content type — **arcade cabinets**, small standalone canvas games listed under a new `ARCADE` category placed **first**, ahead of WORD PACKS and GAME SKINS. Cabinets are neither packs (they modify no host game, so they get `smLaunchArcade()` beside an untouched `smLaunch()`) nor Sylly Games (no MP config, no `game-identities.md` section, no Sylly Mode, no `new-game-checklist.md`, not the Stack). First cabinet: **Asherplane**, `js/arcade/asherplane.js`.

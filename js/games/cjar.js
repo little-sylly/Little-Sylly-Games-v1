@@ -779,12 +779,12 @@ function cjarRenderControls() {
     if (cjarIsSylly()) {
       // "Sneak" must never appear in Dibber Dobber copy: in the base game it means
       // bank-and-leave, and here nobody leaves. Reusing it teaches the wrong rule.
-      box.appendChild(mk('Take a Cookie 🍪', 'take', 'brand'));
-      box.appendChild(mk('Play Innocent 😇', 'innocent'));
-      box.appendChild(mk('Dob 👉', 'dob'));
+      box.appendChild(mk('Take a Cookie', 'take', 'brand'));
+      box.appendChild(mk('Play Innocent', 'innocent'));
+      box.appendChild(mk('Dob', 'dob'));
     } else {
-      box.appendChild(mk('Take a Cookie 🍪', 'take', 'brand'));
-      box.appendChild(mk('Sneak Out 🚪', 'sneak'));
+      box.appendChild(mk('Take a Cookie', 'take', 'brand'));
+      box.appendChild(mk('Sneak Out', 'sneak'));
     }
     return;
   }
@@ -2007,7 +2007,7 @@ document.addEventListener('DOMContentLoaded', () => {
   on('btn-cjar-go-new', () => {
     playDone();
     const btn = document.getElementById('btn-cjar-new-confirm');
-    btn.textContent = window.syllyMultiplayerMode === 'client' ? 'Leave Session' : 'Restart in Lobby 🔄';
+    btn.textContent = window.syllyMultiplayerMode === 'client' ? 'Leave Session' : 'Restart in Lobby';
     document.getElementById('cjar-new-raid-overlay').style.display = 'flex';
   });
   on('btn-cjar-new-cancel', () => {

@@ -1314,11 +1314,11 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-nat-go-new')?.addEventListener('click', () => {
     const confirmBtn = document.getElementById('btn-nat-expedition-confirm');
     if (window.syllyMultiplayerMode === 'host') {
-      confirmBtn.textContent = 'Restart in Lobby 🔄';
+      confirmBtn.textContent = 'Restart in Lobby';
     } else if (window.syllyMultiplayerMode === 'client') {
       confirmBtn.textContent = 'Leave Session';
     } else {
-      confirmBtn.textContent = 'New Expedition 🦁';
+      confirmBtn.textContent = 'New Expedition';
     }
     document.getElementById('nat-new-expedition-overlay').style.display = 'flex';
   });

@@ -125,9 +125,9 @@ function applySyllyVisuals() {
   const yay = document.getElementById('btn-correct');
   if (currentWordIsSylly) {
     card.classList.add('sylly-glow');
-    yay.textContent        = 'Double Yay! ✨';
-    nay.textContent        = 'Double Nay! 🙊';
-    skip.textContent       = 'Skip! 👎';
+    yay.textContent        = 'Double Yay!';
+    nay.textContent        = 'Double Nay!';
+    skip.textContent       = 'Skip!';
     nay.classList.add('shake');
     nay.style.background   = '#a855f7';
     nay.style.color        = '#fff';
@@ -204,7 +204,7 @@ async function startGame() {
     prompt:          'Decide which Playgroup starts describing.',
     teamA:           teamNames[0],
     teamB:           teamNames[1],
-    confirmLabel:    "Let's Go! 🚀",
+    confirmLabel:    "Let's Go!",
     accentBtnClass:  'bg-pink-500 hover:bg-pink-600',
     accentTextClass: 'text-pink-600',
     onResult: (idx) => {
@@ -916,11 +916,11 @@ document.getElementById('btn-play-again').addEventListener('click', () => {
   playPillClick();
   const confirmBtn = document.getElementById('btn-li5-confirm-new-game');
   if (window.syllyMultiplayerMode === 'host') {
-    confirmBtn.textContent = 'Restart in Lobby 🔄';
+    confirmBtn.textContent = 'Restart in Lobby';
   } else if (window.syllyMultiplayerMode === 'client') {
     confirmBtn.textContent = 'Leave Session';
   } else {
-    confirmBtn.textContent = 'New Playgroup! 👥';
+    confirmBtn.textContent = 'New Playgroup!';
   }
   document.getElementById('li5-play-again-overlay').style.display = 'flex';
 });

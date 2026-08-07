@@ -1196,11 +1196,11 @@ function dybRenderChronicle() {
 function dybRenderNewGameOverlay() {
   const confirmBtn = document.getElementById('btn-dyb-new-game-confirm');
   if (window.syllyMultiplayerMode === 'host') {
-    confirmBtn.textContent = 'Restart in Lobby \u{1F504}';
+    confirmBtn.textContent = 'Restart in Lobby';
   } else if (window.syllyMultiplayerMode === 'client') {
     confirmBtn.textContent = 'Leave Session';
   } else {
-    confirmBtn.textContent = 'Climb Again \u{1F3B2}';
+    confirmBtn.textContent = 'Climb Again';
   }
 }
 

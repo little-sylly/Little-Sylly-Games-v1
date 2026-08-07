@@ -717,11 +717,11 @@ document.getElementById('btn-gm-new-frequency').addEventListener('click', () => 
   playPillClick();
   const confirmBtn = document.getElementById('btn-gm-new-game-confirm');
   if (window.syllyMultiplayerMode === 'host') {
-    confirmBtn.textContent = 'Restart in Lobby 🔄';
+    confirmBtn.textContent = 'Restart in Lobby';
   } else if (window.syllyMultiplayerMode === 'client') {
     confirmBtn.textContent = 'Leave Session';
   } else {
-    confirmBtn.textContent = 'Memory Purge ⚛️';
+    confirmBtn.textContent = 'Memory Purge';
   }
   document.getElementById('gm-new-frequency-overlay').style.display = 'flex';
 });

@@ -282,7 +282,7 @@ function flwRenderTable() {
       && !flwCfMode && !flwAuditedThisTurn && (flwAuditCharges[me] || 0) > 0
       && (flwTopClaims || []).some((c, i) => c != null && i !== me && !flwExposed[i]);
     auditBtn.style.display = canAudit ? '' : 'none';
-    auditBtn.textContent = '\u{1F50D} Audit (' + (flwAuditCharges[me] || 0) + ')';
+    auditBtn.textContent = 'Audit (' + (flwAuditCharges[me] || 0) + ')';
   }
 }
 function flwTopPlayClaims() { return (flwTopPlay || []).map(tp => (tp && !tp.audited) ? tp.claimedId : null); }

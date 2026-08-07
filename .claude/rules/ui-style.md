@@ -523,7 +523,7 @@ Rules:
 - Subtitle (`text-stone-600 text-sm font-semibold`): thematic name only, no emoji, always visible
 - Description (`text-stone-400 text-sm`): one paragraph, always visible — even when toggle is OFF
 - Sub-options (pills, sliders): wrapped in a separate `style="display:none"` div, shown only when toggle is ON — only used when there is a meaningful sub-choice (e.g. GM intensity)
-- CTA start-game buttons (game menu) must not contain emoji
+- CTA start-game buttons (game menu) must not contain emoji — one case of the broader § Action Button Standard
 - LI5: subtitle is "Extra Credit"; intensity slider (`#sylly-pct-row`) is revealed on toggle ON (same sub-options pattern as GM)
 
 **Outer scrollable body** between cards: `flex flex-col gap-5` — keep consistent across all games.
@@ -573,6 +573,72 @@ See **§ Per-Game Reference → Table A** (brand colour) and **Table C** (the cl
 
 ---
 
+## Action Button Standard — No Emoji, Correct Colour
+
+**Trigger:** Any new button, or edit to an existing one, that fits the definition below.
+
+**Applies to ("action buttons"):**
+- The game menu **Play CTA**
+- **Decision Modal confirm/cancel buttons** — quit-confirm, quit-cancel, play-again/new-game confirm, play-again cancel
+- Any **primary in-game submit/decision button** the player taps to commit an action — "Lock In", "Submit Guess", "Deal Me In", ready-check/vote/confirm buttons, etc.
+
+**Does NOT apply to** (emoji stays, these are identity/flavour, not calls-to-action):
+- Icon-only utility buttons — 🔊 sound, ✕ exit, `[?]` help/tip, ⏸/⏭ pause/end-turn, ← back arrow
+- Pill buttons and ON/OFF toggle buttons
+- "← Back to the Box" / "← Back" navigation
+- Tip overlay "Got it" close buttons
+- Card/body text, screen headings, the `✨ Sylly Mode` card label (not a button)
+
+**Rule 1 — no emoji on the label.** An action button's text is read at a glance mid-round; an emoji competes
+with the words for the same half-second read and adds nothing the label doesn't already say. Thematic voice
+belongs in the words ("Let's Cook!", "Deal Me In"), not a glyph tacked on the end.
+
+**Rule 2 — colour must be one of exactly three things:**
+1. The game's own brand colour (`bg-[brand] hover:bg-[brand-dark]`, the game's custom `[abbr]-cta` class, or a
+   matching inline `style="background-color:#HEX"`) — the default for any confirm/submit/Play CTA.
+2. Neutral stone (`bg-stone-200`/`bg-stone-700`) — always correct for a Decision Modal **cancel**, exit, or back
+   button; also an accepted "safe" choice for a confirm button where a full brand fill would read as reckless.
+3. Semantic **destructive red** (`bg-red-500`/`bg-red-600`) on a confirm button only, when the action is
+   irreversible within the game (quitting, restarting) — this is a deliberate exception already documented in
+   § Quit Overlay Checklist, not a bug.
+
+A fourth, narrower exception: an **interrupt/alert screen** (a splash announcing something urgent, not a normal
+CTA advancing a round) may use red to reinforce the alert framing in its own copy — e.g. SS's
+`btn-ss-splash-phase2` ("Urgent mission received: Phase 2 incoming"). This is judged case-by-case against the
+button's own copy, not applied by default — don't reach for it to avoid picking a brand colour.
+
+Any other colour on an action button (a different game's brand bleeding in via copy-paste, a legend-swatch
+colour reused by accident) is a bug. Reference: DSD's `btn-dsd-sabotage-confirm` shipped `bg-amber-500`
+(JEC's brand) instead of DSD's `cyan-700` — fixed 7 Aug 2026, along with SS's `btn-ss-to-intercept` which
+shipped neutral stone despite being a plain "proceed" CTA with no cancel/destructive framing (every comparable
+SS gate button is `teal-500`).
+
+**Watch for JS-built buttons, not just static HTML.** A button whose label is set via `.textContent =`,
+`createElement('button')`, or a shared helper's config object (`showWhoFirst({ confirmLabel })`,
+`dsdShowPassGate({ ctaLabel })`) never shows up in an `index.html`-only grep — the label lives in
+`js/games/[abbr].js` instead. The suite-wide "Restart in Lobby 🔄" play-again confirm label was exactly this:
+every MDLM game sets it dynamically per multiplayer mode, so a static-HTML sweep missed all 13 instances of it
+in one pass. When auditing action buttons, grep both `index.html` **and** `js/games/*.js` for `.textContent`,
+`createElement('button')`, and any button-building helper.
+
+**Suite-wide sweep completed 7 Aug 2026:** every in-scope action button across all 18 games audited — first a
+full-file grep pass on `index.html` (~80 buttons had emoji stripped, GTH's Play CTA was already clean, 2 colour
+mismatches fixed), then a second pass on `js/games/*.js` after CJAR's Take/Play Innocent/Dob/Sneak Out buttons
+turned up as a JS-only gap (46 more string sites fixed across 14 files — mostly the "Restart in Lobby" pattern
+above, plus a handful of phase-advance CTAs like DSD's `dsdShowPassGate` labels and SHP's client "Got it" ack
+button, which gates phase advance with a brand-coloured `min-h-14` button and is NOT the tip-overlay close-button
+exception). Owner spot-check after the sweep still caught 4 more: CJAR's play-again button had a **second**,
+later `.textContent` assignment overwriting the already-fixed HTML right when the modal opens (`cjar.js`
+`on('btn-cjar-go-new', …)`), SS's `btn-ss-vault-done` label is built from a template literal that a plain
+grep for the string `'Restart in Lobby'` doesn't catch, and NT's `lockBtn`/YGI's `resultsNextBtn` were missed
+because the first `js/games/*.js` pass was id-list-driven rather than an exhaustive `[Bb]tn.*textContent =`
+grep. **Lesson:** a button can be assigned more than once in the same file (initial render + a later
+open-the-modal call) — grepping for a known bad string only finds sites that still contain it, not every
+assignment site for that button's id. The exhaustive regex pass (`grep -P "(Btn|btn)\.textContent\s*=.*<emoji
+range>"` across `js/games/`) is what actually closed it out. No violations left outstanding.
+
+---
+
 ## Thumb-Friendly UI
 **Trigger:** Any new button, link, or interactive element.
 
@@ -602,7 +668,7 @@ Every game's main menu screen must have exactly these 4 buttons, in this order: 
 
 See **§ Per-Game Reference → Table B** at the end of this file.
 
-[AUDIT FLAG — June 2026]: GTH's Play CTA contains an emoji, violating the "CTA start-game buttons (game menu) must not contain emoji" rule (Settings Card Standard). Logged in the fix plan; reconcile during Phase 3 GTH audit.
+[RESOLVED — Aug 2026]: GTH's Play CTA in `index.html` reads "Start the Session" with no emoji — the flag above was stale by the time it was checked; Table B corrected to match.
 
 **Type scale (added Aug 2026 — was previously unstated, and cjar shipped wrong because of it):**
 
@@ -784,7 +850,7 @@ Gradient values live on each `.[abbr]-range` rule in `css/styles.css`.
 | LTTP | Find The Location! | 🏃‍♂️ | The Troublemaker † |
 | NAT | Begin Observation | 🦁 | Survival of the Fittest |
 | DSD | Begin Deployment | ⚓ | Silent Running |
-| GTH | Start the Session 🛋️ | 🛋️ | Stroke or Genius |
+| GTH | Start the Session | 🛋️ | Stroke or Genius |
 | DYB | Let's Play! | 🎲 | The Tempest |
 | BLD | Make the Plans | 📋 | Drama Mode |
 | PASS | Deal Me In | 🃏 | The Abyss |
@@ -822,7 +888,7 @@ The how-to **close button is always the game's `accentBtnClass`**, so it no long
 | NT | `bg-emerald-500 hover:bg-emerald-600` | `text-emerald-600` | `text-emerald-600` | `bg-emerald-100 hover:bg-emerald-200 text-emerald-700` |
 | FRT | inline `style="background:#FFE500"` § | inline `text-[#047857]` | inline `style="color:#047857"` | `bg-[#FFF4CC] hover:bg-[#FFF3A6] text-[#854d0e]` |
 | SHP | `bg-indigo-600 hover:bg-indigo-700` | `text-indigo-600` | `text-indigo-600` | `bg-indigo-100 hover:bg-indigo-200 text-indigo-700` |
-| FLW | `flw-cta` | — | inline `style="color:#E879A8"` | `bg-[#FBE0EA] hover:bg-[#F6C9DA] text-[#A02050]` |
+| FLW | `flw-cta` | — | `flw-step-label` | `bg-[#FBE0EA] hover:bg-[#F6C9DA] text-[#A02050]` |
 | PKO | `pko-cta` | — | `pko-label` | `bg-[#F5E6C8] hover:bg-[#EBD5A8] text-[#854D0E]` |
 | CJAR | `cjar-cta` ‡ | — | `cjar-label` | `bg-[#F7E9C4] hover:bg-[#EFDCA8] text-[#7A5C0A]` |
 

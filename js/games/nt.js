@@ -716,7 +716,7 @@ function ntRenderAllocationScreen(captainMode) {
   if (warning) warning.style.display = (isCap && hasUnallocated) ? 'block' : 'none';
   if (lockBtn) {
     lockBtn.style.display = isCap ? 'block' : 'none';
-    lockBtn.textContent   = ntHuddlePhase === 'locked' ? 'Locked ✓' : 'Lock Allocations';
+    lockBtn.textContent   = ntHuddlePhase === 'locked' ? 'Locked' : 'Lock Allocations';
     lockBtn.disabled      = ntHuddlePhase === 'locked';
   }
 }

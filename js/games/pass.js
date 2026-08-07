@@ -1804,7 +1804,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Update button label dynamically based on MP mode
     const btn = document.getElementById('btn-pass-new-deal-confirm');
     if (window.syllyMultiplayerMode === 'host') {
-      btn.textContent = 'Restart in Lobby 🔄';
+      btn.textContent = 'Restart in Lobby';
     } else if (window.syllyMultiplayerMode === 'client') {
       btn.textContent = 'Leave Session';
     } else {

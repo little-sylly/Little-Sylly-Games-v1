@@ -34,13 +34,27 @@ not in a batch at the end.
 
 ## Smaller flagged items
 
-- **Decision Modal button sizing diverges in four games** (found 3 Aug 2026 while checking cjar's).
-  `ui-style.md` § Quit Overlay Checklist now specifies `min-h-14 … text-lg` for both buttons in a quit or
-  play-again modal; it was previously unstated, which is how three variants shipped. **FLW** and **PASS** use
-  `min-h-11`/`text-sm` on both; **GTH** and **BLD** use a mismatched pair (`min-h-14 text-xl` confirm +
-  `min-h-11 text-base` cancel). Conforming: SHP, FRT, NT, DYB, PKO, CJAR. 8 buttons across 4 games — low risk,
-  but do it via a scoped Node script, never a broad Edit (index.html mojibake). Owner deferred the sweep out of
-  a Cookie Jar session.
+~~**Action buttons carried decorative emoji suite-wide, and two had drifted off-brand colour**~~ —
+  **RESOLVED, 7 Aug 2026.** New rule: `ui-style.md` § Action Button Standard (Play CTA / Decision Modal
+  confirm-cancel / primary in-game submit-decision buttons — no emoji, colour must be brand/neutral/destructive-
+  red). Swept in **two passes**, because the first missed a whole class of buttons: pass 1 covered static
+  `index.html` markup (~80 buttons); pass 2, triggered when CJAR's in-game Take/Play Innocent/Dob/Sneak Out
+  buttons turned up still carrying emoji, covered `js/games/*.js` labels set via `.textContent`/
+  `createElement('button')` (46 more sites across 14 files — mostly the "Restart in Lobby 🔄" play-again
+  confirm, which every MDLM game sets dynamically per multiplayer mode, so it was invisible to a static-HTML-
+  only grep). 2 colour mismatches also fixed — DSD's `btn-dsd-sabotage-confirm` (was JEC's amber, now DSD's
+  cyan) and SS's `btn-ss-to-intercept` (was neutral stone, now SS's teal). SS's `btn-ss-splash-phase2` stays red
+  deliberately — an interrupt/alert screen whose own copy ("Urgent mission received…") justifies it, the one
+  documented exception to the colour rule. **Lesson folded into the rule itself:** any future action-button
+  audit must grep both `index.html` and `js/games/*.js` — a JS-set label is exactly as much an "action button"
+  as static markup. Detail: `decision-log.md` 2026-08-07.
+
+~~**Decision Modal button sizing diverges in four games**~~ — **RESOLVED, 7 Aug 2026.** FLW, PASS, GTH, and
+  BLD's quit/play-again buttons (8 total, PASS's new-deal confirm was already conforming) now all use
+  `min-h-14 … text-lg` per `ui-style.md` § Quit Overlay Checklist. Applied via a scoped Node script (occurrence-
+  count-asserted string replacements), never a broad Edit. GTH's and BLD's confirm buttons still use `bg-red-500`
+  rather than their brand colour — that's a separate, deliberate "destructive action" colour choice, left for
+  the action-button colour sweep (see below) to confirm or correct.
 - **A suite-wide audit for the BUG-06 class has not been done.** Firebase erases `null`/`{}`/`[]`, so any game
   assigning a raw payload collection in a SYNC applier can strand a client. cjar is fixed and the rule is now in
   `logic-engine.md`; the other 17 games reach the same protection informally via `p.x || []` but have not been
@@ -57,10 +71,13 @@ not in a batch at the end.
   counts, thresholds. The other 17 games have not been swept, and at least some will have the same gap cjar had
   (a value the player can only learn by playing). Deliberately not folded into a playtest-fix batch. Detail:
   `cjar-implementation-notes.md` DD-13.
-- **GTH Play CTA contains an emoji** ("Start the Session 🛋️"), violating the "CTA start-game buttons must not
-  contain emoji" rule in `ui-style.md` § Settings Card Standard. Reconcile at the GTH retest.
-- **FLW how-to step labels** use inline `style="color:#E879A8"` where every other custom-colour game uses its
-  `[abbr]-label` class (PKO uses `pko-label`). Cosmetic consistency only — it renders correctly.
-- **`docs/archive/` is not empty** — it holds `phase-audit-2026-06-30-snapshot.md`, while `CLAUDE.md` describes
-  the directory as empty by design with snapshots kept out-of-repo. Either move that file to the external
-  archive or amend the claim.
+~~**FLW how-to step labels**~~ — **RESOLVED, 7 Aug 2026.** They used inline `style="color:#E879A8"` (rose-pink,
+  FLW's primary brand) rather than a class. The pre-existing `.flw-label` class was **not** reusable here — it's
+  already taken for FLW's secondary Exhibition-gold accent (`#C9A227`, used on the gem-vault count). Added a new
+  `.flw-step-label { color: #E879A8; }` and swapped all 7 inline-style sites to it — no visual change, same
+  colour, now class-based like every other custom-colour game.
+~~**GTH Play CTA contains an emoji**~~ — **RESOLVED (stale), Aug 2026.** The code already reads "Start the
+  Session" with no emoji; only `ui-style.md` Table B and an audit-flag note were out of date. Both corrected.
+~~**`docs/archive/` is not empty**~~ — **RESOLVED (stale), Aug 2026.** `CLAUDE.md` § Current Focus already
+  documents the one file it holds (`phase-audit-2026-06-30-snapshot.md`) — the "empty by design" claim this
+  item pointed at no longer exists in the doc. No action needed.
