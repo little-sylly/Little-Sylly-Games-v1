@@ -1470,14 +1470,38 @@ function cjarBeginFlipAnim(startsClock) {
     cjarPayoutHandle = null;
     if (!card) return;
     if (card.type === 'cookie') {
-      // One token per seat sharing it, plus one drifting left if a remainder went to
-      // Crumbs. cjarSplit already did the arithmetic; this only reports it.
-      const heads = cjarIsSylly() ? cjarPlayerCount : cjarActiveCount();
+      // Token count mirrors the ACTUAL divisor, not a guess (review fix, DD-20). The
+      // base game divides by cjarActiveCount() (cjarApplyCardEffect). Dibber Dobber's
+      // cjarResolveFlipDD divides by takers.length, or two pools by dobbers.length and
+      // takers.length, or sends the WHOLE value to Crumbs when there are no takers (a
+      // dobbers-only backfire, or an all-innocent flip) — cjarPlayerCount was never the
+      // divisor there. cjarChoices is still this flip's, so the real groups are readable.
+      let heads = 0, remainder = card.value;
+      if (cjarIsSylly()) {
+        const takers  = cjarSeatsChoosing('take');
+        const dobbers = cjarSeatsChoosing('dob');
+        if (takers.length && dobbers.length) {
+          const steal = Math.min(CJAR_DD_DOB_STEAL * dobbers.length, card.value);
+          heads     = takers.length + dobbers.length;
+          remainder = (steal % dobbers.length) + ((card.value - steal) % takers.length);
+        } else if (takers.length) {
+          heads     = takers.length;
+          remainder = card.value % takers.length;
+        }
+        // Dobbers-only or all-innocent: heads stays 0, remainder stays the whole
+        // value — cjarResolveFlipDD sends every cookie to Crumbs in both cases
+        // (the backfire, or the scare-off's own contribution), never to a seat.
+      } else {
+        heads     = cjarActiveCount();
+        remainder = heads ? card.value % heads : card.value;
+      }
       cjarFlyTokens(heads, 'down');
-      if (card.value % Math.max(1, heads) !== 0) cjarFlyTokens(1, 'left');
+      if (remainder > 0) cjarFlyTokens(1, 'left');
     }
-    // A family or treat card throws no tokens: the warning strip pulses for the first,
-    // and the Treat card's own travel into column 1 is the second's payout.
+    // A family card's warning-strip pulse is NOT this beat — cjarRenderWarningStrip
+    // gates it on cjarFlipAnim alone, so it plays from t≈0, the moment the reveal
+    // choreography starts. A Treat's arrival into column 1 IS its own payout, fired
+    // the next time cjarRenderStage runs after this Raid's cjarCounterTreat changes.
   }, 900);
 
   cjarAnimHandle = setTimeout(() => {

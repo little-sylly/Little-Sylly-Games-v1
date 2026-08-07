@@ -358,11 +358,13 @@ const section = t => console.log(`\n${t}`);
   check('client parks on the Raid intro', lastScreen(client), 'screen-cjar-raid-intro');
 
   H.startMatch();
-  // Flip 1's card is otherwise random (this is the one harness with a REAL shuffle),
-  // and the payout-beat check below only means anything for a cookie card. Move the
-  // first cookie to the top of the deck rather than special-casing the check on
-  // whatever type happened to land — same technique hostNextRaid() already uses to
-  // drive state directly through the same vm context.
+  // Flip 1 is ALREADY guaranteed a cookie here — `snack: 'warmup'` makes
+  // cjarBuildDeck() call cjarFloatCookies(deck, 2), floating two cookies to the top
+  // before the Raid 1 Treat is dealt in — so findIndex returns 0 and the `i > 0`
+  // guard below is a no-op today. Belt-and-braces, not load-bearing: it re-asserts
+  // the same guarantee directly (same vm.runInContext technique hostNextRaid() uses)
+  // so the payout-beat check below stays true even if this section's seat config
+  // ever changes out from under warmup's guarantee.
   vm.runInContext(
     "{ const i = cjarDeck.findIndex(c => c.type === 'cookie'); " +
     "  if (i > 0) cjarDeck.unshift(cjarDeck.splice(i, 1)[0]); }",
@@ -419,15 +421,20 @@ const section = t => console.log(`\n${t}`);
   check('card is face-up while animating', C.heroFaceDown(), false);
   check('label reads just revealed',       C.stageLabel(), 'just revealed');
 
-  section('The payout beat fires independently on each device (DD-20)');
+  section('The payout beat throws the ACTUAL split, not a guess (DD-20 review fix)');
   // cjarBeginFlipAnim now arms TWO timers, payout (900 ms) then handover (2100 ms) —
   // step() only ever fires the earliest pending one, so this is the payout beat on
-  // its own, before the handover below. Flip 1 was forced to a cookie card above so
-  // this is never a coin-flip against the real shuffle.
+  // its own, before the handover below. Flip 1 is guaranteed a cookie (warmup floats
+  // two to the top, re-asserted above), and all four seats are active on Raid 1's
+  // first flip, so the exact token count is knowable — an "at least one" assertion
+  // would not have caught cjarFlyTokens being handed the wrong divisor.
+  const flip1Value    = H.card.value;
+  const flip1Heads    = 4;                          // every seat is active pre-departure
+  const flip1Expected = flip1Heads + (flip1Value % flip1Heads !== 0 ? 1 : 0);
   step(host);
   step(client);
-  check('host threw a payout token',                          H.tokenCount() >= 1, true);
-  check('a cookie card throws one token per splitting seat',   C.tokenCount() >= 1, true);
+  check('host threw the exact split token count',   H.tokenCount(), flip1Expected);
+  check('client threw the exact split token count', C.tokenCount(), flip1Expected);
 
   // Let the reveal choreography hand over on BOTH devices before any real submission —
   // cjarSubmitChoice is now guarded by cjarFlipAnim (Step 6), and each device runs its
@@ -535,6 +542,30 @@ const section = t => console.log(`\n${t}`);
   check('stashes agree',            C2.stashes, H2.stashes);
   check('debt agrees',              C2.debt, H2.debt);
   check('no client exception',      client2.__errors, []);
+
+  section('Dibber Dobber payout beat: the actual split, not cjarPlayerCount (DD-20 review fix)');
+  // Seats 0, 2 and 3 took, seat 1 played innocent, nobody dobbed — the "takers only"
+  // branch of cjarResolveFlipDD, which divides by takers.length (3), never by
+  // cjarPlayerCount (4). The scare-off then sweeps any remainder to the lone
+  // innocent, but that is a step further downstream than this beat models — the
+  // beat only needs to match cjarResolveFlipDD's OWN divisor, which the review
+  // fix is about. cjarBeginFlipAnim(false) was armed synchronously inside
+  // H2.resolve() above, so its payout timer is still pending on both devices.
+  //
+  // cjarHostResolveFlip already called cjarFlyDelta for each device's OWN seat delta
+  // (a pre-existing, separate feature sharing this same #cjar-delta-layer) before
+  // cjarBeginFlipAnim(false) even armed the payout timer — clear the layer on both
+  // devices first so this assertion isolates the payout beat's own tokens rather
+  // than the sum of the two unrelated features.
+  vm.runInContext("document.getElementById('cjar-delta-layer').innerHTML = '';", host2);
+  vm.runInContext("document.getElementById('cjar-delta-layer').innerHTML = '';", client2);
+  const ddValue    = H2.card.value;
+  const ddHeads    = 3;                              // takers = seats 0, 2, 3
+  const ddExpected = ddHeads + (ddValue % ddHeads !== 0 ? 1 : 0);
+  step(host2);
+  step(client2);
+  check('host2 threw the exact split token count',   H2.tokenCount(), ddExpected);
+  check('client2 threw the exact split token count', C2.tokenCount(), ddExpected);
 
   section('Drive a full Dibber Dobber match');
   guard = 0;
