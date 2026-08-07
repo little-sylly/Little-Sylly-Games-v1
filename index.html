@@ -9151,14 +9151,22 @@ Reboot
                than the hero — the deck is what you're betting ON, not the bet itself) with
                a more prominent count, so col 3's two stacked items also reach hero height. -->
         <div id="cjar-stage-row" class="relative grid grid-cols-3 items-stretch gap-2">
-          <div class="flex flex-col items-center justify-between">
+          <!-- COL 1 — "Up for Grabs". Crumbs and the Treat are ONE object because they
+               are one idea: shared table state that a solo departure claims. Crumbs sits
+               on TOP because it is almost always present, where a Treat is occasional.
+               h-full is what lets grid items-stretch give this card the hero's height, so
+               the three columns balance with no explicit height maths. DD-23. -->
+          <div id="cjar-grabs-card" class="h-full bg-white rounded-2xl shadow-sm px-2 py-2 flex flex-col items-center justify-between gap-1">
+            <p class="text-[0.6rem] uppercase tracking-widest cjar-label">up for grabs</p>
+            <div class="flex items-center gap-1">
+              <span id="cjar-crumbs-value" class="text-2xl font-bold text-[#7A5C0A] leading-none"></span>
+              <span class="text-lg leading-none">🍪</span>
+              <button id="btn-cjar-crumbs-tip" class="text-stone-300 font-bold text-[0.65rem] leading-none active:scale-90 transition-transform duration-100">[?]</button>
+            </div>
             <!-- Fixed footprint whether empty or full: a dashed placeholder marks WHERE a
                  Treat will land, so one appearing is a fill-in, not a layout jump. -->
             <div id="cjar-treat-slot" class="flex flex-col items-center"></div>
-            <div class="flex flex-col items-center gap-0.5">
-              <span id="cjar-crumbs-value" class="text-sm font-bold text-[#7A5C0A]"></span>
-              <button id="btn-cjar-crumbs-tip" class="text-stone-300 font-bold text-[0.65rem] leading-none active:scale-90 transition-transform duration-100">[?]</button>
-            </div>
+            <p id="cjar-grabs-caption" class="text-[0.55rem] text-stone-400 text-center leading-tight"></p>
           </div>
           <div class="flex flex-col items-center justify-center gap-1">
             <div id="cjar-table-hero" class="flex items-end"></div>

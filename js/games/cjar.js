@@ -527,10 +527,12 @@ function cjarEndRaid(reason) {
 // Every renderer starts with a null-guard so it runs unmodified against the
 // harness's null document and against a screen that isn't mounted yet.
 function cjarRenderStage() {
-  // COLUMN 1, top — the Treat slot. ALWAYS renders something at the same footprint: a
-  // dashed placeholder marking where a Treat will land, or the Treat itself once one is
-  // scheduled. Fixed footprint is the point — a Treat appearing is a fill-in, not a
-  // layout jump, the same idea as the history strip's empty-state placeholder below.
+  // COLUMN 1 — "Up for Grabs": Crumbs on top, then the Treat slot, then a caption.
+  // Crumbs and the Treat are the same idea — shared table state a solo departure
+  // claims — so they are one card, not two things in a column (DD-23).
+  const crumbsVal = document.getElementById('cjar-crumbs-value');
+  if (crumbsVal) crumbsVal.textContent = String(cjarCrumbs);
+
   const treatSlot = document.getElementById('cjar-treat-slot');
   if (treatSlot) {
     treatSlot.innerHTML = '';
@@ -543,11 +545,14 @@ function cjarRenderStage() {
     }
   }
 
-  // COLUMN 1, bottom — Crumbs. Shared table state, so it lives on the Stage, not in the
-  // private strip beside two PERSONAL numbers (that combination is what made all three
-  // illegible — see cjarRenderPrivateStrip).
-  const crumbsVal = document.getElementById('cjar-crumbs-value');
-  if (crumbsVal) crumbsVal.textContent = `🍪 ${cjarCrumbs}`;
+  // The caption promotes ONE line out of the crumbs tip onto the card face. It is the
+  // least-understood rule in the game and this is the object it is about. Static, not
+  // press-to-preview: a preview would leak your intent to anyone glancing at your
+  // screen, and phones have no hover state to hang it on (DD-23).
+  const cap = document.getElementById('cjar-grabs-caption');
+  if (cap) cap.textContent = cjarIsSylly()
+    ? 'Play innocent alone and the pile is yours.'
+    : 'Sneak out alone and you take the lot.';
 
   // COLUMN 2 — just revealed. Unchanged: still the largest single image on the stage.
   const hero = document.getElementById('cjar-table-hero');
