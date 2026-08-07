@@ -21,6 +21,7 @@ Every task's requirements implicitly include all of these.
 - **Australian English, metric units.** `colour`, `organise`, `recognise`.
 - **Action Button Standard:** no emoji on any action button label; colour must be the game's brand (`cjar-cta`), neutral stone, or semantic red. `.cjar-cta` supplies `color:#292524` itself — never add `text-white` alongside it.
 - **Motion Standard:** animate `transform` and `opacity` only. `ease-out` for enter/exit, `ease-in-out` for on-screen movement, never `ease-in`. Hard ceiling 300 ms per individual transition (the 2100 ms figure is a *sequence* of shorter beats, not one transition).
+- **Travel animations follow the shipped `.cjar-delta` precedent — 380 ms.** A token crossing the screen is not a UI transition (a press, a dropdown, a reveal), which is what the 300 ms ceiling governs; `.cjar-delta` has shipped at 380 ms and fires ~55× a match. 380 ms is also what the payout beat's own budget allows: 900 ms start + 315 ms of stagger (8 tokens × 45 ms) + 380 ms = 1595 ms, landing just inside the 1600 ms settle. Do not raise it — anything longer overruns the beat it lives in.
 - **Reduced motion:** the global `@media (prefers-reduced-motion: reduce)` block at the end of `css/styles.css` is **duration-based** and must stay that way — never `animation: none`. Do not add a second block.
 - **Host progression is driven by `setTimeout`, never `animationend`.** `verify-cjar-deck.js`, `verify-cjar-loop.js` and `verify-cjar-dd.js` all run with `getElementById: () => null`, so no CSS animation ever starts there. A DOM-gated loop deadlocks all three.
 - **Brand values:** honey-gold `#D4A017`, dark ink `#292524`, label `#7A5C0A`, biscuit `#F7E9C4`, dashed placeholder `#D8C79A`, modal border `#E5C97A`.
@@ -553,7 +554,7 @@ No visual change beyond buttons arriving 2100 ms later. This task exists so the 
 - Produces:
   - `const CJAR_FLIP_ANIM_MS = 2100`
   - `let cjarFlipAnim` (bool), `let cjarAnimHandle` (timeout handle or null)
-  - `function cjarBeginFlipAnim()` — no args, no return. Runs on every device.
+  - `function cjarBeginFlipAnim(startsClock)` — `startsClock` is a bool, no return. Runs on every device. `true` only from `cjarOpenDecisionWindow`, where a decision window follows; `false` from the two reveal-only paths (the bust, and Dibber Dobber's post-choice reveal), where starting a timer would paint a bar against a **stale** `cjarEndTimestamp` left over from the previous flip.
   - Bridge accessor `flipAnim()` → bool.
 
 - [ ] **Step 1: Add the failing checks**
@@ -633,7 +634,12 @@ Add immediately above `cjarOpenDecisionWindow`:
 // CSS animation ever starts there — a DOM-gated handover would deadlock all three.
 // It also means the sequence still takes 2100 ms under prefers-reduced-motion, where
 // the visuals snap. That is correct: this is pacing, and the deadline depends on it.
-function cjarBeginFlipAnim() {
+//
+// `startsClock` is false on the two REVEAL-ONLY paths — a bust, and Dibber Dobber's
+// post-choice reveal. Neither is followed by a decision, so cjarEndTimestamp still
+// holds the PREVIOUS flip's deadline and starting a timer against it would paint a
+// bar for a window that does not exist.
+function cjarBeginFlipAnim(startsClock) {
   if (cjarAnimHandle) { clearTimeout(cjarAnimHandle); cjarAnimHandle = null; }
   cjarFlipAnim = true;
   cjarRenderTable();
@@ -644,7 +650,7 @@ function cjarBeginFlipAnim() {
     // The bar drains over windowMs alone. Starting it while the animation is still on
     // the clock would paint scaleX((endTs - now) / windowMs) > 1 — an over-full bar
     // that sits pinned for two seconds and then jumps.
-    cjarStartTimer(cjarEndTimestamp, cjarWindowMs);
+    if (startsClock) cjarStartTimer(cjarEndTimestamp, cjarWindowMs);
   }, CJAR_FLIP_ANIM_MS);
 }
 ```
@@ -663,7 +669,7 @@ In `cjarOpenDecisionWindow`, replace the deadline line, the render/timer/screen 
   cjarEndTimestamp = windowMs ? Date.now() + CJAR_FLIP_ANIM_MS + windowMs : 0;
   cjarTablePhase = (!cjarIsSylly() && !cjarActive[mpMyPlayerIdx]) ? 'spectating' : 'deciding';
   cjarBroadcastFlipStart();
-  cjarBeginFlipAnim();
+  cjarBeginFlipAnim(true);        // a decision window follows, so the clock is armed
   showScreen('screen-cjar-table');
 
   if (!windowMs) return;
@@ -713,10 +719,33 @@ and in the state block:
 In the `case 'CJAR_FLIP_START':` block, replace the trailing `cjarRenderTable(); cjarStartTimer(...)` pair (whatever the block currently ends with) so it routes through the same driver the host uses:
 
 ```js
-      cjarBeginFlipAnim();
+      cjarBeginFlipAnim(true);
 ```
 
 Leave every payload-normalisation line above it untouched — `cjarWireArr` / `cjarWireList` / `cjarWireObj` still guard every collection (BUG-06). Do **not** call `cjarStartTimer` here any more; `cjarBeginFlipAnim` owns it.
+
+- [ ] **Step 8b: Dibber Dobber's reveal path**
+
+**This is the step that makes the animation exist in Sylly at all.** The base game reveals its card at the *start* of a flip (`cjarApplyCardEffect`, reached via `cjarOpenDecisionWindow`, wired in Step 5). Dibber Dobber reveals *after* choices are locked, inside `cjarHostResolveFlip` via `cjarRevealSyllyCard` (Delta 7) — a path `cjarOpenDecisionWindow` never touches. Without this step Sylly ships with a face-down card that never flips.
+
+In `cjarHostResolveFlip`, replace `cjarTablePhase = 'revealing'; cjarRenderTable();` with:
+
+```js
+  cjarTablePhase = 'revealing';
+  // In Dibber Dobber the card was revealed a few lines above by cjarRevealSyllyCard
+  // (Delta 7), so THIS is where its flip beat belongs. The base game already had its
+  // beat at the top of the flip and only needs the repaint. `false` because no decision
+  // window follows either way — see cjarBeginFlipAnim.
+  if (cjarIsSylly()) cjarBeginFlipAnim(false); else cjarRenderTable();
+```
+
+and extend the dwell so Sylly's animation is not cut off by the next flip:
+
+```js
+  }, (cjarIsSylly() ? CJAR_FLIP_ANIM_MS : 0) + CJAR_REVEAL_MS);
+```
+
+Apply the same pair in the client's `case 'CJAR_FLIP_RESOLVE':` handler — it sets `cjarTablePhase = 'revealing'` and repaints, and needs the identical Sylly branch so a client sees the same flip the host does.
 
 - [ ] **Step 9: The idle CSS**
 
@@ -932,7 +961,7 @@ function cjarFlyTokens(count, direction) {
 Replace the body of `cjarBeginFlipAnim`'s setTimeout with a beat schedule. The handover timer stays exactly where it was; the payout beat gets its own:
 
 ```js
-function cjarBeginFlipAnim() {
+function cjarBeginFlipAnim(startsClock) {
   if (cjarAnimHandle) { clearTimeout(cjarAnimHandle); cjarAnimHandle = null; }
   if (cjarPayoutHandle) { clearTimeout(cjarPayoutHandle); cjarPayoutHandle = null; }
   cjarFlipAnim = true;
@@ -959,7 +988,7 @@ function cjarBeginFlipAnim() {
     cjarAnimHandle = null;
     cjarFlipAnim = false;
     cjarRenderTable();
-    cjarStartTimer(cjarEndTimestamp, cjarWindowMs);
+    if (startsClock) cjarStartTimer(cjarEndTimestamp, cjarWindowMs);
   }, CJAR_FLIP_ANIM_MS);
 }
 ```
@@ -1020,7 +1049,7 @@ Append to `css/styles.css`:
   from { transform: translate3d(38px, -34px, 0) scale(1.35); opacity: 0; }
   to   { transform: translate3d(0, 0, 0) scale(1); opacity: 1; }
 }
-.cjar-treat-arrive { animation: cjar-treat-arrive 420ms ease-out; }
+.cjar-treat-arrive { animation: cjar-treat-arrive 380ms ease-out; }
 
 @keyframes cjar-warn-pulse {
   0%, 100% { transform: scale(1); }
@@ -1045,7 +1074,7 @@ Append to `css/styles.css`:
   top: 42%;
   font-size: 1rem;
   will-change: transform, opacity;
-  animation-duration: 680ms;
+  animation-duration: 380ms;   /* the .cjar-delta precedent, and what the beat allows */
   animation-timing-function: ease-out;
   animation-fill-mode: forwards;
 }
@@ -1132,7 +1161,7 @@ In `cjarHostNextFlip`, replace the bust branch:
     // dramatic card in the game is the one card you never see come out of the jar — it
     // teleports you to a verdict screen for a card you never watched arrive.
     cjarTablePhase = 'revealing';
-    cjarBeginFlipAnim();
+    cjarBeginFlipAnim(false);      // no decision follows a bust — see cjarBeginFlipAnim
     showScreen('screen-cjar-table');
     if (cjarRevealHandle) clearTimeout(cjarRevealHandle);
     cjarRevealHandle = setTimeout(() => {
@@ -1147,7 +1176,7 @@ In the client's `CJAR_FLIP_RESOLVE` handler, apply the same delay around its `cj
 
 ```js
         cjarTablePhase = 'revealing';
-        cjarBeginFlipAnim();
+        cjarBeginFlipAnim(false);
         showScreen('screen-cjar-table');
         setTimeout(() => cjarShowBusted(p.bustFamilyId, p.bustLine, () => {}), CJAR_FLIP_ANIM_MS);
 ```
