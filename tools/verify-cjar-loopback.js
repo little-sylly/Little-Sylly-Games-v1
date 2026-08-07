@@ -195,6 +195,10 @@ globalThis.__cjar = {
     return kids.length === 1 && /cjar-placeholder-dashed/.test(kids[0].className || '');
   },
   standingsRows()    { return document.getElementById('cjar-reveal-rows').children.length; },
+  controlLabels() {
+    return document.getElementById('cjar-controls').children
+      .filter(c => c.tagName === 'button').map(c => c.textContent);
+  },
   timerHidden()      { return document.getElementById('cjar-timer-bar').style.display === 'none'; },
   // Counts CARDS, not card parts: .cjar-card-value / -emoji / -name are children of a
   // card and also match a naive 'cjar-card' substring test.
@@ -350,6 +354,7 @@ const section = t => console.log(`\n${t}`);
   check('client applied it clean', client.__errors, []);
   check('CLIENT REACHED THE TABLE', lastScreen(client), 'screen-cjar-table');
   check('client can decide',       C.phase, 'deciding');
+  check('base-game button labels', C.controlLabels(), ['Reach In Again', 'Sneak Out']);
   check('client sees the card',    C.card && C.card.type, host.__cjar.card.type);
   check('client deck count',       (C.deck || []).length, H.deck.length);
 
@@ -429,6 +434,7 @@ const section = t => console.log(`\n${t}`);
   check('CLIENT REACHED THE TABLE', lastScreen(client2), 'screen-cjar-table');
   check('window is blind',          C2.card, null);
   check('client can decide',        C2.phase, 'deciding');
+  check('Sylly button labels',      C2.controlLabels(), ['Reach In', 'Play Innocent', 'Dob']);
 
   C2.submit('innocent');
   check('one seat in, not all',     H2.allIn(), false);

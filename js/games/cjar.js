@@ -779,11 +779,19 @@ function cjarRenderControls() {
     if (cjarIsSylly()) {
       // "Sneak" must never appear in Dibber Dobber copy: in the base game it means
       // bank-and-leave, and here nobody leaves. Reusing it teaches the wrong rule.
-      box.appendChild(mk('Take a Cookie', 'take', 'brand'));
+      // "Reach In" (not "Take a Cookie") because these are three parallel ACTS on one
+      // card — a noun phrase beside two verb phrases read as a different kind of
+      // option — and because a taker receives a SHARE of the card's value, not one
+      // cookie (cjarSplit in cjarResolveFlipDD). DD-21.
+      box.appendChild(mk('Reach In', 'take', 'brand'));
       box.appendChild(mk('Play Innocent', 'innocent'));
       box.appendChild(mk('Dob', 'dob'));
     } else {
-      box.appendChild(mk('Take a Cookie', 'take', 'brand'));
+      // NOT "Take a Cookie": in the base game the cookies were already split among
+      // every active seat by cjarApplyCardEffect, before this button existed. The
+      // choice here is PARTICIPATION — stay in for the next, unseen card, or leave.
+      // "Again" is what carries that. DD-21.
+      box.appendChild(mk('Reach In Again', 'take', 'brand'));
       box.appendChild(mk('Sneak Out', 'sneak'));
     }
     return;
