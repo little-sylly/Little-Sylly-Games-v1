@@ -307,11 +307,21 @@ git commit -m "feat(cjar): group Crumbs and the Treat into one Up for Grabs card
 Bridge accessor:
 
 ```js
+  // Walks RECURSIVELY. The backs live inside a `.cjar-deck-stack` wrapper div, so they
+  // are grandchildren of #cjar-deck-badge, not children — a flat `.children.filter()`
+  // returns 0. Same shape as the existing galleryTiles() accessor in this file, and for
+  // the same reason. The wrapper is load-bearing: it keeps the stack a self-contained
+  // positioned box so the count can sit BELOW it as its sibling in the flex column.
   deckBacks() {
-    return document.getElementById('cjar-deck-badge').children
-      .filter(c => /cjar-card-back/.test(c.className || '')).length;
+    let n = 0;
+    const walk = el => { if (/cjar-card-back/.test(el.className || '')) n++;
+                         (el.children || []).forEach(walk); };
+    (document.getElementById('cjar-deck-badge').children || []).forEach(walk);
+    return n;
   },
 ```
+
+> **Do not "fix" this by flattening the markup instead.** Putting `.cjar-deck-stack` on `#cjar-deck-badge` itself makes the count a child of a `position: relative; height: 6.3rem` box full of absolutely-positioned cards — the count then renders on top of the cards and the column's height is pinned. Also note `classList` on the loopback's mock DOM is a **no-op stub**, so a class applied with `classList.add` is invisible to every check in that harness; the renderers set `className` as a string for exactly this reason.
 
 Base-game section, after the grabs checks:
 
