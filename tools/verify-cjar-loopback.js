@@ -201,6 +201,17 @@ globalThis.__cjar = {
   },
   grabsCaption() { return document.getElementById('cjar-grabs-caption').textContent; },
   crumbsValue()  { return document.getElementById('cjar-crumbs-value').textContent; },
+  pillTexts(i) {
+    const row = document.getElementById('cjar-reveal-rows').children[i];
+    if (!row) return null;
+    const out = [];
+    const walk = el => {
+      if (/cjar-pill-/.test(el.className || '')) out.push(el.textContent);
+      (el.children || []).forEach(walk);
+    };
+    (row.children || []).forEach(walk);
+    return out;
+  },
   deckBacks() {
     let n = 0;
     const walk = el => { if (/cjar-card-back/.test(el.className || '')) n++;
@@ -367,6 +378,9 @@ const section = t => console.log(`\n${t}`);
   check('grabs caption, base game', C.grabsCaption(), 'Sneak out alone and you take the lot.');
   check('crumbs render as a count',  /^\d+$/.test(C.crumbsValue()), true);
   check('deck renders as a stack, not one card', C.deckBacks(), 3);
+  check('base row shows both pills', (C.pillTexts(0) || []).length, 2);
+  check('  stashed pill wording',    /stashed$/.test((C.pillTexts(0) || [])[0] || ''), true);
+  check('  at-risk pill wording',    /at risk$/.test((C.pillTexts(0) || [])[1] || ''), true);
   check('client sees the card',    C.card && C.card.type, host.__cjar.card.type);
   check('client deck count',       (C.deck || []).length, H.deck.length);
 
@@ -446,6 +460,7 @@ const section = t => console.log(`\n${t}`);
   check('CLIENT REACHED THE TABLE', lastScreen(client2), 'screen-cjar-table');
   check('window is blind',          C2.card, null);
   check('client can decide',        C2.phase, 'deciding');
+  check('Sylly row shows one pill only', (C2.pillTexts(0) || []).length, 1);
   check('Sylly button labels',      C2.controlLabels(), ['Reach In', 'Play Innocent', 'Dob']);
   check('grabs caption, Sylly', C2.grabsCaption(), 'Play innocent alone and the pile is yours.');
 

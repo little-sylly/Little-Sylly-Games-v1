@@ -1842,6 +1842,23 @@ body.flash-red   { background-color: #fecaca; }
 .cjar-card-next    { width: 4.4rem;  height: 6rem; }
 .cjar-deck-stack   { position: relative; width: 4.7rem; height: 6.3rem; }
 .cjar-deck-stack > .cjar-card-back { position: absolute; }
+/* Score-row pills. Two objects, because they mean opposite things: stashed is safe
+   forever, at-risk evaporates on a bust. Colour carries the semantics and the word
+   carries the meaning — the rows had ~150px of dead horizontal space to spend on it. */
+.cjar-pill-stashed, .cjar-pill-risk {
+  padding: 0.1rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.cjar-pill-stashed { background: #F7E9C4; color: #7A5C0A; }
+.cjar-pill-risk    { background: #FEE2E2; color: #B91C1C; }
+
+@keyframes cjar-pill-pop-up   { 50% { transform: scale(1.12); } }
+@keyframes cjar-pill-pop-down { 50% { transform: scale(0.9); } }
+.cjar-pill-flash-up   { animation: cjar-pill-pop-up   240ms ease-out; }
+.cjar-pill-flash-down { animation: cjar-pill-pop-down 240ms ease-out; }
 .cjar-card-counter { width: 3.5rem;  height: 4.75rem; }
 .cjar-card-thumb   { width: 3rem;    height: 4.1rem; }
 /* A fixed footprint for something that isn't there YET — the Treat slot before a Treat

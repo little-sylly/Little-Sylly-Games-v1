@@ -873,20 +873,42 @@ function cjarRenderRevealRows() {
       : cjarRankLabel(ranks[i]) + '  ' + cjarPlayerNames[i]
         + (!cjarIsSylly() && !cjarActive[i] ? '  🚪' : '');
 
+    // Two pills, not one string. `0 🍪 (+1 in)` put load-bearing information in a
+    // parenthetical read at a glance during a timed simultaneous decision — the two
+    // numbers mean opposite things (safe forever vs gone if the Raid busts) and were
+    // rendered as one. DD-22.
     const right = document.createElement('span');
+    right.className = 'flex items-center gap-1.5 shrink-0';
+
+    const pill = (text, cls) => {
+      const s = document.createElement('span');
+      s.className = 'cjar-pill-' + cls;
+      s.textContent = text;
+      right.appendChild(s);
+      return s;
+    };
+
+    const visible = cjarStashVisible(i);
+    const stashed = pill(visible ? (cjarStashes[i] || 0) + ' stashed' : '••• stashed', 'stashed');
+
+    // At Risk is BASE GAME ONLY. Dibber Dobber has one running Stash and no Raid-local
+    // pool at all, so a second pill there would always read 0 and teach a rule that
+    // does not exist.
+    if (!cjarIsSylly() && cjarActive[i]) {
+      pill(visible ? (cjarRaidTotals[i] || 0) + ' at risk' : '••• at risk', 'risk');
+    }
+
+    // The delta FLASHES ON the pills instead of replacing them. Replacing them is what
+    // the old renderer did, which meant the standings vanished at the one moment you
+    // most want to compare them.
     if (revealing) {
       const d = cjarDeltas[i] || 0;
-      right.className = 'text-sm font-bold ' + (d < 0 ? 'text-red-700' : 'text-stone-500');
-      right.textContent = cjarStashVisible(i) ? ((d > 0 ? '+' : '') + d + ' 🍪') : '•••';
-    } else {
-      right.className = 'text-sm font-bold text-stone-500';
-      // Open Book gates OTHERS' numbers only — your own row always reads. The
-      // in-Raid total is base-game only; Dibber Dobber has one running Stash.
-      right.textContent = cjarStashVisible(i)
-        ? (cjarStashes[i] || 0) + ' 🍪'
-          + (!cjarIsSylly() && cjarActive[i] ? `  (+${cjarRaidTotals[i] || 0} in)` : '')
-        : '•••';
+      if (d && visible) {
+        stashed.className += d < 0 ? ' cjar-pill-flash-down' : ' cjar-pill-flash-up';
+        stashed.textContent = (d > 0 ? '+' : '') + d + ' → ' + (cjarStashes[i] || 0) + ' stashed';
+      }
     }
+
     row.appendChild(left); row.appendChild(right);
     box.appendChild(row);
   });
