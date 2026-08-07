@@ -22,7 +22,15 @@
 // safe precisely because cjarAllIn() already gates on real submissions.
 const CJAR_DECISION_TIMES   = { blitz: 10000, standard: 20000, norush: null };
 const CJAR_TIMEOUT_GRACE_MS = 1500;  // host waits this long past endTimestamp for in-flight ACTIONs
-const CJAR_REVEAL_MS        = 3000;  // reveal dwell before the next flip starts
+const CJAR_REVEAL_MS        = 1200;  // outcome dwell ONLY — who sneaked out, the deltas.
+                                     // Was 3000; the rest of that budget moved into
+                                     // CJAR_FLIP_ANIM_MS below (DD-19). These two are
+                                     // deliberately NOT held equal, unlike PKO's
+                                     // interstitial pair: they measure different things
+                                     // (reading a result vs watching a card resolve) and
+                                     // should be tuned independently.
+const CJAR_FLIP_ANIM_MS     = 2100;  // reveal choreography — flip 300 / hold 600 /
+                                     // payout 700 / settle 500. See cjarBeginFlipAnim.
 const CJAR_INTERSTITIAL_MS  = 5000;  // raid-intro + BUSTED! auto-advance (PKO round-4 value; the
                                      // documented practical ceiling for a chrome-exempt screen)
 const CJAR_DD_CUT           = 10;    // Sylly: cards cut from the 30-card pool, BEFORE the Treat
@@ -115,6 +123,8 @@ let cjarTimerHandle        = null;       // setInterval — the countdown bar
 let cjarRevealHandle       = null;       // setTimeout — reveal dwell (host only)
 let cjarHostTimeoutHandle  = null;       // setTimeout — decision-timer auto-resolve (host only)
 let cjarInterstitialHandle = null;       // setTimeout — raid-intro / BUSTED! advance
+let cjarFlipAnim           = false;      // true while the reveal choreography owns the stage
+let cjarAnimHandle         = null;       // setTimeout — the choreography's own clock
 
 let CJAR_DATA = null;                    // hydrated from data/cjar-data.json
 
@@ -775,6 +785,12 @@ function cjarRenderControls() {
   const box = document.getElementById('cjar-controls');
   if (!box) return;
   box.innerHTML = '';
+  // The buttons are BUILT during the choreography but held inert and invisible, rather
+  // than omitted. An empty container would grow by ~7rem the moment the animation
+  // ended, and because the <section> centres the Stack that re-centres the entire
+  // screen — the SHP sheep-parade bug, and this fires ~55 times a match. The class
+  // lives on the CONTAINER, which survives re-render, so the fade actually transitions.
+  box.className = 'flex flex-col gap-2' + (cjarFlipAnim ? ' cjar-controls-idle' : '');
 
   const mk = (label, choice, tone) => {
     const b = document.createElement('button');
@@ -991,7 +1007,7 @@ function cjarStopTimer() {
 
 // ── Submitting a choice ────────────────────────────────────────────────────
 function cjarSubmitChoice(choice) {
-  if (cjarTablePhase !== 'deciding') return;
+  if (cjarTablePhase !== 'deciding' || cjarFlipAnim) return;
   playDone();
   // mpLockSync's correctness layer drops a double-tap's second ACTION at the send
   // choke point. It is kept for exactly that; the Waiting state is the re-render.
@@ -1365,17 +1381,49 @@ function cjarPlayCardSound(card) {
   if (typeof fn === 'function') fn();
 }
 
+// Runs on EVERY device, host and client alike. For CJAR_FLIP_ANIM_MS it owns the
+// stage: the card is face-up, the buttons are inert, and the decision clock has not
+// started. Then it hands over.
+//
+// Driven by setTimeout and NEVER by animationend. verify-cjar-deck / -loop / -dd all
+// run with `getElementById: () => null`, so every render call is a no-op and not one
+// CSS animation ever starts there — a DOM-gated handover would deadlock all three.
+// It also means the sequence still takes 2100 ms under prefers-reduced-motion, where
+// the visuals snap. That is correct: this is pacing, and the deadline depends on it.
+//
+// `startsClock` is false on the two REVEAL-ONLY paths — a bust, and Dibber Dobber's
+// post-choice reveal. Neither is followed by a decision, so cjarEndTimestamp still
+// holds the PREVIOUS flip's deadline and starting a timer against it would paint a
+// bar for a window that does not exist.
+function cjarBeginFlipAnim(startsClock) {
+  if (cjarAnimHandle) { clearTimeout(cjarAnimHandle); cjarAnimHandle = null; }
+  cjarFlipAnim = true;
+  cjarRenderTable();
+  cjarAnimHandle = setTimeout(() => {
+    cjarAnimHandle = null;
+    cjarFlipAnim = false;
+    cjarRenderTable();
+    // The bar drains over windowMs alone. Starting it while the animation is still on
+    // the clock would paint scaleX((endTs - now) / windowMs) > 1 — an over-full bar
+    // that sits pinned for two seconds and then jumps.
+    if (startsClock) cjarStartTimer(cjarEndTimestamp, cjarWindowMs);
+  }, CJAR_FLIP_ANIM_MS);
+}
+
 // HOST ONLY. The shared tail of BOTH modes' flip opening — deadline, broadcast,
 // render, countdown, auto-resolve. Factored so the two paths cannot drift: the only
 // difference between them is whether a card is face-up when the window opens.
 function cjarOpenDecisionWindow() {
   const windowMs = cjarDecisionMs();
   cjarWindowMs     = windowMs;
-  cjarEndTimestamp = windowMs ? Date.now() + windowMs : 0;
+  // The choreography owns the first CJAR_FLIP_ANIM_MS, so the deadline sits that much
+  // further out and Blitz stays a true 10 s of DECIDING rather than 10 s minus the
+  // animation. endTimestamp is absolute and already travels in CJAR_FLIP_START, so
+  // clock skew between devices stays cosmetic exactly as it was.
+  cjarEndTimestamp = windowMs ? Date.now() + CJAR_FLIP_ANIM_MS + windowMs : 0;
   cjarTablePhase = (!cjarIsSylly() && !cjarActive[mpMyPlayerIdx]) ? 'spectating' : 'deciding';
   cjarBroadcastFlipStart();
-  cjarRenderTable();
-  cjarStartTimer(cjarEndTimestamp, windowMs);
+  cjarBeginFlipAnim(true);        // a decision window follows, so the clock is armed
   showScreen('screen-cjar-table');
 
   // No Rush: no deadline, so no auto-resolve. cjarAllIn() is the only gate, which is
@@ -1398,7 +1446,7 @@ function cjarOpenDecisionWindow() {
       }
     }
     cjarHostResolveFlip();
-  }, windowMs + CJAR_TIMEOUT_GRACE_MS);
+  }, CJAR_FLIP_ANIM_MS + windowMs + CJAR_TIMEOUT_GRACE_MS);
 }
 
 // HOST ONLY. Closes the window, resolves, broadcasts, then dwells before the next flip.
@@ -1420,7 +1468,11 @@ function cjarHostResolveFlip() {
 
   cjarBroadcastResolve({ ...res, bustFamilyId: null });
   cjarTablePhase = 'revealing';
-  cjarRenderTable();
+  // In Dibber Dobber the card was revealed a few lines above by cjarRevealSyllyCard
+  // (Delta 7), so THIS is where its flip beat belongs. The base game already had its
+  // beat at the top of the flip and only needs the repaint. `false` because no decision
+  // window follows either way — see cjarBeginFlipAnim.
+  if (cjarIsSylly()) cjarBeginFlipAnim(false); else cjarRenderTable();
   cjarFlyDelta(cjarDeltas[mpMyPlayerIdx]);
 
   if (cjarRevealHandle) clearTimeout(cjarRevealHandle);
@@ -1428,7 +1480,7 @@ function cjarHostResolveFlip() {
     cjarRevealHandle = null;
     if (res.raidEnded) cjarHostEndRaid('allout');
     else cjarHostNextFlip();
-  }, CJAR_REVEAL_MS);
+  }, (cjarIsSylly() ? CJAR_FLIP_ANIM_MS : 0) + CJAR_REVEAL_MS);
 }
 
 // HOST ONLY.
@@ -1900,11 +1952,13 @@ function cjarHandleEnvelope(env) {
       cjarDeltas = []; cjarLines = [];
       cjarTablePhase = (!cjarIsSylly() && !cjarActive[mpMyPlayerIdx]) ? 'spectating' : 'deciding';
       mpUnlockSync();
-      cjarRenderTable();
       // `windowMs` is absent on a No Rush flip (null is erased by the wire) — which is
       // exactly the signal cjarStartTimer needs to hide the bar rather than freeze it.
+      // Both travel as globals — cjarBeginFlipAnim's deferred callback reads them fresh
+      // when its own timer fires, the same way the host's own cjarOpenDecisionWindow does.
       cjarWindowMs = p.windowMs || null;
-      cjarStartTimer(p.endTimestamp || 0, cjarWindowMs);
+      cjarEndTimestamp = p.endTimestamp || 0;
+      cjarBeginFlipAnim(true);
       showScreen('screen-cjar-table');
       break;
 
@@ -1932,7 +1986,10 @@ function cjarHandleEnvelope(env) {
         cjarShowBusted(p.bustFamilyId, p.bustLine, () => {});
         break;
       }
-      cjarRenderTable();
+      // Same branch as the host's cjarHostResolveFlip: in Dibber Dobber the card was
+      // just revealed by this very packet (Delta 7), so this is where its flip beat
+      // belongs. `false` — no decision window follows either way.
+      if (cjarIsSylly()) cjarBeginFlipAnim(false); else cjarRenderTable();
       cjarFlyDelta(cjarDeltas[mpMyPlayerIdx]);
       break;
 
@@ -1985,6 +2042,8 @@ function cjarResetState() {
   if (cjarRevealHandle)       { clearTimeout(cjarRevealHandle);       cjarRevealHandle = null; }
   if (cjarHostTimeoutHandle)  { clearTimeout(cjarHostTimeoutHandle);  cjarHostTimeoutHandle = null; }
   if (cjarInterstitialHandle) { clearTimeout(cjarInterstitialHandle); cjarInterstitialHandle = null; }
+  if (cjarAnimHandle)         { clearTimeout(cjarAnimHandle);         cjarAnimHandle = null; }
+  cjarFlipAnim = false;
   cjarRaidNo = 0; cjarStashes = []; cjarTreatsWon = []; cjarRaidHistory = [];
   cjarDeck = []; cjarCrumbs = 0; cjarCounterTreat = null; cjarTrail = [];
   cjarChoices = []; cjarReadyCheck = []; cjarEndTimestamp = 0; cjarFlipSeq = 0;

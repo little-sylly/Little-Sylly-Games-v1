@@ -1952,3 +1952,9 @@ body.flash-red   { background-color: #fecaca; }
   to   { transform: scale(1);    opacity: 1; }
 }
 .cjar-trail-settle { animation: cjar-trail-settle 200ms ease-out; }
+
+/* Controls are present but inert while the reveal choreography plays, so the column's
+   height never changes. Opacity only — a display toggle would collapse the height and
+   re-centre the whole Stack. */
+.cjar-controls-idle { opacity: 0; pointer-events: none; }
+#cjar-controls { transition: opacity 150ms ease-out; }

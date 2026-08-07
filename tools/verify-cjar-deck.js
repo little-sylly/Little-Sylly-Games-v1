@@ -130,7 +130,9 @@ const section = t => console.log(`\n${t}`);
   check('Standard window',       C.consts.DECISION_TIMES.standard, 20000);
   check('No Rush has NO window', C.consts.DECISION_TIMES.norush,   null);
   check('CJAR_TIMEOUT_GRACE_MS', C.consts.GRACE_MS,        1500);
-  check('CJAR_REVEAL_MS',        C.consts.REVEAL_MS,       3000);
+  // 3000 → 1200 (DD-19): the outcome dwell shrank once CJAR_FLIP_ANIM_MS carved a
+  // separate 2100 ms reveal-choreography window out of the old budget.
+  check('CJAR_REVEAL_MS',        C.consts.REVEAL_MS,       1200);
   check('CJAR_INTERSTITIAL_MS',  C.consts.INTERSTITIAL_MS, 5000);
   check('CJAR_DD_CUT',           C.consts.DD_CUT,          10);
   check('CJAR_DD_START_STASH',   C.consts.DD_START_STASH,  5);

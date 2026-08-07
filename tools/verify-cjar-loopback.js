@@ -195,6 +195,9 @@ globalThis.__cjar = {
     return kids.length === 1 && /cjar-placeholder-dashed/.test(kids[0].className || '');
   },
   standingsRows()    { return document.getElementById('cjar-reveal-rows').children.length; },
+  flipAnim()     { return cjarFlipAnim; },
+  animMs()       { return CJAR_FLIP_ANIM_MS; },
+  controlsIdle() { return /cjar-controls-idle/.test(document.getElementById('cjar-controls').className); },
   controlLabels() {
     return document.getElementById('cjar-controls').children
       .filter(c => c.tagName === 'button').map(c => c.textContent);
@@ -384,6 +387,26 @@ const section = t => console.log(`\n${t}`);
   check('client sees the card',    C.card && C.card.type, host.__cjar.card.type);
   check('client deck count',       (C.deck || []).length, H.deck.length);
 
+  section('The reveal window owns the stage before the clock starts');
+  check('host is animating',            H.flipAnim(), true);
+  check('client is animating too',      C.flipAnim(), true);
+  check('client controls are inert',    C.controlsIdle(), true);
+  check('a tap during the animation is dropped', (() => {
+    const before = H.ready.slice();
+    C.submit('take');
+    return JSON.stringify(H.ready) === JSON.stringify(before);
+  })(), true);
+  // `endTs` is a bridge GETTER (not a method — see the existing `H4.endTs` usage
+  // below), so it is read as a property here, not called.
+  check('deadline includes the animation',
+        H.endTs - Date.now() > H.animMs(), true);
+
+  // Let the reveal choreography hand over on BOTH devices before any real submission —
+  // cjarSubmitChoice is now guarded by cjarFlipAnim (Step 6), and each device runs its
+  // own independent animation timer.
+  step(host);
+  step(client);
+
   section('A choice travels client → host and back');
   C.submit('take');
   check('host recorded seat 1',    H.ready[1], true);
@@ -514,9 +537,15 @@ const section = t => console.log(`\n${t}`);
   check('client is at the table',   lastScreen(client4), 'screen-cjar-table');
   check('host set NO deadline',     H4.endTs, 0);
   check('no window length',         H4.windowMs, null);
+  // Both devices' reveal choreography must hand over before checking the SETTLED
+  // state — cjarStartTimer (the thing that hides the bar) is now inside the
+  // deferred half of cjarBeginFlipAnim, not the FLIP_START applier itself.
+  step(host4);
+  step(client4);
   check('client hid the timer bar', C4.timerHidden(), true);
   // The auto-resolve timer is the ONLY thing that should be absent. If it were still
-  // armed, No Rush would silently resolve on the fallback choice after 20 s.
+  // armed, No Rush would silently resolve on the fallback choice after 20 s. The
+  // reveal-choreography timer has already been consumed by the step() above.
   check('no auto-resolve is armed', host4.__timers.length, 0);
   check('and nothing resolved',     H4.ready.every(Boolean), false);
   C4.submit('take');
