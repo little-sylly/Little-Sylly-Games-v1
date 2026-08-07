@@ -972,8 +972,11 @@ Replace the body of `cjarBeginFlipAnim`'s setTimeout with a beat schedule. The h
 
 ```js
 function cjarBeginFlipAnim(startsClock) {
-  if (cjarAnimHandle) { clearTimeout(cjarAnimHandle); cjarAnimHandle = null; }
-  if (cjarPayoutHandle) { clearTimeout(cjarPayoutHandle); cjarPayoutHandle = null; }
+  cjarCancelFlipAnim();     // Task 5's fix round introduced this — do NOT inline the
+                            // clears back in. It is also called unconditionally at the
+                            // top of BOTH resolve paths, which is what stops a late
+                            // spectator's handover firing a timer against the previous
+                            // flip's deadline.
   cjarFlipAnim = true;
   cjarRenderTable();
 
@@ -1007,6 +1010,16 @@ Declare the new handle beside `cjarAnimHandle`, and clear it in `cjarResetState`
 
 ```js
 let cjarPayoutHandle = null;   // setTimeout — the payout beat inside the choreography
+```
+
+**Then extend `cjarCancelFlipAnim()` to clear it too.** That helper was added by Task 5's fix round and is called from three places — `cjarBeginFlipAnim` and the top of both resolve paths. If it only clears `cjarAnimHandle`, a payout beat scheduled by an interrupted flip fires cookies onto the next one's stage:
+
+```js
+function cjarCancelFlipAnim() {
+  if (cjarAnimHandle)   { clearTimeout(cjarAnimHandle);   cjarAnimHandle = null; }
+  if (cjarPayoutHandle) { clearTimeout(cjarPayoutHandle); cjarPayoutHandle = null; }
+  cjarFlipAnim = false;
+}
 ```
 
 - [ ] **Step 5: The other two payout kinds — the Treat's travel and the warning pulse**
