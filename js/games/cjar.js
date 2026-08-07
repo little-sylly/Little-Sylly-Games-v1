@@ -1005,6 +1005,17 @@ function cjarStopTimer() {
   if (cjarTimerHandle) { clearInterval(cjarTimerHandle); cjarTimerHandle = null; }
 }
 
+// Cancels any in-flight reveal choreography without starting a new one. Shared by
+// cjarBeginFlipAnim (which needs the clear before it arms its own timer) and both
+// resolve paths (which need it unconditionally, whether or not Sylly is about to
+// start a NEW animation of its own) — a resolve that lands mid-animation must never
+// let that stale timer survive into the reveal phase and paint a bar against the
+// just-closed flip's deadline.
+function cjarCancelFlipAnim() {
+  if (cjarAnimHandle) { clearTimeout(cjarAnimHandle); cjarAnimHandle = null; }
+  cjarFlipAnim = false;
+}
+
 // ── Submitting a choice ────────────────────────────────────────────────────
 function cjarSubmitChoice(choice) {
   if (cjarTablePhase !== 'deciding' || cjarFlipAnim) return;
@@ -1396,7 +1407,7 @@ function cjarPlayCardSound(card) {
 // holds the PREVIOUS flip's deadline and starting a timer against it would paint a
 // bar for a window that does not exist.
 function cjarBeginFlipAnim(startsClock) {
-  if (cjarAnimHandle) { clearTimeout(cjarAnimHandle); cjarAnimHandle = null; }
+  cjarCancelFlipAnim();
   cjarFlipAnim = true;
   cjarRenderTable();
   cjarAnimHandle = setTimeout(() => {
@@ -1416,14 +1427,28 @@ function cjarBeginFlipAnim(startsClock) {
 function cjarOpenDecisionWindow() {
   const windowMs = cjarDecisionMs();
   cjarWindowMs     = windowMs;
-  // The choreography owns the first CJAR_FLIP_ANIM_MS, so the deadline sits that much
-  // further out and Blitz stays a true 10 s of DECIDING rather than 10 s minus the
-  // animation. endTimestamp is absolute and already travels in CJAR_FLIP_START, so
-  // clock skew between devices stays cosmetic exactly as it was.
-  cjarEndTimestamp = windowMs ? Date.now() + CJAR_FLIP_ANIM_MS + windowMs : 0;
+  // Sylly reveals AFTER choices lock (cjarHostResolveFlip), so its decision window has
+  // nothing to reveal and must not pay the choreography's budget twice — spec §6. The
+  // base game's card IS already face-up here (cjarApplyCardEffect ran in
+  // cjarHostNextFlip before this was called), so it alone owns the choreography.
+  const animMs = cjarIsSylly() ? 0 : CJAR_FLIP_ANIM_MS;
+  // The choreography owns the first animMs, so the deadline sits that much further out
+  // and Blitz stays a true 10 s of DECIDING rather than 10 s minus the animation.
+  // endTimestamp is absolute and already travels in CJAR_FLIP_START, so clock skew
+  // between devices stays cosmetic exactly as it was.
+  cjarEndTimestamp = windowMs ? Date.now() + animMs + windowMs : 0;
   cjarTablePhase = (!cjarIsSylly() && !cjarActive[mpMyPlayerIdx]) ? 'spectating' : 'deciding';
   cjarBroadcastFlipStart();
-  cjarBeginFlipAnim(true);        // a decision window follows, so the clock is armed
+  if (cjarIsSylly()) {
+    // No reveal to animate — go straight to deciding with the clock armed immediately,
+    // exactly as it did before this task. cjarCancelFlipAnim guards against a still-
+    // running reveal-phase animation left over from the PREVIOUS flip's resolve.
+    cjarCancelFlipAnim();
+    cjarRenderTable();
+    cjarStartTimer(cjarEndTimestamp, windowMs);
+  } else {
+    cjarBeginFlipAnim(true);      // a decision window follows, so the clock is armed
+  }
   showScreen('screen-cjar-table');
 
   // No Rush: no deadline, so no auto-resolve. cjarAllIn() is the only gate, which is
@@ -1446,7 +1471,7 @@ function cjarOpenDecisionWindow() {
       }
     }
     cjarHostResolveFlip();
-  }, CJAR_FLIP_ANIM_MS + windowMs + CJAR_TIMEOUT_GRACE_MS);
+  }, animMs + windowMs + CJAR_TIMEOUT_GRACE_MS);
 }
 
 // HOST ONLY. Closes the window, resolves, broadcasts, then dwells before the next flip.
@@ -1454,6 +1479,11 @@ function cjarHostResolveFlip() {
   if (window.syllyMultiplayerMode === 'client') return;
   if (cjarHostTimeoutHandle) { clearTimeout(cjarHostTimeoutHandle); cjarHostTimeoutHandle = null; }
   cjarStopTimer();
+  // Unconditional — not just inside the Sylly branch below. A spectator seat that
+  // never submits can still be mid-animation (its own FLIP_START handover pending)
+  // when this resolve runs; leaving that timer armed lets it fire AFTER cjarTablePhase
+  // has moved to 'revealing' and paint the bar against the just-closed flip's deadline.
+  cjarCancelFlipAnim();
 
   // Delta 7 — in Dibber Dobber the card is revealed HERE, once the choices are locked.
   // It must be popped BEFORE cjarResolveFlip, because cjarResolveFlipDD resolves
@@ -1958,12 +1988,26 @@ function cjarHandleEnvelope(env) {
       // when its own timer fires, the same way the host's own cjarOpenDecisionWindow does.
       cjarWindowMs = p.windowMs || null;
       cjarEndTimestamp = p.endTimestamp || 0;
-      cjarBeginFlipAnim(true);
+      // Sylly's window opens blind — nothing to reveal, so skip the choreography and
+      // arm the clock immediately, mirroring the host's cjarOpenDecisionWindow branch
+      // (spec §6). cjarCancelFlipAnim guards against a still-running reveal-phase
+      // animation left over from the PREVIOUS flip's resolve.
+      if (cjarIsSylly()) {
+        cjarCancelFlipAnim();
+        cjarRenderTable();
+        cjarStartTimer(cjarEndTimestamp, cjarWindowMs);
+      } else {
+        cjarBeginFlipAnim(true);
+      }
       showScreen('screen-cjar-table');
       break;
 
     case 'CJAR_FLIP_RESOLVE':
       cjarStopTimer();
+      // Unconditional — mirrors cjarHostResolveFlip. A spectator seat mid-animation
+      // (its own FLIP_START handover still pending) must not let that stale timer
+      // survive into 'revealing' and paint the bar against the just-closed deadline.
+      cjarCancelFlipAnim();
       // Delta 7: in Dibber Dobber this is the FIRST time the client sees the card —
       // FLIP_START carried null because the window was blind.
       cjarCard = p.card !== undefined ? p.card : cjarCard;

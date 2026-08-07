@@ -483,6 +483,12 @@ const section = t => console.log(`\n${t}`);
   check('CLIENT REACHED THE TABLE', lastScreen(client2), 'screen-cjar-table');
   check('window is blind',          C2.card, null);
   check('client can decide',        C2.phase, 'deciding');
+  // Sylly reveals AFTER choices lock, so its blind window has nothing to animate and
+  // must NOT pay CJAR_FLIP_ANIM_MS on top of windowMs the way the base game's does —
+  // the inverse of "deadline includes the animation" above (spec §6, Finding 2).
+  check('Sylly deadline does NOT pay the animation twice',
+        H2.endTs - Date.now() <= H2.windowMs, true);
+  check('Sylly is not animating at window-open', C2.flipAnim(), false);
   check('Sylly row shows one pill only', (C2.pillTexts(0) || []).length, 1);
   check('Sylly button labels',      C2.controlLabels(), ['Reach In', 'Play Innocent', 'Dob']);
   check('grabs caption, Sylly', C2.grabsCaption(), 'Play innocent alone and the pile is yours.');
@@ -589,6 +595,31 @@ const section = t => console.log(`\n${t}`);
   step(host5);                                    // reveal dwell → second flip
   check('two out, one thumb',        C5.stageThumbs(), 1);
   check('standings render always',   C5.standingsRows(), 4);
+
+  section('A spectator device is still animating when RESOLVE lands (Finding 1)');
+  // client5's own local flip-2 animation (started when FLIP_START above landed) was
+  // never stepped, so it is genuinely still running — exactly the "client whose packet
+  // arrived late can still be animating when RESOLVE arrives" scenario. Seat 1 sneaks
+  // out on this very flip (a spectator from the next flip on), but the bug under test
+  // does not depend on that: it is about cjarCancelFlipAnim running UNCONDITIONALLY at
+  // the top of the resolve path, not only inside the Sylly branch.
+  check('client5 is still animating, unstepped', C5.flipAnim(), true);
+  // client5 also carries its OWN never-fired raid-intro interstitial handle (a
+  // pre-existing, unrelated timer — cjarShowRaidIntro schedules one on every device,
+  // including a client whose onDone is a no-op) — so the assertion below is a DELTA,
+  // not an absolute count, to isolate the anim handle from that unrelated one.
+  const client5TimersBeforeResolve = client5.__timers.length;
+  for (let i = 0; i < 4; i++) if (!H5.ready[i]) H5.applyChoice(i, i === 1 ? 'sneak' : 'take');
+  check('all four in', H5.allIn(), true);
+  H5.resolve();
+  check('client applied resolve clean', client5.__errors, []);
+  check('the stale animation was cancelled, not left running', C5.flipAnim(), false);
+  // The decisive check: a base-game resolve schedules NO new timer of its own, so the
+  // ONLY change to client5's timer queue should be the stale anim handle disappearing.
+  // Pre-fix it would have survived (delta 0) and later fired mid-'revealing', painting
+  // the bar against the just-closed deadline.
+  check('no lingering timer to later paint a stale bar',
+        client5.__timers.length, client5TimersBeforeResolve - 1);
 
   section('The card gallery is a How to Play TAB, and builds with no match running');
   const solo = makeDevice('solo', 'single', 0, SLOTS);
