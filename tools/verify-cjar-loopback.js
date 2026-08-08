@@ -288,11 +288,6 @@ globalThis.__cjar = {
   // tree), so child traversal works. The history grid is built as a raw HTML STRING
   // (innerHTML=), and this mock's innerHTML setter only stores the string and clears
   // .children — it does NOT parse it — so history-grid checks below read the string.
-  podiumMedal(i) {
-    const row = document.getElementById('cjar-podium').children[i];
-    const slot = row && row.children[0] && row.children[0].children[0];
-    return slot ? slot.textContent : null;
-  },
   // Tie-tolerant version of podiumMedal — a REAL shuffle can put more than one seat on
   // the same rank (a tie for 2nd bumps what would've been "row 3" up a slot), so DOM
   // row INDEX never reliably maps to a specific rank. This reads each row's own medal
@@ -321,7 +316,6 @@ globalThis.__cjar = {
     cjarShowGameover();
     return html;
   },
-  historyHTML() { return document.getElementById('cjar-history-grid').innerHTML; },
   resetState()       { cjarResetState(); },
 };`;
 

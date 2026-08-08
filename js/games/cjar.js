@@ -1551,7 +1551,7 @@ function cjarPlayCardSound(card) {
 // Driven by setTimeout and NEVER by animationend. verify-cjar-deck / -loop / -dd all
 // run with `getElementById: () => null`, so every render call is a no-op and not one
 // CSS animation ever starts there — a DOM-gated handover would deadlock all three.
-// It also means the sequence still takes 2100 ms under prefers-reduced-motion, where
+// It also means the sequence still takes 3200 ms under prefers-reduced-motion, where
 // the visuals snap. That is correct: this is pacing, and the deadline depends on it.
 //
 // `startsClock` is false on the two REVEAL-ONLY paths — a bust, and Dibber Dobber's

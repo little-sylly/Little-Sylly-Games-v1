@@ -1941,8 +1941,9 @@ body.flash-red   { background-color: #fecaca; }
 
 /* ── The flip ───────────────────────────────────────────────────────────────
    A card turning off the pile into the stage slot. transform + opacity ONLY, so it
-   composites on the GPU; 260 ms ease-out is inside the Motion Standard's 300 ms
-   ceiling for a non-overlay. `perspective` lives on the row (it is not animated) —
+   composites on the GPU; 550ms — part of CJAR's blocking reveal choreography, covered
+   by the Motion Standard's blocking-beat exception (see ui-style.md), not the 300 ms
+   chrome-feedback ceiling. `perspective` lives on the row (it is not animated) —
    without it rotateY reads as a horizontal squash rather than a turn. Nothing
    depends on animationend, so the global prefers-reduced-motion block collapsing
    the duration leaves nothing stranded. */

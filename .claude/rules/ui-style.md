@@ -252,6 +252,8 @@ Applies to every transition and `@keyframes` in `css/styles.css` and every inlin
 
 **Hard ceiling: 300 ms** for anything that is not a full overlay. Past that a phone UI feels laggy rather than smooth. The Stack's overlays (`settings-slide-up`) are the documented exception at up to 500 ms.
 
+**A second, narrow exception: a blocking choreography beat.** A sequenced animation that the player cannot act through — where the duration itself *is* the pacing budget, not decoration on top of an already-actionable UI — may exceed 300 ms, provided it still animates only `transform`/`opacity` per the rule below. This is different from ordinary chrome feedback (a button press, a pill toggle): those are what the 300 ms ceiling protects, because input is available the whole time. Reference: CJAR's reveal choreography (`CJAR_FLIP_ANIM_MS`, `js/games/cjar.js`) — flip/hold/payout is a single blocking 3200 ms beat because no decision can be made until the card's outcome is seen.
+
 **Easing — pick by what the element is doing, not by taste:**
 - Entering or exiting the screen → `ease-out`
 - Moving around on-screen → `ease-in-out`
