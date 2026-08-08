@@ -671,7 +671,7 @@ secondary "Leave", a Decision Modal's confirm/cancel (already conforming — see
 Checklist), or any future pairing: match size and weight, and pick colour per § Game Brand
 Colour — Scope (brand for the primary action, neutral stone for a secondary one).
 
-**Rollout status:** applied to CJAR only. Other 17 games not yet swept — tracked in `docs/deferred-work.md`.
+**Rollout status:** applied suite-wide, all 18 games (9 Aug 2026).
 
 **Rules:**
 - "← Back to the Box" is always identical — never game-themed.

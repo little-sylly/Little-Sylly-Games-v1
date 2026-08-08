@@ -34,14 +34,10 @@ not in a batch at the end.
 
 ## Smaller flagged items
 
-- **DD-31's same-screen button-parity rule has only been applied to CJAR.** `ui-style.md` §
-  Universal Menu Standard now requires every same-screen button pair (a menu's Play CTA vs its
-  Back to the Box, a gameover screen's primary vs its Leave/secondary option) to match in size
-  and weight — no "navigation is smaller" exception anymore. The other 17 games' menu and
-  gameover screens have not been audited against this. Same shape as the Aug 2026 action-button
-  emoji sweep: grep both `index.html` and `js/games/*.js` (a JS-built label is exactly as much
-  a same-screen button as static markup — that sweep's own lesson). Detail:
-  `docs/superpowers/specs/2026-08-08-cjar-stage-polish-design.md` DD-31.
+~~**DD-31's same-screen button-parity rule was applied only to CJAR**~~ — **RESOLVED, 9 Aug 2026.**
+  All 18 games now conform: 17 game-menu "← Back to the Box" buttons and 9 gameover-screen
+  secondary exit/leave buttons resized to match their screen's primary CTA (height, text size,
+  weight). Applied via a scoped Node script, id-targeted. Detail: `docs/decision-log.md` 2026-08-09.
 
 ~~**Action buttons carried decorative emoji suite-wide, and two had drifted off-brand colour**~~ —
   **RESOLVED, 7 Aug 2026.** New rule: `ui-style.md` § Action Button Standard (Play CTA / Decision Modal

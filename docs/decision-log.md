@@ -20,6 +20,13 @@ Detail: pointer to the canonical doc (snapshot / impl note / spec / memory).
 
 ---
 
+## 2026-08-09 — DD-31 button-parity rule rolled out suite-wide
+**Category:** Process
+**Decision:** The size/weight-parity rule below is now applied to all 18 games, not just CJAR — every game menu's "← Back to the Box" and every gameover screen's secondary exit/leave button now match their screen's primary CTA in height, text size, and weight.
+**Why:** Closes the rollout gap the 8 Aug decision left open; no design change, same rule, same target shape as `btn-cjar-go-leave`/`btn-cjar-menu-back`.
+**Changed:** `index.html` — 26 buttons across 18 games (17 menu-back + 9 gameover-secondary; PKO's pair matches its own screen's `text-lg` primary rather than the universal `text-xl`). Applied via a scoped Node script, id-targeted, not a broad Edit. Deferred/superseded: none — this closes the `docs/deferred-work.md` item.
+**Detail:** `docs/deferred-work.md` (item removed); see the 8 Aug entry below for the rule's origin.
+
 ## 2026-08-08 — Same-screen action buttons must match in size and weight, no exceptions
 **Category:** Architecture
 **Decision:** `ui-style.md` § Universal Menu Standard's carve-out for "← Back to the Box" (smaller/lighter because "it's navigation, not an action") is retired — any two buttons offering real, distinct choices on the same screen must now match in size and weight, with no exceptions, for the game menu and every other same-screen pairing (gameover, Decision Modals).
