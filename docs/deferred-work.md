@@ -81,3 +81,14 @@ not in a batch at the end.
 ~~**`docs/archive/` is not empty**~~ — **RESOLVED (stale), Aug 2026.** `CLAUDE.md` § Current Focus already
   documents the one file it holds (`phase-audit-2026-06-30-snapshot.md`) — the "empty by design" claim this
   item pointed at no longer exists in the doc. No action needed.
+
+**CJAR — the Dibber Dobber payout beat mis-narrates one branch** — *flagged 8 Aug 2026 by the action-stage
+  rework's final review; presentational only, no state impact.* The 900 ms payout beat in
+  `cjarBeginFlipAnim` mirrors `cjarResolveFlipDD`'s divisor in four of five Sylly shapes. The fifth —
+  **takers ≥ 1 + innocents ≥ 1 + no dobbers** — is still wrong: the resolver splits the card among the
+  takers, and then the **scare-off** (`cjar.js`, "runs LAST so an all-innocent flip absorbs its own
+  contribution") drains the whole Crumb pool, this card's remainder included, straight out to the
+  innocents. So the beat throws a leftward token for a remainder that immediately leaves, and shows
+  nothing for the innocents' gain. Same class as BUG-11 (the all-innocent case, fixed 8 Aug), one branch
+  over, and structurally out of reach of that fix's `else if`. Worth folding in whenever the beat is next
+  touched; the fix is a fifth branch keyed on `innocents.length && !dobbers.length && takers.length`.
