@@ -1963,7 +1963,9 @@ LOBBY (MDLM only) → CJAR MENU → [onPassThePhone: cjarStartMatch(), BUG-07 �
     → [Flip loop (until a bust or a deck-out or everyone has left):
         CJAR TABLE — card resolves (Delta 3: BEFORE the decision window), everyone
         secretly chooses Reach In Again/Sneak Out (or the three Dibber Dobber actions),
-        a 2100ms reveal choreography flips the card, pays out and settles it (DD-18/19)
+        a 3200ms blocking reveal choreography flips the card and pays it out, then an
+        unawaited ~1000ms settle tail slides it into history over the open decision
+        window (DD-18/19/25)
         → BUSTED! interstitial (5s) on a second sighting of the same family member —
           the bust card runs the same flip beat first, so it is never the one card
           you don't see flip
