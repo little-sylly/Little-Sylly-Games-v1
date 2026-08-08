@@ -223,6 +223,15 @@ globalThis.__cjar = {
   },
   grabsCaption() { return document.getElementById('cjar-grabs-caption').textContent; },
   crumbsValue()  { return document.getElementById('cjar-crumbs-value').textContent; },
+  headerCols() {
+    const head = document.getElementById('cjar-reveal-header');
+    return head.style.display === 'none' ? null : head.children.map(c => c.textContent);
+  },
+  statusText(i) {
+    const row = document.getElementById('cjar-reveal-rows').children[i];
+    if (!row || !row.children[3]) return null;
+    return row.children[3].textContent;
+  },
   pillTexts(i) {
     const row = document.getElementById('cjar-reveal-rows').children[i];
     if (!row) return null;
@@ -422,6 +431,11 @@ const section = t => console.log(`\n${t}`);
   check('base row shows both pills', (C.pillTexts(0) || []).length, 2);
   check('  stashed pill wording',    /stashed$/.test((C.pillTexts(0) || [])[0] || ''), true);
   check('  at-risk pill wording',    /at risk$/.test((C.pillTexts(0) || [])[1] || ''), true);
+  check('header shows 5 columns',    (C.headerCols() || []).length, 5);
+  check('header column order',       C.headerCols(),
+        ['Rank', 'Player', 'Stashed', 'Status', 'At Risk']);
+  check('all four seats Still In',   [0,1,2,3].map(i => C.statusText(i)),
+        ['Still In', 'Still In', 'Still In', 'Still In']);
   check('client sees the card',    C.card && C.card.type, host.__cjar.card.type);
   check('client deck count',       (C.deck || []).length, H.deck.length);
 
@@ -487,6 +501,23 @@ const section = t => console.log(`\n${t}`);
   check('raid totals agree',       C.totals, H.totals);
   check('active seats agree',      C.active, H.active);
   check('trail agrees',            (C.trail || []).length, H.trail.length);
+
+  // DD-28 — seat 3's departure only shows in the STANDINGS format (the 5-column grid);
+  // the render right after resolve is the 'revealing' outcome-line format, which has no
+  // Status column (only 2 children per row). Drive to the next flip's 'deciding' phase —
+  // the next point the standings render at all — with the same turn() helper the raid
+  // loop below uses, then assert before handing off to that loop. The loop stops the
+  // instant C.phase flips to 'deciding', so turn() is never called while H.phase is
+  // 'deciding' too — flip 2's choices are never auto-filled by this.
+  let departGuard = 0;
+  while (C.phase !== 'deciding' && departGuard++ < 20) turn(host, H, () => 'take');
+  // Standings rows are sorted by RANK (cjarRanks(), by stash descending), not by seat
+  // index — and seat 3's solo sneak-out banks its share immediately, while the three
+  // seats still in the Raid sit on 0 stash until it ends. That puts seat 3 in first
+  // place, i.e. DOM row 0, not row 3 — confirmed via C.stashes here: [0, 0, 0, 5].
+  check('exactly one seat reads Snuck Out',
+        [0, 1, 2, 3].map(i => C.statusText(i)).filter(s => s === 'Snuck Out').length, 1);
+  check('the departed seat (now rank 1, row 0) reads Snuck Out', C.statusText(0), 'Snuck Out');
 
   section('Drive the Raid to its end — every packet, every render');
   let guard = 0;
@@ -658,6 +689,11 @@ const section = t => console.log(`\n${t}`);
         H2.endTs - Date.now() <= H2.windowMs, true);
   check('Sylly is not animating at window-open', C2.flipAnim(), false);
   check('Sylly row shows one pill only', (C2.pillTexts(0) || []).length, 1);
+  // The header text list is unchanged in Sylly Mode — only the CONTENT of the
+  // Status/At Risk cells is empty (DD-28, cjarRenderRevealRows Step 3).
+  check('Sylly header has no Status/At Risk', C2.headerCols(),
+        ['Rank', 'Player', 'Stashed', 'Status', 'At Risk']);
+  check('Sylly Status cell is empty',         C2.statusText(0), '');
   check('Sylly button labels',      C2.controlLabels(), ['Reach In', 'Play Innocent', 'Dob']);
   check('grabs caption, Sylly', C2.grabsCaption(), 'Play innocent alone and the pile is yours.');
 

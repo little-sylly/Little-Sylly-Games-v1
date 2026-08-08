@@ -1845,6 +1845,11 @@ body.flash-red   { background-color: #fecaca; }
 /* Score-row pills. Two objects, because they mean opposite things: stashed is safe
    forever, at-risk evaporates on a bust. Colour carries the semantics and the word
    carries the meaning — the rows had ~150px of dead horizontal space to spend on it. */
+/* DD-28 — the standings header and every standings row share this template, which is
+   what guarantees pixel alignment between them without hand-matching two separate
+   layouts. Rank/Player/Stashed/Status/At Risk, in that order. */
+.cjar-reveal-grid { display: grid; grid-template-columns: 1.8rem 1fr 4.6rem 4.6rem 4.2rem; }
+
 .cjar-pill-stashed, .cjar-pill-risk {
   padding: 0.1rem 0.5rem;
   border-radius: 9999px;
@@ -1854,6 +1859,8 @@ body.flash-red   { background-color: #fecaca; }
 }
 .cjar-pill-stashed { background: #F7E9C4; color: #7A5C0A; }
 .cjar-pill-risk    { background: #FEE2E2; color: #B91C1C; }
+.cjar-status-in    { color: #15803d; font-size: 0.7rem; font-weight: 700; }
+.cjar-status-out   { color: #B91C1C; font-size: 0.7rem; font-weight: 700; }
 
 @keyframes cjar-pill-pop-up   { 50% { transform: scale(1.12); } }
 @keyframes cjar-pill-pop-down { 50% { transform: scale(0.9); } }

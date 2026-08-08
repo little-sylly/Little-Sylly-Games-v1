@@ -957,11 +957,29 @@ function cjarRenderControls() {
 // Sorted by Stash so the board reads as a ladder; your own row is always tinted, which
 // is also what makes it findable at eight players.
 function cjarRenderRevealRows() {
-  const box = document.getElementById('cjar-reveal-rows');
+  const box  = document.getElementById('cjar-reveal-rows');
+  const head = document.getElementById('cjar-reveal-header');
   if (!box) return;
   box.innerHTML = '';
-  if (!cjarPlayerCount) return;
+  if (!cjarPlayerCount) { if (head) head.style.display = 'none'; return; }
   const revealing = cjarTablePhase === 'revealing';
+
+  // The header names what the STANDINGS columns mean. During 'revealing' the row
+  // switches to an outcome-line format that doesn't map onto columns at all (see the
+  // `if (revealing)` branch below), so the header hides rather than mislabel it.
+  if (head) {
+    head.style.display = revealing ? 'none' : 'grid';
+    if (!revealing) {
+      head.innerHTML = '';
+      const cols = ['Rank', 'Player', 'Stashed', 'Status', 'At Risk'];
+      cols.forEach(label => {
+        const c = document.createElement('span');
+        c.textContent = label;
+        head.appendChild(c);
+      });
+    }
+  }
+
   const ranks = cjarRanks();
   const order = cjarPlayerNames
     .map((n, i) => i)
@@ -970,55 +988,71 @@ function cjarRenderRevealRows() {
   order.forEach((i, pos) => {
     const me  = i === mpMyPlayerIdx;
     const row = document.createElement('div');
-    row.className = 'flex items-center justify-between rounded-xl px-3 py-1.5 shadow-sm '
-      + (me ? 'bg-[#F7E9C4]' : 'bg-white');
-    // 30-80 ms stagger between rows, per the Motion Standard.
-    row.style.animationDelay = (pos * 50) + 'ms';
+    row.style.animationDelay = (pos * 50) + 'ms';   // 30-80 ms stagger, Motion Standard
 
-    const left = document.createElement('span');
-    left.className = 'text-sm ' + (me ? 'text-[#7A5C0A] font-semibold' : 'text-stone-700');
-    left.textContent = revealing
-      ? cjarPlayerNames[i] + (cjarLines[i] ? ' — ' + cjarLines[i] : '')
-      : cjarRankLabel(ranks[i]) + '  ' + cjarPlayerNames[i]
-        + (!cjarIsSylly() && !cjarActive[i] ? '  🚪' : '');
-
-    // Two pills, not one string. `0 🍪 (+1 in)` put load-bearing information in a
-    // parenthetical read at a glance during a timed simultaneous decision — the two
-    // numbers mean opposite things (safe forever vs gone if the Raid busts) and were
-    // rendered as one. DD-22.
-    const right = document.createElement('span');
-    right.className = 'flex items-center gap-1.5 shrink-0';
-
-    const pill = (text, cls) => {
-      const s = document.createElement('span');
-      s.className = 'cjar-pill-' + cls;
-      s.textContent = text;
-      right.appendChild(s);
-      return s;
-    };
-
-    const visible = cjarStashVisible(i);
-    const stashed = pill(visible ? (cjarStashes[i] || 0) + ' stashed' : '••• stashed', 'stashed');
-
-    // At Risk is BASE GAME ONLY. Dibber Dobber has one running Stash and no Raid-local
-    // pool at all, so a second pill there would always read 0 and teach a rule that
-    // does not exist.
-    if (!cjarIsSylly() && cjarActive[i]) {
-      pill(visible ? (cjarRaidTotals[i] || 0) + ' at risk' : '••• at risk', 'risk');
-    }
-
-    // The delta FLASHES ON the pills instead of replacing them. Replacing them is what
-    // the old renderer did, which meant the standings vanished at the one moment you
-    // most want to compare them.
     if (revealing) {
+      // Outcome-line format, unchanged in content from before this round — only WHICH
+      // function builds it moved (it used to be inline in this same function).
+      row.className = 'flex items-center justify-between rounded-xl px-3 py-1.5 shadow-sm '
+        + (me ? 'bg-[#F7E9C4]' : 'bg-white');
+      const left = document.createElement('span');
+      left.className = 'text-sm ' + (me ? 'text-[#7A5C0A] font-semibold' : 'text-stone-700');
+      left.textContent = cjarPlayerNames[i] + (cjarLines[i] ? ' — ' + cjarLines[i] : '');
+      const right = document.createElement('span');
+      right.className = 'flex items-center gap-1.5 shrink-0';
+      const visible = cjarStashVisible(i);
+      const stashed = document.createElement('span');
+      stashed.className = 'cjar-pill-stashed';
+      stashed.textContent = visible ? (cjarStashes[i] || 0) + ' stashed' : '••• stashed';
       const d = cjarDeltas[i] || 0;
       if (d && visible) {
         stashed.className += d < 0 ? ' cjar-pill-flash-down' : ' cjar-pill-flash-up';
         stashed.textContent = (d > 0 ? '+' : '') + d + ' → ' + (cjarStashes[i] || 0) + ' stashed';
       }
+      right.appendChild(stashed);
+      row.appendChild(left); row.appendChild(right);
+      box.appendChild(row);
+      return;
     }
 
-    row.appendChild(left); row.appendChild(right);
+    // Standings format — the 5-column grid the header describes (DD-28).
+    row.className = 'cjar-reveal-grid items-center gap-1.5 rounded-xl px-3 py-1.5 shadow-sm '
+      + (me ? 'bg-[#F7E9C4]' : 'bg-white');
+
+    const rank = document.createElement('span');
+    rank.className = 'text-sm font-bold ' + (me ? 'text-[#7A5C0A]' : 'text-stone-500');
+    rank.textContent = cjarRankLabel(ranks[i]);
+    row.appendChild(rank);
+
+    const name = document.createElement('span');
+    name.className = 'text-sm truncate ' + (me ? 'text-[#7A5C0A] font-semibold' : 'text-stone-700');
+    name.textContent = cjarPlayerNames[i];
+    row.appendChild(name);
+
+    const visible = cjarStashVisible(i);
+    const stashed = document.createElement('span');
+    stashed.className = 'cjar-pill-stashed justify-self-start';
+    stashed.textContent = visible ? (cjarStashes[i] || 0) + ' stashed' : '••• stashed';
+    row.appendChild(stashed);
+
+    // Status and At Risk are BASE GAME ONLY. Dibber Dobber has one running Stash and no
+    // Raid-local pool (cjar.js's cjarResolveFlipDD comment block), so both cells render
+    // empty there — the grid track stays, the content doesn't, which keeps column
+    // widths identical between modes without a conditional template.
+    const status = document.createElement('span');
+    if (!cjarIsSylly()) {
+      status.className = cjarActive[i] ? 'cjar-status-in' : 'cjar-status-out';
+      status.textContent = cjarActive[i] ? 'Still In' : 'Snuck Out';
+    }
+    row.appendChild(status);
+
+    const risk = document.createElement('span');
+    if (!cjarIsSylly() && cjarActive[i]) {
+      risk.className = 'cjar-pill-risk justify-self-start';
+      risk.textContent = visible ? (cjarRaidTotals[i] || 0) + ' at risk' : '••• at risk';
+    }
+    row.appendChild(risk);
+
     box.appendChild(row);
   });
 }
