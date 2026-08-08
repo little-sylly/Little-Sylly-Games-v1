@@ -20,6 +20,13 @@ Detail: pointer to the canonical doc (snapshot / impl note / spec / memory).
 
 ---
 
+## 2026-08-08 — Same-screen action buttons must match in size and weight, no exceptions
+**Category:** Architecture
+**Decision:** `ui-style.md` § Universal Menu Standard's carve-out for "← Back to the Box" (smaller/lighter because "it's navigation, not an action") is retired — any two buttons offering real, distinct choices on the same screen must now match in size and weight, with no exceptions, for the game menu and every other same-screen pairing (gameover, Decision Modals).
+**Why:** CJAR's stage-polish round (DD-31) surfaced the carve-out as itself the bug — the visual-weight difference didn't read as "this one is navigation," it just read as unfinished.
+**Changed:** `.claude/rules/ui-style.md` § Universal Menu Standard; CJAR's own `btn-cjar-go-leave`/`btn-cjar-menu-back` conformed now. Deferred/superseded: the other 17 games' menu/gameover screens are not yet swept — logged in `docs/deferred-work.md`.
+**Detail:** Spec `docs/superpowers/specs/2026-08-08-cjar-stage-polish-design.md` DD-31; `docs/implementation-notes/cjar-implementation-notes.md` DD-31/TG-10.
+
 ## 2026-08-07 — Cookie Jar action stage: the centre slot inverts, and the payout gets a beat
 **Category:** Architecture
 **Decision:** The stage's centre slot now holds the face-down card the buttons are about to act on, not the one that just resolved (DD-18); a 2100 ms choreography (`CJAR_FLIP_ANIM_MS`) flips it, pays it out, and settles it, paid for mostly out of `CJAR_REVEAL_MS` (3000 → 1200 ms).
