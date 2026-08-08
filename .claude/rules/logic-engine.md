@@ -366,7 +366,7 @@ if (window.syllyMultiplayerMode !== 'single') {
 
 This means **one client leaving dissolves the entire match** — PASS does not tolerate a mid-game drop. This is the correct contract: it prevents ghost rooms and stranded devices.
 
-**Resolved (GTH / DYB / BLD — 1 Aug 2026):** All three already called `resetToLobby()` on quit confirm (an earlier, undocumented fix — the "navigates to game menu" description above was stale by the time it was checked). What was still missing was the other half of the PASS contract: a client's `resetToLobby()` only tears down that client's own device (removes its `/players` node) — the host has no listener on `/players` mid-game, so a client quitting left the host and any other clients stranded waiting on a turn that would never come. Fixed by adding `[ABBR]_PLAYER_LEFT` (ACTION, client→host) to all three: client quit-confirm sends it before its local `resetToLobby()`; the host's handler calls `resetToLobby()` on receipt, which broadcasts the generic `HOST_END_GAME` and lets the existing `mp-host-disconnected-overlay` handle the remaining clients — no game-specific banner needed, unlike PASS's richer `PASS_MATCH_DISSOLVED`. See `docs/implementation-notes/gth-implementation-notes.md` § Multiplayer Lessons for the full root cause (a documented divergence that had drifted from the shipped code).
+**GTH / DYB / BLD** now match the PASS contract too — each added `[ABBR]_PLAYER_LEFT` (ACTION, client→host): client quit-confirm sends it before its local `resetToLobby()`; the host's handler calls `resetToLobby()` on receipt, broadcasting `HOST_END_GAME` for the existing `mp-host-disconnected-overlay` to handle. Root cause: `resetToLobby()` alone only tears down the quitting client's own device — the host has no `/players` listener mid-game, so without the notification it and other clients stranded waiting on a turn that never comes. Detail: `docs/implementation-notes/gth-implementation-notes.md` § Multiplayer Lessons.
 
 **Rule for new games:** Always use `resetToLobby()` (not game menu navigation) as the quit confirm destination in MDLM. Match the PASS contract: host dissolves the room; a client leaving individually dissolves for everyone.
 
@@ -454,7 +454,7 @@ Before implementing, answer:
 
 **SW versioning:** `CACHE_NAME = 'sylly-games-vN'` — bump N on **every deploy**.
 
-**Current SW version:** v164
+**Current SW version:** v165 (see `CLAUDE.md` § Current Focus for the live pointer — don't let this drift again)
 
 **A per-file art ceiling is only meaningful next to the element's RENDER size.** The suite's 40 KB/card figure was set for small cards — PKO's renders at `4.25rem`, so 360 px art is 5.3× its CSS width. CJAR's hero is `15rem` (240 CSS px) and its masters are **square** against a portrait card, so `cover` discards ~27% horizontally and the same 360 px is only ~1.1× effective. Measure the quality the cap forces at several widths rather than inheriting an earlier game's number, and check master **aspect** against card aspect — square masters waste a fixed fraction of every byte. Detail: `cjar-impl-notes` TG-02b. *[Elevated from cjar, Aug 2026.]*
 
