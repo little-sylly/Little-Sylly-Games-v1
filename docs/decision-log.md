@@ -20,6 +20,13 @@ Detail: pointer to the canonical doc (snapshot / impl note / spec / memory).
 
 ---
 
+## 2026-08-07 — Cookie Jar action stage: the centre slot inverts, and the payout gets a beat
+**Category:** Architecture
+**Decision:** The stage's centre slot now holds the face-down card the buttons are about to act on, not the one that just resolved (DD-18); a 2100 ms choreography (`CJAR_FLIP_ANIM_MS`) flips it, pays it out, and settles it, paid for mostly out of `CJAR_REVEAL_MS` (3000 → 1200 ms).
+**Why:** Three playtest rounds called the action stage "off," and two rounds of pure layout work (DD-11, DD-12) didn't fix it — root cause was that the base game's payout mutated state with no on-screen beat at all (TG-08), which a layout fix can never solve.
+**Changed:** `js/games/cjar.js` (stage render, controls, the new `cjarBeginFlipAnim`/`cjarFlyTokens`), `css/styles.css`, `sw.js` v163→v164. Deferred/superseded: DD-06's balance flag untouched (presentational-only change, confirmed by an unchanged `simulate-cjar-dd.js` band).
+**Detail:** Spec `docs/superpowers/specs/2026-08-07-cjar-action-stage-design.md`; DD-18…DD-24 + TG-08/TG-09 in `docs/implementation-notes/cjar-implementation-notes.md`.
+
 ## 2026-08-07 — Action Button Standard: no emoji, colour must be brand/neutral/destructive-red
 **Category:** Process
 **Decision:** New suite-wide rule in `ui-style.md` § Action Button Standard — Play CTAs, Decision Modal confirm/cancel buttons, and primary in-game submit/decision buttons may not carry an emoji in their label, and their background colour must be one of exactly three things: the game's own brand colour, neutral stone (cancel/exit, or a "safe" confirm), or semantic destructive red on a confirm button for an irreversible action. A narrow fourth exception allows red on an interrupt/alert screen when the copy itself signals urgency. Icon-only utility buttons, pills, toggles, and non-button text (headings, the `✨ Sylly Mode` label) are explicitly out of scope and keep their emoji.

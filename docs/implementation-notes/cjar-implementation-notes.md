@@ -9,6 +9,33 @@ Spec: `docs/new-game-tech-cookie-jar.md` · Plan: `docs/superpowers/plans/2026-0
 
 ## Design Decisions
 
+**DD-18…DD-24 — the action-stage rework.** *(Owner call, 7 Aug 2026 — spec: `docs/superpowers/specs/2026-08-07-cjar-action-stage-design.md`)*
+Three playtest rounds (1–3) kept reporting "the action stage is still off" — players choosing
+based on what just happened rather than what's about to happen. Round 1 attacked it as a
+duplication problem (DD-11), round 2 as a layout problem (DD-12/DD-15). Neither fixed it, because
+the cause was neither: **the base game's payout mutated state with no on-screen beat.**
+`cjarApplyCardEffect` split a cookie card's value into `cjarRaidTotals` immediately, with no
+animation, no screen change, and no sound beyond the card's own; the only cookie feedback in the
+game (`cjarFlyDelta`) fired solely on a *stash* change, which in the base game only happens on
+Sneak Out. So on a normal flip — the vast majority — you gained cookies and nothing moved. See
+TG-08 below; it's the reusable lesson.
+
+**DD-18 — the centre slot holds the card you're betting on, face-down, not the one that just resolved.** The stage's largest object (`#cjar-table-hero`) now renders `cjarCard` face-down at rest and flips face-up only during the reveal choreography. The button beneath it is now literally correct: it acts on the object above it. Dibber Dobber already worked this way (`cjarOpenBlindWindow` sets `cjarCard = null`); this removes a mode divergence rather than adding one. No information is lost — the warning strip shows which family member just appeared, the newest history-strip thumb is the card itself, and the full log is one tap into `cjar-trail-overlay`.
+
+**DD-19 — a 2100 ms reveal choreography (`CJAR_FLIP_ANIM_MS`), paid for mostly out of `CJAR_REVEAL_MS`.** Beats: flip (0–300 ms) → hold (300–900 ms) → payout (900–1600 ms, type-dependent) → settle (1600–2100 ms). `CJAR_REVEAL_MS` dropped 3000 → 1200 ms (it now covers only the choice-outcome dwell — a genuinely separate event from the card flip). Net **+300 ms per flip**. `cjarEndTimestamp` includes the full animation length, so Blitz's 10 s decision window stays a true 10 s, not 10 s minus the animation — `cjarOpenDecisionWindow` computes `animMs` per mode (0 for Sylly, which reveals *after* choices lock and so has nothing to animate before deciding) and adds it before the window's own `windowMs`. **Implementation deviation from the spec:** the spec proposed a new `cjarTablePhase` value `'flipping'`; the shipped code instead layers a boolean, `cjarFlipAnim`, on top of the existing phases (`cjarTablePhase` goes straight to `'deciding'`/`'revealing'` as before). `cjarRenderStage`/`cjarRenderControls` gate on `cjarFlipAnim`, not on a phase string. Functionally equivalent, simpler diff — noted here so nobody greps for a `'flipping'` string that doesn't exist.
+
+**DD-20 — no per-player flight paths.** A token animating to each player's exact score row needs live `getBoundingClientRect` geometry — fragile under scroll, breaks silently when the table's off-screen, invisible to every headless harness. Rejected. Instead `cjarFlyTokens(count, direction)` fires a burst whose **direction** signals the destination (`'down'` toward the score table, `'left'` toward Crumbs) and whose **token count** equals the number of seats actually splitting the card. The per-player payload lands as the affected pill counting up and pulsing, which needs no geometry at all.
+
+**DD-21 — button labels: one metaphor across both modes.** Base: **Reach In Again** / Sneak Out. Sylly: **Reach In** / Play Innocent / Dob. Replaces "Take a Cookie", which was factually wrong in the base game (cookies are split among everyone active *before* the button exists — the choice is participation, not taking) and grammatically wrong in Sylly (a taker receives a *share* of the card's value via `cjarSplit`, not one cookie, and a noun phrase beside two verb phrases broke the three-parallel-acts reading). "Sneak" still never appears in Dibber Dobber copy. No emoji, per the Action Button Standard.
+
+**DD-22 — score rows split into two pills, `stashed` and `at risk`.** `0 🍪 (+1 in)` buried load-bearing information in a parenthetical, read at a glance during a timed simultaneous decision. Now `🔒 N stashed` (`.cjar-pill-stashed`, `cjarStashes[i]`, always shown) and `N at risk` (`.cjar-pill-risk`, `cjarRaidTotals[i]`, **base game only** — Dibber Dobber has one running Stash and no Raid-local pool, so its rows show the Stashed pill alone). A departed seat drops the At Risk pill. During `'revealing'` the pills now stay on screen (previously replaced by the delta text, so Open Book's standings vanished at the exact moment you'd want to compare them) — the delta flashes on the Stashed pill instead.
+
+**DD-23 — "Up for Grabs": Crumbs and the Treat as one object.** Column 1 (`#cjar-grabs-card`) holds both, because both are the same idea — shared table state a solo Sneak Out claims. Crumbs promoted to a prominent top count; the Treat slot below it keeps round 2's dashed-placeholder-at-the-exact-footprint rule (`#cjar-grabs-caption` carries a permanent one-line reminder of the rule, promoted out of a tap-to-reveal tip a rejected Gemini alternative proposed — a preview would leak intent to anyone glancing at your screen, and phones have no hover state to hang it on).
+
+**DD-24 — column 3 demoted from "the bet" to the reservoir.** DD-18 moved "the card you're betting on" to column 2, so column 3's old rationale for its size (`cjar-card-next` at 7.2rem) inverted — it shrinks and renders as `.cjar-deck-stack`, an offset stack of three card backs plus the live count, rather than a single back. Two lone face-down cards side by side would read as "which one is next?"; a stack reads unambiguously as "the deck" — and it's literally where the settle beat lifts the replacement card from.
+
+**Verification note:** all five harnesses needed updating for this rework — the new `cjarFlipAnim` gating and the label changes broke existing assertions **by design**. `verify-cjar-loopback.js` (the only harness with real mock DOM elements, so the only one that executes render code) grew from 112 to 147 checks: the face-down hero during `'deciding'`, the label swap, both pills in both modes and at both Open Book settings, the Up for Grabs card with/without a Treat, and — added in a follow-up fix — the bust card running its own flip beat before `screen-cjar-busted` (previously the bust resolved and jumped straight to the verdict, skipping the flip animation every other card type got). `verify-cjar-deck.js` 73 → 75, `verify-cjar-loop.js` stays 102 (gained checks, lost none), `verify-cjar-dd.js` stays 47 (gained the Stashed-pill-alone assertion). `simulate-cjar-dd.js` is unchanged and its output moved only within the existing noise band — expected, since nothing in this rework touches a rule, a value, or a probability (DD-06's flagged Innocent-lean is untouched).
+
 **DD-17 — Dibber Dobber's flip 1 is guaranteed a cookie, without breaking the blind commit.** *(Owner call, 3 Aug 2026)*
 Flagged in the round-2 write-up and left alone pending a decision: the base game's flip 1
 auto-resolves before any choice is offered (correct Incan Gold — you cannot decline to enter the
@@ -672,6 +699,29 @@ therefore a genuine proof that no sender leaked, not just that nothing crashed.
 ---
 
 ## Template Gaps
+
+**TG-09 — the two-pill score row (`stashed` / `at risk`) is a candidate suite pattern, deliberately NOT elevated.** *(7 Aug 2026)*
+DD-22's split of "safe amount" from "amount still in play" into two separately-styled pills reads
+well and could suit any other push-your-luck or risk-pool game in the suite. **Not folded into
+`ui-style.md`** — one game is not evidence for a suite rule, and elevating on a single instance
+risks locking in a pattern nobody else has actually needed yet. Revisit if a second game wants a
+safe-vs-at-risk (or similarly split) figure in one row; at that point compare the two real uses
+and generalise from what's actually shared, not from what looked reusable in isolation.
+
+**TG-08 — a state mutation with no on-screen beat reads as a layout problem, not a feedback problem.** *(7 Aug 2026)*
+cjar's base game split a flipped cookie's value into `cjarRaidTotals` inside `cjarApplyCardEffect`
+with no animation, no sound beyond the card's own, and no screen change — the only cookie feedback
+the game had (`cjarFlyDelta`) fired exclusively on a **stash** change, which in the base game only
+happens on Sneak Out. So the single most satisfying moment in a push-your-luck game — the payout —
+had no beat at all: on a normal flip you gained cookies and nothing moved.
+**Three playtest rounds reported this as "the action stage is off,"** and two full rounds of layout
+work (DD-11's one-row stage, DD-12/DD-15's three-column grid) failed to fix it, because the
+players' complaint was correctly diagnosed as *feel* but incorrectly attributed to *arrangement*.
+Relabelling and repositioning a screen cannot fix a missing event.
+**The generalisable check:** before redesigning a screen players call confusing, **list every
+state mutation that screen performs and confirm each one has a visible beat** — an animation, a
+sound, a number visibly changing, *something* — before touching layout at all. A screen that
+"feels off" after two honest layout passes is a strong signal the problem was never the layout.
 
 **TG-07 — A mock DOM whose `innerHTML` setter does nothing makes every count assertion vacuous.** *(3 Aug 2026)*
 `verify-cjar-loopback.js`'s element mock declared `innerHTML: ''` as a plain property. Every
