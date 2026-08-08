@@ -101,3 +101,14 @@ not in a batch at the end.
   nothing for the innocents' gain. Same class as BUG-11 (the all-innocent case, fixed 8 Aug), one branch
   over, and structurally out of reach of that fix's `else if`. Worth folding in whenever the beat is next
   touched; the fix is a fifth branch keyed on `innocents.length && !dobbers.length && takers.length`.
+
+**CJAR — Dibber Dobber's Innocent-leaning archetype wins ~52% (DD-06)** — *open balance flag, deliberately
+  not acted on; moved here from `CLAUDE.md` § Current Focus 9 Aug 2026 to stop it loading every session.*
+  `simulate-cjar-dd.js` measures ~52% at both 5 and 8 players, a 33–38 pt spread against a ~12 pt
+  threshold. Diagnosed to the **scare-off**: Play Innocent never pays on a Caught! card *and* sweeps the
+  whole Crumb pool whenever no Dobber is present, while Dob is punished hard enough to be under-played.
+  Not retuned on purpose — changing a number pre-playtest leaves nothing to compare against, and DD-17's
+  flip-1 float was re-measured against this exact baseline (5p 34.3 → 31.4 pts, Innocent 53.5% → 51.4%)
+  and landed inside the noise band, so the flag is untouched. If a lever is ever needed the candidates
+  are the scare-off's unconditional full-pool sweep and the Dob backfire severity — **not** the Treat
+  rule, which a mechanism probe disconfirmed.

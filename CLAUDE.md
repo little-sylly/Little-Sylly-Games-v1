@@ -11,6 +11,7 @@
 **On-demand — READ with the Read tool only when the trigger applies (NOT auto-loaded; do not read these during routine bug/polish work):**
 > ⚠️ These live in `docs/rules/`, NOT `.claude/rules/`, **on purpose**. The harness auto-loads every file in `.claude/rules/` into baseline context every turn — keeping the big on-demand docs there cost ~50k tokens/turn and caused mid-task auto-compact spirals. Do NOT move them back into `.claude/rules/`. Only the three always-loaded files above belong there.
 - `docs/rules/game-identities.md` — per-game themes, terminology, settings tables, special mechanics. **135 KB / 16 game sections — never read whole.** **Read when:** doing non-trivial work on a specific game — Grep for that game's `## Game N:` heading and offset-Read only that one section. The quick index below covers most "which colour / which file / which abbr" lookups without opening it.
+- `docs/rules/word-expansion.md` — the `data/words.json` content rules: difficulty tiers, curated Great Minds categories, the animals Broad Shield protocol, and the `nono_list` Dual-Use Contract. **Read when:** adding or editing words in `data/words.json` or a pack manifest's inline `words`. *(Moved out of `CLAUDE.md`, 9 Aug 2026 — content-authoring only.)*
 - `docs/rules/new-game-process.md` — three-stage protocol for adding a new game (brief → tech spec → implementation). **Read when:** starting a new game.
 - `docs/rules/new-game-brief-template.md` — Phase 1 design brief template (filled by project owner + Gemini). **Read when:** new-game Stage 1.
 - `docs/rules/new-game-technical-template.md` — Phase 2 technical spec template (filled by Claude Code). **Read when:** new-game Stage 2.
@@ -51,7 +52,7 @@ For where each game's screens/overlays live in `index.html`, see the **Per-Game 
 
 ## 🧭 Task Playbooks & Decision Log
 
-**Front door for any task — open the matching workflow, then record the outcome in the listed doc.** All of these are on-demand reads (not auto-loaded).
+**Front door for any task — SIZE IT FIRST (§ Task Triage Gate below), then open the matching workflow and record the outcome in the listed doc.** All of these are on-demand reads (not auto-loaded).
 
 | Starting a… | Open this workflow | Record the outcome in |
 |-------------|--------------------|------------------------|
@@ -60,6 +61,26 @@ For where each game's screens/overlays live in `index.html`, see the **Per-Game 
 | **Bug / update / polish** | `docs/templates/task-bug-polish.md` (fill the intake form first) | `docs/implementation-notes/[abbr]-implementation-notes.md` (+ `docs/decision-log.md` if it became architectural) |
 
 **`docs/decision-log.md`** — the running index of big architectural / strategic / process decisions (newest on top). Read it to recall *why* something was done; append a one-line entry whenever a change is architectural, strategic, or process-level (wired into the Documentation Integrity Protocol below).
+
+### 🚦 Task Triage Gate — size the task BEFORE picking a workflow
+
+**This rule overrides the superpowers SessionStart hook**, which instructs that any task with "even a 1% chance" of matching a skill must invoke it, and routes "let's build X" to brainstorming → spec → plan by default. That hook has **no size gate**: it puts a two-line CSS change through the same pipeline as building game 18. Its own closing line concedes the precedence — *"User instructions (CLAUDE.md…) take precedence over skills"* — so this section is the authority, not the hook.
+
+**Classify the task in one line before doing anything else. State the tier out loud, then work at that tier.**
+
+| Tier | What it is | Process |
+|------|-----------|---------|
+| **0 — Trivial** | ≤2 files · no logic, packet, state or rules change · uses an existing pattern verbatim. Spacing, a label string, a colour, a class swap, a copy fix, a stale doc line. | **Edit directly.** No design spec. No plan file. No subagents. No new harness assertions. One commit. Impl-notes only if a genuine lesson emerged — "changed a gap" is not a lesson. |
+| **1 — Bounded** | One game · existing pattern · logic touched but no cross-cutting rule (MP sync, render seam, engine contract). A normal bug fix or polish item. | `docs/templates/task-bug-polish.md` intake, **inline in this session**. No spec/plan split — the intake form *is* the plan. Harness assertions only if the fix touched something a harness already covers. |
+| **2 — Architectural** | New game · new engine/MP pattern · a change touching 3+ files under cross-cutting rules · a phase gate. | **Full pipeline earns its keep here** — brainstorm → spec → plan → task execution → review. The Cookie Jar build's 4,219-line plan was correctly sized. |
+
+**Batching rule.** A round of several Tier-0/1 items (an owner playtest list, a polish sweep) is **one** unit of work: one plan section if any, one implementation pass, **one** documentation-closure pass at the end. Never one full cycle per item. The DD-25…DD-31 round ran nine cycles for seven cosmetic tweaks and produced 1,626 lines of planning prose against ~186 lines of shipped production code — a ~9:1 ratio, plus four post-hoc review-fix commits, one of them fixing an assertion the same round had just written.
+
+**Subagent rule.** Default to working **inline**. Every dispatched subagent starts cold and re-pays this project's ~30k baseline (CLAUDE.md + the three always-loaded rule files) before doing any work — nine sequential task-subagents is ~270k tokens of pure baseline, larger than the round's real content and invisible while it happens. Dispatch only when tasks are genuinely **parallel and independent**, or when a search would otherwise flood this context (the Explore agent, per the model picker's "large exploratory search" row).
+
+**Harness rule.** Verification harnesses cover **rules, packets, state, decks and appliers** — not presentation. A cosmetic change does not earn new assertions. Asserting label strings and pixel slots is what produced `560c7c2` (fixing DD-30's own just-written podium assertions); the assertion cost more than the bug it could have caught.
+
+**Escalate a tier when you find you were wrong** — a "trivial" change that turns out to touch a packet is Tier 1, say so and switch. Escalating on evidence is correct; escalating pre-emptively "just in case" is the behaviour this gate exists to stop.
 
 ---
 
@@ -198,13 +219,12 @@ applier change". Omit the section entirely if there are none.]
 ```
 ````
 
-**The five fields, and why each is there:**
-
-1. **Task** — one action. A handoff listing three tasks produces a session that context-switches between them and finishes none.
-2. **Read first** — the whole point. Names the file *and* the Grep term, so the new session never full-reads `index.html`, `code-map.md`, or `game-identities.md` (see Token Hygiene above). Three files is the ceiling; more than that and the fresh session isn't cheaper than continuing.
-3. **State** — the ground truth a fresh session cannot infer: current SW version, which verification tools pass, what already shipped. Prevents the classic fresh-session failure of re-fixing something already fixed.
-4. **Constraints / gotchas** — only load-bearing ones. This is the field that pays for the handoff; it is where "the host path proves nothing about clients" lives, and it is the reason a fresh session doesn't repeat the last one's dead end. Never pad it with generic rules already in the always-loaded files.
-5. **Model + effort** — so the user opens the new session on the right model *before* the first turn, not after.
+**The two fields that actually pay for the handoff:** **Read first** (name the file *and* the Grep
+term — 3 files ceiling — so the new session never full-reads `index.html`, `code-map.md` or
+`game-identities.md`) and **Constraints / gotchas** (load-bearing only — this is what stops a fresh
+session repeating the last one's dead end). **Task** stays one action; three tasks produces a
+session that context-switches and finishes none. **State** carries only what a fresh session cannot
+infer (SW version, which harnesses pass, what shipped) — it prevents re-fixing something already fixed.
 
 **Do NOT include:** a recap of what was tried and rejected (belongs in the impl-notes), code snippets (the new session reads the real file), or restatements of anything in CLAUDE.md / the three rule files — those load automatically and repeating them is pure waste.
 
@@ -217,35 +237,11 @@ applier change". Omit the section entirely if there are none.]
 See `@logic-engine.md` for the full checklist and SW asset list.
 
 ### 🎯 Skill: Consistent Word Expansion
-**Trigger:** Adding or editing words in `data/words.json`.
-**Action:** Follow these rules:
-- **Vibe Check:** High-imagery, widely understood. No niche jargon.
-- **Difficulty 1 (Standard):** Concrete nouns — e.g., Mountain, Pizza, Bicycle
-- **Difficulty 2 (Wild):** Verbs or specific adjectives — e.g., Sparkling, Sprinting
-- **Difficulty 3 (Wilder):** Abstract concepts or tricky pairs — e.g., Nostalgia, Gravity
-- **Units:** Metric only (Australian audience)
-- **Legal:** All words must be original. `nono_list` field name is deliberate (not `taboo_list`)
-- **Great Minds curated categories:** `animals, food, places, objects, nature, sports, activities, emotions, jobs, actions` — no `pop_culture`, `brands`, or `aussie_slang` (dead-end pairs)
-
-#### 🐾 Animals Category — Hierarchical nono_list Protocol
-- **nono_list[0] (The Broad Shield):** Must be a Documentary Label — a natural-language Common Grouping (e.g., "Sea Creature", "Furry Animal", "Ground Bird"). NOT a scientific class (not "Mammalia", "Aves", etc.)
-- **nono_list[1–9] (The Details):** Standard associative words — same rules as all other categories
-- **Design Conflict Rule:** If a Broad Shield covers >15% of the animal bank, it is too broad. Split into narrower Documentary Labels (e.g., "Bird" → "Ground Bird", "Wading Bird", "Tropical Bird") to preserve game tension.
-- **Bank size:** 100 animals as of Phase 20.
-
-#### 🐾 nono_list Dual-Use Contract
-The animals category is shared by both Like I'm Five and Natural Selection. Every slot serves a different role in each game:
-
-| Slot | Like I'm Five | Natural Selection |
-|------|--------------|-------------------|
-| `nono_list[0]` | Broad Shield — the describer cannot hint at the animal's category | The Mole's Grouping — the only information The Mole receives |
-| `nono_list[1–9]` | Forbidden words — the describer cannot say these | Field Researcher clues — each Researcher receives exactly ONE of these words and must give one clue based on it |
-
-**nono_list[1–9] quality rules (for Natural Selection playability):**
-- **Distinctive:** The word must clearly narrow down this specific animal (or a small group), not apply to dozens of animals. "ivory" ✓, "big" ✗
-- **Non-redundant:** No 3+ synonyms for the same trait in one list. Cheetah had "fast", "run", "speed", "sprint" — a researcher assigned any one of those has a useless clue. Keep at most 2 movement/speed words; replace the rest with different trait types
-- **Standalone:** Must work as a single spoken word or hyphenated compound. A researcher receives it cold and says it aloud to the group. "duck-billed" ✓, prefer "eggs" over "lay eggs"
-- **Specific over vague:** When two words cover the same trait, keep the more specific one. "purr" beats a second "fast"; "acacia" beats "height" when "tall" is already present
+**Trigger:** Adding or editing words in `data/words.json`, or a pack manifest's inline `words`.
+**Action:** Read `docs/rules/word-expansion.md` (on-demand) and follow it — difficulty tiers, the
+curated Great Minds category list, the animals **Broad Shield** protocol, and the `nono_list`
+**Dual-Use Contract** (every slot means something different in Like I'm Five vs Natural Selection,
+so a careless edit silently degrades one of the two games).
 
 ### 🎯 Skill: Add New Expansion Pack
 **Trigger:** Adding a new secret mode expansion (new theme/word bank).
@@ -281,146 +277,73 @@ Do not write the phase snapshot until Protocols A is clean. Do not write a line 
 ---
 
 ## 🎯 Current Focus
-**COMPLETE — Cookie Jar action-stage rework (7 Aug 2026), SW v164.** A 9-task plan against three
-playtest rounds that all called the action stage "off." Diagnosed as a missing-feedback problem
-wearing a layout problem's clothes: the base game's payout mutated state (`cjarRaidTotals`) with
-no on-screen beat, so a normal flip gained cookies and nothing visibly moved — two earlier rounds
-of layout work (DD-11, DD-12) could never have fixed that. Fix is presentational only, no rules or
-packet change: the centre slot now holds the face-down card you're betting on rather than the one
-that just resolved (DD-18), a 2100 ms reveal choreography gives every card — including the bust —
-a flip/payout/settle beat (DD-19/DD-20), buttons are renamed to one metaphor across both modes
-(DD-21), score rows split into stashed/at-risk pills (DD-22), and Crumbs + the Treat merged into
-one "Up for Grabs" card while the deck badge demoted to a reservoir (DD-23/DD-24). Root-cause
-lesson elevated to impl-notes as **TG-08**: before redesigning a screen players call confusing,
-list every state mutation it performs and check each one has a visible beat. Full detail: § SW
-Version below, decision-log 2026-08-07, `docs/implementation-notes/cjar-implementation-notes.md`.
 
-**Side project — Arcade Mode (3 Aug 2026).** Secret Mode now holds **arcade cabinets**
-alongside word packs and skins: small standalone canvas games under a new `ARCADE`
-category, first in the terminal list. **Cabinets are NOT Sylly Games and NOT packs** —
-no MP config, no `game-identities.md` section, no Sylly Mode, no verification harness,
-and explicitly not `docs/rules/new-game-checklist.md`. They use the terminal's CRT
-green-on-black language, not the Stack or the brand palette. First cabinet:
-**Asherplane** (`js/arcade/asherplane.js`), a top-down shmup. Adding cabinet #2 = one
-`SM_ARCADE` entry + one file. Spec:
-`docs/superpowers/specs/2026-08-03-arcade-asherplane-design.md`; plan:
-`docs/superpowers/plans/2026-08-03-arcade-asherplane.md`.
+**This section carries *state*, not history.** Anything finished and documented elsewhere is a
+pointer, not a narrative — that is what keeps this file cheap. When a round closes, compress its
+entry to one line and let the impl-notes carry the detail (§ Documentation Integrity Protocol).
 
-**COMPLETE — Phase 39: Cookie Jar (`cjar`), game 18.** Built task-by-task from `docs/superpowers/plans/2026-08-02-cookie-jar.md` (all 17 tasks done) against the confirmed spec `docs/new-game-tech-cookie-jar.md`. **The phase gate is CLOSED** — see `docs/phase39-snapshot.md`. Both required checks are satisfied: playtest rounds 1 and 2 were **live 3–4 device sessions** (a snapshot-drafting error earlier treated the plan's "three-device session" as a separate, still-unrun gate — it wasn't; the owner confirmed every gameplay round was real multi-device play), and the offline install check passed, single-device, exactly as designed. What remains is deliberately deferred suite-wide sweeps (see below), none of which block Cookie Jar.
+**SW v165 — Cookie Jar stage-polish round, COMPLETE (8 Aug 2026).** Presentational only, no rules
+or packet change, confirmed by an unchanged `simulate-cjar-dd.js` noise band. Seven design
+decisions **DD-25…DD-31**: reveal-choreography timing (`CJAR_FLIP_ANIM_MS` 2100 → **3200 ms**, with
+a ~1000 ms settle tail moved OFF the blocking clock to overlap the decision window), stage-column
+heading placement, tappable trail thumbs (`cjar-card-view-overlay`), a score-table Status column,
+a fixed-width gameover medal slot, and a new standing `ui-style.md` rule that same-screen buttons
+match in size and weight — **CJAR only; the other 17 games are not swept**. Detail:
+`docs/superpowers/specs/2026-08-08-cjar-stage-polish-design.md` +
+`docs/implementation-notes/cjar-implementation-notes.md`. **Previous versions:
+`docs/sw-changelog.md`** — the outgoing entry moves there on each bump; only the current version
+keeps its notes here.
 
-**Playtest round 1 ran 3 Aug 2026 and found the blocker: BUG-06.** Every client froze on the Raid 1 intro and the host played the whole match alone. Root cause was **the wire, not the logic** — Firebase RTDB erases `null`, `{}` and `[]`, which is exactly the shape of cjar's explicitly-broadcast reset values (`seen: {}`, `trail: []`, `choices: [null,…]`, `counterTreat: null`), so `CJAR_FLIP_START` threw inside the client's warning-strip render one line before `showScreen`. Fixed at **SW v158** (current build v159) with three normalisers applied in all five SYNC appliers. The lesson is now a universal rule in `logic-engine.md` (§ MDLM Patterns) — every other MDLM game already reached the same place via the `p.x || []` idiom; cjar had none. Full account: impl-notes **BUG-06** + **ML-03**.
+**Where the suite stands.** **18 games shipped**, all gold-master, plus multiplayer. Newest three:
+**Cookie Jar** (`cjar`, game 18, phase 39), **Pecking Order** (`pko`, game 17, phase 37) and its
+**Force of Nature** Sylly Mode (phase 38). All three phase gates are CLOSED —
+`docs/phase39-snapshot.md`, `docs/phase37-snapshot.md`, `docs/phase38-snapshot.md`. The **Cartridge
+System** is COMPLETE, both halves (Phase A word packs, Phase B skin packs) —
+`docs/cartridge-system-plan.md`. **Core art** has rolled out to `pko`, `flw`, `frt`, `shp`; **PASS
+and DYB still run emoji/CSS defaults** — rollout tracker, the 4-step conversion and the offline
+install check live in `docs/expansion-guide.md` § Core art packs.
 
-**What remains — all deliberately deferred, none blocking:**
-1. ~~The offline install check~~ — **DONE, 3 Aug 2026, PASSED.** Unregister → hard reload → Offline → How to Play → The Cards tab → illustrated cards appeared. The 14 core-art JPEGs and the manifest are precached.
-2. ~~Task 17's docs~~ — **DONE** (`code-map.md`, `game-identities.md` § Game 18, `docs/phase39-snapshot.md`, the `frt-implementation-notes.md` entry for Delta 2, decision-log, brief-prompt roster). Committed as `ee231f7`.
-3. ~~Commit history completeness~~ — **DONE, 3 Aug 2026.** `js/games/cjar.js` had been committed in the Task-17 pass, but `data/cjar-data.json`, `data/art/cjar/`, and `MP_GAME_CONFIGS.cjar` in `js/engine-multiplayer.js` had not — `HEAD` would have shipped an unenterable game (404 on the data fetch, no lobby config). All committed now alongside the four verify tools, the simulator, spec, plan, and content guide.
-4. **A suite-wide sweep for the BUG-06 class is NOT done.** cjar is fixed; whether any of the other 17 games assigns a raw payload collection that Firebase could erase has not been audited. Scoped out deliberately — same discipline as Delta 2. Worth a Protocol A pass.
-5. **Two sweeps opened by round 2, both deliberately deferred:** the settings dynamic-value line (DD-13) across the other 17 games, and a card gallery / How-to tab for the other core-art games (FLW, SHP, FRT, PKO), which still have DD-09's original single-device-offline-check problem.
+**Side project — Arcade Mode.** Secret Mode holds **arcade cabinets** under an `ARCADE` category
+alongside word packs and skins. **Cabinets are NOT Sylly Games and NOT packs** — no MP config, no
+`game-identities.md` section, no Sylly Mode, no verification harness, and explicitly **not**
+`docs/rules/new-game-checklist.md`. They use the terminal's CRT green-on-black language, not the
+Stack or the brand palette. First cabinet: **Asherplane** (`js/arcade/asherplane.js`), a top-down
+shmup. Adding cabinet #2 = one `SM_ARCADE` entry + one file. Spec + plan:
+`docs/superpowers/{specs,plans}/2026-08-03-arcade-asherplane*.md`.
 
-**Closed 3 Aug 2026:** TG-04 (the four unprefixed globals renamed to `cjarCookieCard` / `cjarFamilyCard` / `cjarTreatCard` / `cjarSeatsChoosing`, 77 sites across code, both harness bridges, the spec and the plan) · DD-07 (menu buttons were the only ones in the suite at the wrong type scale; `ui-style.md` § Universal Menu Standard now specifies it) · DD-08 (lobby minimum 4 → 3, owner call — **3-player balance is unsimulated**).
+**Open threads — all deliberately deferred, none blocking: `docs/deferred-work.md`.** It holds the
+older-games retest backlog, four pending suite-wide sweeps (the **BUG-06** Firebase-erasure class,
+the **DD-13** settings value line, **DD-31** button parity, and a How-to card gallery for
+FLW/SHP/FRT/PKO), the Decision Modal button-sizing divergences (FLW/PASS/GTH/BLD), and CJAR's open
+**DD-06** balance flag. Read it when picking up maintenance work, or at a phase gate.
 
-**Playtest round 2 ran 3 Aug 2026 across two passes — SW v158 → v161, both live 3–4 device sessions.** The offline install check (the one genuinely single-device step, by design) PASSED: DevTools → unregister → hard reload → Offline → Cookie Jar → How to Play → The Cards tab, illustrated cards appeared, so the 14 core-art JPEGs and the manifest are precached.
+### 🧪 Verification harnesses
 
-**Round 2's headline finding was a diagnosis, not a leak.** The reported "card stuck under the next one" was **the Treat**, not a render bug — `cjarRenderStage` had appended the deck's face-down card *and* `cjarCounterTreat` into the same 56 px column, so the unclaimed Treat drew as an unlabelled thumbnail wedged under the deck, in the slot that means "next". Different each Raid because the Treat is scheduled per Raid; persistent across flips because that is its rule. The mechanic was correct throughout; the object just had no home (BUG-08).
+Re-run a game's full set after touching its appliers, deck/data, packets or render seam.
 
-**HISTORICAL (round 2, superseded 7 Aug 2026 — see the Action Stage Rework entry above for the current stage layout).** The table became a 3-COLUMN grid, not a row (DD-12, second pass). CSS `grid-cols-3` — not flex — is what lets columns 1 and 3 stretch to match column 2's (the hero's) height automatically. Col 1 is "on the table": a Treat slot on top (art, or a **dashed placeholder in the exact footprint** a Treat will occupy, so one arriving is a fill-in, not a layout jump) and Crumbs below — Crumbs moved here from a separate band above the row, and before that from the private strip, because it is shared table state, not personal. Col 2 was, at this point in the round-2 record, still `just revealed` and still the single largest image — **DD-18 (7 Aug 2026) later inverted this**: col 2 now holds the face-down card you're betting on, showing face-up only during the reveal choreography. Col 3 was the deck — bumped again (6.5 → **7.2rem**) with a bigger, bolder count, because it needed to be "important to know" and its two stacked pieces (card + count) needed to reach col 2's height — **DD-24 later shrank it back down** once col 2 took over the "what you're betting on" job. The **history strip** gets the same placeholder treatment: before the first flip it showed dead space, which read as broken; now a single dashed thumb marks "history starts here."
+| Game | Command | Checks |
+|------|---------|--------|
+| CJAR | `node tools/verify-cjar-deck.js && node tools/verify-cjar-loop.js && node tools/verify-cjar-dd.js` | 76 · 102 · 47 |
+| CJAR | `node tools/verify-cjar-loopback.js` — host↔client over a Firebase-shaped wire | 177 |
+| CJAR | `node tools/simulate-cjar-dd.js` — balance instrument; asserts nothing, always exits 0 | — |
+| PKO | `node tools/verify-pko-chain.js && node tools/verify-pko-loop.js && node tools/verify-pko-events.js` | 68 · 132 · 148 |
+| DYB | `node tools/verify-dyb-dice.js` — after any `js/lib/art.js` / `dybDieHTML` / `.dyb-die-*` change | 90+ |
 
-**The private strip lost its two most-argued-about chips entirely.** `Cookie Stash` and `This Raid` were removed — not restyled — because `cjar-reveal-rows` (the standings table, moved to sit directly above the action buttons) **already shows both for your own seat, at every Open Book setting**: `cjarStashVisible()` is unconditionally true for `idx === mpMyPlayerIdx`, so your own row is never hidden. The strip now shows only Dibber Dobber's Favourite/Watcher/Owes chips, and hides itself entirely in the base game rather than rendering an empty bordered row.
+**The blind spot they share is load-bearing.** Every harness *except* `verify-cjar-loopback.js`
+runs in `'single'` mode with `getElementById: () => null`. That is what lets one process drive all
+N seats — and exactly what blinds it to **both** the packet layer and every line of render code (a
+render throw inside a SYNC applier is invisible; the guard clauses all short-circuit). PKO's
+**TG-07** is the same shape from the other side: `pkoMyHoard` *aliases* `pkoHoards[0]`, so
+per-device mirror bugs cannot exist there by construction. CJAR's **BUG-06** survived 222 green
+checks in that double blind spot; PKO's **BUG-02** survived 75. `verify-cjar-loopback.js` closes
+both gaps — real wire, real render-executing mock DOM, and it accepts `CJAR_SRC=` so a
+deliberately-broken copy can prove a test fails before the fix makes it pass — so reach for it on
+anything MP- or render-shaped. **None of them substitute for a real multi-device session:** no
+clock skew, no Firebase ordering, no dropped packets, nothing visual.
 
-**Screen order is now Stage → standings → Sylly-only chips → timer → action buttons**, buttons fixed at the floor as the consistent "the thing you act on is always last" rule. **The game menu's "See the Cards" button was removed** — the gallery lives only in How to Play now, which also puts cjar's menu back to the canonical 4-button shape (Play / How-to / Settings / Back) instead of a 5th deviation. **The gallery grid is CSS `grid-cols-3`, not `flex-wrap`** — Family (5) and Treats (5) now wrap a deliberate 3-then-2, not whatever `flex-wrap` happened to fit per row (previously 4-then-1). Gameover also gained a title — **The Haul 🍪** — matching the suite's "The [Noun]" shape (PKO's The Hierarchy, FLW's The Vault), with the nursery rhyme demoted to subtitle.
-
-**`ui-style.md` gained two rules from round 2's first pass, both still standing:** the Settings Card Standard's dynamic value line (DD-13 — cjar is the reference; the other 17 games are **not** swept) and the How-to Overlay Standard's optional tab bar (DD-14 — teaching material earns a tab, a mid-play reference like PKO's chain keeps its own overlay).
-
-**The blind-first-flip question, raised in round 2, is now RESOLVED (DD-17, SW v162).** In the base game flip 1 auto-resolves before any decision (correct — Incan Gold; you cannot decline to enter the temple) and Snack Friendly protects the cards you do see. Dibber Dobber had neither: its first decision every Raid was made on a completely empty stage, and `cjarBuildDeck`'s Sylly branch returned *before* `cjarFloatCookies`, so a new player's first move could cost 4 of 5 starting cookies with zero information. **Fix:** `cjarFloatCookies(deck, 1)` now runs at the end of the Sylly branch, after its own final shuffle (floating before that shuffle would have been undone by it) — the blind commit (Delta 7) is untouched, only the guaranteed card at position 0 changed. **Re-measured against the DD-06/Delta-7 baseline:** 5p spread 34.3 → 31.4 pts, Innocent 53.5% → 51.4%; 8p spread 37.4 → 37.6 pts, Innocent 52.9% → 52.3% — all within the noise band Delta 7 itself established, so DD-06's flagged imbalance is untouched. `verify-cjar-deck.js` cannot assert this (its identity-shuffle stub deals an all-family Sylly cut, TG-03); the new check lives in `verify-cjar-loopback.js` (the only harness with a real shuffle), 111 → 112.
-
-**Playtest round 1, second pass — SW v159.** Five more items, all owner-raised:
-1. **BUG-07** — the lobby dropped the host back on the game menu; `onPassThePhone` now calls `cjarStartMatch()`. cjar was the **only** MDLM game that bounced (GTH/FRT/SHP/FLW/PKO all go straight into play). The "GTH is the reference" note in `logic-engine.md` describes the *CTA's* dual context, not a routing recommendation — read the reference before following the prose.
-2. **DD-11 — the stage was rebuilt as ONE ROW**: `trail → just-revealed card → face-down deck`, reading past → present → unknown. The old hero drew `cjarCard` at 15rem directly above a strip whose rightmost thumb was *the same card*, putting the bigger copy where the eye reads "the card under decision". Nothing is drawn twice now. Card drops to `cjar-card-stage` 8.5rem, which **improves** art sharpness (~1.1× → ~2.6× effective, TG-02b maths). New `cjar-card-flipin` + `cjar-trail-settle` animations, both transform/opacity, both fired only on real change.
-3. **Standings are persistent** — `cjarRenderRevealRows` rendered only during `'revealing'`, so Open Book was ON with nowhere to see the ladder *while deciding*. Now every phase.
-4. **DD-10 — Decision Time setting**: Blitz 10 s · Standard 20 s · **No Rush (no clock at all)**. Standard is deliberately above the old 15 s. `cjarDecisionMs()` returns `null` for No Rush so a caller that forgets to branch fails loudly; `windowMs` travels **per flip** so a client scales against the host's clock, and its wire-erased absence *is* the No Rush signal.
-5. **DD-09 — `cjar-cards-overlay`, the suite's first card gallery.** Built from `CJAR_DATA` on open, every tile through `cjarRenderCard`. **This is what makes the offline install check a single-device job** — the earlier instruction to "check Settings and How to Play" was wrong, because cjar's art only rendered inside a running match, which on an MDLM-only game needs four phones to see a card at all.
-
-`ui-style.md` gained the **Decision Modal button sizing** rule (previously unstated; three variants had shipped). cjar is conformed; **FLW, PASS, GTH and BLD diverge and were NOT swept** — owner deferred, logged in `docs/deferred-work.md`.
-
-**Read `docs/implementation-notes/cjar-implementation-notes.md` first** — it is the real handoff artifact: 6 design decisions, 5 bugs, 2 multiplayer lessons, 6 template gaps, written as the build went. Seven **deltas** from the spec are recorded at the top of the plan; two matter most: **Delta 3** (a card's effect resolves at reveal, *before* the decision window — otherwise a visible bust card makes Sneaking Out free) and **Delta 7** (Dibber Dobber commits choices **blind**, owner call, so both modes share Incan Gold's mental model). Five harnesses, all green — re-run all five after any change to the appliers, the deck, the ledger or the packets:
-```bash
-node tools/verify-cjar-deck.js && node tools/verify-cjar-loop.js && node tools/verify-cjar-dd.js
-node tools/verify-cjar-loopback.js      # host↔client over a Firebase-shaped wire
-node tools/simulate-cjar-dd.js          # balance instrument: asserts nothing, always exits 0
-```
-`verify-cjar-deck` **73** (data + deck + render seam) · `verify-cjar-loop` **102** (base game + match) · `verify-cjar-dd` **47** (Dibber Dobber) · `verify-cjar-loopback` **111** (two devices, both modes, 4- and 3-player, all three Decision Times, the stage grid, the gallery tab, the empty-trail placeholder). **The first three run in `'single'` mode** with `getElementById: () => null` — which is what lets one process drive all N seats, and exactly what blinds them to *both* the packet layer and every line of render code. **BUG-06 lived in that double blind spot** and survived all 222 of their checks plus the original ML-01 loopback, because that loopback had no wire between the devices. `verify-cjar-loopback.js` closes both gaps and is the one to reach for on anything MP- or render-shaped; it takes `CJAR_SRC=` so a deliberately-broken copy can be driven through the same wire to prove a test fails before the fix makes it pass.
-
-**§ Offline — the install check is NOT a multiplayer test.** It is a **single device, no lobby, no second phone** check. What is verified is that the **service worker precached the 14 core-art JPEGs and the manifest** — a pure asset question, nothing to do with Firebase. Missing art renders every card as the emoji fallback (`cjarRenderCard`'s third tier); that is the tell.
-
-**Procedure (v161 onward):** DevTools → Application → unregister the SW → hard reload → tick **Offline** → open Cookie Jar → **How to Play → The Cards tab**. Illustrated cards = precached. Emoji = it did not. You never start a match. (Round 2 removed the game menu's own "See the Cards" button — a redundant fifth button on a screen the Universal Menu Standard fixes at four — so this is now the only entry point, same as it always was for every other game's How to Play.)
-
-**This only works because of DD-09.** Before v159 cjar's art rendered *only inside a running Raid*, so on an MDLM-only game the check needed four phones and a live room to answer a service-worker question — and the earlier instruction here ("open Settings and How to Play") was simply wrong, because those overlays are text. The gallery is what makes it a single-device job. **The other core-art games (FLW, SHP, FRT, PKO) still have no equivalent** and inherit the original problem — logged in `docs/deferred-work.md`.
-
-Firebase is lazy-loaded and irrelevant here: the app is fully functional offline right up to tapping Host/Join, which shows `mp-network-error-overlay`. That overlay appearing offline is **correct behaviour, not a failure of this check**.
-
-**One open balance flag, deliberately not acted on: DD-06.** Dibber Dobber's Innocent-leaning archetype wins **~52%** at both 5 and 8 players (33–38 pt spread against a ~12 pt threshold). Diagnosed to the **scare-off** — Play Innocent never pays on a Caught! card *and* sweeps the whole Crumb pool whenever no Dobber is present, while Dob is punished hard enough to be under-played. Not retuned on purpose: changing a number pre-playtest leaves nothing to compare against. If a lever is needed the candidates are the scare-off's unconditional full-pool sweep and the Dob backfire severity — **not** the Treat rule (a mechanism probe disconfirmed that).
-
----
-
-**COMPLETE — Phase 38: Force of Nature (PKO Sylly Mode).** Shipped at **SW v149**, raised to **v150** after playtest round 4 (see § SW Version). Built against the confirmed spec `docs/new-game-tech-pecking-order-fon.md`, built task-by-task from the plan `docs/superpowers/plans/2026-08-01-pko-force-of-nature.md` (all 12 tasks done — **Task 12, the three-device multi-device pass, ran clean on v150**, non-host moving first: see D38, `docs/phase38-snapshot.md`). Nine events: the fixed opener **Invasive Mimicry** plus eight drawn per Encounter — **The Culling, The Great Reversal, The Deluge, The Dry Season, Extinction Event, Migration, Alpha, Carrion**. Plus the **Mimic** card (15th chain entry), `screen-pko-event`, `pko-carrion-overlay`, and a multi-winner `pkoResolveClash(winnerIdxs)`. **Dark Forest was cut** (D26).
-
-**Three headless harnesses, all green — re-run all three after any change to the appliers, the chain, the balance numbers or the event rules:**
-```bash
-node tools/verify-pko-chain.js && node tools/verify-pko-loop.js && node tools/verify-pko-events.js
-```
-`verify-pko-chain.js` **68** (data layer) · `verify-pko-loop.js` **132** (turn loop) · `verify-pko-events.js` **148** (Force of Nature). **TG-07 still binds:** all three run in `'single'` mode where `pkoMyHoard` *aliases* `pkoHoards[0]`, so per-device mirror bugs are invisible to them by construction — that is exactly how BUG-02 survived 75 green checks. The Mimic's raw-vs-resolved removal, the three `pkoSyncAllHands()` senders and `PKO_CARRION_OPEN` are all that class and **can only be proven on three devices**.
-
-**Phase 37: Pecking Order (`pko`), game 17 — COMPLETE.** Adjacency climbing/shedding card game, MDLM-only, 3–6 players. Stage 1 brief (v7) ✅, Stage 2 spec ✅ confirmed 31 July 2026 (`docs/new-game-tech-pecking-order.md`), Stage 3 ✅, playtest rounds 1–3 ✅ (SW v145 → v147).
-
-**Round 2 shipped two rules changes.** **Swarm restored** (cut in brief v6): any single Mark may be answered with **two cards of its own species**, and each becomes a Mark of its own — so a slot never holds depth, which is precisely the ambiguity the v6 cut was about. **Mob stays cut.** Swarm is the second outlet for shedding Mouse/Fish that `pko_log1.md` item F named and the v6 cut removed; its absence is the stall round 2 found. Plus **Appetite** (`pkoAppetite`) — `Sated` (strict chain) / `Ravenous` (predators also eat two tiers down, six new edges, apex band untouched). **Appetite defaults to Sated on purpose:** both changes attack the same symptom, so round 3 measures Swarm against the known baseline and flips Appetite mid-session as a free A/B. See spec §7/§17 D10–D11 and impl-notes DD-21…DD-24.
-
-**`game-identities.md` § Game 17 now written** (1 Aug 2026) — terminology, full chain table under both Appetites, settings (incl. Small Fry, added since the Stage 2 spec), Swarm/Stampede/Poacher mechanics, the Force of Nature Phase 2 record, overlays, screens, MP packets — sourced from shipped `pko.js`/`index.html`, not the spec draft. PKO was already present in this file's Per-Game Quick Index (row 17) — the earlier note claiming it was missing was itself stale and has been corrected. Trail terminology fixed: "answered" → "**challenged**" in the Challenge builder + button label, matching the Trail's own verb (`pko.js`, `index.html`).
-
-**New-game brief template/prompt superseded (1 Aug 2026):** the `v2` rewrite triggered by PKO's own brief (Rule Relationships/Interaction Matrix, Complex Interaction UI, Rule Reference, Sound Design, End Screen Content — all sections PKO had to invent from scratch) is now the canonical `docs/rules/new-game-brief-template.md` / `docs/content-prompts/new-game-brief-prompt.md`. The v1 originals were replaced in place (same filenames), so every existing pointer (this file, `new-game-process.md`, `phase-audit.md`, the checklist) needed no edits.
-
-**Playtest round 4 (1 Aug 2026) — a 3-player session ran with a non-host moving first, no blocking bug reported.** It produced two legibility changes, both shipped at **v150**: the 5 s interstitial dwell and the live event in the table header + the nine-event roster overlay.
-
-**Playtest round 5 (1 Aug 2026) — the deferred multi-device pass, run clean.** 3 players, SW v150, non-host moving first, several Encounters played: no mirror desync, no frozen fan, no dead button. This is the session TG-07 said no harness could substitute for, and it closes the per-device mirror class BUG-02 opened. **One path stayed unverified live:** no client Challenge in this session happened to beat a Mark, so `PKO_CARRION_OPEN` (gap C5) is confirmed by code audit — every Hoard-mutation site pairs with a `pkoSyncHand`/`pkoSyncAllHands` repair, and the SYNC is sent and handled unconditionally — rather than by a live client-side overlay open. See D38, `docs/phase38-snapshot.md`, decision-log 2026-08-01 "Phase 38 gate closed".
-
-**The 5 s dial is one number for three things** — `PKO_INTERSTITIAL_MS` (both interstitials) and `PKO_CARRION_WINDOW_MS` (the spoils window) are separate constants held deliberately equal (D31, D35); if 5 s ever reads wrong at the table, decide whether it's the *reading* budget or the *acting* budget that's off before changing either, and re-run the events harness (it asserts they match). Key refs: `docs/new-game-tech-pecking-order-fon.md`, `docs/implementation-notes/pko-implementation-notes.md`, `docs/phase38-snapshot.md`.
-**Core art tier (July–Aug 2026):** default game artwork now ships as a **core art pack** — `data/art/<kind>/pack.json` + images, same manifest format as a Secret Mode skin pack but **precached** and never listed in the Terminal. Resolution moved out of `secret-mode.js` into `js/lib/art.js`: `assetFace`/`assetBack`/`assetExtra` layer **skin → core art → emoji fallback**, so existing seams were untouched. Rolled out **game by game** — `pko`, `flw`, `frt`, and **`shp`** (Aug 2026) ship core art; PASS/DYB keep their emoji/CSS defaults until converted. **Promoting a skin to core art unlists the skin** — FLW's art came from `prismatic-gems`, FRT's from `fruity-fruits`, SHP's from `plush-sheeps`; all three left `data/packs/registry.json` in the same change (a Terminal entry identical to the default is only confusing). Candidate masters for the remaining two are already in `data/packs/`: `sea-cliff-dice`/`deep-ocean-dice` (DYB — **needs alpha, so PNG not JPEG**), `joker` (PASS — only 1 of 54 faces; budget the precache before generating the rest). **SHP's id 13 (Fogged Dream) is permanently unskinned** — its whole mechanic is a hidden value, so `shpRenderCard` never asks `assetFace` for it; the manifest simply has no `"13"` key, and `SHP_CARDS`' ids were deliberately NOT renumbered to close the gap (owner call, 1 Aug 2026 — those ids are locked across MP packets). Gotchas learned from the FLW/FRT/SHP runs: **check the masters' dimensions before setting the converter's target width** (all three sets of masters were already near the card aspect and small — upscaling would only cost bytes), and a conversion is not done until `sw.js` carries the manifest + every image and `CACHE_NAME` is bumped. See `docs/expansion-guide.md` § Core art packs (rollout tracker) and `tools/convert-core-art.ps1`.
-**Phase:** Cartridge System **Phase A COMPLETE** (word expansions → runtime-loaded `data/packs/` cartridges). Phase 36 — Flawless (`flw`) COMPLETE. Private-hand multiplayer model (`mpSendPrivate` + `mpStartPrivateListener`) introduced.
-**Cartridge (Phase A):** The 3 expansions are now `data/packs/<id>/pack.json` manifests (inline `words`), listed in `data/packs/registry.json`; `secret-mode.js` builds the terminal consts at runtime via `smLoadPacks()`; `sw.js` runtime-caches `data/packs/` (network-first JSON, cache-first images). Adding a word pack = drop folder + edit registry, no JS/SW edit. Defaults locked: inline words, terminal selector, single-purpose packs.
-**Cartridge (Phase B — IN PROGRESS):** Asset (skin) packs share the same manifest/registry format with an `assets` block instead of `words`; render seams call `assetFace(kind,id)`/`assetBack(kind)` (in `secret-mode.js`) at draw time, falling back to default art when no pack covers an id. Device-local cosmetic — ids-only packets mean zero MP sync. Terminal is now **nested by category** (`WORD PACKS` theme→game; `GAME SKINS` game→skin) so pulling IP word packs at go-live just drops the `WORD PACKS` category. **Done:** general system (`window.activeAssetPack`, `assetFace`/`assetBack`, `smLaunch` asset branch, `resetSecretMode` teardown), B0 seam audit, **asset guards in all FIVE seams** — frt (`frtRenderCard`), shp (`shpRenderCard`), flw (`flwRenderCard`), cards (`Cards.buildEl/buildBackEl`, id scheme `rank`+suit-letter e.g. `QH`/`Joker`), and **dyb** (`dybDieHTML` standard faces only + `dybDieBackHTML` — special dice keep pips so type stays legible; the old face-down cup-die bypass at `dyb.js:482` now routes through the seam) — plus `.frt/shp/pass/dyb-die-asset` CSS, `SM_GAMES` entries for frt/shp/flw/pass/dyb, and sample SVG skins incl. `neon-fruit`, `neon-sheep`, `neon-deck` (full 54) — DYB's two live skins are `sea-cliff-dice` (faces-only) and `deep-ocean-dice` (a bundled `neon-dice` pack was never shipped, despite this paragraph previously claiming otherwise). **Phase B doc closure DONE:** code-map seam table, `expansion-guide.md` § Add an asset (skin) pack (per-game id cheat-sheets + install steps), decision-log entry, brief template §9A + tech template §10 asset-readiness, `docs/content-prompts/asset-pack-prompt.md`, logic-engine new-game checklist item. DYB dice skins keyed by face value 1–6 only (no per-type skinning — YAGNI). Spec: `docs/cartridge-system-plan.md` Part B. **Phase B COMPLETE.**
-**Last shipped game:** Phase 36 — Flawless (FLW), gem-trading bluffing game, MDLM-only, 3–4 players; True Network Privacy (private Firebase channel); Sylly Mode = The Counterfeit Run.
-**Previous shipped game:** Phase 35 — Counting Sheep (SHP), O'NO-99 climbing/survival card game, MDLM-only, 3–8 players; Sylly Mode = Night Terrors (oscillating Climb ⇄ Plunge).
-**SW Version:** v165 (**Cookie Jar — the stage-polish round.** Owner feedback from the first real
-playtest of the Aug 7 action-stage rework, not a new root-cause finding — presentational only,
-no rules or packet change, confirmed by an unchanged `simulate-cjar-dd.js` noise band. Seven
-design decisions, **DD-25…DD-31**: the reveal choreography's blocking dwell roughly doubles —
-`CJAR_FLIP_ANIM_MS` 2100 → **3200 ms** (flip 600 / hold 1200 / payout 1400) — while a new ~1000 ms
-settle tail moves OFF the blocking clock and overlaps the already-open decision window, the same
-"transient animations float, contribute zero layout height" pattern the delta-token layer already
-used (DD-25); all three stage-column headings move to the top so the row reads as one unit top-down
-instead of column 1 reading down and columns 2/3 reading up, with the face-down label shortened to
-**"Next from Jar"** and column 3 relabelled **"Left in Jar"** (DD-26), plus denser padding and an
-enlarged Crumbs value/caption in column 1 (DD-26a); trail-strip thumbs are individually tappable,
-opening a new `cjar-card-view-overlay` full-illustration popup while the strip container itself
-keeps its no-handler rule (DD-27); the score table gains a header row and a fixed 5-column grid —
-Rank | Player | Stashed | **Status** | At Risk — with the old inline 🚪 replaced by a proper
-Still In / Snuck Out badge, base game only (DD-28); the family strip's inter-slot gap tightens and
-its gap to the `[?]` button widens (DD-29); the gameover podium gets a fixed-width medal slot
-(🥇🥈🥉 or blank) so every row's text aligns regardless of rank, plus a top-scorer highlight per
-Raid in the history grid (DD-30); and same-screen action buttons must now match in size and weight
-with **no exceptions** — the previously-documented "Back to the Box steps down because it's
-navigation" carve-out is retired, applied to CJAR's own screens now, the other 17 games' sweep
-deferred (DD-31, also written into `ui-style.md` as a standing rule). All five harnesses updated:
-`verify-cjar-deck.js` **76** · `verify-cjar-loop.js` **102** · `verify-cjar-dd.js` **47** ·
-`verify-cjar-loopback.js` **177** (147 at the Aug 7 rework, +30 from this round — the only harness
-with real render-executing mock elements, so the only one that could assert any of this) ·
-`simulate-cjar-dd.js` unchanged. Spec: `docs/superpowers/specs/2026-08-08-cjar-stage-polish-design.md`.
-Full detail: `docs/implementation-notes/cjar-implementation-notes.md`.)
-
-**Previous versions:** v164 and earlier — `docs/sw-changelog.md` (the outgoing entry moves there on each bump; only the current version keeps its notes here).
-**DYB harness:** `node tools/verify-dyb-dice.js` — re-run after any change to `js/lib/art.js`, `dybDieHTML`/`dybDieBackHTML`, or `.dyb-die-*` CSS. Covers the `specials` manifest block, the engine frame contract and its per-type opt-out, and the leak guard that stops a concealed phantom's real face reaching the DOM.
-**Gold Master:** 16 games complete + multiplayer (LI5, Great Minds, Secret Signals, JEC, YGI, LTTP, Natural Selection, Deep-Sea Deploy, Bailed, Group Therapy, The Bluff [internal `dyb`], Pass, Net-Trace, Fruit Salad, Counting Sheep, Flawless)
-**Flawless key refs:** `docs/new-game-tech-flawless.md` (confirmed spec), `docs/implementation-notes/flw-implementation-notes.md`, `docs/new-ideas/new-game-brief-flawless.md` (Phase-1 brief). MDLM-only, True Network Privacy (`mpSendPrivate`), host-as-participant, host-authoritative; rose-pink `#E879A8` + Exhibition gold `#C9A227`; all card rendering through `flwRenderCard` (asset-pack seam); 10 gems (`FLW_GEMS`); Sylly Mode = The Counterfeit Run (1 token + 2 audit charges per Showing).
-**Counting Sheep key refs:** `docs/new-game-tech-counting-sheep.md` (confirmed spec — Night Terrors + ghost rework in v1), `docs/implementation-notes/shp-implementation-notes.md` (bug log incl. Wolf-deal fix + design decisions), `docs/new-ideas/counting-sheep-notes.md` (final design notes). MDLM-only, host-authoritative, host-as-participant; couch security; moonlit indigo (native Tailwind); all card rendering through `shpRenderCard` (asset-pack seam); single-source herd math `shpHerdAfterCard` (Plunge sign-flip).
-**Phase snapshots live in `docs/`** — corrected 1 Aug 2026 (owner clarification): the earlier "external archive" move was housekeeping to get old files out of the way of in-repo sweeps, not a standing rule to write new ones externally. The owner keeps their own running Confluence separately; an in-repo snapshot is Claude Code's own reference, so **new snapshots are written to `docs/phase[N]-snapshot.md`** (see `docs/phase37-snapshot.md` for the current template). Historical snapshots up to and including **phase36** (FLW + private-hand model), **fable-audit** (the 71-item Studio Audit campaign), and **phase22** (multiplayer complete — MFS v1.4) remain in the external archive the decision-log anchors to — ask the owner if you need to read one of those specifically. `docs/archive/` still holds the one pre-existing Protocol-A sweep snapshot from 30 June 2026.
-
-**Key references:** see the Task Playbooks table above, plus `docs/code-map.md` (surgical code reference) and `docs/implementation-notes/[abbr]-implementation-notes.md` (one per game — bug log + design decisions).
+**Standing pointers.** Phase snapshots are written **in-repo** to `docs/phase[N]-snapshot.md`
+(current template: `docs/phase37-snapshot.md`). Snapshots up to and including phase36, the
+fable-audit campaign, and phase22 live in the owner's external archive — ask if you need one.
+Every game's confirmed spec is `docs/new-game-tech-[name].md`; its bug log and design decisions are
+`docs/implementation-notes/[abbr]-implementation-notes.md`. Those two, plus `docs/code-map.md` and
+`docs/decision-log.md`, are where the detail this section used to carry now lives.

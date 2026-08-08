@@ -334,6 +334,29 @@ than to emoji, and a game with no core art behaves exactly as it did before this
 internal ids (PKO's `poacher.png` serves the chain id `human`). Never hardcode an art path or a
 filename lookup table in a plugin — that's what the manifest is for.
 
+#### Step 5 — verify it: the offline install check
+
+The check that step 4 actually worked. **Single device, no lobby, no second phone** — it answers a
+pure service-worker question and has nothing to do with Firebase or multiplayer.
+
+> DevTools → Application → **unregister the SW** → hard reload → tick **Offline** → open the game →
+> **How to Play → the card-gallery tab**. Illustrated cards = precached. Emoji = it did not.
+
+**Illustrated cards mean the manifest and every image made it into `PRECACHE_URLS`. Emoji means the
+third fallback tier fired** (`assetFace` → skin → core art → emoji) — the art is missing, and step 4
+is incomplete. You never start a match.
+
+**This only works if the game has a gallery reachable outside a running match.** CJAR is the
+reference: before its How-to gallery existed (DD-09) its art rendered *only inside a live Raid*, so
+on an MDLM-only game the check needed four phones and a room to answer a service-worker question.
+See `ui-style.md` § How-to Overlay Standard → optional tab bar for the gallery pattern. **FLW, SHP,
+FRT and PKO have core art but no gallery** and still inherit that problem — logged in
+`docs/deferred-work.md`.
+
+Firebase is lazy-loaded and irrelevant here: the app stays fully functional offline right up to
+tapping Host/Join, which shows `mp-network-error-overlay`. **That overlay appearing offline is
+correct behaviour, not a failure of this check.**
+
 ### Rollout tracker — which games have core art
 
 Deliberately game-by-game. **Nothing in a game's code changes when it converts** — every seam
