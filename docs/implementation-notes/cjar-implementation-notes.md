@@ -34,7 +34,26 @@ TG-08 below; it's the reusable lesson.
 
 **DD-24 — column 3 demoted from "the bet" to the reservoir.** DD-18 moved "the card you're betting on" to column 2, so column 3's old rationale for its size (`cjar-card-next` at 7.2rem) inverted — it shrinks and renders as `.cjar-deck-stack`, an offset stack of three card backs plus the live count, rather than a single back. Two lone face-down cards side by side would read as "which one is next?"; a stack reads unambiguously as "the deck" — and it's literally where the settle beat lifts the replacement card from.
 
+**Implementation deviation from the spec (second one — Treat timing):** §4's payout-beat table places
+the Treat's arrival into column 1 in the 900–1600 ms payout beat, alongside the cookie token burst.
+The shipped code doesn't wait for it: `cjarApplyCardEffect` sets `cjarCounterTreat` at the moment the
+card is popped — **before** `cjarBeginFlipAnim` even runs — so the Treat is already sitting in column
+1 on the choreography's very first paint (t≈0), not partway through it. Accepted, not a bug: DD-23's
+"art fills the same footprint a placeholder already occupies" rule means an early fill-in reads as,
+at worst, a slightly early reveal rather than a jump — but it means the Treat is the one payout type
+that does NOT share the 900 ms beat the cookie burst and the family pulse share. Recorded here so a
+future playtest round doesn't rediscover it as drift and re-open it as a bug.
+
 **Verification note:** all five harnesses needed updating for this rework — the new `cjarFlipAnim` gating and the label changes broke existing assertions **by design**. `verify-cjar-loopback.js` (the only harness with real mock DOM elements, so the only one that executes render code) grew from 112 to 147 checks: the face-down hero during `'deciding'`, the label swap, both pills in both modes and at both Open Book settings, the Up for Grabs card with/without a Treat, and — added in a follow-up fix — the bust card running its own flip beat before `screen-cjar-busted` (previously the bust resolved and jumped straight to the verdict, skipping the flip animation every other card type got). `verify-cjar-deck.js` 73 → 75, `verify-cjar-loop.js` stays 102 (gained checks, lost none), `verify-cjar-dd.js` stays 47 (gained the Stashed-pill-alone assertion). `simulate-cjar-dd.js` is unchanged and its output moved only within the existing noise band — expected, since nothing in this rework touches a rule, a value, or a probability (DD-06's flagged Innocent-lean is untouched).
+
+**Final-review fix wave, 8 Aug 2026 (BUG-09, BUG-10, BUG-11 above):** all three were presentational —
+none touched a rule, a value, or a packet field. `verify-cjar-loopback.js` grew again, 147 → **164**
+(the settle-handover trail check, the mid-window-quit bust-timeout check, and the all-innocent
+payout-beat check, each proven to fail against the pre-fix code before being proven to pass against
+the fix). `verify-cjar-deck.js` grew 75 → **76** (`CJAR_FLIP_ANIM_MS` now has the same exact-value
+assertion every other timing constant in that block already had). `verify-cjar-loop.js` (102) and
+`verify-cjar-dd.js` (47) were untouched by this pass. `simulate-cjar-dd.js` output is unchanged
+within the existing noise band, consistent with all three fixes being presentational.
 
 **DD-17 — Dibber Dobber's flip 1 is guaranteed a cookie, without breaking the blind commit.** *(Owner call, 3 Aug 2026)*
 Flagged in the round-2 write-up and left alone pending a decision: the base game's flip 1
@@ -428,6 +447,63 @@ debt clears. So debt only ever *redirects* value; it never holds any. Subtractin
 ---
 
 ## Bug Index
+
+**BUG-11 — All-innocent Dibber Dobber flip threw its payout token the wrong way.** *(Final review of the action-stage rework, 8 Aug 2026 — FIXED)*
+**What happened:** `cjarBeginFlipAnim`'s payout beat had a comment claiming the "dobbers-only or
+all-innocent" case sends every cookie to Crumbs and "never to a seat" — true for dobbers-only, but
+`cjarResolveFlipDD`'s scare-off (which runs LAST specifically so an all-innocent flip absorbs its
+own contribution immediately) actually sweeps the whole pool straight back out to the innocents.
+The beat threw one token **left** to the Crumb pile — visually the opposite of what the code it was
+supposed to be narrating actually does.
+**Root cause:** the payout beat and the resolver it mirrors were written by reading the resolver's
+branch structure, not its comments, and the scare-off's own "runs LAST" comment was the tell that
+got missed — a pile that gets refilled and immediately drained in the same function never *stays*
+refilled from the outside.
+**Fix:** added the missing branch — `innocents.length && !dobbers.length` throws one token per
+innocent, downward, no remainder.
+**Lesson:** when a visual beat mirrors a resolver's math (DD-20's whole point), audit it against
+every branch of the resolver, not just the branches a quick read makes obvious — a function whose
+own comment says "runs last" is a sign its outcome depends on what already happened, not just what
+this branch does.
+
+**BUG-10 — A quit mid-bust-window left the client's timeout un-clearable.** *(Final review of the
+action-stage rework, 8 Aug 2026 — FIXED)*
+**What happened:** the host's bust-path `cjarShowBusted` timeout was tracked in `cjarRevealHandle`
+(cleared by `cjarResetState`); the client's identical timeout, added by the same rework, was a bare
+`setTimeout` with the return value discarded. A client that quit, or received `HOST_END_GAME`,
+inside the 2100 ms bust reveal window still had `cjarShowBusted` fire later — sound, `showScreen`,
+a fresh 5 s interstitial — against a screen the app had already torn down.
+**Root cause:** the host and client bust paths were written as near-duplicates (same beat, same
+delay), but only the host's copy carried the tracked-handle pattern the rest of the file uses
+everywhere else; the client copy was new code that didn't inherit it by osmosis.
+**Fix:** the client timeout now lives in `cjarRevealHandle` too (unused on clients otherwise, since
+`cjarHostNextFlip`/`cjarHostResolveFlip` both bail out early on `syllyMultiplayerMode === 'client'`),
+cleared by the same `cjarResetState` line as the host's. Also closed in the same pass: `cjarResetState`
+now empties `#cjar-delta-layer` directly — a mid-flight quit hides the screen via `display:none`,
+which suppresses `animationend`, so in-flight token nodes from `cjarFlyTokens` had no other cleanup.
+**Lesson:** when a new code path duplicates an existing one's *behaviour*, check it also duplicated
+the existing one's *bookkeeping* — the timing and the callback were copied correctly; the handle
+tracking was not, because it left no visible symptom until a device happened to quit in a 2.1 s window.
+
+**BUG-09 — The just-revealed card was reachable from nowhere for the whole decision window.** *(Final
+review of the action-stage rework, 8 Aug 2026 — FIXED)*
+**What happened:** `cjarRenderTrailStrip`'s exclusion gate (`cjarCard ? cards.slice(0, -1) : cards`)
+predates this rework, written when the hero *showed* `cjarCard` face-up for the whole window — the
+gate existed only to stop the strip from also drawing the same card. DD-18 made the hero go
+face-down again at the 2100 ms handover, but `cjarCard` stays truthy for the entire decision window
+that follows — so from the handover until the flip resolves, the card was in the hero only as a
+generic back, not in the strip, and (for a cookie) not on the warning strip either. The only way to
+see what had just been revealed was the trail overlay, one tap away — directly contradicting DD-18's
+own justification, repeated verbatim in the code comment one screen up.
+**Root cause:** the gate's condition (`cjarCard` truthy) was never actually "is this card currently
+the hero" — it was "has a card been dealt this flip", which used to be the same thing and stopped
+being the same thing the moment the hero started going face-down mid-window.
+**Fix:** gated on `cjarFlipAnim && cjarCard` instead — the strip now includes the card exactly when
+the hero stops showing it, which is also the moment `cjar-trail-settle`'s fires (a fix and a missing
+animation trigger from the same one-line change).
+**Lesson:** a boolean gate written against "has X happened" quietly drifts from "is X still true"
+the moment the thing it gates stops being a one-way transition — worth re-checking any gate that
+predates a change to the state it reads.
 
 **BUG-08 — The "card stuck under the next one" was the Treat, and the mechanic was working.** *(Playtest round 2, 3 Aug 2026 — FIXED, SW v160)*
 **What the owner saw:** after a few reveals, a second card appears below the deck in the "next"

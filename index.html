@@ -9146,10 +9146,14 @@ Reboot
                occupy) on top, Crumbs below. Crumbs lived in its own band above this row
                until round 2 folded it in here: it is part of what's sitting on the table,
                same as the Treat.
-             Col 2 — just revealed. Unchanged, still the largest single image.
-             Col 3 — the jar: the face-down deck, sized up from round 1 (still smaller
-               than the hero — the deck is what you're betting ON, not the bet itself) with
-               a more prominent count, so col 3's two stacked items also reach hero height. -->
+             Col 2 — the card you're betting on, face-down. It flips face-up only for the
+               2100 ms reveal choreography (CJAR_FLIP_ANIM_MS), then settles into the
+               history strip while the next face-down card rises to take its place — the
+               Aug 2026 action-stage rework (DD-18) moved this job here FROM col 3, which
+               is why the col 3 note below now says the opposite of what it said before.
+             Col 3 — the jar: an offset stack of card backs, a RESERVOIR rather than a bet
+               (DD-24 — it shrank once col 2 took over "the card you're betting on") with
+               a prominent count, so col 3's two stacked items still reach hero height. -->
         <div id="cjar-stage-row" class="relative grid grid-cols-3 items-stretch gap-2">
           <!-- COL 1 — "Up for Grabs". Crumbs and the Treat are ONE object because they
                are one idea: shared table state that a solo departure claims. Crumbs sits
@@ -9388,7 +9392,7 @@ Reboot
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
           <p class="text-xs font-semibold uppercase tracking-widest cjar-label">Step 3</p>
           <p class="font-bold text-stone-800">Then everyone decides, at the same time</p>
-          <p class="text-stone-500 text-sm"><span class="font-semibold text-stone-700">Take a Cookie</span> to stay in for the next card, or <span class="font-semibold text-stone-700">Sneak Out</span> to bank everything you've collected this Raid. You've got 15 seconds.</p>
+          <p class="text-stone-500 text-sm"><span class="font-semibold text-stone-700">Reach In Again</span> to stay in for the next card, or <span class="font-semibold text-stone-700">Sneak Out</span> to bank everything you've collected this Raid. Decision Time is a setting — Blitz, Standard, or No Rush with no clock at all.</p>
         </div>
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
           <p class="text-xs font-semibold uppercase tracking-widest cjar-label">Step 4</p>

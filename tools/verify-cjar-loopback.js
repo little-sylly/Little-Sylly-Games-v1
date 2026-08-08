@@ -172,6 +172,11 @@ globalThis.__cjar = {
   get decisionTime() { return cjarDecisionTime; },
   get windowMs()     { return cjarWindowMs; },
   get endTs()        { return cjarEndTimestamp; },
+  // Review Fix 2 — the client's bust-path setTimeout is now tracked in cjarRevealHandle
+  // (previously bare, so nothing could ever clear it). Exposed as a NULL/non-null
+  // presence check rather than a raw handle object, which is all a bridge getter can
+  // usefully compare with JSON.stringify.
+  get revealHandle() { return cjarRevealHandle !== null ? 'armed' : null; },
   seat(o) {
     cjarPlayerCount   = o.players;
     cjarPlayerNames   = o.names;
@@ -262,6 +267,7 @@ globalThis.__cjar = {
                                                                     : cjarCookieCard(c.value)); },
   hostNextFlip()     { cjarHostNextFlip(); },
   seen2(id)          { return cjarSeen[id]; },
+  resetState()       { cjarResetState(); },
 };`;
 
   vm.runInContext(cjarSrc + BRIDGE, sandbox, { filename: `cjar.js (${name})` });
@@ -548,6 +554,48 @@ const section = t => console.log(`\n${t}`);
         client6.__screens.slice(-2), ['screen-cjar-table', 'screen-cjar-busted']);
   check('no exception on either device', [host6.__errors, client6.__errors], [[], []]);
 
+  section('A mid-window quit clears the client bust timeout, not just the host one (review Fix 2)');
+  // Same stacked-deck bust as above, on a FRESH pair — but the client is left exactly
+  // where it lands when the bust RESOLVE arrives (nothing stepped since) and a quit /
+  // HOST_END_GAME is simulated right there. Pre-fix this timeout was a bare, untracked
+  // setTimeout: nothing in cjarResetState (or any quit path) could ever clear it, so a
+  // client that quit inside this 2100 ms window still had cjarShowBusted fire later —
+  // sound, showScreen, and a fresh 5 s interstitial — against a screen the app had
+  // already torn down.
+  const host9   = makeDevice('host9',   'host',   0, SLOTS);
+  const client9 = makeDevice('client9', 'client', 1, SLOTS);
+  await host9.cjarLoadData(); await client9.cjarLoadData();
+  const H9 = host9.__cjar, C9 = client9.__cjar;
+  host9.mpSendEnvelope = env => {
+    const onWire = wire({ ...env, originId: 'u0', timestamp: Date.now() });
+    try { C9.handle(onWire); } catch (e) { client9.__errors.push(`${onWire.payload.action}: ${e.message}`); }
+  };
+  host9.mpSendPrivate = () => {};
+  client9.mpSendEnvelope = () => {};
+
+  H9.seat({ players: 4, names: NAMES, length: 3 });
+  C9.standby();
+  H9.startMatch();
+  H9.stackDeck([{ type: 'family', id: 'mum' }, { type: 'family', id: 'mum' }]);
+  H9.hostNextFlip();                                  // first mum — a warning
+  step(host9);                                        // let the choreography hand over
+  for (let i = 0; i < 4; i++) H9.applyChoice(i, 'take');
+  H9.resolve();
+  step(host9);           // outcome dwell → cjarHostNextFlip → 2nd 'mum' busts → RESOLVE lands
+  check('client9 has the bust RESOLVE, window still open',
+        lastScreen(client9), 'screen-cjar-table');
+  check('the bust timeout is now a TRACKED handle, armed', C9.revealHandle, 'armed');
+  C9.resetState();                                    // simulated quit / HOST_END_GAME
+  check('resetState cleared it', C9.revealHandle, null);
+  // Drain whatever is left on client9's queue (its own choreography timers, plus the
+  // never-fired raid-intro interstitial — all cleared by the same resetState call).
+  // The point under test: NONE of it can now walk the screen to screen-cjar-busted.
+  let guard9 = 0;
+  while (step(client9) && guard9++ < 10) {}
+  check('no post-quit transition to screen-cjar-busted',
+        lastScreen(client9), 'screen-cjar-table');
+  check('no exception on client9', client9.__errors, []);
+
   // ── Dibber Dobber ──────────────────────────────────────────────────────────
   section('Dibber Dobber — blind commit across the wire (Delta 7)');
   const host2   = makeDevice('host2',   'host',   0, SLOTS);
@@ -634,6 +682,53 @@ const section = t => console.log(`\n${t}`);
   step(client2);
   check('host2 threw the exact split token count',   H2.tokenCount(), ddExpected);
   check('client2 threw the exact split token count', C2.tokenCount(), ddExpected);
+
+  section('Dibber Dobber all-innocent flip: scare-off sweeps to seats, not left (review Fix 3)');
+  // cjarResolveFlipDD's scare-off runs LAST and, with no Dobber present, drains the
+  // WHOLE Crumb pool — this card's value plus anything already sitting there —
+  // straight back out to the innocents. It never stays in the pile. Pre-fix the
+  // payout beat's "dobbers-only or all-innocent" branch threw a single token LEFT
+  // to the Crumb pile instead, showing the opposite of what actually happens.
+  const host7   = makeDevice('host7',   'host',   0, SLOTS);
+  const client7 = makeDevice('client7', 'client', 1, SLOTS);
+  await host7.cjarLoadData(); await client7.cjarLoadData();
+  const H7 = host7.__cjar, C7 = client7.__cjar;
+  host7.mpSendEnvelope = env => {
+    const onWire = wire({ ...env, originId: 'u0', timestamp: Date.now() });
+    try { C7.handle(onWire); } catch (e) { client7.__errors.push(`${onWire.payload.action}: ${e.message}`); }
+  };
+  host7.mpSendPrivate = (uid, env) => {
+    if (uid !== 'u1') return;
+    const onWire = wire({ ...env, originId: 'u0', timestamp: Date.now() });
+    try { C7.handle(onWire); } catch (e) { client7.__errors.push(`private: ${e.message}`); }
+  };
+  client7.mpSendEnvelope = env => {
+    const onWire = wire({ ...env, originId: 'u1', timestamp: Date.now() });
+    try { H7.handle(onWire); } catch (e) { host7.__errors.push(`${onWire.payload.action}: ${e.message}`); }
+  };
+
+  H7.seat({ players: 4, names: NAMES, sylly: true, length: 3 });
+  C7.standby();
+  H7.startMatch();
+  check('flip 1 is a cookie (blind float)', H7.deck[0].type, 'cookie');
+  step(host7);
+  check('client7 reached the table', lastScreen(client7), 'screen-cjar-table');
+
+  for (let i = 0; i < 4; i++) H7.applyChoice(i, 'innocent');   // nobody takes, nobody dobs
+  check('all four in', H7.allIn(), true);
+  H7.resolve();
+  vm.runInContext("document.getElementById('cjar-delta-layer').innerHTML = '';", host7);
+  vm.runInContext("document.getElementById('cjar-delta-layer').innerHTML = '';", client7);
+  step(host7);
+  step(client7);
+  check('host7: one token per innocent, none left to Crumbs',   H7.tokenCount(), 4);
+  check('client7: one token per innocent, none left to Crumbs', C7.tokenCount(), 4);
+  // Review Fix 2's second half — a mid-flight quit hides the screen via display:none,
+  // which suppresses animationend, so the tokens just thrown above would otherwise be
+  // orphaned in the DOM forever. cjarResetState now empties #cjar-delta-layer directly.
+  check('tokens still on screen before the quit', C7.tokenCount() > 0, true);
+  C7.resetState();
+  check('resetState empties the token layer', C7.tokenCount(), 0);
 
   section('Drive a full Dibber Dobber match');
   guard = 0;
@@ -725,8 +820,44 @@ const section = t => console.log(`\n${t}`);
   for (let i = 0; i < 4; i++) if (!H5.ready[i]) H5.applyChoice(i, 'take');
   H5.resolve();
   step(host5);                                    // reveal dwell → second flip
-  check('two out, one thumb',        C5.stageThumbs(), 1);
-  check('standings render always',   C5.standingsRows(), 4);
+  // client5's OWN flip-2 animation is still mid-flight here (never stepped — the next
+  // section depends on that), so this reads the SAME under the pre-fix formula too
+  // (cjarCard truthy is sufficient there, and flipAnim is ALSO true right now). It is
+  // not the discriminating moment for review Fix 1 — see the dedicated section below,
+  // which drives a device fully through its own handover to actually exercise it.
+  check('two out, one thumb, mid-flip', C5.stageThumbs(), 1);
+  check('standings render always',      C5.standingsRows(), 4);
+
+  section('The card joins the strip at the SETTLE handover, not before (review Fix 1)');
+  // DD-18/DD-19: the reveal choreography owns the hero for CJAR_FLIP_ANIM_MS, then
+  // hands over — hero goes face-down, and the card that was just revealed belongs in
+  // the history strip from that instant on ("nothing is drawn twice"). Pre-fix,
+  // cjarRenderTrailStrip's exclusion gate was `cjarCard ? … : cards` — true for the
+  // WHOLE decision window, not just the animation — so the card was excluded from the
+  // strip AND (once the animation ended) no longer shown in the face-down hero either:
+  // reachable only via the trail overlay, for as long as the decision window stayed
+  // open. This device pair is driven fully through its own handover to catch exactly
+  // that gap, which the assertion above (still mid-animation) cannot see.
+  const host8   = makeDevice('host8',   'host',   0, SLOTS);
+  const client8 = makeDevice('client8', 'client', 1, SLOTS);
+  await host8.cjarLoadData(); await client8.cjarLoadData();
+  const H8 = host8.__cjar, C8 = client8.__cjar;
+  host8.mpSendEnvelope = env => {
+    const onWire = wire({ ...env, originId: 'u0', timestamp: Date.now() });
+    try { C8.handle(onWire); } catch (e) { client8.__errors.push(`${onWire.payload.action}: ${e.message}`); }
+  };
+  host8.mpSendPrivate = () => {};
+  client8.mpSendEnvelope = () => {};
+  H8.seat({ players: 4, names: NAMES, snack: 'warmup', length: 3, time: 'norush' });
+  C8.standby();
+  H8.startMatch();
+  step(host8);                                     // interstitial → first flip
+  check('client8 reached the table',              lastScreen(client8), 'screen-cjar-table');
+  check('mid-flip: card excluded from the strip', C8.stageThumbs(), 0);
+  check('mid-flip: hero shows it face-up',        C8.heroFaceDown(), false);
+  step(client8); step(client8);                     // client8's own payout + handover beats
+  check('handover done: hero goes face-down',     C8.heroFaceDown(), true);
+  check('handover done: card now IN the strip',   C8.stageThumbs(), 1);
 
   section('A spectator device is still animating when RESOLVE lands (Finding 1)');
   // client5's own local flip-2 animation (started when FLIP_START above landed) was

@@ -686,7 +686,7 @@ function cjarRenderTrailStrip() {
   // The LAST card entry is the one currently in the stage slot — drawing it here too
   // is precisely the duplication this layout exists to remove. It joins the strip on
   // the next flip, when the slot moves on.
-  const spent = cjarCard ? cards.slice(0, -1) : cards;
+  const spent = (cjarFlipAnim && cjarCard) ? cards.slice(0, -1) : cards;
   if (!spent.length) {
     // Before the first flip lands here, the strip would otherwise just be dead space —
     // exactly the same "is this broken?" read as the Treat slot before a Treat exists.
@@ -1488,8 +1488,9 @@ function cjarBeginFlipAnim(startsClock) {
       // divisor there. cjarChoices is still this flip's, so the real groups are readable.
       let heads = 0, remainder = card.value;
       if (cjarIsSylly()) {
-        const takers  = cjarSeatsChoosing('take');
-        const dobbers = cjarSeatsChoosing('dob');
+        const takers    = cjarSeatsChoosing('take');
+        const dobbers   = cjarSeatsChoosing('dob');
+        const innocents = cjarSeatsChoosing('innocent');
         if (takers.length && dobbers.length) {
           const steal = Math.min(CJAR_DD_DOB_STEAL * dobbers.length, card.value);
           heads     = takers.length + dobbers.length;
@@ -1497,10 +1498,15 @@ function cjarBeginFlipAnim(startsClock) {
         } else if (takers.length) {
           heads     = takers.length;
           remainder = card.value % takers.length;
+        } else if (innocents.length && !dobbers.length) {
+          // All-innocent (no takers, no dobbers): cjarResolveFlipDD's scare-off runs
+          // LAST and drains the WHOLE pool — this card's value plus any Crumbs already
+          // sitting there — straight back out to the innocents, so it never stays in
+          // the pile. One token per innocent, downward; nothing flies left.
+          heads = innocents.length; remainder = 0;
         }
-        // Dobbers-only or all-innocent: heads stays 0, remainder stays the whole
-        // value — cjarResolveFlipDD sends every cookie to Crumbs in both cases
-        // (the backfire, or the scare-off's own contribution), never to a seat.
+        // Dobbers-only, no innocents: heads stays 0, remainder stays the whole value —
+        // cjarResolveFlipDD's backfire sends it to Crumbs and leaves it there.
       } else {
         heads     = cjarActiveCount();
         remainder = heads ? card.value % heads : card.value;
@@ -2135,7 +2141,15 @@ function cjarHandleEnvelope(env) {
         cjarTablePhase = 'revealing';
         cjarBeginFlipAnim(false);
         showScreen('screen-cjar-table');
-        setTimeout(() => cjarShowBusted(p.bustFamilyId, p.bustLine, () => {}), CJAR_FLIP_ANIM_MS);
+        // Tracked in cjarRevealHandle (unused on clients otherwise — cjarHostNextFlip /
+        // cjarHostResolveFlip both bail out early on syllyMultiplayerMode === 'client')
+        // so a quit or HOST_END_GAME inside this window clears it via cjarResetState
+        // instead of firing cjarShowBusted against a torn-down screen.
+        if (cjarRevealHandle) clearTimeout(cjarRevealHandle);
+        cjarRevealHandle = setTimeout(() => {
+          cjarRevealHandle = null;
+          cjarShowBusted(p.bustFamilyId, p.bustLine, () => {});
+        }, CJAR_FLIP_ANIM_MS);
         break;
       }
       // Same branch as the host's cjarHostResolveFlip: in Dibber Dobber the card was
@@ -2206,6 +2220,10 @@ function cjarResetState() {
   cjarMyFavourite = null; cjarMyWatcher = null;
   cjarRaidOpenStashes = []; cjarLinesUsed = {};
   cjarTablePhase = 'deciding';
+  // A mid-flight quit hides the screen via display:none, which suppresses animationend,
+  // so any in-flight token nodes never get their own cleanup and are left orphaned.
+  const deltaLayer = document.getElementById('cjar-delta-layer');
+  if (deltaLayer) deltaLayer.innerHTML = '';
 }
 
 // ── Wiring ─────────────────────────────────────────────────────────────────
