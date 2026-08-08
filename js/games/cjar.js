@@ -1433,10 +1433,17 @@ function cjarShowGameover() {
         row.className = 'flex items-center justify-between rounded-2xl px-4 py-3 shadow-sm '
           + (top ? 'bg-[#F7E9C4]' : 'bg-white');
         const left = document.createElement('span');
-        left.className = 'text-sm font-semibold text-stone-800';
-        left.textContent = (top ? '🍪 ' : '') + cjarRankLabel(ranks[i]) + ' — ' + n
+        left.className = 'flex items-center gap-2 text-sm font-semibold text-stone-800';
+        // DD-30 — a medal in a FIXED-WIDTH slot, present on every row (blank past 3rd),
+        // so the leading edge of every row's text lines up regardless of rank.
+        const medal = document.createElement('span');
+        medal.className = 'cjar-medal-slot';
+        medal.textContent = ranks[i] === 1 ? '🥇' : ranks[i] === 2 ? '🥈' : ranks[i] === 3 ? '🥉' : '';
+        const label = document.createElement('span');
+        label.textContent = cjarRankLabel(ranks[i]) + ' — ' + n
           + (top ? ' · Top Cookie Thief' : '')
           + (red.includes(i) ? ' · Red-Handed' : '');
+        left.appendChild(medal); left.appendChild(label);
         const right = document.createElement('span');
         right.className = 'text-sm font-bold text-stone-600';
         right.textContent = cjarStashes[i] + ' 🍪'
@@ -1449,6 +1456,9 @@ function cjarShowGameover() {
   // container so the page body never scrolls horizontally.
   const grid = document.getElementById('cjar-history-grid');
   if (grid) {
+    // Per-Raid max computed ONCE, not per cell — DD-30's top-scorer highlight. No
+    // highlight on a tie (a shared max with more than one holder).
+    const colMax = cjarRaidHistory.map(col => Math.max(0, ...(col || []).map(v => v || 0)));
     let html = '<table class="w-full text-xs text-stone-600"><thead><tr>'
       + '<th class="text-left font-semibold pb-1">Raid</th>';
     for (let r = 0; r < cjarRaidHistory.length; r++) html += `<th class="pb-1 px-1">${r + 1}</th>`;
@@ -1456,7 +1466,11 @@ function cjarShowGameover() {
     for (let i = 0; i < cjarPlayerCount; i++) {
       html += `<tr><td class="text-left py-0.5 pr-2">${cjarPlayerNames[i]}</td>`;
       for (let r = 0; r < cjarRaidHistory.length; r++) {
-        html += `<td class="text-center py-0.5 px-1">${(cjarRaidHistory[r] || [])[i] || 0}</td>`;
+        const col = cjarRaidHistory[r] || [];
+        const val = col[i] || 0;
+        const tiedCount = col.filter(v => (v || 0) === colMax[r]).length;
+        const hi = colMax[r] > 0 && val === colMax[r] && tiedCount === 1;
+        html += `<td class="text-center py-0.5 px-1${hi ? ' font-bold cjar-label' : ''}">${val}</td>`;
       }
       html += '</tr>';
     }

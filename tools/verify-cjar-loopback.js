@@ -284,6 +284,16 @@ globalThis.__cjar = {
                                                                     : cjarCookieCard(c.value)); },
   hostNextFlip()     { cjarHostNextFlip(); },
   seen2(id)          { return cjarSeen[id]; },
+  // DD-30 — the podium IS built with createElement/appendChild (a real mock element
+  // tree), so child traversal works. The history grid is built as a raw HTML STRING
+  // (innerHTML=), and this mock's innerHTML setter only stores the string and clears
+  // .children — it does NOT parse it — so history-grid checks below read the string.
+  podiumMedal(i) {
+    const row = document.getElementById('cjar-podium').children[i];
+    const slot = row && row.children[0] && row.children[0].children[0];
+    return slot ? slot.textContent : null;
+  },
+  historyHTML() { return document.getElementById('cjar-history-grid').innerHTML; },
   resetState()       { cjarResetState(); },
 };`;
 
@@ -788,6 +798,16 @@ const section = t => console.log(`\n${t}`);
   }
   check('host reached the end',   lastScreen(host2), 'screen-cjar-gameover');
   check('client reached the end', lastScreen(client2), 'screen-cjar-gameover');
+  check('1st place has a medal',     C2.podiumMedal(0), '🥇');
+  check('4th place slot is blank, not absent', C2.podiumMedal(3), '');
+  // The raid-history top-scorer highlight adds `cjar-label` to exactly the winning
+  // cell(s) in a Raid column — checking the RAW HTML string is deliberate here (see
+  // the historyHTML() bridge getter's own comment for why this mock can't be walked
+  // as elements). At least one Raid column should show the class somewhere, unless
+  // every single Raid in this match ended in an exact tie across all 4 seats — a
+  // one-in-a-billion coincidence across a real shuffle, not something to special-case.
+  check('at least one raid history cell is highlighted',
+        /cjar-label/.test(C2.historyHTML()), true);
   check('no client exceptions',   client2.__errors, []);
   check('no host exceptions',     host2.__errors, []);
   check('final stashes agree',    C2.stashes, H2.stashes);

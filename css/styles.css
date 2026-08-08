@@ -1786,6 +1786,9 @@ body.flash-red   { background-color: #fecaca; }
    label would top-left-align without these (DYB/GTH/FRT/FLW/PKO lesson). */
 .cjar-cta { background-color: #D4A017; color: #292524; display: flex; align-items: center; justify-content: center; }
 .cjar-cta:hover { background-color: #B8860B; }
+/* DD-30 — a fixed-width leading slot on every podium row, medal or blank, so 4th place
+   and below still align with 1st-3rd instead of only the top row having a leading glyph. */
+.cjar-medal-slot { display: inline-block; width: 1.4rem; text-align: center; flex-shrink: 0; }
 /* Raw #D4A017 on bg-stone-50 measures under 3:1 — labels take the darkened brand. */
 .cjar-label { color: #7A5C0A; }
 .cjar-range {
