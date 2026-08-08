@@ -647,8 +647,10 @@ function cjarRenderStage() {
   // The label is now honest in both states, so it never needs hiding — which also means
   // nothing under it shifts. Round 2 toggled `visibility` for exactly that reason; a
   // text swap removes the need.
+  // DD-26 — both states now render ABOVE the card (index.html), never below it. Only
+  // the face-down copy shortens here; 'just revealed' already fits one line.
   const now = document.getElementById('cjar-stage-label-now');
-  if (now) now.textContent = faceUp ? 'just revealed' : 'next out of the jar';
+  if (now) now.textContent = faceUp ? 'just revealed' : 'Next from Jar';
   cjarRenderWarningStrip();
   cjarRenderTrailStrip();
 }

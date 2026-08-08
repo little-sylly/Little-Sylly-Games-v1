@@ -455,7 +455,7 @@ const section = t => console.log(`\n${t}`);
   step(host);
   step(client);
   check('card is face-down while deciding', C.heroFaceDown(), true);
-  check('label reads next out of the jar',  C.stageLabel(), 'next out of the jar');
+  check('label reads Next from Jar',        C.stageLabel(), 'Next from Jar');
 
   section('A choice travels client → host and back');
   C.submit('take');
