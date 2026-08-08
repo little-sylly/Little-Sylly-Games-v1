@@ -293,6 +293,34 @@ globalThis.__cjar = {
     const slot = row && row.children[0] && row.children[0].children[0];
     return slot ? slot.textContent : null;
   },
+  // Tie-tolerant version of podiumMedal — a REAL shuffle can put more than one seat on
+  // the same rank (a tie for 2nd bumps what would've been "row 3" up a slot), so DOM
+  // row INDEX never reliably maps to a specific rank. This reads each row's own medal
+  // AND its own rendered rank label (the label span's leading "Nth" text, produced by
+  // cjarRankLabel) side by side, so the caller can verify medal-matches-its-own-rank
+  // for every row regardless of how ties fell in this run.
+  podiumRows() {
+    const pod = document.getElementById('cjar-podium');
+    return pod.children.map(row => {
+      const left = row.children[0];
+      return { medal: left.children[0].textContent, label: left.children[1].textContent };
+    });
+  },
+  // Renders the history grid off a CALLER-SUPPLIED history array instead of the real
+  // match's, to test the colMax/tiedCount highlight computation in cjarShowGameover
+  // deterministically rather than hoping a short real match happens to produce a
+  // non-tied Raid column. Restores the real cjarRaidHistory and re-renders it
+  // immediately after, so every check that runs after this one still sees the actual
+  // match's state (podium, grid, and the history getter all untouched from outside).
+  gameoverWithHistory(fake) {
+    const orig = cjarRaidHistory;
+    cjarRaidHistory = fake;
+    cjarShowGameover();
+    const html = document.getElementById('cjar-history-grid').innerHTML;
+    cjarRaidHistory = orig;
+    cjarShowGameover();
+    return html;
+  },
   historyHTML() { return document.getElementById('cjar-history-grid').innerHTML; },
   resetState()       { cjarResetState(); },
 };`;
@@ -798,16 +826,32 @@ const section = t => console.log(`\n${t}`);
   }
   check('host reached the end',   lastScreen(host2), 'screen-cjar-gameover');
   check('client reached the end', lastScreen(client2), 'screen-cjar-gameover');
-  check('1st place has a medal',     C2.podiumMedal(0), '🥇');
-  check('4th place slot is blank, not absent', C2.podiumMedal(3), '');
+  // DD-30 podium check, made TIE-TOLERANT: a real shuffle can tie two seats on the same
+  // rank (cjarRanks() gives both the same number), which shifts every row below the tie
+  // up a DOM index — so "row 3 is blank" was an assumption about a specific match's
+  // shuffle, not an invariant. Read every row's own rendered rank alongside its own
+  // medal instead, and assert the medal-to-rank mapping holds for EVERY row, however
+  // the ties fell this run.
+  const podiumRowsOk = C2.podiumRows().every(row => {
+    const m = /^(\d+)/.exec(row.label);
+    const rank = m ? parseInt(m[1], 10) : NaN;
+    const expected = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '';
+    return row.medal === expected;
+  });
+  check('every podium row\'s medal matches its own rendered rank (tie-tolerant)',
+        podiumRowsOk, true);
   // The raid-history top-scorer highlight adds `cjar-label` to exactly the winning
-  // cell(s) in a Raid column — checking the RAW HTML string is deliberate here (see
-  // the historyHTML() bridge getter's own comment for why this mock can't be walked
-  // as elements). At least one Raid column should show the class somewhere, unless
-  // every single Raid in this match ended in an exact tie across all 4 seats — a
-  // one-in-a-billion coincidence across a real shuffle, not something to special-case.
-  check('at least one raid history cell is highlighted',
-        /cjar-label/.test(C2.historyHTML()), true);
+  // cell(s) in a Raid column. A LIVE match's real history may or may not contain a
+  // non-tied Raid across a short match (this section runs a 3-Raid match) — that
+  // flaked roughly 1 in 20 runs, so test the colMax/tiedCount HIGHLIGHT LOGIC directly
+  // against a crafted history with a known non-tied winner in two columns and a known
+  // all-tied third column, via the gameoverWithHistory() bridge (restores the real
+  // history + re-renders it immediately after, so later checks are unaffected).
+  const fakeHistory = [[5, 3, 3, 2], [2, 2, 2, 2], [8, 1, 1, 1]];
+  const fakeHtml = C2.gameoverWithHistory(fakeHistory);
+  const highlightCount = (fakeHtml.match(/cjar-label/g) || []).length;
+  check('raid-history highlight fires for exactly the two non-tied columns\' winners',
+        highlightCount, 2);
   check('no client exceptions',   client2.__errors, []);
   check('no host exceptions',     host2.__errors, []);
   check('final stashes agree',    C2.stashes, H2.stashes);
