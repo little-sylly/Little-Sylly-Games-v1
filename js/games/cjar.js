@@ -29,8 +29,21 @@ const CJAR_REVEAL_MS        = 1200;  // outcome dwell ONLY — who sneaked out, 
                                      // interstitial pair: they measure different things
                                      // (reading a result vs watching a card resolve) and
                                      // should be tuned independently.
-const CJAR_FLIP_ANIM_MS     = 2100;  // reveal choreography — flip 300 / hold 600 /
-                                     // payout 700 / settle 500. See cjarBeginFlipAnim.
+const CJAR_FLIP_ANIM_MS     = 3200;  // BLOCKING reveal dwell — flip 600 / hold 1200 /
+                                     // payout 1400. See cjarBeginFlipAnim. The settle
+                                     // beat (old card to trail, new card rises, ~1000ms)
+                                     // is deliberately NOT in this constant — it is pure
+                                     // housekeeping motion with no information in it, so
+                                     // it plays as a CSS-only cosmetic tail AFTER the
+                                     // handover below, overlapping the decision window
+                                     // that already opened. Doubling flip+hold+payout
+                                     // alone already exceeds the OLD total including
+                                     // settle (2100ms) — this is not time-neutral, it's
+                                     // ~+1.1s more blocking dwell per flip, accepted for
+                                     // smoothness (owner call, 8 Aug 2026 stage-polish
+                                     // round). If a playtest says it drags, the lever is
+                                     // shifting more length into the settle tail (free)
+                                     // rather than shortening flip/hold/payout.
 const CJAR_INTERSTITIAL_MS  = 5000;  // raid-intro + BUSTED! auto-advance (PKO round-4 value; the
                                      // documented practical ceiling for a chrome-exempt screen)
 const CJAR_DD_CUT           = 10;    // Sylly: cards cut from the 30-card pool, BEFORE the Treat
@@ -804,7 +817,9 @@ function cjarFlyTokens(count, direction) {
     el.className = 'cjar-token cjar-token-' + direction;
     el.textContent = '🍪';
     el.style.left = (44 + (k - count / 2) * 6) + '%';
-    el.style.animationDelay = (k * 45) + 'ms';   // 30-80 ms stagger, Motion Standard
+    // 500ms hold before anything moves (DD-25 — "hold longer before slowly moving off"),
+    // THEN the 30-80ms stagger, Motion Standard.
+    el.style.animationDelay = (500 + k * 45) + 'ms';
     layer.appendChild(el);
     // Duration-based reduced motion means animationend still fires, so this cleanup is
     // safe. Never switch that media block to animation:none.
@@ -1518,7 +1533,7 @@ function cjarBeginFlipAnim(startsClock) {
     // gates it on cjarFlipAnim alone, so it plays from t≈0, the moment the reveal
     // choreography starts. A Treat's arrival into column 1 IS its own payout, fired
     // the next time cjarRenderStage runs after this Raid's cjarCounterTreat changes.
-  }, 900);
+  }, 1800);
 
   cjarAnimHandle = setTimeout(() => {
     cjarAnimHandle = null;

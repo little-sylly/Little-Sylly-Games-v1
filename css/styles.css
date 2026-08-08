@@ -1942,7 +1942,7 @@ body.flash-red   { background-color: #fecaca; }
   65%  { transform: translateX(0)   rotateY(6deg);   opacity: 1; }
   100% { transform: translateX(0)   rotateY(0deg);   opacity: 1; }
 }
-.cjar-card-flipin { animation: cjar-card-flip 260ms ease-out; will-change: transform; }
+.cjar-card-flipin { animation: cjar-card-flip 550ms ease-out; will-change: transform; }
 
 /* The demotion: the previous stage card has just become the newest thumb. Settling it
    in from slightly larger is what sells "that one moved down here" without the
@@ -1951,7 +1951,7 @@ body.flash-red   { background-color: #fecaca; }
   from { transform: scale(1.25); opacity: 0.35; }
   to   { transform: scale(1);    opacity: 1; }
 }
-.cjar-trail-settle { animation: cjar-trail-settle 200ms ease-out; }
+.cjar-trail-settle { animation: cjar-trail-settle 500ms ease-out; }
 
 /* A Treat arriving on the counter, and the family slot that just came out. Both are
    direction-only — no getBoundingClientRect anywhere in the choreography (DD-20). */
@@ -1959,7 +1959,11 @@ body.flash-red   { background-color: #fecaca; }
   from { transform: translate3d(38px, -34px, 0) scale(1.35); opacity: 0; }
   to   { transform: translate3d(0, 0, 0) scale(1); opacity: 1; }
 }
-.cjar-treat-arrive { animation: cjar-treat-arrive 380ms ease-out; }
+/* animation-delay + fill-mode:backwards is the same "hold before moving" treatment as
+   .cjar-token below — without backwards, the delay window shows the card ALREADY at its
+   resting position (the browser falls back to the element's normal, unanimated style
+   during the delay), which defeats the hold. */
+.cjar-treat-arrive { animation: cjar-treat-arrive 750ms ease-out 400ms backwards; }
 
 @keyframes cjar-warn-pulse {
   0%, 100% { transform: scale(1); }
@@ -1984,9 +1988,11 @@ body.flash-red   { background-color: #fecaca; }
   top: 42%;
   font-size: 1rem;
   will-change: transform, opacity;
-  animation-duration: 380ms;   /* the .cjar-delta precedent, and what the beat allows */
+  animation-duration: 760ms;   /* doubled (DD-25) — the JS delay above holds the token at
+                                  its 0% keyframe first, so `both` (not just `forwards`)
+                                  is required to keep it hidden through that hold. */
   animation-timing-function: ease-out;
-  animation-fill-mode: forwards;
+  animation-fill-mode: both;
 }
 .cjar-token-down { animation-name: cjar-token-down; }
 .cjar-token-left { animation-name: cjar-token-left; }

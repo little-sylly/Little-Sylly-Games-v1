@@ -434,7 +434,7 @@ const section = t => console.log(`\n${t}`);
   check('label reads just revealed',       C.stageLabel(), 'just revealed');
 
   section('The payout beat throws the ACTUAL split, not a guess (DD-20 review fix)');
-  // cjarBeginFlipAnim now arms TWO timers, payout (900 ms) then handover (2100 ms) —
+  // cjarBeginFlipAnim now arms TWO timers, payout (1800 ms) then handover (3200 ms) —
   // step() only ever fires the earliest pending one, so this is the payout beat on
   // its own, before the handover below. Flip 1 is guaranteed a cookie (warmup floats
   // two to the top, re-asserted above), and all four seats are active on Raid 1's
@@ -451,7 +451,7 @@ const section = t => console.log(`\n${t}`);
   // Let the reveal choreography hand over on BOTH devices before any real submission —
   // cjarSubmitChoice is now guarded by cjarFlipAnim (Step 6), and each device runs its
   // own independent animation timer. The payout beat above already consumed each
-  // device's first (900 ms) timer, so this fires the second (2100 ms) one.
+  // device's first (1800 ms) timer, so this fires the second (3200 ms) one.
   step(host);
   step(client);
   check('card is face-down while deciding', C.heroFaceDown(), true);
@@ -536,7 +536,7 @@ const section = t => console.log(`\n${t}`);
   check('bust opened the table, not the verdict',
         host6.__screens[host6.__screens.length - 1], 'screen-cjar-table');
   check('and the card is face-up for it', H6.flipAnim(), true);
-  // cjarBeginFlipAnim(false) queues its own payout beat (900 ms, a no-op for a family
+  // cjarBeginFlipAnim(false) queues its own payout beat (1800 ms, a no-op for a family
   // card) AHEAD of the animation handle it shares cjarRevealHandle's deadline with —
   // both land at CJAR_FLIP_ANIM_MS, but the payout beat was queued first (Task 7), so
   // it drains first. step() only ever fires the EARLIEST pending timer, so three
@@ -559,7 +559,7 @@ const section = t => console.log(`\n${t}`);
   // where it lands when the bust RESOLVE arrives (nothing stepped since) and a quit /
   // HOST_END_GAME is simulated right there. Pre-fix this timeout was a bare, untracked
   // setTimeout: nothing in cjarResetState (or any quit path) could ever clear it, so a
-  // client that quit inside this 2100 ms window still had cjarShowBusted fire later —
+  // client that quit inside this 3200 ms window still had cjarShowBusted fire later —
   // sound, showScreen, and a fresh 5 s interstitial — against a screen the app had
   // already torn down.
   const host9   = makeDevice('host9',   'host',   0, SLOTS);
@@ -771,8 +771,8 @@ const section = t => console.log(`\n${t}`);
   // Both devices' reveal choreography must hand over before checking the SETTLED
   // state — cjarStartTimer (the thing that hides the bar) is now inside the
   // deferred half of cjarBeginFlipAnim, not the FLIP_START applier itself. Each
-  // device now carries TWO choreography timers (payout at 900 ms, handover at
-  // 2100 ms), so draining both takes two step() calls apiece.
+  // device now carries TWO choreography timers (payout at 1800 ms, handover at
+  // 3200 ms), so draining both takes two step() calls apiece.
   step(host4); step(host4);
   step(client4); step(client4);
   check('client hid the timer bar', C4.timerHidden(), true);

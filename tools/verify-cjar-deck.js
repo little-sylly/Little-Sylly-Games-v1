@@ -132,12 +132,13 @@ const section = t => console.log(`\n${t}`);
   check('No Rush has NO window', C.consts.DECISION_TIMES.norush,   null);
   check('CJAR_TIMEOUT_GRACE_MS', C.consts.GRACE_MS,        1500);
   // 3000 → 1200 (DD-19): the outcome dwell shrank once CJAR_FLIP_ANIM_MS carved a
-  // separate 2100 ms reveal-choreography window out of the old budget.
+  // separate 3200 ms reveal-choreography window out of the old budget (expanded to
+  // double the flip+hold+payout durations in DD-25).
   check('CJAR_REVEAL_MS',        C.consts.REVEAL_MS,       1200);
   // Load-bearing in FOUR places (cjarBeginFlipAnim's handover, cjarOpenDecisionWindow's
   // deadline maths, both host and client bust-path setTimeouts) — the constants block
   // asserted everything around it by exact value except this one. DD-19.
-  check('CJAR_FLIP_ANIM_MS',     C.consts.FLIP_ANIM_MS,    2100);
+  check('CJAR_FLIP_ANIM_MS',     C.consts.FLIP_ANIM_MS,    3200);
   check('CJAR_INTERSTITIAL_MS',  C.consts.INTERSTITIAL_MS, 5000);
   check('CJAR_DD_CUT',           C.consts.DD_CUT,          10);
   check('CJAR_DD_START_STASH',   C.consts.DD_START_STASH,  5);
