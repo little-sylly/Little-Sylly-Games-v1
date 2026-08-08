@@ -670,20 +670,31 @@ See **§ Per-Game Reference → Table B** at the end of this file.
 
 [RESOLVED — Aug 2026]: GTH's Play CTA in `index.html` reads "Start the Session" with no emoji — the flag above was stale by the time it was checked; Table B corrected to match.
 
-**Type scale (added Aug 2026 — was previously unstated, and cjar shipped wrong because of it):**
+**Type scale — superseded 8 Aug 2026 (DD-31, `2026-08-08-cjar-stage-polish-design.md`).** The
+original Aug 2026 version of this table carved out "← Back to the Box" as deliberately smaller
+because "it is navigation, not an action." That carve-out is retired: **same-screen buttons
+representing real, distinct choices match in size and weight, no exceptions** — a screen with a
+primary CTA and a secondary exit/back option is still two real choices being offered, not one
+action and one non-action.
 
 | Button | Classes |
 |--------|---------|
 | Play CTA | `min-h-14 w-full rounded-2xl [brand] text-xl font-semibold` |
 | How to Play | `min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 text-white text-xl font-semibold` |
 | Settings | `min-h-14 w-full rounded-2xl [light brand tint] text-xl font-semibold` |
-| ← Back to the Box | `min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 text-stone-500 text-base font-medium` |
+| ← Back to the Box | `min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 text-stone-500 text-xl font-semibold` |
 
-All four also carry `active:scale-95 transition-all duration-150`. The three top buttons are
-`text-xl`; **only** Back to the Box steps down, and it steps down on *both* size and weight
-(`text-base font-medium`) because it is navigation, not an action. Verified unanimous across
-PKO, FLW, SHP, FRT, NT and PASS. cjar shipped How-to/Settings at `text-base` and Back at
-`text-sm font-semibold` — invisible in isolation, obvious beside any other game (cjar DD-07).
+All four carry `active:scale-95 transition-all duration-150`. **This same rule applies to any
+other same-screen button pair** — a gameover screen's primary "Play Again" alongside its
+secondary "Leave", a Decision Modal's confirm/cancel (already conforming — see § Quit Overlay
+Checklist), or any future pairing: match size and weight, and pick colour per § Game Brand
+Colour — Scope (brand for the primary action, neutral stone for a secondary one).
+
+**Rollout status:** applied to CJAR (`btn-cjar-go-leave`, `btn-cjar-menu-back`) 8 Aug 2026. The
+other 17 games' menu and gameover screens have **not** been swept — logged in
+`docs/deferred-work.md` alongside the other pending suite-wide sweeps. Verified unanimous
+type-scale across PKO, FLW, SHP, FRT, NT and PASS **before** this rule existed — those games may
+still carry the OLD "Back steps down" shape and need the same pass CJAR just got.
 
 **Rules:**
 - "← Back to the Box" is always identical — never game-themed.
@@ -865,6 +876,27 @@ Gradient values live on each `.[abbr]-range` rule in `css/styles.css`.
 ("omit for LTTP which has none") was wrong and has been corrected. Verified in code: `lttpJokerMode`, the
 `The Troublemaker` role with 2 decoys, and three-way scoring (`lttp.js`; settings + how-to cards in `index.html`).
 **Every game in Table B has a Sylly Mode** — there is no exception.
+
+### Gameover podium rank icons (added 8 Aug 2026, DD-30/DD-31)
+
+Any gameover "podium" that wants a rank icon (not every game needs one — plenty just show a
+rank number) uses **🥇🥈🥉 in a fixed-width leading slot present on every row**, blank past 3rd
+place, so every row's text starts at the same x position regardless of rank. This is the
+existing suite-wide medal convention (already shipped independently in FRT, GTH, JEC, NAT,
+PASS, YGI) with the fixed-slot alignment fix CJAR needed formalised as the documented shape
+going forward:
+
+```html
+<span class="cjar-medal-slot">🥇</span>  <!-- or 🥈 / 🥉 / '' for 4th+ -->
+```
+
+`width: 1.4rem; text-align: center; flex-shrink: 0` (or the equivalent for the game's own
+prefix convention) is the load-bearing part — a row with NO medal must still reserve the slot's
+width, or its text starts further left than a medalled row's and the podium reads as
+misaligned (this was CJAR's actual bug: only 1st place carried a leading glyph at all, so it
+was the only row indented past the others). **Prospective, not retroactive** — new or
+touched-anyway games follow this shape; the existing FRT/GTH/JEC/NAT/PASS/YGI podiums are not
+being swept to add a fixed slot unless one of them is independently touched.
 
 ### Table C — Brand class strings
 
