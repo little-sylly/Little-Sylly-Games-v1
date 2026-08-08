@@ -256,6 +256,12 @@ globalThis.__cjar = {
   resolve()             { cjarHostResolveFlip(); },
   handle(env)           { cjarHandleEnvelope(env); },
   renderTable()         { cjarRenderTable(); },
+  // Deals a real shuffle will not deliver on demand — a bust needs the same family
+  // card twice, so the test stacks the deck deliberately rather than waiting for one.
+  stackDeck(cards)   { cjarDeck = cards.map(c => c.type === 'family' ? cjarFamilyCard(c.id)
+                                                                    : cjarCookieCard(c.value)); },
+  hostNextFlip()     { cjarHostNextFlip(); },
+  seen2(id)          { return cjarSeen[id]; },
 };`;
 
   vm.runInContext(cjarSrc + BRIDGE, sandbox, { filename: `cjar.js (${name})` });
@@ -479,6 +485,68 @@ const section = t => console.log(`\n${t}`);
   check('raid history agrees',     C.history, H.history);
   check('family copies agree',     C.copies, H.copies);
   check('high alert agrees',       C.highAlert, H.highAlert);
+
+  section('The bust card gets the same flip beat as every other card');
+  // A FRESH device pair — the base game's `host`/`client` above just finished Raid 1
+  // via a mid-raid BUST (see the screens leading up to the raid-summary check), which
+  // leaves cjarActive all FALSE (cjarResolveBust clears every seat). Reusing `host`/
+  // `client` here would mean cjarActiveCount() === 0 before a single choice is even
+  // made, so cjarResolveFlip's raidEnded (= cjarActiveCount() === 0) fires on the
+  // FIRST card's resolve and ends the Raid right there — the second flip (the actual
+  // bust under test) never happens. seat()+startMatch() gives real active players and
+  // an empty cjarSeen; stackDeck then overrides the real shuffle before either device
+  // ever looks at a card.
+  const host6   = makeDevice('host6',   'host',   0, SLOTS);
+  const client6 = makeDevice('client6', 'client', 1, SLOTS);
+  await host6.cjarLoadData();
+  await client6.cjarLoadData();
+  const H6 = host6.__cjar, C6 = client6.__cjar;
+  host6.mpSendEnvelope = env => {
+    const onWire = wire({ ...env, originId: 'u0', timestamp: Date.now() });
+    try { C6.handle(onWire); } catch (e) { client6.__errors.push(`${onWire.payload.action}: ${e.message}`); }
+  };
+  host6.mpSendPrivate = (uid, env) => {
+    if (uid !== 'u1') return;
+    const onWire = wire({ ...env, originId: 'u0', timestamp: Date.now() });
+    try { C6.handle(onWire); } catch (e) { client6.__errors.push(`private: ${e.message}`); }
+  };
+  client6.mpSendEnvelope = env => {
+    const onWire = wire({ ...env, originId: 'u1', timestamp: Date.now() });
+    try { H6.handle(onWire); } catch (e) { host6.__errors.push(`${onWire.payload.action}: ${e.message}`); }
+  };
+  client6.mpSendPrivate = () => { throw new Error('a client must never write the private channel'); };
+
+  H6.seat({ players: 4, names: NAMES, length: 3 });
+  C6.standby();
+  H6.startMatch();
+  H6.stackDeck([{ type: 'family', id: 'mum' }, { type: 'family', id: 'mum' }]);
+  H6.hostNextFlip();                                  // first mum — a warning, opens a window
+  check('first sighting warns only', H6.seen2('mum'), 1);
+  step(host6);                                        // let the choreography hand over
+  for (let i = 0; i < 4; i++) H6.applyChoice(i, 'take');
+  H6.resolve();
+  step(host6);                                        // outcome dwell → cjarHostNextFlip
+                                                        // (2nd flip is the same 'mum' — busts)
+  check('bust opened the table, not the verdict',
+        host6.__screens[host6.__screens.length - 1], 'screen-cjar-table');
+  check('and the card is face-up for it', H6.flipAnim(), true);
+  // cjarBeginFlipAnim(false) queues its own payout beat (900 ms, a no-op for a family
+  // card) AHEAD of the animation handle it shares cjarRevealHandle's deadline with —
+  // both land at CJAR_FLIP_ANIM_MS, but the payout beat was queued first (Task 7), so
+  // it drains first. step() only ever fires the EARLIEST pending timer, so three
+  // drains — not one — are what actually walks the clock from "table" to "verdict".
+  step(host6);                                        // the bust card's own payout beat
+  step(host6);                                        // cjarAnimHandle — the flip settles
+  step(host6);                                        // cjarRevealHandle → cjarShowBusted
+  check('THEN the verdict',
+        host6.__screens[host6.__screens.length - 1], 'screen-cjar-busted');
+  // The client runs the identical three-timer choreography on its OWN queue — it was
+  // never advanced by the host's step() calls above, only by the packets that arrived
+  // synchronously when the host broadcast the warning and then the bust.
+  step(client6); step(client6); step(client6);
+  check('client saw the same order',
+        client6.__screens.slice(-2), ['screen-cjar-table', 'screen-cjar-busted']);
+  check('no exception on either device', [host6.__errors, client6.__errors], [[], []]);
 
   // ── Dibber Dobber ──────────────────────────────────────────────────────────
   section('Dibber Dobber — blind commit across the wire (Delta 7)');

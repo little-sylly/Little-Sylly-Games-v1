@@ -1425,7 +1425,17 @@ function cjarHostNextFlip() {
                            lines: new Array(cjarPlayerCount).fill(''),
                            raidEnded: true, bustFamilyId: eff.bustFamilyId, bustLine: last.line });
     playBoing();
-    cjarShowBusted(eff.bustFamilyId, last.line, () => cjarHostEndRaid('bust'));
+    // The bust card gets the SAME flip beat every other card gets. Without this the most
+    // dramatic card in the game is the one card you never see come out of the jar — it
+    // teleports you to a verdict screen for a card you never watched arrive.
+    cjarTablePhase = 'revealing';
+    cjarBeginFlipAnim(false);      // no decision follows a bust — see cjarBeginFlipAnim
+    showScreen('screen-cjar-table');
+    if (cjarRevealHandle) clearTimeout(cjarRevealHandle);
+    cjarRevealHandle = setTimeout(() => {
+      cjarRevealHandle = null;
+      cjarShowBusted(eff.bustFamilyId, last.line, () => cjarHostEndRaid('bust'));
+    }, CJAR_FLIP_ANIM_MS);
     return;
   }
 
@@ -2121,7 +2131,11 @@ function cjarHandleEnvelope(env) {
       mpUnlockSync();
       if (p.bustFamilyId) {
         playBoing();
-        cjarShowBusted(p.bustFamilyId, p.bustLine, () => {});
+        // Same beat as the host — see the comment in cjarHostNextFlip's bust branch.
+        cjarTablePhase = 'revealing';
+        cjarBeginFlipAnim(false);
+        showScreen('screen-cjar-table');
+        setTimeout(() => cjarShowBusted(p.bustFamilyId, p.bustLine, () => {}), CJAR_FLIP_ANIM_MS);
         break;
       }
       // Same branch as the host's cjarHostResolveFlip: in Dibber Dobber the card was
