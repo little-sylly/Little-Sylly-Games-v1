@@ -642,7 +642,8 @@ function resetToLobby() {
   if (typeof pkoResetState === 'function') pkoResetState();
   // Cookie Jar teardown
   ['cjar-settings-overlay','cjar-how-to-overlay','cjar-trail-overlay',
-   'cjar-quit-overlay','cjar-new-raid-overlay','cjar-tip-overlay'].forEach(id => {
+   'cjar-quit-overlay','cjar-new-raid-overlay','cjar-tip-overlay',
+   'cjar-card-view-overlay'].forEach(id => {
     const el = document.getElementById(id); if (el) el.style.display = 'none';
   });
   if (typeof cjarResetState === 'function') cjarResetState();

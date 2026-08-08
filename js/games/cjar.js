@@ -717,6 +717,14 @@ function cjarRenderTrailStrip() {
       const el = cjarRenderCard(card, { size: 'thumb', dimmed: true });
       // Only the newest thumb settles in — it is the one that just arrived from the slot.
       if (i === spent.length - 1 && spent.length !== cjarLastTrailLen) el.className += ' cjar-trail-settle';
+      // Per-CARD click, never on the strip itself (DD-27) — the strip's own comment
+      // just above explains why a container-wide handler fights the swipe-to-scroll
+      // gesture. A discrete small target doesn't: the browser already distinguishes a
+      // tap from a drag on an overflow-x:auto container before it fires click at all.
+      // .onclick (a plain property), not addEventListener — matches the col-2 hero's
+      // existing pattern a few lines up in cjarRenderStage, and is what makes this
+      // testable from a headless harness with no real DOM event dispatch.
+      el.onclick = () => { playDone(); cjarOpenCardView(card); };
       strip.appendChild(el);
     });
   }
@@ -726,6 +734,23 @@ function cjarRenderTrailStrip() {
   // which is why the history read as unscrollable even though overflow-x was already on.
   // `btn-cjar-trail-open` beneath it is the affordance instead.
   strip.scrollLeft = strip.scrollWidth;   // newest end stays in view without a swipe
+}
+
+// The trail's full-illustration popup (DD-27). Reuses cjarRenderCard at 'hero' size —
+// the pre-DD-18 hero footprint, unused anywhere else since column 2 shrank to 'stage'.
+function cjarOpenCardView(card) {
+  const body = document.getElementById('cjar-card-view-body');
+  if (body) { body.innerHTML = ''; body.appendChild(cjarRenderCard(card, { size: 'hero' })); }
+  const name = document.getElementById('cjar-card-view-name');
+  if (name) {
+    name.textContent = card.type === 'cookie'
+      ? (CJAR_DATA.cookieTiers[cjarCookieTier(card.value)] || {}).label || ''
+      : card.type === 'family'
+        ? ((CJAR_DATA.family || []).find(f => f.id === card.id) || {}).name || ''
+        : ((CJAR_DATA.treats || []).find(t => t.id === card.id) || {}).name || '';
+  }
+  const ov = document.getElementById('cjar-card-view-overlay');
+  if (ov) ov.style.display = 'flex';
 }
 
 // The Crumb Trail overlay — the flip LOG, plus the copies-remaining row. The title
@@ -2409,5 +2434,9 @@ document.addEventListener('DOMContentLoaded', () => {
   on('btn-cjar-tip-close', () => {
     playDone();
     document.getElementById('cjar-tip-overlay').style.display = 'none';
+  });
+  on('btn-cjar-card-view-close', () => {
+    playDone();
+    document.getElementById('cjar-card-view-overlay').style.display = 'none';
   });
 });

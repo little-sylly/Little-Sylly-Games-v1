@@ -188,6 +188,14 @@ globalThis.__cjar = {
     cjarDecisionTime  = o.time || 'standard';
   },
   openCards()        { cjarOpenCards(); },
+  // DD-27 — taps a trail thumb by index. .onclick is a plain property (not
+  // addEventListener, which this DOM mock no-ops), so it's directly callable.
+  tapTrailCard(i) {
+    const el = document.getElementById('cjar-trail-strip').children[i];
+    if (el && typeof el.onclick === 'function') el.onclick();
+  },
+  cardViewOpen()      { return document.getElementById('cjar-card-view-overlay').style.display === 'flex'; },
+  cardViewName()      { return document.getElementById('cjar-card-view-name').textContent; },
   // Counts REAL card thumbs only — the empty-state placeholder (round 2) shares the
   // strip but carries no 'cjar-card' token (only 'cjar-card-thumb cjar-placeholder-dashed'),
   // same distinction galleryTiles() below already draws.
@@ -456,6 +464,12 @@ const section = t => console.log(`\n${t}`);
   step(client);
   check('card is face-down while deciding', C.heroFaceDown(), true);
   check('label reads Next from Jar',        C.stageLabel(), 'Next from Jar');
+
+  section('Trail cards open a full-illustration popup on tap (DD-27)');
+  check('card view starts closed', C.cardViewOpen(), false);
+  C.tapTrailCard(0);
+  check('card view opens',         C.cardViewOpen(), true);
+  check('card view has a name',    (C.cardViewName() || '').length > 0, true);
 
   section('A choice travels client → host and back');
   C.submit('take');
