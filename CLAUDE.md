@@ -338,8 +338,14 @@ per-device mirror bugs cannot exist there by construction. CJAR's **BUG-06** sur
 checks in that double blind spot; PKO's **BUG-02** survived 75. `verify-cjar-loopback.js` closes
 both gaps — real wire, real render-executing mock DOM, and it accepts `CJAR_SRC=` so a
 deliberately-broken copy can prove a test fails before the fix makes it pass — so reach for it on
-anything MP- or render-shaped. **None of them substitute for a real multi-device session:** no
-clock skew, no Firebase ordering, no dropped packets, nothing visual.
+anything MP- or render-shaped.
+
+**Layout is a fourth tier none of them reach** — a mock element has no box, so no harness can see
+spacing, alignment or overflow. For that, invoke the **`visual-check`** skill: real headless
+Chromium, `getBoundingClientRect` measurements, and one browser context per seat for genuine
+per-device views. Use it whenever a screen "looks off" or a fix is presentational (it found
+DD-32's 20 px score-table gap). **None of it substitutes for a real multi-device session:** no
+clock skew, no Firebase ordering, no dropped packets, and no judgement about how anything *feels*.
 
 **Standing pointers.** Phase snapshots are written **in-repo** to `docs/phase[N]-snapshot.md`
 (current template: `docs/phase37-snapshot.md`). Snapshots up to and including phase36, the
