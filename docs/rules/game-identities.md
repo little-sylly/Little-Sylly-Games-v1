@@ -2011,7 +2011,7 @@ LOBBY (MDLM only) → CJAR MENU → [onPassThePhone: cjarStartMatch(), BUG-07 �
 | Group | Contents |
 |---|---|
 | Cookie values | 15 values (1–17) totalling 124, in three tier bands: **Handful** 1–5, **Batch** 6–12, **Mountain** 13–17 |
-| Family archetypes | Mum 👩, Dad 🧔, Big Sister 🙋, **Grandma** 👵, The Dog 🐕 — each starts at 3 copies, ≥4 warn lines + ≥4 bust lines (drawn without replacement within a Raid). **Grandma replaces the spec's "Little Brother"** — the delivered art showed a grandmother, and the archetype is a pure data key with no mechanics attached to its identity (DD-01) |
+| Family archetypes | Mum 👩, Dad 🧔, Big Brother 🙋, **Grandma** 👵, The Dog 🐕 — each starts at 3 copies, ≥4 warn lines + ≥4 bust lines (drawn without replacement within a Raid). **Grandma replaces the spec's "Little Brother"** — the delivered art showed a grandmother, and the archetype is a pure data key with no mechanics attached to its identity (DD-01). **`big` renamed Big Sister → Big Brother, 9 Aug 2026** — the delivered art showed a young man; same pure-data-key logic as Grandma above, no mechanics keyed to the name |
 | Treats | Strawberry Shortbread Cookies (5), Red Velvet Cookies (5), White Chocolate Macadamia Nut Cookies (5), French Macarons (10), Chocolate Truffle Brownies (10) |
 | Treat schedule | Quick Snack (3 Raids): shortbread → red velvet → brownies. Full Feast (5 Raids): shortbread → red velvet → macadamia → macarons → brownies. Both schedules deliberately end on a 10-point super |
 | Base deck | 31 cards: 15 family + 15 cookie + 1 scheduled Treat |

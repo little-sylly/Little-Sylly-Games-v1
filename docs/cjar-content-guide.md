@@ -40,7 +40,7 @@ not repeat itself every time. More is better; the harness enforces the floor.
 |---|---|---|
 | `mum` | Mum | The authority. Knows before she sees. Warm but final. Consequences are logistical — the jar moves. |
 | `dad` | Dad | Complicit, amused, still enforcing. Calls you "mate". Would probably have one himself. |
-| `big` | Big Sister | Not an authority — a *threat*. Enjoys this. Her power is that she'll tell, and she will. |
+| `big` | Big Brother | Not an authority — a *threat*. Enjoys this. His power is that he'll tell, and he will. |
 | `grandma` | Grandma | Indulgent and completely unbothered by the rules — but she'll mention it to your mother. Her consequence is being sat down and fussed over, not told off. |
 | `pet` | The Dog | Described, never quoted. Escalates by accident. Every bust line is the dog causing a scene that summons a human. |
 
