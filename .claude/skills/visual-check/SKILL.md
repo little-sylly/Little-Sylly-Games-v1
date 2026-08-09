@@ -47,24 +47,39 @@ Get-NetTCPConnection -LocalPort 8791 -ErrorAction SilentlyContinue |
   ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }
 ```
 
-## 2. Get Playwright — into the scratchpad, never the project
+## 2. Get Playwright — a stable dir outside the project
 
 The project bans `npm` and build tooling (CLAUDE.md § Anti-Patterns). That rule is about
-the *shipped app*, and this respects it: Playwright is installed **into the session
-scratchpad**, never `package.json`, never the repo. Nothing about the app changes.
+the **shipped app** — Node itself is already standard here (every `tools/verify-*.js` runs
+on it). This respects the rule by keeping Playwright entirely outside the repo: no
+`package.json`, no `node_modules`, nothing new served by GitHub Pages.
+
+Install **once per machine** to a fixed location — *not* the session scratchpad, which is
+session-specific and would make you reinstall every time:
 
 ```bash
-SCRATCH="<your session scratchpad dir>"      # from the system prompt; it is session-specific
-cd "$SCRATCH" && npm init -y && npm install playwright
-npx --yes playwright install chromium        # ~115 MB, once per machine
+STABLE="$HOME/.claude-tooling/playwright"
+mkdir -p "$STABLE" && cd "$STABLE"
+[ -f package.json ] || npm init -y
+npm install playwright
+npx playwright install chromium
 ```
 
-Run scripts from the repo root with `NODE_PATH` pointing at it:
+Then run drivers from the repo root with `NODE_PATH` pointed at it:
 
 ```bash
 cd "d:/Coding Projects/Little-Sylly-Games"
-NODE_PATH="$SCRATCH/node_modules" node "$SCRATCH/shot.js"
+NODE_PATH="$HOME/.claude-tooling/playwright/node_modules" node "$SCRATCH/shot.js"
 ```
+
+**Cost, measured:** the npm package is 19 MB and installs in ~3 s (once, not per session).
+The Chromium binary is 703 MB but lives in a **machine-wide** cache
+(`AppData/Local/ms-playwright`) shared by every project — re-running
+`playwright install chromium` when it's present is a no-op, nothing re-downloads. All of it
+is free; there is no service, API or account involved.
+
+Write throwaway driver scripts to the **session scratchpad**, not the repo root — only the
+*install* wants a stable home.
 
 ## 3. Reach the screen — seed state, don't play the game
 
