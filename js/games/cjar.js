@@ -971,9 +971,16 @@ function cjarRenderRevealRows() {
     head.style.display = revealing ? 'none' : 'grid';
     if (!revealing) {
       head.innerHTML = '';
-      const cols = ['Rank', 'Player', 'Stashed', 'Status', 'At Risk'];
-      cols.forEach(label => {
+      const cols = [
+        { label: 'Rank' },
+        { label: 'Player' },
+        { label: 'Stashed', className: 'text-right' },
+        { label: 'Status',  className: 'text-center' },
+        { label: 'At Risk', className: 'text-right' },
+      ];
+      cols.forEach(({ label, className }) => {
         const c = document.createElement('span');
+        if (className) c.className = className;
         c.textContent = label;
         head.appendChild(c);
       });
@@ -1031,7 +1038,7 @@ function cjarRenderRevealRows() {
 
     const visible = cjarStashVisible(i);
     const stashed = document.createElement('span');
-    stashed.className = 'cjar-pill-stashed justify-self-start';
+    stashed.className = 'cjar-pill-stashed justify-self-end';
     stashed.textContent = visible ? (cjarStashes[i] || 0) + ' stashed' : '••• stashed';
     row.appendChild(stashed);
 
@@ -1041,14 +1048,14 @@ function cjarRenderRevealRows() {
     // widths identical between modes without a conditional template.
     const status = document.createElement('span');
     if (!cjarIsSylly()) {
-      status.className = cjarActive[i] ? 'cjar-status-in' : 'cjar-status-out';
+      status.className = (cjarActive[i] ? 'cjar-status-in' : 'cjar-status-out') + ' text-center';
       status.textContent = cjarActive[i] ? 'Still In' : 'Snuck Out';
     }
     row.appendChild(status);
 
     const risk = document.createElement('span');
     if (!cjarIsSylly() && cjarActive[i]) {
-      risk.className = 'cjar-pill-risk justify-self-start';
+      risk.className = 'cjar-pill-risk justify-self-end';
       risk.textContent = visible ? (cjarRaidTotals[i] || 0) + ' at risk' : '••• at risk';
     }
     row.appendChild(risk);
@@ -1389,22 +1396,38 @@ function cjarShowRaidSummary(banked) {
   if (t) t.textContent = `Raid ${cjarRaidNo} of ${cjarMatchLength} complete`;
   const box = document.getElementById('cjar-summary-rows');
   if (box) {
-    box.innerHTML = '';
-    for (let i = 0; i < cjarPlayerCount; i++) {
-      const row = document.createElement('div');
-      row.className = 'flex items-center justify-between rounded-xl px-3 py-2 bg-white shadow-sm';
-      const left = document.createElement('span');
-      left.className = 'text-sm text-stone-700';
-      left.textContent = cjarPlayerNames[i];
-      const right = document.createElement('span');
-      right.className = 'text-sm font-bold text-stone-500';
-      // Open Book gates OTHERS' numbers only — your own row always reads.
-      right.textContent = cjarStashVisible(i)
-        ? `+${banked[i] || 0} 🍪   ·   ${cjarStashes[i]} total`
-        : `+${banked[i] || 0} 🍪   ·   •••`;
-      row.appendChild(left); row.appendChild(right);
-      box.appendChild(row);
+    // Full ledger, not just this Raid's line: Player | current Stash | every Raid played
+    // so far (this one included — cjarEndRaid writes cjarRaidHistory before this runs).
+    // Same per-raid max-highlight rule as the gameover history-grid, but this table also
+    // signs the deltas ("+"/"−") — mid-match the direction matters, where the gameover
+    // table is a final tally everyone already knows the sign of.
+    const colMax = cjarRaidHistory.map(col => Math.max(0, ...(col || []).map(v => v || 0)));
+    let html = '<table class="w-full text-xs text-stone-600"><thead><tr>'
+      + '<th class="text-left font-semibold pb-1.5">Player</th>'
+      + '<th class="text-center font-semibold pb-1.5 px-1.5 cjar-label">Stash</th>';
+    for (let r = 0; r < cjarRaidHistory.length; r++) {
+      const isThisRaid = r === cjarRaidHistory.length - 1;
+      html += `<th class="text-center font-semibold pb-1.5 px-1.5${isThisRaid ? ' cjar-label' : ''}">R${r + 1}</th>`;
     }
+    html += '</tr></thead><tbody>';
+    for (let i = 0; i < cjarPlayerCount; i++) {
+      // Open Book gates OTHERS' numbers only — your own row always reads.
+      const visible = cjarStashVisible(i);
+      html += '<tr class="border-t border-stone-100">'
+        + `<td class="text-left py-2 pr-2 font-semibold text-stone-700">${cjarPlayerNames[i]}</td>`
+        + `<td class="text-center py-2 px-1.5 font-bold text-stone-800">${visible ? cjarStashes[i] : '•••'} 🍪</td>`;
+      for (let r = 0; r < cjarRaidHistory.length; r++) {
+        const col = cjarRaidHistory[r] || [];
+        const val = col[i] || 0;
+        const tiedCount = col.filter(v => (v || 0) === colMax[r]).length;
+        const hi = colMax[r] > 0 && val === colMax[r] && tiedCount === 1;
+        const shown = visible ? (val > 0 ? '+' + val : String(val)) : '•••';
+        const tone = !visible ? 'text-stone-500' : val > 0 ? 'text-green-700' : val < 0 ? 'text-red-600' : 'text-stone-400';
+        html += `<td class="text-center py-2 px-1.5 ${tone}${hi ? ' font-bold' : ''}">${shown}</td>`;
+      }
+      html += '</tr>';
+    }
+    box.innerHTML = html + '</tbody></table>';
   }
   // Host-gated: only the host advances the match. A client that could tap this
   // would run the next Raid locally and diverge until the next SYNC.

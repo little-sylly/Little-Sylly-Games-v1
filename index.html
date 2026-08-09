@@ -9154,14 +9154,28 @@ Reboot
              Col 3 — the jar: an offset stack of card backs, a RESERVOIR rather than a bet
                (DD-24 — it shrank once col 2 took over "the card you're betting on") with
                a prominent count, so col 3's two stacked items still reach hero height. -->
+        <!-- Column headings are their own grid row, sharing col1/2/3's grid-cols-3 — DD-32.
+             Previously each heading lived INSIDE its own column's flex box: col 1's sat near
+             the top of a padded white card (justify-between pins the first child), col 2/3's
+             sat wherever a justify-center block landed within the stretched column height —
+             never the same row. A literal shared grid row is what guarantees they align
+             regardless of what each column's content below does. Col 1's white card is
+             dropped for the same reason: col 2/3 render actual card art (which already has
+             its own shape/shadow), so a third layer of chrome around col 1's plain
+             text+icon was the one thing making the row look uneven, not something the other
+             two columns needed to match. -->
+        <div class="grid grid-cols-3 gap-2 text-center">
+          <p class="text-[0.6rem] uppercase tracking-widest cjar-label">up for grabs</p>
+          <p id="cjar-stage-label-now" class="text-[0.6rem] uppercase tracking-widest cjar-label">Next from Jar</p>
+          <p class="text-[0.6rem] uppercase tracking-widest text-stone-300">Left in Jar</p>
+        </div>
         <div id="cjar-stage-row" class="relative grid grid-cols-3 items-stretch gap-2">
           <!-- COL 1 — "Up for Grabs". Crumbs and the Treat are ONE object because they
                are one idea: shared table state that a solo departure claims. Crumbs sits
                on TOP because it is almost always present, where a Treat is occasional.
                h-full is what lets grid items-stretch give this card the hero's height, so
                the three columns balance with no explicit height maths. DD-23. -->
-          <div id="cjar-grabs-card" class="h-full bg-white rounded-2xl shadow-sm px-3 py-3 flex flex-col items-center justify-between gap-1.5">
-            <p class="text-[0.6rem] uppercase tracking-widest cjar-label">up for grabs</p>
+          <div id="cjar-grabs-card" class="h-full flex flex-col items-center justify-center gap-1.5">
             <div class="flex items-center gap-1">
               <span id="cjar-crumbs-value" class="text-3xl font-bold text-[#7A5C0A] leading-none"></span>
               <span class="text-lg leading-none">🍪</span>
@@ -9172,12 +9186,10 @@ Reboot
             <div id="cjar-treat-slot" class="flex flex-col items-center"></div>
             <p id="cjar-grabs-caption" class="text-xs text-stone-400 text-center leading-snug px-0.5"></p>
           </div>
-          <div class="flex flex-col items-center justify-center gap-1">
-            <span id="cjar-stage-label-now" class="text-[0.6rem] uppercase tracking-widest cjar-label">Next from Jar</span>
+          <div class="flex items-center justify-center h-full">
             <div id="cjar-table-hero" class="flex items-end"></div>
           </div>
           <div class="flex flex-col items-center justify-center gap-1 h-full">
-            <span class="text-[0.6rem] uppercase tracking-widest text-stone-300">Left in Jar</span>
             <div id="cjar-deck-badge" class="flex flex-col items-center"></div>
           </div>
           <!-- Delta animation layer: absolute so a flying cookie contributes ZERO height.
@@ -9197,9 +9209,16 @@ Reboot
 
       <!-- SCORE TABLE — sits between the Stage and the action buttons in every phase, so
            Open Book's live standings are readable at the exact moment they matter: while
-           deciding, not just at reveal. -->
-      <div id="cjar-reveal-header" class="cjar-reveal-grid gap-1.5 px-3 mb-1 text-[0.6rem] uppercase tracking-widest text-stone-400"></div>
-      <div id="cjar-reveal-rows" class="flex flex-col gap-1.5"></div>
+           deciding, not just at reveal. Header + rows share ONE wrapper (DD-32) — they used
+           to be two direct children of the Stack's own gap-4 column, so the Stack's 16px
+           inter-zone gap landed BETWEEN the header and its rows on top of the header's own
+           margin, a ~20px gap where row-to-row is 6px (gap-1.5). Wrapping both removes them
+           from the Stack's gap entirely; the tight gap-1 below is what actually controls the
+           header-to-first-row distance now. -->
+      <div class="flex flex-col gap-1">
+        <div id="cjar-reveal-header" class="cjar-reveal-grid gap-1.5 px-3 text-[0.6rem] uppercase tracking-widest text-stone-400"></div>
+        <div id="cjar-reveal-rows" class="flex flex-col gap-1.5"></div>
+      </div>
 
       <!-- SYLLY-ONLY personal chips (Favourite / Watcher / Owes). Cookie Stash and This
            Raid used to live here too, but they duplicated exactly what cjar-reveal-rows
@@ -9242,7 +9261,7 @@ Reboot
           <button class="btn-cjar-quit-open text-stone-500 font-bold text-xl active:scale-90 transition-transform duration-100">✕</button>
         </div>
       </div>
-      <div id="cjar-summary-rows" class="flex flex-col gap-2"></div>
+      <div id="cjar-summary-rows" class="overflow-x-auto"></div>
       <button id="btn-cjar-next-raid" class="cjar-cta min-h-14 w-full rounded-2xl active:scale-95 text-xl font-semibold transition-all duration-150">Next Raid</button>
       <p id="cjar-summary-waiting" style="display:none" class="text-stone-400 text-sm text-center">Waiting for the host…</p>
     </div>
