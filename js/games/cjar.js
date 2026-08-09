@@ -1978,12 +1978,22 @@ function cjarRenderCard(card, opts = {}) {
     el.className = 'cjar-card cjar-card-asset ' + size + ' cjar-card-' + card.type;
     el.style.cssText = 'background-image:url("' + faceUrl + '");' + dim;
     // The numeric value is a TEXT OVERLAY on the tier art — this is what collapses
-    // 15 cookie values onto 3 assets. It must survive the asset branch.
+    // 15 cookie values onto 3 assets. It must survive the asset branch. Treats get the
+    // same overlay (their points, from CJAR_DATA) — without it a Treat on the counter
+    // is unreadable art with no way to tell a 5-point Special from a 10-point Super.
     if (card.type === 'cookie') {
       const v = document.createElement('div');
       v.className = 'cjar-card-value';
       v.textContent = String(card.value);
       el.appendChild(v);
+    } else if (card.type === 'treat') {
+      const t = (CJAR_DATA.treats || []).find(x => x.id === card.id) || {};
+      if (t.points != null) {
+        const v = document.createElement('div');
+        v.className = 'cjar-card-value';
+        v.textContent = String(t.points);
+        el.appendChild(v);
+      }
     }
     return el;
   }
@@ -2006,6 +2016,7 @@ function cjarRenderCard(card, opts = {}) {
     el.appendChild(emoji); el.appendChild(v); el.appendChild(name);
     return el;
   }
+  let treatPoints = null;
   if (card.type === 'family') {
     const fam = (CJAR_DATA.family || []).find(f => f.id === card.id) || {};
     emoji.textContent = fam.emoji || '👪';
@@ -2014,8 +2025,15 @@ function cjarRenderCard(card, opts = {}) {
     const t = (CJAR_DATA.treats || []).find(x => x.id === card.id) || {};
     emoji.textContent = '🍰';
     name.textContent  = t.name || '';
+    treatPoints = t.points;
   }
   el.appendChild(emoji); el.appendChild(name);
+  if (treatPoints != null) {
+    const v = document.createElement('div');
+    v.className = 'cjar-card-value';
+    v.textContent = String(treatPoints);
+    el.appendChild(v);
+  }
   return el;
 }
 // ── The card gallery ───────────────────────────────────────────────────────
