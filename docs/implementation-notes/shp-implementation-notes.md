@@ -102,6 +102,26 @@ Seven playtest notes (3-player sessions) addressed in one pass:
 
 ---
 
+## How-to gallery tab (2026-08-10, SW v167)
+
+**What happened:** `shp-how-to-overlay` gained a second tab, `The Rules | The Cards`, built from
+`SHP_CARDS` through `shpRenderCard` and grouped by family (Pasture / Pillow / Alarm / Trap).
+Tiles are tappable-to-enlarge via `artMakeZoomable` (`ui-style.md` § Pattern 2a). Closes SHP's
+half of the deferred gallery item, and makes the core-art (v154) offline install check a
+single-device job instead of needing a live match.
+
+**The id-13 detail the gallery had to respect.** Fogged Dream is rendered in its own section and is
+**shown but never zoomable** — `shpRenderCard` hardcodes its cursed face *before* ever calling
+`assetFace`, because its value is hidden from every player including its owner, so there is no
+artwork behind it and `assetFace('shp', 13)` correctly returns null. This falls out of the
+`artMakeZoomable` `src` guard for free rather than needing a special case — which is the argument
+for putting that guard in the helper rather than at each call site.
+
+**Deliberately built on every switch INTO the tab, not cached:** the Plunge inverts what a number
+card *does*, so a gallery built once at boot would be wrong for half the night.
+
+---
+
 ## Template Gaps
 
 - **Ghost-pick has no auto-resolve timer (stall risk).** The disruption table-gate waits on the designated spend-holder's tap, and Counting Sheep has no turn timer. An AFK Sleepwalker stalls the table. Acceptable for a same-room party game in v1, but a future "auto-pick after N seconds" (GTH wall-clock pattern) would harden it. Flag for any future ghost/afterlife mechanic in another game.

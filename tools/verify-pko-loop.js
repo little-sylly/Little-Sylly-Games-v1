@@ -88,6 +88,10 @@ globalThis.__pko = {
     pkoScores         = o.scores || new Array(pkoPlayerCount).fill(0);
     pkoClashHistory = []; pkoWateringHole = []; pkoReserve = o.reserve || [];
     pkoTrail = []; pkoEncounterNum = 1; pkoClashNum = 1; pkoLeaderIdx = 0;
+    // Scoring mode resets on every seat(), not just when a scenario opts in — it is a
+    // setting, so it would otherwise leak from the Stragglers section into whatever ran
+    // after it and quietly re-point half these assertions at the other mode.
+    pkoScoring = o.scoring || 'dominance';
     // seat() lands on Clash 1 / Encounter 1, which is exactly when Small Fry bites — so it
     // defaults OFF here and each Small Fry scenario opts in explicitly.
     pkoStartSmall = o.startSmall || 'off';
@@ -101,6 +105,8 @@ globalThis.__pko = {
     if (k === 'startSmall')  pkoStartSmall  = v;
     if (k === 'encounter')   pkoEncounterNum = v;
     if (k === 'clash')       pkoClashNum    = v;
+    if (k === 'scoring')     pkoScoring     = v;
+    if (k === 'counts')      pkoHoardCounts = [...v];   // deliberately drift the public mirror
   },
   canStampede() { return pkoCanStampede(); },
   // Appetite is a settings-level rules variant, so the loop must prove the HOST's
@@ -638,6 +644,70 @@ const section = t => console.log(`\n${t}`);
   check('one winner scores once', P.scores, [0, 0, 1, 0]);
   check('the single winner leads the next Clash', P.leader, 2);
   check('history row has exactly one 1', P.history, [[0, 0, 1, 0]]);
+
+  // ══ 12. Law of the Wild — Stragglers scoring ════════════════════════════
+  // Every check above ran under Dominance (seat() defaults to it), so this block is the
+  // whole of the other mode. The two modes share pkoResolveClash, pkoNextOpener and
+  // pkoScores — a mode that ranks the table upside down does not throw, it just crowns the
+  // wrong player, so the direction of every comparison is asserted explicitly.
+  section('Stragglers banks what everyone else is still holding');
+  P.seat({
+    hoards: [['bee', 'bee', 'fish'], ['mongoose', 'eagle'], ['leopard'], ['eagle', 'bear']],
+    marks: ['mouse', 'mouse'], owner: 0, turn: 1, scoring: 'stragglers',
+  });
+  P.set('clashTarget', 3);
+  pkoApplyChallenge(1, { assignments: [['mongoose'], ['eagle']] });
+  check('the player who emptied banks nothing', P.scores[1], 0);
+  check('everyone else banks their remaining cards', P.scores, [3, 0, 1, 2]);
+  check('the history row holds counts, not win flags', P.history, [[3, 0, 1, 2]]);
+  // P0 is sitting on 3 Stragglers against a target of 3 — under Dominance that same number
+  // would have ended the Match. It must not even be looked at here.
+  check('a Straggler total reaching the target does NOT end the Match',
+    screens.pop(), 'screen-pko-clash-result');
+
+  section('Stragglers accumulate across Clashes');
+  P.seat({ hoards: [['bee', 'bee'], [], ['leopard'], ['eagle']], turn: 0,
+           scoring: 'stragglers', scores: [4, 1, 0, 6] });
+  P.set('clashTarget', 5); P.set('clash', 2);
+  pkoResolveClash([1]);
+  check('each total grows by this Clash’s leftovers', P.scores, [6, 1, 1, 7]);
+  check('mid-Match the Clash summary is shown', screens.pop(), 'screen-pko-clash-result');
+
+  section('Stragglers plays a fixed distance, then stops');
+  P.seat({ hoards: [['bee'], [], ['leopard'], ['eagle']], turn: 0, scoring: 'stragglers' });
+  P.set('clashTarget', 3); P.set('clash', 2);
+  pkoResolveClash([1]);
+  check('Clash 2 of 3 is not the end', screens.pop(), 'screen-pko-clash-result');
+  P.seat({ hoards: [['bee'], [], ['leopard'], ['eagle']], turn: 0, scoring: 'stragglers' });
+  P.set('clashTarget', 3); P.set('clash', 3);
+  pkoResolveClash([1]);
+  check('the Match ends on the Clash COUNT, not on any score',
+    screens.pop(), 'screen-pko-hierarchy');
+
+  section('The tiebreak for the next opener inverts with the mode');
+  const seatTied = mode => {
+    P.seat({ hoards: [['bee'], [], ['leopard'], []], turn: 0, scoring: mode, scores: [0, 9, 0, 2] });
+    P.set('clashTarget', 99); P.set('clash', 1);
+    pkoResolveClash([1, 3]);
+    return P.leader;
+  };
+  check('Dominance: the joint winner with the MOST Clashes opens', seatTied('dominance'), 1);
+  check('Stragglers: the joint winner with the FEWEST Stragglers opens', seatTied('stragglers'), 3);
+
+  section('The count comes from the host Hoards, never the public mirror');
+  P.seat({ hoards: [['bee', 'bee'], [], ['leopard'], ['eagle']], turn: 0, scoring: 'stragglers' });
+  P.set('clashTarget', 99); P.set('clash', 1);
+  P.set('counts', [99, 99, 99, 99]);              // a mirror that has drifted a play behind
+  pkoResolveClash([1]);
+  check('a stale hoardCounts cannot enter the score', P.scores, [2, 0, 1, 1]);
+
+  section('One predicate owns which direction "winning" runs in');
+  P.set('scoring', 'dominance');
+  check('Dominance: more is better', sandbox.pkoBestScore([1, 5, 3]), 5);
+  P.set('scoring', 'stragglers');
+  check('Stragglers: fewer is better', sandbox.pkoBestScore([1, 5, 3]), 1);
+  check('an empty set never returns Infinity', sandbox.pkoBestScore([]), 0);
+  P.set('scoring', 'dominance');
 
   console.log('\n' + '='.repeat(48));
   console.log(failures === 0 ? 'ALL CHECKS PASSED' : `${failures} CHECK(S) FAILED`);

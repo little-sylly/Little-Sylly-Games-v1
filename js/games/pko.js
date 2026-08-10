@@ -13,7 +13,11 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 // ── Settings (persist between play-agains) ─────────────────────────────────
-let pkoClashTarget    = 3;            // 3 | 5 | 7      — Clashes to Win
+let pkoScoring        = 'dominance';  // 'dominance' | 'stragglers' — Law of the Wild
+let pkoClashTarget    = 3;            // 3 | 5 | 7      — Clashes to WIN under Dominance,
+                                      // Clashes to PLAY under Stragglers. One number, two
+                                      // meanings, which is exactly why the settings card
+                                      // carries a live value line saying which one is in force.
 let pkoHoardSize      = 12;           // 10 | 12 | 15   — cards dealt per player
 let pkoPoacherSetting = 'perPlayer';  // 'none' | 'flat3' | 'perPlayer'
 let pkoScavenge       = false;        // draw 1 from the Reserve on Retreat
@@ -29,9 +33,15 @@ let pkoPlayerCount    = 0;
 let pkoPlayerNames    = [];           // from mpPlayerSlots[i].nickname — never .name
 
 // ── Match state (reset each play-again) ───────────────────────────────────
-let pkoScores         = [];           // int per player — Clashes won
+// Both scoring modes run through the SAME two variables — a Clash contributes one history
+// row, and pkoScores is that column's running total. Only what the row HOLDS differs:
+// Dominance banks a 1 for the emptied Hoard, Stragglers banks what every other Hoard was
+// still holding. A parallel straggler array was the alternative and was rejected: it would
+// need its own reset, its own payload field and its own client applier, i.e. three more
+// places for the two halves to drift out of step (ML-03's shape).
+let pkoScores         = [];           // int per player — Clashes won / Stragglers accrued
 let pkoClashNum       = 0;
-let pkoClashHistory   = [];           // [[1,0,0,0], ...] one row per Clash — drives the Hierarchy grid
+let pkoClashHistory   = [];           // one row per Clash: [1,0,0,0] wins, or [0,4,2,7] cards left
 
 // ── Clash state (reset each Clash) ────────────────────────────────────────
 let pkoHoards         = [];           // HOST ONLY: array of arrays of card ids (all players)
@@ -656,6 +666,10 @@ function pkoStartClash() {
       clashNum: pkoClashNum, leaderIdx: pkoLeaderIdx,
       playerNames: pkoPlayerNames, playerCount: pkoPlayerCount,
       hoardCounts: pkoHoardCounts, scores: pkoScores,
+      // Both already reached the client in SETTINGS_SYNC; they ride again with every scoring
+      // packet because the deal screen labels itself "Clash 2 of 3" from them, and a device
+      // that missed the lobby broadcast would show a plausible, wrong number instead of failing.
+      scoring: pkoScoring, clashTarget: pkoClashTarget,
       // reset accumulators — explicit, not implied
       hoardReady: pkoHoardReady, retreatedSince: pkoRetreatedSince,
       marks: pkoMarks, markOwnerIdx: pkoMarkOwnerIdx,
@@ -684,7 +698,7 @@ function pkoShowHoard() {
 
 function pkoRenderHoardScreen() {
   const clash = document.getElementById('pko-hoard-clash');
-  if (clash) clash.textContent = `Clash ${pkoClashNum}`;
+  if (clash) clash.textContent = pkoClashLabel();
   const count = document.getElementById('pko-hoard-count');
   if (count) count.textContent = pkoMyHoard.length ? `${pkoMyHoard.length} cards` : '—';
   pkoRenderFan(document.getElementById('pko-hoard-fan'));
@@ -769,7 +783,7 @@ function pkoRenderTable() {
   const empty   = pkoMarks.length === 0;
 
   const head = document.getElementById('pko-table-clash');
-  if (head) head.textContent = `Clash ${pkoClashNum} · Encounter ${pkoEncounterNum}`;
+  if (head) head.textContent = `${pkoClashLabel()} · Encounter ${pkoEncounterNum}`;
 
   // Force of Nature rides in the header beside the Encounter: the live event by name, and a
   // [?] to the full roster. The interstitial is 5 s and gone — an event that silently changes
@@ -1910,11 +1924,50 @@ function pkoShowEvent(eventId, then) {
   pkoEventTimer = setTimeout(() => { pkoEventTimer = null; then(); }, PKO_INTERSTITIAL_MS);
 }
 
-// Which of several joint winners opens the next Clash: most Match points, then random
+// ── Scoring (Law of the Wild) ─────────────────────────────────────────────
+// ONE predicate and ONE "which score is winning" helper, both used by every branch that
+// cares. Spreading `pkoScoring === 'stragglers'` across the ten call sites below is exactly
+// how a rules-mutating mode silently misses a path (logic-engine.md § Single-source card/
+// board arithmetic) — and here a missed path doesn't throw, it just ranks the table upside
+// down, which is the hardest kind of wrong to notice.
+function pkoStragglersMode() { return pkoScoring === 'stragglers'; }
+
+// The best of a set of scores. Under Dominance more is better; under Stragglers less is.
+// Every ranking, tiebreak and title in the game asks this rather than reaching for
+// Math.max itself.
+function pkoBestScore(list) {
+  const vals = list.length ? list : [0];
+  return pkoStragglersMode() ? Math.min(...vals) : Math.max(...vals);
+}
+
+// "Clash 2" or "Clash 2 of 3". Under Dominance the Match has no fixed length, so a total
+// would be a lie; under Stragglers the length IS the structure — you pace a Clash entirely
+// differently when you know it's the last one — so every place that names the Clash says so.
+function pkoClashLabel() {
+  return pkoStragglersMode() ? `Clash ${pkoClashNum} of ${pkoClashTarget}` : `Clash ${pkoClashNum}`;
+}
+
+// A player's score, in the currency the mode is played in.
+function pkoScoreText(n) {
+  if (pkoStragglersMode()) return n === 1 ? '1 Straggler' : `${n} Stragglers`;
+  return n === 1 ? '1 Clash' : `${n} Clashes`;
+}
+
+// Client half of the two scoring fields every scoring packet carries. A non-empty string and
+// a non-zero int, so neither is ever at risk from Firebase's erase-the-empty behaviour — the
+// undefined guards are plain defensiveness, not a wire workaround.
+function pkoApplyScoringMode(p) {
+  if (p.scoring     !== undefined) pkoScoring     = p.scoring;
+  if (p.clashTarget !== undefined) pkoClashTarget = p.clashTarget;
+}
+
+// Which of several joint winners opens the next Clash: the strongest of them, then random
 // (brief §5). With one winner it is that winner — the shipped behaviour, unchanged.
+// "Strongest" inverts with the mode: reading it the wrong way round under Stragglers would
+// hand the lead to whichever joint winner is furthest BEHIND.
 function pkoNextOpener(winnerIdxs) {
   if (winnerIdxs.length === 1) return winnerIdxs[0];
-  const best = Math.max(...winnerIdxs.map(i => pkoScores[i] || 0));
+  const best = pkoBestScore(winnerIdxs.map(i => pkoScores[i] || 0));
   const tied = winnerIdxs.filter(i => (pkoScores[i] || 0) === best);
   return tied[Math.floor(Math.random() * tied.length)];
 }
@@ -1930,8 +1983,15 @@ function pkoResolveClash(winnerIdxs) {
     .filter(i => i >= 0 && i < pkoPlayerCount).sort((a, b) => a - b);
   if (!winners.length) return;
 
-  winners.forEach(i => pkoScores[i]++);
-  pkoClashHistory.push(pkoPlayerNames.map((_, i) => (winners.includes(i) ? 1 : 0)));
+  // One history row per Clash in BOTH modes; only the number in it differs. Stragglers
+  // counts from pkoHoards — the host's own authoritative hands — not pkoHoardCounts, which
+  // is the public mirror: a mirror that lagged by one play would quietly bank a wrong score
+  // instead of showing a wrong number, and nothing downstream could tell.
+  const row = pkoPlayerNames.map((_, i) => pkoStragglersMode()
+    ? (winners.includes(i) ? 0 : (pkoHoards[i] || []).length)
+    : (winners.includes(i) ? 1 : 0));
+  row.forEach((v, i) => { pkoScores[i] = (pkoScores[i] || 0) + v; });
+  pkoClashHistory.push(row);
   pkoLeaderIdx = pkoNextOpener(winners);
   const names = winners.map(i => pkoPlayerNames[i]);
   pkoLogTrail(winners.length === 1
@@ -1939,11 +1999,23 @@ function pkoResolveClash(winnerIdxs) {
     : `${names.join(' and ')} emptied their Hoards and took the Clash together.`);
   playClashWin();
 
-  if (winners.some(i => pkoScores[i] >= pkoClashTarget)) {
+  // Dominance is a race — it ends the instant someone crosses the target, and the player who
+  // just emptied is the champion. Stragglers is a fixed distance: it always plays the full N
+  // Clashes and the Match is then taken by the lowest TOTAL, who may well have won no Clash
+  // at all. Same function, genuinely different end conditions.
+  const matchOver = pkoStragglersMode()
+    ? pkoClashNum >= pkoClashTarget
+    : winners.some(i => pkoScores[i] >= pkoClashTarget);
+
+  if (matchOver) {
     if (window.syllyMultiplayerMode !== 'single') {
       mpSendEnvelope({ type: 'SYNC', payload: {
         action: 'PKO_MATCH_END', finalScores: pkoScores, clashHistory: pkoClashHistory,
         playerNames: pkoPlayerNames, winnerIdxs: winners,
+        // The mode rides with every scoring packet even though SETTINGS_SYNC already carried
+        // it: a client that ranked this table the wrong way up would show a losing player as
+        // Apex Predator with nothing on screen to contradict it.
+        scoring: pkoScoring, clashTarget: pkoClashTarget,
       }});
     }
     pkoShowHierarchy();
@@ -1953,6 +2025,7 @@ function pkoResolveClash(winnerIdxs) {
     mpSendEnvelope({ type: 'SYNC', payload: {
       action: 'PKO_CLASH_END', winnerIdxs: winners, scores: pkoScores,
       clashHistory: pkoClashHistory, clashNum: pkoClashNum, trail: pkoTrail,
+      scoring: pkoScoring, clashTarget: pkoClashTarget,
     }});
   }
   pkoShowClashResult(winners);
@@ -1962,7 +2035,7 @@ function pkoShowClashResult(winnerIdxs) {
   const winners = Array.isArray(winnerIdxs) ? winnerIdxs : [winnerIdxs];
   showScreen('screen-pko-clash-result');
   const num = document.getElementById('pko-clash-result-num');
-  if (num) num.textContent = `Clash ${pkoClashNum} Summary`;
+  if (num) num.textContent = `${pkoClashLabel()} Summary`;
   const body = document.getElementById('pko-clash-result-body');
   if (body) {
     body.innerHTML = '';
@@ -1976,7 +2049,12 @@ function pkoShowClashResult(winnerIdxs) {
       : `${names.join(' & ')} share the Clash`;
     const sub = document.createElement('p');
     sub.className = 'text-stone-400 text-sm';
-    sub.textContent = names.length === 1 ? 'They lead the next one.' : 'One of them leads the next one.';
+    const lead = names.length === 1 ? 'They lead the next one.' : 'One of them leads the next one.';
+    // Under Stragglers the Clash winner is only half the news — the other half is what it
+    // just cost everyone else, and this screen is where that lands.
+    sub.textContent = pkoStragglersMode()
+      ? `${lead} Everyone else banks whatever they were still holding.`
+      : lead;
     body.append(emoji, head, sub, pkoBuildStandings());
   }
   // Host-gated: only the host opens the next Clash.
@@ -1992,9 +2070,16 @@ function pkoShowClashResult(winnerIdxs) {
 function pkoBuildStandings() {
   const wrap = document.createElement('div');
   wrap.className = 'flex flex-col gap-2 w-full';
+  const strag = pkoStragglersMode();
   const order = pkoPlayerNames.map((n, i) => ({ n, i, s: pkoScores[i] || 0 }))
-    .sort((a, b) => b.s - a.s);
-  const top = order.length ? order[0].s : 0;
+    .sort((a, b) => (strag ? a.s - b.s : b.s - a.s));   // best first, whichever way that runs
+  const top    = order.length ? order[0].s : 0;                      // best score, in mode terms
+  const bottom = order.length ? order[order.length - 1].s : 0;
+  // "Nothing has happened yet" is a different test in each mode. Under Dominance a 0 means
+  // no Clash won, so `> 0` is the guard. Under Stragglers 0 is the BEST score there is — a
+  // player who emptied every Clash — so the guard has to be whether a Clash has been played
+  // at all, never the number itself.
+  const played = pkoClashHistory.length > 0;
   order.forEach((p, pos) => {
     const rank = order.findIndex(q => q.s === p.s) + 1;   // ties share a rank
     const row = document.createElement('div');
@@ -2004,12 +2089,19 @@ function pkoBuildStandings() {
     left.textContent = `${rank}. ${p.n}` + (p.i === pkoMyIdx() ? ' (you)' : '');
     const right = document.createElement('p');
     right.className = 'pko-label font-bold text-sm';
-    right.textContent = p.s === 1 ? '1 Clash' : `${p.s} Clashes`;
+    right.textContent = pkoScoreText(p.s);
     // Top and bottom of the pile get named — a bare score doesn't carry the story.
     // Joint Apex Predator: equal top scores share rank 1, so they share the title too —
     // there is no arbitrary ordering to break the tie with (FoN §6).
-    if (p.s === top && p.s > 0)                     left.textContent += ' — Apex Predator';
-    else if (pos === order.length - 1 && p.s === 0) left.textContent += ' — Bottom Feeder';
+    if (strag) {
+      if (played && p.s === top) left.textContent += ' — Apex Predator';
+      // …but only when somebody is actually worse off. Extinction Event can empty every
+      // Hoard at once, and a table that is all-square has a top with no bottom.
+      else if (pos === order.length - 1 && p.s === bottom && bottom > top) {
+        left.textContent += ' — Bottom Feeder';
+      }
+    } else if (p.s === top && p.s > 0)               left.textContent += ' — Apex Predator';
+    else if (pos === order.length - 1 && p.s === 0)  left.textContent += ' — Bottom Feeder';
     row.append(left, right);
     wrap.appendChild(row);
   });
@@ -2031,10 +2123,19 @@ function pkoShowHierarchy() {
   head.innerHTML = '<th class="text-left font-semibold text-stone-400 pb-1"></th>'
     + pkoClashHistory.map((_, c) => `<th class="font-semibold text-stone-400 pb-1 px-1">C${c + 1}</th>`).join('');
   table.appendChild(head);
+  // The cell says what the row means. Under Dominance the row is a win flag, so a paw reads
+  // it faster than a "1" ever could; under Stragglers the row is a count that has to visibly
+  // add up to the total in the standings above, so it has to be the number. A 0 there is the
+  // Clash that player won — keeping it as a digit is what makes the arithmetic followable.
+  const strag = pkoStragglersMode();
   pkoPlayerNames.forEach((name, i) => {
     const tr = document.createElement('tr');
     tr.innerHTML = `<td class="text-stone-600 font-semibold pr-2 py-0.5">${name}</td>`
-      + pkoClashHistory.map(row => `<td class="text-center py-0.5 px-1">${row[i] ? '🐾' : '·'}</td>`).join('');
+      + pkoClashHistory.map(row => {
+          const v = row[i] || 0;
+          const cell = strag ? String(v) : (v ? '🐾' : '·');
+          return `<td class="text-center py-0.5 px-1${strag && !v ? ' pko-label font-bold' : ''}">${cell}</td>`;
+        }).join('');
     table.appendChild(tr);
   });
   grid.appendChild(table);
@@ -2127,6 +2228,7 @@ function pkoHandleEnvelope(env) {
       pkoPlayerCount    = p.playerCount || pkoPlayerCount;
       pkoHoardCounts    = p.hoardCounts || [];
       pkoScores         = p.scores || pkoScores;
+      pkoApplyScoringMode(p);
       pkoHoardReady     = p.hoardReady || [];
       pkoRetreatedSince = p.retreatedSince || [];
       pkoMarks          = p.marks || [];
@@ -2222,6 +2324,7 @@ function pkoHandleEnvelope(env) {
       pkoScores       = p.scores || pkoScores;
       pkoClashHistory = p.clashHistory || pkoClashHistory;
       pkoClashNum     = p.clashNum;
+      pkoApplyScoringMode(p);
       pkoTrail        = p.trail || pkoTrail;
       pkoDismissChallenge();
       playClashWin();
@@ -2234,6 +2337,7 @@ function pkoHandleEnvelope(env) {
       pkoScores       = p.finalScores || pkoScores;
       pkoClashHistory = p.clashHistory || pkoClashHistory;
       pkoPlayerNames  = p.playerNames || pkoPlayerNames;
+      pkoApplyScoringMode(p);
       pkoDismissChallenge();
       pkoShowHierarchy();
       mpUnlockSync();
@@ -2273,14 +2377,62 @@ function pkoOpen(id) {
   el.style.display = 'flex';
 }
 function pkoClose(id) { const el = document.getElementById(id); if (el) el.style.display = 'none'; }
-function pkoOpenSettings() { pkoOpen('pko-settings-overlay'); }
-function pkoOpenHowTo()    { pkoOpen('pko-how-to-overlay'); }
-// Two tabs, one overlay. The Diagram is the default because it answers "what beats what"
-// faster than any list can — EXCEPT when you arrived by tap-holding a card, where the
-// highlighted Animals row is the entire point of that entry path.
+function pkoOpenSettings() { pkoSyncSettingsUI(); pkoOpen('pko-settings-overlay'); }
+
+// ── Settings UI ───────────────────────────────────────────────────────────
+
+function pkoSyncToggle(id, isOn) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.className = (isOn ? 'game-toggle-on-pko' : 'game-toggle-off') + ' shrink-0';
+  el.textContent = isOn ? 'ON' : 'OFF';
+}
+
+// The live value line under the Law of the Wild pills (ui-style § Dynamic value line).
+// Required rather than optional here: pkoClashTarget is ONE number with two meanings, so
+// "Stragglers" and "5" side by side genuinely do not tell you what Match you are about to
+// play. The static description above the pills keeps its own separate job.
+function pkoRenderLawValue() {
+  const el = document.getElementById('pko-val-law');
+  if (!el) return;
+  el.textContent = pkoStragglersMode()
+    ? `Play ${pkoClashTarget} Clashes — the fewest Stragglers takes the Match.`
+    : `First to ${pkoClashTarget} Clashes takes the Match.`;
+}
+
+// Repaints every pill and toggle from state. The value line needs to be right the moment the
+// overlay opens, which is what forced this to exist — but it earns its keep twice over: PKO's
+// pills were plain HTML defaults that nothing ever re-synced, so a client that had received
+// SETTINGS_SYNC held the host's rules in memory while showing its own defaults on screen.
+function pkoSyncSettingsUI() {
+  const pick = (attr, val) => {
+    document.querySelectorAll(`[${attr}]`).forEach(p => {
+      p.classList.remove('pill-active-pko');           // .pill is the base — never removed
+      if (p.getAttribute(attr) === String(val)) p.classList.add('pill-active-pko');
+    });
+  };
+  pick('data-pko-scoring',  pkoScoring);
+  pick('data-pko-target',   pkoClashTarget);
+  pick('data-pko-hoard',    pkoHoardSize);
+  pick('data-pko-poacher',  pkoPoacherSetting);
+  pick('data-pko-smallfry', pkoStartSmall);
+  pick('data-pko-appetite', pkoAppetite);
+  pkoSyncToggle('btn-pko-scavenge-toggle', pkoScavenge);
+  pkoSyncToggle('btn-pko-sylly-toggle',    pkoSyllyMode);
+  pkoRenderLawValue();
+}
+// The Chain (Diagram/Animals) used to be its own overlay — now it's tabs 2 and 3 of How to
+// Play. Both entry points route through here so the tab state can never disagree with which
+// body is showing, and the rules body keeps its scroll position when you flick across and back
+// (siblings toggled by display, never one body repainted — same reasoning as CJAR's card tab).
+function pkoOpenHowTo(tab, highlightId) {
+  pkoSetHowToTab(tab || 'rules', highlightId);
+  pkoOpen('pko-how-to-overlay');
+}
+// Tap-holding a card jumps straight to the highlighted Animals row — that highlight is the
+// entire point of that entry path, so it overrides the Diagram-first default.
 function pkoOpenChain(highlightId) {
-  pkoSetChainTab(highlightId ? 'animals' : 'diagram', highlightId);
-  pkoOpen('pko-chain-overlay');
+  pkoOpenHowTo(highlightId ? 'animals' : 'diagram', highlightId);
 }
 
 // The Force of Nature roster. Rendered FROM PKO_EVENTS rather than written into index.html,
@@ -2330,23 +2482,21 @@ function pkoRenderEvents() {
   });
 }
 
-function pkoSetChainTab(tab, highlightId) {
-  const isDiagram = tab === 'diagram';
-  const pills = { 'btn-pko-chain-tab-diagram': isDiagram, 'btn-pko-chain-tab-animals': !isDiagram };
-  Object.entries(pills).forEach(([id, on]) => {
+function pkoSetHowToTab(tab, highlightId) {
+  const bodies = { rules: 'pko-how-to-rules', diagram: 'pko-chain-diagram', animals: 'pko-chain-body' };
+  Object.entries(bodies).forEach(([t, id]) => {
     const el = document.getElementById(id);
-    if (!el) return;
-    el.classList.remove('pill-active-pko');           // .pill is the base — never removed
-    if (on) el.classList.add('pill-active-pko');
+    if (el) el.style.display = t === tab ? 'flex' : 'none';
   });
-  const dia = document.getElementById('pko-chain-diagram');
-  const ani = document.getElementById('pko-chain-body');
-  if (dia) dia.style.display = isDiagram ? 'flex' : 'none';
-  if (ani) ani.style.display = isDiagram ? 'none' : 'flex';
-  if (isDiagram) pkoRenderChainDiagram();
-  else {
+  document.querySelectorAll('[data-pko-howto-tab]').forEach(b => {
+    b.classList.remove('pill-active-pko');             // .pill is the base — never removed
+    if (b.dataset.pkoHowtoTab === tab) b.classList.add('pill-active-pko');
+  });
+  if (tab === 'diagram') pkoRenderChainDiagram();
+  else if (tab === 'animals') {
     pkoRenderChain(highlightId);
     // Scroll the highlighted row into view — the reason tap-hold opens this tab at all.
+    const ani = document.getElementById('pko-chain-animals-body');
     if (highlightId && ani) {
       const row = ani.querySelector(`[data-chain-id="${highlightId}"]`);
       if (row) requestAnimationFrame(() => row.scrollIntoView({ block: 'center' }));
@@ -2358,7 +2508,7 @@ function pkoSetChainTab(tab, highlightId) {
 // Resolved through assetExtra so a skin pack can override it like any other asset; if no
 // pack covers it the tab says so rather than rendering a broken image.
 function pkoRenderChainDiagram() {
-  const el = document.getElementById('pko-chain-diagram');
+  const el = document.getElementById('pko-chain-diagram-body');
   if (!el) return;
   el.innerHTML = '';
   const url = (typeof assetExtra === 'function') && assetExtra('pko', 'chain');
@@ -2370,7 +2520,9 @@ function pkoRenderChainDiagram() {
   img.src = url;
   img.alt = 'The food chain — who eats whom';
   img.className = 'w-full h-auto rounded-2xl';
-  el.appendChild(img);
+  // The one tile in the suite where enlarging matters most: a 15-animal chain squeezed
+  // into a phone-width sheet is legible only once it fills the screen.
+  el.appendChild(artMakeZoomable(img, url, 'The Chain'));
 }
 
 // ── Watering Hole (the discard pile — and the Trail's home) ───────────────
@@ -2463,7 +2615,7 @@ function pkoRenderStampede() {
 // `beaten_by` — so the reference always tells the truth for the Appetite actually in play.
 // This overlay is the rules; it must not paraphrase them or lag behind a setting.
 function pkoRenderChain(highlightId) {
-  const body = document.getElementById('pko-chain-body');
+  const body = document.getElementById('pko-chain-animals-body');
   if (!body || !pkoChain) return;
   body.innerHTML = '';
 
@@ -2480,7 +2632,10 @@ function pkoRenderChain(highlightId) {
     row.dataset.chainId = e.id;
     row.className = 'flex items-center gap-3 rounded-2xl p-2.5 '
       + (e.id === highlightId ? 'bg-[#F5E6C8]' : 'bg-white shadow-sm');
-    row.appendChild(pkoRenderCard(e.id, { size: 'sm' }));
+    // Tap the card to see the artwork full size. Resolved here rather than inside
+    // pkoRenderCard so a seam still on its emoji fallback offers no zoom affordance.
+    const artUrl = (typeof assetFace === 'function') && assetFace('pko', e.id);
+    row.appendChild(artMakeZoomable(pkoRenderCard(e.id, { size: 'sm' }), artUrl, e.name));
     const txt = document.createElement('div');
     txt.className = 'flex flex-col gap-0.5 min-w-0';
     const n = document.createElement('p');
@@ -2528,22 +2683,24 @@ document.addEventListener('DOMContentLoaded', () => {
   on('btn-pko-table-how-to',     () => pkoOpenHowTo());   // table screen header
   on('btn-pko-chain',            () => pkoOpenChain());
   on('btn-pko-challenge-chain',  () => pkoOpenChain());
+  on('btn-pko-howto-see-chain',  () => pkoOpenChain());
   on('btn-pko-hole',             () => pkoOpenHole());   // the Watering Hole pile IS the log's entry point
-  document.querySelectorAll('.btn-pko-chain-open').forEach(b => b.addEventListener('click', () => pkoOpenChain()));
   // Two entry points, one overlay — the table header (in-play) and the how-to's Sylly Mode
   // card (pre-play), the same pairing FRT uses for Fruity Personalities.
   document.querySelectorAll('.btn-pko-events-open').forEach(b => b.addEventListener('click', () => pkoOpenEvents()));
 
   // Overlay closers
-  on('btn-pko-settings-done', () => { playDone(); pkoClose('pko-settings-overlay'); });
-  on('btn-pko-howto-close',   () => { playDone(); pkoClose('pko-how-to-overlay'); });
-  on('btn-pko-chain-close',   () => { playDone(); pkoClose('pko-chain-overlay'); });
-  on('btn-pko-trail-close',   () => { playDone(); pkoClose('pko-trail-overlay'); });
-  on('btn-pko-events-close',  () => { playDone(); pkoClose('pko-events-overlay'); });
+  on('btn-pko-settings-done',       () => { playDone(); pkoClose('pko-settings-overlay'); });
+  on('btn-pko-howto-close',         () => { playDone(); pkoClose('pko-how-to-overlay'); });
+  on('btn-pko-howto-close-diagram', () => { playDone(); pkoClose('pko-how-to-overlay'); });
+  on('btn-pko-howto-close-animals', () => { playDone(); pkoClose('pko-how-to-overlay'); });
+  on('btn-pko-trail-close',         () => { playDone(); pkoClose('pko-trail-overlay'); });
+  on('btn-pko-events-close',        () => { playDone(); pkoClose('pko-events-overlay'); });
 
-  // Tabbed overlays — the Chain (Diagram | Animals) and the Watering Hole (Trail | Discards)
-  on('btn-pko-chain-tab-diagram',  () => { playPillClick(); pkoSetChainTab('diagram'); });
-  on('btn-pko-chain-tab-animals',  () => { playPillClick(); pkoSetChainTab('animals'); });
+  // Tabbed overlays — How to Play (The Rules | Diagram | Animals) and the Watering Hole (Trail | Discards)
+  document.querySelectorAll('[data-pko-howto-tab]').forEach(b => {
+    b.addEventListener('click', () => { playPillClick(); pkoSetHowToTab(b.dataset.pkoHowtoTab); });
+  });
   on('btn-pko-hole-tab-trail',     () => { playPillClick(); pkoSetHoleTab('trail'); });
   on('btn-pko-hole-tab-discards',  () => { playPillClick(); pkoSetHoleTab('discards'); });
 
@@ -2559,19 +2716,16 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     });
   };
-  const syncToggle = (id, isOn) => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.className = (isOn ? 'game-toggle-on-pko' : 'game-toggle-off') + ' shrink-0';
-    el.textContent = isOn ? 'ON' : 'OFF';
-  };
-  bindPills('data-pko-target',  v => { pkoClashTarget    = parseInt(v, 10); });
+  // Both Law of the Wild groups repaint the value line — the sentence is a function of the
+  // pair, so either pill moving on its own leaves it stale (ui-style § Dynamic value line).
+  bindPills('data-pko-scoring', v => { pkoScoring        = v;                 pkoRenderLawValue(); });
+  bindPills('data-pko-target',  v => { pkoClashTarget    = parseInt(v, 10);   pkoRenderLawValue(); });
   bindPills('data-pko-hoard',   v => { pkoHoardSize      = parseInt(v, 10); });
   bindPills('data-pko-poacher', v => { pkoPoacherSetting = v; });
   bindPills('data-pko-smallfry', v => { pkoStartSmall     = v; });
   bindPills('data-pko-appetite', v => { pkoAppetite       = v; });
-  on('btn-pko-scavenge-toggle', () => { pkoScavenge = !pkoScavenge; playPillClick(); syncToggle('btn-pko-scavenge-toggle', pkoScavenge); });
-  on('btn-pko-sylly-toggle',    () => { pkoSyllyMode = !pkoSyllyMode; pkoSyllyMode ? playSyllyOn() : playSyllyOff(); syncToggle('btn-pko-sylly-toggle', pkoSyllyMode); });
+  on('btn-pko-scavenge-toggle', () => { pkoScavenge = !pkoScavenge; playPillClick(); pkoSyncToggle('btn-pko-scavenge-toggle', pkoScavenge); });
+  on('btn-pko-sylly-toggle',    () => { pkoSyllyMode = !pkoSyllyMode; pkoSyllyMode ? playSyllyOn() : playSyllyOff(); pkoSyncToggle('btn-pko-sylly-toggle', pkoSyllyMode); });
 
   // Challenge builder overlay (§17 D1 — an overlay, not a screen)
   // Dual purpose, one button: a complete draft commits straight from the table; anything

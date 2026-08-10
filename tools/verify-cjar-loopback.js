@@ -134,6 +134,11 @@ function makeDevice(name, mode, myIdx, slots) {
     playAbyssThud() {}, playUnchallenged() {}, playPoacher() {}, playExit() {},
     playPillClick() {}, playSyllyOn() {}, playSyllyOff() {},
     assetFace: () => null, assetBack: () => null,
+    // Art viewer (engine.js). Faithful to the real contract rather than an identity
+    // stub: the class is added only when art actually resolved, so if assetFace above
+    // is ever made to return a URL this harness still reflects real behaviour.
+    artMakeZoomable: (el, src) => { if (el && src) el.className += ' art-zoomable'; return el; },
+    openArtViewer() {}, closeArtViewer() {},
     mpLockSync() {}, mpUnlockSync() {},
     mpPlayerSlots: slots, mpMyPlayerIdx: myIdx,
     resetToLobby() { sandbox.__dissolved = true; },

@@ -322,35 +322,76 @@ function flwLedgerTally() {
   flwDiscards.forEach(d => (d || []).forEach(g => { if (g >= 0 && g <= 9) t[g]++; }));
   return t;
 }
-function flwOpenGemManifest() {
-  const list = document.getElementById('flw-gems-list');
-  if (list && !list.children.length) {
-    const effects = {
-      9: 'No effect — but you’re out if ever forced to discard it.',
-      8: 'Must be played if held with the 7 or 5.',
-      7: 'The Trade — swap Showpieces with a rival.',
-      6: 'The Deep Vault — draw 2, keep the best of 3.',
-      5: 'The Recut — a player (or you) discards and redraws.',
-      4: 'Under Glass — untargetable until your next turn.',
-      3: 'The Private Appraisal — lower carat is Exposed.',
-      2: 'The Loupe — secretly view a rival’s Showpiece.',
-      1: 'The Scratch Test — name a gem to Expose a rival (six in the deck).',
-      0: 'Worthless at Vault Lock, but earns a bonus Diamond if you’re the sole survivor who played one.',
-    };
-    list.innerHTML = FLW_DECK.map(g => {
-      const col = g.colour || '#9ca3af';
-      const textCol = (g.id <= 1 || g.id === 3) ? '#3f3f46' : '#fff'; // dark swatch needs dark ink
-      return '<div class="bg-white rounded-2xl p-3 shadow-sm flex items-start gap-3">'
-        + '<div style="width:2.4rem;height:2.4rem;flex-shrink:0;border-radius:9999px;background:' + col + ';border:2px solid #C9A227;display:flex;align-items:center;justify-content:center;color:' + textCol + ';font-size:0.85rem;font-weight:800;">' + g.id + '</div>'
-        + '<div class="flex flex-col gap-0.5">'
-        + '<p class="text-sm font-bold text-stone-800">' + g.name + '</p>'
-        + '<p class="text-xs text-stone-500">' + (effects[g.id] || '') + '</p>'
-        + '</div></div>';
-    }).join('');
-  }
-  const ov = document.getElementById('flw-gems-overlay');
-  if (ov) { const inner = ov.querySelector('.overlay-data-inner'); if (inner) inner.scrollTop = 0; ov.style.display = 'flex'; }
+// The Gem Manifest used to be its own slide-up overlay opened by a [?] button beside
+// the Ledger. Knowing the gems IS learning the game, so it is now tab 2 of How to Play
+// — same content, one overlay closer, one less entry in the resetToLobby teardown.
+// Same fold PKO's chain reference got (10 Aug 2026). Both entry points route here.
+function flwOpenGemManifest() { flwOpenHowTo('gems'); }
+
+// What each carat DOES. Kept beside the renderer rather than in FLW_DECK because it is
+// presentation copy, not deck data — flwResolveEffect owns the real behaviour.
+const FLW_GEM_EFFECT = {
+  9: 'No effect — but you’re out if ever forced to discard it.',
+  8: 'Must be played if held with the 7 or 5.',
+  7: 'The Trade — swap Showpieces with a rival.',
+  6: 'The Deep Vault — draw 2, keep the best of 3.',
+  5: 'The Recut — a player (or you) discards and redraws.',
+  4: 'Under Glass — untargetable until your next turn.',
+  3: 'The Private Appraisal — lower carat is Exposed.',
+  2: 'The Loupe — secretly view a rival’s Showpiece.',
+  1: 'The Scratch Test — name a gem to Expose a rival (six in the deck).',
+  0: 'Worthless at Vault Lock, but earns a bonus Diamond if you’re the sole survivor who played one.',
+};
+
+// One row per gem: the real card, its name and carat, how many are in the Vault, and
+// what it does. Rows render through flwRenderCard — the old manifest drew its own
+// colour-swatch circles, which meant a skin could never reach it and the Vault's own
+// artwork was invisible outside a live Showing.
+function flwRenderGems() {
+  const box = document.getElementById('flw-gems-body');
+  if (!box) return;
+  box.innerHTML = '';
+
+  const intro = document.createElement('p');
+  intro.className = 'text-stone-400 text-xs';
+  intro.textContent = `Twenty-one gems in the Vault. Highest carat held at Vault Lock wins the Showing.`;
+  box.appendChild(intro);
+
+  FLW_DECK.forEach(g => {
+    const row = document.createElement('div');
+    row.className = 'flex items-center gap-3 rounded-2xl p-2.5 bg-white shadow-sm';
+    const url = (typeof assetFace === 'function') && assetFace('flw', g.id);
+    row.appendChild(artMakeZoomable(flwRenderCard(g.id), url, g.name));
+
+    const txt = document.createElement('div');
+    txt.className = 'flex flex-col gap-0.5 min-w-0';
+    const n = document.createElement('p');
+    n.className = 'font-bold text-stone-800 text-sm';
+    n.textContent = `${g.name} · ${g.id}`;
+    const q = document.createElement('p');
+    q.className = 'text-stone-400 text-[0.65rem] font-semibold uppercase tracking-wide';
+    q.textContent = g.qty === 1 ? 'One in the Vault' : `${g.qty} in the Vault`;
+    const e = document.createElement('p');
+    e.className = 'text-stone-500 text-xs';
+    e.textContent = FLW_GEM_EFFECT[g.id] || '';
+    txt.append(n, q, e);
+    row.appendChild(txt);
+    box.appendChild(row);
+  });
 }
+
+function flwSetHowToTab(tab) {
+  const rules = document.getElementById('flw-how-to-body');
+  const gems  = document.getElementById('flw-how-to-gems');
+  if (rules) rules.style.display = tab === 'gems' ? 'none' : 'flex';
+  if (gems)  gems.style.display  = tab === 'gems' ? 'flex' : 'none';
+  document.querySelectorAll('[data-flw-howto-tab]').forEach(b => {
+    b.classList.remove('pill-active-flw');       // .pill is the base — never removed
+    if (b.dataset.flwHowtoTab === tab) b.classList.add('pill-active-flw');
+  });
+  if (tab === 'gems') flwRenderGems();
+}
+
 function flwRenderLedger() {
   const el = document.getElementById('flw-ledger');
   if (!el) return;
@@ -1221,7 +1262,7 @@ function flwHandleEnvelope(env) {
   }
 }
 function flwOpenSettings()      { const el = document.getElementById('flw-settings-overlay'); if (el) { const inner = el.querySelector('.overlay-data-inner'); if (inner) inner.scrollTop = 0; el.style.display = 'flex'; } }
-function flwOpenHowTo()         { const el = document.getElementById('flw-how-to-overlay');   if (el) { const inner = el.querySelector('.overlay-data-inner'); if (inner) inner.scrollTop = 0; el.style.display = 'flex'; } }
+function flwOpenHowTo(tab)      { flwSetHowToTab(tab || 'rules'); const el = document.getElementById('flw-how-to-overlay');   if (el) { const inner = el.querySelector('.overlay-data-inner'); if (inner) inner.scrollTop = 0; el.style.display = 'flex'; } }
 function flwApplyExpansionOverrides() { /* no-op stub — no word pool (forward-compat consistency) */ }
 
 // ── Settings helpers ───────────────────────────────────────────────────────
@@ -1283,7 +1324,10 @@ document.addEventListener('DOMContentLoaded', () => {
   // In-game header [?] → How to Play; Gem Manifest button near Ledger
   on('btn-flw-how-to',      () => flwOpenHowTo());
   on('btn-flw-gem-manifest', () => { playPillClick(); flwOpenGemManifest(); });
-  on('btn-flw-gems-close',   () => { playDone(); const el = document.getElementById('flw-gems-overlay'); if (el) el.style.display = 'none'; });
+  on('btn-flw-howto-close-gems', () => { playDone(); const el = document.getElementById('flw-how-to-overlay'); if (el) el.style.display = 'none'; });
+  document.querySelectorAll('[data-flw-howto-tab]').forEach(b => {
+    b.addEventListener('click', () => { playPillClick(); flwSetHowToTab(b.dataset.flwHowtoTab); });
+  });
 
   // Settings — toggles + pill groups
   flwSyncToggle('btn-flw-ledger-toggle', flwLedgerOn);

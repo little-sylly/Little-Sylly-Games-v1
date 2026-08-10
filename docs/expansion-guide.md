@@ -159,6 +159,12 @@ All keys are plugin variable names. Plugins apply them directly without mapping.
 
 ## Add an asset (skin) pack — custom cards / dice / gems
 
+> **Making the artwork itself?** Read **`docs/art-authoring-guide.md`** instead — it is the
+> standalone, no-Claude-Code guide: exact pixel dimensions and aspect per game, the complete art
+> inventory for all seven render seams, the `tools/make-skin-pack.ps1` converter (which resizes,
+> compresses, writes `pack.json` and registers the pack for you), per-game gotchas, and
+> troubleshooting. **The section below is the format reference**; that doc is the process.
+
 Asset packs use the **same** folder/manifest/registry format as word packs — the manifest's
 interesting field is `assets` instead of `words`. A skin is **device-local cosmetic**: it only
 changes how *your* device draws the game's ids. There is **zero multiplayer sync** — two players
@@ -190,7 +196,7 @@ below) — images are drawn `background-size: cover`, so the wrong aspect just c
 }
 ```
 - `games` — the single game this skin targets (one entry; skins are per-game).
-- `assets.kind` — the render-seam family: one of `frt` · `shp` · `flw` · `cards` · `dyb`.
+- `assets.kind` — the render-seam family: one of `frt` · `shp` · `flw` · `pko` · `cjar` · `cards` · `dyb`.
 - `assets.faces` — maps each **id** (see cheat-sheet) → image filename in `basePath`.
 - `assets.back` — one face-down image (optional; used for hands/cup/face-down cards).
 
@@ -210,11 +216,16 @@ all its weight.
 
 ### `faces` id cheat-sheet (per game)
 
+> Exact pixel dimensions, per-game gotchas and a `-List` command that prints any of these on
+> demand: **`docs/art-authoring-guide.md`** § 5.
+
 | Game | `kind` | Id key → meaning | Card aspect |
 |------|--------|------------------|-------------|
 | Fruit Salad | `frt` | `0` Banana · `1` Lemon · `2` Peach · `3` Grape · `4` Watermelon · `5` Pear · `6` Strawberry · `7` Apple | ~4.5 : 6 |
 | Counting Sheep | `shp` | `0` +1 · `1` +2 · `2` +5 · `3` +10 · `4` Doze · `5` Toss&Turn · `6` −10 · `7` Lullaby · `8` Skip-a-Few · `9` Black Sheep · `10` Wide Awake · `11` Heavy Eyelids · `12` Big Bad Wolf · `14` −1 · `15` −2 · `16` −5 (**id 13 Fogged Dream is NOT skinnable** — it stays hidden) | ~4 : 5.5 |
 | Flawless | `flw` | gem id = carat value: `0` Obsidian · `1` Quartz · `2` Amethyst · `3` Opal · `4` Jade · `5` Topaz · `6` Emerald · `7` Sapphire · `8` Ruby · `9` Diamond | ~4.5 : 6.5 |
+| Pecking Order | `pko` | `mouse` · `mongoose` · `leopard` · `eagle` · `bear` · `elephant` · `bee` · `fish` · `octopus` · `seal` · `polar_bear` · `orca` · `stingray` · `human` (the Poacher) · `mimic` (Invasive Mimicry). Plus one **extra**, `chain` — the food-chain diagram, wide not card-shaped | ~4.25 : 5.75 |
+| Cookie Jar | `cjar` | `cookie-handful` · `cookie-batch` · `cookie-mountain` (three TIERS covering all 15 values — the number is a text overlay, don't paint one) · `family-mum` · `family-dad` · `family-big` · `family-grandma` · `family-pet` · `treat-shortbread` · `treat-redvelvet` · `treat-macadamia` · `treat-macarons` · `treat-brownies` | ~15 : 20.6 |
 | PASS | `cards` | `rank` + suit-letter: rank ∈ `3 4 5 6 7 8 9 10 J Q K A 2`; suit ∈ `H D C S`. e.g. `AH`, `10S`, `KD`. Joker = `Joker` | ~3.5 : 5 |
 | The Bluff | `dyb` | die face value `1`–`6`, plus an optional `specials` block for the five Tempest die types — see below | square |
 
@@ -349,9 +360,16 @@ is incomplete. You never start a match.
 **This only works if the game has a gallery reachable outside a running match.** CJAR is the
 reference: before its How-to gallery existed (DD-09) its art rendered *only inside a live Raid*, so
 on an MDLM-only game the check needed four phones and a room to answer a service-worker question.
-See `ui-style.md` § How-to Overlay Standard → optional tab bar for the gallery pattern. **FLW, SHP,
-FRT and PKO have core art but no gallery** and still inherit that problem — logged in
-`docs/deferred-work.md`.
+See `ui-style.md` § How-to Overlay Standard → optional tab bar for the gallery pattern.
+
+**As of 10 Aug 2026 every game with core art has one** — CJAR, PKO, FRT, SHP and FLW — so this
+check is a single-device job everywhere it applies. DYB has a gallery too, ready for the day it gets
+art. **PASS is the only render seam still without one** (54 faces); it also has no core art, so
+nothing is currently unverifiable.
+
+**A tile that shows art but won't enlarge on tap is the same failure signal.** The gallery only
+offers the zoom affordance for art it actually resolved (`ui-style.md` § Pattern 2a), so a dead tap
+means the image is missing even if something is drawn in its place.
 
 Firebase is lazy-loaded and irrelevant here: the app stays fully functional offline right up to
 tapping Host/Join, which shows `mp-network-error-overlay`. **That overlay appearing offline is

@@ -444,6 +444,57 @@ function openSoundOverlay() {
   document.getElementById('sound-overlay').style.display = 'flex';
 }
 
+// ── Art viewer ────────────────────────────────────────────────────────────
+// Shows one image as large as the viewport allows. Opened by every game's
+// How-to gallery so a player can actually LOOK at the artwork — a card tile is
+// 3–4.5 rem, which is a token, not a picture.
+//
+// It lives in the engine rather than in a plugin for the same reason the sound
+// overlay does: six galleries would otherwise ship six copies of it, and the
+// seventh game to want it would make its own seventh variant.
+//
+// `src` is a resolved URL from assetFace/assetBack/assetExtra (js/lib/art.js).
+// A game still on its emoji fallback resolves to null — the viewer NO-OPS rather
+// than opening an empty frame, which is why callers may pass the result of
+// assetFace() straight in without a guard of their own.
+function openArtViewer(src, caption) {
+  if (!src) return;                       // nothing behind this tile to enlarge
+  const ov  = document.getElementById('art-viewer-overlay');
+  const img = document.getElementById('art-viewer-img');
+  const cap = document.getElementById('art-viewer-caption');
+  if (!ov || !img) return;
+  img.src = src;
+  img.alt = caption ? `${caption} — full artwork` : 'Full artwork';
+  if (cap) cap.textContent = caption || '';
+  // Re-trigger the enter animation on every open (same element each time), per
+  // the Animation Re-trigger Pattern in logic-engine.md — without the reflow the
+  // second open would simply not animate.
+  img.classList.remove('art-viewer-pop');
+  void img.offsetWidth;
+  img.classList.add('art-viewer-pop');
+  ov.style.display = 'flex';
+}
+
+function closeArtViewer() {
+  const ov = document.getElementById('art-viewer-overlay');
+  if (ov) ov.style.display = 'none';
+}
+
+// Makes one already-rendered gallery tile tappable-to-enlarge. Returns the element
+// so it can be used inline: row.appendChild(artMakeZoomable(card, url, name)).
+//
+// The `src` guard is the whole point of having this helper. A tile whose game is
+// still on its emoji/CSS fallback has NO picture behind it, so it gets neither the
+// zoom cursor nor a handler — the affordance and the artwork appear together or not
+// at all, which also makes the offline install check honest: if the art did not
+// precache, the gallery visibly stops offering to enlarge it.
+function artMakeZoomable(el, src, caption) {
+  if (!el || !src) return el;
+  el.classList.add('art-zoomable');
+  el.addEventListener('click', () => { playPillClick(); openArtViewer(src, caption); });
+  return el;
+}
+
 function updateSliderTheme(gameId) {
   const map = {
     'li5': 'li5-range', 'great-minds': 'sylly-range',
@@ -467,6 +518,7 @@ function getMuteToggleOnClass(gameId) {
     'gth': 'game-toggle-on-sage', 'bld': 'game-toggle-on-bld',
     'dyb': 'game-toggle-on-dyb', 'pass': 'game-toggle-on-zinc',
     'nt': 'game-toggle-on-emerald', 'shp': 'game-toggle-on-indigo',
+    'frt': 'game-toggle-on-frt',
     'flw': 'game-toggle-on-flw', 'pko': 'game-toggle-on-pko',
     'cjar': 'game-toggle-on-cjar'
   };
@@ -627,14 +679,14 @@ function resetToLobby() {
   });
   if (typeof shpResetState === 'function') shpResetState();
   // Flawless teardown
-  ['flw-settings-overlay','flw-how-to-overlay','flw-gems-overlay','flw-target-overlay',
+  ['flw-settings-overlay','flw-how-to-overlay','flw-target-overlay',
    'flw-scratch-overlay','flw-peek-overlay','flw-appraisal-overlay','flw-emerald-overlay',
    'flw-quit-overlay','flw-new-showing-overlay'].forEach(id => {
     const el = document.getElementById(id); if (el) el.style.display = 'none';
   });
   if (typeof flwResetState === 'function') flwResetState();
   // Pecking Order teardown
-  ['pko-settings-overlay','pko-challenge-overlay','pko-how-to-overlay','pko-chain-overlay',
+  ['pko-settings-overlay','pko-challenge-overlay','pko-how-to-overlay',
    'pko-trail-overlay','pko-quit-overlay','pko-stampede-overlay','pko-new-match-overlay',
    'pko-carrion-overlay','pko-events-overlay'].forEach(id => {
     const el = document.getElementById(id); if (el) el.style.display = 'none';
@@ -684,6 +736,7 @@ function resetToLobby() {
     if (el) el.style.display = 'none';
   });
   document.getElementById('sound-overlay').style.display = 'none';
+  closeArtViewer();
   updateSliderTheme(null);
   if (isMuted) document.getElementById('global-mute-toggle').className = getMuteToggleOnClass(null);
   showScreen('screen-lobby');
@@ -724,6 +777,17 @@ document.getElementById('btn-sound-overlay-done').addEventListener('click', () =
 document.querySelectorAll('.btn-open-sound').forEach(b => {
   b.addEventListener('click', () => { playPillClick(); openSoundOverlay(); });
 });
+
+// Art viewer — closes on the ✕, and on the backdrop itself. The backdrop check is
+// `e.target === backdrop` so a tap that lands on the image or the caption does not
+// dismiss: a player pinching/panning a big picture must not lose it mid-gesture.
+(() => {
+  const ov = document.getElementById('art-viewer-overlay');
+  if (!ov) return;
+  ov.addEventListener('click', e => { if (e.target === ov) { playDone(); closeArtViewer(); } });
+  const x = document.getElementById('btn-art-viewer-close');
+  if (x) x.addEventListener('click', () => { playDone(); closeArtViewer(); });
+})();
 
 // ── Shared word normalisation — used by GM near-sync + future games ───────────
 function normaliseWord(w) {

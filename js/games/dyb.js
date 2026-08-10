@@ -81,8 +81,17 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   document.getElementById('btn-dyb-menu-how-to').addEventListener('click', () => {
     playDone();
-    document.querySelector('#dyb-how-to-overlay .overlay-data-inner').scrollTop = 0;
-    document.getElementById('dyb-how-to-overlay').style.display = 'flex';
+    dybOpenHowTo();
+  });
+  // Tab bar — every opener routes through dybOpenHowTo so the pill state can never
+  // disagree with which body is showing.
+  document.querySelectorAll('[data-dyb-howto-tab]').forEach(b => {
+    b.addEventListener('click', () => { playPillClick(); dybSetHowToTab(b.dataset.dybHowtoTab); });
+  });
+  const dybCloseDice = document.getElementById('btn-dyb-howto-close-dice');
+  if (dybCloseDice) dybCloseDice.addEventListener('click', () => {
+    playDone();
+    document.getElementById('dyb-how-to-overlay').style.display = 'none';
   });
   document.getElementById('btn-dyb-menu-settings').addEventListener('click', () => {
     playDone();
@@ -130,15 +139,13 @@ document.addEventListener('DOMContentLoaded', () => {
   // ── How-to button in gameplay header (table screen)
   document.getElementById('btn-dyb-how-to').addEventListener('click', () => {
     playDone();
-    document.querySelector('#dyb-how-to-overlay .overlay-data-inner').scrollTop = 0;
-    document.getElementById('dyb-how-to-overlay').style.display = 'flex';
+    dybOpenHowTo();
   });
 
   // ── How-to button in shake screen header
   document.getElementById('btn-dyb-shake-how-to').addEventListener('click', () => {
     playDone();
-    document.querySelector('#dyb-how-to-overlay .overlay-data-inner').scrollTop = 0;
-    document.getElementById('dyb-how-to-overlay').style.display = 'flex';
+    dybOpenHowTo();
   });
 
   // ── Tempest guide [?] — shake screen
@@ -1534,6 +1541,81 @@ function dybDieBackHTML() {
   const back = (typeof assetBack === 'function') && assetBack('dyb');
   if (back) return `<div class="dyb-die dyb-die-asset select-none" style="background-image:url('${back}')"></div>`;
   return `<div class="dyb-die border-slate-500 bg-slate-800 select-none"></div>`;
+}
+
+// ── How to Play: the dice gallery ─────────────────────────────────────────
+// Tab 2 of dyb-how-to-overlay. Every tile goes through dybDieHTML/dybDieBackHTML —
+// the same seam the table uses — so a skin pack shows up here without a code change,
+// and so this doubles as the offline install check once DYB has core art.
+//
+// Scope note: the five Tempest die TYPES are skinnable too (assets.specials), but they
+// are not shown here. Their identity is the engine's frame plus live per-die state
+// (an unassigned Slick shows the auto-rolled face you are about to choose), which a
+// static reference tile would misrepresent. They are previewed in play under Sylly Mode.
+function dybOpenHowTo(tab) {
+  dybSetHowToTab(tab || 'rules');
+  const inner = document.querySelector('#dyb-how-to-overlay .overlay-data-inner');
+  if (inner) inner.scrollTop = 0;
+  document.getElementById('dyb-how-to-overlay').style.display = 'flex';
+}
+
+function dybSetHowToTab(tab) {
+  const rules = document.getElementById('dyb-how-to-body');
+  const dice  = document.getElementById('dyb-how-to-dice');
+  if (rules) rules.style.display = tab === 'dice' ? 'none' : 'flex';
+  if (dice)  dice.style.display  = tab === 'dice' ? 'flex' : 'none';
+  document.querySelectorAll('[data-dyb-howto-tab]').forEach(b => {
+    b.classList.remove('pill-active-dyb');       // .pill is the base — never removed
+    if (b.dataset.dybHowtoTab === tab) b.classList.add('pill-active-dyb');
+  });
+  if (tab === 'dice') dybRenderDiceGallery();
+}
+
+function dybRenderDiceGallery() {
+  const box = document.getElementById('dyb-dice-body');
+  if (!box) return;
+  box.innerHTML = '';
+
+  const section = (label, blurb) => {
+    const wrap = document.createElement('div');
+    wrap.className = 'flex flex-col gap-2';
+    const h = document.createElement('p');
+    h.className = 'text-xs font-semibold uppercase tracking-widest dyb-label';
+    h.textContent = label;
+    const b = document.createElement('p');
+    b.className = 'text-stone-500 text-sm';
+    b.textContent = blurb;
+    const row = document.createElement('div');
+    row.className = 'grid grid-cols-3 gap-3 justify-items-center pt-1';
+    wrap.append(h, b, row);
+    box.appendChild(wrap);
+    return row;
+  };
+  // dybDieHTML returns markup, not a node — unwrap it so artMakeZoomable has an element.
+  const tile = (row, html, url, caption) => {
+    const holder = document.createElement('div');
+    holder.innerHTML = html;
+    const die = holder.firstElementChild;
+    if (!die) return;
+    const cell = document.createElement('div');
+    cell.className = 'flex flex-col items-center gap-1';
+    cell.appendChild(artMakeZoomable(die, url, caption));
+    const c = document.createElement('p');
+    c.className = 'text-[0.65rem] text-stone-500 text-center leading-tight';
+    c.textContent = caption;
+    cell.appendChild(c);
+    row.appendChild(cell);
+  };
+
+  const faces = section('The Faces',
+    'Five dice each, rolled behind your hand. These are the six a standard die can show.');
+  for (let f = 1; f <= 6; f++) {
+    const url = (typeof assetFace === 'function') && assetFace('dyb', f);
+    tile(faces, dybDieHTML(f, 'standard', -1), url, String(f));
+  }
+
+  const back = section('In the Cup', 'What everyone else sees before The Overlook.');
+  tile(back, dybDieBackHTML(), (typeof assetBack === 'function') && assetBack('dyb'), 'Face down');
 }
 
 function dybOpenSlickPicker(dieIdx) {

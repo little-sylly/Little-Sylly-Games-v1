@@ -149,6 +149,34 @@ Use for: confirmations, short prompts, ≤3 interactive elements. No slide-up an
 ```
 Not `bg-white`, not `shadow-xl`, not `p-8`, not `rounded-2xl`, not `border-2`.
 
+### Pattern 2a — Art Viewer (engine-owned, global)
+
+**Not a third pattern.** It is Pattern 2's geometry (`overlay-modal-backdrop`, centred, one
+interactive element) with an image where the card would be. Documented separately only because it
+is the one overlay that is **deliberately unbranded** — it belongs to `engine.js` and is opened
+from six games' galleries, so any one game's colour would be wrong five times out of six.
+
+**Never build a per-game copy of this.** `#art-viewer-overlay` is the only one.
+
+```js
+openArtViewer(src, caption)   // no-ops when src is falsy — see below
+closeArtViewer()
+artMakeZoomable(el, src, caption)   // returns el, for use inline
+```
+
+- **`src` is a resolved URL from `assetFace`/`assetBack`/`assetExtra`** (`js/lib/art.js`). A game
+  still on its emoji/CSS fallback resolves to `null`, and both functions no-op — so a tile with no
+  artwork behind it gets **neither the zoom cursor nor a handler**. The affordance and the artwork
+  appear together or not at all. That is also what keeps the offline install check honest: if the
+  art didn't precache, the gallery visibly stops offering to enlarge it.
+- **Resolve the URL at the call site, not inside the render seam.** The seam returns an element;
+  the gallery needs the URL separately to decide whether the tile is zoomable at all.
+- Closes on the ✕ and on the **backdrop only** (`e.target === backdrop`) — a tap landing on the
+  image or caption must not dismiss, or a pinch/pan loses the picture mid-gesture.
+- Backdrop is `bg-black/80`, darker than the standard `bg-black/40`: the point is to take the lit
+  surface away from the UI and give it to the artwork.
+- Teardown is already in `resetToLobby()` via `closeArtViewer()` — a new game needs nothing.
+
 ### Z-Index Stack
 | z-index | Used for |
 |---------|----------|
@@ -156,6 +184,7 @@ Not `bg-white`, not `shadow-xl`, not `p-8`, not `rounded-2xl`, not `border-2`.
 | z-[90] | How-to, history, review overlays |
 | z-[95] | gm-boost, gm-near-sync, gm-override, gm-new-frequency; ss-intel overlays |
 | z-[100] | gm-neural-library, deck panels |
+| z-[105] | `#art-viewer-overlay` — global; above the how-to sheets it opens from |
 | z-[110] | `#sound-overlay` — global, always on top |
 
 ---
@@ -356,37 +385,61 @@ Every other content/results screen in the suite has already been migrated to the
 - **Close button:** game brand primary colour (`bg-[brand] hover:bg-[brand-dark]`).
 - **Inner div:** must include `flex flex-col` — title block is `flex-shrink-0`, body is `overflow-y-auto`.
 
-### Optional tab bar (added Aug 2026 — CJAR is the reference)
+### Optional tab bar — N tabs (added Aug 2026, CJAR; generalised to 3 Aug 2026, PKO)
 
 A game with **reference content that is itself part of learning the game** — every card in the
 deck, a chain diagram, a role roster — may add a tab bar rather than pushing that content into a
-second overlay. Sits directly under the sticky title block, sticky with it, never scrolling:
+second overlay. There is no cap at two: PKO runs three (Rules | Diagram | Animals). Sits directly
+under the sticky title block, sticky with it, never scrolling:
 
 ```html
 <div class="px-5 pt-3 pb-3 border-b border-stone-200 flex-shrink-0 flex gap-2">
   <button class="pill pill-active-[colour]" data-[abbr]-howto-tab="rules">The Rules</button>
   <button class="pill" data-[abbr]-howto-tab="cards">The Cards</button>
+  <!-- a third (or Nth) tab is the same button + body pair, no structural change -->
 </div>
 ```
 
+**Rollout (10 Aug 2026):** six games now carry a tab bar — **CJAR** (`The Rules | The Cards`),
+**PKO** (`The Rules | Diagram | Animals`), **FRT** (`The Rules | The Fruit`), **SHP**
+(`The Rules | The Cards`), **FLW** (`The Rules | The Gems`) and **DYB** (`The Rules | The Dice`).
+That is every game with a card/dice render seam except **PASS**, whose 54 faces make a tile grid a
+poster rather than a reference — deliberately still open, see `docs/deferred-work.md`.
+
+**A gallery tab must render through the game's own render seam** (`[abbr]RenderCard`, `dybDieHTML`),
+never hand-built markup. Two things follow from that and both are load-bearing: the gallery can
+never drift from the live deck, and it is **skinnable**, which is what makes it double as the
+offline install check (`docs/art-authoring-guide.md` § 7). FLW's Gem Manifest was the counter-example
+— it drew its own colour-swatch circles, so no skin could reach it and the Vault's real artwork was
+invisible outside a live Showing; folding it into How to Play converted it to `flwRenderCard`.
+
+**Every gallery tile is tappable-to-enlarge** via `artMakeZoomable` — see § Pattern 2a above.
+
 **Rules:**
 - The **first tab is always the Step cards** — the canonical How-to structure above is unchanged
-  and still mandatory. A tab bar adds a sibling body; it never reorders or removes the Steps.
+  and still mandatory. A tab bar adds sibling bodies; it never reorders or removes the Steps.
 - Each tab body is its **own** `overflow-y-auto` region with its **own** close button, so each
   scrolls independently and "Got it" is always reachable from the bottom of what you are reading.
 - Bodies are **siblings toggled by display**, not one body repainted — flicking across and back
-  must not lose the other tab's scroll position.
+  must not lose another tab's scroll position.
 - Tab buttons use the standard `.pill` / `pill-active-[colour]` classes and the same toggle rule
   (never remove `.pill`).
-- Content that is **not** teaching material still belongs in its own overlay. This is not a
-  licence to fold Settings, a match log, or a live game reference into How to Play.
+- **Reference content that is part of learning the game belongs in the tab bar — including a
+  mid-play reference a player returns to later.** A tab is not disqualified just because it is
+  *also* useful mid-round (PKO's Diagram/Animals tabs are opened both from How to Play and from
+  the table's `[?] The Chain` and a tap-held card — same overlay, opened pre-selected on the
+  relevant tab via `pkoOpenHowTo(tab, highlightId)`). What stays excluded is content that is
+  **not** teaching material at all — Settings, a match/score log, or any *live* running state a
+  static tab can't represent. This is not a licence to fold those into How to Play.
 
 **Why:** cjar's card gallery began as its own overlay opened by a button at the bottom of How to
 Play — one overlay further away than the thing it explains, plus a z-index stack and an extra
-entry in the `resetToLobby()` teardown list. Knowing what cards exist *is* learning the game.
-PKO's `pko-chain-overlay` (Diagram | Animals) is the existing two-tab precedent for the tab
-mechanics themselves; it stays a separate overlay because it is a mid-play reference, not a
-teaching aid.
+entry in the `resetToLobby()` teardown list. Knowing what cards exist *is* learning the game. PKO
+originally kept its Diagram/Animals pair (`pko-chain-overlay`) separate on the reasoning that a
+mid-play reference isn't a teaching aid — that distinction didn't survive contact with a second
+example: the two are the same thing seen at different times, and duplicating the content across
+two overlays (rather than one overlay with more entry points) was the actual cost. Folded into
+`pko-how-to-overlay` as tabs 2–3 Aug 2026; see `docs/decision-log.md`.
 
 ### Per-game reference
 

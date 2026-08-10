@@ -339,6 +339,37 @@ body.flash-red   { background-color: #fecaca; }
   border-radius: 1.5rem; /* rounded-3xl */
 }
 
+/* ── Art viewer (engine-owned, global) ────────────────────────────────────
+ * Pattern 2 geometry (.overlay-modal-backdrop centres it, ≤3 interactive
+ * elements) with an image body instead of a card — NOT a third overlay
+ * pattern. Deliberately unbranded: it is opened from 6 games' galleries and
+ * belongs to engine.js, so a game colour here would be wrong five times out
+ * of six. The darker backdrop is the point — it takes the lit surface away
+ * from the UI and gives it to the artwork.
+ * Opened by openArtViewer(src, caption); see js/engine.js.  */
+.art-viewer-img {
+  display: block;
+  max-width: 100%;
+  max-height: 72vh;
+  width: auto;
+  height: auto;
+  border-radius: 1rem;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
+  /* Art is authored at the card's aspect; never distort it to fill the box. */
+  object-fit: contain;
+}
+/* Enter beat — transform/opacity only, 200 ms, ease-out (entering the screen).
+   The global prefers-reduced-motion block collapses this to ~0 ms. */
+.art-viewer-pop { animation: artViewerPop 0.2s ease-out forwards; }
+@keyframes artViewerPop {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
+}
+/* Marks a gallery tile whose art actually resolved, so it reads as tappable.
+   A tile still on its emoji fallback never gets this class and never gets a
+   handler — there is no full artwork behind it to open. */
+.art-zoomable { cursor: zoom-in; }
+
 /* ── No-No List container — flash card look ──────────────────────────────── */
 #taboo-card {
   width: 90%;

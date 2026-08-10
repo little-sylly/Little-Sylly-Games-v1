@@ -156,6 +156,67 @@ Playtest round 4 found the event interstitial is the *only* place an event is ev
 **D38 — The three-device pass that TG-07 said no harness could give closed clean. [Playtest round 5, 1 Aug 2026]**
 A 3-player session on v150, non-host moving first (per TG-07's own cheap-enforcement note), played through several Encounters — Stake, Challenge, Retreat, event interstitials at the raised 5 s dwell — with no desync, no frozen fan, no dead button. This is the complement to BUG-02, not a re-test of it: BUG-02 was found by exactly this shape of session (client plays, then can't replay), and the fix (`pkoSyncHand`/`PKO_HAND_SYNC`, DD-generalised as ML-06) is what this session exercised without incident. Carrion (`PKO_CARRION_OPEN`, gap C5) wasn't independently forced open in this session — no Challenge in the played Encounters happened to beat a Mark on a client's turn — so that path stays verified by code audit (every Hoard-mutation site confirmed paired with a `pkoSyncHand`/`pkoSyncAllHands` call; `PKO_CARRION_OPEN` confirmed sent and handled unconditionally) rather than by a live client-side overlay open. *Lesson: "the mirror class is fixed" and "every path through the mirror class was exercised" are different claims — log which one a session actually supports.*
 
+**D39 — Stage-polish playtest round: Active Marks/Watering Hole layout, and the Chain folded into How to Play. [10 Aug 2026, Tier 0/1]**
+Owner-flagged items from a live playtest, batched as one pass (Task Triage Gate). (1) First cut centred `#pko-marks-row` in the leftover space beside the fixed-width Watering Hole button via a hidden spacer (confirmed by headless-browser measurement) — but a real-device screenshot showed the deeper issue: "Active Marks" read as a header for the whole card while the marks themselves sat off to the right beside an unlabelled pile. Corrected to two side-by-side columns, each with its own label directly above its own content — "Watering Hole N" above the pile, "Active Marks" above the mark cards — with the same hidden-spacer trick now balancing the two *columns* (including a matching `min-h-[5.75rem]` on the pile so it vertically centres level with the marks row rather than sitting flush at the top). *Lesson: a headless measurement can confirm a number is centred without catching that the wrong thing was being centred — a real screenshot from the person actually using it found what the metric couldn't.* (2) `pko-chain-overlay` (Diagram | Animals, two tabs) is folded into `pko-how-to-overlay` as tabs 2–3 — one overlay, three tabs, one fewer `resetToLobby()` teardown entry — following CJAR's tab-bar pattern exactly. `pkoOpenChain(highlightId)` is now a thin wrapper over `pkoOpenHowTo(tab, highlightId)`; the tap-hold-a-card entry path still lands pre-selected on Animals with the row scrolled into view. The `[?] The Chain` entry point moved off the Active Marks card and now sits beside "Your Hoard" instead — both more breathing room for the marks card and further from the header's own unrelated `[?]`. This is also the second real-world use of the tab-bar pattern (after CJAR), and it broke the "mid-play reference keeps its own overlay" exception CJAR's version of the rule carried — see `decision-log.md` 2026-08-10 and `ui-style.md` § Optional tab bar.
+
+**D40 — Law of the Wild: a second way to win a Match, without a second scoring system. [10 Aug 2026, Tier 1]**
+PKO shipped with one win condition — a race to `pkoClashTarget` Clashes. **Stragglers** adds the
+opposite shape: a fixed distance of exactly that many Clashes, where every card still in your Hoard
+when a Clash ends counts *against* you and the lowest total takes the Match. The design questions
+that mattered were both answered by the owner up front — Straggler totals **accumulate across all
+Clashes** (only counting the final one would make the earlier Clashes decorative), and the two pill
+groups live in **one settings card**, "Law of the Wild", because `pkoClashTarget` means "Clashes to
+win" under Dominance and "Clashes to play" under Stragglers, so the number is meaningless read apart
+from the mode. That coupling is also what makes the `#pko-val-law` value line *required* rather than
+optional here (`ui-style.md` § Dynamic value line).
+
+Three implementation calls worth keeping:
+
+1. **One score array, not two.** `pkoScores` and `pkoClashHistory` serve both modes — a Clash always
+   pushes one history row and adds it into the running column total; only what the row *holds*
+   differs (a `1` for the emptied Hoard vs every other player's remaining count). A parallel
+   `pkoStragglers[]` was the obvious alternative and was rejected: it would have needed its own
+   reset, its own SYNC payload field and its own client applier — three more places for the two
+   halves to fall out of step, which is exactly ML-03's failure shape.
+2. **The direction of "winning" is a single function.** `pkoBestScore()` is what `pkoNextOpener`,
+   `pkoBuildStandings` and the Apex/Bottom Feeder titles all ask. This matters more than the usual
+   single-source argument because *getting it backwards does not throw* — the game plays on happily
+   and crowns the player who is losing. The harness now asserts the inversion directly rather than
+   only asserting each mode in isolation.
+3. **Straggler counts come from `pkoHoards`, never `pkoHoardCounts`.** The counts array is the public
+   mirror; the Hoards are the host's authority. A mirror lagging one play behind would have banked a
+   wrong *score* rather than displayed a wrong *number*, and nothing downstream could have told the
+   difference. `verify-pko-loop.js` deliberately drifts the mirror to `[99,99,99,99]` and asserts the
+   score is unaffected.
+
+**Missing-handler audit (logic-engine.md § Interceptor Pattern): no new ACTION handlers needed.** No
+new interactive submission point exists — scoring is resolved entirely host-side inside
+`pkoResolveClash`, which every existing ACTION path (`PKO_STAKE`/`PKO_CHALLENGE`/`PKO_STAMPEDE`)
+already funnels into, and the Clash-result "Next Clash" button was already host-gated. What the mode
+*did* need was the reverse direction: `pkoScoring` + `pkoClashTarget` now ride `PKO_CLASH_BEGIN`,
+`PKO_CLASH_END` and `PKO_MATCH_END` (applied by `pkoApplyScoringMode`) on top of `SETTINGS_SYNC`.
+That is not belt-and-braces — a client can open the settings overlay on the game menu and move a
+pill, and before this the only symptom would have been its Hierarchy silently ranked upside down.
+The per-packet re-assert makes that self-heal before a score is ever rendered.
+
+*Lesson: a setting that changes what an existing number MEANS is a different animal from one that
+adds a number. The tell is that no new state was needed — `pkoClashTarget` did both jobs — and that
+is exactly why it needed a live value line and why every scoring packet had to start carrying the
+mode.*
+
+**Open for playtest (flagged, deliberately not carved out):** Force of Nature hands players cards
+they did not choose — The Deluge, The Culling, Migration and The Great Reversal all mutate Hoards
+with no play made. Under Dominance that is a tempo swing; under Stragglers it is a direct score
+penalty for something the player had no say in. No exception was coded for it, because guessing at
+the fix before seeing a table play it is how a mechanic gets balanced against an imagined problem.
+Watch a Sylly + Stragglers session before changing anything.
+
+**Also this round (Documentation Integrity carry-over):** D39's changes had reached the impl notes
+and the decision log but not `code-map.md` or `game-identities.md` — both still described
+`pko-chain-overlay` and `pkoSetChainTab` as live. Corrected in the same pass. *Lesson: the protocol's
+doc list is ordered for a reason; impl-notes-first leaves the two reference docs as the ones that
+silently rot.*
+
 ---
 
 ## Bug Index

@@ -168,6 +168,31 @@ The original Shake screen had two sequential buttons ("Shake 'Em Up" → hidden 
 
 ---
 
+## How-to gallery tab (2026-08-10, SW v167)
+
+**What happened:** `dyb-how-to-overlay` gained a second tab, `The Rules | The Dice` — faces
+`1`–`6` plus the cup back, rendered through `dybDieHTML`/`dybDieBackHTML`. New
+`dybOpenHowTo(tab)` / `dybSetHowToTab(tab)` / `dybRenderDiceGallery()`; all three existing
+how-to openers (menu, table header, shake header) were collapsed onto `dybOpenHowTo()` so the pill
+state can never disagree with which body is showing.
+
+**DYB is the one gallery with no art behind it yet** — it still renders the default pip grid, so no
+tile is zoomable. That is the correct state, not a gap: `artMakeZoomable` only wires a tile whose
+art resolved. The tab exists now so that the day DYB gets a skin or core art, the reference and the
+offline install check are already in place.
+
+**The five Tempest types are deliberately excluded.** They are skinnable (`assets.specials`) and
+documented in `docs/art-authoring-guide.md` § The Bluff, but a static reference tile would
+misrepresent them: their identity is the engine's coloured frame **plus live per-die state** — an
+unassigned Slick shows the auto-rolled face the player is about to choose, and a concealed Phantom
+must never render its real value. They are previewed in play under Sylly Mode instead.
+
+**Implementation note:** `dybDieHTML` returns an HTML **string**, not a node, so the gallery
+unwraps it through a holder div before handing the element to `artMakeZoomable`. Every other
+game's seam returns an element.
+
+---
+
 ## Template Gaps
 
 **Sound button listeners — engine.js global covers all games (June 2026)**

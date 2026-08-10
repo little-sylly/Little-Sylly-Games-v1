@@ -11,6 +11,7 @@
 **On-demand — READ with the Read tool only when the trigger applies (NOT auto-loaded; do not read these during routine bug/polish work):**
 > ⚠️ These live in `docs/rules/`, NOT `.claude/rules/`, **on purpose**. The harness auto-loads every file in `.claude/rules/` into baseline context every turn — keeping the big on-demand docs there cost ~50k tokens/turn and caused mid-task auto-compact spirals. Do NOT move them back into `.claude/rules/`. Only the three always-loaded files above belong there.
 - `docs/rules/game-identities.md` — per-game themes, terminology, settings tables, special mechanics. **135 KB / 16 game sections — never read whole.** **Read when:** doing non-trivial work on a specific game — Grep for that game's `## Game N:` heading and offset-Read only that one section. The quick index below covers most "which colour / which file / which abbr" lookups without opening it.
+- `docs/art-authoring-guide.md` — the standalone, no-Claude-Code guide to **making artwork**: skin pack vs core art, exact pixel dimensions and aspect per game, the complete art inventory for all seven render seams, `tools/make-skin-pack.ps1`, per-game gotchas, the offline install check, troubleshooting. **Read when:** the task is authoring or converting art, or answering "what art does game X need / what size". Written for the owner to use alone — point them at it rather than re-deriving dimensions from CSS.
 - `docs/rules/word-expansion.md` — the `data/words.json` content rules: difficulty tiers, curated Great Minds categories, the animals Broad Shield protocol, and the `nono_list` Dual-Use Contract. **Read when:** adding or editing words in `data/words.json` or a pack manifest's inline `words`. *(Moved out of `CLAUDE.md`, 9 Aug 2026 — content-authoring only.)*
 - `docs/rules/new-game-process.md` — three-stage protocol for adding a new game (brief → tech spec → implementation). **Read when:** starting a new game.
 - `docs/rules/new-game-brief-template.md` — Phase 1 design brief template (filled by project owner + Gemini). **Read when:** new-game Stage 1.
@@ -282,17 +283,32 @@ Do not write the phase snapshot until Protocols A is clean. Do not write a line 
 pointer, not a narrative — that is what keeps this file cheap. When a round closes, compress its
 entry to one line and let the impl-notes carry the detail (§ Documentation Integrity Protocol).
 
-**SW v165 — Cookie Jar stage-polish round, COMPLETE (8 Aug 2026).** Presentational only, no rules
-or packet change, confirmed by an unchanged `simulate-cjar-dd.js` noise band. Seven design
-decisions **DD-25…DD-31**: reveal-choreography timing (`CJAR_FLIP_ANIM_MS` 2100 → **3200 ms**, with
-a ~1000 ms settle tail moved OFF the blocking clock to overlap the decision window), stage-column
-heading placement, tappable trail thumbs (`cjar-card-view-overlay`), a score-table Status column,
-a fixed-width gameover medal slot, and a new standing `ui-style.md` rule that same-screen buttons
-match in size and weight — **CJAR only; the other 17 games are not swept**. Detail:
-`docs/superpowers/specs/2026-08-08-cjar-stage-polish-design.md` +
-`docs/implementation-notes/cjar-implementation-notes.md`. **Previous versions:
-`docs/sw-changelog.md`** — the outgoing entry moves there on each bump; only the current version
-keeps its notes here.
+**SW v167 — Artwork: a global art viewer, galleries for the last four seams, and a standalone
+authoring guide (10 Aug 2026).** Three things ride this bump. **(1) The art viewer** —
+`openArtViewer(src, caption)` and `artMakeZoomable(el, src, caption)` in `engine.js`, plus one
+global `#art-viewer-overlay` (z-[105]) — makes every gallery tile in every game tappable-to-enlarge.
+It is Pattern 2 geometry with an image body, **deliberately unbranded** (six games open it), and
+documented as `ui-style.md` § **Pattern 2a**. The load-bearing detail is the `src` guard: a tile
+whose art didn't resolve gets **neither the zoom cursor nor a handler**, so a dead tap is now a
+second, sharper signal for the offline install check. **(2) Galleries** — the How-to tab bar rolled
+out to **FRT · SHP · FLW · DYB**, closing the deferred item; six of seven render seams now have one
+(**PASS**, at 54 faces, is the deliberate exception). FLW's was a *fold* of its standalone
+`flw-gems-overlay`, which also fixed a real defect — the old swatch-circle markup meant no skin
+could ever reach the Gem Manifest. **(3) Authoring** — `docs/art-authoring-guide.md` +
+`tools/make-skin-pack.ps1` (`-List` prints any game's inventory; `-Register` writes the pack and the
+registry line) make skin authoring a Claude-Code-free workflow. Drive-by: `getMuteToggleOnClass` was
+missing its `frt` entry and silently fell back to stone. **Open for playtest:** the four new
+galleries have no headless harness — `verify-cjar-loopback.js` is the only one that executes render
+code, and it caught the missing engine symbol during this round. Detail: `docs/decision-log.md`
+2026-08-10, `docs/art-authoring-guide.md`.
+
+**Still open from v166:** PKO's **Stragglers** scoring mode is shipped but unplayed — Force of
+Nature can hand a player cards they did not choose (Deluge, Culling, Migration, Great Reversal),
+which is a straight penalty under Stragglers in a way it never was under Dominance, deliberately
+left un-special-cased pending a live session. Detail: `pko-implementation-notes.md` D39/D40.
+
+**Previous versions: `docs/sw-changelog.md`** — the outgoing entry moves there on each bump; only
+the current version keeps its notes here.
 
 **Where the suite stands.** **18 games shipped**, all gold-master, plus multiplayer. Newest three:
 **Cookie Jar** (`cjar`, game 18, phase 39), **Pecking Order** (`pko`, game 17, phase 37) and its
@@ -326,7 +342,7 @@ Re-run a game's full set after touching its appliers, deck/data, packets or rend
 | CJAR | `node tools/verify-cjar-deck.js && node tools/verify-cjar-loop.js && node tools/verify-cjar-dd.js` | 76 · 102 · 47 |
 | CJAR | `node tools/verify-cjar-loopback.js` — host↔client over a Firebase-shaped wire | 177 |
 | CJAR | `node tools/simulate-cjar-dd.js` — balance instrument; asserts nothing, always exits 0 | — |
-| PKO | `node tools/verify-pko-chain.js && node tools/verify-pko-loop.js && node tools/verify-pko-events.js` | 68 · 132 · 148 |
+| PKO | `node tools/verify-pko-chain.js && node tools/verify-pko-loop.js && node tools/verify-pko-events.js` | 68 · 147 · 148 |
 | DYB | `node tools/verify-dyb-dice.js` — after any `js/lib/art.js` / `dybDieHTML` / `.dyb-die-*` change | 90+ |
 
 **The blind spot they share is load-bearing.** Every harness *except* `verify-cjar-loopback.js`

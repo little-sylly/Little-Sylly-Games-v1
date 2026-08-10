@@ -1943,6 +1943,23 @@ Deploy
        #gm-how-to-overlay  — GM how-to (placed here for historical reasons)
   ════════════════════════════════════════════════════════════════ -->
   <!-- Global Sound overlay -->
+  <!-- ART VIEWER (engine-owned, global) - one image as large as the viewport allows.
+       Opened by openArtViewer(src, caption) in engine.js from every game's How-to
+       gallery; a card tile is 3-4.5rem, which is a token, not a picture. Pattern 2
+       geometry with an image body, NOT a third overlay pattern. Deliberately
+       unbranded: six games open it, so any one game's colour would be wrong five
+       times out of six. z-[105] sits above the how-to sheets (z-[90]) and PKO's
+       events sheet (z-[95]), below the global sound overlay (z-[110]). -->
+  <div id="art-viewer-overlay" style="display:none"
+    class="fixed inset-0 bg-black/80 z-[105] overlay-modal-backdrop flex items-center justify-center">
+    <button id="btn-art-viewer-close" aria-label="Close artwork"
+      class="absolute top-4 right-4 min-h-11 min-w-11 rounded-full bg-black/40 text-white text-xl font-bold active:scale-90 transition-transform duration-100">&#x2715;</button>
+    <div class="flex flex-col items-center gap-3 w-full max-w-sm">
+      <img id="art-viewer-img" class="art-viewer-img" alt="" />
+      <p id="art-viewer-caption" class="text-white/80 text-sm font-semibold text-center"></p>
+    </div>
+  </div>
+
   <div id="sound-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[110] flex items-center justify-center px-6">
     <div class="bg-white rounded-2xl p-6 w-full max-w-sm flex flex-col gap-4 shadow-xl">
       <h3 class="text-xl font-bold text-stone-800 text-center">🔊 Sound</h3>
@@ -6654,7 +6671,11 @@ Deal the Dice
         <h2 class="text-xl font-bold text-stone-800">How to Play 🎲</h2>
         <p class="text-xs text-stone-400 mt-1">A bluffing game where every claim must be worth believing.</p>
       </div>
-      <div class="overflow-y-auto flex flex-col gap-4 px-5 py-5">
+      <div class="px-5 pt-3 pb-3 border-b border-stone-200 flex-shrink-0 flex gap-2">
+        <button id="btn-dyb-howto-tab-rules" class="pill pill-active-dyb" data-dyb-howto-tab="rules">The Rules</button>
+        <button id="btn-dyb-howto-tab-dice" class="pill" data-dyb-howto-tab="dice">The Dice</button>
+      </div>
+      <div id="dyb-how-to-body" class="overflow-y-auto flex flex-col gap-4 px-5 py-5">
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
           <p class="text-xs font-semibold uppercase tracking-widest dyb-label">Step 1</p>
           <p class="font-bold text-stone-800">The Shake</p>
@@ -6688,6 +6709,16 @@ Deal the Dice
         <button id="btn-dyb-howto-close" class="min-h-14 w-full rounded-2xl dyb-cta active:scale-95 text-white text-xl font-semibold transition-all duration-150">
           Got it
         </button>
+      </div>
+
+      <!-- GALLERY tab - built on every switch INTO it, from the game's own data and
+           through the game's own render seam, so it can neither drift from the deck
+           nor be unskinnable. This is also what makes the offline install check a
+           single-device job: open it offline and illustrated art means the pack
+           precached, emoji means it did not. -->
+      <div id="dyb-how-to-dice" style="display:none" class="overflow-y-auto flex-col gap-5 px-5 py-5">
+        <div id="dyb-dice-body" class="flex flex-col gap-5"></div>
+        <button id="btn-dyb-howto-close-dice" class="min-h-14 w-full rounded-2xl dyb-cta active:scale-95 text-white text-xl font-semibold transition-all duration-150">Got it</button>
       </div>
     </div>
   </div>
@@ -7805,6 +7836,10 @@ Reboot
         <h2 class="text-xl font-bold text-stone-800">How to Play &#x1F34C;</h2>
         <p class="text-xs text-stone-400 mt-1">Bluff your fruit. Don't get caught holding four.</p>
       </div>
+      <div class="px-5 pt-3 pb-3 border-b border-stone-200 flex-shrink-0 flex gap-2">
+        <button id="btn-frt-howto-tab-rules" class="pill pill-active-frt" data-frt-howto-tab="rules">The Rules</button>
+        <button id="btn-frt-howto-tab-cards" class="pill" data-frt-howto-tab="cards">The Fruit</button>
+      </div>
       <div class="overflow-y-auto flex flex-col gap-4 px-5 py-5" id="frt-how-to-body">
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2" id="frt-howto-step1">
           <p class="text-xs font-semibold uppercase tracking-widest" style="color:#047857">Step 1</p>
@@ -7845,6 +7880,16 @@ Reboot
           <p class="text-stone-500 text-sm">Every fruit gains a rule-breaking quirk — the <span class="font-semibold text-stone-700">Smug Banana</span> keeps your turn, the <span class="font-semibold text-stone-700">Angry Apple</span> starts a duel, the <span class="font-semibold text-stone-700">Sus Pear</span> lets you pocket and swap, and more. Requires 3+ players.</p>
         </div>
         <button id="btn-frt-howto-close" class="min-h-14 w-full rounded-2xl bg-[#FFE500] hover:bg-[#E6D200] active:scale-95 text-stone-800 text-xl font-semibold transition-all duration-150">Got it</button>
+      </div>
+
+      <!-- GALLERY tab - built on every switch INTO it, from the game's own data and
+           through the game's own render seam, so it can neither drift from the deck
+           nor be unskinnable. This is also what makes the offline install check a
+           single-device job: open it offline and illustrated art means the pack
+           precached, emoji means it did not. -->
+      <div id="frt-how-to-cards" style="display:none" class="overflow-y-auto flex-col gap-5 px-5 py-5">
+        <div id="frt-cards-body" class="flex flex-col gap-5"></div>
+        <button id="btn-frt-howto-close-cards" class="min-h-14 w-full rounded-2xl bg-[#FFE500] hover:bg-[#E6D200] active:scale-95 text-stone-800 text-xl font-semibold transition-all duration-150">Got it</button>
       </div>
     </div>
   </div>
@@ -8090,6 +8135,10 @@ Reboot
         <h2 class="text-xl font-bold text-stone-800">How to Play &#x1F411;</h2>
         <p class="text-xs text-stone-400 mt-1">Keep the herd below 99. Don't be the one who nods off.</p>
       </div>
+      <div class="px-5 pt-3 pb-3 border-b border-stone-200 flex-shrink-0 flex gap-2">
+        <button id="btn-shp-howto-tab-rules" class="pill pill-active-indigo" data-shp-howto-tab="rules">The Rules</button>
+        <button id="btn-shp-howto-tab-cards" class="pill" data-shp-howto-tab="cards">The Cards</button>
+      </div>
       <div class="overflow-y-auto flex flex-col gap-4 px-5 py-5" id="shp-how-to-body">
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
           <p class="text-xs font-semibold uppercase tracking-widest text-indigo-600">Step 1</p>
@@ -8126,6 +8175,16 @@ Reboot
           <p class="text-stone-500 text-sm">Reach 99 and the dream inverts - <span class="font-semibold text-stone-700">the Plunge</span>. Every number card flips its sign, the ceiling <span class="font-semibold text-stone-700">falls a little each turn</span>, and you must keep dropping the Herd. Last one awake survives the night.</p>
         </div>
         <button id="btn-shp-howto-close" class="min-h-14 w-full rounded-2xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-xl font-semibold transition-all duration-150">Got it</button>
+      </div>
+
+      <!-- GALLERY tab - built on every switch INTO it, from the game's own data and
+           through the game's own render seam, so it can neither drift from the deck
+           nor be unskinnable. This is also what makes the offline install check a
+           single-device job: open it offline and illustrated art means the pack
+           precached, emoji means it did not. -->
+      <div id="shp-how-to-cards" style="display:none" class="overflow-y-auto flex-col gap-5 px-5 py-5">
+        <div id="shp-cards-body" class="flex flex-col gap-5"></div>
+        <button id="btn-shp-howto-close-cards" class="min-h-14 w-full rounded-2xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-xl font-semibold transition-all duration-150">Got it</button>
       </div>
     </div>
   </div>
@@ -8199,7 +8258,7 @@ Reboot
 
   <!-- ════ FLAWLESS (flw) — Love Letter (Master Jeweller's Exhibition) ════
        Screens : screen-flw-menu, screen-flw-table, screen-flw-showing-result, screen-flw-gameover
-       Overlays: flw-settings-overlay, flw-how-to-overlay, flw-gems-overlay, flw-target-overlay,
+       Overlays: flw-settings-overlay, flw-how-to-overlay (tabs: rules | gems), flw-target-overlay,
                  flw-scratch-overlay, flw-peek-overlay, flw-appraisal-overlay, flw-emerald-overlay,
                  flw-quit-overlay, flw-new-showing-overlay
     ══════════════════════════════════════════════════ -->
@@ -8372,7 +8431,11 @@ Reboot
         <h2 class="text-xl font-bold text-stone-800">How to Play 💎</h2>
         <p class="text-xs text-stone-400 mt-1">Hold the most flawless stone when the vault locks.</p>
       </div>
-      <div class="overflow-y-auto flex flex-col gap-4 px-5 py-5">
+      <div class="px-5 pt-3 pb-3 border-b border-stone-200 flex-shrink-0 flex gap-2">
+        <button id="btn-flw-howto-tab-rules" class="pill pill-active-flw" data-flw-howto-tab="rules">The Rules</button>
+        <button id="btn-flw-howto-tab-gems" class="pill" data-flw-howto-tab="gems">The Gems</button>
+      </div>
+      <div id="flw-how-to-body" class="overflow-y-auto flex flex-col gap-4 px-5 py-5">
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
           <p class="flw-step-label text-xs font-semibold uppercase tracking-widest">Step 1</p>
           <p class="font-bold text-stone-800">Draw and place</p>
@@ -8417,6 +8480,16 @@ Reboot
           <p class="text-stone-500 text-sm">Everyone gets one <span class="font-semibold text-stone-700">Counterfeit</span> gem to bluff any effect, plus two <span class="font-semibold text-stone-700">Audit Charges</span> to expose a rival's fake. Get caught auditing a real gem and you leak your hand. Hold the fake to Vault Lock and it's worth nothing.</p>
         </div>
         <button id="btn-flw-howto-close" class="flw-cta min-h-14 w-full rounded-2xl text-white text-xl font-semibold active:scale-95 transition-all duration-150">Got it</button>
+      </div>
+
+      <!-- GALLERY tab - built on every switch INTO it, from the game's own data and
+           through the game's own render seam, so it can neither drift from the deck
+           nor be unskinnable. This is also what makes the offline install check a
+           single-device job: open it offline and illustrated art means the pack
+           precached, emoji means it did not. -->
+      <div id="flw-how-to-gems" style="display:none" class="overflow-y-auto flex-col gap-5 px-5 py-5">
+        <div id="flw-gems-body" class="flex flex-col gap-5"></div>
+        <button id="btn-flw-howto-close-gems" class="flw-cta min-h-14 w-full rounded-2xl text-white text-xl font-semibold active:scale-95 transition-all duration-150">Got it</button>
       </div>
     </div>
   </div>
@@ -8548,25 +8621,11 @@ Reboot
     </div>
   </div>
 
-  <!-- FLW GEM MANIFEST -->
-  <div id="flw-gems-overlay" style="display:none"
-    class="fixed inset-0 bg-black/40 z-[90] flex items-end justify-center">
-    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
-      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
-        <h2 class="text-xl font-bold text-stone-800">Gem Manifest 💎</h2>
-        <p class="text-xs text-stone-400 mt-1">Every gem in the Vault and what it does.</p>
-      </div>
-      <div class="overflow-y-auto flex flex-col gap-3 px-5 py-5">
-        <div id="flw-gems-list" class="flex flex-col gap-2"></div>
-        <button id="btn-flw-gems-close" class="flw-cta min-h-14 w-full rounded-2xl text-white text-xl font-semibold active:scale-95 transition-all duration-150">Got it</button>
-      </div>
-    </div>
-  </div>
 
   <!-- ════ PECKING ORDER (pko) — adjacency climbing card game ════
        Screens : screen-pko-menu, screen-pko-hoard, screen-pko-table,
                  screen-pko-unchallenged, screen-pko-clash-result, screen-pko-hierarchy
-       Overlays: pko-settings-overlay, pko-challenge-overlay, pko-how-to-overlay, pko-chain-overlay,
+       Overlays: pko-settings-overlay, pko-challenge-overlay, pko-how-to-overlay (Rules | Diagram | Animals tabs),
                  pko-trail-overlay, pko-quit-overlay, pko-stampede-overlay, pko-new-match-overlay
     ══════════════════════════════════════════════════ -->
 
@@ -8636,23 +8695,29 @@ Reboot
       <div class="flex flex-col gap-3">
         <div id="pko-turn-banner" class="text-center text-stone-500 text-sm font-semibold">—</div>
         <div class="bg-white rounded-2xl p-3 shadow-sm flex flex-col gap-2">
-          <div class="flex items-center justify-between">
-            <p class="text-[0.6rem] font-semibold uppercase tracking-wide text-stone-400">Active Marks</p>
-            <button id="btn-pko-chain" class="text-[0.65rem] font-semibold uppercase tracking-wide pko-label active:scale-90 transition-transform duration-100 p-2 -m-2">[?] The Chain</button>
-          </div>
-          <div class="flex items-center gap-2">
+          <div class="flex items-start gap-2">
             <button id="btn-pko-hole" aria-label="Watering Hole — spent cards and the Trail"
               class="flex flex-col items-center gap-1 shrink-0 active:scale-95 transition-transform duration-100">
-              <div id="pko-hole-pile" class="flex items-center justify-center"></div>
-              <p class="text-[0.55rem] font-semibold tracking-wide text-stone-400">💧 <span id="pko-hole-count" class="pko-label">0</span></p>
+              <p class="text-[0.55rem] font-semibold tracking-wide text-stone-400">Watering Hole <span id="pko-hole-count" class="pko-label">0</span></p>
+              <div id="pko-hole-pile" class="flex items-center justify-center min-h-[5.75rem]"></div>
             </button>
-            <div id="pko-marks-row" class="flex gap-1.5 justify-center flex-wrap min-h-[5.75rem] items-center flex-1"></div>
+            <div class="flex flex-col items-center gap-1 flex-1 min-w-0">
+              <p class="text-[0.6rem] font-semibold uppercase tracking-wide text-stone-400">Active Marks</p>
+              <div id="pko-marks-row" class="flex gap-1.5 justify-center flex-wrap min-h-[5.75rem] items-center w-full"></div>
+            </div>
+            <div aria-hidden="true" class="flex flex-col items-center gap-1 shrink-0 invisible">
+              <p class="text-[0.55rem] font-semibold tracking-wide">Watering Hole <span>0</span></p>
+              <div class="flex items-center justify-center min-h-[5.75rem]"></div>
+            </div>
           </div>
           <p id="pko-table-hint" class="text-center text-xs text-[#854D0E] min-h-4"></p>
         </div>
         <div id="pko-player-strip" class="flex flex-wrap gap-2 justify-center"></div>
         <div class="bg-white rounded-2xl p-3 shadow-sm flex flex-col gap-2">
-          <p class="text-[0.6rem] font-semibold uppercase tracking-wide text-stone-400">Your Hoard</p>
+          <div class="flex items-center justify-between">
+            <p class="text-[0.6rem] font-semibold uppercase tracking-wide text-stone-400">Your Hoard</p>
+            <button id="btn-pko-chain" class="text-[0.65rem] font-semibold uppercase tracking-wide pko-label active:scale-90 transition-transform duration-100 p-2 -m-2">[?] The Chain</button>
+          </div>
           <div id="pko-my-fan" class="pko-fan flex justify-center overflow-x-auto pt-2 pb-1"></div>
         </div>
       </div>
@@ -8742,15 +8807,26 @@ Reboot
         <p class="text-xs text-stone-400 mt-1">Set the terms of the territory.</p>
       </div>
       <div class="overflow-y-auto flex flex-col gap-5 px-5 py-5">
+        <!-- Law of the Wild — two coupled pill rows in ONE card on purpose: the number means
+             "Clashes to win" under Dominance and "Clashes to play" under Stragglers, so it is
+             meaningless read apart from the mode. #pko-val-law is the live value line that
+             says which of the two is currently in force. -->
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
           <div>
-            <p class="text-stone-800 font-semibold">Clashes to Win</p>
-            <p class="text-stone-400 text-sm mt-0.5">How many Clashes it takes to win the Match.</p>
+            <p class="text-stone-800 font-semibold">Law of the Wild</p>
+            <p class="text-stone-400 text-sm mt-0.5">What it takes to end up on top, and how long the Match runs. Dominance is a race to win Clashes. Stragglers plays a set number instead and counts whatever you are still holding each time somebody empties — fewest at the end takes it.</p>
           </div>
-          <div class="flex gap-2">
-            <button class="pill pill-active-pko" data-pko-target="3">3</button>
-            <button class="pill" data-pko-target="5">5</button>
-            <button class="pill" data-pko-target="7">7</button>
+          <div class="flex flex-col gap-2">
+            <div class="flex gap-2">
+              <button class="pill pill-active-pko" data-pko-scoring="dominance">Dominance</button>
+              <button class="pill" data-pko-scoring="stragglers">Stragglers</button>
+            </div>
+            <div class="flex gap-2">
+              <button class="pill pill-active-pko" data-pko-target="3">3</button>
+              <button class="pill" data-pko-target="5">5</button>
+              <button class="pill" data-pko-target="7">7</button>
+            </div>
+            <p id="pko-val-law" class="text-stone-400 text-xs">First to 3 Clashes takes the Match.</p>
           </div>
         </div>
 
@@ -8865,7 +8941,12 @@ Reboot
     </div>
   </div>
 
-  <!-- PKO HOW TO PLAY -->
+  <!-- PKO HOW TO PLAY (one overlay, three tabs — the Chain diagram/animals list used to be
+       its own overlay opened from a button inside this one; knowing the food chain IS
+       learning the game, so it belongs here rather than one overlay further away. Three
+       entry points (menu, table header [?] The Chain, tap-hold a card) all route through
+       pkoOpenHowTo(tab, highlightId) so the tab state can never disagree with which body
+       is showing. -->
   <div id="pko-how-to-overlay" style="display:none"
     class="fixed inset-0 bg-black/40 z-[90] flex items-end justify-center">
     <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
@@ -8873,11 +8954,16 @@ Reboot
         <h2 class="text-xl font-bold text-stone-800">How to Play 🐘</h2>
         <p class="text-xs text-stone-400 mt-1">Shed your whole hand by playing each animal's natural predator.</p>
       </div>
-      <div class="overflow-y-auto flex flex-col gap-4 px-5 py-5">
+      <div class="px-5 pt-3 pb-3 border-b border-stone-200 flex-shrink-0 flex gap-2">
+        <button id="btn-pko-howto-tab-rules" class="pill pill-active-pko" data-pko-howto-tab="rules">The Rules</button>
+        <button id="btn-pko-howto-tab-diagram" class="pill" data-pko-howto-tab="diagram">Diagram</button>
+        <button id="btn-pko-howto-tab-animals" class="pill" data-pko-howto-tab="animals">Animals</button>
+      </div>
+      <div id="pko-how-to-rules" class="overflow-y-auto flex flex-col gap-4 px-5 py-5">
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
           <p class="text-xs font-semibold uppercase tracking-widest pko-label">Step 1</p>
           <p class="font-bold text-stone-800">The food chain</p>
-          <p class="text-stone-500 text-sm">Every animal has a natural predator, and only its <span class="font-semibold text-stone-700">immediate</span> predator counts. Eagles don't answer to Elephants. <button class="btn-pko-chain-open pko-label font-semibold p-1 -m-1">[?] See the chain</button></p>
+          <p class="text-stone-500 text-sm">Every animal has a natural predator, and only its <span class="font-semibold text-stone-700">immediate</span> predator counts. Eagles don't answer to Elephants. <button id="btn-pko-howto-see-chain" class="pko-label font-semibold p-1 -m-1">[?] See the chain</button></p>
         </div>
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
           <p class="text-xs font-semibold uppercase tracking-widest pko-label">Step 2</p>
@@ -8927,8 +9013,9 @@ Reboot
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
           <p class="text-xs font-semibold uppercase tracking-widest pko-label">Winning and Scoring</p>
           <ul class="list-disc pl-5 flex flex-col gap-1 text-stone-500 text-sm">
-            <li><span class="font-semibold text-stone-700">Empty your Hoard</span> — play your last card and you win the Clash for 1 point.</li>
-            <li><span class="font-semibold text-stone-700">First to the target</span> Clash wins takes the Match.</li>
+            <li><span class="font-semibold text-stone-700">Empty your Hoard</span> — play your last card and you take the Clash. The moment you do, that Clash is over for everyone.</li>
+            <li><span class="font-semibold text-stone-700">Dominance</span> — every Clash you take is worth a point, and the first to the target takes the Match.</li>
+            <li><span class="font-semibold text-stone-700">Stragglers</span> — a set number of Clashes instead. Every card still in your Hoard when a Clash ends is a Straggler against you, and the fewest at the end takes the Match.</li>
             <li><span class="font-semibold text-stone-700">The Hierarchy</span> ranks everyone at the end — Apex Predator down to the Bottom Feeder.</li>
           </ul>
         </div>
@@ -8942,25 +9029,17 @@ Reboot
         </div>
         <button id="btn-pko-howto-close" class="pko-cta min-h-14 w-full rounded-2xl text-white text-xl font-semibold active:scale-95 transition-all duration-150">Got it</button>
       </div>
-    </div>
-  </div>
 
-  <!-- PKO CHAIN DIAGRAM (one overlay, three entry points) -->
-  <div id="pko-chain-overlay" style="display:none"
-    class="fixed inset-0 bg-black/40 z-[90] flex items-end justify-center">
-    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
-      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
-        <h2 class="text-xl font-bold text-stone-800">The Chain 🌿</h2>
-        <p class="text-xs text-stone-400 mt-1">Who eats whom. Only the immediate predator counts.</p>
-        <div class="flex gap-2 mt-3">
-          <button id="btn-pko-chain-tab-diagram" class="pill pill-active-pko">Diagram</button>
-          <button id="btn-pko-chain-tab-animals" class="pill">Animals</button>
-        </div>
+      <!-- DIAGRAM tab -->
+      <div id="pko-chain-diagram" style="display:none" class="overflow-y-auto flex-col items-center gap-2 px-5 py-5">
+        <div id="pko-chain-diagram-body" class="flex flex-col items-center gap-2"></div>
+        <button id="btn-pko-howto-close-diagram" class="pko-cta min-h-14 w-full rounded-2xl text-white text-xl font-semibold active:scale-95 transition-all duration-150 mt-4">Got it</button>
       </div>
-      <div class="overflow-y-auto flex flex-col gap-3 px-5 py-5">
-        <div id="pko-chain-diagram" class="flex flex-col items-center gap-2"></div>
-        <div id="pko-chain-body" style="display:none" class="flex flex-col gap-2"></div>
-        <button id="btn-pko-chain-close" class="pko-cta min-h-14 w-full rounded-2xl text-white text-xl font-semibold active:scale-95 transition-all duration-150">Got it</button>
+
+      <!-- ANIMALS tab -->
+      <div id="pko-chain-body" style="display:none" class="overflow-y-auto flex-col gap-2 px-5 py-5">
+        <div id="pko-chain-animals-body" class="flex flex-col gap-2"></div>
+        <button id="btn-pko-howto-close-animals" class="pko-cta min-h-14 w-full rounded-2xl text-white text-xl font-semibold active:scale-95 transition-all duration-150 mt-4">Got it</button>
       </div>
     </div>
   </div>

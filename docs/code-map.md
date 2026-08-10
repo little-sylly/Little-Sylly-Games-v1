@@ -57,6 +57,7 @@ Each game's `<!-- ════ NAME ════ -->` section-header comment is 
 | ID | Pattern | Opened by |
 |----|---------|-----------|
 | `#sound-overlay` | Decision modal | `.btn-open-sound` (any screen) |
+| `#art-viewer-overlay` | Decision modal (image body) — z-[105] | `artMakeZoomable`-wired gallery tiles in CJAR / PKO / FRT / SHP / FLW / DYB. Children: `#art-viewer-img`, `#art-viewer-caption`, `#btn-art-viewer-close` |
 
 ### Key buttons
 | ID | Action |
@@ -94,6 +95,9 @@ Each game's `<!-- ════ NAME ════ -->` section-header comment is 
 | `toggleMute()` | Flips `isMuted`, persists to localStorage, syncs `#btn-mute` / `#global-mute-toggle` / all `.btn-open-sound` icons |
 | `updateSliderTheme(gameId)` | Maps `activeGameId` → `[abbr]-range` CSS class on `#global-sound-volume` (fallback `stone-range`) |
 | `getMuteToggleOnClass(gameId)` | Maps `activeGameId` → `game-toggle-on-[colour]` class for `#global-mute-toggle` ON state (fallback `game-toggle-on-stone`) |
+| `openArtViewer(src, caption)` | Shows one image at viewport size in `#art-viewer-overlay`. **No-ops when `src` is falsy** — a game on its emoji fallback has nothing to enlarge |
+| `closeArtViewer()` | Hides it; also called from `resetToLobby()` |
+| `artMakeZoomable(el, src, caption)` | Adds `.art-zoomable` + a click handler to an already-rendered tile **only when `src` resolved**, and returns `el` for inline use. The one helper every gallery uses |
 | `showWhoFirst(config)` | Drives `#screen-who-first`; calls `config.onResult(goesFirstIdx)` on completion |
 
 ---
@@ -1662,8 +1666,7 @@ Per-game: LI5 `ptp`★/`tlm` · GM `ptp`★/`mdlm` · SS `tlm`★/`mdlm`/`ptp` �
 |------------|---------|---------|---------|
 | `pko-settings-overlay` | Data (slide-up) | z-[80] | "The Conditions 🌿" — game settings |
 | `pko-challenge-overlay` | Data (slide-up) | z-[80] | Challenge builder — Marks row → slot row → Hoard fan (spec §17 D1: an overlay, **not** a screen) |
-| `pko-how-to-overlay` | Data (slide-up) | z-[90] | How to Play |
-| `pko-chain-overlay` | Data (slide-up) | z-[90] | The Chain — **two tabs: Diagram (default) \| Animals**. Diagram is `assetExtra('pko','chain')`; Animals is the per-card `beaten_by` list. Three entry points; tap-hold a card opens on **Animals**, scrolled to it |
+| `pko-how-to-overlay` | Data (slide-up) | z-[90] | How to Play — **three tabs: The Rules \| Diagram \| Animals**. The Diagram is `assetExtra('pko','chain')`; Animals is the per-card `beaten_by` list. Absorbed the former `pko-chain-overlay` (D39, Aug 2026) — tap-holding a card still opens straight onto **Animals**, scrolled to that card |
 | `pko-trail-overlay` | Data (slide-up) | z-[90] | **The Watering Hole** — **two tabs: Trail (default) \| Discards**. Opened by tapping the pile (`#btn-pko-hole`); the standalone "The Trail →" link is retired. Id kept for the `resetToLobby()` teardown list |
 | `pko-events-overlay` | Data (slide-up) | z-[95] | **Force of Nature 🌿** — the nine-event roster. Body (`#pko-events-body`) is **rendered from `PKO_EVENTS`** by `pkoRenderEvents()`, so it cannot drift from the registry; rules copy comes from `PKO_EVENT_DETAIL` (keyed by event id, beside the registry). The live event is ringed with `.pko-event-live` and tagged "now"; Invasive Mimicry is tagged "every Clash". **z-[95] because it opens from inside the how-to (z-[90])** — the FRT `frt-personalities-overlay` precedent. Three entry points, all `.btn-pko-events-open`: `#btn-pko-events` (table header), `#btn-pko-events-settings`, `#btn-pko-events-howto` |
 | `pko-quit-overlay` | Decision modal | z-[80] | "Abandon your territory?" — mid-game exit confirm |
@@ -1677,7 +1680,7 @@ Per-game: LI5 `ptp`★/`tlm` · GM `ptp`★/`mdlm` · SS `tlm`★/`mdlm`/`ptp` �
 | `#btn-pko-menu-play` | Menu Play CTA — dual context: post-lobby `pkoStartSession()`, pre-lobby `mpShowModeScreen('pko')` |
 | `#btn-pko-hoard-ready` | readyCheck submit on the deal screen |
 | `#btn-pko-stake` / `#btn-pko-challenge` / `#btn-pko-stampede` / `#btn-pko-retreat` | The four table actions (active player only) |
-| `#btn-pko-chain` / `#btn-pko-challenge-chain` / `.btn-pko-chain-open` | The three entry points into `pko-chain-overlay` |
+| `#btn-pko-chain` / `#btn-pko-challenge-chain` / `#btn-pko-howto-see-chain` | The entry points onto the Diagram/Animals tabs of `pko-how-to-overlay` |
 | `#btn-pko-hole` | The Watering Hole pile in the Marks row → `pko-trail-overlay` (Trail tab) |
 | `#btn-pko-chain-tab-diagram` / `#btn-pko-chain-tab-animals` | Chain overlay tabs |
 | `#btn-pko-hole-tab-trail` / `#btn-pko-hole-tab-discards` | Watering Hole overlay tabs |
@@ -1688,13 +1691,14 @@ Per-game: LI5 `ptp`★/`tlm` · GM `ptp`★/`mdlm` · SS `tlm`★/`mdlm`/`ptp` �
 ### Key State Variables
 | Variable | Type | Default | Purpose |
 |----------|------|---------|---------|
-| `pkoClashTarget` | int | `3` | Clashes to Win: 3 / 5 / 7 |
+| `pkoScoring` | string | `'dominance'` | **Law of the Wild** — `'dominance'` (first to `pkoClashTarget` Clashes) / `'stragglers'` (play `pkoClashTarget` Clashes; fewest leftover cards takes the Match) |
+| `pkoClashTarget` | int | `3` | 3 / 5 / 7 — Clashes to **win** under Dominance, Clashes to **play** under Stragglers. One number, two meanings, which is why the settings card carries the `#pko-val-law` live value line |
 | `pkoHoardSize` | int | `12` | Cards dealt per player: 10 / 12 / 15 |
 | `pkoPoacherSetting` | string | `'perPlayer'` | Poacher Cards: `'none'` / `'flat3'` / `'perPlayer'` |
 | `pkoScavenge` | bool | `false` | Draw 1 from the Reserve on Retreat |
 | `pkoStartSmall` | string | `'match'` | **Small Fry** — the opening Stake must be the player's smallest animal: `'off'` / `'match'` (first Encounter of the Match) / `'clash'` (first Encounter of every Clash) |
 | `pkoSyllyMode` | bool | `false` | **Force of Nature** — the Sylly Mode gate. Read in `pkoStartClash` (Invasive Mimicry on the deal) and `pkoStartEncounter` (`pkoDrawEvent` from Encounter 2 on) |
-| `pkoScores` / `pkoClashHistory` | int[] / int[][] | `[]` | Match points; one history row per Clash (drives the Hierarchy grid) |
+| `pkoScores` / `pkoClashHistory` | int[] / int[][] | `[]` | One history row per Clash plus its running column total, in **both** modes — Dominance banks a `1` for the emptied Hoard, Stragglers banks every other player's remaining card count. A parallel straggler array was rejected: it would need its own reset, payload field and applier — three more places for the halves to drift |
 | `pkoHoards` | string[][] | `[]` | **Host only** — every player's Hoard |
 | `pkoMyHoard` | string[] | `[]` | **This device only** — own cards. Written by the private `PKO_HAND` (deal), `PKO_DRAW` (Scavenge) and `PKO_HAND_SYNC` (repair after this device played — BUG-02) packets |
 | `pkoHoardCounts` | int[] | `[]` | Public mirror of Hoard sizes (counts, never contents) |
@@ -1753,14 +1757,18 @@ Per-game: LI5 `ptp`★/`tlm` · GM `ptp`★/`mdlm` · SS `tlm`★/`mdlm`/`ptp` �
 | `pkoRenderStampede()` | Populates the Stampede confirm modal — heading names species + count, preview shows the N+1 Marks it will leave |
 | `pkoSummariseCards(ids)` | Trail text helper — groups duplicates (`"Bear ×2, Poacher"`) so a six-wide board reads in one line |
 | `pkoApplyExpansionOverrides()` | Documented **no-op** — PKO has no word pool (fixed chain); skins arrive through `assetFace()` inside the render seam. Kept plugin-prefixed so it can never clobber LI5's bare `applyExpansionOverrides()` |
-| `pkoBuildStandings()` | Shared ranking block for the Clash result and the Hierarchy — ties share a rank; names Apex Predator / Bottom Feeder |
+| `pkoBuildStandings()` | Shared ranking block for the Clash result and the Hierarchy — ties share a rank; names Apex Predator / Bottom Feeder. Sort direction and both titles' "nothing has happened yet" guard flip with `pkoScoring`: under Stragglers `0` is the *best* score, so the guard is `pkoClashHistory.length`, never the number itself |
 | `pkoRenderChain(highlightId)` / `pkoRenderTrail()` | The chain reference (reads `beaten_by` directly — it *is* the rules); the public match log grouped by Encounter |
-| `pkoOpenChain(id)` / `pkoSetChainTab(tab, id)` / `pkoRenderChainDiagram()` | Chain overlay tabs. Opens on **Diagram** from a button, on **Animals** (scrolled to the card) from a tap-hold. The diagram is `assetExtra('pko','chain')` — the first call site for that seam |
+| `pkoOpenHowTo(tab, id)` / `pkoSetHowToTab(tab, id)` / `pkoOpenChain(id)` / `pkoRenderChainDiagram()` | The three How-to tabs. Every entry point routes through `pkoOpenHowTo` so the pill state can never disagree with the visible body; `pkoOpenChain` is a thin wrapper picking **Diagram** from a button and **Animals** (scrolled to the card) from a tap-hold. The diagram is `assetExtra('pko','chain')` — the first call site for that seam |
 | `pkoRenderWateringHole()` / `pkoOpenHole()` / `pkoSetHoleTab(tab)` / `pkoRenderDiscards()` | The discard pile in the Marks row (face-down top card + count, dashed placeholder when empty) and its two-tab overlay; Discards groups spent cards with ×N counts |
 | `pkoSubmit*()` / `pkoApply*()` | Client sends ACTION; **host mutates directly then broadcasts SYNC** — the host is a full player and self-sent ACTIONs are dropped by the dedup guard |
 | `pkoCheckEncounterEnd()` | Every player other than the board owner has Retreated since the last board change |
-| `pkoResolveClash(winnerIdxs)` | +1 point per winner, push one `pkoClashHistory` row with a 1 per winner, decide Clash-end vs Match-end (joint winners share the Match) |
-| `pkoNextOpener(winnerIdxs)` | Which of several joint winners opens the next Clash: most Match points, then random. With one winner it is that winner (shipped behaviour) |
+| `pkoResolveClash(winnerIdxs)` | Push one `pkoClashHistory` row, add it into `pkoScores`, decide Clash-end vs Match-end. Row contents **and** end condition branch on `pkoScoring`: Dominance is a race (`score >= target`, joint winners share the Match); Stragglers is a fixed distance (`pkoClashNum >= target`) whose champion may have won no Clash at all. Straggler counts are read from `pkoHoards` — the host's authority — never `pkoHoardCounts`, the public mirror |
+| `pkoNextOpener(winnerIdxs)` | Which of several joint winners opens the next Clash: the strongest of them via `pkoBestScore`, then random. With one winner it is that winner (shipped behaviour) |
+| `pkoStragglersMode()` / `pkoBestScore(list)` | The single-source scoring predicate and its "which score is winning" helper. Every ranking, tiebreak and title asks these rather than reaching for `Math.max` — a mode read the wrong way round does not throw, it just crowns the wrong player |
+| `pkoClashLabel()` / `pkoScoreText(n)` | "Clash 2" vs "Clash 2 of 3" (Dominance has no fixed length, so a total would be a lie); "3 Clashes" vs "3 Stragglers" |
+| `pkoApplyScoringMode(p)` | Client half of the `scoring` + `clashTarget` fields carried by `PKO_CLASH_BEGIN` / `PKO_CLASH_END` / `PKO_MATCH_END`. Re-asserts the host's rules on every scoring packet, so a client that moved a pill on the game menu self-heals before it ever renders a score |
+| `pkoSyncSettingsUI()` / `pkoRenderLawValue()` / `pkoSyncToggle(id, on)` | Repaint every pill, toggle and the `#pko-val-law` value line from state; called by `pkoOpenSettings()`. Before this, PKO's pills were HTML defaults nothing ever re-synced, so a client holding the host's `SETTINGS_SYNC` rules in memory still showed its own defaults on screen |
 | `pkoDiscardBoard(exceptIdx)` / `pkoDiscardCards(cards)` | The board → one Watering Hole batch record, sparing `exceptIdx` (the **Alpha**; default `-1` spares nothing). `pkoDiscardCards` discards an explicit list — used by Carrion, where the board has already been replaced by the time the leftovers are known |
 | `pkoAfterBoardChange(playerIdx, spoils)` / `pkoResumeAfterBoardChange(playerIdx)` | Every successful board change funnels here. Order is load-bearing: the **empty-Hoard check runs first**, which is what stops Carrion un-winning a Clash (§7.5) — do not reorder. `spoils` is passed **only by a Challenge**; a Stake beats nothing and a Stampede is a rout. The tail is split out so the Carrion window can defer it |
 | `pkoSyncHand(playerIdx)` / `pkoSyncAllHands()` | The private hand-repair packet. Means **"this Hoard changed"**, not "a card was played" — The Culling, Extinction and Migration all mutate Hoards with no card played, and a repair keyed to a play would miss all three (logic-engine ML-06, BUG-02's class) |

@@ -109,6 +109,47 @@ The following UI improvements were made during first playtest session (SW v133):
 
 ---
 
+## Gem Manifest folded into How to Play (2026-08-10, SW v167)
+
+**What happened:** FLW's standalone `flw-gems-overlay` ("Gem Manifest 💎", opened by the in-game
+`[?] Gem Manifest` button beside the Ledger) was retired and its content became **tab 2 of
+`flw-how-to-overlay`** — `The Rules | The Gems`. Both entry points now route through
+`flwOpenHowTo('gems')`. Same fold PKO's chain overlay made the same week (decision-log 2026-08-10);
+the tab-bar pattern is now on six games.
+
+**Root cause of doing it at all — the manifest was unskinnable, and nobody had noticed.** The old
+`flwOpenGemManifest()` built its own markup: a `2.4rem` coloured `border-radius:9999px` swatch with
+the carat number in it, straight from `FLW_DECK[].colour`. It never called `flwRenderCard`. Three
+consequences, none obvious from reading the function:
+
+1. **A skin pack could never reach it.** `data/packs/prismatic-gems` (and any future FLW skin) has
+   ten gem images that simply did not appear in the one screen whose entire job is "here is every
+   gem in the Vault".
+2. **The core art was invisible outside a live Showing.** FLW got core art at v152, but the only
+   place it rendered was a dealt hand — so the offline install check needed a running MDLM match on
+   a real device to answer a pure service-worker question.
+3. **It could drift.** A swatch colour is a second copy of the gem's identity; the card is the first.
+
+Rewriting the rows through `flwRenderCard(g.id)` fixed all three at once and cost fewer lines than
+the markup it replaced.
+
+**Lesson — a reference view that doesn't use the game's render seam is a bug, not a style choice.**
+It looks harmless because it renders correctly today. The tell is the question "if someone skins
+this game, does this screen change?" — if the answer is no, the screen has forked its own copy of
+what a card looks like. This is now a standing rule in `ui-style.md` § How-to Overlay Standard:
+**a gallery tab must render through the game's own render seam, never hand-built markup.**
+
+**Also added:** every row is tappable-to-enlarge via the new engine-owned `artMakeZoomable` /
+`openArtViewer` (`ui-style.md` § Pattern 2a). `FLW_GEM_EFFECT` now holds the per-carat rules copy as
+a named const beside the renderer rather than a local inside the opener — it is presentation copy,
+not deck data, so it deliberately does **not** live in `FLW_DECK`.
+
+**Watch for:** `flw-gems-overlay` is gone from `index.html`, from `engine.js`'s `resetToLobby()`
+teardown list, and from `game-identities.md`. `flw-gems-list` and `btn-flw-gems-close` no longer
+exist — a stale reference to any of them is dead code, not a missing feature.
+
+---
+
 ## Template Gaps
 
 **Accumulator-array reset pattern (elevated from BUG-01):** Any game state that resets between rounds/sessions (log arrays, tally arrays, history lists) must be included in the round-start SYNC payload even if it's `[]`. The host resets it locally; clients will carry stale values unless the payload includes the reset state. Consider adding this to the MDLM section of `logic-engine.md` as a standing rule alongside the readyCheck pattern.

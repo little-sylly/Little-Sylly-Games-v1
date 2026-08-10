@@ -1004,7 +1004,7 @@ After each Showdown, `dybCurrentOpenerIdx` = loser (if still active) or next act
 | Overlay | Pattern | z-index | Notes |
 |---------|---------|---------|-------|
 | `dyb-settings-overlay` | Data (slide-up) | z-[80] | "Ground Rules 📋" (was "House Rules 📋") |
-| `dyb-how-to-overlay` | Data (slide-up) | z-[90] | "How to Play 🎲" |
+| `dyb-how-to-overlay` | Data (slide-up) | z-[90] | "How to Play 🎲" — **two tabs: `The Rules \| The Dice`** (10 Aug 2026). Tab 2 renders faces `1`–`6` + the cup back through `dybDieHTML`/`dybDieBackHTML`, ready for the day DYB gets core art. The five **Tempest** types are deliberately NOT shown: their identity is the engine frame plus live per-die state (an unassigned Slick shows the auto-rolled face you are about to choose), which a static tile would misrepresent |
 | `dyb-quit-overlay` | Decision modal | z-[80] | "Back Down?" — mid-game exit (was "Walk Away?") |
 | `dyb-new-game-overlay` | Decision modal | z-[90] | "Climb Again?" — play-again confirm (was "Roll Again?") |
 | `dyb-slick-picker-overlay` | Decision modal | z-[100] | Slick die face picker — tapped from table screen; MUST be cleared in `resetToLobby()` AND in quit-confirm handler |
@@ -1491,7 +1491,7 @@ Category A = resolution-trigger (fires on a lost challenge); B = passive (always
 | Overlay | Pattern | z-index | Notes |
 |---------|---------|---------|-------|
 | `frt-settings-overlay` | Data (slide-up) | z-[80] | "Fruit Selection 🍌" |
-| `frt-how-to-overlay` | Data (slide-up) | z-[90] | How to Play |
+| `frt-how-to-overlay` | Data (slide-up) | z-[90] | How to Play — **two tabs: `The Rules \| The Fruit`** (10 Aug 2026). Tab 2 is the 8-fruit gallery + the face-down back, built from `FRT_FRUITS` through `frtRenderCard`; every tile is tappable-to-enlarge |
 | `frt-quit-overlay` | Decision modal | z-[80] | "Put the fruits down?" |
 | `frt-new-game-overlay` | Decision modal | z-[90] | "More Fruit?" — play-again confirm |
 | `frt-tip-overlay` | Decision modal | z-[90] | Shared contextual tips — `frtShowTip(emoji, heading, lines[])` |
@@ -1597,13 +1597,15 @@ No points — survival is the score. Deep Sleep costs a Moon; 0 Moons → Sleepw
 - **Night Terrors (Plunge):** Herd ≥ 99 in Climb → Plunge with **overflow runway** (`shpCeiling = shpHerd`); arithmetic sign-flips. After a one-cycle grace the ceiling falls by a **round-based escalating drop** (`SHP_DROP_BASE` 2 + `SHP_DROP_STEP` 2 per full round of turns — locked per round so every player faces the same hazard; `shpCurrentDrop` synced for display). Bust → Deep Sleep + revert to Climb; Herd 0 → mercy exit (no Moon). Crimson re-skin + inverted faces; header reads "The Dream is Collapsing 🔻".
 
 ### Overlay Types
-| Overlay | Pattern | z-index |
-|---------|---------|---------|
-| `shp-settings-overlay` | Data (slide-up) | z-[80] |
-| `shp-how-to-overlay` | Data (slide-up) | z-[90] |
-| `shp-quit-overlay` | Decision modal | z-[80] |
-| `shp-new-night-overlay` | Decision modal | z-[90] |
-| `shp-tip-overlay` | Decision modal | z-[90] |
+| Overlay | Pattern | z-index | Notes |
+|---------|---------|---------|-------|
+| `shp-settings-overlay` | Data (slide-up) | z-[80] | |
+| `shp-how-to-overlay` | Data (slide-up) | z-[90] | **Two tabs: `The Rules \| The Cards`** (10 Aug 2026). Tab 2 groups the deck by family (Pasture / Pillow / Alarm / Trap) from `SHP_CARDS` through `shpRenderCard`. **Fogged Dream (id 13) is shown but never zoomable** — it is permanently unskinnable, so there is no artwork behind it |
+| `shp-quit-overlay` | Decision modal | z-[80] | |
+| `shp-new-night-overlay` | Decision modal | z-[90] | |
+| `shp-tip-overlay` | Decision modal | z-[90] | |
+| `shp-card-info-overlay` | Decision modal | z-[90] | Per-card tip, opened by a 500 ms tap-hold on a card in hand |
+| `shp-play-log-overlay` | Data (slide-up) | z-[90] | Dream Journal |
 
 ### Screens
 `screen-shp-menu` (hub) · `screen-shp-table` (all play sub-states; `h-screen` sticky-footer with the Pen) · `screen-shp-gameover` (Daybreak standings).
@@ -1725,7 +1727,7 @@ Firebase strips trailing empty arrays from 2D structures. Same pattern as FRT/SH
 | Overlay | Pattern | z-index | Notes |
 |---------|---------|---------|-------|
 | `flw-settings-overlay` | Data (slide-up) | z-[80] | "The Exhibition Brief 💎" |
-| `flw-how-to-overlay` | Data (slide-up) | z-[90] | How to Play |
+| `flw-how-to-overlay` | Data (slide-up) | z-[90] | How to Play — **two tabs: `The Rules \| The Gems`** (10 Aug 2026). Tab 2 is the **Gem Manifest**, folded in from the retired standalone `flw-gems-overlay`; the in-game `[?] Gem Manifest` button (`btn-flw-gem-manifest`) now opens this overlay pre-selected on that tab via `flwOpenHowTo('gems')`. Rows render through `flwRenderCard` (the old version drew its own colour-swatch circles, so no skin could reach it) and each is tappable-to-enlarge |
 | `flw-target-overlay` | Decision modal | z-[90] | Choose pass target |
 | `flw-scratch-overlay` | Decision modal | z-[90] | Gem identity declaration selector |
 | `flw-peek-overlay` | Decision modal | z-[100] | Peek result (tap-and-hold) — Pearl gem effect |
@@ -1766,7 +1768,8 @@ Firebase strips trailing empty arrays from 2D structures. Same pattern as FRT/SH
 **State flow:**
 ```
 LOBBY (MDLM only) → PKO MENU → [onPassThePhone: names from mpPlayerSlots]
-→ [Match loop (Clashes until pkoClashTarget reached):
+→ [Match loop (Dominance: until someone reaches pkoClashTarget Clashes.
+                Stragglers: exactly pkoClashTarget Clashes, then lowest total):
     PKO HOARD (private deal reveal, readyCheck)
     → [Clash loop (Encounters until a Hoard empties):
         PKO TABLE (active-stake / active-respond / waiting)
@@ -1791,8 +1794,9 @@ LOBBY (MDLM only) → PKO MENU → [onPassThePhone: names from mpPlayerSlots]
 | Retreat | Sitting out of the current Encounter — not a lock-out; a successful board change forgives every Retreat and reopens the window |
 | Scavenge | Optional setting — draw one card from the Reserve on Retreat |
 | Small Fry | Optional setting — the Encounter opener must Stake their smallest-ranked animal (Mouse/Fish are the bottom of their ladders; Bee/Eagle/Stingray/Poacher sit outside the ladder and never count) |
-| Clash | One hand — plays out until a player empties their Hoard; that player scores 1 point |
-| Match | The full session — first to `pkoClashTarget` Clashes wins |
+| Clash | One hand — plays out until a player empties their Hoard. Under **Dominance** that player scores 1 point; under **Stragglers** they score 0 and everyone else banks whatever they were still holding |
+| Match | The full session. **Dominance:** a race — first to `pkoClashTarget` Clashes takes it. **Stragglers:** a fixed distance — exactly `pkoClashTarget` Clashes are played and the lowest total takes it, so the champion may have won no Clash at all |
+| Straggler | A card still in your Hoard when a Clash ends — one point *against* you under the Stragglers law. Fewest wins |
 | Hoard | A player's private hand of dealt cards |
 | Pool | The full card set built at Match start — `pkoBuildPool(n)`, scaled by player count |
 | Reserve | Undealt cards remaining in the Pool after the deal |
@@ -1850,7 +1854,8 @@ LOBBY (MDLM only) → PKO MENU → [onPassThePhone: names from mpPlayerSlots]
 ### Settings
 | Setting (display) | Options | Default | Internal variable | Internal values |
 |------------------|---------|---------|------------------|-----------------|
-| Clashes to Win | 3 / 5 / 7 | 3 | `pkoClashTarget` | `3` / `5` / `7` |
+| Law of the Wild | Dominance / Stragglers | Dominance | `pkoScoring` | `'dominance'` / `'stragglers'` |
+| ↳ length (same card) | 3 / 5 / 7 | 3 | `pkoClashTarget` | `3` / `5` / `7` — Clashes to **win** under Dominance, Clashes to **play** under Stragglers |
 | Hoard Size | 10 / 12 / 15 | 12 | `pkoHoardSize` | `10` / `12` / `15` |
 | Appetite | Sated / Ravenous | Sated | `pkoAppetite` | `'sated'` / `'ravenous'` |
 | Poacher Cards | None / Three / One Each | One Each | `pkoPoacherSetting` | `'none'` / `'flat3'` / `'perPlayer'` |
@@ -1911,8 +1916,7 @@ Spec: `docs/new-game-tech-pecking-order-fon.md`. Nine events — one **fixed ope
 |---------|---------|---------|-------|
 | `pko-settings-overlay` | Data (slide-up) | z-[80] | "The Conditions 🌿" |
 | `pko-challenge-overlay` | Data (slide-up) | z-[80] | "Answer the Marks" — Challenge builder (reversed from a full screen to an overlay, spec §17 D1); Marks row → slot row → Hoard fan → Confirm/Reset/Cancel |
-| `pko-how-to-overlay` | Data (slide-up) | z-[90] | How to Play |
-| `pko-chain-overlay` | Data (slide-up) | z-[90] | The food-chain reference — three entry points (menu how-to, in-game `[?]`, challenge builder `[?]`), one overlay |
+| `pko-how-to-overlay` | Data (slide-up) | z-[90] | How to Play — **three tabs: The Rules \| Diagram \| Animals**. Absorbed the former `pko-chain-overlay` (D39, Aug 2026); the food-chain reference keeps all three of its entry points (menu how-to, in-game `[?] The Chain`, tap-hold a card), which now open this overlay pre-selected on the right tab |
 | `pko-trail-overlay` | Data (slide-up) | z-[90] | "The Watering Hole 💧" — Trail / discards tabs |
 | `pko-quit-overlay` | Decision modal | z-[80] | "Abandon your territory?" — `border-[#C9A227]` |
 | `pko-stampede-overlay` | Decision modal | z-[90] | "Stampede with [species] ×N?" confirm |

@@ -2079,7 +2079,13 @@ function cjarOpenCards() {
   const tile = (row, card, caption) => {
     const cell = document.createElement('div');
     cell.className = 'flex flex-col items-center gap-1 w-[4.5rem]';
-    cell.appendChild(cjarRenderCard(card, { size: 'counter' }));
+    // Tap a tile to see the artwork at viewport size — a counter-size card is 3.5rem,
+    // which is a token, not a picture. The URL is resolved here (not inside the render
+    // seam) so a tile still on its emoji fallback gets no zoom affordance at all.
+    const url = card
+      ? (typeof assetFace === 'function') && assetFace('cjar', cjarArtKey(card))
+      : (typeof assetBack === 'function') && assetBack('cjar');
+    cell.appendChild(artMakeZoomable(cjarRenderCard(card, { size: 'counter' }), url, caption));
     const c = document.createElement('p');
     c.className = 'text-[0.65rem] text-stone-500 text-center leading-tight';
     c.textContent = caption;

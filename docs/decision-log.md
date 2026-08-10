@@ -20,6 +20,20 @@ Detail: pointer to the canonical doc (snapshot / impl note / spec / memory).
 
 ---
 
+## 2026-08-10 — A global art viewer, galleries for the last four seams, and a standalone art-authoring guide
+**Category:** Architecture
+**Decision:** Three things. (1) A single engine-owned **art viewer** — `openArtViewer(src, caption)` / `artMakeZoomable(el, src, caption)` + `#art-viewer-overlay` (z-[105]) — makes every gallery tile in every game tappable-to-enlarge; it is Pattern 2 geometry with an image body and is deliberately **unbranded**, because six games open it. (2) The How-to tab bar rolled out to **FRT, SHP, FLW and DYB**, closing the deferred gallery item; FLW's was a *fold* of its standalone `flw-gems-overlay`, not a new build. (3) Skin authoring became a first-class, Claude-Code-free workflow: `docs/art-authoring-guide.md` + `tools/make-skin-pack.ps1`.
+**Why:** A card tile is 3–4.5 rem — a token, not a picture — so shipped artwork was effectively unviewable, and the owner had no way to author a skin without reverse-engineering dimensions from CSS. The `src` guard is the load-bearing detail: a tile with no resolved art gets neither the zoom cursor nor a handler, which turns the art viewer into a second, sharper signal for the offline install check.
+**Changed:** `js/engine.js` (viewer + helper + `resetToLobby` teardown + a drive-by `getMuteToggleOnClass` fix — `frt` was missing, silently falling back to stone); `css/styles.css`; `index.html` (art viewer, 4 tab bars + bodies, `flw-gems-overlay` removed); `frt/shp/flw/dyb/pko/cjar.js`; `tools/verify-cjar-loopback.js` (stubs the two new engine functions — it caught the missing symbol by executing real render code, exactly the blind spot it exists for); `sw.js` **v166 → v167**. **Deferred:** PASS's gallery (54 faces), and DYB's five Tempest `specials` types are documented but not shown in its gallery — their identity is live per-die state a static tile would misrepresent.
+**Detail:** `docs/art-authoring-guide.md`; `docs/implementation-notes/flw-implementation-notes.md`.
+
+## 2026-08-10 — How-to tab bar generalised to N tabs; PKO's Chain folded in
+**Category:** Architecture
+**Decision:** `ui-style.md`'s optional How-to tab bar (CJAR, Aug 2026) is no longer capped at two tabs, and its "stays separate because it's a mid-play reference" carve-out is retired — reference content that is part of learning the game belongs in the tab bar even when it's also opened mid-play. PKO's `pko-chain-overlay` (Diagram | Animals) is folded into `pko-how-to-overlay` as tabs 2–3, opened pre-selected from the table's `[?] The Chain` and a tap-held card.
+**Why:** The carve-out didn't survive a second example — PKO's Diagram/Animals content is the same reference at different times, and keeping it in two overlays duplicated the content and cost an extra overlay + teardown entry for no real benefit.
+**Changed:** `index.html`/`js/games/pko.js` (`pkoOpenHowTo(tab, highlightId)` replaces `pkoOpenChain`'s own overlay; `pkoSetHowToTab` replaces `pkoSetChainTab`); `js/engine.js` `resetToLobby()` teardown list. Also fixed PKO's Active Marks row centring (a hidden spacer balancing the Watering Hole button) and surfaced the "Watering Hole" name in its caption. Deferred: same tab-bar treatment for FLW/SHP/FRT/DYB's own gallery-style reference content — `docs/deferred-work.md`.
+**Detail:** `docs/implementation-notes/pko-implementation-notes.md`.
+
 ## 2026-08-09 — DD-31 button-parity rule rolled out suite-wide
 **Category:** Process
 **Decision:** The size/weight-parity rule below is now applied to all 18 games, not just CJAR — every game menu's "← Back to the Box" and every gameover screen's secondary exit/leave button now match their screen's primary CTA in height, text size, and weight.

@@ -1010,10 +1010,76 @@ function frtOpenSettings() {
   if (inner) inner.scrollTop = 0;
   document.getElementById('frt-settings-overlay').style.display = 'flex';
 }
-function frtOpenHowTo() {
+function frtOpenHowTo(tab) {
+  frtSetHowToTab(tab || 'rules');
   const inner = document.querySelector('#frt-how-to-overlay .overlay-data-inner');
   if (inner) inner.scrollTop = 0;
   document.getElementById('frt-how-to-overlay').style.display = 'flex';
+}
+
+// The rules and the fruit gallery are two tabs of ONE overlay. Bodies are siblings
+// toggled by display (never one body repainted) so flicking across and back keeps
+// the other tab's scroll position.
+function frtSetHowToTab(tab) {
+  const rules = document.getElementById('frt-how-to-body');
+  const cards = document.getElementById('frt-how-to-cards');
+  if (rules) rules.style.display = tab === 'cards' ? 'none' : 'flex';
+  if (cards) cards.style.display = tab === 'cards' ? 'flex' : 'none';
+  document.querySelectorAll('[data-frt-howto-tab]').forEach(b => {
+    b.classList.remove('pill-active-frt');       // .pill is the base — never removed
+    if (b.dataset.frtHowtoTab === tab) b.classList.add('pill-active-frt');
+  });
+  if (tab === 'cards') frtRenderGallery();
+}
+
+// Built from FRT_FRUITS on every switch INTO the tab, and every tile goes through
+// frtRenderCard — a gallery that built its own markup would be unskinnable and would
+// drift from the deck. Needs no match, no lobby and no network, which is what makes
+// the offline install check a single-device job on an MDLM-only game.
+function frtRenderGallery() {
+  const box = document.getElementById('frt-cards-body');
+  if (!box) return;
+  box.innerHTML = '';
+
+  const section = (label, blurb) => {
+    const wrap = document.createElement('div');
+    wrap.className = 'flex flex-col gap-2';
+    const h = document.createElement('p');
+    h.className = 'text-xs font-semibold uppercase tracking-widest';
+    h.style.color = FRT_LEAF;
+    h.textContent = label;
+    const b = document.createElement('p');
+    b.className = 'text-stone-500 text-sm';
+    b.textContent = blurb;
+    const row = document.createElement('div');
+    row.className = 'grid grid-cols-3 gap-3 justify-items-center pt-1';
+    wrap.append(h, b, row);
+    box.appendChild(wrap);
+    return row;
+  };
+  // A tile is the card plus its name underneath: the face carries no label at this
+  // size, and an unlabelled grid of art is a poster, not a reference.
+  const tile = (row, cardEl, url, caption) => {
+    const cell = document.createElement('div');
+    cell.className = 'flex flex-col items-center gap-1 w-[4.5rem]';
+    cell.appendChild(artMakeZoomable(cardEl, url, caption));
+    const c = document.createElement('p');
+    c.className = 'text-[0.65rem] text-stone-500 text-center leading-tight';
+    c.textContent = caption;
+    cell.appendChild(c);
+    row.appendChild(cell);
+  };
+
+  const fruit = section('The Fruit',
+    'Eight fruits, eight cards each. Collect four of a kind face-up and you are out.');
+  FRT_FRUITS.forEach(f => {
+    const url = (typeof assetFace === 'function') && assetFace('frt', f.id);
+    tile(fruit, frtRenderCard(f.id), url, f.name);
+  });
+
+  const back = section('Face Down', 'What a served card looks like before anyone calls it.');
+  tile(back, frtRenderCard(null, { faceDown: true }),
+    (typeof assetBack === 'function') && assetBack('frt'), 'The Back');
 }
 function frtOpenPersonalities() {
   playPillClick();
@@ -1149,6 +1215,10 @@ document.addEventListener('DOMContentLoaded', () => {
   // Overlay closers
   on('btn-frt-settings-done', () => { playDone(); document.getElementById('frt-settings-overlay').style.display = 'none'; });
   on('btn-frt-howto-close',   () => { playDone(); document.getElementById('frt-how-to-overlay').style.display = 'none'; });
+  on('btn-frt-howto-close-cards', () => { playDone(); document.getElementById('frt-how-to-overlay').style.display = 'none'; });
+  document.querySelectorAll('[data-frt-howto-tab]').forEach(b => {
+    b.addEventListener('click', () => { playPillClick(); frtSetHowToTab(b.dataset.frtHowtoTab); });
+  });
 
   // In-game header [?] → How to Play · 📋 → Pass-Off Log
   on('btn-frt-how-to', () => frtOpenHowTo());

@@ -64,13 +64,20 @@ not in a batch at the end.
   assigning a raw payload collection in a SYNC applier can strand a client. cjar is fixed and the rule is now in
   `logic-engine.md`; the other 17 games reach the same protection informally via `p.x || []` but have not been
   checked field by field. Worth a Protocol A pass. Detail: `cjar-implementation-notes.md` BUG-06.
-- **A card gallery exists only for CJAR** — and as of 3 Aug 2026 it is **the second tab of How to Play**
-  (`The Rules | The Cards`), not its own overlay; `ui-style.md` § How-to Overlay Standard now carries the
-  optional tab-bar pattern, with the rule that teaching material earns a tab while a mid-play reference (PKO's
-  chain) keeps its own overlay. cjar's offline install check **passed** on this route. FLW, SHP, FRT and PKO
-  have the same need and the same render seam and still have none — their core-art offline check still needs a
-  running match. The shape is now proven; copying it is a per-game job. PASS is the awkward one — 54 playing
-  cards. Detail: `cjar-implementation-notes.md` DD-14.
+~~**PKO's Chain diagram/animals list kept its own overlay**~~ — **RESOLVED, 10 Aug 2026.** Folded into
+  `pko-how-to-overlay` as tabs 2–3 (`The Rules | Diagram | Animals`); the old two-tab `pko-chain-overlay` is
+  gone. This also retired the "mid-play reference keeps its own overlay" carve-out in `ui-style.md` — see
+  `decision-log.md` 2026-08-10. Detail: `pko-implementation-notes.md`.
+~~**A card/reference gallery exists only for CJAR and PKO.**~~ — **RESOLVED, 10 Aug 2026.** FRT
+  (`The Rules | The Fruit`), SHP (`The Rules | The Cards`), FLW (`The Rules | The Gems`) and DYB
+  (`The Rules | The Dice`) all gained one, so **six of the seven render seams now have a gallery** and the
+  core-art offline install check is a single-device job everywhere it applies. FLW's was a *fold*, not a new
+  build: its standalone `flw-gems-overlay` Gem Manifest became tab 2 and was retired, same move PKO's chain
+  overlay made — and converting it to `flwRenderCard` fixed a real defect, since the old swatch-circle markup
+  meant no skin could ever reach it. Every tile is now tappable-to-enlarge via the new engine-owned art viewer
+  (`ui-style.md` § Pattern 2a). **PASS remains the one exception** — 54 playing cards make a tile grid a poster
+  rather than a reference, and it has no core art to verify, so nothing is currently unverifiable. Detail:
+  `docs/decision-log.md` 2026-08-10, `docs/art-authoring-guide.md`.
 - **The settings dynamic-value line (DD-13) is implemented only in CJAR.** `ui-style.md` § Settings Card
   Standard requires it wherever a pill option encodes a concrete value not visible in its label — durations,
   counts, thresholds. The other 17 games have not been swept, and at least some will have the same gap cjar had

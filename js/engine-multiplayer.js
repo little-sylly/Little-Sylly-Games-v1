@@ -871,8 +871,10 @@ function mpSerialiseSettings(abbr) {
     // pkoAppetite is load-bearing, not cosmetic: the host re-validates every Challenge with
     // pkoBeats(), so a client on a different Appetite would have legal plays silently
     // rejected — the dead-button shape of BUG-02.
+    // pkoScoring changes what pkoClashTarget MEANS (Clashes to win vs Clashes to play), so
+    // the pair travels together or a client counts down to the wrong finish line.
     case 'pko': return {
-      pkoClashTarget, pkoHoardSize, pkoPoacherSetting, pkoScavenge, pkoStartSmall,
+      pkoScoring, pkoClashTarget, pkoHoardSize, pkoPoacherSetting, pkoScavenge, pkoStartSmall,
       pkoAppetite, pkoSyllyMode,
     };
     // All five are host-owned; a missing field means clients silently play with
@@ -1056,6 +1058,7 @@ function mpHandleEnvelope(env) {
           if (s.flwSyllyMode    !== undefined) flwSyllyMode    = s.flwSyllyMode;
           break;
         case 'pko':
+          if (s.pkoScoring        !== undefined) pkoScoring        = s.pkoScoring;
           if (s.pkoClashTarget    !== undefined) pkoClashTarget    = s.pkoClashTarget;
           if (s.pkoHoardSize      !== undefined) pkoHoardSize      = s.pkoHoardSize;
           if (s.pkoPoacherSetting !== undefined) pkoPoacherSetting = s.pkoPoacherSetting;

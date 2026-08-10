@@ -1260,10 +1260,87 @@ function shpOpenSettings() {
   if (inner) inner.scrollTop = 0;
   document.getElementById('shp-settings-overlay').style.display = 'flex';
 }
-function shpOpenHowTo() {
+function shpOpenHowTo(tab) {
+  shpSetHowToTab(tab || 'rules');
   const inner = document.querySelector('#shp-how-to-overlay .overlay-data-inner');
   if (inner) inner.scrollTop = 0;
   document.getElementById('shp-how-to-overlay').style.display = 'flex';
+}
+
+// Rules and card gallery are two tabs of ONE overlay; bodies are siblings toggled by
+// display so each keeps its own scroll position across a flick.
+function shpSetHowToTab(tab) {
+  const rules = document.getElementById('shp-how-to-body');
+  const cards = document.getElementById('shp-how-to-cards');
+  if (rules) rules.style.display = tab === 'cards' ? 'none' : 'flex';
+  if (cards) cards.style.display = tab === 'cards' ? 'flex' : 'none';
+  document.querySelectorAll('[data-shp-howto-tab]').forEach(b => {
+    b.classList.remove('pill-active-indigo');    // .pill is the base — never removed
+    if (b.dataset.shpHowtoTab === tab) b.classList.add('pill-active-indigo');
+  });
+  if (tab === 'cards') shpRenderGallery();
+}
+
+// Built from SHP_CARDS on every switch INTO the tab (never cached at boot — the
+// Plunge inverts what a number card DOES, so a gallery built once would be wrong
+// half the night), and every tile goes through shpRenderCard so it stays skinnable.
+function shpRenderGallery() {
+  const box = document.getElementById('shp-cards-body');
+  if (!box) return;
+  box.innerHTML = '';
+
+  const section = (label, blurb) => {
+    const wrap = document.createElement('div');
+    wrap.className = 'flex flex-col gap-2';
+    const h = document.createElement('p');
+    h.className = 'text-xs font-semibold uppercase tracking-widest text-indigo-600';
+    h.textContent = label;
+    const b = document.createElement('p');
+    b.className = 'text-stone-500 text-sm';
+    b.textContent = blurb;
+    const row = document.createElement('div');
+    row.className = 'grid grid-cols-3 gap-3 justify-items-center pt-1';
+    wrap.append(h, b, row);
+    box.appendChild(wrap);
+    return row;
+  };
+  const tile = (row, cardEl, url, caption) => {
+    const cell = document.createElement('div');
+    cell.className = 'flex flex-col items-center gap-1 w-[4rem]';
+    cell.appendChild(artMakeZoomable(cardEl, url, caption));
+    const c = document.createElement('p');
+    c.className = 'text-[0.65rem] text-stone-500 text-center leading-tight';
+    c.textContent = caption;
+    cell.appendChild(c);
+    row.appendChild(cell);
+  };
+  const add = (row, card) => {
+    const url = (typeof assetFace === 'function') && assetFace('shp', card.id);
+    tile(row, shpRenderCard(card.id), url, card.label);
+  };
+
+  const byFamily = f => SHP_CARDS.filter(c => c.family === f && c.id !== 13);
+  const pasture = section('Pasture', 'Sheep go in. Every one of these pushes the Herd up.');
+  byFamily('pasture').forEach(c => add(pasture, c));
+
+  const pillow = section('Pillow', 'Relief cards — they take sheep back out, skip you, or turn the count around.');
+  byFamily('pillow').forEach(c => add(pillow, c));
+
+  const alarm = section('Alarm', 'Loud, unpredictable, and usually somebody else’s problem until it isn’t.');
+  byFamily('alarm').forEach(c => add(alarm, c));
+
+  const trap = section('Trap', 'One card, and it is coming for the ceiling itself.');
+  byFamily('trap').forEach(c => add(trap, c));
+
+  // Fogged Dream is deliberately excluded from every skin (its value is hidden from
+  // its own owner), so it is shown but never zoomable — there is no art to enlarge.
+  const fog = section('Fogged Dream',
+    'Conjured by the Fog, never dealt. Nobody sees its value — not even you. Permanently unskinnable.');
+  tile(fog, shpRenderCard(13), null, 'Fogged Dream');
+
+  const back = section('Face Down', 'Somebody else’s hand.');
+  tile(back, shpRenderCard(null, { faceDown: true }),
+    (typeof assetBack === 'function') && assetBack('shp'), 'The Back');
 }
 function shpShowTip(emoji, heading, lines) {
   document.getElementById('shp-tip-emoji').textContent = emoji || '';
@@ -1404,6 +1481,10 @@ document.addEventListener('DOMContentLoaded', () => {
   // Overlay closers
   on('btn-shp-settings-done', () => { playDone(); document.getElementById('shp-settings-overlay').style.display = 'none'; });
   on('btn-shp-howto-close',   () => { playDone(); document.getElementById('shp-how-to-overlay').style.display = 'none'; });
+  on('btn-shp-howto-close-cards', () => { playDone(); document.getElementById('shp-how-to-overlay').style.display = 'none'; });
+  document.querySelectorAll('[data-shp-howto-tab]').forEach(b => {
+    b.addEventListener('click', () => { playPillClick(); shpSetHowToTab(b.dataset.shpHowtoTab); });
+  });
   on('btn-shp-tip-close',      () => { playDone(); document.getElementById('shp-tip-overlay').style.display = 'none'; });
   on('btn-shp-card-info-close',() => { playDone(); document.getElementById('shp-card-info-overlay').style.display = 'none'; });
   // Tap the backdrop (outside the card) to dismiss the inspect modal

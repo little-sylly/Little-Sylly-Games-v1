@@ -102,6 +102,24 @@ Clients' `FRT_ROUND_END`/`FRT_GAMEOVER` handlers render from the authoritative p
 **Turn timer = GTH wall-clock `endTimestamp`**
 Host computes `endTimestamp` at each timed-phase entry and broadcasts it; all devices run a local display countdown from it; only the host acts on expiry (`frtTimerExpire` → auto-serve truthful / auto-call TRUE). RAF not needed; `frtTurnTimerHandle` cleared in `frtResetState` + on every phase exit (Timer Lifecycle).
 
+## How-to gallery tab (2026-08-10, SW v167)
+
+**What happened:** `frt-how-to-overlay` gained a second tab, `The Rules | The Fruit`, built from
+`FRT_FRUITS` through `frtRenderCard` — eight fruit plus the face-down back. Every tile is
+tappable-to-enlarge via the engine-owned `artMakeZoomable` / `openArtViewer` (`ui-style.md`
+§ Pattern 2a). Closes FRT's half of the deferred gallery item.
+
+**Why it matters beyond convenience:** FRT has core art (v153), and before this the art rendered
+**only inside a live match**. On an MDLM game that made the offline install check a four-phone job
+to answer a pure service-worker question. It is now single-device: open How to Play offline, and
+illustrated fruit means the pack precached.
+
+**Note on the personalities overlay:** `frt-personalities-overlay` (Sylly Mode's Fruity
+Personalities) was deliberately left alone. It is *mode-specific rules copy*, not a card reference,
+and folding it in would have put Sylly-only content in front of players who never turn Sylly on.
+
+---
+
 ## Template Gaps
 
 **No word bank → difficulty-setting exemption applied**
