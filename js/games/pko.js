@@ -491,7 +491,7 @@ function pkoRenderCard(id, opts = {}) {
   emoji.textContent = entry.emoji || '';
   const name = document.createElement('span');
   name.className = 'pko-card-name';
-  name.textContent = entry.name || id;                // degrade to the id, never throw
+  name.textContent = pkoCardName(id);                  // degrades to the id, never throws
   el.append(emoji, name);
   return el;
 }
@@ -1125,8 +1125,8 @@ function pkoTrackReason() {
   const lock = pkoEventFlag('track');
   if (!lock) return '';
   return lock === 'sea'
-    ? 'The Deluge — only the sea may hunt. A Poacher still can.'
-    : 'The Dry Season — only the land may hunt. A Poacher still can.';
+    ? `The Deluge — only the sea may hunt. A ${pkoCardName(PKO_POACHER_ID)} still can.`
+    : `The Dry Season — only the land may hunt. A ${pkoCardName(PKO_POACHER_ID)} still can.`;
 }
 function pkoRejectionReason(markId, cardId) {
   if (!pkoTrackOk(cardId)) return pkoTrackReason();
@@ -1134,13 +1134,13 @@ function pkoRejectionReason(markId, cardId) {
     return `A Mimic copies — it can’t act alone. Pair it with a real ${pkoCardName(markId)}.`;
   }
   const mark = pkoCardName(markId);
-  if (markId === PKO_POACHER_ID) return `Only a Poacher answers a Poacher. It can't be Swarmed.`;
+  if (markId === PKO_POACHER_ID) return `Only a ${mark} answers a ${mark}. It can't be Swarmed.`;
   const preds = [...(pkoPredators(markId) || [])].map(pkoCardName);
   const swarm = `or two ${mark}s to Swarm it`;
   if (cardId === markId) return `A ${mark} can't beat a ${mark} — you need two to Swarm it.`;
   return preds.length
     ? `${pkoCardName(cardId)} doesn't beat ${mark}. Try ${preds.join(', ')} — ${swarm}.`
-    : `Nothing in the chain beats ${mark}. Only a Poacher — ${swarm}.`;
+    : `Nothing in the chain beats ${mark}. Only a ${pkoCardName(PKO_POACHER_ID)} — ${swarm}.`;
 }
 
 // Can this group sit in this slot while the player is still BUILDING? A lone card is
@@ -1549,7 +1549,12 @@ function pkoHoleCount() {
     (n, b) => n + (b && Array.isArray(b.cards) ? b.cards.length : 1), 0);
 }
 
-function pkoCardName(id) { return ((pkoChain || {})[id] || {}).name || id; }
+// The ONLY place an animal's display name is decided — a skin's `names` override
+// (assetName, js/lib/art.js) wins over the chain's own name, which wins over the raw id.
+function pkoCardName(id) {
+  const base = ((pkoChain || {})[id] || {}).name || id;
+  return (typeof assetName === 'function') ? assetName('pko', id, base) : base;
+}
 
 // "Bear ×2, Poacher" — groups duplicates so a six-wide board still reads in one line.
 function pkoSummariseCards(ids) {
@@ -2440,16 +2445,20 @@ function pkoOpenChain(highlightId) {
 // that explains them cannot drift apart, and a tenth event needs no markup. The extra rules
 // text is the one thing not in the registry — the blurb is a one-line announcement, this is
 // what the event actually does to your turn — so it lives here, keyed by id.
+// Values are FUNCTIONS, not strings — two entries name an animal by id (great-reversal
+// names Eagle/Elephant as the chain's apex/dead-end; deluge/dry-season/invasive-mimicry
+// name the Poacher), and those must resolve through pkoCardName so a skin's `names`
+// override reaches this overlay too, not just the Animals tab.
 const PKO_EVENT_DETAIL = {
-  'invasive-mimicry': 'Opens every Clash. Mimics join the Pool and everyone is dealt a few extra. A Mimic copies whatever real card it is played with, so it can never be played alone — and it can never copy a Poacher.',
-  'culling':          'Each player discards every copy of the species they hold fewest of. It can never empty a Hoard, so nobody wins the Clash on a Culling.',
-  'great-reversal':   'The chain runs backwards for the Encounter — prey eats predator. The Eagle becomes beatable and the Elephant becomes the weakest thing on the board.',
-  'deluge':           'Only sea animals may be played this Encounter. Poachers hunt in any weather. If nobody could act at sea, the Deluge is never drawn.',
-  'dry-season':       'Only land animals may be played this Encounter. Poachers hunt in any weather. If nobody could act on land, the Dry Season is never drawn.',
-  'extinction':       'The rarest species across every Hoard is wiped out completely. Fires at most once per Clash — and if it empties a Hoard, that player takes the Clash on the spot.',
-  'migration':        'Every Hoard passes one seat to the left. Nothing is discarded; you simply inherit somebody else\'s problem.',
-  'alpha':            'One Mark on the opening Stake wears the crown. Whatever is played against the Alpha still counts, but the Alpha itself is never discarded — so the board grows instead of shrinking.',
-  'carrion':          'Win a Challenge and you get a short window to take any of the Marks you just beat back into your Hoard, instead of letting them go to the Watering Hole.',
+  'invasive-mimicry': () => `Opens every Clash. Mimics join the Pool and everyone is dealt a few extra. A Mimic copies whatever real card it is played with, so it can never be played alone — and it can never copy a ${pkoCardName(PKO_POACHER_ID)}.`,
+  'culling':          () => 'Each player discards every copy of the species they hold fewest of. It can never empty a Hoard, so nobody wins the Clash on a Culling.',
+  'great-reversal':   () => `The chain runs backwards for the Encounter — prey eats predator. The ${pkoCardName('eagle')} becomes beatable and the ${pkoCardName('elephant')} becomes the weakest thing on the board.`,
+  'deluge':           () => `Only sea animals may be played this Encounter. ${pkoCardName(PKO_POACHER_ID)}s hunt in any weather. If nobody could act at sea, the Deluge is never drawn.`,
+  'dry-season':       () => `Only land animals may be played this Encounter. ${pkoCardName(PKO_POACHER_ID)}s hunt in any weather. If nobody could act on land, the Dry Season is never drawn.`,
+  'extinction':       () => 'The rarest species across every Hoard is wiped out completely. Fires at most once per Clash — and if it empties a Hoard, that player takes the Clash on the spot.',
+  'migration':        () => 'Every Hoard passes one seat to the left. Nothing is discarded; you simply inherit somebody else\'s problem.',
+  'alpha':            () => 'One Mark on the opening Stake wears the crown. Whatever is played against the Alpha still counts, but the Alpha itself is never discarded — so the board grows instead of shrinking.',
+  'carrion':          () => 'Win a Challenge and you get a short window to take any of the Marks you just beat back into your Hoard, instead of letting them go to the Watering Hole.',
 };
 
 function pkoOpenEvents() { pkoRenderEvents(); pkoOpen('pko-events-overlay'); }
@@ -2476,7 +2485,7 @@ function pkoRenderEvents() {
     }
     const p = document.createElement('p');
     p.className = 'text-stone-500 text-sm';
-    p.textContent = PKO_EVENT_DETAIL[e.id] || e.blurb;
+    p.textContent = PKO_EVENT_DETAIL[e.id] ? PKO_EVENT_DETAIL[e.id]() : e.blurb;
     card.append(h, p);
     body.appendChild(card);
   });
@@ -2635,21 +2644,21 @@ function pkoRenderChain(highlightId) {
     // Tap the card to see the artwork full size. Resolved here rather than inside
     // pkoRenderCard so a seam still on its emoji fallback offers no zoom affordance.
     const artUrl = (typeof assetFace === 'function') && assetFace('pko', e.id);
-    row.appendChild(artMakeZoomable(pkoRenderCard(e.id, { size: 'sm' }), artUrl, e.name));
+    row.appendChild(artMakeZoomable(pkoRenderCard(e.id, { size: 'sm' }), artUrl, pkoCardName(e.id)));
     const txt = document.createElement('div');
     txt.className = 'flex flex-col gap-0.5 min-w-0';
     const n = document.createElement('p');
     n.className = 'font-bold text-stone-800 text-sm';
-    n.textContent = e.name;
+    n.textContent = pkoCardName(e.id);
     const b = document.createElement('p');
     b.className = 'text-stone-500 text-xs';
     const preds = [...(pkoPredators(e.id) || [])];
     b.textContent = e.id === PKO_MIMIC_ID
-      ? 'Copies whatever it’s played with. Never alone, never a Poacher, and it never becomes a Mark.'
+      ? `Copies whatever it’s played with. Never alone, never a ${pkoCardName(PKO_POACHER_ID)}, and it never becomes a Mark.`
       : preds.length
         ? 'Beaten by ' + preds.map(pkoCardName).join(', ')
         : (e.id === PKO_POACHER_ID ? 'Answers to no one. Wins any one Mark outright.'
-                                   : 'Nothing in the chain beats it. Only a Poacher — or a Swarm.');
+                                   : `Nothing in the chain beats it. Only a ${pkoCardName(PKO_POACHER_ID)} — or a Swarm.`);
     txt.append(n, b);
     row.appendChild(txt);
     body.appendChild(row);

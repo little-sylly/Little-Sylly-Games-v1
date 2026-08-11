@@ -864,7 +864,7 @@ function mpSerialiseSettings(abbr) {
       flwLedgerOn, flwTokenMode, flwCustomTarget, flwTurnTimer, flwBurnSetting, flwSyllyMode,
     };
     case 'shp': return {
-      shpHandSize, shpMoons, shpDreamAccel, shpSleepwalkers, shpSyllyMode,
+      shpHandSize, shpMoons, shpDreamAccel, shpSyllyMode,
     };
     // pkoSyllyMode is inert in v1 (Force of Nature is Phase 2) but ships serialised
     // from day one so Phase 2 is a pure addition — spec §12/§16 Q7.
@@ -1046,7 +1046,6 @@ function mpHandleEnvelope(env) {
           if (s.shpHandSize     !== undefined) shpHandSize     = s.shpHandSize;
           if (s.shpMoons        !== undefined) shpMoons        = s.shpMoons;
           if (s.shpDreamAccel   !== undefined) shpDreamAccel   = s.shpDreamAccel;
-          if (s.shpSleepwalkers !== undefined) shpSleepwalkers = s.shpSleepwalkers;
           if (s.shpSyllyMode    !== undefined) shpSyllyMode    = s.shpSyllyMode;
           break;
         case 'flw':

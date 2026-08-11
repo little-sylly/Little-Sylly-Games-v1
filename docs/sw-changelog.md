@@ -3,7 +3,23 @@
 Historical SW release notes, moved out of `CLAUDE.md` (1 Aug 2026) so they stop loading into every session.
 The **current** version and its notes stay in `CLAUDE.md` § Current Focus — append the outgoing entry here on each bump.
 
-## v166 and earlier
+## v167 and earlier
+
+v167 (**Artwork: a global art viewer, galleries for the last four seams, and a standalone authoring
+guide (10 Aug 2026).** Three things ride this bump. **(1) The art viewer** —
+`openArtViewer(src, caption)` and `artMakeZoomable(el, src, caption)` in `engine.js`, plus one
+global `#art-viewer-overlay` (z-[105]) — makes every gallery tile in every game tappable-to-enlarge.
+It is Pattern 2 geometry with an image body, deliberately unbranded (six games open it), and
+documented as `ui-style.md` § Pattern 2a. The load-bearing detail is the `src` guard: a tile whose
+art didn't resolve gets neither the zoom cursor nor a handler, so a dead tap is now a second,
+sharper signal for the offline install check. **(2) Galleries** — the How-to tab bar rolled out to
+FRT · SHP · FLW · DYB, closing the deferred item; six of seven render seams now have one (PASS, at
+54 faces, is the deliberate exception). FLW's was a fold of its standalone `flw-gems-overlay`, which
+also fixed a real defect — the old swatch-circle markup meant no skin could ever reach the Gem
+Manifest. **(3) Authoring** — `docs/art-authoring-guide.md` + `tools/make-skin-pack.ps1` (`-List`
+prints any game's inventory; `-Register` writes the pack and the registry line) make skin authoring
+a Claude-Code-free workflow. Drive-by: `getMuteToggleOnClass` was missing its `frt` entry and
+silently fell back to stone. Detail: `docs/decision-log.md` 2026-08-10, `docs/art-authoring-guide.md`.) Previous:
 
 v166 (**Pecking Order: the Law of the Wild, plus the D39 stage-polish round.** Two things. **(1) Law of the Wild** — a PKO Match can now be won two ways. **Dominance** is the shipped behaviour, unchanged: a race, first to `pkoClashTarget` Clashes. **Stragglers** plays exactly that many Clashes instead and counts every card still in your Hoard when a Clash ends against you — lowest total takes the Match, and the champion may have won no Clash at all. One merged settings card carries both pill rows and a live `#pko-val-law` value line, because `pkoClashTarget` means "Clashes to **win**" in one mode and "Clashes to **play**" in the other. Both modes share `pkoScores`/`pkoClashHistory` — only what a history row *holds* differs — and the direction of "winning" lives in one `pkoBestScore`, since a mode read the wrong way round doesn't throw, it just crowns the wrong player. `pkoScoring` ships in `SETTINGS_SYNC` and rides `PKO_CLASH_BEGIN`/`CLASH_END`/`MATCH_END`, so a client self-heals before it renders a score. `verify-pko-loop.js` **132 → 147**. **(2) D39** — the Active Marks / Watering Hole two-column layout, and `pko-chain-overlay` folded into How to Play as tabs 2–3 (decision-log 2026-08-10). **Still open for playtest:** Force of Nature can hand a player cards they did not choose (Deluge, Culling, Migration, Great Reversal), which is a straight penalty under Stragglers in a way it never was under Dominance — deliberately left un-special-cased pending a live session. Detail: `docs/implementation-notes/pko-implementation-notes.md` D39/D40.) Previous:
 

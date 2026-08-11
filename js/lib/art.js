@@ -126,6 +126,16 @@ function assetSpecial(kind, type, id) {
   return null;
 }
 
+// The display name for (kind, id), if the active skin overrides it — else `fallback`
+// (the game's own canonical name). Text, not an asset path, so there is no core-art
+// tier: default names are the game's own and never change unless a skin opts in via
+// an optional `names` block. First user: PKO's Dinosaurs skin ("Elephant" → "Titanosaur").
+function assetName(kind, id, fallback) {
+  const skin = artSkin(kind);
+  const n = skin && skin.assets.names && skin.assets.names[id];
+  return n || fallback;
+}
+
 // Whether the engine draws its own type chrome (border + tint + glow) around that
 // art. False only where a tier explicitly opts out with "frame": false — a pack
 // author taking responsibility for keeping the type legible themselves.

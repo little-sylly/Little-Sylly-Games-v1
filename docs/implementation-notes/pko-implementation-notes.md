@@ -221,6 +221,14 @@ silently rot.*
 
 ## Bug Index
 
+*Two Terminal/Secret Mode bugs found while testing PKO's Dinosaurs skin (11 Aug 2026) are
+logged in `docs/implementation-notes/shared-implementation-notes.md` BUG-01/BUG-02, not
+here — their root cause was entirely in `secret-mode.js` (lazy-load + navigation/log), not
+in PKO's own code. That file is where non-game-specific work belongs going forward, even
+when the bug surfaces while a specific game is being tested. The `assetName` skin-rename
+feature (used by PKO's `pkoCardName`) is also logged there (DD-01), since `js/lib/art.js`
+is shared infra — PKO's own use of it is covered below.
+
 **BUG-06 — How to Play never taught Swarm, and two cards contradicted it. [Protocol A phase gate, 1 Aug 2026]**
 *What happened:* Swarm shipped in round 2 (DD-23) and is under direct measurement in round 3, but the string `"Swarm"` appeared exactly once in all of `index.html` — the Challenge builder's own subtitle. The How to Play overlay's Step 3 said *"one card per Mark, each a natural predator"* and The Eagle card said a Poacher was the Mark's *only* answer — both false now that two Eagles can Swarm an Eagle-Mark, and both would have taught players to distrust or avoid the exact mechanic round 3 needs data on.
 *Root cause:* Swarm was added to the Challenge builder overlay and the chain overlay ([pko.js:1774](../../js/games/pko.js)) when it shipped, but the static How to Play overlay in `index.html` was never revisited — no code path enforces that a rules-copy screen stays in sync with a mechanic added to a different screen.

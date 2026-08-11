@@ -1,0 +1,50 @@
+{
+    "id":  "dino-pko",
+    "label":  "DINOSAURS",
+    "locked":  false,
+    "games":  [
+                  "pko"
+              ],
+    "assets":  {
+                   "kind":  "pko",
+                   "basePath":  "img/",
+                   "faces":  {
+                                 "bear":  "bear.jpg",
+                                 "bee":  "bee.jpg",
+                                 "eagle":  "eagle.jpg",
+                                 "elephant":  "elephant.jpg",
+                                 "fish":  "fish.jpg",
+                                 "human":  "human.jpg",
+                                 "leopard":  "leopard.jpg",
+                                 "mimic":  "mimic.jpg",
+                                 "mongoose":  "mongoose.jpg",
+                                 "mouse":  "mouse.jpg",
+                                 "octopus":  "octopus.jpg",
+                                 "orca":  "orca.jpg",
+                                 "polar_bear":  "polar_bear.jpg",
+                                 "seal":  "seal.jpg",
+                                 "stingray":  "stingray.jpg"
+                             },
+                   "back":  "back.jpg",
+                   "extras":  {
+                                  "chain":  "chain.jpg"
+                              },
+                   "names":  {
+                                 "bear":  "Ankylosaurus",
+                                 "bee":  "Velociraptor Pack",
+                                 "eagle":  "Pterodactyl",
+                                 "elephant":  "Tyrannosaurus Rex",
+                                 "fish":  "School of Xiphactinus Fish",
+                                 "human":  "Great Meteor",
+                                 "leopard":  "Triceratops",
+                                 "mimic":  "Mosquito in Amber",
+                                 "mongoose":  "Compsognathus",
+                                 "mouse":  "Prehistoric Lizard",
+                                 "octopus":  "Giant Ammonite",
+                                 "orca":  "Mosasaurus",
+                                 "polar_bear":  "Dunkleosteus",
+                                 "seal":  "Plesiosaurus",
+                                 "stingray":  "Megalodon"
+                             }
+               }
+}

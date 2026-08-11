@@ -137,8 +137,75 @@ card *does*, so a gallery built once at boot would be wrong for half the night.
 
 **Where the art came from:** the **`plush-sheeps` skin pack** (`data/packs/plush-sheeps/`), whose filenames already matched the game's ids directly (`card0.png`…`card16.png`), so the converter's id map needed no lookup table — just a straight `cardN -> N`. Promoting it removed `plush-sheeps` from `data/packs/registry.json`, same standing rule as the FLW/FRT runs.
 
-**id 13 (Fogged Dream) is permanently excluded, not just deferred.** `shpRenderCard` (`js/games/shp.js:297`) checks `cardId === 13` and returns a hardcoded cursed placeholder **before it ever calls `assetFace`** — the whole point of the card is that its value is hidden from every player, including whoever holds it, so giving it real art would leak information the mechanic is designed to hide. The skin pack's own `card13.png` master exists in `data/packs/plush-sheeps/img/` but was deliberately left out of the converter's `$map` and out of `data/art/shp/pack.json`'s `faces` block — there is no `"13"` key at all, matching the source skin (which also never listed one). **Owner confirmed (1 Aug 2026): do not renumber `SHP_CARDS` to close the id gap.** Those ids are the locked data-layer identity of the game (`js/games/shp.js:87` — "stable integer ids; packets deal only in ids"): `SHP_DECK_COUNTS` and every hand/discard/SYNC payload carry raw ids over Firebase. Renumbering would touch all of that for a purely cosmetic gap-close and risks an MP version mismatch, with zero upside since the art layer already tolerates the gap cleanly.
+**id 13 (Fogged Dream) was originally excluded (1 Aug 2026), reversed 11 Aug 2026 — see below.**
+`shpRenderCard` (`js/games/shp.js:297`) checks `cardId === 13` and returned a hardcoded cursed
+placeholder **before it ever called `assetFace`**, on the reasoning that the card's value is hidden
+from every player including whoever holds it, so giving it real art would leak information. That
+reasoning conflated two separate things: the card's *resolved numeric value* (2–12, rolled fresh at
+play time via `shpRandInt`, completely decoupled from what image is shown) versus the card's
+*identity/appearance* (already visible to everyone as a distinct violet "cursed" card — nothing
+about that was ever hidden). A static face doesn't encode the roll, so it doesn't leak anything the
+placeholder wasn't already showing. Owner had `card13.png` ready and pushed back on this during the
+Sleepwalkers-in-Sylly-Mode round; **reversed 11 Aug 2026** — `13.jpg` (39 KB, converted from the
+same `plush-sheeps/img/card13.png` master, same 400 px/40 KB settings as the other 16) was added to
+`data/art/shp/pack.json`'s `faces` block and `PRECACHE_URLS`, and `shpRenderCard`'s cursed branch
+now tries `assetFace('shp', 13)` first — same pattern as the Wolf-slot fix above — keeping the "?"
+label overlaid on top so the *hidden-value* mechanic still reads clearly. The How-to gallery tile is
+zoomable now too. **Owner confirmed (1 Aug 2026, unchanged): do not renumber `SHP_CARDS` to close
+the id-13 gap in the base deck** — that decision was never about the art, it's that those ids are
+the locked data-layer identity of the game (`js/games/shp.js:87` — "stable integer ids; packets deal
+only in ids"): `SHP_DECK_COUNTS` and every hand/discard/SYNC payload carry raw ids over Firebase, and
+id 13 is still correctly absent from `SHP_DECK_COUNTS` (conjured only by the Fog nightmare, never
+dealt) — only the *art* gap closed, not the id gap. **Lesson:** "this would leak hidden information"
+is worth re-deriving mechanically (what data does the art actually encode?) rather than accepting by
+pattern-match from a card's flavour text — the placeholder and the roll were never actually coupled.
 
 **Dimensions — no upscale needed, same call as FLW/FRT:** masters were 400×550 PNGs, already small and close to card aspect, so the converter held `$cardWidth` at 400 rather than PKO's 360px default (here the source was already *larger* than that default, so holding it was simply "don't touch it needlessly"). All 17 files landed under the 40 KB/card ceiling on the first or second quality step (q76–q84) — 640 KB total, the largest core-art payload so far but still well inside the FLW/FRT/PKO pattern.
 
 **Skipped deliberately:** an `await artReady` guard at SHP's entry point, same reasoning as FLW/FRT — the first live card render is several screens past app boot.
+
+---
+
+## Sleepwalkers folded into Sylly Mode + Wolf-slot art (2026-08-11, SW v168→v169)
+
+**What happened:** owner playtest feedback: the ghost/Nightmare-Meter system (Sleepwalkers) was a
+separate ON-by-default toggle sitting alongside Sylly Mode (Night Terrors), so a base-rules game
+could still have eliminated players haunting the table. Owner's call: fold it into Sylly Mode
+entirely — the ghost system now only activates when Night Terrors is on ("they only become active
+during the flip"). `shpSleepwalkers` was deleted as a variable; every call site (`shpChargeMeter`,
+`shpMeterReady`, the Nightmare Meter UI gate) now reads `shpSyllyMode` directly. The standalone
+settings card and its `btn-shp-sleepwalk-toggle` were removed from `index.html`; the Sylly Mode
+settings card and How-to card absorbed the Sleepwalkers/Nightmare Meter description, and the old
+How-to "Step 4: Sleepwalkers" base-game step was folded into the How-to Sylly Mode card instead of
+staying a numbered base step. `shpElimOrder` tracking and the "Sleepwalker" elimination-state label
+are unaffected — a player still becomes a Sleepwalker at 0 Moons in base rules, they just don't
+haunt anything without Sylly Mode on (the in-table banner was made conditional: `'You are out for
+the night…'` in base rules vs `'…haunting the dream…'` under Sylly Mode).
+
+**BUG — MDLM start-game silently failed after the above (same session, caught in live 3-player
+test).** `js/games/shp.js` was the only file swept for `shpSleepwalkers` — `js/engine-multiplayer.js`
+had two more references the grep-by-file habit missed: `mpSerialiseSettings('shp')` (sent in
+SETTINGS_SYNC just before GAME_START) and the matching SETTINGS_SYNC applier. Referencing the
+now-undeclared `shpSleepwalkers` inside the settings object literal threw a `ReferenceError` at the
+exact moment the host tapped the lobby's "Lights Out" Start button; `mpConfirmRoster()`'s `catch`
+swallowed it and just reset the button to "Start Game →" with no visible error — from the host's
+seat it looked like the button simply did nothing. Fixed by removing both references. **Lesson:**
+a variable that backs a per-game MDLM setting has (at least) three homes, not one — the game's own
+`js/games/[abbr].js`, `mpSerialiseSettings()`'s per-game case, and the matching SETTINGS_SYNC
+applier switch in `engine-multiplayer.js` — deleting a settings variable needs a grep across
+**both** files, not just the game's own. A `try/catch` around a multi-step async lobby action
+(SETTINGS_SYNC → GAME_START) is exactly the shape that turns a `ReferenceError` into a silent
+no-op button instead of a visible crash, so a "the button doesn't do anything" report on an MDLM
+Start button is worth checking the browser console for a caught exception before assuming it's a
+logic/timing bug.
+
+**Wolf hand-slot placeholder now shows real art.** The in-hand "slot locked" placeholder
+(`shpRenderCard(null, { wolf: true })`) always rendered the hardcoded 🐺 emoji, even though the
+core-art pack's `12.jpg` (the Big Bad Wolf card itself) was already in the manifest and precached —
+the wolf card is consumed straight to discard on draw (`shpDrawUp`) and so is never rendered through
+the normal `assetFace('shp', cardId)` path that every other card uses. Fixed by having the wolf
+branch try `assetFace('shp', 12)` first (keeping the greyed/italic `.shp-card-wolf` styling and the
+"asleep" label as an overlay on top of the art), falling back to the emoji only if no art resolves.
+**Lesson:** any placeholder branch in a render seam that bypasses the normal `assetFace` lookup for
+UX reasons (locked slot, hidden value) needs to be checked separately when core art ships — it's
+invisible to a `cardId !== 13`-style audit because it never reaches the id-keyed lookup at all.

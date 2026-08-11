@@ -2144,10 +2144,11 @@ Deploy
 
   <!-- ══ SECRET TERMINAL — Sylly-OS launcher ══ -->
   <section id="screen-secret-terminal" style="display:none"
-    class="relative flex flex-col w-full min-h-screen bg-black px-4 pt-5 pb-6 font-mono overflow-y-auto">
+    class="relative flex flex-col w-full min-h-screen bg-black px-4 pt-5 pb-6 font-mono">
 
-    <!-- Header bar -->
-    <div class="flex items-center justify-between mb-5 flex-shrink-0">
+    <!-- Header bar — sticky: smSelectGame() scrolls this section to the bottom to reveal
+         the Launch button, which would otherwise carry the only ← BACK off-screen with it. -->
+    <div class="sticky top-0 z-10 bg-black flex items-center justify-between mb-5 flex-shrink-0 pb-2">
       <div class="text-green-400 text-xs tracking-widest opacity-60 select-none">SYLLY-OS v1.0 // CLASSIFIED</div>
       <button id="sm-terminal-back"
         class="text-green-400 text-xs border border-green-800 rounded px-3 py-1 active:scale-90 transition-transform duration-100 min-h-11 min-w-11 flex items-center justify-center">
@@ -2169,7 +2170,11 @@ Deploy
     <div id="sm-terminal-games" style="display:none" class="mb-4 flex-shrink-0"></div>
 
     <!-- Launch button — revealed after game chosen -->
-    <div id="sm-terminal-launch-wrap" style="display:none" class="mt-2 flex-shrink-0">
+    <div id="sm-terminal-launch-wrap" style="display:none" class="mt-2 flex-shrink-0 flex flex-col gap-2">
+      <button id="sm-terminal-launch-back"
+        class="w-full text-left text-xs font-mono px-3 py-2 text-green-600 active:scale-95 transition-transform duration-75 min-h-11">
+        [←] BACK
+      </button>
       <button id="sm-terminal-launch"
         class="w-full min-h-14 rounded border-2 border-green-400 text-green-400 text-sm font-bold tracking-widest active:scale-95 transition-transform duration-100">
         [ LAUNCH SEQUENCE ]
@@ -8109,18 +8114,11 @@ Reboot
         </div>
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
           <div class="flex items-center justify-between">
-            <p class="text-stone-800 font-semibold">Sleepwalkers</p>
-            <button id="btn-shp-sleepwalk-toggle" class="game-toggle-on-indigo shrink-0">ON</button>
-          </div>
-          <p class="text-stone-400 text-sm">When you're knocked out, you linger as a Sleepwalker and can nudge the dream. Off for a clean elimination.</p>
-        </div>
-        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
-          <div class="flex items-center justify-between">
             <p class="text-stone-800 font-semibold">&#x2728; Sylly Mode</p>
             <button id="btn-shp-sylly-toggle" class="game-toggle-off shrink-0">OFF</button>
           </div>
           <p class="text-stone-600 text-sm font-semibold">Night Terrors</p>
-          <p class="text-stone-400 text-sm">Reach 99 and the dream inverts: the count plunges, every number flips its sign, and the ceiling falls each turn. Last one awake survives.</p>
+          <p class="text-stone-400 text-sm">Reach 99 and the dream inverts: the count plunges, every number flips its sign, and the ceiling falls each turn. Knocked-out players linger as Sleepwalkers and can nudge the dream through the Nightmare Meter. Last one awake survives.</p>
         </div>
         <button id="btn-shp-settings-done" class="min-h-14 w-full rounded-2xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-xl font-semibold transition-all duration-150">Done</button>
       </div>
@@ -8156,23 +8154,18 @@ Reboot
           <p class="text-stone-500 text-sm">If you have no card that keeps the Herd at or below the ceiling, you nod off - <span class="font-semibold text-stone-700">lose a Moon</span>, the Herd resets to 0, and everyone gets a fresh hand.</p>
         </div>
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
-          <p class="text-xs font-semibold uppercase tracking-widest text-indigo-600">Step 4</p>
-          <p class="font-bold text-stone-800">Sleepwalkers</p>
-          <p class="text-stone-500 text-sm">Out of Moons? You become a <span class="font-semibold text-stone-700">Sleepwalker</span>. Every Pasture card played charges the <span class="font-semibold text-stone-700">Nightmare Meter</span> - when it fills, you flip one of three face-down nightmares onto the living. &#x1F4A4;</p>
-        </div>
-        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
           <p class="text-xs font-semibold uppercase tracking-widest text-indigo-600">Winning and Scoring</p>
           <p class="font-bold text-stone-800">Last one awake</p>
           <ul class="list-disc pl-5 flex flex-col gap-1 text-stone-500 text-sm">
             <li><span class="font-semibold text-stone-700">Deep Sleep</span> - costs one Moon and resets the Herd.</li>
-            <li><span class="font-semibold text-stone-700">Out of Moons</span> - you're a Sleepwalker, haunting the dream.</li>
+            <li><span class="font-semibold text-stone-700">Out of Moons</span> - you're eliminated for the night.</li>
             <li><span class="font-semibold text-stone-700">Daybreak</span> - the last player still awake wins.</li>
           </ul>
         </div>
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
           <p class="text-xs font-semibold uppercase tracking-widest text-indigo-600">&#x2728; Sylly Mode</p>
           <p class="font-bold text-stone-800">Night Terrors</p>
-          <p class="text-stone-500 text-sm">Reach 99 and the dream inverts - <span class="font-semibold text-stone-700">the Plunge</span>. Every number card flips its sign, the ceiling <span class="font-semibold text-stone-700">falls a little each turn</span>, and you must keep dropping the Herd. Last one awake survives the night.</p>
+          <p class="text-stone-500 text-sm">Reach 99 and the dream inverts - <span class="font-semibold text-stone-700">the Plunge</span>. Every number card flips its sign, the ceiling <span class="font-semibold text-stone-700">falls a little each turn</span>, and you must keep dropping the Herd. Knocked-out players don't just leave - they become <span class="font-semibold text-stone-700">Sleepwalkers</span>, haunting the dream. Every Pasture card played charges the <span class="font-semibold text-stone-700">Nightmare Meter</span>; when it fills, a Sleepwalker flips one of three face-down nightmares onto the living. &#x1F4A4; Last one awake survives the night.</p>
         </div>
         <button id="btn-shp-howto-close" class="min-h-14 w-full rounded-2xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-xl font-semibold transition-all duration-150">Got it</button>
       </div>

@@ -59,7 +59,7 @@ For where each game's screens/overlays live in `index.html`, see the **Per-Game 
 |-------------|--------------------|------------------------|
 | **New game** | `docs/rules/new-game-process.md` (3-stage: brief → tech spec → implementation) | tech spec `docs/new-game-tech-[name].md` + phase snapshot + `docs/decision-log.md` |
 | **Audit / phase gate** | `docs/rules/phase-audit.md` (Protocols A/B/C) | phase snapshot + `docs/decision-log.md` |
-| **Bug / update / polish** | `docs/templates/task-bug-polish.md` (fill the intake form first) | `docs/implementation-notes/[abbr]-implementation-notes.md` (+ `docs/decision-log.md` if it became architectural) |
+| **Bug / update / polish** | `docs/templates/task-bug-polish.md` (fill the intake form first) | `docs/implementation-notes/[abbr]-implementation-notes.md` — or `shared-implementation-notes.md` if the root cause is in engine/secret-mode/art.js rather than a specific game (+ `docs/decision-log.md` if it became architectural) |
 
 **`docs/decision-log.md`** — the running index of big architectural / strategic / process decisions (newest on top). Read it to recall *why* something was done; append a one-line entry whenever a change is architectural, strategic, or process-level (wired into the Documentation Integrity Protocol below).
 
@@ -142,7 +142,7 @@ All symbols are global (no ES modules). Forward references work at runtime.
 2. `game-identities.md` — add/update all new settings, terminology, overlay types, and screen entries for affected games
 3. `CLAUDE.md` — update SW version, current focus, and key references
 4. `logic-engine.md` — update any new universal rules, audio functions, or engine patterns introduced
-5. `docs/implementation-notes/[abbr]-implementation-notes.md` — log any design decisions made, bugs found and resolved, or lessons learned during the phase (create the file if it doesn't exist for this game)
+5. `docs/implementation-notes/[abbr]-implementation-notes.md` (or `shared-implementation-notes.md` for engine/secret-mode/art.js work) — log any design decisions made, bugs found and resolved, or lessons learned during the phase (create the file if it doesn't exist)
 6. `docs/decision-log.md` — if the work included any **architectural, strategic, or process-level** decision, append a one-line entry (newest on top, ~4 lines, pointer not deep-doc). Skip only when the work was purely routine bug/polish with no cross-cutting decision.
 
 **Rule:** No phase snapshot may be written until all five documents are verified current. The snapshot itself is the final deliverable — not the starting point for cleanup.
@@ -249,14 +249,14 @@ so a careless edit silently degrades one of the two games).
 **Action:** Follow `docs/expansion-guide.md` — 4-step checklist. Do NOT patch plugin files (the proxy architecture handles everything).
 
 ### 🎯 Skill: Implementation Notes
-**Trigger:** Any non-trivial bug fix, design decision change, or architectural lesson — during new game builds, maintenance, or audit of any existing game.
+**Trigger:** Any non-trivial bug fix, design decision change, or architectural lesson — during new game builds, maintenance, or audit of any existing game **or of shared/engine code**.
 **Action:**
-1. If `docs/implementation-notes/[abbr]-implementation-notes.md` does not exist for the affected game, create it with four sections: Design Decisions / Bug Index / Multiplayer Lessons / Template Gaps
+1. **Pick the right file first.** If the bug or decision's root cause lives in a single game's own code, use `docs/implementation-notes/[abbr]-implementation-notes.md` (create it if missing, four sections: Design Decisions / Bug Index / Multiplayer Lessons / Template Gaps). If the root cause is in `engine.js`, `engine-multiplayer.js`, `secret-mode.js`, `js/lib/art.js`/`cards.js`/`canvas-draw.js`, `sw.js`, or a cross-cutting rule itself — **even if it was found while testing one specific game** — use `docs/implementation-notes/shared-implementation-notes.md` instead (same four-section shape). A fix touching both a shared function and a game's own call site gets the root-cause writeup in exactly one file (whichever owns the bug), with at most a one-line pointer in the other.
 2. Add a concise entry in the appropriate section: **What happened → Root cause → Lesson**
 3. At the end of any audit or testing session, review the Template Gaps section and flag items that should fold into `logic-engine.md`, `ui-style.md`, or the tech template
 **When:** Log entries in the same response that completes the fix — not in a follow-up session. If the fix is done and this skill hasn't run, the session is not complete.
-**Scope:** All games — new and existing. Log during any session that touches a game's code, not just at phase boundaries.
-**Cross-reference:** Before starting a new game's tech spec, read the Template Gaps section of all existing implementation notes files and resolve any gaps that apply to the new game before implementation begins.
+**Scope:** All games — new and existing — plus shared/engine code. Log during any session that touches a game's code or the engine, not just at phase boundaries.
+**Cross-reference:** Before starting a new game's tech spec, read the Template Gaps section of all existing implementation notes files (including `shared-implementation-notes.md`) and resolve any gaps that apply to the new game before implementation begins.
 
 ### 🎯 Skill: Phase Gate — Studio Audit
 **Trigger:** After completing a game or entering a new phase. Before writing the phase snapshot. Before writing the first line of a new game's JS.
@@ -283,24 +283,24 @@ Do not write the phase snapshot until Protocols A is clean. Do not write a line 
 pointer, not a narrative — that is what keeps this file cheap. When a round closes, compress its
 entry to one line and let the impl-notes carry the detail (§ Documentation Integrity Protocol).
 
-**SW v167 — Artwork: a global art viewer, galleries for the last four seams, and a standalone
-authoring guide (10 Aug 2026).** Three things ride this bump. **(1) The art viewer** —
-`openArtViewer(src, caption)` and `artMakeZoomable(el, src, caption)` in `engine.js`, plus one
-global `#art-viewer-overlay` (z-[105]) — makes every gallery tile in every game tappable-to-enlarge.
-It is Pattern 2 geometry with an image body, **deliberately unbranded** (six games open it), and
-documented as `ui-style.md` § **Pattern 2a**. The load-bearing detail is the `src` guard: a tile
-whose art didn't resolve gets **neither the zoom cursor nor a handler**, so a dead tap is now a
-second, sharper signal for the offline install check. **(2) Galleries** — the How-to tab bar rolled
-out to **FRT · SHP · FLW · DYB**, closing the deferred item; six of seven render seams now have one
-(**PASS**, at 54 faces, is the deliberate exception). FLW's was a *fold* of its standalone
-`flw-gems-overlay`, which also fixed a real defect — the old swatch-circle markup meant no skin
-could ever reach the Gem Manifest. **(3) Authoring** — `docs/art-authoring-guide.md` +
-`tools/make-skin-pack.ps1` (`-List` prints any game's inventory; `-Register` writes the pack and the
-registry line) make skin authoring a Claude-Code-free workflow. Drive-by: `getMuteToggleOnClass` was
-missing its `frt` entry and silently fell back to stone. **Open for playtest:** the four new
-galleries have no headless harness — `verify-cjar-loopback.js` is the only one that executes render
-code, and it caught the missing engine symbol during this round. Detail: `docs/decision-log.md`
-2026-08-10, `docs/art-authoring-guide.md`.
+**SW v170 — Counting Sheep: Sleepwalkers folded into Sylly Mode, Wolf + Fogged Dream art, MDLM start-game fix (11 Aug 2026).**
+Owner playtest call: the ghost/Nightmare-Meter system (Sleepwalkers) was a separate ON-by-default
+toggle sitting next to Sylly Mode (Night Terrors) — a base-rules game could still have eliminated
+players haunting the table. It's now gated on `shpSyllyMode` directly; the standalone settings
+toggle and its How-to step were removed, and their copy folded into the Sylly Mode settings/how-to
+cards. Also: the in-hand Big Bad Wolf "slot locked" placeholder was hardcoded to the 🐺 emoji even
+though `data/art/shp/`'s `12.jpg` was already precached — it bypassed `assetFace` entirely because
+the Wolf card is consumed straight to discard on draw and never rendered through the normal path.
+Now tries the core art first, emoji as fallback. **v168→v169 same-day fix:** the Sleepwalkers
+removal missed two references in `engine-multiplayer.js`'s MDLM settings serialiser/applier
+(`mpSerialiseSettings('shp')`, the SETTINGS_SYNC applier), which threw a `ReferenceError` the
+moment the host tapped the lobby's Start button — the async `mpConfirmRoster()` caught it silently
+and just reset the button, so "Lights Out" appeared to do nothing with 3+ players joined.
+**v169→v170 same-day:** Fogged Dream (id 13) also gets real art now — the earlier "permanently
+unskinnable" call (1 Aug 2026) conflated the card's hidden *resolved value* (2–12, rolled at play
+time) with its *appearance*; a static face doesn't leak the roll, so the owner's ready `card13.png`
+was converted in (`data/art/shp/img/13.jpg`) and wired the same way as the Wolf-slot fix. Detail:
+`docs/implementation-notes/shp-implementation-notes.md` (2026-08-11 entries).
 
 **Still open from v166:** PKO's **Stragglers** scoring mode is shipped but unplayed — Force of
 Nature can hand a player cards they did not choose (Deluge, Culling, Migration, Great Reversal),
@@ -367,5 +367,7 @@ clock skew, no Firebase ordering, no dropped packets, and no judgement about how
 (current template: `docs/phase37-snapshot.md`). Snapshots up to and including phase36, the
 fable-audit campaign, and phase22 live in the owner's external archive — ask if you need one.
 Every game's confirmed spec is `docs/new-game-tech-[name].md`; its bug log and design decisions are
-`docs/implementation-notes/[abbr]-implementation-notes.md`. Those two, plus `docs/code-map.md` and
-`docs/decision-log.md`, are where the detail this section used to carry now lives.
+`docs/implementation-notes/[abbr]-implementation-notes.md`. Non-game-specific bug logs and design
+decisions (engine.js, engine-multiplayer.js, secret-mode.js, js/lib/*) live in
+`docs/implementation-notes/shared-implementation-notes.md` instead. Those, plus `docs/code-map.md`
+and `docs/decision-log.md`, are where the detail this section used to carry now lives.

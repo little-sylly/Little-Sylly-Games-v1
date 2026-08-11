@@ -1361,8 +1361,7 @@ Each plugin reads `window.activeExpansionOverrides` at its settings-apply point 
 | `shpHandSize` | int | `4` | Pen cap (3/4/5) |
 | `shpMoons` | int | `3` | Starting lives (3/5/7) |
 | `shpDreamAccel` | bool | `true` | Number cards double while Herd < 50 |
-| `shpSleepwalkers` | bool | `true` | Ghost / Nightmare-Meter system on |
-| `shpSyllyMode` | bool | `false` | Night Terrors (Climb ⇄ Plunge) |
+| `shpSyllyMode` | bool | `false` | Night Terrors (Climb ⇄ Plunge) + Sleepwalkers ghost/Nightmare-Meter system |
 | `shpHerd` | int | `0` | Running count |
 | `shpCeiling` | int | `99` | Bust boundary — Climb 99; Plunge descends from overflow total. NEVER a literal in checks |
 | `shpDirection` | int | `1` | 1 forward / −1 reversed |

@@ -166,6 +166,11 @@ let smSelectedExpansion   = null;
 let smSelectedGame        = null;
 let smSelectedSubCategory = null;
 let smTypewriterTimers    = [];
+// Stack of #sm-terminal-log lengths, one push per forward navigation step that writes its
+// own breadcrumb lines. A "back" pops and truncates the log to that length instead of
+// appending a new line on top — otherwise the log grows every time forward/back is used,
+// however many times the player wanders back and forth (11 Aug 2026).
+let smLogCheckpoints = [];
 
 // ── Konami sequence: U U D D L R L R B A Start ───────────────────────────────
 const SM_KONAMI = ['U','U','D','D','L','R','L','R','B','A','S'];
@@ -254,6 +259,7 @@ async function smOpenTerminal() {
   smSelectedExpansion   = null;
   smSelectedGame        = null;
   smSelectedSubCategory = null;
+  smLogCheckpoints      = [];
   // Clear terminal UI to a clean state
   document.getElementById('sm-terminal-log').innerHTML = '';
   document.getElementById('sm-terminal-expansions').style.display     = 'none';
@@ -330,14 +336,28 @@ const SM_BTN_LOCKED_CLS = 'w-full text-left text-xs font-mono px-3 py-3 border-2
 function smLogLine(text)  { const p = document.createElement('p'); p.textContent = text; document.getElementById('sm-terminal-log').appendChild(p); }
 function smLogSpacer()    { const p = document.createElement('p'); p.innerHTML = '&nbsp;'; p.style.lineHeight = '0.5'; document.getElementById('sm-terminal-log').appendChild(p); }
 
+// Call before a forward navigation step writes its own breadcrumb lines.
+function smLogCheckpoint() { smLogCheckpoints.push(document.getElementById('sm-terminal-log').children.length); }
+// Call from a "back" step instead of appending — removes everything the matching
+// smLogCheckpoint()'d step wrote, leaving the log showing only the current path.
+function smLogRewind() {
+  const n = smLogCheckpoints.pop();
+  const log = document.getElementById('sm-terminal-log');
+  if (n === undefined) return;
+  while (log.children.length > n) log.lastChild.remove();
+  log.scrollTop = log.scrollHeight;
+}
+
 function smShowList(wrap) { wrap.style.display = 'flex'; wrap.style.flexDirection = 'column'; wrap.style.gap = '8px'; }
 
-// "← BACK" entry prepended to a category-member list — returns to the top-level categories.
-function smAppendBackButton(wrap) {
+// "← BACK" entry prepended to a list — defaults to the top-level categories, but any
+// deeper level can pass its own one-step-back handler (smRenderSkins, the launch-armed
+// view) instead of jumping all the way out.
+function smAppendBackButton(wrap, handler) {
   const btn = document.createElement('button');
   btn.className = 'w-full text-left text-xs font-mono px-3 py-2 text-green-600 active:scale-95 transition-transform duration-75 min-h-11';
   btn.textContent = '  [←] BACK';
-  btn.addEventListener('click', smReturnToCategories);
+  btn.addEventListener('click', handler || smReturnToCategories);
   wrap.appendChild(btn);
 }
 
@@ -375,13 +395,14 @@ function smReturnToCategories() {
   document.getElementById('sm-terminal-subcategories').style.display = 'none';
   document.getElementById('sm-terminal-games').style.display = 'none';
   document.getElementById('sm-terminal-launch-wrap').style.display = 'none';
-  smLogSpacer(); smLogLine('  └─ SELECT CATEGORY:');
+  smLogRewind();   // undoes whatever smSelectCategory() wrote — log already ends at SELECT CATEGORY:
   smRenderExpansions();
   document.getElementById('sm-terminal-expansions').style.display = 'flex';
 }
 
 function smSelectCategory(cat) {
   playSecretBeep(660);
+  smLogCheckpoint();
   const label = cat === 'arcade' ? 'ARCADE'
               : cat === 'words'  ? 'WORD PACKS'
               :                    'GAME SKINS';
@@ -522,6 +543,7 @@ function smSelectSkinGroup(gameId, groupLabel) {
   smSelectedSubCategory = null;
   const prevSp = document.getElementById('sm-terminal-settings');
   if (prevSp) prevSp.remove();
+  smLogCheckpoint();
   const log = document.getElementById('sm-terminal-log');
   const p = document.createElement('p'); p.textContent = `> ${groupLabel} SELECTED`; log.appendChild(p);
   const sp = document.createElement('p'); sp.innerHTML = '&nbsp;'; sp.style.lineHeight = '0.5'; log.appendChild(sp);
@@ -532,9 +554,24 @@ function smSelectSkinGroup(gameId, groupLabel) {
   smRenderSkins(gameId);
 }
 
+// One step back from the skin list — re-shows the "SELECT GAME" list rather than
+// jumping all the way to categories, matching the back button every other first-level
+// list already gets from smAppendBackButton.
+function smReturnToSkinGames() {
+  playSecretBeep(440);
+  smSelectedExpansion = null; smSelectedGame = null;
+  const prevSp = document.getElementById('sm-terminal-settings'); if (prevSp) prevSp.remove();
+  document.getElementById('sm-terminal-subcategories').style.display = 'none';
+  document.getElementById('sm-terminal-launch-wrap').style.display = 'none';
+  smLogRewind();   // undoes whatever smSelectSkinGroup() wrote — log already ends at SELECT GAME:
+  document.getElementById('sm-terminal-expansions').style.display = 'flex';
+  smRenderSkinGames();
+}
+
 function smRenderSkins(gameId) {
   const wrap = document.getElementById('sm-terminal-subcategories');   // reuse the mid-level list container
   wrap.innerHTML = '';
+  smAppendBackButton(wrap, smReturnToSkinGames);
   SM_TERMINAL_CONFIG.expansions.filter(e => e.isAsset && e.game === gameId).forEach((skin, i) => {
     const btn = document.createElement('button');
     btn.className = SM_BTN_CLS;
@@ -553,6 +590,7 @@ function smSelectSkin(packId, gameId, skinLabel) {
   smSelectedGame      = gameId;   // game is implicit for a skin — no game-selection step
   const prevSp = document.getElementById('sm-terminal-settings');
   if (prevSp) prevSp.remove();
+  smLogCheckpoint();
   const log = document.getElementById('sm-terminal-log');
   const p = document.createElement('p'); p.textContent = `> SKIN: ${skinLabel} ARMED`; log.appendChild(p);
   const sp = document.createElement('p'); sp.innerHTML = '&nbsp;'; sp.style.lineHeight = '0.5'; log.appendChild(sp);
@@ -654,6 +692,9 @@ function smRenderGames() {
 function smSelectGame(gameId) {
   playSecretBeep(660);
   smSelectedGame = gameId;
+  // Writes no breadcrumb line of its own, but still checkpoints — pairs with
+  // smReturnFromLaunch()'s word-pack branch, which pops unconditionally.
+  smLogCheckpoint();
   // Visual: highlight selected, dim others
   SM_TERMINAL_CONFIG.games.forEach(g => {
     const btn = document.getElementById(`sm-game-btn-${g.id}`);
@@ -693,6 +734,28 @@ function smSelectGame(gameId) {
   // Scroll terminal to reveal settings + launch button
   const terminal = document.getElementById('screen-secret-terminal');
   setTimeout(() => { terminal.scrollTop = terminal.scrollHeight; }, 30);
+}
+
+// One step back from the launch-armed view — shared by both flows, since they share the
+// one #sm-terminal-launch-wrap. Branches on isAsset because the correct "previous step"
+// differs: a skin's is the skin list for its game, a word pack's is the game list.
+function smReturnFromLaunch() {
+  playSecretBeep(440);
+  const exp = SM_TERMINAL_CONFIG.expansions.find(e => e.id === smSelectedExpansion);
+  const gameId = smSelectedGame;
+  const prevSp = document.getElementById('sm-terminal-settings');
+  if (prevSp) prevSp.remove();
+  document.getElementById('sm-terminal-launch-wrap').style.display = 'none';
+  smSelectedGame = null;
+  smLogRewind();   // undoes whatever the matching forward step (smSelectSkin / smSelectGame) wrote
+  if (exp && exp.isAsset) {
+    smSelectedExpansion = null;
+    document.getElementById('sm-terminal-subcategories').style.display = 'flex';
+    smRenderSkins(gameId);
+  } else {
+    document.getElementById('sm-terminal-games').style.display = 'flex';
+    smRenderGames();
+  }
 }
 
 async function smLaunch() {
@@ -746,6 +809,13 @@ async function smLaunch() {
   setTimeout(() => {
     btn.textContent = '[ LAUNCH SEQUENCE ]';
     btn.disabled = false;
+    // The Terminal bypasses each game's own #btn-[abbr] lobby handler, so anything that
+    // handler normally does on entry — activeGameId, a lazy data fetch — has to happen
+    // here too. PKO's chain (data/pko-data.json) is fetched lazily on lobby entry (DD-07);
+    // without this call the Terminal path leaves pkoChain null and the How to Play
+    // Animals/Diagram tabs silently render empty.
+    activeGameId = game.id;
+    if (game.id === 'pko' && typeof pkoLoadChain === 'function') pkoLoadChain();
     showScreen(game.screen);
     // Inject submenu breadcrumb banner into the target game menu screen
     const screenEl = document.getElementById(game.screen);
@@ -856,6 +926,7 @@ document.getElementById('sm-terminal-back').addEventListener('click', () => {
 });
 
 document.getElementById('sm-terminal-launch').addEventListener('click', smLaunch);
+document.getElementById('sm-terminal-launch-back').addEventListener('click', smReturnFromLaunch);
 
 // ═══════════════════════════════════════════════════════════════════════════
 // ── Controller button listeners ───────────────────────────────────────────

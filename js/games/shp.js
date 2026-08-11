@@ -12,8 +12,7 @@
 let shpHandSize     = 4;       // 3 | 4 | 5  (per-player Pen cap, before any Wolf shrink)
 let shpMoons        = 3;       // 3 | 5 | 7  (starting lives)
 let shpDreamAccel   = true;    // number cards double while Herd < 50
-let shpSleepwalkers = true;    // ghost-disruption system on/off
-let shpSyllyMode    = false;   // Night Terrors — oscillating Climb ⇄ Plunge (§12)
+let shpSyllyMode    = false;   // Night Terrors — oscillating Climb ⇄ Plunge + Sleepwalkers ghost system (§12)
 
 // ── Roster (set at deal from lobby, persists across play-agains) ────────────
 let shpPlayerCount  = 0;
@@ -41,7 +40,7 @@ let shpForcedCards  = 1;       // 1, or 2 for Heavy Eyelids / Sleep Paralysis ni
 let shpPendingSkip  = null;    // revealed random-add value awaiting commit-animation
 // (No fog state — the Fog nightmare swaps a Fogged Dream card, id 13, into the target's hand array.)
 
-// ── Ghost / Nightmare Meter (v1 core, behind shpSleepwalkers) ──────────────
+// ── Ghost / Nightmare Meter (Sylly Mode only, folded into Night Terrors) ───
 let shpMeter        = 0;       // charge — +1 per PASTURE card resolved, only once a Sleepwalker exists
 let shpMeterFill    = 3;       // notches to fill — PLAYTEST DIAL (band 3–4)
 let shpGhostTurnIdx = 0;       // rotation pointer into shpElimOrder for the next spend-right
@@ -290,13 +289,31 @@ function shpRenderCard(cardId, opts) {
     return el;
   }
   if (opts.wolf)     { el.className = 'shp-card shp-card-wolf';
-                       el.innerHTML = '<span class="shp-card-emoji">\u{1F43A}</span><span class="shp-card-label">asleep</span>';
+                       const wolfUrl = (typeof assetFace === 'function') && assetFace('shp', 12);
+                       if (wolfUrl) {
+                         el.style.backgroundImage = 'url("' + wolfUrl + '")';
+                         el.style.backgroundSize = 'cover';
+                         el.style.backgroundPosition = 'center';
+                         el.innerHTML = '<span class="shp-card-label">asleep</span>';
+                       } else {
+                         el.innerHTML = '<span class="shp-card-emoji">\u{1F43A}</span><span class="shp-card-label">asleep</span>';
+                       }
                        return el; }
   const c = SHP_CARDS[cardId];
   el.dataset.card = cardId;
-  if (cardId === 13) {   // Fogged Dream — cursed, value hidden from everyone incl. owner (not skinned)
+  if (cardId === 13) {   // Fogged Dream — the resolved value (2-12) is hidden from everyone incl. owner;
+                          // that roll happens at play time via shpRandInt and is independent of the art
+                          // shown here, so a static face doesn't leak it — same "?" overlay either way.
     el.className = 'shp-card shp-card-cursed';
-    el.innerHTML = '<span class="shp-card-emoji">' + c.emoji + '</span><span class="shp-card-label">?</span>';
+    const foggedUrl = (typeof assetFace === 'function') && assetFace('shp', 13);
+    if (foggedUrl) {
+      el.style.backgroundImage = 'url("' + foggedUrl + '")';
+      el.style.backgroundSize = 'cover';
+      el.style.backgroundPosition = 'center';
+      el.innerHTML = '<span class="shp-card-label">?</span>';
+    } else {
+      el.innerHTML = '<span class="shp-card-emoji">' + c.emoji + '</span><span class="shp-card-label">?</span>';
+    }
     return el;
   }
   // Asset-pack face (device-local skin) if one covers this card; else default emoji card.
@@ -713,7 +730,7 @@ function shpRenderTable() {
   wrap.appendChild(revArrow);
 
   // ── Nightmare Meter — visible once the ghost system is active ──
-  if (shpSleepwalkers && shpElimOrder.length > 0) {
+  if (shpSyllyMode && shpElimOrder.length > 0) {
     const meterEl = document.createElement('div');
     meterEl.className = 'flex flex-col items-center gap-1 bg-violet-50 border border-violet-200 rounded-xl px-3 py-2';
     let dots = '';
@@ -741,7 +758,7 @@ function shpRenderTable() {
       ? 'Your nightmare to choose… 💤'
       : '💤 ' + shpName(shpSpendHolder) + ' is picking a nightmare…';
   } else {
-    banner.textContent = shpEliminated[me] ? 'You are a Sleepwalker, haunting the dream…'
+    banner.textContent = shpEliminated[me] ? (shpSyllyMode ? 'You are a Sleepwalker, haunting the dream…' : 'You are out for the night…')
       : (shpActivePlayer === me
           ? (shpForcedCards === 2 ? 'Heavy Eyelids — play TWO cards.' : 'Your turn — play a card.')
           : 'Waiting for ' + shpName(shpActivePlayer) + '…');
@@ -1083,16 +1100,16 @@ function shpRenderGameover() {
   playSuccess();
 }
 
-// ── Ghost / Nightmare Meter (§6) — Sleepwalkers + the facedown Lottery ──────
+// ── Ghost / Nightmare Meter (§6) — Sleepwalkers + the facedown Lottery — Sylly Mode only ──
 function shpNightmareName(id) { const nm = SHP_NIGHTMARES.find(x => x.id === id); return nm ? nm.label : 'Nightmare'; }
 
 // +1 per Pasture card resolved, only once a Sleepwalker exists. (No trigger here — checked after the play.)
 function shpChargeMeter() {
-  if (!shpSleepwalkers || shpElimOrder.length === 0) return;
+  if (!shpSyllyMode || shpElimOrder.length === 0) return;
   shpMeter++;
 }
 function shpMeterReady() {
-  return shpSleepwalkers && shpElimOrder.length > 0 && shpMeter >= shpMeterFill && !shpGhostPending;
+  return shpSyllyMode && shpElimOrder.length > 0 && shpMeter >= shpMeterFill && !shpGhostPending;
 }
 
 // Host: the meter filled — hand the spend-right to the next Sleepwalker and offer 3 face-down cards.
@@ -1240,7 +1257,6 @@ function shpSyncSettingsUI() {
   setGroup('data-shp-hand', shpHandSize);
   setGroup('data-shp-moons', shpMoons);
   shpSyncToggle('btn-shp-dream-toggle', shpDreamAccel);
-  shpSyncToggle('btn-shp-sleepwalk-toggle', shpSleepwalkers);
   shpSyncToggle('btn-shp-sylly-toggle', shpSyllyMode);
 }
 
@@ -1332,11 +1348,10 @@ function shpRenderGallery() {
   const trap = section('Trap', 'One card, and it is coming for the ceiling itself.');
   byFamily('trap').forEach(c => add(trap, c));
 
-  // Fogged Dream is deliberately excluded from every skin (its value is hidden from
-  // its own owner), so it is shown but never zoomable — there is no art to enlarge.
   const fog = section('Fogged Dream',
-    'Conjured by the Fog, never dealt. Nobody sees its value — not even you. Permanently unskinnable.');
-  tile(fog, shpRenderCard(13), null, 'Fogged Dream');
+    'Conjured by the Fog, never dealt. Nobody sees its resolved value — not even you.');
+  const foggedUrl = (typeof assetFace === 'function') && assetFace('shp', 13);
+  tile(fog, shpRenderCard(13), foggedUrl, 'Fogged Dream');
 
   const back = section('Face Down', 'Somebody else’s hand.');
   tile(back, shpRenderCard(null, { faceDown: true }),
@@ -1456,7 +1471,7 @@ function shpResetState() {
   if (infoOverlay) infoOverlay.style.display = 'none';
   const logOverlay = document.getElementById('shp-play-log-overlay');
   if (logOverlay) logOverlay.style.display = 'none';
-  // Settings (shpHandSize/Moons/DreamAccel/Sleepwalkers/SyllyMode) intentionally preserved.
+  // Settings (shpHandSize/Moons/DreamAccel/SyllyMode) intentionally preserved.
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1498,7 +1513,6 @@ document.addEventListener('DOMContentLoaded', () => {
   shpBindPills('data-shp-hand',  v => shpHandSize = parseInt(v, 10));
   shpBindPills('data-shp-moons', v => shpMoons    = parseInt(v, 10));
   on('btn-shp-dream-toggle',     () => { shpDreamAccel   = !shpDreamAccel;   playPillClick(); shpSyncToggle('btn-shp-dream-toggle', shpDreamAccel); });
-  on('btn-shp-sleepwalk-toggle', () => { shpSleepwalkers = !shpSleepwalkers; playPillClick(); shpSyncToggle('btn-shp-sleepwalk-toggle', shpSleepwalkers); });
   on('btn-shp-sylly-toggle',     () => { shpSyllyMode    = !shpSyllyMode;    shpSyllyMode ? playSyllyOn() : playSyllyOff(); shpSyncToggle('btn-shp-sylly-toggle', shpSyllyMode); });
 
   // In-game header [?] → How to Play

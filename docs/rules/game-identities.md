@@ -1566,8 +1566,8 @@ Sylly Mode (Night Terrors) adds an oscillating **Climb ⇄ Plunge** mode *within
 | The Flock / Your Pen | Draw pile / a player's hand |
 | Moons | Lives (−1 per Deep Sleep) |
 | Deep Sleep | Crash (no legal line or busted gamble) → −1 Moon + full redeal |
-| Sleepwalker | Eliminated player (0 Moons) — haunts the dream via the Nightmare Meter |
-| Nightmare Meter / Lottery | Charges per Pasture card; fills → 3 face-down nightmares, flip one blind |
+| Sleepwalker | Eliminated player (0 Moons) — haunts the dream via the Nightmare Meter when Sylly Mode is on; a clean elimination otherwise |
+| Nightmare Meter / Lottery | Sylly Mode only. Charges per Pasture card; fills → 3 face-down nightmares, flip one blind |
 | The Plunge | Night Terrors inverted descent phase |
 | Daybreak | Game over — last awake wins |
 | Another Night? | Play again · **Tuck In?** quit · **Bedtime Routine 🌙** settings title |
@@ -1585,22 +1585,21 @@ Sylly Mode (Night Terrors) adds an oscillating **Climb ⇄ Plunge** mode *within
 | Hand Size | 3 / 4 / 5 | 4 | `shpHandSize` | int |
 | Moons | 3 / 5 / 7 | 3 | `shpMoons` | int |
 | Dream Acceleration | OFF / ON | ON | `shpDreamAccel` | bool — doubles number cards under 50 |
-| Sleepwalkers | OFF / ON | ON | `shpSleepwalkers` | bool — ghost / Nightmare-Meter system |
-| ✨ Sylly Mode (Night Terrors) | OFF / ON | OFF | `shpSyllyMode` | bool — Climb ⇄ Plunge |
+| ✨ Sylly Mode (Night Terrors) | OFF / ON | OFF | `shpSyllyMode` | bool — Climb ⇄ Plunge + Sleepwalkers ghost/Nightmare-Meter system |
 
 ### Scoring / Win
 No points — survival is the score. Deep Sleep costs a Moon; 0 Moons → Sleepwalker (appended to `shpElimOrder`). Last awake wins; standings = `[winner, ...elimOrder.reversed()]`.
 
 ### Special Mechanics
 - **Legality:** no card keeping Herd ≤ `shpCeiling` (or no safe two-card combo under Heavy Eyelids) → auto Deep Sleep on turn entry. Random-adds are always tappable gambles.
-- **Ghost system:** Pasture-triggered meter (only once a Sleepwalker exists) → next Sleepwalker (rotation) flips one of 3 weighted face-down nightmares; the table gates on the pick; the effect fires at the turn-gate. Five: Cold Feet (±1..4), Restless Leg (reverse/skip), **Fog** (rare cursed-card swap), Sleep Paralysis (forced two-card), Global Echo (+2 Pasture until next disruption).
+- **Ghost system (Sylly Mode only, 11 Aug 2026):** folded into `shpSyllyMode` — no longer a separate toggle. Pasture-triggered meter (only once a Sleepwalker exists) → next Sleepwalker (rotation) flips one of 3 weighted face-down nightmares; the table gates on the pick; the effect fires at the turn-gate. Five: Cold Feet (±1..4), Restless Leg (reverse/skip), **Fog** (rare cursed-card swap), Sleep Paralysis (forced two-card), Global Echo (+2 Pasture until next disruption).
 - **Night Terrors (Plunge):** Herd ≥ 99 in Climb → Plunge with **overflow runway** (`shpCeiling = shpHerd`); arithmetic sign-flips. After a one-cycle grace the ceiling falls by a **round-based escalating drop** (`SHP_DROP_BASE` 2 + `SHP_DROP_STEP` 2 per full round of turns — locked per round so every player faces the same hazard; `shpCurrentDrop` synced for display). Bust → Deep Sleep + revert to Climb; Herd 0 → mercy exit (no Moon). Crimson re-skin + inverted faces; header reads "The Dream is Collapsing 🔻".
 
 ### Overlay Types
 | Overlay | Pattern | z-index | Notes |
 |---------|---------|---------|-------|
 | `shp-settings-overlay` | Data (slide-up) | z-[80] | |
-| `shp-how-to-overlay` | Data (slide-up) | z-[90] | **Two tabs: `The Rules \| The Cards`** (10 Aug 2026). Tab 2 groups the deck by family (Pasture / Pillow / Alarm / Trap) from `SHP_CARDS` through `shpRenderCard`. **Fogged Dream (id 13) is shown but never zoomable** — it is permanently unskinnable, so there is no artwork behind it |
+| `shp-how-to-overlay` | Data (slide-up) | z-[90] | **Two tabs: `The Rules \| The Cards`** (10 Aug 2026). Tab 2 groups the deck by family (Pasture / Pillow / Alarm / Trap) from `SHP_CARDS` through `shpRenderCard`. **Fogged Dream (id 13) has core art since 11 Aug 2026** (`data/art/shp/img/13.jpg`) and is zoomable like every other tile — the card's *resolved value* (2–12) stays hidden from everyone including its owner, but that roll happens at play time and is independent of what face art is shown, so a static image doesn't leak it |
 | `shp-quit-overlay` | Decision modal | z-[80] | |
 | `shp-new-night-overlay` | Decision modal | z-[90] | |
 | `shp-tip-overlay` | Decision modal | z-[90] | |

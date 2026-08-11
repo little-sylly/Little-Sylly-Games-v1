@@ -181,11 +181,14 @@ want; the names above are the game's own.
 
 Plus `back`.
 
-**16 faces + back = 17 images.**
+**17 faces + back = 18 images** (id 13 included since 11 Aug 2026 — see note below).
 
-> **There is no id 13.** That is the Fogged Dream, whose value is hidden from every player
-> *including the person holding it*. It renders a fixed cursed face before the art seam is ever
-> consulted, so it is permanently unskinnable by design. Supplying `13.png` does nothing.
+> **id 13 is the Fogged Dream** — its *resolved* value (2–12) is hidden from every player
+> *including the person holding it*, but that roll happens at play time via `shpRandInt`, entirely
+> independent of what face art is shown. A static `13.jpg`/`13.png` doesn't leak anything the card
+> is trying to hide, so it's a normal skinnable face like any other — supply it if you want your
+> pack to cover it, or omit it and the game falls back to the built-in cursed "?" placeholder for
+> that one card (same three-tier resolution as everything else).
 
 The four families have their own colours in the default art (Pasture, Pillow, Alarm, Trap) — worth
 keeping some visual grouping, because reading your hand fast is the whole skill of the game.
@@ -324,6 +327,30 @@ Three things to know:
 see the fallback behaviour.
 
 Verify any change to this seam with `node tools/verify-dyb-dice.js`.
+
+---
+
+### Renaming, not just re-skinning — the optional `names` block
+
+A skin can reflavour a card's **art without touching its name** (the default — a Dinosaur-skinned
+Elephant still says "Elephant"), or override the name too. The tool never writes this — add it to
+`pack.json` by hand, same as DYB's `specials` block above:
+
+```json
+"assets": {
+  "kind": "pko", "basePath": "img/",
+  "faces": { "elephant": "elephant.jpg" },
+  "back":  "back.jpg",
+  "names": { "elephant": "Titanosaur", "mouse": "Compsognathus" }
+}
+```
+
+- Keyed by the same id as `faces` — omit any id you don't want renamed, it keeps the game's default
+  name.
+- Text only, resolved wherever the game shows a card's name (`assetName(kind, id, fallback)` in
+  `js/lib/art.js`) — it does not touch multiplayer packets, which carry ids only, never names.
+- No core-art tier for names, unlike art: a game's *default* names are canonical and only a skin
+  can override them.
 
 ---
 
