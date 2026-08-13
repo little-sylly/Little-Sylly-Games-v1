@@ -1065,8 +1065,16 @@ body.flash-red   { background-color: #fecaca; }
 .shp-card-alarm .shp-card-label { color: #b91c1c; }
 .shp-card-trap    { border-color: #44403c; background: #f5f5f4; }
 .shp-card-trap .shp-card-label { color: #44403c; }
-.shp-card-cursed  { border-color: #7c3aed; background: #f3e8ff; } /* violet fog */
+.shp-card-cursed  { border-color: #7c3aed; background: #f3e8ff; } /* violet fog — no-art fallback only */
 .shp-card-cursed .shp-card-label { font-size: 1.4rem; color: #6d28d9; }
+/* Fogged Dream WITH art — subtle violet identity, small badge (not the giant fallback "?"). */
+.shp-card-fogged { position: relative; border-color: #c4b5fd; }
+.shp-card-fogged-badge {
+  position: absolute; top: 0.2rem; right: 0.2rem;
+  width: 1.1rem; height: 1.1rem; line-height: 1.1rem;
+  border-radius: 999px; background: rgba(109,40,217,0.85); color: #fff;
+  font-size: 0.65rem; font-weight: 800; text-align: center;
+}
 .shp-card-wolf    { border-color: #78716c; background: #e7e5e4; opacity: 0.75; }
 .shp-card-wolf .shp-card-label { color: #57534e; font-style: italic; }
 .shp-card-back {
@@ -1076,6 +1084,67 @@ body.flash-red   { background-color: #fecaca; }
   border: 2px solid #4338ca;
   box-shadow: 0 1px 4px rgba(0,0,0,0.08);
 }
+/* ── SHP table furniture (12 Aug 2026 polish pass) ─────────────────────────
+   The Climb stage read flat: a big number with two near-invisible stone-400 captions
+   and two text arrows. These give the supporting elements enough weight to be read at
+   a glance without competing with the counter itself. */
+.shp-herd-label {
+  font-size: 0.7rem; font-weight: 700; letter-spacing: 0.15em;
+  text-transform: uppercase; color: #818cf8;            /* indigo-400 — was stone-400 */
+}
+/* Pressure ramp under the counter — fill width is the Herd as a % of the ceiling.
+   Colour is set inline by shpRenderTable (indigo → amber → red). */
+.shp-herd-bar {
+  width: 5.5rem; height: 0.3rem; margin-top: 0.3rem;
+  border-radius: 999px; background: #e7e5e4; overflow: hidden;
+}
+.shp-herd-bar-fill {
+  height: 100%; border-radius: 999px;
+  transition: width 250ms ease-out, background-color 250ms ease;
+}
+.shp-ceiling-badge {
+  margin-top: 0.35rem; padding: 0.1rem 0.5rem;
+  border-radius: 999px; background: #eef2ff; border: 1px solid #c7d2fe;
+  font-size: 0.65rem; font-weight: 700; color: #4338ca; letter-spacing: 0.02em;
+}
+/* Direction — only the live one gets a fill, so the flow of play is unmistakable. */
+.shp-dir {
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  padding: 0.15rem 0.7rem; border-radius: 999px;
+  font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
+}
+.shp-dir-glyph { font-size: 0.95rem; line-height: 1; }
+.shp-dir-live        { background: #4f46e5; color: #fff; box-shadow: 0 1px 3px rgba(79,70,229,0.35); }
+.shp-dir-live-plunge { background: #dc2626; color: #fff; box-shadow: 0 1px 3px rgba(220,38,38,0.35); }
+.shp-dir-idle        { color: #d6d3d1; }                /* stone-300 — present but dormant */
+/* Player chips — name + Moons only. Hand size is private (see shpRenderTable). */
+.shp-chip {
+  display: flex; flex-direction: column; align-items: center;
+  padding: 0.25rem 0.6rem; border-radius: 0.75rem;
+  font-size: 0.75rem; line-height: 1.25;
+  transition: transform 150ms ease-out, box-shadow 150ms ease-out;
+}
+.shp-chip-name  { font-weight: 600; }
+.shp-chip-moons { font-size: 0.85rem; line-height: 1.15; }
+/* Dozed-off marker inside an "out" chip (scoring rework §9) — normal mode only. */
+.shp-chip-doze  { font-size: 0.65rem; font-weight: 600; letter-spacing: 0.02em; white-space: nowrap; }
+.shp-chip-idle  { background: #fff; color: #57534e; border: 1px solid #e7e5e4; }
+.shp-chip-out   { background: #e7e5e4; color: #a8a29e; }
+.shp-chip-active {
+  background: #4f46e5; color: #fff;
+  box-shadow: 0 0 0 3px #c7d2fe, 0 2px 6px rgba(79,70,229,0.3);
+  transform: translateY(-2px);
+}
+.shp-chip-active-plunge {
+  background: #dc2626; color: #fff;
+  box-shadow: 0 0 0 3px #fecaca, 0 2px 6px rgba(220,38,38,0.3);
+  transform: translateY(-2px);
+}
+
+/* Tap-Hold Reference target row (ui-style.md) — brief ring + fade, not a permanent state. */
+.shp-ref-row { transition: box-shadow 300ms ease-out; scroll-margin: 1rem; }
+.shp-ref-row-ping { box-shadow: 0 0 0 3px #a5b4fc, 0 2px 8px rgba(79,70,229,0.25); }
+
 @keyframes shpShake {
   0%, 100% { transform: translateX(0); }
   20%, 60% { transform: translateX(-5px); }
@@ -1087,7 +1156,10 @@ body.flash-red   { background-color: #fecaca; }
 .shp-sheep-layer {
   position: absolute;
   left: 50%;
-  top: 6px;
+  top: 50%;                          /* the counter's vertical MIDDLE, not its top edge — anchoring at
+                                        top:6px put the whole arc (apex -52px) above the header row, so
+                                        the sheep flew through empty space nowhere near pen or counter.
+                                        That was the real "animation isn't showing" bug. */
   width: 0; height: 0;
   pointer-events: none;
   z-index: 5;
@@ -1095,7 +1167,13 @@ body.flash-red   { background-color: #fecaca; }
 .shp-sheep-fly {
   position: absolute;
   left: 0; top: 0;
-  font-size: 1.5rem;
+  /* --shp-sheep-w is set per-parade on .shp-sheep-layer (shpRenderTable): a +10 puts 8 sheep on a
+     ~132px path, so they have to shrink or they render as one continuous woolly blob. */
+  width: var(--shp-sheep-w, 2.5rem);            /* explicit — WITHOUT a width the span shrink-wraps
+                                      inside the 0-width .shp-sheep-layer anchor and collapses to 0
+                                      (see the max-width note on .shp-sheep-fly-img below) */
+  margin-left: calc(var(--shp-sheep-w, 2.5rem) / -2);   /* centre on the anchor path, not hanging right */
+  font-size: 1.5rem;               /* emoji fallback size only — the <img> path sets its own width */
   line-height: 1;
   opacity: 0;
   animation-duration: 1.2s;
@@ -1104,23 +1182,63 @@ body.flash-red   { background-color: #fecaca; }
   animation-timing-function: linear;
   animation-fill-mode: both;
 }
+.shp-sheep-fly-img {
+  display: block;
+  width: var(--shp-sheep-w, 2.5rem); height: auto;
+  /* Tailwind's preflight sets `img { max-width: 100% }`. The parent .shp-sheep-fly sits inside
+     .shp-sheep-layer, a deliberate 0x0 anchor point — so 100% resolved to 0 and the flying sheep
+     rendered at ZERO WIDTH, invisible, on every device. This is why the parade never appeared once
+     it swapped from the 🐑 emoji to real art in v173: text ignores max-width, images don't. Neither
+     the size bump (v174) nor the opacity-curve fix (v175) could have revealed it. */
+  max-width: none;
+  filter: drop-shadow(0 1px 1.5px rgba(0,0,0,0.25));
+}
+/* Static pen — a single pre-composed image (sheep + fence baked in by the owner, `pen.png`),
+   filling the whitespace the flying sheep arc through. Replaced an earlier CSS composition of
+   4 separate sheep images layered over a rotated fence — the rotation read as broken (the fence
+   art was never drawn to be used that way) and hand-placed absolute offsets never lined up well
+   at every viewport width. A single square (200x200) image sidesteps both problems. */
+.shp-pen-img { display: block; width: 6.6rem; height: auto; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.12)); }
+/* Last-played mini card (right column) — the game's own render seam (shpRenderCard) scaled down
+   in a fixed-footprint wrapper so the grid column reserves the POST-scale box, not the full card.
+   3rem wide = scale 0.75 of the 4rem base card: big enough to read the face at a glance, still
+   clearly subordinate to the 6xl Herd number it sits beside. */
+.shp-last-card { width: 3rem; height: 4.125rem; position: relative; overflow: visible; }
+.shp-last-card > .shp-card { position: absolute; top: 0; left: 0; transform: scale(0.75); transform-origin: top left; }
+/* "Last Played" column heading — same metrics as .shp-herd-label so the two headings sit on one
+   line across the band, but stone rather than indigo so the centre column keeps the emphasis. */
+.shp-last-label {
+  font-size: 0.7rem; font-weight: 700; letter-spacing: 0.15em;
+  text-transform: uppercase; color: #a8a29e;            /* stone-400 */
+}
 /* Steady horizontal travel (x evenly spaced) + a parabolic vertical arc (apex at 50%)
-   so the sheep curve over a fence into the counter rather than tracking a straight vector. */
+   so the sheep curve over a fence into the counter rather than tracking a straight vector.
+   Opacity MUST be held explicitly at 85% — with only 0%/15%/100% opacity stops, the browser
+   linearly interpolates opacity across the ENTIRE 15%→100% span, so the sheep were already
+   faded to ~20% opacity by 1000ms of a 1200ms run (measured: 0.75/0.84/0.93/0.91/0.41/0/0/0
+   across 8 sheep mid-flight) — visually almost gone well before the arc finished. This was the
+   actual "animation isn't showing" bug, not a sizing/timing one. */
+/* Y values are relative to the counter's vertical CENTRE (see .shp-sheep-layer top:50%), so the
+   whole arc stays inside the herd band: it launches low over the pen on the left, peaks ~32px up
+   (level with the "THE HERD" label), and lands on the counter. Keep the apex modest — a taller arc
+   climbs back out of the band and into the header row, which is the bug this replaced. */
 @keyframes shpSheepArcIn {
-  0%   { opacity: 0; transform: translate(-130px, 6px)  scale(0.7); }
-  15%  { opacity: 1; }
-  25%  { transform: translate(-97px, -34px)  scale(0.95); }
-  50%  { transform: translate(-65px, -52px)  scale(1.08); }
-  75%  { transform: translate(-33px, -34px)  scale(1); }
-  100% { opacity: 0; transform: translate(0, 2px) scale(0.85); }
+  0%   { opacity: 0; transform: translate(-132px, 16px)  scale(0.65); }
+  12%  { opacity: 1; }
+  25%  { transform: translate(-99px, -14px)  scale(0.90); }
+  50%  { transform: translate(-66px, -32px)  scale(1.05); }
+  75%  { transform: translate(-33px, -14px)  scale(0.95); }
+  88%  { opacity: 1; }
+  100% { opacity: 0; transform: translate(0, 10px) scale(0.80); }
 }
 @keyframes shpSheepArcOut {
-  0%   { opacity: 0; transform: translate(0, 2px) scale(0.85); }
-  15%  { opacity: 1; }
-  25%  { transform: translate(-33px, -34px)  scale(1); }
-  50%  { transform: translate(-65px, -52px)  scale(1.08); }
-  75%  { transform: translate(-97px, -34px)  scale(0.95); }
-  100% { opacity: 0; transform: translate(-130px, 6px) scale(0.7); }
+  0%   { opacity: 0; transform: translate(0, 10px) scale(0.80); }
+  12%  { opacity: 1; }
+  25%  { transform: translate(-33px, -14px)  scale(0.95); }
+  50%  { transform: translate(-66px, -32px)  scale(1.05); }
+  75%  { transform: translate(-99px, -14px)  scale(0.90); }
+  88%  { opacity: 1; }
+  100% { opacity: 0; transform: translate(-132px, 16px) scale(0.65); }
 }
 
 /* Build-grid cell base + invalid-placement reject flash */

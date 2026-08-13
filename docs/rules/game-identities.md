@@ -1545,37 +1545,47 @@ Banana `#FFC700` has no Tailwind utility class. Three custom CSS classes added t
 ---
 
 ## Game 15: Counting Sheep (SHP)
-**Theme:** Sleepy bedtime / dream logic. An O'NO-99-style climbing/survival card game — keep the Herd at or below the fence (99); whoever can't is dragged into Deep Sleep and loses a Moon.
+**Theme:** Sleepy bedtime / dream logic. An O'NO-99-style climbing/survival card game — keep the Herd at or below the fence (99); whoever can't dozes off.
 **Tagline:** "Stay awake. Pass the herd."
 **Key file:** `js/games/shp.js`
 **Brand colour:** Moonlit indigo (`indigo-600` primary / `indigo-700` hover — native Tailwind) | **Active pill:** `pill-active-indigo` | **Toggle ON:** `game-toggle-on-indigo` | **Range:** `shp-range`
-**Data:** fixed `SHP_CARDS` (17 types incl. id 13 Fogged Dream phantom; ids 14/15/16 = Counting-Backwards −1/−2/−5) + `SHP_DECK_COUNTS` (73-card deck, ≈66% pasture) + `SHP_NIGHTMARES` (5, weighted) — no `words.json`; exempt from the word-difficulty setting (Hand Size is the velocity dial).
-**State flow:**
+**Data:** fixed `SHP_CARDS` (19 types incl. id 13 Fogged Dream phantom; ids 14/15/16 = Counting-Backwards −1/−2/−5; ids 17/18 = Rude Awakening / Swap Dreams, added 12 Aug 2026) + `SHP_DECK_COUNTS` (80-card deck, ≈64% pasture) + `SHP_NIGHTMARES` (5, weighted) — no `words.json`; exempt from the word-difficulty setting (Hand Size is the velocity dial).
+**State flow (post scoring-rework, chunks 1–10, SW v178):**
 ```
 LOBBY (MDLM only) → SHP MENU → [onPassThePhone: host deals]
-→ [Night loop: SHP TABLE (your-turn / waiting / sleepwalker spectator / Nightmare Lottery / Deep-Sleep banner)
-    → Deep Sleep (−1 Moon, redeal) repeats until one player remains]
+→ SHP NIGHT INTRO (auto-advancing beat)
+→ Normal mode: [Night = one survival round: SHP TABLE (your-turn / waiting / stuck "Nod Off" hold /
+    sleepwalker spectator / Nightmare Lottery / doze banner) — a crash DOZES that player OUT OF THIS
+    NIGHT ONLY, no redeal, everyone else plays on from the same Herd]
+    → last awake wins the Night → SHP TABLE Night-End summary ("Last One Awake", ack-gated)
+    → host continue → next Night (redeal) → repeats until a player reaches `shpMoonsToWin` Moons
+→ Sylly mode: [ONE continuous Night — Moons are lives; a crash costs a Moon → the Jolt (hand
+    discard+redraw) unless it was the player's last Moon, which makes them a permanent Sleepwalker]
+    → repeats until one player remains with Moons
 → SHP GAMEOVER (Daybreak)
 ```
-Sylly Mode (Night Terrors) adds an oscillating **Climb ⇄ Plunge** mode *within* `screen-shp-table` — no new screen.
+Sylly Mode (Night Terrors) adds an oscillating **Climb ⇄ Plunge** mode *within* `screen-shp-table` — no new screen. **A Night is now a scored round in normal mode, and a crash no longer resets it** — the single biggest structural change of the rework (decision-log 2026-08-13).
 
 ### Terminology
 | Term | Meaning |
 |------|---------|
 | The Herd | Running count (target ≤ 99) |
 | The Flock / Your Pen | Draw pile / a player's hand |
-| Moons | Lives (−1 per Deep Sleep) |
-| Deep Sleep | Crash (no legal line or busted gamble) → −1 Moon + full redeal |
-| Sleepwalker | Eliminated player (0 Moons) — haunts the dream via the Nightmare Meter when Sylly Mode is on; a clean elimination otherwise |
+| Moons | **Split meaning by mode, on purpose.** Normal mode: match wins — first to `shpMoonsToWin` wins the match, one Moon per Night won. Sylly mode: lives — 0 Moons makes the player a permanent Sleepwalker. |
+| Dozed Off | Normal mode only. A crash takes the player out of THIS Night only — hand discarded, still in the match, back for the next Night's deal |
+| Last One Awake | The Night-End summary screen (normal mode) — the surviving player takes a Moon; ack-gated, every device (including already-dozed players) taps "Got it" before the host continues |
+| Nod Off | The stuck player's own tap when they have no legal line — the table HOLDS on this button rather than auto-crashing them |
+| Sleepwalker | Sylly mode only — permanently eliminated player (0 Moons); haunts the dream via the Nightmare Meter |
+| The Jolt | Sylly mode only — a crash that doesn't eliminate the player discards and redraws their whole hand (restoring any Wolf-shrunk cap), since one continuous Night removed the redeal that used to refresh a stuck hand |
 | Nightmare Meter / Lottery | Sylly Mode only. Charges per Pasture card; fills → 3 face-down nightmares, flip one blind |
 | The Plunge | Night Terrors inverted descent phase |
-| Daybreak | Game over — last awake wins |
+| Daybreak | Game over — Sylly mode: last player with Moons wins; normal mode: first to `shpMoonsToWin` |
 | Another Night? | Play again · **Tuck In?** quit · **Bedtime Routine 🌙** settings title |
 
 ### Card families (`SHP_CARDS`)
 - **Pasture** (`add`): +1/+2/+5/+10 (doubled while Herd < 50 if Dream Acceleration; +`shpEcho` under Global Echo). *Charges the meter.*
-- **Pillow:** Doze (skip), Toss & Turn (reverse), Counting Backwards −1/−2/−5/−10 (`subtract`, floored 0; faces show "−N", inspect modal names them "Counting Backwards −N"), Lullaby (set 20, 1-of).
-- **Alarm:** Skip a Few (random +2..+12 gamble), Black Sheep (set 99), Wide Awake (next turn → leader), Heavy Eyelids (next player plays two).
+- **Pillow:** Doze (skip), Toss & Turn (reverse), Counting Backwards −1/−2/−5/−10 (`subtract`, floored 0; faces show "−N", inspect modal names them "Counting Backwards −N"), Lullaby (set 20, 1-of), **Swap Dreams** (id 18, `swap-hands` — trade your whole Pen with a random living player; both sides re-draw to their own cap, so a Wolf-shrunk cap stays with the player not the cards).
+- **Alarm:** Skip a Few (random +2..+12 gamble), Black Sheep (set 99), Wide Awake (next turn → the player with the most **Moons**, i.e. whoever is winning — *not* most cards; the inspect text said cards until 12 Aug 2026), Heavy Eyelids (next player plays two), **Rude Awakening** (id 17, `shuffle` — reseats `shpSeatOrder` for the rest of the Night; Herd untouched).
 - **Trap:** Big Bad Wolf — consumed on draw, shrinks the cap by 1 (restored on redeal).
 - **Phantom (id 13):** Fogged Dream — conjured by the Fog nightmare; hidden random +2..+12, cursed render; dissolves on play/redeal.
 
@@ -1583,31 +1593,68 @@ Sylly Mode (Night Terrors) adds an oscillating **Climb ⇄ Plunge** mode *within
 | Setting (display) | Options | Default | Internal variable | Values |
 |-------------------|---------|---------|------------------|--------|
 | Hand Size | 3 / 4 / 5 | 4 | `shpHandSize` | int |
-| Moons | 3 / 5 / 7 | 3 | `shpMoons` | int |
+| Moons — normal mode row (`shp-moons-win-row`) | Catnap 1 / Full Night 2 / Hibernate 3 | 2 | `shpMoonsToWin` | int — Moons needed to win the match |
+| Moons — Sylly mode row (`shp-moons-life-row`) | 3 / 5 / 7 | 3 | `shpMoons` | int — starting lives |
 | Dream Acceleration | OFF / ON | ON | `shpDreamAccel` | bool — doubles number cards under 50 |
-| ✨ Sylly Mode (Night Terrors) | OFF / ON | OFF | `shpSyllyMode` | bool — Climb ⇄ Plunge + Sleepwalkers ghost/Nightmare-Meter system |
+| ✨ Sylly Mode (Night Terrors) | OFF / ON | OFF | `shpSyllyMode` | bool — Climb ⇄ Plunge + Sleepwalkers ghost/Nightmare-Meter system; also switches which Moons row is shown |
+
+One card, two pill rows toggled by `shpSyllyMode` — never both visible at once; see `ui-style.md` § Settings Card Standard for the dynamic-value-line pattern this reuses.
 
 ### Scoring / Win
-No points — survival is the score. Deep Sleep costs a Moon; 0 Moons → Sleepwalker (appended to `shpElimOrder`). Last awake wins; standings = `[winner, ...elimOrder.reversed()]`.
+**Normal mode:** a Night is a scored round. A crash dozes that player out of the current Night only (no Moon lost, no redeal); the last player still awake wins the Night and takes one Moon. First to `shpMoonsToWin` Moons wins the match. **Sylly mode:** unchanged survival model — Moons are lives, a crash costs one, 0 Moons makes the player a permanent Sleepwalker (appended to `shpElimOrder`); last player left with Moons wins. Standings in both modes: `[winner, ...dozeOrder/elimOrder.reversed()]`.
 
 ### Special Mechanics
-- **Legality:** no card keeping Herd ≤ `shpCeiling` (or no safe two-card combo under Heavy Eyelids) → auto Deep Sleep on turn entry. Random-adds are always tappable gambles.
+- **Legality:** no card keeping Herd ≤ `shpCeiling` (or no safe two-card combo under Heavy Eyelids) → the incoming player is held with a "Nod Off" button (`shpStuckIdx`) rather than auto-crashed; their own tap resolves via `shpHostCrash`. Random-adds are always tappable gambles.
+- **A crash is rolled back unconditionally, then routed by mode.** `shpHostCrash` always routes to `shpHostDoze` (normal) or `shpHostMoonLoss` (Sylly) — one code path, three reachable shapes (busted gamble, bad two-card pair, no legal line/stuck), including deterministic two-card overshoots.
 - **Ghost system (Sylly Mode only, 11 Aug 2026):** folded into `shpSyllyMode` — no longer a separate toggle. Pasture-triggered meter (only once a Sleepwalker exists) → next Sleepwalker (rotation) flips one of 3 weighted face-down nightmares; the table gates on the pick; the effect fires at the turn-gate. Five: Cold Feet (±1..4), Restless Leg (reverse/skip), **Fog** (rare cursed-card swap), Sleep Paralysis (forced two-card), Global Echo (+2 Pasture until next disruption).
-- **Night Terrors (Plunge):** Herd ≥ 99 in Climb → Plunge with **overflow runway** (`shpCeiling = shpHerd`); arithmetic sign-flips. After a one-cycle grace the ceiling falls by a **round-based escalating drop** (`SHP_DROP_BASE` 2 + `SHP_DROP_STEP` 2 per full round of turns — locked per round so every player faces the same hazard; `shpCurrentDrop` synced for display). Bust → Deep Sleep + revert to Climb; Herd 0 → mercy exit (no Moon). Crimson re-skin + inverted faces; header reads "The Dream is Collapsing 🔻".
+- **Night Terrors (Plunge):** Herd ≥ 99 in Climb → Plunge with **overflow runway** (`shpCeiling = shpHerd`); arithmetic sign-flips. After a one-cycle grace the ceiling falls by a **round-based escalating drop** (`SHP_DROP_BASE` 2 + `SHP_DROP_STEP` 2 per full round of turns — locked per round so every player faces the same hazard; `shpCurrentDrop` synced for display). Bust → Moon loss + revert to Climb; Herd 0 → mercy exit (no Moon). Crimson re-skin + inverted faces; header reads "The Dream is Collapsing 🔻".
+- **Fogged Dream (id 13) dissolves rather than recycling, on every path that removes it from a hand** — played, dozed-out, or Jolted. Fixed as BUG-07 (13 Aug 2026, SW v177): it was previously pushed to the discard unconditionally and could recycle back into the Flock, letting a player draw a cursed card with no Fog nightmare involved.
 
 ### Overlay Types
 | Overlay | Pattern | z-index | Notes |
 |---------|---------|---------|-------|
 | `shp-settings-overlay` | Data (slide-up) | z-[80] | |
-| `shp-how-to-overlay` | Data (slide-up) | z-[90] | **Two tabs: `The Rules \| The Cards`** (10 Aug 2026). Tab 2 groups the deck by family (Pasture / Pillow / Alarm / Trap) from `SHP_CARDS` through `shpRenderCard`. **Fogged Dream (id 13) has core art since 11 Aug 2026** (`data/art/shp/img/13.jpg`) and is zoomable like every other tile — the card's *resolved value* (2–12) stays hidden from everyone including its owner, but that roll happens at play time and is independent of what face art is shown, so a static image doesn't leak it |
+| `shp-how-to-overlay` | Data (slide-up) | z-[90] | **Two tabs: `The Rules \| The Cards`** (10 Aug 2026). Tab 2 is a reference **list** (thumb + name + effect + deck count), one row per card, grouped by family (Pasture / Pillow / Alarm / Trap) from `SHP_CARDS` through `shpRenderCard`. Effect text comes from the single-source `shpCardEffectText()`. **Fogged Dream (id 13) has core art since 11 Aug 2026** (`data/art/shp/img/13.jpg`) and is zoomable like every other tile — the card's *resolved value* (2–12) stays hidden from everyone including its owner, but that roll happens at play time and is independent of what face art is shown, so a static image doesn't leak it. **Tap-hold any card in hand (or the Wolf slot) jumps straight here, scrolled to and briefly ringing that card's row** (12 Aug 2026 — replaced a standalone popup; see `ui-style.md` § Tap-Hold Reference) |
 | `shp-quit-overlay` | Decision modal | z-[80] | |
 | `shp-new-night-overlay` | Decision modal | z-[90] | |
 | `shp-tip-overlay` | Decision modal | z-[90] | |
-| `shp-card-info-overlay` | Decision modal | z-[90] | Per-card tip, opened by a 500 ms tap-hold on a card in hand |
 | `shp-play-log-overlay` | Data (slide-up) | z-[90] | Dream Journal |
 
 ### Screens
-`screen-shp-menu` (hub) · `screen-shp-table` (all play sub-states; `h-screen` sticky-footer with the Pen) · `screen-shp-gameover` (Daybreak standings).
+`screen-shp-menu` (hub) · `screen-shp-night-intro` (auto-advancing, `ui-style.md` § Round/Night Intro Screen — added 12 Aug 2026, shown at every `shpDealNight`) · `screen-shp-table` (all play sub-states; `h-screen` sticky-footer with the Pen) · `screen-shp-gameover` (Daybreak standings).
+
+### Table art (12 Aug 2026, revised twice same day — see SW v173/v174/v175)
+The Climb herd band's left column, previously an empty spacer reserved only for the flying-sheep
+animation, now also hosts a static **pen** — one pre-composed image (`pen.png`, 200×200, sheep and
+fence drawn together by the owner in one file) via `assetExtra('shp','pen')` (non-card core art,
+`data/art/shp/pack.json`'s `extras` block), replacing an earlier CSS composition of 4 separate
+sheep images plus a rotated fence divider that never quite lined up. The sheep-jump animation
+(`.shp-sheep-fly`, unchanged parabolic keyframes) renders `sheep.png` inside the flying `<span>`
+instead of the 🐑 emoji, horizontally flipped for the "out" direction (Counting Backwards cards)
+via a static transform on the inner `<img>` — the keyframes still own the span's own transform (the
+arc itself), so the flip lives on a child element rather than fighting the same CSS property every
+frame. Both fall back to emoji if the art doesn't resolve. The Last Played indicator (herd band,
+right column) renders the actual last-played card(s) through `shpRenderCard` at a fixed small scale
+(`.shp-last-card`) rather than an emoji+text line, and the card itself is the tap target for the
+Dream Journal — no separate link text.
+
+The band is `items-start` so the **"THE HERD"** and **"LAST PLAYED"** headings sit on one line
+across it (both columns lead with a same-metric label — `.shp-herd-label` / `.shp-last-label`); the
+pen takes `self-center` since it has no heading of its own.
+
+**Four real bugs, all fixed, worth knowing as a set — the parade took four rounds because each one
+found a different genuine defect and none of the first three was the reason it was invisible:**
+(1) the first `sheep.png`/`fence.png` copy had no alpha channel (PNG colour type 2 — Krita's export
+dialog defaults "Store alpha channel" to unchecked) and rendered with a cream/white box.
+(2) The fence was rotated 90° to act as a divider, an orientation the art was never drawn for.
+(3) `@keyframes shpSheepArcIn`/`Out` held opacity only at 0%/15%/100%, so the browser linearly
+faded the sheep across the whole 15%→100% span (down to ~20% by 1000ms of a 1200ms flight) — fixed
+with an explicit `85% { opacity: 1; }` stop. (4) **The actual cause:** Tailwind preflight's
+`img { max-width: 100% }` against `.shp-sheep-layer`, a deliberate 0×0 anchor, resolved to `0px` —
+the flying sheep had **zero width** from the moment v173 swapped the 🐑 emoji for real art (text
+ignores `max-width`; images don't). Fixed with `max-width: none` + an explicit width on
+`.shp-sheep-fly`. Full story: `shp-implementation-notes.md`, BUG-05 in the "Deep Sleep hold,
+herd-band layout, and the REAL animation bug" entry.
 
 ### Multiplayer (Phase 35)
 - **Mode:** MDLM only — `multiplayerOnly: true`, `supportedModes: ['mdlm']`, `recommendedMode: 'mdlm'`. **Min 3 / Max 8.** `rosterConfig: { type: 'none' }` (join-order).
@@ -1615,8 +1662,11 @@ No points — survival is the score. Deep Sleep costs a Moon; 0 Moons → Sleepw
 - **Host-authoritative, host-as-participant:** host taps run `shpHostPlayCard`/`shpHostPlayTwoCard` directly; clients send `SHP_PLAY`; host resolves for `shpActivePlayer` (only the active device sends).
 - **Card privacy (couch security):** all hands broadcast in `SHP_DEAL`/`SHP_TURN_RESULT`; each device renders only its own (NAT/FRT model). `shpNorm2D` guards received 2D hands.
 - **Mid-game quit (PASS contract):** client quit → `SHP_PLAYER_LEFT` ACTION → host broadcasts `SHP_MATCH_DISSOLVED` → all `resetToLobby()`; host quit → `resetToLobby()` (broadcasts `HOST_END_GAME`). One leaver dissolves the match.
-- **Key ACTION packets:** `SHP_PLAY`, `SHP_DISRUPT`, `SHP_PLAYER_LEFT`.
-- **Key SYNC packets:** `SHP_DEAL`, `SHP_TURN_RESULT` (carries phase/ceiling/grace), `SHP_DEEP_SLEEP`, `SHP_GHOST_READY`, `SHP_DISRUPT_RESOLVED`, `SHP_GAMEOVER`, `SHP_MATCH_DISSOLVED`.
+- **Key ACTION packets:** `SHP_PLAY`, `SHP_DISRUPT`, `SHP_STUCK_ACK`, `SHP_PLAYER_LEFT`.
+- **Key SYNC packets:** `SHP_DEAL` (carries `nightNum`, `seatOrder`, `dozed`/`dozeOrder`, `moonsToWin`, `flavourIdx`), `SHP_TURN_RESULT` (carries phase/ceiling/grace + `seatOrder`/`lastEffect`), `SHP_STUCK` (carries `stuckIdx`), `SHP_DOZE` (every crash, normal or Sylly — carries `mode`, `dozed`/`dozeOrder` or `eliminated`/`elimOrder`, hand mutation; broadcasts even on the crash that ends the Night/match), `SHP_NIGHT_END` (normal mode only — winner, finishing order, `over`), `SHP_GHOST_READY`, `SHP_DISRUPT_RESOLVED` (carries `seatOrder`), `SHP_GAMEOVER` (Sylly match-end), `SHP_MATCH_DISSOLVED`.
+- **A stuck player HOLDS the table; nothing auto-advances** (13 Aug 2026). When the incoming player has no legal line the host sets `shpStuckIdx` and broadcasts `SHP_STUCK`; every device holds on the table, that player gets a **"Nod Off"** button over their greyed hand, and their tap (host: direct `shpHostCrash`; client: `SHP_STUCK_ACK`) is what advances everyone. Cleared by `shpHostCrash`/`shpDealNight`/`shpResetState` and by every turn-advancing applier. **A bust is deliberately NOT held** — the doze banner is the answer to the player's own gamble. The applier reads `p.stuckIdx` explicitly, never `|| -1`: seat 0 is falsy and would silently read as "nobody stuck".
+- **A crash always sends `SHP_DOZE` before the Night/match-end packet that may follow it** (`SHP_NIGHT_END` or `SHP_GAMEOVER`), never instead of it — it's the only packet carrying the final crasher's own state mutation (hand discard, `dozed`/`eliminated` flag). Skipping it on the Night-ending crash was a real bug caught by the chunk-7/8 loopback probe: a client silently fell one crasher behind the host's `shpDozed`/`shpDozeOrder` for the rest of the match.
+- **Turn order is a walk along `shpSeatOrder`**, a permutation of player indices — not raw index arithmetic — so Rude Awakening can genuinely reseat the table. Reset to identity each Night; ships in every packet that can change whose turn it is, because a client walking a stale ring computes a different "next player" than the host. Player chips render in ring order so a reseat is visible.
 
 ---
 

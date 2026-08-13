@@ -454,7 +454,7 @@ Before implementing, answer:
 
 **SW versioning:** `CACHE_NAME = 'sylly-games-vN'` — bump N on **every deploy**.
 
-**Current SW version:** v167 (see `CLAUDE.md` § Current Focus for the live pointer — don't let this drift again)
+**Current SW version:** v178 (see `CLAUDE.md` § Current Focus for the live pointer — don't let this drift again)
 
 **A per-file art ceiling is only meaningful next to the element's RENDER size.** The suite's 40 KB/card figure was set for small cards — PKO's renders at `4.25rem`, so 360 px art is 5.3× its CSS width. CJAR's hero is `15rem` (240 CSS px) and its masters are **square** against a portrait card, so `cover` discards ~27% horizontally and the same 360 px is only ~1.1× effective. Measure the quality the cap forces at several widths rather than inheriting an earlier game's number, and check master **aspect** against card aspect — square masters waste a fixed fraction of every byte. Detail: `cjar-impl-notes` TG-02b. *[Elevated from cjar, Aug 2026.]*
 

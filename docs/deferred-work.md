@@ -78,6 +78,15 @@ not in a batch at the end.
   (`ui-style.md` § Pattern 2a). **PASS remains the one exception** — 54 playing cards make a tile grid a poster
   rather than a reference, and it has no core art to verify, so nothing is currently unverifiable. Detail:
   `docs/decision-log.md` 2026-08-10, `docs/art-authoring-guide.md`.
+- **Round/Night Intro Screen sweep — implemented only in CJAR and SHP.** `ui-style.md` § Round/Night
+  Intro Screen (added 12 Aug 2026) says any game where the same phase repeats several times a match
+  (a Night, a Raid, a Round, an Encounter) should show a short auto-advancing intro at the start of
+  each repetition, rather than jumping straight from "deal" into an already-live table. CJAR
+  (`screen-cjar-raid-intro`) was the precedent; SHP (`screen-shp-night-intro`, flavour text + a
+  rotating practical reminder, host-picked and synced) is what generalised it into a named pattern.
+  The rest of the suite has not been swept — PKO (Clashes/Encounters) is the closest structural match
+  and the obvious next candidate, followed by any other multi-round game (GTH sessions, NAT
+  expeditions, DYB/PASS hands). Not a playtest-fix batch; pick it up as its own pass.
 - **The settings dynamic-value line (DD-13) is implemented only in CJAR.** `ui-style.md` § Settings Card
   Standard requires it wherever a pill option encodes a concrete value not visible in its label — durations,
   counts, thresholds. The other 17 games have not been swept, and at least some will have the same gap cjar had

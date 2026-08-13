@@ -23,8 +23,14 @@
       "13": "13.jpg",
       "14": "14.jpg",
       "15": "15.jpg",
-      "16": "16.jpg"
+      "16": "16.jpg",
+      "17": "17.jpg",
+      "18": "18.jpg"
     },
-    "back": "back.jpg"
+    "back": "back.jpg",
+    "extras": {
+      "sheep": "sheep.png",
+      "pen": "pen.png"
+    }
   }
 }

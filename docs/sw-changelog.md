@@ -3,6 +3,133 @@
 Historical SW release notes, moved out of `CLAUDE.md` (1 Aug 2026) so they stop loading into every session.
 The **current** version and its notes stay in `CLAUDE.md` § Current Focus — append the outgoing entry here on each bump.
 
+## v177 — Counting Sheep: Fogged Dream no longer leaks into the recycled Flock (13 Aug 2026)
+
+A played Fogged Dream (id 13 — deliberately excluded from `shpBuildFlock`, conjured only by the Fog
+nightmare) was being pushed to the discard unconditionally and recycled back into the Flock on the
+next reshuffle, so a player could draw a cursed card with no Fog nightmare involved. Bug had been
+live since the ghost system shipped; masked because the per-crash redeal usually rebuilt a fresh
+Flock before a reshuffle happened. Fix: both play paths (`shpHostPlayCard`, `shpHostPlayTwoCard`)
+now guard `if (cardId !== 13)` before pushing to `shpDiscard`. Found during design work on the
+scoring rework (v178) — removing the per-crash redeal there was going to make reshuffles routine
+and turn this into a visible, frequent bug instead of a rare theoretical one.
+Detail: `docs/decision-log.md` 2026-08-13, `docs/new-game-tech-counting-sheep-scoring.md` § 3.1(a).
+Resolved as `shp-implementation-notes.md` BUG-07.
+
+## v176 — Counting Sheep: Deep Sleep HOLDS, herd-band relaid out, real animation bug found (13 Aug 2026)
+
+Third playtest round on the same feature; two of the three items are corrections to earlier "fixes".
+
+**(1) BUG-05 — the flying sheep were rendering at ZERO WIDTH all along.** Tailwind preflight sets
+`img { max-width: 100% }`, and `.shp-sheep-layer` is deliberately a 0×0 anchor so the parade
+contributes no layout — so `100%` resolved to 0px and every sheep was invisible on every device.
+Introduced by v173's emoji → real-art swap (text ignores `max-width`, images don't). Fix:
+`max-width: none` plus an explicit width on `.shp-sheep-fly`. Sheep now also scale to flock size
+(`--shp-sheep-w`) so a +10's eight sheep aren't one blob.
+
+**(2) BUG-06 — the summary appeared, then bounced back to the table.** `shpAnimTimer` and
+`shpTapReadyTimer` both called `shpRenderTable()` directly, bypassing `shpShowTable()`'s
+`shpDeepSleepInfo` guard. A `'stuck'` Deep Sleep resolves in the same tick as the play that caused
+it, so the parade timer was always pending and repainted the table over the summary ~1.5s later.
+Both timers are now guarded.
+
+**(3) The stuck player now holds instead of auto-advancing** (owner ask). New host-declared
+`shpStuckIdx` + `SHP_STUCK` SYNC / `SHP_STUCK_ACK` ACTION: the table holds, that player gets a
+"Nod Off" button over their greyed hand, everyone else sees "*Name* has no safe cards left…", and
+their tap moves the table to the summary. A bust is deliberately still immediate.
+
+**(4) Herd band relaid out** — "Last Played" is now a column heading on the same line as "THE HERD",
+card 2.1rem → 3rem, pen 5.4rem → 6.6rem.
+
+Detail: `docs/implementation-notes/shp-implementation-notes.md`, "Deep Sleep hold, herd-band
+layout, and the REAL animation bug".
+
+## v168–v175 — Counting Sheep playtest round (11–13 Aug 2026)
+
+v175 (**Pen art replaced with a single pre-composed image; animation opacity curve fixed.**
+Same-day follow-up to v174. **(1)** Owner supplied one hand-drawn `pen.png` (200×200, sheep+fence
+baked into a single composition with a real alpha channel), replacing the CSS-layered
+4-`<img>`-plus-rotated-fence approach — simpler, and it sidesteps every positioning judgement call
+that kept being wrong. `pack.json`'s `extras` swapped `fence` for `pen`; `fence.png` deleted.
+**(2)** `@keyframes shpSheepArcIn`/`Out` set opacity only at 0%/15%/100%, so the browser linearly
+faded the sheep across the entire 15%→100% span — down to ~20% opacity by 1000ms of a 1200ms
+flight. Fixed with an explicit `85% { opacity: 1 }` stop. Both were real defects, but **neither was
+the reason the parade was invisible** — see v176 in `CLAUDE.md` § Current Focus, which found the
+sheep had been rendering at zero width the whole time. Detail:
+`docs/implementation-notes/shp-implementation-notes.md`, "Pen art replaced + animation opacity bug".)
+
+v174 (**Sheep-pen fixes + Last Played redesign, same-day follow-up to v173.** Owner playtest of
+the v173 sheep-pen round found three problems. **(1)** `sheep.png`/`fence.png` shipped in v173
+with no alpha channel (PNG colour type 2, confirmed by reading the IHDR bytes directly) — both
+rendered with a visible cream/white box. Closed same day: owner re-exported from Krita with
+"Store alpha channel" ticked; re-verified byte-level (colour type 6/RGBA) and confirmed visually.
+**(2)** The fence was rotated 90° to act as a right-edge divider — wrong, the art was never drawn
+for that orientation. Fixed: fence sat unrotated as a horizontal rail along the pen's bottom edge;
+pen and sheep sizes bumped too. **(3)** The parade animation was reported "not showing" —
+Playwright confirmed it was firing correctly, just too small and (until #1 landed) invisible as a
+white shape on a near-white background. **(4)** The right-column "Last" indicator rebuilt as "Last
+Played" + the real last-played card rendered through `shpRenderCard`, the card itself as the tap
+target for the journal. **This whole round of fixes to the pen composition turned out to be a dead
+end** — see the v175 entry in `CLAUDE.md` § Current Focus, which replaced the hand-composed
+4-sheep+fence CSS layout with a single pre-composed image once the owner supplied one, and found a
+second, more consequential animation bug the v174 fix didn't touch. Detail:
+`docs/implementation-notes/shp-implementation-notes.md`, "Sheep pen fixes + Last Played redesign".)
+
+v173 (**Night Intro screen + sheep pen art, same-day follow-up to v172.** Two owner polish
+requests. **(1)** `screen-shp-night-intro` — the lobby jumped straight into a live table with no
+beat marking a new Night; matches PKO/CJAR's formula now. Auto-advancing (rule-5 interstitial
+exemption, `SHP_INTERSTITIAL_MS` 5000ms), heading "Night N Begins", subtext doing double duty as
+flavour AND a practical reminder in one line (5 rotating options, `SHP_NIGHT_FLAVOUR`, host-picked
++ synced via `SHP_DEAL.flavourIdx`), a Sylly-only Night-Terrors note. Promoted to a documented
+default, `ui-style.md` § **Round/Night Intro Screen** — generalises CJAR's `screen-cjar-raid-intro`
+(the only prior instance) for any game where the same phase repeats several times a match;
+`docs/deferred-work.md` carries the sweep item (PKO next). **(2)** The Climb stage's empty left
+column got a static sheep-pen (4 hand-placed `sheep.png`, plus a `fence.png` divider, both new
+`extras`-block core art) and the sheep-jump animation swapped its 🐑 emoji for the same art.
+**Both the pen composition and the animation's visibility turned out to be broken** — see the v174
+entry in `CLAUDE.md` § Current Focus for the fix. Detail:
+`docs/implementation-notes/shp-implementation-notes.md`, "Night Intro screen + sheep pen art".)
+
+v172 (**Fogged Dream badge fix, stuck-player messaging, Tap-Hold Reference, same-day follow-up to
+v171.** Three fixes from the live 3-player test that shipped v171. **(1)** Fogged Dream's art was
+landing under `shp-card-cursed` styling sized for an EMPTY card — violet border + a 1.4rem "?"
+sitting over the photo. Split into an art path (`shp-card-asset`, plus a small corner badge) and the
+unchanged no-art fallback. **(2)** After Swap Dreams handed a bad hand to the next player, that
+player's own screen kept showing "Your turn" while every card boinged, with no indication anything
+was about to happen. `shpRenderTable` now runs the same stuck-check locally on the active player's
+own device and shows "😴 No safe cards left — you're drifting off…" with the hand greyed. **(3)**
+Tap-hold on a card now jumps to the How-to gallery (scrolled + ringed) instead of opening a
+standalone popup — generalising PKO's pattern. `shp-card-info-overlay` fully retired. Promoted to a
+documented default, `ui-style.md` § **Tap-Hold Reference**. Also: updated v2 art for cards 17/18
+(higher-contrast symbols), old masters/JPGs removed. Detail:
+`docs/implementation-notes/shp-implementation-notes.md`, second 2026-08-12 entry.)
+
+v171 (**Two new cards, table polish, Night desync fix.** Owner playtest round. **(1) BUG-04** —
+`shpNightNum` incremented in the host-only `shpDealNight()` and was never in the `SHP_DEAL`
+payload, so every client sat on "Night 0" all match. **(2) Two new cards** from owner art — Rude
+Awakening (17, alarm, reseats the table) and Swap Dreams (18, pillow, trade Pens with a random
+player). 17 forced a real `shpSeatOrder` ring; new `shpLastEffect` carries the outcome sentence.
+Deck 73 → 80 with +3 pasture so the 4 new specials don't undo the anti-hoard rebalance.
+**(3)** Wide Awake was documented backwards — `shpLeaderIdx()` picks most Moons, the inspect text
+said most cards. **(4)** Table polish — a herd/ceiling pressure ramp, stronger labels, filled
+direction pill, player chips dropped the public "N cards" line (leaked Wolf-shrunk hands), render
+in ring order. Card effect text unified in `shpCardEffectText`, shared by the long-press modal and
+the How-to gallery (now a reference list). Detail:
+`docs/implementation-notes/shp-implementation-notes.md`, 2026-08-12 entry.)
+
+v170 (**Sleepwalkers folded into Sylly Mode, Wolf + Fogged Dream art, MDLM start-game fix.** Owner
+playtest call: the ghost/Nightmare-Meter system (Sleepwalkers) was a separate ON-by-default toggle
+sitting next to Sylly Mode (Night Terrors). Now gated on `shpSyllyMode` directly. Also: the in-hand
+Big Bad Wolf "slot locked" placeholder was hardcoded to the 🐺 emoji even though `12.jpg` was
+already precached — bypassed `assetFace` because the Wolf card is consumed straight to discard on
+draw. Now tries core art first. **v168→v169 same-day fix:** the Sleepwalkers removal missed two
+references in `engine-multiplayer.js`'s MDLM settings serialiser/applier, which threw a
+`ReferenceError` the moment the host tapped Start — silently caught, so "Lights Out" appeared to do
+nothing with 3+ players joined. **v169→v170 same-day:** Fogged Dream (id 13) also got real art —
+the earlier "permanently unskinnable" call conflated the card's hidden resolved value (2–12, rolled
+at play time) with its appearance; a static face doesn't leak the roll. Detail:
+`docs/implementation-notes/shp-implementation-notes.md`, 2026-08-11 entries.)
+
 ## v167 and earlier
 
 v167 (**Artwork: a global art viewer, galleries for the last four seams, and a standalone authoring

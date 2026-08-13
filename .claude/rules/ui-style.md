@@ -16,6 +16,59 @@ Every screen must have:
 
 ---
 
+## Round/Night Intro Screen (default for the start of every match round, added 12 Aug 2026 — SHP; CJAR is the precedent)
+
+**Every game where the same phase (a Night, a Raid, a Round) repeats several times per match should
+show a short, auto-advancing intro screen at the start of each repetition — not jump the player
+straight from "deal" into an already-live table.** This is the interstitial exception (rule 5 above)
+used as a *beat*, not just a result flash: `screen-cjar-raid-intro` was the first instance; SHP's
+`screen-shp-night-intro` is the second and what generalises it into a named pattern.
+
+**Job of the screen — flavour AND orientation, not just flavour.** The text should do two things in
+one or two short lines: set the scene in the game's voice, and restate — lightly, not a rules dump —
+what the player is about to do or watch for. SHP's line does both in one sentence: *"Don't go over 99
+or you might really just fall asleep"* is flavour and the core rule in the same breath. A pure mood
+line with no practical content is a missed second use of the same five seconds.
+
+**Shape:**
+```html
+<section id="screen-[abbr]-[phase]-intro" style="display:none"
+  class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+  <div class="flex flex-col w-full max-w-sm gap-4 text-center">
+    <div class="text-6xl" role="img" aria-label="...">[emoji]</div>
+    <h2 id="[abbr]-intro-heading" class="text-3xl font-bold text-stone-800"></h2>
+    <p id="[abbr]-intro-sub" class="text-stone-500 text-base"></p>
+    <!-- optional third element: a Sylly-Mode-only note, a per-player private hint (CJAR's
+         Favourite/Watcher box), anything conditional — style="display:none" until populated -->
+  </div>
+</section>
+```
+No `[?]`/🔊/✕ — the rule-5 interstitial exemption applies (nothing is tappable for the ~5 s it's up).
+Emoji should differ from the game's main menu emoji where reasonable, so the intro reads as its own
+beat rather than a repeat of the menu (SHP uses 🌙 for "Night begins", distinct from the menu's 🐑).
+
+**Rotate the flavour line if the phase repeats many times a match.** A Raid/Night can redeal a
+handful of times in one sitting; the same sentence every time reads as filler by the third showing.
+Keep a small array (`SHP_NIGHT_FLAVOUR`, 4–6 lines) and pick one per repetition — **host-picked and
+synced** in MDLM (ride the index in whatever SYNC packet already carries the deal), never picked
+independently per device, or players sitting together see different text for the same moment.
+
+**Wire it in at the SAME point on host and client.** The function that shows this screen must be
+called from **both** the host's deal path and the client's `SYNC` handler for that deal — not just
+one. SHP's version (`shpShowNightIntro()`) replaced a direct `shpShowTable()` call in both
+`shpDealNight()` (host) and the `SHP_DEAL` applier (client); missing either half means one class of
+device skips straight past the intro. Auto-advance via `setTimeout` to the real table-show function,
+clearing any prior handle first (a rapid-fire redeal loop must never stack two pending timers) and
+clearing it in the game's teardown (`resetToLobby()` path) per § Timer Lifecycle (`logic-engine.md`).
+
+**Deferred — sweep the rest of the suite.** Not retrofitted onto any existing game outside CJAR/SHP
+this round. `docs/deferred-work.md` carries a tracked item to audit every game with a repeating
+Round/Raid/Night/Encounter structure and add this screen where the "deal happens, but nothing marks
+it" gap exists — see PKO and other multi-round games first, since they're the closest structural
+match to what CJAR and SHP already have.
+
+---
+
 ## Sound Overlay — Positioning & Theming
 
 ### Sound button positioning (game menus)
@@ -236,15 +289,17 @@ Every screen in every game is built from **the Stack**: three zones stacked in o
 - `gap-4` on the inner column is the *only* thing setting spacing between zones — so the Stack is tight by construction.
 - The Controls sit directly under the Stage. A button does **not** need to be glued to the bottom of the glass — it needs to be *reachable*, and in a scrolling column it always is.
 
-### The three rules that keep the Stack from breaking
+### The four rules that keep the Stack from breaking
 
-These are the only ways the Stack has ever broken in this codebase. All three are the same mistake — **splitting the column** — wearing different clothes:
+These are the only ways the Stack has ever broken in this codebase. The first three are the same mistake — **splitting the column** — wearing different clothes; the fourth is a sibling failure mode for a screen with more than one render function:
 
 1. **One column, no exceptions.** Header + Stage + Controls are *siblings inside the single `max-w-sm` inner div*. Never render the content into one wrapper and the buttons into a separate footer wrapper — the moment they're in different parents, the footer detaches to the bottom and the header detaches to the top, and the Stack stops reading as one unit. (FRT BUG-02.)
 
 2. **Never use `my-auto` to centre.** `my-auto` distributes *free space*, and inside an `overflow-y-auto` column there is none (the column's height equals its content). It is a silent no-op. Centring is the `<section>`'s job via `items-center justify-center` — never the child's. (FRT BUG-02.)
 
 3. **No `h-screen` / `flex-1` / `flex-shrink-0` split.** That trio is the old "sticky-footer" pattern — it deliberately inflates the Stage (`flex-1`) to eat all leftover space and shoves Header to the top edge and Controls to the bottom edge. That is the *opposite* of the Stack. Do not use it for new screens. (See the legacy note below.)
+
+4. **A screen repainted by more than one render function must have each of them own every element it cares about.** Repainting only `#body`/`#footer` of a shared screen is not "leaving the rest alone" — it's "showing whatever the previous renderer last wrote" to every element you didn't touch, header included. SHP's table screen has two renderers, `shpRenderTable` and `shpRenderNightEnd`, and only the first set `#shp-table-status`; the Night-End summary therefore inherited whatever the table wrote there last, which on a screen reached from a Plunge would have shown "THE PLUNGE 🔻" in red above a Night-won summary. When adding a second (or third) render function for one screen, list every element the *other* renderer(s) touch and set them explicitly, even to a value that looks like a no-op today. *[Elevated from shp-impl-notes Template Gaps, chunk 9, Aug 2026.]*
 
 ### Transient animations must float, never sit in the flow
 
@@ -440,6 +495,62 @@ mid-play reference isn't a teaching aid — that distinction didn't survive cont
 example: the two are the same thing seen at different times, and duplicating the content across
 two overlays (rather than one overlay with more entry points) was the actual cost. Folded into
 `pko-how-to-overlay` as tabs 2–3 Aug 2026; see `docs/decision-log.md`.
+
+### Tap-Hold Reference (default for a card's long-press, added 12 Aug 2026 — SHP, generalising PKO)
+
+**When a game has a How-to gallery tab (above), tap-and-hold on any real card — in a hand, on the
+table, in a locked-slot placeholder — jumps to that card's row in the gallery: the tab opens (or
+switches) to The Cards, scrolls it into view, and rings it briefly.** This is the *default*
+long-press behaviour for any card with real artwork. Build a standalone inspect popup only if the
+game has a specific reason a shared gallery entry can't serve (none has needed one yet).
+
+**Why the default, not a per-game choice:** a standalone popup (SHP's original `shp-card-info-overlay`
+Decision Modal) is a second place a card's rules text can drift from the gallery's, a second
+overlay in the z-index stack, and a second `resetToLobby()` teardown entry — for information the
+gallery already has to hold anyway. Retired in favour of this pattern 12 Aug 2026; see
+`docs/implementation-notes/shp-implementation-notes.md`.
+
+**Shape (`shpBindCardHold` / `pkoBindChainHold` are the reference implementations):**
+```js
+function [abbr]BindCardHold(el, cardId) {
+  let timer = null;
+  const cancel = () => { if (timer) { clearTimeout(timer); timer = null; } };
+  const start  = () => { cancel(); timer = setTimeout(() => { timer = null; [abbr]OpenHowTo('[gallery-tab]', cardId); }, 500); };
+  el.addEventListener('touchstart', start,  { passive: true });
+  el.addEventListener('touchend',   cancel);
+  el.addEventListener('touchmove',  cancel, { passive: true });
+  el.addEventListener('mousedown',  start);
+  el.addEventListener('mouseup',    cancel);
+  el.addEventListener('mouseleave', cancel);
+}
+```
+`[gallery-tab]` is whatever this game already calls its card-gallery tab (`'cards'` for SHP,
+`'animals'` for PKO — not a new naming convention). `[abbr]OpenHowTo(tab, highlightId)` forces that
+tab whenever `highlightId` is set (skip the "open to Rules" default), and the gallery's render
+function tags each row/tile with
+`data-[abbr]-card-id` and, when a `highlightId` is passed, does:
+```js
+const target = box.querySelector('[data-[abbr]-card-id="' + highlightId + '"]');
+if (target) requestAnimationFrame(() => {
+  target.scrollIntoView({ block: 'center' });
+  target.classList.add('[abbr]-ref-row-ping');
+  setTimeout(() => target.classList.remove('[abbr]-ref-row-ping'), 1600);
+});
+```
+The ring class is a `box-shadow` transition, never `animation` (reduced-motion already zeroes
+transition durations globally — see § Motion Standard — so this needs no separate guard).
+
+**A placeholder with no card id of its own points at the real card that explains it.** SHP's
+Big Bad Wolf hand-slot (a locked-slot indicator, not the Wolf card itself — see § Pattern 2a's
+sibling rule for `assetFace`) has no `cardId`; its hold targets card **12** (The Big Bad Wolf),
+whose gallery row is what actually explains the locked slot. Generalise this whenever a game has
+a non-card placeholder standing in for a mechanic that a real card's row already documents —
+point the hold at that card's id rather than inventing a third explanation surface.
+
+**Exception — don't apply this where tap-hold already does something else.** PASS's 54-face grid
+(the documented exception to the gallery tab itself) and any game where a long-press is bound to a
+drag-start, a multi-select, or another mechanic keeps its own behaviour; this default only fills
+the gap when tap-hold is otherwise idle.
 
 ### Per-game reference
 

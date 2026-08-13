@@ -283,24 +283,21 @@ Do not write the phase snapshot until Protocols A is clean. Do not write a line 
 pointer, not a narrative — that is what keeps this file cheap. When a round closes, compress its
 entry to one line and let the impl-notes carry the detail (§ Documentation Integrity Protocol).
 
-**SW v170 — Counting Sheep: Sleepwalkers folded into Sylly Mode, Wolf + Fogged Dream art, MDLM start-game fix (11 Aug 2026).**
-Owner playtest call: the ghost/Nightmare-Meter system (Sleepwalkers) was a separate ON-by-default
-toggle sitting next to Sylly Mode (Night Terrors) — a base-rules game could still have eliminated
-players haunting the table. It's now gated on `shpSyllyMode` directly; the standalone settings
-toggle and its How-to step were removed, and their copy folded into the Sylly Mode settings/how-to
-cards. Also: the in-hand Big Bad Wolf "slot locked" placeholder was hardcoded to the 🐺 emoji even
-though `data/art/shp/`'s `12.jpg` was already precached — it bypassed `assetFace` entirely because
-the Wolf card is consumed straight to discard on draw and never rendered through the normal path.
-Now tries the core art first, emoji as fallback. **v168→v169 same-day fix:** the Sleepwalkers
-removal missed two references in `engine-multiplayer.js`'s MDLM settings serialiser/applier
-(`mpSerialiseSettings('shp')`, the SETTINGS_SYNC applier), which threw a `ReferenceError` the
-moment the host tapped the lobby's Start button — the async `mpConfirmRoster()` caught it silently
-and just reset the button, so "Lights Out" appeared to do nothing with 3+ players joined.
-**v169→v170 same-day:** Fogged Dream (id 13) also gets real art now — the earlier "permanently
-unskinnable" call (1 Aug 2026) conflated the card's hidden *resolved value* (2–12, rolled at play
-time) with its *appearance*; a static face doesn't leak the roll, so the owner's ready `card13.png`
-was converted in (`data/art/shp/img/13.jpg`) and wired the same way as the Wolf-slot fix. Detail:
-`docs/implementation-notes/shp-implementation-notes.md` (2026-08-11 entries).
+**SW v178 — Counting Sheep scoring rework CLOSED, all 10 chunks shipped (13 Aug 2026).** SHP's
+match structure: normal mode now makes a Night a scored round — a crash Dozes that player out of
+the current Night only (no reset/redeal), everyone else plays on from the same Herd, last awake
+wins the Night and earns a Moon, first to `shpMoonsToWin` Moons wins the match. Sylly Mode is now
+one continuous Night with Moons as lives and the Jolt (hand discard+redraw) replacing the old
+per-crash redeal as a stuck player's recovery. Chunk 9 (UI + copy, same-day) shipped the terminology
+suite-wide: "Deep Sleep" is retired as a screen name (now "Last One Awake"), "Dozed Off" is new
+normal-mode-only chip text, "Sleepwalker" is Sylly-only. Chunk 10 closed docs (this entry) — full
+chunk-by-chunk detail lives in `shp-implementation-notes.md`; the spec is
+`docs/new-game-tech-counting-sheep-scoring.md` (§12 has the 10-chunk order; §14 the closure
+checklist). Both harnesses green: `tools/verify-shp-loop.js` (60 matches), `tools/verify-shp-loopback.js`
+(6 scenarios). Decision logged: `docs/decision-log.md` 2026-08-13.
+
+v168–v177 (the rest of the Counting Sheep playtest round, incl. the standalone BUG-07 Fogged-Dream
+fix) moved to `docs/sw-changelog.md` this bump.
 
 **Still open from v166:** PKO's **Stragglers** scoring mode is shipped but unplayed — Force of
 Nature can hand a player cards they did not choose (Deluge, Culling, Migration, Great Reversal),
@@ -344,6 +341,8 @@ Re-run a game's full set after touching its appliers, deck/data, packets or rend
 | CJAR | `node tools/simulate-cjar-dd.js` — balance instrument; asserts nothing, always exits 0 | — |
 | PKO | `node tools/verify-pko-chain.js && node tools/verify-pko-loop.js && node tools/verify-pko-events.js` | 68 · 147 · 148 |
 | DYB | `node tools/verify-dyb-dice.js` — after any `js/lib/art.js` / `dybDieHTML` / `.dyb-die-*` change | 90+ |
+| SHP | `node tools/verify-shp-loop.js` — random matches, all player counts/modes/settings; `SHP_SEED=` for reproducibility | 60 matches |
+| SHP | `node tools/verify-shp-loopback.js` — host↔client over a Firebase-shaped wire; accepts `SHP_SRC=` | 6 scenarios |
 
 **The blind spot they share is load-bearing.** Every harness *except* `verify-cjar-loopback.js`
 runs in `'single'` mode with `getElementById: () => null`. That is what lets one process drive all

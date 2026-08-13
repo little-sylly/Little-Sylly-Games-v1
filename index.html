@@ -8008,10 +8008,9 @@ Reboot
   </div>
 
   <!-- &#x2550;&#x2550;&#x2550;&#x2550; COUNTING SHEEP (shp) &#x2550;&#x2550;&#x2550;&#x2550;
-       Screens : screen-shp-menu, screen-shp-table, screen-shp-gameover
+       Screens : screen-shp-menu, screen-shp-night-intro, screen-shp-table, screen-shp-gameover
        Overlays: shp-settings-overlay, shp-how-to-overlay, shp-quit-overlay,
-                 shp-new-night-overlay, shp-tip-overlay, shp-card-info-overlay,
-                 shp-play-log-overlay
+                 shp-new-night-overlay, shp-tip-overlay, shp-play-log-overlay
        Render  : shpRenderCard(cardId, opts) - asset-pack seam (no cards.js reuse)
        MDLM-only - couch security - Sylly Mode = Night Terrors (Climb <-> Plunge)
     &#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550; -->
@@ -8037,6 +8036,23 @@ Reboot
       <button id="btn-shp-menu-back" class="min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-xl font-semibold transition-all duration-150">
         &#x2190; Back to the Box
       </button>
+    </div>
+  </section>
+
+  <!-- SHP NIGHT INTRO — auto-advancing (SHP_INTERSTITIAL_MS), no [?]/&#x1F50A;/&#x2715; per
+       ui-style.md rule-5 (nothing to tap for the ~5s it's on screen). Shown at the start of
+       EVERY Night, both host and clients, via shpShowNightIntro(). Reference: screen-cjar-raid-intro. -->
+  <section id="screen-shp-night-intro" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-4 text-center">
+      <div class="text-6xl" role="img" aria-label="Moon">&#x1F319;</div>
+      <h2 id="shp-intro-heading" class="text-3xl font-bold text-stone-800"></h2>
+      <p id="shp-intro-sub" class="text-stone-500 text-base"></p>
+      <p id="shp-intro-tally" style="display:none" class="text-stone-400 text-sm"></p>
+      <div id="shp-intro-sylly" style="display:none" class="flex items-center gap-2 bg-red-50 border border-red-200 rounded-2xl p-3 justify-center">
+        <span class="text-xl">&#x1F53B;</span>
+        <p class="text-red-600 text-sm font-semibold">Night Terrors is active — hit 99 and the dream Plunges.</p>
+      </div>
     </div>
   </section>
 
@@ -8096,13 +8112,21 @@ Reboot
         </div>
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
           <div>
-            <p class="text-stone-800 font-semibold">Moons</p>
-            <p class="text-stone-400 text-sm mt-0.5">Lives. Lose one each time you fall into Deep Sleep. More Moons = a longer, gentler night.</p>
+            <p id="shp-moons-title" class="text-stone-800 font-semibold">Moons</p>
+            <p id="shp-moons-desc" class="text-stone-400 text-sm mt-0.5"></p>
           </div>
-          <div class="flex gap-2 flex-wrap">
-            <button class="pill pill-active-indigo" data-shp-moons="3">3</button>
-            <button class="pill" data-shp-moons="5">5</button>
-            <button class="pill" data-shp-moons="7">7</button>
+          <div class="flex flex-col gap-2">
+            <div id="shp-moons-win-row" class="flex gap-2">
+              <button class="pill" data-shp-moons-win="1">Catnap</button>
+              <button class="pill pill-active-indigo" data-shp-moons-win="2">Full Night</button>
+              <button class="pill" data-shp-moons-win="3">Hibernate</button>
+            </div>
+            <div id="shp-moons-life-row" style="display:none" class="flex gap-2">
+              <button class="pill pill-active-indigo" data-shp-moons="3">3</button>
+              <button class="pill" data-shp-moons="5">5</button>
+              <button class="pill" data-shp-moons="7">7</button>
+            </div>
+            <p id="shp-val-moons" class="text-stone-400 text-xs"></p>
           </div>
         </div>
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
@@ -8146,26 +8170,26 @@ Reboot
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
           <p class="text-xs font-semibold uppercase tracking-widest text-indigo-600">Step 2</p>
           <p class="font-bold text-stone-800">Pillows &amp; Alarms</p>
-          <p class="text-stone-500 text-sm"><span class="font-semibold text-stone-700">Pillows</span> stall or shrink the count (Doze, Counting Backwards, Lullaby). <span class="font-semibold text-stone-700">Alarms</span> shake it up — Skip a Few, the Black Sheep (snaps to 99), Wide Awake and Heavy Eyelids. The <span class="font-semibold text-stone-700">Big Bad Wolf</span> hides in the Flock — draw one and a card slot locks for the Night.</p>
+          <p class="text-stone-500 text-sm"><span class="font-semibold text-stone-700">Pillows</span> stall or shrink the count (Doze, Counting Backwards, Lullaby, Swap Dreams). <span class="font-semibold text-stone-700">Alarms</span> shake it up — Skip a Few, the Black Sheep (snaps to 99), Wide Awake, Heavy Eyelids and Rude Awakening. The <span class="font-semibold text-stone-700">Big Bad Wolf</span> hides in the Flock — draw one and a card slot locks for the Night. Not sure what a card does? <span class="font-semibold text-stone-700">Press and hold it</span> in your hand, or check <span class="font-semibold text-stone-700">The Cards</span> tab above.</p>
         </div>
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
           <p class="text-xs font-semibold uppercase tracking-widest text-indigo-600">Step 3</p>
-          <p class="font-bold text-stone-800">Deep Sleep</p>
-          <p class="text-stone-500 text-sm">If you have no card that keeps the Herd at or below the ceiling, you nod off - <span class="font-semibold text-stone-700">lose a Moon</span>, the Herd resets to 0, and everyone gets a fresh hand.</p>
+          <p class="font-bold text-stone-800">Dozing Off</p>
+          <p class="text-stone-500 text-sm">Bust the count, or run out of safe cards, and you <span class="font-semibold text-stone-700">doze off</span> - you're out for the night. Everyone else plays on from exactly where the Herd sits.</p>
         </div>
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
           <p class="text-xs font-semibold uppercase tracking-widest text-indigo-600">Winning and Scoring</p>
           <p class="font-bold text-stone-800">Last one awake</p>
           <ul class="list-disc pl-5 flex flex-col gap-1 text-stone-500 text-sm">
-            <li><span class="font-semibold text-stone-700">Deep Sleep</span> - costs one Moon and resets the Herd.</li>
-            <li><span class="font-semibold text-stone-700">Out of Moons</span> - you're eliminated for the night.</li>
-            <li><span class="font-semibold text-stone-700">Daybreak</span> - the last player still awake wins.</li>
+            <li><span class="font-semibold text-stone-700">Last One Awake</span> - win the Night and earn a <span class="font-semibold text-stone-700">Moon</span> &#x1F319;.</li>
+            <li><span class="font-semibold text-stone-700">Daybreak</span> - first to the target number of Moons wins the match. Set it in Settings.</li>
+            <li><span class="font-semibold text-stone-700">A busted play is rolled back</span> - the Herd returns to where it was before your card, so the Night carries on unchanged without you.</li>
           </ul>
         </div>
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
           <p class="text-xs font-semibold uppercase tracking-widest text-indigo-600">&#x2728; Sylly Mode</p>
           <p class="font-bold text-stone-800">Night Terrors</p>
-          <p class="text-stone-500 text-sm">Reach 99 and the dream inverts - <span class="font-semibold text-stone-700">the Plunge</span>. Every number card flips its sign, the ceiling <span class="font-semibold text-stone-700">falls a little each turn</span>, and you must keep dropping the Herd. Knocked-out players don't just leave - they become <span class="font-semibold text-stone-700">Sleepwalkers</span>, haunting the dream. Every Pasture card played charges the <span class="font-semibold text-stone-700">Nightmare Meter</span>; when it fills, a Sleepwalker flips one of three face-down nightmares onto the living. &#x1F4A4; Last one awake survives the night.</p>
+          <p class="text-stone-500 text-sm">One <span class="font-semibold text-stone-700">long Night</span> - no redeals, and your Moons are <span class="font-semibold text-stone-700">lives</span>. Crash and you lose one, then <span class="font-semibold text-stone-700">the Jolt</span> wakes you with a fresh hand. Reach 99 and the dream inverts - <span class="font-semibold text-stone-700">the Plunge</span>: every number card flips its sign and the ceiling <span class="font-semibold text-stone-700">falls a little each turn</span>. At zero Moons you don't just leave - you become a <span class="font-semibold text-stone-700">Sleepwalker</span>, haunting the dream. Every Pasture card played charges the <span class="font-semibold text-stone-700">Nightmare Meter</span>; when it fills, a Sleepwalker flips one of three face-down nightmares onto the living. &#x1F4A4; Last one awake survives the night.</p>
         </div>
         <button id="btn-shp-howto-close" class="min-h-14 w-full rounded-2xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-xl font-semibold transition-all duration-150">Got it</button>
       </div>
@@ -8233,19 +8257,6 @@ Reboot
       <div class="px-5 pb-8 flex-shrink-0">
         <button id="btn-shp-play-log-close" class="min-h-14 w-full rounded-2xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-lg font-semibold transition-all duration-150">Close</button>
       </div>
-    </div>
-  </div>
-
-  <div id="shp-card-info-overlay" style="display:none"
-    class="fixed inset-0 z-[90] overlay-modal-backdrop flex items-center justify-center px-6">
-    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-indigo-300">
-      <div class="flex flex-col gap-1">
-        <p id="shp-card-info-emoji" class="text-4xl"></p>
-        <h3 id="shp-card-info-name" class="text-lg font-bold text-stone-800"></h3>
-        <p id="shp-card-info-family" class="text-xs font-semibold uppercase tracking-widest text-indigo-500"></p>
-      </div>
-      <p id="shp-card-info-effect" class="text-stone-500 text-sm text-center"></p>
-      <button id="btn-shp-card-info-close" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-sm transition-all duration-100">Got it</button>
     </div>
   </div>
 

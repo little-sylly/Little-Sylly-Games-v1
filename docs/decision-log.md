@@ -20,6 +20,46 @@ Detail: pointer to the canonical doc (snapshot / impl note / spec / memory).
 
 ---
 
+## 2026-08-13 — Counting Sheep: scoring rework shipped (SW v178) — closes the 2026-08-13 spec entry below
+**Category:** Architecture
+**Decision:** All 10 chunks of the SHP scoring rework are shipped. A Night is now a scored round in normal mode (a crash dozes you out of that Night only; last awake wins a Moon; first to `shpMoonsToWin` wins the match); Sylly Mode is one continuous Night with Moons as lives and the Jolt as its per-crash recovery.
+**Why:** confirms and closes the plan recorded below the same day — see that entry for rationale.
+**Changed:** `js/games/shp.js`, `index.html`, `engine-multiplayer.js`, `tools/verify-shp-loop.js` + `tools/verify-shp-loopback.js` (both committed, both green), `ui-style.md` § The Stack (rule 4 — a screen repainted by more than one render function must have each renderer own every element it touches). **Deferred:** unchanged from the plan — no Herd pull-back on a doze in v1.
+**Detail:** `docs/new-game-tech-counting-sheep-scoring.md`; chunk-by-chunk record in `shp-implementation-notes.md`.
+
+---
+
+## 2026-08-13 — Counting Sheep: a Night becomes a scored round, and Moons mean opposite things per mode
+**Category:** Architecture
+**Decision:** SHP's match structure is reworked (spec confirmed, not yet built). **Normal mode:** a crash takes you out of *that Night only* — no reset, no redeal, survivors keep their hands and play on from the same Herd; last one awake wins the Night and earns a Moon; first to `shpMoonsToWin` (1/2/3, default 2) wins the match. **Sylly Mode:** one continuous Night for the whole match, Moons stay lives, existing Sleepwalker/Nightmare system on elimination. A busted play rolls the Herd back to its pre-play value, unconditionally.
+**Why:** the old model ended the interesting part of a Night at the first mistake and made every crash a full table reset; the owner's 3-player playtest asked for the survival round the game was already shaped like.
+**Changed (planned):** `js/games/shp.js` (`shpLives` → `shpMoonsHeld`, new `shpDozed`/`shpDozeOrder`, `shpHostCrash` router, `shpJolt`, `shpHostNightEnd`; `SHP_DOZE` + `SHP_NIGHT_END` replace `SHP_DEEP_SLEEP`); `index.html` (settings, how-to, table, gameover); `engine-multiplayer.js` (`shpMoonsToWin` in `mpSerialiseSettings` + `SETTINGS_SYNC`); two new harnesses `tools/verify-shp-loop.js` + `tools/verify-shp-loopback.js` (SHP has none committed today). **Deferred:** no Herd pull-back on a doze in v1 — held as the balance dial if Nights run long.
+**Found while specced:** removing the redeal makes the discard-reshuffle routine, which exposed a **live v176 bug** — a played Fogged Dream (id 13, excluded from `shpBuildFlock` on purpose) is discarded unconditionally and recycles back into the Flock, so it can be drawn with no Fog nightmare involved. Fix is `if (cardId !== 13)` on both play paths, shippable ahead of the rework. Same audit: the Wolf's cap shrink would become a whole-match penalty in Sylly's single Night (now expires at the Jolt). **Lesson:** when a rework deletes a periodic reset, audit what that reset was silently cleaning up.
+**Detail:** `docs/new-game-tech-counting-sheep-scoring.md` § 3.1.
+
+---
+
+## 2026-08-12 — Round/Night Intro Screen becomes the default for repeating match phases
+**Category:** Process
+**Decision:** Any game where the same phase (a Night, a Raid, a Round, an Encounter) repeats several times per match should show a short, auto-advancing intro screen at the start of each repetition — flavour text doing double duty as a light practical reminder — rather than jumping straight from "deal" into an already-live table. Documented in `ui-style.md` § Round/Night Intro Screen.
+**Why:** CJAR's `screen-cjar-raid-intro` had already solved this but was never named as a general pattern. SHP's owner playtest explicitly asked for the same "beat" PKO and CJAR already have, which is what prompted generalising it rather than building a third one-off.
+**Changed:** `js/games/shp.js` (`screen-shp-night-intro`, `shpShowNightIntro()`, `SHP_NIGHT_FLAVOUR`, host-picked + synced `flavourIdx`); `index.html`; `engine.js` (`allScreens[]`); `.claude/rules/ui-style.md` (new § Round/Night Intro Screen). **Deferred:** not retrofitted onto any other game this round — `docs/deferred-work.md` carries the sweep item; PKO is the closest structural match.
+**Detail:** `docs/implementation-notes/shp-implementation-notes.md` (2026-08-12 third entry).
+
+## 2026-08-12 — Tap-Hold Reference becomes the default long-press behaviour for cards
+**Category:** Process
+**Decision:** Any game with a How-to gallery tab should default a card's tap-hold to jumping straight to that card's row in the gallery (scrolled into view, briefly ringed) rather than building a standalone inspect popup. Documented in `ui-style.md` § Tap-Hold Reference.
+**Why:** SHP's standalone `shp-card-info-overlay` was a second surface for a card's rules text to drift from the gallery's, a second overlay in the z-index stack, and a second `resetToLobby()` teardown entry — for information the gallery already had to hold. PKO had already solved this (`pkoBindChainHold` → the chain overlay) but it hadn't been named as a general pattern until a second game needed the same thing.
+**Changed:** `js/games/shp.js` (`shpBindCardHold` now calls `shpOpenHowTo('cards', cardId)`; `shp-card-info-overlay` and `shpShowCardInfo` fully deleted); `index.html`; `engine.js` teardown list; `.claude/rules/ui-style.md` (new § Tap-Hold Reference, generalising PKO's `pkoBindChainHold`/`pkoOpenChain`). **Deferred:** not retrofitted onto any other existing game — applies going forward and whenever a game with a gallery tab is next touched.
+**Detail:** `docs/implementation-notes/shp-implementation-notes.md` (2026-08-12 second entry).
+
+## 2026-08-12 — Counting Sheep: turn order becomes a seating ring, not index arithmetic
+**Category:** Architecture
+**Decision:** SHP's turn order now walks `shpSeatOrder`, an explicit permutation of player indices, instead of computing `(i + direction + n) % n` over raw seat numbers. It resets to identity each Night and ships in every packet that can change whose turn it is (`SHP_DEAL`, `SHP_TURN_RESULT`, `SHP_DISRUPT_RESOLVED`).
+**Why:** the new Rude Awakening card (id 17) reseats the table, and raw index arithmetic has no way to represent "the table is in a different order now". Any game wanting a reorder mechanic needs the ring to be data, not derived. The sync half is load-bearing rather than cosmetic: a client walking a stale ring computes a different "next player" than the host, which presents as a dead button on whoever's turn it actually was.
+**Changed:** `js/games/shp.js` (`shpSeatOrder`, `shpRing()`, `shpNextPlayer`, `shpLeaderIdx`, three SYNC payloads + appliers, chips render in ring order); `game-identities.md`; `code-map.md`. **Deferred:** the ring is SHP-only — no attempt made to generalise it to the other seat-based games until a second one needs a reorder.
+**Detail:** `docs/implementation-notes/shp-implementation-notes.md` (2026-08-12 entry).
+
 ## 2026-08-11 — Counting Sheep: Sleepwalkers folded into Sylly Mode
 **Category:** Strategy
 **Decision:** The ghost/Nightmare-Meter (Sleepwalkers) system is no longer an independent settings toggle — it now only activates when Sylly Mode (Night Terrors) is on, gated directly off `shpSyllyMode`.

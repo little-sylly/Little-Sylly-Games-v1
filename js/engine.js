@@ -73,7 +73,7 @@ const allScreens = [
   // Fruit Salad
   'screen-frt-menu', 'screen-frt-deal', 'screen-frt-table', 'screen-frt-gameover',
   // Counting Sheep
-  'screen-shp-menu', 'screen-shp-table', 'screen-shp-gameover',
+  'screen-shp-menu', 'screen-shp-night-intro', 'screen-shp-table', 'screen-shp-gameover',
   // Flawless
   'screen-flw-menu', 'screen-flw-table', 'screen-flw-showing-result', 'screen-flw-gameover',
   // Pecking Order
@@ -674,7 +674,7 @@ function resetToLobby() {
   if (typeof frtResetState === 'function') frtResetState();
   // Counting Sheep teardown
   ['shp-settings-overlay','shp-how-to-overlay','shp-quit-overlay',
-   'shp-new-night-overlay','shp-tip-overlay','shp-card-info-overlay','shp-play-log-overlay'].forEach(id => {
+   'shp-new-night-overlay','shp-tip-overlay','shp-play-log-overlay'].forEach(id => {
     const el = document.getElementById(id); if (el) el.style.display = 'none';
   });
   if (typeof shpResetState === 'function') shpResetState();

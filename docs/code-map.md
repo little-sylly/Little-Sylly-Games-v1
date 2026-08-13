@@ -1305,13 +1305,16 @@ Each plugin reads `window.activeExpansionOverrides` at its settings-apply point 
 |--------|------|-----------|---------|
 | `SHP_PLAY` | ACTION | Client → Host | `{handIdx}` single, or `{idxA, idxB}` for a Heavy-Eyelids two-card play |
 | `SHP_DISRUPT` | ACTION | Client (spend-holder) → Host | `{choice}` — index 0–2 of the blind Nightmare Lottery pick |
+| `SHP_STUCK_ACK` | ACTION | Client (stuck player) → Host | The held player's "Nod Off" tap — host resolves via `shpHostCrash` |
 | `SHP_PLAYER_LEFT` | ACTION | Client → Host | PASS-contract mid-game quit — host dissolves the match |
-| `SHP_DEAL` | SYNC | Host → All | `{hands, handCaps, wolfActive, herd, direction, activePlayer, lives, eliminated, elimOrder, playerCount, playerNames, meter, echo}` — game start + every Deep-Sleep redeal |
-| `SHP_TURN_RESULT` | SYNC | Host → All | `{herd, direction, nextActive, forcedCards, played, rolled, byIdx, hands, handCaps, wolfActive, meter, phase, ceiling, grace}` |
-| `SHP_DEEP_SLEEP` | SYNC | Host → All | `{crasher, reason, elim, over, lives, eliminated, elimOrder}` — crash banner (host taps continue → `SHP_DEAL` or `SHP_GAMEOVER`) |
+| `SHP_DEAL` | SYNC | Host → All | `{hands, handCaps, wolfActive, herd, direction, activePlayer, moons, eliminated, elimOrder, dozed, dozeOrder, moonsToWin, playerCount, playerNames, meter, echo, nightNum, seatOrder, flavourIdx}` — game start + every new Night |
+| `SHP_TURN_RESULT` | SYNC | Host → All | `{herd, direction, nextActive, forcedCards, played, rolled, byIdx, busted, hands, handCaps, wolfActive, meter, phase, ceiling, grace, drop, playHistory, seatOrder, lastEffect}` |
+| `SHP_STUCK` | SYNC | Host → All | `{stuckIdx}` — new active player has no legal line; table HOLDS on a "Nod Off" button instead of auto-crashing |
+| `SHP_DOZE` | SYNC | Host → All | `{crasher, reason, landedOn, mode: 'normal'\|'sylly', herd, dozed, dozeOrder, moons, eliminated, elimOrder, hands, handCaps, wolfActive, nextActive, phase, ceiling, grace, drop}` — every crash, normal (doze) or Sylly (Moon loss/Jolt); broadcasts even on the crash that ends the Night/match (`SHP_NIGHT_END`/`SHP_GAMEOVER` follow as their own packet) |
+| `SHP_NIGHT_END` | SYNC | Host → All | `{winner, order, over, moons, nightNum, acksNeeded}` — normal mode only; ack-gated "Last One Awake" summary, host-continue → `SHP_DEAL` |
 | `SHP_GHOST_READY` | SYNC | Host → All | `{holderIdx, optionIds}` — Nightmare Lottery opens for the spend-holder |
 | `SHP_DISRUPT_RESOLVED` | SYNC | Host → All | `{nightmareId, targetIdx, text, herd, direction, nextActive, forcedCards, hands, handCaps, wolfActive, echo, meter, phase, ceiling}` |
-| `SHP_GAMEOVER` | SYNC | Host → All | `{winner, standings}` — Daybreak |
+| `SHP_GAMEOVER` | SYNC | Host → All | `{winner, standings}` — Daybreak (Sylly mode only; normal mode ends via `SHP_NIGHT_END`'s `over` flag) |
 | `SHP_MATCH_DISSOLVED` | SYNC | Host → All | `{}` — a player left → all `resetToLobby()` (PASS contract) |
 
 ### Per-Game ACTION/SYNC Packet Types
@@ -1343,7 +1346,8 @@ Each plugin reads `window.activeExpansionOverrides` at its settings-apply point 
 | Screen ID | Purpose |
 |-----------|---------|
 | `screen-shp-menu` | Main hub — Lights Out, How to Play, Settings, ← Back to the Box |
-| `screen-shp-table` | All play sub-states (your-turn / waiting / sleepwalker spectator / Nightmare Lottery / Deep-Sleep banner / Plunge re-skin) — `h-screen` sticky-footer |
+| `screen-shp-table` | All play sub-states (your-turn / waiting / stuck "Nod Off" hold / sleepwalker spectator / Nightmare Lottery / doze banner / Night-End summary / Plunge re-skin) — `h-screen` sticky-footer |
+| `screen-shp-night-intro` | Auto-advancing "Night N Begins" beat before each new deal — `ui-style.md` § Round/Night Intro Screen |
 | `screen-shp-gameover` | Daybreak — reverse-elimination standings |
 
 ### Overlays
@@ -1359,13 +1363,23 @@ Each plugin reads `window.activeExpansionOverrides` at its settings-apply point 
 | Variable | Type | Default | Purpose |
 |----------|------|---------|---------|
 | `shpHandSize` | int | `4` | Pen cap (3/4/5) |
-| `shpMoons` | int | `3` | Starting lives (3/5/7) |
+| `shpMoons` | int | `3` | Starting lives (3/5/7) — Sylly mode only |
+| `shpMoonsToWin` | int | `2` | Normal mode only — Moons needed to win the match |
 | `shpDreamAccel` | bool | `true` | Number cards double while Herd < 50 |
 | `shpSyllyMode` | bool | `false` | Night Terrors (Climb ⇄ Plunge) + Sleepwalkers ghost/Nightmare-Meter system |
+| `shpSeatOrder` | array | `[]` | Seating RING — permutation of player indices; turn order walks this, not raw indices (Rude Awakening reseats it). Identity each Night; synced in every turn-changing packet |
+| `shpLastEffect` | obj\|null | `null` | `{ text }` — outcome note for the current play (Swap Dreams partner / new seating order). Distinct from `shpLastDisrupt`, which `shpBroadcastTurn` deliberately clears |
+| `shpNightIntroTimer` | handle\|null | `null` | setTimeout for the auto-advancing `screen-shp-night-intro`; cleared in `shpResetState()` |
+| `shpNightFlavourIdx` | int | `0` | Host-picked index into `SHP_NIGHT_FLAVOUR`; rides in `SHP_DEAL` so all devices show the same line |
+| `shpStuckIdx` | int | `-1` | Player with no legal line who must tap "Nod Off" (−1 = nobody). Host-declared, synced via `SHP_STUCK` — the table HOLDS on this instead of auto-running the Deep Sleep. Read with an explicit undefined/null check, never `\|\| -1` (seat 0 is falsy) |
 | `shpHerd` | int | `0` | Running count |
 | `shpCeiling` | int | `99` | Bust boundary — Climb 99; Plunge descends from overflow total. NEVER a literal in checks |
 | `shpDirection` | int | `1` | 1 forward / −1 reversed |
-| `shpLives`/`shpEliminated`/`shpElimOrder` | arrays | `[]` | Moons, Sleepwalker flags, elimination order |
+| `shpMoonsHeld`/`shpEliminated`/`shpElimOrder` | arrays | `[]` | Moons per player (wins in normal mode, lives in Sylly), Sleepwalker flags (Sylly-only permanent-out), permanent-out order |
+| `shpDozed`/`shpDozeOrder` | arrays | `[]` | Normal mode only — out of the current Night but still in the match; in-Night knockout order (reversed = Night-end finish order). Mode-disjoint from `shpEliminated` by construction — reset every deal |
+| `shpStuckIdx` | int | `-1` | Active player with no legal line who must tap "Nod Off" (`-1` = nobody). Host-declared, synced via `SHP_STUCK`; the table HOLDS on this instead of auto-crashing — read with an explicit check, never `\|\| -1` (seat 0 is falsy) |
+| `shpDozeNotice` | obj\|null | `null` | `{idx, reason, landedOn}` — table banner for the most recent doze/Moon-loss; cleared by the next play |
+| `shpNightEndInfo` | obj\|null | `null` | `{winner, order, over}` — normal mode only, Night-end "Last One Awake" summary |
 | `shpHands`/`shpHandCap`/`shpWolfActive` | arrays | `[]` | 2D hand ids, per-player cap, Wolf-shut flag |
 | `shpFlock`/`shpDiscard` | int[] | `[]` | Draw pile / discard |
 | `shpForcedCards` | int | `1` | 2 for Heavy Eyelids / Sleep Paralysis |
@@ -1389,7 +1403,18 @@ Each plugin reads `window.activeExpansionOverrides` at its settings-apply point 
 | `shpIsPlayable` / `shpLegalCards` / `shpHasLegalLine` | Phase-aware legality (Climb-sylly adds always legal; over-ceiling → reducers only) |
 | `shpHostPlayCard` / `shpHostPlayTwoCard` | Resolve, draw, `shpPostResolve`, advance, `shpPlungeTick`, broadcast |
 | `shpPostResolve(p)` | Plunge entry (overflow runway) / bust / mercy backstop |
-| `shpHostDeepSleep(p, reason)` | −1 Moon, elimination, win-check, banner |
+| `shpAfterAdvance()` | Host: incoming player has no legal line → set `shpStuckIdx` + broadcast `SHP_STUCK` and HOLD (does NOT run the crash itself) |
+| `shpConfirmStuck()` | The held player's "Nod Off" tap — host resolves directly via `shpHostCrash`, client sends `SHP_STUCK_ACK` |
+| `shpHostCrash(crasherIdx, reason, landedOn)` | Every crash (bust / bad pair / stuck) lands here; routes to `shpHostDoze` (normal) or `shpHostMoonLoss` (Sylly) |
+| `shpHostDoze(crasherIdx, reason, landedOn)` | Normal mode — crasher is out of THIS Night only (no redeal); hand discarded, `SHP_DOZE` broadcast; `shpHostNightEnd()` when one awake player remains |
+| `shpHostMoonLoss(crasherIdx, reason, landedOn)` | Sylly mode — Moon lost; 0 Moons → permanent Sleepwalker elimination, else `shpJolt`; `shpHostGameover()` when one awake player remains |
+| `shpJolt(i)` | Sylly's per-crash recovery — discards + redraws the crasher's whole hand, restores Wolf-shrunk cap, since Sylly no longer redeals |
+| `shpHostNightEnd()` | Normal mode only — awards the surviving player a Moon, builds finishing order from `shpDozeOrder`, ack-gates `SHP_NIGHT_END`, checks `shpMoonsToWin` |
+| `shpHostContinue()` / `shpHostGameover(finalNightOrder)` | Host-continue after Night-end ack-gate → next `shpDealNight`; Sylly match-end → standings |
+| `shpAwake(i)` / `shpAwakeCount()` | `!shpEliminated[i] && !shpDozed[i]` — the single "still playing this Night" predicate; count of same |
+| `shpRenderNightEnd()` | "Last One Awake" summary screen — live `N/shpMoonsToWin` standings, Finishing Order block; owns its own status bar (`Night N · Complete`) so it doesn't inherit the table's last-written header |
+| `shpDozeNoticeText(n)` | Builds the doze/Moon-loss banner's four shapes (normal busted/stuck, Sylly Jolt, Sylly Sleepwalker) in one place |
+| `shpRenderTableFooter()` | Footer-only repaint, split out of `shpRenderTable` so the 1s tap gate can re-enable taps without rebuilding the body (which restarts the sheep parade) |
 | `shpChargeMeter` / `shpHostOpenLottery` / `shpPickNightmare` / `shpHostResolveDisrupt` / `shpApplyNightmare` | Ghost system: charge → Lottery → blind pick → resolve at turn-gate |
 | `shpEnterPlunge` / `shpExitPlunge` / `shpPlungeTick` / `shpCheckMercy` | Night Terrors phase machine |
 | `shpHandleEnvelope(env)` | MDLM ACTION/SYNC router |

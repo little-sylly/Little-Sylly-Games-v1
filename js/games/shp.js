@@ -10,7 +10,8 @@
 
 // ── Settings (persist between play-agains) ─────────────────────────────────
 let shpHandSize     = 4;       // 3 | 4 | 5  (per-player Pen cap, before any Wolf shrink)
-let shpMoons        = 3;       // 3 | 5 | 7  (starting lives)
+let shpMoons        = 3;       // 3 | 5 | 7  (starting lives — Sylly mode only, post scoring-rework)
+let shpMoonsToWin   = 2;       // Normal mode only (scoring-rework §4/§5) — Moons needed to win the match
 let shpDreamAccel   = true;    // number cards double while Herd < 50
 let shpSyllyMode    = false;   // Night Terrors — oscillating Climb ⇄ Plunge + Sleepwalkers ghost system (§12)
 
@@ -22,11 +23,22 @@ let shpPlayerNames  = [];
 let shpHerd         = 0;       // running count
 let shpCeiling      = 99;      // legal bust boundary — Climb 99; Plunge descends. NEVER a literal 99 in checks.
 let shpDirection    = 1;       // 1 = forward, -1 = reversed
-let shpLives        = [];      // Moons per player
+let shpMoonsHeld    = [];      // Moons per player
 let shpEliminated   = [];      // bool per player (Sleepwalker once true)
 let shpElimOrder    = [];      // player indices in order of permanent Deep Sleep
+// Scoring rework (docs/new-game-tech-counting-sheep-scoring.md §4) — Normal mode only. A doze is
+// OUT OF THE CURRENT NIGHT, still in the match; distinct from shpEliminated (out of the match for
+// good). Set by shpHostDoze; reset every deal. The two are mode-disjoint by construction: shpDozed
+// is only ever set in normal mode, shpEliminated only ever in Sylly.
+let shpDozed        = [];      // bool[] per player — out of the current Night, still in the match
+let shpDozeOrder    = [];      // int[] — in-Night knockout order (Night-end finish order = this reversed)
 let shpActivePlayer = 0;       // whose turn
 let shpOpenerIdx    = 0;       // who opens the current Night
+// The seating RING as a permutation of player indices — turn order is a walk along this array,
+// not raw index arithmetic, so Rude Awakening (id 17) can genuinely reorder the table. Reset to
+// identity every Night in shpDealNight; rides in SHP_DEAL / SHP_TURN_RESULT / SHP_DISRUPT_RESOLVED
+// because a client walking a stale ring would compute a different "next player" than the host.
+let shpSeatOrder    = [];      // e.g. [2,0,3,1] — position → player index
 
 // ── Deck (host-authoritative; clients hold masked views) ───────────────────
 let shpFlock        = [];      // draw pile — card-type ids
@@ -48,6 +60,12 @@ let shpSpendHolder  = -1;      // Sleepwalker idx holding the spend-right (-1 = 
 let shpGhostOptions = [];      // the 3 face-down nightmare ids offered (Nightmare Lottery)
 let shpGhostPending = false;   // true while the table waits for the spend-holder's blind pick
 let shpLastDisrupt  = null;    // { text } — dream-shift banner shown until the next play
+let shpDozeNotice   = null;    // { idx, reason, landedOn } — table banner for a doze/Moon-loss (§4);
+                                // cleared by the next play, alongside shpLastDisrupt
+// { text } — outcome note for the CURRENT play (who you swapped with, the new seating order).
+// Distinct from shpLastDisrupt because that one is deliberately cleared by shpBroadcastTurn; this
+// is set during resolve and must survive into the same turn result, so it rides in the payload.
+let shpLastEffect   = null;
 let shpPendingDisrupt = null;  // (reserved)
 let shpEcho         = 0;       // Global Echo modifier: 0 or 2; cleared when the next disruption fires
 
@@ -65,8 +83,12 @@ let shpPlungeFlash  = false;   // one-shot "THE PLUNGE BEGINS" banner flag
 
 // ── UI / animation ─────────────────────────────────────────────────────────
 let shpAnimTimer    = null;    // setTimeout handle for inline reveal/crash animations
+let shpNightIntroTimer = null; // setTimeout handle for the auto-advancing Night Intro screen
+let shpNightFlavourIdx = 0;    // host-picked, rides in SHP_DEAL so all devices show the same line
 let shpTwoSel       = [];      // staged hand indices for a Heavy Eyelids two-card play
-let shpDeepSleepInfo = null;   // { crasher, reason, elim, over } while a crash banner is shown
+// shpNightEndInfo replaced the old shpDeepSleepInfo outright in chunk 9 — the summary screen is now
+// "Last One Awake" (a Night won), not a crash report, and every render call site reads this instead.
+let shpNightEndInfo  = null;   // { winner, order, over } — Night-end summary (normal mode only, §7.4)
 let shpGameStandings = [];     // final standings (winner first)
 let shpGameWinner    = -1;
 let shpNightNum      = 0;      // Night counter (increments in shpDealNight)
@@ -81,6 +103,9 @@ let shpAnimDir       = 'in';   // 'in' (herd grew → arc into the counter) | 'o
 let shpDeepSleepAcks = 0;      // how many players have tapped "Got it" this Deep Sleep
 let shpDeepSleepAckNeeded = 0; // total acks required (= shpPlayerCount)
 let shpIAcked        = false;  // per-device: true once this device has sent/recorded its ack
+let shpStuckIdx      = -1;     // player who has no legal line and must tap "Nod Off" (-1 = nobody).
+                               // Host-declared, synced via SHP_STUCK: the table HOLDS on this rather
+                               // than auto-advancing into the Deep Sleep summary (12 Aug 2026 playtest).
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Locked data constants (spec §10) — stable integer ids; packets deal only in ids
@@ -105,16 +130,25 @@ const SHP_CARDS = [
   { id:14, family:'pillow',  label:'−1',               emoji:'⏪', kind:'subtract', value:1  },
   { id:15, family:'pillow',  label:'−2',               emoji:'⏪', kind:'subtract', value:2  },
   { id:16, family:'pillow',  label:'−5',               emoji:'⏪', kind:'subtract', value:5  },
+  { id:17, family:'alarm',   label:'Rude Awakening',   emoji:'🔀', kind:'shuffle'   },
+  { id:18, family:'pillow',  label:'Swap Dreams',      emoji:'🤝', kind:'swap-hands' },
+  // ↑ 17 reshuffles the seating ring (shpSeatOrder) — the Herd is untouched, but who comes
+  //   next changes for the rest of the Night. 18 swaps your Pen with a random living player's.
+  //   Both leave the Herd unchanged, so shpHerdAfterCard's default case covers them and they
+  //   inherit the standard "legal only while Herd ≤ ceiling" rule from shpIsPlayable.
 ];
 
 const SHP_DECK_COUNTS = {
-  0:14, 1:14, 2:12, 3:8,    // Pasture +1/+2/+5/+10 (48 total — pastures bumped to cut special-hoarding)
+  0:15, 1:15, 2:13, 3:8,    // Pasture +1/+2/+5/+10 (51 total — +3 to hold the share against the 2 new specials)
   4:3,  5:3,  6:1,  7:1,    // Doze / Toss & Turn / CB-10 / Lullaby (1-of) — hoardable specials trimmed
   14:3, 15:3, 16:3,          // CB-1 / CB-2 / CB-5 (10 playable subtracts incl. CB-10)
   8:2,  9:2,  10:1, 11:1,   // Skip a Few / Black Sheep / Wide Awake / Heavy Eyelids — trimmed
+  17:2, 18:2,               // Rude Awakening (alarm) / Swap Dreams (pillow) — added 12 Aug 2026
   12:2,                     // Big Bad Wolf trap (unchanged)
-  // Total: 48 pasture + 17 pillow(4/5/6/7/14/15/16) + 6 alarm(8/9/10/11) + 2 wolf = 73 cards
-  //        (pasture share 48/73 ≈ 66%, up from 59% — fewer specials to sit on)
+  // Total: 51 pasture + 19 pillow(4/5/6/7/14/15/16/18) + 8 alarm(8/9/10/11/17) + 2 wolf = 80 cards
+  //        (pasture share 51/80 ≈ 64%. The +3 pasture bump is deliberate: adding 4 hoardable
+  //         specials at the old counts would have dropped 66% → 62% and partly undone the
+  //         30 Jun 2026 anti-hoarding rebalance. Watch this in playtest.)
 };
 
 const SHP_NIGHTMARES = [
@@ -125,10 +159,28 @@ const SHP_NIGHTMARES = [
   { id:4, label:'Global Echo',    emoji:'🔊', kind:'echo',  weight:2 }, // shpEcho = 2 until next disruption
 ];
 
+// ── Night Intro (ui-style.md § Night/Round Intro Screen — CJAR raid-intro precedent) ──────
+// Auto-advancing, no chrome (rule-5 interstitial exemption) — shown at every shpDealNight
+// (match start AND every Deep-Sleep redeal), on both host and clients. Flavour + a rotating
+// practical reminder folded into one line, per playtest ask (12 Aug 2026); a Sylly-only
+// second line reminds the table Night Terrors is live, same shape as CJAR's affinity box.
+const SHP_INTERSTITIAL_MS = 5000;
+const SHP_SHEEP_STAGGER_MS = 150;  // gap between consecutive sheep in the parade (see shpStartSheepAnim).
+                                   // 90ms put them ~10px apart on a 132px path — a solid line of wool.
+const SHP_NIGHT_FLAVOUR = [
+  'Everyone’s trying hard not to fall asleep, so you begin counting sheep. Don’t go over 99 or you might really just fall asleep.',
+  'The Flock is fresh and the Herd is at 0. Keep it there — or at least under 99.',
+  'Pillows plumped, alarms wound. First one to break 99 nods off for the night.',
+  'A new count begins. Play smart, watch the ceiling, and don’t be the one who drifts.',
+  'Fresh hands all round. Somewhere in the Flock, a Big Bad Wolf is waiting to lock a slot.',
+];
+
 // ═══════════════════════════════════════════════════════════════════════════
 // Pure helpers / guards (foundational)
 // ═══════════════════════════════════════════════════════════════════════════
-function shpAliveCount() { return shpEliminated.filter(e => !e).length; }
+// Awake = still in the match AND not out of the current Night.
+function shpAwake(i)     { return !shpEliminated[i] && !shpDozed[i]; }
+function shpAwakeCount() { let n = 0; for (let i = 0; i < shpPlayerCount; i++) if (shpAwake(i)) n++; return n; }
 function shpMyIdx() { return (window.syllyMultiplayerMode !== 'single' ? mpMyPlayerIdx : 0); }
 
 // Firebase strips empty/holey sub-arrays — rebuild a length-n 2D array (FRT shpNorm2D pattern).
@@ -136,6 +188,12 @@ function shpNorm2D(raw, n) {
   const out = [];
   for (let i = 0; i < n; i++) out.push(Array.isArray(raw && raw[i]) ? raw[i].slice() : []);
   return out;
+}
+
+// Firebase erases an all-false bool array entirely (empty array → undefined on receipt) — rebuild a
+// length-n bool array explicitly rather than trusting `raw` to still be an array at all (§8).
+function shpNormBool(raw, n) {
+  const out = []; for (let i = 0; i < n; i++) out.push(!!(raw && raw[i])); return out;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -163,22 +221,36 @@ function shpHerdAfterCard(herd, cardId, rolledVal) {
   return Math.max(0, h);
 }
 
-// Next living player in the current direction.
+// The seating ring, guaranteed length-n even if a packet arrived without one (falls back to identity).
+function shpRing() {
+  const n = shpPlayerCount;
+  if (shpSeatOrder && shpSeatOrder.length === n) return shpSeatOrder;
+  const ident = []; for (let i = 0; i < n; i++) ident.push(i);
+  return ident;
+}
+
+// Next living player in the current direction — walks the SEATING RING, not raw indices,
+// so a shuffled table (Rude Awakening) changes who actually comes next.
 function shpNextPlayer(fromIdx) {
-  const n = shpPlayerCount; let i = fromIdx, guard = 0;
-  do { i = (i + shpDirection + n) % n; guard++; } while (shpEliminated[i] && guard <= n);
+  const n = shpPlayerCount, order = shpRing();
+  let pos = order.indexOf(fromIdx); if (pos < 0) pos = 0;
+  let guard = 0, i = fromIdx;
+  do { pos = (pos + shpDirection + n) % n; i = order[pos]; guard++; } while (!shpAwake(i) && guard <= n);
   return i;
 }
 
-// Leader = alive player with most Moons; tie broken by next-in-direction from the active seat.
+// Leader = awake player with most Moons; tie broken by next-in-direction from the active seat.
 function shpLeaderIdx() {
   let bestLives = -1;
-  for (let i = 0; i < shpPlayerCount; i++) if (!shpEliminated[i] && shpLives[i] > bestLives) bestLives = shpLives[i];
+  for (let i = 0; i < shpPlayerCount; i++) if (shpAwake(i) && shpMoonsHeld[i] > bestLives) bestLives = shpMoonsHeld[i];
   const tied = [];
-  for (let i = 0; i < shpPlayerCount; i++) if (!shpEliminated[i] && shpLives[i] === bestLives) tied.push(i);
+  for (let i = 0; i < shpPlayerCount; i++) if (shpAwake(i) && shpMoonsHeld[i] === bestLives) tied.push(i);
   if (tied.length === 1) return tied[0];
-  const n = shpPlayerCount; let i = shpActivePlayer, guard = 0;
-  do { i = (i + shpDirection + n) % n; guard++; } while ((shpEliminated[i] || tied.indexOf(i) < 0) && guard <= n);
+  const n = shpPlayerCount, order = shpRing();
+  let pos = order.indexOf(shpActivePlayer); if (pos < 0) pos = 0;
+  let guard = 0, i = shpActivePlayer;
+  do { pos = (pos + shpDirection + n) % n; i = order[pos]; guard++; }
+  while ((!shpAwake(i) || tied.indexOf(i) < 0) && guard <= n);
   return i;
 }
 
@@ -303,15 +375,17 @@ function shpRenderCard(cardId, opts) {
   el.dataset.card = cardId;
   if (cardId === 13) {   // Fogged Dream — the resolved value (2-12) is hidden from everyone incl. owner;
                           // that roll happens at play time via shpRandInt and is independent of the art
-                          // shown here, so a static face doesn't leak it — same "?" overlay either way.
-    el.className = 'shp-card shp-card-cursed';
+                          // shown here, so a static face doesn't leak it — same "?" badge either way.
     const foggedUrl = (typeof assetFace === 'function') && assetFace('shp', 13);
     if (foggedUrl) {
+      // Art present — same asset styling as every other skinned card (transparent border, cover
+      // image), NOT the heavy shp-card-cursed treatment (violet border + a 1.4rem "?" that was
+      // sized to fill an EMPTY card). A small badge is enough once real art is doing the work.
+      el.className = 'shp-card shp-card-asset shp-card-fogged';
       el.style.backgroundImage = 'url("' + foggedUrl + '")';
-      el.style.backgroundSize = 'cover';
-      el.style.backgroundPosition = 'center';
-      el.innerHTML = '<span class="shp-card-label">?</span>';
+      el.innerHTML = '<span class="shp-card-fogged-badge">?</span>';
     } else {
+      el.className = 'shp-card shp-card-cursed';
       el.innerHTML = '<span class="shp-card-emoji">' + c.emoji + '</span><span class="shp-card-label">?</span>';
     }
     return el;
@@ -349,13 +423,15 @@ function shpDrawNightmares() {
 // ═══════════════════════════════════════════════════════════════════════════
 function shpStartSession() {
   if (window.syllyMultiplayerMode === 'client') return;   // clients wait for SHP_DEAL
-  shpLives      = Array(shpPlayerCount).fill(shpMoons);
+  // Normal mode counts Moons UP from 0 to shpMoonsToWin (Nights won); Sylly counts DOWN from
+  // shpMoons (lives). §8: "watch moons in normal mode: at the first deal it is [0, 0, 0]."
+  shpMoonsHeld  = Array(shpPlayerCount).fill(shpSyllyMode ? shpMoons : 0);
   shpEliminated = Array(shpPlayerCount).fill(false);
   shpElimOrder  = [];
   shpHandCap    = Array(shpPlayerCount).fill(shpHandSize);
   shpWolfActive = Array(shpPlayerCount).fill(false);
   shpMeter = 0; shpGhostTurnIdx = 0; shpSpendHolder = -1; shpEcho = 0; shpPendingDisrupt = null;
-  shpGameStandings = []; shpGameWinner = -1; shpDeepSleepInfo = null;
+  shpGameStandings = []; shpGameWinner = -1; shpNightEndInfo = null;
   shpNightNum = 0;
   shpOpenerIdx = Math.floor(Math.random() * shpPlayerCount);
   shpDealNight(shpOpenerIdx);
@@ -366,9 +442,12 @@ function shpDealNight(openerIdx) {
   shpNightNum++;
   shpHerd = 0; shpDirection = 1; shpPhase = 'climb'; shpCeiling = 99; shpPlungeGrace = 0; shpPlungeFlash = false;
   shpPlungeDescentTurns = 0; shpCurrentDrop = 0;
-  shpForcedCards = 1; shpTwoSel = []; shpPendingSkip = null; shpDeepSleepInfo = null;
-  shpPlayHistory = []; shpAnimSheep = 0;
-  shpDeepSleepAcks = 0; shpDeepSleepAckNeeded = 0; shpIAcked = false;
+  shpForcedCards = 1; shpTwoSel = []; shpPendingSkip = null;
+  shpPlayHistory = []; shpAnimSheep = 0; shpLastEffect = null;
+  shpDozed = Array(shpPlayerCount).fill(false); shpDozeOrder = [];   // scoring-rework §4
+  shpNightEndInfo = null; shpDozeNotice = null;                      // scoring-rework §4/§7
+  shpSeatOrder = []; for (let i = 0; i < shpPlayerCount; i++) shpSeatOrder.push(i);  // ring back to identity each Night
+  shpDeepSleepAcks = 0; shpDeepSleepAckNeeded = 0; shpIAcked = false; shpStuckIdx = -1;
   shpFlock = shpBuildFlock(); shpDiscard = [];
   shpHands = [];
   for (let i = 0; i < shpPlayerCount; i++) {
@@ -377,21 +456,59 @@ function shpDealNight(openerIdx) {
     if (!shpEliminated[i]) shpDrawUp(i);
   }
   shpActivePlayer = openerIdx;
+  shpNightFlavourIdx = Math.floor(Math.random() * SHP_NIGHT_FLAVOUR.length);   // host picks; synced below
   if (window.syllyMultiplayerMode !== 'single') {
     mpSendEnvelope({ type: 'SYNC', payload: {
       action: 'SHP_DEAL',
       hands: shpHands, handCaps: shpHandCap, wolfActive: shpWolfActive,
       herd: shpHerd, direction: shpDirection, activePlayer: shpActivePlayer,
-      lives: shpLives, eliminated: shpEliminated, elimOrder: shpElimOrder,
+      moons: shpMoonsHeld, eliminated: shpEliminated, elimOrder: shpElimOrder,
+      // scoring-rework §8 — dozed/dozeOrder must ride every deal, or a client carries the PREVIOUS
+      // Night's finishing state forward (the classic accumulator bug, logic-engine.md § Accumulator
+      // arrays). moonsToWin rides too — a client that only ever reads it via SETTINGS_SYNC would be
+      // stuck on a stale target if a mid-lobby settings change landed after the deal.
+      dozed: shpDozed, dozeOrder: shpDozeOrder, moonsToWin: shpMoonsToWin,
       playerCount: shpPlayerCount, playerNames: shpPlayerNames, meter: shpMeter, echo: shpEcho,
+      // nightNum was host-only until 12 Aug 2026 — clients sat on "Night 0" all match (BUG-04).
+      nightNum: shpNightNum, seatOrder: shpSeatOrder, flavourIdx: shpNightFlavourIdx,
     }});
   }
-  shpShowTable();
+  shpShowNightIntro();
+}
+
+// Auto-advancing Night Intro (ui-style.md § Night/Round Intro Screen) — every Night, both
+// host and clients call this instead of jumping straight to the table. No [?]/🔊/✕ (rule-5
+// interstitial exemption: auto-advances, nothing to tap). Timer is cleared + retriggered on
+// every call so a rapid-fire redeal (e.g. a mercy-exit loop) can never stack two.
+function shpShowNightIntro() {
+  const heading = document.getElementById('shp-intro-heading');
+  if (heading) heading.textContent = 'Night ' + shpNightNum + ' Begins';
+  const sub = document.getElementById('shp-intro-sub');
+  if (sub) sub.textContent = SHP_NIGHT_FLAVOUR[shpNightFlavourIdx % SHP_NIGHT_FLAVOUR.length] || SHP_NIGHT_FLAVOUR[0];
+  // Running Moon tally (§9) — the whole reason a Night now matters. Hidden on Night 1 (everyone is
+  // on nothing) and in Sylly (Moons there are lives, already on every chip, and there is only one
+  // Night).
+  const tally = document.getElementById('shp-intro-tally');
+  if (tally) {
+    const show = !shpSyllyMode && shpNightNum > 1;
+    tally.style.display = show ? 'block' : 'none';
+    if (show) {
+      tally.textContent = Array.from({ length: shpPlayerCount }, (_, i) => {
+        const m = shpMoonsHeld[i] || 0;
+        return shpName(i) + ' ' + (m === 0 ? '—' : m <= 5 ? '\u{1F319}'.repeat(m) : '\u{1F319}\xD7' + m);
+      }).join(' \xB7 ');
+    }
+  }
+  const syllyNote = document.getElementById('shp-intro-sylly');
+  if (syllyNote) syllyNote.style.display = shpSyllyMode ? 'flex' : 'none';
+  showScreen('screen-shp-night-intro');
+  if (shpNightIntroTimer) clearTimeout(shpNightIntroTimer);
+  shpNightIntroTimer = setTimeout(() => { shpNightIntroTimer = null; shpShowTable(); }, SHP_INTERSTITIAL_MS);
 }
 
 function shpShowTable() {
   showScreen('screen-shp-table');
-  if (shpDeepSleepInfo) { shpRenderDeepSleep(); return; }
+  if (shpNightEndInfo) { shpRenderNightEnd(); return; }
   const me = shpMyIdx();
   // When the turn first becomes mine, gate card taps for 1 second (prevents accidental plays
   // on the turn-transition render before the player has oriented themselves).
@@ -399,7 +516,14 @@ function shpShowTable() {
     shpTapReadyForPlayer = me;
     shpCardTapReady = false;
     if (shpTapReadyTimer) { clearTimeout(shpTapReadyTimer); shpTapReadyTimer = null; }
-    shpTapReadyTimer = setTimeout(() => { shpCardTapReady = true; shpTapReadyTimer = null; shpRenderTable(); }, 1000);
+    // Footer-only repaint (not shpRenderTable) — a full re-render here rebuilt body.innerHTML
+    // mid-parade and restarted the sheep from frame 0 every turn. Also guarded on shpNightEndInfo
+    // for the same reason as the animation timer above.
+    shpTapReadyTimer = setTimeout(() => {
+      shpCardTapReady = true; shpTapReadyTimer = null;
+      if (shpNightEndInfo) return;
+      shpRenderTableFooter();
+    }, 1000);
   } else if (me < 0 || shpActivePlayer !== me) {
     // Not my turn — reset so the buffer fires next time my turn comes around.
     shpTapReadyForPlayer = -1;
@@ -411,7 +535,7 @@ function shpShowTable() {
 // ── Playing a card ─────────────────────────────────────────────────────────
 function shpTapCard(handIdx) {
   const me = shpMyIdx();
-  if (shpActivePlayer !== me || shpEliminated[me] || !shpCardTapReady) return;
+  if (shpActivePlayer !== me || !shpAwake(me) || !shpCardTapReady) return;
   if (shpForcedCards === 2 && (shpHands[me] || []).length >= 2) { shpStageTwoCard(handIdx); return; }
   if (!shpIsPlayable(me, handIdx)) { playBoing(); return; }
   playTick();
@@ -445,13 +569,43 @@ function shpConfirmTwoCard() {
 }
 
 // Apply one card's effect to shared state. Returns { rolled, nextOverride, forcedNext }.
-function shpResolveCard(cardId) {
+// HOST ONLY (both call sites are shpHostPlay*), so mutating hands / the ring here is safe —
+// everything it touches is broadcast wholesale in the SHP_TURN_RESULT that follows.
+function shpResolveCard(cardId, playerIdx) {
   const c = SHP_CARDS[cardId];
   const rolled = (c.kind === 'random-add') ? shpRandInt(c.min, c.max) : null;
   let nextOverride = -1, forcedNext = false;
   if (c.kind === 'reverse')     shpDirection *= -1;
   if (c.kind === 'wake-leader') nextOverride = shpLeaderIdx();
   if (c.kind === 'two-card')    forcedNext = true;
+
+  if (c.kind === 'shuffle') {                    // Rude Awakening — reseat the ring for the rest of the Night
+    const before = shpRing().slice();
+    let next = shuffle(before.slice());
+    // A shuffle that lands on the identical ring is a wasted card — reroll a couple of times
+    // when there is actually more than one arrangement available.
+    for (let t = 0; t < 4 && shpPlayerCount > 1 && next.join() === before.join(); t++) next = shuffle(before.slice());
+    shpSeatOrder = next;
+    shpLastEffect = { text: 'Rude Awakening — the table is reseated: ' + next.map(shpName).join(' → ') + '.' };
+  }
+
+  if (c.kind === 'swap-hands') {                 // Swap Dreams — trade Pens with a random living player
+    const others = [];
+    for (let i = 0; i < shpPlayerCount; i++) if (i !== playerIdx && !shpEliminated[i]) others.push(i);
+    if (others.length) {
+      const t = others[Math.floor(Math.random() * others.length)];
+      const mine = shpHands[playerIdx];
+      shpHands[playerIdx] = shpHands[t];
+      shpHands[t] = mine;
+      // Both sides re-fill to their OWN cap — a Wolf-shrunk cap stays with the player, not the cards.
+      // The partner is topped up here because nothing else will until their turn comes round.
+      shpDrawUp(t);
+      shpLastEffect = { text: 'Swap Dreams — ' + shpName(playerIdx) + ' traded Pens with ' + shpName(t) + '.' };
+    } else {
+      shpLastEffect = { text: 'Swap Dreams — nobody left to trade with. It fizzles.' };
+    }
+  }
+
   shpHerd = shpHerdAfterCard(shpHerd, cardId, rolled);  // arithmetic (sign-flipped in Plunge); unchanged otherwise
   if (c.family === 'pasture') shpChargeMeter();
   return { rolled, nextOverride, forcedNext };
@@ -463,14 +617,23 @@ function shpHostPlayCard(playerIdx, handIdx) {
   if (cardId === undefined) return;
   if (!shpIsPlayable(playerIdx, handIdx)) return; // full legality guard (all card kinds)
   shpHands[playerIdx].splice(handIdx, 1);
-  shpDiscard.push(cardId);
-  const r = shpResolveCard(cardId);
+  if (cardId !== 13) shpDiscard.push(cardId);      // Fogged Dream dissolves on play — never recycled
+  shpLastEffect = null;
+  const herdBefore = shpHerd;                      // ← before shpResolveCard (§6 revert snapshot)
+  const r = shpResolveCard(cardId, playerIdx);
   shpDrawUp(playerIdx);
-  if (shpPostResolve(playerIdx)) return;          // Plunge entry / bust / mercy
-  shpActivePlayer = (r.nextOverride >= 0) ? r.nextOverride : shpNextPlayer(playerIdx);
-  shpForcedCards = r.forcedNext ? 2 : 1;
-  shpPlungeTick();                                 // ceiling descent for the new turn (no-op in Climb)
-  shpBroadcastTurn([cardId], r.rolled != null ? [r.rolled] : [], playerIdx);
+  const res = shpPostResolve(playerIdx, herdBefore); // Plunge entry / bust / mercy
+  if (!res.busted) {
+    shpActivePlayer = (r.nextOverride >= 0) ? r.nextOverride : shpNextPlayer(playerIdx);
+    shpForcedCards = r.forcedNext ? 2 : 1;
+    shpPlungeTick();                               // ceiling descent for the new turn (no-op in Climb)
+  }
+  // §8 "Why a bust sends two packets, in this order": SHP_TURN_RESULT always fires first (carrying
+  // the reverted Herd, busted:true, nextActive still pointing at the crasher), THEN shpHostCrash's
+  // SHP_DOZE moves the seat. shpActivePlayer is unchanged above when busted, so nextActive is
+  // correct without extra plumbing.
+  shpBroadcastTurn([cardId], r.rolled != null ? [r.rolled] : [], playerIdx, res.busted);
+  if (res.busted) { shpHostCrash(playerIdx, 'busted', res.landedOn); return; }
   if (shpMeterReady()) shpHostOpenLottery(); else shpAfterAdvance();
 }
 
@@ -480,20 +643,26 @@ function shpHostPlayTwoCard(playerIdx, a, b) {
   if (a == null || b == null || a === b || h[a] === undefined || h[b] === undefined) return;
   const ids = [h[a], h[b]];
   [a, b].sort((x, y) => y - x).forEach(i => h.splice(i, 1));     // remove higher index first
-  ids.forEach(id => shpDiscard.push(id));
+  ids.forEach(id => { if (id !== 13) shpDiscard.push(id); });    // Fogged Dream dissolves — never recycled
   const rolled = []; let nextOverride = -1;
-  ids.forEach(id => { const r = shpResolveCard(id); if (r.rolled != null) rolled.push(r.rolled); if (r.nextOverride >= 0) nextOverride = r.nextOverride; });
+  shpLastEffect = null;
+  const herdBefore = shpHerd;                      // ← before either card resolves (§6 revert snapshot)
+  ids.forEach(id => { const r = shpResolveCard(id, playerIdx); if (r.rolled != null) rolled.push(r.rolled); if (r.nextOverride >= 0) nextOverride = r.nextOverride; });
   shpForcedCards = 1; shpTwoSel = [];                            // consumed; Heavy Eyelids does not chain (edge c)
   shpDrawUp(playerIdx);
-  if (shpPostResolve(playerIdx)) return;
-  shpActivePlayer = (nextOverride >= 0) ? nextOverride : shpNextPlayer(playerIdx);
-  shpPlungeTick();
-  shpBroadcastTurn(ids, rolled, playerIdx);
+  const res = shpPostResolve(playerIdx, herdBefore);
+  if (!res.busted) {
+    shpActivePlayer = (nextOverride >= 0) ? nextOverride : shpNextPlayer(playerIdx);
+    shpPlungeTick();
+  }
+  shpBroadcastTurn(ids, rolled, playerIdx, res.busted);
+  if (res.busted) { shpHostCrash(playerIdx, 'busted', res.landedOn); return; }
   if (shpMeterReady()) shpHostOpenLottery(); else shpAfterAdvance();
 }
 
-function shpBroadcastTurn(playedIds, rolled, byIdx) {
+function shpBroadcastTurn(playedIds, rolled, byIdx, busted) {
   shpLastDisrupt = null;                          // a new play ends the dream-shift banner
+  shpDozeNotice = null;                           // ...and the previous doze/Moon-loss banner (§4)
 
   // Push to play history (newest-first, cap at 20)
   const entry = { cardIds: playedIds.slice(), rolledVal: rolled, byIdx, byName: shpName(byIdx) };
@@ -501,64 +670,199 @@ function shpBroadcastTurn(playedIds, rolled, byIdx) {
   if (shpPlayHistory.length > 20) shpPlayHistory.length = 20;
 
   // Sheep parade — arc into the counter when the Herd grows, arc back out when counting backwards.
-  shpStartSheepAnim(playedIds, rolled);
+  // Skipped on a bust: the Herd rides here already REVERTED (§6), so the card-value-based parade
+  // would show growth that never actually happened on the live counter.
+  if (!busted) shpStartSheepAnim(playedIds, rolled);
 
   if (window.syllyMultiplayerMode !== 'single') {
     mpSendEnvelope({ type: 'SYNC', payload: {
       action: 'SHP_TURN_RESULT',
       herd: shpHerd, direction: shpDirection, nextActive: shpActivePlayer, forcedCards: shpForcedCards,
-      played: playedIds, rolled, byIdx,
+      played: playedIds, rolled, byIdx, busted: !!busted,
       hands: shpHands, handCaps: shpHandCap, wolfActive: shpWolfActive, meter: shpMeter,
       phase: shpPhase, ceiling: shpCeiling, grace: shpPlungeGrace, drop: shpCurrentDrop,
       playHistory: shpPlayHistory,
+      // seatOrder rides every turn: a client walking a stale ring after a Rude Awakening would
+      // render the wrong "next up". lastEffect is this play's outcome note (swap partner / new order).
+      seatOrder: shpSeatOrder, lastEffect: shpLastEffect,
     }});
   }
   shpShowTable();
 }
 
 // Host: after advancing, the new active player Deep-Sleeps if they have no legal line.
+// Host: after advancing, if the new active player has no legal line we HOLD the table and hand
+// them a "Nod Off" button rather than auto-running the Deep Sleep. Previously this fired straight
+// into the summary — which, combined with the render timers below repainting over it, left a
+// non-host stuck player on a table with no button and no way forward (12 Aug 2026 playtest).
 function shpAfterAdvance() {
-  if (!shpHasLegalLine(shpActivePlayer)) shpHostDeepSleep(shpActivePlayer, 'stuck');
+  if (shpHasLegalLine(shpActivePlayer)) return;
+  shpStuckIdx = shpActivePlayer;
+  if (window.syllyMultiplayerMode !== 'single') {
+    mpSendEnvelope({ type: 'SYNC', payload: { action: 'SHP_STUCK', stuckIdx: shpStuckIdx } });
+  }
+  shpShowTable();
 }
 
-function shpHostDeepSleep(crasherIdx, reason) {
-  shpLives[crasherIdx]--;
-  let elim = false;
-  if (shpLives[crasherIdx] <= 0 && !shpEliminated[crasherIdx]) {
-    shpEliminated[crasherIdx] = true; shpElimOrder.push(crasherIdx); elim = true;
+// The stuck player taps "Nod Off". Host resolves directly; a client sends an ACTION (the host is
+// also a participant, so the dedup guard would drop a self-sent envelope — logic-engine.md).
+function shpConfirmStuck() {
+  const me = shpMyIdx();
+  if (shpStuckIdx < 0 || shpStuckIdx !== me) return;
+  playDone();
+  if (window.syllyMultiplayerMode === 'client') {
+    mpLockSync();
+    mpSendEnvelope({ type: 'ACTION', payload: { action: 'SHP_STUCK_ACK' } });
+    return;                                     // wait for the host's SHP_DOZE
   }
+  shpHostCrash(shpStuckIdx, 'stuck', null);      // landedOn null — nothing was played to land anywhere
+}
+
+// Every crash — busted gamble, bad pair, or no legal line — lands here (§7.1). The stuck-hold flow
+// (shpStuckIdx / "Nod Off" / SHP_STUCK_ACK) is unchanged upstream; it now ends here instead of the
+// old shpHostDeepSleep. shpDozed and shpEliminated are mode-disjoint by construction (§2): shpDozed
+// only ever set in normal mode, shpEliminated only ever in Sylly.
+function shpHostCrash(crasherIdx, reason, landedOn) {
+  shpStuckIdx = -1;                 // the hold, if any, is now resolved
   shpForcedCards = 1; shpTwoSel = [];
-  const over = shpAliveCount() <= 1;
+  if (shpSyllyMode) shpHostMoonLoss(crasherIdx, reason, landedOn);
+  else              shpHostDoze(crasherIdx, reason, landedOn);
+}
 
-  // Initialise per-player ack readyCheck (host marks own slot directly — dedup guard blocks self-send)
-  shpDeepSleepAckNeeded = shpPlayerCount;
-  shpDeepSleepAcks = window.syllyMultiplayerMode === 'single' ? shpPlayerCount : 1; // host counts itself
-  shpIAcked = true;
-
-  shpDeepSleepInfo = { crasher: crasherIdx, reason, elim, over };
+// Normal mode (§7.2) — a crash takes the player out of THIS NIGHT ONLY. No summary, no ack, no
+// redeal: the Herd, ceiling, direction, seating ring, every other hand and the Flock are all
+// untouched. The dozed player's own hand returns to the discard (§3.1(c)) — those cards are dead
+// until the next deal and holding them thins the live pool for no benefit. A Fogged Dream in a
+// dozed hand dissolves rather than recycling, same rule as playing one.
+function shpHostDoze(crasherIdx, reason, landedOn) {
+  shpDozed[crasherIdx] = true;
+  shpDozeOrder.push(crasherIdx);
+  shpDozeNotice = { idx: crasherIdx, reason, landedOn };
+  (shpHands[crasherIdx] || []).forEach(cid => { if (cid !== 13) shpDiscard.push(cid); });
+  shpHands[crasherIdx] = [];
+  const over = shpAwakeCount() <= 1;
+  // Compute the next active player AFTER setting shpDozed and always FROM crasherIdx — walking from
+  // the pre-doze active seat would land on the crasher again (the "ordering trap" in §7.2). When the
+  // Night is over, leave shpActivePlayer pointing at the crasher — there's no "next" this Night.
+  if (!over) shpActivePlayer = shpNextPlayer(crasherIdx);
+  // SHP_DOZE must broadcast even when this crash ENDS the Night — it's the only packet carrying
+  // this crasher's shpDozed/hand mutation. A loopback probe caught the bug this comment is warning
+  // about: returning early here (as the pre-chunk-7 code did) means the client never learns the
+  // FINAL crasher's hand was discarded, and its shpDozed/shpDozeOrder silently fall behind the
+  // host's — permanently, since nothing else ever re-sends them before the next deal.
   if (window.syllyMultiplayerMode !== 'single') {
     mpSendEnvelope({ type: 'SYNC', payload: {
-      action: 'SHP_DEEP_SLEEP', crasher: crasherIdx, reason, elim, over,
-      lives: shpLives, eliminated: shpEliminated, elimOrder: shpElimOrder,
-      acksNeeded: shpDeepSleepAckNeeded,
+      action: 'SHP_DOZE', crasher: crasherIdx, reason, landedOn, mode: 'normal',
+      herd: shpHerd, dozed: shpDozed, dozeOrder: shpDozeOrder, moons: shpMoonsHeld,
+      eliminated: shpEliminated, elimOrder: shpElimOrder,
+      hands: shpHands, handCaps: shpHandCap, wolfActive: shpWolfActive,
+      nextActive: shpActivePlayer, phase: shpPhase, ceiling: shpCeiling,
+      grace: shpPlungeGrace, drop: shpCurrentDrop,
+    }});
+  }
+  if (over) { shpHostNightEnd(); return; }         // SHP_NIGHT_END follows as its own, second packet
+  shpShowTable();
+  shpAfterAdvance();                // the next player may be stuck too — this is the doze cascade
+}
+
+// Sylly mode (§7.3) — Moons are lives; a crash costs one. 0 Moons makes the player a Sleepwalker
+// (unchanged elimination/ghost-system wiring). Otherwise they get the Jolt: their whole hand is
+// discarded and redrawn, because "one continuous Night" removed the redeal that used to be what
+// gave a stuck player a playable hand again — without it they'd stick out again on their very next
+// turn, bleeding a Moon per lap until eliminated.
+function shpHostMoonLoss(crasherIdx, reason, landedOn) {
+  shpMoonsHeld[crasherIdx]--;
+  shpDozeNotice = { idx: crasherIdx, reason, landedOn };
+  if (shpMoonsHeld[crasherIdx] <= 0 && !shpEliminated[crasherIdx]) {
+    shpEliminated[crasherIdx] = true; shpElimOrder.push(crasherIdx);   // Sleepwalker; ghost system arms
+  } else {
+    shpJolt(crasherIdx);
+  }
+  const over = shpAwakeCount() <= 1;
+  if (!over) { shpActivePlayer = shpNextPlayer(crasherIdx); shpPlungeTick(); }  // the descent keeps ticking
+  // SHP_DOZE must broadcast even when this crash ENDS the match — same reasoning as shpHostDoze
+  // above: it's the only packet carrying this crasher's elimination/Jolt/hand mutation, and
+  // SHP_GAMEOVER's payload ({winner, standings}) doesn't repeat any of that.
+  if (window.syllyMultiplayerMode !== 'single') {
+    mpSendEnvelope({ type: 'SYNC', payload: {
+      action: 'SHP_DOZE', crasher: crasherIdx, reason, landedOn, mode: 'sylly',
+      herd: shpHerd, dozed: shpDozed, dozeOrder: shpDozeOrder, moons: shpMoonsHeld,
+      eliminated: shpEliminated, elimOrder: shpElimOrder,
+      hands: shpHands, handCaps: shpHandCap, wolfActive: shpWolfActive,
+      nextActive: shpActivePlayer, phase: shpPhase, ceiling: shpCeiling,
+      grace: shpPlungeGrace, drop: shpCurrentDrop,
+    }});
+  }
+  if (over) { shpHostGameover(); return; }          // SHP_GAMEOVER follows as its own, second packet
+  shpShowTable();
+  shpAfterAdvance();
+}
+
+// The Jolt (§7.3) — discards the crasher's whole hand and redraws to their current cap. The cap
+// restore is NOT optional: shpWolfActive is otherwise cleared only in shpDealNight, and Sylly no
+// longer deals twice — without this line one unlucky early Wolf draw costs a player a hand slot for
+// the entire match, invisibly and with no way back (§3.1(b)). A player can of course draw the same
+// recycled Wolf again afterwards; that is fine and intended. An eliminated player gets no Jolt.
+function shpJolt(i) {
+  (shpHands[i] || []).forEach(cid => { if (cid !== 13) shpDiscard.push(cid); });  // §3.1(a)
+  shpHands[i] = [];
+  shpWolfActive[i] = false;
+  shpHandCap[i]    = shpHandSize;
+  shpDrawUp(i);                     // reshuffles the discard if the Flock is short — existing behaviour
+}
+
+// Normal mode only (§7.4) — every player acks (including the ones who dozed out ten minutes ago;
+// this is the one moment the whole table looks at the same screen). Continue is host-gated and
+// locked until shpDeepSleepAcks >= shpDeepSleepAckNeeded, unchanged from the pre-rework ack machinery
+// (repurposed here, not replaced — §4 "Removed").
+function shpHostNightEnd() {
+  let winner = -1;
+  for (let i = 0; i < shpPlayerCount; i++) if (shpAwake(i)) { winner = i; break; }
+  shpMoonsHeld[winner]++;
+  const order = [winner].concat(shpDozeOrder.slice().reverse());   // finishing order, winner first
+  const over  = shpMoonsHeld[winner] >= shpMoonsToWin;
+
+  shpDeepSleepAckNeeded = shpPlayerCount;
+  shpDeepSleepAcks = window.syllyMultiplayerMode === 'single' ? shpPlayerCount : 1;  // host counts itself
+  shpIAcked = true;
+  shpNightEndInfo = { winner, order, over };
+  if (window.syllyMultiplayerMode !== 'single') {
+    mpSendEnvelope({ type: 'SYNC', payload: {
+      action: 'SHP_NIGHT_END', winner, order, over, moons: shpMoonsHeld,
+      nightNum: shpNightNum, acksNeeded: shpDeepSleepAckNeeded,
     }});
   }
   shpShowTable();
 }
 
 function shpHostContinue() {
-  const info = shpDeepSleepInfo; shpDeepSleepInfo = null;
-  if (info && info.over) { shpHostGameover(); return; }
-  let opener = info ? info.crasher : shpActivePlayer;
-  if (shpEliminated[opener]) opener = shpNextPlayer(opener);
-  shpDealNight(opener);
+  const info = shpNightEndInfo; shpNightEndInfo = null;
+  if (info && info.over) { shpHostGameover(info.order); return; }
+  // The Night's winner opens the next Night — replaces the old "the crasher opens" rule, which no
+  // longer has a referent (the crasher is now whoever dozed first, a full Night ago). No
+  // shpEliminated guard needed — normal mode never eliminates.
+  shpDealNight(info ? info.winner : shpActivePlayer);
 }
 
-function shpHostGameover() {
-  let winner = -1;
-  for (let i = 0; i < shpPlayerCount; i++) if (!shpEliminated[i]) { winner = i; break; }
+// finalNightOrder: normal mode's tie-break — of two players on equal Moons, the one who placed
+// higher in the deciding (final) Night ranks higher in the match standings. It is the only
+// tie-break available and it is the fair one. Captured by shpHostContinue BEFORE shpNightEndInfo is
+// cleared, since shpHostGameover needs it after that point.
+function shpHostGameover(finalNightOrder) {
+  let winner = -1, standings;
+  if (shpSyllyMode) {
+    for (let i = 0; i < shpPlayerCount; i++) if (!shpEliminated[i]) { winner = i; break; }
+    standings = [winner].concat(shpElimOrder.slice().reverse());
+  } else {
+    for (let i = 0; i < shpPlayerCount; i++) if (shpMoonsHeld[i] >= shpMoonsToWin) { winner = i; break; }
+    const order = finalNightOrder || [];
+    standings = Array.from({ length: shpPlayerCount }, (_, i) => i).sort((a, b) => {
+      if (shpMoonsHeld[b] !== shpMoonsHeld[a]) return shpMoonsHeld[b] - shpMoonsHeld[a];
+      return order.indexOf(a) - order.indexOf(b);   // earlier in the final Night's finish = ranks higher
+    });
+  }
   shpGameWinner = winner;
-  shpGameStandings = [winner].concat(shpElimOrder.slice().reverse());
+  shpGameStandings = standings;
   if (window.syllyMultiplayerMode !== 'single') {
     mpSendEnvelope({ type: 'SYNC', payload: { action: 'SHP_GAMEOVER', winner, standings: shpGameStandings } });
   }
@@ -568,7 +872,8 @@ function shpHostGameover() {
 // ── Rendering ──────────────────────────────────────────────────────────────
 // Sheep flight: net Herd movement from a play → a parade of 🐑 that arc IN to the counter (growth)
 // or OUT to the left (counting backwards). Climb-only; identical on host and client (both read the
-// synced played/rolled arrays). One 1500ms clear timer; capped at 8 sheep.
+// synced played/rolled arrays). Capped at 8 sheep; the clear timer is sized to the LAST sheep's
+// finish (a flat 1500ms cut the tail of the parade off mid-flight once the stagger was counted).
 function shpStartSheepAnim(playedIds, rolled) {
   if (shpAnimTimer) { clearTimeout(shpAnimTimer); shpAnimTimer = null; }
   shpAnimSheep = 0;
@@ -586,7 +891,32 @@ function shpStartSheepAnim(playedIds, rolled) {
   if (net === 0) return;
   shpAnimDir   = net > 0 ? 'in' : 'out';
   shpAnimSheep = Math.min(Math.abs(net), 8);
-  shpAnimTimer = setTimeout(() => { shpAnimSheep = 0; shpAnimTimer = null; shpRenderTable(); }, 1500);
+  // 1200ms flight + 90ms stagger per sheep + a little slack, so the last one lands before the clear.
+  const clearMs = 1200 + (shpAnimSheep - 1) * SHP_SHEEP_STAGGER_MS + 250;
+  shpAnimTimer = setTimeout(() => {
+    shpAnimSheep = 0; shpAnimTimer = null;
+    // Guard: a Night can END inside this window (a 'stuck' crash resolves in the same tick as the
+    // play that caused it). Rendering the TABLE here would paint straight over the Night-End
+    // summary — which is exactly the "it goes to the summary then switches back" bug, and left a
+    // non-host stuck player on a table with no button. Route through the guarded path.
+    if (shpNightEndInfo) { shpRenderNightEnd(); return; }
+    shpRenderTable();
+  }, clearMs);
+}
+
+// The doze/Moon-loss banner's copy (§9). Four shapes: normal mode says who is out for the Night and
+// how many are left; Sylly says what the Moon cost bought (a Jolt) or that it bought nothing (a
+// Sleepwalker). `landedOn` is null for a 'stuck' crash — nothing was played to land anywhere.
+function shpDozeNoticeText(n) {
+  const who = shpName(n.idx);
+  const how = (n.reason === 'busted' && n.landedOn != null)
+    ? 'gambled to ' + n.landedOn
+    : 'had no safe cards left';
+  if (shpSyllyMode) {
+    if (shpEliminated[n.idx]) return '\u{1F4A4} ' + who + ' is out of Moons — now a Sleepwalker.';
+    return '\u{1F634} ' + who + ' ' + how + ' — −1 Moon. Fresh hand, same dream.';
+  }
+  return '\u{1F634} ' + who + ' ' + how + ' — dozed off. ' + shpAwakeCount() + ' still awake.';
 }
 
 function shpRenderTable() {
@@ -597,9 +927,11 @@ function shpRenderTable() {
   const me = shpMyIdx();
   const plunge = (shpPhase === 'plunge');
 
-  // Status bar — night number + red in Plunge
+  // Status bar — night number + red in Plunge. Sylly is ONE continuous Night (§2), so a counter
+  // there would sit on "Night 1" all match and read as broken; it gets the name instead.
   if (status) {
-    status.textContent = plunge ? ('THE PLUNGE 🔻 \xB7 Night ' + shpNightNum) : ('Night ' + shpNightNum);
+    const nightLabel = shpSyllyMode ? 'The Long Night' : ('Night ' + shpNightNum);
+    status.textContent = plunge ? ('THE PLUNGE 🔻 \xB7 ' + nightLabel) : nightLabel;
     status.className = 'text-xs font-semibold uppercase tracking-widest ' + (plunge ? 'text-red-500' : 'text-indigo-400');
   }
 
@@ -635,52 +967,93 @@ function shpRenderTable() {
         '<p class="text-red-500 text-xs font-semibold">Drive to 0 to escape.</p>' +
       '</div>';
   } else {
-    // Three-column band: empty left spacer (sheep arc into this whitespace), centred counter, and the
-    // Last-played / Dream Journal on the right (previously a separate centred row below the counter).
-    herdBox.className = 'grid grid-cols-3 items-center w-full';
+    // Three-column band: the pen (left), the counter (centre), Last Played (right). Top-aligned so
+    // the "THE HERD" and "LAST PLAYED" headings sit on ONE line across the band — the two columns
+    // start with the same-metric label (.shp-herd-label / .shp-last-label) for exactly that reason.
+    // The pen has no heading of its own, so it self-centres against the taller centre column.
+    herdBox.className = 'grid grid-cols-3 items-start w-full';
 
     // Sheep flight — absolutely positioned (a .shp-sheep-layer overlay) so it NEVER shifts the layout.
     // The old inline row pushed a row in/out between the header and counter on every play (the jank).
+    // Uses the real sheep art when the core pack resolves it (assetExtra — non-card game art);
+    // falls back to the 🐑 emoji if a skin/pack ever ships without it. The flying sheep is
+    // deliberately an INNER <img> inside the animated <span>: the keyframes own the span's
+    // transform (translate + scale, the arc itself), so the flip for "out" has to live on a
+    // child element or it would fight the same transform property every frame.
+    const sheepArtUrl = (typeof assetExtra === 'function') && assetExtra('shp', 'sheep');
     let sheepHtml = '';
     if (shpAnimSheep > 0) {
       const anim = (shpAnimDir === 'out') ? 'shpSheepArcOut' : 'shpSheepArcIn';
+      const flip = (shpAnimDir === 'out') ? ' style="transform:scaleX(-1)"' : '';
       let spans = '';
       for (let s = 0; s < shpAnimSheep; s++) {
-        spans += '<span class="shp-sheep-fly" style="animation-name:' + anim + ';animation-delay:' + (s * 90) + 'ms">🐑</span>';
+        const inner = sheepArtUrl
+          ? '<img class="shp-sheep-fly-img" src="' + sheepArtUrl + '"' + flip + ' />'
+          : '🐑';
+        spans += '<span class="shp-sheep-fly" style="animation-name:' + anim + ';animation-delay:' + (s * SHP_SHEEP_STAGGER_MS) + 'ms">' + inner + '</span>';
       }
-      sheepHtml = '<div class="shp-sheep-layer">' + spans + '</div>';
+      // Scale the sheep to the size of the flock: a +10 sends 8 of them down a ~132px path, so at a
+      // fixed 2.5rem they overlap into one continuous woolly mass. Smaller flocks stay big and readable.
+      const sheepW = shpAnimSheep >= 7 ? '1.55rem' : shpAnimSheep >= 4 ? '1.95rem' : '2.5rem';
+      sheepHtml = '<div class="shp-sheep-layer" style="--shp-sheep-w:' + sheepW + '">' + spans + '</div>';
     }
 
-    // Right column — Last played (own row) + Dream Journal link below it (only after a card is played)
-    let rightHtml = '';
-    if (shpPlayHistory.length > 0) {
-      const lastLabel = shpPlayHistory[0].cardIds.map(id => {
-        const c = SHP_CARDS[id]; return c ? (c.emoji + '\xA0' + c.label) : '?';
-      }).join(' + ');
-      rightHtml =
-        '<div class="flex flex-col items-end text-right gap-1 pr-0.5">' +
-          '<div>' +
-            '<p class="text-stone-300 text-[10px] uppercase tracking-wider leading-none">Last</p>' +
-            '<p class="text-stone-600 text-xs font-medium leading-tight">' + lastLabel + '</p>' +
-          '</div>' +
-          '<button id="shp-journal-btn" class="text-indigo-500 text-xs font-semibold active:text-indigo-700 transition-colors">Dream Journal →</button>' +
-        '</div>';
+    // Static pen — a single pre-composed image (sheep + fence baked in), filling the left
+    // whitespace the flying sheep already arc through. Falls back to a plain emoji trio if the
+    // core art hasn't resolved (e.g. a bare install racing the SW precache).
+    const penArtUrl = (typeof assetExtra === 'function') && assetExtra('shp', 'pen');
+    let penInner = '<p class="text-lg leading-none opacity-70" aria-hidden="true">🐑🐑<br>🐑</p>';
+    if (penArtUrl) {
+      penInner = '<img class="shp-pen-img" src="' + penArtUrl + '" alt="" aria-hidden="true" />';
     }
+    // self-center: the band is items-start (to line the two headings up), so the pen — which has no
+    // heading — is re-centred against the taller centre column rather than clinging to its top edge.
+    const penHtml = '<div class="self-center">' + penInner + '</div>';
+
+    // Right column — "Last Played" label + the real card(s) via the render seam (shpRenderCard),
+    // scaled into a fixed-footprint .shp-last-card wrapper. The card itself is the tap target —
+    // opens the Dream Journal; no separate link text needed (the log isn't load-bearing this game).
+    const rightCol = document.createElement('div');
+    rightCol.className = 'flex flex-col items-center gap-0.5';
+    if (shpPlayHistory.length > 0) {
+      const label = document.createElement('p');
+      label.className = 'shp-last-label';        // same metrics as .shp-herd-label — headings align
+      label.textContent = 'Last Played';
+      const cardsBtn = document.createElement('button');
+      cardsBtn.className = 'flex items-center justify-center gap-0.5 active:scale-95 transition-transform duration-100';
+      cardsBtn.setAttribute('aria-label', 'View Dream Journal');
+      shpPlayHistory[0].cardIds.forEach(id => {
+        const wrap = document.createElement('div');
+        wrap.className = 'shp-last-card';
+        wrap.appendChild(shpRenderCard(id));
+        cardsBtn.appendChild(wrap);
+      });
+      cardsBtn.addEventListener('click', shpOpenLog);
+      rightCol.append(label, cardsBtn);
+    }
+
+    // Pressure ramp — how full the pen is, as a fraction of the ceiling. This is the piece the
+    // bare number was missing: 62 and 91 looked identical at a glance, so the climb had no visible
+    // tension. Colour shifts indigo → amber → red across the last stretch.
+    const pct  = Math.max(0, Math.min(100, Math.round((shpHerd / Math.max(1, shpCeiling)) * 100)));
+    const ramp = pct >= 85 ? { bar: '#dc2626', num: 'text-red-600'    }
+               : pct >= 60 ? { bar: '#d97706', num: 'text-amber-600'  }
+               :             { bar: '#4f46e5', num: 'text-indigo-700' };
 
     herdBox.innerHTML =
-      '<div></div>' +                                   // left spacer — keeps the counter centred
-      '<div class="relative flex flex-col items-center">' +
+      penHtml +                                          // the sheep pen — fills the old empty left column
+      '<div class="relative flex flex-col items-center gap-0.5">' +
         sheepHtml +
-        '<p class="text-stone-400 text-xs uppercase tracking-widest">The Herd</p>' +
-        '<p class="text-6xl font-bold text-indigo-700">' + shpHerd + '</p>' +
-        '<p class="text-stone-400 text-xs">ceiling ' + shpCeiling + '</p>' +
-        (shpDirection < 0 ? '<p class="text-stone-400 text-xs">↺ reversed</p>' : '') +
-      '</div>' +
-      rightHtml;
+        '<p class="shp-herd-label">The Herd</p>' +
+        '<p class="text-6xl font-bold leading-none ' + ramp.num + '">' + shpHerd + '</p>' +
+        '<div class="shp-herd-bar" aria-hidden="true">' +
+          '<div class="shp-herd-bar-fill" style="width:' + pct + '%;background:' + ramp.bar + '"></div>' +
+        '</div>' +
+        '<p class="shp-ceiling-badge">ceiling ' + shpCeiling + '</p>' +
+      '</div>';
+    herdBox.appendChild(rightCol);              // real DOM node (holds a shpRenderCard element) — not a string
   }
   wrap.appendChild(herdBox);
-  const journalBtn = herdBox.querySelector('#shp-journal-btn');
-  if (journalBtn) journalBtn.addEventListener('click', shpOpenLog);
 
   // ── Play pile / last-played indicator (Plunge only — Climb shows it in the herd band above) ──
   if (shpPlayHistory.length > 0 && plunge) {
@@ -695,39 +1068,49 @@ function shpRenderTable() {
     wrap.appendChild(pileBtn);
   }
 
-  // ── Direction arrows (forward above chips, reverse below) ──
-  const fwdArrow = document.createElement('p');
-  fwdArrow.className = 'text-center text-sm font-semibold ' + (shpDirection === 1 ? (plunge ? 'text-red-500' : 'text-indigo-600') : 'text-stone-300');
-  fwdArrow.textContent = '→ Forward';
-  wrap.appendChild(fwdArrow);
+  // ── Direction (forward above chips, reverse below) ──
+  // Only the LIVE direction gets a filled pill; the dormant one stays a ghost. Same
+  // above/below placement as before — it reads as the flow of play around the table.
+  const dirPill = (live, glyph, label) => {
+    const p = document.createElement('p');
+    p.className = 'text-center';
+    p.innerHTML = '<span class="' + (live ? (plunge ? 'shp-dir shp-dir-live-plunge' : 'shp-dir shp-dir-live') : 'shp-dir shp-dir-idle') + '">' +
+                    '<span class="shp-dir-glyph">' + glyph + '</span>' + label +
+                  '</span>';
+    return p;
+  };
+  wrap.appendChild(dirPill(shpDirection === 1, '→', 'Forward'));
 
   // ── Player chips ──
+  // Walked in SEAT ORDER, not index order, so a Rude Awakening (id 17) is visibly a reseat
+  // rather than an invisible rules change. Hand size is deliberately NOT shown: everyone is
+  // always at their cap, so the only thing it ever revealed was who had been Wolf-shrunk —
+  // private information that has no business being public.
   const opp = document.createElement('div');
   opp.className = 'flex flex-wrap justify-center gap-2 w-full';
-  for (let i = 0; i < shpPlayerCount; i++) {
-    const isActive = i === shpActivePlayer && !shpEliminated[i];
+  shpRing().forEach(i => {
+    const isActive = i === shpActivePlayer && shpAwake(i);
     const chip = document.createElement('div');
-    chip.className = 'flex flex-col items-center px-2.5 py-1 rounded-xl text-xs ' +
-      (shpEliminated[i] ? 'bg-stone-200 text-stone-400'
-        : isActive ? (plunge ? 'bg-red-600 text-white' : 'bg-indigo-600 text-white')
-        : 'bg-white text-stone-600 border border-stone-200');
-    const rawMoons = shpLives[i] || 0;
-    const moons = shpEliminated[i] ? '💤'
+    // A dozed player wears the same "out" chip as a Sleepwalker — they are out of THIS Night, and
+    // the two states are mode-disjoint (§2), so a table only ever shows one of the two.
+    chip.className = 'shp-chip ' +
+      (shpAwake(i) ? (isActive ? (plunge ? 'shp-chip-active-plunge' : 'shp-chip-active') : 'shp-chip-idle')
+                   : 'shp-chip-out');
+    const rawMoons = shpMoonsHeld[i] || 0;
+    const moons = shpEliminated[i] ? '\u{1F4A4}'
       : rawMoons <= 5 ? '\u{1F319}'.repeat(Math.max(0, rawMoons))
       : '\u{1F319}\xD7' + rawMoons;
-    const cards = shpEliminated[i] ? 'asleep' : ((shpHands[i] ? shpHands[i].length : 0) + ' cards');
+    const dozeTag = (shpDozed[i] && !shpEliminated[i])
+      ? '<span class="shp-chip-doze">\u{1F634} Dozed Off</span>' : '';
     chip.innerHTML =
-      '<span class="font-semibold">' + shpName(i) + (i === me ? ' (you)' : '') + '</span>' +
-      '<span class="text-sm leading-tight">' + moons + '</span>' +
-      '<span class="opacity-70">' + cards + '</span>';
+      '<span class="shp-chip-name">' + shpName(i) + (i === me ? ' (you)' : '') + '</span>' +
+      dozeTag +
+      '<span class="shp-chip-moons">' + moons + '</span>';
     opp.appendChild(chip);
-  }
+  });
   wrap.appendChild(opp);
 
-  const revArrow = document.createElement('p');
-  revArrow.className = 'text-center text-sm font-semibold ' + (shpDirection === -1 ? (plunge ? 'text-red-500' : 'text-indigo-600') : 'text-stone-300');
-  revArrow.textContent = '↺ Reverse';
-  wrap.appendChild(revArrow);
+  wrap.appendChild(dirPill(shpDirection === -1, '↺', 'Reverse'));
 
   // ── Nightmare Meter — visible once the ghost system is active ──
   if (shpSyllyMode && shpElimOrder.length > 0) {
@@ -740,6 +1123,27 @@ function shpRenderTable() {
       '<p class="text-lg leading-none">' + dots + '</p>' +
       (shpEcho > 0 ? '<p class="text-xs text-violet-600">🔊 Global Echo \xB7 Pasture +' + shpEcho + '</p>' : '');
     wrap.appendChild(meterEl);
+  }
+
+  // ── Doze / Moon-loss banner — the crash that just happened (§9) ──
+  // Same slot and treatment as the play-effect banner below, cleared by the next play
+  // (shpBroadcastTurn). This is the ONLY announcement of a normal-mode crash: there is no summary
+  // screen any more unless the crash also ended the Night.
+  if (shpDozeNotice) {
+    const dz = document.createElement('p');
+    dz.className = 'text-stone-700 text-sm text-center font-semibold bg-stone-100 border border-stone-300 rounded-xl px-3 py-2';
+    dz.textContent = shpDozeNoticeText(shpDozeNotice);
+    wrap.appendChild(dz);
+  }
+
+  // ── Play-effect banner — outcome of the current play (Swap Dreams / Rude Awakening) ──
+  // Separate from the nightmare banner below: this one describes something a PLAYER just did,
+  // and without it a reseat or a hand swap is invisible on every device but the actor's.
+  if (shpLastEffect && shpLastEffect.text) {
+    const fx = document.createElement('p');
+    fx.className = 'text-indigo-700 text-sm text-center font-semibold bg-indigo-50 border border-indigo-200 rounded-xl px-3 py-2';
+    fx.textContent = '\u{1F504} ' + shpLastEffect.text;
+    wrap.appendChild(fx);
   }
 
   // ── Dream-shift banner — last resolved nightmare ──
@@ -758,7 +1162,15 @@ function shpRenderTable() {
       ? 'Your nightmare to choose… 💤'
       : '💤 ' + shpName(shpSpendHolder) + ' is picking a nightmare…';
   } else {
-    banner.textContent = shpEliminated[me] ? (shpSyllyMode ? 'You are a Sleepwalker, haunting the dream…' : 'You are out for the night…')
+    // Stuck is now HOST-DECLARED state (shpStuckIdx, synced via SHP_STUCK) rather than a local
+    // re-derivation. The table holds here — nothing auto-advances — until the stuck player taps
+    // "Nod Off", so every device needs to agree on who we're waiting for.
+    banner.textContent = shpDozed[me] ? 'You’re out for the night — back next Night.'
+      : shpEliminated[me] ? (shpSyllyMode ? 'You are a Sleepwalker, haunting the dream…' : 'You are out for the night…')
+      : (shpStuckIdx >= 0)
+        ? (shpStuckIdx === me
+            ? '\u{1F634} No safe cards left — you’re drifting off…'
+            : '\u{1F634} ' + shpName(shpStuckIdx) + ' has no safe cards left…')
       : (shpActivePlayer === me
           ? (shpForcedCards === 2 ? 'Heavy Eyelids — play TWO cards.' : 'Your turn — play a card.')
           : 'Waiting for ' + shpName(shpActivePlayer) + '…');
@@ -766,13 +1178,38 @@ function shpRenderTable() {
   wrap.appendChild(banner);
   body.appendChild(wrap);
 
+  shpRenderTableFooter();
+}
+
+// Footer only — split out of shpRenderTable so the 1s tap-gate timer can re-enable card taps
+// WITHOUT rebuilding body.innerHTML. A full re-render mid-flight destroys and recreates the
+// .shp-sheep-fly spans, restarting the parade from frame 0 (it stuttered every single turn).
+function shpRenderTableFooter() {
+  const footer = document.getElementById('shp-table-footer');
+  if (!footer) return;
+  const me = shpMyIdx();
   footer.innerHTML = '';
   if (shpGhostPending) {                          // table is gated on the spend-holder's blind pick
     if (shpEliminated[me] && shpSpendHolder === me) footer.appendChild(shpRenderLottery());
     return;
   }
   if (shpEliminated[me]) return;                  // sleepwalker: no hand, no input
-  const tappable = (shpActivePlayer === me) && shpCardTapReady;
+  // Dozed: same treatment. Their hand went back to the discard the moment they dozed (§3.1c), so
+  // there is nothing left to render and nothing to tap until the next deal.
+  if (shpDozed[me]) return;
+  if (shpStuckIdx >= 0 && shpStuckIdx === me) {
+    // Held, not auto-advanced: this player's hand is all-illegal, so show it greyed and give them
+    // the button that ends the Night on their own tap. Nothing moves until they press it.
+    footer.appendChild(shpHandFooter(me, false));
+    const btn = document.createElement('button');
+    btn.className = 'min-h-14 w-full rounded-2xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 ' +
+                    'text-white font-semibold text-lg transition-all duration-150 btn-mp-action';
+    btn.textContent = 'Nod Off';
+    btn.addEventListener('click', shpConfirmStuck);
+    footer.appendChild(btn);
+    return;
+  }
+  const tappable = (shpActivePlayer === me) && shpCardTapReady && shpStuckIdx < 0;
   footer.appendChild(shpHandFooter(me, tappable));
 }
 
@@ -894,11 +1331,14 @@ function shpHandFooter(me, tappable) {
   return col;
 }
 
-// 500ms long-press: show card-info overlay. Cancelled on release/move.
+// 500ms long-press → jump to that card's row in the How-to gallery, scrolled + ringed
+// (ui-style.md § Tap-Hold Reference — the PKO precedent, generalised here). The Wolf-slot
+// placeholder has no card id of its own; it points at real card 12 (The Big Bad Wolf),
+// whose gallery row is what explains the locked slot.
 function shpBindCardHold(el, cardId, isWolf) {
   let timer = null;
   const cancel = () => { if (timer) { clearTimeout(timer); timer = null; } };
-  const start  = () => { cancel(); timer = setTimeout(() => { timer = null; shpShowCardInfo(cardId, isWolf); }, 500); };
+  const start  = () => { cancel(); timer = setTimeout(() => { timer = null; shpOpenHowTo('cards', isWolf ? 12 : cardId); }, 500); };
   el.addEventListener('touchstart', start,  { passive: true });
   el.addEventListener('touchend',   cancel);
   el.addEventListener('touchmove',  cancel, { passive: true });
@@ -907,24 +1347,24 @@ function shpBindCardHold(el, cardId, isWolf) {
   el.addEventListener('mouseleave', cancel);
 }
 
-function shpShowCardInfo(cardId, isWolf) {
-  const overlay = document.getElementById('shp-card-info-overlay');
-  if (!overlay) return;
-  let emoji, name, family, effect;
-  if (isWolf) {
-    emoji = '\u{1F43A}'; name = 'Big Bad Wolf'; family = 'Trap';
-    effect = 'A Wolf was hiding in your Flock — it consumed a card slot. This slot is locked for the rest of the Night.';
-  } else {
-    const c = SHP_CARDS[cardId];
-    if (!c) return;
-    emoji = c.emoji; name = c.label;
-    // Pillow subtract cards show just "−N" on the face, but name them "Counting Backwards −N" in the
-    // inspect modal so the family reads clearly (and flips sign in the Plunge, matching the face).
-    if (c.kind === 'subtract') name = 'Counting Backwards ' + shpCardFaceLabel(c, shpPhase === 'plunge');
-    const fam = { pasture:'Pasture', pillow:'Pillow', alarm:'Alarm', phantom:'Phantom', trap:'Trap' };
-    family = fam[c.family] || c.family;
-    const plunge = (shpPhase === 'plunge');
-    switch (c.kind) {
+// Display name for a card — subtract cards show a bare "−N" on the face but read as
+// "Counting Backwards −N" wherever there is room to say it.
+function shpCardDisplayName(cardId) {
+  const c = SHP_CARDS[cardId];
+  if (!c) return '?';
+  if (c.kind === 'subtract') return 'Counting Backwards ' + shpCardFaceLabel(c, shpPhase === 'plunge');
+  return c.label;
+}
+
+// Plain-English effect for one card, phase-aware (the Plunge inverts what a number card DOES).
+// SINGLE SOURCE: both the long-press inspect modal and the How-to gallery read this, so a card
+// can never explain itself two different ways in the same app.
+function shpCardEffectText(cardId) {
+  const c = SHP_CARDS[cardId];
+  if (!c) return '';
+  const plunge = (shpPhase === 'plunge');
+  let effect;
+  switch (c.kind) {
       case 'add':
         if (plunge) {
           effect = 'PLUNGE: reduces the Herd by ' + c.value + (shpDreamAccel ? ' (doubles below 50)' : '') + '. Push towards 0.';
@@ -967,68 +1407,106 @@ function shpShowCardInfo(cardId, isWolf) {
         }
         break;
       case 'wake-leader':
-        effect = 'The next turn goes to whoever holds the most cards.';
+        // NOT "most cards" — shpLeaderIdx() picks the most MOONS (ties broken by ring order).
+        // The old text here said cards, which is why this card reads as random/useless in play.
+        effect = 'Skips straight to the player with the most Moons left — the one who is winning. They take the next turn, so everyone between you and them is passed over.';
         break;
       case 'two-card':
-        effect = 'Forces the NEXT player to play two cards on their turn.';
+        effect = 'Forces the NEXT player to play two cards on their turn. They Deep Sleep if no safe pair exists.';
+        break;
+      case 'shuffle':
+        effect = 'Reshuffles the seating order for the rest of the Night. Everyone keeps their cards and Moons — only who follows whom changes.';
+        break;
+      case 'swap-hands':
+        effect = 'Trades your whole Pen with a random living player. You get their cards, they get yours — then both hands top back up.';
+        break;
+      case 'trap-shrink':
+        effect = 'Hides in the Flock. Draw it and a card slot locks for the rest of the Night — your Pen cap shrinks by one.';
         break;
       default:
         effect = c.label;
-    }
   }
-  const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
-  set('shp-card-info-emoji',  emoji);
-  set('shp-card-info-name',   name);
-  set('shp-card-info-family', family);
-  set('shp-card-info-effect', effect);
-  overlay.style.display = 'flex';
-  playDone();
+  return effect;
 }
 
-function shpRenderDeepSleep() {
+// Night-end summary (§9) — normal mode only; Sylly never sets shpNightEndInfo (its one long Night
+// ends straight into the gameover). Renamed from shpRenderDeepSleep in chunk 9: the screen now
+// celebrates the Last One Awake rather than reporting a crash, so the header, the sub-line and the
+// finishing-order block are new. The three footer branches (single / host ack-gate / client "Got
+// it") are unchanged — that ack machinery is repurposed verbatim, per §4 "Removed".
+function shpRenderNightEnd() {
   const body = document.getElementById('shp-table-body');
   const footer = document.getElementById('shp-table-footer');
   if (!body || !footer) return;
-  const info = shpDeepSleepInfo || {};
+  const info = shpNightEndInfo || {};
+  const order = info.order || [];
 
-  // One-shot boing — only fires the first time this Deep Sleep renders
-  if (!info._boingPlayed) { info._boingPlayed = true; playBoing(); }
+  // Own the status bar rather than inheriting whatever the table left there — this screen can be
+  // reached from a Plunge-red header, and "THE PLUNGE 🔻" above a Night-won summary reads as a
+  // half-repainted screen.
+  const status = document.getElementById('shp-table-status');
+  if (status) {
+    status.textContent = 'Night ' + shpNightNum + ' \xB7 Complete';
+    status.className = 'text-xs font-semibold uppercase tracking-widest text-indigo-400';
+  }
+
+  // One-shot chime — only fires the first time this Night-end renders (a Night was WON here, so
+  // this is playSuccess, not the old crash-report playBoing).
+  if (!info._sfxPlayed) { info._sfxPlayed = true; playSuccess(); }
 
   body.innerHTML = '';
   const wrap = document.createElement('div');
   wrap.className = 'flex flex-col items-center gap-4 text-center w-full';
-  // Crash header
-  const crashReason = info.reason === 'busted'
-    ? 'Gambled too high — the herd broke loose.'
-    : 'No safe card to play — sleep claimed them.';
+  const moonsNow = shpMoonsHeld[info.winner] || 0;
   wrap.innerHTML =
-    '<div class="text-5xl">\u{1F634}</div>' +
+    '<div class="text-5xl">\u{1F319}</div>' +
     '<div class="flex flex-col gap-1">' +
-      '<h2 class="text-xl font-bold text-stone-800">' + shpName(info.crasher) + ' drifts off…</h2>' +
-      '<p class="text-stone-500 text-sm">' + crashReason + ' −1 Moon.' + (info.elim ? ' No Moons left — now a Sleepwalker. \u{1F4A4}' : '') + '</p>' +
+      '<h2 class="text-xl font-bold text-stone-800">' + shpName(info.winner) + ' is the Last One Awake</h2>' +
+      '<p class="text-stone-500 text-sm">+1 Moon. ' +
+        (info.over ? 'That takes the match.' : 'First to ' + shpMoonsToWin + ' wins the match.') +
+      '</p>' +
     '</div>';
-  // Moon status for all players (sorted: most moons → eliminated at bottom)
+
+  // Moon standings — most Moons first. Normal mode never eliminates, so every row is a live player.
   const sorted = Array.from({ length: shpPlayerCount }, (_, i) => i)
-    .sort((a, b) => {
-      if (shpEliminated[a] !== shpEliminated[b]) return shpEliminated[a] ? 1 : -1;
-      return (shpLives[b] || 0) - (shpLives[a] || 0);
-    });
+    .sort((a, b) => (shpMoonsHeld[b] || 0) - (shpMoonsHeld[a] || 0));
   const moonList = document.createElement('div');
   moonList.className = 'flex flex-col gap-1.5 w-full';
   sorted.forEach(i => {
     const row = document.createElement('div');
     row.className = 'flex items-center justify-between px-3 py-1.5 rounded-xl text-sm ' +
-      (shpEliminated[i] ? 'bg-stone-100 text-stone-400' : 'bg-white border border-stone-200 text-stone-700');
-    const rawMoons = shpLives[i] || 0;
-    const moonStr = shpEliminated[i] ? '\u{1F4A4} Sleepwalker'
-      : rawMoons <= 5 ? '\u{1F319}'.repeat(rawMoons) || 'Out'
+      (i === info.winner ? 'bg-indigo-50 border border-indigo-200 text-indigo-800'
+                         : 'bg-white border border-stone-200 text-stone-700');
+    const rawMoons = shpMoonsHeld[i] || 0;
+    const moonStr = rawMoons === 0 ? '—'
+      : rawMoons <= 5 ? '\u{1F319}'.repeat(rawMoons)
       : '\u{1F319}\xD7' + rawMoons;
     row.innerHTML =
       '<span class="font-semibold">' + shpName(i) + '</span>' +
-      '<span>' + moonStr + '</span>';
+      '<span>' + moonStr + ' <span class="opacity-60 text-xs">' + rawMoons + '/' + shpMoonsToWin + '</span></span>';
     moonList.appendChild(row);
   });
   wrap.appendChild(moonList);
+
+  // Finishing order for the Night just played — winner first, first-to-doze last (§9).
+  if (order.length > 1) {
+    const orderBox = document.createElement('div');
+    orderBox.className = 'flex flex-col gap-1 w-full';
+    const heading = document.createElement('p');
+    heading.className = 'text-indigo-400 text-xs font-semibold uppercase tracking-widest text-left';
+    heading.textContent = 'Finishing Order';
+    orderBox.appendChild(heading);
+    order.forEach((pIdx, rank) => {
+      const note = rank === 0 ? ' — Last One Awake'
+        : rank === order.length - 1 ? ' — first to doze'
+        : '';
+      const line = document.createElement('p');
+      line.className = 'text-stone-500 text-sm text-left';
+      line.textContent = (rank + 1) + '. ' + shpName(pIdx) + note;
+      orderBox.appendChild(line);
+    });
+    wrap.appendChild(orderBox);
+  }
   body.appendChild(wrap);
 
   footer.innerHTML = '';
@@ -1073,7 +1551,7 @@ function shpRenderDeepSleep() {
         shpIAcked = true;
         mpLockSync();
         mpSendEnvelope({ type: 'ACTION', payload: { action: 'SHP_SLEEP_ACK' } });
-        shpRenderDeepSleep();
+        shpRenderNightEnd();
       });
       footer.appendChild(btn);
     }
@@ -1091,7 +1569,12 @@ function shpRenderGameover() {
     row.className = 'flex items-center justify-between px-4 py-2 rounded-xl ' +
       (rank === 0 ? 'bg-indigo-600 text-white' : 'bg-white border border-stone-200 text-stone-600');
     const medal = rank === 0 ? '\u{1F451}' : (rank + 1) + '.';
-    const sub   = rank === 0 ? 'Last one awake' : ordinal(rank + 1) + ' place';
+    // Normal mode is a Moon race, so the Moon count IS the standing — an ordinal alone hides how
+    // close it was. Sylly keeps the survival wording: there are no Moons left to count there.
+    const moonsWon = shpMoonsHeld[pIdx] || 0;
+    const sub = shpSyllyMode
+      ? (rank === 0 ? 'Last one awake' : ordinal(rank + 1) + ' place')
+      : (moonsWon === 1 ? '1 Moon' : moonsWon + ' Moons');
     row.innerHTML =
       '<span class="font-semibold">' + medal + ' ' + shpName(pIdx) + '</span>' +
       '<span class="text-xs opacity-80">' + sub + '</span>';
@@ -1154,7 +1637,7 @@ function shpHostResolveDisrupt(choiceIdx) {
       action: 'SHP_DISRUPT_RESOLVED', nightmareId, targetIdx: res.targetIdx, text: res.text,
       herd: shpHerd, direction: shpDirection, nextActive: shpActivePlayer, forcedCards: shpForcedCards,
       hands: shpHands, handCaps: shpHandCap, wolfActive: shpWolfActive, echo: shpEcho, meter: shpMeter,
-      phase: shpPhase, ceiling: shpCeiling,
+      phase: shpPhase, ceiling: shpCeiling, seatOrder: shpSeatOrder,
     }});
   }
   shpShowTable();
@@ -1233,12 +1716,23 @@ function shpCheckMercy() {
   return false;
 }
 // After a card resolves: Plunge entry (overflow runway), bust, or mercy backstop.
-// Returns true if the turn ended (bust → Deep Sleep), false to keep advancing.
-function shpPostResolve(playerIdx) {
-  if (shpSyllyMode && shpPhase === 'climb' && shpHerd >= 99) { shpEnterPlunge(); return false; }
-  if (shpHerd > shpCeiling) { shpHostDeepSleep(playerIdx, 'busted'); return true; } // climb overshoot OR Plunge squeeze
+// Returns { busted, landedOn }. Does NOT call shpHostCrash itself (unlike the pre-chunk-7 version) —
+// §8 requires SHP_TURN_RESULT to broadcast BEFORE shpHostCrash's SHP_DOZE, so the caller
+// (shpHostPlayCard/shpHostPlayTwoCard) calls shpBroadcastTurn(...,busted) first and only then
+// shpHostCrash, using the landedOn this function hands back.
+// herdBefore: the Herd value BEFORE shpResolveCard ran — a bust reverts to this exactly (§6),
+// unconditional, no mode branch. Scope of the revert is the Herd only: the played card(s) stay in
+// the discard, and any non-Herd side effect of the busting play (a direction flip, a reseat, a
+// hand swap, the Nightmare Meter charge) stands.
+function shpPostResolve(playerIdx, herdBefore) {
+  if (shpSyllyMode && shpPhase === 'climb' && shpHerd >= 99) { shpEnterPlunge(); return { busted: false }; }
+  if (shpHerd > shpCeiling) {                       // climb overshoot OR Plunge squeeze
+    const landedOn = shpHerd;                       // the number that broke it — banner copy uses this
+    shpHerd = herdBefore;
+    return { busted: true, landedOn };
+  }
   shpCheckMercy();
-  return false;
+  return { busted: false };
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1251,13 +1745,45 @@ function shpSyncToggle(id, on) {
   t.className = (on ? 'game-toggle-on-indigo' : 'game-toggle-off') + ' shrink-0';
 }
 
+// Moons to Win value-line copy (§5) — thematic name + the concrete meaning, per
+// ui-style.md § Dynamic value line: the static description says what the setting
+// CONTROLS, this live line says what you just PICKED.
+const SHP_MOONS_WIN_COPY = {
+  1: 'Catnap — first to 1 Moon — one Night, winner takes all.',
+  2: 'Full Night — first to 2 Moons, usually 3 Nights.',
+  3: 'Hibernate — first to 3 Moons, usually 5 Nights.',
+};
+const SHP_MOONS_LIFE_WORD = { 3: 'three', 5: 'five', 7: 'seven' };
+
 function shpSyncSettingsUI() {
   const setGroup = (attr, val) => document.querySelectorAll('[' + attr + ']').forEach(b =>
     b.classList.toggle('pill-active-indigo', b.getAttribute(attr) === String(val)));
   setGroup('data-shp-hand', shpHandSize);
   setGroup('data-shp-moons', shpMoons);
+  setGroup('data-shp-moons-win', shpMoonsToWin);
   shpSyncToggle('btn-shp-dream-toggle', shpDreamAccel);
   shpSyncToggle('btn-shp-sylly-toggle', shpSyllyMode);
+
+  // Moons card — two pill groups, exactly one visible at a time, switched by shpSyllyMode; one
+  // shared value line underneath (§5). Avoids a single number meaning "wins" or "lives" depending
+  // on another setting — the trap that made the shpLives rename necessary.
+  const title   = document.getElementById('shp-moons-title');
+  const desc    = document.getElementById('shp-moons-desc');
+  const winRow  = document.getElementById('shp-moons-win-row');
+  const lifeRow = document.getElementById('shp-moons-life-row');
+  const val     = document.getElementById('shp-val-moons');
+  if (winRow)  winRow.style.display  = shpSyllyMode ? 'none' : 'flex';
+  if (lifeRow) lifeRow.style.display = shpSyllyMode ? 'flex' : 'none';
+  if (shpSyllyMode) {
+    if (title) title.textContent = 'Starting Moons';
+    if (desc)  desc.textContent  = 'Lives. One long Night; lose a Moon each time you crash. At zero you become a Sleepwalker.';
+    if (val)   val.textContent   = shpMoons + ' Moons — ' + (SHP_MOONS_LIFE_WORD[shpMoons] || shpMoons) +
+                                    ' crashes and you\'re haunting the dream.';
+  } else {
+    if (title) title.textContent = 'Moons to Win';
+    if (desc)  desc.textContent  = 'Win a Night to earn a Moon. This is how many you need to take the match.';
+    if (val)   val.textContent   = SHP_MOONS_WIN_COPY[shpMoonsToWin] || SHP_MOONS_WIN_COPY[2];
+  }
 }
 
 function shpBindPills(attr, apply) {
@@ -1267,6 +1793,7 @@ function shpBindPills(attr, apply) {
     document.querySelectorAll('[' + attr + ']').forEach(x => x.classList.remove('pill-active-indigo'));
     b.classList.add('pill-active-indigo');
     apply(b.getAttribute(attr));
+    shpSyncSettingsUI();
   }));
 }
 
@@ -1276,16 +1803,19 @@ function shpOpenSettings() {
   if (inner) inner.scrollTop = 0;
   document.getElementById('shp-settings-overlay').style.display = 'flex';
 }
-function shpOpenHowTo(tab) {
-  shpSetHowToTab(tab || 'rules');
+// highlightId: when set, opens straight to The Cards tab, scrolled to and briefly
+// ringing that card's row — the tap-hold-to-reference pattern (ui-style.md § Tap-Hold
+// Reference, PKO precedent). Card id 12 covers the Wolf slot too (see shpBindCardHold).
+function shpOpenHowTo(tab, highlightId) {
+  shpSetHowToTab(highlightId != null ? 'cards' : (tab || 'rules'), highlightId);
   const inner = document.querySelector('#shp-how-to-overlay .overlay-data-inner');
-  if (inner) inner.scrollTop = 0;
+  if (inner && highlightId == null) inner.scrollTop = 0;
   document.getElementById('shp-how-to-overlay').style.display = 'flex';
 }
 
 // Rules and card gallery are two tabs of ONE overlay; bodies are siblings toggled by
 // display so each keeps its own scroll position across a flick.
-function shpSetHowToTab(tab) {
+function shpSetHowToTab(tab, highlightId) {
   const rules = document.getElementById('shp-how-to-body');
   const cards = document.getElementById('shp-how-to-cards');
   if (rules) rules.style.display = tab === 'cards' ? 'none' : 'flex';
@@ -1294,13 +1824,14 @@ function shpSetHowToTab(tab) {
     b.classList.remove('pill-active-indigo');    // .pill is the base — never removed
     if (b.dataset.shpHowtoTab === tab) b.classList.add('pill-active-indigo');
   });
-  if (tab === 'cards') shpRenderGallery();
+  if (tab === 'cards') shpRenderGallery(highlightId);
 }
 
 // Built from SHP_CARDS on every switch INTO the tab (never cached at boot — the
 // Plunge inverts what a number card DOES, so a gallery built once would be wrong
 // half the night), and every tile goes through shpRenderCard so it stays skinnable.
-function shpRenderGallery() {
+// highlightId: scroll to + briefly ring that card's row (tap-hold entry point).
+function shpRenderGallery(highlightId) {
   const box = document.getElementById('shp-cards-body');
   if (!box) return;
   box.innerHTML = '';
@@ -1314,25 +1845,43 @@ function shpRenderGallery() {
     const b = document.createElement('p');
     b.className = 'text-stone-500 text-sm';
     b.textContent = blurb;
-    const row = document.createElement('div');
-    row.className = 'grid grid-cols-3 gap-3 justify-items-center pt-1';
-    wrap.append(h, b, row);
+    const list = document.createElement('div');
+    list.className = 'flex flex-col gap-2 pt-1';
+    wrap.append(h, b, list);
     box.appendChild(wrap);
-    return row;
+    return list;
   };
-  const tile = (row, cardEl, url, caption) => {
-    const cell = document.createElement('div');
-    cell.className = 'flex flex-col items-center gap-1 w-[4rem]';
-    cell.appendChild(artMakeZoomable(cardEl, url, caption));
-    const c = document.createElement('p');
-    c.className = 'text-[0.65rem] text-stone-500 text-center leading-tight';
-    c.textContent = caption;
-    cell.appendChild(c);
-    row.appendChild(cell);
+
+  // One reference ROW per card — thumb, name, what it actually does, how many are in the deck.
+  // Rows rather than a tile grid (10 Aug 2026's shape) because the tab's real job is answering
+  // "what does this card do again?" mid-match, and a 4rem tile with a two-word caption cannot.
+  // refId: the value shpBindCardHold's highlightId will match against (null for the two
+  // non-card reference rows — Face Down has nothing to jump to).
+  const row = (list, cardEl, url, name, effect, count, refId) => {
+    const r = document.createElement('div');
+    r.className = 'flex items-start gap-3 bg-white rounded-2xl p-3 shadow-sm shp-ref-row';
+    if (refId != null) r.dataset.shpCardId = refId;
+    const thumb = document.createElement('div');
+    thumb.className = 'flex-shrink-0';
+    thumb.appendChild(artMakeZoomable(cardEl, url, name));
+    const txt = document.createElement('div');
+    txt.className = 'flex flex-col gap-0.5 min-w-0';
+    const head = document.createElement('div');
+    head.className = 'flex items-baseline gap-2 flex-wrap';
+    head.innerHTML =
+      '<span class="font-bold text-stone-800 text-sm">' + name + '</span>' +
+      (count ? '<span class="text-[0.65rem] text-stone-400 font-semibold">×' + count + ' in deck</span>' : '');
+    const eff = document.createElement('p');
+    eff.className = 'text-stone-500 text-xs leading-snug';
+    eff.textContent = effect;
+    txt.append(head, eff);
+    r.append(thumb, txt);
+    list.appendChild(r);
   };
-  const add = (row, card) => {
+  const add = (list, card) => {
     const url = (typeof assetFace === 'function') && assetFace('shp', card.id);
-    tile(row, shpRenderCard(card.id), url, card.label);
+    row(list, shpRenderCard(card.id), url,
+        shpCardDisplayName(card.id), shpCardEffectText(card.id), SHP_DECK_COUNTS[card.id], card.id);
   };
 
   const byFamily = f => SHP_CARDS.filter(c => c.family === f && c.id !== 13);
@@ -1349,13 +1898,27 @@ function shpRenderGallery() {
   byFamily('trap').forEach(c => add(trap, c));
 
   const fog = section('Fogged Dream',
-    'Conjured by the Fog, never dealt. Nobody sees its resolved value — not even you.');
-  const foggedUrl = (typeof assetFace === 'function') && assetFace('shp', 13);
-  tile(fog, shpRenderCard(13), foggedUrl, 'Fogged Dream');
+    'Conjured by the Fog nightmare, never dealt from the Flock.');
+  row(fog, shpRenderCard(13), (typeof assetFace === 'function') && assetFace('shp', 13),
+      'Fogged Dream', shpCardEffectText(13), 0, 13);
 
   const back = section('Face Down', 'Somebody else’s hand.');
-  tile(back, shpRenderCard(null, { faceDown: true }),
-    (typeof assetBack === 'function') && assetBack('shp'), 'The Back');
+  row(back, shpRenderCard(null, { faceDown: true }),
+      (typeof assetBack === 'function') && assetBack('shp'),
+      'The Back', 'What every other player’s Pen looks like from where you are sitting.', 0, null);
+
+  // Tap-hold entry point (ui-style.md § Tap-Hold Reference) — scroll to and briefly ring
+  // the target row so the player lands exactly where their question was.
+  if (highlightId != null) {
+    const target = box.querySelector('[data-shp-card-id="' + highlightId + '"]');
+    if (target) {
+      requestAnimationFrame(() => {
+        target.scrollIntoView({ block: 'center' });
+        target.classList.add('shp-ref-row-ping');
+        setTimeout(() => target.classList.remove('shp-ref-row-ping'), 1600);
+      });
+    }
+  }
 }
 function shpShowTip(emoji, heading, lines) {
   document.getElementById('shp-tip-emoji').textContent = emoji || '';
@@ -1379,14 +1942,24 @@ function shpHandleEnvelope(env) {
         shpHandCap   = p.handCaps  || shpHandCap;
         shpWolfActive= p.wolfActive|| shpWolfActive;
         shpHerd = p.herd; shpDirection = p.direction; shpActivePlayer = p.activePlayer;
-        shpLives = p.lives; shpEliminated = p.eliminated; shpElimOrder = p.elimOrder || [];
-        shpMeter = p.meter || 0; shpEcho = p.echo || 0; shpForcedCards = 1; shpTwoSel = []; shpDeepSleepInfo = null;
+        shpMoonsHeld = p.moons; shpEliminated = p.eliminated; shpElimOrder = p.elimOrder || [];
+        // scoring-rework §8 — must reset dozed/dozeOrder/nightEndInfo/dozeNotice here exactly as
+        // shpDealNight does on the host, or a client carries the PREVIOUS Night's finishing state
+        // forward (the accumulator bug, logic-engine.md § Accumulator arrays).
+        shpDozed = shpNormBool(p.dozed, shpPlayerCount);
+        shpDozeOrder = Array.isArray(p.dozeOrder) ? p.dozeOrder.slice() : [];
+        if (p.moonsToWin !== undefined) shpMoonsToWin = p.moonsToWin;
+        shpNightEndInfo = null; shpDozeNotice = null;
+        shpMeter = p.meter || 0; shpEcho = p.echo || 0; shpForcedCards = 1; shpTwoSel = [];
         shpGhostPending = false; shpGhostOptions = []; shpLastDisrupt = null;
         shpPhase = 'climb'; shpCeiling = 99; shpPlungeFlash = false; shpCurrentDrop = 0;
         if (shpAnimTimer) { clearTimeout(shpAnimTimer); shpAnimTimer = null; }
-        shpPlayHistory = []; shpAnimSheep = 0;
-        shpDeepSleepAcks = 0; shpDeepSleepAckNeeded = 0; shpIAcked = false;
-        shpShowTable(); if (typeof mpUnlockSync === 'function') mpUnlockSync();
+        shpPlayHistory = []; shpAnimSheep = 0; shpLastEffect = null;
+        shpNightNum  = p.nightNum || shpNightNum;      // was never sent — clients stuck on Night 0 (BUG-04)
+        shpSeatOrder = Array.isArray(p.seatOrder) ? p.seatOrder.slice() : [];
+        shpNightFlavourIdx = p.flavourIdx || 0;        // host-picked — same line on every device
+        shpDeepSleepAcks = 0; shpDeepSleepAckNeeded = 0; shpIAcked = false; shpStuckIdx = -1;
+        shpShowNightIntro(); if (typeof mpUnlockSync === 'function') mpUnlockSync();
       } else if (a === 'SHP_TURN_RESULT') {
         if (p.phase) { if (shpPhase === 'climb' && p.phase === 'plunge') shpPlungeFlash = true; shpPhase = p.phase; }
         if (p.ceiling !== undefined) shpCeiling = p.ceiling;
@@ -1397,10 +1970,19 @@ function shpHandleEnvelope(env) {
         shpHands     = shpNorm2D(p.hands, shpPlayerCount);
         shpHandCap   = p.handCaps  || shpHandCap;
         shpWolfActive= p.wolfActive|| shpWolfActive;
-        shpMeter = p.meter || 0; shpTwoSel = []; shpDeepSleepInfo = null;
+        shpMeter = p.meter || 0; shpTwoSel = []; shpNightEndInfo = null; shpStuckIdx = -1;
         shpGhostPending = false; shpLastDisrupt = null;
         if (p.playHistory) shpPlayHistory = p.playHistory;
-        shpStartSheepAnim(p.played, p.rolled);   // sheep flight (Climb only — phase already applied above)
+        if (Array.isArray(p.seatOrder)) shpSeatOrder = p.seatOrder.slice();
+        shpLastEffect = p.lastEffect || null;     // Firebase erases null — the || is the rebuild half
+        // busted:true — the Herd here already rode the §6 revert, so the card-value-based parade
+        // would show growth that never happened on the live counter. Skip it (§8).
+        if (!p.busted) shpStartSheepAnim(p.played, p.rolled);
+        shpShowTable(); if (typeof mpUnlockSync === 'function') mpUnlockSync();
+      } else if (a === 'SHP_STUCK') {
+        // Host says the active player has no legal line. Everyone HOLDS on the table; only that
+        // player gets a button. NOT `|| -1` — seat 0 is a legitimate stuck player and 0 is falsy.
+        shpStuckIdx = (p.stuckIdx === undefined || p.stuckIdx === null) ? -1 : p.stuckIdx;
         shpShowTable(); if (typeof mpUnlockSync === 'function') mpUnlockSync();
       } else if (a === 'SHP_GHOST_READY') {
         shpGhostPending = true; shpSpendHolder = p.holderIdx; shpGhostOptions = p.optionIds || [];
@@ -1411,11 +1993,36 @@ function shpHandleEnvelope(env) {
         if (p.ceiling !== undefined) shpCeiling = p.ceiling;
         shpHerd = p.herd; shpDirection = p.direction; shpActivePlayer = p.nextActive; shpForcedCards = p.forcedCards || 1;
         shpHands = shpNorm2D(p.hands, shpPlayerCount); shpHandCap = p.handCaps || shpHandCap; shpWolfActive = p.wolfActive || shpWolfActive;
+        if (Array.isArray(p.seatOrder)) shpSeatOrder = p.seatOrder.slice();
+        shpStuckIdx = -1;                    // turn-advancing packet — any prior hold is resolved
         shpLastDisrupt = { text: p.text };
         shpShowTable(); if (typeof mpUnlockSync === 'function') mpUnlockSync();
-      } else if (a === 'SHP_DEEP_SLEEP') {
-        shpLives = p.lives; shpEliminated = p.eliminated; shpElimOrder = p.elimOrder || [];
-        shpDeepSleepInfo = { crasher: p.crasher, reason: p.reason, elim: p.elim, over: p.over };
+      } else if (a === 'SHP_DOZE') {
+        // §8 applier requirements — apply every field, both modes carry the crasher's mutated hand
+        // (normal mode discards it §3.1c, Sylly replaces it via the Jolt §3.1b): send the whole
+        // collection, never a delta, so a dropped packet self-corrects on the next mutation.
+        shpHerd = p.herd;
+        shpDozed = shpNormBool(p.dozed, shpPlayerCount);
+        shpDozeOrder = Array.isArray(p.dozeOrder) ? p.dozeOrder.slice() : [];
+        shpMoonsHeld = p.moons || shpMoonsHeld;
+        shpEliminated = p.eliminated || shpEliminated;
+        shpElimOrder = p.elimOrder || [];
+        shpHands = shpNorm2D(p.hands, shpPlayerCount);
+        shpHandCap = p.handCaps || shpHandCap;
+        shpWolfActive = p.wolfActive || shpWolfActive;
+        shpActivePlayer = p.nextActive;
+        if (p.phase) shpPhase = p.phase;
+        if (p.ceiling !== undefined) shpCeiling = p.ceiling;
+        if (p.grace !== undefined) shpPlungeGrace = p.grace;
+        if (p.drop !== undefined) shpCurrentDrop = p.drop;
+        // A turn-advancing packet resolves any prior hold, and is the ONLY thing that clears the
+        // busted device's own "your turn" input affordance — there is no ack for this one.
+        shpStuckIdx = -1;
+        shpDozeNotice = { idx: p.crasher, reason: p.reason, landedOn: p.landedOn };
+        shpShowTable(); if (typeof mpUnlockSync === 'function') mpUnlockSync();
+      } else if (a === 'SHP_NIGHT_END') {
+        shpMoonsHeld = p.moons || shpMoonsHeld;
+        shpNightEndInfo = { winner: p.winner, order: p.order || [], over: p.over };
         shpDeepSleepAcks = 0; shpDeepSleepAckNeeded = p.acksNeeded || shpPlayerCount; shpIAcked = false;
         shpShowTable(); if (typeof mpUnlockSync === 'function') mpUnlockSync();
       } else if (a === 'SHP_GAMEOVER') {
@@ -1431,9 +2038,13 @@ function shpHandleEnvelope(env) {
         else shpHostPlayCard(shpActivePlayer, p.handIdx);
       } else if (a === 'SHP_DISRUPT') {
         shpHostResolveDisrupt(p.choice);
+      } else if (a === 'SHP_STUCK_ACK') {
+        // Only the held player can end the hold, and only while it's actually held — a stale or
+        // duplicated packet must not run the crash resolution twice.
+        if (shpStuckIdx >= 0) shpHostCrash(shpStuckIdx, 'stuck', null);
       } else if (a === 'SHP_SLEEP_ACK') {
         shpDeepSleepAcks++;
-        shpRenderDeepSleep();           // re-render to update count + unlock Continue when all confirmed
+        shpRenderNightEnd();            // re-render to update count + unlock Continue when all confirmed
       } else if (a === 'SHP_PLAYER_LEFT') {
         mpSendEnvelope({ type: 'SYNC', payload: { action: 'SHP_MATCH_DISSOLVED' } });
         resetToLobby();                            // one leaver dissolves the match (PASS contract)
@@ -1447,10 +2058,13 @@ function shpHandleEnvelope(env) {
 // ═══════════════════════════════════════════════════════════════════════════
 function shpResetState() {
   if (shpAnimTimer) { clearTimeout(shpAnimTimer); shpAnimTimer = null; }
+  if (shpNightIntroTimer) { clearTimeout(shpNightIntroTimer); shpNightIntroTimer = null; }
   shpPlayerCount = 0;  shpPlayerNames = [];
   shpHerd = 0;         shpCeiling = 99;       shpDirection = 1;
-  shpLives = [];       shpEliminated = [];    shpElimOrder = [];
-  shpActivePlayer = 0; shpOpenerIdx = 0;
+  shpMoonsHeld = [];   shpEliminated = [];    shpElimOrder = [];
+  shpDozed = [];       shpDozeOrder = [];
+  shpActivePlayer = 0; shpOpenerIdx = 0;      shpSeatOrder = [];
+  shpLastEffect = null;
   shpFlock = [];       shpDiscard = [];       shpHands = [];
   shpHandCap = [];     shpWolfActive = [];
   shpForcedCards = 1;  shpPendingSkip = null;
@@ -1459,7 +2073,8 @@ function shpResetState() {
   shpGhostPending = false; shpLastDisrupt = null;
   shpPhase = 'climb';  shpPlungeGrace = 0;   shpPlungeFlash = false;
   shpPlungeDescentTurns = 0; shpCurrentDrop = 0;
-  shpTwoSel = [];      shpDeepSleepInfo = null;
+  shpTwoSel = [];      shpStuckIdx = -1;
+  shpNightEndInfo = null; shpDozeNotice = null;
   shpGameStandings = []; shpGameWinner = -1;
   shpNightNum = 0;
   shpCardTapReady = true;
@@ -1467,11 +2082,9 @@ function shpResetState() {
   shpTapReadyForPlayer = -1;
   shpPlayHistory = []; shpAnimSheep = 0;
   shpDeepSleepAcks = 0; shpDeepSleepAckNeeded = 0; shpIAcked = false;
-  const infoOverlay = document.getElementById('shp-card-info-overlay');
-  if (infoOverlay) infoOverlay.style.display = 'none';
   const logOverlay = document.getElementById('shp-play-log-overlay');
   if (logOverlay) logOverlay.style.display = 'none';
-  // Settings (shpHandSize/Moons/DreamAccel/SyllyMode) intentionally preserved.
+  // Settings (shpHandSize/Moons/MoonsToWin/DreamAccel/SyllyMode) intentionally preserved.
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1501,19 +2114,16 @@ document.addEventListener('DOMContentLoaded', () => {
     b.addEventListener('click', () => { playPillClick(); shpSetHowToTab(b.dataset.shpHowtoTab); });
   });
   on('btn-shp-tip-close',      () => { playDone(); document.getElementById('shp-tip-overlay').style.display = 'none'; });
-  on('btn-shp-card-info-close',() => { playDone(); document.getElementById('shp-card-info-overlay').style.display = 'none'; });
-  // Tap the backdrop (outside the card) to dismiss the inspect modal
-  const shpCardInfoOv = document.getElementById('shp-card-info-overlay');
-  if (shpCardInfoOv) shpCardInfoOv.addEventListener('click', e => {
-    if (e.target === shpCardInfoOv) { playDone(); shpCardInfoOv.style.display = 'none'; }
-  });
   on('btn-shp-play-log-close', () => { playDone(); document.getElementById('shp-play-log-overlay').style.display = 'none'; });
 
   // Settings controls — pills + toggles
-  shpBindPills('data-shp-hand',  v => shpHandSize = parseInt(v, 10));
-  shpBindPills('data-shp-moons', v => shpMoons    = parseInt(v, 10));
+  shpBindPills('data-shp-hand',      v => shpHandSize   = parseInt(v, 10));
+  shpBindPills('data-shp-moons',     v => shpMoons      = parseInt(v, 10));
+  shpBindPills('data-shp-moons-win', v => shpMoonsToWin = parseInt(v, 10));
   on('btn-shp-dream-toggle',     () => { shpDreamAccel   = !shpDreamAccel;   playPillClick(); shpSyncToggle('btn-shp-dream-toggle', shpDreamAccel); });
-  on('btn-shp-sylly-toggle',     () => { shpSyllyMode    = !shpSyllyMode;    shpSyllyMode ? playSyllyOn() : playSyllyOff(); shpSyncToggle('btn-shp-sylly-toggle', shpSyllyMode); });
+  // The toggle changes which Moons pill group is live, so shpSyncSettingsUI() must run here too —
+  // shpSyncToggle alone only paints the toggle button itself (§5).
+  on('btn-shp-sylly-toggle',     () => { shpSyllyMode    = !shpSyllyMode;    shpSyllyMode ? playSyllyOn() : playSyllyOff(); shpSyncToggle('btn-shp-sylly-toggle', shpSyllyMode); shpSyncSettingsUI(); });
 
   // In-game header [?] → How to Play
   on('btn-shp-how-to', () => shpOpenHowTo());
