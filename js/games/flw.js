@@ -12,7 +12,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 // ── Settings (persist between play-agains) ─────────────────────────────────
-let flwLedgerOn      = true;    // Appraiser's Ledger auto-tally matrix
+let flwLedgerMode    = 'tally'; // 'tally' | 'discards' | 'off' — Appraiser's Ledger view
 let flwTokenMode     = 'auto';  // 'auto' | 'custom'
 let flwCustomTarget  = 5;       // 3 | 5 | 7 (used only when flwTokenMode === 'custom')
 let flwTurnTimer     = 0;       // 0 | 30 | 60 (Appraisal Clock, seconds)
@@ -434,25 +434,39 @@ function flwSetHowToTab(tab, highlightId) {
   if (tab === 'gems') flwRenderGems(highlightId);
 }
 
+// Two visual columns of five rows each, paired so both read descending: left
+// column 9→5, right column 4→0. FLW_DECK is already in that single descending
+// order, so pairing index i with index i+5 gives exactly that split.
+const FLW_LEDGER_ROWS = [[9, 4], [8, 3], [7, 2], [6, 1], [5, 0]];
+
 function flwRenderLedger() {
   const el = document.getElementById('flw-ledger');
   if (!el) return;
-  if (!flwLedgerOn) { el.innerHTML = '<p class="text-stone-400 text-xs">Off — count the discards yourself.</p>'; return; }
+  if (flwLedgerMode === 'off') { el.innerHTML = '<p class="text-stone-400 text-xs">Off — count the discards yourself.</p>'; return; }
+  if (flwLedgerMode === 'discards') { flwRenderDiscardStrip(); return; }
   const counts = flwLedgerCounts || [];
-  // 4-column grid: [carat#] [gem name] [seen] [/total] — gem colour on numeric fields only
-  let html = '<div style="display:grid;grid-template-columns:1.1rem 1fr auto auto;gap:0.12rem 0.45rem;align-items:center;">';
-  FLW_DECK.forEach(g => {
+  // Each gem contributes 4 cells: [carat#] [gem name] [seen] [/total] — gem
+  // colour on numeric fields only. Two gems (one per visual column) per row.
+  const cell = g => {
     const seen = counts[g.id] || 0;
     const done = seen >= g.qty;
     const col = g.colour || '#9ca3af';
     const fade = done ? 'opacity:0.3;text-decoration:line-through;' : '';
-    html += '<div style="font-size:0.65rem;font-weight:800;color:' + col + ';text-align:right;' + fade + '">' + g.id + '</div>'
-          + '<div style="font-size:0.65rem;color:#57534e;' + fade + '">' + g.name + '</div>'
-          + '<div style="font-size:0.65rem;font-weight:700;color:' + col + ';' + fade + '">' + seen + '</div>'
-          + '<div style="font-size:0.65rem;color:#a8a29e;' + fade + '">/​' + g.qty + '</div>';
-  });
+    return '<div style="font-size:0.65rem;font-weight:800;color:' + col + ';text-align:right;' + fade + '">' + g.id + '</div>'
+         + '<div style="font-size:0.65rem;color:#57534e;' + fade + '">' + g.name + '</div>'
+         + '<div style="font-size:0.65rem;font-weight:700;color:' + col + ';' + fade + '">' + seen + '</div>'
+         + '<div style="font-size:0.65rem;color:#a8a29e;' + fade + '">/​' + g.qty + '</div>';
+  };
+  let html = '<div style="display:grid;grid-template-columns:1.1rem 1fr auto auto 1.1rem 1fr auto auto;gap:0.12rem 0.45rem;align-items:center;">';
+  FLW_LEDGER_ROWS.forEach(([a, b]) => { html += cell(FLW_GEM[a]) + cell(FLW_GEM[b]); });
   html += '</div>';
   el.innerHTML = html;
+}
+// Stubbed here (task 7); the real chronological-feed render lands in task 9,
+// once flwDiscardFeed (task 8) exists to draw from.
+function flwRenderDiscardStrip() {
+  const el = document.getElementById('flw-ledger');
+  if (el) el.innerHTML = '<p class="text-stone-400 text-xs">Discard strip coming soon.</p>';
 }
 function flwRenderLog() {
   const el = document.getElementById('flw-log');
@@ -1348,7 +1362,16 @@ function flwHandleEnvelope(env) {
     console.error('[FLW] handler error', e);
   }
 }
-function flwOpenSettings()      { const el = document.getElementById('flw-settings-overlay'); if (el) { const inner = el.querySelector('.overlay-data-inner'); if (inner) inner.scrollTop = 0; el.style.display = 'flex'; } }
+// New for the Ledger pill group (task 7). FLW's other four pill groups (token
+// mode, target, burn, timer) have no equivalent re-sync yet, so a client whose
+// SETTINGS_SYNC changes one of those still shows its own stale pill highlight
+// until the overlay is closed and reopened — a pre-existing gap, not fixed here.
+function flwSyncSettingsUI() {
+  document.querySelectorAll('[data-flw-ledger]').forEach(p => {
+    p.classList.toggle('pill-active-flw', p.getAttribute('data-flw-ledger') === flwLedgerMode);
+  });
+}
+function flwOpenSettings()      { flwSyncSettingsUI(); const el = document.getElementById('flw-settings-overlay'); if (el) { const inner = el.querySelector('.overlay-data-inner'); if (inner) inner.scrollTop = 0; el.style.display = 'flex'; } }
 // highlightId set → force the Gems tab regardless of what was passed, and skip the
 // scroll-to-top reset (refHighlightRow inside flwRenderGems owns the scroll instead).
 function flwOpenHowTo(tab, highlightId) {
@@ -1427,14 +1450,13 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Settings — toggles + pill groups
-  flwSyncToggle('btn-flw-ledger-toggle', flwLedgerOn);
   flwSyncToggle('btn-flw-sylly-toggle', flwSyllyMode);
-  on('btn-flw-ledger-toggle', () => { flwLedgerOn = !flwLedgerOn; playPillClick(); flwSyncToggle('btn-flw-ledger-toggle', flwLedgerOn); });
   on('btn-flw-sylly-toggle',  () => { flwSyllyMode = !flwSyllyMode; flwSyllyMode ? playSyllyOn() : playSyllyOff(); flwSyncToggle('btn-flw-sylly-toggle', flwSyllyMode); });
   flwBindPills('data-flw-tokmode', v => { flwTokenMode = v; const row = document.getElementById('flw-custom-target-row'); if (row) row.style.display = (v === 'custom') ? 'flex' : 'none'; });
   flwBindPills('data-flw-target', v => { flwCustomTarget = parseInt(v, 10); });
   flwBindPills('data-flw-burn',   v => { flwBurnSetting  = parseInt(v, 10); });
   flwBindPills('data-flw-timer',  v => { flwTurnTimer    = parseInt(v, 10); });
+  flwBindPills('data-flw-ledger', v => { flwLedgerMode   = v; });
 
   // Overlay closers
   on('btn-flw-settings-done', () => { playDone(); const el = document.getElementById('flw-settings-overlay'); if (el) el.style.display = 'none'; });

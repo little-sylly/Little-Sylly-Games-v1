@@ -8367,12 +8367,16 @@ Reboot
         <p class="text-xs text-stone-400 mt-1">Set the scene before the first Showing.</p>
       </div>
       <div class="overflow-y-auto flex flex-col gap-5 px-5 py-5">
-        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
-          <div class="flex items-center justify-between">
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
             <p class="text-stone-800 font-semibold">Appraiser's Ledger</p>
-            <button id="btn-flw-ledger-toggle" class="game-toggle-on-flw shrink-0">ON</button>
+            <p class="text-stone-400 text-sm mt-0.5">Tally shows a running count of every gem seen. Discards shows the actual play order instead. Off is a pure memory game.</p>
           </div>
-          <p class="text-stone-400 text-sm">Show a running tally of every gem already exposed — or switch off for a pure memory game.</p>
+          <div class="flex gap-2">
+            <button class="pill pill-active-flw" data-flw-ledger="tally">Tally</button>
+            <button class="pill" data-flw-ledger="discards">Discards</button>
+            <button class="pill" data-flw-ledger="off">Off</button>
+          </div>
         </div>
 
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">

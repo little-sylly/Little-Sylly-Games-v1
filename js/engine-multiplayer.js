@@ -861,7 +861,7 @@ function mpSerialiseSettings(abbr) {
       frtFruitStock, frtRounds, frtTurnTimer, frtSyllyMode, frtPearOff,
     };
     case 'flw': return {
-      flwLedgerOn, flwTokenMode, flwCustomTarget, flwTurnTimer, flwBurnSetting, flwSyllyMode,
+      flwLedgerMode, flwTokenMode, flwCustomTarget, flwTurnTimer, flwBurnSetting, flwSyllyMode,
     };
     case 'shp': return {
       shpHandSize, shpMoons, shpMoonsToWin, shpDreamAccel, shpSyllyMode,
@@ -1050,7 +1050,7 @@ function mpHandleEnvelope(env) {
           if (s.shpSyllyMode    !== undefined) shpSyllyMode    = s.shpSyllyMode;
           break;
         case 'flw':
-          if (s.flwLedgerOn     !== undefined) flwLedgerOn     = s.flwLedgerOn;
+          if (s.flwLedgerMode   !== undefined) flwLedgerMode   = s.flwLedgerMode;
           if (s.flwTokenMode    !== undefined) flwTokenMode    = s.flwTokenMode;
           if (s.flwCustomTarget !== undefined) flwCustomTarget = s.flwCustomTarget;
           if (s.flwTurnTimer    !== undefined) flwTurnTimer    = s.flwTurnTimer;

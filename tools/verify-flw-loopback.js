@@ -179,6 +179,22 @@ globalThis.__flw = {
     const kids = document.getElementById('flw-hand-row').children;
     return kids.map(k => /(^| )flw-placard( |$)/.test(k.className || '') ? 'placard' : 'wrap');
   },
+  get ledgerMode() { return flwLedgerMode; },
+  setLedgerMode(v) { flwLedgerMode = v; },
+  // Mirrors mpSerialiseSettings/SETTINGS_SYNC's 'flw' case (engine-multiplayer.js)
+  // exactly — this harness loads only flw.js, so the real serialiser/deserialiser
+  // pair isn't reachable through the wire; these two reproduce their contract.
+  serialiseSettings() {
+    return { flwLedgerMode, flwTokenMode, flwCustomTarget, flwTurnTimer, flwBurnSetting, flwSyllyMode };
+  },
+  applySettings(s) {
+    if (s.flwLedgerMode   !== undefined) flwLedgerMode   = s.flwLedgerMode;
+    if (s.flwTokenMode    !== undefined) flwTokenMode    = s.flwTokenMode;
+    if (s.flwCustomTarget !== undefined) flwCustomTarget = s.flwCustomTarget;
+    if (s.flwTurnTimer    !== undefined) flwTurnTimer    = s.flwTurnTimer;
+    if (s.flwBurnSetting  !== undefined) flwBurnSetting  = s.flwBurnSetting;
+    if (s.flwSyllyMode    !== undefined) flwSyllyMode    = s.flwSyllyMode;
+  },
 };`;
 
   vm.runInContext(flwSrc + BRIDGE, sandbox, { filename: `flw.js (${name})` });
@@ -373,6 +389,16 @@ function safe(label, fn) {
   const finalBody = client.document.getElementById(finalBodyId);
   check('client rendered the final reveal card on whichever screen it landed on',
         finalBody.children.length > 0, true);
+
+  // ── Task 7 — flwLedgerMode settings sync, all three values ──────────────
+  section('SETTINGS_SYNC carries flwLedgerMode — all three values, not just one');
+  ['tally', 'discards', 'off'].forEach(mode => {
+    H.setLedgerMode(mode);
+    const onWire = wire({ type: 'LOBBY', payload: { action: 'SETTINGS_SYNC', gameSettings: H.serialiseSettings() },
+                           originId: 'u0', timestamp: Date.now() });
+    C.applySettings(onWire.payload.gameSettings);
+    check(`client's flwLedgerMode becomes '${mode}'`, C.ledgerMode, mode);
+  });
 
   console.log('\n' + '='.repeat(62));
   console.log(failures === 0 ? 'ALL CHECKS PASSED' : `${failures} CHECK(S) FAILED`);
