@@ -127,6 +127,10 @@ function makeDevice(name, mode, myIdx, slots) {
     playBoing() {}, playDone() {}, playExit() {}, playLaunch() {}, playPillClick() {},
     playSuccess() {}, playSyllyOff() {}, playSyllyOn() {}, playTick() {}, playWhoosh() {},
     assetFace: () => null, assetBack: () => null, assetExtra: () => null,
+    // engine.js's shared Tap-Hold Reference helper (shpBindCardHold now delegates
+    // to it) — a no-op here exactly like this mock's own el.addEventListener,
+    // since this harness does not test DOM event bindings.
+    bindCardHold() {},
     mpLockSync() {}, mpUnlockSync() {},
     mpPlayerSlots: slots, mpMyPlayerIdx: myIdx,
     resetToLobby() { sandbox.__dissolved = true; },

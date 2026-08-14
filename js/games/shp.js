@@ -1332,19 +1332,11 @@ function shpHandFooter(me, tappable) {
 }
 
 // 500ms long-press → jump to that card's row in the How-to gallery, scrolled + ringed
-// (ui-style.md § Tap-Hold Reference — the PKO precedent, generalised here). The Wolf-slot
-// placeholder has no card id of its own; it points at real card 12 (The Big Bad Wolf),
-// whose gallery row is what explains the locked slot.
+// (ui-style.md § Tap-Hold Reference — delegates to engine.js's bindCardHold). The
+// Wolf-slot placeholder has no card id of its own; it points at real card 12 (The
+// Big Bad Wolf), whose gallery row is what explains the locked slot.
 function shpBindCardHold(el, cardId, isWolf) {
-  let timer = null;
-  const cancel = () => { if (timer) { clearTimeout(timer); timer = null; } };
-  const start  = () => { cancel(); timer = setTimeout(() => { timer = null; shpOpenHowTo('cards', isWolf ? 12 : cardId); }, 500); };
-  el.addEventListener('touchstart', start,  { passive: true });
-  el.addEventListener('touchend',   cancel);
-  el.addEventListener('touchmove',  cancel, { passive: true });
-  el.addEventListener('mousedown',  start);
-  el.addEventListener('mouseup',    cancel);
-  el.addEventListener('mouseleave', cancel);
+  bindCardHold(el, () => shpOpenHowTo('cards', isWolf ? 12 : cardId));
 }
 
 // Display name for a card — subtract cards show a bare "−N" on the face but read as
@@ -1909,16 +1901,7 @@ function shpRenderGallery(highlightId) {
 
   // Tap-hold entry point (ui-style.md § Tap-Hold Reference) — scroll to and briefly ring
   // the target row so the player lands exactly where their question was.
-  if (highlightId != null) {
-    const target = box.querySelector('[data-shp-card-id="' + highlightId + '"]');
-    if (target) {
-      requestAnimationFrame(() => {
-        target.scrollIntoView({ block: 'center' });
-        target.classList.add('shp-ref-row-ping');
-        setTimeout(() => target.classList.remove('shp-ref-row-ping'), 1600);
-      });
-    }
-  }
+  if (highlightId != null) refHighlightRow(box, 'data-shp-card-id', highlightId, 'shp-ref-row-ping');
 }
 function shpShowTip(emoji, heading, lines) {
   document.getElementById('shp-tip-emoji').textContent = emoji || '';

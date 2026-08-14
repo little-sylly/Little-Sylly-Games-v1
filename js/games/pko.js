@@ -949,14 +949,8 @@ function pkoRenderMyHoard() {
 
 // Tap-hold any card, anywhere → the chain overlay (spec §8: three entry points, one
 // overlay). Hold, never drag — drag is deliberately unused in this game.
-function pkoBindChainHold(el, id) {
-  let held = null;
-  const start = () => { held = setTimeout(() => { held = null; pkoOpenChain(id); }, 500); };
-  const stop  = () => { if (held) { clearTimeout(held); held = null; } };
-  el.addEventListener('touchstart', start, { passive: true });
-  el.addEventListener('mousedown', start);
-  ['touchend', 'touchmove', 'touchcancel', 'mouseup', 'mouseleave'].forEach(e => el.addEventListener(e, stop));
-}
+// Delegates to engine.js's bindCardHold (ui-style.md § Tap-Hold Reference).
+function pkoBindChainHold(el, id) { bindCardHold(el, () => pkoOpenChain(id)); }
 
 // One species group is ONE tap target, and a tap CYCLES how many of it are staked:
 // 0 → 1 → … → N → 0. Overlap makes a per-card target unusable (~7px of exposed sliver at

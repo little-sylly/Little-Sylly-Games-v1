@@ -495,6 +495,35 @@ function artMakeZoomable(el, src, caption) {
   return el;
 }
 
+// Long-press a card to jump to its row in that game's How-to gallery tab.
+// Suite standard — ui-style.md § Tap-Hold Reference. PKO and SHP shipped this
+// twice with near-identical code; FLW (the third user) earned the extraction.
+// Cancels on touchmove (a scroll starting on a card must not open the gallery).
+function bindCardHold(el, onHold, ms = 500) {
+  let timer = null;
+  const cancel = () => { if (timer) { clearTimeout(timer); timer = null; } };
+  const start  = () => { cancel(); timer = setTimeout(() => { timer = null; onHold(); }, ms); };
+  el.addEventListener('touchstart', start, { passive: true });
+  el.addEventListener('touchmove',  cancel, { passive: true });   // a scroll is not a hold
+  ['touchend', 'touchcancel', 'mouseup', 'mouseleave'].forEach(e => el.addEventListener(e, cancel));
+  el.addEventListener('mousedown', start);
+}
+
+// Scroll a gallery row into view and ring it briefly. `pingClass` is per-game
+// (the ring takes the game's colour); the mechanics are not. The ring is a
+// box-shadow TRANSITION, never @keyframes — the global reduced-motion block
+// (ui-style.md § Motion Standard) zeroes transition durations, so no separate
+// guard is needed here.
+function refHighlightRow(box, attr, id, pingClass, ms = 1600) {
+  const target = box && box.querySelector('[' + attr + '="' + id + '"]');
+  if (!target) return;
+  requestAnimationFrame(() => {
+    target.scrollIntoView({ block: 'center' });
+    target.classList.add(pingClass);
+    setTimeout(() => target.classList.remove(pingClass), ms);
+  });
+}
+
 function updateSliderTheme(gameId) {
   const map = {
     'li5': 'li5-range', 'great-minds': 'sylly-range',
