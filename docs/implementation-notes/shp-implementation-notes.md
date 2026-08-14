@@ -28,6 +28,132 @@ Spec: `docs/new-game-tech-counting-sheep.md`. MDLM-only, host-authoritative, hos
 - **Sync:** `phase`/`ceiling`/`grace` ride in `SHP_TURN_RESULT` (and `SHP_DISRUPT_RESOLVED`); clients detect a climb→plunge flip to raise the one-shot "THE PLUNGE BEGINS" flash. No separate `SHP_PHASE_CHANGE` packet was needed — folding it into the turn result is simpler (minor deviation from spec §12's suggested dedicated packet).
 - **400-game sim (≈⅔ with Night Terrors on):** overflow runway held at every entry (ceiling ≥99), 31k Plunge entries, both bust and mercy exits fired thousands of times, all games terminated.
 
+### Owner playtest round 2 — herd-band balance, Swap Dreams flip, Wide Awake redesign, universal ability banners (14 Aug 2026)
+
+- **Herd-band reorder (owner ask).** The centre column now reads label → ceiling badge → value →
+  pressure bar, not label → value → bar → ceiling. Pure reorder of the same four elements, so total
+  column height is unchanged — but the pen (left) and Last Played (right) columns were sized against
+  the OLD, shorter-looking layout and read small/top-heavy next to it. Bumped `.shp-pen-img`
+  6.6rem→7.8rem and `.shp-last-card` 3rem→3.6rem (scale 0.75→0.9), and gave both an explicit
+  `self-center` (they were already `items-start` grid children) so they sit centred against the
+  taller centre stack rather than pinned to its top edge.
+- **Swap Dreams got a real flip choreography instead of a silent hand swap.** `shpRenderSwapFlip`
+  is a two-wave 3D flip (front/back faces on a `preserve-3d` inner, `.shp-flip-*` in `styles.css`):
+  wave 1 flips every OLD card to its back left-to-right; after a hold, wave 2 swaps each card's
+  *hidden* front face to the NEW card and continues the same rotation to reveal it, left-to-right.
+  Only the two devices actually involved (`shpSwapAnim.a`/`.b`) ever see it — consistent with the
+  couch-security "broadcast whole, render own" model every hand in this game already uses. One-shot
+  consumption (`shpSwapAnim = null` the instant a device renders it) mirrors the existing
+  `shpPlungeFlash` idiom, so a footer-only repaint (the 1s tap-gate timer) never replays it.
+  **Lesson worth keeping:** the swap mutates `shpHands` immediately inside `shpResolveCard`, but the
+  ACTOR's post-swap hand isn't final until the caller's own `shpDrawUp(playerIdx)` runs afterwards —
+  so `aNew` has to be a two-step snapshot (`null` set inside `shpResolveCard`, filled in by
+  `shpHostPlayCard`/`shpHostPlayTwoCard` right after their own draw-up), while `bNew` (the partner)
+  is already final inside `shpResolveCard` itself. Missing that split silently animates into the
+  ACTOR's pre-draw-up hand.
+- **Wide Awake redesigned — `kind:'wake-leader'` → `kind:'ban-pillow'`.** The old effect ("turn
+  skips to the player with the most Moons") could target yourself if you were already the leader,
+  and ties (common early in a Night, before anyone has Moons) needed extra tie-break logic that
+  never quite read as intentional in play. Owner's call (of four options offered): drop the
+  leader-targeting idea entirely — Wide Awake now bans the very next player from playing a Pillows
+  card on their upcoming turn (`shpNoPillowNext`, same one-turn-lookahead shape as
+  `shpForcedCards`/Heavy Eyelids). Always targets a real player, never fizzles, no ties possible.
+  `shpLeaderIdx()` is now dead code and was deleted. If a hand is ALL Pillows when the ban lands,
+  the player is legitimately stuck (`shpStuckIdx`) — treated as an intended risk, not a bug, same
+  as any other "no safe cards" crash.
+- **Every ability card now sets `shpLastEffect`**, not just Swap Dreams/Rude Awakening (playtest
+  ask: "same message as Swap Dreams... Skip, Reverse, Reset, etc."). `shpResolveCard` computes the
+  resulting Herd up front (`resultHerd`) so every banner can quote it, then a single `kind` if/else
+  chain sets the banner text for skip/reverse/reset/set/random-add/two-card/ban-pillow alongside the
+  pre-existing shuffle/swap-hands branches. Deliberately NOT extended to plain `add`/`subtract`
+  (Pasture / Counting Backwards) — those are the routine plays and are already visible via the
+  sheep-parade animation and the live Herd number; a banner on every single play would be noise.
+
+### Owner playtest round 3 — two real bugs, heading-row fix, shared card border, terminology (14 Aug 2026)
+
+- **BUG — a forced Heavy Eyelids pair could be submitted with no legality check on the tapped
+  order.** Reported live: Black Sheep (sets Herd to 99, always legal) then +2 (busts to 101).
+  `shpHasSafePair` — the function gating whether the player is even allowed into two-card mode
+  at all — checks EVERY ordered pair and only asks "does a safe combo exist", so it correctly
+  said yes (the *other* order, +2 then Black Sheep, is always safe since `set` is absolute). But
+  nothing then checked the SPECIFIC order the player actually tapped before submitting it —
+  `shpConfirmTwoCard` only checked `shpTwoSel.length === 1`, not legality. Single-card play never
+  allows a deterministic bust (`shpIsPlayable`); two-card selection now matches: `shpStageTwoCard`
+  rejects (boing, not staged) a second tap if `shpPairFinalBest(me, first, second) > shpCeiling`
+  in that exact order — the player can still reach a legal line by deselecting and re-picking the
+  other order, since `shpHasSafePair` already guarantees one exists. Also gated the SAME function
+  against Wide Awake's Pillows ban, which `shpTapCard`'s two-card branch bypassed entirely before
+  (it jumped straight to `shpStageTwoCard`, skipping `shpIsPlayable`'s family check).
+- **BUG — the doze/Moon-loss banner never cleared on non-host devices.** `shpBroadcastTurn` nulls
+  `shpDozeNotice` locally on the host before every new play, but that null-out is LOCAL — it never
+  rode in the `SHP_TURN_RESULT` payload, and the client's applier for that packet cleared
+  `shpLastDisrupt` but not `shpDozeNotice`. Reported symptom: "😴 Shirley gambled to 101 — dozed
+  off. 2 still awake." stayed pinned on non-host screens for several turns after the crash was
+  resolved. Fixed by adding the same `shpDozeNotice = null` to the client's `SHP_TURN_RESULT`
+  applier — a normal turn always supersedes the last crash's banner, same logic the host already
+  had, just missing on the receiving end. **Lesson:** a "local-only, never-in-a-payload" reset is
+  invisible in review because the host never notices — it always looks correct on the device that
+  set it. Worth grepping for every `shpXxx = null` inside a host-only function and checking whether
+  the client-side applier for the packet that function sends has the same line.
+- **Herd-band heading row.** The Pen / The Herd / Last Played previously misaligned again the
+  moment the ceiling badge moved inside the centre column (round 2's reorder) — self-centring an
+  unlabelled pen/last-played column against a taller, label-less neighbour is inherently fragile.
+  Replaced with two explicit stacked `grid-cols-3` rows sharing one column template: a heading row
+  (three equal `.shp-last-label`/`.shp-herd-label` cells) above a content row (pen image / counter
+  stack / last-played card or an em-dash placeholder before the first play). Explicit headings that
+  can never drift beat self-centring implicit ones. Pen/last-card art sizes dialled back a touch
+  (7.8rem→7.2rem pen, card scale 0.9→0.82) since the centre column lost its in-column "The Herd"
+  label to the new heading row and is shorter than round 2 assumed.
+- **Shared "flagged" card border**, reused three ways instead of inventing a colour each time
+  (owner ask): Fogged Dream's border was violet (`#7c3aed`/`#c4b5fd`), inconsistent with the rest
+  of the indigo-themed table — recoloured to indigo (`#6366f1`) and split into a reusable
+  `.shp-card-flagged` class. Now applied to: Fogged Dream (both the art and no-art-fallback faces),
+  the greyed Big Bad Wolf slot (kept its grey fill, gained the border), and any Pillows card made
+  unplayable by Wide Awake's ban (already greyed via the existing legal[]/opacity-40 path — this
+  adds the border on top, in both the normal single-card hand and the two-card selection view).
+- **Terminology: family names in the gallery are now plural** ("Pillow"→"Pillows",
+  "Alarm"→"Alarms", "Trap"→"Traps", "Fogged Dream"→"Fogged Dreams" for the SECTION title only —
+  the one card's own display name stays singular "Fogged Dream"). "Face Down" stays singular
+  (it's a description, not a family name). The How-to Step 2 copy in `index.html` already said
+  "Pillows"/"Alarms" — only the gallery's `shpRenderGallery` section titles and
+  `game-identities.md`'s family bullets were still singular.
+- **Swap Dreams flip doubled** (220/90/260ms → 440/180/520ms) — the first pass read as too quick
+  to actually follow, per playtest.
+
+### Owner playtest round 4 — Daybreak exit copy, brand-colour rebrand (14 Aug 2026)
+
+- **"✕ Done" → "Time to Sleep"** on the Daybreak (`screen-shp-gameover`) exit button — a themed
+  label like CJAR's "Leave the Jar", replacing the generic icon-prefixed one. Audited every other
+  game's gameover screen first (Explore agent, ~18 games): the suite-wide pattern is **direct**
+  `resetToLobby()` on the exit button, confirm-overlay-first only on play-again — universal, no
+  exceptions — so SHP's un-confirmed exit was already correct and needed no logic change, only copy.
+- **Brand colour rebrand: Tailwind indigo → custom `#3A3D52` "midnight".** Full detail in the
+  decision-log entry (2026-08-14) — this note carries the mechanics, not the rationale. Pixel-
+  sampled the actual card art (PowerShell + `System.Drawing`, three regions across two cards,
+  converging on `#34384A`) rather than guessing between "charcoal" and "deep violet" as the owner
+  had been. Renamed `pill-active-indigo`/`game-toggle-on-indigo` → `-shp` (matching the
+  `pill-active-[abbr]` convention every other custom-hex game already uses) and added `.shp-cta`/
+  `.shp-label`/`.shp-tint-bg` alongside the existing `.shp-range`. **`index.html`'s 23-site swap
+  went through a throwaway Node script, never the Edit tool** — `feedback-indexhtml-encoding`
+  memory: the Edit tool round-trips this file through Windows-1252 on this machine and mojibakes
+  every emoji in it. Deliberately did NOT touch the four card-family border colours
+  (pasture/pillow/alarm/trap) — those are a separate multi-hue taxonomy, not "the brand colour",
+  and pasture's indigo-400 border in particular predates and is unrelated to the CTA/chrome hue
+  that was actually the complaint.
+- **Same round, the "flagged" card border (added round 3 for Fogged Dream/Wolf/Wide-Awake-ban)
+  got re-tuned from a bright colour to neutral stone**, independent of which colour was "bright" —
+  a highlighted, saturated border reads as an affordance ("you can tap this") regardless of which
+  hue it is, which is backwards for a card that is specifically NOT playable. Verified live via
+  `visual-check`: greyed + stone-bordered Pillows next to full-colour playable cards reads clearly
+  as "restricted", not "selected".
+- **Verified with `visual-check`** (menu, settings, how-to Rules + Cards tabs — scrolled to Wolf/
+  Wide Awake/Fogged Dream rows specifically, table mid-game, the Wide-Awake-ban visual on an actual
+  hand, gameover) rather than shipped on code-review alone, given the size of the sweep. One false
+  alarm during that pass: "The Herd" heading looked missing in a downscaled full-page screenshot —
+  a `getBoundingClientRect`/computed-style check confirmed the DOM and colour were correct all
+  along; a cropped close-up screenshot showed it fine. Lesson for next time: crop to the region in
+  question before concluding something is missing from a compressed screenshot.
+
 ---
 
 ## Bug Index

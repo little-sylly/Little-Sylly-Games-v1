@@ -550,7 +550,8 @@ Player count (3–6, default 4, `lttpPlayerCount`) is set on the setup screen �
 ```
 LOBBY → NAT MENU → NAT SETUP
 → [Match loop:
-    [Day loop: NAT HANDOVER → NAT OBSERVATION → (NAT DAILY REVIEW if Sylly)]
+    NAT HABITAT INTRO (5s auto-advance interstitial, rotating flavour — ui-style.md § Round/Night Intro Screen)
+    → [Day loop: NAT HANDOVER → NAT OBSERVATION → (NAT DAILY REVIEW if Sylly)]
     → NAT SELECTION → NAT LAST STAND (if Mole caught) → NAT TALLY
   ]
 → NAT GAMEOVER
@@ -1188,7 +1189,8 @@ In narrative sequence: Booking Accommodation 🏠 → Who's Driving 🚗 → Foo
 LOBBY (MDLM only) → PASS MENU
 → PASS SEATING (host only — shows seat order before deal)
 → [Match loop:
-    PASS TABLE (bidding + playing + passing)
+    PASS ROUND INTRO (5s auto-advance interstitial, rotating flavour — ui-style.md § Round/Night Intro Screen)
+    → PASS TABLE (bidding + playing + passing)
     → PASS ROUND WRAP (chip deltas, winner, Next Round for host)
     → repeat until match over
   ]
@@ -1386,20 +1388,19 @@ Player count (`ntPlayerCount`, default 4) is set from the lobby roster in MDLM (
 | Screen ID | Purpose |
 |-----------|---------|
 | `screen-nt-menu` | Main hub |
-| `screen-nt-setup` | Node generation preview — host deals and shows all players their relay-leg |
-| `screen-nt-handshake` | Pass-the-phone gate before each player's hardening turn (PTP only) |
+| `screen-nt-setup` | PTP "Provision Admins" — operator count + callsigns |
+| `screen-nt-gate` | Cycle readiness gate — reused for the cycle-start boot terminal (types out flavour lines, then reveals the ready-check button), each PTP player's pass-the-phone handover, and the post-build "gather to watch playback" beat |
 | `screen-nt-allocation` | DNP Shared Allocation Hub — captain distributes team pool across legs |
 | `screen-nt-build` | Hardening screen — player places components on their relay-leg node |
-| `screen-nt-waiting` | Passive standby — shown while other players are hardening (MDLM) |
+| `screen-nt-standby` | Passive standby — shown while other players are hardening (MDLM) |
 | `screen-nt-playback` | Animated BFS traversal canvas + per-player latency/SER comparison panel |
-| `screen-nt-results` | Per-cycle SER leaderboard |
-| `screen-nt-gameover` | Final report — SER rankings across all cycles |
+| `screen-nt-summary` | Diagnostic Summary — per-cycle SER leaderboard, or the final match report on the last cycle |
 
 ### Multiplayer (Phase 33)
-- **Mode:** PTP + MDLM — `multiplayerOnly: false`, `supportedModes: ['ptp', 'mdlm']`, `recommendedMode: 'mdlm'`. PTP (single-device) is locked when DNP/Sylly Mode is on, via `getLockedModes()` (DNP requires teams). *(Reconciled to shipped code — Protocol C, June 2026; this subsection previously read "MDLM only / `['mdlm']` / min 3", which contradicted both the config and NT's own PTP state-flow + `screen-nt-handshake`.)*
+- **Mode:** PTP + MDLM — `multiplayerOnly: false`, `supportedModes: ['ptp', 'mdlm']`, `recommendedMode: 'mdlm'`. PTP (single-device) is locked when DNP/Sylly Mode is on, via `getLockedModes()` (DNP requires teams). *(Reconciled to shipped code — Protocol C, June 2026; this subsection previously read "MDLM only / `['mdlm']` / min 3", which contradicted both the config and NT's own PTP state-flow.)*
 - **Min players:** 2 (`getMinPlayers → 2`, Standard) / 4 for DNP (two teams) | **Max players:** 8 (`getMaxPlayers → 8`)
 - **rosterConfig:** `type` is a **function** — `'teams'` (with `hasCaptain`) when DNP/Sylly is on, else `'none'` (automatic seat assignment, join order)
-- **Shared screens:** `screen-mp-mode`, `screen-mp-lobby-host`, `screen-mp-lobby-join` (parameterised); PTP additionally uses the `screen-nt-handshake` pass-gate per player
+- **Shared screens:** `screen-mp-mode`, `screen-mp-lobby-host`, `screen-mp-lobby-join` (parameterised); PTP additionally uses `screen-nt-gate` as a pass-gate per player
 - **Post-lobby routing:** `onPassThePhone` (host, MDLM) → `screen-nt-menu` (Play CTA then starts the session); (single/PTP) → `ntShowSetup()`; clients wait for `NT_GENERATE`
 - **Hardening privacy:** Each device hardens its own node locally. Placements are not broadcast until `NT_PLACEMENT_SUBMIT` ACTION at end of hardening window.
 - **DNP team assignment:** `ntTeamIdx[playerIdx]` and `ntCaptainSlots[team]` populated from `mpLobbyRoster` in `onPassThePhone`. Team captains are the `rosterConfig.captainSlots` values.
@@ -1548,7 +1549,7 @@ Banana `#FFC700` has no Tailwind utility class. Three custom CSS classes added t
 **Theme:** Sleepy bedtime / dream logic. An O'NO-99-style climbing/survival card game — keep the Herd at or below the fence (99); whoever can't dozes off.
 **Tagline:** "Stay awake. Pass the herd."
 **Key file:** `js/games/shp.js`
-**Brand colour:** Moonlit indigo (`indigo-600` primary / `indigo-700` hover — native Tailwind) | **Active pill:** `pill-active-indigo` | **Toggle ON:** `game-toggle-on-indigo` | **Range:** `shp-range`
+**Brand colour:** Midnight `#3A3D52` (custom, pixel-sampled from the card artwork's felt patches/stitching; hover `#2A2D3D` — replaced native Tailwind indigo, 14 Aug 2026) | **Active pill:** `pill-active-shp` | **Toggle ON:** `game-toggle-on-shp` | **Range:** `shp-range`
 **Data:** fixed `SHP_CARDS` (19 types incl. id 13 Fogged Dream phantom; ids 14/15/16 = Counting-Backwards −1/−2/−5; ids 17/18 = Rude Awakening / Swap Dreams, added 12 Aug 2026) + `SHP_DECK_COUNTS` (80-card deck, ≈64% pasture) + `SHP_NIGHTMARES` (5, weighted) — no `words.json`; exempt from the word-difficulty setting (Hand Size is the velocity dial).
 **State flow (post scoring-rework, chunks 1–10, SW v178):**
 ```
@@ -1584,10 +1585,10 @@ Sylly Mode (Night Terrors) adds an oscillating **Climb ⇄ Plunge** mode *within
 
 ### Card families (`SHP_CARDS`)
 - **Pasture** (`add`): +1/+2/+5/+10 (doubled while Herd < 50 if Dream Acceleration; +`shpEcho` under Global Echo). *Charges the meter.*
-- **Pillow:** Doze (skip), Toss & Turn (reverse), Counting Backwards −1/−2/−5/−10 (`subtract`, floored 0; faces show "−N", inspect modal names them "Counting Backwards −N"), Lullaby (set 20, 1-of), **Swap Dreams** (id 18, `swap-hands` — trade your whole Pen with a random living player; both sides re-draw to their own cap, so a Wolf-shrunk cap stays with the player not the cards).
-- **Alarm:** Skip a Few (random +2..+12 gamble), Black Sheep (set 99), Wide Awake (next turn → the player with the most **Moons**, i.e. whoever is winning — *not* most cards; the inspect text said cards until 12 Aug 2026), Heavy Eyelids (next player plays two), **Rude Awakening** (id 17, `shuffle` — reseats `shpSeatOrder` for the rest of the Night; Herd untouched).
-- **Trap:** Big Bad Wolf — consumed on draw, shrinks the cap by 1 (restored on redeal).
-- **Phantom (id 13):** Fogged Dream — conjured by the Fog nightmare; hidden random +2..+12, cursed render; dissolves on play/redeal.
+- **Pillows:** Doze (skip), Toss & Turn (reverse), Counting Backwards −1/−2/−5/−10 (`subtract`, floored 0; faces show "−N", inspect modal names them "Counting Backwards −N"), Lullaby (set 20, 1-of), **Swap Dreams** (id 18, `swap-hands` — trade your whole Pen with a random living player; both sides re-draw to their own cap, so a Wolf-shrunk cap stays with the player not the cards).
+- **Alarms:** Skip a Few (random +2..+12 gamble), Black Sheep (set 99), Wide Awake (id 10, `ban-pillow` — the next player may not play a Pillows card on their turn; redesigned 14 Aug 2026, replacing an earlier "turn skips to the Moons leader" effect that could target yourself and ties easily), Heavy Eyelids (next player plays two), **Rude Awakening** (id 17, `shuffle` — reseats `shpSeatOrder` for the rest of the Night; Herd untouched).
+- **Traps:** Big Bad Wolf — consumed on draw, shrinks the cap by 1 (restored on redeal).
+- **Fogged Dreams (id 13, internal family `phantom`):** conjured by the Fog nightmare; hidden random +2..+12, cursed render; dissolves on play/redeal. Displayed name is singular ("Fogged Dream") for the one card itself — the family label in the gallery ("Fogged Dreams") is plural, matching Pillows/Alarms/Traps.
 
 ### Settings
 | Setting (display) | Options | Default | Internal variable | Values |
@@ -1671,143 +1672,236 @@ herd-band layout, and the REAL animation bug" entry.
 ---
 
 ## Game 16: Flawless (FLW)
-**Theme:** Competitive gem-trading bluffing game. Players pass face-down Showpieces and declare a gem identity — the receiver must decide whether to accept or challenge. Hidden hands, deceptive declarations, and the Diamond Ledger.
-**Tagline:** "Every gem has a secret. So does every player." 💎
+**This section previously documented a different, unshipped design** — a pass-and-declare
+"server/receiver" bluffing loop with ten unrelated gem names (Ruby, Sapphire, Pearl, Onyx…).
+Rewritten from the shipped code 15 Aug 2026 (gem-seam plan Task 13); see `docs/decision-log.md`.
+**Theme:** A faithful digital Love Letter (21-card Chancellor edition), re-skinned as The Master
+Jeweller's Exhibition. Each Collector holds one secret Showpiece; drawing a second gem each turn
+and placing one resolves its effect — peek, swap, force a discard, expose a rival. Highest carat
+still held when the Vault runs dry wins the Showing.
+**Tagline:** "The flawless one wins. Don't get exposed." 💎
 **Key file:** `js/games/flw.js`
-**Brand colour:** `#E879A8` (rose-pink — custom; hover `#CF5A8D`) + `#C9A227` (Exhibition gold for step/section labels) | **Active pill:** `pill-active-flw` | **Toggle ON:** `game-toggle-on-flw`
+**Brand colour — two established pinks, used both ways round (15 Aug 2026, four passes — SETTLED):**
+`#F9A8D4` (light — the Pink Diamond's pale, light-catching facets; brightened twice from
+`#E879A8`→`#F472B6`→`#F9A8D4`) and `#A02050` (dark ink — the carat text hex, "a deliberately
+separate hex that does not track the brand", per spec §2). **Primary surfaces** (CTA/pills/toggle-
+ON, and the lobby's own `#btn-flw` game-tile) are `#F9A8D4` fill + WHITE text — confirmed live by
+the owner against the lobby tile as the reference ("that combo passes the check, apply it
+everywhere"). Measured contrast is low (~1.8:1) but this is a deliberate, twice-confirmed call —
+don't "fix" it back to dark ink. **Every secondary/utility surface flips the same two established
+hexes instead** — `#A02050` fill + WHITE text (simplified from light-pink `#F9A8D4` text, round 5) — Settings, Audit, and the readyCheck
+button all match this now (the latter two were originally missed and left on the pre-flip light
+tint; caught in the same pass). A deliberate exception to the suite's usual light-tint Settings
+convention (`ui-style.md` Table C, footnote ¶) — don't generalise the flip to other games.
+`#F472B6` (the middle brightening step) survives only as the CTA hover shade and
+`.flw-step-label`'s text-on-white colour. Plus `#C9A227` (Exhibition gold — card frame + step
+labels). | **Active pill:**
+`pill-active-flw` | **Toggle ON:** `game-toggle-on-flw`
 **State flow:**
 ```
 LOBBY (MDLM only) → FLW MENU → [onPassThePhone: host deals first Showing]
-→ [Session loop (Showings until diamonds-to-win reached):
-    FLW TABLE (serving → await-response → reveal → under-glass, all within screen-flw-table)
-    → FLW SHOWING RESULT (Diamonds awarded, Ledger reset)
+→ [Session loop (Showings until Diamonds-to-win reached):
+    FLW TABLE (draw → place a gem → resolve its effect → next player, all within screen-flw-table)
+    → FLW SHOWING RESULT (reveal, Diamond tally, that Showing's Journal — gated by a readyCheck:
+      every non-host player taps "Next Showing" (same label as the host button) before the host's Next Showing unlocks)
     → repeat or GAMEOVER
   ]
-→ FLW GAMEOVER (The Vault)
+→ FLW GAMEOVER (Best in Show)
 ```
 
 ### Terminology
 | Term | Meaning |
 |------|---------|
-| Showpiece | A gem card in a player's private hand |
-| The Stash | A player's hidden hand of Showpiece gem cards |
-| The Appraisal | Receiving a Showpiece — accepting or challenging the declaration |
-| The Declaration | The gem identity stated by the server (may be false) |
-| Bluff | Declaring a gem identity that is not the true gem |
-| Call the Bluff | Challenge the declaration — triggers The Reveal |
-| Accept | Believe the declaration and add the gem to The Ledger tally |
-| The Ledger | The per-Showing running tally of declared gem identities; winners of each gem category earn Diamonds |
-| Diamond | Score currency; first to `flwDiamondsToWin` wins the session |
-| Showing | One full round: all players pass until a player runs out of Showpieces or a win condition triggers |
-| The Vault | Gameover screen — "The Vault" heading |
-| Under Glass | The state when a player's most-recent play is being audited (Sylly Mode) |
-| Start the Exhibition | Menu Play CTA label |
-| The Exhibition Brief 💎 | Settings overlay title |
+| Collector | A player |
+| Showpiece | The one gem a Collector holds secretly at all times |
+| The Vault | The draw deck — "N gems remaining" |
+| The Locked Lot | The gems burned face-down (Smoke & Mirrors) at the start of each Showing — never seen |
+| Vault Lock | The Vault running dry — triggers the reveal (highest carat wins, ties break on discard sum) |
+| Exposed | Out for the Showing — a correct guess against you, a lost Appraisal, or being forced to discard the Pink Diamond |
+| Under Glass | Untargetable until your own next turn (Imperial Jade's effect) |
+| The Showroom | Static table-header title — the game has no rounds/matches beyond Showings, so the header names the place, not the turn |
+| Exhibition N | The Showing counter, shown on the same line as The Showroom ("The Showroom - Exhibition N") and on the result screen (was "Showing N" before 15 Aug 2026) |
+| The Appraiser's Ledger | The table's public gem tracker — Tally (running discard counts), Discards (chronological strip), or Off |
+| The Showroom Journal | The public action log on the table screen |
+| Cut Diamond | Score currency — first to `flwTargetTokens()` wins the session ("Best in Show") |
+| Showing | One full deal — Vault Lock or last-Collector-standing |
+| The Counterfeit Run | Sylly Mode — bluffing/audit economy (below) |
+| Enter the Exhibition | Menu Play CTA label |
+| The Display Case 💎 | Settings overlay title |
 | Another Showing? | Play-again overlay heading |
-| Pack up the Exhibition? | Quit overlay heading |
+| Pack Up Your Case? | Quit overlay heading |
 
-### The 10 Gems (`FLW_GEMS`)
-| ID | Name | Emoji | Scope | Effect on play / reveal |
-|----|------|-------|-------|------------------------|
-| 0 | Diamond | 💎 | Declaration target | No effect — counts toward Ledger |
-| 1 | Ruby | ❤️‍🔥 | Scope 1–7 | Server gains 1 Ledger point if bluff succeeds |
-| 2 | Sapphire | 💙 | Scope 1–7 | Receiver draw +1 card from deck if they Accept |
-| 3 | Emerald | 💚 | Scope 1–7 | Receiver offered choice to trade into server's remaining hand |
-| 4 | Amethyst | 💜 | Scope 1–7 | Challenger loses 1 Ledger point if wrong call |
-| 5 | Topaz | 💛 | Scope 1–7 | Server draws +1 from deck if correctly accepted |
-| 6 | Obsidian | 🖤 | Scope 1–7 | Correct challenger does NOT gain Ledger point (silent effect) |
-| 7 | Opal | 🤍 | Scope 1–7 | Declared gem changes to the previous Showpiece's declared ID; server picks True or False |
-| 8 | Pearl | 🩵 | Special | Server may Peek at receiver's top card before declaring |
-| 9 | Onyx | 🩶 | Special | All players pass 1 Showpiece simultaneously; no challenge possible |
+### The 10 Gems (`FLW_DECK`) — gemId doubles as carat value
+| Carat | Name | Qty | Effect |
+|-------|------|-----|--------|
+| 9 | Pink Diamond | 1 | No effect — but forced to discard it (The Recut) exposes you |
+| 8 | Blood Ruby | 1 | Must be played if held together with the 7 or the 5 (hard lock — no bluffing past it) |
+| 7 | Blue Sapphire (The Trade) | 1 | Swap Showpieces with a rival |
+| 6 | Green Emerald (The Deep Vault) | 2 | Draw 2 more, keep the best of 3, return the other 2 to the Vault's bottom |
+| 5 | Yellow Topaz (The Recut) | 2 | Force a Collector (or yourself) to discard and redraw |
+| 4 | Imperial Jade | 2 | Slip Under Glass — untargetable until your own next turn |
+| 3 | Black Opal (The Private Appraisal) | 2 | Compare with a rival — lower carat is Exposed |
+| 2 | Purple Amethyst (The Loupe) | 2 | Secretly view a rival's Showpiece |
+| 1 | Clear Quartz (The Scratch Test) | 6 | Name a gem — a correct guess Exposes the target |
+| 0 | Raw Obsidian | 2 | Worthless at Vault Lock, but the sole surviving Collector who played one earns a bonus Diamond |
 
 ### Settings
 | Setting (display) | Options | Default | Internal variable | Internal values |
 |------------------|---------|---------|------------------|-----------------|
-| The Ledger | OFF / ON | ON | `flwLedger` | bool |
-| Diamonds to Win | Auto / 3 / 5 / 7 | Auto | `flwDiamondsToWin` | `'auto'` (player-count-scaled) / `3` / `5` / `7` |
-| Smoke & Mirrors | 1 / 3 / 5 | 1 | `flwSmokeMirrors` | int — gems burned face-down from deck per Showing |
-| Appraisal Clock | Off / 30s / 60s | Off | `flwAppraisalClock` | `0` / `30` / `60` |
+| Appraiser's Ledger | Tally / Discards / Off | Tally | `flwLedgerMode` | `'tally'` / `'discards'` / `'off'` |
+| Diamonds to Win | Auto / Custom (3/5/7) | Auto | `flwTokenMode` + `flwCustomTarget` | `flwTargetTokens()` = 7 at 3 players, 5 at 4, else `flwCustomTarget` |
+| Smoke & Mirrors | 1 / 3 / 5 Gems | 1 | `flwBurnSetting` | int — gems burned to the Locked Lot per Showing |
+| Appraisal Clock | Off / 30s / 60s | Off | `flwTurnTimer` | `0` / `30` / `60` |
 | ✨ Sylly Mode (The Counterfeit Run) | OFF / ON | OFF | `flwSyllyMode` | bool |
 
 ### Special Mechanics
 
-**The Ledger (Diamond Scoring):**
-- Tracks declared gem IDs across the Showing (not real IDs — uses claimed identity until audited)
-- At Showing end: player with the most accepted declarations for each gem category earns 1 Diamond
-- `flwLedger = false` disables the tracker display but scoring still applies
+**The Appraiser's Ledger:**
+- **Tally** — a per-gem discard count (`flwLedgerCounts`), rendered as two tight 3-column grids
+  (carat # → name → seen/total), one grid per visual column, with real spacing BETWEEN the two
+  grids so a count always reads as belonging to the gem beside it, not the next column's carat
+  (fixed 15 Aug 2026 — the old single 8-column grid gave every cell equal gutter, which read as
+  "count belongs to whichever gem is nearest either side").
+- **Discards** — `flwRenderDiscardStrip()`: a horizontal, chronological strip built from
+  `flwDiscardFeed`, newest card on the right (auto-scrolled into view).
+- **Off** — pure memory game, no public tracker at all.
+- A gem the Ledger shows fully discarded (`flwLedgerCounts[g] >= FLW_GEM[g].qty`) is greyed out
+  and unclickable in the Scratch Test's guess grid when the Ledger isn't Off — it can't be a
+  correct guess, so there's no reason to make tapping it live.
 
-**Gem Effects:**
-- **Emerald (3):** Server privately offers the receiver the Emerald via `FLW_EMERALD_OFFER` private packet; receiver gets `flw-emerald-overlay` to Accept or Block. If accepted, receiver swaps their top-Stash card for the Emerald (server loses 1 card, receiver gains 1).
-- **Pearl (8):** When served, host sends `FLW_PEEK` private packet to the receiver showing the card's real ID. Receiver sees `flw-peek-overlay` (tap-and-hold reveals). Not a challenge trigger.
-- **Onyx (9):** Simultaneous pass — host triggers a group rotation (each player passes their top-Stash card to the next player clockwise). No challenge is possible for this card. Host resolves and broadcasts `FLW_RESOLVE` with `onyx: true`.
+**Gem Effects (`flwApplyEffect`):**
+- **Blue Sapphire / The Trade (7):** swap Showpieces with a target.
+- **Green Emerald / The Deep Vault (6):** two-step — `flwHostStartEmerald` offers 3 gems (the
+  retained one + 2 fresh draws), the player keeps 1 via `flw-emerald-overlay` (leftmost
+  pre-selected, a description panel below the cards updates live with the selected gem's effect),
+  the other 2 return to the Vault's bottom in draw order (they are NOT discarded — a future draw
+  can surface them again, unlike a forced Recut discard).
+- **Yellow Topaz / The Recut (5):** force a discard-and-redraw; forcing the Pink Diamond out
+  Exposes its holder instead of a redraw.
+- **Imperial Jade (4):** Under Glass — lifts automatically at the start of your own next turn.
+- **Black Opal / The Private Appraisal (3):** private compare, lower carat Exposed; a tie changes
+  nothing.
+- **Purple Amethyst / The Loupe (2):** private peek via `flw-peek-overlay` (press-and-hold).
+- **Clear Quartz / The Scratch Test (1):** name-a-gem guess. If exactly one rival is legally
+  targetable, the target auto-selects (no tap needed) — you still choose the guess. The guess list
+  is a 2-row-of-5 grid of real gem cards (carat already on the face), not text buttons.
+- **Raw Obsidian (0):** no play-time effect; scored at Showing end.
+- Every Journal line names the gem FIRST, then the action — "X played the Y — did Z" (fixed
+  15 Aug 2026; several effect lines previously described only the action, e.g. "slipped Under
+  Glass" with no mention of Imperial Jade).
+
+**Target selection always shows every alive Collector, not just the legal ones:** `flwOpenTarget`
+lists everyone still in the Showing (excluding yourself unless the gem is Topaz), greying out and
+disabling anyone ineligible — Under Glass, most commonly. Fixed 15 Aug 2026: the old code
+auto-submitted with no dialog at all when exactly one legal target remained, which read as
+"the Sapphire didn't ask me who to swap with" whenever a 2nd rival happened to be protected.
 
 **Asset-pack render seam:**
-All gem card DOM is created by `flwRenderCard(gemId, opts)`. Game logic and packets use `gemId` (0–9), never an image path — two devices may run different skins in the same match. `assetFace('flw', gemId)` / `assetBack('flw')` resolve skin → core art → the built-in CSS token in three tiers (`js/lib/art.js`); a skin changes only what those return, never this function.
+All gem card DOM is created by `flwRenderCard(gemId, opts)`. Game logic and packets use `gemId`
+(0–9, doubling as carat), never an image path — two devices may run different skins in the same
+match. `assetFace('flw', gemId)` / `assetBack('flw')` resolve skin → core art → the built-in
+CSS token (`.flw-card-fallback`) in three tiers (`js/lib/art.js`). `opts.empty` renders the fixed
+2nd hand-row slot (dashed border, no art, no carat) shown off-turn instead of omitting the card —
+see Table Layout below.
 
-**Core art (Aug 2026):** FLW is the second game after PKO to ship a **core art pack** — `data/art/flw/` — so the default gem faces are real bitmap art rather than the gold-framed carat/swatch/name token. 10 faces keyed `0`–`9` (the id *is* the carat value) + `back.jpg`, 338×488 JPEG, 217 KB precached. Promoted from what shipped as the `prismatic-gems` skin, which was unlisted from the Terminal at the same time — an offered skin identical to the default is only confusing. The CSS token in `flwRenderCard` is untouched and still renders if the art ever fails to load.
+**Core art (Aug 2026):** FLW ships a **core art pack** — `data/art/flw/img/` — 10 faces (`0.jpg`–
+`9.jpg`, the filename *is* the carat) + `back.jpg`, precached. The CSS fallback token in
+`flwRenderCard` still renders if the art ever fails to load.
 
-**`flwNorm2D(raw, n)` (Firebase empty-array guard):**
-Firebase strips trailing empty arrays from 2D structures. Same pattern as FRT/SHP/GTH — applied to every received `hands`/`stashes` 2D array.
+### Table Layout (`screen-flw-table`)
+
+- **Header:** left side is ONE line, `#flw-header-title` = "The Showroom - Exhibition N" — a
+  STATIC location title, not a rotating turn indicator (changed 15 Aug 2026; whose turn it is
+  already reads from the rival strip's highlighted chip and the action button's own state). Was
+  briefly two stacked lines earlier the same day; collapsed to one row to save vertical space.
+- **Rival strip:** shows the FULL seating order including yourself (own chip ringed, labelled
+  "You") — not just rivals (changed 15 Aug 2026). Each chip: status badge (💥 Exposed, 🛡️ Under
+  Glass, 💎 in play), name, and a Diamond count that starts empty (`·`) so standings read at a
+  glance.
+- **The Vault row:** ONE horizontal row — "The Vault [gap] N gems remaining [gap] N gem(s) have
+  been cut" (padded out 15 Aug 2026 from a bare count; "cut" = `flwBurnCount()`, the Smoke &
+  Mirrors setting). Was briefly a stacked right-hand column, which left a dead gap in the row's
+  middle — corrected to one `justify-between` row same day.
+- **The Appraiser's Ledger card:** the title row ("Appraiser's Ledger" + "[?] Gem Manifest") and
+  the count grid beneath it share the SAME `grid-template-columns: 1fr 1fr` two-halves structure,
+  each half's content centred within it — so the title aligns to the columns of gems below it,
+  not to the card's outer edges. Went through 3 shapes the same day: centred-as-one-cluster (dead
+  space both edges) → full-width edge-to-edge (didn't line up with the columns below) →
+  two-halves-matching-the-body (final). Each column's own carat/name/count grouping stays tight
+  throughout — only the outer alignment changed.
+- **Hand row:** always TWO slots — your Showpiece and either your drawn gem (your turn) or a
+  fixed empty placeholder (dashed border, `opts.empty`) off-turn, so the row never reflows between
+  1-card and 2-card layouts (changed 15 Aug 2026). Selection ring is `outline: 2px solid; offset:
+  0` (was 3px/2px) — at the row's 4px gap the old ring reached far enough to visibly overlap the
+  neighbouring card.
 
 ### The Counterfeit Run (Sylly Mode)
 
-**Per Showing:** 1 Counterfeit token + 2 Audit charges reset at each `FLW_SHOWING_START`.
+**Per Showing:** 1 Counterfeit token (`flwCounterfeitHeld`) + 2 Audit charges (`flwAuditCharges`)
+reset at each `flwDealShowing()` / `FLW_SHOWING_START`.
 
 **Counterfeit token (1 use):**
-- Active player may forge a fake gem instead of serving a genuine one
-- Counterfeit scope: gems 1–7 only (mimic any regular gem)
-- The real card is NOT removed from the hand; a "counterfeit" ghost is passed with `realId` hidden
-- The Ledger records the event under `claimedId` until audited, then scrubs to `realId`
-- The `FLW_LEAK` private packet is NOT sent for Counterfeit plays (no Showpiece leak)
-- `flwCfToken` tracks remaining uses; shown as a forge button when > 0
+- The active player may forge a claimed effect (1–7 only — never 8/9/0) instead of playing a
+  genuine gem; the sacrificed real gem stays hidden, only the claim is public
+- The Journal states the CLAIMED gem — a forgery's lie reads true until audited
+- `flwTopPlay[idx]` records `{claimedId, realId, counterfeit, audited}` for the most recent play;
+  `flwTopClaims` is the public mirror (claimed ids only) clients actually see
 
 **Audit charges (2 per Showing):**
-- Any player may audit another player's most-recent play (the `Under Glass` mechanic)
-- Only the most-recent play of any target player is auditable (`flwTopPlay[targetIdx]`)
-- `FLW_AUDIT` ACTION → host sets `flwUnderGlass = targetIdx` + deducts 1 charge + broadcasts `FLW_AUDIT_RESULT`
-- On audit: host broadcasts `FLW_AUDIT_RESULT` with the real gem ID; if counterfeit, Ledger scrubbed + `claimedId → realId`
-- `flwUnderGlass` is cleared at the start of each new turn (`flwBeginTurn()`) and broadcast in `FLW_TURN_START.underGlass`
-
-**Single-Showpiece Leak:**
-- Only the active server's own Showpiece can be Counterfeit-played (players cannot forge on behalf of others)
-- If Sylly Mode: after each genuine serve, the server's remaining top-Stash card is leaked to one randomly chosen non-active player via `FLW_LEAK` private packet
+- The active player may spend a charge to authenticate a rival's most-recent claimed play (once
+  per own turn, `flwAuditedThisTurn`)
+- Forgery caught → the forger is Exposed, their Ledger entry is scrubbed from `claimedId` back to
+  `realId`
+- Wrongful audit (the play was genuine) → the accused privately glimpses the auditor's own
+  Showpiece via the `FLW_LEAK` private packet
 
 ### Overlay Types
 | Overlay | Pattern | z-index | Notes |
 |---------|---------|---------|-------|
-| `flw-settings-overlay` | Data (slide-up) | z-[80] | "The Exhibition Brief 💎" |
-| `flw-how-to-overlay` | Data (slide-up) | z-[90] | How to Play — **two tabs: `The Rules \| The Gems`** (10 Aug 2026). Tab 2 is the **Gem Manifest**, folded in from the retired standalone `flw-gems-overlay`; the in-game `[?] Gem Manifest` button (`btn-flw-gem-manifest`) now opens this overlay pre-selected on that tab via `flwOpenHowTo('gems')`. Rows render through `flwRenderCard` (the old version drew its own colour-swatch circles, so no skin could reach it) and each is tappable-to-enlarge |
-| `flw-target-overlay` | Decision modal | z-[90] | Choose pass target |
-| `flw-scratch-overlay` | Decision modal | z-[90] | Gem identity declaration selector |
-| `flw-peek-overlay` | Decision modal | z-[100] | Peek result (tap-and-hold) — Pearl gem effect |
-| `flw-appraisal-overlay` | Decision modal | z-[90] | Appraisal Clock ≤5s warning |
-| `flw-emerald-overlay` | Data (slide-up) | z-[100] | Emerald gem offer — Accept or Block |
-| `flw-quit-overlay` | Decision modal | z-[80] | "Pack up the Exhibition?" |
+| `flw-settings-overlay` | Data (slide-up) | z-[80] | "The Display Case 💎" |
+| `flw-how-to-overlay` | Data (slide-up) | z-[102] | How to Play — tabs `The Rules \| The Gems`. Raised from z-[90] 15 Aug 2026: tap-hold from inside the Deep Vault or Loupe overlays (both z-[100]) was opening this BEHIND them |
+| `flw-target-overlay` | Decision modal | z-[90] | Choose a target for Sapphire/Topaz/Opal/Amethyst — every alive Collector listed, ineligible ones greyed |
+| `flw-scratch-overlay` | Decision modal | z-[90] | The Scratch Test — target auto-selects with one rival left; guess is a 2-row gem-card grid |
+| `flw-peek-overlay` | Decision modal | z-[100] | Peek result (tap-and-hold) — Loupe/audit-leak result |
+| `flw-appraisal-overlay` | Decision modal | z-[90] | Private Appraisal outcome |
+| `flw-emerald-overlay` | Data (slide-up) | z-[100] | Deep Vault — keep 1 of 3; leftmost pre-selected, description panel updates live |
+| `flw-quit-overlay` | Decision modal | z-[80] | "Pack Up Your Case?" |
 | `flw-new-showing-overlay` | Decision modal | z-[90] | "Another Showing?" play-again confirm |
-| `flw-cf-overlay` | Decision modal | z-[90] | "Forge a Gem" — Counterfeit Run picker (gems 1–7); Sylly Mode only |
+| `flw-cf-overlay` | Decision modal | z-[90] | "Forge a Gem" — Counterfeit Run picker (1–7); Sylly Mode only |
 
 ### Screens
 | Screen ID | Purpose |
 |-----------|---------|
 | `screen-flw-menu` | Main hub |
-| `screen-flw-table` | Main play — all sub-states (serving / await / reveal / under-glass) |
-| `screen-flw-showing-result` | Per-Showing Diamond summary + Ledger final tally |
-| `screen-flw-gameover` | Final session scores + winner ("The Vault") |
+| `screen-flw-table` | Main play — see Table Layout above |
+| `screen-flw-showing-result` | Reveal, Diamond tally, that Showing's Journal — readyCheck gate (below) |
+| `screen-flw-gameover` | Final podium + winner ("Best in Show") |
 
 **No `screen-flw-setup`** — names come from the lobby roster. No pass-gate — MDLM, each player on their own device.
+
+### Showing-Result readyCheck (added 15 Aug 2026)
+Every non-host player must tap `#btn-flw-result-ready` (labelled "Next Showing" — same wording as
+the host's own button; the two never appear at the same time, so there's no ambiguity) before the host's
+`#btn-flw-next-showing` unlocks, so nobody gets swept into the next Showing before they've had a
+chance to read the reveal/Journal/standings. `flwResultReadyCheck` (bool per player, reset each
+`flwEndShowing`) is broadcast in `FLW_SHOWING_END.resultReady` and updated via the
+`FLW_RESULT_READY` ACTION → `FLW_RESULT_READY_SYNC` round trip. Host sees a live "Waiting on N
+player(s)…" line instead of the button outright vanishing. Single-device has no "everyone else" so
+Next Showing is always immediately available. Not used on the gameover screen — that flow already
+goes through the standard Decision Modal play-again confirm (`mpReturnToLobby`).
 
 ### Multiplayer (Phase 36)
 - **Mode:** MDLM only — `multiplayerOnly: true`, `supportedModes: ['mdlm']`, `recommendedMode: 'mdlm'`
 - **Min players:** 3 | **Max players:** 4
 - **rosterConfig:** `{ type: 'none' }` — automatic seat assignment (join order)
 - **Shared screens:** `screen-mp-mode`, `screen-mp-lobby-host`, `screen-mp-lobby-join` (parameterised)
-- **Post-lobby routing:** `onPassThePhone` (host) → `flwStartSession()` directly (deals + distributes via private channel); clients wait for `FLW_HAND` private packet
-- **True Network Privacy — private channel:** `mpSendPrivate(targetUid, envelope)` writes to `rooms/{code}/private/{uid}`; `mpStartPrivateListener()` uses `onChildAdded` on each device's own private queue, ts-filtered + self-origin-filtered. The public `/events` channel NEVER carries hand data. This is the suite's first genuinely private multiplayer model (vs couch security / broadcast-and-render-own-only in NAT/FRT/BLD/SHP).
-- **Host-as-participant:** host taps run `flwHostProcessServe` / `flwHostResolveChallenge` / `flwHostAudit` directly — never via self-sent ACTION (dedup guard drops `originId === syllyDeviceUid`).
+- **Post-lobby routing:** `onPassThePhone` (host) → `flwStartSession()` directly (deals + distributes via private channel); clients wait for the private `FLW_HAND` packet
+- **True Network Privacy — private channel:** `mpSendPrivate(targetUid, envelope)` writes to `rooms/{code}/private/{uid}`; `mpStartPrivateListener()` uses `onChildAdded` on each device's own private queue, ts-filtered + self-origin-filtered. The public `/events` channel NEVER carries hand data — this is the suite's first genuinely private multiplayer model (vs couch security / broadcast-and-render-own-only in NAT/FRT/BLD/SHP).
+- **Host-as-participant:** host taps run `flwHostEntryPlay` / `flwHostResolvePlay` / `flwHostAudit` / `flwHostResolveEmerald` directly — never via self-sent ACTION (dedup guard drops `originId === syllyDeviceUid`); same pattern for the readyCheck (`FLW_RESULT_READY` only ever comes FROM a client, never sent by the host to itself).
 - **Mid-game quit (PASS contract):** client quit → `FLW_PLAYER_LEFT` ACTION → host broadcasts `FLW_MATCH_DISSOLVED` → all `resetToLobby()`; host quit → `resetToLobby()` (broadcasts `HOST_END_GAME`). One leaver dissolves the match.
-- **Key ACTION packets (public channel):** `FLW_PLAY` (client server → host: `fromIdx, toIdx, declaration, handIdx`), `FLW_AUDIT` (client auditor → host: `auditorIdx, targetIdx`), `FLW_EMERALD_RESOLVE` (client receiver → host: `{accept}`), `FLW_PLAYER_LEFT` (client quit)
-- **Key SYNC packets (public channel):** `FLW_SHOWING_START` (full session config for new Showing), `FLW_TURN_START` (`fromIdx, toIdx, declaration, topClaims, underGlass, turnEndTs`), `FLW_RESOLVE` (challenge result + Ledger update), `FLW_AUDIT_RESULT` (audit outcome), `FLW_SHOWING_END` (Diamonds awarded + session scores), `FLW_GAMEOVER` (winner + final scores), `FLW_MATCH_DISSOLVED`
-- **Key private-channel packets (per-device):** `FLW_HAND` (this device's Showpiece hand), `FLW_DRAW` (single drawn card), `FLW_PEEK` (Pearl peek result — true gem ID), `FLW_LEAK` (Sylly Showpiece leak — one opponent gem revealed), `FLW_EMERALD_OFFER` (Emerald trade offer to receiver)
+- **Key ACTION packets (public channel):** `FLW_PLAY` (gem + optional target/guess, or a Counterfeit claim), `FLW_AUDIT` (`{targetIdx}`), `FLW_EMERALD_RESOLVE` (`{keepId, returnOrder}`), `FLW_RESULT_READY` (`{}`, added 15 Aug 2026), `FLW_PLAYER_LEFT`
+- **Key SYNC packets (public channel):** `FLW_SHOWING_START` (full deal + settings for a new Showing), `FLW_TURN_START` (`activePlayer, vaultCount, underGlass, turnEndTs, topClaims`), `FLW_RESOLVE` (post-play state + Journal + discard feed), `FLW_AUDIT_RESULT`, `FLW_SHOWING_END` (reveal + Diamonds + `resultReady` reset, added 15 Aug 2026), `FLW_RESULT_READY_SYNC` (added 15 Aug 2026), `FLW_MATCH_DISSOLVED`
+- **Key private-channel packets (per-device):** `FLW_HAND` (this device's Showpiece), `FLW_DRAW` (this turn's drawn gem), `FLW_PEEK` (Loupe / audit-leak result), `FLW_LEAK` (Sylly wrongful-audit leak), `FLW_EMERALD_OFFER` (the 3-card Deep Vault offer)
 
 ## Game 17: Pecking Order (PKO)
 **Theme:** Adjacency-based predator-chain climbing/shedding card game. "Who eats whom" replaces numeric rank — a Leopard beats a Mongoose because a Leopard is a Mongoose's actual predator, not because it outranks it. Two parallel tracks (Land/Sea) with a handful of cross-track links. Raw nature: predator/prey drama, tense and occasionally dramatic.
@@ -1819,7 +1913,8 @@ Firebase strips trailing empty arrays from 2D structures. Same pattern as FRT/SH
 LOBBY (MDLM only) → PKO MENU → [onPassThePhone: names from mpPlayerSlots]
 → [Match loop (Dominance: until someone reaches pkoClashTarget Clashes.
                 Stragglers: exactly pkoClashTarget Clashes, then lowest total):
-    PKO HOARD (private deal reveal, readyCheck)
+    PKO CLASH INTRO (5s auto-advance interstitial, rotating flavour — ui-style.md § Round/Night Intro Screen)
+    → PKO HOARD (private deal reveal, readyCheck)
     → [Clash loop (Encounters until a Hoard empties):
         PKO TABLE (active-stake / active-respond / waiting)
         → pko-challenge-overlay (Answer the Marks — one card per Mark, or a Swarm)

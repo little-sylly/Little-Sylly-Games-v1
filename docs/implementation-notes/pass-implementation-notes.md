@@ -14,6 +14,30 @@ Introduced as the first suite-wide card rendering library, following the `canvas
 **Joker `suit` field = `''` not `null`**
 Firebase Realtime Database strips `null` fields from objects on write. A Joker stored as `{ rank: 'Joker', suit: null }` arrives at clients as `{ rank: 'Joker' }`, breaking `suit` checks. Stored as `''` (empty string) throughout. This is the same null-stripping constraint documented for GTH delta encoding.
 
+**Round Intro screen added, closing the deferred Round/Night Intro sweep (CJAR/SHP/PKO/NAT/PASS). [13 Aug 2026]**
+`deferred-work.md` named "PASS hands" as the last open candidate for `ui-style.md` § Round/Night
+Intro Screen. `passStartRound()` was a genuine "deal happens, but nothing marks it" gap — it dealt
+hands then jumped straight to `passShowTable()` with no beat. Added `screen-pass-intro`, shown at
+the start of every round via `passShowRoundIntro()`, called from both `passStartRound()` (host/
+single) and the `PASS_GAME_START` client applier (which re-broadcasts every round, not just round
+1 — see the BUG-02 note above the applier). Both sides self-time their own 5 s advance to
+`passShowTable()` — by the time this screen shows, hands/table/chips are already fully resolved and
+synced, so unlike NAT's Habitat Intro there's no pending host decision (same shape as
+`screen-pko-event`). Flavour text (`PASS_ROUND_FLAVOUR`) is host-picked and rides in `flavourIdx`
+inside `PASS_GAME_START`, never chosen locally. A Sylly Mode note (Abyss Detonation reminder) shows
+only when `passSyllyMode` is on. **PASS has no dedicated JS teardown function** — unlike the other
+games in this sweep, its timer clear lives directly in `engine.js`'s `resetToLobby()` "Pass
+teardown" block rather than a `passResetState()`-style function, since none existed to hook into.
+**Changed:** `js/games/pass.js`, `index.html`, `js/engine.js` (`allScreens[]` + `resetToLobby()`).
+SW bumped v180 → v181. **Verification:** syntax-checked only — **PASS has no
+`tools/verify-*.js` harness**, so unverified beyond `node -c`, no `visual-check`, no live play.
+**Sweep note:** DYB was also named in the deferred item but investigated and ruled out —
+`screen-dyb-shake` already shows "Shake #N" + the opener's name as the actual dice-rolling
+interaction at the start of every round, so it already satisfies the pattern's intent (never an
+already-live table) via an interactive screen rather than a passive interstitial. No change made
+to DYB. This closes the Round/Night Intro sweep — every game with a genuine repeating-round
+structure now has one, and GTH/DYB were investigated and correctly excluded rather than force-fit.
+
 **`PASS_ABYSS_DRAFT` unified packet**
 A single SYNC packet covers all three Abyss draft triggers (detonation, round-win, fracture) via a `trigger` field. Originally three separate packet types were specced — collapsed to avoid redundant handler branching. Trigger values: `'detonation'` | `'round-win'` | `'fracture'`.
 

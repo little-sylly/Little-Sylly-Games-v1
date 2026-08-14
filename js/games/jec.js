@@ -151,6 +151,17 @@ document.querySelectorAll('[data-jec-golden]').forEach(btn => {
   });
 });
 
+// Dynamic value line (ui-style.md § Settings Card Standard, DD-13) — the pill carries the
+// thematic name only; this says what it actually means for the word pool.
+function jecUpdateFoodDifficultyVal() {
+  const el = document.getElementById('jec-val-difficulty');
+  if (!el) return;
+  el.textContent = { easy:  'Home Cook uses only easy words.',
+                     mixed: 'Sous Chef mixes easy and medium words.',
+                     hard:  'Head Chef uses only the hardest words.' }[jecFoodDifficulty] || '';
+}
+jecUpdateFoodDifficultyVal();
+
 document.querySelectorAll('[data-jec-food-difficulty]').forEach(btn => {
   btn.addEventListener('click', () => {
     playPillClick();
@@ -158,6 +169,7 @@ document.querySelectorAll('[data-jec-food-difficulty]').forEach(btn => {
     document.querySelectorAll('[data-jec-food-difficulty]').forEach(b => {
       b.className = `pill${b.dataset.jecFoodDifficulty === jecFoodDifficulty ? ' pill-active-amber' : ''}`;
     });
+    jecUpdateFoodDifficultyVal();
   });
 });
 

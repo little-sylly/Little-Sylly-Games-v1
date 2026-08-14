@@ -1608,6 +1608,15 @@ function cjarBeginFlipAnim(startsClock) {
           const steal = Math.min(CJAR_DD_DOB_STEAL * dobbers.length, card.value);
           heads     = takers.length + dobbers.length;
           remainder = (steal % dobbers.length) + ((card.value - steal) % takers.length);
+        } else if (takers.length && innocents.length) {
+          // Takers + innocents, no dobbers: takers split the card exactly as the takers-
+          // only branch below, BUT the scare-off (dobbers.length === 0) then runs and
+          // sweeps the WHOLE Crumb pool — this flip's remainder included — straight out
+          // to the innocents in the same resolve. Same "nothing stays in the pile" shape
+          // as the all-innocent case: takers AND innocents both get a token down, none
+          // flies left. (DD-fix, folded from deferred-work.md.)
+          heads = takers.length + innocents.length;
+          remainder = 0;
         } else if (takers.length) {
           heads     = takers.length;
           remainder = card.value % takers.length;

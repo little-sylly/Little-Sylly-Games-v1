@@ -49,6 +49,7 @@ let shpWolfActive   = [];      // bool per player — true while a Big Bad Wolf 
 
 // ── Turn state (reset each turn) ───────────────────────────────────────────
 let shpForcedCards  = 1;       // 1, or 2 for Heavy Eyelids / Sleep Paralysis nightmare
+let shpNoPillowNext = false;   // true while the upcoming player may not play a Pillows card (Wide Awake)
 let shpPendingSkip  = null;    // revealed random-add value awaiting commit-animation
 // (No fog state — the Fog nightmare swaps a Fogged Dream card, id 13, into the target's hand array.)
 
@@ -66,6 +67,11 @@ let shpDozeNotice   = null;    // { idx, reason, landedOn } — table banner for
 // Distinct from shpLastDisrupt because that one is deliberately cleared by shpBroadcastTurn; this
 // is set during resolve and must survive into the same turn result, so it rides in the payload.
 let shpLastEffect   = null;
+// { a, b, aOld[], bOld[], aNew[], bNew[] } — a Swap Dreams flip choreography, consumed ONE-SHOT by
+// whichever device renders it (shpRenderTableFooter nulls it the instant it's read, same idiom as
+// shpPlungeFlash). Only ever meaningful to the two devices with a==me or b==me — everyone else's
+// footer never looks at it, per the couch-security "broadcast whole, render own" hand-privacy model.
+let shpSwapAnim     = null;
 let shpPendingDisrupt = null;  // (reserved)
 let shpEcho         = 0;       // Global Echo modifier: 0 or 2; cleared when the next disruption fires
 
@@ -84,6 +90,7 @@ let shpPlungeFlash  = false;   // one-shot "THE PLUNGE BEGINS" banner flag
 // ── UI / animation ─────────────────────────────────────────────────────────
 let shpAnimTimer    = null;    // setTimeout handle for inline reveal/crash animations
 let shpNightIntroTimer = null; // setTimeout handle for the auto-advancing Night Intro screen
+let shpFlipTimers   = [];      // setTimeout handles for the Swap Dreams flip choreography (§ Timer Lifecycle)
 let shpNightFlavourIdx = 0;    // host-picked, rides in SHP_DEAL so all devices show the same line
 let shpTwoSel       = [];      // staged hand indices for a Heavy Eyelids two-card play
 // shpNightEndInfo replaced the old shpDeepSleepInfo outright in chunk 9 — the summary screen is now
@@ -121,7 +128,7 @@ const SHP_CARDS = [
   { id:7,  family:'pillow',  label:'Lullaby',           emoji:'🎵', kind:'reset',    value:20 },
   { id:8,  family:'alarm',   label:'1, 2, Skip a Few…', emoji:'💤', kind:'random-add',min:2, max:12 },
   { id:9,  family:'alarm',   label:'The Black Sheep',   emoji:'🐏', kind:'set',      value:99 },
-  { id:10, family:'alarm',   label:'Wide Awake',        emoji:'⏰', kind:'wake-leader' },
+  { id:10, family:'alarm',   label:'Wide Awake',        emoji:'⏰', kind:'ban-pillow' },
   { id:11, family:'alarm',   label:'Heavy Eyelids',     emoji:'🥱', kind:'two-card' },
   { id:12, family:'trap',    label:'The Big Bad Wolf',  emoji:'🐺', kind:'trap-shrink' },
   { id:13, family:'phantom', label:'Fogged Dream',      emoji:'🌫️', kind:'random-add',min:2, max:12 },
@@ -216,7 +223,7 @@ function shpHerdAfterCard(herd, cardId, rolledVal) {
     case 'random-add': h = herd + sgn * (rolledVal != null ? rolledVal : c.min); break;
     case 'set':        h = (shpPhase === 'plunge') ? Math.min(c.value, shpCeiling) : c.value; break;
     case 'reset':      h = c.value; break;
-    default:           h = herd; break;            // skip/reverse/wake-leader/two-card unchanged
+    default:           h = herd; break;            // skip/reverse/ban-pillow/two-card unchanged
   }
   return Math.max(0, h);
 }
@@ -239,21 +246,6 @@ function shpNextPlayer(fromIdx) {
   return i;
 }
 
-// Leader = awake player with most Moons; tie broken by next-in-direction from the active seat.
-function shpLeaderIdx() {
-  let bestLives = -1;
-  for (let i = 0; i < shpPlayerCount; i++) if (shpAwake(i) && shpMoonsHeld[i] > bestLives) bestLives = shpMoonsHeld[i];
-  const tied = [];
-  for (let i = 0; i < shpPlayerCount; i++) if (shpAwake(i) && shpMoonsHeld[i] === bestLives) tied.push(i);
-  if (tied.length === 1) return tied[0];
-  const n = shpPlayerCount, order = shpRing();
-  let pos = order.indexOf(shpActivePlayer); if (pos < 0) pos = 0;
-  let guard = 0, i = shpActivePlayer;
-  do { pos = (pos + shpDirection + n) % n; i = order[pos]; guard++; }
-  while ((!shpAwake(i) || tied.indexOf(i) < 0) && guard <= n);
-  return i;
-}
-
 // Playable = the card's resulting Herd keeps ≤ ceiling. Phase-aware:
 //  · Climb + Sylly: adds & random-adds are ALWAYS legal — reaching ≥99 triggers the Plunge, never busts.
 //  · Climb base:    adds must fit; random-add playable if its best-case (min) roll fits.
@@ -261,6 +253,8 @@ function shpLeaderIdx() {
 // When the Herd is pushed over the ceiling (Cold Feet / a falling Plunge ceiling), only reducers stay legal.
 function shpIsPlayable(playerIdx, handIdx) {
   const c = SHP_CARDS[shpHands[playerIdx][handIdx]];
+  // Wide Awake — the player it targeted may not play a Pillows card on this, their next, turn.
+  if (shpNoPillowNext && playerIdx === shpActivePlayer && c.family === 'pillow') return false;
   const climbSylly = (shpSyllyMode && shpPhase === 'climb');
   if (c.kind === 'random-add') {
     if (shpPhase === 'plunge' || climbSylly) return true;
@@ -360,7 +354,7 @@ function shpRenderCard(cardId, opts) {
     if (back) el.style.backgroundImage = 'url("' + back + '")';
     return el;
   }
-  if (opts.wolf)     { el.className = 'shp-card shp-card-wolf';
+  if (opts.wolf)     { el.className = 'shp-card shp-card-wolf shp-card-flagged';
                        const wolfUrl = (typeof assetFace === 'function') && assetFace('shp', 12);
                        if (wolfUrl) {
                          el.style.backgroundImage = 'url("' + wolfUrl + '")';
@@ -378,10 +372,11 @@ function shpRenderCard(cardId, opts) {
                           // shown here, so a static face doesn't leak it — same "?" badge either way.
     const foggedUrl = (typeof assetFace === 'function') && assetFace('shp', 13);
     if (foggedUrl) {
-      // Art present — same asset styling as every other skinned card (transparent border, cover
-      // image), NOT the heavy shp-card-cursed treatment (violet border + a 1.4rem "?" that was
-      // sized to fill an EMPTY card). A small badge is enough once real art is doing the work.
-      el.className = 'shp-card shp-card-asset shp-card-fogged';
+      // Art present — same asset styling as every other skinned card, NOT the heavy shp-card-cursed
+      // treatment (a 1.4rem "?" that was sized to fill an EMPTY card). A small badge is enough once
+      // real art is doing the work. shp-card-flagged overrides shp-card-asset's transparent border
+      // with the shared "notable card" stone one (§ styles.css, cascade relies on source order).
+      el.className = 'shp-card shp-card-asset shp-card-fogged shp-card-flagged';
       el.style.backgroundImage = 'url("' + foggedUrl + '")';
       el.innerHTML = '<span class="shp-card-fogged-badge">?</span>';
     } else {
@@ -442,8 +437,8 @@ function shpDealNight(openerIdx) {
   shpNightNum++;
   shpHerd = 0; shpDirection = 1; shpPhase = 'climb'; shpCeiling = 99; shpPlungeGrace = 0; shpPlungeFlash = false;
   shpPlungeDescentTurns = 0; shpCurrentDrop = 0;
-  shpForcedCards = 1; shpTwoSel = []; shpPendingSkip = null;
-  shpPlayHistory = []; shpAnimSheep = 0; shpLastEffect = null;
+  shpForcedCards = 1; shpNoPillowNext = false; shpTwoSel = []; shpPendingSkip = null;
+  shpPlayHistory = []; shpAnimSheep = 0; shpLastEffect = null; shpSwapAnim = null;
   shpDozed = Array(shpPlayerCount).fill(false); shpDozeOrder = [];   // scoring-rework §4
   shpNightEndInfo = null; shpDozeNotice = null;                      // scoring-rework §4/§7
   shpSeatOrder = []; for (let i = 0; i < shpPlayerCount; i++) shpSeatOrder.push(i);  // ring back to identity each Night
@@ -547,10 +542,22 @@ function shpTapCard(handIdx) {
   }
 }
 
+// Bug (14 Aug 2026 playtest): a forced Heavy Eyelids pair was submitted with NO legality check on
+// the specific order tapped — Black Sheep (99) then +2 busted, even though shpHasSafePair (which
+// only gates the STUCK/Deep-Sleep detector) already knew a DIFFERENT order of the same two cards
+// was safe. Single-card play never allows a deterministic bust (shpIsPlayable); two-card selection
+// now matches that: the second tap is rejected, same as tapping an illegal single card.
 function shpStageTwoCard(handIdx) {
+  const me = shpMyIdx();
   const pos = shpTwoSel.indexOf(handIdx);
-  if (pos >= 0) shpTwoSel.splice(pos, 1);
-  else if (shpTwoSel.length < 2) shpTwoSel.push(handIdx);
+  if (pos >= 0) { shpTwoSel.splice(pos, 1); playPillClick(); shpRenderTable(); return; }
+  if (shpTwoSel.length >= 2) return;
+  const cd = SHP_CARDS[shpHands[me][handIdx]];
+  if (shpNoPillowNext && cd.family === 'pillow') { playBoing(); return; }        // Wide Awake ban
+  if (shpTwoSel.length === 1 && shpPairFinalBest(me, shpTwoSel[0], handIdx) > shpCeiling) {
+    playBoing(); return;                                                        // deterministic bust in THIS order
+  }
+  shpTwoSel.push(handIdx);
   playPillClick();
   shpRenderTable();
 }
@@ -568,16 +575,21 @@ function shpConfirmTwoCard() {
   }
 }
 
-// Apply one card's effect to shared state. Returns { rolled, nextOverride, forcedNext }.
+// Apply one card's effect to shared state. Returns { rolled, forcedNext, banPillow }.
 // HOST ONLY (both call sites are shpHostPlay*), so mutating hands / the ring here is safe —
 // everything it touches is broadcast wholesale in the SHP_TURN_RESULT that follows.
+// Every non-arithmetic (ability) card sets shpLastEffect — the same announcement banner Swap
+// Dreams and Rude Awakening always had, generalised suite-wide (12 Aug 2026 playtest ask) so a
+// Skip/Reverse/Reset/Black Sheep/Skip-a-Few/Heavy Eyelids/Wide Awake is never invisible to the table.
 function shpResolveCard(cardId, playerIdx) {
   const c = SHP_CARDS[cardId];
   const rolled = (c.kind === 'random-add') ? shpRandInt(c.min, c.max) : null;
-  let nextOverride = -1, forcedNext = false;
-  if (c.kind === 'reverse')     shpDirection *= -1;
-  if (c.kind === 'wake-leader') nextOverride = shpLeaderIdx();
-  if (c.kind === 'two-card')    forcedNext = true;
+  let forcedNext = false, banPillow = false;
+  if (c.kind === 'reverse')    shpDirection *= -1;
+  if (c.kind === 'two-card')   forcedNext = true;
+  if (c.kind === 'ban-pillow') banPillow = true;
+
+  const resultHerd = shpHerdAfterCard(shpHerd, cardId, rolled);  // computed early — every banner below quotes it
 
   if (c.kind === 'shuffle') {                    // Rude Awakening — reseat the ring for the rest of the Night
     const before = shpRing().slice();
@@ -587,28 +599,45 @@ function shpResolveCard(cardId, playerIdx) {
     for (let t = 0; t < 4 && shpPlayerCount > 1 && next.join() === before.join(); t++) next = shuffle(before.slice());
     shpSeatOrder = next;
     shpLastEffect = { text: 'Rude Awakening — the table is reseated: ' + next.map(shpName).join(' → ') + '.' };
-  }
-
-  if (c.kind === 'swap-hands') {                 // Swap Dreams — trade Pens with a random living player
+  } else if (c.kind === 'swap-hands') {          // Swap Dreams — trade Pens with a random living player
     const others = [];
     for (let i = 0; i < shpPlayerCount; i++) if (i !== playerIdx && !shpEliminated[i]) others.push(i);
     if (others.length) {
       const t = others[Math.floor(Math.random() * others.length)];
+      const aOld = shpHands[playerIdx].slice(), bOld = shpHands[t].slice();
       const mine = shpHands[playerIdx];
       shpHands[playerIdx] = shpHands[t];
       shpHands[t] = mine;
       // Both sides re-fill to their OWN cap — a Wolf-shrunk cap stays with the player, not the cards.
       // The partner is topped up here because nothing else will until their turn comes round.
       shpDrawUp(t);
+      // Snapshot for the flip choreography (shpRenderSwapFlip) — aNew is finalised by the caller
+      // once IT has drawn playerIdx back up (that draw happens after this function returns).
+      shpSwapAnim = { a: playerIdx, b: t, aOld, bOld, aNew: null, bNew: shpHands[t].slice() };
       shpLastEffect = { text: 'Swap Dreams — ' + shpName(playerIdx) + ' traded Pens with ' + shpName(t) + '.' };
     } else {
+      shpSwapAnim = null;
       shpLastEffect = { text: 'Swap Dreams — nobody left to trade with. It fizzles.' };
     }
+  } else if (c.kind === 'skip') {
+    shpLastEffect = { text: c.label + ' — ' + shpName(playerIdx) + ' stalls the count. The Herd holds at ' + resultHerd + '.' };
+  } else if (c.kind === 'reverse') {
+    shpLastEffect = { text: c.label + ' — direction flips. Now heading ' + (shpDirection === 1 ? 'Forward →' : 'Reverse ↺') + '.' };
+  } else if (c.kind === 'reset') {
+    shpLastEffect = { text: c.label + ' — the Herd resets to ' + resultHerd + '.' };
+  } else if (c.kind === 'set') {
+    shpLastEffect = { text: c.label + ' — the Herd snaps to ' + resultHerd + '.' };
+  } else if (c.kind === 'random-add') {
+    shpLastEffect = { text: c.label + ' — the Herd ' + (shpPhase === 'plunge' ? 'falls' : 'jumps') + ' by ' + rolled + '.' };
+  } else if (c.kind === 'two-card') {
+    shpLastEffect = { text: c.label + ' — ' + shpName(shpNextPlayer(playerIdx)) + ' must play two cards next turn.' };
+  } else if (c.kind === 'ban-pillow') {
+    shpLastEffect = { text: c.label + ' — ' + shpName(shpNextPlayer(playerIdx)) + " can't play a Pillows card next turn." };
   }
 
-  shpHerd = shpHerdAfterCard(shpHerd, cardId, rolled);  // arithmetic (sign-flipped in Plunge); unchanged otherwise
+  shpHerd = resultHerd;
   if (c.family === 'pasture') shpChargeMeter();
-  return { rolled, nextOverride, forcedNext };
+  return { rolled, forcedNext, banPillow };
 }
 
 function shpHostPlayCard(playerIdx, handIdx) {
@@ -618,14 +647,16 @@ function shpHostPlayCard(playerIdx, handIdx) {
   if (!shpIsPlayable(playerIdx, handIdx)) return; // full legality guard (all card kinds)
   shpHands[playerIdx].splice(handIdx, 1);
   if (cardId !== 13) shpDiscard.push(cardId);      // Fogged Dream dissolves on play — never recycled
-  shpLastEffect = null;
+  shpLastEffect = null; shpSwapAnim = null;
   const herdBefore = shpHerd;                      // ← before shpResolveCard (§6 revert snapshot)
   const r = shpResolveCard(cardId, playerIdx);
   shpDrawUp(playerIdx);
+  if (shpSwapAnim && shpSwapAnim.a === playerIdx && shpSwapAnim.aNew === null) shpSwapAnim.aNew = shpHands[playerIdx].slice();
   const res = shpPostResolve(playerIdx, herdBefore); // Plunge entry / bust / mercy
   if (!res.busted) {
-    shpActivePlayer = (r.nextOverride >= 0) ? r.nextOverride : shpNextPlayer(playerIdx);
+    shpActivePlayer = shpNextPlayer(playerIdx);
     shpForcedCards = r.forcedNext ? 2 : 1;
+    shpNoPillowNext = r.banPillow;
     shpPlungeTick();                               // ceiling descent for the new turn (no-op in Climb)
   }
   // §8 "Why a bust sends two packets, in this order": SHP_TURN_RESULT always fires first (carrying
@@ -644,15 +675,17 @@ function shpHostPlayTwoCard(playerIdx, a, b) {
   const ids = [h[a], h[b]];
   [a, b].sort((x, y) => y - x).forEach(i => h.splice(i, 1));     // remove higher index first
   ids.forEach(id => { if (id !== 13) shpDiscard.push(id); });    // Fogged Dream dissolves — never recycled
-  const rolled = []; let nextOverride = -1;
-  shpLastEffect = null;
+  const rolled = []; let banPillow = false;
+  shpLastEffect = null; shpSwapAnim = null;
   const herdBefore = shpHerd;                      // ← before either card resolves (§6 revert snapshot)
-  ids.forEach(id => { const r = shpResolveCard(id, playerIdx); if (r.rolled != null) rolled.push(r.rolled); if (r.nextOverride >= 0) nextOverride = r.nextOverride; });
+  ids.forEach(id => { const r = shpResolveCard(id, playerIdx); if (r.rolled != null) rolled.push(r.rolled); if (r.banPillow) banPillow = true; });
   shpForcedCards = 1; shpTwoSel = [];                            // consumed; Heavy Eyelids does not chain (edge c)
   shpDrawUp(playerIdx);
+  if (shpSwapAnim && shpSwapAnim.a === playerIdx && shpSwapAnim.aNew === null) shpSwapAnim.aNew = shpHands[playerIdx].slice();
   const res = shpPostResolve(playerIdx, herdBefore);
   if (!res.busted) {
-    shpActivePlayer = (nextOverride >= 0) ? nextOverride : shpNextPlayer(playerIdx);
+    shpActivePlayer = shpNextPlayer(playerIdx);
+    shpNoPillowNext = banPillow;
     shpPlungeTick();
   }
   shpBroadcastTurn(ids, rolled, playerIdx, res.busted);
@@ -678,13 +711,16 @@ function shpBroadcastTurn(playedIds, rolled, byIdx, busted) {
     mpSendEnvelope({ type: 'SYNC', payload: {
       action: 'SHP_TURN_RESULT',
       herd: shpHerd, direction: shpDirection, nextActive: shpActivePlayer, forcedCards: shpForcedCards,
+      noPillowNext: shpNoPillowNext,
       played: playedIds, rolled, byIdx, busted: !!busted,
       hands: shpHands, handCaps: shpHandCap, wolfActive: shpWolfActive, meter: shpMeter,
       phase: shpPhase, ceiling: shpCeiling, grace: shpPlungeGrace, drop: shpCurrentDrop,
       playHistory: shpPlayHistory,
       // seatOrder rides every turn: a client walking a stale ring after a Rude Awakening would
       // render the wrong "next up". lastEffect is this play's outcome note (swap partner / new order).
-      seatOrder: shpSeatOrder, lastEffect: shpLastEffect,
+      // swapAnim rides only on the turn it's set (shpSwapAnim is null on every other turn) — Firebase
+      // erases the whole field then, and the client-side rebuild (`|| null`) covers it, same as lastEffect.
+      seatOrder: shpSeatOrder, lastEffect: shpLastEffect, swapAnim: shpSwapAnim,
     }});
   }
   shpShowTable();
@@ -724,7 +760,7 @@ function shpConfirmStuck() {
 // only ever set in normal mode, shpEliminated only ever in Sylly.
 function shpHostCrash(crasherIdx, reason, landedOn) {
   shpStuckIdx = -1;                 // the hold, if any, is now resolved
-  shpForcedCards = 1; shpTwoSel = [];
+  shpForcedCards = 1; shpNoPillowNext = false; shpTwoSel = [];
   if (shpSyllyMode) shpHostMoonLoss(crasherIdx, reason, landedOn);
   else              shpHostDoze(crasherIdx, reason, landedOn);
 }
@@ -932,7 +968,7 @@ function shpRenderTable() {
   if (status) {
     const nightLabel = shpSyllyMode ? 'The Long Night' : ('Night ' + shpNightNum);
     status.textContent = plunge ? ('THE PLUNGE 🔻 \xB7 ' + nightLabel) : nightLabel;
-    status.className = 'text-xs font-semibold uppercase tracking-widest ' + (plunge ? 'text-red-500' : 'text-indigo-400');
+    status.className = 'text-xs font-semibold uppercase tracking-widest ' + (plunge ? 'text-red-500' : 'shp-label');
   }
 
   body.innerHTML = '';
@@ -967,11 +1003,12 @@ function shpRenderTable() {
         '<p class="text-red-500 text-xs font-semibold">Drive to 0 to escape.</p>' +
       '</div>';
   } else {
-    // Three-column band: the pen (left), the counter (centre), Last Played (right). Top-aligned so
-    // the "THE HERD" and "LAST PLAYED" headings sit on ONE line across the band — the two columns
-    // start with the same-metric label (.shp-herd-label / .shp-last-label) for exactly that reason.
-    // The pen has no heading of its own, so it self-centres against the taller centre column.
-    herdBox.className = 'grid grid-cols-3 items-start w-full';
+    // Two stacked grid-cols-3 rows sharing one column template: a heading row (The Pen | The Herd |
+    // Last Played, all three headings on ONE line — owner ask, 14 Aug 2026) sits above a content row
+    // (pen image | counter stack | last-played card). Splitting them like this is what makes the
+    // headings align exactly: three equal-weight <p> labels in their own row can never drift out of
+    // line the way "the pen has no heading of its own" (the old single-row approach) did.
+    herdBox.className = 'flex flex-col gap-1 w-full';
 
     // Sheep flight — absolutely positioned (a .shp-sheep-layer overlay) so it NEVER shifts the layout.
     // The old inline row pushed a row in/out between the header and counter on every play (the jank).
@@ -998,6 +1035,20 @@ function shpRenderTable() {
       sheepHtml = '<div class="shp-sheep-layer" style="--shp-sheep-w:' + sheepW + '">' + spans + '</div>';
     }
 
+    // Heading row — three equal labels, one per column, so they can never drift out of alignment
+    // the way an implicit/self-centred pen or Last Played column could.
+    const headRow = document.createElement('div');
+    headRow.className = 'grid grid-cols-3 items-end w-full';
+    headRow.innerHTML =
+      '<p class="shp-last-label text-center">The Pen</p>' +
+      '<p class="shp-herd-label text-center">The Herd</p>' +
+      '<p class="shp-last-label text-center">Last Played</p>';
+
+    // Content row — pen image, counter stack, last-played card. Vertically centred against each
+    // other (items-center) since the centre column is now the only one with real height variation.
+    const contentRow = document.createElement('div');
+    contentRow.className = 'grid grid-cols-3 items-center w-full';
+
     // Static pen — a single pre-composed image (sheep + fence baked in), filling the left
     // whitespace the flying sheep already arc through. Falls back to a plain emoji trio if the
     // core art hasn't resolved (e.g. a bare install racing the SW precache).
@@ -1006,52 +1057,50 @@ function shpRenderTable() {
     if (penArtUrl) {
       penInner = '<img class="shp-pen-img" src="' + penArtUrl + '" alt="" aria-hidden="true" />';
     }
-    // self-center: the band is items-start (to line the two headings up), so the pen — which has no
-    // heading — is re-centred against the taller centre column rather than clinging to its top edge.
-    const penHtml = '<div class="self-center">' + penInner + '</div>';
+    const penCol = document.createElement('div');
+    penCol.className = 'flex justify-center';
+    penCol.innerHTML = penInner;
 
-    // Right column — "Last Played" label + the real card(s) via the render seam (shpRenderCard),
-    // scaled into a fixed-footprint .shp-last-card wrapper. The card itself is the tap target —
-    // opens the Dream Journal; no separate link text needed (the log isn't load-bearing this game).
+    // Centre column — no label of its own any more (it rode up into headRow); just the counter stack.
+    const midCol = document.createElement('div');
+    midCol.className = 'relative flex flex-col items-center gap-0.5';
+    const pct  = Math.max(0, Math.min(100, Math.round((shpHerd / Math.max(1, shpCeiling)) * 100)));
+    const ramp = pct >= 85 ? { bar: '#dc2626', num: 'text-red-600'    }
+               : pct >= 60 ? { bar: '#d97706', num: 'text-amber-600'  }
+               :             { bar: '#3A3D52', num: 'shp-label'       };
+    midCol.innerHTML =
+      sheepHtml +
+      '<p class="shp-ceiling-badge">ceiling ' + shpCeiling + '</p>' +
+      '<p class="text-6xl font-bold leading-none ' + ramp.num + '">' + shpHerd + '</p>' +
+      '<div class="shp-herd-bar" aria-hidden="true">' +
+        '<div class="shp-herd-bar-fill" style="width:' + pct + '%;background:' + ramp.bar + '"></div>' +
+      '</div>';
+
+    // Right column — the real card(s) via the render seam (shpRenderCard), scaled into a
+    // fixed-footprint .shp-last-card wrapper. The card itself is the tap target — opens the Dream
+    // Journal; no separate link text needed (the log isn't load-bearing this game). An em dash
+    // placeholder keeps the column (and the heading row above it) from jumping the instant the
+    // first card is played.
     const rightCol = document.createElement('div');
-    rightCol.className = 'flex flex-col items-center gap-0.5';
+    rightCol.className = 'flex justify-center';
     if (shpPlayHistory.length > 0) {
-      const label = document.createElement('p');
-      label.className = 'shp-last-label';        // same metrics as .shp-herd-label — headings align
-      label.textContent = 'Last Played';
       const cardsBtn = document.createElement('button');
       cardsBtn.className = 'flex items-center justify-center gap-0.5 active:scale-95 transition-transform duration-100';
       cardsBtn.setAttribute('aria-label', 'View Dream Journal');
       shpPlayHistory[0].cardIds.forEach(id => {
-        const wrap = document.createElement('div');
-        wrap.className = 'shp-last-card';
-        wrap.appendChild(shpRenderCard(id));
-        cardsBtn.appendChild(wrap);
+        const cwrap = document.createElement('div');
+        cwrap.className = 'shp-last-card';
+        cwrap.appendChild(shpRenderCard(id));
+        cardsBtn.appendChild(cwrap);
       });
       cardsBtn.addEventListener('click', shpOpenLog);
-      rightCol.append(label, cardsBtn);
+      rightCol.appendChild(cardsBtn);
+    } else {
+      rightCol.innerHTML = '<p class="text-stone-300 text-2xl leading-none">—</p>';
     }
 
-    // Pressure ramp — how full the pen is, as a fraction of the ceiling. This is the piece the
-    // bare number was missing: 62 and 91 looked identical at a glance, so the climb had no visible
-    // tension. Colour shifts indigo → amber → red across the last stretch.
-    const pct  = Math.max(0, Math.min(100, Math.round((shpHerd / Math.max(1, shpCeiling)) * 100)));
-    const ramp = pct >= 85 ? { bar: '#dc2626', num: 'text-red-600'    }
-               : pct >= 60 ? { bar: '#d97706', num: 'text-amber-600'  }
-               :             { bar: '#4f46e5', num: 'text-indigo-700' };
-
-    herdBox.innerHTML =
-      penHtml +                                          // the sheep pen — fills the old empty left column
-      '<div class="relative flex flex-col items-center gap-0.5">' +
-        sheepHtml +
-        '<p class="shp-herd-label">The Herd</p>' +
-        '<p class="text-6xl font-bold leading-none ' + ramp.num + '">' + shpHerd + '</p>' +
-        '<div class="shp-herd-bar" aria-hidden="true">' +
-          '<div class="shp-herd-bar-fill" style="width:' + pct + '%;background:' + ramp.bar + '"></div>' +
-        '</div>' +
-        '<p class="shp-ceiling-badge">ceiling ' + shpCeiling + '</p>' +
-      '</div>';
-    herdBox.appendChild(rightCol);              // real DOM node (holds a shpRenderCard element) — not a string
+    contentRow.append(penCol, midCol, rightCol);
+    herdBox.append(headRow, contentRow);
   }
   wrap.appendChild(herdBox);
 
@@ -1141,7 +1190,7 @@ function shpRenderTable() {
   // and without it a reseat or a hand swap is invisible on every device but the actor's.
   if (shpLastEffect && shpLastEffect.text) {
     const fx = document.createElement('p');
-    fx.className = 'text-indigo-700 text-sm text-center font-semibold bg-indigo-50 border border-indigo-200 rounded-xl px-3 py-2';
+    fx.className = 'shp-tint-bg text-sm text-center font-semibold border rounded-xl px-3 py-2';
     fx.textContent = '\u{1F504} ' + shpLastEffect.text;
     wrap.appendChild(fx);
   }
@@ -1172,7 +1221,9 @@ function shpRenderTable() {
             ? '\u{1F634} No safe cards left — you’re drifting off…'
             : '\u{1F634} ' + shpName(shpStuckIdx) + ' has no safe cards left…')
       : (shpActivePlayer === me
-          ? (shpForcedCards === 2 ? 'Heavy Eyelids — play TWO cards.' : 'Your turn — play a card.')
+          ? (shpForcedCards === 2 ? 'Heavy Eyelids — play TWO cards.'
+             : shpNoPillowNext ? '⏰ Wide Awake — no Pillows this turn.'
+             : 'Your turn — play a card.')
           : 'Waiting for ' + shpName(shpActivePlayer) + '…');
   }
   wrap.appendChild(banner);
@@ -1189,6 +1240,14 @@ function shpRenderTableFooter() {
   if (!footer) return;
   const me = shpMyIdx();
   footer.innerHTML = '';
+  // Swap Dreams flip choreography — one-shot (same idiom as shpPlungeFlash): the instant a device
+  // that was actually involved renders it, it's consumed, so a later footer-only repaint (the 1s
+  // tap-gate timer) shows the normal tappable hand instead of replaying the flip.
+  if (shpSwapAnim && (shpSwapAnim.a === me || shpSwapAnim.b === me)) {
+    const anim = shpSwapAnim; shpSwapAnim = null;
+    footer.appendChild(shpRenderSwapFlip(anim, me === anim.a));
+    return;
+  }
   if (shpGhostPending) {                          // table is gated on the spend-holder's blind pick
     if (shpEliminated[me] && shpSpendHolder === me) footer.appendChild(shpRenderLottery());
     return;
@@ -1202,7 +1261,7 @@ function shpRenderTableFooter() {
     // the button that ends the Night on their own tap. Nothing moves until they press it.
     footer.appendChild(shpHandFooter(me, false));
     const btn = document.createElement('button');
-    btn.className = 'min-h-14 w-full rounded-2xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 ' +
+    btn.className = 'min-h-14 w-full rounded-2xl shp-cta active:scale-95 ' +
                     'text-white font-semibold text-lg transition-all duration-150 btn-mp-action';
     btn.textContent = 'Nod Off';
     btn.addEventListener('click', shpConfirmStuck);
@@ -1211,6 +1270,85 @@ function shpRenderTableFooter() {
   }
   const tappable = (shpActivePlayer === me) && shpCardTapReady && shpStuckIdx < 0;
   footer.appendChild(shpHandFooter(me, tappable));
+}
+
+function shpClearFlipTimers() {
+  shpFlipTimers.forEach(h => clearTimeout(h));
+  shpFlipTimers = [];
+}
+
+// Swap Dreams — "each player involved has their hand turned over left to right (showing the
+// card-back), then again in order reveals the new hand" (playtest ask, 14 Aug 2026). Two staggered
+// waves of the same 3D-flip trick (front/back faces on a preserve-3d inner, § css .shp-flip-*):
+// wave 1 rotates every OLD card 0deg->180deg, left to right, ending on backs; after a hold, wave 2
+// swaps each card's hidden front face to the NEW card (while it's facing away, so nothing pops) and
+// continues the same rotation 180deg->360deg, left to right, revealing the new hand. A blocking
+// choreography beat (ui-style.md § Motion Standard) — nothing here is tappable until it finishes.
+function shpRenderSwapFlip(anim, isA) {
+  shpClearFlipTimers();
+  const oldHand = ((isA ? anim.aOld : anim.bOld) || []).slice();
+  const newHand = ((isA ? anim.aNew : anim.bNew) || []).slice();
+  const n = Math.max(oldHand.length, newHand.length);
+  const reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // Doubled from the first pass (220/90/260) — owner playtest wanted more time to actually read
+  // the choreography, not just notice it happened.
+  const HALF = reduced ? 1 : 440, STAGGER = reduced ? 1 : 180, HOLD = reduced ? 1 : 520;
+
+  const col = document.createElement('div');
+  col.className = 'flex flex-col gap-2 items-center';
+  const label = document.createElement('p');
+  label.className = 'shp-label text-sm font-semibold';
+  label.textContent = '\u{1F91D} Swapping Pens…';
+  col.appendChild(label);
+  const row = document.createElement('div');
+  row.className = 'flex flex-wrap justify-center gap-2';
+  col.appendChild(row);
+
+  const flippers = [];
+  for (let i = 0; i < n; i++) {
+    const wrap = document.createElement('div');
+    wrap.className = 'shp-flip-wrap';
+    const inner = document.createElement('div');
+    inner.className = 'shp-flip-inner';
+    const front = document.createElement('div');
+    front.className = 'shp-flip-face';
+    if (oldHand[i] != null) front.appendChild(shpRenderCard(oldHand[i]));
+    const back = document.createElement('div');
+    back.className = 'shp-flip-face shp-flip-face-back';
+    back.appendChild(shpRenderCard(null, { faceDown: true }));
+    inner.append(front, back);
+    wrap.appendChild(inner);
+    row.appendChild(wrap);
+    flippers.push({ inner, front, newId: newHand[i] });
+  }
+
+  // Wave 1 — flip to backs, left to right.
+  flippers.forEach((f, i) => {
+    f.inner.style.transitionDuration = HALF + 'ms';
+    f.inner.style.transitionDelay = (i * STAGGER) + 'ms';
+    requestAnimationFrame(() => { f.inner.style.transform = 'rotateY(180deg)'; });
+  });
+  const wave1End = Math.max(0, flippers.length - 1) * STAGGER + HALF;
+
+  // Wave 2 — while each card is showing its back (front face hidden, facing away), swap the front
+  // face's content to the NEW card, then continue the same rotation on to 360deg to reveal it.
+  shpFlipTimers.push(setTimeout(() => {
+    flippers.forEach(f => { f.front.innerHTML = ''; if (f.newId != null) f.front.appendChild(shpRenderCard(f.newId)); });
+  }, wave1End + HOLD - Math.min(10, HOLD)));
+  flippers.forEach((f, i) => {
+    shpFlipTimers.push(setTimeout(() => {
+      f.inner.style.transitionDelay = '0ms';
+      f.inner.style.transform = 'rotateY(360deg)';
+    }, wave1End + HOLD + i * STAGGER));
+  });
+
+  const total = wave1End + HOLD + Math.max(0, flippers.length - 1) * STAGGER + HALF;
+  shpFlipTimers.push(setTimeout(() => {
+    shpFlipTimers = [];
+    if (!shpNightEndInfo) shpRenderTableFooter();   // hand off to the normal, tappable footer
+  }, total + 60));
+
+  return col;
 }
 
 // The facedown Nightmare Lottery — 3 card-backs the spend-holder flips one of.
@@ -1294,11 +1432,23 @@ function shpHandFooter(me, tappable) {
       card.classList.add('opacity-40');
     } else if (twoMode) {
       card.style.cursor = 'pointer';
-      if (shpTwoSel.indexOf(idx) >= 0) card.classList.add('ring-2', plunge ? 'ring-red-400' : 'ring-indigo-500');
+      const selected = shpTwoSel.indexOf(idx) >= 0;
+      const cd = SHP_CARDS[cardId];
+      // Same two blockers as a single-card tap (shpIsPlayable) — Wide Awake's Pillows ban applies
+      // per-card regardless of pairing; a bust check only makes sense once one card is already
+      // staged, and it's evaluated in the EXACT order the player is building (shpPairFinalBest(a,b),
+      // not a). Both are surfaced here AND enforced in shpStageTwoCard — this is the visual half.
+      const banned = shpNoPillowNext && cd.family === 'pillow';
+      const wouldBust = !selected && shpTwoSel.length === 1 && shpPairFinalBest(me, shpTwoSel[0], idx) > shpCeiling;
+      if (selected) card.classList.add('ring-2', plunge ? 'ring-red-400' : 'ring-[#3A3D52]');
+      if (banned) card.classList.add('opacity-40', 'shp-card-flagged');   // Wide Awake — greyed AND flagged
+      else if (wouldBust) card.classList.add('opacity-40');
       card.addEventListener('click', () => shpTapCard(idx));
     } else {
       card.style.cursor = 'pointer';
-      if (legal.indexOf(idx) < 0) card.classList.add('opacity-40');
+      const banned = shpNoPillowNext && SHP_CARDS[cardId].family === 'pillow';
+      if (banned) card.classList.add('opacity-40', 'shp-card-flagged');   // Wide Awake — greyed AND flagged
+      else if (legal.indexOf(idx) < 0) card.classList.add('opacity-40');
       card.addEventListener('click', () => shpTapCard(idx));
     }
     shpBindCardHold(card, cardId, false);
@@ -1318,11 +1468,11 @@ function shpHandFooter(me, tappable) {
   if (twoMode) {
     const hint = document.createElement('p');
     hint.className = 'text-stone-400 text-xs text-center';
-    hint.textContent = "Select two that won't break " + shpCeiling + " — a bad pair Deep Sleeps you.";
+    hint.textContent = "Pick two that keep you at or under " + shpCeiling + " — gambling a Skip a Few can still Deep Sleep you.";
     col.appendChild(hint);
     const btn = document.createElement('button');
     const ready = shpTwoSel.length === 2;
-    btn.className = 'min-h-12 w-full rounded-2xl ' + (plunge ? 'bg-red-600 hover:bg-red-700' : 'bg-indigo-600 hover:bg-indigo-700') + ' active:scale-95 text-white font-semibold text-base transition-all duration-150' + (ready ? '' : ' opacity-40 pointer-events-none');
+    btn.className = 'min-h-12 w-full rounded-2xl ' + (plunge ? 'bg-red-600 hover:bg-red-700' : 'shp-cta') + ' active:scale-95 text-white font-semibold text-base transition-all duration-150' + (ready ? '' : ' opacity-40 pointer-events-none');
     btn.textContent = 'Play Both';
     btn.addEventListener('click', shpConfirmTwoCard);
     col.appendChild(btn);
@@ -1398,10 +1548,11 @@ function shpCardEffectText(cardId) {
             : 'Adds a random 2–12 to the Herd. Always playable — gamble wisely.';
         }
         break;
-      case 'wake-leader':
-        // NOT "most cards" — shpLeaderIdx() picks the most MOONS (ties broken by ring order).
-        // The old text here said cards, which is why this card reads as random/useless in play.
-        effect = 'Skips straight to the player with the most Moons left — the one who is winning. They take the next turn, so everyone between you and them is passed over.';
+      case 'ban-pillow':
+        // Redesigned 14 Aug 2026 — the old "send the turn to the leader" effect could target
+        // yourself (you ARE the leader) and ties were common early in a Night. This always
+        // targets a real player (whoever's next) and can never fizzle.
+        effect = "The next player can't play a Pillows card on their turn — they're too Wide Awake for it.";
         break;
       case 'two-card':
         effect = 'Forces the NEXT player to play two cards on their turn. They Deep Sleep if no safe pair exists.';
@@ -1439,7 +1590,7 @@ function shpRenderNightEnd() {
   const status = document.getElementById('shp-table-status');
   if (status) {
     status.textContent = 'Night ' + shpNightNum + ' \xB7 Complete';
-    status.className = 'text-xs font-semibold uppercase tracking-widest text-indigo-400';
+    status.className = 'text-xs font-semibold uppercase tracking-widest shp-label';
   }
 
   // One-shot chime — only fires the first time this Night-end renders (a Night was WON here, so
@@ -1467,7 +1618,7 @@ function shpRenderNightEnd() {
   sorted.forEach(i => {
     const row = document.createElement('div');
     row.className = 'flex items-center justify-between px-3 py-1.5 rounded-xl text-sm ' +
-      (i === info.winner ? 'bg-indigo-50 border border-indigo-200 text-indigo-800'
+      (i === info.winner ? 'shp-tint-bg border'
                          : 'bg-white border border-stone-200 text-stone-700');
     const rawMoons = shpMoonsHeld[i] || 0;
     const moonStr = rawMoons === 0 ? '—'
@@ -1485,7 +1636,7 @@ function shpRenderNightEnd() {
     const orderBox = document.createElement('div');
     orderBox.className = 'flex flex-col gap-1 w-full';
     const heading = document.createElement('p');
-    heading.className = 'text-indigo-400 text-xs font-semibold uppercase tracking-widest text-left';
+    heading.className = 'shp-label text-xs font-semibold uppercase tracking-widest text-left';
     heading.textContent = 'Finishing Order';
     orderBox.appendChild(heading);
     order.forEach((pIdx, rank) => {
@@ -1507,7 +1658,7 @@ function shpRenderNightEnd() {
   if (mpMode === 'single') {
     // Single-device: direct continue (unchanged)
     const btn = document.createElement('button');
-    btn.className = 'min-h-14 w-full rounded-2xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-semibold text-lg transition-all duration-150';
+    btn.className = 'min-h-14 w-full rounded-2xl shp-cta active:scale-95 text-white font-semibold text-lg transition-all duration-150';
     btn.textContent = info.over ? 'See Daybreak' : 'Deal the next Night';
     btn.addEventListener('click', () => { playLaunch(); shpHostContinue(); });
     footer.appendChild(btn);
@@ -1521,7 +1672,7 @@ function shpRenderNightEnd() {
     footer.appendChild(countEl);
     const btn = document.createElement('button');
     btn.className = 'min-h-14 w-full rounded-2xl font-semibold text-lg transition-all duration-150 ' +
-      (allAcked ? 'bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white' : 'bg-stone-200 text-stone-400 cursor-not-allowed');
+      (allAcked ? 'shp-cta active:scale-95 text-white' : 'bg-stone-200 text-stone-400 cursor-not-allowed');
     btn.textContent = info.over ? 'See Daybreak' : 'Deal the next Night';
     btn.disabled = !allAcked;
     if (allAcked) btn.addEventListener('click', () => { playLaunch(); shpHostContinue(); });
@@ -1536,7 +1687,7 @@ function shpRenderNightEnd() {
       footer.appendChild(p);
     } else {
       const btn = document.createElement('button');
-      btn.className = 'min-h-14 w-full rounded-2xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-semibold text-lg transition-all duration-150';
+      btn.className = 'min-h-14 w-full rounded-2xl shp-cta active:scale-95 text-white font-semibold text-lg transition-all duration-150';
       btn.textContent = 'Got it';
       btn.addEventListener('click', () => {
         playDone();
@@ -1559,7 +1710,7 @@ function shpRenderGameover() {
   (shpGameStandings || []).forEach((pIdx, rank) => {
     const row = document.createElement('div');
     row.className = 'flex items-center justify-between px-4 py-2 rounded-xl ' +
-      (rank === 0 ? 'bg-indigo-600 text-white' : 'bg-white border border-stone-200 text-stone-600');
+      (rank === 0 ? 'shp-cta text-white' : 'bg-white border border-stone-200 text-stone-600');
     const medal = rank === 0 ? '\u{1F451}' : (rank + 1) + '.';
     // Normal mode is a Moon race, so the Moon count IS the standing — an ordinal alone hides how
     // close it was. Sylly keeps the survival wording: there are no Moons left to count there.
@@ -1734,7 +1885,7 @@ function shpSyncToggle(id, on) {
   const t = document.getElementById(id);
   if (!t) return;
   t.textContent = on ? 'ON' : 'OFF';
-  t.className = (on ? 'game-toggle-on-indigo' : 'game-toggle-off') + ' shrink-0';
+  t.className = (on ? 'game-toggle-on-shp' : 'game-toggle-off') + ' shrink-0';
 }
 
 // Moons to Win value-line copy (§5) — thematic name + the concrete meaning, per
@@ -1749,7 +1900,7 @@ const SHP_MOONS_LIFE_WORD = { 3: 'three', 5: 'five', 7: 'seven' };
 
 function shpSyncSettingsUI() {
   const setGroup = (attr, val) => document.querySelectorAll('[' + attr + ']').forEach(b =>
-    b.classList.toggle('pill-active-indigo', b.getAttribute(attr) === String(val)));
+    b.classList.toggle('pill-active-shp', b.getAttribute(attr) === String(val)));
   setGroup('data-shp-hand', shpHandSize);
   setGroup('data-shp-moons', shpMoons);
   setGroup('data-shp-moons-win', shpMoonsToWin);
@@ -1782,8 +1933,8 @@ function shpBindPills(attr, apply) {
   document.querySelectorAll('[' + attr + ']').forEach(b => b.addEventListener('click', () => {
     if (b.disabled) return;
     playPillClick();
-    document.querySelectorAll('[' + attr + ']').forEach(x => x.classList.remove('pill-active-indigo'));
-    b.classList.add('pill-active-indigo');
+    document.querySelectorAll('[' + attr + ']').forEach(x => x.classList.remove('pill-active-shp'));
+    b.classList.add('pill-active-shp');
     apply(b.getAttribute(attr));
     shpSyncSettingsUI();
   }));
@@ -1813,8 +1964,8 @@ function shpSetHowToTab(tab, highlightId) {
   if (rules) rules.style.display = tab === 'cards' ? 'none' : 'flex';
   if (cards) cards.style.display = tab === 'cards' ? 'flex' : 'none';
   document.querySelectorAll('[data-shp-howto-tab]').forEach(b => {
-    b.classList.remove('pill-active-indigo');    // .pill is the base — never removed
-    if (b.dataset.shpHowtoTab === tab) b.classList.add('pill-active-indigo');
+    b.classList.remove('pill-active-shp');    // .pill is the base — never removed
+    if (b.dataset.shpHowtoTab === tab) b.classList.add('pill-active-shp');
   });
   if (tab === 'cards') shpRenderGallery(highlightId);
 }
@@ -1832,7 +1983,7 @@ function shpRenderGallery(highlightId) {
     const wrap = document.createElement('div');
     wrap.className = 'flex flex-col gap-2';
     const h = document.createElement('p');
-    h.className = 'text-xs font-semibold uppercase tracking-widest text-indigo-600';
+    h.className = 'text-xs font-semibold uppercase tracking-widest shp-label';
     h.textContent = label;
     const b = document.createElement('p');
     b.className = 'text-stone-500 text-sm';
@@ -1880,16 +2031,16 @@ function shpRenderGallery(highlightId) {
   const pasture = section('Pasture', 'Sheep go in. Every one of these pushes the Herd up.');
   byFamily('pasture').forEach(c => add(pasture, c));
 
-  const pillow = section('Pillow', 'Relief cards — they take sheep back out, skip you, or turn the count around.');
+  const pillow = section('Pillows', 'Relief cards — they take sheep back out, skip you, or turn the count around.');
   byFamily('pillow').forEach(c => add(pillow, c));
 
-  const alarm = section('Alarm', 'Loud, unpredictable, and usually somebody else’s problem until it isn’t.');
+  const alarm = section('Alarms', 'Loud, unpredictable, and usually somebody else’s problem until it isn’t.');
   byFamily('alarm').forEach(c => add(alarm, c));
 
-  const trap = section('Trap', 'One card, and it is coming for the ceiling itself.');
+  const trap = section('Traps', 'One card, and it is coming for the ceiling itself.');
   byFamily('trap').forEach(c => add(trap, c));
 
-  const fog = section('Fogged Dream',
+  const fog = section('Fogged Dreams',
     'Conjured by the Fog nightmare, never dealt from the Flock.');
   row(fog, shpRenderCard(13), (typeof assetFace === 'function') && assetFace('shp', 13),
       'Fogged Dream', shpCardEffectText(13), 0, 13);
@@ -1933,11 +2084,12 @@ function shpHandleEnvelope(env) {
         shpDozeOrder = Array.isArray(p.dozeOrder) ? p.dozeOrder.slice() : [];
         if (p.moonsToWin !== undefined) shpMoonsToWin = p.moonsToWin;
         shpNightEndInfo = null; shpDozeNotice = null;
-        shpMeter = p.meter || 0; shpEcho = p.echo || 0; shpForcedCards = 1; shpTwoSel = [];
+        shpMeter = p.meter || 0; shpEcho = p.echo || 0; shpForcedCards = 1; shpNoPillowNext = false; shpTwoSel = [];
         shpGhostPending = false; shpGhostOptions = []; shpLastDisrupt = null;
         shpPhase = 'climb'; shpCeiling = 99; shpPlungeFlash = false; shpCurrentDrop = 0;
         if (shpAnimTimer) { clearTimeout(shpAnimTimer); shpAnimTimer = null; }
-        shpPlayHistory = []; shpAnimSheep = 0; shpLastEffect = null;
+        shpClearFlipTimers();
+        shpPlayHistory = []; shpAnimSheep = 0; shpLastEffect = null; shpSwapAnim = null;
         shpNightNum  = p.nightNum || shpNightNum;      // was never sent — clients stuck on Night 0 (BUG-04)
         shpSeatOrder = Array.isArray(p.seatOrder) ? p.seatOrder.slice() : [];
         shpNightFlavourIdx = p.flavourIdx || 0;        // host-picked — same line on every device
@@ -1950,14 +2102,21 @@ function shpHandleEnvelope(env) {
         if (p.drop !== undefined) shpCurrentDrop = p.drop;
         shpHerd = p.herd; shpDirection = p.direction; shpActivePlayer = p.nextActive;
         shpForcedCards = p.forcedCards || 1;
+        shpNoPillowNext = !!p.noPillowNext;
         shpHands     = shpNorm2D(p.hands, shpPlayerCount);
         shpHandCap   = p.handCaps  || shpHandCap;
         shpWolfActive= p.wolfActive|| shpWolfActive;
         shpMeter = p.meter || 0; shpTwoSel = []; shpNightEndInfo = null; shpStuckIdx = -1;
         shpGhostPending = false; shpLastDisrupt = null;
+        // shpBroadcastTurn clears this LOCALLY on the host (it's the function that nulls it before
+        // every new play) but the field never rode the payload, so a client kept the previous
+        // crasher's banner ("Shirley gambled to 101 — dozed off…") on screen for every turn after,
+        // until the next redeal. A normal turn result always supersedes the last doze notice.
+        shpDozeNotice = null;
         if (p.playHistory) shpPlayHistory = p.playHistory;
         if (Array.isArray(p.seatOrder)) shpSeatOrder = p.seatOrder.slice();
         shpLastEffect = p.lastEffect || null;     // Firebase erases null — the || is the rebuild half
+        shpSwapAnim   = p.swapAnim   || null;     // same erasure/rebuild — only meaningful on a Swap Dreams turn
         // busted:true — the Herd here already rode the §6 revert, so the card-value-based parade
         // would show growth that never happened on the live counter. Skip it (§8).
         if (!p.busted) shpStartSheepAnim(p.played, p.rolled);
@@ -2042,15 +2201,16 @@ function shpHandleEnvelope(env) {
 function shpResetState() {
   if (shpAnimTimer) { clearTimeout(shpAnimTimer); shpAnimTimer = null; }
   if (shpNightIntroTimer) { clearTimeout(shpNightIntroTimer); shpNightIntroTimer = null; }
+  shpClearFlipTimers();
   shpPlayerCount = 0;  shpPlayerNames = [];
   shpHerd = 0;         shpCeiling = 99;       shpDirection = 1;
   shpMoonsHeld = [];   shpEliminated = [];    shpElimOrder = [];
   shpDozed = [];       shpDozeOrder = [];
   shpActivePlayer = 0; shpOpenerIdx = 0;      shpSeatOrder = [];
-  shpLastEffect = null;
+  shpLastEffect = null; shpSwapAnim = null;
   shpFlock = [];       shpDiscard = [];       shpHands = [];
   shpHandCap = [];     shpWolfActive = [];
-  shpForcedCards = 1;  shpPendingSkip = null;
+  shpForcedCards = 1;  shpNoPillowNext = false; shpPendingSkip = null;
   shpMeter = 0;        shpGhostTurnIdx = 0;   shpSpendHolder = -1;
   shpGhostOptions = [];shpPendingDisrupt = null; shpEcho = 0;
   shpGhostPending = false; shpLastDisrupt = null;

@@ -3,6 +3,20 @@
 Historical SW release notes, moved out of `CLAUDE.md` (1 Aug 2026) so they stop loading into every session.
 The **current** version and its notes stay in `CLAUDE.md` § Current Focus — append the outgoing entry here on each bump.
 
+## v182 — Settings dynamic-value-line (DD-13) sweep CLOSED (13 Aug 2026)
+
+Self-directed, no live testing. Explore-agent audit found the gap was narrower than the deferred
+item implied — only word-difficulty pills, only 7 games: **JEC** (Menu Complexity — its static
+description also named three DIFFERENT tier labels than the pills, a real copy bug fixed alongside
+the value line), **GTH** (Symptom Severity), **LI5** (Report Card), **NAT** (Field Difficulty),
+**DSD** (Sea State), **LTTP** (Party Destination), **SS** (Encryption Protocol — the one game with
+exact-tier, not cumulative, pills, so its wording uses `definitions.md`'s Standard/Wild/Wilder
+language). Every other duration/count/threshold pill in the suite already stated its value or had
+independently built the same shape under a different name. Root-cause writeups split into each
+game's own impl-notes file per `shared-implementation-notes.md`'s own scope rule (no shared engine
+file was touched). Not verified beyond syntax/encoding checks — no `visual-check`, no live play.
+Detail: `deferred-work.md`, and each of jec/gth/li5/nat/dsd/lttp/ss-implementation-notes.md.
+
 ## v177 — Counting Sheep: Fogged Dream no longer leaks into the recycled Flock (13 Aug 2026)
 
 A played Fogged Dream (id 13 — deliberately excluded from `shpBuildFlock`, conjured only by the Fog

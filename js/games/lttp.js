@@ -12,6 +12,16 @@ let lttpJokerMode   = false;
 let lttpGroupVote   = true;
 let lttpSmallTalk   = false;     // guided message prompts — OFF by default (easy mode)
 
+// Dynamic value line (ui-style.md § Settings Card Standard, DD-13) — the pill carries the
+// thematic name only; this says what it means for the location pool.
+function lttpUpdateDifficultyVal() {
+  const el = document.getElementById('lttp-val-difficulty');
+  if (!el) return;
+  el.textContent = lttpDifficulty === 'secret'
+    ? 'The Secret Spot draws from the full location pool.'
+    : 'The Local Hang sticks to familiar, easier locations.';
+}
+
 // ── Small Talk Prompts ────────────────────────────────────────────────────────
 const LTTP_SMALL_TALK = {
   '📍 Getting There': [
@@ -149,6 +159,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // ── Settings overlay ───────────────────────────────────────────────────────
+  lttpUpdateDifficultyVal();
   document.querySelectorAll('[data-lttp-difficulty]').forEach(btn => {
     btn.addEventListener('click', () => {
       playPillClick();
@@ -156,6 +167,7 @@ document.addEventListener('DOMContentLoaded', () => {
       document.querySelectorAll('[data-lttp-difficulty]').forEach(b => {
         b.className = `pill${b.dataset.lttpDifficulty === lttpDifficulty ? ' pill-active-red' : ''}`;
       });
+      lttpUpdateDifficultyVal();
     });
   });
   document.getElementById('btn-lttp-groupvote-toggle').addEventListener('click', () => {

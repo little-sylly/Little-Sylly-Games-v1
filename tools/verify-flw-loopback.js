@@ -354,7 +354,11 @@ function safe(label, fn) {
   check('client Showpiece is the dealt Jade',                  C.myHand, 4);
   check('host dealt itself Obsidian',                          H.hands[0], 0);
   check('host drew Jade for its own opening turn',              H.drawnCard, 4);
-  check('off-turn hand row is [placard, card] (Task 6 shape)', C.handRowShape(), ['placard', 'wrap']);
+  // Polish round (15 Aug 2026): the 2nd slot is now a fixed empty placeholder
+  // off-turn, not omitted — the row no longer reflows between 1-card and
+  // 2-card layouts. Shape is therefore identical to the on-turn shape below.
+  check('off-turn hand row is [placard, card, card, placard] (fixed 2-slot shape)',
+        C.handRowShape(), ['placard', 'wrap', 'wrap', 'placard']);
 
   // ── A full turn resolves ────────────────────────────────────────────────
   section('A full turn resolves — no applier throws, render executes on both devices');

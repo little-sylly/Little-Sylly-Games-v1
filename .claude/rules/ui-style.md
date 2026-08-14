@@ -230,6 +230,18 @@ artMakeZoomable(el, src, caption)   // returns el, for use inline
   surface away from the UI and give it to the artwork.
 - Teardown is already in `resetToLobby()` via `closeArtViewer()` — a new game needs nothing.
 
+### Backdrop tap-to-dismiss (universal, engine-owned, added 14 Aug 2026)
+
+Every overlay closes when the backdrop dead space is tapped — one delegated listener in
+`engine.js` finds the overlay's own neutral button (an `id` matching
+`cancel|close|done|ok|dismiss` as a whole segment, e.g. `btn-[abbr]-howto-close`,
+`btn-[abbr]-quit-cancel`) and `.click()`s it, so a new overlay gets this for free as long as
+its dismiss button's `id` follows that convention — no new wiring needed. **Exception:** an
+overlay whose only buttons are a real decision (no neutral dismiss exists — e.g. accept/
+reject, a pass-the-phone reveal confirm) is correctly left non-dismissible by omission, per
+the Pass-the-Phone Safety Gate below — don't add a neutral-looking id to one of those buttons
+just to make it participate.
+
 ### Z-Index Stack
 | z-index | Used for |
 |---------|----------|
@@ -510,35 +522,23 @@ overlay in the z-index stack, and a second `resetToLobby()` teardown entry — f
 gallery already has to hold anyway. Retired in favour of this pattern 12 Aug 2026; see
 `docs/implementation-notes/shp-implementation-notes.md`.
 
-**Shape (`shpBindCardHold` / `pkoBindChainHold` are the reference implementations):**
+**Shape — the touch/mouse mechanics and the scroll-and-ring are shared `engine.js` globals, not a
+per-game copy.** `bindCardHold(el, onHold, ms=500)` and `refHighlightRow(box, attr, id, pingClass,
+ms=1600)` were extracted from the original per-game `[abbr]BindCardHold` implementations during
+FLW's gem-seam round (task 4, Aug 2026) — see `logic-engine.md` § Shared Library Modules. A game's
+own bind function is now a one-line wrapper:
 ```js
-function [abbr]BindCardHold(el, cardId) {
-  let timer = null;
-  const cancel = () => { if (timer) { clearTimeout(timer); timer = null; } };
-  const start  = () => { cancel(); timer = setTimeout(() => { timer = null; [abbr]OpenHowTo('[gallery-tab]', cardId); }, 500); };
-  el.addEventListener('touchstart', start,  { passive: true });
-  el.addEventListener('touchend',   cancel);
-  el.addEventListener('touchmove',  cancel, { passive: true });
-  el.addEventListener('mousedown',  start);
-  el.addEventListener('mouseup',    cancel);
-  el.addEventListener('mouseleave', cancel);
-}
+function [abbr]BindCardHold(el, cardId) { bindCardHold(el, () => [abbr]OpenHowTo('[gallery-tab]', cardId)); }
 ```
-`[gallery-tab]` is whatever this game already calls its card-gallery tab (`'cards'` for SHP,
+`shpBindCardHold`, `pkoBindChainHold` and `flwBindCardHold` are the three reference call sites.
+`[gallery-tab]` is whatever this game already calls its card-gallery tab (`'cards'` for SHP/FLW,
 `'animals'` for PKO — not a new naming convention). `[abbr]OpenHowTo(tab, highlightId)` forces that
 tab whenever `highlightId` is set (skip the "open to Rules" default), and the gallery's render
-function tags each row/tile with
-`data-[abbr]-card-id` and, when a `highlightId` is passed, does:
-```js
-const target = box.querySelector('[data-[abbr]-card-id="' + highlightId + '"]');
-if (target) requestAnimationFrame(() => {
-  target.scrollIntoView({ block: 'center' });
-  target.classList.add('[abbr]-ref-row-ping');
-  setTimeout(() => target.classList.remove('[abbr]-ref-row-ping'), 1600);
-});
-```
-The ring class is a `box-shadow` transition, never `animation` (reduced-motion already zeroes
-transition durations globally — see § Motion Standard — so this needs no separate guard).
+function tags each row/tile with `data-[abbr]-card-id` (FLW: `data-flw-gem-id`) and calls
+`refHighlightRow(box, 'data-[abbr]-card-id', highlightId, '[abbr]-ref-row-ping')` when a
+`highlightId` is passed. The ring class is a `box-shadow` transition, never `animation`
+(reduced-motion already zeroes transition durations globally — see § Motion Standard — so this
+needs no separate guard).
 
 **A placeholder with no card id of its own points at the real card that explains it.** SHP's
 Big Bad Wolf hand-slot (a locked-slot indicator, not the Wolf card itself — see § Pattern 2a's
@@ -982,7 +982,7 @@ The vocab lock is game-agnostic and available to any future game:
 | PASS | zinc-900 | `pass-range` | `game-toggle-on-zinc` | `pill-active-zinc` |
 | NT | emerald-500 | `nt-range` | `game-toggle-on-emerald` | `pill-active-emerald` |
 | FRT | `#FFE500` electric lemon (custom) | `frt-range` | `game-toggle-on-frt` | `pill-active-frt` |
-| SHP | indigo-600 | `shp-range` | `game-toggle-on-indigo` | `pill-active-indigo` |
+| SHP | `#3A3D52` midnight (custom) | `shp-range` | `game-toggle-on-shp` | `pill-active-shp` |
 | FLW | `#E879A8` rose-pink (custom) | `flw-range` | `game-toggle-on-flw` | `pill-active-flw` |
 | PKO | `#854D0E` (custom) | `pko-range` | `game-toggle-on-pko` | `pill-active-pko` |
 | CJAR | `#D4A017` honey-gold (custom) | `cjar-range` | `game-toggle-on-cjar` | `pill-active-cjar` |
@@ -1060,12 +1060,22 @@ The how-to **close button is always the game's `accentBtnClass`**, so it no long
 | PASS | `bg-zinc-900 hover:bg-zinc-800` | `text-zinc-900` | `text-zinc-700` | `bg-zinc-100 hover:bg-zinc-200 text-zinc-700` |
 | NT | `bg-emerald-500 hover:bg-emerald-600` | `text-emerald-600` | `text-emerald-600` | `bg-emerald-100 hover:bg-emerald-200 text-emerald-700` |
 | FRT | inline `style="background:#FFE500"` § | inline `text-[#047857]` | inline `style="color:#047857"` | `bg-[#FFF4CC] hover:bg-[#FFF3A6] text-[#854d0e]` |
-| SHP | `bg-indigo-600 hover:bg-indigo-700` | `text-indigo-600` | `text-indigo-600` | `bg-indigo-100 hover:bg-indigo-200 text-indigo-700` |
-| FLW | `flw-cta` | — | `flw-step-label` | `bg-[#FBE0EA] hover:bg-[#F6C9DA] text-[#A02050]` |
+| SHP | `shp-cta` | — | `shp-label` | `bg-[#E6E7EE] hover:bg-[#C9CBDA] text-[#3A3D52]` |
+| FLW | `flw-cta` | — | `flw-step-label` | `bg-[#A02050] hover:bg-[#7A1A3E] text-white` ¶ |
 | PKO | `pko-cta` | — | `pko-label` | `bg-[#F5E6C8] hover:bg-[#EBD5A8] text-[#854D0E]` |
 | CJAR | `cjar-cta` ‡ | — | `cjar-label` | `bg-[#F7E9C4] hover:bg-[#EFDCA8] text-[#7A5C0A]` |
 
 **‡** CJAR is the second game after FRT whose fill takes **dark ink, never white** — `#D4A017` measures **2.38:1** against white (below the 3:1 large-text floor) and **6.39:1** against stone-800. `.cjar-cta` supplies `color:#292524` itself, so never add a Tailwind `text-white` alongside it; that is also why the `MP_GAME_CONFIGS` entry sets `ctaTextClass: 'text-stone-800'`. Labels use the darkened `#7A5C0A`, because raw `#D4A017` on `bg-stone-50` is itself under 3:1. Modal border `border-[#E5C97A]`.
 
 **§** FRT’s how-to close button is the one exception — `bg-[#FFE500] hover:bg-[#E6D200] text-stone-800`, same colour as utilities (recoloured from banana `#FFC700` + white ink 2 Aug 2026 — the white text failed WCAG contrast on the brighter lemon fill; see decision-log).
-A `—` in the `accentTextClass` column means the game never calls `showWhoFirst()` (GTH, FLW, PKO). Don’t invent one.
+
+**¶** FLW's Settings/Audit/readyCheck buttons are a deliberate **exception to the light-tint
+convention itself** (not just a contrast fix) — owner-requested "flip" (15 Aug 2026, settled after
+6 passes): rather than the usual `bg-[brand-100] text-[brand-700]` pastel tint, the fill inverts
+FLW's own dark hex (`#A02050`, the same "dark ink" used for carat text) against WHITE text
+(simplified from light-pink `#F9A8D4` text mid-round — same fill, cleaner text). The primary
+CTA/pills/toggle-ON (and the lobby's own `#btn-flw` game tile) are `#F9A8D4` fill + WHITE text too
+— confirmed live by the owner against the lobby tile as the reference combo; measured contrast is
+low (~1.8:1) but this is a deliberate, twice-confirmed call, not an oversight to "fix". Don't
+generalise the flip to other games' Settings buttons — it's FLW-specific.
+A `—` in the `accentTextClass` column means the game never calls `showWhoFirst()` (GTH, FLW, PKO, SHP, CJAR). Don’t invent one.

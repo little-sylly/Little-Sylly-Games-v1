@@ -33,6 +33,20 @@ let passSeatNumbers  = [];
 let passMatchRound = 0;
 let passChips      = [];   // [playerCount] current chip totals
 let passRoundsWon  = [];   // [playerCount] round wins for tie-break
+let passRoundFlavourIdx = 0;      // host-picked index into PASS_ROUND_FLAVOUR, synced in PASS_GAME_START
+let passRoundIntroTimer = null;   // Round Intro auto-advance handle (cleared in quit-confirm + resetToLobby)
+
+// ── Constants ─────────────────────────────────────────────────────────────
+const PASS_INTERSTITIAL_MS = 5000;  // matches the suite-wide interstitial dwell (PKO/CJAR/SHP/NAT)
+// Rotating flavour for the Round Intro (ui-style.md § Round/Night Intro Screen) — a round can
+// repeat many times in one match, so a fixed line would read as filler by the third showing.
+// Host picks the index and it rides in PASS_GAME_START, never chosen locally.
+const PASS_ROUND_FLAVOUR = [
+  'Fresh deck, fresh hands. Nobody has an edge yet.',
+  'New deal — watch who leads and what they open with.',
+  'Everyone starts even. The climb begins now.',
+  'New hands all round. The table remembers nothing.',
+];
 let passMatchOver  = false;
 
 // ── Round state (reset each round) ───────────────────────────────────────────
@@ -423,6 +437,7 @@ function passStartRound() {
     passCurrentPlayerIdx = passFindLeader();
   }
   // Rounds 2+: passCurrentPlayerIdx is set to passRoundWinnerIdx after passResolveRound()
+  passRoundFlavourIdx = Math.floor(Math.random() * PASS_ROUND_FLAVOUR.length);  // host picks; synced below
 
   if (window.syllyMultiplayerMode === 'host') {
     mpSendEnvelope({ type: 'SYNC', payload: {
@@ -435,9 +450,27 @@ function passStartRound() {
       roundNum:    passMatchRound,
       firstPlayer: passCurrentPlayerIdx,
       mandatoryCard: passMandatoryCard,
+      flavourIdx:  passRoundFlavourIdx,
     }});
   }
-  passShowTable();
+  passShowRoundIntro();
+}
+
+// Auto-advancing Round Intro (ui-style.md § Round/Night Intro Screen) — every round, both
+// host/single and clients call this instead of jumping straight to the table. No [?]/🔊/✕
+// (rule-5 interstitial exemption: auto-advances, nothing to tap). Timer is cleared +
+// retriggered on every call so a rapid-fire new-round loop can never stack two.
+function passShowRoundIntro() {
+  const durLabel = passMatchDuration === 'endless' ? '∞' : passMatchDuration;
+  const heading = document.getElementById('pass-intro-heading');
+  if (heading) heading.textContent = `Round ${passMatchRound} of ${durLabel}`;
+  const sub = document.getElementById('pass-intro-sub');
+  if (sub) sub.textContent = PASS_ROUND_FLAVOUR[passRoundFlavourIdx % PASS_ROUND_FLAVOUR.length] || PASS_ROUND_FLAVOUR[0];
+  const syllyNote = document.getElementById('pass-intro-sylly');
+  if (syllyNote) syllyNote.style.display = passSyllyMode ? 'flex' : 'none';
+  showScreen('screen-pass-intro');
+  if (passRoundIntroTimer) clearTimeout(passRoundIntroTimer);
+  passRoundIntroTimer = setTimeout(() => { passRoundIntroTimer = null; passShowTable(); }, PASS_INTERSTITIAL_MS);
 }
 
 // Determine the round-1 leader: the holder of the single lowest card (3♦ is the absolute
@@ -1384,7 +1417,6 @@ function passHandleEnvelope(env) {
       passMatchRound       = payload.roundNum || 1;
       passCurrentPlayerIdx = payload.firstPlayer || 0;
       passMandatoryCard    = payload.mandatoryCard || null;
-      passChips            = payload.chips.map(c => c);
       // Only zero the cumulative tally at a true match start (round 1). Rounds 2+
       // re-broadcast PASS_GAME_START but must preserve the running rounds-won count,
       // otherwise the client gameover subline shows only the final round (BUG-02).
@@ -1403,8 +1435,9 @@ function passHandleEnvelope(env) {
       passCurrentTrickPlays = [];
       passTrickLog          = [];
       passCurrentTrickNum   = 1;
+      passRoundFlavourIdx   = payload.flavourIdx || 0;
       mpUnlockSync();
-      passShowTable();
+      passShowRoundIntro();
       return;
     }
 
@@ -1745,6 +1778,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('btn-pass-quit-confirm').addEventListener('click', () => {
     playExit();
+    if (passRoundIntroTimer) { clearTimeout(passRoundIntroTimer); passRoundIntroTimer = null; }
     document.getElementById('pass-quit-overlay').style.display = 'none';
     if (window.syllyMultiplayerMode === 'client') {
       // Tell host we're leaving

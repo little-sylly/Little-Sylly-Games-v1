@@ -829,7 +829,9 @@ function gthHandleEnvelope(envelope) {
   // ── ACTION: GTH_DIAGNOSES_SUBMIT (host only) ──────────────────────
   if (type === 'ACTION' && payload.action === 'GTH_DIAGNOSES_SUBMIT') {
     if (syllyMultiplayerMode !== 'host') return;
-    gthAllDiagnoses[payload.playerIdx] = payload.diagnoses;
+    // A player who times out before diagnosing a single case sends diagnoses:[] —
+    // Firebase erases the empty array, so payload.diagnoses arrives undefined (BUG-06 class).
+    gthAllDiagnoses[payload.playerIdx] = payload.diagnoses || [];
     gthDiagnosesReady[payload.playerIdx] = true;
     gthUpdateCaseReportProgress();
     mpUnlockSync();
@@ -941,6 +943,14 @@ function gthSyncSettingsUI() {
       p.classList.toggle('pill-active-sage', isActive);
     });
   }
+  // Dynamic value line (ui-style.md § Settings Card Standard, DD-13) — the pill carries the
+  // thematic name only; this says what it means for the disorder pool.
+  const diffVal = document.getElementById('gth-val-difficulty');
+  if (diffVal) diffVal.textContent = {
+    episodic:   'Episodic uses only the simplest cases.',
+    recurrent:  'Recurrent mixes simple and moderate cases.',
+    refractory: 'Refractory includes the hardest cases too.',
+  }[gthDifficultyMix] || '';
   const ddBtn = document.getElementById('btn-gth-deepdive-toggle');
   ddBtn.textContent = gthDeepDive ? 'ON' : 'OFF';
   ddBtn.className   = gthDeepDive ? 'game-toggle-on-sage shrink-0' : 'game-toggle-off shrink-0';
@@ -1069,6 +1079,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (group === 'gth-drawtime')   gthDrawingTime         = parseInt(val, 10);
       if (group === 'gth-window')     gthDiagnosisWindow     = parseInt(val, 10);
       if (group === 'gth-difficulty') gthDifficultyMix       = val;
+      gthSyncSettingsUI();   // repaint the value line under the group that just changed
     });
   });
 

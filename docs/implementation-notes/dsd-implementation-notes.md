@@ -26,6 +26,14 @@ The Sylly Mode name clashed with PASS's Sylly Mode "The Abyss". PASS keeps "Abys
 **Spectator screen (TLM)**
 `screen-dsd-spectator` is a read-only crew-view grid + running clue history for the non-active team in TLM mode. Driven by `dsdShowSpectatorView()`. Only game in the suite with a spectator screen.
 
+**Sea State DD-13 value line added. [13 Aug 2026]** Found during the suite-wide DD-13 sweep
+(`ui-style.md` § Settings Card Standard) — Calm/Turbulent/Tempest gave no indication of the actual
+word-tier cutoff each pulls from. Added `#dsd-val-sea-state`, populated inside the existing
+`dsdSyncSettingsPills()` (`js/games/dsd.js`, already called on both settings-open and pill click)
+from `dsdSeaState` (`calm` = tier `[1]`, `turbulent` = tiers `[1,2]`, `tempest` = tiers `[1,2,3]` —
+see the `tierMap` in the grid-word pool builder). **Not verified beyond syntax checks** — no
+`visual-check`, no live play.
+
 ---
 
 ## Bug Index

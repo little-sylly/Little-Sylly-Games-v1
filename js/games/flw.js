@@ -64,6 +64,7 @@ let flwTurnEndTs     = 0;       // wall-clock end of the current turn (Appraisal
 let flwLastTickSec   = -1;      // last whole second announced (gate playTick to 1/sec)
 let flwSelSlot       = null;    // 'hand' | 'drawn' — which card the active player will place
 let flwLastResult    = null;    // last Showing-end payload (drives result + gameover screens)
+let flwResultReadyCheck = [];   // bool per player — confirmed they've seen the Showing result (non-host gate before host's Next Showing unlocks)
 let flwEmeraldCards  = [];       // client: the 3 Deep-Vault options being chosen from
 let flwEmeraldKeep   = null;     // client: index into flwEmeraldCards chosen to keep
 let flwPeekGemId     = null;     // client: gemId currently behind the Peek Guard
@@ -112,6 +113,12 @@ function flwRenderCard(gemId, opts = {}) {
   const size = opts.size || 'md';
   const g = FLW_GEM[gemId] || {};
   const el = document.createElement('div');
+  if (opts.empty) {
+    // Fixed 2nd hand-row slot when you haven't drawn yet — no gem, no carat, no
+    // interaction, same box as a real card so the row never reflows off-turn.
+    el.className = 'flw-card flw-card-empty flw-card-' + size;
+    return el;
+  }
   if (opts.faceDown) {
     el.className = 'flw-card flw-card-back flw-card-' + size;
     // Asset-pack back (device-local skin) if active; else default gradient back.
@@ -249,14 +256,15 @@ function flwShowTable()  { showScreen('screen-flw-table'); flwRenderTable(); }
 function flwRenderTable() {
   const me = flwMyIdx();
   if (window.syllyMultiplayerMode !== 'client') flwTopClaims = flwTopPlayClaims(); // host derives fresh
-  const label = document.getElementById('flw-turn-label');
-  if (label) {
-    if (flwExposed[me]) label.textContent = 'Exposed — spectating';
-    else if (flwActivePlayer === me) label.textContent = 'Your turn';
-    else label.textContent = (flwPlayerNames[flwActivePlayer] || 'Player') + "'s turn";
-  }
+  // Header left side is a fixed location title ("The Showroom"), not a rotating
+  // turn indicator — whose turn it is already reads from the rival strip's
+  // highlighted chip and the action button's own state (Waiting… vs Choose a gem).
+  const titleEl = document.getElementById('flw-header-title');
+  if (titleEl) titleEl.textContent = 'The Showroom - Exhibition ' + (flwShowingNum || 1);
   const vc = document.getElementById('flw-vault-count');
-  if (vc) vc.textContent = flwPublicVaultCount;
+  if (vc) vc.textContent = flwPublicVaultCount + ' gem' + (flwPublicVaultCount === 1 ? '' : 's') + ' remaining';
+  const cutEl = document.getElementById('flw-vault-cut');
+  if (cutEl) { const n = flwBurnCount(); cutEl.textContent = n + ' gem' + (n === 1 ? ' has' : 's have') + ' been cut'; }
   flwRenderRivalStrip(me);
   flwRenderLedger();
   flwRenderLog();
@@ -288,21 +296,27 @@ function flwRenderTable() {
 }
 function flwTopPlayClaims() { return (flwTopPlay || []).map(tp => (tp && !tp.audited) ? tp.claimedId : null); }
 
+// The full seating order, including yourself — not just rivals — so the strip
+// reads as "who's up next" and "who's winning" at a glance, not just "who to
+// watch out for". Turn order is seat order (flwActivePlayer only ever advances
+// via flwNextActive), so a plain 0..flwPlayerCount loop is already in order.
 function flwRenderRivalStrip(me) {
   const strip = document.getElementById('flw-rival-strip');
   if (!strip) return;
   strip.innerHTML = '';
   for (let i = 0; i < flwPlayerCount; i++) {
-    if (i === me) continue;
     const active = (i === flwActivePlayer);
+    const isMe = (i === me);
     const chip = document.createElement('div');
-    chip.className = 'flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-xl shadow-sm ' + (active ? 'bg-[#FBE0EA]' : 'bg-white');
+    chip.className = 'flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-xl shadow-sm '
+      + (active ? 'bg-[#FBE0EA]' : 'bg-white')
+      + (isMe ? ' ring-2 ring-[#F472B6]' : '');
     const badge = document.createElement('div');
     badge.className = 'text-base';
     badge.textContent = flwExposed[i] ? '\u{1F4A5}' : (flwUnderGlass[i] ? '\u{1F6E1}\u{FE0F}' : '\u{1F48E}');
     const nm = document.createElement('div');
     nm.className = 'text-xs font-semibold ' + (flwExposed[i] ? 'text-stone-300 line-through' : 'text-stone-700');
-    nm.textContent = (flwPlayerNames[i] || ('P' + (i + 1)));
+    nm.textContent = isMe ? 'You' : (flwPlayerNames[i] || ('P' + (i + 1)));
     const tok = document.createElement('div');
     tok.className = 'text-[0.6rem] text-stone-400';
     tok.textContent = '\u{1F48E}'.repeat(flwTokens[i] || 0) || '·';
@@ -333,6 +347,21 @@ function flwBuildPlacard(gemId, opts = {}) {
   const effect = document.createElement('p');
   effect.className = 'text-[0.55rem] text-stone-500 leading-tight';
   effect.textContent = FLW_GEM_SHORT[gemId] || '';
+  el.append(name, effect);
+  return el;
+}
+
+// Matches flwBuildPlacard's box exactly (same classes) so the row's width never
+// shifts when the 2nd slot has nothing to describe yet.
+function flwEmptyPlacard() {
+  const el = document.createElement('div');
+  el.className = 'flw-placard flex flex-col gap-0.5 rounded-xl bg-white px-2 py-1.5 shadow-sm opacity-40';
+  const name = document.createElement('p');
+  name.className = 'text-[0.58rem] font-bold text-stone-400 leading-tight';
+  name.textContent = 'Not drawn yet';
+  const effect = document.createElement('p');
+  effect.className = 'text-[0.55rem] text-stone-400 leading-tight';
+  effect.textContent = 'Waits for your turn';
   el.append(name, effect);
   return el;
 }
@@ -410,7 +439,7 @@ function flwRenderGems(highlightId) {
     const txt = document.createElement('div');
     txt.className = 'flex flex-col gap-0.5 min-w-0';
     const n = document.createElement('p');
-    n.className = 'font-bold text-stone-800 text-sm';
+    n.className = 'font-bold text-stone-700 text-sm';
     n.textContent = `${g.name} · ${g.id}`;
     const q = document.createElement('p');
     q.className = 'text-stone-400 text-[0.65rem] font-semibold uppercase tracking-wide';
@@ -449,8 +478,10 @@ function flwRenderLedger() {
   if (flwLedgerMode === 'off') { el.innerHTML = '<p class="text-stone-400 text-xs">Off — count the discards yourself.</p>'; return; }
   if (flwLedgerMode === 'discards') { flwRenderDiscardStrip(); return; }
   const counts = flwLedgerCounts || [];
-  // Each gem contributes 4 cells: [carat#] [gem name] [seen] [/total] — gem
-  // colour on numeric fields only. Two gems (one per visual column) per row.
+  // Each gem is one tight [carat#][name][seen/total] grid — the count sits right
+  // next to its own gem's name, not equidistant between it and the NEXT gem's
+  // carat#. The two columns are two separate grids with real space between them,
+  // so the grouping reads as "this gem, this count" rather than a loose 8-up row.
   const cell = g => {
     const seen = counts[g.id] || 0;
     const done = seen >= g.qty;
@@ -458,13 +489,25 @@ function flwRenderLedger() {
     const fade = done ? 'opacity:0.3;text-decoration:line-through;' : '';
     return '<div style="font-size:0.65rem;font-weight:800;color:' + col + ';text-align:right;' + fade + '">' + g.id + '</div>'
          + '<div style="font-size:0.65rem;color:#57534e;' + fade + '">' + g.name + '</div>'
-         + '<div style="font-size:0.65rem;font-weight:700;color:' + col + ';' + fade + '">' + seen + '</div>'
-         + '<div style="font-size:0.65rem;color:#a8a29e;' + fade + '">/​' + g.qty + '</div>';
+         + '<div style="font-size:0.65rem;font-weight:700;color:' + col + ';white-space:nowrap;' + fade + '">' + seen + '/​' + g.qty + '</div>';
   };
-  let html = '<div style="display:grid;grid-template-columns:1.1rem 1fr auto auto 1.1rem 1fr auto auto;gap:0.12rem 0.45rem;align-items:center;">';
-  FLW_LEDGER_ROWS.forEach(([a, b]) => { html += cell(FLW_GEM[a]) + cell(FLW_GEM[b]); });
-  html += '</div>';
-  el.innerHTML = html;
+  // FLW_LEDGER_ROWS pairs [left,right] per row for the old 8-col layout; rebuild
+  // each visual column (all lefts, all rights) as its own tight 3-col grid instead.
+  const leftIds  = FLW_LEDGER_ROWS.map(r => r[0]);
+  const rightIds = FLW_LEDGER_ROWS.map(r => r[1]);
+  const colHtml = ids => {
+    let h = '<div style="display:grid;grid-template-columns:1.1rem 1fr auto;gap:0.12rem 0.3rem;align-items:center;">';
+    ids.forEach(id => { h += cell(FLW_GEM[id]); });
+    return h + '</div>';
+  };
+  // Split into two EQUAL halves of the card's full width, each half centering
+  // its own column — not one narrow centred cluster with a fixed gap (that
+  // read as tight in the middle with dead space on both outer edges instead).
+  // Each column's own carat/name/count grouping stays exactly as tight as before.
+  el.innerHTML = '<div style="display:grid;grid-template-columns:1fr 1fr;">'
+    + '<div style="display:flex;justify-content:center;">' + colHtml(leftIds) + '</div>'
+    + '<div style="display:flex;justify-content:center;">' + colHtml(rightIds) + '</div>'
+    + '</div>';
 }
 // Stubbed here (task 7); the real chronological-feed render lands in task 9,
 // once flwDiscardFeed (task 8) exists to draw from.
@@ -520,10 +563,21 @@ function flwRenderHand(me) {
   if (flwMyHand == null) { row.innerHTML = '<p class="text-stone-400 text-sm">Waiting for your Showpiece…</p>'; return; }
   const myTurn = (flwActivePlayer === me && flwMyDrawn != null && !flwShowingOver);
   const forced = (myTurn && !flwCfMode) ? flwRubyForcedSlot() : null; // Blood Ruby hard-lock
+  // Always two slots — a fixed empty placeholder stands in for the 2nd (drawn) gem
+  // when it's not your turn, so the row never reflows between 1-card and 2-card
+  // layouts (you will only ever hold 1 or 2 gems, never fewer/more).
   const cards = [{ slot: 'hand', gemId: flwMyHand }];
-  if (myTurn) cards.push({ slot: 'drawn', gemId: flwMyDrawn });
+  if (myTurn) cards.push({ slot: 'drawn', gemId: flwMyDrawn }); else cards.push({ slot: 'empty' });
   const placards = [], wraps = [];
   cards.forEach(c => {
+    if (c.slot === 'empty') {
+      const card = flwRenderCard(null, { size: 'md', empty: true });
+      const wrap = document.createElement('div'); wrap.className = 'flex flex-col items-center gap-1';
+      wrap.append(card, flwMiniLabel('Not drawn'));
+      wraps.push(wrap);
+      placards.push(flwEmptyPlacard());
+      return;
+    }
     let selectable, dimmed, outlined, onTap;
     if (flwCfMode) {                                   // choosing which real gem to KEEP (other is forged)
       selectable = true; dimmed = false; outlined = (flwCfKeep === c.slot);
@@ -630,8 +684,10 @@ function flwBeginPlay(gemId) {
   }
   if (flwIsTargeted(gemId)) {
     const lg = flwLegalTargets(gemId, me);
-    if (lg.length === 0) { playWhoosh(); flwSubmitPlay(gemId, -1, null); return; } // fizzle
-    if (lg.length === 1) { playWhoosh(); flwSubmitPlay(gemId, lg[0], null); return; } // only one legal target
+    if (lg.length === 0) { playWhoosh(); flwSubmitPlay(gemId, -1, null); return; } // fizzle — no one left to see at all
+    // Always show the modal, even with exactly one legal target — a rival being
+    // Under Glass or Exposed should be VISIBLE (greyed, not just absent), not
+    // silently skipped past. flwOpenTarget lists everyone and greys the rest.
     flwOpenTarget(gemId, lg); return;
   }
   playWhoosh(); flwSubmitPlay(gemId, -1, null);                                 // no-target effect
@@ -673,8 +729,7 @@ function flwBeginCounterfeitPlay() {
   if (flwIsTargeted(claimedId)) {
     const lg = flwLegalTargets(claimedId, me);
     if (lg.length === 0) { playWhoosh(); flwSubmitCounterfeit(claimedId, keepSlot, -1, null); return; }
-    if (lg.length === 1) { playWhoosh(); flwSubmitCounterfeit(claimedId, keepSlot, lg[0], null); return; }
-    flwOpenTarget(claimedId, lg); return; // flwCfMode true → tap routes to counterfeit
+    flwOpenTarget(claimedId, lg); return; // flwCfMode true → tap routes to counterfeit; always shown, see flwBeginPlay
   }
   playWhoosh(); flwSubmitCounterfeit(claimedId, keepSlot, -1, null);
 }
@@ -730,7 +785,13 @@ function flwSubmitAudit(targetIdx) {
   }
 }
 
+// Lists every Collector still IN the Showing, not just the legal targets — a
+// rival who's Under Glass (or, for non-Topaz effects, yourself) shows up greyed
+// and unclickable rather than silently missing, so it's always visible WHY your
+// options are what they are (this is what surfaces Sapphire's swap choice even
+// when only one rival is actually eligible).
 function flwOpenTarget(gemId, legal) {
+  const me = flwMyIdx();
   const head = document.getElementById('flw-target-heading');
   const sub  = document.getElementById('flw-target-sub');
   const list = document.getElementById('flw-target-list');
@@ -738,16 +799,25 @@ function flwOpenTarget(gemId, legal) {
   if (sub)  sub.textContent = 'Tap a jeweller to target.';
   if (list) {
     list.innerHTML = '';
-    legal.forEach(i => {
+    for (let i = 0; i < flwPlayerCount; i++) {
+      if (flwExposed[i]) continue;
+      if (i === me && gemId !== 5) continue; // self not targetable except Topaz (Recut)
+      const isLegal = legal.includes(i);
       const b = document.createElement('button');
-      b.className = 'flw-cta min-h-11 w-full rounded-2xl text-white font-semibold text-sm active:scale-95 transition-all duration-100';
-      b.textContent = (i === flwMyIdx()) ? (flwName(i) + ' (yourself)') : flwName(i);
-      b.addEventListener('click', () => {
-        document.getElementById('flw-target-overlay').style.display = 'none'; playWhoosh();
-        if (flwCfMode) flwSubmitCounterfeit(gemId, flwCfKeep, i, null); else flwSubmitPlay(gemId, i, null);
-      });
+      if (isLegal) {
+        b.className = 'flw-cta min-h-11 w-full rounded-2xl text-white font-semibold text-sm active:scale-95 transition-all duration-100';
+        b.textContent = (i === me) ? (flwName(i) + ' (yourself)') : flwName(i);
+        b.addEventListener('click', () => {
+          document.getElementById('flw-target-overlay').style.display = 'none'; playWhoosh();
+          if (flwCfMode) flwSubmitCounterfeit(gemId, flwCfKeep, i, null); else flwSubmitPlay(gemId, i, null);
+        });
+      } else {
+        b.className = 'min-h-11 w-full rounded-2xl bg-stone-100 text-stone-300 font-semibold text-sm cursor-not-allowed';
+        b.textContent = flwName(i) + ' — Under Glass \u{1F6E1}\u{FE0F}';
+        b.disabled = true;
+      }
       list.appendChild(b);
-    });
+    }
   }
   document.getElementById('flw-target-overlay').style.display = 'flex';
 }
@@ -755,24 +825,32 @@ function flwOpenTarget(gemId, legal) {
 function flwOpenScratch() {
   flwScratchTarget = -1; flwScratchGuess = -1;
   const me = flwMyIdx();
+  const legal = flwLegalTargets(1, me);
   const tl = document.getElementById('flw-scratch-target-list');
   const gl = document.getElementById('flw-scratch-guess-list');
   if (tl) {
     tl.innerHTML = '';
-    flwLegalTargets(1, me).forEach(i => {
+    legal.forEach(i => {
       const b = document.createElement('button');
       b.className = 'pill'; b.dataset.t = i; b.textContent = flwName(i);
       b.addEventListener('click', () => { flwScratchTarget = i; flwRenderScratchSel(); });
       tl.appendChild(b);
     });
   }
+  if (legal.length === 1) flwScratchTarget = legal[0]; // only one rival left — no need to tap it
   if (gl) {
     gl.innerHTML = '';
+    // Real gem cards (carat already on the face) in a 2-row-of-5 grid, not text
+    // pills — "9 Pink Diamond" read worse than the card itself. A gem already
+    // fully seen in the Ledger can't be in anyone's hand, so it's greyed and
+    // unclickable rather than a live guess worth making (Ledger on only —
+    // off means no free information here either).
     [9, 8, 7, 6, 5, 4, 3, 2, 0].forEach(g => { // every gem except Clear Quartz (1)
-      const b = document.createElement('button');
-      b.className = 'pill'; b.dataset.g = g; b.textContent = g + ' ' + FLW_GEM[g].name;
-      b.addEventListener('click', () => { flwScratchGuess = g; flwRenderScratchSel(); });
-      gl.appendChild(b);
+      const known = flwLedgerMode !== 'off' && (flwLedgerCounts[g] || 0) >= (FLW_GEM[g].qty || 0);
+      const card = flwRenderCard(g, { size: 'sm', selectable: !known, dimmed: known });
+      card.dataset.g = g;
+      if (!known) card.addEventListener('click', () => { flwScratchGuess = g; flwRenderScratchSel(); });
+      gl.appendChild(card);
     });
   }
   flwRenderScratchSel();
@@ -780,7 +858,7 @@ function flwOpenScratch() {
 }
 function flwRenderScratchSel() {
   document.querySelectorAll('#flw-scratch-target-list .pill').forEach(b => b.classList.toggle('pill-active-flw', parseInt(b.dataset.t, 10) === flwScratchTarget));
-  document.querySelectorAll('#flw-scratch-guess-list .pill').forEach(b => b.classList.toggle('pill-active-flw', parseInt(b.dataset.g, 10) === flwScratchGuess));
+  document.querySelectorAll('#flw-scratch-guess-list [data-g]').forEach(c => c.classList.toggle('flw-card-sel', parseInt(c.dataset.g, 10) === flwScratchGuess));
   const c = document.getElementById('btn-flw-scratch-confirm');
   if (c) c.disabled = !(flwScratchTarget >= 0 && flwScratchGuess >= 0);
 }
@@ -804,42 +882,46 @@ function flwSetTopPlay(idx, claimedId, realId, counterfeit) {
 
 // Applies one gem's effect (operates on flwHands[active] = already-retained Showpiece).
 // Returns the public log line (which states the CLAIMED effect — a forgery's lie reads true).
+// Every line names the gem FIRST, then what it did — "X played the Y — did Z" —
+// so the Journal is a readable record of what was played, not just what happened.
 function flwApplyEffect(active, gemId, targetIdx, guessId, changed) {
+  const name = flwName(active), gem = FLW_GEM[gemId].name;
+  const played = name + ' played the ' + gem;
   switch (FLW_GEM[gemId].effect) {
-    case 'diamond':    return flwName(active) + ' placed the Pink Diamond.';
-    case 'ruby':       return flwName(active) + ' placed the Blood Ruby.';
-    case 'underglass': flwUnderGlass[active] = true; return flwName(active) + ' slipped Under Glass.';
-    case 'obsidian':   return flwName(active) + ' placed a Raw Obsidian.';
+    case 'diamond':    return played + '.';
+    case 'ruby':       return played + '.';
+    case 'underglass': flwUnderGlass[active] = true; return played + ' — slipped Under Glass.';
+    case 'obsidian':   return played + '.';
     case 'trade':
-      if (targetIdx < 0) return flwName(active) + ' played The Trade — no one to trade with.';
+      if (targetIdx < 0) return played + ' — no one to trade with.';
       { const t = flwHands[active]; flwHands[active] = flwHands[targetIdx]; flwHands[targetIdx] = t; }
       changed.add(targetIdx);
-      return flwName(active) + ' traded Showpieces with ' + flwName(targetIdx) + '.';
+      return played + ' — traded Showpieces with ' + flwName(targetIdx) + '.';
     case 'recut': {
-      if (targetIdx < 0) return flwName(active) + ' played The Recut — no valid target.';
+      if (targetIdx < 0) return played + ' — no valid target.';
       const before = flwHands[targetIdx]; flwRecut(targetIdx, changed);
-      let s = flwName(active) + ' forced ' + flwName(targetIdx) + ' to recut.';
+      let s = played + ' — forced ' + flwName(targetIdx) + ' to recut.';
       if (before === 9) s += ' The Pink Diamond shattered — ' + flwName(targetIdx) + ' is Exposed!';
       return s;
     }
     case 'appraisal': {
-      if (targetIdx < 0) return flwName(active) + ' played The Private Appraisal — no target.';
+      if (targetIdx < 0) return played + ' — no target.';
       const av = flwHands[active], tv = flwHands[targetIdx];
-      if (av < tv) { flwExpose(active); return flwName(active) + ' lost the Appraisal and was Exposed.'; }
-      if (tv < av) { flwExpose(targetIdx); return flwName(active) + ' out-appraised ' + flwName(targetIdx) + ' — Exposed.'; }
-      return flwName(active) + ' and ' + flwName(targetIdx) + ' appraised dead even — no change.';
+      if (av < tv) { flwExpose(active); return played + ' — lost the Appraisal and was Exposed.'; }
+      if (tv < av) { flwExpose(targetIdx); return played + ' — out-appraised ' + flwName(targetIdx) + ', Exposed.'; }
+      return played + ' — appraised dead even with ' + flwName(targetIdx) + ', no change.';
     }
     case 'loupe': {
-      if (targetIdx < 0) return flwName(active) + ' played The Loupe — no one to inspect.';
+      if (targetIdx < 0) return played + ' — no one to inspect.';
       const auid = mpPlayerSlots[active] && mpPlayerSlots[active].uid;
       if (window.syllyMultiplayerMode === 'single' || auid === window.syllyDeviceUid) flwShowPeek(targetIdx, flwHands[targetIdx]);
       else if (auid) mpSendPrivate(auid, { type: 'SYNC', payload: { action: 'FLW_PEEK', targetIdx, gemId: flwHands[targetIdx] } });
-      return flwName(active) + ' studied ' + flwName(targetIdx) + ' through the Loupe.';
+      return played + ' — studied ' + flwName(targetIdx) + "'s Showpiece.";
     }
     case 'scratch':
-      if (targetIdx < 0) return flwName(active) + ' played The Scratch Test — no target.';
-      if (flwHands[targetIdx] === guessId) { flwExpose(targetIdx); return flwName(active) + ' scratched ' + flwName(targetIdx) + "'s gem — Exposed!"; }
-      return flwName(active) + ' guessed wrong on ' + flwName(targetIdx) + '.';
+      if (targetIdx < 0) return played + ' — no target.';
+      if (flwHands[targetIdx] === guessId) { flwExpose(targetIdx); return played + ' — scratched ' + flwName(targetIdx) + "'s gem, Exposed!"; }
+      return played + ' — guessed wrong on ' + flwName(targetIdx) + '.';
   }
   return '';
 }
@@ -925,7 +1007,7 @@ function flwHostStartEmerald(active, retainedOverride) {
   const offer = [retained, d1, d2].filter(x => x != null);
   flwEmeraldOffer = { active, cards: offer };
   flwPublicVaultCount = flwDeck.length;
-  flwPublicLog.push({ text: flwName(active) + ' delves the Deep Vault…' });
+  flwPublicLog.push({ text: flwName(active) + ' played the Green Emerald — delving the Deep Vault…' });
   const auid = mpPlayerSlots[active] && mpPlayerSlots[active].uid;
   if (window.syllyMultiplayerMode === 'single' || auid === window.syllyDeviceUid) flwShowEmerald(offer);
   else if (auid) mpSendPrivate(auid, { type: 'SYNC', payload: { action: 'FLW_EMERALD_OFFER', cards: offer } });
@@ -1018,7 +1100,7 @@ function flwShowPeek(targetIdx, gemId) {
 
 // ── Green Emerald overlay (active device) ──────────────────────────────────
 function flwShowEmerald(cards) {
-  flwEmeraldCards = cards.slice(); flwEmeraldKeep = null;
+  flwEmeraldCards = cards.slice(); flwEmeraldKeep = 0; // leftmost gem pre-selected — Confirm is usable immediately
   const wrap = document.getElementById('flw-emerald-keep');
   if (wrap) {
     wrap.innerHTML = '';
@@ -1035,6 +1117,11 @@ function flwShowEmerald(cards) {
 function flwRenderEmeraldSel() {
   const wrap = document.getElementById('flw-emerald-keep');
   if (wrap) Array.from(wrap.children).forEach((c, i) => { c.classList.toggle('flw-card-sel', i === flwEmeraldKeep); });
+  const desc = document.getElementById('flw-emerald-desc');
+  if (desc) {
+    const gemId = (flwEmeraldKeep != null) ? flwEmeraldCards[flwEmeraldKeep] : null;
+    desc.textContent = (gemId != null && FLW_GEM[gemId]) ? (FLW_GEM[gemId].name + ' — ' + (FLW_GEM_EFFECT[gemId] || '')) : '';
+  }
   const c = document.getElementById('btn-flw-emerald-confirm');
   if (c) c.disabled = (flwEmeraldKeep == null);
 }
@@ -1085,15 +1172,17 @@ function flwEndShowing(reason) {
   const gameOver = maxTok >= target;
   const gameWinner = gameOver ? flwTokens.indexOf(maxTok) : -1;
   flwLedgerCounts = flwLedgerTally();
+  flwResultReadyCheck = Array(flwPlayerCount).fill(false); // reset — see flwApplyShowingEnd
   const payload = { reason, winners, reveal, tokens: flwTokens, obsidianBonus, resultText,
                     exposed: flwExposed, log: flwPublicLog, ledger: flwLedgerCounts, target, gameOver, gameWinner,
-                    discardFeed: flwDiscardFeed };
+                    discardFeed: flwDiscardFeed, resultReady: flwResultReadyCheck };
   if (window.syllyMultiplayerMode !== 'single') mpSendEnvelope({ type: 'SYNC', payload: Object.assign({ action: 'FLW_SHOWING_END' }, payload) });
   flwApplyShowingEnd(payload);
 }
 function flwApplyShowingEnd(d) {
   flwShowingOver = true;
   flwLastResult = d;
+  flwResultReadyCheck = d.resultReady || Array(flwPlayerCount).fill(false);
   flwClearTimer();
   playSuccess();
   if (d.gameOver) flwShowGameover(); else flwShowShowingResult();
@@ -1129,7 +1218,7 @@ function flwShowShowingResult() {
   const body = document.getElementById('flw-showing-result-body');
   const numEl = document.getElementById('flw-showing-result-num');
   const d = flwLastResult || {};
-  if (numEl) numEl.textContent = 'Showing ' + (flwShowingNum || 1);
+  if (numEl) numEl.textContent = 'Exhibition ' + (flwShowingNum || 1);
   if (!body) return;
   body.innerHTML = '';
 
@@ -1138,7 +1227,7 @@ function flwShowShowingResult() {
   emoji.className = 'text-2xl'; emoji.textContent = '💎';
   body.appendChild(emoji);
   const title = document.createElement('h2');
-  title.className = 'text-xl font-bold text-stone-800'; title.textContent = d.resultText || '';
+  title.className = 'text-xl font-bold text-stone-700'; title.textContent = d.resultText || '';
   body.appendChild(title);
 
   // Survivors' final Showpieces as actual gem cards
@@ -1179,12 +1268,44 @@ function flwShowShowingResult() {
     body.appendChild(logWrap);
   }
 
-  // Next Showing button visibility (host/single only)
-  const btn = document.getElementById('btn-flw-next-showing');
-  if (btn) {
-    const host = (window.syllyMultiplayerMode === 'host' || window.syllyMultiplayerMode === 'single');
-    btn.style.display = host ? '' : 'none';
-    btn.textContent = 'Next Showing';
+  flwRenderResultReady();
+}
+// Everyone but the host confirms they've seen the result before the host's Next
+// Showing unlocks — so players don't get swept into the next Showing before
+// they've had a chance to read the log/standings. Single-device has no "everyone
+// else" so it's unaffected. Called on first render AND every time a ready
+// confirmation arrives (host locally, all devices via FLW_RESULT_READY_SYNC).
+function flwRenderResultReady() {
+  const nextBtn = document.getElementById('btn-flw-next-showing');
+  const readyBtn = document.getElementById('btn-flw-result-ready');
+  const waitEl = document.getElementById('flw-result-wait');
+  if (!nextBtn) return;
+  const single = window.syllyMultiplayerMode === 'single';
+  const host = window.syllyMultiplayerMode === 'host';
+  const me = flwMyIdx();
+  const ready = flwResultReadyCheck || [];
+  if (single) {
+    nextBtn.style.display = ''; nextBtn.disabled = false; nextBtn.textContent = 'Next Showing';
+    if (readyBtn) readyBtn.style.display = 'none';
+    if (waitEl) waitEl.style.display = 'none';
+    return;
+  }
+  if (host) {
+    let waiting = 0;
+    for (let i = 0; i < flwPlayerCount; i++) if (i !== me && !ready[i]) waiting++;
+    nextBtn.style.display = '';
+    nextBtn.disabled = waiting > 0;
+    nextBtn.textContent = 'Next Showing';
+    if (waitEl) {
+      waitEl.style.display = waiting > 0 ? '' : 'none';
+      waitEl.textContent = waiting > 0 ? ('Waiting on ' + waiting + ' player' + (waiting === 1 ? '' : 's') + ' to view the results…') : '';
+    }
+    if (readyBtn) readyBtn.style.display = 'none';
+  } else {
+    nextBtn.style.display = 'none';
+    const already = !!ready[me];
+    if (readyBtn) readyBtn.style.display = already ? 'none' : '';
+    if (waitEl) { waitEl.style.display = already ? '' : 'none'; waitEl.textContent = 'Waiting for the host to start the next Showing…'; }
   }
 }
 function flwShowGameover() {
@@ -1199,7 +1320,7 @@ function flwShowGameover() {
   flwBuildReveal(d.reveal).forEach(n => body.appendChild(n));
 
   let html = '';
-  if (d.gameWinner >= 0) html += '<p class="text-center text-lg font-bold text-stone-800 mb-1">' + flwName(d.gameWinner) + ' is Best in Show! 🏆</p>';
+  if (d.gameWinner >= 0) html += '<p class="text-center text-lg font-bold text-stone-700 mb-1">' + flwName(d.gameWinner) + ' is Best in Show! 🏆</p>';
   const order = (flwTokens || []).map((t, i) => ({ i, t })).sort((a, b) => b.t - a.t);
   html += '<div class="flex flex-col gap-1.5">';
   order.forEach((o, r) => {
@@ -1303,6 +1424,15 @@ function flwHandleEnvelope(env) {
         flwHostResolveEmerald(flwActivePlayer, env.payload.keepId, env.payload.returnOrder);
         return;
       }
+      if (a === 'FLW_RESULT_READY') {
+        const idx = mpPlayerSlots.findIndex(p => p && p.uid === env.originId);
+        if (idx < 0 || idx === flwMyIdx()) return; // host never confirms its own — see flwRenderResultReady
+        if (!flwResultReadyCheck.length) flwResultReadyCheck = Array(flwPlayerCount).fill(false);
+        flwResultReadyCheck[idx] = true;
+        mpSendEnvelope({ type: 'SYNC', payload: { action: 'FLW_RESULT_READY_SYNC', resultReady: flwResultReadyCheck } });
+        flwRenderResultReady();
+        return;
+      }
     }
 
     // All devices apply host SYNC / private writes (the host's own are filtered by the dedup guard)
@@ -1400,6 +1530,10 @@ function flwHandleEnvelope(env) {
         if (typeof mpUnlockSync === 'function') mpUnlockSync();
         break;
       }
+      case 'FLW_RESULT_READY_SYNC':
+        flwResultReadyCheck = env.payload.resultReady || flwResultReadyCheck;
+        flwRenderResultReady();
+        break;
       case 'FLW_MATCH_DISSOLVED':
         resetToLobby();
         break;
@@ -1460,7 +1594,7 @@ function flwResetState() {
   flwDrawnCard = null; flwEmeraldOffer = null;
   flwCounterfeitHeld = []; flwAuditCharges = []; flwTopPlay = []; flwTopClaims = []; flwAuditedThisTurn = false;
   flwCfMode = false; flwCfKeep = null; flwCfClaimed = -1;
-  flwMyHand = null; flwMyDrawn = null; flwPublicVaultCount = 0; flwLedgerCounts = [];
+  flwMyHand = null; flwMyDrawn = null; flwPublicVaultCount = 0; flwLedgerCounts = []; flwResultReadyCheck = [];
   flwSelSlot = null; flwLastResult = null; flwEmeraldCards = []; flwEmeraldKeep = null;
   flwPeekGemId = null; flwScratchTarget = -1; flwScratchGuess = -1;
   // Settings (Ledger / token mode+target / timer / Smoke&Mirrors burn / Sylly) intentionally preserved.
@@ -1543,6 +1677,14 @@ document.addEventListener('DOMContentLoaded', () => {
     flwBeginPlay(flwSelSlot === 'hand' ? flwMyHand : flwMyDrawn);
   });
   on('btn-flw-next-showing', () => { if (window.syllyMultiplayerMode === 'client') return; playLaunch(); flwHostNextShowing(); });
+  on('btn-flw-result-ready', () => {
+    if (window.syllyMultiplayerMode !== 'client') return; // host/single never see this button
+    playDone();
+    mpSendEnvelope({ type: 'ACTION', payload: { action: 'FLW_RESULT_READY' } });
+    const btn = document.getElementById('btn-flw-result-ready'); if (btn) btn.style.display = 'none'; // optimistic
+    const waitEl = document.getElementById('flw-result-wait');
+    if (waitEl) { waitEl.style.display = ''; waitEl.textContent = 'Waiting for the host to start the next Showing…'; }
+  });
 
   // The Counterfeit Run (Sylly)
   on('btn-flw-audit', () => flwOpenAudit());

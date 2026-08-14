@@ -158,6 +158,9 @@ let ntRoutingState   = 'valid';  // 'valid' | 'exception' (drives status-bar fla
 let ntPlaybackPhase  = 'tracing';
 let ntSummaryMode    = 'cycle';  // 'cycle' | 'match'
 let ntOverclockTheme = false;    // easter-egg monochrome/amber theme (triple-tap AMAZE_INC_v1.2)
+let ntBootTimers      = [];      // cycle-boot terminal typewriter setTimeout handles
+let ntGateBootActive  = false;   // true while the cycle-boot terminal log is still typing
+let ntGateBootPending = null;    // fn to run the moment the current boot log finishes
 let ntLongPressTimer = null;     // long-press gesture threshold handle (build screen)
 let ntGhostAnchor    = null;     // {ax,ay} of current 2×2 ghost preview, or null when hidden
 let ntPlaybackPaused = false;    // true when manually paused via play/pause button
@@ -499,7 +502,7 @@ function ntSelectComparisonPlayer(idx) {
 }
 
 // Post-lobby menu Play (MDLM): onPassThePhone has fired, players are ready.
-// Host calls ntStartMatch(); clients already showing standby or handshake.
+// Host calls ntStartMatch(); clients already showing the boot terminal.
 function ntStartSession() {
   ntCycle = 0;
   ntCycleSERs = [];
@@ -509,7 +512,7 @@ function ntStartSession() {
   ntAllCycleTimelines  = [];
   ntAllCyclePlacements = [];
   ntAllCycleNodes      = [];
-  ntShowHandshake();
+  ntShowGateBoot();
   if (window.syllyMultiplayerMode === 'host') {
     ntStartMatch();
   }
@@ -600,19 +603,81 @@ function ntStartMatch() {
     });
     const myTeamForCap = ntTeamIdx[mpMyPlayerIdx];
     const isCaptain    = mpMyPlayerIdx === ntCaptainSlots[myTeamForCap];
-    ntShowAllocationScreen(isCaptain);
-    ntStartHuddleTimer(ntHardeningWin * teamSizes[myTeamForCap]);
+    ntGateBootThen(() => {
+      ntShowAllocationScreen(isCaptain);
+      ntStartHuddleTimer(ntHardeningWin * teamSizes[myTeamForCap]);
+    });
   } else {
     ntGenerateNode();
     mpSendEnvelope({
       type: 'SYNC',
       payload: { action: 'NT_GENERATE', cycle: ntCycle, node: ntNode, inventory: ntInventory },
     });
-    ntShowMdlmGate();
+    ntGateBootThen(() => ntShowMdlmGate());
   }
 }
 
-function ntShowHandshake() { showScreen('screen-nt-handshake'); }
+// Flavour boot lines — typed out line by line on screen-nt-gate at the start of a cycle,
+// then handed off to whatever ready-check config the caller queues via ntGateBootThen().
+const NT_BOOT_LINES = [
+  'BOOTING AMAZE INC. OS v1.2…',
+  'INITIALISING OS…',
+  '',
+  'CONNECTING TO CLUSTER…',
+  '',
+  'ROUTING VIA PENDER SECURITIES…',
+  'SECURING INGRESS…',
+];
+
+// Generic typewriter: reveals `lines` one at a time inside `container`, then calls `callback`.
+// Mirrors secret-mode.js's smTypeLines but takes an explicit container (NT owns its own log).
+function ntTypeLines(container, lines, baseDelay, lineGap, callback) {
+  ntBootTimers.forEach(clearTimeout);
+  ntBootTimers = [];
+  if (!container) { if (callback) callback(); return; }
+  container.innerHTML = '';
+  lines.forEach((text, i) => {
+    const t = setTimeout(() => {
+      const p = document.createElement('p');
+      if (text === '') { p.innerHTML = '&nbsp;'; p.style.lineHeight = '0.6'; }
+      else { p.textContent = text; }
+      container.appendChild(p);
+      container.scrollTop = container.scrollHeight;
+    }, baseDelay + i * lineGap);
+    ntBootTimers.push(t);
+  });
+  if (callback) {
+    const total = baseDelay + lines.length * lineGap;
+    const t = setTimeout(callback, total);
+    ntBootTimers.push(t);
+  }
+}
+
+// Shows screen-nt-gate and plays the boot log; once it finishes, the log hides, the
+// ready-check block reveals, and whatever was queued via ntGateBootThen() runs.
+function ntShowGateBoot() {
+  showScreen('screen-nt-gate');
+  const log  = document.getElementById('nt-gate-boot-log');
+  const wrap = document.getElementById('nt-gate-ready-wrap');
+  ntGateBootActive = true;
+  if (wrap) wrap.style.display = 'none';
+  if (log)  log.style.display  = 'block';
+  ntTypeLines(log, NT_BOOT_LINES, 0, 240, () => {
+    ntGateBootActive = false;
+    if (log)  log.style.display  = 'none';
+    if (wrap) wrap.style.display = 'flex';
+    const pending = ntGateBootPending;
+    ntGateBootPending = null;
+    if (pending) pending();
+  });
+}
+
+// Runs fn immediately, unless the cycle-boot terminal is still typing — then it queues fn
+// for the moment the log finishes, so the boot always reads as one uninterrupted beat.
+function ntGateBootThen(fn) {
+  if (ntGateBootActive) ntGateBootPending = fn;
+  else fn();
+}
 
 // ── DNP Allocation Hub ─────────────────────────────────────────────────────
 
@@ -879,7 +944,6 @@ function ntCheckBothTeamsLocked() {
   ntShowBuild(endTimestamp);
 }
 
-function ntShowAllocation() { showScreen('screen-nt-allocation'); }
 function ntShowGate() {
   // Restore default gate text + callback for solo/MDLM paths (PTP overrides in ntBeginPtpTurn/ntShowGatherGate)
   const sub = document.getElementById('nt-gate-sub');
@@ -934,7 +998,14 @@ function ntShowBuild(endTimestamp) {
   if (counter) counter.textContent = `${ntCycle + 1}/${ntIterations}`;
   const name = document.getElementById('nt-node-name');
   const nodeTag = 'NT-NODE-' + String(ntCycle + 1).padStart(2, '0');
-  if (name) name.innerHTML = 'SYS_INIT // BOUBOU-6D617A65 // <span class="text-emerald-400">' + nodeTag + '</span>';
+  if (name) name.innerHTML = 'SYS_INIT // <span class="text-emerald-400">' + nodeTag + '</span>';
+  // Current builder, computer-prompt style — PTP: whoever's turn it is; MDLM: this device's
+  // own seat; solo: the lone admin.
+  const isSingle = window.syllyMultiplayerMode === 'single';
+  const nameIdx  = (isSingle && ntPlayerCount > 1) ? ntPtpTurn : (isSingle ? 0 : mpMyPlayerIdx);
+  const playerName = ntPlayerNames[nameIdx] || ('ADMIN-' + (nameIdx + 1));
+  const playerEl = document.getElementById('nt-build-player');
+  if (playerEl) playerEl.textContent = 'user:\\' + playerName.toLowerCase().replace(/\s+/g, '');
   showScreen('screen-nt-build');
   ntRenderBuildGrid();
   ntSetRouting('valid');
@@ -1441,10 +1512,11 @@ function ntBeginCycle() {
   ntPtpTimelines  = [];
   ntPtpPlacements = [];
   if (ntPlayerCount > 1 && window.syllyMultiplayerMode === 'single') {
-    // PTP multi-player: skip handshake, go straight to first player's gate
+    // PTP multi-player: skip the boot terminal, go straight to first player's gate
     ntBeginPtpTurn();
   } else {
-    ntShowHandshake();
+    ntShowGateBoot();
+    ntGateBootThen(() => ntShowGate());
   }
 }
 
@@ -2701,7 +2773,7 @@ function ntHandleEnvelope(envelope) {
         // ntHuddleStart will show the allocation screen
       } else {
         ntNode = payload.node;
-        ntShowMdlmGate();
+        ntGateBootThen(() => ntShowMdlmGate());
       }
       return;
     }
@@ -2726,8 +2798,10 @@ function ntHandleEnvelope(envelope) {
       ntTeamIdx.forEach(t => teamSizes[t]++);
       const huddleDuration = payload.huddleDuration || (ntHardeningWin * teamSizes[myTeam]);
 
-      ntShowAllocationScreen(isCap);
-      ntStartHuddleTimer(huddleDuration);
+      ntGateBootThen(() => {
+        ntShowAllocationScreen(isCap);
+        ntStartHuddleTimer(huddleDuration);
+      });
       return;
     }
 
@@ -2759,7 +2833,12 @@ function ntHandleEnvelope(envelope) {
     if (payload.action === 'NT_PLAYBACK') {
       // Render-only — host already resolved; clients just store + display
       ntPtpTimelines   = payload.timelines;
-      ntPtpPlacements  = payload.allPlacements;
+      // A player who spent no inventory this cycle submits placements:[] — Firebase drops
+      // that empty array, turning allPlacements into a hole-having object keyed by index
+      // rather than a plain array (BUG-06 class). Rebuild per-seat so a dropped slot reads
+      // as [] instead of undefined and .map() below never throws.
+      ntPtpPlacements  = Array.from({ length: ntPlayerCount },
+        (_, i) => (payload.allPlacements && payload.allPlacements[i]) || []);
       ntCycleSERs[ntCycle]      = payload.cycleSERs;
       ntOverallSER              = payload.overallSER;
       ntCycleLatencies[ntCycle] = payload.cycleLatencies;
@@ -2815,6 +2894,10 @@ function ntResetState() {
   if (ntHuddleTimer)   { clearInterval(ntHuddleTimer); ntHuddleTimer = null; }
   if (ntLongPressTimer){ clearTimeout(ntLongPressTimer); ntLongPressTimer = null; }
   if (ntResolveGuard)  { clearTimeout(ntResolveGuard); ntResolveGuard = null; }
+  ntBootTimers.forEach(clearTimeout);
+  ntBootTimers      = [];
+  ntGateBootActive  = false;
+  ntGateBootPending = null;
   ntCycleResolved  = false;
   ntCommitted      = false;
   // DNP journey playback teardown
@@ -2969,12 +3052,6 @@ document.addEventListener('DOMContentLoaded', () => {
     ntSyncSettingsUI();
   });
 
-  // ── Flow advance (Step 3 — linear navigation; branching/logic in Step 5) ──────
-  document.getElementById('btn-nt-handshake-continue').addEventListener('click', () => {
-    playLaunch();
-    // DNP inserts the allocation huddle here (Step 5); Standard goes straight to the gate.
-    if (ntIsDNP()) ntShowAllocation(); else ntShowGate();
-  });
   document.getElementById('btn-nt-alloc-lock').addEventListener('click', () => {
     playLaunch();
     // Flash warning if pool is not fully allocated (non-blocking — captain can still lock)
@@ -3091,10 +3168,17 @@ document.addEventListener('DOMContentLoaded', () => {
     showScreen('screen-nt-menu');
   });
 
-  // ── Post-game exit (✕ on summary → resetToLobby) ──────────────────────────────
+  // ── Summary exit — mode-aware: the final match summary is post-game (✕ → resetToLobby
+  // directly, no state left to preserve); a per-cycle summary is still mid-match, so it
+  // goes through the same quit-confirm gate as every other in-round ✕. ──────────────────
   document.getElementById('btn-nt-summary-exit').addEventListener('click', () => {
+    if (ntSummaryMode === 'match') {
+      playExit();
+      resetToLobby();
+      return;
+    }
     playExit();
-    resetToLobby();
+    document.getElementById('nt-quit-overlay').style.display = 'flex';
   });
 
   // ── Reboot (play-again confirm) ───────────────────────────────────────────────
@@ -3147,7 +3231,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // ── Sound buttons (engine.js querySelectorAll runs before NT markup is parsed) ──
-  document.querySelectorAll('#screen-nt-menu .btn-open-sound, #screen-nt-setup .btn-open-sound, #screen-nt-handshake .btn-open-sound, #screen-nt-allocation .btn-open-sound, #screen-nt-gate .btn-open-sound, #screen-nt-build .btn-open-sound, #screen-nt-playback .btn-open-sound, #screen-nt-summary .btn-open-sound, #screen-nt-standby .btn-open-sound').forEach(btn => {
+  document.querySelectorAll('#screen-nt-menu .btn-open-sound, #screen-nt-setup .btn-open-sound, #screen-nt-allocation .btn-open-sound, #screen-nt-gate .btn-open-sound, #screen-nt-build .btn-open-sound, #screen-nt-playback .btn-open-sound, #screen-nt-summary .btn-open-sound, #screen-nt-standby .btn-open-sound').forEach(btn => {
     btn.addEventListener('click', openSoundOverlay);
   });
 });

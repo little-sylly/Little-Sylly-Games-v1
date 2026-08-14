@@ -38,6 +38,18 @@ The Once/Twice options added no real depth — the meaningful choice is "can bro
 **S15 — Settings label emoji convention (June 2026)**
 Removed the `⏱` prefix from "Broadcaster Timer". Established the rule (now in `ui-style.md` § Settings Card Standard): only the `✨ Sylly Mode` card carries an emoji on its label — every other setting title is plain text, so `✨` stays a clear marker for the advanced/last card.
 
+**Encryption Protocol DD-13 value line added. [13 Aug 2026]** Found during the suite-wide DD-13
+sweep (`ui-style.md` § Settings Card Standard) — Clear/Scrambled/Deep Space gave no indication of
+what word tier each pulls from. SS is the one game where each difficulty pill draws from an EXACT
+tier (`w.difficulty === ssDifficultyLevel`), not a cumulative range like most games' difficulty
+pills — so the value line uses `definitions.md`'s per-tier language (1 = Standard/concrete nouns,
+2 = Wild/verbs+adjectives, 3 = Wilder/abstract) rather than a vague "easier/harder" framing. Added
+`#ss-val-difficulty`, populated inside the existing `ssSyncCategoryPills()` (`js/games/secret-signals.js`,
+already the shared resync point for settings-open, difficulty click, and category toggles) from
+`ssDifficultyLevel`. This card's layout is unusual — description sits BELOW the pills, not above,
+predating `ui-style.md`'s standard order — left as-is; the new value line sits between the pills
+and that description. **Not verified beyond syntax checks** — no `visual-check`, no live play.
+
 ---
 
 ## Bug Index

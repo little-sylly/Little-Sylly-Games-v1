@@ -28,6 +28,8 @@ let natBiologistIdx    = -1;
 let natMoleIdx         = -1;
 let natAssignedWords   = [];
 let natUsedWordIds     = new Set();
+let natHabitatFlavourIdx = 0;      // host-picked index into NAT_HABITAT_FLAVOUR, synced in NAT_MATCH_START
+let natHabitatIntroTimer = null;   // Habitat Intro auto-advance handle (cleared in 3 places)
 
 // ── NAT Round (observation day within a match) ───────────────────────────────
 let natCurrentMatchRound = 0;
@@ -49,6 +51,18 @@ let natEvictedIdx        = -1;
 let natLastStandPhase  = 'mole-guess';
 let natMoleGuess       = '';
 
+// ── Constants ─────────────────────────────────────────────────────────────
+const NAT_INTERSTITIAL_MS = 5000;   // matches the suite-wide interstitial dwell (PKO/CJAR/SHP)
+// Rotating flavour for the Habitat Intro (ui-style.md § Round/Night Intro Screen) — a Habitat
+// can repeat several times in one Expedition, so a fixed line would read as filler by the third
+// showing. Host picks the index and it rides in NAT_MATCH_START, never chosen locally.
+const NAT_HABITAT_FLAVOUR = [
+  'A new patch of wilderness, a new Specimen. Someone here hasn’t seen it up close.',
+  'Cameras roll on fresh terrain. One observer is working from a single word.',
+  'New habitat, new cover story. Watch what the clues give away.',
+  'The crew moves on. Somewhere in this group, the Mole is already guessing.',
+];
+
 // ── NAT Scoring ──────────────────────────────────────────────────────────────
 let natScores          = [];
 let natRoundLog        = [];
@@ -69,6 +83,21 @@ function natOpenSettings() {
   const el = document.getElementById('nat-settings-overlay');
   el.querySelector('.overlay-data-inner').scrollTop = 0;
   el.style.display = 'flex';
+  natUpdateDiffVal();
+}
+
+// Dynamic value line (ui-style.md § Settings Card Standard, DD-13) — the pill carries the
+// thematic name only; this says what it means for the animal pool.
+function natUpdateDiffVal() {
+  const el = document.getElementById('nat-val-diff');
+  if (!el) return;
+  const active = document.querySelector('#nat-diff-group .pill-active-lime');
+  const diff = active ? active.dataset.diff : natDifficulty;
+  el.textContent = {
+    'd1':    'Common uses only the easiest animals.',
+    'd1+d2': 'Rare mixes easy and uncommon animals.',
+    'all':   'Exotic includes the rarest animals too.',
+  }[diff] || '';
 }
 
 function natCloseSettings() {
@@ -138,6 +167,7 @@ function natCloseQuit() {
 }
 
 function natConfirmQuit() {
+  if (natHabitatIntroTimer) { clearTimeout(natHabitatIntroTimer); natHabitatIntroTimer = null; }
   natCloseQuit();
   showScreen('screen-nat-menu');
 }
@@ -223,6 +253,7 @@ async function natStartMatch() {
 
   natCurrentMatchRound = 0;
   natAssignRoles();
+  natHabitatFlavourIdx = Math.floor(Math.random() * NAT_HABITAT_FLAVOUR.length);  // host picks; synced below
 
   if (window.syllyMultiplayerMode === 'host') {
     // Lobby Mode: broadcast specimen + role assignments so all devices know their role
@@ -235,10 +266,29 @@ async function natStartMatch() {
       match:        natCurrentMatch,
       matchesSetting: natMatchesSetting,
       roundsPerMatch: natRoundsPerMatch,
+      flavourIdx:   natHabitatFlavourIdx,
     }});
   }
 
-  natStartClueRound();
+  natShowHabitatIntro(natStartClueRound);
+}
+
+// Auto-advancing Habitat Intro (ui-style.md § Round/Night Intro Screen) — shown at the start
+// of every Habitat. Host/single times its own advance into the clue round (a host decision,
+// mirroring screen-pko-unchallenged, not screen-pko-event) — pass `onDone` there. Clients
+// (called from the NAT_MATCH_START applier) pass no `onDone`; they just display the beat and
+// wait for the NAT_ACTIVE_PLAYER SYNC that already followed this moment before the screen
+// existed. Timer is cleared + retriggered on every call so a rapid transition can't stack two.
+function natShowHabitatIntro(onDone) {
+  const heading = document.getElementById('nat-habitat-intro-heading');
+  if (heading) heading.textContent = `Habitat ${natCurrentMatch + 1} Begins`;
+  const sub = document.getElementById('nat-habitat-intro-sub');
+  if (sub) sub.textContent = NAT_HABITAT_FLAVOUR[natHabitatFlavourIdx % NAT_HABITAT_FLAVOUR.length] || NAT_HABITAT_FLAVOUR[0];
+  const syllyNote = document.getElementById('nat-habitat-intro-sylly');
+  if (syllyNote) syllyNote.style.display = natSyllyMode ? 'flex' : 'none';
+  showScreen('screen-nat-habitat-intro');
+  if (natHabitatIntroTimer) { clearTimeout(natHabitatIntroTimer); natHabitatIntroTimer = null; }
+  if (onDone) natHabitatIntroTimer = setTimeout(() => { natHabitatIntroTimer = null; onDone(); }, NAT_INTERSTITIAL_MS);
 }
 
 function natDrawSpecimen() {
@@ -1129,6 +1179,7 @@ function natShowGameover() {
 
 // ── Reset ─────────────────────────────────────────────────────────────────────
 function natResetState() {
+  if (natHabitatIntroTimer) { clearTimeout(natHabitatIntroTimer); natHabitatIntroTimer = null; }
   natCurrentMatch      = 0;
   natCurrentMatchRound = 0;
   natSpecimen          = null;
@@ -1187,6 +1238,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll(`${grp} .pill`).forEach(p => p.classList.remove('pill-active-lime'));
         pill.classList.add('pill-active-lime');
         playPillClick();
+        if (grp === '#nat-diff-group') natUpdateDiffVal();
       });
     });
   });

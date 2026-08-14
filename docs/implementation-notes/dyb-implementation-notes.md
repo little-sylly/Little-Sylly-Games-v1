@@ -383,3 +383,20 @@ have rendered the true face to its owner and to every spectator on the Depths sc
 **Lesson:** a fallback chain crossing a privacy boundary needs its own branch, and a
 test that names the leak. `tools/verify-dyb-dice.js` asserts the concealed value
 appears nowhere in the markup, so a future tidy-up that merges the chains fails loudly.
+
+---
+
+## Design Decisions (continued — August 2026, Round/Night Intro sweep)
+
+### DYB does not need a Round Intro screen — ruled out on investigation [13 Aug 2026]
+
+`deferred-work.md` named "DYB hands" as a candidate for `ui-style.md` § Round/Night Intro Screen
+(the CJAR Raid / SHP Night / PKO Clash / NAT Habitat / PASS Round pattern). Investigated and found
+DYB already satisfies the pattern's intent by a different, pre-existing mechanism:
+`screen-dyb-shake` (`dybInitShake()`) is shown at the start of **every** Shake with "Shake #N" and
+the opener named, and it is not a passive auto-advancing interstitial — it's the actual
+tap-the-cup-to-roll interaction. The player never jumps from a resolved Showdown straight into an
+already-live Table; the Shake screen itself is the beat. Adding a passive interstitial in front of
+it would double-mark the same transition and force a redundant 5 s wait before the player can even
+reach the thing that already announces the round. No change made. Detail:
+`pass-implementation-notes.md` (closing entry for the whole sweep).

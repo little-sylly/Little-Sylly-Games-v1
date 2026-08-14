@@ -42,6 +42,7 @@ let pkoPlayerNames    = [];           // from mpPlayerSlots[i].nickname — neve
 let pkoScores         = [];           // int per player — Clashes won / Stragglers accrued
 let pkoClashNum       = 0;
 let pkoClashHistory   = [];           // one row per Clash: [1,0,0,0] wins, or [0,4,2,7] cards left
+let pkoClashFlavourIdx = 0;           // host-picked index into PKO_CLASH_FLAVOUR, synced in PKO_CLASH_BEGIN
 
 // ── Clash state (reset each Clash) ────────────────────────────────────────
 let pkoHoards         = [];           // HOST ONLY: array of arrays of card ids (all players)
@@ -77,6 +78,7 @@ let pkoBeatsMap       = {};           // id -> Set(prey ids)      — DERIVED at
 let pkoBeatenByWide   = {};           // id -> Set(predator ids)  — beaten_by ∪ reach_beaten_by
 let pkoBeatsWideMap   = {};           // id -> Set(prey ids)      — DERIVED, never stored
 let pkoUnchallengedTimer = null;      // auto-advance handle on the interstitial (cleared in 3 places)
+let pkoClashIntroTimer   = null;      // Clash Intro auto-advance handle (cleared in 3 places)
 
 // ── Force of Nature (Sylly Mode) state ────────────────────────────────────
 let pkoEvent          = null;         // active event id for this Encounter, or null
@@ -112,6 +114,15 @@ const PKO_CARRION_WINDOW_MS  = 5000;   // first playtest dial — FoN spec §17 
 // event name + blurb, and a table that changes at a different tempo to the Carrion window
 // reads as two different games. One constant so they can never drift apart again (D35).
 const PKO_INTERSTITIAL_MS    = 5000;
+// Rotating flavour for the Clash Intro (ui-style.md § Round/Night Intro Screen) — a Clash
+// can repeat many times in one Match, so a fixed line would read as filler by the third
+// showing. Host picks the index and it rides in PKO_CLASH_BEGIN, never chosen locally.
+const PKO_CLASH_FLAVOUR = [
+  'Fresh Pool, fresh Hoards. Everyone starts even.',
+  'A new Clash means a new order of prey — read the board before you Stake.',
+  'Nobody remembers the last Clash here. Play what’s in front of you.',
+  'Fresh cards, same wild. Watch what the others Stake first.',
+];
 // Card art is resolved through js/lib/art.js — assetFace('pko', id) / assetBack('pko'),
 // backed by the core art pack data/art/pko/pack.json. The manifest owns the id →
 // filename mapping, so no lookup table lives here.
@@ -658,6 +669,7 @@ function pkoStartClash() {
 
   pkoHoardCounts    = pkoHoards.map(h => h.length);
   pkoMyHoard        = pkoHoards[pkoMyIdx()] || [];
+  pkoClashFlavourIdx = Math.floor(Math.random() * PKO_CLASH_FLAVOUR.length);  // host picks; synced below
 
   if (window.syllyMultiplayerMode !== 'single') {
     pkoSendPrivateHands();
@@ -675,9 +687,26 @@ function pkoStartClash() {
       marks: pkoMarks, markOwnerIdx: pkoMarkOwnerIdx,
       encounterNum: pkoEncounterNum, trail: pkoTrail, wateringHole: pkoWateringHole,
       event: pkoEvent, eventsFired: pkoEventsFired, alphaIdx: pkoAlphaIdx,
+      flavourIdx: pkoClashFlavourIdx,
     }});
   }
-  pkoShowHoard();
+  pkoShowClashIntro();
+}
+
+// Auto-advancing Clash Intro (ui-style.md § Round/Night Intro Screen) — every Clash, both
+// host and clients call this instead of jumping straight to the Hoard/deal screen. No
+// [?]/🔊/✕ (rule-5 interstitial exemption: auto-advances, nothing to tap). Timer is
+// cleared + retriggered on every call so a rapid-fire redeal can never stack two.
+function pkoShowClashIntro() {
+  const heading = document.getElementById('pko-clash-intro-heading');
+  if (heading) heading.textContent = pkoClashLabel() + ' Begins';
+  const sub = document.getElementById('pko-clash-intro-sub');
+  if (sub) sub.textContent = PKO_CLASH_FLAVOUR[pkoClashFlavourIdx % PKO_CLASH_FLAVOUR.length] || PKO_CLASH_FLAVOUR[0];
+  const syllyNote = document.getElementById('pko-clash-intro-sylly');
+  if (syllyNote) syllyNote.style.display = pkoSyllyMode ? 'flex' : 'none';
+  showScreen('screen-pko-clash-intro');
+  if (pkoClashIntroTimer) clearTimeout(pkoClashIntroTimer);
+  pkoClashIntroTimer = setTimeout(() => { pkoClashIntroTimer = null; pkoShowHoard(); }, PKO_INTERSTITIAL_MS);
 }
 
 // Host → each device its OWN Hoard only, over the private Firebase channel. Card
@@ -2238,8 +2267,9 @@ function pkoHandleEnvelope(env) {
       pkoEvent          = p.event === undefined ? null : p.event;
       pkoEventsFired    = p.eventsFired || [];    // reset value travels explicitly (ML-03)
       pkoAlphaIdx       = p.alphaIdx === undefined ? -1 : p.alphaIdx;
+      pkoClashFlavourIdx = p.flavourIdx || 0;
       pkoDismissChallenge();
-      pkoShowHoard();                             // PKO_HAND may arrive either side of this
+      pkoShowClashIntro();                        // PKO_HAND may arrive either side of this
       mpUnlockSync();
       break;
 
@@ -2356,6 +2386,7 @@ function pkoResetState() {
   if (pkoUnchallengedTimer) { clearTimeout(pkoUnchallengedTimer); pkoUnchallengedTimer = null; }
   if (pkoEventTimer)        { clearTimeout(pkoEventTimer);        pkoEventTimer = null; }
   if (pkoCarrionTimer)      { clearTimeout(pkoCarrionTimer);      pkoCarrionTimer = null; }
+  if (pkoClashIntroTimer)   { clearTimeout(pkoClashIntroTimer);   pkoClashIntroTimer = null; }
   pkoEvent = null; pkoEventsFired = []; pkoAlphaIdx = -1;
   pkoCarrionSel = []; pkoCarrionPending = null;
   pkoScores = []; pkoClashNum = 0; pkoClashHistory = [];
@@ -2769,6 +2800,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (pkoUnchallengedTimer) { clearTimeout(pkoUnchallengedTimer); pkoUnchallengedTimer = null; }
     if (pkoEventTimer)   { clearTimeout(pkoEventTimer);   pkoEventTimer = null; }
     if (pkoCarrionTimer) { clearTimeout(pkoCarrionTimer); pkoCarrionTimer = null; }
+    if (pkoClashIntroTimer) { clearTimeout(pkoClashIntroTimer); pkoClashIntroTimer = null; }
     pkoClose('pko-quit-overlay');
     pkoClose('pko-challenge-overlay');
     if (window.syllyMultiplayerMode === 'client' && typeof mpSendEnvelope === 'function') {

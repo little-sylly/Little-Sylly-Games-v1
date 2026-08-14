@@ -80,10 +80,10 @@
       <button id="btn-frt" class="min-h-14 w-full rounded-2xl bg-[#FFE500] hover:bg-[#E6D200] active:scale-95 text-stone-800 text-xl font-semibold transition-all duration-150">
         Fruit Salad
       </button>
-      <button id="btn-shp" class="min-h-14 w-full rounded-2xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      <button id="btn-shp" class="min-h-14 w-full rounded-2xl shp-cta active:scale-95 text-white text-xl font-semibold transition-all duration-150">
         Counting Sheep
       </button>
-      <button id="btn-flw" class="flw-cta min-h-14 w-full rounded-2xl active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      <button id="btn-flw" class="flw-cta min-h-14 w-full rounded-2xl active:scale-95 text-xl font-semibold transition-all duration-150">
         Flawless
       </button>
       <button id="btn-pko" class="pko-cta min-h-14 w-full rounded-2xl active:scale-95 text-white text-xl font-semibold transition-all duration-150">
@@ -318,9 +318,12 @@ Let's Go Already!
             <p class="text-stone-800 font-semibold">Report Card</p>
             <p class="text-stone-400 text-sm mt-0.5">Control how tricky the words are.</p>
           </div>
-          <div class="flex gap-2">
-            <button class="pill" data-group="difficulty" data-value="easy">Gold Star ⭐</button>
-            <button class="pill pill-active-pink" data-group="difficulty" data-value="standard">Honour Roll 📚</button>
+          <div class="flex flex-col gap-2">
+            <div class="flex gap-2">
+              <button class="pill" data-group="difficulty" data-value="easy">Gold Star ⭐</button>
+              <button class="pill pill-active-pink" data-group="difficulty" data-value="standard">Honour Roll 📚</button>
+            </div>
+            <p id="li5-val-difficulty" class="text-stone-400 text-xs"></p>
           </div>
         </div>
 
@@ -1744,6 +1747,7 @@ Accept It
             <button class="pill" data-ss-setting="difficulty" data-value="2">Scrambled</button>
             <button class="pill" data-ss-setting="difficulty" data-value="3">Deep Space</button>
           </div>
+          <p id="ss-val-difficulty" class="text-stone-400 text-xs"></p>
           <p class="text-stone-400 text-sm">Controls how abstract the vault keywords are.</p>
         </div>
         <!-- 3. Intercepts to Win -->
@@ -2470,12 +2474,15 @@ Yep — merge 'em!
       <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
         <div>
           <p class="text-stone-800 font-semibold">Menu Complexity</p>
-          <p class="text-stone-400 text-sm mt-0.5">Family Dinner · Bistro Night · The Michelin Star</p>
+          <p class="text-stone-400 text-sm mt-0.5">How advanced the food vocabulary can get.</p>
         </div>
-        <div class="flex gap-2 flex-wrap">
-          <button class="pill" data-jec-food-difficulty="easy">Home Cook</button>
-          <button class="pill pill-active-amber" data-jec-food-difficulty="mixed">Sous Chef</button>
-          <button class="pill" data-jec-food-difficulty="hard">Head Chef</button>
+        <div class="flex flex-col gap-2">
+          <div class="flex gap-2 flex-wrap">
+            <button class="pill" data-jec-food-difficulty="easy">Home Cook</button>
+            <button class="pill pill-active-amber" data-jec-food-difficulty="mixed">Sous Chef</button>
+            <button class="pill" data-jec-food-difficulty="hard">Head Chef</button>
+          </div>
+          <p id="jec-val-difficulty" class="text-stone-400 text-xs"></p>
         </div>
       </div>
 
@@ -3641,6 +3648,7 @@ Lock It In
           <button class="pill pill-active-red flex-1" data-lttp-difficulty="local">The Local Hang</button>
           <button class="pill flex-1" data-lttp-difficulty="secret">The Secret Spot</button>
         </div>
+        <p id="lttp-val-difficulty" class="text-stone-400 text-xs"></p>
       </div>
 
       <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
@@ -3852,7 +3860,7 @@ Head Out Again
   <script src="js/games/secret-signals.js"></script>
   <!-- ════════════════════════════════════════════════════════════════
        NATURAL SELECTION (NAT)
-       Screens : screen-nat-menu, screen-nat-setup, screen-nat-handover,
+       Screens : screen-nat-menu, screen-nat-setup, screen-nat-habitat-intro, screen-nat-handover,
                  screen-nat-observation, screen-nat-daily-review, screen-nat-selection,
                  screen-nat-last-stand, screen-nat-tally, screen-nat-gameover
        Overlays: nat-settings-overlay, nat-how-to-overlay, nat-quit-overlay,
@@ -3916,6 +3924,23 @@ Head Out Again
         Head Out →
       </button>
 
+    </div>
+  </section>
+
+  <!-- NAT HABITAT INTRO — auto-advancing (NAT_INTERSTITIAL_MS), no [?]/🔊/✕ per ui-style.md
+       rule-5 (nothing to tap for the ~5s it's on screen). Shown at the start of EVERY Habitat,
+       both host/single and clients, via natShowHabitatIntro(). Reference: screen-cjar-raid-intro,
+       screen-shp-night-intro, screen-pko-clash-intro. -->
+  <section id="screen-nat-habitat-intro" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-4 text-center">
+      <div class="text-6xl" role="img" aria-label="Lion">🦁</div>
+      <h2 id="nat-habitat-intro-heading" class="text-3xl font-bold text-stone-800"></h2>
+      <p id="nat-habitat-intro-sub" class="text-stone-500 text-base"></p>
+      <div id="nat-habitat-intro-sylly" style="display:none" class="flex items-center gap-2 bg-lime-50 border border-lime-200 rounded-2xl p-3 justify-center">
+        <span class="text-xl">🧬</span>
+        <p class="text-lime-700 text-sm font-semibold">Survival of the Fittest is active — nobody sees the full name this Habitat.</p>
+      </div>
     </div>
   </section>
 
@@ -4285,6 +4310,7 @@ Begin Expedition
             <button class="pill pill-active-lime" data-diff="d1+d2">Rare</button>
             <button class="pill" data-diff="all">Exotic</button>
           </div>
+          <p id="nat-val-diff" class="text-stone-400 text-xs"></p>
         </div>
 
         <!-- The Vote -->
@@ -4827,6 +4853,7 @@ Deploy Again
             <button class="pill pill-active-cyan" data-val="turbulent">Turbulent</button>
             <button class="pill" data-val="tempest">Tempest</button>
           </div>
+          <p id="dsd-val-sea-state" class="text-stone-400 text-xs"></p>
         </div>
 
         <!-- Strategic Planning -->
@@ -6256,10 +6283,13 @@ Done
             <p class="text-stone-800 font-semibold">Symptom Severity</p>
             <p class="text-stone-400 text-sm mt-0.5">Abstract visual complexity of the disorders in the pool.</p>
           </div>
-          <div class="flex gap-2">
-            <button class="pill" data-group="gth-difficulty" data-val="episodic">Episodic</button>
-            <button class="pill pill-active-sage" data-group="gth-difficulty" data-val="recurrent">Recurrent</button>
-            <button class="pill" data-group="gth-difficulty" data-val="refractory">Refractory</button>
+          <div class="flex flex-col gap-2">
+            <div class="flex gap-2">
+              <button class="pill" data-group="gth-difficulty" data-val="episodic">Episodic</button>
+              <button class="pill pill-active-sage" data-group="gth-difficulty" data-val="recurrent">Recurrent</button>
+              <button class="pill" data-group="gth-difficulty" data-val="refractory">Refractory</button>
+            </div>
+            <p id="gth-val-difficulty" class="text-stone-400 text-xs"></p>
           </div>
         </div>
 
@@ -6766,7 +6796,7 @@ Climb Again
     <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-[#9db8d9]">
       <p class="text-stone-600 font-semibold text-sm">Assign this die's face</p>
       <div id="dyb-slick-picker-content" class="flex gap-2 justify-center flex-wrap"></div>
-      <button onclick="document.getElementById('dyb-slick-picker-overlay').style.display='none'" class="min-h-10 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-sm transition-all duration-100">Cancel</button>
+      <button id="btn-dyb-slick-picker-cancel" onclick="document.getElementById('dyb-slick-picker-overlay').style.display='none'" class="min-h-10 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-sm transition-all duration-100">Cancel</button>
     </div>
   </div>
 
@@ -6828,7 +6858,7 @@ Climb Again
 
 
   <!-- ════ PASS ════
-       Screens : screen-pass-menu, screen-pass-seating, screen-pass-table,
+       Screens : screen-pass-menu, screen-pass-seating, screen-pass-intro, screen-pass-table,
                  screen-pass-round-wrap, screen-pass-gameover
        Overlays: pass-settings-overlay, pass-how-to-overlay, pass-history-overlay,
                  pass-quit-overlay, pass-new-deal-overlay
@@ -6877,6 +6907,23 @@ Climb Again
       <button id="btn-pass-seating-start" class="min-h-14 w-full rounded-2xl bg-zinc-900 hover:bg-zinc-800 active:scale-95 text-white text-xl font-semibold transition-all duration-150 btn-mp-action">
         Deal the Cards
       </button>
+    </div>
+  </section>
+
+  <!-- PASS ROUND INTRO — auto-advancing (PASS_INTERSTITIAL_MS), no [?]/🔊/✕ per ui-style.md
+       rule-5 (nothing to tap for the ~5s it's on screen). Shown at the start of EVERY round,
+       both host/single and clients, via passShowRoundIntro(). Reference: screen-cjar-raid-intro,
+       screen-shp-night-intro, screen-pko-clash-intro, screen-nat-habitat-intro. -->
+  <section id="screen-pass-intro" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-4 text-center">
+      <div class="text-6xl" role="img" aria-label="Playing cards">🃏</div>
+      <h2 id="pass-intro-heading" class="text-3xl font-bold text-stone-800"></h2>
+      <p id="pass-intro-sub" class="text-stone-500 text-base"></p>
+      <div id="pass-intro-sylly" style="display:none" class="flex items-center gap-2 bg-zinc-100 border border-zinc-300 rounded-2xl p-3 justify-center">
+        <span class="text-xl">🕳️</span>
+        <p class="text-zinc-700 text-sm font-semibold">The Abyss is active — a Detonation Combo deals it straight to everyone else.</p>
+      </div>
     </div>
   </section>
 
@@ -7229,8 +7276,8 @@ Climb Again
   </div>
 
   <!-- ════ NET-TRACE (NT) ════
-       Screens : screen-nt-menu, screen-nt-handshake, screen-nt-allocation, screen-nt-gate,
-                 screen-nt-build, screen-nt-playback, screen-nt-summary, screen-nt-standby
+       Screens : screen-nt-menu, screen-nt-allocation, screen-nt-gate (cycle boot + readiness,
+                 merged),  screen-nt-build, screen-nt-playback, screen-nt-summary, screen-nt-standby
        Overlays: nt-settings-overlay, nt-how-to-overlay, nt-quit-overlay, nt-reboot-overlay
        Canvas  : #nt-playback-canvas (RAF renderer — game-local, NOT shared js/lib)
        Ref     : js/games/nt.js
@@ -7275,7 +7322,7 @@ Climb Again
       </div>
       <div class="text-center">
         <div class="text-4xl mb-3" role="img">&#x26A1;</div>
-        <h2 class="text-2xl font-bold text-stone-800">Assemble Cluster</h2>
+        <h2 class="text-2xl font-bold text-stone-800">Provision Admins</h2>
         <p class="text-stone-400 text-sm mt-1">Leave blank to use default callsigns.</p>
       </div>
       <div>
@@ -7307,23 +7354,6 @@ Climb Again
     </div>
   </section>
 
-  <!-- NT HANDSHAKE (System Flavour Handshake — boot/sync) -->
-  <section id="screen-nt-handshake" style="display:none"
-    class="relative flex items-center justify-center w-full min-h-screen px-6 py-8 overflow-y-auto">
-    <button class="btn-open-sound absolute top-4 right-4 text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
-    <div class="flex flex-col items-center w-full max-w-sm gap-6 text-center">
-      <p class="text-5xl">⚡</p>
-      <div class="font-mono text-emerald-400 text-sm leading-relaxed">
-        <p>INITIALISING OS…</p>
-        <p>CONNECTING TO CLUSTER…</p>
-        <p>SECURING INGRESS</p>
-      </div>
-      <button id="btn-nt-handshake-continue" class="min-h-14 w-full rounded-2xl bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
-        Continue ▶
-      </button>
-    </div>
-  </section>
-
   <!-- NT ALLOCATION (DNP only — Shared Allocation Hub) — TODO Step 5: pool + adjusters -->
   <section id="screen-nt-allocation" style="display:none"
     class="flex flex-col w-full max-w-sm mx-auto h-screen overflow-hidden">
@@ -7347,7 +7377,8 @@ Climb Again
     </div>
   </section>
 
-  <!-- NT GATE (Cycle Initialization Gate — readiness) -->
+  <!-- NT GATE (Cycle boot terminal + readiness — merged: the boot log is pure flavour,
+       auto-plays line by line, then hands off to the same ready-check button.) -->
   <section id="screen-nt-gate" style="display:none"
     class="relative flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
     <div class="absolute top-4 right-4 flex items-center gap-3">
@@ -7356,14 +7387,20 @@ Climb Again
     </div>
     <div class="flex flex-col w-full max-w-sm gap-5 text-center">
       <p class="text-5xl">⚡</p>
-      <div>
-        <h2 class="text-2xl font-bold text-stone-800">Cycle Initialization Gate</h2>
-        <p id="nt-gate-sub" class="text-stone-400 text-sm mt-1">Confirm ready to begin Network Hardening.</p>
+      <!-- Boot terminal log — typed out line by line at the start of each cycle; hidden once
+           typing finishes and the ready-check block below is revealed. -->
+      <div id="nt-gate-boot-log" style="display:none"
+        class="w-full min-h-[9rem] rounded-xl border border-emerald-700/40 bg-slate-900 px-4 py-4 text-left font-mono text-xs text-emerald-400 leading-relaxed"></div>
+      <div id="nt-gate-ready-wrap" class="flex flex-col gap-5">
+        <div>
+          <h2 id="nt-gate-heading" class="text-2xl font-bold text-stone-800">Cycle Initialisation Gate</h2>
+          <p id="nt-gate-sub" class="text-stone-400 text-sm mt-1">Confirm ready to begin Network Hardening.</p>
+        </div>
+        <button id="btn-nt-gate-ready" class="min-h-14 w-full rounded-2xl bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150 btn-mp-action">
+          Begin Hardening ▶
+        </button>
+        <p id="nt-gate-standby" style="display:none" class="text-stone-400 text-sm">⏳ Waiting for the host…</p>
       </div>
-      <button id="btn-nt-gate-ready" class="min-h-14 w-full rounded-2xl bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150 btn-mp-action">
-        Begin Hardening ▶
-      </button>
-      <p id="nt-gate-standby" style="display:none" class="text-stone-400 text-sm">⏳ Waiting for the host…</p>
     </div>
   </section>
 
@@ -7380,16 +7417,17 @@ Climb Again
         </div>
       </div>
       <div id="nt-vm-window" class="w-full rounded-xl border border-emerald-700/40 bg-slate-900 p-2 flex flex-col gap-1">
-        <div class="flex items-center justify-between px-1 text-[10px] font-mono">
-          <div class="flex items-center gap-3">
+        <div class="flex items-center justify-between px-1 text-[10px] font-mono gap-2">
+          <span id="nt-build-player" class="text-emerald-400 truncate flex-shrink-0">user:\admin-1</span>
+          <div class="flex items-center gap-3 flex-shrink-0">
             <span class="text-cyan-400">&#x25A0; <span id="nt-fw-counter" class="text-cyan-300">0/0</span></span>
             <span class="text-fuchsia-400">&#x25A0; <span id="nt-hp-counter" class="text-fuchsia-300">0/0</span></span>
           </div>
-          <span class="text-slate-400">&#x23F1; <span id="nt-build-timer">1:30</span></span>
+          <span class="text-slate-400 flex-shrink-0">&#x23F1; <span id="nt-build-timer">1:30</span></span>
         </div>
         <div id="nt-build-grid" class="w-full aspect-square bg-slate-950 rounded"></div>
         <div class="flex items-center justify-between px-1 text-[10px] font-mono">
-          <span id="nt-node-name" class="text-slate-500 truncate pr-2">SYS_INIT // BOUBOU-6D617A65 // <span class="text-emerald-400">NT-NODE-01</span></span>
+          <span id="nt-node-name" class="text-slate-500 truncate pr-2">SYS_INIT // <span class="text-emerald-400">NT-NODE-01</span></span>
           <span id="nt-routing-status" class="text-emerald-400 whitespace-nowrap">ROUTING: VALID</span>
         </div>
       </div>
@@ -7443,20 +7481,21 @@ Climb Again
     </div>
   </section>
 
-  <!-- NT SUMMARY (Diagnostic Summary Console — cycle + match/gameover) — TODO Step 5: scoreboard -->
+  <!-- NT SUMMARY (Diagnostic Summary Console — cycle + match/gameover) -->
   <section id="screen-nt-summary" style="display:none"
-    class="relative flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
-    <div class="absolute top-4 right-4 flex items-center gap-3">
-      <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
-      <button id="btn-nt-summary-exit" class="text-stone-500 font-bold text-xl active:scale-90 transition-transform duration-100">✕</button>
-    </div>
-    <div class="flex flex-col w-full max-w-sm gap-5 text-center">
-      <p class="text-4xl">⚡</p>
-      <div>
-        <h2 id="nt-summary-heading" class="text-2xl font-bold text-stone-800">Diagnostic Summary</h2>
-        <p class="text-xs text-stone-400 font-mono mt-1">[ SYS_STAT ]</p>
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-5">
+      <div class="flex items-start justify-between">
+        <div class="text-left">
+          <h2 id="nt-summary-heading" class="text-2xl font-bold text-stone-800">Diagnostic Summary</h2>
+          <p class="text-xs text-stone-400 font-mono mt-1">[ SYS_STAT ]</p>
+        </div>
+        <div class="flex items-center gap-2 shrink-0">
+          <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+          <button id="btn-nt-summary-exit" class="text-stone-500 font-bold text-xl active:scale-90 transition-transform duration-100">✕</button>
+        </div>
       </div>
-      <div class="bg-white rounded-2xl shadow-sm py-6 px-4 flex flex-col gap-1">
+      <div class="bg-white rounded-2xl shadow-sm py-6 px-4 flex flex-col gap-1 text-center">
         <p id="nt-summary-ser-label" class="text-stone-400 text-xs font-semibold uppercase tracking-widest">System Efficiency Rating</p>
         <p id="nt-summary-ser" class="text-6xl font-bold text-emerald-600 font-mono leading-tight">--.--%</p>
         <p id="nt-summary-rawms" class="text-stone-400 text-sm font-mono">0 ms</p>
@@ -8024,13 +8063,13 @@ Reboot
       <p class="text-stone-400 text-base mt-1">Stay awake. Pass the herd.</p>
     </div>
     <div class="flex flex-col gap-3 w-full">
-      <button id="btn-shp-menu-play" class="min-h-14 w-full rounded-2xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      <button id="btn-shp-menu-play" class="min-h-14 w-full rounded-2xl shp-cta active:scale-95 text-white text-xl font-semibold transition-all duration-150">
         Lights Out
       </button>
       <button id="btn-shp-menu-how-to" class="min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
         How to Play
       </button>
-      <button id="btn-shp-menu-settings" class="min-h-14 w-full rounded-2xl bg-indigo-100 hover:bg-indigo-200 active:scale-95 text-indigo-700 text-xl font-semibold transition-all duration-150">
+      <button id="btn-shp-menu-settings" class="min-h-14 w-full rounded-2xl bg-[#E6E7EE] hover:bg-[#C9CBDA] active:scale-95 text-[#3A3D52] text-xl font-semibold transition-all duration-150">
         Settings
       </button>
       <button id="btn-shp-menu-back" class="min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-xl font-semibold transition-all duration-150">
@@ -8061,7 +8100,7 @@ Reboot
     class="flex items-center justify-center w-full min-h-screen px-4 py-8 overflow-y-auto">
     <div class="flex flex-col w-full max-w-sm gap-3">
       <div class="flex items-center justify-between">
-        <p id="shp-table-status" class="text-indigo-400 text-xs font-semibold uppercase tracking-widest">Night</p>
+        <p id="shp-table-status" class="shp-label text-xs font-semibold uppercase tracking-widest">Night</p>
         <div class="flex items-center gap-2">
           <button id="btn-shp-how-to" class="text-stone-400 font-bold text-sm active:scale-90 transition-transform duration-100">[?]</button>
           <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">&#x1F50A;</button>
@@ -8081,11 +8120,11 @@ Reboot
       <div class="text-5xl" role="img" aria-label="Sunrise">&#x2600;&#xFE0F;</div>
       <h2 class="text-2xl font-bold text-stone-800">Daybreak</h2>
       <div id="shp-gameover-standings" class="w-full flex flex-col gap-2"></div>
-      <button id="btn-shp-go-again" class="min-h-14 w-full rounded-2xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      <button id="btn-shp-go-again" class="min-h-14 w-full rounded-2xl shp-cta active:scale-95 text-white text-xl font-semibold transition-all duration-150">
         Another Night
       </button>
       <button id="btn-shp-gameover-exit" class="min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-xl font-semibold transition-all duration-150">
-        &#x2715; Done
+        Time to Sleep
       </button>
     </div>
   </section>
@@ -8106,7 +8145,7 @@ Reboot
           </div>
           <div class="flex gap-2 flex-wrap">
             <button class="pill" data-shp-hand="3">3</button>
-            <button class="pill pill-active-indigo" data-shp-hand="4">4</button>
+            <button class="pill pill-active-shp" data-shp-hand="4">4</button>
             <button class="pill" data-shp-hand="5">5</button>
           </div>
         </div>
@@ -8118,11 +8157,11 @@ Reboot
           <div class="flex flex-col gap-2">
             <div id="shp-moons-win-row" class="flex gap-2">
               <button class="pill" data-shp-moons-win="1">Catnap</button>
-              <button class="pill pill-active-indigo" data-shp-moons-win="2">Full Night</button>
+              <button class="pill pill-active-shp" data-shp-moons-win="2">Full Night</button>
               <button class="pill" data-shp-moons-win="3">Hibernate</button>
             </div>
             <div id="shp-moons-life-row" style="display:none" class="flex gap-2">
-              <button class="pill pill-active-indigo" data-shp-moons="3">3</button>
+              <button class="pill pill-active-shp" data-shp-moons="3">3</button>
               <button class="pill" data-shp-moons="5">5</button>
               <button class="pill" data-shp-moons="7">7</button>
             </div>
@@ -8132,7 +8171,7 @@ Reboot
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
           <div class="flex items-center justify-between">
             <p class="text-stone-800 font-semibold">Dream Acceleration</p>
-            <button id="btn-shp-dream-toggle" class="game-toggle-on-indigo shrink-0">ON</button>
+            <button id="btn-shp-dream-toggle" class="game-toggle-on-shp shrink-0">ON</button>
           </div>
           <p class="text-stone-400 text-sm">Below 50, every Pasture card counts double — Skip a Few and other specials aren't affected.</p>
         </div>
@@ -8144,7 +8183,7 @@ Reboot
           <p class="text-stone-600 text-sm font-semibold">Night Terrors</p>
           <p class="text-stone-400 text-sm">Reach 99 and the dream inverts: the count plunges, every number flips its sign, and the ceiling falls each turn. Knocked-out players linger as Sleepwalkers and can nudge the dream through the Nightmare Meter. Last one awake survives.</p>
         </div>
-        <button id="btn-shp-settings-done" class="min-h-14 w-full rounded-2xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-xl font-semibold transition-all duration-150">Done</button>
+        <button id="btn-shp-settings-done" class="min-h-14 w-full rounded-2xl shp-cta active:scale-95 text-white text-xl font-semibold transition-all duration-150">Done</button>
       </div>
     </div>
   </div>
@@ -8158,27 +8197,27 @@ Reboot
         <p class="text-xs text-stone-400 mt-1">Keep the herd below 99. Don't be the one who nods off.</p>
       </div>
       <div class="px-5 pt-3 pb-3 border-b border-stone-200 flex-shrink-0 flex gap-2">
-        <button id="btn-shp-howto-tab-rules" class="pill pill-active-indigo" data-shp-howto-tab="rules">The Rules</button>
+        <button id="btn-shp-howto-tab-rules" class="pill pill-active-shp" data-shp-howto-tab="rules">The Rules</button>
         <button id="btn-shp-howto-tab-cards" class="pill" data-shp-howto-tab="cards">The Cards</button>
       </div>
       <div class="overflow-y-auto flex flex-col gap-4 px-5 py-5" id="shp-how-to-body">
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
-          <p class="text-xs font-semibold uppercase tracking-widest text-indigo-600">Step 1</p>
+          <p class="text-xs font-semibold uppercase tracking-widest shp-label">Step 1</p>
           <p class="font-bold text-stone-800">The Count</p>
           <p class="text-stone-500 text-sm">On your turn, play one card to change the <span class="font-semibold text-stone-700">Herd</span>. Number cards add sheep - but if your play would push the count <span class="font-semibold text-stone-700">past 99</span>, it's illegal.</p>
         </div>
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
-          <p class="text-xs font-semibold uppercase tracking-widest text-indigo-600">Step 2</p>
+          <p class="text-xs font-semibold uppercase tracking-widest shp-label">Step 2</p>
           <p class="font-bold text-stone-800">Pillows &amp; Alarms</p>
           <p class="text-stone-500 text-sm"><span class="font-semibold text-stone-700">Pillows</span> stall or shrink the count (Doze, Counting Backwards, Lullaby, Swap Dreams). <span class="font-semibold text-stone-700">Alarms</span> shake it up — Skip a Few, the Black Sheep (snaps to 99), Wide Awake, Heavy Eyelids and Rude Awakening. The <span class="font-semibold text-stone-700">Big Bad Wolf</span> hides in the Flock — draw one and a card slot locks for the Night. Not sure what a card does? <span class="font-semibold text-stone-700">Press and hold it</span> in your hand, or check <span class="font-semibold text-stone-700">The Cards</span> tab above.</p>
         </div>
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
-          <p class="text-xs font-semibold uppercase tracking-widest text-indigo-600">Step 3</p>
+          <p class="text-xs font-semibold uppercase tracking-widest shp-label">Step 3</p>
           <p class="font-bold text-stone-800">Dozing Off</p>
           <p class="text-stone-500 text-sm">Bust the count, or run out of safe cards, and you <span class="font-semibold text-stone-700">doze off</span> - you're out for the night. Everyone else plays on from exactly where the Herd sits.</p>
         </div>
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
-          <p class="text-xs font-semibold uppercase tracking-widest text-indigo-600">Winning and Scoring</p>
+          <p class="text-xs font-semibold uppercase tracking-widest shp-label">Winning and Scoring</p>
           <p class="font-bold text-stone-800">Last one awake</p>
           <ul class="list-disc pl-5 flex flex-col gap-1 text-stone-500 text-sm">
             <li><span class="font-semibold text-stone-700">Last One Awake</span> - win the Night and earn a <span class="font-semibold text-stone-700">Moon</span> &#x1F319;.</li>
@@ -8187,11 +8226,11 @@ Reboot
           </ul>
         </div>
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
-          <p class="text-xs font-semibold uppercase tracking-widest text-indigo-600">&#x2728; Sylly Mode</p>
+          <p class="text-xs font-semibold uppercase tracking-widest shp-label">&#x2728; Sylly Mode</p>
           <p class="font-bold text-stone-800">Night Terrors</p>
           <p class="text-stone-500 text-sm">One <span class="font-semibold text-stone-700">long Night</span> - no redeals, and your Moons are <span class="font-semibold text-stone-700">lives</span>. Crash and you lose one, then <span class="font-semibold text-stone-700">the Jolt</span> wakes you with a fresh hand. Reach 99 and the dream inverts - <span class="font-semibold text-stone-700">the Plunge</span>: every number card flips its sign and the ceiling <span class="font-semibold text-stone-700">falls a little each turn</span>. At zero Moons you don't just leave - you become a <span class="font-semibold text-stone-700">Sleepwalker</span>, haunting the dream. Every Pasture card played charges the <span class="font-semibold text-stone-700">Nightmare Meter</span>; when it fills, a Sleepwalker flips one of three face-down nightmares onto the living. &#x1F4A4; Last one awake survives the night.</p>
         </div>
-        <button id="btn-shp-howto-close" class="min-h-14 w-full rounded-2xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-xl font-semibold transition-all duration-150">Got it</button>
+        <button id="btn-shp-howto-close" class="min-h-14 w-full rounded-2xl shp-cta active:scale-95 text-white text-xl font-semibold transition-all duration-150">Got it</button>
       </div>
 
       <!-- GALLERY tab - built on every switch INTO it, from the game's own data and
@@ -8201,7 +8240,7 @@ Reboot
            precached, emoji means it did not. -->
       <div id="shp-how-to-cards" style="display:none" class="overflow-y-auto flex-col gap-5 px-5 py-5">
         <div id="shp-cards-body" class="flex flex-col gap-5"></div>
-        <button id="btn-shp-howto-close-cards" class="min-h-14 w-full rounded-2xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-xl font-semibold transition-all duration-150">Got it</button>
+        <button id="btn-shp-howto-close-cards" class="min-h-14 w-full rounded-2xl shp-cta active:scale-95 text-white text-xl font-semibold transition-all duration-150">Got it</button>
       </div>
     </div>
   </div>
@@ -8209,12 +8248,12 @@ Reboot
   <!-- SHP QUIT -->
   <div id="shp-quit-overlay" style="display:none"
     class="fixed inset-0 z-[80] overlay-modal-backdrop flex items-center justify-center px-6">
-    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-indigo-300">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-[#C9CBDA]">
       <p class="text-3xl">&#x1F6CF;&#xFE0F;</p>
       <h3 class="text-lg font-bold text-stone-800">Tuck In?</h3>
       <p class="text-stone-500 text-sm">Give in to sleep now and you're out for the night.</p>
       <div class="flex flex-col gap-2">
-        <button id="btn-shp-quit-confirm" class="min-h-14 w-full rounded-2xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-semibold text-lg transition-all duration-150">Yeah, lights out.</button>
+        <button id="btn-shp-quit-confirm" class="min-h-14 w-full rounded-2xl shp-cta active:scale-95 text-white font-semibold text-lg transition-all duration-150">Yeah, lights out.</button>
         <button id="btn-shp-quit-cancel" class="min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-lg transition-all duration-150">Stay awake!</button>
       </div>
     </div>
@@ -8223,12 +8262,12 @@ Reboot
   <!-- SHP NEW NIGHT (play-again) -->
   <div id="shp-new-night-overlay" style="display:none"
     class="fixed inset-0 z-[90] overlay-modal-backdrop flex items-center justify-center px-6">
-    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-indigo-300">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-[#C9CBDA]">
       <p class="text-3xl">&#x1F319;</p>
       <h3 class="text-lg font-bold text-stone-800">Another Night?</h3>
       <p class="text-stone-500 text-sm">Fresh Flock, full Moons, everyone wakes up.</p>
       <div class="flex flex-col gap-2">
-        <button id="btn-shp-new-confirm" class="min-h-14 w-full rounded-2xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-semibold text-lg transition-all duration-150">Count Again</button>
+        <button id="btn-shp-new-confirm" class="min-h-14 w-full rounded-2xl shp-cta active:scale-95 text-white font-semibold text-lg transition-all duration-150">Count Again</button>
         <button id="btn-shp-new-cancel" class="min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-lg transition-all duration-150">Stay here</button>
       </div>
     </div>
@@ -8237,7 +8276,7 @@ Reboot
   <!-- SHP TIP (shared contextual [?]) -->
   <div id="shp-tip-overlay" style="display:none"
     class="fixed inset-0 z-[90] overlay-modal-backdrop flex items-center justify-center px-6">
-    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-indigo-300">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-[#C9CBDA]">
       <p id="shp-tip-emoji" class="text-3xl"></p>
       <h3 id="shp-tip-heading" class="text-lg font-bold text-stone-800"></h3>
       <div id="shp-tip-body" class="text-stone-500 text-sm text-left flex flex-col gap-1.5"></div>
@@ -8255,7 +8294,7 @@ Reboot
       </div>
       <div id="shp-play-log-list" class="overflow-y-auto flex flex-col px-5 py-4 gap-0"></div>
       <div class="px-5 pb-8 flex-shrink-0">
-        <button id="btn-shp-play-log-close" class="min-h-14 w-full rounded-2xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-lg font-semibold transition-all duration-150">Close</button>
+        <button id="btn-shp-play-log-close" class="min-h-14 w-full rounded-2xl shp-cta active:scale-95 text-white text-lg font-semibold transition-all duration-150">Close</button>
       </div>
     </div>
   </div>
@@ -8273,13 +8312,13 @@ Reboot
     <button class="btn-open-sound absolute top-4 right-4 text-2xl">🔊</button>
     <div class="text-6xl" role="img" aria-label="diamond">💎</div>
     <div>
-      <h1 class="text-4xl font-bold text-stone-800">Flawless</h1>
+      <h1 class="text-4xl font-bold text-stone-700">Flawless</h1>
       <p class="text-stone-400 text-base mt-2">The flawless one wins. Don't get exposed.</p>
     </div>
     <div class="flex flex-col gap-3 w-full">
-      <button id="btn-flw-menu-play" class="flw-cta min-h-14 w-full rounded-2xl text-white text-xl font-semibold active:scale-95 transition-all duration-150">Enter the Exhibition</button>
+      <button id="btn-flw-menu-play" class="flw-cta min-h-14 w-full rounded-2xl text-xl font-semibold active:scale-95 transition-all duration-150">Enter the Exhibition</button>
       <button id="btn-flw-menu-how-to" class="min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 text-white text-xl font-semibold active:scale-95 transition-all duration-150">How to Play</button>
-      <button id="btn-flw-menu-settings" class="min-h-14 w-full rounded-2xl bg-[#FBE0EA] hover:bg-[#F6C9DA] text-[#A02050] text-xl font-semibold active:scale-95 transition-all duration-150">Settings</button>
+      <button id="btn-flw-menu-settings" class="min-h-14 w-full rounded-2xl bg-[#A02050] hover:bg-[#7A1A3E] text-white text-xl font-semibold active:scale-95 transition-all duration-150">Settings</button>
       <button id="btn-flw-menu-back" class="min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-xl font-semibold transition-all duration-150">← Back to the Box</button>
     </div>
   </section>
@@ -8290,7 +8329,7 @@ Reboot
     <div class="flex flex-col w-full max-w-sm gap-4">
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-2">
-          <div id="flw-turn-label" class="text-sm font-semibold text-stone-500">The Exhibition</div>
+          <div id="flw-header-title" class="text-sm font-semibold text-stone-600"></div>
           <span id="flw-timer" class="text-sm font-bold text-stone-500"></span>
         </div>
         <div class="flex items-center gap-2">
@@ -8301,14 +8340,15 @@ Reboot
       </div>
       <div class="flex flex-col gap-3">
         <div id="flw-rival-strip" class="flex flex-wrap gap-2 justify-center"></div>
-        <div class="flex items-center justify-between bg-white rounded-2xl p-3 shadow-sm">
-          <span class="text-stone-500 text-sm font-semibold">The Vault</span>
-          <span id="flw-vault-count" class="flw-label font-bold">—</span>
+        <div class="flex items-center justify-between bg-white rounded-2xl p-3 shadow-sm gap-2">
+          <span class="text-stone-500 text-sm font-semibold flex-shrink-0">The Vault</span>
+          <span id="flw-vault-count" class="flw-label font-bold text-sm text-center">—</span>
+          <span id="flw-vault-cut" class="text-stone-400 text-[0.7rem] text-right flex-shrink-0"></span>
         </div>
         <div class="bg-white rounded-2xl p-3 shadow-sm flex flex-col gap-2">
-          <div class="flex items-center justify-between">
-            <p class="text-[0.6rem] font-semibold uppercase tracking-wide text-stone-400">Appraiser's Ledger</p>
-            <button id="btn-flw-gem-manifest" class="flw-step-label text-[0.65rem] font-semibold uppercase tracking-wide active:scale-90 transition-transform duration-100">[?] Gem Manifest</button>
+          <div class="grid grid-cols-2">
+            <p class="text-[0.6rem] font-semibold uppercase tracking-wide text-stone-400 text-center">Appraiser's Ledger</p>
+            <button id="btn-flw-gem-manifest" class="flw-step-label text-[0.65rem] font-semibold uppercase tracking-wide active:scale-90 transition-transform duration-100 text-center">[?] Gem Manifest</button>
           </div>
           <div id="flw-ledger"></div>
         </div>
@@ -8320,8 +8360,8 @@ Reboot
       <div class="flex flex-col gap-3">
         <div id="flw-hand-row" class="flex items-center justify-center gap-1"></div>
         <div id="flw-counterfeit-row" class="flex items-center justify-center"></div>
-        <button id="btn-flw-audit" style="display:none" class="min-h-11 w-full rounded-2xl bg-[#FBE0EA] hover:bg-[#F6C9DA] text-[#A02050] font-semibold text-sm active:scale-95 transition-all duration-100">🔍 Audit</button>
-        <button id="btn-flw-action" class="flw-cta min-h-14 w-full rounded-2xl text-white text-lg font-semibold active:scale-95 transition-all duration-150" disabled>Waiting…</button>
+        <button id="btn-flw-audit" style="display:none" class="min-h-11 w-full rounded-2xl bg-[#A02050] hover:bg-[#7A1A3E] text-white font-semibold text-sm active:scale-95 transition-all duration-100">🔍 Audit</button>
+        <button id="btn-flw-action" class="flw-cta min-h-14 w-full rounded-2xl text-lg font-semibold active:scale-95 transition-all duration-150" disabled>Waiting…</button>
       </div>
     </div>
   </section>
@@ -8338,7 +8378,9 @@ Reboot
         </div>
       </div>
       <div id="flw-showing-result-body" class="flex flex-col items-center gap-3 text-center"></div>
-      <button id="btn-flw-next-showing" class="flw-cta min-h-14 w-full rounded-2xl text-white text-lg font-semibold active:scale-95 transition-all duration-150">Next Showing</button>
+      <button id="btn-flw-next-showing" class="flw-cta min-h-14 w-full rounded-2xl text-lg font-semibold active:scale-95 transition-all duration-150">Next Showing</button>
+      <button id="btn-flw-result-ready" style="display:none" class="min-h-11 w-full rounded-2xl bg-[#A02050] hover:bg-[#7A1A3E] text-white font-semibold text-sm active:scale-95 transition-all duration-100">Next Showing</button>
+      <p id="flw-result-wait" style="display:none" class="text-stone-400 text-xs text-center"></p>
     </div>
   </section>
 
@@ -8347,14 +8389,14 @@ Reboot
     class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
     <div class="flex flex-col w-full max-w-sm gap-4">
       <div class="flex items-center justify-between">
-        <h2 class="text-xl font-bold text-stone-800">Best in Show 🏆</h2>
+        <h2 class="text-xl font-bold text-stone-700">Best in Show 🏆</h2>
         <div class="flex items-center gap-2">
           <button class="btn-open-sound text-xl">🔊</button>
           <button id="btn-flw-gameover-exit" class="text-stone-500 font-bold text-xl">✕</button>
         </div>
       </div>
       <div id="flw-gameover-body" class="flex flex-col gap-2"></div>
-      <button id="btn-flw-go-again" class="flw-cta min-h-14 w-full rounded-2xl text-white text-lg font-semibold active:scale-95 transition-all duration-150">Another Showing?</button>
+      <button id="btn-flw-go-again" class="flw-cta min-h-14 w-full rounded-2xl text-lg font-semibold active:scale-95 transition-all duration-150">Another Showing?</button>
     </div>
   </section>
 
@@ -8363,13 +8405,13 @@ Reboot
     class="fixed inset-0 bg-black/40 z-[80] flex items-end justify-center">
     <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
       <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
-        <h2 class="text-xl font-bold text-stone-800">The Display Case 💎</h2>
+        <h2 class="text-xl font-bold text-stone-700">The Display Case 💎</h2>
         <p class="text-xs text-stone-400 mt-1">Set the scene before the first Showing.</p>
       </div>
       <div class="overflow-y-auto flex flex-col gap-5 px-5 py-5">
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
           <div>
-            <p class="text-stone-800 font-semibold">Appraiser's Ledger</p>
+            <p class="text-stone-700 font-semibold">Appraiser's Ledger</p>
             <p class="text-stone-400 text-sm mt-0.5">Tally shows a running count of every gem seen. Discards shows the actual play order instead. Off is a pure memory game.</p>
           </div>
           <div class="flex gap-2">
@@ -8381,7 +8423,7 @@ Reboot
 
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
           <div>
-            <p class="text-stone-800 font-semibold">Diamonds to Win</p>
+            <p class="text-stone-700 font-semibold">Diamonds to Win</p>
             <p class="text-stone-400 text-sm mt-0.5">Auto picks the right target for your table size. Custom sets your own.</p>
           </div>
           <div class="flex gap-2">
@@ -8397,7 +8439,7 @@ Reboot
 
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
           <div>
-            <p class="text-stone-800 font-semibold">Smoke &amp; Mirrors</p>
+            <p class="text-stone-700 font-semibold">Smoke &amp; Mirrors</p>
             <p class="text-stone-400 text-sm mt-0.5">How many random gems are burned out of the Vault each Showing — more burned, harder to read the deck.</p>
           </div>
           <div class="flex gap-2">
@@ -8409,7 +8451,7 @@ Reboot
 
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
           <div>
-            <p class="text-stone-800 font-semibold">Appraisal Clock</p>
+            <p class="text-stone-700 font-semibold">Appraisal Clock</p>
             <p class="text-stone-400 text-sm mt-0.5">A gentle countdown each turn. On time-out, your drawn gem is played for you.</p>
           </div>
           <div class="flex gap-2">
@@ -8421,23 +8463,23 @@ Reboot
 
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
           <div class="flex items-center justify-between">
-            <p class="text-stone-800 font-semibold">✨ Sylly Mode</p>
+            <p class="text-stone-700 font-semibold">✨ Sylly Mode</p>
             <button id="btn-flw-sylly-toggle" class="game-toggle-off shrink-0">OFF</button>
           </div>
           <p class="text-stone-600 text-sm font-semibold">The Counterfeit Run</p>
           <p class="text-stone-400 text-sm">Each jeweller gets one Counterfeit gem to bluff any effect, plus two Audit Charges to expose rivals' fakes. Hold the fake to Vault Lock and it collapses to nothing.</p>
         </div>
-        <button id="btn-flw-settings-done" class="flw-cta min-h-14 w-full rounded-2xl text-white text-xl font-semibold active:scale-95 transition-all duration-150">Done</button>
+        <button id="btn-flw-settings-done" class="flw-cta min-h-14 w-full rounded-2xl text-xl font-semibold active:scale-95 transition-all duration-150">Done</button>
       </div>
     </div>
   </div>
 
   <!-- FLW HOW TO PLAY -->
   <div id="flw-how-to-overlay" style="display:none"
-    class="fixed inset-0 bg-black/40 z-[90] flex items-end justify-center">
+    class="fixed inset-0 bg-black/40 z-[102] flex items-end justify-center">
     <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
       <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
-        <h2 class="text-xl font-bold text-stone-800">How to Play 💎</h2>
+        <h2 class="text-xl font-bold text-stone-700">How to Play 💎</h2>
         <p class="text-xs text-stone-400 mt-1">Hold the most flawless stone when the vault locks.</p>
       </div>
       <div class="px-5 pt-3 pb-3 border-b border-stone-200 flex-shrink-0 flex gap-2">
@@ -8447,17 +8489,17 @@ Reboot
       <div id="flw-how-to-body" class="overflow-y-auto flex flex-col gap-4 px-5 py-5">
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
           <p class="flw-step-label text-xs font-semibold uppercase tracking-widest">Step 1</p>
-          <p class="font-bold text-stone-800">Draw and place</p>
+          <p class="font-bold text-stone-700">Draw and place</p>
           <p class="text-stone-500 text-sm">Draw one gem so you're holding two, then place one face-up and resolve its effect — keep the other as your secret <span class="font-semibold text-stone-700">Showpiece</span>.</p>
         </div>
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
           <p class="flw-step-label text-xs font-semibold uppercase tracking-widest">Step 2</p>
-          <p class="font-bold text-stone-800">Read your rival Collectors</p>
+          <p class="font-bold text-stone-700">Read your rival Collectors</p>
           <p class="text-stone-500 text-sm">Effects let you peek, compare, swap, or expose. Get <span class="font-semibold text-stone-700">Exposed</span> — a correct guess, a lost appraisal, or being forced to discard the Pink Diamond — and you're out for this Showing.</p>
         </div>
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
           <p class="flw-step-label text-xs font-semibold uppercase tracking-widest">Step 3</p>
-          <p class="font-bold text-stone-800">Lock the Vault</p>
+          <p class="font-bold text-stone-700">Lock the Vault</p>
           <p class="text-stone-500 text-sm">When the Vault runs dry it's <span class="font-semibold text-stone-700">Vault Lock</span> — every Collector still in reveals, highest carat wins. Or simply be the last one standing.</p>
         </div>
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
@@ -8470,10 +8512,10 @@ Reboot
         </div>
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
           <p class="flw-step-label text-xs font-semibold uppercase tracking-widest">✨ Sylly Mode</p>
-          <p class="font-bold text-stone-800">The Counterfeit Run</p>
+          <p class="font-bold text-stone-700">The Counterfeit Run</p>
           <p class="text-stone-500 text-sm">Everyone gets one <span class="font-semibold text-stone-700">Counterfeit</span> gem to bluff any effect, plus two <span class="font-semibold text-stone-700">Audit Charges</span> to expose a rival's fake. Get caught auditing a real gem and you leak your hand. Hold the fake to Vault Lock and it's worth nothing.</p>
         </div>
-        <button id="btn-flw-howto-close" class="flw-cta min-h-14 w-full rounded-2xl text-white text-xl font-semibold active:scale-95 transition-all duration-150">Got it</button>
+        <button id="btn-flw-howto-close" class="flw-cta min-h-14 w-full rounded-2xl text-xl font-semibold active:scale-95 transition-all duration-150">Got it</button>
       </div>
 
       <!-- GALLERY tab - built on every switch INTO it, from the game's own data and
@@ -8483,7 +8525,7 @@ Reboot
            precached, emoji means it did not. -->
       <div id="flw-how-to-gems" style="display:none" class="overflow-y-auto flex-col gap-5 px-5 py-5">
         <div id="flw-gems-body" class="flex flex-col gap-5"></div>
-        <button id="btn-flw-howto-close-gems" class="flw-cta min-h-14 w-full rounded-2xl text-white text-xl font-semibold active:scale-95 transition-all duration-150">Got it</button>
+        <button id="btn-flw-howto-close-gems" class="flw-cta min-h-14 w-full rounded-2xl text-xl font-semibold active:scale-95 transition-all duration-150">Got it</button>
       </div>
     </div>
   </div>
@@ -8494,7 +8536,7 @@ Reboot
     <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-[#E9A8C0]">
       <div class="flex flex-col gap-2">
         <p class="text-3xl">💼</p>
-        <h3 class="text-lg font-bold text-stone-800">Pack Up Your Case?</h3>
+        <h3 class="text-lg font-bold text-stone-700">Pack Up Your Case?</h3>
         <p class="text-stone-500 text-sm">You'll forfeit this Showing and leave the table.</p>
       </div>
       <div class="flex flex-col gap-2">
@@ -8510,11 +8552,11 @@ Reboot
     <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-[#E9A8C0]">
       <div class="flex flex-col gap-2">
         <p class="text-3xl">💎</p>
-        <h3 class="text-lg font-bold text-stone-800">Another Showing?</h3>
+        <h3 class="text-lg font-bold text-stone-700">Another Showing?</h3>
         <p class="text-stone-500 text-sm">Tokens reset; everyone re-enters the lobby.</p>
       </div>
       <div class="flex flex-col gap-2">
-        <button id="btn-flw-new-confirm" class="flw-cta min-h-14 w-full rounded-2xl text-white font-semibold text-lg active:scale-95 transition-all duration-150">Another Showing</button>
+        <button id="btn-flw-new-confirm" class="flw-cta min-h-14 w-full rounded-2xl font-semibold text-lg active:scale-95 transition-all duration-150">Another Showing</button>
         <button id="btn-flw-new-cancel" class="min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 text-stone-700 font-semibold text-lg active:scale-95 transition-all duration-150">Stay here.</button>
       </div>
     </div>
@@ -8526,7 +8568,7 @@ Reboot
     <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-[#E9A8C0]">
       <div class="flex flex-col gap-1">
         <p class="text-3xl">🎯</p>
-        <h3 id="flw-target-heading" class="text-lg font-bold text-stone-800">Choose a target</h3>
+        <h3 id="flw-target-heading" class="text-lg font-bold text-stone-700">Choose a target</h3>
         <p id="flw-target-sub" class="text-stone-500 text-sm"></p>
       </div>
       <div id="flw-target-list" class="flex flex-col gap-2"></div>
@@ -8540,7 +8582,7 @@ Reboot
     <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-[#E9A8C0]">
       <div class="flex flex-col gap-1">
         <p class="text-3xl">🔍</p>
-        <h3 class="text-lg font-bold text-stone-800">The Scratch Test</h3>
+        <h3 class="text-lg font-bold text-stone-700">The Scratch Test</h3>
         <p class="text-stone-500 text-sm">Name a rival and guess their gem.</p>
       </div>
       <div>
@@ -8552,7 +8594,7 @@ Reboot
         <div id="flw-scratch-guess-list" class="flex flex-wrap gap-2"></div>
       </div>
       <div class="flex flex-col gap-2">
-        <button id="btn-flw-scratch-confirm" class="flw-cta min-h-11 w-full rounded-2xl text-white font-semibold text-sm active:scale-95 transition-all duration-100" disabled>Make the Call</button>
+        <button id="btn-flw-scratch-confirm" class="flw-cta min-h-11 w-full rounded-2xl font-semibold text-sm active:scale-95 transition-all duration-100" disabled>Make the Call</button>
         <button id="btn-flw-scratch-cancel" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 text-stone-700 font-semibold text-sm active:scale-95 transition-all duration-100">Cancel</button>
       </div>
     </div>
@@ -8564,7 +8606,7 @@ Reboot
     <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-[#E9A8C0]">
       <div class="flex flex-col gap-1">
         <p class="text-3xl">🔎</p>
-        <h3 class="text-lg font-bold text-stone-800">The Loupe</h3>
+        <h3 class="text-lg font-bold text-stone-700">The Loupe</h3>
         <p id="flw-peek-sub" class="text-stone-500 text-sm">Press and hold to view their Showpiece.</p>
       </div>
       <div id="flw-peek-hold" class="select-none flex items-center justify-center min-h-[8rem] rounded-2xl bg-stone-200 text-stone-500 text-sm font-semibold"
@@ -8579,10 +8621,10 @@ Reboot
     <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-[#E9A8C0]">
       <div class="flex flex-col gap-1">
         <p class="text-3xl">⚖️</p>
-        <h3 class="text-lg font-bold text-stone-800">The Private Appraisal</h3>
+        <h3 class="text-lg font-bold text-stone-700">The Private Appraisal</h3>
         <p id="flw-appraisal-text" class="text-stone-500 text-sm"></p>
       </div>
-      <button id="btn-flw-appraisal-close" class="flw-cta min-h-11 w-full rounded-2xl text-white font-semibold text-sm active:scale-95 transition-all duration-100">Got it</button>
+      <button id="btn-flw-appraisal-close" class="flw-cta min-h-11 w-full rounded-2xl font-semibold text-sm active:scale-95 transition-all duration-100">Got it</button>
     </div>
   </div>
 
@@ -8591,12 +8633,13 @@ Reboot
     class="fixed inset-0 bg-black/40 z-[100] flex items-end justify-center">
     <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
       <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
-        <h2 class="text-xl font-bold text-stone-800">The Deep Vault 💚</h2>
+        <h2 class="text-xl font-bold text-stone-700">The Deep Vault 💚</h2>
         <p class="text-xs text-stone-400 mt-1">Keep one. The other two return to the bottom of the Vault.</p>
       </div>
       <div class="overflow-y-auto flex flex-col gap-4 px-5 py-5">
         <div id="flw-emerald-keep" class="flex gap-3 justify-center flex-wrap"></div>
-        <button id="btn-flw-emerald-confirm" class="flw-cta min-h-14 w-full rounded-2xl text-white text-lg font-semibold active:scale-95 transition-all duration-150" disabled>Confirm</button>
+        <p id="flw-emerald-desc" class="bg-stone-100 rounded-2xl p-3 text-stone-500 text-xs text-left"></p>
+        <button id="btn-flw-emerald-confirm" class="flw-cta min-h-14 w-full rounded-2xl text-lg font-semibold active:scale-95 transition-all duration-150" disabled>Confirm</button>
       </div>
     </div>
   </div>
@@ -8607,7 +8650,7 @@ Reboot
     <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-[#E9A8C0]">
       <div class="flex flex-col gap-1">
         <p class="text-3xl">🎭</p>
-        <h3 class="text-lg font-bold text-stone-800">Forge a Gem</h3>
+        <h3 class="text-lg font-bold text-stone-700">Forge a Gem</h3>
         <p class="text-stone-500 text-sm">Claim any effect (1–7). Its effect fires for real — but it's a fake on the books.</p>
       </div>
       <div id="flw-cf-grid" class="flex flex-wrap gap-2 justify-center"></div>
@@ -8617,7 +8660,7 @@ Reboot
 
 
   <!-- ════ PECKING ORDER (pko) — adjacency climbing card game ════
-       Screens : screen-pko-menu, screen-pko-hoard, screen-pko-table,
+       Screens : screen-pko-menu, screen-pko-clash-intro, screen-pko-hoard, screen-pko-table,
                  screen-pko-unchallenged, screen-pko-clash-result, screen-pko-hierarchy
        Overlays: pko-settings-overlay, pko-challenge-overlay, pko-how-to-overlay (Rules | Diagram | Animals tabs),
                  pko-trail-overlay, pko-quit-overlay, pko-stampede-overlay, pko-new-match-overlay
@@ -8637,6 +8680,23 @@ Reboot
       <button id="btn-pko-menu-how-to" class="min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 text-white text-xl font-semibold active:scale-95 transition-all duration-150">How to Play</button>
       <button id="btn-pko-menu-settings" class="min-h-14 w-full rounded-2xl bg-[#F5E6C8] hover:bg-[#EBD5A8] text-[#854D0E] text-xl font-semibold active:scale-95 transition-all duration-150">Settings</button>
       <button id="btn-pko-menu-back" class="min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-xl font-semibold transition-all duration-150">← Back to the Box</button>
+    </div>
+  </section>
+
+  <!-- PKO CLASH INTRO — auto-advancing (PKO_INTERSTITIAL_MS), no [?]/🔊/✕ per ui-style.md
+       rule-5 (nothing to tap for the ~5s it's on screen). Shown at the start of EVERY
+       Clash, both host and clients, via pkoShowClashIntro(). Reference: screen-cjar-raid-intro,
+       screen-shp-night-intro. -->
+  <section id="screen-pko-clash-intro" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-4 text-center">
+      <div class="text-6xl" role="img" aria-label="Elephant">🐘</div>
+      <h2 id="pko-clash-intro-heading" class="text-3xl font-bold text-stone-800"></h2>
+      <p id="pko-clash-intro-sub" class="text-stone-500 text-base"></p>
+      <div id="pko-clash-intro-sylly" style="display:none" class="flex items-center gap-2 bg-[#F5E6C8] border border-[#E4CFA3] rounded-2xl p-3 justify-center">
+        <span class="text-xl">🌪</span>
+        <p class="text-[#854D0E] text-sm font-semibold">Force of Nature is active — watch the board, not just your Hoard.</p>
+      </div>
     </div>
   </section>
 

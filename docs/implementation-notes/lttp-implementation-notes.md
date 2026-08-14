@@ -17,6 +17,15 @@ Map annotations and Contacts status/notes are local to each device in Lobby Mode
 **Rotating folder hints — global index, not per-player**
 The hint index increments globally each time any folder is opened (6 phrases per role, cycles via modulo). This means the same device cycling through multiple players' folders will show sequential hints, not the same hint repeated.
 
+**Party Destination DD-13 value line added. [13 Aug 2026]** Found during the suite-wide DD-13
+sweep (`ui-style.md` § Settings Card Standard) — The Local Hang / The Secret Spot gave no
+indication of the actual location-pool difference. Added `#lttp-val-difficulty`, populated by a
+new `lttpUpdateDifficultyVal()` (`js/games/lttp.js`) from `lttpDifficulty` (`local` = difficulty
+≤2 places, `secret` = difficulty ≤3 places plus the secret-mode pool — per the existing inline
+comment on `let lttpDifficulty`). Called once at listener-registration time and on every pill
+click; this game has no dedicated settings-open sync function, matching JEC's pattern. **Not
+verified beyond syntax checks** — no `visual-check`, no live play.
+
 ---
 
 ## Bug Index

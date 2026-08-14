@@ -40,7 +40,7 @@ Always-on pointer so single-game work doesn't need the 128 KB `game-identities.m
 | 12 | Pass | `pass` | `pass.js` | zinc-900 / `pill-active-zinc` |
 | 13 | Net-Trace | `nt` | `nt.js` | emerald-600 / `pill-active-emerald` |
 | 14 | Fruit Salad | `frt` | `frt.js` | electric lemon `#FFE500` (dark ink) / `pill-active-frt` |
-| 15 | Counting Sheep | `shp` | `shp.js` | indigo-600 / `pill-active-indigo` |
+| 15 | Counting Sheep | `shp` | `shp.js` | midnight `#3A3D52` (custom) / `pill-active-shp` |
 | 16 | Flawless | `flw` | `flw.js` | rose-pink `#E879A8` / `pill-active-flw` |
 | 17 | Pecking Order | `pko` | `pko.js` | `#854D0E` / `pill-active-pko` |
 | 18 | Cookie Jar | `cjar` | `cjar.js` | honey-gold `#D4A017` (dark ink) / `pill-active-cjar` |
@@ -283,18 +283,51 @@ Do not write the phase snapshot until Protocols A is clean. Do not write a line 
 pointer, not a narrative — that is what keeps this file cheap. When a round closes, compress its
 entry to one line and let the impl-notes carry the detail (§ Documentation Integrity Protocol).
 
-**SW v178 — Counting Sheep scoring rework CLOSED, all 10 chunks shipped (13 Aug 2026).** SHP's
-match structure: normal mode now makes a Night a scored round — a crash Dozes that player out of
-the current Night only (no reset/redeal), everyone else plays on from the same Herd, last awake
-wins the Night and earns a Moon, first to `shpMoonsToWin` Moons wins the match. Sylly Mode is now
-one continuous Night with Moons as lives and the Jolt (hand discard+redraw) replacing the old
-per-crash redeal as a stuck player's recovery. Chunk 9 (UI + copy, same-day) shipped the terminology
-suite-wide: "Deep Sleep" is retired as a screen name (now "Last One Awake"), "Dozed Off" is new
-normal-mode-only chip text, "Sleepwalker" is Sylly-only. Chunk 10 closed docs (this entry) — full
-chunk-by-chunk detail lives in `shp-implementation-notes.md`; the spec is
-`docs/new-game-tech-counting-sheep-scoring.md` (§12 has the 10-chunk order; §14 the closure
-checklist). Both harnesses green: `tools/verify-shp-loop.js` (60 matches), `tools/verify-shp-loopback.js`
-(6 scenarios). Decision logged: `docs/decision-log.md` 2026-08-13.
+**SW v189 — FLW polish round: colour/copy/UX fixes across the table + a readyCheck gate CLOSED
+(15 Aug 2026, six passes — v184 through v189, each correcting the last from live owner
+feedback/screenshots).** Self-directed except for one `AskUserQuestion` on the contrast tradeoff;
+no `visual-check` this round — verified via `verify-flw-loopback.js` (green) and syntax checks
+only. **Colour, settled:** primary surfaces (CTA/pills/toggle-ON, and the lobby's own `#btn-flw`
+tile) are `#F9A8D4` fill + WHITE text — the lobby tile is the reference the owner confirmed live
+(measured contrast is low, ~1.8:1, but this is a deliberate twice-confirmed call, not an
+oversight). Every secondary/utility button (Settings, Audit, the readyCheck button) flips the
+same two established hexes instead — `#A02050` fill + white text (simplified from light-pink text, round 5) — a scoped exception
+to the suite's light-tint Settings convention (`ui-style.md` Table C footnote ¶). One real scope-
+miss caught mid-round: the lobby game-tile lives outside the FLW block of `index.html`, so an
+earlier block-scoped `text-white` sweep missed it — worth remembering for any future shared-class
+cleanup that assumes a game's markup all lives in one place. **Table/UX changes:** header combined
+to one line ("The Showroom - Exhibition N"); rival strip shows every seat including your own with
+a live Diamond count; the Vault row is one horizontal row (label — remaining — cut); the
+Appraiser's Ledger's counts sit tight against their own gem, split into two equal halves each
+centred (not one centred cluster); every Journal line names its gem before the action; the hand
+row's off-turn slot is a fixed empty placeholder (was omitted, causing reflow) and the selection
+ring no longer overlaps the neighbouring card; the Scratch Test auto-selects a lone target and
+shows its guess list as real gem cards, greying out anything the Ledger shows fully discarded; the
+target-selection modal (Sapphire/Topaz/Opal/Amethyst) always lists every alive Collector, greying
+the ineligible instead of silently auto-submitting past them; the Deep Vault overlay pre-selects
+the leftmost gem and shows a live description panel; the Showing-result screen gates the host's
+Next Showing behind a readyCheck (`FLW_RESULT_READY`) so players aren't swept past the reveal.
+Also closes the gem-seam plan's own Task 13 doc pass (game-identities § 16 was still describing an
+entirely different unshipped design). Detail: `flw-implementation-notes.md`, `docs/decision-log.md`.
+
+**SW v183 — FLW gem render seam (tasks 1–12) CLOSED (14–15 Aug 2026).** Square core art, no baked
+text on the card face — the display-case frame, carat placard, hand placards and a chronological
+discard strip all moved onto the CSS render seam so a skin needs no chrome baked into its art.
+Detail: `flw-implementation-notes.md`, `docs/superpowers/plans/2026-08-14-flw-gem-seam.md`.
+
+**SW v182 — Settings dynamic-value-line (DD-13) sweep CLOSED (13 Aug 2026).** Detail:
+`docs/sw-changelog.md`.
+
+**SW v181 — Round/Night Intro Screen sweep CLOSED (13 Aug 2026).** PKO/NAT/PASS added
+(`screen-[abbr]-*-intro`); GTH and DYB investigated and ruled out (already covered by existing
+screens/timing constraints). Detail: `deferred-work.md`, `pko-implementation-notes.md` DD-26,
+`nat-implementation-notes.md`, `pass-implementation-notes.md`, `dyb-implementation-notes.md`.
+
+**SW v179 — CJAR Dibber Dobber payout-beat fix and a suite-wide BUG-06 audit (3 live fixes: LTTP,
+GTH, NT) (13 Aug 2026).** Detail: `shared-implementation-notes.md` BUG-06.
+
+**SW v178 — Counting Sheep scoring rework CLOSED, all 10 chunks shipped (13 Aug 2026).** Full detail
+moved to `shp-implementation-notes.md`; spec `docs/new-game-tech-counting-sheep-scoring.md`.
 
 v168–v177 (the rest of the Counting Sheep playtest round, incl. the standalone BUG-07 Fogged-Dream
 fix) moved to `docs/sw-changelog.md` this bump.

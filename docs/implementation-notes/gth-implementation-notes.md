@@ -40,6 +40,17 @@
 
 - **Settings overlay rehaul — institutional psychiatry vocabulary:** All settings renamed to match the game's theme: "Inpatient Admission Form 📋" (title), "Reportable Symptoms" (disorder count), "Expression Window" (drawing time), "Symptom Severity" (difficulty pool: Episodic / Recurrent / Refractory), "Psychiatric Evaluation" (Deep Dive toggle). Disorder count options changed from 2/3/4 → 3/4/5 (3 is the minimum meaningful session load for a 4+ player game; 2 felt sparse). Tips changed from explicit drawing instructions to atmospheric dry-humour nudges ("Eight legs is exactly seven too many.") — goal is to nudge without prescribing, keeping drawings varied and the guessing phase interesting.
 
+**Symptom Severity DD-13 value line added. [13 Aug 2026]** Found during the suite-wide DD-13 sweep
+(`ui-style.md` § Settings Card Standard) — Episodic/Recurrent/Refractory carried no indication of
+what disorder pool each actually draws from, and the card sat directly under Diagnosis Window,
+which already has a matching static caption row, so the absence read as an inconsistency within
+the same overlay. Added `#gth-val-difficulty`, populated inside the existing `gthSyncSettingsUI()`
+from `gthDifficultyMix` (`episodic` = difficulty 1 only, `recurrent` = difficulty ≤2, `refractory`
+= full pool — see the filter in `gthStartSession()`). The pill click handler didn't previously call
+`gthSyncSettingsUI()` after updating state (it repainted the pill class inline instead); added the
+call so the value line — and the pill classes — repaint consistently from one place. **Not
+verified beyond syntax checks** — no `visual-check`, no live play.
+
 ## Bug Index
 
 **Bug: No entry sound on GTH lobby button (Phase 31 Round 3 — fixed)**

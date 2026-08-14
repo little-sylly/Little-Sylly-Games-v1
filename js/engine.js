@@ -41,7 +41,7 @@ const allScreens = [
   'screen-lttp-menu', 'screen-lttp-setup', 'screen-lttp-briefing', 'screen-lttp-role-reveal',
   'screen-lttp-handover', 'screen-lttp-chat', 'screen-lttp-guess', 'screen-lttp-group-guess', 'screen-lttp-gameover',
   // Natural Selection
-  'screen-nat-menu', 'screen-nat-setup', 'screen-nat-handover',
+  'screen-nat-menu', 'screen-nat-setup', 'screen-nat-habitat-intro', 'screen-nat-handover',
   'screen-nat-observation', 'screen-nat-daily-review', 'screen-nat-selection', 'screen-nat-last-stand',
   'screen-nat-tally', 'screen-nat-gameover',
   // Deep-Sea Deploy
@@ -65,10 +65,10 @@ const allScreens = [
   'screen-dyb-table', 'screen-dyb-showdown', 'screen-dyb-gameover',
   'screen-dyb-spirit-board',
   // Pass
-  'screen-pass-menu', 'screen-pass-seating', 'screen-pass-table',
+  'screen-pass-menu', 'screen-pass-seating', 'screen-pass-intro', 'screen-pass-table',
   'screen-pass-round-wrap', 'screen-pass-gameover',
   // Net-Trace
-  'screen-nt-menu', 'screen-nt-setup', 'screen-nt-handshake', 'screen-nt-allocation', 'screen-nt-gate',
+  'screen-nt-menu', 'screen-nt-setup', 'screen-nt-allocation', 'screen-nt-gate',
   'screen-nt-build', 'screen-nt-playback', 'screen-nt-summary', 'screen-nt-standby',
   // Fruit Salad
   'screen-frt-menu', 'screen-frt-deal', 'screen-frt-table', 'screen-frt-gameover',
@@ -77,7 +77,7 @@ const allScreens = [
   // Flawless
   'screen-flw-menu', 'screen-flw-table', 'screen-flw-showing-result', 'screen-flw-gameover',
   // Pecking Order
-  'screen-pko-menu', 'screen-pko-hoard', 'screen-pko-table', 'screen-pko-event',
+  'screen-pko-menu', 'screen-pko-clash-intro', 'screen-pko-hoard', 'screen-pko-table', 'screen-pko-event',
   'screen-pko-unchallenged', 'screen-pko-clash-result', 'screen-pko-hierarchy',
   // Cookie Jar
   'screen-cjar-menu', 'screen-cjar-raid-intro', 'screen-cjar-table',
@@ -546,7 +546,7 @@ function getMuteToggleOnClass(gameId) {
     'nat': 'game-toggle-on-lime', 'dsd': 'game-toggle-on-cyan',
     'gth': 'game-toggle-on-sage', 'bld': 'game-toggle-on-bld',
     'dyb': 'game-toggle-on-dyb', 'pass': 'game-toggle-on-zinc',
-    'nt': 'game-toggle-on-emerald', 'shp': 'game-toggle-on-indigo',
+    'nt': 'game-toggle-on-emerald', 'shp': 'game-toggle-on-shp',
     'frt': 'game-toggle-on-frt',
     'flw': 'game-toggle-on-flw', 'pko': 'game-toggle-on-pko',
     'cjar': 'game-toggle-on-cjar'
@@ -688,6 +688,7 @@ function resetToLobby() {
   dybMyRoll = []; dybAllRolls = []; dybActivePlayers = [];
   dybOnesStripped = false; dybAllegationHistory = []; dybShakeReadyCheck = [];
   // Pass teardown
+  if (passRoundIntroTimer) { clearTimeout(passRoundIntroTimer); passRoundIntroTimer = null; }
   document.getElementById('pass-settings-overlay').style.display = 'none';
   document.getElementById('pass-how-to-overlay').style.display   = 'none';
   document.getElementById('pass-quit-overlay').style.display     = 'none';
@@ -807,16 +808,34 @@ document.querySelectorAll('.btn-open-sound').forEach(b => {
   b.addEventListener('click', () => { playPillClick(); openSoundOverlay(); });
 });
 
-// Art viewer — closes on the ✕, and on the backdrop itself. The backdrop check is
-// `e.target === backdrop` so a tap that lands on the image or the caption does not
-// dismiss: a player pinching/panning a big picture must not lose it mid-gesture.
-(() => {
-  const ov = document.getElementById('art-viewer-overlay');
-  if (!ov) return;
-  ov.addEventListener('click', e => { if (e.target === ov) { playDone(); closeArtViewer(); } });
-  const x = document.getElementById('btn-art-viewer-close');
-  if (x) x.addEventListener('click', () => { playDone(); closeArtViewer(); });
-})();
+document.getElementById('btn-art-viewer-close')
+  .addEventListener('click', () => { playDone(); closeArtViewer(); });
+
+// ── Universal overlay-backdrop dismiss ─────────────────────────────────────
+// Tapping the dead space outside any overlay's content closes it, the same
+// way its own close/cancel button would. We find and .click() that real
+// button rather than hiding the overlay ourselves, so every overlay's
+// existing cleanup (LI5's turn-timer resume on quit-cancel, tab state, scroll
+// resets) runs exactly as it does today — nothing here duplicates that logic.
+//
+// `e.target === el` restricts this to a tap on the backdrop itself (dead
+// space), not its card — the same guard the art viewer used before this
+// generalised it (a pinch/pan on the card must not dismiss mid-gesture).
+//
+// Overlays whose only buttons are a real decision (GM's near-sync accept/
+// reject, a pass-the-phone reveal confirm, Force of Nature's Carrion take)
+// have no neutral cancel/close/done/ok button and are deliberately left
+// alone — the Pass-the-Phone Safety Gate (logic-engine.md) requires those to
+// be un-skippable, so "no neutral button found" is the correct no-op, not a
+// gap to fill in.
+const OVERLAY_DISMISS_RE = /(?:^|-)(cancel|close|done|ok|dismiss)(?:$|-)/i;
+document.addEventListener('click', e => {
+  const el = e.target;
+  if (!el.id || !el.id.endsWith('-overlay') || !el.classList.contains('fixed')) return;
+  const neutral = [...el.querySelectorAll('button[id]')]
+    .find(b => OVERLAY_DISMISS_RE.test(b.id) && b.offsetParent !== null);
+  if (neutral) neutral.click();
+});
 
 // ── Shared word normalisation — used by GM near-sync + future games ───────────
 function normaliseWord(w) {

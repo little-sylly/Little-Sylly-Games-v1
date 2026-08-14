@@ -198,6 +198,152 @@ carries forward once task 12's frameless square art lands.
 
 ---
 
+## Gem Seam Round — remaining root causes (Tasks 1, 6, 8, 12, 2026-08-14/15, SW v183)
+
+**Task 1 — the baked-text root cause.** `flwRenderCard`'s asset branch returned early on a bare
+`background-image` div; the carat chip and (in the old placard-less design) any name text were
+built only inside the emoji-fallback branch below it. Practical effect: the moment real art
+resolved (a skin, or later the core art pack), every downstream consumer of the card — the hand
+row, the gallery, the Emerald offer, the Peek Guard, the Showing-result reveal — lost the carat
+overlay it needed to read the card at a glance, because none of those call sites ever reached the
+fallback branch. Fixed by moving the carat placard construction to run unconditionally AFTER the
+art/fallback branch, never inside either one — the single line that mattered was removing the
+early `return` from the art branch.
+
+**Task 6 — placard contrast decision.** The hand row's description placard (`flwBuildPlacard`,
+distinct from the on-card `.flw-carat` chip) caps its effect text (`FLW_GEM_SHORT`) at ~30
+characters so it wraps to at most 2 lines at the card's ~94px width, confirmed by Task 11's
+visual-check at 86px (360px viewport). Two deliberate losses at that width: Yellow Topaz's
+"(or you)" self-target clause, and using the effect's plain description ("Swap Showpieces with a
+rival") over its thematic name ("The Trade") — full copy lives in `FLW_GEM_EFFECT` (the gallery)
+so nothing is actually lost, just not repeated on the smaller surface.
+
+**Task 8 — the `flwDiscard` choke point.** Every place a gem leaves a player's hand into the
+discard pile calls `flwDiscard(idx, gemId)` — never `flwDiscards[idx].push(...)` directly — because
+`flwDiscardFeed` (the chronological, cross-player order the discard-strip Ledger view reads from)
+has to grow in lockstep with `flwDiscards` (the per-player, unordered pile the Tally view and
+tie-break sum read from). A sixth discard site added later inherits the feed for free by routing
+through this function instead of the array. This is the general "single-owner collection" repair
+discipline from `logic-engine.md`'s private-hand rule, applied to a public collection.
+
+**Task 12 — `tools/convert-core-art.ps1` baked a black silhouette on transparent sources.** The
+square-art conversion (SW v183) found the converter compositing transparent PNG masters directly
+onto a JPEG canvas — .NET's default canvas fill is black, so any transparent pixel in a source
+(present in several of the redrawn gem masters) baked in as solid black instead of showing through
+to a neutral background. Fix: clear the canvas to white before drawing the source image, so
+transparency resolves to white (matching `.flw-card`'s own `#FBFAF7` background) instead of black.
+Lesson: any art-conversion script compositing onto a fixed-size canvas needs an explicit background
+fill step whenever the source format can carry alpha — a script that "worked" on opaque JPEG
+masters (PKO, CJAR) silently breaks the moment a PNG-with-transparency source is fed through it.
+
+---
+
+## Polish Round — brand colour, table copy, target-selection, readyCheck gate (2026-08-15, SW v184)
+
+**Context:** A batched Tier 0/1 round (CLAUDE.md § Task Triage Gate) run immediately after the gem-
+seam round closed, from a live playtest list. No live/visual-check testing — verified via
+`node tools/verify-flw-loopback.js` (green; one assertion updated for an intentional shape change)
+and syntax checks only.
+
+**Brand colour brightened, `#E879A8` → `#F472B6`.** Sampled against the Pink Diamond master art
+(`data/art/flw/img/9.jpg`, sampled with a small PowerShell `System.Drawing` script — no image
+library in this stack) and pushed brighter/more saturated per the owner's explicit ask, landing on
+Tailwind's `pink-400`. The dark ink `#A02050` (carat text, settings-button inverse/darkened text)
+was deliberately left unchanged — the owner confirmed it still reads fine at this brightness; do
+not derive it from the brand hex (per the gem-seam spec's own D-note, still true).
+
+**Target-selection auto-submit removed — always show the modal.** `flwOpenTarget` used to
+auto-submit with zero UI when exactly one legal target remained (e.g. one rival Under Glass, one
+not). This read as "the Sapphire didn't ask me who to swap with" whenever a 2nd rival happened to
+be protected — the player had no way to tell a choice was skipped from a choice that never existed.
+Fixed by always opening the modal and listing every alive Collector, greying + disabling the
+ineligible ones instead of omitting them. The same shape now answers "why can't I target them" for
+every targeted gem, not just Sapphire.
+
+**Fixed-shape hand row.** The 2nd (drawn) card slot was previously omitted off-turn, so the row
+reflowed between a 1-card and 2-card layout on every turn boundary — placards resized (`flex:1 1
+0` redistributing width), and the whole row re-centred under the Stack's `items-center
+justify-center`. Fixed with an explicit empty-slot render path (`opts.empty` on `flwRenderCard`,
+`flwEmptyPlacard()`) so the row is always exactly two slots, real or placeholder. Selection ring
+was tightened at the same time (`outline: 3px/offset 2px` → `2px/offset 0`) — at the row's 4px
+gap, the old ring's 5px total reach crossed into the neighbouring card's box.
+
+**readyCheck gate added to the Showing-result screen.** New `flwResultReadyCheck` bool array, reset
+in `flwEndShowing` and carried in `FLW_SHOWING_END.resultReady`; a non-host taps `#btn-flw-result-
+ready` → `FLW_RESULT_READY` ACTION → host sets the flag, broadcasts `FLW_RESULT_READY_SYNC`, and
+locally re-renders (host never sends itself the ACTION — same host-as-participant/self-send-drops
+pattern as everywhere else in this file). `#btn-flw-next-showing` stays disabled until every
+non-host seat has confirmed. Deliberately NOT applied to the gameover screen — that flow already
+goes through the standard Decision Modal play-again confirm.
+
+---
+
+## Polish Round, corrections — colour settled, layout fixes (2026-08-15, SW v185→v186)
+
+**Context:** the same day's polish round above shipped as v184, then got corrected twice more
+from live owner feedback (v185, v186) — none of it visually/live-tested by me at any point, so
+each pass was a text-only correction of the previous one's misread intent.
+
+**Brand colour, round 2 — brighter still.** `#F472B6` (round 1) was still "a medium rose", not the
+diamond's pale light-catching pink. Re-sampled the top 10% brightest pink-ish pixels of
+`data/art/flw/img/9.jpg` — came back `#F2E5EA`, essentially desaturated near-white (light
+reflections dominate a gem's brightest facets, not saturated colour — sampling literally doesn't
+answer "what's a good brand pink" past a point). Landed on Tailwind `pink-300` (`#F9A8D4`) by eye
+instead, with `#F472B6` demoted to hover/text-on-white duty rather than discarded.
+
+**Brand colour, round 3 — the contrast question, resolved by asking rather than guessing.**
+Brightening the fill twice pushed white CTA text down to **~1.8:1 contrast** — not a guideline
+miss, genuinely hard to read. Rather than silently pick a compromise, asked the owner directly
+(`AskUserQuestion`) with the measured numbers. **Answer: keep the fill exactly as `#F9A8D4`, and
+keep the text exactly as `#A02050` dark ink — that combo was already live and already correct**;
+the earlier "pink and white" language in chat had described the screen's overall two-tone palette
+(pink button on a white/light screen), not literally white button text. **Lesson:** when a colour
+request and a legibility number are in tension, don't resolve it by choosing which one to honour —
+surface the actual number and ask which the owner meant. Guessing "white must mean literal white
+text" would have shipped a genuinely hard-to-read button on a color the owner had already approved
+for a DIFFERENT reason.
+
+**Settings button — a deliberate flip, not the suite's usual light-tint pattern.** Owner's own
+framing: "we have two thematic pinks... stick to these two... dark pink fill + light pink text."
+The two hexes already in use are `#F9A8D4` (light, the primary fill) and `#A02050` (dark ink,
+already used for carat text) — pairing them the OTHER way round (`#A02050` fill + `#F9A8D4` text)
+measures ~4.1:1, legible, and uses no third colour. This deliberately breaks from
+`ui-style.md`'s Settings-button convention (`bg-[brand-100] text-[brand-700]` light tint) — logged
+there as footnote ¶, scoped to FLW only, not a new suite-wide pattern.
+
+**Ledger white-space, corrected twice.** Round 1's fix (tight per-gem count-to-name grouping) was
+right, but wrapping the WHOLE two-column group in `justify-content: center` with a small gap just
+moved the dead space from "all on one side" to "evenly split on both outer edges" — still dead
+space, just symmetric. The actual fix: split the row into two literal EQUAL halves
+(`grid-template-columns: 1fr 1fr`), each centring its own column — uses the card's full width with
+no fixed gap to tune. The title row above it got the same treatment in round 1 (centred to match)
+and had to be reverted to plain `justify-between` in round 3 for the identical reason — a
+label+button PAIR reads correctly at the row's own two edges; it never needed centring at all, that
+was over-applying the "match the section" instinct to a row shape the fix didn't actually suit.
+
+**The lobby game-tile button (`#btn-flw`, "Flawless") was still showing white text — a scope
+miss, not a new decision.** The earlier `text-white` strip (round 1) was deliberately scoped to
+the FLAWLESS…PECKING ORDER block of `index.html` (11 buttons caught), but the lobby's own game
+picker lives in a different section entirely — the FLW tile there (`id="btn-flw"`, the button
+players tap to enter the game in the first place) still carried `flw-cta text-white`, and
+`text-white` was winning the cascade. The owner caught this by literally screenshotting the lobby
+tile next to "Enter the Exhibition" and asking "are these the same to you?" — a direct visual
+comparison found what a code-only self-review (checking the FLW block in isolation) missed.
+**Lesson:** when a shared class (`flw-cta`) is used both inside a game's own section AND in
+markup that lives elsewhere (the lobby tile, any cross-cutting `MP_GAME_CONFIGS`-driven screen),
+a scoped find-and-fix has to be paired with a whole-file grep for the class name afterwards — not
+just the block where the game's markup was assumed to live.
+
+**Lesson for future polish rounds on this game:** a one-line description of a layout complaint
+("too tight in the middle", "white space on the sides") is compatible with more than one geometric
+fix, and the two fixes look identical in a sentence but different on screen — `justify-content:
+center` on a loosely-sized block and an actual `1fr 1fr` split BOTH read as "fixes the gap" in
+words, but only one uses the full available width. When the fix is layout-shaped, sketch which
+CSS property is actually changing before implementing, not just which words in the request map to
+which selector.
+
+---
+
 ## Template Gaps
 
 **Accumulator-array reset pattern (elevated from BUG-01):** Any game state that resets between rounds/sessions (log arrays, tally arrays, history lists) must be included in the round-start SYNC payload even if it's `[]`. The host resets it locally; clients will carry stale values unless the payload includes the reset state. Consider adding this to the MDLM section of `logic-engine.md` as a standing rule alongside the readyCheck pattern.

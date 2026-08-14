@@ -20,6 +20,42 @@ Detail: pointer to the canonical doc (snapshot / impl note / spec / memory).
 
 ---
 
+## 2026-08-15 — Net-Trace cycle-boot/gate merge: screens driven by two async triggers need a shared pending-queue, not a call-site callback
+**Category:** Architecture
+**Decision:** Retired the separate `screen-nt-handshake` flavour screen; `screen-nt-gate` now types out the boot log itself and reveals the same ready-check block on completion. Host (synchronous) and client (async SYNC applier) both reach the post-boot config via `ntGateBootThen(fn)`, which runs `fn` immediately if the log already finished or queues it for the log's own completion callback — neither trigger needs to know about the other.
+**Why:** the old flow was two screens/taps for one beat, and for MDLM the flavour screen was usually invisible anyway (the host's synchronous `NT_GENERATE` broadcast overwrote it before it could render). A shared callback couldn't be handed off at the call site that starts the boot, since the host and client paths that ultimately configure the gate are two different, unrelated code paths.
+**Changed:** `js/games/nt.js` (new `ntShowGateBoot`/`ntGateBootThen`/`ntTypeLines`), `index.html` (`screen-nt-handshake` deleted, `screen-nt-gate` restructured), `js/engine.js` (`allScreens[]`). Also fixed a dormant bug in the same area: `ntShowMdlmGate()`'s per-cycle heading wrote to an id that didn't exist in the HTML.
+**Detail:** `nt-implementation-notes.md` D17/D18, BUG-13/BUG-14.
+
+---
+
+## 2026-08-15 — Flawless gem-seam round closed: art carries no text/chrome, square masters, § Game 16 drift corrected
+**Category:** Architecture
+**Decision:** `flwRenderCard` is now the single owner of a gem's appearance — a square art region inside a CSS display-case frame, with the carat on an overlaid CSS placard. Artwork carries no baked text or border, so a skin/rename needs no new art. Core art re-converted to square masters (SW v183); a follow-on polish round (SW v184) brightened the brand colour, fixed several table-layout and target-selection gaps, and added a readyCheck gate before the host's Next Showing.
+**Why:** the old asset branch returned early before the carat/placard code ever ran, which was upstream of five reported rendering problems (see `flw-implementation-notes.md`); `docs/rules/game-identities.md` § Game 16 had drifted to document an entirely different, unshipped pass-and-declare design and needed a full rewrite before it could mislead a reskin author.
+**Changed:** `css/styles.css`, `js/games/flw.js`, `index.html`, `js/engine.js` (`bindCardHold`/`refHighlightRow` extracted as shared helpers — 3rd user, PKO/SHP/FLW), `tools/convert-core-art.ps1` (transparent-PNG-source black-silhouette bug fixed), `data/art/flw/`. Deferred: none — both rounds closed.
+**Detail:** `flw-implementation-notes.md`, `shared-implementation-notes.md` DD-03, `docs/rules/game-identities.md` § Game 16, `docs/superpowers/plans/2026-08-14-flw-gem-seam.md`.
+
+---
+
+## 2026-08-14 — Universal click-outside-to-dismiss for overlays
+**Category:** Process
+**Decision:** Tapping an overlay's backdrop (dead space, not its card) now closes it the same way its own neutral close/cancel button would, suite-wide, via one delegated listener in `engine.js` rather than per-overlay wiring.
+**Why:** owner feedback — every overlay required scrolling to a button at the bottom to exit; outside-tap-to-close is the expected mobile pattern. Applies to how-to, settings, sound/exit menus, and Decision Modals alike.
+**Changed:** `js/engine.js` (one generic handler, replacing the art viewer's one-off version); `index.html` (one `id` added to a button that only had an inline `onclick`). Overlays whose only buttons are a real decision (GM near-sync accept/reject, pass-the-phone reveal confirms) are excluded by construction — no neutral button exists to click, preserving the Pass-the-Phone Safety Gate.
+**Detail:** `shared-implementation-notes.md` DD-02.
+
+---
+
+## 2026-08-14 — Counting Sheep: brand colour rebrand, indigo → midnight `#3A3D52`
+**Category:** Strategy
+**Decision:** SHP's brand colour (every CTA, pill, toggle, slider, and table-chrome accent — `pill-active-shp`/`game-toggle-on-shp`/`shp-cta`/`shp-label`/`.shp-range`, replacing the old `pill-active-indigo`/`game-toggle-on-indigo` and every native Tailwind `indigo-*` utility used in the game) is now a custom hex, `#3A3D52` (hover `#2A2D3D`), derived by pixel-sampling the actual card artwork rather than picking from Tailwind's palette.
+**Why:** owner feedback — Tailwind indigo-600 read as too bright/blue for a "night" theme, and didn't match the artwork's own dark navy-charcoal felt patches (the "99" numeral, the Wide Awake alarm clock) and border stitching at all. Sampled three regions across two cards (`#383B4D`, `#2F3548`, `#363749`) converging on `#34384A`, rounded to `#3A3D52` for UI use. Deliberately NOT reused for the four card-family border colours (pasture/pillow/alarm/trap) — those are a separate multi-hue coding system, not "the brand colour."
+**Changed:** `css/styles.css` (renamed + recoloured the pill/toggle/range/cta/label classes, `.shp-herd-label`, `.shp-ceiling-badge`, `.shp-dir-live`, `.shp-chip-active`, `.shp-card-back` fallback, `.shp-card-fogged-badge`, `.shp-ref-row-ping`), `js/games/shp.js` (~20 inline Tailwind `indigo-*` class strings), `index.html` (23 replacements via a Node script per the encoding-safety rule — never Edit tool for systematic `index.html` changes), `js/engine-multiplayer.js` (`MP_GAME_CONFIGS.shp.brandBtnClass`), `js/engine.js` (`getMuteToggleOnClass` map). Same round also muted the "flagged" card border (Fogged Dream / Big Bad Wolf slot / Wide Awake's Pillows ban) from a bright colour to neutral stone — a bright highlight was reading as "this can be played," the opposite of its job.
+**Detail:** `shp-implementation-notes.md`; verified with `visual-check` (menu, settings, how-to Rules+Cards tabs, table mid-game, gameover) — no leftover indigo, white-on-`#3A3D52` legible, ban/flagged visuals correct.
+
+---
+
 ## 2026-08-13 — Counting Sheep: scoring rework shipped (SW v178) — closes the 2026-08-13 spec entry below
 **Category:** Architecture
 **Decision:** All 10 chunks of the SHP scoring rework are shipped. A Night is now a scored round in normal mode (a crash dozes you out of that Night only; last awake wins a Moon; first to `shpMoonsToWin` wins the match); Sylly Mode is one continuous Night with Moons as lives and the Jolt as its per-crash recovery.

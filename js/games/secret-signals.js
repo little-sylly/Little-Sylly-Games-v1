@@ -1999,6 +1999,18 @@ function ssSyncCategoryPills() {
   const selectAllBtn = document.getElementById('btn-ss-cat-select-all');
   const done         = document.getElementById('btn-ss-settings-done');
 
+  // Dynamic value line (ui-style.md § Settings Card Standard, DD-13) — the pill carries
+  // the thematic name only; this says what tier of word it actually draws from. Tiers per
+  // definitions.md: 1 = Standard (concrete nouns), 2 = Wild (verbs/adjectives), 3 = Wilder
+  // (abstract) — SS draws from EXACTLY one tier per pill (=== not <=), unlike most games'
+  // cumulative difficulty pills.
+  const diffVal = document.getElementById('ss-val-difficulty');
+  if (diffVal) diffVal.textContent = {
+    1: 'Clear draws only concrete, everyday words.',
+    2: 'Scrambled draws verbs and descriptive words.',
+    3: 'Deep Space draws abstract, wilder concepts.',
+  }[ssDifficultyLevel] || '';
+
   // Build word counts per category at current difficulty
   const catCounts = {};
   SS_CATEGORIES.forEach(c => {

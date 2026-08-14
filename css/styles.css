@@ -920,14 +920,20 @@ body.flash-red   { background-color: #fecaca; }
   border: none;
   box-shadow: 0 1px 4px rgba(0,0,0,0.2);
 }
-/* ── Counting Sheep (shp) — Moonlit indigo (native Tailwind palette) ── */
-.pill-active-indigo {
-  background-color: #4f46e5; /* indigo-600 */
+/* ── Counting Sheep (shp) — Midnight #3A3D52 (custom, 14 Aug 2026) ─────────
+   Pixel-sampled from the card artwork itself (the alarm-clock and "99" felt
+   patches, and the border stitching): three independent region averages —
+   #383B4D, #2F3548, #363749 — converged tightly on #34384A; rounded to a
+   clean #3A3D52 for UI use, with #2A2D3D as the hover/dark shade. Replaced
+   the native Tailwind indigo palette, which was too bright/blue to read as
+   "night" and didn't match the artwork at all. */
+.pill-active-shp {
+  background-color: #3A3D52;
   color: #ffffff;
   font-weight: 600;
 }
-.game-toggle-on-indigo {
-  background-color: #4f46e5;
+.game-toggle-on-shp {
+  background-color: #3A3D52;
   color: #ffffff;
   border-radius: 9999px;
   padding: 0.4rem 1.2rem;
@@ -937,12 +943,17 @@ body.flash-red   { background-color: #fecaca; }
   border: none;
   cursor: pointer;
 }
+.shp-cta { background-color: #3A3D52; }
+.shp-cta:hover { background-color: #2A2D3D; }
+.shp-label { color: #3A3D52; }
+/* Light tint — banners (play-effect / night-end winner row) and the settings-button fill. */
+.shp-tint-bg { background-color: #E6E7EE; border-color: #C9CBDA; color: #2A2D3D; }
 .shp-range {
   -webkit-appearance: none;
   appearance: none;
   height: 6px;
   border-radius: 9999px;
-  background: linear-gradient(to right, #c7d2fe, #4338ca); /* indigo-200 → indigo-700 */
+  background: linear-gradient(to right, #C9CBDA, #3A3D52);
   outline: none;
   cursor: pointer;
 }
@@ -951,25 +962,33 @@ body.flash-red   { background-color: #fecaca; }
   appearance: none;
   width: 22px; height: 22px;
   border-radius: 50%;
-  background: #4f46e5;
+  background: #3A3D52;
   border: 3px solid #fff;
   box-shadow: 0 1px 4px rgba(0,0,0,0.2);
 }
 .shp-range::-moz-range-thumb {
   width: 22px; height: 22px;
   border-radius: 50%;
-  background: #4f46e5;
+  background: #3A3D52;
   border: none;
   box-shadow: 0 1px 4px rgba(0,0,0,0.2);
 }
-/* ── Flawless (flw) — Pink Diamond rose #E879A8 + Exhibition gold #C9A227 (custom) ── */
+/* ── Flawless (flw) — Pink Diamond rose #F9A8D4 + Exhibition gold #C9A227 (custom) ──
+   Round 4 (15 Aug 2026): SETTLED — white text on #F9A8D4, confirmed against the live
+   lobby game-tile (#btn-flw), which the owner explicitly pointed to as the reference
+   ("that combo passes the visual check, apply it everywhere"). Measured contrast is
+   low (~1.8:1) but the owner has now confirmed the live render twice; this is a
+   deliberate call, not an oversight — do not silently "fix" it back to dark ink.
+   Dark ink (#A02050) moves to secondary/utility surfaces only (Settings, Audit,
+   the readyCheck button) — the flip: dark pink fill + WHITE text (round 5, 15 Aug
+   2026 — light-pink text on the dark fill was tried first and simplified to white). */
 .pill-active-flw {
-  background-color: #E879A8;
+  background-color: #F9A8D4;
   color: #ffffff;
   font-weight: 600;
 }
 .game-toggle-on-flw {
-  background-color: #E879A8;
+  background-color: #F9A8D4;
   color: #ffffff;
   border-radius: 9999px;
   padding: 0.4rem 1.2rem;
@@ -981,16 +1000,16 @@ body.flash-red   { background-color: #fecaca; }
 }
 /* Custom CTA: MUST declare flex centering — when JS/Tailwind sets display:flex the
    label would top-left-align without these (DYB/GTH/FRT lesson). */
-.flw-cta { background-color: #E879A8; color: #ffffff; display: flex; align-items: center; justify-content: center; }
-.flw-cta:hover { background-color: #CF5A8D; }
+.flw-cta { background-color: #F9A8D4; color: #ffffff; display: flex; align-items: center; justify-content: center; }
+.flw-cta:hover { background-color: #F472B6; }
 .flw-label { color: #C9A227; }
-.flw-step-label { color: #E879A8; }
+.flw-step-label { color: #F472B6; } /* text usage stays at the darker rung — legible on white, unlike the pale fill */
 .flw-range {
   -webkit-appearance: none;
   appearance: none;
   height: 6px;
   border-radius: 9999px;
-  background: linear-gradient(to right, #F4B8D0, #E879A8); /* rose-200 → Pink Diamond rose */
+  background: linear-gradient(to right, #FCE7F3, #F9A8D4); /* pink-100 → Pink Diamond rose */
   outline: none;
   cursor: pointer;
 }
@@ -999,14 +1018,14 @@ body.flash-red   { background-color: #fecaca; }
   appearance: none;
   width: 22px; height: 22px;
   border-radius: 50%;
-  background: #E879A8;
+  background: #F9A8D4;
   border: 3px solid #fff;
   box-shadow: 0 1px 4px rgba(0,0,0,0.2);
 }
 .flw-range::-moz-range-thumb {
   width: 22px; height: 22px;
   border-radius: 50%;
-  background: #E879A8;
+  background: #F9A8D4;
   border: none;
   box-shadow: 0 1px 4px rgba(0,0,0,0.2);
 }
@@ -1031,14 +1050,22 @@ body.flash-red   { background-color: #fecaca; }
 .flw-card-lg { width: 5.5rem;  }
 
 .flw-card-dim { opacity: 0.35; }
-.flw-card-sel { outline: 3px solid #D6336C; outline-offset: 2px; }
+/* outline-offset kept tight (was 2px) — at the hand row's gap-1 (4px) spacing, a
+   3px+2px outline reached past the neighbouring card and visibly overlapped it.
+   2px width + 0 offset = 2px total reach, half the 4px gap, so two adjacent rings
+   never cross into the next card's box. */
+.flw-card-sel { outline: 2px solid #D6336C; outline-offset: 0; }
 
 /* The hand-row description card beside each gem — not to be confused with .flw-carat
    (the small chip ON the card itself). flex:1 1 0 shares leftover row width evenly
    with the cards and the other placard; mirrors its paired card's selected state
    with the same ring. */
 .flw-placard { flex: 1 1 0; min-width: 0; }
-.flw-placard-sel { outline: 3px solid #D6336C; outline-offset: 2px; }
+.flw-placard-sel { outline: 2px solid #D6336C; outline-offset: 0; }
+
+/* Empty hand-row slot — shown in place of the 2nd (drawn) card/placard when it is
+   not your turn, so the row never reflows between 1-card and 2-card layouts. */
+.flw-card-empty { background: #F7F4EC; border: 2px dashed #D9C9A3; box-shadow: none; }
 
 /* The carat chip — a light engraved tag ON the card, holding just the number.
    Not the same thing as .flw-placard above (the hand row's description card).
@@ -1125,23 +1152,30 @@ body.flash-red   { background-color: #fecaca; }
 .shp-card-alarm .shp-card-label { color: #b91c1c; }
 .shp-card-trap    { border-color: #44403c; background: #f5f5f4; }
 .shp-card-trap .shp-card-label { color: #44403c; }
-.shp-card-cursed  { border-color: #7c3aed; background: #f3e8ff; } /* violet fog — no-art fallback only */
-.shp-card-cursed .shp-card-label { font-size: 1.4rem; color: #6d28d9; }
-/* Fogged Dream WITH art — subtle violet identity, small badge (not the giant fallback "?"). */
-.shp-card-fogged { position: relative; border-color: #c4b5fd; }
+/* Shared "flagged" card treatment — a border marking a card that's notable for a reason OTHER than
+   its family colour: cursed (Fogged Dream), locked (Big Bad Wolf slot), or banned for this turn
+   only (Wide Awake's Pillows ban). One visual language for "not a normal play right now" instead
+   of a separate colour per case. Deliberately MUTED, neutral stone — a bright coloured glow (the
+   first pass used indigo, matching the table's brand hue) reads as a highlight/affordance, the
+   opposite of what a restricted card needs to say (playtest catch, 14 Aug 2026). */
+.shp-card-flagged { border-color: #a8a29e; box-shadow: none; } /* stone-400 */
+.shp-card-cursed  { border-color: #a8a29e; background: #f5f5f4; } /* no-art fallback only */
+.shp-card-cursed .shp-card-label { font-size: 1.4rem; color: #78716c; }
+/* Fogged Dream WITH art — small badge (not the giant fallback "?"). */
+.shp-card-fogged { position: relative; }
 .shp-card-fogged-badge {
   position: absolute; top: 0.2rem; right: 0.2rem;
   width: 1.1rem; height: 1.1rem; line-height: 1.1rem;
-  border-radius: 999px; background: rgba(109,40,217,0.85); color: #fff;
+  border-radius: 999px; background: rgba(58,61,82,0.85); color: #fff;
   font-size: 0.65rem; font-weight: 800; text-align: center;
 }
-.shp-card-wolf    { border-color: #78716c; background: #e7e5e4; opacity: 0.75; }
+.shp-card-wolf    { background: #e7e5e4; opacity: 0.75; }
 .shp-card-wolf .shp-card-label { color: #57534e; font-style: italic; }
 .shp-card-back {
   width: 4rem; height: 5.5rem;
   border-radius: 0.75rem;
-  background: repeating-linear-gradient(45deg, #4f46e5, #4f46e5 8px, #4338ca 8px, #4338ca 16px);
-  border: 2px solid #4338ca;
+  background: repeating-linear-gradient(45deg, #3A3D52, #3A3D52 8px, #2A2D3D 8px, #2A2D3D 16px);
+  border: 2px solid #2A2D3D;
   box-shadow: 0 1px 4px rgba(0,0,0,0.08);
 }
 /* ── SHP table furniture (12 Aug 2026 polish pass) ─────────────────────────
@@ -1150,10 +1184,10 @@ body.flash-red   { background-color: #fecaca; }
    a glance without competing with the counter itself. */
 .shp-herd-label {
   font-size: 0.7rem; font-weight: 700; letter-spacing: 0.15em;
-  text-transform: uppercase; color: #818cf8;            /* indigo-400 — was stone-400 */
+  text-transform: uppercase; color: #3A3D52;            /* midnight — was indigo-400, before that stone-400 */
 }
 /* Pressure ramp under the counter — fill width is the Herd as a % of the ceiling.
-   Colour is set inline by shpRenderTable (indigo → amber → red). */
+   Colour is set inline by shpRenderTable (midnight → amber → red). */
 .shp-herd-bar {
   width: 5.5rem; height: 0.3rem; margin-top: 0.3rem;
   border-radius: 999px; background: #e7e5e4; overflow: hidden;
@@ -1163,9 +1197,9 @@ body.flash-red   { background-color: #fecaca; }
   transition: width 250ms ease-out, background-color 250ms ease;
 }
 .shp-ceiling-badge {
-  margin-top: 0.35rem; padding: 0.1rem 0.5rem;
-  border-radius: 999px; background: #eef2ff; border: 1px solid #c7d2fe;
-  font-size: 0.65rem; font-weight: 700; color: #4338ca; letter-spacing: 0.02em;
+  margin-top: 0.15rem; padding: 0.1rem 0.5rem;
+  border-radius: 999px; background: #E6E7EE; border: 1px solid #C9CBDA;
+  font-size: 0.65rem; font-weight: 700; color: #3A3D52; letter-spacing: 0.02em;
 }
 /* Direction — only the live one gets a fill, so the flow of play is unmistakable. */
 .shp-dir {
@@ -1174,7 +1208,7 @@ body.flash-red   { background-color: #fecaca; }
   font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
 }
 .shp-dir-glyph { font-size: 0.95rem; line-height: 1; }
-.shp-dir-live        { background: #4f46e5; color: #fff; box-shadow: 0 1px 3px rgba(79,70,229,0.35); }
+.shp-dir-live        { background: #3A3D52; color: #fff; box-shadow: 0 1px 3px rgba(58,61,82,0.35); }
 .shp-dir-live-plunge { background: #dc2626; color: #fff; box-shadow: 0 1px 3px rgba(220,38,38,0.35); }
 .shp-dir-idle        { color: #d6d3d1; }                /* stone-300 — present but dormant */
 /* Player chips — name + Moons only. Hand size is private (see shpRenderTable). */
@@ -1191,8 +1225,8 @@ body.flash-red   { background-color: #fecaca; }
 .shp-chip-idle  { background: #fff; color: #57534e; border: 1px solid #e7e5e4; }
 .shp-chip-out   { background: #e7e5e4; color: #a8a29e; }
 .shp-chip-active {
-  background: #4f46e5; color: #fff;
-  box-shadow: 0 0 0 3px #c7d2fe, 0 2px 6px rgba(79,70,229,0.3);
+  background: #3A3D52; color: #fff;
+  box-shadow: 0 0 0 3px #C9CBDA, 0 2px 6px rgba(58,61,82,0.3);
   transform: translateY(-2px);
 }
 .shp-chip-active-plunge {
@@ -1203,7 +1237,7 @@ body.flash-red   { background-color: #fecaca; }
 
 /* Tap-Hold Reference target row (ui-style.md) — brief ring + fade, not a permanent state. */
 .shp-ref-row { transition: box-shadow 300ms ease-out; scroll-margin: 1rem; }
-.shp-ref-row-ping { box-shadow: 0 0 0 3px #a5b4fc, 0 2px 8px rgba(79,70,229,0.25); }
+.shp-ref-row-ping { box-shadow: 0 0 0 3px #C9CBDA, 0 2px 8px rgba(58,61,82,0.25); }
 /* Tap-Hold Reference ping (ui-style.md) — same shape as .shp-ref-row-ping, each
    game's own colour. .flw-ref-row (transition + scroll-margin) is on every Gem
    Manifest row; .pko-ref-row-ping is added for parity but stays unused — PKO's
@@ -1266,19 +1300,36 @@ body.flash-red   { background-color: #fecaca; }
    4 separate sheep images layered over a rotated fence — the rotation read as broken (the fence
    art was never drawn to be used that way) and hand-placed absolute offsets never lined up well
    at every viewport width. A single square (200x200) image sidesteps both problems. */
-.shp-pen-img { display: block; width: 6.6rem; height: auto; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.12)); }
+/* 14 Aug 2026 polish, round 2: The Pen / The Herd / Last Played now share one explicit heading row
+   (shpRenderTable) instead of the pen self-centring against a headless taller column, so all three
+   content cells sit under equal-height headings. Dialled back slightly from the first pass (7.8rem /
+   scale 0.9) — the centre column lost its own in-column "The Herd" label, so it's shorter now and
+   didn't need quite as much size on either side to balance. */
+.shp-pen-img { display: block; width: 7.2rem; height: auto; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.12)); }
 /* Last-played mini card (right column) — the game's own render seam (shpRenderCard) scaled down
-   in a fixed-footprint wrapper so the grid column reserves the POST-scale box, not the full card.
-   3rem wide = scale 0.75 of the 4rem base card: big enough to read the face at a glance, still
-   clearly subordinate to the 6xl Herd number it sits beside. */
-.shp-last-card { width: 3rem; height: 4.125rem; position: relative; overflow: visible; }
-.shp-last-card > .shp-card { position: absolute; top: 0; left: 0; transform: scale(0.75); transform-origin: top left; }
-/* "Last Played" column heading — same metrics as .shp-herd-label so the two headings sit on one
-   line across the band, but stone rather than indigo so the centre column keeps the emphasis. */
+   in a fixed-footprint wrapper so the grid column reserves the POST-scale box, not the full card. */
+.shp-last-card { width: 3.3rem; height: 4.5rem; position: relative; overflow: visible; }
+.shp-last-card > .shp-card { position: absolute; top: 0; left: 0; transform: scale(0.82); transform-origin: top left; }
+/* "The Pen"/"Last Played" column headings — same metrics as .shp-herd-label so all three headings
+   sit on one line across the band, but stone rather than midnight so the centre column keeps the emphasis. */
 .shp-last-label {
   font-size: 0.7rem; font-weight: 700; letter-spacing: 0.15em;
   text-transform: uppercase; color: #a8a29e;            /* stone-400 */
 }
+/* Swap Dreams flip choreography (shpRenderSwapFlip) — a standard two-face 3D flip card. The inner
+   element carries the ONE animated property (transform, § Motion Standard); JS drives it in two
+   staggered waves (old->back, then swap the hidden front content and back->new). Transition-only,
+   not @keyframes, so the global prefers-reduced-motion block's transition-duration collapse alone
+   is enough — no separate guard needed (shpRenderSwapFlip also zeroes its own JS timings to match). */
+.shp-flip-wrap  { width: 4rem; height: 5.5rem; perspective: 700px; }
+.shp-flip-inner {
+  position: relative; width: 100%; height: 100%;
+  transform-style: preserve-3d;
+  transition-property: transform; transition-timing-function: ease-in-out;
+}
+.shp-flip-face      { position: absolute; inset: 0; backface-visibility: hidden; }
+.shp-flip-face-back { transform: rotateY(180deg); }
+.shp-flip-face .shp-card, .shp-flip-face .shp-card-back { width: 100%; height: 100%; }
 /* Steady horizontal travel (x evenly spaced) + a parabolic vertical arc (apex at 50%)
    so the sheep curve over a fence into the counter rather than tracking a straight vector.
    Opacity MUST be held explicitly at 85% — with only 0%/15%/100% opacity stops, the browser

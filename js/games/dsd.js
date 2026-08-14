@@ -1223,6 +1223,14 @@ function dsdSyncSettingsPills() {
   document.querySelectorAll('#dsd-danger-pills .pill').forEach(btn => {
     btn.classList.toggle('pill-active-cyan', btn.dataset.val === dsdDangerLevel);
   });
+  // Dynamic value line (ui-style.md § Settings Card Standard, DD-13) — the pill carries
+  // the thematic name only; this says what it means for the grid-word pool.
+  const seaVal = document.getElementById('dsd-val-sea-state');
+  if (seaVal) seaVal.textContent = {
+    calm:      'Calm uses only the easiest words.',
+    turbulent: 'Turbulent mixes easy and moderate words.',
+    tempest:   'Tempest includes the hardest words too.',
+  }[dsdSeaState] || '';
 }
 
 function dsdSyncHazardPills() {

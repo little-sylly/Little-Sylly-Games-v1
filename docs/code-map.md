@@ -610,6 +610,7 @@ Each plugin reads `window.activeExpansionOverrides` at its settings-apply point 
 |----|---------|
 | `#screen-nat-menu` | Game menu — "Begin Observation" CTA |
 | `#screen-nat-setup` | Player count + name entry |
+| `#screen-nat-habitat-intro` | **Habitat Intro** (`ui-style.md` § Round/Night Intro Screen) — auto-advances after **5 s** (`natHabitatIntroTimer`, `NAT_INTERSTITIAL_MS`) into the clue round. Rotating flavour from `NAT_HABITAT_FLAVOUR`, host-picked index synced via `flavourIdx` in `NAT_MATCH_START`. Shown by `natShowHabitatIntro(onDone)` — host/single passes `onDone` (a host decision, times its own advance); clients call it with no argument and just wait for the following `NAT_ACTIVE_PLAYER` SYNC |
 | `#screen-nat-handover` | Pass-the-phone gate (before each observation day + role reveal) |
 | `#screen-nat-observation` | Journal entry — each player submits one clue word per day |
 | `#screen-nat-daily-review` | **Sylly Mode only** — all clues revealed at end of day before voting |
@@ -648,7 +649,8 @@ Each plugin reads `window.activeExpansionOverrides` at its settings-apply point 
 | `natInit()` | Sets `activeGameId = 'nat'` → `#screen-nat-menu` |
 | `natApplySettings()` | Reads pill state → updates all nat* settings vars |
 | `natStartGame()` | Resets state, builds player roster → starts first match |
-| `natStartMatch()` | Draws specimen, assigns roles → handover |
+| `natStartMatch()` | Draws specimen, assigns roles → `natShowHabitatIntro(natStartClueRound)`, not the clue round directly |
+| `natShowHabitatIntro(onDone)` | The Habitat Intro auto-advance (`screen-nat-habitat-intro`). Called from both `natStartMatch()` (host/single) and the `NAT_MATCH_START` client applier so neither device skips it; self-clears `natHabitatIntroTimer` on every call |
 | `natAssignRoles()` | Shuffles players: index 0 = Mole, index 1 = Biologist, rest = Researchers |
 | `natGetWordForPlayer(idx)` | Returns role-appropriate word: Biologist → `specimen.word`, Mole → `nono_list[0]`, Researcher → assigned detail word |
 | `natShowHandover(idx)` | Pass gate — shows role-aware instruction before each player's turn |
@@ -1051,6 +1053,7 @@ Each plugin reads `window.activeExpansionOverrides` at its settings-apply point 
 |-----------|---------|
 | `screen-pass-menu` | Main hub — Deal Me In, How to Play, Settings, ← Back to the Box |
 | `screen-pass-seating` | MDLM host pre-game — shows seat order (join order) before host deals |
+| `screen-pass-intro` | **Round Intro** (`ui-style.md` § Round/Night Intro Screen) — auto-advances after **5 s** (`passRoundIntroTimer`, `PASS_INTERSTITIAL_MS`) into `screen-pass-table`. Rotating flavour from `PASS_ROUND_FLAVOUR`, host-picked index synced via `flavourIdx` in `PASS_GAME_START`. Both host/single and clients self-time their own advance — by this point the round's state is already fully resolved, so no host decision is pending (same shape as `screen-pko-event`, not `screen-pko-unchallenged`) |
 | `screen-pass-table` | Main gameplay — opponents strip, table combo, hand, Pass/Play controls |
 | `screen-pass-round-wrap` | Round result — chip deltas, winner, Next Round (host only) |
 | `screen-pass-gameover` | Match result — final rankings by chip total |
@@ -1085,7 +1088,8 @@ Each plugin reads `window.activeExpansionOverrides` at its settings-apply point 
 | `passStartSession()` | Post-lobby entry — host routes to seating, clients wait for `PASS_GAME_START` |
 | `passShowSeating()` | Renders roster and shows `screen-pass-seating` (host only) |
 | `passStartGame()` | Deals hands, sets chip stacks, broadcasts `PASS_GAME_START` |
-| `passStartRound()` | Rebuilds deck, deals, determines leader, broadcasts `PASS_GAME_START` |
+| `passStartRound()` | Rebuilds deck, deals, determines leader, broadcasts `PASS_GAME_START` → `passShowRoundIntro()`, not the table directly |
+| `passShowRoundIntro()` | The Round Intro auto-advance (`screen-pass-intro`) → `passShowTable()` after `PASS_INTERSTITIAL_MS`. Called by both `passStartRound()` (host/single) and the `PASS_GAME_START` client applier; self-clears `passRoundIntroTimer` on every call |
 | `passFindLeader()` | Round-1 leader = holder of the single lowest card (3♦; ties by suit ♦<♣<♥<♠); sets `passMandatoryCard` (opening combo must contain it). Suit order used here ONLY — never in play comparison. |
 | `passShowTable()` | Renders full table state; sets passPhase for active/waiting |
 | `passDetectCombo(cards)` | Returns `{type, rank, count}` or `null` |
@@ -1125,14 +1129,13 @@ Each plugin reads `window.activeExpansionOverrides` at its settings-apply point 
 | Screen ID | Purpose |
 |-----------|---------|
 | `screen-nt-menu` | Main hub — Trace the Route!, How to Play, Settings, ← Back to the Box |
-| `screen-nt-setup` | Node generation + network preview — host deals; all players see their assigned node |
-| `screen-nt-handshake` | Pass-the-phone gate before each player's hardening turn |
+| `screen-nt-setup` | "Provision Admins" — PTP operator count + callsigns |
+| `screen-nt-gate` | Cycle readiness gate — carries the cycle-start boot terminal (`#nt-gate-boot-log`, typed line by line), each PTP handover, and the post-build gather beat |
 | `screen-nt-allocation` | DNP (Sylly Mode) Shared Allocation Hub — captain assigns firewall/honeypot across legs; non-captain sees read-only |
 | `screen-nt-build` | Hardening screen — player places firewall/honeypot components on their own relay-leg node |
-| `screen-nt-waiting` | Passive standby — shown while other players are hardening |
+| `screen-nt-standby` | Passive standby — shown while other players are hardening |
 | `screen-nt-playback` | Animated BFS traversal — canvas shows packet routing with latency result |
-| `screen-nt-results` | Per-cycle SER leaderboard + cycle summary |
-| `screen-nt-gameover` | Final report — SER rankings across all cycles |
+| `screen-nt-summary` | Diagnostic Summary — per-cycle SER leaderboard, or the final match report on the last cycle |
 
 ### Overlays
 | Overlay ID | Pattern | z-index | Purpose |
@@ -1175,7 +1178,8 @@ Each plugin reads `window.activeExpansionOverrides` at its settings-apply point 
 |----------|---------|
 | `ntStartSession()` | Post-lobby entry — host generates node + routes; MDLM starts GAME_START flow |
 | `ntGenerateNode(opts)` | Generates relay-leg node geometry — `opts.keepInventory=true` reuses inventory for DNP N-node batch |
-| `ntShowHandshake()` | Shows `screen-nt-handshake` — pass-the-phone gate |
+| `ntShowGateBoot()` | Shows `screen-nt-gate` and types out the cycle-start boot log (`NT_BOOT_LINES`); reveals the ready-check block on completion |
+| `ntGateBootThen(fn)` | Runs `fn` now if the boot log already finished, else queues it for the log's completion callback — lets host/client each reach their own gate config without racing the boot |
 | `ntShowAllocationScreen(captainMode)` | Renders + shows `screen-nt-allocation` (captain interactive / non-captain read-only) |
 | `ntRenderAllocationScreen(captainMode)` | Injects pool banner + per-leg rows with [−]/[+] adjusters |
 | `ntAdjustAllocation(legIdx, type, dir)` | Validates pool bounds; host updates `ntTeamWorkingAllocs` direct; client sends `NT_ALLOCATION_UPDATE` |
@@ -1190,7 +1194,7 @@ Each plugin reads `window.activeExpansionOverrides` at its settings-apply point 
 | `ntComputeTimeline_local()` | BFS traversal on current `ntNode` with `ntMyPlacements` → returns latency timeline |
 | `ntResolveCycleMdlm(allPlacements)` | Host: computes timelines for all players (swapping `ntNode` + `ntMyPlacements` per player for DNP); derives SERs using cluster ceiling formula for DNP |
 | `ntShowPlayback()` | Shows `screen-nt-playback` + starts canvas BFS animation |
-| `ntShowResults()` | Shows `screen-nt-results` with per-cycle SER leaderboard |
+| `ntShowSummary(mode)` | Shows `screen-nt-summary` with per-cycle SER leaderboard, or the final match report when `mode === 'match'` |
 | `ntHandleEnvelope(env)` | Routes all NT ACTION/SYNC packets; called from `engine-multiplayer.js` |
 | `ntResetState()` | Full state teardown (called from `resetToLobby()` in `engine.js`) |
 
@@ -1424,112 +1428,123 @@ Each plugin reads `window.activeExpansionOverrides` at its settings-apply point 
 
 ## Flawless (FLW)
 
-**JS file:** `js/games/flw.js`
-**Data:** Fixed `FLW_GEMS` constant (10 gems — no `words.json`); exempt from word-difficulty per non-word-bank carve-out
-**Brand colour:** `#E879A8` (rose-pink — custom; hover `#CF5A8D`) + `#C9A227` (Exhibition gold for labels) | **Active pill:** `pill-active-flw` | **Toggle ON:** `game-toggle-on-flw` | **Range:** `flw-range`
-**MDLM-only**, host-authoritative, host-as-participant, **True Network Privacy** (private `/private/{uid}` channel). **Sylly Mode = The Counterfeit Run.**
+**JS file:** `js/games/flw.js` — a faithful digital Love Letter (21-card Chancellor edition),
+re-skinned as The Master Jeweller's Exhibition. **This section was previously badly stale** — it
+documented an entirely different unshipped design (a pass-and-declare "server/receiver" bluffing
+loop with `flwSubmitServe`/`flwPassFruit`/`declaration`). Rewritten from the real code 15 Aug 2026
+(gem-seam plan Task 13); see `docs/decision-log.md`.
+**Data:** Locked `FLW_DECK` constant (10 gems, gemId 0–9 doubles as carat value, 21 cards total —
+no `words.json`); exempt from word-difficulty per non-word-bank carve-out.
+**Brand colour — two pinks, used both ways round (15 Aug 2026, SETTLED):** `#F9A8D4` (light — the
+Pink Diamond's pale facets) + `#A02050` (dark ink — carat text). **Primary surfaces**
+(CTA/pills/toggle-ON, and the lobby's own `#btn-flw` tile) are `#F9A8D4` fill + WHITE text —
+confirmed live by the owner against the lobby tile as the reference combo (measured contrast is
+low, ~1.8:1, but this was twice confirmed, not an oversight). **Every secondary/utility button
+flips it** — `#A02050` fill + WHITE text (simplified from light-pink text, round 5): Settings, Audit, and the readyCheck button
+all match (the latter two were briefly left on the old pre-flip light tint before this pass).
+`MP_GAME_CONFIGS.flw` no longer needs a `ctaTextClass` override — its default (white) already
+matches. Plus `#C9A227` (Exhibition gold, card frame + labels); `#F472B6` survives only as the CTA
+hover shade and `.flw-step-label`'s text-on-white colour. | **Active pill:** `pill-active-flw` |
+**Toggle ON:** `game-toggle-on-flw` | **Range:** `flw-range`.
+**MDLM-only**, host-authoritative, host-as-participant, **True Network Privacy** (private
+`/private/{uid}` channel — the suite's first game built this way). **Sylly Mode = The Counterfeit
+Run.**
 **Lobby button:** `#btn-flw`
 
 ### Screens
 | Screen ID | Purpose |
 |-----------|---------|
-| `screen-flw-menu` | Main hub — Start the Exhibition, How to Play, Settings, ← Back to the Box |
-| `screen-flw-table` | All play sub-states (compose / await / reveal / result / under-glass) — Stack layout |
-| `screen-flw-showing-result` | Per-Showing score summary (Ledger totals, Diamonds awarded) |
-| `screen-flw-gameover` | Final scores + Diamonds tally (first to `flwDiamondsToWin` wins) |
+| `screen-flw-menu` | Main hub — Enter the Exhibition, How to Play, Settings, ← Back to the Box |
+| `screen-flw-table` | The Stack — header (one line: "The Showroom - Exhibition N", `#flw-header-title`), rival strip, Vault (one row: label — remaining — cut), Appraiser's Ledger (its two columns AND its title row both centred), Showroom Journal, hand row, action button |
+| `screen-flw-showing-result` | Per-Showing reveal (final Showpieces), Diamond tally, that Showing's Journal — gated by a readyCheck (§ below) before the host's Next Showing unlocks |
+| `screen-flw-gameover` | Best in Show — final reveal + podium (first to `flwTargetTokens()` Cut Diamonds wins) |
 
 ### Overlays
 | Overlay ID | Pattern | z-index | Purpose |
 |------------|---------|---------|---------|
-| `flw-settings-overlay` | Data (slide-up) | z-[80] | "The Exhibition Brief 💎" — game settings |
-| `flw-how-to-overlay` | Data (slide-up) | z-[90] | How to Play |
-| `flw-target-overlay` | Decision modal | z-[90] | Choose a target player to pass the Showpiece to |
-| `flw-scratch-overlay` | Decision modal | z-[90] | Gem identity selector for serving — picks which gem to declare |
-| `flw-peek-overlay` | Decision modal | z-[100] | Peek result reveal — shows the true gem identity after peeking (tap-and-hold) |
-| `flw-appraisal-overlay` | Decision modal | z-[90] | Appraisal Clock turn timer warning (fires at ≤5s remaining) |
-| `flw-emerald-overlay` | Data (slide-up) | z-[100] | Emerald gem offer — receiver chooses to accept or block the Emerald |
-| `flw-quit-overlay` | Decision modal | z-[80] | "Pack up the Exhibition?" — mid-game exit confirm |
-| `flw-new-showing-overlay` | Decision modal | z-[90] | "New Showing?" — play-again confirmation |
-| `flw-cf-overlay` | Decision modal | z-[90] | "Forge a Gem" — The Counterfeit Run: pick gem 1–7 to counterfeit (Sylly Mode) |
+| `flw-settings-overlay` | Data (slide-up) | z-[80] | "The Display Case 💎" — Appraiser's Ledger view, Diamonds to Win, Smoke & Mirrors, Appraisal Clock, Sylly Mode |
+| `flw-how-to-overlay` | Data (slide-up), tabs: Rules \| Gems | z-[102] | How to Play. Raised above the Deep Vault/Loupe overlays (both z-[100]) 15 Aug 2026 — their tap-hold was opening this BEHIND them |
+| `flw-quit-overlay` | Decision modal | z-[80] | "Pack Up Your Case?" — mid-game exit confirm |
+| `flw-new-showing-overlay` | Decision modal | z-[90] | "Another Showing?" — play-again confirmation |
+| `flw-target-overlay` | Decision modal | z-[90] | Choose a target for Sapphire/Topaz/Opal/Amethyst — lists every alive Collector, greys out the ineligible ones (Under Glass) rather than omitting them |
+| `flw-scratch-overlay` | Decision modal | z-[90] | The Scratch Test (Clear Quartz) — target auto-selects when only one rival is left; guess is a 2-row gem-card grid, greyed for any gem the Ledger shows fully discarded |
+| `flw-peek-overlay` | Decision modal | z-[100] | The Loupe — press-and-hold reveal of a peeked/leaked Showpiece |
+| `flw-appraisal-overlay` | Decision modal | z-[90] | The Private Appraisal (Black Opal) outcome |
+| `flw-emerald-overlay` | Data (slide-up) | z-[100] | The Deep Vault (Green Emerald) — keep 1 of 3; leftmost pre-selected, a description panel under the cards updates live with the selected gem's effect |
+| `flw-cf-overlay` | Decision modal | z-[90] | "Forge a Gem" — The Counterfeit Run: claim any effect 1–7 (Sylly Mode) |
 
 ### Key buttons
 | ID | Action |
 |----|--------|
 | `#btn-flw-menu-play` | Menu Play CTA — dual context: post-lobby starts session, pre-lobby opens `mpShowModeScreen('flw')` |
-| `#btn-flw-action` | Primary action on table screen (context-driven — Play, Accept, Block, etc.) |
-| `#btn-flw-audit` | Audit the most recent play (shown only when `flwAuditCharges > 0` + auditable play exists) |
+| `#btn-flw-action` | Primary action on the table screen (context-driven — Place, Discard (no effect), Forge, Waiting…) |
+| `#btn-flw-audit` | Audit a rival's most recent claimed play (Sylly Mode only; shown when a charge remains and an auditable claim exists) |
+| `#btn-flw-next-showing` | Host/single only — advances to the next Showing; disabled in MDLM until every other player has tapped `#btn-flw-result-ready` |
+| `#btn-flw-result-ready` | Non-host only, on the Showing-result screen — "I've Seen It ✓"; confirms readiness before the host can advance (added 15 Aug 2026) |
 | `#btn-flw-gameover-exit` | Post-game exit → `resetToLobby()` |
 
 ### Key State Variables
 | Variable | Type | Default | Purpose |
 |----------|------|---------|---------|
-| `flwLedger` | bool | `true` | Show Ledger (Diamond scoring tracker) — setting |
-| `flwDiamondsToWin` | int | `'auto'` | Target Diamonds: `'auto'` (player-count-scaled) / `3` / `5` / `7` |
-| `flwSmokeMirrors` | int | `1` | Gems burned face-down from deck per Showing: 1 / 3 / 5 |
-| `flwAppraisalClock` | int | `0` | Turn timer (s): 0(off) / 30 / 60 |
-| `flwSyllyMode` | bool | `false` | The Counterfeit Run — counterfeit tokens + audit system |
-| `flwPlayerCount` | int | `0` | From lobby roster |
-| `flwPlayerNames` | string[] | `[]` | From lobby roster (`mpPlayerSlots[i].nickname`) |
-| `flwScores` | int[] | `[]` | Diamond totals per player (session) |
-| `flwLedgerTally` | int[] | `[]` | Per-player Ledger count for the current Showing |
-| `flwDiamonds` | int[] | `[]` | Diamonds awarded this Showing (Ledger winners) |
-| `flwHands` | int[][] | `[]` | Host-only: all Showpiece hands (gem IDs). Distributed via `mpSendPrivate`. |
-| `flwMyHand` | int[] | `[]` | This device's current Showpiece hand (from `FLW_HAND` private packet) |
-| `flwTopPlay` | object[] | `[]` | Host-only: `{claimedId, realId, counterfeit, audited}` per most-recent play per player |
-| `flwTopClaims` | int[] | `[]` | Public mirror: claimed gem ID per player (distributed to all via SYNC) |
-| `flwPassFruit` | int | `-1` | TRUE gem ID of in-flight Showpiece (host-only until `FLW_REVEAL`) |
-| `flwPassDeclaration` | int | `-1` | Claimed gem ID declared by server |
-| `flwPassFromIdx` | int | `-1` | Current server index |
-| `flwPassToIdx` | int | `-1` | Current receiver index |
-| `flwActivePlayer` | int | `0` | Index of current active player |
-| `flwTablePhase` | string | `'serving'` | `'serving'` \| `'await'` \| `'reveal'` \| `'under-glass'` |
-| `flwAuditCharges` | int | `0` | Remaining audits this Showing (Sylly: 2 per Showing; standard: 0) |
-| `flwCfToken` | int | `0` | Remaining Counterfeit tokens this Showing (Sylly: 1 per Showing) |
-| `flwUnderGlass` | int | `-1` | Player index currently under audit scrutiny (`-1` = none); cleared in `flwBeginTurn()` + broadcast via `FLW_TURN_START.underGlass` |
-| `flwTurnEndTs` | int\|null | `null` | Wall-clock expiry for Appraisal Clock (GTH pattern) |
-| `flwTurnTimerHandle` | int\|null | `null` | `setInterval` handle for turn countdown |
-| `flwShowingNum` | int | `0` | Current Showing number (1-indexed) |
-| `flwEliminatedSet` | Set | `new Set()` | Players who lost all Showpieces this Showing |
+| `flwLedgerMode` | string | `'tally'` | `'tally'` / `'discards'` / `'off'` — Appraiser's Ledger view (setting) |
+| `flwTokenMode` / `flwCustomTarget` | string / int | `'auto'` / `5` | Diamonds-to-win: `flwTargetTokens()` derives 7 (3p) / 5 (4p) when auto, else `flwCustomTarget` (3/5/7) |
+| `flwBurnSetting` | int | `1` | Smoke & Mirrors — gems burned to `flwLockedLot` per Showing: 1/3/5 |
+| `flwTurnTimer` | int | `0` | Appraisal Clock (s): 0(off) / 30 / 60 |
+| `flwSyllyMode` | bool | `false` | The Counterfeit Run |
+| `flwPlayerCount` / `flwPlayerNames` | int / string[] | `0` / `[]` | From lobby roster (`mpPlayerSlots[i].nickname`) |
+| `flwTokens` | int[] | `[]` | Cut Diamonds per player (session-persistent) |
+| `flwShowingNum` | int | `0` | Current Showing number (1-indexed) — shown as "Exhibition N" |
+| `flwDeck` / `flwLockedLot` | int[] | `[]` | The Vault (index 0 = next draw) / the burned, hidden Locked Lot |
+| `flwHands` | int[] | `[]` | Host-only: every player's Showpiece. Clients hold only their own via `flwMyHand` |
+| `flwExposed` / `flwUnderGlass` | bool[] | `[]` | Out-this-Showing / immune-until-own-next-turn, per player |
+| `flwDiscards` | int[][] | `[]` | Per-player discard piles (ledger tally + tie-break sum) |
+| `flwDiscardFeed` | `{g,p}[]` | `[]` | Chronological cross-player discard order — feeds the discard-strip Ledger view |
+| `flwTopPlay` | object[] | `[]` | Host-only: `{claimedId, realId, counterfeit, audited}` per player's most-recent auditable play |
+| `flwTopClaims` | int[] | `[]` | Public mirror of `flwTopPlay`'s claimed ids (synced — clients can't see `flwTopPlay` itself) |
+| `flwCounterfeitHeld` / `flwAuditCharges` | bool[] / int[] | `[]` | Sylly: still holds the 1 Counterfeit token / Audit Charges remaining (starts 2) |
+| `flwMyHand` / `flwMyDrawn` | int\|null | `null` | This device's own Showpiece / this turn's drawn gem (private `FLW_HAND`/`FLW_DRAW`) |
+| `flwLedgerCounts` | int[10] | `[]` | Public per-gem discard tally (Appraiser's Ledger tally view) |
+| `flwResultReadyCheck` | bool[] | `[]` | Per-player confirmation they've seen the Showing result — gates the host's Next Showing in MDLM (added 15 Aug 2026) |
+| `flwSelSlot` | string\|null | `null` | `'hand'` \| `'drawn'` — which of your two gems you're about to place |
+| `flwActivePlayer` | int | `0` | Index of the current active player (seat-0 opener every Showing) |
 
 ### Key Functions
 | Function | Purpose |
 |----------|---------|
-| `flwStartSession()` | Post-lobby entry — host deals first Showing via `flwStartShowingHost()` |
-| `flwStartShowingHost(openerIdx)` | Host: deals hands, burns Smoke & Mirrors, sets active player, broadcasts `FLW_SHOWING_START`, distributes private hands |
-| `flwBuildDeck()` | Returns shuffled deck of gem IDs based on player count |
-| `flwDealHands()` | Assigns `flwHands[p]` per player; private distribution via `mpSendPrivate` → `FLW_HAND` |
-| `flwShowTable()` | Shows `screen-flw-table`; calls `flwRenderTableBody()` |
-| `flwRenderTableBody()` | Branches on `flwTablePhase` → serve / await / reveal sub-renderers |
-| `flwBeginTurn(playerIdx)` | Clears `flwUnderGlass`, resets composing state, shows active player's compose UI |
-| `flwSubmitServe(toIdx, declaration, handIdx)` | Host: `flwHostProcessServe`; Client: ACTION `FLW_PLAY` |
-| `flwHostProcessServe(fromIdx, toIdx, declaration, handIdx)` | Remove card from server hand; broadcast `FLW_TURN_START` to receiver |
-| `flwHostResolveChallenge(callerIdx, verdict)` | Determine correct result; run gem effects; broadcast `FLW_RESOLVE` |
-| `flwHostAudit(auditorIdx, targetIdx)` | Deduct audit charge; set `flwUnderGlass`; broadcast `FLW_AUDIT_RESULT` |
-| `flwHostEmeraldOffer(toIdx)` | Sends `FLW_EMERALD_OFFER` private packet to receiver; waits for `FLW_EMERALD_RESOLVE` ACTION |
-| `flwComputeShowingEnd()` | Award Diamonds (Ledger winners), advance scores, check game-win condition |
-| `flwRenderCard(gemId, opts)` | **Asset-pack render seam** — all gem card DOM goes through here; `opts.faceDown` for back |
-| `flwShowTip(emoji, heading, lines)` | Shared contextual tip overlay injector (uses `flw-tip-overlay` sub-element of settings/how-to) |
+| `flwStartSession()` | Post-lobby entry — resets Tokens, deals the first Showing |
+| `flwDealShowing()` | Builds the Vault, deals one Showpiece each, broadcasts `FLW_SHOWING_START`, distributes private hands |
+| `flwBeginTurn()` | Draws the active player's 2nd gem (or triggers Vault Lock), broadcasts `FLW_TURN_START` |
+| `flwRenderCard(gemId, opts)` | **Asset-pack render seam** — every gem's DOM goes through here (`opts.empty` for the fixed off-turn placeholder, `opts.faceDown` for a back) |
+| `flwRenderTable()` | Repaints the table screen — header, rival strip, Vault, Ledger, Journal, hand row, action/audit buttons |
+| `flwApplyEffect(active, gemId, targetIdx, guessId, changed)` | Resolves one gem's effect; returns the Journal line — states the CLAIMED gem, so a forgery's lie reads true |
+| `flwHostResolvePlay(active, gemId, targetIdx, guessId)` / `flwHostResolveCounterfeit(active, p)` | Host-side genuine / forged play resolution |
+| `flwHostAudit(auditor, targetIdx)` | Sylly: authenticate a rival's claimed play; exposes on a forgery, leaks the auditor's hand on a wrongful audit |
+| `flwHostStartEmerald(active, retainedOverride)` / `flwHostResolveEmerald(active, keepId, returnOrder)` | Deep Vault two-step — offer 3, keep 1, return 2 to the Vault's bottom |
+| `flwOpenTarget(gemId, legal)` | Target picker for Sapphire/Topaz/Opal/Amethyst — lists every alive Collector, greys the ineligible |
+| `flwEndShowing(reason)` / `flwApplyShowingEnd(d)` | Scores the Showing (`'laststanding'` / `'vaultlock'`), resets `flwResultReadyCheck`, routes to result or gameover |
+| `flwRenderResultReady()` | Renders the readyCheck gate on the Showing-result screen — host's disabled Next Showing + wait count, or the non-host's ready button |
 | `flwHandleEnvelope(env)` | Routes all FLW ACTION/SYNC + private packets; called from `engine-multiplayer.js` |
 | `flwResetState()` | Full state teardown (called from `resetToLobby()` in `engine.js`) |
 
 ### Per-Game ACTION/SYNC/Private Packet Types
 | Packet | Type | Channel | Direction | Payload |
 |--------|------|---------|-----------|---------|
-| `FLW_PLAY` | ACTION | public | Client → Host | `{fromIdx, toIdx, declaration, handIdx}` |
-| `FLW_AUDIT` | ACTION | public | Client → Host | `{auditorIdx, targetIdx}` |
-| `FLW_EMERALD_RESOLVE` | ACTION | public | Client receiver → Host | `{accept}` — boolean |
-| `FLW_PLAYER_LEFT` | ACTION | public | Client → Host | `{}` — dissolves match |
-| `FLW_HAND` | PRIVATE | `/private/{uid}` | Host → device | `{hand}` — this device's Showpiece array |
-| `FLW_DRAW` | PRIVATE | `/private/{uid}` | Host → device | `{gemId}` — single drawn card after a play |
-| `FLW_PEEK` | PRIVATE | `/private/{uid}` | Host → peeking device | `{realId, gemId}` — true identity of peeked card |
-| `FLW_LEAK` | PRIVATE | `/private/{uid}` | Host → device | `{gemId, slotIdx}` — Sylly: single-Showpiece leak reveals one opponent gem |
-| `FLW_EMERALD_OFFER` | PRIVATE | `/private/{uid}` | Host → receiver | `{emeraldIdx}` — Emerald gem offered to receiver |
-| `FLW_SHOWING_START` | SYNC | public | Host → All | `{showingNum, playerCount, playerNames, handSize, smokeCount, ledger, diamondsToWin, syllyMode, appraisalClock, topClaims}` |
-| `FLW_TURN_START` | SYNC | public | Host → All | `{fromIdx, toIdx, declaration, topClaims, underGlass, turnEndTs}` |
-| `FLW_RESOLVE` | SYNC | public | Host → All | `{correct, loserIdx, gemId, realId, topClaims, ledgerTally, handCounts}` |
-| `FLW_AUDIT_RESULT` | SYNC | public | Host → All | `{auditorIdx, targetIdx, underGlass, auditCharges}` |
-| `FLW_SHOWING_END` | SYNC | public | Host → All | `{diamonds, scores, showingNum, gameOver}` |
-| `FLW_GAMEOVER` | SYNC | public | Host → All | `{winner, scores}` |
+| `FLW_PLAY` | ACTION | public | Client → Host | `{gemId, targetIdx, guessId}` or `{counterfeit, claimedId, keepSlot, targetIdx, guessId}` |
+| `FLW_AUDIT` | ACTION | public | Client → Host | `{targetIdx}` |
+| `FLW_EMERALD_RESOLVE` | ACTION | public | Client → Host | `{keepId, returnOrder}` |
+| `FLW_RESULT_READY` | ACTION | public | Client → Host | `{}` — added 15 Aug 2026 |
+| `FLW_PLAYER_LEFT` | ACTION | public | Client → Host | `{}` — dissolves match (PASS contract) |
+| `FLW_HAND` | PRIVATE | `/private/{uid}` | Host → device | `{gemId}` — this device's Showpiece |
+| `FLW_DRAW` | PRIVATE | `/private/{uid}` | Host → active device | `{gemId}` — this turn's drawn gem |
+| `FLW_PEEK` | PRIVATE | `/private/{uid}` | Host → looker | `{targetIdx, gemId}` — Amethyst (Loupe) result |
+| `FLW_LEAK` | PRIVATE | `/private/{uid}` | Host → accused | `{fromIdx, gemId}` — Sylly: a wrongful audit leaks the auditor's hand |
+| `FLW_EMERALD_OFFER` | PRIVATE | `/private/{uid}` | Host → active device | `{cards}` — the 3-card Deep Vault offer |
+| `FLW_SHOWING_START` | SYNC | public | Host → All | `{playerNames, playerCount, activePlayer, vaultCount, exposed, underGlass, tokens, ledger, target, showingNum, sylly, auditCharges, topClaims, log, discardFeed}` |
+| `FLW_TURN_START` | SYNC | public | Host → All | `{activePlayer, vaultCount, underGlass, turnEndTs, topClaims}` |
+| `FLW_RESOLVE` | SYNC | public | Host → All | `{exposed, underGlass, discardCounts, ledger, log, vaultCount, actor, topClaims, discardFeed}` |
+| `FLW_AUDIT_RESULT` | SYNC | public | Host → All | `{auditor, targetIdx, caught, exposed, ledger, log, auditCharges, vaultCount, topClaims}` |
+| `FLW_SHOWING_END` | SYNC | public | Host → All | `{reason, winners, reveal, tokens, obsidianBonus, resultText, exposed, log, ledger, target, gameOver, gameWinner, discardFeed, resultReady}` |
+| `FLW_RESULT_READY_SYNC` | SYNC | public | Host → All | `{resultReady}` — added 15 Aug 2026 |
 | `FLW_MATCH_DISSOLVED` | SYNC | public | Host → All | `{}` |
 
 ## Overlay Patterns Quick Reference
@@ -1678,6 +1693,7 @@ Per-game: LI5 `ptp`★/`tlm` · GM `ptp`★/`mdlm` · SS `tlm`★/`mdlm`/`ptp` �
 | Screen ID | Purpose |
 |-----------|---------|
 | `screen-pko-menu` | Main hub — Enter the Wild, How to Play, Settings, ← Back to the Box |
+| `screen-pko-clash-intro` | **Clash Intro** (`ui-style.md` § Round/Night Intro Screen) — auto-advances after **5 s** (`pkoClashIntroTimer`, `PKO_INTERSTITIAL_MS`) into `screen-pko-hoard`. Rotating flavour line from `PKO_CLASH_FLAVOUR`, host-picked index synced via `flavourIdx` in `PKO_CLASH_BEGIN`. Interstitial exception, no `[?]`/🔊/✕. Shown by `pkoShowClashIntro()`, called from both `pkoStartClash()` (host) and the `PKO_CLASH_BEGIN` client applier |
 | `screen-pko-hoard` | Private deal reveal at the start of each Clash; "I'm Ready" readyCheck |
 | `screen-pko-table` | Main play — Active Marks, player strip, own Hoard fan, Stake/Challenge/Stampede/Retreat. Header is `#pko-table-clash` (`Clash X · Encounter Y`) + `#pko-table-event` (`· emoji Name`, the live Force of Nature event) + `#btn-pko-events` — all three written by `pkoRenderTable()`; the event span and the `[?]` are hidden outside Force of Nature |
 | `screen-pko-event` | **Force of Nature** event interstitial — emoji, name, blurb; auto-advances after **5 s** (`pkoEventTimer`, `PKO_INTERSTITIAL_MS`). Takes the **interstitial exception** (`ui-style.md` Global UI Protocol item 5): no `[?]`/🔊/✕ chrome. Unlike `screen-pko-unchallenged`, **both** sides schedule their own advance — after it the table renders from already-synced state, so no host decision is pending |
@@ -1761,7 +1777,8 @@ Per-game: LI5 `ptp`★/`tlm` · GM `ptp`★/`mdlm` · SS `tlm`★/`mdlm`/`ptp` �
 | `pkoChallengeHint(text)` / `pkoRejectionReason(markId, cardId)` | The builder's named-refusal line (BUG-04). Reasons derive from `pkoPredators()`, so help cannot drift from `pkoBeats` |
 | `pkoBuildPool(n)` | Builds the Pool — totals **110 / 146 / 183 / 219** at n=3/4/5/6 on defaults; Eagle is `Math.ceil(1.5 * n)` |
 | `pkoRenderCard(id, opts)` | **Asset-pack render seam** — all animal-card DOM goes through here. `opts: { faceDown, size: 'sm', selected, dimmed }` (`alpha` is Phase 2). Resolves skin → core art → emoji via `assetFace('pko', id)` / `assetBack('pko')`; sets `dataset.cardId` so handlers read ids, never indices |
-| `pkoStartSession()` / `pkoStartClash()` / `pkoStartEncounter()` | Match / Clash / Encounter lifecycle (host-authoritative). `pkoStartSession()` is async — it awaits `pkoLoadChain()` before dealing |
+| `pkoStartSession()` / `pkoStartClash()` / `pkoStartEncounter()` | Match / Clash / Encounter lifecycle (host-authoritative). `pkoStartSession()` is async — it awaits `pkoLoadChain()` before dealing. `pkoStartClash()` ends in `pkoShowClashIntro()`, not the deal screen directly |
+| `pkoShowClashIntro()` | The Clash Intro auto-advance (`screen-pko-clash-intro`) → `pkoShowHoard()` after `PKO_INTERSTITIAL_MS`. Called by both `pkoStartClash()` (host) and the `PKO_CLASH_BEGIN` client applier so neither device skips it; self-clears `pkoClashIntroTimer` on every call (rapid-redeal guard) |
 | `pkoSendPrivateHands()` | Host → each device its OWN Hoard via `mpSendPrivate`; the host keeps its own locally (contents never touch `/events`) |
 | `pkoShowClientStandby()` | Client's post-lobby home — `screen-pko-hoard` in its empty "waiting for the deal" state (no separate standby screen) |
 | `pkoMyIdx()` / `pkoSortHoard()` / `pkoRenderFan(el, opts)` | This device's seat; chain-order sort; the ONE fan renderer shared by the deal screen and the table |

@@ -20,6 +20,19 @@ New `jecCalcPoints(count, N)`: count=2 = full `jecGoldenScore` jackpot; count 3 
 **Opt-in penalty priority in scoring loop**
 When both Rotten or Spoilt penalties are ON, they override the tier reward for that count (not added on top). If Rotten penalty is ON and count=1, deduct 5 and skip the tier calc. If Spoilt penalty is ON and count=N, deduct count×2 and skip the token reward. This prevents double-counting (e.g. token reward + penalty simultaneously).
 
+**Menu Complexity's static description named the wrong tiers — DD-13 value line added. [13 Aug 2026]**
+Found during the suite-wide DD-13 sweep (`ui-style.md` § Settings Card Standard): the Menu
+Complexity card's description read "Family Dinner · Bistro Night · The Michelin Star" while the
+pills actually say "Home Cook / Sous Chef / Head Chef" — three different tier names than the ones
+on the buttons, a real copy bug (probably a stale draft from before the pills were renamed), not
+just a missing value line. Fixed the description to describe what the setting controls generically
+("How advanced the food vocabulary can get.") and added `#jec-val-difficulty` beneath the pills,
+populated by `jecUpdateFoodDifficultyVal()` (`js/games/jec.js`) from the actual filter in
+`jecBuildFoodPool` (`easy` = difficulty 1 only, `mixed` = difficulty ≤2, `hard` = difficulty 3
+only). Called on load and on every pill click; no MDLM settings-sync repaint hook existed for any
+pill in this file before, so none was added here either (consistent with existing behaviour).
+**Not verified beyond syntax checks** — no `visual-check`, no live play.
+
 ---
 
 ## Bug Index

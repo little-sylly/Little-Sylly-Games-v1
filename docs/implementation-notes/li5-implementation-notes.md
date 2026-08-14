@@ -20,6 +20,15 @@ Before Phase 27, Host device was permanently the active describer and Client was
 **TLM default team names caused swap failure (Phase 27 — L1)**
 Swap handler in `engine-multiplayer.js` read from input values that were empty when users hadn't typed custom names. Fix: pre-populate inputs with defaults before swapping so strings are always present.
 
+**Report Card DD-13 value line added. [13 Aug 2026]** Found during the suite-wide DD-13 sweep
+(`ui-style.md` § Settings Card Standard) — Gold Star / Honour Roll gave no indication of which
+word tiers each pulls from, and this is the one settings card an adult is most likely to tune
+deliberately for a specific kid, per the overlay's own "Adults make the rules!" framing. Added
+`#li5-val-difficulty`, populated by a new `updateDifficultyVal()` (`js/games/li5.js`) from
+`settingDifficulty` (`easy` = `w.difficulty === 1` only, `standard` = `w.difficulty < 3`, i.e.
+tiers 1+2 — see the filter in the round-build code). Called on settings-overlay open and on every
+difficulty pill click. **Not verified beyond syntax checks** — no `visual-check`, no live play.
+
 ---
 
 ## Bug Index

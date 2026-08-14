@@ -359,7 +359,7 @@ const MP_GAME_CONFIGS = {
   shp: {
     gameName:       'Counting Sheep',
     emoji:          '\u{1F411}',
-    brandBtnClass:  'bg-indigo-600 hover:bg-indigo-700 text-white',
+    brandBtnClass:  'shp-cta',
     ptpLabel:       'Lights Out',
     lobbyCtaLabel:  'Lights Out',
     menuScreen:     'screen-shp-menu',
@@ -1173,7 +1173,7 @@ function mpHandleEnvelope(env) {
     // JEC_SIFTING — Client applies sifting state and renders sifting screen
     if (env.type === 'SYNC' && env.payload.action === 'JEC_SIFTING') {
       const p            = env.payload;
-      jecInputs          = p.jecInputs.map(a => [...a]);
+      jecInputs          = (p.jecInputs || []).map(a => [...(a || [])]);
       jecWordFrequency   = {...p.jecWordFrequency};
       jecDisplayWords    = {...p.jecDisplayWords};
       jecMergeMap        = {...p.jecMergeMap};
@@ -1375,7 +1375,11 @@ function mpHandleEnvelope(env) {
       natLastStandPhase   = 'mole-guess';
       natCurrentMatchRound = 0;
       natMpVoteReadyCheck  = Array(natPlayerCount).fill(false);
-      // Client waits for NAT_ACTIVE_PLAYER SYNC
+      natHabitatFlavourIdx = p.flavourIdx || 0;
+      // Habitat Intro (ui-style.md § Round/Night Intro Screen) — no onDone: the client just
+      // displays the beat and waits for NAT_ACTIVE_PLAYER SYNC, exactly as before this screen
+      // existed, just with something to look at while it waits.
+      natShowHabitatIntro();
     }
 
     // NAT_ACTIVE_PLAYER — All devices update clue order and show observation screen
@@ -1633,7 +1637,7 @@ function mpHandleEnvelope(env) {
     // DSD_SEQUENCE_SUBMIT — Host receives Client crew's sequence; executes
     if (env.type === 'ACTION' && env.payload.action === 'DSD_SEQUENCE_SUBMIT' &&
         window.syllyMultiplayerMode === 'host') {
-      dsdSequence    = env.payload.sequence;
+      dsdSequence    = env.payload.sequence || [];
       dsdCurrentTeam = env.payload.team;
       dsdMpStandby   = false;
       mpUnlockSync();
@@ -1832,13 +1836,13 @@ function mpHandleEnvelope(env) {
       lttpStrayIdx      = p.strayIdx;
       lttpJokerIdx      = p.jokerIdx;
       lttpAddressIdx    = p.addressIdx;
-      lttpGridLocations = [...p.gridLocations];
+      lttpGridLocations = [...(p.gridLocations || [])];
       lttpHighlights    = new Set(p.highlights);
-      lttpDecoys        = [...p.decoys];
-      lttpFakeTargets   = [...p.fakeTargets];
+      lttpDecoys        = [...(p.decoys || [])];
+      lttpFakeTargets   = [...(p.fakeTargets || [])];
       lttpActiveIdx     = p.firstActiveIdx;
       lttpPlan          = p.plan;
-      lttpPlayerNames   = [...p.playerNames];
+      lttpPlayerNames   = [...(p.playerNames || [])];
       lttpPlayerCount   = p.playerCount;
       for (let i = 0; i < lttpPlayerCount; i++) lttpSuspicionMap[i] = 'none';
       lttpShowBriefing(p.firstActiveIdx);
@@ -1879,7 +1883,7 @@ function mpHandleEnvelope(env) {
       lttpPlan        = p.plan;
       lttpHighlights  = new Set(p.highlights);
       lttpFadedCells  = new Set(p.fadedCells);
-      lttpDecoys      = [...p.decoys];
+      lttpDecoys      = [...(p.decoys || [])];
       lttpActiveIdx   = p.activeIdx;
       lttpLapAnswered = new Set(p.lapAnswered);
       lttpHistory     = p.history || lttpHistory;

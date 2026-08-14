@@ -667,6 +667,17 @@ function openSettings() {
   const body = el.querySelector('.overlay-data-inner');
   if (body) body.scrollTop = 0;
   el.style.display = 'flex';
+  updateDifficultyVal();
+}
+
+// Dynamic value line (ui-style.md § Settings Card Standard, DD-13) — the pill carries the
+// thematic name only; this says what it means for the word pool.
+function updateDifficultyVal() {
+  const el = document.getElementById('li5-val-difficulty');
+  if (!el) return;
+  el.textContent = settingDifficulty === 'easy'
+    ? 'Gold Star uses only the easiest words.'
+    : 'Honour Roll mixes easy and tricky words.';
 }
 
 function closeSettings() {
@@ -689,7 +700,7 @@ function handlePill(btn) {
     document.getElementById('pill-time-penalty').textContent = `−${settingTimePenalty} Secs`;
   }
   if (group === 'rounds')       settingRounds      = parseInt(value);
-  if (group === 'difficulty')   settingDifficulty  = value;
+  if (group === 'difficulty')   { settingDifficulty  = value; updateDifficultyVal(); }
   if (group === 'penalty-mode') settingPenaltyMode = value;
   if (group === 'skip-cost')    settingSkipFree    = (value === 'free');
 }

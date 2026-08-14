@@ -217,6 +217,28 @@ and the decision log but not `code-map.md` or `game-identities.md` — both stil
 doc list is ordered for a reason; impl-notes-first leaves the two reference docs as the ones that
 silently rot.*
 
+**DD-26 — Clash Intro screen added, closing the deferred Round/Night Intro sweep's first item. [13 Aug 2026]**
+PKO was named in `deferred-work.md` as "the obvious next candidate" for `ui-style.md` § Round/Night
+Intro Screen (CJAR's Raid Intro and SHP's Night Intro were the precedent). Added `screen-pko-clash-intro`
+— a 5 s auto-advancing interstitial shown at the start of every Clash (not every Encounter — the Clash
+is PKO's repeating match-round structure, analogous to a Raid/Night; an Encounter repeats too often
+within a single Clash to earn its own beat). Shows `pkoClashLabel()` ("Clash N" / "Clash N of Target"
+depending on scoring mode), a rotating flavour line from a new `PKO_CLASH_FLAVOUR` array (host-picked
+index, synced via `flavourIdx` in `PKO_CLASH_BEGIN` — never chosen locally, per the pattern doc's rule
+that two players sitting together must see the same text), and a Force-of-Nature note box shown only
+in Sylly Mode. Wired into both `pkoStartClash()` (host) and the `PKO_CLASH_BEGIN` client applier so
+neither device path skips it — same "wire it in at the same point on host and client" rule the pattern
+doc calls out. `pkoClashIntroTimer` follows the standard Timer Lifecycle: self-clears on every call
+(rapid-redeal guard), cleared in `pkoResetState()` teardown, cleared in the quit-confirm handler.
+**Changed:** `js/games/pko.js`, `index.html`, `js/engine.js` (`allScreens[]`). SW bumped v178 → v179
+(both files are precached). **Verification:** `verify-pko-chain.js`/`verify-pko-loop.js` (147
+checks)/`verify-pko-events.js` all pass clean — the loop harness exercises `pkoStartClash()` across
+many simulated matches, so the new call site is exercised even though it's headless (`getElementById`
+returns null; `pkoShowClashIntro()`'s DOM writes are all null-guarded). **Not verified:** the screen's
+actual look/timing/flavour-text tone — no `visual-check` pass and no live play this round.
+**Deferred:** GTH sessions, NAT expeditions, DYB/PASS hands still need the same treatment — tracked in
+`deferred-work.md`.
+
 ---
 
 ## Bug Index
@@ -228,6 +250,11 @@ in PKO's own code. That file is where non-game-specific work belongs going forwa
 when the bug surfaces while a specific game is being tested. The `assetName` skin-rename
 feature (used by PKO's `pkoCardName`) is also logged there (DD-01), since `js/lib/art.js`
 is shared infra — PKO's own use of it is covered below.
+
+*`pkoBindChainHold`'s missing `touchmove`-cancel (a scroll starting on a card could fire the
+gallery open mid-scroll) was fixed as a side effect of FLW's gem-seam plan extracting
+`bindCardHold` to `engine.js` (14 Aug 2026) — root cause and fix are shared-infra, logged in
+`shared-implementation-notes.md` DD-03, not here.*
 
 **BUG-06 — How to Play never taught Swarm, and two cards contradicted it. [Protocol A phase gate, 1 Aug 2026]**
 *What happened:* Swarm shipped in round 2 (DD-23) and is under direct measurement in round 3, but the string `"Swarm"` appeared exactly once in all of `index.html` — the Challenge builder's own subtitle. The How to Play overlay's Step 3 said *"one card per Mark, each a natural predator"* and The Eagle card said a Poacher was the Mark's *only* answer — both false now that two Eagles can Swarm an Eagle-Mark, and both would have taught players to distrust or avoid the exact mechanic round 3 needs data on.

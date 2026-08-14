@@ -17,6 +17,43 @@ When `natEvictedIdx === -1` (unresolved tie), no player name is shown in The Las
 **Centred content layout — reference implementation**
 NAT's observation screen is the canonical example of the `min-h-screen overflow-y-auto flex items-center justify-center` centred layout pattern. BLD adopted this pattern in Round 4b. Future games with content-first screens (no sticky CTA) should reference NAT.
 
+**Habitat Intro screen added, second item of the deferred Round/Night Intro sweep. [13 Aug 2026]**
+`deferred-work.md` named "NAT expeditions" as a candidate for `ui-style.md` § Round/Night Intro
+Screen (CJAR Raid / SHP Night / PKO Clash were the precedent). The Habitat is NAT's repeating
+match-round unit — a new Specimen and role assignment every time `natCurrentMatch` advances — so
+`screen-nat-habitat-intro` sits between `natAssignRoles()` and the first clue round, shown by
+`natShowHabitatIntro(onDone)`. Unlike PKO (both sides self-time), NAT follows the
+screen-pko-unchallenged shape: only host/single times its own advance into `natStartClueRound()`
+(a host decision — the clue order and Day 1 role reveal aren't computed yet), while the client
+applier (`NAT_MATCH_START` in `engine-multiplayer.js`) calls it with no `onDone` and just displays
+the beat while it waits for the `NAT_ACTIVE_PLAYER` SYNC that already followed this moment before
+the screen existed — so this doubles as a small UX fix for clients, who previously sat on whatever
+screen they were last on (Setup or the previous Tally) with no visual acknowledgement that a new
+Habitat had begun. Flavour text (`NAT_HABITAT_FLAVOUR`) is host-picked and rides in `flavourIdx`
+inside `NAT_MATCH_START`, never chosen locally. A Sylly Mode note (no Lead Biologist this Habitat)
+shows only when `natSyllyMode` is on.
+**Changed:** `js/games/nat.js`, `js/engine-multiplayer.js`, `index.html`, `js/engine.js`
+(`allScreens[]`). SW bumped v179 → v180. **Verification:** syntax-checked only — **NAT has no
+`tools/verify-*.js` harness**, so this is unverified beyond `node -c` and has not been played live.
+**Ruled out in the same pass:** GTH was also named in the deferred item but does not actually fit
+the pattern — its Session runs once per match (not repeated), Patient Phase already announces each
+disorder via `screen-gth-disorder-reveal` before every drawing, and Shrink Phase's Case-to-Case
+transition happens inside one continuous countdown timer, where a forced pause would eat into the
+player's decision budget. No change made to GTH; noted in `deferred-work.md` so it isn't
+re-investigated.
+**Deferred:** DYB/PASS hands still need the same treatment.
+
+**Field Difficulty DD-13 value line added. [13 Aug 2026]** Found during the suite-wide DD-13 sweep
+(`ui-style.md` § Settings Card Standard) — Common/Rare/Exotic gave no indication of the actual
+tier cutoff each pulls from. Added `#nat-val-diff`, populated by a new `natUpdateDiffVal()`
+(`js/games/nat.js`) from `natDifficulty` (`d1` = difficulty ≤1, `d1+d2` = difficulty ≤2, `all` =
+difficulty ≤3 — see `natDrawSpecimen()`). NAT's pill state is read lazily from the DOM's active
+pill class rather than kept live in `natDifficulty` until `natApplySettings()` runs (a different
+architecture than most games' immediate-state-update pill handlers), so `natUpdateDiffVal()`
+reads `document.querySelector('#nat-diff-group .pill-active-lime')` directly rather than trusting
+the state var. Called on settings-overlay open and on every difficulty pill click. **Not verified
+beyond syntax checks** — no `visual-check`, no live play.
+
 ---
 
 ## Bug Index

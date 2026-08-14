@@ -60,10 +60,14 @@ not in a batch at the end.
   count-asserted string replacements), never a broad Edit. GTH's and BLD's confirm buttons still use `bg-red-500`
   rather than their brand colour — that's a separate, deliberate "destructive action" colour choice, left for
   the action-button colour sweep (see below) to confirm or correct.
-- **A suite-wide audit for the BUG-06 class has not been done.** Firebase erases `null`/`{}`/`[]`, so any game
-  assigning a raw payload collection in a SYNC applier can strand a client. cjar is fixed and the rule is now in
-  `logic-engine.md`; the other 17 games reach the same protection informally via `p.x || []` but have not been
-  checked field by field. Worth a Protocol A pass. Detail: `cjar-implementation-notes.md` BUG-06.
+~~**A suite-wide audit for the BUG-06 class has not been done.**~~ — **RESOLVED, 13 Aug 2026.** Explore-agent
+  swept every game's SYNC applier; found and fixed three live-risk unguarded collections — **LTTP**'s `lttpDecoys`
+  (a guaranteed crash: every match reaches zero decoys), **GTH**'s `gthAllDiagnoses[i]` (a timed-out player sends
+  `[]`), **NT**'s `ntPtpPlacements` (a zero-inventory cycle holes the array) — plus hardened DSD, JEC, and PASS
+  (lower risk, no live-play trigger found, same unguarded shape). GM/BLD/SS/DYB's remaining unguarded assigns were
+  judged structurally non-empty and left alone; FRT/SHP/FLW/PKO already had the CJAR-pattern normalisers. **None
+  of the six touched games have a `tools/verify-*.js` harness**, so these fixes are syntax-checked only, not
+  regression-tested or played live — flagged for the retest backlog. Detail: `shared-implementation-notes.md` BUG-06.
 ~~**PKO's Chain diagram/animals list kept its own overlay**~~ — **RESOLVED, 10 Aug 2026.** Folded into
   `pko-how-to-overlay` as tabs 2–3 (`The Rules | Diagram | Animals`); the old two-tab `pko-chain-overlay` is
   gone. This also retired the "mid-play reference keeps its own overlay" carve-out in `ui-style.md` — see
@@ -78,20 +82,32 @@ not in a batch at the end.
   (`ui-style.md` § Pattern 2a). **PASS remains the one exception** — 54 playing cards make a tile grid a poster
   rather than a reference, and it has no core art to verify, so nothing is currently unverifiable. Detail:
   `docs/decision-log.md` 2026-08-10, `docs/art-authoring-guide.md`.
-- **Round/Night Intro Screen sweep — implemented only in CJAR and SHP.** `ui-style.md` § Round/Night
+~~**Round/Night Intro Screen sweep**~~ — **RESOLVED, 13 Aug 2026.** `ui-style.md` § Round/Night
   Intro Screen (added 12 Aug 2026) says any game where the same phase repeats several times a match
-  (a Night, a Raid, a Round, an Encounter) should show a short auto-advancing intro at the start of
-  each repetition, rather than jumping straight from "deal" into an already-live table. CJAR
-  (`screen-cjar-raid-intro`) was the precedent; SHP (`screen-shp-night-intro`, flavour text + a
-  rotating practical reminder, host-picked and synced) is what generalised it into a named pattern.
-  The rest of the suite has not been swept — PKO (Clashes/Encounters) is the closest structural match
-  and the obvious next candidate, followed by any other multi-round game (GTH sessions, NAT
-  expeditions, DYB/PASS hands). Not a playtest-fix batch; pick it up as its own pass.
-- **The settings dynamic-value line (DD-13) is implemented only in CJAR.** `ui-style.md` § Settings Card
-  Standard requires it wherever a pill option encodes a concrete value not visible in its label — durations,
-  counts, thresholds. The other 17 games have not been swept, and at least some will have the same gap cjar had
-  (a value the player can only learn by playing). Deliberately not folded into a playtest-fix batch. Detail:
-  `cjar-implementation-notes.md` DD-13.
+  should show a short auto-advancing intro at the start of each repetition, rather than jumping
+  straight from "deal" into an already-live table. Implemented where a genuine gap existed: CJAR
+  (precedent) → SHP → **PKO** (`screen-pko-clash-intro`) → **NAT** (`screen-nat-habitat-intro`) →
+  **PASS** (`screen-pass-intro`). Investigated and correctly ruled out where the pattern didn't
+  apply: **GTH** (Session doesn't repeat within a match; Patient Phase and Shrink Phase already
+  have their own equivalents or would be actively harmed by a forced pause) and **DYB**
+  (`screen-dyb-shake` already shows "Shake #N" as the actual roll interaction — an interactive
+  equivalent, not a gap). SW bumped v178 → v181 across the four additions. **None of PKO/NAT/PASS
+  were verified beyond harness/syntax level** — no `visual-check` pass, no live play; NAT and PASS
+  additionally have no `tools/verify-*.js` harness at all. Detail: `pko-implementation-notes.md`
+  DD-26, `nat-implementation-notes.md`, `pass-implementation-notes.md`, `dyb-implementation-notes.md`.
+~~**The settings dynamic-value line (DD-13) is implemented only in CJAR.**~~ — **SWEPT, 13 Aug
+  2026.** Explore-agent audited every other game's settings overlay for pill groups encoding a
+  concrete value not visible in the label. Found the gap was narrower than expected — only
+  word-difficulty pills, and only 7 games: **JEC** (Menu Complexity — the static description also
+  named three DIFFERENT tier names than the pills show, a real copy bug fixed in the same pass),
+  **GTH** (Symptom Severity), **LI5** (Report Card), **NAT** (Field Difficulty), **DSD** (Sea
+  State), **LTTP** (Party Destination), **SS** (Encryption Protocol). Every duration/count/
+  threshold pill elsewhere in the suite already states its value on the pill itself or in the
+  static description, or had already independently built the DD-13 shape under a different name
+  (GM's `*-desc` elements, DYB's `dyb-wildcards-desc`, SHP's `shp-val-moons`, PKO's `pko-val-law`,
+  GTH's own Diagnosis Window). BLD has no pill groups at all. **Not verified beyond syntax/encoding
+  checks** — no `visual-check` pass, no live play. Detail: `shared-implementation-notes.md` DD-13
+  sweep.
 ~~**FLW how-to step labels**~~ — **RESOLVED, 7 Aug 2026.** They used inline `style="color:#E879A8"` (rose-pink,
   FLW's primary brand) rather than a class. The pre-existing `.flw-label` class was **not** reusable here — it's
   already taken for FLW's secondary Exhibition-gold accent (`#C9A227`, used on the gem-vault count). Added a new
@@ -103,16 +119,12 @@ not in a batch at the end.
   documents the one file it holds (`phase-audit-2026-06-30-snapshot.md`) — the "empty by design" claim this
   item pointed at no longer exists in the doc. No action needed.
 
-**CJAR — the Dibber Dobber payout beat mis-narrates one branch** — *flagged 8 Aug 2026 by the action-stage
-  rework's final review; presentational only, no state impact.* The 900 ms payout beat in
-  `cjarBeginFlipAnim` mirrors `cjarResolveFlipDD`'s divisor in four of five Sylly shapes. The fifth —
-  **takers ≥ 1 + innocents ≥ 1 + no dobbers** — is still wrong: the resolver splits the card among the
-  takers, and then the **scare-off** (`cjar.js`, "runs LAST so an all-innocent flip absorbs its own
-  contribution") drains the whole Crumb pool, this card's remainder included, straight out to the
-  innocents. So the beat throws a leftward token for a remainder that immediately leaves, and shows
-  nothing for the innocents' gain. Same class as BUG-11 (the all-innocent case, fixed 8 Aug), one branch
-  over, and structurally out of reach of that fix's `else if`. Worth folding in whenever the beat is next
-  touched; the fix is a fifth branch keyed on `innocents.length && !dobbers.length && takers.length`.
+~~**CJAR — the Dibber Dobber payout beat mis-narrates one branch**~~ — **RESOLVED, 13 Aug 2026.** Added
+  the missing `takers.length && innocents.length` branch in `cjarBeginFlipAnim` (`js/games/cjar.js`),
+  ahead of the plain takers-only branch it was previously falling into — takers and innocents both now
+  fly a token down, none flies left, matching the scare-off's real behaviour (the pool never sits in the
+  pile when a Dobber is absent). Presentational only; `verify-cjar-dd.js` (47 checks) and
+  `verify-cjar-loop.js` re-run clean, confirming the resolver logic itself was never wrong.
 
 **CJAR — Dibber Dobber's Innocent-leaning archetype wins ~52% (DD-06)** — *open balance flag, deliberately
   not acted on; moved here from `CLAUDE.md` § Current Focus 9 Aug 2026 to stop it loading every session.*
