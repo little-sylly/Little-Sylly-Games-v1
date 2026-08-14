@@ -174,6 +174,19 @@ globalThis.__flw = {
   },
   endShowing(reason)         { flwEndShowing(reason); },
   get discardFeed()           { return flwDiscardFeed; },
+  // Task 9 — render the discard strip directly (flwRenderTable would also work,
+  // but calling the ledger renderer alone isolates this from the rest of the table).
+  renderLedger()               { flwRenderLedger(); },
+  ledgerHtml()                 { return document.getElementById('flw-ledger').innerHTML; },
+  ledgerStripInfo() {
+    const el = document.getElementById('flw-ledger');
+    const row = el.children[0];
+    if (!row) return [];
+    return row.children.map(wrap => {
+      const card = wrap.children[0], initial = wrap.children[1];
+      return { gemId: Number(card.dataset.gemId), selected: /(^| )flw-card-sel( |$)/.test(card.className || ''), initial: initial.textContent };
+    });
+  },
   expose(idx)                { flwExpose(idx); },
   resetState()               { flwResetState(); },
   renderGems()                { flwRenderGems(); },
@@ -374,6 +387,15 @@ function safe(label, fn) {
         H.discardFeed, [{ g: 0, p: 0 }, { g: 0, p: 1 }]);
   check('client feed still matches, cross-player order preserved', C.discardFeed, H.discardFeed);
 
+  section('Task 9 — the discard strip renders on the client without throwing');
+  safe('client switches to discards mode and renders', () => { C.setLedgerMode('discards'); C.renderLedger(); });
+  check('no client exception', client.__errors, []);
+  const strip = C.ledgerStripInfo();
+  check('strip shows both discards, in feed order', strip.map(s => s.gemId), [0, 0]);
+  check('strip owner initials, in feed order (seat 0 then seat 1)',
+        strip.map(s => s.initial), [NAMES[0].charAt(0), NAMES[1].charAt(0)]);
+  check('only the NEWEST (last) card is selected', strip.map(s => s.selected), [false, true]);
+
   // ── FLW_SHOWING_END reaches the client and the result screen renders ────
   section('FLW_SHOWING_END (vaultlock) reaches the client and the result screen renders');
   safe('flwEndShowing runs to completion', () => H.endShowing('vaultlock'));
@@ -408,8 +430,7 @@ function safe(label, fn) {
   check('client rendered the final reveal card on whichever screen it landed on',
         finalBody.children.length > 0, true);
 
-  // ── Task 8 — a forged claim, and the feed resetting across a new Showing ──
-  section('A forged Counterfeit puts the CLAIMED id in the feed, not the real one');
+  // ── Task 8/9 — a forged claim, the empty strip, and a cross-Showing reset ──
   const host2   = makeDevice('host2',   'host',   0, 'u0', SLOTS);
   const client2 = makeDevice('client2', 'client', 1, 'u1', SLOTS);
   const H2 = host2.__flw, C2 = client2.__flw;
@@ -439,6 +460,12 @@ function safe(label, fn) {
 
   H2.seat({ players: 3, names: NAMES, sylly: true });
   safe('flwStartSession runs to completion', () => H2.startSession());
+
+  section('Task 9 — the discard strip\'s empty state, before any play');
+  safe('client renders the strip with nothing discarded yet', () => { C2.setLedgerMode('discards'); C2.renderLedger(); });
+  check('empty-state copy is shown', C2.ledgerHtml().includes('Nothing discarded yet.'), true);
+
+  section('A forged Counterfeit puts the CLAIMED id in the feed, not the real one');
   // Seat 0's real hand is [0 (Obsidian), 4 (Jade, drawn)]. keepSlot 'drawn' keeps
   // the DRAWN Jade as the new Showpiece and sacrifices the ORIGINAL Obsidian —
   // claimed as a 4 (Jade) as well, so the claim reads true but the sacrificed

@@ -468,9 +468,33 @@ function flwRenderLedger() {
 }
 // Stubbed here (task 7); the real chronological-feed render lands in task 9,
 // once flwDiscardFeed (task 8) exists to draw from.
+// Horizontal, chronological record of every discard this Showing — the second
+// Appraiser's Ledger view. Renders into a wrapper INSIDE #flw-ledger, never onto
+// #flw-ledger's own className, so flipping back to 'tally'/'off' (which only ever
+// touch innerHTML) never inherits a stale overflow-x layout from this mode.
 function flwRenderDiscardStrip() {
   const el = document.getElementById('flw-ledger');
-  if (el) el.innerHTML = '<p class="text-stone-400 text-xs">Discard strip coming soon.</p>';
+  if (!el) return;
+  el.innerHTML = '';
+  const feed = flwDiscardFeed || [];
+  if (!feed.length) { el.innerHTML = '<p class="text-stone-400 text-xs">Nothing discarded yet.</p>'; return; }
+  const row = document.createElement('div');
+  // Scrolls INSIDE this row, not the Stack — no width constraint needed beyond
+  // the flex-shrink:0 cards themselves summing wider than the card's own box.
+  row.className = 'flex gap-2 overflow-x-auto pb-1';
+  feed.forEach((entry, i) => {
+    const wrap = document.createElement('div');
+    wrap.className = 'flex flex-col items-center gap-0.5 flex-shrink-0';
+    const card = flwRenderCard(entry.g, { size: 'sm', selected: i === feed.length - 1 }); // newest draws the eye
+    flwBindCardHold(card, entry.g);
+    const initial = document.createElement('p');
+    initial.className = 'text-[0.5rem] text-stone-400';
+    initial.textContent = (flwName(entry.p) || '?').charAt(0).toUpperCase();
+    wrap.append(card, initial);
+    row.appendChild(wrap);
+  });
+  el.appendChild(row);
+  row.scrollLeft = row.scrollWidth; // newest (last) stays in view — same idiom as flwRenderLog's scrollTop
 }
 function flwRenderLog() {
   const el = document.getElementById('flw-log');
