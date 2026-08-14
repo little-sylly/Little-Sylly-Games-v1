@@ -197,10 +197,20 @@ keeping some visual grouping, because reading your hand fast is the whole skill 
 
 ### Flawless — `-Game flw`
 
-**Card renders at** 72 × 104 px · **aspect 0.692** · **Draw at 800 × 1156**
+**Card renders at** 88 × 88 px (`.flw-card-lg`, the largest on-table size) · **aspect 1.000
+(square)** · **Draw at 800 × 800** · core art ceiling **60 KB/file**
 
-**The id is the carat value**, which is also the card's power — 9 beats 8 beats 7. Keeping the
-number legible in your art is genuinely useful here.
+**Square art with NO text and NO border baked in.** The display-case frame, the carat placard and
+every interaction state (dimmed / selected / fallback) are drawn entirely by CSS (`.flw-card*`,
+`.flw-carat` in `css/styles.css`) — this is the one game in the suite where baking the carat number
+into the art is actively *wrong*, not just redundant: it would sit underneath the real CSS placard,
+doubled. Draw the gem itself, centred, on a plain or softly-graded ground, and stop there.
+
+**The on-table card is not the size to author for.** FLW's largest real consumer is the full-width
+art viewer (~340 CSS px, ~1020 device px at 3× DPR on a typical phone) — 88 px is 5.8× smaller.
+512 × 512 masters (this game's core art ships at 512 px, above the usual 360 px core-art width)
+serve the viewer at a reasonable quality without breaching the 60 KB/file ceiling — see
+`tools/convert-core-art.ps1`'s FLW CONFIG block for the actual run.
 
 | id | Gem | In the Vault | | id | Gem | In the Vault |
 |---|---|---|---|---|---|---|

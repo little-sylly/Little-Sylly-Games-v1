@@ -32,46 +32,33 @@ Add-Type -AssemblyName System.Drawing
 # Edited per run — one game at a time. A previous run's id map is never lost:
 # it is preserved verbatim in that game's data/art/<kind>/pack.json `faces` block.
 #
-# CURRENT RUN: Cookie Jar (cjar) — 14 owner-supplied masters become CJAR's default.
+# CURRENT RUN: Flawless (flw) — 10 gem masters + 1 case (back) become FLW's default.
 #
 # Source folder of original art (masters; a skin-pack folder here, normally kept
 # out of the repo).
-$src = "d:\Coding Projects\Little-Sylly-Games\data\cjar"
+$src = "d:\Coding Projects\Little-Sylly-Games\data\flw"
 # Destination — always data/art/<kind>/img.
-$dst = "d:\Coding Projects\Little-Sylly-Games\data\art\cjar\img"
+$dst = "d:\Coding Projects\Little-Sylly-Games\data\art\flw\img"
 # source filename (no extension) -> the game's own card id / asset key.
 # Art filenames do NOT have to match the game's ids: that is what this map and the
 # manifest are for. Use 'back' for the face-down image; anything that isn't a card
 # face (reference diagrams, board art) goes in the manifest's `extras` block.
-# The per-game id keys are in docs/expansion-guide.md § `faces` id cheat-sheet.
-# cjar's masters are named for their SUBJECT, not their manifest key, so this map is
-# doing real work. treat1..treat5 are in REVEAL order, which is exactly
-# treatSchedule["5"] — so treat5 (brownies) is the one that lands on the final Raid at
-# either match length, and 1-3 are the 5-point specials while 4-5 are the 10-point
-# supers. Owner-confirmed 2 Aug 2026; do not reorder.
+# flw's masters are named for the gem, not the carat id — FLW_DECK (flw.js) is the
+# id<->name mapping this map is transcribing.
 $map = @{
-  'handful'='cookie-handful';  'batch'='cookie-batch';  'mountain'='cookie-mountain'
-  'mum'='family-mum';          'dad'='family-dad';      'bigsib'='family-big'
-  'grandma'='family-grandma';  'fampet'='family-pet'
-  'treat1'='treat-shortbread'; 'treat2'='treat-redvelvet'
-  'treat3'='treat-macadamia';  'treat4'='treat-macarons'
-  'treat5'='treat-brownies'
-  'cardback'='back'
+  'pinkdiamond'='9';    'bloodruby'='8';       'bluesapphire'='7'
+  'greenemerald'='6';   'yellowtopaz'='5';     'imperialjade'='4'
+  'blackopal'='3';      'purpleamethyst'='2';  'clearquartz'='1'
+  'rawobsidian'='0'
+  'case'='back'
 }
-# The masters are 1024x1024 SQUARE but the hero card is portrait (15rem x 20.6rem,
-# ratio 0.728), so background-size:cover discards ~27% horizontally. Width chosen by
-# MEASUREMENT, not by copying an earlier run: at 480px the busiest cards (mountain,
-# treat1) are forced to q58 by the 40KB cap and show JPEG blocking; 560px and 640px
-# breach the cap outright. 360px holds every file at q80-88 for ~472KB total.
-# NOTE this game breaks the suite's usual comfortable margin: PKO's card renders at
-# 4.25rem so 360px is 5.3x its CSS width, whereas cjar's 15rem hero makes the same
-# 360px only ~1.1x effective after the cover-crop. Illustrated art upscales far more
-# gracefully than blocky JPEG, hence clean-and-soft over sharp-and-artefacted. If a
-# sharper hero is ever wanted, pre-cropping the masters to the card aspect buys ~1.9x
-# more VISIBLE pixels per byte — but it permanently discards 27% of the artwork, so
-# that is an owner call, not a converter default.
-$cardWidth  = 360;  $cardCap  = 40KB
-$extraKeys  = @()                 # SHP has no non-card art
+# The masters are 1024x1024 SQUARE and so is the on-table card (spec §2 D1/D2 — no
+# cover-crop discard here, unlike CJAR's portrait hero). 512px chosen against the
+# RENDER size per logic-engine.md § PWA Guardian: FLW's largest consumer is the art
+# viewer (~340 CSS px, ~1020 device px at 3x DPR), not the on-table card (lg = 88 CSS
+# px, 5.8x smaller than 512). Do not inherit PKO's 360px/40KB — different render size.
+$cardWidth  = 512;  $cardCap  = 60KB
+$extraKeys  = @()                 # FLW has no non-card art
 $extraWidth = 800;  $extraCap = 160KB
 # ───────────────────────────────────────────────────────────────────────────
 
@@ -87,8 +74,11 @@ function Save-Jpeg($bmp, $path, $quality) {
 }
 
 foreach ($key in $map.Keys) {
-  $inPath = Join-Path $src "$key.png"
-  if (-not (Test-Path $inPath)) { "MISSING SOURCE: $key.png"; continue }
+  # Masters aren't uniformly one format run to run (flw's are .jpg + one .png case) —
+  # try both rather than hardcoding one extension.
+  $inPath = Join-Path $src "$key.jpg"
+  if (-not (Test-Path $inPath)) { $inPath = Join-Path $src "$key.png" }
+  if (-not (Test-Path $inPath)) { "MISSING SOURCE: $key.(jpg|png)"; continue }
 
   $id = $map[$key]
   if ($extraKeys -contains $id) { $targetW = $extraWidth; $cap = $extraCap }
@@ -98,6 +88,12 @@ foreach ($key in $map.Keys) {
   $targetH = [int][Math]::Round($targetW * $img.Height / $img.Width)   # aspect preserved
   $bmp = New-Object System.Drawing.Bitmap($targetW, $targetH)
   $g = [System.Drawing.Graphics]::FromImage($bmp)
+  # A new Bitmap is NOT white by default — any source with an alpha channel (a PNG
+  # with transparency, e.g. flw's case.png) leaves those pixels black once JPEG
+  # encoding drops alpha, baking a hard black silhouette around the subject. Filling
+  # white first is a no-op for already-opaque sources (every plain JPEG master) and
+  # the fix for anything with real transparency.
+  $g.Clear([System.Drawing.Color]::White)
   $g.InterpolationMode  = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
   $g.PixelOffsetMode    = [System.Drawing.Drawing2D.PixelOffsetMode]::HighQuality
   $g.SmoothingMode      = [System.Drawing.Drawing2D.SmoothingMode]::HighQuality
