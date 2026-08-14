@@ -174,6 +174,11 @@ globalThis.__flw = {
   renderGems()                { flwRenderGems(); },
   gemRows()                   { return document.getElementById('flw-gems-body').children.length; },
   renderCard(gemId, opts)     { return flwRenderCard(gemId, opts || {}); },
+  // Task 6 — [placard][card][card][placard] on your turn, [placard][card] off-turn.
+  handRowShape() {
+    const kids = document.getElementById('flw-hand-row').children;
+    return kids.map(k => /(^| )flw-placard( |$)/.test(k.className || '') ? 'placard' : 'wrap');
+  },
 };`;
 
   vm.runInContext(flwSrc + BRIDGE, sandbox, { filename: `flw.js (${name})` });
@@ -315,6 +320,7 @@ function safe(label, fn) {
   check('client Showpiece is the dealt Jade',                  C.myHand, 4);
   check('host dealt itself Obsidian',                          H.hands[0], 0);
   check('host drew Jade for its own opening turn',              H.drawnCard, 4);
+  check('off-turn hand row is [placard, card] (Task 6 shape)', C.handRowShape(), ['placard', 'wrap']);
 
   // ── A full turn resolves ────────────────────────────────────────────────
   section('A full turn resolves — no applier throws, render executes on both devices');
@@ -331,6 +337,8 @@ function safe(label, fn) {
   check('FLW_TURN_START was sent',           sent.includes('FLW_TURN_START'), true);
   check('client received its private draw over the wire, not a guess', C.myDrawn, H.drawnCard);
   check('client Showpiece is unchanged (not its turn to place yet)', C.myHand, 4);
+  check('on-turn hand row is [placard, card, card, placard] (Task 6 shape)',
+        C.handRowShape(), ['placard', 'wrap', 'wrap', 'placard']);
 
   // ── FLW_SHOWING_END reaches the client and the result screen renders ────
   section('FLW_SHOWING_END (vaultlock) reaches the client and the result screen renders');

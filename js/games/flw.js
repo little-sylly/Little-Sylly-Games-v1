@@ -314,6 +314,25 @@ function flwMiniLabel(t) {
   return p;
 }
 
+// The hand row's description card, paired with (and mirroring the state of) one of
+// the player's own two gems. Reuses .flw-card-dim for the dimmed state — it is not
+// scoped to .flw-card, so the same opacity rule applies here unchanged.
+function flwBuildPlacard(gemId, opts = {}) {
+  const g = FLW_GEM[gemId] || {};
+  const el = document.createElement('div');
+  el.className = 'flw-placard flex flex-col gap-0.5 rounded-xl bg-white px-2 py-1.5 shadow-sm';
+  if (opts.selected) el.classList.add('flw-placard-sel');
+  if (opts.dimmed)   el.classList.add('flw-card-dim');
+  const name = document.createElement('p');
+  name.className = 'text-[0.58rem] font-bold text-stone-700 leading-tight';
+  name.textContent = g.name || '';
+  const effect = document.createElement('p');
+  effect.className = 'text-[0.55rem] text-stone-500 leading-tight';
+  effect.textContent = FLW_GEM_SHORT[gemId] || '';
+  el.append(name, effect);
+  return el;
+}
+
 function flwLedgerTally() {
   const t = Array(10).fill(0);
   flwDiscards.forEach(d => (d || []).forEach(g => { if (g >= 0 && g <= 9) t[g]++; }));
@@ -343,6 +362,23 @@ const FLW_GEM_EFFECT = {
   2: 'The Loupe — secretly view a rival’s Showpiece.',
   1: 'The Scratch Test — name a gem to Expose a rival (six in the deck).',
   0: 'Worthless at Vault Lock, but earns a bonus Diamond if you’re the sole survivor who played one.',
+};
+
+// Glanceable effect copy for the hand placards — capped at ~30 chars so it wraps to
+// two lines at ~94px. Full copy lives in FLW_GEM_EFFECT and the gallery; two deliberate
+// losses at this width: Topaz's "(or you)" self-target, and the effect names
+// (The Trade, The Loupe) in favour of what the gem does.
+const FLW_GEM_SHORT = {
+  9: 'Out if forced to discard',
+  8: 'Must play if held with 7 or 5',
+  7: 'Swap Showpieces with a rival',
+  6: 'Draw 2, keep best of 3',
+  5: 'Force a discard and redraw',
+  4: 'Untargetable until your turn',
+  3: 'Lower carat is Exposed',
+  2: 'Secretly view a Showpiece',
+  1: 'Name a gem to Expose',
+  0: 'Bonus if sole Collector with one',
 };
 
 // One row per gem: the real card, its name and carat, how many are in the Vault, and
@@ -428,16 +464,23 @@ function flwRenderLog() {
   el.scrollTop = el.scrollHeight;
 }
 
+// DOM order: [placard0] [card0] [card1] [placard1] on your turn (two gems);
+// [placard0] [card0] off-turn (Showpiece only) — the row's own justify-center
+// keeps that pair centred with no special-casing. Descriptions sit on the
+// outside edges; the two cards stay adjacent in the middle (spec §6.1).
 function flwRenderHand(me) {
   const row = document.getElementById('flw-hand-row');
+  const cfRow = document.getElementById('flw-counterfeit-row');
   if (!row) return;
   row.innerHTML = '';
+  if (cfRow) cfRow.innerHTML = ''; // cleared unconditionally — the early returns below must not leave it stale
   if (flwExposed[me]) { row.innerHTML = '<p class="text-stone-400 text-sm">You are Exposed this Showing.</p>'; return; }
   if (flwMyHand == null) { row.innerHTML = '<p class="text-stone-400 text-sm">Waiting for your Showpiece…</p>'; return; }
   const myTurn = (flwActivePlayer === me && flwMyDrawn != null && !flwShowingOver);
   const forced = (myTurn && !flwCfMode) ? flwRubyForcedSlot() : null; // Blood Ruby hard-lock
   const cards = [{ slot: 'hand', gemId: flwMyHand }];
   if (myTurn) cards.push({ slot: 'drawn', gemId: flwMyDrawn });
+  const placards = [], wraps = [];
   cards.forEach(c => {
     let selectable, dimmed, outlined, onTap;
     if (flwCfMode) {                                   // choosing which real gem to KEEP (other is forged)
@@ -449,21 +492,33 @@ function flwRenderHand(me) {
       outlined   = myTurn && flwSelSlot === c.slot;
       onTap = () => flwSelectSlot(c.slot);
     }
+    // c.gemId is always the REAL gem (this device's own hand is never distorted by
+    // its own forged claim), so the placard showing "the real gem" in Counterfeit
+    // mode (spec §6.4) needs no special-casing here.
+    const placard = flwBuildPlacard(c.gemId, { selected: outlined, dimmed });
+    if (selectable) placard.addEventListener('click', onTap); // bigger touch target than the card
+    placards.push(placard);
+
     const card = flwRenderCard(c.gemId, { size: 'md', selectable, dimmed, selected: outlined });
     flwBindCardHold(card, c.gemId);
     if (selectable) card.addEventListener('click', onTap);
     const wrap = document.createElement('div'); wrap.className = 'flex flex-col items-center gap-1';
     wrap.append(card, flwMiniLabel(flwCfMode ? (c.slot === flwCfKeep ? 'Keep' : 'Forge?') : (c.slot === 'hand' ? 'Showpiece' : 'Drawn')));
-    row.appendChild(wrap);
+    wraps.push(wrap);
   });
-  // Counterfeit token (Sylly) — far right; hidden under the Ruby lock
-  if (flwSyllyMode && myTurn && flwCounterfeitHeld[me] && !flwRubyForcedSlot()) {
+  // Placards flank the outside edges; the cards stay adjacent in the middle.
+  row.appendChild(placards[0]);
+  wraps.forEach(w => row.appendChild(w));
+  if (placards.length > 1) row.appendChild(placards[1]);
+
+  // Counterfeit token (Sylly) — its own row now, hidden under the Ruby lock.
+  if (cfRow && flwSyllyMode && myTurn && flwCounterfeitHeld[me] && !flwRubyForcedSlot()) {
     const tok = flwRenderCounterfeitToken();
     if (flwCfMode) tok.style.outline = '3px solid #C9A227';
     else tok.addEventListener('click', () => flwBeginCounterfeit());
     const wrap = document.createElement('div'); wrap.className = 'flex flex-col items-center gap-1';
     wrap.append(tok, flwMiniLabel('Counterfeit'));
-    row.appendChild(wrap);
+    cfRow.appendChild(wrap);
   }
 }
 function flwRenderCounterfeitToken() {

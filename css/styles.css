@@ -1033,9 +1033,17 @@ body.flash-red   { background-color: #fecaca; }
 .flw-card-dim { opacity: 0.35; }
 .flw-card-sel { outline: 3px solid #D6336C; outline-offset: 2px; }
 
-/* The placard — a light engraved chip holding the carat. Never sits directly on
-   the artwork: #A02050 over Raw Obsidian (#14141C) would be unreadable, and a
-   skin can put anything under it (spec §2 D4). */
+/* The hand-row description card beside each gem — not to be confused with .flw-carat
+   (the small chip ON the card itself). flex:1 1 0 shares leftover row width evenly
+   with the cards and the other placard; mirrors its paired card's selected state
+   with the same ring. */
+.flw-placard { flex: 1 1 0; min-width: 0; }
+.flw-placard-sel { outline: 3px solid #D6336C; outline-offset: 2px; }
+
+/* The carat chip — a light engraved tag ON the card, holding just the number.
+   Not the same thing as .flw-placard above (the hand row's description card).
+   Never sits directly on the artwork: #A02050 over Raw Obsidian (#14141C) would
+   be unreadable, and a skin can put anything under it (spec §2 D4). */
 .flw-carat {
   position: absolute; top: 0.2rem; left: 0.2rem;
   min-width: 1.15rem; padding: 0 0.18rem;
