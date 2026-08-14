@@ -365,7 +365,7 @@ const FLW_GEM_EFFECT = {
   3: 'The Private Appraisal — lower carat is Exposed.',
   2: 'The Loupe — secretly view a rival’s Showpiece.',
   1: 'The Scratch Test — name a gem to Expose a rival (six in the deck).',
-  0: 'Worthless at Vault Lock, but earns a bonus Diamond if you’re the sole survivor who played one.',
+  0: 'Worthless at Vault Lock, but earns a bonus Diamond if you’re the sole Collector who played one.',
 };
 
 // Glanceable effect copy for the hand placards — capped at ~30 chars so it wraps to
