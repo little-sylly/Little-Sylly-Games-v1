@@ -1010,6 +1010,54 @@ body.flash-red   { background-color: #fecaca; }
   border: none;
   box-shadow: 0 1px 4px rgba(0,0,0,0.2);
 }
+/* ── FLW gem cards — display-case frame, CSS chrome over plain square art ──
+   Art carries NO text and NO border (spec §2 D1/D2). Everything visible that
+   is not the gem itself is drawn here, so a skin or a rename needs no new art. */
+.flw-card {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  border-radius: 0.6rem;
+  overflow: hidden;                 /* clips art to the frame's radius */
+  background: #FBFAF7;
+  border: 2px solid #C9A227;        /* Exhibition gold */
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.6),   /* platinum hairline */
+              0 1px 4px rgba(0,0,0,0.18);
+  background-size: cover;
+  background-position: center;
+  flex-shrink: 0;
+}
+.flw-card-sm { width: 3rem;    }
+.flw-card-md { width: 4.25rem; }
+.flw-card-lg { width: 5.5rem;  }
+
+.flw-card-dim { opacity: 0.35; }
+.flw-card-sel { outline: 3px solid #D6336C; outline-offset: 2px; }
+
+/* The placard — a light engraved chip holding the carat. Never sits directly on
+   the artwork: #A02050 over Raw Obsidian (#14141C) would be unreadable, and a
+   skin can put anything under it (spec §2 D4). */
+.flw-carat {
+  position: absolute; top: 0.2rem; left: 0.2rem;
+  min-width: 1.15rem; padding: 0 0.18rem;
+  border-radius: 0.22rem;
+  background: #F7F4EC; border: 1px solid #C9A227;
+  color: #A02050; font-weight: 800; font-size: 0.8rem;
+  line-height: 1.35; text-align: center;
+}
+.flw-card-sm .flw-carat { font-size: 0.6rem;  min-width: 0.9rem; }
+.flw-card-lg .flw-carat { font-size: 0.95rem; min-width: 1.35rem; }
+
+/* Fallback face when no art has resolved — colour + carat is enough to identify
+   a gem. The seam must never depend on art having loaded. */
+.flw-card-fallback { background: var(--flw-gem, #ccc); }
+
+/* .flw-card-back sits alongside .flw-card + a size class, never alone — the
+   frame/size come from those; this rule only supplies the back's own fill. */
+.flw-card-back {
+  background: linear-gradient(145deg, #7a1840, #D6336C);
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-size: 1.5rem;
+}
 /* Fruit cards — v1 emoji skin (render seam: frtRenderCard) */
 .frt-card {
   display: flex; flex-direction: column; align-items: center; justify-content: center;

@@ -106,44 +106,41 @@ function flwTieSum(playerIdx) {
 // Render seam (asset-pack) — all gem DOM goes through here. SCAFFOLD: placeholder.
 // ═══════════════════════════════════════════════════════════════════════════
 function flwRenderCard(gemId, opts = {}) {
-  // v1 "luxury token" skin — gold-framed card, gem swatch, carat number. Asset-pack
-  // seam: a future image pack swaps only this body. Logic/packets carry gemId only.
+  // Display-case frame + carat placard are CSS (.flw-card*); art carries no text or
+  // border, so a skin or a rename needs no new art. See spec §3.
+  const size = opts.size || 'md';
   const g = FLW_GEM[gemId] || {};
   const el = document.createElement('div');
   if (opts.faceDown) {
+    el.className = 'flw-card flw-card-back flw-card-' + size;
     // Asset-pack back (device-local skin) if active; else default gradient back.
     const back = (typeof assetBack === 'function') && assetBack('flw');
-    el.className = 'flw-card-back';
     if (back) {
-      el.style.cssText = 'width:4.5rem;height:6.5rem;border-radius:0.75rem;background-size:cover;background-position:center;background-image:url("' + back + '");';
-      return el;
+      el.style.backgroundImage = 'url("' + back + '")';
+    } else {
+      el.textContent = '\u{1F48E}';
     }
-    el.style.cssText = 'width:4.5rem;height:6.5rem;border-radius:0.75rem;display:flex;align-items:center;justify-content:center;background:linear-gradient(145deg,#7a1840,#D6336C);border:2px solid #C9A227;color:#fff;font-size:1.5rem;';
-    el.textContent = '\u{1F48E}';
-    return el;
+    return el; // no placard on a back
   }
-  // Asset-pack face (device-local skin) if one covers this gem; else default luxury-token card.
+  el.className = 'flw-card flw-card-' + size;
+  el.dataset.gemId = gemId;
+  // Asset-pack face (device-local skin) if one covers this gem; else the colour+carat fallback.
   const faceUrl = (typeof assetFace === 'function') && assetFace('flw', gemId);
   if (faceUrl) {
-    el.className = 'flw-card';
-    el.dataset.gemId = gemId;
-    el.style.cssText = 'width:4.5rem;height:6.5rem;border-radius:0.75rem;background-size:cover;background-position:center;background-image:url("' + faceUrl + '");'
-      + (opts.dimmed ? 'opacity:0.35;' : '') + (opts.selectable ? 'cursor:pointer;' : '');
-    return el;
+    el.style.backgroundImage = 'url("' + faceUrl + '")';
+  } else {
+    el.classList.add('flw-card-fallback');
+    el.style.setProperty('--flw-gem', g.colour || '#ccc');
   }
-  el.className = 'flw-card';
-  el.dataset.gemId = gemId;
-  el.style.cssText = 'width:4.5rem;height:6.5rem;border-radius:0.75rem;display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:0.4rem 0.3rem;background:#fff;border:2px solid #C9A227;box-shadow:0 1px 4px rgba(0,0,0,0.15);'
-    + (opts.dimmed ? 'opacity:0.35;' : '') + (opts.selectable ? 'cursor:pointer;' : '');
+  // The placard is appended AFTER the art/fallback branch, in both cases — the
+  // old code returned early inside the art branch before this ever ran.
   const carat = document.createElement('div');
-  carat.style.cssText = 'align-self:flex-start;font-weight:800;font-size:1.1rem;color:#A02050;line-height:1;';
+  carat.className = 'flw-carat';
   carat.textContent = g.id;
-  const swatch = document.createElement('div');
-  swatch.style.cssText = 'width:1.9rem;height:1.9rem;border-radius:9999px;background:' + (g.colour || '#ccc') + ';border:2px solid #fff;box-shadow:0 0 0 1px #C9A227;';
-  const name = document.createElement('div');
-  name.style.cssText = 'font-size:0.52rem;font-weight:700;text-align:center;color:#3f3f46;line-height:1.05;';
-  name.textContent = g.name || '';
-  el.append(carat, swatch, name);
+  el.appendChild(carat);
+  if (opts.dimmed)     el.classList.add('flw-card-dim');
+  if (opts.selected)   el.classList.add('flw-card-sel');
+  if (opts.selectable) el.style.cursor = 'pointer';
   return el;
 }
 
@@ -361,7 +358,7 @@ function flwRenderGems() {
     const row = document.createElement('div');
     row.className = 'flex items-center gap-3 rounded-2xl p-2.5 bg-white shadow-sm';
     const url = (typeof assetFace === 'function') && assetFace('flw', g.id);
-    row.appendChild(artMakeZoomable(flwRenderCard(g.id), url, g.name));
+    row.appendChild(artMakeZoomable(flwRenderCard(g.id, { size: 'sm' }), url, g.name));
 
     const txt = document.createElement('div');
     txt.className = 'flex flex-col gap-0.5 min-w-0';
@@ -443,8 +440,7 @@ function flwRenderHand(me) {
       outlined   = myTurn && flwSelSlot === c.slot;
       onTap = () => flwSelectSlot(c.slot);
     }
-    const card = flwRenderCard(c.gemId, { selectable, dimmed });
-    if (outlined) card.style.outline = '3px solid #D6336C';
+    const card = flwRenderCard(c.gemId, { size: 'md', selectable, dimmed, selected: outlined });
     if (selectable) card.addEventListener('click', onTap);
     const wrap = document.createElement('div'); wrap.className = 'flex flex-col items-center gap-1';
     wrap.append(card, flwMiniLabel(flwCfMode ? (c.slot === flwCfKeep ? 'Keep' : 'Forge?') : (c.slot === 'hand' ? 'Showpiece' : 'Drawn')));
@@ -462,7 +458,8 @@ function flwRenderHand(me) {
 }
 function flwRenderCounterfeitToken() {
   const el = document.createElement('div');
-  el.style.cssText = 'width:4.5rem;height:6.5rem;border-radius:0.75rem;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.2rem;background:linear-gradient(145deg,#2b2b3a,#14141c);border:2px dashed #C9A227;color:#C9A227;cursor:pointer;';
+  el.className = 'flw-card flw-card-lg';
+  el.style.cssText = 'display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.2rem;background:linear-gradient(145deg,#2b2b3a,#14141c);border:2px dashed #C9A227;color:#C9A227;cursor:pointer;';
   el.innerHTML = '<div style="font-size:1.6rem;font-weight:800;">?</div><div style="font-size:0.5rem;font-weight:700;letter-spacing:0.05em;">FORGE</div>';
   return el;
 }
@@ -905,7 +902,7 @@ function flwShowEmerald(cards) {
   if (wrap) {
     wrap.innerHTML = '';
     flwEmeraldCards.forEach((gemId, i) => {
-      const card = flwRenderCard(gemId, { selectable: true });
+      const card = flwRenderCard(gemId, { size: 'lg', selectable: true });
       card.addEventListener('click', () => { flwEmeraldKeep = i; flwRenderEmeraldSel(); });
       wrap.appendChild(card);
     });
@@ -915,7 +912,7 @@ function flwShowEmerald(cards) {
 }
 function flwRenderEmeraldSel() {
   const wrap = document.getElementById('flw-emerald-keep');
-  if (wrap) Array.from(wrap.children).forEach((c, i) => { c.style.outline = (i === flwEmeraldKeep) ? '3px solid #D6336C' : 'none'; });
+  if (wrap) Array.from(wrap.children).forEach((c, i) => { c.classList.toggle('flw-card-sel', i === flwEmeraldKeep); });
   const c = document.getElementById('btn-flw-emerald-confirm');
   if (c) c.disabled = (flwEmeraldKeep == null);
 }
@@ -1004,7 +1001,7 @@ function flwShowShowingResult() {
     d.reveal.forEach(r => {
       const wrap = document.createElement('div');
       wrap.className = 'flex flex-col items-center gap-1';
-      wrap.appendChild(flwRenderCard(r.gemId, {}));
+      wrap.appendChild(flwRenderCard(r.gemId, { size: 'md' }));
       const nm = document.createElement('p');
       nm.className = 'text-xs font-semibold text-stone-500'; nm.textContent = flwName(r.idx);
       wrap.appendChild(nm);
@@ -1406,7 +1403,7 @@ document.addEventListener('DOMContentLoaded', () => {
   on('btn-flw-peek-close', () => { playDone(); const el = document.getElementById('flw-peek-overlay'); if (el) el.style.display = 'none'; });
   const peekHold = document.getElementById('flw-peek-hold');
   if (peekHold) {
-    const reveal = () => { peekHold.innerHTML = ''; if (flwPeekGemId != null) peekHold.appendChild(flwRenderCard(flwPeekGemId, {})); };
+    const reveal = () => { peekHold.innerHTML = ''; if (flwPeekGemId != null) peekHold.appendChild(flwRenderCard(flwPeekGemId, { size: 'lg' })); };
     const reblur = () => { peekHold.innerHTML = 'Hold to reveal'; };
     peekHold.addEventListener('contextmenu', e => e.preventDefault());
     peekHold.addEventListener('pointerdown', e => { e.preventDefault(); reveal(); });
