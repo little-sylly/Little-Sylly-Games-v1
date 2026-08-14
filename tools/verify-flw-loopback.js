@@ -164,6 +164,7 @@ globalThis.__flw = {
   submitPlay(g, t, gs)       { flwSubmitPlay(g, t, gs); },
   hostPlay(idx, g, t, gs)    { flwHostEntryPlay(idx, { gemId: g, targetIdx: t, guessId: gs }); },
   endShowing(reason)         { flwEndShowing(reason); },
+  expose(idx)                { flwExpose(idx); },
   resetState()               { flwResetState(); },
   renderGems()                { flwRenderGems(); },
   gemRows()                   { return document.getElementById('flw-gems-body').children.length; },
@@ -327,18 +328,38 @@ function safe(label, fn) {
   check('client Showpiece is unchanged (not its turn to place yet)', C.myHand, 4);
 
   // ── FLW_SHOWING_END reaches the client and the result screen renders ────
-  section('FLW_SHOWING_END reaches the client and the result screen renders');
+  section('FLW_SHOWING_END (vaultlock) reaches the client and the result screen renders');
   safe('flwEndShowing runs to completion', () => H.endShowing('vaultlock'));
   check('FLW_SHOWING_END was sent',        sent.includes('FLW_SHOWING_END'), true);
   check('no client exception',             client.__errors, []);
   check('host shows the Showing result',   lastScreen(host), 'screen-flw-showing-result');
   check('client shows the Showing result', lastScreen(client), 'screen-flw-showing-result');
-  check('reveal covers every survivor',    H.lastResult.reveal.length, 3);
+  check('vaultlock reveal.length === aliveCount (3)', H.lastResult.reveal.length, 3);
   check('client received the same reveal', C.lastResult.reveal.length, H.lastResult.reveal.length);
   check('tokens agree',                    C.tokens, H.tokens);
   const resultBody = client.document.getElementById('flw-showing-result-body');
   check('client actually rendered the reveal cards (not just stored the payload)',
         resultBody.children.length > 0, true);
+
+  // ── Task 3 — laststanding also reveals, and it's exactly one entry ───────
+  section('FLW_SHOWING_END (laststanding) reveals the lone survivor’s gem too');
+  safe('expose the other two seats', () => { H.expose(1); H.expose(2); });
+  safe('flwEndShowing(laststanding) runs to completion', () => H.endShowing('laststanding'));
+  check('FLW_SHOWING_END was sent again',        sent.filter(a => a === 'FLW_SHOWING_END').length, 2);
+  check('no client exception',                   client.__errors, []);
+  check('laststanding reveal is exactly one entry — the survivor’s own gem', H.lastResult.reveal.length, 1);
+  check('  and it is seat 0’s',                                              H.lastResult.reveal[0].idx, 0);
+  check('client received the same single-entry reveal', C.lastResult.reveal, H.lastResult.reveal);
+  check('a game-ending or Showing-result screen rendered on the client',
+        ['screen-flw-showing-result', 'screen-flw-gameover'].includes(lastScreen(client)), true);
+  // Whichever screen it landed on, its OWN body got the reveal cards — this is
+  // the bug Task 3 actually fixes: flwShowGameover used to render nothing but
+  // the medal table, so a match-ending laststanding Showing never showed the
+  // final gem at all.
+  const finalBodyId = lastScreen(client) === 'screen-flw-gameover' ? 'flw-gameover-body' : 'flw-showing-result-body';
+  const finalBody = client.document.getElementById(finalBodyId);
+  check('client rendered the final reveal card on whichever screen it landed on',
+        finalBody.children.length > 0, true);
 
   console.log('\n' + '='.repeat(62));
   console.log(failures === 0 ? 'ALL CHECKS PASSED' : `${failures} CHECK(S) FAILED`);

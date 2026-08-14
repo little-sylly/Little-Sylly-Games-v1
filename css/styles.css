@@ -1058,6 +1058,10 @@ body.flash-red   { background-color: #fecaca; }
   display: flex; align-items: center; justify-content: center;
   color: #fff; font-size: 1.5rem;
 }
+/* Gameover podium rank icon — fixed-width leading slot, present on every row
+   (blank past 3rd), so every row's text starts at the same x position
+   regardless of rank (ui-style.md § Gameover podium rank icons). */
+.flw-medal-slot { display: inline-block; width: 1.4rem; text-align: center; flex-shrink: 0; }
 /* Fruit cards — v1 emoji skin (render seam: frtRenderCard) */
 .frt-card {
   display: flex; flex-direction: column; align-items: center; justify-content: center;

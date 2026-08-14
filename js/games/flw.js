@@ -935,7 +935,7 @@ function flwEndShowing(reason) {
   flwShowingOver = true;
   const survivors = [];
   for (let i = 0; i < flwPlayerCount; i++) if (!flwExposed[i]) survivors.push(i);
-  let winners = [], reveal = null;
+  let winners = [];
   if (reason === 'laststanding') {
     winners = survivors.slice(0, 1);
   } else { // vaultlock
@@ -945,8 +945,10 @@ function flwEndShowing(reason) {
       let bestSum = -1; top.forEach(i => { const s = flwTieSum(i); if (s > bestSum) bestSum = s; });
       winners = top.filter(i => flwTieSum(i) === bestSum); // still tied → co-winners (Q4)
     } else winners = top;
-    reveal = survivors.map(i => ({ idx: i, gemId: flwHands[i] }));
   }
+  // Both end reasons — laststanding is a single entry (the last Collector's own
+  // gem), but that is still worth showing rather than skipping the reveal.
+  const reveal = survivors.map(i => ({ idx: i, gemId: flwHands[i] }));
   winners.forEach(i => flwTokens[i] = (flwTokens[i] || 0) + 1);
   // Raw Obsidian bonus — sole surviving Obsidian-player
   const obs = survivors.filter(i => flwPlayedObsidian[i]);
@@ -973,6 +975,30 @@ function flwApplyShowingEnd(d) {
   playSuccess();
   if (d.gameOver) flwShowGameover(); else flwShowShowingResult();
 }
+// The final Showpieces as actual gem cards — shared between the Showing-result
+// screen and the gameover screen, so a match-ending Vault Lock still shows them
+// on whichever screen the player actually lands on. Reads `reveal || []`
+// defensively per the erasure rule even though flwEndShowing now always sends
+// a non-empty array for both end reasons.
+function flwBuildReveal(reveal) {
+  const list = reveal || [];
+  if (!list.length) return [];
+  const lbl = document.createElement('p');
+  lbl.className = 'text-[0.6rem] font-semibold uppercase tracking-wide text-stone-400 mt-1';
+  lbl.textContent = 'Final Showpieces';
+  const cardRow = document.createElement('div');
+  cardRow.className = 'flex flex-wrap gap-3 justify-center';
+  list.forEach(r => {
+    const wrap = document.createElement('div');
+    wrap.className = 'flex flex-col items-center gap-1';
+    wrap.appendChild(flwRenderCard(r.gemId, { size: 'md' }));
+    const nm = document.createElement('p');
+    nm.className = 'text-xs font-semibold text-stone-500'; nm.textContent = flwName(r.idx);
+    wrap.appendChild(nm);
+    cardRow.appendChild(wrap);
+  });
+  return [lbl, cardRow];
+}
 function flwShowShowingResult() {
   showScreen('screen-flw-showing-result');
   const body = document.getElementById('flw-showing-result-body');
@@ -991,24 +1017,7 @@ function flwShowShowingResult() {
   body.appendChild(title);
 
   // Survivors' final Showpieces as actual gem cards
-  if (d.reveal && d.reveal.length) {
-    const lbl = document.createElement('p');
-    lbl.className = 'text-[0.6rem] font-semibold uppercase tracking-wide text-stone-400 mt-1';
-    lbl.textContent = 'Final Showpieces';
-    body.appendChild(lbl);
-    const cardRow = document.createElement('div');
-    cardRow.className = 'flex flex-wrap gap-3 justify-center';
-    d.reveal.forEach(r => {
-      const wrap = document.createElement('div');
-      wrap.className = 'flex flex-col items-center gap-1';
-      wrap.appendChild(flwRenderCard(r.gemId, { size: 'md' }));
-      const nm = document.createElement('p');
-      nm.className = 'text-xs font-semibold text-stone-500'; nm.textContent = flwName(r.idx);
-      wrap.appendChild(nm);
-      cardRow.appendChild(wrap);
-    });
-    body.appendChild(cardRow);
-  }
+  flwBuildReveal(d.reveal).forEach(n => body.appendChild(n));
 
   // Obsidian bonus
   if (d.obsidianBonus >= 0) {
@@ -1058,16 +1067,29 @@ function flwShowGameover() {
   const body = document.getElementById('flw-gameover-body');
   const d = flwLastResult || {};
   if (!body) return;
+  body.innerHTML = '';
+
+  // The Vault Lock that ends the match is still worth seeing — same reveal the
+  // Showing-result screen shows, above the medal table.
+  flwBuildReveal(d.reveal).forEach(n => body.appendChild(n));
+
   let html = '';
   if (d.gameWinner >= 0) html += '<p class="text-center text-lg font-bold text-stone-800 mb-1">' + flwName(d.gameWinner) + ' is Best in Show! 🏆</p>';
   const order = (flwTokens || []).map((t, i) => ({ i, t })).sort((a, b) => b.t - a.t);
   html += '<div class="flex flex-col gap-1.5">';
   order.forEach((o, r) => {
-    const medal = ['\u{1F947}', '\u{1F948}', '\u{1F949}'][r] || '·';
-    html += '<div class="flex justify-between bg-white rounded-xl px-3 py-2 shadow-sm text-sm"><span>' + medal + ' ' + flwName(o.i) + '</span><span>' + ('\u{1F48E}'.repeat(o.t) || '0') + '</span></div>';
+    // DD-30 pattern (ui-style.md § Gameover podium rank icons) — a fixed-width
+    // leading slot on every row, blank past 3rd, so unmedalled rows' text still
+    // starts at the same x position as medalled ones.
+    const medal = r === 0 ? '\u{1F947}' : r === 1 ? '\u{1F948}' : r === 2 ? '\u{1F949}' : '';
+    html += '<div class="flex justify-between bg-white rounded-xl px-3 py-2 shadow-sm text-sm">'
+          + '<span class="flex items-center gap-1"><span class="flw-medal-slot">' + medal + '</span>' + flwName(o.i) + '</span>'
+          + '<span>' + ('\u{1F48E}'.repeat(o.t) || '0') + '</span></div>';
   });
   html += '</div>';
-  body.innerHTML = html;
+  const podium = document.createElement('div');
+  podium.innerHTML = html;
+  body.appendChild(podium);
 }
 function flwHostNextShowing() {
   if (window.syllyMultiplayerMode === 'client') return;
