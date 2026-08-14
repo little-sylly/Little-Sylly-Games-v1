@@ -150,6 +150,54 @@ exist — a stale reference to any of them is dead code, not a missing feature.
 
 ---
 
+## Gem Seam Round — visual-check measurements (Task 11, 2026-08-14)
+
+**Context:** the gem-seam round (`docs/new-game-tech-flw-gem-seam.md`, tasks 1–13, in progress)
+reworked the render seam, the hand-row placards (task 6), the two-column Ledger + discard strip
+(tasks 7/9), and How to Play → The Gems. Task 11 is the `visual-check` gate the plan puts on tasks
+6/7/9 before task 12 (art) — real headless Chromium, seeded state (FLW is MDLM-only, no
+single-device path, so state was assigned directly and `flwRenderTable()`/`flwOpenHowTo('gems')`
+called rather than played to). Full method: `.claude/skills/visual-check/`. All four passes green;
+no code changes resulted.
+
+**Pass 1 — hand row, 360px and 390px, worst-case text (`FLW_GEM_SHORT[0]`, "Bonus if sole
+Collector with one", the longest string):**
+
+| Viewport | Placard width | Worst-case placard lines | Second placard lines | Horizontal overflow |
+|---|---|---|---|---|
+| 360px | 86px | **3** | 2 | none (body or row) |
+| 390px | 101px | 2 | 2 | none |
+
+Confirms §6.2's own framing: 3 lines is the documented **ceiling**, and 360px lands exactly on it,
+not past it. **No fallback needed** — the spec's contingency (dropping the name line) does not
+apply. §6.2's 94px-per-placard figure was a starting estimate; measured actual is 86px at 360px
+(real card width + gap arithmetic differs slightly from the estimate, without changing the outcome).
+
+**Pass 2 — full table Stack (390×844, `flwSyllyMode: true` so the Counterfeit row and Audit button
+are both present — the tallest realistic configuration):**
+
+- Stack height 713px inside an 844px viewport — the primary CTA's own bottom edge sits at ~778px,
+  fully reachable with no scroll-to-find.
+- Switching `flwLedgerMode` from `'tally'` to `'discards'` on the same seeded state visibly
+  collapses the Ledger card from a 5-row two-column grid to a single row of `.flw-card-sm` faces —
+  confirms the "roughly halves" claim by construction (10 single-column rows → 5 two-column rows
+  was always going to roughly halve; `'discards'` mode is shorter again).
+- No horizontal scroll on the `<body>` in either mode.
+
+**Pass 3 — gallery rows (How to Play → The Gems):** all 10 rows render via `flwRenderCard`, none
+clipped, every card carries its `.flw-carat` chip. This is the original reported bug (artwork/name/
+description misalignment) — confirmed visually gone; artwork, name+count, and effect text all sit
+on one aligned baseline per row.
+
+**Pass 4 — art viewer beside the card it opened from:** `#art-viewer-img` carries no CSS border of
+its own (`border-width: 0px`) — confirmed the viewer code adds no frame. The image shown is still
+the **old** portrait, baked-text/baked-border asset (task 12 hasn't run yet), so the screenshot
+itself still looks like a card, not a plain gem — expected per the plan's own "cards will look
+wrong mid-plan" note, not a regression. The measurable claim (zero added border) is what actually
+carries forward once task 12's frameless square art lands.
+
+---
+
 ## Template Gaps
 
 **Accumulator-array reset pattern (elevated from BUG-01):** Any game state that resets between rounds/sessions (log arrays, tally arrays, history lists) must be included in the round-start SYNC payload even if it's `[]`. The host resets it locally; clients will carry stale values unless the payload includes the reset state. Consider adding this to the MDLM section of `logic-engine.md` as a standing rule alongside the readyCheck pattern.
