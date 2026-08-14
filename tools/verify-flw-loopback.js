@@ -163,12 +163,17 @@ globalThis.__flw = {
   get drawnCard()     { return flwDrawnCard; },
   get deck()         { return flwDeck; },
   get playerCount()   { return flwPlayerCount; },
-  seat(o) { flwPlayerCount = o.players; flwPlayerNames = o.names; },
+  seat(o) { flwPlayerCount = o.players; flwPlayerNames = o.names; if (o.sylly) flwSyllyMode = true; },
   startSession()             { flwStartSession(); },
+  nextShowing()               { flwHostNextShowing(); },
   handle(env)                { flwHandleEnvelope(env); },
   submitPlay(g, t, gs)       { flwSubmitPlay(g, t, gs); },
   hostPlay(idx, g, t, gs)    { flwHostEntryPlay(idx, { gemId: g, targetIdx: t, guessId: gs }); },
+  hostCounterfeit(idx, claimedId, keepSlot, targetIdx, guessId) {
+    flwHostResolveCounterfeit(idx, { claimedId, keepSlot, targetIdx, guessId });
+  },
   endShowing(reason)         { flwEndShowing(reason); },
+  get discardFeed()           { return flwDiscardFeed; },
   expose(idx)                { flwExpose(idx); },
   resetState()               { flwResetState(); },
   renderGems()                { flwRenderGems(); },
@@ -286,15 +291,15 @@ function safe(label, fn) {
   const H = host.__flw, C = client.__flw;
 
   // A deterministic deal: burn a Quartz, deal Obsidian/Jade/Diamond to seats 0/1/2,
-  // then draw a second Jade for seat 0's opening turn — every one of those five gems
-  // is untargeted, so the very first turn needs no target-selection logic at all.
-  // The remaining sixteen cards are left in FLW_DECK's natural (post-take) order —
-  // their identity is never asserted on, only their count.
+  // draw a second Jade for seat 0's opening turn, then a second Obsidian for seat 1's
+  // (the client's) — all five of these gems are untargeted, so neither turn needs any
+  // target-selection logic. The remaining fifteen cards are left in FLW_DECK's natural
+  // (post-take) order — their identity is never asserted on, only their count.
   vm.runInContext(`
     shuffle = function (flat) {
       const pool = flat.slice();
       const take = v => { const i = pool.indexOf(v); pool.splice(i, 1); return v; };
-      return [take(1), take(0), take(4), take(9), take(4)].concat(pool);
+      return [take(1), take(0), take(4), take(9), take(4), take(0)].concat(pool);
     };
   `, host);
 
@@ -356,6 +361,19 @@ function safe(label, fn) {
   check('on-turn hand row is [placard, card, card, placard] (Task 6 shape)',
         C.handRowShape(), ['placard', 'wrap', 'wrap', 'placard']);
 
+  section('Task 8 — the discard feed is chronological and agrees host/client');
+  check('feed has seat 0\'s discard after turn 1', H.discardFeed, [{ g: 0, p: 0 }]);
+  check('client feed matches',                     C.discardFeed, H.discardFeed);
+  // Seat 1 (the real client) now takes ITS turn over the wire — hand=4, drawn=0
+  // (the second Obsidian, per the custom shuffle above), so the same untargeted
+  // min-value play applies with no target-selection logic needed.
+  safe('the client\'s own play resolves without throwing', () => C.submitPlay(0, -1, null));
+  check('no client exception', client.__errors, []);
+  check('no host exception',   host.__errors, []);
+  check('feed now has BOTH discards, in play order',
+        H.discardFeed, [{ g: 0, p: 0 }, { g: 0, p: 1 }]);
+  check('client feed still matches, cross-player order preserved', C.discardFeed, H.discardFeed);
+
   // ── FLW_SHOWING_END reaches the client and the result screen renders ────
   section('FLW_SHOWING_END (vaultlock) reaches the client and the result screen renders');
   safe('flwEndShowing runs to completion', () => H.endShowing('vaultlock'));
@@ -389,6 +407,55 @@ function safe(label, fn) {
   const finalBody = client.document.getElementById(finalBodyId);
   check('client rendered the final reveal card on whichever screen it landed on',
         finalBody.children.length > 0, true);
+
+  // ── Task 8 — a forged claim, and the feed resetting across a new Showing ──
+  section('A forged Counterfeit puts the CLAIMED id in the feed, not the real one');
+  const host2   = makeDevice('host2',   'host',   0, 'u0', SLOTS);
+  const client2 = makeDevice('client2', 'client', 1, 'u1', SLOTS);
+  const H2 = host2.__flw, C2 = client2.__flw;
+  vm.runInContext(`
+    shuffle = function (flat) {
+      const pool = flat.slice();
+      const take = v => { const i = pool.indexOf(v); pool.splice(i, 1); return v; };
+      return [take(1), take(0), take(4), take(9), take(4)].concat(pool);
+    };
+  `, host2);
+  const sent2 = [];
+  host2.mpSendEnvelope = env => {
+    const onWire = wire({ ...env, originId: 'u0', timestamp: Date.now() });
+    sent2.push(onWire.payload.action);
+    try { C2.handle(onWire); } catch (e) { client2.__errors.push(`${onWire.payload.action}: ${e.message}`); }
+  };
+  host2.mpSendPrivate = (uid, env) => {
+    if (uid !== 'u1') return;
+    const onWire = wire({ ...env, originId: 'u0', timestamp: Date.now() });
+    try { C2.handle(onWire); } catch (e) { client2.__errors.push(`private ${onWire.payload.action}: ${e.message}`); }
+  };
+  client2.mpSendEnvelope = env => {
+    const onWire = wire({ ...env, originId: 'u1', timestamp: Date.now() });
+    try { H2.handle(onWire); } catch (e) { host2.__errors.push(`${onWire.payload.action}: ${e.message}`); }
+  };
+  client2.mpSendPrivate = () => { throw new Error('a client must never write the private channel'); };
+
+  H2.seat({ players: 3, names: NAMES, sylly: true });
+  safe('flwStartSession runs to completion', () => H2.startSession());
+  // Seat 0's real hand is [0 (Obsidian), 4 (Jade, drawn)]. keepSlot 'drawn' keeps
+  // the DRAWN Jade as the new Showpiece and sacrifices the ORIGINAL Obsidian —
+  // claimed as a 4 (Jade) as well, so the claim reads true but the sacrificed
+  // gem was actually a 0. The feed must record the claim (4), not the sacrifice (0).
+  safe('the forged play resolves without throwing', () => H2.hostCounterfeit(0, 4, 'drawn', -1, null));
+  check('no client exception', client2.__errors, []);
+  check('the feed records the CLAIMED id (4), not the real sacrificed one (0)',
+        H2.discardFeed, [{ g: 4, p: 0 }]);
+  check('client received the same claimed-id feed entry', C2.discardFeed, H2.discardFeed);
+
+  section('The feed resets across a new Showing — the case the wire\'s erasure actually exercises');
+  safe('flwHostNextShowing runs to completion', () => H2.nextShowing());
+  check('FLW_SHOWING_START was sent for Showing 2', sent2.filter(a => a === 'FLW_SHOWING_START').length, 2);
+  check('no client exception',                      client2.__errors, []);
+  check('host\'s own feed reset to []',   H2.discardFeed, []);
+  check('client\'s feed ALSO reset to [] — not the previous Showing\'s carried forward',
+        C2.discardFeed, []);
 
   // ── Task 7 — flwLedgerMode settings sync, all three values ──────────────
   section('SETTINGS_SYNC carries flwLedgerMode — all three values, not just one');

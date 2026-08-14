@@ -34,6 +34,7 @@ let flwHands         = [];      // host: each player's Showpiece (gemId). Client
 let flwExposed       = [];      // bool per player — out this Showing
 let flwUnderGlass    = [];      // bool per player — immune until own next turn
 let flwDiscards      = [];      // per player: array of discarded gemIds (ledger + tie-break sum)
+let flwDiscardFeed   = [];      // [{ g: gemId, p: playerIdx }] — chronological, newest last (discard strip)
 let flwPlayedObsidian= [];      // bool per player — Spy bonus eligibility
 let flwPublicLog     = [];      // [{text}] chronological public actions
 let flwActivePlayer  = 0;
@@ -175,6 +176,7 @@ function flwDealShowing() {
   flwExposed        = Array(flwPlayerCount).fill(false);
   flwUnderGlass     = Array(flwPlayerCount).fill(false);
   flwDiscards       = Array.from({ length: flwPlayerCount }, () => []);
+  flwDiscardFeed    = [];
   flwPlayedObsidian = Array(flwPlayerCount).fill(false);
   flwPublicLog      = [];
   flwLedgerCounts   = Array(10).fill(0);
@@ -198,6 +200,8 @@ function flwDealShowing() {
       exposed: flwExposed, underGlass: flwUnderGlass, tokens: flwTokens, ledger: flwLedgerCounts,
       target: flwTargetTokens(), showingNum: flwShowingNum, sylly: flwSyllyMode,
       auditCharges: flwAuditCharges, topClaims: flwTopPlayClaims(), log: flwPublicLog,
+      discardFeed: [], // explicit reset — an empty array is erased in flight (erasure rule);
+                        // without this the client would carry the PREVIOUS Showing's feed forward
     }});
     flwSendPrivateHands();
   } else {
@@ -571,10 +575,22 @@ function flwNextActive(from) {
   return from;
 }
 function flwDrawForRedraw() { return flwDeck.length ? flwDeck.shift() : (flwLockedLot.length ? flwLockedLot.shift() : null); }
+
+// The ONE place a gem leaves a player's discard pile. flwDiscardFeed exists so
+// the discard strip has a chronological, cross-player order to draw from —
+// flwDiscards alone is per-player and unordered across players. A sixth
+// discard site added later inherits the feed for free by calling this instead
+// of pushing to flwDiscards directly (logic-engine.md's private-hand repair
+// discipline, generalised to any single-owner collection).
+function flwDiscard(idx, gemId) {
+  flwDiscards[idx].push(gemId);
+  flwDiscardFeed.push({ g: gemId, p: idx });
+}
+
 function flwExpose(idx) {
   if (flwExposed[idx]) return;
   flwExposed[idx] = true;
-  if (flwHands[idx] != null) { flwDiscards[idx].push(flwHands[idx]); flwHands[idx] = null; }
+  if (flwHands[idx] != null) { flwDiscard(idx, flwHands[idx]); flwHands[idx] = null; }
 }
 function flwName(i) { return flwPlayerNames[i] || ('P' + (i + 1)); }
 
@@ -822,7 +838,7 @@ function flwHostResolvePlay(active, gemId, targetIdx, guessId) {
   const hand = [flwHands[active], flwDrawnCard];
   flwHands[active] = (gemId === hand[0]) ? hand[1] : hand[0]; // retained Showpiece
   flwDrawnCard = null;
-  flwDiscards[active].push(gemId);
+  flwDiscard(active, gemId);
   flwSetTopPlay(active, gemId, gemId, false);                 // genuine play
   if (gemId === 0) flwPlayedObsidian[active] = true;
   const changed = new Set([active]);
@@ -852,7 +868,7 @@ function flwHostResolveCounterfeit(active, p) {
   flwCounterfeitHeld[active] = false;
   flwHands[active] = kept;
   flwDrawnCard = null;
-  flwDiscards[active].push(claimedId);                       // forged — Ledger sees the claim (decision #1)
+  flwDiscard(active, claimedId);                              // forged — the FEED sees the claim too (decision #1)
   flwSetTopPlay(active, claimedId, realId, true);
   const changed = new Set([active]);
   if (claimedId === 6) { flwHostStartEmerald(active, kept); return; } // forged Deep Vault
@@ -863,7 +879,7 @@ function flwHostResolveCounterfeit(active, p) {
 function flwRecut(targetIdx, changed) {
   const disc = flwHands[targetIdx];
   if (disc === 9) { flwExpose(targetIdx); return; } // Pink Diamond forced-discard → Exposed, no redraw
-  if (disc != null) flwDiscards[targetIdx].push(disc);
+  if (disc != null) flwDiscard(targetIdx, disc);
   flwHands[targetIdx] = flwDrawForRedraw();
   changed.add(targetIdx);
 }
@@ -877,7 +893,7 @@ function flwHostStartEmerald(active, retainedOverride) {
   } else {
     const hand = [flwHands[active], flwDrawnCard];
     retained = (hand[0] === 6) ? hand[1] : hand[0];
-    flwDiscards[active].push(6);
+    flwDiscard(active, 6);
     flwSetTopPlay(active, 6, 6, false);
     flwDrawnCard = null;
   }
@@ -894,6 +910,7 @@ function flwHostStartEmerald(active, retainedOverride) {
     mpSendEnvelope({ type: 'SYNC', payload: {
       action: 'FLW_RESOLVE', exposed: flwExposed, underGlass: flwUnderGlass,
       discardCounts: flwDiscards.map(d => d.length), ledger: flwLedgerCounts, log: flwPublicLog, vaultCount: flwDeck.length, actor: active, topClaims: flwTopPlayClaims(),
+      discardFeed: flwDiscardFeed,
     }});
   }
   flwRenderTable();
@@ -952,6 +969,7 @@ function flwBroadcastResolve(changed) {
       action: 'FLW_RESOLVE', exposed: flwExposed, underGlass: flwUnderGlass,
       discardCounts: flwDiscards.map(d => d.length), ledger: flwLedgerCounts, log: flwPublicLog,
       vaultCount: flwDeck.length, actor: flwActivePlayer, topClaims: flwTopPlayClaims(),
+      discardFeed: flwDiscardFeed,
     }});
     changed.forEach(idx => { if (!flwExposed[idx]) flwSendHandTo(idx); });
   }
@@ -1044,7 +1062,8 @@ function flwEndShowing(reason) {
   const gameWinner = gameOver ? flwTokens.indexOf(maxTok) : -1;
   flwLedgerCounts = flwLedgerTally();
   const payload = { reason, winners, reveal, tokens: flwTokens, obsidianBonus, resultText,
-                    exposed: flwExposed, log: flwPublicLog, ledger: flwLedgerCounts, target, gameOver, gameWinner };
+                    exposed: flwExposed, log: flwPublicLog, ledger: flwLedgerCounts, target, gameOver, gameWinner,
+                    discardFeed: flwDiscardFeed };
   if (window.syllyMultiplayerMode !== 'single') mpSendEnvelope({ type: 'SYNC', payload: Object.assign({ action: 'FLW_SHOWING_END' }, payload) });
   flwApplyShowingEnd(payload);
 }
@@ -1278,6 +1297,7 @@ function flwHandleEnvelope(env) {
         flwAuditCharges     = p.auditCharges || [];
         flwCounterfeitHeld  = Array(flwPlayerCount).fill(true);
         flwPublicLog        = p.log || [];
+        flwDiscardFeed      = p.discardFeed || []; // never the raw field — see erasure rule
         flwShowingNum       = p.showingNum || flwShowingNum;
         flwShowingOver      = false; flwSelSlot = null; flwMyDrawn = null;
         flwAuditedThisTurn  = false; flwCfMode = false; flwCfKeep = null; flwCfClaimed = -1;
@@ -1313,6 +1333,7 @@ function flwHandleEnvelope(env) {
         flwPublicLog        = p.log        || flwPublicLog;
         flwLedgerCounts     = p.ledger     || flwLedgerCounts;
         flwTopClaims        = p.topClaims  || flwTopClaims;
+        flwDiscardFeed      = p.discardFeed || []; // never the raw field — see erasure rule
         flwPublicVaultCount = p.vaultCount;
         if (flwMyIdx() === p.actor) flwMyDrawn = null; // I just played
         flwClearTimer(); // turn resolved; the next FLW_TURN_START restarts the clock
@@ -1350,6 +1371,7 @@ function flwHandleEnvelope(env) {
         flwExposed      = p.exposed  || flwExposed;
         flwPublicLog    = p.log      || flwPublicLog;
         flwLedgerCounts = p.ledger   || flwLedgerCounts;
+        flwDiscardFeed  = p.discardFeed || []; // never the raw field — see erasure rule
         flwApplyShowingEnd(p);
         if (typeof mpUnlockSync === 'function') mpUnlockSync();
         break;
@@ -1408,7 +1430,7 @@ function flwResetState() {
   flwPlayerCount = 0; flwPlayerNames = [];
   flwTokens = []; flwShowingNum = 0;
   flwDeck = []; flwLockedLot = []; flwHands = [];
-  flwExposed = []; flwUnderGlass = []; flwDiscards = [];
+  flwExposed = []; flwUnderGlass = []; flwDiscards = []; flwDiscardFeed = [];
   flwPlayedObsidian = []; flwPublicLog = [];
   flwActivePlayer = 0; flwShowingOver = false;
   flwDrawnCard = null; flwEmeraldOffer = null;
