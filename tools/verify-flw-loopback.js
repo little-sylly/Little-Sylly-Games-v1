@@ -134,6 +134,11 @@ function makeDevice(name, mode, myIdx, uid, slots) {
     assetFace: () => 'mock://gem-face.jpg', assetBack: () => 'mock://gem-back.jpg',
     artMakeZoomable: (el, src) => { if (el && src) el.className += ' art-zoomable'; return el; },
     openArtViewer() {}, closeArtViewer() {},
+    // engine.js's shared Tap-Hold Reference helpers (flwBindCardHold/flwRenderGems
+    // delegate to these) — no-ops here. This harness does not fire DOM events and
+    // its mock querySelector always returns null, so there is nothing real for
+    // refHighlightRow to do; the point is just that calling it never throws.
+    bindCardHold() {}, refHighlightRow() {},
     mpLockSync() {}, mpUnlockSync() {},
     mpPlayerSlots: slots, mpMyPlayerIdx: myIdx,
     resetToLobby() { sandbox.__dissolved = true; },

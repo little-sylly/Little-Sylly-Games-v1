@@ -325,6 +325,11 @@ function flwLedgerTally() {
 // Same fold PKO's chain reference got (10 Aug 2026). Both entry points route here.
 function flwOpenGemManifest() { flwOpenHowTo('gems'); }
 
+// Tap-hold any real, identified gem → jump to its row in the Gem Manifest, scrolled
+// to and briefly ringed (ui-style.md § Tap-Hold Reference — delegates to engine.js's
+// bindCardHold). Not bound on gallery rows themselves or on face-down backs.
+function flwBindCardHold(el, gemId) { bindCardHold(el, () => flwOpenHowTo('gems', gemId)); }
+
 // What each carat DOES. Kept beside the renderer rather than in FLW_DECK because it is
 // presentation copy, not deck data — flwResolveEffect owns the real behaviour.
 const FLW_GEM_EFFECT = {
@@ -344,7 +349,8 @@ const FLW_GEM_EFFECT = {
 // what it does. Rows render through flwRenderCard — the old manifest drew its own
 // colour-swatch circles, which meant a skin could never reach it and the Vault's own
 // artwork was invisible outside a live Showing.
-function flwRenderGems() {
+// highlightId: scroll to + briefly ring that gem's row (tap-hold entry point).
+function flwRenderGems(highlightId) {
   const box = document.getElementById('flw-gems-body');
   if (!box) return;
   box.innerHTML = '';
@@ -356,7 +362,8 @@ function flwRenderGems() {
 
   FLW_DECK.forEach(g => {
     const row = document.createElement('div');
-    row.className = 'flex items-center gap-3 rounded-2xl p-2.5 bg-white shadow-sm';
+    row.className = 'flex items-center gap-3 rounded-2xl p-2.5 bg-white shadow-sm flw-ref-row';
+    row.dataset.flwGemId = g.id;
     const url = (typeof assetFace === 'function') && assetFace('flw', g.id);
     row.appendChild(artMakeZoomable(flwRenderCard(g.id, { size: 'sm' }), url, g.name));
 
@@ -375,9 +382,11 @@ function flwRenderGems() {
     row.appendChild(txt);
     box.appendChild(row);
   });
+
+  if (highlightId != null) refHighlightRow(box, 'data-flw-gem-id', highlightId, 'flw-ref-row-ping');
 }
 
-function flwSetHowToTab(tab) {
+function flwSetHowToTab(tab, highlightId) {
   const rules = document.getElementById('flw-how-to-body');
   const gems  = document.getElementById('flw-how-to-gems');
   if (rules) rules.style.display = tab === 'gems' ? 'none' : 'flex';
@@ -386,7 +395,7 @@ function flwSetHowToTab(tab) {
     b.classList.remove('pill-active-flw');       // .pill is the base — never removed
     if (b.dataset.flwHowtoTab === tab) b.classList.add('pill-active-flw');
   });
-  if (tab === 'gems') flwRenderGems();
+  if (tab === 'gems') flwRenderGems(highlightId);
 }
 
 function flwRenderLedger() {
@@ -441,6 +450,7 @@ function flwRenderHand(me) {
       onTap = () => flwSelectSlot(c.slot);
     }
     const card = flwRenderCard(c.gemId, { size: 'md', selectable, dimmed, selected: outlined });
+    flwBindCardHold(card, c.gemId);
     if (selectable) card.addEventListener('click', onTap);
     const wrap = document.createElement('div'); wrap.className = 'flex flex-col items-center gap-1';
     wrap.append(card, flwMiniLabel(flwCfMode ? (c.slot === flwCfKeep ? 'Keep' : 'Forge?') : (c.slot === 'hand' ? 'Showpiece' : 'Drawn')));
@@ -903,6 +913,7 @@ function flwShowEmerald(cards) {
     wrap.innerHTML = '';
     flwEmeraldCards.forEach((gemId, i) => {
       const card = flwRenderCard(gemId, { size: 'lg', selectable: true });
+      flwBindCardHold(card, gemId);
       card.addEventListener('click', () => { flwEmeraldKeep = i; flwRenderEmeraldSel(); });
       wrap.appendChild(card);
     });
@@ -991,7 +1002,9 @@ function flwBuildReveal(reveal) {
   list.forEach(r => {
     const wrap = document.createElement('div');
     wrap.className = 'flex flex-col items-center gap-1';
-    wrap.appendChild(flwRenderCard(r.gemId, { size: 'md' }));
+    const card = flwRenderCard(r.gemId, { size: 'md' });
+    flwBindCardHold(card, r.gemId);
+    wrap.appendChild(card);
     const nm = document.createElement('p');
     nm.className = 'text-xs font-semibold text-stone-500'; nm.textContent = flwName(r.idx);
     wrap.appendChild(nm);
@@ -1281,7 +1294,17 @@ function flwHandleEnvelope(env) {
   }
 }
 function flwOpenSettings()      { const el = document.getElementById('flw-settings-overlay'); if (el) { const inner = el.querySelector('.overlay-data-inner'); if (inner) inner.scrollTop = 0; el.style.display = 'flex'; } }
-function flwOpenHowTo(tab)      { flwSetHowToTab(tab || 'rules'); const el = document.getElementById('flw-how-to-overlay');   if (el) { const inner = el.querySelector('.overlay-data-inner'); if (inner) inner.scrollTop = 0; el.style.display = 'flex'; } }
+// highlightId set → force the Gems tab regardless of what was passed, and skip the
+// scroll-to-top reset (refHighlightRow inside flwRenderGems owns the scroll instead).
+function flwOpenHowTo(tab, highlightId) {
+  flwSetHowToTab(highlightId != null ? 'gems' : (tab || 'rules'), highlightId);
+  const el = document.getElementById('flw-how-to-overlay');
+  if (el) {
+    const inner = el.querySelector('.overlay-data-inner');
+    if (inner && highlightId == null) inner.scrollTop = 0;
+    el.style.display = 'flex';
+  }
+}
 function flwApplyExpansionOverrides() { /* no-op stub — no word pool (forward-compat consistency) */ }
 
 // ── Settings helpers ───────────────────────────────────────────────────────
@@ -1430,6 +1453,11 @@ document.addEventListener('DOMContentLoaded', () => {
     peekHold.addEventListener('contextmenu', e => e.preventDefault());
     peekHold.addEventListener('pointerdown', e => { e.preventDefault(); reveal(); });
     ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => peekHold.addEventListener(ev, reblur));
+    // Bound to the container, not the ephemeral revealed card: reveal() already
+    // consumed this press's pointerdown, so a card built mid-gesture never sees
+    // its own fresh touchstart/mousedown — bindCardHold on peekHold itself lets
+    // the SAME continued press (already showing the gem) also open the gallery.
+    bindCardHold(peekHold, () => { if (flwPeekGemId != null) flwOpenHowTo('gems', flwPeekGemId); });
   }
 
   // ── Sound buttons (engine.js querySelectorAll runs before FLW markup is parsed) ──

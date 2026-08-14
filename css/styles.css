@@ -1197,10 +1197,11 @@ body.flash-red   { background-color: #fecaca; }
 .shp-ref-row { transition: box-shadow 300ms ease-out; scroll-margin: 1rem; }
 .shp-ref-row-ping { box-shadow: 0 0 0 3px #a5b4fc, 0 2px 8px rgba(79,70,229,0.25); }
 /* Tap-Hold Reference ping (ui-style.md) — same shape as .shp-ref-row-ping, each
-   game's own colour. .flw-ref-row-ping is wired to a real row later in this plan;
-   .pko-ref-row-ping is added for parity but stays unused — PKO's own chain
-   highlight is a persistent background-colour swap on the row itself, not this
-   transient ring, and converting it is out of scope for this extraction. */
+   game's own colour. .flw-ref-row (transition + scroll-margin) is on every Gem
+   Manifest row; .pko-ref-row-ping is added for parity but stays unused — PKO's
+   own chain highlight is a persistent background-colour swap on the row itself,
+   not this transient ring, and converting it is out of scope for this extraction. */
+.flw-ref-row { transition: box-shadow 300ms ease-out; scroll-margin: 1rem; }
 .flw-ref-row-ping { box-shadow: 0 0 0 3px #F6C9DA, 0 2px 8px rgba(232,121,168,0.25); }
 .pko-ref-row-ping { box-shadow: 0 0 0 3px #EBD5A8, 0 2px 8px rgba(133,77,14,0.25); }
 
