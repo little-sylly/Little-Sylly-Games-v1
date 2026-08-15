@@ -283,6 +283,92 @@ Do not write the phase snapshot until Protocols A is clean. Do not write a line 
 pointer, not a narrative — that is what keeps this file cheap. When a round closes, compress its
 entry to one line and let the impl-notes carry the detail (§ Documentation Integrity Protocol).
 
+**SW v196–197 — NT allocation viewer round 6: budget-vs-total display split, header rejoins the
+Stack, terminology cleanup (16 Aug 2026).** Two follow-ups from a live-play screenshot pair: (1)
+chip/footer line 2 now shows the build BUDGET (`ntInventory`, identical every leg) instead of the
+budget+deposited total — the total read as "wrong" because it merged two facts the surplus line
+(line 3) already separates. A round-7 follow-up caught the fix's own wording: "native" collided with
+`nativeHoneypots` (the map's pre-placed terrain hazard, an unrelated concept) — comments corrected,
+no behaviour change. Full glossary (Generated: Bad Sector/Native Honeypot; Budget: Firewall
+Segment/Honeypot; Surplus: FW/HP) now in `nt-implementation-notes.md` D35. (2) D33's
+centring only reached `#nt-alloc-body` within its own stage slot, leaving the header pinned to the
+top edge above the now-centred content — added a second, outer level: the whole section (header +
+stage + footer) now switches to THE STACK (suite-wide default, `ui-style.md`) whenever everything
+fits together, falling back to the pinned sticky-footer split only on genuine overflow (verified via
+`getBoundingClientRect` — header sits at y≈80 for short content, y≈0 when it doesn't fit). Same
+reset-before-measure defensive shape as D33. Presentational only, `verify-nt-loopback.js` untouched.
+Detail: `nt-implementation-notes.md` D34.
+
+**SW v195 — NT allocation viewer round 5: maze-preview polish (16 Aug 2026).** Wall/seam colour
+recoloured off the shared bad-sector grey, scoped to the preview only; grid lines switched from
+per-2×2-block to per-tile matching the playback screen; non-captain centring made conditional
+(never forced, avoiding D30's clip bug); auto-lock/auto-proceed at timer expiry confirmed already
+implemented (traced, not built). Detail: `nt-implementation-notes.md` D33.
+
+**SW v194 — NT allocation viewer round 3–4: screenshot-confirmed polish, a real clip bug, a real
+alignment bug, and a deliberate balance change (16 Aug 2026).** A screenshot-driven round covering
+the D28 items plus everything they surfaced testing them:
+- **Terminal-styled directive**, **chip 3rd row** (total vs surplus-to-this-leg split apart, fixed
+  `w-28` width so nothing pops on deposit), **status/warning merged** into an always-rendered
+  text-swap — all owner-requested, all shipped. A third instance of D28's own label-contrast bug
+  (assumed-dark backdrop, actually the white page) was caught in the same screenshot and fixed.
+- **Chip clipping at 4 legs** — the taller chips broke `overflow-hidden`'s only-shrinkable child,
+  making 2 of 4 chips permanently unreachable. Fixed by making the stage scroll (its own documented
+  purpose in the sticky-footer pattern) rather than clip. A `justify-center` compaction added in the
+  same round actively conflicted with this (centred overflow hides its own top edge, unreachable by
+  scroll) and was reverted.
+- **Viewport misalignment**, confirmed from a second screenshot — `offsetLeft` silently walked past
+  the intended `row`/`viewport` ancestors to an unrelated one further up the page, mixing coordinate
+  frames. Fixed with `getBoundingClientRect()` throughout. Verified symmetric to the pixel at every
+  leg position.
+- **Matrix-scale overflow** — the fixed 18px/tile cell size overflowed the viewport at the "large
+  map" (n=20) setting, clipping even the active leg permanently. Cell size now scales to fit.
+- **Honeypot per-leg cap removed** (owner decision, informed by an asymmetry firewall doesn't share
+  — honeypot excess is actually placeable during build, not self-limiting like firewall). Team-pool
+  ceiling is now the only bound either resource has.
+Presentational + one deliberate balance change, no packet shape change. `verify-nt-loopback.js`
+rewritten for the new honeypot behaviour, green on 8 seeds. **Still open:** the maze preview canvas
+looks visibly cruder than the real build screen's DOM-based grid — deferred, tracked in
+`deferred-work.md`. Detail: `nt-implementation-notes.md` D29–D32.
+
+**SW v192 — NT allocation screen: side-by-side legs → windowed leg viewer (16 Aug 2026).** Owner
+feedback from a live 3-device DNP session: v191's "fit the whole bridge across the panel" sizing was
+cramped at 2v2 and an unreadable, overflowing smudge at 4v4. Replaced with one leg shown large
+(`cell: 18`, real 324×324 px) with ‹ › to switch plus an always-visible chip row restoring "whole
+team readable at once." Detail: `nt-implementation-notes.md` D26.
+
+**SW v191 — NT's DNP (Sylly Mode) round: allocation reworked to a tally-deposit, plus three fixes
+(16 Aug 2026).** Bank-mediated transfer replaced with a per-member surplus tally-deposit (Undo /
+Reset All / long-press-to-withdraw); the DNP summary now renders the team layer it always computed;
+the playback journey canvas is clipped and direction-aware; the dead `ntBuildBridgeInto` bridge was
+revived as the allocation picker. Two process lessons in `nt-implementation-notes.md` D22/D22b: the
+surplus formula lived in three places, and only one of two mutation paths was validated.
+**Verified:** `verify-nt-loopback.js` 119 → 146 checks. **Still open:** the `mpConfirmRoster`
+late-join race (BUG-07) and a real 3-device retest. Detail: `nt-implementation-notes.md` D22–D25 +
+TG-08; design record `docs/net-trace-dnp-mode-update.md`; `docs/decision-log.md`.
+
+**SW v190 — NT MDLM desync root-caused, fixed, and harnessed (15 Aug 2026).** A live 3-device
+session (1 host + 2 clients) produced blank build grids on clients, playback never reaching them,
+and a `--.--%` summary. Static analysis found **three** defects, all client-only (the host never
+round-trips its own state, so a host-side playtest is clean by construction): **BUG-15** —
+`ntGenerateNode`'s `convertN` roll can be 0 (and always is under the shipped **"Native Honeypots:
+0"** setting), so `nativeHoneypots: []` is erased in flight and two *unguarded render* reads
+(`ntBlockAt`, `ntDrawMaze`) throw per grid cell, leaving a blank grid and a dead applier;
+**BUG-16** — same class one level deeper, `timeline.fires: []` erased and `ntRenderFrame` reading
+it unguarded; **BUG-17** — the MDLM Diagnostic Summary was gated behind
+`syllyMultiplayerMode === 'single'` and so rendered *nothing* in MDLM, ever (a never-completed "MP
+step" TODO). Fixed with `ntNormaliseNode`/`ntNormaliseTimeline` at every receipt point plus `|| []`
+at the five previously-unguarded reads, and by dropping the mode gate. **New harness:
+`tools/verify-nt-loopback.js`** — 119 checks, host + **2 clients**, Standard *and* DNP; it went red
+on 20 before the fix and is green on every seed after, with a reverted copy still red via
+`NT_SRC=`. NT was the last game with a render seam and MDLM and no harness at all.
+**The transferable lesson is in `shared-implementation-notes.md` BUG-06 addendum:** the Aug 2026
+BUG-06 sweep scanned appliers for *direct payload-to-collection assignment*, which is structurally
+blind to collections **nested inside** an assigned object — `ntNode = payload.node` looks clean when
+the erasure is at `node.nativeHoneypots`. Re-sweeping the other games by payload *shape* is tracked
+in `deferred-work.md`. **Still open:** the `mpConfirmRoster` late-join race (BUG-07) and a real
+3-device retest. Detail: `nt-implementation-notes.md` BUG-15/16/17 + D21.
+
 **SW v189 — FLW polish round: colour/copy/UX fixes across the table + a readyCheck gate CLOSED
 (15 Aug 2026, six passes — v184 through v189, each correcting the last from live owner
 feedback/screenshots).** Self-directed except for one `AskUserQuestion` on the contrast tradeoff;
@@ -376,17 +462,26 @@ Re-run a game's full set after touching its appliers, deck/data, packets or rend
 | DYB | `node tools/verify-dyb-dice.js` — after any `js/lib/art.js` / `dybDieHTML` / `.dyb-die-*` change | 90+ |
 | SHP | `node tools/verify-shp-loop.js` — random matches, all player counts/modes/settings; `SHP_SEED=` for reproducibility | 60 matches |
 | SHP | `node tools/verify-shp-loopback.js` — host↔client over a Firebase-shaped wire; accepts `SHP_SRC=` | 6 scenarios |
+| NT | `node tools/verify-nt-loopback.js` — host↔**2 clients** over a Firebase-shaped wire, Standard + DNP; accepts `NT_SRC=` and `NT_SEED=` | 146 |
 
-**The blind spot they share is load-bearing.** Every harness *except* `verify-cjar-loopback.js`
-runs in `'single'` mode with `getElementById: () => null`. That is what lets one process drive all
-N seats — and exactly what blinds it to **both** the packet layer and every line of render code (a
-render throw inside a SYNC applier is invisible; the guard clauses all short-circuit). PKO's
-**TG-07** is the same shape from the other side: `pkoMyHoard` *aliases* `pkoHoards[0]`, so
-per-device mirror bugs cannot exist there by construction. CJAR's **BUG-06** survived 222 green
-checks in that double blind spot; PKO's **BUG-02** survived 75. `verify-cjar-loopback.js` closes
-both gaps — real wire, real render-executing mock DOM, and it accepts `CJAR_SRC=` so a
-deliberately-broken copy can prove a test fails before the fix makes it pass — so reach for it on
-anything MP- or render-shaped.
+**The blind spot they share is load-bearing.** Every harness *except* the four loopbacks
+(`cjar`/`shp`/`flw`/`nt`) runs in `'single'` mode with `getElementById: () => null`. That is what
+lets one process drive all N seats — and exactly what blinds it to **both** the packet layer and
+every line of render code (a render throw inside a SYNC applier is invisible; the guard clauses all
+short-circuit). PKO's **TG-07** is the same shape from the other side: `pkoMyHoard` *aliases*
+`pkoHoards[0]`, so per-device mirror bugs cannot exist there by construction. CJAR's **BUG-06**
+survived 222 green checks in that double blind spot; PKO's **BUG-02** survived 75; NT's
+**BUG-15/16** survived having no harness at all and a clean host-side playtest. The loopbacks close
+both gaps — real wire, real render-executing mock DOM, and `[ABBR]_SRC=` so a deliberately-broken
+copy can prove a test fails before the fix makes it pass — so reach for one on anything MP- or
+render-shaped.
+
+**Two things a loopback needs that are easy to leave out** (both cost NT a false-green first draft,
+`nt-implementation-notes.md` D21): a **seeded RNG plus a run across several `*_SEED=` values** — a
+precondition you *wait* for (rather than construct, `stackDeck`-style) silently stops testing on
+seeds where it doesn't occur; and a **time window on the timer pump** — draining every pending
+timer fires long-dated safety guards (NT's host-side resolve fallback sits at `endTimestamp + 4 s`)
+and force-advances the game underneath the scenario.
 
 **Layout is a fourth tier none of them reach** — a mock element has no box, so no harness can see
 spacing, alignment or overflow. For that, invoke the **`visual-check`** skill: real headless

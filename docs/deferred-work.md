@@ -8,6 +8,177 @@ Tick items off here; promote anything architectural into `decision-log.md`.
 
 ---
 
+## NT allocation preview: canvas renderer looks cruder than the real build grid (added 16 Aug 2026)
+
+`ntDrawLegCanvas` (the allocation screen's maze preview) draws flat rect-fills with a plain 1px
+port bar. The real build screen's grid (`nt-build-grid`) is a richer DOM renderer — rounded port
+markers with a glow (`box-shadow`), directional arrow glyphs, percentage-positioned. They're two
+different renderers for what's conceptually the same maze, and the preview one is visibly plainer.
+
+**Candidate fix:** a read-only variant of the real build-grid renderer (no placement interaction,
+since nothing is placed yet at allocation time — only bad sectors, native honeypots, and ports
+exist), scaled down via CSS for the small chip-adjacent views. Would also guarantee the preview can
+never visually drift from what the player actually builds on, since it'd be the same code path.
+
+**Why not done yet:** raised alongside the D28 fixes (16 Aug 2026) but the screenshot meant to show
+the exact defect didn't attach to that session — building a renderer swap without seeing what
+"a mess" actually looked like risks solving the wrong problem. Re-raise once a screenshot confirms
+whether D28's shifting-animation fix already resolved the visual complaint or whether the renderer
+itself still needs replacing.
+
+---
+
+## `.pill` is 39 px tall — under the suite's own 44 px touch minimum (added 16 Aug 2026)
+
+`ui-style.md` § Thumb-Friendly UI mandates a 44×44 px minimum touch target. `.pill` in
+`css/styles.css` uses `padding: 0.5rem 0` with `font-size: 0.95rem`, which measures **39 px** —
+verified by `visual-check` on NT's allocation screen. **Every pill in every game** has this
+measurement: settings pills, how-to tab bars, brush selectors.
+
+**Scoped fix already shipped:** NT's allocation brush pills carry `min-h-11` (NT is a mid-huddle
+tool tapped repeatedly against a running clock, unlike a settings pill tapped once).
+
+**Why it is not swept:** this is either a deliberate accepted exception for pills specifically, or a
+suite-wide gap in a rule the project states plainly — and picking between those is a phase-gate call,
+not something to decide inside a single game's round. Changing `.pill` itself alters the vertical
+rhythm of every settings overlay and every how-to tab bar in 18 games, so it also wants a
+`visual-check` pass rather than a blind CSS edit.
+
+**When picked up:** decide the rule first (exempt pills, or raise `.pill` to 44 px), record it in
+`ui-style.md` either way — the current state, where the rule says 44 and the shared class says 39,
+is the actual problem.
+
+---
+
+## NT allocation screen — ~350 px of dead space (added 16 Aug 2026, mostly closed same day)
+
+`screen-nt-allocation` is on the legacy `h-screen` sticky-footer whitelist (`ui-style.md`). The
+original cause (the bridge strip fitting all legs at small cell, per `nt-implementation-notes.md`
+D25) was superseded the same day by D26's windowed leg viewer — the maze now renders at a fixed
+324×324 px regardless of team size, which absorbs most of the gap as a side effect of an unrelated
+legibility fix (owner feedback on a live session, not a deliberate fix for this item).
+
+**Still outstanding:** the huddle countdown is a small eyebrow in the header
+(`#nt-alloc-header`, written by `ntStartHuddleTimer`) rather than using any of the space the maze
+doesn't fill at 1v1/2v2. Low priority now that the screen reads as intentional rather than sparse.
+
+---
+
+## `verify-cjar-loopback.js` is FLAKY — fails ~1 run in 3 (added 15 Aug 2026)
+
+**Not a regression.** Found incidentally while running the full harness suite after the NT work;
+`git status` confirms neither `tools/verify-cjar-loopback.js` nor `js/games/cjar.js` was touched
+that session. Reproduced by running it 6–8 times in a row.
+
+**Symptom:** always the same two checks, in the Dibber Dobber payout-beat section:
+`host2 threw the exact split token count` / `client2 threw the exact split token count`.
+
+**Cause:** the harness stubs `shuffle` with the real Fisher–Yates over an **unseeded**
+`Math.random()` (deliberately — an identity stub would deal a family-first deck that busts on flip
+2 every time, per its own comment). So the deck order differs every run, and those two checks
+assert an *exact* token count that depends on how many seats take vs. dob on that particular deal.
+
+**Why it matters beyond CJAR:** a suite where one harness fails a third of the time trains everyone
+to re-run until green, which is how a real regression gets waved through. It also means the "222
+green checks" figure quoted in `CLAUDE.md` was never reliably 222.
+
+**Fix shape (not done here — different game, and it changes what 177 checks exercise):** port the
+seeded mulberry32 + `*_SEED=` env hook from `verify-shp-loopback.js` / `verify-nt-loopback.js`, then
+run across several seeds to find which assertions were only ever passing by luck. Expect the two
+failing checks to need rewriting as an invariant (`tokens === takers`, computed from the same deal)
+rather than a literal — the NT harness hit exactly this and the fix was to *construct* the
+precondition instead of hoping for it (`nt-implementation-notes.md` D21, lesson 1).
+
+---
+
+## BUG-06 re-sweep by payload SHAPE, not by applier line (added 15 Aug 2026)
+
+The 13 Aug BUG-06 sweep declared NT clean; two days later NT turned out to be carrying **two more
+instances of the same class**, both of which that sweep's method could not have found. Its search
+shape was "appliers that assign a payload field straight to a state collection without `|| []`" —
+which is blind to a collection **nested inside** an assigned object. `ntNode = payload.node` reads
+as clean; the erased field was `node.nativeHoneypots`, one level down. `ntPtpTimelines =
+payload.timelines` likewise; the erased fields were `timelines[i].fires` / `.slowSpans`, two levels
+down. Detail + the corrected method: `shared-implementation-notes.md` BUG-06 addendum.
+
+**What to do:** for each game, walk the payload tree the *producer* builds for every SYNC packet and
+list every leaf array/object, then ask of each "can this legitimately be empty when it is sent?".
+Two tells that a leaf is at risk: its length is decided by a random roll or by a player doing
+nothing; and the same field is guarded with `|| []` *somewhere else in the file* — an inconsistent
+guard means someone already hit the empty case on one path and patched only that one.
+
+**Candidates, in priority order:** PKO, FLW, SHP, CJAR (all broadcast nested per-seat objects), then
+GTH / DSD / JEC / LTTP. Note that CJAR/FLW/SHP each have a loopback harness that would catch a
+regression once written; PKO does not, and PKO's per-seat hoard packets are the closest structural
+match to what bit NT.
+
+---
+
+## ~~NT (Net-Trace) MDLM 3-player desync~~ — **RESOLVED 15 Aug 2026**
+
+Root-caused by static analysis, reproduced deterministically, fixed, and harnessed. All three
+defects were client-only (the host never round-trips its own state through the wire, so the
+host-side view was correct throughout — which is why it read as a mystery):
+
+- **BUG-15** — blank build grid: `nativeHoneypots: []` erased in flight, two unguarded *render*
+  reads throwing per grid cell. Intermittent because `convertN` is re-rolled each cycle;
+  **deterministic** under the "Native Honeypots: 0" setting.
+- **BUG-16** — playback never reached clients: `timeline.fires: []` erased, `ntRenderFrame`
+  reading it unguarded.
+- **BUG-17** — the `--.--%` summary: MDLM's leaderboard was gated behind
+  `syllyMultiplayerMode === 'single'` and never rendered at all.
+
+New harness `tools/verify-nt-loopback.js` (119 checks, host + 2 clients, Standard + DNP) reproduces
+all three. Detail: `nt-implementation-notes.md` BUG-15/16/17, D21.
+
+**Still open from that session, unchanged:** the `mpConfirmRoster` late-join race (BUG-07,
+`shared-implementation-notes.md`) — the guard added there stops a mis-joined device corrupting
+state, but does not close the race itself; and a **real 3-device retest** is still required, since
+no harness models clock skew, Firebase ordering or dropped packets.
+
+**Two smaller items surfaced while building the harness, neither fixed:**
+- `ntRoutingTimer` is the one timer handle missing from `ntResetState()` — a pending 700/1200 ms
+  `ntSetRouting('valid')` can fire against the next screen (§ Timer Lifecycle).
+- The DNP allocation appliers (`NT_ALLOCATION_UPDATE` / `_LOCK`) validate the sender's **team** but
+  never that the sender is that team's **captain**, so any client on a team can drive its
+  allocation. Current behaviour is pinned by a check in the harness labelled `KNOWN GAP` so a
+  future change is visible rather than silent.
+- `NT_GAMEOVER`'s applier calls `ntShowMatchSummary()`, which does not exist anywhere in the repo.
+  Nothing sends that packet so it is unreachable in play; also pinned as a `KNOWN GAP` check rather
+  than "fixed" by inventing a function for dead code.
+
+---
+
+## NT (Net-Trace) MDLM 3-player desync — original symptom report (superseded by the entry above)
+
+**What was observed, live-testing 1 host + 2 clients:** round 1's build screen ("Vulnerability
+Simulation") rendered a completely empty grid for both clients (header/timer/counters all correct,
+`#nt-build-grid` itself had zero tiles) while the host's rendered fine; round 2 was fine for all
+three; after round 1 resolved, only the host reached the playback screen — both clients stayed
+stuck on "Submitted…" until the host manually clicked "Next Cycle" (now readyCheck-gated, see
+below — but this doesn't explain the earlier bare-"Submitted" hang; the bug is upstream of the gate
+itself); one client's cycle-boot terminal log was missing its "LOADING SIMULATION N/M…" context
+line entirely (present for the host and the other client, on the exact same code path — see
+`ntShowMdlmGate()`) while its "LOGIN:" line still rendered, which by itself rules out the line
+simply being absent from the array passed to `ntPlayGateBoot`; by round 4 the SER stopped
+resolving (`--.--%`, no per-player scores) even though System Logs still had correct data; round 5
+broke again for the two clients.
+
+**Kept only as the symptom record** — every one of these is accounted for by BUG-15/16/17 above.
+The session that logged this also fixed a genuine, separate defect found by inspection: the
+Diagnostic Summary's "Next Cycle" was a client no-op (`if (mode === 'client') return;`) with no
+readyCheck, so the host advanced everyone unilaterally; that is now `ntSummaryReadyCheck` +
+`NT_SUMMARY_READY` (`nt-implementation-notes.md` D20).
+
+**One symptom to re-check on the retest:** "one client's boot log was missing its LOADING
+SIMULATION line while its LOGIN line rendered." The harness asserts all three devices type
+identical boot lines bar `LOGIN:` and that passes on every seed, so this was **not** reproduced.
+Most likely it was the blank-grid throw landing mid-typewriter on that device rather than a
+separate defect — but it is the one reported symptom without a confirmed cause, so watch for it
+specifically rather than assuming it went away with the rest.
+
+---
+
 ## Retest backlog — the older games (added 1 Aug 2026)
 
 **Owner's note:** the suite has picked up a lot of cross-cutting change since the early games shipped —

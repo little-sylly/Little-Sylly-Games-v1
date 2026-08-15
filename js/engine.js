@@ -761,7 +761,7 @@ function resetToLobby() {
   document.body.classList.remove('mp-sync-locked');
   ['mp-version-mismatch-overlay', 'mp-host-disconnected-overlay',
    'mp-lttp-message-interrupt-overlay', 'mp-network-error-overlay',
-   'mp-host-prelobby-overlay'].forEach(id => {
+   'mp-host-prelobby-overlay', 'mp-roster-mismatch-overlay'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = 'none';
   });

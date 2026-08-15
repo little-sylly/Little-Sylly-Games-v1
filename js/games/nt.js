@@ -67,9 +67,16 @@ const NT_BADSECTOR_MIN_PCT  = 0.02;     // density floor (% of tiles) — lowere
 const NT_BADSECTOR_MAX_PCT  = 0.18;     // density ceiling (% of tiles)
 const NT_FIREWALL_MIN_PCT   = 0.06;     // firewall inventory floor (% of tiles) — lowered for scarcity nodes (~5 min on 18-grid)
 const NT_FIREWALL_MAX_PCT   = 0.30;     // firewall inventory ceiling (% of tiles)
-const NT_HONEYPOT_CAP       = 4;        // total honeypots per Node (≤2 Native + ≤2 Allocated)
-const NT_ALLOC_HONEYPOT_CAP = 2;        // max allocated honeypots per cycle
+const NT_HONEYPOT_CAP       = 4;        // bounds the natural per-cycle honeypot ROLL only (ntGenerateNode) —
+                                        // NOT a placement or DNP-deposit ceiling; nothing enforces it once
+                                        // inventory exists. DNP surplus deposits had no honeypot cap either,
+                                        // as of D29 (16 Aug 2026) — same reasoning as firewall, which never had one.
+const NT_ALLOC_HONEYPOT_CAP = 2;        // bound on the per-cycle RANDOM honeypot roll (see ntGenerateNode).
 const NT_LONGPRESS_MS       = 400;      // long-press threshold (honeypot place / firewall upgrade)
+// DNP surplus — scales PER PLAYER so the per-leg average is identical at 2v2 and 4v4.
+// Base inventory is untouchable; this is the only thing a captain moves.
+const NT_SURPLUS_FIREWALL   = 3;        // surplus firewalls per team member
+const NT_SURPLUS_HONEYPOT   = 1;        // surplus honeypots per team member
 
 // ═══════════════════════════════════════════════════════════════════════════
 // STATE
@@ -93,7 +100,7 @@ let ntCaptainSlots   = [-1, -1]; // DNP: per-team captain player index
 let ntCycle          = 0;        // current Simulation Cycle (0-indexed)
 let ntCycleSERs      = [];       // [cycleIdx][playerIdx] = number (%) — Standard
 let ntTeamCycleSERs  = [];       // [cycleIdx][teamIdx]   = number (%) — DNP
-let ntOverallSER     = [];       // rolling average per player (Standard) / team (DNP)
+let ntOverallSER     = [];       // rolling average per PLAYER — both modes (DNP's team rollup is derived in ntTeamOverallSER())
 let ntCycleLatencies = [];       // [cycleIdx][playerIdx] = raw latency ms (solo: [latency])
 
 // ── Playback render state (reset each playback) ─────────────────────────────
@@ -123,17 +130,20 @@ let ntViewingUid     = null;     // which player's maze is loaded in the playbac
 
 // ── DNP cycle state ──────────────────────────────────────────────────────────
 let ntTeamNodes      = [];       // [playerIdx] = Node for that player's relay leg (all players, DNP)
-let ntAllocationPool = { firewall: 0, honeypot: 0 }; // my team's total pool (from team members' base inventories)
-let ntAllocations    = [];       // [legIdx within my team] = { firewall, honeypot } captain assignment
-let ntAllocSelectedLeg = 0;      // DNP allocation screen: which leg the control hub targets / expands
+let ntAllocationPool = { firewall: 0, honeypot: 0 }; // my team's SURPLUS to deposit (NT_SURPLUS_* × team size) — NOT the total
+let ntAllocations    = [];       // [legIdx within my team] = { firewall, honeypot } = base inventory + deposits
+let ntAllocBrush     = 'firewall'; // DNP allocation screen: which resource a leg-tap deposits
+let ntAllocDeposits  = [];       // captain-local Undo stack — [{ leg, type }] in tap order; never synced
+let ntAllocViewLeg   = 0;        // captain-local: which leg the windowed maze viewer shows; never synced
 let ntHuddlePhase    = 'editing';// 'editing' | 'locked'
 let ntTeamAllocLocked      = [false, false]; // host-only: which team's captain has locked
 let ntTeamWorkingAllocs    = [[], []];       // host-only: [team][legIdx] = {firewall,honeypot} current state
 let ntAllPlayerAllocations = [];            // host-only: [playerIdx] = { firewall, honeypot } final per-leg alloc
 
 // ── MP readyCheck matrices (reset each phase) ───────────────────────────────
-let ntGateReadyCheck   = [];     // per-player ready at Cycle Initialization Gate
-let ntCommitReadyCheck = [];     // per-player committed at build phase
+let ntGateReadyCheck    = [];     // per-player ready at Cycle Initialization Gate
+let ntCommitReadyCheck  = [];     // per-player committed at build phase
+let ntSummaryReadyCheck = [];     // per-player ready to advance past the Diagnostic Summary
 
 // ── PTP state (reset each cycle in ntBeginCycle; reset on reboot in ntResetState) ──
 let ntPtpTurn            = 0;    // index of the player whose turn it currently is (0..ntPlayerCount-1)
@@ -150,6 +160,9 @@ let ntAllCyclePlacements = [];   // [cycleIdx][playerIdx] = placements snapshot
 let ntAllCycleNodes      = [];   // [cycleIdx] = node object (for thumbnail re-rendering)
 // Gate button callback — changed per gate context (default → ntShowBuild, gather → ntShowComparisonPlayback)
 let ntGateCallback              = null;
+// Diagnostic Summary "Next Cycle"/"Ready" callback — set per ntShowSummary() call; branches on
+// solo/PTP (immediate advance) vs MDLM host (readyCheck-gated advance) vs MDLM client (send ready).
+let ntSummaryCallback           = null;
 // Playback Continue callback — null = normal cycle advance; set when viewing a log round → returns to logs
 let ntPlaybackContinueCallback  = null;
 
@@ -159,8 +172,6 @@ let ntPlaybackPhase  = 'tracing';
 let ntSummaryMode    = 'cycle';  // 'cycle' | 'match'
 let ntOverclockTheme = false;    // easter-egg monochrome/amber theme (triple-tap AMAZE_INC_v1.2)
 let ntBootTimers      = [];      // cycle-boot terminal typewriter setTimeout handles
-let ntGateBootActive  = false;   // true while the cycle-boot terminal log is still typing
-let ntGateBootPending = null;    // fn to run the moment the current boot log finishes
 let ntLongPressTimer = null;     // long-press gesture threshold handle (build screen)
 let ntGhostAnchor    = null;     // {ax,ay} of current 2×2 ghost preview, or null when hidden
 let ntPlaybackPaused = false;    // true when manually paused via play/pause button
@@ -169,6 +180,35 @@ let ntPlaybackLoopFn = null;     // stored RAF loop fn ref (set in ntStartPlayba
 // ── Derived at runtime (never persisted) ────────────────────────────────────
 // ntIsDNP() = ntSyllyMode === true (mirrors isSylly pattern)
 function ntIsDNP() { return ntSyllyMode === true; }
+
+// ── Wire repair (BUG-06 class — logic-engine.md "Firebase erases every EMPTY value") ──
+// Both of these repair a collection nested INSIDE an object that arrived over the wire.
+// That nesting is why the Aug 2026 suite-wide BUG-06 audit missed them: it scanned for
+// direct payload-to-collection assignment in appliers, and `ntNode = payload.node` looks
+// clean — the erasure is one and two levels further down.
+
+// A node whose nativeHoneypots (or badSectors) came back empty. ntGenerateNode rolls
+// convertN = ntRandInt(0, min(ntNativeHoneypots, …)), which is 0 outright under the
+// "Native Honeypots: 0" setting and can be 0 under any other — so `nativeHoneypots: []`
+// is ordinary, and Firebase deletes it. Call this on EVERY node arriving from a packet.
+function ntNormaliseNode(node) {
+  if (!node) return node;
+  node.badSectors      = node.badSectors      || [];
+  node.nativeHoneypots = node.nativeHoneypots || [];
+  return node;
+}
+
+// A timeline for a player who placed no honeypots has fires:[] and slowSpans:[] — both
+// erased in flight. ntRenderFrame reads tl.fires unguarded, so the RAF frame throws on
+// every device except the host (which never round-trips its own timelines).
+function ntNormaliseTimeline(tl) {
+  if (!tl) return tl;
+  tl.polyline  = tl.polyline  || [];
+  tl.fires     = tl.fires     || [];
+  tl.slowSpans = tl.slowSpans || [];
+  tl.samples   = tl.samples   || [];
+  return tl;
+}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // SCREEN TRANSITIONS  (Step 3 navigation wired; logic injected in Step 5)
@@ -216,14 +256,16 @@ function ntStartPTP() {
 // Show the gate screen configured for the current PTP player's handover.
 function ntBeginPtpTurn() {
   const name = ntPlayerNames[ntPtpTurn] || ('ADMIN-' + (ntPtpTurn + 1));
+  const heading = document.getElementById('nt-gate-heading');
   const sub = document.getElementById('nt-gate-sub');
   const btn = document.getElementById('btn-nt-gate-ready');
+  if (heading) heading.textContent = 'Cycle Initialisation Gate';
   if (sub) sub.textContent = ntPtpTurn === 0
     ? 'Your turn first, ' + name + '. Tap when ready.'
     : 'Hand the phone to ' + name + '.';
   if (btn) btn.textContent = 'Ready — ' + name + ' ▶';
   ntGateCallback = () => ntShowBuild();
-  showScreen('screen-nt-gate');
+  ntPlayGateBoot([ntSimTag(), 'LOGIN: ' + name.toUpperCase()]);
 }
 
 // Called after each player commits their build in PTP mode.
@@ -249,17 +291,20 @@ function ntCommitPtp() {
   }
 }
 
-// Gather gate shown after the last PTP player commits — everyone assembles to watch playback.
+// Gather gate shown after the last PTP player commits — everyone assembles to watch
+// playback. No boot log here — it's not a login moment, so it skips straight to the button.
 function ntShowGatherGate() {
+  const heading = document.getElementById('nt-gate-heading');
   const sub = document.getElementById('nt-gate-sub');
   const btn = document.getElementById('btn-nt-gate-ready');
   const count = ntPlayerCount;
+  if (heading) heading.textContent = 'Cycle Diagnostic Gate';
   if (sub) sub.textContent = count > 1
     ? 'All ' + count + ' admins done. Gather around to watch the playback.'
     : 'Analysis complete. Tap to view playback.';
   if (btn) btn.textContent = 'Launch Playback ▶';
   ntGateCallback = () => ntShowComparisonPlayback();
-  showScreen('screen-nt-gate');
+  ntShowGateNow();
 }
 
 // Relative-ceiling SER: player with the highest latency = 100% (longest path wins).
@@ -512,9 +557,13 @@ function ntStartSession() {
   ntAllCycleTimelines  = [];
   ntAllCyclePlacements = [];
   ntAllCycleNodes      = [];
-  ntShowGateBoot();
+  // Host builds + shows the boot gate itself, synchronously, below. A client has nothing
+  // to show yet (its own boot needs the roster-derived name it's just been given, and the
+  // node data NT_GENERATE is about to send) — a brief standby covers that short wait.
   if (window.syllyMultiplayerMode === 'host') {
     ntStartMatch();
+  } else {
+    ntShowStandby('Booting cluster…');
   }
 }
 
@@ -527,8 +576,9 @@ function ntStartMatch() {
   ntPtpTurn      = 0;
   ntPtpTimelines = [];
   ntPtpPlacements = Array.from({ length: ntPlayerCount }, () => []); // pre-sized — no holes
-  ntGateReadyCheck   = new Array(ntPlayerCount).fill(false);
-  ntCommitReadyCheck = new Array(ntPlayerCount).fill(false);
+  ntGateReadyCheck    = new Array(ntPlayerCount).fill(false);
+  ntCommitReadyCheck  = new Array(ntPlayerCount).fill(false);
+  ntSummaryReadyCheck = new Array(ntPlayerCount).fill(false);
   ntCycleResolved        = false;
   ntTeamAllocLocked      = [false, false];
   ntTeamWorkingAllocs    = [[], []];
@@ -556,26 +606,33 @@ function ntStartMatch() {
     // Host's own leg
     ntNode = ntTeamNodes[mpMyPlayerIdx];
 
-    // Each team's pool = ntInventory × members on that team
+    // Each team's pool is a SURPLUS on top of every leg's base inventory — not the
+    // total. Base is untouchable, so the model is purely additive: a captain who does
+    // nothing plays exactly the same node everyone else would have, and can only ever
+    // make a leg stronger. That is what removed the "take from P1 to give P2" step.
     const teamSizes = [0, 0];
     ntTeamIdx.forEach(t => teamSizes[t]++);
     const myTeam = ntTeamIdx[mpMyPlayerIdx];
     ntAllocationPool = {
-      firewall: ntInventory.firewall * teamSizes[myTeam],
-      honeypot: ntInventory.honeypot * teamSizes[myTeam],
+      firewall: NT_SURPLUS_FIREWALL * teamSizes[myTeam],
+      honeypot: NT_SURPLUS_HONEYPOT * teamSizes[myTeam],
     };
-    // Default allocation = each leg gets its BASE inventory (sum = pool, transfer 0).
-    // Captains REBALANCE from this default; doing nothing plays every leg at base.
+    ntAllocDeposits = [];
+    ntAllocBrush    = 'firewall';
+    ntAllocViewLeg  = 0;
+    // Default allocation = each leg at its BASE inventory, surplus entirely undeposited.
     const baseAlloc = () => ({ firewall: ntInventory.firewall, honeypot: ntInventory.honeypot });
     ntAllocations = teamMembersOf(myTeam).map(baseAlloc);
     ntTeamWorkingAllocs = [0, 1].map(team => teamMembersOf(team).map(baseAlloc));
     ntHuddlePhase = 'editing';
 
+    // Same SURPLUS formula as the host's own pool above — this is the copy every client
+    // reads, so the two must not drift.
     const allPoolsPayload = [0, 1].map(team => ({
       members: teamMembersOf(team),
       pool: {
-        firewall: ntInventory.firewall * teamSizes[team],
-        honeypot: ntInventory.honeypot * teamSizes[team],
+        firewall: NT_SURPLUS_FIREWALL * teamSizes[team],
+        honeypot: NT_SURPLUS_HONEYPOT * teamSizes[team],
       },
     }));
 
@@ -596,14 +653,16 @@ function ntStartMatch() {
         action: 'NT_HUDDLE_START',
         allPlayerNodes: ntTeamNodes.slice(),
         allPools: allPoolsPayload,
-        // default base allocations per team (legs start at base, transfer pool 0)
+        // default base allocations per team (legs start at base, whole surplus in hand)
         allAllocations: [0, 1].map(team => teamMembersOf(team).map(baseAlloc)),
         huddleDuration: ntHardeningWin * teamSizes[0], // both teams same size (validated)
       },
     });
     const myTeamForCap = ntTeamIdx[mpMyPlayerIdx];
     const isCaptain    = mpMyPlayerIdx === ntCaptainSlots[myTeamForCap];
-    ntGateBootThen(() => {
+    const myName = ntPlayerNames[mpMyPlayerIdx] || ('ADMIN-' + (mpMyPlayerIdx + 1));
+    ntSetGateHeading('Cycle Initialisation Gate', 'Preparing your team’s Allocation Hub…');
+    ntPlayGateBoot([ntSimTag(), 'LOGIN: ' + myName.toUpperCase() + ' — OPENING ALLOCATION HUB…'], () => {
       ntShowAllocationScreen(isCaptain);
       ntStartHuddleTimer(ntHardeningWin * teamSizes[myTeamForCap]);
     });
@@ -613,12 +672,14 @@ function ntStartMatch() {
       type: 'SYNC',
       payload: { action: 'NT_GENERATE', cycle: ntCycle, node: ntNode, inventory: ntInventory },
     });
-    ntGateBootThen(() => ntShowMdlmGate());
+    ntShowMdlmGate();
   }
 }
 
-// Flavour boot lines — typed out line by line on screen-nt-gate at the start of a cycle,
-// then handed off to whatever ready-check config the caller queues via ntGateBootThen().
+// Flavour boot lines — typed out line by line on every "Cycle Initialisation Gate" entry
+// (cycle start, each PTP handover, DNP's allocation hand-off — NOT the boot-free "Cycle
+// Diagnostic Gate" gather screen). `ntPlayGateBoot` appends caller-supplied context lines
+// (which round this is, whose session this is) after these before playing them.
 const NT_BOOT_LINES = [
   'BOOTING AMAZE INC. OS v1.2…',
   'INITIALISING OS…',
@@ -628,6 +689,11 @@ const NT_BOOT_LINES = [
   'ROUTING VIA PENDER SECURITIES…',
   'SECURING INGRESS…',
 ];
+
+// Round indicator line for the boot log — "which Vulnerability Simulation is this".
+function ntSimTag() {
+  return 'LOADING SIMULATION ' + (ntCycle + 1) + '/' + ntIterations + '…';
+}
 
 // Generic typewriter: reveals `lines` one at a time inside `container`, then calls `callback`.
 // Mirrors secret-mode.js's smTypeLines but takes an explicit container (NT owns its own log).
@@ -653,42 +719,63 @@ function ntTypeLines(container, lines, baseDelay, lineGap, callback) {
   }
 }
 
-// Shows screen-nt-gate and plays the boot log; once it finishes, the log hides, the
-// ready-check block reveals, and whatever was queued via ntGateBootThen() runs.
-function ntShowGateBoot() {
+// Small shared setter — every gate-entry function writes its own heading/sub text before
+// calling ntPlayGateBoot()/ntShowGateNow(); this just saves repeating the two getElementById
+// lookups at each call site.
+function ntSetGateHeading(heading, sub) {
+  const h = document.getElementById('nt-gate-heading');
+  const s = document.getElementById('nt-gate-sub');
+  if (h) h.textContent = heading;
+  if (s) s.textContent = sub;
+}
+
+// Shows screen-nt-gate (the "Cycle Initialisation Gate" context) and plays the boot log
+// under the already-visible heading/sub, at a deliberately readable pace. Callers set the
+// heading/sub/button text BEFORE calling this — the button itself stays hidden until the
+// log finishes typing (plus a short read-pause), then it's the only thing that reveals; the
+// log stays put rather than being swapped out for a second block. `onDone`, when given,
+// runs instead of revealing the button — DNP's hand-off into the Allocation Hub.
+function ntPlayGateBoot(contextLines, onDone) {
   showScreen('screen-nt-gate');
-  const log  = document.getElementById('nt-gate-boot-log');
-  const wrap = document.getElementById('nt-gate-ready-wrap');
-  ntGateBootActive = true;
-  if (wrap) wrap.style.display = 'none';
-  if (log)  log.style.display  = 'block';
-  ntTypeLines(log, NT_BOOT_LINES, 0, 240, () => {
-    ntGateBootActive = false;
-    if (log)  log.style.display  = 'none';
-    if (wrap) wrap.style.display = 'flex';
-    const pending = ntGateBootPending;
-    ntGateBootPending = null;
-    if (pending) pending();
+  const log = document.getElementById('nt-gate-boot-log');
+  const btn = document.getElementById('btn-nt-gate-ready');
+  if (btn) btn.style.display = 'none';
+  if (log) log.style.display = 'block';
+  const extra = Array.isArray(contextLines) ? contextLines : (contextLines ? [contextLines] : []);
+  const lines = NT_BOOT_LINES.concat(extra);
+  ntTypeLines(log, lines, 100, 280, () => {
+    // Read-pause on the final line before the button reveals — brief, not a second wait.
+    const t = setTimeout(() => {
+      if (onDone) onDone();
+      else if (btn) btn.style.display = 'block';
+    }, 300);
+    ntBootTimers.push(t);
   });
 }
 
-// Runs fn immediately, unless the cycle-boot terminal is still typing — then it queues fn
-// for the moment the log finishes, so the boot always reads as one uninterrupted beat.
-function ntGateBootThen(fn) {
-  if (ntGateBootActive) ntGateBootPending = fn;
-  else fn();
+// Shows screen-nt-gate for the "Cycle Diagnostic Gate" context (the post-build gather,
+// before playback) — no boot log, heading/sub/button all visible immediately. Callers set
+// the heading/sub/button text before calling this, same as ntPlayGateBoot.
+function ntShowGateNow() {
+  showScreen('screen-nt-gate');
+  const log = document.getElementById('nt-gate-boot-log');
+  const btn = document.getElementById('btn-nt-gate-ready');
+  if (log) log.style.display = 'none';
+  if (btn) btn.style.display = 'block';
 }
 
 // ── DNP Allocation Hub ─────────────────────────────────────────────────────
 
-// Show the allocation screen and render the current team's leg lanes.
-// captainMode: true = captain (tap-a-leg + control hub); false = read-only.
+// Show the allocation screen and render the current team's cluster bridge.
+// captainMode: true = captain (brush + tap-to-deposit); false = read-only.
+// showScreen() FIRST, render SECOND — both are synchronous so there's no visible flash
+// either order, but ntRenderAllocationScreen's conditional-centring check measures
+// body.scrollHeight/stage.clientHeight, which both read 0 on a still-`display:none`
+// section. Rendering before the section is visible made that check always pass
+// (0 <= 0), centring content regardless of whether it actually fit.
 function ntShowAllocationScreen(captainMode) {
-  const members = ntMyTeamMembers();
-  const ownLeg  = members.indexOf(mpMyPlayerIdx);   // expand the device's own leg by default
-  ntAllocSelectedLeg = ownLeg >= 0 ? ownLeg : 0;
-  ntRenderAllocationScreen(captainMode);
   showScreen('screen-nt-allocation');
+  ntRenderAllocationScreen(captainMode);
 }
 
 // Returns the ordered list of global player indices on myTeam.
@@ -697,147 +784,390 @@ function ntMyTeamMembers() {
   return ntTeamIdx.reduce((acc, t, i) => { if (t === myTeam) acc.push(i); return acc; }, []);
 }
 
-// Captain taps a lane → it becomes the control-hub target (and the hero map).
-function ntSelectAllocLeg(legIdx) {
-  if (legIdx === ntAllocSelectedLeg) return;
-  ntAllocSelectedLeg = legIdx;
-  playPillClick();
-  ntRenderAllocationScreen(true);
+// Surplus still in hand. DERIVED from ntAllocations against base inventory rather than
+// from ntAllocDeposits, so a non-captain (whose allocations arrive over the wire, with
+// no local deposit stack) renders the same numbers the captain sees.
+function ntAllocBank() {
+  let depFW = 0, depHP = 0;
+  ntAllocations.forEach(a => {
+    depFW += Math.max(0, (a.firewall || 0) - ntInventory.firewall);
+    depHP += Math.max(0, (a.honeypot || 0) - ntInventory.honeypot);
+  });
+  return {
+    fw: Math.max(0, ntAllocationPool.firewall - depFW),
+    hp: Math.max(0, ntAllocationPool.honeypot - depHP),
+  };
 }
 
-// Map-hero allocation screen (fixed viewport, no scroll): directive + a tight row of
-// the non-selected legs as mini-cards, then the selected leg as a centre-stage hero
-// map that fills the remaining space. Asset numbers live in the mini-cards + control
-// hub only (no redundant bars). The control hub + Lock sit in the fixed footer.
+// Refusal feedback for the allocation screen. ntSetRouting() targets the BUILD screen's
+// #nt-routing-status and silently no-ops here, so refusals write this screen's own status
+// line. No timer by design — the next successful deposit/undo/reset re-renders and
+// restores the surplus readout, so there is no handle to leak (§ Timer Lifecycle).
+function ntAllocRefuse(msg) {
+  playBoing();
+  const el = document.getElementById('nt-alloc-status');
+  if (el) {
+    el.textContent = '> ' + msg;
+    el.className   = 'text-amber-400 font-mono text-[10px] text-center mb-2 truncate';
+  }
+}
+
+// Allocation screen — a windowed view of the team's cluster bridge. One leg shown large
+// (real resolution, no CSS downscale) with ‹ › to switch; a chip row under it keeps
+// every leg's live totals readable at once and doubles as a second deposit surface, so
+// the "see the whole team, choose between legs" property survives windowing to one leg.
+// Side-by-side at small cell (the previous shape) was legible at 2 legs and an
+// unreadable smudge at 3-4 — see deferred-work.md + owner feedback, 16 Aug 2026.
+// The captain arms a resource (brush) and taps a leg (maze or chip) to DEPOSIT one unit
+// of it — a tap means one thing only, there is no select-then-adjust mode.
 function ntRenderAllocationScreen(captainMode) {
   const body    = document.getElementById('nt-alloc-body');
   const warning = document.getElementById('nt-alloc-warning');
+  const status  = document.getElementById('nt-alloc-status');
   const lockBtn = document.getElementById('btn-nt-alloc-lock');
   if (!body) return;
 
-  const isCap   = captainMode === true;
-  const members = ntMyTeamMembers(); // global player indices, in leg order
-  if (ntAllocSelectedLeg >= members.length || ntAllocSelectedLeg < 0) ntAllocSelectedLeg = 0;
+  const isCap    = captainMode === true;
+  const editable = isCap && ntHuddlePhase !== 'locked';
+  const members  = ntMyTeamMembers(); // global player indices, in leg order
+  const bank     = ntAllocBank();
 
-  const usedFW = ntAllocations.reduce((s, a) => s + (a.firewall || 0), 0);
-  const usedHP = ntAllocations.reduce((s, a) => s + (a.honeypot || 0), 0);
-  const bankFW = ntAllocationPool.firewall - usedFW;
-  const bankHP = ntAllocationPool.honeypot - usedHP;
+  // Clamp against the live team — never trust a stale index across a huddle boundary
+  // (team size can differ cycle to cycle if a player dropped).
+  if (ntAllocViewLeg >= members.length || ntAllocViewLeg < 0) ntAllocViewLeg = 0;
+  const multi = members.length > 1;
+  const navBtn = 'min-h-11 min-w-11 rounded-xl bg-slate-700 hover:bg-slate-600 text-emerald-300 text-lg font-bold active:scale-95 transition-all duration-150 disabled:opacity-30';
 
-  // Console directive (single terminal voice).
-  let html = `<p class="text-emerald-400 font-mono text-[11px] leading-snug shrink-0 mb-2">&gt; ALERT: CLUSTER I/O IMBALANCE.<br>RECONFIGURE CORRIDOR ROUTING MATRICES ${isCap ? '— TAP A LEG, REBALANCE FROM THE BANK.' : '— CAPTAIN IS BALANCING.'}</p>`;
+  // Console directive, in the same terminal-window chrome as the Gate's boot log
+  // (border-emerald-700/40, bg-slate-900, font-mono text-emerald-400) for a consistent
+  // NT terminal voice — printed straight, no typewriter reveal (that's the Gate's own
+  // thing; this line changes with huddle state and shouldn't re-animate on every render).
+  body.innerHTML = `<div class="w-full rounded-xl border border-emerald-700/40 bg-slate-900 px-4 py-3 text-left font-mono text-[11px] text-emerald-400 leading-snug shrink-0 mb-2">&gt; ALERT: CLUSTER SURPLUS UNASSIGNED.<br>${
+    editable ? 'ARM A RESOURCE, TAP A LEG TO DEPLOY IT.' : (isCap ? 'ALLOCATION COMMITTED.' : 'CAPTAIN IS DEPLOYING THE SURPLUS.')
+  }</div>
+  <div class="flex items-center justify-center gap-2 mb-1 shrink-0">
+    <button id="btn-nt-alloc-prev" class="${navBtn}" ${multi ? '' : 'disabled'}>‹</button>
+    <p id="nt-alloc-viewer-label" class="text-[11px] font-mono text-stone-500 w-20 text-center"></p>
+    <button id="btn-nt-alloc-next" class="${navBtn}" ${multi ? '' : 'disabled'}>›</button>
+  </div>
+  <div id="nt-alloc-viewport" class="w-full overflow-hidden shrink-0">
+    <div id="nt-alloc-bridge"></div>
+  </div>
+  <div id="nt-alloc-chips" class="flex flex-wrap gap-1.5 justify-center mt-2 shrink-0"></div>`;
 
-  // Mini-cards row — the non-selected legs, compact + horizontal (tap to promote to hero).
-  const others = members.map((p, i) => i).filter(i => i !== ntAllocSelectedLeg);
-  if (others.length) {
-    html += `<div class="flex gap-2 overflow-x-auto shrink-0 mb-2 pb-1">`;
-    others.forEach(legIdx => {
-      const pIdx = members[legIdx];
-      const name = ntPlayerNames[pIdx] || ('ADMIN-' + (pIdx + 1));
-      const isMe = pIdx === mpMyPlayerIdx;
-      const a    = ntAllocations[legIdx] || { firewall: 0, honeypot: 0 };
-      html += `<div data-leg="${legIdx}" class="nt-alloc-lane ${isCap ? 'cursor-pointer' : ''} bg-slate-900 rounded-xl p-2 ring-1 ring-slate-700 flex items-center gap-2 shrink-0">
-        <canvas id="nt-lane-maze-${legIdx}" class="bg-slate-950 rounded shrink-0" style="image-rendering:pixelated;width:44px;height:44px;"></canvas>
-        <div class="min-w-0">
-          <p class="font-mono text-[10px] ${isMe ? 'text-emerald-400' : 'text-stone-300'} font-semibold whitespace-nowrap">LEG_${String(legIdx + 1).padStart(2, '0')} · ${name}${isMe ? ' [YOU]' : ''}</p>
-          <p class="font-mono text-[10px] text-stone-500 whitespace-nowrap">FW ${a.firewall} · HP ${a.honeypot}</p>
-        </div>
-      </div>`;
-    });
-    html += `</div>`;
-  }
+  // Real resolution, no clamp-to-fit against the TEAM — legibility is the whole point of
+  // windowing to one leg. ntBuildBridgeInto still renders the WHOLE strip (deliberately
+  // one builder, see its own header comment) so wallLeft/wallRight joins stay intact; the
+  // viewport just clips to one leg and neighbours peek at the edges.
+  // Cell IS still capped against the GRID SIZE setting, though — 18px/tile assumes an
+  // 18×18 node (324px, fits the ~336px viewport with room to peek). At the "large map"
+  // setting (n=20) that's 360px, wider than the viewport itself, so even the ACTIVE leg
+  // would render partially clipped with no way to ever see its far edge. Scale down only
+  // when the grid is bigger than 18 would fit; smaller grids (n=16) keep the full 18px
+  // for consistency rather than growing to fill the space.
+  const previewN = (ntTeamNodes[members[ntAllocViewLeg]] && ntTeamNodes[members[ntAllocViewLeg]].n) || NT_GRID_DEFAULT;
+  const viewportW = document.getElementById('nt-alloc-viewport').clientWidth || 336;
+  const cell = Math.min(18, Math.floor(viewportW / previewN));
 
-  // Hero — the selected leg as a centre-stage map filling the remaining space.
-  const selP    = members[ntAllocSelectedLeg];
-  const selName = ntPlayerNames[selP] || ('ADMIN-' + (selP + 1));
-  const selIsMe = selP === mpMyPlayerIdx;
-  html += `<div data-leg="${ntAllocSelectedLeg}" class="nt-alloc-lane ${isCap ? 'cursor-pointer' : ''} flex flex-col flex-1 min-h-0 bg-slate-900 rounded-2xl ring-2 ring-emerald-400 p-3">
-    <p class="font-mono text-[11px] ${selIsMe ? 'text-emerald-400' : 'text-stone-300'} font-semibold shrink-0 mb-2">▸ LEG_${String(ntAllocSelectedLeg + 1).padStart(2, '0')} · ${selName}${selIsMe ? ' [YOU]' : ''}</p>
-    <div class="flex-1 min-h-0 flex items-center justify-center">
-      <canvas id="nt-lane-maze-${ntAllocSelectedLeg}" class="bg-slate-950 rounded max-w-full max-h-full" style="image-rendering:pixelated;"></canvas>
-    </div>
-  </div>`;
-
-  body.innerHTML = html;
-
-  // Draw each leg's maze (no seam walls — lanes are not edge-to-edge here).
-  members.forEach((pIdx, legIdx) => {
-    const cv = document.getElementById('nt-lane-maze-' + legIdx);
-    if (cv && ntTeamNodes[pIdx]) ntDrawLegCanvas(cv, ntTeamNodes[pIdx], legIdx === ntAllocSelectedLeg ? 16 : 4, {});
+  ntBuildBridgeInto(document.getElementById('nt-alloc-bridge'), members, cell, {
+    footer: (legIdx, pIdx) => {
+      const s = ntAllocLegDisplay(legIdx, pIdx);
+      return `<p class="font-mono text-[9px] text-center leading-tight whitespace-nowrap">
+        <span class="text-emerald-300">${s.fw}</span>
+        <span class="text-stone-600"> · </span>
+        <span class="text-emerald-300">${s.hp}</span>
+      </p>
+      <p class="font-mono text-[9px] text-center leading-tight whitespace-nowrap text-orange-400">
+        ${s.surplusFw}<span class="text-stone-600"> · </span>${s.surplusHp}
+      </p>`;
+    },
+    onTap:  editable ? ntDepositAlloc  : null,
+    onHold: editable ? ntWithdrawAlloc : null,
   });
 
-  // Lane tap → select (captain only)
-  if (isCap) {
-    body.querySelectorAll('.nt-alloc-lane').forEach(lane => {
-      lane.addEventListener('click', () => ntSelectAllocLeg(parseInt(lane.dataset.leg, 10)));
+  ntCenterAllocViewport();
+
+  // "LEG N/M" — the leg's own name already renders correctly (light text on the dark
+  // canvas strip, via ntBuildBridgeInto's own label). Repeating it here on the page's
+  // WHITE background would need its own contrast treatment and would just duplicate
+  // what the strip already says; nav position is the one thing this row adds.
+  const viewerLabel = document.getElementById('nt-alloc-viewer-label');
+  if (viewerLabel) viewerLabel.textContent = multi ? `LEG ${ntAllocViewLeg + 1}/${members.length}` : '';
+
+  if (multi) {
+    document.getElementById('btn-nt-alloc-prev').addEventListener('click', () => {
+      ntAllocViewLeg = (ntAllocViewLeg - 1 + members.length) % members.length;
+      playPillClick();
+      ntRenderAllocationScreen(captainMode);
+    });
+    document.getElementById('btn-nt-alloc-next').addEventListener('click', () => {
+      ntAllocViewLeg = (ntAllocViewLeg + 1) % members.length;
+      playPillClick();
+      ntRenderAllocationScreen(captainMode);
     });
   }
 
-  // Morphing control hub (captain only)
-  ntRenderAllocControlHub(isCap, members, bankFW, bankHP);
+  ntRenderAllocChips(members, editable);
 
-  // Warning (captain only — unassigned bank) + lock button visibility
-  const hasUnallocated = bankFW > 0 || bankHP > 0;
-  if (warning) warning.style.display = (isCap && hasUnallocated) ? 'block' : 'none';
+  // Live surplus readout. Overwritten in place by ntAllocRefuse() on a refused tap and
+  // restored here by the next successful action — one element, one owner per repaint.
+  const hasSurplus = bank.fw > 0 || bank.hp > 0;
+  if (status) {
+    status.textContent = hasSurplus
+      ? `> SURPLUS IN HAND: ${bank.fw} FW · ${bank.hp} HP`
+      : '> SURPLUS FULLY DEPLOYED';
+    status.className = (hasSurplus ? 'text-emerald-400' : 'text-stone-500') +
+                       ' font-mono text-[10px] text-center truncate';
+  }
+
+  // A text-and-colour SWAP, not show/hide — reserving the space always means this line
+  // (and the buttons below it) never jump vertically as the state changes. Reflects the
+  // team's shared bank, same as the status line above it, not gated to the captain —
+  // a teammate should be able to see whether the captain is finished without asking.
+  if (warning) {
+    warning.textContent = hasSurplus ? 'UNALLOCATED SURPLUS' : 'SURPLUS ALLOCATED';
+    warning.className   = 'text-xs font-semibold text-center mb-2 ' +
+                          (hasSurplus ? 'text-amber-500' : 'text-emerald-500');
+  }
+
+  ntRenderAllocBrushBar(editable, bank);
+
   if (lockBtn) {
     lockBtn.style.display = isCap ? 'block' : 'none';
     lockBtn.textContent   = ntHuddlePhase === 'locked' ? 'Locked' : 'Lock Allocations';
     lockBtn.disabled      = ntHuddlePhase === 'locked';
   }
+
+  // Whole-screen layout mode: prefer THE STACK (header + stage + footer as one centred
+  // block — ui-style.md's suite-wide default) whenever everything actually fits; fall
+  // back to the legacy sticky-footer split (header/footer pinned, stage scrolls) only
+  // when it doesn't — the documented reason this screen is on that whitelist at all.
+  // Centring only the stage (the previous fix) left the header pinned to the top edge
+  // with the centred content floating below it, which read as "the header isn't part of
+  // the stack" — correct per D30/D33, but not what was actually wanted once the whole
+  // screen is short enough to just BE the Stack.
+  // Reset to the sticky-footer baseline before measuring, so a stale Stack-mode class
+  // doesn't feed back into its own measurement (removing stage's flex-1 makes stage
+  // content-sized, which would hide real overflow from the "does it fit" check).
+  const section = document.getElementById('screen-nt-allocation');
+  const stage   = body.parentElement;
+  const header  = section && section.firstElementChild;
+  const footer  = stage && stage.nextElementSibling;
+  if (section && stage && header && footer) {
+    section.classList.remove('justify-center');
+    stage.classList.add('flex-1');
+    const fits = (header.scrollHeight + body.scrollHeight + footer.scrollHeight) <= section.clientHeight;
+    section.classList.toggle('justify-center', fits);
+    stage.classList.toggle('flex-1', !fits);
+  }
+  // Within the stage's own box — its full flex-1 height in sticky-footer mode, or its
+  // now content-sized box in Stack mode — centre body's own content when IT fits. Same
+  // D30 guard as before: never centre content taller than its box (the sticky-footer
+  // fallback, e.g. captain view at 4 legs, is exactly the case this still protects).
+  if (stage) body.classList.toggle('justify-center', body.scrollHeight <= stage.clientHeight);
 }
 
-// The single reusable control panel — targets ntAllocSelectedLeg, shows the shared bank,
-// and a draw/push stepper per asset. Hidden for non-captains.
-function ntRenderAllocControlHub(isCap, members, bankFW, bankHP) {
-  const hub = document.getElementById('nt-alloc-controlhub');
-  if (!hub) return;
-  if (!isCap) { hub.innerHTML = ''; hub.style.display = 'none'; return; }
-  hub.style.display = 'block';
+// Shared FW/HP display strings for a leg — the BUDGET (ntInventory: what a player can
+// place during Build, identical for every leg since it's the same for all players this
+// cycle) on its own line, and separately how much of the TEAM's SURPLUS pool was
+// deposited to THIS leg (D33 follow-up, 16 Aug 2026: showing the budget+deposited TOTAL
+// here read as "wrong" — a captain expects to see what's fixed vs what they chose, not
+// a merged number they have to do the subtraction on themselves).
+// Do NOT call this line "native" in comments/docs — Budget has nothing to do with
+// nativeHoneypots (the map's own pre-placed terrain hazard, generated, never player-
+// controlled). Two different tiers share the word "Honeypot": the terrain hazard and
+// the buildable component are unrelated things that happen to have the same name — see
+// D35 / `nt-implementation-notes.md` for the full Generated / Budget / Surplus glossary.
+// No "/cap" fraction on HP any more — D29 removed the per-leg honeypot ceiling, same
+// reasoning as firewall never having had one.
+// Derived from ntAllocations vs ntInventory/ntAllocationPool (the same arithmetic
+// ntAllocBank sums across all legs), never from ntAllocDeposits — that stack is
+// captain-local and never synced, so a read-only teammate has no other way to see it.
+function ntAllocLegDisplay(legIdx, pIdx) {
+  const a     = ntAllocations[legIdx] || { firewall: 0, honeypot: 0 };
+  const depFW = Math.max(0, (a.firewall || 0) - ntInventory.firewall);
+  const depHP = Math.max(0, (a.honeypot || 0) - ntInventory.honeypot);
+  return {
+    fw: `FW ${ntInventory.firewall || 0}`,
+    hp: `HP ${ntInventory.honeypot || 0}`,
+    surplusFw: `FW ${depFW}/${ntAllocationPool.firewall}`,
+    surplusHp: `HP ${depHP}/${ntAllocationPool.honeypot}`,
+  };
+}
 
-  const legIdx = ntAllocSelectedLeg;
-  const pIdx   = members[legIdx];
-  const name   = ntPlayerNames[pIdx] || ('ADMIN-' + (pIdx + 1));
-  const alloc  = ntAllocations[legIdx] || { firewall: 0, honeypot: 0 };
-  const step = 'w-9 h-9 rounded-lg bg-slate-700 hover:bg-slate-600 text-white text-base font-bold flex items-center justify-center active:scale-90 transition-transform shrink-0 disabled:opacity-30 disabled:cursor-not-allowed';
-  const row = (type, label, val, bank) => `
-    <div class="flex items-center gap-2">
-      <span class="text-stone-400 text-xs w-16 shrink-0">${label}</span>
-      <button data-type="${type}" data-dir="-1" class="nt-hub-adj ${step}" ${val <= 0 ? 'disabled' : ''}>−</button>
-      <span class="text-emerald-300 font-mono text-base w-8 text-center">${val}</span>
-      <button data-type="${type}" data-dir="1" class="nt-hub-adj ${step}" ${bank <= 0 ? 'disabled' : ''}>+</button>
-      <span class="text-stone-500 text-[10px] ml-auto font-mono">− RECALL · + DEPLOY</span>
-    </div>`;
-  hub.innerHTML = `<div class="bg-slate-900 rounded-2xl p-3 ring-1 ring-emerald-500/40">
-    <div class="flex items-center justify-between mb-2 gap-2">
-      <p class="font-mono text-[11px] text-emerald-400 font-semibold truncate">MODIFYING ▸ LEG_${String(legIdx + 1).padStart(2, '0')} · ${name}</p>
-      <p class="text-emerald-300 text-[11px] font-mono font-semibold bg-emerald-950/60 rounded px-2 py-0.5 whitespace-nowrap shrink-0">BANK ${bankFW} FW · ${bankHP} HP</p>
-    </div>
-    <div class="flex flex-col gap-1.5">
-      ${row('firewall', 'Firewall', alloc.firewall, bankFW)}
-      ${row('honeypot', 'Honeypot', alloc.honeypot, bankHP)}
-    </div>
-  </div>`;
-  hub.querySelectorAll('.nt-hub-adj').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      ntAdjustAllocation(ntAllocSelectedLeg, btn.dataset.type, parseInt(btn.dataset.dir, 10));
-    });
+// Slides the bridge strip so ntAllocViewLeg's column is centred in the viewport, with
+// neighbouring legs peeking at the edges (clamped so we never scroll past the first/last
+// leg into blank space). Real DOM measurement, not n×cell arithmetic — a leg's rendered
+// column width depends on its label text too.
+// ntBuildBridgeInto owns #nt-alloc-bridge's contents and appends its own unnamed `row`
+// div as the single child holding the per-leg columns — that inner row is what gets
+// measured and transformed, not the container itself.
+//
+// getBoundingClientRect, NOT offsetLeft/offsetWidth. offsetLeft resolves against
+// whichever ancestor is the nearest POSITIONED one — nothing in this chain (row, bridge,
+// viewport) sets `position`, so it can walk straight past all of them to some unrelated
+// ancestor further up the page, silently mixing page-relative and viewport-relative
+// coordinates. That produced a real, confirmed misalignment for any leg past the first
+// (correct for leg 0, ~24px off-centre for a middle leg) — caught from a live screenshot,
+// 16 Aug 2026. getBoundingClientRect is always viewport-relative regardless of ancestor
+// positioning, so both sides of the subtraction below are guaranteed to share a frame.
+function ntCenterAllocViewport() {
+  const viewport = document.getElementById('nt-alloc-viewport');
+  const bridge   = document.getElementById('nt-alloc-bridge');
+  const row      = bridge && bridge.firstElementChild;
+  if (!viewport || !row || !row.children.length) return;
+  const col = row.children[ntAllocViewLeg];
+  if (!col) return;
+  const vpRect    = viewport.getBoundingClientRect();
+  const colRect   = col.getBoundingClientRect();
+  const colCenter = colRect.left + colRect.width / 2;
+  const vwCenter  = vpRect.left + vpRect.width / 2;
+  const rowWidth  = row.scrollWidth;
+  const minOffset = Math.min(0, vpRect.width - rowWidth);
+  const offset    = Math.max(minOffset, Math.min(0, vwCenter - colCenter));
+  row.style.transform = `translateX(${offset}px)`;
+}
+
+// Chip row — every leg's live totals, always visible regardless of which leg the maze
+// viewer is showing (restores the "whole team readable at once" property the windowed
+// view would otherwise lose). Tap deposits the armed brush to that leg directly, without
+// switching the viewer; hold withdraws. Same verbs as the maze itself — a chip is a
+// second surface for the same action, not a different one.
+function ntRenderAllocChips(members, editable) {
+  const wrap = document.getElementById('nt-alloc-chips');
+  if (!wrap) return;
+  // w-28, fixed — NOT auto-width. The chip previously grew/shrank with its own text
+  // (the old inline "(+N)" qualifier), which visibly popped the pill's size on every
+  // deposit and reflowed the whole wrapped row. A fixed width means the box never
+  // changes size regardless of digit count; only the text inside it updates.
+  wrap.innerHTML = members.map((pIdx, legIdx) => {
+    const s      = ntAllocLegDisplay(legIdx, pIdx);
+    const isMe   = pIdx === mpMyPlayerIdx;
+    const active = legIdx === ntAllocViewLeg;
+    const name   = (ntPlayerNames[pIdx] || ('ADMIN-' + (pIdx + 1))) + (isMe ? ' (you)' : '');
+    return `<button data-leg="${legIdx}" class="nt-alloc-chip min-h-11 w-28 shrink-0 rounded-lg border px-2 py-1 font-mono text-[9px] leading-tight text-center transition-all duration-150 ${
+      active ? 'border-emerald-400 bg-slate-800' : 'border-slate-700 bg-slate-900'
+    } ${editable ? 'active:scale-95' : ''}">
+      <span class="block truncate ${isMe ? 'text-emerald-400' : 'text-stone-300'}">${name}</span>
+      <span class="block whitespace-nowrap"><span class="text-emerald-300">${s.fw}</span> <span class="text-emerald-300">${s.hp}</span></span>
+      <span class="block whitespace-nowrap text-orange-400">${s.surplusFw} ${s.surplusHp}</span>
+    </button>`;
+  }).join('');
+
+  if (!editable) return;
+  wrap.querySelectorAll('.nt-alloc-chip').forEach(btn => {
+    const legIdx = Number(btn.dataset.leg);
+    btn.addEventListener('click', () => ntDepositAlloc(legIdx));
+    if (typeof bindCardHold === 'function') bindCardHold(btn, () => ntWithdrawAlloc(legIdx));
   });
 }
 
-// Captain taps a +/- button — update local alloc and propagate.
-function ntAdjustAllocation(legIdx, type, dir) {
+// The brush bar — which resource a leg-tap deposits, plus Undo / Reset All.
+// Hidden for non-captains and once the allocation is locked.
+function ntRenderAllocBrushBar(editable, bank) {
+  const hub = document.getElementById('nt-alloc-controlhub');
+  if (!hub) return;
+  if (!editable) { hub.innerHTML = ''; hub.style.display = 'none'; return; }
+  hub.style.display = 'block';
+
+  // .pill stays on every pill always — only pill-active-emerald is added/removed.
+  // min-h-11 is added deliberately: .pill's own padding lands at 39px, under the 44px
+  // touch minimum (§ Thumb-Friendly UI). A settings pill is tapped once; this one is a
+  // mid-huddle tool the captain hits repeatedly against a running clock.
+  const brushPill = (type, label, left) =>
+    `<button data-brush="${type}" class="nt-alloc-brush pill min-h-11 ${ntAllocBrush === type ? 'pill-active-emerald' : ''}">${label} ${left}</button>`;
+  const util = 'min-h-11 flex-1 rounded-xl bg-slate-700 hover:bg-slate-600 text-white text-sm font-semibold active:scale-95 transition-all duration-150 disabled:opacity-30';
+
+  hub.innerHTML = `<div class="flex flex-col gap-2">
+    <div class="flex gap-2">${brushPill('firewall', 'Firewall', bank.fw)}${brushPill('honeypot', 'Honeypot', bank.hp)}</div>
+    <div class="flex gap-2">
+      <button id="btn-nt-alloc-undo"  class="${util}" ${ntAllocDeposits.length ? '' : 'disabled'}>Undo</button>
+      <button id="btn-nt-alloc-reset" class="${util}" ${ntAllocDeposits.length ? '' : 'disabled'}>Reset All</button>
+    </div>
+  </div>`;
+
+  hub.querySelectorAll('.nt-alloc-brush').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (ntAllocBrush === btn.dataset.brush) return;
+      ntAllocBrush = btn.dataset.brush;
+      playPillClick();
+      ntRenderAllocationScreen(true);
+    });
+  });
+  const undo  = document.getElementById('btn-nt-alloc-undo');
+  const reset = document.getElementById('btn-nt-alloc-reset');
+  if (undo)  undo.addEventListener('click', ntUndoDeposit);
+  if (reset) reset.addEventListener('click', ntResetDeposits);
+}
+
+// Captain taps a leg — deposit one unit of the armed resource onto it.
+function ntDepositAlloc(legIdx) {
+  if (ntHuddlePhase === 'locked') return;
+  const members = ntMyTeamMembers();
+  const pIdx    = members[legIdx];
+  if (pIdx === undefined) return;
   const alloc = ntAllocations[legIdx] || { firewall: 0, honeypot: 0 };
-  const usedFW = ntAllocations.reduce((s, a) => s + (a.firewall || 0), 0);
-  const usedHP = ntAllocations.reduce((s, a) => s + (a.honeypot || 0), 0);
+  const bank  = ntAllocBank();
+  const type  = ntAllocBrush;
 
-  const newVal = (alloc[type] || 0) + dir;
-  if (newVal < 0) return;
-  if (type === 'firewall' && dir > 0 && usedFW >= ntAllocationPool.firewall) return;
-  if (type === 'honeypot' && dir > 0 && usedHP >= ntAllocationPool.honeypot) return;
+  if (type === 'firewall' && bank.fw <= 0) return ntAllocRefuse('FIREWALL SURPLUS EXHAUSTED');
+  // No per-leg honeypot ceiling — same reasoning as firewall (D27/D29): concentrating
+  // surplus on one leg is a captain judgement call (inefficiency, or a deliberate bet),
+  // never a broken state. Bank exhaustion is the only refusal condition either resource
+  // has now.
+  if (type === 'honeypot' && bank.hp <= 0) return ntAllocRefuse('HONEYPOT SURPLUS EXHAUSTED');
 
-  ntAllocations[legIdx] = { ...alloc, [type]: newVal };
+  ntAllocations[legIdx] = { ...alloc, [type]: (alloc[type] || 0) + 1 };
+  ntAllocDeposits.push({ leg: legIdx, type });
   playPillClick();
+  ntPushAllocationChange();
+}
+
+// Long-press a leg — pull one unit of the armed resource back off it. A bonus
+// affordance; Undo is the discoverable path. Never goes below the untouchable base.
+function ntWithdrawAlloc(legIdx) {
+  if (ntHuddlePhase === 'locked') return;
+  const type  = ntAllocBrush;
+  const alloc = ntAllocations[legIdx] || { firewall: 0, honeypot: 0 };
+  const base  = type === 'firewall' ? ntInventory.firewall : ntInventory.honeypot;
+  if ((alloc[type] || 0) <= base) return ntAllocRefuse('LEG AT BASE — NOTHING TO RECALL');
+
+  ntAllocations[legIdx] = { ...alloc, [type]: (alloc[type] || 0) - 1 };
+  // Drop the most recent matching entry so the Undo stack stays consistent with reality.
+  for (let i = ntAllocDeposits.length - 1; i >= 0; i--) {
+    if (ntAllocDeposits[i].leg === legIdx && ntAllocDeposits[i].type === type) {
+      ntAllocDeposits.splice(i, 1);
+      break;
+    }
+  }
+  playPillClick();
+  ntPushAllocationChange();
+}
+
+// Pop the last deposit, wherever it landed.
+function ntUndoDeposit() {
+  if (ntHuddlePhase === 'locked') return;
+  const last = ntAllocDeposits.pop();
+  if (!last) return ntAllocRefuse('NOTHING TO UNDO');
+  const alloc = ntAllocations[last.leg] || { firewall: 0, honeypot: 0 };
+  ntAllocations[last.leg] = { ...alloc, [last.type]: Math.max(0, (alloc[last.type] || 0) - 1) };
+  playPillClick();
+  ntPushAllocationChange();
+}
+
+// Back to every leg at base inventory, whole surplus in hand.
+function ntResetDeposits() {
+  if (ntHuddlePhase === 'locked') return;
+  if (!ntAllocDeposits.length) return ntAllocRefuse('NOTHING TO RESET');
+  ntAllocations   = ntAllocations.map(() => ({ firewall: ntInventory.firewall, honeypot: ntInventory.honeypot }));
+  ntAllocDeposits = [];
+  playPillClick();
+  ntPushAllocationChange();
+}
+
+// Repaint + propagate. The ONE place an allocation edit leaves this device, so any
+// future edit affordance inherits the host/client split for free.
+function ntPushAllocationChange() {
   ntRenderAllocationScreen(true);
 
   if (window.syllyMultiplayerMode === 'host') {
@@ -903,11 +1233,40 @@ function ntCommitAllocation() {
 }
 
 // Host: apply a team's locked allocations into ntAllPlayerAllocations + broadcast SYNC.
+// HOST-ONLY authority check on a team's proposed allocations. Returns a sanitised copy,
+// or null if the proposal is out of bounds. Both the live-update and the lock path go
+// through this ONE function: validating only the update path would let a client skip
+// straight to LOCK with anything it liked, which is what it used to do.
+function ntValidateTeamAllocations(teamIdx, proposed) {
+  const teamSizes = [0, 0]; ntTeamIdx.forEach(t => teamSizes[t]++);
+  // A team's legal total = every leg's untouchable base PLUS the deposit surplus — the
+  // same numbers the host hands out in NT_HUDDLE_START's allPools.
+  const ceiling = {
+    firewall: (ntInventory.firewall + NT_SURPLUS_FIREWALL) * teamSizes[teamIdx],
+    honeypot: (ntInventory.honeypot + NT_SURPLUS_HONEYPOT) * teamSizes[teamIdx],
+  };
+  const allocs = (proposed || []).map(a => ({
+    firewall: Math.max(0, (a && a.firewall) || 0),
+    honeypot: Math.max(0, (a && a.honeypot) || 0),
+  }));
+  const usedFW = allocs.reduce((s, a) => s + a.firewall, 0);
+  const usedHP = allocs.reduce((s, a) => s + a.honeypot, 0);
+  if (usedFW > ceiling.firewall || usedHP > ceiling.honeypot) return null;
+  // No per-leg honeypot ceiling (D29, 16 Aug 2026) — same as firewall, concentrating
+  // surplus on one leg is a captain judgement call, not an out-of-bounds proposal. The
+  // team-wide pool ceiling above is the only bound either resource has.
+  return allocs;
+}
+
 function ntApplyAllocationLock(teamIdx, allocations) {
-  ntTeamWorkingAllocs[teamIdx] = allocations.map(a => ({ ...a }));
+  // Fall back to the team's last VALID working state rather than committing a rejected
+  // proposal — a locked-in illegal allocation would survive into the build phase.
+  const allocs = ntValidateTeamAllocations(teamIdx, allocations)
+              || (ntTeamWorkingAllocs[teamIdx] || []).map(a => ({ ...a }));
+  ntTeamWorkingAllocs[teamIdx] = allocs.map(a => ({ ...a }));
   const members = ntTeamIdx.reduce((acc, t, i) => { if (t === teamIdx) acc.push(i); return acc; }, []);
   members.forEach((pIdx, legIdx) => {
-    const a = allocations[legIdx] || { firewall: 0, honeypot: 0 };
+    const a = allocs[legIdx] || { firewall: 0, honeypot: 0 };
     ntAllPlayerAllocations[pIdx] = { firewall: a.firewall, honeypot: a.honeypot };
   });
   ntBroadcastAllocationSync();
@@ -944,26 +1303,17 @@ function ntCheckBothTeamsLocked() {
   ntShowBuild(endTimestamp);
 }
 
-function ntShowGate() {
-  // Restore default gate text + callback for solo/MDLM paths (PTP overrides in ntBeginPtpTurn/ntShowGatherGate)
-  const sub = document.getElementById('nt-gate-sub');
-  const btn = document.getElementById('btn-nt-gate-ready');
-  if (sub) sub.textContent = 'Hand the phone to the active admin.';
-  if (btn) btn.textContent = 'Ready ▶';
-  ntGateCallback = () => ntShowBuild();
-  showScreen('screen-nt-gate');
-}
-
 function ntShowMdlmGate() {
+  const heading = document.getElementById('nt-gate-heading');
   const sub     = document.getElementById('nt-gate-sub');
   const btn     = document.getElementById('btn-nt-gate-ready');
-  const heading = document.getElementById('nt-gate-heading');
 
+  if (heading) heading.textContent = 'Cycle Initialisation Gate';
   const cycleTag = 'VS-' + String(ntCycle + 1).padStart(2, '0');
-  if (heading) heading.textContent = cycleTag + ' — Initialising';
+  const myName = ntPlayerNames[mpMyPlayerIdx] || ('ADMIN-' + (mpMyPlayerIdx + 1));
 
   if (window.syllyMultiplayerMode === 'client') {
-    if (sub) sub.textContent = 'Waiting for all analysts to ready up…';
+    if (sub) sub.textContent = cycleTag + ' — waiting for all analysts to ready up…';
     if (btn) { btn.textContent = 'Ready ▶'; btn.classList.add('btn-mp-action'); btn.disabled = false; }
     ntGateCallback = () => {
       if (btn) { btn.textContent = 'Waiting…'; btn.disabled = true; }
@@ -973,7 +1323,7 @@ function ntShowMdlmGate() {
     };
   } else {
     // Host — marks own slot directly, enables Begin Hardening when all ready
-    if (sub) sub.textContent = 'Waiting for all analysts to ready up…';
+    if (sub) sub.textContent = cycleTag + ' — waiting for all analysts to ready up…';
     if (btn) { btn.textContent = 'Begin Hardening ▶'; btn.classList.add('btn-mp-action'); btn.disabled = true; }
     ntGateReadyCheck[mpMyPlayerIdx] = true;
     ntGateCallback = () => {
@@ -983,7 +1333,7 @@ function ntShowMdlmGate() {
     };
     if (ntGateReadyCheck.every(Boolean) && btn) btn.disabled = false;
   }
-  showScreen('screen-nt-gate');
+  ntPlayGateBoot([ntSimTag(), 'LOGIN: ' + myName.toUpperCase()]);
 }
 
 function ntShowBuild(endTimestamp) {
@@ -1055,8 +1405,38 @@ function ntShowSummary(mode) {
     if (nextBtn) nextBtn.style.display = 'block';
     if (rebootBtn) rebootBtn.style.display = 'none';
   }
-  // Show System Logs button whenever there is at least one logged cycle (PTP only)
+  // Show System Logs button whenever there is at least one logged cycle — solo/PTP populate
+  // ntAllCycleNodes via ntResolveCyclePtp, MDLM host+client both populate it via
+  // ntResolveCycleMdlm/the NT_PLAYBACK applier, so this is genuinely device-agnostic.
   if (logsBtn) logsBtn.style.display = ntAllCycleNodes.length > 0 ? 'block' : 'none';
+
+  // MDLM per-cycle summary — readyCheck gate before advancing, same pattern as the Cycle
+  // Initialisation Gate: the host waits for every device to confirm before starting the
+  // next cycle, instead of unilaterally advancing everyone (nextBtn is hidden for the final
+  // match summary above, so this only ever applies to the mid-match case).
+  if (!isFinalMatch && window.syllyMultiplayerMode === 'client') {
+    if (nextBtn) { nextBtn.textContent = 'Ready ▶'; nextBtn.disabled = false; nextBtn.classList.add('btn-mp-action'); }
+    ntSummaryCallback = () => {
+      if (nextBtn) { nextBtn.textContent = 'Waiting for host…'; nextBtn.disabled = true; }
+      mpLockSync();
+      mpSendEnvelope({ type: 'ACTION', payload: { action: 'NT_SUMMARY_READY' } });
+    };
+  } else if (!isFinalMatch && window.syllyMultiplayerMode === 'host') {
+    if (nextBtn) { nextBtn.textContent = 'Next Cycle ▶'; nextBtn.disabled = true; nextBtn.classList.add('btn-mp-action'); }
+    ntSummaryReadyCheck[mpMyPlayerIdx] = true;
+    ntSummaryCallback = () => {
+      ntCycle++;
+      ntStartMatch();
+    };
+    if (ntSummaryReadyCheck.every(Boolean) && nextBtn) nextBtn.disabled = false;
+  } else {
+    // Solo/PTP, or the final match summary (nextBtn hidden — Reboot is the only action there).
+    ntSummaryCallback = () => {
+      ntCycle++;
+      ntBeginCycle();
+    };
+  }
+
   showScreen('screen-nt-summary');
   ntRenderSummary();
 }
@@ -1427,20 +1807,18 @@ function ntComputeTimeline_local() {
 // SCORING  (Step 5 — §6)
 // ═══════════════════════════════════════════════════════════════════════════
 
-// Solo/local cycle resolve: record this cycle's latency + SER, recompute rolling avg.
-// (Multiplayer host-authoritative cluster/ceiling scoring lands in the MP step.)
-function ntResolveCycle() {
-  const latency = ntPlaybackTimeline ? ntPlaybackTimeline.latencyMs : 0;
-  ntCycleLatencies[ntCycle] = [latency];
-  // Solo: the only player is always the ceiling ⇒ SER 100.00%.
-  ntCycleSERs[ntCycle] = [100];
-  // Rolling average per player.
-  let sum = 0, n = 0;
-  ntCycleSERs.forEach(c => { if (c && typeof c[0] === 'number') { sum += c[0]; n++; } });
-  ntOverallSER = [n ? sum / n : 0];
-}
-
 function ntFmtMs(ms) { return Math.round(ms).toLocaleString('en-AU') + ' ms'; }
+
+// Rolling team average across every cycle played so far — the team-level counterpart of
+// ntOverallSER. DERIVED from ntTeamCycleSERs on demand rather than accumulated into new
+// state, so nothing extra has to be broadcast, reset or normalised on receipt.
+function ntTeamOverallSER() {
+  return [0, 1].map(team => {
+    let sum = 0, n = 0;
+    ntTeamCycleSERs.forEach(c => { if (c && typeof c[team] === 'number') { sum += c[team]; n++; } });
+    return n ? sum / n : 0;
+  });
+}
 
 function ntRenderSummary() {
   const serEl   = document.getElementById('nt-summary-ser');
@@ -1469,8 +1847,54 @@ function ntRenderSummary() {
     return;
   }
 
-  // PTP multi-player: show per-player SER leaderboard using local scoring.
-  if (ntPlayerCount > 1 && window.syllyMultiplayerMode === 'single') {
+  // DNP: the match is team vs team, so the headline and the board are both by TEAM —
+  // with each member's own contribution under their team, because the per-player number
+  // is what a player actually recognises as "how I did". ntTeamCycleSERs was computed,
+  // broadcast and applied on every device from the day DNP shipped, and then read by
+  // nothing at all; this is the render that was missing, not new scoring.
+  if (ntIsDNP() && ntPlayerCount > 1) {
+    const teamSERs = isFinal ? ntTeamOverallSER() : (ntTeamCycleSERs[ntCycle] || []);
+    const playerSERs = (isFinal ? ntOverallSER : ntCycleSERs[ntCycle]) || [];
+    const teamName = t => ntTeamNames[t] || ('TEAM ' + (t === 0 ? 'A' : 'B'));
+    const leadIdx  = (teamSERs[1] || 0) > (teamSERs[0] || 0) ? 1 : 0;
+
+    if (labelEl) labelEl.textContent = isFinal ? 'Match Winner' : 'Cycle Leader';
+    if (serEl)   serEl.textContent   = teamName(leadIdx);
+    if (rawEl)   rawEl.textContent   = 'TEAM SER ' + (teamSERs[leadIdx] || 0).toFixed(2) + '%';
+
+    if (board) {
+      board.innerHTML = '';
+      const order = [0, 1].sort((a, b) => (teamSERs[b] || 0) - (teamSERs[a] || 0));
+      order.forEach(team => {
+        const members = ntTeamIdx.reduce((acc, t, i) => { if (t === team) acc.push(i); return acc; }, []);
+        const card = document.createElement('div');
+        card.className = 'bg-white rounded-xl px-4 py-2 text-sm flex flex-col gap-1';
+        let inner = `<div class="flex items-center justify-between">
+            <span class="text-stone-700 font-mono font-semibold">${teamName(team)}</span>
+            <span class="text-stone-800 font-mono font-semibold">${(teamSERs[team] || 0).toFixed(2)}%</span>
+          </div>`;
+        members.forEach(pIdx => {
+          const nm = ntPlayerNames[pIdx] || ('ADMIN-' + (pIdx + 1));
+          inner += `<div class="flex items-center justify-between pl-3">
+              <span class="text-stone-400 font-mono text-xs">${nm}</span>
+              <span class="text-stone-500 font-mono text-xs">${(playerSERs[pIdx] || 0).toFixed(2)}%</span>
+            </div>`;
+        });
+        card.innerHTML = inner;
+        board.appendChild(card);
+      });
+    }
+    return;
+  }
+
+  // Multi-player leaderboard — PTP and MDLM alike. This deliberately does NOT branch on
+  // syllyMultiplayerMode: it reads ntOverallSER / ntCycleSERs / ntPlayerNames, and the
+  // NT_PLAYBACK applier populates all three on every client from the host's own numbers,
+  // so the same render is correct everywhere. It used to be gated behind
+  // `mode === 'single'` with an "MDLM rendering arrives in the MP step" placeholder
+  // below — a step never taken, so every MDLM summary showed the untouched `--.--%`
+  // default with no scoreboard at all.
+  if (ntPlayerCount > 1) {
     const overallSERs = ntOverallSER.length ? ntOverallSER : (ntCycleSERs[ntCycle] || []);
     const winnerIdx = overallSERs.reduce((best, v, i) => v > overallSERs[best] ? i : best, 0);
     const winnerName = ntPlayerNames[winnerIdx] || ('ADMIN-' + (winnerIdx + 1));
@@ -1492,7 +1916,9 @@ function ntRenderSummary() {
     return;
   }
 
-  // MDLM multiplayer rendering arrives with host-authoritative scoring (MP step).
+  // Unreachable in practice — ntPlayerCount is either <= 1 (handled above) or > 1 (the
+  // leaderboard). Kept as a safe default rather than leaving the label whatever the
+  // previous render wrote (§ the Stack's multi-renderer rule in ui-style.md).
   if (labelEl) labelEl.textContent = 'System Efficiency Rating';
 }
 
@@ -1511,13 +1937,9 @@ function ntBeginCycle() {
   ntPtpTurn       = 0;
   ntPtpTimelines  = [];
   ntPtpPlacements = [];
-  if (ntPlayerCount > 1 && window.syllyMultiplayerMode === 'single') {
-    // PTP multi-player: skip the boot terminal, go straight to first player's gate
-    ntBeginPtpTurn();
-  } else {
-    ntShowGateBoot();
-    ntGateBootThen(() => ntShowGate());
-  }
+  // Solo is PTP with exactly one admin — same turn/gate machinery either way, so there's
+  // no separate solo path here. ntBeginCycle() is only ever reached in single-device mode.
+  ntBeginPtpTurn();
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1527,8 +1949,8 @@ function ntBeginCycle() {
 // Which discrete block (if any) covers tile (tx,ty)? Blocks are disjoint, so ≤1 match.
 function ntBlockAt(tx, ty) {
   const n = ntNode;
-  let b = n.badSectors.find(c => ntCovers(c.ax, c.ay, tx, ty));      if (b) return { ax: b.ax, ay: b.ay, type: 'bad',  source: 'bad' };
-  b = n.nativeHoneypots.find(c => ntCovers(c.ax, c.ay, tx, ty));     if (b) return { ax: b.ax, ay: b.ay, type: 'native', source: 'native' };
+  let b = (n.badSectors || []).find(c => ntCovers(c.ax, c.ay, tx, ty));      if (b) return { ax: b.ax, ay: b.ay, type: 'bad',  source: 'bad' };
+  b = (n.nativeHoneypots || []).find(c => ntCovers(c.ax, c.ay, tx, ty));     if (b) return { ax: b.ax, ay: b.ay, type: 'native', source: 'native' };
   b = ntMyPlacements.find(p => ntCovers(p.ax, p.ay, tx, ty));        if (b) return { ax: b.ax, ay: b.ay, type: b.type, source: 'placement' };
   return null;
 }
@@ -1977,13 +2399,9 @@ function ntCommit() {
     const btn = document.getElementById('btn-nt-commit');
     if (btn) { btn.textContent = 'Submitted…'; btn.disabled = true; }
     mpSendEnvelope({ type: 'ACTION', payload: { action: 'NT_COMMIT', placements: ntMyPlacements.slice() } });
-  } else if (ntPlayerCount > 1) {
-    // PTP path — delegate scoring + navigation to ntCommitPtp
-    ntCommitPtp();
   } else {
-    ntPlaybackTimeline = ntComputeTimeline_local();
-    ntResolveCycle(); // solo — latency now known
-    ntShowPlayback();
+    // Single-device — solo is PTP with one admin, so this is the only path either way.
+    ntCommitPtp();
   }
 }
 
@@ -2018,12 +2436,15 @@ function ntDrawLegCanvas(canvas, node, cell, opts) {
   const ctx = canvas.getContext('2d');
   ctx.fillStyle = NT_COLOR_BASE;
   ctx.fillRect(0, 0, n * c, n * c);
-  // Faint structural gridlines (one per 2×2 block unit) so the corridor layout reads.
-  ctx.strokeStyle = 'rgba(100,116,139,0.28)';
+  // Per-TILE gridlines (not per-2×2-block) so each square reads at its real scale —
+  // matching the playback screen's own grid (ntRenderFrame). The old block-only spacing
+  // made 2×2 obstacles look like an ambiguous size with nothing to anchor scale against.
+  // Lighter than a per-block grid would need (2× the line count) to stay unobtrusive.
+  ctx.strokeStyle = 'rgba(148,163,184,0.18)';
   ctx.lineWidth = 1;
-  for (let g = 0; g <= n; g += NT_BLOCK) {
-    ctx.beginPath(); ctx.moveTo(g * c + 0.5, 0);     ctx.lineTo(g * c + 0.5, n * c); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(0, g * c + 0.5);     ctx.lineTo(n * c, g * c + 0.5); ctx.stroke();
+  for (let li = 0; li <= n; li++) {
+    ctx.beginPath(); ctx.moveTo(li * c + 0.5, 0);     ctx.lineTo(li * c + 0.5, n * c); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, li * c + 0.5);     ctx.lineTo(n * c, li * c + 0.5); ctx.stroke();
   }
   const fill = (ax, ay, color) => {
     ctx.fillStyle = color;
@@ -2031,9 +2452,13 @@ function ntDrawLegCanvas(canvas, node, cell, opts) {
   };
   (node.badSectors      || []).forEach(p => fill(p.ax, p.ay, NT_COLOR_BAD_SECTOR));
   (node.nativeHoneypots || []).forEach(p => fill(p.ax, p.ay, NT_COLOR_NATIVE_HONEYPOT));
-  // Grey seam walls on shared edges — full height except the one connecting port row.
+  // Seam walls on shared edges — full height except the one connecting port row.
+  // Deliberately NOT NT_COLOR_BAD_SECTOR: that colour is a hazard's colour, and on this
+  // flat (no-glow) preview a same-colour wall reads as just another obstacle square
+  // rather than a team-connection boundary. Lighter slate keeps the neutral/structural
+  // palette without competing with the semantic ingress/egress/native-honeypot colours.
   const wallT = Math.max(2, Math.round(c * 0.5));
-  ctx.fillStyle = NT_COLOR_BAD_SECTOR;
+  ctx.fillStyle = '#64748b'; // slate-500 — lighter than bad-sector's slate-700
   if (opts.wallLeft && node.ingress) {
     for (let row = 0; row < n; row++) { if (row === node.ingress.idx) continue; ctx.fillRect(0, row * c, wallT, c); }
   }
@@ -2049,28 +2474,50 @@ function ntDrawLegCanvas(canvas, node, cell, opts) {
 // Build a team's full bridge into `container`: a horizontal row of (name + maze)
 // columns, edge-to-edge so the chained ports connect visually. `members` = global
 // player indices in leg order; `cell` = px per tile (small inline, large for overlay).
-function ntBuildBridgeInto(container, members, cell) {
+//
+// opts (all optional) turn the same strip into the allocation picker:
+//   footer(legIdx, pIdx) → HTML string rendered under a leg (live FW/HP counts)
+//   onTap(legIdx)        → click handler on a leg column (deposit)
+//   onHold(legIdx)       → long-press handler on a leg column (withdraw)
+// Read-only callers (the enlarged preview overlay) pass none of them and get the
+// original display-only strip. Deliberately ONE builder: the allocation picker and
+// the preview overlay must never drift into two different pictures of the bridge.
+function ntBuildBridgeInto(container, members, cell, opts) {
   if (!container) return;
+  opts = opts || {};
   container.innerHTML = '';
   const row = document.createElement('div');
   row.className = 'flex items-end w-max mx-auto';
   const teamSize = members.length;
   members.forEach((pIdx, legIdx) => {
     const col = document.createElement('div');
-    col.className = 'flex flex-col items-center';
+    col.className = 'flex flex-col items-center' + (opts.onTap ? ' cursor-pointer' : '');
     const isMe = pIdx === mpMyPlayerIdx;
     const name = ntPlayerNames[pIdx] || ('ADMIN-' + (pIdx + 1));
     const label = document.createElement('p');
-    label.className = 'text-[10px] font-semibold mb-1 whitespace-nowrap ' + (isMe ? 'text-emerald-400' : 'text-stone-300');
+    // On the PAGE's white background, not the canvas below it — col has no bg of its
+    // own. text-stone-300 read as near-invisible for a non-"you" leg (D28 fix missed
+    // this sibling of the nav label; same bug, same cause: wrong assumed backdrop).
+    label.className = 'text-[10px] font-semibold mb-1 whitespace-nowrap ' + (isMe ? 'text-emerald-400' : 'text-stone-500');
     label.textContent = name + (isMe ? ' (you)' : '');
     const cv = document.createElement('canvas');
     cv.className = 'bg-slate-950';
     cv.style.imageRendering = 'pixelated';
     col.appendChild(label);
     col.appendChild(cv);
+    if (opts.footer) {
+      const ft = document.createElement('div');
+      ft.className = 'mt-1 w-full';
+      ft.innerHTML = opts.footer(legIdx, pIdx);
+      col.appendChild(ft);
+    }
     row.appendChild(col);
     const node = ntTeamNodes[pIdx];
     if (node) ntDrawLegCanvas(cv, node, cell, { wallLeft: legIdx > 0, wallRight: legIdx < teamSize - 1 });
+    if (opts.onTap)  col.addEventListener('click', () => opts.onTap(legIdx));
+    // Long-press to withdraw — a bonus affordance, never the primary one (the Undo
+    // button is the discoverable path). bindCardHold is the engine.js global.
+    if (opts.onHold && typeof bindCardHold === 'function') bindCardHold(col, () => opts.onHold(legIdx));
   });
   container.appendChild(row);
 }
@@ -2095,8 +2542,8 @@ function ntDrawMaze(ctx, px) {
     ctx.fillRect(ax * px + 1, ay * px + 1, NT_BLOCK * px - 2, NT_BLOCK * px - 2);
     ctx.restore();
   };
-  ntNode.badSectors.forEach(c => fill(c.ax, c.ay, NT_COLOR_BAD_SECTOR, false));
-  ntNode.nativeHoneypots.forEach(c => fill(c.ax, c.ay, NT_COLOR_NATIVE_HONEYPOT, false)); // muted structural — no glow
+  (ntNode.badSectors || []).forEach(c => fill(c.ax, c.ay, NT_COLOR_BAD_SECTOR, false));
+  (ntNode.nativeHoneypots || []).forEach(c => fill(c.ax, c.ay, NT_COLOR_NATIVE_HONEYPOT, false)); // muted structural — no glow
   ntMyPlacements.forEach(p => fill(p.ax, p.ay, p.type === 'honeypot' ? NT_COLOR_HONEYPOT : NT_COLOR_FIREWALL, true));
   // Static AoE threat rings are now drawn by ntRenderFrame (suppressed during active cooldown disc).
   // Port bars — straddling the border line; ingress green+inward arrow, egress grey+outward.
@@ -2159,7 +2606,7 @@ function ntRenderFrame(simMs, updateScrubber) {
     const isSlowAt = (t) => (tl.slowSpans || []).some(sp => t >= sp[0] && t < sp[1]);
     // Track which honeypots are currently within cooldown — suppresses static ring on those cells.
     const activeFires = new Set();
-    tl.fires.forEach(f => {
+    (tl.fires || []).forEach(f => {
       const age = simMs - f.atMs;
       if (age >= 0 && age < NT_HONEYPOT_COOLDOWN) activeFires.add(`${f.x},${f.y}`);
     });
@@ -2206,7 +2653,7 @@ function ntRenderFrame(simMs, updateScrubber) {
     }
 
     // Draining AoE disc + clock-wipe — both animate for the full cooldown window (~7s real at 5×).
-    tl.fires.forEach(f => {
+    (tl.fires || []).forEach(f => {
       const age = simMs - f.atMs;
       if (age < 0 || age >= NT_HONEYPOT_COOLDOWN) return;
       const progress = age / NT_HONEYPOT_COOLDOWN; // 0.0 = just triggered → 1.0 = recharged
@@ -2476,8 +2923,9 @@ function ntRenderJourneyFrame(simMs) {
   const legIdx = ntJourneyLegAt(j, simMs);
   const leg    = j.legs[legIdx];
   if (legIdx !== ntPbActiveLeg) {       // boundary cross — slide the next node in
+    const dir = legIdx > ntPbActiveLeg ? 1 : -1;
     ntPbActiveLeg = legIdx;
-    ntJourneySlide();
+    ntJourneySlide(dir);
   }
   // Point the shared renderer at the active leg (ntRenderFrame/ntSampleAt/ntSetStatus read these).
   ntNode             = leg.node;
@@ -2493,12 +2941,17 @@ function ntRenderJourneyFrame(simMs) {
   if (sc && j.total > 0) sc.value = Math.round((simMs / j.total) * 100);
 }
 
-// Quick horizontal slide-in on the canvas when the active leg changes (viewport-slider feel).
-function ntJourneySlide() {
+// Quick horizontal slide-in on the canvas when the active leg changes (viewport-slider
+// feel). `dir` is +1 travelling forward along the bridge and −1 when the scrubber is
+// dragged back: forward, the next leg is to your right and so enters from the right;
+// backward it must enter from the left, or reversing reads as continuing forward.
+// (The canvas is clipped by its parent's overflow-hidden — without that it slides
+// visibly outside the terminal frame.)
+function ntJourneySlide(dir) {
   const cv = document.getElementById('nt-playback-canvas');
   if (!cv) return;
   cv.style.transition = 'none';
-  cv.style.transform  = 'translateX(16%)';
+  cv.style.transform  = 'translateX(' + (dir < 0 ? '-16%' : '16%') + ')';
   cv.style.opacity    = '0.35';
   void cv.offsetWidth; // force reflow so the transition runs
   cv.style.transition = 'transform 220ms ease-out, opacity 220ms ease-out';
@@ -2700,6 +3153,21 @@ function ntHandleEnvelope(envelope) {
       return;
     }
 
+    if (payload.action === 'NT_SUMMARY_READY') {
+      const senderIdx = mpPlayerSlots.findIndex(p => p.uid === envelope.originId);
+      if (senderIdx === -1) return;
+      ntSummaryReadyCheck[senderIdx] = true;
+      mpUnlockSync();
+      // Only touch the button if the host is actually on the summary screen right now —
+      // harmless either way (ntShowSummary() re-checks .every(Boolean) fresh when the host
+      // does reach it), this just avoids poking a hidden/off-screen element pointlessly.
+      if (ntSummaryReadyCheck.every(Boolean)) {
+        const btn = document.getElementById('btn-nt-summary-next');
+        if (btn) btn.disabled = false;
+      }
+      return;
+    }
+
     if (payload.action === 'NT_COMMIT') {
       const senderIdx = mpPlayerSlots.findIndex(p => p.uid === envelope.originId);
       if (senderIdx === -1) return;
@@ -2717,18 +3185,8 @@ function ntHandleEnvelope(envelope) {
       const senderIdx = mpPlayerSlots.findIndex(p => p.uid === envelope.originId);
       if (senderIdx === -1) return;
       const senderTeam = ntTeamIdx[senderIdx];
-      const teamSizes  = [0, 0]; ntTeamIdx.forEach(t => teamSizes[t]++);
-      const pool = {
-        firewall: ntInventory.firewall * teamSizes[senderTeam],
-        honeypot: ntInventory.honeypot * teamSizes[senderTeam],
-      };
-      const allocs = (payload.allocations || []).map(a => ({
-        firewall: Math.max(0, a.firewall || 0),
-        honeypot: Math.max(0, a.honeypot || 0),
-      }));
-      const usedFW = allocs.reduce((s, a) => s + a.firewall, 0);
-      const usedHP = allocs.reduce((s, a) => s + a.honeypot, 0);
-      if (usedFW > pool.firewall || usedHP > pool.honeypot) return; // reject out-of-bounds
+      const allocs = ntValidateTeamAllocations(senderTeam, payload.allocations);
+      if (!allocs) return;                        // reject out-of-bounds outright
       ntTeamWorkingAllocs[senderTeam] = allocs;
       ntBroadcastAllocationSync();
       mpUnlockSync();
@@ -2763,24 +3221,25 @@ function ntHandleEnvelope(envelope) {
       ntMyPlacements  = [];
       ntFirewallUsed  = 0;
       ntHoneypotUsed  = 0;
-      ntGateReadyCheck   = new Array(ntPlayerCount).fill(false);
-      ntCommitReadyCheck = new Array(ntPlayerCount).fill(false);
+      ntGateReadyCheck    = new Array(ntPlayerCount).fill(false);
+      ntCommitReadyCheck  = new Array(ntPlayerCount).fill(false);
+      ntSummaryReadyCheck = new Array(ntPlayerCount).fill(false);
 
       if (payload.isDNP) {
         // DNP: each player has their own relay-leg node; wait for NT_HUDDLE_START
-        ntTeamNodes = payload.allPlayerNodes;
+        ntTeamNodes = (payload.allPlayerNodes || []).map(ntNormaliseNode);
         ntNode      = ntTeamNodes[mpMyPlayerIdx];
         // ntHuddleStart will show the allocation screen
       } else {
-        ntNode = payload.node;
-        ntGateBootThen(() => ntShowMdlmGate());
+        ntNode = ntNormaliseNode(payload.node);
+        ntShowMdlmGate();
       }
       return;
     }
 
     if (payload.action === 'NT_HUDDLE_START') {
       // DNP: captain sets allocation screen; others see read-only view
-      ntTeamNodes    = payload.allPlayerNodes;
+      ntTeamNodes    = (payload.allPlayerNodes || []).map(ntNormaliseNode);
       ntNode         = ntTeamNodes[mpMyPlayerIdx];
       ntHuddlePhase  = 'editing';
 
@@ -2793,12 +3252,19 @@ function ntHandleEnvelope(envelope) {
 
       const myTeamAllocs = payload.allAllocations[myTeam];
       ntAllocations = myTeamAllocs ? myTeamAllocs.map(a => ({ ...a })) : [];
+      // Per-huddle reset of the captain-local deposit stack — accumulator arrays must be
+      // reset on the CLIENT too, or cycle 2's Undo pops cycle 1's taps (§ logic-engine.md).
+      ntAllocDeposits = [];
+      ntAllocBrush    = 'firewall';
+      ntAllocViewLeg  = 0;
 
       const teamSizes = [0, 0];
       ntTeamIdx.forEach(t => teamSizes[t]++);
       const huddleDuration = payload.huddleDuration || (ntHardeningWin * teamSizes[myTeam]);
+      const myName = ntPlayerNames[mpMyPlayerIdx] || ('ADMIN-' + (mpMyPlayerIdx + 1));
 
-      ntGateBootThen(() => {
+      ntSetGateHeading('Cycle Initialisation Gate', 'Preparing your team’s Allocation Hub…');
+      ntPlayGateBoot([ntSimTag(), 'LOGIN: ' + myName.toUpperCase() + ' — OPENING ALLOCATION HUB…'], () => {
         ntShowAllocationScreen(isCap);
         ntStartHuddleTimer(huddleDuration);
       });
@@ -2831,8 +3297,11 @@ function ntHandleEnvelope(envelope) {
     }
 
     if (payload.action === 'NT_PLAYBACK') {
-      // Render-only — host already resolved; clients just store + display
-      ntPtpTimelines   = payload.timelines;
+      // Render-only — host already resolved; clients just store + display.
+      // Each timeline needs the same empty-collection repair the node does: a player who
+      // placed no honeypots sends fires:[] / slowSpans:[], both erased in flight, and
+      // ntRenderFrame reads tl.fires unguarded.
+      ntPtpTimelines   = (payload.timelines || []).map(ntNormaliseTimeline);
       // A player who spent no inventory this cycle submits placements:[] — Firebase drops
       // that empty array, turning allPlacements into a hole-having object keyed by index
       // rather than a plain array (BUG-06 class). Rebuild per-seat so a dropped slot reads
@@ -2895,9 +3364,7 @@ function ntResetState() {
   if (ntLongPressTimer){ clearTimeout(ntLongPressTimer); ntLongPressTimer = null; }
   if (ntResolveGuard)  { clearTimeout(ntResolveGuard); ntResolveGuard = null; }
   ntBootTimers.forEach(clearTimeout);
-  ntBootTimers      = [];
-  ntGateBootActive  = false;
-  ntGateBootPending = null;
+  ntBootTimers = [];
   ntCycleResolved  = false;
   ntCommitted      = false;
   // DNP journey playback teardown
@@ -2925,12 +3392,16 @@ function ntResetState() {
   ntTeamNodes      = [];
   ntAllocationPool  = { firewall: 0, honeypot: 0 };
   ntAllocations     = [];
+  ntAllocBrush      = 'firewall';
+  ntAllocDeposits   = [];
+  ntAllocViewLeg    = 0;
   ntHuddlePhase     = 'editing';
   ntTeamAllocLocked      = [false, false];
   ntTeamWorkingAllocs    = [[], []];
   ntAllPlayerAllocations = [];
-  ntGateReadyCheck   = [];
-  ntCommitReadyCheck = [];
+  ntGateReadyCheck    = [];
+  ntCommitReadyCheck  = [];
+  ntSummaryReadyCheck = [];
   ntRoutingState   = 'valid';
   ntPlaybackPhase  = 'tracing';
   ntPlaybackPaused = false;
@@ -2948,6 +3419,7 @@ function ntResetState() {
   ntAllCyclePlacements = [];
   ntAllCycleNodes      = [];
   ntGateCallback              = null;
+  ntSummaryCallback           = null;
   ntPlaybackContinueCallback  = null;
 }
 
@@ -3130,14 +3602,8 @@ document.addEventListener('DOMContentLoaded', () => {
     else ntShowSummary('cycle');
   });
   document.getElementById('btn-nt-summary-next').addEventListener('click', () => {
-    if (window.syllyMultiplayerMode === 'client') return; // host-only; client waits for NT_GENERATE
     playLaunch();
-    ntCycle++;
-    if (window.syllyMultiplayerMode === 'host') {
-      ntStartMatch(); // re-generates node, broadcasts NT_GENERATE, shows MDLM gate
-    } else {
-      ntBeginCycle();
-    }
+    if (ntSummaryCallback) ntSummaryCallback();
   });
 
   // ── Quit (mid-game ✕ → quit overlay → game menu) ──────────────────────────────

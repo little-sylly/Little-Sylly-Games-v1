@@ -20,6 +20,44 @@ Detail: pointer to the canonical doc (snapshot / impl note / spec / memory).
 
 ---
 
+## 2026-08-16 (later) — NT allocation hub: windowed viewer, no honeypot ceiling, and a screen that picks its own layout mode
+**Category:** Architecture
+**Decision:** Six screenshot-driven rounds on the hub shipped the same day as the tally-deposit above (SW v192→v197). Three outcomes worth carrying: (1) the **side-by-side bridge became a windowed single-leg viewer** (‹ › + an always-visible chip row) — the earlier "fit every leg at once" sizing was legible at 2 legs and an unreadable, overflowing smudge at 4; (2) the **per-leg honeypot ceiling was removed entirely** (`ntLegHoneypotCap` deleted), leaving the team-pool ceiling as the only bound on either resource — this **supersedes the ceiling described in the entry below**; (3) `screen-nt-allocation` now **chooses its own layout mode per render** — THE STACK (`ui-style.md`'s suite default) when header+stage+footer fit, falling back to the legacy sticky-footer split only on genuine overflow.
+**Why:** (1) and (3) are the same root problem — a fixed layout decision that is right at one size and wrong at another; measuring at render time and switching beats picking one. (2) was an owner call made against a real asymmetry: firewall excess is self-limiting (a maze runs out of legal cells) but honeypot excess is **not** — nothing outside the DNP cap bounded it, so removing it is a genuine balance change, accepted deliberately as "concentrating surplus is a captain's judgement call, never a broken state."
+**Two process points:** a **coordinate-frame bug** (`offsetLeft` resolves against an unpredictable `offsetParent`; mixing it with a `getBoundingClientRect` width mis-centred every leg past the first) and a **measure-before-paint bug** (layout reads return 0 on a `display:none` section, so a fit-check silently always passed) — both invisible to every headless harness, both caught only by `visual-check` + a live screenshot. Layout logic inside a render function carries preconditions its call sites don't advertise.
+**Changed:** `js/games/nt.js`, `index.html`, `tools/verify-nt-loopback.js` (honeypot-ceiling section rewritten; green on 8 seeds), `sw.js` v197, `code-map.md`, `game-identities.md` § Shared Allocation Hub (rewritten — it had drifted to describe 44 px thumbnails and the removed ceiling). **Deferred:** the maze preview renderer is still visibly cruder than the real build grid (`deferred-work.md`); a real 3-device retest.
+**Detail:** `nt-implementation-notes.md` D26–D35 (D32 = the cap removal, D35 = the Generated/Budget/Surplus glossary).
+
+---
+
+## 2026-08-16 — NT's DNP allocation becomes a tally-deposit; and a constraint is only real once every writer is checked
+**Category:** Architecture
+**Decision:** Replaced DNP's free-rebalance allocation hub with a **tally-deposit** model — each leg's base inventory is untouchable, the team gets a per-member **surplus** (3 FW / 1 HP × team size), and the captain arms a resource and taps a leg to deposit one unit (plus Undo / Reset All / long-press-to-withdraw). Shipped as one batch with three fixes: the DNP summary now renders by team, the playback journey canvas is clipped and its slide is direction-aware, and the dead `ntBuildBridgeInto` bridge is revived as the allocation picker.
+**Why:** the transfer model cost six interactions to express one idea and never showed two legs at once, and the captain had no latency feedback to judge a trade with — real decision, blind execution. The deposit model is purely **additive** (a captain who does nothing plays the same node as everyone else), which removes the "who lost resources" question entirely, and per-member scaling keeps 4v4 feeling like 2v2. It is **derivation-only**: `ntAllocations` keeps its array shape, so no packet changed.
+**Two process points worth carrying:** (1) the surplus formula existed in **three** places — host pool, the `allPools` payload, and the host's validation ceiling ~2,300 lines away — and missing the third would have rejected every legitimate client-captain deposit; (2) `NT_ALLOCATION_UPDATE` was validated but `NT_ALLOCATION_LOCK` was not, so the new per-leg honeypot ceiling was bypassable by skipping straight to LOCK. Both are the same lesson: **grep every writer of the state a new constraint governs, not the one path the UI happens to use.** Now one `ntValidateTeamAllocations()` serves both.
+**Changed:** `js/games/nt.js`, `index.html` (canvas clip wrapper + `#nt-alloc-status`), `tools/verify-nt-loopback.js` (119 → **146** checks), `sw.js` v191. **Deferred:** `.pill`'s 39 px height vs the suite's own 44 px touch minimum (scoped fix in NT only, suite sweep is a phase-gate call); ~350 px of dead space on the allocation screen; a real 3-device retest.
+**Detail:** `nt-implementation-notes.md` D22–D25 + TG-08; design record `docs/net-trace-dnp-mode-update.md`.
+
+---
+
+## 2026-08-15 — NT loopback harness; and the BUG-06 audit method is blind to NESTED payload collections
+**Category:** Process
+**Decision:** Built `tools/verify-nt-loopback.js` (119 checks, host + **2 clients**, Standard *and* DNP) and fixed the three defects it pinned. More importantly, corrected how the BUG-06 class is audited: scan by **payload shape** — walk the tree the producer builds and ask of every *leaf* collection "can this legitimately be empty when sent?" — not by applier line.
+**Why:** the 13 Aug BUG-06 sweep declared NT clean and it was carrying two more instances. That sweep looked for direct payload-to-collection assignment, which cannot see a collection nested inside an assigned object: `ntNode = payload.node` is clean-looking when the erased field is `node.nativeHoneypots` one level down, and `ntPtpTimelines = payload.timelines` likewise with `timelines[i].fires` two levels down. Both were client-only and probabilistic, so a host-side playtest was clean by construction and the failures read as random. A reliable tell exists in hindsight: NT guarded the *same two fields* with `|| []` at five of seven read sites — an inconsistent guard is evidence someone already hit the empty case and patched one path.
+**Changed:** `tools/verify-nt-loopback.js` (new), `js/games/nt.js` (`ntNormaliseNode`/`ntNormaliseTimeline` + `|| []` at five reads + dropped a `mode === 'single'` gate that left the MDLM summary rendering nothing), `sw.js` v190, `CLAUDE.md` § Verification harnesses. **Deferred:** re-sweeping PKO/FLW/SHP/CJAR by payload shape (`deferred-work.md`); BUG-07's late-join race still open; a real 3-device retest still required.
+**Detail:** `nt-implementation-notes.md` BUG-15/16/17 + D21; `shared-implementation-notes.md` BUG-06 addendum.
+
+---
+
+## 2026-08-15 — GAME_START roster-mismatch guard added to `engine-multiplayer.js` (suite-wide, all MDLM games)
+**Category:** Architecture
+**Decision:** A client whose own uid isn't present in the `GAME_START` roster it receives (it joined too late — its `HANDSHAKE` hadn't landed in the host's `mpPlayerSlots` snapshot before the host clicked Start) now shows a new `mp-roster-mismatch-overlay` ("Match Already Started") and returns to the lobby, instead of silently proceeding with `mpMyPlayerIdx = -1`.
+**Why:** found live-testing NT with 3 MDLM players — the affected device rendered as the literal string "ADMIN-0" (`'ADMIN-' + (-1 + 1)`) and stayed functionally tied to the host's own seat for several rounds before self-correcting. The host's own equivalent computation already guards `idx < 0`, but a `0` fallback is only safe for the host (who genuinely is always slot 0) — copying it onto the client side would make a late joiner impersonate the host's seat, which is close to what was actually observed. Failing visibly is safer than a plausible-looking wrong guess.
+**Changed:** `js/engine-multiplayer.js` (`GAME_START` applier, `resetToLobby()`'s overlay-teardown call site), `index.html` (`mp-roster-mismatch-overlay`). **Not fixed:** the underlying race in `mpConfirmRoster()` reading a synchronous, possibly-stale `mpPlayerSlots` snapshot — this change stops it from corrupting state silently but doesn't close the race itself. Unverified by live multi-device retest or any harness (all MP harnesses run in `'single'` mode and can't reach this code path).
+**Detail:** `shared-implementation-notes.md` BUG-07.
+
+---
+
 ## 2026-08-15 — Net-Trace cycle-boot/gate merge: screens driven by two async triggers need a shared pending-queue, not a call-site callback
 **Category:** Architecture
 **Decision:** Retired the separate `screen-nt-handshake` flavour screen; `screen-nt-gate` now types out the boot log itself and reveals the same ready-check block on completion. Host (synchronous) and client (async SYNC applier) both reach the post-boot config via `ntGateBootThen(fn)`, which runs `fn` immediately if the log already finished or queues it for the log's own completion callback — neither trigger needs to know about the other.

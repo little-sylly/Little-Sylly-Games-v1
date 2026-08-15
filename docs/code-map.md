@@ -1131,7 +1131,7 @@ Each plugin reads `window.activeExpansionOverrides` at its settings-apply point 
 | `screen-nt-menu` | Main hub — Trace the Route!, How to Play, Settings, ← Back to the Box |
 | `screen-nt-setup` | "Provision Admins" — PTP operator count + callsigns |
 | `screen-nt-gate` | Cycle readiness gate — carries the cycle-start boot terminal (`#nt-gate-boot-log`, typed line by line), each PTP handover, and the post-build gather beat |
-| `screen-nt-allocation` | DNP (Sylly Mode) Shared Allocation Hub — captain assigns firewall/honeypot across legs; non-captain sees read-only |
+| `screen-nt-allocation` | DNP (Sylly Mode) Shared Allocation Hub — captain deposits surplus across legs; non-captain sees read-only. Body IDs (all built by `ntRenderAllocationScreen`, not static markup): `nt-alloc-viewport` (clips the strip to one leg) → `nt-alloc-bridge` (the strip), `nt-alloc-chips`, `nt-alloc-viewer-label`, `btn-nt-alloc-prev`/`-next`. Static footer: `nt-alloc-status`, `nt-alloc-warning`, `nt-alloc-controlhub`, `btn-nt-alloc-lock`. On the legacy `h-screen` whitelist but **switches to the Stack** when content fits (D34) |
 | `screen-nt-build` | Hardening screen — player places firewall/honeypot components on their own relay-leg node |
 | `screen-nt-standby` | Passive standby — shown while other players are hardening |
 | `screen-nt-playback` | Animated BFS traversal — canvas shows packet routing with latency result |
@@ -1168,25 +1168,41 @@ Each plugin reads `window.activeExpansionOverrides` at its settings-apply point 
 | `ntTeamWorkingAllocs` | object[][] | `[[],[]]` | Host-only DNP: live `[team][legIdx] = {firewall,honeypot}` during huddle |
 | `ntAllPlayerAllocations` | object[] | `[]` | Host-only DNP: final per-player inventory `[playerIdx] = {firewall,honeypot}` |
 | `ntHuddlePhase` | string | `'open'` | `'open'` / `'locked'` — captain's allocation lock state |
-| `ntAllocations` | object[] | `[]` | Current player's per-leg allocation view (own team's legs) |
-| `ntAllocationPool` | object | `{firewall:0,honeypot:0}` | Team pool total available for distribution |
+| `ntAllocations` | object[] | `[]` | Own team's per-leg allocation = **base inventory + deposits** (array shape unchanged by the v191 model change, so no packet changed) |
+| `ntAllocationPool` | object | `{firewall:0,honeypot:0}` | Team **surplus** to deposit — `NT_SURPLUS_FIREWALL/HONEYPOT × team size`. **Not** the team's total; base inventory is untouchable |
+| `ntAllocBrush` | string | `'firewall'` | Which resource a leg-tap deposits |
+| `ntAllocDeposits` | object[] | `[]` | Captain-local Undo stack `[{leg,type}]` in tap order — **never synced**; reset per huddle on host *and* client |
+| `ntAllocViewLeg` | int | `0` | Which leg the windowed viewer shows — captain-local, **never synced**. Reset at the same 3 huddle boundaries as `ntAllocDeposits` (host start / client `NT_HUDDLE_START` / `resetToLobby`), but deliberately **not** by `ntResetDeposits()` — that clears deposits, not where you're looking |
 | `ntCycleSERs` | number[] | `[]` | SER per player per cycle (standard) |
-| `ntTeamCycleSERs` | number[][] | `[]` | SER per team per cycle (DNP) `[cycle][team]` |
+| `ntTeamCycleSERs` | number[][] | `[]` | SER per team per cycle (DNP) `[cycle][team]` — read by `ntRenderSummary`'s DNP branch and `ntTeamOverallSER()` (was computed + synced but rendered nowhere before v191) |
 
 ### Key Functions
 | Function | Purpose |
 |----------|---------|
 | `ntStartSession()` | Post-lobby entry — host generates node + routes; MDLM starts GAME_START flow |
 | `ntGenerateNode(opts)` | Generates relay-leg node geometry — `opts.keepInventory=true` reuses inventory for DNP N-node batch |
-| `ntShowGateBoot()` | Shows `screen-nt-gate` and types out the cycle-start boot log (`NT_BOOT_LINES`); reveals the ready-check block on completion |
-| `ntGateBootThen(fn)` | Runs `fn` now if the boot log already finished, else queues it for the log's completion callback — lets host/client each reach their own gate config without racing the boot |
-| `ntShowAllocationScreen(captainMode)` | Renders + shows `screen-nt-allocation` (captain interactive / non-captain read-only) |
-| `ntRenderAllocationScreen(captainMode)` | Injects pool banner + per-leg rows with [−]/[+] adjusters |
-| `ntAdjustAllocation(legIdx, type, dir)` | Validates pool bounds; host updates `ntTeamWorkingAllocs` direct; client sends `NT_ALLOCATION_UPDATE` |
+| `ntPlayGateBoot(lastLine, onDone)` | "Cycle Initialisation Gate" context — shows `screen-nt-gate` (heading/sub already visible) and types the boot log (`NT_BOOT_LINES` + a caller-supplied final line, e.g. `LOGIN: ADMIN-2`) underneath; reveals the ready button on completion (default) or runs `onDone` (DNP's hand-off into `screen-nt-allocation`) |
+| `ntShowGateNow()` | "Cycle Diagnostic Gate" context (the post-build gather) — shows `screen-nt-gate` with heading/sub/button immediately, no boot log |
+| `ntNormaliseNode(node)` | Wire repair (BUG-06 class) — restores `badSectors` / `nativeHoneypots` to `[]` after Firebase erases them. Call on **every** node arriving from a packet (`NT_GENERATE` both branches, `NT_HUDDLE_START`) |
+| `ntNormaliseTimeline(tl)` | Wire repair — restores `polyline` / `fires` / `slowSpans` / `samples` to `[]`. Mapped over `payload.timelines` in the `NT_PLAYBACK` applier |
+| `ntShowAllocationScreen(captainMode)` | `showScreen()` **then** render — that order is load-bearing: the render's layout-fit measurements read 0 on a still-hidden section (D33) |
+| `ntRenderAllocationScreen(captainMode)` | Directive line (terminal-chrome box) + **windowed** leg viewer (one leg large via `ntBuildBridgeInto` at `cell = min(18, viewportW/n)`, ‹ › to switch) + `ntRenderAllocChips` row + `#nt-alloc-status`/`#nt-alloc-warning` + brush bar. Ends with the **two-level layout-fit toggle**: section→Stack when header+body+footer fit, else legacy sticky-footer; then body-level centring when *its* content fits (D33/D34) |
+| `ntCenterAllocViewport()` | Translates the bridge strip so `ntAllocViewLeg`'s column centres in `#nt-alloc-viewport`. **`getBoundingClientRect` only** — `offsetLeft` resolves against an unpredictable `offsetParent` here and mis-centred every leg past the first (D31). No CSS transition (the subtree is rebuilt per tap — D28) |
+| `ntRenderAllocChips(members, editable)` | Fixed-width (`w-28`) chip per leg into `#nt-alloc-chips` — name / **Budget** / **Surplus** lines; tap deposits, hold withdraws (same verbs as the maze). Keeps the whole team readable while the viewer shows one leg |
+| `ntAllocLegDisplay(legIdx, pIdx)` | Shared formatter → `{ fw, hp, surplusFw, surplusHp }`. `fw`/`hp` are the **Budget** (`ntInventory`); `surplus*` are `deposited/pool`. Used by the maze footer **and** the chips so they can't drift. Never call the Budget line "native" — collides with `nativeHoneypots` (D35) |
+| `ntRenderAllocBrushBar(editable, bank)` | Brush pills (Firewall / Honeypot, `.pill` + `min-h-11`) + Undo / Reset All into `#nt-alloc-controlhub`; hidden for non-captains and once locked |
+| `ntDepositAlloc(legIdx)` | Captain taps a leg — deposits 1 of `ntAllocBrush`; refuses **only** on an empty surplus (no per-leg honeypot ceiling since D32) |
+| `ntWithdrawAlloc(legIdx)` | Long-press a leg — pulls 1 back off it; never below the untouchable base |
+| `ntUndoDeposit()` / `ntResetDeposits()` | Pop the last deposit / return every leg to base with the whole surplus in hand |
+| `ntPushAllocationChange()` | The ONE propagation point: repaint, then host updates `ntTeamWorkingAllocs` direct / client sends `NT_ALLOCATION_UPDATE` |
+| `ntAllocBank()` | Surplus still in hand — **derived** from `ntAllocations` vs base, so read-only devices show the same numbers |
+| ~~`ntLegHoneypotCap(pIdx)`~~ | **Deleted D32** (16 Aug 2026) — the per-leg honeypot ceiling was removed entirely (same reasoning as firewall, which never had one). Don't reintroduce it; the team-pool ceiling in `ntValidateTeamAllocations` is the only bound |
+| `ntAllocRefuse(msg)` | `playBoing()` + writes `#nt-alloc-status`. No timer — the next successful action's repaint restores the readout. (`ntSetRouting` is the **build** screen's and no-ops here) |
+| `ntValidateTeamAllocations(teamIdx, proposed)` | HOST-ONLY authority check → sanitised copy or `null`. Team-pool ceiling only. Used by **both** `NT_ALLOCATION_UPDATE` and the LOCK path |
 | `ntStartHuddleTimer(durationSecs)` | Countdown with `playTick()` at ≤10s; auto-calls `ntCommitAllocation()` on expiry |
 | `ntStopHuddleTimer()` | Clears `ntHuddleTimer` handle |
 | `ntCommitAllocation()` | Locks captain's allocation — host applies directly + checks both teams; client sends `NT_ALLOCATION_LOCK` |
-| `ntApplyAllocationLock(teamIdx, allocations)` | Migrates working allocs → `ntAllPlayerAllocations`; calls `ntBroadcastAllocationSync()` |
+| `ntApplyAllocationLock(teamIdx, allocations)` | Runs `ntValidateTeamAllocations` (falls back to last valid working state if rejected), migrates → `ntAllPlayerAllocations`; calls `ntBroadcastAllocationSync()` |
 | `ntBroadcastAllocationSync()` | Broadcasts `NT_ALLOCATION_SYNC` with both teams' locked state + working allocations |
 | `ntCheckBothTeamsLocked()` | Host: when both teams locked, stops huddle timer, broadcasts `NT_BUILD_BEGIN` with `endTimestamp` |
 | `ntShowBuild()` | Shows `screen-nt-build` — hardening phase |
@@ -1194,7 +1210,11 @@ Each plugin reads `window.activeExpansionOverrides` at its settings-apply point 
 | `ntComputeTimeline_local()` | BFS traversal on current `ntNode` with `ntMyPlacements` → returns latency timeline |
 | `ntResolveCycleMdlm(allPlacements)` | Host: computes timelines for all players (swapping `ntNode` + `ntMyPlacements` per player for DNP); derives SERs using cluster ceiling formula for DNP |
 | `ntShowPlayback()` | Shows `screen-nt-playback` + starts canvas BFS animation |
+| `ntJourneySlide(dir)` | Leg-boundary slide on `#nt-playback-canvas`. `dir` is ±1 from `legIdx > ntPbActiveLeg` — forward enters from the right, backward (scrubbing) from the left. Canvas parent must keep its `overflow-hidden` or the slide escapes the terminal frame |
+| `ntBuildBridgeInto(container, members, cell, opts)` | Builds a team's edge-to-edge cluster bridge (name + maze per leg, seam walls). `opts = { footer, onTap, onHold }` turns the same strip into the allocation picker; read-only callers (`ntOpenBridgePreview`) pass none. **One builder** — picker and preview must not drift |
 | `ntShowSummary(mode)` | Shows `screen-nt-summary` with per-cycle SER leaderboard, or the final match report when `mode === 'match'` |
+| `ntRenderSummary()` | Three branches: solo (raw latency), **DNP (team Cycle Leader + two team cards with per-member contributions)**, and the flat per-player leaderboard for Standard multi-player |
+| `ntTeamOverallSER()` | Rolling team average across cycles — **derived** from `ntTeamCycleSERs` on demand, deliberately not new state (nothing extra to broadcast, reset or normalise) |
 | `ntHandleEnvelope(env)` | Routes all NT ACTION/SYNC packets; called from `engine-multiplayer.js` |
 | `ntResetState()` | Full state teardown (called from `resetToLobby()` in `engine.js`) |
 

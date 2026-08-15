@@ -1317,8 +1317,8 @@ LOBBY (MDLM only) → NT MENU
 | Team SER | DNP: `Σ team_latencies / clusterCeiling × 100` |
 | Hardening Window | The countdown timer for each player's build phase (`ntHardeningWin` seconds) |
 | Huddle Timer | DNP allocation phase timer: `ntHardeningWin × teamSize` seconds |
-| Shared Allocation Hub | DNP pre-hardening screen — team captain distributes a pool across all relay legs |
-| Team Pool | DNP: combined firewall + honeypot budget shared across one team's legs |
+| Shared Allocation Hub | DNP pre-hardening screen — team captain deposits the team surplus across the relay legs |
+| Team Surplus | DNP: the deposit-only budget on top of every leg's untouchable base — 3 FW + 1 HP **per team member**. (Called "Team Pool" before v191, when it was the team's whole inventory and legs were rebalanced against it) |
 | DNP | Devil's Network Protocol — Sylly Mode name; two teams compete on matched relay legs |
 | New Trace | Play again — resets all state, preserves names + settings |
 | Drop Connection? | Quit overlay heading |
@@ -1350,17 +1350,47 @@ Player count (`ntPlayerCount`, default 4) is set from the lobby roster in MDLM (
 - `clusterCeiling = Σ ceiling_n` across all matched legs
 - `playerSER_n = player_latency / clusterCeiling × 100`
 - `teamSER = Σ team_latencies / clusterCeiling × 100`
-- Stored in `ntTeamCycleSERs[cycle][team]` for the gameover screen
+- Stored in `ntTeamCycleSERs[cycle][team]`. **Rendered by `ntRenderSummary()`'s DNP branch** (v191): the Diagnostic Summary headline names the leading **team**, and the board is two team cards, each listing its members' own contributions underneath. Match summaries use `ntTeamOverallSER()`, the rolling team average derived from the same array. Before v191 this layer was computed, broadcast and applied on every device but read by nothing — DNP showed a flat per-player leaderboard
 
 **Shared Allocation Hub (DNP):**
 - Shows before hardening begins each cycle
 - Each team's captain (per `ntCaptainSlots[team]`) drives **their own** team's hub; the other team's captain drives theirs independently. Both `ntTeamIdx` and `ntCaptainSlots` are populated on host AND clients from `window.mpLobbyRoster` in NT's `onPassThePhone` (an empty client branch was the root cause of BUG-09: clients had no team/captain → empty hub, no second captain, stuck-on-lock)
-- **Cluster bridge** at the top of the hub: a horizontal-scroll row of per-leg mazes (player name above each), drawn edge-to-edge by `ntBuildBridgeInto` → `ntDrawLegCanvas`. DNP node generation chains each leg's egress row to the next leg's ingress row (`ntGenerateNode(keepInventory, forcedIngressIdx)`), so neighbouring legs connect only through the green-ingress ▸ amber-egress channel; the rest of each shared edge is walled off in bad-sector grey. Tap the bridge to open the enlarged `nt-bridge-preview-overlay`. Shown to captains AND non-captains
-- **Allocation = rebalance, not from-scratch:** every leg starts at its BASE inventory (sum = pool, transfer pool 0). Captains shift firewalls/honeypots between legs via [−]/[+]; doing nothing plays every leg at base (skippable — preserves flow). The transfer-pool counter is grouped in the captain-only "Rebalance Cluster" card with the controls
-- Non-captain: bridge only (no allocation controls — removed as clutter; they can't see live updates anyway). "Lock Allocation" CTA commits (captain only)
+- **Windowed leg viewer, not a full side-by-side bridge** (reworked 16 Aug 2026, SW v192 — replaced
+  the whole-strip layout, which was legible at 2v2 but an unreadable smudge past 2 legs): one leg
+  shown large (`cell: 18`, real resolution, scaled down only past `n=20` so it always fits the
+  viewport) with ‹ › to switch, still built through the shared `ntBuildBridgeInto` →
+  `ntDrawLegCanvas` (deliberately one builder — the picker and the enlarged `nt-bridge-preview-
+  overlay` never drift into two different pictures of the bridge). DNP node generation chains each
+  leg's egress row to the next leg's ingress row (`ntGenerateNode(keepInventory, forcedIngressIdx)`),
+  so neighbouring legs connect only through the green-ingress ▸ amber-egress channel; the rest of
+  each shared edge is walled off in a lighter slate (`#64748b` — distinct from the bad-sector fill
+  it sits beside, SW v195). Below the maze, an always-visible chip row (SW v192+) keeps every leg's
+  numbers readable at once and doubles as a second deposit surface (tap-deposit / hold-withdraw).
+- **Chip/footer show two separate lines, not a merged total** (SW v196): line 2 is the **build
+  BUDGET** (`ntInventory` — what a player can place during Build, identical on every leg since
+  inventory is the same for all players a cycle); line 3 is **surplus deposited to this specific
+  leg**, as `deposited/pool-total` (e.g. `FW 2/6`) in orange. Never call line 2 "native" — that
+  collides with `nativeHoneypots`, an unrelated terrain concept (see the terminology note below).
+- **Allocation = tally-deposit, not rebalance** (v191 — replaced the free-rebalance [−]/[+] hub): every leg's BASE inventory is **untouchable**. The team gets a **surplus** of `NT_SURPLUS_FIREWALL` (3) + `NT_SURPLUS_HONEYPOT` (1) **per team member** — so 3v3 = 9 FW + 3 HP. The captain arms a resource (brush pills, Firewall default) and **taps a leg to deposit one unit**. Undo pops the last deposit, Reset All returns everything; long-press a leg withdraws one unit (bonus affordance). Purely additive: doing nothing plays every leg at base
+- **No per-leg honeypot ceiling** (removed 16 Aug 2026, SW v194, D32) — same reasoning as firewall,
+  which never had one: concentrating surplus on one leg is a captain judgement call (inefficiency,
+  or a deliberate bet), never an out-of-bounds state. The team-wide pool ceiling
+  (`ntValidateTeamAllocations`) is the only bound either resource has. `ntLegHoneypotCap` no longer
+  exists — do not reference it.
+- **Terminology — three tiers, and "Honeypot" names two unrelated things.** Generated (terrain,
+  never player-controlled): **Bad Sector**, **Native Honeypot**. Budget (`ntInventory`, your build
+  allowance, rolled per cycle): **Firewall Segment**, **Honeypot**. Surplus (DNP only,
+  `ntAllocationPool`): FW/HP deposits a captain moves between legs. The buildable "Honeypot" and the
+  terrain's "Native Honeypot" share a name but are otherwise unrelated — a Bad Sector/Native
+  Honeypot count is never shown as a number anywhere in the UI, only as squares on the maze.
+- Non-captain: viewer + chip row, read-only (no brush bar). "Lock Allocations" CTA commits (captain
+  only). The whole allocation SCREEN (header + stage + footer) centres as one unit — THE STACK,
+  `ui-style.md`'s suite-wide default — whenever everything fits; falls back to the pinned
+  sticky-footer split only on genuine overflow (SW v196)
 - Huddle timer: `ntHardeningWin × teamSize` seconds; auto-locks on expiry via `ntCommitAllocation()`
 - If captain locks before timer expires, `ntCheckBothTeamsLocked()` cancels the timer and broadcasts `NT_BUILD_BEGIN` immediately when both teams are locked
-- Unallocated-pool warning: tapping Lock with remaining budget flashes `#nt-alloc-warning` via `nt-flash-warning` CSS animation; allocation still commits
+- Undeployed-surplus warning: tapping Lock with surplus in hand flashes `#nt-alloc-warning`; allocation still commits
+- **Host is the authority on both paths:** `ntValidateTeamAllocations()` gates `NT_ALLOCATION_UPDATE` *and* the LOCK path (a rejected LOCK still locks, but commits the last valid working state)
 
 **Host captain self-send guard:**
 - The `engine-multiplayer.js` dedup guard drops envelopes where `originId === syllyDeviceUid`
@@ -1390,7 +1420,7 @@ Player count (`ntPlayerCount`, default 4) is set from the lobby roster in MDLM (
 | `screen-nt-menu` | Main hub |
 | `screen-nt-setup` | PTP "Provision Admins" — operator count + callsigns |
 | `screen-nt-gate` | Cycle readiness gate — reused for the cycle-start boot terminal (types out flavour lines, then reveals the ready-check button), each PTP player's pass-the-phone handover, and the post-build "gather to watch playback" beat |
-| `screen-nt-allocation` | DNP Shared Allocation Hub — captain distributes team pool across legs |
+| `screen-nt-allocation` | DNP Shared Allocation Hub — the cluster bridge as picker; captain arms a resource and taps a leg to deposit the team surplus |
 | `screen-nt-build` | Hardening screen — player places components on their relay-leg node |
 | `screen-nt-standby` | Passive standby — shown while other players are hardening (MDLM) |
 | `screen-nt-playback` | Animated BFS traversal canvas + per-player latency/SER comparison panel |

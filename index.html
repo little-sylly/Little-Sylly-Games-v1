@@ -4998,7 +4998,7 @@ Launch Sequence
                  screen-mp-roster (host lobby roster assignment — conditional)
        Overlays: mp-version-mismatch-overlay, mp-host-disconnected-overlay,
                  mp-lttp-message-interrupt-overlay, mp-network-error-overlay,
-                 mp-host-prelobby-overlay
+                 mp-host-prelobby-overlay, mp-roster-mismatch-overlay
        Ref     : js/engine-multiplayer.js
     ════════════════════════════════════════════════════════════════ -->
 
@@ -5227,6 +5227,23 @@ Launch Sequence
       <button id="btn-mp-version-mismatch-ok"
         class="min-h-12 w-full rounded-xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-base font-semibold transition-all duration-150">
         Got it
+      </button>
+    </div>
+  </div>
+
+  <!-- mp-roster-mismatch-overlay (decision modal z-[100]) — shown when a device's own uid isn't in
+       the GAME_START roster it just received (it joined too late / wasn't in the host's confirmed
+       snapshot). Without this guard the device fell through with mpMyPlayerIdx = -1 and silently
+       corrupted shared state instead of failing visibly. -->
+  <div id="mp-roster-mismatch-overlay" style="display:none"
+    class="fixed inset-0 bg-black/40 z-[100] flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-cyan-300">
+      <p class="text-4xl">📡</p>
+      <h3 class="text-lg font-bold text-stone-800">Match Already Started</h3>
+      <p class="text-stone-500 text-sm">The host started the game before you finished joining. You'll be returned to the lobby — ask the host to start a new match.</p>
+      <button id="btn-mp-roster-mismatch-ok"
+        class="min-h-12 w-full rounded-xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-base font-semibold transition-all duration-150">
+        Back to Lobby
       </button>
     </div>
   </div>
@@ -7354,7 +7371,7 @@ Climb Again
     </div>
   </section>
 
-  <!-- NT ALLOCATION (DNP only — Shared Allocation Hub) — TODO Step 5: pool + adjusters -->
+  <!-- NT ALLOCATION (DNP only — Shared Allocation Hub): arm a resource, tap a leg to deposit the team surplus -->
   <section id="screen-nt-allocation" style="display:none"
     class="flex flex-col w-full max-w-sm mx-auto h-screen overflow-hidden">
     <div class="flex items-center justify-between px-4 pt-4 pb-2 flex-shrink-0">
@@ -7365,37 +7382,47 @@ Climb Again
         <button class="btn-nt-quit-open text-stone-500 font-bold text-xl active:scale-90 transition-transform duration-100">✕</button>
       </div>
     </div>
-    <div class="flex-1 min-h-0 overflow-hidden px-6 py-2 flex flex-col">
+    <div class="flex-1 min-h-0 overflow-y-auto px-6 py-2 flex flex-col">
       <div id="nt-alloc-body" class="flex flex-col flex-1 min-h-0 text-stone-400 text-sm">Pre-Planning huddle — allocate the cluster's inventory.</div>
     </div>
     <div class="px-6 pb-8 pt-2 flex-shrink-0">
+      <p id="nt-alloc-status" class="text-emerald-400 font-mono text-[10px] text-center truncate"></p>
+      <p id="nt-alloc-warning" class="text-amber-500 text-xs font-semibold text-center mb-2"></p>
       <div id="nt-alloc-controlhub" class="mb-2"></div>
-      <p id="nt-alloc-warning" style="display:none" class="text-amber-500 text-xs font-semibold text-center mb-2 animate-pulse">UNALLOCATED INVENTORY</p>
       <button id="btn-nt-alloc-lock" class="min-h-14 w-full rounded-2xl bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150 btn-mp-action">
         Lock Allocations
       </button>
     </div>
   </section>
 
-  <!-- NT GATE (Cycle boot terminal + readiness — merged: the boot log is pure flavour,
-       auto-plays line by line, then hands off to the same ready-check button.) -->
+  <!-- NT GATE — one continuous screen, two contexts:
+       (A) "Cycle Initialisation Gate" — cycle start + each PTP handover. Heading/sub show
+           immediately; the terminal boot types out below them; the ready button reveals
+           right under the log once typing finishes — never a second heading swapping in.
+       (B) "Cycle Diagnostic Gate" — the post-build gather, before playback. No boot log at
+           all: heading/sub/button all show immediately (ntShowGateNow()). -->
   <section id="screen-nt-gate" style="display:none"
-    class="relative flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
-    <div class="absolute top-4 right-4 flex items-center gap-3">
-      <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
-      <button class="btn-nt-quit-open text-stone-500 font-bold text-xl active:scale-90 transition-transform duration-100">✕</button>
-    </div>
-    <div class="flex flex-col w-full max-w-sm gap-5 text-center">
-      <p class="text-5xl">⚡</p>
-      <!-- Boot terminal log — typed out line by line at the start of each cycle; hidden once
-           typing finishes and the ready-check block below is revealed. -->
-      <div id="nt-gate-boot-log" style="display:none"
-        class="w-full min-h-[9rem] rounded-xl border border-emerald-700/40 bg-slate-900 px-4 py-4 text-left font-mono text-xs text-emerald-400 leading-relaxed"></div>
-      <div id="nt-gate-ready-wrap" class="flex flex-col gap-5">
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-5">
+      <div class="flex items-center justify-between">
+        <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest">System Access</p>
+        <div class="flex items-center gap-2">
+          <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+          <button class="btn-nt-quit-open text-stone-500 font-bold text-xl active:scale-90 transition-transform duration-100">✕</button>
+        </div>
+      </div>
+      <div class="flex flex-col items-center gap-5 text-center">
         <div>
           <h2 id="nt-gate-heading" class="text-2xl font-bold text-stone-800">Cycle Initialisation Gate</h2>
           <p id="nt-gate-sub" class="text-stone-400 text-sm mt-1">Confirm ready to begin Network Hardening.</p>
         </div>
+        <!-- Boot terminal log — typed out line by line; skipped entirely for the Diagnostic
+             Gate context. Stays visible once typed (not hidden) — the button below is the
+             only thing that reveals. min-h is sized for the FULL line count up front (7
+             fixed NT_BOOT_LINES + up to 2 context lines) so the window doesn't visibly grow
+             as later lines print in — it's already at its end-state size from the start. -->
+        <div id="nt-gate-boot-log" style="display:none"
+          class="w-full min-h-[13rem] rounded-xl border border-emerald-700/40 bg-slate-900 px-4 py-4 text-left font-mono text-xs text-emerald-400 leading-relaxed"></div>
         <button id="btn-nt-gate-ready" class="min-h-14 w-full rounded-2xl bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150 btn-mp-action">
           Begin Hardening ▶
         </button>
@@ -7457,7 +7484,7 @@ Climb Again
           <span id="nt-playback-latency" class="text-red-400 font-bold tabular-nums">0 ms</span>
           <span id="nt-playback-status" class="px-1.5 py-0.5 rounded-full text-[9px] font-bold whitespace-nowrap flex-shrink-0 bg-emerald-900/60 text-emerald-400">OPERATIONAL</span>
         </div>
-        <canvas id="nt-playback-canvas" class="w-full aspect-square bg-slate-900 rounded"></canvas>
+        <div class="w-full overflow-hidden rounded"><canvas id="nt-playback-canvas" class="w-full aspect-square bg-slate-900 rounded"></canvas></div>
         <!-- DNP segmented journey track — one labelled section per leg (hidden in non-DNP) -->
         <div id="nt-journey-segwrap" style="display:none" class="px-1">
           <div id="nt-journey-segments" class="flex w-full h-4 rounded overflow-hidden bg-slate-800"></div>

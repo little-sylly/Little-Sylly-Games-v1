@@ -229,14 +229,585 @@ DNP generates N nodes sharing one inventory pool using `ntGenerateNode({keepInve
 **Fix:** Branch on `ntSummaryMode`: `'match'` still does `resetToLobby()` directly; `'cycle'` now opens the existing `nt-quit-overlay` (same mid-game quit-confirm gate every other NT screen uses).
 **Lesson:** A screen reused for both a mid-game and a post-game moment needs its ✕ handler to check which moment it's actually in — don't assume a screen's exit behaviour from its *name* alone.
 
-### D17 — Merged the boot flavour screen into the cycle gate (`screen-nt-handshake` retired)
+### D17 — Merged the boot flavour screen into the cycle gate (`screen-nt-handshake` retired); one continuous screen, two named contexts (revised three times — 15 Aug 2026)
 **What happened:** Every cycle briefly flashed a separate `screen-nt-handshake` ("INITIALISING OS…" + a Continue button) before landing on `screen-nt-gate`'s actual readiness prompt — two taps/screens for what is really one beat, and for MDLM the handshake was usually invisible anyway (overwritten synchronously the instant the host's `NT_GENERATE` fired).
-**Decision:** Deleted `screen-nt-handshake`. `screen-nt-gate` now carries an optional terminal-style boot log (`#nt-gate-boot-log`) that types out flavour lines (`NT_BOOT_LINES`, a local `ntTypeLines()` generic port of secret-mode.js's `smTypeLines`) and, on completion, reveals the same ready-check block (`#nt-gate-ready-wrap`) it always had. New orchestration: `ntShowGateBoot()` shows the screen and plays the log; `ntGateBootThen(fn)` runs `fn` immediately if the log has already finished, or queues it for the log's completion callback otherwise. This decouples "when does the boot log finish" from "who configures the button" — host, client, and DNP's allocation-hub handoff (`ntStartMatch`, the `NT_GENERATE`/`NT_HUDDLE_START` appliers) all just wrap their existing show-the-next-screen call in `ntGateBootThen(...)` rather than needing their own timing logic.
-**Scope kept deliberately narrow:** the boot only plays once per *cycle entry* (MDLM: once at match start only, matching old handshake behaviour, not replayed on "Next Cycle"; solo: every cycle, matching old behaviour). PTP's per-turn handover gate and the post-build "gather gate" were already boot-free before this change and stay that way — replaying a multi-second boot for every pass-the-phone handover would be tedious with 5+ admins.
-**Bonus fix:** `ntShowMdlmGate()` had always written a per-cycle heading (`"VS-01 — Initialising"`) to `document.getElementById('nt-gate-heading')` — an id that never existed in the HTML, so the write silently no-opped and the gate heading was permanently stuck on its static default. Added the `id="nt-gate-heading"` the JS was already looking for; MDLM cycle headings now actually render.
-**Lesson:** A screen transition driven by two independent triggers (a local synchronous call for the host, an async SYNC applier for the client) can't be given a shared "run this after the intro plays" callback at the call site that starts the intro — the two triggers don't know about each other. A small pending-queue (`ntGateBootActive` + `ntGateBootPending`) that either trigger can push into and only the intro's own completion drains is simpler than trying to award ownership of the callback to one caller.
+**Decision (final shape, after three owner-feedback passes):** Deleted `screen-nt-handshake`. `screen-nt-gate` is one `<section>` used for two named contexts, chosen by which function shows it:
+- **"Cycle Initialisation Gate"** (`ntShowGate`/`ntShowMdlmGate`/`ntBeginPtpTurn`/DNP's allocation hand-off): heading + sub show immediately, the terminal boot log (`NT_BOOT_LINES` + a caller-supplied final line, e.g. `LOGIN: ADMIN-2`) types out underneath at a slow, readable pace (200ms lead-in, 550ms/line, 600ms read-pause on the final line), and the ready button is the *only* thing that reveals once typing finishes — it appears right under the still-visible log, not as a second block swapping in under a second heading. `ntPlayGateBoot(lastLine, onDone)` is the entry point; `onDone` (used only by DNP) runs instead of revealing the button, for the hand-off into `screen-nt-allocation`.
+- **"Cycle Diagnostic Gate"** (`ntShowGatherGate`, the post-build "gather to watch playback" moment): no boot log at all — `ntShowGateNow()` shows heading/sub/button immediately. This isn't a login moment, so playing the AMAZE INC flavour there was pointless.
+**Two earlier passes got the scope wrong, in different ways — both from mis-reading "combine X into Y":**
+1. First pass only played the boot at true cycle-start and skipped PTP multi-admin turns entirely, using a `ntGateBootActive`/`ntGateBootPending` queue to reconcile the host's synchronous path against the client's async receipt. Corrected once every gate entry needed the boot: made every caller self-contained (configure text, then call `ntPlayGateBoot`), which also made the pending-queue unneeded — removed.
+2. Second pass played the boot on *every* gate entry including the gather gate, and kept the heading+sub+button as a single `#nt-gate-ready-wrap` div that stayed hidden until the boot finished — which still *looked* like two screens (an unnamed boot, then a second block with its own heading). Corrected by hoisting heading/sub out of the wrap to always-visible, removing the wrap entirely, and toggling only the button; and by giving the gather gate its own name + no-boot path instead of reusing the login boot for a non-login moment.
+**Header-icon placement was also wrong on the first pass:** `screen-nt-gate` kept the "full-screen menu" `absolute top-4 right-4` position for 🔊/✕ from before the merge, but a screen with real, changing content is a gameplay-flow screen per `ui-style.md`'s Global UI Protocol, which calls for a header row. Fixed to match `screen-nt-setup`/`screen-nt-build`/`screen-nt-allocation`'s existing header-row shape ("System Access" eyebrow + icons right-aligned).
+**Bonus fix:** `ntShowMdlmGate()` had always written a per-cycle heading (`"VS-01 — Initialising"`) to `document.getElementById('nt-gate-heading')` — an id that never existed in the HTML, so the write silently no-opped. Folded the cycle tag into the sub-text instead (the heading is now the fixed context name, "Cycle Initialisation Gate").
+**Lesson:** "Merge screen A into screen B" can mean at least three different things — combine at one call site, apply everywhere, or *visually* read as one screen instead of a hide/reveal swap between two internal blocks — and they produce meaningfully different code. Confirming which reading is meant before implementing is cheaper than three consecutive rounds of "still not it." A concrete tell for the third case specifically: if a "merged" screen has one block that's entirely invisible until another block finishes and disappears, that's still two screens wearing one `<section>` tag — the fix is to hoist whatever should persist (a title) out of the toggle and shrink the toggle to only the thing that's actually new (a button).
 
 ### D18 — Removed the "BOUBOU-" fragment from the play terminal; added a computer-style player prompt
 **What happened:** The build screen's node-name line baked in a fixed `BOUBOU-6D617A65` token that's no longer wanted, and the screen had nowhere showing *whose* turn it currently was (relevant in PTP and MDLM, where the builder differs per device/turn).
 **Decision:** Dropped the token (`SYS_INIT // NT-NODE-01` only). Added a `user:\[admin-name]` prompt-style label (`#nt-build-player`) to the top-left of the VM window's status row, pushing the firewall/honeypot inventory counters to the middle of that row and leaving the countdown timer on the right. The name resolves per mode: PTP uses the active `ntPtpTurn`, MDLM uses the device's own `mpMyPlayerIdx`, solo is always seat 0.
 **Also renamed:** the PTP setup screen's "Assemble Cluster" heading to "Provision Admins" — actual IT/sysadmin terminology for creating the operator accounts the screen is really collecting names for, keeping the "System Access" eyebrow above it meaningful rather than redundant.
+
+### D19 — Solo folded into the PTP-turn machinery (`ntShowGate`/`ntResolveCycle` retired)
+**What happened:** solo (1 admin) had its own fully parallel code path alongside PTP's — separate gate entry (`ntShowGate` vs `ntBeginPtpTurn`), separate commit/resolve (`ntResolveCycle` vs `ntResolveCyclePtp`), and separate playback display (`ntShowPlayback` direct vs `ntShowComparisonPlayback`). Two visible consequences: the solo ready button never carried a player name (`ntShowGate` didn't do what `ntBeginPtpTurn` already did), and the System Logs button never appeared for solo matches, because `ntResolveCycle()` never wrote to `ntAllCycleTimelines`/`ntAllCyclePlacements`/`ntAllCycleNodes` the way `ntResolveCyclePtp()` does.
+**Decision:** deleted the solo-only path entirely. `ntBeginCycle()` now always calls `ntBeginPtpTurn()`; `ntCommit()`'s single-device branch now always calls `ntCommitPtp()`. Solo is PTP with `ntPlayerCount === 1`: `ntComitPtp()`'s `ntPtpTurn++ === ntPlayerCount` check already skips the gather gate for a single player and goes straight to `ntShowComparisonPlayback()`, which already hides the comparison panel when `ntPlayerCount <= 1` — both were already correct for the N=1 case, just never exercised by solo before. `ntShowGate()` and `ntResolveCycle()` were dead code after the swap and were removed.
+**Lesson:** when two code paths differ only in *how many players there are*, check whether the "multi" path already degrades correctly at N=1 before assuming a dedicated N=1 path is needed — here it already did (both the turn-advance and the panel-visibility checks were already `> 1` conditionals), so the separate solo path was pure duplication that had quietly drifted (missing the name on the button, missing the log population) rather than a deliberate design difference.
+
+### D20 — Diagnostic Summary's "Next Cycle" was a genuine client no-op; added a readyCheck gate matching the Cycle Initialisation Gate
+**What happened:** live-testing MDLM with 3 players surfaced that clients tapping "Next Cycle" on the per-cycle Diagnostic Summary did *nothing at all* — the handler was `if (mode === 'client') return;` with a comment claiming "client waits for NT_GENERATE," and the host advanced everyone unilaterally on its own click with no confirmation from anyone else.
+**Decision:** added `ntSummaryReadyCheck` (a per-player matrix, same shape as `ntGateReadyCheck`/`ntCommitReadyCheck`) and a new `NT_SUMMARY_READY` ACTION, and replaced the single hard-coded click handler with a swappable `ntSummaryCallback` — the same pattern `ntGateCallback` already uses for the Cycle Initialisation Gate. `ntShowSummary()` now configures the button per role: client sees "Ready ▶" → tap sends `NT_SUMMARY_READY` and disables to "Waiting for host…"; host self-marks its own slot on reaching the screen (mirrors the gate's host-readyCheck rule — host is already implicitly ready, doesn't need to tap anything to count itself) and "Next Cycle ▶" stays disabled until every slot is true.
+**Not itself the fix for:** the separately-observed bug where clients were seen stuck on a bare "Submitted…" build-screen state (never even reaching the summary screen at all) — that's upstream of this gate and wasn't closed this round; see BUG-15 below, which found and closed it.
+
+---
+
+## Bug Index (MDLM desync — root-caused and harnessed, 15 Aug 2026)
+
+The three defects below were all found by static analysis after a live 3-device session, then
+**reproduced deterministically** by the new `tools/verify-nt-loopback.js` (which went red on 20
+checks before the fix and is green on 119 after). All three are client-only: the host never
+round-trips its own state through the wire, which is why a host-side playtest looks perfect.
+
+### BUG-15 — `node.nativeHoneypots: []` is erased in flight; two unguarded render reads then throw per grid cell (RESOLVED)
+**What:** in a 3-player MDLM match, both clients rendered a completely blank build grid (correct
+header, timer and counters, but zero tiles — "a black terminal") on cycles 1, 3, 4 and 5 but not 2.
+Each affected client was then stuck: the build timer never started, and it sat on "Submitted…"
+while the host played on.
+**Root cause:** `ntGenerateNode` rolls `convertN = ntRandInt(0, min(ntNativeHoneypots, badSectors.length))`
+to decide how many bad sectors become Native Honeypots. **That roll can be 0** — and is *always* 0
+under the shipped **"Native Honeypots: 0"** setting — leaving `nativeHoneypots: []`. Firebase
+deletes empty arrays, so the client's `payload.node.nativeHoneypots` arrives `undefined`. Five of
+the seven read sites in `nt.js` guard with `|| []` (1159, 1160, 1426, 2072, 2073 — hardened in the
+Aug 2026 BUG-06 sweep); the two **render** sites did not: `ntBlockAt` (`n.badSectors.find` /
+`n.nativeHoneypots.find`, called once per grid cell) and `ntDrawMaze`. `ntRenderBuildGrid` clears
+the grid *before* painting, so the throw left it empty, and because it escaped through the
+`NT_BUILD_BEGIN` applier the rest of that applier — including `ntStartBuildTimer` — never ran.
+**Why it looked intermittent:** `convertN` is re-rolled every cycle, so whether a given cycle broke
+was a coin flip. The harness reproduces the exact reported pattern — a 5-cycle trace of
+`[[324,0,0], [324,324,324], [324,0,0], [324,0,0], [324,0,0]]`.
+**Fix:** `ntNormaliseNode()` applied at every point a node arrives from a packet (`NT_GENERATE`
+both branches, `NT_HUDDLE_START`), **plus** `|| []` at the two render sites so solo/PTP paths (where
+the node never crosses a wire) are defended by the same shape as the other five.
+
+### BUG-16 — `timeline.fires: []` erased the same way; `ntRenderFrame` throws on the playback path (RESOLVED)
+**What:** after all three players committed, only the host reached playback. Both clients stayed on
+"Submitted…".
+**Root cause:** identical class, one level deeper. A player who places **no honeypots** produces a
+timeline with `fires: []` and `slowSpans: []`. The `NT_PLAYBACK` applier rebuilds `allPlacements`
+per-seat (the existing BUG-06 fix) but assigned `payload.timelines` **raw**. `slowSpans` is guarded
+at its three read sites and `ntBuildJourney` guards all three fields — but `tl.fires.forEach(...)`
+in `ntRenderFrame` (two sites) was not, so the frame threw. Note the guard immediately above it
+checks `tl.samples && tl.samples.length`, which does **not** protect `fires`.
+**Fix:** `ntNormaliseTimeline()` mapped over `payload.timelines` in the `NT_PLAYBACK` applier,
+mirroring the `Array.from` rebuild `allPlacements` already gets one line below; plus `|| []` at both
+`ntRenderFrame` sites.
+
+### BUG-17 — the MDLM Diagnostic Summary rendered nothing at all (RESOLVED)
+**What:** the summary showed `--.--%` with no scoreboard. Reported as "by round 4 the SER is
+broken", but it was never working in MDLM at all — the placeholder is the static HTML default, and
+nothing ever overwrote it.
+**Root cause:** `ntRenderSummary`'s multi-player leaderboard was gated behind
+`ntPlayerCount > 1 && window.syllyMultiplayerMode === 'single'`, so MDLM fell straight through to a
+one-line stub commented *"MDLM multiplayer rendering arrives with host-authoritative scoring (MP
+step)"* — a TODO that was never completed. Found by the harness, not by inspection: the check
+"summary board has a row per player" returned 0 rows on all three devices.
+**Fix:** dropped the mode condition. The branch reads `ntOverallSER` / `ntCycleSERs` /
+`ntPlayerNames`, all of which the `NT_PLAYBACK` applier already populates on every client from the
+host's own numbers, so the identical render is correct in both modes — no MDLM-specific code needed.
+**Lesson:** a `mode === 'single'` condition on a *render* function is worth treating as suspicious
+by default. Rendering is the same job regardless of who computed the numbers; the mode check is only
+justified when the data genuinely isn't there, and here it was.
+
+### D21 — `tools/verify-nt-loopback.js`
+**What happened:** NT was the last game with both a render seam and MDLM and **no**
+`tools/verify-*.js` coverage of any kind. All three defects above are structurally invisible to the
+`'single'`-mode harness style (`getElementById: () => null` short-circuits every render guard, so
+no render code executes) and to a host-side playtest (the host never round-trips its own state).
+**Decision:** built on `verify-cjar-loopback.js` for the wire and assertion style, with two upgrades
+taken from `verify-shp-loopback.js` that NT specifically needed: an **N-client `makeRoom`** (the bug
+was reported at 3 players and presents as "one client is fine and the other is not" — a 2-device
+harness cannot express that) and a **seeded mulberry32 `Math.random`** (`ntGenerateNode` is unseeded
+and its randomness *is* the trigger). 119 checks, `NT_SRC=` and `NT_SEED=` env hooks.
+**DOM mock is a superset of CJAR's** and each addition is load-bearing: `parentNode`/`replaceChild`/
+`cloneNode` (`ntRenderBuildGrid` swaps the grid for a shallow clone to strip listeners), a complete
+no-op canvas 2D context, `offsetWidth`/`clientWidth`, a real `classList`, and — the biggest delta —
+an `innerHTML` setter that **parses out id/class children** so the DNP allocation hub's
+`getElementById('nt-lane-maze-N')` and `querySelectorAll('.nt-alloc-lane')` resolve. With CJAR's
+store-the-string-only setter the entire DNP render path is skipped in silence.
+**Two lessons worth keeping:**
+1. **A precondition you wait for is a check that quietly stops testing.** Defect 2's trigger (a
+   timeline with no fires) occurs naturally on some seeds and not others; the first version asserted
+   `timelines.some(t => !t.fires.length)` and passed on seed 0 while silently testing nothing on
+   seed 12345. Replaced with a hand-built fires-free timeline pushed through the real wire — the
+   `stackDeck` idiom. **Run a new harness across several `*_SEED=` values before trusting it.**
+2. **`drain()` needs a time window.** NT's host arms `ntResolveGuard` at `endTimestamp + 4 s`; a
+   drain-everything pump fires it instantly and force-resolves the cycle before anyone has built,
+   which looked like a game bug until traced to the harness. `step()` now ignores timers due beyond
+   5 s.
+
+---
+
+## Design Decisions (DNP Sylly-Mode round — 16 Aug 2026, SW v191)
+
+Four items shipped as one batch. Design record: `docs/net-trace-dnp-mode-update.md` (the
+owner↔Claude transcript that settled it, kept verbatim because the session that produced it was
+lost before any doc was written — see the note under D22).
+
+### D22 — DNP allocation: free-rebalance → tally-deposit (brush + tap a leg)
+**What happened:** the shipped allocation hub was a bank-mediated *transfer* with a selection step.
+Moving 2 firewalls from P1 to P2 was six interactions (tap P1's lane, −, −, tap P2's lane, +, +),
+and the single-target control hub meant the captain could never see two legs' numbers at once. Two
+deeper problems underneath: the captain had **no latency feedback** to judge a trade with (higher
+latency is *better* in NT — you're defending — and nothing on screen said which leg converted a
+firewall into the most delay), and "take from P1 to give P2" only reads naturally at 2v2.
+**Decision:** every leg keeps its base inventory **untouchably**; the team gets a **surplus**
+(`NT_SURPLUS_FIREWALL = 3`, `NT_SURPLUS_HONEYPOT = 1`, **per team member**) and the captain arms a
+resource and taps a leg to deposit one unit. Undo (pops the last deposit) and Reset All sit beside
+the brush pills; long-press a leg withdraws one unit as a bonus affordance, not the primary one.
+**Why this shape rather than the "Priority Leg" first proposal** (one tap choosing a single leg to
+receive the whole surplus): the owner's counter-proposal removed a *concept* rather than adding
+one — in Priority Leg a leg tap meant "select", here it means "deposit", so there is no mode split
+at all, and it scales past one leg without adding taps. Per-member scaling keeps the per-leg average
+constant, so 4v4 doesn't feel starved relative to 2v2.
+**Why the model is purely additive:** a captain who does nothing plays exactly the node everyone
+else would have. That is what killed the transfer confusion — there is no "who lost resources"
+question, only "who got extra".
+**Architecturally it is derivation-only:** `ntAllocations` keeps its exact array shape, so
+`NT_ALLOCATION_UPDATE` / `NT_ALLOCATION_LOCK` / `NT_HUDDLE_START` / `ntTeamWorkingAllocs` and the
+loopback harness all survive untouched. Retired: `ntAllocSelectedLeg`, `ntSelectAllocLeg`,
+`ntAdjustAllocation`, `ntRenderAllocControlHub`. Added: `ntAllocBrush`, `ntAllocDeposits` (a
+**captain-local** Undo stack, never synced), `ntDepositAlloc`, `ntWithdrawAlloc`, `ntUndoDeposit`,
+`ntResetDeposits`, `ntPushAllocationChange`, `ntAllocBank`, `ntLegHoneypotCap`, `ntAllocRefuse`.
+**Three copies of the surplus formula exist and all three had to move together** — the host's own
+pool, the `allPools` payload every client reads, and the host's validation ceiling. The first two
+being one line apart is why they were caught; the third lives ~2,300 lines away in
+`ntHandleEnvelope` and would have rejected *every* legitimate deposit from a client captain.
+**Emergent consequence, deliberately not pre-solved:** the hardening window is fixed per player
+(45/60/90/120 s), so dumping all 9 firewalls on one leg at 3v3 gives that player ~23 blocks to place
+in the time everyone else places ~14 — they may physically run out of clock. That is a real cost on
+concentration and it forces the captain to *talk to* the player rather than decide at them. Worth
+watching in the first live session; the receiving player never consented to the workload.
+
+### D22a — the honeypot ceiling conflict, caught before implementation
+**What happened:** costing out the numbers surfaced that `NT_ALLOC_HONEYPOT_CAP = 2` would make the
+honeypot half of the surplus mostly undeliverable — base honeypot already rolls 0–2, so a leg whose
+base rolled 2 could accept **zero** surplus, and at 3v3 the captain would hold 3 honeypots with
+almost nowhere legal to put them. That reads as broken, not strategic.
+**Decision:** in DNP the per-leg ceiling is `NT_HONEYPOT_CAP − node.nativeHoneypots.length`
+(`ntLegHoneypotCap`) — up to 4 when natives are 0, which is the shipped default setting.
+**Why that is not "raising a cap to make the feature work":** `ntGenerateNode` *already* computes its
+random roll as `min(NT_ALLOC_HONEYPOT_CAP, NT_HONEYPOT_CAP − natives)`. `NT_ALLOC_HONEYPOT_CAP` sizes
+a **per-cycle random roll**; `NT_HONEYPOT_CAP` is the node's real physical ceiling. A deliberate team
+investment is not a random roll, so it is bounded by the latter. Both constants now carry comments
+saying which job they do, because the names alone do not distinguish them.
+**Two bounds now apply to a honeypot deposit and either can bind first** — the node's ceiling and the
+surplus actually in hand. The harness asserts the fill stops at `min(ceiling, base + surplus)`;
+hard-coding either one alone passes only on the seeds where that one happens to be smaller.
+**Feedback for a refused tap:** `ntSetRouting()` targets the **build** screen's `#nt-routing-status`
+and silently no-ops on the allocation screen, so a new `#nt-alloc-status` line carries both the live
+surplus readout and the refusal message, with `playBoing()`. It uses **no timer** — the next
+successful action re-renders and restores the readout — so there is no handle to add to teardown.
+Each leg also shows its own live ceiling (`HP 1/3`, amber when full), which is what makes a refusal
+predictable rather than surprising.
+
+### D22b — the host's authority check was bypassable via LOCK
+**What happened:** found while adding the ceiling. `NT_ALLOCATION_UPDATE` validated a client
+captain's proposal against the team pool, but `NT_ALLOCATION_LOCK` → `ntApplyAllocationLock` took
+whatever it was handed and committed it straight into `ntAllPlayerAllocations`. A client could skip
+the validated path entirely and lock in anything it liked.
+**Decision:** extracted `ntValidateTeamAllocations(teamIdx, proposed)` — returns a sanitised copy or
+`null` — and routed **both** paths through it. A rejected LOCK still locks (a captain who tapped Lock
+has locked) but falls back to the team's last valid working state rather than committing the
+proposal.
+**Lesson:** validating "the path the UI uses" is not validating the rule. Two packets could mutate
+the same authoritative state and only the one the client normally sends was checked; the other was
+one line of `.map()` with no gate at all. When adding a constraint, grep for **every** writer of the
+state it constrains, not just the one you are currently editing.
+
+### D23 — the DNP summary now reads the team layer that was already being computed
+**What happened:** `ntTeamCycleSERs` has been computed, stored, broadcast in `NT_PLAYBACK` and
+applied on every client since DNP shipped — and read by **no render function at all**.
+`ntRenderSummary` showed the same flat per-player leaderboard in both modes, so a team-vs-team mode
+never once displayed a team result. The entire team-scoring layer was calculated, synced and thrown
+away.
+**Decision:** an `ntIsDNP()` branch in `ntRenderSummary` — headline names the leading **team**, board
+is two team cards each listing its members' own contributions underneath (the per-player number is
+what a player recognises as "how I did"). Match summaries use a new `ntTeamOverallSER()`, the rolling
+team average across cycles, **derived on demand** from `ntTeamCycleSERs` rather than accumulated into
+new state — so nothing extra has to be broadcast, reset, or normalised on receipt.
+**Also corrected:** `ntOverallSER`'s comment claimed "per player (Standard) / team (DNP)". It has
+always been per player in both modes; the team rollup simply did not exist.
+**Lesson:** state that is computed, broadcast and applied but never *read* is invisible to every
+check the suite has — the loopback harness verified `ntTeamCycleSERs` matched across all four
+devices while nothing displayed it. A grep for reads of a state variable that finds only writes is
+the tell.
+
+### D24 — journey slide: the bug was the missing clip, not the direction
+**What happened:** at a leg boundary `ntJourneySlide()` sets `translateX(16%)` on
+`#nt-playback-canvas` and settles to 0, but the canvas's parent had no `overflow-hidden`, so the
+canvas visibly slid outside the terminal frame.
+**Decision:** wrapped the canvas in `<div class="w-full overflow-hidden rounded">`. The slide
+direction was **left as-is after re-deriving it** — a first reading called it backwards, but for a
+journey running left→right the next leg is to your right and correctly enters *from* the right,
+which is what `+16% → 0` does. Reversing it would have made each new leg enter from behind.
+**The real direction bug was next door:** the slide fired on *any* boundary cross with a fixed
+direction, including scrubbing **backwards**. `ntJourneySlide(dir)` now takes ±1 from
+`legIdx > ntPbActiveLeg`, so reverse-scrubbing reads as reverse for the first time.
+**Lesson:** "this animation feels wrong" localises the *symptom* to an element, not the cause to a
+property. Here two different defects lived on the same four lines and only one of them was the one
+originally named — re-deriving the intended motion from the geometry (which way is the journey
+travelling?) separated them.
+
+### D25 — leg preview: `ntBuildBridgeInto` revived as the picker itself
+**What happened:** the allocation screen drew non-selected legs into **44×44 px** canvases (cell 4,
+CSS-downscaled) — at that size a maze is a grey smudge and you cannot read a corridor, let alone
+judge which leg needs help. Meanwhile `ntBuildBridgeInto` / `ntOpenBridgePreview` — the chained
+edge-to-edge bridge with seam walls, built during BUG-10 — were **defined and never called**, dead
+since the map-hero redesign landed.
+**Decision:** revived `ntBuildBridgeInto` as the allocation screen's whole stage, with three optional
+callbacks (`footer`, `onTap`, `onHold`) that turn the same display strip into the picker. **One
+builder, deliberately:** the picker and the enlarged preview overlay must never drift into two
+different pictures of the same bridge. Read-only callers pass no options and get the original strip.
+**Sizing:** cell is fitted to the panel width (`avail / legs / n`, clamped 5–12) so the *whole* bridge
+is visible at once — seeing every leg together is the point when choosing between them — and the
+canvas renders at `n × cell` with no CSS downscale, so it is real resolution rather than a stretched
+thumbnail. Measured via `visual-check`: **162 px** per leg at 2v2 and **108 px** at 3v3, versus 44 px
+before, with no horizontal overflow at either size.
+**Lesson:** good visualisation code going dead is a *silent* regression — nothing errors, nothing
+fails a check, the screen just gets worse. `ntOpenBridgePreview` had been unreachable for a whole
+redesign cycle. A periodic grep for defined-but-never-called `[abbr]*` functions would have found it
+in seconds; it took a complaint about the thing it was built to solve.
+
+### D26 — allocation screen: side-by-side → windowed leg viewer (owner feedback, SW v192)
+**What happened:** D25's "fit the whole bridge across the panel" sizing (`avail / legs / n`, clamped
+5–12) was legible at 2v2 (cell 9) but degraded fast — cell 6 at 3v3, and the clamp floor (5) at 4v4
+overflowed the 336 px panel into horizontal scroll on top of being unreadable. A live-session
+screenshot at 2v2 (cell 9, cramped) is what surfaced it.
+**Decision:** one leg shown large (`cell: 18`, real 324×324 px, no clamp) with ‹ › to switch, still
+built through `ntBuildBridgeInto` (unchanged — the "one builder" rule from D25 holds; the viewport
+just clips the same strip to one leg's width, so neighbours peek at the edges and the seam-wall joins
+stay intact). A chip row under the viewer restores the "whole team readable at once" property a
+single-leg view would otherwise lose — every leg's live FW/HP always visible, tap-to-deposit /
+hold-to-withdraw with the same verbs as the maze, so an out-of-view leg never needs a navigate step
+to receive a deposit.
+**Caught before shipping (visual-check):** the first draft put the active leg's name between the nav
+arrows styled `text-stone-300` — correct against the dark canvas strip the per-column labels sit on,
+wrong against the page's white background the nav row actually sits on, and nearly invisible in the
+screenshot. It also duplicated the column's own label one line below. Replaced with `LEG N/M` in
+`text-stone-500` — real nav information instead of a repeated, wrongly-styled name.
+**State:** `ntAllocViewLeg` (captain-local, never synced — same shape as `ntAllocDeposits`) resets at
+huddle start on host and on receipt on the client, and in `resetToLobby()` teardown. Deliberately
+**not** reset by "Reset All" (`ntResetDeposits`) — that clears deposits, not which leg you're looking
+at, and jumping the view mid-edit would be disorienting.
+**Lesson:** a sizing formula that degrades gracefully in the middle of its range (2v2 fine, 3v3
+noticeably worse) can still be a design failure at the top of its range (4v4 unreadable and
+overflowing) — check the formula's own worst case, not just the case in front of you when you write
+it. Also: a colour class copied from a component that renders on a *different* background than
+the one it's being reused on is worth an explicit contrast check, not just visual similarity —
+`visual-check` caught this one in a screenshot, not by reasoning about it.
+
+### D27 — hardening window vs surplus concentration: closed as intended, not a bug (SW v193)
+**Question:** could a captain dumping the whole team surplus onto one leg (up to +12 firewall at
+4v4) make that leg impossible to finish inside the shortest hardening window (45 s), since every
+placement must also keep `ntPathExists` satisfied — a constrained puzzle, not a tap race, that gets
+harder as the maze fills?
+**Decision:** closed, no code change. Owner testimony from repeated live play: 45 s is tight but
+sufficient for a competent player at base inventory; a captain who overallocates past what that
+player can place in the window is committing an inefficiency (unplaced blocks are wasted surplus,
+and it puts avoidable pressure on one player) rather than triggering a broken state — the same
+inefficiency exists independent of DNP whenever a cycle's random inventory roll is already near the
+top of `NT_FIREWALL_MAX_PCT`. This is deliberately a skill/judgement axis of the mode, not a ceiling
+that needs enforcing in code.
+**Not verified by code or harness — verified by the owner's own repeated play.** No `verify-nt-
+loopback.js` check exists for "is this humanly finishable," and none is being added; it isn't a
+rules/packet/state question the harness tier can answer.
+
+### D28 — allocation viewer polish: the shifting bug, surplus clarity, dead space (owner feedback, SW v193)
+**What happened (three items from one live 3-device session, D26's actual first playtest):**
+1. **"Shifting" on every tap.** `ntCenterAllocViewport()` added `transition-transform` to the
+   bridge's inner `row` *before* reading `col.offsetLeft` (a forced reflow) and *then* setting
+   `transform` — so the browser saw a real style checkpoint between "transition added" and
+   "transform changed" and animated from `translateX(0)` on every single repaint. Since deposit,
+   withdraw, undo, reset, and brush-toggle all trigger a full `ntRenderAllocationScreen` repaint
+   (which tears down and rebuilds the bridge DOM from scratch via `ntBuildBridgeInto`), this fired
+   on nearly every tap, not just ‹›-navigation — reading as the maze "shifting" or "doing something"
+   on its own.
+2. **Chip/footer numbers read as ambiguous.** `ntAllocations[leg]` is the leg's TOTAL (base +
+   deposited) but rendered with no indication of how much of that total came from the surplus just
+   deposited — a captain couldn't tell "this leg naturally rolled high" from "I just dumped surplus
+   here" at a glance.
+3. **~30–44 px of dead space** between the chip row and the status/brush-bar/Lock block at 1v1/2v2
+   (collapses to ~16 px, i.e. normal padding, at 4v4 where the taller chip row fills more of the
+   flex-1 stage) — a smaller remainder of the D26/deferred-work dead-space item than before, but
+   still visible in a screenshot.
+**Decision:**
+1. Removed the transition entirely. A full-DOM-rebuild-per-tap architecture cannot deliver a
+   genuine continuous slide anyway (there's no "previous position" to animate from — the element is
+   new every time); an instant, correctly-positioned jump is the honest fix rather than a transition
+   that fires when nothing conceptually moved. A true animated slide would need the bridge DOM kept
+   alive across repaints (patch values in place instead of rebuilding) — not done this round, noted
+   below as a candidate follow-up if the instant-jump reads as too abrupt in practice.
+2. New shared `ntAllocLegDisplay(legIdx, pIdx)` returns each leg's FW/HP strings with a `(+N)`
+   qualifier appended whenever that leg's total exceeds base inventory — derived from `ntAllocations`
+   vs `ntInventory` (the identical per-leg arithmetic `ntAllocBank` already sums across all legs),
+   **not** from `ntAllocDeposits` — that stack is captain-local and never synced, so it can't be the
+   source for a read-only teammate's view. Used by both the maze footer and the chip row so the two
+   never show different numbers for the same leg.
+3. Added `justify-center` to `#nt-alloc-body` — splits the leftover flex space above and below the
+   content block instead of leaving it all beneath the chips, which reads as intentional rather than
+   sparse. Measured via `visual-check`: 44 px → 30 px total gap at 1v1/2v2 (unchanged at 4v4, where
+   there was near-zero to begin with).
+**Also raised, not yet actioned:** the maze preview canvas (`ntDrawLegCanvas`) is visually cruder
+than the real build screen's DOM-based grid — flat rect fills, no rounded port markers, no glow, no
+directional arrows — because they are two different renderers for what is conceptually "the same
+maze." Reusing a read-only variant of the real build-grid renderer (scaled via CSS) at allocation
+time would fix this **and** guarantee the preview can never visually drift from what the player
+actually builds on — but it's a bigger change than this round's scope, and the screenshot meant to
+confirm the exact defect didn't attach to the session, so it's deferred pending visual confirmation
+rather than built blind. Tracked in `deferred-work.md`.
+**Lesson:** a CSS transition added programmatically to a freshly-created element, with a forced
+reflow (any `offsetLeft`/`offsetWidth` read) sitting between the class-add and the property-set, is
+not a no-op on first paint — it animates from the implicit initial value. This is easy to miss
+because the code reads as "set up a transition, then move it," which is correct intent but wrong
+when the element performing the transition doesn't survive to a second frame.
+
+### D29 — allocation viewer, round 3: the deferred D28 items, all confirmed by screenshot (SW v194)
+**What happened:** the owner sent an actual screenshot of D28's build. Two D28 items were confirmed
+real from it: **(1)** the maze preview canvas genuinely looks cruder than the real build screen's
+grid — still deferred, unchanged from D28's writeup, tracked in `deferred-work.md`. **(2)** a THIRD
+instance of the same contrast bug as D28's nav-label fix: `ntBuildBridgeInto`'s own per-column name
+label (`text-stone-300`) was assumed to sit on the dark canvas backdrop but actually sits on the
+page's white background too — the column div carries no background, only the canvas below the
+label does. Fixed to `text-stone-500`, matching the nav label.
+**New requests, all shipped:**
+1. **Terminal-styled directive.** The `> ALERT: CLUSTER SURPLUS...` line moved into the same
+   bordered dark-panel chrome as the Gate's boot log (`border-emerald-700/40 bg-slate-900
+   font-mono text-emerald-400`) — printed straight, no typewriter reveal (that's the Gate's own
+   effect; this line changes with huddle state and shouldn't re-animate on every render).
+2. **Chip clarity, take 2.** D28's inline `(+N)` qualifier is gone. `ntAllocLegDisplay()` now
+   returns the leg's TOTAL on one line and, separately, the surplus-deposited-to-this-leg as a
+   `deposited/pool-total` fraction (e.g. `FW 2/6`) in **orange**, on its own line — both the maze
+   footer and the chip use the same shared formatter, so they can't drift. Chip width is now a
+   fixed `w-28` (was auto-width) specifically because the D28 inline suffix visibly popped the
+   pill's size on every deposit as digit count changed; a fixed box means only the text updates.
+3. **Status/warning merged.** `#nt-alloc-warning` moved directly under `#nt-alloc-status`, above
+   the controls, and switched from show/hide to an always-rendered text-and-colour swap
+   (`UNALLOCATED SURPLUS` amber / `SURPLUS ALLOCATED` green) — reserves its own space always, so
+   the buttons below it never shift vertically as the state changes. No longer captain-gated either
+   (it reflects the team's shared bank, same as the status line above it).
+
+### D30 — the chip-row scroll/clip conflict found verifying D29's own build
+**What happened:** verifying D29 surfaced a genuine new defect the owner hadn't reported — at 4
+legs, the taller 3-line chips wrap to 2 rows and `#nt-alloc-chips` was the one element in that
+column without `shrink-0` (its siblings all have it), so the flex layout compressed it below its
+own content height inside a parent (`overflow-hidden`) with no scroll possible at all. Chips 3 and
+4 existed in the DOM but were **permanently unreachable**, not just wrapped off-screen.
+**Decision:** the outer stage wrapper (between header and footer) changed from `overflow-hidden` to
+`overflow-y-auto` — exactly the sticky-footer pattern's own stated purpose ("a Stage that must
+scroll independently while Controls stay frozen," `ui-style.md`) — and `#nt-alloc-chips` gained
+`shrink-0` so it's never compressed. Verified via direct DOM measurement (not just a screenshot):
+`chips.scrollHeight === chips.clientHeight` (no internal clip) and all 4 chip rects land within the
+viewport after a forced scroll, footer/Lock button unmoved throughout.
+**A `justify-center` compaction added in this same round (closing D28's residual 1v1/2v2 dead
+space) actively broke this fix** — centering an element taller than its container pushes half the
+overflow ABOVE the visible top with no way to scroll back up to it (scrollTop cannot go negative),
+so the page loaded pre-scrolled and clipped the new terminal box's own top border. Reverted to
+top-anchored (`flex-start`); 1v1/2v2 dead space returns to its D28-era size (~28 px) rather than the
+attempted ~14 px, which is the correct trade against a broken load state at 4 legs.
+**Lesson:** a raw, un-visually-confirmed "negative gap" measurement between two rects **on either
+side of an overflow-clipped boundary** is not proof of a real defect — `getBoundingClientRect()`
+returns an element's true unclipped layout position regardless of an ancestor's `overflow`, so
+comparing it against a rect outside that clipped region can read as "overlapping" when the browser
+is in fact cleanly clipping it. Confirm visually (or via `scrollHeight`/`clientHeight` on the
+clipping element itself) before trusting a raw rect delta as a bug signal.
+
+### D31 — viewport alignment bug + matrix-scale overflow (owner screenshot, SW v194)
+**What happened:** the owner's screenshot of a middle leg (both `wallLeft` and `wallRight`) showed
+a visible gap on one edge and clipped content — including the port marker — on the other.
+**Root cause:** `ntCenterAllocViewport()` used `col.offsetLeft`/`col.offsetWidth` to compute the
+column's centre. `offsetLeft` resolves against the nearest **positioned** ancestor — nothing in the
+`row`/`bridge`/`viewport` chain sets `position`, so it silently walked past all three to some
+unrelated ancestor further up the page, mixing page-relative and viewport-relative coordinates in
+the same subtraction. Leg 0 happened to render correctly anyway (the resulting math landed inside
+the `Math.min(0, …)` clamp region by coincidence); any other leg did not — measured ~24 px off
+centre for a 3-leg team's middle leg.
+**Decision:** switched to `getBoundingClientRect()` for both the viewport and the column.
+`getBoundingClientRect()` is always viewport-relative regardless of how deep an element sits in the
+page or whether any ancestor is positioned, so the two sides of the centring subtraction are
+guaranteed to share a coordinate frame. Verified: 6 px / 6 px symmetric margins at every leg
+position, all three grid-size settings.
+**Second, unrelated defect found investigating the owner's third question ("does matrix scale
+break the preview?"):** the fixed `cell: 18` assumed an 18×18 node (324 px, fits the ~336 px
+viewport). At the "large map" setting (n=20) that's 360 px — wider than the viewport itself, so
+even the ACTIVE leg rendered permanently clipped with no way to ever see its far edge, regardless
+of navigation. Fixed by capping cell size to what the viewport can actually hold:
+`Math.min(18, Math.floor(viewportWidth / n))` — n=16/18 unchanged (already fit), n=20 now renders
+at 16 px/tile (320 px, fits with margin). Verified no overflow at n=16/18/20.
+**Lesson:** `offsetLeft`/`offsetTop` are relative to `offsetParent`, which is **not** "the nearest
+DOM ancestor" — it's the nearest ancestor with `position` other than `static`, falling back
+arbitrarily far up the tree if none exists. Any centring/alignment math mixing an `offsetLeft` read
+with a `getBoundingClientRect()`-based viewport width (as this code did) is a coordinate-frame bug
+waiting to happen the moment page structure changes upstream. Prefer `getBoundingClientRect()` for
+both sides of any such comparison — it has no ambiguous reference point.
+
+### D32 — honeypot per-leg allocation ceiling removed (owner decision, SW v194)
+**What happened:** the owner asked what the DNP honeypot ceiling (`ntLegHoneypotCap`, D22a) was
+actually protecting against, given firewall has no ceiling at all and D27 already established that
+overallocating firewall is just an efficiency choice, never a broken state. Investigation found the
+two resources are **not** symmetric the way that reasoning assumes: `ntAttemptPlace` (the real
+build-phase placement check) only checks inventory count against itself — there is no independent
+check anywhere against the node's physical capacity. Firewall excess is self-limiting (a maze
+genuinely runs out of valid empty cells eventually); honeypot excess is **not** — every deposited
+honeypot beyond the old cap would actually be placeable during build, limited only by available
+cells, of which there are plenty. So the cap was the ONLY thing bounding honeypot concentration.
+**Decision (owner, informed):** remove it anyway, treating the same team-wide pool ceiling that
+already governs firewall as the only remaining bound for both resources. Removed the leg-level
+check from `ntDepositAlloc` (DNP-time deposit guard) and `ntValidateTeamAllocations` (host-side
+authority check on both UPDATE and LOCK), deleted the now-fully-unused `ntLegHoneypotCap()`, and
+corrected `NT_HONEYPOT_CAP`'s own comment (it now only sizes the natural per-cycle roll, nothing
+else). Chip/footer HP display dropped its `/cap` fraction and the amber "full" highlight — both
+were cap-relative and no longer meaningful.
+**Verified:** `verify-nt-loopback.js`'s honeypot-ceiling section was rewritten (not just patched) —
+natives forced to 4 so the OLD ceiling would have been zero, then depositing past that number
+proves no leg-level bound survived, on every seed rather than relying on a natural roll to happen
+to exceed it. Green on 8 separate seeds after one self-inflicted test bug (the LOCK test's expected
+value assumed the proposal payload was base+surplus; the existing firewall-rebalance test's own
+convention — copied without re-deriving — sends the raw claimed total instead, unrelated to my
+change but caught by the multi-seed run).
+**Lesson:** "the same reasoning that justified removing firewall's cap" does not automatically
+transfer to a different resource — the actual enforcement mechanism (or lack of one) at every other
+point in the pipeline has to be checked per-resource, not inferred by analogy. It happened to hold
+here, but only because the owner explicitly accepted the consequence once it was surfaced, not
+because the analogy was self-evidently safe.
+
+### D33 — maze-preview polish round: wall colour, real-scale grid, conditional centring (SW v195)
+**What happened:** four small owner-flagged items, three shipped, one confirmed already correct.
+1. **Wall/seam colour blended into bad sectors.** `ntDrawLegCanvas`'s connecting wall used
+   `NT_COLOR_BAD_SECTOR` — identical to the hazard colour it's drawn flat (no glow) beside, so a
+   team-connection boundary read as just another obstacle square. Recoloured to `#64748b`
+   (slate-500, lighter than bad-sector's slate-700) — scoped to the wall fill only, not the shared
+   constant, which stays correct for its other two uses (bad sectors, the real build/playback
+   screen's glowing egress port bar, where the glow already carries the distinction this preview
+   doesn't have).
+2. **Grid lines were per-2×2-block, not per-tile.** Compared directly against the playback screen's
+   own grid (`ntRenderFrame`, which draws one line per tile), the preview's coarser spacing gave a
+   2×2 obstacle nothing to visually anchor its scale against, reading as an ambiguous size rather
+   than a real block. Switched to per-tile, lighter (`rgba(148,163,184,0.18)`, roughly half the
+   opacity of the old per-block lines since there are now 2× as many).
+3. **Non-captain's shorter content sat pinned to the top.** A read-only viewer has no brush bar and
+   no Lock button, so their content is genuinely shorter than a captain's — but the D28 revert to
+   top-anchored (D30's centring/scroll conflict) applied to everyone, leaving non-captains with a
+   large unfilled gap below their content. Fixed with a **conditional** centre: `justify-center` is
+   now toggled per-render based on whether `body.scrollHeight` actually fits `stage.clientHeight` —
+   never centred if it doesn't (that's exactly the D30 bug), applied whenever it does, regardless of
+   captain status. Verified: captain-1v1/2v2 and non-captain-1v1/2v2/4v4 all correctly centre;
+   captain-4v4 (genuinely taller than the stage, brush bar + Lock button included) correctly stays
+   top-anchored.
+4. **Auto-lock + auto-proceed at the huddle timer's expiry — already implemented, not a gap.**
+   Traced the full path: `ntStartHuddleTimer` calls `ntCommitAllocation()` on timer expiry (on
+   every device, not just the captain's — a pre-existing looseness the "KNOWN GAP: a non-captain
+   can drive their team allocation" harness check already documents, harmless here since every team
+   member's mirrored state is identical). `ntCommitAllocation` locks the team and, on the host path,
+   calls `ntCheckBothTeamsLocked()`, which auto-broadcasts `NT_BUILD_BEGIN` the moment both teams
+   are locked — no separate action needed. Confirmed present in the code rather than assumed; no
+   change made. If this doesn't fire correctly in a live session, that's a different, not-yet-found
+   bug — worth a live retest rather than more code reading.
+**A second, self-inflicted bug found verifying item 3:** the conditional-centring check initially
+read `body.scrollHeight`/`stage.clientHeight` while the section was still `display:none` — both
+report `0` on a hidden element, and `0 <= 0` is always true, so every first-open of the screen
+centred regardless of whether the content actually fit. Root cause: `ntShowAllocationScreen`
+rendered content BEFORE calling `showScreen()`, so the very first render of every huddle measured
+against an invisible box. Fixed by swapping the order (`showScreen()` then render) — both are
+synchronous so there's no visible-flash cost either way, but only one order gives the centring
+check a real box to measure. Caught via a temporary `console.log` at the toggle line after a
+Playwright measurement showed a value pair (0, 0) that a 150 ms-later re-measurement (563, 553)
+directly contradicted — the decision had been made against stale (pre-paint) layout.
+**Lesson:** any layout measurement (`scrollHeight`, `clientHeight`, `getBoundingClientRect`) taken
+inside a render function has an implicit precondition — the element must already be part of a
+visible, laid-out document — that the function's own call sites don't obviously guarantee. The bug
+was invisible in every case where `ntRenderAllocationScreen` runs on an *already-shown* screen
+(every deposit, nav click, brush toggle) and only reachable on the very first render per huddle,
+which is exactly the kind of narrow window a full test run can still miss without deliberately
+comparing an in-render measurement against a later one.
+
+### D34 — allocation viewer round 6: budget-vs-total display, and the header rejoins the Stack (SW v196)
+**What happened:** two more owner items, both from a live-play screenshot pair.
+1. **"The chip's values are wrong."** They weren't arithmetically wrong — cross-checking both
+   screenshots, every number was internally self-consistent (leg totals matched budget+deposited,
+   bank drained to exactly the pool total). What was wrong was the SHAPE: `ntAllocLegDisplay`'s line
+   2 showed the TOTAL (budget + deposited, D28), so a captain who'd already deposited surplus saw a
+   merged number they had to mentally subtract to recover "what's actually my budget here" —
+   reading as incorrect rather than just unhelpfully combined. Changed line 2 to show `ntInventory`
+   (the build BUDGET) directly — identical on every leg by design, since inventory is the same for
+   all players a cycle — leaving line 3 (already `deposited/pool`) as the only place surplus
+   appears. Two clearly separated facts instead of one number requiring arithmetic.
+2. **"The header isn't part of the compacted stack."** D33's conditional centring only applied to
+   `#nt-alloc-body` within its own `flex-1` stage slot — correct as far as it went, but left the
+   header pinned to the very top edge with the (now centred) content floating below it in the
+   middle of a lot of empty space, reading as disconnected rather than one compact unit.
+**Decision:** added a SECOND, outer level of the same pattern. `ntRenderAllocationScreen` now
+measures whether header + body + footer TOGETHER fit within the whole section's height and, if so,
+switches the section itself to THE STACK — `justify-center` on the section, `flex-1` removed from
+the stage wrapper (so it becomes content-sized rather than force-filling all remaining space) —
+which centres header/stage/footer as one block, exactly the suite-wide default pattern
+(`ui-style.md` § The Stack) this screen is normally exempted from. When it DOESN'T fit (the
+sticky-footer whitelist's actual reason to exist — e.g. captain view at 4 legs with the brush bar
+and Lock button), it falls back to the original pinned-header/scrolling-stage/pinned-footer split
+untouched. The existing body-level centring (D33) still runs nested inside whichever mode wins,
+governing whether body's own content additionally centres within its box. Reset-before-measure
+applies at this level too — the section's classes are cleared before each measurement so a stale
+Stack-mode class from a PRIOR render can't hide real overflow from itself, same defensive shape as
+D33's own fix.
+**Verified:** header genuinely moves — `getBoundingClientRect()` showed the header at `y≈80` for a
+short (non-captain) render vs `y≈0` for a captain render with brush bar + Lock button, and `y≈0`
+again for 4v4 (genuine overflow, correctly falls back to pinned). Confirmed the budget-inventory
+number stays constant across repeated deposits in the same test session, only the surplus line
+moves.
+**Lesson:** a fix that's correct at one DOM level (centring the stage's content within the stage)
+can still leave the wrong VISUAL unit — the level a viewer actually perceives as "the screen's
+content" doesn't necessarily match the level the code was scoped to. When a centring/compaction
+request keeps resurfacing after a technically-correct fix, check whether it's being asked one level
+higher than where it was applied, rather than assuming the request changed.
+
+### D35 — terminology cleanup: "native" collided with `nativeHoneypots` (owner-caught, SW v197)
+**What happened:** D34 labelled the budget line "native/locked base inventory." The owner, reading
+the live screen against a real node (8 Bad Sectors, 1 Native Honeypot visible), reasonably asked
+whether the displayed `FW 18 · HP 0` was supposed to equal those terrain counts — it isn't and
+never was; `ntInventory` (the build BUDGET) is an independently-randomised per-cycle roll,
+unconnected to how many obstacles happen to be on that node. The confusion traces to one word:
+"native" already means something specific and different in this codebase (`nativeHoneypots`, the
+map's own pre-placed hazard), and D34 reused it loosely to mean "not yet modified by a deposit."
+**Decision:** no behaviour change — the display was already correct, only the word was wrong.
+Corrected every "native" reference describing the budget line (in `nt.js` and this file) to
+"budget," and wrote down the full three-tier glossary once, in `game-identities.md` § Shared
+Allocation Hub, so the next session doesn't have to re-derive it from a live screenshot:
+- **Generated** (terrain, never player-controlled): Bad Sector, Native Honeypot.
+- **Budget** (`ntInventory`, your build allowance, rolled per cycle): Firewall Segment, Honeypot.
+- **Surplus** (DNP only, `ntAllocationPool`): FW/HP deposits a captain moves between legs.
+**The real trap, worth keeping visible:** "Honeypot" names TWO unrelated things — the terrain
+hazard (Native Honeypot, generated) and the buildable component (Honeypot, part of Budget/Surplus).
+Bad Sector doesn't have this problem ("Native Firewall" isn't a term); Honeypot does, purely
+because both tiers happened to reuse the same noun.
+**Lesson:** a display can be 100% correct and still get reported as a bug if the WORD used to
+describe it collides with an existing, differently-scoped term elsewhere in the same domain. The
+fix here was documentation, not code — but only because the confusion was caught and asked about
+rather than "fixed" by changing the (already correct) numbers to match a wrong assumption.
+
+---
+
+## Template Gaps (this round)
+
+- **TG-08 — `.pill` is 39 px tall, under the suite's own 44 px touch minimum.** `.pill`'s
+  `padding: 0.5rem 0` lands at 39 px, while `ui-style.md` § Thumb-Friendly UI mandates 44×44. Added
+  `min-h-11` to NT's brush pills only, on the grounds that a settings pill is tapped once whereas
+  this one is a mid-huddle tool hit repeatedly against a running clock. **Not swept suite-wide** —
+  every pill in every game has this measurement, so it is either a deliberate accepted exception or
+  a suite-wide gap, and that is a call for a phase gate rather than a game round. Flagged in
+  `deferred-work.md`.
+- **A refusal helper is per-screen, not per-game.** `ntSetRouting()` looks like NT's general "reject
+  that input" feedback but is bound to one screen's status element and no-ops everywhere else —
+  silently, via `if (!el) return`. When adding refusal feedback to a *new* screen, check which
+  element the existing helper writes to before reusing it; the guard clause means a wrong reuse
+  produces no error and no feedback.
+- **Deferred polish:** the allocation screen still has ~350 px of empty space between the bridge
+  strip and the footer controls (the screen is on the legacy `h-screen` sticky-footer whitelist).
+  Consolidated into one gap below the strip rather than split above and below, which reads more
+  deliberate, but the huddle countdown — currently a small eyebrow in the header — is the obvious
+  candidate to fill it. Not done this round; out of scope for the four items.

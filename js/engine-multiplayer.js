@@ -1085,7 +1085,18 @@ function mpHandleEnvelope(env) {
     }
     if (env.payload.action === 'GAME_START') {
       const slots = env.payload.playerSlots || [];
-      mpMyPlayerIdx = slots.findIndex(p => p.uid === window.syllyDeviceUid);
+      const myIdx = slots.findIndex(p => p.uid === window.syllyDeviceUid);
+      if (myIdx < 0) {
+        // This device's uid isn't in the roster the host just confirmed — it joined too
+        // late (its HANDSHAKE hadn't been processed into the host's mpPlayerSlots snapshot
+        // yet when the host clicked Start). Falling through with mpMyPlayerIdx = -1 would
+        // corrupt every per-seat array indexed by it (readyChecks, placements, names) —
+        // and NOT a safe "assume seat 0" fallback, since that would make this device
+        // impersonate the host's own seat. Fail visibly instead.
+        document.getElementById('mp-roster-mismatch-overlay').style.display = 'flex';
+        return;
+      }
+      mpMyPlayerIdx = myIdx;
       mpPlayerSlots = slots;
       if (env.payload.mpLobbyStyle) window.mpLobbyStyle = env.payload.mpLobbyStyle;
       window.mpLobbyRoster = env.payload.rosterData || null;
@@ -2859,6 +2870,10 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   document.getElementById('btn-mp-host-disconnected-ok').addEventListener('click', () => {
     document.getElementById('mp-host-disconnected-overlay').style.display = 'none';
+    resetToLobby();
+  });
+  document.getElementById('btn-mp-roster-mismatch-ok').addEventListener('click', () => {
+    document.getElementById('mp-roster-mismatch-overlay').style.display = 'none';
     resetToLobby();
   });
   document.getElementById('btn-mp-lttp-interrupt-ok').addEventListener('click', () => {
