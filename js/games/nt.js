@@ -586,19 +586,30 @@ function ntStartSession() {
   }
 }
 
+// Shared per-cycle reset — the subset genuinely common to BOTH cycle-start entry points:
+// ntStartMatch (Standard/DNP, the shipped match) and ntDeployNode (Debug). Single-sourced so
+// a field can't silently drift out of sync between the two the way ntPlaybackTimeline briefly
+// did (Task 6 fix round 1 — the Debug path had been missing it).
+// Each caller layers its own extras on top afterwards: ntStartMatch adds the DNP allocation
+// fields and the cycle-log arrays live at its own call site (ntStartSession); ntDeployNode
+// adds the Debug readiness/attempt fields. Neither caller's private state belongs in here.
+function ntResetCycleAccumulators(n) {
+  ntMyPlacements      = [];
+  ntFirewallUsed      = 0;
+  ntHoneypotUsed      = 0;
+  ntPlaybackTimeline  = null;
+  ntPtpTurn           = 0;
+  ntPtpTimelines      = [];
+  ntPtpPlacements     = Array.from({ length: n }, () => []); // pre-sized — no holes
+  ntGateReadyCheck    = new Array(n).fill(false);
+  ntCommitReadyCheck  = new Array(n).fill(false);
+  ntSummaryReadyCheck = new Array(n).fill(false);
+  ntCycleResolved     = false;
+}
+
 // Host: generate cycle Node + broadcast NT_GENERATE; then route to gate (Standard) or huddle (DNP).
 function ntStartMatch() {
-  ntMyPlacements = [];
-  ntFirewallUsed = 0;
-  ntHoneypotUsed = 0;
-  ntPlaybackTimeline = null;
-  ntPtpTurn      = 0;
-  ntPtpTimelines = [];
-  ntPtpPlacements = Array.from({ length: ntPlayerCount }, () => []); // pre-sized — no holes
-  ntGateReadyCheck    = new Array(ntPlayerCount).fill(false);
-  ntCommitReadyCheck  = new Array(ntPlayerCount).fill(false);
-  ntSummaryReadyCheck = new Array(ntPlayerCount).fill(false);
-  ntCycleResolved        = false;
+  ntResetCycleAccumulators(ntPlayerCount);
   ntTeamAllocLocked      = [false, false];
   ntTeamWorkingAllocs    = [[], []];
   ntAllPlayerAllocations = [];
@@ -2556,13 +2567,7 @@ function ntDeployNode() {
   ntAllCycleTimelines  = [];
   ntAllCyclePlacements = [];
   ntAllCycleNodes      = [];
-  ntPtpTurn            = 0;
-  ntPtpTimelines       = [];
-  ntPtpPlacements      = Array.from({ length: ntPlayerCount }, () => []); // pre-sized, no holes
-  ntGateReadyCheck     = new Array(ntPlayerCount).fill(false);
-  ntCommitReadyCheck   = new Array(ntPlayerCount).fill(false);
-  ntSummaryReadyCheck  = new Array(ntPlayerCount).fill(false);
-  ntCycleResolved      = false;
+  ntResetCycleAccumulators(ntPlayerCount);
   // Sizing rule — LOAD-BEARING. [].every(Boolean) is true, so leaving either of these as []
   // would resolve the whole sandbox on the FIRST player's Finish while everyone else is still
   // building. Same shape as CJAR BUG-05 (logic-engine.md § MDLM Patterns).
@@ -2570,9 +2575,6 @@ function ntDeployNode() {
   ntDebugAttemptCounts = new Array(ntPlayerCount).fill(0);
   ntDebugMyAttempt     = 0;
   ntDebugBest          = null;
-  ntMyPlacements = [];
-  ntFirewallUsed = 0;
-  ntHoneypotUsed = 0;
 
   if (window.syllyMultiplayerMode === 'host') {
     mpSendEnvelope({
