@@ -1325,12 +1325,13 @@ LOBBY (MDLM only) → NT MENU
 | Network Config ⚙️ | Settings overlay title |
 
 ### Settings
-| Setting (display) | Options | Default | Internal variable | Internal values |
-|------------------|---------|---------|------------------|-----------------|
-| Routing Cycles | 3 / 5 | 3 | `ntCycles` | int |
-| Hardening Window | 45s / 60s / 90s / No Limit | 90s | `ntHardeningWin` | int — `0` = no limit (shows ∞, no auto-commit) |
-| Component Density | Minimal / Standard / Heavy | Standard | `ntComponentDensity` | `'minimal'` / `'standard'` / `'heavy'` |
-| ✨ Sylly Mode (Devil's Network Protocol) | OFF / ON | OFF | `ntSyllyMode` | bool |
+| Setting | Variable | Options | Default |
+|---------|----------|---------|---------|
+| Matrix Scale | `ntMatrixScale` | 16 / 18 / 20 | 18 |
+| Simulation Iterations | `ntIterations` | 5 / 7 / 10 | 5 |
+| Hardening Window | `ntHardeningWin` | 45s / 60s / 90s / No Limit (`0`) | 90 |
+| Native Honeypots | `ntNativeHoneypots` | 0 / 1 / 2 | 2 |
+| ✨ Sylly Mode | `ntSyllyMode` | ON / OFF | OFF |
 
 Player count (`ntPlayerCount`, default 4) is set from the lobby roster in MDLM (lobby min 2, max 8) or on `screen-nt-setup` in PTP — not in the settings overlay. DNP/Sylly requires two teams (min 4).
 
@@ -1411,7 +1412,8 @@ Player count (`ntPlayerCount`, default 4) is set from the lobby roster in MDLM (
 | `nt-settings-overlay` | Data (slide-up) | z-[80] | "Network Config ⚙️" |
 | `nt-how-to-overlay` | Data (slide-up) | z-[90] | How to Play |
 | `nt-quit-overlay` | Decision modal | z-[80] | "Drop Connection?" — mid-game quit |
-| `nt-new-trace-overlay` | Decision modal | z-[90] | "New Trace?" — play-again confirmation |
+| `nt-reboot-overlay` | Decision modal | z-[90] | "Reboot System?" — play-again confirmation |
+| `nt-logs-overlay` | Data (slide-up) | z-[90] | "// SYSTEM LOGS" — per-cycle SER comparison, file-explorer aesthetic |
 | `nt-bridge-preview-overlay` | Custom (full-screen tap-to-close) | z-[95] | DNP only — enlarged cluster-bridge preview (all legs ingress ▸ egress); opened by tapping the inline bridge on the Shared Allocation Hub |
 
 ### Screens
