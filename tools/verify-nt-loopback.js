@@ -1067,10 +1067,38 @@ section('Node Editor — authoring the same object ntGenerateNode() returns');
         [d.__nt.node.egress.edge, d.__nt.node.egress.idx], ['left', 5]);
 
   // Randomise — both produce an editable starting point; nothing is committed yet.
+  // Re-author egress off left/5 → left/10 first: left/5's mouth tile is a 2×2 bad sector under
+  // ntGenerateNode's OWN seed-0 roll (block at ax0/ay5 covers tiles (0,5) and (0,6)), which makes
+  // the KEEP branch below unreachable at the default seed no matter what the fix does. left/10
+  // keeps the same "shares an edge with ingress" authoring choice, clear of that block.
+  d.__nt.setBrushDbg('egress');
+  d.__nt.authTap(0, 10);
+  check('egress re-authored to left/10 for the randomise-terrain check below',
+        [d.__nt.node.egress.edge, d.__nt.node.egress.idx], ['left', 10]);
+
   d.__nt.bumpFw(7);
   const budgetBefore = { ...d.__nt.inventory };
   d.__nt.authRandTerrain();
   check('Randomise Terrain fills the board', d.__nt.node.badSectors.length > 0, true);
+  // Ports are not terrain: the authored pair (left/3, left/10) must be KEPT across a re-roll —
+  // unless the freshly-rolled terrain happens to block it, in which case the fallback pair
+  // ntGenerateNode rolled must be used instead. Both branches are legitimate, and which one fires
+  // is genuinely RNG-dependent (a bad sector can land on an authored mouth tile on some seeds) —
+  // so probe the contract directly rather than hard-coding one branch's outcome. The probe
+  // mutates the live node's ports and reads them back through the same ntPathExists the fix
+  // itself calls; it changes nothing ntAuthRandomiseTerrain didn't already decide, so this proves
+  // the KEEP/FALLBACK rule itself rather than depending on one lucky (or unlucky) seed.
+  const keptIngress = { ...d.__nt.node.ingress }, keptEgress = { ...d.__nt.node.egress };
+  d.__nt.node.ingress = { edge: 'left', idx: 3 };
+  d.__nt.node.egress  = { edge: 'left', idx: 10 };
+  const authoredWouldRoute = d.__nt.pathOk();
+  d.__nt.node.ingress = keptIngress;   // put the real outcome back exactly as authRandTerrain left it
+  d.__nt.node.egress  = keptEgress;
+  const keptIsAuthored = keptIngress.edge === 'left' && keptIngress.idx === 3 &&
+                          keptEgress.edge === 'left' && keptEgress.idx === 10;
+  check('authored ports are kept iff they still route, dropped for the roll\'s own pair otherwise',
+        authoredWouldRoute ? keptIsAuthored : !keptIsAuthored,
+        true);
   check('…and leaves the budget alone (keepInventory)', d.__nt.inventory, budgetBefore);
   check('…and only ever produces a routable node', d.__nt.pathOk(), true);
 

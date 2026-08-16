@@ -2510,8 +2510,21 @@ function ntSyncAuthUI() {
 
 // Randomise Terrain — ntGenerateNode(true) already means exactly "re-roll the geometry, leave
 // the budget alone" (its keepInventory argument, nt.js:1728). A parameter reuse, not new logic.
+// Ports are NOT terrain, though: ntGenerateNode re-rolls ingress/egress unconditionally, which
+// would silently wipe a hand-placed pair (ntAuthSetPort deliberately allows placements the
+// generator itself would never roll — same-edge mouths, close corners). Restore the authored
+// pair over the freshly-rolled terrain, but only keep it if it still routes; otherwise fall
+// back to whatever ntGenerateNode rolled alongside that terrain.
 function ntAuthRandomiseTerrain() {
+  const authoredIngress = ntNode.ingress, authoredEgress = ntNode.egress;
   ntGenerateNode(true);
+  const rolledIngress = ntNode.ingress, rolledEgress = ntNode.egress;
+  ntNode.ingress = authoredIngress;
+  ntNode.egress  = authoredEgress;
+  if (!ntPathExists(ntNode, [])) {
+    ntNode.ingress = rolledIngress;
+    ntNode.egress  = rolledEgress;
+  }
   ntRenderAuthGrid();
   ntSyncAuthUI();
   ntSetRouting('valid');
