@@ -350,6 +350,7 @@ globalThis.__nt = {
     ntMatrixScale     = o.scale || 18;
     ntNativeHoneypots = o.natives !== undefined ? o.natives : 2;
     ntSyllyMode       = !!o.sylly;
+    ntDebugMode       = !!o.debug;
     if (o.teamIdx)      ntTeamIdx      = o.teamIdx.slice();
     if (o.captainSlots) ntCaptainSlots = o.captainSlots.slice();
   },
@@ -408,6 +409,21 @@ globalThis.__nt = {
   buildCounter()   { return document.getElementById('nt-build-counter').textContent; },
   commitBtnText()  { return document.getElementById('btn-nt-commit').textContent; },
   allocLanes()     { return document.getElementById('nt-alloc-body').querySelectorAll('.nt-alloc-lane').length; },
+
+  // ── Debug / Sandbox Mode ──
+  get debugMode()     { return ntDebugMode; },
+  get debugBrush()    { return ntDebugBrush; },
+  get debugAttempt()  { return ntDebugMyAttempt; },
+  get debugBest()     { return ntDebugBest ? ntDebugBest.latencyMs : null; },
+  get debugFinished() { return ntDebugFinished; },
+  get debugCounts()   { return ntDebugAttemptCounts; },
+  rawWin()            { return ntHardeningWin; },     // the STORED value, never the effective one
+  setDebug(v)         { ntDebugMode = !!v; },
+  effWin()            { return ntEffectiveHardeningWin(); },
+  syncSettings()      { ntSyncSettingsUI(); },
+  text(id)            { return document.getElementById(id).textContent; },
+  shown(id)           { return document.getElementById(id).style.display !== 'none'; },
+  cls(id)             { return document.getElementById(id).className; },
 };`;
 
   vm.runInContext(ntSrc + BRIDGE, sandbox, { filename: `nt.js (${name})` });
@@ -925,6 +941,39 @@ catch (e) { goErr = e.constructor.name; }
 // so this is unreachable in play — pinned here so it stays a known gap rather than a
 // surprise if a future change ever wires a producer up to it.
 check('KNOWN GAP: NT_GAMEOVER calls an undefined function', goErr, 'ReferenceError');
+
+// ── Debug Mode: the setting, its exclusivity, and the superseded window ───────
+section('Debug Mode — settings');
+(() => {
+  const d = makeDevice('solo', 'single', 0, [{ uid: 'u0', nickname: 'Ali' }]);
+
+  d.__nt.seat({ players: 1, names: ['Ali'], win: 90, debug: false });
+  check('effective window is the real one when Debug is off', d.__nt.effWin(), 90);
+
+  d.__nt.seat({ players: 1, names: ['Ali'], win: 90, debug: true });
+  check('effective window is 0 (∞) when Debug is on',         d.__nt.effWin(), 0);
+  // Superseded, NOT overwritten — the player's stored choice must come back intact when
+  // Debug is switched off again, which is the whole distinction from "mutually exclusive".
+  check('…while the STORED setting is left untouched',        d.__nt.rawWin(), 90);
+
+  // Superseded + mutually-exclusive dimming, painted by ntSyncSettingsUI().
+  d.__nt.syncSettings();
+  check('Hardening Window controls are dimmed',
+        /opacity-50/.test(d.__nt.cls('nt-ctl-win')), true);
+  check('…with an amber reason line, not a silent dead control',
+        d.__nt.text('nt-reason-win'), 'Debug Mode has no time limit');
+  check('Iterations controls are dimmed too',
+        /pointer-events-none/.test(d.__nt.cls('nt-ctl-iters')), true);
+  check('Sylly toggle is dimmed while Debug is on',
+        d.__nt.text('nt-reason-sylly'), 'Unavailable while Debug Mode is on');
+
+  d.__nt.seat({ players: 1, names: ['Ali'], win: 90, debug: false });
+  d.__nt.syncSettings();
+  check('turning Debug off restores the Hardening Window controls',
+        /opacity-50/.test(d.__nt.cls('nt-ctl-win')), false);
+  check('…and clears its reason line', d.__nt.text('nt-reason-win'), '');
+  check('no exceptions', errs(d), []);
+})();
 
 // ═══════════════════════════════════════════════════════════════════════════
 console.log('\n' + '='.repeat(62));

@@ -87,6 +87,7 @@ let ntMatrixScale    = 18;       // 16 | 18 | 20 — tile grid side (N)
 let ntIterations     = 5;        // 5 | 7 | 10  — Simulation Iterations (rounds)
 let ntHardeningWin   = 90;       // 45 | 60 | 90 | 120 (seconds) — build timer
 let ntNativeHoneypots= 2;        // 0 | 1 | 2   — max Native Honeypots baked into seed
+let ntDebugMode      = false;    // Debug / Sandbox Mode — mutually exclusive with ntSyllyMode
 let ntSyllyMode      = false;    // DNP (Distributed Network Protocol) — always last setting
 
 // ── Roster (set in lobby, persist across play-agains) ───────────────────────
@@ -145,6 +146,14 @@ let ntGateReadyCheck    = [];     // per-player ready at Cycle Initialization Ga
 let ntCommitReadyCheck  = [];     // per-player committed at build phase
 let ntSummaryReadyCheck = [];     // per-player ready to advance past the Diagnostic Summary
 
+// ── Debug / Sandbox Mode session state (all cleared by ntResetState; ntDebugMode is a
+//    SETTING and deliberately survives, like every other setting) ──────────────────────
+let ntDebugBrush         = 'bad'; // Node Editor: 'bad' | 'native' | 'ingress' | 'egress'
+let ntDebugMyAttempt     = 0;     // MY attempt number on the current node (1-based when shown)
+let ntDebugBest          = null;  // MY best so far — { latencyMs, placements, timeline } | null
+let ntDebugFinished      = [];    // [playerIdx] = bool — host authority, the readiness gate
+let ntDebugAttemptCounts = [];    // [playerIdx] = int  — display only, drives the roster
+
 // ── PTP state (reset each cycle in ntBeginCycle; reset on reboot in ntResetState) ──
 let ntPtpTurn            = 0;    // index of the player whose turn it currently is (0..ntPlayerCount-1)
 let ntPtpTimelines       = [];   // [playerIdx] = committed timeline (filled as each player finishes)
@@ -180,6 +189,13 @@ let ntPlaybackLoopFn = null;     // stored RAF loop fn ref (set in ntStartPlayba
 // ── Derived at runtime (never persisted) ────────────────────────────────────
 // ntIsDNP() = ntSyllyMode === true (mirrors isSylly pattern)
 function ntIsDNP() { return ntSyllyMode === true; }
+
+// Debug Mode forces the Hardening Window to ∞. `0` already means "no limit" everywhere in NT
+// (ntStartBuildTimer early-returns and renders ∞), so this is a new way of reaching shipped
+// code rather than new behaviour. Single-source, per logic-engine.md: a mode that mutates a
+// value routes every reader through one function instead of repeating the branch at four call
+// sites where the fifth one added later would be missed.
+function ntEffectiveHardeningWin() { return ntDebugMode ? 0 : ntHardeningWin; }
 
 // ── Wire repair (BUG-06 class — logic-engine.md "Firebase erases every EMPTY value") ──
 // Both of these repair a collection nested INSIDE an object that arrived over the wire.
@@ -1292,7 +1308,7 @@ function ntCheckBothTeamsLocked() {
   ntStopHuddleTimer();
   // Build assigned inventory array (per global player index)
   const assignedInventory = (ntAllPlayerAllocations || []).map(a => ({ ...a }));
-  const endTimestamp = ntHardeningWin > 0 ? Date.now() + (ntHardeningWin * 1000) : null;
+  const endTimestamp = ntEffectiveHardeningWin() > 0 ? Date.now() + (ntEffectiveHardeningWin() * 1000) : null;
   mpSendEnvelope({
     type: 'SYNC',
     payload: { action: 'NT_BUILD_BEGIN', endTimestamp, cycle: ntCycle, assignedInventory },
@@ -1327,7 +1343,7 @@ function ntShowMdlmGate() {
     if (btn) { btn.textContent = 'Begin Hardening ▶'; btn.classList.add('btn-mp-action'); btn.disabled = true; }
     ntGateReadyCheck[mpMyPlayerIdx] = true;
     ntGateCallback = () => {
-      const endTimestamp = ntHardeningWin > 0 ? Date.now() + (ntHardeningWin * 1000) : null;
+      const endTimestamp = ntEffectiveHardeningWin() > 0 ? Date.now() + (ntEffectiveHardeningWin() * 1000) : null;
       mpSendEnvelope({ type: 'SYNC', payload: { action: 'NT_BUILD_BEGIN', endTimestamp, cycle: ntCycle } });
       ntShowBuild(endTimestamp);
     };
@@ -2335,13 +2351,13 @@ function ntSetStatus(simMs) {
 function ntStartBuildTimer(endTimestamp) {
   ntStopBuildTimer();
   const label = document.getElementById('nt-build-timer');
-  if (ntHardeningWin === 0) {
+  if (ntEffectiveHardeningWin() === 0) {
     if (label) label.textContent = '∞';
     return;
   }
   const getSecs = () => endTimestamp
     ? Math.ceil((endTimestamp - Date.now()) / 1000)
-    : ntHardeningWin;
+    : ntEffectiveHardeningWin();
   let secs = getSecs();
   if (label) label.textContent = formatTime(Math.max(0, secs));
   ntBuildTimer = setInterval(() => {
@@ -3433,6 +3449,25 @@ function ntSelectPill(group, value) {
   if (target) target.classList.add('pill-active-emerald');
 }
 
+// Mutually-exclusive / superseded settings (ui-style.md § Settings Layout Standard).
+// The controls dim; the card TITLE stays at full contrast — a fully-dimmed card reads as a
+// rendering bug rather than an unavailable option. The amber reason line is mandatory: a dead
+// control with no explanation is indistinguishable from a bug, and the player has no way to
+// discover that a different setting is the cause. Amber, never text-stone-400 — stone-400 is
+// already the dynamic-value-line colour (what you have PICKED); amber means UNAVAILABLE.
+function ntSetCardDisabled(ctlId, reasonId, disabled, reason) {
+  const ctl = document.getElementById(ctlId);
+  if (ctl) {
+    ctl.classList.toggle('opacity-50', disabled);
+    ctl.classList.toggle('pointer-events-none', disabled);
+  }
+  const r = document.getElementById(reasonId);
+  if (r) {
+    r.textContent   = disabled ? reason : '';
+    r.style.display = disabled ? '' : 'none';
+  }
+}
+
 // Reflect current settings state into the overlay controls before opening.
 function ntSyncSettingsUI() {
   ntSelectPill('nt-scale', ntMatrixScale);
@@ -3444,6 +3479,17 @@ function ntSyncSettingsUI() {
     t.textContent = ntSyllyMode ? 'ON' : 'OFF';
     t.className = (ntSyllyMode ? 'game-toggle-on-emerald' : 'game-toggle-off') + ' shrink-0';
   }
+  const d = document.getElementById('btn-nt-debug-toggle');
+  if (d) {
+    d.textContent = ntDebugMode ? 'ON' : 'OFF';
+    d.className = (ntDebugMode ? 'game-toggle-on-emerald' : 'game-toggle-off') + ' shrink-0';
+  }
+  // Mutually exclusive — each turns the other off, and dims it while on. Both stay reachable.
+  ntSetCardDisabled('btn-nt-sylly-toggle', 'nt-reason-sylly', ntDebugMode, 'Unavailable while Debug Mode is on');
+  ntSetCardDisabled('btn-nt-debug-toggle', 'nt-reason-debug', ntSyllyMode, 'Unavailable while Sylly Mode is on');
+  // Superseded — the stored values are NOT modified and return intact when Debug goes off.
+  ntSetCardDisabled('nt-ctl-iters', 'nt-reason-iters', ntDebugMode, 'Debug Mode runs a single Node');
+  ntSetCardDisabled('nt-ctl-win',   'nt-reason-win',   ntDebugMode, 'Debug Mode has no time limit');
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -3517,10 +3563,19 @@ document.addEventListener('DOMContentLoaded', () => {
     playPillClick(); ntNativeHoneypots = parseInt(b.dataset.ntNative, 10); ntSelectPill('nt-native', ntNativeHoneypots);
   }));
 
-  // Sylly Mode (DNP) toggle
+  // Sylly Mode (DNP) toggle — reciprocally forces Debug off (mutually exclusive)
   document.getElementById('btn-nt-sylly-toggle').addEventListener('click', () => {
     ntSyllyMode = !ntSyllyMode;
-    if (ntSyllyMode) playSyllyOn(); else playSyllyOff();
+    if (ntSyllyMode) { ntDebugMode = false; playSyllyOn(); } else playSyllyOff();
+    ntSyncSettingsUI();
+  });
+
+  // Debug Mode toggle — forces Sylly off. Uses playPillClick, not playSyllyOn/Off: those two
+  // are the Sylly Mode signature across the whole suite and Debug is an ordinary setting.
+  document.getElementById('btn-nt-debug-toggle').addEventListener('click', () => {
+    ntDebugMode = !ntDebugMode;
+    if (ntDebugMode) ntSyllyMode = false;
+    playPillClick();
     ntSyncSettingsUI();
   });
 
