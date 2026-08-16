@@ -390,6 +390,7 @@ globalThis.__nt = {
 
   // ── Node Editor (Debug Mode) ──
   showAuthoring()  { ntShowAuthoring(); },
+  deploy()         { ntDeployNode(); },
   authTap(x, y)    { ntAuthTap(x, y); },
   setBrushDbg(b)   { ntDebugBrush = b; ntSyncAuthUI(); },
   authRandTerrain(){ ntAuthRandomiseTerrain(); },
@@ -1110,6 +1111,49 @@ section('Node Editor — authoring the same object ntGenerateNode() returns');
         d.__nt.inventory.firewall >= 5 && d.__nt.inventory.firewall <= 24, true);
 
   check('no exceptions anywhere in the editor', errs(d), []);
+})();
+
+// ── Deploying an authored node over the wire ──────────────────────────────────
+section('Deploy Node — an authored node is shape-identical to a rolled one');
+(() => {
+  const r = makeRoom(['Ali', 'Bec', 'Cam']);
+  seatAll(r, { win: 90, debug: true });
+
+  // The host authors an ENTIRELY EMPTY node — no bad sectors, no native honeypots. This is
+  // legitimate ("what is the baseline latency with no hardening at all?") and IMPOSSIBLE to
+  // produce today, because ntGenerateNode has a bad-sector density floor. It is also the most
+  // dangerous shape on the wire: Firebase deletes an empty array, so both collections vanish
+  // in flight and every unguarded render read throws per grid cell (NT's own BUG-15/16).
+  r.host.__nt.showAuthoring();
+  check('host is in the editor',   lastScreen(r.host), 'screen-nt-authoring');
+  check('the authored node is bare',
+        [r.host.__nt.node.badSectors.length, r.host.__nt.node.nativeHoneypots.length], [0, 0]);
+
+  r.host.__nt.deploy();
+  r.all.forEach(drain);
+
+  check('NT_GENERATE is reused verbatim — no new packet', r.sent.includes('NT_GENERATE'), true);
+  check('every device landed on the gate',
+        r.all.map(lastScreen), ['screen-nt-gate', 'screen-nt-gate', 'screen-nt-gate']);
+  check('clients rebuilt badSectors after the wire erased it',
+        r.clients.map(c => Array.isArray(c.__nt.node.badSectors)), [true, true]);
+  check('…and nativeHoneypots too',
+        r.clients.map(c => Array.isArray(c.__nt.node.nativeHoneypots)), [true, true]);
+  check('clients agree with the host on the ports',
+        r.clients.map(c => c.__nt.node.ingress.idx),
+        [r.host.__nt.node.ingress.idx, r.host.__nt.node.ingress.idx]);
+
+  // The real test of hazard 2: the grid must RENDER on a client without throwing.
+  r.clients.forEach(c => c.__nt.renderGrid());
+  check('an empty authored node renders on both clients',
+        r.clients.map(c => c.__nt.gridCells()), [18 * 18, 18 * 18]);
+  check('…with no exceptions anywhere', r.all.map(errs), [[], [], []]);
+
+  // Sizing rule — the readiness arrays are length-N, never [].
+  check('ntDebugFinished is length-N all-false, NOT []',
+        r.host.__nt.debugFinished, [false, false, false]);
+  check('ntDebugAttemptCounts is length-N all-zero, NOT []',
+        r.host.__nt.debugCounts, [0, 0, 0]);
 })();
 
 // ═══════════════════════════════════════════════════════════════════════════

@@ -235,6 +235,7 @@ function ntNormaliseTimeline(tl) {
 function ntStartSolo() {
   ntPlayerCount = 1;
   ntCycle = 0;
+  if (ntDebugMode) { ntShowAuthoring(); return; }
   ntBeginCycle();
 }
 
@@ -264,6 +265,7 @@ function ntStartPTP() {
   ntTeamCycleSERs = [];
   ntCycleLatencies = [];
   ntOverallSER = [];
+  if (ntDebugMode) { ntShowAuthoring(); return; }
   ntBeginCycle();
 }
 
@@ -577,9 +579,10 @@ function ntStartSession() {
   // to show yet (its own boot needs the roster-derived name it's just been given, and the
   // node data NT_GENERATE is about to send) — a brief standby covers that short wait.
   if (window.syllyMultiplayerMode === 'host') {
-    ntStartMatch();
+    if (ntDebugMode) ntShowAuthoring();
+    else ntStartMatch();
   } else {
-    ntShowStandby('Booting cluster…');
+    ntShowStandby(ntDebugMode ? 'Authoring node…' : 'Booting cluster…');
   }
 }
 
@@ -2541,6 +2544,48 @@ function ntAuthRandomiseBudget() {
   ntSyncAuthUI();
 }
 
+// Deploy Node — the authored node takes exactly the place ntGenerateNode()'s output takes in a
+// Standard match, so NT_GENERATE is reused verbatim and everything downstream (path validity,
+// timeline simulation, playback, SER scoring, the summary) is untouched.
+function ntDeployNode() {
+  ntCycle              = 0;      // Debug is single-node: the cycle counter never advances
+  ntCycleSERs          = [];
+  ntTeamCycleSERs      = [];
+  ntCycleLatencies     = [];
+  ntOverallSER         = [];
+  ntAllCycleTimelines  = [];
+  ntAllCyclePlacements = [];
+  ntAllCycleNodes      = [];
+  ntPtpTurn            = 0;
+  ntPtpTimelines       = [];
+  ntPtpPlacements      = Array.from({ length: ntPlayerCount }, () => []); // pre-sized, no holes
+  ntGateReadyCheck     = new Array(ntPlayerCount).fill(false);
+  ntCommitReadyCheck   = new Array(ntPlayerCount).fill(false);
+  ntSummaryReadyCheck  = new Array(ntPlayerCount).fill(false);
+  ntCycleResolved      = false;
+  // Sizing rule — LOAD-BEARING. [].every(Boolean) is true, so leaving either of these as []
+  // would resolve the whole sandbox on the FIRST player's Finish while everyone else is still
+  // building. Same shape as CJAR BUG-05 (logic-engine.md § MDLM Patterns).
+  ntDebugFinished      = new Array(ntPlayerCount).fill(false);
+  ntDebugAttemptCounts = new Array(ntPlayerCount).fill(0);
+  ntDebugMyAttempt     = 0;
+  ntDebugBest          = null;
+  ntMyPlacements = [];
+  ntFirewallUsed = 0;
+  ntHoneypotUsed = 0;
+
+  if (window.syllyMultiplayerMode === 'host') {
+    mpSendEnvelope({
+      type: 'SYNC',
+      payload: { action: 'NT_GENERATE', cycle: 0, node: ntNode, inventory: ntInventory, debug: true },
+    });
+    ntShowMdlmGate();
+  } else {
+    // Solo and PTP alike — solo is PTP with one admin, exactly as ntBeginCycle treats it.
+    ntBeginPtpTurn();
+  }
+}
+
 function ntFlashReject(cell) {
   playBoing();
   ntSetRouting('exception');
@@ -3483,6 +3528,15 @@ function ntHandleEnvelope(envelope) {
       ntCommitReadyCheck  = new Array(ntPlayerCount).fill(false);
       ntSummaryReadyCheck = new Array(ntPlayerCount).fill(false);
 
+      if (payload.debug) {
+        // Client-side sizing. The host holds the authoritative ntDebugFinished; these are the
+        // client's own display copies and must still never be left as [].
+        ntDebugFinished      = new Array(ntPlayerCount).fill(false);
+        ntDebugAttemptCounts = new Array(ntPlayerCount).fill(0);
+        ntDebugMyAttempt     = 0;
+        ntDebugBest          = null;
+      }
+
       if (payload.isDNP) {
         // DNP: each player has their own relay-leg node; wait for NT_HUDDLE_START
         ntTeamNodes = (payload.allPlayerNodes || []).map(ntNormaliseNode);
@@ -3849,6 +3903,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-nt-auth-rand-terrain').addEventListener('click', () => { playWhoosh(); ntAuthRandomiseTerrain(); });
   document.getElementById('btn-nt-auth-rand-budget') .addEventListener('click', () => { playWhoosh(); ntAuthRandomiseBudget(); });
   document.getElementById('btn-nt-auth-how-to').addEventListener('click', ntOpenHowTo);
+  document.getElementById('btn-nt-auth-deploy').addEventListener('click', () => { playLaunch(); ntDeployNode(); });
 
   // Playback scrubber — drag to scrub; drives the renderer directly when auto-play has ended.
   document.getElementById('nt-playback-scrubber').addEventListener('input', (e) => {
