@@ -2314,24 +2314,25 @@ function ntFlashReject(cell) {
   }
 }
 
+// Routing status. The build screen and the Node Editor each own their own element — only one
+// screen is ever visible, so writing to both is always correct and never needs a mode branch.
 function ntSetRouting(state) {
-  const el = document.getElementById('nt-routing-status');
-  if (!el) return;
+  const els = ['nt-routing-status', 'nt-auth-routing']
+    .map(id => document.getElementById(id)).filter(Boolean);
+  if (!els.length) return;
+  const paint = (txt, cls) => els.forEach(el => { el.textContent = txt; el.className = cls; });
   if (state === 'exception') {
     ntRoutingState = 'exception';
-    el.textContent = 'ROUTING: EXCEPTION';
-    el.className = 'text-red-500 whitespace-nowrap';
+    paint('ROUTING: EXCEPTION', 'text-red-500 whitespace-nowrap');
     if (ntRoutingTimer) clearTimeout(ntRoutingTimer);
     ntRoutingTimer = setTimeout(() => { ntRoutingTimer = null; ntSetRouting('valid'); }, 700);
   } else if (state === 'storage_insufficient') {
-    el.textContent = 'STORAGE: INSUFFICIENT';
-    el.className = 'text-amber-400 whitespace-nowrap';
+    paint('STORAGE: INSUFFICIENT', 'text-amber-400 whitespace-nowrap');
     if (ntRoutingTimer) clearTimeout(ntRoutingTimer);
     ntRoutingTimer = setTimeout(() => { ntRoutingTimer = null; ntSetRouting('valid'); }, 1200);
   } else {
     ntRoutingState = 'valid';
-    el.textContent = 'ROUTING: VALID';
-    el.className = 'text-emerald-400 whitespace-nowrap';
+    paint('ROUTING: VALID', 'text-emerald-400 whitespace-nowrap');
   }
 }
 

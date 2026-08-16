@@ -69,7 +69,8 @@ const allScreens = [
   'screen-pass-round-wrap', 'screen-pass-gameover',
   // Net-Trace
   'screen-nt-menu', 'screen-nt-setup', 'screen-nt-allocation', 'screen-nt-gate',
-  'screen-nt-build', 'screen-nt-playback', 'screen-nt-summary', 'screen-nt-standby',
+  'screen-nt-authoring', 'screen-nt-build', 'screen-nt-playback', 'screen-nt-summary',
+  'screen-nt-standby',
   // Fruit Salad
   'screen-frt-menu', 'screen-frt-deal', 'screen-frt-table', 'screen-frt-gameover',
   // Counting Sheep
@@ -695,7 +696,7 @@ function resetToLobby() {
   document.getElementById('pass-new-deal-overlay').style.display = 'none';
   document.getElementById('pass-history-overlay').style.display  = 'none';
   // Net-Trace teardown
-  ['nt-settings-overlay','nt-how-to-overlay','nt-quit-overlay','nt-reboot-overlay','nt-logs-overlay','nt-bridge-preview-overlay'].forEach(id => {
+  ['nt-settings-overlay','nt-how-to-overlay','nt-quit-overlay','nt-reboot-overlay','nt-logs-overlay','nt-bridge-preview-overlay','nt-debug-retry-overlay'].forEach(id => {
     const el = document.getElementById(id); if (el) el.style.display = 'none';
   });
   document.body.classList.remove('nt-overclock'); // easter-egg theme off
