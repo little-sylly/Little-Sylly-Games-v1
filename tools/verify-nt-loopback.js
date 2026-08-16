@@ -388,6 +388,16 @@ globalThis.__nt = {
   tapGate()           { if (ntGateCallback) ntGateCallback(); },
   tapSummary()        { if (ntSummaryCallback) ntSummaryCallback(); },
 
+  // ── Node Editor (Debug Mode) ──
+  showAuthoring()  { ntShowAuthoring(); },
+  authTap(x, y)    { ntAuthTap(x, y); },
+  setBrushDbg(b)   { ntDebugBrush = b; ntSyncAuthUI(); },
+  authRandTerrain(){ ntAuthRandomiseTerrain(); },
+  authRandBudget() { ntAuthRandomiseBudget(); },
+  bumpFw(n)        { ntInventory.firewall += n; ntSyncAuthUI(); },
+  bumpHp(n)        { ntInventory.honeypot += n; ntSyncAuthUI(); },
+  pathOk()         { return ntPathExists(ntNode, []); },
+
   // ── DOM readers ──
   // Counts painted CELLS only — ntRenderBuildGrid also appends the ghost-preview span
   // and a port marker, so a raw children.length overcounts. Word-boundary match, since
@@ -1000,6 +1010,78 @@ section('Port markers — one drawing function, two grids');
   d.__nt.drawPort('nt-auth-grid', d.__nt.node.egress, '#334155', false, n);
   check('…and the same function serves a second grid', d.__nt.authPorts(), 2);
   check('no exceptions', errs(d), []);
+})();
+
+// ── The Node Editor ───────────────────────────────────────────────────────────
+section('Node Editor — authoring the same object ntGenerateNode() returns');
+(() => {
+  const d = makeDevice('editor', 'single', 0, [{ uid: 'u0', nickname: 'Ali' }]);
+  d.__nt.seat({ players: 1, names: ['Ali'], scale: 18, natives: 2, debug: true });
+  d.__nt.showAuthoring();
+
+  check('opens the Node Editor',      lastScreen(d), 'screen-nt-authoring');
+  check('starts on a BLANK board',
+        [d.__nt.node.badSectors.length, d.__nt.node.nativeHoneypots.length], [0, 0]);
+  check('…which is legal — an empty maze routes',  d.__nt.pathOk(), true);
+  check('budget starts at zero',
+        [d.__nt.inventory.firewall, d.__nt.inventory.honeypot], [0, 0]);
+  check('grid renders every tile',    d.__nt.authCells(), 18 * 18);
+  check('…plus the two port markers', d.__nt.authPorts(), 2);
+  check('brush defaults to Bad Sector', d.__nt.debugBrush, 'bad');
+
+  // Bad Sector brush — a 2×2 block, anchored and clamped like every other NT placement.
+  d.__nt.authTap(4, 4);
+  check('one tap draws one Bad Sector', d.__nt.node.badSectors.length, 1);
+  check('…written into ntNode, NOT into placements', d.__nt.placements.length, 0);
+  d.__nt.authTap(4, 4);
+  check('tapping it again erases it',   d.__nt.node.badSectors.length, 0);
+
+  // Native Honeypot brush, capped by the Native Honeypots setting (2 here).
+  d.__nt.setBrushDbg('native');
+  d.__nt.authTap(4, 4); d.__nt.authTap(8, 8); d.__nt.authTap(12, 12);
+  check('native honeypots are capped by ntNativeHoneypots',
+        d.__nt.node.nativeHoneypots.length, 2);
+
+  // Budget ceilings.
+  d.__nt.bumpFw(999);
+  check('firewall budget is capped at the block-slot count ((18/2)² = 81)',
+        d.__nt.inventory.firewall, 81);
+  d.__nt.bumpFw(-999);
+  check('…and floored at zero', d.__nt.inventory.firewall, 0);
+  d.__nt.bumpHp(999);
+  check('honeypot budget ceiling accounts for the natives already placed (4 − 2)',
+        d.__nt.inventory.honeypot, 2);
+
+  // Ports. The two generation heuristics are deliberately NOT enforced on a human author.
+  d.__nt.setBrushDbg('ingress');
+  d.__nt.authTap(0, 3);
+  check('ingress moves to the tapped border tile',
+        [d.__nt.node.ingress.edge, d.__nt.node.ingress.idx], ['left', 3]);
+  d.__nt.setBrushDbg('egress');
+  d.__nt.authTap(0, 5);
+  check('egress may sit on the SAME edge as ingress — a human choice, not a bad roll',
+        [d.__nt.node.egress.edge, d.__nt.node.egress.idx], ['left', 5]);
+  check('…and the node still routes', d.__nt.pathOk(), true);
+  d.__nt.authTap(0, 3);
+  check('but the two ports may never share one mouth',
+        [d.__nt.node.egress.edge, d.__nt.node.egress.idx], ['left', 5]);
+
+  // Randomise — both produce an editable starting point; nothing is committed yet.
+  d.__nt.bumpFw(7);
+  const budgetBefore = { ...d.__nt.inventory };
+  d.__nt.authRandTerrain();
+  check('Randomise Terrain fills the board', d.__nt.node.badSectors.length > 0, true);
+  check('…and leaves the budget alone (keepInventory)', d.__nt.inventory, budgetBefore);
+  check('…and only ever produces a routable node', d.__nt.pathOk(), true);
+
+  const terrainBefore = JSON.stringify(d.__nt.node.badSectors);
+  d.__nt.authRandBudget();
+  check('Randomise Budget leaves the terrain alone',
+        JSON.stringify(d.__nt.node.badSectors), terrainBefore);
+  check('…and rolls a firewall budget inside the real match range (6%–30% of 81)',
+        d.__nt.inventory.firewall >= 5 && d.__nt.inventory.firewall <= 24, true);
+
+  check('no exceptions anywhere in the editor', errs(d), []);
 })();
 
 // ═══════════════════════════════════════════════════════════════════════════

@@ -2306,6 +2306,228 @@ function ntUpdateBuildCounters() {
   }
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// NODE EDITOR  (Debug Mode — author the node instead of rolling one)
+// ═══════════════════════════════════════════════════════════════════════════
+// The editor writes DIRECTLY into ntNode with ntMyPlacements empty. That is the whole trick:
+// ntBlockAt / ntCellType / ntPaintCell / ntRepaintFootprint / ntPathExists / ntFlashReject are
+// already mode-agnostic, so they need no changes and the editor is WYSIWYG for free — a bad
+// sector looks here exactly as it will look in play. ntRenderBuildGrid is NOT reused: its
+// pointer handlers are saturated with build semantics (live-inventory tap-cycling, the
+// firewall→honeypot long-press upgrade, right-click honeypots, ntUpdateBuildCounters on every
+// path, ports as pointer-events:none decorations). Threading a mode branch through all of them
+// would put conditional logic on the single render path the loopback harness actually executes.
+
+function ntAuthBlankNode() {
+  const n = ntMatrixScale;
+  return {
+    n,
+    ingress: { edge: 'left',  idx: n >> 1 },
+    egress:  { edge: 'right', idx: n >> 1 },
+    badSectors: [],
+    nativeHoneypots: [],
+  };
+}
+
+// Entry point — reached at session start AND on the Author New Node loop-back from the summary.
+// One authoring entry point, reached twice; there is deliberately no second "restart" path.
+function ntShowAuthoring() {
+  ntDebugBrush   = 'bad';
+  ntNode         = ntAuthBlankNode();   // always a fresh sandbox
+  ntInventory    = { firewall: 0, honeypot: 0 };
+  ntMyPlacements = [];
+  ntFirewallUsed = 0;
+  ntHoneypotUsed = 0;
+  ntDebugMyAttempt     = 0;
+  ntDebugBest          = null;
+  ntDebugFinished      = [];
+  ntDebugAttemptCounts = [];
+  showScreen('screen-nt-authoring');
+  ntRenderAuthGrid();
+  ntSyncAuthUI();
+  ntSetRouting('valid');
+}
+
+function ntRenderAuthGrid() {
+  const old = document.getElementById('nt-auth-grid');
+  if (!old || !ntNode) return;
+  // Same shallow-clone swap as ntRenderBuildGrid: innerHTML = '' removes children but NOT
+  // grid-level listeners, so a re-render would otherwise stack a second pointerup handler.
+  const grid = old.cloneNode(false);
+  old.parentNode.replaceChild(grid, old);
+  const n = ntNode.n;
+  grid.innerHTML = '';
+  grid.style.display = 'grid';
+  grid.style.position = 'relative';
+  grid.style.gridTemplateColumns = `repeat(${n}, 1fr)`;
+  grid.style.gap = '1px';
+  grid.style.touchAction = 'none';
+  ntBuildCells = [];   // shared with the build screen — ntRepaintFootprint/ntFlashReject read it
+
+  for (let ty = 0; ty < n; ty++) {
+    ntBuildCells.push([]);
+    for (let tx = 0; tx < n; tx++) {
+      const cell = document.createElement('div');
+      cell.style.aspectRatio = '1';
+      ntPaintCell(cell, tx, ty);
+      ntBuildCells[ty].push(cell);
+      grid.appendChild(cell);
+    }
+  }
+
+  const getTile = (e) => {
+    const rect = grid.getBoundingClientRect();
+    return {
+      tx: Math.max(0, Math.min(n - 1, Math.floor((e.clientX - rect.left) / rect.width * n))),
+      ty: Math.max(0, Math.min(n - 1, Math.floor((e.clientY - rect.top) / rect.height * n))),
+    };
+  };
+  // A brush model: one tap, one meaning, decided by ntDebugBrush. No long-press, no ghost
+  // preview, no right-click — those all belong to the build screen's inventory semantics.
+  grid.addEventListener('pointerup', (e) => {
+    e.preventDefault();
+    const { tx, ty } = getTile(e);
+    ntAuthTap(tx, ty);
+  });
+  grid.addEventListener('contextmenu', e => e.preventDefault());
+
+  ntDrawPortMarker(grid, ntNode.ingress, '#34d399', true, n);
+  ntDrawPortMarker(grid, ntNode.egress,  NT_COLOR_BAD_SECTOR, false, n);
+}
+
+function ntAuthTap(tx, ty) {
+  if (ntDebugBrush === 'ingress' || ntDebugBrush === 'egress') { ntAuthSetPort(tx, ty); return; }
+  const b = ntBlockAt(tx, ty);
+  if (b && (b.source === 'bad' || b.source === 'native')) { ntAuthRemoveTerrain(b); return; }
+  ntAuthPlaceTerrain(tx, ty, ntDebugBrush === 'native');
+}
+
+function ntAuthPlaceTerrain(tx, ty, asHoneypot) {
+  const n = ntNode.n;
+  const ax = Math.max(0, Math.min(tx, n - 2)), ay = Math.max(0, Math.min(ty, n - 2));
+  // Strict zero-overlap, exactly as ntAttemptPlace enforces it during Build.
+  for (const [fx, fy] of ntBlockTiles(ax, ay)) {
+    if (ntBlockAt(fx, fy) || ntIsMouthTile(fx, fy)) { ntFlashReject(ntBuildCells[ty] && ntBuildCells[ty][tx]); return; }
+  }
+  if (asHoneypot && ntNode.nativeHoneypots.length >= ntNativeHoneypots) {
+    playBoing(); ntSetRouting('storage_insufficient'); return;
+  }
+  // Validity gate — the authored node must route with NO player hardening on it, which is the
+  // same guarantee ntGenerateNode gives (`ntPathExists(candidate, [])`, nt.js:1714).
+  const target = asHoneypot ? ntNode.nativeHoneypots : ntNode.badSectors;
+  target.push({ ax, ay });
+  if (!ntPathExists(ntNode, [])) {
+    target.pop();
+    ntFlashReject(ntBuildCells[ty] && ntBuildCells[ty][tx]);
+    return;
+  }
+  playPillClick();
+  ntSetRouting('valid');
+  ntRepaintFootprint(ax, ay);
+  ntSyncAuthUI();
+}
+
+// Removing terrain only ever OPENS the board, so it can never break validity — no re-check.
+function ntAuthRemoveTerrain(b) {
+  const drop = arr => arr.filter(c => !(c.ax === b.ax && c.ay === b.ay));
+  ntNode.badSectors      = drop(ntNode.badSectors);
+  ntNode.nativeHoneypots = drop(ntNode.nativeHoneypots);
+  playWhoosh();
+  ntRepaintFootprint(b.ax, b.ay);
+  ntSyncAuthUI();
+}
+
+// Arm the Ingress or Egress brush, then tap any tile — the port snaps to that tile's NEAREST
+// border. Reuses the grid's own getTile maths, so no drag interaction is needed.
+//
+// Two of ntGenerateNode's constraints are deliberately NOT enforced here:
+//   • the corner-proximity re-roll (|imx−emx| + |imy−emy| < 8, nt.js:1695)
+//   • the different-edges rule (while (egress.edge === ingress.edge), nt.js:1692)
+// Both exist to keep RANDOMLY ROLLED nodes varied. An author placing two ports close together,
+// or on the same edge, is making a choice — blocking it would be the tool second-guessing its
+// user. The two genuine constraints remain: the mouths must differ, and the node must route.
+function ntAuthSetPort(tx, ty) {
+  const n = ntNode.n;
+  const nearest = [
+    { edge: 'top',    d: ty,         idx: tx },
+    { edge: 'bottom', d: n - 1 - ty, idx: tx },
+    { edge: 'left',   d: tx,         idx: ty },
+    { edge: 'right',  d: n - 1 - tx, idx: ty },
+  ].sort((a, b) => a.d - b.d)[0];
+  const pick  = { edge: nearest.edge, idx: nearest.idx };
+  const key   = ntDebugBrush;                                    // 'ingress' | 'egress'
+  const other = key === 'ingress' ? ntNode.egress : ntNode.ingress;
+  if (pick.edge === other.edge && pick.idx === other.idx) {
+    ntFlashReject(ntBuildCells[ty] && ntBuildCells[ty][tx]);      // ingress mouth ≠ egress mouth
+    return;
+  }
+  const prev = ntNode[key];
+  ntNode[key] = pick;
+  if (!ntPathExists(ntNode, [])) {
+    ntNode[key] = prev;
+    ntFlashReject(ntBuildCells[ty] && ntBuildCells[ty][tx]);
+    return;
+  }
+  playPillClick();
+  ntSetRouting('valid');
+  ntRenderAuthGrid();   // port markers are appended to the grid — a full re-render moves them
+}
+
+// Budget ceilings, both lifted from ntGenerateNode's own roll (nt.js:1730–1731).
+function ntAuthMaxFirewall() {
+  const n = ntNode ? ntNode.n : ntMatrixScale;
+  return Math.pow(Math.floor(n / NT_BLOCK), 2);                  // "slots" — the roll's ceiling
+}
+function ntAuthMaxHoneypot() {
+  return Math.max(0, NT_HONEYPOT_CAP - (ntNode ? ntNode.nativeHoneypots.length : 0));
+}
+
+function ntSyncAuthUI() {
+  // Clamp here rather than at each stepper: removing a native honeypot RAISES the honeypot
+  // ceiling and adding one lowers it, so the budget has to be re-clamped after a terrain edit
+  // too — one place, every path.
+  ntInventory.firewall = Math.max(0, Math.min(ntInventory.firewall, ntAuthMaxFirewall()));
+  ntInventory.honeypot = Math.max(0, Math.min(ntInventory.honeypot, ntAuthMaxHoneypot()));
+  const fw = document.getElementById('nt-auth-fw-val');
+  const hp = document.getElementById('nt-auth-hp-val');
+  if (fw) fw.textContent = String(ntInventory.firewall);
+  if (hp) hp.textContent = String(ntInventory.honeypot);
+  // Only pill-active-emerald is ever added or removed — .pill always stays.
+  document.querySelectorAll('[data-nt-brush]').forEach(b => {
+    b.classList.toggle('pill-active-emerald', b.dataset.ntBrush === ntDebugBrush);
+  });
+  const hint = document.getElementById('nt-auth-brush-hint');
+  if (hint) {
+    const natives = ntNode ? ntNode.nativeHoneypots.length : 0;
+    hint.textContent = {
+      bad:     'Tap to draw a Bad Sector. Tap it again to erase.',
+      native:  `Tap to drop a Native Honeypot — ${natives} of ${ntNativeHoneypots} placed.`,
+      ingress: 'Tap anywhere to move the Ingress port to the nearest edge.',
+      egress:  'Tap anywhere to move the Egress port to the nearest edge.',
+    }[ntDebugBrush] || '';
+  }
+}
+
+// Randomise Terrain — ntGenerateNode(true) already means exactly "re-roll the geometry, leave
+// the budget alone" (its keepInventory argument, nt.js:1728). A parameter reuse, not new logic.
+function ntAuthRandomiseTerrain() {
+  ntGenerateNode(true);
+  ntRenderAuthGrid();
+  ntSyncAuthUI();
+  ntSetRouting('valid');
+}
+
+// Randomise Budget — the two expressions ntGenerateNode uses for its own roll (nt.js:1730–1731),
+// so a sandbox budget always lands in the range a real match would have dealt.
+function ntAuthRandomiseBudget() {
+  const slots = Math.pow(Math.floor(ntNode.n / NT_BLOCK), 2);
+  ntInventory = {
+    firewall: ntRandInt(Math.round(NT_FIREWALL_MIN_PCT * slots), Math.round(NT_FIREWALL_MAX_PCT * slots)),
+    honeypot: ntRandInt(0, Math.min(NT_ALLOC_HONEYPOT_CAP, NT_HONEYPOT_CAP - ntNode.nativeHoneypots.length)),
+  };
+  ntSyncAuthUI();
+}
+
 function ntFlashReject(cell) {
   playBoing();
   ntSetRouting('exception');
@@ -3601,6 +3823,19 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   document.getElementById('btn-nt-gate-ready').addEventListener('click', () => { playLaunch(); if (ntGateCallback) ntGateCallback(); else ntShowBuild(); });
   document.getElementById('btn-nt-commit').addEventListener('click', () => { playLaunch(); ntCommit(); });
+
+  // ── Node Editor (Debug Mode) ────────────────────────────────────────────────
+  document.querySelectorAll('[data-nt-brush]').forEach(b => b.addEventListener('click', () => {
+    playPillClick(); ntDebugBrush = b.dataset.ntBrush; ntSyncAuthUI();
+  }));
+  // ntSyncAuthUI clamps, so a bare ++/-- can never leave the budget out of range.
+  document.getElementById('btn-nt-auth-fw-minus').addEventListener('click', () => { playPillClick(); ntInventory.firewall--; ntSyncAuthUI(); });
+  document.getElementById('btn-nt-auth-fw-plus') .addEventListener('click', () => { playPillClick(); ntInventory.firewall++; ntSyncAuthUI(); });
+  document.getElementById('btn-nt-auth-hp-minus').addEventListener('click', () => { playPillClick(); ntInventory.honeypot--; ntSyncAuthUI(); });
+  document.getElementById('btn-nt-auth-hp-plus') .addEventListener('click', () => { playPillClick(); ntInventory.honeypot++; ntSyncAuthUI(); });
+  document.getElementById('btn-nt-auth-rand-terrain').addEventListener('click', () => { playWhoosh(); ntAuthRandomiseTerrain(); });
+  document.getElementById('btn-nt-auth-rand-budget') .addEventListener('click', () => { playWhoosh(); ntAuthRandomiseBudget(); });
+  document.getElementById('btn-nt-auth-how-to').addEventListener('click', ntOpenHowTo);
 
   // Playback scrubber — drag to scrub; drives the renderer directly when auto-play has ended.
   document.getElementById('nt-playback-scrubber').addEventListener('input', (e) => {
