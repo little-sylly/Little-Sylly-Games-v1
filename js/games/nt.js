@@ -2081,6 +2081,31 @@ function ntUpdateGhostAt(tx, ty) {
   }
 }
 
+// Port markers — a rectangle straddling the grid border; ingress green/inward, egress
+// grey/outward. Lifted out of ntRenderBuildGrid so the build grid and the Node Editor call
+// the same code and can never drift into drawing different markers.
+const NT_PORT_ARROWS = { top:  { in: '▼', out: '▲' }, bottom: { in: '▲', out: '▼' },
+                         left: { in: '▶', out: '◀' }, right:  { in: '◀', out: '▶' } };
+
+function ntDrawPortMarker(grid, port, color, inward, n) {
+  if (!grid || !port) return null;
+  const m = document.createElement('div');
+  m.className = 'absolute pointer-events-none rounded-sm flex items-center justify-center';
+  m.style.background = color;
+  m.style.boxShadow = `0 0 6px ${color}`;
+  const span = `calc(${100 / n}%)`, off = '-3px', thick = '6px';
+  if (port.edge === 'top')         { m.style.left = `${(port.idx / n) * 100}%`; m.style.width = span; m.style.top = off; m.style.height = thick; }
+  else if (port.edge === 'bottom') { m.style.left = `${(port.idx / n) * 100}%`; m.style.width = span; m.style.bottom = off; m.style.height = thick; }
+  else if (port.edge === 'left')   { m.style.top = `${(port.idx / n) * 100}%`; m.style.height = span; m.style.left = off; m.style.width = thick; }
+  else                             { m.style.top = `${(port.idx / n) * 100}%`; m.style.height = span; m.style.right = off; m.style.width = thick; }
+  const a = document.createElement('span');
+  a.style.cssText = 'font-size:5px;line-height:1;color:#fff;pointer-events:none';
+  a.textContent = NT_PORT_ARROWS[port.edge][inward ? 'in' : 'out'];
+  m.appendChild(a);
+  grid.appendChild(m);
+  return m;
+}
+
 function ntRenderBuildGrid() {
   const old = document.getElementById('nt-build-grid');
   if (!old || !ntNode) return;
@@ -2201,27 +2226,8 @@ function ntRenderBuildGrid() {
     ntAttemptPlace(ax, ay, true);
   });
 
-  // Port markers — rectangle straddling the border; ingress green/inward, egress grey/outward.
-  const ARROWS = { top: { in: '▼', out: '▲' }, bottom: { in: '▲', out: '▼' },
-                   left: { in: '▶', out: '◀' }, right:  { in: '◀', out: '▶' } };
-  const portBar = (port, color, inward) => {
-    const m = document.createElement('div');
-    m.className = 'absolute pointer-events-none rounded-sm flex items-center justify-center';
-    m.style.background = color;
-    m.style.boxShadow = `0 0 6px ${color}`;
-    const span = `calc(${100 / n}%)`, off = '-3px', thick = '6px';
-    if (port.edge === 'top')         { m.style.left = `${(port.idx / n) * 100}%`; m.style.width = span; m.style.top = off; m.style.height = thick; }
-    else if (port.edge === 'bottom') { m.style.left = `${(port.idx / n) * 100}%`; m.style.width = span; m.style.bottom = off; m.style.height = thick; }
-    else if (port.edge === 'left')   { m.style.top = `${(port.idx / n) * 100}%`; m.style.height = span; m.style.left = off; m.style.width = thick; }
-    else                             { m.style.top = `${(port.idx / n) * 100}%`; m.style.height = span; m.style.right = off; m.style.width = thick; }
-    const a = document.createElement('span');
-    a.style.cssText = 'font-size:5px;line-height:1;color:#fff;pointer-events:none';
-    a.textContent = ARROWS[port.edge][inward ? 'in' : 'out'];
-    m.appendChild(a);
-    grid.appendChild(m);
-  };
-  portBar(ntNode.ingress, '#34d399', true);         // INGRESS — green, inward arrow
-  portBar(ntNode.egress,  NT_COLOR_BAD_SECTOR, false); // EGRESS  — grey, outward arrow
+  ntDrawPortMarker(grid, ntNode.ingress, '#34d399', true, n);            // INGRESS — green, inward
+  ntDrawPortMarker(grid, ntNode.egress,  NT_COLOR_BAD_SECTOR, false, n); // EGRESS  — grey, outward
   ntUpdateBuildCounters();
 }
 

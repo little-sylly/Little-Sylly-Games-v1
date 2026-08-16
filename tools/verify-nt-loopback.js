@@ -375,6 +375,9 @@ globalThis.__nt = {
   showBuild(ts)       { ntShowBuild(ts); },
   showSummary(m)      { ntShowSummary(m); },
   renderGrid()        { ntRenderBuildGrid(); },
+  drawPort(gridId, port, col, inward, n) {
+    return ntDrawPortMarker(document.getElementById(gridId), port, col, inward, n);
+  },
   renderFrame(ms)     { ntRenderFrame(ms, true); },
   renderComparison()  { ntRenderComparisonPanel(); },
   renderSummary()     { ntRenderSummary(); },
@@ -390,6 +393,13 @@ globalThis.__nt = {
   // and a port marker, so a raw children.length overcounts. Word-boundary match, since
   // a naive substring test would also catch nt-cell-* modifier classes.
   gridCells()      { return document.getElementById('nt-build-grid').children
+                       .filter(c => /(^| )nt-cell( |$)/.test(c.className || '')).length; },
+  gridPorts()      { return document.getElementById('nt-build-grid').children
+                       .filter(c => /(^| )absolute( |$)/.test(c.className || '')).length; },
+  authPorts()      { return document.getElementById('nt-auth-grid').children
+                       .filter(c => /(^| )absolute( |$)/.test(c.className || '')).length; },
+  // The existing gridCells() is hardcoded to nt-build-grid — the editor needs its own.
+  authCells()      { return document.getElementById('nt-auth-grid').children
                        .filter(c => /(^| )nt-cell( |$)/.test(c.className || '')).length; },
   gridClasses()    { return document.getElementById('nt-build-grid').children.map(c => c.className); },
   bootLines()      { return document.getElementById('nt-gate-boot-log').children.map(c => c.textContent); },
@@ -972,6 +982,23 @@ section('Debug Mode — settings');
   check('turning Debug off restores the Hardening Window controls',
         /opacity-50/.test(d.__nt.cls('nt-ctl-win')), false);
   check('…and clears its reason line', d.__nt.text('nt-reason-win'), '');
+  check('no exceptions', errs(d), []);
+})();
+
+// ── The shared port marker ────────────────────────────────────────────────────
+section('Port markers — one drawing function, two grids');
+(() => {
+  const d = makeDevice('ports', 'single', 0, [{ uid: 'u0', nickname: 'Ali' }]);
+  d.__nt.seat({ players: 1, names: ['Ali'] });
+  d.__nt.genNode();
+  d.__nt.renderGrid();
+  check('build grid draws exactly two port markers', d.__nt.gridPorts(), 2);
+
+  // The extracted function must be callable against ANY grid element, not just the build one.
+  const n = d.__nt.node.n;
+  d.__nt.drawPort('nt-auth-grid', d.__nt.node.ingress, '#34d399', true, n);
+  d.__nt.drawPort('nt-auth-grid', d.__nt.node.egress, '#334155', false, n);
+  check('…and the same function serves a second grid', d.__nt.authPorts(), 2);
   check('no exceptions', errs(d), []);
 })();
 
