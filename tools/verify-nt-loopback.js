@@ -1329,6 +1329,97 @@ section('Retrying players are never swept aside by a deadline');
   check('no exceptions', r.all.map(errs), [[], []]);
 })();
 
+// ── Summary: best of N, and the loop back to the editor ───────────────────────
+section('Summary — scored on best attempts, then a fresh sandbox');
+(() => {
+  const r = makeRoom(['Ali', 'Bec']);
+  seatAll(r, { win: 90, debug: true });
+  r.host.__nt.showAuthoring();
+  r.host.__nt.authRandTerrain();
+  r.host.__nt.bumpFw(10);
+  r.host.__nt.deploy();
+  r.all.forEach(drain);
+
+  // The host builds well, then deliberately throws away its last attempt. A fixed anchor pair
+  // (as the brief's own draft used) isn't reliably safe across every seed's random terrain — it
+  // can land off the actual route, or a detour around it can happen to dodge a honeypot's slow
+  // zone and come out FASTER than the unobstructed baseline (latency isn't pure path length; a
+  // honeypot proximity slow is folded in — see ntComputeTimeline). Confirmed by NT_SEED=7/8
+  // failing this exact hardcoded-anchor check with correct code. Search outward from centre for
+  // an anchor that empirically lengthens the route, same technique as the Retry loop section
+  // above — this is scaffolding to reach "2 committed attempts", not new behaviour under test.
+  r.host.__nt.showBuild();
+  const gridN = r.host.__nt.node.n;
+  const cx = Math.floor(gridN / 2) - 1, cy = Math.floor(gridN / 2) - 1;
+  const anchors = [];
+  for (let bx = 0; bx <= gridN - 2; bx++) for (let by = 0; by <= gridN - 2; by++) anchors.push({ ax: bx, ay: by });
+  anchors.sort((a, b) => (Math.abs(a.ax - cx) + Math.abs(a.ay - cy)) - (Math.abs(b.ax - cx) + Math.abs(b.ay - cy)));
+  const baseline = r.host.__nt.timeline().latencyMs;   // ntMyPlacements is [] right after showBuild
+  let chosen = null;
+  for (const cand of anchors) {
+    r.host.__nt.setPlacements([{ ax: cand.ax, ay: cand.ay, type: 'firewall' }]);
+    if (r.host.__nt.timeline().latencyMs > baseline) { chosen = cand; break; }
+  }
+  if (!chosen) throw new Error('no block anchor lengthened the baseline route — terrain too open');
+  r.host.__nt.setPlacements([{ ax: chosen.ax, ay: chosen.ay, type: 'firewall' }]);
+  r.host.__nt.commit();
+  const good = r.host.__nt.debugBest;
+  r.host.__nt.runAgain();
+  r.host.__nt.setPlacements([]);
+  r.host.__nt.commit();
+  check('best survives a deliberately worse final attempt', r.host.__nt.debugBest, good);
+
+  r.clients[0].__nt.showBuild(); r.clients[0].__nt.commit();
+  r.host.__nt.finish();
+  r.clients[0].__nt.finish();
+  r.all.forEach(drain);
+
+  r.host.__nt.showSummary('match');
+  check('the summary is captioned with the attempt count',
+        /best of 2 attempts/.test(r.host.__nt.text('nt-summary-caption')), true);
+  check('…and the caption is visible', r.host.__nt.shown('nt-summary-caption'), true);
+  check('the host is offered a fresh sandbox',
+        r.host.__nt.summaryBtnText(), 'Author New Node');
+
+  // The loop-back is symmetric with the opening: one entry point, reached twice.
+  r.host.__nt.tapSummary();
+  r.all.forEach(drain);
+  check('host returns to the editor',       lastScreen(r.host), 'screen-nt-authoring');
+  check('…on a genuinely blank board',
+        [r.host.__nt.node.badSectors.length, r.host.__nt.node.nativeHoneypots.length], [0, 0]);
+  check('client returns to the same standby it saw at the start',
+        lastScreen(r.clients[0]), 'screen-nt-standby');
+  check('…with its Debug state re-zeroed',
+        [r.clients[0].__nt.debugAttempt, r.clients[0].__nt.debugBest], [0, null]);
+  check('no exceptions', r.all.map(errs), [[], []]);
+})();
+
+// ── ntResetState ──────────────────────────────────────────────────────────────
+section('Teardown — session state clears, the SETTING survives');
+(() => {
+  const d = makeDevice('reset', 'single', 0, [{ uid: 'u0', nickname: 'Ali' }]);
+  d.__nt.seat({ players: 1, names: ['Ali'], debug: true });
+  d.__nt.showAuthoring();
+  d.__nt.authRandTerrain();
+  d.__nt.deploy();
+  d.__nt.showBuild();
+  d.__nt.commit();
+  check('mid-session state exists', d.__nt.debugAttempt, 1);
+
+  // Move the brush off its default before reset, so "brush back to default" below is a real
+  // check rather than one that would read 'bad' either way (it's already 'bad' post-authoring).
+  d.__nt.setBrushDbg('native');
+
+  d.__nt.resetState();
+  check('attempt count cleared',   d.__nt.debugAttempt, 0);
+  check('best cleared',            d.__nt.debugBest, null);
+  check('readiness arrays cleared',[d.__nt.debugFinished, d.__nt.debugCounts], [[], []]);
+  check('brush back to default',   d.__nt.debugBrush, 'bad');
+  check('but ntDebugMode SURVIVES — it is a setting, like every other setting',
+        d.__nt.debugMode, true);
+  check('no exceptions', errs(d), []);
+})();
+
 // ═══════════════════════════════════════════════════════════════════════════
 console.log('\n' + '='.repeat(62));
 console.log(failures === 0 ? 'ALL CHECKS PASSED' : `${failures} CHECK(S) FAILED`);

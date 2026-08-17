@@ -1433,6 +1433,25 @@ function ntShowSummary(mode) {
   const rebootBtn = document.getElementById('btn-nt-reboot');
   const logsBtn  = document.getElementById('btn-nt-logs-open');
   const isFinalMatch = ntSummaryMode === 'match';
+
+  // Debug is single-node and terminal: there is no next cycle, no rolling average and no
+  // match-wide ranking. The host's onward action is a fresh sandbox instead.
+  if (ntDebugMode) {
+    if (heading)  heading.textContent = 'Diagnostic Summary // STAGING';
+    if (logsBtn)  logsBtn.style.display = 'none';
+    if (rebootBtn) rebootBtn.style.display = 'block';
+    if (nextBtn) {
+      const canAuthor = window.syllyMultiplayerMode !== 'client';
+      nextBtn.style.display = canAuthor ? 'block' : 'none';
+      nextBtn.textContent   = 'Author New Node';
+      nextBtn.disabled      = false;
+    }
+    ntSummaryCallback = () => ntShowAuthoring();
+    showScreen('screen-nt-summary');
+    ntRenderSummary();
+    return;
+  }
+
   if (isFinalMatch) {
     if (heading) heading.textContent = 'Diagnostic Summary // FINAL';
     if (nextBtn) nextBtn.style.display = 'none';
@@ -1880,6 +1899,21 @@ function ntRenderSummary() {
   const labelEl = document.getElementById('nt-summary-ser-label');
   const board   = document.getElementById('nt-summary-board');
   const isFinal = ntSummaryMode === 'match';
+
+  // Set on EVERY path, including the non-Debug ones, so a Debug session followed by a Standard
+  // one cannot leave a stale caption behind (ui-style.md, the Stack's multi-renderer rule).
+  const capEl = document.getElementById('nt-summary-caption');
+  if (capEl) {
+    if (ntDebugMode) {
+      const seat = window.syllyMultiplayerMode === 'single' ? 0 : mpMyPlayerIdx;
+      const n = ntDebugAttemptCounts[seat] || ntDebugMyAttempt || 1;
+      capEl.textContent   = `STAGING — scored on your best of ${n} attempt${n === 1 ? '' : 's'}`;
+      capEl.style.display = '';
+    } else {
+      capEl.textContent   = '';
+      capEl.style.display = 'none';
+    }
+  }
 
   // Solo: raw latency is the headline (SER is trivially 100%); show accumulated on final.
   if (ntPlayerCount <= 1) {
@@ -2380,6 +2414,10 @@ function ntShowAuthoring() {
   ntDebugBest          = null;
   ntDebugFinished      = [];
   ntDebugAttemptCounts = [];
+  // Symmetric with the opening: every other device returns to the same standby it saw at the
+  // start. One authoring entry point, reached twice — not a second "restart" path. This is why
+  // NT_DEBUG_ROSTER carries an `authoring` flag rather than the feature minting a third packet.
+  if (window.syllyMultiplayerMode === 'host') ntDebugBroadcastRoster(true);
   showScreen('screen-nt-authoring');
   ntRenderAuthGrid();
   ntSyncAuthUI();
@@ -3917,6 +3955,13 @@ function ntResetState() {
   ntSummaryMode    = 'cycle';
   ntOverclockTheme = false;
   ntGhostAnchor    = null;
+  // Debug / Sandbox session state. ntDebugMode is deliberately NOT cleared — it is a setting,
+  // and every other setting survives a play-again / Reboot too.
+  ntDebugBrush         = 'bad';
+  ntDebugMyAttempt     = 0;
+  ntDebugBest          = null;
+  ntDebugFinished      = [];
+  ntDebugAttemptCounts = [];
   // PTP state
   ntPtpTurn        = 0;
   ntPtpTimelines   = [];
