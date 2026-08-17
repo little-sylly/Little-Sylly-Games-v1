@@ -8,6 +8,33 @@ Tick items off here; promote anything architectural into `decision-log.md`.
 
 ---
 
+## NT Debug Mode final review — deferred Minors (added 18 Aug 2026)
+
+The final pre-merge review of NT's Debug/Sandbox Mode (this branch) found five Minors beyond the
+three fixed in the same pass (native-cap reject flash, the duplicated firewall-slots expression,
+the dead `bestLatencyMs` payload field). These five each need a real behavioural decision, not a
+mechanical fix, so they're parked rather than made a judgement call in an unreviewed tail pass:
+
+- **Two honeypot ceilings on one screen** (`js/games/nt.js`: the authoring stepper caps at
+  `NT_HONEYPOT_CAP` (4) minus natives; `ntAuthRandomiseBudget`'s roll caps at
+  `NT_ALLOC_HONEYPOT_CAP` (2)). Both clamp correctly — not a defect — but picking ONE ceiling for
+  both paths is a balance call, not a code fix.
+- **The same-mouth guard compares `(edge, idx)` pairs, not mouth tiles** (`ntAuthSetPort`,
+  `js/games/nt.js`) — `{edge:'top',idx:0}` and `{edge:'left',idx:0}` are the same corner tile but
+  compare unequal. Currently unreachable via `ntAuthTap`, so no live bug, but the comparison is
+  wrong in principle.
+- **`ntSummaryCallback` fires unconditionally for clients** on the Debug summary screen — worth a
+  look at whether a client should ever see an enabled "Author New Node" affordance it can't act on.
+- **`pathOk()` re-assertions in `tools/verify-nt-loopback.js`** are tautological in a couple of
+  spots (re-proving something an earlier check in the same section already established).
+- **The `const good = r.host.__nt.debugBest` consistency note** in the harness — flagged as worth a
+  clearer comment or a small refactor, not a correctness issue.
+
+**When picked up:** next time Debug Mode's authoring screen or the loopback harness is touched for
+an unrelated reason, or at the next NT phase gate — whichever comes first.
+
+---
+
 ## `bindExclusiveSettings()` — extract once a third instance appears (added 17 Aug 2026)
 
 The mutually-exclusive/superseded settings pattern (`ui-style.md` § Settings Layout Standard) now

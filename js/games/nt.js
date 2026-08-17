@@ -2486,7 +2486,9 @@ function ntAuthPlaceTerrain(tx, ty, asHoneypot) {
     if (ntBlockAt(fx, fy) || ntIsMouthTile(fx, fy)) { ntFlashReject(ntBuildCells[ty] && ntBuildCells[ty][tx]); return; }
   }
   if (asHoneypot && ntNode.nativeHoneypots.length >= ntNativeHoneypots) {
-    playBoing(); ntSetRouting('storage_insufficient'); return;
+    playBoing(); ntSetRouting('storage_insufficient');
+    ntFlashReject(ntBuildCells[ty] && ntBuildCells[ty][tx]);
+    return;
   }
   // Validity gate — the authored node must route with NO player hardening on it, which is the
   // same guarantee ntGenerateNode gives (`ntPathExists(candidate, [])`, nt.js:1714).
@@ -2609,7 +2611,7 @@ function ntAuthRandomiseTerrain() {
 // Randomise Budget — the two expressions ntGenerateNode uses for its own roll (nt.js:1730–1731),
 // so a sandbox budget always lands in the range a real match would have dealt.
 function ntAuthRandomiseBudget() {
-  const slots = Math.pow(Math.floor(ntNode.n / NT_BLOCK), 2);
+  const slots = ntAuthMaxFirewall();
   ntInventory = {
     firewall: ntRandInt(Math.round(NT_FIREWALL_MIN_PCT * slots), Math.round(NT_FIREWALL_MAX_PCT * slots)),
     honeypot: ntRandInt(0, Math.min(NT_ALLOC_HONEYPOT_CAP, NT_HONEYPOT_CAP - ntNode.nativeHoneypots.length)),
@@ -2728,28 +2730,32 @@ function ntDebugFinish() {
   if (ov) ov.style.display = 'none';
   ntStopPlayback();
   const best   = ntDebugBest ? ntDebugBest.placements.slice() : [];
-  const bestMs = ntDebugBest ? ntDebugBest.latencyMs : 0;
   const waiting = 'Testing complete — waiting for the other analysts…';
 
   if (window.syllyMultiplayerMode === 'client') {
     // Fire-and-forget, matching ntCommit's client path: a residual sync lock would silently
     // drop this ACTION and strand the round, and Finish is already one-shot by construction.
+    // No latency field — the host recomputes it from bestPlacements (ntResolveCycleMdlm), so
+    // sending one here would look like a client-supplied score the host trusts verbatim.
     mpSendEnvelope({
       type: 'ACTION',
       payload: {
         action:         'NT_DEBUG_FINISH',
         bestPlacements: best,
-        bestLatencyMs:  bestMs,
         attempts:       ntDebugMyAttempt,
       },
     });
     ntDebugFinished[mpMyPlayerIdx]      = true;   // local optimism, for this device's roster
     ntDebugAttemptCounts[mpMyPlayerIdx] = ntDebugMyAttempt;
-    // If every seat (including this one, just marked) now reads finished, the ACTION above
-    // already reached the host and — same synchronous SYNC chain — the host's resolve and its
-    // NT_PLAYBACK broadcast have already navigated this device to playback. Showing standby
-    // now would stomp that navigation right back off it. Only the outstanding case waits.
-    if (!ntDebugFinished.every(Boolean)) ntShowStandby(waiting, ntDebugRosterRows());
+    // Always show standby, even when this device's own optimism makes every seat read
+    // finished locally. Over real Firebase the ACTION just sent is an async round-trip away
+    // — the host has not necessarily resolved yet, let alone broadcast NT_PLAYBACK, so
+    // skipping standby here would leave the last finisher frozen on the (stopped) playback
+    // screen for that round-trip, with no message and no force-resolve net armed in Debug.
+    // NT_PLAYBACK's own applier navigates unconditionally when it arrives, so it's safe to
+    // show standby unconditionally too — the same screen.nt-standby → screen-nt-playback
+    // sequence every other seat already goes through.
+    ntShowStandby(waiting, ntDebugRosterRows());
     return;
   }
 

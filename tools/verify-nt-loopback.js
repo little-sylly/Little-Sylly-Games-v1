@@ -453,7 +453,13 @@ globalThis.__nt = {
   effWin()            { return ntEffectiveHardeningWin(); },
   syncSettings()      { ntSyncSettingsUI(); },
   text(id)            { return document.getElementById(id).textContent; },
-  shown(id)           { return document.getElementById(id).style.display !== 'none'; },
+  // The mock creates every element with style:{} — style.display is undefined until code
+  // actually sets it. A "!== 'none'" test reads true for BOTH a real "" (shown, code ran)
+  // and an untouched undefined (nothing ran), so it can never fail regardless of whether
+  // the code under test runs at all. Requiring the exact "" the suite's own show/hide idiom
+  // uses (nt.js sets '' to show, 'none' to hide — see ntShowBuild/ntRenderSummary) makes an
+  // untouched element read as NOT shown, same as a hidden one — the discriminating case.
+  shown(id)           { return document.getElementById(id).style.display === ''; },
   cls(id)             { return document.getElementById(id).className; },
 };`;
 
@@ -623,6 +629,9 @@ check('client B painted a full grid',  r1.clients[1].__nt.gridCells(), n1 * n1);
 check('no render exceptions on any device', r1.all.map(errs), [[], [], []]);
 check('each device labels its OWN admin', r1.all.map(d => d.__nt.buildPlayer()),
   ['user:\\ali', 'user:\\bec', 'user:\\cam']);
+// Debug's Clear All button is Debug-only — outside Debug it must stay hidden. The paired
+// "it IS offered in Debug" assertion lives in the Debug section further down.
+check('Clear All is hidden outside Debug', r1.host.__nt.shown('btn-nt-build-clear'), false);
 
 // ── 6. The same thing with Native Honeypots: 0 — the deterministic reproduction ─
 section('Native Honeypots: 0 — convertN is always 0, so nativeHoneypots:[] every cycle');
@@ -723,6 +732,9 @@ check('SER headline names the cycle leader on every device',
   r3.all.map(d => ['Ali', 'Bec', 'Cam'].includes(d.__nt.summarySer())), [true, true, true]);
 check('all three devices name the SAME leader',
   r3.clients.map(c => c.__nt.summarySer()), [r3.host.__nt.summarySer(), r3.host.__nt.summarySer()]);
+// The Debug-only staging caption must stay hidden on a Standard summary. The paired
+// "…and the caption IS visible" assertion lives in the Debug summary section further down.
+check('the Debug staging caption is hidden outside Debug', r3.host.__nt.shown('nt-summary-caption'), false);
 
 // ── 10. Five cycles end to end ────────────────────────────────────────────────
 section('Five cycles, three devices — nothing diverges (the reported failure shape)');
@@ -1280,26 +1292,38 @@ section('Finish — a gate that must not be vacuous');
   check('…and only the finisher navigated — nobody was swept to playback',
         r.all.map((d, i) => d.__screens.length - screensBefore[i]), [0, 1, 0]);
 
-  // The host finishes — marking its OWN slot directly. A self-sent ACTION would be dropped by
-  // the dedup guard (originId === syllyDeviceUid), which is NT's own BUG-05.
+  // Second client finishes — two of three seats done, host still outstanding. Still not
+  // resolved (host is the one who must tip it), and the roster reaches every device.
+  r.clients[1].__nt.finish();
+  r.all.forEach(drain);
+  check('host recorded seat 2 as finished', r.host.__nt.debugFinished, [false, true, true]);
+  check('still not resolved — the host has not finished', r.host.__nt.cycleResolved, false);
+  check('clients see the roster',
+        r.clients.map(c => c.__nt.debugFinished), [[false, true, true], [false, true, true]]);
+  // Cam (the finisher who just tipped this checkpoint) is the one who rendered its own standby
+  // roster locally — the host hasn't shown standby at all yet, it finishes (and resolves) next.
+  check('roster renders one row per player', r.clients[1].__nt.rosterRows(), 3);
+
+  // The HOST finishes LAST — deliberately, not just for variety. Its own Finish marks its slot
+  // directly (a self-sent ACTION would be dropped by the dedup guard, originId ===
+  // syllyDeviceUid — NT's own BUG-05) and, because that tips every seat to finished, resolves
+  // in the SAME step and mirrors its own NT_PLAYBACK navigation locally (nt.js: "Host is also a
+  // participant and never receives its own SYNC"). A CLIENT tipping the gate is deliberately
+  // NOT exercised here: this harness's wire is a direct function call, so a client's own
+  // NT_DEBUG_FINISH would receive NT_DEBUG_ROSTER + NT_PLAYBACK back inside that same call,
+  // before its own ntShowStandby() line runs — a reentrancy that is structurally impossible on
+  // real Firebase (a round trip can never complete before the sending function returns) and so
+  // isn't something the fix needs to defend against, but it does mean this synchronous harness
+  // cannot honestly prove "everyone reaches playback" for that ordering. See nt.js
+  // ntDebugFinish's client branch for the production reasoning.
   r.host.__nt.finish();
-  check('host marked its own slot',           r.host.__nt.debugFinished, [true, true, false]);
+  r.all.forEach(drain);
+  check('host marked its own slot', r.host.__nt.debugFinished, [true, true, true]);
   // `sent` records the HOST's sends, so this is a direct observation of the claim: a self-sent
   // ACTION would appear here and would then be dropped by the dedup guard, leaving the slot
   // unset and the round hung forever.
   check('…and sent no NT_DEBUG_FINISH of its own',
         r.sent.includes('NT_DEBUG_FINISH'), false);
-  check('still not resolved — one seat outstanding', r.host.__nt.cycleResolved, false);
-
-  // The roster reaches every device.
-  r.all.forEach(drain);
-  check('clients see the roster',
-        r.clients.map(c => c.__nt.debugFinished), [[true, true, false], [true, true, false]]);
-  check('roster renders one row per player', r.host.__nt.rosterRows(), 3);
-
-  // The last Finish resolves.
-  r.clients[1].__nt.finish();
-  r.all.forEach(drain);
   check('all finished — the round resolves', r.host.__nt.cycleResolved, true);
   check('…and everyone reaches playback',
         r.all.map(lastScreen), ['screen-nt-playback', 'screen-nt-playback', 'screen-nt-playback']);
@@ -1315,7 +1339,16 @@ section('Retrying players are never swept aside by a deadline');
   r.host.__nt.authRandTerrain();
   r.host.__nt.deploy();
   r.all.forEach(drain);
-  r.all.forEach(d => { d.__nt.showBuild(); d.__nt.commit(); });
+
+  // Drive the REAL gate → build path, not the mock's showBuild() shortcut. ntShowMdlmGate's
+  // host callback (nt.js) is the ONLY place ntEffectiveHardeningWin() decides whether an
+  // endTimestamp exists — and ntStartBuildTimer only arms the host's resolve guard when it's
+  // called WITH a truthy endTimestamp. A no-arg showBuild() bypasses that decision entirely
+  // and would leave this section unable to fail no matter what the function under test does.
+  r.clients.forEach(c => c.__nt.tapGate());
+  r.host.__nt.tapGate();             // host's callback computes endTimestamp + broadcasts NT_BUILD_BEGIN
+  r.all.forEach(drain);
+  r.all.forEach(d => d.__nt.commit());
   r.host.__nt.finish();
 
   // Pump the host's timers well past what would have been the build deadline (45 s + the 4 s
