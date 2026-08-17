@@ -1374,8 +1374,15 @@ function ntShowBuild(endTimestamp) {
   if (grid0) grid0.style.pointerEvents = '';
   const commitBtn = document.getElementById('btn-nt-commit');
   if (commitBtn) { commitBtn.disabled = false; commitBtn.textContent = 'COMMIT RUNTIME ▶'; }
+  // Two renderers now write this header, so BOTH elements are set on BOTH paths — leaving one
+  // alone shows whatever the other last wrote (ui-style.md, the Stack's multi-renderer rule).
+  const label   = document.getElementById('nt-build-title-label');
   const counter = document.getElementById('nt-build-counter');
-  if (counter) counter.textContent = `${ntCycle + 1}/${ntIterations}`;
+  if (label)   label.textContent   = ntDebugMode ? 'STAGING — ATTEMPT' : 'VULNERABILITY SIMULATION';
+  if (counter) counter.textContent = ntDebugMode ? String(ntDebugMyAttempt + 1)
+                                                 : `${ntCycle + 1}/${ntIterations}`;
+  const clearBtn = document.getElementById('btn-nt-build-clear');
+  if (clearBtn) clearBtn.style.display = ntDebugMode ? '' : 'none';
   const name = document.getElementById('nt-node-name');
   const nodeTag = 'NT-NODE-' + String(ntCycle + 1).padStart(2, '0');
   if (name) name.innerHTML = 'SYS_INIT // <span class="text-emerald-400">' + nodeTag + '</span>';
@@ -2588,6 +2595,55 @@ function ntDeployNode() {
   }
 }
 
+// ── The sandbox retry loop ────────────────────────────────────────────────────
+// ntComputeTimeline_local() is a PURE function: same node + same placements ⇒ same timeline, on
+// every device, every time. So an attempt resolves entirely locally and costs no packet at all.
+// A player on attempt 11 has sent exactly as many as one on attempt 1: zero. The network is
+// touched twice all round — the host publishing the node, and each player declaring Finish.
+function ntDebugRunAttempt() {
+  ntStopBuildTimer();
+  ntDebugMyAttempt++;
+  const timeline = ntComputeTimeline_local();
+  const latency  = timeline ? timeline.latencyMs : 0;
+  // HIGHER latency is BETTER in Net-Trace — the defender is slowing the intruder down, and the
+  // longest delay each cycle scores 100% SER (ntResolveCyclePtp / ntResolveCycleMdlm both do
+  // `lat / maxLat`). So "best" is the SLOWEST trace and an improvement is a POSITIVE delta.
+  const prevBest = ntDebugBest ? ntDebugBest.latencyMs : null;
+  const isBest   = prevBest === null || latency > prevBest;
+  if (isBest) ntDebugBest = { latencyMs: latency, placements: ntMyPlacements.slice(), timeline };
+
+  ntPlaybackTimeline = timeline;
+  const panel = document.getElementById('nt-comparison-panel');
+  if (panel) panel.style.display = 'none';     // sandbox: you watch your own trace, not a field
+  // Reuse the playback screen's own Continue button rather than adding a second exit from it.
+  ntPlaybackContinueCallback = () => ntDebugOpenRetry(latency, isBest, prevBest);
+  ntShowPlayback();
+}
+
+function ntDebugOpenRetry(latency, isBest, prevBest) {
+  const att = document.getElementById('nt-debug-retry-attempt');
+  if (att) att.textContent = 'ATTEMPT ' + ntDebugMyAttempt;
+  const sub = document.getElementById('nt-debug-retry-sub');
+  if (sub) {
+    sub.textContent = ntFmtMs(latency) + (
+      prevBest === null ? ' · first trace'
+      : isBest          ? ' · NEW BEST +' + ntFmtMs(latency - prevBest)
+                        : ' · best remains ' + ntFmtMs(prevBest)
+    );
+  }
+  const ov = document.getElementById('nt-debug-retry-overlay');
+  if (ov) ov.style.display = 'flex';
+}
+
+// Previous placements stay put — tweak-one-wall-and-re-run is the whole point of the mode.
+// Clear All (build screen, Debug only) is the way to start an attempt from nothing.
+function ntDebugRunAgain() {
+  const ov = document.getElementById('nt-debug-retry-overlay');
+  if (ov) ov.style.display = 'none';
+  ntStopPlayback();
+  ntShowBuild();      // resets ntCommitted; ntMyPlacements deliberately survives
+}
+
 function ntFlashReject(cell) {
   playBoing();
   ntSetRouting('exception');
@@ -2680,6 +2736,7 @@ function ntForceResolveCycle() {
 
 // ── Commit ─────────────────────────────────────────────────────────────────
 function ntCommit() {
+  if (ntDebugMode) { ntDebugRunAttempt(); return; }
   if (ntCommitted) return;        // one commit per build phase (timer expiry + manual tap both call this)
   ntCommitted = true;
   ntStopBuildTimer();
@@ -3906,6 +3963,13 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-nt-auth-rand-budget') .addEventListener('click', () => { playWhoosh(); ntAuthRandomiseBudget(); });
   document.getElementById('btn-nt-auth-how-to').addEventListener('click', ntOpenHowTo);
   document.getElementById('btn-nt-auth-deploy').addEventListener('click', () => { playLaunch(); ntDeployNode(); });
+  document.getElementById('btn-nt-debug-again').addEventListener('click', () => { playLaunch(); ntDebugRunAgain(); });
+  document.getElementById('btn-nt-build-clear').addEventListener('click', () => {
+    playWhoosh();
+    ntMyPlacements = [];
+    ntRenderBuildGrid();      // repaints every cell and calls ntUpdateBuildCounters itself
+    ntSetRouting('valid');
+  });
 
   // Playback scrubber — drag to scrub; drives the renderer directly when auto-play has ended.
   document.getElementById('nt-playback-scrubber').addEventListener('input', (e) => {

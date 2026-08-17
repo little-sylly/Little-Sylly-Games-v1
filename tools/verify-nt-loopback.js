@@ -399,6 +399,10 @@ globalThis.__nt = {
   bumpHp(n)        { ntInventory.honeypot += n; ntSyncAuthUI(); },
   pathOk()         { return ntPathExists(ntNode, []); },
 
+  // ── Sandbox retry loop (Debug Mode) ──
+  runAgain()       { ntDebugRunAgain(); },
+  runAttempt()     { ntDebugRunAttempt(); },
+
   // ── DOM readers ──
   // Counts painted CELLS only — ntRenderBuildGrid also appends the ghost-preview span
   // and a port marker, so a raw children.length overcounts. Word-boundary match, since
@@ -1154,6 +1158,62 @@ section('Deploy Node — an authored node is shape-identical to a rolled one');
         r.host.__nt.debugFinished, [false, false, false]);
   check('ntDebugAttemptCounts is length-N all-zero, NOT []',
         r.host.__nt.debugCounts, [0, 0, 0]);
+})();
+
+// ── The retry loop ────────────────────────────────────────────────────────────
+section('Retry loop — unlimited attempts, zero packets');
+(() => {
+  const r = makeRoom(['Ali', 'Bec']);
+  seatAll(r, { win: 90, debug: true });
+  r.host.__nt.showAuthoring();
+  r.host.__nt.authRandTerrain();
+  r.host.__nt.bumpFw(8);
+  r.host.__nt.deploy();
+  r.all.forEach(drain);
+
+  const client = r.clients[0];
+  // makeRoom's `sent` array records the HOST's sends only, so counting it would prove nothing
+  // about a client's packets. Tap this client's own send instead — the claim under test is
+  // "a retrying player sends nothing", and this is the only way to actually observe that.
+  const clientPackets = [];
+  const clientSend = client.mpSendEnvelope;
+  client.mpSendEnvelope = env => { clientPackets.push(env.payload.action); return clientSend(env); };
+
+  client.__nt.showBuild();
+  check('build screen header reads ATTEMPT, not the cycle counter',
+        client.__nt.text('nt-build-title-label'), 'STAGING — ATTEMPT');
+  check('…starting at 1',        client.__nt.buildCounter(), '1');
+  check('Clear All is offered in Debug', client.__nt.shown('btn-nt-build-clear'), true);
+  check('the timer shows ∞',     client.__nt.text('nt-build-timer'), '∞');
+
+  // Attempt 1 — an EMPTY build. Legitimate: it is how you measure baseline latency.
+  client.__nt.commit();
+  check('attempt 1 counted',      client.__nt.debugAttempt, 1);
+  check('…and became the best by default', client.__nt.debugBest !== null, true);
+  check('attempt 1 sent NO packet', clientPackets, []);
+
+  const first = client.__nt.debugBest;
+  client.__nt.runAgain();
+  check('Run Again returns to the build screen', lastScreen(client), 'screen-nt-build');
+  check('…and the header advances', client.__nt.buildCounter(), '2');
+
+  // Attempt 2 — a real build. More hardening means a LONGER trace, which in NT is BETTER:
+  // the defender is slowing the intruder down, and the longest delay scores 100% SER.
+  client.__nt.setPlacements([{ ax: 4, ay: 4, type: 'firewall' }, { ax: 8, ay: 8, type: 'firewall' }]);
+  client.__nt.commit();
+  check('attempt 2 counted',      client.__nt.debugAttempt, 2);
+  check('a slower trace is a NEW BEST (higher latency wins in NT)',
+        client.__nt.debugBest >= first, true);
+  const second = client.__nt.debugBest;
+
+  // Attempt 3 — deliberately worse. Best must NOT regress to "last".
+  client.__nt.runAgain();
+  client.__nt.setPlacements([]);
+  client.__nt.commit();
+  check('attempt 3 counted',      client.__nt.debugAttempt, 3);
+  check('best is BEST, not LAST', client.__nt.debugBest, second);
+  check('three attempts still sent NO packets', clientPackets, []);
+  check('no exceptions', r.all.map(errs), [[], []]);
 })();
 
 // ═══════════════════════════════════════════════════════════════════════════
