@@ -27,6 +27,19 @@ mechanical fix, so they're parked rather than made a judgement call in an unrevi
   look at whether a client should ever see an enabled "Author New Node" affordance it can't act on.
 - **`pathOk()` re-assertions in `tools/verify-nt-loopback.js`** are tautological in a couple of
   spots (re-proving something an earlier check in the same section already established).
+- **The client-is-last-finisher path in Debug MDLM now has NO automated coverage** (surfaced by the
+  fix-wave re-review, 18 Aug 2026). Fixing the skip-standby issue meant reordering the Finish
+  scenario so the HOST finishes last, because a client-as-last-finisher hits a harness-only artifact:
+  `mpSendEnvelope` is a direct unqueued call, so the host's resolve nests inside the sending client's
+  own call stack and its `NT_PLAYBACK` navigation gets stomped by that client's own following line.
+  The harness cannot represent "SYNC not yet arrived" as distinct from "SYNC arrived instantly" —
+  the same limit that makes the underlying fix untestable here. Consequence: `ntDebugFinished.every
+  (Boolean)` is never true when either client's branch runs, so old and new code produce identical
+  outcomes in this ordering and nothing anchors the fixed line's differentiating behaviour. Closing
+  it needs an ASYNC wire in the loopback harness (a queued/deferred `mpSendEnvelope`), which is a
+  harness-architecture change well beyond a Minor — and would pay off for every MDLM game, not just
+  NT. **Until then this path is real-device-only:** cover it in the next 3-device NT session by
+  having a CLIENT finish last.
 - **The `const good = r.host.__nt.debugBest` consistency note** in the harness — flagged as worth a
   clearer comment or a small refactor, not a correctness issue.
 
