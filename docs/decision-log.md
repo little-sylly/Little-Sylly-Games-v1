@@ -20,21 +20,28 @@ Detail: pointer to the canonical doc (snapshot / impl note / spec / memory).
 
 ---
 
-## 2026-08-17 — Mutually-exclusive / superseded settings, a new suite-wide UI pattern (NT Debug Mode ↔ Sylly Mode, first instance)
+## 2026-08-17 — Mutually-exclusive / superseded settings named as a suite-wide UI pattern (FRT Pear-Off ↔ Sylly was the unnamed first instance; NT Debug Mode ↔ Sylly is the second)
 **Category:** Architecture
 **Decision:** Any two settings where turning one ON must disable the other now follow one of two named,
 documented shapes — **Mutually exclusive** (A forces B off, reciprocally, both stay reachable) or
 **Superseded** (A makes B irrelevant without touching B's stored value) — with a shared visual
 contract (`opacity-50 pointer-events-none` on controls, full-contrast title, a mandatory `text-amber-600`
 reason line) and a sanctioned card-order exception letting the exclusivity partner sit directly above
-`✨ Sylly Mode` in both the settings and How to Play overlays.
-**Why:** NT Debug Mode is mutually exclusive with Sylly Mode and supersedes Iterations/Hardening Window;
-without a named pattern this would have been solved ad hoc and drifted from the next game that needs it.
+`✨ Sylly Mode` in the settings overlay (NT additionally mirrors this into its How to Play overlay —
+FRT's how-to overlay never documented Pear-Off, so that half is NT's own addition, not shared prior art).
+**Why:** FRT shipped Pear-Off ↔ Sylly Mode (SW v167, 10 Aug 2026) as a reciprocal lock with an amber
+reason line, unnamed and undocumented. NT Debug Mode independently needed the same shape a week later,
+plus a second, Superseded relationship (over Iterations/Hardening Window) FRT never had — naming both
+now, rather than solving NT ad hoc, is what stops a third instance drifting from either.
 **Changed:** `.claude/rules/ui-style.md` § Settings Layout Standard + § How-to Overlay Standard (card
-ordering exception); implemented locally in NT (`ntSetCardDisabled`, `js/games/nt.js`) rather than as a
-shared `bindExclusiveSettings()` engine helper — deliberately deferred to instance two, per the project's
-existing precedent of not extracting shared code on a feature's first use.
-**Detail:** `ui-style.md` § Settings Layout Standard; `docs/implementation-notes/nt-implementation-notes.md`.
+ordering exception). Both shipped instances stay implemented locally — FRT inline in its two toggle
+handlers, NT via `ntSetCardDisabled` (`js/games/nt.js`) — rather than a shared `bindExclusiveSettings()`
+engine helper. This is now confirmed the pattern's *second* instance, which is usually this project's
+own extraction trigger (dice logic stayed in `dyb.js` only until a second dice game existed); overridden
+here on scope grounds — building the helper would mean touching FRT, a shipped game unrelated to the
+branch that surfaced this, at the tail end of a documentation-only task. Tracked as a deferred
+extraction in `docs/deferred-work.md` for a third instance or the next unrelated touch of either game.
+**Detail:** `ui-style.md` § Settings Layout Standard; `docs/implementation-notes/nt-implementation-notes.md`; `docs/deferred-work.md`.
 
 ## 2026-08-16 (later) — NT allocation hub: windowed viewer, no honeypot ceiling, and a screen that picks its own layout mode
 **Category:** Architecture

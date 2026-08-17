@@ -1191,7 +1191,7 @@ Each plugin reads `window.activeExpansionOverrides` at its settings-apply point 
 | `ntGenerateNode(opts)` | Generates relay-leg node geometry — `opts.keepInventory=true` reuses inventory for DNP N-node batch |
 | `ntEffectiveHardeningWin()` | Debug Mode superseding accessor — returns `0` ("∞", no countdown) when `ntDebugMode` is on, else `ntHardeningWin`. `ntStartBuildTimer` reads `0` and returns before arming `ntResolveGuard`, which is what fixes the `ntResolveGuard` hazard for free in Debug |
 | `ntSetCardDisabled(ctlId, reasonId, disabled, reason)` | Shared visual contract for the mutually-exclusive/superseded settings pattern — takes element **ids**, not elements; toggles `opacity-50 pointer-events-none` on the controls (card title stays full-contrast), shows/hides the `text-amber-600` reason line |
-| `ntDrawPortMarker(grid, port, colour, isIngress, n)` | Extracted port-marker draw (pre-existing, shared by build and authoring grids) |
+| `ntDrawPortMarker(grid, port, color, inward, n)` | Extracted port-marker draw (pre-existing, shared by build and authoring grids) |
 | `ntAuthBlankNode()` | Returns a fresh blank node `{ n, ingress, egress, badSectors:[], nativeHoneypots:[] }` at the current `ntMatrixScale` — shape-identical to `ntGenerateNode()`'s output |
 | `ntShowAuthoring()` | Entry point for the Node Editor — reached at session start AND on the Author New Node loop-back; resets Debug state, shows `screen-nt-authoring` |
 | `ntRenderAuthGrid()` | Renders `#nt-auth-grid` — reuses `ntPaintCell`/`ntBlockAt`/`ntRepaintFootprint`/`ntFlashReject` unchanged; a brush-model `pointerup` handler replaces the build grid's inventory-tap-cycling |

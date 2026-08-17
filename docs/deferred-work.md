@@ -8,6 +8,25 @@ Tick items off here; promote anything architectural into `decision-log.md`.
 
 ---
 
+## `bindExclusiveSettings()` — extract once a third instance appears (added 17 Aug 2026)
+
+The mutually-exclusive/superseded settings pattern (`ui-style.md` § Settings Layout Standard) now
+has **two** shipped instances: FRT's Pear-Off ↔ Sylly Mode (SW v167, 10 Aug 2026 — reciprocal lock,
+inline in `js/games/frt.js`'s two toggle handlers) and NT's Debug Mode ↔ Sylly Mode (this branch —
+both Mutually exclusive and Superseded, centralised in `ntSetCardDisabled`, `js/games/nt.js`). Both
+still implement the toggle/disable/reason-line logic locally, not through a shared engine helper.
+
+**Why not extracted now:** this is the project's usual second-instance extraction trigger (per the
+`dyb.js` dice-logic precedent), but building it here would mean touching FRT — a shipped game
+unrelated to the branch that surfaced this — at the tail end of a documentation-only task, with no
+spec of its own. Deliberately overridden on scope grounds rather than missed.
+
+**When picked up:** build `bindExclusiveSettings()` as a shared `engine.js` helper when a **third**
+instance appears, or the next time either FRT's or NT's settings code is touched for an unrelated
+reason — whichever comes first. Detail: `docs/decision-log.md` 2026-08-17.
+
+---
+
 ## NT allocation preview: canvas renderer looks cruder than the real build grid (added 16 Aug 2026)
 
 `ntDrawLegCanvas` (the allocation screen's maze preview) draws flat rect-fills with a plain 1px

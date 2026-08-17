@@ -289,13 +289,15 @@ shipped a full hand-authoring sandbox for NT: the host builds a Node in a Node E
 `NT_GENERATE` packet (`debug: true`), and every player retries it locally an unlimited number of
 times — zero packets per attempt — before finishing independently through a sized readiness gate,
 scored on their **best** (highest-latency) attempt. Mutually exclusive with Sylly Mode, superseding
-Iterations/Hardening Window, via a new suite-wide settings pattern (decision-log entry below). Task
-10 closed it out: `visual-check` on `screen-nt-authoring` at all three Matrix Scale settings found
-no headroom to grow the Randomise buttons (left `min-h-11`) and a real 44 px touch-target gap on
-the four brush pills (fixed, extending TG-08's precedent); `verify-nt-loopback.js` sits at **239**
-checks, 8/8 seeds green. Two pieces of stale NT documentation predating this branch were corrected
-in passing (`ntCycles`→`ntIterations`, a phantom `nt-new-trace-overlay` id). Detail:
-`nt-implementation-notes.md` D36–D42; decision-log 2026-08-17.
+Iterations/Hardening Window — the **second** shipped instance of a now-named suite-wide settings
+pattern, after FRT's unnamed Pear-Off ↔ Sylly Mode (SW v167, 10 Aug 2026); decision-log entry below
+names both and corrects an earlier "first instance" misattribution caught in review. Task 10 closed
+it out: `visual-check` on `screen-nt-authoring` at all three Matrix Scale settings found no headroom
+to grow the Randomise buttons (left `min-h-11`) and a real 44 px touch-target gap on the four brush
+pills (fixed, extending TG-08's precedent); `verify-nt-loopback.js` sits at **239** checks, 8/8
+seeds green. Two pieces of stale NT documentation predating this branch were corrected in passing
+(`ntCycles`→`ntIterations`, a phantom `nt-new-trace-overlay` id). Detail: `nt-implementation-notes.md`
+D36–D42; decision-log 2026-08-17.
 
 **SW v195–197 — NT allocation viewer rounds 5–6: maze-preview polish, budget-vs-total split, the
 Stack, terminology cleanup (16 Aug 2026).** Detail: `nt-implementation-notes.md` D33–D35.
