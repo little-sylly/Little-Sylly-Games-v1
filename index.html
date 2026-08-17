@@ -7492,10 +7492,10 @@ Climb Again
       </div>
 
       <div class="flex gap-2">
-        <button class="pill pill-active-emerald" data-nt-brush="bad">Bad Sector</button>
-        <button class="pill" data-nt-brush="native">Honeypot</button>
-        <button class="pill" data-nt-brush="ingress">Ingress</button>
-        <button class="pill" data-nt-brush="egress">Egress</button>
+        <button class="pill min-h-11 pill-active-emerald" data-nt-brush="bad">Bad Sector</button>
+        <button class="pill min-h-11" data-nt-brush="native">Honeypot</button>
+        <button class="pill min-h-11" data-nt-brush="ingress">Ingress</button>
+        <button class="pill min-h-11" data-nt-brush="egress">Egress</button>
       </div>
       <p id="nt-auth-brush-hint" class="text-stone-400 text-xs"></p>
 
@@ -7773,6 +7773,12 @@ Reboot System
             <li><span class="font-semibold text-stone-700">Corners earn you time</span> — every turn the signal makes adds delay, and delay is score.</li>
             <li>Highest <span class="font-semibold text-stone-700">rolling-average SER</span> across all cycles wins.</li>
           </ul>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest text-emerald-600">Debug Mode</p>
+          <p class="font-bold text-stone-800">Staging Environment</p>
+          <p class="text-stone-500 text-sm">One analyst authors the Node by hand in the <span class="font-semibold text-stone-700">Node Editor</span> — drawing Bad Sectors, dropping Native Honeypots, placing the ports and setting everyone's budget. Once it is deployed, you can re-run your trace <span class="font-semibold text-stone-700">as many times as you like</span>; only your best attempt is scored. Not available alongside Sylly Mode.</p>
         </div>
 
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">

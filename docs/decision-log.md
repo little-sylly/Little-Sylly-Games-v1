@@ -20,6 +20,22 @@ Detail: pointer to the canonical doc (snapshot / impl note / spec / memory).
 
 ---
 
+## 2026-08-17 — Mutually-exclusive / superseded settings, a new suite-wide UI pattern (NT Debug Mode ↔ Sylly Mode, first instance)
+**Category:** Architecture
+**Decision:** Any two settings where turning one ON must disable the other now follow one of two named,
+documented shapes — **Mutually exclusive** (A forces B off, reciprocally, both stay reachable) or
+**Superseded** (A makes B irrelevant without touching B's stored value) — with a shared visual
+contract (`opacity-50 pointer-events-none` on controls, full-contrast title, a mandatory `text-amber-600`
+reason line) and a sanctioned card-order exception letting the exclusivity partner sit directly above
+`✨ Sylly Mode` in both the settings and How to Play overlays.
+**Why:** NT Debug Mode is mutually exclusive with Sylly Mode and supersedes Iterations/Hardening Window;
+without a named pattern this would have been solved ad hoc and drifted from the next game that needs it.
+**Changed:** `.claude/rules/ui-style.md` § Settings Layout Standard + § How-to Overlay Standard (card
+ordering exception); implemented locally in NT (`ntSetCardDisabled`, `js/games/nt.js`) rather than as a
+shared `bindExclusiveSettings()` engine helper — deliberately deferred to instance two, per the project's
+existing precedent of not extracting shared code on a feature's first use.
+**Detail:** `ui-style.md` § Settings Layout Standard; `docs/implementation-notes/nt-implementation-notes.md`.
+
 ## 2026-08-16 (later) — NT allocation hub: windowed viewer, no honeypot ceiling, and a screen that picks its own layout mode
 **Category:** Architecture
 **Decision:** Six screenshot-driven rounds on the hub shipped the same day as the tally-deposit above (SW v192→v197). Three outcomes worth carrying: (1) the **side-by-side bridge became a windowed single-leg viewer** (‹ › + an always-visible chip row) — the earlier "fit every leg at once" sizing was legible at 2 legs and an unreadable, overflowing smudge at 4; (2) the **per-leg honeypot ceiling was removed entirely** (`ntLegHoneypotCap` deleted), leaving the team-pool ceiling as the only bound on either resource — this **supersedes the ceiling described in the entry below**; (3) `screen-nt-allocation` now **chooses its own layout mode per render** — THE STACK (`ui-style.md`'s suite default) when header+stage+footer fit, falling back to the legacy sticky-footer split only on genuine overflow.

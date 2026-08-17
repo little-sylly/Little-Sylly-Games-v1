@@ -800,7 +800,11 @@ rather than "fixed" by changing the (already correct) numbers to match a wrong a
   this one is a mid-huddle tool hit repeatedly against a running clock. **Not swept suite-wide** —
   every pill in every game has this measurement, so it is either a deliberate accepted exception or
   a suite-wide gap, and that is a call for a phase gate rather than a game round. Flagged in
-  `deferred-work.md`.
+  `deferred-work.md`. **Extended, Task 10 (17 Aug 2026):** the Node Editor's four brush pills
+  (`data-nt-brush`, `screen-nt-authoring`) shipped in Task 4 without `min-h-11` and measured 39 px
+  in `visual-check` — the same gap, on a control that's brushed even more often than the allocation
+  hub's. Added `min-h-11` for consistency with the existing precedent; now 44 px at all three
+  Matrix Scale settings, confirmed via `getBoundingClientRect`.
 - **A refusal helper is per-screen, not per-game.** `ntSetRouting()` looks like NT's general "reject
   that input" feedback but is bound to one screen's status element and no-ops everywhere else —
   silently, via `if (!el) return`. When adding refusal feedback to a *new* screen, check which
@@ -811,3 +815,125 @@ rather than "fixed" by changing the (already correct) numbers to match a wrong a
   Consolidated into one gap below the strip rather than split above and below, which reads more
   deliberate, but the huddle countdown — currently a small eyebrow in the header — is the obvious
   candidate to fill it. Not done this round; out of scope for the four items.
+
+---
+
+## Design Decisions (Debug Mode round — 17 Aug 2026, SW v198)
+
+Tasks 1–9 shipped Debug/Sandbox Mode: the host hand-authors a Node in a Node Editor
+(`screen-nt-authoring`) instead of the system rolling one, deploys it over the existing
+`NT_GENERATE` packet, and every player retries it locally an unlimited number of times (zero
+packets per attempt) before finishing independently through a sized readiness gate, scored on
+their **best** attempt. Task 10 closed the feature out — layout check, doc pass, SW bump. These
+entries capture what's worth carrying forward.
+
+### D36 — An authored node is shape-identical to a generated one, and that's the whole feature
+`ntAuthBlankNode()` returns `{ n, ingress, egress, badSectors: [], nativeHoneypots: [] }` —
+exactly the fields `ntGenerateNode()` populates. Every downstream consumer (`ntPathExists`,
+`ntComputeTimeline_local`, `ntResolveCycleMdlm`, the playback canvas, the SER summary) reads a
+node by shape, never by provenance, so none of them needed a single line changed. The entire
+feature is: a second producer of the same shape (`screen-nt-authoring`, hand-driven instead of
+`ntRandInt`-driven), plus a retry loop bolted onto the existing build→playback cycle. `NT_GENERATE`
+carries the authored node verbatim with one added field, `debug: true`, purely for UI branching
+(e.g. "no timer" / "unlimited attempts" copy) — the resolution path underneath never inspects it.
+
+### D37 — Why a new screen, not a mode branch on `ntRenderBuildGrid`
+The Node Editor (`ntRenderAuthGrid`) is a **second renderer**, not a parameterised version of the
+existing build grid. `ntRenderBuildGrid`'s pointer handlers are saturated with build-phase
+semantics that have no authoring equivalent and would all need a mode guard: live-inventory
+tap-cycling, the firewall→honeypot long-press upgrade, right-click honeypots, and
+`ntUpdateBuildCounters` firing on every path. Threading `if (ntDebugMode) …` through each of those
+would have put conditional logic on the single render path `verify-nt-loopback.js` actually
+exercises for every non-Debug player, every game — the one place a subtle regression would be
+most expensive and least visible. The two renderers instead share everything **stateless** —
+`ntPaintCell`, `ntBlockAt`, `ntRepaintFootprint`, `ntPathExists`, `ntFlashReject`,
+`ntDrawPortMarker` — and diverge only in their pointer handler, which is a brush-model
+(`ntAuthTap`) rather than an inventory-model. `ntRenderBuildGrid` is left byte-identical; the
+existing 146 pre-branch checks staying green was the test for that claim, not an assertion added
+this round.
+
+### D38 — Correction C1: the spec's "best" was inverted, and why it matters for the next reader
+NT's own scoring rule is `SER = latency / maxLatency × 100` — the **longest** delay each cycle
+scores 100%, because the player is the *defender*: a signal that takes longer to traverse the
+maze means the hardening worked. The feature's spec drafted "best attempt" the intuitive way
+round — lowest latency — which is backwards for this specific game and would have scored a
+player's *worst* trace as their best. Caught before shipping and corrected in `ntDebugRunAttempt`
+(`js/games/nt.js`): `isBest = prevBest === null || latency > prevBest`, with an inline comment
+spelling out why. **Worth its own paragraph because a reviewer reading only the spec later, with
+no memory of this correction, will reach the intuitive-but-wrong direction independently** — the
+contradiction isn't visible from the code alone unless the comment survives every future edit.
+The test-construction side of this correction (a comparison that can be inverted without a check
+noticing) is its own lesson — see D40 below.
+
+### D39 — Correction C2: a settings-flag feature needs the settings-sync payload in both directions, not just the toggle
+`ntDebugMode` is a **setting** — it persists like `ntHardeningWin` or `ntNativeHoneypots` — but
+the first draft of the plan added the toggle and its UI wiring without adding it to
+`engine-multiplayer.js`'s `SETTINGS_SYNC` payload (host→client) or its intake (client applying a
+host's settings). A setting that isn't synced silently diverges the moment a client's local
+default differs from the host's choice — invisible in solo/PTP testing, where there's only one
+device to disagree with itself. Fixed at `engine-multiplayer.js:857` and `:1031`. **The general
+lesson for the next mode-flag feature:** treat "add a setting" and "wire its sync" as one
+checklist item, not two — a spec section titled "Settings" that doesn't cross-reference
+`SETTINGS_SYNC` is incomplete by construction, not just by omission.
+
+### D40 — The `ntResolveGuard` hazard, fixed for free by the accessor's own early return
+The build timer's host-side safety net (`ntResolveGuard`, a `setTimeout` that force-resolves a
+cycle a few seconds after the hardening window closes, in case a commit packet was lost) is armed
+unconditionally on every call to `ntStartBuildTimer` in the pre-Debug code. Debug Mode has no
+window to close — a player may sit on one attempt for as long as they like — so an unmodified
+`ntResolveGuard` would fire a few seconds after `ntHardeningWin` regardless, evicting an
+in-progress retry session out from under the player. The fix needed no Debug-specific carve-out:
+`ntEffectiveHardeningWin()` returns `0` when `ntDebugMode` is on, and `ntStartBuildTimer` already
+`return`s immediately on a `0` reading (to show "∞" instead of a countdown) — **before** reaching
+the block that arms `ntResolveGuard`. The hazard is closed as a side effect of the accessor
+existing at all, not a second guard clause. Worth noting as a pattern: when a superseding setting
+short-circuits a function early for an unrelated reason, check what else lives after that early
+return before assuming a new guard is needed.
+
+### D41 — The retry overlay's button-id naming constraint, and why it's a total-but-invisible failure mode
+`engine.js` has one delegated backdrop-tap-to-dismiss handler for every overlay in the suite: it
+finds a button whose `id` matches `cancel|close|done|ok|dismiss` as a whole segment and clicks it
+when the backdrop (not the card) is tapped. `nt-debug-retry-overlay` has two buttons and both are
+real decisions (Run Again / Finish Testing) — per `ui-style.md`'s documented exception this
+overlay is correctly left non-dismissible, but **only** if neither button id matches that pattern.
+The ids shipped are `btn-nt-debug-again` and `btn-nt-debug-finish` — neither collides. Had the
+second one been named `btn-nt-debug-done` (a completely natural name for "the player is done"), a
+stray backdrop tap during a Node Editor session would have silently finished that player's Debug
+attempt, dropping them out of the retry loop with no confirmation and no error — a **total**
+failure (wrong outcome, not a degraded one) that is **invisible in code review** (nothing about
+`btn-nt-debug-done` looks wrong in isolation; the danger only exists in relation to a generic
+handler defined in a different file). This is the same class of hazard as a naming convention
+enforced by grep rather than by the type system — worth remembering whenever a new Decision Modal
+with two real (non-cancel) choices is added anywhere in the suite: check both ids against the
+`engine.js` pattern before shipping, not after a report of an inexplicably-skipped step.
+
+### D42 — Four checks that couldn't fail against the bug they existed to catch
+Across the branch's review cycles, four separate assertions were found to be non-discriminating —
+each passed identically whether the code underneath was correct or broken. None were caught by
+reading the assertion; all four were caught by deliberately breaking the code they were meant to
+protect and confirming the check stayed green. **The transferable lesson: capture a test's
+expected value independently of the machinery under test, and prove a check can fail before
+trusting that it can.**
+- **The C1 retry-loop test (Task 7).** The original comparison was non-strict (`debugBest >=
+  first`) and its "attempt 3" expectation was read out of the same live `ntDebugBest` state the
+  bug under test would corrupt — so an inverted comparison and a frozen (never-updated) best both
+  satisfied it. A reviewer flipped `nt.js`'s sole `>` to `<`, ran the full harness, and got ALL
+  CHECKS PASSED — proof, not argument. Fixed by tightening to strict `>` and capturing the
+  expected value via a direct `ntComputeTimeline_local()` call that never passes through the
+  `isBest` bookkeeping under test, so the expectation cannot be poisoned by the same mutation that
+  breaks the code.
+- **The "swept to playback" gate check (Task 8).** Written as `includes('screen-nt-playback')`,
+  which is unconditionally true because `ntDebugRunAttempt` calls `ntShowPlayback()` on *every*
+  attempt, not just a premature resolve. Replaced with a before/after screen-push-count delta,
+  which does discriminate.
+- **"…and the caption is visible" (Task 9).** Passes even with the entire caption-writing block
+  deleted, because the mock DOM auto-vivifies `nt-summary-caption`'s `style.display` to a default
+  that already reads as "shown" before any application code touches it. Flagged rather than
+  silently patched — fixing it would touch test infrastructure outside that task's scope — and
+  left in place because it still has value as a *paired* assertion (it would catch a regression
+  that hid the caption via `display:none` while leaving the text itself set).
+- **"Brush back to default" (Task 9).** Nothing in the test path ever moved `ntDebugBrush` off
+  its post-`ntShowAuthoring` default of `'bad'` before calling `ntResetState()`, so the check
+  passed identically with or without the reset line it was meant to verify. Fixed with one line
+  (`setBrushDbg('native')` before the reset call) so the assertion is actually exercising the
+  code path it names.
