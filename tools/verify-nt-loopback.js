@@ -402,6 +402,12 @@ globalThis.__nt = {
   // ── Sandbox retry loop (Debug Mode) ──
   runAgain()       { ntDebugRunAgain(); },
   runAttempt()     { ntDebugRunAttempt(); },
+  finish()         { ntDebugFinish(); },
+  setBest(p)       { ntDebugBest = { latencyMs: 1000, placements: p.slice(), timeline: ntComputeTimeline_local() }; },
+  // The mock's innerHTML setter parses every id/class-bearing tag FLAT, so a raw children.length
+  // would also count the two spans inside each row. Filter to the row wrapper's own class.
+  rosterRows()     { return document.getElementById('nt-standby-roster').children
+                       .filter(c => /rounded-xl/.test(c.className || '')).length; },
 
   // ── DOM readers ──
   // Counts painted CELLS only — ntRenderBuildGrid also appends the ghost-preview span
@@ -1237,6 +1243,89 @@ section('Retry loop — unlimited attempts, zero packets');
   check('attempt 3 counted',      client.__nt.debugAttempt, 3);
   check('best is BEST, not LAST', client.__nt.debugBest, expectedSecond);
   check('three attempts still sent NO packets', clientPackets, []);
+  check('no exceptions', r.all.map(errs), [[], []]);
+})();
+
+// ── Finish, and the per-player readiness gate ─────────────────────────────────
+section('Finish — a gate that must not be vacuous');
+(() => {
+  const r = makeRoom(['Ali', 'Bec', 'Cam']);
+  seatAll(r, { win: 90, debug: true });
+  r.host.__nt.showAuthoring();
+  r.host.__nt.authRandTerrain();
+  r.host.__nt.deploy();
+  r.all.forEach(drain);
+
+  // Every device runs one attempt, then finishes one at a time.
+  r.all.forEach(d => { d.__nt.showBuild(); d.__nt.commit(); });
+
+  // Client 1 finishes with an EMPTY build — normal in a sandbox, and the array Firebase
+  // deletes in flight. Without `payload.bestPlacements || []` the host reads undefined and
+  // ntResolveCycleMdlm maps over it and throws, stranding the entire room.
+  //
+  // Every device is ALREADY sitting on screen-nt-playback at this point — that's the retry
+  // loop's own design (each attempt shows its own trace, retry overlay on top), not a bug — so
+  // a plain "does the screen list include screen-nt-playback" check can't tell a premature sweep
+  // apart from that pre-existing, correct state; it would read true either way. Snapshot each
+  // device's own screen-push COUNT instead and assert the DELTA: only the finisher (Bec) may
+  // navigate anywhere: a premature resolve broadcasting NT_PLAYBACK to the two still-testing
+  // devices would show up as a non-zero delta for them.
+  const screensBefore = r.all.map(d => d.__screens.length);
+  r.clients[0].__nt.setBest([]);
+  r.clients[0].__nt.finish();
+  check('host recorded seat 1 as finished', r.host.__nt.debugFinished, [false, true, false]);
+  check('…and kept an ARRAY for their empty best build',
+        Array.isArray(r.host.__nt.ptpPlacements[1]), true);
+  check('the round has NOT resolved on one Finish', r.host.__nt.cycleResolved, false);
+  check('…and only the finisher navigated — nobody was swept to playback',
+        r.all.map((d, i) => d.__screens.length - screensBefore[i]), [0, 1, 0]);
+
+  // The host finishes — marking its OWN slot directly. A self-sent ACTION would be dropped by
+  // the dedup guard (originId === syllyDeviceUid), which is NT's own BUG-05.
+  r.host.__nt.finish();
+  check('host marked its own slot',           r.host.__nt.debugFinished, [true, true, false]);
+  // `sent` records the HOST's sends, so this is a direct observation of the claim: a self-sent
+  // ACTION would appear here and would then be dropped by the dedup guard, leaving the slot
+  // unset and the round hung forever.
+  check('…and sent no NT_DEBUG_FINISH of its own',
+        r.sent.includes('NT_DEBUG_FINISH'), false);
+  check('still not resolved — one seat outstanding', r.host.__nt.cycleResolved, false);
+
+  // The roster reaches every device.
+  r.all.forEach(drain);
+  check('clients see the roster',
+        r.clients.map(c => c.__nt.debugFinished), [[true, true, false], [true, true, false]]);
+  check('roster renders one row per player', r.host.__nt.rosterRows(), 3);
+
+  // The last Finish resolves.
+  r.clients[1].__nt.finish();
+  r.all.forEach(drain);
+  check('all finished — the round resolves', r.host.__nt.cycleResolved, true);
+  check('…and everyone reaches playback',
+        r.all.map(lastScreen), ['screen-nt-playback', 'screen-nt-playback', 'screen-nt-playback']);
+  check('no exceptions anywhere', r.all.map(errs), [[], [], []]);
+})();
+
+// ── No forced resolution while a player is still retrying ─────────────────────
+section('Retrying players are never swept aside by a deadline');
+(() => {
+  const r = makeRoom(['Ali', 'Bec']);
+  seatAll(r, { win: 45, debug: true });   // a REAL window is configured — Debug supersedes it
+  r.host.__nt.showAuthoring();
+  r.host.__nt.authRandTerrain();
+  r.host.__nt.deploy();
+  r.all.forEach(drain);
+  r.all.forEach(d => { d.__nt.showBuild(); d.__nt.commit(); });
+  r.host.__nt.finish();
+
+  // Pump the host's timers well past what would have been the build deadline (45 s + the 4 s
+  // resolve-guard margin), with one player still mid-retry. Stated behaviourally rather than
+  // as "the guard is unarmed", so it also catches any OTHER route to a premature resolve.
+  for (let i = 0; i < 40; i++) step(r.host, 120000);
+  check('the round has NOT resolved with a player still testing',
+        r.host.__nt.cycleResolved, false);
+  check('…and the retrying client is still on its own screen',
+        lastScreen(r.clients[0]) !== 'screen-nt-summary', true);
   check('no exceptions', r.all.map(errs), [[], []]);
 })();
 

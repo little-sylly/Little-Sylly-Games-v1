@@ -1478,10 +1478,27 @@ function ntShowSummary(mode) {
   ntRenderSummary();
 }
 
-function ntShowStandby(msg) {
+// Two things now live on this screen, so EVERY path sets BOTH — a caller that "leaves the
+// roster alone" is really showing whatever the previous caller last wrote (ui-style.md, the
+// Stack's multi-renderer rule). Existing single-argument callers pass roster === undefined,
+// which explicitly blanks it; no call site needs editing.
+function ntShowStandby(msg, roster) {
   const el = document.getElementById('nt-standby-msg');
   if (el && msg) el.textContent = msg;
+  ntRenderDebugRoster(roster || null);
   showScreen('screen-nt-standby');
+}
+
+function ntRenderDebugRoster(rows) {
+  const box = document.getElementById('nt-standby-roster');
+  if (!box) return;
+  if (!rows || !rows.length) { box.innerHTML = ''; box.style.display = 'none'; return; }
+  box.style.display = 'flex';
+  box.innerHTML = rows.map(r =>
+    `<div class="flex items-center justify-between bg-white rounded-xl px-4 py-2 text-sm">
+       <span class="text-stone-500 font-mono">${r.done ? '✓' : '⋯'} ${r.name}</span>
+       <span class="text-stone-400 font-mono text-xs">${r.done ? 'finished' : 'testing'} (${r.attempts} ${r.attempts === 1 ? 'attempt' : 'attempts'})</span>
+     </div>`).join('');
 }
 
 // Open the how-to overlay (shared by menu + in-game [?] buttons).
@@ -2644,6 +2661,90 @@ function ntDebugRunAgain() {
   ntShowBuild();      // resets ntCommitted; ntMyPlacements deliberately survives
 }
 
+function ntDebugRosterRows() {
+  return Array.from({ length: ntPlayerCount }, (_, i) => ({
+    name:     ntPlayerNames[i] || ('ADMIN-' + (i + 1)),
+    done:     !!ntDebugFinished[i],
+    attempts: ntDebugAttemptCounts[i] || 0,
+  }));
+}
+
+function ntDebugBroadcastRoster(authoring) {
+  mpSendEnvelope({
+    type: 'SYNC',
+    payload: {
+      action:    'NT_DEBUG_ROSTER',
+      finished:  ntDebugFinished.slice(),
+      attempts:  ntDebugAttemptCounts.slice(),
+      authoring: !!authoring,
+    },
+  });
+}
+
+// Finish is FINAL — there is no un-finishing. Per mode:
+//   Solo — straight through; no gate exists.
+//   PTP  — sequential handover, so no simultaneous-finish problem exists at all.
+//   MDLM — one slot in ntDebugFinished; the host resolves on .every(Boolean).
+function ntDebugFinish() {
+  const ov = document.getElementById('nt-debug-retry-overlay');
+  if (ov) ov.style.display = 'none';
+  ntStopPlayback();
+  const best   = ntDebugBest ? ntDebugBest.placements.slice() : [];
+  const bestMs = ntDebugBest ? ntDebugBest.latencyMs : 0;
+  const waiting = 'Testing complete — waiting for the other analysts…';
+
+  if (window.syllyMultiplayerMode === 'client') {
+    // Fire-and-forget, matching ntCommit's client path: a residual sync lock would silently
+    // drop this ACTION and strand the round, and Finish is already one-shot by construction.
+    mpSendEnvelope({
+      type: 'ACTION',
+      payload: {
+        action:         'NT_DEBUG_FINISH',
+        bestPlacements: best,
+        bestLatencyMs:  bestMs,
+        attempts:       ntDebugMyAttempt,
+      },
+    });
+    ntDebugFinished[mpMyPlayerIdx]      = true;   // local optimism, for this device's roster
+    ntDebugAttemptCounts[mpMyPlayerIdx] = ntDebugMyAttempt;
+    // If every seat (including this one, just marked) now reads finished, the ACTION above
+    // already reached the host and — same synchronous SYNC chain — the host's resolve and its
+    // NT_PLAYBACK broadcast have already navigated this device to playback. Showing standby
+    // now would stomp that navigation right back off it. Only the outstanding case waits.
+    if (!ntDebugFinished.every(Boolean)) ntShowStandby(waiting, ntDebugRosterRows());
+    return;
+  }
+
+  if (window.syllyMultiplayerMode === 'host') {
+    // Host marks its OWN slot directly and never self-sends — the dedup guard drops every
+    // envelope where originId === syllyDeviceUid (NT's own BUG-05, and logic-engine.md
+    // generalises it to any phase where the host is a submitting participant).
+    ntDebugFinished[mpMyPlayerIdx]      = true;
+    ntDebugAttemptCounts[mpMyPlayerIdx] = ntDebugMyAttempt;
+    ntPtpPlacements[mpMyPlayerIdx]      = best;
+    ntDebugBroadcastRoster(false);
+    if (ntDebugFinished.every(Boolean)) ntResolveCycleMdlm(ntPtpPlacements.slice());
+    else ntShowStandby(waiting, ntDebugRosterRows());
+    return;
+  }
+
+  // Solo / PTP — the handover gate already serialises this.
+  ntPtpTimelines[ntPtpTurn]       = ntDebugBest ? ntDebugBest.timeline : ntComputeTimeline_local();
+  ntPtpPlacements[ntPtpTurn]      = best;
+  ntDebugAttemptCounts[ntPtpTurn] = ntDebugMyAttempt;
+  ntPtpTurn++;
+  if (ntPtpTurn < ntPlayerCount) {
+    ntMyPlacements = []; ntFirewallUsed = 0; ntHoneypotUsed = 0;
+    ntDebugMyAttempt = 0;
+    ntDebugBest      = null;
+    ntBeginPtpTurn();
+  } else {
+    ntResolveCyclePtp();
+    if (ntPlayerCount > 1) ntShowGatherGate();
+    else ntShowComparisonPlayback();
+  }
+}
+
 function ntFlashReject(cell) {
   playBoing();
   ntSetRouting('exception');
@@ -3542,6 +3643,22 @@ function ntHandleEnvelope(envelope) {
       return;
     }
 
+    if (payload.action === 'NT_DEBUG_FINISH') {
+      const senderIdx = mpPlayerSlots.findIndex(p => p.uid === envelope.originId);
+      if (senderIdx === -1) return;
+      // `|| []` is LOAD-BEARING here, not defensive habit. Finishing with an empty build is
+      // NORMAL in a sandbox ("what's the baseline with no hardening at all?"), and Firebase
+      // deletes an empty array in flight — so the host reads undefined, ntResolveCycleMdlm maps
+      // over it and throws, and the whole room is stranded.
+      ntDebugFinished[senderIdx]      = true;
+      ntDebugAttemptCounts[senderIdx] = payload.attempts || 0;
+      ntPtpPlacements[senderIdx]      = payload.bestPlacements || [];
+      mpUnlockSync();
+      ntDebugBroadcastRoster(false);
+      if (ntDebugFinished.every(Boolean)) ntResolveCycleMdlm(ntPtpPlacements.slice());
+      return;
+    }
+
     if (payload.action === 'NT_ALLOCATION_UPDATE') {
       // Client captain sends updated allocations; host validates then re-broadcasts
       const senderIdx = mpPlayerSlots.findIndex(p => p.uid === envelope.originId);
@@ -3605,6 +3722,26 @@ function ntHandleEnvelope(envelope) {
         ntNode = ntNormaliseNode(payload.node);
         ntShowMdlmGate();
       }
+      return;
+    }
+
+    if (payload.action === 'NT_DEBUG_ROSTER') {
+      ntDebugFinished      = payload.finished || [];
+      ntDebugAttemptCounts = payload.attempts || [];
+      if (payload.authoring) {
+        // The host has looped back to the Node Editor — return to the same standby this device
+        // saw at the start, and re-zero every piece of Debug session state.
+        ntDebugMyAttempt = 0;
+        ntDebugBest      = null;
+        ntMyPlacements   = [];
+        ntFirewallUsed   = 0;
+        ntHoneypotUsed   = 0;
+        ntShowStandby('Authoring node…');
+        return;
+      }
+      // Repaint in place — a player still building must NOT be navigated to standby by a
+      // roster update, so this deliberately does not call ntShowStandby.
+      ntRenderDebugRoster(ntDebugRosterRows());
       return;
     }
 
@@ -3964,6 +4101,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-nt-auth-how-to').addEventListener('click', ntOpenHowTo);
   document.getElementById('btn-nt-auth-deploy').addEventListener('click', () => { playLaunch(); ntDeployNode(); });
   document.getElementById('btn-nt-debug-again').addEventListener('click', () => { playLaunch(); ntDebugRunAgain(); });
+  document.getElementById('btn-nt-debug-finish').addEventListener('click', () => { playLaunch(); ntDebugFinish(); });
   document.getElementById('btn-nt-build-clear').addEventListener('click', () => {
     playWhoosh();
     ntMyPlacements = [];
