@@ -283,27 +283,24 @@ Do not write the phase snapshot until Protocols A is clean. Do not write a line 
 pointer, not a narrative — that is what keeps this file cheap. When a round closes, compress its
 entry to one line and let the impl-notes carry the detail (§ Documentation Integrity Protocol).
 
-**SW v196–197 — NT allocation viewer round 6: budget-vs-total display split, header rejoins the
-Stack, terminology cleanup (16 Aug 2026).** Two follow-ups from a live-play screenshot pair: (1)
-chip/footer line 2 now shows the build BUDGET (`ntInventory`, identical every leg) instead of the
-budget+deposited total — the total read as "wrong" because it merged two facts the surplus line
-(line 3) already separates. A round-7 follow-up caught the fix's own wording: "native" collided with
-`nativeHoneypots` (the map's pre-placed terrain hazard, an unrelated concept) — comments corrected,
-no behaviour change. Full glossary (Generated: Bad Sector/Native Honeypot; Budget: Firewall
-Segment/Honeypot; Surplus: FW/HP) now in `nt-implementation-notes.md` D35. (2) D33's
-centring only reached `#nt-alloc-body` within its own stage slot, leaving the header pinned to the
-top edge above the now-centred content — added a second, outer level: the whole section (header +
-stage + footer) now switches to THE STACK (suite-wide default, `ui-style.md`) whenever everything
-fits together, falling back to the pinned sticky-footer split only on genuine overflow (verified via
-`getBoundingClientRect` — header sits at y≈80 for short content, y≈0 when it doesn't fit). Same
-reset-before-measure defensive shape as D33. Presentational only, `verify-nt-loopback.js` untouched.
-Detail: `nt-implementation-notes.md` D34.
+**SW v198 — NT Debug/Sandbox Mode CLOSED, documentation pass + SW bump (17 Aug 2026).** Tasks 1–9
+shipped a full hand-authoring sandbox for NT: the host builds a Node in a Node Editor
+(`screen-nt-authoring`) instead of the system rolling one, deploys it over the existing
+`NT_GENERATE` packet (`debug: true`), and every player retries it locally an unlimited number of
+times — zero packets per attempt — before finishing independently through a sized readiness gate,
+scored on their **best** (highest-latency) attempt. Mutually exclusive with Sylly Mode, superseding
+Iterations/Hardening Window — the **second** shipped instance of a now-named suite-wide settings
+pattern, after FRT's unnamed Pear-Off ↔ Sylly Mode (SW v167, 10 Aug 2026); decision-log entry below
+names both and corrects an earlier "first instance" misattribution caught in review. Task 10 closed
+it out: `visual-check` on `screen-nt-authoring` at all three Matrix Scale settings found no headroom
+to grow the Randomise buttons (left `min-h-11`) and a real 44 px touch-target gap on the four brush
+pills (fixed, extending TG-08's precedent); `verify-nt-loopback.js` sits at **239** checks, 8/8
+seeds green. Two pieces of stale NT documentation predating this branch were corrected in passing
+(`ntCycles`→`ntIterations`, a phantom `nt-new-trace-overlay` id). Detail: `nt-implementation-notes.md`
+D36–D42; decision-log 2026-08-17.
 
-**SW v195 — NT allocation viewer round 5: maze-preview polish (16 Aug 2026).** Wall/seam colour
-recoloured off the shared bad-sector grey, scoped to the preview only; grid lines switched from
-per-2×2-block to per-tile matching the playback screen; non-captain centring made conditional
-(never forced, avoiding D30's clip bug); auto-lock/auto-proceed at timer expiry confirmed already
-implemented (traced, not built). Detail: `nt-implementation-notes.md` D33.
+**SW v195–197 — NT allocation viewer rounds 5–6: maze-preview polish, budget-vs-total split, the
+Stack, terminology cleanup (16 Aug 2026).** Detail: `nt-implementation-notes.md` D33–D35.
 
 **SW v194 — NT allocation viewer round 3–4: screenshot-confirmed polish, a real clip bug, a real
 alignment bug, and a deliberate balance change (16 Aug 2026).** A screenshot-driven round covering
@@ -462,7 +459,7 @@ Re-run a game's full set after touching its appliers, deck/data, packets or rend
 | DYB | `node tools/verify-dyb-dice.js` — after any `js/lib/art.js` / `dybDieHTML` / `.dyb-die-*` change | 90+ |
 | SHP | `node tools/verify-shp-loop.js` — random matches, all player counts/modes/settings; `SHP_SEED=` for reproducibility | 60 matches |
 | SHP | `node tools/verify-shp-loopback.js` — host↔client over a Firebase-shaped wire; accepts `SHP_SRC=` | 6 scenarios |
-| NT | `node tools/verify-nt-loopback.js` — host↔**2 clients** over a Firebase-shaped wire, Standard + DNP; accepts `NT_SRC=` and `NT_SEED=` | 146 |
+| NT | `node tools/verify-nt-loopback.js` — host↔**2 clients** over a Firebase-shaped wire, Standard + DNP + Debug Mode; accepts `NT_SRC=` and `NT_SEED=` | 239 |
 
 **The blind spot they share is load-bearing.** Every harness *except* the four loopbacks
 (`cjar`/`shp`/`flw`/`nt`) runs in `'single'` mode with `getElementById: () => null`. That is what

@@ -8,6 +8,65 @@ Tick items off here; promote anything architectural into `decision-log.md`.
 
 ---
 
+## NT Debug Mode final review — deferred Minors (added 18 Aug 2026)
+
+The final pre-merge review of NT's Debug/Sandbox Mode (this branch) found five Minors beyond the
+three fixed in the same pass (native-cap reject flash, the duplicated firewall-slots expression,
+the dead `bestLatencyMs` payload field). These five each need a real behavioural decision, not a
+mechanical fix, so they're parked rather than made a judgement call in an unreviewed tail pass:
+
+- **Two honeypot ceilings on one screen** (`js/games/nt.js`: the authoring stepper caps at
+  `NT_HONEYPOT_CAP` (4) minus natives; `ntAuthRandomiseBudget`'s roll caps at
+  `NT_ALLOC_HONEYPOT_CAP` (2)). Both clamp correctly — not a defect — but picking ONE ceiling for
+  both paths is a balance call, not a code fix.
+- **The same-mouth guard compares `(edge, idx)` pairs, not mouth tiles** (`ntAuthSetPort`,
+  `js/games/nt.js`) — `{edge:'top',idx:0}` and `{edge:'left',idx:0}` are the same corner tile but
+  compare unequal. Currently unreachable via `ntAuthTap`, so no live bug, but the comparison is
+  wrong in principle.
+- **`ntSummaryCallback` fires unconditionally for clients** on the Debug summary screen — worth a
+  look at whether a client should ever see an enabled "Author New Node" affordance it can't act on.
+- **`pathOk()` re-assertions in `tools/verify-nt-loopback.js`** are tautological in a couple of
+  spots (re-proving something an earlier check in the same section already established).
+- **The client-is-last-finisher path in Debug MDLM now has NO automated coverage** (surfaced by the
+  fix-wave re-review, 18 Aug 2026). Fixing the skip-standby issue meant reordering the Finish
+  scenario so the HOST finishes last, because a client-as-last-finisher hits a harness-only artifact:
+  `mpSendEnvelope` is a direct unqueued call, so the host's resolve nests inside the sending client's
+  own call stack and its `NT_PLAYBACK` navigation gets stomped by that client's own following line.
+  The harness cannot represent "SYNC not yet arrived" as distinct from "SYNC arrived instantly" —
+  the same limit that makes the underlying fix untestable here. Consequence: `ntDebugFinished.every
+  (Boolean)` is never true when either client's branch runs, so old and new code produce identical
+  outcomes in this ordering and nothing anchors the fixed line's differentiating behaviour. Closing
+  it needs an ASYNC wire in the loopback harness (a queued/deferred `mpSendEnvelope`), which is a
+  harness-architecture change well beyond a Minor — and would pay off for every MDLM game, not just
+  NT. **Until then this path is real-device-only:** cover it in the next 3-device NT session by
+  having a CLIENT finish last.
+- **The `const good = r.host.__nt.debugBest` consistency note** in the harness — flagged as worth a
+  clearer comment or a small refactor, not a correctness issue.
+
+**When picked up:** next time Debug Mode's authoring screen or the loopback harness is touched for
+an unrelated reason, or at the next NT phase gate — whichever comes first.
+
+---
+
+## `bindExclusiveSettings()` — extract once a third instance appears (added 17 Aug 2026)
+
+The mutually-exclusive/superseded settings pattern (`ui-style.md` § Settings Layout Standard) now
+has **two** shipped instances: FRT's Pear-Off ↔ Sylly Mode (SW v167, 10 Aug 2026 — reciprocal lock,
+inline in `js/games/frt.js`'s two toggle handlers) and NT's Debug Mode ↔ Sylly Mode (this branch —
+both Mutually exclusive and Superseded, centralised in `ntSetCardDisabled`, `js/games/nt.js`). Both
+still implement the toggle/disable/reason-line logic locally, not through a shared engine helper.
+
+**Why not extracted now:** this is the project's usual second-instance extraction trigger (per the
+`dyb.js` dice-logic precedent), but building it here would mean touching FRT — a shipped game
+unrelated to the branch that surfaced this — at the tail end of a documentation-only task, with no
+spec of its own. Deliberately overridden on scope grounds rather than missed.
+
+**When picked up:** build `bindExclusiveSettings()` as a shared `engine.js` helper when a **third**
+instance appears, or the next time either FRT's or NT's settings code is touched for an unrelated
+reason — whichever comes first. Detail: `docs/decision-log.md` 2026-08-17.
+
+---
+
 ## NT allocation preview: canvas renderer looks cruder than the real build grid (added 16 Aug 2026)
 
 `ntDrawLegCanvas` (the allocation screen's maze preview) draws flat rect-fills with a plain 1px

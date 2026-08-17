@@ -87,6 +87,7 @@ let ntMatrixScale    = 18;       // 16 | 18 | 20 — tile grid side (N)
 let ntIterations     = 5;        // 5 | 7 | 10  — Simulation Iterations (rounds)
 let ntHardeningWin   = 90;       // 45 | 60 | 90 | 120 (seconds) — build timer
 let ntNativeHoneypots= 2;        // 0 | 1 | 2   — max Native Honeypots baked into seed
+let ntDebugMode      = false;    // Debug / Sandbox Mode — mutually exclusive with ntSyllyMode
 let ntSyllyMode      = false;    // DNP (Distributed Network Protocol) — always last setting
 
 // ── Roster (set in lobby, persist across play-agains) ───────────────────────
@@ -145,6 +146,14 @@ let ntGateReadyCheck    = [];     // per-player ready at Cycle Initialization Ga
 let ntCommitReadyCheck  = [];     // per-player committed at build phase
 let ntSummaryReadyCheck = [];     // per-player ready to advance past the Diagnostic Summary
 
+// ── Debug / Sandbox Mode session state (all cleared by ntResetState; ntDebugMode is a
+//    SETTING and deliberately survives, like every other setting) ──────────────────────
+let ntDebugBrush         = 'bad'; // Node Editor: 'bad' | 'native' | 'ingress' | 'egress'
+let ntDebugMyAttempt     = 0;     // MY attempt number on the current node (1-based when shown)
+let ntDebugBest          = null;  // MY best so far — { latencyMs, placements, timeline } | null
+let ntDebugFinished      = [];    // [playerIdx] = bool — host authority, the readiness gate
+let ntDebugAttemptCounts = [];    // [playerIdx] = int  — display only, drives the roster
+
 // ── PTP state (reset each cycle in ntBeginCycle; reset on reboot in ntResetState) ──
 let ntPtpTurn            = 0;    // index of the player whose turn it currently is (0..ntPlayerCount-1)
 let ntPtpTimelines       = [];   // [playerIdx] = committed timeline (filled as each player finishes)
@@ -180,6 +189,13 @@ let ntPlaybackLoopFn = null;     // stored RAF loop fn ref (set in ntStartPlayba
 // ── Derived at runtime (never persisted) ────────────────────────────────────
 // ntIsDNP() = ntSyllyMode === true (mirrors isSylly pattern)
 function ntIsDNP() { return ntSyllyMode === true; }
+
+// Debug Mode forces the Hardening Window to ∞. `0` already means "no limit" everywhere in NT
+// (ntStartBuildTimer early-returns and renders ∞), so this is a new way of reaching shipped
+// code rather than new behaviour. Single-source, per logic-engine.md: a mode that mutates a
+// value routes every reader through one function instead of repeating the branch at four call
+// sites where the fifth one added later would be missed.
+function ntEffectiveHardeningWin() { return ntDebugMode ? 0 : ntHardeningWin; }
 
 // ── Wire repair (BUG-06 class — logic-engine.md "Firebase erases every EMPTY value") ──
 // Both of these repair a collection nested INSIDE an object that arrived over the wire.
@@ -219,6 +235,7 @@ function ntNormaliseTimeline(tl) {
 function ntStartSolo() {
   ntPlayerCount = 1;
   ntCycle = 0;
+  if (ntDebugMode) { ntShowAuthoring(); return; }
   ntBeginCycle();
 }
 
@@ -248,6 +265,7 @@ function ntStartPTP() {
   ntTeamCycleSERs = [];
   ntCycleLatencies = [];
   ntOverallSER = [];
+  if (ntDebugMode) { ntShowAuthoring(); return; }
   ntBeginCycle();
 }
 
@@ -561,25 +579,37 @@ function ntStartSession() {
   // to show yet (its own boot needs the roster-derived name it's just been given, and the
   // node data NT_GENERATE is about to send) — a brief standby covers that short wait.
   if (window.syllyMultiplayerMode === 'host') {
-    ntStartMatch();
+    if (ntDebugMode) ntShowAuthoring();
+    else ntStartMatch();
   } else {
-    ntShowStandby('Booting cluster…');
+    ntShowStandby(ntDebugMode ? 'Authoring node…' : 'Booting cluster…');
   }
+}
+
+// Shared per-cycle reset — the subset genuinely common to BOTH cycle-start entry points:
+// ntStartMatch (Standard/DNP, the shipped match) and ntDeployNode (Debug). Single-sourced so
+// a field can't silently drift out of sync between the two the way ntPlaybackTimeline briefly
+// did (Task 6 fix round 1 — the Debug path had been missing it).
+// Each caller layers its own extras on top afterwards: ntStartMatch adds the DNP allocation
+// fields and the cycle-log arrays live at its own call site (ntStartSession); ntDeployNode
+// adds the Debug readiness/attempt fields. Neither caller's private state belongs in here.
+function ntResetCycleAccumulators(n) {
+  ntMyPlacements      = [];
+  ntFirewallUsed      = 0;
+  ntHoneypotUsed      = 0;
+  ntPlaybackTimeline  = null;
+  ntPtpTurn           = 0;
+  ntPtpTimelines      = [];
+  ntPtpPlacements     = Array.from({ length: n }, () => []); // pre-sized — no holes
+  ntGateReadyCheck    = new Array(n).fill(false);
+  ntCommitReadyCheck  = new Array(n).fill(false);
+  ntSummaryReadyCheck = new Array(n).fill(false);
+  ntCycleResolved     = false;
 }
 
 // Host: generate cycle Node + broadcast NT_GENERATE; then route to gate (Standard) or huddle (DNP).
 function ntStartMatch() {
-  ntMyPlacements = [];
-  ntFirewallUsed = 0;
-  ntHoneypotUsed = 0;
-  ntPlaybackTimeline = null;
-  ntPtpTurn      = 0;
-  ntPtpTimelines = [];
-  ntPtpPlacements = Array.from({ length: ntPlayerCount }, () => []); // pre-sized — no holes
-  ntGateReadyCheck    = new Array(ntPlayerCount).fill(false);
-  ntCommitReadyCheck  = new Array(ntPlayerCount).fill(false);
-  ntSummaryReadyCheck = new Array(ntPlayerCount).fill(false);
-  ntCycleResolved        = false;
+  ntResetCycleAccumulators(ntPlayerCount);
   ntTeamAllocLocked      = [false, false];
   ntTeamWorkingAllocs    = [[], []];
   ntAllPlayerAllocations = [];
@@ -1292,7 +1322,7 @@ function ntCheckBothTeamsLocked() {
   ntStopHuddleTimer();
   // Build assigned inventory array (per global player index)
   const assignedInventory = (ntAllPlayerAllocations || []).map(a => ({ ...a }));
-  const endTimestamp = ntHardeningWin > 0 ? Date.now() + (ntHardeningWin * 1000) : null;
+  const endTimestamp = ntEffectiveHardeningWin() > 0 ? Date.now() + (ntEffectiveHardeningWin() * 1000) : null;
   mpSendEnvelope({
     type: 'SYNC',
     payload: { action: 'NT_BUILD_BEGIN', endTimestamp, cycle: ntCycle, assignedInventory },
@@ -1327,7 +1357,7 @@ function ntShowMdlmGate() {
     if (btn) { btn.textContent = 'Begin Hardening ▶'; btn.classList.add('btn-mp-action'); btn.disabled = true; }
     ntGateReadyCheck[mpMyPlayerIdx] = true;
     ntGateCallback = () => {
-      const endTimestamp = ntHardeningWin > 0 ? Date.now() + (ntHardeningWin * 1000) : null;
+      const endTimestamp = ntEffectiveHardeningWin() > 0 ? Date.now() + (ntEffectiveHardeningWin() * 1000) : null;
       mpSendEnvelope({ type: 'SYNC', payload: { action: 'NT_BUILD_BEGIN', endTimestamp, cycle: ntCycle } });
       ntShowBuild(endTimestamp);
     };
@@ -1344,8 +1374,15 @@ function ntShowBuild(endTimestamp) {
   if (grid0) grid0.style.pointerEvents = '';
   const commitBtn = document.getElementById('btn-nt-commit');
   if (commitBtn) { commitBtn.disabled = false; commitBtn.textContent = 'COMMIT RUNTIME ▶'; }
+  // Two renderers now write this header, so BOTH elements are set on BOTH paths — leaving one
+  // alone shows whatever the other last wrote (ui-style.md, the Stack's multi-renderer rule).
+  const label   = document.getElementById('nt-build-title-label');
   const counter = document.getElementById('nt-build-counter');
-  if (counter) counter.textContent = `${ntCycle + 1}/${ntIterations}`;
+  if (label)   label.textContent   = ntDebugMode ? 'STAGING — ATTEMPT' : 'VULNERABILITY SIMULATION';
+  if (counter) counter.textContent = ntDebugMode ? String(ntDebugMyAttempt + 1)
+                                                 : `${ntCycle + 1}/${ntIterations}`;
+  const clearBtn = document.getElementById('btn-nt-build-clear');
+  if (clearBtn) clearBtn.style.display = ntDebugMode ? '' : 'none';
   const name = document.getElementById('nt-node-name');
   const nodeTag = 'NT-NODE-' + String(ntCycle + 1).padStart(2, '0');
   if (name) name.innerHTML = 'SYS_INIT // <span class="text-emerald-400">' + nodeTag + '</span>';
@@ -1396,6 +1433,25 @@ function ntShowSummary(mode) {
   const rebootBtn = document.getElementById('btn-nt-reboot');
   const logsBtn  = document.getElementById('btn-nt-logs-open');
   const isFinalMatch = ntSummaryMode === 'match';
+
+  // Debug is single-node and terminal: there is no next cycle, no rolling average and no
+  // match-wide ranking. The host's onward action is a fresh sandbox instead.
+  if (ntDebugMode) {
+    if (heading)  heading.textContent = 'Diagnostic Summary // STAGING';
+    if (logsBtn)  logsBtn.style.display = 'none';
+    if (rebootBtn) rebootBtn.style.display = 'block';
+    if (nextBtn) {
+      const canAuthor = window.syllyMultiplayerMode !== 'client';
+      nextBtn.style.display = canAuthor ? 'block' : 'none';
+      nextBtn.textContent   = 'Author New Node';
+      nextBtn.disabled      = false;
+    }
+    ntSummaryCallback = () => ntShowAuthoring();
+    showScreen('screen-nt-summary');
+    ntRenderSummary();
+    return;
+  }
+
   if (isFinalMatch) {
     if (heading) heading.textContent = 'Diagnostic Summary // FINAL';
     if (nextBtn) nextBtn.style.display = 'none';
@@ -1441,10 +1497,27 @@ function ntShowSummary(mode) {
   ntRenderSummary();
 }
 
-function ntShowStandby(msg) {
+// Two things now live on this screen, so EVERY path sets BOTH — a caller that "leaves the
+// roster alone" is really showing whatever the previous caller last wrote (ui-style.md, the
+// Stack's multi-renderer rule). Existing single-argument callers pass roster === undefined,
+// which explicitly blanks it; no call site needs editing.
+function ntShowStandby(msg, roster) {
   const el = document.getElementById('nt-standby-msg');
   if (el && msg) el.textContent = msg;
+  ntRenderDebugRoster(roster || null);
   showScreen('screen-nt-standby');
+}
+
+function ntRenderDebugRoster(rows) {
+  const box = document.getElementById('nt-standby-roster');
+  if (!box) return;
+  if (!rows || !rows.length) { box.innerHTML = ''; box.style.display = 'none'; return; }
+  box.style.display = 'flex';
+  box.innerHTML = rows.map(r =>
+    `<div class="flex items-center justify-between bg-white rounded-xl px-4 py-2 text-sm">
+       <span class="text-stone-500 font-mono">${r.done ? '✓' : '⋯'} ${r.name}</span>
+       <span class="text-stone-400 font-mono text-xs">${r.done ? 'finished' : 'testing'} (${r.attempts} ${r.attempts === 1 ? 'attempt' : 'attempts'})</span>
+     </div>`).join('');
 }
 
 // Open the how-to overlay (shared by menu + in-game [?] buttons).
@@ -1827,6 +1900,21 @@ function ntRenderSummary() {
   const board   = document.getElementById('nt-summary-board');
   const isFinal = ntSummaryMode === 'match';
 
+  // Set on EVERY path, including the non-Debug ones, so a Debug session followed by a Standard
+  // one cannot leave a stale caption behind (ui-style.md, the Stack's multi-renderer rule).
+  const capEl = document.getElementById('nt-summary-caption');
+  if (capEl) {
+    if (ntDebugMode) {
+      const seat = window.syllyMultiplayerMode === 'single' ? 0 : mpMyPlayerIdx;
+      const n = ntDebugAttemptCounts[seat] || ntDebugMyAttempt || 1;
+      capEl.textContent   = `STAGING — scored on your best of ${n} attempt${n === 1 ? '' : 's'}`;
+      capEl.style.display = '';
+    } else {
+      capEl.textContent   = '';
+      capEl.style.display = 'none';
+    }
+  }
+
   // Solo: raw latency is the headline (SER is trivially 100%); show accumulated on final.
   if (ntPlayerCount <= 1) {
     const cycleMs = (ntCycleLatencies[ntCycle] || [0])[0];
@@ -2065,6 +2153,31 @@ function ntUpdateGhostAt(tx, ty) {
   }
 }
 
+// Port markers — a rectangle straddling the grid border; ingress green/inward, egress
+// grey/outward. Lifted out of ntRenderBuildGrid so the build grid and the Node Editor call
+// the same code and can never drift into drawing different markers.
+const NT_PORT_ARROWS = { top:  { in: '▼', out: '▲' }, bottom: { in: '▲', out: '▼' },
+                         left: { in: '▶', out: '◀' }, right:  { in: '◀', out: '▶' } };
+
+function ntDrawPortMarker(grid, port, color, inward, n) {
+  if (!grid || !port) return null;
+  const m = document.createElement('div');
+  m.className = 'absolute pointer-events-none rounded-sm flex items-center justify-center';
+  m.style.background = color;
+  m.style.boxShadow = `0 0 6px ${color}`;
+  const span = `calc(${100 / n}%)`, off = '-3px', thick = '6px';
+  if (port.edge === 'top')         { m.style.left = `${(port.idx / n) * 100}%`; m.style.width = span; m.style.top = off; m.style.height = thick; }
+  else if (port.edge === 'bottom') { m.style.left = `${(port.idx / n) * 100}%`; m.style.width = span; m.style.bottom = off; m.style.height = thick; }
+  else if (port.edge === 'left')   { m.style.top = `${(port.idx / n) * 100}%`; m.style.height = span; m.style.left = off; m.style.width = thick; }
+  else                             { m.style.top = `${(port.idx / n) * 100}%`; m.style.height = span; m.style.right = off; m.style.width = thick; }
+  const a = document.createElement('span');
+  a.style.cssText = 'font-size:5px;line-height:1;color:#fff;pointer-events:none';
+  a.textContent = NT_PORT_ARROWS[port.edge][inward ? 'in' : 'out'];
+  m.appendChild(a);
+  grid.appendChild(m);
+  return m;
+}
+
 function ntRenderBuildGrid() {
   const old = document.getElementById('nt-build-grid');
   if (!old || !ntNode) return;
@@ -2185,27 +2298,8 @@ function ntRenderBuildGrid() {
     ntAttemptPlace(ax, ay, true);
   });
 
-  // Port markers — rectangle straddling the border; ingress green/inward, egress grey/outward.
-  const ARROWS = { top: { in: '▼', out: '▲' }, bottom: { in: '▲', out: '▼' },
-                   left: { in: '▶', out: '◀' }, right:  { in: '◀', out: '▶' } };
-  const portBar = (port, color, inward) => {
-    const m = document.createElement('div');
-    m.className = 'absolute pointer-events-none rounded-sm flex items-center justify-center';
-    m.style.background = color;
-    m.style.boxShadow = `0 0 6px ${color}`;
-    const span = `calc(${100 / n}%)`, off = '-3px', thick = '6px';
-    if (port.edge === 'top')         { m.style.left = `${(port.idx / n) * 100}%`; m.style.width = span; m.style.top = off; m.style.height = thick; }
-    else if (port.edge === 'bottom') { m.style.left = `${(port.idx / n) * 100}%`; m.style.width = span; m.style.bottom = off; m.style.height = thick; }
-    else if (port.edge === 'left')   { m.style.top = `${(port.idx / n) * 100}%`; m.style.height = span; m.style.left = off; m.style.width = thick; }
-    else                             { m.style.top = `${(port.idx / n) * 100}%`; m.style.height = span; m.style.right = off; m.style.width = thick; }
-    const a = document.createElement('span');
-    a.style.cssText = 'font-size:5px;line-height:1;color:#fff;pointer-events:none';
-    a.textContent = ARROWS[port.edge][inward ? 'in' : 'out'];
-    m.appendChild(a);
-    grid.appendChild(m);
-  };
-  portBar(ntNode.ingress, '#34d399', true);         // INGRESS — green, inward arrow
-  portBar(ntNode.egress,  NT_COLOR_BAD_SECTOR, false); // EGRESS  — grey, outward arrow
+  ntDrawPortMarker(grid, ntNode.ingress, '#34d399', true, n);            // INGRESS — green, inward
+  ntDrawPortMarker(grid, ntNode.egress,  NT_COLOR_BAD_SECTOR, false, n); // EGRESS  — grey, outward
   ntUpdateBuildCounters();
 }
 
@@ -2284,6 +2378,417 @@ function ntUpdateBuildCounters() {
   }
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// NODE EDITOR  (Debug Mode — author the node instead of rolling one)
+// ═══════════════════════════════════════════════════════════════════════════
+// The editor writes DIRECTLY into ntNode with ntMyPlacements empty. That is the whole trick:
+// ntBlockAt / ntCellType / ntPaintCell / ntRepaintFootprint / ntPathExists / ntFlashReject are
+// already mode-agnostic, so they need no changes and the editor is WYSIWYG for free — a bad
+// sector looks here exactly as it will look in play. ntRenderBuildGrid is NOT reused: its
+// pointer handlers are saturated with build semantics (live-inventory tap-cycling, the
+// firewall→honeypot long-press upgrade, right-click honeypots, ntUpdateBuildCounters on every
+// path, ports as pointer-events:none decorations). Threading a mode branch through all of them
+// would put conditional logic on the single render path the loopback harness actually executes.
+
+function ntAuthBlankNode() {
+  const n = ntMatrixScale;
+  return {
+    n,
+    ingress: { edge: 'left',  idx: n >> 1 },
+    egress:  { edge: 'right', idx: n >> 1 },
+    badSectors: [],
+    nativeHoneypots: [],
+  };
+}
+
+// Entry point — reached at session start AND on the Author New Node loop-back from the summary.
+// One authoring entry point, reached twice; there is deliberately no second "restart" path.
+function ntShowAuthoring() {
+  ntDebugBrush   = 'bad';
+  ntNode         = ntAuthBlankNode();   // always a fresh sandbox
+  ntInventory    = { firewall: 0, honeypot: 0 };
+  ntMyPlacements = [];
+  ntFirewallUsed = 0;
+  ntHoneypotUsed = 0;
+  ntDebugMyAttempt     = 0;
+  ntDebugBest          = null;
+  ntDebugFinished      = [];
+  ntDebugAttemptCounts = [];
+  // Symmetric with the opening: every other device returns to the same standby it saw at the
+  // start. One authoring entry point, reached twice — not a second "restart" path. This is why
+  // NT_DEBUG_ROSTER carries an `authoring` flag rather than the feature minting a third packet.
+  if (window.syllyMultiplayerMode === 'host') ntDebugBroadcastRoster(true);
+  showScreen('screen-nt-authoring');
+  ntRenderAuthGrid();
+  ntSyncAuthUI();
+  ntSetRouting('valid');
+}
+
+function ntRenderAuthGrid() {
+  const old = document.getElementById('nt-auth-grid');
+  if (!old || !ntNode) return;
+  // Same shallow-clone swap as ntRenderBuildGrid: innerHTML = '' removes children but NOT
+  // grid-level listeners, so a re-render would otherwise stack a second pointerup handler.
+  const grid = old.cloneNode(false);
+  old.parentNode.replaceChild(grid, old);
+  const n = ntNode.n;
+  grid.innerHTML = '';
+  grid.style.display = 'grid';
+  grid.style.position = 'relative';
+  grid.style.gridTemplateColumns = `repeat(${n}, 1fr)`;
+  grid.style.gap = '1px';
+  grid.style.touchAction = 'none';
+  ntBuildCells = [];   // shared with the build screen — ntRepaintFootprint/ntFlashReject read it
+
+  for (let ty = 0; ty < n; ty++) {
+    ntBuildCells.push([]);
+    for (let tx = 0; tx < n; tx++) {
+      const cell = document.createElement('div');
+      cell.style.aspectRatio = '1';
+      ntPaintCell(cell, tx, ty);
+      ntBuildCells[ty].push(cell);
+      grid.appendChild(cell);
+    }
+  }
+
+  const getTile = (e) => {
+    const rect = grid.getBoundingClientRect();
+    return {
+      tx: Math.max(0, Math.min(n - 1, Math.floor((e.clientX - rect.left) / rect.width * n))),
+      ty: Math.max(0, Math.min(n - 1, Math.floor((e.clientY - rect.top) / rect.height * n))),
+    };
+  };
+  // A brush model: one tap, one meaning, decided by ntDebugBrush. No long-press, no ghost
+  // preview, no right-click — those all belong to the build screen's inventory semantics.
+  grid.addEventListener('pointerup', (e) => {
+    e.preventDefault();
+    const { tx, ty } = getTile(e);
+    ntAuthTap(tx, ty);
+  });
+  grid.addEventListener('contextmenu', e => e.preventDefault());
+
+  ntDrawPortMarker(grid, ntNode.ingress, '#34d399', true, n);
+  ntDrawPortMarker(grid, ntNode.egress,  NT_COLOR_BAD_SECTOR, false, n);
+}
+
+function ntAuthTap(tx, ty) {
+  if (ntDebugBrush === 'ingress' || ntDebugBrush === 'egress') { ntAuthSetPort(tx, ty); return; }
+  const b = ntBlockAt(tx, ty);
+  if (b && (b.source === 'bad' || b.source === 'native')) { ntAuthRemoveTerrain(b); return; }
+  ntAuthPlaceTerrain(tx, ty, ntDebugBrush === 'native');
+}
+
+function ntAuthPlaceTerrain(tx, ty, asHoneypot) {
+  const n = ntNode.n;
+  const ax = Math.max(0, Math.min(tx, n - 2)), ay = Math.max(0, Math.min(ty, n - 2));
+  // Strict zero-overlap, exactly as ntAttemptPlace enforces it during Build.
+  for (const [fx, fy] of ntBlockTiles(ax, ay)) {
+    if (ntBlockAt(fx, fy) || ntIsMouthTile(fx, fy)) { ntFlashReject(ntBuildCells[ty] && ntBuildCells[ty][tx]); return; }
+  }
+  if (asHoneypot && ntNode.nativeHoneypots.length >= ntNativeHoneypots) {
+    playBoing(); ntSetRouting('storage_insufficient');
+    ntFlashReject(ntBuildCells[ty] && ntBuildCells[ty][tx]);
+    return;
+  }
+  // Validity gate — the authored node must route with NO player hardening on it, which is the
+  // same guarantee ntGenerateNode gives (`ntPathExists(candidate, [])`, nt.js:1714).
+  const target = asHoneypot ? ntNode.nativeHoneypots : ntNode.badSectors;
+  target.push({ ax, ay });
+  if (!ntPathExists(ntNode, [])) {
+    target.pop();
+    ntFlashReject(ntBuildCells[ty] && ntBuildCells[ty][tx]);
+    return;
+  }
+  playPillClick();
+  ntSetRouting('valid');
+  ntRepaintFootprint(ax, ay);
+  ntSyncAuthUI();
+}
+
+// Removing terrain only ever OPENS the board, so it can never break validity — no re-check.
+function ntAuthRemoveTerrain(b) {
+  const drop = arr => arr.filter(c => !(c.ax === b.ax && c.ay === b.ay));
+  ntNode.badSectors      = drop(ntNode.badSectors);
+  ntNode.nativeHoneypots = drop(ntNode.nativeHoneypots);
+  playWhoosh();
+  ntRepaintFootprint(b.ax, b.ay);
+  ntSyncAuthUI();
+}
+
+// Arm the Ingress or Egress brush, then tap any tile — the port snaps to that tile's NEAREST
+// border. Reuses the grid's own getTile maths, so no drag interaction is needed.
+//
+// Two of ntGenerateNode's constraints are deliberately NOT enforced here:
+//   • the corner-proximity re-roll (|imx−emx| + |imy−emy| < 8, nt.js:1695)
+//   • the different-edges rule (while (egress.edge === ingress.edge), nt.js:1692)
+// Both exist to keep RANDOMLY ROLLED nodes varied. An author placing two ports close together,
+// or on the same edge, is making a choice — blocking it would be the tool second-guessing its
+// user. The two genuine constraints remain: the mouths must differ, and the node must route.
+function ntAuthSetPort(tx, ty) {
+  const n = ntNode.n;
+  const nearest = [
+    { edge: 'top',    d: ty,         idx: tx },
+    { edge: 'bottom', d: n - 1 - ty, idx: tx },
+    { edge: 'left',   d: tx,         idx: ty },
+    { edge: 'right',  d: n - 1 - tx, idx: ty },
+  ].sort((a, b) => a.d - b.d)[0];
+  const pick  = { edge: nearest.edge, idx: nearest.idx };
+  const key   = ntDebugBrush;                                    // 'ingress' | 'egress'
+  const other = key === 'ingress' ? ntNode.egress : ntNode.ingress;
+  if (pick.edge === other.edge && pick.idx === other.idx) {
+    ntFlashReject(ntBuildCells[ty] && ntBuildCells[ty][tx]);      // ingress mouth ≠ egress mouth
+    return;
+  }
+  const prev = ntNode[key];
+  ntNode[key] = pick;
+  if (!ntPathExists(ntNode, [])) {
+    ntNode[key] = prev;
+    ntFlashReject(ntBuildCells[ty] && ntBuildCells[ty][tx]);
+    return;
+  }
+  playPillClick();
+  ntSetRouting('valid');
+  ntRenderAuthGrid();   // port markers are appended to the grid — a full re-render moves them
+}
+
+// Budget ceilings, both lifted from ntGenerateNode's own roll (nt.js:1730–1731).
+function ntAuthMaxFirewall() {
+  const n = ntNode ? ntNode.n : ntMatrixScale;
+  return Math.pow(Math.floor(n / NT_BLOCK), 2);                  // "slots" — the roll's ceiling
+}
+function ntAuthMaxHoneypot() {
+  return Math.max(0, NT_HONEYPOT_CAP - (ntNode ? ntNode.nativeHoneypots.length : 0));
+}
+
+function ntSyncAuthUI() {
+  // Clamp here rather than at each stepper: removing a native honeypot RAISES the honeypot
+  // ceiling and adding one lowers it, so the budget has to be re-clamped after a terrain edit
+  // too — one place, every path.
+  ntInventory.firewall = Math.max(0, Math.min(ntInventory.firewall, ntAuthMaxFirewall()));
+  ntInventory.honeypot = Math.max(0, Math.min(ntInventory.honeypot, ntAuthMaxHoneypot()));
+  const fw = document.getElementById('nt-auth-fw-val');
+  const hp = document.getElementById('nt-auth-hp-val');
+  if (fw) fw.textContent = String(ntInventory.firewall);
+  if (hp) hp.textContent = String(ntInventory.honeypot);
+  // Only pill-active-emerald is ever added or removed — .pill always stays.
+  document.querySelectorAll('[data-nt-brush]').forEach(b => {
+    b.classList.toggle('pill-active-emerald', b.dataset.ntBrush === ntDebugBrush);
+  });
+  const hint = document.getElementById('nt-auth-brush-hint');
+  if (hint) {
+    const natives = ntNode ? ntNode.nativeHoneypots.length : 0;
+    hint.textContent = {
+      bad:     'Tap to draw a Bad Sector. Tap it again to erase.',
+      native:  `Tap to drop a Native Honeypot — ${natives} of ${ntNativeHoneypots} placed.`,
+      ingress: 'Tap anywhere to move the Ingress port to the nearest edge.',
+      egress:  'Tap anywhere to move the Egress port to the nearest edge.',
+    }[ntDebugBrush] || '';
+  }
+}
+
+// Randomise Terrain — ntGenerateNode(true) already means exactly "re-roll the geometry, leave
+// the budget alone" (its keepInventory argument, nt.js:1728). A parameter reuse, not new logic.
+// Ports are NOT terrain, though: ntGenerateNode re-rolls ingress/egress unconditionally, which
+// would silently wipe a hand-placed pair (ntAuthSetPort deliberately allows placements the
+// generator itself would never roll — same-edge mouths, close corners). Restore the authored
+// pair over the freshly-rolled terrain, but only keep it if it still routes; otherwise fall
+// back to whatever ntGenerateNode rolled alongside that terrain.
+function ntAuthRandomiseTerrain() {
+  const authoredIngress = ntNode.ingress, authoredEgress = ntNode.egress;
+  ntGenerateNode(true);
+  const rolledIngress = ntNode.ingress, rolledEgress = ntNode.egress;
+  ntNode.ingress = authoredIngress;
+  ntNode.egress  = authoredEgress;
+  if (!ntPathExists(ntNode, [])) {
+    ntNode.ingress = rolledIngress;
+    ntNode.egress  = rolledEgress;
+  }
+  ntRenderAuthGrid();
+  ntSyncAuthUI();
+  ntSetRouting('valid');
+}
+
+// Randomise Budget — the two expressions ntGenerateNode uses for its own roll (nt.js:1730–1731),
+// so a sandbox budget always lands in the range a real match would have dealt.
+function ntAuthRandomiseBudget() {
+  const slots = ntAuthMaxFirewall();
+  ntInventory = {
+    firewall: ntRandInt(Math.round(NT_FIREWALL_MIN_PCT * slots), Math.round(NT_FIREWALL_MAX_PCT * slots)),
+    honeypot: ntRandInt(0, Math.min(NT_ALLOC_HONEYPOT_CAP, NT_HONEYPOT_CAP - ntNode.nativeHoneypots.length)),
+  };
+  ntSyncAuthUI();
+}
+
+// Deploy Node — the authored node takes exactly the place ntGenerateNode()'s output takes in a
+// Standard match, so NT_GENERATE is reused verbatim and everything downstream (path validity,
+// timeline simulation, playback, SER scoring, the summary) is untouched.
+function ntDeployNode() {
+  ntCycle              = 0;      // Debug is single-node: the cycle counter never advances
+  ntCycleSERs          = [];
+  ntTeamCycleSERs      = [];
+  ntCycleLatencies     = [];
+  ntOverallSER         = [];
+  ntAllCycleTimelines  = [];
+  ntAllCyclePlacements = [];
+  ntAllCycleNodes      = [];
+  ntResetCycleAccumulators(ntPlayerCount);
+  // Sizing rule — LOAD-BEARING. [].every(Boolean) is true, so leaving either of these as []
+  // would resolve the whole sandbox on the FIRST player's Finish while everyone else is still
+  // building. Same shape as CJAR BUG-05 (logic-engine.md § MDLM Patterns).
+  ntDebugFinished      = new Array(ntPlayerCount).fill(false);
+  ntDebugAttemptCounts = new Array(ntPlayerCount).fill(0);
+  ntDebugMyAttempt     = 0;
+  ntDebugBest          = null;
+
+  if (window.syllyMultiplayerMode === 'host') {
+    mpSendEnvelope({
+      type: 'SYNC',
+      payload: { action: 'NT_GENERATE', cycle: 0, node: ntNode, inventory: ntInventory, debug: true },
+    });
+    ntShowMdlmGate();
+  } else {
+    // Solo and PTP alike — solo is PTP with one admin, exactly as ntBeginCycle treats it.
+    ntBeginPtpTurn();
+  }
+}
+
+// ── The sandbox retry loop ────────────────────────────────────────────────────
+// ntComputeTimeline_local() is a PURE function: same node + same placements ⇒ same timeline, on
+// every device, every time. So an attempt resolves entirely locally and costs no packet at all.
+// A player on attempt 11 has sent exactly as many as one on attempt 1: zero. The network is
+// touched twice all round — the host publishing the node, and each player declaring Finish.
+function ntDebugRunAttempt() {
+  ntStopBuildTimer();
+  ntDebugMyAttempt++;
+  const timeline = ntComputeTimeline_local();
+  const latency  = timeline ? timeline.latencyMs : 0;
+  // HIGHER latency is BETTER in Net-Trace — the defender is slowing the intruder down, and the
+  // longest delay each cycle scores 100% SER (ntResolveCyclePtp / ntResolveCycleMdlm both do
+  // `lat / maxLat`). So "best" is the SLOWEST trace and an improvement is a POSITIVE delta.
+  const prevBest = ntDebugBest ? ntDebugBest.latencyMs : null;
+  const isBest   = prevBest === null || latency > prevBest;
+  if (isBest) ntDebugBest = { latencyMs: latency, placements: ntMyPlacements.slice(), timeline };
+
+  ntPlaybackTimeline = timeline;
+  const panel = document.getElementById('nt-comparison-panel');
+  if (panel) panel.style.display = 'none';     // sandbox: you watch your own trace, not a field
+  // Reuse the playback screen's own Continue button rather than adding a second exit from it.
+  ntPlaybackContinueCallback = () => ntDebugOpenRetry(latency, isBest, prevBest);
+  ntShowPlayback();
+}
+
+function ntDebugOpenRetry(latency, isBest, prevBest) {
+  const att = document.getElementById('nt-debug-retry-attempt');
+  if (att) att.textContent = 'ATTEMPT ' + ntDebugMyAttempt;
+  const sub = document.getElementById('nt-debug-retry-sub');
+  if (sub) {
+    sub.textContent = ntFmtMs(latency) + (
+      prevBest === null ? ' · first trace'
+      : isBest          ? ' · NEW BEST +' + ntFmtMs(latency - prevBest)
+                        : ' · best remains ' + ntFmtMs(prevBest)
+    );
+  }
+  const ov = document.getElementById('nt-debug-retry-overlay');
+  if (ov) ov.style.display = 'flex';
+}
+
+// Previous placements stay put — tweak-one-wall-and-re-run is the whole point of the mode.
+// Clear All (build screen, Debug only) is the way to start an attempt from nothing.
+function ntDebugRunAgain() {
+  const ov = document.getElementById('nt-debug-retry-overlay');
+  if (ov) ov.style.display = 'none';
+  ntStopPlayback();
+  ntShowBuild();      // resets ntCommitted; ntMyPlacements deliberately survives
+}
+
+function ntDebugRosterRows() {
+  return Array.from({ length: ntPlayerCount }, (_, i) => ({
+    name:     ntPlayerNames[i] || ('ADMIN-' + (i + 1)),
+    done:     !!ntDebugFinished[i],
+    attempts: ntDebugAttemptCounts[i] || 0,
+  }));
+}
+
+function ntDebugBroadcastRoster(authoring) {
+  mpSendEnvelope({
+    type: 'SYNC',
+    payload: {
+      action:    'NT_DEBUG_ROSTER',
+      finished:  ntDebugFinished.slice(),
+      attempts:  ntDebugAttemptCounts.slice(),
+      authoring: !!authoring,
+    },
+  });
+}
+
+// Finish is FINAL — there is no un-finishing. Per mode:
+//   Solo — straight through; no gate exists.
+//   PTP  — sequential handover, so no simultaneous-finish problem exists at all.
+//   MDLM — one slot in ntDebugFinished; the host resolves on .every(Boolean).
+function ntDebugFinish() {
+  const ov = document.getElementById('nt-debug-retry-overlay');
+  if (ov) ov.style.display = 'none';
+  ntStopPlayback();
+  const best   = ntDebugBest ? ntDebugBest.placements.slice() : [];
+  const waiting = 'Testing complete — waiting for the other analysts…';
+
+  if (window.syllyMultiplayerMode === 'client') {
+    // Fire-and-forget, matching ntCommit's client path: a residual sync lock would silently
+    // drop this ACTION and strand the round, and Finish is already one-shot by construction.
+    // No latency field — the host recomputes it from bestPlacements (ntResolveCycleMdlm), so
+    // sending one here would look like a client-supplied score the host trusts verbatim.
+    mpSendEnvelope({
+      type: 'ACTION',
+      payload: {
+        action:         'NT_DEBUG_FINISH',
+        bestPlacements: best,
+        attempts:       ntDebugMyAttempt,
+      },
+    });
+    ntDebugFinished[mpMyPlayerIdx]      = true;   // local optimism, for this device's roster
+    ntDebugAttemptCounts[mpMyPlayerIdx] = ntDebugMyAttempt;
+    // Always show standby, even when this device's own optimism makes every seat read
+    // finished locally. Over real Firebase the ACTION just sent is an async round-trip away
+    // — the host has not necessarily resolved yet, let alone broadcast NT_PLAYBACK, so
+    // skipping standby here would leave the last finisher frozen on the (stopped) playback
+    // screen for that round-trip, with no message and no force-resolve net armed in Debug.
+    // NT_PLAYBACK's own applier navigates unconditionally when it arrives, so it's safe to
+    // show standby unconditionally too — the same screen.nt-standby → screen-nt-playback
+    // sequence every other seat already goes through.
+    ntShowStandby(waiting, ntDebugRosterRows());
+    return;
+  }
+
+  if (window.syllyMultiplayerMode === 'host') {
+    // Host marks its OWN slot directly and never self-sends — the dedup guard drops every
+    // envelope where originId === syllyDeviceUid (NT's own BUG-05, and logic-engine.md
+    // generalises it to any phase where the host is a submitting participant).
+    ntDebugFinished[mpMyPlayerIdx]      = true;
+    ntDebugAttemptCounts[mpMyPlayerIdx] = ntDebugMyAttempt;
+    ntPtpPlacements[mpMyPlayerIdx]      = best;
+    ntDebugBroadcastRoster(false);
+    if (ntDebugFinished.every(Boolean)) ntResolveCycleMdlm(ntPtpPlacements.slice());
+    else ntShowStandby(waiting, ntDebugRosterRows());
+    return;
+  }
+
+  // Solo / PTP — the handover gate already serialises this.
+  ntPtpTimelines[ntPtpTurn]       = ntDebugBest ? ntDebugBest.timeline : ntComputeTimeline_local();
+  ntPtpPlacements[ntPtpTurn]      = best;
+  ntDebugAttemptCounts[ntPtpTurn] = ntDebugMyAttempt;
+  ntPtpTurn++;
+  if (ntPtpTurn < ntPlayerCount) {
+    ntMyPlacements = []; ntFirewallUsed = 0; ntHoneypotUsed = 0;
+    ntDebugMyAttempt = 0;
+    ntDebugBest      = null;
+    ntBeginPtpTurn();
+  } else {
+    ntResolveCyclePtp();
+    if (ntPlayerCount > 1) ntShowGatherGate();
+    else ntShowComparisonPlayback();
+  }
+}
+
 function ntFlashReject(cell) {
   playBoing();
   ntSetRouting('exception');
@@ -2292,24 +2797,25 @@ function ntFlashReject(cell) {
   }
 }
 
+// Routing status. The build screen and the Node Editor each own their own element — only one
+// screen is ever visible, so writing to both is always correct and never needs a mode branch.
 function ntSetRouting(state) {
-  const el = document.getElementById('nt-routing-status');
-  if (!el) return;
+  const els = ['nt-routing-status', 'nt-auth-routing']
+    .map(id => document.getElementById(id)).filter(Boolean);
+  if (!els.length) return;
+  const paint = (txt, cls) => els.forEach(el => { el.textContent = txt; el.className = cls; });
   if (state === 'exception') {
     ntRoutingState = 'exception';
-    el.textContent = 'ROUTING: EXCEPTION';
-    el.className = 'text-red-500 whitespace-nowrap';
+    paint('ROUTING: EXCEPTION', 'text-red-500 whitespace-nowrap');
     if (ntRoutingTimer) clearTimeout(ntRoutingTimer);
     ntRoutingTimer = setTimeout(() => { ntRoutingTimer = null; ntSetRouting('valid'); }, 700);
   } else if (state === 'storage_insufficient') {
-    el.textContent = 'STORAGE: INSUFFICIENT';
-    el.className = 'text-amber-400 whitespace-nowrap';
+    paint('STORAGE: INSUFFICIENT', 'text-amber-400 whitespace-nowrap');
     if (ntRoutingTimer) clearTimeout(ntRoutingTimer);
     ntRoutingTimer = setTimeout(() => { ntRoutingTimer = null; ntSetRouting('valid'); }, 1200);
   } else {
     ntRoutingState = 'valid';
-    el.textContent = 'ROUTING: VALID';
-    el.className = 'text-emerald-400 whitespace-nowrap';
+    paint('ROUTING: VALID', 'text-emerald-400 whitespace-nowrap');
   }
 }
 
@@ -2335,13 +2841,13 @@ function ntSetStatus(simMs) {
 function ntStartBuildTimer(endTimestamp) {
   ntStopBuildTimer();
   const label = document.getElementById('nt-build-timer');
-  if (ntHardeningWin === 0) {
+  if (ntEffectiveHardeningWin() === 0) {
     if (label) label.textContent = '∞';
     return;
   }
   const getSecs = () => endTimestamp
     ? Math.ceil((endTimestamp - Date.now()) / 1000)
-    : ntHardeningWin;
+    : ntEffectiveHardeningWin();
   let secs = getSecs();
   if (label) label.textContent = formatTime(Math.max(0, secs));
   ntBuildTimer = setInterval(() => {
@@ -2375,6 +2881,7 @@ function ntForceResolveCycle() {
 
 // ── Commit ─────────────────────────────────────────────────────────────────
 function ntCommit() {
+  if (ntDebugMode) { ntDebugRunAttempt(); return; }
   if (ntCommitted) return;        // one commit per build phase (timer expiry + manual tap both call this)
   ntCommitted = true;
   ntStopBuildTimer();
@@ -3180,6 +3687,22 @@ function ntHandleEnvelope(envelope) {
       return;
     }
 
+    if (payload.action === 'NT_DEBUG_FINISH') {
+      const senderIdx = mpPlayerSlots.findIndex(p => p.uid === envelope.originId);
+      if (senderIdx === -1) return;
+      // `|| []` is LOAD-BEARING here, not defensive habit. Finishing with an empty build is
+      // NORMAL in a sandbox ("what's the baseline with no hardening at all?"), and Firebase
+      // deletes an empty array in flight — so the host reads undefined, ntResolveCycleMdlm maps
+      // over it and throws, and the whole room is stranded.
+      ntDebugFinished[senderIdx]      = true;
+      ntDebugAttemptCounts[senderIdx] = payload.attempts || 0;
+      ntPtpPlacements[senderIdx]      = payload.bestPlacements || [];
+      mpUnlockSync();
+      ntDebugBroadcastRoster(false);
+      if (ntDebugFinished.every(Boolean)) ntResolveCycleMdlm(ntPtpPlacements.slice());
+      return;
+    }
+
     if (payload.action === 'NT_ALLOCATION_UPDATE') {
       // Client captain sends updated allocations; host validates then re-broadcasts
       const senderIdx = mpPlayerSlots.findIndex(p => p.uid === envelope.originId);
@@ -3225,6 +3748,15 @@ function ntHandleEnvelope(envelope) {
       ntCommitReadyCheck  = new Array(ntPlayerCount).fill(false);
       ntSummaryReadyCheck = new Array(ntPlayerCount).fill(false);
 
+      if (payload.debug) {
+        // Client-side sizing. The host holds the authoritative ntDebugFinished; these are the
+        // client's own display copies and must still never be left as [].
+        ntDebugFinished      = new Array(ntPlayerCount).fill(false);
+        ntDebugAttemptCounts = new Array(ntPlayerCount).fill(0);
+        ntDebugMyAttempt     = 0;
+        ntDebugBest          = null;
+      }
+
       if (payload.isDNP) {
         // DNP: each player has their own relay-leg node; wait for NT_HUDDLE_START
         ntTeamNodes = (payload.allPlayerNodes || []).map(ntNormaliseNode);
@@ -3234,6 +3766,26 @@ function ntHandleEnvelope(envelope) {
         ntNode = ntNormaliseNode(payload.node);
         ntShowMdlmGate();
       }
+      return;
+    }
+
+    if (payload.action === 'NT_DEBUG_ROSTER') {
+      ntDebugFinished      = payload.finished || [];
+      ntDebugAttemptCounts = payload.attempts || [];
+      if (payload.authoring) {
+        // The host has looped back to the Node Editor — return to the same standby this device
+        // saw at the start, and re-zero every piece of Debug session state.
+        ntDebugMyAttempt = 0;
+        ntDebugBest      = null;
+        ntMyPlacements   = [];
+        ntFirewallUsed   = 0;
+        ntHoneypotUsed   = 0;
+        ntShowStandby('Authoring node…');
+        return;
+      }
+      // Repaint in place — a player still building must NOT be navigated to standby by a
+      // roster update, so this deliberately does not call ntShowStandby.
+      ntRenderDebugRoster(ntDebugRosterRows());
       return;
     }
 
@@ -3409,6 +3961,13 @@ function ntResetState() {
   ntSummaryMode    = 'cycle';
   ntOverclockTheme = false;
   ntGhostAnchor    = null;
+  // Debug / Sandbox session state. ntDebugMode is deliberately NOT cleared — it is a setting,
+  // and every other setting survives a play-again / Reboot too.
+  ntDebugBrush         = 'bad';
+  ntDebugMyAttempt     = 0;
+  ntDebugBest          = null;
+  ntDebugFinished      = [];
+  ntDebugAttemptCounts = [];
   // PTP state
   ntPtpTurn        = 0;
   ntPtpTimelines   = [];
@@ -3433,6 +3992,25 @@ function ntSelectPill(group, value) {
   if (target) target.classList.add('pill-active-emerald');
 }
 
+// Mutually-exclusive / superseded settings (ui-style.md § Settings Layout Standard).
+// The controls dim; the card TITLE stays at full contrast — a fully-dimmed card reads as a
+// rendering bug rather than an unavailable option. The amber reason line is mandatory: a dead
+// control with no explanation is indistinguishable from a bug, and the player has no way to
+// discover that a different setting is the cause. Amber, never text-stone-400 — stone-400 is
+// already the dynamic-value-line colour (what you have PICKED); amber means UNAVAILABLE.
+function ntSetCardDisabled(ctlId, reasonId, disabled, reason) {
+  const ctl = document.getElementById(ctlId);
+  if (ctl) {
+    ctl.classList.toggle('opacity-50', disabled);
+    ctl.classList.toggle('pointer-events-none', disabled);
+  }
+  const r = document.getElementById(reasonId);
+  if (r) {
+    r.textContent   = disabled ? reason : '';
+    r.style.display = disabled ? '' : 'none';
+  }
+}
+
 // Reflect current settings state into the overlay controls before opening.
 function ntSyncSettingsUI() {
   ntSelectPill('nt-scale', ntMatrixScale);
@@ -3444,6 +4022,17 @@ function ntSyncSettingsUI() {
     t.textContent = ntSyllyMode ? 'ON' : 'OFF';
     t.className = (ntSyllyMode ? 'game-toggle-on-emerald' : 'game-toggle-off') + ' shrink-0';
   }
+  const d = document.getElementById('btn-nt-debug-toggle');
+  if (d) {
+    d.textContent = ntDebugMode ? 'ON' : 'OFF';
+    d.className = (ntDebugMode ? 'game-toggle-on-emerald' : 'game-toggle-off') + ' shrink-0';
+  }
+  // Mutually exclusive — each turns the other off, and dims it while on. Both stay reachable.
+  ntSetCardDisabled('btn-nt-sylly-toggle', 'nt-reason-sylly', ntDebugMode, 'Unavailable while Debug Mode is on');
+  ntSetCardDisabled('btn-nt-debug-toggle', 'nt-reason-debug', ntSyllyMode, 'Unavailable while Sylly Mode is on');
+  // Superseded — the stored values are NOT modified and return intact when Debug goes off.
+  ntSetCardDisabled('nt-ctl-iters', 'nt-reason-iters', ntDebugMode, 'Debug Mode runs a single Node');
+  ntSetCardDisabled('nt-ctl-win',   'nt-reason-win',   ntDebugMode, 'Debug Mode has no time limit');
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -3517,10 +4106,19 @@ document.addEventListener('DOMContentLoaded', () => {
     playPillClick(); ntNativeHoneypots = parseInt(b.dataset.ntNative, 10); ntSelectPill('nt-native', ntNativeHoneypots);
   }));
 
-  // Sylly Mode (DNP) toggle
+  // Sylly Mode (DNP) toggle — reciprocally forces Debug off (mutually exclusive)
   document.getElementById('btn-nt-sylly-toggle').addEventListener('click', () => {
     ntSyllyMode = !ntSyllyMode;
-    if (ntSyllyMode) playSyllyOn(); else playSyllyOff();
+    if (ntSyllyMode) { ntDebugMode = false; playSyllyOn(); } else playSyllyOff();
+    ntSyncSettingsUI();
+  });
+
+  // Debug Mode toggle — forces Sylly off. Uses playPillClick, not playSyllyOn/Off: those two
+  // are the Sylly Mode signature across the whole suite and Debug is an ordinary setting.
+  document.getElementById('btn-nt-debug-toggle').addEventListener('click', () => {
+    ntDebugMode = !ntDebugMode;
+    if (ntDebugMode) ntSyllyMode = false;
+    playPillClick();
     ntSyncSettingsUI();
   });
 
@@ -3539,6 +4137,28 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   document.getElementById('btn-nt-gate-ready').addEventListener('click', () => { playLaunch(); if (ntGateCallback) ntGateCallback(); else ntShowBuild(); });
   document.getElementById('btn-nt-commit').addEventListener('click', () => { playLaunch(); ntCommit(); });
+
+  // ── Node Editor (Debug Mode) ────────────────────────────────────────────────
+  document.querySelectorAll('[data-nt-brush]').forEach(b => b.addEventListener('click', () => {
+    playPillClick(); ntDebugBrush = b.dataset.ntBrush; ntSyncAuthUI();
+  }));
+  // ntSyncAuthUI clamps, so a bare ++/-- can never leave the budget out of range.
+  document.getElementById('btn-nt-auth-fw-minus').addEventListener('click', () => { playPillClick(); ntInventory.firewall--; ntSyncAuthUI(); });
+  document.getElementById('btn-nt-auth-fw-plus') .addEventListener('click', () => { playPillClick(); ntInventory.firewall++; ntSyncAuthUI(); });
+  document.getElementById('btn-nt-auth-hp-minus').addEventListener('click', () => { playPillClick(); ntInventory.honeypot--; ntSyncAuthUI(); });
+  document.getElementById('btn-nt-auth-hp-plus') .addEventListener('click', () => { playPillClick(); ntInventory.honeypot++; ntSyncAuthUI(); });
+  document.getElementById('btn-nt-auth-rand-terrain').addEventListener('click', () => { playWhoosh(); ntAuthRandomiseTerrain(); });
+  document.getElementById('btn-nt-auth-rand-budget') .addEventListener('click', () => { playWhoosh(); ntAuthRandomiseBudget(); });
+  document.getElementById('btn-nt-auth-how-to').addEventListener('click', ntOpenHowTo);
+  document.getElementById('btn-nt-auth-deploy').addEventListener('click', () => { playLaunch(); ntDeployNode(); });
+  document.getElementById('btn-nt-debug-again').addEventListener('click', () => { playLaunch(); ntDebugRunAgain(); });
+  document.getElementById('btn-nt-debug-finish').addEventListener('click', () => { playLaunch(); ntDebugFinish(); });
+  document.getElementById('btn-nt-build-clear').addEventListener('click', () => {
+    playWhoosh();
+    ntMyPlacements = [];
+    ntRenderBuildGrid();      // repaints every cell and calls ntUpdateBuildCounters itself
+    ntSetRouting('valid');
+  });
 
   // Playback scrubber — drag to scrub; drives the renderer directly when auto-play has ended.
   document.getElementById('nt-playback-scrubber').addEventListener('input', (e) => {

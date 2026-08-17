@@ -350,6 +350,7 @@ globalThis.__nt = {
     ntMatrixScale     = o.scale || 18;
     ntNativeHoneypots = o.natives !== undefined ? o.natives : 2;
     ntSyllyMode       = !!o.sylly;
+    ntDebugMode       = !!o.debug;
     if (o.teamIdx)      ntTeamIdx      = o.teamIdx.slice();
     if (o.captainSlots) ntCaptainSlots = o.captainSlots.slice();
   },
@@ -374,6 +375,9 @@ globalThis.__nt = {
   showBuild(ts)       { ntShowBuild(ts); },
   showSummary(m)      { ntShowSummary(m); },
   renderGrid()        { ntRenderBuildGrid(); },
+  drawPort(gridId, port, col, inward, n) {
+    return ntDrawPortMarker(document.getElementById(gridId), port, col, inward, n);
+  },
   renderFrame(ms)     { ntRenderFrame(ms, true); },
   renderComparison()  { ntRenderComparisonPanel(); },
   renderSummary()     { ntRenderSummary(); },
@@ -384,11 +388,39 @@ globalThis.__nt = {
   tapGate()           { if (ntGateCallback) ntGateCallback(); },
   tapSummary()        { if (ntSummaryCallback) ntSummaryCallback(); },
 
+  // ── Node Editor (Debug Mode) ──
+  showAuthoring()  { ntShowAuthoring(); },
+  deploy()         { ntDeployNode(); },
+  authTap(x, y)    { ntAuthTap(x, y); },
+  setBrushDbg(b)   { ntDebugBrush = b; ntSyncAuthUI(); },
+  authRandTerrain(){ ntAuthRandomiseTerrain(); },
+  authRandBudget() { ntAuthRandomiseBudget(); },
+  bumpFw(n)        { ntInventory.firewall += n; ntSyncAuthUI(); },
+  bumpHp(n)        { ntInventory.honeypot += n; ntSyncAuthUI(); },
+  pathOk()         { return ntPathExists(ntNode, []); },
+
+  // ── Sandbox retry loop (Debug Mode) ──
+  runAgain()       { ntDebugRunAgain(); },
+  runAttempt()     { ntDebugRunAttempt(); },
+  finish()         { ntDebugFinish(); },
+  setBest(p)       { ntDebugBest = { latencyMs: 1000, placements: p.slice(), timeline: ntComputeTimeline_local() }; },
+  // The mock's innerHTML setter parses every id/class-bearing tag FLAT, so a raw children.length
+  // would also count the two spans inside each row. Filter to the row wrapper's own class.
+  rosterRows()     { return document.getElementById('nt-standby-roster').children
+                       .filter(c => /rounded-xl/.test(c.className || '')).length; },
+
   // ── DOM readers ──
   // Counts painted CELLS only — ntRenderBuildGrid also appends the ghost-preview span
   // and a port marker, so a raw children.length overcounts. Word-boundary match, since
   // a naive substring test would also catch nt-cell-* modifier classes.
   gridCells()      { return document.getElementById('nt-build-grid').children
+                       .filter(c => /(^| )nt-cell( |$)/.test(c.className || '')).length; },
+  gridPorts()      { return document.getElementById('nt-build-grid').children
+                       .filter(c => /(^| )absolute( |$)/.test(c.className || '')).length; },
+  authPorts()      { return document.getElementById('nt-auth-grid').children
+                       .filter(c => /(^| )absolute( |$)/.test(c.className || '')).length; },
+  // The existing gridCells() is hardcoded to nt-build-grid — the editor needs its own.
+  authCells()      { return document.getElementById('nt-auth-grid').children
                        .filter(c => /(^| )nt-cell( |$)/.test(c.className || '')).length; },
   gridClasses()    { return document.getElementById('nt-build-grid').children.map(c => c.className); },
   bootLines()      { return document.getElementById('nt-gate-boot-log').children.map(c => c.textContent); },
@@ -408,6 +440,27 @@ globalThis.__nt = {
   buildCounter()   { return document.getElementById('nt-build-counter').textContent; },
   commitBtnText()  { return document.getElementById('btn-nt-commit').textContent; },
   allocLanes()     { return document.getElementById('nt-alloc-body').querySelectorAll('.nt-alloc-lane').length; },
+
+  // ── Debug / Sandbox Mode ──
+  get debugMode()     { return ntDebugMode; },
+  get debugBrush()    { return ntDebugBrush; },
+  get debugAttempt()  { return ntDebugMyAttempt; },
+  get debugBest()     { return ntDebugBest ? ntDebugBest.latencyMs : null; },
+  get debugFinished() { return ntDebugFinished; },
+  get debugCounts()   { return ntDebugAttemptCounts; },
+  rawWin()            { return ntHardeningWin; },     // the STORED value, never the effective one
+  setDebug(v)         { ntDebugMode = !!v; },
+  effWin()            { return ntEffectiveHardeningWin(); },
+  syncSettings()      { ntSyncSettingsUI(); },
+  text(id)            { return document.getElementById(id).textContent; },
+  // The mock creates every element with style:{} — style.display is undefined until code
+  // actually sets it. A "!== 'none'" test reads true for BOTH a real "" (shown, code ran)
+  // and an untouched undefined (nothing ran), so it can never fail regardless of whether
+  // the code under test runs at all. Requiring the exact "" the suite's own show/hide idiom
+  // uses (nt.js sets '' to show, 'none' to hide — see ntShowBuild/ntRenderSummary) makes an
+  // untouched element read as NOT shown, same as a hidden one — the discriminating case.
+  shown(id)           { return document.getElementById(id).style.display === ''; },
+  cls(id)             { return document.getElementById(id).className; },
 };`;
 
   vm.runInContext(ntSrc + BRIDGE, sandbox, { filename: `nt.js (${name})` });
@@ -576,6 +629,9 @@ check('client B painted a full grid',  r1.clients[1].__nt.gridCells(), n1 * n1);
 check('no render exceptions on any device', r1.all.map(errs), [[], [], []]);
 check('each device labels its OWN admin', r1.all.map(d => d.__nt.buildPlayer()),
   ['user:\\ali', 'user:\\bec', 'user:\\cam']);
+// Debug's Clear All button is Debug-only — outside Debug it must stay hidden. The paired
+// "it IS offered in Debug" assertion lives in the Debug section further down.
+check('Clear All is hidden outside Debug', r1.host.__nt.shown('btn-nt-build-clear'), false);
 
 // ── 6. The same thing with Native Honeypots: 0 — the deterministic reproduction ─
 section('Native Honeypots: 0 — convertN is always 0, so nativeHoneypots:[] every cycle');
@@ -676,6 +732,9 @@ check('SER headline names the cycle leader on every device',
   r3.all.map(d => ['Ali', 'Bec', 'Cam'].includes(d.__nt.summarySer())), [true, true, true]);
 check('all three devices name the SAME leader',
   r3.clients.map(c => c.__nt.summarySer()), [r3.host.__nt.summarySer(), r3.host.__nt.summarySer()]);
+// The Debug-only staging caption must stay hidden on a Standard summary. The paired
+// "…and the caption IS visible" assertion lives in the Debug summary section further down.
+check('the Debug staging caption is hidden outside Debug', r3.host.__nt.shown('nt-summary-caption'), false);
 
 // ── 10. Five cycles end to end ────────────────────────────────────────────────
 section('Five cycles, three devices — nothing diverges (the reported failure shape)');
@@ -925,6 +984,474 @@ catch (e) { goErr = e.constructor.name; }
 // so this is unreachable in play — pinned here so it stays a known gap rather than a
 // surprise if a future change ever wires a producer up to it.
 check('KNOWN GAP: NT_GAMEOVER calls an undefined function', goErr, 'ReferenceError');
+
+// ── Debug Mode: the setting, its exclusivity, and the superseded window ───────
+section('Debug Mode — settings');
+(() => {
+  const d = makeDevice('solo', 'single', 0, [{ uid: 'u0', nickname: 'Ali' }]);
+
+  d.__nt.seat({ players: 1, names: ['Ali'], win: 90, debug: false });
+  check('effective window is the real one when Debug is off', d.__nt.effWin(), 90);
+
+  d.__nt.seat({ players: 1, names: ['Ali'], win: 90, debug: true });
+  check('effective window is 0 (∞) when Debug is on',         d.__nt.effWin(), 0);
+  // Superseded, NOT overwritten — the player's stored choice must come back intact when
+  // Debug is switched off again, which is the whole distinction from "mutually exclusive".
+  check('…while the STORED setting is left untouched',        d.__nt.rawWin(), 90);
+
+  // Superseded + mutually-exclusive dimming, painted by ntSyncSettingsUI().
+  d.__nt.syncSettings();
+  check('Hardening Window controls are dimmed',
+        /opacity-50/.test(d.__nt.cls('nt-ctl-win')), true);
+  check('…with an amber reason line, not a silent dead control',
+        d.__nt.text('nt-reason-win'), 'Debug Mode has no time limit');
+  check('Iterations controls are dimmed too',
+        /pointer-events-none/.test(d.__nt.cls('nt-ctl-iters')), true);
+  check('Sylly toggle is dimmed while Debug is on',
+        d.__nt.text('nt-reason-sylly'), 'Unavailable while Debug Mode is on');
+
+  d.__nt.seat({ players: 1, names: ['Ali'], win: 90, debug: false });
+  d.__nt.syncSettings();
+  check('turning Debug off restores the Hardening Window controls',
+        /opacity-50/.test(d.__nt.cls('nt-ctl-win')), false);
+  check('…and clears its reason line', d.__nt.text('nt-reason-win'), '');
+  check('no exceptions', errs(d), []);
+})();
+
+// ── The shared port marker ────────────────────────────────────────────────────
+section('Port markers — one drawing function, two grids');
+(() => {
+  const d = makeDevice('ports', 'single', 0, [{ uid: 'u0', nickname: 'Ali' }]);
+  d.__nt.seat({ players: 1, names: ['Ali'] });
+  d.__nt.genNode();
+  d.__nt.renderGrid();
+  check('build grid draws exactly two port markers', d.__nt.gridPorts(), 2);
+
+  // The extracted function must be callable against ANY grid element, not just the build one.
+  const n = d.__nt.node.n;
+  d.__nt.drawPort('nt-auth-grid', d.__nt.node.ingress, '#34d399', true, n);
+  d.__nt.drawPort('nt-auth-grid', d.__nt.node.egress, '#334155', false, n);
+  check('…and the same function serves a second grid', d.__nt.authPorts(), 2);
+  check('no exceptions', errs(d), []);
+})();
+
+// ── The Node Editor ───────────────────────────────────────────────────────────
+section('Node Editor — authoring the same object ntGenerateNode() returns');
+(() => {
+  const d = makeDevice('editor', 'single', 0, [{ uid: 'u0', nickname: 'Ali' }]);
+  d.__nt.seat({ players: 1, names: ['Ali'], scale: 18, natives: 2, debug: true });
+  d.__nt.showAuthoring();
+
+  check('opens the Node Editor',      lastScreen(d), 'screen-nt-authoring');
+  check('starts on a BLANK board',
+        [d.__nt.node.badSectors.length, d.__nt.node.nativeHoneypots.length], [0, 0]);
+  check('…which is legal — an empty maze routes',  d.__nt.pathOk(), true);
+  check('budget starts at zero',
+        [d.__nt.inventory.firewall, d.__nt.inventory.honeypot], [0, 0]);
+  check('grid renders every tile',    d.__nt.authCells(), 18 * 18);
+  check('…plus the two port markers', d.__nt.authPorts(), 2);
+  check('brush defaults to Bad Sector', d.__nt.debugBrush, 'bad');
+
+  // Bad Sector brush — a 2×2 block, anchored and clamped like every other NT placement.
+  d.__nt.authTap(4, 4);
+  check('one tap draws one Bad Sector', d.__nt.node.badSectors.length, 1);
+  check('…written into ntNode, NOT into placements', d.__nt.placements.length, 0);
+  d.__nt.authTap(4, 4);
+  check('tapping it again erases it',   d.__nt.node.badSectors.length, 0);
+
+  // Native Honeypot brush, capped by the Native Honeypots setting (2 here).
+  d.__nt.setBrushDbg('native');
+  d.__nt.authTap(4, 4); d.__nt.authTap(8, 8); d.__nt.authTap(12, 12);
+  check('native honeypots are capped by ntNativeHoneypots',
+        d.__nt.node.nativeHoneypots.length, 2);
+
+  // Budget ceilings.
+  d.__nt.bumpFw(999);
+  check('firewall budget is capped at the block-slot count ((18/2)² = 81)',
+        d.__nt.inventory.firewall, 81);
+  d.__nt.bumpFw(-999);
+  check('…and floored at zero', d.__nt.inventory.firewall, 0);
+  d.__nt.bumpHp(999);
+  check('honeypot budget ceiling accounts for the natives already placed (4 − 2)',
+        d.__nt.inventory.honeypot, 2);
+
+  // Ports. The two generation heuristics are deliberately NOT enforced on a human author.
+  d.__nt.setBrushDbg('ingress');
+  d.__nt.authTap(0, 3);
+  check('ingress moves to the tapped border tile',
+        [d.__nt.node.ingress.edge, d.__nt.node.ingress.idx], ['left', 3]);
+  d.__nt.setBrushDbg('egress');
+  d.__nt.authTap(0, 5);
+  check('egress may sit on the SAME edge as ingress — a human choice, not a bad roll',
+        [d.__nt.node.egress.edge, d.__nt.node.egress.idx], ['left', 5]);
+  check('…and the node still routes', d.__nt.pathOk(), true);
+  d.__nt.authTap(0, 3);
+  check('but the two ports may never share one mouth',
+        [d.__nt.node.egress.edge, d.__nt.node.egress.idx], ['left', 5]);
+
+  // Randomise — both produce an editable starting point; nothing is committed yet.
+  // Re-author egress off left/5 → left/10 first: left/5's mouth tile is a 2×2 bad sector under
+  // ntGenerateNode's OWN seed-0 roll (block at ax0/ay5 covers tiles (0,5) and (0,6)), which makes
+  // the KEEP branch below unreachable at the default seed no matter what the fix does. left/10
+  // keeps the same "shares an edge with ingress" authoring choice, clear of that block.
+  d.__nt.setBrushDbg('egress');
+  d.__nt.authTap(0, 10);
+  check('egress re-authored to left/10 for the randomise-terrain check below',
+        [d.__nt.node.egress.edge, d.__nt.node.egress.idx], ['left', 10]);
+
+  d.__nt.bumpFw(7);
+  const budgetBefore = { ...d.__nt.inventory };
+  d.__nt.authRandTerrain();
+  check('Randomise Terrain fills the board', d.__nt.node.badSectors.length > 0, true);
+  // Ports are not terrain: the authored pair (left/3, left/10) must be KEPT across a re-roll —
+  // unless the freshly-rolled terrain happens to block it, in which case the fallback pair
+  // ntGenerateNode rolled must be used instead. Both branches are legitimate, and which one fires
+  // is genuinely RNG-dependent (a bad sector can land on an authored mouth tile on some seeds) —
+  // so probe the contract directly rather than hard-coding one branch's outcome. The probe
+  // mutates the live node's ports and reads them back through the same ntPathExists the fix
+  // itself calls; it changes nothing ntAuthRandomiseTerrain didn't already decide, so this proves
+  // the KEEP/FALLBACK rule itself rather than depending on one lucky (or unlucky) seed.
+  const keptIngress = { ...d.__nt.node.ingress }, keptEgress = { ...d.__nt.node.egress };
+  d.__nt.node.ingress = { edge: 'left', idx: 3 };
+  d.__nt.node.egress  = { edge: 'left', idx: 10 };
+  const authoredWouldRoute = d.__nt.pathOk();
+  d.__nt.node.ingress = keptIngress;   // put the real outcome back exactly as authRandTerrain left it
+  d.__nt.node.egress  = keptEgress;
+  const keptIsAuthored = keptIngress.edge === 'left' && keptIngress.idx === 3 &&
+                          keptEgress.edge === 'left' && keptEgress.idx === 10;
+  check('authored ports are kept iff they still route, dropped for the roll\'s own pair otherwise',
+        authoredWouldRoute ? keptIsAuthored : !keptIsAuthored,
+        true);
+  check('…and leaves the budget alone (keepInventory)', d.__nt.inventory, budgetBefore);
+  check('…and only ever produces a routable node', d.__nt.pathOk(), true);
+
+  const terrainBefore = JSON.stringify(d.__nt.node.badSectors);
+  d.__nt.authRandBudget();
+  check('Randomise Budget leaves the terrain alone',
+        JSON.stringify(d.__nt.node.badSectors), terrainBefore);
+  check('…and rolls a firewall budget inside the real match range (6%–30% of 81)',
+        d.__nt.inventory.firewall >= 5 && d.__nt.inventory.firewall <= 24, true);
+
+  check('no exceptions anywhere in the editor', errs(d), []);
+})();
+
+// ── Deploying an authored node over the wire ──────────────────────────────────
+section('Deploy Node — an authored node is shape-identical to a rolled one');
+(() => {
+  const r = makeRoom(['Ali', 'Bec', 'Cam']);
+  seatAll(r, { win: 90, debug: true });
+
+  // The host authors an ENTIRELY EMPTY node — no bad sectors, no native honeypots. This is
+  // legitimate ("what is the baseline latency with no hardening at all?") and IMPOSSIBLE to
+  // produce today, because ntGenerateNode has a bad-sector density floor. It is also the most
+  // dangerous shape on the wire: Firebase deletes an empty array, so both collections vanish
+  // in flight and every unguarded render read throws per grid cell (NT's own BUG-15/16).
+  r.host.__nt.showAuthoring();
+  check('host is in the editor',   lastScreen(r.host), 'screen-nt-authoring');
+  check('the authored node is bare',
+        [r.host.__nt.node.badSectors.length, r.host.__nt.node.nativeHoneypots.length], [0, 0]);
+
+  r.host.__nt.deploy();
+  r.all.forEach(drain);
+
+  check('NT_GENERATE is reused verbatim — no new packet', r.sent.includes('NT_GENERATE'), true);
+  check('every device landed on the gate',
+        r.all.map(lastScreen), ['screen-nt-gate', 'screen-nt-gate', 'screen-nt-gate']);
+  check('clients rebuilt badSectors after the wire erased it',
+        r.clients.map(c => Array.isArray(c.__nt.node.badSectors)), [true, true]);
+  check('…and nativeHoneypots too',
+        r.clients.map(c => Array.isArray(c.__nt.node.nativeHoneypots)), [true, true]);
+  check('clients agree with the host on the ports',
+        r.clients.map(c => c.__nt.node.ingress.idx),
+        [r.host.__nt.node.ingress.idx, r.host.__nt.node.ingress.idx]);
+
+  // The real test of hazard 2: the grid must RENDER on a client without throwing.
+  r.clients.forEach(c => c.__nt.renderGrid());
+  check('an empty authored node renders on both clients',
+        r.clients.map(c => c.__nt.gridCells()), [18 * 18, 18 * 18]);
+  check('…with no exceptions anywhere', r.all.map(errs), [[], [], []]);
+
+  // Sizing rule — the readiness arrays are length-N, never [].
+  check('ntDebugFinished is length-N all-false, NOT []',
+        r.host.__nt.debugFinished, [false, false, false]);
+  check('ntDebugAttemptCounts is length-N all-zero, NOT []',
+        r.host.__nt.debugCounts, [0, 0, 0]);
+})();
+
+// ── The retry loop ────────────────────────────────────────────────────────────
+section('Retry loop — unlimited attempts, zero packets');
+(() => {
+  const r = makeRoom(['Ali', 'Bec']);
+  seatAll(r, { win: 90, debug: true });
+  r.host.__nt.showAuthoring();
+  r.host.__nt.authRandTerrain();
+  r.host.__nt.bumpFw(8);
+  r.host.__nt.deploy();
+  r.all.forEach(drain);
+
+  const client = r.clients[0];
+  // makeRoom's `sent` array records the HOST's sends only, so counting it would prove nothing
+  // about a client's packets. Tap this client's own send instead — the claim under test is
+  // "a retrying player sends nothing", and this is the only way to actually observe that.
+  const clientPackets = [];
+  const clientSend = client.mpSendEnvelope;
+  client.mpSendEnvelope = env => { clientPackets.push(env.payload.action); return clientSend(env); };
+
+  client.__nt.showBuild();
+  check('build screen header reads ATTEMPT, not the cycle counter',
+        client.__nt.text('nt-build-title-label'), 'STAGING — ATTEMPT');
+  check('…starting at 1',        client.__nt.buildCounter(), '1');
+  check('Clear All is offered in Debug', client.__nt.shown('btn-nt-build-clear'), true);
+  check('the timer shows ∞',     client.__nt.text('nt-build-timer'), '∞');
+
+  // Attempt 1 — an EMPTY build. Legitimate: it is how you measure baseline latency.
+  client.__nt.commit();
+  check('attempt 1 counted',      client.__nt.debugAttempt, 1);
+  check('…and became the best by default', client.__nt.debugBest !== null, true);
+  check('attempt 1 sent NO packet', clientPackets, []);
+
+  const first = client.__nt.debugBest;
+  client.__nt.runAgain();
+  check('Run Again returns to the build screen', lastScreen(client), 'screen-nt-build');
+  check('…and the header advances', client.__nt.buildCounter(), '2');
+
+  // Attempt 2 — a real build. Find a single-block firewall anchor that genuinely lengthens the
+  // baseline route. A fixed offset pair (or a point picked off the polyline's own geometry)
+  // isn't reliably safe across every seed's random terrain: it can land off the actual route
+  // (leaving latency unchanged even under CORRECT code) or right against a port's edge tile,
+  // severing the only entrance instead of forcing a detour (both hit during a mid-fix seed
+  // sweep). Search block anchors outward from the board CENTRE — the tile least likely to
+  // border either port, since both live on the map edge — and use the first one that empirically
+  // produces a longer, still-routable trace. This is the same validity concept the real build
+  // screen already checks via ntPathExists before it lets a placement stick.
+  const gridN = client.__nt.node.n;
+  const cx = Math.floor(gridN / 2) - 1, cy = Math.floor(gridN / 2) - 1;
+  const anchors = [];
+  for (let bx = 0; bx <= gridN - 2; bx++) for (let by = 0; by <= gridN - 2; by++) anchors.push({ ax: bx, ay: by });
+  anchors.sort((a, b) => (Math.abs(a.ax - cx) + Math.abs(a.ay - cy)) - (Math.abs(b.ax - cx) + Math.abs(b.ay - cy)));
+
+  // expectedSecond is read straight from the same PURE function the app itself uses to score
+  // an attempt — computed independently of ntDebugBest's isBest bookkeeping, so a comparison-
+  // direction bug in that bookkeeping cannot also corrupt the value we're checking it against.
+  let expectedSecond = 0, chosen = null;
+  for (const cand of anchors) {
+    client.__nt.setPlacements([{ ax: cand.ax, ay: cand.ay, type: 'firewall' }]);
+    const lat = client.__nt.timeline().latencyMs;
+    if (lat > first) { expectedSecond = lat; chosen = cand; break; }
+  }
+  if (!chosen) throw new Error('no block anchor lengthened the baseline route — terrain too open');
+  // ntMyPlacements is already `chosen` — the loop's last (successful) setPlacements call.
+  client.__nt.commit();
+  check('attempt 2 counted', client.__nt.debugAttempt, 2);
+  check('a slower trace becomes the recorded best (higher latency wins in NT)',
+        client.__nt.debugBest, expectedSecond);
+
+  // Attempt 3 — deliberately worse. Best must NOT regress to "last". Checked against
+  // expectedSecond (captured above from the pure function) — never re-read from ntDebugBest
+  // after attempt 2, which is exactly the state a comparison-direction bug corrupts.
+  client.__nt.runAgain();
+  client.__nt.setPlacements([]);
+  client.__nt.commit();
+  check('attempt 3 counted',      client.__nt.debugAttempt, 3);
+  check('best is BEST, not LAST', client.__nt.debugBest, expectedSecond);
+  check('three attempts still sent NO packets', clientPackets, []);
+  check('no exceptions', r.all.map(errs), [[], []]);
+})();
+
+// ── Finish, and the per-player readiness gate ─────────────────────────────────
+section('Finish — a gate that must not be vacuous');
+(() => {
+  const r = makeRoom(['Ali', 'Bec', 'Cam']);
+  seatAll(r, { win: 90, debug: true });
+  r.host.__nt.showAuthoring();
+  r.host.__nt.authRandTerrain();
+  r.host.__nt.deploy();
+  r.all.forEach(drain);
+
+  // Every device runs one attempt, then finishes one at a time.
+  r.all.forEach(d => { d.__nt.showBuild(); d.__nt.commit(); });
+
+  // Client 1 finishes with an EMPTY build — normal in a sandbox, and the array Firebase
+  // deletes in flight. Without `payload.bestPlacements || []` the host reads undefined and
+  // ntResolveCycleMdlm maps over it and throws, stranding the entire room.
+  //
+  // Every device is ALREADY sitting on screen-nt-playback at this point — that's the retry
+  // loop's own design (each attempt shows its own trace, retry overlay on top), not a bug — so
+  // a plain "does the screen list include screen-nt-playback" check can't tell a premature sweep
+  // apart from that pre-existing, correct state; it would read true either way. Snapshot each
+  // device's own screen-push COUNT instead and assert the DELTA: only the finisher (Bec) may
+  // navigate anywhere: a premature resolve broadcasting NT_PLAYBACK to the two still-testing
+  // devices would show up as a non-zero delta for them.
+  const screensBefore = r.all.map(d => d.__screens.length);
+  r.clients[0].__nt.setBest([]);
+  r.clients[0].__nt.finish();
+  check('host recorded seat 1 as finished', r.host.__nt.debugFinished, [false, true, false]);
+  check('…and kept an ARRAY for their empty best build',
+        Array.isArray(r.host.__nt.ptpPlacements[1]), true);
+  check('the round has NOT resolved on one Finish', r.host.__nt.cycleResolved, false);
+  check('…and only the finisher navigated — nobody was swept to playback',
+        r.all.map((d, i) => d.__screens.length - screensBefore[i]), [0, 1, 0]);
+
+  // Second client finishes — two of three seats done, host still outstanding. Still not
+  // resolved (host is the one who must tip it), and the roster reaches every device.
+  r.clients[1].__nt.finish();
+  r.all.forEach(drain);
+  check('host recorded seat 2 as finished', r.host.__nt.debugFinished, [false, true, true]);
+  check('still not resolved — the host has not finished', r.host.__nt.cycleResolved, false);
+  check('clients see the roster',
+        r.clients.map(c => c.__nt.debugFinished), [[false, true, true], [false, true, true]]);
+  // Cam (the finisher who just tipped this checkpoint) is the one who rendered its own standby
+  // roster locally — the host hasn't shown standby at all yet, it finishes (and resolves) next.
+  check('roster renders one row per player', r.clients[1].__nt.rosterRows(), 3);
+
+  // The HOST finishes LAST — deliberately, not just for variety. Its own Finish marks its slot
+  // directly (a self-sent ACTION would be dropped by the dedup guard, originId ===
+  // syllyDeviceUid — NT's own BUG-05) and, because that tips every seat to finished, resolves
+  // in the SAME step and mirrors its own NT_PLAYBACK navigation locally (nt.js: "Host is also a
+  // participant and never receives its own SYNC"). A CLIENT tipping the gate is deliberately
+  // NOT exercised here: this harness's wire is a direct function call, so a client's own
+  // NT_DEBUG_FINISH would receive NT_DEBUG_ROSTER + NT_PLAYBACK back inside that same call,
+  // before its own ntShowStandby() line runs — a reentrancy that is structurally impossible on
+  // real Firebase (a round trip can never complete before the sending function returns) and so
+  // isn't something the fix needs to defend against, but it does mean this synchronous harness
+  // cannot honestly prove "everyone reaches playback" for that ordering. See nt.js
+  // ntDebugFinish's client branch for the production reasoning.
+  r.host.__nt.finish();
+  r.all.forEach(drain);
+  check('host marked its own slot', r.host.__nt.debugFinished, [true, true, true]);
+  // `sent` records the HOST's sends, so this is a direct observation of the claim: a self-sent
+  // ACTION would appear here and would then be dropped by the dedup guard, leaving the slot
+  // unset and the round hung forever.
+  check('…and sent no NT_DEBUG_FINISH of its own',
+        r.sent.includes('NT_DEBUG_FINISH'), false);
+  check('all finished — the round resolves', r.host.__nt.cycleResolved, true);
+  check('…and everyone reaches playback',
+        r.all.map(lastScreen), ['screen-nt-playback', 'screen-nt-playback', 'screen-nt-playback']);
+  check('no exceptions anywhere', r.all.map(errs), [[], [], []]);
+})();
+
+// ── No forced resolution while a player is still retrying ─────────────────────
+section('Retrying players are never swept aside by a deadline');
+(() => {
+  const r = makeRoom(['Ali', 'Bec']);
+  seatAll(r, { win: 45, debug: true });   // a REAL window is configured — Debug supersedes it
+  r.host.__nt.showAuthoring();
+  r.host.__nt.authRandTerrain();
+  r.host.__nt.deploy();
+  r.all.forEach(drain);
+
+  // Drive the REAL gate → build path, not the mock's showBuild() shortcut. ntShowMdlmGate's
+  // host callback (nt.js) is the ONLY place ntEffectiveHardeningWin() decides whether an
+  // endTimestamp exists — and ntStartBuildTimer only arms the host's resolve guard when it's
+  // called WITH a truthy endTimestamp. A no-arg showBuild() bypasses that decision entirely
+  // and would leave this section unable to fail no matter what the function under test does.
+  r.clients.forEach(c => c.__nt.tapGate());
+  r.host.__nt.tapGate();             // host's callback computes endTimestamp + broadcasts NT_BUILD_BEGIN
+  r.all.forEach(drain);
+  r.all.forEach(d => d.__nt.commit());
+  r.host.__nt.finish();
+
+  // Pump the host's timers well past what would have been the build deadline (45 s + the 4 s
+  // resolve-guard margin), with one player still mid-retry. Stated behaviourally rather than
+  // as "the guard is unarmed", so it also catches any OTHER route to a premature resolve.
+  for (let i = 0; i < 40; i++) step(r.host, 120000);
+  check('the round has NOT resolved with a player still testing',
+        r.host.__nt.cycleResolved, false);
+  check('…and the retrying client is still on its own screen',
+        lastScreen(r.clients[0]) !== 'screen-nt-summary', true);
+  check('no exceptions', r.all.map(errs), [[], []]);
+})();
+
+// ── Summary: best of N, and the loop back to the editor ───────────────────────
+section('Summary — scored on best attempts, then a fresh sandbox');
+(() => {
+  const r = makeRoom(['Ali', 'Bec']);
+  seatAll(r, { win: 90, debug: true });
+  r.host.__nt.showAuthoring();
+  r.host.__nt.authRandTerrain();
+  r.host.__nt.bumpFw(10);
+  r.host.__nt.deploy();
+  r.all.forEach(drain);
+
+  // The host builds well, then deliberately throws away its last attempt. A fixed anchor pair
+  // (as the brief's own draft used) isn't reliably safe across every seed's random terrain — it
+  // can land off the actual route, or a detour around it can happen to dodge a honeypot's slow
+  // zone and come out FASTER than the unobstructed baseline (latency isn't pure path length; a
+  // honeypot proximity slow is folded in — see ntComputeTimeline). Confirmed by NT_SEED=7/8
+  // failing this exact hardcoded-anchor check with correct code. Search outward from centre for
+  // an anchor that empirically lengthens the route, same technique as the Retry loop section
+  // above — this is scaffolding to reach "2 committed attempts", not new behaviour under test.
+  r.host.__nt.showBuild();
+  const gridN = r.host.__nt.node.n;
+  const cx = Math.floor(gridN / 2) - 1, cy = Math.floor(gridN / 2) - 1;
+  const anchors = [];
+  for (let bx = 0; bx <= gridN - 2; bx++) for (let by = 0; by <= gridN - 2; by++) anchors.push({ ax: bx, ay: by });
+  anchors.sort((a, b) => (Math.abs(a.ax - cx) + Math.abs(a.ay - cy)) - (Math.abs(b.ax - cx) + Math.abs(b.ay - cy)));
+  const baseline = r.host.__nt.timeline().latencyMs;   // ntMyPlacements is [] right after showBuild
+  let chosen = null;
+  for (const cand of anchors) {
+    r.host.__nt.setPlacements([{ ax: cand.ax, ay: cand.ay, type: 'firewall' }]);
+    if (r.host.__nt.timeline().latencyMs > baseline) { chosen = cand; break; }
+  }
+  if (!chosen) throw new Error('no block anchor lengthened the baseline route — terrain too open');
+  r.host.__nt.setPlacements([{ ax: chosen.ax, ay: chosen.ay, type: 'firewall' }]);
+  r.host.__nt.commit();
+  const good = r.host.__nt.debugBest;
+  r.host.__nt.runAgain();
+  r.host.__nt.setPlacements([]);
+  r.host.__nt.commit();
+  check('best survives a deliberately worse final attempt', r.host.__nt.debugBest, good);
+
+  r.clients[0].__nt.showBuild(); r.clients[0].__nt.commit();
+  r.host.__nt.finish();
+  r.clients[0].__nt.finish();
+  r.all.forEach(drain);
+
+  r.host.__nt.showSummary('match');
+  check('the summary is captioned with the attempt count',
+        /best of 2 attempts/.test(r.host.__nt.text('nt-summary-caption')), true);
+  check('…and the caption is visible', r.host.__nt.shown('nt-summary-caption'), true);
+  check('the host is offered a fresh sandbox',
+        r.host.__nt.summaryBtnText(), 'Author New Node');
+
+  // The loop-back is symmetric with the opening: one entry point, reached twice.
+  r.host.__nt.tapSummary();
+  r.all.forEach(drain);
+  check('host returns to the editor',       lastScreen(r.host), 'screen-nt-authoring');
+  check('…on a genuinely blank board',
+        [r.host.__nt.node.badSectors.length, r.host.__nt.node.nativeHoneypots.length], [0, 0]);
+  check('client returns to the same standby it saw at the start',
+        lastScreen(r.clients[0]), 'screen-nt-standby');
+  check('…with its Debug state re-zeroed',
+        [r.clients[0].__nt.debugAttempt, r.clients[0].__nt.debugBest], [0, null]);
+  check('no exceptions', r.all.map(errs), [[], []]);
+})();
+
+// ── ntResetState ──────────────────────────────────────────────────────────────
+section('Teardown — session state clears, the SETTING survives');
+(() => {
+  const d = makeDevice('reset', 'single', 0, [{ uid: 'u0', nickname: 'Ali' }]);
+  d.__nt.seat({ players: 1, names: ['Ali'], debug: true });
+  d.__nt.showAuthoring();
+  d.__nt.authRandTerrain();
+  d.__nt.deploy();
+  d.__nt.showBuild();
+  d.__nt.commit();
+  check('mid-session state exists', d.__nt.debugAttempt, 1);
+
+  // Move the brush off its default before reset, so "brush back to default" below is a real
+  // check rather than one that would read 'bad' either way (it's already 'bad' post-authoring).
+  d.__nt.setBrushDbg('native');
+
+  d.__nt.resetState();
+  check('attempt count cleared',   d.__nt.debugAttempt, 0);
+  check('best cleared',            d.__nt.debugBest, null);
+  check('readiness arrays cleared',[d.__nt.debugFinished, d.__nt.debugCounts], [[], []]);
+  check('brush back to default',   d.__nt.debugBrush, 'bad');
+  check('but ntDebugMode SURVIVES — it is a setting, like every other setting',
+        d.__nt.debugMode, true);
+  check('no exceptions', errs(d), []);
+})();
 
 // ═══════════════════════════════════════════════════════════════════════════
 console.log('\n' + '='.repeat(62));

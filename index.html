@@ -7436,7 +7436,7 @@ Climb Again
     class="flex items-center justify-center w-full min-h-screen px-4 py-8 overflow-y-auto">
     <div class="flex flex-col w-full max-w-sm gap-3">
       <div class="flex items-center justify-between">
-        <p id="nt-build-title" class="text-stone-500 font-semibold text-sm">VULNERABILITY SIMULATION <span id="nt-build-counter">1/5</span></p>
+        <p id="nt-build-title" class="text-stone-500 font-semibold text-sm"><span id="nt-build-title-label">VULNERABILITY SIMULATION</span> <span id="nt-build-counter">1/5</span></p>
         <div class="flex items-center gap-2">
           <button id="btn-nt-how-to" class="text-stone-400 font-bold text-sm active:scale-90 transition-transform duration-100">[?]</button>
           <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">&#x1F50A;</button>
@@ -7458,8 +7458,73 @@ Climb Again
           <span id="nt-routing-status" class="text-emerald-400 whitespace-nowrap">ROUTING: VALID</span>
         </div>
       </div>
+      <button id="btn-nt-build-clear" style="display:none" class="min-h-11 w-full rounded-xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-sm transition-all duration-150">
+        Clear All
+      </button>
       <button id="btn-nt-commit" class="min-h-14 w-full rounded-2xl bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150 btn-mp-action">
         COMMIT RUNTIME &#x25B6;
+      </button>
+    </div>
+  </section>
+
+  <!-- NT NODE EDITOR (Debug Mode) — authors the SAME object ntGenerateNode() returns.
+       THE STACK: header + stage + controls are siblings in one centred column. This screen
+       is NOT on the legacy sticky-footer whitelist and must never be added to it. -->
+  <section id="screen-nt-authoring" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-4 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-3">
+
+      <div class="flex items-center justify-between">
+        <p class="text-stone-500 font-semibold text-sm">NODE EDITOR &#x2014; STAGING</p>
+        <div class="flex items-center gap-2">
+          <button id="btn-nt-auth-how-to" class="text-stone-400 font-bold text-sm active:scale-90 transition-transform duration-100">[?]</button>
+          <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">&#x1F50A;</button>
+          <button class="btn-nt-quit-open text-stone-500 font-bold text-xl active:scale-90 transition-transform duration-100">&#x2715;</button>
+        </div>
+      </div>
+
+      <div class="w-full rounded-xl border border-emerald-700/40 bg-slate-900 p-2 flex flex-col gap-1">
+        <div class="flex items-center justify-between px-1 text-[10px] font-mono gap-2">
+          <span class="text-emerald-400 truncate flex-shrink-0">user:\staging</span>
+          <span id="nt-auth-routing" class="text-emerald-400 whitespace-nowrap">ROUTING: VALID</span>
+        </div>
+        <div id="nt-auth-grid" class="w-full aspect-square bg-slate-950 rounded"></div>
+      </div>
+
+      <div class="flex gap-2">
+        <button class="pill min-h-11 pill-active-emerald" data-nt-brush="bad">Bad Sector</button>
+        <button class="pill min-h-11" data-nt-brush="native">Honeypot</button>
+        <button class="pill min-h-11" data-nt-brush="ingress">Ingress</button>
+        <button class="pill min-h-11" data-nt-brush="egress">Egress</button>
+      </div>
+      <p id="nt-auth-brush-hint" class="text-stone-400 text-xs"></p>
+
+      <div class="flex flex-col gap-2">
+        <div class="flex items-center justify-between">
+          <span class="text-stone-500 text-sm font-semibold">Firewall Budget</span>
+          <div class="flex items-center gap-3">
+            <button id="btn-nt-auth-fw-minus" class="min-h-11 min-w-11 rounded-xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-bold transition-all duration-150">&#x2212;</button>
+            <span id="nt-auth-fw-val" class="text-stone-800 font-mono font-semibold w-8 text-center">0</span>
+            <button id="btn-nt-auth-fw-plus" class="min-h-11 min-w-11 rounded-xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-bold transition-all duration-150">+</button>
+          </div>
+        </div>
+        <div class="flex items-center justify-between">
+          <span class="text-stone-500 text-sm font-semibold">Honeypot Budget</span>
+          <div class="flex items-center gap-3">
+            <button id="btn-nt-auth-hp-minus" class="min-h-11 min-w-11 rounded-xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-bold transition-all duration-150">&#x2212;</button>
+            <span id="nt-auth-hp-val" class="text-stone-800 font-mono font-semibold w-8 text-center">0</span>
+            <button id="btn-nt-auth-hp-plus" class="min-h-11 min-w-11 rounded-xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-bold transition-all duration-150">+</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex gap-2">
+        <button id="btn-nt-auth-rand-terrain" class="min-h-11 flex-1 rounded-xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-sm transition-all duration-150">Randomise Terrain</button>
+        <button id="btn-nt-auth-rand-budget" class="min-h-11 flex-1 rounded-xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-sm transition-all duration-150">Randomise Budget</button>
+      </div>
+
+      <button id="btn-nt-auth-deploy" class="min-h-14 w-full rounded-2xl bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Deploy Node
       </button>
     </div>
   </section>
@@ -7526,6 +7591,7 @@ Climb Again
         <p id="nt-summary-ser-label" class="text-stone-400 text-xs font-semibold uppercase tracking-widest">System Efficiency Rating</p>
         <p id="nt-summary-ser" class="text-6xl font-bold text-emerald-600 font-mono leading-tight">--.--%</p>
         <p id="nt-summary-rawms" class="text-stone-400 text-sm font-mono">0 ms</p>
+        <p id="nt-summary-caption" style="display:none" class="text-stone-400 text-xs"></p>
       </div>
       <div id="nt-summary-board" class="flex flex-col gap-2 text-left"></div>
       <div class="flex flex-col gap-3 w-full">
@@ -7549,6 +7615,7 @@ Reboot System
     <div class="flex flex-col w-full max-w-sm gap-4 text-center">
       <p class="text-5xl">⚡</p>
       <p id="nt-standby-msg" class="text-stone-400 text-sm">⏳ Waiting for the host…</p>
+      <div id="nt-standby-roster" style="display:none" class="flex flex-col gap-2 text-left"></div>
     </div>
   </section>
 
@@ -7597,11 +7664,12 @@ Reboot System
             <p class="text-stone-800 font-semibold">Simulation Iterations</p>
             <p class="text-stone-400 text-sm mt-0.5">How many Vulnerability Simulations make up a full match.</p>
           </div>
-          <div class="flex gap-2">
+          <div id="nt-ctl-iters" class="flex gap-2">
             <button class="pill pill-active-emerald" data-nt-iters="5">5</button>
             <button class="pill" data-nt-iters="7">7</button>
             <button class="pill" data-nt-iters="10">10</button>
           </div>
+          <p id="nt-reason-iters" style="display:none" class="text-amber-600 text-xs"></p>
         </div>
 
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
@@ -7609,12 +7677,13 @@ Reboot System
             <p class="text-stone-800 font-semibold">Hardening Window</p>
             <p class="text-stone-400 text-sm mt-0.5">How long you get to build each Node before the layout locks.</p>
           </div>
-          <div class="flex gap-2">
+          <div id="nt-ctl-win" class="flex gap-2">
             <button class="pill" data-nt-win="45">45s</button>
             <button class="pill" data-nt-win="60">60s</button>
             <button class="pill pill-active-emerald" data-nt-win="90">90s</button>
             <button class="pill" data-nt-win="0">No Limit</button>
           </div>
+          <p id="nt-reason-win" style="display:none" class="text-amber-600 text-xs"></p>
         </div>
 
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
@@ -7629,6 +7698,18 @@ Reboot System
           </div>
         </div>
 
+        <!-- Debug Mode — the ONE card permitted to sit below the others and above ✨ Sylly Mode.
+             It is Sylly's exclusivity partner; nothing else may take this slot. -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <div class="flex items-center justify-between">
+            <p class="text-stone-800 font-semibold">Debug Mode</p>
+            <button id="btn-nt-debug-toggle" class="game-toggle-off shrink-0">OFF</button>
+          </div>
+          <p class="text-stone-600 text-sm font-semibold">Staging Environment</p>
+          <p class="text-stone-400 text-sm">Build the Node yourself instead of letting the system roll one — draw the terrain, drop the Honeypots, place the ports and set the budget. Everyone then hardens it and can re-run the trace as many times as they like.</p>
+          <p id="nt-reason-debug" style="display:none" class="text-amber-600 text-xs"></p>
+        </div>
+
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
           <div class="flex items-center justify-between">
             <p class="text-stone-800 font-semibold">✨ Sylly Mode</p>
@@ -7636,6 +7717,7 @@ Reboot System
           </div>
           <p class="text-stone-600 text-sm font-semibold">Distributed Network Protocol</p>
           <p class="text-stone-400 text-sm">Form two corporate clusters, pool your resources, and chain your Nodes into one continuous relay. A Lead Systems Engineer allocates the team's inventory; everyone builds a leg of the pipeline.</p>
+          <p id="nt-reason-sylly" style="display:none" class="text-amber-600 text-xs"></p>
         </div>
 
         <button id="btn-nt-settings-close" class="min-h-14 w-full rounded-2xl bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
@@ -7694,6 +7776,12 @@ Reboot System
         </div>
 
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest text-emerald-600">Debug Mode</p>
+          <p class="font-bold text-stone-800">Staging Environment</p>
+          <p class="text-stone-500 text-sm">One analyst authors the Node by hand in the <span class="font-semibold text-stone-700">Node Editor</span> — drawing Bad Sectors, dropping Native Honeypots, placing the ports and setting everyone's budget. Once it is deployed, you can re-run your trace <span class="font-semibold text-stone-700">as many times as you like</span>; only your best attempt is scored. Not available alongside Sylly Mode.</p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
           <p class="text-xs font-semibold uppercase tracking-widest text-emerald-600">✨ Sylly Mode</p>
           <p class="font-bold text-stone-800">Distributed Network Protocol</p>
           <p class="text-stone-500 text-sm">Two corporate clusters pool resources and chain their Nodes into one continuous relay. A Lead Systems Engineer allocates the team's inventory; the signal carries its speed and slow state across each <span class="font-semibold text-stone-700">Bridge</span>.</p>
@@ -7703,6 +7791,29 @@ Reboot System
           Got it
         </button>
       </div>
+    </div>
+  </div>
+
+  <!-- NT DEBUG RETRY OVERLAY — Decision Modal, deliberately NON-DISMISSIBLE: both buttons are
+       real decisions, so ui-style.md's documented exception applies. That only holds while
+       NEITHER id matches engine.js's delegated backdrop-tap pattern
+       (cancel|close|done|ok|dismiss as a whole segment). Naming the second button
+       btn-nt-debug-done would silently make a backdrop tap finish the player's session. -->
+  <div id="nt-debug-retry-overlay" style="display:none"
+    class="fixed inset-0 z-[90] overlay-modal-backdrop flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-emerald-300">
+      <div class="flex flex-col gap-2">
+        <p class="text-3xl">&#x26A1;</p>
+        <h3 class="text-lg font-bold text-stone-800">Trace Complete</h3>
+        <p id="nt-debug-retry-attempt" class="text-stone-400 text-xs font-mono">ATTEMPT 1</p>
+        <p id="nt-debug-retry-sub" class="text-stone-500 text-sm font-mono"></p>
+      </div>
+      <button id="btn-nt-debug-again" class="min-h-14 w-full rounded-2xl bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white font-semibold text-lg transition-all duration-150">
+        Run Again
+      </button>
+      <button id="btn-nt-debug-finish" class="min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-lg transition-all duration-150">
+        Finish Testing
+      </button>
     </div>
   </div>
 

@@ -446,7 +446,13 @@ Every other content/results screen in the suite has already been migrated to the
 - **Step label:** `text-[brand]`, no emoji, just `"Step N"` or `"Winning and Scoring"`.
 - **Step heading:** `font-bold text-stone-800`, **no emoji**.
 - **Body text:** `text-stone-500 text-sm`; keywords as `font-semibold text-stone-700`; emojis in body are OK.
-- **Card ordering:** Steps → Winning and Scoring → ✨ Sylly Mode → close button.
+- **Card ordering:** Steps → Winning and Scoring → ✨ Sylly Mode → close button. **Sanctioned
+  exception:** a setting that is Sylly Mode's mutually-exclusive or superseded partner (§ Settings
+  Layout Standard) may sit immediately **above** the Sylly Mode card, mirroring the settings
+  overlay's order — the two read as a pair because the player is choosing between them. Nothing
+  else may take that slot. The underlying settings-overlay pattern's first instance is FRT's
+  Pear-Off card, but FRT never mirrored it into its How to Play overlay — NT's Debug Mode card is
+  the first instance of *this* how-to mirror specifically.
 - **Winning and Scoring:** always this exact label — never just "Winning" or "Scoring".
 - **Sylly Mode card:** present for every game. Label is `✨ Sylly Mode` (literal — the `✨` is part of the label text, styled with `text-[brand]`). Heading is the thematic name (e.g. "Wild Words", "Silent Running").
 - **Close button:** game brand primary colour (`bg-[brand] hover:bg-[brand-dark]`).
@@ -685,6 +691,56 @@ Rules:
 - Sub-options (pills, sliders): wrapped in a separate `style="display:none"` div, shown only when toggle is ON — only used when there is a meaningful sub-choice (e.g. GM intensity)
 - CTA start-game buttons (game menu) must not contain emoji — one case of the broader § Action Button Standard
 - LI5: subtitle is "Extra Credit"; intensity slider (`#sylly-pct-row`) is revealed on toggle ON (same sub-options pattern as GM)
+
+**Mutually-exclusive / superseded settings (named Aug 2026 — the pattern itself shipped earlier,
+unnamed).** Two settings can interact in one of two ways once a game has both a Sylly Mode and
+another toggle that can't sensibly run alongside it:
+
+| Pattern | Behaviour |
+|---------|-----------|
+| **Mutually exclusive** | A ON forces B OFF, reciprocally. Both stay reachable. |
+| **Superseded** | A ON makes B irrelevant. **B's stored value is not modified** and returns intact when A goes OFF. |
+
+**Instances, in shipped order:** FRT's **Pear-Off ↔ Sylly Mode** (Mutually exclusive; shipped SW
+v167, 10 Aug 2026 — `js/games/frt.js` `frtPearOff`/`frtSyllyMode`, reciprocal lock in both toggle
+handlers, `frt-pearoff-locked-note`/`frt-sylly-locked-note` in `index.html`) is the **first**
+instance. NT's **Debug Mode ↔ Sylly Mode** (both patterns at once — Mutually exclusive with Sylly,
+and Superseded over Iterations/Hardening Window; shipped this branch, 17 Aug 2026) is the
+**second**. FRT's pattern went undocumented until this entry named it — worth noting, since that is
+presumably why it read as novel when NT shipped the same shape a week later.
+
+**Visual contract, both patterns:** the disabled setting's controls get `opacity-50
+pointer-events-none`; the card's **title stays at full contrast** (only the controls dim — a reader
+scanning card titles must still see every setting exists); a reason line is **mandatory** directly
+under the controls, styled `text-amber-600 text-xs`. This documents an existing but previously
+unwritten convention — FRT's locked-notes already use `text-amber-600` — rather than introducing a
+new colour. It is a primitive **new to this rule file**, not new to the codebase: **never
+`text-stone-400`**, which already means something else on this exact screen (the § Dynamic Value
+Line's *picked* colour, e.g. "45s" under a Hardening Window pill row). Amber means *unavailable*
+(disabled by the exclusivity partner); stone-400 means *not picked*. The two must never look alike,
+or a player can't tell "I haven't chosen this" from "I can't choose this."
+
+**The sanctioned card-order exception:** an exclusivity partner may sit immediately **above** the
+`✨ Sylly Mode` card in the settings overlay — this is the one and only exception to "Sylly Mode is
+always last" there; nothing else may take that slot. The two read as a pair because they are one:
+Sylly and its exclusivity partner are the two settings a player must choose between, so the eye
+finds them adjacent. FRT's Pear-Off card (`index.html`, `frt-settings-overlay`) is the reference
+for the settings-overlay ordering — it precedes NT's by a week. **Mirroring the same ordering into
+the How to Play overlay is NT's own addition, not established prior art:** FRT's how-to overlay
+(`frt-how-to-overlay`) does not document Pear-Off at all — only Fruity Personalities (Sylly) gets a
+card there. NT's Debug Mode card (`nt-how-to-overlay`) is the first instance of the how-to mirror;
+treat it, not FRT, as the reference if a future game needs that half of the pattern.
+
+**Implementation note:** both instances implement this locally rather than through a shared helper —
+FRT toggles `.disabled`/inline `style.opacity` directly at each of its two toggle handlers;
+NT centralises the same idea in one function, `ntSetCardDisabled(ctlId, reasonId, disabled, reason)`
+in `js/games/nt.js`. **A shared `bindExclusiveSettings()` engine helper is deliberately still not
+being built**, even though this is now confirmed as the pattern's *second* instance (which is
+usually this project's own extraction trigger — dice logic stayed in `dyb.js` only until a second
+dice game existed). Overridden here on scope grounds: building it now would mean touching FRT, a
+shipped game unrelated to the branch that surfaced this, at the tail end of a documentation-only
+task. Tracked as a deferred extraction in `docs/deferred-work.md` — build it when a third instance
+appears, or the next time either FRT's or NT's settings code is touched for an unrelated reason.
 
 **Outer scrollable body** between cards: `flex flex-col gap-5` — keep consistent across all games.
 

@@ -1320,17 +1320,24 @@ LOBBY (MDLM only) → NT MENU
 | Shared Allocation Hub | DNP pre-hardening screen — team captain deposits the team surplus across the relay legs |
 | Team Surplus | DNP: the deposit-only budget on top of every leg's untouchable base — 3 FW + 1 HP **per team member**. (Called "Team Pool" before v191, when it was the team's whole inventory and legs were rebalanced against it) |
 | DNP | Devil's Network Protocol — Sylly Mode name; two teams compete on matched relay legs |
-| New Trace | Play again — resets all state, preserves names + settings |
+| Debug Mode | Staging Environment — one analyst hand-authors a Node in the Node Editor instead of the system rolling one; mutually exclusive with Sylly Mode |
+| Node Editor | `screen-nt-authoring` — the hand-authoring canvas: draw Bad Sectors, drop Native Honeypots, place Ingress/Egress, set the budget |
+| Deploy Node | The Node Editor's CTA — publishes the authored node over `NT_GENERATE` exactly as a rolled node would be |
+| Attempt | One local run of the retry loop against the deployed node — costs zero packets; a player may run unlimited attempts |
+| Best Trace | The player's highest-latency attempt so far (NT rewards the longest delay); the summary scores this, not the most recent attempt |
+| Reboot System? | Play-again overlay heading (`nt-reboot-overlay`) — resets all state, preserves names + settings. *(Corrected 17 Aug 2026 — this row previously read "New Trace", which matches no shipped copy; Task 1 fixed the phantom `nt-new-trace-overlay` id elsewhere in this section but missed this terminology row.)* |
 | Drop Connection? | Quit overlay heading |
 | Network Config ⚙️ | Settings overlay title |
 
 ### Settings
-| Setting (display) | Options | Default | Internal variable | Internal values |
-|------------------|---------|---------|------------------|-----------------|
-| Routing Cycles | 3 / 5 | 3 | `ntCycles` | int |
-| Hardening Window | 45s / 60s / 90s / No Limit | 90s | `ntHardeningWin` | int — `0` = no limit (shows ∞, no auto-commit) |
-| Component Density | Minimal / Standard / Heavy | Standard | `ntComponentDensity` | `'minimal'` / `'standard'` / `'heavy'` |
-| ✨ Sylly Mode (Devil's Network Protocol) | OFF / ON | OFF | `ntSyllyMode` | bool |
+| Setting | Variable | Options | Default |
+|---------|----------|---------|---------|
+| Matrix Scale | `ntMatrixScale` | 16 / 18 / 20 | 18 |
+| Simulation Iterations | `ntIterations` | 5 / 7 / 10 | 5 |
+| Hardening Window | `ntHardeningWin` | 45s / 60s / 90s / No Limit (`0`) | 90 |
+| Native Honeypots | `ntNativeHoneypots` | 0 / 1 / 2 | 2 |
+| Debug Mode | `ntDebugMode` | ON / OFF | OFF |
+| ✨ Sylly Mode | `ntSyllyMode` | ON / OFF | OFF |
 
 Player count (`ntPlayerCount`, default 4) is set from the lobby roster in MDLM (lobby min 2, max 8) or on `screen-nt-setup` in PTP — not in the settings overlay. DNP/Sylly requires two teams (min 4).
 
@@ -1411,7 +1418,9 @@ Player count (`ntPlayerCount`, default 4) is set from the lobby roster in MDLM (
 | `nt-settings-overlay` | Data (slide-up) | z-[80] | "Network Config ⚙️" |
 | `nt-how-to-overlay` | Data (slide-up) | z-[90] | How to Play |
 | `nt-quit-overlay` | Decision modal | z-[80] | "Drop Connection?" — mid-game quit |
-| `nt-new-trace-overlay` | Decision modal | z-[90] | "New Trace?" — play-again confirmation |
+| `nt-reboot-overlay` | Decision modal | z-[90] | "Reboot System?" — play-again confirmation |
+| `nt-logs-overlay` | Data (slide-up) | z-[90] | "// SYSTEM LOGS" — per-cycle SER comparison, file-explorer aesthetic |
+| `nt-debug-retry-overlay` | Decision modal | z-[90] | "Trace Complete" — Debug Mode's per-attempt Run Again / Finish Testing choice |
 | `nt-bridge-preview-overlay` | Custom (full-screen tap-to-close) | z-[95] | DNP only — enlarged cluster-bridge preview (all legs ingress ▸ egress); opened by tapping the inline bridge on the Shared Allocation Hub |
 
 ### Screens
@@ -1419,6 +1428,7 @@ Player count (`ntPlayerCount`, default 4) is set from the lobby roster in MDLM (
 |-----------|---------|
 | `screen-nt-menu` | Main hub |
 | `screen-nt-setup` | PTP "Provision Admins" — operator count + callsigns |
+| `screen-nt-authoring` | Debug Mode's Node Editor — hand-author a Node (brush pills, budget steppers, Randomise Terrain / Randomise Budget, Deploy Node); the single entry point, reached at session start and again on the Author New Node loop-back from the summary |
 | `screen-nt-gate` | Cycle readiness gate — reused for the cycle-start boot terminal (types out flavour lines, then reveals the ready-check button), each PTP player's pass-the-phone handover, and the post-build "gather to watch playback" beat |
 | `screen-nt-allocation` | DNP Shared Allocation Hub — the cluster bridge as picker; captain arms a resource and taps a leg to deposit the team surplus |
 | `screen-nt-build` | Hardening screen — player places components on their relay-leg node |
@@ -1435,8 +1445,8 @@ Player count (`ntPlayerCount`, default 4) is set from the lobby roster in MDLM (
 - **Hardening privacy:** Each device hardens its own node locally. Placements are not broadcast until `NT_PLACEMENT_SUBMIT` ACTION at end of hardening window.
 - **DNP team assignment:** `ntTeamIdx[playerIdx]` and `ntCaptainSlots[team]` populated from `mpLobbyRoster` in `onPassThePhone`. Team captains are the `rosterConfig.captainSlots` values.
 - **Mid-game quit dissolves the room:** same PASS contract — host `HOST_END_GAME` / client `NT_PLAYER_LEFT` → host `NT_MATCH_DISSOLVED` → all `resetToLobby()`
-- **Key ACTION packets:** `NT_PLACEMENT_SUBMIT` (player's final placements → host), `NT_PLAYER_LEFT` (client quit → host dissolves), `NT_ALLOCATION_UPDATE` (client captain live adjustment → host), `NT_ALLOCATION_LOCK` (client captain commits allocation → host)
-- **Key SYNC packets:** `NT_GENERATE` (all player nodes + initial inventory; DNP: includes `isDNP`, `allPlayerNodes`, `teamIdx`, `captainSlots`), `NT_HUDDLE_START` (DNP allocation phase — carries `allPlayerNodes`, `teamIdx`, `captainSlots`, `teamPools`, `cycle`), `NT_ALLOCATION_SYNC` (live captain adjustments — both teams' working state), `NT_BUILD_BEGIN` (both teams locked — carries `endTimestamp`; all devices start hardening simultaneously), `NT_PLAYBACK` (all timelines + latencies + SERs; DNP: includes `teamCycleSERs`), `NT_RESULTS` (per-cycle SER leaderboard), `NT_GAMEOVER` (final rankings), `NT_MATCH_DISSOLVED` (player left → all `resetToLobby()`)
+- **Key ACTION packets:** `NT_PLACEMENT_SUBMIT` (player's final placements → host), `NT_PLAYER_LEFT` (client quit → host dissolves), `NT_ALLOCATION_UPDATE` (client captain live adjustment → host), `NT_ALLOCATION_LOCK` (client captain commits allocation → host), `NT_DEBUG_FINISH` (Debug Mode — client declares Finish Testing → host, carries `bestPlacements`/`bestLatencyMs`/`attempts`)
+- **Key SYNC packets:** `NT_GENERATE` (all player nodes + initial inventory; DNP: includes `isDNP`, `allPlayerNodes`, `teamIdx`, `captainSlots`; **Debug Mode: carries the hand-authored node verbatim and adds `debug: true`** — otherwise byte-identical to a rolled deploy), `NT_HUDDLE_START` (DNP allocation phase — carries `allPlayerNodes`, `teamIdx`, `captainSlots`, `teamPools`, `cycle`), `NT_ALLOCATION_SYNC` (live captain adjustments — both teams' working state), `NT_BUILD_BEGIN` (both teams locked — carries `endTimestamp`; all devices start hardening simultaneously), `NT_PLAYBACK` (all timelines + latencies + SERs; DNP: includes `teamCycleSERs`), `NT_RESULTS` (per-cycle SER leaderboard), `NT_GAMEOVER` (final rankings), `NT_MATCH_DISSOLVED` (player left → all `resetToLobby()`), `NT_DEBUG_ROSTER` (Debug Mode — host → all, carries `finished[]`/`attempts[]` plus an `authoring` flag distinguishing the session-start broadcast from the Author New Node loop-back, so the feature needs no third packet)
 
 ---
 

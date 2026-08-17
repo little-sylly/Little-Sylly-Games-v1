@@ -1130,6 +1130,7 @@ Each plugin reads `window.activeExpansionOverrides` at its settings-apply point 
 |-----------|---------|
 | `screen-nt-menu` | Main hub — Trace the Route!, How to Play, Settings, ← Back to the Box |
 | `screen-nt-setup` | "Provision Admins" — PTP operator count + callsigns |
+| `screen-nt-authoring` | Debug Mode's Node Editor — brush pills (`data-nt-brush`: `bad`/`native`/`ingress`/`egress`), `nt-auth-grid`, `nt-auth-routing` status line, `nt-auth-brush-hint`, firewall/honeypot budget steppers (`nt-auth-fw-val`/`nt-auth-hp-val`), `btn-nt-auth-rand-terrain`/`btn-nt-auth-rand-budget`, `btn-nt-auth-deploy` |
 | `screen-nt-gate` | Cycle readiness gate — carries the cycle-start boot terminal (`#nt-gate-boot-log`, typed line by line), each PTP handover, and the post-build gather beat |
 | `screen-nt-allocation` | DNP (Sylly Mode) Shared Allocation Hub — captain deposits surplus across legs; non-captain sees read-only. Body IDs (all built by `ntRenderAllocationScreen`, not static markup): `nt-alloc-viewport` (clips the strip to one leg) → `nt-alloc-bridge` (the strip), `nt-alloc-chips`, `nt-alloc-viewer-label`, `btn-nt-alloc-prev`/`-next`. Static footer: `nt-alloc-status`, `nt-alloc-warning`, `nt-alloc-controlhub`, `btn-nt-alloc-lock`. On the legacy `h-screen` whitelist but **switches to the Stack** when content fits (D34) |
 | `screen-nt-build` | Hardening screen — player places firewall/honeypot components on their own relay-leg node |
@@ -1143,16 +1144,23 @@ Each plugin reads `window.activeExpansionOverrides` at its settings-apply point 
 | `nt-settings-overlay` | Data (slide-up) | z-[80] | "Network Config ⚙️" — game settings |
 | `nt-how-to-overlay` | Data (slide-up) | z-[90] | How to Play |
 | `nt-quit-overlay` | Decision modal | z-[80] | "Drop Connection?" — mid-game exit confirm |
-| `nt-new-trace-overlay` | Decision modal | z-[90] | "New Trace?" — play-again confirmation |
+| `nt-reboot-overlay` | Decision modal | z-[90] | "Reboot System?" — play-again confirmation |
+| `nt-debug-retry-overlay` | Decision modal | z-[90] | "Trace Complete" — Debug Mode's per-attempt Run Again / Finish Testing choice |
 
 ### Key State Variables
 | Variable | Type | Default | Purpose |
 |----------|------|---------|---------|
 | `ntPlayerCount` | int | `4` | Total players (PTP: user-set; MDLM: from lobby) |
 | `ntPlayerNames` | string[] | `[]` | Player display names |
-| `ntCycles` | int | `3` | Number of routing cycles per session (setting) |
+| `ntIterations` | int | `5` | Number of routing cycles ("Simulation Iterations") per session (setting) *(corrected 17 Aug 2026 — this row previously read `ntCycles`, a variable that does not exist in `nt.js`; matched drift already fixed in `game-identities.md`)* |
 | `ntCycle` | int | `0` | Current cycle index |
-| `ntHardeningWin` | int | `60` | Hardening window in seconds (setting) |
+| `ntHardeningWin` | int | `90` | Hardening window in seconds (setting) |
+| `ntDebugMode` | bool | `false` | Debug/Sandbox Mode — mutually exclusive with `ntSyllyMode` |
+| `ntDebugBrush` | string | `'bad'` | Node Editor brush: `'bad'` \| `'native'` \| `'ingress'` \| `'egress'` |
+| `ntDebugMyAttempt` | int | `0` | This device's current attempt number on the deployed node (1-based once run) |
+| `ntDebugBest` | object\|null | `null` | This device's best attempt so far — `{ latencyMs, placements, timeline }` |
+| `ntDebugFinished` | bool[] | `[]` | `[playerIdx]` — host authority, the Debug readiness gate (MDLM) |
+| `ntDebugAttemptCounts` | int[] | `[]` | `[playerIdx]` — display only, drives `ntRenderDebugRoster` |
 | `ntNode` | object | `null` | Current player's relay-leg node geometry `{word, paths, placeholders[]}` |
 | `ntMyPlacements` | object[] | `[]` | Current player's placed components `[{type, pathIdx, segIdx}]` |
 | `ntInventory` | object | `{firewall:0, honeypot:0}` | Current player's available components |
@@ -1181,6 +1189,22 @@ Each plugin reads `window.activeExpansionOverrides` at its settings-apply point 
 |----------|---------|
 | `ntStartSession()` | Post-lobby entry — host generates node + routes; MDLM starts GAME_START flow |
 | `ntGenerateNode(opts)` | Generates relay-leg node geometry — `opts.keepInventory=true` reuses inventory for DNP N-node batch |
+| `ntEffectiveHardeningWin()` | Debug Mode superseding accessor — returns `0` ("∞", no countdown) when `ntDebugMode` is on, else `ntHardeningWin`. `ntStartBuildTimer` reads `0` and returns before arming `ntResolveGuard`, which is what fixes the `ntResolveGuard` hazard for free in Debug |
+| `ntSetCardDisabled(ctlId, reasonId, disabled, reason)` | Shared visual contract for the mutually-exclusive/superseded settings pattern — takes element **ids**, not elements; toggles `opacity-50 pointer-events-none` on the controls (card title stays full-contrast), shows/hides the `text-amber-600` reason line |
+| `ntDrawPortMarker(grid, port, color, inward, n)` | Extracted port-marker draw (pre-existing, shared by build and authoring grids) |
+| `ntAuthBlankNode()` | Returns a fresh blank node `{ n, ingress, egress, badSectors:[], nativeHoneypots:[] }` at the current `ntMatrixScale` — shape-identical to `ntGenerateNode()`'s output |
+| `ntShowAuthoring()` | Entry point for the Node Editor — reached at session start AND on the Author New Node loop-back; resets Debug state, shows `screen-nt-authoring` |
+| `ntRenderAuthGrid()` | Renders `#nt-auth-grid` — reuses `ntPaintCell`/`ntBlockAt`/`ntRepaintFootprint`/`ntFlashReject` unchanged; a brush-model `pointerup` handler replaces the build grid's inventory-tap-cycling |
+| `ntAuthTap(tx, ty)` | Routes a grid tap to `ntAuthSetPort` (port brushes) or place/remove terrain |
+| `ntAuthPlaceTerrain(tx, ty, asHoneypot)` | Places a Bad Sector or Native Honeypot; enforces zero-overlap and the same routing-validity gate `ntGenerateNode` uses (`ntPathExists(candidate, [])`) |
+| `ntAuthRemoveTerrain(b)` | Removes terrain — never re-checks validity, since removing only opens the board |
+| `ntAuthSetPort(tx, ty)` | Snaps Ingress/Egress to the nearest edge tile; enforces only that the two mouths differ and the node still routes — deliberately skips the generator's corner-proximity and different-edges re-rolls (an author's choice, not a bug) |
+| `ntSyncAuthUI()` | Repaints budget steppers, brush pill highlight and the brush hint line; clamps both budgets against the current terrain |
+| `ntAuthMaxFirewall()` | Firewall budget ceiling — `floor(n / NT_BLOCK)²`, same expression as `ntGenerateNode`'s own roll |
+| `ntAuthMaxHoneypot()` | Honeypot budget ceiling — `NT_HONEYPOT_CAP` minus native honeypots already placed |
+| `ntAuthRandomiseTerrain()` | Re-rolls geometry via `ntGenerateNode(true)` (keepInventory), then restores the authored Ingress/Egress pair if it still routes |
+| `ntAuthRandomiseBudget()` | Rolls a budget using the same range expressions `ntGenerateNode` uses for its own roll |
+| `ntDeployNode()` | Publishes the authored node over `NT_GENERATE` with `debug: true` (host) or begins the PTP/solo turn directly; resets all Debug-attempt accumulators via `ntResetCycleAccumulators` |
 | `ntPlayGateBoot(lastLine, onDone)` | "Cycle Initialisation Gate" context — shows `screen-nt-gate` (heading/sub already visible) and types the boot log (`NT_BOOT_LINES` + a caller-supplied final line, e.g. `LOGIN: ADMIN-2`) underneath; reveals the ready button on completion (default) or runs `onDone` (DNP's hand-off into `screen-nt-allocation`) |
 | `ntShowGateNow()` | "Cycle Diagnostic Gate" context (the post-build gather) — shows `screen-nt-gate` with heading/sub/button immediately, no boot log |
 | `ntNormaliseNode(node)` | Wire repair (BUG-06 class) — restores `badSectors` / `nativeHoneypots` to `[]` after Firebase erases them. Call on **every** node arriving from a packet (`NT_GENERATE` both branches, `NT_HUDDLE_START`) |
@@ -1215,6 +1239,14 @@ Each plugin reads `window.activeExpansionOverrides` at its settings-apply point 
 | `ntShowSummary(mode)` | Shows `screen-nt-summary` with per-cycle SER leaderboard, or the final match report when `mode === 'match'` |
 | `ntRenderSummary()` | Three branches: solo (raw latency), **DNP (team Cycle Leader + two team cards with per-member contributions)**, and the flat per-player leaderboard for Standard multi-player |
 | `ntTeamOverallSER()` | Rolling team average across cycles — **derived** from `ntTeamCycleSERs` on demand, deliberately not new state (nothing extra to broadcast, reset or normalise) |
+| `ntShowStandby(msg, roster)` | **Signature changed (Debug Mode)** — now takes an optional `roster` array; every caller must set both, since the two are siblings on one screen (`ui-style.md`'s multi-renderer rule) and a caller passing only `msg` would otherwise leave the previous caller's roster showing. Single-argument callers pass `roster === undefined`, which explicitly blanks it |
+| `ntRenderDebugRoster(rows)` | Renders `#nt-standby-roster` from `ntDebugRosterRows()`-shaped rows — `{ name, done, attempts }` per player; hides the box entirely when `rows` is empty/null |
+| `ntDebugRunAttempt()` | Runs one local attempt against the deployed node via `ntComputeTimeline_local()` — zero packets. **Higher latency is better** (NT scores the longest delay at 100% SER), so "best" tracks the highest `latencyMs`, not the lowest — see the C1 correction in `nt-implementation-notes.md` |
+| `ntDebugOpenRetry(latency, isBest, prevBest)` | Populates and shows `nt-debug-retry-overlay` — "NEW BEST +Nms" / "best remains Nms" / "first trace" |
+| `ntDebugRunAgain()` | Closes the retry overlay and returns to `screen-nt-build` — `ntMyPlacements` deliberately survives so a player can tweak one wall and re-run, not rebuild from scratch |
+| `ntDebugRosterRows()` | Maps `ntPlayerNames`/`ntDebugFinished`/`ntDebugAttemptCounts` into the `{ name, done, attempts }` shape `ntRenderDebugRoster` expects |
+| `ntDebugBroadcastRoster(authoring)` | Host → all: `NT_DEBUG_ROSTER` SYNC carrying `finished[]`/`attempts[]` and the `authoring` flag (distinguishes the session-start broadcast from the Author New Node loop-back — one packet, not two) |
+| `ntDebugFinish()` | Declares this player done — final, no un-finishing. Solo/PTP resolve inline; MDLM sets a slot in `ntDebugFinished` (host direct-updates its own slot per the dedup-guard rule, never self-sends) and resolves on `.every(Boolean)` |
 | `ntHandleEnvelope(env)` | Routes all NT ACTION/SYNC packets; called from `engine-multiplayer.js` |
 | `ntResetState()` | Full state teardown (called from `resetToLobby()` in `engine.js`) |
 

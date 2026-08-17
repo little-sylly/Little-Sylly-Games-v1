@@ -855,7 +855,7 @@ function mpSerialiseSettings(abbr) {
       passMidGameDraw, passOpenClimbing, passMinSequenceLength, passJokerCount, passSkyJokerVariant, passSyllyMode,
     };
     case 'nt': return {
-      ntMatrixScale, ntIterations, ntHardeningWin, ntNativeHoneypots, ntSyllyMode,
+      ntMatrixScale, ntIterations, ntHardeningWin, ntNativeHoneypots, ntDebugMode, ntSyllyMode,
     };
     case 'frt': return {
       frtFruitStock, frtRounds, frtTurnTimer, frtSyllyMode, frtPearOff,
@@ -1033,6 +1033,7 @@ function mpHandleEnvelope(env) {
           if (s.ntIterations       !== undefined) ntIterations       = s.ntIterations;
           if (s.ntHardeningWin     !== undefined) ntHardeningWin     = s.ntHardeningWin;
           if (s.ntNativeHoneypots  !== undefined) ntNativeHoneypots  = s.ntNativeHoneypots;
+          if (s.ntDebugMode        !== undefined) ntDebugMode        = s.ntDebugMode;
           if (s.ntSyllyMode        !== undefined) ntSyllyMode        = s.ntSyllyMode;
           break;
         case 'frt':
