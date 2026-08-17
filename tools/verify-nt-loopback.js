@@ -1197,21 +1197,45 @@ section('Retry loop — unlimited attempts, zero packets');
   check('Run Again returns to the build screen', lastScreen(client), 'screen-nt-build');
   check('…and the header advances', client.__nt.buildCounter(), '2');
 
-  // Attempt 2 — a real build. More hardening means a LONGER trace, which in NT is BETTER:
-  // the defender is slowing the intruder down, and the longest delay scores 100% SER.
-  client.__nt.setPlacements([{ ax: 4, ay: 4, type: 'firewall' }, { ax: 8, ay: 8, type: 'firewall' }]);
-  client.__nt.commit();
-  check('attempt 2 counted',      client.__nt.debugAttempt, 2);
-  check('a slower trace is a NEW BEST (higher latency wins in NT)',
-        client.__nt.debugBest >= first, true);
-  const second = client.__nt.debugBest;
+  // Attempt 2 — a real build. Find a single-block firewall anchor that genuinely lengthens the
+  // baseline route. A fixed offset pair (or a point picked off the polyline's own geometry)
+  // isn't reliably safe across every seed's random terrain: it can land off the actual route
+  // (leaving latency unchanged even under CORRECT code) or right against a port's edge tile,
+  // severing the only entrance instead of forcing a detour (both hit during a mid-fix seed
+  // sweep). Search block anchors outward from the board CENTRE — the tile least likely to
+  // border either port, since both live on the map edge — and use the first one that empirically
+  // produces a longer, still-routable trace. This is the same validity concept the real build
+  // screen already checks via ntPathExists before it lets a placement stick.
+  const gridN = client.__nt.node.n;
+  const cx = Math.floor(gridN / 2) - 1, cy = Math.floor(gridN / 2) - 1;
+  const anchors = [];
+  for (let bx = 0; bx <= gridN - 2; bx++) for (let by = 0; by <= gridN - 2; by++) anchors.push({ ax: bx, ay: by });
+  anchors.sort((a, b) => (Math.abs(a.ax - cx) + Math.abs(a.ay - cy)) - (Math.abs(b.ax - cx) + Math.abs(b.ay - cy)));
 
-  // Attempt 3 — deliberately worse. Best must NOT regress to "last".
+  // expectedSecond is read straight from the same PURE function the app itself uses to score
+  // an attempt — computed independently of ntDebugBest's isBest bookkeeping, so a comparison-
+  // direction bug in that bookkeeping cannot also corrupt the value we're checking it against.
+  let expectedSecond = 0, chosen = null;
+  for (const cand of anchors) {
+    client.__nt.setPlacements([{ ax: cand.ax, ay: cand.ay, type: 'firewall' }]);
+    const lat = client.__nt.timeline().latencyMs;
+    if (lat > first) { expectedSecond = lat; chosen = cand; break; }
+  }
+  if (!chosen) throw new Error('no block anchor lengthened the baseline route — terrain too open');
+  // ntMyPlacements is already `chosen` — the loop's last (successful) setPlacements call.
+  client.__nt.commit();
+  check('attempt 2 counted', client.__nt.debugAttempt, 2);
+  check('a slower trace becomes the recorded best (higher latency wins in NT)',
+        client.__nt.debugBest, expectedSecond);
+
+  // Attempt 3 — deliberately worse. Best must NOT regress to "last". Checked against
+  // expectedSecond (captured above from the pure function) — never re-read from ntDebugBest
+  // after attempt 2, which is exactly the state a comparison-direction bug corrupts.
   client.__nt.runAgain();
   client.__nt.setPlacements([]);
   client.__nt.commit();
   check('attempt 3 counted',      client.__nt.debugAttempt, 3);
-  check('best is BEST, not LAST', client.__nt.debugBest, second);
+  check('best is BEST, not LAST', client.__nt.debugBest, expectedSecond);
   check('three attempts still sent NO packets', clientPackets, []);
   check('no exceptions', r.all.map(errs), [[], []]);
 })();
