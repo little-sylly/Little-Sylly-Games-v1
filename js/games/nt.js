@@ -1543,10 +1543,10 @@ function ntCovers(ax, ay, tx, ty) { return tx >= ax && tx <= ax + 1 && ty >= ay 
 
 // Boolean [n][n] of solid tiles (bad sectors, native + allocated honeypots, firewalls).
 function ntSolidGrid(node, placements) {
-  const n = node.n, g = [];
-  for (let y = 0; y < n; y++) g.push(new Array(n).fill(false));
+  const w = node.w, h = node.h, g = [];
+  for (let y = 0; y < h; y++) g.push(new Array(w).fill(false));
   const mark = (ax, ay) => ntBlockTiles(ax, ay).forEach(([tx, ty]) => {
-    if (tx >= 0 && tx < n && ty >= 0 && ty < n) g[ty][tx] = true;
+    if (tx >= 0 && tx < w && ty >= 0 && ty < h) g[ty][tx] = true;
   });
   (node.badSectors || []).forEach(c => mark(c.ax, c.ay));
   (node.nativeHoneypots || []).forEach(c => mark(c.ax, c.ay));
@@ -1558,11 +1558,11 @@ function ntSolidGrid(node, placements) {
 // Every solid tile is inflated by the runner half-width (0.25 = exactly ONE sub-cell):
 // a tile owning sub-cells [tx·k … tx·k+k-1] blocks [tx·k-1 … tx·k+k] → sharp +0.25 offset.
 function ntConfigGrid(node, placements) {
-  const n = node.n, k = NT_LATTICE_K, W = n * k, H = n * k;
+  const k = NT_LATTICE_K, W = node.w * k, H = node.h * k;
   const solid = ntSolidGrid(node, placements);
   const g = [];
   for (let y = 0; y < H; y++) g.push(new Array(W).fill(false));
-  for (let ty = 0; ty < n; ty++) for (let tx = 0; tx < n; tx++) {
+  for (let ty = 0; ty < node.h; ty++) for (let tx = 0; tx < node.w; tx++) {
     if (!solid[ty][tx]) continue;
     for (let sy = ty * k - 1; sy <= ty * k + k; sy++) {
       if (sy < 0 || sy >= H) continue;
@@ -1619,8 +1619,11 @@ function ntPortOutside(port, n) {            // a point just OFF the board (visu
   return { x: n + 0.6, y: port.idx + 0.5 };  // right
 }
 function ntPortSub(node, port) {             // config-lattice sub-cell of the mouth interior
-  const k = NT_LATTICE_K, p = ntPortInterior(node, port), m = node.n * k - 1;
-  return { sx: Math.max(0, Math.min(m, Math.floor(p.x * k))), sy: Math.max(0, Math.min(m, Math.floor(p.y * k))) };
+  const k = NT_LATTICE_K, p = ntPortInterior(node, port);
+  // One clamp per AXIS. A single shared bound silently mis-clamps the longer axis on any
+  // non-square node — it was correct only because w === h everywhere before this change.
+  const mx = node.w * k - 1, my = node.h * k - 1;
+  return { sx: Math.max(0, Math.min(mx, Math.floor(p.x * k))), sy: Math.max(0, Math.min(my, Math.floor(p.y * k))) };
 }
 function ntIsMouthTile(tx, ty) {
   const n = ntNode.n, [ix, iy] = ntPortMouth(ntNode.ingress, n), [ex, ey] = ntPortMouth(ntNode.egress, n);
@@ -1633,7 +1636,7 @@ function ntIsMouthTile(tx, ty) {
 
 // Build-time reachability: BFS on the config lattice (port mouth → port mouth).
 function ntPathExists(node, placements) {
-  const k = NT_LATTICE_K, g = ntConfigGrid(node, placements), W = node.n * k, H = node.n * k;
+  const k = NT_LATTICE_K, g = ntConfigGrid(node, placements), W = node.w * k, H = node.h * k;
   const s = ntPortSub(node, node.ingress), t = ntPortSub(node, node.egress);
   if (g[s.sy][s.sx] || g[t.sy][t.sx]) return false;
   const seen = new Uint8Array(W * H), goal = t.sy * W + t.sx;
@@ -1655,7 +1658,7 @@ function ntPathExists(node, placements) {
 // Weighted shortest path (Dijkstra; ortho 1 / diagonal √2) on the config lattice.
 // Returns sub-cells [{x,y}, …] inclusive, or null. Deterministic (NT_STEPS order).
 function ntDijkstraSub(node, placements) {
-  const k = NT_LATTICE_K, g = ntConfigGrid(node, placements), W = node.n * k, H = node.n * k;
+  const k = NT_LATTICE_K, g = ntConfigGrid(node, placements), W = node.w * k, H = node.h * k;
   const s = ntPortSub(node, node.ingress), t = ntPortSub(node, node.egress);
   if (g[s.sy][s.sx] || g[t.sy][t.sx]) return null;
   const dist = new Float64Array(W * H).fill(Infinity);
