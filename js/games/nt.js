@@ -1813,7 +1813,13 @@ function ntSlotCount(w, h) {
   return Math.floor(w / NT_BLOCK) * Math.floor(h / NT_BLOCK);
 }
 
-function ntRandomEdgePort(n) { return { edge: ['top', 'right', 'bottom', 'left'][ntRandInt(0, 3)], idx: ntRandInt(0, n - 1) }; }
+// One bound per EDGE. A single shared n was correct only because generated nodes are
+// square — the same class of latent as ntPortSub's shared clamp (D44).
+function ntRandomEdgePort(w, h) {
+  const edge = ['top', 'right', 'bottom', 'left'][ntRandInt(0, 3)];
+  const len  = (edge === 'top' || edge === 'bottom') ? w : h;
+  return { edge, idx: ntRandInt(0, len - 1) };
+}
 
 // §10 pipeline → sets ntNode + ntInventory. Re-rolls until Ingress→Egress is valid
 // on the config lattice. Ports never share an edge (DNP pins left→right).
@@ -1836,12 +1842,15 @@ function ntGenerateNode(keepInventory = false, forcedIngressIdx = null) {
       ingress = { edge: 'left',  idx: (forcedIngressIdx != null ? forcedIngressIdx : ntRandInt(0, n - 1)) };
       egress  = { edge: 'right', idx: ntRandInt(0, n - 1) };
     } else {
-      ingress = ntRandomEdgePort(n);
-      do { egress = ntRandomEdgePort(n); } while (egress.edge === ingress.edge);
+      ingress = ntRandomEdgePort(w, h);
+      do { egress = ntRandomEdgePort(w, h); } while (egress.edge === ingress.edge);
     }
-    const [imx, imy] = ntPortMouth(ingress, n, n), [emx, emy] = ntPortMouth(egress, n, n);
+    const mouthTiles = ntMouthTiles(ingress, w, h).concat(ntMouthTiles(egress, w, h));
+    const [imx, imy] = mouthTiles[0], [emx, emy] = ntMouthTiles(egress, w, h)[0];
     if (Math.abs(imx - emx) + Math.abs(imy - emy) < 8) continue; // corner-proximity guard — re-roll if ports too close
-    const isMouth = (tx, ty) => (tx === imx && ty === imy) || (tx === emx && ty === emy);
+    // Reserve the FULL span, so a generated node always opens with a clean full-width
+    // door and any narrowing is player-caused. Spec §7.2.
+    const isMouth = (tx, ty) => mouthTiles.some(([mx, my]) => mx === tx && my === ty);
     // Place disjoint 2×2 bad-sector blocks (zero-overlap; never on a port mouth tile).
     const occupied = []; for (let y = 0; y < n; y++) occupied.push(new Array(n).fill(false));
     const tryMark = (ax, ay) => {
@@ -2640,6 +2649,8 @@ function ntAuthRemoveTerrain(b) {
 // Both exist to keep RANDOMLY ROLLED nodes varied. An author placing two ports close together,
 // or on the same edge, is making a choice — blocking it would be the tool second-guessing its
 // user. The two genuine constraints remain: the mouths must differ, and the node must route.
+// "Differ" now means tile-set DISJOINT, not idx-unequal — two-unit mouths make near-misses
+// overlap, and two corner ports on different edges can share one physical tile.
 function ntAuthSetPort(tx, ty) {
   const w = ntNode.w, h = ntNode.h;
   const nearest = [
@@ -2651,8 +2662,11 @@ function ntAuthSetPort(tx, ty) {
   const pick  = { edge: nearest.edge, idx: nearest.idx };
   const key   = ntDebugBrush;                                    // 'ingress' | 'egress'
   const other = key === 'ingress' ? ntNode.egress : ntNode.ingress;
-  if (pick.edge === other.edge && pick.idx === other.idx) {
-    ntFlashReject(ntBuildCells[ty] && ntBuildCells[ty][tx]);      // ingress mouth ≠ egress mouth
+  // Two-unit mouths make near-misses overlap, and two corner ports on DIFFERENT edges
+  // can share one physical tile. The rule this file already states — "the mouths must
+  // differ" — generalises to tile-set intersection. Spec §7.5.
+  if (ntMouthsIntersect(pick, other, w, h)) {
+    ntFlashReject(ntBuildCells[ty] && ntBuildCells[ty][tx]);
     return;
   }
   const prev = ntNode[key];
