@@ -8,6 +8,36 @@ Tick items off here; promote anything architectural into `decision-log.md`.
 
 ---
 
+## NT Debug Mode — attempt log replacing the post-Finish playback (added 18 Aug 2026)
+
+**Scoped, not started. Full design: `docs/superpowers/specs/2026-08-18-nt-debug-attempt-log-design.md`.**
+
+Owner-requested during the two-unit-ports round, and independent of it. Two changes: Finish Testing
+goes straight to the Diagnostic Summary instead of auto-playing the best trace, and the summary
+gains a log of **every** attempt (currently only `ntDebugBest` survives — attempts 1..N-1 are
+discarded as they happen). In MDLM the summary becomes a per-player table (tries + best) whose rows
+open that player's log.
+
+Three things already established, so they don't need re-deriving:
+
+- **No packet change.** Name, tries, best latency and best placements are all already on the wire
+  (`ntDebugBroadcastRoster` + `NT_PLAYBACK`'s `cycleLatencies`/`allPlacements`).
+- **The viewer is a reuse**, not a build — `nt-logs-overlay` plus `ntOpenLogRound`'s
+  stash-globals → playback → restore pattern. Debug currently *hides* the logs button explicitly
+  (`ntShowSummary`, `js/games/nt.js`); that line is the switch.
+- **Other players' full attempt histories are deliberately NOT synced** — ~6 MB at 8 players ×
+  1,000 attempts. Own log full, others' best only. Reasoning and the cheap upgrade path are in the
+  spec § 6.
+
+**The trap:** `ntResolveCycleMdlm` is shared with the standard game, so the Debug branch is needed
+in **both** the host tail and the `NT_PLAYBACK` applier. Change only the host and the host sits on
+the summary while every client sits on playback — invisible to a host-side playtest.
+
+**When picked up:** whenever the owner next wants the Debug playtest loop improved; nothing blocks
+it. Sonnet, medium effort, one session — the spec is the design, no further pipeline needed.
+
+---
+
 ## NT Debug Mode final review — deferred Minors (added 18 Aug 2026)
 
 The final pre-merge review of NT's Debug/Sandbox Mode (this branch) found five Minors beyond the
