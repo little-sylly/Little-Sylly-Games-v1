@@ -1685,13 +1685,19 @@ function ntIsMouthTile(tx, ty) {
 // Build-time reachability: BFS on the config lattice (port mouth → port mouth).
 function ntPathExists(node, placements) {
   const k = NT_LATTICE_K, g = ntConfigGrid(node, placements), W = node.w * k, H = node.h * k;
-  const s = ntPortSub(node, node.ingress), t = ntPortSub(node, node.egress);
-  if (g[s.sy][s.sx] || g[t.sy][t.sx]) return false;
-  const seen = new Uint8Array(W * H), goal = t.sy * W + t.sx;
-  let head = 0; const q = [s.sy * W + s.sx]; seen[q[0]] = 1;
+  // Either half of a mouth will do. A mouth tile's centre sub-cell is blocked iff that
+  // TILE is solid — a neighbour's inflation reaches tx*k, the centre sits at tx*k+2.
+  const srcs = ntPortSubs(node, node.ingress).filter(s => !g[s.sy][s.sx]);
+  const dsts = ntPortSubs(node, node.egress).filter(s => !g[s.sy][s.sx]);
+  if (!srcs.length || !dsts.length) return false;
+  const goals = new Set(dsts.map(t => t.sy * W + t.sx));
+  const seen = new Uint8Array(W * H);
+  const q = [];
+  for (const s of srcs) { const i = s.sy * W + s.sx; if (!seen[i]) { seen[i] = 1; q.push(i); } }
+  let head = 0;
   while (head < q.length) {
     const u = q[head++];
-    if (u === goal) return true;
+    if (goals.has(u)) return true;
     const ux = u % W, uy = (u - ux) / W;
     for (const st of NT_STEPS) {
       if (!ntStepLegal(g, ux, uy, st)) continue;
@@ -1707,18 +1713,21 @@ function ntPathExists(node, placements) {
 // Returns sub-cells [{x,y}, …] inclusive, or null. Deterministic (NT_STEPS order).
 function ntDijkstraSub(node, placements) {
   const k = NT_LATTICE_K, g = ntConfigGrid(node, placements), W = node.w * k, H = node.h * k;
-  const s = ntPortSub(node, node.ingress), t = ntPortSub(node, node.egress);
-  if (g[s.sy][s.sx] || g[t.sy][t.sx]) return null;
+  const srcs = ntPortSubs(node, node.ingress).filter(p => !g[p.sy][p.sx]);
+  const dsts = ntPortSubs(node, node.egress).filter(p => !g[p.sy][p.sx]);
+  if (!srcs.length || !dsts.length) return null;
   const dist = new Float64Array(W * H).fill(Infinity);
   const prev = new Int32Array(W * H).fill(-1);
   const done = new Uint8Array(W * H);
   const idx = (x, y) => y * W + x;
-  const start = idx(s.sx, s.sy), goal = idx(t.sx, t.sy);
-  dist[start] = 0;
+  const goals = new Set(dsts.map(p => idx(p.sx, p.sy)));
+  for (const p of srcs) dist[idx(p.sx, p.sy)] = 0;
+  let goal = -1;
   while (true) {
     let u = -1, best = Infinity;
     for (let i = 0; i < dist.length; i++) if (!done[i] && dist[i] < best) { best = dist[i]; u = i; }
-    if (u === -1 || u === goal) break;
+    if (u === -1) break;
+    if (goals.has(u)) { goal = u; break; }
     done[u] = 1;
     const ux = u % W, uy = (u - ux) / W;
     for (const st of NT_STEPS) {
@@ -1729,7 +1738,7 @@ function ntDijkstraSub(node, placements) {
       if (nd < dist[v]) { dist[v] = nd; prev[v] = u; }
     }
   }
-  if (!isFinite(dist[goal])) return null;
+  if (goal === -1) return null;
   const path = [];
   for (let v = goal; v !== -1; v = prev[v]) path.push({ x: v % W, y: (v - (v % W)) / W });
   return path.reverse();
@@ -1776,13 +1785,18 @@ function ntShortestPath(node, placements) {
   const k = NT_LATTICE_K, g = ntConfigGrid(node, placements);
   const pulled = ntStringPull(sub, g);
   const poly = pulled.map(p => ({ x: (p.x + 0.5) / k, y: (p.y + 0.5) / k }));
-  // Snap the two ends to the exact mouth centres, then add the border + off-board points.
-  poly[0] = ntPortInterior(node, node.ingress);
-  poly[poly.length - 1] = ntPortInterior(node, node.egress);
-  poly.unshift(ntPortBorder(node.ingress, node.w, node.h));
-  poly.unshift(ntPortOutside(node.ingress, node.w, node.h));
-  poly.push(ntPortBorder(node.egress, node.w, node.h));
-  poly.push(ntPortOutside(node.egress, node.w, node.h));
+  // Snap the two ends to the mouth half the route ACTUALLY used, then add the border +
+  // off-board points for that SAME half. Using the span midpoint instead would put the
+  // stub on the boundary between halves, so the runner would enter at the seam and jog
+  // sideways to a half-centre on every single run.
+  const usedIn  = ntResolveHalf(node, node.ingress, sub[0]);
+  const usedOut = ntResolveHalf(node, node.egress,  sub[sub.length - 1]);
+  poly[0]               = ntPortInterior(node, usedIn);
+  poly[poly.length - 1] = ntPortInterior(node, usedOut);
+  poly.unshift(ntPortBorder(usedIn,  node.w, node.h));
+  poly.unshift(ntPortOutside(usedIn, node.w, node.h));
+  poly.push(ntPortBorder(usedOut,  node.w, node.h));
+  poly.push(ntPortOutside(usedOut, node.w, node.h));
   return poly;
 }
 

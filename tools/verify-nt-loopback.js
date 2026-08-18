@@ -1096,9 +1096,10 @@ section('Node Editor — authoring the same object ntGenerateNode() returns');
         [d.__nt.node.egress.edge, d.__nt.node.egress.idx], ['left', 5]);
 
   // Randomise — both produce an editable starting point; nothing is committed yet.
-  // Re-author egress off left/5 → left/10 first: left/5's mouth tile is a 2×2 bad sector under
-  // ntGenerateNode's OWN seed-0 roll (block at ax0/ay5 covers tiles (0,5) and (0,6)), which makes
-  // the KEEP branch below unreachable at the default seed no matter what the fix does. left/10
+  // Re-author egress off left/5 → left/10 first: left/5's TWO-UNIT mouth is tiles (0,5) and
+  // (0,6) (spec §3.1), and ntGenerateNode's OWN seed-0 roll drops a 2×2 bad sector at ax0/ay5
+  // that covers BOTH of them — the whole mouth is sealed, not just narrowed — which makes the
+  // KEEP branch below unreachable at the default seed no matter what the fix does. left/10
   // keeps the same "shares an edge with ingress" authoring choice, clear of that block.
   d.__nt.setBrushDbg('egress');
   d.__nt.authTap(0, 10);
@@ -1197,6 +1198,59 @@ section('Mouth derivation — two units, one at a corner');
         I({ edge: 'left', idx: 0 }, { edge: 'top', idx: 0 }),  true);
   check('corner ports at OPPOSITE ends of the top edge do not',
         I({ edge: 'left', idx: 0 }, { edge: 'top', idx: 17 }), false);
+
+  check('no exceptions', errs(d), []);
+})();
+
+// ── Endpoint snapping ─────────────────────────────────────────────────────────
+// With one half of a mouth blocked, the route must use the OTHER half — and the
+// off-board stub and border point must carry that same half, or the runner enters at
+// the seam and jogs sideways on every run. Spec §4.3, §4.4.
+section('Endpoint snapping — the stubs track the half the route used');
+(() => {
+  const NODE_18 = () => ({ w: 18, h: 18,
+    ingress: { edge: 'left',  idx: 4 },
+    egress:  { edge: 'right', idx: 9 },
+    badSectors: [], nativeHoneypots: [] });
+
+  const d = makeDevice('snap', 'single', 0, [{ uid: 'u0', nickname: 'Ali' }]);
+  d.__nt.seat({ players: 1, names: ['Ali'] });
+
+  // Unblocked: the route uses the FIRST half (idx 4 → y 4.5), since Dijkstra settles
+  // sources in NT_STEPS order and both halves are equidistant from the egress.
+  d.__nt.setNode(NODE_18());
+  d.__nt.setPlacements([]);
+  let tl = d.__nt.timeline();
+  check('polyline is [outside, border, interior, …, interior, border, outside]',
+        tl.polyline.length >= 6, true);
+  check('an unobstructed mouth enters through a half of itself',
+        [4.5, 5.5].includes(tl.polyline[2].y), true);
+
+  // Half-block the ingress: anchor (0,3) covers (0,3) (1,3) (0,4) (1,4) — mouth tile
+  // (0,4) goes solid, (0,5) stays open.
+  d.__nt.setNode(NODE_18());
+  d.__nt.setPlacements([{ ax: 0, ay: 3, type: 'firewall' }]);
+  tl = d.__nt.timeline();
+  check('a half-blocked mouth still routes',        tl.polyline.length >= 6, true);
+  check('…through the OPEN half (y 5.5, not 4.5)',  tl.polyline[2].y,        5.5);
+  check('…the border point shares that half',       tl.polyline[1].y,        5.5);
+  check('…and so does the off-board stub',          tl.polyline[0].y,        5.5);
+  check('…the stub is off the board on the left',   tl.polyline[0].x,        -0.6);
+  check('no kink: stub, border and interior are colinear in y',
+        [tl.polyline[0].y, tl.polyline[1].y, tl.polyline[2].y], [5.5, 5.5, 5.5]);
+
+  // D46's finite-geometry tripwire, re-run against a resolved (not nominal) endpoint —
+  // this is the shape ntResolveHalf's fallback exists to keep catchable.
+  check('every polyline point is still finite',
+        tl.polyline.every(p => Number.isFinite(p.x) && Number.isFinite(p.y)), true);
+  check('every sample is still finite',
+        tl.samples.every(s => Number.isFinite(s.x) && Number.isFinite(s.y) && Number.isFinite(s.t)), true);
+
+  // Fully blocking the mouth (anchor (0,4) covers BOTH (0,4) and (0,5)) leaves no open
+  // source, so there is no route at all.
+  d.__nt.setNode(NODE_18());
+  d.__nt.setPlacements([{ ax: 0, ay: 4, type: 'firewall' }]);
+  check('a fully-blocked mouth yields no route', d.__nt.timeline().polyline, []);
 
   check('no exceptions', errs(d), []);
 })();
