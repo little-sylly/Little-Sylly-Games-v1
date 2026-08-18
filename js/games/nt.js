@@ -1672,10 +1672,12 @@ function ntResolveHalf(node, port, subCell) {
   return halves[0];
 }
 
+// Retained for RENDER classification only (ntCellType). Every placement-reservation
+// caller was deleted when ntPathExists became the sole legality gate — see spec §5.1.
 function ntIsMouthTile(tx, ty) {
-  const [ix, iy] = ntPortMouth(ntNode.ingress, ntNode.w, ntNode.h);
-  const [ex, ey] = ntPortMouth(ntNode.egress,  ntNode.w, ntNode.h);
-  return (tx === ix && ty === iy) || (tx === ex && ty === ey);
+  const tiles = ntMouthTiles(ntNode.ingress, ntNode.w, ntNode.h)
+        .concat(ntMouthTiles(ntNode.egress, ntNode.w, ntNode.h));
+  return tiles.some(([mx, my]) => mx === tx && my === ty);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -2191,10 +2193,10 @@ function ntUpdateGhostAt(tx, ty) {
   const b = ntBlockAt(tx, ty);
   if (b && b.source === 'placement') { ntClearGhost(); return; }
 
-  // Reserved (bad / native / port mouth) → silent, no ghost.
+  // Reserved (bad / native) → silent, no ghost.
   let blocked = false;
   for (const [fx, fy] of ntBlockTiles(ax, ay)) {
-    if (ntBlockAt(fx, fy) || ntIsMouthTile(fx, fy)) { blocked = true; break; }
+    if (ntBlockAt(fx, fy)) { blocked = true; break; }
   }
   if (blocked) { ntClearGhost(); return; }
 
@@ -2365,10 +2367,10 @@ function ntRenderBuildGrid() {
     if (ntLongPressTimer) { clearTimeout(ntLongPressTimer); ntLongPressTimer = null; } // defence: cancel any stale long-press
     const { tx, ty } = getTile(e);
     const b = ntBlockAt(tx, ty);
-    if (b || ntIsMouthTile(tx, ty)) return; // occupied or port — ignore
+    if (b) return; // occupied — ignore
     const ax = Math.max(0, Math.min(tx, w - 2));
     const ay = Math.max(0, Math.min(ty, h - 2));
-    for (const [fx, fy] of ntBlockTiles(ax, ay)) { if (ntBlockAt(fx, fy) || ntIsMouthTile(fx, fy)) return; }
+    for (const [fx, fy] of ntBlockTiles(ax, ay)) { if (ntBlockAt(fx, fy)) return; }
     ntClearGhost();
     ntAttemptPlace(ax, ay, true);
   });
@@ -2382,7 +2384,6 @@ function ntHandleTap(tx, ty) {
   const b = ntBlockAt(tx, ty);
   if (b && b.source === 'placement') { ntRemoveBlock(b.ax, b.ay); return; }
   if (b) return;                       // bad / native — reserved
-  if (ntIsMouthTile(tx, ty)) return;   // port mouth — reserved
   ntAttemptPlace(tx, ty, false);
 }
 
@@ -2390,7 +2391,6 @@ function ntHandleLongPress(tx, ty) {
   const b = ntBlockAt(tx, ty);
   if (b && b.source === 'placement' && b.type === 'firewall') { ntUpgradeToHoneypot(b.ax, b.ay); return; }
   if (b) return;                       // honeypot / bad / native — reserved
-  if (ntIsMouthTile(tx, ty)) return;
   ntAttemptPlace(tx, ty, true);
 }
 
@@ -2401,7 +2401,7 @@ function ntAttemptPlace(tx, ty, asHoneypot) {
   const ax = Math.max(0, Math.min(tx, w - 2)), ay = Math.max(0, Math.min(ty, h - 2));
   // Strict zero-overlap: all 4 footprint tiles must be vacant and clear of port mouths.
   for (const [fx, fy] of ntBlockTiles(ax, ay)) {
-    if (ntBlockAt(fx, fy) || ntIsMouthTile(fx, fy)) { ntFlashReject(ntBuildCells[ty] && ntBuildCells[ty][tx]); return; }
+    if (ntBlockAt(fx, fy)) { ntFlashReject(ntBuildCells[ty] && ntBuildCells[ty][tx]); return; }
   }
   if (asHoneypot) {
     if (ntHoneypotUsed >= ntInventory.honeypot) { playBoing(); ntSetRouting('storage_insufficient'); return; }
@@ -2596,7 +2596,7 @@ function ntAuthPlaceTerrain(tx, ty, asHoneypot) {
   const ax = Math.max(0, Math.min(tx, w - 2)), ay = Math.max(0, Math.min(ty, h - 2));
   // Strict zero-overlap, exactly as ntAttemptPlace enforces it during Build.
   for (const [fx, fy] of ntBlockTiles(ax, ay)) {
-    if (ntBlockAt(fx, fy) || ntIsMouthTile(fx, fy)) { ntFlashReject(ntBuildCells[ty] && ntBuildCells[ty][tx]); return; }
+    if (ntBlockAt(fx, fy)) { ntFlashReject(ntBuildCells[ty] && ntBuildCells[ty][tx]); return; }
   }
   if (asHoneypot && ntNode.nativeHoneypots.length >= ntNativeHoneypots) {
     playBoing(); ntSetRouting('storage_insufficient');

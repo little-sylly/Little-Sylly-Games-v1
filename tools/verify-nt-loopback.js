@@ -381,6 +381,10 @@ globalThis.__nt = {
   mouthIdxs(port, w, h)       { return ntMouthIdxs(port, w, h); },
   mouthTiles(port, w, h)      { return ntMouthTiles(port, w, h); },
   mouthsIntersect(a, b, w, h) { return ntMouthsIntersect(a, b, w, h); },
+  pathOkWith(p)    { return ntPathExists(ntNode, p); },
+  cellType(tx, ty) { return ntCellType(tx, ty); },
+  setInv(fw, hp)   { ntInventory = { firewall: fw, honeypot: hp }; },
+  place(tx, ty, hp){ ntAttemptPlace(tx, ty, !!hp); },
   renderFrame(ms)     { ntRenderFrame(ms, true); },
   renderComparison()  { ntRenderComparisonPanel(); },
   renderSummary()     { ntRenderSummary(); },
@@ -1251,6 +1255,64 @@ section('Endpoint snapping — the stubs track the half the route used');
   d.__nt.setNode(NODE_18());
   d.__nt.setPlacements([{ ax: 0, ay: 4, type: 'firewall' }]);
   check('a fully-blocked mouth yields no route', d.__nt.timeline().polyline, []);
+
+  check('no exceptions', errs(d), []);
+})();
+
+// ── Placement legality ────────────────────────────────────────────────────────
+// The mouth reservation is GONE. ntPathExists is the only gate, and half-block-legal
+// / full-block-rejected / corner-unblockable all fall out of it. Spec §5.
+section('Placement legality — narrowing a door is legal, sealing it is not');
+(() => {
+  const NODE_18 = () => ({ w: 18, h: 18,
+    ingress: { edge: 'left',  idx: 4 },
+    egress:  { edge: 'right', idx: 9 },
+    badSectors: [], nativeHoneypots: [] });
+
+  const d = makeDevice('legality', 'single', 0, [{ uid: 'u0', nickname: 'Ali' }]);
+  d.__nt.seat({ players: 1, names: ['Ali'] });
+  d.__nt.setNode(NODE_18());
+  d.__nt.setPlacements([]);
+
+  // The gate itself. Ingress mouth is (0,4) and (0,5).
+  check('a 2×2 clear of the mouth routes',
+        d.__nt.pathOkWith([{ ax: 0, ay: 6, type: 'firewall' }]), true);
+  check('covering ONE half narrows the door — still routes',
+        d.__nt.pathOkWith([{ ax: 0, ay: 3, type: 'firewall' }]), true);
+  check('covering BOTH halves seals it — no route',
+        d.__nt.pathOkWith([{ ax: 0, ay: 4, type: 'firewall' }]), false);
+
+  // A CORNER mouth is one tile, so there is no half to give up: any 2×2 covering it
+  // removes the only source. This asymmetry is the mechanic, not a gap. Spec §5.3.
+  const corner = NODE_18(); corner.ingress = { edge: 'left', idx: 0 };
+  d.__nt.setNode(corner);
+  check('a corner mouth is one tile',
+        d.__nt.mouthTiles(corner.ingress, 18, 18), [[0, 0]]);
+  check('a 2×2 clear of a corner mouth routes',
+        d.__nt.pathOkWith([{ ax: 0, ay: 2, type: 'firewall' }]), true);
+  check('a corner port cannot be narrowed at all',
+        d.__nt.pathOkWith([{ ax: 0, ay: 0, type: 'firewall' }]), false);
+
+  // End-to-end through the real placement path — this is what proves the reservation
+  // is actually deleted, not merely unreachable.
+  d.__nt.setNode(NODE_18());
+  d.__nt.setPlacements([]);
+  d.__nt.setInv(10, 0);
+  d.__nt.renderGrid();
+  d.__nt.place(0, 3, false);
+  check('the build screen accepts a half-blocking placement', d.__nt.placements.length, 1);
+  d.__nt.place(0, 4, false);
+  check('…and refuses the one that would seal the mouth',     d.__nt.placements.length, 1);
+
+  // The vacant mouth still paints as a door; a firewall on one half shadows it, which
+  // is the only thing on the grid that shows the door was narrowed. Spec §6.1.
+  d.__nt.setNode(NODE_18());
+  d.__nt.setPlacements([]);
+  check('both vacant mouth tiles paint as port',
+        [d.__nt.cellType(0, 4), d.__nt.cellType(0, 5)], ['port', 'port']);
+  d.__nt.setPlacements([{ ax: 0, ay: 3, type: 'firewall' }]);
+  check('a firewall on one half shadows the port paint',
+        [d.__nt.cellType(0, 4), d.__nt.cellType(0, 5)], ['firewall', 'port']);
 
   check('no exceptions', errs(d), []);
 })();
