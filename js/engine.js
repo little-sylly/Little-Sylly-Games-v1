@@ -69,6 +69,7 @@ const allScreens = [
   'screen-pass-round-wrap', 'screen-pass-gameover',
   // Net-Trace
   'screen-nt-menu', 'screen-nt-setup', 'screen-nt-allocation', 'screen-nt-gate',
+  'screen-nt-debug-config',
   'screen-nt-authoring', 'screen-nt-build', 'screen-nt-playback', 'screen-nt-summary',
   'screen-nt-standby',
   // Fruit Salad

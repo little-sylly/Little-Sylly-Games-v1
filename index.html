@@ -7467,6 +7467,48 @@ Climb Again
     </div>
   </section>
 
+  <!-- NT DEBUG CONFIG — Sandbox dimensions, host-only. Terminal boot in the same chrome as
+       screen-nt-gate, but its reveal is two number inputs rather than a single button. -->
+  <section id="screen-nt-debug-config" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-5">
+      <div class="flex items-center justify-between">
+        <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest">System Access</p>
+        <div class="flex items-center gap-2">
+          <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">&#x1F50A;</button>
+          <button class="btn-nt-quit-open text-stone-500 font-bold text-xl active:scale-90 transition-transform duration-100">&#x2715;</button>
+        </div>
+      </div>
+      <div class="flex flex-col items-center gap-5 text-center">
+        <div>
+          <h2 class="text-2xl font-bold text-stone-800">Sandbox Initialisation</h2>
+          <p class="text-stone-400 text-sm mt-1">Set the matrix dimensions before authoring.</p>
+        </div>
+        <div id="nt-debug-config-log"
+          class="w-full min-h-[9rem] rounded-xl border border-emerald-700/40 bg-slate-900 px-4 py-4 text-left font-mono text-xs text-emerald-400 leading-relaxed"></div>
+        <div id="nt-debug-config-fields" style="display:none" class="w-full flex flex-col gap-3">
+          <div class="flex gap-3">
+            <div class="flex-1 text-left">
+              <label for="nt-debug-w" class="text-stone-500 text-xs font-semibold uppercase tracking-widest block mb-1">Width</label>
+              <input id="nt-debug-w" type="number" min="16" max="20" inputmode="numeric"
+                class="w-full rounded-xl border-2 border-stone-200 bg-white px-4 py-3 text-lg text-stone-800 focus:border-emerald-500 focus:outline-none transition-colors" />
+            </div>
+            <div class="flex-1 text-left">
+              <label for="nt-debug-h" class="text-stone-500 text-xs font-semibold uppercase tracking-widest block mb-1">Height</label>
+              <input id="nt-debug-h" type="number" min="16" max="20" inputmode="numeric"
+                class="w-full rounded-xl border-2 border-stone-200 bg-white px-4 py-3 text-lg text-stone-800 focus:border-emerald-500 focus:outline-none transition-colors" />
+            </div>
+          </div>
+          <p class="text-stone-400 text-xs">Anywhere from 16 to 20 on each side. They don't have to match.</p>
+          <button id="btn-nt-debug-config-deploy"
+            class="min-h-14 w-full rounded-2xl bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+            Deploy Sandbox
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- NT NODE EDITOR (Debug Mode) — authors the SAME object ntGenerateNode() returns.
        THE STACK: header + stage + controls are siblings in one centred column. This screen
        is NOT on the legacy sticky-footer whitelist and must never be added to it. -->
