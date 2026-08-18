@@ -283,21 +283,28 @@ Do not write the phase snapshot until Protocols A is clean. Do not write a line 
 pointer, not a narrative — that is what keeps this file cheap. When a round closes, compress its
 entry to one line and let the impl-notes carry the detail (§ Documentation Integrity Protocol).
 
-**SW v199 — NT Debug Mode's rectangular grid CLOSED (18 Aug 2026).** A five-task dual-write
-refactor (Phase 1) converted the Node's geometry from a single square `n` to independent `w`/`h`
-across the whole geometry core — pathfinding, ports, footprint clamps, rendering, both grid
-renderers — with every intermediate commit green on the existing 242-check suite before the `n`
-key was dropped. A new "Sandbox Initialisation" screen (`screen-nt-debug-config`) then lets Debug
-Mode's host choose Width and Height independently (16–20 each) before the Node Editor opens,
-reached once per session; the Author New Node loop-back reuses the same choice. Two testing gaps
-closed alongside the feature: a NaN tripwire (finite-geometry assertions — a missed rename throws
-nothing, just renders garbage) and an end-to-end rectangular section at 16×18/16×20/20×16, the last
-one proven to catch a swapped axis that the square-only suite structurally cannot. One real latent
-bug surfaced by the axis split: `ntPortSub` had clamped both axes to one shared bound, correct only
-by coincidence while every node was square. `visual-check` confirmed the aspect ratio actually
-renders (16×18 measured ≈0.889, not the old forced 1.0) across all four Debug screens.
-`verify-nt-loopback.js` sits at **278** checks, 8/8 seeds green. Detail:
-`nt-implementation-notes.md` D43–D46; `docs/decision-log.md`.
+**SW v200 — NT two-unit ports with single-unit corners CLOSED (18 Aug 2026, Phase 2).** A
+seven-task refactor made a relay-leg node's ingress/egress two tiles wide instead of one,
+collapsing to one tile only at either end of an edge — so a player can now narrow an opponent's
+door (block one half) without being able to seal it (block both). The mouth is entirely DERIVED
+from the existing `{ edge, idx }` port record — no new field, no wire/packet change — via a
+"resolved port" shape (`{ edge, idx }` with `idx` pinned to one half) that let five existing point
+functions stay unmodified; only pathfinding became multi-source/multi-target, and only
+`ntShortestPath` learned which half a route actually used, so the entry stub tracks the used half
+rather than jogging sideways from a span-midpoint. Deleting the seven placement-reservation call
+sites then left `ntPathExists` as the sole legality gate, from which half-block-legal /
+full-block-rejected / corner-unblockable all fall out with no special-casing. The DNP bridge-preview
+seam (`ntDrawLegCanvas`) was the round's sharpest trap — its wall opened exactly one row, which
+passed every check while the preview showed a door walled off across half its width; fixed
+alongside a second, unrelated square-axis assumption in the same function (D44's third/fourth
+instance, `ntRandomEdgePort` and this canvas). Three deliberate-break injections (D42 discipline)
+confirmed each new section actually discriminates rather than passing vacuously. `verify-nt-loopback.js`
+sits at **342** checks, 8/8 seeds green. Detail: `nt-implementation-notes.md` D47–D49;
+`docs/decision-log.md`.
+
+**SW v199 — NT Debug Mode's rectangular grid CLOSED** (18 Aug 2026, Phase 1): converted the Node's
+geometry from a single square `n` to independent `w`/`h`, plus a Sandbox Initialisation screen for
+independent Width/Height. Detail: `docs/sw-changelog.md`.
 
 **SW v198 — NT Debug/Sandbox Mode CLOSED** (17 Aug 2026): the hand-authoring sandbox itself
 (Node Editor, unlimited zero-packet retries, best-attempt scoring). Detail: `docs/sw-changelog.md`.
@@ -462,7 +469,7 @@ Re-run a game's full set after touching its appliers, deck/data, packets or rend
 | DYB | `node tools/verify-dyb-dice.js` — after any `js/lib/art.js` / `dybDieHTML` / `.dyb-die-*` change | 90+ |
 | SHP | `node tools/verify-shp-loop.js` — random matches, all player counts/modes/settings; `SHP_SEED=` for reproducibility | 60 matches |
 | SHP | `node tools/verify-shp-loopback.js` — host↔client over a Firebase-shaped wire; accepts `SHP_SRC=` | 6 scenarios |
-| NT | `node tools/verify-nt-loopback.js` — host↔**2 clients** over a Firebase-shaped wire, Standard + DNP + Debug Mode (incl. rectangular grids); accepts `NT_SRC=` and `NT_SEED=` | 278 |
+| NT | `node tools/verify-nt-loopback.js` — host↔**2 clients** over a Firebase-shaped wire, Standard + DNP + Debug Mode (incl. rectangular grids, two-unit ports); accepts `NT_SRC=` and `NT_SEED=` | 342 |
 
 **The blind spot they share is load-bearing.** Every harness *except* the four loopbacks
 (`cjar`/`shp`/`flw`/`nt`) runs in `'single'` mode with `getElementById: () => null`. That is what

@@ -20,6 +20,27 @@ Detail: pointer to the canonical doc (snapshot / impl note / spec / memory).
 
 ---
 
+## 2026-08-18 — NT ports are two units wide, with single-unit corners
+**Category:** Architecture
+**Decision:** A relay-leg node's ingress/egress mouth is now two tiles wide instead of one,
+collapsing to one tile only at either end of an edge (a corner port) — derived entirely from the
+existing `{ edge, idx }` port record via a "resolved port" shape, so no new field and no wire/packet
+change. Deleted the seven placement-reservation call sites so `ntPathExists` becomes the sole build
+legality gate, from which half-block-legal / full-block-rejected / corner-unblockable all fall out
+with no special-casing.
+**Why:** Lets a player narrow an opponent's door (block one half of a two-unit mouth) as a real
+tactical option without being able to seal it outright — sealing still requires covering the whole
+mouth, and a corner port (one tile, no second half) is deliberately unblockable at all, an asymmetry
+that is the mechanic rather than a gap.
+**Changed:** `js/games/nt.js` (mouth primitives, multi-source/multi-target pathfinding, port
+markers, the DNP bridge-preview seam, node generation, the Node Editor's overlap guard),
+`tools/verify-nt-loopback.js` (278 → 342 checks). Two D44-class latent bugs fixed in passing
+(`ntRandomEdgePort`, `ntDrawLegCanvas` — both single-bound-for-two-axes). Three deliberate-break
+injections (D42 discipline) confirmed each new test section actually discriminates.
+**Detail:** `nt-implementation-notes.md` D47–D49; `docs/superpowers/specs/2026-08-18-nt-two-unit-ports-design.md`; `docs/superpowers/plans/2026-08-18-nt-two-unit-ports.md`.
+
+---
+
 ## 2026-08-18 — NT's node became rectangular suite-wide, for a Debug-only feature
 **Category:** Architecture
 **Decision:** Converted NT's node geometry from a single square `n` to independent `w`/`h` across
