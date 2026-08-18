@@ -378,6 +378,13 @@ globalThis.__nt = {
   drawPort(gridId, port, col, inward, w, h) {
     return ntDrawPortMarker(document.getElementById(gridId), port, col, inward, w, h);
   },
+  mouthIdxs(port, w, h)       { return ntMouthIdxs(port, w, h); },
+  mouthTiles(port, w, h)      { return ntMouthTiles(port, w, h); },
+  mouthsIntersect(a, b, w, h) { return ntMouthsIntersect(a, b, w, h); },
+  pathOkWith(p)    { return ntPathExists(ntNode, p); },
+  cellType(tx, ty) { return ntCellType(tx, ty); },
+  setInv(fw, hp)   { ntInventory = { firewall: fw, honeypot: hp }; },
+  place(tx, ty, hp){ ntAttemptPlace(tx, ty, !!hp); },
   renderFrame(ms)     { ntRenderFrame(ms, true); },
   renderComparison()  { ntRenderComparisonPanel(); },
   renderSummary()     { ntRenderSummary(); },
@@ -1035,6 +1042,23 @@ section('Port markers — one drawing function, two grids');
   d.__nt.drawPort('nt-auth-grid', d.__nt.node.ingress, '#34d399', true, w, h);
   d.__nt.drawPort('nt-auth-grid', d.__nt.node.egress, '#334155', false, w, h);
   check('…and the same function serves a second grid', d.__nt.authPorts(), 2);
+
+  // A marker spans the MOUTH, not one tile — and it measures against the port's own
+  // axis. On an 18-wide board a standard 2-unit mouth is 11.11% wide; a corner mouth
+  // is half that. Spec §6.2.
+  const mk = (port) => d.__nt.drawPort('nt-auth-grid', port, '#34d399', true, 18, 18);
+  const std = mk({ edge: 'top', idx: 4 });
+  check('a standard top marker spans two tiles',
+        std.style.width, 'calc(11.11111111111111%)');
+  check('…offset to the first mouth tile', std.style.left, '22.22222222222222%');
+  const cnr = mk({ edge: 'top', idx: 17 });
+  check('a corner top marker spans one tile',
+        cnr.style.width, 'calc(5.555555555555555%)');
+  const vert = mk({ edge: 'left', idx: 4 });
+  check('a left marker spans on the vertical axis',
+        [vert.style.height, vert.style.width], ['calc(11.11111111111111%)', '6px']);
+  check('…and keeps the border straddle', vert.style.left, '-3px');
+
   check('no exceptions', errs(d), []);
 })();
 
@@ -1093,9 +1117,10 @@ section('Node Editor — authoring the same object ntGenerateNode() returns');
         [d.__nt.node.egress.edge, d.__nt.node.egress.idx], ['left', 5]);
 
   // Randomise — both produce an editable starting point; nothing is committed yet.
-  // Re-author egress off left/5 → left/10 first: left/5's mouth tile is a 2×2 bad sector under
-  // ntGenerateNode's OWN seed-0 roll (block at ax0/ay5 covers tiles (0,5) and (0,6)), which makes
-  // the KEEP branch below unreachable at the default seed no matter what the fix does. left/10
+  // Re-author egress off left/5 → left/10 first: left/5's TWO-UNIT mouth is tiles (0,5) and
+  // (0,6) (spec §3.1), and ntGenerateNode's OWN seed-0 roll drops a 2×2 bad sector at ax0/ay5
+  // that covers BOTH of them — the whole mouth is sealed, not just narrowed — which makes the
+  // KEEP branch below unreachable at the default seed no matter what the fix does. left/10
   // keeps the same "shares an edge with ingress" authoring choice, clear of that block.
   d.__nt.setBrushDbg('egress');
   d.__nt.authTap(0, 10);
@@ -1154,6 +1179,223 @@ section('Sandbox Initialisation — dimensions gate the authored node');
   check('no exceptions',               errs(d), []);
 })();
 
+// ── Mouth derivation ──────────────────────────────────────────────────────────
+// The mouth is DERIVED from { edge, idx } — no new field, no wire change. Two units
+// wide, collapsing to one at either end of an edge. Spec §1, §3.1.
+section('Mouth derivation — two units, one at a corner');
+(() => {
+  const d = makeDevice('mouth', 'single', 0, [{ uid: 'u0', nickname: 'Ali' }]);
+  d.__nt.seat({ players: 1, names: ['Ali'] });
+  const M = (edge, idx, w, h) => d.__nt.mouthIdxs({ edge, idx }, w, h);
+
+  check('mid-edge port spans two units',           M('left', 4, 18, 18),  [4, 5]);
+  check('idx 0 collapses to one unit',             M('left', 0, 18, 18),  [0]);
+  check('idx len-1 collapses to one unit',         M('left', 17, 18, 18), [17]);
+  check('idx len-2 still spans two',               M('left', 16, 18, 18), [16, 17]);
+  check('idx 1 spans two — only 0 is a corner',    M('left', 1, 18, 18),  [1, 2]);
+
+  // Per-axis length. On a 16-wide × 20-high node a LEFT port's last index is 19 and a
+  // TOP port's is 15. A swapped (h, w) argument order exchanges them — invisible on a
+  // square node, which is why these four checks are the D46 discriminator for this
+  // function. See spec §8.3.
+  check('left port measures against h',            M('left', 19, 16, 20), [19]);
+  check('…so idx 15 is NOT its corner',            M('left', 15, 16, 20), [15, 16]);
+  check('top port measures against w',             M('top', 15, 16, 20),  [15]);
+  check('…and an out-of-range idx clamps to it',   M('top', 19, 16, 20),  [15]);
+
+  check('mouth tiles follow the span — left edge',
+        d.__nt.mouthTiles({ edge: 'left', idx: 4 }, 18, 18), [[0, 4], [0, 5]]);
+  check('mouth tiles follow the span — bottom edge',
+        d.__nt.mouthTiles({ edge: 'bottom', idx: 3 }, 16, 20), [[3, 19], [4, 19]]);
+
+  // Overlap is a TILE-SET test, not an idx-span test on a shared edge: two corner ports
+  // on DIFFERENT edges can meet at the same physical tile. Spec §3.3, §7.5.
+  const I = (a, b) => d.__nt.mouthsIntersect(a, b, 18, 18);
+  check('same-edge mouths one apart overlap',
+        I({ edge: 'left', idx: 3 }, { edge: 'left', idx: 4 }), true);
+  check('same-edge mouths two apart do not',
+        I({ edge: 'left', idx: 3 }, { edge: 'left', idx: 5 }), false);
+  check('corner ports meeting at the SAME corner tile overlap',
+        I({ edge: 'left', idx: 0 }, { edge: 'top', idx: 0 }),  true);
+  check('corner ports at OPPOSITE ends of the top edge do not',
+        I({ edge: 'left', idx: 0 }, { edge: 'top', idx: 17 }), false);
+
+  check('no exceptions', errs(d), []);
+})();
+
+// ── Endpoint snapping ─────────────────────────────────────────────────────────
+// With one half of a mouth blocked, the route must use the OTHER half — and the
+// off-board stub and border point must carry that same half, or the runner enters at
+// the seam and jogs sideways on every run. Spec §4.3, §4.4.
+section('Endpoint snapping — the stubs track the half the route used');
+(() => {
+  const NODE_18 = () => ({ w: 18, h: 18,
+    ingress: { edge: 'left',  idx: 4 },
+    egress:  { edge: 'right', idx: 9 },
+    badSectors: [], nativeHoneypots: [] });
+
+  const d = makeDevice('snap', 'single', 0, [{ uid: 'u0', nickname: 'Ali' }]);
+  d.__nt.seat({ players: 1, names: ['Ali'] });
+
+  // Unblocked: the route uses the FIRST half (idx 4 → y 4.5), since Dijkstra settles
+  // sources in NT_STEPS order and both halves are equidistant from the egress.
+  d.__nt.setNode(NODE_18());
+  d.__nt.setPlacements([]);
+  let tl = d.__nt.timeline();
+  check('polyline is [outside, border, interior, …, interior, border, outside]',
+        tl.polyline.length >= 6, true);
+  check('an unobstructed mouth enters through a half of itself',
+        [4.5, 5.5].includes(tl.polyline[2].y), true);
+
+  // Half-block the ingress: anchor (0,3) covers (0,3) (1,3) (0,4) (1,4) — mouth tile
+  // (0,4) goes solid, (0,5) stays open.
+  d.__nt.setNode(NODE_18());
+  d.__nt.setPlacements([{ ax: 0, ay: 3, type: 'firewall' }]);
+  tl = d.__nt.timeline();
+  check('a half-blocked mouth still routes',        tl.polyline.length >= 6, true);
+  check('…through the OPEN half (y 5.5, not 4.5)',  tl.polyline[2].y,        5.5);
+  check('…the border point shares that half',       tl.polyline[1].y,        5.5);
+  check('…and so does the off-board stub',          tl.polyline[0].y,        5.5);
+  check('…the stub is off the board on the left',   tl.polyline[0].x,        -0.6);
+  check('no kink: stub, border and interior are colinear in y',
+        [tl.polyline[0].y, tl.polyline[1].y, tl.polyline[2].y], [5.5, 5.5, 5.5]);
+
+  // D46's finite-geometry tripwire, re-run against a resolved (not nominal) endpoint —
+  // this is the shape ntResolveHalf's fallback exists to keep catchable.
+  check('every polyline point is still finite',
+        tl.polyline.every(p => Number.isFinite(p.x) && Number.isFinite(p.y)), true);
+  check('every sample is still finite',
+        tl.samples.every(s => Number.isFinite(s.x) && Number.isFinite(s.y) && Number.isFinite(s.t)), true);
+
+  // Fully blocking the mouth (anchor (0,4) covers BOTH (0,4) and (0,5)) leaves no open
+  // source, so there is no route at all.
+  d.__nt.setNode(NODE_18());
+  d.__nt.setPlacements([{ ax: 0, ay: 4, type: 'firewall' }]);
+  check('a fully-blocked mouth yields no route', d.__nt.timeline().polyline, []);
+
+  check('no exceptions', errs(d), []);
+})();
+
+// ── Placement legality ────────────────────────────────────────────────────────
+// The mouth reservation is GONE. ntPathExists is the only gate, and half-block-legal
+// / full-block-rejected / corner-unblockable all fall out of it. Spec §5.
+section('Placement legality — narrowing a door is legal, sealing it is not');
+(() => {
+  const NODE_18 = () => ({ w: 18, h: 18,
+    ingress: { edge: 'left',  idx: 4 },
+    egress:  { edge: 'right', idx: 9 },
+    badSectors: [], nativeHoneypots: [] });
+
+  const d = makeDevice('legality', 'single', 0, [{ uid: 'u0', nickname: 'Ali' }]);
+  d.__nt.seat({ players: 1, names: ['Ali'] });
+  d.__nt.setNode(NODE_18());
+  d.__nt.setPlacements([]);
+
+  // The gate itself. Ingress mouth is (0,4) and (0,5).
+  check('a 2×2 clear of the mouth routes',
+        d.__nt.pathOkWith([{ ax: 0, ay: 6, type: 'firewall' }]), true);
+  check('covering ONE half narrows the door — still routes',
+        d.__nt.pathOkWith([{ ax: 0, ay: 3, type: 'firewall' }]), true);
+  check('covering BOTH halves seals it — no route',
+        d.__nt.pathOkWith([{ ax: 0, ay: 4, type: 'firewall' }]), false);
+
+  // A CORNER mouth is one tile, so there is no half to give up: any 2×2 covering it
+  // removes the only source. This asymmetry is the mechanic, not a gap. Spec §5.3.
+  const corner = NODE_18(); corner.ingress = { edge: 'left', idx: 0 };
+  d.__nt.setNode(corner);
+  check('a corner mouth is one tile',
+        d.__nt.mouthTiles(corner.ingress, 18, 18), [[0, 0]]);
+  check('a 2×2 clear of a corner mouth routes',
+        d.__nt.pathOkWith([{ ax: 0, ay: 2, type: 'firewall' }]), true);
+  check('a corner port cannot be narrowed at all',
+        d.__nt.pathOkWith([{ ax: 0, ay: 0, type: 'firewall' }]), false);
+
+  // End-to-end through the real placement path — this is what proves the reservation
+  // is actually deleted, not merely unreachable.
+  d.__nt.setNode(NODE_18());
+  d.__nt.setPlacements([]);
+  d.__nt.setInv(10, 0);
+  d.__nt.renderGrid();
+  d.__nt.place(0, 3, false);
+  check('the build screen accepts a half-blocking placement', d.__nt.placements.length, 1);
+  d.__nt.place(0, 4, false);
+  check('…and refuses the one that would seal the mouth',     d.__nt.placements.length, 1);
+
+  // The vacant mouth still paints as a door; a firewall on one half shadows it, which
+  // is the only thing on the grid that shows the door was narrowed. Spec §6.1.
+  d.__nt.setNode(NODE_18());
+  d.__nt.setPlacements([]);
+  check('both vacant mouth tiles paint as port',
+        [d.__nt.cellType(0, 4), d.__nt.cellType(0, 5)], ['port', 'port']);
+  d.__nt.setPlacements([{ ax: 0, ay: 3, type: 'firewall' }]);
+  check('a firewall on one half shadows the port paint',
+        [d.__nt.cellType(0, 4), d.__nt.cellType(0, 5)], ['firewall', 'port']);
+
+  check('no exceptions', errs(d), []);
+})();
+
+// ── Node Editor port authoring ────────────────────────────────────────────────
+// Two-unit mouths make near-misses overlap: ingress left/3 spans [3,4] and egress
+// left/4 spans [4,5], sharing tile 4. An overlapping mouth makes one sub-cell both a
+// BFS source and a goal — a zero-length route. Spec §7.5.
+section('Node Editor — overlapping mouths are refused');
+(() => {
+  const d = makeDevice('authports', 'single', 0, [{ uid: 'u0', nickname: 'Ali' }]);
+  d.__nt.seat({ players: 1, names: ['Ali'], scale: 18, natives: 0, debug: true });
+  d.__nt.showAuthoring();
+
+  d.__nt.setBrushDbg('ingress');
+  d.__nt.authTap(0, 3);
+  check('ingress authored to left/3',
+        [d.__nt.node.ingress.edge, d.__nt.node.ingress.idx], ['left', 3]);
+
+  // left/4 spans [4,5] and shares tile (0,4) with the ingress mouth [3,4].
+  d.__nt.setBrushDbg('egress');
+  const before = { ...d.__nt.node.egress };
+  d.__nt.authTap(0, 4);
+  check('an egress whose mouth OVERLAPS the ingress is refused',
+        [d.__nt.node.egress.edge, d.__nt.node.egress.idx], [before.edge, before.idx]);
+
+  // left/5 spans [5,6] — adjacent to the ingress mouth but disjoint. Legal.
+  d.__nt.authTap(0, 5);
+  check('an adjacent but disjoint mouth is accepted',
+        [d.__nt.node.egress.edge, d.__nt.node.egress.idx], ['left', 5]);
+  check('…and the node still routes', d.__nt.pathOk(), true);
+
+  check('no exceptions', errs(d), []);
+})();
+
+// ── Rolled ports ──────────────────────────────────────────────────────────────
+// ntRandomEdgePort bounded idx with a single n for all four edges — correct only
+// because generated nodes are square. D44's class. Spec §7.1.
+section('Rolled ports — idx is bounded by the port\'s OWN edge');
+(() => {
+  const d = makeDevice('rollports', 'single', 0, [{ uid: 'u0', nickname: 'Ali' }]);
+  d.__nt.seat({ players: 1, names: ['Ali'], scale: 18, natives: 0 });
+
+  // Generated nodes are square, so this asserts the invariant rather than the split.
+  // The split itself is proven by the mouth-derivation section's per-axis checks.
+  let allInRange = true, mouthsClear = true;
+  for (let i = 0; i < 12; i++) {
+    d.__nt.genNode();
+    const nd = d.__nt.node;
+    for (const p of [nd.ingress, nd.egress]) {
+      const len = (p.edge === 'top' || p.edge === 'bottom') ? nd.w : nd.h;
+      if (!(p.idx >= 0 && p.idx <= len - 1)) allInRange = false;
+      // Generation reserves the FULL span, so no bad sector or native honeypot may sit
+      // on any mouth tile. Spec §7.2.
+      for (const [mx, my] of d.__nt.mouthTiles(p, nd.w, nd.h)) {
+        const solid = nd.badSectors.concat(nd.nativeHoneypots)
+          .some(b => mx >= b.ax && mx <= b.ax + 1 && my >= b.ay && my <= b.ay + 1);
+        if (solid) mouthsClear = false;
+      }
+    }
+  }
+  check('every rolled idx is within its own edge', allInRange,  true);
+  check('no generated terrain sits on a mouth tile', mouthsClear, true);
+  check('no exceptions', errs(d), []);
+})();
+
 // ── Finite geometry — the NaN tripwire ────────────────────────────────────────
 // A missed .n → .w/.h rename yields undefined → NaN, which throws nothing and asserts
 // nothing: every render call still "succeeds" while drawing garbage. These checks are the
@@ -1201,6 +1443,8 @@ section('Deploy Node — an authored node is shape-identical to a rolled one');
         r.clients.map(c => Array.isArray(c.__nt.node.badSectors)), [true, true]);
   check('…and nativeHoneypots too',
         r.clients.map(c => Array.isArray(c.__nt.node.nativeHoneypots)), [true, true]);
+  // The mouth span is a pure function of idx, so a chained idx chains the span too —
+  // this pre-existing check already proves spec §7.4's coverage without needing its own.
   check('clients agree with the host on the ports',
         r.clients.map(c => c.__nt.node.ingress.idx),
         [r.host.__nt.node.ingress.idx, r.host.__nt.node.ingress.idx]);
@@ -1235,6 +1479,19 @@ section('Rectangular nodes — authored, deployed, played');
   check(`${w}×${h}: blank board routes`,           d.__nt.pathOk(), true);
   check(`${w}×${h}: grid renders w×h cells`,       d.__nt.authCells(), w * h);
   check(`${w}×${h}: two port markers`,             d.__nt.authPorts(), 2);
+
+  // A port's mouth measures against its OWN edge. On a non-square node a swapped
+  // argument order exchanges the two, which is invisible on a square node — this is the
+  // same discriminator D46 established for ntPortMouth, applied to ntMouthIdxs.
+  const nd = d.__nt.node;
+  for (const p of [nd.ingress, nd.egress]) {
+    const len = (p.edge === 'top' || p.edge === 'bottom') ? nd.w : nd.h;
+    const idxs = d.__nt.mouthIdxs(p, nd.w, nd.h);
+    check(`${w}×${h}: ${p.edge} mouth stays within its own edge`,
+          idxs.every(i => i >= 0 && i <= len - 1), true);
+    check(`${w}×${h}: ${p.edge} mouth is one unit at a corner, two otherwise`,
+          idxs.length, (p.idx <= 0 || p.idx >= len - 1) ? 1 : 2);
+  }
 
   const tl = d.__nt.timeline();
   check(`${w}×${h}: latency is finite and positive`,

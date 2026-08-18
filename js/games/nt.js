@@ -1629,10 +1629,55 @@ function ntPortSub(node, port) {             // config-lattice sub-cell of the m
   const mx = node.w * k - 1, my = node.h * k - 1;
   return { sx: Math.max(0, Math.min(mx, Math.floor(p.x * k))), sy: Math.max(0, Math.min(my, Math.floor(p.y * k))) };
 }
+// ── Mouth span — the port is TWO tiles wide, one at either end of an edge.
+// Derived from { edge, idx }; nothing is stored. The <= / >= (rather than ===) also
+// clamp an out-of-range authored idx rather than returning a tile off the board.
+function ntMouthIdxs(port, w, h) {
+  const len = (port.edge === 'top' || port.edge === 'bottom') ? w : h;
+  if (port.idx <= 0)       return [0];
+  if (port.idx >= len - 1) return [len - 1];
+  return [port.idx, port.idx + 1];
+}
+
+// A RESOLVED port is the same { edge, idx } shape with idx pinned to ONE mouth half.
+// That shape-identity is what lets ntPortMouth/Interior/Border/Outside/Sub stay
+// unchanged — they cannot tell a resolved port from a logical one.
+function ntPortHalves(port, w, h) {
+  return ntMouthIdxs(port, w, h).map(i => ({ edge: port.edge, idx: i }));
+}
+function ntMouthTiles(port, w, h) {
+  return ntPortHalves(port, w, h).map(p => ntPortMouth(p, w, h));
+}
+function ntPortSubs(node, port) {
+  return ntPortHalves(port, node.w, node.h).map(p => ntPortSub(node, p));
+}
+// TILE-SET intersection, not an idx comparison: two corner ports on DIFFERENT edges
+// can share one physical tile (left/0 and top/0 are both tile (0,0)).
+function ntMouthsIntersect(a, b, w, h) {
+  const A = ntMouthTiles(a, w, h);
+  return ntMouthTiles(b, w, h).some(([bx, by]) => A.some(([ax, ay]) => ax === bx && ay === by));
+}
+// Which half did a route actually use? Maps a config-lattice sub-cell back to its tile,
+// then to the matching half. Falls back to the FIRST half rather than returning
+// undefined — undefined arithmetic yields NaN, which throws nothing and renders as
+// garbage (D46). A wrong-but-finite point is catchable; a NaN is not.
+function ntResolveHalf(node, port, subCell) {
+  const halves = ntPortHalves(port, node.w, node.h);
+  if (!subCell) return halves[0];
+  const tx = Math.floor(subCell.x / NT_LATTICE_K), ty = Math.floor(subCell.y / NT_LATTICE_K);
+  for (const hp of halves) {
+    const [mx, my] = ntPortMouth(hp, node.w, node.h);
+    if (mx === tx && my === ty) return hp;
+  }
+  return halves[0];
+}
+
+// Retained for RENDER classification only (ntCellType). Every placement-reservation
+// caller was deleted when ntPathExists became the sole legality gate — see spec §5.1.
 function ntIsMouthTile(tx, ty) {
-  const [ix, iy] = ntPortMouth(ntNode.ingress, ntNode.w, ntNode.h);
-  const [ex, ey] = ntPortMouth(ntNode.egress,  ntNode.w, ntNode.h);
-  return (tx === ix && ty === iy) || (tx === ex && ty === ey);
+  const tiles = ntMouthTiles(ntNode.ingress, ntNode.w, ntNode.h)
+        .concat(ntMouthTiles(ntNode.egress, ntNode.w, ntNode.h));
+  return tiles.some(([mx, my]) => mx === tx && my === ty);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1642,13 +1687,19 @@ function ntIsMouthTile(tx, ty) {
 // Build-time reachability: BFS on the config lattice (port mouth → port mouth).
 function ntPathExists(node, placements) {
   const k = NT_LATTICE_K, g = ntConfigGrid(node, placements), W = node.w * k, H = node.h * k;
-  const s = ntPortSub(node, node.ingress), t = ntPortSub(node, node.egress);
-  if (g[s.sy][s.sx] || g[t.sy][t.sx]) return false;
-  const seen = new Uint8Array(W * H), goal = t.sy * W + t.sx;
-  let head = 0; const q = [s.sy * W + s.sx]; seen[q[0]] = 1;
+  // Either half of a mouth will do. A mouth tile's centre sub-cell is blocked iff that
+  // TILE is solid — a neighbour's inflation reaches tx*k, the centre sits at tx*k+2.
+  const srcs = ntPortSubs(node, node.ingress).filter(s => !g[s.sy][s.sx]);
+  const dsts = ntPortSubs(node, node.egress).filter(s => !g[s.sy][s.sx]);
+  if (!srcs.length || !dsts.length) return false;
+  const goals = new Set(dsts.map(t => t.sy * W + t.sx));
+  const seen = new Uint8Array(W * H);
+  const q = [];
+  for (const s of srcs) { const i = s.sy * W + s.sx; if (!seen[i]) { seen[i] = 1; q.push(i); } }
+  let head = 0;
   while (head < q.length) {
     const u = q[head++];
-    if (u === goal) return true;
+    if (goals.has(u)) return true;
     const ux = u % W, uy = (u - ux) / W;
     for (const st of NT_STEPS) {
       if (!ntStepLegal(g, ux, uy, st)) continue;
@@ -1664,18 +1715,21 @@ function ntPathExists(node, placements) {
 // Returns sub-cells [{x,y}, …] inclusive, or null. Deterministic (NT_STEPS order).
 function ntDijkstraSub(node, placements) {
   const k = NT_LATTICE_K, g = ntConfigGrid(node, placements), W = node.w * k, H = node.h * k;
-  const s = ntPortSub(node, node.ingress), t = ntPortSub(node, node.egress);
-  if (g[s.sy][s.sx] || g[t.sy][t.sx]) return null;
+  const srcs = ntPortSubs(node, node.ingress).filter(p => !g[p.sy][p.sx]);
+  const dsts = ntPortSubs(node, node.egress).filter(p => !g[p.sy][p.sx]);
+  if (!srcs.length || !dsts.length) return null;
   const dist = new Float64Array(W * H).fill(Infinity);
   const prev = new Int32Array(W * H).fill(-1);
   const done = new Uint8Array(W * H);
   const idx = (x, y) => y * W + x;
-  const start = idx(s.sx, s.sy), goal = idx(t.sx, t.sy);
-  dist[start] = 0;
+  const goals = new Set(dsts.map(p => idx(p.sx, p.sy)));
+  for (const p of srcs) dist[idx(p.sx, p.sy)] = 0;
+  let goal = -1;
   while (true) {
     let u = -1, best = Infinity;
     for (let i = 0; i < dist.length; i++) if (!done[i] && dist[i] < best) { best = dist[i]; u = i; }
-    if (u === -1 || u === goal) break;
+    if (u === -1) break;
+    if (goals.has(u)) { goal = u; break; }
     done[u] = 1;
     const ux = u % W, uy = (u - ux) / W;
     for (const st of NT_STEPS) {
@@ -1686,7 +1740,7 @@ function ntDijkstraSub(node, placements) {
       if (nd < dist[v]) { dist[v] = nd; prev[v] = u; }
     }
   }
-  if (!isFinite(dist[goal])) return null;
+  if (goal === -1) return null;
   const path = [];
   for (let v = goal; v !== -1; v = prev[v]) path.push({ x: v % W, y: (v - (v % W)) / W });
   return path.reverse();
@@ -1733,13 +1787,18 @@ function ntShortestPath(node, placements) {
   const k = NT_LATTICE_K, g = ntConfigGrid(node, placements);
   const pulled = ntStringPull(sub, g);
   const poly = pulled.map(p => ({ x: (p.x + 0.5) / k, y: (p.y + 0.5) / k }));
-  // Snap the two ends to the exact mouth centres, then add the border + off-board points.
-  poly[0] = ntPortInterior(node, node.ingress);
-  poly[poly.length - 1] = ntPortInterior(node, node.egress);
-  poly.unshift(ntPortBorder(node.ingress, node.w, node.h));
-  poly.unshift(ntPortOutside(node.ingress, node.w, node.h));
-  poly.push(ntPortBorder(node.egress, node.w, node.h));
-  poly.push(ntPortOutside(node.egress, node.w, node.h));
+  // Snap the two ends to the mouth half the route ACTUALLY used, then add the border +
+  // off-board points for that SAME half. Using the span midpoint instead would put the
+  // stub on the boundary between halves, so the runner would enter at the seam and jog
+  // sideways to a half-centre on every single run.
+  const usedIn  = ntResolveHalf(node, node.ingress, sub[0]);
+  const usedOut = ntResolveHalf(node, node.egress,  sub[sub.length - 1]);
+  poly[0]               = ntPortInterior(node, usedIn);
+  poly[poly.length - 1] = ntPortInterior(node, usedOut);
+  poly.unshift(ntPortBorder(usedIn,  node.w, node.h));
+  poly.unshift(ntPortOutside(usedIn, node.w, node.h));
+  poly.push(ntPortBorder(usedOut,  node.w, node.h));
+  poly.push(ntPortOutside(usedOut, node.w, node.h));
   return poly;
 }
 
@@ -1754,7 +1813,13 @@ function ntSlotCount(w, h) {
   return Math.floor(w / NT_BLOCK) * Math.floor(h / NT_BLOCK);
 }
 
-function ntRandomEdgePort(n) { return { edge: ['top', 'right', 'bottom', 'left'][ntRandInt(0, 3)], idx: ntRandInt(0, n - 1) }; }
+// One bound per EDGE. A single shared n was correct only because generated nodes are
+// square — the same class of latent as ntPortSub's shared clamp (D44).
+function ntRandomEdgePort(w, h) {
+  const edge = ['top', 'right', 'bottom', 'left'][ntRandInt(0, 3)];
+  const len  = (edge === 'top' || edge === 'bottom') ? w : h;
+  return { edge, idx: ntRandInt(0, len - 1) };
+}
 
 // §10 pipeline → sets ntNode + ntInventory. Re-rolls until Ingress→Egress is valid
 // on the config lattice. Ports never share an edge (DNP pins left→right).
@@ -1777,12 +1842,15 @@ function ntGenerateNode(keepInventory = false, forcedIngressIdx = null) {
       ingress = { edge: 'left',  idx: (forcedIngressIdx != null ? forcedIngressIdx : ntRandInt(0, n - 1)) };
       egress  = { edge: 'right', idx: ntRandInt(0, n - 1) };
     } else {
-      ingress = ntRandomEdgePort(n);
-      do { egress = ntRandomEdgePort(n); } while (egress.edge === ingress.edge);
+      ingress = ntRandomEdgePort(w, h);
+      do { egress = ntRandomEdgePort(w, h); } while (egress.edge === ingress.edge);
     }
-    const [imx, imy] = ntPortMouth(ingress, n, n), [emx, emy] = ntPortMouth(egress, n, n);
+    const mouthTiles = ntMouthTiles(ingress, w, h).concat(ntMouthTiles(egress, w, h));
+    const [imx, imy] = mouthTiles[0], [emx, emy] = ntMouthTiles(egress, w, h)[0];
     if (Math.abs(imx - emx) + Math.abs(imy - emy) < 8) continue; // corner-proximity guard — re-roll if ports too close
-    const isMouth = (tx, ty) => (tx === imx && ty === imy) || (tx === emx && ty === emy);
+    // Reserve the FULL span, so a generated node always opens with a clean full-width
+    // door and any narrowing is player-caused. Spec §7.2.
+    const isMouth = (tx, ty) => mouthTiles.some(([mx, my]) => mx === tx && my === ty);
     // Place disjoint 2×2 bad-sector blocks (zero-overlap; never on a port mouth tile).
     const occupied = []; for (let y = 0; y < n; y++) occupied.push(new Array(n).fill(false));
     const tryMark = (ax, ay) => {
@@ -2134,10 +2202,10 @@ function ntUpdateGhostAt(tx, ty) {
   const b = ntBlockAt(tx, ty);
   if (b && b.source === 'placement') { ntClearGhost(); return; }
 
-  // Reserved (bad / native / port mouth) → silent, no ghost.
+  // Reserved (bad / native) → silent, no ghost.
   let blocked = false;
   for (const [fx, fy] of ntBlockTiles(ax, ay)) {
-    if (ntBlockAt(fx, fy) || ntIsMouthTile(fx, fy)) { blocked = true; break; }
+    if (ntBlockAt(fx, fy)) { blocked = true; break; }
   }
   if (blocked) { ntClearGhost(); return; }
 
@@ -2181,12 +2249,15 @@ function ntDrawPortMarker(grid, port, color, inward, w, h) {
   m.className = 'absolute pointer-events-none rounded-sm flex items-center justify-center';
   m.style.background = color;
   m.style.boxShadow = `0 0 6px ${color}`;
-  // A marker spans ONE tile along its own edge — horizontal edges divide by w, vertical by h.
-  const spanX = `calc(${100 / w}%)`, spanY = `calc(${100 / h}%)`, off = '-3px', thick = '6px';
-  if (port.edge === 'top')         { m.style.left = `${(port.idx / w) * 100}%`; m.style.width = spanX; m.style.top = off; m.style.height = thick; }
-  else if (port.edge === 'bottom') { m.style.left = `${(port.idx / w) * 100}%`; m.style.width = spanX; m.style.bottom = off; m.style.height = thick; }
-  else if (port.edge === 'left')   { m.style.top = `${(port.idx / h) * 100}%`; m.style.height = spanY; m.style.left = off; m.style.width = thick; }
-  else                             { m.style.top = `${(port.idx / h) * 100}%`; m.style.height = spanY; m.style.right = off; m.style.width = thick; }
+  // A marker spans the port's MOUTH along its own edge — horizontal edges divide by w,
+  // vertical by h. A corner mouth is one unit, a standard mouth two.
+  const idxs = ntMouthIdxs(port, w, h), first = idxs[0], units = idxs.length;
+  const spanX = `calc(${(100 * units) / w}%)`, spanY = `calc(${(100 * units) / h}%)`;
+  const off = '-3px', thick = '6px';
+  if (port.edge === 'top')         { m.style.left = `${(first / w) * 100}%`; m.style.width = spanX; m.style.top = off; m.style.height = thick; }
+  else if (port.edge === 'bottom') { m.style.left = `${(first / w) * 100}%`; m.style.width = spanX; m.style.bottom = off; m.style.height = thick; }
+  else if (port.edge === 'left')   { m.style.top = `${(first / h) * 100}%`; m.style.height = spanY; m.style.left = off; m.style.width = thick; }
+  else                             { m.style.top = `${(first / h) * 100}%`; m.style.height = spanY; m.style.right = off; m.style.width = thick; }
   const a = document.createElement('span');
   a.style.cssText = 'font-size:5px;line-height:1;color:#fff;pointer-events:none';
   a.textContent = NT_PORT_ARROWS[port.edge][inward ? 'in' : 'out'];
@@ -2308,10 +2379,10 @@ function ntRenderBuildGrid() {
     if (ntLongPressTimer) { clearTimeout(ntLongPressTimer); ntLongPressTimer = null; } // defence: cancel any stale long-press
     const { tx, ty } = getTile(e);
     const b = ntBlockAt(tx, ty);
-    if (b || ntIsMouthTile(tx, ty)) return; // occupied or port — ignore
+    if (b) return; // occupied — ignore
     const ax = Math.max(0, Math.min(tx, w - 2));
     const ay = Math.max(0, Math.min(ty, h - 2));
-    for (const [fx, fy] of ntBlockTiles(ax, ay)) { if (ntBlockAt(fx, fy) || ntIsMouthTile(fx, fy)) return; }
+    for (const [fx, fy] of ntBlockTiles(ax, ay)) { if (ntBlockAt(fx, fy)) return; }
     ntClearGhost();
     ntAttemptPlace(ax, ay, true);
   });
@@ -2325,7 +2396,6 @@ function ntHandleTap(tx, ty) {
   const b = ntBlockAt(tx, ty);
   if (b && b.source === 'placement') { ntRemoveBlock(b.ax, b.ay); return; }
   if (b) return;                       // bad / native — reserved
-  if (ntIsMouthTile(tx, ty)) return;   // port mouth — reserved
   ntAttemptPlace(tx, ty, false);
 }
 
@@ -2333,7 +2403,6 @@ function ntHandleLongPress(tx, ty) {
   const b = ntBlockAt(tx, ty);
   if (b && b.source === 'placement' && b.type === 'firewall') { ntUpgradeToHoneypot(b.ax, b.ay); return; }
   if (b) return;                       // honeypot / bad / native — reserved
-  if (ntIsMouthTile(tx, ty)) return;
   ntAttemptPlace(tx, ty, true);
 }
 
@@ -2344,7 +2413,7 @@ function ntAttemptPlace(tx, ty, asHoneypot) {
   const ax = Math.max(0, Math.min(tx, w - 2)), ay = Math.max(0, Math.min(ty, h - 2));
   // Strict zero-overlap: all 4 footprint tiles must be vacant and clear of port mouths.
   for (const [fx, fy] of ntBlockTiles(ax, ay)) {
-    if (ntBlockAt(fx, fy) || ntIsMouthTile(fx, fy)) { ntFlashReject(ntBuildCells[ty] && ntBuildCells[ty][tx]); return; }
+    if (ntBlockAt(fx, fy)) { ntFlashReject(ntBuildCells[ty] && ntBuildCells[ty][tx]); return; }
   }
   if (asHoneypot) {
     if (ntHoneypotUsed >= ntInventory.honeypot) { playBoing(); ntSetRouting('storage_insufficient'); return; }
@@ -2539,7 +2608,7 @@ function ntAuthPlaceTerrain(tx, ty, asHoneypot) {
   const ax = Math.max(0, Math.min(tx, w - 2)), ay = Math.max(0, Math.min(ty, h - 2));
   // Strict zero-overlap, exactly as ntAttemptPlace enforces it during Build.
   for (const [fx, fy] of ntBlockTiles(ax, ay)) {
-    if (ntBlockAt(fx, fy) || ntIsMouthTile(fx, fy)) { ntFlashReject(ntBuildCells[ty] && ntBuildCells[ty][tx]); return; }
+    if (ntBlockAt(fx, fy)) { ntFlashReject(ntBuildCells[ty] && ntBuildCells[ty][tx]); return; }
   }
   if (asHoneypot && ntNode.nativeHoneypots.length >= ntNativeHoneypots) {
     playBoing(); ntSetRouting('storage_insufficient');
@@ -2580,6 +2649,8 @@ function ntAuthRemoveTerrain(b) {
 // Both exist to keep RANDOMLY ROLLED nodes varied. An author placing two ports close together,
 // or on the same edge, is making a choice — blocking it would be the tool second-guessing its
 // user. The two genuine constraints remain: the mouths must differ, and the node must route.
+// "Differ" now means tile-set DISJOINT, not idx-unequal — two-unit mouths make near-misses
+// overlap, and two corner ports on different edges can share one physical tile.
 function ntAuthSetPort(tx, ty) {
   const w = ntNode.w, h = ntNode.h;
   const nearest = [
@@ -2591,8 +2662,11 @@ function ntAuthSetPort(tx, ty) {
   const pick  = { edge: nearest.edge, idx: nearest.idx };
   const key   = ntDebugBrush;                                    // 'ingress' | 'egress'
   const other = key === 'ingress' ? ntNode.egress : ntNode.ingress;
-  if (pick.edge === other.edge && pick.idx === other.idx) {
-    ntFlashReject(ntBuildCells[ty] && ntBuildCells[ty][tx]);      // ingress mouth ≠ egress mouth
+  // Two-unit mouths make near-misses overlap, and two corner ports on DIFFERENT edges
+  // can share one physical tile. The rule this file already states — "the mouths must
+  // differ" — generalises to tile-set intersection. Spec §7.5.
+  if (ntMouthsIntersect(pick, other, w, h)) {
+    ntFlashReject(ntBuildCells[ty] && ntBuildCells[ty][tx]);
     return;
   }
   const prev = ntNode[key];
@@ -2994,21 +3068,22 @@ function ntDrawLegCanvas(canvas, node, cell, opts) {
   if (!canvas || !node || !node.w) return;
   opts = opts || {};
   const c = cell || 8;
-  const n = node.w; // DNP nodes are always square under the current scope — w === h
   canvas.width  = node.w * c;
   canvas.height = node.h * c;
   const ctx = canvas.getContext('2d');
   ctx.fillStyle = NT_COLOR_BASE;
-  ctx.fillRect(0, 0, n * c, n * c);
+  ctx.fillRect(0, 0, node.w * c, node.h * c);
   // Per-TILE gridlines (not per-2×2-block) so each square reads at its real scale —
   // matching the playback screen's own grid (ntRenderFrame). The old block-only spacing
   // made 2×2 obstacles look like an ambiguous size with nothing to anchor scale against.
   // Lighter than a per-block grid would need (2× the line count) to stay unobtrusive.
   ctx.strokeStyle = 'rgba(148,163,184,0.18)';
   ctx.lineWidth = 1;
-  for (let li = 0; li <= n; li++) {
-    ctx.beginPath(); ctx.moveTo(li * c + 0.5, 0);     ctx.lineTo(li * c + 0.5, n * c); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(0, li * c + 0.5);     ctx.lineTo(n * c, li * c + 0.5); ctx.stroke();
+  for (let li = 0; li <= node.w; li++) {
+    ctx.beginPath(); ctx.moveTo(li * c + 0.5, 0); ctx.lineTo(li * c + 0.5, node.h * c); ctx.stroke();
+  }
+  for (let li = 0; li <= node.h; li++) {
+    ctx.beginPath(); ctx.moveTo(0, li * c + 0.5); ctx.lineTo(node.w * c, li * c + 0.5); ctx.stroke();
   }
   const fill = (ax, ay, color) => {
     ctx.fillStyle = color;
@@ -3016,23 +3091,29 @@ function ntDrawLegCanvas(canvas, node, cell, opts) {
   };
   (node.badSectors      || []).forEach(p => fill(p.ax, p.ay, NT_COLOR_BAD_SECTOR));
   (node.nativeHoneypots || []).forEach(p => fill(p.ax, p.ay, NT_COLOR_NATIVE_HONEYPOT));
-  // Seam walls on shared edges — full height except the one connecting port row.
-  // Deliberately NOT NT_COLOR_BAD_SECTOR: that colour is a hazard's colour, and on this
-  // flat (no-glow) preview a same-colour wall reads as just another obstacle square
+  // Seam walls on shared edges — full height except the connecting port MOUTH (both
+  // rows). Deliberately NOT NT_COLOR_BAD_SECTOR: that colour is a hazard's colour, and on
+  // this flat (no-glow) preview a same-colour wall reads as just another obstacle square
   // rather than a team-connection boundary. Lighter slate keeps the neutral/structural
   // palette without competing with the semantic ingress/egress/native-honeypot colours.
   const wallT = Math.max(2, Math.round(c * 0.5));
   ctx.fillStyle = '#64748b'; // slate-500 — lighter than bad-sector's slate-700
+  // The wall opens the WHOLE mouth, not one row. Opening a single row here passes every
+  // check — the maths is right and the route resolves — while the preview shows a door
+  // walled off across half its width. Spec §6.3.
+  const inRows  = node.ingress ? ntMouthIdxs(node.ingress, node.w, node.h) : [];
+  const outRows = node.egress  ? ntMouthIdxs(node.egress,  node.w, node.h) : [];
   if (opts.wallLeft && node.ingress) {
-    for (let row = 0; row < n; row++) { if (row === node.ingress.idx) continue; ctx.fillRect(0, row * c, wallT, c); }
+    for (let row = 0; row < node.h; row++) { if (inRows.includes(row)) continue; ctx.fillRect(0, row * c, wallT, c); }
   }
   if (opts.wallRight && node.egress) {
-    for (let row = 0; row < n; row++) { if (row === node.egress.idx) continue; ctx.fillRect(n * c - wallT, row * c, wallT, c); }
+    for (let row = 0; row < node.h; row++) { if (outRows.includes(row)) continue; ctx.fillRect(node.w * c - wallT, row * c, wallT, c); }
   }
-  // Port channel bars (drawn over the wall gap): green ingress, amber egress.
+  // Port channel bars (drawn over the wall gap): green ingress, amber egress — each
+  // spanning its full mouth.
   const t = Math.max(2, Math.round(c * 0.5));
-  if (node.ingress) { ctx.fillStyle = '#34d399'; ctx.fillRect(0, node.ingress.idx * c, t, c); }
-  if (node.egress)  { ctx.fillStyle = '#f59e0b'; ctx.fillRect(n * c - t, node.egress.idx * c, t, c); }
+  if (node.ingress) { ctx.fillStyle = '#34d399'; ctx.fillRect(0, inRows[0] * c, t, c * inRows.length); }
+  if (node.egress)  { ctx.fillStyle = '#f59e0b'; ctx.fillRect(node.w * c - t, outRows[0] * c, t, c * outRows.length); }
 }
 
 // Build a team's full bridge into `container`: a horizontal row of (name + maze)

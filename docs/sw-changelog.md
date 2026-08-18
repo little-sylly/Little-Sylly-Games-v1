@@ -3,6 +3,23 @@
 Historical SW release notes, moved out of `CLAUDE.md` (1 Aug 2026) so they stop loading into every session.
 The **current** version and its notes stay in `CLAUDE.md` § Current Focus — append the outgoing entry here on each bump.
 
+## v199 — NT Debug Mode's rectangular grid CLOSED (18 Aug 2026)
+
+A five-task dual-write refactor (Phase 1) converted the Node's geometry from a single square `n` to
+independent `w`/`h` across the whole geometry core — pathfinding, ports, footprint clamps,
+rendering, both grid renderers — with every intermediate commit green on the existing 242-check
+suite before the `n` key was dropped. A new "Sandbox Initialisation" screen
+(`screen-nt-debug-config`) then lets Debug Mode's host choose Width and Height independently
+(16–20 each) before the Node Editor opens, reached once per session; the Author New Node loop-back
+reuses the same choice. Two testing gaps closed alongside the feature: a NaN tripwire
+(finite-geometry assertions — a missed rename throws nothing, just renders garbage) and an
+end-to-end rectangular section at 16×18/16×20/20×16, the last one proven to catch a swapped axis
+that the square-only suite structurally cannot. One real latent bug surfaced by the axis split:
+`ntPortSub` had clamped both axes to one shared bound, correct only by coincidence while every node
+was square. `visual-check` confirmed the aspect ratio actually renders (16×18 measured ≈0.889, not
+the old forced 1.0) across all four Debug screens. `verify-nt-loopback.js` sits at **278** checks,
+8/8 seeds green. Detail: `nt-implementation-notes.md` D43–D46; `docs/decision-log.md`.
+
 ## v198 — NT Debug/Sandbox Mode CLOSED, documentation pass + SW bump (17 Aug 2026)
 
 Tasks 1–9 shipped a full hand-authoring sandbox for NT: the host builds a Node in a Node Editor

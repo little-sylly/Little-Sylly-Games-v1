@@ -994,3 +994,73 @@ gate could not detect, by construction, since a W/H swap on a square node is num
 **Harness growth this round:** 242 → 248 (Task 7, the NaN tripwire) → 254 (Task 9, Sandbox
 Initialisation routing + clamp) → 278 (Task 10, three rectangular end-to-end cases). Final:
 **278 checks**, green on seeds 0–7.
+
+### D47 — The resolved port, and why `ntDijkstraSub` kept its original return shape
+
+Making a port's mouth two tiles wide (Phase 2) needed pathfinding to accept a route through
+*either* half, but every downstream point function (`ntPortMouth`, `Interior`, `Border`, `Outside`,
+`Sub`) still expects a single `{ edge, idx }`. Rather than teach five functions a new "half"
+concept, a **resolved port** was defined as the exact same `{ edge, idx }` shape with `idx` pinned
+to one mouth half — shape-identical to a nominal port, so none of the five needed to change at all.
+`ntDijkstraSub(node, placements) → {x,y}[]|null` deliberately kept its exact return shape too:
+rather than have it report which half it used, `ntShortestPath` recovers that fact afterwards from
+the path's own first/last sub-cell via `ntResolveHalf`. **Lesson:** when a change widens *which*
+input is legal (one mouth tile → two) without changing what a downstream consumer does with a
+resolved value, express the widening as "more possible resolved values of the same shape" rather
+than plumbing a new parameter through every consumer — it kept a five-task, two-source-code-file
+change from touching `ntPortMouth`/`Interior`/`Border`/`Outside`/`Sub` at all.
+
+### D48 — `ntRandomEdgePort` and `ntDrawLegCanvas`, D44's third and fourth instances
+
+Two more single-bound-for-two-measurements latents, both found by *reading adjacent code while
+already in the file for an unrelated task*, not by a failing test: `ntRandomEdgePort(n)` bounded a
+rolled port's `idx` against one shared `n` for all four edges (correct only because generated nodes
+are square); `ntDrawLegCanvas` used `node.w` for both the base fill and the gridline loop on both
+axes while correctly setting `canvas.height` from `node.h` two lines above it. D44 predicted exactly
+this shape would recur — "a bug waiting for the day the two measurements diverge" — and it did,
+twice, in the same codebase that D44 was written about. **Lesson:** once a shared-bound latent has
+been found and named, grep for the same *shape* (one variable measuring two logically distinct
+axes) elsewhere in the file rather than assuming the one instance found was the only one; both of
+these were sitting in functions this plan's other tasks were already touching, not hunted for
+separately.
+
+### D49 — What the deliberate-break step actually proved (D42)
+
+Three scratch-copy injections, each run via `NT_SRC=`, confirmed the new sections discriminate
+rather than passing vacuously:
+
+- **Injection A** (revert `ntPathExists`/`ntDijkstraSub` to single-source) reddened `Placement
+  legality`'s "covering ONE half narrows the door — still routes" and crashed the harness partway
+  through `Endpoint snapping`'s open-half checks (an empty polyline made a later `.y` read throw) —
+  proof the multi-source widening is what those sections are actually testing, not incidental.
+- **Injection B** (swap `ntMouthIdxs`'s `w`/`h` selection) reddened exactly the four per-axis checks
+  in `Mouth derivation` and nothing else — the same discriminator D46 established for `ntPortMouth`,
+  now proven for `ntMouthIdxs` too. This class of bug is invisible on a square node by construction;
+  the discriminator only exists because the suite carries genuinely rectangular fixtures.
+- **Injection C** (remove the corner collapse, clamp both indices instead) reddened `Mouth
+  derivation`'s corner-collapse checks, one `Port markers` check and `Placement legality`'s "a
+  corner mouth is one tile" — but notably did **not** redden "a corner port cannot be narrowed at
+  all," because with the collapse removed a corner's two-tile mouth still gets fully covered by the
+  same 2×2 block. That specific check isn't the one that catches this class of bug; a sibling check
+  is. Worth recording as a reminder that "this check didn't redden" isn't proof an injection was
+  ineffective — check the section, not one line.
+
+No injection reddened *everything*, which is itself the pass condition (a check that reddens on any
+unrelated break is too coarse to trust). All three scratch copies were deleted before Task 7 began;
+`git status --short` confirmed a clean tree throughout.
+
+**A pre-implementation spec correction, logged here since it was found while writing this plan's
+test code, before any production code existed:** the design spec first specified `ntMouthsIntersect`
+as same-edge idx-span overlap. Writing the test's corner-port cases (`left/0` and `top/0`, both
+tile `(0,0)`) surfaced that two corner ports on *different* edges can share one physical tile — an
+idx-span comparison on a shared edge can never see this, because the two ports being compared don't
+share an edge at all. The function shipped as a genuine **tile-set** intersection from Task 1
+onward. **Lesson:** writing the assertions before the implementation caught a spec defect that would
+otherwise have shipped as a real bug (two corner ports at the same physical tile silently accepted)
+and only surfaced later against a live board — an argument for writing test cases, not just
+prose acceptance criteria, during spec review.
+
+**Harness growth this round (Phase 2):** 278 → 294 (Task 1, mouth primitives) → 306 (Task 2,
+multi-source pathfinding + endpoint snapping) → 317 (Task 3, reservation deletion) → 322 (Task 4,
+renderers) → 342 (Task 5, generation/editor + the rectangular section's per-axis mouth-span
+additions). Final: **342 checks**, green on seeds 0–7.

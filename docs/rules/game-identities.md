@@ -1323,6 +1323,7 @@ LOBBY (MDLM only) → NT MENU
 | Debug Mode | Staging Environment — one analyst hand-authors a Node in the Node Editor instead of the system rolling one; mutually exclusive with Sylly Mode |
 | Sandbox Initialisation | `screen-nt-debug-config` — Debug Mode's terminal-boot screen, shown once at the start of a Debug session; sets the Node's width and height (16–20 each, independently) before the Node Editor opens |
 | Node Editor | `screen-nt-authoring` — the hand-authoring canvas: draw Bad Sectors, drop Native Honeypots, place Ingress/Egress, set the budget. Since the rectangular-grid round (18 Aug 2026) the grid is `w × h` — the two dimensions chosen on Sandbox Initialisation, not forced square |
+| Mouth | The tile(s) a port occupies on the board edge — since the two-unit-ports round (18 Aug 2026), DERIVED from `{ edge, idx }` (no new field): two tiles wide at mid-edge, collapsing to one tile at either end of the edge (a corner mouth). Narrowing a mouth to its open half is a legal build move; covering the whole mouth is not |
 | Deploy Node | The Node Editor's CTA — publishes the authored node over `NT_GENERATE` exactly as a rolled node would be |
 | Attempt | One local run of the retry loop against the deployed node — costs zero packets; a player may run unlimited attempts |
 | Best Trace | The player's highest-latency attempt so far (NT rewards the longest delay); the summary scores this, not the most recent attempt |
@@ -1349,6 +1350,14 @@ Player count (`ntPlayerCount`, default 4) is set from the lobby roster in MDLM (
 - `opts.keepInventory = true` — DNP batch mode: first call sets the team's shared inventory; subsequent N-1 calls regenerate geometry only, preserving the same inventory object
 - `ntTeamNodes[playerIdx]` stores each player's own node geometry for per-player BFS simulation
 - Every node is `{ w, h, ingress, egress, badSectors[], nativeHoneypots[] }` (rectangular-grid round, 18 Aug 2026 — replaced the old single square `n`). Generated (rolled) and DNP nodes are always square (`w === h`, from `ntMatrixScale`) — only a hand-authored Debug node can be a true rectangle
+- A generated node's ports never share an edge (DNP pins left→right); a corner-proximity re-roll keeps the two mouths at least 8 tiles apart (measured from each port's primary mouth tile). Generation reserves the **full** mouth span, so a rolled node always opens with a clean full-width door — any narrowing seen later is player-caused
+
+**Two-unit ports (18 Aug 2026):**
+- Every port's mouth is TWO tiles wide, not one — collapsing to a single tile only when the port sits at either end of its edge (`idx 0` or the edge's last index). The mouth is derived from the existing `{ edge, idx }` port record; nothing new is stored and no wire packet changed
+- **Narrowing your OWN door is now a legal build move — there is no cross-player interaction here, even in DNP.** Every placement acts on the placing player's own node only (`ntNode`/`ntMyPlacements` are always the current device's own state); a 2×2 firewall/honeypot block may cover ONE half of your own two-unit mouth — the route re-routes through the still-open half. Previously the whole mouth was reserved and unbuildable; covering BOTH halves (sealing the door) is still refused, exactly like covering any other route-critical tile — `ntPathExists` is the single legality gate, with no port-specific special-casing
+- **A corner port cannot be narrowed at all** — its mouth is one tile, so there is no second half to give up. Any block covering it removes the only source/target, refusing the placement outright. This asymmetry (mid-edge ports are narrowable, corner ports are not) is the mechanic, not a gap
+- The runner's animated entry/exit point always tracks whichever half a route actually used — not the span midpoint, which would put the entry stub on the seam between the two halves and read as a sideways jog on every single run
+- Two ports whose mouths OVERLAP (share a physical tile) are refused in both the Node Editor and node generation — this includes two corner ports on different edges meeting at the same board-corner tile, not just idx-equal ports on the same edge
 
 **Sandbox Initialisation (Debug Mode only):**
 - `screen-nt-debug-config` — a terminal-boot screen shown once per Debug session, before the Node Editor. Two number inputs (Width / Height, 16–20 each, independent) let the host set the Node's dimensions before authoring
