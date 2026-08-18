@@ -102,8 +102,13 @@ Three thin wrappers, all pure functions of the above:
 ```js
 function ntMouthTiles(port, w, h)      // → [[tx,ty], …]  (1 or 2)
 function ntPortSubs(node, port)        // → [{sx,sy}, …]  (1 or 2)
-function ntMouthsIntersect(a, b, w, h) // → bool — same edge AND overlapping spans
+function ntMouthsIntersect(a, b, w, h) // → bool — the two TILE SETS share a tile
 ```
+
+`ntMouthsIntersect` compares **tile sets**, not idx spans on a shared edge. Two corner ports
+on *different* edges can meet at the same physical tile — ingress `left/0` and egress `top/0`
+both resolve to tile `(0,0)` — and an idx-span comparison would miss it entirely, because the
+edges differ and the indices index different axes. §7.5 depends on this being caught.
 
 `ntIsMouthTile(tx, ty)` is **retained**, widened to test both ports' full tile sets. Its
 only surviving consumer is the render classification in §6.1 — every placement-reservation
