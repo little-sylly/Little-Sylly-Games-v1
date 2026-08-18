@@ -937,3 +937,60 @@ trusting that it can.**
   passed identically with or without the reset line it was meant to verify. Fixed with one line
   (`setBrushDbg('native')` before the reset call) so the assertion is actually exercising the
   code path it names.
+
+## Design Decisions (Rectangular Grid round — 18 Aug 2026, SW v199)
+
+### D43 — The dual-write refactor order, and why every intermediate commit stayed green
+
+Converting the node's geometry from a single `n` (square side) to independent `w`/`h` touched the
+shipped game's geometry core — pathfinding, ports, rendering, all of it — not just the Debug-only
+feature that motivated it. Rather than one large rename, the five-task Phase 1 sequence emitted
+`w`/`h` **alongside** `n` first (Task 1), migrated every reader tier-by-tier while `n` still existed
+as a safety net (Tasks 2–4), and only dropped the `n` key once a grep confirmed no reader remained
+(Task 5). Every one of those five commits ran the full 242-check suite green before the next task
+began. The payoff: a bisect against any of the five commits would land on a small, single-tier
+diff, and the shipped square-node behaviour was never in a state where some code read `w`/`h` and
+other code still read `n` for the same node. **Lesson:** a rename across a system's core deserves
+the same incremental discipline as a behaviour change — "just a rename" is not a licence to do it
+in one commit when the renamed field is read in a dozen places across four different concerns
+(pathfinding, ports, rendering, footprint clamping).
+
+### D44 — `ntPortSub`'s single-clamp latent bug, invisible until the axis split
+
+`ntPortSub` clamped a port's config-lattice sub-cell to one shared bound (`node.n * k - 1`) used for
+*both* x and y. This was correct only by coincidence — every node was square, so the one bound
+happened to be right on both axes. Splitting it into `mx = node.w * k - 1` / `my = node.h * k - 1`
+(Task 2) revealed the bug had been latent in the geometry core the whole time, undetectable until a
+non-square node existed to expose the shared bound silently mis-clamping the longer axis. **Lesson:**
+a single shared bound standing in for two conceptually distinct measurements (here: the x-axis and
+y-axis extents) is a bug waiting for the day the two measurements diverge — worth flagging even when
+current data can never trigger it, because "current data can never trigger it" is exactly the
+condition that makes the bug invisible in code review and every existing test.
+
+### D45 — The spec's "no `index.html` change" claim needed a correction, not a reversal
+
+The Rev 1 design spec's Tier 4 implied the new aspect ratio would need `index.html` edits — three
+render containers carry Tailwind's `aspect-square` utility class. The actual fix (Task 4) sets an
+**inline** `style.aspectRatio` from JS, which overrides the utility class at the cascade level
+without touching markup — so the plan's only `index.html` edit ended up being the wholly separate
+Task 8 (the new Sandbox Initialisation screen). Confirmed by the visual check (Task 11 Step 1): a
+16×18 grid measured aspect ≈0.889, not 1.0, proving the override actually fires rather than the
+inline style being silently shadowed by the class.
+
+### D46 — The NaN-not-throw failure mode, and the tripwire that closes it
+
+A missed `.n` → `.w`/`.h` rename produces `undefined`, and `undefined` arithmetic produces `NaN` —
+which throws nothing, gets happily assigned to a canvas coordinate or a CSS percentage, and renders
+as garbage while every render call still "succeeds." None of the suite's existing checks would have
+caught this: they assert screens, counts and state transitions, not that the numbers inside a
+timeline are finite. Task 7 added a dedicated section asserting `Number.isFinite` on every point of
+a computed timeline's polyline and samples — proven to actually fail (not just pass by construction)
+by deliberately injecting a `node.n`-dependent NaN into `ntPortSub` and confirming the new checks,
+and only the new checks, went red. Task 10's rectangular end-to-end section reuses the same
+finite-geometry checks against real 16×18/16×20/20×16 nodes, plus a bounds check proven to
+discriminate a swapped `ntPortMouth(port, h, w)` argument order — something the square-only Task 6
+gate could not detect, by construction, since a W/H swap on a square node is numerically invisible.
+
+**Harness growth this round:** 242 → 248 (Task 7, the NaN tripwire) → 254 (Task 9, Sandbox
+Initialisation routing + clamp) → 278 (Task 10, three rectangular end-to-end cases). Final:
+**278 checks**, green on seeds 0–7.

@@ -20,6 +20,29 @@ Detail: pointer to the canonical doc (snapshot / impl note / spec / memory).
 
 ---
 
+## 2026-08-18 — NT's node became rectangular suite-wide, for a Debug-only feature
+**Category:** Architecture
+**Decision:** Converted NT's node geometry from a single square `n` to independent `w`/`h` across
+the entire geometry core (pathfinding, ports, footprint clamps, rendering, both grid renderers) —
+not just the Debug Mode screen that motivated it — via a five-task dual-write refactor (emit `w`/`h`
+alongside `n`, migrate every reader tier-by-tier, drop `n` only once a grep confirmed no reader
+remained), with every intermediate commit green on the full suite before the next task began.
+**Why:** Debug Mode's Sandbox Initialisation screen needed independent Width/Height (16–20 each),
+but the shipped game's geometry core assumed square everywhere. A rename touching that many
+concerns (four+ tiers, a dozen-plus call sites) risked leaving the shipped Standard/DNP path in a
+half-migrated state if done as one large edit; the dual-write ordering was chosen specifically so
+that never happened, and so a bisect against any single commit lands on one small, single-tier diff.
+**Changed:** `js/games/nt.js` (geometry core + the new `screen-nt-debug-config` screen),
+`tools/verify-nt-loopback.js` (242 → 278 checks: a NaN-finiteness tripwire, Sandbox Initialisation
+routing coverage, and an end-to-end rectangular section at 16×18/16×20/20×16). One real latent bug
+surfaced by the split: `ntPortSub` clamped both axes to one shared bound, correct only by
+coincidence while every node was square. **Deferred:** generated and DNP nodes stay square by
+design (only a hand-authored Debug node is a true rectangle) — no scope to extend rectangles beyond
+Debug Mode.
+**Detail:** `nt-implementation-notes.md` D43–D46; `docs/superpowers/plans/2026-08-18-nt-rectangular-grid.md`.
+
+---
+
 ## 2026-08-17 — Mutually-exclusive / superseded settings named as a suite-wide UI pattern (FRT Pear-Off ↔ Sylly was the unnamed first instance; NT Debug Mode ↔ Sylly is the second)
 **Category:** Architecture
 **Decision:** Any two settings where turning one ON must disable the other now follow one of two named,

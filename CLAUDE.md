@@ -283,21 +283,24 @@ Do not write the phase snapshot until Protocols A is clean. Do not write a line 
 pointer, not a narrative — that is what keeps this file cheap. When a round closes, compress its
 entry to one line and let the impl-notes carry the detail (§ Documentation Integrity Protocol).
 
-**SW v198 — NT Debug/Sandbox Mode CLOSED, documentation pass + SW bump (17 Aug 2026).** Tasks 1–9
-shipped a full hand-authoring sandbox for NT: the host builds a Node in a Node Editor
-(`screen-nt-authoring`) instead of the system rolling one, deploys it over the existing
-`NT_GENERATE` packet (`debug: true`), and every player retries it locally an unlimited number of
-times — zero packets per attempt — before finishing independently through a sized readiness gate,
-scored on their **best** (highest-latency) attempt. Mutually exclusive with Sylly Mode, superseding
-Iterations/Hardening Window — the **second** shipped instance of a now-named suite-wide settings
-pattern, after FRT's unnamed Pear-Off ↔ Sylly Mode (SW v167, 10 Aug 2026); decision-log entry below
-names both and corrects an earlier "first instance" misattribution caught in review. Task 10 closed
-it out: `visual-check` on `screen-nt-authoring` at all three Matrix Scale settings found no headroom
-to grow the Randomise buttons (left `min-h-11`) and a real 44 px touch-target gap on the four brush
-pills (fixed, extending TG-08's precedent); `verify-nt-loopback.js` sits at **239** checks, 8/8
-seeds green. Two pieces of stale NT documentation predating this branch were corrected in passing
-(`ntCycles`→`ntIterations`, a phantom `nt-new-trace-overlay` id). Detail: `nt-implementation-notes.md`
-D36–D42; decision-log 2026-08-17.
+**SW v199 — NT Debug Mode's rectangular grid CLOSED (18 Aug 2026).** A five-task dual-write
+refactor (Phase 1) converted the Node's geometry from a single square `n` to independent `w`/`h`
+across the whole geometry core — pathfinding, ports, footprint clamps, rendering, both grid
+renderers — with every intermediate commit green on the existing 242-check suite before the `n`
+key was dropped. A new "Sandbox Initialisation" screen (`screen-nt-debug-config`) then lets Debug
+Mode's host choose Width and Height independently (16–20 each) before the Node Editor opens,
+reached once per session; the Author New Node loop-back reuses the same choice. Two testing gaps
+closed alongside the feature: a NaN tripwire (finite-geometry assertions — a missed rename throws
+nothing, just renders garbage) and an end-to-end rectangular section at 16×18/16×20/20×16, the last
+one proven to catch a swapped axis that the square-only suite structurally cannot. One real latent
+bug surfaced by the axis split: `ntPortSub` had clamped both axes to one shared bound, correct only
+by coincidence while every node was square. `visual-check` confirmed the aspect ratio actually
+renders (16×18 measured ≈0.889, not the old forced 1.0) across all four Debug screens.
+`verify-nt-loopback.js` sits at **278** checks, 8/8 seeds green. Detail:
+`nt-implementation-notes.md` D43–D46; `docs/decision-log.md`.
+
+**SW v198 — NT Debug/Sandbox Mode CLOSED** (17 Aug 2026): the hand-authoring sandbox itself
+(Node Editor, unlimited zero-packet retries, best-attempt scoring). Detail: `docs/sw-changelog.md`.
 
 **SW v195–197 — NT allocation viewer rounds 5–6: maze-preview polish, budget-vs-total split, the
 Stack, terminology cleanup (16 Aug 2026).** Detail: `nt-implementation-notes.md` D33–D35.
@@ -459,7 +462,7 @@ Re-run a game's full set after touching its appliers, deck/data, packets or rend
 | DYB | `node tools/verify-dyb-dice.js` — after any `js/lib/art.js` / `dybDieHTML` / `.dyb-die-*` change | 90+ |
 | SHP | `node tools/verify-shp-loop.js` — random matches, all player counts/modes/settings; `SHP_SEED=` for reproducibility | 60 matches |
 | SHP | `node tools/verify-shp-loopback.js` — host↔client over a Firebase-shaped wire; accepts `SHP_SRC=` | 6 scenarios |
-| NT | `node tools/verify-nt-loopback.js` — host↔**2 clients** over a Firebase-shaped wire, Standard + DNP + Debug Mode; accepts `NT_SRC=` and `NT_SEED=` | 239 |
+| NT | `node tools/verify-nt-loopback.js` — host↔**2 clients** over a Firebase-shaped wire, Standard + DNP + Debug Mode (incl. rectangular grids); accepts `NT_SRC=` and `NT_SEED=` | 278 |
 
 **The blind spot they share is load-bearing.** Every harness *except* the four loopbacks
 (`cjar`/`shp`/`flw`/`nt`) runs in `'single'` mode with `getElementById: () => null`. That is what

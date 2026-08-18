@@ -3,6 +3,23 @@
 Historical SW release notes, moved out of `CLAUDE.md` (1 Aug 2026) so they stop loading into every session.
 The **current** version and its notes stay in `CLAUDE.md` § Current Focus — append the outgoing entry here on each bump.
 
+## v198 — NT Debug/Sandbox Mode CLOSED, documentation pass + SW bump (17 Aug 2026)
+
+Tasks 1–9 shipped a full hand-authoring sandbox for NT: the host builds a Node in a Node Editor
+(`screen-nt-authoring`) instead of the system rolling one, deploys it over the existing
+`NT_GENERATE` packet (`debug: true`), and every player retries it locally an unlimited number of
+times — zero packets per attempt — before finishing independently through a sized readiness gate,
+scored on their **best** (highest-latency) attempt. Mutually exclusive with Sylly Mode, superseding
+Iterations/Hardening Window — the **second** shipped instance of a now-named suite-wide settings
+pattern, after FRT's unnamed Pear-Off ↔ Sylly Mode (SW v167, 10 Aug 2026); decision-log entry below
+names both and corrects an earlier "first instance" misattribution caught in review. Task 10 closed
+it out: `visual-check` on `screen-nt-authoring` at all three Matrix Scale settings found no headroom
+to grow the Randomise buttons (left `min-h-11`) and a real 44 px touch-target gap on the four brush
+pills (fixed, extending TG-08's precedent); `verify-nt-loopback.js` sits at **239** checks, 8/8
+seeds green. Two pieces of stale NT documentation predating this branch were corrected in passing
+(`ntCycles`→`ntIterations`, a phantom `nt-new-trace-overlay` id). Detail: `nt-implementation-notes.md`
+D36–D42; decision-log 2026-08-17.
+
 ## v182 — Settings dynamic-value-line (DD-13) sweep CLOSED (13 Aug 2026)
 
 Self-directed, no live testing. Explore-agent audit found the gap was narrower than the deferred

@@ -1321,7 +1321,8 @@ LOBBY (MDLM only) → NT MENU
 | Team Surplus | DNP: the deposit-only budget on top of every leg's untouchable base — 3 FW + 1 HP **per team member**. (Called "Team Pool" before v191, when it was the team's whole inventory and legs were rebalanced against it) |
 | DNP | Devil's Network Protocol — Sylly Mode name; two teams compete on matched relay legs |
 | Debug Mode | Staging Environment — one analyst hand-authors a Node in the Node Editor instead of the system rolling one; mutually exclusive with Sylly Mode |
-| Node Editor | `screen-nt-authoring` — the hand-authoring canvas: draw Bad Sectors, drop Native Honeypots, place Ingress/Egress, set the budget |
+| Sandbox Initialisation | `screen-nt-debug-config` — Debug Mode's terminal-boot screen, shown once at the start of a Debug session; sets the Node's width and height (16–20 each, independently) before the Node Editor opens |
+| Node Editor | `screen-nt-authoring` — the hand-authoring canvas: draw Bad Sectors, drop Native Honeypots, place Ingress/Egress, set the budget. Since the rectangular-grid round (18 Aug 2026) the grid is `w × h` — the two dimensions chosen on Sandbox Initialisation, not forced square |
 | Deploy Node | The Node Editor's CTA — publishes the authored node over `NT_GENERATE` exactly as a rolled node would be |
 | Attempt | One local run of the retry loop against the deployed node — costs zero packets; a player may run unlimited attempts |
 | Best Trace | The player's highest-latency attempt so far (NT rewards the longest delay); the summary scores this, not the most recent attempt |
@@ -1347,6 +1348,13 @@ Player count (`ntPlayerCount`, default 4) is set from the lobby roster in MDLM (
 - `ntGenerateNode(opts)` builds a relay-leg node with `paths[]` (BFS edges) and `placeholders[]` (component slots)
 - `opts.keepInventory = true` — DNP batch mode: first call sets the team's shared inventory; subsequent N-1 calls regenerate geometry only, preserving the same inventory object
 - `ntTeamNodes[playerIdx]` stores each player's own node geometry for per-player BFS simulation
+- Every node is `{ w, h, ingress, egress, badSectors[], nativeHoneypots[] }` (rectangular-grid round, 18 Aug 2026 — replaced the old single square `n`). Generated (rolled) and DNP nodes are always square (`w === h`, from `ntMatrixScale`) — only a hand-authored Debug node can be a true rectangle
+
+**Sandbox Initialisation (Debug Mode only):**
+- `screen-nt-debug-config` — a terminal-boot screen shown once per Debug session, before the Node Editor. Two number inputs (Width / Height, 16–20 each, independent) let the host set the Node's dimensions before authoring
+- `ntDebugLastW`/`ntDebugLastH` hold the session's choice — session state (cleared by `ntResetState`), not a setting; a fresh session re-seeds both fields from `ntMatrixScale`
+- The Author New Node loop-back from the Diagnostic Summary skips Sandbox Initialisation and reuses the same `ntDebugLastW`/`H` — only the FIRST authoring entry of a session shows the config screen
+- A blank/non-numeric field clamps to `ntMatrixScale` rather than producing `NaN` (`ntDebugReadDim`)
 
 **BFS simulation:**
 - `ntComputeTimeline_local()` traverses `ntNode` using `ntMyPlacements` — returns an ordered array of latency contributions
@@ -1428,7 +1436,8 @@ Player count (`ntPlayerCount`, default 4) is set from the lobby roster in MDLM (
 |-----------|---------|
 | `screen-nt-menu` | Main hub |
 | `screen-nt-setup` | PTP "Provision Admins" — operator count + callsigns |
-| `screen-nt-authoring` | Debug Mode's Node Editor — hand-author a Node (brush pills, budget steppers, Randomise Terrain / Randomise Budget, Deploy Node); the single entry point, reached at session start and again on the Author New Node loop-back from the summary |
+| `screen-nt-debug-config` | "Sandbox Initialisation" — Debug Mode's terminal-boot screen; sets independent Width/Height (16–20 each) before the Node Editor opens. Shown once per session, on the FIRST authoring entry only |
+| `screen-nt-authoring` | Debug Mode's Node Editor — hand-author a Node (brush pills, budget steppers, Randomise Terrain / Randomise Budget, Deploy Node) at the `w × h` chosen on Sandbox Initialisation; reached at session start (via Sandbox Initialisation's Deploy) and again on the Author New Node loop-back from the summary (which skips Sandbox Initialisation and reuses the same dimensions) |
 | `screen-nt-gate` | Cycle readiness gate — reused for the cycle-start boot terminal (types out flavour lines, then reveals the ready-check button), each PTP player's pass-the-phone handover, and the post-build "gather to watch playback" beat |
 | `screen-nt-allocation` | DNP Shared Allocation Hub — the cluster bridge as picker; captain arms a resource and taps a leg to deposit the team surplus |
 | `screen-nt-build` | Hardening screen — player places components on their relay-leg node |

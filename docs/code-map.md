@@ -1130,6 +1130,7 @@ Each plugin reads `window.activeExpansionOverrides` at its settings-apply point 
 |-----------|---------|
 | `screen-nt-menu` | Main hub — Trace the Route!, How to Play, Settings, ← Back to the Box |
 | `screen-nt-setup` | "Provision Admins" — PTP operator count + callsigns |
+| `screen-nt-debug-config` | "Sandbox Initialisation" — Debug Mode's terminal-boot config screen; two number inputs (`nt-debug-w`/`nt-debug-h`, 16–20 each) revealed after the `nt-debug-config-log` typewriter, `btn-nt-debug-config-deploy`. Shown once per session on first Debug entry (`ntStartSolo`/`ntStartPTP`/`ntStartSession`'s host branch); the Author New Node loop-back skips it and reuses the chosen dimensions |
 | `screen-nt-authoring` | Debug Mode's Node Editor — brush pills (`data-nt-brush`: `bad`/`native`/`ingress`/`egress`), `nt-auth-grid`, `nt-auth-routing` status line, `nt-auth-brush-hint`, firewall/honeypot budget steppers (`nt-auth-fw-val`/`nt-auth-hp-val`), `btn-nt-auth-rand-terrain`/`btn-nt-auth-rand-budget`, `btn-nt-auth-deploy` |
 | `screen-nt-gate` | Cycle readiness gate — carries the cycle-start boot terminal (`#nt-gate-boot-log`, typed line by line), each PTP handover, and the post-build gather beat |
 | `screen-nt-allocation` | DNP (Sylly Mode) Shared Allocation Hub — captain deposits surplus across legs; non-captain sees read-only. Body IDs (all built by `ntRenderAllocationScreen`, not static markup): `nt-alloc-viewport` (clips the strip to one leg) → `nt-alloc-bridge` (the strip), `nt-alloc-chips`, `nt-alloc-viewer-label`, `btn-nt-alloc-prev`/`-next`. Static footer: `nt-alloc-status`, `nt-alloc-warning`, `nt-alloc-controlhub`, `btn-nt-alloc-lock`. On the legacy `h-screen` whitelist but **switches to the Stack** when content fits (D34) |
@@ -1161,7 +1162,8 @@ Each plugin reads `window.activeExpansionOverrides` at its settings-apply point 
 | `ntDebugBest` | object\|null | `null` | This device's best attempt so far — `{ latencyMs, placements, timeline }` |
 | `ntDebugFinished` | bool[] | `[]` | `[playerIdx]` — host authority, the Debug readiness gate (MDLM) |
 | `ntDebugAttemptCounts` | int[] | `[]` | `[playerIdx]` — display only, drives `ntRenderDebugRoster` |
-| `ntNode` | object | `null` | Current player's relay-leg node geometry `{word, paths, placeholders[]}` |
+| `ntDebugLastW` / `ntDebugLastH` | int\|null | `null` | Sandbox dimensions chosen on `screen-nt-debug-config` this session; cleared by `ntResetState`, NOT a setting — a cold boot re-seeds from `ntMatrixScale` |
+| `ntNode` | object | `null` | Current player's relay-leg node geometry — `{ w, h, ingress, egress, badSectors[], nativeHoneypots[] }`. The rectangular-grid round (18 Aug 2026) replaced the old single `n` (square side) with independent `w`/`h`; the `n` key no longer exists on a node object |
 | `ntMyPlacements` | object[] | `[]` | Current player's placed components `[{type, pathIdx, segIdx}]` |
 | `ntInventory` | object | `{firewall:0, honeypot:0}` | Current player's available components |
 | `ntAllPlacements` | object[][] | `[]` | Host-only: all players' placements (MDLM) |
@@ -1191,9 +1193,12 @@ Each plugin reads `window.activeExpansionOverrides` at its settings-apply point 
 | `ntGenerateNode(opts)` | Generates relay-leg node geometry — `opts.keepInventory=true` reuses inventory for DNP N-node batch |
 | `ntEffectiveHardeningWin()` | Debug Mode superseding accessor — returns `0` ("∞", no countdown) when `ntDebugMode` is on, else `ntHardeningWin`. `ntStartBuildTimer` reads `0` and returns before arming `ntResolveGuard`, which is what fixes the `ntResolveGuard` hazard for free in Debug |
 | `ntSetCardDisabled(ctlId, reasonId, disabled, reason)` | Shared visual contract for the mutually-exclusive/superseded settings pattern — takes element **ids**, not elements; toggles `opacity-50 pointer-events-none` on the controls (card title stays full-contrast), shows/hides the `text-amber-600` reason line |
-| `ntDrawPortMarker(grid, port, color, inward, n)` | Extracted port-marker draw (pre-existing, shared by build and authoring grids) |
-| `ntAuthBlankNode()` | Returns a fresh blank node `{ n, ingress, egress, badSectors:[], nativeHoneypots:[] }` at the current `ntMatrixScale` — shape-identical to `ntGenerateNode()`'s output |
-| `ntShowAuthoring()` | Entry point for the Node Editor — reached at session start AND on the Author New Node loop-back; resets Debug state, shows `screen-nt-authoring` |
+| `ntDrawPortMarker(grid, port, color, inward, w, h)` | Extracted port-marker draw (pre-existing, shared by build and authoring grids) — takes both dimensions since the rectangular-grid round |
+| `ntSlotCount(w, h)` | 2×2 block-slot capacity of a `w × h` tile grid — single-sourced budget-ceiling arithmetic used by `ntGenerateNode`'s roll and `ntAuthMaxFirewall`'s ceiling |
+| `ntShowDebugConfig()` | Sandbox Initialisation entry — plays the `nt-debug-config-log` typewriter, reveals the width/height fields pre-filled from `ntDebugLastW`/`H` or `ntMatrixScale`, wires Deploy |
+| `ntDebugReadDim(id)` | Reads and clamps a config-screen input to 16–20; a blank/non-numeric field falls back to `ntMatrixScale` rather than NaN |
+| `ntAuthBlankNode()` | Returns a fresh blank node `{ w, h, ingress, egress, badSectors:[], nativeHoneypots:[] }` — `w`/`h` prefer `ntDebugLastW`/`H` (the session's Sandbox Initialisation choice), falling back to `ntMatrixScale`. Shape-identical to `ntGenerateNode()`'s output |
+| `ntShowAuthoring()` | Entry point for the Node Editor — reached at session start (via `ntShowDebugConfig`'s Deploy) AND on the Author New Node loop-back; resets Debug state, shows `screen-nt-authoring` |
 | `ntRenderAuthGrid()` | Renders `#nt-auth-grid` — reuses `ntPaintCell`/`ntBlockAt`/`ntRepaintFootprint`/`ntFlashReject` unchanged; a brush-model `pointerup` handler replaces the build grid's inventory-tap-cycling |
 | `ntAuthTap(tx, ty)` | Routes a grid tap to `ntAuthSetPort` (port brushes) or place/remove terrain |
 | `ntAuthPlaceTerrain(tx, ty, asHoneypot)` | Places a Bad Sector or Native Honeypot; enforces zero-overlap and the same routing-validity gate `ntGenerateNode` uses (`ntPathExists(candidate, [])`) |
