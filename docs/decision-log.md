@@ -28,10 +28,11 @@ existing `{ edge, idx }` port record via a "resolved port" shape, so no new fiel
 change. Deleted the seven placement-reservation call sites so `ntPathExists` becomes the sole build
 legality gate, from which half-block-legal / full-block-rejected / corner-unblockable all fall out
 with no special-casing.
-**Why:** Lets a player narrow an opponent's door (block one half of a two-unit mouth) as a real
-tactical option without being able to seal it outright — sealing still requires covering the whole
-mouth, and a corner port (one tile, no second half) is deliberately unblockable at all, an asymmetry
-that is the mechanic rather than a gap.
+**Why:** Lets a player narrow their OWN door (block one half of a two-unit mouth — previously the
+whole mouth was reserved and unbuildable) as a real tactical option, without being able to seal it
+outright — sealing still requires covering the whole mouth, and a corner port (one tile, no second
+half) is deliberately unblockable at all, an asymmetry that is the mechanic rather than a gap. Every
+placement acts on the placing player's own node only — no cross-player interaction, even in DNP.
 **Changed:** `js/games/nt.js` (mouth primitives, multi-source/multi-target pathfinding, port
 markers, the DNP bridge-preview seam, node generation, the Node Editor's overlap guard),
 `tools/verify-nt-loopback.js` (278 → 342 checks). Two D44-class latent bugs fixed in passing

@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Make a Net-Trace node's ingress and egress two tiles wide, collapsing to one tile at the ends of an edge, so a player can narrow an opponent's door without sealing it.
+**Goal:** Make a Net-Trace node's ingress and egress two tiles wide, collapsing to one tile at the ends of an edge, so a player can narrow their OWN door (previously the whole mouth was reserved and unbuildable) without being able to seal it. Every placement acts on the placing player's own node only — there is no cross-player interaction, even in DNP.
 
 **Architecture:** The mouth is *derived* from the existing `{ edge, idx }` port record — no new field, no wire change. A "resolved port" is that same shape with `idx` pinned to one mouth half, which lets all five existing point functions keep working unmodified; only pathfinding learns to be multi-source/multi-target, and only `ntShortestPath` learns which half a route actually used. Deleting placement's mouth reservation then leaves `ntPathExists` as the sole legality gate, from which half-block-legal / full-block-rejected / corner-unblockable all fall out with no special-casing.
 
@@ -1023,7 +1023,7 @@ Grep for the NT section (`grep -n "nt.js\|Net-Trace" docs/code-map.md`) — **ne
 
 - [ ] **Step 3: Update `docs/rules/game-identities.md` § Game 13**
 
-Grep for `## Game 13:` and offset-read only that section. Document the two-unit mouth, the corner-port collapse, and that narrowing an opponent's door is now a legal play while sealing it is not.
+Grep for `## Game 13:` and offset-read only that section. Document the two-unit mouth, the corner-port collapse, and that narrowing your OWN door is now a legal build move (no cross-player interaction — every placement acts on the placing player's own node only) while sealing it is not.
 
 - [ ] **Step 4: Update `CLAUDE.md`**
 

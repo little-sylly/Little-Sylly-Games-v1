@@ -285,8 +285,11 @@ entry to one line and let the impl-notes carry the detail (§ Documentation Inte
 
 **SW v200 — NT two-unit ports with single-unit corners CLOSED (18 Aug 2026, Phase 2).** A
 seven-task refactor made a relay-leg node's ingress/egress two tiles wide instead of one,
-collapsing to one tile only at either end of an edge — so a player can now narrow an opponent's
-door (block one half) without being able to seal it (block both). The mouth is entirely DERIVED
+collapsing to one tile only at either end of an edge — so a player can now narrow their OWN door
+(block one half) without being able to seal it (block both); every placement acts on the placing
+player's own node only, so there is no cross-player interaction here, even in DNP — previously the
+whole mouth was reserved and unbuildable, so this is new legal room on your own board, not an
+attack on anyone else's. The mouth is entirely DERIVED
 from the existing `{ edge, idx }` port record — no new field, no wire/packet change — via a
 "resolved port" shape (`{ edge, idx }` with `idx` pinned to one half) that let five existing point
 functions stay unmodified; only pathfinding became multi-source/multi-target, and only

@@ -32,7 +32,9 @@ schema change, no wire change. `idx` keeps its current roll range of `0 … len-
 Two consequences follow, and both are intended:
 
 - A standard port can be **narrowed to one unit** by a placement covering one half. This is
-  new tactical depth — constricting an opponent's door without sealing it.
+  new tactical depth — a player can constrict their OWN door (previously the whole mouth was
+  reserved and unbuildable) without sealing it. Every placement acts on the placing player's own
+  node only; there is no cross-player interaction here, even in DNP.
 - A corner port **cannot be narrowed at all** (§5.3).
 
 ---
@@ -297,8 +299,8 @@ Call site `nt.js:1780` updates to `ntRandomEdgePort(w, h)`.
 ports' full spans, so bad sectors and native honeypots can never generate on a mouth tile.
 
 Every generated node therefore opens with a **clean full-width door**, and any narrowing is
-player-caused. That is what makes the new mechanic legible: a constricted door means an
-opponent constricted it.
+player-caused. That is what makes the new mechanic legible: a constricted door means the owning
+player chose to build there — never another player's doing.
 
 ### 7.3 The corner-proximity guard is left alone
 
