@@ -389,6 +389,9 @@ globalThis.__nt = {
   tapSummary()        { if (ntSummaryCallback) ntSummaryCallback(); },
 
   // ── Node Editor (Debug Mode) ──
+  startSolo()      { ntStartSolo(); },
+  showDebugConfig(){ ntShowDebugConfig(); },
+  deployDims(w, h) { ntDebugLastW = w; ntDebugLastH = h; ntShowAuthoring(); },
   showAuthoring()  { ntShowAuthoring(); },
   deploy()         { ntDeployNode(); },
   authTap(x, y)    { ntAuthTap(x, y); },
@@ -1133,6 +1136,22 @@ section('Node Editor — authoring the same object ntGenerateNode() returns');
         d.__nt.inventory.firewall >= 5 && d.__nt.inventory.firewall <= 24, true);
 
   check('no exceptions anywhere in the editor', errs(d), []);
+})();
+
+section('Sandbox Initialisation — dimensions gate the authored node');
+(() => {
+  const d = makeDevice('cfg', 'single', 0, [{ uid: 'u0', nickname: 'Ali' }]);
+  d.__nt.seat({ players: 1, names: ['Ali'], scale: 18, debug: true });
+  d.__nt.startSolo();
+  check('Debug entry opens the config screen, not the editor',
+        lastScreen(d), 'screen-nt-debug-config');
+
+  d.__nt.deployDims(16, 18);
+  check('…then the editor',            lastScreen(d), 'screen-nt-authoring');
+  check('node takes the chosen w/h',   [d.__nt.node.w, d.__nt.node.h], [16, 18]);
+  check('grid renders w×h cells',      d.__nt.authCells(), 16 * 18);
+  check('…and still routes',           d.__nt.pathOk(), true);
+  check('no exceptions',               errs(d), []);
 })();
 
 // ── Finite geometry — the NaN tripwire ────────────────────────────────────────

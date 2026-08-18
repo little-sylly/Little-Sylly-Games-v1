@@ -153,6 +153,9 @@ let ntDebugMyAttempt     = 0;     // MY attempt number on the current node (1-ba
 let ntDebugBest          = null;  // MY best so far — { latencyMs, placements, timeline } | null
 let ntDebugFinished      = [];    // [playerIdx] = bool — host authority, the readiness gate
 let ntDebugAttemptCounts = [];    // [playerIdx] = int  — display only, drives the roster
+let ntDebugLastW = null;         // Sandbox dimensions chosen on screen-nt-debug-config.
+let ntDebugLastH = null;         // Session state, NOT settings — cleared by ntResetState, so a
+                                 // cold boot to lobby re-seeds from the Matrix Scale setting.
 
 // ── PTP state (reset each cycle in ntBeginCycle; reset on reboot in ntResetState) ──
 let ntPtpTurn            = 0;    // index of the player whose turn it currently is (0..ntPlayerCount-1)
@@ -235,7 +238,7 @@ function ntNormaliseTimeline(tl) {
 function ntStartSolo() {
   ntPlayerCount = 1;
   ntCycle = 0;
-  if (ntDebugMode) { ntShowAuthoring(); return; }
+  if (ntDebugMode) { ntShowDebugConfig(); return; }
   ntBeginCycle();
 }
 
@@ -265,7 +268,7 @@ function ntStartPTP() {
   ntTeamCycleSERs = [];
   ntCycleLatencies = [];
   ntOverallSER = [];
-  if (ntDebugMode) { ntShowAuthoring(); return; }
+  if (ntDebugMode) { ntShowDebugConfig(); return; }
   ntBeginCycle();
 }
 
@@ -577,7 +580,7 @@ function ntStartSession() {
   // to show yet (its own boot needs the roster-derived name it's just been given, and the
   // node data NT_GENERATE is about to send) — a brief standby covers that short wait.
   if (window.syllyMultiplayerMode === 'host') {
-    if (ntDebugMode) ntShowAuthoring();
+    if (ntDebugMode) ntShowDebugConfig();
     else ntStartMatch();
   } else {
     ntShowStandby(ntDebugMode ? 'Authoring node…' : 'Booting cluster…');
@@ -2406,14 +2409,51 @@ function ntUpdateBuildCounters() {
 // would put conditional logic on the single render path the loopback harness actually executes.
 
 function ntAuthBlankNode() {
-  const n = ntMatrixScale;
+  const w = ntDebugLastW || ntMatrixScale;
+  const h = ntDebugLastH || ntMatrixScale;
   return {
-    w: n, h: n,
-    ingress: { edge: 'left',  idx: n >> 1 },
-    egress:  { edge: 'right', idx: n >> 1 },
+    w, h,
+    ingress: { edge: 'left',  idx: h >> 1 },   // left/right index down h — a ROW, not a column
+    egress:  { edge: 'right', idx: h >> 1 },
     badSectors: [],
     nativeHoneypots: [],
   };
+}
+
+// Sandbox Initialisation — the Debug-mode counterpart of the Cycle Initialisation Gate.
+// Shown on the FIRST authoring entry of a session only; the "Author New Node" loop-back from
+// the summary goes straight back to the editor, reusing ntDebugLastW/H (spec § State lifecycle).
+const NT_DEBUG_CONFIG_LINES = [
+  'OPENING SANDBOX SHELL…',
+  '',
+  'NO CLUSTER CONNECTION REQUIRED…',
+  'SIMULATION ISOLATED…',
+  '',
+  'AWAITING OPERATOR DIMENSIONS…',
+];
+
+function ntShowDebugConfig() {
+  showScreen('screen-nt-debug-config');
+  const fields = document.getElementById('nt-debug-config-fields');
+  const wIn    = document.getElementById('nt-debug-w');
+  const hIn    = document.getElementById('nt-debug-h');
+  if (fields) fields.style.display = 'none';
+  // Pre-fill from the last choice this session, else from the Matrix Scale setting.
+  if (wIn) wIn.value = String(ntDebugLastW || ntMatrixScale);
+  if (hIn) hIn.value = String(ntDebugLastH || ntMatrixScale);
+  ntTypeLines(document.getElementById('nt-debug-config-log'), NT_DEBUG_CONFIG_LINES, 100, 260, () => {
+    const t = setTimeout(() => { if (fields) fields.style.display = 'flex'; }, 300);
+    ntBootTimers.push(t);
+  });
+}
+
+// Clamp to the supported range. A blank or non-numeric field falls back to the setting rather
+// than to NaN — an input the player never touched must not be able to break the node.
+function ntDebugReadDim(id) {
+  const el = document.getElementById(id);
+  const v  = el ? parseInt(el.value, 10) : NaN;
+  if (!Number.isFinite(v)) return ntMatrixScale;
+  return Math.max(16, Math.min(20, v));
 }
 
 // Entry point — reached at session start AND on the Author New Node loop-back from the summary.
@@ -3994,6 +4034,8 @@ function ntResetState() {
   ntDebugBest          = null;
   ntDebugFinished      = [];
   ntDebugAttemptCounts = [];
+  ntDebugLastW         = null;
+  ntDebugLastH         = null;
   // PTP state
   ntPtpTurn        = 0;
   ntPtpTimelines   = [];
@@ -4165,6 +4207,12 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-nt-commit').addEventListener('click', () => { playLaunch(); ntCommit(); });
 
   // ── Node Editor (Debug Mode) ────────────────────────────────────────────────
+  document.getElementById('btn-nt-debug-config-deploy').addEventListener('click', () => {
+    playLaunch();
+    ntDebugLastW = ntDebugReadDim('nt-debug-w');
+    ntDebugLastH = ntDebugReadDim('nt-debug-h');
+    ntShowAuthoring();
+  });
   document.querySelectorAll('[data-nt-brush]').forEach(b => b.addEventListener('click', () => {
     playPillClick(); ntDebugBrush = b.dataset.ntBrush; ntSyncAuthUI();
   }));
