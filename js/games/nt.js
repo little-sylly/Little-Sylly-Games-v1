@@ -1629,6 +1629,49 @@ function ntPortSub(node, port) {             // config-lattice sub-cell of the m
   const mx = node.w * k - 1, my = node.h * k - 1;
   return { sx: Math.max(0, Math.min(mx, Math.floor(p.x * k))), sy: Math.max(0, Math.min(my, Math.floor(p.y * k))) };
 }
+// ── Mouth span — the port is TWO tiles wide, one at either end of an edge.
+// Derived from { edge, idx }; nothing is stored. The <= / >= (rather than ===) also
+// clamp an out-of-range authored idx rather than returning a tile off the board.
+function ntMouthIdxs(port, w, h) {
+  const len = (port.edge === 'top' || port.edge === 'bottom') ? w : h;
+  if (port.idx <= 0)       return [0];
+  if (port.idx >= len - 1) return [len - 1];
+  return [port.idx, port.idx + 1];
+}
+
+// A RESOLVED port is the same { edge, idx } shape with idx pinned to ONE mouth half.
+// That shape-identity is what lets ntPortMouth/Interior/Border/Outside/Sub stay
+// unchanged — they cannot tell a resolved port from a logical one.
+function ntPortHalves(port, w, h) {
+  return ntMouthIdxs(port, w, h).map(i => ({ edge: port.edge, idx: i }));
+}
+function ntMouthTiles(port, w, h) {
+  return ntPortHalves(port, w, h).map(p => ntPortMouth(p, w, h));
+}
+function ntPortSubs(node, port) {
+  return ntPortHalves(port, node.w, node.h).map(p => ntPortSub(node, p));
+}
+// TILE-SET intersection, not an idx comparison: two corner ports on DIFFERENT edges
+// can share one physical tile (left/0 and top/0 are both tile (0,0)).
+function ntMouthsIntersect(a, b, w, h) {
+  const A = ntMouthTiles(a, w, h);
+  return ntMouthTiles(b, w, h).some(([bx, by]) => A.some(([ax, ay]) => ax === bx && ay === by));
+}
+// Which half did a route actually use? Maps a config-lattice sub-cell back to its tile,
+// then to the matching half. Falls back to the FIRST half rather than returning
+// undefined — undefined arithmetic yields NaN, which throws nothing and renders as
+// garbage (D46). A wrong-but-finite point is catchable; a NaN is not.
+function ntResolveHalf(node, port, subCell) {
+  const halves = ntPortHalves(port, node.w, node.h);
+  if (!subCell) return halves[0];
+  const tx = Math.floor(subCell.x / NT_LATTICE_K), ty = Math.floor(subCell.y / NT_LATTICE_K);
+  for (const hp of halves) {
+    const [mx, my] = ntPortMouth(hp, node.w, node.h);
+    if (mx === tx && my === ty) return hp;
+  }
+  return halves[0];
+}
+
 function ntIsMouthTile(tx, ty) {
   const [ix, iy] = ntPortMouth(ntNode.ingress, ntNode.w, ntNode.h);
   const [ex, ey] = ntPortMouth(ntNode.egress,  ntNode.w, ntNode.h);

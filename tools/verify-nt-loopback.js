@@ -378,6 +378,9 @@ globalThis.__nt = {
   drawPort(gridId, port, col, inward, w, h) {
     return ntDrawPortMarker(document.getElementById(gridId), port, col, inward, w, h);
   },
+  mouthIdxs(port, w, h)       { return ntMouthIdxs(port, w, h); },
+  mouthTiles(port, w, h)      { return ntMouthTiles(port, w, h); },
+  mouthsIntersect(a, b, w, h) { return ntMouthsIntersect(a, b, w, h); },
   renderFrame(ms)     { ntRenderFrame(ms, true); },
   renderComparison()  { ntRenderComparisonPanel(); },
   renderSummary()     { ntRenderSummary(); },
@@ -1152,6 +1155,50 @@ section('Sandbox Initialisation — dimensions gate the authored node');
   check('grid renders w×h cells',      d.__nt.authCells(), 16 * 18);
   check('…and still routes',           d.__nt.pathOk(), true);
   check('no exceptions',               errs(d), []);
+})();
+
+// ── Mouth derivation ──────────────────────────────────────────────────────────
+// The mouth is DERIVED from { edge, idx } — no new field, no wire change. Two units
+// wide, collapsing to one at either end of an edge. Spec §1, §3.1.
+section('Mouth derivation — two units, one at a corner');
+(() => {
+  const d = makeDevice('mouth', 'single', 0, [{ uid: 'u0', nickname: 'Ali' }]);
+  d.__nt.seat({ players: 1, names: ['Ali'] });
+  const M = (edge, idx, w, h) => d.__nt.mouthIdxs({ edge, idx }, w, h);
+
+  check('mid-edge port spans two units',           M('left', 4, 18, 18),  [4, 5]);
+  check('idx 0 collapses to one unit',             M('left', 0, 18, 18),  [0]);
+  check('idx len-1 collapses to one unit',         M('left', 17, 18, 18), [17]);
+  check('idx len-2 still spans two',               M('left', 16, 18, 18), [16, 17]);
+  check('idx 1 spans two — only 0 is a corner',    M('left', 1, 18, 18),  [1, 2]);
+
+  // Per-axis length. On a 16-wide × 20-high node a LEFT port's last index is 19 and a
+  // TOP port's is 15. A swapped (h, w) argument order exchanges them — invisible on a
+  // square node, which is why these four checks are the D46 discriminator for this
+  // function. See spec §8.3.
+  check('left port measures against h',            M('left', 19, 16, 20), [19]);
+  check('…so idx 15 is NOT its corner',            M('left', 15, 16, 20), [15, 16]);
+  check('top port measures against w',             M('top', 15, 16, 20),  [15]);
+  check('…and an out-of-range idx clamps to it',   M('top', 19, 16, 20),  [15]);
+
+  check('mouth tiles follow the span — left edge',
+        d.__nt.mouthTiles({ edge: 'left', idx: 4 }, 18, 18), [[0, 4], [0, 5]]);
+  check('mouth tiles follow the span — bottom edge',
+        d.__nt.mouthTiles({ edge: 'bottom', idx: 3 }, 16, 20), [[3, 19], [4, 19]]);
+
+  // Overlap is a TILE-SET test, not an idx-span test on a shared edge: two corner ports
+  // on DIFFERENT edges can meet at the same physical tile. Spec §3.3, §7.5.
+  const I = (a, b) => d.__nt.mouthsIntersect(a, b, 18, 18);
+  check('same-edge mouths one apart overlap',
+        I({ edge: 'left', idx: 3 }, { edge: 'left', idx: 4 }), true);
+  check('same-edge mouths two apart do not',
+        I({ edge: 'left', idx: 3 }, { edge: 'left', idx: 5 }), false);
+  check('corner ports meeting at the SAME corner tile overlap',
+        I({ edge: 'left', idx: 0 }, { edge: 'top', idx: 0 }),  true);
+  check('corner ports at OPPOSITE ends of the top edge do not',
+        I({ edge: 'left', idx: 0 }, { edge: 'top', idx: 17 }), false);
+
+  check('no exceptions', errs(d), []);
 })();
 
 // ── Finite geometry — the NaN tripwire ────────────────────────────────────────
