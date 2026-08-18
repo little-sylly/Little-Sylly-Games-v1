@@ -1739,6 +1739,13 @@ function ntShortestPath(node, placements) {
 // MAP GENERATION  (host-side, §10 — single-grid gen, config-lattice validity, border ports)
 // ═══════════════════════════════════════════════════════════════════════════
 
+// 2×2 block-slot capacity of a w×h tile grid. ONE definition — ntGenerateNode's budget roll
+// and ntAuthMaxFirewall's ceiling were the same expression written twice (logic-engine.md
+// § single-source board arithmetic). Reduces to the old Math.pow(floor(n/NT_BLOCK), 2) when w === h.
+function ntSlotCount(w, h) {
+  return Math.floor(w / NT_BLOCK) * Math.floor(h / NT_BLOCK);
+}
+
 function ntRandomEdgePort(n) { return { edge: ['top', 'right', 'bottom', 'left'][ntRandInt(0, 3)], idx: ntRandInt(0, n - 1) }; }
 
 // §10 pipeline → sets ntNode + ntInventory. Re-rolls until Ingress→Egress is valid
@@ -1750,7 +1757,8 @@ function ntRandomEdgePort(n) { return { edge: ['top', 'right', 'bottom', 'left']
 // it lines up with the previous leg's egress — chains the cluster bridge edge-to-edge.
 function ntGenerateNode(keepInventory = false, forcedIngressIdx = null) {
   const n = ntMatrixScale;
-  const slots = Math.pow(Math.floor(n / NT_BLOCK), 2);
+  const w = n, h = n;              // generated nodes are always square — only Debug authors rectangles
+  const slots = ntSlotCount(w, h);
   const floor = Math.max(Math.ceil(NT_BADSECTOR_MIN_PCT * slots), ntNativeHoneypots + 2);
   const ceil  = Math.round(NT_BADSECTOR_MAX_PCT * slots);
 
@@ -1783,7 +1791,7 @@ function ntGenerateNode(keepInventory = false, forcedIngressIdx = null) {
       if (occupied[ay][ax]) continue;
       if (tryMark(ax, ay)) badSectors.push({ ax, ay });
     }
-    const candidate = { n, ingress, egress, badSectors, nativeHoneypots: [] };
+    const candidate = { n, w, h, ingress, egress, badSectors, nativeHoneypots: [] };
     if (!ntPathExists(candidate, [])) continue;  // config-lattice validity gate
     // Native Honeypot conversion (still solid; cannot break validity).
     const convertN = ntRandInt(0, Math.min(ntNativeHoneypots, badSectors.length));
@@ -1794,7 +1802,7 @@ function ntGenerateNode(keepInventory = false, forcedIngressIdx = null) {
     break;
   }
   if (!node) { // pathological fallback — empty board, opposite-edge ports
-    node = { n, ingress: { edge: 'left', idx: (forcedIngressIdx != null ? forcedIngressIdx : (n >> 1)) }, egress: { edge: 'right', idx: (n >> 1) }, badSectors: [], nativeHoneypots: [] };
+    node = { n, w, h, ingress: { edge: 'left', idx: (forcedIngressIdx != null ? forcedIngressIdx : (n >> 1)) }, egress: { edge: 'right', idx: (n >> 1) }, badSectors: [], nativeHoneypots: [] };
   }
 
   ntNode = node;
@@ -2393,7 +2401,7 @@ function ntUpdateBuildCounters() {
 function ntAuthBlankNode() {
   const n = ntMatrixScale;
   return {
-    n,
+    n, w: n, h: n,
     ingress: { edge: 'left',  idx: n >> 1 },
     egress:  { edge: 'right', idx: n >> 1 },
     badSectors: [],
@@ -2553,8 +2561,9 @@ function ntAuthSetPort(tx, ty) {
 
 // Budget ceilings, both lifted from ntGenerateNode's own roll (nt.js:1730–1731).
 function ntAuthMaxFirewall() {
-  const n = ntNode ? ntNode.n : ntMatrixScale;
-  return Math.pow(Math.floor(n / NT_BLOCK), 2);                  // "slots" — the roll's ceiling
+  const w = ntNode ? ntNode.w : ntMatrixScale;
+  const h = ntNode ? ntNode.h : ntMatrixScale;
+  return ntSlotCount(w, h);
 }
 function ntAuthMaxHoneypot() {
   return Math.max(0, NT_HONEYPOT_CAP - (ntNode ? ntNode.nativeHoneypots.length : 0));
