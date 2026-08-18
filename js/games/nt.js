@@ -382,11 +382,13 @@ function ntRenderComparisonPanel() {
     chipsEl.appendChild(chip);
 
     // Thumbnail canvas — maze layout only (no runner animation)
+    const tw = ntNode.w, th = ntNode.h;
+    const px = THUMB / Math.max(tw, th);         // longest side fills THUMB; the other scales
     const canvas = document.createElement('canvas');
-    canvas.width = THUMB;
-    canvas.height = THUMB;
+    canvas.width  = Math.round(tw * px);
+    canvas.height = Math.round(th * px);
     canvas.className = 'rounded cursor-pointer flex-shrink-0';
-    canvas.style.cssText = 'width:' + THUMB + 'px;height:' + THUMB + 'px;border:2px solid ' +
+    canvas.style.cssText = 'width:' + canvas.width + 'px;height:' + canvas.height + 'px;border:2px solid ' +
       (idx === ntViewingPlayerIdx ? '#10b981' : '#334155') + ';display:block';
     canvas.dataset.ntPlayerIdx = String(idx);
     canvas.addEventListener('click', () => { playPillClick(); ntSelectComparisonPlayer(idx); });
@@ -394,16 +396,13 @@ function ntRenderComparisonPanel() {
     // Draw using this player's placements (temporarily swap global)
     ntMyPlacements = placements;
     const ctx = canvas.getContext('2d');
-    const px = THUMB / ntNode.n;
     ctx.fillStyle = NT_COLOR_BASE;
-    ctx.fillRect(0, 0, THUMB, THUMB);
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.save();
     ctx.strokeStyle = 'rgba(52,211,153,0.12)';
     ctx.lineWidth = 0.3;
-    for (let li = 0; li <= ntNode.n; li++) {
-      ctx.beginPath(); ctx.moveTo(li * px, 0); ctx.lineTo(li * px, THUMB); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(0, li * px); ctx.lineTo(THUMB, li * px); ctx.stroke();
-    }
+    for (let li = 0; li <= tw; li++) { ctx.beginPath(); ctx.moveTo(li * px, 0); ctx.lineTo(li * px, canvas.height); ctx.stroke(); }
+    for (let li = 0; li <= th; li++) { ctx.beginPath(); ctx.moveTo(0, li * px); ctx.lineTo(canvas.width, li * px); ctx.stroke(); }
     ctx.restore();
     ntDrawMaze(ctx, px);
     thumbsEl.appendChild(canvas);
@@ -463,24 +462,23 @@ function ntRenderLogs() {
       const wrapper = document.createElement('div');
       wrapper.className = 'flex flex-col items-center gap-1 flex-shrink-0';
 
+      const tw = node.w, th = node.h;
+      const px = THUMB / Math.max(tw, th);         // longest side fills THUMB; the other scales
       const canvas = document.createElement('canvas');
-      canvas.width  = THUMB;
-      canvas.height = THUMB;
-      canvas.style.cssText = 'width:' + THUMB + 'px;height:' + THUMB + 'px;border-radius:8px;border:2px solid ' +
+      canvas.width  = Math.round(tw * px);
+      canvas.height = Math.round(th * px);
+      canvas.style.cssText = 'width:' + canvas.width + 'px;height:' + canvas.height + 'px;border-radius:8px;border:2px solid ' +
         (idx === winnerIdx ? '#10b981' : '#334155') + ';display:block';
 
       ntMyPlacements = p;
       const ctx = canvas.getContext('2d');
-      const px  = THUMB / node.n;
       ctx.fillStyle = NT_COLOR_BASE;
-      ctx.fillRect(0, 0, THUMB, THUMB);
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
       ctx.save();
       ctx.strokeStyle = 'rgba(52,211,153,0.12)';
       ctx.lineWidth = 0.3;
-      for (let li = 0; li <= node.n; li++) {
-        ctx.beginPath(); ctx.moveTo(li * px, 0); ctx.lineTo(li * px, THUMB); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(0, li * px); ctx.lineTo(THUMB, li * px); ctx.stroke();
-      }
+      for (let li = 0; li <= tw; li++) { ctx.beginPath(); ctx.moveTo(li * px, 0); ctx.lineTo(li * px, canvas.height); ctx.stroke(); }
+      for (let li = 0; li <= th; li++) { ctx.beginPath(); ctx.moveTo(0, li * px); ctx.lineTo(canvas.width, li * px); ctx.stroke(); }
       ctx.restore();
       ntDrawMaze(ctx, px);
 
@@ -890,12 +888,13 @@ function ntRenderAllocationScreen(captainMode) {
   // one builder, see its own header comment) so wallLeft/wallRight joins stay intact; the
   // viewport just clips to one leg and neighbours peek at the edges.
   // Cell IS still capped against the GRID SIZE setting, though — 18px/tile assumes an
-  // 18×18 node (324px, fits the ~336px viewport with room to peek). At the "large map"
-  // setting (n=20) that's 360px, wider than the viewport itself, so even the ACTIVE leg
+  // 18-wide node (324px, fits the ~336px viewport with room to peek). At the "large map"
+  // setting (w=20) that's 360px, wider than the viewport itself, so even the ACTIVE leg
   // would render partially clipped with no way to ever see its far edge. Scale down only
-  // when the grid is bigger than 18 would fit; smaller grids (n=16) keep the full 18px
-  // for consistency rather than growing to fill the space.
-  const previewN = (ntTeamNodes[members[ntAllocViewLeg]] && ntTeamNodes[members[ntAllocViewLeg]].n) || NT_GRID_DEFAULT;
+  // when the grid is bigger than 18 would fit; smaller grids (w=16) keep the full 18px
+  // for consistency rather than growing to fill the space. DNP nodes are always square
+  // under the current scope, so width alone is the cap that matters here.
+  const previewN = (ntTeamNodes[members[ntAllocViewLeg]] && ntTeamNodes[members[ntAllocViewLeg]].w) || NT_GRID_DEFAULT;
   const viewportW = document.getElementById('nt-alloc-viewport').clientWidth || 336;
   const cell = Math.min(18, Math.floor(viewportW / previewN));
 
@@ -2173,17 +2172,18 @@ function ntUpdateGhostAt(tx, ty) {
 const NT_PORT_ARROWS = { top:  { in: '▼', out: '▲' }, bottom: { in: '▲', out: '▼' },
                          left: { in: '▶', out: '◀' }, right:  { in: '◀', out: '▶' } };
 
-function ntDrawPortMarker(grid, port, color, inward, n) {
+function ntDrawPortMarker(grid, port, color, inward, w, h) {
   if (!grid || !port) return null;
   const m = document.createElement('div');
   m.className = 'absolute pointer-events-none rounded-sm flex items-center justify-center';
   m.style.background = color;
   m.style.boxShadow = `0 0 6px ${color}`;
-  const span = `calc(${100 / n}%)`, off = '-3px', thick = '6px';
-  if (port.edge === 'top')         { m.style.left = `${(port.idx / n) * 100}%`; m.style.width = span; m.style.top = off; m.style.height = thick; }
-  else if (port.edge === 'bottom') { m.style.left = `${(port.idx / n) * 100}%`; m.style.width = span; m.style.bottom = off; m.style.height = thick; }
-  else if (port.edge === 'left')   { m.style.top = `${(port.idx / n) * 100}%`; m.style.height = span; m.style.left = off; m.style.width = thick; }
-  else                             { m.style.top = `${(port.idx / n) * 100}%`; m.style.height = span; m.style.right = off; m.style.width = thick; }
+  // A marker spans ONE tile along its own edge — horizontal edges divide by w, vertical by h.
+  const spanX = `calc(${100 / w}%)`, spanY = `calc(${100 / h}%)`, off = '-3px', thick = '6px';
+  if (port.edge === 'top')         { m.style.left = `${(port.idx / w) * 100}%`; m.style.width = spanX; m.style.top = off; m.style.height = thick; }
+  else if (port.edge === 'bottom') { m.style.left = `${(port.idx / w) * 100}%`; m.style.width = spanX; m.style.bottom = off; m.style.height = thick; }
+  else if (port.edge === 'left')   { m.style.top = `${(port.idx / h) * 100}%`; m.style.height = spanY; m.style.left = off; m.style.width = thick; }
+  else                             { m.style.top = `${(port.idx / h) * 100}%`; m.style.height = spanY; m.style.right = off; m.style.width = thick; }
   const a = document.createElement('span');
   a.style.cssText = 'font-size:5px;line-height:1;color:#fff;pointer-events:none';
   a.textContent = NT_PORT_ARROWS[port.edge][inward ? 'in' : 'out'];
@@ -2953,8 +2953,8 @@ function ntDrawLegCanvas(canvas, node, cell, opts) {
   opts = opts || {};
   const c = cell || 8;
   const n = node.n;
-  canvas.width  = n * c;
-  canvas.height = n * c;
+  canvas.width  = node.w * c;
+  canvas.height = node.h * c;
   const ctx = canvas.getContext('2d');
   ctx.fillStyle = NT_COLOR_BASE;
   ctx.fillRect(0, 0, n * c, n * c);
@@ -3056,7 +3056,7 @@ function ntOpenBridgePreview(members) {
 }
 
 function ntDrawMaze(ctx, px) {
-  const n = ntNode.n;
+  const w = ntNode.w, h = ntNode.h;
   const fill = (ax, ay, color, glow) => {
     ctx.save();
     if (glow) { ctx.shadowColor = color; ctx.shadowBlur = 8; }
@@ -3107,7 +3107,7 @@ function ntRenderFrame(simMs, updateScrubber) {
   const canvas = document.getElementById('nt-playback-canvas');
   if (!canvas || !ntNode) return;
   const ctx = canvas.getContext('2d');
-  const px = canvas.width / ntNode.n;
+  const px = canvas.width / ntNode.w;
 
   ctx.fillStyle = NT_COLOR_BASE;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -3115,8 +3115,10 @@ function ntRenderFrame(simMs, updateScrubber) {
   ctx.save();
   ctx.strokeStyle = 'rgba(52,211,153,0.15)';
   ctx.lineWidth = 0.5;
-  for (let li = 0; li <= ntNode.n; li++) {
+  for (let li = 0; li <= ntNode.w; li++) {
     ctx.beginPath(); ctx.moveTo(li * px, 0); ctx.lineTo(li * px, canvas.height); ctx.stroke();
+  }
+  for (let li = 0; li <= ntNode.h; li++) {
     ctx.beginPath(); ctx.moveTo(0, li * px); ctx.lineTo(canvas.width, li * px); ctx.stroke();
   }
   ctx.restore();
@@ -3256,9 +3258,12 @@ function ntRenderFrame(simMs, updateScrubber) {
 function ntStartPlayback() {
   const canvas = document.getElementById('nt-playback-canvas');
   if (!canvas || !ntPlaybackTimeline) return;
+  // Buffer follows the node's aspect — a forced square distorts every non-square node.
   const size = canvas.clientWidth || 320;
-  canvas.width = size;
-  canvas.height = size;
+  const ar = ntNode ? (ntNode.h / ntNode.w) : 1;
+  canvas.width  = size;
+  canvas.height = Math.round(size * ar);
+  canvas.style.aspectRatio = ntNode ? `${ntNode.w} / ${ntNode.h}` : '1 / 1';
   ntPlaybackScrubMs = null;
   ntPlaybackPaused = false;
   ntPlaybackPhase = 'tracing';
@@ -3396,8 +3401,12 @@ function ntShowJourneyPlayback() {
 function ntStartJourneyPlayback() {
   const canvas = document.getElementById('nt-playback-canvas');
   if (!canvas || !ntPbJourney) return;
+  // Buffer follows the node's aspect — a forced square distorts every non-square node.
   const size = canvas.clientWidth || 320;
-  canvas.width = size; canvas.height = size;
+  const ar = ntNode ? (ntNode.h / ntNode.w) : 1;
+  canvas.width  = size;
+  canvas.height = Math.round(size * ar);
+  canvas.style.aspectRatio = ntNode ? `${ntNode.w} / ${ntNode.h}` : '1 / 1';
   ntPlaybackScrubMs = null;
   ntPlaybackPaused  = false;
   ntPlaybackPhase   = 'tracing';
