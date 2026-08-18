@@ -1218,6 +1218,34 @@ section('Deploy Node — an authored node is shape-identical to a rolled one');
         r.host.__nt.debugCounts, [0, 0, 0]);
 })();
 
+// ── Rectangular nodes end to end ──────────────────────────────────────────────
+// 16×18 is the owner-specified case; 16×20 is the widest gap the range allows, which is where
+// an axis confusion (w used for a row bound, or vice versa) shows up most readily.
+// makeRoom(names) takes no settings object (confirmed by reading its signature), so this uses
+// the single-device makeDevice form — the geometry-discriminating checks below don't need the
+// wire, only Sandbox Initialisation's own w/h split.
+section('Rectangular nodes — authored, deployed, played');
+[[16, 18], [16, 20], [20, 16]].forEach(([w, h]) => {
+  const d = makeDevice(`rect-${w}x${h}`, 'single', 0, [{ uid: 'u0', nickname: 'Ali' }]);
+  d.__nt.seat({ players: 1, names: ['Ali'], scale: 18, debug: true });
+  d.__nt.startSolo();
+  d.__nt.deployDims(w, h);
+
+  check(`${w}×${h}: node carries both dimensions`, [d.__nt.node.w, d.__nt.node.h], [w, h]);
+  check(`${w}×${h}: blank board routes`,           d.__nt.pathOk(), true);
+  check(`${w}×${h}: grid renders w×h cells`,       d.__nt.authCells(), w * h);
+  check(`${w}×${h}: two port markers`,             d.__nt.authPorts(), 2);
+
+  const tl = d.__nt.timeline();
+  check(`${w}×${h}: latency is finite and positive`,
+        Number.isFinite(tl.latencyMs) && tl.latencyMs > 0, true);
+  check(`${w}×${h}: every polyline point is finite`,
+        tl.polyline.every(p => Number.isFinite(p.x) && Number.isFinite(p.y)), true);
+  check(`${w}×${h}: the trace stays inside the board`,
+        tl.polyline.every(p => p.x >= -1 && p.x <= w + 1 && p.y >= -1 && p.y <= h + 1), true);
+  check(`${w}×${h}: no exceptions`, errs(d), []);
+});
+
 // ── The retry loop ────────────────────────────────────────────────────────────
 section('Retry loop — unlimited attempts, zero packets');
 (() => {
