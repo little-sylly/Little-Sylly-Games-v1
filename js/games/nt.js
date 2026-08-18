@@ -1796,7 +1796,7 @@ function ntGenerateNode(keepInventory = false, forcedIngressIdx = null) {
       if (occupied[ay][ax]) continue;
       if (tryMark(ax, ay)) badSectors.push({ ax, ay });
     }
-    const candidate = { n, w, h, ingress, egress, badSectors, nativeHoneypots: [] };
+    const candidate = { w, h, ingress, egress, badSectors, nativeHoneypots: [] };
     if (!ntPathExists(candidate, [])) continue;  // config-lattice validity gate
     // Native Honeypot conversion (still solid; cannot break validity).
     const convertN = ntRandInt(0, Math.min(ntNativeHoneypots, badSectors.length));
@@ -1807,7 +1807,7 @@ function ntGenerateNode(keepInventory = false, forcedIngressIdx = null) {
     break;
   }
   if (!node) { // pathological fallback — empty board, opposite-edge ports
-    node = { n, w, h, ingress: { edge: 'left', idx: (forcedIngressIdx != null ? forcedIngressIdx : (n >> 1)) }, egress: { edge: 'right', idx: (n >> 1) }, badSectors: [], nativeHoneypots: [] };
+    node = { w, h, ingress: { edge: 'left', idx: (forcedIngressIdx != null ? forcedIngressIdx : (n >> 1)) }, egress: { edge: 'right', idx: (n >> 1) }, badSectors: [], nativeHoneypots: [] };
   }
 
   ntNode = node;
@@ -2200,18 +2200,19 @@ function ntRenderBuildGrid() {
   // fire the old pointerup first (places block) then the new one (immediately removes it).
   const grid = old.cloneNode(false);
   old.parentNode.replaceChild(grid, old);
-  const n = ntNode.n;
+  const w = ntNode.w, h = ntNode.h;
   grid.innerHTML = '';
   grid.style.display = 'grid';
   grid.style.position = 'relative';
-  grid.style.gridTemplateColumns = `repeat(${n}, 1fr)`;
+  grid.style.gridTemplateColumns = `repeat(${w}, 1fr)`;
+  grid.style.aspectRatio = `${w} / ${h}`;   // overrides the element's aspect-square class
   grid.style.gap = '1px';
   grid.style.touchAction = 'none';
   ntBuildCells = [];
 
-  for (let ty = 0; ty < n; ty++) {
+  for (let ty = 0; ty < h; ty++) {
     ntBuildCells.push([]);
-    for (let tx = 0; tx < n; tx++) {
+    for (let tx = 0; tx < w; tx++) {
       const cell = document.createElement('div');
       cell.style.aspectRatio = '1';
       ntPaintCell(cell, tx, ty);
@@ -2224,8 +2225,8 @@ function ntRenderBuildGrid() {
   const getTile = (e) => {
     const rect = grid.getBoundingClientRect();
     return {
-      tx: Math.max(0, Math.min(n - 1, Math.floor((e.clientX - rect.left) / rect.width * n))),
-      ty: Math.max(0, Math.min(n - 1, Math.floor((e.clientY - rect.top) / rect.height * n))),
+      tx: Math.max(0, Math.min(w - 1, Math.floor((e.clientX - rect.left) / rect.width  * w))),
+      ty: Math.max(0, Math.min(h - 1, Math.floor((e.clientY - rect.top)  / rect.height * h))),
     };
   };
 
@@ -2305,15 +2306,15 @@ function ntRenderBuildGrid() {
     const { tx, ty } = getTile(e);
     const b = ntBlockAt(tx, ty);
     if (b || ntIsMouthTile(tx, ty)) return; // occupied or port — ignore
-    const ax = Math.max(0, Math.min(tx, n - 2));
-    const ay = Math.max(0, Math.min(ty, n - 2));
+    const ax = Math.max(0, Math.min(tx, w - 2));
+    const ay = Math.max(0, Math.min(ty, h - 2));
     for (const [fx, fy] of ntBlockTiles(ax, ay)) { if (ntBlockAt(fx, fy) || ntIsMouthTile(fx, fy)) return; }
     ntClearGhost();
     ntAttemptPlace(ax, ay, true);
   });
 
-  ntDrawPortMarker(grid, ntNode.ingress, '#34d399', true, n);            // INGRESS — green, inward
-  ntDrawPortMarker(grid, ntNode.egress,  NT_COLOR_BAD_SECTOR, false, n); // EGRESS  — grey, outward
+  ntDrawPortMarker(grid, ntNode.ingress, '#34d399', true, w, h);            // INGRESS — green, inward
+  ntDrawPortMarker(grid, ntNode.egress,  NT_COLOR_BAD_SECTOR, false, w, h); // EGRESS  — grey, outward
   ntUpdateBuildCounters();
 }
 
@@ -2407,7 +2408,7 @@ function ntUpdateBuildCounters() {
 function ntAuthBlankNode() {
   const n = ntMatrixScale;
   return {
-    n, w: n, h: n,
+    w: n, h: n,
     ingress: { edge: 'left',  idx: n >> 1 },
     egress:  { edge: 'right', idx: n >> 1 },
     badSectors: [],
@@ -2445,18 +2446,19 @@ function ntRenderAuthGrid() {
   // grid-level listeners, so a re-render would otherwise stack a second pointerup handler.
   const grid = old.cloneNode(false);
   old.parentNode.replaceChild(grid, old);
-  const n = ntNode.n;
+  const w = ntNode.w, h = ntNode.h;
   grid.innerHTML = '';
   grid.style.display = 'grid';
   grid.style.position = 'relative';
-  grid.style.gridTemplateColumns = `repeat(${n}, 1fr)`;
+  grid.style.gridTemplateColumns = `repeat(${w}, 1fr)`;
+  grid.style.aspectRatio = `${w} / ${h}`;   // overrides the element's aspect-square class
   grid.style.gap = '1px';
   grid.style.touchAction = 'none';
   ntBuildCells = [];   // shared with the build screen — ntRepaintFootprint/ntFlashReject read it
 
-  for (let ty = 0; ty < n; ty++) {
+  for (let ty = 0; ty < h; ty++) {
     ntBuildCells.push([]);
-    for (let tx = 0; tx < n; tx++) {
+    for (let tx = 0; tx < w; tx++) {
       const cell = document.createElement('div');
       cell.style.aspectRatio = '1';
       ntPaintCell(cell, tx, ty);
@@ -2468,8 +2470,8 @@ function ntRenderAuthGrid() {
   const getTile = (e) => {
     const rect = grid.getBoundingClientRect();
     return {
-      tx: Math.max(0, Math.min(n - 1, Math.floor((e.clientX - rect.left) / rect.width * n))),
-      ty: Math.max(0, Math.min(n - 1, Math.floor((e.clientY - rect.top) / rect.height * n))),
+      tx: Math.max(0, Math.min(w - 1, Math.floor((e.clientX - rect.left) / rect.width  * w))),
+      ty: Math.max(0, Math.min(h - 1, Math.floor((e.clientY - rect.top)  / rect.height * h))),
     };
   };
   // A brush model: one tap, one meaning, decided by ntDebugBrush. No long-press, no ghost
@@ -2481,8 +2483,8 @@ function ntRenderAuthGrid() {
   });
   grid.addEventListener('contextmenu', e => e.preventDefault());
 
-  ntDrawPortMarker(grid, ntNode.ingress, '#34d399', true, n);
-  ntDrawPortMarker(grid, ntNode.egress,  NT_COLOR_BAD_SECTOR, false, n);
+  ntDrawPortMarker(grid, ntNode.ingress, '#34d399', true, w, h);
+  ntDrawPortMarker(grid, ntNode.egress,  NT_COLOR_BAD_SECTOR, false, w, h);
 }
 
 function ntAuthTap(tx, ty) {
@@ -2949,10 +2951,10 @@ const NT_PING_SLOW    = '#f43f9d';  // slowed core = Red + Fuchsia (hot pink)
 // is walled off in bad-sector grey so it's clear you can't cross elsewhere.
 // Self-contained — never reads ntNode/ntMyPlacements. opts = { wallLeft, wallRight }.
 function ntDrawLegCanvas(canvas, node, cell, opts) {
-  if (!canvas || !node || !node.n) return;
+  if (!canvas || !node || !node.w) return;
   opts = opts || {};
   const c = cell || 8;
-  const n = node.n;
+  const n = node.w; // DNP nodes are always square under the current scope — w === h
   canvas.width  = node.w * c;
   canvas.height = node.h * c;
   const ctx = canvas.getContext('2d');

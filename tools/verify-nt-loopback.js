@@ -375,8 +375,8 @@ globalThis.__nt = {
   showBuild(ts)       { ntShowBuild(ts); },
   showSummary(m)      { ntShowSummary(m); },
   renderGrid()        { ntRenderBuildGrid(); },
-  drawPort(gridId, port, col, inward, n) {
-    return ntDrawPortMarker(document.getElementById(gridId), port, col, inward, n);
+  drawPort(gridId, port, col, inward, w, h) {
+    return ntDrawPortMarker(document.getElementById(gridId), port, col, inward, w, h);
   },
   renderFrame(ms)     { ntRenderFrame(ms, true); },
   renderComparison()  { ntRenderComparisonPanel(); },
@@ -554,7 +554,7 @@ section("NT payload fields — which of them survive a real room");
 // A node exactly as ntGenerateNode builds it when convertN rolls 0 (guaranteed under
 // the shipped "Native Honeypots: 0" setting, possible under any other).
 const bareNode = {
-  n: 18,
+  w: 18, h: 18,
   ingress: { edge: 'left', idx: 4 }, egress: { edge: 'right', idx: 9 },
   badSectors: [{ ax: 2, ay: 3 }],
   nativeHoneypots: [],
@@ -562,11 +562,11 @@ const bareNode = {
 const wiredNode = wire({ action: 'NT_GENERATE', cycle: 0, node: bareNode, inventory: { firewall: 6, honeypot: 0 } });
 check('node.nativeHoneypots:[] is ERASED in flight', wiredNode.node.nativeHoneypots, undefined);
 check('node.badSectors survives when non-empty',     wiredNode.node.badSectors, [{ ax: 2, ay: 3 }]);
-check('node.n / ports survive',                      [wiredNode.node.n, wiredNode.node.ingress.idx], [18, 4]);
+check('node.w/h / ports survive',                    [wiredNode.node.w, wiredNode.node.h, wiredNode.node.ingress.idx], [18, 18, 4]);
 check('inventory.honeypot:0 survives (scalar)',      wiredNode.inventory.honeypot, 0);
 check('cycle:0 survives (scalar)',                   wiredNode.cycle, 0);
 
-const emptyBoard = wire({ node: { n: 18, ingress: { edge: 'left', idx: 4 }, egress: { edge: 'right', idx: 9 }, badSectors: [], nativeHoneypots: [] } });
+const emptyBoard = wire({ node: { w: 18, h: 18, ingress: { edge: 'left', idx: 4 }, egress: { edge: 'right', idx: 9 }, badSectors: [], nativeHoneypots: [] } });
 check('a node with BOTH block arrays empty loses both',
   [emptyBoard.node.badSectors, emptyBoard.node.nativeHoneypots], [undefined, undefined]);
 
@@ -592,7 +592,7 @@ check('host on the gate',            lastScreen(r1.host), 'screen-nt-gate');
 check('both clients on the gate',    r1.clients.map(lastScreen), ['screen-nt-gate', 'screen-nt-gate']);
 check('NT_GENERATE was the packet',  r1.sent[0], 'NT_GENERATE');
 check('every device has a node',     r1.all.map(d => !!d.__nt.node), [true, true, true]);
-check('clients agree with host on grid size', r1.all.map(d => d.__nt.node.n), [18, 18, 18]);
+check('clients agree with host on grid size', r1.all.map(d => d.__nt.node.w), [18, 18, 18]);
 check('heading is the same on all three', r1.all.map(d => d.__nt.gateHeading()),
   ['Cycle Initialisation Gate', 'Cycle Initialisation Gate', 'Cycle Initialisation Gate']);
 // The reported "the messages aren't the same for all 3p": every device should type the
@@ -620,7 +620,7 @@ check('host recorded all seats',           r1.host.__nt.gateReady, [true, true, 
 section('The build grid renders on every device (defect 1)');
 r1.host.__nt.tapGate();          // host's callback broadcasts NT_BUILD_BEGIN + shows build
 r1.all.forEach(d => drain(d));
-const n1 = r1.host.__nt.node.n;
+const n1 = r1.host.__nt.node.w;
 check('host on the build screen',      lastScreen(r1.host), 'screen-nt-build');
 check('both clients on the build screen', r1.clients.map(lastScreen), ['screen-nt-build', 'screen-nt-build']);
 check('host painted a full grid',      r1.host.__nt.gridCells(), n1 * n1);
@@ -649,7 +649,7 @@ check('…not left undefined', r2.clients.map(c => Array.isArray(c.__nt.node.nat
 r2.clients.forEach(c => c.__nt.tapGate());
 r2.host.__nt.tapGate();
 r2.all.forEach(d => drain(d));
-const n2 = r2.host.__nt.node.n;
+const n2 = r2.host.__nt.node.w;
 check('host still paints a full grid',     r2.host.__nt.gridCells(), n2 * n2);
 check('client A paints a full grid',       r2.clients[0].__nt.gridCells(), n2 * n2);
 check('client B paints a full grid',       r2.clients[1].__nt.gridCells(), n2 * n2);
@@ -1028,9 +1028,9 @@ section('Port markers — one drawing function, two grids');
   check('build grid draws exactly two port markers', d.__nt.gridPorts(), 2);
 
   // The extracted function must be callable against ANY grid element, not just the build one.
-  const n = d.__nt.node.n;
-  d.__nt.drawPort('nt-auth-grid', d.__nt.node.ingress, '#34d399', true, n);
-  d.__nt.drawPort('nt-auth-grid', d.__nt.node.egress, '#334155', false, n);
+  const { w, h } = d.__nt.node;
+  d.__nt.drawPort('nt-auth-grid', d.__nt.node.ingress, '#34d399', true, w, h);
+  d.__nt.drawPort('nt-auth-grid', d.__nt.node.egress, '#334155', false, w, h);
   check('…and the same function serves a second grid', d.__nt.authPorts(), 2);
   check('no exceptions', errs(d), []);
 })();
@@ -1224,7 +1224,7 @@ section('Retry loop — unlimited attempts, zero packets');
   // border either port, since both live on the map edge — and use the first one that empirically
   // produces a longer, still-routable trace. This is the same validity concept the real build
   // screen already checks via ntPathExists before it lets a placement stick.
-  const gridN = client.__nt.node.n;
+  const gridN = client.__nt.node.w;
   const cx = Math.floor(gridN / 2) - 1, cy = Math.floor(gridN / 2) - 1;
   const anchors = [];
   for (let bx = 0; bx <= gridN - 2; bx++) for (let by = 0; by <= gridN - 2; by++) anchors.push({ ax: bx, ay: by });
@@ -1382,7 +1382,7 @@ section('Summary — scored on best attempts, then a fresh sandbox');
   // an anchor that empirically lengthens the route, same technique as the Retry loop section
   // above — this is scaffolding to reach "2 committed attempts", not new behaviour under test.
   r.host.__nt.showBuild();
-  const gridN = r.host.__nt.node.n;
+  const gridN = r.host.__nt.node.w;
   const cx = Math.floor(gridN / 2) - 1, cy = Math.floor(gridN / 2) - 1;
   const anchors = [];
   for (let bx = 0; bx <= gridN - 2; bx++) for (let by = 0; by <= gridN - 2; by++) anchors.push({ ax: bx, ay: by });
