@@ -1135,6 +1135,27 @@ section('Node Editor — authoring the same object ntGenerateNode() returns');
   check('no exceptions anywhere in the editor', errs(d), []);
 })();
 
+// ── Finite geometry — the NaN tripwire ────────────────────────────────────────
+// A missed .n → .w/.h rename yields undefined → NaN, which throws nothing and asserts
+// nothing: every render call still "succeeds" while drawing garbage. These checks are the
+// only thing standing between that and a green suite. (D42 — prove a check can fail.)
+section('Finite geometry — no NaN reaches the timeline or the trace');
+(() => {
+  const d = makeDevice('finite', 'single', 0, [{ uid: 'u0', nickname: 'Ali' }]);
+  d.__nt.seat({ players: 1, names: ['Ali'] });
+  d.__nt.genNode();
+  const tl = d.__nt.timeline();
+
+  check('latency is a finite number', Number.isFinite(tl.latencyMs), true);
+  check('latency is above zero',      tl.latencyMs > 0,              true);
+  check('polyline is non-empty',      tl.polyline.length > 0,        true);
+  check('every polyline point is finite',
+        tl.polyline.every(p => Number.isFinite(p.x) && Number.isFinite(p.y)), true);
+  check('every sample is finite',
+        tl.samples.every(s => Number.isFinite(s.x) && Number.isFinite(s.y) && Number.isFinite(s.t)), true);
+  check('no exceptions', errs(d), []);
+})();
+
 // ── Deploying an authored node over the wire ──────────────────────────────────
 section('Deploy Node — an authored node is shape-identical to a rolled one');
 (() => {
