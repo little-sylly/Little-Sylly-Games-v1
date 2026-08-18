@@ -1596,27 +1596,29 @@ function ntStepLegal(g, cx, cy, step) {
 }
 
 // ── Perimeter ports — edge + tile index along it (rectangle straddling the border)
-function ntPortMouth(port, n) {              // the tile just inside the border (must stay open)
+// Both dimensions are required: top/bottom sit on row 0 / h-1 and index across w;
+// left/right sit on column 0 / w-1 and index down h.
+function ntPortMouth(port, w, h) {           // the tile just inside the border (must stay open)
   if (port.edge === 'top')    return [port.idx, 0];
-  if (port.edge === 'bottom') return [port.idx, n - 1];
+  if (port.edge === 'bottom') return [port.idx, h - 1];
   if (port.edge === 'left')   return [0, port.idx];
-  return [n - 1, port.idx];                  // right
+  return [w - 1, port.idx];                  // right
 }
 function ntPortInterior(node, port) {        // tile-space centre of the mouth tile (path endpoint)
-  const [tx, ty] = ntPortMouth(port, node.n);
+  const [tx, ty] = ntPortMouth(port, node.w, node.h);
   return { x: tx + 0.5, y: ty + 0.5 };
 }
-function ntPortBorder(port, n) {             // the point ON the border line
+function ntPortBorder(port, w, h) {          // the point ON the border line
   if (port.edge === 'top')    return { x: port.idx + 0.5, y: 0 };
-  if (port.edge === 'bottom') return { x: port.idx + 0.5, y: n };
+  if (port.edge === 'bottom') return { x: port.idx + 0.5, y: h };
   if (port.edge === 'left')   return { x: 0, y: port.idx + 0.5 };
-  return { x: n, y: port.idx + 0.5 };        // right
+  return { x: w, y: port.idx + 0.5 };        // right
 }
-function ntPortOutside(port, n) {            // a point just OFF the board (visual entry/exit stub)
+function ntPortOutside(port, w, h) {         // a point just OFF the board (visual entry/exit stub)
   if (port.edge === 'top')    return { x: port.idx + 0.5, y: -0.6 };
-  if (port.edge === 'bottom') return { x: port.idx + 0.5, y: n + 0.6 };
+  if (port.edge === 'bottom') return { x: port.idx + 0.5, y: h + 0.6 };
   if (port.edge === 'left')   return { x: -0.6, y: port.idx + 0.5 };
-  return { x: n + 0.6, y: port.idx + 0.5 };  // right
+  return { x: w + 0.6, y: port.idx + 0.5 };  // right
 }
 function ntPortSub(node, port) {             // config-lattice sub-cell of the mouth interior
   const k = NT_LATTICE_K, p = ntPortInterior(node, port);
@@ -1626,7 +1628,8 @@ function ntPortSub(node, port) {             // config-lattice sub-cell of the m
   return { sx: Math.max(0, Math.min(mx, Math.floor(p.x * k))), sy: Math.max(0, Math.min(my, Math.floor(p.y * k))) };
 }
 function ntIsMouthTile(tx, ty) {
-  const n = ntNode.n, [ix, iy] = ntPortMouth(ntNode.ingress, n), [ex, ey] = ntPortMouth(ntNode.egress, n);
+  const [ix, iy] = ntPortMouth(ntNode.ingress, ntNode.w, ntNode.h);
+  const [ex, ey] = ntPortMouth(ntNode.egress,  ntNode.w, ntNode.h);
   return (tx === ix && ty === iy) || (tx === ex && ty === ey);
 }
 
@@ -1731,10 +1734,10 @@ function ntShortestPath(node, placements) {
   // Snap the two ends to the exact mouth centres, then add the border + off-board points.
   poly[0] = ntPortInterior(node, node.ingress);
   poly[poly.length - 1] = ntPortInterior(node, node.egress);
-  poly.unshift(ntPortBorder(node.ingress, node.n));
-  poly.unshift(ntPortOutside(node.ingress, node.n));
-  poly.push(ntPortBorder(node.egress, node.n));
-  poly.push(ntPortOutside(node.egress, node.n));
+  poly.unshift(ntPortBorder(node.ingress, node.w, node.h));
+  poly.unshift(ntPortOutside(node.ingress, node.w, node.h));
+  poly.push(ntPortBorder(node.egress, node.w, node.h));
+  poly.push(ntPortOutside(node.egress, node.w, node.h));
   return poly;
 }
 
@@ -1775,7 +1778,7 @@ function ntGenerateNode(keepInventory = false, forcedIngressIdx = null) {
       ingress = ntRandomEdgePort(n);
       do { egress = ntRandomEdgePort(n); } while (egress.edge === ingress.edge);
     }
-    const [imx, imy] = ntPortMouth(ingress, n), [emx, emy] = ntPortMouth(egress, n);
+    const [imx, imy] = ntPortMouth(ingress, n, n), [emx, emy] = ntPortMouth(egress, n, n);
     if (Math.abs(imx - emx) + Math.abs(imy - emy) < 8) continue; // corner-proximity guard — re-roll if ports too close
     const isMouth = (tx, ty) => (tx === imx && ty === imy) || (tx === emx && ty === emy);
     // Place disjoint 2×2 bad-sector blocks (zero-overlap; never on a port mouth tile).
@@ -2121,9 +2124,9 @@ function ntShowGhost(ax, ay, validity) {
 // when the anchor changes — throttles the ~5k-cell BFS to anchor steps, not pixels.
 function ntUpdateGhostAt(tx, ty) {
   if (!ntNode) return;
-  const n = ntNode.n;
-  const ax = Math.max(0, Math.min(tx, n - 2));
-  const ay = Math.max(0, Math.min(ty, n - 2));
+  const w = ntNode.w, h = ntNode.h;
+  const ax = Math.max(0, Math.min(tx, w - 2));
+  const ay = Math.max(0, Math.min(ty, h - 2));
 
   // Tapping an existing user placement → they'll remove it on tap; no ghost.
   const b = ntBlockAt(tx, ty);
@@ -2333,8 +2336,8 @@ function ntHandleLongPress(tx, ty) {
 // Place a 2×2 block anchored at the tapped tile (clamped so the footprint stays in bounds).
 function ntAttemptPlace(tx, ty, asHoneypot) {
   ntClearGhost();
-  const n = ntNode.n;
-  const ax = Math.max(0, Math.min(tx, n - 2)), ay = Math.max(0, Math.min(ty, n - 2));
+  const w = ntNode.w, h = ntNode.h;
+  const ax = Math.max(0, Math.min(tx, w - 2)), ay = Math.max(0, Math.min(ty, h - 2));
   // Strict zero-overlap: all 4 footprint tiles must be vacant and clear of port mouths.
   for (const [fx, fy] of ntBlockTiles(ax, ay)) {
     if (ntBlockAt(fx, fy) || ntIsMouthTile(fx, fy)) { ntFlashReject(ntBuildCells[ty] && ntBuildCells[ty][tx]); return; }
@@ -2490,8 +2493,8 @@ function ntAuthTap(tx, ty) {
 }
 
 function ntAuthPlaceTerrain(tx, ty, asHoneypot) {
-  const n = ntNode.n;
-  const ax = Math.max(0, Math.min(tx, n - 2)), ay = Math.max(0, Math.min(ty, n - 2));
+  const w = ntNode.w, h = ntNode.h;
+  const ax = Math.max(0, Math.min(tx, w - 2)), ay = Math.max(0, Math.min(ty, h - 2));
   // Strict zero-overlap, exactly as ntAttemptPlace enforces it during Build.
   for (const [fx, fy] of ntBlockTiles(ax, ay)) {
     if (ntBlockAt(fx, fy) || ntIsMouthTile(fx, fy)) { ntFlashReject(ntBuildCells[ty] && ntBuildCells[ty][tx]); return; }
@@ -2536,12 +2539,12 @@ function ntAuthRemoveTerrain(b) {
 // or on the same edge, is making a choice — blocking it would be the tool second-guessing its
 // user. The two genuine constraints remain: the mouths must differ, and the node must route.
 function ntAuthSetPort(tx, ty) {
-  const n = ntNode.n;
+  const w = ntNode.w, h = ntNode.h;
   const nearest = [
     { edge: 'top',    d: ty,         idx: tx },
-    { edge: 'bottom', d: n - 1 - ty, idx: tx },
+    { edge: 'bottom', d: h - 1 - ty, idx: tx },
     { edge: 'left',   d: tx,         idx: ty },
-    { edge: 'right',  d: n - 1 - tx, idx: ty },
+    { edge: 'right',  d: w - 1 - tx, idx: ty },
   ].sort((a, b) => a.d - b.d)[0];
   const pick  = { edge: nearest.edge, idx: nearest.idx };
   const key   = ntDebugBrush;                                    // 'ingress' | 'egress'
