@@ -1042,6 +1042,23 @@ section('Port markers — one drawing function, two grids');
   d.__nt.drawPort('nt-auth-grid', d.__nt.node.ingress, '#34d399', true, w, h);
   d.__nt.drawPort('nt-auth-grid', d.__nt.node.egress, '#334155', false, w, h);
   check('…and the same function serves a second grid', d.__nt.authPorts(), 2);
+
+  // A marker spans the MOUTH, not one tile — and it measures against the port's own
+  // axis. On an 18-wide board a standard 2-unit mouth is 11.11% wide; a corner mouth
+  // is half that. Spec §6.2.
+  const mk = (port) => d.__nt.drawPort('nt-auth-grid', port, '#34d399', true, 18, 18);
+  const std = mk({ edge: 'top', idx: 4 });
+  check('a standard top marker spans two tiles',
+        std.style.width, 'calc(11.11111111111111%)');
+  check('…offset to the first mouth tile', std.style.left, '22.22222222222222%');
+  const cnr = mk({ edge: 'top', idx: 17 });
+  check('a corner top marker spans one tile',
+        cnr.style.width, 'calc(5.555555555555555%)');
+  const vert = mk({ edge: 'left', idx: 4 });
+  check('a left marker spans on the vertical axis',
+        [vert.style.height, vert.style.width], ['calc(11.11111111111111%)', '6px']);
+  check('…and keeps the border straddle', vert.style.left, '-3px');
+
   check('no exceptions', errs(d), []);
 })();
 

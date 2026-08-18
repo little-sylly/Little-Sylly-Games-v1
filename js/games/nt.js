@@ -2240,12 +2240,15 @@ function ntDrawPortMarker(grid, port, color, inward, w, h) {
   m.className = 'absolute pointer-events-none rounded-sm flex items-center justify-center';
   m.style.background = color;
   m.style.boxShadow = `0 0 6px ${color}`;
-  // A marker spans ONE tile along its own edge — horizontal edges divide by w, vertical by h.
-  const spanX = `calc(${100 / w}%)`, spanY = `calc(${100 / h}%)`, off = '-3px', thick = '6px';
-  if (port.edge === 'top')         { m.style.left = `${(port.idx / w) * 100}%`; m.style.width = spanX; m.style.top = off; m.style.height = thick; }
-  else if (port.edge === 'bottom') { m.style.left = `${(port.idx / w) * 100}%`; m.style.width = spanX; m.style.bottom = off; m.style.height = thick; }
-  else if (port.edge === 'left')   { m.style.top = `${(port.idx / h) * 100}%`; m.style.height = spanY; m.style.left = off; m.style.width = thick; }
-  else                             { m.style.top = `${(port.idx / h) * 100}%`; m.style.height = spanY; m.style.right = off; m.style.width = thick; }
+  // A marker spans the port's MOUTH along its own edge — horizontal edges divide by w,
+  // vertical by h. A corner mouth is one unit, a standard mouth two.
+  const idxs = ntMouthIdxs(port, w, h), first = idxs[0], units = idxs.length;
+  const spanX = `calc(${(100 * units) / w}%)`, spanY = `calc(${(100 * units) / h}%)`;
+  const off = '-3px', thick = '6px';
+  if (port.edge === 'top')         { m.style.left = `${(first / w) * 100}%`; m.style.width = spanX; m.style.top = off; m.style.height = thick; }
+  else if (port.edge === 'bottom') { m.style.left = `${(first / w) * 100}%`; m.style.width = spanX; m.style.bottom = off; m.style.height = thick; }
+  else if (port.edge === 'left')   { m.style.top = `${(first / h) * 100}%`; m.style.height = spanY; m.style.left = off; m.style.width = thick; }
+  else                             { m.style.top = `${(first / h) * 100}%`; m.style.height = spanY; m.style.right = off; m.style.width = thick; }
   const a = document.createElement('span');
   a.style.cssText = 'font-size:5px;line-height:1;color:#fff;pointer-events:none';
   a.textContent = NT_PORT_ARROWS[port.edge][inward ? 'in' : 'out'];
@@ -3051,21 +3054,22 @@ function ntDrawLegCanvas(canvas, node, cell, opts) {
   if (!canvas || !node || !node.w) return;
   opts = opts || {};
   const c = cell || 8;
-  const n = node.w; // DNP nodes are always square under the current scope — w === h
   canvas.width  = node.w * c;
   canvas.height = node.h * c;
   const ctx = canvas.getContext('2d');
   ctx.fillStyle = NT_COLOR_BASE;
-  ctx.fillRect(0, 0, n * c, n * c);
+  ctx.fillRect(0, 0, node.w * c, node.h * c);
   // Per-TILE gridlines (not per-2×2-block) so each square reads at its real scale —
   // matching the playback screen's own grid (ntRenderFrame). The old block-only spacing
   // made 2×2 obstacles look like an ambiguous size with nothing to anchor scale against.
   // Lighter than a per-block grid would need (2× the line count) to stay unobtrusive.
   ctx.strokeStyle = 'rgba(148,163,184,0.18)';
   ctx.lineWidth = 1;
-  for (let li = 0; li <= n; li++) {
-    ctx.beginPath(); ctx.moveTo(li * c + 0.5, 0);     ctx.lineTo(li * c + 0.5, n * c); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(0, li * c + 0.5);     ctx.lineTo(n * c, li * c + 0.5); ctx.stroke();
+  for (let li = 0; li <= node.w; li++) {
+    ctx.beginPath(); ctx.moveTo(li * c + 0.5, 0); ctx.lineTo(li * c + 0.5, node.h * c); ctx.stroke();
+  }
+  for (let li = 0; li <= node.h; li++) {
+    ctx.beginPath(); ctx.moveTo(0, li * c + 0.5); ctx.lineTo(node.w * c, li * c + 0.5); ctx.stroke();
   }
   const fill = (ax, ay, color) => {
     ctx.fillStyle = color;
@@ -3073,23 +3077,29 @@ function ntDrawLegCanvas(canvas, node, cell, opts) {
   };
   (node.badSectors      || []).forEach(p => fill(p.ax, p.ay, NT_COLOR_BAD_SECTOR));
   (node.nativeHoneypots || []).forEach(p => fill(p.ax, p.ay, NT_COLOR_NATIVE_HONEYPOT));
-  // Seam walls on shared edges — full height except the one connecting port row.
-  // Deliberately NOT NT_COLOR_BAD_SECTOR: that colour is a hazard's colour, and on this
-  // flat (no-glow) preview a same-colour wall reads as just another obstacle square
+  // Seam walls on shared edges — full height except the connecting port MOUTH (both
+  // rows). Deliberately NOT NT_COLOR_BAD_SECTOR: that colour is a hazard's colour, and on
+  // this flat (no-glow) preview a same-colour wall reads as just another obstacle square
   // rather than a team-connection boundary. Lighter slate keeps the neutral/structural
   // palette without competing with the semantic ingress/egress/native-honeypot colours.
   const wallT = Math.max(2, Math.round(c * 0.5));
   ctx.fillStyle = '#64748b'; // slate-500 — lighter than bad-sector's slate-700
+  // The wall opens the WHOLE mouth, not one row. Opening a single row here passes every
+  // check — the maths is right and the route resolves — while the preview shows a door
+  // walled off across half its width. Spec §6.3.
+  const inRows  = node.ingress ? ntMouthIdxs(node.ingress, node.w, node.h) : [];
+  const outRows = node.egress  ? ntMouthIdxs(node.egress,  node.w, node.h) : [];
   if (opts.wallLeft && node.ingress) {
-    for (let row = 0; row < n; row++) { if (row === node.ingress.idx) continue; ctx.fillRect(0, row * c, wallT, c); }
+    for (let row = 0; row < node.h; row++) { if (inRows.includes(row)) continue; ctx.fillRect(0, row * c, wallT, c); }
   }
   if (opts.wallRight && node.egress) {
-    for (let row = 0; row < n; row++) { if (row === node.egress.idx) continue; ctx.fillRect(n * c - wallT, row * c, wallT, c); }
+    for (let row = 0; row < node.h; row++) { if (outRows.includes(row)) continue; ctx.fillRect(node.w * c - wallT, row * c, wallT, c); }
   }
-  // Port channel bars (drawn over the wall gap): green ingress, amber egress.
+  // Port channel bars (drawn over the wall gap): green ingress, amber egress — each
+  // spanning its full mouth.
   const t = Math.max(2, Math.round(c * 0.5));
-  if (node.ingress) { ctx.fillStyle = '#34d399'; ctx.fillRect(0, node.ingress.idx * c, t, c); }
-  if (node.egress)  { ctx.fillStyle = '#f59e0b'; ctx.fillRect(n * c - t, node.egress.idx * c, t, c); }
+  if (node.ingress) { ctx.fillStyle = '#34d399'; ctx.fillRect(0, inRows[0] * c, t, c * inRows.length); }
+  if (node.egress)  { ctx.fillStyle = '#f59e0b'; ctx.fillRect(node.w * c - t, outRows[0] * c, t, c * outRows.length); }
 }
 
 // Build a team's full bridge into `container`: a horizontal row of (name + maze)
