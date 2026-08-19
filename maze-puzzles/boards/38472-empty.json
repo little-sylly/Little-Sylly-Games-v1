@@ -1,4 +1,0 @@
-{ "w": 9, "h": 10,
-  "ingress": { "edge": "top",  "idx": 4 },
-  "egress":  { "edge": "left", "idx": 5 },
-  "blocks": [[3,1]] }
