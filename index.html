@@ -7,15 +7,10 @@
   <meta name="description" content="Serious games for silly people." />
   <link rel="manifest" href="manifest.json" />
 
-  <!-- Fredoka — Google Fonts -->
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap" rel="stylesheet" />
-
   <!-- Tailwind CSS — local copy for offline support -->
   <script src="js/lib/tailwind-play.js"></script>
 
-  <!-- Custom styles (font-family rule) -->
+  <!-- Custom styles (self-hosted Fredoka @font-face + font-family rule) -->
   <link rel="stylesheet" href="css/styles.css" />
 
   <title>Little Sylly Games</title>
@@ -7543,7 +7538,7 @@ Climb Again
 
       <div class="flex flex-col gap-2">
         <div class="flex items-center justify-between">
-          <span class="text-stone-500 text-sm font-semibold">Firewall Budget</span>
+          <span class="text-stone-500 text-sm font-semibold">Firewall Resources</span>
           <div class="flex items-center gap-3">
             <button id="btn-nt-auth-fw-minus" class="min-h-11 min-w-11 rounded-xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-bold transition-all duration-150">&#x2212;</button>
             <span id="nt-auth-fw-val" class="text-stone-800 font-mono font-semibold w-8 text-center">0</span>
@@ -7551,7 +7546,7 @@ Climb Again
           </div>
         </div>
         <div class="flex items-center justify-between">
-          <span class="text-stone-500 text-sm font-semibold">Honeypot Budget</span>
+          <span class="text-stone-500 text-sm font-semibold">Honeypot Resources</span>
           <div class="flex items-center gap-3">
             <button id="btn-nt-auth-hp-minus" class="min-h-11 min-w-11 rounded-xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-bold transition-all duration-150">&#x2212;</button>
             <span id="nt-auth-hp-val" class="text-stone-800 font-mono font-semibold w-8 text-center">0</span>
@@ -7561,8 +7556,8 @@ Climb Again
       </div>
 
       <div class="flex gap-2">
-        <button id="btn-nt-auth-rand-terrain" class="min-h-11 flex-1 rounded-xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-sm transition-all duration-150">Randomise Terrain</button>
-        <button id="btn-nt-auth-rand-budget" class="min-h-11 flex-1 rounded-xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-sm transition-all duration-150">Randomise Budget</button>
+        <button id="btn-nt-auth-rand-terrain" class="min-h-11 flex-1 rounded-xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-sm transition-all duration-150">Randomise Topology</button>
+        <button id="btn-nt-auth-rand-budget" class="min-h-11 flex-1 rounded-xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-sm transition-all duration-150">Randomise Resources</button>
       </div>
 
       <button id="btn-nt-auth-deploy" class="min-h-14 w-full rounded-2xl bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
@@ -7669,6 +7664,10 @@ Reboot System
         <h2 class="text-xl font-bold text-stone-800 font-mono">// SYSTEM LOGS</h2>
         <p class="text-xs text-stone-400 mt-1 font-mono">root@amaze_inc:~# cat ./sys.log</p>
       </div>
+      <!-- Debug Mode only, 2+ players — switches whose attempt log is shown. Sticky with the
+           title block, never scrolls, same pattern as nt-player-chips in the playback panel. -->
+      <div id="nt-logs-player-chips" style="display:none"
+        class="px-5 pt-3 pb-3 border-b border-stone-200 flex-shrink-0 flex gap-2 overflow-x-auto"></div>
       <div class="overflow-y-auto flex flex-col gap-4 px-5 py-5">
         <!-- Cycle cards injected by ntRenderLogs() -->
         <div id="nt-logs-content" class="flex flex-col gap-4"></div>
@@ -7820,7 +7819,7 @@ Reboot System
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
           <p class="text-xs font-semibold uppercase tracking-widest text-emerald-600">Debug Mode</p>
           <p class="font-bold text-stone-800">Staging Environment</p>
-          <p class="text-stone-500 text-sm">One analyst authors the Node by hand in the <span class="font-semibold text-stone-700">Node Editor</span> — drawing Bad Sectors, dropping Native Honeypots, placing the ports and setting everyone's budget. Once it is deployed, you can re-run your trace <span class="font-semibold text-stone-700">as many times as you like</span>; only your best attempt is scored. Not available alongside Sylly Mode.</p>
+          <p class="text-stone-500 text-sm">One analyst authors the Node by hand in the <span class="font-semibold text-stone-700">Node Editor</span> — drawing Bad Sectors, dropping Native Honeypots, placing the ports and setting everyone's resources. Once it is deployed, you can re-run your trace <span class="font-semibold text-stone-700">as many times as you like</span>; only your best attempt is scored. Not available alongside Sylly Mode.</p>
         </div>
 
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">

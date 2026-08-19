@@ -16,19 +16,17 @@ Every screen must have:
 
 ---
 
-## Round/Night Intro Screen (default for the start of every match round, added 12 Aug 2026 — SHP; CJAR is the precedent)
+## Round/Night Intro Screen (default for the start of every match round)
 
 **Every game where the same phase (a Night, a Raid, a Round) repeats several times per match should
 show a short, auto-advancing intro screen at the start of each repetition — not jump the player
 straight from "deal" into an already-live table.** This is the interstitial exception (rule 5 above)
-used as a *beat*, not just a result flash: `screen-cjar-raid-intro` was the first instance; SHP's
-`screen-shp-night-intro` is the second and what generalises it into a named pattern.
+used as a *beat*, not just a result flash. References: `screen-cjar-raid-intro`, `screen-shp-night-intro`.
 
-**Job of the screen — flavour AND orientation, not just flavour.** The text should do two things in
-one or two short lines: set the scene in the game's voice, and restate — lightly, not a rules dump —
-what the player is about to do or watch for. SHP's line does both in one sentence: *"Don't go over 99
-or you might really just fall asleep"* is flavour and the core rule in the same breath. A pure mood
-line with no practical content is a missed second use of the same five seconds.
+**Job of the screen — flavour AND orientation, not just flavour.** In one or two short lines: set
+the scene in the game's voice, and restate lightly (not a rules dump) what the player is about to do
+or watch for. SHP's *"Don't go over 99 or you might really just fall asleep"* is both in one
+sentence. A pure mood line with no practical content wastes the same five seconds.
 
 **Shape:**
 ```html
@@ -47,25 +45,19 @@ No `[?]`/🔊/✕ — the rule-5 interstitial exemption applies (nothing is tapp
 Emoji should differ from the game's main menu emoji where reasonable, so the intro reads as its own
 beat rather than a repeat of the menu (SHP uses 🌙 for "Night begins", distinct from the menu's 🐑).
 
-**Rotate the flavour line if the phase repeats many times a match.** A Raid/Night can redeal a
-handful of times in one sitting; the same sentence every time reads as filler by the third showing.
-Keep a small array (`SHP_NIGHT_FLAVOUR`, 4–6 lines) and pick one per repetition — **host-picked and
-synced** in MDLM (ride the index in whatever SYNC packet already carries the deal), never picked
-independently per device, or players sitting together see different text for the same moment.
+**Rotate the flavour line if the phase repeats many times a match** — the same sentence every time
+reads as filler by the third showing. Keep a small array (`SHP_NIGHT_FLAVOUR`, 4–6 lines) and pick
+one per repetition, **host-picked and synced** in MDLM (ride the index in whatever SYNC packet
+already carries the deal). Picked independently per device, players sitting together see different
+text for the same moment.
 
-**Wire it in at the SAME point on host and client.** The function that shows this screen must be
-called from **both** the host's deal path and the client's `SYNC` handler for that deal — not just
-one. SHP's version (`shpShowNightIntro()`) replaced a direct `shpShowTable()` call in both
-`shpDealNight()` (host) and the `SHP_DEAL` applier (client); missing either half means one class of
-device skips straight past the intro. Auto-advance via `setTimeout` to the real table-show function,
-clearing any prior handle first (a rapid-fire redeal loop must never stack two pending timers) and
-clearing it in the game's teardown (`resetToLobby()` path) per § Timer Lifecycle (`logic-engine.md`).
+**Wire it in at the SAME point on host and client** — called from **both** the host's deal path and
+the client's `SYNC` applier for that deal (SHP: `shpDealNight()` and the `SHP_DEAL` applier). Miss
+either half and one class of device skips straight past the intro. Auto-advance via `setTimeout` to
+the real table-show function, clearing any prior handle first (a rapid redeal must never stack two
+pending timers) and clearing it in teardown per § Timer Lifecycle (`logic-engine.md`).
 
-**Deferred — sweep the rest of the suite.** Not retrofitted onto any existing game outside CJAR/SHP
-this round. `docs/deferred-work.md` carries a tracked item to audit every game with a repeating
-Round/Raid/Night/Encounter structure and add this screen where the "deal happens, but nothing marks
-it" gap exists — see PKO and other multi-round games first, since they're the closest structural
-match to what CJAR and SHP already have.
+**Not yet retrofitted** beyond CJAR/SHP — suite sweep tracked in `docs/deferred-work.md`.
 
 ---
 
@@ -103,7 +95,7 @@ The sound overlay volume slider (`#global-sound-volume`) uses a CSS class set by
 
 **Range class reference:**
 
-See **§ Per-Game Reference → Table A** at the end of this file. (Gradient values live in `css/styles.css` on each `.[abbr]-range` rule — read them there.)
+See **Table A** in `docs/rules/per-game-classes.md`. (Gradient values live in `css/styles.css` on each `.[abbr]-range` rule — read them there.)
 
 ### Mute toggle theming
 
@@ -121,7 +113,7 @@ The sound overlay mute toggle (`#global-mute-toggle`) shows the current game's b
 
 **Per-game toggle class map** (matches `getMuteToggleOnClass()` in `engine.js`):
 
-See **§ Per-Game Reference → Table A** at the end of this file.
+See **Table A** in `docs/rules/per-game-classes.md`.
 
 **Adding a new game:**
 1. Add a `game-toggle-on-[colour]` class to `css/styles.css` (copy an existing rule, swap the background colour)
@@ -346,7 +338,7 @@ Applies to every transition and `@keyframes` in `css/styles.css` and every inlin
 
 **Hard ceiling: 300 ms** for anything that is not a full overlay. Past that a phone UI feels laggy rather than smooth. The Stack's overlays (`settings-slide-up`) are the documented exception at up to 500 ms.
 
-**A second, narrow exception: a blocking choreography beat.** A sequenced animation that the player cannot act through — where the duration itself *is* the pacing budget, not decoration on top of an already-actionable UI — may exceed 300 ms, provided it still animates only `transform`/`opacity` per the rule below. This is different from ordinary chrome feedback (a button press, a pill toggle): those are what the 300 ms ceiling protects, because input is available the whole time. Reference: CJAR's reveal choreography (`CJAR_FLIP_ANIM_MS`, `js/games/cjar.js`) — flip/hold/payout is a single blocking 3200 ms beat because no decision can be made until the card's outcome is seen.
+**A second, narrow exception: a blocking choreography beat.** A sequenced animation the player cannot act through — where the duration itself *is* the pacing budget, not decoration on an already-actionable UI — may exceed 300 ms, provided it still animates only `transform`/`opacity`. The ceiling protects ordinary chrome feedback (button press, pill toggle), where input is available the whole time. Reference: CJAR's flip/hold/payout beat (`CJAR_FLIP_ANIM_MS`, `js/games/cjar.js`), 3200 ms because no decision can be made until the card's outcome is seen.
 
 **Easing — pick by what the element is doing, not by taste:**
 - Entering or exiting the screen → `ease-out`
@@ -360,23 +352,23 @@ Applies to every transition and `@keyframes` in `css/styles.css` and every inlin
 - Use `translateY(100%)` to move an element by its own height rather than a hardcoded pixel value.
 - Tap feedback is `transform: scale(0.97)` on `:active` — this is what `active:scale-95` already gives us across the suite.
 
-**`transition-all` is known debt — do not add more.** `index.html` carries ~487 uses of it. `transition-all` animates *every* animatable property including layout ones, so it is the transform-only rule's blind spot. Existing uses are left alone (a sweep of `index.html` is off-limits — see the encoding warning). For new markup, name the property: `transition-transform`, `transition-opacity`, `transition-colors`.
+**`transition-all` is known debt — do not add more.** It animates *every* animatable property including layout ones, so it is the transform-only rule's blind spot. The ~487 existing uses in `index.html` are left alone (a sweep there is off-limits — see the encoding warning). For new markup name the property: `transition-transform`, `transition-opacity`, `transition-colors`.
 
-**Reduced motion is mandatory and already global.** `css/styles.css` ends with a `@media (prefers-reduced-motion: reduce)` block that collapses every duration to `0.01ms`. Two rules follow from *how* it is written:
-- It sets `animation-duration`/`transition-duration` to near-zero — **never `animation: none`**. `js/games/li5.js` has four `animationend` listeners (`card-enter`, `streak-fire-shake`, and two `hype-pop`) that do the *cleanup*; killing the animation outright means the event never fires and the class and its text stay stranded on screen. Any new `animationend`-driven cleanup inherits this protection for free — but only while the block stays duration-based.
-- Because it is global, a new animation needs no per-feature reduced-motion handling. Do not add a second `prefers-reduced-motion` block.
+**Reduced motion is mandatory and already global.** `css/styles.css` ends with a `@media (prefers-reduced-motion: reduce)` block collapsing every duration to `0.01ms`. Two rules follow from *how* it is written:
+- It sets `animation-duration`/`transition-duration` to near-zero — **never `animation: none`**. `js/games/li5.js` has four `animationend` listeners doing the *cleanup*; killing the animation outright means the event never fires and the class and its text stay stranded on screen. New `animationend`-driven cleanup inherits this protection — but only while the block stays duration-based.
+- Because it is global, a new animation needs no per-feature handling. Do not add a second `prefers-reduced-motion` block.
 
 **Test it:** DevTools → Rendering → Emulate `prefers-reduced-motion: reduce`, then exercise the animation. Nothing should travel, and nothing should be left behind.
 
 ### Legacy sticky-footer pattern — do NOT use for new screens
 
-A handful of older screens across the suite use `h-screen overflow-hidden` with a `flex-1 overflow-y-auto min-h-0` Stage between `flex-shrink-0` Header/Controls. This was previously documented as a second valid pattern. **It is now deprecated for new work** — it is the single largest source of "not together, not centred" screens, because a screen can be technically correct (button visible, content reachable) while looking sparse and edge-pinned. New games use the Stack for *every* screen, including the main gameplay screen. Existing sticky-footer screens are migrated to the Stack opportunistically; log each migration in the game's implementation notes.
+Some older screens use `h-screen overflow-hidden` with a `flex-1 overflow-y-auto min-h-0` Stage between `flex-shrink-0` Header/Controls. **Deprecated for new work** — it is the single largest source of "not together, not centred" screens, because a screen can be technically correct (button visible, content reachable) while looking sparse and edge-pinned. New games use the Stack for *every* screen. Migrate existing ones opportunistically; log each migration in the game's impl notes.
 
-If you ever think a screen *needs* the legacy pattern, you almost certainly don't: the only real trigger is a Stage that must scroll **independently** while the Controls stay frozen, and the project decision (June 2026) is to prefer whole-Stack scrolling over that even for long card hands. When in genuine doubt, use the Stack.
+If you think a screen *needs* it, you almost certainly don't: the only real trigger is a Stage that must scroll **independently** while the Controls stay frozen, and the project decision (June 2026) prefers whole-Stack scrolling even for long card hands.
 
 ### Legacy `h-screen` whitelist (baseline sweep, 26 June 2026)
 
-A suite-wide Stack sweep migrated every content/results screen off `h-screen`. The screens below are the **only** remaining legacy sticky-footer screens — each is a deliberate, justified exception. If one of these looks sparse/edge-pinned, that's expected; if any **other** screen does, it's a new bug, not this one.
+These are the **only** remaining legacy sticky-footer screens — each a deliberate exception. If one of these looks sparse/edge-pinned that's expected; if any **other** screen does, it's a new bug.
 
 | Screen(s) | Why it keeps the sticky footer |
 |-----------|-------------------------------|
@@ -423,7 +415,7 @@ Every other content/results screen in the suite has already been migrated to the
         </ul>
       </div>
 
-      <!-- Last card — every game has a Sylly Mode; see § Per-Game Reference → Table B for the name -->
+      <!-- Last card — every game has a Sylly Mode; see Table B in docs/rules/per-game-classes.md -->
       <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
         <p class="text-xs font-semibold uppercase tracking-widest text-[brand]">✨ Sylly Mode</p>
         <p class="font-bold text-stone-800">[Thematic Name]</p>
@@ -458,12 +450,12 @@ Every other content/results screen in the suite has already been migrated to the
 - **Close button:** game brand primary colour (`bg-[brand] hover:bg-[brand-dark]`).
 - **Inner div:** must include `flex flex-col` — title block is `flex-shrink-0`, body is `overflow-y-auto`.
 
-### Optional tab bar — N tabs (added Aug 2026, CJAR; generalised to 3 Aug 2026, PKO)
+### Optional tab bar — N tabs
 
 A game with **reference content that is itself part of learning the game** — every card in the
 deck, a chain diagram, a role roster — may add a tab bar rather than pushing that content into a
-second overlay. There is no cap at two: PKO runs three (Rules | Diagram | Animals). Sits directly
-under the sticky title block, sticky with it, never scrolling:
+second overlay. No cap at two: PKO runs three (Rules | Diagram | Animals). Sits directly under the
+sticky title block, sticky with it, never scrolling:
 
 ```html
 <div class="px-5 pt-3 pb-3 border-b border-stone-200 flex-shrink-0 flex gap-2">
@@ -473,18 +465,14 @@ under the sticky title block, sticky with it, never scrolling:
 </div>
 ```
 
-**Rollout (10 Aug 2026):** six games now carry a tab bar — **CJAR** (`The Rules | The Cards`),
-**PKO** (`The Rules | Diagram | Animals`), **FRT** (`The Rules | The Fruit`), **SHP**
-(`The Rules | The Cards`), **FLW** (`The Rules | The Gems`) and **DYB** (`The Rules | The Dice`).
-That is every game with a card/dice render seam except **PASS**, whose 54 faces make a tile grid a
-poster rather than a reference — deliberately still open, see `docs/deferred-work.md`.
+**Rollout:** six games carry one — CJAR, PKO, FRT, SHP, FLW, DYB. That is every game with a
+card/dice render seam except **PASS**, whose 54 faces make a tile grid a poster rather than a
+reference — deliberately still open, see `docs/deferred-work.md`.
 
 **A gallery tab must render through the game's own render seam** (`[abbr]RenderCard`, `dybDieHTML`),
-never hand-built markup. Two things follow from that and both are load-bearing: the gallery can
-never drift from the live deck, and it is **skinnable**, which is what makes it double as the
-offline install check (`docs/art-authoring-guide.md` § 7). FLW's Gem Manifest was the counter-example
-— it drew its own colour-swatch circles, so no skin could reach it and the Vault's real artwork was
-invisible outside a live Showing; folding it into How to Play converted it to `flwRenderCard`.
+never hand-built markup. Two load-bearing consequences: the gallery can never drift from the live
+deck, and it is **skinnable**, which is what makes it double as the offline install check
+(`docs/art-authoring-guide.md` § 7). Hand-built markup silently locks skins out of the gallery.
 
 **Every gallery tile is tappable-to-enlarge** via `artMakeZoomable` — see § Pattern 2a above.
 
@@ -498,21 +486,16 @@ invisible outside a live Showing; folding it into How to Play converted it to `f
 - Tab buttons use the standard `.pill` / `pill-active-[colour]` classes and the same toggle rule
   (never remove `.pill`).
 - **Reference content that is part of learning the game belongs in the tab bar — including a
-  mid-play reference a player returns to later.** A tab is not disqualified just because it is
-  *also* useful mid-round (PKO's Diagram/Animals tabs are opened both from How to Play and from
-  the table's `[?] The Chain` and a tap-held card — same overlay, opened pre-selected on the
-  relevant tab via `pkoOpenHowTo(tab, highlightId)`). What stays excluded is content that is
-  **not** teaching material at all — Settings, a match/score log, or any *live* running state a
-  static tab can't represent. This is not a licence to fold those into How to Play.
+  mid-play reference a player returns to later.** A tab is not disqualified for *also* being useful
+  mid-round (PKO's Diagram/Animals tabs open from How to Play *and* from the table's `[?] The Chain`
+  and a tap-held card — same overlay, pre-selected via `pkoOpenHowTo(tab, highlightId)`). Excluded
+  is content that is **not** teaching material at all — Settings, a match/score log, or any *live*
+  running state a static tab can't represent. Not a licence to fold those into How to Play.
 
-**Why:** cjar's card gallery began as its own overlay opened by a button at the bottom of How to
-Play — one overlay further away than the thing it explains, plus a z-index stack and an extra
-entry in the `resetToLobby()` teardown list. Knowing what cards exist *is* learning the game. PKO
-originally kept its Diagram/Animals pair (`pko-chain-overlay`) separate on the reasoning that a
-mid-play reference isn't a teaching aid — that distinction didn't survive contact with a second
-example: the two are the same thing seen at different times, and duplicating the content across
-two overlays (rather than one overlay with more entry points) was the actual cost. Folded into
-`pko-how-to-overlay` as tabs 2–3 Aug 2026; see `docs/decision-log.md`.
+**Why:** a separate reference overlay is one overlay further away than the thing it explains, plus
+a z-index entry and a `resetToLobby()` teardown entry — and the real cost is duplicating content
+across two overlays instead of giving one overlay more entry points. Knowing what cards exist *is*
+learning the game. Full rationale: `docs/decision-log.md` 2026-08-03.
 
 ### Tap-Hold Reference (default for a card's long-press, added 12 Aug 2026 — SHP, generalising PKO)
 
@@ -522,17 +505,14 @@ switches) to The Cards, scrolls it into view, and rings it briefly.** This is th
 long-press behaviour for any card with real artwork. Build a standalone inspect popup only if the
 game has a specific reason a shared gallery entry can't serve (none has needed one yet).
 
-**Why the default, not a per-game choice:** a standalone popup (SHP's original `shp-card-info-overlay`
-Decision Modal) is a second place a card's rules text can drift from the gallery's, a second
-overlay in the z-index stack, and a second `resetToLobby()` teardown entry — for information the
-gallery already has to hold anyway. Retired in favour of this pattern 12 Aug 2026; see
-`docs/implementation-notes/shp-implementation-notes.md`.
+**Why the default, not a per-game choice:** a standalone popup is a second place a card's rules text
+can drift from the gallery's, a second z-index entry and a second `resetToLobby()` teardown entry —
+for information the gallery already holds. Detail: `shp-implementation-notes.md`.
 
 **Shape — the touch/mouse mechanics and the scroll-and-ring are shared `engine.js` globals, not a
 per-game copy.** `bindCardHold(el, onHold, ms=500)` and `refHighlightRow(box, attr, id, pingClass,
-ms=1600)` were extracted from the original per-game `[abbr]BindCardHold` implementations during
-FLW's gem-seam round (task 4, Aug 2026) — see `logic-engine.md` § Shared Library Modules. A game's
-own bind function is now a one-line wrapper:
+ms=1600)` — see `logic-engine.md` § Shared Library Modules. A game's own bind function is a
+one-line wrapper:
 ```js
 function [abbr]BindCardHold(el, cardId) { bindCardHold(el, () => [abbr]OpenHowTo('[gallery-tab]', cardId)); }
 ```
@@ -560,7 +540,7 @@ the gap when tap-hold is otherwise idle.
 
 ### Per-game reference
 
-See **§ Per-Game Reference** at the end of this file — **Table B** for emoji + Sylly Mode name, **Table C** for the step-label and close-button classes.
+See `docs/rules/per-game-classes.md` — **Table B** for emoji + Sylly Mode name, **Table C** for the step-label and close-button classes.
 
 ---
 
@@ -626,11 +606,9 @@ needs — a duration, a count, a threshold, a percentage — that value goes on 
 - This is the same shape as the Sylly intensity slider's live descriptor below — same class
   (`text-stone-400 text-xs`), same job — generalised from sliders to pill groups.
 
-**Why the rule exists:** cjar shipped Decision Time as `Blitz / Standard / No Rush` with the
-actual seconds written nowhere in the app, while Match Length baked its values into the labels
-(`Quick Snack (3)`), which lengthens pills unevenly and breaks the row's alignment. Both are the
-same gap. Keeping values off the labels is also what protects thematic setting names, which are
-close to a suite signature.
+**Why:** a value written nowhere (`Blitz / Standard / No Rush`) and a value baked into the label
+(`Quick Snack (3)`, which lengthens pills unevenly and breaks the row's alignment) are the same
+gap. Keeping values off labels is also what protects thematic setting names, a suite signature.
 
 **Pill toggle rule:** `.pill` base class must ALWAYS remain on every pill button. Never remove it. Only add/remove `.pill-active-[colour]`. The `pill-active-*` classes only define background-color and color — all structural styles (border-radius, padding, flex, font-size) live in `.pill`. Removing `.pill` leaves an unstyled box.
 
@@ -701,46 +679,25 @@ another toggle that can't sensibly run alongside it:
 | **Mutually exclusive** | A ON forces B OFF, reciprocally. Both stay reachable. |
 | **Superseded** | A ON makes B irrelevant. **B's stored value is not modified** and returns intact when A goes OFF. |
 
-**Instances, in shipped order:** FRT's **Pear-Off ↔ Sylly Mode** (Mutually exclusive; shipped SW
-v167, 10 Aug 2026 — `js/games/frt.js` `frtPearOff`/`frtSyllyMode`, reciprocal lock in both toggle
-handlers, `frt-pearoff-locked-note`/`frt-sylly-locked-note` in `index.html`) is the **first**
-instance. NT's **Debug Mode ↔ Sylly Mode** (both patterns at once — Mutually exclusive with Sylly,
-and Superseded over Iterations/Hardening Window; shipped this branch, 17 Aug 2026) is the
-**second**. FRT's pattern went undocumented until this entry named it — worth noting, since that is
-presumably why it read as novel when NT shipped the same shape a week later.
-
 **Visual contract, both patterns:** the disabled setting's controls get `opacity-50
 pointer-events-none`; the card's **title stays at full contrast** (only the controls dim — a reader
-scanning card titles must still see every setting exists); a reason line is **mandatory** directly
-under the controls, styled `text-amber-600 text-xs`. This documents an existing but previously
-unwritten convention — FRT's locked-notes already use `text-amber-600` — rather than introducing a
-new colour. It is a primitive **new to this rule file**, not new to the codebase: **never
-`text-stone-400`**, which already means something else on this exact screen (the § Dynamic Value
-Line's *picked* colour, e.g. "45s" under a Hardening Window pill row). Amber means *unavailable*
-(disabled by the exclusivity partner); stone-400 means *not picked*. The two must never look alike,
-or a player can't tell "I haven't chosen this" from "I can't choose this."
+scanning card titles must still see that every setting exists); a reason line is **mandatory**
+directly under the controls, styled `text-amber-600 text-xs`. **Never `text-stone-400`** — that
+already means something else on this exact screen (§ Dynamic Value Line's *picked* colour, e.g.
+"45s" under a pill row). Amber means *unavailable*; stone-400 means *not picked*. If the two look
+alike a player can't tell "I haven't chosen this" from "I can't choose this."
 
 **The sanctioned card-order exception:** an exclusivity partner may sit immediately **above** the
-`✨ Sylly Mode` card in the settings overlay — this is the one and only exception to "Sylly Mode is
-always last" there; nothing else may take that slot. The two read as a pair because they are one:
-Sylly and its exclusivity partner are the two settings a player must choose between, so the eye
-finds them adjacent. FRT's Pear-Off card (`index.html`, `frt-settings-overlay`) is the reference
-for the settings-overlay ordering — it precedes NT's by a week. **Mirroring the same ordering into
-the How to Play overlay is NT's own addition, not established prior art:** FRT's how-to overlay
-(`frt-how-to-overlay`) does not document Pear-Off at all — only Fruity Personalities (Sylly) gets a
-card there. NT's Debug Mode card (`nt-how-to-overlay`) is the first instance of the how-to mirror;
-treat it, not FRT, as the reference if a future game needs that half of the pattern.
+`✨ Sylly Mode` card in the settings overlay — the one and only exception to "Sylly Mode is always
+last"; nothing else may take that slot. The two read as a pair because the player is choosing
+between them. Reference: FRT's Pear-Off card (`frt-settings-overlay`). **Mirroring that order into
+the How to Play overlay** is a separate, newer move — NT's Debug Mode card (`nt-how-to-overlay`) is
+the only instance and the reference for that half.
 
-**Implementation note:** both instances implement this locally rather than through a shared helper —
-FRT toggles `.disabled`/inline `style.opacity` directly at each of its two toggle handlers;
-NT centralises the same idea in one function, `ntSetCardDisabled(ctlId, reasonId, disabled, reason)`
-in `js/games/nt.js`. **A shared `bindExclusiveSettings()` engine helper is deliberately still not
-being built**, even though this is now confirmed as the pattern's *second* instance (which is
-usually this project's own extraction trigger — dice logic stayed in `dyb.js` only until a second
-dice game existed). Overridden here on scope grounds: building it now would mean touching FRT, a
-shipped game unrelated to the branch that surfaced this, at the tail end of a documentation-only
-task. Tracked as a deferred extraction in `docs/deferred-work.md` — build it when a third instance
-appears, or the next time either FRT's or NT's settings code is touched for an unrelated reason.
+**Instances and implementation:** FRT's Pear-Off ↔ Sylly Mode (mutually exclusive, inline in
+`js/games/frt.js`'s two toggle handlers) and NT's Debug Mode ↔ Sylly Mode (both patterns at once,
+centralised in `ntSetCardDisabled` in `js/games/nt.js`). A shared `bindExclusiveSettings()` helper
+is deliberately **not** built yet — rationale and trigger in `docs/deferred-work.md`.
 
 **Outer scrollable body** between cards: `flex flex-col gap-5` — keep consistent across all games.
 
@@ -751,7 +708,7 @@ appears, or the next time either FRT's or NT's settings code is touched for an u
 - Toggle OFF state: `game-toggle-off` (canonical) — `sylly-toggle-off` is a legacy alias sharing the same CSS rule; `sylly-toggle-on` is deprecated (see Mute toggle theming § Toggle class rules)
 - Active pill colour is game-specific:
 
-See **§ Per-Game Reference → Table A** at the end of this file.
+See **Table A** in `docs/rules/per-game-classes.md`.
 
 ---
 
@@ -779,7 +736,7 @@ See **§ Per-Game Reference → Table A** at the end of this file.
 | How to Play button | `bg-stone-700 hover:bg-stone-800 text-white` |
 
 ### Per-game brand reference:
-See **§ Per-Game Reference → Table A** (brand colour) and **Table C** (the class strings) at the end of this file.
+See `docs/rules/per-game-classes.md` — **Table A** (brand colour) and **Table C** (the class strings).
 
 **Notes:**
 - **GTH:** Muted Sage (`#B1BCA0`) has no Tailwind utility class — GTH brand colours are applied via inline `style` attributes throughout its markup, hence the `—` entries.
@@ -827,20 +784,14 @@ Any other colour on an action button (a different game's brand bleeding in via c
 colour reused by accident) is a bug — e.g. a game's confirm button shipping in another game's brand colour,
 or a plain "proceed" CTA shipping in neutral stone despite having no cancel/destructive framing.
 
-**Watch for JS-built buttons, not just static HTML.** A button whose label is set via `.textContent =`,
-`createElement('button')`, or a shared helper's config object (`showWhoFirst({ confirmLabel })`,
-`dsdShowPassGate({ ctaLabel })`) never shows up in an `index.html`-only grep — the label lives in
-`js/games/[abbr].js` instead. The suite-wide "Restart in Lobby 🔄" play-again confirm label was exactly this:
-every MDLM game sets it dynamically per multiplayer mode, so a static-HTML sweep missed all 13 instances of it
-in one pass. When auditing action buttons, grep both `index.html` **and** `js/games/*.js` for `.textContent`,
-`createElement('button')`, and any button-building helper.
+**Auditing rule — watch for JS-built buttons, not just static HTML.** A label set via `.textContent =`,
+`createElement('button')`, or a helper's config object (`showWhoFirst({ confirmLabel })`,
+`dsdShowPassGate({ ctaLabel })`) never appears in an `index.html`-only grep. And a button's label can be
+assigned **more than once** in one file (initial render + a later open-the-modal call), so grepping for a
+known bad string finds only the sites that still contain it. Audit both `index.html` **and** an exhaustive
+`[Bb]tn.*textContent =` / `createElement('button')` pass over `js/games/*.js` — never an id-list-driven pass.
 
-**Suite-wide sweep completed 7 Aug 2026, all 18 games, no violations outstanding.** Detail and root-cause
-lessons: `docs/decision-log.md` 2026-08-07. **Lesson worth keeping visible:** a button's label can be assigned
-more than once in the same file (initial render + a later open-the-modal call) — grepping for a known bad
-string only finds sites that still contain it, not every assignment site for that button's id. Audit both
-`index.html` (static markup) and an exhaustive `[Bb]tn.*textContent =` / `createElement('button')` regex pass
-over `js/games/*.js` (JS-built labels), not an id-list-driven pass.
+**Suite-wide sweep completed 7 Aug 2026, all 18 games, no violations outstanding.** Detail: `docs/decision-log.md` 2026-08-07.
 
 ---
 
@@ -871,7 +822,7 @@ Every game's main menu screen must have exactly these 4 buttons, in this order: 
 
 **Play CTA labels** (as shipped in `index.html`):
 
-See **§ Per-Game Reference → Table B** at the end of this file.
+See **Table B** in `docs/rules/per-game-classes.md`.
 
 **Type scale rule (DD-31):** same-screen buttons representing real, distinct choices match in
 size and weight, no exceptions — a screen with a primary CTA and a secondary exit/back option is
@@ -1013,125 +964,29 @@ The vocab lock is game-agnostic and available to any future game:
 - Any future game can wire a "VIEW WORD LIST" button to `smOpenVocabOverlay()` with zero changes to `secret-mode.js`
 
 ---
+## Per-Game Reference
 
-## Per-Game Reference
+**Moved to `docs/rules/per-game-classes.md` (on-demand, 19 Aug 2026)** — Table A (brand colour,
+range, toggle-ON, active pill), Table B (Play CTA, how-to emoji, Sylly Mode name) and Table C
+(`accentBtnClass`, `accentTextClass`, step label, Settings tint) plus their ‡ § ¶ exception notes.
+It was ~2.3k tokens of per-game lookup loaded on every turn, including turns touching no UI.
 
-**Single source of truth for every per-game value in this file** — six tables merged into three, so
-**adding a game = three rows**, not six. Notes stay in their own sections above; not repeated here.
+**Read it when** you need a specific game's exact class strings. Every `see § Per-Game Reference →
+Table X` pointer in this file now means that file. For brand colour + active pill alone,
+`CLAUDE.md` § Per-Game Quick Index has all 18 games and is always loaded.
 
-### Table A — Brand colour and the four themed classes
+**Adding a game:** three rows there, plus the CSS/engine-map steps in § Sound Overlay above.
 
-| Game | Brand colour | Range (`updateSliderTheme`) | Toggle ON (`getMuteToggleOnClass`) | Active pill |
-|------|-------------|------------------------------|-------------------------------------|-------------|
-| None / lobby | neutral stone | `stone-range` | `game-toggle-on-stone` | — |
-| LI5 | pink-500 | `li5-range` | `game-toggle-on-pink` | `pill-active-pink` |
-| GM | violet-500 CTAs / purple-* pills | `sylly-range` | `game-toggle-on-purple` | `pill-active-purple` |
-| SS | teal-500 | `ss-range` | `game-toggle-on-teal` | `pill-active-teal` |
-| JEC | amber-500 | `jec-range` | `game-toggle-on-amber` | `pill-active-amber` |
-| YGI | orange-500 | `ygi-range` | `game-toggle-on-orange` | `pill-active-orange` |
-| LTTP | red-500 | `lttp-range` | `game-toggle-on-red` | `pill-active-red` |
-| NAT | lime-600 | `nat-range` | `game-toggle-on-lime` | `pill-active-lime` |
-| DSD | cyan-700 | `dsd-range` | `game-toggle-on-cyan` | `pill-active-cyan` |
-| GTH | `#B1BCA0` sage (custom) | `gth-range` | `game-toggle-on-sage` | `pill-active-sage` |
-| DYB | `#1E4D8C` ocean (custom) | `dyb-range` | `game-toggle-on-dyb` | `pill-active-dyb` |
-| BLD | `#991b1b` dark red (red-800, custom) | `bld-range` | `game-toggle-on-bld` | `pill-active-bld` |
-| PASS | zinc-900 | `pass-range` | `game-toggle-on-zinc` | `pill-active-zinc` |
-| NT | emerald-500 | `nt-range` | `game-toggle-on-emerald` | `pill-active-emerald` |
-| FRT | `#FFE500` electric lemon (custom) | `frt-range` | `game-toggle-on-frt` | `pill-active-frt` |
-| SHP | `#3A3D52` midnight (custom) | `shp-range` | `game-toggle-on-shp` | `pill-active-shp` |
-| FLW | `#E879A8` rose-pink (custom) | `flw-range` | `game-toggle-on-flw` | `pill-active-flw` |
-| PKO | `#854D0E` (custom) | `pko-range` | `game-toggle-on-pko` | `pill-active-pko` |
-| CJAR | `#D4A017` honey-gold (custom) | `cjar-range` | `game-toggle-on-cjar` | `pill-active-cjar` |
+### Gameover podium rank icons
 
-`sylly-range` is GM's alone — it predates the `[abbr]-range` convention every other game follows. Never reuse it.
-Gradient values live on each `.[abbr]-range` rule in `css/styles.css`.
-
-### Table B — Game-voiced strings
-
-| Game | Play CTA (menu) | How-to emoji | Sylly Mode name |
-|------|-----------------|--------------|-----------------|
-| LI5 | Play Time! | 💬 | Extra Credit |
-| GM | Begin Link | 🧠 | Static Interference |
-| SS | Start Mission | 📡 | Intel Phase |
-| JEC | Let's Cook! | 🍳 | Kitchen Nightmares |
-| YGI | Let's Get To It! | 🃏 | The Ringer |
-| LTTP | Find The Location! | 🏃‍♂️ | The Troublemaker † |
-| NAT | Begin Observation | 🦁 | Survival of the Fittest |
-| DSD | Begin Deployment | ⚓ | Silent Running |
-| GTH | Start the Session | 🛋️ | Stroke or Genius |
-| DYB | Let's Play! | 🎲 | The Tempest |
-| BLD | Make the Plans | 📋 | Drama Mode |
-| PASS | Deal Me In | 🃏 | The Abyss |
-| NT | Initialise System | ⚡ | Devil's Network Protocol |
-| FRT | Start Serving | 🍌 | Fruity Personalities |
-| SHP | Lights Out | 🐑 | Night Terrors |
-| FLW | Enter the Exhibition | 💎 | The Counterfeit Run |
-| PKO | Enter the Wild | 🐘 | Force of Nature |
-| CJAR | Raid the Jar! | 🍪 | Dibber Dobber |
-
-**†  Resolved 1 Aug 2026 — LTTP's Sylly Mode is real and shipped.** The How-to Standard's old parenthetical
-("omit for LTTP which has none") was wrong and has been corrected. Verified in code: `lttpJokerMode`, the
-`The Troublemaker` role with 2 decoys, and three-way scoring (`lttp.js`; settings + how-to cards in `index.html`).
-**Every game in Table B has a Sylly Mode** — there is no exception.
-
-### Gameover podium rank icons (added 8 Aug 2026, DD-30/DD-31)
-
-Any gameover "podium" that wants a rank icon (not every game needs one — plenty just show a
-rank number) uses **🥇🥈🥉 in a fixed-width leading slot present on every row**, blank past 3rd
-place, so every row's text starts at the same x position regardless of rank. This is the
-existing suite-wide medal convention (already shipped independently in FRT, GTH, JEC, NAT,
-PASS, YGI) with the fixed-slot alignment fix CJAR needed formalised as the documented shape
-going forward:
+Any gameover podium that shows a rank icon (not every game does — plenty just show a number) uses
+**🥇🥈🥉 in a fixed-width leading slot present on every row**, blank past 3rd place:
 
 ```html
 <span class="cjar-medal-slot">🥇</span>  <!-- or 🥈 / 🥉 / '' for 4th+ -->
 ```
 
-`width: 1.4rem; text-align: center; flex-shrink: 0` (or the equivalent for the game's own
-prefix convention) is the load-bearing part — a row with NO medal must still reserve the slot's
-width, or its text starts further left than a medalled row's and the podium reads as
-misaligned (this was CJAR's actual bug: only 1st place carried a leading glyph at all, so it
-was the only row indented past the others). **Prospective, not retroactive** — new or
-touched-anyway games follow this shape; the existing FRT/GTH/JEC/NAT/PASS/YGI podiums are not
-being swept to add a fixed slot unless one of them is independently touched.
-
-### Table C — Brand class strings
-
-The how-to **close button is always the game's `accentBtnClass`**, so it no longer has its own column. The
-**step label** does keep one — it is usually the -500 shade where `accentTextClass` is -600.
-
-| Game | `accentBtnClass` (= how-to close) | `accentTextClass` | How-to step label | Settings button (light tint) |
-|------|-----------------------------------|-------------------|-------------------|------------------------------|
-| LI5 | `bg-pink-500 hover:bg-pink-600` | `text-pink-600` | `text-pink-500` | `bg-pink-100 hover:bg-pink-200 text-pink-700` |
-| GM | `bg-purple-500 hover:bg-purple-600` | `text-purple-600` | `text-purple-500` | `bg-purple-100 hover:bg-purple-200 text-purple-700` |
-| SS | `bg-teal-500 hover:bg-teal-600` | `text-teal-600` | `text-teal-500` | `bg-teal-100 hover:bg-teal-200 text-teal-700` |
-| JEC | `bg-amber-500 hover:bg-amber-600` | `text-amber-600` | `text-amber-500` | `bg-amber-100 hover:bg-amber-200 text-amber-700` |
-| YGI | `bg-orange-500 hover:bg-orange-600` | `text-orange-600` | `text-orange-500` | `bg-orange-100 hover:bg-orange-200 text-orange-700` |
-| LTTP | `bg-red-500 hover:bg-red-600` | `text-red-600` | `text-red-500` | `bg-red-100 hover:bg-red-200 text-red-700` |
-| NAT | `bg-lime-600 hover:bg-lime-700` | `text-lime-700` | `text-lime-600` | `bg-lime-100 hover:bg-lime-200 text-lime-700` |
-| DSD | `bg-cyan-700 hover:bg-cyan-800` | `text-cyan-700` | `text-cyan-700` | `bg-cyan-100 hover:bg-cyan-200 text-cyan-700` |
-| GTH | inline `style="background-color:#B1BCA0"` | — | inline `style="color:#B1BCA0"` | inline `style="background-color:#e8ede3;color:#6b7a5f"` |
-| DYB | `dyb-cta` | `dyb-label` | `dyb-label` | `bg-[#dce8f7] hover:bg-[#c8daf0] text-[#1E4D8C]` |
-| BLD | `bld-cta` | `bld-label` | `bld-label` | `bg-red-100 hover:bg-red-200 text-red-700` |
-| PASS | `bg-zinc-900 hover:bg-zinc-800` | `text-zinc-900` | `text-zinc-700` | `bg-zinc-100 hover:bg-zinc-200 text-zinc-700` |
-| NT | `bg-emerald-500 hover:bg-emerald-600` | `text-emerald-600` | `text-emerald-600` | `bg-emerald-100 hover:bg-emerald-200 text-emerald-700` |
-| FRT | inline `style="background:#FFE500"` § | inline `text-[#047857]` | inline `style="color:#047857"` | `bg-[#FFF4CC] hover:bg-[#FFF3A6] text-[#854d0e]` |
-| SHP | `shp-cta` | — | `shp-label` | `bg-[#E6E7EE] hover:bg-[#C9CBDA] text-[#3A3D52]` |
-| FLW | `flw-cta` | — | `flw-step-label` | `bg-[#A02050] hover:bg-[#7A1A3E] text-white` ¶ |
-| PKO | `pko-cta` | — | `pko-label` | `bg-[#F5E6C8] hover:bg-[#EBD5A8] text-[#854D0E]` |
-| CJAR | `cjar-cta` ‡ | — | `cjar-label` | `bg-[#F7E9C4] hover:bg-[#EFDCA8] text-[#7A5C0A]` |
-
-**‡** CJAR is the second game after FRT whose fill takes **dark ink, never white** — `#D4A017` measures **2.38:1** against white (below the 3:1 large-text floor) and **6.39:1** against stone-800. `.cjar-cta` supplies `color:#292524` itself, so never add a Tailwind `text-white` alongside it; that is also why the `MP_GAME_CONFIGS` entry sets `ctaTextClass: 'text-stone-800'`. Labels use the darkened `#7A5C0A`, because raw `#D4A017` on `bg-stone-50` is itself under 3:1. Modal border `border-[#E5C97A]`.
-
-**§** FRT’s how-to close button is the one exception — `bg-[#FFE500] hover:bg-[#E6D200] text-stone-800`, same colour as utilities (recoloured from banana `#FFC700` + white ink 2 Aug 2026 — the white text failed WCAG contrast on the brighter lemon fill; see decision-log).
-
-**¶** FLW's Settings/Audit/readyCheck buttons are a deliberate **exception to the light-tint
-convention itself** (not just a contrast fix) — owner-requested "flip" (15 Aug 2026, settled after
-6 passes): rather than the usual `bg-[brand-100] text-[brand-700]` pastel tint, the fill inverts
-FLW's own dark hex (`#A02050`, the same "dark ink" used for carat text) against WHITE text
-(simplified from light-pink `#F9A8D4` text mid-round — same fill, cleaner text). The primary
-CTA/pills/toggle-ON (and the lobby's own `#btn-flw` game tile) are `#F9A8D4` fill + WHITE text too
-— confirmed live by the owner against the lobby tile as the reference combo; measured contrast is
-low (~1.8:1) but this is a deliberate, twice-confirmed call, not an oversight to "fix". Don't
-generalise the flip to other games' Settings buttons — it's FLW-specific.
-A `—` in the `accentTextClass` column means the game never calls `showWhoFirst()` (GTH, FLW, PKO, SHP, CJAR). Don’t invent one.
+`width: 1.4rem; text-align: center; flex-shrink: 0` is the load-bearing part — a row with **no**
+medal must still reserve the slot's width, or its text starts further left than a medalled row's
+and the podium reads as misaligned. **Prospective, not retroactive:** new or touched-anyway games
+follow this shape; the existing FRT/GTH/JEC/NAT/PASS/YGI podiums are not being swept.

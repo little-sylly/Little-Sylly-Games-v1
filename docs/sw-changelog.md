@@ -3,6 +3,97 @@
 Historical SW release notes, moved out of `CLAUDE.md` (1 Aug 2026) so they stop loading into every session.
 The **current** version and its notes stay in `CLAUDE.md` § Current Focus — append the outgoing entry here on each bump.
 
+
+## v208 — NT's honeypot REFRESHES in place; the Minkowski AoE is dead (19 Aug 2026)
+
+Both from one new reference: the owner's 191490 daily, screenshotted at each of its **six** triggers
+(`maze-puzzles/slow model/saturated board/`). Three ice blocks, two triggers each, and the pair on
+each block is **29,727 / 30,114 / 29,727 ms** apart — the slow duration, identical to the millisecond
+on two blocks. v207's entry-only rule cannot produce that; a block re-arming on its own expiry
+produces it by construction. `checkFires` now also fires when a block's window expires with the
+runner still inside. All five recorded trigger counts still reproduce; only 64472 moves (−22.9% →
+−20.2%). The same evidence **independently re-confirms `NT_HONEYPOT_DURATION = 30000`** (previously
+fitted to scores alone) and **falsifies the Minkowski AoE** — distance-to-footprint breaks 48154 (2+2
+vs 2+1) and 97877 (2+1+2 vs 1+2+1); at the radius that restores the counts it reproduces the same
+shortfall. `--contact` now splits the two open boards apart: 111378 misses by 8 points (geometry's
+size), 64472 by **38** — a route or transcription problem, not an AoE one. Harness 417, green on four seeds (0/7/101/4242). Detail: `nt-implementation-notes` D45, `docs/deferred-work.md`.
+
+**Superseded one day later by v209 — the "two per block" reading behind this entry's headline claim
+was wrong** (191490 is actually 3+2+2, not 2+2+2), which knocked out the entry-triggered-plus-refresh
+rule's own justification. See v209.
+
+## v207 — NT port mouths never truncate; the honeypot fires on AoE ENTRY (19 Aug 2026)
+
+Two findings from the same maze.game reference set. **Ports:** a mouth is always two edge-units. At a
+corner maze.game either sits FLUSH (both units along one edge) or WRAPS (one unit on each edge,
+one tile); NT collapsed both to a single unit, so a door against a corner could not be authored.
+`ntMouthIdxs` now clamps idx to `len-2` and takes an opt-in `corner` flag; tapping a corner in the
+Node Editor **cycles** wrapped → flush → flush; both renderers draw the L, and the canvas bar now
+spans the real mouth instead of the fixed one tile it always drew. **Honeypot:** the owner's
+screenshots recorded maze.game's on-screen trigger counts, and on all five they equal the route's
+**AoE-entry count** — so the 35 s cooldown was suppressing real re-triggers (the missing quad hit).
+Firing is now entry-triggered with hysteresis, and `NT_HONEYPOT_DURATION` refits to **30000**: the
+five verified boards land within **−3.2…+2.7%** and every trigger count reproduces exactly.
+Harness 372→**418**. Two boards remain 14–23% short — open. Detail: `docs/decision-log.md`
+2026-08-19.
+
+## v206 — Net-Trace movement calibrated against maze.game (19 Aug 2026)
+
+NT scored 5.6–7.5% below the reference game. Six maze.game boards were transcribed from
+screenshots and scored tile-for-tile, isolating the cause to a **missing corner cost** — a taut
+polyline is not self-timing. `ntComputeTimeline` now charges 235 ms per 90° of turning
+(`sin(θ/2)`-weighted, maze corners only, spread over 0.4 tiles as a braking ramp). The three plain
+reference boards now match to **±4 ms**. Tile time, the entry/exit stubs and the honeypot AoE were
+all confirmed already correct. Slow-block re-trigger behaviour still diverges — deferred. Detail:
+`docs/decision-log.md` 2026-08-19.
+
+## v205 — Fredoka self-hosted; always-loaded baseline trimmed (19 Aug 2026)
+
+The brand font now
+ships from `fonts/` (34 KB, variable, precached) instead of Google Fonts, so it renders offline —
+the long-standing "deliberate offline exception" is deleted from every rule file, and the app now
+has zero runtime third-party dependencies. Same round cut the baseline paid every turn
+(**44.7k → 36.8k, −18%**): `CLAUDE.md` and `ui-style.md` keep every rule, while the history behind
+them moved to `sw-changelog.md`, `decision-log.md`, the impl-notes, and the new on-demand
+`docs/rules/per-game-classes.md`. Detail: `docs/decision-log.md` 2026-08-19.
+
+## v204 — `ntGenerateNode` made rectangle-aware; Randomise Topology no longer un-rectangles a Debug sandbox (19 Aug 2026)
+
+Closes the one item v203 deliberately left open. `ntGenerateNode`
+gained an optional third param, `forcedDims = { w, h }` — every internal axis that used to read
+one shared `ntMatrixScale`-derived `n` (the occupied-cell grid, the block-anchor rolls, the DNP
+port-idx rolls, the pathological fallback) now reads `w`/`h` independently; the standard match and
+DNP never pass `forcedDims` and are unaffected (still square). `ntAuthRandomiseTerrain` passes the
+sandbox's own `{ w: ntNode.w, h: ntNode.h }`, so a 16×20 board stays 16×20 across a re-roll instead
+of silently resetting to 18×18. Verified live in a real browser (not just the mock-DOM harness) —
+before/after screenshot confirms the rectangle survives and both terrain and ports re-roll inside
+it. New harness section exercises exactly what deferred-work.md said was missing: all three
+rectangular shapes (16×18, 16×20, 20×16) call `authRandTerrain()` and assert dimensions + a
+repainted `w×h` grid, not the square default — confirmed RED against the pre-fix code via
+`NT_SRC=` before going green. `verify-nt-loopback.js`: 364 → **373**.
+
+## v203 — NT Debug Mode's attempt log: PTP keeps EVERY seat's full history, ports re-roll, two labels renamed (19 Aug 2026)
+
+Third round on the attempt-log feature (v201/v202), from a
+live 2-player PTP playtest. `ntDebugAttemptsBySeat[playerIdx]` stashes each finished PTP seat's
+full history instead of discarding it at hand-over — PTP is one device with zero network cost,
+so unlike MDLM (genuinely separate devices) there was no reason to throw it away; `ntDebugAttemptsFor(playerIdx)`
+is now the single lookup both the log renderer and the playback opener call. `ntAuthRandomiseTerrain`
+stopped restoring the hand-authored ports after a re-roll (owner wants "Randomise" to mean a full
+re-roll). Renamed to fit NT's network-engineering register: `Randomise Terrain` → **Randomise
+Topology**, `Randomise Budget` → **Randomise Resources**, `Firewall/Honeypot Budget` →
+**Firewall/Honeypot Resources**. `verify-nt-loopback.js`: 342 → 356 → **364**. Design doc:
+`docs/superpowers/specs/2026-08-18-nt-debug-attempt-log-design.md`. Detail:
+`nt-implementation-notes.md` D50–D52.
+
+## v200 — NT two-unit ports with single-unit corners CLOSED (18 Aug 2026, Phase 2)
+
+A
+seven-task refactor made a relay-leg node's ingress/egress two tiles wide instead of one, so a
+player can narrow their OWN door without sealing it, derived entirely from the existing
+`{ edge, idx }` port record with no wire/packet change. `verify-nt-loopback.js` was at 342 checks,
+8/8 seeds green. Detail: `nt-implementation-notes.md` D47–D49; `docs/decision-log.md`.
+
 ## v199 — NT Debug Mode's rectangular grid CLOSED (18 Aug 2026)
 
 A five-task dual-write refactor (Phase 1) converted the Node's geometry from a single square `n` to
@@ -37,6 +128,115 @@ seeds green. Two pieces of stale NT documentation predating this branch were cor
 (`ntCycles`→`ntIterations`, a phantom `nt-new-trace-overlay` id). Detail: `nt-implementation-notes.md`
 D36–D42; decision-log 2026-08-17.
 
+## v195–197 — NT allocation viewer rounds 5–6: maze-preview polish, budget-vs-total split, the Stack, terminology cleanup (16 Aug 2026)
+
+Detail: `nt-implementation-notes.md` D33–D35.
+
+## v194 — NT allocation viewer round 3–4: screenshot-confirmed polish, a real clip bug, a real alignment bug, and a deliberate balance change (16 Aug 2026)
+
+A screenshot-driven round covering
+the D28 items plus everything they surfaced testing them:
+- **Terminal-styled directive**, **chip 3rd row** (total vs surplus-to-this-leg split apart, fixed
+  `w-28` width so nothing pops on deposit), **status/warning merged** into an always-rendered
+  text-swap — all owner-requested, all shipped. A third instance of D28's own label-contrast bug
+  (assumed-dark backdrop, actually the white page) was caught in the same screenshot and fixed.
+- **Chip clipping at 4 legs** — the taller chips broke `overflow-hidden`'s only-shrinkable child,
+  making 2 of 4 chips permanently unreachable. Fixed by making the stage scroll (its own documented
+  purpose in the sticky-footer pattern) rather than clip. A `justify-center` compaction added in the
+  same round actively conflicted with this (centred overflow hides its own top edge, unreachable by
+  scroll) and was reverted.
+- **Viewport misalignment**, confirmed from a second screenshot — `offsetLeft` silently walked past
+  the intended `row`/`viewport` ancestors to an unrelated one further up the page, mixing coordinate
+  frames. Fixed with `getBoundingClientRect()` throughout. Verified symmetric to the pixel at every
+  leg position.
+- **Matrix-scale overflow** — the fixed 18px/tile cell size overflowed the viewport at the "large
+  map" (n=20) setting, clipping even the active leg permanently. Cell size now scales to fit.
+- **Honeypot per-leg cap removed** (owner decision, informed by an asymmetry firewall doesn't share
+  — honeypot excess is actually placeable during build, not self-limiting like firewall). Team-pool
+  ceiling is now the only bound either resource has.
+Presentational + one deliberate balance change, no packet shape change. `verify-nt-loopback.js`
+rewritten for the new honeypot behaviour, green on 8 seeds. **Still open:** the maze preview canvas
+looks visibly cruder than the real build screen's DOM-based grid — deferred, tracked in
+`deferred-work.md`. Detail: `nt-implementation-notes.md` D29–D32.
+
+## v192 — NT allocation screen: side-by-side legs → windowed leg viewer (16 Aug 2026)
+
+Owner
+feedback from a live 3-device DNP session: v191's "fit the whole bridge across the panel" sizing was
+cramped at 2v2 and an unreadable, overflowing smudge at 4v4. Replaced with one leg shown large
+(`cell: 18`, real 324×324 px) with ‹ › to switch plus an always-visible chip row restoring "whole
+team readable at once." Detail: `nt-implementation-notes.md` D26.
+
+## v191 — NT's DNP (Sylly Mode) round: allocation reworked to a tally-deposit, plus three fixes (16 Aug 2026)
+
+Bank-mediated transfer replaced with a per-member surplus tally-deposit (Undo /
+Reset All / long-press-to-withdraw); the DNP summary now renders the team layer it always computed;
+the playback journey canvas is clipped and direction-aware; the dead `ntBuildBridgeInto` bridge was
+revived as the allocation picker. Two process lessons in `nt-implementation-notes.md` D22/D22b: the
+surplus formula lived in three places, and only one of two mutation paths was validated.
+**Verified:** `verify-nt-loopback.js` 119 → 146 checks. **Still open:** the `mpConfirmRoster`
+late-join race (BUG-07) and a real 3-device retest. Detail: `nt-implementation-notes.md` D22–D25 +
+TG-08; design record `docs/net-trace-dnp-mode-update.md`; `docs/decision-log.md`.
+
+## v190 — NT MDLM desync root-caused, fixed, and harnessed (15 Aug 2026)
+
+A live 3-device
+session (1 host + 2 clients) produced blank build grids on clients, playback never reaching them,
+and a `--.--%` summary. Static analysis found **three** defects, all client-only (the host never
+round-trips its own state, so a host-side playtest is clean by construction): **BUG-15** —
+`ntGenerateNode`'s `convertN` roll can be 0 (and always is under the shipped **"Native Honeypots:
+0"** setting), so `nativeHoneypots: []` is erased in flight and two *unguarded render* reads
+(`ntBlockAt`, `ntDrawMaze`) throw per grid cell, leaving a blank grid and a dead applier;
+**BUG-16** — same class one level deeper, `timeline.fires: []` erased and `ntRenderFrame` reading
+it unguarded; **BUG-17** — the MDLM Diagnostic Summary was gated behind
+`syllyMultiplayerMode === 'single'` and so rendered *nothing* in MDLM, ever (a never-completed "MP
+step" TODO). Fixed with `ntNormaliseNode`/`ntNormaliseTimeline` at every receipt point plus `|| []`
+at the five previously-unguarded reads, and by dropping the mode gate. **New harness:
+`tools/verify-nt-loopback.js`** — 119 checks, host + **2 clients**, Standard *and* DNP; it went red
+on 20 before the fix and is green on every seed after, with a reverted copy still red via
+`NT_SRC=`. NT was the last game with a render seam and MDLM and no harness at all.
+**The transferable lesson is in `shared-implementation-notes.md` BUG-06 addendum:** the Aug 2026
+BUG-06 sweep scanned appliers for *direct payload-to-collection assignment*, which is structurally
+blind to collections **nested inside** an assigned object — `ntNode = payload.node` looks clean when
+the erasure is at `node.nativeHoneypots`. Re-sweeping the other games by payload *shape* is tracked
+in `deferred-work.md`. **Still open:** the `mpConfirmRoster` late-join race (BUG-07) and a real
+3-device retest. Detail: `nt-implementation-notes.md` BUG-15/16/17 + D21.
+
+## v189 — FLW polish round: colour/copy/UX fixes across the table + a readyCheck gate CLOSED (15 Aug 2026)
+
+Six passes — v184 through v189, each correcting the last from live owner
+feedback/screenshots. Self-directed except for one `AskUserQuestion` on the contrast tradeoff;
+no `visual-check` this round — verified via `verify-flw-loopback.js` (green) and syntax checks
+only. **Colour, settled:** primary surfaces (CTA/pills/toggle-ON, and the lobby's own `#btn-flw`
+tile) are `#F9A8D4` fill + WHITE text — the lobby tile is the reference the owner confirmed live
+(measured contrast is low, ~1.8:1, but this is a deliberate twice-confirmed call, not an
+oversight). Every secondary/utility button (Settings, Audit, the readyCheck button) flips the
+same two established hexes instead — `#A02050` fill + white text (simplified from light-pink text, round 5) — a scoped exception
+to the suite's light-tint Settings convention (`ui-style.md` Table C footnote ¶). One real scope-
+miss caught mid-round: the lobby game-tile lives outside the FLW block of `index.html`, so an
+earlier block-scoped `text-white` sweep missed it — worth remembering for any future shared-class
+cleanup that assumes a game's markup all lives in one place. **Table/UX changes:** header combined
+to one line ("The Showroom - Exhibition N"); rival strip shows every seat including your own with
+a live Diamond count; the Vault row is one horizontal row (label — remaining — cut); the
+Appraiser's Ledger's counts sit tight against their own gem, split into two equal halves each
+centred (not one centred cluster); every Journal line names its gem before the action; the hand
+row's off-turn slot is a fixed empty placeholder (was omitted, causing reflow) and the selection
+ring no longer overlaps the neighbouring card; the Scratch Test auto-selects a lone target and
+shows its guess list as real gem cards, greying out anything the Ledger shows fully discarded; the
+target-selection modal (Sapphire/Topaz/Opal/Amethyst) always lists every alive Collector, greying
+the ineligible instead of silently auto-submitting past them; the Deep Vault overlay pre-selects
+the leftmost gem and shows a live description panel; the Showing-result screen gates the host's
+Next Showing behind a readyCheck (`FLW_RESULT_READY`) so players aren't swept past the reveal.
+Also closes the gem-seam plan's own Task 13 doc pass (game-identities § 16 was still describing an
+entirely different unshipped design). Detail: `flw-implementation-notes.md`, `docs/decision-log.md`.
+
+## v183 — FLW gem render seam (tasks 1–12) CLOSED (14–15 Aug 2026)
+
+Square core art, no baked
+text on the card face — the display-case frame, carat placard, hand placards and a chronological
+discard strip all moved onto the CSS render seam so a skin needs no chrome baked into its art.
+Detail: `flw-implementation-notes.md`, `docs/superpowers/plans/2026-08-14-flw-gem-seam.md`.
+
 ## v182 — Settings dynamic-value-line (DD-13) sweep CLOSED (13 Aug 2026)
 
 Self-directed, no live testing. Explore-agent audit found the gap was narrower than the deferred
@@ -50,6 +250,22 @@ independently built the same shape under a different name. Root-cause writeups s
 game's own impl-notes file per `shared-implementation-notes.md`'s own scope rule (no shared engine
 file was touched). Not verified beyond syntax/encoding checks — no `visual-check`, no live play.
 Detail: `deferred-work.md`, and each of jec/gth/li5/nat/dsd/lttp/ss-implementation-notes.md.
+
+## v181 — Round/Night Intro Screen sweep CLOSED (13 Aug 2026)
+
+PKO/NAT/PASS added
+(`screen-[abbr]-*-intro`); GTH and DYB investigated and ruled out (already covered by existing
+screens/timing constraints). Detail: `deferred-work.md`, `pko-implementation-notes.md` DD-26,
+`nat-implementation-notes.md`, `pass-implementation-notes.md`, `dyb-implementation-notes.md`.
+
+## v179 — CJAR Dibber Dobber payout-beat fix and a suite-wide BUG-06 audit (3 live fixes: LTTP, GTH, NT) (13 Aug 2026)
+
+Detail: `shared-implementation-notes.md` BUG-06.
+
+## v178 — Counting Sheep scoring rework CLOSED, all 10 chunks shipped (13 Aug 2026)
+
+Full detail
+moved to `shp-implementation-notes.md`; spec `docs/new-game-tech-counting-sheep-scoring.md`.
 
 ## v177 — Counting Sheep: Fogged Dream no longer leaks into the recycled Flock (13 Aug 2026)
 

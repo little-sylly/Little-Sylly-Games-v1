@@ -8,33 +8,174 @@ Tick items off here; promote anything architectural into `decision-log.md`.
 
 ---
 
-## NT Debug Mode — attempt log replacing the post-Finish playback (added 18 Aug 2026)
+## NT slow model: 111378 and 64472 CLOSED — the transcription tool had ingress/egress backwards (20 Aug 2026)
 
-**Scoped, not started. Full design: `docs/superpowers/specs/2026-08-18-nt-debug-attempt-log-design.md`.**
+**The two boards flagged "genuinely open" since D45, and left untouched by both v209 fixes below, are
+closed.** Not a movement-model gap, not a route-length gap — `nt-maze-transcribe.js` was silently
+writing some boards' start/finish the wrong way round. Full writeup: `nt-implementation-notes` D48.
 
-Owner-requested during the two-unit-ports round, and independent of it. Two changes: Finish Testing
-goes straight to the Diagnostic Summary instead of auto-playing the best trace, and the summary
-gains a log of **every** attempt (currently only `ntDebugBest` survives — attempts 1..N-1 are
-discarded as they happen). In MDLM the summary becomes a per-player table (tries + best) whose rows
-open that player's log.
+The owner rebuilt the 111378 board independently in Debug Mode and got 111,659ms — a near-exact
+match to target (111,378) — while the shipped `111378.json` still scored 99,869 (−10.3%) through
+`nt-slow-fit.js`. Exporting the live `ntNode` and diffing it against the shipped file found every
+block and the honeypot identical; only `ingress`/`egress` were swapped. The tool never actually read
+which on-screen marker means start vs finish — it just took whichever port its edge-scan found first
+(top before bottom before left before right). For 111378 the finish (orange/checker "flag") happens
+to be on the top edge, so the tool wrote the route backwards.
 
-Three things already established, so they don't need re-deriving:
+**Fixed properly, not just patched.** `nt-maze-transcribe.js` now classifies each port by its marker
+kind and assigns **flag = always egress**, falling back to scan order (with a loud warning) only when
+the flag can't be found unambiguously. Every board with a recorded target was re-transcribed and
+checked:
 
-- **No packet change.** Name, tries, best latency and best placements are all already on the wire
-  (`ntDebugBroadcastRoster` + `NT_PLAYBACK`'s `cycleLatencies`/`allPlacements`).
-- **The viewer is a reuse**, not a build — `nt-logs-overlay` plus `ntOpenLogRound`'s
-  stash-globals → playback → restore pattern. Debug currently *hides* the logs button explicitly
-  (`ntShowSummary`, `js/games/nt.js`); that line is the switch.
-- **Other players' full attempt histories are deliberately NOT synced** — ~6 MB at 8 players ×
-  1,000 attempts. Own log full, others' best only. Reasoning and the cheap upgrade path are in the
-  spec § 6.
+| board | corrected? | effect |
+|---|---|---|
+| 111378 | yes | −10.3% → **+0.25%** |
+| 64472 (+ `-empty`) | yes | −20.2% → **+0.67%** |
+| 37236, 38472 (×2) | yes | no score effect — no honeypot, direction can't affect the fit |
+| 155255, 97877, 48154, 67886, 191490 | already correct | unchanged |
+| 72000 | **left alone — see below** | — |
+| 34000 | left alone (poor grid residual, no honeypot, no impact) | — |
 
-**The trap:** `ntResolveCycleMdlm` is shared with the standard game, so the Debug branch is needed
-in **both** the host tail and the `NT_PLAYBACK` applier. Change only the host and the host sits on
-the summary while every client sits on playback — invisible to a host-side playtest.
+**Corpus-wide worst `|err|`: 20.80% → 2.81%.** All 6 hard-constraint boards still MATCH. Every board
+in the corpus is now within ~3% of target. The AoE radius, cooldown gate and movement model in v209
+did not need further tuning — the two "still open" boards were being scored against a start and
+finish line that were swapped.
 
-**When picked up:** whenever the owner next wants the Debug playtest loop improved; nothing blocks
-it. Sonnet, medium effort, one session — the spec is the design, no further pipeline needed.
+**72000 is a deliberate exception — do not flip it without new evidence.** Its top marker also reads
+unambiguously as `'flag'` (628px, same confidence as every corrected board), but reversing its
+direction made the fit *worse* (+2.67% → +10–12%), the opposite of every other board tested. Left on
+its original (better-fitting) direction pending an actual explanation, not because the marker read is
+in doubt.
+
+**This also retires the route-length / no-measurable-slowdown finding as an explanation for these two
+boards specifically** — the entry directly below and the "still open" bullet in the SW v209 entry
+above both treated 111378/64472's shortfall as evidence of a routing-model gap. It wasn't; it was bad
+input data. That finding may still be real for the 191490 board it was measured on (the speed-profile
+trace hasn't been re-examined against this), but it should no longer be cited as the explanation for
+111378 or 64472's old numbers — those numbers themselves were wrong.
+
+---
+
+## NT slow model: 191490 transcribed, two SW v209 fixes, still open: route length (20 Aug 2026)
+
+**Resolved: the entry-triggered/refresh branch is gone (pure cooldown gate), and the AoE is now
+footprint-based (D45's Minkowski rejection was measured at the wrong radius). Still open: a
+route-length question neither fix touches.** Detail in `nt-implementation-notes` D46/D47; summary
+here.
+
+The owner supplied a screen recording of the maze.game profile page's "Best Round" replay scrubber
+for the 191490 daily (`maze-puzzles/slow model/saturated board/maze.game - Google Chrome 2026-08-19
+22-36-21.mp4`), captured by manually dragging the replay's seek bar across the whole run (not
+real-time playback). ffmpeg (installed via winget for the session — not a project dependency) split
+it into 1168 PNG frames.
+
+- **191490 is now fully transcribed** — `maze-puzzles/boards/191490.json`. A profile-page replay
+  frame (`--grid 708.0,240.06,31.36,16,18` at this capture's scale) reads all 36 blocks and all 3
+  ice honeypots ([9,4], [3,13], [11,13]) cleanly, zero unpaired tiles — the dark "activated" ice
+  glyph that defeated the classifier on `hit 4.png` isn't present on an inactive frame. Ingress
+  top/4, egress right/9 — matches the geometry already measured from the hit screenshots.
+- **The `hits:[2,2,2]` in that first transcription was wrong — the owner confirmed `[3,2,2]`.**
+  That number was the entire evidentiary basis for D45's "refresh" branch (the 29,727/30,114/29,727ms
+  spacing that motivated it doesn't exist against the corrected count — the model's real gaps are
+  21.8s/25.1s/27.4s/128.3s). The owner's own Debug Mode session independently reproduced the same
+  branch's failure mode live: a honeypot re-firing before its cooldown from an ordinary exit/
+  re-entry. **Fixed** — `checkFires` is now a pure `elapsed >= lastFire[i] + NT_HONEYPOT_DURATION`
+  gate, no entry/exit branch, `inside[]` deleted. 6/6 recorded trigger counts still reproduce;
+  111378 and 155255 both fit *better* than before (−14.2%→−10.3%, −3.15%→−0.25%). Harness 417 green.
+- **The owner also reported a corner-adjacent honeypot in Debug Mode that didn't fire despite the
+  runner passing close by — eyeballed as "2 tiles from the corner."** D45's "Minkowski AoE rejected"
+  verdict (below) tested footprint-distance at the CENTRE model's radius (4.243), which always
+  reaches less far than the centre model at any shared radius — the wrong comparison. **Fixed** —
+  distance test is now nearest-point-on-footprint, radius `2*Math.SQRT2` (≈2.828, exactly "2 tiles
+  from the corner," and exactly what `3*Math.SQRT2 − Math.SQRT2` was always secretly encoding).
+  Reproduces 48154 and 97877 too — D45's two casualties, now fixed rather than avoided. Debug Mode's
+  AoE ring/disc redrawn as the real rounded-square shape (`ntAoEPath`) so what's on screen matches
+  what `checkFires` tests. `tools/verify-nt-loopback.js`'s honeypot section had baked in both old
+  assumptions (centre-distance verification, "must leave to refire") — rewritten to match v209.
+  **The Minkowski rejection below is superseded, not still standing — do not cite it as closed.**
+- **Still open, and NOT touched by either fix above:** a screen-recorded position trace of the 191490
+  run (replay-slider thumb position calibrated against displayed score to recover a real elapsed-time
+  axis — `score = 386.63·thumb_x − 275533`, residuals ≤338ms) measured the runner's actual pace
+  **976–1131 ms/tile deep inside slow spans vs. 1016–1238 ms/tile in clean unslowed stretches — no
+  separation**, against `NT_HONEYPOT_SLOW = 0.5` predicting roughly double. The same trace's total
+  path length (~175.5 tiles) was ~66% longer than `ntShortestPath`'s distance for the same board
+  (105.9 tiles). This may mean the honeypot's real effect is substantially a **longer route**, not a
+  **slower pace along the same route** — which would make 111378/64472's shortfall a routing-model
+  gap, not an AoE/duration one. Needs its own investigation before `ntShortestPath` or
+  `NT_HONEYPOT_SLOW` gets touched; not acted on. The extraction scripts (thumb-position calibration,
+  PNG blob tracker) live only in that session's scratchpad, not the repo — rebuildable from this
+  entry if the analysis needs repeating or extending to another board.
+
+---
+
+## NT slow model: Minkowski AoE FALSIFIED — 64472 is now a ROUTE suspect (rewritten 19 Aug 2026)
+
+**Superseded the "suspect the AoE's SHAPE" entry, whose hypothesis was tested and rejected.** State
+after SW v208 (`nt-implementation-notes` D45):
+
+- ~~The trigger rule gained a REFRESH half and is settled again.~~ **Superseded by SW v209** — this
+  bullet's "six triggers, two per block, 29,727/30,114/29,727ms apart" was fitted against a
+  191490 hit count that turned out to be wrong (`[2,2,2]`, corrected to `[3,2,2]`); against the real
+  count those gaps don't exist. The entry/exit branch this motivated is gone — `checkFires` is now a
+  pure cooldown gate. See the entry above this one and `nt-implementation-notes` D46.
+- **`NT_HONEYPOT_DURATION = 30000`** still holds — that part didn't depend on the wrong count, only
+  the *shape* of the re-fire rule did.
+- ~~The Minkowski AoE is rejected.~~ **Superseded by SW v209 — this verdict was measured at the wrong
+  radius and is WRONG.** Distance-to-footprint was only ever tested at the centre model's radius
+  (4.243), which is not a like-for-like comparison — a footprint check reaches less far than a
+  centre check at any *shared* radius, so of course it under-fired and broke counts. At its own
+  correct radius (2×√2 ≈ 2.828 — "2 tiles from the block's corner," per the owner's own eyeballed
+  rule and independently confirmed against 191490's recorded corner hit) it reproduces 48154 and
+  97877 correctly. The AoE **is** now footprint-based. See the entry above and
+  `nt-implementation-notes` D47. **The "do not re-open it" instruction that used to be here was
+  itself the mistake — it closed off the fix on the strength of a wrongly-scoped test.**
+
+**~~What is still open.~~ CLOSED — see the entry at the top of this file (20 Aug 2026).** Both boards
+in the table below had `nt-maze-transcribe.js`'s ingress/egress backwards, not a routing or AoE gap.
+111378 now scores +0.25%, 64472 +0.67%. The `--contact` analysis and the two "candidate causes" below
+are kept for the historical record (they were reasonable given the data available at the time) but
+**do not act on them** — the board data they were computed from was wrong.
+
+**Superseded analysis below, kept for the record only — not actionable:**
+
+| board | NT | maze.game | err (pre-v209) | fires | first contact | contact NEEDED |
+|---|---|---|---|---|---|---|
+| 111378 | 95,535 | 111,378 | −14.2% (now −10.3%) | 3 ✓ | 0.399 | 0.315 |
+| 64472 | 51,434 | 64,472 | −20.2% (unchanged) | 2 (no recorded count) | 0.516 | 0.140 |
+
+The last two columns are `node tools/nt-slow-fit.js --contact` — the fraction of the unslowed
+journey already run at first AoE contact, against the fraction a slow-to-the-end model would need to
+reach the target. **This is what splits the two boards apart, and it is why they should stop being
+treated as one problem:**
+
+- **111378 was an 8-point miss, now smaller post-v209** — the right order of magnitude for a
+  geometry or radius effect, but every radius large enough to close it breaks a count somewhere else.
+- **64472 is a 38-point miss, untouched by v209** (no honeypot re-entry occurs on this board within
+  a cooldown window, so the fix changes nothing here). No AoE shape reaches 14% of the journey from
+  52%; even radius 6 puts contact at 0.007, i.e. immediately, and over-fires. A gap that size is not
+  an AoE property. Two candidate causes, both now sharpened by the 191490 speed-profile finding above
+  (real pace ≈ unslowed throughout, real path ~66% longer than modelled): **(a)** maze.game's runner
+  takes a longer route than NT's shortest path — no longer just a tiebreaker guess, there's now
+  direct measurement pointing this way on a different board; **(b)** the board is mis-transcribed —
+  64472 was already the board whose right-edge port sits under a placed piece. **Investigate the
+  ROUTE first — do not spend another pass on the AoE.**
+
+**Side tasks:**
+
+- ~~Transcribe the 191490 board.~~ **Done** — see the entry above. `maze-puzzles/boards/191490.json`,
+  from a profile-replay frame rather than an empty-puzzle screenshot. It also surfaced a wrong hit
+  count (fixed, SW v209) and a still-open speed-profile question — read that entry before touching
+  this one.
+- **Re-transcribe 64247** (`maze-puzzles/slow model/64247 - 2hits (1 top right corner hit).png`).
+  Its grid alignment puts the right-edge port under a placed piece, so the board seals and it is
+  excluded. Its filename records **2 hits, one of them a corner hit** — it is the only reference
+  board that exercises a corner mouth *and* a trigger count together, so it is worth the effort.
+- **Get a trigger count for 64472 and 72000**, the two slow boards with none. 64472 is the worst
+  outlier and its count would say immediately whether the shortfall is a missed entry or a late one.
+- **Whether a corner should cost MORE while slowed** (carried over, still unresolved). The shipped
+  code divides the braking cost by the slow multiplier along with travel time; physically a slower
+  body needs *less* deceleration to take a bend. Worth ~50–100 ms per slowed board — inside the
+  current ±3% noise, so it cannot be fitted until the two outliers are closed.
 
 ---
 
@@ -293,6 +434,13 @@ not in a batch at the end.
 ---
 
 ## Smaller flagged items
+
+**PKO's Stragglers scoring mode is shipped but unplayed** (open since v166; moved here from
+  `CLAUDE.md` § Current Focus, 19 Aug 2026). Force of Nature can hand a player cards they did not
+  choose (Deluge, Culling, Migration, Great Reversal), which is a straight penalty under Stragglers
+  in a way it never was under Dominance — deliberately left un-special-cased pending a live session.
+  **When picked up:** watch a Sylly + Stragglers session before changing anything. Detail:
+  `pko-implementation-notes.md` D39/D40.
 
 ~~**DD-31's same-screen button-parity rule was applied only to CJAR**~~ — **RESOLVED, 9 Aug 2026.**
   All 18 games now conform: 17 game-menu "← Back to the Box" buttons and 9 gameover-screen

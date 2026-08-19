@@ -21,6 +21,29 @@ place.
 
 ## Design Decisions
 
+**DD-04 — Fredoka self-hosted; the "deliberate offline exception" is deleted, not documented (SW v205, 19 Aug 2026).**
+The brand font had loaded from Google Fonts since the start, with a ~5-line paragraph in **two**
+always-loaded rule files explaining why that was acceptable ("self-hosting would require woff2
+files, a local `@font-face`, and precache entries"). The stated cost turned out to be almost
+nothing: Fredoka is a **variable** font on Google's `css2` endpoint, so `wght@400;600;700` all
+resolve to the *same* woff2 per subset — **one 29 KB latin file + one 4.6 KB latin-ext file covers
+the whole 300–700 range**, versus the three separate static files the paragraph assumed.
+**What changed:** `fonts/` (2 files), `@font-face` × 2 with the original `unicode-range` values
+copied verbatim from Google's stylesheet (so the subset split and lazy latin-ext fetch behave
+identically), the three `<link>` tags deleted from `index.html`'s head, both files added to
+`PRECACHE_URLS`, `CACHE_NAME` → `sylly-games-v205`.
+**Lesson — an "acceptable exception" is worth re-costing before you document it a second time.**
+The paragraph was written once and then maintained forever in two auto-loaded files; the actual fix
+took one download and four edits, and it *removed* a runtime third-party dependency rather than
+adding weight. When a doc paragraph exists purely to justify a limitation, that is a signal to
+re-check the limitation, not to polish the paragraph.
+**Verification worth copying for any future asset-caching change:** `document.fonts.check()` alone
+proves nothing about offline. The real test is (1) load once so the SW precaches, (2) `setOffline`,
+(3) **prove the network is actually dead** — `fetch()` a deliberately un-precached URL and require
+it to throw — then (4) reload and re-check. Without step 3 a "passing" offline test may just be a
+test where offline mode never engaged. Confirmed here: cache `sylly-games-v205` holds both files,
+un-precached fetch throws, Fredoka still renders, zero requests to `fonts.g*.com`.
+
 **DD-03 — `bindCardHold` / `refHighlightRow` extracted to `engine.js` (FLW gem-seam plan Task 4, 14 Aug 2026).**
 Tap-hold-to-gallery (`ui-style.md` § Tap-Hold Reference) had shipped twice already — `pkoBindChainHold`
 and `shpBindCardHold` were near-identical hand-rolled `touchstart`/`mousedown` timers with their own

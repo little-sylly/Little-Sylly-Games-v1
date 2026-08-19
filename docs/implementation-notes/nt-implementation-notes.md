@@ -1064,3 +1064,607 @@ prose acceptance criteria, during spec review.
 multi-source pathfinding + endpoint snapping) → 317 (Task 3, reservation deletion) → 322 (Task 4,
 renderers) → 342 (Task 5, generation/editor + the rectangular section's per-axis mouth-span
 additions). Final: **342 checks**, green on seeds 0–7.
+
+### D50 — The attempt log: six reset points, not the design doc's three, and the split-brain proved for real
+
+Design doc: `docs/superpowers/specs/2026-08-18-nt-debug-attempt-log-design.md` — self-contained,
+no brainstorm/spec/plan pipeline needed (its own § 9 called this correctly: Tier 1–2, Sonnet
+medium). Two goals: Finish Testing goes straight to the Diagnostic Summary (no forced playback of
+the winning run), and the summary offers a replayable log of every attempt via the existing
+`nt-logs-overlay` rather than a new one.
+
+**Reset points: six, not three.** The design doc named three lifecycle points for the new
+`ntDebugAttempts` array (`ntResetState`, `ntShowAuthoring`, the PTP hand-over inside
+`ntDebugFinish`) — correct as far as it went, but grepping every existing
+`ntDebugMyAttempt = 0; ntDebugBest = null;` pair (the two fields `ntDebugAttempts` always travels
+with) turned up two more: `ntDeployNode` (host/solo/PTP, fired when a freshly-authored node is
+deployed for testing) and its client-side mirror inside the `NT_GENERATE` SYNC applier's
+`payload.debug` branch. Missing either of those two would carry the *previous* node's attempts
+into a session testing a *different* node — geometrically nonsensical (stale placement coordinates
+against a new grid) as well as factually wrong. **Lesson:** when a design doc gives you N named
+call sites for a piece of paired state, grep for every existing co-occurrence of that state's
+sibling fields rather than trusting the doc's own count — the doc's author (a previous session,
+working from a shorter read of the file) missed two that a mechanical grep did not.
+
+**Own-seat determination generalises across all three network topologies, not just MDLM.** The
+design doc's § 4.4 (the per-player table with tries + best) is explicitly MDLM-only — separate
+devices, no packet needed since name/tries/latency are already on the wire. But the top-level
+"System Logs" button (`btn-nt-logs-open`) is un-hidden for **every** Debug session, including
+solo and same-device PTP (pass-the-phone), where `ntDebugAttempts` is reset at every hand-over and
+so only ever holds whichever player is *currently* active. A hardcoded "seat 0" default (copied
+from the pre-existing caption code at `ntRenderSummary`'s top) would show an empty log for every
+PTP player but the first. `ntDebugMySeat()` unifies this: `mpMyPlayerIdx` in MDLM,
+`Math.max(0, ntPtpTurn - 1)` in single-device mode (`ntPtpTurn` has already been incremented past
+the last-active player by the time Finish reaches the summary). The pre-existing caption code was
+updated to use the same helper rather than leaving two slightly-wrong seat computations side by
+side.
+
+**The split-brain warning was verified for real, not just trusted.** The design doc's own text
+flags the risk precisely: `ntResolveCycleMdlm` is shared with the standard game, so the Debug
+navigation change needs guarding in **both** the host tail and the `NT_PLAYBACK` SYNC applier —
+"change only the host and the host sits on the summary while every client sits on playback... a
+host-side playtest cannot see it." Rather than trust the prose, the client-side guard was stripped
+from a scratch copy of `nt.js`, driven through `NT_SRC=`, and the loopback harness's own
+"…and everyone reaches the summary, not playback" assertion went red with exactly the predicted
+shape — `["screen-nt-summary","screen-nt-playback","screen-nt-playback"]` — before the guard was
+restored and the harness went green again. This is the D42 discipline applied to a *design doc's*
+claim, not just to newly-written code: the doc could have been wrong about which half mattered, and
+the only way to know is to actually break it.
+
+**No packet or schema change**, confirmed rather than assumed — `ntDebugAttemptCounts` (via
+`ntDebugBroadcastRoster`) and `ntPtpPlacements`/`ntCycleLatencies` (via `NT_PLAYBACK`) were already
+on the wire for other reasons; the summary's per-player table and the log viewer only read
+fields that already survive a real room.
+
+**Harness growth:** 342 → **356** (10 new checks: the split-brain regression corrected in place,
+plus an "Attempt log" section covering accumulation-with-independent-recompute, the own/best-only
+split, the Author-New-Node reset trap, and a zero-attempt Finish rendering an empty state rather
+than throwing). `visual-check` confirmed the Debug MDLM per-player table causes no sideways body
+scroll at 2 or 8 players — it's a plain vertical row stack, not a wide table, so it never needed
+the horizontal-scroll container the design doc anticipated.
+
+**v201 shipped, then a live 2-player PTP playtest broke it within the same session — a genuine
+UI gap the design doc's own text should have predicted but didn't join up.** § 4.2's own three
+reset points and the `ntDebugMySeat()` "own vs. best-only" split were both correct in isolation,
+but nothing in the design connected them to the fact that in PTP (same device, sequential turns)
+the top-level System Logs button has **no `playerIdx` argument** — it always defaults to
+`ntDebugMySeat()`, which after the LAST player finishes is permanently that last player. P1's full
+history is gone by design (wiped at hand-over), which is fine — but their *best* trace
+(`ntPtpPlacements[0]`) was sitting in memory the whole time with no UI path to it at all. The
+report was exactly this: "system logs only showed P2's logs." **Fix:** a chip row inside
+`nt-logs-overlay` (`#nt-logs-player-chips`), one pill per player, switching `ntRenderDebugLog(i)`
+in place without closing the overlay — the same chip pattern NT already uses for
+`nt-player-chips` in the playback comparison panel, so no new visual language was invented.
+`ntRenderDebugLog` now calls the pill-render function itself, so every entry point (the top
+button, a MDLM summary row tap, the Continue-from-playback reopen) stays in sync for free — one
+call site to get right instead of three. **Lesson:** "own seat vs. everyone else's best-only" is
+a data-availability fact; whether the UI actually *offers a way to pick a seat* is a separate
+question, and the design doc answered the first without checking the second. A live playtest
+answers both at once — which is what a design doc's own static read cannot substitute for, no
+matter how thorough. Harness: 356 → **364** (8 new checks in a dedicated PTP section that first
+reproduces the reported symptom — default open shows seat 1, not seat 0 — before asserting the
+pill switch reaches seat 0's best-only log). `visual-check` confirmed the pill row itself scrolls
+inside its own row at 8 players rather than the page.
+
+### D51 — PTP keeps every seat's full history now; ports re-roll; two labels renamed
+
+Same live 2-player PTP playtest, a third round in the same session. Two follow-up questions from
+the owner, both correct instincts:
+
+**"Is there a reason Admin-1 shows best-only and Admin-2 shows every attempt?"** There was a
+reason, but it didn't survive being asked out loud. § D50's `ntDebugMySeat()` "own vs. best-only"
+split was ported from MDLM's constraint — a device that was never a given seat genuinely never
+held that seat's attempts, full stop, so best-only is the only honest option there. PTP has no
+such constraint: it's ONE device, driving every seat in sequence, and `ntDebugAttempts` was being
+wiped at hand-over purely because that's what the MDLM-shaped code already did, not because PTP
+had any reason to throw the memory away. §6 of the design doc even says the quiet part out loud —
+"tens of KB at 1,000 attempts. Fine." — that's a memory argument, not a network one, and PTP was
+already paying it without getting the benefit. **Fix:** `ntDebugAttemptsBySeat[playerIdx]` stashes
+the just-finished seat's full array at hand-over instead of discarding it (`ntDebugFinish`'s PTP
+branch, right where `ntPtpTurn` is already incremented). A new lookup, `ntDebugAttemptsFor
+(playerIdx)`, is now the ONLY place that decides "full history or best-only" — `ntRenderDebugLog`
+and `ntOpenLogAttempt` both call it instead of each carrying their own `isMine` check, which is
+what let this fix land as one function change instead of two synchronised ones. **Lesson:** a
+constraint borrowed from one context (MDLM's genuinely-separate devices) can smuggle itself into a
+second context (PTP's single device) that never actually had the constraint — "why does this work
+this way" is worth asking even when the current behaviour is intentional and documented, because
+"intentional" and "still the right call in this specific context" are different claims.
+
+**"For Random Terrain — it should randomise ingress and egress too."** `ntAuthRandomiseTerrain`
+deliberately restored the hand-authored port pair after every re-roll (D-something from the
+original Debug Mode plan, "ports are not terrain"). That was a reasonable call when a Debug
+authoring session usually starts by placing ports by hand and might only want a fresh terrain
+around them — but it means "Randomise Terrain" didn't fully randomise, which reads as a bug the
+first time you're expecting a clean slate. Owner's call: **full re-roll, nothing preserved.** Fix
+is a deletion — `ntGenerateNode(true)` already guarantees a routable candidate via its own
+internal `ntPathExists` check, so the restore-then-validate dance simply isn't needed once nothing
+is being restored.
+
+**A genuine latent bug surfaced while making that exact change, not asked about, not fixed:**
+`ntGenerateNode` hardcodes `w = h = ntMatrixScale` — every generated candidate is square, always.
+For the STANDARD game and DNP this is correct (their nodes must be square). For Debug's rectangular
+sandboxes it silently discards the authored `w`/`h` the moment Randomise Topology is tapped. This
+was ALREADY true before today's fix — the old code restored `ingress`/`egress` post-roll but never
+restored `w`/`h`, so a rectangular sandbox's dimensions were already at risk, just masked by nobody
+having tried Randomise Terrain on a rectangular board yet. Flagged to the owner rather than folded
+in: fixing `ntGenerateNode` properly is the same "one shared bound, two axes" class as D44/D46/D48,
+and the function is shared with two callers (standard match generation, DNP) that must stay square
+— not a same-function tack-on. Tracked in `deferred-work.md`.
+
+**Renamed to fit NT's actual voice** (network engineering/cybersecurity, not landscape/finance):
+`Randomise Terrain` → **Randomise Topology** (also more accurate post-fix, since it now touches
+ports too, not just Bad Sectors); `Randomise Budget` → **Randomise Resources**; the two steppers
+it feeds, `Firewall Budget`/`Honeypot Budget` → **Firewall Resources**/**Honeypot Resources**.
+Internal ids (`btn-nt-auth-rand-terrain` etc.) and function names (`ntAuthRandomiseTerrain` etc.)
+were deliberately left alone — display text only, same pattern as the rest of the suite (a
+button's id is not required to match its label; see `ui-style.md`'s Settings button, which is
+always internally `nt-settings-overlay` regardless of theme).
+
+**Harness:** the old port-restore test ("authored ports are kept iff they still route, dropped for
+the roll's own pair otherwise") tested a contract that no longer exists — replaced with a
+routability-only assertion, since that's the only guarantee `ntGenerateNode(true)` still makes once
+nothing is restored afterward. `verify-nt-loopback.js` net: 364 (unchanged count, but the PTP
+section's assertions now prove BOTH seats keep full history rather than one seat proving
+best-only). `visual-check` confirmed both renamed buttons fit the authoring screen with no
+overflow at the default (18×18) size.
+
+**A process note, not a code one:** a `git checkout -- tools/verify-nt-loopback.js` run mid-session
+to "probe a hypothesis without touching the real file" reverted the ENTIRE harness back to its
+pre-session HEAD, discarding every test addition from D50 as a side effect — not just the probe.
+`nt.js` and `index.html` were untouched (edited via `Edit`, not `git checkout`), so only the
+harness needed reconstructing, verified against this transcript's own record of what had been
+added. **Lesson:** `git checkout -- <file>` inside a session that has uncommitted edits to that
+exact file is not a scoped "undo my last experiment" — it discards everything since the last
+commit, full stop. A throwaway probe belongs in a scratch copy (`cp file.js /tmp/probe.js`), never
+appended to and then reverted from the real one.
+
+### D52 — Closing D51's deferred item: `ntGenerateNode` made rectangle-aware
+
+Same session, next message: "just tested and thats the exact behaviour" — the owner tried the
+rectangular-sandbox case D51 flagged as found-but-not-fixed, and it reproduced immediately, so it
+came back into scope the same day it was deferred.
+
+**Fix:** `ntGenerateNode` gained a third optional param, `forcedDims = { w, h }`. Every place the
+function used to read one shared `n` (`= ntMatrixScale`) for both axes now reads `w`/`h`
+independently: the occupied-cell grid (`h` rows × `w` columns, was `n × n`), the block-anchor rolls
+(`ntRandInt(0, w-2)` / `ntRandInt(0, h-2)`, was both `n-2`), the DNP port-idx rolls and the
+pathological fallback (both left/right edges, so both correctly read `h`, not `w` — a left/right
+port's idx is always measured against the board's height, same as the two-unit-ports round
+established for `ntMouthIdxs`). `w`/`h` themselves default to `forcedDims ? forcedDims.w/h : n`, so
+every existing caller (the standard match, DNP's `ntTeamNodes` generation) is byte-for-byte
+unaffected — neither ever passes `forcedDims`, and stays square. `ntAuthRandomiseTerrain` is the
+only caller that does: `ntGenerateNode(true, null, { w: ntNode.w, h: ntNode.h })`.
+
+**Verification, in order:** (1) real browser, not just the mock-DOM harness — seeded a 16×20
+sandbox, called `ntAuthRandomiseTerrain()` directly, screenshotted before/after: dimensions held,
+322 grid children (320 cells + 2 port markers), terrain and ports visibly different from the
+authored state. (2) A new harness section (all three of D51's rectangular shapes — 16×18, 16×20,
+20×16 — already covered blank-board geometry; this adds `authRandTerrain()` on top, asserting
+dimensions, routability, AND the repainted `w×h` cell count). (3) D42 discipline: reverted the fix
+in a scratch copy, ran it via `NT_SRC=`, confirmed all three new assertions went RED with the exact
+predicted failure (`[18, 18]` instead of the authored shape) before restoring the fix and
+confirming green again — the same "prove the test would have caught it" step D49 established for
+this game.
+
+**Lesson, small but worth keeping:** the deferred-work entry's own "when picked up" note (written
+in D51, minutes before this) named the exact test that was missing — "add a rectangular-sandbox
+case that calls `authRandTerrain()`" — and turned out to be exactly right. Writing that note
+carefully, even for work being deliberately NOT done right now, is what made picking it back up
+same-session cheap: no re-diagnosis needed, just execute what was already written down.
+
+Harness: 364 → **373** (9 new checks — 3 shapes × 3 assertions each: dimensions held, routes,
+grid repaints correctly).
+
+---
+
+### D40 — The polyline was never self-timing: maze.game charges for corners, NT charged nothing (SW v206)
+
+**What happened.** Owner playtesting put NT's latencies consistently **5.6–7.5% below maze.game**
+for comparable builds. Four match scores were not enough to diagnose it — with unknown layouts,
+"the clock is 7% fast" and "a per-turn cost is missing" fit the data equally well, and a two-point
+fit on length-vs-turns is degenerate because the two covary.
+
+**How it was settled.** Built two instruments rather than guessing:
+
+- `tools/nt-path-probe.js` — drives `ntShortestPath`/`ntComputeTimeline` directly from a board
+  spec, reporting **path length, turn count and total turn angle** alongside latency. It calls the
+  geometry functions in isolation, so grid size is just a parameter: it scores 9×10 puzzle boards
+  the game's own UI cannot even offer (16/18/20 only). No board ever had to be rebuilt inside NT.
+- `tools/nt-maze-transcribe.js` — reads a maze.game screenshot into a board spec. Zero-dependency
+  PNG decode (inflate + unfilter; `zlib` is built into Node), flood-fills the playfield off the red
+  block, fits the tile grid by brute force against an averaged luminance profile, then reads tiles
+  and ports. Eyeballing 2×2 anchors off seven screenshots is exactly the transcription error that
+  would have masqueraded as a movement-model gap.
+
+**Root cause.** Distance timing alone. `ntComputeTimeline` charged `distance × NT_BASE_TILE_TIME`
+and nothing else, on the header's stated reasoning that *"corner delay is already in the polyline
+geometry — the runner's 0.25 clearance pushes the taut path out around every offset corner."* That
+is the one claim the reference data contradicts. The clearance detour is real but tiny; maze.game's
+runner additionally **sheds and regains speed at every bend**.
+
+**What the data showed** (six transcribed boards, three plain and three carrying maze.game's ice
+block; `maze-puzzles/boards/*.json`):
+
+| board | NT before | + corner cost | maze.game | residual |
+|---|---|---|---|---|
+| 34000 | 32,015 | 34,002 | 34,000 | −2 ms |
+| 37236 | 35,220 | 37,237 | 37,236 | −1 ms |
+| 38472 | 36,427 | 38,468 | 38,472 | +4 ms |
+
+Three things were **confirmed correct** and are now measured rather than assumed:
+`NT_BASE_TILE_TIME = 1000`; the 2.2-tile off-board entry/exit stubs (maze.game counts the approach
+too — dropping them would have put NT 23% low); and the honeypot magnitude + AoE radius, which
+reproduce maze.game's ice block to 0.6% on an open board.
+
+**Three sub-findings that each cost a wrong turn if missed:**
+
+1. **`sin(θ/2)`, not the angle.** A turn of θ at speed *v* changes velocity by `2v·sin(θ/2)`, so
+   that is what must be braked off and put back. Across the three boards it holds to **0.4%**;
+   linear-in-angle drifts 1.6% and `1−cos θ` drifts 9%. The physics form was also the best fit —
+   worth trying the physical law before reaching for a tuned curve.
+2. **Port-mouth joints are not maze corners.** The polyline is
+   `[outside, border, interior, …taut…, interior, border, outside]`; the runner is forced
+   perpendicular to the board edge at each end by the stub geometry, not by the maze. Charging
+   those two joints made a near-empty board score 2% high while dense boards stayed exact. Only
+   vertices `3 … len-4` are charged.
+3. **Geometry could not have fixed this.** Closing a ~240 ms/corner gap by widening the runner
+   needs a half-width near **0.66 tiles** — a body 1.32 tiles wide, which cannot pass a 1-tile
+   corridor at all. That rules out `NT_RUNNER_HALF` as the lever, decisively and early.
+
+**Implementation.** `NT_TURN_COST = 235` ms per 90°, spread over `NT_TURN_BRAKE = 0.4` tiles either
+side of the corner as a triangular braking profile, so playback shows a vehicle braking into a bend
+rather than a dead stop at each vertex. Two details are load-bearing:
+
+- The per-substep charge is the **exact integral** of that profile between the two arclengths, not
+  the rate sampled at a midpoint. The score is therefore **independent of `NT_SUBSTEP`** — only the
+  animation smoothness depends on resolution. Verified: `NT_TURN_COST = 0` reproduces the old
+  latency to the millisecond.
+- Finer substeps are taken **only inside a braking window**. `samples[]` is broadcast in
+  `NT_PLAYBACK`, so a global resolution bump would be a wire cost on every leg of every cycle; this
+  adds a handful of points per corner and nothing anywhere else.
+
+**Lesson.** *A path's shape does not imply its timing.* The comment asserting the geometry already
+contained the corner delay was plausible, load-bearing, and wrong for two years of this game's life
+— and no amount of internal reasoning would have caught it, because there was nothing to check it
+against. What caught it was one external reference board scored tile-for-tile. When a model is
+calibrated to an external reference, **transcribe one reference case exactly and diff it**; a
+whole-match score comparison cannot separate two models that covary.
+
+**Still open — the slow/honeypot model.** Magnitude and radius validate on an open board (`+0.6%`),
+but the two dense ice boards miss in opposite directions: 72000 by −3.1%, 64472 by **+22%**. The
+22% looks like NT's `NT_HONEYPOT_COOLDOWN = 35000` suppressing re-triggers that maze.game allows
+when a snaking path re-enters the AoE. Tracked in `docs/deferred-work.md`; needs its own round of
+reference boards, deliberately kept separate from this one.
+
+**Harness:** 372 checks, unchanged in count and all passing across `NT_SEED=` 0/7/101/4242 — the
+loopback asserts routes, packets and render behaviour, never absolute latencies, so a calibration
+change correctly does not disturb it.
+
+
+---
+
+### D43 — The mouth truncated at a corner; maze.game's never does (SW v207)
+
+**What happened.** The owner reported two things that turned out to be one finding: a door could
+not be placed hard against a corner in the Node Editor ("clicking the corner square will align it
+to the corner"), and NT drew a corner port as a bar on one edge where maze.game draws an L.
+
+**Root cause.** `ntMouthIdxs` collapsed the mouth to a single unit at either end of an edge:
+
+    if (port.idx <= 0)       return [0];
+    if (port.idx >= len - 1) return [len - 1];
+
+The reference boards say maze.game's mouth is **always two edge-units** and never truncates. At a
+corner it takes one of two forms, and NT could express neither:
+
+| form | reference | tiles |
+|---|---|---|
+| **flush** — both units along one edge, starting at the corner | 155255: `left idx 0 span 2`, `bottom idx 0 span 2` | two |
+| **wrapped** — one unit on each of the two edges meeting there | 48154: `top/8 span 1 + right/0 span 1` | one (both openings front the same tile) |
+
+**Fix.** `idx` clamps to `[0, len-2]` and always yields `[idx, idx+1]`; an opt-in `corner: true`
+gives the wrapped form. `ntPortCorner` derives the corner and its perpendicular edge from
+`{ edge, idx }` alone, so the second unit needs no second stored field. Tapping a corner tile in
+the Node Editor **cycles** wrapped → flush along the tapped edge → flush along the perpendicular
+edge; away from a corner a tap still offers exactly one placement, so ordinary port authoring is
+untouched.
+
+**Three things worth carrying forward:**
+
+1. **A wrapped mouth is one tile for the ROUTER and two openings for the EYE.** Its second unit
+   fronts the same tile, so it gives the pathfinder nothing the first does not. Modelling it as two
+   sources would have meant teaching `ntResolveHalf` to tell two halves apart from one lattice
+   sub-cell — which it cannot, both halves being the same tile. The L is a render fact and lives
+   only in the two renderers.
+2. **The canvas renderer had been drawing the wrong mouth for the whole game's life.** `bar()`
+   filled a fixed `px` — one tile — for every port, so playback showed a half-width door on every
+   standard two-unit mouth while the build grid beside it showed the true one. Nothing caught it
+   because no check compared the two renderers: the DOM marker had its own geometry assertions and
+   the canvas had none. **When one thing is drawn by two renderers, assert them against each
+   other, not each against a literal.**
+3. **A stored value that disagrees with its own derived value is invisible to a derived-value
+   check.** The flush candidate stores `len-2`; storing `len-1` renders an identical mouth because
+   `ntMouthIdxs` re-clamps it. Four of five deliberate mutations were caught by the new checks and
+   that one was not, until a check read `.idx` back directly. Same family as D42 — a check that
+   cannot fail is not a check.
+
+### D44 — The honeypot fires on ENTRY, not on a timer (SW v207)
+
+**What happened.** NT could not reproduce a maze.game "quad" — four hits from a single ice block.
+Before the D40 corner-cost fix it managed two; after it, three. The parked hypothesis
+(`docs/deferred-work.md`) was that `NT_HONEYPOT_COOLDOWN = 35000` suppressed re-triggers.
+
+**How it was settled.** Not by score-fitting — that had already failed. A four-parameter grid
+search over radius × slow × duration × cooldown bottomed out at **8.7% worst-case error** across
+seven boards, against the ±0.01% the movement model reaches. A floor that high with four free
+parameters is a structural gap, not a tuning one.
+
+What settled it was a **different kind of observation**: the owner renamed the reference
+screenshots with maze.game's on-screen trigger counts (`111378 - 3 hits`, `97877 - 1+2+1 hits`,
+…). Those counts read the re-trigger rule directly, with none of the clock arithmetic a score
+comparison drags in — and on all five boards, **maze.game's hit count equals the number of
+distinct AoE ENTRIES the route makes**, including the per-block splits (48154's 2+1, 97877's
+1+2+1).
+
+**Root cause.** The cooldown. A snaking route re-enters an AoE well inside 35 s, and every such
+re-entry was being swallowed.
+
+**Fix.** Entry-triggered firing with hysteresis: a honeypot fires on the tick the runner crosses
+INTO its radius and re-arms only once the runner has left. `NT_HONEYPOT_COOLDOWN` no longer gates
+anything; it survives only as the playback animation's window, which now means "the slow is
+draining" rather than "the trap is recharging". With the trigger rule fixed,
+`NT_HONEYPOT_DURATION` was the only free parameter left and refits to **30000** (worst 3.15%, mean
+−0.5%; 35000 ran systematically +1…+6% long).
+
+**Four things worth carrying forward:**
+
+1. **A count is a better instrument than a magnitude.** Seven scores could not separate four
+   parameters; five trigger counts pinned two of them outright. Where an external reference
+   displays a *count*, prefer it — it carries none of the scaling error a magnitude does.
+2. **The hysteresis is load-bearing, not tidiness.** Without it the fire condition is true on every
+   tick spent inside the radius, so the fire count becomes a function of `NT_SUBSTEP` rather than
+   of the route — setting the old cooldown to 0 scored 83–198 fires on boards that should score
+   2–4. Same shape as D40's substep-independence requirement for the braking integral.
+3. **The hit counts also RE-CONFIRMED the AoE radius, which no score could.** Sweeping radius,
+   only `3√2` reproduces every recorded count: radius 4 splits 48154 as 4 instead of 2+1, radius 5
+   over-fires 97877 to 5. So the radius is pinned by a constraint the score search was busy
+   trading away — which is why `nt-slow-fit.js` now reports the count match beside the error and
+   says plainly that a mismatch invalidates the fit.
+4. **Two boards still resist, and it is NOT the slow model.** 111378 (−14.2%) and 64472 (−22.9%)
+   both **saturate**: the slow already runs unbroken to the end of the journey, so no duration and
+   no re-trigger rule can add more. 64472 needs 86% of its journey slowed while the route does not
+   reach the AoE until 52% in — even an infinite slow window tops out at 51,434 against a target of
+   64,472. The remaining lever is *when* first contact happens, and the candidate left is the AoE's
+   **shape**: a disc centred on the block reaches less far along the block's own axes than a
+   Minkowski sum of that disc with the 2×2 would. That is testable without touching the trigger
+   rule, and it must keep every trigger count intact to be believed. Tracked in
+   `docs/deferred-work.md`.
+
+**Instruments.** `tools/nt-slow-fit.js` (new) rewrites the `NT_HONEYPOT_*` constants in a copy of
+nt.js's source and runs **the game's own** `ntComputeTimeline` against them, so a fit cannot drift
+from the shipped model. `tools/nt-maze-transcribe.js` gained ice-block detection, a block-arm
+measurement that resolves the grid-pitch ambiguity (a comb fitted freely cannot tell pitch `P` from
+`2P`, and picked `2P` on every 16×18 board — reading them as 8×9 boards with 1×1 blocks),
+gap-tolerant run scanning, corner-mouth merging, a pale-gloss classification rule, and a flood
+seed that survives a board whose only red block is an ice block.
+
+**Harness:** 372 → **418** checks, green across `NT_SEED=` 0/7/101/4242. Eight deliberate mutations
+were each confirmed to fail the suite before being reverted — and one of them, deleting the
+hysteresis, initially did **not** fail: the firing section had been written against a *rolled* node
+whose honeypots happened to sit off the route, so fires and entries were both zero and every
+assertion in it was vacuously true. Re-pointing it at a hand-built board with a honeypot 3.5 tiles
+off a straight route made it discriminate. **A test of a counting rule needs a fixture that
+guarantees a non-zero count** — otherwise it asserts `0 === 0` and passes forever.
+
+### D45 — D44 was half the rule: the honeypot REFRESHES in place, and Minkowski is dead (SW v208)
+
+**What happened.** D44 settled firing as entry-triggered with hysteresis, and it reproduced all five
+recorded trigger counts. The owner then produced a sixth reference — the 191490 daily, screenshotted
+at each of its **six** triggers (`maze-puzzles/slow model/saturated board/`, one shot per hit plus
+the finished board). Three ice blocks, **two triggers each**. Under entry-only that demands three
+separate exit-and-re-entry round trips through a 4.24-tile radius.
+
+**Root cause.** The six scores say what actually happened. The two triggers of a single block are
+separated by **29,727 / 30,114 / 29,727 ms** — the slow duration, and identical to the millisecond on
+two different blocks. Three independent round trips do not land within 0.7% of each other by chance;
+a block re-arming on its own expiry does it by construction. The finished board's progress bar
+confirms the consequence directly: it is cyan (slowed) unbroken from the first trigger at 22,392 ms
+to ~186,400, with only the last ~5 s of a 191,490 ms journey at full speed.
+
+That also explains the owner's read of the on-screen dial — "a subsequent hit seems to hit before the
+timer dial finishes the lap". It fires *as* the lap closes, which at 60 fps is indistinguishable.
+
+**Fix.** `checkFires` gained a `lastFire[]` array and a second way in:
+`within && (!inside[i] || elapsed >= lastFire[i] + NT_HONEYPOT_DURATION)`. Entry and exit-re-arm are
+unchanged; the new clause only covers *staying* inside past an expiry. It is nearly inert on the
+existing corpus — every recorded count still reproduces and only 64472 moves (1 fire → 2, −22.9% →
+−20.2%) — which is exactly why the corpus never caught it.
+
+**Two things fell out of the same evidence.**
+
+1. **`NT_HONEYPOT_DURATION = 30000` is now independently confirmed.** It had been fitted to scores;
+   those three gaps measure it directly, on a board that played no part in the fit.
+2. **The Minkowski AoE hypothesis is falsified.** Testing distance-to-*footprint* instead of
+   distance-to-*centre* at the shipped radius splits 48154 as 2+2 (recorded 2+1) and 97877 as 2+1+2
+   (recorded 1+2+1). Dropping the radius to 3.0 restores every count and reproduces the same
+   shortfall (111378 −14.1%, 64472 −20.6%). It re-parameterises the radius; it is not a new lever.
+
+**Lesson — a hypothesis test is worth as much when it fails, but only if the corpus can hear it.**
+Both the refresh rule and Minkowski were tested the same cheap way: patch a *copy* of `nt.js`, point
+`NT_SRC=` at it, read the fitter's count column. The refresh rule passed on a corpus that could barely
+detect it (one board moved); Minkowski failed loudly on a corpus built for exactly that question. The
+counts are what made the second verdict trustworthy and the first one merely permissive — the refresh
+rule rests on the 191490 gaps alone, and it should be re-checked against the next board that has a
+runner loitering in an AoE.
+
+**Corollary — 111378 and 64472 are not one problem.** `--contact` reports first-AoE-contact as a
+fraction of the unslowed journey against the fraction a slow-to-the-end model needs: 111378 is at
+0.399 and needs 0.315; 64472 is at 0.516 and needs **0.140**. An eight-point miss is geometry's size.
+A thirty-eight-point one is not — no AoE shape reaches 14% from 52% (radius 6 puts contact at 0.007
+and over-fires). 64472's next suspect is the **route**, or the transcription, not the AoE. Filed in
+`docs/deferred-work.md`.
+
+### D46 — D45's own re-check landed within a day: the refresh rule was fitted to a miscount (SW v209)
+
+**What happened.** D45 explicitly flagged its own risk — "the refresh rule rests on the 191490 gaps
+alone, and it should be re-checked against the next board that has a runner loitering in an AoE."
+That re-check came the next day, from two directions at once. Transcribing 191490 properly (a clean
+maze.game profile-replay frame, rather than the `hit N.png` screenshots D45 used, which misread the
+[3,13] honeypot as a wall) produced a board that read cleanly — 36 blocks, all 3 ice tiles correct,
+zero unpaired tiles — and running it through `nt-slow-fit.js` predicted **3+2+2** fires, not the
+**2+2+2** D45's `hits` field recorded. The owner confirmed 3+2+2 was the real count. Separately, the
+owner ran their own Debug Mode session and reported a honeypot re-firing before its cooldown had
+elapsed from what looked like an ordinary exit/re-entry — the entry-triggered branch's exact failure
+shape, live.
+
+**Root cause.** D45's "29,727/30,114/29,727 ms, twice to the millisecond" evidence was computed
+against `hits:[2,2,2]` — an assumption ("two triggers each," never independently verified against
+the owner's own count) baked into the very data the refresh rule was fitted to. Recomputed against
+the real fire pattern (`hits:[3,2,2]`), the model's own predicted gaps for this board are
+21.8s / 25.1s / 27.4s / 128.3s — none within a second of 30,000ms. The pattern that motivated adding
+`!inside[i] ||` never existed; it was an artefact of miscounting the reference the rule was fitted to,
+not a property of the board.
+
+**Fix.** `checkFires`'s condition drops the entry/exit branch entirely: `within && elapsed >=
+lastFire[i] + NT_HONEYPOT_DURATION`. Every honeypot starts primed (`lastFire = -Infinity`) and fires
+on first entry for free; re-entering mid-cooldown does nothing; the D45 refresh behaviour (fire the
+instant the window elapses, if still inside) is now the *only* way back in, not an OR-branch beside
+entry-triggering. `inside[]` is deleted — nothing reads it once entry stops being a firing condition.
+Re-run against the full corpus: **6/6 recorded trigger counts still reproduce**, and two boards fit
+measurably *better* than the branch they replaced — 111378 −14.2% → −10.3%, 155255 −3.15% → −0.25% —
+with every other board's count and error unchanged. Harness (417) still green.
+
+**Lesson — the corpus doesn't verify data it was never asked to check.** `nt-slow-fit.js` compares a
+board's *modelled* fires against its `hits` field, but has no way to know whether `hits` itself is
+right — that number comes from a human reading a screenshot or a memory, same as any other input.
+D45's failure wasn't a bad fit against the evidence; it was evidence entered wrong, then fitted
+faithfully. The fix cost nothing extra to find once the owner's own count and the owner's own Debug
+Mode session both pointed at the same branch independently — two unrelated corrections converging on
+one piece of dead logic is a stronger signal than either alone, and worth treating as such rather than
+chasing them as separate bugs.
+
+**Still open, reframed rather than solved.** 111378 and 64472's shortfall predates the entry/exit
+branch and outlives its removal. A screen-recorded maze.game replay of the 191490 run (scrubbed via
+the profile page's replay slider, thumb-position calibrated against the displayed score to recover a
+real elapsed-time axis) measured the runner's actual pace inside vs. outside the honeypot's active
+window: **976–1131 ms/tile deep inside three separate slow spans, 1016–1238 ms/tile in the two clean
+unslowed stretches — no separation**, against `NT_HONEYPOT_SLOW = 0.5` predicting roughly double. The
+same trace's total path length (~175.5 tiles) was ~66% longer than `ntShortestPath`'s distance for
+the same board (105.9 tiles). Read together, this suggests the honeypot's real effect on elapsed time
+may be substantially about the runner taking a **longer route**, not moving slower along the same
+one — which would make 111378/64472 a routing-model gap, not an AoE/duration one. Not acted on;
+needs its own investigation before `ntShortestPath` or `NT_HONEYPOT_SLOW` gets touched. Filed in
+`docs/deferred-work.md`.
+
+### D47 — D45's Minkowski rejection was measured at the wrong radius; the AoE is footprint-based (SW v209)
+
+**What happened.** In the same Debug Mode session that caught D46's early-refire bug, the owner
+reported a second, separate symptom: a corner-adjacent honeypot the runner passed close to didn't
+fire at all. Eyeballing it against maze.game: a hit should register **2 tiles out from the block's
+corner**. Cross-checked against 191490 independently — the third recorded fire of its first honeypot
+(centre (10,5), corner (11,6)) lands around tile (13,8), a (2,2) diagonal offset from that corner.
+
+**Root cause.** D45 (SW v208) tested "distance to footprint instead of distance to centre" and
+rejected it — but at the SAME radius as the centre model (4.243 tiles), which is the wrong
+comparison by construction: a footprint check reaches strictly further than a centre check at any
+shared radius (the footprint's own half-diagonal, √2, is free distance the centre model has to spend
+just reaching the block's corner). D45 never tested footprint-distance at *its own* correct radius.
+The owner's "2 tiles from the corner" is exactly that radius: 2×√2 ≈ 2.828 — and 3√2 (the old centre
+radius) minus √2 (the block's own half-diagonal) equals 2√2 exactly, which is what the centre radius
+was always secretly encoding once you subtract the one thing a footprint check gets for free.
+
+**Fix.** `checkFires`'s distance test changed from centre-distance to nearest-point-on-footprint
+(`[h.x-1,h.x+1]×[h.y-1,h.y+1]`), and `NT_HONEYPOT_RADIUS` from `3 * Math.SQRT2` to `2 * Math.SQRT2`.
+Re-run against the full corpus: **6/6 recorded trigger counts still reproduce, including 48154 and
+97877** — D45's two casualties, now fixed rather than avoided, because the radius that broke them
+was the mismatched one, not the footprint metric itself. 111378 and 155255 both fit marginally
+better than the centre model they replace. The two render call sites that drew the AoE as a plain
+circle (`ntRenderFrame`'s static threat ring and draining disc) were switched to `ntAoEPath` — a
+rounded-square path tracing the actual Minkowski-sum shape — so Debug Mode's visual ring now matches
+what `checkFires` really tests, which is what let the owner catch this class of bug by eye in the
+first place.
+
+**Lesson — a rejected hypothesis and a rejected PARAMETER are not the same thing, and conflating them
+closes an investigation early.** D45 wrote "the Minkowski AoE is rejected... do not re-open it" in
+good faith, but what was actually tested was one specific radius under that shape, chosen only
+because it was the value already fitted to a different shape. The corpus test that rejected it
+(48154, 97877 breaking) was real and correct — it just answered a narrower question than the header
+claimed. Re-opening it here cost one clarifying data point (the owner's own eyeballed "2 tiles from
+the corner") plus a radius sweep, not a rebuild.
+
+**Harness note.** `tools/verify-nt-loopback.js`'s honeypot section had baked in the old geometry
+twice over: its own "entries" verification used centre-distance (now footprint, matching
+`checkFires`), and its per-honeypot invariant asserted "no refire without the runner leaving first" —
+the literal opposite of the v209 cooldown-gate rule. Rewritten to assert what v209 actually
+guarantees: consecutive fires of one honeypot are never less than `NT_HONEYPOT_DURATION` apart,
+however the runner moves in between. 417/417, still green.
+
+**Detail:** the corrected `191490` board and its recorded corner example: `maze-puzzles/boards/191490.json`. Both fixes (D46, D47) shipped together as SW v209.
+
+### D48 — 111378 and 64472 were never a movement-model gap: the transcription tool had ingress and egress backwards
+
+**What happened.** Testing D47's fix, the owner built their own copy of the 111378 board in Debug
+Mode's Node Editor and got 111,659ms — a near-exact match to the real target (111,378) — while
+`nt-slow-fit.js` on the shipped `111378.json` still said 99,869 (−10.3%). Asked to export the live
+node (`JSON.stringify(ntNode)` from DevTools), the owner's data was **identical** to the shipped
+board in every block and honeypot position — except `ingress`/`egress` were swapped: theirs was
+`bottom/8 → top/12`, the shipped file was `top/12 → bottom/8`.
+
+**Root cause.** `nt-maze-transcribe.js` never read which on-screen marker means "start" and which
+means "finish" — it just took whichever port its edge-scan (top, then bottom, then left, then right)
+happened to find first and called that the ingress. For 111378, the top edge carries the finish (an
+orange/checkered "flag" marker, confirmed by direct pixel sampling: `--bbox` on the top edge returns
+`kind:'flag'`, 470px; the bottom edge returns `kind:'port'`, the plain blue spawn bar). Scan order
+put top first, so the tool silently wrote the route backwards. Direction doesn't change *distance*
+for a plain shortest path, but it changes *which* tiles the runner is at at any given elapsed time —
+so on a board with a honeypot the runner revisits, reversing direction changes how many times a
+cooldown has had a chance to expire before the next pass, which changes the fire count and total
+slow time. That is exactly the "some small difference in the turns" gap that had been sitting on
+111378 and 64472 since before D45 — not a turn-cost rounding issue, not a route-model gap, a
+transposed pair of fields.
+
+**Fix.** `nt-maze-transcribe.js`'s port-merging now carries the `kind` ('port'/'start'/'flag') each
+run classified as, and the final ingress/egress assignment uses it directly: **the 'flag' marker is
+always egress** — maze.game's orange/checker glyph is the finish line, universally, not incidental to
+one board. Falls back to scan order (with a loud console warning) only if zero or more than one
+`'flag'` is found, so an ambiguous board fails visibly rather than silently. Every board with a
+recorded target was re-transcribed from its source screenshot and checked against this rule:
+
+| board | was | corrected to | effect |
+|---|---|---|---|
+| 111378 | top/12 → bottom/8 | bottom/8 → top/12 | −10.3% → **+0.25%** |
+| 64472 | top/0 → right/4 | right/4 → top/0 | −20.2% → **+0.67%** |
+| 37236, 38472 | (reversed, no honeypot) | corrected | no score effect — no slow to be direction-sensitive |
+| 155255, 97877, 48154, 67886, 191490 | already correct | unchanged | flag-based re-derivation matches the shipped file exactly on every one |
+
+`64472` and `64472-empty` both corrected (the empty variant shares the same port data). `34000` and
+`72000` are **not** corrected — see the two notes below.
+
+**Corpus result — every board still open is now closed.** `nt-slow-fit.js` worst `|err|` across all
+11 boards: **20.80% → 2.81%**. All 6 hard-constraint (recorded trigger count) boards still MATCH.
+111378 and 64472 — the two boards D45 flagged as "genuinely open" and every subsequent entry
+(D46/D47) explicitly declined to touch — are now within 1% of target. The AoE radius, the cooldown
+gate, and the movement model did not need further tuning; they were being scored against boards
+whose starting and finish lines were swapped.
+
+**72000 is the one exception, and was deliberately left alone.** Its top marker also classifies as
+`'flag'` (628px, unambiguous — same confidence as every corrected board), but flipping its direction
+made the fit measurably *worse* (+2.67% → +10.4%/+11.8%, the corner-mouth variant tested too), the
+opposite of every other board. Reverted to the shipped direction pending a real explanation — either
+the marker read is a genuine outlier on this specific image, or reversing direction interacts badly
+with its corner-mouth egress in a way that isn't about direction being "wrong" at all. Not resolved;
+do not flip this board without new evidence.
+
+**`34000` was left untouched for a different reason** — its auto grid fit has a poor residual
+(32.7px on one axis) and re-deriving the origin by hand didn't converge to a clean read in the time
+spent. It carries no honeypot, so its direction cannot be scored either way; low priority.
+
+**Lesson — a "some small difference in the turns" guess from the person closest to the data was worth
+checking exactly, not accepting as the likely explanation.** The owner offered a plausible, modest
+explanation for the 111378 gap. Taking it at face value would have left both the real bug (unfixed)
+and the tool that produces every other board's data (unaudited) in place. The fix came from asking
+for the one artefact — the raw `ntNode` — that a screenshot comparison can't produce: an exact,
+machine-diffable ground truth. Two screenshots that "look the same" is not evidence two boards are
+identical; one JSON diff is.
+
+**Detail:** `tools/nt-maze-transcribe.js` (`kind`-aware port assignment), `maze-puzzles/boards/{111378,64472,64472-empty,37236,38472-solved,38472-empty}.json`. No SW bump — these are dev-only reference boards and tooling, not shipped app state.

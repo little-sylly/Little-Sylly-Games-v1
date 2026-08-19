@@ -371,6 +371,9 @@ globalThis.__nt = {
   undoDeposit()       { ntUndoDeposit(); },
   resetDeposits()     { ntResetDeposits(); },
   timeline()          { return ntComputeTimeline_local(); },
+  hpCentres()         { return ntHoneypotCentres(ntNode, ntMyPlacements); },
+  aoeRadiusSq()       { return NT_HONEYPOT_RADIUS_SQ; },
+  honeypotDuration()  { return NT_HONEYPOT_DURATION; },
   resolveMdlm(all)    { ntResolveCycleMdlm(all); },
   showBuild(ts)       { ntShowBuild(ts); },
   showSummary(m)      { ntShowSummary(m); },
@@ -381,6 +384,8 @@ globalThis.__nt = {
   mouthIdxs(port, w, h)       { return ntMouthIdxs(port, w, h); },
   mouthTiles(port, w, h)      { return ntMouthTiles(port, w, h); },
   mouthsIntersect(a, b, w, h) { return ntMouthsIntersect(a, b, w, h); },
+  portCorner(port, w, h)      { return ntPortCorner(port, w, h); },
+  portCands(edge, idx, w, h)  { return ntPortCandidates(edge, idx, w, h); },
   pathOkWith(p)    { return ntPathExists(ntNode, p); },
   cellType(tx, ty) { return ntCellType(tx, ty); },
   setInv(fw, hp)   { ntInventory = { firewall: fw, honeypot: hp }; },
@@ -428,7 +433,13 @@ globalThis.__nt = {
   gridPorts()      { return document.getElementById('nt-build-grid').children
                        .filter(c => /(^| )absolute( |$)/.test(c.className || '')).length; },
   authPorts()      { return document.getElementById('nt-auth-grid').children
-                       .filter(c => /(^| )absolute( |$)/.test(c.className || '')).length; },
+                       .filter(c => /(^| )nt-port-marker( |$)/.test(c.className || '')).length; },
+  // Every bar, primary or wrapped — an L-shaped corner mouth contributes two.
+  authPortBars()   { return document.getElementById('nt-auth-grid').children
+                       .filter(c => /(^| )nt-port-(marker|wrap)( |$)/.test(c.className || '')).length; },
+  // The LAST wrap segment drawn — the perpendicular arm of an L.
+  lastPortWrap()   { const w = document.getElementById('nt-auth-grid').children
+                       .filter(c => /(^| )nt-port-wrap( |$)/.test(c.className || '')); return w[w.length - 1] || null; },
   // The existing gridCells() is hardcoded to nt-build-grid — the editor needs its own.
   authCells()      { return document.getElementById('nt-auth-grid').children
                        .filter(c => /(^| )nt-cell( |$)/.test(c.className || '')).length; },
@@ -444,6 +455,12 @@ globalThis.__nt = {
   summaryBtnOff()  { return !!document.getElementById('btn-nt-summary-next').disabled; },
   summarySer()     { return document.getElementById('nt-summary-ser').textContent; },
   summaryRows()    { return document.getElementById('nt-summary-board').children.length; },
+  logsContentCount(){ return document.getElementById('nt-logs-content').children.length; },
+  logsContentText() { return document.getElementById('nt-logs-content').children.map(c => c.textContent).join(' '); },
+  logPillLabels()   { return document.getElementById('nt-logs-player-chips').children.map(c => c.textContent); },
+  logPillShown()    { return document.getElementById('nt-logs-player-chips').style.display; },
+  logPillActive()   { return document.getElementById('nt-logs-player-chips').children
+                         .findIndex(c => /pill-active-emerald/.test(c.className || '')); },
   chipLabels()     { return document.getElementById('nt-player-chips').children.map(c => c.textContent); },
   thumbs()         { return document.getElementById('nt-thumbnail-row').children.length; },
   buildPlayer()    { return document.getElementById('nt-build-player').textContent; },
@@ -456,8 +473,28 @@ globalThis.__nt = {
   get debugBrush()    { return ntDebugBrush; },
   get debugAttempt()  { return ntDebugMyAttempt; },
   get debugBest()     { return ntDebugBest ? ntDebugBest.latencyMs : null; },
+  get debugAttempts() { return ntDebugAttempts; },
+  get debugAttemptsBySeat() { return ntDebugAttemptsBySeat; },
   get debugFinished() { return ntDebugFinished; },
   get debugCounts()   { return ntDebugAttemptCounts; },
+  openLogs(i)         {
+    // The mock auto-vivifies missing elements as childless divs (deliberately — the inversion
+    // of getElementById:()=>null — see the comment on getElementById above), so the overlay's
+    // real '.overlay-data-inner' child (present in index.html, absent from this stub DOM) has
+    // to be seeded once before ntOpenLogs's scroll-reset line has anything to find.
+    const overlay = document.getElementById('nt-logs-overlay');
+    if (!overlay.querySelector('.overlay-data-inner')) {
+      const inner = document.createElement('div');
+      inner.className = 'overlay-data-inner';
+      overlay.appendChild(inner);
+    }
+    ntOpenLogs(i);
+  },
+  openLogAttempt(p, a){ ntOpenLogAttempt(p, a); },
+  // The mock's addEventListener is a no-op (see getElementById's own comment on the class),
+  // so a simulated .click() can never reach the pill's real handler — call the function the
+  // handler calls directly, which is the whole of what the handler does.
+  switchLog(i)        { ntRenderDebugLog(i); },
   rawWin()            { return ntHardeningWin; },     // the STORED value, never the effective one
   setDebug(v)         { ntDebugMode = !!v; },
   effWin()            { return ntEffectiveHardeningWin(); },
@@ -1051,9 +1088,24 @@ section('Port markers — one drawing function, two grids');
   check('a standard top marker spans two tiles',
         std.style.width, 'calc(11.11111111111111%)');
   check('…offset to the first mouth tile', std.style.left, '22.22222222222222%');
-  const cnr = mk({ edge: 'top', idx: 17 });
-  check('a corner top marker spans one tile',
+  const cnr = mk({ edge: 'top', idx: 17, corner: true });
+  check('a wrapped corner marker spans one tile',
         cnr.style.width, 'calc(5.555555555555555%)');
+  check('…and a FLUSH corner marker still spans two',
+        mk({ edge: 'top', idx: 0 }).style.width, 'calc(11.11111111111111%)');
+  // The L. A wrapped top-right mouth puts its primary arm along the TOP at column 17
+  // and its perpendicular arm down the RIGHT at row 0 — one tile each, both straddling
+  // their own border. Asserting the arm's EDGE (right:-3px, not left) is what catches a
+  // perpEdge mix-up; asserting its offset is what catches a perpIdx read off the wrong
+  // axis. Neither is visible to the bar COUNT that sits beside this.
+  mk({ edge: 'top', idx: 17, corner: true });
+  const arm = d.__nt.lastPortWrap();
+  check('the second arm of the L runs down the RIGHT edge',
+        [arm.style.right, arm.style.width], ['-3px', '6px']);
+  check('…starting at row 0, one tile tall',
+        [arm.style.top, arm.style.height], ['0%', 'calc(5.555555555555555%)']);
+  check('…and carries no direction arrow', arm.children.length, 0);
+
   const vert = mk({ edge: 'left', idx: 4 });
   check('a left marker spans on the vertical axis',
         [vert.style.height, vert.style.width], ['calc(11.11111111111111%)', '6px']);
@@ -1117,41 +1169,17 @@ section('Node Editor — authoring the same object ntGenerateNode() returns');
         [d.__nt.node.egress.edge, d.__nt.node.egress.idx], ['left', 5]);
 
   // Randomise — both produce an editable starting point; nothing is committed yet.
-  // Re-author egress off left/5 → left/10 first: left/5's TWO-UNIT mouth is tiles (0,5) and
-  // (0,6) (spec §3.1), and ntGenerateNode's OWN seed-0 roll drops a 2×2 bad sector at ax0/ay5
-  // that covers BOTH of them — the whole mouth is sealed, not just narrowed — which makes the
-  // KEEP branch below unreachable at the default seed no matter what the fix does. left/10
-  // keeps the same "shares an edge with ingress" authoring choice, clear of that block.
-  d.__nt.setBrushDbg('egress');
-  d.__nt.authTap(0, 10);
-  check('egress re-authored to left/10 for the randomise-terrain check below',
-        [d.__nt.node.egress.edge, d.__nt.node.egress.idx], ['left', 10]);
-
   d.__nt.bumpFw(7);
   const budgetBefore = { ...d.__nt.inventory };
   d.__nt.authRandTerrain();
   check('Randomise Terrain fills the board', d.__nt.node.badSectors.length > 0, true);
-  // Ports are not terrain: the authored pair (left/3, left/10) must be KEPT across a re-roll —
-  // unless the freshly-rolled terrain happens to block it, in which case the fallback pair
-  // ntGenerateNode rolled must be used instead. Both branches are legitimate, and which one fires
-  // is genuinely RNG-dependent (a bad sector can land on an authored mouth tile on some seeds) —
-  // so probe the contract directly rather than hard-coding one branch's outcome. The probe
-  // mutates the live node's ports and reads them back through the same ntPathExists the fix
-  // itself calls; it changes nothing ntAuthRandomiseTerrain didn't already decide, so this proves
-  // the KEEP/FALLBACK rule itself rather than depending on one lucky (or unlucky) seed.
-  const keptIngress = { ...d.__nt.node.ingress }, keptEgress = { ...d.__nt.node.egress };
-  d.__nt.node.ingress = { edge: 'left', idx: 3 };
-  d.__nt.node.egress  = { edge: 'left', idx: 10 };
-  const authoredWouldRoute = d.__nt.pathOk();
-  d.__nt.node.ingress = keptIngress;   // put the real outcome back exactly as authRandTerrain left it
-  d.__nt.node.egress  = keptEgress;
-  const keptIsAuthored = keptIngress.edge === 'left' && keptIngress.idx === 3 &&
-                          keptEgress.edge === 'left' && keptEgress.idx === 10;
-  check('authored ports are kept iff they still route, dropped for the roll\'s own pair otherwise',
-        authoredWouldRoute ? keptIsAuthored : !keptIsAuthored,
-        true);
-  check('…and leaves the budget alone (keepInventory)', d.__nt.inventory, budgetBefore);
+  // Ports re-roll too now (owner-requested, 19 Aug 2026) — Randomise Terrain no longer restores
+  // a hand-authored pair over the fresh roll. Can't assert the ports CHANGED (the RNG could
+  // legitimately re-roll the same edge/idx by chance, and this section runs across NT_SEED=0..7
+  // per the suite convention), so assert the actual contract instead: whatever came back routes,
+  // on its own, with no fallback/keep logic left to probe.
   check('…and only ever produces a routable node', d.__nt.pathOk(), true);
+  check('…and leaves the budget alone (keepInventory)', d.__nt.inventory, budgetBefore);
 
   const terrainBefore = JSON.stringify(d.__nt.node.badSectors);
   d.__nt.authRandBudget();
@@ -1180,28 +1208,52 @@ section('Sandbox Initialisation — dimensions gate the authored node');
 })();
 
 // ── Mouth derivation ──────────────────────────────────────────────────────────
-// The mouth is DERIVED from { edge, idx } — no new field, no wire change. Two units
-// wide, collapsing to one at either end of an edge. Spec §1, §3.1.
-section('Mouth derivation — two units, one at a corner');
+// The mouth is DERIVED from { edge, idx, corner? }. It is ALWAYS two units wide: at a
+// corner it either sits FLUSH (both units along one edge) or WRAPS (one unit on each of
+// the two edges meeting there, both fronting the same tile). It never truncates — that
+// is maze.game's behaviour, and the old collapse-to-one rule is what made a door flush
+// against a corner unauthorable. Spec §1, §3.1.
+section('Mouth derivation — always two units; flush or wrapped at a corner');
 (() => {
   const d = makeDevice('mouth', 'single', 0, [{ uid: 'u0', nickname: 'Ali' }]);
   d.__nt.seat({ players: 1, names: ['Ali'] });
   const M = (edge, idx, w, h) => d.__nt.mouthIdxs({ edge, idx }, w, h);
 
+  const C  = (edge, idx, w, h) => d.__nt.mouthIdxs({ edge, idx, corner: true }, w, h);
+  const PC = (port, w, h) => d.__nt.portCorner(port, w, h);
+
   check('mid-edge port spans two units',           M('left', 4, 18, 18),  [4, 5]);
-  check('idx 0 collapses to one unit',             M('left', 0, 18, 18),  [0]);
-  check('idx len-1 collapses to one unit',         M('left', 17, 18, 18), [17]);
-  check('idx len-2 still spans two',               M('left', 16, 18, 18), [16, 17]);
-  check('idx 1 spans two — only 0 is a corner',    M('left', 1, 18, 18),  [1, 2]);
+  check('idx 0 is FLUSH, not collapsed',           M('left', 0, 18, 18),  [0, 1]);
+  check('idx len-1 clamps back to the last that fits', M('left', 17, 18, 18), [16, 17]);
+  check('idx len-2 spans two',                     M('left', 16, 18, 18), [16, 17]);
+  check('idx 1 spans two',                         M('left', 1, 18, 18),  [1, 2]);
+
+  // The wrapped form is now the ONLY one-unit mouth, and it is opt-in.
+  check('a wrapped corner is one unit on its edge', C('left', 0, 18, 18),  [0]);
+  check('…and at the far end too',                 C('left', 17, 18, 18), [17]);
+  check('a wrapped corner names its corner',
+        (c => [c.name, c.perpEdge, c.perpIdx])(PC({ edge: 'top', idx: 17, corner: true }, 18, 18)),
+        ['top-right', 'right', 0]);
+  check('…and the SAME corner reached from the other edge',
+        (c => [c.name, c.perpEdge, c.perpIdx])(PC({ edge: 'right', idx: 0, corner: true }, 18, 18)),
+        ['top-right', 'top', 17]);
+  check('a non-corner port has no corner info',    PC({ edge: 'top', idx: 4 }, 18, 18), null);
+  // Rectangular discriminator: perpIdx must come from the OTHER axis. On 16×20 a
+  // wrapped bottom-left port's perpendicular unit sits at row 19, not column 15.
+  check('wrapped corner perpIdx measures the other axis',
+        (c => [c.tx, c.ty, c.perpEdge, c.perpIdx])(PC({ edge: 'bottom', idx: 0, corner: true }, 16, 20)),
+        [0, 19, 'left', 19]);
 
   // Per-axis length. On a 16-wide × 20-high node a LEFT port's last index is 19 and a
   // TOP port's is 15. A swapped (h, w) argument order exchanges them — invisible on a
   // square node, which is why these four checks are the D46 discriminator for this
   // function. See spec §8.3.
-  check('left port measures against h',            M('left', 19, 16, 20), [19]);
-  check('…so idx 15 is NOT its corner',            M('left', 15, 16, 20), [15, 16]);
-  check('top port measures against w',             M('top', 15, 16, 20),  [15]);
-  check('…and an out-of-range idx clamps to it',   M('top', 19, 16, 20),  [15]);
+  check('left port measures against h',            M('left', 19, 16, 20), [18, 19]);
+  check('…and idx 15 is nowhere near its end',     M('left', 15, 16, 20), [15, 16]);
+  check('top port measures against w',             M('top', 15, 16, 20),  [14, 15]);
+  check('…and an out-of-range idx clamps to it',   M('top', 19, 16, 20),  [14, 15]);
+  check('a wrapped left port ends at h-1, not w-1', C('left', 19, 16, 20), [19]);
+  check('a wrapped top port ends at w-1',           C('top', 19, 16, 20),  [15]);
 
   check('mouth tiles follow the span — left edge',
         d.__nt.mouthTiles({ edge: 'left', idx: 4 }, 18, 18), [[0, 4], [0, 5]]);
@@ -1215,10 +1267,15 @@ section('Mouth derivation — two units, one at a corner');
         I({ edge: 'left', idx: 3 }, { edge: 'left', idx: 4 }), true);
   check('same-edge mouths two apart do not',
         I({ edge: 'left', idx: 3 }, { edge: 'left', idx: 5 }), false);
-  check('corner ports meeting at the SAME corner tile overlap',
-        I({ edge: 'left', idx: 0 }, { edge: 'top', idx: 0 }),  true);
-  check('corner ports at OPPOSITE ends of the top edge do not',
-        I({ edge: 'left', idx: 0 }, { edge: 'top', idx: 17 }), false);
+  check('wrapped corner ports meeting at the SAME tile overlap',
+        I({ edge: 'left', idx: 0, corner: true }, { edge: 'top', idx: 0, corner: true }), true);
+  check('wrapped corner ports at OPPOSITE ends do not',
+        I({ edge: 'left', idx: 0, corner: true }, { edge: 'top', idx: 17, corner: true }), false);
+  // A flush mouth reaches one tile further than the wrapped form, so a pair that missed
+  // under the old collapse rule now genuinely shares a tile. This is the check that
+  // fails if idx 0 ever goes back to being one unit.
+  check('two FLUSH mouths meeting at a corner overlap',
+        I({ edge: 'left', idx: 0 }, { edge: 'top', idx: 0 }), true);
 
   check('no exceptions', errs(d), []);
 })();
@@ -1299,15 +1356,27 @@ section('Placement legality — narrowing a door is legal, sealing it is not');
   check('covering BOTH halves seals it — no route',
         d.__nt.pathOkWith([{ ax: 0, ay: 4, type: 'firewall' }]), false);
 
-  // A CORNER mouth is one tile, so there is no half to give up: any 2×2 covering it
-  // removes the only source. This asymmetry is the mechanic, not a gap. Spec §5.3.
-  const corner = NODE_18(); corner.ingress = { edge: 'left', idx: 0 };
-  d.__nt.setNode(corner);
-  check('a corner mouth is one tile',
-        d.__nt.mouthTiles(corner.ingress, 18, 18), [[0, 0]]);
-  check('a 2×2 clear of a corner mouth routes',
+  // A FLUSH corner mouth is two tiles like any other — that is the whole point of the
+  // change; a door against a corner is no longer half a door. Spec §5.3.
+  const flush = NODE_18(); flush.ingress = { edge: 'left', idx: 0 };
+  d.__nt.setNode(flush);
+  check('a flush corner mouth is two tiles',
+        d.__nt.mouthTiles(flush.ingress, 18, 18), [[0, 0], [0, 1]]);
+  check('a 2×2 clear of a flush corner mouth routes',
         d.__nt.pathOkWith([{ ax: 0, ay: 2, type: 'firewall' }]), true);
-  check('a corner port cannot be narrowed at all',
+  check('…and a 2×2 over BOTH its halves seals it',
+        d.__nt.pathOkWith([{ ax: 0, ay: 0, type: 'firewall' }]), false);
+
+  // A WRAPPED corner mouth is one tile, so there is no half to give up: any 2×2
+  // covering it removes the only source. That asymmetry is the mechanic, not a gap —
+  // and it is now the player's choice to author it, rather than the model's default.
+  const corner = NODE_18(); corner.ingress = { edge: 'left', idx: 0, corner: true };
+  d.__nt.setNode(corner);
+  check('a wrapped corner mouth is one tile',
+        d.__nt.mouthTiles(corner.ingress, 18, 18), [[0, 0]]);
+  check('a 2×2 clear of a wrapped corner mouth routes',
+        d.__nt.pathOkWith([{ ax: 0, ay: 2, type: 'firewall' }]), true);
+  check('a wrapped corner port cannot be narrowed at all',
         d.__nt.pathOkWith([{ ax: 0, ay: 0, type: 'firewall' }]), false);
 
   // End-to-end through the real placement path — this is what proves the reservation
@@ -1362,6 +1431,162 @@ section('Node Editor — overlapping mouths are refused');
         [d.__nt.node.egress.edge, d.__nt.node.egress.idx], ['left', 5]);
   check('…and the node still routes', d.__nt.pathOk(), true);
 
+  check('no exceptions', errs(d), []);
+})();
+
+// ── Honeypot firing ───────────────────────────────────────────────────────────
+// A honeypot fires the instant the runner is within its FOOTPRINT-based AoE and its
+// own cooldown has fully elapsed (SW v209) — not on entry, and not gated by the runner
+// ever leaving. The distance test is against the block's 2×2 rectangle (nearest point),
+// not its dead centre — SW v209 corrected the earlier centre-distance model, which D45
+// (SW v208) had wrongly kept after rejecting Minkowski at the wrong radius. Calibrated
+// against maze.game's on-screen trigger counts — see nt-implementation-notes D44/D46.
+section('Honeypot firing — footprint AoE, cooldown-gated, not entry-triggered');
+(() => {
+  const d = makeDevice('hpfire', 'single', 0, [{ uid: 'u0', nickname: 'Ali' }]);
+  d.__nt.seat({ players: 1, names: ['Ali'], scale: 18, natives: 2 });
+  // A HAND-BUILT node, not a rolled one. A rolled node may put every honeypot far from
+  // the route, and then fires and entries are both zero and every assertion below is
+  // vacuously true — which is exactly what happened on the first draft of this section:
+  // it passed identically with the hysteresis deleted. Ingress left/4 → egress right/4
+  // runs the route straight along y≈4.5; the honeypot block at (8,7) centres on (9,8),
+  // footprint [8,10]×[7,9] — the route's closest approach to the FOOTPRINT is 2.5 tiles
+  // (dy from y=4.5 to the footprint's y=7 edge), comfortably inside the 2√2 AoE.
+  d.__nt.setNode({ w: 18, h: 18,
+    ingress: { edge: 'left',  idx: 4 },
+    egress:  { edge: 'right', idx: 4 },
+    badSectors: [], nativeHoneypots: [{ ax: 8, ay: 7 }] });
+  d.__nt.setPlacements([]);
+  const tl = d.__nt.timeline();
+  const hps = d.__nt.hpCentres();
+  const R2 = d.__nt.aoeRadiusSq();
+
+  // The expectation is derived from the TRAJECTORY, not from the firing code — count
+  // outside→inside transitions along samples[] and compare. D42's rule: capture the
+  // expected value independently of the machinery under test. Footprint distance,
+  // matching checkFires: nearest point on [hp.x-1,hp.x+1]×[hp.y-1,hp.y+1], not the
+  // centre — a centre-distance count here would diverge from the real fires whenever
+  // the closest approach is inside the footprint radius but outside the centre one.
+  let entries = 0;
+  hps.forEach(hp => {
+    let inside = false;
+    tl.samples.forEach(s => {
+      const nx = Math.max(hp.x - 1, Math.min(s.x, hp.x + 1));
+      const ny = Math.max(hp.y - 1, Math.min(s.y, hp.y + 1));
+      const dx = nx - s.x, dy = ny - s.y;
+      const now = dx * dx + dy * dy <= R2;
+      if (now && !inside) entries++;
+      inside = now;
+    });
+  });
+  check('the board has a honeypot on the route to fire at all', hps.length, 1);
+  check('…and the route actually triggers it', tl.fires.length > 0, true);
+  check('…exactly once — one pass, one entry', tl.fires.length, 1);
+  check('fires equal the route’s distinct AoE entries', tl.fires.length, entries);
+
+  // The v209 invariant: two fires of the SAME honeypot are never less than
+  // NT_HONEYPOT_DURATION apart, however the runner moves in between — no exit needed,
+  // no early re-fire on re-entry either. This replaces the v208 "must leave first"
+  // check, which asserted the opposite of what v209 deliberately does.
+  const duration = d.__nt.honeypotDuration();
+  let violations = 0;
+  hps.forEach(hp => {
+    const mine = tl.fires.filter(f => f.x === hp.x && f.y === hp.y).map(f => f.atMs);
+    for (let i = 1; i < mine.length; i++) {
+      if (mine[i] - mine[i - 1] < duration) violations++;
+    }
+  });
+  check('no honeypot re-fires before its own cooldown has fully elapsed', violations, 0);
+  check('no exceptions', errs(d), []);
+  // A genuine multi-fire case — a route that actually revisits the same honeypot's AoE
+  // more than once, cooldown gaps enforced throughout — needs a maze shape this
+  // single-honeypot hand-built board doesn't produce (its shortest path only brushes
+  // the AoE once). That case is proven against real recorded data instead:
+  // `node tools/nt-slow-fit.js maze-puzzles/boards/191490.json` — a board whose
+  // shortest path visits all 3 honeypots more than once, every consecutive per-
+  // honeypot gap >= NT_HONEYPOT_DURATION, trigger counts matching the owner's own
+  // recorded hits. See nt-implementation-notes D46.
+})();
+
+// ── The corner cycle ──────────────────────────────────────────────────────────
+// A single tap cannot name three different doors, and maze.game has three at every
+// corner. Tapping the corner again advances the cycle. Away from a corner there is
+// only ever one placement, so the tap means exactly what it always did.
+section('Node Editor — tapping a corner cycles wrapped → flush → flush');
+(() => {
+  const d = makeDevice('cornercycle', 'single', 0, [{ uid: 'u0', nickname: 'Ali' }]);
+  d.__nt.seat({ players: 1, names: ['Ali'], scale: 18, natives: 0, debug: true });
+  d.__nt.showAuthoring();
+  d.__nt.setBrushDbg('ingress');
+  const P = () => { const p2 = d.__nt.node.ingress; return [p2.edge, p2.idx, !!p2.corner]; };
+
+  // Top-left. The nearest-edge sort resolves the (0,0) tie to 'top', so the cycle runs
+  // wrapped → flush along top → flush down left → back.
+  d.__nt.authTap(0, 0);
+  check('first tap on a corner gives the WRAPPED door', P(), ['top', 0, true]);
+  check('…drawn as an L — two bars for two ports',
+        [d.__nt.authPorts(), d.__nt.authPortBars()], [2, 3]);
+  d.__nt.authTap(0, 0);
+  check('second tap gives the FLUSH door along the tapped edge', P(), ['top', 0, false]);
+  check('…and a flush door is a single bar again',
+        [d.__nt.authPorts(), d.__nt.authPortBars()], [2, 2]);
+  check('…spanning two tiles', d.__nt.mouthTiles(d.__nt.node.ingress, 18, 18), [[0, 0], [1, 0]]);
+  d.__nt.authTap(0, 0);
+  check('third tap gives the FLUSH door along the other edge', P(), ['left', 0, false]);
+  check('…spanning two tiles down that edge',
+        d.__nt.mouthTiles(d.__nt.node.ingress, 18, 18), [[0, 0], [0, 1]]);
+  d.__nt.authTap(0, 0);
+  check('fourth tap returns to the wrapped door', P(), ['top', 0, true]);
+
+  // The FAR end of an edge. The flush option must store the last idx a two-unit mouth
+  // actually fits in (len-2), not the corner index itself. Storing len-1 renders the
+  // same mouth — ntMouthIdxs re-clamps it — so only reading .idx back catches it, and
+  // an idx that disagrees with its own mouth is the exact hazard the generator's
+  // bound exists to avoid.
+  d.__nt.authTap(17, 0);
+  check('far-corner first tap is wrapped at len-1',  P(), ['top', 17, true]);
+  d.__nt.authTap(17, 0);
+  check('…and its flush option STORES len-2, not len-1', P(), ['top', 16, false]);
+  check('…which is the mouth it actually has',
+        d.__nt.mouthTiles(d.__nt.node.ingress, 18, 18), [[16, 0], [17, 0]]);
+  d.__nt.authTap(17, 0);
+  check('…then flush down the right edge from the top', P(), ['right', 0, false]);
+
+  // Away from a corner there is nothing to cycle: a repeat tap is idempotent, which is
+  // what stops the new behaviour leaking into ordinary port placement.
+  d.__nt.authTap(0, 5);
+  check('a mid-edge tap places a plain two-unit door', P(), ['left', 5, false]);
+  d.__nt.authTap(0, 5);
+  check('…and tapping it again does not cycle it anywhere', P(), ['left', 5, false]);
+  check('a mid-edge tap offers exactly one placement',
+        d.__nt.portCands('left', 5, 18, 18).length, 1);
+  check('a corner tap offers three',
+        d.__nt.portCands('left', 0, 18, 18).length, 3);
+
+  check('no exceptions', errs(d), []);
+})();
+
+// The perpendicular flush option must be measured on the OTHER axis. On a 16×20 board
+// the bottom-left corner's left-edge flush door sits at idx 18 (h-2); a w/h mix-up puts
+// it at 14 and the check reads identically on a square board. D44's class again.
+section('Corner cycle — the perpendicular option measures the other axis');
+(() => {
+  const d = makeDevice('cornerrect', 'single', 0, [{ uid: 'u0', nickname: 'Ali' }]);
+  d.__nt.seat({ players: 1, names: ['Ali'], scale: 18, debug: true });
+  d.__nt.startSolo();
+  d.__nt.deployDims(16, 20);
+  d.__nt.setBrushDbg('ingress');
+  const P = () => { const p2 = d.__nt.node.ingress; return [p2.edge, p2.idx, !!p2.corner]; };
+
+  d.__nt.authTap(0, 19);
+  check('bottom-left wrapped door', P(), ['bottom', 0, true]);
+  d.__nt.authTap(0, 19);
+  check('flush along the bottom edge', P(), ['bottom', 0, false]);
+  d.__nt.authTap(0, 19);
+  check('flush up the left edge lands at h-2, not w-2', P(), ['left', 18, false]);
+  check('…and its mouth is the two tiles above the corner',
+        d.__nt.mouthTiles(d.__nt.node.ingress, 16, 20), [[0, 18], [0, 19]]);
+  check('the node still routes throughout', d.__nt.pathOk(), true);
   check('no exceptions', errs(d), []);
 })();
 
@@ -1500,7 +1725,17 @@ section('Rectangular nodes — authored, deployed, played');
         tl.polyline.every(p => Number.isFinite(p.x) && Number.isFinite(p.y)), true);
   check(`${w}×${h}: the trace stays inside the board`,
         tl.polyline.every(p => p.x >= -1 && p.x <= w + 1 && p.y >= -1 && p.y <= h + 1), true);
-  check(`${w}×${h}: no exceptions`, errs(d), []);
+
+  // Randomise Topology must NOT un-rectangle the sandbox. ntGenerateNode defaults to a square
+  // ntMatrixScale × ntMatrixScale board (18×18 here, since `scale: 18` above) — this is
+  // EXACTLY the assertion deferred-work.md called for: the previous section only ever exercised
+  // a blank deployDims(w, h), never authRandTerrain(), which is how this bug shipped unnoticed.
+  d.__nt.authRandTerrain();
+  check(`${w}×${h}: Randomise Topology keeps the AUTHORED dimensions, not 18×18`,
+        [d.__nt.node.w, d.__nt.node.h], [w, h]);
+  check(`${w}×${h}: …and the re-rolled board still routes`, d.__nt.pathOk(), true);
+  check(`${w}×${h}: …and the grid repaints w×h cells, not 18×18`, d.__nt.authCells(), w * h);
+  check(`${w}×${h}: …with no exceptions`, errs(d), []);
 });
 
 // ── The retry loop ────────────────────────────────────────────────────────────
@@ -1639,7 +1874,7 @@ section('Finish — a gate that must not be vacuous');
   // before its own ntShowStandby() line runs — a reentrancy that is structurally impossible on
   // real Firebase (a round trip can never complete before the sending function returns) and so
   // isn't something the fix needs to defend against, but it does mean this synchronous harness
-  // cannot honestly prove "everyone reaches playback" for that ordering. See nt.js
+  // cannot honestly prove "everyone reaches the summary" for that ordering. See nt.js
   // ntDebugFinish's client branch for the production reasoning.
   r.host.__nt.finish();
   r.all.forEach(drain);
@@ -1650,9 +1885,137 @@ section('Finish — a gate that must not be vacuous');
   check('…and sent no NT_DEBUG_FINISH of its own',
         r.sent.includes('NT_DEBUG_FINISH'), false);
   check('all finished — the round resolves', r.host.__nt.cycleResolved, true);
-  check('…and everyone reaches playback',
-        r.all.map(lastScreen), ['screen-nt-playback', 'screen-nt-playback', 'screen-nt-playback']);
+  // Attempt-log design (2026-08-18): Finish goes straight to the Diagnostic Summary now — no
+  // playback hop. Both halves of the host/client pair changed (ntResolveCycleMdlm's tail AND
+  // the NT_PLAYBACK applier) — miss either one and this assertion is exactly what catches the
+  // split-brain (one screen list would show playback, the others summary).
+  check('…and everyone reaches the summary, not playback',
+        r.all.map(lastScreen), ['screen-nt-summary', 'screen-nt-summary', 'screen-nt-summary']);
   check('no exceptions anywhere', r.all.map(errs), [[], [], []]);
+})();
+
+// ── Attempt log (design doc 2026-08-18) ────────────────────────────────────────
+section('Attempt log — accumulates, replays, resets at every lifecycle point');
+(() => {
+  const r = makeRoom(['Ali', 'Bec']);
+  seatAll(r, { win: 90, debug: true });
+  r.host.__nt.showAuthoring();
+  r.host.__nt.authRandTerrain();
+  r.host.__nt.deploy();
+  r.all.forEach(drain);
+  r.all.forEach(d => { d.__nt.showBuild(); d.__nt.commit(); });   // ntCommit() → ntDebugRunAttempt() in Debug Mode
+
+  // One entry per attempt, and — captured OUTSIDE ntDebugAttempts itself, independently, per
+  // D42: an assertion that reads the same field it is checking cannot fail against the bug it
+  // exists to catch — latencyMs must match a fresh ntComputeTimeline_local() over the SAME
+  // placements this attempt actually ran with.
+  check('one attempt recorded after one commit', r.host.__nt.debugAttempts.length, 1);
+  const firstPlacements = r.host.__nt.debugAttempts[0].placements.slice();
+  const firstLatency    = r.host.__nt.debugAttempts[0].latencyMs;
+  r.host.__nt.setInv(2, 2);
+  r.host.__nt.place(2, 0, false);
+  r.host.__nt.runAgain();
+  r.host.__nt.commit();
+  check('two attempts recorded after a retry', r.host.__nt.debugAttempts.length, 2);
+  check('attempt 1 latency matches an independent recompute of the SAME placements',
+        (() => {
+          const saved = r.host.__nt.placements;
+          r.host.__nt.setPlacements(firstPlacements);
+          const recomputed = r.host.__nt.timeline().latencyMs;
+          r.host.__nt.setPlacements(saved);
+          return recomputed;
+        })(), firstLatency);
+
+  // Finish both — MDLM tail lands on the summary with the per-player table, not playback.
+  r.clients[0].__nt.finish();
+  r.host.__nt.finish();
+  r.all.forEach(drain);
+  check('both devices land on the summary', r.all.map(lastScreen),
+        ['screen-nt-summary', 'screen-nt-summary']);
+  check('summary board has one row per player', r.host.__nt.summaryRows(), 2);
+
+  // Own row opens the full log; the other seat's row opens a single best-only row.
+  r.host.__nt.openLogs(0);
+  check('own log lists every attempt, newest first — heading + 2 rows',
+        r.host.__nt.logsContentCount(), 3);
+  r.host.__nt.openLogs(1);
+  check('another player’s log names them as best-only',
+        /best trace only/.test(r.host.__nt.logsContentText()), true);
+
+  // Author New Node — the PTP hand-over trap the design doc calls out by name: miss this reset
+  // and the next session opens showing the PREVIOUS session's attempts.
+  r.host.__nt.tapSummary();
+  r.all.forEach(drain);
+  check('Author New Node clears the attempt log — host', r.host.__nt.debugAttempts, []);
+  check('…and on the client too', r.clients[0].__nt.debugAttempts, []);
+})();
+
+// ── PTP (pass-the-phone) — the bug an owner playtest actually hit, twice ──────
+// Two players, ONE device, sequential turns. Round 1 (the pill switcher) fixed "P1 is
+// unreachable" but only down to best-only, because ntDebugAttempts was wiped at hand-over.
+// The owner asked the obvious follow-up: why does P1 only get best-only when this is the SAME
+// device holding the memory the whole time, with no network cost either way? Round 2
+// (ntDebugAttemptsBySeat) stashes the just-finished seat's full array instead of discarding it
+// — MDLM still throws other seats' histories away (a different device genuinely never held
+// them), but PTP now keeps every seat's history for the rest of the session.
+section('Attempt log — PTP: BOTH players keep their full history, not just the last one');
+(() => {
+  const d = makeDevice('ptp', 'single', 0,
+    [{ uid: 'u0', nickname: 'Ali' }, { uid: 'u1', nickname: 'Bec' }]);
+  d.__nt.seat({ players: 2, names: ['Ali', 'Bec'], debug: true });
+  d.__nt.showAuthoring();
+  d.__nt.authRandTerrain();
+  d.__nt.deploy();
+
+  // P1 (Ali) runs TWO attempts, finishes — hands over to P2.
+  d.__nt.showBuild();
+  d.__nt.commit();
+  d.__nt.runAgain();
+  d.__nt.commit();
+  d.__nt.finish();
+  check('P1 finished, turn handed to P2', d.__nt.debugAttempt, 0);   // reset for the new turn
+  check('P1\'s two attempts were stashed under her own seat, not discarded',
+        d.__nt.debugAttemptsBySeat[0].length, 2);
+
+  // P2 (Bec) runs one attempt, finishes — both done, PTP multi routes through the gather gate.
+  d.__nt.showBuild();
+  d.__nt.commit();
+  d.__nt.finish();
+  d.__nt.tapGate();
+  check('lands on the summary, not playback', lastScreen(d), 'screen-nt-summary');
+
+  // Opening System Logs with no argument — exactly what tapping the top-level button does —
+  // defaults to ntDebugMySeat(), which in PTP is the LAST player (Bec, seat 1).
+  d.__nt.openLogs();
+  check('default open shows the LAST player', d.__nt.logPillActive(), 1);
+  check('pills list both players', d.__nt.logPillLabels(), ['Ali', 'Bec']);
+  check('Bec (seat 1, the live seat) has her full attempt list',
+        /every attempt/.test(d.__nt.logsContentText()), true);
+
+  // The fix: Ali (seat 0, no longer live) STILL gets her full two-attempt history — not
+  // best-only — because ntDebugAttemptsBySeat[0] holds what she ran, exactly as she ran it.
+  d.__nt.switchLog(0);
+  check('switching to Ali updates the active pill', d.__nt.logPillActive(), 0);
+  check('…and Ali ALSO gets her full history, not best-only — the follow-up fix',
+        /every attempt/.test(d.__nt.logsContentText()), true);
+  check('…specifically her 2 attempts, heading + 2 rows',
+        d.__nt.logsContentCount(), 3);
+  check('no exceptions', errs(d), []);
+})();
+
+// ── Empty log — Finish is reachable without ever running an attempt ───────────
+section('Attempt log — finishing with zero attempts renders, does not throw');
+(() => {
+  const d = makeDevice('solo', 'single', 0, [{ uid: 'u0', nickname: 'Ali' }]);
+  d.__nt.seat({ players: 1, names: ['Ali'], debug: true });
+  d.__nt.showAuthoring();
+  d.__nt.authRandTerrain();
+  d.__nt.deploy();
+  d.__nt.finish();     // no runAttempt() at all — Finish is reachable straight from the gate
+  check('zero attempts recorded', d.__nt.debugAttempts, []);
+  d.__nt.openLogs(0);
+  check('empty state rendered, not a throw', /NO ATTEMPTS LOGGED/.test(d.__nt.logsContentText()), true);
+  check('no exceptions', errs(d), []);
 })();
 
 // ── No forced resolution while a player is still retrying ─────────────────────
@@ -1771,6 +2134,7 @@ section('Teardown — session state clears, the SETTING survives');
   d.__nt.resetState();
   check('attempt count cleared',   d.__nt.debugAttempt, 0);
   check('best cleared',            d.__nt.debugBest, null);
+  check('attempt log cleared',     d.__nt.debugAttempts, []);
   check('readiness arrays cleared',[d.__nt.debugFinished, d.__nt.debugCounts], [[], []]);
   check('brush back to default',   d.__nt.debugBrush, 'bad');
   check('but ntDebugMode SURVIVES — it is a setting, like every other setting',

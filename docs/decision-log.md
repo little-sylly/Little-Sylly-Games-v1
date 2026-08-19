@@ -20,6 +20,158 @@ Detail: pointer to the canonical doc (snapshot / impl note / spec / memory).
 
 ---
 
+## 2026-08-20 — Net-Trace: 111378 and 64472 closed — the transcription tool had ports backwards, not a routing gap
+**Category:** Architecture
+**Decision:** `nt-maze-transcribe.js` now classifies which on-screen marker is 'flag' (orange/checker
+finish) vs 'port'/'start' (spawn) and assigns egress = flag always, instead of assigning ingress to
+whichever port its edge-scan (top→bottom→left→right) happened to find first.
+**Why:** The owner rebuilt 111378 independently in Debug Mode and got 111,659ms (target 111,378) —
+`nt-slow-fit.js` on the shipped board said 99,869 (−10.3%). Diffing the owner's exported `ntNode`
+against the shipped file found everything identical except `ingress`/`egress`, which were swapped.
+Scan order had put the wrong port first; the tool never actually read the markers' meaning.
+**Changed:** `tools/nt-maze-transcribe.js`; `maze-puzzles/boards/{111378,64472,64472-empty,37236,
+38472-solved,38472-empty}.json` re-derived and corrected. Corpus-wide worst error: **20.80% → 2.81%**.
+111378 and 64472 — the two boards left open since D45, through both v209 fixes above — are now
+within 1% of target. No further AoE/duration/movement tuning was needed for them.
+**Deferred:** `72000` also reads an unambiguous 'flag' on its top edge, but flipping its direction
+made the fit *worse* — left on its original direction, unresolved, do not flip without new evidence.
+`34000` left untouched (poor grid residual, no honeypot, no scoring impact). The 191490 speed-profile/
+route-length finding (SW v209 entry below) should no longer be cited as explaining 111378/64472 — it
+wasn't; the input data was wrong. Whether it's still a real finding for 191490 itself is unexamined.
+**Detail:** `docs/implementation-notes/nt-implementation-notes.md` D48; `docs/deferred-work.md`.
+
+---
+
+## 2026-08-20 — Net-Trace: the honeypot AoE is footprint-based, not centre-based
+**Category:** Architecture
+**Decision:** `checkFires`'s distance test changed from distance-to-centre to nearest-point-on-the-
+block's-footprint, and `NT_HONEYPOT_RADIUS` from `3*√2` (≈4.243, centre) to `2*√2` (≈2.828,
+footprint — "2 tiles from the block's corner"). Debug Mode's AoE ring/disc now draw the real
+rounded-square shape (`ntAoEPath`) instead of a plain circle.
+**Why:** D45 (SW v208) tested footprint-distance and rejected it, but at the centre model's radius —
+the wrong comparison, since a footprint check always reaches further than a centre check at any
+shared radius. The owner's own eyeballed rule ("2 tiles from the corner") is exactly the radius D45
+never tried, and it independently matches 191490's own recorded corner hit.
+**Changed:** `js/games/nt.js` (`ntComputeTimeline`/`checkFires`, `NT_HONEYPOT_RADIUS`, `ntAoEPath` +
+both render call sites), `tools/verify-nt-loopback.js` (honeypot section rewritten — its own
+verification code and one invariant both still assumed the old geometry). SW v209 (shipped
+alongside the cooldown-gate fix below). 6/6 recorded trigger counts reproduce, including 48154 and
+97877 — D45's two casualties. Harness 417, green.
+**Deferred:** Same open items as the cooldown-gate entry below — 111378, 64472, and the route-length
+question neither fix touches.
+**Detail:** `docs/implementation-notes/nt-implementation-notes.md` D47; `docs/deferred-work.md`.
+
+---
+
+## 2026-08-20 — Net-Trace: the honeypot is a pure cooldown gate; the "refresh" branch's premise was a miscount
+**Category:** Architecture
+**Decision:** `checkFires` drops the entry/exit branch entirely — a honeypot now fires purely on
+`elapsed >= lastFire[i] + NT_HONEYPOT_DURATION`, primed from game start. Re-entering mid-cooldown
+does nothing; only the cooldown elapsing (v208's "refresh" case) lets it fire again.
+**Why:** v208's entry-triggered branch was justified by the 191490 daily's hit count `[2,2,2]` —
+wrong; the owner confirmed `[3,2,2]`. Against the real count, that board's own gaps between fires are
+21.8s/25.1s/27.4s/128.3s — none near the 30,000ms spacing the branch was fitted to. The owner's own
+Debug Mode session independently reproduced the branch's failure mode live: a honeypot re-firing
+before its cooldown from an ordinary exit/re-entry.
+**Changed:** `js/games/nt.js` (`ntComputeTimeline`/`checkFires`, `inside[]` deleted), SW v209. 6/6
+recorded trigger counts still reproduce; 111378 and 155255 fit measurably better (−14.2%→−10.3%,
+−3.15%→−0.25%) with no board's count or error made worse. Harness 417 unchanged, green.
+**Deferred:** 111378 and 64472's shortfall predates this branch and survives its removal. A
+screen-recorded maze.game replay of the 191490 run found no measurable honeypot slowdown in the real
+pace (976–1131 vs 1016–1238 ms/tile, slowed vs unslowed) and a real path ~66% longer than
+`ntShortestPath`'s modelled distance — pointing at a routing-model gap rather than an AoE/duration
+one. Not investigated yet.
+**Detail:** `docs/implementation-notes/nt-implementation-notes.md` D46; `docs/deferred-work.md`.
+
+---
+
+## 2026-08-19 — Net-Trace: the honeypot refreshes in place; the Minkowski AoE is falsified
+**Category:** Architecture
+**Decision:** A honeypot now also re-fires when its own 30 s window expires with the runner still
+inside its AoE (entry-triggering and exit-re-arm are unchanged). The Minkowski AoE — testing
+distance to the block's 2×2 *footprint* rather than to its centre — is rejected and closed.
+**Why:** The owner's 191490 daily fires six times, twice per block, with the pair on each block
+29,727 / 30,114 / 29,727 ms apart — the slow duration, to the millisecond on two of them. Entry-only
+would need three exit-and-re-entry round trips all landing within 0.7% of 30 s. Minkowski at the
+shipped radius breaks two recorded trigger counts (48154, 97877); at the radius that restores them it
+reproduces the same shortfall, so it is a re-parameterisation, not a lever.
+**Changed:** `js/games/nt.js` (`ntComputeTimeline`/`checkFires`), SW v208. Same evidence
+independently re-confirms `NT_HONEYPOT_DURATION = 30000`, previously fitted to scores alone.
+**Deferred:** 111378 (−14.2%) and 64472 (−20.2%) are now split apart rather than treated as one
+problem — `--contact` puts 111378 eight points late (geometry's size) and 64472 **thirty-eight**
+(a route or transcription problem). Transcribing the 191490 board needs an empty-puzzle screenshot.
+**Detail:** `docs/implementation-notes/nt-implementation-notes.md` D45; `docs/deferred-work.md`.
+
+---
+
+## 2026-08-19 — Net-Trace: port mouths never truncate, and the honeypot fires on AoE entry
+**Category:** Architecture
+**Decision:** Two model corrections from the same maze.game reference set. (1) A port mouth is
+**always two edge-units**; `idx` clamps to `len-2`, and an opt-in `corner: true` gives the
+*wrapped* corner form (one unit on each of the two edges, one tile). (2) A honeypot fires on
+**entry** to its AoE, re-arming when the runner leaves — the 35 s re-trigger cooldown is gone, and
+`NT_HONEYPOT_DURATION` refits to 30000.
+**Why:** The old mouth collapsed to one unit at either end of an edge, so a door flush against a
+corner could not be authored or drawn. And the owner's screenshots recorded maze.game's on-screen
+trigger counts: on all five boards they equal the route's **AoE-entry count**, so the cooldown was
+swallowing real re-triggers — the missing hit in a "quad". A count is a sharper instrument than a
+score here: a four-parameter fit on seven scores floored at 8.7% error, while five counts pinned
+the trigger rule *and* re-confirmed the AoE radius outright.
+**Changed:** `js/games/nt.js` (`ntMouthIdxs`, new `ntPortCorner`/`ntPortCandidates`/
+`ntDrawPortSegment`/`ntPortFormHint`, `ntAuthSetPort` corner cycle, `checkFires` hysteresis, canvas
+`bar()` — which had been drawing a one-tile door for every port since launch); new instrument
+`tools/nt-slow-fit.js`; `tools/nt-maze-transcribe.js` gained ice/corner/pitch handling; five new
+boards in `maze-puzzles/boards/`. Harness 372 → **418**. SW v207.
+**Deferred:** two boards (111378, 64472) still score 14–23% short with every trigger count correct
+— their slow *saturates*, so the remaining lever is the AoE's **shape**, not its rule. See
+`docs/deferred-work.md`. **Detail:** `nt-implementation-notes` D43/D44.
+
+---
+
+## 2026-08-19 — Net-Trace scoring: a corner cost, calibrated against maze.game
+**Category:** Architecture
+**Decision:** `ntComputeTimeline` now charges **235 ms per 90° of turning** (weighted by
+`sin(θ/2)`, at maze corners only), on top of distance × `NT_BASE_TILE_TIME`. The header claim that
+"corner delay is already in the polyline geometry" was wrong — a taut path is not self-timing.
+**Why:** NT scored 5.6–7.5% below maze.game. Six reference boards were transcribed from screenshots
+and scored tile-for-tile; the three plain ones now reproduce maze.game to **±4 ms (0.01%)**.
+**Changed:** `js/games/nt.js` (`NT_TURN_COST`/`NT_TURN_BRAKE`/`NT_SIN45` + the timeline integrator);
+new instruments `tools/nt-path-probe.js` and `tools/nt-maze-transcribe.js`; boards in
+`maze-puzzles/boards/`. SW v206. **Deferred:** the slow/honeypot model — magnitude and AoE validate
+to 0.6% on an open board, but dense ice boards miss −3% and +22%, likely `NT_HONEYPOT_COOLDOWN`
+suppressing re-triggers maze.game allows. Own round; see `docs/deferred-work.md`.
+**Detail:** `docs/implementation-notes/nt-implementation-notes.md` D40.
+
+---
+
+## 2026-08-19 — Always-loaded baseline trimmed 18%: rules stay, history moves; Fredoka self-hosted
+**Category:** Process
+**Decision:** The four auto-loaded files (`CLAUDE.md` + the three `.claude/rules/`) keep every
+**rule** verbatim, but the *history attached to* each rule — who found it, which game was first,
+what the sweep concluded — moves to `docs/decision-log.md`, `docs/sw-changelog.md` or the relevant
+impl-notes, replaced by a one-line pointer. Applied to `CLAUDE.md` (12.2k→7.7k) and `ui-style.md`
+(19.5k→16.1k); per-game Tables A/B/C split out to the new on-demand `docs/rules/per-game-classes.md`.
+`§ Current Focus` gains a hard ceiling — the current SW entry only, ≤5 lines. Separately, Fredoka is
+now **self-hosted** (`fonts/`, 34 KB variable woff2, precached, SW v205), which deletes the
+"deliberate offline exception" from two rule files and leaves the app with zero runtime third-party
+dependencies.
+**Why:** the baseline had drifted to **44.7k tokens paid every turn** — 15k above the ~30k the docs
+claimed. `§ Current Focus` alone was 3.9k because the "move the outgoing entry to sw-changelog.md on
+each bump" rule had not been followed since v182, leaving v183–v204 stranded in the always-loaded
+file. Measured, not estimated: recorded baselines go stale, so re-measure before planning a trim.
+**Changed:** `CLAUDE.md`, `.claude/rules/ui-style.md`, `.claude/rules/logic-engine.md` (font para),
+`docs/sw-changelog.md` (+v183–v204, now continuous v204→v167), `docs/deferred-work.md` (+PKO
+Stragglers), new `docs/rules/per-game-classes.md`, new `fonts/`, `index.html`/`css/styles.css`/
+`sw.js`. **Follow-up (same day):** ran the history/rule split on `logic-engine.md` too — stripped
+the "which game found it first / on what date" clauses from a dozen `Elevated from` rules down to
+a `Detail: [file] [ID]` pointer (the detail already lives in the named impl-notes, verified before
+each cut), and dropped a stale "shipped for pko/flw" core-art status line that CLAUDE.md's Current
+Focus already carries. Net **10.7k → 10.4k (−2.6%)** — smaller than CLAUDE.md/ui-style.md's cut
+because this file's Aug 9 pass (`cb8e3cf`) already removed most of the narrative; what remains is
+schemas, code templates and cross-game rules, not history. `ui-style.md` is near its floor without
+cutting real rules.
+**Detail:** memory `project-context-budget`; `docs/implementation-notes/shared-implementation-notes.md`.
+
 ## 2026-08-18 — NT ports are two units wide, with single-unit corners
 **Category:** Architecture
 **Decision:** A relay-leg node's ingress/egress mouth is now two tiles wide instead of one,

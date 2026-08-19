@@ -42,13 +42,53 @@ const NT_BASE_TILE_TIME     = 1000;     // latency per 1 tile of straight travel
 const NT_DIAG = Math.SQRT2;             // diagonal lattice-step length
 const NT_SUBSTEP            = 0.25;      // tiles per timeline integration tick (fixed-distance; AoE checked each tick)
 
+// CORNER BRAKING — calibrated against maze.game, Aug 2026.
+// A taut polyline is NOT self-timing. The geometry says where the runner goes; it says
+// nothing about how fast it can take a bend, and the header's old claim that "corner
+// delay is already in the polyline geometry" is the one thing the reference data
+// contradicts. Three maze.game boards transcribed tile-for-tile came out 5.6–6.2% SHORT
+// under pure distance timing, and land within 5 ms (0.01%) once this term is charged.
+// It cannot be fixed with geometry instead: matching it by widening the runner needs a
+// half-width near 0.66 tiles, which would not fit a 1-tile corridor at all.
+//
+// Cost of one corner = NT_TURN_COST × sin(θ/2)/sin(45°). sin(θ/2) is not a curve fit —
+// a turn of angle θ at speed v changes velocity by 2v·sin(θ/2), so that is exactly what
+// has to be braked off and put back. Across the three boards it holds to 0.4%; linear-
+// in-angle drifts 1.6% and 1−cos θ drifts 9%.
+// Method, data and the transcribed boards: tools/nt-path-probe.js + maze-puzzles/boards/,
+// working detail in nt-implementation-notes D40.
+const NT_TURN_COST          = 235;      // latency added by one 90° corner
+const NT_TURN_BRAKE         = 0.4;      // tiles either side of a corner the braking spreads over
+const NT_SIN45              = Math.sin(Math.PI / 4);   // normaliser: a 90° turn scores exactly 1
+
 // SLOW (honeypot) — 0.5× speed for a FIXED duration (timer, persists outside the AoE);
-//   non-stacking (re-trigger extends, never deepens); cooldown gates the quad re-trigger.
-const NT_HONEYPOT_RADIUS    = 3 * Math.SQRT2; // ≈4.243 tiles from block dead-centre (3× the unit-square diagonal)
-const NT_HONEYPOT_RADIUS_SQ = 18;       // (dx*dx)+(dy*dy) <= 18 — the per-tick squared AoE check (= (3√2)²)
+//   non-stacking (a new fire RESETS the window, never extends it); pure cooldown gate —
+//   see ntComputeTimeline's checkFires for the firing rule.
+//
+// The AoE is measured from the block's FOOTPRINT (nearest point on its 2×2 rectangle),
+// not its dead centre — SW v209, 20 Aug 2026, correcting SW v208's D45 which tested
+// footprint-distance at the CENTRE radius (4.243) and rejected it. That was the wrong
+// comparison: a footprint check at the centre radius reaches further everywhere, so it
+// over-fires by construction. At its own geometrically-derived radius — 2×the unit
+// diagonal, i.e. exactly 2 tiles out from the block's corner — it reproduces every
+// recorded trigger count (48154 and 97877 included, D45's two casualties) and fits
+// 111378/155255 slightly better than the centre model it replaces. The owner's own
+// Debug Mode testing is what surfaced the miss this fixes: a corner-adjacent honeypot
+// the centre-circle didn't reach even though the runner passed 2 tiles from its corner.
+const NT_HONEYPOT_RADIUS    = 2 * Math.SQRT2; // ≈2.828 tiles from block FOOTPRINT (2× the unit-square diagonal)
+const NT_HONEYPOT_RADIUS_SQ = 8;        // (dx*dx)+(dy*dy) <= 8 — the per-tick squared AoE check (= (2√2)²)
 const NT_HONEYPOT_SLOW      = 0.50;     // speed multiplier while slowed
-const NT_HONEYPOT_DURATION  = 35000;    // slow lifetime in latency units; matches cooldown → ~7s real at 5× playback
-const NT_HONEYPOT_COOLDOWN  = 35000;    // re-trigger lockout per honeypot; ≥ NT_HONEYPOT_DURATION → one trigger per slow window (~7s real at 5×)
+// Slow lifetime in latency units (~6 s real at 5× playback). Fitted against maze.game,
+// 19 Aug 2026: with the trigger rule settled by the reference boards' recorded hit
+// counts, this is the only free parameter left, and 30000 is the minimum of its
+// worst-error curve across the five verified boards (worst 3.15%, mean −0.5%; 35000
+// was systematically +1…+6% long). Re-fit with tools/nt-slow-fit.js --sweep duration.
+const NT_HONEYPOT_DURATION  = 30000;
+// Pure cooldown lockout (SW v209) — a fired honeypot is deaf to the AoE, entry or exit,
+// until this elapses; see ntComputeTimeline's checkFires. The constant is kept separate
+// from NT_HONEYPOT_DURATION only because playback animates the live slow window with
+// it, and that window is exactly the duration.
+const NT_HONEYPOT_COOLDOWN  = NT_HONEYPOT_DURATION;
 
 // PLAYBACK
 const NT_PLAYBACK_SPEED     = 5;        // time-compression factor (§16-Q5 — start 5×, dial by feel)
@@ -151,6 +191,14 @@ let ntSummaryReadyCheck = [];     // per-player ready to advance past the Diagno
 let ntDebugBrush         = 'bad'; // Node Editor: 'bad' | 'native' | 'ingress' | 'egress'
 let ntDebugMyAttempt     = 0;     // MY attempt number on the current node (1-based when shown)
 let ntDebugBest          = null;  // MY best so far — { latencyMs, placements, timeline } | null
+let ntDebugAttempts      = [];    // [{ latencyMs, placements }] the CURRENTLY active seat's
+                                 // history, attempt order — no timeline (recomputed on demand,
+                                 // § design doc 4.2); never synced over the wire.
+let ntDebugAttemptsBySeat = [];  // Single-device PTP only: [playerIdx] = the array ntDebugAttempts
+                                 // held for that seat before hand-over moved on — this device
+                                 // already has the memory, there's no wire cost to keep it, so
+                                 // unlike MDLM (a genuinely separate device per seat) PTP has no
+                                 // reason to throw an earlier player's full history away.
 let ntDebugFinished      = [];    // [playerIdx] = bool — host authority, the readiness gate
 let ntDebugAttemptCounts = [];    // [playerIdx] = int  — display only, drives the roster
 let ntDebugLastW = null;         // Sandbox dimensions chosen on screen-nt-debug-config.
@@ -320,11 +368,16 @@ function ntShowGatherGate() {
   const btn = document.getElementById('btn-nt-gate-ready');
   const count = ntPlayerCount;
   if (heading) heading.textContent = 'Cycle Diagnostic Gate';
-  if (sub) sub.textContent = count > 1
-    ? 'All ' + count + ' admins done. Gather around to watch the playback.'
-    : 'Analysis complete. Tap to view playback.';
-  if (btn) btn.textContent = 'Launch Playback ▶';
-  ntGateCallback = () => ntShowComparisonPlayback();
+  // Debug is a testing tool, not a spectacle — Finish already went straight to the summary
+  // for solo/MDLM (design doc §4.1); the PTP gather gate is the last place playback still
+  // hid behind, so it gets the same treatment here.
+  if (sub) sub.textContent = ntDebugMode
+    ? 'All ' + count + ' analysts done. Gather around for the results.'
+    : (count > 1
+        ? 'All ' + count + ' admins done. Gather around to watch the playback.'
+        : 'Analysis complete. Tap to view playback.');
+  if (btn) btn.textContent = ntDebugMode ? 'View Results ▶' : 'Launch Playback ▶';
+  ntGateCallback = ntDebugMode ? () => ntShowSummary('match') : () => ntShowComparisonPlayback();
   ntShowGateNow();
 }
 
@@ -416,13 +469,66 @@ function ntRenderComparisonPanel() {
 
 // ── System Logs overlay ───────────────────────────────────────────────────────
 
-function ntOpenLogs() {
+// Which seat is CURRENTLY live in ntDebugAttempts on THIS device. MDLM: each device only ever
+// plays its own seat — mpMyPlayerIdx. Solo/PTP: one device drives every turn in sequence, so
+// the "live" seat is whoever most recently had the phone.
+function ntDebugMySeat() {
+  return window.syllyMultiplayerMode === 'single'
+    ? Math.max(0, ntPtpTurn - 1)
+    : mpMyPlayerIdx;
+}
+
+// The full attempt history for one seat, or null if this device never held one. The live seat
+// reads straight off ntDebugAttempts; single-device PTP also keeps every EARLIER seat's history
+// in ntDebugAttemptsBySeat (see its declaration) — this device already paid the memory cost
+// when that player was live, so there's nothing to be gained by discarding it at hand-over.
+// MDLM has no such stash: a device that was never a given seat never held that seat's attempts,
+// full stop — that seat's row falls through to best-only in ntRenderDebugLog/ntOpenLogAttempt.
+function ntDebugAttemptsFor(playerIdx) {
+  if (playerIdx === ntDebugMySeat()) return ntDebugAttempts;
+  if (window.syllyMultiplayerMode === 'single' && ntDebugAttemptsBySeat[playerIdx]) {
+    return ntDebugAttemptsBySeat[playerIdx];
+  }
+  return null;
+}
+
+function ntOpenLogs(playerIdx) {
   playDone();
   const overlay = document.getElementById('nt-logs-overlay');
   if (!overlay) return;
   overlay.querySelector('.overlay-data-inner').scrollTop = 0;
-  ntRenderLogs();
+  if (ntDebugMode) {
+    ntRenderDebugLog(playerIdx != null ? playerIdx : ntDebugMySeat());
+  } else {
+    const pills = document.getElementById('nt-logs-player-chips');
+    if (pills) { pills.style.display = 'none'; pills.innerHTML = ''; }
+    ntRenderLogs();
+  }
   overlay.style.display = 'flex';
+}
+
+// One pill per player, switching WHICH player's attempt log is shown without closing the
+// overlay — added because the top-level System Logs button has no playerIdx argument and so,
+// with no way to switch, could only ever reach ntDebugMySeat() (the last-active player in PTP).
+// The stash in ntDebugAttemptsBySeat means every PTP player gets their full history through
+// these pills, not just a fallback to their best trace.
+function ntRenderDebugLogPills(activeIdx) {
+  const box = document.getElementById('nt-logs-player-chips');
+  if (!box) return;
+  if (!ntDebugMode || ntPlayerCount <= 1) { box.style.display = 'none'; box.innerHTML = ''; return; }
+  box.style.display = 'flex';
+  box.innerHTML = '';
+  ntPlayerNames.forEach((name, i) => {
+    const chip = document.createElement('button');
+    chip.className = 'pill flex-shrink-0' + (i === activeIdx ? ' pill-active-emerald' : '');
+    chip.textContent = name || ('ADMIN-' + (i + 1));
+    chip.addEventListener('click', () => {
+      if (i === activeIdx) return;
+      playPillClick();
+      ntRenderDebugLog(i);
+    });
+    box.appendChild(chip);
+  });
 }
 
 // Render per-cycle cards inside #nt-logs-content — static thumbnails, no RAF.
@@ -512,6 +618,135 @@ function ntRenderLogs() {
     empty.textContent = '// NO CYCLES LOGGED';
     container.appendChild(empty);
   }
+}
+
+// Debug's sibling of ntRenderLogs — one player's history instead of every cycle. A seat this
+// device actually holds a history for (ntDebugAttemptsFor) gets every attempt (newest first,
+// capped — Debug sends no per-attempt packet, so 1,000+ tries costs this device nothing but DOM
+// rows, §6 of the design doc); any other seat gets a single row for their synced best, which is
+// all this device ever held for them.
+const NT_DEBUG_LOG_CAP = 200;
+
+function ntRenderDebugLog(playerIdx) {
+  ntRenderDebugLogPills(playerIdx);
+  const container = document.getElementById('nt-logs-content');
+  if (!container) return;
+  container.innerHTML = '';
+  const THUMB = 64;
+  const attempts = ntDebugAttemptsFor(playerIdx);
+  const isMine = attempts !== null;
+  const name = ntPlayerNames[playerIdx] || ('ADMIN-' + (playerIdx + 1));
+
+  const heading = document.createElement('p');
+  heading.className = 'text-xs font-mono font-semibold text-stone-500 uppercase tracking-widest';
+  heading.textContent = name + (isMine ? ' — every attempt' : ' — best trace only');
+  container.appendChild(heading);
+
+  const bestLatency = isMine && attempts.length
+    ? Math.max(...attempts.map(a => a.latencyMs))
+    : null;
+
+  const rows = isMine
+    ? attempts.map((entry, i) => ({ attemptIdx: i, entry }))
+        .slice(-NT_DEBUG_LOG_CAP).reverse()
+    : [{
+        attemptIdx: null,
+        entry: {
+          placements: ntPtpPlacements[playerIdx] || [],
+          latencyMs:  (ntCycleLatencies[ntCycle] || [])[playerIdx],
+        },
+      }];
+
+  if (isMine && attempts.length > NT_DEBUG_LOG_CAP) {
+    const capNote = document.createElement('p');
+    capNote.className = 'text-stone-400 text-xs font-mono';
+    capNote.textContent = `latest ${NT_DEBUG_LOG_CAP} of ${attempts.length}`;
+    container.appendChild(capNote);
+  }
+
+  const savedPlacements = ntMyPlacements;
+
+  rows.forEach(({ attemptIdx, entry }) => {
+    const isBest = isMine ? (bestLatency != null && entry.latencyMs === bestLatency) : true;
+    const card = document.createElement('div');
+    card.className = 'bg-white rounded-2xl shadow-sm p-4 flex items-center gap-3 active:scale-[0.98] transition-transform duration-100 cursor-pointer';
+    card.addEventListener('click', () => ntOpenLogAttempt(playerIdx, attemptIdx));
+
+    const tw = ntNode.w, th = ntNode.h;
+    const px = THUMB / Math.max(tw, th);
+    const canvas = document.createElement('canvas');
+    canvas.width  = Math.round(tw * px);
+    canvas.height = Math.round(th * px);
+    canvas.style.cssText = 'width:' + canvas.width + 'px;height:' + canvas.height + 'px;border-radius:8px;border:2px solid ' +
+      (isBest ? '#10b981' : '#334155') + ';display:block;flex-shrink:0';
+
+    ntMyPlacements = entry.placements || [];
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = NT_COLOR_BASE;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.save();
+    ctx.strokeStyle = 'rgba(52,211,153,0.12)';
+    ctx.lineWidth = 0.3;
+    for (let li = 0; li <= tw; li++) { ctx.beginPath(); ctx.moveTo(li * px, 0); ctx.lineTo(li * px, canvas.height); ctx.stroke(); }
+    for (let li = 0; li <= th; li++) { ctx.beginPath(); ctx.moveTo(0, li * px); ctx.lineTo(canvas.width, li * px); ctx.stroke(); }
+    ctx.restore();
+    ntDrawMaze(ctx, px);
+
+    const info = document.createElement('div');
+    info.className = 'flex flex-col gap-0.5';
+    info.innerHTML =
+      (attemptIdx != null ? `<p class="text-xs font-mono font-semibold text-stone-500">ATTEMPT ${attemptIdx + 1}</p>` : '') +
+      `<p class="text-sm font-mono ${isBest ? 'text-emerald-600 font-semibold' : 'text-stone-700'}">` +
+        (entry.latencyMs != null ? ntFmtMs(entry.latencyMs) : '--') +
+        (isBest ? ' &#x26A1; BEST' : '') + '</p>';
+
+    card.appendChild(canvas);
+    card.appendChild(info);
+    container.appendChild(card);
+  });
+
+  ntMyPlacements = savedPlacements;
+
+  if (!rows.length) {
+    const empty = document.createElement('p');
+    empty.className = 'text-stone-400 text-sm text-center font-mono';
+    empty.textContent = '// NO ATTEMPTS LOGGED';
+    container.appendChild(empty);
+  }
+}
+
+// Play back one Debug attempt — sibling of ntOpenLogRound, but for a single player's trace
+// rather than a full cross-player comparison. Timeline is ALWAYS recomputed here, never read
+// from a stored field — an attempt entry only ever holds { latencyMs, placements } (§4.2).
+function ntOpenLogAttempt(playerIdx, attemptIdx) {
+  playLaunch();
+  const overlay = document.getElementById('nt-logs-overlay');
+  if (overlay) overlay.style.display = 'none';
+
+  const attempts = ntDebugAttemptsFor(playerIdx);
+  const placements = (attempts && attemptIdx != null)
+    ? (attempts[attemptIdx] ? attempts[attemptIdx].placements : null)
+    : (ntPtpPlacements[playerIdx] || []);
+  if (!placements) { ntOpenLogs(playerIdx); return; }   // out-of-range guard — just reopen the list
+
+  const originalPlacements = ntMyPlacements;
+  const originalTimeline   = ntPlaybackTimeline;
+
+  ntMyPlacements     = placements;
+  ntPlaybackTimeline = ntComputeTimeline_local();
+
+  ntPlaybackContinueCallback = () => {
+    ntMyPlacements     = originalPlacements;
+    ntPlaybackTimeline = originalTimeline;
+    ntOpenLogs(playerIdx);
+  };
+
+  const panel = document.getElementById('nt-comparison-panel');
+  if (panel) panel.style.display = 'none';   // one trace at a time — same as ntDebugRunAttempt
+  const btn = document.getElementById('btn-nt-playback-continue');
+  if (btn) btn.textContent = '← Back to Log';
+
+  ntShowPlayback();
 }
 
 // Open the animated comparison playback for a historical cycle from System Logs.
@@ -1440,7 +1675,9 @@ function ntShowSummary(mode) {
   // match-wide ranking. The host's onward action is a fresh sandbox instead.
   if (ntDebugMode) {
     if (heading)  heading.textContent = 'Diagnostic Summary // STAGING';
-    if (logsBtn)  logsBtn.style.display = 'none';
+    // Finish now lands here directly (design doc §4.1) — the log of every attempt is the
+    // replacement for the playback hop that used to show the winning run automatically.
+    if (logsBtn)  logsBtn.style.display = 'block';
     if (rebootBtn) rebootBtn.style.display = 'block';
     if (nextBtn) {
       const canAuthor = window.syllyMultiplayerMode !== 'client';
@@ -1629,14 +1866,47 @@ function ntPortSub(node, port) {             // config-lattice sub-cell of the m
   const mx = node.w * k - 1, my = node.h * k - 1;
   return { sx: Math.max(0, Math.min(mx, Math.floor(p.x * k))), sy: Math.max(0, Math.min(my, Math.floor(p.y * k))) };
 }
-// ── Mouth span — the port is TWO tiles wide, one at either end of an edge.
-// Derived from { edge, idx }; nothing is stored. The <= / >= (rather than ===) also
-// clamp an out-of-range authored idx rather than returning a tile off the board.
+// ── Mouth span — the port is ALWAYS two edge-units wide.
+// Calibrated against maze.game (`maze-puzzles/boards/`), whose mouth never truncates.
+// At a corner it does one of two things, and NT now has both:
+//   FLUSH   — both units along ONE edge, starting at the corner. 155255 reads
+//             `left idx 0 span 2` (rows 0–1) and `bottom idx 0 span 2` (cols 0–1).
+//   WRAPPED — one unit along EACH of the two edges meeting there. 48154's egress reads
+//             `top/8 span 1 + right/0 span 1`. Both openings front the same tile.
+// NT used to collapse both to a single unit at idx 0 / idx len-1, which is why a door
+// flush against a corner could not be authored at all (owner report, 19 Aug 2026).
+//
+// Derived from { edge, idx, corner? }; `corner` is the only stored addition.
+//   flush / mid-edge  idx clamped to [0, len-2]  →  [idx, idx+1]
+//   wrapped corner    corner: true               →  [idx]
+// A wrapped mouth is ONE unit here on purpose: its second unit lies on the
+// perpendicular edge and fronts the SAME tile, so it gives the router nothing the
+// first unit does not already give. It is a render fact, not a routing one — which is
+// why the L is drawn by ntDrawPortMarker and modelled nowhere else. See ntPortCorner.
 function ntMouthIdxs(port, w, h) {
   const len = (port.edge === 'top' || port.edge === 'bottom') ? w : h;
-  if (port.idx <= 0)       return [0];
-  if (port.idx >= len - 1) return [len - 1];
-  return [port.idx, port.idx + 1];
+  if (port.corner) return [Math.max(0, Math.min(len - 1, port.idx))];
+  const i = Math.max(0, Math.min(len - 2, port.idx));   // also clamps an out-of-range authored idx
+  return [i, i + 1];
+}
+
+// Which corner a WRAPPED mouth occupies, plus the perpendicular edge its second unit
+// runs along. Derived from { edge, idx } alone — a wrapped port's idx is pinned to one
+// END of its edge, and an edge plus an end names exactly one corner. Returns null for
+// every other port, so callers can branch on the return value rather than re-testing
+// `port.corner` themselves.
+function ntPortCorner(port, w, h) {
+  if (!port || !port.corner) return null;
+  const horiz = port.edge === 'top' || port.edge === 'bottom';
+  const far   = port.idx >= (horiz ? w : h) - 1;        // which end of THIS edge
+  const tx = horiz ? (far ? w - 1 : 0) : (port.edge === 'left' ? 0 : w - 1);
+  const ty = horiz ? (port.edge === 'top' ? 0 : h - 1) : (far ? h - 1 : 0);
+  return {
+    tx, ty,
+    perpEdge: horiz ? (tx === 0 ? 'left' : 'right') : (ty === 0 ? 'top' : 'bottom'),
+    perpIdx:  horiz ? ty : tx,
+    name: (ty === 0 ? 'top' : 'bottom') + '-' + (tx === 0 ? 'left' : 'right'),
+  };
 }
 
 // A RESOLVED port is the same { edge, idx } shape with idx pinned to ONE mouth half.
@@ -1815,10 +2085,14 @@ function ntSlotCount(w, h) {
 
 // One bound per EDGE. A single shared n was correct only because generated nodes are
 // square — the same class of latent as ntPortSub's shared clamp (D44).
+// A generated port is always a FLUSH two-unit door — the wrapped corner form exists
+// but is authoring-only, so a rolled node never springs a one-tile door on a player.
+// The roll is bounded at len-2 because that is the last idx a two-unit mouth fits in;
+// rolling len-1 would clamp to the same place and make the roll and the mouth disagree.
 function ntRandomEdgePort(w, h) {
   const edge = ['top', 'right', 'bottom', 'left'][ntRandInt(0, 3)];
   const len  = (edge === 'top' || edge === 'bottom') ? w : h;
-  return { edge, idx: ntRandInt(0, len - 1) };
+  return { edge, idx: ntRandInt(0, len - 2) };
 }
 
 // §10 pipeline → sets ntNode + ntInventory. Re-rolls until Ingress→Egress is valid
@@ -1828,9 +2102,15 @@ function ntRandomEdgePort(w, h) {
 // Used in DNP to generate one node per player while sharing the same cycle inventory.
 // forcedIngressIdx (DNP only): pin this leg's left-edge ingress to a specific row so
 // it lines up with the previous leg's egress — chains the cluster bridge edge-to-edge.
-function ntGenerateNode(keepInventory = false, forcedIngressIdx = null) {
+function ntGenerateNode(keepInventory = false, forcedIngressIdx = null, forcedDims = null) {
   const n = ntMatrixScale;
-  const w = n, h = n;              // generated nodes are always square — only Debug authors rectangles
+  // Generated (rolled) nodes are square by default — the standard match and DNP never pass
+  // forcedDims. Only ntAuthRandomiseTerrain passes the sandbox's own w/h, so a rectangular
+  // Debug board stays the shape it was authored at across a re-roll (fixed 19 Aug 2026 —
+  // previously every axis below used one shared `n`, silently squaring a rectangle; the
+  // same "one bound, two measurements" class as D44/D46/D48).
+  const w = forcedDims ? forcedDims.w : n;
+  const h = forcedDims ? forcedDims.h : n;
   const slots = ntSlotCount(w, h);
   const floor = Math.max(Math.ceil(NT_BADSECTOR_MIN_PCT * slots), ntNativeHoneypots + 2);
   const ceil  = Math.round(NT_BADSECTOR_MAX_PCT * slots);
@@ -1839,8 +2119,9 @@ function ntGenerateNode(keepInventory = false, forcedIngressIdx = null) {
   for (let attempt = 0; attempt < 400; attempt++) {
     let ingress, egress;
     if (ntIsDNP()) {
-      ingress = { edge: 'left',  idx: (forcedIngressIdx != null ? forcedIngressIdx : ntRandInt(0, n - 1)) };
-      egress  = { edge: 'right', idx: ntRandInt(0, n - 1) };
+      // DNP never passes forcedDims — always square, so h === w here regardless.
+      ingress = { edge: 'left',  idx: (forcedIngressIdx != null ? forcedIngressIdx : ntRandInt(0, h - 2)) };
+      egress  = { edge: 'right', idx: ntRandInt(0, h - 2) };
     } else {
       ingress = ntRandomEdgePort(w, h);
       do { egress = ntRandomEdgePort(w, h); } while (egress.edge === ingress.edge);
@@ -1852,10 +2133,10 @@ function ntGenerateNode(keepInventory = false, forcedIngressIdx = null) {
     // door and any narrowing is player-caused. Spec §7.2.
     const isMouth = (tx, ty) => mouthTiles.some(([mx, my]) => mx === tx && my === ty);
     // Place disjoint 2×2 bad-sector blocks (zero-overlap; never on a port mouth tile).
-    const occupied = []; for (let y = 0; y < n; y++) occupied.push(new Array(n).fill(false));
+    const occupied = []; for (let y = 0; y < h; y++) occupied.push(new Array(w).fill(false));
     const tryMark = (ax, ay) => {
       const tiles = ntBlockTiles(ax, ay);
-      for (const [tx, ty] of tiles) { if (tx >= n || ty >= n || occupied[ty][tx] || isMouth(tx, ty)) return false; }
+      for (const [tx, ty] of tiles) { if (tx >= w || ty >= h || occupied[ty][tx] || isMouth(tx, ty)) return false; }
       for (const [tx, ty] of tiles) occupied[ty][tx] = true;
       return true;
     };
@@ -1863,7 +2144,7 @@ function ntGenerateNode(keepInventory = false, forcedIngressIdx = null) {
     const badSectors = [];
     let guard = 0;
     while (badSectors.length < badCount && guard++ < slots * 8) {
-      const ax = ntRandInt(0, n - 2), ay = ntRandInt(0, n - 2);
+      const ax = ntRandInt(0, w - 2), ay = ntRandInt(0, h - 2);
       if (occupied[ay][ax]) continue;
       if (tryMark(ax, ay)) badSectors.push({ ax, ay });
     }
@@ -1878,7 +2159,7 @@ function ntGenerateNode(keepInventory = false, forcedIngressIdx = null) {
     break;
   }
   if (!node) { // pathological fallback — empty board, opposite-edge ports
-    node = { w, h, ingress: { edge: 'left', idx: (forcedIngressIdx != null ? forcedIngressIdx : (n >> 1)) }, egress: { edge: 'right', idx: (n >> 1) }, badSectors: [], nativeHoneypots: [] };
+    node = { w, h, ingress: { edge: 'left', idx: (forcedIngressIdx != null ? forcedIngressIdx : (h >> 1)) }, egress: { edge: 'right', idx: (h >> 1) }, badSectors: [], nativeHoneypots: [] };
   }
 
   ntNode = node;
@@ -1909,8 +2190,10 @@ function ntHoneypotCentres(node, placements) {
 // NO artificial turn cost — corner delay is already in the polyline geometry (the
 // runner's 0.25 clearance pushes the taut path out around every offset corner).
 // Slow = 0.5× speed for NT_HONEYPOT_DURATION after a trigger (timer; persists outside
-// the AoE); per-honeypot cooldown; non-stacking (re-trigger extends the window).
-// AoE is the per-tick squared check (dx*dx + dy*dy <= 18).
+// the AoE); fires the instant the runner is within radius of a honeypot whose own
+// cooldown has fully elapsed — see checkFires; non-stacking (a re-trigger resets the
+// window, never deepens the slow).
+// AoE is the per-tick squared check against the block FOOTPRINT (dx*dx + dy*dy <= 8).
 // Returns { polyline, fires:[{x,y,atMs}], slowSpans:[[startMs,endMs]], samples, latencyMs }.
 function ntComputeTimeline(polyline, honeypots) {
   if (!polyline || polyline.length < 2) return { polyline: polyline || [], fires: [], slowSpans: [], samples: [], latencyMs: 0 };
@@ -1918,32 +2201,114 @@ function ntComputeTimeline(polyline, honeypots) {
   const fires = [];
   const slowSpans = [];
   const samples = [{ t: 0, x: polyline[0].x, y: polyline[0].y }]; // trajectory for the renderer
-  const lastFired = honeypots.map(() => -Infinity);
+  // PURE COOLDOWN GATE (SW v209, 20 Aug 2026, replacing v208's entry-triggered-plus-
+  // refresh rule below). Every honeypot starts primed (lastFire = -Infinity) and fires
+  // the instant the runner is within radius. Once fired, it is DEAF to the AoE —
+  // entering, leaving, re-entering — until its own NT_HONEYPOT_DURATION has fully
+  // elapsed; only then can it fire again, immediately if the runner is still inside,
+  // or on the next entry after that if not. A new fire RESETS the window to a fresh
+  // NT_HONEYPOT_DURATION rather than extending whatever was left of the old one.
+  //
+  // v208's entry-triggered branch (`!inside[i] ||`) was motivated by a supposed
+  // 29,727/30,114/29,727 ms spacing on the owner's 191490 daily — but that spacing was
+  // measured against a trigger COUNT that was itself wrong (`hits:[2,2,2]`, corrected
+  // 20 Aug 2026 to the real `[3,2,2]`). Against the corrected count the model's own
+  // fire gaps for that board are 21.8s/25.1s/27.4s/128.3s — none within a second of
+  // 30,000ms — so the pattern that justified entry-triggering never existed. The
+  // owner's own Debug Mode session then reproduced the entry-triggered branch's real
+  // failure mode directly: a honeypot re-firing well before its cooldown had elapsed,
+  // from an ordinary brief exit/re-entry the old rule treated as a fresh trigger.
+  //
+  // Pure cooldown-gating is also a strictly better fit than the branch it replaced —
+  // 111378 −14.2% → −10.3%, 155255 −3.15% → −0.25% — with every other board's trigger
+  // count and error untouched. `inside[]` tracking is gone; nothing reads it once entry
+  // is no longer a firing condition.
+  const lastFire = honeypots.map(() => -Infinity);
   let slowUntil = -Infinity;
 
   const checkFires = (x, y) => {
     honeypots.forEach((h, i) => {
-      const dx = h.x - x, dy = h.y - y;
-      if (dx * dx + dy * dy <= NT_HONEYPOT_RADIUS_SQ && elapsed >= lastFired[i] + NT_HONEYPOT_COOLDOWN) {
-        lastFired[i] = elapsed;
+      // FOOTPRINT distance: nearest point on the block's 2×2 rectangle (centre ± 1
+      // tile), not distance-to-centre — see NT_HONEYPOT_RADIUS.
+      const nx = Math.max(h.x - 1, Math.min(x, h.x + 1));
+      const ny = Math.max(h.y - 1, Math.min(y, h.y + 1));
+      const dx = nx - x, dy = ny - y;
+      const within = dx * dx + dy * dy <= NT_HONEYPOT_RADIUS_SQ;
+      if (within && elapsed >= lastFire[i] + NT_HONEYPOT_DURATION) {
+        lastFire[i] = elapsed;
         const prevUntil = slowUntil;
-        slowUntil = Math.max(slowUntil, elapsed + NT_HONEYPOT_DURATION);
+        slowUntil = elapsed + NT_HONEYPOT_DURATION;
         if (prevUntil <= elapsed) slowSpans.push([elapsed, slowUntil]); else slowSpans[slowSpans.length - 1][1] = slowUntil;
         fires.push({ x: h.x, y: h.y, atMs: elapsed });
       }
     });
   };
 
+  // ── Corner braking profile (see NT_TURN_COST) ────────────────────────────────
+  // Eligible vertices are the MAZE corners only — indices 3 … len-4. Indices 1/2 and
+  // the mirrored pair at the end are the PORT MOUTH joints, where the stub geometry
+  // forces the runner perpendicular to the board edge regardless of what the maze
+  // looks like. Charging those is what made an almost-empty board score 2% high while
+  // the dense boards were exact, so they are deliberately free.
+  const brakes = [];
+  const cumAt = [0];
+  for (let i = 1; i < polyline.length; i++) {
+    cumAt.push(cumAt[i - 1] + Math.hypot(polyline[i].x - polyline[i - 1].x, polyline[i].y - polyline[i - 1].y));
+  }
+  for (let i = 3; i <= polyline.length - 4; i++) {
+    const ax = polyline[i].x - polyline[i - 1].x, ay = polyline[i].y - polyline[i - 1].y;
+    const bx = polyline[i + 1].x - polyline[i].x, by = polyline[i + 1].y - polyline[i].y;
+    const la = Math.hypot(ax, ay), lb = Math.hypot(bx, by);
+    if (la < 1e-9 || lb < 1e-9) continue;
+    const cos = Math.max(-1, Math.min(1, (ax * bx + ay * by) / (la * lb)));
+    const theta = Math.acos(cos);
+    if (theta < 0.01) continue;                       // collinear vertex, not a corner
+    // The window is clamped to the adjacent segments so two corners in a tight
+    // dog-leg cannot brake through each other. Clamping changes only how SHARP the
+    // slowdown feels — the integral below still delivers the full cost either way.
+    brakes.push({
+      s: cumAt[i],
+      w: Math.max(0.05, Math.min(NT_TURN_BRAKE, la * 0.45, lb * 0.45)),
+      cost: NT_TURN_COST * Math.sin(theta / 2) / NT_SIN45,
+    });
+  }
+
+  // Braking time accumulated from the path start up to arclength s, under a triangular
+  // profile peaking at the corner and reaching zero at ±w. Taking the exact INTEGRAL
+  // (rather than sampling the rate at each substep) is what makes the total added time
+  // equal the calibrated cost regardless of NT_SUBSTEP — so the score never depends on
+  // the integration resolution, only the animation smoothness does.
+  const brakeUpTo = (s) => {
+    let sum = 0;
+    for (const b of brakes) {
+      const d = s - b.s;
+      if (d <= -b.w) continue;
+      if (d >= b.w) { sum += b.cost; continue; }
+      sum += d <= 0
+        ? (b.cost / b.w) * (d + (d * d) / (2 * b.w) + b.w / 2)
+        : b.cost / 2 + (b.cost / b.w) * (d - (d * d) / (2 * b.w));
+    }
+    return sum;
+  };
+  const nearBrake = (s) => brakes.some(b => Math.abs(s - b.s) < b.w + 0.05);
+
   checkFires(polyline[0].x, polyline[0].y);
+  let travelledTotal = 0;
   for (let i = 1; i < polyline.length; i++) {
     const from = polyline[i - 1], to = polyline[i];
     const segLen = Math.hypot(to.x - from.x, to.y - from.y);
     let travelled = 0;
     while (travelled < segLen - 1e-9) {
-      const ds = Math.min(NT_SUBSTEP, segLen - travelled);
+      // Finer steps only INSIDE a braking window. samples[] is broadcast in NT_PLAYBACK,
+      // so a global resolution bump would be a wire cost on every leg of every cycle;
+      // this adds a handful of points per corner and nothing anywhere else.
+      const step = nearBrake(travelledTotal) ? NT_SUBSTEP / 3 : NT_SUBSTEP;
+      const ds = Math.min(step, segLen - travelled);
       const slowed = elapsed < slowUntil;
-      elapsed += (ds * NT_BASE_TILE_TIME) / (slowed ? NT_HONEYPOT_SLOW : 1);
+      const brake = brakeUpTo(travelledTotal + ds) - brakeUpTo(travelledTotal);
+      elapsed += (ds * NT_BASE_TILE_TIME + brake) / (slowed ? NT_HONEYPOT_SLOW : 1);
       travelled += ds;
+      travelledTotal += ds;
       const t = travelled / segLen;
       const x = from.x + (to.x - from.x) * t, y = from.y + (to.y - from.y) * t;
       checkFires(x, y);
@@ -1989,14 +2354,45 @@ function ntRenderSummary() {
   const capEl = document.getElementById('nt-summary-caption');
   if (capEl) {
     if (ntDebugMode) {
-      const seat = window.syllyMultiplayerMode === 'single' ? 0 : mpMyPlayerIdx;
-      const n = ntDebugAttemptCounts[seat] || ntDebugMyAttempt || 1;
+      const n = ntDebugAttemptCounts[ntDebugMySeat()] || ntDebugMyAttempt || 1;
       capEl.textContent   = `STAGING — scored on your best of ${n} attempt${n === 1 ? '' : 's'}`;
       capEl.style.display = '';
     } else {
       capEl.textContent   = '';
       capEl.style.display = 'none';
     }
+  }
+
+  // Debug MDLM — one row per player: name, tries, best latency, tappable to open that
+  // player's log (design doc §4.4). No packet change: everything here already arrived on
+  // the wire — ntDebugAttemptCounts via NT_DEBUG_ROSTER, ntPtpPlacements/ntCycleLatencies
+  // via NT_PLAYBACK. PTP (same device, no network) keeps the generic leaderboard below —
+  // this table is specifically for separate-device MDLM, where "my row vs their row" means
+  // something (§5's own-full-log-vs-best-only split).
+  if (ntDebugMode && window.syllyMultiplayerMode !== 'single') {
+    const lats = ntCycleLatencies[ntCycle] || [];
+    const bestIdx = lats.reduce((best, v, i) => (v || 0) > (lats[best] || 0) ? i : best, 0);
+    const bestName = ntPlayerNames[bestIdx] || ('ADMIN-' + (bestIdx + 1));
+    if (labelEl) labelEl.textContent = 'Best Trace';
+    if (serEl)   serEl.textContent   = bestName;
+    if (rawEl)   rawEl.textContent   = lats.length ? ntFmtMs(lats[bestIdx] || 0) : '--';
+    if (board) {
+      board.innerHTML = '';
+      const order = lats.map((_, i) => i).sort((a, b) => (lats[b] || 0) - (lats[a] || 0));
+      order.forEach(i => {
+        const name  = ntPlayerNames[i] || ('ADMIN-' + (i + 1));
+        const tries = ntDebugAttemptCounts[i] || 0;
+        const lat   = lats[i];
+        const row = document.createElement('div');
+        row.className = 'flex items-center justify-between bg-white rounded-xl px-4 py-2 text-sm active:scale-[0.98] transition-transform duration-100 cursor-pointer';
+        row.innerHTML = `<span class="text-stone-500 font-mono">${name}</span>` +
+                        `<span class="text-stone-400 font-mono text-xs">${tries} tr</span>` +
+                        `<span class="text-stone-800 font-mono font-semibold">${lat != null ? ntFmtMs(lat) : '--'}</span>`;
+        row.addEventListener('click', () => ntOpenLogs(i));
+        board.appendChild(row);
+      });
+    }
+    return;
   }
 
   // Solo: raw latency is the headline (SER is trivially 100%); show accumulated on final.
@@ -2243,26 +2639,45 @@ function ntUpdateGhostAt(tx, ty) {
 const NT_PORT_ARROWS = { top:  { in: '▼', out: '▲' }, bottom: { in: '▲', out: '▼' },
                          left: { in: '▶', out: '◀' }, right:  { in: '◀', out: '▶' } };
 
-function ntDrawPortMarker(grid, port, color, inward, w, h) {
-  if (!grid || !port) return null;
+// One SEGMENT of a marker — a bar of `units` tiles starting at `first` along `edge`.
+// A flush or mid-edge mouth is one segment; a WRAPPED corner mouth is two, one per
+// edge, which is what draws the L that maze.game shows (48154). Both segments are
+// real positioned elements; only the first carries the direction arrow and the
+// `nt-port-marker` class, so "how many ports are drawn" stays a count of markers
+// rather than of bars.
+function ntDrawPortSegment(grid, edge, first, units, color, arrow, primary, w, h) {
   const m = document.createElement('div');
-  m.className = 'absolute pointer-events-none rounded-sm flex items-center justify-center';
+  m.className = 'absolute pointer-events-none rounded-sm flex items-center justify-center ' +
+                (primary ? 'nt-port-marker' : 'nt-port-wrap');
   m.style.background = color;
   m.style.boxShadow = `0 0 6px ${color}`;
-  // A marker spans the port's MOUTH along its own edge — horizontal edges divide by w,
-  // vertical by h. A corner mouth is one unit, a standard mouth two.
-  const idxs = ntMouthIdxs(port, w, h), first = idxs[0], units = idxs.length;
+  // A segment spans its own edge's axis — horizontal edges divide by w, vertical by h.
   const spanX = `calc(${(100 * units) / w}%)`, spanY = `calc(${(100 * units) / h}%)`;
   const off = '-3px', thick = '6px';
-  if (port.edge === 'top')         { m.style.left = `${(first / w) * 100}%`; m.style.width = spanX; m.style.top = off; m.style.height = thick; }
-  else if (port.edge === 'bottom') { m.style.left = `${(first / w) * 100}%`; m.style.width = spanX; m.style.bottom = off; m.style.height = thick; }
-  else if (port.edge === 'left')   { m.style.top = `${(first / h) * 100}%`; m.style.height = spanY; m.style.left = off; m.style.width = thick; }
-  else                             { m.style.top = `${(first / h) * 100}%`; m.style.height = spanY; m.style.right = off; m.style.width = thick; }
-  const a = document.createElement('span');
-  a.style.cssText = 'font-size:5px;line-height:1;color:#fff;pointer-events:none';
-  a.textContent = NT_PORT_ARROWS[port.edge][inward ? 'in' : 'out'];
-  m.appendChild(a);
+  if (edge === 'top')         { m.style.left = `${(first / w) * 100}%`; m.style.width = spanX; m.style.top = off; m.style.height = thick; }
+  else if (edge === 'bottom') { m.style.left = `${(first / w) * 100}%`; m.style.width = spanX; m.style.bottom = off; m.style.height = thick; }
+  else if (edge === 'left')   { m.style.top = `${(first / h) * 100}%`; m.style.height = spanY; m.style.left = off; m.style.width = thick; }
+  else                        { m.style.top = `${(first / h) * 100}%`; m.style.height = spanY; m.style.right = off; m.style.width = thick; }
+  if (arrow) {
+    const a = document.createElement('span');
+    a.style.cssText = 'font-size:5px;line-height:1;color:#fff;pointer-events:none';
+    a.textContent = arrow;
+    m.appendChild(a);
+  }
   grid.appendChild(m);
+  return m;
+}
+
+function ntDrawPortMarker(grid, port, color, inward, w, h) {
+  if (!grid || !port) return null;
+  const idxs = ntMouthIdxs(port, w, h);
+  const m = ntDrawPortSegment(grid, port.edge, idxs[0], idxs.length, color,
+                              NT_PORT_ARROWS[port.edge][inward ? 'in' : 'out'], true, w, h);
+  // The wrapped corner's second unit, on the perpendicular edge. Deliberately drawn
+  // WITHOUT an arrow: the runner uses one stub, and two arrows at one corner would
+  // read as two ports.
+  const c = ntPortCorner(port, w, h);
+  if (c) ntDrawPortSegment(grid, c.perpEdge, c.perpIdx, 1, color, null, false, w, h);
   return m;
 }
 
@@ -2536,6 +2951,8 @@ function ntShowAuthoring() {
   ntHoneypotUsed = 0;
   ntDebugMyAttempt     = 0;
   ntDebugBest          = null;
+  ntDebugAttempts      = [];
+  ntDebugAttemptsBySeat = [];
   ntDebugFinished      = [];
   ntDebugAttemptCounts = [];
   // Symmetric with the opening: every other device returns to the same standby it saw at the
@@ -2651,6 +3068,29 @@ function ntAuthRemoveTerrain(b) {
 // user. The two genuine constraints remain: the mouths must differ, and the node must route.
 // "Differ" now means tile-set DISJOINT, not idx-unequal — two-unit mouths make near-misses
 // overlap, and two corner ports on different edges can share one physical tile.
+// The placements a tap offers, in cycle order. Away from a corner there is exactly
+// one — the tap means what it has always meant. AT a corner there are three, because
+// maze.game has three distinct doors there and a single tap cannot name them:
+//   1. WRAPPED  — one unit on each edge, one tile  (48154's egress)
+//   2. FLUSH along the tapped edge                 (155255's `bottom idx 0 span 2`)
+//   3. FLUSH along the perpendicular edge          (155255's `left idx 0 span 2`)
+// Tapping the corner again advances the cycle, which is what makes all three
+// reachable without a drag gesture or a second control. Owner-requested, 19 Aug 2026.
+function ntPortCandidates(edge, idx, w, h) {
+  const len = (edge === 'top' || edge === 'bottom') ? w : h;
+  if (idx > 0 && idx < len - 1) return [{ edge, idx }];         // not a corner — one option
+  const wrapped = { edge, idx, corner: true };
+  const c = ntPortCorner(wrapped, w, h);
+  const perpLen = (c.perpEdge === 'top' || c.perpEdge === 'bottom') ? w : h;
+  return [
+    wrapped,
+    { edge,        idx: idx === 0 ? 0 : len - 2 },
+    { edge: c.perpEdge, idx: c.perpIdx === 0 ? 0 : perpLen - 2 },
+  ];
+}
+
+const ntSamePort = (a, b) => !!a && !!b && a.edge === b.edge && a.idx === b.idx && !!a.corner === !!b.corner;
+
 function ntAuthSetPort(tx, ty) {
   const w = ntNode.w, h = ntNode.h;
   const nearest = [
@@ -2659,26 +3099,33 @@ function ntAuthSetPort(tx, ty) {
     { edge: 'left',   d: tx,         idx: ty },
     { edge: 'right',  d: w - 1 - tx, idx: ty },
   ].sort((a, b) => a.d - b.d)[0];
-  const pick  = { edge: nearest.edge, idx: nearest.idx };
   const key   = ntDebugBrush;                                    // 'ingress' | 'egress'
   const other = key === 'ingress' ? ntNode.egress : ntNode.ingress;
-  // Two-unit mouths make near-misses overlap, and two corner ports on DIFFERENT edges
-  // can share one physical tile. The rule this file already states — "the mouths must
-  // differ" — generalises to tile-set intersection. Spec §7.5.
-  if (ntMouthsIntersect(pick, other, w, h)) {
-    ntFlashReject(ntBuildCells[ty] && ntBuildCells[ty][tx]);
+  const prev  = ntNode[key];
+
+  // Start the cycle one PAST whatever the port already is, so a repeat tap advances
+  // rather than re-applying. A port that isn't in this list starts at the front.
+  const cands = ntPortCandidates(nearest.edge, nearest.idx, w, h);
+  const at    = cands.findIndex(c => ntSamePort(c, prev));
+  const order = cands.map((_, i) => cands[(at + 1 + i) % cands.length]);
+
+  // Try each in turn rather than rejecting outright: at a corner, the wrapped form can
+  // be sealed by terrain while a flush form still routes, and refusing the whole tap
+  // in that case would look like a dead control. Only an exhausted cycle rejects.
+  for (const pick of order) {
+    // Two-unit mouths make near-misses overlap, and two corner ports on DIFFERENT
+    // edges can share one physical tile. The rule this file already states — "the
+    // mouths must differ" — generalises to tile-set intersection. Spec §7.5.
+    if (ntMouthsIntersect(pick, other, w, h)) continue;
+    ntNode[key] = pick;
+    if (!ntPathExists(ntNode, [])) { ntNode[key] = prev; continue; }
+    playPillClick();
+    ntSetRouting('valid');
+    ntSyncAuthUI();       // the hint names the form the port is now in
+    ntRenderAuthGrid();   // port markers are appended to the grid — a full re-render moves them
     return;
   }
-  const prev = ntNode[key];
-  ntNode[key] = pick;
-  if (!ntPathExists(ntNode, [])) {
-    ntNode[key] = prev;
-    ntFlashReject(ntBuildCells[ty] && ntBuildCells[ty][tx]);
-    return;
-  }
-  playPillClick();
-  ntSetRouting('valid');
-  ntRenderAuthGrid();   // port markers are appended to the grid — a full re-render moves them
+  ntFlashReject(ntBuildCells[ty] && ntBuildCells[ty][tx]);
 }
 
 // Budget ceilings, both lifted from ntGenerateNode's own roll (nt.js:1730–1731).
@@ -2689,6 +3136,18 @@ function ntAuthMaxFirewall() {
 }
 function ntAuthMaxHoneypot() {
   return Math.max(0, NT_HONEYPOT_CAP - (ntNode ? ntNode.nativeHoneypots.length : 0));
+}
+
+// The corner cycle is invisible unless the hint says so — a control that changes
+// behaviour on a repeat tap has to announce it, or it reads as a bug the first time a
+// second tap moves the port somewhere unexpected.
+function ntPortFormHint(key) {
+  const port = ntNode && ntNode[key];
+  if (!port) return '';
+  const len = (port.edge === 'top' || port.edge === 'bottom') ? ntNode.w : ntNode.h;
+  if (port.corner) return 'At a corner: tap again for a flush door.';
+  if (port.idx <= 0 || port.idx >= len - 2) return 'At a corner: tap again to cycle the door.';
+  return '';
 }
 
 function ntSyncAuthUI() {
@@ -2711,29 +3170,24 @@ function ntSyncAuthUI() {
     hint.textContent = {
       bad:     'Tap to draw a Bad Sector. Tap it again to erase.',
       native:  `Tap to drop a Native Honeypot — ${natives} of ${ntNativeHoneypots} placed.`,
-      ingress: 'Tap anywhere to move the Ingress port to the nearest edge.',
-      egress:  'Tap anywhere to move the Egress port to the nearest edge.',
+      ingress: 'Tap anywhere to move the Ingress port to the nearest edge. ' + ntPortFormHint('ingress'),
+      egress:  'Tap anywhere to move the Egress port to the nearest edge. ' + ntPortFormHint('egress'),
     }[ntDebugBrush] || '';
   }
 }
 
 // Randomise Terrain — ntGenerateNode(true) already means exactly "re-roll the geometry, leave
 // the budget alone" (its keepInventory argument, nt.js:1728). A parameter reuse, not new logic.
-// Ports are NOT terrain, though: ntGenerateNode re-rolls ingress/egress unconditionally, which
-// would silently wipe a hand-placed pair (ntAuthSetPort deliberately allows placements the
-// generator itself would never roll — same-edge mouths, close corners). Restore the authored
-// pair over the freshly-rolled terrain, but only keep it if it still routes; otherwise fall
-// back to whatever ntGenerateNode rolled alongside that terrain.
+// Ports re-roll too (owner-requested, 19 Aug 2026) — a full re-roll, nothing preserved. Earlier
+// this restored a hand-authored ingress/egress pair over the fresh terrain (kept if it still
+// routed, otherwise fell back to the roll's own pair); the owner wants Randomise Terrain to mean
+// what it says, so that restore step is gone. ntGenerateNode's own candidate loop already
+// guarantees whatever it rolls routes — nothing left to validate here.
+// The sandbox's own w/h are passed explicitly (fixed 19 Aug 2026) — without forcedDims,
+// ntGenerateNode defaults to a square ntMatrixScale × ntMatrixScale board, silently
+// un-rectangling a Debug sandbox authored at, say, 16×20.
 function ntAuthRandomiseTerrain() {
-  const authoredIngress = ntNode.ingress, authoredEgress = ntNode.egress;
-  ntGenerateNode(true);
-  const rolledIngress = ntNode.ingress, rolledEgress = ntNode.egress;
-  ntNode.ingress = authoredIngress;
-  ntNode.egress  = authoredEgress;
-  if (!ntPathExists(ntNode, [])) {
-    ntNode.ingress = rolledIngress;
-    ntNode.egress  = rolledEgress;
-  }
+  ntGenerateNode(true, null, { w: ntNode.w, h: ntNode.h });
   ntRenderAuthGrid();
   ntSyncAuthUI();
   ntSetRouting('valid');
@@ -2770,6 +3224,8 @@ function ntDeployNode() {
   ntDebugAttemptCounts = new Array(ntPlayerCount).fill(0);
   ntDebugMyAttempt     = 0;
   ntDebugBest          = null;
+  ntDebugAttempts      = [];
+  ntDebugAttemptsBySeat = [];
 
   if (window.syllyMultiplayerMode === 'host') {
     mpSendEnvelope({
@@ -2799,6 +3255,9 @@ function ntDebugRunAttempt() {
   const prevBest = ntDebugBest ? ntDebugBest.latencyMs : null;
   const isBest   = prevBest === null || latency > prevBest;
   if (isBest) ntDebugBest = { latencyMs: latency, placements: ntMyPlacements.slice(), timeline };
+  // Placements + latency only — never the timeline (§4.2). ntComputeTimeline_local() is pure,
+  // so any attempt's timeline is recomputed on demand when its log row is opened.
+  ntDebugAttempts.push({ latencyMs: latency, placements: ntMyPlacements.slice() });
 
   ntPlaybackTimeline = timeline;
   const panel = document.getElementById('nt-comparison-panel');
@@ -2912,11 +3371,19 @@ function ntDebugFinish() {
     ntMyPlacements = []; ntFirewallUsed = 0; ntHoneypotUsed = 0;
     ntDebugMyAttempt = 0;
     ntDebugBest      = null;
+    // Stash the seat that just finished (ntPtpTurn was already incremented above, so
+    // ntPtpTurn - 1 is them, not the incoming player) before clearing the live array for the
+    // next turn — this device already holds the memory, so unlike MDLM there's no reason to
+    // throw it away. Miss this and the next player's log opens showing the previous player's
+    // attempts as their own (the original trap the design doc named); miss the STASH and you
+    // get the bug an owner playtest actually hit — the earlier seat's history silently gone.
+    ntDebugAttemptsBySeat[ntPtpTurn - 1] = ntDebugAttempts;
+    ntDebugAttempts  = [];
     ntBeginPtpTurn();
   } else {
     ntResolveCyclePtp();
     if (ntPlayerCount > 1) ntShowGatherGate();
-    else ntShowComparisonPlayback();
+    else ntShowSummary('match');
   }
 }
 
@@ -3196,14 +3663,26 @@ function ntDrawMaze(ctx, px) {
   const t = Math.max(4, px * 0.4);
   const BARROWS = { top: { in: '▼', out: '▲' }, bottom: { in: '▲', out: '▼' },
                     left: { in: '▶', out: '◀' }, right:  { in: '◀', out: '▶' } };
+  // One bar per SEGMENT, spanning the real mouth. This used to draw a fixed `px` —
+  // one tile — for every port, so the playback canvas showed a half-width door on
+  // every standard two-unit mouth while the build grid showed the true one. Now both
+  // read ntMouthIdxs, and a wrapped corner mouth draws its second unit on the
+  // perpendicular edge (the L that maze.game shows).
+  const barSeg = (edge, first, units, color) => {
+    const run = units * px;
+    if (edge === 'top')         { ctx.fillRect(first * px, -t / 2, run, t);                    return [first * px + run / 2, 0]; }
+    if (edge === 'bottom')      { ctx.fillRect(first * px, canvas.height - t / 2, run, t);     return [first * px + run / 2, canvas.height]; }
+    if (edge === 'left')        { ctx.fillRect(-t / 2, first * px, t, run);                    return [0, first * px + run / 2]; }
+    ctx.fillRect(canvas.width - t / 2, first * px, t, run);                                    return [canvas.width, first * px + run / 2];
+  };
   const bar = (port, color, inward) => {
     ctx.save(); ctx.fillStyle = color; ctx.shadowColor = color; ctx.shadowBlur = 8;
-    let cx, cy;
-    if (port.edge === 'top')         { ctx.fillRect(port.idx * px, -t / 2, px, t);                       cx = port.idx * px + px / 2; cy = 0; }
-    else if (port.edge === 'bottom') { ctx.fillRect(port.idx * px, canvas.height - t / 2, px, t);         cx = port.idx * px + px / 2; cy = canvas.height; }
-    else if (port.edge === 'left')   { ctx.fillRect(-t / 2, port.idx * px, t, px);                        cx = 0;            cy = port.idx * px + px / 2; }
-    else                             { ctx.fillRect(canvas.width - t / 2, port.idx * px, t, px);          cx = canvas.width; cy = port.idx * px + px / 2; }
-    // Tiny direction arrow centred on the bar
+    const idxs = ntMouthIdxs(port, ntNode.w, ntNode.h);
+    const [cx, cy] = barSeg(port.edge, idxs[0], idxs.length, color);
+    const c = ntPortCorner(port, ntNode.w, ntNode.h);
+    if (c) barSeg(c.perpEdge, c.perpIdx, 1, color);
+    // Tiny direction arrow, centred on the primary bar only — two arrows at one corner
+    // would read as two ports.
     ctx.shadowBlur = 0; ctx.fillStyle = '#fff';
     ctx.font = `bold ${Math.max(5, Math.round(t * 0.85))}px sans-serif`;
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -3224,6 +3703,29 @@ function ntSampleAt(simMs) {
   while (lo + 1 < hi) { const mid = (lo + hi) >> 1; (s[mid].t <= simMs ? lo = mid : hi = mid); }
   const a = s[lo], b = s[hi], f = (simMs - a.t) / (b.t - a.t || 1);
   return { x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f };
+}
+
+// Traces the honeypot's real AoE shape into ctx's current path: the Minkowski sum of
+// the block's 2×2 footprint (tile-space [cx-1,cx+1]×[cy-1,cy+1]) with a disk of radius
+// r — a rounded square, straight edges offset by r, quarter-circle corners of radius r
+// centred on the footprint's own corners. This is what checkFires actually tests
+// against (see NT_HONEYPOT_RADIUS); a plain circle from the centre would draw a
+// smaller, wrong-shaped ring that under-represents the reach at the block's edges.
+// r=0 degenerates to the bare footprint square, which is what the draining disc
+// animation approaches as its cooldown nears expiry.
+function ntAoEPath(ctx, cx, cy, r, px) {
+  const x0 = (cx - 1) * px, y0 = (cy - 1) * px, x1 = (cx + 1) * px, y1 = (cy + 1) * px, rp = r * px;
+  ctx.beginPath();
+  ctx.moveTo(x0, y0 - rp);
+  ctx.lineTo(x1, y0 - rp);
+  ctx.arc(x1, y0, rp, -Math.PI / 2, 0);
+  ctx.lineTo(x1 + rp, y1);
+  ctx.arc(x1, y1, rp, 0, Math.PI / 2);
+  ctx.lineTo(x0, y1 + rp);
+  ctx.arc(x0, y1, rp, Math.PI / 2, Math.PI);
+  ctx.lineTo(x0 - rp, y0);
+  ctx.arc(x0, y0, rp, Math.PI, Math.PI * 1.5);
+  ctx.closePath();
 }
 
 function ntRenderFrame(simMs, updateScrubber) {
@@ -3261,7 +3763,7 @@ function ntRenderFrame(simMs, updateScrubber) {
     ntHoneypotCentres(ntNode, ntMyPlacements).forEach(h => {
       if (activeFires.has(`${h.x},${h.y}`)) return;
       ctx.save(); ctx.globalAlpha = 0.16; ctx.strokeStyle = NT_COLOR_HONEYPOT; ctx.lineWidth = 1.5;
-      ctx.beginPath(); ctx.arc(h.x * px, h.y * px, NT_HONEYPOT_RADIUS * px, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+      ntAoEPath(ctx, h.x, h.y, NT_HONEYPOT_RADIUS, px); ctx.stroke(); ctx.restore();
     });
     // Traversed trail — smooth tail→head alpha gradient; colour by slow state at each segment.
     // Batched in groups of FADE_BATCH so lineJoin='round' handles corner smoothing within each batch.
@@ -3299,24 +3801,28 @@ function ntRenderFrame(simMs, updateScrubber) {
       ctx.restore();
     }
 
-    // Draining AoE disc + clock-wipe — both animate for the full cooldown window (~7s real at 5×).
+    // Draining AoE disc + clock-wipe — both animate for the live SLOW window (~6s real
+    // at 5×). This reads as a RECHARGE: the honeypot is locked out (deaf to the AoE,
+    // entry or exit — SW v209) for its cooldown, and the disc/wedge fills back up as
+    // it re-arms.
     (tl.fires || []).forEach(f => {
       const age = simMs - f.atMs;
       if (age < 0 || age >= NT_HONEYPOT_COOLDOWN) return;
-      const progress = age / NT_HONEYPOT_COOLDOWN; // 0.0 = just triggered → 1.0 = recharged
+      const progress = age / NT_HONEYPOT_COOLDOWN; // 0.0 = just triggered → 1.0 = slow expired
       const cx = f.x * px, cy = f.y * px;
       const half = px; // 1 tile in canvas-px; the 2×2 block half-size = px
 
-      // AoE disc — filled fuchsia circle that starts at full threat radius and drains to zero.
-      const discR = NT_HONEYPOT_RADIUS * px * (1 - progress);
-      if (discR > px * 0.3) {
+      // AoE shape — same footprint-based rounded square checkFires tests against,
+      // shrinking from full threat radius to the bare footprint as the cooldown drains.
+      const discR = NT_HONEYPOT_RADIUS * (1 - progress);
+      if (discR * px > px * 0.3) {
         ctx.save();
         ctx.globalAlpha = 0.11 * (1 - progress * 0.6); // fades out gently as disc shrinks
         ctx.fillStyle = NT_COLOR_HONEYPOT;
-        ctx.beginPath(); ctx.arc(cx, cy, discR, 0, Math.PI * 2); ctx.fill();
+        ntAoEPath(ctx, f.x, f.y, discR, px); ctx.fill();
         ctx.globalAlpha = 0.40 * (1 - progress * 0.5); // ring outline — more visible
         ctx.strokeStyle = NT_COLOR_HONEYPOT; ctx.lineWidth = 1.5;
-        ctx.beginPath(); ctx.arc(cx, cy, discR, 0, Math.PI * 2); ctx.stroke();
+        ntAoEPath(ctx, f.x, f.y, discR, px); ctx.stroke();
         ctx.restore();
       }
 
@@ -3778,6 +4284,10 @@ function ntResolveCycleMdlm(allPlacements) {
   // Host is also a participant and never receives its own SYNC (dedup guard), so it
   // must mirror the NT_PLAYBACK navigation locally — otherwise it strands on the build
   // screen ("waiting for team…") even though resolution completed.
+  // Debug MDLM: straight to the Diagnostic Summary, no playback hop (design doc §4.1). The
+  // broadcast above still fires — only the navigation it triggers changes — so the summary's
+  // per-player table (ntRenderSummary) has ntPtpPlacements/ntCycleLatencies to read.
+  if (ntDebugMode) { ntShowSummary('match'); return; }
   if (ntIsDNP() && ntTeamNodes[mpMyPlayerIdx]) ntNode = ntTeamNodes[mpMyPlayerIdx];
   ntViewingPlayerIdx = mpMyPlayerIdx;
   ntPlaybackTimeline = ntPtpTimelines[mpMyPlayerIdx];
@@ -3902,6 +4412,8 @@ function ntHandleEnvelope(envelope) {
         ntDebugAttemptCounts = new Array(ntPlayerCount).fill(0);
         ntDebugMyAttempt     = 0;
         ntDebugBest          = null;
+        ntDebugAttempts      = [];
+        ntDebugAttemptsBySeat = [];
       }
 
       if (payload.isDNP) {
@@ -3924,6 +4436,8 @@ function ntHandleEnvelope(envelope) {
         // saw at the start, and re-zero every piece of Debug session state.
         ntDebugMyAttempt = 0;
         ntDebugBest      = null;
+        ntDebugAttempts  = [];
+        ntDebugAttemptsBySeat = [];
         ntMyPlacements   = [];
         ntFirewallUsed   = 0;
         ntHoneypotUsed   = 0;
@@ -4019,6 +4533,11 @@ function ntHandleEnvelope(envelope) {
       ntAllCyclePlacements[ntCycle] = ntPtpPlacements.map(p => p.slice());
       ntAllCycleNodes[ntCycle]      = ntNode;
 
+      // Debug MDLM: straight to the Diagnostic Summary — this is the half of the pair the
+      // design doc warns is easy to miss (§4.1). Guard here too, or the host lands on the
+      // summary while every client sits on playback.
+      if (ntDebugMode) { ntShowSummary('match'); return; }
+
       ntViewingPlayerIdx = mpMyPlayerIdx;
       ntPlaybackTimeline = ntPtpTimelines[mpMyPlayerIdx];
       ntMyPlacements     = ntPtpPlacements[mpMyPlayerIdx] || [];
@@ -4113,6 +4632,8 @@ function ntResetState() {
   ntDebugBrush         = 'bad';
   ntDebugMyAttempt     = 0;
   ntDebugBest          = null;
+  ntDebugAttempts      = [];
+  ntDebugAttemptsBySeat = [];
   ntDebugFinished      = [];
   ntDebugAttemptCounts = [];
   ntDebugLastW         = null;
@@ -4465,7 +4986,9 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // ── System Logs overlay ──────────────────────────────────────────────────────
-  document.getElementById('btn-nt-logs-open').addEventListener('click', ntOpenLogs);
+  // Wrapped in an arrow, not passed bare — ntOpenLogs now takes an optional playerIdx and a
+  // bare listener reference would hand it the click Event instead.
+  document.getElementById('btn-nt-logs-open').addEventListener('click', () => ntOpenLogs());
   document.getElementById('btn-nt-logs-close').addEventListener('click', () => {
     playDone();
     document.getElementById('nt-logs-overlay').style.display = 'none';

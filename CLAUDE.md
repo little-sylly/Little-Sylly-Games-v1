@@ -9,17 +9,17 @@
 - `@definitions.md` — naming conventions, comment style, data schema, project-wide terms
 
 **On-demand — READ with the Read tool only when the trigger applies (NOT auto-loaded; do not read these during routine bug/polish work):**
-> ⚠️ These live in `docs/rules/`, NOT `.claude/rules/`, **on purpose**. The harness auto-loads every file in `.claude/rules/` into baseline context every turn — keeping the big on-demand docs there cost ~50k tokens/turn and caused mid-task auto-compact spirals. Do NOT move them back into `.claude/rules/`. Only the three always-loaded files above belong there.
-- `docs/rules/game-identities.md` — per-game themes, terminology, settings tables, special mechanics. **135 KB / 16 game sections — never read whole.** **Read when:** doing non-trivial work on a specific game — Grep for that game's `## Game N:` heading and offset-Read only that one section. The quick index below covers most "which colour / which file / which abbr" lookups without opening it.
-- `docs/art-authoring-guide.md` — the standalone, no-Claude-Code guide to **making artwork**: skin pack vs core art, exact pixel dimensions and aspect per game, the complete art inventory for all seven render seams, `tools/make-skin-pack.ps1`, per-game gotchas, the offline install check, troubleshooting. **Read when:** the task is authoring or converting art, or answering "what art does game X need / what size". Written for the owner to use alone — point them at it rather than re-deriving dimensions from CSS.
-- `docs/rules/word-expansion.md` — the `data/words.json` content rules: difficulty tiers, curated Great Minds categories, the animals Broad Shield protocol, and the `nono_list` Dual-Use Contract. **Read when:** adding or editing words in `data/words.json` or a pack manifest's inline `words`. *(Moved out of `CLAUDE.md`, 9 Aug 2026 — content-authoring only.)*
-- `docs/rules/new-game-process.md` — three-stage protocol for adding a new game (brief → tech spec → implementation). **Read when:** starting a new game.
-- `docs/rules/new-game-brief-template.md` — Phase 1 design brief template (filled by project owner + Gemini). **Read when:** new-game Stage 1.
-- `docs/rules/new-game-technical-template.md` — Phase 2 technical spec template (filled by Claude Code). **Read when:** new-game Stage 2.
-- `docs/rules/new-game-checklist.md` — the ~40-item build checklist (engine registration, settings/overlay standards, MP handler audit, render seam, verification harness, closure). **Read when:** implementing a new game — before its first line of code. *(Moved out of `logic-engine.md`, 1 Aug 2026; still binding.)*
+> ⚠️ These live in `docs/rules/`, NOT `.claude/rules/`, **on purpose** — the harness auto-loads every file in `.claude/rules/` into baseline context every turn. Only the three always-loaded files above belong there; do NOT move these back.
+- `docs/rules/game-identities.md` — per-game themes, terminology, settings tables, special mechanics. **135 KB / 18 game sections — never read whole.** **Read when:** non-trivial work on one game — Grep its `## Game N:` heading, offset-Read that section only. The quick index below covers most colour/file/abbr lookups without opening it.
+- `docs/rules/per-game-classes.md` — the per-game class strings: brand colour, range/toggle/pill classes, Play CTA + how-to emoji + Sylly Mode name, `accentBtnClass`, step label, Settings tint. **Read when:** building or editing any game's UI and you need its exact class strings.
+- `docs/art-authoring-guide.md` — the standalone (no-Claude-Code) artwork guide: skin pack vs core art, exact dimensions/aspect per game, the inventory for all seven render seams, `tools/make-skin-pack.ps1`, the offline install check. **Read when:** authoring/converting art, or answering "what art does game X need". Written for the owner to use alone — point them at it rather than re-deriving dimensions from CSS.
+- `docs/rules/word-expansion.md` — `data/words.json` content rules: difficulty tiers, Great Minds categories, the animals Broad Shield protocol, the `nono_list` Dual-Use Contract. **Read when:** editing words in `data/words.json` or a pack manifest's inline `words`.
+- `docs/rules/new-game-process.md` — three-stage protocol (brief → tech spec → implementation). **Read when:** starting a new game.
+- `docs/rules/new-game-brief-template.md` / `new-game-technical-template.md` — the Phase 1 and Phase 2 templates. **Read when:** new-game Stage 1 / Stage 2.
+- `docs/rules/new-game-checklist.md` — the ~40-item build checklist (engine registration, settings/overlay standards, MP handler audit, render seam, harness, closure). **Read when:** implementing a new game — before its first line of code. Binding.
 - `docs/rules/phase-audit.md` — Protocols A/B/C (drift check, skeleton-first, studio sweep). **Read when:** a phase boundary, or before a new game's first line of code.
-- `docs/sw-changelog.md` — SW release notes v148 and earlier. **Read when:** you need the history behind a past version; the current version's notes stay in § Current Focus.
-- `docs/deferred-work.md` — the parked-work list: the **retest backlog for the older games**, the MDLM quit-contract divergence (GTH/DYB/BLD), and smaller flagged items. **Read when:** picking up maintenance work, or at a phase gate. *(Replaces the missing `fable-fix-plan.md`.)*
+- `docs/sw-changelog.md` — every SW release note, continuous v204→v167. **Read when:** you need the history behind a past version.
+- `docs/deferred-work.md` — the parked-work list: older-games retest backlog, pending suite-wide sweeps, smaller flagged items. **Read when:** picking up maintenance work, or at a phase gate.
 
 ### 🎮 Per-Game Quick Index
 Always-on pointer so single-game work doesn't need the 128 KB `game-identities.md`. For terminology, settings tables, overlays, multiplayer packets → read that game's `## Game N:` section in `game-identities.md`. Brand colour rarely changes; everything else, confirm in-section.
@@ -45,7 +45,7 @@ Always-on pointer so single-game work doesn't need the 128 KB `game-identities.m
 | 17 | Pecking Order | `pko` | `pko.js` | `#854D0E` / `pill-active-pko` |
 | 18 | Cookie Jar | `cjar` | `cjar.js` | honey-gold `#D4A017` (dark ink) / `pill-active-cjar` |
 
-For per-game classes (range / toggle / pill / CTA / how-to / brand class strings) see `ui-style.md` § **Per-Game Reference** — the single source for those; don't duplicate them here.
+For per-game classes (range / toggle / pill / CTA / how-to / brand class strings) read `docs/rules/per-game-classes.md` (on-demand) — the single source for those; don't duplicate them here.
 
 For where each game's screens/overlays live in `index.html`, see the **Per-Game Offset Map** at the top of `docs/code-map.md`. **`code-map.md` is ~132 KB (~33k tokens) — never read it whole.** Same rule as `game-identities.md`: Grep for the game or element ID, then offset-Read that slice. One careless full read costs more than the entire always-loaded rule set.
 
@@ -65,7 +65,7 @@ For where each game's screens/overlays live in `index.html`, see the **Per-Game 
 
 ### 🚦 Task Triage Gate — size the task BEFORE picking a workflow
 
-**This rule overrides the superpowers SessionStart hook**, which instructs that any task with "even a 1% chance" of matching a skill must invoke it, and routes "let's build X" to brainstorming → spec → plan by default. That hook has **no size gate**: it puts a two-line CSS change through the same pipeline as building game 18. Its own closing line concedes the precedence — *"User instructions (CLAUDE.md…) take precedence over skills"* — so this section is the authority, not the hook.
+**This rule overrides the superpowers SessionStart hook**, which has no size gate and would put a two-line CSS change through the same brainstorm → spec → plan pipeline as building game 18. The hook's own closing line concedes precedence to CLAUDE.md, so this section is the authority.
 
 **Classify the task in one line before doing anything else. State the tier out loud, then work at that tier.**
 
@@ -75,11 +75,11 @@ For where each game's screens/overlays live in `index.html`, see the **Per-Game 
 | **1 — Bounded** | One game · existing pattern · logic touched but no cross-cutting rule (MP sync, render seam, engine contract). A normal bug fix or polish item. | `docs/templates/task-bug-polish.md` intake, **inline in this session**. No spec/plan split — the intake form *is* the plan. Harness assertions only if the fix touched something a harness already covers. |
 | **2 — Architectural** | New game · new engine/MP pattern · a change touching 3+ files under cross-cutting rules · a phase gate. | **Full pipeline earns its keep here** — brainstorm → spec → plan → task execution → review. The Cookie Jar build's 4,219-line plan was correctly sized. |
 
-**Batching rule.** A round of several Tier-0/1 items (an owner playtest list, a polish sweep) is **one** unit of work: one plan section if any, one implementation pass, **one** documentation-closure pass at the end. Never one full cycle per item. The DD-25…DD-31 round ran nine cycles for seven cosmetic tweaks and produced 1,626 lines of planning prose against ~186 lines of shipped production code — a ~9:1 ratio, plus four post-hoc review-fix commits, one of them fixing an assertion the same round had just written.
+**Batching rule.** A round of several Tier-0/1 items (an owner playtest list, a polish sweep) is **one** unit of work: one plan section if any, one implementation pass, **one** documentation-closure pass at the end — never one full cycle per item. (The DD-25…DD-31 round ran nine cycles for seven cosmetic tweaks: ~9:1 planning prose to shipped code.)
 
-**Subagent rule.** Default to working **inline**. Every dispatched subagent starts cold and re-pays this project's ~30k baseline (CLAUDE.md + the three always-loaded rule files) before doing any work — nine sequential task-subagents is ~270k tokens of pure baseline, larger than the round's real content and invisible while it happens. Dispatch only when tasks are genuinely **parallel and independent**, or when a search would otherwise flood this context (the Explore agent, per the model picker's "large exploratory search" row).
+**Subagent rule.** Default to working **inline**. Every dispatched subagent starts cold and re-pays this project's **~33k baseline** (CLAUDE.md + the three always-loaded rule files) before doing any work — nine sequential subagents is ~300k tokens of pure baseline, larger than the round's real content and invisible while it happens. Dispatch only when tasks are genuinely **parallel and independent**, or when a search would otherwise flood this context (the Explore agent, per the model picker's "large exploratory search" row).
 
-**Harness rule.** Verification harnesses cover **rules, packets, state, decks and appliers** — not presentation. A cosmetic change does not earn new assertions. Asserting label strings and pixel slots is what produced `560c7c2` (fixing DD-30's own just-written podium assertions); the assertion cost more than the bug it could have caught.
+**Harness rule.** Verification harnesses cover **rules, packets, state, decks and appliers** — not presentation. A cosmetic change does not earn new assertions. (Asserting label strings and pixel slots produced `560c7c2`, a commit fixing the same round's just-written podium assertions.)
 
 **Escalate a tier when you find you were wrong** — a "trivial" change that turns out to touch a packet is Tier 1, say so and switch. Escalating on evidence is correct; escalating pre-emptively "just in case" is the behaviour this gate exists to stop.
 
@@ -99,13 +99,15 @@ All symbols are global (no ES modules). Forward references work at runtime.
 - **Audio:** Web Audio API (synthesised tones) — no audio files
 - **Capabilities:** PWA (offline via Service Worker), Screen Wake Lock API
 - **Diagrams:** Mermaid (`stateDiagram-v2`) — used in tech specs for state flows; rendered natively by GitHub, no install required
-- **Font exception (Fredoka):** The Fredoka brand font is loaded from Google Fonts (`fonts.googleapis.com`/`fonts.gstatic.com`) at runtime and is NOT precached by the SW. In offline/installed sessions the app falls back to the system sans-serif font. This is a deliberate exception — self-hosting Fredoka would require woff2 files, a local `@font-face`, and SW precache entries that add network-install weight. The app is fully functional offline; only the brand typography is affected. Do NOT remove the `<link>` tags — the offline fallback is acceptable.
+- **Font:** Fredoka, self-hosted from `fonts/` (variable woff2, `@font-face` in `css/styles.css`, precached). No external font request — the app has **zero** runtime third-party dependencies.
 
 ---
 
 ## 🚫 Anti-Patterns (Do Not)
-- Do NOT use `npm`, `webpack`, or any build tools
-- Do NOT add external JS libraries beyond local Tailwind
+- Do NOT add a build step — no `npm`/`webpack`/bundler for the app itself. (`tools/*.js` verification
+  harnesses run under Node; that's dev tooling, not a build.)
+- Do NOT add external JS libraries. The only two are vendored: local Tailwind (`js/lib/tailwind-play.js`)
+  and the Firebase SDK (precached, lazy-loaded at runtime — see `logic-engine.md` § Firebase Lazy-Load).
 - Do NOT create multiple HTML pages — single-page app
 - Do NOT use `localStorage` for game state mid-round (memory only; settings may persist)
   - **Exception:** `sylly_nickname` (multiplayer nickname) and `isMuted`/`masterVolume` are permitted localStorage uses
@@ -115,39 +117,33 @@ All symbols are global (no ES modules). Forward references work at runtime.
 
 ---
 
-## 🧠 Surgical Coding Protocol
-- **Confidence Rule:** Do NOT write code until 95% confident. Ask until you reach that threshold.
-- **Visualise First:** Describe logic/flow in plain English BEFORE writing code.
-- **Atomic Changes:** One function or one UI component per response.
-- **Test First:** Describe verification before implementing.
-- **Direct References:** Only read/edit specific files or lines requested.
-- **Challenge Bad Specs:** If a proposed mechanic breaks the game's soul, say so before building.
-
----
-
-## 📝 Documentation Pause Rule
-**Trigger:** Before shifting between project phases OR making a permanent architectural change.
-**Action:** STOP and provide a "Confluence Snapshot":
-1. **Decision:** One sentence summary
-2. **Rationale:** The "why"
-3. **Technical Impact:** What changed, which files affected
-**Wait:** Do not proceed until confirmed.
+## 🧠 How to Work
+- **Visualise first.** Describe the logic/flow in plain English before writing code. For a genuinely
+  new pattern, lead with a real-world analogy and one sentence on why this way over the alternative.
+- **Atomic changes.** One function or one UI component at a time.
+- **Test first.** Name the verification before implementing it.
+- **Direct references.** Read/edit the specific files and lines the task needs — never a whole big
+  file to "get oriented" (§ Token Hygiene).
+- **Challenge bad specs.** If a proposed mechanic breaks the game's soul, say so before building it.
+- **Confluence Snapshot** — the deliverable shape for any architectural change or phase shift:
+  **Decision** (one sentence) · **Rationale** (the why) · **Technical Impact** (what changed, which
+  files). Write it as part of the work; it feeds `docs/decision-log.md`.
 
 ---
 
 ## 📋 Documentation Integrity Protocol
-**Trigger:** After any completed phase, game addition, permanent architectural change, or mid-session bug fix session. This protocol applies even when no phase snapshot is written — the snapshot is optional, the doc updates are not.
-**Mandatory updates (in this order, before the phase snapshot is written):**
-1. `docs/code-map.md` — add/update all new screen IDs, overlay IDs, key functions, and state variables introduced in the phase
-2. `game-identities.md` — add/update all new settings, terminology, overlay types, and screen entries for affected games
-3. `CLAUDE.md` — update SW version, current focus, and key references
-4. `logic-engine.md` — update any new universal rules, audio functions, or engine patterns introduced
-5. `docs/implementation-notes/[abbr]-implementation-notes.md` (or `shared-implementation-notes.md` for engine/secret-mode/art.js work) — log any design decisions made, bugs found and resolved, or lessons learned during the phase (create the file if it doesn't exist)
-6. `docs/decision-log.md` — if the work included any **architectural, strategic, or process-level** decision, append a one-line entry (newest on top, ~4 lines, pointer not deep-doc). Skip only when the work was purely routine bug/polish with no cross-cutting decision.
+**Trigger:** After any completed phase, game addition, permanent architectural change, or mid-session bug fix session. Applies even when no phase snapshot is written — the snapshot is optional, the doc updates are not.
+**Mandatory updates, in this order:**
+1. `docs/code-map.md` — new screen IDs, overlay IDs, key functions, state variables
+2. `game-identities.md` — new settings, terminology, overlay types, screen entries for affected games
+3. `CLAUDE.md` — SW version, Current Focus, key references
+4. `logic-engine.md` / `ui-style.md` — any new universal rule, audio function or engine/UI pattern
+5. `docs/implementation-notes/[abbr]-…md` (or `shared-…md` — see § Skill: Implementation Notes for which) — design decisions, bugs resolved, lessons
+6. `docs/decision-log.md` — one entry (newest on top, ~4 lines, pointer not deep-doc) **if** the work included an architectural, strategic or process-level decision. Skip only for routine bug/polish.
 
-**Rule:** No phase snapshot may be written until all five documents are verified current. The snapshot itself is the final deliverable — not the starting point for cleanup.
+**Rule:** No phase snapshot until all six are verified current. The snapshot is the final deliverable, not the starting point for cleanup.
 
-**Enforcement:** At the start of every new phase, Claude Code must read `docs/code-map.md` and `game-identities.md` for all games it will touch and cross-reference against the actual `index.html` section headers and JS file. Any discrepancy found must be flagged and resolved before implementation begins.
+**Enforcement:** at the start of a new phase, read `docs/code-map.md` and `game-identities.md` for every game it will touch and cross-reference against the real `index.html` headers and JS. Flag and resolve any discrepancy before implementation begins.
 
 ---
 
@@ -157,7 +153,7 @@ All symbols are global (no ES modules). Forward references work at runtime.
 - **Lean Context:** Avoid repetitive explanations. Assume technical competence.
 - **Australian English:** Use Australian spelling (e.g., "colour", "synthesised"). Metric units only.
 - **Session Cleanup:** If a sub-task is complete, suggest running /compact to clear history.
-- **End every response with "what's next":** Always close with 1–2 sentences naming what was just completed AND what comes next — the next phase, next item, or a recommendation if the task is done. For multi-phase work, name upcoming phases so the roadmap is visible. This applies even to short responses. The user may return after a gap with incomplete context; explicit next-step visibility removes the ambiguity. **Also name the model + effort level the next task warrants** (e.g. "next: Sonnet, medium effort" or "next: Opus/Fable, high effort") using the table below — the user is not yet confident picking these themselves, so the recommendation must be explicit, not implied. **And name the session call** — `same session`, `/compact then continue`, or `fresh session` — using the second table. All three (task, model+effort, session) go in the closing line; never leave the session call implied.
+- **End every response with "what's next":** 1–2 sentences naming what was just completed AND what comes next (name upcoming phases for multi-phase work). Applies even to short responses — the owner may return after a gap with no context. The closing line must carry **all three** explicitly, never implied: the next task, the **model + effort** it warrants (from the table below), and the **session call** — `same session` / `/compact then continue` / `fresh session` (second table).
 
 **Model & effort picker (for the "what's next" line):**
 
@@ -177,7 +173,7 @@ Default when unsure: **Sonnet, medium** — escalate to Opus/Fable + high only w
 
 **Session picker (same session / compact / fresh):**
 
-The whole question is one trade: a fresh session re-pays this project's **~30k-token baseline** (CLAUDE.md + the three always-loaded rule files) but starts clean; continuing pays the **entire transcript on every single turn**, whether or not any of it still matters. So the test is not "how long have we been going" — it is **how much of what's loaded is still relevant to the next task**.
+One trade: a fresh session re-pays the **~33k baseline** but starts clean; continuing pays the **entire transcript every turn** whether or not it still matters. The test is not "how long have we been going" — it is **how much of what's loaded is still relevant to the next task**.
 
 | Signal | Call | Why |
 |--------|------|-----|
@@ -191,13 +187,13 @@ The whole question is one trade: a fresh session re-pays this project's **~30k-t
 | Escalating model **up** for the next task (Sonnet → Opus) | **fresh session** | Opus turns are the expensive ones — don't feed them a transcript of Sonnet's exploration |
 | Dropping model **down** for the next task (Opus → Sonnet/Haiku) | **same session** ok | Cheap turns can afford the carried context |
 
-Default when unsure: **fresh session, with an explicit pointer** — name the file(s) and the doc (impl-notes / tech spec / decision-log) the new session should read first. That pointer is what makes a fresh start cheap: it's the difference between 30k of baseline plus one targeted read, and a fresh session flailing to re-orient. **Never start fresh without one.** If the last session produced anything a fresh one would need to know, the Documentation Integrity Protocol above should already have written it down — if it hasn't, that's the real signal to stay put and finish the docs first.
+Default when unsure: **fresh session, with an explicit pointer** — name the file(s) and doc the new session should read first. **Never start fresh without one.** If writing that pointer surfaces something not recorded anywhere, that's a Documentation Integrity Protocol miss — stay put and finish the docs first.
 
 ### 🤝 Handoff Prompt (mandatory whenever the session call is `fresh session`)
 
-**Rule:** Any response whose closing line says **fresh session** MUST end with a ready-to-paste handoff prompt in a fenced code block — no exceptions, no "let me know if you want one". The user should be able to copy it straight into the new session and start working. A `fresh session` call without a handoff block is an incomplete response.
+**Rule:** Any response closing with **fresh session** MUST end with a ready-to-paste handoff prompt in a fenced code block — no exceptions, no "let me know if you want one". A `fresh session` call without a handoff block is an incomplete response.
 
-**The handoff is a pointer, not a summary.** It says where to read, not what was read. Anything longer than ~15 lines means facts are being smuggled in that belong in a doc — put them in the impl-notes and link there instead. Docs first, handoff second: if writing the handoff surfaces something not yet recorded anywhere, that's a Documentation Integrity Protocol miss — fix the doc, then write the pointer to it.
+**The handoff is a pointer, not a summary** — where to read, not what was read. Past ~15 lines it is smuggling facts that belong in a doc; put them in the impl-notes and link there instead.
 
 **Template:**
 
@@ -220,14 +216,13 @@ applier change". Omit the section entirely if there are none.]
 ```
 ````
 
-**The two fields that actually pay for the handoff:** **Read first** (name the file *and* the Grep
-term — 3 files ceiling — so the new session never full-reads `index.html`, `code-map.md` or
-`game-identities.md`) and **Constraints / gotchas** (load-bearing only — this is what stops a fresh
-session repeating the last one's dead end). **Task** stays one action; three tasks produces a
-session that context-switches and finishes none. **State** carries only what a fresh session cannot
-infer (SW version, which harnesses pass, what shipped) — it prevents re-fixing something already fixed.
+**Read first** and **Constraints / gotchas** are the two fields that pay for the handoff — the first
+(file *plus* Grep term, 3 files ceiling) stops the new session full-reading `index.html`,
+`code-map.md` or `game-identities.md`; the second stops it repeating the last one's dead end. Keep
+**Task** to one action, and **State** to what a fresh session cannot infer (SW version, which
+harnesses pass, what shipped).
 
-**Do NOT include:** a recap of what was tried and rejected (belongs in the impl-notes), code snippets (the new session reads the real file), or restatements of anything in CLAUDE.md / the three rule files — those load automatically and repeating them is pure waste.
+**Do NOT include:** what was tried and rejected (impl-notes), code snippets (it reads the real file), or anything already in CLAUDE.md / the three rule files — those load automatically.
 
 ---
 
@@ -239,202 +234,56 @@ See `@logic-engine.md` for the full checklist and SW asset list.
 
 ### 🎯 Skill: Consistent Word Expansion
 **Trigger:** Adding or editing words in `data/words.json`, or a pack manifest's inline `words`.
-**Action:** Read `docs/rules/word-expansion.md` (on-demand) and follow it — difficulty tiers, the
-curated Great Minds category list, the animals **Broad Shield** protocol, and the `nono_list`
-**Dual-Use Contract** (every slot means something different in Like I'm Five vs Natural Selection,
-so a careless edit silently degrades one of the two games).
+**Action:** Read `docs/rules/word-expansion.md` (on-demand) and follow it. Note the `nono_list`
+**Dual-Use Contract** — each slot means something different in Like I'm Five vs Natural Selection,
+so a careless edit silently degrades one of the two games.
 
 ### 🎯 Skill: Add New Expansion Pack
 **Trigger:** Adding a new secret mode expansion (new theme/word bank).
 **Action:** Follow `docs/expansion-guide.md` — 4-step checklist. Do NOT patch plugin files (the proxy architecture handles everything).
 
 ### 🎯 Skill: Implementation Notes
-**Trigger:** Any non-trivial bug fix, design decision change, or architectural lesson — during new game builds, maintenance, or audit of any existing game **or of shared/engine code**.
+**Trigger:** Any non-trivial bug fix, design decision, or architectural lesson — in a new game build, maintenance, or an audit of any game **or of shared/engine code**.
 **Action:**
-1. **Pick the right file first.** If the bug or decision's root cause lives in a single game's own code, use `docs/implementation-notes/[abbr]-implementation-notes.md` (create it if missing, four sections: Design Decisions / Bug Index / Multiplayer Lessons / Template Gaps). If the root cause is in `engine.js`, `engine-multiplayer.js`, `secret-mode.js`, `js/lib/art.js`/`cards.js`/`canvas-draw.js`, `sw.js`, or a cross-cutting rule itself — **even if it was found while testing one specific game** — use `docs/implementation-notes/shared-implementation-notes.md` instead (same four-section shape). A fix touching both a shared function and a game's own call site gets the root-cause writeup in exactly one file (whichever owns the bug), with at most a one-line pointer in the other.
-2. Add a concise entry in the appropriate section: **What happened → Root cause → Lesson**
-3. At the end of any audit or testing session, review the Template Gaps section and flag items that should fold into `logic-engine.md`, `ui-style.md`, or the tech template
-**When:** Log entries in the same response that completes the fix — not in a follow-up session. If the fix is done and this skill hasn't run, the session is not complete.
-**Scope:** All games — new and existing — plus shared/engine code. Log during any session that touches a game's code or the engine, not just at phase boundaries.
-**Cross-reference:** Before starting a new game's tech spec, read the Template Gaps section of all existing implementation notes files (including `shared-implementation-notes.md`) and resolve any gaps that apply to the new game before implementation begins.
+1. **Pick the right file first — by where the root cause lives, not where it was found.** A single game's own code → `docs/implementation-notes/[abbr]-implementation-notes.md` (create if missing; four sections: Design Decisions / Bug Index / Multiplayer Lessons / Template Gaps). `engine.js`, `engine-multiplayer.js`, `secret-mode.js`, `js/lib/*`, `sw.js`, or a cross-cutting rule → `shared-implementation-notes.md`, **even when found while testing one game**. A fix spanning both gets the writeup in exactly one file (whichever owns the bug) and at most a one-line pointer in the other.
+2. Entry shape: **What happened → Root cause → Lesson**.
+3. At the end of an audit/testing session, review Template Gaps and flag anything that should fold into `logic-engine.md`, `ui-style.md`, or the tech template.
+**When:** in the **same response** that completes the fix — never a follow-on session. If the fix is done and this hasn't run, the session isn't complete.
+**Cross-reference:** before a new game's tech spec, read Template Gaps in *all* impl-notes files (including shared) and resolve what applies.
 
 ### 🎯 Skill: Phase Gate — Studio Audit
-**Trigger:** After completing a game or entering a new phase. Before writing the phase snapshot. Before writing the first line of a new game's JS.
-**Action:** Read `docs/rules/phase-audit.md` (on-demand — not auto-loaded) and run all three protocols:
-- **Protocol A** — Phase Gate (drift check, tech debt, linguistic sweep, mobile layout). Run after every completed game/phase.
-- **Protocol B** — Skeleton-First. Run before any new game's first line of code.
-- **Protocol C** — Studio Sweep (impl notes harvest + cross-game consistency check). Run before any new game's Phase 1 brief. Both parts must pass before Protocol B Step 1 begins.
-
-Do not write the phase snapshot until Protocols A is clean. Do not write a line of game logic until Protocol B Steps 1–4 are confirmed. Do not start a new game's brief until Protocol C is complete.
-
-### 🎯 Skill: Logic-First Teaching
-**Trigger:** Any new concept, pattern, or architectural decision.
-**Action:** Before writing code:
-1. **Analogy:** Real-world comparison
-2. **Diagram (optional):** ASCII or plain-English flow
-3. **Why This Way:** One sentence over alternatives
-**Wait:** Confirm understanding before proceeding.
+**Trigger:** After completing a game or entering a new phase; before writing a phase snapshot; before a new game's first line of JS.
+**Action:** Read `docs/rules/phase-audit.md` (on-demand) and run the protocol that applies —
+**A** Phase Gate (after a completed game/phase, and before its snapshot), **B** Skeleton-First
+(before a new game's first line of code), **C** Studio Sweep (before a new game's Phase 1 brief;
+must pass before B Step 1). Each gates the step named beside it.
 
 ---
 
 ## 🎯 Current Focus
 
-**This section carries *state*, not history.** Anything finished and documented elsewhere is a
-pointer, not a narrative — that is what keeps this file cheap. When a round closes, compress its
-entry to one line and let the impl-notes carry the detail (§ Documentation Integrity Protocol).
+**This section carries *state*, not history.** It holds exactly four things: the current SW entry
+(**≤6 lines, one version only**), where the suite stands, the Arcade side project, and pointers.
+On every bump the outgoing SW entry moves **verbatim** to `docs/sw-changelog.md` — there is no
+"keep the last three". **A second `**SW v…**` paragraph appearing here means that move didn't
+happen: do it before anything else.**
 
-**SW v200 — NT two-unit ports with single-unit corners CLOSED (18 Aug 2026, Phase 2).** A
-seven-task refactor made a relay-leg node's ingress/egress two tiles wide instead of one,
-collapsing to one tile only at either end of an edge — so a player can now narrow their OWN door
-(block one half) without being able to seal it (block both); every placement acts on the placing
-player's own node only, so there is no cross-player interaction here, even in DNP — previously the
-whole mouth was reserved and unbuildable, so this is new legal room on your own board, not an
-attack on anyone else's. The mouth is entirely DERIVED
-from the existing `{ edge, idx }` port record — no new field, no wire/packet change — via a
-"resolved port" shape (`{ edge, idx }` with `idx` pinned to one half) that let five existing point
-functions stay unmodified; only pathfinding became multi-source/multi-target, and only
-`ntShortestPath` learned which half a route actually used, so the entry stub tracks the used half
-rather than jogging sideways from a span-midpoint. Deleting the seven placement-reservation call
-sites then left `ntPathExists` as the sole legality gate, from which half-block-legal /
-full-block-rejected / corner-unblockable all fall out with no special-casing. The DNP bridge-preview
-seam (`ntDrawLegCanvas`) was the round's sharpest trap — its wall opened exactly one row, which
-passed every check while the preview showed a door walled off across half its width; fixed
-alongside a second, unrelated square-axis assumption in the same function (D44's third/fourth
-instance, `ntRandomEdgePort` and this canvas). Three deliberate-break injections (D42 discipline)
-confirmed each new section actually discriminates rather than passing vacuously. `verify-nt-loopback.js`
-sits at **342** checks, 8/8 seeds green. Detail: `nt-implementation-notes.md` D47–D49;
-`docs/decision-log.md`.
+**SW v209 — NT's honeypot is a pure cooldown gate, FOOTPRINT-based; 111378/64472 CLOSED (20 Aug
+2026).** Three fixes from one Debug Mode session, worst corpus error **20.80% → 2.81%**. **(1)**
+191490's recorded hits were `[2,2,2]`, not owner-confirmed `[3,2,2]` — v208's "refresh" branch was
+fitted to a gap pattern that only existed under the wrong count; `checkFires` is now a pure
+`elapsed >= lastFire[i] + NT_HONEYPOT_DURATION` gate, no entry/exit branch. **(2)** D45's Minkowski
+rejection tested footprint-distance at the wrong (centre-model) radius; at its own radius (2×√2,
+"2 tiles from the block's corner") it reproduces 48154/97877 too — AoE is now footprint-based, disc/
+ring redrawn to match. **(3)** `nt-maze-transcribe.js` had ingress/egress backwards on some boards —
+assigned by edge-scan order, not by reading which marker is the finish. 111378 (owner-verified against
+their own Debug Mode rebuild) and 64472 both had this exact bug: **−10.3%→+0.25%, −20.2%→+0.67%** —
+the two boards flagged "genuinely open" since D45 were bad input data, not a routing/AoE gap. `72000`
+reads the same unambiguous marker but flipping it made the fit worse — left alone, unresolved.
+6/6 trigger counts still MATCH, harness 417 green. Detail: `nt-implementation-notes` D46/D47/D48,
+`docs/deferred-work.md`.
 
-**SW v199 — NT Debug Mode's rectangular grid CLOSED** (18 Aug 2026, Phase 1): converted the Node's
-geometry from a single square `n` to independent `w`/`h`, plus a Sandbox Initialisation screen for
-independent Width/Height. Detail: `docs/sw-changelog.md`.
-
-**SW v198 — NT Debug/Sandbox Mode CLOSED** (17 Aug 2026): the hand-authoring sandbox itself
-(Node Editor, unlimited zero-packet retries, best-attempt scoring). Detail: `docs/sw-changelog.md`.
-
-**SW v195–197 — NT allocation viewer rounds 5–6: maze-preview polish, budget-vs-total split, the
-Stack, terminology cleanup (16 Aug 2026).** Detail: `nt-implementation-notes.md` D33–D35.
-
-**SW v194 — NT allocation viewer round 3–4: screenshot-confirmed polish, a real clip bug, a real
-alignment bug, and a deliberate balance change (16 Aug 2026).** A screenshot-driven round covering
-the D28 items plus everything they surfaced testing them:
-- **Terminal-styled directive**, **chip 3rd row** (total vs surplus-to-this-leg split apart, fixed
-  `w-28` width so nothing pops on deposit), **status/warning merged** into an always-rendered
-  text-swap — all owner-requested, all shipped. A third instance of D28's own label-contrast bug
-  (assumed-dark backdrop, actually the white page) was caught in the same screenshot and fixed.
-- **Chip clipping at 4 legs** — the taller chips broke `overflow-hidden`'s only-shrinkable child,
-  making 2 of 4 chips permanently unreachable. Fixed by making the stage scroll (its own documented
-  purpose in the sticky-footer pattern) rather than clip. A `justify-center` compaction added in the
-  same round actively conflicted with this (centred overflow hides its own top edge, unreachable by
-  scroll) and was reverted.
-- **Viewport misalignment**, confirmed from a second screenshot — `offsetLeft` silently walked past
-  the intended `row`/`viewport` ancestors to an unrelated one further up the page, mixing coordinate
-  frames. Fixed with `getBoundingClientRect()` throughout. Verified symmetric to the pixel at every
-  leg position.
-- **Matrix-scale overflow** — the fixed 18px/tile cell size overflowed the viewport at the "large
-  map" (n=20) setting, clipping even the active leg permanently. Cell size now scales to fit.
-- **Honeypot per-leg cap removed** (owner decision, informed by an asymmetry firewall doesn't share
-  — honeypot excess is actually placeable during build, not self-limiting like firewall). Team-pool
-  ceiling is now the only bound either resource has.
-Presentational + one deliberate balance change, no packet shape change. `verify-nt-loopback.js`
-rewritten for the new honeypot behaviour, green on 8 seeds. **Still open:** the maze preview canvas
-looks visibly cruder than the real build screen's DOM-based grid — deferred, tracked in
-`deferred-work.md`. Detail: `nt-implementation-notes.md` D29–D32.
-
-**SW v192 — NT allocation screen: side-by-side legs → windowed leg viewer (16 Aug 2026).** Owner
-feedback from a live 3-device DNP session: v191's "fit the whole bridge across the panel" sizing was
-cramped at 2v2 and an unreadable, overflowing smudge at 4v4. Replaced with one leg shown large
-(`cell: 18`, real 324×324 px) with ‹ › to switch plus an always-visible chip row restoring "whole
-team readable at once." Detail: `nt-implementation-notes.md` D26.
-
-**SW v191 — NT's DNP (Sylly Mode) round: allocation reworked to a tally-deposit, plus three fixes
-(16 Aug 2026).** Bank-mediated transfer replaced with a per-member surplus tally-deposit (Undo /
-Reset All / long-press-to-withdraw); the DNP summary now renders the team layer it always computed;
-the playback journey canvas is clipped and direction-aware; the dead `ntBuildBridgeInto` bridge was
-revived as the allocation picker. Two process lessons in `nt-implementation-notes.md` D22/D22b: the
-surplus formula lived in three places, and only one of two mutation paths was validated.
-**Verified:** `verify-nt-loopback.js` 119 → 146 checks. **Still open:** the `mpConfirmRoster`
-late-join race (BUG-07) and a real 3-device retest. Detail: `nt-implementation-notes.md` D22–D25 +
-TG-08; design record `docs/net-trace-dnp-mode-update.md`; `docs/decision-log.md`.
-
-**SW v190 — NT MDLM desync root-caused, fixed, and harnessed (15 Aug 2026).** A live 3-device
-session (1 host + 2 clients) produced blank build grids on clients, playback never reaching them,
-and a `--.--%` summary. Static analysis found **three** defects, all client-only (the host never
-round-trips its own state, so a host-side playtest is clean by construction): **BUG-15** —
-`ntGenerateNode`'s `convertN` roll can be 0 (and always is under the shipped **"Native Honeypots:
-0"** setting), so `nativeHoneypots: []` is erased in flight and two *unguarded render* reads
-(`ntBlockAt`, `ntDrawMaze`) throw per grid cell, leaving a blank grid and a dead applier;
-**BUG-16** — same class one level deeper, `timeline.fires: []` erased and `ntRenderFrame` reading
-it unguarded; **BUG-17** — the MDLM Diagnostic Summary was gated behind
-`syllyMultiplayerMode === 'single'` and so rendered *nothing* in MDLM, ever (a never-completed "MP
-step" TODO). Fixed with `ntNormaliseNode`/`ntNormaliseTimeline` at every receipt point plus `|| []`
-at the five previously-unguarded reads, and by dropping the mode gate. **New harness:
-`tools/verify-nt-loopback.js`** — 119 checks, host + **2 clients**, Standard *and* DNP; it went red
-on 20 before the fix and is green on every seed after, with a reverted copy still red via
-`NT_SRC=`. NT was the last game with a render seam and MDLM and no harness at all.
-**The transferable lesson is in `shared-implementation-notes.md` BUG-06 addendum:** the Aug 2026
-BUG-06 sweep scanned appliers for *direct payload-to-collection assignment*, which is structurally
-blind to collections **nested inside** an assigned object — `ntNode = payload.node` looks clean when
-the erasure is at `node.nativeHoneypots`. Re-sweeping the other games by payload *shape* is tracked
-in `deferred-work.md`. **Still open:** the `mpConfirmRoster` late-join race (BUG-07) and a real
-3-device retest. Detail: `nt-implementation-notes.md` BUG-15/16/17 + D21.
-
-**SW v189 — FLW polish round: colour/copy/UX fixes across the table + a readyCheck gate CLOSED
-(15 Aug 2026, six passes — v184 through v189, each correcting the last from live owner
-feedback/screenshots).** Self-directed except for one `AskUserQuestion` on the contrast tradeoff;
-no `visual-check` this round — verified via `verify-flw-loopback.js` (green) and syntax checks
-only. **Colour, settled:** primary surfaces (CTA/pills/toggle-ON, and the lobby's own `#btn-flw`
-tile) are `#F9A8D4` fill + WHITE text — the lobby tile is the reference the owner confirmed live
-(measured contrast is low, ~1.8:1, but this is a deliberate twice-confirmed call, not an
-oversight). Every secondary/utility button (Settings, Audit, the readyCheck button) flips the
-same two established hexes instead — `#A02050` fill + white text (simplified from light-pink text, round 5) — a scoped exception
-to the suite's light-tint Settings convention (`ui-style.md` Table C footnote ¶). One real scope-
-miss caught mid-round: the lobby game-tile lives outside the FLW block of `index.html`, so an
-earlier block-scoped `text-white` sweep missed it — worth remembering for any future shared-class
-cleanup that assumes a game's markup all lives in one place. **Table/UX changes:** header combined
-to one line ("The Showroom - Exhibition N"); rival strip shows every seat including your own with
-a live Diamond count; the Vault row is one horizontal row (label — remaining — cut); the
-Appraiser's Ledger's counts sit tight against their own gem, split into two equal halves each
-centred (not one centred cluster); every Journal line names its gem before the action; the hand
-row's off-turn slot is a fixed empty placeholder (was omitted, causing reflow) and the selection
-ring no longer overlaps the neighbouring card; the Scratch Test auto-selects a lone target and
-shows its guess list as real gem cards, greying out anything the Ledger shows fully discarded; the
-target-selection modal (Sapphire/Topaz/Opal/Amethyst) always lists every alive Collector, greying
-the ineligible instead of silently auto-submitting past them; the Deep Vault overlay pre-selects
-the leftmost gem and shows a live description panel; the Showing-result screen gates the host's
-Next Showing behind a readyCheck (`FLW_RESULT_READY`) so players aren't swept past the reveal.
-Also closes the gem-seam plan's own Task 13 doc pass (game-identities § 16 was still describing an
-entirely different unshipped design). Detail: `flw-implementation-notes.md`, `docs/decision-log.md`.
-
-**SW v183 — FLW gem render seam (tasks 1–12) CLOSED (14–15 Aug 2026).** Square core art, no baked
-text on the card face — the display-case frame, carat placard, hand placards and a chronological
-discard strip all moved onto the CSS render seam so a skin needs no chrome baked into its art.
-Detail: `flw-implementation-notes.md`, `docs/superpowers/plans/2026-08-14-flw-gem-seam.md`.
-
-**SW v182 — Settings dynamic-value-line (DD-13) sweep CLOSED (13 Aug 2026).** Detail:
-`docs/sw-changelog.md`.
-
-**SW v181 — Round/Night Intro Screen sweep CLOSED (13 Aug 2026).** PKO/NAT/PASS added
-(`screen-[abbr]-*-intro`); GTH and DYB investigated and ruled out (already covered by existing
-screens/timing constraints). Detail: `deferred-work.md`, `pko-implementation-notes.md` DD-26,
-`nat-implementation-notes.md`, `pass-implementation-notes.md`, `dyb-implementation-notes.md`.
-
-**SW v179 — CJAR Dibber Dobber payout-beat fix and a suite-wide BUG-06 audit (3 live fixes: LTTP,
-GTH, NT) (13 Aug 2026).** Detail: `shared-implementation-notes.md` BUG-06.
-
-**SW v178 — Counting Sheep scoring rework CLOSED, all 10 chunks shipped (13 Aug 2026).** Full detail
-moved to `shp-implementation-notes.md`; spec `docs/new-game-tech-counting-sheep-scoring.md`.
-
-v168–v177 (the rest of the Counting Sheep playtest round, incl. the standalone BUG-07 Fogged-Dream
-fix) moved to `docs/sw-changelog.md` this bump.
-
-**Still open from v166:** PKO's **Stragglers** scoring mode is shipped but unplayed — Force of
-Nature can hand a player cards they did not choose (Deluge, Culling, Migration, Great Reversal),
-which is a straight penalty under Stragglers in a way it never was under Dominance, deliberately
-left un-special-cased pending a live session. Detail: `pko-implementation-notes.md` D39/D40.
-
-**Previous versions: `docs/sw-changelog.md`** — the outgoing entry moves there on each bump; only
-the current version keeps its notes here.
+**Previous versions: `docs/sw-changelog.md`** — continuous, v208 back to v167.
 
 **Where the suite stands.** **18 games shipped**, all gold-master, plus multiplayer. Newest three:
 **Cookie Jar** (`cjar`, game 18, phase 39), **Pecking Order** (`pko`, game 17, phase 37) and its
@@ -453,11 +302,11 @@ Stack or the brand palette. First cabinet: **Asherplane** (`js/arcade/asherplane
 shmup. Adding cabinet #2 = one `SM_ARCADE` entry + one file. Spec + plan:
 `docs/superpowers/{specs,plans}/2026-08-03-arcade-asherplane*.md`.
 
-**Open threads — all deliberately deferred, none blocking: `docs/deferred-work.md`.** It holds the
-older-games retest backlog, four pending suite-wide sweeps (the **BUG-06** Firebase-erasure class,
-the **DD-13** settings value line, **DD-31** button parity, and a How-to card gallery for
-FLW/SHP/FRT/PKO), the Decision Modal button-sizing divergences (FLW/PASS/GTH/BLD), and CJAR's open
-**DD-06** balance flag. Read it when picking up maintenance work, or at a phase gate.
+**Open threads — all deliberately deferred, none blocking: `docs/deferred-work.md`.** Older-games
+retest backlog, four pending suite-wide sweeps (BUG-06 Firebase-erasure re-sweep by payload shape,
+DD-13 settings value line, DD-31 button parity, a How-to gallery for PASS), NT's open Minors and
+`mpConfirmRoster` late-join race (BUG-07), PKO's unplayed **Stragglers** mode, and CJAR's **DD-06**
+balance flag. Read it when picking up maintenance work, or at a phase gate.
 
 ### 🧪 Verification harnesses
 
@@ -472,33 +321,26 @@ Re-run a game's full set after touching its appliers, deck/data, packets or rend
 | DYB | `node tools/verify-dyb-dice.js` — after any `js/lib/art.js` / `dybDieHTML` / `.dyb-die-*` change | 90+ |
 | SHP | `node tools/verify-shp-loop.js` — random matches, all player counts/modes/settings; `SHP_SEED=` for reproducibility | 60 matches |
 | SHP | `node tools/verify-shp-loopback.js` — host↔client over a Firebase-shaped wire; accepts `SHP_SRC=` | 6 scenarios |
-| NT | `node tools/verify-nt-loopback.js` — host↔**2 clients** over a Firebase-shaped wire, Standard + DNP + Debug Mode (incl. rectangular grids, two-unit ports); accepts `NT_SRC=` and `NT_SEED=` | 342 |
+| NT | `node tools/verify-nt-loopback.js` — host↔**2 clients** over a Firebase-shaped wire, Standard + DNP + Debug Mode (incl. rectangular grids that survive Randomise Topology, two-unit ports, two-unit ports + the corner cycle, the attempt log + PTP log switcher); accepts `NT_SRC=` and `NT_SEED=` | 417 |
+| NT | `node tools/nt-path-probe.js <board.json> --target <ms>` — movement-model instrument: path length, turn angle, latency, and the fit against a maze.game score. Asserts nothing, exits 0 | — |
+| NT | `node tools/nt-maze-transcribe.js <shot.png> --auto` — reads a maze.game screenshot into a probe board.json (zero-dependency PNG decode; ice blocks and corner mouths too) | — |
+| NT | `node tools/nt-slow-fit.js` — slow-model fitter: substitutes the `NT_HONEYPOT_*` constants into nt.js's OWN timeline, so a fit can never drift from the shipped model. `--sweep`, `--grid`, `--contact`. Asserts nothing, exits 0 | — |
+| FLW | `node tools/verify-flw-loopback.js` — host↔client over a Firebase-shaped wire, incl. the private-channel hand packets | 84 |
 
-**The blind spot they share is load-bearing.** Every harness *except* the four loopbacks
-(`cjar`/`shp`/`flw`/`nt`) runs in `'single'` mode with `getElementById: () => null`. That is what
-lets one process drive all N seats — and exactly what blinds it to **both** the packet layer and
-every line of render code (a render throw inside a SYNC applier is invisible; the guard clauses all
-short-circuit). PKO's **TG-07** is the same shape from the other side: `pkoMyHoard` *aliases*
-`pkoHoards[0]`, so per-device mirror bugs cannot exist there by construction. CJAR's **BUG-06**
-survived 222 green checks in that double blind spot; PKO's **BUG-02** survived 75; NT's
-**BUG-15/16** survived having no harness at all and a clean host-side playtest. The loopbacks close
-both gaps — real wire, real render-executing mock DOM, and `[ABBR]_SRC=` so a deliberately-broken
-copy can prove a test fails before the fix makes it pass — so reach for one on anything MP- or
-render-shaped.
+**Reach for a loopback on anything MP- or render-shaped.** Every harness *except* the four
+loopbacks (`cjar`/`shp`/`flw`/`nt`) runs `'single'` mode with `getElementById: () => null`, which
+is what lets one process drive all N seats — and exactly what blinds it to both the packet layer
+and every line of render code. CJAR's **BUG-06** survived 222 green checks in that gap; NT's
+**BUG-15/16** survived a clean host-side playtest. How to build one, and the wire/mock-DOM
+requirements: `logic-engine.md` § MDLM Patterns. The two omissions that cost NT a false green
+(seeded RNG run across several `*_SEED=` values; a time window on the timer pump):
+`nt-implementation-notes.md` D21.
 
-**Two things a loopback needs that are easy to leave out** (both cost NT a false-green first draft,
-`nt-implementation-notes.md` D21): a **seeded RNG plus a run across several `*_SEED=` values** — a
-precondition you *wait* for (rather than construct, `stackDeck`-style) silently stops testing on
-seeds where it doesn't occur; and a **time window on the timer pump** — draining every pending
-timer fires long-dated safety guards (NT's host-side resolve fallback sits at `endTimestamp + 4 s`)
-and force-advances the game underneath the scenario.
-
-**Layout is a fourth tier none of them reach** — a mock element has no box, so no harness can see
-spacing, alignment or overflow. For that, invoke the **`visual-check`** skill: real headless
-Chromium, `getBoundingClientRect` measurements, and one browser context per seat for genuine
-per-device views. Use it whenever a screen "looks off" or a fix is presentational (it found
-DD-32's 20 px score-table gap). **None of it substitutes for a real multi-device session:** no
-clock skew, no Firebase ordering, no dropped packets, and no judgement about how anything *feels*.
+**Layout is a fourth tier none of them reach** — a mock element has no box, so no harness sees
+spacing, alignment or overflow. For that invoke the **`visual-check`** skill (real headless
+Chromium, `getBoundingClientRect`, one browser context per seat). **None of it substitutes for a
+real multi-device session:** no clock skew, no Firebase ordering, no dropped packets, and no
+judgement about how anything *feels*.
 
 **Standing pointers.** Phase snapshots are written **in-repo** to `docs/phase[N]-snapshot.md`
 (current template: `docs/phase37-snapshot.md`). Snapshots up to and including phase36, the
