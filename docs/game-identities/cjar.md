@@ -121,3 +121,274 @@ its *spirit* still applies there: a cookie card is always floated to the first f
 so a blind commit is never punished before anyone has seen a single card.
 
 ---
+
+## T7 — The Player's Journey
+
+### T7a — The flow
+
+| # | Screen | Beat | Type | Duration | Chrome |
+|---|--------|------|------|----------|--------|
+| 1 | `screen-cjar-menu` | Pick your poison | Menu | — | 🔊 |
+| 2 | `screen-cjar-raid-intro` | "Raid 2 of 5" — a fresh jar | Interstitial | 5 s | none |
+| 3 | `screen-cjar-table` | The jar: a card turns, everyone commits | Interactive | — | `[?]` 🔊 ✕ |
+| 4 | `screen-cjar-busted` | You got caught | Interstitial | 5 s | none |
+| 5 | `screen-cjar-raid-summary` | Count the takings | Summary | — | `[?]` 🔊 ✕ |
+| 6 | `screen-cjar-gameover` | The Haul | Result | — | 🔊 ✕ |
+
+There is **no setup screen and no pass-gate** — names come from the lobby roster, and every player
+is on their own phone, so there is nobody to hand it to.
+
+Both interstitials carry no chrome at all. That is deliberate: they auto-advance *and* have nothing
+to tap, which are the two conditions of the interstitial exemption. Five seconds is the practical
+ceiling, not a target.
+
+**Overlays**
+
+| Overlay | Opened from | What it is |
+|---|---|---|
+| `cjar-settings-overlay` | Menu | Cookie Playbook — the six settings |
+| `cjar-how-to-overlay` | Menu, table `[?]`, summary `[?]` | How to Play — two tabs, **The Rules** and **The Cards** |
+| `cjar-trail-overlay` | Table | Crumb Trail — this Raid's flip-by-flip log |
+| `cjar-tip-overlay` | Table's inline `[?]` buttons | Contextual tip — Crumbs, the family strip |
+| `cjar-card-view-overlay` | Tapping a card in the history strip | The card, enlarged, with its name |
+| `cjar-quit-overlay` | Table, summary ✕ | Mid-game quit confirm |
+| `cjar-new-raid-overlay` | Gameover | Play-again confirm |
+
+### T7b — The words on screen
+
+#### The menu
+
+```copy
+# screen-cjar-menu
+Cookie Jar
+Who took the cookies from the cookie jar?
+Raid the Jar!
+How to Play
+Settings
+← Back to the Box
+```
+
+#### Raid intro
+
+Heading is built at runtime as *"Raid N of M"*. The affinity box appears in Dibber Dobber only, and
+only to the player it belongs to.
+
+```copy
+# screen-cjar-raid-intro
+Fresh jar, fresh family. Grab what you can.
+Fresh jar. Nobody leaves, nobody busts.
+they look the other way.
+Only you can see this.
+```
+
+#### The table
+
+```copy
+# screen-cjar-table — stage labels
+up for grabs
+Next from Jar
+Left in Jar
+just revealed
+what's come out &rsaquo;
+Nothing yet — the jar is still shut.
+```
+
+```copy
+# screen-cjar-table — the standings grid
+Player
+Stashed
+Status
+At Risk
+Still In
+Snuck Out
+```
+
+```copy
+# screen-cjar-table — the action buttons
+Reach In Again
+Sneak Out
+Reach In
+Play Innocent
+Dob
+```
+
+```copy
+# screen-cjar-table — outcome lines written into a player's row
+Took a cookie.
+Sneaked out.
+Played innocent.
+Dobbed.
+```
+
+```copy
+# screen-cjar-table — waiting and spectating states
+Waiting on…
+Waiting for the host to open the jar…
+```
+
+#### Contextual tips, opened from the table's inline [?] buttons
+
+```copy
+# cjar-tip-overlay — Cookie Crumbs
+Cookie Crumbs
+Leftovers that wouldn’t split evenly.
+Sneak Out alone and you take the lot.
+Play innocent alone and the pile is yours.
+Got it
+```
+
+```copy
+# cjar-tip-overlay — the family strip
+The Family
+Dim = haven’t seen them this Raid.
+Red = they’ve caught you once. One more and it’s BUSTED!
+```
+
+```copy
+# cjar-tip-overlay — the jar
+The Jar
+Still in the deck
+What is still to come. This is the one you are betting on.
+```
+
+#### Busted
+
+Family name, emoji and the flavour line are per-card, drawn from `data/cjar-data.json` — see T4.
+
+```copy
+# screen-cjar-busted
+BUSTED!
+```
+
+#### Raid summary
+
+```copy
+# screen-cjar-raid-summary
+Next Raid
+Waiting for the host…
+```
+
+#### Gameover
+
+```copy
+# screen-cjar-gameover
+The Haul 🍪
+Who took the cookies from the cookie jar?
+Another Raid?
+Leave the Jar
+```
+
+#### Settings — Cookie Playbook
+
+```copy
+# cjar-settings-overlay — title
+Cookie Playbook 🍪
+How the raid runs — and how much trouble you're in.
+```
+
+```copy
+# cjar-settings-overlay — Snack Friendly
+Snack Friendly
+Guarantees the first card or two of every Raid is cookies, so nobody gets busted before they've grabbed anything.
+Off
+Safe First Grab
+Warm-Up
+No guarantee — the first card could be anyone.
+The first card of every Raid is cookies.
+The first two cards of every Raid are cookies.
+```
+
+```copy
+# cjar-settings-overlay — House Rules
+House Rules
+Standard Burn
+On Guard
+High Alert
+Copies never change — every Raid runs the same odds.
+The catcher drops to 2 copies, and someone else climbs to 4.
+```
+
+```copy
+# cjar-settings-overlay — Match Length and Decision Time
+Match Length
+How many Cookie Raids before the biggest Cookie Stash wins.
+Quick Snack
+Full Feast
+Decision Time
+Blitz
+Standard
+No Rush
+No clock at all — the jar waits.
+```
+
+```copy
+# cjar-settings-overlay — Open Book and Sylly Mode
+Open Book
+✨ Sylly Mode
+Dibber Dobber
+Got it
+```
+
+#### How to Play — The Rules
+
+```copy
+# cjar-how-to-overlay — title and tabs
+How to Play 🍪
+Grab cookies, don't get caught twice.
+The Rules
+The Cards
+```
+
+```copy
+# cjar-how-to-overlay — step headings
+A card comes out of the jar
+Cookies get shared out straight away
+Then everyone decides, at the same time
+Sneak out alone and you take the crumbs
+The family is watching
+Banked cookies are safe forever
+Five Raids, one jar
+Winning and Scoring
+Biggest Cookie Stash takes it
+```
+
+#### Quit and play-again
+
+```copy
+# cjar-quit-overlay
+Giving up on the jar?
+Your Cookie Stash will be lost.
+Yeah, sneak off.
+Keep raiding!
+```
+
+```copy
+# cjar-new-raid-overlay
+Another Raid?
+Everyone's Cookie Stash goes back to zero.
+Stay here
+Restart in Lobby
+Leave Session
+```
+
+### T7c — Where the journey is thin
+
+**◇ judgement, not spec.**
+
+**Two beats do the work of six screens, and the Raid summary is the quiet one.** The table carries
+the flip, the choreography, the payout and the decision; the summary that follows it only restates
+numbers the standings grid already showed live under Open Book. It is the screen most likely to
+read as a speed bump rather than a beat, and the one place a per-Raid flavour line — the way the
+Raid intro has one — would cost nothing and add a breath.
+
+**The Raid intro's flavour line does not rotate.** There are exactly two, chosen by mode, not by
+Raid — so across a five-Raid Full Feast a player reads the same sentence five times. The suite's own
+Round Intro standard calls for a small rotating pool, which Counting Sheep has and Cookie Jar does
+not.
+
+**Busted is the strongest beat in the game and the shortest-lived.** It gets a per-family flavour
+line drawn from a real pool, the bust card runs the full flip choreography first, and then it is
+gone in five seconds with nothing to acknowledge it. Of all the interstitials in the suite this is
+the one where a player most wants a moment.
+
+---
