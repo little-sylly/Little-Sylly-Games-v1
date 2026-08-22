@@ -4,9 +4,46 @@
 **Emoji:** 🍪 · **Brand:** honey-gold `#D4A017`, dark ink · **Players:** 3–8 · **Modes:** MDLM only
 **Status:** gold master · verified against SW v209 on 22 August 2026
 
+> **Change contract.** Each section is tagged **free** (reword freely — but it must stay true),
+> **paired** (change the doc and the code together, or you open a gap between them), or **derived**
+> (change the code first; editing the doc only changes whether it is correct). Full rule:
+> `docs/superpowers/specs/2026-08-22-game-identity-docs-design.md` § 5.
+
 ---
 
-## T3 — How to Play
+## T1 — The Pitch · *free*
+
+Everyone's hand is in the same jar at the same time, and the card you're betting on is the one
+nobody has seen yet. The last one has already turned over and paid out — what's still face-down is
+what you're actually deciding about. Reach in again, or slip out with what you're holding; everyone
+commits at once, and nobody finds out who blinked until they all do. The only thing between you and
+a very good night is the second time Mum walks past the kitchen door. It teaches itself in one
+Raid, runs about ten minutes, and reliably produces the noise a table makes when four people sneak
+out and one of them doesn't.
+
+---
+
+## T2 — The Premise · *free*
+
+You are a kid, it is the hour before dinner, and the jar is on the bench where it always is. So is
+everyone else's hand. Nobody is taking turns — this is a raid, and a raid is something you do
+together right up until the moment it stops being together.
+
+Every card out of the jar is either more cookies to split, someone from the family wandering past,
+or a Treat too good to leave behind — and it resolves the moment it lands. Then you choose, and
+here is the whole game: **you are never choosing about the card you just watched.** You are
+choosing about the next one, face-down, unknowable. Stay in and the pile grows, and so does the
+chance that Dad comes back through for the second time. Leave alone and you take every crumb on the
+bench with you. Leave with somebody else and you split it, and spend the rest of the Raid watching
+them.
+
+What the game actually produces is a table full of people trying to read each other's nerve, all
+committing in silence, and then the small violence of the reveal. Nobody is ever really in trouble.
+The worst thing that happens in Cookie Jar is that the jar ends up on top of the fridge.
+
+---
+
+## T3 — How to Play · *free*
 
 **Setup.** Everyone is raiding the same jar at the same time. Each player has a **Cookie Stash** —
 their banked score, which runs across the whole Match and can never go down. A Match is a series
@@ -43,13 +80,33 @@ match where everyone finished level.
 
 ---
 
-## T4 — Theme & Flavour
+## T4 — Theme & Flavour · *free*
 
-*(Written in Task 5 — owner checkpoint.)*
+**The world.** A family kitchen in the hour before dinner. Warm light, a full jar, and five people
+who love you wandering in and out on their own business. Nothing about it is sinister — the tension
+is entirely about *wanting more than you should have*, and being caught wanting it.
+
+**The voice** is set in full by `docs/cjar-content-guide.md`, which governs the family's warn and
+bust lines. In short: playful, never genuinely scary; short enough to be read aloud mid-turn; in
+character rather than narrated — except the Dog, who is described, because the Dog does not talk.
+**The test that guide sets is the right one for every part of this game: if a line would land badly
+read aloud to an eight-year-old, it is wrong for Cookie Jar.**
+
+**Australian English is not a preference here, it is characterisation.** Mum, never Mom.
+*Dibber Dobber* is playground slang and would not survive translation. The whole register is
+domestic Australian.
+
+**On theme:** honey and biscuit tones, the warmth of a kitchen with the light on. The five family
+members are affectionate portraits — a family drawn by someone who likes them — not authority
+figures and not obstacles. Treats look genuinely worth stealing.
+
+**Off theme:** anything frightening. Horror framing of "getting caught", punishment, shame, raised
+voices, an adult register, or a cold modern kitchen. Getting BUSTED! is a comic beat, not a
+consequence — the card lands, everyone laughs, the next Raid deals.
 
 ---
 
-## T5 — Terminology
+## T5 — Terminology · *paired*
 
 | Term | Meaning |
 |------|---------|
@@ -68,7 +125,7 @@ match where everyone finished level.
 | **Top Cookie Thief** | The winner's label on the gameover screen. |
 | **Snack Friendly** | The setting that guarantees a cookie card floats near the top of the deal, so nobody is busted before they have grabbed anything. |
 
-### Naming rules — these are constraints, not preferences
+### Naming rules — these are constraints, not preferences · *suite-wide*
 
 These exist because another game in the suite already owns the word. Breaking one creates a
 collision a player will feel as two games using one term for two different things.
@@ -95,7 +152,7 @@ collision a player will feel as two games using one term for two different thing
 
 ---
 
-## T6 — Settings
+## T6 — Settings · *mixed — labels paired, values derived*
 
 The settings overlay is titled **Cookie Playbook 🍪** — *"How the raid runs — and how much trouble
 you're in."*
@@ -122,7 +179,7 @@ so a blind commit is never punished before anyone has seen a single card.
 
 ---
 
-## T7 — The Player's Journey
+## T7 — The Player's Journey · *mixed — 7a derived, 7b paired, 7c free*
 
 ### T7a — The flow
 
@@ -393,7 +450,7 @@ the one where a player most wants a moment.
 
 ---
 
-## T8 — Sylly Mode
+## T8 — Sylly Mode · *free*
 
 **Dibber Dobber.** The name is Australian playground slang for a tattle-tale, and it is the whole
 mode in one word.
@@ -435,7 +492,7 @@ borrowing the base game's verb would teach a rule that does not exist here.
 
 ---
 
-## T9 — Art & Assets
+## T9 — Art & Assets · *derived*
 
 **Cookie Jar ships with real artwork by default** — it is the first game in the suite to launch with
 its own art rather than adding it after the fact, so no player has ever seen it in emoji fallback.
@@ -468,7 +525,7 @@ Dimensions, file-size ceilings and the conversion process are **not** recorded h
 
 ---
 
-## T10 — At the Table
+## T10 — At the Table · *derived — except the PTP judgement*
 
 **Modes.** Multi-device only. Every player uses their own phone; one person hosts and the rest join
 with a room code. There is no pass-the-phone or shared-device option.
