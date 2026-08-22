@@ -26,6 +26,28 @@
 // replaced by spaces (so a string split by an inline <span> still matches), and
 // the plugin file normalised. A hit in any one passes.
 //
+// A hit must be BOUNDED, not merely a substring. A plain indexOf would accept
+// "Raid the Jar" against a button that actually reads "Raid the Jar!" — the doc
+// would then be reviewed as if the label had no exclamation mark. So every
+// occurrence is tested for a boundary character (whitespace, a tag bracket, or
+// a quote) on both sides, and at least one occurrence must be clean. This is
+// what makes a TRUNCATED string fail, which is the most likely transcription
+// error and the one a substring check is blindest to.
+//
+// Two known limitations, both measured rather than assumed:
+//
+//   • A doc string that is a genuine FRAGMENT of a longer visible run — the
+//     middle of a sentence built by interpolation — fails this check and must
+//     be recorded as its full contiguous text instead. That is the intended
+//     trade: "verbatim" should mean the whole label, not part of it.
+//   • A truncation that lands on a word boundary AND whose shorter form is
+//     itself a bounded prefix of some other real string still passes. Measured
+//     example: "Waiting for the host" survives because "Waiting for the host to
+//     open the jar…" contains it bounded. Closing this needs exact matching
+//     against parsed HTML text nodes and JS literals, which is a parser this
+//     tool deliberately does not carry. The common transcription errors —
+//     dropped punctuation, changed case, wrong apostrophe — are all caught.
+//
 // --self-test runs the checker against tools/fixtures/identity-doc-fixture.md,
 // whose contents are DELIBERATELY part right and part wrong, and asserts it
 // finds exactly the planted failures. Without it, a checker that silently
@@ -82,12 +104,35 @@ function haystacksFor(abbr) {
   return [norm(html), norm(stripTags(html)), norm(js)];
 }
 
+// A character that can legitimately sit either side of a complete visible
+// string: whitespace, a tag bracket, or any flavour of quote. Anything else
+// adjacent means the real string continues and the doc has truncated it.
+const BOUNDARY = /[\s<>"'`]/;
+
+// True when `needle` occurs in `hay` at least once with a boundary on both
+// sides. Every occurrence is tried, not just the first — "Dob" appears inside
+// "Dobbed." (unbounded) AND as its own button label (bounded), and the bounded
+// one is what makes it correct.
+function foundBounded(hay, needle) {
+  if (!needle) return false;
+  let i = hay.indexOf(needle);
+  while (i !== -1) {
+    const before = i === 0 ? '' : hay[i - 1];
+    const afterI = i + needle.length;
+    const after  = afterI >= hay.length ? '' : hay[afterI];
+    if ((before === '' || BOUNDARY.test(before)) &&
+        (after  === '' || BOUNDARY.test(after))) return true;
+    i = hay.indexOf(needle, i + 1);
+  }
+  return false;
+}
+
 // Returns an array of { doc, line, text } for every string not found.
 function checkDoc(docPath) {
   const abbr = path.basename(docPath, '.md');
   const hay  = haystacksFor(abbr);
   return copyStrings(fs.readFileSync(docPath, 'utf8'))
-    .filter(s => { const n = norm(s.text); return !hay.some(h => h.includes(n)); })
+    .filter(s => { const n = norm(s.text); return !hay.some(h => foundBounded(h, n)); })
     .map(s => ({ doc: path.basename(docPath), line: s.line, text: s.text }));
 }
 
