@@ -12,7 +12,7 @@ Tick items off here; promote anything architectural into `decision-log.md`.
 
 **Found during identity-doc pass 1, which changed no application code at all** (docs + one new tool
 only; `git diff main` over `js/`, `index.html`, `sw.js`, `css/`, `data/` is empty). The harness still
-fails roughly **1 run in 6**:
+fails at **~20-25%**. Measured over 20 trials each: **pristine `main` 4/20, the branch 5/20** — statistically indistinguishable, so this is not something the pass introduced. (An initial 8-run sample came back 8/8 clean on `main` and was misleading; at this rate that has ~10% probability. Use 20+ trials when judging this one.)
 
 ```
 Dibber Dobber payout beat: the actual split, not cjarPlayerCount (DD-20 review fix)
