@@ -10,7 +10,8 @@
 
 **On-demand — READ with the Read tool only when the trigger applies (NOT auto-loaded; do not read these during routine bug/polish work):**
 > ⚠️ These live in `docs/rules/`, NOT `.claude/rules/`, **on purpose** — the harness auto-loads every file in `.claude/rules/` into baseline context every turn. Only the three always-loaded files above belong there; do NOT move these back.
-- `docs/rules/game-identities.md` — per-game themes, terminology, settings tables, special mechanics. **135 KB / 18 game sections — never read whole.** **Read when:** non-trivial work on one game — Grep its `## Game N:` heading, offset-Read that section only. The quick index below covers most colour/file/abbr lookups without opening it.
+- `docs/game-identities/[abbr].md` — the game's **identity doc**: pitch, premise, how to play, theme + flavour, terminology, settings, the player's journey (beat map + every UI string), Sylly Mode, art, table shape. **15–25 KB — read it WHOLE**, it is written to be read end to end. **Read when:** any non-technical work on one game — review, copy, an art brief, a game review, or just learning what the game is. Each section is tagged **free** / **paired** / **derived** — see the change contract in `docs/superpowers/specs/2026-08-22-game-identity-docs-design.md` § 5 before editing one. Copy blocks are machine-verified by `tools/verify-identity-docs.js`. **Exists only for games ticked ✅ in the Identity doc column below.**
+- `docs/rules/game-identities.md` — **BEING RETIRED, one game per pass.** Holds only the games whose Identity doc column reads — below; each migrated game's section is deleted as its identity doc lands. **~200 KB — never read whole.** **Read when:** an unmigrated game needs its old section — Grep its `## Game N:` heading, offset-Read that section only. Deleted entirely when the last game migrates.
 - `docs/rules/per-game-classes.md` — the per-game class strings: brand colour, range/toggle/pill classes, Play CTA + how-to emoji + Sylly Mode name, `accentBtnClass`, step label, Settings tint. **Read when:** building or editing any game's UI and you need its exact class strings.
 - `docs/art-authoring-guide.md` — the standalone (no-Claude-Code) artwork guide: skin pack vs core art, exact dimensions/aspect per game, the inventory for all seven render seams, `tools/make-skin-pack.ps1`, the offline install check. **Read when:** authoring/converting art, or answering "what art does game X need". Written for the owner to use alone — point them at it rather than re-deriving dimensions from CSS.
 - `docs/rules/word-expansion.md` — `data/words.json` content rules: difficulty tiers, Great Minds categories, the animals Broad Shield protocol, the `nono_list` Dual-Use Contract. **Read when:** editing words in `data/words.json` or a pack manifest's inline `words`.
@@ -22,28 +23,33 @@
 - `docs/deferred-work.md` — the parked-work list: older-games retest backlog, pending suite-wide sweeps, smaller flagged items. **Read when:** picking up maintenance work, or at a phase gate.
 
 ### 🎮 Per-Game Quick Index
-Always-on pointer so single-game work doesn't need the 128 KB `game-identities.md`. For terminology, settings tables, overlays, multiplayer packets → read that game's `## Game N:` section in `game-identities.md`. Brand colour rarely changes; everything else, confirm in-section.
+Always-on pointer so single-game work doesn't need a big file read. Brand colour rarely changes; everything else, confirm at the source.
 
-| # | Game | `activeGameId` | Plugin file | Brand / active-pill |
-|---|------|---------------|-------------|---------------------|
-| 1 | Like I'm Five | `li5` | `li5.js` | pink-500 / `pill-active-pink` |
-| 2 | Great Minds | `great-minds` | `great-minds.js` | violet-500 CTAs + purple-* pills / `pill-active-purple` |
-| 3 | Secret Signals | `sylly-signals` *(legacy id)* | `secret-signals.js` | teal-500 / `pill-active-teal` |
-| 4 | Just Enough Cooks | `jec` | `jec.js` | amber-500 / `pill-active-amber` |
-| 5 | You Get It? | `ygi` | `ygi.js` | orange-500 / `pill-active-orange` |
-| 6 | Late to the Party | `lttp` | `lttp.js` | red-500 / `pill-active-red` |
-| 7 | Natural Selection | `nat` | `nat.js` | lime-600 / `pill-active-lime` |
-| 8 | Deep-Sea Deploy | `dsd` | `dsd.js` | cyan-700 / `pill-active-cyan` |
-| 9 | Group Therapy | `gth` | `gth.js` | sage `#B1BCA0` / `pill-active-sage` |
-| 10 | The Bluff *(internal `dyb`)* | `dyb` | `dyb.js` | ocean `#1E4D8C` / `pill-active-dyb` |
-| 11 | Bailed | `bld` | `bld.js` | dark red `#991b1b` (red-800) / `pill-active-bld` |
-| 12 | Pass | `pass` | `pass.js` | zinc-900 / `pill-active-zinc` |
-| 13 | Net-Trace | `nt` | `nt.js` | emerald-600 / `pill-active-emerald` |
-| 14 | Fruit Salad | `frt` | `frt.js` | electric lemon `#FFE500` (dark ink) / `pill-active-frt` |
-| 15 | Counting Sheep | `shp` | `shp.js` | midnight `#3A3D52` (custom) / `pill-active-shp` |
-| 16 | Flawless | `flw` | `flw.js` | rose-pink `#E879A8` / `pill-active-flw` |
-| 17 | Pecking Order | `pko` | `pko.js` | `#854D0E` / `pill-active-pko` |
-| 18 | Cookie Jar | `cjar` | `cjar.js` | honey-gold `#D4A017` (dark ink) / `pill-active-cjar` |
+**Where a game's detail lives depends on its `Identity doc` column:**
+- **✅** → `docs/game-identities/[abbr].md`, read whole (15–25 KB). Themes, terminology, settings, every UI string, the beat map, art, table shape.
+- **—** → not migrated yet: Grep `## Game N:` in `docs/rules/game-identities.md` and offset-Read that section only.
+- **Either way**, screen/overlay IDs, state variables, key functions and MP packet tables live in `docs/code-map.md` — never in an identity doc.
+
+| # | Game | `activeGameId` | Plugin file | Brand / active-pill | Identity doc |
+|---|------|---------------|-------------|---------------------|--------------|
+| 1 | Like I'm Five | `li5` | `li5.js` | pink-500 / `pill-active-pink` | — |
+| 2 | Great Minds | `great-minds` | `great-minds.js` | violet-500 CTAs + purple-* pills / `pill-active-purple` | — |
+| 3 | Secret Signals | `sylly-signals` *(legacy id)* | `secret-signals.js` | teal-500 / `pill-active-teal` | — |
+| 4 | Just Enough Cooks | `jec` | `jec.js` | amber-500 / `pill-active-amber` | — |
+| 5 | You Get It? | `ygi` | `ygi.js` | orange-500 / `pill-active-orange` | — |
+| 6 | Late to the Party | `lttp` | `lttp.js` | red-500 / `pill-active-red` | — |
+| 7 | Natural Selection | `nat` | `nat.js` | lime-600 / `pill-active-lime` | — |
+| 8 | Deep-Sea Deploy | `dsd` | `dsd.js` | cyan-700 / `pill-active-cyan` | — |
+| 9 | Group Therapy | `gth` | `gth.js` | sage `#B1BCA0` / `pill-active-sage` | — |
+| 10 | The Bluff *(internal `dyb`)* | `dyb` | `dyb.js` | ocean `#1E4D8C` / `pill-active-dyb` | — |
+| 11 | Bailed | `bld` | `bld.js` | dark red `#991b1b` (red-800) / `pill-active-bld` | — |
+| 12 | Pass | `pass` | `pass.js` | zinc-900 / `pill-active-zinc` | — |
+| 13 | Net-Trace | `nt` | `nt.js` | emerald-600 / `pill-active-emerald` | — |
+| 14 | Fruit Salad | `frt` | `frt.js` | electric lemon `#FFE500` (dark ink) / `pill-active-frt` | — |
+| 15 | Counting Sheep | `shp` | `shp.js` | midnight `#3A3D52` (custom) / `pill-active-shp` | — |
+| 16 | Flawless | `flw` | `flw.js` | rose-pink `#E879A8` / `pill-active-flw` | — |
+| 17 | Pecking Order | `pko` | `pko.js` | `#854D0E` / `pill-active-pko` | — |
+| 18 | Cookie Jar | `cjar` | `cjar.js` | honey-gold `#D4A017` (dark ink) / `pill-active-cjar` | ✅ |
 
 For per-game classes (range / toggle / pill / CTA / how-to / brand class strings) read `docs/rules/per-game-classes.md` (on-demand) — the single source for those; don't duplicate them here.
 
@@ -135,7 +141,7 @@ All symbols are global (no ES modules). Forward references work at runtime.
 **Trigger:** After any completed phase, game addition, permanent architectural change, or mid-session bug fix session. Applies even when no phase snapshot is written — the snapshot is optional, the doc updates are not.
 **Mandatory updates, in this order:**
 1. `docs/code-map.md` — new screen IDs, overlay IDs, key functions, state variables
-2. `game-identities.md` — new settings, terminology, overlay types, screen entries for affected games
+2. `docs/game-identities/[abbr].md` — terminology, settings, the player's journey + UI copy, Sylly Mode, art. *(For a game whose Identity doc column still reads —, this means its `## Game N:` section in `docs/rules/game-identities.md` instead.)* **Screen and overlay reference tables are step 1's job, not this one.** Respect the section's **free / paired / derived** tag — a paired change is not done until the code ships too.
 3. `CLAUDE.md` — SW version, Current Focus, key references
 4. `logic-engine.md` / `ui-style.md` — any new universal rule, audio function or engine/UI pattern
 5. `docs/implementation-notes/[abbr]-…md` (or `shared-…md` — see § Skill: Implementation Notes for which) — design decisions, bugs resolved, lessons
@@ -143,7 +149,7 @@ All symbols are global (no ES modules). Forward references work at runtime.
 
 **Rule:** No phase snapshot until all six are verified current. The snapshot is the final deliverable, not the starting point for cleanup.
 
-**Enforcement:** at the start of a new phase, read `docs/code-map.md` and `game-identities.md` for every game it will touch and cross-reference against the real `index.html` headers and JS. Flag and resolve any discrepancy before implementation begins.
+**Enforcement:** at the start of a new phase, read `docs/code-map.md` and each affected game's identity doc (`docs/game-identities/[abbr].md`, or its `## Game N:` section in `docs/rules/game-identities.md` if not yet migrated) and cross-reference against the real `index.html` headers and JS. Flag and resolve any discrepancy before implementation begins. For a migrated game, `node tools/verify-identity-docs.js` does the UI-copy half of this mechanically.
 
 ---
 
@@ -325,6 +331,8 @@ Re-run a game's full set after touching its appliers, deck/data, packets or rend
 | NT | `node tools/nt-path-probe.js <board.json> --target <ms>` — movement-model instrument: path length, turn angle, latency, and the fit against a maze.game score. Asserts nothing, exits 0 | — |
 | NT | `node tools/nt-maze-transcribe.js <shot.png> --auto` — reads a maze.game screenshot into a probe board.json (zero-dependency PNG decode; ice blocks and corner mouths too) | — |
 | NT | `node tools/nt-slow-fit.js` — slow-model fitter: substitutes the `NT_HONEYPOT_*` constants into nt.js's OWN timeline, so a fit can never drift from the shipped model. `--sweep`, `--grid`, `--contact`. Asserts nothing, exits 0 | — |
+| Identity docs | `node tools/verify-identity-docs.js` — every `copy` block in `docs/game-identities/` against the shipped `index.html` + plugin file | per-doc |
+| Identity docs | `node tools/verify-identity-docs.js --self-test` — proves the checker still detects planted drift | 1 |
 | FLW | `node tools/verify-flw-loopback.js` — host↔client over a Firebase-shaped wire, incl. the private-channel hand packets | 84 |
 
 **Reach for a loopback on anything MP- or render-shaped.** Every harness *except* the four

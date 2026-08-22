@@ -8,6 +8,57 @@ Tick items off here; promote anything architectural into `decision-log.md`.
 
 ---
 
+## `verify-cjar-loopback.js` is FLAKY — intermittent Dibber Dobber payout-beat failure (22 Aug 2026)
+
+**Found during identity-doc pass 1, which changed no application code at all** (docs + one new tool
+only; `git diff main` over `js/`, `index.html`, `sw.js`, `css/`, `data/` is empty). The harness still
+fails roughly **1 run in 6**:
+
+```
+Dibber Dobber payout beat: the actual split, not cjarPlayerCount (DD-20 review fix)
+  FAIL  host2 threw the exact split token count
+          expected 3, got 4
+  FAIL  client2 threw the exact split token count
+```
+
+**Likely cause.** This is the one CJAR harness with a **real shuffle** (the other three stub identity
+— TG-03). The assertion expects a fixed token count of 3, but the number of players who Reach In on
+the flip under test depends on the deal, so a different shuffle legitimately produces 4. The
+assertion looks over-specified rather than the game being wrong — but that is a hypothesis, not a
+diagnosis, and it has not been confirmed.
+
+**Why it matters more than a normal flake.** `CLAUDE.md` and `docs/code-map.md` both publish this
+harness at **177 checks** as a pass/fail gate, and `logic-engine.md` names the loopback pattern as
+the thing to reach for on anything MP-shaped. A gate that fails ~17% of the time for no reason
+trains people to re-run until green, which is exactly how a real regression gets waved through.
+
+**Next step:** reproduce with a fixed seed. The harness accepts `CJAR_SRC=` but has no documented
+seed variable — SHP's `SHP_SEED=` is the pattern to copy. Not attempted here; out of scope for a
+documentation pass.
+
+---
+
+## CJAR copy drift found while writing its identity doc (22 Aug 2026)
+
+**Found, not fixed.** An identity pass records the game as it shipped; fixing what it reveals is a
+separate task (spec § 15). Three items, all cosmetic, none affecting rules or packets:
+
+- **The Dibber Dobber action button reads `Reach In`, but every place that *explains* the mode calls
+  it "Take"** — the settings overlay's Sylly Mode card, the How to Play Sylly Mode card, and
+  `docs/code-map.md`'s CJAR summary line. The rename away from "Take a Cookie" (DD-21) is documented
+  in `js/games/cjar.js` beside the button itself, but the three explanations never followed. A player
+  reads "Take grabs cookies" and looks for a Take button that does not exist. **Most worth fixing.**
+- **How to Play step 7 is headed "Five Raids, one jar"** — hardcoded to the Full Feast default. On
+  Quick Snack it is three.
+- **Two case variants of the same caption** ship side by side: `Sneak Out alone and you take the lot.`
+  and `Sneak out alone and you take the lot.`
+
+Fixing any of these means editing `index.html` / `js/games/cjar.js` **and** the matching copy block in
+`docs/game-identities/cjar.md` in the same change — they are **paired** under the change contract.
+`node tools/verify-identity-docs.js` will fail until both halves land.
+
+---
+
 ## NT slow model: 111378 and 64472 CLOSED — the transcription tool had ingress/egress backwards (20 Aug 2026)
 
 **The two boards flagged "genuinely open" since D45, and left untouched by both v209 fixes below, are

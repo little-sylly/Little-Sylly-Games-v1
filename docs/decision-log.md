@@ -20,6 +20,15 @@ Detail: pointer to the canonical doc (snapshot / impl note / spec / memory).
 
 ---
 
+## 2026-08-22 — Per-game identity docs replace `game-identities.md`
+Category: Process
+Decision: Every game gets a non-technical identity doc at `docs/game-identities/[abbr].md`; `docs/rules/game-identities.md` is retired **incrementally**, one section deleted per migration pass, and deleted outright when the last game migrates.
+Why: The shipped game was recorded nowhere but the code — no reviewable surface for themes, copy, terminology or settings, and no context to hand to an artist. The old file was ~60% technical, so splitting it 18 ways would not have produced the document that was needed.
+Changed: New `docs/game-identities/` + `tools/verify-identity-docs.js` (guards quoted UI copy, with a `--self-test`). `CLAUDE.md` gains an Identity doc tracker column and a rewritten Documentation Integrity Protocol **step 2**; `docs/rules/phase-audit.md`'s five game-identities checks re-pointed, two of them now mechanical. Pass 1 = CJAR (done, section 18 deleted). Deferred: the other 17 passes, newest-first; the final pass deletes the old file and updates the two always-loaded rule files.
+Detail: `docs/superpowers/specs/2026-08-22-game-identity-docs-design.md` (§ 5 carries the free/paired/derived change contract), plan `docs/superpowers/plans/2026-08-22-game-identity-docs-pass1.md`.
+
+---
+
 ## 2026-08-20 — Net-Trace: 111378 and 64472 closed — the transcription tool had ports backwards, not a routing gap
 **Category:** Architecture
 **Decision:** `nt-maze-transcribe.js` now classifies which on-screen marker is 'flag' (orange/checker

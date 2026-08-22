@@ -17,9 +17,9 @@ Run all four checks. Each item is a yes/no gate — flag and fix before proceedi
 
 For the game just completed, verify these against the actual JS file:
 
-- [ ] **Screen IDs match** — every `screen-[abbr]-*` ID in the plugin exists verbatim in `game-identities.md` State Flow
-- [ ] **Settings table matches** — every `let [abbr]Setting` variable in the plugin matches the Settings table (name, options, default value, internal identifier)
-- [ ] **Scoring values match** — every points value in the resolve/score function matches the Scoring table in `game-identities.md`
+- [ ] **Screen IDs match** — every `screen-[abbr]-*` ID in the plugin appears in the identity doc's **T7a flow table** (`docs/game-identities/[abbr].md`) *(unmigrated game: its `## Game N:` section in `docs/rules/game-identities.md`)*
+- [ ] **Settings table matches** — every `let [abbr]Setting` variable in the plugin matches the identity doc's **T6** (display name, options, default). Internal identifiers live in `docs/code-map.md`, not in the identity doc
+- [ ] **Scoring values match** — every points value in the resolve/score function matches the identity doc's **T3 / T6** *(unmigrated game: its `## Game N:` section in `docs/rules/game-identities.md`)*
 - [ ] **State variable list is complete** — all state vars declared in the plugin appear in `docs/code-map.md` (no game has ever carried a separate "State Variables" table in `game-identities.md` — code-map is the actual source of truth here; don't add a 17th redundant table)
 - [ ] **`allScreens[]` is current** — every screen ID registered in `engine.js` matches the screens defined for this game
 - [ ] **SW precache is current** — `sw.js` lists the plugin file; `logic-engine.md` precache list matches `sw.js`; CACHE_NAME version is correct
@@ -59,9 +59,9 @@ These four patterns each appeared in 3+ games during the Fable audit. In MDLM, e
 
 For each game in the suite (not just the new one — drift can enter during fixes):
 
-- [ ] **Terminology table coverage** — every term in the game's Terminology table in `game-identities.md` is reflected in the plugin's user-facing strings (screen headings, button labels, overlay titles)
+- [ ] **Terminology table coverage** — every term in the identity doc's **T5** is reflected in the plugin's user-facing strings. **Migrated game: `node tools/verify-identity-docs.js` covers the T7b half of this mechanically** — it fails on any quoted string that no longer exists in `index.html` or the plugin. T5 itself is *not* harness-guarded and still needs eyes
 - [ ] **No legacy generic strings** — grep the plugin for: `"Game Over"`, `"Round"`, `"Score"`, `"Points"`, `"Vote"`, `"Level"`, `"Player"` (bare, uncapitalised) — flag any that haven't been replaced with the game's own vocabulary
-- [ ] **Quit overlay copy is thematic** — verify the quit overlay heading, subtext, confirm button, and cancel button against the game's Quit Overlay entry in `game-identities.md`
+- [ ] **Quit overlay copy is thematic** — verify heading, subtext, confirm and cancel against the identity doc's **T7b** quit-overlay copy block. **Migrated game: `node tools/verify-identity-docs.js` already asserts all four strings still exist** — this check becomes "is it still *good*", not "is it still *there*"
 - [ ] **Settings overlay title block** — thematic title and subtitle in the overlay match the Settings overlay title row in the Terminology table
 - [ ] **Australian English** — no "color", "flavor", "organize", "recognize" in UI strings; metric units only
 
@@ -97,7 +97,7 @@ Follow this sequence strictly. Do not skip ahead to logic injection.
 ### Step 1 — Brief (before any JS)
 - Fill out `docs/new-game-brief-[name].md` using `docs/rules/new-game-brief-template.md` (full three-stage protocol: `docs/rules/new-game-process.md`)
 - Every section must be complete (no blank cells, no TBD on core mechanics)
-- Review against `game-identities.md` for tone consistency and against `ui-style.md` for overlay/menu standards
+- Review against a comparable game's identity doc (`docs/game-identities/[abbr].md`, T1/T2/T4) for tone consistency, and against `ui-style.md` for overlay/menu standards
 - **Gate:** Brief signed off → proceed to Step 2
 
 ### Step 2 — Scaffold (state + empty functions)

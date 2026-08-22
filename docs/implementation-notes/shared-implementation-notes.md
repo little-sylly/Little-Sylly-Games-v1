@@ -154,4 +154,48 @@ An applier-level scan cannot see either. The erasure lands wherever a *leaf* col
 
 ## Template Gaps
 
+### A doc-verification harness must require a BOUNDED match, not a substring
+
+**What happened.** `tools/verify-identity-docs.js` (identity-doc pass 1) checked each quoted UI
+string with `hay.includes(needle)`. Its `--self-test` passed, and all 102 strings in the first real
+document passed on the first run. Adversarially corrupting three real strings then showed it caught
+only one: changing `Raid the Jar!` to `Raid the Jar` sailed through, because the truncation is a
+substring of the truth.
+
+**Root cause.** Two separate gaps, and the second is the interesting one. (1) Substring semantics
+accept every truncation. (2) The self-test planted **invented** strings — "Grab The Biscuit Tin" —
+which only proves the checker is not blind. It says nothing about whether the checker is *precise*,
+because an invented string fails under both correct and sloppy matching.
+
+**Lesson.** For any checker that asserts "X still exists in the source", assert a **bounded** match:
+every occurrence must have whitespace, a tag bracket, or a quote on both sides, and at least one
+occurrence must be clean (scan all of them — "Dob" is unbounded inside "Dobbed." and bounded as its
+own button label). And build the self-test from **corrupted real strings**, not invented ones —
+truncation, changed case and the wrong apostrophe are the errors that actually happen. Invented
+strings test the floor; corrupted real ones test the ceiling.
+
+**Residual, measured and documented in the tool's header rather than chased:** a truncation landing
+on a word boundary whose shorter form is itself a bounded prefix of another real string still
+passes (`Waiting for the host` survives because `Waiting for the host to open the jar…` contains it).
+Closing that needs a real HTML/JS parser, which this tool deliberately does not carry.
+
+### "Free to reword" is not "free to be wrong"
+
+**What happened.** The identity-doc change contract classifies each section **free** (no code reads
+it), **paired** (doc and code must change together) or **derived** (code first). The first draft of
+CJAR's T1 Pitch — a **free** section — described players choosing about the card they had just seen.
+That contradicts `cjarApplyCardEffect` ("applies its OWN effect — before anyone chooses… the
+ordering is load-bearing") and contradicted the same document's own T3 two sections later. The owner
+caught it; no tool could have.
+
+**Root cause.** "Free" was written to mean *safe to edit* and was read as *low-stakes*. But the free
+sections are exactly the ones with **no mechanical guard**: the harness covers quoted copy, and
+derived facts are checkable against source. Prose about how a game plays is checked by nobody.
+
+**Lesson.** State the truth constraint explicitly in any tiering scheme like this — free means free
+of *coupling*, never free of *accuracy*. Practically: when a free section makes a claim about how
+the game works, verify it against the code the same way a derived fact would be, and check it
+against the document's own other sections, which is where this contradiction was visible.
+
+
 *(none yet)*
