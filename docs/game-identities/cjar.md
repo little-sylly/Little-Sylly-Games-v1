@@ -392,3 +392,110 @@ gone in five seconds with nothing to acknowledge it. Of all the interstitials in
 the one where a player most wants a moment.
 
 ---
+
+## T8 — Sylly Mode
+
+**Dibber Dobber.** The name is Australian playground slang for a tattle-tale, and it is the whole
+mode in one word.
+
+**What changes.** Nobody leaves, nobody busts, and nobody ever loses everything. The two-way choice
+becomes a three-way one, and all three are played face-down at once:
+
+- **Reach In** — claim a share of the flipped card.
+- **Play Innocent** — pretend you had nothing to do with it. Free on a cookie card. On a Caught!
+  card the cost depends on your secret affinity. And if *nobody* Dobs, the Innocents sweep the
+  entire Crumb pool between them — the move known informally as **the scare-off**.
+- **Dob** — point the finger. It steals from whoever reached in, but it always backfires on a
+  Caught! card, whether or not anyone else Dobbed.
+
+**The secret each player carries.** At the start of every Raid you are privately told two family
+members: your **Favourite**, who looks the other way and never costs you anything, and your
+**Watcher**, who is onto you and costs you double. They are never the same person, they are
+re-drawn each Raid, and only you can see them. That is what makes Play Innocent a read rather than
+a coin-flip — the same Caught! card is cheap for one player at the table and expensive for another,
+and nobody else knows which.
+
+**Crumb Debt.** Because nobody can be wiped out, a player who cannot fully pay a loss records a
+capped IOU instead. It is repaid out of future gains before anything reaches their Cookie Stash,
+and it is forgiven at every Raid boundary along with the leftover Crumbs. It is a side-ledger, not
+a negative score — a player in debt still reads as having what they have banked.
+
+**The order of play inverts, deliberately.** The base game resolves a card and *then* asks you to
+choose about the next, unseen one. Dibber Dobber cannot do that, because every outcome here is
+driven by the choices themselves — so you commit **blind**, then the card is revealed and resolved
+against what everyone picked. Both modes are still a gamble on a card you have not seen; they just
+put the unseen card on opposite sides of the decision.
+
+**What it supersedes.** Snack Friendly's card is hidden while Dibber Dobber is on, since there is no
+bust to be protected from. Its spirit survives anyway: a cookie card is still floated to the first
+flip, so the very first blind commitment of a Raid is never punished.
+
+**One vocabulary rule.** The word **Sneak** never appears anywhere in this mode. Nobody leaves, so
+borrowing the base game's verb would teach a rule that does not exist here.
+
+---
+
+## T9 — Art & Assets
+
+**Cookie Jar ships with real artwork by default** — it is the first game in the suite to launch with
+its own art rather than adding it after the fact, so no player has ever seen it in emoji fallback.
+
+| What | Count | Where it renders |
+|---|---|---|
+| Cookie faces | 3 — Handful, Batch, Mountain | Table hero, history strip, card popup, gallery |
+| Family faces | 5 — Mum, Dad, Big Brother, Grandma, the Dog | As above, plus the warning strip |
+| Treat faces | 5 — shortbread, red velvet, macadamia, macarons, brownies | As above, plus the Up for Grabs slot |
+| Card back | 1 | The face-down next card, and the deck stack |
+
+Cookie art is banded rather than per-value: all fifteen cookie values share three illustrations
+across the three tiers, so a Handful and a Mountain read differently at a glance without needing
+fifteen pictures.
+
+**Everything is precached.** The art is part of the app version, not an optional download — it is
+present on a cold offline install, and changing it requires a service-worker version bump.
+
+**Where to see it without playing.** How to Play → **The Cards** shows the full deck. That gallery
+is built from the live card data through the same renderer the table uses, so it can never drift
+from what is actually dealt, and it is skinnable along with everything else.
+
+**It doubles as the offline install check.** Open that tab with no connection: illustrated cards
+mean the art precached correctly, emoji mean it did not. Cookie Jar is multi-device only, so
+without the gallery that check would need four phones and a live room to answer a service-worker
+question.
+
+Dimensions, file-size ceilings and the conversion process are **not** recorded here — they live in
+`docs/art-authoring-guide.md`, which is the document to brief an artist from alongside T4.
+
+---
+
+## T10 — At the Table
+
+**Modes.** Multi-device only. Every player uses their own phone; one person hosts and the rest join
+with a room code. There is no pass-the-phone or shared-device option.
+
+**Players.** 3 to 8.
+
+**Devices.** One per player, no exceptions — the whole game is built on everyone choosing secretly
+and simultaneously, which a shared screen cannot do.
+
+**Shape-changing settings.** None. No setting alters the player count or the session structure.
+(Match Length changes how *long* a match runs, not its shape.)
+
+**How it plays at each size**
+
+| Players | What it feels like |
+|---|---|
+| **3** | Thin. The bust maths barely bites and the Crumb pool rarely grows enough to make a lone Sneak-Out exciting. This is also the least-tested size — the balance work was done at 5 and 8, and 3 was an owner call rather than a simulated result. Worth watching. |
+| **5–6** | The intended game. Enough players that cookie cards split awkwardly and leave real Crumbs behind, and enough that someone always leaves too early or too late. |
+| **8** | Longer Raids and a bigger Crumb pool, but more waiting per flip — eight people must all commit before anything moves, and the slowest hand sets the pace on No Rush. |
+
+**Could it be Pass-the-Phone?** — ◇ *judgement, not spec*
+
+**No, and not as a gap — as a consequence of the design.** The mechanic *is* simultaneous secret
+commitment: everyone choosing at once, nobody knowing who else is about to leave. Passing one phone
+around would serialise that into a turn order, and a player choosing fourth would know what three
+others had already done. That is a different game, and a worse one. Cookie Jar's multi-device
+requirement is load-bearing rather than incidental — unlike a turn-by-turn game where it is a
+delivery choice.
+
+---
