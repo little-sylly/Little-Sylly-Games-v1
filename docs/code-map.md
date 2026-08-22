@@ -2030,7 +2030,7 @@ All three evaluate the real `js/games/pko.js` in a Node `vm` sandbox — they re
 | `CJAR_CHOICE` | ACTION | public | Client → host: Take/Sneak or the three DD actions. Host re-validates `cjarFlipSeq`; a stale tag is dropped (the PKO BUG-01 class) |
 | `CJAR_PLAYER_LEFT` | ACTION | public | Client → host mid-game quit — host calls `resetToLobby()`, dissolving the match for everyone (the PASS/GTH/DYB/BLD contract) |
 | `CJAR_MATCH_START`, `CJAR_RAID_START`, `CJAR_FLIP_START`, `CJAR_FLIP_RESOLVE`, `CJAR_RAID_END`, `CJAR_MATCH_END` | SYNC | public | Every accumulator resets **in the payload** (`cjarChoices`, `cjarReadyCheck`, `cjarCrumbDebt`, `cjarSeen`, `cjarTrail`, `cjarHighAlertId`, `cjarCounterTreat`) — and every client applier rebuilds them via `cjarWireArr`/`cjarWireList`/`cjarWireObj` rather than assigning the raw field (BUG-06). `CJAR_FLIP_START` carries `windowMs` (per-flip, `null` = No Rush) and, in Sylly, omits `card` (the window is blind). `CJAR_FLIP_RESOLVE` carries `card` so a Sylly client's hero can flip from face-down to face-up at reveal |
-| `CJAR_AFFINITY` | SYNC | **private** (`mpSendPrivate`) | Dibber Dobber — this seat's own Favourite/Wataffinity pair, never broadcast publicly |
+| `CJAR_AFFINITY` | SYNC | **private** (`mpSendPrivate`) | Dibber Dobber — this seat's own Favourite/Watcher affinity pair, never broadcast publicly |
 
 ### Verification tools
 | Tool | Covers |
