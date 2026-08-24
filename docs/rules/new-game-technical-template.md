@@ -5,7 +5,7 @@
 
 > **Instructions for Claude Code**
 > 1. Read the Phase 1 brief (`new-game-brief-[name].md`) in full
-> 2. Read `logic-engine.md`, `ui-style.md`, `definitions.md`, `game-identities.md`, `CLAUDE.md`
+> 2. Read `logic-engine.md`, `ui-style.md`, `definitions.md`, `docs/game-identities/*.md` (Terminology sections), `CLAUDE.md`
 > 3. Read `docs/code-map.md` to check for naming collisions and reusable patterns
 > 4. Fill in every section below. Where the brief is ambiguous, flag it with **[CLARIFICATION NEEDED]** — do not invent answers
 > 5. Present the completed spec to the project owner. Do not write any game code until this document is confirmed.
@@ -15,11 +15,11 @@
 
 ## Consistency Audit (complete before filling any other section)
 
-Run these checks against `game-identities.md` and `docs/code-map.md` before proceeding.
+Run these checks against `docs/game-identities/*.md` and `docs/code-map.md` before proceeding.
 
 | Check | Finding |
 |-------|---------|
-| Does any proposed terminology collide with existing terms across the 8 games? | |
+| Does any proposed terminology collide with existing terms across the 18 games? | |
 | Does the proposed brand colour have an existing `pill-active-[colour]` class in `css/styles.css`? | |
 | Does the proposed abbreviation conflict with any existing plugin prefix? | |
 | Does any proposed screen ID conflict with any existing screen in `allScreens[]`? | |
@@ -479,7 +479,7 @@ Tick each item as it is built. Do not mark complete until verified in the browse
 
 ### Documentation
 - [ ] `docs/code-map.md` updated with new game section
-- [ ] `game-identities.md` updated with new game entry (terminology, settings, overlays, screens, multiplayer config)
+- [ ] `docs/game-identities/[abbr].md` written (terminology, settings, journey/screens, multiplayer config, art, table shape — all T1–T10)
 - [ ] `CLAUDE.md` project structure map updated
 - [ ] Phase snapshot written (`docs/phase[N]-snapshot.md`)
 

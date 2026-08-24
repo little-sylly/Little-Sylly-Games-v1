@@ -148,7 +148,115 @@ An applier-level scan cannot see either. The erasure lands wherever a *leaf* col
 
 ## Multiplayer Lessons
 
-*(none yet — this section exists so the four-section shape matches every per-game file; see the Implementation Notes skill in `CLAUDE.md`)*
+### ML-01 — A lobby bound that reads game state reads it before the game has run [23 Aug 2026, SW v210]
+
+*What happened:* five games (SS, JEC, YGI, LTTP, DSD) capped their Lobby Mode rooms below what
+their own Pass-the-Phone setup offered — JEC/YGI at 4 instead of 6, LTTP at *exactly* 4, SS and DSD
+at 2v2 instead of 3v3. A 5th player's join was rejected with nothing anywhere explaining why.
+
+*Root cause:* `getMaxPlayers`/`getMinPlayers` in `MP_GAME_CONFIGS` resolved against a game-local
+setup variable — `ssPlayerCount`, `jecPlayerCount`, `ygiPlayerCount`, `lttpPlayerCount`,
+`dsdPlayersPerTeam`. Every one of those variables is moved by count pills on a **setup screen that
+Lobby Mode skips entirely**, so at the two moments a bound is actually read —
+`mpRenderHostPlayerList()` while the room fills, and the room node's `maxPlayers` at create time —
+the variable is still sitting at its declared default. Each game's `onPassThePhone` *does* overwrite
+it from the roster, but that runs after the lobby has already filled, which is exactly why the bug
+looked fine in code review: the assignment is right there, just at the wrong end of the timeline.
+
+*Lesson:* **a lobby bound is not a game setting; it is a property of the game.** Return the true
+range as a constant. The only extra input that can be correct is `window.mpLobbyStyle` (a TLM room
+is 2 devices where an MDLM room is N) or a **pre-lobby** setting chosen on the game menu before the
+room exists (FRT's `frtPearOff` — the sole legitimate instance, and it is on the allow-list in
+`tools/verify-mp-configs.js` § 3 with its reason). Anything a *setup or roster* screen sets is not.
+
+*Second lesson, about the deferred list itself:* four separate `deferred-work.md` entries proposed
+the same fix — "read the roster's live size during lobby-fill rather than a game-local variable" —
+and it was **wrong**. A cap cannot be the roster's size; the roster is the thing the cap constrains.
+Four independent write-ups converging on a plausible-sounding fix is not evidence the fix is right:
+each one was copied from the last. When an entry repeats across games, re-derive the fix once at the
+top rather than inheriting it.
+
+---
+
+### ML-02 — "Everyone is assigned" is not "the teams are valid" [23 Aug 2026, SW v210]
+
+*What happened:* found while raising SS's and DSD's caps to 6. `mpRosterCheckConfirm` enabled Start
+Game as soon as `mpRosterPendingTeamIdx.every(t => t >= 0)` — every player assigned *somewhere*. It
+never compared the two teams' sizes, so a host could confirm 3v2. With the old max of 4 it could
+confirm **4v0**.
+
+*Root cause:* both games derive their per-team size from **team A alone** —
+`ssPlayerCount = ssPlayerNamesA.length`, `dsdPlayersPerTeam = dsdPlayerNames[0].length`. Team B
+inherits that number and is silently mis-sized. Nothing errors; the game just deals wrong.
+
+*Lesson:* a completeness check (`every`, `.length === n`, `.every(Boolean)`) is not a validity
+check. Where a game's arithmetic depends on a *relationship* between two collections, assert the
+relationship, not the fill. This is the same failure family as the `[].every()` vacuous-truth gate
+in `cjar-impl-notes` BUG-05: the predicate was true, and true meant nothing.
+
+*Fix:* `rosterConfig.requiresBalancedTeams: true` on the two balanced-team games, gating both ends —
+the host lobby CTA rejects an odd roster before the roster screen is ever reached, and
+`mpRosterCheckConfirm` requires `|A| === |B|`, with an amber reason line in `#mp-roster-hint`. Both
+gates read one shared predicate, `mpRosterNeedsBalance()`, so a third team game opts in with one
+config key.
+
+---
+
+### ML-03 — A rule scoped to one mode gets read as "not my problem" by every other mode [23 Aug 2026, SW v210]
+
+*What happened:* eight of the 18 games had no mid-game quit teardown at all — a leaver kept its
+Firebase slot and every other device waited on a turn that never came. Ten games had been fixed
+individually over the preceding months.
+
+*Root cause of the *recurrence*, which is the interesting half:* the rule in `logic-engine.md` was
+titled **MDLM** Mid-Game Quit Contract. LI5 and DSD are TLM games. Neither reads as "an MDLM game",
+so the rule looked like someone else's section — yet the failure is identical, because the mode
+label was never what mattered. What matters is only that a Firebase room exists and another device
+is waiting on it.
+
+*Lesson:* **scope a rule to the condition that causes the failure, not to the mode where it was
+first observed.** The section is now § Mid-Game Quit Contract and covers every lobby session. Any
+rule named after a mode deserves the same question: is the mode load-bearing, or just where someone
+happened to be standing?
+
+*Second lesson, about how the remaining three were found:* the identity-doc pass flagged five games
+(LI5, GM, SS, JEC, YGI) by reading each doc in turn. LTTP, NAT and DSD had the identical
+unconditional handler and were flagged by **none** of them. Reading eight documents one at a time
+finds a bug class; it does not find the class's full membership. Once a pattern is named, grep the
+suite for its *shape* before scoping the fix — that is what turned "5 games" into "8 games, and 5
+not 4 for the bounds bug" before any code was written.
+
+*Fix:* one generic engine helper, `mpNotifyPlayerLeft()` → `MP_PLAYER_LEFT`, handled in
+`mpHandleEnvelope` **before any per-game routing** so a game needs no handler of its own. The ten
+per-game `[ABBR]_PLAYER_LEFT` implementations that predate it each do exactly what the generic path
+does; they still work and were deliberately not swept, but that ten-fold duplication is precisely
+what let the eleventh through eighteenth games forget it entirely. **When the same handler is written
+identically for the third time, it belongs in the engine.**
+
+---
+
+### ML-04 — The declarations layer had no harness at all [23 Aug 2026, SW v210]
+
+*What happened:* both bugs above were live in shipped code while 14 verification harnesses passed.
+
+*Root cause:* every `tools/verify-*.js` drives one game's *rules*. Nothing tested the layer above
+them — `MP_GAME_CONFIGS`, which the mode and lobby screens read directly for all 18 games. A wrong
+declaration there is wrong before a packet is ever sent, so even a loopback would not have caught
+it: the loopbacks construct their own seats and never consult the lobby bounds.
+
+*Lesson:* **a harness that runs the game cannot check the contract that decides whether the game can
+start.** `tools/verify-mp-configs.js` fills the gap: entry schema, bounds sanity, **bound purity**
+(source-level — a bound may name nothing but `window.mpLobbyStyle`), agreement with each game's own
+Pass-the-Phone count pills in `index.html`, the balanced-teams invariant, and the quit contract,
+across all 18. It runs no game logic and sends no packets by design.
+
+Two details worth copying into the next harness of this kind. **(1)** It takes `MP_SRC=`, following
+`CJAR_SRC=`/`NT_SRC=`, so pre-fix `engine-multiplayer.js` can be driven through the same checks —
+it fails on `git show HEAD:` and passes on the fix, which is the only way to know an assertion is
+load-bearing rather than tautological. **(2)** Where a real divergence is deliberate it is an
+explicit named exception with its reason inline (`ALLOWED_SETTINGS.frtPearOff`,
+`PILL_EXCEPTIONS.nat`) and prints as a `note`, never a silent skip. A harness that ships red trains
+people to ignore it; a harness that quietly skips is lying.
 
 ---
 
@@ -197,5 +305,31 @@ of *coupling*, never free of *accuracy*. Practically: when a free section makes 
 the game works, verify it against the code the same way a derived fact would be, and check it
 against the document's own other sections, which is where this contradiction was visible.
 
+### A bug index with no closure step rots into fiction — in the safe direction, which is why nobody notices
 
-*(none yet)*
+**What happened.** The identity-doc migration read every game's impl-notes as source material. Two
+games' Bug Indexes turned out to be substantially wrong. **GM:** G4 (Lobby Mode near-sync silently
+discarding the round), G5 (host/client mismatch phrases diverging) and G6 (quit overlay in the wrong
+brand colour) all read "(open)" — all three are fixed in shipped code, and G4's fix even carries an
+inline comment describing precisely the remedy its note proposes. **LI5:** L6 (deck panel behind its
+own opener), L7 (phantom timer on quit-cancel) and L8 (Pinky Swear score desync) likewise read
+"(open)" and are likewise all fixed, L7 with an explanatory comment and L8 with the exact sequential
+re-clamp its note asks for. Six stale entries across two files.
+
+**Root cause.** Entries are written at *discovery* time, when the finding is fresh and the writeup is
+cheap. The fix lands later — often in a different session, sometimes as a drive-by inside unrelated
+work — and by then the note is out of context and nothing prompts a return trip. The Documentation
+Integrity Protocol has a step for *adding* an impl-notes entry; it has no step for *closing* one.
+
+**Why it stayed invisible.** This decays in the direction that never causes a failure: a fixed bug
+described as open costs nothing at runtime. It surfaces only when someone reads the index cold —
+which, before the identity docs existed, essentially nobody did. The cost is paid later and by
+someone else: a future session budgets time to investigate six bugs that do not exist, or worse,
+"re-fixes" one and perturbs working code.
+
+**Lesson.** When you fix something already logged in a Bug Index, close the entry in the same
+response that ships the fix — the existing "same response" rule for *writing* an entry applies just
+as much to *resolving* one. Mark it `RESOLVED [date]` with a one-line note on what closed it rather
+than deleting it; the discovery record is the valuable half and the resolution line is what stops
+the next reader re-opening the investigation. And treat any doc that only gets **appended to** as
+structurally prone to this — a document nobody ever reads back is a document nobody ever corrects.

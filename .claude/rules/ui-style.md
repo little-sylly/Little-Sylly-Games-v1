@@ -741,7 +741,7 @@ See `docs/rules/per-game-classes.md` — **Table A** (brand colour) and **Table 
 **Notes:**
 - **GTH:** Muted Sage (`#B1BCA0`) has no Tailwind utility class — GTH brand colours are applied via inline `style` attributes throughout its markup, hence the `—` entries.
 - **DYB:** Ocean blue `#1E4D8C` — custom colour like GTH sage and FRT banana. All brand surfaces use custom CSS classes: `dyb-cta` (CTAs + hover `#183d70`), `dyb-label` (section/step labels), `pill-active-dyb`, `game-toggle-on-dyb`. Range gradient `#dce8f7 → #1E4D8C`. Settings button light tint: `bg-[#dce8f7] hover:bg-[#c8daf0] text-[#1E4D8C]`. Modal border: `border-[#9db8d9]`. `game-toggle-on-stone` is now the neutral lobby fallback only (not DYB's brand).
-- **GM:** brand is **split** — `violet-500/600` for all primary CTAs and accents, `purple-*` for pills/toggles/settings tint/modal borders/how-to labels (the values in this table). This is a documented inconsistency, not drift — see `game-identities.md` § Great Minds and the fix plan (unify-or-document item).
+- **GM:** brand is **split** — `violet-500/600` for all primary CTAs and accents, `purple-*` for pills/toggles/settings tint/modal borders/how-to labels (the values in this table). This is a documented inconsistency, not drift — see `docs/game-identities/gm.md` T7c and the fix plan (unify-or-document item).
 - `accentBtnClass`/`accentTextClass` only take effect when a game calls `showWhoFirst()` (team games). GTH, DYB, BLD, and PASS never call it; their values are derived from each game's primary CTA buttons and are listed for consistency should a future mechanic need them.
 
 ---

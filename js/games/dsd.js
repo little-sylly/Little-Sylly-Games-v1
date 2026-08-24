@@ -1452,6 +1452,9 @@ document.querySelectorAll('.btn-dsd-quit-open').forEach(btn =>
 document.getElementById('btn-dsd-quit-confirm').addEventListener('click', () => {
   playExit();
   document.getElementById('dsd-quit-overlay').style.display = 'none';
+  // Mid-Game Quit Contract (logic-engine.md): in a lobby session, leaving must dissolve the
+  // session for every other device — dsdResetState() + dsdShowMenu() only tears this one down.
+  if (window.syllyMultiplayerMode !== 'single') { mpNotifyPlayerLeft(); resetToLobby(); return; }
   dsdResetState();
   dsdShowMenu();
 });

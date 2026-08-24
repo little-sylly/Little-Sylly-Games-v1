@@ -2294,6 +2294,9 @@ document.getElementById('btn-ss-dossier-close').addEventListener('click', () => 
 // Quit overlay
 document.getElementById('btn-ss-quit-confirm').addEventListener('click', () => {
   playExit();
+  // Mid-Game Quit Contract (logic-engine.md): in a lobby session, leaving must dissolve the
+  // session for every other device — ssResetToMenu() only tears this one down.
+  if (window.syllyMultiplayerMode !== 'single') { mpNotifyPlayerLeft(); resetToLobby(); return; }
   ssResetToMenu();
 });
 document.getElementById('btn-ss-quit-cancel').addEventListener('click', () => {

@@ -878,6 +878,9 @@ document.getElementById('btn-jec-pass-gate-ready').addEventListener('click', () 
 document.getElementById('btn-jec-quit-confirm').addEventListener('click', () => {
   playExit();
   document.getElementById('jec-quit-overlay').style.display = 'none';
+  // Mid-Game Quit Contract (logic-engine.md): in a lobby session, leaving must dissolve the
+  // session for every other device — jecResetForNewGame() only tears this one down.
+  if (window.syllyMultiplayerMode !== 'single') { mpNotifyPlayerLeft(); resetToLobby(); return; }
   jecResetForNewGame();
 });
 

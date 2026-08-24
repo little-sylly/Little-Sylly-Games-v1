@@ -1251,7 +1251,7 @@ function bldHandleEnvelope(env) {
   }
 
   // A client quit mid-game; dissolve for everyone (MDLM quit contract, PASS pattern —
-  // logic-engine.md § MDLM Mid-Game Quit Contract).
+  // logic-engine.md § Mid-Game Quit Contract).
   if (action === 'BLD_PLAYER_LEFT' && window.syllyMultiplayerMode === 'host') {
     resetToLobby(); // broadcasts HOST_END_GAME to remaining clients
   }

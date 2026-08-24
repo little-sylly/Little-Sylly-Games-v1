@@ -10,8 +10,7 @@
 
 **On-demand — READ with the Read tool only when the trigger applies (NOT auto-loaded; do not read these during routine bug/polish work):**
 > ⚠️ These live in `docs/rules/`, NOT `.claude/rules/`, **on purpose** — the harness auto-loads every file in `.claude/rules/` into baseline context every turn. Only the three always-loaded files above belong there; do NOT move these back.
-- `docs/game-identities/[abbr].md` — the game's **identity doc**: pitch, premise, how to play, theme + flavour, terminology, settings, the player's journey (beat map + every UI string), Sylly Mode, art, table shape. **15–25 KB — read it WHOLE**, it is written to be read end to end. **Read when:** any non-technical work on one game — review, copy, an art brief, a game review, or just learning what the game is. Each section is tagged **free** / **paired** / **derived** — see the change contract in `docs/superpowers/specs/2026-08-22-game-identity-docs-design.md` § 5 before editing one. Copy blocks are machine-verified by `tools/verify-identity-docs.js`. **Exists only for games ticked ✅ in the Identity doc column below.**
-- `docs/rules/game-identities.md` — **BEING RETIRED, one game per pass.** Holds only the games whose Identity doc column reads — below; each migrated game's section is deleted as its identity doc lands. **~200 KB — never read whole.** **Read when:** an unmigrated game needs its old section — Grep its `## Game N:` heading, offset-Read that section only. Deleted entirely when the last game migrates.
+- `docs/game-identities/[abbr].md` — the game's **identity doc**: pitch, premise, how to play, theme + flavour, terminology, settings, the player's journey (beat map + every UI string), Sylly Mode, art, table shape. **15–25 KB — read it WHOLE**, it is written to be read end to end. **Read when:** any non-technical work on one game — review, copy, an art brief, a game review, or just learning what the game is. Each section is tagged **free** / **paired** / **derived** — see the change contract in `docs/superpowers/specs/2026-08-22-game-identity-docs-design.md` § 5 before editing one. Copy blocks are machine-verified by `tools/verify-identity-docs.js`. **All 18 games now have one** — the `docs/rules/game-identities.md` migration completed 23 Aug 2026; that file is deleted.
 - `docs/rules/per-game-classes.md` — the per-game class strings: brand colour, range/toggle/pill classes, Play CTA + how-to emoji + Sylly Mode name, `accentBtnClass`, step label, Settings tint. **Read when:** building or editing any game's UI and you need its exact class strings.
 - `docs/art-authoring-guide.md` — the standalone (no-Claude-Code) artwork guide: skin pack vs core art, exact dimensions/aspect per game, the inventory for all seven render seams, `tools/make-skin-pack.ps1`, the offline install check. **Read when:** authoring/converting art, or answering "what art does game X need". Written for the owner to use alone — point them at it rather than re-deriving dimensions from CSS.
 - `docs/rules/word-expansion.md` — `data/words.json` content rules: difficulty tiers, Great Minds categories, the animals Broad Shield protocol, the `nono_list` Dual-Use Contract. **Read when:** editing words in `data/words.json` or a pack manifest's inline `words`.
@@ -25,35 +24,35 @@
 ### 🎮 Per-Game Quick Index
 Always-on pointer so single-game work doesn't need a big file read. Brand colour rarely changes; everything else, confirm at the source.
 
-**Where a game's detail lives depends on its `Identity doc` column:**
-- **✅** → `docs/game-identities/[abbr].md`, read whole (15–25 KB). Themes, terminology, settings, every UI string, the beat map, art, table shape.
-- **—** → not migrated yet: Grep `## Game N:` in `docs/rules/game-identities.md` and offset-Read that section only.
-- **Either way**, screen/overlay IDs, state variables, key functions and MP packet tables live in `docs/code-map.md` — never in an identity doc.
+**Every game's non-technical detail lives in its identity doc** — `docs/game-identities/[abbr].md`,
+read whole (15–25 KB): themes, terminology, settings, every UI string, the beat map, art, table
+shape. Screen/overlay IDs, state variables, key functions and MP packet tables live in
+`docs/code-map.md` instead — never in an identity doc.
 
-| # | Game | `activeGameId` | Plugin file | Brand / active-pill | Identity doc |
-|---|------|---------------|-------------|---------------------|--------------|
-| 1 | Like I'm Five | `li5` | `li5.js` | pink-500 / `pill-active-pink` | — |
-| 2 | Great Minds | `great-minds` | `great-minds.js` | violet-500 CTAs + purple-* pills / `pill-active-purple` | — |
-| 3 | Secret Signals | `sylly-signals` *(legacy id)* | `secret-signals.js` | teal-500 / `pill-active-teal` | — |
-| 4 | Just Enough Cooks | `jec` | `jec.js` | amber-500 / `pill-active-amber` | — |
-| 5 | You Get It? | `ygi` | `ygi.js` | orange-500 / `pill-active-orange` | — |
-| 6 | Late to the Party | `lttp` | `lttp.js` | red-500 / `pill-active-red` | — |
-| 7 | Natural Selection | `nat` | `nat.js` | lime-600 / `pill-active-lime` | — |
-| 8 | Deep-Sea Deploy | `dsd` | `dsd.js` | cyan-700 / `pill-active-cyan` | — |
-| 9 | Group Therapy | `gth` | `gth.js` | sage `#B1BCA0` / `pill-active-sage` | — |
-| 10 | The Bluff *(internal `dyb`)* | `dyb` | `dyb.js` | ocean `#1E4D8C` / `pill-active-dyb` | — |
-| 11 | Bailed | `bld` | `bld.js` | dark red `#991b1b` (red-800) / `pill-active-bld` | — |
-| 12 | Pass | `pass` | `pass.js` | zinc-900 / `pill-active-zinc` | — |
-| 13 | Net-Trace | `nt` | `nt.js` | emerald-600 / `pill-active-emerald` | — |
-| 14 | Fruit Salad | `frt` | `frt.js` | electric lemon `#FFE500` (dark ink) / `pill-active-frt` | — |
-| 15 | Counting Sheep | `shp` | `shp.js` | midnight `#3A3D52` (custom) / `pill-active-shp` | — |
-| 16 | Flawless | `flw` | `flw.js` | rose-pink `#E879A8` / `pill-active-flw` | — |
-| 17 | Pecking Order | `pko` | `pko.js` | `#854D0E` / `pill-active-pko` | — |
-| 18 | Cookie Jar | `cjar` | `cjar.js` | honey-gold `#D4A017` (dark ink) / `pill-active-cjar` | ✅ |
+| # | Game | `activeGameId` | Plugin file | Brand / active-pill |
+|---|------|---------------|-------------|---------------------|
+| 1 | Like I'm Five | `li5` | `li5.js` | pink-500 / `pill-active-pink` |
+| 2 | Great Minds | `great-minds` | `great-minds.js` | violet-500 CTAs + purple-* pills / `pill-active-purple` |
+| 3 | Secret Signals | `sylly-signals` *(legacy id)* | `secret-signals.js` | teal-500 / `pill-active-teal` |
+| 4 | Just Enough Cooks | `jec` | `jec.js` | amber-500 / `pill-active-amber` |
+| 5 | You Get It? | `ygi` | `ygi.js` | orange-500 / `pill-active-orange` |
+| 6 | Late to the Party | `lttp` | `lttp.js` | red-500 / `pill-active-red` |
+| 7 | Natural Selection | `nat` | `nat.js` | lime-600 / `pill-active-lime` |
+| 8 | Deep-Sea Deploy | `dsd` | `dsd.js` | cyan-700 / `pill-active-cyan` |
+| 9 | Group Therapy | `gth` | `gth.js` | sage `#B1BCA0` / `pill-active-sage` |
+| 10 | The Bluff *(internal `dyb`)* | `dyb` | `dyb.js` | ocean `#1E4D8C` / `pill-active-dyb` |
+| 11 | Bailed | `bld` | `bld.js` | dark red `#991b1b` (red-800) / `pill-active-bld` |
+| 12 | Pass | `pass` | `pass.js` | zinc-900 / `pill-active-zinc` |
+| 13 | Net-Trace | `nt` | `nt.js` | emerald-600 / `pill-active-emerald` |
+| 14 | Fruit Salad | `frt` | `frt.js` | electric lemon `#FFE500` (dark ink) / `pill-active-frt` |
+| 15 | Counting Sheep | `shp` | `shp.js` | midnight `#3A3D52` (custom) / `pill-active-shp` |
+| 16 | Flawless | `flw` | `flw.js` | rose-pink `#E879A8` / `pill-active-flw` |
+| 17 | Pecking Order | `pko` | `pko.js` | `#854D0E` / `pill-active-pko` |
+| 18 | Cookie Jar | `cjar` | `cjar.js` | honey-gold `#D4A017` (dark ink) / `pill-active-cjar` |
 
 For per-game classes (range / toggle / pill / CTA / how-to / brand class strings) read `docs/rules/per-game-classes.md` (on-demand) — the single source for those; don't duplicate them here.
 
-For where each game's screens/overlays live in `index.html`, see the **Per-Game Offset Map** at the top of `docs/code-map.md`. **`code-map.md` is ~132 KB (~33k tokens) — never read it whole.** Same rule as `game-identities.md`: Grep for the game or element ID, then offset-Read that slice. One careless full read costs more than the entire always-loaded rule set.
+For where each game's screens/overlays live in `index.html`, see the **Per-Game Offset Map** at the top of `docs/code-map.md`. **`code-map.md` is ~132 KB (~33k tokens) — never read it whole.** Same rule as any large file: Grep for the game or element ID, then offset-Read that slice. One careless full read costs more than the entire always-loaded rule set.
 
 ---
 
@@ -141,7 +140,7 @@ All symbols are global (no ES modules). Forward references work at runtime.
 **Trigger:** After any completed phase, game addition, permanent architectural change, or mid-session bug fix session. Applies even when no phase snapshot is written — the snapshot is optional, the doc updates are not.
 **Mandatory updates, in this order:**
 1. `docs/code-map.md` — new screen IDs, overlay IDs, key functions, state variables
-2. `docs/game-identities/[abbr].md` — terminology, settings, the player's journey + UI copy, Sylly Mode, art. *(For a game whose Identity doc column still reads —, this means its `## Game N:` section in `docs/rules/game-identities.md` instead.)* **Screen and overlay reference tables are step 1's job, not this one.** Respect the section's **free / paired / derived** tag — a paired change is not done until the code ships too.
+2. `docs/game-identities/[abbr].md` — terminology, settings, the player's journey + UI copy, Sylly Mode, art. **Screen and overlay reference tables are step 1's job, not this one.** Respect the section's **free / paired / derived** tag — a paired change is not done until the code ships too.
 3. `CLAUDE.md` — SW version, Current Focus, key references
 4. `logic-engine.md` / `ui-style.md` — any new universal rule, audio function or engine/UI pattern
 5. `docs/implementation-notes/[abbr]-…md` (or `shared-…md` — see § Skill: Implementation Notes for which) — design decisions, bugs resolved, lessons
@@ -149,13 +148,13 @@ All symbols are global (no ES modules). Forward references work at runtime.
 
 **Rule:** No phase snapshot until all six are verified current. The snapshot is the final deliverable, not the starting point for cleanup.
 
-**Enforcement:** at the start of a new phase, read `docs/code-map.md` and each affected game's identity doc (`docs/game-identities/[abbr].md`, or its `## Game N:` section in `docs/rules/game-identities.md` if not yet migrated) and cross-reference against the real `index.html` headers and JS. Flag and resolve any discrepancy before implementation begins. For a migrated game, `node tools/verify-identity-docs.js` does the UI-copy half of this mechanically.
+**Enforcement:** at the start of a new phase, read `docs/code-map.md` and each affected game's identity doc (`docs/game-identities/[abbr].md`) and cross-reference against the real `index.html` headers and JS. Flag and resolve any discrepancy before implementation begins. `node tools/verify-identity-docs.js` does the UI-copy half of this mechanically.
 
 ---
 
 ## 🧼 Token Hygiene & Context Management
 - **Never full-read `index.html`:** It is ~515 KB (~128k tokens) — a single full read nearly fills the context window and is the largest avoidable token sink in this project. To work on a screen or overlay, **Grep first** for its identifier (`screen-[abbr]-*`, an `[abbr]-*-overlay` ID, or the `<!-- ════ GAME NAME ════ -->` section header), then **Read with `offset`/`limit`** around the hit — never read the whole file to "get oriented".
-- **Same rule for any file over ~40 KB** (e.g. `js/games/nt.js`, `engine-multiplayer.js`, `secret-signals.js`, and `game-identities.md` itself): locate the relevant section with Grep, then read only that slice. Reading a large file in full to orient yourself is the single most common cause of the mid-task auto-compact spiral.
+- **Same rule for any file over ~40 KB** (e.g. `js/games/nt.js`, `engine-multiplayer.js`, `secret-signals.js`): locate the relevant section with Grep, then read only that slice. Reading a large file in full to orient yourself is the single most common cause of the mid-task auto-compact spiral.
 - **Lean Context:** Avoid repetitive explanations. Assume technical competence.
 - **Australian English:** Use Australian spelling (e.g., "colour", "synthesised"). Metric units only.
 - **Session Cleanup:** If a sub-task is complete, suggest running /compact to clear history.
@@ -189,7 +188,7 @@ One trade: a fresh session re-pays the **~33k baseline** but starts clean; conti
 | **Switching games** (PKO work → FRT bug) | **fresh session** | Nothing loaded transfers; you're paying rent on dead context |
 | **Switching mode of work** (build → doc-only, code → design/spec) | **fresh session** | Different rule files, different reading pattern |
 | **Auto-compact has already fired once** | **fresh session** | The cheap context is gone. A summary-of-a-summary is worse than a clean start with a pointer to the impl-notes |
-| A **big file slice was read** and is now irrelevant (a 3k-line `index.html` window, `game-identities.md` section) | **fresh session** | That slice re-costs on every turn forever |
+| A **big file slice was read** and is now irrelevant (a 3k-line `index.html` window, a `code-map.md` section) | **fresh session** | That slice re-costs on every turn forever |
 | Escalating model **up** for the next task (Sonnet → Opus) | **fresh session** | Opus turns are the expensive ones — don't feed them a transcript of Sonnet's exploration |
 | Dropping model **down** for the next task (Opus → Sonnet/Haiku) | **same session** ok | Cheap turns can afford the carried context |
 
@@ -223,8 +222,8 @@ applier change". Omit the section entirely if there are none.]
 ````
 
 **Read first** and **Constraints / gotchas** are the two fields that pay for the handoff — the first
-(file *plus* Grep term, 3 files ceiling) stops the new session full-reading `index.html`,
-`code-map.md` or `game-identities.md`; the second stops it repeating the last one's dead end. Keep
+(file *plus* Grep term, 3 files ceiling) stops the new session full-reading `index.html` or
+`code-map.md`; the second stops it repeating the last one's dead end. Keep
 **Task** to one action, and **State** to what a fresh session cannot infer (SW version, which
 harnesses pass, what shipped).
 
@@ -274,22 +273,21 @@ On every bump the outgoing SW entry moves **verbatim** to `docs/sw-changelog.md`
 "keep the last three". **A second `**SW v…**` paragraph appearing here means that move didn't
 happen: do it before anything else.**
 
-**SW v209 — NT's honeypot is a pure cooldown gate, FOOTPRINT-based; 111378/64472 CLOSED (20 Aug
-2026).** Three fixes from one Debug Mode session, worst corpus error **20.80% → 2.81%**. **(1)**
-191490's recorded hits were `[2,2,2]`, not owner-confirmed `[3,2,2]` — v208's "refresh" branch was
-fitted to a gap pattern that only existed under the wrong count; `checkFires` is now a pure
-`elapsed >= lastFire[i] + NT_HONEYPOT_DURATION` gate, no entry/exit branch. **(2)** D45's Minkowski
-rejection tested footprint-distance at the wrong (centre-model) radius; at its own radius (2×√2,
-"2 tiles from the block's corner") it reproduces 48154/97877 too — AoE is now footprint-based, disc/
-ring redrawn to match. **(3)** `nt-maze-transcribe.js` had ingress/egress backwards on some boards —
-assigned by edge-scan order, not by reading which marker is the finish. 111378 (owner-verified against
-their own Debug Mode rebuild) and 64472 both had this exact bug: **−10.3%→+0.25%, −20.2%→+0.67%** —
-the two boards flagged "genuinely open" since D45 were bad input data, not a routing/AoE gap. `72000`
-reads the same unambiguous marker but flipping it made the fit worse — left alone, unresolved.
-6/6 trigger counts still MATCH, harness 417 green. Detail: `nt-implementation-notes` D46/D47/D48,
-`docs/deferred-work.md`.
+**SW v210 — lobby bounds are constants, the quit contract covers TLM, and the declarations
+layer finally has a harness (23 Aug 2026).** Two recurring bugs from the identity-doc pass, both
+cross-cutting, both invisible to all 14 rules harnesses. **(1)** `getMaxPlayers`/`getMinPlayers` are
+read only while a room fills — before the game shows a screen — so five games (SS, JEC, YGI, LTTP,
+DSD) resolved theirs against a setup variable still at its default, capping rooms below their own
+Pass-the-Phone range; now constants. Raising SS/DSD to 3v3 exposed that nothing ever checked team
+balance (3v2 confirmed; 4v0 too) — new `rosterConfig.requiresBalancedTeams` gates the host CTA and
+the roster screen. **(2)** Eight games had no mid-game quit teardown; the rule was titled *MDLM*, so
+the two TLM games (LI5, DSD) read past it. It is now § Mid-Game Quit Contract, covers every lobby
+session, and is satisfied by one generic helper `mpNotifyPlayerLeft()`. **Scope grew on evidence
+twice** — the identity pass named 5 quit games and 4 bounds games; grepping the shape found 8 and 5.
+New `node tools/verify-mp-configs.js` (18 games) fails on pre-fix `main` via `MP_SRC=`. Detail:
+`shared-implementation-notes` ML-01…ML-04, `docs/decision-log.md`.
 
-**Previous versions: `docs/sw-changelog.md`** — continuous, v208 back to v167.
+**Previous versions: `docs/sw-changelog.md`** — continuous, v209 back to v167.
 
 **Where the suite stands.** **18 games shipped**, all gold-master, plus multiplayer. Newest three:
 **Cookie Jar** (`cjar`, game 18, phase 39), **Pecking Order** (`pko`, game 17, phase 37) and its
@@ -302,7 +300,7 @@ install check live in `docs/expansion-guide.md` § Core art packs.
 
 **Side project — Arcade Mode.** Secret Mode holds **arcade cabinets** under an `ARCADE` category
 alongside word packs and skins. **Cabinets are NOT Sylly Games and NOT packs** — no MP config, no
-`game-identities.md` section, no Sylly Mode, no verification harness, and explicitly **not**
+identity doc, no Sylly Mode, no verification harness, and explicitly **not**
 `docs/rules/new-game-checklist.md`. They use the terminal's CRT green-on-black language, not the
 Stack or the brand palette. First cabinet: **Asherplane** (`js/arcade/asherplane.js`), a top-down
 shmup. Adding cabinet #2 = one `SM_ARCADE` entry + one file. Spec + plan:
@@ -312,7 +310,9 @@ shmup. Adding cabinet #2 = one `SM_ARCADE` entry + one file. Spec + plan:
 retest backlog, four pending suite-wide sweeps (BUG-06 Firebase-erasure re-sweep by payload shape,
 DD-13 settings value line, DD-31 button parity, a How-to gallery for PASS), NT's open Minors and
 `mpConfirmRoster` late-join race (BUG-07), PKO's unplayed **Stragglers** mode, and CJAR's **DD-06**
-balance flag. Read it when picking up maintenance work, or at a phase gate.
+balance flag. The identity-doc pass's 22 findings are still listed there too — **its two recurring MP
+bugs are now CLOSED (SW v210)**; what remains from that pass is per-game polish plus one design call
+(NAT's Pass-the-Phone floor). Read it when picking up maintenance work, or at a phase gate.
 
 ### 🧪 Verification harnesses
 
@@ -331,6 +331,7 @@ Re-run a game's full set after touching its appliers, deck/data, packets or rend
 | NT | `node tools/nt-path-probe.js <board.json> --target <ms>` — movement-model instrument: path length, turn angle, latency, and the fit against a maze.game score. Asserts nothing, exits 0 | — |
 | NT | `node tools/nt-maze-transcribe.js <shot.png> --auto` — reads a maze.game screenshot into a probe board.json (zero-dependency PNG decode; ice blocks and corner mouths too) | — |
 | NT | `node tools/nt-slow-fit.js` — slow-model fitter: substitutes the `NT_HONEYPOT_*` constants into nt.js's OWN timeline, so a fit can never drift from the shipped model. `--sweep`, `--grid`, `--contact`. Asserts nothing, exits 0 | — |
+| **All 18 / MP** | `node tools/verify-mp-configs.js` — `MP_GAME_CONFIGS` entry schema, player-count bounds (sanity, **purity** — a bound may read nothing but `window.mpLobbyStyle`, and agreement with each game's own PTP count pills), the balanced-teams invariant, and the Mid-Game Quit Contract. Runs no game logic; accepts `MP_SRC=`. **Re-run after touching `MP_GAME_CONFIGS`, any quit-confirm handler, or the roster screen** | 18 games |
 | Identity docs | `node tools/verify-identity-docs.js` — every `copy` block in `docs/game-identities/` against the shipped `index.html` + plugin file | per-doc |
 | Identity docs | `node tools/verify-identity-docs.js --self-test` — proves the checker still detects planted drift | 1 |
 | FLW | `node tools/verify-flw-loopback.js` — host↔client over a Firebase-shaped wire, incl. the private-channel hand packets | 84 |

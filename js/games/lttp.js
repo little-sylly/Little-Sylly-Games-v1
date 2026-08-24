@@ -265,6 +265,9 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-lttp-quit-confirm').addEventListener('click', () => {
     playExit();
     document.getElementById('lttp-quit-overlay').style.display = 'none';
+    // Mid-Game Quit Contract (logic-engine.md): in a lobby session, leaving must dissolve the
+    // session for every other device — this local navigation only tears this one down.
+    if (window.syllyMultiplayerMode !== 'single') { mpNotifyPlayerLeft(); resetToLobby(); return; }
     showScreen('screen-lttp-menu');
   });
 

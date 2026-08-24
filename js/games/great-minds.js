@@ -1021,6 +1021,9 @@ document.getElementById('btn-gm-quit-confirm').addEventListener('click', () => {
   gmPendingBoostA    = '';
   gmPendingBoostB    = '';
   if (gmCountdownTimer) { clearInterval(gmCountdownTimer); gmCountdownTimer = null; }
+  // Mid-Game Quit Contract (logic-engine.md): in a lobby session, leaving must dissolve the
+  // session for every other device — the local reset above only tears this one down.
+  if (window.syllyMultiplayerMode !== 'single') { mpNotifyPlayerLeft(); resetToLobby(); return; }
   showScreen('screen-gm-menu');
 });
 

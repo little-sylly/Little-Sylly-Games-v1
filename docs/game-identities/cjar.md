@@ -8,6 +8,10 @@
 > **paired** (change the doc and the code together, or you open a gap between them), or **derived**
 > (change the code first; editing the doc only changes whether it is correct). Full rule:
 > `docs/superpowers/specs/2026-08-22-game-identity-docs-design.md` § 5.
+>
+> **Where the technical detail lives.** Screen and overlay IDs, state variables, key functions and
+> MP packet tables are in `docs/code-map.md` — Grep the game's name or an element ID, never
+> full-read it. This document deliberately does not duplicate them.
 
 ---
 

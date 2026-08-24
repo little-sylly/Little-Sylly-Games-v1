@@ -1867,7 +1867,7 @@ function dybHandleEnvelope(env) {
         break;
 
       // A client quit mid-game; dissolve for everyone (MDLM quit contract, PASS pattern —
-      // logic-engine.md § MDLM Mid-Game Quit Contract). Host-only gate already applied above.
+      // logic-engine.md § Mid-Game Quit Contract). Host-only gate already applied above.
       case 'DYB_PLAYER_LEFT':
         resetToLobby(); // broadcasts HOST_END_GAME to remaining clients
         break;

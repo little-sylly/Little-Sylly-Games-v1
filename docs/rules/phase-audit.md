@@ -17,10 +17,10 @@ Run all four checks. Each item is a yes/no gate — flag and fix before proceedi
 
 For the game just completed, verify these against the actual JS file:
 
-- [ ] **Screen IDs match** — every `screen-[abbr]-*` ID in the plugin appears in the identity doc's **T7a flow table** (`docs/game-identities/[abbr].md`) *(unmigrated game: its `## Game N:` section in `docs/rules/game-identities.md`)*
+- [ ] **Screen IDs match** — every `screen-[abbr]-*` ID in the plugin appears in the identity doc's **T7a flow table** (`docs/game-identities/[abbr].md`)
 - [ ] **Settings table matches** — every `let [abbr]Setting` variable in the plugin matches the identity doc's **T6** (display name, options, default). Internal identifiers live in `docs/code-map.md`, not in the identity doc
-- [ ] **Scoring values match** — every points value in the resolve/score function matches the identity doc's **T3 / T6** *(unmigrated game: its `## Game N:` section in `docs/rules/game-identities.md`)*
-- [ ] **State variable list is complete** — all state vars declared in the plugin appear in `docs/code-map.md` (no game has ever carried a separate "State Variables" table in `game-identities.md` — code-map is the actual source of truth here; don't add a 17th redundant table)
+- [ ] **Scoring values match** — every points value in the resolve/score function matches the identity doc's **T3 / T6**
+- [ ] **State variable list is complete** — all state vars declared in the plugin appear in `docs/code-map.md` (no game has ever carried a separate "State Variables" table in an identity doc — code-map is the actual source of truth here; don't add one)
 - [ ] **`allScreens[]` is current** — every screen ID registered in `engine.js` matches the screens defined for this game
 - [ ] **SW precache is current** — `sw.js` lists the plugin file; `logic-engine.md` precache list matches `sw.js`; CACHE_NAME version is correct
 - [ ] **Implementation notes current** — `docs/implementation-notes/[abbr]-implementation-notes.md` exists for this game; any bugs resolved or design decisions made during this phase are logged under the appropriate section (Design Decisions / Bug Index / Multiplayer Lessons / Template Gaps)

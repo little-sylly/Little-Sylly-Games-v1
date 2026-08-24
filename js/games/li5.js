@@ -885,7 +885,13 @@ document.getElementById('btn-stop')
   .addEventListener('click', () => { playPillClick(); showQuitConfirm(); });
 
 document.getElementById('btn-quit-confirm')
-  .addEventListener('click', () => { playExit(); resetToMenu(); });
+  .addEventListener('click', () => {
+    playExit();
+    // Mid-Game Quit Contract (logic-engine.md): in a lobby session, leaving must dissolve the
+    // session for every other device — resetToMenu() only tears this one down.
+    if (window.syllyMultiplayerMode !== 'single') { mpNotifyPlayerLeft(); resetToLobby(); return; }
+    resetToMenu();
+  });
 
 document.getElementById('btn-quit-cancel')
   .addEventListener('click', () => { playResume(); hideQuitConfirm(); });

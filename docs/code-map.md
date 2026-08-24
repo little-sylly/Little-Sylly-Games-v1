@@ -138,7 +138,7 @@ Each game's `<!-- ════ NAME ════ -->` section-header comment is 
 | `#btn-settings` | Open `#settings-overlay` |
 | `#btn-how-to` | Open `#li5-how-to-overlay` |
 | `#btn-back-to-lobby` | `resetToLobby()` ("← Back to the Box" on LI5 menu) |
-| `#btn-quit-confirm` | Confirm quit → `resetToMenu()` → `#screen-menu` |
+| `#btn-quit-confirm` | Confirm quit → in a lobby session (LI5 supports TLM) `mpNotifyPlayerLeft()` + `resetToLobby()`; single-device → `resetToMenu()` (engine.js) → `#screen-menu`. Fixed 23 Aug 2026 (SW v210) — see `logic-engine.md` § Mid-Game Quit Contract. |
 | `#btn-quit-cancel` | Close `#quit-overlay` |
 | `#btn-mute` | Instant mute toggle (active play only — no overlay) |
 
@@ -160,7 +160,7 @@ Each game's `<!-- ════ NAME ════ -->` section-header comment is 
 ## Great Minds (GM)
 
 **JS file:** `js/games/great-minds.js`
-**Brand colour:** `violet-500` on the lobby card button; `purple-500` everywhere in-game (`pill-active-purple`, `bg-purple-500` CTAs, `game-toggle-on-purple`). [AUDIT FLAG — June 2026: reconcile violet-vs-purple during Phase 3 GM audit; `game-identities.md` documents `purple-500`.]
+**Brand colour:** `violet-500` on the lobby card button; `purple-500` everywhere in-game (`pill-active-purple`, `bg-purple-500` CTAs, `game-toggle-on-purple`). [AUDIT FLAG — June 2026, still open per `docs/game-identities/gm.md` T7c: reconcile violet-vs-purple, or accept the split as documented and drop the flag.]
 **Lobby button:** `#btn-great-minds`
 
 ### Screens
@@ -196,7 +196,7 @@ Each game's `<!-- ════ NAME ════ -->` section-header comment is 
 | `#btn-gm-menu-back` | `resetToLobby()` |
 | `#btn-gm-menu-settings` | Open `#gm-settings-overlay` |
 | `#btn-gm-menu-how-to` | Open `#gm-how-to-overlay` |
-| `#btn-gm-quit-confirm` | Confirm quit → `showScreen('screen-gm-menu')` |
+| `#btn-gm-quit-confirm` | Confirm quit → resets round state, clears `gmCountdownTimer`, then in a lobby session `mpNotifyPlayerLeft()` + `resetToLobby()`; single-device → `showScreen('screen-gm-menu')`. Fixed 23 Aug 2026 (SW v210). |
 | `#gm-vocab-list-btn` | Open `#gm-vocab-overlay` (hidden until Vocab Lock triggers) |
 | `#btn-gm-sever-link` | Open `#gm-concede-overlay` (Secret Mode R11+) |
 
@@ -244,22 +244,27 @@ Each game's `<!-- ════ NAME ════ -->` section-header comment is 
 | ID | Pattern | Opened by |
 |----|---------|-----------|
 | `#ss-settings-overlay` | Data (slide-up) | `#btn-ss-settings` |
-| `#ss-how-to-overlay` | Data (slide-up) | `#btn-ss-how-to` |
+| `#ss-how-to-overlay` | Data (slide-up) | `#btn-ss-how-to`, `#btn-ss-how-to-game` (encrypt screen) |
+| `#ss-dossier-overlay` | Data (slide-up) | `#btn-ss-dossier` (📖 on encrypt screen) |
+| `#ss-help-tip-overlay` | Decision modal | Contextual `?`/`[?]` on encrypt/broadcast/intercept — `ssShowHelpTip()` |
 | `#ss-quit-overlay` | Decision modal | ✕ during active play |
 | `#ss-play-again-overlay` | Decision modal | Play again prompt |
 | `#ss-override-overlay` | Decision modal | Score override |
+| `#ss-inning-transition` | Custom full-screen splash | Between Intel Phase teams |
+| `#ss-endgame-splash` | Custom full-screen splash | Mission result + Phase 2 bridge |
 
 ### Key buttons
 | ID | Action |
 |----|--------|
 | `#btn-ss-back` | `resetToLobby()` (on SS menu) |
 | `#btn-ss-settings` | Open `#ss-settings-overlay` |
-| `#btn-ss-how-to` | Open `#ss-how-to-overlay` (game menu only — not encrypt screen) |
+| `#btn-ss-how-to` | Open `#ss-how-to-overlay` (game menu) |
+| `#btn-ss-how-to-game` | Open `#ss-how-to-overlay` (encrypt screen header `[?]`) — added since the "not encrypt screen" note below was written; the broadcast/intercept screens still lack it |
 | `#btn-ss-encrypt-tip` | Inline `[?]` on encrypt screen — `ssShowHelpTip()` |
 | `#btn-ss-clue-tip` | Inline `[?]` on broadcast/clue screen — `ssShowHelpTip()` |
 | `#btn-ss-intercept-tip` | Inline `[?]` on intercept screen — `ssShowHelpTip()` |
 | `#btn-ss-standby-exit` | ✕ on standby screen → quit overlay |
-| `#btn-ss-quit-confirm` | Confirm quit → `ssResetToMenu()` → `#screen-ss-menu` |
+| `#btn-ss-quit-confirm` | Confirm quit → in a lobby session `mpNotifyPlayerLeft()` + `resetToLobby()`; single-device → `ssResetToMenu()` → `#screen-ss-menu`. Fixed 23 Aug 2026 (SW v210). |
 
 ### Key functions
 | Function | Purpose |
@@ -286,7 +291,7 @@ Each game's `<!-- ════ NAME ════ -->` section-header comment is 
 | ID | Purpose |
 |----|---------|
 | `#screen-jec-menu` | Game menu |
-| `#screen-jec-roster` | Player name entry |
+| `#screen-jec-roster` | Chef count + name entry |
 | `#screen-jec-order` | Today's Order reveal |
 | `#screen-jec-prep` | Ingredient input (per player, pass-the-phone) |
 | `#screen-jec-sifting` | Ingredient frequency reveal + Sous Chef Oversight |
@@ -301,6 +306,7 @@ Each game's `<!-- ════ NAME ════ -->` section-header comment is 
 | `#jec-quit-overlay` | Decision modal | ✕ during active play |
 | `#jec-oversight-overlay` | Decision modal | Second sifting card tap |
 | `#jec-new-shift-overlay` | Decision modal | New Shift button on washup |
+| `#jec-help-tip-overlay` | Decision modal | Contextual `[?]` buttons (e.g. prep screen's `?`) |
 
 ### Key buttons
 | ID | Action |
@@ -308,11 +314,12 @@ Each game's `<!-- ════ NAME ════ -->` section-header comment is 
 | `#btn-jec-menu-back` | `resetToLobby()` (on JEC menu) |
 | `#btn-jec-menu-settings` | Open `#jec-settings-overlay` |
 | `#btn-jec-menu-how-to` | Open `#jec-how-to-overlay` |
-| `#btn-jec-quit-confirm` | Confirm quit → `jecResetForNewGame()` → `#screen-jec-menu` |
+| `#btn-jec-quit-confirm` | Confirm quit → in a lobby session `mpNotifyPlayerLeft()` + `resetToLobby()`; single-device → `jecResetForNewGame()` → `#screen-jec-menu`. Fixed 23 Aug 2026 (SW v210). |
 
 ### Key functions
 | Function | Purpose |
 |----------|---------|
+| `jecInitRoster()` | Entry to `#screen-jec-roster` — Lobby Mode skips the pills entirely and sets `jecPlayerCount` from the roster size, then calls `jecStartGame()` directly |
 | `jecStartRound()` | Draws food word → `#screen-jec-order` |
 | `jecStartPlayerPrep()` | Sets up `#screen-jec-prep` for current player |
 | `jecSubmitIngredients()` | Validates + stores, advances to next player or sifting |
@@ -354,6 +361,7 @@ Each game's `<!-- ════ NAME ════ -->` section-header comment is 
 | `#ygi-how-to-overlay` | Data (slide-up) | `#btn-ygi-menu-how-to` |
 | `#ygi-quit-overlay` | Decision modal | ✕ during active play |
 | `#ygi-run-it-back-overlay` | Decision modal | "Run It Back" button on gameover screen |
+| `#ygi-help-tip-overlay` | Decision modal | Input screen's inline `[?]` on The Gap label |
 
 ### Key buttons
 | ID | Action |
@@ -361,7 +369,7 @@ Each game's `<!-- ════ NAME ════ -->` section-header comment is 
 | `#btn-ygi-menu-back` | `resetToLobby()` (on YGI menu) |
 | `#btn-ygi-menu-settings` | Open `#ygi-settings-overlay` |
 | `#btn-ygi-menu-how-to` | Open `#ygi-how-to-overlay` |
-| `#btn-ygi-quit-confirm` | Confirm quit → `showScreen('screen-ygi-menu')` |
+| `#btn-ygi-quit-confirm` | Confirm quit → in a lobby session `mpNotifyPlayerLeft()` + `resetToLobby()`; single-device → `showScreen('screen-ygi-menu')`. Fixed 23 Aug 2026 (SW v210). |
 | `#btn-ygi-reveal-next` | → vote pass gate (Your Call) or `ygiShowOpenBallparkVote()` |
 | `#btn-ygi-vote-submit` | Submit rankings → next voter or `ygiComputeAndShowResults()` |
 | `#btn-ygi-log-prev` | The Record: previous round card |
@@ -400,13 +408,16 @@ Each game's `<!-- ════ NAME ════ -->` section-header comment is 
 | `#screen-lttp-menu` | Title card + "Find The Location!" CTA |
 | `#screen-lttp-setup` | Player count + names |
 | `#screen-lttp-briefing` | Plan start/transition — session summary (Tonight's Plans / Plans Updated), first active player named |
-| `#screen-lttp-role-reveal` | Private role check — shown after pass-gate handover |
+| `#screen-lttp-role-reveal` | ⚠️ DEAD — fully built and registered in `allScreens[]`, but no function in `lttp.js` ever calls `showScreen('screen-lttp-role-reveal')`; role info is instead folded into the Chat screen's own header (`#lttp-chat-role-label`/`#lttp-chat-role-objective`) on first entry. [AUDIT FLAG — 23 Aug 2026 identity-doc pass: candidate for removal or a real trigger; logged in `deferred-work.md`.] |
 | `#screen-lttp-handover` | Pass gate between turns + plan-end transitions; shows message text in chat mode |
 | `#screen-lttp-chat` | Main interrogation hub (active player's turn) |
 | `#screen-lttp-guess` | Plan 4 vote + pin phase (pass-the-phone) |
 | `#screen-lttp-group-guess` | Group Vote mode — shared guess reveal screen |
 | `#screen-lttp-gameover` | Full reveal + Friendship Points tally |
-| `#screen-lttp-smalltalk` | ⚠️ ORPHANED dead markup — a `<section>` never referenced by `lttp.js`, never registered in `allScreens[]`, never shown (leftover from the pre-Phase-21a Small Talk screen design). The live Small Talk UI is the `#lttp-smalltalk-overlay` overlay. [AUDIT FLAG — June 2026: candidate for removal; logged `[POLISH]` in fix plan.] |
+
+`#screen-lttp-smalltalk` (the pre-Phase-21a orphaned screen previously flagged here) has since been
+**removed from `index.html` entirely** — confirmed absent as of the 23 Aug 2026 identity-doc pass;
+the live Small Talk UI is the `#lttp-smalltalk-overlay` overlay below.
 
 ### Overlays
 | ID | Pattern | Opened by |
@@ -418,6 +429,9 @@ Each game's `<!-- ════ NAME ════ -->` section-header comment is 
 | `#lttp-smalltalk-overlay` | Data (slide-up) z-[80] | `lttpOpenSmallTalkOverlay(targetIdx)` — topic tabs + prompt pills (Small Talk Helper ON) |
 | `#lttp-confirm-overlay` | Decision modal z-[80] | `lttpOpenConfirmModal()` — free-text message input (Phase 21a) |
 | `#lttp-quit-overlay` | Decision modal z-[80] | `.btn-lttp-quit-open` (any gameplay screen) |
+| `#lttp-new-plans-overlay` | Decision modal z-[90] | "Head Out Again?" play-again confirmation |
+| `#lttp-tip-overlay` | Decision modal z-[90] | Chat's inline `?` (map instructions) — contextual tip |
+| `#lttp-help-tip-overlay` | Decision modal z-[90] | Confirm overlay's inline `[?]` — legacy single-string tip |
 | `#lttp-guess-map-overlay` | Custom full-width map panel z-[95] | Guess phase — Friend of a Friend pins the address (`lttpOpenGuessMapOverlay()`) |
 
 ### Message Flow state (Phase 21a — replaces Small Talk)
@@ -450,8 +464,7 @@ Each game's `<!-- ════ NAME ════ -->` section-header comment is 
 |----------|---------|
 | `lttpBuildGrid(allWords)` | Selects 16 places, sets address, seeds 6 highlights + fake targets |
 | `lttpAssignRoles()` | Random Friend of a Friend + Troublemaker assignment |
-| `lttpStartGame()` | Full state reset → fetch words → build → roles → role-reveal |
-| `lttpShowRoleReveal(idx)` | Role-aware private reveal screen |
+| `lttpStartGame()` | Full state reset → fetch words → build → roles → first briefing/handover |
 | `lttpShowHandover(toIdx, msg)` | Pass gate — `msg` non-null triggers plan-transition text; in chat mode shows message + "Read aloud" instruction |
 | `lttpShowChat(playerIdx)` | Main turn screen — renders player list + history + notes |
 | `lttpOpenSmallTalkOverlay(targetIdx)` | Small Talk Helper overlay — topic tabs + prompt pills (when `lttpSmallTalk` ON) |
@@ -626,6 +639,7 @@ Each plugin reads `window.activeExpansionOverrides` at its settings-apply point 
 | `#nat-how-to-overlay` | Data (slide-up) z-[90] | `#btn-nat-menu-howto` / `natOpenHowTo()` |
 | `#nat-quit-overlay` | Decision modal z-[80] | `.btn-nat-quit-open` (any gameplay screen) |
 | `#nat-new-expedition-overlay` | Decision modal z-[90] | "New Expedition?" play-again confirmation |
+| `#nat-help-tip-overlay` | Decision modal z-[90] | Observation screen's inline `?` (contextual tip) |
 
 ### Key state variables
 | Variable | Default | Options |
@@ -696,10 +710,11 @@ Each plugin reads `window.activeExpansionOverrides` at its settings-apply point 
 | Overlay ID | Pattern | z-index | Purpose |
 |------------|---------|---------|---------|
 | `dsd-settings-overlay` | Data (slide-up) | z-[80] | "The Console ⚓" — settings cards incl. Strategic Planning |
-| `dsd-how-to-overlay` | Data (slide-up) | z-[90] | "Operations Manual ⚓" — rule sections |
+| `dsd-how-to-overlay` | Data (slide-up) | z-[90] | "How to Play ⚓" — rule sections |
 | `dsd-quit-overlay` | Decision modal | z-[80] | "Scuttle the Ship?" — mid-game exit confirm |
 | `dsd-confirm-disarm` | Decision modal | z-[90] | "Confirm Sequence?" — crew sequence confirm |
 | `dsd-new-op-overlay` | Decision modal | z-[90] | "New Operation?" play-again confirmation |
+| `dsd-help-tip-overlay` | Decision modal | z-[90] | Contextual tip — Captain's inline `?` next to the ping-word input |
 
 ### Key State Variables
 | Variable | Type | Default | Purpose |
@@ -783,8 +798,8 @@ Each plugin reads `window.activeExpansionOverrides` at its settings-apply point 
 ### Overlays
 | Overlay ID | Pattern | z-index | Purpose |
 |------------|---------|---------|---------|
-| `gth-settings-overlay` | Data (slide-up) | z-[80] | "Intake Form 📋" — session settings |
-| `gth-how-to-overlay` | Data (slide-up) | z-[90] | "The Disclaimer 🛋️" — how to play |
+| `gth-settings-overlay` | Data (slide-up) | z-[80] | "Inpatient Admission Form 📋" — session settings |
+| `gth-how-to-overlay` | Data (slide-up) | z-[90] | "How to Play 🛋️" — how to play |
 | `gth-quit-overlay` | Decision modal | z-[80] | "Walk Out?" — mid-session exit confirm |
 | `gth-new-session-overlay` | Decision modal | z-[90] | "New Session?" — play-again confirmation |
 
@@ -792,7 +807,7 @@ Each plugin reads `window.activeExpansionOverrides` at its settings-apply point 
 | Variable | Type | Default | Purpose |
 |----------|------|---------|---------|
 | `gthDisordersPerPatient` | int | `3` | Disorders drawn per player per session (`3`/`4`/`5`) — "Reportable Symptoms" |
-| `gthDrawingTime` | int | `30` | Seconds per drawing (`20`/`30`/`45`) — "Expression Window" |
+| `gthDrawingTime` | int | `60` | Seconds per drawing (`30`/`60`/`0`=No Limit) — "Expression Window" |
 | `gthDiagnosisWindow` | int | `90` | Phase 2 total seconds (`60`/`90`/`120`) — "Diagnosis Window" |
 | `gthDifficultyMix` | string | `'recurrent'` | Pool filter: `'episodic'`/`'recurrent'`/`'refractory'` — "Symptom Severity" |
 | `gthDeepDive` | bool | `false` | Hard Mode — text input instead of Diagnostic Cards |
@@ -831,7 +846,7 @@ Each plugin reads `window.activeExpansionOverrides` at its settings-apply point 
 | `gthShowWaitingRoom()` | Shows `screen-gth-waiting-room`; marks local player done (`gthUpdateWaitingProgress()` renders the tally) |
 | `gthKickOffPhase2()` | Host-only: builds queues + broadcasts `GTH_PHASE2_START` when all Phase 1 batches are in |
 | `gthBuildQueues()` | Host-only: assigns each drawing to exactly 2 non-artist queues; returns `queues[][]` |
-| `gthPickDecoys(disorder, count)` | Returns `count` wrong-answer disorders for Diagnostic Cards (same tier/category fallback chain) |
+| `gthPickDecoys(disorder, count)` | Returns `count` wrong-answer disorders for Diagnostic Cards (up to 2 same-cluster slots, remainder from same category, falls back to any disorder if the category pool is too small) |
 | `gthShowShrinkIntro()` | Shows `screen-gth-shrink-intro` |
 | `gthShowCase()` | Renders current case drawing; builds Diagnostic Cards or Deep Dive input; handles queue-exhausted |
 | `gthSubmitDiagnosis(id)` | Records `{disorderId, selectedId, timestamp}`; advances queue |
@@ -866,11 +881,13 @@ Each plugin reads `window.activeExpansionOverrides` at its settings-apply point 
 ### Overlays
 | Overlay ID | Pattern | z-index | Purpose |
 |------------|---------|---------|---------|
-| `dyb-settings-overlay` | Data (slide-up) | z-[80] | "The House Rules 🎲" — game settings |
-| `dyb-how-to-overlay` | Data (slide-up) | z-[90] | How to Play |
-| `dyb-quit-overlay` | Decision modal | z-[80] | "Fold?" — mid-game exit confirm |
-| `dyb-new-game-overlay` | Decision modal | z-[90] | "New Game?" — play-again confirmation |
+| `dyb-settings-overlay` | Data (slide-up) | z-[80] | "Ground Rules 📋" — game settings |
+| `dyb-how-to-overlay` | Data (slide-up) | z-[90] | How to Play — two tabs: The Rules \| The Dice |
+| `dyb-quit-overlay` | Decision modal | z-[80] | "Back Down?" — mid-game exit confirm |
+| `dyb-new-game-overlay` | Decision modal | z-[90] | "Climb Again?" — play-again confirmation |
 | `dyb-slick-picker-overlay` | Decision modal | z-[100] | Slick die face picker — opened on tap of a Slick die on the table screen |
+| `dyb-ascent-overlay` | Data (slide-up) | z-[90] | "The Ascent" — full bid history for the current Shake |
+| `dyb-tip-overlay` | Decision modal | z-[90] | Shared contextual tip shell for inline `[?]` buttons |
 
 ### Key State Variables
 | Variable | Type | Default | Purpose |
@@ -894,8 +911,11 @@ Each plugin reads `window.activeExpansionOverrides` at its settings-apply point 
 | `dybChallengerIdx` | int | `-1` | Player who called bluff (`-1` = no challenge yet) |
 | `dybOnesStripped` | bool | `false` | Volatile Wilds — set true once 1s are bid directly this Shake |
 | `dybSlickPickerDie` | int | `-1` | Die index currently in the Slick picker overlay |
+| `dybFootholdsMode` | bool | `false` | Toggle — lose a foothold instead of a die on a loss; dice count stays fixed at `dybStartingHand` all game |
+| `dybFootholdsCount` | int | `5` | Starting footholds per player when `dybFootholdsMode` is on (`3`/`5`/`10`) |
+| `dybLives` | int[] | `[]` | Per-player footholds remaining; unused (`[]`) when `dybFootholdsMode` is off |
 
-> [RESOLVED — June 2026]: shipped Sylly Mode is now **"The Tempest"** (renamed from "Devil's Luck" in the thematic sweep) with five secret die types — `'loaded'` / `'phantom'` / `'slick'` / `'cracked'` / `'snake'` strings in `dyb.js`. `game-identities.md` § The Bluff documents all five. The internal die-type strings are unchanged by the rename.
+> [RESOLVED — June 2026]: shipped Sylly Mode is now **"The Tempest"** (renamed from "Devil's Luck" in the thematic sweep) with five secret die types — `'loaded'` / `'phantom'` / `'slick'` / `'cracked'` / `'snake'` strings in `dyb.js`. `docs/game-identities/dyb.md` documents all five. The internal die-type strings are unchanged by the rename.
 
 ### Key Functions
 | Function | Purpose |
@@ -941,8 +961,31 @@ Each plugin reads `window.activeExpansionOverrides` at its settings-apply point 
 **Data:** none — plans and roles are built-in constants (`BLD_PLANS`, `BLD_ROLE_TABLE`, `BLD_GROUP_TABLE`)
 **Brand colour:** Dark red `#991b1b` (red-800, recoloured from yellow-500 2 Aug 2026) / active pill: `pill-active-bld`
 **Lobby button:** `#btn-bld`
-**Multiplayer-only:** MDLM, `rosterConfig: {type:'none'}`, min 5 / max 10 players (PTP fallback via `bldShowSetup()`)
-**Status:** In active testing — cross-check `docs/implementation-notes/bld-implementation-notes.md` before logging new bugs
+**PTP + MDLM:** `rosterConfig: {type:'none'}`, min 5 / max 10 players (PTP via `bldShowSetup()`, `screen-bld-pass-gate` per reveal)
+**Status:** gold master
+
+### Role Distribution (`BLD_ROLE_TABLE`)
+| Players | Friends | Flakes |
+|---------|---------|--------|
+| 5 | 3 | 2 |
+| 6 | 4 | 2 |
+| 7 | 4 | 3 |
+| 8 | 5 | 3 |
+| 9 | 6 | 3 |
+| 10 | 6 | 4 |
+
+### Group Sizes Per Plan (`BLD_GROUP_TABLE`)
+Each row = [Plan1, Plan2, Plan3, Plan4, Plan5] group sizes for that player count. Plan 4 with 7+
+players requires 2 Bails to fail (not 1).
+
+| Players | P1 | P2 | P3 | P4 | P5 |
+|---------|----|----|----|----|----|
+| 5 | 2 | 3 | 2 | 3 | 3 |
+| 6 | 2 | 3 | 4 | 3 | 4 |
+| 7 | 2 | 3 | 3 | 4 | 4 |
+| 8 | 3 | 4 | 4 | 5 | 5 |
+| 9 | 3 | 4 | 4 | 5 | 5 |
+| 10 | 3 | 4 | 4 | 5 | 5 |
 
 ### Screens
 | Screen ID | Purpose |
@@ -958,16 +1001,17 @@ Each plugin reads `window.activeExpansionOverrides` at its settings-apply point 
 ### Overlays
 | Overlay ID | Pattern | z-index | Purpose |
 |------------|---------|---------|---------|
-| `bld-settings-overlay` | Data (slide-up) | z-[80] | "The Group Chat" — players + Drama Mode |
+| `bld-settings-overlay` | Data (slide-up) | z-[80] | "Bailed 💬" — players + Drama Mode (NOT "The Group Chat" — that's the setup screen's eyebrow label) |
 | `bld-how-to-overlay` | Data (slide-up) | z-[90] | How to Play |
-| `bld-quit-overlay` | Decision modal | z-[80] | "Walk Out?" — mid-game exit confirm |
-| `bld-pass-reveal-overlay` | Decision modal | z-[90] | Pass-the-phone handoff before role reveal |
+| `bld-quit-overlay` | Decision modal | z-[80] | "Leave the Chat?" — mid-game exit confirm |
+| `bld-second-chances-overlay` | Decision modal | z-[90] | "Second Chances?" — play-again confirm (aftermath only) |
+| `bld-pass-reveal-overlay` | Decision modal | z-[90] | Pass-the-phone handoff before voting/mission submission (PTP) |
 | `bld-role-help-overlay` | Decision modal | z-[90] | Role-specific rules reference |
-| `bld-plan-detail-overlay` | Decision modal | z-[90] | Per-plan history detail (aftermath tappable tiles) |
+| `bld-plan-detail-overlay` | Data (slide-up) | z-[80] | "The Receipts" — per-plan history detail (in-game itinerary + aftermath tappable tiles) |
 | `bld-tip-overlay` | Decision modal | z-[90] | Shared tip overlay — `bldShowTip(emoji, heading, lines[])` drives all contextual `[?]` buttons |
 | `bld-second-chances-overlay` | Decision modal | z-[90] | Dual purpose: patience-exhausted Flake-win confirm AND the play-again confirmation opened by `#btn-bld-go-again` (dynamic confirm label: "Restart in Lobby 🔄" host / "Leave Session" client / "Second Chances 💬" single) |
 
-> [AUDIT FLAG — June 2026]: `game-identities.md` documents a `bld-new-night-overlay` ("New Night Out?") — **no such element exists in `index.html`**. Play-again reuses `bld-second-chances-overlay` (above). Reconcile during Phase 3 BLD audit.
+> [RESOLVED — 23 Aug 2026 identity-doc pass]: the old `game-identities.md` documented a `bld-new-night-overlay` ("New Night Out?") that never existed in `index.html`. `docs/game-identities/bld.md` correctly documents the real element, `bld-second-chances-overlay` (above) — the stale name did not survive migration.
 
 ### Key buttons
 | ID | Action |
@@ -1063,6 +1107,7 @@ Each plugin reads `window.activeExpansionOverrides` at its settings-apply point 
 |------------|---------|---------|---------|
 | `pass-settings-overlay` | Data (slide-up) | z-[80] | "The House Rules 🃏" — game settings |
 | `pass-how-to-overlay` | Data (slide-up) | z-[90] | How to Play |
+| `pass-history-overlay` | Data (slide-up) | z-[90] | "The Table Log 📋" — trick-by-trick history for the current round |
 | `pass-quit-overlay` | Decision modal | z-[80] | "Walk Away?" — mid-game exit confirm |
 | `pass-new-deal-overlay` | Decision modal | z-[90] | "New Deal?" — play-again confirmation |
 
@@ -1153,7 +1198,7 @@ Each plugin reads `window.activeExpansionOverrides` at its settings-apply point 
 |----------|------|---------|---------|
 | `ntPlayerCount` | int | `4` | Total players (PTP: user-set; MDLM: from lobby) |
 | `ntPlayerNames` | string[] | `[]` | Player display names |
-| `ntIterations` | int | `5` | Number of routing cycles ("Simulation Iterations") per session (setting) *(corrected 17 Aug 2026 — this row previously read `ntCycles`, a variable that does not exist in `nt.js`; matched drift already fixed in `game-identities.md`)* |
+| `ntIterations` | int | `5` | Number of routing cycles ("Simulation Iterations") per session (setting) *(corrected 17 Aug 2026 — this row previously read `ntCycles`, a variable that does not exist in `nt.js`; matched drift already fixed in `docs/game-identities/nt.md`)* |
 | `ntCycle` | int | `0` | Current cycle index |
 | `ntHardeningWin` | int | `90` | Hardening window in seconds (setting) |
 | `ntDebugMode` | bool | `false` | Debug/Sandbox Mode — mutually exclusive with `ntSyllyMode` |
@@ -1662,7 +1707,7 @@ Three named modes (Phase 23). Each game has a `recommendedMode` and `supportedMo
 | `tlm` | Team Lobby Mode | Each team shares one device. Host/Join with room code. |
 | `mdlm` | Multi-device Lobby Mode | Each player uses their own phone. Host/Join with room code. |
 
-Per-game: LI5 `ptp`★/`tlm` · GM `ptp`★/`mdlm` · SS `tlm`★/`mdlm`/`ptp` · JEC `mdlm`★/`ptp` · YGI `mdlm`★/`ptp` · LTTP `mdlm`★/`ptp` · NAT `mdlm`★/`ptp` · DSD `tlm`★/`mdlm`/`ptp` · GTH `mdlm`★ (MP-only, 4–8) · DYB `mdlm`★ (MP-only, 3–8) · BLD `mdlm`★ (MP-only, 4–10 per `getMinPlayers` — note `game-identities.md` says min 5) · PASS `mdlm`★ (MP-only, 3–6) · NT `mdlm`★/`ptp` (2–8; DNP requires min 4) · FRT `mdlm`★ (MP-only, 2–8) · SHP `mdlm`★ (MP-only, 3–8) · FLW `mdlm`★ (MP-only, 3–4) (★ = recommended)
+Per-game: LI5 `ptp`★/`tlm` · GM `ptp`★/`mdlm` · SS `tlm`★/`mdlm`/`ptp` · JEC `mdlm`★/`ptp` · YGI `mdlm`★/`ptp` · LTTP `mdlm`★/`ptp` · NAT `mdlm`★/`ptp` · DSD `tlm`★/`mdlm`/`ptp` · GTH `mdlm`★ (MP-only, 4–8) · DYB `mdlm`★ (MP-only, 3–8) · BLD `mdlm`★ (MP-only, 4–10 per `getMinPlayers`) · PASS `mdlm`★ (MP-only, 3–6) · NT `mdlm`★/`ptp` (2–8; DNP requires min 4) · FRT `mdlm`★ (MP-only, 2–8) · SHP `mdlm`★ (MP-only, 3–8) · FLW `mdlm`★ (MP-only, 3–4) (★ = recommended)
 
 ### Multiplayer Screens
 | Screen ID | Purpose |
@@ -1670,7 +1715,7 @@ Per-game: LI5 `ptp`★/`tlm` · GM `ptp`★/`mdlm` · SS `tlm`★/`mdlm`/`ptp` �
 | `screen-mp-mode` | Mode selection — dynamically built by `mpShowModeScreen(abbr)` from `MP_GAME_CONFIGS.recommendedMode` + `supportedModes` |
 | `screen-mp-lobby-host` | Host waiting room — room code, player dock (shared) |
 | `screen-mp-lobby-join` | Client join flow — 4-char code input + nickname entry (shared) |
-| `screen-mp-roster` | Assign Spots — manual slot assignment for `rosterConfig.type: 'individual'` / `'teams'` games |
+| `screen-mp-roster` | Assign Spots — manual slot assignment for `rosterConfig.type: 'individual'` / `'teams'` games. Carries `#mp-roster-hint` (amber reason line above the confirm CTA — "Both teams need the same number of players" when a `requiresBalancedTeams` game is assigned unevenly) |
 | `screen-li5-monitor` | LI5-specific opposing team view — Tattletale Sheet (word + No-No List + CATCH! button) |
 | `screen-dsd-spectator` | DSD TLM non-active team view — read-only crew grid + clue history; shown by `dsdShowSpectatorView()` |
 
@@ -1697,7 +1742,9 @@ Per-game: LI5 `ptp`★/`tlm` · GM `ptp`★/`mdlm` · SS `tlm`★/`mdlm`/`ptp` �
 | `mpStartPrivateListener()` | Attaches `onChildAdded` to `rooms/{code}/private/{syllyDeviceUid}`; ts-filtered + self-origin-filtered; routes to `mpHandleEnvelope`. Called after room create/join. Cleared in `mpStopListeners()` via `mpPrivateListener` handle |
 | `mpHandleEnvelope(env)` | Routes incoming envelopes to game-specific ACTION/SYNC handlers |
 | `mpSerialiseSettings(abbr)` | Serialises host's current game settings object for `SETTINGS_SYNC` packet |
-| `mpRenderHostPlayerList()` | Renders joined player chips in host lobby dock |
+| `mpRenderHostPlayerList()` | Renders joined player chips in host lobby dock; gates the start CTA on `getMinPlayers()` and — for a `requiresBalancedTeams` game — on an even roster, writing the reason into `#mp-lobby-min-hint` |
+| `mpNotifyPlayerLeft()` | Mid-Game Quit Contract helper. Sends the generic `MP_PLAYER_LEFT` ACTION when this device is a client; no-op in `'host'`/`'single'`. Call from a game's quit-confirm immediately before `resetToLobby()`. Added 23 Aug 2026 (SW v210) — replaces per-game `[ABBR]_PLAYER_LEFT` for new work |
+| `mpRosterNeedsBalance()` | True when the active game's `rosterConfig.requiresBalancedTeams` is set and the live roster type is `'teams'` (SS, DSD). Drives both balance gates |
 | `mpHostCreateRoom()` | Async — creates Firebase room node, starts event listener |
 | `mpClientJoinRoom()` | Async — validates room code, joins Firebase room |
 | `mpStartEventListener()` | Attaches Firebase `onValue` listener (ignores events before join timestamp) |
@@ -1729,6 +1776,12 @@ Per-game: LI5 `ptp`★/`tlm` · GM `ptp`★/`mdlm` · SS `tlm`★/`mdlm`/`ptp` �
 | `GAME_START` | Host → All | Host confirms roster | All devices call `mpActiveGameConfig.onPassThePhone()` |
 | `HOST_END_GAME` | Host → All | Host force-ends session | All clients call `resetToLobby()` |
 | `LOBBY_RESET` | Host → All | Host confirms play-again | Client pre-fills code boxes, shows "Host is setting up another round — waiting to start…", disables join CTA, navigates to `screen-mp-lobby-join` |
+
+**Engine-level ACTION types (game-agnostic):**
+
+| Action | Direction | Trigger | Effect on receiver |
+|--------|-----------|---------|-------------------|
+| `MP_PLAYER_LEFT` | Client → Host | `mpNotifyPlayerLeft()`, from any game's quit-confirm | Host calls `resetToLobby()`, which broadcasts `HOST_END_GAME` to the rest. Handled in `mpHandleEnvelope` **before** any per-game routing, so a game needs no handler. Added 23 Aug 2026 (SW v210); the ten games predating it still send their own `[ABBR]_PLAYER_LEFT` and are unchanged |
 
 ### Per-Game ACTION/SYNC Packet Types
 | Game | ACTION packets | SYNC packets |

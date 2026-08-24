@@ -5,6 +5,12 @@
 **Type:** New document type + incremental retirement of `docs/rules/game-identities.md`
 **Replaces:** `docs/rules/game-identities.md` (225 KB, 18 sections), retired section by section
 
+> **Status: COMPLETE — 23 August 2026.** All 18 passes shipped in the order set out in § 11;
+> `docs/rules/game-identities.md` is deleted and every live reference to it re-pointed (§ 8.5).
+> This document is now a **record of the design**, not live work — read it for the change contract
+> (§ 5), the ten-section template (§ 5–6), and the conventions (§ 12) when writing or editing an
+> identity doc. Closing snapshot: `docs/decision-log.md` 2026-08-23.
+
 ---
 
 ## 1. Problem

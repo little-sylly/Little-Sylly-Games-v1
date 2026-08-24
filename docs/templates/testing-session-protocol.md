@@ -48,7 +48,7 @@ full-read, and **never** a content-mode grep on `index.html` from the main windo
 ## Quick pre-flight (10 seconds, optional)
 At session start, eyeball that the baseline is still lean: only `ui-style.md`,
 `logic-engine.md`, `definitions.md` (+ `CLAUDE.md`) should be auto-loaded — no
-`game-identities.md` or new-game docs. If a relocated file reappears, fix that before
+identity docs, `code-map.md`, or new-game docs. If a relocated file reappears, fix that before
 testing (see `docs/token-budget-register.md` § 8).
 
 ---

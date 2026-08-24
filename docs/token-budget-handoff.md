@@ -110,7 +110,7 @@ It reports findings first and asks before changing anything. **Run it early in a
 `/doctor` does not know this project's context architecture and will likely suggest both:
 
 1. **Moving `docs/rules/*` back into `.claude/rules/`.** That split *is* fix (a). Reversing it re-imports ~50k tokens/turn. `CLAUDE.md` carries the warning note — keep it.
-2. **Trimming the Per-Game Quick Index out of `CLAUDE.md`.** It reads as derivable, but it exists so single-game work never opens the 140 KB `game-identities.md`. It is a net context *saving*.
+2. **Trimming the Per-Game Quick Index out of `CLAUDE.md`.** It reads as derivable, but it exists so single-game work never has to open a `docs/game-identities/[abbr].md` just to check a brand colour. It is a net context *saving*. (`game-identities.md` itself — the 140 KB file this concern originally guarded against — was retired 23 Aug 2026; the index is still worth keeping for the smaller per-game docs.)
 
 **Accept freely:** installation health, hook warnings, `CLAUDE.md` dedupe, and dropping the two attached-but-unauthenticated MCP servers (claude.ai Gmail, claude.ai Google Calendar) — pure cost, zero use in this project.
 

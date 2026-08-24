@@ -100,8 +100,8 @@ syllyMultiplayerMode: 'single' | 'host' | 'client'
 
 ## Other Data Files
 Schemas for the other data files are documented next to their owning game — do not duplicate them here:
-- `data/ygi-data.json` — `{ id, text, ringers[5] }` — full schema in `game-identities.md` § You Get It? and `docs/ygi-content-guide.md`
-- `data/gth-data.json` — `{ id, name, display, definition, tip, category, difficulty, cluster?, aliases[] }` — full schema in `game-identities.md` § Group Therapy and `docs/gth-content-guide.md`
+- `data/ygi-data.json` — `{ id, text, ringers[5] }` — full schema in `docs/game-identities/ygi.md` and `docs/ygi-content-guide.md`
+- `data/gth-data.json` — `{ id, name, display, definition, tip, category, difficulty, cluster?, aliases[] }` — full schema in `docs/game-identities/gth.md` and `docs/gth-content-guide.md`
 - `data/packs/<id>/pack.json` — Secret Mode expansion **cartridge** manifest `{ id, label, locked, games, subCategories?, settings, words | wordFile }`; its `words` array uses the same schema as `words.json` (inline). Live packs are listed in `data/packs/registry.json`. See `docs/expansion-guide.md`. (Replaced the legacy `data/secret*_words.json` files — migrated into manifests + deleted in Phase A, June 2026.)
 
 ## File Format: words.json

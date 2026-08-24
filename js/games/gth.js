@@ -890,7 +890,7 @@ function gthHandleEnvelope(envelope) {
   }
 
   // ── ACTION: GTH_PLAYER_LEFT — a client quit mid-game; dissolve for everyone ────────
-  // (MDLM quit contract, PASS pattern — logic-engine.md § MDLM Mid-Game Quit Contract)
+  // (MDLM quit contract, PASS pattern — logic-engine.md § Mid-Game Quit Contract)
   if (type === 'ACTION' && payload.action === 'GTH_PLAYER_LEFT') {
     if (syllyMultiplayerMode !== 'host') return;
     resetToLobby(); // broadcasts HOST_END_GAME to remaining clients

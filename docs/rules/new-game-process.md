@@ -55,7 +55,7 @@ STAGE 1 — Design Brief        STAGE 2 — Technical Spec       STAGE 3 — Imp
 ## Stage 2 — Technical Spec
 
 **Who:** Claude Code
-**Documents read:** Phase 1 brief + `logic-engine.md` + `ui-style.md` + `definitions.md` + `game-identities.md` + `CLAUDE.md` + `docs/code-map.md`
+**Documents read:** Phase 1 brief + `logic-engine.md` + `ui-style.md` + `definitions.md` + `docs/game-identities/*.md` (Terminology sections, for the Naming Collision Check below) + `CLAUDE.md` + `docs/code-map.md`
 **Document produced:** `new-game-technical-template.md` → saved as `docs/new-game-tech-[name].md`
 **Goal:** A complete technical specification, confirmed by the project owner before any code is written
 
@@ -72,7 +72,7 @@ STAGE 1 — Design Brief        STAGE 2 — Technical Spec       STAGE 3 — Imp
 ### What Claude Code must NOT do at Stage 2
 - Write any game code — not even a skeleton, not even a variable declaration
 - Make design decisions without flagging them (use §17)
-- Assume a terminology term is unique without checking `game-identities.md` and `code-map.md`
+- Assume a terminology term is unique without checking `docs/game-identities/*.md` and `code-map.md`
 - Propose a new normaliser, fuzzy matcher, or utility function if one already exists in `engine.js`
 - Create a new overlay pattern — only data slide-up or decision modal
 
@@ -114,7 +114,7 @@ The spec wins. If during implementation a spec decision turns out to be wrong or
 ### Documentation during implementation
 As each section of §15 is completed, update:
 - `docs/code-map.md` — add new screen IDs, overlay IDs, and key functions as they are created (not at the end — during)
-- `game-identities.md` — add the new game entry as the game takes shape (not at the end)
+- `docs/game-identities/[abbr].md` — write the new game's identity doc as it takes shape (not at the end)
 
 ### Verifying the rules engine — the `tools/` harness
 
@@ -139,10 +139,10 @@ Any game with a deck, a chain, or a scoring table commits a Node `vm` harness un
 - [ ] `tools/verify-[abbr]-*.js` committed and passing (mandatory for MDLM-only games — see above)
 - [ ] Protocol A audit passes for all new screens
 - [ ] `docs/code-map.md` updated
-- [ ] `game-identities.md` updated with full new game entry
+- [ ] `docs/game-identities/[abbr].md` written in full (all T1–T10 sections) and passing `node tools/verify-identity-docs.js`
 - [ ] `CLAUDE.md` project structure map updated
 - [ ] SW version bumped and precache updated
-- [ ] `docs/content-prompts/new-game-brief-prompt.md` synced — existing-games roster table, "taken" abbreviations line, and Sylly-Mode name list all include the new game. Values pulled from *shipped reality* (`game-identities.md` + plugin + impl notes), never from the original brief. This file is the first document a future game touches; a stale roster re-imports fixed errors and risks an abbreviation collision.
+- [ ] `docs/content-prompts/new-game-brief-prompt.md` synced — existing-games roster table, "taken" abbreviations line, and Sylly-Mode name list all include the new game. Values pulled from *shipped reality* (`docs/game-identities/[abbr].md` + plugin + impl notes), never from the original brief. This file is the first document a future game touches; a stale roster re-imports fixed errors and risks an abbreviation collision.
 - [ ] `docs/phase[N]-snapshot.md` written and confirmed
 
 ---
@@ -152,9 +152,9 @@ Any game with a deck, a chain, or a scoring table commits a Node `vm` harness un
 Run this check at the START of Stage 2 (Consistency Audit in the technical template) before filling in any other section. Naming collisions have caused documentation drift in past phases.
 
 **Check 1 — Terminology:**
-Search `game-identities.md` for every thematic term proposed in the Phase 1 brief. Confirm no term means something different in another game.
+Grep every thematic term proposed in the Phase 1 brief across `docs/game-identities/*.md` (each doc's T5 Terminology section). Confirm no term means something different in another game.
 
-*Example of what to catch:* "Field Notes" was proposed as a new NAT setting name, but "The Field Notes" was already NAT's tally screen label in `game-identities.md`. This required a rename before implementation.
+*Example of what to catch:* "Field Notes" was proposed as a new NAT setting name, but "The Field Notes" was already NAT's tally screen label — this required a rename before implementation.
 
 **Check 2 — Screen IDs:**
 Search `allScreens[]` in `engine.js` for any proposed `screen-[abbr]-*` ID. Abbreviations must be unique across all 8 games.

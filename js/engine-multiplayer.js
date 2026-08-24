@@ -103,8 +103,12 @@ const MP_GAME_CONFIGS = {
     supportedModes:  ['ptp', 'tlm', 'mdlm'],
     multiplayerOnly: false,
     lobbyCtaLabel:   "Let's Play!",
-    rosterConfig: { type: ls => ls === 'team' ? 'none' : 'teams', showTeamNamesInPreLobby: true, defaultTeamNames: ['Alpha Echo', 'Bravo Zulu'], hasCaptain: false },
-    getMaxPlayers: () => window.mpLobbyStyle === 'team' ? 2 : (typeof ssPlayerCount !== 'undefined' ? ssPlayerCount * 2 : 4),
+    rosterConfig: { type: ls => ls === 'team' ? 'none' : 'teams', showTeamNamesInPreLobby: true, defaultTeamNames: ['Alpha Echo', 'Bravo Zulu'], hasCaptain: false, requiresBalancedTeams: true },
+    // Lobby bounds are consulted ONLY while a room fills, so they must be the game's TRUE range —
+    // never a single-device setup variable. ssPlayerCount is set by the Team-size pills on
+    // screen-ss-players, a screen Lobby Mode never shows. 2v2 to 3v3.
+    getMaxPlayers: () => window.mpLobbyStyle === 'team' ? 2 : 6,
+    getMinPlayers: () => window.mpLobbyStyle === 'team' ? 2 : 4,
   },
   jec: {
     gameName:        'Just Enough Cooks',
@@ -118,7 +122,8 @@ const MP_GAME_CONFIGS = {
     multiplayerOnly: false,
     lobbyCtaLabel:   "Let's Cook!",
     rosterConfig: { type: 'individual', showTeamNamesInPreLobby: false, defaultTeamNames: null, hasCaptain: false },
-    getMaxPlayers: () => (typeof jecPlayerCount !== 'undefined' ? jecPlayerCount : 4),
+    // True range, not jecPlayerCount — the roster screen that moves it is skipped in Lobby Mode.
+    getMaxPlayers: () => 6,
     getMinPlayers: () => 3,
   },
   ygi: {
@@ -133,7 +138,8 @@ const MP_GAME_CONFIGS = {
     multiplayerOnly: false,
     lobbyCtaLabel:   'Show Your Take 🃏',
     rosterConfig: { type: 'individual', showTeamNamesInPreLobby: false, defaultTeamNames: null, hasCaptain: false },
-    getMaxPlayers: () => (typeof ygiPlayerCount !== 'undefined' ? ygiPlayerCount : 4),
+    // True range, not ygiPlayerCount — the setup screen that moves it is skipped in Lobby Mode.
+    getMaxPlayers: () => 6,
     getMinPlayers: () => 3,
   },
   lttp: {
@@ -160,8 +166,10 @@ const MP_GAME_CONFIGS = {
     multiplayerOnly: false,
     lobbyCtaLabel:   'Find The Location!',
     rosterConfig: { type: 'individual', showTeamNamesInPreLobby: false, defaultTeamNames: null, hasCaptain: false },
-    getMaxPlayers: () => (typeof lttpPlayerCount !== 'undefined' ? lttpPlayerCount : 4),
-    getMinPlayers: () => (typeof lttpPlayerCount !== 'undefined' ? lttpPlayerCount : 4),
+    // True range, not lttpPlayerCount — the setup screen that moves it is skipped in Lobby Mode,
+    // which pinned min AND max to its default of 4 (an MDLM room could only ever be exactly 4).
+    getMaxPlayers: () => 6,
+    getMinPlayers: () => 4,
   },
   nat: {
     gameName:        'Natural Selection',
@@ -189,8 +197,10 @@ const MP_GAME_CONFIGS = {
     supportedModes:  ['ptp', 'tlm', 'mdlm'],
     multiplayerOnly: false,
     lobbyCtaLabel:   "Let's Sail!",
-    rosterConfig: { type: 'teams', showTeamNamesInPreLobby: true, defaultTeamNames: ['SS Kraken', 'SS Leviathan'], hasCaptain: () => window.mpLobbyStyle === 'team' },
-    getMaxPlayers: () => window.mpLobbyStyle === 'team' ? 2 : ((typeof dsdPlayersPerTeam !== 'undefined' ? dsdPlayersPerTeam : 2) * 2),
+    rosterConfig: { type: 'teams', showTeamNamesInPreLobby: true, defaultTeamNames: ['SS Kraken', 'SS Leviathan'], hasCaptain: () => window.mpLobbyStyle === 'team', requiresBalancedTeams: true },
+    // True range, not dsdPlayersPerTeam — the Crew screen that moves it is skipped in Lobby Mode. 2v2 to 3v3.
+    getMaxPlayers: () => window.mpLobbyStyle === 'team' ? 2 : 6,
+    getMinPlayers: () => window.mpLobbyStyle === 'team' ? 2 : 4,
   },
   bld: {
     gameName:        'Bailed',
@@ -899,7 +909,29 @@ function mpSerialiseSettings(abbr) {
 }
 
 // ── Envelope: receive + route ─────────────────────────────────────────────────
+// ── Mid-Game Quit Contract (logic-engine.md § Mid-Game Quit Contract) ─────────
+// One device leaving mid-game dissolves the session for everyone: a client tells the host,
+// and the host's own resetToLobby() broadcasts HOST_END_GAME to the rest. Without this a
+// quitting client keeps its Firebase slot and every other device waits on a turn that never
+// comes. Call this from a game's quit-confirm handler immediately BEFORE resetToLobby().
+//
+// Generic on purpose: the ten games that predate it each ship an identical [ABBR]_PLAYER_LEFT
+// handler doing nothing game-specific. Those still work; new work uses this instead.
+// Safe (a no-op) in 'single' and 'host' mode.
+function mpNotifyPlayerLeft() {
+  if (window.syllyMultiplayerMode !== 'client') return;
+  try {
+    mpSendEnvelope({ type: 'ACTION', payload: { action: 'MP_PLAYER_LEFT', playerIdx: mpMyPlayerIdx } });
+  } catch (_) {}
+}
+
 function mpHandleEnvelope(env) {
+  // Generic quit contract — checked before any per-game routing so a game needs no handler.
+  if (env.type === 'ACTION' && env.payload?.action === 'MP_PLAYER_LEFT') {
+    if (window.syllyMultiplayerMode === 'host') resetToLobby(); // broadcasts HOST_END_GAME
+    return;
+  }
+
   if (env.type === 'HANDSHAKE' && window.syllyMultiplayerMode === 'host') {
     if (env.payload.version !== SYLLY_VERSION) {
       document.getElementById('mp-version-mismatch-overlay').style.display = 'flex';
@@ -1962,14 +1994,21 @@ function mpRenderHostPlayerList() {
 
   const cta   = document.getElementById('btn-mp-lobby-host-cta');
   const minP  = mpActiveGameConfig?.getMinPlayers?.() ?? 2;
-  const ready = mpPlayerSlots.length >= minP;
+  const enough = mpPlayerSlots.length >= minP;
+  // A game whose two teams must be the same size can never split an odd roster — block the
+  // CTA on the count itself rather than letting the host reach the roster screen and stall there.
+  const oddBlocked = mpRosterNeedsBalance() && mpPlayerSlots.length % 2 === 1;
+  const ready = enough && !oddBlocked;
 
-  // Min-players hint: tell the host how many more are needed while the CTA is locked
+  // Hint: tell the host why the CTA is locked
   const hint = document.getElementById('mp-lobby-min-hint');
   if (hint) {
-    if (!ready) {
+    if (!enough) {
       const need = minP - mpPlayerSlots.length;
       hint.textContent = `Need ${need} more ${need === 1 ? 'player' : 'players'} to start (min ${minP})`;
+      hint.style.display = 'block';
+    } else if (oddBlocked) {
+      hint.textContent = 'Teams must be even — one more player, or one fewer.';
       hint.style.display = 'block';
     } else {
       hint.style.display = 'none';
@@ -2340,17 +2379,39 @@ function mpRosterRandomise(rosterType) {
   mpRosterCheckConfirm(rosterType);
 }
 
+// True when the active game's two teams must be the same size (SS, DSD — both derive their
+// per-team size from team A's length alone, so a 3v2 would silently mis-size team B).
+// TLM is one device per team and never reaches the roster screen, so it is exempt.
+function mpRosterNeedsBalance() {
+  return mpGetRosterType() === 'teams'
+      && mpActiveGameConfig?.rosterConfig?.requiresBalancedTeams === true;
+}
+
 function mpRosterCheckConfirm(rosterType) {
   const allAssigned = mpRosterPendingTeamIdx.every(t => t >= 0);
   let captainsOk = true;
   if (rosterType === 'teams' && mpRcHasCaptain(mpActiveGameConfig?.rosterConfig)) {
     captainsOk = mpRosterPendingCaptain[0] >= 0 && mpRosterPendingCaptain[1] >= 0;
   }
-  const ready = allAssigned && captainsOk;
+  // Balance gate: "everyone assigned" allowed 3v2 — and, before the min-players fix, 4v0.
+  let balanced = true;
+  if (mpRosterNeedsBalance()) {
+    const a = mpRosterPendingTeamIdx.filter(t => t === 0).length;
+    const b = mpRosterPendingTeamIdx.filter(t => t === 1).length;
+    balanced = a === b;
+  }
+  const ready = allAssigned && captainsOk && balanced;
   const btn   = document.getElementById('btn-mp-roster-confirm');
   btn.disabled = !ready;
   btn.classList.toggle('opacity-50',          !ready);
   btn.classList.toggle('pointer-events-none', !ready);
+
+  const hint = document.getElementById('mp-roster-hint');
+  if (hint) {
+    const show = allAssigned && captainsOk && !balanced;
+    hint.textContent  = show ? 'Both teams need the same number of players.' : '';
+    hint.style.display = show ? 'block' : 'none';
+  }
 }
 
 async function mpConfirmRoster() {

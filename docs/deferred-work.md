@@ -8,6 +8,310 @@ Tick items off here; promote anything architectural into `decision-log.md`.
 
 ---
 
+## CLOSED — both recurring MP bugs from the identity-doc pass, plus three games it missed (23 Aug 2026)
+
+**SW v210.** The nine bullets marked RESOLVED in the sections below are fixed. Two bug classes, both
+cross-cutting, both invisible to every existing harness.
+
+**Bug class 1 — lobby bounds read single-device setup state (5 games: SS, JEC, YGI, LTTP, DSD).**
+`getMaxPlayers`/`getMinPlayers` are consulted at exactly two moments, and both are *before* the game
+has shown a screen of its own: `mpRenderHostPlayerList()` while the room fills, and the room node's
+`maxPlayers` at create time. So a bound reading `ssPlayerCount` / `jecPlayerCount` /
+`ygiPlayerCount` / `lttpPlayerCount` / `dsdPlayersPerTeam` resolved against that variable's
+**declared default**, permanently — the Pass-the-Phone screen that moves it is skipped entirely in
+Lobby Mode, and the game's own `onPassThePhone` overwrites it from the roster far too late to
+matter. All five capped their rooms at 4 while their Pass-the-Phone setup offered 6, with nothing
+anywhere explaining why a 5th join bounced. LTTP was worst: min *and* max both pinned, so an MDLM
+room could only ever be exactly 4.
+
+**Fix:** the bounds are constants now (SS/DSD 4–6 MDLM, 2 TLM · JEC/YGI 3–6 · LTTP 4–6). Worth
+recording that **this list's own proposed fix was wrong** — it read "reading the roster's live size
+during lobby-fill, not a game-local variable", repeated across four sections. A *cap* cannot be the
+roster's size; the roster is what the cap constrains. The real rule is narrower and easier: a lobby
+bound must not read game-local state at all.
+
+**Raising SS's and DSD's caps exposed an older hole, closed in the same change.**
+`mpRosterCheckConfirm` only ever validated that every player was *assigned*, never that the two
+teams matched — so 3v2 confirmed fine, and before the min-players fix so did 4v0. Both games derive
+per-team size from **team A alone** (`ssPlayerCount = ssPlayerNamesA.length`,
+`dsdPlayersPerTeam = dsdPlayerNames[0].length`), so an uneven roster silently mis-sizes team B. New
+`rosterConfig.requiresBalancedTeams: true` gates both ends: the host lobby CTA rejects an odd
+roster, and the roster screen requires `|A| === |B|`, with a new amber reason line
+`#mp-roster-hint`.
+
+**Bug class 2 — the Mid-Game Quit Contract was never wired up (8 games).** The identity pass flagged
+five (LI5, GM, SS, JEC, YGI). Grepping the suite for the shape found **three more nobody had
+recorded — LTTP, NAT and DSD** — with the identical unconditional handler. All eight now call the new
+engine helper `mpNotifyPlayerLeft()` (generic `MP_PLAYER_LEFT`, handled in `mpHandleEnvelope`
+before any per-game routing), and the rule in `logic-engine.md` is **widened past MDLM to every
+lobby session** — it was written MDLM-only, which is exactly why the two TLM games (LI5, DSD)
+slipped past it. The ten games that already had a per-game `[ABBR]_PLAYER_LEFT` are untouched.
+
+**Enforced from here on: `node tools/verify-mp-configs.js`** — entry schema, bounds sanity, bound
+purity, agreement with each game's own Pass-the-Phone count pills in `index.html`, the
+balanced-teams invariant, and the quit contract, across all 18 games. It fails on pre-fix `main`
+(`MP_SRC=` drives another copy of `engine-multiplayer.js` through the same checks) and passes on
+the fix.
+
+**Deliberately left open**, and still listed below: **NAT's Pass-the-Phone floor** — `getMinPlayers()`
+is 3 but the Researcher pills offer 4–8, and whether that PTP floor is intentional is still
+unrecorded. The harness prints it as a documented `note`, not a failure; resolving it means deciding
+whether a 3-player expedition should exist at all, which is a design call, not a bug fix.
+
+**Detail:** `shared-implementation-notes.md` § Multiplayer Lessons, `docs/decision-log.md`
+23 Aug 2026, and each game's `docs/game-identities/[abbr].md` T7c.
+
+---
+
+## LI5 gaps found while writing its identity doc (23 Aug 2026)
+
+**Found, not fixed.** An identity pass records the game as it shipped; fixing what it reveals is a
+separate task (spec § 15).
+
+- **RESOLVED 23 Aug 2026 (SW v210)** — see the closure section at the top of this file. **Mid-game quit doesn't dissolve the session for the other device — and this is the first
+  instance found in TLM rather than MDLM.** `btn-quit-confirm` calls the shared engine
+  `resetToMenu()` (`js/engine.js`), which stops the timer, clears the team-name inputs and navigates
+  to `screen-menu` — no `syllyMultiplayerMode` branch and no MP teardown of any kind, since it's a
+  plain engine helper rather than a per-game handler. In Team Lobby Mode this leaves the Firebase
+  room and the other team's device stranded. Same shape as the MDLM Mid-Game Quit Contract gap
+  logged below for GM, SS, YGI and JEC (and fixed long ago in GTH/DYB/BLD/PASS via
+  `[ABBR]_PLAYER_LEFT`) — **but note the contract in `logic-engine.md` is written for MDLM only**,
+  so a fix pass should widen the rule to cover TLM rather than just patching LI5. LI5 and DSD are
+  the games this affects (SS supports TLM too but has its own separate MDLM entry below).
+- **Minor, documentation-only:** `li5-implementation-notes.md` lists L6 (deck panel behind its own
+  opener), L7 (phantom timer on quit-cancel) and L8 (Pinky Swear score desync) as open. All three
+  are fixed in shipped code — `deck-panel` is now `z-[100]`, `hideQuitConfirm()` guards on the
+  active-play screen being visible, and `flipEntry()` re-clamps every entry sequentially from
+  `scoreBeforeTurn`. Same stale-Bug-Index pattern as GM (below); the generalised lesson is in
+  `shared-implementation-notes.md` § Template Gaps.
+
+`docs/game-identities/li5.md` T7c already carries both of these; fixing either means updating that
+section in the same change.
+
+---
+
+## GM gaps found while writing its identity doc (23 Aug 2026)
+
+**Found, not fixed.** An identity pass records the game as it shipped; fixing what it reveals is a
+separate task (spec § 15).
+
+- **RESOLVED 23 Aug 2026 (SW v210)** — see the closure section at the top of this file. **Mid-game quit doesn't dissolve the Lobby Mode session for the other device.**
+  `btn-gm-quit-confirm` resets local round state and calls `showScreen('screen-gm-menu')`
+  unconditionally — no `syllyMultiplayerMode` branch, no `GM_PLAYER_LEFT` notification, no
+  `resetToLobby()`/`mpReturnToLobby()` call. Same MDLM Mid-Game Quit Contract gap as SS, YGI and JEC
+  (all logged below), GTH, DYB, BLD and PASS all needed dedicated `[ABBR]_PLAYER_LEFT` fixes for —
+  the **fourth** game found missing it during this identity-doc pass alone. GM's player count is a
+  fixed 2 (`getMaxPlayers()` for `gm` is a hardcoded `2`), so there's no player-count-cap
+  counterpart bug to also flag here, unlike SS/YGI/JEC/LTTP.
+- **Minor, documentation-only:** `gm-implementation-notes.md`'s Bug Index lists G4 (Lobby Mode
+  near-sync silently discarding the round), G5 (host/client showing different mismatch phrases) and
+  G6 (quit overlay border colour copy-pasted from SS's teal instead of GM's purple) as open. All
+  three are actually fixed in the shipped code — `gmMpResolveRound()` now runs `gmHandleMismatch()`
+  on the near-sync path (with an inline comment describing the exact fix the notes call for) and
+  overrides the result heading with the broadcast phrase; `gm-quit-overlay` now carries
+  `border-purple-300`. Only **G3** (a reported, unreproduced screen-refresh-on-the-other-device bug)
+  is still genuinely open. Worth a pass through `gm-implementation-notes.md` to close G4/G5/G6 and
+  either action or drop G3 — not urgent enough for its own task, just noise for anyone reading the
+  Bug Index cold.
+
+`docs/game-identities/gm.md` T7c already carries both of these; fixing either means updating that
+section in the same change.
+
+---
+
+## SS gaps found while writing its identity doc (23 Aug 2026)
+
+**Found, not fixed.** An identity pass records the game as it shipped; fixing what it reveals is a
+separate task (spec § 15).
+
+- **RESOLVED 23 Aug 2026 (SW v210)** — see the closure section at the top of this file. **MDLM's player-count cap is pinned to a value only the single-device screen ever changes — a
+  fourth confirmed instance of this exact bug shape.** `getMaxPlayers()` for `ss` in
+  `engine-multiplayer.js` resolves to `window.mpLobbyStyle === 'team' ? 2 : ssPlayerCount * 2`. The
+  2-device TLM branch is correct by design. But the MDLM branch reads `ssPlayerCount`, a game-local
+  variable defaulting to `2` that only otherwise moves via the Pass-the-Phone "Team size" pills on
+  `screen-ss-players` — a screen MDLM never shows — or, too late to matter, inside
+  `startSyllySignals()` itself after the Lobby Mode roster has already filled. Result: **a Lobby
+  Mode room can only ever fill to 4 devices (2v2), never the 3v3 Pass-the-Phone/TLM support.** This
+  is the **fourth** game found with this exact architecture, after Late to the Party, You Get It?
+  and Just Enough Cooks (all logged below) — strong enough of a pattern that one shared fix (reading
+  the roster's live size during lobby-fill, not a game-local variable) would close all four at once.
+- **RESOLVED 23 Aug 2026 (SW v210)** — see the closure section at the top of this file. **Mid-game quit doesn't dissolve the Lobby Mode session for the rest of the group.**
+  `btn-ss-quit-confirm` calls `ssResetToMenu()` unconditionally — no `syllyMultiplayerMode` branch,
+  no `SS_PLAYER_LEFT` notification, no `resetToLobby()`/`mpReturnToLobby()` call. Same MDLM Mid-Game
+  Quit Contract gap as YGI and JEC (both logged below), GTH, DYB, BLD and PASS all needed dedicated
+  `[ABBR]_PLAYER_LEFT` fixes for — the **third** game found missing it during this identity-doc pass
+  alone. `docs/code-map.md`'s SS Key Buttons table now flags this inline.
+- **Minor, cosmetic:** `ss-implementation-notes.md` S16 records "no header `[?]` → How to Play on
+  gameplay screens" as an open gap; the encrypt screen now has `btn-ss-how-to-game` wired to the full
+  How to Play overlay (in addition to its separate contextual-tip `?`), so that note is stale for at
+  least this one screen — the broadcast/intercept screens still lack it. Worth a note update next
+  time `ss-implementation-notes.md` is touched, not urgent enough for its own pass.
+
+`docs/game-identities/ss.md` T7c already carries all three; fixing any of them means updating that
+section in the same change.
+
+---
+
+## JEC gaps found while writing its identity doc (23 Aug 2026)
+
+**Found, not fixed.** An identity pass records the game as it shipped; fixing what it reveals is a
+separate task (spec § 15).
+
+- **RESOLVED 23 Aug 2026 (SW v210)** — see the closure section at the top of this file. **MDLM's player-count bounds are pinned to a value only the single-device roster screen ever
+  changes.** `getMaxPlayers()` for `jec` in `engine-multiplayer.js` resolves to `jecPlayerCount`,
+  which only moves when the Pass-the-Phone roster screen's count pills are tapped, or (too late to
+  matter) when `jecInitRoster()` overwrites it with the roster size *after* the lobby has already
+  filled. The roster screen is skipped entirely in Lobby Mode, so `jecPlayerCount` never leaves its
+  default of 4 during the roster-filling phase — a Lobby Mode room can only ever fill to 4 players
+  (`getMinPlayers()` is a fixed 3), never the 5–6 Pass-the-Phone supports. **This is the third game
+  found with this exact bug shape**, after Late to the Party and You Get It? (both logged above) —
+  the same architecture independently repeated three times strongly suggests one shared fix (reading
+  the roster's live player count during lobby-fill, rather than a game-local variable set too late)
+  would close all three at once. Worth checking whether DSD's near-identical
+  `getMaxPlayers`/`dsdPlayersPerTeam` pattern (also logged above) is a fourth instance before
+  scoping the fix.
+- **RESOLVED 23 Aug 2026 (SW v210)** — see the closure section at the top of this file. **Mid-game quit doesn't dissolve the Lobby Mode session for the rest of the group.** The
+  quit-confirm handler calls `jecResetForNewGame()`, which unconditionally ends in
+  `showScreen('screen-jec-menu')` — no `syllyMultiplayerMode` branch, no
+  `resetToLobby()`/`mpReturnToLobby()` call. Same MDLM Mid-Game Quit Contract gap as YGI (logged
+  above), GTH, DYB, BLD and PASS all needed dedicated `[ABBR]_PLAYER_LEFT` fixes for — this is the
+  **second** game in this identity-doc pass alone found with it. `docs/code-map.md`'s JEC Key
+  Buttons table now flags this inline.
+
+`docs/game-identities/jec.md` T7c already carries both of these; fixing either means updating that
+section in the same change.
+
+---
+
+## YGI gaps found while writing its identity doc (23 Aug 2026)
+
+**Found, not fixed.** An identity pass records the game as it shipped; fixing what it reveals is a
+separate task (spec § 15).
+
+- **RESOLVED 23 Aug 2026 (SW v210)** — see the closure section at the top of this file. **MDLM's player-count bounds are pinned to a value only the single-device setup screen ever
+  changes.** `getMaxPlayers()` for `ygi` in `engine-multiplayer.js` resolves to `ygiPlayerCount`,
+  which only moves when the Pass-the-Phone setup screen's count pills are tapped, or (too late to
+  matter) when `ygiShowSetup()` overwrites it with the roster size *after* the lobby has already
+  filled. The setup screen is skipped entirely in Lobby Mode, so `ygiPlayerCount` never leaves its
+  default of 4 during the roster-filling phase — a Lobby Mode room can only ever fill to 4 players
+  (`getMinPlayers()` is a fixed 3), never the 5–6 that Pass-the-Phone supports. This is the same
+  shape of gap as LTTP's `lttpPlayerCount` issue (logged above), in a different game — worth a
+  combined fix pass across both games rather than two separate ones.
+- **RESOLVED 23 Aug 2026 (SW v210)** — see the closure section at the top of this file. **Mid-game quit doesn't dissolve the Lobby Mode session for the rest of the group.**
+  `btn-ygi-quit-confirm`'s handler (`js/games/ygi.js`) is unconditional —
+  `showScreen('screen-ygi-menu')` with no `syllyMultiplayerMode` branch and no call to
+  `resetToLobby()`/`mpReturnToLobby()`. In MDLM this strands the quitting player on the local menu
+  while still occupying a Firebase room slot, and leaves every other device waiting on a turn that
+  will never come — the exact failure class the MDLM Mid-Game Quit Contract (`logic-engine.md`) was
+  written to close, which GTH, DYB, BLD and PASS all needed a dedicated `[ABBR]_PLAYER_LEFT` fix
+  for. YGI was never given the same fix. `docs/code-map.md`'s YGI Key Buttons table now flags this
+  inline.
+
+`docs/game-identities/ygi.md` T7c already carries both of these; fixing either means updating that
+section in the same change.
+
+---
+
+## LTTP gaps found while writing its identity doc (23 Aug 2026)
+
+**Found, not fixed.** An identity pass records the game as it shipped; fixing what it reveals is a
+separate task (spec § 15).
+
+- **RESOLVED 23 Aug 2026 (SW v210)** — see the closure section at the top of this file. **MDLM's player-count bounds are pinned to a value only the single-device setup screen ever
+  changes.** `getMinPlayers()` and `getMaxPlayers()` for `lttp` in `engine-multiplayer.js` both
+  resolve to `lttpPlayerCount`, which only changes when the Pass-the-Phone setup screen's count
+  pills are tapped. That screen is skipped entirely in Lobby Mode (`onPassThePhone` goes straight
+  to `lttpStartGame()`), so `lttpPlayerCount` never leaves its default of 4 — an MDLM room can only
+  ever be exactly 4 players, not the 4–6 range Pass-the-Phone supports, with no visible setting
+  anywhere in Lobby Mode explaining why a 5th join is rejected. `code-map.md`'s LTTP section didn't
+  previously record this — worth checking whether it's an intentional MDLM floor or a genuine gap.
+- **`#screen-lttp-role-reveal` is dead code that still ships.** It's registered in `allScreens[]`
+  with a complete Stack-migrated layout, and `index.html`'s own LTTP section-header comment lists it
+  as part of the screen inventory — but `lttpShowRoleReveal()` no longer exists in `lttp.js` at all
+  (it was apparently removed at some point after the Phase 3 audit flagged it as dead-but-present),
+  and nothing else calls `showScreen('screen-lttp-role-reveal')`. Role info is folded into the Chat
+  screen's own header instead. `docs/code-map.md`'s LTTP Screens table previously described this
+  screen as live ("shown after pass-gate handover") — corrected in the same pass as this entry.
+- **Three contextual-help surfaces with unclear boundaries.** The header `[?]` opens the full How to
+  Play overlay; a second inline `?` next to the map instructions opens `lttp-tip-overlay`; the
+  message composer has its own `[?]` opening `lttp-help-tip-overlay` (a legacy single-string
+  variant, shaped differently from every other tip overlay in the suite). A player can't tell which
+  of the two non-header `?` icons goes where before tapping one.
+
+`docs/game-identities/lttp.md` T7c already carries the first and second of these; fixing any of them
+means updating that section (and `code-map.md`, already partially corrected) in the same change.
+
+---
+
+## NAT gaps found while writing its identity doc (23 Aug 2026)
+
+**Found, not fixed.** An identity pass records the game as it shipped; fixing what it reveals is a
+separate task (spec § 15).
+
+- **Pass-the-Phone can't reach the Lobby Mode floor.** `getMinPlayers()` for `nat` in
+  `engine-multiplayer.js` returns 3, but the Researcher-count pills on `screen-nat-setup`
+  (`index.html`) only offer 4 through 8 — there's no way to start a 3-player expedition in
+  Pass-the-Phone even though Lobby Mode allows it. Unrecorded whether this is an intentional PTP
+  floor (three roles at three players leaves no spare Field Researcher) or a pill row that never
+  got updated to match the engine minimum.
+- **`screen-nat-daily-review` (Sylly Mode only) has no `[?]`.** Every other Interactive screen in
+  the loop carries a help button; the one screen unique to Survival of the Fittest doesn't.
+- **The Suspicion Log (`nat-tally-suspicion`) only renders for one outcome.** It shows who voted
+  for whom, but only when The Mole was caught and then guessed the Specimen incorrectly — every
+  other outcome (Mole escapes, Mole caught and guesses correctly) tallies silently. Whether that's
+  deliberate ("only show the receipts when it mattered") or an oversight isn't recorded.
+
+`docs/game-identities/nat.md` T7c already carries these; fixing any of them means updating that
+section in the same change.
+
+---
+
+## DSD gaps found while writing its identity doc (23 Aug 2026)
+
+**Found, not fixed.** An identity pass records the game as it shipped; fixing what it reveals is a
+separate task (spec § 15).
+
+- **`screen-dsd-sabotage` has no `[?]`.** Every other Interactive screen in DSD's loop carries a
+  help button, but Sabotage — the one screen unique to Silent Running, and the first place a player
+  meets the Jammer mechanic — doesn't. The only in-line explanation is the single instruction line
+  above the grid; there's no way to reach the fuller how-to from that screen.
+- **The Spectator screen carries no `[?]` or ✕**, only 🔊. Defensible (it's read-only, nothing to
+  confirm or protect by gating an exit) but it means a waiting spectator has no way to reach a rules
+  refresher without waiting for their own team's turn.
+- **Two different help surfaces exist with no cross-link.** The Captain's inline `?` next to the
+  ping-word input opens `dsd-help-tip-overlay` (a short, dynamically-set single tip); the header
+  `[?]` opens the full `dsd-how-to-overlay`. A player who's only ever used the inline tip may not
+  know the fuller how-to exists.
+
+`docs/game-identities/dsd.md` T7c already carries these; fixing any of them means updating that
+section in the same change.
+
+---
+
+## GTH gaps found while writing its identity doc (23 Aug 2026)
+
+**Found, not fixed.** An identity pass records the game as it shipped; fixing what it reveals is a
+separate task (spec § 15).
+
+- **`gth-case-report-progress` is a reserved, empty container.** `screen-gth-case-report` reserves a
+  div for per-player progress dots (the comment reads "Per-player progress dots"), but nothing in
+  `gth.js` ever writes to it — `gthShowCaseReport()` only populates `gth-case-report-stats` and
+  `gth-case-report-time`. A player waiting there sees only static text, no sense of how close the
+  rest of the group is. Already logged in `gth-implementation-notes.md`'s Bug Index (June 2026
+  audit) as "logged, not yet fixed" — carried forward here as part of the identity-doc migration
+  rather than newly found.
+- **The Waiting Room and Case Report screens carry no rotating flavour line.** Both are held-beats a
+  player can sit in for a while depending on how slow the table is, and both show one fixed line
+  every session, unlike the suite's Round/Night Intro standard (a small rotating pool, per
+  `ui-style.md`).
+
+Either populate the progress container (mirror `gthUpdateWaitingProgress()` using
+`gthDiagnosesReady`) or remove the dead div; either way `docs/game-identities/gth.md` T7c needs the
+matching update in the same change. The flavour-rotation gap is lower priority — CJAR carries the
+identical open item for its own Raid Summary screen.
+
+---
+
 ## `verify-cjar-loopback.js` is FLAKY — intermittent Dibber Dobber payout-beat failure (22 Aug 2026)
 
 **Found during identity-doc pass 1, which changed no application code at all** (docs + one new tool
@@ -35,6 +339,67 @@ trains people to re-run until green, which is exactly how a real regression gets
 **Next step:** reproduce with a fixed seed. The harness accepts `CJAR_SRC=` but has no documented
 seed variable — SHP's `SHP_SEED=` is the pattern to copy. Not attempted here; out of scope for a
 documentation pass.
+
+---
+
+## DYB Phantom-die reveal gap found while writing its identity doc (23 Aug 2026)
+
+**Found, not fixed.** An identity pass records the game as it shipped; fixing what it reveals is a
+separate task (spec § 15).
+
+- **The How to Play copy promises a Phantom-die reveal at The Overlook that the game doesn't
+  currently deliver.** `dyb-how-to-overlay`'s Sylly Mode card reads *"Phantom hide their face until
+  The Overlook"* — implying the "?" resolves to the real value once hands are revealed. Per
+  `docs/rules/game-identities.md`'s outgoing DYB section (Special Mechanics § The Tempest), the "?"
+  glyph currently **persists through the showdown reveal** instead of resolving — a gap already
+  flagged in `dyb-implementation-notes.md`'s own bug index, just never carried into the how-to copy
+  or fixed in `dybRenderShowdownScreen`.
+
+Fixing it means either making the Phantom's real face actually resolve at `screen-dyb-showdown`
+(matching the promised copy), or rewriting the how-to line to match what currently ships (a Phantom
+that never confirms its face even at reveal) — a design call for the owner, not a doc-only fix.
+
+---
+
+## SHP dead overlay found while writing its identity doc (23 Aug 2026)
+
+**Found, not fixed.** An identity pass records the game as it shipped; fixing what it reveals is a
+separate task (spec § 15).
+
+- **`shp-tip-overlay` is fully built and never opened.** The markup (`shp-tip-emoji`,
+  `shp-tip-heading`, `shp-tip-body`, `btn-shp-tip-close`) and its renderer
+  (`shpShowTip(emoji, heading, lines)` in `js/games/shp.js`) both exist, but nothing in `shp.js` or
+  `index.html` ever calls `shpShowTip` — no inline `[?]` button anywhere on `screen-shp-table` opens
+  it. It's listed live in the game's overlay inventory (`index.html`'s own header comment,
+  `code-map.md`) as though it were a working contextual-tip surface. Counting Sheep instead solved
+  the "explain this card" need with the tap-hold-to-gallery pattern (long-press jumps to the card's
+  row in How to Play → The Cards), which may be exactly why this overlay was scaffolded and then
+  abandoned mid-build.
+
+Either wire a real trigger to it (there's no obvious mechanic left needing one, per the tap-hold
+coverage above) or remove the overlay, its renderer, and its `resetToLobby()` teardown entry —
+whichever the owner decides, `docs/game-identities/shp.md` T7a/T7c and `docs/code-map.md`'s SHP
+overlay table need the matching update in the same change.
+
+---
+
+## PKO copy drift found while writing its identity doc (23 Aug 2026)
+
+**Found, not fixed.** An identity pass records the game as it shipped; fixing what it reveals is a
+separate task (spec § 15).
+
+- **The Culling's interstitial blurb describes Extinction Event's effect, not its own.**
+  `PKO_EVENTS` in `js/games/pko.js` gives The Culling the blurb *"The season takes the rarest species
+  from every Hoard"* — that is a global, single-species wipe, which is what Extinction Event actually
+  does. The Culling's real rule (`pkoFireCulling`, `PKO_EVENT_DETAIL['culling']`) is per-player: each
+  player individually discards their own fewest-held species. The 5-second event interstitial
+  (`screen-pko-event`) is the only place a player reads this text before their Hoard visibly changes,
+  so a first-time Force of Nature player is briefly told the wrong mechanic for what just happened to
+  their own hand. The correct explanation already exists one overlay away, in `PKO_EVENT_DETAIL`
+  (read from the `[?]` events roster) — only the interstitial's own `blurb` field is wrong.
+
+Fixing it means editing the `blurb` string on `PKO_EVENTS`'s `'culling'` entry in `js/games/pko.js`
+**and** the matching copy note in `docs/game-identities/pko.md` T7c in the same change.
 
 ---
 

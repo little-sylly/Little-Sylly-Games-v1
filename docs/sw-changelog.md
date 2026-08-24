@@ -4,6 +4,22 @@ Historical SW release notes, moved out of `CLAUDE.md` (1 Aug 2026) so they stop 
 The **current** version and its notes stay in `CLAUDE.md` § Current Focus — append the outgoing entry here on each bump.
 
 
+## v209 — NT's honeypot is a pure cooldown gate, FOOTPRINT-based; 111378/64472 CLOSED (20 Aug 2026)
+
+Three fixes from one Debug Mode session, worst corpus error **20.80% → 2.81%**. **(1)**
+191490's recorded hits were `[2,2,2]`, not owner-confirmed `[3,2,2]` — v208's "refresh" branch was
+fitted to a gap pattern that only existed under the wrong count; `checkFires` is now a pure
+`elapsed >= lastFire[i] + NT_HONEYPOT_DURATION` gate, no entry/exit branch. **(2)** D45's Minkowski
+rejection tested footprint-distance at the wrong (centre-model) radius; at its own radius (2×√2,
+"2 tiles from the block's corner") it reproduces 48154/97877 too — AoE is now footprint-based, disc/
+ring redrawn to match. **(3)** `nt-maze-transcribe.js` had ingress/egress backwards on some boards —
+assigned by edge-scan order, not by reading which marker is the finish. 111378 (owner-verified against
+their own Debug Mode rebuild) and 64472 both had this exact bug: **−10.3%→+0.25%, −20.2%→+0.67%** —
+the two boards flagged "genuinely open" since D45 were bad input data, not a routing/AoE gap. `72000`
+reads the same unambiguous marker but flipping it made the fit worse — left alone, unresolved.
+6/6 trigger counts still MATCH, harness 417 green. Detail: `nt-implementation-notes` D46/D47/D48,
+`docs/deferred-work.md`.
+
 ## v208 — NT's honeypot REFRESHES in place; the Minkowski AoE is dead (19 Aug 2026)
 
 Both from one new reference: the owner's 191490 daily, screenshotted at each of its **six** triggers

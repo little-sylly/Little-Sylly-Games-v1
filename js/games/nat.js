@@ -169,6 +169,9 @@ function natCloseQuit() {
 function natConfirmQuit() {
   if (natHabitatIntroTimer) { clearTimeout(natHabitatIntroTimer); natHabitatIntroTimer = null; }
   natCloseQuit();
+  // Mid-Game Quit Contract (logic-engine.md): in a lobby session, leaving must dissolve the
+  // session for every other device — this local navigation only tears this one down.
+  if (window.syllyMultiplayerMode !== 'single') { mpNotifyPlayerLeft(); resetToLobby(); return; }
   showScreen('screen-nat-menu');
 }
 

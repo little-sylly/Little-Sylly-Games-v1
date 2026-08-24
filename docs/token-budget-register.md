@@ -119,7 +119,7 @@ The "Current Focus → Key references" list is long and duplicates `decision-log
 
 1. **Regression risk on `.claude/rules/`.** Anything big dropped back into that folder silently reverses Fix (a) — the harness will load it every turn again. **Guard:** the ⚠️ note in CLAUDE.md; treat `.claude/rules/` as a 3-file allow-list (`ui-style`, `logic-engine`, `definitions`).
 2. **`index.html` keeps growing.** Each new game adds screens/overlays to the same 540 KB file, pushing the full-read cost higher and making the never-full-read rule more load-bearing over time. Lever A becomes more pressing with every game shipped.
-3. **`game-identities.md` is now on-demand but still 135 KB / 16 sections.** A careless whole-file read of it re-creates a mini-spiral. The rule (Grep the `## Game N:` heading, offset-Read one section) must hold; the Per-Game Quick Index in CLAUDE.md exists so most "which colour/file/abbr" lookups never open it at all.
+3. **`game-identities.md` retired 23 Aug 2026** (superseded by `docs/game-identities/[abbr].md`, one file per game, 15–25 KB each) — concern closed, not open. The per-game identity docs are individually small enough that the whole-file-read risk this item used to track no longer applies; the Per-Game Quick Index in CLAUDE.md still exists so most "which colour/file/abbr" lookups never open even those.
 4. **Drift if levers B/C are taken.** Moving always-on pattern rules to on-demand trades guaranteed convention-loading for a drift risk — the very reason `ui-style`/`logic-engine` were kept loaded. Any such move must pair the saving against more frequent convention violations.
 5. **Harness behaviour is environment-specific.** The "loads the whole `.claude/rules/` folder" finding is true for *this* harness (VSCode native extension). A different harness (CLI, web) may behave differently — don't assume the relocation is needed or harmless everywhere without re-checking.
 6. **Owner is a non-coder who will forget these habits.** The structural fixes (relocation, offset map) are robust because they don't rely on memory; the behavioural ones (§ 5 D) do. The decision log + task templates exist to make the habits findable rather than remembered.
@@ -138,7 +138,7 @@ The "Current Focus → Key references" list is long and duplicates `decision-log
 ## 8. How to verify the baseline at session start
 
 `@`-imports and folder-loads resolve at session boot, so a fix only shows up *next* session. To confirm Fix (a) held:
-1. On a fresh session, run `/context` (or eyeball the auto-loaded project-instructions block): `game-identities.md`, `phase-audit.md`, and the three new-game docs should be **absent**.
+1. On a fresh session, run `/context` (or eyeball the auto-loaded project-instructions block): `phase-audit.md`, the three new-game docs, and any `docs/game-identities/*.md` file should be **absent** (`game-identities.md` itself no longer exists — retired 23 Aug 2026).
 2. A quick `PowerShell` size sweep of `.claude/rules/*` + `CLAUDE.md` confirms only the 3 lean files remain (~30k subtotal).
 3. If any relocated file reappears in the baseline, something is re-importing it — chase it before doing other work.
 

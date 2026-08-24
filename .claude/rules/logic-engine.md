@@ -196,8 +196,33 @@ Required fields for every entry (grounded in the `li5` entry, `engine-multiplaye
 | `getMaxPlayers` | () => int | Upper bound enforced by the lobby |
 | `getMinPlayers` | () => int | Lower bound — **mandatory for any game with a minimum above 2** (role-table games, e.g. BLD min 5). Omitting it let BLD start under-strength. Defaults to the engine minimum when absent. |
 
-Run this check when adding a game: every display field present (no "undefined" on
-the mode screen) and both player-count getters return the game's real bounds.
+**A lobby bound may read NOTHING that a post-lobby screen sets.** `getMaxPlayers`/`getMinPlayers`
+are consulted at exactly two moments — `mpRenderHostPlayerList()` while the room fills, and the room
+node's `maxPlayers` at create time — both of them *before* any of the game's own screens have been
+shown. So a bound reading a game-local setup variable (`ssPlayerCount`, `jecPlayerCount`,
+`ygiPlayerCount`, `lttpPlayerCount`, `dsdPlayersPerTeam`) resolves against that variable's
+**declared default**, permanently: the Pass-the-Phone screen that moves it is skipped entirely in
+Lobby Mode, and the game's own `onPassThePhone` overwrites it from the roster far too late to
+matter. All five capped their rooms at 4 while their Pass-the-Phone setup offered 6, with nothing
+anywhere explaining why a 5th join bounced. **Return the game's true range as constants.**
+
+The one legitimate input beyond a constant is `window.mpLobbyStyle` (a TLM room is 2 devices where
+an MDLM room is N). A **pre-lobby setting** — chosen in the settings overlay on the game menu, so
+the host has already made the choice before creating the room — is also fine; FRT's `frtPearOff` is
+the only instance. Anything set on a setup or roster screen is not.
+
+**`rosterConfig.requiresBalancedTeams: true`** (optional) — for a team game whose two teams must be
+the same size. SS and DSD both derive per-team size from **team A's length alone**
+(`ssPlayerCount = ssPlayerNamesA.length`), so a 3v2 silently mis-sizes team B. The flag gates two
+things: the host lobby CTA rejects an odd roster, and `mpRosterCheckConfirm` requires `|A| === |B|`
+("everyone assigned" previously allowed 3v2 — and, before the min-players fix, 4v0). A game
+carrying it must have **even** min and max, or a bound is unreachable.
+
+Run this check when adding a game: every display field present (no "undefined" on the mode screen),
+both player-count getters returning the game's real bounds, and those bounds reading nothing but
+constants + `window.mpLobbyStyle`. **`node tools/verify-mp-configs.js` asserts all of it** — schema,
+bounds sanity, bound purity, agreement with the Pass-the-Phone count pills in `index.html`, and the
+quit contract, across all 18 games.
 
 ### Envelope Schema
 
@@ -365,17 +390,50 @@ if (window.syllyMultiplayerMode !== 'single') {
 - Client: `'Leave Session'`
 - Single: original thematic label (e.g. `'New Expedition 🦁'`)
 
-### MDLM Mid-Game Quit Contract
+### Mid-Game Quit Contract
 
-**Preferred pattern (PASS reference implementation):** When a player quits mid-game in MDLM, the correct teardown is:
-- **Host quits:** `resetToLobby()` broadcasts `HOST_END_GAME` (standard engine behaviour), tears down the Firebase room, and returns to the lobby. All clients receive the disconnect overlay.
-- **Client quits:** the client's quit-confirm handler broadcasts `PASS_PLAYER_LEFT` (game-specific) then calls `resetToLobby()`. The host receives the notification, dissolves the match for all remaining players, and returns everyone to lobby.
+**Applies to EVERY lobby session — MDLM *and* TLM.** This was written MDLM-only until 23 Aug 2026,
+and that wording is exactly what let LI5 and DSD (both TLM) ship without it: neither reads as an
+"MDLM game", so the rule looked like someone else's problem. The failure is identical in both. The
+mode label never mattered — only that a Firebase room exists and another device is waiting on it.
 
-This means **one client leaving dissolves the entire match** — PASS does not tolerate a mid-game drop. This is the correct contract: it prevents ghost rooms and stranded devices.
+**The contract:** one device leaving mid-game dissolves the session for everyone.
+- **Host quits:** `resetToLobby()` broadcasts `HOST_END_GAME` (standard engine behaviour), tears
+  down the Firebase room, and returns to the lobby. All clients get the disconnect overlay.
+- **Client quits:** tell the host *before* tearing down locally. The host then calls
+  `resetToLobby()`, which broadcasts `HOST_END_GAME` to everyone else.
 
-**GTH / DYB / BLD** now match the PASS contract too — each added `[ABBR]_PLAYER_LEFT` (ACTION, client→host): client quit-confirm sends it before its local `resetToLobby()`; the host's handler calls `resetToLobby()` on receipt, broadcasting `HOST_END_GAME` for the existing `mp-host-disconnected-overlay` to handle. Root cause: `resetToLobby()` alone only tears down the quitting client's own device — the host has no `/players` listener mid-game, so without the notification it and other clients stranded waiting on a turn that never comes. Detail: `docs/implementation-notes/gth-implementation-notes.md` § Multiplayer Lessons.
+**Why it cannot be skipped:** `resetToLobby()` alone only tears down the quitting device. The host
+has no `/players` listener mid-game, so without the notification the leaver keeps its Firebase slot
+and every other device waits on a turn that never comes. It is invisible in single-device play and
+invisible to every `'single'`-mode harness — which is why eight games shipped without it.
 
-**Rule for new games:** Always use `resetToLobby()` (not game menu navigation) as the quit confirm destination in MDLM. Match the PASS contract: host dissolves the room; a client leaving individually dissolves for everyone.
+**How to satisfy it — call the engine helper.** `mpNotifyPlayerLeft()` (`engine-multiplayer.js`)
+sends the generic `MP_PLAYER_LEFT` ACTION when this device is a client, and is a no-op otherwise.
+`mpHandleEnvelope` handles it generically **before any per-game routing**, so a game needs no
+handler of its own. One line in the quit-confirm handler:
+
+```js
+document.getElementById('btn-[abbr]-quit-confirm').addEventListener('click', () => {
+  playExit();
+  document.getElementById('[abbr]-quit-overlay').style.display = 'none';
+  if (window.syllyMultiplayerMode !== 'single') { mpNotifyPlayerLeft(); resetToLobby(); return; }
+  [abbr]ResetToMenu();   // single-device path unchanged
+});
+```
+
+**Never navigate to the game menu in a lobby session.** `showScreen('screen-[abbr]-menu')`,
+`[abbr]ResetForNewGame()` and friends leave the room intact — that was the whole bug in all eight.
+`resetToLobby()` is the only correct destination.
+
+**The ten games that predate the helper** (PASS, GTH, DYB, BLD, NT, FRT, SHP, FLW, PKO, CJAR) each
+ship an identical per-game `[ABBR]_PLAYER_LEFT` packet plus a handler that does nothing
+game-specific. Those still work and are not being swept — but that ten-fold duplication is why the
+generic path now exists. **New work uses `mpNotifyPlayerLeft()`**; don't add an eleventh per-game
+packet.
+
+**Enforced:** `node tools/verify-mp-configs.js` § 6 asserts all 18 games satisfy this one way or the
+other. A new game that forgets it fails that check.
 
 ### localStorage Exception
 
@@ -456,7 +514,7 @@ Before implementing, answer:
 
 **SW versioning:** `CACHE_NAME = 'sylly-games-vN'` — bump N on **every deploy**.
 
-**Current SW version:** v205 (see `CLAUDE.md` § Current Focus for the live pointer — don't let this drift again)
+**Current SW version:** see `CLAUDE.md` § Current Focus — **the live pointer, and the only place it is written.** This line used to carry a copy (it read v205 while the app shipped v209 for four bumps); a number duplicated in an auto-loaded rule file drifts silently, so it is deliberately not repeated here.
 
 **A per-file art ceiling is only meaningful next to the element's RENDER size.** The suite's 40 KB/card figure was set for small cards — PKO's renders at `4.25rem`, so 360 px art is 5.3× its CSS width. CJAR's hero is `15rem` (240 CSS px) and its masters are **square** against a portrait card, so `cover` discards ~27% horizontally and the same 360 px is only ~1.1× effective. Measure the quality the cap forces at several widths rather than inheriting an earlier game's number, and check master **aspect** against card aspect — square masters waste a fixed fraction of every byte. Detail: `cjar-impl-notes` TG-02b.
 
