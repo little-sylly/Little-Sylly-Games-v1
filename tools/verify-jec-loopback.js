@@ -222,6 +222,7 @@ function makeDevice(name, mode, myIdx, slots) {
     '    jecRound               = 0;',
     '    jecSpecialInstructions = !!o.instructions;',
     '    jecFusionCuisine       = !!o.fusion;',
+    '    jecSpecialsBoard       = !!o.specials;',
     '    jecWordPool            = [];',
     '    jecInstructionDeck     = [];',
     '  },',
@@ -248,6 +249,7 @@ function makeDevice(name, mode, myIdx, slots) {
     "      fusionName: o.fusionName || '',",
     '    }};',
     '  },',
+    '  reroll() { jecReroll(); },',
     '  forceSignatures(a) { jecSignatures = [...a]; },',
     '  rebroadcastSifting() { jecHostResolveSifting(); },',
     '  handle(env) { jecHandleEnvelope(env); },',
@@ -265,6 +267,7 @@ function makeDevice(name, mode, myIdx, slots) {
     __startRound: () => J.startRound(),
     __hostSubmitOwn: o => J.hostSubmitOwn(o),
     __buildPrep: (idx, o) => J.buildPrep(idx, o),
+    __reroll: () => J.reroll(),
     __forceSignatures: a => J.forceSignatures(a),
     __rebroadcastSifting: () => { sent.length = 0; J.rebroadcastSifting(); return sent.find(e => e.payload.action === 'JEC_SIFTING'); },
     __handle: env => J.handle(env),
@@ -277,6 +280,10 @@ function makeDevice(name, mode, myIdx, slots) {
 // mpHandleEnvelope would. A throw inside an applier is captured, not swallowed:
 // in the real app it escapes through mpHandleEnvelope and strands the device.
 function deliver(from, to, env) {
+  // A MISSING envelope is a finding, not a crash. A sender that never broadcast
+  // is exactly the bug this harness exists to catch, and letting it throw here
+  // buries the failing check under a stack trace and skips every later section.
+  if (!env) { to.__errors.push('no envelope to deliver (sender never broadcast)'); return; }
   const onWire = wire(env);
   if (onWire === undefined) { to.__errors.push('envelope erased whole: ' + env.payload.action); return; }
   try { to.__handle(onWire); }
@@ -401,6 +408,43 @@ check('no throw on sparse SIFTING', client.__errors, []);
 // is stranded on the previous screen with no error anywhere.
 check('client reached the sifting screen',
   client.__screens[client.__screens.length - 1], 'screen-jec-sifting');
+
+// ── § 5 A Specials Board reroll reaches the clients ──────────────────────────
+// Before this, the reroll listener repainted the host's own word and broadcast
+// nothing, so every client kept prepping against the previous Order. Invisible in
+// single-device play and to every 'single'-mode harness.
+host.__seat({ players: 3, golden: 30, specials: true, instructions: true, fusion: true });
+client.__seat({ players: 3, golden: 30, specials: true, instructions: true, fusion: true });
+host.__clearSent();
+client.__errors.length = 0;
+host.__startRound();
+deliver(host, client, host.__lastSent('JEC_ORDER'));
+const beforeWord = client.__state().word;
+
+const before = { word:  host.__state().word,
+                 word2: host.__state().word2,
+                 instr: host.__state().instruction };
+
+host.__clearSent();
+host.__reroll();
+const rerolled = host.__lastSent('JEC_ORDER');
+check('reroll broadcasts JEC_ORDER', !!rerolled, true);
+
+// Half 1 — the host really redrew all three. The pool and the deck are both
+// drawn without replacement, so consecutive draws differ deterministically.
+check('reroll drew a new Order',       host.__state().word        !== before.word,  true);
+check('reroll drew a new second Order',host.__state().word2       !== before.word2, true);
+check('reroll drew a new Instruction', host.__state().instruction !== before.instr, true);
+check('reroll kept the two Orders apart', host.__state().word !== host.__state().word2, true);
+
+// Half 2 — the redraw reached the client. Before the fix the listener repainted
+// the host's own word and broadcast nothing, so clients kept the previous Order.
+deliver(host, client, rerolled);
+check('client followed the reroll', client.__state().word,        host.__state().word);
+check('client took new word2',      client.__state().word2,       host.__state().word2);
+check('client took new instruction',client.__state().instruction, host.__state().instruction);
+check('client moved off the old Order', client.__state().word !== beforeWord, true);
+check('no throw on reroll',         client.__errors, []);
 
 console.log('\njec-loopback: ' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);

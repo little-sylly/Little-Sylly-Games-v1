@@ -382,18 +382,65 @@ function jecStartRound() {
   jecShowOrderScreen();
 }
 
-function jecShowOrderScreen() {
+// Repaints the whole Order stage from state. Called by jecShowOrderScreen AND by
+// the Specials Board reroll — one function, so a reroll can never repaint the
+// word while leaving a stale instruction sitting under it.
+function jecRenderOrder() {
   document.getElementById('jec-order-word').textContent  = jecCurrentWord.toUpperCase();
-  document.getElementById('jec-order-round').textContent = `Round ${jecRound} of ${jecRounds}`;
-  document.getElementById('btn-jec-reroll').style.display = jecSpecialsBoard ? '' : 'none';
+  document.getElementById('jec-order-round').textContent = `Course ${jecRound} of ${jecRounds}`;
+
+  const plus     = document.getElementById('jec-order-fusion-plus');
+  const word2    = document.getElementById('jec-order-word2');
+  const isFusion = jecFusionCuisine && !!jecCurrentWord2;
+  plus.style.display  = isFusion ? '' : 'none';
+  word2.style.display = isFusion ? '' : 'none';
+  if (isFusion) word2.textContent = jecCurrentWord2.toUpperCase();
+
+  const instr = document.getElementById('jec-order-instruction');
+  instr.style.display = jecInstruction ? '' : 'none';
+  instr.textContent   = jecInstruction;
+
+  document.getElementById('jec-order-hint').textContent = isFusion
+    ? 'One dish, two Orders. Prep for the mash-up — and give it a name.'
+    : 'Everyone read this together — each Chef will take a turn.';
+
+  // Host-gated: a client tapping Reroll would redraw its own word and desync the
+  // table, because only the host's draw is the one that gets broadcast.
+  document.getElementById('btn-jec-reroll').style.display =
+    (jecSpecialsBoard && window.syllyMultiplayerMode !== 'client') ? '' : 'none';
+}
+
+function jecShowOrderScreen() {
+  jecRenderOrder();
   showScreen('screen-jec-order');
+}
+
+// A Specials Board reroll redraws the Instruction with the Order — and in Fusion,
+// BOTH Orders. Rerolling one but not the others would let a table fish for an easy
+// instruction against a fixed dish.
+//
+// Named rather than inline in the listener for two reasons: the loopback harness
+// cannot fire a DOM click, and the broadcast below is the half that was missing.
+function jecReroll() {
+  jecDrawOrders();
+  jecDrawInstruction();
+  jecRenderOrder();
+  if (window.syllyMultiplayerMode === 'host') {
+    mpSendEnvelope({ type: 'SYNC', payload: {
+      action: 'JEC_ORDER',
+      word:        jecCurrentWord,
+      word2:       jecCurrentWord2 || '',
+      instruction: jecInstruction  || '',
+      round: jecRound, rounds: jecRounds,
+    }});
+  }
 }
 
 function jecStartPlayerPrep(idx) {
   const name = jecPlayerNames[idx];
   document.getElementById('jec-prep-order-word').textContent  = jecCurrentWord.toUpperCase();
   document.getElementById('jec-prep-chef-name').textContent   = `${name}'s Prep 🧑‍🍳`;
-  document.getElementById('jec-prep-round-label').textContent = `Round ${jecRound} of ${jecRounds}`;
+  document.getElementById('jec-prep-round-label').textContent = `Course ${jecRound} of ${jecRounds}`;
   document.getElementById('jec-prep-ingredient-1').value = '';
   document.getElementById('jec-prep-ingredient-2').value = '';
   document.getElementById('jec-prep-ingredient-3').value = '';
@@ -569,7 +616,7 @@ function jecHostResolveSifting() {
 
 function jecStartSifting() {
   document.getElementById('jec-sifting-order').textContent       = jecCurrentWord.toUpperCase();
-  document.getElementById('jec-sifting-round-label').textContent = `Round ${jecRound} of ${jecRounds}`;
+  document.getElementById('jec-sifting-round-label').textContent = `Course ${jecRound} of ${jecRounds}`;
   document.getElementById('jec-oversight-hint').style.display    = jecCanOversee() ? '' : 'none';
   document.getElementById('jec-sifting-recipe-label').textContent =
     `Today's Recipe: ${jecCurrentWord.charAt(0).toUpperCase() + jecCurrentWord.slice(1)}`;
@@ -755,7 +802,7 @@ function jecCalcRoundScores() {
 
 // ── JEC Tally ─────────────────────────────────────────────────────────────────
 function jecRenderTally(roundScores) {
-  document.getElementById('jec-tally-round-label').textContent = `Round ${jecRound} of ${jecRounds}`;
+  document.getElementById('jec-tally-round-label').textContent = `Course ${jecRound} of ${jecRounds}`;
   const best = Math.max(...roundScores);
   const feedback = best >= jecGoldenScore * 3
     ? "Head Chef Status: Absolutely Cookin'! 🔥"
@@ -804,7 +851,7 @@ function jecRenderCookBook() {
     }).join('');
     card.innerHTML = `
       <div class="flex items-center justify-between">
-        <p class="text-xs font-semibold uppercase tracking-widest text-stone-400">Round ${i + 1}</p>
+        <p class="text-xs font-semibold uppercase tracking-widest text-stone-400">Course ${i + 1}</p>
         <p class="text-sm font-bold text-amber-600 uppercase tracking-wide">${entry.order}</p>
       </div>
       <div class="flex flex-col gap-1">${rows}</div>`;
@@ -985,9 +1032,7 @@ document.getElementById('btn-jec-order-start').addEventListener('click', () => {
 
 document.getElementById('btn-jec-reroll').addEventListener('click', () => {
   playWhoosh();
-  jecDrawOrders();
-  jecDrawInstruction();
-  document.getElementById('jec-order-word').textContent = jecCurrentWord.toUpperCase();
+  jecReroll();
 });
 
 // ── Prep screen listeners ─────────────────────────────────────────────────────

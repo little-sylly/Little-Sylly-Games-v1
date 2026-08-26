@@ -2313,14 +2313,19 @@ Let's Cook!
       <button class="btn-open-sound w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-lg">🔊</button>
       <button id="btn-jec-order-exit" class="w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-stone-500 font-bold">✕</button>
     </div>
-    <p id="jec-order-round" class="text-stone-400 text-xs font-semibold uppercase tracking-widest">Round 1 of 5</p>
+    <p id="jec-order-round" class="text-stone-400 text-xs font-semibold uppercase tracking-widest">Course 1 of 5</p>
     <div class="text-5xl" role="img" aria-label="Receipt">🧾</div>
-    <div>
+    <div class="w-full">
       <p class="text-stone-400 text-sm font-semibold uppercase tracking-widest mb-2">Today's Order:</p>
       <h2 id="jec-order-word" class="text-5xl font-bold text-amber-500 uppercase tracking-wide"></h2>
+      <!-- Fusion Cuisine: the second Order. Hidden entirely in standard play. -->
+      <p id="jec-order-fusion-plus" style="display:none" class="text-2xl font-bold text-amber-400 my-1">+</p>
+      <h2 id="jec-order-word2" style="display:none" class="text-5xl font-bold text-amber-500 uppercase tracking-wide"></h2>
+      <!-- Special Instructions: one modifier per Order, never stacked. -->
+      <p id="jec-order-instruction" style="display:none" class="text-stone-600 text-lg italic mt-3"></p>
     </div>
     <button id="btn-jec-reroll" style="display:none" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-600 text-base font-medium transition-all duration-150">Reroll Order</button>
-    <p class="text-stone-500 text-sm leading-relaxed">Everyone read this together — each Chef will take a turn.</p>
+    <p id="jec-order-hint" class="text-stone-500 text-sm leading-relaxed">Everyone read this together — each Chef will take a turn.</p>
     <button id="btn-jec-order-start" class="min-h-14 w-full rounded-2xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
       Start Prepping! →
     </button>
@@ -2333,7 +2338,7 @@ Let's Cook!
     <div id="jec-prep-phase" class="flex flex-col px-6 py-10 gap-5">
       <div class="flex justify-between items-center w-full">
         <div class="w-10"></div>
-        <p id="jec-prep-round-label" class="text-stone-400 text-xs font-semibold uppercase tracking-widest">Round 1 of 3</p>
+        <p id="jec-prep-round-label" class="text-stone-400 text-xs font-semibold uppercase tracking-widest">Course 1 of 3</p>
         <div class="flex items-center gap-2">
           <button class="btn-open-sound w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-lg">🔊</button>
           <button id="btn-jec-how-to" class="w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-stone-300 font-mono font-bold">?</button>
