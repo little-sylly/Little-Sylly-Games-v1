@@ -840,6 +840,7 @@ function mpSerialiseSettings(abbr) {
     case 'jec': return {
       jecRounds, jecGoldenScore, jecTableForOnePenalty, jecCrowdedKitchenTax,
       jecSousChefCheck, jecFusionCuisine, jecFoodDifficulty, jecSpecialsBoard,
+      jecSpecialInstructions,
     };
     case 'ygi': return {
       ygiRounds, ygiDecider, ygiFullTally, ygiRinger,
@@ -985,14 +986,18 @@ function mpHandleEnvelope(env) {
           if (s.gmSyllyIntensity     !== undefined) gmSyllyIntensity     = s.gmSyllyIntensity;
           break;
         case 'jec':
-          if (s.jecRounds            !== undefined) jecRounds            = s.jecRounds;
-          if (s.jecGoldenScore       !== undefined) jecGoldenScore       = s.jecGoldenScore;
-          if (s.jecTableForOnePenalty     !== undefined) jecTableForOnePenalty     = s.jecTableForOnePenalty;
-          if (s.jecCrowdedKitchenTax     !== undefined) jecCrowdedKitchenTax     = s.jecCrowdedKitchenTax;
-          if (s.jecSousChefCheck !== undefined) jecSousChefCheck = s.jecSousChefCheck;
-          if (s.jecFusionCuisine !== undefined) jecFusionCuisine = s.jecFusionCuisine;
-          if (s.jecFoodDifficulty    !== undefined) jecFoodDifficulty    = s.jecFoodDifficulty;
-          if (s.jecSpecialsBoard     !== undefined) jecSpecialsBoard     = s.jecSpecialsBoard;
+          // Every field here is a boolean, a number or a short string — false and 0
+          // are stored safely, so none of them is at erasure risk on the wire.
+          if (s.jecRounds              !== undefined) jecRounds              = s.jecRounds;
+          if (s.jecGoldenScore         !== undefined) jecGoldenScore         = s.jecGoldenScore;
+          if (s.jecTableForOnePenalty  !== undefined) jecTableForOnePenalty  = s.jecTableForOnePenalty;
+          if (s.jecCrowdedKitchenTax   !== undefined) jecCrowdedKitchenTax   = s.jecCrowdedKitchenTax;
+          if (s.jecSousChefCheck       !== undefined) jecSousChefCheck       = s.jecSousChefCheck;
+          if (s.jecFusionCuisine       !== undefined) jecFusionCuisine       = s.jecFusionCuisine;
+          if (s.jecFoodDifficulty      !== undefined) jecFoodDifficulty      = s.jecFoodDifficulty;
+          if (s.jecSpecialsBoard       !== undefined) jecSpecialsBoard       = s.jecSpecialsBoard;
+          if (s.jecSpecialInstructions !== undefined) jecSpecialInstructions = s.jecSpecialInstructions;
+          jecSyncSettingsUI();
           break;
         case 'ygi':
           if (s.ygiRounds    !== undefined) ygiRounds    = s.ygiRounds;

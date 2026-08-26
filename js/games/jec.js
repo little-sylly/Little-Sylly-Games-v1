@@ -190,6 +190,7 @@ document.getElementById('btn-jec-menu-settings').addEventListener('click', () =>
   const el = document.getElementById('jec-settings-overlay');
   const body = el.querySelector('.overlay-data-inner');
   if (body) body.scrollTop = 0;
+  jecSyncSettingsUI();
   el.style.display = 'flex';
 });
 
@@ -204,99 +205,83 @@ document.getElementById('btn-jec-how-to-close').addEventListener('click', () => 
   document.getElementById('jec-how-to-overlay').style.display = 'none';
 });
 
-// ── JEC Settings (The Pantry Cabinet) ────────────────────────────────────────
-document.querySelectorAll('[data-jec-rounds]').forEach(btn => {
-  btn.addEventListener('click', () => {
-    playPillClick();
-    jecRounds = parseInt(btn.dataset.jecRounds);
-    document.querySelectorAll('[data-jec-rounds]').forEach(b => {
-      b.className = `pill${parseInt(b.dataset.jecRounds) === jecRounds ? ' pill-active-amber' : ''}`;
-    });
+// ── JEC Settings (The Pantry) ────────────────────────────────────
+// Repaints every control from current state. Called on overlay open AND from
+// every handler, so a Terminal override or a lobby SETTINGS_SYNC can never leave
+// a stale pill lit.
+function jecSyncSettingsUI() {
+  const pills = (attr, val) => document.querySelectorAll(`[${attr}]`).forEach(b => {
+    b.className = `pill${b.getAttribute(attr) === String(val) ? ' pill-active-amber' : ''}`;
   });
-});
+  pills('data-jec-rounds',          jecRounds);
+  pills('data-jec-golden',          jecGoldenScore);
+  pills('data-jec-food-difficulty', jecFoodDifficulty);
+  pills('data-jec-tablefor1',       jecTableForOnePenalty ? 'on' : 'off');
+  pills('data-jec-tax',             jecCrowdedKitchenTax  ? 'on' : 'off');
 
-document.querySelectorAll('[data-jec-rotten]').forEach(btn => {
-  btn.addEventListener('click', () => {
-    playPillClick();
-    jecTableForOnePenalty = btn.dataset.jecRotten === 'on';
-    document.querySelectorAll('[data-jec-rotten]').forEach(b => {
-      b.className = `pill${b.dataset.jecRotten === btn.dataset.jecRotten ? ' pill-active-amber' : ''}`;
-    });
-    document.getElementById('jec-rotten-desc').style.visibility = jecTableForOnePenalty ? 'visible' : 'hidden';
-  });
-});
+  const toggle = (id, on) => {
+    const b = document.getElementById(id);
+    if (!b) return;
+    b.textContent = on ? 'ON' : 'OFF';
+    b.className   = on ? 'game-toggle-on-amber shrink-0' : 'game-toggle-off shrink-0';
+  };
+  toggle('btn-jec-souschef-toggle',     jecSousChefCheck);
+  toggle('btn-jec-specials-toggle',     jecSpecialsBoard);
+  toggle('btn-jec-instructions-toggle', jecSpecialInstructions);
+  toggle('btn-jec-sylly-toggle',        jecFusionCuisine);
 
-document.querySelectorAll('[data-jec-spoilt]').forEach(btn => {
-  btn.addEventListener('click', () => {
-    playPillClick();
-    jecCrowdedKitchenTax = btn.dataset.jecSpoilt === 'on';
-    document.querySelectorAll('[data-jec-spoilt]').forEach(b => {
-      b.className = `pill${b.dataset.jecSpoilt === btn.dataset.jecSpoilt ? ' pill-active-amber' : ''}`;
-    });
-    document.getElementById('jec-spoilt-desc').style.visibility = jecCrowdedKitchenTax ? 'visible' : 'hidden';
-  });
-});
+  const d1 = document.getElementById('jec-tablefor1-desc');
+  if (d1) d1.style.visibility = jecTableForOnePenalty ? 'visible' : 'hidden';
+  const d2 = document.getElementById('jec-tax-desc');
+  if (d2) d2.style.visibility = jecCrowdedKitchenTax ? 'visible' : 'hidden';
+  jecUpdateMenuVal();
+}
 
-document.getElementById('btn-jec-oversight-toggle').addEventListener('click', () => {
-  playPillClick();
-  jecSousChefCheck = !jecSousChefCheck;
-  const btn = document.getElementById('btn-jec-oversight-toggle');
-  btn.textContent = jecSousChefCheck ? 'ON' : 'OFF';
-  btn.className   = jecSousChefCheck ? 'game-toggle-on-amber shrink-0' : 'sylly-toggle-off shrink-0';
-});
-
-document.getElementById('btn-jec-specials-toggle').addEventListener('click', () => {
-  playPillClick();
-  jecSpecialsBoard = !jecSpecialsBoard;
-  const btn = document.getElementById('btn-jec-specials-toggle');
-  btn.textContent = jecSpecialsBoard ? 'ON' : 'OFF';
-  btn.className   = jecSpecialsBoard ? 'game-toggle-on-amber shrink-0' : 'sylly-toggle-off shrink-0';
-});
-
-document.getElementById('btn-jec-sylly-toggle').addEventListener('click', () => {
-  jecFusionCuisine = !jecFusionCuisine;
-  const btn = document.getElementById('btn-jec-sylly-toggle');
-  btn.textContent = jecFusionCuisine ? 'ON' : 'OFF';
-  btn.className   = jecFusionCuisine ? 'game-toggle-on-amber shrink-0' : 'sylly-toggle-off shrink-0';
-  jecFusionCuisine ? playSyllyOn() : playSyllyOff();
-});
-
-document.querySelectorAll('[data-jec-golden]').forEach(btn => {
-  btn.addEventListener('click', () => {
-    playPillClick();
-    jecGoldenScore = parseInt(btn.dataset.jecGolden);
-    document.querySelectorAll('[data-jec-golden]').forEach(b => {
-      b.className = `pill${parseInt(b.dataset.jecGolden) === jecGoldenScore ? ' pill-active-amber' : ''}`;
-    });
-  });
-});
-
-// Dynamic value line (ui-style.md § Settings Card Standard, DD-13) — the pill carries the
-// thematic name only; this says what it actually means for the word pool.
-function jecUpdateFoodDifficultyVal() {
+// Dynamic value line (ui-style.md § Settings Card Standard, DD-13) — the pill
+// carries the thematic name only; this says what it means for the word pool.
+function jecUpdateMenuVal() {
   const el = document.getElementById('jec-val-difficulty');
   if (!el) return;
-  el.textContent = { easy:  'Home Cook uses only easy words.',
-                     mixed: 'Sous Chef mixes easy and medium words.',
-                     hard:  'Head Chef uses only the hardest words.' }[jecFoodDifficulty] || '';
+  el.textContent = { easy:  'Everyday uses only the easiest food words.',
+                     mixed: 'Restaurant mixes easy and medium food words.',
+                     hard:  'Fine Dining uses only the hardest food words.' }[jecFoodDifficulty] || '';
 }
-jecUpdateFoodDifficultyVal();
 
-document.querySelectorAll('[data-jec-food-difficulty]').forEach(btn => {
-  btn.addEventListener('click', () => {
-    playPillClick();
-    jecFoodDifficulty = btn.dataset.jecFoodDifficulty;
-    document.querySelectorAll('[data-jec-food-difficulty]').forEach(b => {
-      b.className = `pill${b.dataset.jecFoodDifficulty === jecFoodDifficulty ? ' pill-active-amber' : ''}`;
-    });
-    jecUpdateFoodDifficultyVal();
-  });
+document.querySelectorAll('[data-jec-rounds]').forEach(btn => btn.addEventListener('click', () => {
+  playPillClick(); jecRounds = parseInt(btn.dataset.jecRounds); jecSyncSettingsUI();
+}));
+document.querySelectorAll('[data-jec-golden]').forEach(btn => btn.addEventListener('click', () => {
+  playPillClick(); jecGoldenScore = parseInt(btn.dataset.jecGolden); jecSyncSettingsUI();
+}));
+document.querySelectorAll('[data-jec-food-difficulty]').forEach(btn => btn.addEventListener('click', () => {
+  playPillClick(); jecFoodDifficulty = btn.dataset.jecFoodDifficulty; jecSyncSettingsUI();
+}));
+document.querySelectorAll('[data-jec-tablefor1]').forEach(btn => btn.addEventListener('click', () => {
+  playPillClick(); jecTableForOnePenalty = btn.dataset.jecTablefor1 === 'on'; jecSyncSettingsUI();
+}));
+document.querySelectorAll('[data-jec-tax]').forEach(btn => btn.addEventListener('click', () => {
+  playPillClick(); jecCrowdedKitchenTax = btn.dataset.jecTax === 'on'; jecSyncSettingsUI();
+}));
+document.getElementById('btn-jec-souschef-toggle').addEventListener('click', () => {
+  playPillClick(); jecSousChefCheck = !jecSousChefCheck; jecSyncSettingsUI();
 });
-
+document.getElementById('btn-jec-specials-toggle').addEventListener('click', () => {
+  playPillClick(); jecSpecialsBoard = !jecSpecialsBoard; jecSyncSettingsUI();
+});
+document.getElementById('btn-jec-instructions-toggle').addEventListener('click', () => {
+  playPillClick(); jecSpecialInstructions = !jecSpecialInstructions; jecSyncSettingsUI();
+});
+document.getElementById('btn-jec-sylly-toggle').addEventListener('click', () => {
+  jecFusionCuisine = !jecFusionCuisine;
+  jecFusionCuisine ? playSyllyOn() : playSyllyOff();
+  jecSyncSettingsUI();
+});
 document.getElementById('btn-jec-settings-done').addEventListener('click', () => {
   playDone();
   document.getElementById('jec-settings-overlay').style.display = 'none';
 });
+
+jecSyncSettingsUI();
 
 // ── JEC Roster (Kitchen Roster) ───────────────────────────────────────────────
 function jecInitRoster() {

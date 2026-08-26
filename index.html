@@ -2456,20 +2456,20 @@ Yep — merge 'em!
     </div>
   </div>
 
-  <!-- JEC Pantry Cabinet — settings overlay (Pattern 1) -->
+  <!-- JEC The Pantry — settings overlay (Pattern 1) -->
   <div id="jec-settings-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[80] flex items-end justify-center">
     <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
       <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
-        <h2 class="text-xl font-bold text-stone-800">The Pantry Cabinet 🍳</h2>
+        <h2 class="text-xl font-bold text-stone-800">The Pantry 🍳</h2>
         <p class="text-stone-400 text-xs mt-1">Prep before you cook.</p>
       </div>
       <div class="overflow-y-auto flex flex-col gap-5 px-5 py-5">
 
-      <!-- 1. Dishes (Rounds) -->
+      <!-- 1. Courses -->
       <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
         <div>
-          <p class="text-stone-800 font-semibold">Dishes</p>
-          <p class="text-stone-400 text-sm mt-0.5">Number of food orders per game.</p>
+          <p class="text-stone-800 font-semibold">Courses</p>
+          <p class="text-stone-400 text-sm mt-0.5">How many Orders in one meal.</p>
         </div>
         <div class="flex gap-2">
           <button class="pill pill-active-amber" data-jec-rounds="3">3</button>
@@ -2478,27 +2478,27 @@ Yep — merge 'em!
         </div>
       </div>
 
-      <!-- 2. Menu Complexity (food difficulty) -->
+      <!-- 2. The Menu -->
       <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
         <div>
-          <p class="text-stone-800 font-semibold">Menu Complexity</p>
-          <p class="text-stone-400 text-sm mt-0.5">How advanced the food vocabulary can get.</p>
+          <p class="text-stone-800 font-semibold">The Menu</p>
+          <p class="text-stone-400 text-sm mt-0.5">How advanced the food on the Order can get.</p>
         </div>
         <div class="flex flex-col gap-2">
           <div class="flex gap-2 flex-wrap">
-            <button class="pill" data-jec-food-difficulty="easy">Home Cook</button>
-            <button class="pill pill-active-amber" data-jec-food-difficulty="mixed">Sous Chef</button>
-            <button class="pill" data-jec-food-difficulty="hard">Head Chef</button>
+            <button class="pill" data-jec-food-difficulty="easy">Everyday</button>
+            <button class="pill pill-active-amber" data-jec-food-difficulty="mixed">Restaurant</button>
+            <button class="pill" data-jec-food-difficulty="hard">Fine Dining</button>
           </div>
           <p id="jec-val-difficulty" class="text-stone-400 text-xs"></p>
         </div>
       </div>
 
-      <!-- 3. The Sweet Spot (Golden Zone score) -->
+      <!-- 3. The Sweet Spot -->
       <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
         <div>
           <p class="text-stone-800 font-semibold">The Sweet Spot</p>
-          <p class="text-stone-400 text-sm mt-0.5">Points for a 2-Chef match (the jackpot). 3+ Chefs sharing a word scores half. Everyone matching scores a token.</p>
+          <p class="text-stone-400 text-sm mt-0.5">Points for a 2-Chef match — the jackpot. Also sets every bonus at half that.</p>
         </div>
         <div class="flex gap-2">
           <button class="pill" data-jec-golden="10">10 pts</button>
@@ -2507,58 +2507,67 @@ Yep — merge 'em!
         </div>
       </div>
 
-      <!-- 3. Rotten Penalty -->
+      <!-- 4. Table for One Penalty -->
       <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
         <div>
-          <p class="text-stone-800 font-semibold">Rotten Penalty</p>
-          <p class="text-stone-400 text-sm mt-0.5">Nobody matched your ingredient. Rotten!!</p>
+          <p class="text-stone-800 font-semibold">Table for One Penalty</p>
+          <p class="text-stone-400 text-sm mt-0.5">Nobody joined you on that ingredient.</p>
         </div>
         <div class="flex gap-2">
-          <button class="pill pill-active-amber" data-jec-rotten="off">Off</button>
-          <button class="pill" data-jec-rotten="on">On</button>
+          <button class="pill pill-active-amber" data-jec-tablefor1="off">Off</button>
+          <button class="pill" data-jec-tablefor1="on">On</button>
         </div>
-        <p id="jec-rotten-desc" class="text-stone-400 text-xs" style="visibility:hidden">Unique ingredients cost −5 pts.</p>
+        <p id="jec-tablefor1-desc" class="text-stone-400 text-xs" style="visibility:hidden">Table for One costs −5 pts.</p>
       </div>
 
-      <!-- 3. Spoilt Penalty -->
+      <!-- 5. Crowded Kitchen Tax -->
       <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
         <div>
-          <p class="text-stone-800 font-semibold">Spoilt Penalty</p>
+          <p class="text-stone-800 font-semibold">Crowded Kitchen Tax</p>
           <p class="text-stone-400 text-sm mt-0.5">Too many cooks spoil the broth.</p>
         </div>
         <div class="flex gap-2">
-          <button class="pill pill-active-amber" data-jec-spoilt="off">Off</button>
-          <button class="pill" data-jec-spoilt="on">On</button>
+          <button class="pill pill-active-amber" data-jec-tax="off">Off</button>
+          <button class="pill" data-jec-tax="on">On</button>
         </div>
-        <p id="jec-spoilt-desc" class="text-stone-400 text-xs" style="visibility:hidden">Crowded Kitchen Tax — −2 pts per Chef who picked it.</p>
+        <p id="jec-tax-desc" class="text-stone-400 text-xs" style="visibility:hidden">−2 pts per Chef who picked it, including you.</p>
       </div>
 
-      <!-- 4. Sous Chef Oversight -->
+      <!-- 6. Sous Chef Check -->
       <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
         <div class="flex items-center justify-between">
-          <p class="text-stone-800 font-semibold">Sous Chef Oversight</p>
-          <button id="btn-jec-oversight-toggle" class="game-toggle-on-amber shrink-0">ON</button>
+          <p class="text-stone-800 font-semibold">Sous Chef Check</p>
+          <button id="btn-jec-souschef-toggle" class="game-toggle-on-amber shrink-0">ON</button>
         </div>
-        <p class="text-stone-400 text-sm">Before the tally, manually merge similar words (e.g. "Prosciutto" and "Persciutto").</p>
+        <p class="text-stone-400 text-sm">Before anything is scored, merge ingredients that are the same word spelt differently.</p>
       </div>
 
-      <!-- Specials Board -->
+      <!-- 7. Specials Board -->
       <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
         <div class="flex items-center justify-between">
           <p class="text-stone-800 font-semibold">Specials Board</p>
-          <button id="btn-jec-specials-toggle" class="sylly-toggle-off shrink-0">OFF</button>
+          <button id="btn-jec-specials-toggle" class="game-toggle-off shrink-0">OFF</button>
         </div>
-        <p class="text-stone-400 text-sm">Allow the group to reroll the food order before prepping starts. Unlimited rerolls — use fair play.</p>
+        <p class="text-stone-400 text-sm">Let the table reroll the Order before prepping starts. Unlimited rerolls — use fair play.</p>
+      </div>
+
+      <!-- 8. Special Instructions -->
+      <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+        <div class="flex items-center justify-between">
+          <p class="text-stone-800 font-semibold">Special Instructions</p>
+          <button id="btn-jec-instructions-toggle" class="game-toggle-off shrink-0">OFF</button>
+        </div>
+        <p class="text-stone-400 text-sm">Every Order comes with a twist — a budget, an occasion, a bit of chaos.</p>
       </div>
 
       <!-- ✨ Sylly Mode (always last) -->
       <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
         <div class="flex items-center justify-between">
           <p class="text-stone-800 font-semibold">✨ Sylly Mode</p>
-          <button id="btn-jec-sylly-toggle" class="sylly-toggle-off shrink-0">OFF</button>
+          <button id="btn-jec-sylly-toggle" class="game-toggle-off shrink-0">OFF</button>
         </div>
-        <p class="text-stone-600 text-sm font-semibold">Kitchen Nightmares</p>
-        <p class="text-stone-400 text-sm">Flag a Signature Dish for double points, and plant a Poison Word to spoil the competition.</p>
+        <p class="text-stone-600 text-sm font-semibold">Fusion Cuisine</p>
+        <p class="text-stone-400 text-sm">Two Orders drop at once. Prep three ingredients for the imagined mash-up, name the thing, then vote on the best name.</p>
       </div>
 
       <button id="btn-jec-settings-done" class="min-h-14 w-full rounded-2xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
