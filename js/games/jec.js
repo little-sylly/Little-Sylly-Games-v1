@@ -6,14 +6,15 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 
 // ── JEC Settings ──────────────────────────────────────────────────────────────
-let jecRounds            = 3;     // 3 | 5 | 10
-let jecGoldenScore       = 30;    // Sweet Spot (2-Chef match) jackpot: 10 | 20 | 30
-let jecRottenPenalty     = false; // opt-in: −5 pts for unique words (Rotten); default OFF
-let jecSpoiltPenalty     = false; // opt-in: −(count×2) pts for all-N match (Spoilt); default OFF
-let jecSousChefOversight = true;  // manual merge before tally
-let jecKitchenNightmares = false; // Sylly Mode
-let jecFoodDifficulty   = 'mixed'; // 'easy' | 'mixed' | 'hard'
-let jecSpecialsBoard    = false;  // allow rerolling food word on order screen
+let jecRounds              = 3;      // Courses: 3 | 5 | 10  (variable name kept — a round is a round)
+let jecGoldenScore         = 30;     // The Sweet Spot jackpot: 10 | 20 | 30. Also sets all three bonuses.
+let jecTableForOnePenalty  = false;  // opt-in: −5 pts for a Table for One ingredient
+let jecCrowdedKitchenTax   = false;  // opt-in: −2 × count for a Too Many Cooks ingredient
+let jecSousChefCheck       = true;   // gates the blind Sous Chef's Check sub-state
+let jecFusionCuisine       = false;  // Sylly Mode
+let jecFoodDifficulty      = 'mixed';// The Menu: 'easy' | 'mixed' | 'hard'
+let jecSpecialsBoard       = false;  // allow rerolling the Order (and its Instruction) before prep
+let jecSpecialInstructions = false;  // modify Today's Order with one Special Instruction
 
 // ── JEC State ─────────────────────────────────────────────────────────────────
 let jecPlayerCount   = 4;
@@ -21,20 +22,29 @@ let jecPlayerNames   = [];
 let jecRound         = 0;
 let jecScores        = [];
 let jecCurrentWord   = '';
+let jecCurrentWord2  = '';    // Fusion Cuisine's second Order; '' otherwise
+let jecInstruction   = '';    // the Special Instruction for this Order; '' when OFF
+let jecInstructionDeck = [];  // shuffled JEC_INSTRUCTIONS, popped per Order
 let jecWordPool      = [];
 let jecInputs        = [];
-let jecSignatures    = [];  // [playerIdx] → ingredient index 0/1/2 (Sylly Mode)
-let jecPoisons       = [];  // [playerIdx] → poison word string (Sylly Mode)
-let jecWordFrequency    = {};  // normalised word → count
-let jecDisplayWords    = {};  // normalised word → first raw input for display
-let jecMergeMap        = {};  // normalised word → merged-into target word
-let jecRoundLog        = [];  // [{order, scores, frequency}]
-let jecCurrentPlayerIdx  = 0;    // which player is currently prepping
-let jecOversightSelected = null; // norm word of first Sous Chef tap
-let jecOversightPendingA = null; // norm words awaiting merge confirm
+let jecSignatures    = [];    // [playerIdx] → nominated ingredient index 0/1/2; −1 = unset
+let jecCrutches      = [];    // [playerIdx] → the called Crutch word; '' = none
+let jecFusionNames   = [];    // [playerIdx] → fused-dish name; '' = none (Fusion only)
+let jecNameVotes     = [];    // [playerIdx] → voted-for playerIdx; −1 = not yet voted
+let jecNameWinners   = [];    // playerIdx[] — every tied top-voted name
+let jecWordFrequency = {};    // normalised word → count
+let jecDisplayWords  = {};    // normalised word → first raw input for display
+let jecMergeMap      = {};    // normalised word → merged-into target word
+let jecRoundLog      = [];    // [{ order, order2, instruction, scores }]
+let jecCurrentPlayerIdx  = 0; // which Chef is currently prepping (Pass-the-Phone)
+let jecVoteCurrentIdx    = 0; // which Chef is currently voting (Pass-the-Phone)
+let jecSiftingSubState   = 'check';  // 'check' (blind merge) | 'tasting' (scored reveal)
+let jecOversightSelected = null;
+let jecOversightPendingA = null;
 let jecOversightPendingB = null;
-let jecPoisonedNorms     = new Set(); // built from all players' poison words (KN mode)
-let jecMpReadyCheck      = [];        // Lobby Mode: tracks which players have submitted prep
+let jecPrepSignatureIdx  = -1;       // the tap-selected Signature on the live prep screen
+let jecMpReadyCheck      = [];       // Lobby Mode: which Chefs have submitted prep
+let jecMpVoteCheck       = [];       // Lobby Mode: which Chefs have submitted a name vote
 
 // ── JEC Help tip overlay ──────────────────────────────────────────────────────
 function jecShowHelpTip(emoji, heading, tip) {
@@ -98,31 +108,31 @@ document.querySelectorAll('[data-jec-rounds]').forEach(btn => {
 document.querySelectorAll('[data-jec-rotten]').forEach(btn => {
   btn.addEventListener('click', () => {
     playPillClick();
-    jecRottenPenalty = btn.dataset.jecRotten === 'on';
+    jecTableForOnePenalty = btn.dataset.jecRotten === 'on';
     document.querySelectorAll('[data-jec-rotten]').forEach(b => {
       b.className = `pill${b.dataset.jecRotten === btn.dataset.jecRotten ? ' pill-active-amber' : ''}`;
     });
-    document.getElementById('jec-rotten-desc').style.visibility = jecRottenPenalty ? 'visible' : 'hidden';
+    document.getElementById('jec-rotten-desc').style.visibility = jecTableForOnePenalty ? 'visible' : 'hidden';
   });
 });
 
 document.querySelectorAll('[data-jec-spoilt]').forEach(btn => {
   btn.addEventListener('click', () => {
     playPillClick();
-    jecSpoiltPenalty = btn.dataset.jecSpoilt === 'on';
+    jecCrowdedKitchenTax = btn.dataset.jecSpoilt === 'on';
     document.querySelectorAll('[data-jec-spoilt]').forEach(b => {
       b.className = `pill${b.dataset.jecSpoilt === btn.dataset.jecSpoilt ? ' pill-active-amber' : ''}`;
     });
-    document.getElementById('jec-spoilt-desc').style.visibility = jecSpoiltPenalty ? 'visible' : 'hidden';
+    document.getElementById('jec-spoilt-desc').style.visibility = jecCrowdedKitchenTax ? 'visible' : 'hidden';
   });
 });
 
 document.getElementById('btn-jec-oversight-toggle').addEventListener('click', () => {
   playPillClick();
-  jecSousChefOversight = !jecSousChefOversight;
+  jecSousChefCheck = !jecSousChefCheck;
   const btn = document.getElementById('btn-jec-oversight-toggle');
-  btn.textContent = jecSousChefOversight ? 'ON' : 'OFF';
-  btn.className   = jecSousChefOversight ? 'game-toggle-on-amber shrink-0' : 'sylly-toggle-off shrink-0';
+  btn.textContent = jecSousChefCheck ? 'ON' : 'OFF';
+  btn.className   = jecSousChefCheck ? 'game-toggle-on-amber shrink-0' : 'sylly-toggle-off shrink-0';
 });
 
 document.getElementById('btn-jec-specials-toggle').addEventListener('click', () => {
@@ -134,11 +144,11 @@ document.getElementById('btn-jec-specials-toggle').addEventListener('click', () 
 });
 
 document.getElementById('btn-jec-sylly-toggle').addEventListener('click', () => {
-  jecKitchenNightmares = !jecKitchenNightmares;
+  jecFusionCuisine = !jecFusionCuisine;
   const btn = document.getElementById('btn-jec-sylly-toggle');
-  btn.textContent = jecKitchenNightmares ? 'ON' : 'OFF';
-  btn.className   = jecKitchenNightmares ? 'game-toggle-on-amber shrink-0' : 'sylly-toggle-off shrink-0';
-  jecKitchenNightmares ? playSyllyOn() : playSyllyOff();
+  btn.textContent = jecFusionCuisine ? 'ON' : 'OFF';
+  btn.className   = jecFusionCuisine ? 'game-toggle-on-amber shrink-0' : 'sylly-toggle-off shrink-0';
+  jecFusionCuisine ? playSyllyOn() : playSyllyOff();
 });
 
 document.querySelectorAll('[data-jec-golden]').forEach(btn => {
@@ -262,10 +272,12 @@ function jecStartRound() {
   jecCurrentPlayerIdx = 0;
   jecInputs           = Array.from({ length: jecPlayerCount }, () => ['', '', '']);
   jecMpReadyCheck     = Array(jecPlayerCount).fill(false);
-  if (jecKitchenNightmares) {
-    jecSignatures = Array(jecPlayerCount).fill(-1);
-    jecPoisons    = Array(jecPlayerCount).fill('');
-  }
+  jecSignatures  = Array(jecPlayerCount).fill(-1);
+  jecCrutches    = Array(jecPlayerCount).fill('');
+  jecFusionNames = Array(jecPlayerCount).fill('');
+  jecNameVotes   = Array(jecPlayerCount).fill(-1);
+  jecNameWinners = [];
+  jecMpVoteCheck = Array(jecPlayerCount).fill(false);
 
   if (window.syllyMultiplayerMode === 'host') {
     // Lobby Mode: broadcast the food word so all devices show the same order screen
@@ -296,7 +308,7 @@ function jecStartPlayerPrep(idx) {
   const ing1       = document.getElementById('jec-prep-ingredient-1');
   const knSection  = document.getElementById('jec-prep-kn-section');
   const knSubtitle = document.getElementById('jec-prep-kn-subtitle');
-  if (jecKitchenNightmares) {
+  if (jecFusionCuisine) {
     ing1.className   = 'w-full rounded-xl border-2 border-amber-400 bg-amber-50 px-4 py-3 text-base text-stone-800 placeholder-stone-300 focus:border-amber-500 focus:outline-none transition-colors';
     ing1.placeholder = '🌟 Signature Dish';
     document.getElementById('jec-prep-poison').value = '';
@@ -327,46 +339,25 @@ function jecSubmitIngredients() {
     err.textContent = "You've already prepped that! Try a different ingredient. 🤔";
     return;
   }
-  if (jecKitchenNightmares) {
-    const poison = document.getElementById('jec-prep-poison').value.trim();
-    if (!poison) {
-      err.textContent = 'Add your Poison Word to sabotage the kitchen!';
-      return;
-    }
-    if (norms.includes(normaliseWord(poison))) {
-      err.textContent = "That's your own ingredient — pick a different Poison! 🤢";
-      return;
-    }
-    jecPoisons[jecCurrentPlayerIdx]    = poison;
-    jecSignatures[jecCurrentPlayerIdx] = 0; // ingredient 1 is always the Signature Dish
-  }
   jecInputs[jecCurrentPlayerIdx] = [v1, v2, v3];
 
   if (window.syllyMultiplayerMode !== 'single') {
     // Lobby Mode: freeze local prep screen
-    const poison = jecKitchenNightmares ? (document.getElementById('jec-prep-poison').value.trim() || '') : '';
     mpLockSync();
     document.getElementById('btn-jec-serve').classList.add('opacity-50', 'pointer-events-none');
     document.getElementById('jec-prep-error').textContent = 'Ingredients submitted — waiting for the other chefs…';
     if (window.syllyMultiplayerMode === 'host') {
       // Host processes directly — self-sent envelopes are deduplicated/ignored by engine-multiplayer.js
       jecInputs[mpMyPlayerIdx] = [v1, v2, v3];
-      if (jecKitchenNightmares && poison) {
-        jecPoisons[mpMyPlayerIdx]    = poison;
-        jecSignatures[mpMyPlayerIdx] = 0;
-      }
       jecMpReadyCheck[mpMyPlayerIdx] = true;
       if (jecMpReadyCheck.every(Boolean)) {
         jecBuildFrequency();
-        if (jecKitchenNightmares) jecBuildPoisonSet();
         mpSendEnvelope({ type: 'SYNC', payload: {
           action:           'JEC_SIFTING',
           jecInputs:         jecInputs.map(a => [...a]),
           jecWordFrequency:  {...jecWordFrequency},
           jecDisplayWords:   {...jecDisplayWords},
           jecMergeMap:       {...jecMergeMap},
-          jecPoisonedNorms:  [...jecPoisonedNorms],
-          jecPoisons:        [...jecPoisons],
           jecSignatures:     [...jecSignatures],
         }});
         mpUnlockSync();
@@ -377,7 +368,6 @@ function jecSubmitIngredients() {
         action:      'JEC_PREP_SUBMIT',
         playerIdx:   mpMyPlayerIdx,
         ingredients: [v1, v2, v3],
-        poison,
       }});
     }
     return;
@@ -414,54 +404,49 @@ function jecBuildFrequency() {
   });
 }
 
-function getIngredientStatus(count, N) {
-  if (count <= 1)  return 'Rotten';
-  if (count < N)   return 'Golden';
-  return 'Spoilt';
+// One badge object per count. The four keys map 1:1 to the four named badges,
+// which is what lets the Signature double test the GOLDEN RANGE rather than
+// "any positive score" — the shipped code doubled the Too Many Cooks token too,
+// against what the identity doc has always described.
+function jecBadge(count, N) {
+  if (count <= 1)  return { key: 'alone',   label: 'Table for One 🍽️', cls: 'bg-stone-50 text-stone-400' };
+  if (count === 2) return { key: 'kiss',    label: "Chef's Kiss ✨",    cls: 'bg-amber-100 text-amber-700' };
+  if (count < N)   return { key: 'crowd',   label: 'Crowd-Pleaser 👌',  cls: 'bg-amber-50 text-amber-600' };
+  return             { key: 'toomany', label: 'Too Many Cooks! 🍲', cls: 'bg-stone-100 text-stone-500' };
 }
 
-// Tiered positive rewards — 2-Chef match is the jackpot; no negatives unless opt-in penalties are on
+// The Golden range = Chef's Kiss + Crowd-Pleaser. The Signature double applies
+// here and nowhere else.
+function jecIsGolden(key) { return key === 'kiss' || key === 'crowd'; }
+
+// Tiered positive rewards — a 2-Chef match is the jackpot.
 function jecCalcPoints(count, N) {
-  if (count <= 1) return 0;
-  if (count === 2) return jecGoldenScore;                      // Sweet Spot — full jackpot
-  if (count < N)   return Math.round(jecGoldenScore * 0.5);   // Nice Match — half score
-  return            Math.round(jecGoldenScore * 0.15);         // Too Many Cooks — token reward
+  if (count <= 1)  return 0;
+  if (count === 2) return jecGoldenScore;
+  if (count < N)   return Math.round(jecGoldenScore * 0.5);
+  return             Math.round(jecGoldenScore * 0.15);
 }
 
-function jecBuildPoisonSet() {
-  jecPoisonedNorms = new Set();
-  jecPoisons.forEach(p => {
-    const norm = normaliseWord(p.trim());
-    if (norm) jecPoisonedNorms.add(norm);
-  });
+// Every flat bonus in the game is this one number — half a jackpot. Called It!
+// and On the Menu! both pay it, so the game carries one bonus magnitude rather
+// than three magic numbers.
+function jecBonusValue() { return Math.round(jecGoldenScore * 0.5); }
+
+// Normalise, then walk the merge map to the surviving word. Shared by ingredient
+// scoring AND Crutch resolution — a Sous Chef merge must apply to both.
+function jecResolveNorm(raw) {
+  let norm  = normaliseWord(String(raw || '').trim());
+  let steps = 0;
+  while (jecMergeMap[norm] && steps < 10) { norm = jecMergeMap[norm]; steps++; }
+  return norm;
 }
 
 function jecStartSifting() {
-  if (jecKitchenNightmares) jecBuildPoisonSet();
   document.getElementById('jec-sifting-order').textContent       = jecCurrentWord.toUpperCase();
   document.getElementById('jec-sifting-round-label').textContent = `Round ${jecRound} of ${jecRounds}`;
   document.getElementById('jec-oversight-hint').style.display    = jecCanOversee() ? '' : 'none';
   document.getElementById('jec-sifting-recipe-label').textContent =
     `Today's Recipe: ${jecCurrentWord.charAt(0).toUpperCase() + jecCurrentWord.slice(1)}`;
-  const poisonSection = document.getElementById('jec-sifting-poison-section');
-  if (jecKitchenNightmares && jecPoisons.some(p => p)) {
-    const unique = [...new Set(jecPoisons.filter(p => p).map(p => p.trim()))];
-    const poisonList = document.getElementById('jec-sifting-poison-list');
-    poisonList.innerHTML = '';
-    unique.forEach(p => {
-      const norm = normaliseWord(p);
-      const chip = document.createElement('span');
-      chip.className   = 'jec-poison-chip px-3 py-1 rounded-full text-xs font-bold bg-purple-100 text-purple-700'
-        + (jecCanOversee() ? ' cursor-pointer active:scale-95 transition-transform duration-100' : '');
-      chip.dataset.norm = norm;
-      chip.textContent = p.charAt(0).toUpperCase() + p.slice(1);
-      if (jecCanOversee()) chip.addEventListener('click', () => jecHandleOversightTap(norm));
-      poisonList.appendChild(chip);
-    });
-    poisonSection.style.display = '';
-  } else {
-    poisonSection.style.display = 'none';
-  }
   jecRenderSifting();
   jecSetAdvanceCta('btn-jec-sifting-proceed', 'The Taste Test! 🍽️');
   showScreen('screen-jec-sifting');
@@ -470,28 +455,14 @@ function jecStartSifting() {
 function jecRenderSifting() {
   const list    = document.getElementById('jec-sifting-list');
   list.innerHTML = '';
-  const statusOrder = { Golden: 0, Spoilt: 1, Poisoned: 2, Rotten: 3 };
-  const entries = Object.entries(jecWordFrequency).sort((a, b) => {
-    const sA = statusOrder[jecKitchenNightmares && jecPoisonedNorms.has(a[0]) ? 'Poisoned' : getIngredientStatus(a[1], jecPlayerCount)] ?? 3;
-    const sB = statusOrder[jecKitchenNightmares && jecPoisonedNorms.has(b[0]) ? 'Poisoned' : getIngredientStatus(b[1], jecPlayerCount)] ?? 3;
-    return sA !== sB ? sA - sB : b[1] - a[1];
-  });
+  const entries = Object.entries(jecWordFrequency).sort((a, b) => b[1] - a[1]);
   entries.forEach(([norm, count]) => {
-    const isPoisoned = jecKitchenNightmares && jecPoisonedNorms.has(norm);
-    const status     = isPoisoned ? 'Poisoned' : getIngredientStatus(count, jecPlayerCount);
+    const badge   = jecBadge(count, jecPlayerCount);
     const raw     = jecDisplayWords[norm] || norm;
     const display = raw.charAt(0).toUpperCase() + raw.slice(1);
     const chefs   = count === 1 ? '1 Chef' : `${count} Chefs`;
-    const badgeClass = status === 'Golden'
-      ? 'bg-amber-100 text-amber-700'
-      : status === 'Spoilt'   ? 'bg-stone-100 text-stone-500'
-      : status === 'Poisoned' ? 'bg-purple-100 text-purple-700'
-      : 'bg-stone-50 text-stone-400';
-    const badgeText = status === 'Golden'
-      ? (count === 2 ? "Chef's Kiss! ✨" : 'Nice Match! 👌')
-      : status === 'Spoilt'   ? 'Too Many Cooks! 🍲'
-      : status === 'Poisoned' ? 'Kitchen Nightmare! 🧪'
-      : 'A Bit Pongy! 🤢';
+    const badgeClass = badge.cls;
+    const badgeText  = badge.label;
     const card = document.createElement('div');
     card.className    = `jec-sift-card bg-white rounded-2xl p-4 shadow-sm flex items-center justify-between${jecCanOversee() ? ' cursor-pointer active:scale-95 transition-transform duration-100' : ''}`;
     card.dataset.norm = norm;
@@ -508,7 +479,6 @@ function jecRenderSifting() {
 
 function jecClearOversightHighlights() {
   document.querySelectorAll('.jec-sift-card').forEach(c => c.classList.remove('ring-2', 'ring-amber-400'));
-  document.querySelectorAll('.jec-poison-chip').forEach(c => c.classList.remove('ring-2', 'ring-purple-500'));
 }
 
 // Sous Chef Oversight is interactive only on the host (and single-device). In Lobby
@@ -516,7 +486,7 @@ function jecClearOversightHighlights() {
 // never initiated locally. A client merging would silently diverge its board from the
 // table without sending any ACTION. (J3)
 function jecCanOversee() {
-  return jecSousChefOversight && window.syllyMultiplayerMode !== 'client';
+  return jecSousChefCheck && window.syllyMultiplayerMode !== 'client';
 }
 
 // Host-gates a round-advance CTA in Lobby Mode: clients render a disabled
@@ -564,18 +534,13 @@ function jecHandleOversightTap(norm) {
 }
 
 function jecApplyMerge(normA, normB) {
-  // If normA is a pure poison word (not an ingredient), swap so the ingredient wins
+  // If normA is not an ingredient at all, swap so the ingredient wins
   if (!jecWordFrequency[normA] && jecWordFrequency[normB]) { [normA, normB] = [normB, normA]; }
   // If neither is in the freq map, nothing to merge
   if (!jecWordFrequency[normA] && !jecWordFrequency[normB]) return;
   jecWordFrequency[normA] = (jecWordFrequency[normA] || 0) + (jecWordFrequency[normB] || 0);
   jecMergeMap[normB]      = normA;
   jecDisplayWords[normA]  = `${jecDisplayWords[normA] || normA} / ${jecDisplayWords[normB] || normB}`;
-  // poison propagates: if either word was poisoned, the merged result is poisoned
-  if (jecPoisonedNorms.has(normA) || jecPoisonedNorms.has(normB)) {
-    jecPoisonedNorms.add(normA);
-  }
-  jecPoisonedNorms.delete(normB);
   delete jecWordFrequency[normB];
   delete jecDisplayWords[normB];
 
@@ -586,40 +551,48 @@ function jecApplyMerge(normA, normB) {
       jecWordFrequency: {...jecWordFrequency},
       jecDisplayWords:  {...jecDisplayWords},
       jecMergeMap:      {...jecMergeMap},
-      jecPoisonedNorms: [...jecPoisonedNorms],
     }});
   }
 }
 
 // ── JEC Round scoring ─────────────────────────────────────────────────────────
+// Returns { roundScores, bonus } — bonus[p] = { signature, crutch, name }, the
+// per-Chef breakdown The Tally renders and JEC_TALLY carries to clients.
+// The crutch and name fields stay 0 until Tasks 3 and 5 fill them.
 function jecCalcRoundScores() {
   const roundScores = Array(jecPlayerCount).fill(0);
+  const bonus = Array.from({ length: jecPlayerCount },
+    () => ({ signature: 0, crutch: 0, name: 0 }));
+
   for (let p = 0; p < jecPlayerCount; p++) {
     for (let j = 0; j < jecInputs[p].length; j++) {
-      const raw = jecInputs[p][j];
-      let norm  = normaliseWord(raw.trim());
-      let steps = 0;
-      while (jecMergeMap[norm] && steps < 10) { norm = jecMergeMap[norm]; steps++; }
-      const count        = jecWordFrequency[norm] || 0;
-      const isPoisoned   = jecKitchenNightmares && jecPoisonedNorms.has(norm);
-      const isSignature  = jecKitchenNightmares && jecSignatures[p] === j;
-      if (!isPoisoned) {
-        // Opt-in penalties take priority over tier rewards
-        if (count === 1 && jecRottenPenalty) {
-          roundScores[p] -= 5;
-        } else if (count === jecPlayerCount && jecSpoiltPenalty) {
-          roundScores[p] -= count * 2;
-        } else {
-          const pts = jecCalcPoints(count, jecPlayerCount);
-          if (pts > 0) roundScores[p] += isSignature ? pts * 2 : pts;
-        }
+      const norm  = jecResolveNorm(jecInputs[p][j]);
+      const count = jecWordFrequency[norm] || 0;
+      const badge = jecBadge(count, jecPlayerCount);
+
+      // Opt-in penalties REPLACE the tier reward for that count; they never stack.
+      if (badge.key === 'alone' && jecTableForOnePenalty)   { roundScores[p] -= 5; continue; }
+      if (badge.key === 'toomany' && jecCrowdedKitchenTax)  { roundScores[p] -= count * 2; continue; }
+
+      const pts = jecCalcPoints(count, jecPlayerCount);
+      if (pts <= 0) continue;
+      roundScores[p] += pts;
+      // The Signature double — GOLDEN RANGE ONLY. A nominated ingredient landing
+      // Table for One or Too Many Cooks scores its normal value; the loss is the
+      // double you did not get, not an extra penalty.
+      if (jecSignatures[p] === j && jecIsGolden(badge.key)) {
+        roundScores[p]     += pts;
+        bonus[p].signature += pts;
       }
-      // Poisoned: 0 pts regardless of penalty settings
     }
-    jecScores[p] += roundScores[p];
   }
-  jecRoundLog.push({ order: jecCurrentWord, scores: [...roundScores] });
-  return roundScores;
+
+  jecRoundLog.push({
+    order: jecCurrentWord, order2: jecCurrentWord2,
+    instruction: jecInstruction, scores: [...roundScores],
+  });
+  for (let p = 0; p < jecPlayerCount; p++) jecScores[p] += roundScores[p];
+  return { roundScores, bonus };
 }
 
 // ── JEC Tally ─────────────────────────────────────────────────────────────────
@@ -715,16 +688,24 @@ function jecResetForNewGame() {
   jecWordPool         = [];
   jecInputs           = [];
   jecSignatures       = [];
-  jecPoisons          = [];
+  jecCrutches         = [];
+  jecFusionNames      = [];
+  jecNameVotes        = [];
+  jecNameWinners      = [];
+  jecCurrentWord2     = '';
+  jecInstruction      = '';
   jecWordFrequency    = {};
   jecDisplayWords     = {};
   jecMergeMap         = {};
   jecRoundLog         = [];
   jecCurrentPlayerIdx  = 0;
+  jecVoteCurrentIdx    = 0;
+  jecSiftingSubState   = 'check';
+  jecPrepSignatureIdx  = -1;
   jecOversightSelected = null;
   jecOversightPendingA = null;
   jecOversightPendingB = null;
-  jecPoisonedNorms     = new Set();
+  jecMpVoteCheck       = [];
   showScreen('screen-jec-menu');
 }
 
@@ -917,9 +898,9 @@ function jecApplyExpansionOverrides() {
   if (!isSecretMode || !window.activeExpansionOverrides) return;
   const ov = window.activeExpansionOverrides;
   if (ov.jecRounds            !== undefined) jecRounds            = ov.jecRounds;
-  if (ov.jecRottenPenalty     !== undefined) jecRottenPenalty     = ov.jecRottenPenalty;
-  if (ov.jecSpoiltPenalty     !== undefined) jecSpoiltPenalty     = ov.jecSpoiltPenalty;
-  if (ov.jecKitchenNightmares !== undefined) jecKitchenNightmares = ov.jecKitchenNightmares;
+  if (ov.jecTableForOnePenalty     !== undefined) jecTableForOnePenalty     = ov.jecTableForOnePenalty;
+  if (ov.jecCrowdedKitchenTax     !== undefined) jecCrowdedKitchenTax     = ov.jecCrowdedKitchenTax;
+  if (ov.jecFusionCuisine !== undefined) jecFusionCuisine = ov.jecFusionCuisine;
   // In Secret Mode, use expansion words filtered to food category; fall back to all expansion words
   if (secretWords && secretWords.length) {
     const foodWords = secretWords.filter(w => w.category === 'food').map(w => w.word);

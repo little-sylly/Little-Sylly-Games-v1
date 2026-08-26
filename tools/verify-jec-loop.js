@@ -106,6 +106,34 @@ globalThis.__jec = {
   get count()      { return jecPlayerCount; },
   get golden()     { return jecGoldenScore; },
   points(c, n)     { return jecCalcPoints(c, n); },
+  badge(c, n) { return jecBadge(c, n); },
+  isGolden(k) { return jecIsGolden(k); },
+  last()      { return globalThis.__jecLast; },
+  // Drives one complete round through the SHIPPED functions: seats the table,
+  // sets the settings, loads the inputs, builds the frequency pool, applies any
+  // merges, then scores.
+  round(o) {
+    jecPlayerCount        = o.players;
+    jecPlayerNames        = Array.from({ length: o.players }, (_, i) => 'Chef ' + (i + 1));
+    jecScores             = Array(o.players).fill(0);
+    jecGoldenScore        = o.golden === undefined ? 30 : o.golden;
+    jecTableForOnePenalty = !!o.tableForOne;
+    jecCrowdedKitchenTax  = !!o.crowdedKitchenTax;
+    jecFusionCuisine      = !!o.fusion;
+    jecCurrentWord        = o.word  || 'pizza';
+    jecCurrentWord2       = o.word2 || '';
+    jecInstruction        = o.instruction || '';
+    jecRoundLog           = [];
+    jecInputs      = o.inputs.map(a => [...a]);
+    jecSignatures  = o.signatures ? [...o.signatures] : Array(o.players).fill(-1);
+    jecCrutches    = o.crutches   ? [...o.crutches]   : Array(o.players).fill('');
+    jecFusionNames = o.names      ? [...o.names]      : Array(o.players).fill('');
+    jecNameVotes   = o.votes      ? [...o.votes]      : Array(o.players).fill(-1);
+    jecBuildFrequency();
+    (o.merges || []).forEach(m => jecApplyMerge(normaliseWord(m[0]), normaliseWord(m[1])));
+    globalThis.__jecLast = jecCalcRoundScores();
+    return globalThis.__jecLast;
+  },
   seat(o) {
     jecPlayerCount = o.players;
     jecPlayerNames = o.names || Array.from({ length: o.players }, (_, i) => 'Chef ' + (i + 1));
@@ -148,6 +176,72 @@ J.seat({ players: 4, golden: 10 });
 check('golden=10 count 2', J.points(2, 4), 10);
 check('golden=10 count 3', J.points(3, 4), 5);
 check('golden=10 count 4', J.points(4, 4), 2);   // round(10 * 0.15) = 2
+
+// ── § 2 Badges, Signature nomination, penalty priority ────────────────────
+J.seat({ players: 4, golden: 30 });
+check('badge alone',   J.badge(1, 4).key, 'alone');
+check('badge kiss',    J.badge(2, 4).key, 'kiss');
+check('badge crowd',   J.badge(3, 4).key, 'crowd');
+check('badge toomany', J.badge(4, 4).key, 'toomany');
+check('label alone',   J.badge(1, 4).label, 'Table for One 🍽️');
+check('label kiss',    J.badge(2, 4).label, "Chef's Kiss ✨");
+check('label crowd',   J.badge(3, 4).label, 'Crowd-Pleaser 👌');
+check('label toomany', J.badge(4, 4).label, 'Too Many Cooks! 🍲');
+
+// The Golden range is exactly Chef's Kiss + Crowd-Pleaser — the ONLY thing the
+// Signature double may key off. The shipped code doubled any positive score,
+// including the Too Many Cooks token, against what the identity doc describes.
+check('golden range kiss',    J.isGolden('kiss'),    true);
+check('golden range crowd',   J.isGolden('crowd'),   true);
+check('golden range alone',   J.isGolden('alone'),   false);
+check('golden range toomany', J.isGolden('toomany'), false);
+
+// Signature doubles a Chef's Kiss. Chef 0: cheese(x2 kiss, nominated) + basil(1) + olive(1).
+J.round({
+  players: 4, golden: 30,
+  inputs: [['cheese', 'basil', 'olive'], ['cheese', 'ham', 'rocket'],
+           ['anchovy', 'caper', 'crust'], ['pine', 'fig', 'honey']],
+  signatures: [0, 0, 0, 0],
+});
+check('sig doubles a kiss',  J.last().roundScores[0], 60);
+check('sig bonus recorded',  J.last().bonus[0].signature, 30);
+
+// Signature does NOT double a Too Many Cooks token.
+J.round({
+  players: 3, golden: 30,
+  inputs: [['salt', 'a1', 'a2'], ['salt', 'b1', 'b2'], ['salt', 'c1', 'c2']],
+  signatures: [0, 0, 0],
+});
+check('sig does not double token', J.last().roundScores[0], 5);
+check('sig bonus zero on token',   J.last().bonus[0].signature, 0);
+
+// Signature does NOT rescue a Table for One, and costs nothing extra when it fails.
+// Chef 0: lonely(1, nominated, penalty −5) + salt(3 of 3 = token +5) + x1(1, −5).
+J.round({
+  players: 3, golden: 30, tableForOne: true,
+  inputs: [['lonely', 'salt', 'x1'], ['salt', 'y1', 'y2'], ['salt', 'z1', 'z2']],
+  signatures: [0, 1, 1],
+});
+check('failed sig takes the penalty once', J.last().roundScores[0], -5 + 5 - 5);
+check('sig bonus zero on table-for-one',   J.last().bonus[0].signature, 0);
+
+// Penalties REPLACE the tier reward, never stack with it.
+// Chef 0: salt(4 of 4 -> tax −8) + a1(1, no penalty set) + a2(1).
+J.round({
+  players: 4, golden: 30, crowdedKitchenTax: true,
+  inputs: [['salt', 'a1', 'a2'], ['salt', 'b1', 'b2'],
+           ['salt', 'c1', 'c2'], ['salt', 'd1', 'd2']],
+  signatures: [1, 1, 1, 1],
+});
+check('crowded tax replaces token', J.last().roundScores[0], -8);
+
+// A signature index of −1 (unset — a dropped packet) is inert and never throws.
+J.round({
+  players: 3, golden: 30,
+  inputs: [['cheese', 'a1', 'a2'], ['cheese', 'b1', 'b2'], ['c0', 'c1', 'c2']],
+  signatures: [-1, -1, -1],
+});
+check('unset signature is inert', J.last().bonus[0].signature, 0);
 
 console.log('\njec-loop: ' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);

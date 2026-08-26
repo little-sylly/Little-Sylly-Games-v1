@@ -838,8 +838,8 @@ function mpSerialiseSettings(abbr) {
       gmMemoryGuard, gmResonanceTolerance, gmSignalBoost, gmSyllyIntensity,
     };
     case 'jec': return {
-      jecRounds, jecGoldenScore, jecRottenPenalty, jecSpoiltPenalty,
-      jecSousChefOversight, jecKitchenNightmares, jecFoodDifficulty, jecSpecialsBoard,
+      jecRounds, jecGoldenScore, jecTableForOnePenalty, jecCrowdedKitchenTax,
+      jecSousChefCheck, jecFusionCuisine, jecFoodDifficulty, jecSpecialsBoard,
     };
     case 'ygi': return {
       ygiRounds, ygiDecider, ygiFullTally, ygiRinger,
@@ -987,10 +987,10 @@ function mpHandleEnvelope(env) {
         case 'jec':
           if (s.jecRounds            !== undefined) jecRounds            = s.jecRounds;
           if (s.jecGoldenScore       !== undefined) jecGoldenScore       = s.jecGoldenScore;
-          if (s.jecRottenPenalty     !== undefined) jecRottenPenalty     = s.jecRottenPenalty;
-          if (s.jecSpoiltPenalty     !== undefined) jecSpoiltPenalty     = s.jecSpoiltPenalty;
-          if (s.jecSousChefOversight !== undefined) jecSousChefOversight = s.jecSousChefOversight;
-          if (s.jecKitchenNightmares !== undefined) jecKitchenNightmares = s.jecKitchenNightmares;
+          if (s.jecTableForOnePenalty     !== undefined) jecTableForOnePenalty     = s.jecTableForOnePenalty;
+          if (s.jecCrowdedKitchenTax     !== undefined) jecCrowdedKitchenTax     = s.jecCrowdedKitchenTax;
+          if (s.jecSousChefCheck !== undefined) jecSousChefCheck = s.jecSousChefCheck;
+          if (s.jecFusionCuisine !== undefined) jecFusionCuisine = s.jecFusionCuisine;
           if (s.jecFoodDifficulty    !== undefined) jecFoodDifficulty    = s.jecFoodDifficulty;
           if (s.jecSpecialsBoard     !== undefined) jecSpecialsBoard     = s.jecSpecialsBoard;
           break;
@@ -1180,36 +1180,31 @@ function mpHandleEnvelope(env) {
       jecRounds       = env.payload.rounds;
       jecInputs       = Array.from({ length: jecPlayerCount }, () => ['', '', '']);
       jecMpReadyCheck = Array(jecPlayerCount).fill(false);
-      if (jecKitchenNightmares) {
-        jecSignatures = Array(jecPlayerCount).fill(-1);
-        jecPoisons    = Array(jecPlayerCount).fill('');
-      }
+      jecSignatures  = Array(jecPlayerCount).fill(-1);
+      jecCrutches    = Array(jecPlayerCount).fill('');
+      jecFusionNames = Array(jecPlayerCount).fill('');
+      jecNameVotes   = Array(jecPlayerCount).fill(-1);
+      jecNameWinners = [];
+      jecMpVoteCheck = Array(jecPlayerCount).fill(false);
       jecShowOrderScreen();
     }
 
     // JEC_PREP_SUBMIT — Host collects submissions; resolves sifting when all ready
     if (env.type === 'ACTION' && env.payload.action === 'JEC_PREP_SUBMIT' &&
         window.syllyMultiplayerMode === 'host') {
-      const { playerIdx, ingredients, poison } = env.payload;
+      const { playerIdx, ingredients } = env.payload;
       jecInputs[playerIdx] = ingredients;
-      if (jecKitchenNightmares && poison) {
-        jecPoisons[playerIdx]    = poison;
-        jecSignatures[playerIdx] = 0;
-      }
       jecMpReadyCheck[playerIdx] = true;
 
       if (jecMpReadyCheck.every(Boolean)) {
         // All chefs submitted — run sifting, broadcast full sifting state
         jecBuildFrequency();
-        if (jecKitchenNightmares) jecBuildPoisonSet();
         mpSendEnvelope({ type: 'SYNC', payload: {
           action:          'JEC_SIFTING',
           jecInputs:        jecInputs.map(a => [...a]),
           jecWordFrequency: {...jecWordFrequency},
           jecDisplayWords:  {...jecDisplayWords},
           jecMergeMap:      {...jecMergeMap},
-          jecPoisonedNorms: [...jecPoisonedNorms],
-          jecPoisons:       [...jecPoisons],
           jecSignatures:    [...jecSignatures],
         }});
         mpUnlockSync();
@@ -1224,8 +1219,6 @@ function mpHandleEnvelope(env) {
       jecWordFrequency   = {...p.jecWordFrequency};
       jecDisplayWords    = {...p.jecDisplayWords};
       jecMergeMap        = {...p.jecMergeMap};
-      jecPoisonedNorms   = new Set(p.jecPoisonedNorms || []);
-      jecPoisons         = [...(p.jecPoisons || [])];
       jecSignatures      = [...(p.jecSignatures || [])];
       mpUnlockSync();
       jecStartSifting();
@@ -1237,7 +1230,6 @@ function mpHandleEnvelope(env) {
       jecWordFrequency = {...p.jecWordFrequency};
       jecDisplayWords  = {...p.jecDisplayWords};
       jecMergeMap      = {...p.jecMergeMap};
-      jecPoisonedNorms = new Set(p.jecPoisonedNorms || []);
       jecRenderSifting();
     }
 

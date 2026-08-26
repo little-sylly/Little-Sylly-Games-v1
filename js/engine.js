@@ -624,19 +624,29 @@ function resetToLobby() {
   document.getElementById('jec-how-to-overlay').style.display      = 'none';
   document.getElementById('jec-oversight-overlay').style.display   = 'none';
   document.getElementById('jec-new-shift-overlay').style.display   = 'none';
+  document.getElementById('jec-help-tip-overlay').style.display    = 'none';
   jecRound            = 0;
   jecScores           = [];
   jecWordPool         = [];
   jecInputs           = [];
   jecSignatures       = [];
-  jecPoisons          = [];
+  jecCrutches         = [];
+  jecFusionNames      = [];
+  jecNameVotes        = [];
+  jecNameWinners      = [];
+  jecCurrentWord2     = '';
+  jecInstruction      = '';
+  jecInstructionDeck  = [];
   jecWordFrequency    = {};
   jecDisplayWords     = {};
   jecMergeMap         = {};
   jecRoundLog         = [];
   jecCurrentPlayerIdx  = 0;
+  jecVoteCurrentIdx    = 0;
+  jecSiftingSubState   = 'check';
+  jecPrepSignatureIdx  = -1;
   jecOversightSelected = null;
-  jecPoisonedNorms     = new Set();
+  jecMpVoteCheck       = [];
   // You Get It? teardown
   if (typeof resetYouGetIt === 'function') resetYouGetIt();
   // Late To The Party teardown

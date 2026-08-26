@@ -123,10 +123,10 @@ const SM_SETTINGS_DISPLAY = {
     { key: 'ssIntelSyllyMode',         label: 'Intel Phase',       fmt: v => v ? 'ON' : 'OFF' },
   ],
   jec: [
-    { key: 'jecRounds',            label: 'Dishes',     fmt: v => String(v) },
-    { key: 'jecRottenPenalty',     label: 'Rotten',     fmt: v => v ? '−10 pts' : 'Off' },
-    { key: 'jecSpoiltPenalty',     label: 'Spoilt',     fmt: v => v ? '−10 pts' : 'Off' },
-    { key: 'jecKitchenNightmares', label: 'Sylly Mode', fmt: v => v ? 'ON' : 'OFF' },
+    { key: 'jecRounds',             label: 'Courses',         fmt: v => String(v) },
+    { key: 'jecTableForOnePenalty', label: 'Table for One',   fmt: v => v ? '−5 pts' : 'Off' },
+    { key: 'jecCrowdedKitchenTax',  label: 'Crowded Kitchen', fmt: v => v ? '−2 per Chef' : 'Off' },
+    { key: 'jecFusionCuisine',      label: 'Sylly Mode',      fmt: v => v ? 'ON' : 'OFF' },
   ],
   nat: [
     { key: 'natMatchesSetting', label: 'Habitats',         fmt: v => String(v) },
