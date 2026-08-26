@@ -2923,13 +2923,24 @@ function jecHandleEnvelope(env) {
     jecStartSifting();
   }
 
-  // JEC_MERGE — Client applies Host merge and re-renders sifting view
+  // JEC_MERGE — Client applies Host merge and repaints the blind Check list
   if (env.type === 'SYNC' && env.payload.action === 'JEC_MERGE') {
     const p          = env.payload;
     jecWordFrequency = jecWireObj(p.jecWordFrequency);
     jecDisplayWords  = jecWireObj(p.jecDisplayWords);
     jecMergeMap      = jecWireObj(p.jecMergeMap);
-    jecRenderSifting();
+    jecRenderCheckList();
+  }
+
+  // JEC_TASTING — Host advanced Sous Chef's Check -> The Tasting. Carries the
+  // final board once more so a client that missed a JEC_MERGE is repaired before
+  // a single point is scored.
+  if (env.type === 'SYNC' && env.payload.action === 'JEC_TASTING') {
+    const p          = env.payload;
+    jecWordFrequency = jecWireObj(p.jecWordFrequency);
+    jecDisplayWords  = jecWireObj(p.jecDisplayWords);
+    jecMergeMap      = jecWireObj(p.jecMergeMap);
+    jecShowTasting();
   }
 
   // JEC_TALLY — Client applies scores and renders tally screen

@@ -560,6 +560,18 @@ body.flash-red   { background-color: #fecaca; }
    state made the glyph less legible than the unselected one. Brand amber-500
    with an inset white ring frames it instead. Inset: no layout shift. */
 .jec-sig-btn-on { background-color: #f59e0b; box-shadow: inset 0 0 0 2px #fff; }
+
+/* The Tasting's staged reveal. Ingredients arrive in ASCENDING count order -
+   Table for One first, Chef's Kisses landing in the middle where the reactions
+   are, Too Many Cooks last. Same data as the old static table, staged.
+   transform/opacity only; the global prefers-reduced-motion block already
+   collapses both durations - do NOT add a second block. */
+.jec-tasting-row {
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 220ms ease-out, transform 220ms ease-out;
+}
+.jec-tasting-row-in { opacity: 1; transform: translateY(0); }
 .ygi-range {
   -webkit-appearance: none;
   appearance: none;

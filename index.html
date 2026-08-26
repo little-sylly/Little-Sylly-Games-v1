@@ -2430,23 +2430,33 @@ Serve it Up!
       <h2 id="jec-sifting-order" class="text-3xl font-bold text-amber-500 uppercase tracking-wide mt-1"></h2>
       <p id="jec-sifting-round-label" class="text-stone-400 text-xs mt-1"></p>
     </div>
-    <!-- Health Inspector's Report: poison words (Sylly Mode, hidden when KN off) -->
-    <div id="jec-sifting-poison-section" style="display:none" class="w-full text-center">
-      <p class="text-xs font-semibold uppercase tracking-widest text-purple-500 mb-2">🧪 Health Inspector's Report found the following ingredients poisoned:</p>
-      <div id="jec-sifting-poison-list" class="flex flex-wrap gap-2 justify-center"></div>
-    </div>
-    <!-- Sous Chef Oversight hint (shown when setting is ON) -->
-    <div id="jec-oversight-hint" style="display:none"
-         class="w-full bg-amber-50 border border-amber-200 rounded-xl px-4 py-2 text-center">
-      <p class="text-amber-700 text-xs font-semibold">Sous Chef Oversight: tap two similar words to merge.</p>
-    </div>
-    <!-- Today's Recipe sub-header (populated by jecStartSifting) -->
-    <p id="jec-sifting-recipe-label" class="text-sm font-bold text-stone-700 text-center w-full"></p>
-    <!-- Ingredient list injected by JS -->
-    <div id="jec-sifting-list" class="flex flex-col gap-3 w-full"></div>
-    <button id="btn-jec-sifting-proceed" class="min-h-14 w-full rounded-2xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
-The Taste Test!
+    <!-- Which half of The Sifting we are in: Sous Chef's Check, or The Tasting. -->
+    <p id="jec-sifting-stage-label" class="text-sm font-bold text-stone-700 text-center w-full"></p>
+
+    <!-- Sub-state A: Sous Chef's Check — plain, unscored, alphabetical, BLIND -->
+    <div id="jec-sifting-check" style="display:none" class="w-full flex flex-col gap-4">
+      <div id="jec-oversight-hint" class="w-full bg-amber-50 border border-amber-200 rounded-xl px-4 py-2 text-center">
+        <p class="text-amber-700 text-xs font-semibold">Tap two ingredients that are the same thing to merge them.</p>
+      </div>
+      <div id="jec-check-list" class="flex flex-col gap-3 w-full"></div>
+      <button id="btn-jec-check-proceed" class="min-h-14 w-full rounded-2xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+Start the Tasting
 </button>
+    </div>
+
+    <!-- Sub-state B: The Tasting — counts, badges, Callouts -->
+    <div id="jec-sifting-tasting" style="display:none" class="w-full flex flex-col gap-4">
+      <div id="jec-tasting-list" class="flex flex-col gap-3 w-full"></div>
+      <!-- The Callouts reveal AFTER the ingredient list has finished — the Crutch
+           result is the round's punchline, not its preamble. -->
+      <div id="jec-callouts-section" style="display:none" class="w-full flex flex-col gap-2">
+        <p class="text-xs font-semibold uppercase tracking-widest text-amber-500">The Callouts</p>
+        <div id="jec-callouts-list" class="flex flex-col gap-2"></div>
+      </div>
+      <button id="btn-jec-sifting-proceed" class="min-h-14 w-full rounded-2xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+The Tally
+</button>
+    </div>
   </section>
 
   <!-- JEC TALLY screen — per-round score breakdown -->

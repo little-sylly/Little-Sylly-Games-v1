@@ -645,6 +645,7 @@ function resetToLobby() {
   jecVoteCurrentIdx    = 0;
   jecSiftingSubState   = 'check';
   jecPrepSignatureIdx  = -1;
+  if (jecCalloutHandle) { clearTimeout(jecCalloutHandle); jecCalloutHandle = null; }
   jecOversightSelected = null;
   jecMpVoteCheck       = [];
   // You Get It? teardown

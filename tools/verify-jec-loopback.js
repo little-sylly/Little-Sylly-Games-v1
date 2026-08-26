@@ -185,6 +185,8 @@ function makeDevice(name, mode, myIdx, slots) {
     setTimeout: (fn, ms) => { timers.push({ fn, at: Date.now() + (ms || 0), id: ++seq }); return seq; },
     clearTimeout: id => { const i = timers.findIndex(t => t.id === id); if (i >= 0) timers.splice(i, 1); },
     setInterval: () => 0, clearInterval: () => {},
+    requestAnimationFrame: fn => { fn(); return 1; },
+    cancelAnimationFrame: () => {},
     playLaunch() {}, playWhoosh() {}, playDone() {}, playTick() {}, playBoing() {},
     playAlarm() {}, playSuccess() {}, playExit() {}, playPillClick() {},
     playSyllyOn() {}, playSyllyOff() {},
@@ -211,6 +213,8 @@ function makeDevice(name, mode, myIdx, slots) {
     '      names: jecFusionNames, votes: jecNameVotes, winners: jecNameWinners,',
     '      freq: jecWordFrequency, display: jecDisplayWords, mergeMap: jecMergeMap,',
     '      ready: jecMpReadyCheck, scores: jecScores,',
+    '      subState: jecSiftingSubState,',
+    '      oversight: jecOversightSelected,',
     '    };',
     '  },',
     '  seat(o) {',
@@ -223,6 +227,7 @@ function makeDevice(name, mode, myIdx, slots) {
     '    jecSpecialInstructions = !!o.instructions;',
     '    jecFusionCuisine       = !!o.fusion;',
     '    jecSpecialsBoard       = !!o.specials;',
+    '    jecSousChefCheck       = o.souschef === undefined ? true : !!o.souschef;',
     '    jecWordPool            = [];',
     '    jecInstructionDeck     = [];',
     '  },',
@@ -250,6 +255,18 @@ function makeDevice(name, mode, myIdx, slots) {
     '    }};',
     '  },',
     '  reroll() { jecReroll(); },',
+    '  // Every seat submits, then the host resolves - the shortest honest route to',
+    '  // a rendered Sifting board. The packet path itself is § 2/§ 3\'s job.',
+    '  runPrepAll(inputs, crutches, sigs) {',
+    '    jecStartRound();',
+    '    for (let p = 0; p < jecPlayerCount; p++) {',
+    '      jecInputs[p]       = [...inputs[p]];',
+    "      jecCrutches[p]     = crutches[p] || '';",
+    '      jecSignatures[p]   = sigs[p] === undefined ? -1 : sigs[p];',
+    '      jecMpReadyCheck[p] = true;',
+    '    }',
+    '    jecHostResolveSifting();',
+    '  },',
     '  // Fills the REAL prep inputs and calls the REAL jecSubmitIngredients. A copy',
     '  // of the validation rules here would only ever test the copy.',
     '  tryPrep(o) {',
@@ -265,6 +282,12 @@ function makeDevice(name, mode, myIdx, slots) {
     "    return document.getElementById('jec-prep-error').textContent;",
     '  },',
     '  forceSignatures(a) { jecSignatures = [...a]; },',
+    '  merge(a, b) { jecApplyMerge(normaliseWord(a), normaliseWord(b)); },',
+    '  // The SHIPPED advance, guard included - not a copy of the listener body.',
+    '  advanceCheck() { jecAdvanceToTasting(); },',
+    '  tap(norm) { jecHandleOversightTap(norm); },',
+    '  el(id) { return document.getElementById(id); },',
+    '  norm(w) { return normaliseWord(w); },',
     '  rebroadcastSifting() { jecHostResolveSifting(); },',
     '  handle(env) { jecHandleEnvelope(env); },',
     '};',
@@ -282,6 +305,12 @@ function makeDevice(name, mode, myIdx, slots) {
     __hostSubmitOwn: o => J.hostSubmitOwn(o),
     __buildPrep: (idx, o) => J.buildPrep(idx, o),
     __reroll: () => J.reroll(),
+    __runPrepAll: (i, c, s) => J.runPrepAll(i, c, s),
+    __merge: (a, b) => J.merge(a, b),
+    __advanceCheck: () => J.advanceCheck(),
+    __tap: norm => J.tap(norm),
+    __el: id => J.el(id),
+    __norm: w => J.norm(w),
     // A client that clears validation SENDS. Reading the error line alone would not
     // separate pass from fail — on success the same element carries the waiting text.
     __tryPrep: o => { const before = sent.length; const err = J.tryPrep(o);
@@ -310,7 +339,7 @@ function deliver(from, to, env) {
 
 // ── § 1 JEC_ORDER carries the instruction and the second Order ────────────────
 const slots = [{ uid: 'u0', nickname: 'Sam' }, { uid: 'u1', nickname: 'Ali' },
-               { uid: 'u2', nickname: 'Bo' }];
+               { uid: 'u2', nickname: 'Bo' },  { uid: 'u3', nickname: 'Cass' }];
 const host   = makeDevice('host',   'host',   0, slots);
 const client = makeDevice('client', 'client', 1, slots);
 
@@ -521,6 +550,115 @@ check('host stored the crutch',     host.__state().crutches[1],   'tomato');
 check('host stored the signature',  host.__state().signatures[1], 2);
 check('host stored the fused name', host.__state().names[1],      'Pav Roll');
 check('no throw on prep delivery',  host.__errors.length,         hostErrsBefore);
+
+// A failed length check must not then crash the run on children[0], hiding every
+// later section behind a stack trace.
+const first = el => ((el.children[0] || {}).innerHTML || '');
+
+// ── § 7 Sous Chef's Check -> The Tasting ──────────────────────────────────────
+// Blind merging is an INTEGRITY fix, not only pacing: on the old scored board a
+// Chef could push a merge that raised their own count with full knowledge of
+// what it was worth. So the client's Check list must carry no counts at all.
+host.__seat({ players: 3, golden: 30, souschef: true });
+client.__seat({ players: 3, golden: 30, souschef: true });
+host.__clearSent();
+client.__errors.length = 0;
+host.__runPrepAll([['tomato', 'a1', 'a2'], ['tomatoe', 'b1', 'b2'], ['c0', 'c1', 'c2']],
+                  ['', '', ''], [0, 0, 0]);
+deliver(host, client, host.__lastSent('JEC_SIFTING'));
+check('client lands on the Check',   client.__state().subState, 'check');
+check('host lands on the Check',     host.__state().subState,   'check');
+check('Check list rendered',         client.__el('jec-check-list').children.length > 0, true);
+check('Check list carries no counts',
+  client.__el('jec-check-list').children.every(c => !/Chef/.test(c.innerHTML)), true);
+check('Check list carries no badges',
+  client.__el('jec-check-list').children.every(c => !/rounded-full/.test(c.innerHTML)), true);
+check('the Tasting list is still empty',
+  client.__el('jec-tasting-list').children.length, 0);
+
+// A merge made blind still reaches the client.
+host.__merge('tomato', 'tomatoe');
+deliver(host, client, host.__lastSent('JEC_MERGE'));
+check('client applied the merge', client.__state().freq[client.__norm('tomato')], 2);
+check('no throw on JEC_MERGE',    client.__errors, []);
+
+// J4: the advance is host-gated. A client running it locally would jump its own
+// board to a scored state ahead of the table.
+client.__clearSent();
+client.__advanceCheck();
+check('client cannot advance itself', client.__state().subState, 'check');
+check('client broadcast nothing',     client.__lastSent('JEC_TASTING'), undefined);
+
+host.__clearSent();
+host.__advanceCheck();
+env = host.__lastSent('JEC_TASTING');
+check('JEC_TASTING sent',           !!env, true);
+check('JEC_TASTING carries the merged board', env.payload.jecWordFrequency[host.__norm('tomato')], 2);
+deliver(host, client, env);
+check('client reached the Tasting', client.__state().subState, 'tasting');
+check('Tasting rows rendered',      client.__el('jec-tasting-list').children.length > 0, true);
+check('Tasting rows carry counts',
+  /Chefs?</.test(first(client.__el('jec-tasting-list'))), true);
+check('no throw on JEC_TASTING',    client.__errors, []);
+
+// Merging is blind, or not at all. Once counts are on screen a tap must be inert,
+// or the integrity hole this split exists to close is simply reopened one screen
+// later - with the board scored and every Chef able to see what a merge is worth.
+host.__tap(host.__norm('tomato'));
+check('a merge tap is inert once scored', host.__state().oversight, null);
+
+// Ascending count order: Table for One first, Too Many Cooks last. The merged
+// 2-Chef word must therefore sort BELOW the four 1-Chef words.
+const tastingRows = client.__el('jec-tasting-list').children.map(c => c.innerHTML);
+check('the merged word reveals last',
+  /Tomato/.test(tastingRows[tastingRows.length - 1]), true);
+
+// Sous Chef Check OFF skips the sub-state WHOLE — not a Check screen with the
+// merge affordance hidden. There is nothing to look at on a blind board.
+host.__seat({ players: 3, golden: 30, souschef: false });
+client.__seat({ players: 3, golden: 30, souschef: false });
+host.__clearSent();
+client.__errors.length = 0;
+host.__runPrepAll([['a0', 'a1', 'a2'], ['b0', 'b1', 'b2'], ['c0', 'c1', 'c2']],
+                  ['', '', ''], [0, 0, 0]);
+deliver(host, client, host.__lastSent('JEC_SIFTING'));
+check('OFF goes straight to the Tasting', client.__state().subState, 'tasting');
+check('OFF host goes straight there too', host.__state().subState,   'tasting');
+check('no throw with the Check off',      client.__errors, []);
+
+// The Callouts render for every Chef who called, hit or miss. Three Chefs on
+// 'cheese' puts the top count at 3, which is the Crutch's floor.
+host.__seat({ players: 4, golden: 30, souschef: false });
+client.__seat({ players: 4, golden: 30, souschef: false });
+host.__clearSent();
+client.__errors.length = 0;
+client.sandbox.__timers.length = 0;   // so 'a timer is pending' cannot be vacuous
+host.__runPrepAll([['cheese', 'a1', 'a2'], ['cheese', 'b1', 'b2'],
+                   ['cheese', 'c1', 'c2'], ['d0', 'd1', 'd2']],
+                  ['', '', '', 'cheese'], [0, 0, 0, 0]);
+deliver(host, client, host.__lastSent('JEC_SIFTING'));
+check('one callout row', client.__el('jec-callouts-list').children.length, 1);
+check('callout names the Chef who called',
+  /Cass/.test(first(client.__el('jec-callouts-list'))), true);
+check('callout marked as a hit',
+  /Called It/.test(first(client.__el('jec-callouts-list'))), true);
+// The Callouts are the punchline: hidden until the ingredient list has finished.
+check('callouts hidden on first paint',
+  client.__el('jec-callouts-section').style.display, 'none');
+check('a reveal timer is pending', client.sandbox.__timers.length > 0, true);
+
+// A missed call still gets a row — the round says so out loud either way.
+host.__seat({ players: 4, golden: 30, souschef: false });
+client.__seat({ players: 4, golden: 30, souschef: false });
+host.__clearSent();
+client.__errors.length = 0;
+host.__runPrepAll([['a0', 'a1', 'a2'], ['b0', 'b1', 'b2'],
+                   ['c0', 'c1', 'c2'], ['d0', 'd1', 'd2']],
+                  ['', '', '', 'parsley'], [0, 0, 0, 0]);
+deliver(host, client, host.__lastSent('JEC_SIFTING'));
+check('a missed call still gets a row', client.__el('jec-callouts-list').children.length, 1);
+check('missed call is not marked a hit',
+  /Called It/.test(first(client.__el('jec-callouts-list'))), false);
 
 console.log('\njec-loopback: ' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);

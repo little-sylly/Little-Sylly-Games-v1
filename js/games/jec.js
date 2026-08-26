@@ -39,6 +39,7 @@ let jecRoundLog      = [];    // [{ order, order2, instruction, scores }]
 let jecCurrentPlayerIdx  = 0; // which Chef is currently prepping (Pass-the-Phone)
 let jecVoteCurrentIdx    = 0; // which Chef is currently voting (Pass-the-Phone)
 let jecSiftingSubState   = 'check';  // 'check' (blind merge) | 'tasting' (scored reveal)
+let jecCalloutHandle     = null;     // setTimeout handle for the Callouts reveal
 let jecOversightSelected = null;
 let jecOversightPendingA = null;
 let jecOversightPendingB = null;
@@ -656,39 +657,148 @@ function jecHostResolveSifting() {
 }
 
 function jecStartSifting() {
-  document.getElementById('jec-sifting-order').textContent       = jecCurrentWord.toUpperCase();
+  document.getElementById('jec-sifting-order').textContent = jecFusionCuisine && jecCurrentWord2
+    ? `${jecCurrentWord.toUpperCase()} + ${jecCurrentWord2.toUpperCase()}`
+    : jecCurrentWord.toUpperCase();
   document.getElementById('jec-sifting-round-label').textContent = `Course ${jecRound} of ${jecRounds}`;
-  document.getElementById('jec-oversight-hint').style.display    = jecCanOversee() ? '' : 'none';
-  document.getElementById('jec-sifting-recipe-label').textContent =
-    `Today's Recipe: ${jecCurrentWord.charAt(0).toUpperCase() + jecCurrentWord.slice(1)}`;
-  jecRenderSifting();
-  jecSetAdvanceCta('btn-jec-sifting-proceed', 'The Taste Test! 🍽️');
+  // Sous Chef's Check is skipped WHOLE when the setting is OFF — not shown with
+  // the merge affordance hidden. There is nothing to look at on a blind board.
+  if (jecSousChefCheck) jecShowSousChefCheck(); else jecShowTasting();
   showScreen('screen-jec-sifting');
 }
 
-function jecRenderSifting() {
-  const list    = document.getElementById('jec-sifting-list');
+// Sub-state A. Plain, unscored, alphabetical. No counts, no badges, no Callouts.
+// Merging blind is the whole point: on the old scored board a Chef could push a
+// merge that raised their own count, with full knowledge of what it was worth.
+function jecShowSousChefCheck() {
+  jecSiftingSubState = 'check';
+  document.getElementById('jec-sifting-stage-label').textContent = "Sous Chef's Check";
+  document.getElementById('jec-sifting-check').style.display   = '';
+  document.getElementById('jec-sifting-tasting').style.display = 'none';
+  document.getElementById('jec-oversight-hint').style.display  = jecCanOversee() ? '' : 'none';
+  jecRenderCheckList();
+  jecSetAdvanceCta('btn-jec-check-proceed', 'Start the Tasting');
+}
+
+function jecRenderCheckList() {
+  const list = document.getElementById('jec-check-list');
   list.innerHTML = '';
-  const entries = Object.entries(jecWordFrequency).sort((a, b) => b[1] - a[1]);
-  entries.forEach(([norm, count]) => {
+  Object.keys(jecWordFrequency)
+    .map(norm => [norm, (jecDisplayWords[norm] || norm)])
+    .sort((a, b) => a[1].localeCompare(b[1]))     // alphabetical, NOT by count
+    .forEach(([norm, raw]) => {
+      const card = document.createElement('div');
+      card.className = `jec-sift-card bg-white rounded-2xl p-4 shadow-sm flex items-center${jecCanOversee() ? ' cursor-pointer active:scale-95 transition-transform duration-100' : ''}`;
+      card.dataset.norm = norm;
+      card.innerHTML = `<p class="font-semibold text-stone-800">${raw.charAt(0).toUpperCase() + raw.slice(1)}</p>`;
+      if (jecCanOversee()) card.addEventListener('click', () => jecHandleOversightTap(norm));
+      list.appendChild(card);
+    });
+}
+
+// Sub-state B. Counts, badges, Signature markers and the Callouts — revealed in
+// ASCENDING count order so the Chef's Kisses land in the middle, where the
+// reactions are, and Too Many Cooks lands last.
+function jecShowTasting() {
+  jecSiftingSubState = 'tasting';
+  document.getElementById('jec-sifting-stage-label').textContent = 'The Tasting';
+  document.getElementById('jec-sifting-check').style.display   = 'none';
+  document.getElementById('jec-sifting-tasting').style.display = '';
+  jecRenderTasting();
+  jecSetAdvanceCta('btn-jec-sifting-proceed', 'The Tally');
+}
+
+function jecRenderTasting() {
+  const list = document.getElementById('jec-tasting-list');
+  list.innerHTML = '';
+  const entries = Object.entries(jecWordFrequency).sort((a, b) => a[1] - b[1] || a[0].localeCompare(b[0]));
+  // Which Chefs nominated which surviving word — one star marker per nomination.
+  // Resolved through the merge map, so a nomination that was merged away still
+  // marks the word it became.
+  const sigCounts = {};
+  for (let p = 0; p < jecPlayerCount; p++) {
+    const j = jecSignatures[p];
+    if (!(j >= 0) || !jecInputs[p] || !jecInputs[p][j]) continue;
+    const n = jecResolveNorm(jecInputs[p][j]);
+    sigCounts[n] = (sigCounts[n] || 0) + 1;
+  }
+
+  entries.forEach(([norm, count], i) => {
     const badge   = jecBadge(count, jecPlayerCount);
     const raw     = jecDisplayWords[norm] || norm;
     const display = raw.charAt(0).toUpperCase() + raw.slice(1);
     const chefs   = count === 1 ? '1 Chef' : `${count} Chefs`;
-    const badgeClass = badge.cls;
-    const badgeText  = badge.label;
+    const stars   = sigCounts[norm] ? ' ' + '⭐'.repeat(sigCounts[norm]) : '';
     const card = document.createElement('div');
-    card.className    = `jec-sift-card bg-white rounded-2xl p-4 shadow-sm flex items-center justify-between${jecCanOversee() ? ' cursor-pointer active:scale-95 transition-transform duration-100' : ''}`;
-    card.dataset.norm = norm;
-    card.innerHTML    = `
+    card.className = 'jec-tasting-row bg-white rounded-2xl p-4 shadow-sm flex items-center justify-between';
+    card.style.transitionDelay = `${Math.min(i * 50, 600)}ms`;
+    card.innerHTML = `
       <div>
-        <p class="font-semibold text-stone-800">${display}</p>
+        <p class="font-semibold text-stone-800">${display}${stars}</p>
         <p class="text-xs text-stone-400 mt-0.5">${chefs}</p>
       </div>
-      <span class="px-3 py-1 rounded-full text-xs font-bold ${badgeClass}">${badgeText}</span>`;
-    if (jecCanOversee()) card.addEventListener('click', () => jecHandleOversightTap(norm));
+      <span class="px-3 py-1 rounded-full text-xs font-bold ${badge.cls}">${badge.label}</span>`;
     list.appendChild(card);
   });
+
+  // Kick the stagger on the next frame so the initial (hidden) state paints first.
+  requestAnimationFrame(() => {
+    document.querySelectorAll('.jec-tasting-row').forEach(el => el.classList.add('jec-tasting-row-in'));
+  });
+
+  jecRenderCallouts(entries.length);
+}
+
+// The Callouts reveal AFTER the ingredient list has finished. The Crutch result
+// is the round's punchline, not its preamble.
+function jecRenderCallouts(rowCount) {
+  const section = document.getElementById('jec-callouts-section');
+  const list    = document.getElementById('jec-callouts-list');
+  const called  = [];
+  for (let p = 0; p < jecPlayerCount; p++) {
+    const c = (jecCrutches[p] || '').trim();
+    if (c) called.push({ p, word: c, hit: jecCrutchHit(p) });
+  }
+  if (!called.length) { section.style.display = 'none'; return; }
+  list.innerHTML = '';
+  called.forEach(({ p, word, hit }) => {
+    const row = document.createElement('div');
+    row.className = 'bg-white rounded-2xl px-4 py-3 shadow-sm flex items-center justify-between';
+    row.innerHTML = `
+      <div>
+        <p class="font-semibold text-stone-800">${jecPlayerNames[p]}</p>
+        <p class="text-xs text-stone-400 mt-0.5">${word.charAt(0).toUpperCase() + word.slice(1)}</p>
+      </div>
+      <span class="px-3 py-1 rounded-full text-xs font-bold ${hit ? 'bg-amber-100 text-amber-700' : 'bg-stone-50 text-stone-400'}">${hit ? 'Called It! 📣' : 'Not this time'}</span>`;
+    list.appendChild(row);
+  });
+  section.style.display = 'none';
+  // Clear any pending handle first — a rapid re-render must never stack two
+  // timers (§ Timer Lifecycle). jecCalloutHandle is cleared in the quit handler,
+  // in jecResetForNewGame() and in resetToLobby().
+  if (jecCalloutHandle) { clearTimeout(jecCalloutHandle); jecCalloutHandle = null; }
+  jecCalloutHandle = setTimeout(() => {
+    section.style.display = '';
+    jecCalloutHandle = null;
+  }, Math.min(rowCount * 50, 600) + 300);
+}
+
+// Sous Chef's Check -> The Tasting. A real function rather than a listener body
+// so the loopback drives the SHIPPED advance, guard included, instead of a copy.
+function jecAdvanceToTasting() {
+  if (window.syllyMultiplayerMode === 'client') return;   // J4: host-gated
+  if (window.syllyMultiplayerMode === 'host') {
+    // The merges already reached clients via JEC_MERGE; this packet carries the
+    // final state once more so a client that missed one is repaired BEFORE
+    // anything is scored.
+    mpSendEnvelope({ type: 'SYNC', payload: {
+      action: 'JEC_TASTING',
+      jecWordFrequency: { ...jecWordFrequency },
+      jecDisplayWords:  { ...jecDisplayWords },
+      jecMergeMap:      { ...jecMergeMap },
+    }});
+  }
+  jecShowTasting();
 }
 
 function jecClearOversightHighlights() {
@@ -721,15 +831,12 @@ function jecSetAdvanceCta(btnId, liveLabel) {
 
 function jecHandleOversightTap(norm) {
   if (window.syllyMultiplayerMode === 'client') return; // J3: clients never merge
+  if (jecSiftingSubState !== 'check') return;           // merging is blind, or not at all
   if (jecOversightSelected === null) {
     jecOversightSelected = norm;
     document.querySelectorAll('.jec-sift-card').forEach(c => {
       c.classList.toggle('ring-2',         c.dataset.norm === norm);
       c.classList.toggle('ring-amber-400', c.dataset.norm === norm);
-    });
-    document.querySelectorAll('.jec-poison-chip').forEach(c => {
-      c.classList.toggle('ring-2',          c.dataset.norm === norm);
-      c.classList.toggle('ring-purple-500', c.dataset.norm === norm);
     });
   } else if (jecOversightSelected === norm) {
     jecOversightSelected = null;
@@ -948,6 +1055,7 @@ function jecResetForNewGame() {
   jecVoteCurrentIdx    = 0;
   jecSiftingSubState   = 'check';
   jecPrepSignatureIdx  = -1;
+  if (jecCalloutHandle) { clearTimeout(jecCalloutHandle); jecCalloutHandle = null; }
   jecOversightSelected = null;
   jecOversightPendingA = null;
   jecOversightPendingB = null;
@@ -1000,6 +1108,12 @@ document.getElementById('btn-jec-sifting-exit').addEventListener('click', () => 
   document.getElementById('jec-quit-overlay').style.display = 'flex';
 });
 
+document.getElementById('btn-jec-check-proceed').addEventListener('click', () => {
+  if (window.syllyMultiplayerMode === 'client') return;   // J4
+  playSuccess();
+  jecAdvanceToTasting();
+});
+
 document.getElementById('btn-jec-sifting-proceed').addEventListener('click', () => {
   // Host-gated in Lobby Mode — only the Head Chef runs scoring; clients wait for
   // the Host's JEC_TALLY SYNC. A client running jecCalcRoundScores() locally would
@@ -1026,7 +1140,7 @@ document.getElementById('btn-jec-oversight-merge').addEventListener('click', () 
   playSuccess();
   jecApplyMerge(jecOversightPendingA, jecOversightPendingB);
   document.getElementById('jec-oversight-overlay').style.display = 'none';
-  jecRenderSifting();
+  jecRenderCheckList();
 });
 
 document.getElementById('btn-jec-oversight-cancel').addEventListener('click', () => {
@@ -1108,6 +1222,7 @@ document.getElementById('btn-jec-pass-gate-ready').addEventListener('click', () 
 document.getElementById('btn-jec-quit-confirm').addEventListener('click', () => {
   playExit();
   document.getElementById('jec-quit-overlay').style.display = 'none';
+  if (jecCalloutHandle) { clearTimeout(jecCalloutHandle); jecCalloutHandle = null; }
   // Mid-Game Quit Contract (logic-engine.md): in a lobby session, leaving must dissolve the
   // session for every other device — jecResetForNewGame() only tears this one down.
   if (window.syllyMultiplayerMode !== 'single') { mpNotifyPlayerLeft(); resetToLobby(); return; }
