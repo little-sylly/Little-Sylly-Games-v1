@@ -1172,92 +1172,9 @@ function mpHandleEnvelope(env) {
   }
 
   // ── Just Enough Cooks ACTION/SYNC ─────────────────────────────────────────
-  if (mpActiveGame === 'jec') {
-    // JEC_ORDER — Client shows the order screen for this round
-    if (env.type === 'SYNC' && env.payload.action === 'JEC_ORDER') {
-      jecCurrentWord  = env.payload.word;
-      jecRound        = env.payload.round;
-      jecRounds       = env.payload.rounds;
-      jecInputs       = Array.from({ length: jecPlayerCount }, () => ['', '', '']);
-      jecMpReadyCheck = Array(jecPlayerCount).fill(false);
-      jecSignatures  = Array(jecPlayerCount).fill(-1);
-      jecCrutches    = Array(jecPlayerCount).fill('');
-      jecFusionNames = Array(jecPlayerCount).fill('');
-      jecNameVotes   = Array(jecPlayerCount).fill(-1);
-      jecNameWinners = [];
-      jecMpVoteCheck = Array(jecPlayerCount).fill(false);
-      jecShowOrderScreen();
-    }
-
-    // JEC_PREP_SUBMIT — Host collects submissions; resolves sifting when all ready
-    if (env.type === 'ACTION' && env.payload.action === 'JEC_PREP_SUBMIT' &&
-        window.syllyMultiplayerMode === 'host') {
-      const { playerIdx, ingredients } = env.payload;
-      jecInputs[playerIdx] = ingredients;
-      jecMpReadyCheck[playerIdx] = true;
-
-      if (jecMpReadyCheck.every(Boolean)) {
-        // All chefs submitted — run sifting, broadcast full sifting state
-        jecBuildFrequency();
-        mpSendEnvelope({ type: 'SYNC', payload: {
-          action:          'JEC_SIFTING',
-          jecInputs:        jecInputs.map(a => [...a]),
-          jecWordFrequency: {...jecWordFrequency},
-          jecDisplayWords:  {...jecDisplayWords},
-          jecMergeMap:      {...jecMergeMap},
-          jecSignatures:    [...jecSignatures],
-        }});
-        mpUnlockSync();
-        jecStartSifting();
-      }
-    }
-
-    // JEC_SIFTING — Client applies sifting state and renders sifting screen
-    if (env.type === 'SYNC' && env.payload.action === 'JEC_SIFTING') {
-      const p            = env.payload;
-      jecInputs          = (p.jecInputs || []).map(a => [...(a || [])]);
-      jecWordFrequency   = {...p.jecWordFrequency};
-      jecDisplayWords    = {...p.jecDisplayWords};
-      jecMergeMap        = {...p.jecMergeMap};
-      jecSignatures      = [...(p.jecSignatures || [])];
-      mpUnlockSync();
-      jecStartSifting();
-    }
-
-    // JEC_MERGE — Client applies Host merge and re-renders sifting view
-    if (env.type === 'SYNC' && env.payload.action === 'JEC_MERGE') {
-      const p          = env.payload;
-      jecWordFrequency = {...p.jecWordFrequency};
-      jecDisplayWords  = {...p.jecDisplayWords};
-      jecMergeMap      = {...p.jecMergeMap};
-      jecRenderSifting();
-    }
-
-    // JEC_TALLY — Client applies scores and renders tally screen
-    if (env.type === 'SYNC' && env.payload.action === 'JEC_TALLY') {
-      jecRound    = env.payload.round;
-      jecRounds   = env.payload.rounds;
-      jecScores   = [...env.payload.scores];
-      jecRoundLog = env.payload.roundLog;
-      jecRenderTally(env.payload.roundScores);
-      showScreen('screen-jec-tally');
-    }
-
-    // JEC_NEXT_ROUND — deprecated no-op. The Host's tally-next now drives clients
-    // purely via JEC_ORDER (broadcast from jecStartRound). Running jecStartRound()
-    // here popped the client's own word pool and flashed a wrong order word before
-    // JEC_ORDER landed. Kept as a no-op in case a stale packet is re-delivered. (J4)
-    if (env.type === 'SYNC' && env.payload.action === 'JEC_NEXT_ROUND') {
-      /* intentionally empty — JEC_ORDER drives the client's next round */
-    }
-
-    // JEC_WASHUP — Client shows final washup
-    if (env.type === 'SYNC' && env.payload.action === 'JEC_WASHUP') {
-      jecScores   = [...env.payload.scores];
-      jecRoundLog = env.payload.roundLog;
-      jecShowWashup();
-    }
-  }
+  // Extracted from an inline block so tools/verify-jec-loopback.js can drive the
+  // real handlers. Behaviour is unchanged; only the call boundary is new.
+  if (mpActiveGame === 'jec') jecHandleEnvelope(env);
 
   // ── You Get It? ACTION/SYNC ────────────────────────────────────────────────
   if (mpActiveGame === 'ygi') {
@@ -2948,3 +2865,90 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
 });
+
+
+// ── Just Enough Cooks envelope handler ────────────────────────────────────────
+// Lives here, not in the plugin, so the Phase-22 layout is preserved and no
+// load-order question is introduced. Extracted from mpHandleEnvelope purely so
+// tools/verify-jec-loopback.js can drive the real handlers over a wire.
+function jecHandleEnvelope(env) {
+  // JEC_ORDER — Client shows the order screen for this round
+  if (env.type === 'SYNC' && env.payload.action === 'JEC_ORDER') {
+    const p = env.payload;
+    jecCurrentWord  = p.word;
+    jecCurrentWord2 = p.word2 || '';        // erased in flight when '' — rebuild it
+    jecInstruction  = p.instruction || '';  // same
+    jecRound        = p.round;
+    jecRounds       = p.rounds;
+    jecInputs       = Array.from({ length: jecPlayerCount }, () => ['', '', '']);
+    jecSignatures   = Array(jecPlayerCount).fill(-1);
+    jecCrutches     = Array(jecPlayerCount).fill('');
+    jecFusionNames  = Array(jecPlayerCount).fill('');
+    jecNameVotes    = Array(jecPlayerCount).fill(-1);
+    jecNameWinners  = [];
+    jecMpReadyCheck = Array(jecPlayerCount).fill(false);
+    jecMpVoteCheck  = Array(jecPlayerCount).fill(false);
+    jecShowOrderScreen();
+  }
+
+  // JEC_PREP_SUBMIT — Host collects submissions; resolves sifting when all ready
+  if (env.type === 'ACTION' && env.payload.action === 'JEC_PREP_SUBMIT' &&
+      window.syllyMultiplayerMode === 'host') {
+    const p = env.payload;
+    jecInputs[p.playerIdx]       = jecWireArr(p.ingredients, 3, '');
+    jecCrutches[p.playerIdx]     = p.crutch || '';
+    jecSignatures[p.playerIdx]   = (p.signatureIdx === undefined || p.signatureIdx === null) ? -1 : p.signatureIdx;
+    jecFusionNames[p.playerIdx]  = p.fusionName || '';
+    jecMpReadyCheck[p.playerIdx] = true;
+    if (jecMpReadyCheck.every(Boolean)) jecHostResolveSifting();
+  }
+
+  // JEC_SIFTING — Client applies sifting state and renders sifting screen
+  if (env.type === 'SYNC' && env.payload.action === 'JEC_SIFTING') {
+    const p = env.payload;
+    jecInputs        = jecWireArr(p.jecInputs, jecPlayerCount, null)
+                         .map(a => jecWireArr(a, 3, ''));
+    jecWordFrequency = jecWireObj(p.jecWordFrequency);
+    jecDisplayWords  = jecWireObj(p.jecDisplayWords);
+    jecMergeMap      = jecWireObj(p.jecMergeMap);
+    jecCrutches      = jecWireArr(p.jecCrutches,    jecPlayerCount, '');
+    jecSignatures    = jecWireArr(p.jecSignatures,  jecPlayerCount, -1);
+    jecFusionNames   = jecWireArr(p.jecFusionNames, jecPlayerCount, '');
+    mpUnlockSync();
+    jecStartSifting();
+  }
+
+  // JEC_MERGE — Client applies Host merge and re-renders sifting view
+  if (env.type === 'SYNC' && env.payload.action === 'JEC_MERGE') {
+    const p          = env.payload;
+    jecWordFrequency = jecWireObj(p.jecWordFrequency);
+    jecDisplayWords  = jecWireObj(p.jecDisplayWords);
+    jecMergeMap      = jecWireObj(p.jecMergeMap);
+    jecRenderSifting();
+  }
+
+  // JEC_TALLY — Client applies scores and renders tally screen
+  if (env.type === 'SYNC' && env.payload.action === 'JEC_TALLY') {
+    jecRound    = env.payload.round;
+    jecRounds   = env.payload.rounds;
+    jecScores   = [...env.payload.scores];
+    jecRoundLog = env.payload.roundLog;
+    jecRenderTally(env.payload.roundScores);
+    showScreen('screen-jec-tally');
+  }
+
+  // JEC_NEXT_ROUND — deprecated no-op. The Host's tally-next now drives clients
+  // purely via JEC_ORDER (broadcast from jecStartRound). Running jecStartRound()
+  // here popped the client's own word pool and flashed a wrong order word before
+  // JEC_ORDER landed. Kept as a no-op in case a stale packet is re-delivered. (J4)
+  if (env.type === 'SYNC' && env.payload.action === 'JEC_NEXT_ROUND') {
+    /* intentionally empty — JEC_ORDER drives the client's next round */
+  }
+
+  // JEC_WASHUP — Client shows final washup
+  if (env.type === 'SYNC' && env.payload.action === 'JEC_WASHUP') {
+    jecScores   = [...env.payload.scores];
+    jecRoundLog = env.payload.roundLog;
+    jecShowWashup();
+  }
+}

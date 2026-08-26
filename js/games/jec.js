@@ -46,6 +46,41 @@ let jecPrepSignatureIdx  = -1;       // the tap-selected Signature on the live p
 let jecMpReadyCheck      = [];       // Lobby Mode: which Chefs have submitted prep
 let jecMpVoteCheck       = [];       // Lobby Mode: which Chefs have submitted a name vote
 
+// ── Firebase wire normalisers ────────────────────────────────────────────────
+// Firebase RTDB stores no null, no {} and no []: a key holding any of them is
+// DELETED, and the reader gets undefined. An array whose entries are all null
+// vanishes whole; a half-dense one comes back as an OBJECT keyed by index, not
+// an array. false, 0 and '' are legitimate stored values and are never at risk —
+// only emptiness is erased.
+//
+// Which JEC reset values are actually at risk, verified against the wire:
+//   SAFE    all-'' (jecCrutches, jecFusionNames), all-−1 (jecSignatures,
+//           jecNameVotes) — '' and −1 are scalars, so the array is not empty and
+//           nothing is dropped.
+//   ERASED  [] and {} (an EMPTY jecCrutches, jecNameWinners, jecMergeMap) — the
+//           whole key is deleted and the reader gets undefined.
+//   MANGLED a half-dense array — it returns as an OBJECT keyed by index.
+//
+// So the accumulator rule still applies, but the hazard is emptiness and sparsity,
+// not the reset value itself. Both halves are needed — send the reset value
+// explicitly AND rebuild it on receipt — because a normaliser is also what
+// guarantees LENGTH N on the client, which a raw assignment never does. Never
+// assign a raw p.x collection field.
+function jecWireArr(v, n, fill) {
+  const out = new Array(n);
+  for (let i = 0; i < n; i++) {
+    const x = v ? v[i] : undefined;
+    out[i] = (x === undefined || x === null) ? fill : x;
+  }
+  return out;
+}
+function jecWireList(v) {
+  if (Array.isArray(v)) return v.filter(x => x !== undefined && x !== null);
+  if (v && typeof v === 'object') return Object.keys(v).sort((a, b) => a - b).map(k => v[k]);
+  return [];
+}
+function jecWireObj(v) { return (v && typeof v === 'object') ? v : {}; }
+
 // ── JEC Special Instructions ──────────────────────────────────────────────────
 // A second deck that modifies Today's Order: "Pizza — …at 3am". One instruction
 // per Order; they never stack with each other.
@@ -351,7 +386,11 @@ function jecStartRound() {
   if (window.syllyMultiplayerMode === 'host') {
     // Lobby Mode: broadcast the food word so all devices show the same order screen
     mpSendEnvelope({ type: 'SYNC', payload: {
-      action: 'JEC_ORDER', word: jecCurrentWord, round: jecRound, rounds: jecRounds,
+      action: 'JEC_ORDER',
+      word:  jecCurrentWord,
+      word2: jecCurrentWord2 || '',       // '' not null — null is erased in flight
+      instruction: jecInstruction || '',  // same
+      round: jecRound, rounds: jecRounds,
     }});
   }
 
@@ -419,19 +458,7 @@ function jecSubmitIngredients() {
       // Host processes directly — self-sent envelopes are deduplicated/ignored by engine-multiplayer.js
       jecInputs[mpMyPlayerIdx] = [v1, v2, v3];
       jecMpReadyCheck[mpMyPlayerIdx] = true;
-      if (jecMpReadyCheck.every(Boolean)) {
-        jecBuildFrequency();
-        mpSendEnvelope({ type: 'SYNC', payload: {
-          action:           'JEC_SIFTING',
-          jecInputs:         jecInputs.map(a => [...a]),
-          jecWordFrequency:  {...jecWordFrequency},
-          jecDisplayWords:   {...jecDisplayWords},
-          jecMergeMap:       {...jecMergeMap},
-          jecSignatures:     [...jecSignatures],
-        }});
-        mpUnlockSync();
-        jecStartSifting();
-      }
+      if (jecMpReadyCheck.every(Boolean)) jecHostResolveSifting();
     } else {
       mpSendEnvelope({ type: 'ACTION', payload: {
         action:      'JEC_PREP_SUBMIT',
@@ -531,6 +558,28 @@ function jecCrutchHit(p) {
   const top = jecTopCount();
   if (top < 3) return false;
   return (jecWordFrequency[jecResolveNorm(raw)] || 0) === top;
+}
+
+// Called once every Chef has submitted, from BOTH the host's own submit path and
+// the JEC_PREP_SUBMIT handler. One function, so the two cannot drift — that shape
+// is what produced bug J1.
+function jecHostResolveSifting() {
+  jecBuildFrequency();
+  mpSendEnvelope({ type: 'SYNC', payload: {
+    action:           'JEC_SIFTING',
+    jecInputs:        jecInputs.map(a => [...a]),
+    jecWordFrequency: { ...jecWordFrequency },
+    jecDisplayWords:  { ...jecDisplayWords },
+    jecMergeMap:      { ...jecMergeMap },
+    // Every accumulator at its reset value, explicitly. All-'' and all--1 are the
+    // exact shapes Firebase erases; sending them is half the fix, rebuilding them
+    // on receipt is the other half.
+    jecCrutches:      [...jecCrutches],
+    jecSignatures:    [...jecSignatures],
+    jecFusionNames:   [...jecFusionNames],
+  }});
+  mpUnlockSync();
+  jecStartSifting();
 }
 
 function jecStartSifting() {
