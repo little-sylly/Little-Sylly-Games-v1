@@ -250,6 +250,20 @@ function makeDevice(name, mode, myIdx, slots) {
     '    }};',
     '  },',
     '  reroll() { jecReroll(); },',
+    '  // Fills the REAL prep inputs and calls the REAL jecSubmitIngredients. A copy',
+    '  // of the validation rules here would only ever test the copy.',
+    '  tryPrep(o) {',
+    '    const set = (id, v) => { document.getElementById(id).value = v; };',
+    "    set('jec-prep-ingredient-1', o.ingredients[0]);",
+    "    set('jec-prep-ingredient-2', o.ingredients[1]);",
+    "    set('jec-prep-ingredient-3', o.ingredients[2]);",
+    "    set('jec-prep-crutch',      o.crutch     === undefined ? '' : o.crutch);",
+    "    set('jec-prep-fusion-name', o.fusionName === undefined ? '' : o.fusionName);",
+    "    document.getElementById('jec-prep-error').textContent = '';",
+    '    jecPrepSignatureIdx = o.signatureIdx === undefined ? -1 : o.signatureIdx;',
+    '    jecSubmitIngredients();',
+    "    return document.getElementById('jec-prep-error').textContent;",
+    '  },',
     '  forceSignatures(a) { jecSignatures = [...a]; },',
     '  rebroadcastSifting() { jecHostResolveSifting(); },',
     '  handle(env) { jecHandleEnvelope(env); },',
@@ -268,6 +282,10 @@ function makeDevice(name, mode, myIdx, slots) {
     __hostSubmitOwn: o => J.hostSubmitOwn(o),
     __buildPrep: (idx, o) => J.buildPrep(idx, o),
     __reroll: () => J.reroll(),
+    // A client that clears validation SENDS. Reading the error line alone would not
+    // separate pass from fail — on success the same element carries the waiting text.
+    __tryPrep: o => { const before = sent.length; const err = J.tryPrep(o);
+                      return { ok: sent.length > before, err }; },
     __forceSignatures: a => J.forceSignatures(a),
     __rebroadcastSifting: () => { sent.length = 0; J.rebroadcastSifting(); return sent.find(e => e.payload.action === 'JEC_SIFTING'); },
     __handle: env => J.handle(env),
@@ -445,6 +463,64 @@ check('client took new word2',      client.__state().word2,       host.__state()
 check('client took new instruction',client.__state().instruction, host.__state().instruction);
 check('client moved off the old Order', client.__state().word !== beforeWord, true);
 check('no throw on reroll',         client.__errors, []);
+
+// ── § 6 The prep gate: what jecSubmitIngredients refuses ──────────────────────
+// Serve it Up! is disabled until every field is PRESENT, so these are the
+// semantic refusals a filled-in screen can still hit, plus the two fields the
+// rework adds to the packet.
+client.__seat({ players: 3, golden: 30, instructions: false, fusion: false, specials: false });
+client.__startRound();
+client.__clearSent();
+
+check('valid prep accepted', client.__tryPrep({
+  ingredients: ['cheese', 'ham', 'basil'], crutch: 'tomato', signatureIdx: 0, fusionName: '' }).ok, true);
+// The Crutch is a read of the TABLE. Calling your own ingredient is not one.
+check('self-crutch rejected', client.__tryPrep({
+  ingredients: ['cheese', 'ham', 'basil'], crutch: 'cheese', signatureIdx: 0, fusionName: '' }).ok, false);
+// Compared through normaliseWord, not string equality - 'basils' is still your
+// basil. (The stemmer is crude: it strips -s/-es/-ies and nothing else, so
+// 'cheese'/'cheeses' do NOT collapse. Pick a pair that actually does.)
+check('self-crutch caught after normalising', client.__tryPrep({
+  ingredients: ['cheese', 'ham', 'basil'], crutch: 'basils', signatureIdx: 0, fusionName: '' }).ok, false);
+// Nomination is mandatory: no default, no silent fallback to slot 0.
+check('missing signature rejected', client.__tryPrep({
+  ingredients: ['cheese', 'ham', 'basil'], crutch: 'tomato', signatureIdx: -1, fusionName: '' }).ok, false);
+check('signature 0 is a real nomination', client.__tryPrep({
+  ingredients: ['cheese', 'ham', 'basil'], crutch: 'tomato', signatureIdx: 0, fusionName: '' }).ok, true);
+check('missing crutch rejected', client.__tryPrep({
+  ingredients: ['cheese', 'ham', 'basil'], crutch: '', signatureIdx: 1, fusionName: '' }).ok, false);
+check('duplicate ingredients rejected', client.__tryPrep({
+  ingredients: ['cheese', 'basil', 'basils'], crutch: 'tomato', signatureIdx: 0, fusionName: '' }).ok, false);
+// In standard play the name is neither asked for nor sent - but it is sent as '',
+// never omitted, or the field is erased in flight and arrives undefined.
+check('standard prep carries an empty name',
+  client.__lastSent('JEC_PREP_SUBMIT').payload.fusionName, '');
+
+// Fusion: the name is mandatory, and it rides the SAME packet as the prep, which
+// is what keeps the mode at +0 handoffs.
+client.__seat({ players: 3, golden: 30, instructions: false, fusion: true, specials: false });
+client.__startRound();
+client.__clearSent();
+check('fusion requires a name', client.__tryPrep({
+  ingredients: ['cheese', 'ham', 'basil'], crutch: 'tomato', signatureIdx: 0, fusionName: '' }).ok, false);
+check('fusion prep with a name accepted', client.__tryPrep({
+  ingredients: ['cheese', 'ham', 'basil'], crutch: 'tomato', signatureIdx: 2, fusionName: 'Pav Roll' }).ok, true);
+const prep = client.__lastSent('JEC_PREP_SUBMIT');
+check('crutch rides the prep packet',    prep.payload.crutch,       'tomato');
+check('signature rides the prep packet', prep.payload.signatureIdx, 2);
+check('name rides the prep packet',      prep.payload.fusionName,   'Pav Roll');
+check('no poison field on the wire',     'poison' in prep.payload,  false);
+
+// And it lands. The client's own state proving the fields were set says nothing
+// about what the host will hold when it scores.
+host.__seat({ players: 3, golden: 30, instructions: false, fusion: true, specials: false });
+host.__startRound();
+const hostErrsBefore = host.__errors.length;
+deliver(client, host, prep);
+check('host stored the crutch',     host.__state().crutches[1],   'tomato');
+check('host stored the signature',  host.__state().signatures[1], 2);
+check('host stored the fused name', host.__state().names[1],      'Pav Roll');
+check('no throw on prep delivery',  host.__errors.length,         hostErrsBefore);
 
 console.log('\njec-loopback: ' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);

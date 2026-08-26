@@ -441,61 +441,106 @@ function jecStartPlayerPrep(idx) {
   document.getElementById('jec-prep-order-word').textContent  = jecCurrentWord.toUpperCase();
   document.getElementById('jec-prep-chef-name').textContent   = `${name}'s Prep 🧑‍🍳`;
   document.getElementById('jec-prep-round-label').textContent = `Course ${jecRound} of ${jecRounds}`;
-  document.getElementById('jec-prep-ingredient-1').value = '';
-  document.getElementById('jec-prep-ingredient-2').value = '';
-  document.getElementById('jec-prep-ingredient-3').value = '';
+
+  // The Order header mirrors the Order screen's shape, from the same two pieces
+  // of state — a Chef reading their prep sees exactly what the table just read.
+  const isFusion = jecFusionCuisine && !!jecCurrentWord2;
+  const plus  = document.getElementById('jec-prep-order-plus');
+  const word2 = document.getElementById('jec-prep-order-word2');
+  plus.style.display  = isFusion ? '' : 'none';
+  word2.style.display = isFusion ? '' : 'none';
+  if (isFusion) word2.textContent = jecCurrentWord2.toUpperCase();
+
+  const instr = document.getElementById('jec-prep-instruction');
+  instr.style.display = jecInstruction ? '' : 'none';
+  instr.textContent   = jecInstruction;
+
+  ['1', '2', '3'].forEach(n => { document.getElementById(`jec-prep-ingredient-${n}`).value = ''; });
+  document.getElementById('jec-prep-crutch').value = '';
+  document.getElementById('jec-prep-fusion-name').value = '';
+  document.getElementById('jec-prep-fusion-section').style.display = isFusion ? '' : 'none';
   document.getElementById('jec-prep-error').textContent = '';
-  const ing1       = document.getElementById('jec-prep-ingredient-1');
-  const knSection  = document.getElementById('jec-prep-kn-section');
-  const knSubtitle = document.getElementById('jec-prep-kn-subtitle');
-  if (jecFusionCuisine) {
-    ing1.className   = 'w-full rounded-xl border-2 border-amber-400 bg-amber-50 px-4 py-3 text-base text-stone-800 placeholder-stone-300 focus:border-amber-500 focus:outline-none transition-colors';
-    ing1.placeholder = '🌟 Signature Dish';
-    document.getElementById('jec-prep-poison').value = '';
-    knSection.style.display  = '';
-    knSubtitle.style.display = '';
-  } else {
-    ing1.className   = 'w-full rounded-xl border-2 border-stone-200 bg-white px-4 py-3 text-base text-stone-800 placeholder-stone-300 focus:border-amber-400 focus:outline-none transition-colors';
-    ing1.placeholder = 'Ingredient 1';
-    knSection.style.display  = 'none';
-    knSubtitle.style.display = 'none';
-  }
+
+  jecSetPrepSignature(-1);
+
   document.getElementById('jec-prep-phase').style.display = '';
   document.getElementById('jec-pass-gate').style.display  = 'none';
   showScreen('screen-jec-prep');
 }
 
+// The Signature tap. Nomination is MANDATORY — there is no default, because a
+// default is not a decision, and this is the game's first genuine trade-off:
+// back the word you're confident about, or gamble the double on the weird one.
+function jecSetPrepSignature(idx) {
+  jecPrepSignatureIdx = idx;
+  document.querySelectorAll('[data-jec-sig]').forEach(b => {
+    const on = parseInt(b.dataset.jecSig, 10) === idx;
+    b.className = `jec-sig-btn min-h-11 min-w-11 shrink-0 rounded-xl text-lg active:scale-95 ${on ? 'jec-sig-btn-on' : 'bg-stone-100'}`;
+    b.setAttribute('aria-pressed', on ? 'true' : 'false');
+  });
+  jecUpdateServeState();
+}
+
+// Serve it Up! is blocked until every required field is PRESENT — the Signature
+// tap gated exactly as the three ingredients are. Presence only: the semantic
+// checks (duplicate ingredients, a Crutch that is one of your own) stay in
+// jecSubmitIngredients, where they can say what is actually wrong.
+function jecUpdateServeState() {
+  const vals   = ['1', '2', '3'].map(n => document.getElementById(`jec-prep-ingredient-${n}`).value.trim());
+  const crutch = document.getElementById('jec-prep-crutch').value.trim();
+  const name   = document.getElementById('jec-prep-fusion-name').value.trim();
+  const isFusion = jecFusionCuisine && !!jecCurrentWord2;
+  const ok = vals.every(Boolean) && jecPrepSignatureIdx >= 0 && !!crutch && (!isFusion || !!name);
+  const btn = document.getElementById('btn-jec-serve');
+  btn.disabled = !ok;
+  btn.style.opacity = ok ? '' : '0.5';
+}
+
 function jecSubmitIngredients() {
-  const v1  = document.getElementById('jec-prep-ingredient-1').value.trim();
-  const v2  = document.getElementById('jec-prep-ingredient-2').value.trim();
-  const v3  = document.getElementById('jec-prep-ingredient-3').value.trim();
-  const err = document.getElementById('jec-prep-error');
-  if (!v1 || !v2 || !v3) {
-    err.textContent = 'Add all 3 ingredients before serving!';
-    return;
+  const v = ['1', '2', '3'].map(n => document.getElementById(`jec-prep-ingredient-${n}`).value.trim());
+  const crutch   = document.getElementById('jec-prep-crutch').value.trim();
+  const isFusion = jecFusionCuisine && !!jecCurrentWord2;
+  const name     = isFusion ? document.getElementById('jec-prep-fusion-name').value.trim() : '';
+  const err      = document.getElementById('jec-prep-error');
+
+  if (!v.every(Boolean))       { err.textContent = 'Add all 3 ingredients before serving!'; return; }
+  const norms = v.map(x => normaliseWord(x));
+  if (new Set(norms).size < 3) { err.textContent = "You've already prepped that! Try a different ingredient. 🤔"; return; }
+  if (jecPrepSignatureIdx < 0) { err.textContent = 'Tap the ⭐ on your Signature Dish first!'; return; }
+  if (!crutch)                 { err.textContent = 'Call the Crutch before you serve!'; return; }
+  // Same validation the Poison Word had, for the same reason: calling your own
+  // ingredient is not a read of the table.
+  if (norms.includes(normaliseWord(crutch))) {
+    err.textContent = "That's one of your own — call something you didn't write. 📣"; return;
   }
-  const norms = [v1, v2, v3].map(v => normaliseWord(v));
-  if (new Set(norms).size < 3) {
-    err.textContent = "You've already prepped that! Try a different ingredient. 🤔";
-    return;
-  }
-  jecInputs[jecCurrentPlayerIdx] = [v1, v2, v3];
+  if (isFusion && !name)       { err.textContent = 'Give the dish a name before you serve!'; return; }
+
+  const idx = window.syllyMultiplayerMode !== 'single' ? mpMyPlayerIdx : jecCurrentPlayerIdx;
+  jecInputs[idx]      = v;
+  jecCrutches[idx]    = crutch;
+  jecSignatures[idx]  = jecPrepSignatureIdx;
+  jecFusionNames[idx] = name;
 
   if (window.syllyMultiplayerMode !== 'single') {
     // Lobby Mode: freeze local prep screen
     mpLockSync();
     document.getElementById('btn-jec-serve').classList.add('opacity-50', 'pointer-events-none');
-    document.getElementById('jec-prep-error').textContent = 'Ingredients submitted — waiting for the other chefs…';
+    err.textContent = 'Ingredients submitted — waiting for the other chefs…';
     if (window.syllyMultiplayerMode === 'host') {
-      // Host processes directly — self-sent envelopes are deduplicated/ignored by engine-multiplayer.js
-      jecInputs[mpMyPlayerIdx] = [v1, v2, v3];
+      // The host processes its OWN submission directly. mpHandleEnvelope drops
+      // every envelope where originId === syllyDeviceUid, so a host that sent
+      // itself an ACTION would never have its slot set and the round would hang.
+      // That is bug J1, and it applies identically to the vote matrix.
       jecMpReadyCheck[mpMyPlayerIdx] = true;
       if (jecMpReadyCheck.every(Boolean)) jecHostResolveSifting();
     } else {
       mpSendEnvelope({ type: 'ACTION', payload: {
-        action:      'JEC_PREP_SUBMIT',
-        playerIdx:   mpMyPlayerIdx,
-        ingredients: [v1, v2, v3],
+        action:       'JEC_PREP_SUBMIT',
+        playerIdx:    mpMyPlayerIdx,
+        ingredients:  v,
+        crutch,                                  // '' is impossible here — validated above
+        signatureIdx: jecPrepSignatureIdx,       // 0 is a legitimate value and survives the wire
+        fusionName:   name,                      // '' when not Fusion, never null
       }});
     }
     return;
@@ -508,13 +553,9 @@ function jecSubmitIngredients() {
     document.getElementById('jec-pass-gate').style.display  = '';
     jecCurrentPlayerIdx = nextIdx;
   } else {
-    jecAfterAllPlayersSubmit();
+    jecBuildFrequency();
+    jecStartSifting();
   }
-}
-
-function jecAfterAllPlayersSubmit() {
-  jecBuildFrequency();
-  jecStartSifting();
 }
 
 // ── JEC Sifting ───────────────────────────────────────────────────────────────
@@ -1044,6 +1085,18 @@ document.getElementById('btn-jec-prep-exit').addEventListener('click', () => {
 document.getElementById('btn-jec-serve').addEventListener('click', () => {
   playSuccess();
   jecSubmitIngredients();
+});
+
+document.querySelectorAll('[data-jec-sig]').forEach(btn => btn.addEventListener('click', () => {
+  playPillClick();
+  jecSetPrepSignature(parseInt(btn.dataset.jecSig, 10));
+}));
+
+// Every field the Serve gate reads has to repaint it, or the CTA stays greyed
+// out while the screen looks complete.
+['jec-prep-ingredient-1', 'jec-prep-ingredient-2', 'jec-prep-ingredient-3',
+ 'jec-prep-crutch', 'jec-prep-fusion-name'].forEach(id => {
+  document.getElementById(id).addEventListener('input', jecUpdateServeState);
 });
 
 document.getElementById('btn-jec-pass-gate-ready').addEventListener('click', () => {

@@ -2348,26 +2348,52 @@ Let's Cook!
       <div class="w-full text-center">
         <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest">Today's Order 🧾</p>
         <h2 id="jec-prep-order-word" class="text-3xl font-bold text-amber-500 uppercase tracking-wide mt-1"></h2>
+        <!-- Fusion Cuisine: the second Order. Hidden entirely in standard play. -->
+        <p id="jec-prep-order-plus" style="display:none" class="text-xl font-bold text-amber-400">+</p>
+        <h2 id="jec-prep-order-word2" style="display:none" class="text-3xl font-bold text-amber-500 uppercase tracking-wide"></h2>
+        <!-- Special Instructions: one modifier per Order, never stacked. -->
+        <p id="jec-prep-instruction" style="display:none" class="text-stone-600 text-sm italic mt-2"></p>
       </div>
       <div class="w-full">
         <p class="text-stone-500 text-sm font-semibold mb-1">Prep your Ingredients!</p>
-        <p id="jec-prep-kn-subtitle" style="display:none" class="text-purple-500 text-xs font-semibold mb-3">Kitchen Nightmares 🌶️ — Ingredient 1 is your Signature Dish</p>
-        <h2 id="jec-prep-chef-name" class="text-xl font-bold text-stone-800 mb-3"></h2>
+        <h2 id="jec-prep-chef-name" class="text-xl font-bold text-stone-800 mb-1"></h2>
+        <p class="text-stone-400 text-xs mb-3">Tap the ⭐ on the one you're backing — your Signature Dish scores double if it lands.</p>
         <div class="flex flex-col gap-3 w-full">
-          <input type="text" maxlength="30" placeholder="Ingredient 1" id="jec-prep-ingredient-1" autocomplete="off"
-            class="w-full rounded-xl border-2 border-stone-200 bg-white px-4 py-3 text-base text-stone-800 placeholder-stone-300 focus:border-amber-400 focus:outline-none transition-colors" />
-          <input type="text" maxlength="30" placeholder="Ingredient 2" id="jec-prep-ingredient-2" autocomplete="off"
-            class="w-full rounded-xl border-2 border-stone-200 bg-white px-4 py-3 text-base text-stone-800 placeholder-stone-300 focus:border-amber-400 focus:outline-none transition-colors" />
-          <input type="text" maxlength="30" placeholder="Ingredient 3" id="jec-prep-ingredient-3" autocomplete="off"
-            class="w-full rounded-xl border-2 border-stone-200 bg-white px-4 py-3 text-base text-stone-800 placeholder-stone-300 focus:border-amber-400 focus:outline-none transition-colors" />
+          <div class="flex items-center gap-2">
+            <input type="text" maxlength="30" placeholder="Ingredient 1" id="jec-prep-ingredient-1" autocomplete="off"
+              class="flex-1 min-w-0 rounded-xl border-2 border-stone-200 bg-white px-4 py-3 text-base text-stone-800 placeholder-stone-300 focus:border-amber-400 focus:outline-none transition-colors" />
+            <button id="jec-prep-sig-1" data-jec-sig="0" aria-pressed="false" aria-label="Nominate ingredient 1 as your Signature Dish"
+              class="jec-sig-btn min-h-11 min-w-11 shrink-0 rounded-xl bg-stone-100 text-lg active:scale-95">⭐</button>
+          </div>
+          <div class="flex items-center gap-2">
+            <input type="text" maxlength="30" placeholder="Ingredient 2" id="jec-prep-ingredient-2" autocomplete="off"
+              class="flex-1 min-w-0 rounded-xl border-2 border-stone-200 bg-white px-4 py-3 text-base text-stone-800 placeholder-stone-300 focus:border-amber-400 focus:outline-none transition-colors" />
+            <button id="jec-prep-sig-2" data-jec-sig="1" aria-pressed="false" aria-label="Nominate ingredient 2 as your Signature Dish"
+              class="jec-sig-btn min-h-11 min-w-11 shrink-0 rounded-xl bg-stone-100 text-lg active:scale-95">⭐</button>
+          </div>
+          <div class="flex items-center gap-2">
+            <input type="text" maxlength="30" placeholder="Ingredient 3" id="jec-prep-ingredient-3" autocomplete="off"
+              class="flex-1 min-w-0 rounded-xl border-2 border-stone-200 bg-white px-4 py-3 text-base text-stone-800 placeholder-stone-300 focus:border-amber-400 focus:outline-none transition-colors" />
+            <button id="jec-prep-sig-3" data-jec-sig="2" aria-pressed="false" aria-label="Nominate ingredient 3 as your Signature Dish"
+              class="jec-sig-btn min-h-11 min-w-11 shrink-0 rounded-xl bg-stone-100 text-lg active:scale-95">⭐</button>
+          </div>
         </div>
       </div>
-      <!-- Kitchen Nightmares: poison input (shown when Sylly Mode is ON) -->
-      <div id="jec-prep-kn-section" style="display:none" class="w-full flex flex-col gap-2">
-        <p class="text-stone-500 text-sm font-semibold">Add a dash of Sabotage — your Poison Word:</p>
-        <input type="text" maxlength="30" placeholder="Add a dash of Sabotage…" id="jec-prep-poison" autocomplete="off"
-          class="w-full rounded-xl border-2 border-purple-300 bg-white px-4 py-3 text-base text-stone-800 placeholder-stone-300 focus:border-purple-500 focus:outline-none transition-colors" />
-        <p class="text-purple-400 text-xs">This word will Spoil any matching ingredient in the pot.</p>
+
+      <!-- The Crutch — always on in standard play; it is not a setting. -->
+      <div id="jec-prep-crutch-section" class="w-full flex flex-col gap-2">
+        <p class="text-stone-500 text-sm font-semibold">Call the Crutch</p>
+        <input type="text" maxlength="30" placeholder="The one everyone leans on…" id="jec-prep-crutch" autocomplete="off"
+          class="w-full rounded-xl border-2 border-amber-300 bg-white px-4 py-3 text-base text-stone-800 placeholder-stone-300 focus:border-amber-500 focus:outline-none transition-colors" />
+        <p class="text-stone-400 text-xs">Every kitchen has one. Call the culinary cliché everyone leans on.</p>
+      </div>
+
+      <!-- Fusion Cuisine — Name the Dish, folded into the same pass as the prep. -->
+      <div id="jec-prep-fusion-section" style="display:none" class="w-full flex flex-col gap-2">
+        <p class="text-stone-500 text-sm font-semibold">Name the Dish</p>
+        <input type="text" maxlength="40" placeholder="What are we calling this?" id="jec-prep-fusion-name" autocomplete="off"
+          class="w-full rounded-xl border-2 border-amber-300 bg-white px-4 py-3 text-base text-stone-800 placeholder-stone-300 focus:border-amber-500 focus:outline-none transition-colors" />
+        <p class="text-stone-400 text-xs">Best name gets voted On the Menu — and takes half a jackpot.</p>
       </div>
       <p id="jec-prep-error" class="text-pink-500 text-sm font-semibold text-center w-full min-h-5"></p>
       <button id="btn-jec-serve" class="btn-mp-action min-h-14 w-full rounded-2xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
