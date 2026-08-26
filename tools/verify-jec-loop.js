@@ -106,7 +106,10 @@ globalThis.__jec = {
   get count()      { return jecPlayerCount; },
   get golden()     { return jecGoldenScore; },
   points(c, n)     { return jecCalcPoints(c, n); },
-  badge(c, n) { return jecBadge(c, n); },
+  badge(c, n)  { return jecBadge(c, n); },
+  topCount()   { return jecTopCount(); },
+  crutchHit(p) { return jecCrutchHit(p); },
+  norm(w)      { return normaliseWord(w); },
   isGolden(k) { return jecIsGolden(k); },
   last()      { return globalThis.__jecLast; },
   // Drives one complete round through the SHIPPED functions: seats the table,
@@ -242,6 +245,104 @@ J.round({
   signatures: [-1, -1, -1],
 });
 check('unset signature is inert', J.last().bonus[0].signature, 0);
+
+// ── § 3 The Crutch ────────────────────────────────────────────────────────────
+// Pays jecBonusValue() when the called word is at the round's TOP count AND
+// that count is >= 3. Ties all pay. A miss costs nothing.
+
+// 4 Chefs. cheese appears 3x (top count 3, >= 3). Chef 3 called it.
+J.round({
+  players: 4, golden: 30,
+  inputs: [['cheese', 'a1', 'a2'], ['cheese', 'b1', 'b2'],
+           ['cheese', 'c1', 'c2'], ['d0', 'd1', 'd2']],
+  crutches: ['', '', '', 'cheese'],
+});
+check('top count is 3',        J.topCount(), 3);
+check('crutch hit at top >=3', J.crutchHit(3), true);
+check('crutch pays half',      J.last().bonus[3].crutch, 15);
+check('non-caller gets none',  J.last().bonus[0].crutch, 0);
+
+// Top count of 2 is NOT enough — the >= 3 floor is what stops a 3-player table
+// paying out on every ordinary Chef's Kiss.
+J.round({
+  players: 4, golden: 30,
+  inputs: [['cheese', 'a1', 'a2'], ['cheese', 'b1', 'b2'],
+           ['c0', 'c1', 'c2'], ['d0', 'd1', 'd2']],
+  crutches: ['', '', '', 'cheese'],
+});
+check('top count 2 is a miss', J.crutchHit(3), false);
+check('miss pays nothing',     J.last().bonus[3].crutch, 0);
+
+// A correct word that is NOT at top count is a miss.
+J.round({
+  players: 5, golden: 30,
+  inputs: [['cheese', 'ham', 'a2'], ['cheese', 'ham', 'b2'], ['cheese', 'ham', 'c2'],
+           ['cheese', 'd1', 'd2'],  ['ham', 'e1', 'e2']],
+  crutches: ['', '', '', '', 'ham'],   // ham = 4, cheese = 4 -> tie at top
+});
+check('tie at top: both pay', J.crutchHit(4), true);
+
+// Ties all pay: two Chefs calling two DIFFERENT words that share the top count.
+J.round({
+  players: 6, golden: 20,
+  inputs: [['cheese', 'ham', 'a2'], ['cheese', 'ham', 'b2'], ['cheese', 'ham', 'c2'],
+           ['d0', 'd1', 'd2'], ['e0', 'e1', 'e2'], ['f0', 'f1', 'f2']],
+  crutches: ['', '', '', 'cheese', 'ham', 'sardine'],
+});
+check('tie payer A', J.last().bonus[3].crutch, 10);
+check('tie payer B', J.last().bonus[4].crutch, 10);
+check('tie misser',  J.last().bonus[5].crutch, 0);
+
+// THE INVARIANT: the Crutch must never enter the frequency pool.
+// If it did, "cheese" below would read 3 (2 written + 1 called) and every Chef
+// who wrote it would drop from Chef's Kiss to Crowd-Pleaser.
+J.round({
+  players: 4, golden: 30,
+  inputs: [['cheese', 'a1', 'a2'], ['cheese', 'b1', 'b2'],
+           ['c0', 'c1', 'c2'], ['d0', 'd1', 'd2']],
+  crutches: ['', '', 'cheese', 'cheese'],
+});
+check('crutch is not in the pool',  J.freq[J.norm('cheese')], 2);
+check('crutch cannot manufacture',  J.last().roundScores[0], 30);   // still a Chef's Kiss
+
+// A Crutch word nobody wrote does not appear in the pool at all.
+J.round({
+  players: 3, golden: 30,
+  inputs: [['a0', 'a1', 'a2'], ['b0', 'b1', 'b2'], ['c0', 'c1', 'c2']],
+  crutches: ['vegemite', '', ''],
+});
+check('uncalled crutch word absent', J.freq[J.norm('vegemite')], undefined);
+
+// The Crutch resolves THROUGH the merge map, exactly as an ingredient does.
+// "tomatoe" is merged into "tomato"; a Crutch calling "tomatoe" must still hit.
+J.round({
+  players: 4, golden: 30,
+  inputs: [['tomato', 'a1', 'a2'], ['tomato', 'b1', 'b2'],
+           ['tomatoe', 'c1', 'c2'], ['d0', 'd1', 'd2']],
+  merges: [['tomato', 'tomatoe']],
+  crutches: ['', '', '', 'tomatoe'],
+});
+check('merged pool count',      J.freq[J.norm('tomato')], 3);
+check('crutch follows a merge', J.crutchHit(3), true);
+
+// Merging TWO Crutch-only words (neither in the pool) is a no-op, not a throw.
+J.round({
+  players: 3, golden: 30,
+  inputs: [['a0', 'a1', 'a2'], ['b0', 'b1', 'b2'], ['c0', 'c1', 'c2']],
+  merges: [['vegemite', 'vegimite']],
+  crutches: ['vegemite', '', ''],
+});
+check('crutch-only merge is inert', J.crutchHit(0), false);
+
+// An empty Crutch (a Chef who did not call, or a dropped packet) never hits.
+J.round({
+  players: 4, golden: 30,
+  inputs: [['cheese', 'a1', 'a2'], ['cheese', 'b1', 'b2'],
+           ['cheese', 'c1', 'c2'], ['d0', 'd1', 'd2']],
+  crutches: ['', '', '', ''],
+});
+check('empty crutch never hits', J.crutchHit(0), false);
+check('empty crutch pays zero',  J.last().bonus[0].crutch, 0);
 
 console.log('\njec-loop: ' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);

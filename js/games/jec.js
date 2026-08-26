@@ -395,6 +395,10 @@ function jecBuildFrequency() {
   jecDisplayWords  = {};
   jecMergeMap      = {};
   jecOversightSelected = null;
+  // ONLY jecInputs. The Crutch is a prediction, not a submission — a Crutch that
+  // counted would let a Chef manufacture a Crowd-Pleaser for themselves, and at a
+  // 3-player table it is the difference between a jackpot and a token for every
+  // Chef who wrote that word. Never add another source to this loop.
   jecInputs.flat().forEach(raw => {
     const trimmed = raw.trim();
     if (!trimmed) return;
@@ -439,6 +443,25 @@ function jecResolveNorm(raw) {
   let steps = 0;
   while (jecMergeMap[norm] && steps < 10) { norm = jecMergeMap[norm]; steps++; }
   return norm;
+}
+
+// The round's highest ingredient count. 0 when nothing was written.
+function jecTopCount() {
+  const counts = Object.values(jecWordFrequency);
+  return counts.length ? Math.max(...counts) : 0;
+}
+
+// A Crutch hits when the called word is at the round's TOP count AND that count
+// is at least 3. "Top count, >= 3 Chefs" has exactly one right-ish answer at any
+// player count, where a literal all-N target would be common at 3 Chefs and rare
+// at 6. It also gives Too Many Cooks a purpose it has never had: one Chef is
+// hunting the very thing everyone else is avoiding.
+function jecCrutchHit(p) {
+  const raw = (jecCrutches[p] || '').trim();
+  if (!raw) return false;
+  const top = jecTopCount();
+  if (top < 3) return false;
+  return (jecWordFrequency[jecResolveNorm(raw)] || 0) === top;
 }
 
 function jecStartSifting() {
@@ -534,10 +557,12 @@ function jecHandleOversightTap(norm) {
 }
 
 function jecApplyMerge(normA, normB) {
-  // If normA is not an ingredient at all, swap so the ingredient wins
+  if (normA === normB) return;
+  // If normA is not an ingredient but normB is, swap so the ingredient survives.
   if (!jecWordFrequency[normA] && jecWordFrequency[normB]) { [normA, normB] = [normB, normA]; }
-  // If neither is in the freq map, nothing to merge
-  if (!jecWordFrequency[normA] && !jecWordFrequency[normB]) return;
+  // Neither is in the pool — both are Crutch-only words. Record the mapping so a
+  // Crutch calling the losing spelling still resolves, but touch no counts.
+  if (!jecWordFrequency[normA] && !jecWordFrequency[normB]) { jecMergeMap[normB] = normA; return; }
   jecWordFrequency[normA] = (jecWordFrequency[normA] || 0) + (jecWordFrequency[normB] || 0);
   jecMergeMap[normB]      = normA;
   jecDisplayWords[normA]  = `${jecDisplayWords[normA] || normA} / ${jecDisplayWords[normB] || normB}`;
@@ -584,6 +609,12 @@ function jecCalcRoundScores() {
         roundScores[p]     += pts;
         bonus[p].signature += pts;
       }
+    }
+
+    if (jecCrutchHit(p)) {
+      const b = jecBonusValue();
+      roundScores[p]  += b;
+      bonus[p].crutch  = b;
     }
   }
 
