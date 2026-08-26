@@ -94,6 +94,33 @@ function jecDrawInstruction() {
   jecInstruction = jecInstructionDeck.pop();
 }
 
+// Draws Today's Order — two of them in Fusion Cuisine. Refills the pool from the
+// active source (Secret Mode expansion words, else the shared food category) when
+// it runs dry. Centralised so jecStartRound and the Specials Board reroll cannot
+// drift apart.
+function jecRefillPool() {
+  if (isSecretMode && secretWords && secretWords.length) {
+    const foodWords = secretWords.filter(w => w.category === 'food').map(w => w.word);
+    jecWordPool = shuffle(foodWords.length ? foodWords : secretWords.map(w => w.word));
+  } else {
+    jecWordPool = jecBuildFoodPool(allWords);
+  }
+}
+
+function jecDrawOrders() {
+  if (!jecWordPool.length) jecRefillPool();
+  jecCurrentWord = jecWordPool.pop();
+  if (!jecFusionCuisine) { jecCurrentWord2 = ''; return; }
+  if (!jecWordPool.length) jecRefillPool();
+  jecCurrentWord2 = jecWordPool.pop();
+  // A pool of one would hand back the same word twice, and "Pizza + Pizza" is
+  // not a fusion. Refill and take a different one.
+  if (jecCurrentWord2 === jecCurrentWord) {
+    jecRefillPool();
+    jecCurrentWord2 = jecWordPool.filter(w => w !== jecCurrentWord).pop() || jecCurrentWord2;
+  }
+}
+
 // ── JEC Help tip overlay ──────────────────────────────────────────────────────
 function jecShowHelpTip(emoji, heading, tip) {
   document.getElementById('jec-help-tip-emoji').textContent   = emoji;
@@ -309,15 +336,7 @@ async function jecStartGame() {
 
 function jecStartRound() {
   jecRound++;
-  if (jecWordPool.length === 0) {
-    if (isSecretMode && secretWords && secretWords.length) {
-      const foodWords = secretWords.filter(w => w.category === 'food').map(w => w.word);
-      jecWordPool = shuffle(foodWords.length ? foodWords : secretWords.map(w => w.word));
-    } else {
-      jecWordPool = jecBuildFoodPool(allWords);
-    }
-  }
-  jecCurrentWord      = jecWordPool.pop();
+  jecDrawOrders();
   jecDrawInstruction();
   jecCurrentPlayerIdx = 0;
   jecInputs           = Array.from({ length: jecPlayerCount }, () => ['', '', '']);
@@ -630,6 +649,24 @@ function jecApplyMerge(normA, normB) {
   }
 }
 
+// Tallies the Name the Dish ballot. Ties are NOT broken — every tied name takes
+// the full bonus, because a tie means two names were both funny and a runoff
+// costs another pass for no gain.
+function jecTallyNameVotes() {
+  const votes = Array(jecPlayerCount).fill(0);
+  if (!jecFusionCuisine) { jecNameWinners = []; return { votes, winners: [], bonus: jecBonusValue() }; }
+  for (let p = 0; p < jecPlayerCount; p++) {
+    const t = jecNameVotes[p];
+    if (t === undefined || t === null || t < 0 || t >= jecPlayerCount) continue;
+    if (t === p) continue;                                   // no self-votes
+    if (!(jecFusionNames[t] || '').trim()) continue;          // not on the ballot
+    votes[t]++;
+  }
+  const top = Math.max(0, ...votes);
+  jecNameWinners = top > 0 ? votes.map((v, i) => (v === top ? i : -1)).filter(i => i >= 0) : [];
+  return { votes, winners: [...jecNameWinners], bonus: jecBonusValue() };
+}
+
 // ── JEC Round scoring ─────────────────────────────────────────────────────────
 // Returns { roundScores, bonus } — bonus[p] = { signature, crutch, name }, the
 // per-Chef breakdown The Tally renders and JEC_TALLY carries to clients.
@@ -665,6 +702,12 @@ function jecCalcRoundScores() {
       const b = jecBonusValue();
       roundScores[p]  += b;
       bonus[p].crutch  = b;
+    }
+
+    if (jecFusionCuisine && jecNameWinners.includes(p)) {
+      const b = jecBonusValue();
+      roundScores[p] += b;
+      bonus[p].name   = b;
     }
   }
 
@@ -908,15 +951,7 @@ document.getElementById('btn-jec-order-start').addEventListener('click', () => {
 
 document.getElementById('btn-jec-reroll').addEventListener('click', () => {
   playWhoosh();
-  if (jecWordPool.length === 0) {
-    if (isSecretMode && secretWords && secretWords.length) {
-      const foodWords = secretWords.filter(w => w.category === 'food').map(w => w.word);
-      jecWordPool = shuffle(foodWords.length ? foodWords : secretWords.map(w => w.word));
-    } else {
-      jecWordPool = jecBuildFoodPool(allWords);
-    }
-  }
-  jecCurrentWord = jecWordPool.pop();
+  jecDrawOrders();
   jecDrawInstruction();
   document.getElementById('jec-order-word').textContent = jecCurrentWord.toUpperCase();
 });

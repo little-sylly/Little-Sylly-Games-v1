@@ -116,6 +116,13 @@ globalThis.__jec = {
   setInstrOn(v)      { jecSpecialInstructions = !!v; },
   resetInstrDeck()   { jecInstructionDeck = []; },
   drawInstruction()  { jecDrawInstruction(); return jecInstruction; },
+  get word()     { return jecCurrentWord; },
+  get word2()    { return jecCurrentWord2; },
+  get winners()  { return jecNameWinners; },
+  setFusion(v)   { jecFusionCuisine = !!v; },
+  drawOrders()   { jecDrawOrders(); return [jecCurrentWord, jecCurrentWord2]; },
+  tallyNames()   { return jecTallyNameVotes(); },
+  resetPool()    { jecWordPool = jecBuildFoodPool(allWords); },
   isGolden(k) { return jecIsGolden(k); },
   last()      { return globalThis.__jecLast; },
   // Drives one complete round through the SHIPPED functions: seats the table,
@@ -140,6 +147,7 @@ globalThis.__jec = {
     jecNameVotes   = o.votes      ? [...o.votes]      : Array(o.players).fill(-1);
     jecBuildFrequency();
     (o.merges || []).forEach(m => jecApplyMerge(normaliseWord(m[0]), normaliseWord(m[1])));
+    jecTallyNameVotes();
     globalThis.__jecLast = jecCalcRoundScores();
     return globalThis.__jecLast;
   },
@@ -380,6 +388,95 @@ check('refill is a real entry', J.allInstr.includes(refill), true);
 // line cannot survive on the Order screen.
 J.setInstrOn(false);
 check('OFF clears the live instruction', J.drawInstruction(), '');
+
+// ── § 5 Fusion Cuisine ────────────────────────────────────────────────────────
+// Two Orders drop together. "Pizza" has a guaranteed first instinct; "Sushi
+// Pizza" does not - which is what makes the 2-match sweet spot reachable by
+// thought rather than luck.
+J.seat({ players: 4, golden: 30 });
+J.setFusion(false);
+J.resetPool();
+check('standard draws one order', J.drawOrders()[1], '');
+
+J.setFusion(true);
+J.resetPool();
+const pair = J.drawOrders();
+check('fusion draws two orders',  pair[0] !== '' && pair[1] !== '', true);
+check('fusion orders differ',     pair[0] !== pair[1], true);
+
+// Fusion is standard mode PLUS two additions - the tier table is untouched.
+check('fusion tier table unchanged', J.points(2, 4), 30);
+
+// Name vote: most votes wins half a jackpot.
+J.round({
+  players: 4, golden: 30, fusion: true, word: 'sushi', word2: 'pizza',
+  inputs: [['a0','a1','a2'], ['b0','b1','b2'], ['c0','c1','c2'], ['d0','d1','d2']],
+  names: ['Sushizza', 'Pizushi', 'Rice Pie', 'Wet Bread'],
+  votes: [1, 0, 0, 0],          // Chef 0 -> 1; Chefs 1,2,3 -> 0
+});
+let r = J.tallyNames();
+check('vote tally',      r.votes,   [3, 1, 0, 0]);
+check('single winner',   r.winners, [0]);
+check('winner bonus',    r.bonus,   15);
+
+// A Chef cannot vote for their own name. A self-vote is rejected outright rather
+// than silently counted - the ballot renders it disabled, so a self-vote here
+// only arrives from a malformed packet.
+J.round({
+  players: 3, golden: 30, fusion: true,
+  inputs: [['a0','a1','a2'], ['b0','b1','b2'], ['c0','c1','c2']],
+  names: ['Alpha', 'Bravo', 'Charlie'],
+  votes: [0, 0, 1],             // Chef 0 votes for ITSELF - must not count
+});
+r = J.tallyNames();
+check('self-vote rejected', r.votes, [1, 1, 0]);
+
+// Ties: EVERY tied name takes the FULL bonus. No tie-break - a tie means two
+// names were both funny, and a runoff costs another pass for no gain.
+J.round({
+  players: 4, golden: 20, fusion: true,
+  inputs: [['a0','a1','a2'], ['b0','b1','b2'], ['c0','c1','c2'], ['d0','d1','d2']],
+  names: ['Alpha', 'Bravo', 'Charlie', 'Delta'],
+  votes: [1, 0, 0, 1],          // Chefs 0,3 -> 1 ; Chefs 1,2 -> 0
+});
+r = J.tallyNames();
+check('tie tally',       r.votes,   [2, 2, 0, 0]);
+check('both tied win',   r.winners, [0, 1]);
+check('tied A paid',     J.last().bonus[0].name, 10);
+check('tied B paid',     J.last().bonus[1].name, 10);
+check('non-winner zero', J.last().bonus[2].name, 0);
+
+// A Chef who submitted no name is simply not on the ballot. Validation should
+// prevent this; the fallback exists for a dropped packet.
+J.round({
+  players: 3, golden: 30, fusion: true,
+  inputs: [['a0','a1','a2'], ['b0','b1','b2'], ['c0','c1','c2']],
+  names: ['Alpha', '', 'Charlie'],
+  votes: [2, 2, 0],
+});
+r = J.tallyNames();
+check('nameless chef cannot win', r.winners.includes(1), false);
+check('nameless chef zero votes', r.votes[1], 0);
+
+// Nobody voted at all (every device dropped) - no winner, no throw, no bonus.
+J.round({
+  players: 3, golden: 30, fusion: true,
+  inputs: [['a0','a1','a2'], ['b0','b1','b2'], ['c0','c1','c2']],
+  names: ['Alpha', 'Bravo', 'Charlie'],
+  votes: [-1, -1, -1],
+});
+r = J.tallyNames();
+check('no votes -> no winner', r.winners, []);
+check('no votes -> no bonus',  J.last().bonus[0].name, 0);
+
+// Standard mode never pays a name bonus even if names somehow survive in state.
+J.round({
+  players: 3, golden: 30, fusion: false,
+  inputs: [['a0','a1','a2'], ['b0','b1','b2'], ['c0','c1','c2']],
+  names: ['Alpha', 'Bravo', 'Charlie'],
+  votes: [1, 0, 0],
+});
+check('standard mode pays no name bonus', J.last().bonus[0].name, 0);
 
 console.log('\njec-loop: ' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);
