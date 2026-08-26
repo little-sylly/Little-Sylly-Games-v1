@@ -110,6 +110,12 @@ globalThis.__jec = {
   topCount()   { return jecTopCount(); },
   crutchHit(p) { return jecCrutchHit(p); },
   norm(w)      { return normaliseWord(w); },
+  get instruction()  { return jecInstruction; },
+  get instrDeck()    { return jecInstructionDeck; },
+  get allInstr()     { return JEC_INSTRUCTIONS; },
+  setInstrOn(v)      { jecSpecialInstructions = !!v; },
+  resetInstrDeck()   { jecInstructionDeck = []; },
+  drawInstruction()  { jecDrawInstruction(); return jecInstruction; },
   isGolden(k) { return jecIsGolden(k); },
   last()      { return globalThis.__jecLast; },
   // Drives one complete round through the SHIPPED functions: seats the table,
@@ -343,6 +349,37 @@ J.round({
 });
 check('empty crutch never hits', J.crutchHit(0), false);
 check('empty crutch pays zero',  J.last().bonus[0].crutch, 0);
+
+// ── § 4 Special Instructions deck ─────────────────────────────────────────────
+check('twenty instructions',   J.allInstr.length, 20);
+check('all instructions unique', new Set(J.allInstr).size, 20);
+// Every instruction is a modifier fragment, not a sentence - it renders after
+// the Order as "Pizza - ...at 3am".
+check('every instruction is an ellipsis fragment',
+  J.allInstr.every(s => s.startsWith('…')), true);
+
+// OFF is the default and draws nothing.
+J.setInstrOn(false);
+J.resetInstrDeck();
+check('OFF draws nothing', J.drawInstruction(), '');
+
+// ON pops the deck without repeating until exhaustion.
+J.setInstrOn(true);
+J.resetInstrDeck();
+const drawn = [];
+for (let i = 0; i < 20; i++) drawn.push(J.drawInstruction());
+check('20 draws, no repeat', new Set(drawn).size, 20);
+check('deck is empty after 20', J.instrDeck.length, 0);
+
+// The 21st draw refills rather than returning ''.
+const refill = J.drawInstruction();
+check('21st draw refills',      refill !== '', true);
+check('refill is a real entry', J.allInstr.includes(refill), true);
+
+// Switching the setting OFF mid-game clears the live instruction, so a stale
+// line cannot survive on the Order screen.
+J.setInstrOn(false);
+check('OFF clears the live instruction', J.drawInstruction(), '');
 
 console.log('\njec-loop: ' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);

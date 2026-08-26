@@ -46,6 +46,54 @@ let jecPrepSignatureIdx  = -1;       // the tap-selected Signature on the live p
 let jecMpReadyCheck      = [];       // Lobby Mode: which Chefs have submitted prep
 let jecMpVoteCheck       = [];       // Lobby Mode: which Chefs have submitted a name vote
 
+// ── JEC Special Instructions ──────────────────────────────────────────────────
+// A second deck that modifies Today's Order: "Pizza — …at 3am". One instruction
+// per Order; they never stack with each other.
+//
+// SELECTION CRITERION for any future addition: the instruction must CHANGE THE
+// INGREDIENT LIST. A line that is merely funny but leaves the same three answers
+// correct does not qualify — "for a picnic" and "for your fussiest mate" were
+// drafted and cut on exactly this test.
+//
+// The real motivation is accessibility, not variety. The repetition complaint is
+// only half a vocabulary problem: an instruction gives a Chef an ANGLE to think
+// from rather than requiring recipe knowledge. "$5 budget" is answerable by
+// anyone. Twenty instructions × ~100 food words ≈ 2,000 prompts.
+const JEC_INSTRUCTIONS = Object.freeze([
+  // Budget & constraint
+  '…on a $5 budget',
+  "…using only what's at the petrol station",
+  '…in one pan, ten minutes flat',
+  '…camping, no power',
+  // Occasion
+  '…for family dinner',
+  '…to impress the in-laws',
+  '…as takeaway, before a night out',
+  '…for a barbecue in 38° heat',
+  '…in a school lunchbox',
+  '…to feed twenty people',
+  // Standard
+  '…going for a Michelin star',
+  '…prepared by a five-year-old',
+  '…at 3am',
+  '…as a hangover cure',
+  // Chaos
+  "…but it's entirely beige",
+  '…but it has to be green',
+  '…but make it breakfast',
+  '…but make it dessert',
+  '…air fryer only',
+  '…spicy enough to hurt',
+]);
+
+// Pops one instruction, reshuffling a fresh deck when exhausted so a game never
+// repeats until it has seen all twenty.
+function jecDrawInstruction() {
+  if (!jecSpecialInstructions) { jecInstruction = ''; return; }
+  if (!jecInstructionDeck.length) jecInstructionDeck = shuffle([...JEC_INSTRUCTIONS]);
+  jecInstruction = jecInstructionDeck.pop();
+}
+
 // ── JEC Help tip overlay ──────────────────────────────────────────────────────
 function jecShowHelpTip(emoji, heading, tip) {
   document.getElementById('jec-help-tip-emoji').textContent   = emoji;
@@ -251,6 +299,7 @@ function jecBuildFoodPool(source) {
 async function jecStartGame() {
   await loadWords();
   jecWordPool = jecBuildFoodPool(allWords);
+  jecInstructionDeck = [];
   jecRound    = 0;
   jecScores   = Array(jecPlayerCount).fill(0);
   jecRoundLog = [];
@@ -269,6 +318,7 @@ function jecStartRound() {
     }
   }
   jecCurrentWord      = jecWordPool.pop();
+  jecDrawInstruction();
   jecCurrentPlayerIdx = 0;
   jecInputs           = Array.from({ length: jecPlayerCount }, () => ['', '', '']);
   jecMpReadyCheck     = Array(jecPlayerCount).fill(false);
@@ -867,6 +917,7 @@ document.getElementById('btn-jec-reroll').addEventListener('click', () => {
     }
   }
   jecCurrentWord = jecWordPool.pop();
+  jecDrawInstruction();
   document.getElementById('jec-order-word').textContent = jecCurrentWord.toUpperCase();
 });
 
