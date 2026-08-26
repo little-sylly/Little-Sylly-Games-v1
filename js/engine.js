@@ -32,7 +32,7 @@ const allScreens = [
   'screen-secret-terminal',
   'screen-gm-concede',
   'screen-jec-menu', 'screen-jec-roster', 'screen-jec-order',
-  'screen-jec-prep', 'screen-jec-sifting',
+  'screen-jec-prep', 'screen-jec-sifting', 'screen-jec-name-vote',
   'screen-jec-tally', 'screen-jec-washup',
   'screen-ygi-menu', 'screen-ygi-setup', 'screen-ygi-pass',
   'screen-ygi-prompt', 'screen-ygi-input', 'screen-ygi-reveal',

@@ -896,6 +896,165 @@ function jecTallyNameVotes() {
   return { votes, winners: [...jecNameWinners], bonus: jecBonusValue() };
 }
 
+// ── JEC Name the Dish (Fusion Cuisine) ───────────────────────────────────────
+// Runs AFTER The Tasting and BEFORE The Tally, so the Tally shows the round's
+// complete score including the name bonus — one score screen per round, not two.
+// No pass gate: the names are public, so there is nothing private to protect
+// and logic-engine.md § Pass-the-Phone Safety Gate does not apply.
+function jecStartNameVote() {
+  document.getElementById('jec-name-vote-round-label').textContent = `Course ${jecRound} of ${jecRounds}`;
+  document.getElementById('jec-name-vote-fusion').textContent =
+    `${jecCurrentWord.toUpperCase()} + ${jecCurrentWord2.toUpperCase()}`;
+  document.getElementById('jec-name-vote-ballot').style.display = '';
+  document.getElementById('jec-name-vote-result').style.display = 'none';
+  document.getElementById('jec-name-vote-list').classList.remove('opacity-50', 'pointer-events-none');
+  jecVoteCurrentIdx = window.syllyMultiplayerMode !== 'single' ? mpMyPlayerIdx : 0;
+  // A ballot with nothing on it can only happen if every name went missing, which
+  // validation forbids — but a hung round is a worse failure than a blank result.
+  if (!jecFusionNames.some(x => (x || '').trim())) {
+    jecTallyNameVotes();
+    showScreen('screen-jec-name-vote');
+    jecShowNameResult();
+    return;
+  }
+  jecRenderBallot(jecVoteCurrentIdx);
+  showScreen('screen-jec-name-vote');
+}
+
+// One ballot. The voter's OWN entry renders DISABLED, not hidden, so the ballot
+// reads the same for everyone — a hidden row would shift every other name up and
+// make the list length itself a tell.
+function jecRenderBallot(voterIdx) {
+  document.getElementById('jec-name-vote-heading').textContent =
+    window.syllyMultiplayerMode !== 'single'
+      ? 'Pick the best name'
+      : `${jecPlayerNames[voterIdx]}, pick the best name`;
+  const list = document.getElementById('jec-name-vote-list');
+  list.innerHTML = '';
+  for (let p = 0; p < jecPlayerCount; p++) {
+    const name = (jecFusionNames[p] || '').trim();
+    if (!name) continue;                       // not on the ballot
+    const own = p === voterIdx;
+    const btn = document.createElement('button');
+    btn.className = `btn-mp-action min-h-14 w-full rounded-2xl px-4 text-lg font-semibold transition-transform duration-100 ${
+      own ? 'bg-stone-100 text-stone-400' : 'bg-white text-stone-800 shadow-sm active:scale-95'}`;
+    btn.textContent = name;
+    btn.disabled = own;
+    if (!own) btn.addEventListener('click', () => { playPillClick(); jecCastNameVote(voterIdx, p); });
+    list.appendChild(btn);
+  }
+  document.getElementById('jec-name-vote-status').textContent = '';
+}
+
+function jecCastNameVote(voterIdx, targetIdx) {
+  if (voterIdx === targetIdx) return;          // belt and braces; the button is disabled
+  jecNameVotes[voterIdx] = targetIdx;
+
+  if (window.syllyMultiplayerMode === 'single') {
+    // Pass-the-Phone: cycle through Chefs on the one device. No pass gate — the
+    // names are public, so there is nothing private to protect.
+    jecVoteCurrentIdx++;
+    if (jecVoteCurrentIdx < jecPlayerCount) { jecRenderBallot(jecVoteCurrentIdx); return; }
+    jecTallyNameVotes();
+    jecShowNameResult();
+    return;
+  }
+
+  document.getElementById('jec-name-vote-status').textContent = 'Vote in — waiting for the other chefs…';
+  document.getElementById('jec-name-vote-list').classList.add('opacity-50', 'pointer-events-none');
+
+  if (window.syllyMultiplayerMode === 'host') {
+    // Host processes its OWN vote directly. mpHandleEnvelope drops every envelope
+    // where originId === syllyDeviceUid, so a self-sent ACTION would leave this
+    // slot false forever and the round would hang. Same shape as bug J1.
+    jecMpVoteCheck[mpMyPlayerIdx] = true;
+    jecHostCheckVotes();
+  } else {
+    mpLockSync();
+    mpSendEnvelope({ type: 'ACTION', payload: {
+      action: 'JEC_NAME_VOTE', playerIdx: mpMyPlayerIdx, votedForIdx: targetIdx,
+    }});
+  }
+}
+
+// The readiness gate. In Lobby Mode every seat is live, so a plain .every(Boolean)
+// is correct — but [].every() is TRUE, so this must never run against an empty
+// matrix. jecMpVoteCheck is set to length N in jecStartRound and in the JEC_ORDER
+// applier; the guard below is what makes that explicit.
+function jecHostCheckVotes() {
+  if (jecMpVoteCheck.length !== jecPlayerCount) return;
+  if (!jecMpVoteCheck.every(Boolean)) return;
+  const r = jecTallyNameVotes();
+  mpSendEnvelope({ type: 'SYNC', payload: {
+    action: 'JEC_NAME_RESULT',
+    votes:   [...r.votes],      // an all-0 array is a legitimate value; 0 survives
+    winners: [...r.winners],    // MAY be empty — rebuilt to [] on receipt
+    bonus:   r.bonus,
+  }});
+  mpUnlockSync();
+  jecShowNameResult();
+}
+
+function jecShowNameResult() {
+  document.getElementById('jec-name-vote-ballot').style.display = 'none';
+  document.getElementById('jec-name-vote-result').style.display = '';
+  const w   = jecNameWinners;
+  const win = document.getElementById('jec-name-vote-winner');
+  const sub = document.getElementById('jec-name-vote-winner-sub');
+  if (!w.length) {
+    win.textContent = 'No name made the menu.';
+    sub.textContent = 'Nobody voted. Back to the pans.';
+  } else if (w.length === 1) {
+    win.textContent = jecFusionNames[w[0]];
+    sub.textContent = `${jecPlayerNames[w[0]]} takes On the Menu! ⭐ — +${jecBonusValue()} pts`;
+  } else {
+    // Ties are NOT broken: every tied name takes the full bonus, because a tie
+    // means two names were both funny and a runoff costs another pass for no gain.
+    win.textContent = w.map(i => jecFusionNames[i]).join('  ·  ');
+    sub.textContent = `A dead heat — every one of them goes On the Menu! ⭐ +${jecBonusValue()} pts each`;
+  }
+  jecSetAdvanceCta('btn-jec-name-vote-next', 'The Tally');
+}
+
+// The Tasting's proceed. A real function rather than a listener body so the
+// loopback drives the SHIPPED advance, Fusion detour and J4 guard included.
+function jecAdvanceFromTasting() {
+  if (window.syllyMultiplayerMode === 'client') return;   // J4: host-gated
+  if (jecFusionCuisine && jecCurrentWord2) {
+    if (window.syllyMultiplayerMode === 'host') {
+      // Clients must be TOLD to enter the ballot, and must hold the same name
+      // list — the spec's JEC_NAME_VOTE is client→host only.
+      mpSendEnvelope({ type: 'SYNC', payload: {
+        action: 'JEC_NAME_VOTE_BEGIN',
+        jecFusionNames: [...jecFusionNames],
+      }});
+    }
+    jecStartNameVote();
+    return;
+  }
+  jecFinishRoundToTally();
+}
+
+// Shared by the standard path (straight off The Tasting) and by the Fusion
+// path (off the vote result), so the round is scored in exactly one place.
+function jecFinishRoundToTally() {
+  // jecCalcRoundScores returns { roundScores, bonus } since the Signature and
+  // Crutch landed (Tasks 2-3). The old listener passed the whole OBJECT to
+  // jecRenderTally, whose Math.max(...roundScores) then threw - a live break in
+  // every Tally that no 'single'-mode harness could see, because none of them
+  // render. The Task 11 loopback walks this path, which is how it surfaced.
+  const { roundScores } = jecCalcRoundScores();
+  if (window.syllyMultiplayerMode === 'host') {
+    mpSendEnvelope({ type: 'SYNC', payload: {
+      action: 'JEC_TALLY',
+      round: jecRound, rounds: jecRounds,
+      roundScores, scores: [...jecScores], roundLog: jecRoundLog,
+    }});
+  }
+  jecRenderTally(roundScores);
+  showScreen('screen-jec-tally');
+}
+
 // ── JEC Round scoring ─────────────────────────────────────────────────────────
 // Returns { roundScores, bonus } — bonus[p] = { signature, crutch, name }, the
 // per-Chef breakdown The Tally renders and JEC_TALLY carries to clients.
@@ -1115,24 +1274,25 @@ document.getElementById('btn-jec-check-proceed').addEventListener('click', () =>
 });
 
 document.getElementById('btn-jec-sifting-proceed').addEventListener('click', () => {
-  // Host-gated in Lobby Mode — only the Head Chef runs scoring; clients wait for
-  // the Host's JEC_TALLY SYNC. A client running jecCalcRoundScores() locally would
-  // mutate jecScores, double-log the round, and self-navigate ahead of the table. (J4)
+  // Host-gated in Lobby Mode — only the Head Chef runs scoring or opens the vote;
+  // clients wait for the Host's SYNC. A client running jecCalcRoundScores() locally
+  // would mutate jecScores, double-log the round, and self-navigate ahead of the
+  // table. (J4)
   if (window.syllyMultiplayerMode === 'client') return;
   playSuccess();
-  const roundScores = jecCalcRoundScores();
+  jecAdvanceFromTasting();
+});
 
-  if (window.syllyMultiplayerMode === 'host') {
-    // Lobby Mode: broadcast tally so all devices render the same scores
-    mpSendEnvelope({ type: 'SYNC', payload: {
-      action: 'JEC_TALLY',
-      round: jecRound, rounds: jecRounds,
-      roundScores, scores: [...jecScores], roundLog: jecRoundLog,
-    }});
-  }
+// ── Name the Dish listeners ───────────────────────────────────────────────────
+document.getElementById('btn-jec-name-vote-exit').addEventListener('click', () => {
+  playPillClick();
+  document.getElementById('jec-quit-overlay').style.display = 'flex';
+});
 
-  jecRenderTally(roundScores);
-  showScreen('screen-jec-tally');
+document.getElementById('btn-jec-name-vote-next').addEventListener('click', () => {
+  if (window.syllyMultiplayerMode === 'client') return;   // J4
+  playSuccess();
+  jecFinishRoundToTally();
 });
 
 // ── Sous Chef Oversight overlay ───────────────────────────────────────────────

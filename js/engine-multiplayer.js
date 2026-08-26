@@ -2943,6 +2943,35 @@ function jecHandleEnvelope(env) {
     jecShowTasting();
   }
 
+  // JEC_NAME_VOTE_BEGIN — clients enter the ballot with the host's name list.
+  // An addition beyond spec § 7.1: clients must be TOLD to enter the ballot and
+  // must hold the same names; the spec's JEC_NAME_VOTE is client→host only.
+  if (env.type === 'SYNC' && env.payload.action === 'JEC_NAME_VOTE_BEGIN') {
+    jecFusionNames = jecWireArr(env.payload.jecFusionNames, jecPlayerCount, '');
+    jecNameVotes   = Array(jecPlayerCount).fill(-1);
+    jecStartNameVote();
+  }
+
+  // JEC_NAME_VOTE — host collects; resolves when every Chef has voted
+  if (env.type === 'ACTION' && env.payload.action === 'JEC_NAME_VOTE' &&
+      window.syllyMultiplayerMode === 'host') {
+    const p = env.payload;
+    // Only the HOST tallies. Clients are vote-interactive, so the J3 client
+    // early-return applies to the RESOLUTION, not to the vote itself.
+    if (p.playerIdx !== p.votedForIdx) jecNameVotes[p.playerIdx] = p.votedForIdx;
+    jecMpVoteCheck[p.playerIdx] = true;
+    jecHostCheckVotes();
+  }
+
+  // JEC_NAME_RESULT — all devices show the same winner(s)
+  if (env.type === 'SYNC' && env.payload.action === 'JEC_NAME_RESULT') {
+    // winners MAY be legitimately empty (nobody voted) — [] is erased in flight,
+    // so jecWireList rebuilds it rather than leaving undefined.
+    jecNameWinners = jecWireList(env.payload.winners);
+    mpUnlockSync();
+    jecShowNameResult();
+  }
+
   // JEC_TALLY — Client applies scores and renders tally screen
   if (env.type === 'SYNC' && env.payload.action === 'JEC_TALLY') {
     jecRound    = env.payload.round;

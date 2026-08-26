@@ -2459,6 +2459,43 @@ The Tally
     </div>
   </section>
 
+  <!-- JEC NAME VOTE screen — Fusion Cuisine only: vote the best dish name On the Menu.
+       No pass gate: the names are public, so there is nothing private to protect. -->
+  <section id="screen-jec-name-vote" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-4">
+      <div class="flex justify-between items-center w-full">
+        <div class="w-10"></div>
+        <p id="jec-name-vote-round-label" class="text-stone-400 text-xs font-semibold uppercase tracking-widest"></p>
+        <div class="flex items-center gap-2">
+          <button class="btn-open-sound w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-lg">🔊</button>
+          <button id="btn-jec-name-vote-exit" class="w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-stone-500 font-bold text-lg">✕</button>
+        </div>
+      </div>
+      <div class="w-full text-center">
+        <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest">Name the Dish</p>
+        <h2 id="jec-name-vote-fusion" class="text-2xl font-bold text-amber-500 uppercase tracking-wide mt-1"></h2>
+      </div>
+
+      <!-- Sub-state A: the ballot -->
+      <div id="jec-name-vote-ballot" class="w-full flex flex-col gap-4">
+        <h3 id="jec-name-vote-heading" class="text-xl font-bold text-stone-800 text-center"></h3>
+        <div id="jec-name-vote-list" class="flex flex-col gap-3 w-full"></div>
+        <p id="jec-name-vote-status" class="text-stone-400 text-sm text-center min-h-5"></p>
+      </div>
+
+      <!-- Sub-state B: the result -->
+      <div id="jec-name-vote-result" style="display:none" class="w-full flex flex-col gap-4">
+        <div class="text-5xl text-center" role="img" aria-label="Star">⭐</div>
+        <h3 id="jec-name-vote-winner" class="text-2xl font-bold text-stone-800 text-center"></h3>
+        <p id="jec-name-vote-winner-sub" class="text-stone-500 text-sm text-center"></p>
+        <button id="btn-jec-name-vote-next" class="min-h-14 w-full rounded-2xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+The Tally
+</button>
+      </div>
+    </div>
+  </section>
+
   <!-- JEC TALLY screen — per-round score breakdown -->
   <section id="screen-jec-tally" style="display:none" class="flex flex-col items-start px-6 py-10 w-full max-w-sm mx-auto gap-5">
     <div class="flex justify-between items-center w-full">

@@ -215,11 +215,13 @@ function makeDevice(name, mode, myIdx, slots) {
     '      ready: jecMpReadyCheck, scores: jecScores,',
     '      subState: jecSiftingSubState,',
     '      oversight: jecOversightSelected,',
+    '      voteIdx: jecVoteCurrentIdx, voteCheck: jecMpVoteCheck,',
     '    };',
     '  },',
     '  seat(o) {',
     '    jecPlayerCount         = o.players;',
     '    jecPlayerNames         = (mpPlayerSlots || []).map(p => p.nickname);',
+    "    if (jecPlayerNames.length < o.players) jecPlayerNames = Array.from({ length: o.players }, (_, i) => 'Chef' + (i + 1));",
     '    jecScores              = Array(o.players).fill(0);',
     '    jecGoldenScore         = o.golden === undefined ? 30 : o.golden;',
     '    jecRounds              = o.rounds === undefined ? 3 : o.rounds;',
@@ -257,12 +259,13 @@ function makeDevice(name, mode, myIdx, slots) {
     '  reroll() { jecReroll(); },',
     '  // Every seat submits, then the host resolves - the shortest honest route to',
     '  // a rendered Sifting board. The packet path itself is § 2/§ 3\'s job.',
-    '  runPrepAll(inputs, crutches, sigs) {',
+    '  runPrepAll(inputs, crutches, sigs, names) {',
     '    jecStartRound();',
     '    for (let p = 0; p < jecPlayerCount; p++) {',
     '      jecInputs[p]       = [...inputs[p]];',
     "      jecCrutches[p]     = crutches[p] || '';",
     '      jecSignatures[p]   = sigs[p] === undefined ? -1 : sigs[p];',
+    "      jecFusionNames[p]  = names ? (names[p] || '') : '';",
     '      jecMpReadyCheck[p] = true;',
     '    }',
     '    jecHostResolveSifting();',
@@ -285,6 +288,16 @@ function makeDevice(name, mode, myIdx, slots) {
     '  merge(a, b) { jecApplyMerge(normaliseWord(a), normaliseWord(b)); },',
     '  // The SHIPPED advance, guard included - not a copy of the listener body.',
     '  advanceCheck() { jecAdvanceToTasting(); },',
+    '  // The SHIPPED Tasting advance - Fusion detour and J4 guard included.',
+    '  advanceTasting() { jecAdvanceFromTasting(); },',
+    '  vote(voter, target) { jecCastNameVote(voter, target); },',
+    '  // The ACTION a third client would send. Mirrors the client branch of',
+    '  // jecCastNameVote - the shape is the contract being asserted.',
+    '  buildVote(idx, target) {',
+    "    return { type: 'ACTION', payload: {",
+    "      action: 'JEC_NAME_VOTE', playerIdx: idx, votedForIdx: target,",
+    '    }};',
+    '  },',
     '  tap(norm) { jecHandleOversightTap(norm); },',
     '  el(id) { return document.getElementById(id); },',
     '  norm(w) { return normaliseWord(w); },',
@@ -305,9 +318,13 @@ function makeDevice(name, mode, myIdx, slots) {
     __hostSubmitOwn: o => J.hostSubmitOwn(o),
     __buildPrep: (idx, o) => J.buildPrep(idx, o),
     __reroll: () => J.reroll(),
-    __runPrepAll: (i, c, s) => J.runPrepAll(i, c, s),
+    __runPrepAll: (i, c, s, names) => J.runPrepAll(i, c, s, names),
     __merge: (a, b) => J.merge(a, b),
     __advanceCheck: () => J.advanceCheck(),
+    __advanceTasting: () => J.advanceTasting(),
+    // A client vote SENDS; return the envelope so the caller can deliver it.
+    __vote: (v, t) => { J.vote(v, t); return [...sent].reverse().find(e => e.payload.action === 'JEC_NAME_VOTE'); },
+    __buildVote: (i, t) => J.buildVote(i, t),
     __tap: norm => J.tap(norm),
     __el: id => J.el(id),
     __norm: w => J.norm(w),
@@ -554,6 +571,9 @@ check('no throw on prep delivery',  host.__errors.length,         hostErrsBefore
 // A failed length check must not then crash the run on children[0], hiding every
 // later section behind a stack trace.
 const first = el => ((el.children[0] || {}).innerHTML || '');
+// The same rule for a missing envelope: read its payload defensively, so the
+// 'never sent' check is the failure rather than a TypeError two lines later.
+const pay = e => ((e || {}).payload || {});
 
 // ── § 7 Sous Chef's Check -> The Tasting ──────────────────────────────────────
 // Blind merging is an INTEGRITY fix, not only pacing: on the old scored board a
@@ -659,6 +679,110 @@ deliver(host, client, host.__lastSent('JEC_SIFTING'));
 check('a missed call still gets a row', client.__el('jec-callouts-list').children.length, 1);
 check('missed call is not marked a hit',
   /Called It/.test(first(client.__el('jec-callouts-list'))), false);
+
+// ── § 8 Name the Dish ─────────────────────────────────────────────────────────
+// The vote runs between The Tasting and The Tally, so the Tally carries the
+// round's complete score. Assert the readiness gate in BOTH modes: [].every() is
+// true, so a matrix gate can be vacuously open in the mode with no matrix.
+host.__seat({ players: 3, golden: 30, fusion: true, souschef: false });
+client.__seat({ players: 3, golden: 30, fusion: true, souschef: false });
+host.__clearSent();
+client.__clearSent();
+client.__errors.length = 0;
+host.__runPrepAll([['a0', 'a1', 'a2'], ['b0', 'b1', 'b2'], ['c0', 'c1', 'c2']],
+                  ['', '', ''], [0, 0, 0], ['Sushizza', 'Pizushi', 'Rice Pie']);
+deliver(host, client, host.__lastSent('JEC_SIFTING'));
+
+host.__clearSent();
+host.__advanceTasting();
+env = host.__lastSent('JEC_NAME_VOTE_BEGIN');
+check('vote begin sent', !!env, true);
+check('vote begin carries every name',
+  pay(env).jecFusionNames, ['Sushizza', 'Pizushi', 'Rice Pie']);
+deliver(host, client, env);
+check('client on the vote screen',
+  client.__screens[client.__screens.length - 1], 'screen-jec-name-vote');
+check('ballot lists all three names', client.__el('jec-name-vote-list').children.length, 3);
+// Disabled, not hidden — a hidden row shifts every other name up and makes the
+// list length itself a tell.
+const ballot = k => ((client.__el('jec-name-vote-list').children[k] || {}).disabled);
+check('own entry is disabled',      ballot(1), true);
+check('another chef stays votable', ballot(0), false);
+check('no throw on VOTE_BEGIN',   client.__errors, []);
+
+// The host votes DIRECTLY. mpHandleEnvelope drops every envelope whose originId
+// is this device, so a self-sent ACTION would leave the host slot false forever.
+host.__clearSent();
+host.__vote(0, 1);
+check('host sent no self ACTION',
+  host.__sent.filter(e => e.type === 'ACTION' && e.payload.action === 'JEC_NAME_VOTE').length, 0);
+check('host marked its own slot', host.__state().voteCheck[0], true);
+check('gate closed at 1 of 3',    !!host.__lastSent('JEC_NAME_RESULT'), false);
+
+const clientVote = client.__vote(1, 0);
+check('client vote is an ACTION', pay(clientVote).action, 'JEC_NAME_VOTE');
+deliver(client, host, clientVote);
+check('gate still closed at 2 of 3', !!host.__lastSent('JEC_NAME_RESULT'), false);
+
+deliver(client, host, client.__buildVote(2, 0));
+env = host.__lastSent('JEC_NAME_RESULT');
+check('gate opens at 3 of 3', !!env, true);
+check('winner is chef 0',     pay(env).winners, [0]);
+deliver(host, client, env);
+check('client sees the winner',  client.__state().winners, [0]);
+check('the result sub-state is showing',
+  client.__el('jec-name-vote-result').style.display, '');
+check('no throw on NAME_RESULT', client.__errors, []);
+
+// Nobody voted is a legitimate outcome, and [] is erased in flight.
+client.__errors.length = 0;
+deliver(host, client, { type: 'SYNC', payload: {
+  action: 'JEC_NAME_RESULT', votes: [0, 0, 0], winners: [], bonus: 15 } });
+check('empty winners rebuild to []',        client.__state().winners, []);
+check('no throw on an empty-winner result', client.__errors, []);
+
+// A self-vote is refused at the host too, not only by the disabled button.
+host.__handle({ type: 'ACTION', payload: {
+  action: 'JEC_NAME_VOTE', playerIdx: 2, votedForIdx: 2 } });
+check('a self-vote is not recorded', host.__state().votes[2], 0);
+
+// Without Fusion the vote does not exist and the round goes straight to scoring.
+host.__seat({ players: 3, golden: 30, fusion: false, souschef: false });
+client.__seat({ players: 3, golden: 30, fusion: false, souschef: false });
+host.__clearSent();
+client.__errors.length = 0;
+host.__runPrepAll([['a0', 'a1', 'a2'], ['b0', 'b1', 'b2'], ['c0', 'c1', 'c2']],
+                  ['', '', ''], [0, 0, 0]);
+deliver(host, client, host.__lastSent('JEC_SIFTING'));
+host.__clearSent();
+host.__advanceTasting();
+check('no vote without Fusion',        !!host.__lastSent('JEC_NAME_VOTE_BEGIN'), false);
+check('standard path reaches the Tally', !!host.__lastSent('JEC_TALLY'), true);
+
+// Pass-the-Phone: the same gate, driven by cycling one device. This is the mode
+// where a matrix-based gate would be vacuously open.
+const solo = makeDevice('solo', 'single', 0, []);
+solo.__seat({ players: 3, golden: 30, fusion: true, souschef: false });
+solo.__runPrepAll([['a0', 'a1', 'a2'], ['b0', 'b1', 'b2'], ['c0', 'c1', 'c2']],
+                  ['', '', ''], [0, 0, 0], ['Alpha', 'Bravo', 'Charlie']);
+solo.__advanceTasting();
+check('PTP on the vote screen',
+  solo.__screens[solo.__screens.length - 1], 'screen-jec-name-vote');
+check('PTP starts on chef 0', solo.__state().voteIdx, 0);
+solo.__vote(0, 0);
+check('a self-vote is refused', solo.__state().voteIdx, 0);
+solo.__vote(0, 1);
+check('PTP advanced to chef 1',      solo.__state().voteIdx, 1);
+check('the ballot follows the voter',
+  (solo.__el('jec-name-vote-list').children[1] || {}).disabled, true);
+solo.__vote(1, 0);
+check('PTP not resolved at 2 of 3',  solo.__state().winners, []);
+solo.__vote(2, 0);
+check('PTP resolved after all 3',    solo.__state().winners, [0]);
+check('PTP showed the result',
+  solo.__el('jec-name-vote-result').style.display, '');
+check('PTP broadcast no result',
+  solo.__sent.filter(e => e.payload.action === 'JEC_NAME_RESULT').length, 0);
 
 console.log('\njec-loopback: ' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);
