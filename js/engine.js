@@ -23,6 +23,7 @@ const allScreens = [
   'screen-gm-menu', 'screen-gm-setup', 'screen-gm-input', 'screen-gm-pass-gate',
   'screen-gm-reveal-gate', 'screen-gm-reveal', 'screen-gm-result',
   'screen-ss-menu', 'screen-ss-setup', 'screen-ss-vault-gate', 'screen-ss-vault',
+  'screen-ss-transmit-gate',
   'screen-ss-encrypt', 'screen-ss-broadcast', 'screen-ss-intercept', 'screen-ss-standby',
   'screen-ss-decode-gate', 'screen-ss-decode', 'screen-ss-resolution', 'screen-ss-gameover',
   'screen-ss-players',

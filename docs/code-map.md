@@ -227,6 +227,7 @@ Each game's `<!-- ════ NAME ════ -->` section-header comment is 
 | `#screen-ss-players` | Player name entry |
 | `#screen-ss-vault-gate` | Pass-the-phone gate before vault reveal |
 | `#screen-ss-vault` | Team keyword vault display |
+| `#screen-ss-transmit-gate` | TLM only — pass-the-phone gate before each half's code is revealed (turn hand-off, distinct from the one-off `screen-ss-vault-gate`) |
 | `#screen-ss-encrypt` | Encoder picks keyword to encrypt |
 | `#screen-ss-broadcast` | Broadcast screen (timer + clue display) |
 | `#screen-ss-intercept` | Intercepting team guesses |

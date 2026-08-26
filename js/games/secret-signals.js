@@ -1216,10 +1216,26 @@ function ssStartHalf() {
 
 // Route THIS device to the correct encrypt-phase screen.
 // Broadcaster of the encrypting team → transmit screen; everyone else → standby.
+// TLM: the team's one shared device gets a pass-gate first — the team that was just
+// standing by is handed the phone and needs a beat before the secret code appears.
 function ssRouteEncryptPhase() {
   if (window.syllyMultiplayerMode === 'single') { ssShowEncrypt(); return; }
-  if (mpMyPlayerIdx === ssBroadcasterIdx(ssEncryptingTeam)) ssShowEncrypt();
-  else ssShowEncryptStandby();
+  if (mpMyPlayerIdx === ssBroadcasterIdx(ssEncryptingTeam)) {
+    if (window.mpLobbyStyle === 'team') ssShowTransmitGate(ssEncryptingTeam);
+    else ssShowEncrypt();
+  } else {
+    ssShowEncryptStandby();
+  }
+}
+
+// TLM hand-off gate — shown before each half's code is revealed on the encrypting
+// team's shared device. Mirrors ssShowVaultGate's framing but for a turn change,
+// not the one-off vault reveal. See logic-engine.md § Pass-the-Phone Safety Gate.
+function ssShowTransmitGate(team) {
+  const name = ssTeamName(team);
+  document.getElementById('ss-transmit-gate-title').textContent = `${name}'s turn`;
+  document.getElementById('ss-transmit-gate-team').textContent  = name;
+  showScreen('screen-ss-transmit-gate');
 }
 
 // Generic standby — dynamic heading + subtext on screen-ss-standby.
@@ -2142,6 +2158,12 @@ document.getElementById('btn-ss-vault-done').addEventListener('click', () => {
     return;
   }
   ssStartHalf();
+});
+
+// Transmit gate → encrypt screen
+document.getElementById('btn-ss-transmit-gate-ready').addEventListener('click', () => {
+  playLaunch();
+  ssShowEncrypt();
 });
 
 // Vault screen exit

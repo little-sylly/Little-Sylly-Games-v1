@@ -1208,7 +1208,7 @@ Confirm sync
   <!-- ═══════════════════════════════════════════════════════════════
        SECRET SIGNALS (SS)
        Screens : #screen-ss-menu, #screen-ss-setup, #screen-ss-players,
-                 #screen-ss-vault-gate, #screen-ss-vault,
+                 #screen-ss-vault-gate, #screen-ss-vault, #screen-ss-transmit-gate,
                  #screen-ss-encrypt,
                  #screen-ss-broadcast, #screen-ss-intercept,
                  #screen-ss-decode-gate, #screen-ss-decode,
@@ -1363,6 +1363,19 @@ We're ready — show our vault
     <button id="btn-ss-vault-done" class="btn-mp-action min-h-14 w-full rounded-2xl bg-teal-500 hover:bg-teal-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
       Got it! I've memorised my vault 👁️
     </button>
+  </section>
+
+  <!-- SS-④b TRANSMIT GATE — TLM hand-off before each half's code is revealed (reused for both teams) -->
+  <section id="screen-ss-transmit-gate" style="display:none" class="flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
+    <div class="text-6xl" role="img" aria-label="Incoming transmission">📡</div>
+    <div>
+      <p class="text-stone-400 text-sm font-semibold uppercase tracking-widest">Incoming Transmission</p>
+      <h2 id="ss-transmit-gate-title" class="text-3xl font-bold text-stone-800 mt-1">Team A's turn</h2>
+      <p class="text-stone-500 text-base mt-3 leading-relaxed">Pass the phone to <span id="ss-transmit-gate-team" class="font-bold text-teal-600">Team A</span>.<br>Don't let the other team peek!</p>
+    </div>
+    <button id="btn-ss-transmit-gate-ready" class="min-h-14 w-full rounded-2xl bg-teal-500 hover:bg-teal-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+We're ready — encrypt now
+</button>
   </section>
 
   <!-- SS-⑤ ENCRYPT — encrypter's private view -->
@@ -5307,36 +5320,6 @@ Launch Sequence
           <label class="text-stone-500 text-xs font-semibold uppercase tracking-widest block mb-1">Team B name</label>
           <input id="mp-prelobby-team-b" type="text" maxlength="20" autocomplete="off" spellcheck="false"
             class="w-full rounded-xl border-2 border-stone-200 bg-white px-4 py-3 text-base text-stone-800 placeholder-stone-300 focus:border-stone-600 focus:outline-none transition-colors" />
-        </div>
-        <!-- Captain name inputs — shown only when hasCaptain: true -->
-        <div id="mp-prelobby-captain-names" style="display:none" class="flex flex-col gap-3 w-full text-left">
-          <div>
-            <label class="text-stone-500 text-xs font-semibold uppercase tracking-widest block mb-1">Team A Captain</label>
-            <input id="mp-prelobby-captain-a" type="text" maxlength="16" autocomplete="off" spellcheck="false"
-              placeholder="e.g. Commander Rodriguez"
-              class="w-full rounded-xl border-2 border-stone-200 bg-white px-4 py-3 text-base text-stone-800 placeholder-stone-300 focus:border-stone-600 focus:outline-none transition-colors" />
-          </div>
-          <div>
-            <label class="text-stone-500 text-xs font-semibold uppercase tracking-widest block mb-1">Team B Captain</label>
-            <input id="mp-prelobby-captain-b" type="text" maxlength="16" autocomplete="off" spellcheck="false"
-              placeholder="e.g. Admiral Chen"
-              class="w-full rounded-xl border-2 border-stone-200 bg-white px-4 py-3 text-base text-stone-800 placeholder-stone-300 focus:border-stone-600 focus:outline-none transition-colors" />
-          </div>
-        </div>
-        <!-- Device-to-team assignment labels + swap -->
-        <div class="flex items-center gap-2 pt-1">
-          <div class="flex-1 bg-stone-100 rounded-xl p-2.5 text-center min-w-0">
-            <p class="text-stone-400 text-xs font-semibold uppercase tracking-wide leading-none mb-1">This device</p>
-            <p id="mp-prelobby-this-team" class="text-stone-700 text-sm font-bold truncate leading-tight">—</p>
-          </div>
-          <button id="btn-mp-prelobby-swap"
-            class="flex-shrink-0 min-h-10 w-10 rounded-xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-600 text-base font-bold transition-all duration-150">
-            ⇄
-          </button>
-          <div class="flex-1 bg-stone-100 rounded-xl p-2.5 text-center min-w-0">
-            <p class="text-stone-400 text-xs font-semibold uppercase tracking-wide leading-none mb-1">Other device</p>
-            <p id="mp-prelobby-other-team" class="text-stone-700 text-sm font-bold truncate leading-tight">—</p>
-          </div>
         </div>
       </div>
       <div class="flex flex-col gap-3 mt-2">

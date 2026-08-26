@@ -37,7 +37,7 @@ function mpRcHasCaptain(rc) { return typeof rc?.hasCaptain === 'function' ? rc.h
 // ── Roster State (Phase 24) ───────────────────────────────────────────────────
 window.mpLobbyRoster          = null;   // confirmed roster — broadcast in GAME_START
 window.mpLobbyRosterTeamNames    = null;   // team names captured from pre-lobby overlay
-window.mpLobbyRosterCaptainNames = null;   // captain names captured from pre-lobby overlay (hasCaptain games)
+window.mpLobbyRosterCaptainNames = null;   // legacy fallback for a type:'none' + hasCaptain game (none currently exist — captain assignment for every live 'teams'-type game happens via the Assign Spots ⚓ picker instead)
 let mpRosterPendingTeamIdx    = [];     // working copy: team index per slot during roster UI
 let mpRosterPendingCaptain    = [];     // working copy: captain slot index per team during roster UI
 let mpRosterSelectedChip      = null;   // currently selected player chip (uid string)
@@ -103,7 +103,10 @@ const MP_GAME_CONFIGS = {
     supportedModes:  ['ptp', 'tlm', 'mdlm'],
     multiplayerOnly: false,
     lobbyCtaLabel:   "Let's Play!",
-    rosterConfig: { type: ls => ls === 'team' ? 'none' : 'teams', showTeamNamesInPreLobby: true, defaultTeamNames: ['Alpha Echo', 'Bravo Zulu'], hasCaptain: false, requiresBalancedTeams: true },
+    // 'teams' regardless of lobby style — TLM's 2 devices go through the same Assign
+    // Spots drag-into-team-zone screen as MDLM's N devices; no separate device-based
+    // team-assignment mechanism. See logic-engine.md § MDLM Patterns.
+    rosterConfig: { type: 'teams', showTeamNamesInPreLobby: true, defaultTeamNames: ['Alpha Echo', 'Bravo Zulu'], hasCaptain: false, requiresBalancedTeams: true },
     // Lobby bounds are consulted ONLY while a room fills, so they must be the game's TRUE range —
     // never a single-device setup variable. ssPlayerCount is set by the Team-size pills on
     // screen-ss-players, a screen Lobby Mode never shows. 2v2 to 3v3.
@@ -2024,13 +2027,6 @@ function mpRenderHostPlayerList() {
 }
 
 // ── Roster helpers ────────────────────────────────────────────────────────────
-function mpUpdatePrelobbyDeviceLabels(defaults) {
-  const valA = document.getElementById('mp-prelobby-team-a').value.trim() || defaults[0];
-  const valB = document.getElementById('mp-prelobby-team-b').value.trim() || defaults[1];
-  document.getElementById('mp-prelobby-this-team').textContent  = valA;
-  document.getElementById('mp-prelobby-other-team').textContent = valB;
-}
-
 function mpGetRosterType() {
   const t = mpActiveGameConfig?.rosterConfig?.type;
   if (!t) return 'none';
@@ -2530,12 +2526,6 @@ function mpHostCreateRoom() {
             document.getElementById('mp-prelobby-team-b').value.trim() || _rc.defaultTeamNames[1],
           ]
         : null;
-      window.mpLobbyRosterCaptainNames = mpRcHasCaptain(_rc)
-        ? [
-            document.getElementById('mp-prelobby-captain-a')?.value.trim() || null,
-            document.getElementById('mp-prelobby-captain-b')?.value.trim() || null,
-          ]
-        : null;
 
       await fb.set(mpRoomRef, {
         hostUid:    window.syllyDeviceUid,
@@ -2775,7 +2765,9 @@ document.addEventListener('DOMContentLoaded', () => {
       const hasNick = mpGetNickname().length > 0;
       gen.disabled  = !hasNick;
       gen.classList.toggle('opacity-50', !hasNick);
-      // Show/hide team name inputs based on active game config
+      // Show/hide team name inputs based on active game config. Team ASSIGNMENT (which
+      // device/player is on which team, and who captains) always happens on the Assign
+      // Spots roster screen after the room fills — never here. This section is names only.
       const rc = mpActiveGameConfig?.rosterConfig;
       const teamSection = document.getElementById('mp-prelobby-team-names');
       if (rc?.showTeamNamesInPreLobby && rc.defaultTeamNames) {
@@ -2784,19 +2776,8 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('mp-prelobby-team-a').value = '';
         document.getElementById('mp-prelobby-team-b').value = '';
         teamSection.style.display = 'flex';
-        mpUpdatePrelobbyDeviceLabels(rc.defaultTeamNames);
       } else {
         teamSection.style.display = 'none';
-      }
-      const captainSection = document.getElementById('mp-prelobby-captain-names');
-      if (captainSection) {
-        captainSection.style.display = mpRcHasCaptain(rc) ? 'flex' : 'none';
-        if (mpRcHasCaptain(rc) && rc.defaultTeamNames) {
-          document.getElementById('mp-prelobby-captain-a').placeholder = `e.g. ${rc.defaultTeamNames[0]} Captain`;
-          document.getElementById('mp-prelobby-captain-b').placeholder = `e.g. ${rc.defaultTeamNames[1]} Captain`;
-          document.getElementById('mp-prelobby-captain-a').value = '';
-          document.getElementById('mp-prelobby-captain-b').value = '';
-        }
       }
       document.getElementById('mp-host-prelobby-overlay').style.display = 'flex';
       setTimeout(() => document.getElementById('mp-host-nickname').focus(), 100);
@@ -2813,28 +2794,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const gen = document.getElementById('btn-mp-host-generate');
     gen.disabled = !val;
     gen.classList.toggle('opacity-50', !val);
-  });
-  // Team name inputs → update device labels live
-  ['mp-prelobby-team-a', 'mp-prelobby-team-b'].forEach(id => {
-    document.getElementById(id).addEventListener('input', () => {
-      const rc = mpActiveGameConfig?.rosterConfig;
-      if (rc?.defaultTeamNames) mpUpdatePrelobbyDeviceLabels(rc.defaultTeamNames);
-    });
-  });
-  // Swap button → swap input values + invert labels
-  document.getElementById('btn-mp-prelobby-swap').addEventListener('click', () => {
-    playPillClick();
-    const inputA = document.getElementById('mp-prelobby-team-a');
-    const inputB = document.getElementById('mp-prelobby-team-b');
-    const rc = mpActiveGameConfig?.rosterConfig;
-    const defaults = rc?.defaultTeamNames || ['Team A', 'Team B'];
-    // Pre-fill with defaults if empty so swapping is meaningful
-    if (!inputA.value.trim()) inputA.value = defaults[0];
-    if (!inputB.value.trim()) inputB.value = defaults[1];
-    const tmp = inputA.value;
-    inputA.value = inputB.value;
-    inputB.value = tmp;
-    if (rc?.defaultTeamNames) mpUpdatePrelobbyDeviceLabels(rc.defaultTeamNames);
   });
   document.getElementById('btn-mp-host-generate').addEventListener('click', () => {
     const input = document.getElementById('mp-host-nickname');

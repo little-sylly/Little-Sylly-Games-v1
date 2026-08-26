@@ -260,6 +260,46 @@ people to ignore it; a harness that quietly skips is lying.
 
 ---
 
+### ML-05 — Two team-assignment mechanisms drifting apart is a UX bug config checks can't see [25 Aug 2026]
+
+*What happened:* a 3-device MDLM playtest of SS reported "MDLM only accepts 2 devices" — but
+`getMaxPlayers()` was already correctly returning 6 (verified via `verify-mp-configs.js`, all green).
+The real bug was upstream of any config value: SS's `rosterConfig.type` was
+`ls => ls === 'team' ? 'none' : 'teams'`, so TLM (`mpLobbyStyle === 'team'`) skipped the Assign Spots
+roster screen entirely and relied instead on `mp-host-prelobby-overlay`'s "This device / Other
+device" swap block — a device-based, exactly-2 team-assignment mechanism baked into the *pre-lobby*
+markup, shown unconditionally for every game with `showTeamNamesInPreLobby: true` regardless of
+`mpLobbyStyle`. Testing TLM (which genuinely does cap at 2) right next to MDLM under a UI that never
+distinguished the two read as "MDLM is capped at 2" even though the config layer was never wrong.
+
+*Root cause, the sharper version:* the codebase had **two independent team-assignment systems** —
+the device-swap block (pre-lobby, 2-device-only, TLM-shaped) and the Assign Spots roster screen
+(post-lobby, N-device, drag-into-zone, already used by every MDLM team game). DSD's
+`rosterConfig.type` was already unconditionally `'teams'`, so DSD's device-swap block and its
+`mp-prelobby-captain-names` text inputs were **already fully dead** — captains there are decided by
+the roster screen's ⚓ picker (`mpRosterPendingCaptain`, applied in `mpConfirmRoster`'s `'teams'`
+branch), and `window.mpLobbyRosterCaptainNames` was written but never read outside the `'none'`
+branch, which DSD's config never reaches. A shared prelobby overlay had accreted a second, unused
+input surface with no harness or grep pattern that would ever flag "these fields are typed into and
+silently discarded."
+
+*Fix:* SS's `rosterConfig.type` → `'teams'` unconditionally, matching DSD — TLM's 2 devices now go
+through the same Assign Spots screen as MDLM's N devices (trivial for 2, but one mechanism instead
+of two). Removed the device-swap block and the captain-name text inputs from
+`mp-host-prelobby-overlay` entirely (`mpUpdatePrelobbyDeviceLabels`, `btn-mp-prelobby-swap`,
+`mp-prelobby-captain-*`, and the `window.mpLobbyRosterCaptainNames` population at room creation) —
+team assignment is a single global mechanism for both lobby styles now. The prelobby overlay keeps
+only nickname entry and the Team A/B *name* text inputs (still legitimate — they seed the roster
+screen's own name inputs via `window.mpLobbyRosterTeamNames`).
+
+*Lesson:* **when two mechanisms do the same job for different subsets of games, a report that reads
+like a hard cap can actually be a framing/consistency bug the config layer is blind to.**
+`verify-mp-configs.js` proved the *numbers* were right; it has no way to know a screen shown to the
+host implies a different (wrong) mental model of which mode is running. The generalisable check
+before trusting a config-level harness's all-green result: **grep for a second implementation of the
+same concept** (here, "team assignment") rather than assuming the number that's wrong must live
+where the report points.
+
 ## Template Gaps
 
 ### A doc-verification harness must require a BOUNDED match, not a substring

@@ -110,6 +110,9 @@ In TLM SS, during the encrypt phase, one device is active (encoder's team) and t
 **Envelope handler safety: every function called from `mpHandleEnvelope` must exist before shipping (Phase 27)**
 If `ssShowEncryptStandby()` had been undefined when called from the CLIENT `SS_ENCRYPT_TURN` handler, the Firebase callback would silently crash, leaving both devices stuck. Grep-confirm every function called from `mpHandleEnvelope` before shipping.
 
+**TLM transmit turns had no Pass-the-Phone Safety Gate (25 Aug 2026, playtest finding)**
+Every half, `ssRouteEncryptPhase()` routed the newly-encrypting team's shared device straight into `ssShowEncrypt()` — which reveals that team's secret code — with zero hand-off screen. The very first vault reveal already had one (`ssShowVaultGate` → `ssShowVault`, "pass the phone to X, don't let the other team peek"), but every subsequent half-turn change skipped straight to the private screen. Added `ssShowTransmitGate(team)` (new `screen-ss-transmit-gate`, same visual pattern as the vault gate) between `ssRouteEncryptPhase()` and `ssShowEncrypt()`, gated to `window.mpLobbyStyle === 'team'` only — MDLM's per-device routing already isolates the code to the broadcaster's own device with no physical hand-off, so a gate there would be pure friction with no privacy served. Scoped to TLM's shared-device turn change specifically, per `logic-engine.md` § Pass-the-Phone Safety Gate.
+
 ---
 
 ## Polish Index (June 2026 audit)
