@@ -4,6 +4,21 @@ Historical SW release notes, moved out of `CLAUDE.md` (1 Aug 2026) so they stop 
 The **current** version and its notes stay in `CLAUDE.md` § Current Focus — append the outgoing entry here on each bump.
 
 
+## v210 — lobby bounds are constants, the quit contract covers TLM, and the declarations layer finally has a harness (23 Aug 2026)
+
+Two recurring bugs from the identity-doc pass, both
+cross-cutting, both invisible to all 14 rules harnesses. **(1)** `getMaxPlayers`/`getMinPlayers` are
+read only while a room fills — before the game shows a screen — so five games (SS, JEC, YGI, LTTP,
+DSD) resolved theirs against a setup variable still at its default, capping rooms below their own
+Pass-the-Phone range; now constants. Raising SS/DSD to 3v3 exposed that nothing ever checked team
+balance (3v2 confirmed; 4v0 too) — new `rosterConfig.requiresBalancedTeams` gates the host CTA and
+the roster screen. **(2)** Eight games had no mid-game quit teardown; the rule was titled *MDLM*, so
+the two TLM games (LI5, DSD) read past it. It is now § Mid-Game Quit Contract, covers every lobby
+session, and is satisfied by one generic helper `mpNotifyPlayerLeft()`. **Scope grew on evidence
+twice** — the identity pass named 5 quit games and 4 bounds games; grepping the shape found 8 and 5.
+New `node tools/verify-mp-configs.js` (18 games) fails on pre-fix `main` via `MP_SRC=`. Detail:
+`shared-implementation-notes` ML-01…ML-04, `docs/decision-log.md`.
+
 ## v209 — NT's honeypot is a pure cooldown gate, FOOTPRINT-based; 111378/64472 CLOSED (20 Aug 2026)
 
 Three fixes from one Debug Mode session, worst corpus error **20.80% → 2.81%**. **(1)**

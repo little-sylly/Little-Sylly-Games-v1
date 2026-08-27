@@ -14,30 +14,31 @@
 ---
 
 ## Per-Game Offset Map (`index.html`)
-**Coarse `Read` anchors only — APPROXIMATE, captured 29 Jun 2026.** Line numbers drift on every `index.html` edit; treat ±a few hundred lines as normal and **always Grep the actual ID to confirm** before editing. Each game's block runs roughly from its anchor to the next game's anchor.
+**Coarse `Read` anchors only — APPROXIMATE, refreshed 27 Aug 2026.** Line numbers drift on every `index.html` edit; treat ±a few hundred lines as normal and **always Grep the actual ID to confirm** before editing. Each game's block runs roughly from its anchor to the next game's anchor.
 
 | Section | ≈ Start line |
 |---------|-------------|
-| Like I'm Five (LI5) | ~125 |
-| Great Minds (GM) | ~639 |
-| Secret Signals (SS) | ~1209 |
-| Just Enough Cooks (JEC) | ~2185 |
-| You Get It? (YGI) | ~2642 |
-| Late to the Party (LTTP) | ~3180 |
-| Natural Selection (NAT) | ~3826 |
-| Deep-Sea Deploy (DSD) | ~4389 |
-| Multiplayer engine / lobby | ~4939 |
-| Multiplayer global overlays | ~5163 |
-| Bailed (BLD) | ~5288 |
-| Group Therapy (GTH) | ~5841 |
-| The Bluff (DYB) | ~6325 |
-| Pass (PASS) | ~6758 |
-| Net-Trace (NT) | ~7144 |
-| Fruit Salad (FRT) | ~7604 |
-| Counting Sheep (SHP) | ~7909 |
-| Flawless (FLW) | ~8153 |
-| Pecking Order (PKO) | ~8551 |
-| Cookie Jar (CJAR) | ~9060 |
+| Like I'm Five (LI5) | ~130 |
+| Great Minds (GM) | ~636 |
+| Secret Signals (SS) | ~1208 |
+| Secret Mode / Arcade | ~2086 |
+| Just Enough Cooks (JEC) | ~2229 |
+| You Get It? (YGI) | ~2794 |
+| Late to the Party (LTTP) | ~3332 |
+| Natural Selection (NAT) | ~3980 |
+| Deep-Sea Deploy (DSD) | ~4561 |
+| Multiplayer engine / lobby | ~5112 |
+| Multiplayer global overlays | ~5338 |
+| Bailed (BLD) | ~5450 |
+| Group Therapy (GTH) | ~6003 |
+| The Bluff (DYB) | ~6516 |
+| Pass (PASS) | ~6967 |
+| Net-Trace (NT) | ~7385 |
+| Fruit Salad (FRT) | ~8004 |
+| Counting Sheep (SHP) | ~8323 |
+| Flawless (FLW) | ~8576 |
+| Pecking Order (PKO) | ~8936 |
+| Cookie Jar (CJAR) | ~9477 |
 
 Each game's `<!-- ════ NAME ════ -->` section-header comment is itself a reliable Grep anchor if the line numbers have drifted.
 
@@ -293,21 +294,22 @@ Each game's `<!-- ════ NAME ════ -->` section-header comment is 
 |----|---------|
 | `#screen-jec-menu` | Game menu |
 | `#screen-jec-roster` | Chef count + name entry |
-| `#screen-jec-order` | Today's Order reveal |
-| `#screen-jec-prep` | Ingredient input (per player, pass-the-phone) |
-| `#screen-jec-sifting` | Ingredient frequency reveal + Sous Chef Oversight |
-| `#screen-jec-tally` | Per-round score reveal |
-| `#screen-jec-washup` | Final leaderboard |
+| `#screen-jec-order` | Today's Order reveal — the word, its Special Instruction, and a second word in Fusion Cuisine |
+| `#screen-jec-prep` | Ingredient input + the Signature tap, The Crutch, and the Fusion dish name (per player, pass-the-phone) |
+| `#screen-jec-sifting` | **Two sub-states**, never both visible: `#jec-sifting-check` (the blind Sous Chef's Check — merges made with no counts on screen) then `#jec-sifting-tasting` (the scored reveal + The Callouts). `jecSiftingSubState` holds which |
+| `#screen-jec-name-vote` | **Fusion only** — two sub-states: `#jec-name-vote-ballot` (vote for a dish name) then `#jec-name-vote-result` (the winner(s)) |
+| `#screen-jec-tally` | Per-round score reveal + the per-Chef bonus breakdown |
+| `#screen-jec-washup` | Final leaderboard + The Cook Book |
 
 ### Overlays
 | ID | Pattern | Opened by |
 |----|---------|-----------|
 | `#jec-settings-overlay` | Data (slide-up) | `#btn-jec-menu-settings` |
-| `#jec-how-to-overlay` | Data (slide-up) | `#btn-jec-menu-how-to` |
+| `#jec-how-to-overlay` | Data (slide-up) | `#btn-jec-menu-how-to` (and the header `[?]` on Prep, Sifting and Name the Dish — all carry `.btn-jec-help-open`, bound by class) |
 | `#jec-quit-overlay` | Decision modal | ✕ during active play |
-| `#jec-oversight-overlay` | Decision modal | Second sifting card tap |
+| `#jec-oversight-overlay` | Decision modal | Second Sous Chef's Check card tap (the merge confirm) |
 | `#jec-new-shift-overlay` | Decision modal | New Shift button on washup |
-| `#jec-help-tip-overlay` | Decision modal | Contextual `[?]` buttons (e.g. prep screen's `?`) |
+| `#jec-help-tip-overlay` | Decision modal | The three inline `[?]` icons on Prep — `#btn-jec-tip-signature`, `#btn-jec-tip-crutch`, `#btn-jec-tip-fusion-name`. **Had no opener at all until 27 Aug 2026** — dead UI since it shipped |
 
 ### Key buttons
 | ID | Action |
@@ -315,21 +317,90 @@ Each game's `<!-- ════ NAME ════ -->` section-header comment is 
 | `#btn-jec-menu-back` | `resetToLobby()` (on JEC menu) |
 | `#btn-jec-menu-settings` | Open `#jec-settings-overlay` |
 | `#btn-jec-menu-how-to` | Open `#jec-how-to-overlay` |
+| `#btn-jec-reroll` | Specials Board — redraw the Order **and** its Instruction; host-only in Lobby Mode (re-broadcasts `JEC_ORDER`) |
+| `#btn-jec-serve` | Submit this Chef's three ingredients + Signature + Crutch (+ Fusion name) |
+| `#btn-jec-check-proceed` | Close the blind Check → The Tasting. Host-only in Lobby Mode (broadcasts `JEC_TASTING`) |
+| `#btn-jec-sifting-proceed` | Leave The Tasting → the Fusion ballot, or straight to The Tally. Host-only in Lobby Mode |
+| `#btn-jec-name-vote-next` | Advance the Fusion ballot (pass-the-phone) / leave the result → The Tally |
+| `#btn-jec-tally-next` | Next Course, or The Wash-up on the last. Host-only in Lobby Mode — a client running `jecStartRound()` locally pops its own word pool (J4) |
 | `#btn-jec-quit-confirm` | Confirm quit → in a lobby session `mpNotifyPlayerLeft()` + `resetToLobby()`; single-device → `jecResetForNewGame()` → `#screen-jec-menu`. Fixed 23 Aug 2026 (SW v210). |
+
+### State variables
+| Variable | Type | Default | Purpose |
+|----------|------|---------|---------|
+| `jecRounds` / `jecGoldenScore` | int | `3` / `30` | Courses (3/5/10); The Sweet Spot jackpot (10/20/30) — **also sets all three bonus values** via `jecBonusValue()` |
+| `jecTableForOnePenalty` / `jecCrowdedKitchenTax` | bool | `false` | Opt-in penalties: −5 for a Table for One; −2 × count for Too Many Cooks |
+| `jecSousChefCheck` | bool | `true` | Gates the blind Check sub-state; OFF skips it whole |
+| `jecSpecialInstructions` / `jecSpecialsBoard` | bool | `false` | Modify the Order with one Instruction; allow rerolling the Order before prep |
+| `jecFusionCuisine` | bool | `false` | Sylly Mode — two Orders, a dish name, and the ballot |
+| `jecFoodDifficulty` | string | `'mixed'` | The Menu: `'easy'` / `'mixed'` / `'hard'` |
+| `jecCurrentWord` / `jecCurrentWord2` | string | `''` | Today's Order; the second Order (Fusion only, `''` otherwise) |
+| `jecInstruction` / `jecInstructionDeck` | string / string[] | `''` / `[]` | This Order's Special Instruction; the shuffled `JEC_INSTRUCTIONS` deck, popped per Order |
+| `jecInputs` | string[][] | `[]` | `[playerIdx][0..2]` — each Chef's three ingredients |
+| `jecSignatures` / `jecPrepSignatureIdx` | int[] / int | `[]` / `-1` | Nominated ingredient index 0/1/2 per Chef (−1 = unset); the live tap on the prep screen |
+| `jecCrutches` | string[] | `[]` | `[playerIdx]` → the called Crutch word; `''` = none. **Never enters the frequency pool** — `jecBuildFrequency()` reads `jecInputs` alone |
+| `jecFusionNames` / `jecNameVotes` / `jecNameWinners` | string[] / int[] / int[] | `[]` | The dish names, each Chef's vote (−1 = not yet), and **every** tied top-voted Chef (ties all pay) |
+| `jecWordFrequency` / `jecDisplayWords` / `jecMergeMap` | object | `{}` | Normalised word → count; → first raw input for display; → merged-into target |
+| `jecRoundLog` | object[] | `[]` | `{ order, order2, instruction, scores }` per Course — The Cook Book's source |
+| `jecSiftingSubState` | string | `'check'` | `'check'` (blind merge) \| `'tasting'` (scored reveal) |
+| `jecCalloutHandle` | int\|null | `null` | `setTimeout` for the staged Callouts reveal — cleared per § Timer Lifecycle |
+| `jecCurrentPlayerIdx` / `jecVoteCurrentIdx` | int | `0` | Which Chef is prepping / voting (Pass-the-Phone) |
+| `jecMpReadyCheck` / `jecMpVoteCheck` | bool[] | `[]` | Lobby Mode readiness matrices — prep submissions, and name votes |
+
+**Deleted by the 27 Aug 2026 rework:** `jecPoisonWords`, `jecPoisonedNorms`, `jecMenuComplexity` — the Poison Word and Menu Complexity are retired mechanics.
 
 ### Key functions
 | Function | Purpose |
 |----------|---------|
-| `jecInitRoster()` | Entry to `#screen-jec-roster` — Lobby Mode skips the pills entirely and sets `jecPlayerCount` from the roster size, then calls `jecStartGame()` directly |
-| `jecStartRound()` | Draws food word → `#screen-jec-order` |
-| `jecStartPlayerPrep()` | Sets up `#screen-jec-prep` for current player |
-| `jecSubmitIngredients()` | Validates + stores, advances to next player or sifting |
-| `jecBuildFrequency()` | Normalises all inputs → `jecWordFrequency` map |
-| `jecStartSifting()` | Builds sifting screen + Health Inspector chips |
-| `jecApplyMerge(normA, normB)` | Sous Chef Oversight merge |
-| `jecCalcRoundScores()` | Scoring with merge-map resolution |
+| `jecWireArr(v, n, fill)` / `jecWireList(v)` / `jecWireObj(v)` | Wire normalisers — Firebase erases `null`/`{}`/`[]` in flight, so every SYNC applier rebuilds its collections through these rather than assigning a raw payload field |
+| `jecInitRoster()` | Entry to `#screen-jec-roster` — Lobby Mode skips the pills entirely and sets `jecPlayerCount` from the roster size |
+| `jecDrawOrders()` / `jecDrawInstruction()` | Draw one Order (two in Fusion) and pop one Special Instruction from the shuffled deck |
+| `jecStartRound()` | Draws the Order(s) + Instruction, resets every accumulator, broadcasts `JEC_ORDER` → `#screen-jec-order` |
+| `jecRenderOrder()` | Repaints the whole Order stage from state — used by both the first show **and** the Specials Board reroll, so a reroll cannot repaint half of it |
+| `jecStartPlayerPrep(idx)` / `jecSetPrepSignature(idx)` | Sets up `#screen-jec-prep`; the Signature tap |
+| `jecSubmitIngredients()` | Validates the three ingredients, the Signature, The Crutch (**never one of your own three**) and the Fusion name; host resolves directly, client sends `JEC_PREP_SUBMIT` |
+| `jecBuildFrequency()` | Normalises `jecInputs` **only** → `jecWordFrequency` / `jecDisplayWords`. The Crutch is a prediction, not a submission — reading one source is the invariant |
+| `jecBadge(count, N)` → `{key, label, cls}` | The one place an ingredient's outcome tier is named — Table for One / Chef's Kiss / Crowd-Pleaser / Too Many Cooks |
+| `jecIsGolden(key)` | `'kiss'` or `'crowd'` — the Golden range a Signature must land in to double. A predicate, not the `pts > 0` proxy it replaced |
+| `jecCalcPoints(count, N)` / `jecBonusValue()` | Per-ingredient points incl. both penalties; the shared half-jackpot bonus value |
+| `jecResolveNorm(raw)` / `jecTopCount()` / `jecCrutchHit(p)` | Merge-map-aware normalisation; the round's highest count; whether Chef `p` called it (top count, shared by ≥ 3) |
+| `jecHostResolveSifting()` | Called from **both** the host's own submit path and the `JEC_PREP_SUBMIT` handler — one function, so the two cannot drift (J1) |
+| `jecStartSifting()` / `jecShowSousChefCheck()` / `jecShowTasting()` | Screen entry, then each sub-state. The Check renders `#jec-check-list` with **no counts**; The Tasting renders `#jec-tasting-list` + The Callouts |
+| `jecRenderCheckList()` / `jecRenderTasting()` / `jecRenderCallouts(rowCount)` | The three list renderers for those sub-states |
+| `jecHandleOversightTap(norm)` / `jecApplyMerge(normA, normB)` | The two-tap merge, and the merge itself (broadcasts `JEC_MERGE`) |
+| `jecCanOversee()` | Whether this device may merge — host and single-device only |
+| `jecStartNameVote()` / `jecRenderBallot(voterIdx)` / `jecCastNameVote(voterIdx, targetIdx)` | The Fusion ballot. A Chef cannot vote for their own name |
+| `jecTallyNameVotes()` → `{votes, winners, bonus}` | Tally. **Ties are not broken** — every tied name takes the bonus |
+| `jecHostCheckVotes()` | Lobby readiness gate for the ballot. Guards `jecMpVoteCheck.length !== jecPlayerCount` first — `[].every()` is `true` |
+| `jecAdvanceFromTasting()` / `jecFinishRoundToTally()` | Route to the ballot (Fusion) or straight to scoring; the single place a round is scored, shared by both paths |
+| `jecCalcRoundScores()` → `{roundScores, bonus}` | Scoring with merge-map resolution. `bonus[p] = { signature, crutch, name }` |
+| `jecRenderTally(roundScores, bonus)` / `jecRenderCookBook()` / `jecPodiumMedals(scores)` | The Tally rows + bonus lines; The Cook Book; the podium's medal slots (**ties share a medal** — ranks by score, not by index) |
 | `jecResetForNewGame()` | Reset round state, preserve names+settings → `#screen-jec-menu` |
 | `jecApplyExpansionOverrides()` | Secret Mode hook (namespaced — avoids collision with LI5's global) |
+| `jecHandleEnvelope(env)` | **All ten packet handlers**, in `js/engine-multiplayer.js` (~line 2879) alongside the other Phase-22 games. Extracted from the inline block so `tools/verify-jec-loopback.js` can drive it |
+
+### Multiplayer packets
+| Packet | Type | Payload |
+|--------|------|---------|
+| `JEC_ORDER` | SYNC | `word`, `word2` (`''` not null — erased in flight), `instruction`, `round`, `rounds`. Also re-sent by a Specials Board reroll |
+| `JEC_PREP_SUBMIT` | ACTION | `playerIdx`, `ingredients[3]`, `crutch`, `signatureIdx`, `fusionName` |
+| `JEC_SIFTING` | SYNC | `jecInputs`, `jecWordFrequency`, `jecDisplayWords`, `jecMergeMap`, `jecCrutches`, `jecSignatures`, `jecFusionNames` — every accumulator at its reset value, explicitly |
+| `JEC_MERGE` | SYNC | `jecWordFrequency`, `jecDisplayWords`, `jecMergeMap` — repaints the blind Check list |
+| `JEC_TASTING` | SYNC | The same three, once more. Carries the final board **before a single point is scored**, so a client that missed a `JEC_MERGE` is repaired first |
+| `JEC_NAME_VOTE_BEGIN` | SYNC | `jecFusionNames` — clients enter the ballot holding the host's list. **Not in the spec's packet table**: a new interactive screen needs three packets (enter, submit, resolve), not two |
+| `JEC_NAME_VOTE` | ACTION | `playerIdx`, `votedForIdx` |
+| `JEC_NAME_RESULT` | SYNC | `votes`, `winners` (**may legitimately be empty** — rebuilt via `jecWireList`), `bonus` |
+| `JEC_TALLY` | SYNC | `round`, `rounds`, `roundScores`, `scores`, `bonus[]` (`{signature, crutch, name}` per Chef), `roundLog` |
+| `JEC_WASHUP` | SYNC | `scores`, `roundLog` |
+| `JEC_NEXT_ROUND` | SYNC | **Deprecated no-op.** `JEC_ORDER` drives the client's next round; running `jecStartRound()` here popped the client's own pool and flashed a wrong word (J4). The receiver is kept empty in case a stale packet is re-delivered |
+
+Mid-game quit uses the engine's generic `mpNotifyPlayerLeft()` — JEC has no `JEC_PLAYER_LEFT` packet.
+
+### Verification harnesses
+| Command | Covers |
+|---------|--------|
+| `node tools/verify-jec-loop.js` | Tiers, the Golden-only Signature double, Crutch resolution + the never-in-pool invariant, the Instructions deck, the Fusion vote tally |
+| `node tools/verify-jec-loopback.js` | Host↔client over a Firebase-shaped wire with a real mock DOM; accepts `JEC_SRC=` |
 
 ---
 
@@ -1789,7 +1860,7 @@ Per-game: LI5 `ptp`★/`tlm` · GM `ptp`★/`mdlm` · SS `tlm`★/`mdlm`/`ptp` �
 |------|---------------|-------------|
 | LI5 | `LI5_CATCH` | `LI5_ROUND_START` |
 | GM | `GM_SUBMIT` | `GM_ROUND_START`, `GM_RESULT` (`isOverride: bool`, `overridePhrase: string` — present when host triggers Social Override) |
-| JEC | `JEC_PREP_SUBMIT` | `JEC_ORDER`, `JEC_SIFTING`, `JEC_MERGE`, `JEC_TALLY`, `JEC_NEXT_ROUND`, `JEC_WASHUP` |
+| JEC | *(see Just Enough Cooks section packet table)* | *(see Just Enough Cooks section packet table)* |
 | YGI | `YGI_TAKE_SUBMIT`, `YGI_VOTE_SUBMIT` | `YGI_ROUND_START`, `YGI_LINEUP`, `YGI_VERDICT` |
 | NAT | `NAT_OBSERVATION` | `NAT_MATCH_START`, `NAT_ACTIVE_PLAYER`, `NAT_DAY_END`, `NAT_SELECTION`, `NAT_TALLY` |
 | DSD | `DSD_PING_TRANSMIT`, `DSD_SEQUENCE_SUBMIT` | `DSD_CREW_ACTIVE`, `DSD_EXECUTION_RESULT`, `DSD_GAMEOVER` |

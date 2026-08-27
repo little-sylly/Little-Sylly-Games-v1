@@ -46,7 +46,7 @@ Gradient values live on each `.[abbr]-range` rule in `css/styles.css`.
 | LI5 | Play Time! | 💬 | Extra Credit |
 | GM | Begin Link | 🧠 | Static Interference |
 | SS | Start Mission | 📡 | Intel Phase |
-| JEC | Let's Cook! | 🍳 | Kitchen Nightmares |
+| JEC | Let's Cook! | 🍳 | Fusion Cuisine |
 | YGI | Let's Get To It! | 🃏 | The Ringer |
 | LTTP | Find The Location! | 🏃‍♂️ | The Troublemaker † |
 | NAT | Begin Observation | 🦁 | Survival of the Fittest |

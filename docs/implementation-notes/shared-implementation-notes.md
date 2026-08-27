@@ -300,6 +300,32 @@ before trusting a config-level harness's all-green result: **grep for a second i
 same concept** (here, "team assignment") rather than assuming the number that's wrong must live
 where the report points.
 
+### ML-06 — A Phase-22 game's inline packet handlers are unreachable from a harness [27 Aug 2026, SW v211]
+
+*What happened:* JEC's rework needed a two-device loopback (`tools/verify-jec-loopback.js`), and
+there was nothing to call. The eight Phase-22 games keep their packet handlers as an **inline
+`if (mpActiveGame === 'x') { … }` block** inside `mpHandleEnvelope` in `js/engine-multiplayer.js`,
+rather than as a named function. A harness can load the file and drive the game's own logic, but it
+cannot reach a block that only exists partway down a 200-line conditional.
+
+*Root cause:* the inline shape predates loopback harnesses entirely. Nothing was wrong with it while
+the only verification was single-mode; it became a blocker the moment "prove the packet contract"
+turned into a real requirement.
+
+*Resolution:* the JEC block was extracted to `function jecHandleEnvelope(env)`, still **in
+`engine-multiplayer.js`** — the Phase-22 file layout is deliberately preserved — with the inline
+block reduced to a one-line call. That is the whole change, and it is what made 164 loopback checks
+possible.
+
+*Lesson:* **the other seven Phase-22 games (LI5, GM, SS, YGI, LTTP, NAT, DSD) are one extraction each
+away from being loopback-testable.** Do that extraction as the *first* step of any rework touching
+one of them, not as a discovery midway through. It costs a function declaration and a call, changes
+no behaviour, and turns the tier of verification that catches host/client divergence from
+"unavailable" into "available". Do **not** move the handlers into the game's own plugin file — the
+extraction is about reachability, not relocation.
+
+---
+
 ## Template Gaps
 
 ### A doc-verification harness must require a BOUNDED match, not a substring

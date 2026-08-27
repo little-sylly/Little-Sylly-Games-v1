@@ -273,21 +273,18 @@ On every bump the outgoing SW entry moves **verbatim** to `docs/sw-changelog.md`
 "keep the last three". **A second `**SW v…**` paragraph appearing here means that move didn't
 happen: do it before anything else.**
 
-**SW v210 — lobby bounds are constants, the quit contract covers TLM, and the declarations
-layer finally has a harness (23 Aug 2026).** Two recurring bugs from the identity-doc pass, both
-cross-cutting, both invisible to all 14 rules harnesses. **(1)** `getMaxPlayers`/`getMinPlayers` are
-read only while a room fills — before the game shows a screen — so five games (SS, JEC, YGI, LTTP,
-DSD) resolved theirs against a setup variable still at its default, capping rooms below their own
-Pass-the-Phone range; now constants. Raising SS/DSD to 3v3 exposed that nothing ever checked team
-balance (3v2 confirmed; 4v0 too) — new `rosterConfig.requiresBalancedTeams` gates the host CTA and
-the roster screen. **(2)** Eight games had no mid-game quit teardown; the rule was titled *MDLM*, so
-the two TLM games (LI5, DSD) read past it. It is now § Mid-Game Quit Contract, covers every lobby
-session, and is satisfied by one generic helper `mpNotifyPlayerLeft()`. **Scope grew on evidence
-twice** — the identity pass named 5 quit games and 4 bounds games; grepping the shape found 8 and 5.
-New `node tools/verify-mp-configs.js` (18 games) fails on pre-fix `main` via `MP_SRC=`. Detail:
-`shared-implementation-notes` ML-01…ML-04, `docs/decision-log.md`.
+**SW v211 — Just Enough Cooks reworked: real decisions in standard play, Kitchen Nightmares
+retired (27 Aug 2026).** JEC's base game was one guess repeated; it now carries three decisions —
+a **Signature Dish** you tap to back (double, and only inside the Golden range — the code had been
+doubling any positive score), **The Crutch** (predict the table's most-picked cliché; never one of
+your own three, and never entered into the pot), and **Special Instructions** (twenty twists that
+bend the Order rather than punish the answer). The Sifting splits into a **blind** Sous Chef's Check
+then The Tasting: merges are now decided before anyone can see what one is worth. Sylly Mode becomes
+**Fusion Cuisine** — two Orders, one dish, and a name vote where ties all pay. Bug **J2** closed at
+all three sites. Two new harnesses (`verify-jec-loop` 77, `verify-jec-loopback` 164) — JEC had
+none. Detail: `jec-implementation-notes`, `docs/decision-log.md`.
 
-**Previous versions: `docs/sw-changelog.md`** — continuous, v209 back to v167.
+**Previous versions: `docs/sw-changelog.md`** — continuous, v210 back to v167.
 
 **Where the suite stands.** **18 games shipped**, all gold-master, plus multiplayer. Newest three:
 **Cookie Jar** (`cjar`, game 18, phase 39), **Pecking Order** (`pko`, game 17, phase 37) and its
@@ -331,13 +328,15 @@ Re-run a game's full set after touching its appliers, deck/data, packets or rend
 | NT | `node tools/nt-path-probe.js <board.json> --target <ms>` — movement-model instrument: path length, turn angle, latency, and the fit against a maze.game score. Asserts nothing, exits 0 | — |
 | NT | `node tools/nt-maze-transcribe.js <shot.png> --auto` — reads a maze.game screenshot into a probe board.json (zero-dependency PNG decode; ice blocks and corner mouths too) | — |
 | NT | `node tools/nt-slow-fit.js` — slow-model fitter: substitutes the `NT_HONEYPOT_*` constants into nt.js's OWN timeline, so a fit can never drift from the shipped model. `--sweep`, `--grid`, `--contact`. Asserts nothing, exits 0 | — |
+| JEC | `node tools/verify-jec-loop.js` — the four tiers, the Golden-only Signature double, Crutch resolution + the never-in-pool invariant, the Instructions deck, the Fusion name vote | 77 |
+| JEC | `node tools/verify-jec-loopback.js` — host↔client over a Firebase-shaped wire with a real mock DOM; accepts `JEC_SRC=` | 164 |
 | **All 18 / MP** | `node tools/verify-mp-configs.js` — `MP_GAME_CONFIGS` entry schema, player-count bounds (sanity, **purity** — a bound may read nothing but `window.mpLobbyStyle`, and agreement with each game's own PTP count pills), the balanced-teams invariant, and the Mid-Game Quit Contract. Runs no game logic; accepts `MP_SRC=`. **Re-run after touching `MP_GAME_CONFIGS`, any quit-confirm handler, or the roster screen** | 18 games |
 | Identity docs | `node tools/verify-identity-docs.js` — every `copy` block in `docs/game-identities/` against the shipped `index.html` + plugin file | per-doc |
 | Identity docs | `node tools/verify-identity-docs.js --self-test` — proves the checker still detects planted drift | 1 |
 | FLW | `node tools/verify-flw-loopback.js` — host↔client over a Firebase-shaped wire, incl. the private-channel hand packets | 84 |
 
 **Reach for a loopback on anything MP- or render-shaped.** Every harness *except* the four
-loopbacks (`cjar`/`shp`/`flw`/`nt`) runs `'single'` mode with `getElementById: () => null`, which
+loopbacks (`cjar`/`shp`/`flw`/`nt`/`jec`) runs `'single'` mode with `getElementById: () => null`, which
 is what lets one process drive all N seats — and exactly what blinds it to both the packet layer
 and every line of render code. CJAR's **BUG-06** survived 222 green checks in that gap; NT's
 **BUG-15/16** survived a clean host-side playtest. How to build one, and the wire/mock-DOM

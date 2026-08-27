@@ -152,6 +152,27 @@ section in the same change.
 
 ---
 
+## JEC — open after the 27 Aug 2026 rework (SW v211)
+
+- **Special Instructions × Fusion Cuisine stacking — flagged for playtest, deliberately NOT made
+  exclusive.** With both on, a Chef prepping is holding three constraints at once: two Orders to
+  fuse, a Special Instruction bending them, and the usual hunt for a narrow band of agreement. That
+  may be the best thing in the game or one constraint too many, and there is no way to tell from a
+  harness — it is a feel question. If it proves too much, making the two mutually exclusive is a
+  small, well-patterned change (`ui-style.md` § Mutually-exclusive / superseded settings — FRT's
+  Pear-Off ↔ Sylly Mode is the reference, and NT's Debug Mode is the how-to-overlay mirror).
+  **Do not pre-emptively make them exclusive** — the stack was designed to be tried.
+- **JEC has no How-to gallery tab, and correctly should not.** Recorded so a future gallery-tab
+  sweep does not reopen it: a gallery tab renders a game's deck *through its own render seam*, and
+  JEC has neither deck nor seam — every visual is emoji or text (identity doc T9). The only game
+  with a seam still missing a tab is PASS, logged separately.
+- **CLOSED 27 Aug 2026** — `jec-new-shift-overlay`'s z-index. The June 2026 audit logged it as
+  z-[80] where the Play-Again Confirmation rule wants z-[90]; the shipped markup already reads
+  z-[90]. Fixed at some point without the note being updated. Verified by reading `index.html`, not
+  by re-fixing.
+
+---
+
 ## JEC gaps found while writing its identity doc (23 Aug 2026)
 
 **Found, not fixed.** An identity pass records the game as it shipped; fixing what it reveals is a

@@ -20,6 +20,15 @@ Detail: pointer to the canonical doc (snapshot / impl note / spec / memory).
 
 ---
 
+## 2026-08-27 — Just Enough Cooks reworked; Kitchen Nightmares retired
+Category: Architecture
+Decision: Standard play gains three real decisions — a tapped **Signature Dish** (double, Golden range only), **The Crutch** (predict the table's most-picked cliché; never one of your own three, never entered into the pot), and **Special Instructions** (twenty twists bending the Order). The Sifting splits into a **blind** Sous Chef's Check then The Tasting. Sylly Mode becomes **Fusion Cuisine** — two Orders, one dish, a name vote where ties all pay. Bug **J2** closed at all three sites.
+Why: The unifying idea is **modify the prompt to flatten the head, don't punish the answer**. Menu Complexity and the Poison Word both attacked the wrong axis — a harder word and a costlier neighbour, neither of which changes what a Chef decides. Making the merge blind is the same move applied to integrity: a decision taken before the score is visible has no incentive to police.
+Changed: `js/games/jec.js` (rewritten), `js/engine-multiplayer.js` (`jecHandleEnvelope` **extracted** from the inline block so a harness can reach it — the other seven Phase-22 games are one extraction each from the same), `index.html` (settings, Order, Prep, the two Sifting sub-states, the new `screen-jec-name-vote`, the how-to), `js/secret-mode.js` (J2's third site), `js/engine.js` (`allScreens[]`), `sw.js` v210 → v211. **New: `tools/verify-jec-loop.js` (77) and `tools/verify-jec-loopback.js` (164)** — JEC had no harness at all. Three deviations from the spec, each flagged in the plan's Self-Review: `JEC_NAME_VOTE_BEGIN` as a seventh packet, the handler extraction, and the `jec-new-shift-overlay` z-index item verified rather than fixed. **Deferred:** whether Special Instructions × Fusion Cuisine is one constraint too many is a playtest question, not pre-emptively made exclusive.
+Detail: spec `docs/superpowers/specs/2026-08-27-jec-rework-design.md`, plan `docs/superpowers/plans/2026-08-27-jec-rework.md`, `docs/implementation-notes/jec-implementation-notes.md` (J2/J5/J6 + Template Gaps), `shared-implementation-notes.md` ML-06.
+
+---
+
 ## 2026-08-23 — Both recurring MP bugs closed; the quit contract widened past MDLM; the declarations layer gets a harness
 Category: Architecture
 Decision: A **lobby player-count bound may read nothing that a post-lobby screen sets** — it returns the game's true range as a constant (only `window.mpLobbyStyle`, or a pre-lobby settings-overlay value, are legitimate extra inputs). The **Mid-Game Quit Contract is re-scoped from MDLM to every lobby session**, TLM included, and is now satisfied by one generic engine helper, `mpNotifyPlayerLeft()` → `MP_PLAYER_LEFT`, handled in `mpHandleEnvelope` before any per-game routing. New `rosterConfig.requiresBalancedTeams` makes even teams an enforced invariant rather than an assumption.
