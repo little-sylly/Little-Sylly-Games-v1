@@ -2357,7 +2357,10 @@ Let's Cook!
       <div class="w-full">
         <p class="text-stone-500 text-sm font-semibold mb-1">Prep your Ingredients!</p>
         <h2 id="jec-prep-chef-name" class="text-xl font-bold text-stone-800 mb-1"></h2>
-        <p class="text-stone-400 text-xs mb-3">Tap the ⭐ on the one you're backing — your Signature Dish scores double if it lands.</p>
+        <div class="flex items-center gap-1.5 mb-3">
+          <p class="text-stone-400 text-xs">Tap the ⭐ on the one you're backing — your Signature Dish scores double if it lands.</p>
+          <button id="btn-jec-tip-signature" class="text-stone-300 font-bold text-xs leading-none active:scale-90 transition-transform duration-100 shrink-0">[?]</button>
+        </div>
         <div class="flex flex-col gap-3 w-full">
           <div class="flex items-center gap-2">
             <input type="text" maxlength="30" placeholder="Ingredient 1" id="jec-prep-ingredient-1" autocomplete="off"
@@ -2382,7 +2385,10 @@ Let's Cook!
 
       <!-- The Crutch — always on in standard play; it is not a setting. -->
       <div id="jec-prep-crutch-section" class="w-full flex flex-col gap-2">
-        <p class="text-stone-500 text-sm font-semibold">Call the Crutch</p>
+        <div class="flex items-center gap-1.5">
+          <p class="text-stone-500 text-sm font-semibold">Call the Crutch</p>
+          <button id="btn-jec-tip-crutch" class="text-stone-300 font-bold text-xs leading-none active:scale-90 transition-transform duration-100">[?]</button>
+        </div>
         <input type="text" maxlength="30" placeholder="The one everyone leans on…" id="jec-prep-crutch" autocomplete="off"
           class="w-full rounded-xl border-2 border-amber-300 bg-white px-4 py-3 text-base text-stone-800 placeholder-stone-300 focus:border-amber-500 focus:outline-none transition-colors" />
         <p class="text-stone-400 text-xs">Every kitchen has one. Call the culinary cliché everyone leans on.</p>
@@ -2390,7 +2396,10 @@ Let's Cook!
 
       <!-- Fusion Cuisine — Name the Dish, folded into the same pass as the prep. -->
       <div id="jec-prep-fusion-section" style="display:none" class="w-full flex flex-col gap-2">
-        <p class="text-stone-500 text-sm font-semibold">Name the Dish</p>
+        <div class="flex items-center gap-1.5">
+          <p class="text-stone-500 text-sm font-semibold">Name the Dish</p>
+          <button id="btn-jec-tip-fusion-name" class="text-stone-300 font-bold text-xs leading-none active:scale-90 transition-transform duration-100">[?]</button>
+        </div>
         <input type="text" maxlength="40" placeholder="What are we calling this?" id="jec-prep-fusion-name" autocomplete="off"
           class="w-full rounded-xl border-2 border-amber-300 bg-white px-4 py-3 text-base text-stone-800 placeholder-stone-300 focus:border-amber-500 focus:outline-none transition-colors" />
         <p class="text-stone-400 text-xs">Best name gets voted On the Menu — and takes half a jackpot.</p>
@@ -2422,6 +2431,7 @@ Serve it Up!
       <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest">The Sifting</p>
       <div class="flex items-center gap-2">
         <button class="btn-open-sound w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-lg">🔊</button>
+        <button class="btn-jec-help-open w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-stone-300 font-mono font-bold">?</button>
         <button id="btn-jec-sifting-exit" class="w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-stone-500 font-bold text-lg">✕</button>
       </div>
     </div>
@@ -2469,6 +2479,7 @@ The Tally
         <p id="jec-name-vote-round-label" class="text-stone-400 text-xs font-semibold uppercase tracking-widest"></p>
         <div class="flex items-center gap-2">
           <button class="btn-open-sound w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-lg">🔊</button>
+          <button class="btn-jec-help-open w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-stone-300 font-mono font-bold">?</button>
           <button id="btn-jec-name-vote-exit" class="w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-stone-500 font-bold text-lg">✕</button>
         </div>
       </div>
@@ -2516,19 +2527,19 @@ Next Course
 </button>
   </section>
 
-  <!-- Sous Chef Oversight modal (Pattern 2) -->
+  <!-- Sous Chef's Check merge modal (Pattern 2) -->
   <div id="jec-oversight-overlay" style="display:none" class="fixed inset-0 bg-black/50 z-[90] flex items-center justify-center px-6">
     <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-amber-300">
       <p class="text-4xl">🧑‍🍳</p>
-      <p class="text-xl font-bold text-stone-800">Sous Chef Oversight</p>
+      <p class="text-xl font-bold text-stone-800">Sous Chef's Check</p>
       <p class="text-stone-500 text-sm">Are these the same ingredient?</p>
       <div class="bg-stone-50 rounded-2xl py-4 px-6 text-center">
         <span id="jec-oversight-words" class="text-lg font-bold text-stone-800 leading-snug"></span>
       </div>
-      <button id="btn-jec-oversight-merge" class="min-h-14 w-full rounded-2xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150 mt-2">
+      <button id="btn-jec-oversight-merge" class="min-h-14 w-full rounded-2xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white font-semibold text-lg transition-all duration-150 mt-2">
 Yep — merge 'em!
 </button>
-      <button id="btn-jec-oversight-cancel" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-base font-medium transition-all duration-150">
+      <button id="btn-jec-oversight-cancel" class="min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-lg transition-all duration-150">
         Different things
       </button>
     </div>
@@ -2666,32 +2677,45 @@ Yep — merge 'em!
       <div class="overflow-y-auto flex flex-col gap-4 px-5 py-5">
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
           <p class="text-xs font-semibold uppercase tracking-widest text-amber-500">Step 1</p>
-          <p class="font-bold text-stone-800">Everyone sees the same food item.</p>
-          <p class="text-stone-500 text-sm">A food item — like "Pizza" or "Nachos" — appears on screen. Everyone reads it, then each <span class="font-semibold text-stone-700">Chef</span> takes a turn privately.</p>
+          <p class="font-bold text-stone-800">Everyone sees the same Order.</p>
+          <p class="text-stone-500 text-sm">A dish — like "Pizza" or "Nachos" — appears on screen. With <span class="font-semibold text-stone-700">Special Instructions</span> on, it comes with a twist: <span class="font-semibold text-stone-700">on a $5 budget</span>, or <span class="font-semibold text-stone-700">at 3am</span>.</p>
         </div>
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
           <p class="text-xs font-semibold uppercase tracking-widest text-amber-500">Step 2</p>
           <p class="font-bold text-stone-800">Each Chef secretly picks 3 ingredients.</p>
-          <p class="text-stone-500 text-sm">What would you put in this dish? Think carefully — you want to match others without being too obvious.</p>
+          <p class="text-stone-500 text-sm">What would you put in this dish? You want to match others — without being so obvious that everybody does.</p>
         </div>
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
           <p class="text-xs font-semibold uppercase tracking-widest text-amber-500">Step 3</p>
-          <p class="font-bold text-stone-800">Hit the Sweet Spot.</p>
-          <p class="text-stone-500 text-sm">After all Chefs submit, ingredients are revealed. A <span class="font-semibold text-stone-700">Chef's Kiss ✨</span> hits the Sweet Spot — shared by just the right number of players. Too common is <span class="font-semibold text-stone-700">Too Many Cooks!</span> Too rare is <span class="font-semibold text-stone-700">A Bit Pongy!</span></p>
+          <p class="font-bold text-stone-800">Back one with a star.</p>
+          <p class="text-stone-500 text-sm">Tap the ⭐ to make one ingredient your <span class="font-semibold text-stone-700">Signature Dish</span>. If it lands in the golden range, it scores <span class="font-semibold text-stone-700">double</span>. If it doesn't, it just scores what it was worth — the only loss is the double you missed.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest text-amber-500">Step 4</p>
+          <p class="font-bold text-stone-800">Call the Crutch.</p>
+          <p class="text-stone-500 text-sm">Every kitchen has one. Name the culinary cliché you reckon everyone leans on — it can't be one of your own three. Get the round's most-picked ingredient, shared by <span class="font-semibold text-stone-700">3 or more Chefs</span>, and you've <span class="font-semibold text-stone-700">Called It! 📣</span> Miss and it costs you nothing.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest text-amber-500">Step 5</p>
+          <p class="font-bold text-stone-800">Sous Chef's Check, then The Tasting.</p>
+          <p class="text-stone-500 text-sm">First the table merges any ingredient that's the same word spelt two ways — <span class="font-semibold text-stone-700">before</span> anyone can see what it's worth. Then The Tasting reveals the counts, quietest first.</p>
         </div>
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
           <p class="text-xs font-semibold uppercase tracking-widest text-amber-500">Winning and Scoring</p>
-          <p class="font-bold text-stone-800">Most Golden ingredients wins.</p>
+          <p class="font-bold text-stone-800">Most points after the last course wins.</p>
           <ul class="list-disc pl-5 flex flex-col gap-1 text-stone-500 text-sm">
-            <li>✨ <span class="font-semibold text-stone-700">Chef's Kiss</span> — hit the Sweet Spot. Full points!</li>
-            <li>🤢 <span class="font-semibold text-stone-700">Too Many Cooks</span> — too common. Points drop (penalty on: −2 per Chef who picked it).</li>
-            <li>🍂 <span class="font-semibold text-stone-700">A Bit Pongy</span> — nobody else picked it (penalty on: −5 pts).</li>
+            <li>🍽️ <span class="font-semibold text-stone-700">Table for One</span> — nobody else picked it. No points (with the penalty on: −5 pts).</li>
+            <li>✨ <span class="font-semibold text-stone-700">Chef's Kiss</span> — exactly one other Chef picked it. The jackpot.</li>
+            <li>👌 <span class="font-semibold text-stone-700">Crowd-Pleaser</span> — a few of you picked it. Half the jackpot.</li>
+            <li>🍲 <span class="font-semibold text-stone-700">Too Many Cooks</span> — everybody picked it. A token (with the tax on: −2 pts per Chef who picked it, including you).</li>
+            <li>🌟 <span class="font-semibold text-stone-700">Signature Dish</span> — a golden nomination scores double.</li>
+            <li>📣 <span class="font-semibold text-stone-700">Called It!</span> — a correct Crutch pays half the jackpot.</li>
           </ul>
         </div>
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
           <p class="text-xs font-semibold uppercase tracking-widest text-amber-500">✨ Sylly Mode</p>
-          <p class="font-bold text-stone-800">Kitchen Nightmares</p>
-          <p class="text-stone-500 text-sm">Your first ingredient becomes a <span class="font-semibold text-stone-700">Signature Dish</span> — if it hits the Sweet Spot, it scores double. Also plant a <span class="font-semibold text-stone-700">Poison Word</span> to spoil anyone who matches it.</p>
+          <p class="font-bold text-stone-800">Fusion Cuisine</p>
+          <p class="text-stone-500 text-sm">Two Orders drop at once — <span class="font-semibold text-stone-700">Sushi + Pizza</span>. Prep three ingredients for the mash-up and give the thing a name, all in one go. After The Tasting everyone votes on the best name; the winner goes <span class="font-semibold text-stone-700">On the Menu! ⭐</span> for half the jackpot. Ties all pay.</p>
         </div>
         <button id="btn-jec-how-to-close" class="min-h-14 w-full rounded-2xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
           Got it
@@ -2733,8 +2757,8 @@ New Shift
       <p class="text-4xl">👨‍🍳</p>
       <h3 class="text-xl font-bold text-stone-800">New Shift?</h3>
       <p class="text-stone-400 text-sm">Scores will be wiped and a fresh game will begin.</p>
-      <button id="btn-jec-new-shift-start" class="min-h-14 w-full rounded-2xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150 mt-2">Begin New Shift</button>
-      <button id="btn-jec-new-shift-cancel" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 text-base font-medium transition-all duration-150">
+      <button id="btn-jec-new-shift-start" class="min-h-14 w-full rounded-2xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white font-semibold text-lg transition-all duration-150 mt-2">Begin New Shift</button>
+      <button id="btn-jec-new-shift-cancel" class="min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-lg transition-all duration-150">
         Back to the Chopping Block
       </button>
     </div>
@@ -2746,10 +2770,10 @@ New Shift
       <p class="text-4xl">🏳️</p>
       <h3 class="text-xl font-bold text-stone-800">Kitchen Closed?</h3>
       <p class="text-stone-400 text-sm">Your progress will be lost.</p>
-      <button id="btn-jec-quit-confirm" class="min-h-12 w-full rounded-xl bg-red-500 hover:bg-red-600 active:scale-95 text-white text-lg font-semibold transition-all duration-150 mt-2">
+      <button id="btn-jec-quit-confirm" class="min-h-14 w-full rounded-2xl bg-red-500 hover:bg-red-600 active:scale-95 text-white font-semibold text-lg transition-all duration-150 mt-2">
         Yeah, close the kitchen.
       </button>
-      <button id="btn-jec-quit-cancel" class="min-h-12 w-full rounded-xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 text-lg font-semibold transition-all duration-150">
+      <button id="btn-jec-quit-cancel" class="min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-lg transition-all duration-150">
         Back to the stove!
       </button>
     </div>
@@ -2760,8 +2784,8 @@ New Shift
     <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-amber-300">
       <p id="jec-help-tip-emoji" class="text-4xl"></p>
       <h3 id="jec-help-tip-heading" class="text-lg font-bold text-stone-800"></h3>
-      <p id="jec-help-tip-text" class="text-stone-500 text-sm"></p>
-      <button id="btn-jec-help-tip-close" class="min-h-12 w-full rounded-xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-base font-semibold transition-all duration-150">
+      <div id="jec-help-tip-body" class="text-stone-500 text-sm text-left flex flex-col gap-1.5"></div>
+      <button id="btn-jec-help-tip-close" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-sm transition-all duration-150">
         Got it ✓
       </button>
     </div>

@@ -158,12 +158,41 @@ function jecDrawOrders() {
 }
 
 // ── JEC Help tip overlay ──────────────────────────────────────────────────────
-function jecShowHelpTip(emoji, heading, tip) {
+// Three bullets, one sentence each — § Contextual Tip Icons. textContent per
+// line, never innerHTML: a tip is plain prose and nothing here needs markup.
+function jecShowHelpTip(emoji, heading, lines) {
   document.getElementById('jec-help-tip-emoji').textContent   = emoji;
   document.getElementById('jec-help-tip-heading').textContent = heading;
-  document.getElementById('jec-help-tip-text').textContent    = tip;
+  const body = document.getElementById('jec-help-tip-body');
+  body.innerHTML = '';
+  lines.forEach(line => {
+    const p = document.createElement('p');
+    p.textContent = '• ' + line;
+    body.appendChild(p);
+  });
   document.getElementById('jec-help-tip-overlay').style.display = 'flex';
 }
+
+// The three mechanics a one-line hint under the input cannot fully explain: what
+// a missed Signature actually costs, why the Crutch refuses your own words, and
+// that a tied name still pays.
+const JEC_TIPS = {
+  signature: ['⭐', 'Your Signature Dish', [
+    'Back one of your three to score double — but only if it lands in the golden range.',
+    'A Signature that misses still scores what it was worth; the only loss is the double.',
+    'Back the one you think a couple of others will write, not the one everybody will.',
+  ]],
+  crutch: ['📣', 'Calling the Crutch', [
+    'Name the ingredient you reckon the most Chefs at this table will write.',
+    "It can't be one of your own three — calling your own is not a read of the table.",
+    'Hit the round\'s most-picked, shared by 3 or more Chefs, and it pays half a jackpot.',
+  ]],
+  fusionName: ['🍜', 'Naming the Dish', [
+    'Give the mash-up a name — everyone votes on it after The Tasting.',
+    'The winner goes On the Menu for half a jackpot.',
+    'Ties all pay, so there is no reason to play it safe.',
+  ]],
+};
 
 // ── Lobby → JEC Menu ──────────────────────────────────────────────────────────
 document.getElementById('btn-jec').addEventListener('click', () => {
@@ -509,8 +538,8 @@ function jecSubmitIngredients() {
   if (new Set(norms).size < 3) { err.textContent = "You've already prepped that! Try a different ingredient. 🤔"; return; }
   if (jecPrepSignatureIdx < 0) { err.textContent = 'Tap the ⭐ on your Signature Dish first!'; return; }
   if (!crutch)                 { err.textContent = 'Call the Crutch before you serve!'; return; }
-  // Same validation the Poison Word had, for the same reason: calling your own
-  // ingredient is not a read of the table.
+  // Calling one of your own three is not a read of the table — it is a read of
+  // your own hand, which you already have.
   if (norms.includes(normaliseWord(crutch))) {
     err.textContent = "That's one of your own — call something you didn't write. 📣"; return;
   }
@@ -805,7 +834,7 @@ function jecClearOversightHighlights() {
   document.querySelectorAll('.jec-sift-card').forEach(c => c.classList.remove('ring-2', 'ring-amber-400'));
 }
 
-// Sous Chef Oversight is interactive only on the host (and single-device). In Lobby
+// Sous Chef's Check is interactive only on the host (and single-device). In Lobby
 // Mode clients render a read-only sifting board — merges arrive via the JEC_MERGE SYNC,
 // never initiated locally. A client merging would silently diverge its board from the
 // table without sending any ACTION. (J3)
@@ -1328,7 +1357,7 @@ document.getElementById('btn-jec-name-vote-next').addEventListener('click', () =
   jecFinishRoundToTally();
 });
 
-// ── Sous Chef Oversight overlay ───────────────────────────────────────────────
+// ── Sous Chef's Check merge overlay ──────────────────────────────────────────
 document.getElementById('btn-jec-oversight-merge').addEventListener('click', () => {
   playSuccess();
   jecApplyMerge(jecOversightPendingA, jecOversightPendingB);
@@ -1443,6 +1472,16 @@ document.getElementById('btn-jec-how-to')?.addEventListener('click', () => {
   const inner = el.querySelector('.overlay-data-inner');
   if (inner) inner.scrollTop = 0;
   el.style.display = 'flex';
+});
+Object.entries({
+  'btn-jec-tip-signature':   'signature',
+  'btn-jec-tip-crutch':      'crutch',
+  'btn-jec-tip-fusion-name': 'fusionName',
+}).forEach(([id, key]) => {
+  document.getElementById(id)?.addEventListener('click', () => {
+    playPillClick();
+    jecShowHelpTip(...JEC_TIPS[key]);
+  });
 });
 document.getElementById('btn-jec-help-tip-close')?.addEventListener('click', () => {
   playDone();
