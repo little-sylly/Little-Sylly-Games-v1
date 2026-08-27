@@ -2974,11 +2974,20 @@ function jecHandleEnvelope(env) {
 
   // JEC_TALLY — Client applies scores and renders tally screen
   if (env.type === 'SYNC' && env.payload.action === 'JEC_TALLY') {
-    jecRound    = env.payload.round;
-    jecRounds   = env.payload.rounds;
-    jecScores   = [...env.payload.scores];
-    jecRoundLog = env.payload.roundLog;
-    jecRenderTally(env.payload.roundScores);
+    const p     = env.payload;
+    jecRound    = p.round;
+    jecRounds   = p.rounds;
+    jecScores   = jecWireArr(p.scores, jecPlayerCount, 0);
+    jecRoundLog = jecWireList(p.roundLog);
+    const roundScores = jecWireArr(p.roundScores, jecPlayerCount, 0);
+    // A round where nobody earned a bonus is N objects of three zeros — 0 is
+    // stored, so those survive. The real risk is a MISSING entry (a half-dense
+    // array returns index-keyed and short), which the per-field fallbacks cover.
+    const bonus = jecWireArr(p.bonus, jecPlayerCount, null)
+      .map(b => ({ signature: (b && b.signature) || 0,
+                   crutch:    (b && b.crutch)    || 0,
+                   name:      (b && b.name)      || 0 }));
+    jecRenderTally(roundScores, bonus);
     showScreen('screen-jec-tally');
   }
 
@@ -2992,8 +3001,8 @@ function jecHandleEnvelope(env) {
 
   // JEC_WASHUP — Client shows final washup
   if (env.type === 'SYNC' && env.payload.action === 'JEC_WASHUP') {
-    jecScores   = [...env.payload.scores];
-    jecRoundLog = env.payload.roundLog;
+    jecScores   = jecWireArr(env.payload.scores, jecPlayerCount, 0);
+    jecRoundLog = jecWireList(env.payload.roundLog);
     jecShowWashup();
   }
 }

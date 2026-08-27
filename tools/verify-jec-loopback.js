@@ -221,6 +221,7 @@ function makeDevice(name, mode, myIdx, slots) {
     '  seat(o) {',
     '    jecPlayerCount         = o.players;',
     '    jecPlayerNames         = (mpPlayerSlots || []).map(p => p.nickname);',
+    '    jecPlayerNames         = jecPlayerNames.slice(0, o.players);',
     "    if (jecPlayerNames.length < o.players) jecPlayerNames = Array.from({ length: o.players }, (_, i) => 'Chef' + (i + 1));",
     '    jecScores              = Array(o.players).fill(0);',
     '    jecGoldenScore         = o.golden === undefined ? 30 : o.golden;',
@@ -230,6 +231,7 @@ function makeDevice(name, mode, myIdx, slots) {
     '    jecFusionCuisine       = !!o.fusion;',
     '    jecSpecialsBoard       = !!o.specials;',
     '    jecSousChefCheck       = o.souschef === undefined ? true : !!o.souschef;',
+    '    jecRoundLog            = [];',
     '    jecWordPool            = [];',
     '    jecInstructionDeck     = [];',
     '  },',
@@ -290,6 +292,9 @@ function makeDevice(name, mode, myIdx, slots) {
     '  advanceCheck() { jecAdvanceToTasting(); },',
     '  // The SHIPPED Tasting advance - Fusion detour and J4 guard included.',
     '  advanceTasting() { jecAdvanceFromTasting(); },',
+    '  finishTally() { jecFinishRoundToTally(); },',
+    '  showWashup() { jecShowWashup(); },',
+    '  podiumMedals(s) { return jecPodiumMedals(s); },',
     '  vote(voter, target) { jecCastNameVote(voter, target); },',
     '  // The ACTION a third client would send. Mirrors the client branch of',
     '  // jecCastNameVote - the shape is the contract being asserted.',
@@ -322,6 +327,9 @@ function makeDevice(name, mode, myIdx, slots) {
     __merge: (a, b) => J.merge(a, b),
     __advanceCheck: () => J.advanceCheck(),
     __advanceTasting: () => J.advanceTasting(),
+    __finishTally: () => J.finishTally(),
+    __showWashup: () => J.showWashup(),
+    __podiumMedals: s => J.podiumMedals(s),
     // A client vote SENDS; return the envelope so the caller can deliver it.
     __vote: (v, t) => { J.vote(v, t); return [...sent].reverse().find(e => e.payload.action === 'JEC_NAME_VOTE'); },
     __buildVote: (i, t) => J.buildVote(i, t),
@@ -783,6 +791,101 @@ check('PTP showed the result',
   solo.__el('jec-name-vote-result').style.display, '');
 check('PTP broadcast no result',
   solo.__sent.filter(e => e.payload.action === 'JEC_NAME_RESULT').length, 0);
+
+// ── § 9 The Tally ─────────────────────────────────────────────────────────────
+// A bare total tells a Chef what they got, not which bet paid off. The breakdown
+// has to survive the wire, and its all-zero and half-dense shapes are exactly
+// what Firebase mangles.
+// The mock's innerHTML getter is not rebuilt by appendChild, so read the rows.
+const rowsHTML = (d, id) => d.__el(id).children.map(c => c.innerHTML).join('');
+
+host.__seat({ players: 4, golden: 30, fusion: false, souschef: false });
+client.__seat({ players: 4, golden: 30, fusion: false, souschef: false });
+host.__clearSent();
+client.__errors.length = 0;
+// Three Chefs on 'cheese' puts the top count at 3 — the Crutch's floor — and the
+// fourth Chef is the one who called it.
+host.__runPrepAll([['cheese', 'a1', 'a2'], ['cheese', 'b1', 'b2'],
+                   ['cheese', 'c1', 'c2'], ['d0', 'd1', 'd2']],
+                  ['', '', '', 'cheese'], [0, 0, 1, 0]);
+deliver(host, client, host.__lastSent('JEC_SIFTING'));
+host.__clearSent();
+host.__advanceTasting();
+env = host.__lastSent('JEC_TALLY');
+check('tally sent',                  !!env, true);
+check('tally carries a bonus array', Array.isArray(pay(env).bonus), true);
+check('bonus length is N',           (pay(env).bonus || []).length, 4);
+check('the Crutch bonus is on the wire', ((pay(env).bonus || [])[3] || {}).crutch, 15);
+deliver(host, client, env);
+check('client scores match host',   client.__state().scores, host.__state().scores);
+check('client rendered N rows',     client.__el('jec-tally-list').children.length, 4);
+check('client rendered the Called It line',
+  /Called It/.test(rowsHTML(client, 'jec-tally-list')), true);
+check('the Signature double is named',
+  /Signature Dish/.test(rowsHTML(client, 'jec-tally-list')), true);
+// Chefs 0 and 1 doubled a golden Signature and Chef 3 called the Crutch; Chef 2
+// nominated a Table for One and earned nothing - so three lines, not four.
+check('a Chef with no bonus gets no line',
+  (rowsHTML(client, 'jec-tally-list').match(/text-amber-600 font-semibold/g) || []).length, 3);
+check('no throw on JEC_TALLY',      client.__errors, []);
+
+// An all-zero bonus array is the common case AND the erasure worst case: every
+// object is {} means the array is [] means the key is deleted in flight.
+client.__errors.length = 0;
+deliver(host, client, { type: 'SYNC', payload: {
+  action: 'JEC_TALLY', round: 1, rounds: 3,
+  roundScores: [0, 0, 0, 0], scores: [0, 0, 0, 0], bonus: [], roundLog: [] } });
+check('an erased bonus array still renders N rows',
+  client.__el('jec-tally-list').children.length, 4);
+check('no bonus line survives the erasure',
+  /Called It|On the Menu|Signature Dish/.test(rowsHTML(client, 'jec-tally-list')), false);
+check('no throw on an erased bonus', client.__errors, []);
+
+// A half-dense bonus array comes back short and index-keyed — the real risk the
+// per-field fallbacks exist for.
+client.__errors.length = 0;
+deliver(host, client, { type: 'SYNC', payload: {
+  action: 'JEC_TALLY', round: 1, rounds: 3,
+  roundScores: [0, 15, 0, 0], scores: [0, 15, 0, 0],
+  bonus: [null, { signature: 0, crutch: 15, name: 0 }, null, null], roundLog: [] } });
+check('a half-dense bonus still renders N rows',
+  client.__el('jec-tally-list').children.length, 4);
+check('the surviving entry still renders',
+  /Called It/.test(rowsHTML(client, 'jec-tally-list')), true);
+check('no throw on a half-dense bonus', client.__errors, []);
+
+// Medals by score, not by row index.
+check('tie for first takes two golds',   host.__podiumMedals([30, 30, 10]), ['🥇', '🥇', '🥉']);
+check('a tie below first shares a medal', host.__podiumMedals([30, 20, 20]), ['🥇', '🥈', '🥈']);
+check('fourth place gets a blank slot',   host.__podiumMedals([40, 30, 20, 10]), ['🥇', '🥈', '🥉', '']);
+check('a clean sweep is all golds',       host.__podiumMedals([10, 10, 10]), ['🥇', '🥇', '🥇']);
+
+// A Fusion course, all the way to the Cook Book: the pairing, the Instruction and
+// the name bonus all have to survive into the log.
+host.__seat({ players: 3, golden: 30, fusion: true, instructions: true, souschef: false });
+client.__seat({ players: 3, golden: 30, fusion: true, instructions: true, souschef: false });
+host.__clearSent();
+client.__errors.length = 0;
+host.__runPrepAll([['a0', 'a1', 'a2'], ['b0', 'b1', 'b2'], ['c0', 'c1', 'c2']],
+                  ['', '', ''], [0, 0, 0], ['Sushizza', 'Pizushi', 'Rice Pie']);
+deliver(host, client, host.__lastSent('JEC_SIFTING'));
+host.__advanceTasting();
+host.__vote(0, 1);
+deliver(client, host, client.__buildVote(1, 0));
+deliver(client, host, client.__buildVote(2, 0));
+host.__clearSent();
+host.__finishTally();
+env = host.__lastSent('JEC_TALLY');
+check('the name bonus reaches the wire', ((pay(env).bonus || [])[0] || {}).name, 15);
+deliver(host, client, env);
+check('the client renders On the Menu',
+  /On the Menu/.test(rowsHTML(client, 'jec-tally-list')), true);
+host.__showWashup();
+check('the Cook Book shows the Fusion pairing',
+  / \+ /.test(rowsHTML(host, 'jec-washup-cookbook')), true);
+check('the Cook Book shows the Instruction',
+  /italic/.test(rowsHTML(host, 'jec-washup-cookbook')), true);
+check('no throw through the Fusion tally', client.__errors, []);
 
 console.log('\njec-loopback: ' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);

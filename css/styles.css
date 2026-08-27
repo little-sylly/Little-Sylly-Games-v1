@@ -2323,3 +2323,8 @@ body.flash-red   { background-color: #fecaca; }
    re-centre the whole Stack. */
 .cjar-controls-idle { opacity: 0; pointer-events: none; }
 #cjar-controls { transition: opacity 150ms ease-out; }
+
+/* Fixed-width medal slot — a row with NO medal must still reserve the width, or
+   its text starts further left than a medalled row's and the podium reads as
+   misaligned (§ Gameover podium rank icons). */
+.jec-medal-slot { width: 1.4rem; text-align: center; flex-shrink: 0; }

@@ -1038,20 +1038,22 @@ function jecAdvanceFromTasting() {
 // Shared by the standard path (straight off The Tasting) and by the Fusion
 // path (off the vote result), so the round is scored in exactly one place.
 function jecFinishRoundToTally() {
-  // jecCalcRoundScores returns { roundScores, bonus } since the Signature and
-  // Crutch landed (Tasks 2-3). The old listener passed the whole OBJECT to
-  // jecRenderTally, whose Math.max(...roundScores) then threw - a live break in
-  // every Tally that no 'single'-mode harness could see, because none of them
-  // render. The Task 11 loopback walks this path, which is how it surfaced.
-  const { roundScores } = jecCalcRoundScores();
+  const { roundScores, bonus } = jecCalcRoundScores();
   if (window.syllyMultiplayerMode === 'host') {
     mpSendEnvelope({ type: 'SYNC', payload: {
       action: 'JEC_TALLY',
       round: jecRound, rounds: jecRounds,
-      roundScores, scores: [...jecScores], roundLog: jecRoundLog,
+      roundScores: [...roundScores],
+      scores:      [...jecScores],
+      // The per-Chef breakdown, so clients render the same Tally rather than a
+      // bare total. Every field is a number and 0 survives the wire — only
+      // emptiness is erased — but a MISSING entry is the real risk, so the
+      // array is rebuilt field by field on receipt regardless.
+      bonus: bonus.map(b => ({ signature: b.signature, crutch: b.crutch, name: b.name })),
+      roundLog: jecRoundLog,
     }});
   }
-  jecRenderTally(roundScores);
+  jecRenderTally(roundScores, bonus);
   showScreen('screen-jec-tally');
 }
 
@@ -1108,7 +1110,7 @@ function jecCalcRoundScores() {
 }
 
 // ── JEC Tally ─────────────────────────────────────────────────────────────────
-function jecRenderTally(roundScores) {
+function jecRenderTally(roundScores, bonus) {
   document.getElementById('jec-tally-round-label').textContent = `Course ${jecRound} of ${jecRounds}`;
   const best = Math.max(...roundScores);
   const feedback = best >= jecGoldenScore * 3
@@ -1117,33 +1119,47 @@ function jecRenderTally(roundScores) {
     ? 'Five-star effort right there! ⭐'
     : 'Maybe stick to toast next time. 🍞';
   document.getElementById('jec-tally-feedback').textContent = feedback;
-  const ranked = jecPlayerNames
-    .map((name, i) => ({ name, rs: roundScores[i], total: jecScores[i] }))
+  // `bonus` is required and must be length N: jecFinishRoundToTally passes the
+  // array it just built, and the JEC_TALLY applier rebuilds it field by field.
+  // A tolerant `|| { }` fallback here would swallow an applier that forgot to
+  // rebuild - the defect would render as a blank Tally rather than fail.
+  const ranked = jecPlayerNames.slice(0, jecPlayerCount)
+    .map((name, i) => ({ name, rs: roundScores[i], total: jecScores[i], b: bonus[i] }))
     .sort((a, b) => b.rs - a.rs);
   const list = document.getElementById('jec-tally-list');
   list.innerHTML = '';
-  ranked.forEach(({ name, rs, total }) => {
+  ranked.forEach(({ name, rs, total, b }) => {
     const rsText   = rs > 0 ? `+${rs}` : `${rs}`;
     const rsColour = rs > 0 ? 'text-amber-600' : rs < 0 ? 'text-red-500' : 'text-stone-400';
+    // Named badges, not a lump sum — a Chef needs to see WHICH bet paid off.
+    // Omitted entirely when nothing landed: an empty line under every
+    // non-scoring Chef is noise, not consistency.
+    const marks = [];
+    if (b.signature) marks.push(`Signature Dish 🌟 +${b.signature}`);
+    if (b.crutch)    marks.push(`Called It! 📣 +${b.crutch}`);
+    if (b.name)      marks.push(`On the Menu! ⭐ +${b.name}`);
     const card     = document.createElement('div');
     card.className  = 'bg-white rounded-2xl px-4 py-3 shadow-sm flex items-center justify-between';
     card.innerHTML  = `
       <div>
         <p class="font-semibold text-stone-800">${name}</p>
         <p class="text-xs text-stone-400 mt-0.5">Total: ${total} pts</p>
+        ${marks.length ? `<p class="text-xs text-amber-600 font-semibold mt-0.5">${marks.join(' · ')}</p>` : ''}
       </div>
-      <span class="text-xl font-bold ${rsColour}">${rsText} pts</span>`;
+      <span class="text-xl font-bold shrink-0 whitespace-nowrap ${rsColour}">${rsText} pts</span>`;
     list.appendChild(card);
   });
+  // No emoji on an action button — § Action Button Standard. The label is read at
+  // a glance mid-round and a glyph competes with the words for the same read.
   jecSetAdvanceCta('btn-jec-tally-next',
-    jecRound < jecRounds ? 'Next Course 🍽️' : 'Final Wash-up 🏆');
+    jecRound < jecRounds ? 'Next Course' : 'Final Wash-up');
 }
 
 function jecRenderCookBook() {
   const container = document.getElementById('jec-washup-cookbook');
   container.innerHTML = '';
   jecRoundLog.forEach((entry, i) => {
-    const ranked = jecPlayerNames
+    const ranked = jecPlayerNames.slice(0, jecPlayerCount)
       .map((name, p) => ({ name, score: entry.scores[p] }))
       .sort((a, b) => b.score - a.score);
     const card = document.createElement('div');
@@ -1156,34 +1172,51 @@ function jecRenderCookBook() {
         <span class="text-sm font-bold ${scoreColour}">${scoreText}</span>
       </div>`;
     }).join('');
+    // A Fusion course was two Orders and may have carried an Instruction; a log
+    // that shows neither cannot explain why a course scored the way it did.
+    const orderText = entry.order2 ? `${entry.order} + ${entry.order2}` : entry.order;
     card.innerHTML = `
       <div class="flex items-center justify-between">
         <p class="text-xs font-semibold uppercase tracking-widest text-stone-400">Course ${i + 1}</p>
-        <p class="text-sm font-bold text-amber-600 uppercase tracking-wide">${entry.order}</p>
+        <p class="text-sm font-bold text-amber-600 uppercase tracking-wide">${orderText}</p>
       </div>
+      ${entry.instruction ? `<p class="text-xs text-stone-400 italic">${entry.instruction}</p>` : ''}
       <div class="flex flex-col gap-1">${rows}</div>`;
     container.appendChild(card);
   });
 }
 
+// Medals by SCORE, not by row index. Sorting alone gave two Chefs on the same
+// score different medals below first place — [30, 20, 20] rendered 🥈 and 🥉 for
+// identical totals. Blank past third, per § Gameover podium rank icons.
+// Pure and exported so it can be asserted without a DOM.
+function jecPodiumMedals(scores) {
+  return scores.map(s => {
+    const rank = 1 + scores.filter(x => x > s).length;
+    return rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '';
+  });
+}
+
 function jecShowWashup() {
-  const ranked = jecPlayerNames
+  const ranked = jecPlayerNames.slice(0, jecPlayerCount)
     .map((name, i) => ({ name, score: jecScores[i] }))
     .sort((a, b) => b.score - a.score);
+  const medals = jecPodiumMedals(ranked.map(p => p.score));
   const topScore = ranked[0].score;
   const winners  = ranked.filter(p => p.score === topScore);
   document.getElementById('jec-washup-subtitle').textContent =
     winners.length > 1 ? 'A dead heat in the kitchen!' : `${winners[0].name} wins the kitchen! 🎉`;
   const list = document.getElementById('jec-washup-list');
   list.innerHTML = '';
-  const medals = ['🥇', '🥈', '🥉'];
   ranked.forEach((p, i) => {
     const isFirst = p.score === topScore;
-    const medal = isFirst ? '🥇' : (medals[i] || `${i + 1}.`);
     const card = document.createElement('div');
-    card.className = `bg-white rounded-2xl px-4 py-3 shadow-sm flex items-center gap-3${isFirst ? ' border-2 border-amber-400' : ''}`;
+    // A transparent border on the losing rows, so the winner's amber ring does not
+    // inset its own contents by 2px and knock the podium out of alignment - the
+    // same reason the medal slot has a fixed width.
+    card.className = `bg-white rounded-2xl px-4 py-3 shadow-sm flex items-center gap-3 border-2 ${isFirst ? 'border-amber-400' : 'border-transparent'}`;
     card.innerHTML = `
-      <span class="text-2xl w-8 text-center">${medal}</span>
+      <span class="jec-medal-slot text-2xl">${medals[i]}</span>
       <div class="flex-1">
         <p class="font-semibold text-stone-800">${p.name}</p>
       </div>
