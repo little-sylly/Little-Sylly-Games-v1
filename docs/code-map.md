@@ -73,7 +73,7 @@ games. Track key = `activeGameId`, falling back to `'lobby'`. No plugin has musi
 ### Screens
 | ID | Purpose |
 |----|---------|
-| `#screen-lobby` | Game selection — main title screen |
+| `#screen-lobby` | Game selection — main title screen. Children: `#lobby-game-list` (the 18 game buttons; the flex container the Colour sort reorders via `style.order`), `#btn-lobby-sort` + `#lobby-sort-label` (Release/Colour toggle, `lobbyApplySort()` in `engine.js`) |
 | `#screen-who-first` | Shared "Who Goes First?" — method picker → RPS declare → winner choice |
 
 ### Overlays

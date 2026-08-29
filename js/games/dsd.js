@@ -1071,7 +1071,10 @@ function dsdRenderTurnLog() {
   prevBtn.disabled = dsdHistoryIdx === 0;
   nextBtn.disabled = dsdHistoryIdx === total - 1;
   card.innerHTML = turns.map(t => {
-    const outcomes = t.outcomes.map(o =>
+    // DSD_GAMEOVER broadcasts turnLog raw (unlike DSD_EXECUTION_RESULT, which maps
+    // outcomes through `|| []`); a logged turn with an empty outcomes list has that
+    // nested [] erased by Firebase, so guard the read here too. (BUG-06 class.)
+    const outcomes = (t.outcomes || []).map(o =>
       `<div class="text-xs text-stone-500 pl-3">${o.word} — ${o.label}</div>`
     ).join('');
     return `

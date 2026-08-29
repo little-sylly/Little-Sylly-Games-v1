@@ -273,19 +273,14 @@ On every bump the outgoing SW entry moves **verbatim** to `docs/sw-changelog.md`
 "keep the last three". **A second `**SW v…**` paragraph appearing here means that move didn't
 happen: do it before anything else.**
 
-**SW v214 — Lobby keycap treatment + Release/Colour sort toggle (30 Aug 2026).** `#screen-lobby`'s
-18 game buttons now carry a colour-agnostic `.key-cap` class — micro-gradient + layered shadow, a
-composited `transform`-only press that sinks 3px like a real key — needing no per-game CSS since the
-gradient/shadow sit over whatever background each button already sets. A new `#btn-lobby-sort` (✨)
-toggles the list between **Release** order (default, the shipped DOM order) and **Colour** order
-(`LOBBY_COLOUR_ORDER`, a hand-picked hue walk from LI5 pink), via `style.order` — never a re-render,
-since each button is bound by its own plugin at parse time and a rebuild would drop all 18
-listeners. Sort mode is memory-only. Verified in headless Chromium: all 18 render the treatment,
-subtitle/sort row don't overlap, sort reorders and restores exactly, press genuinely sinks. This is
-Tier-1 polish on the **original** lobby only — the separately-discussed 4-mode redesign
-(Original/Shelves/TV/Premium) is parked pending art direction. Detail: `shared-implementation-notes`.
+**SW v215 — Lobby Colour sort fails safe for an unlisted game (30 Aug 2026).** `LOBBY_COLOUR_ORDER`
+was a hand-maintained list of 18 ids parallel to the lobby DOM with no guard: an unset CSS `order`
+computes to **0**, so game 19 would have rendered *second from the top* of Colour mode, silently.
+`lobbyApplySort()` now parks every child of the new `#lobby-game-list` past the end of the walk
+before placing the listed ones, so an unlisted button sorts to the bottom; the missing
+`new-game-checklist` line is added. 13 headless-Chromium assertions. Detail: `shared-implementation-notes` DD-08.
 
-**Previous versions: `docs/sw-changelog.md`** — continuous, v213 back to v167.
+**Previous versions: `docs/sw-changelog.md`** — continuous, v214 back to v167.
 
 **Where the suite stands.** **18 games shipped**, all gold-master, plus multiplayer. Newest three:
 **Cookie Jar** (`cjar`, game 18, phase 39), **Pecking Order** (`pko`, game 17, phase 37) and its

@@ -914,17 +914,25 @@ function lobbyApplySort(mode) {
   lobbySortMode = mode;
   const label = document.getElementById('lobby-sort-label');
   if (label) label.textContent = mode === 'colour' ? 'Colour' : 'Release';
+
+  const box = document.getElementById('lobby-game-list');
+  if (!box) return;
+  const buttons = Array.from(box.children);
+
   if (mode === 'release') {
-    LOBBY_COLOUR_ORDER.forEach(id => {
-      const el = document.getElementById(id);
-      if (el) el.style.order = '';
-    });
-  } else {
-    LOBBY_COLOUR_ORDER.forEach((id, i) => {
-      const el = document.getElementById(id);
-      if (el) el.style.order = String(i);
-    });
+    buttons.forEach(el => { el.style.order = ''; });
+    return;
   }
+  // Park EVERY button one slot past the end of the hand-picked walk first, then
+  // pull the listed ones back to their place. A game added to the lobby but not
+  // to LOBBY_COLOUR_ORDER then lands at the bottom in DOM order — where an
+  // unset `order` would compute to 0 and silently tie it with the FIRST entry,
+  // putting a brand-new game at the top of Colour mode with nothing to catch it.
+  buttons.forEach(el => { el.style.order = String(LOBBY_COLOUR_ORDER.length); });
+  LOBBY_COLOUR_ORDER.forEach((id, i) => {
+    const el = document.getElementById(id);
+    if (el) el.style.order = String(i);
+  });
 }
 
 const _lobbySortBtn = document.getElementById('btn-lobby-sort');

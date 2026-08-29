@@ -4,6 +4,20 @@ Historical SW release notes, moved out of `CLAUDE.md` (1 Aug 2026) so they stop 
 The **current** version and its notes stay in `CLAUDE.md` § Current Focus — append the outgoing entry here on each bump.
 
 
+## v214 — Lobby keycap treatment + Release/Colour sort toggle (30 Aug 2026)
+
+`#screen-lobby`'s 18 game buttons now carry a colour-agnostic `.key-cap` class — micro-gradient + layered shadow, a
+composited `transform`-only press that sinks 3px like a real key — needing no per-game CSS since the
+gradient/shadow sit over whatever background each button already sets. A new `#btn-lobby-sort` (✨)
+toggles the list between **Release** order (default, the shipped DOM order) and **Colour** order
+(`LOBBY_COLOUR_ORDER`, a hand-picked hue walk from LI5 pink), via `style.order` — never a re-render,
+since each button is bound by its own plugin at parse time and a rebuild would drop all 18
+listeners. Sort mode is memory-only. Verified in headless Chromium: all 18 render the treatment,
+subtitle/sort row don't overlap, sort reorders and restores exactly, press genuinely sinks. This is
+Tier-1 polish on the **original** lobby only — the separately-discussed 4-mode redesign
+(Original/Shelves/TV/Premium) is parked pending art direction. Detail: `shared-implementation-notes`.
+
+
 ## v213 — Sound overlay: System Sounds gets its own ON/OFF, and a tap-hold mutes without opening it (28 Aug 2026).
 
 The effects "Volume" block now mirrors Music exactly — its own toggle

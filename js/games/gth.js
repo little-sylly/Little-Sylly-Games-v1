@@ -852,8 +852,16 @@ function gthHandleEnvelope(envelope) {
   // ── SYNC: GTH_FINAL_SCORES ────────────────────────────────────────
   if (type === 'SYNC' && payload.action === 'GTH_FINAL_SCORES') {
     if (syllyMultiplayerMode === 'host') return; // host already called gthShowBigReveal() directly in gthResolveScores()
-    gthScores      = payload.scores;
-    gthRevealItems = payload.revealItems;
+    gthScores      = payload.scores || [];
+    // Every drawing that no shrink diagnosed correctly carries correctShrinks:[] —
+    // Firebase erases the empty array in flight, so on receipt each item's field is
+    // undefined and gthShowBigReveal()'s `item.correctShrinks.length` throws. Rebuild
+    // both the outer list (erased whole when nobody drew anything) and each nested
+    // leaf. (BUG-06 addendum class — nested-leaf erasure.)
+    gthRevealItems = (payload.revealItems || []).map(it => ({
+      ...it,
+      correctShrinks: it.correctShrinks || [],
+    }));
     gthRevealIdx   = 0;
     mpUnlockSync();
     gthShowBigReveal();

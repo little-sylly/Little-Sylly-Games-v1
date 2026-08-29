@@ -799,10 +799,22 @@ Two tells that a leaf is at risk: its length is decided by a random roll or by a
 nothing; and the same field is guarded with `|| []` *somewhere else in the file* — an inconsistent
 guard means someone already hit the empty case on one path and patched only that one.
 
-**Candidates, in priority order:** PKO, FLW, SHP, CJAR (all broadcast nested per-seat objects), then
-GTH / DSD / JEC / LTTP. Note that CJAR/FLW/SHP each have a loopback harness that would catch a
-regression once written; PKO does not, and PKO's per-seat hoard packets are the closest structural
-match to what bit NT.
+**Candidates, in priority order:** ~~PKO, FLW, SHP, CJAR~~ **— swept 30 Aug 2026, all clean**
+(detail: `shared-implementation-notes.md` BUG-06 addendum). SHP's `hands` and CJAR's `raidHistory`
+are the only genuine nested leaves and both are rebuilt by length-aware normalisers (`shpNorm2D`,
+`cjarWireList(...).map(cjarWireArr)`); PKO/FLW broadcast no nested per-seat objects. Note that
+CJAR/FLW/SHP each have a loopback harness that would catch a regression once written; PKO does not.
+
+~~**Still to do: GTH / DSD / JEC / LTTP.**~~ **— swept 30 Aug 2026** (detail:
+`shared-implementation-notes.md` BUG-06 addendum re-sweep). **JEC and LTTP clean** (JEC fully wire-
+normalised; LTTP's 13 Aug `lttpDecoys` fix confirmed, covered `lttpFakeTargets` too, no other
+reachable-empty leaf). **GTH — one CONFIRMED client crash, fixed**: `GTH_FINAL_SCORES` →
+`revealItems[i].correctShrinks` (nested `[]` for any drawing nobody diagnosed right — >80% of
+games), erased in flight, `gthShowBigReveal()` threw on the client; applier now rebuilds the list
+and each nested leaf. **DSD — one low-risk hardening**: `DSD_GAMEOVER` broadcasts `turnLog` raw
+where `DSD_EXECUTION_RESULT` normalises it; guarded `dsdRenderDeploymentHistory`'s `t.outcomes.map`.
+**GTH and DSD have no harness — both fixes are `node -c` only, not played live. Add to the retest
+backlog.**
 
 ---
 

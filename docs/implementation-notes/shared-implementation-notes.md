@@ -21,6 +21,35 @@ place.
 
 ## Design Decisions
 
+**DD-08 — The lobby Colour sort now fails safe for an unlisted game (SW v215, 30 Aug 2026).**
+DD-07 shipped `LOBBY_COLOUR_ORDER` as a hand-maintained list of 18 button ids parallel to the lobby
+DOM, with no guard and no entry in `docs/rules/new-game-checklist.md`. Game 19 would therefore have
+been added to the lobby and *not* to the list — and the failure mode was the worst available one:
+CSS `order` defaults to **0**, so the unlisted button would have tied with `LOBBY_COLOUR_ORDER`'s
+own index-0 entry and rendered **second from the top** of Colour mode. Confirmed in headless
+Chromium against the v214 function verbatim: an appended 19th button rendered at position 2, computed
+`order: 0`.
+
+*Fix:* `lobbyApplySort()` now parks **every** child of the new `#lobby-game-list` container at
+`order = LOBBY_COLOUR_ORDER.length` first, then pulls the listed ones back to their index. An
+unlisted button lands at the bottom in DOM order instead of the top. Release mode likewise clears
+`order` on every child rather than only on listed ids. Added the missing checklist line so the list
+still gets maintained — the guard degrades the symptom, it doesn't remove the step.
+
+*Lesson — a hand-maintained list parallel to the DOM needs a defined failure direction, and `order: 0`
+is not a neutral default.* The instinct when adding one is to check that today's entries are all
+correct (they were: 18/18 ids matched). That check says nothing about what happens to the first
+element that *isn't* in it. Whenever a list enumerates DOM ids for positioning, ask what an
+unenumerated element does — with CSS `order`, `flex-order`, `tabindex` and `z-index` alike, the
+unset value is `0` or `auto`, which sorts to the **front or the top**, never politely to the end.
+Park the whole set past the end first, then place the known ones.
+
+*Verification:* 13 assertions in real headless Chromium (`visual-check`), reading paint order from
+`getBoundingClientRect().top` rather than `style.order` — the resolved order is the thing under
+test. Covers Release = DOM order, Colour = `LOBBY_COLOUR_ORDER` exactly, an exact round-trip
+restore, the 19th-button case, both label states, and no horizontal scroll. The pre-fix function was
+re-run through the same case first to confirm it genuinely failed.
+
 **DD-07 — Lobby keycap treatment + Release/Colour sort toggle (SW v214, 30 Aug 2026).** Tier-0/1
 polish pass on `#screen-lobby` — no game logic touched. Two pieces:
 
@@ -236,7 +265,57 @@ An applier-level scan cannot see either. The erasure lands wherever a *leaf* col
 *Why they survived so long anyway:* both are **client-only and probabilistic**. The host never round-trips its own state through the wire, so a host-side playtest is clean by construction; and both triggers are ordinary-but-not-constant (`convertN` rolling 0 for the node, a player placing no honeypots for the timeline), so they present as random intermittency rather than a reproducible bug. NT also had **no** `tools/verify-*.js` coverage at all, and even the harnesses that do exist elsewhere run `'single'` mode with `getElementById: () => null`, which executes no render code — and both defects throw *inside render functions*.
 *Fix:* per-shape normalisers applied where the object arrives (`ntNormaliseNode`, `ntNormaliseTimeline` in `js/games/nt.js`) plus `|| []` at the previously-unguarded read sites. Detail: `nt-implementation-notes.md` BUG-15/BUG-16.
 *Lesson — how to run this audit properly next time:* scan by **payload shape, not by applier line**. For every SYNC packet, walk the payload tree the *producer* builds and list every leaf array/object, then ask of each one "can this legitimately be empty at the moment it is sent?" — that finds nested leaves an applier-level grep never will. Two concrete tells that a nested leaf is at risk: (1) its length is decided by a random roll or a player doing nothing, and (2) the same field is guarded with `|| []` somewhere else in the file — an inconsistent guard is direct evidence that someone already hit the empty case on one path and patched only that one. NT had `|| []` on five of seven reads of the same two fields, which in hindsight was the loudest possible signal.
-*Not yet done:* the other games' SYNC payloads have **not** been re-swept under this shape-based method. PKO, FLW, SHP and CJAR all broadcast nested per-seat objects and are the obvious candidates. Tracked in `docs/deferred-work.md`.
+*Re-sweep done — PKO, FLW, SHP, CJAR all clean [30 Aug 2026].* Walked every SYNC producer's
+payload tree in the four plugins and listed each leaf array/object. **No nested-leaf erasure
+defects.** Every leaf collection — including the two genuine nested cases, SHP's `hands` (an
+array of per-seat hands, empty `[]` for an eliminated seat) and CJAR's `raidHistory` (an array
+of per-Raid rows) — is rebuilt on receipt by a length-aware normaliser that indexes rather than
+trusting the wire shape: `shpNorm2D` / `shpNormBool` (SHP), `cjarWireArr` / `cjarWireList` /
+`cjarWireObj` (CJAR, incl. `cjarWireList(p.raidHistory).map(r => cjarWireArr(r, n, 0))` for the
+nested rows), and consistent `p.x || []` / `p.x || state` at every read site (PKO, FLW). PKO and
+FLW broadcast **no** nested per-seat objects at all — their private hand packets (`PKO_HAND`,
+`FLW_HAND`) carry a flat `cards`/`gemId` guarded `|| []` in every applier. One harmless
+inconsistency noted, not fixed: SHP_DEAL assigns `shpMoonsHeld`/`shpEliminated` raw where
+SHP_DOZE/SHP_NIGHT_END guard the same fields `|| state` — safe because both are always sent as
+fully-dense arrays of `0`/`false`, which Firebase never erases (only `null`/`{}`/`[]` are).
+
+*Re-sweep done — GTH/DSD/JEC/LTTP; one confirmed client crash in GTH, one low DSD hardening [30 Aug 2026].*
+Same method — walked every SYNC producer's payload tree in the four plugins.
+
+- **GTH — CONFIRMED, fixed.** `GTH_FINAL_SCORES` sends `revealItems: revealItems` raw; each item's
+  `correctShrinks` is built as `[]` and pushed to only when a shrink diagnosed that drawing
+  correctly, so a drawing nobody cracked carries `correctShrinks: []`. Firebase erases the nested
+  `[]`; the applier (`gthHandleEnvelope`) assigned `gthRevealItems = payload.revealItems` raw, and
+  `gthShowBigReveal()` then does `item.correctShrinks.length` → TypeError on the client, inside a
+  render function, stranding it on the Big Reveal. Client-only (host sets `gthRevealItems` locally
+  before any round-trip) and near-certain to fire — across ~6 drawings P(≥1 all-zero) is >80% even
+  at 50% per-shrink accuracy, higher under blur / Deep Dive. Almost certainly means MDLM GTH's Big
+  Reveal has never worked (no harness, never played live — see the 13 Aug entry). *Fix:*
+  `gthRevealItems = (payload.revealItems || []).map(it => ({ ...it, correctShrinks: it.correctShrinks || [] }))`
+  plus `gthScores = payload.scores || []`. Nested-leaf erasure, exactly this addendum's class —
+  the applier-level assignment looked healthy.
+- **DSD — low, hardened.** `DSD_GAMEOVER` broadcasts `turnLog: dsdTurnLog` **raw**, where
+  `DSD_EXECUTION_RESULT` maps the same structure through `outcomes: [...(e.outcomes || [])]` — the
+  addendum's "inconsistent guard" tell. `dsdRenderDeploymentHistory` (dsd.js ~1074) then does
+  `t.outcomes.map(...)` unguarded (with an `|| 'No outcomes recorded.'` fallback *after* the throw
+  point). No confirmed path makes a logged turn's `outcomes` empty — every executed turn reveals
+  ≥1 tile and pushes ≥1 outcome — so latent, not live. Guarded the read `(t.outcomes || []).map`.
+- **JEC — clean.** Thoroughly hardened already: `jecWireArr` / `jecWireObj` / `jecWireList` at every
+  read site, nested-aware (`jecWireArr(p.jecInputs, n, null).map(a => jecWireArr(a, 3, ''))`,
+  `bonus` rebuilt field-by-field), with explicit in-code comments about the erasure. The
+  `jecInputs` inner `[...a]` the 13 Aug sweep flagged as "unguarded but structurally near-empty"
+  is now fully covered on receipt.
+- **LTTP — clean.** The 13 Aug `lttpDecoys` fix is confirmed in place (`[...(p.decoys || [])]` at
+  both `LTTP_GAME_START` and `LTTP_PLAN_UPDATE`) and it also covered the sibling `lttpFakeTargets`.
+  `lttpVotes` is guarded `|| {}` with a matching object type. Remaining unguarded reads
+  (`new Set(p.highlights)`, `snap.highlights.length` in the plan-log carousel) have **no path to
+  empty** — `lttpHighlights` always retains `lttpAddressIdx`, so every `[...lttpHighlights]`
+  snapshot is ≥1. One cosmetic inconsistency: `LTTP_PLAN_UPDATE` reads `new Set(p.lapAnswered)`
+  without the `|| []` that `LTTP_TURN_ADVANCE` uses — harmless because `new Set(undefined)` is the
+  intended empty Set.
+
+*Verification:* `node -c` on the two touched files only. GTH and DSD have **no** `tools/verify-*.js`
+harness and neither fix is played live — flag for the retest backlog. `docs/deferred-work.md` updated.
 
 ---
 
