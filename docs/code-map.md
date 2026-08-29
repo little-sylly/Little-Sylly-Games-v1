@@ -102,6 +102,7 @@ games. Track key = `activeGameId`, falling back to `'lobby'`. No plugin has musi
 | `#btn-shp` | Lobby → SHP menu screen |
 | `#btn-flw` | Lobby → FLW menu screen |
 | `#btn-pko` | Lobby → PKO menu screen |
+| `#btn-lobby-sort` | Toggles the lobby's 18 game buttons between Release order (default, the shipped DOM order) and Colour order (hue-wheel walk from LI5 pink) — see `lobbyApplySort()` below |
 | `#lobby-icon` | Secret Mode tap counter (7 taps → controller screen) |
 | `.btn-open-sound` | Tap opens `#sound-overlay`; tap-**hold** (500 ms) toggles Mute All directly, no overlay. See `bindCardHold` wiring at the bottom of `engine.js`'s boot block |
 | `#global-mute-toggle` | Mute toggle inside sound overlay |
@@ -122,6 +123,7 @@ games. Track key = `activeGameId`, falling back to `'lobby'`. No plugin has musi
 | `updateSliderTheme(gameId)` | Maps `activeGameId` → `[abbr]-range` CSS class on `#global-sound-volume` **and** `#global-music-volume` (fallback `stone-range`) |
 | `getMuteToggleOnClass(gameId)` | Maps `activeGameId` → `game-toggle-on-[colour]` class for `#global-mute-toggle` ON state (fallback `game-toggle-on-stone`) |
 | `openArtViewer(src, caption)` | Shows one image at viewport size in `#art-viewer-overlay`. **No-ops when `src` is falsy** — a game on its emoji fallback has nothing to enlarge |
+| `lobbyApplySort(mode)` | `'release'` or `'colour'` — sets `style.order` on each of the 18 lobby buttons via `LOBBY_COLOUR_ORDER`; never re-renders the buttons (each is bound by its own plugin at parse time — a re-render would drop all 18 listeners). `lobbySortMode` is memory-only, resets to `'release'` on reload |
 | `closeArtViewer()` | Hides it; also called from `resetToLobby()` |
 | `artMakeZoomable(el, src, caption)` | Adds `.art-zoomable` + a click handler to an already-rendered tile **only when `src` resolved**, and returns `el` for inline use. The one helper every gallery uses |
 | `showWhoFirst(config)` | Drives `#screen-who-first`; calls `config.onResult(goesFirstIdx)` on completion |

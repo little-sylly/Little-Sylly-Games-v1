@@ -273,17 +273,19 @@ On every bump the outgoing SW entry moves **verbatim** to `docs/sw-changelog.md`
 "keep the last three". **A second `**SW v…**` paragraph appearing here means that move didn't
 happen: do it before anything else.**
 
-**SW v213 — Sound overlay: System Sounds gets its own ON/OFF, and a tap-hold mutes without opening it (28 Aug 2026).** The effects "Volume" block now mirrors Music exactly — its own toggle
-(`#btn-global-sfx-toggle`), its own slider-row, ON by default — so a player can silence cues without
-losing music or vice versa (`sfxEnabled`, every `play*()` guard now `isMuted || !sfxEnabled`, except
-`playSliderTick`, which still bypasses both by design). Every `.btn-open-sound` icon now also
-answers a 500 ms **tap-hold**: toggles `isMuted` directly, no overlay — wired via the shared
-`bindCardHold` with a per-button flag that suppresses the click a fired hold leaves behind, so a
-normal tap still opens the overlay. Verified in headless Chromium: SFX-off genuinely suppresses
-oscillator creation, hold-to-mute and hold-to-unmute both work, a quick tap still opens the overlay.
-Detail: `shared-implementation-notes`.
+**SW v214 — Lobby keycap treatment + Release/Colour sort toggle (30 Aug 2026).** `#screen-lobby`'s
+18 game buttons now carry a colour-agnostic `.key-cap` class — micro-gradient + layered shadow, a
+composited `transform`-only press that sinks 3px like a real key — needing no per-game CSS since the
+gradient/shadow sit over whatever background each button already sets. A new `#btn-lobby-sort` (✨)
+toggles the list between **Release** order (default, the shipped DOM order) and **Colour** order
+(`LOBBY_COLOUR_ORDER`, a hand-picked hue walk from LI5 pink), via `style.order` — never a re-render,
+since each button is bound by its own plugin at parse time and a rebuild would drop all 18
+listeners. Sort mode is memory-only. Verified in headless Chromium: all 18 render the treatment,
+subtitle/sort row don't overlap, sort reorders and restores exactly, press genuinely sinks. This is
+Tier-1 polish on the **original** lobby only — the separately-discussed 4-mode redesign
+(Original/Shelves/TV/Premium) is parked pending art direction. Detail: `shared-implementation-notes`.
 
-**Previous versions: `docs/sw-changelog.md`** — continuous, v212 back to v167.
+**Previous versions: `docs/sw-changelog.md`** — continuous, v213 back to v167.
 
 **Where the suite stands.** **18 games shipped**, all gold-master, plus multiplayer. Newest three:
 **Cookie Jar** (`cjar`, game 18, phase 39), **Pecking Order** (`pko`, game 17, phase 37) and its

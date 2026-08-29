@@ -4,6 +4,19 @@ Historical SW release notes, moved out of `CLAUDE.md` (1 Aug 2026) so they stop 
 The **current** version and its notes stay in `CLAUDE.md` § Current Focus — append the outgoing entry here on each bump.
 
 
+## v213 — Sound overlay: System Sounds gets its own ON/OFF, and a tap-hold mutes without opening it (28 Aug 2026).
+
+The effects "Volume" block now mirrors Music exactly — its own toggle
+(`#btn-global-sfx-toggle`), its own slider-row, ON by default — so a player can silence cues without
+losing music or vice versa (`sfxEnabled`, every `play*()` guard now `isMuted || !sfxEnabled`, except
+`playSliderTick`, which still bypasses both by design). Every `.btn-open-sound` icon now also
+answers a 500 ms **tap-hold**: toggles `isMuted` directly, no overlay — wired via the shared
+`bindCardHold` with a per-button flag that suppresses the click a fired hold leaves behind, so a
+normal tap still opens the overlay. Verified in headless Chromium: SFX-off genuinely suppresses
+oscillator creation, hold-to-mute and hold-to-unmute both work, a quick tap still opens the overlay.
+Detail: `shared-implementation-notes`.
+
+
 ## v212 — Background music: the suite's first audio files (28 Aug 2026).
 
 `js/lib/music.js`

@@ -2334,3 +2334,29 @@ body.flash-red   { background-color: #fecaca; }
    its text starts further left than a medalled row's and the podium reads as
    misaligned (§ Gameover podium rank icons). */
 .jec-medal-slot { width: 1.4rem; text-align: center; flex-shrink: 0; }
+
+/* ── Lobby keycap treatment (SW v214) ──────────────────────────────────────
+   Colour-agnostic: layered translucent black/white over whatever background
+   each of the 18 lobby buttons already sets (Tailwind utility, custom *-cta
+   class, or inline style="background-color:..."). No per-game CSS needed.
+   Press animates transform ONLY (composited) — the shadow snaps rather than
+   eases, same as a real key. transform-only also satisfies the ≤300ms /
+   transform-or-opacity rule (§ Motion Standard) without a transition-all. */
+.key-cap {
+  position: relative;
+  background-image: radial-gradient(ellipse 120% 100% at 50% 0%,
+                     rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0) 70%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.10),
+    0 4px 0 rgba(0, 0, 0, 0.22),
+    0 6px 10px rgba(0, 0, 0, 0.10);
+  transition: transform 100ms ease-out;
+}
+.key-cap:active {
+  transform: translateY(3px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.10),
+    0 1px 0 rgba(0, 0, 0, 0.22);
+}

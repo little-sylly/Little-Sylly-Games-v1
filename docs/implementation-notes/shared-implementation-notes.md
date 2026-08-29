@@ -21,6 +21,41 @@ place.
 
 ## Design Decisions
 
+**DD-07 — Lobby keycap treatment + Release/Colour sort toggle (SW v214, 30 Aug 2026).** Tier-0/1
+polish pass on `#screen-lobby` — no game logic touched. Two pieces:
+
+- **Keycap tactile treatment.** One colour-agnostic `.key-cap` class (`css/styles.css`) layered as
+  translucent black/white over whatever background each of the 18 lobby buttons already sets —
+  Tailwind utility, custom `*-cta` class, or GTH's inline `style="background-color:..."`. Needed no
+  per-game CSS. Press animates `transform` only (the shadow snaps rather than eases, same as a real
+  key), satisfying § Motion Standard's transform/opacity rule without a `transition-all`. Each
+  button's `active:scale-95 transition-all duration-150` was removed — a keycap sinks, it doesn't
+  shrink.
+- **Sort toggle (`#btn-lobby-sort`, ✨).** Release order (default — the shipped DOM order, so this
+  mode is just clearing `style.order`) vs Colour order (`LOBBY_COLOUR_ORDER`, a hand-picked hue-wheel
+  walk starting at LI5 pink — hue sort wasn't used because three brand colours are
+  near-achromatic — Pass zinc-900, SHP midnight, GTH sage — and a computed sort would scatter them
+  arbitrarily). **Reorders via `style.order`, never a re-render**, because each of the 18 lobby
+  buttons is bound by its own plugin at parse time (`on('btn-cjar', ...)` etc.) — rebuilding the
+  button DOM would silently drop all 18 listeners. `lobbySortMode` is memory-only (not
+  localStorage) — a cosmetic sort preference doesn't earn a 4th key against the documented
+  three (`sylly_nickname`, `isMuted`, `masterVolume`).
+
+**Why it matters beyond this screen:** the `style.order` + parse-time-bound-buttons pattern is the
+reusable answer for "reorder a list of elements each owned by a different module without touching
+any of them" — reach for it before a re-render if the same shape recurs.
+
+**Not done here, deliberately parked:** the 4-mode lobby redesign (Original / Shelves / TV /
+Premium) discussed alongside this — needs its own foundation spec (game registry + metadata
+extraction from `docs/game-identities/`, an entry-point refactor off `btn-[abbr]` ids, and lobby art
+for the 13 games `data/art/` doesn't yet cover) before any of the four layouts can be built. Waiting
+on art direction (logo, controller, artwork) per the owner.
+
+Verified in headless Chromium (`visual-check` skill): all 18 buttons render `.key-cap` with valid
+box-shadow, no layout break; subtitle/sort row don't overlap; colour sort produces 18 distinct
+`order` values and toggling back restores the exact original order; `:active` genuinely sinks
+`translateY(3px)`; no horizontal scroll introduced.
+
 **DD-06 — System Sounds gets its own toggle; tap-hold mutes without the overlay (SW v213, 28 Aug 2026).**
 Once Music had its own ON/OFF and its own slider (DD-05), the effects "Volume" block was the odd one
 out — silencable only through Mute All, which also kills music. Gave it the identical shape: a

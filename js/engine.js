@@ -893,6 +893,48 @@ if (_musicToggle && _musicSlider) {
   });
 }
 
+// ── Lobby sort toggle (SW v214) ──────────────────────────────────────────
+// Two modes: 'release' (the order the games shipped in — the default DOM
+// order already IS this, so that mode is just clearing `style.order`) and
+// 'colour' (a hand-picked walk around the hue wheel starting at LI5 pink).
+// Reordering via CSS `order` — never a re-render — is deliberate: each of
+// the 18 lobby buttons is bound by its own plugin at parse time
+// (`on('btn-cjar', ...)` etc.), so rebuilding the button DOM would silently
+// drop all 18 listeners. Memory-only (not localStorage) — a cosmetic sort
+// preference doesn't earn a 4th key against the documented three.
+const LOBBY_COLOUR_ORDER = [
+  'btn-dstw', 'btn-flw', 'btn-lttp', 'btn-bld', 'btn-pko', 'btn-ygi',
+  'btn-jec', 'btn-cjar', 'btn-frt', 'btn-nat', 'btn-gth', 'btn-nt',
+  'btn-sylly-signals', 'btn-dsd', 'btn-dyb', 'btn-shp', 'btn-great-minds',
+  'btn-pass'
+];
+let lobbySortMode = 'release';
+
+function lobbyApplySort(mode) {
+  lobbySortMode = mode;
+  const label = document.getElementById('lobby-sort-label');
+  if (label) label.textContent = mode === 'colour' ? 'Colour' : 'Release';
+  if (mode === 'release') {
+    LOBBY_COLOUR_ORDER.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.order = '';
+    });
+  } else {
+    LOBBY_COLOUR_ORDER.forEach((id, i) => {
+      const el = document.getElementById(id);
+      if (el) el.style.order = String(i);
+    });
+  }
+}
+
+const _lobbySortBtn = document.getElementById('btn-lobby-sort');
+if (_lobbySortBtn) {
+  _lobbySortBtn.addEventListener('click', () => {
+    playPillClick();
+    lobbyApplySort(lobbySortMode === 'release' ? 'colour' : 'release');
+  });
+}
+
 // Load the manifest and arm the first-gesture unlock. Browsers refuse to make
 // sound before a user interaction, so the lobby theme starts on the first tap
 // rather than on page load — see js/lib/music.js § init.
