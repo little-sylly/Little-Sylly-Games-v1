@@ -4,6 +4,31 @@ Historical SW release notes, moved out of `CLAUDE.md` (1 Aug 2026) so they stop 
 The **current** version and its notes stay in `CLAUDE.md` § Current Focus — append the outgoing entry here on each bump.
 
 
+## v212 — Background music: the suite's first audio files (28 Aug 2026).
+
+`js/lib/music.js`
+resolves a looping track per game from `data/music/manifest.json`, two-tier: the game's own track,
+else the **lobby** theme — so a game without music is never silent and a new game inherits one free.
+Driven by **one seam** (`showScreen` → `Music.playFor(activeGameId)`); no plugin has music code.
+Tracks are **runtime-cached like `data/packs/`**, so a new one ships by dropping an mp3 in and
+adding a manifest line — no `sw.js` edit, no version bump (ceiling ~1.5 MB/track). Music has its own
+toggle + slider in `#sound-overlay`, ON at 30% by default; global Mute All still outranks it.
+Effects stay synthesised. Detail: `shared-implementation-notes`, `docs/decision-log.md`.
+
+
+## v211 — Just Enough Cooks reworked: real decisions in standard play, Kitchen Nightmares retired (27 Aug 2026).
+
+JEC's base game was one guess repeated; it now carries three decisions —
+a **Signature Dish** you tap to back (double, and only inside the Golden range — the code had been
+doubling any positive score), **The Crutch** (predict the table's most-picked cliché; never one of
+your own three, and never entered into the pot), and **Special Instructions** (twenty twists that
+bend the Order rather than punish the answer). The Sifting splits into a **blind** Sous Chef's Check
+then The Tasting: merges are now decided before anyone can see what one is worth. Sylly Mode becomes
+**Fusion Cuisine** — two Orders, one dish, and a name vote where ties all pay. Bug **J2** closed at
+all three sites. Two new harnesses (`verify-jec-loop` 77, `verify-jec-loopback` 164) — JEC had
+none. Detail: `jec-implementation-notes`, `docs/decision-log.md`.
+
+
 ## v210 — lobby bounds are constants, the quit contract covers TLM, and the declarations layer finally has a harness (23 Aug 2026)
 
 Two recurring bugs from the identity-doc pass, both

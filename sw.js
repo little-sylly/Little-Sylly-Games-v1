@@ -1,7 +1,7 @@
 // Little Sylly Games — Service Worker v205
 // All assets are local — no external CDN URLs, no opaque response issues.
 
-const CACHE_NAME = 'sylly-games-v211';
+const CACHE_NAME = 'sylly-games-v213';
 
 const PRECACHE_URLS = [
   './',
@@ -30,6 +30,7 @@ const PRECACHE_URLS = [
   'js/games/cjar.js',
   'js/lib/cards.js',
   'js/lib/art.js',
+  'js/lib/music.js',
   'data/ygi-data.json',
   'data/gth-data.json',
   'data/pko-data.json',
@@ -167,6 +168,37 @@ self.addEventListener('fetch', event => {
       );
     } else {
       // Media (skin images): cache-first — instant + lean.
+      event.respondWith(
+        caches.match(event.request).then(cached => cached || fetch(event.request).then(res => {
+          const copy = res.clone();
+          caches.open(CACHE_NAME).then(c => c.put(event.request, copy));
+          return res;
+        }))
+      );
+    }
+    return;
+  }
+
+  // Music (data/music/) — runtime cache, no precache, no version bump. Same
+  // contract as data/packs/ and for the same reason: a track ships by dropping
+  // an mp3 in the folder and adding one manifest line. Precaching instead would
+  // put every track in the install (~1.5 MB each) and make each new one a
+  // version bump — an mp3 is much heavier than a skin image, so the split
+  // matters more here than anywhere else.
+  if (url.pathname.includes('/data/music/')) {
+    if (url.pathname.endsWith('.json')) {
+      // Manifest: network-first, so a newly-added track is discovered on the
+      // next online load without a version bump; cache covers offline.
+      event.respondWith(
+        fetch(event.request).then(res => {
+          const copy = res.clone();
+          caches.open(CACHE_NAME).then(c => c.put(event.request, copy));
+          return res;
+        }).catch(() => caches.match(event.request))
+      );
+    } else {
+      // Audio: cache-first — a track is fetched once and then costs nothing,
+      // which is what keeps repeat play off mobile data.
       event.respondWith(
         caches.match(event.request).then(cached => cached || fetch(event.request).then(res => {
           const copy = res.clone();

@@ -1979,10 +1979,27 @@ Deploy
         <p class="text-stone-800 font-semibold">Mute All</p>
         <button id="global-mute-toggle" class="sylly-toggle-off">OFF</button>
       </div>
-      <div id="global-volume-group">
-        <p class="text-stone-400 text-sm font-semibold mb-2">Volume — <span id="global-volume-label">60%</span></p>
-        <input id="global-sound-volume" type="range" min="0" max="100" step="10" value="60"
-          class="stone-range w-full" />
+      <div id="global-volume-group" class="flex flex-col gap-4">
+        <div class="flex items-center justify-between">
+          <p class="text-stone-800 font-semibold">System Sounds</p>
+          <button id="btn-global-sfx-toggle" class="game-toggle-off shrink-0">OFF</button>
+        </div>
+        <div id="global-sfx-slider-row">
+          <p class="text-stone-400 text-sm font-semibold mb-2">Effects Volume — <span id="global-volume-label">60%</span></p>
+          <input id="global-sound-volume" type="range" min="0" max="100" step="10" value="60"
+            class="stone-range w-full" />
+        </div>
+      </div>
+      <div id="global-music-group" class="flex flex-col gap-4">
+        <div class="flex items-center justify-between">
+          <p class="text-stone-800 font-semibold">Music</p>
+          <button id="btn-global-music-toggle" class="game-toggle-off shrink-0">OFF</button>
+        </div>
+        <div id="global-music-slider-row">
+          <p class="text-stone-400 text-sm font-semibold mb-2">Music Volume — <span id="global-music-label">30%</span></p>
+          <input id="global-music-volume" type="range" min="0" max="100" step="10" value="30"
+            class="stone-range w-full" />
+        </div>
       </div>
       <button id="btn-sound-overlay-done" class="min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
         Done
@@ -3970,6 +3987,7 @@ Head Out Again
   </div>
 
   <!-- Load order: engine → multiplayer → plugins → secret-mode → bootstrapper -->
+  <script src="js/lib/music.js"></script>
   <script src="js/engine.js"></script>
   <script src="js/lib/art.js"></script>
   <script src="js/engine-multiplayer.js"></script>

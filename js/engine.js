@@ -6,6 +6,10 @@
 let isMuted      = localStorage.getItem('sylly-muted') === 'true';
 let masterVolume = parseFloat(localStorage.getItem('sylly-volume') ?? '0.6');
 let audioCtx     = null;
+// System Sounds (sfx) — independent ON/OFF alongside Music's, mirroring it: the
+// common ask is "keep one channel, lose the other", which Mute All alone can't
+// express. Mute All still outranks both — see every play*() guard below.
+let sfxEnabled   = localStorage.getItem('sylly-sfx') !== 'false';
 
 // ── Gamebox routing ───────────────────────────────────────────────────────────
 let activeGameId = null;  // set by each plugin on entry; cleared by resetToLobby
@@ -112,7 +116,7 @@ function playTone({ type = 'sine', freq, startTime, duration, gain = 0.3 }) {
 
 // YAY! — bright ascending collect chime: C5 → E5 → G5 (triangle, musical)
 function playSuccess() {
-  if (isMuted) return;
+  if (isMuted || !sfxEnabled) return;
   const ctx = getAudioCtx(), now = ctx.currentTime;
   playTone({ type: 'triangle', freq: 523, startTime: now,        duration: 0.12, gain: 0.22 });
   playTone({ type: 'triangle', freq: 659, startTime: now + 0.08, duration: 0.12, gain: 0.22 });
@@ -121,7 +125,7 @@ function playSuccess() {
 
 // NAY! — cartoon descending boing (square sweep 280→120 Hz, gentle gain)
 function playBoing() {
-  if (isMuted) return;
+  if (isMuted || !sfxEnabled) return;
   const ctx = getAudioCtx(), now = ctx.currentTime;
   const osc = ctx.createOscillator();
   const env = ctx.createGain();
@@ -138,7 +142,7 @@ function playBoing() {
 
 // SKIP — breezy swish: sweep up then tail off down
 function playWhoosh() {
-  if (isMuted) return;
+  if (isMuted || !sfxEnabled) return;
   const ctx = getAudioCtx(), now = ctx.currentTime;
   const osc = ctx.createOscillator();
   const env = ctx.createGain();
@@ -156,14 +160,14 @@ function playWhoosh() {
 
 // PILL/TOGGLE — tactile micro-pop
 function playPillClick() {
-  if (isMuted) return;
+  if (isMuted || !sfxEnabled) return;
   const ctx = getAudioCtx();
   playTone({ type: 'sine', freq: 900, startTime: ctx.currentTime, duration: 0.025, gain: 0.08 });
 }
 
 // DONE/CLOSE — satisfying two-note confirm: G4 → C5
 function playDone() {
-  if (isMuted) return;
+  if (isMuted || !sfxEnabled) return;
   const ctx = getAudioCtx(), now = ctx.currentTime;
   playTone({ type: 'sine', freq: 392, startTime: now,        duration: 0.09, gain: 0.18 });
   playTone({ type: 'sine', freq: 523, startTime: now + 0.07, duration: 0.12, gain: 0.18 });
@@ -171,7 +175,7 @@ function playDone() {
 
 // LAUNCH — energetic 3-note arpeggio for big CTAs (Play, Let's Go, Start Turn, Play Again)
 function playLaunch() {
-  if (isMuted) return;
+  if (isMuted || !sfxEnabled) return;
   const ctx = getAudioCtx(), now = ctx.currentTime;
   playTone({ type: 'triangle', freq: 330, startTime: now,        duration: 0.10, gain: 0.20 });
   playTone({ type: 'triangle', freq: 392, startTime: now + 0.07, duration: 0.10, gain: 0.20 });
@@ -180,7 +184,7 @@ function playLaunch() {
 
 // RESUME — warm two-note rise for "back to it" positive confirms
 function playResume() {
-  if (isMuted) return;
+  if (isMuted || !sfxEnabled) return;
   const ctx = getAudioCtx(), now = ctx.currentTime;
   playTone({ type: 'sine', freq: 392, startTime: now,        duration: 0.09, gain: 0.15 });
   playTone({ type: 'sine', freq: 659, startTime: now + 0.06, duration: 0.13, gain: 0.15 });
@@ -188,7 +192,7 @@ function playResume() {
 
 // EXIT — gentle two-note fall for destructive confirms
 function playExit() {
-  if (isMuted) return;
+  if (isMuted || !sfxEnabled) return;
   const ctx = getAudioCtx(), now = ctx.currentTime;
   playTone({ type: 'sine', freq: 247, startTime: now,        duration: 0.10, gain: 0.15 });
   playTone({ type: 'sine', freq: 196, startTime: now + 0.08, duration: 0.14, gain: 0.12 });
@@ -213,7 +217,7 @@ function playSliderTick(value = 50) {
 
 // SYLLY ON — fast ascending sparkle arpeggio (playSuccess at 2x speed)
 function playSyllyOn() {
-  if (isMuted) return;
+  if (isMuted || !sfxEnabled) return;
   const ctx = getAudioCtx(), now = ctx.currentTime;
   playTone({ type: 'triangle', freq: 523, startTime: now,        duration: 0.06, gain: 0.20 });
   playTone({ type: 'triangle', freq: 659, startTime: now + 0.04, duration: 0.06, gain: 0.20 });
@@ -223,7 +227,7 @@ function playSyllyOn() {
 
 // SYLLY OFF — descending version, neutral "back to normal"
 function playSyllyOff() {
-  if (isMuted) return;
+  if (isMuted || !sfxEnabled) return;
   const ctx = getAudioCtx(), now = ctx.currentTime;
   playTone({ type: 'triangle', freq: 784, startTime: now,        duration: 0.06, gain: 0.16 });
   playTone({ type: 'triangle', freq: 659, startTime: now + 0.04, duration: 0.06, gain: 0.14 });
@@ -232,7 +236,7 @@ function playSyllyOff() {
 
 // ALARM — short 3-pulse radar blip for timer expiry (stops on Transmit)
 function playAlarm() {
-  if (isMuted) return;
+  if (isMuted || !sfxEnabled) return;
   const ctx = getAudioCtx(), now = ctx.currentTime;
   [0, 0.22, 0.44].forEach(offset => {
     playTone({ type: 'square', freq: 880, startTime: now + offset, duration: 0.12, gain: 0.18 });
@@ -241,14 +245,14 @@ function playAlarm() {
 
 // TICK — soft clock tick (1 per second during countdown)
 function playTick() {
-  if (isMuted) return;
+  if (isMuted || !sfxEnabled) return;
   const ctx = getAudioCtx();
   playTone({ freq: 440, startTime: ctx.currentTime, duration: 0.05, gain: 0.15 });
 }
 
 // SONAR PING — DSD: Urchin hit / Sonar Ping transmit (dual sine + water filter)
 function playSonarPing() {
-  if (isMuted) return;
+  if (isMuted || !sfxEnabled) return;
   const ctx = getAudioCtx(), now = ctx.currentTime;
   const filt = ctx.createBiquadFilter();
   filt.type = 'lowpass'; filt.frequency.value = 600; filt.Q.value = 1.5;
@@ -275,7 +279,7 @@ function playSonarPing() {
 
 // HULL THUD — DSD: Pressure Mine hit (white noise + resonant lowpass + triangle sub)
 function playHullThud() {
-  if (isMuted) return;
+  if (isMuted || !sfxEnabled) return;
   const ctx = getAudioCtx(), now = ctx.currentTime;
   // White noise through resonant lowpass — metallic crunch
   const bufLen = Math.floor(ctx.sampleRate * 0.5);
@@ -303,7 +307,7 @@ function playHullThud() {
 
 // ABYSS THUD — DSD: Nuclear Mine hit — hull thud + 35Hz sawtooth rumble (2.5s)
 function playAbyssThud() {
-  if (isMuted) return;
+  if (isMuted || !sfxEnabled) return;
   playHullThud();
   const ctx = getAudioCtx(), now = ctx.currentTime;
   const rumble = ctx.createOscillator();
@@ -323,7 +327,7 @@ function playAbyssThud() {
 
 // STAMPEDE — PKO: the herd takes the board. Sub-bass swell + rising filtered noise (~1.2s)
 function playStampede() {
-  if (isMuted) return;
+  if (isMuted || !sfxEnabled) return;
   const ctx = getAudioCtx(), now = ctx.currentTime;
   // Sub-bass swell — the weight of the herd
   const sub = ctx.createOscillator();
@@ -357,7 +361,7 @@ function playStampede() {
 
 // UNCHALLENGED — PKO: you win an Encounter. Rising three-note sting, brass-ish
 function playUnchallenged() {
-  if (isMuted) return;
+  if (isMuted || !sfxEnabled) return;
   const ctx = getAudioCtx(), now = ctx.currentTime;
   [[196, 0], [294, 0.10], [392, 0.20]].forEach(([freq, at]) => {
     const osc = ctx.createOscillator();
@@ -376,7 +380,7 @@ function playUnchallenged() {
 // POACHER — PKO: the wildcard lands. Dry mechanical click + metallic ring —
 // deliberately out-of-ecosystem: nothing else in this game sounds man-made.
 function playPoacher() {
-  if (isMuted) return;
+  if (isMuted || !sfxEnabled) return;
   const ctx = getAudioCtx(), now = ctx.currentTime;
   // Dry click — a trap snapping shut
   const bufLen = Math.floor(ctx.sampleRate * 0.05);
@@ -406,7 +410,7 @@ function playPoacher() {
 
 // CLASH WIN — PKO: you empty your Hoard. A deepened, slower playSuccess
 function playClashWin() {
-  if (isMuted) return;
+  if (isMuted || !sfxEnabled) return;
   const ctx = getAudioCtx(), now = ctx.currentTime;
   playTone({ type: 'triangle', freq: 262, startTime: now,        duration: 0.18, gain: 0.26 });
   playTone({ type: 'triangle', freq: 330, startTime: now + 0.14, duration: 0.18, gain: 0.26 });
@@ -422,6 +426,13 @@ function showScreen(id) {
   el.classList.remove('screen-enter');
   void el.offsetWidth;
   el.classList.add('screen-enter');
+  // Background music follows the active game. This is the ONE seam for all 18
+  // games: every plugin sets activeGameId before navigating, and resetToLobby()
+  // clears it before its own showScreen — so both directions are covered here
+  // and no plugin needs a line of music code. Resolving to the track already
+  // playing is a no-op inside Music, so moving between screens within one game
+  // never restarts it.
+  if (typeof Music !== 'undefined') Music.playFor(activeGameId);
 }
 
 function toggleMute() {
@@ -438,12 +449,20 @@ function toggleMute() {
   document.querySelectorAll('.btn-open-sound').forEach(b => {
     b.textContent = isMuted ? '🔇' : '🔊';
   });
+  // Global mute outranks the music toggle — one switch silences the whole app.
+  if (typeof Music !== 'undefined') Music.syncMute();
+  const musicGroup = document.getElementById('global-music-group');
+  if (musicGroup) musicGroup.classList.toggle('volume-hidden', isMuted);
 }
 
 function openSoundOverlay() {
   updateSliderTheme(activeGameId);
   const muteBtn = document.getElementById('global-mute-toggle');
   if (isMuted) muteBtn.className = getMuteToggleOnClass(activeGameId);
+  // The sfx and music toggles take the current game's brand colour too, same
+  // as the mute toggle — the overlay is opened from inside every game.
+  if (typeof syncSfxUI === 'function') syncSfxUI();
+  if (typeof syncMusicUI === 'function') syncMusicUI();
   document.getElementById('sound-overlay').style.display = 'flex';
 }
 
@@ -537,8 +556,12 @@ function updateSliderTheme(gameId) {
     'nt': 'nt-range', 'frt': 'frt-range', 'shp': 'shp-range', 'flw': 'flw-range',
     'pko': 'pko-range', 'cjar': 'cjar-range'
   };
+  const cls = (map[gameId] || 'stone-range') + ' w-full';
   const el = document.getElementById('global-sound-volume');
-  el.className = (map[gameId] || 'stone-range') + ' w-full';
+  el.className = cls;
+  // The music slider lives in the same overlay and themes with it.
+  const music = document.getElementById('global-music-volume');
+  if (music) music.className = cls;
 }
 
 function getMuteToggleOnClass(gameId) {
@@ -783,7 +806,9 @@ function resetToLobby() {
   closeArtViewer();
   updateSliderTheme(null);
   if (isMuted) document.getElementById('global-mute-toggle').className = getMuteToggleOnClass(null);
-  showScreen('screen-lobby');
+  if (typeof syncSfxUI === 'function') syncSfxUI();       // sfx toggle back to neutral stone
+  if (typeof syncMusicUI === 'function') syncMusicUI();   // music toggle back to neutral stone
+  showScreen('screen-lobby');   // ← also swaps music back to the lobby theme
 }
 
 function resetToMenu() {
@@ -814,12 +839,87 @@ document.getElementById('global-sound-volume').addEventListener('input', e => {
   document.getElementById('global-volume-label').textContent = `${e.target.value}%`;
   playSliderTick(parseInt(e.target.value));
 });
+// ── System Sounds (sfx) controls ────────────────────────────────────────────────
+// Same shape as the Music block below — its own toggle, its own slider-row
+// visibility — so the two channels are symmetric. Mute All still outranks both.
+const _sfxToggle = document.getElementById('btn-global-sfx-toggle');
+const _sfxSliderRow = document.getElementById('global-sfx-slider-row');
+if (_sfxToggle && _sfxSliderRow) {
+  const syncSfxUI = () => {
+    _sfxToggle.textContent = sfxEnabled ? 'ON' : 'OFF';
+    _sfxToggle.className   = sfxEnabled ? getMuteToggleOnClass(activeGameId) : 'game-toggle-off';
+    _sfxSliderRow.style.display = sfxEnabled ? '' : 'none';
+  };
+  window.syncSfxUI = syncSfxUI;
+  syncSfxUI();
+
+  _sfxToggle.addEventListener('click', () => {
+    sfxEnabled = !sfxEnabled;
+    localStorage.setItem('sylly-sfx', String(sfxEnabled));
+    syncSfxUI();
+    // playSliderTick bypasses both isMuted and sfxEnabled (see its own
+    // comment), so it is the one cue that can confirm "sounds are now off".
+    playSliderTick(sfxEnabled ? 70 : 15);
+  });
+}
+
+// ── Music controls ────────────────────────────────────────────────────────────
+// Music has its own toggle and its own level, deliberately separate from the
+// effects volume: the common request is "keep the cues, lose the soundtrack",
+// and a shared slider cannot express it. Global Mute All still outranks both.
+const _musicToggle = document.getElementById('btn-global-music-toggle');
+const _musicSlider = document.getElementById('global-music-volume');
+if (_musicToggle && _musicSlider) {
+  const syncMusicUI = () => {
+    const on = Music.isEnabled();
+    _musicToggle.textContent = on ? 'ON' : 'OFF';
+    _musicToggle.className   = on ? getMuteToggleOnClass(activeGameId) : 'game-toggle-off';
+    _musicSlider.value = Math.round(Music.getVolume() * 100);
+    document.getElementById('global-music-label').textContent = `${Math.round(Music.getVolume() * 100)}%`;
+    document.getElementById('global-music-slider-row').style.display = on ? '' : 'none';
+  };
+  window.syncMusicUI = syncMusicUI;
+  syncMusicUI();
+  document.getElementById('global-music-group').classList.toggle('volume-hidden', isMuted);
+
+  _musicToggle.addEventListener('click', () => {
+    playPillClick();
+    Music.setEnabled(!Music.isEnabled());
+    syncMusicUI();
+  });
+  _musicSlider.addEventListener('input', e => {
+    Music.setVolume(parseInt(e.target.value) / 100);
+    document.getElementById('global-music-label').textContent = `${e.target.value}%`;
+  });
+}
+
+// Load the manifest and arm the first-gesture unlock. Browsers refuse to make
+// sound before a user interaction, so the lobby theme starts on the first tap
+// rather than on page load — see js/lib/music.js § init.
+if (typeof Music !== 'undefined') Music.init();
+
 document.getElementById('btn-sound-overlay-done').addEventListener('click', () => {
   playDone();
   document.getElementById('sound-overlay').style.display = 'none';
 });
+// Tap opens the sound overlay; tap-HOLD (500ms) toggles Mute All directly,
+// without opening it — a quick way to go silent (or back) mid-conversation.
+// bindCardHold's own listeners don't suppress the click that follows a fired
+// hold, so a per-button flag swallows exactly that one click.
 document.querySelectorAll('.btn-open-sound').forEach(b => {
-  b.addEventListener('click', () => { playPillClick(); openSoundOverlay(); });
+  let held = false;
+  bindCardHold(b, () => {
+    held = true;
+    toggleMute();
+    // playSliderTick bypasses isMuted/sfxEnabled (see its own comment), so it
+    // is the one cue that can confirm "just went silent" audibly.
+    playSliderTick(isMuted ? 15 : 70);
+  }, 500);
+  b.addEventListener('click', () => {
+    if (held) { held = false; return; }
+    playPillClick();
+    openSoundOverlay();
+  });
 });
 
 document.getElementById('btn-art-viewer-close')

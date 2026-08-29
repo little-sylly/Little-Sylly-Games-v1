@@ -20,6 +20,13 @@ Detail: pointer to the canonical doc (snapshot / impl note / spec / memory).
 
 ---
 
+## 2026-08-28 — Background music: the suite's first audio files, runtime-cached with a lobby fallback
+Category: Architecture
+Decision: Adopt looping background music as **files** under `data/music/`, resolved per game through `js/lib/music.js` with a two-tier fallback (the game's own track, else the lobby theme), runtime-cached exactly like `data/packs/` — never precached.
+Why: The "no audio files" anti-pattern existed to protect the install size and the offline guarantee; runtime-caching keeps both (a track is fetched once, on first play, and only if that game is played) while letting a new track ship by dropping an mp3 in the folder and adding one manifest line — no `sw.js` edit, no `CACHE_NAME` bump. The lobby fallback means a game without music is never silent and a *new* game inherits a track for free.
+Changed: `data/music/{manifest.json,lobby.mp3}`, `js/lib/music.js` (new), `js/engine.js` (one seam in `showScreen` covers all 18 games; music toggle + slider wiring), `index.html` (sound overlay controls, script tag), `css/styles.css`, `sw.js` (fetch branch + v212). Deferred: 18 per-game tracks, the 5.46 MB lobby file's trim to the ~1.5 MB ceiling, and a Music & Sound section in the Phase 1 brief template — all in `deferred-work.md`.
+Detail: `docs/implementation-notes/shared-implementation-notes.md` § Music; prompts in `docs/music-prompts.md`.
+
 ## 2026-08-27 — Just Enough Cooks reworked; Kitchen Nightmares retired
 Category: Architecture
 Decision: Standard play gains three real decisions — a tapped **Signature Dish** (double, Golden range only), **The Crutch** (predict the table's most-picked cliché; never one of your own three, never entered into the pot), and **Special Instructions** (twenty twists bending the Order). The Sifting splits into a **blind** Sous Chef's Check then The Tasting. Sylly Mode becomes **Fusion Cuisine** — two Orders, one dish, a name vote where ties all pay. Bug **J2** closed at all three sites.

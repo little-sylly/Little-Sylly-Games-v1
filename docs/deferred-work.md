@@ -8,6 +8,31 @@ Tick items off here; promote anything architectural into `decision-log.md`.
 
 ---
 
+## Music — the architecture shipped, the content has not (28 Aug 2026, SW v212)
+
+`js/lib/music.js` and the `data/music/` contract are live and verified. What is parked:
+
+- **17 of 18 games have no track of their own.** Every one falls back to the lobby theme, which is
+  the designed behaviour, not a bug. Prompts for all 18 are written and ready to generate:
+  `docs/music-prompts.md`. Shipping one is: generate → trim to a loop → drop
+  `data/music/<activeGameId>.mp3` in → add one manifest line. No code, no SW bump.
+- **`data/music/lobby.mp3` is 5.46 MB, well over the ~1.5 MB per-track ceiling.** Shipped as-is
+  deliberately so there is something playing today. Needs a trim to a 60–120 s loop at ~128 kbps
+  before the track count grows — it is cache-first, so the cost is a one-off download per device,
+  but at 19 tracks that cost compounds.
+- **A Music & Sound section in the Phase 1 brief template** (`docs/rules/new-game-brief-template.md`).
+  Three fields, no more: the register in one line, tempo/energy, and anything the music must *not*
+  do (Deep-Sea Deploy's "no sonar pings" is the model). The fallback rule means it can be left blank
+  without blocking a build — which is exactly why it hasn't been added yet.
+- **Sylly Mode variant tracks** — five games flip register hard enough to justify a second take at
+  the same tempo and key (SHP → Night Terrors, PKO → Force of Nature, FLW → The Counterfeit Run,
+  NT → Devil's Network Protocol, GM → Static Interference). Would need a second resolution tier
+  (`<gameId>-sylly`) in `Music.playFor` — deliberately not built for a hypothetical.
+- **No credits surface.** `Music.nowPlaying()` returns `{ key, title, artist }` and nothing consumes
+  it yet. The manifest already carries per-track attribution.
+
+---
+
 ## CLOSED — both recurring MP bugs from the identity-doc pass, plus three games it missed (23 Aug 2026)
 
 **SW v210.** The nine bullets marked RESOLVED in the sections below are fixed. Two bug classes, both

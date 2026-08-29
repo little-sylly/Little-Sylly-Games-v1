@@ -1,0 +1,12 @@
+{
+  "schema": 1,
+  "fallback": "lobby",
+  "tracks": {
+    "lobby": {
+      "file": "lobby.mp3",
+      "title": "旧玩具箱",
+      "artist": "Sam Tse",
+      "gain": 1.0
+    }
+  }
+}

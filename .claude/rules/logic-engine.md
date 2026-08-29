@@ -31,6 +31,7 @@
 | Module | Global | API | Reference user |
 |--------|--------|-----|----------------|
 | `js/lib/cards.js` | `Cards` | `Cards.buildEl({ rank, suit, deckIdx })` → card-face DOM node; `Cards.buildBackEl(deckIdx)` → face-down node. Joker = `{ rank: 'Joker', suit: '', deckIdx }`. Layered by DOM order — no per-card z-index. | PASS |
+| `js/lib/music.js` | `Music` | `init()`, `playFor(gameId)`, `setEnabled(b)`, `setVolume(v)`, `syncMute()`, `nowPlaying()`. Looping background tracks from `data/music/`, resolved per game with a lobby fallback. **Driven entirely from `showScreen()` — a plugin never calls it.** See § Background music. | engine (all 18 games) |
 | `js/lib/canvas-draw.js` | `CanvasDraw` | `init(canvasEl, { onStrokeEnd })`, `clear()`, `lock()` → `{ w, h, s }` stroke data, `render(canvasEl, data, opts)`, `setTremor(wrapperEl, bool)`, `setBlur(canvasEl, ms)`. **Tremor applies to the wrapper `<div>` only — never the `<canvas>` (coordinate system must stay unaffected).** | GTH |
 
 **Not `js/lib/` but the same shared-not-reinvented rule — `engine.js` globals used by 3+ games:**
@@ -54,7 +55,7 @@ Extract into a shared module only if a second dice game appears (YAGNI until the
 ---
 
 ## Audio Function Catalogue
-All audio is synthesised via Web Audio API — no audio files.
+All sound **effects** are synthesised via Web Audio API — no files, and that will not change. Background *music* is the single exception and lives in its own module — see § Background music below.
 
 | Function | Semantic meaning | Notes |
 |----------|-----------------|-------|
@@ -82,7 +83,57 @@ All audio is synthesised via Web Audio API — no audio files.
 
 **Cookie Jar adds NO new audio functions either** — same pattern, one map: `CJAR_SOUND` in `js/games/cjar.js` names a *moment* (`cookie`, `caughtFirst`, `busted`, `reveal`, `soloSneak`, `treatSpecial`/`treatSuper`, `raidLost`, `highAlert`, `dobBackfire`, `matchEnd`) and points it at an existing `play*()`. Two games now use this shape; treat it as the default for a new game rather than synthesising more tones.
 
-Global audio state: `isMuted` (bool), `masterVolume` (0–1), `audioCtx` (Web Audio context).
+Global audio state: `isMuted` (bool), `masterVolume` (0–1), `audioCtx` (Web Audio context),
+`sfxEnabled` (bool, 28 Aug 2026 — System Sounds toggle, independent of `isMuted`; every `play*()`
+guard is `if (isMuted || !sfxEnabled) return;` except `playSliderTick`, which deliberately bypasses
+both so slider/mute-hold feedback is always audible).
+
+**Mute All still outranks everything.** `sfxEnabled` and `Music`'s own `enabled` flag are each a
+*channel* toggle; `isMuted` silences both regardless of their individual state — the effects and
+music guards both check `isMuted` first. Tap-**hold** (500 ms) on any `.btn-open-sound` icon toggles
+`isMuted` directly without opening `#sound-overlay` — wired via `bindCardHold` at the bottom of
+`engine.js`'s boot block, with a per-button flag suppressing the click that follows a fired hold (a
+normal tap still opens the overlay).
+
+### Background music (`js/lib/music.js`, 28 Aug 2026)
+
+**Effects stay synthesised — forever. Music is the one thing that is a file.** Everything above is
+generated at runtime and no `play*()` will ever load an asset; `Music` is a separate layer with its
+own state, its own level and its own caching contract.
+
+| Call | Purpose |
+|------|---------|
+| `Music.init()` | Loads `data/music/manifest.json`, arms the first-gesture unlock. Called once from `engine.js`'s boot block |
+| `Music.playFor(gameId)` | Resolves and crossfades to that game's track. **Already called for you** — see the seam below |
+| `Music.setEnabled(b)` / `Music.isEnabled()` | The Music toggle in `#sound-overlay` |
+| `Music.setVolume(v)` / `Music.getVolume()` | Music level, independent of `masterVolume` |
+| `Music.syncMute()` | Called by `toggleMute()` — global mute outranks the music toggle |
+| `Music.nowPlaying()` | `{ key, title, artist }` or `null`; for a future credits surface |
+
+**One seam, all games — do NOT add music calls to a plugin.** `showScreen()` calls
+`Music.playFor(activeGameId)` on every navigation. Every plugin already sets `activeGameId` before
+navigating and `resetToLobby()` clears it before its own `showScreen`, so both directions are
+covered. Resolving to the track already playing is a no-op, so moving between screens inside one
+game never restarts it.
+
+**Two-tier fallback:** `tracks[activeGameId]`, else `tracks[fallback]` (`'lobby'`). A game with no
+track of its own plays the lobby theme rather than falling silent, and **a new game needs no music
+work at all** — it inherits the fallback until someone writes it one.
+
+**Adding a track:** drop `data/music/<activeGameId>.mp3` in and add one line to the manifest. That
+is the whole procedure — no `sw.js` edit, no `CACHE_NAME` bump, no JS change. Ceiling **~1.5 MB
+per track** (128 kbps, 60–120 s loop).
+
+**Two things that are load-bearing and easy to undo:**
+- **Tracks are decoded into an `AudioBufferSourceNode` with `loop = true`**, never played through
+  `<audio loop>` — the latter inserts an audible gap at the wrap point on every engine.
+- **Nothing can start before a user gesture.** Browsers refuse audio until then, so `init()` queues
+  the lobby theme and starts it on the first `pointerdown`/`keydown`. A track requested while music
+  is off is not started at all (a silent looping source still decodes and mixes — real battery cost
+  on a phone).
+
+Every failure path is silent by design: no manifest, no file, a corrupt file or offline-before-first-
+fetch all mean "no music", never a thrown error on a game screen.
 
 ---
 
@@ -537,6 +588,13 @@ edit** — its seam already calls `assetFace`/`assetBack`. **A conversion is not
 carries the manifest AND every image in `PRECACHE_URLS` and `CACHE_NAME` is bumped** — that step is
 the whole difference from a skin pack, and missing it means the art is simply absent on a cold
 offline install.
+
+**Music — runtime-cached, NOT precached (28 Aug 2026):** `data/music/` follows the same split as
+`data/packs/` and for a sharper version of the same reason: **manifest network-first** (a new track
+is discovered without a version bump), **audio cache-first** (fetched once, then free). An mp3 is an
+order of magnitude heavier than a skin image, so precaching would put every track in the install and
+make each new one a version bump. `js/lib/music.js` itself **is** precached — the code is part of the
+app version; the tracks are not. Ceiling ~1.5 MB per track.
 
 **Cartridge packs — runtime-cached, NOT precached (Phase A, June 2026):** Everything under
 `data/packs/` (the `registry.json`, each `<id>/pack.json`, and any asset images) is deliberately

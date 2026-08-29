@@ -21,6 +21,65 @@ place.
 
 ## Design Decisions
 
+**DD-06 — System Sounds gets its own toggle; tap-hold mutes without the overlay (SW v213, 28 Aug 2026).**
+Once Music had its own ON/OFF and its own slider (DD-05), the effects "Volume" block was the odd one
+out — silencable only through Mute All, which also kills music. Gave it the identical shape: a
+`#btn-global-sfx-toggle` + `#global-sfx-slider-row` mirroring Music's markup exactly, backed by a new
+`sfxEnabled` global. The only code-wide consequence was mechanical: all 19 `if (isMuted) return;`
+guards across `engine.js`'s `play*()` functions became `if (isMuted || !sfxEnabled) return;` — a
+single `sed` pass, verified by count (19 in, 19 out) rather than eyeballing each site.
+`playSliderTick` was deliberately left alone; its own comment already says it bypasses `isMuted` so
+slider feedback is always audible, and the same reasoning extends to the new flag.
+
+**Tap-hold to Mute All** rides the existing `bindCardHold` (ui-style.md § Tap-Hold Reference) rather
+than a new gesture primitive. The one wrinkle: `bindCardHold`'s own listeners don't suppress the
+`click` that still fires after a held touch/mouse is released, so without extra state a 500 ms hold
+would toggle mute *and* pop the sound overlay open on release. Fixed with a per-button closure flag
+set by the hold callback and consumed (once) by the click handler — a pattern worth reusing anywhere
+else a hold and a click share one element, since `bindCardHold` itself has no opinion about it.
+
+**Verification note.** A headless-Chromium check that only inspects DOM text/classes cannot prove
+SFX-off actually silences anything — the guard could be wired to the wrong flag and still *look*
+right. Patched `AudioContext.prototype.createOscillator` for one call to `playSuccess()` and
+confirmed zero oscillators were created with the toggle off, then confirmed one was created with it
+back on. Cheap, and it is the only way this class of bug is visible without real audio hardware.
+
+**DD-05 — Background music: files, but on the packs contract, with a fallback instead of silence (SW v212, 28 Aug 2026).**
+The suite shipped eighteen games under a flat "no audio files" rule. That rule was never really
+about files — it was about the **install size** and the **offline guarantee**, and both survive
+intact if music is runtime-cached rather than precached. So `data/music/` took the `data/packs/`
+contract verbatim: manifest network-first, audio cache-first, nothing in `PRECACHE_URLS` (the
+*module* is precached — code is part of the app version; the tracks are not). The consequence worth
+naming is the authoring workflow: **a new track ships by dropping an mp3 in a folder and adding one
+manifest line** — no `sw.js` edit, no `CACHE_NAME` bump, no JS change.
+
+Three decisions inside it that could each have gone the other way:
+
+1. **Two-tier fallback, not per-game silence.** `tracks[activeGameId]` else `tracks['lobby']`. The
+   alternative — a game with no track plays nothing — makes the feature feel broken for seventeen
+   of eighteen games until every track exists, and makes *every future game* a music task. With the
+   fallback, game 19 inherits a theme for free and only stops using it when someone writes it one.
+2. **One seam in `showScreen()`, not eighteen plugin calls.** Every plugin already sets
+   `activeGameId` before navigating, and `resetToLobby()` clears it before its own `showScreen` —
+   so both directions are covered by a single line in the engine. Eighteen call sites would have
+   been eighteen chances to forget one, and a nineteenth for the next game.
+3. **Its own toggle and its own level, not a share of `masterVolume`.** The common request is
+   "keep the cues, lose the soundtrack", and a shared slider cannot express it. Global Mute All
+   still outranks both — one switch silences the app.
+
+**Two implementation details that are load-bearing:** tracks are decoded into an
+`AudioBufferSourceNode` with `loop = true` rather than played through `<audio loop>` (which inserts
+an audible gap at the wrap point on every engine); and **nothing starts before a user gesture** —
+browsers refuse audio until then, so `init()` queues the lobby theme and starts it on the first
+`pointerdown`/`keydown`. Verified in headless Chromium: no boot errors, the fallback resolves (a
+click that landed on the Late to the Party button proved it — LTTP has no track and got the lobby
+theme), the overlay renders at 16 px gaps with no horizontal overflow, and Mute All collapses both
+control groups.
+
+**Lesson.** An anti-pattern is worth re-reading for its *reason* before treating it as a wall. "No
+audio files" protected two properties; a caching contract that already existed in this codebase
+preserved both, and the rule turned out to be narrower than its wording.
+
 **DD-04 — Fredoka self-hosted; the "deliberate offline exception" is deleted, not documented (SW v205, 19 Aug 2026).**
 The brand font had loaded from Google Fonts since the start, with a ~5-line paragraph in **two**
 always-loaded rule files explaining why that was acceptable ("self-hosting would require woff2

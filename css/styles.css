@@ -295,14 +295,20 @@ body.flash-red   { background-color: #fecaca; }
   font-weight: 600;
 }
 
-/* ── Global volume group — slides away when muted ───────────────────────── */
-#global-volume-group {
+/* ── Global volume + music groups — slide away when muted ───────────────── */
+/* All collapse together under Mute All: leaving either channel's controls
+   visible while muted would offer a level that does nothing. Each also has
+   its own toggle+slider shape now (System Sounds mirrors Music), so both take
+   the taller max-height for the toggle row + slider row. */
+#global-volume-group,
+#global-music-group {
   overflow: hidden;
-  max-height: 80px;
+  max-height: 160px;   /* toggle row + slider row */
   opacity: 1;
   transition: max-height 0.3s ease, opacity 0.3s ease;
 }
-#global-volume-group.volume-hidden {
+#global-volume-group.volume-hidden,
+#global-music-group.volume-hidden {
   max-height: 0;
   opacity: 0;
 }

@@ -1,0 +1,50 @@
+{
+    "id":  "mh-pko",
+    "label":  "MONSTER HUNTER",
+    "locked":  false,
+    "games":  [
+                  "pko"
+              ],
+    "assets":  {
+                   "kind":  "pko",
+                   "basePath":  "img/",
+                   "faces":  {
+                                 "bear":  "bear.jpg",
+                                 "bee":  "bee.jpg",
+                                 "eagle":  "eagle.jpg",
+                                 "elephant":  "elephant.jpg",
+                                 "fish":  "fish.jpg",
+                                 "human":  "human.jpg",
+                                 "leopard":  "leopard.jpg",
+                                 "mimic":  "mimic.jpg",
+                                 "mongoose":  "mongoose.jpg",
+                                 "mouse":  "mouse.jpg",
+                                 "octopus":  "octopus.jpg",
+                                 "orca":  "orca.jpg",
+                                 "polar_bear":  "polar_bear.jpg",
+                                 "seal":  "seal.jpg",
+                                 "stingray":  "stingray.jpg"
+                             },
+                   "back":  "back.jpg",
+                   "extras":  {
+                                  "chain":  "chain.jpg"
+                              },
+                   "names":  {
+                                 "mouse":  "Kulu-Ya-Ku",
+                                 "mongoose":  "Barroth",
+                                 "leopard":  "Nargacuga",
+                                 "bear":  "Rajang",
+                                 "elephant":  "Deviljho",
+                                 "fish":  "Royal Ludroth",
+                                 "octopus":  "Plesioth",
+                                 "seal":  "Mizutsune",
+                                 "polar_bear":  "Lagiacrus",
+                                 "orca":  "Ceadeus",
+                                 "eagle":  "Rathalos",
+                                 "bee":  "Najarala",
+                                 "stingray":  "Nakarkos",
+                                 "human":  "The Hunter",
+                                 "mimic":  "Zoh Shia"
+                             }
+               }
+}

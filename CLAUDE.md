@@ -91,8 +91,8 @@ For where each game's screens/overlays live in `index.html`, see the **Per-Game 
 ---
 
 ## 📁 Load Order
-**Load order:** `engine.js` → `art.js` → `engine-multiplayer.js` → `canvas-draw.js` → `li5.js` → `great-minds.js` → `secret-signals.js` → `jec.js` → `ygi.js` → `lttp.js` → `nat.js` → `dsd.js` → `bld.js` → `gth.js` → `dyb.js` → `cards.js` → `pass.js` → `nt.js` → `frt.js` → `shp.js` → `flw.js` → `pko.js` → `cjar.js` → `secret-mode.js` → `app.js`
-(`tailwind-play.js` loads in `<head>` before everything else.)
+**Load order:** `music.js` → `engine.js` → `art.js` → `engine-multiplayer.js` → `canvas-draw.js` → `li5.js` → `great-minds.js` → `secret-signals.js` → `jec.js` → `ygi.js` → `lttp.js` → `nat.js` → `dsd.js` → `bld.js` → `gth.js` → `dyb.js` → `cards.js` → `pass.js` → `nt.js` → `frt.js` → `shp.js` → `flw.js` → `pko.js` → `cjar.js` → `secret-mode.js` → `app.js`
+(`tailwind-play.js` loads in `<head>` before everything else. `js/lib/music.js` loads *before* `engine.js` — the engine boot block calls `Music.init()` at parse time.)
 All symbols are global (no ES modules). Forward references work at runtime.
 
 ---
@@ -101,7 +101,7 @@ All symbols are global (no ES modules). Forward references work at runtime.
 - **Languages:** Vanilla JS (ES6+), HTML5, CSS3
 - **Styling:** Tailwind CSS — local file `/js/lib/tailwind-play.js` (no CDN, works offline)
 - **Hosting:** GitHub Pages ($0) — no backend
-- **Audio:** Web Audio API (synthesised tones) — no audio files
+- **Audio:** Web Audio API (synthesised tones) — **effects are never files**. The one exception is background *music* (`data/music/`, SW v212), runtime-cached like packs and never precached — see `logic-engine.md` § Background music
 - **Capabilities:** PWA (offline via Service Worker), Screen Wake Lock API
 - **Diagrams:** Mermaid (`stateDiagram-v2`) — used in tech specs for state flows; rendered natively by GitHub, no install required
 - **Font:** Fredoka, self-hosted from `fonts/` (variable woff2, `@font-face` in `css/styles.css`, precached). No external font request — the app has **zero** runtime third-party dependencies.
@@ -273,18 +273,17 @@ On every bump the outgoing SW entry moves **verbatim** to `docs/sw-changelog.md`
 "keep the last three". **A second `**SW v…**` paragraph appearing here means that move didn't
 happen: do it before anything else.**
 
-**SW v211 — Just Enough Cooks reworked: real decisions in standard play, Kitchen Nightmares
-retired (27 Aug 2026).** JEC's base game was one guess repeated; it now carries three decisions —
-a **Signature Dish** you tap to back (double, and only inside the Golden range — the code had been
-doubling any positive score), **The Crutch** (predict the table's most-picked cliché; never one of
-your own three, and never entered into the pot), and **Special Instructions** (twenty twists that
-bend the Order rather than punish the answer). The Sifting splits into a **blind** Sous Chef's Check
-then The Tasting: merges are now decided before anyone can see what one is worth. Sylly Mode becomes
-**Fusion Cuisine** — two Orders, one dish, and a name vote where ties all pay. Bug **J2** closed at
-all three sites. Two new harnesses (`verify-jec-loop` 77, `verify-jec-loopback` 164) — JEC had
-none. Detail: `jec-implementation-notes`, `docs/decision-log.md`.
+**SW v213 — Sound overlay: System Sounds gets its own ON/OFF, and a tap-hold mutes without opening it (28 Aug 2026).** The effects "Volume" block now mirrors Music exactly — its own toggle
+(`#btn-global-sfx-toggle`), its own slider-row, ON by default — so a player can silence cues without
+losing music or vice versa (`sfxEnabled`, every `play*()` guard now `isMuted || !sfxEnabled`, except
+`playSliderTick`, which still bypasses both by design). Every `.btn-open-sound` icon now also
+answers a 500 ms **tap-hold**: toggles `isMuted` directly, no overlay — wired via the shared
+`bindCardHold` with a per-button flag that suppresses the click a fired hold leaves behind, so a
+normal tap still opens the overlay. Verified in headless Chromium: SFX-off genuinely suppresses
+oscillator creation, hold-to-mute and hold-to-unmute both work, a quick tap still opens the overlay.
+Detail: `shared-implementation-notes`.
 
-**Previous versions: `docs/sw-changelog.md`** — continuous, v210 back to v167.
+**Previous versions: `docs/sw-changelog.md`** — continuous, v212 back to v167.
 
 **Where the suite stands.** **18 games shipped**, all gold-master, plus multiplayer. Newest three:
 **Cookie Jar** (`cjar`, game 18, phase 39), **Pecking Order** (`pko`, game 17, phase 37) and its

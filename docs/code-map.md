@@ -48,6 +48,28 @@ Each game's `<!-- ════ NAME ════ -->` section-header comment is 
 
 **JS file:** `js/engine.js`
 
+### Background music — `js/lib/music.js` (28 Aug 2026, SW v212)
+
+`window.Music` — looping background tracks, the suite's only audio **files** (effects stay
+synthesised). Loaded **before** `engine.js`; the engine's boot block calls `Music.init()`.
+
+| Element / key | What it is |
+|---------------|-----------|
+| `#global-music-group` | Music block in `#sound-overlay`; collapses with `.volume-hidden` when muted |
+| `#btn-global-music-toggle` | ON/OFF; takes the active game's `game-toggle-on-*` class |
+| `#global-music-slider-row` | Wraps the slider; hidden when music is OFF |
+| `#global-music-volume` | Music level; themed by `updateSliderTheme()` alongside the effects slider |
+| `#global-music-label` | Live "30%" readout |
+| `data/music/manifest.json` | `{ schema, fallback, tracks: { <key>: { file, title, artist, gain } } }` |
+| `sylly-music` / `sylly-music-volume` | localStorage — permitted, user preference not game state |
+
+**Functions:** `Music.init()`, `playFor(gameId)`, `setEnabled(b)`, `isEnabled()`, `setVolume(v)`,
+`getVolume()`, `syncMute()`, `nowPlaying()`. Engine-side: `syncMusicUI()` (window global, repaints
+the toggle/slider — called from `openSoundOverlay()` and `resetToLobby()`).
+
+**The seam:** `showScreen()` calls `Music.playFor(activeGameId)` — the single call site for all 18
+games. Track key = `activeGameId`, falling back to `'lobby'`. No plugin has music code.
+
 ### Screens
 | ID | Purpose |
 |----|---------|
@@ -81,8 +103,10 @@ Each game's `<!-- ════ NAME ════ -->` section-header comment is 
 | `#btn-flw` | Lobby → FLW menu screen |
 | `#btn-pko` | Lobby → PKO menu screen |
 | `#lobby-icon` | Secret Mode tap counter (7 taps → controller screen) |
-| `.btn-open-sound` | Opens `#sound-overlay` (on every screen) |
+| `.btn-open-sound` | Tap opens `#sound-overlay`; tap-**hold** (500 ms) toggles Mute All directly, no overlay. See `bindCardHold` wiring at the bottom of `engine.js`'s boot block |
 | `#global-mute-toggle` | Mute toggle inside sound overlay |
+| `#btn-global-sfx-toggle` | System Sounds (effects) ON/OFF — independent of Music's toggle, mirrors it |
+| `#btn-global-music-toggle` | Music ON/OFF |
 
 ### Key functions
 | Function | Purpose |
@@ -92,9 +116,10 @@ Each game's `<!-- ════ NAME ════ -->` section-header comment is 
 | `resetToMenu()` | LI5 only — stops timer, hides LI5 overlays → `#screen-menu` |
 | `normaliseWord(w)` | Lowercase + trim + plural strip (used by GM, JEC) |
 | `shuffle(arr)` | Fisher-Yates, returns new array |
-| `openSoundOverlay()` | Opens `#sound-overlay`, syncs mute state; calls `updateSliderTheme(activeGameId)` automatically |
-| `toggleMute()` | Flips `isMuted`, persists to localStorage, syncs `#btn-mute` / `#global-mute-toggle` / all `.btn-open-sound` icons |
-| `updateSliderTheme(gameId)` | Maps `activeGameId` → `[abbr]-range` CSS class on `#global-sound-volume` (fallback `stone-range`) |
+| `openSoundOverlay()` | Opens `#sound-overlay`, syncs mute/sfx/music state; calls `updateSliderTheme(activeGameId)` automatically |
+| `toggleMute()` | Flips `isMuted`, persists to localStorage, syncs `#btn-mute` / `#global-mute-toggle` / all `.btn-open-sound` icons / `Music.syncMute()` |
+| `syncSfxUI()` (window global) | Repaints `#btn-global-sfx-toggle` + `#global-sfx-slider-row` visibility from `sfxEnabled` |
+| `updateSliderTheme(gameId)` | Maps `activeGameId` → `[abbr]-range` CSS class on `#global-sound-volume` **and** `#global-music-volume` (fallback `stone-range`) |
 | `getMuteToggleOnClass(gameId)` | Maps `activeGameId` → `game-toggle-on-[colour]` class for `#global-mute-toggle` ON state (fallback `game-toggle-on-stone`) |
 | `openArtViewer(src, caption)` | Shows one image at viewport size in `#art-viewer-overlay`. **No-ops when `src` is falsy** — a game on its emoji fallback has nothing to enlarge |
 | `closeArtViewer()` | Hides it; also called from `resetToLobby()` |

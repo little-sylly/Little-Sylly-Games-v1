@@ -364,6 +364,114 @@ Elephant still says "Elephant"), or override the name too. The tool never writes
 
 ---
 
+### Full remap packs (a different creature/character per id) — supply a mapping list
+
+**A reskin keeps the same cast** — a Dinosaur-skinned Elephant is still conceptually "the elephant",
+just drawn differently, so renaming each file to its id (§3 Step 2) is a mechanical, obvious task
+you do yourself. **A remap swaps the cast** — a Monster Hunter pack doesn't have an elephant, it has
+Deviljho standing in the elephant slot — and your source art almost never arrives pre-named after the
+game's ids. It arrives named after *itself* (`rathalos.jpg`, `zoh shia.jpg`), because that's what the
+art actually is. Renaming 15 files by hand from a name that means nothing to you (`eagle`) to a name
+that does (`rathalos`) is exactly the step someone else needs written down to do correctly, and doing
+it *for* PKO specifically means also knowing the game's own tier structure — nothing in a folder of
+loose portraits tells anyone that on its own.
+
+**Step 0 — before any art gets touched, write `mapping.txt` and drop it in the source folder**
+(`data/pending/<name>/mapping.txt`, alongside the images). One line per id, exactly as you want it —
+this is the part only you can supply, because it's a creative call, not something derivable from the
+files:
+
+```
+mouse = kulu yaku
+mongoose = barroth
+leopard = nargacuga
+eagle = rathalos
+bear = rajang
+elephant = deviljho
+bee = najarala
+fish = royal ludroth
+octopus = plesioth
+seal = mizutsune
+polar_bear = lagiacrus
+orca = ceadeus
+stingray = nakarkos
+human = hunter
+mimic = zoh shia
+```
+
+**Two things that make this list reliable:**
+
+- **Cover every id, including the ones that feel awkward.** `mh-pko`'s first hand-off missed the
+  `eagle` line — plausibly because it's the one id that doesn't map to a monster's *type* so much as
+  its *role* ("things in the sky"), so it's easy to skip when running down a mental list rather than
+  the game's actual id set. Copy the id list from `-List` (Step 1 below) into the mapping file first
+  and fill every line, rather than writing rows from memory.
+- **For PKO, ground creature-to-id choices in the game's real food-chain tiers**
+  (`PKO_PREY_RANK` in `js/games/pko.js`) — land ladder `mouse < mongoose < leopard < bear < elephant`,
+  sea ladder `fish < octopus < seal < polar_bear < orca`, both weakest to strongest — so a themed
+  creature lands at roughly its own in-universe power level instead of a random slot in the chain.
+  `eagle`, `bee`, `stingray`, `human` and `mimic` sit outside both ladders (see the comment above
+  `PKO_PREY_RANK`) and can take whatever's left over.
+
+**Step 1 — see the id list, and cross-check the mapping against it:**
+
+```powershell
+& "tools\make-skin-pack.ps1" -Game pko -List
+```
+
+Every id it prints should have exactly one line in `mapping.txt`. If the two don't match 1:1, stop
+and fix the mapping before touching any images — a mismatch caught here is one line edit; caught
+after building, it's a file-content swap (see the worked example below).
+
+**Step 2 — stage the art, renamed per the mapping, into a scratch folder** (never rename the
+originals in place — keep the source names, in case the mapping changes):
+
+```powershell
+$stage = "$env:TEMP\mh-pko-stage"
+New-Item -ItemType Directory -Force $stage | Out-Null
+Copy-Item "data\pending\mh-pko\kulu yaku.jpg"  "$stage\mouse.jpg"
+Copy-Item "data\pending\mh-pko\barroth.jpg"    "$stage\mongoose.jpg"
+# ... one Copy-Item per mapping.txt line ...
+Copy-Item "data\pending\mh-pko\back.jpg"       "$stage\back.jpg"
+Copy-Item "data\pending\mh-pko\chain.png"      "$stage\chain.png"
+```
+
+**Step 3 — run the tool against the staged folder, same as any other pack** (§3 Step 3). If any row
+comes back `OVER CAP` even at the tool's lowest JPEG quality step, re-run with a lower `-Width` —
+`mh-pko` needed `-Width 640` (down from the 800 default) before all 17 rows read `ok`:
+
+```powershell
+& "tools\make-skin-pack.ps1" -Game pko -Source $stage -Id mh-pko -Label "MONSTER HUNTER" -Width 640 -Register
+```
+
+**Step 4 — add the `names` block by hand**, same mapping, this time keyed id → display name (the
+tool never writes this — see the "Renaming" section above):
+
+```json
+"names": { "mouse": "Kulu-Ya-Ku", "mongoose": "Barroth", "eagle": "Rathalos", "...": "..." }
+```
+
+**If the mapping changes after the pack is already built** (this happened on `mh-pko`'s first pass —
+two pairs came back swapped once the real mapping arrived), you don't need to re-run the whole tool.
+The images in `data/packs/<id>/img/` are already resized and compressed; only their *id assignment*
+is wrong. Swap the two files directly, then fix the two `names` entries to match:
+
+```powershell
+Move-Item fish.jpg fish_tmp.jpg
+Move-Item octopus.jpg fish.jpg
+Move-Item fish_tmp.jpg octopus.jpg
+```
+
+**Don't leave `mapping.txt` in the shipped pack.** It's a working note for whoever builds the pack,
+not part of the manifest format — `data/packs/<id>/img/` is served at runtime, so anything dropped
+there is fetched like an asset even though nothing references it. Once its contents are folded into
+`pack.json`'s `names` block, delete it.
+
+Reference: `data/packs/mh-pko/` (Monster Hunter remap of PKO, 29 Aug 2026) — a complete worked
+example of every step above, `pack.json`'s `names` block included.
+
+---
+
 ## 6. Hand-writing a manifest (SVG packs, or fine control)
 
 The tool is a convenience, not a requirement. The manifest is the real contract, and it is small:
