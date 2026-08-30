@@ -21,6 +21,126 @@ place.
 
 ## Design Decisions
 
+**DD-10 — Lobby buttons: left emoji badge + glossy moulded fill; three emoji corrections (SW v216,
+30 Aug 2026).** Tier-1 visual polish, `#screen-lobby` only (game menus' own Play CTAs untouched).
+Each of the 18 game buttons carries `.lobby-btn`: a white circular `.lobby-btn-badge` span (game
+emoji) on the **left**, the `.lobby-btn-label` span left-aligned after it (moved from centred — the
+badge on the left is why the game name now has the whole width), and a colour-agnostic **classic
+gel moulding** in four layers over the button's own flat brand `background-color`. Reference: a
+Frutiger-Aero / Web-2.0 glossy-gel button set the owner supplied, plus their steer that Little
+Sylly Games should feel **light and upbeat**.
+
+*The four layers.* (1) body gradient — faint crown light, deepening to the base; (2) **`::before`
+specular cap**; (3) `::after` bounce-light off the base; (4) `box-shadow` — outer bezel + inner
+rims + the keycap 3-D drop. Every value is translucent white/black, so the whole thing is
+colour-agnostic with **zero per-game values** — same philosophy as `.key-cap`, and it works
+identically over a Tailwind class, a `bg-[#hex]`, a custom `*-cta` class or GTH's inline `style`.
+
+**The load-bearing insight — a gradient stop cannot make a 3-D object.** Three attempts failed
+before this one, and all three failed for the *same* reason: they painted the gloss as a gradient
+across the whole button face. A gradient stop is a straight edge-to-edge line, so the best it can
+ever produce is a flat horizontal **stripe**. Classic gel buttons don't work that way: the
+highlight is *its own shape* — inset from the sides, with an **elliptical bottom edge**
+(`border-radius: 13px 13px 50% 50% / 11px 11px 18px 18px` — the asymmetric two-value radius is what
+curves it). That needs a real pseudo-element, which `::before`/`::after` were free for once the
+peel was removed. **When a CSS surface reads flat despite lots of gradient stops, the fix is
+usually to promote the highlight from a gradient band to a positioned element with its own
+geometry.** No library, canvas, SVG or build step is needed for any of this — the owner asked
+whether an external tool was the missing piece; it wasn't, the technique was.
+
+*The path — four iterations, the first three dropped on the owner's feedback.*
+
+- **Peeled-corner.** Two `::before`/`::after` flaps of the button's colour (`background-color:
+  inherit`) curling over the badge. Colour-agnostic and verified across all 18 fills, but the
+  verdict was *"not visible"* — even punched up it read as a small detail, not a treatment.
+- **Diagonal black darken.** A `linear-gradient(142deg, …, rgba(0,0,0,.26))` wash toward the
+  lower-right, standing in for the (impossible) "fade to the settings-pill colour" — *impossible*
+  because every game's `pill-active-[colour]` value **is** its brand colour (checked all 18:
+  `.pill-active-pink` is `#ec4899` = `bg-pink-500`; even GM's lobby button is `bg-purple-500` =
+  `.pill-active-purple`). There is no distinct "alternate colour" in the system. Verdict: *"a bit
+  dark"* — a large translucent-black wash greys and muddies a saturated fill.
+- **Gradient-band gloss.** Inverted to highlight-led (bright white top half, semi-hard waterline,
+  thin dark base). Much brighter and the right *direction*, but still flat — see the insight above.
+- **Gel with a full-height specular cap.** Correct technique, but tuned too bright: cap `height:46%`
+  at `rgba(255,255,255,.86)` washed the top half toward white and the brand colour stopped reading
+  (worst on the light fills — FRT lemon, FLW pale pink).
+- **Gel, dialled back (shipped).** Same four layers, restrained: cap `height:36%` /
+  `rgba(255,255,255,.52)`, body-gradient crown `.10`, crown rim `.40`, bounce `.20`. Now a sheen
+  near the crown, not a dome — the game's brand colour stays dominant, the moulding (bezel, base
+  refraction, elliptical cap) is all still there. **The cap's *shape* is what sells the 3-D read;
+  its *opacity* is free to be low.**
+
+*Two follow-on touches (same SW bump).* The emoji **badge** became a convex domed disc — a
+`radial-gradient(circle at 34% 28%, #fff → #dcdce2)` plus a `box-shadow` stack (top rim catch-light,
+lower inner shade, hairline bezel, a real drop) — so it reads as a 3-D pin, not a flat sticker; the
+gradient stays in the white→pale-grey range so the emoji on top is untouched. The lobby **wordmark**
+got `.lobby-title h1 { text-shadow: 0 1px 0 …, 0 2px 0 …, 0 4px 6px … }` — a 2 px extrude + soft
+ambient shadow, one colour-agnostic rule for both `<h1>` lines so their Tailwind `stone-800` /
+`pink-500` fills are kept. Needed one HTML hook: `class="lobby-title"` on the wrapping `<div>`.
+
+*Lessons.*
+
+- **A gradient can only paint a stripe; a pseudo-element can paint a shape.** Above — the general
+  rule worth carrying to any future skeuomorphic surface in this suite.
+- **"Feels dark" on a coloured surface means the treatment is shadow-led — invert it.** A big
+  translucent-black gradient over a saturated fill always greys it. The 3-D read should come from a
+  *white* highlight up top, with darkening confined to a thin band at the base.
+- **An outer `0 0 0 1.5px rgba(0,0,0,.22)` ring reads as "a darker moulding of this button's own
+  hue"** over any fill — the colour-agnostic way to get a bezel without computing a darker shade
+  per game (which would need `color-mix()` and a per-game custom property).
+- **`.lobby-btn:active` must be redeclared.** `.key-cap:active` and `.lobby-btn:active` have equal
+  specificity (0,2,0), so the later rule wins — but if `.lobby-btn` doesn't declare a press state at
+  all, `.key-cap:active`'s much simpler `box-shadow` strips the bezel and rims mid-press and the
+  button visibly falls apart on tap. Any future class layered onto `.key-cap` that overrides
+  `box-shadow` inherits this obligation.
+- **Stacking order is explicit and must stay so:** cap/bounce `z-index: 1` → label `2` → badge `3`.
+  The label also needs `position: relative` for its `z-index` to apply at all, or the specular cap
+  paints straight over the game name.
+- **The `text-shadow` on the label is functional, not decorative** — it is what keeps white legible
+  where the cap brightens the fill beneath it (FRT lemon, FLW pale pink). It is also period-correct
+  for the style, so it costs nothing aesthetically.
+- **Stale harness assertions silently pass.** The 18-button check carried
+  `labelOverlapsBadge: label.right - badge.left > 0` from when the badge was on the right; with the
+  badge moved left that is trivially true for every button and had stopped testing anything.
+  Rewrote it direction-aware (`label.left < badge.right`) plus a `labelGap` readout — now a
+  consistent 10.8 px across all 18. *When a layout changes direction, re-read the assertions that
+  encoded the old direction.*
+- **Scripting `index.html` with Node: the file is CRLF.** An earlier pass wrote `\n` in inserted
+  markup → lone-LF lines mixed into CRLF, git flagged the whole file. Inserted newlines must be
+  `\r\n`; a pure in-place glyph swap (this round's emoji script) inserts no newlines and is safe.
+  Always back up to the scratchpad first and assert 0 lone-LF after write.
+
+*Emoji corrections (same SW bump).* The lobby badge forced an audit of each game's emoji across its
+menu hero, how-to title and settings title:
+
+- **YGI 🃏 → 💡** on the how-to title (`ygi-how-to-overlay`) + Table B + `ygi.md` header/copy. The
+  menu hero and the `House Rules 💡` settings title were *already* 💡; only the how-to lagged. 🃏
+  stays on the in-game card labels (*The Lineup*, *The Ringer*). Also de-collides the badge from
+  Pass's 🃏.
+- **NT ⚡ → 💻** on the menu hero, how-to title, lobby badge, Table B, `nt.md` header/copy. The
+  `SYS.CONFIG ⚡` settings title **keeps ⚡** — a deliberate terminal-theme flourish, not the game's
+  identity emoji.
+- **BLD 💬 → 📋** on the menu hero (`aria-label` "Chat bubble" → "Clipboard"). The how-to was
+  already 📋; the `Bailed 💬` settings title keeps 💬. (Last round also fixed `bld.md`'s header,
+  which was a stray copy of LI5's 💬.)
+- `node tools/verify-identity-docs.js` green after — the how-to copy blocks in `ygi.md`/`nt.md` were
+  updated in lockstep with `index.html`.
+
+**DD-09 — Lobby title-page polish (SW v216, 30 Aug 2026).** Three Tier-0 tweaks to `#screen-lobby`.
+(1) The sort-toggle row read as "a tad high" against "What are we playing today?" — but
+`getBoundingClientRect` showed both centres at the same y (perfect `items-center`). The misread is
+optical: "RELEASE ✨" is uppercase + emoji (visual mass rides above the box centre) next to a
+lowercase sentence (mass rides below). Fix was `items-baseline` on the row — a small text label
+beside a sentence should share its baseline, not its box centre. *Lesson: when two things measure as
+aligned but don't look it, the fix is baseline/optical alignment, not a pixel nudge.*
+(2) `LOBBY_COLOUR_ORDER` now leads `btn-flw` (Flawless pale pink) then `btn-dstw` (pink-500) — a
+light→dark pink start the owner preferred over opening on LI5.
+(3) FRT + CJAR game-name labels made white to match the other 16. FRT is an inline `text-white`
+swap; CJAR needed a scoped `#btn-cjar { color:#fff }` rule because `.cjar-cta` hard-sets near-black
+(`#292524`) and that class is shared with every in-game CJAR CTA — an ID selector beats it without
+`!important` and without touching the game. White-on-`#FFE500` (FRT) is ~1.3:1 and barely legible;
+kept at the owner's explicit call for cross-button consistency.
+
 **DD-08 — The lobby Colour sort now fails safe for an unlisted game (SW v215, 30 Aug 2026).**
 DD-07 shipped `LOBBY_COLOUR_ORDER` as a hand-maintained list of 18 button ids parallel to the lobby
 DOM, with no guard and no entry in `docs/rules/new-game-checklist.md`. Game 19 would therefore have

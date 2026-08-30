@@ -47,7 +47,7 @@ Gradient values live on each `.[abbr]-range` rule in `css/styles.css`.
 | GM | Begin Link | 🧠 | Static Interference |
 | SS | Start Mission | 📡 | Intel Phase |
 | JEC | Let's Cook! | 🍳 | Fusion Cuisine |
-| YGI | Let's Get To It! | 🃏 | The Ringer |
+| YGI | Let's Get To It! | 💡 | The Ringer |
 | LTTP | Find The Location! | 🏃‍♂️ | The Troublemaker † |
 | NAT | Begin Observation | 🦁 | Survival of the Fittest |
 | DSD | Begin Deployment | ⚓ | Silent Running |
@@ -55,7 +55,7 @@ Gradient values live on each `.[abbr]-range` rule in `css/styles.css`.
 | DYB | Let's Play! | 🎲 | The Tempest |
 | BLD | Make the Plans | 📋 | Drama Mode |
 | PASS | Deal Me In | 🃏 | The Abyss |
-| NT | Initialise System | ⚡ | Devil's Network Protocol |
+| NT | Initialise System | 💻 | Devil's Network Protocol |
 | FRT | Start Serving | 🍌 | Fruity Personalities |
 | SHP | Lights Out | 🐑 | Night Terrors |
 | FLW | Enter the Exhibition | 💎 | The Counterfeit Run |
@@ -66,6 +66,13 @@ Gradient values live on each `.[abbr]-range` rule in `css/styles.css`.
 ("omit for LTTP which has none") was wrong and has been corrected. Verified in code: `lttpJokerMode`, the
 `The Troublemaker` role with 2 decoys, and three-way scoring (`lttp.js`; settings + how-to cards in `index.html`).
 **Every game in Table B has a Sylly Mode** — there is no exception.
+
+**SW v216 emoji corrections (30 Aug 2026).** Three games' how-to-emoji column changed to match
+what the game already shows elsewhere: **YGI 🃏→💡** (its menu hero and `House Rules 💡` settings
+title were already 💡; the how-to title alone lagged — 🃏 stays only on the in-game card labels
+*The Lineup* / *The Ringer*), **NT ⚡→💻** (menu hero + how-to + lobby badge; the `SYS.CONFIG ⚡`
+settings title deliberately keeps ⚡ as a terminal-theme flourish), and **BLD** — the menu hero was
+💬, now 📋, matching the how-to (its `Bailed 💬` settings title keeps 💬). `shared-implementation-notes` DD-10.
 
 ### Table C — Brand class strings
 

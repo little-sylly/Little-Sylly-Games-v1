@@ -1,7 +1,7 @@
 # You Get It?
 
 **Game 5** · `activeGameId: ygi` · plugin `js/games/ygi.js`
-**Emoji:** 🃏 · **Brand:** `orange-500` · **Players:** 3–6 in both modes · **Modes:** PTP · MDLM (recommended)
+**Emoji:** 💡 · **Brand:** `orange-500` · **Players:** 3–6 in both modes · **Modes:** PTP · MDLM (recommended)
 **Status:** gold master · verified against SW v205 on 23 August 2026
 
 > **Change contract.** Each section is tagged **free** (reword freely — but it must stay true),
@@ -307,7 +307,7 @@ Done
 
 ```copy
 # ygi-how-to-overlay — title
-How to Play 🃏
+How to Play 💡
 Fill in the blank. Vote for the take you relate to most.
 ```
 

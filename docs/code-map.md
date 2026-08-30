@@ -73,7 +73,7 @@ games. Track key = `activeGameId`, falling back to `'lobby'`. No plugin has musi
 ### Screens
 | ID | Purpose |
 |----|---------|
-| `#screen-lobby` | Game selection — main title screen. Children: `#lobby-game-list` (the 18 game buttons; the flex container the Colour sort reorders via `style.order`), `#btn-lobby-sort` + `#lobby-sort-label` (Release/Colour toggle, `lobbyApplySort()` in `engine.js`) |
+| `#screen-lobby` | Game selection — main title screen. Children: `#lobby-game-list` (the 18 game buttons; the flex container the Colour sort reorders via `style.order`), `#btn-lobby-sort` + `#lobby-sort-label` (Release/Colour toggle, `lobbyApplySort()` in `engine.js`). Each game button carries `.lobby-btn`: a `.lobby-btn-badge` span (game emoji, `z-index:3`) on the **left** — a convex domed disc (radial-gradient white→pale-grey + rim/inner-shade box-shadow, reads as a 3-D pin) — the `.lobby-btn-label` span (`z-index:2`) left-aligned after it, and a colour-agnostic classic-gel moulding — body gradient + `::before` specular cap + `::after` base bounce-light (both `z-index:1`) + `box-shadow` bezel/rims — layered over the button's own brand fill. All CSS, no per-game values; `.lobby-btn:active` redeclared so `.key-cap:active` can't strip the bezel. See `css/styles.css` "Lobby button — left emoji badge + classic gel moulding". The lobby wordmark `<div class="lobby-title">` (two `<h1>`) gets a `text-shadow` extrude via `.lobby-title h1`. SW v216. |
 | `#screen-who-first` | Shared "Who Goes First?" — method picker → RPS declare → winner choice |
 
 ### Overlays
@@ -102,7 +102,7 @@ games. Track key = `activeGameId`, falling back to `'lobby'`. No plugin has musi
 | `#btn-shp` | Lobby → SHP menu screen |
 | `#btn-flw` | Lobby → FLW menu screen |
 | `#btn-pko` | Lobby → PKO menu screen |
-| `#btn-lobby-sort` | Toggles the lobby's 18 game buttons between Release order (default, the shipped DOM order) and Colour order (hue-wheel walk from LI5 pink) — see `lobbyApplySort()` below |
+| `#btn-lobby-sort` | Toggles the lobby's 18 game buttons between Release order (default, the shipped DOM order) and Colour order (hue-wheel walk starting at Flawless's pale pink, then LI5) — see `lobbyApplySort()` below |
 | `#lobby-icon` | Secret Mode tap counter (7 taps → controller screen) |
 | `.btn-open-sound` | Tap opens `#sound-overlay`; tap-**hold** (500 ms) toggles Mute All directly, no overlay. See `bindCardHold` wiring at the bottom of `engine.js`'s boot block |
 | `#global-mute-toggle` | Mute toggle inside sound overlay |

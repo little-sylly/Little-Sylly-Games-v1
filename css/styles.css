@@ -2102,6 +2102,9 @@ body.flash-red   { background-color: #fecaca; }
    label would top-left-align without these (DYB/GTH/FRT/FLW/PKO lesson). */
 .cjar-cta { background-color: #D4A017; color: #292524; display: flex; align-items: center; justify-content: center; }
 .cjar-cta:hover { background-color: #B8860B; }
+/* Lobby keycap only — white game-name label on the honey fill, matching the other 16
+   buttons. ID selector beats .cjar-cta's near-black without touching in-game CTAs. */
+#btn-cjar { color: #ffffff; }
 /* DD-30 — a fixed-width leading slot on every podium row, medal or blank, so 4th place
    and below still align with 1st-3rd instead of only the top row having a leading glyph. */
 .cjar-medal-slot { display: inline-block; width: 1.4rem; text-align: center; flex-shrink: 0; }
@@ -2359,4 +2362,135 @@ body.flash-red   { background-color: #fecaca; }
     inset 0 1px 0 rgba(255, 255, 255, 0.28),
     inset 0 -2px 0 rgba(0, 0, 0, 0.10),
     0 1px 0 rgba(0, 0, 0, 0.22);
+}
+
+/* ── Lobby button — left emoji badge + classic gel moulding (SW v216) ─────
+   Frutiger-Aero / Web-2.0 gel pill, built from FOUR layers over each button's
+   own flat brand `background-color` (set by its own class). All of it is
+   colour-AGNOSTIC — translucent white/black only, zero per-game values, same
+   philosophy as .key-cap — so it works identically over a Tailwind class, a
+   bg-[#hex], a custom *-cta class or GTH's inline style, and follows :hover.
+
+     1. body gradient  — faint crown light, deepening toward the base
+     2. ::before       — THE SPECULAR CAP. The load-bearing layer.
+     3. ::after        — bounce-light refracting back up off the base
+     4. box-shadow     — outer bezel + inner rims + the keycap 3-D drop
+
+   Why ::before and not another gradient stop: a gradient stop is a straight
+   edge-to-edge line, so it can only ever paint a flat STRIPE. A real
+   pseudo-element can be inset from the sides and carry its own asymmetric
+   border-radius, which is what curves the bottom of the highlight — that
+   ellipse is the entire reason this reads as a domed 3-D object rather than
+   a flat pill with a gradient on it. Three earlier flat attempts (peel,
+   diagonal darken, gradient-band gloss) all failed for want of this.
+
+   Lobby only; game menus' Play CTAs untouched. Static — nothing for the
+   reduced-motion block to catch. */
+.lobby-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding-left: 3.9rem;          /* room for the left badge */
+  padding-right: 1.25rem;
+  text-align: left;
+  background-image: linear-gradient(to bottom,
+    rgba(255, 255, 255, 0.10) 0%,
+    rgba(255, 255, 255, 0) 42%,
+    rgba(0, 0, 0, 0.05) 62%,
+    rgba(0, 0, 0, 0.28) 100%);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.18),      /* inner light rim, all round */
+    inset 0 1px 0 rgba(255, 255, 255, 0.40),        /* glass crown */
+    inset 0 -16px 20px -13px rgba(0, 0, 0, 0.40),   /* refraction rising from the base */
+    inset 0 -2px 1px rgba(0, 0, 0, 0.22),
+    0 0 0 1.5px rgba(0, 0, 0, 0.20),                /* outer bezel — reads as darker moulding */
+    0 5px 0 rgba(0, 0, 0, 0.20),                    /* keycap 3-D drop */
+    0 8px 15px rgba(0, 0, 0, 0.18);
+}
+/* The specular cap — inset from the edges, elliptical bottom edge. Deliberately
+   restrained (short + low-alpha) so the game's brand colour stays dominant; it's
+   a sheen near the crown, not a white dome over the top half. */
+.lobby-btn::before {
+  content: "";
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  top: 3px;
+  height: 36%;
+  border-radius: 13px 13px 50% 50% / 11px 11px 15px 15px;
+  background: linear-gradient(to bottom,
+    rgba(255, 255, 255, 0.52),
+    rgba(255, 255, 255, 0.20) 62%,
+    rgba(255, 255, 255, 0.05));
+  z-index: 1;
+  pointer-events: none;
+}
+/* Bounce-light off the base — the "deep colour refraction" of the reference. */
+.lobby-btn::after {
+  content: "";
+  position: absolute;
+  left: 14%;
+  right: 14%;
+  bottom: 2px;
+  height: 30%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at 50% 100%,
+    rgba(255, 255, 255, 0.20), rgba(255, 255, 255, 0) 70%);
+  z-index: 1;
+  pointer-events: none;
+}
+/* Pressed state — must be redeclared here, or .key-cap:active (equal specificity,
+   earlier in the file) would strip the bezel and rims mid-press. Sinks the same 3px. */
+.lobby-btn:active {
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.40),
+    inset 0 -16px 20px -13px rgba(0, 0, 0, 0.40),
+    inset 0 -2px 1px rgba(0, 0, 0, 0.22),
+    0 0 0 1.5px rgba(0, 0, 0, 0.20),
+    0 1px 0 rgba(0, 0, 0, 0.20);
+}
+/* text-shadow is period-correct for this style AND is what keeps white legible
+   where the specular cap brightens the fill under it (FRT lemon, FLW pale pink). */
+.lobby-btn-label {
+  flex: 1 1 auto;
+  line-height: 1.15;
+  position: relative;
+  z-index: 2;                    /* above the cap */
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.32);
+}
+
+/* Lobby wordmark — a short extrude + soft ambient shadow so "Little Sylly Games"
+   sits up off the page like the moulded buttons below it. One colour-agnostic
+   rule for both <h1> lines (keeps their Tailwind stone-800 / pink-500 fills). */
+.lobby-title h1 {
+  text-shadow:
+    0 1px 0 rgba(0, 0, 0, 0.14),
+    0 2px 0 rgba(0, 0, 0, 0.11),
+    0 4px 6px rgba(0, 0, 0, 0.15);
+}
+
+.lobby-btn-badge {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  width: 2.6rem;
+  height: 2.6rem;
+  margin-top: -1.3rem;
+  border-radius: 9999px;
+  /* convex disc — light from the top-left, so it reads as a domed pin/button
+     rather than a flat sticker. Stays in the white→pale-grey range so the
+     emoji on top is unaffected. */
+  background: radial-gradient(circle at 34% 28%, #ffffff 0%, #f2f2f5 55%, #dcdce2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+  line-height: 1;
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.28),                /* drop — lifts it off the button */
+    inset 0 1.5px 1px rgba(255, 255, 255, 0.95),  /* top rim catch-light */
+    inset 0 -3px 4px rgba(0, 0, 0, 0.13),         /* lower inner shade — the dome */
+    inset 0 0 0 1px rgba(0, 0, 0, 0.06);          /* hairline bezel */
+  z-index: 3;                    /* above the specular cap (1) and the label (2) */
 }

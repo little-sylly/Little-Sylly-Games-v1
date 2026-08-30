@@ -12,14 +12,20 @@ Tick items off here; promote anything architectural into `decision-log.md`.
 
 `js/lib/music.js` and the `data/music/` contract are live and verified. What is parked:
 
-- **17 of 18 games have no track of their own.** Every one falls back to the lobby theme, which is
-  the designed behaviour, not a bug. Prompts for all 18 are written and ready to generate:
-  `docs/music-prompts.md`. Shipping one is: generate → trim to a loop → drop
-  `data/music/<activeGameId>.mp3` in → add one manifest line. No code, no SW bump.
-- **`data/music/lobby.mp3` is 5.46 MB, well over the ~1.5 MB per-track ceiling.** Shipped as-is
-  deliberately so there is something playing today. Needs a trim to a 60–120 s loop at ~128 kbps
-  before the track count grows — it is cache-first, so the cost is a one-off download per device,
-  but at 19 tracks that cost compounds.
+- **3 of 18 games now have a track of their own — LI5, Great Minds, Secret Signals (30 Aug 2026).**
+  The other 15 still fall back to the lobby theme, which is the designed behaviour, not a bug.
+  Prompts for all 18 are written and ready to generate: `docs/music-prompts.md`. Shipping one is:
+  generate → trim to a loop → drop `data/music/<activeGameId>.mp3` in → add one manifest line. No
+  code, no SW bump.
+- **All four shipped tracks are well over the ~1.5 MB per-track ceiling** (`lobby.mp3` 5.46 MB,
+  `li5.mp3` 4.32 MB, `gm.mp3` 3.52 MB, `ss.mp3` 6.04 MB — ~19.3 MB combined). Shipped as-is
+  deliberately so there is something playing today. Needs a trim to 60–120 s loops at ~128 kbps
+  before the track count grows further — cache-first means the cost is a one-off download per
+  device per game played, but it compounds as more tracks ship untrimmed.
+- **`li5.mp3` / `gm.mp3` / `ss.mp3` carry no title/artist in the manifest** (`null`/`null` — the
+  generator used didn't hand back metadata the way the lobby track's did). Cosmetic only —
+  `Music.nowPlaying()` already handles `null` — but worth filling in before a credits surface is
+  built. Edit the relevant `data/music/manifest.json` entry directly; no code change needed.
 - **A Music & Sound section in the Phase 1 brief template** (`docs/rules/new-game-brief-template.md`).
   Three fields, no more: the register in one line, tempo/energy, and anything the music must *not*
   do (Deep-Sea Deploy's "no sonar pings" is the model). The fallback rule means it can be left blank

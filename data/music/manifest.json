@@ -7,6 +7,24 @@
       "title": "旧玩具箱",
       "artist": "Sam Tse",
       "gain": 1.0
+    },
+    "li5": {
+      "file": "li5.mp3",
+      "title": null,
+      "artist": null,
+      "gain": 1.0
+    },
+    "great-minds": {
+      "file": "gm.mp3",
+      "title": null,
+      "artist": null,
+      "gain": 1.0
+    },
+    "sylly-signals": {
+      "file": "ss.mp3",
+      "title": null,
+      "artist": null,
+      "gain": 1.0
     }
   }
 }

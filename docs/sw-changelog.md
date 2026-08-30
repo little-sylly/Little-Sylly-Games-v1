@@ -4,6 +4,16 @@ Historical SW release notes, moved out of `CLAUDE.md` (1 Aug 2026) so they stop 
 The **current** version and its notes stay in `CLAUDE.md` § Current Focus — append the outgoing entry here on each bump.
 
 
+## v215 — Lobby Colour sort fails safe for an unlisted game (30 Aug 2026)
+
+`LOBBY_COLOUR_ORDER` was a hand-maintained list of 18 ids parallel to the lobby DOM with no guard:
+an unset CSS `order` computes to **0**, so game 19 would have rendered *second from the top* of
+Colour mode, silently. `lobbyApplySort()` now parks every child of the new `#lobby-game-list` past
+the end of the walk before placing the listed ones, so an unlisted button sorts to the bottom; the
+missing `new-game-checklist` line is added. 13 headless-Chromium assertions. Detail:
+`shared-implementation-notes` DD-08.
+
+
 ## v214 — Lobby keycap treatment + Release/Colour sort toggle (30 Aug 2026)
 
 `#screen-lobby`'s 18 game buttons now carry a colour-agnostic `.key-cap` class — micro-gradient + layered shadow, a

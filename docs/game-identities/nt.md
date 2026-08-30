@@ -1,7 +1,7 @@
 # Net-Trace
 
 **Game 13** · `activeGameId: nt` · plugin `js/games/nt.js`
-**Emoji:** ⚡ · **Brand:** emerald-500/600 · **Players:** 2–8 · **Modes:** PTP + MDLM
+**Emoji:** 💻 · **Brand:** emerald-500/600 · **Players:** 2–8 · **Modes:** PTP + MDLM
 **Status:** gold master · verified against SW v209 on 23 August 2026
 
 > **Change contract.** Each section is tagged **free** (reword freely — but it must stay true),
@@ -391,7 +391,7 @@ Done
 
 ```copy
 # nt-how-to-overlay — title
-How to Play ⚡
+How to Play 💻
 Build a maze so the breach signal takes the longest possible path.
 ```
 

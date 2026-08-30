@@ -896,14 +896,15 @@ if (_musicToggle && _musicSlider) {
 // ── Lobby sort toggle (SW v214) ──────────────────────────────────────────
 // Two modes: 'release' (the order the games shipped in — the default DOM
 // order already IS this, so that mode is just clearing `style.order`) and
-// 'colour' (a hand-picked walk around the hue wheel starting at LI5 pink).
+// 'colour' (a hand-picked walk around the hue wheel starting at Flawless's
+// pale rose-pink, then LI5's pink-500).
 // Reordering via CSS `order` — never a re-render — is deliberate: each of
 // the 18 lobby buttons is bound by its own plugin at parse time
 // (`on('btn-cjar', ...)` etc.), so rebuilding the button DOM would silently
 // drop all 18 listeners. Memory-only (not localStorage) — a cosmetic sort
 // preference doesn't earn a 4th key against the documented three.
 const LOBBY_COLOUR_ORDER = [
-  'btn-dstw', 'btn-flw', 'btn-lttp', 'btn-bld', 'btn-pko', 'btn-ygi',
+  'btn-flw', 'btn-dstw', 'btn-lttp', 'btn-bld', 'btn-pko', 'btn-ygi',
   'btn-jec', 'btn-cjar', 'btn-frt', 'btn-nat', 'btn-gth', 'btn-nt',
   'btn-sylly-signals', 'btn-dsd', 'btn-dyb', 'btn-shp', 'btn-great-minds',
   'btn-pass'

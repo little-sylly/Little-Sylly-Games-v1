@@ -1,7 +1,7 @@
 # Bailed
 
 **Game 11** · `activeGameId: bld` · plugin `js/games/bld.js`
-**Emoji:** 💬 · **Brand:** dark red `#991b1b` (red-800) · **Players:** 5–10 · **Modes:** MDLM + PTP
+**Emoji:** 📋 · **Brand:** dark red `#991b1b` (red-800) · **Players:** 5–10 · **Modes:** MDLM + PTP
 **Status:** gold master · verified against SW v209 on 23 August 2026
 
 > **Change contract.** Each section is tagged **free** (reword freely — but it must stay true),
