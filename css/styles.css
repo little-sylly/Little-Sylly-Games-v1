@@ -2460,14 +2460,13 @@ body.flash-red   { background-color: #fecaca; }
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.32);
 }
 
-/* Lobby wordmark — a short extrude + soft ambient shadow so "Little Sylly Games"
-   sits up off the page like the moulded buttons below it. One colour-agnostic
-   rule for both <h1> lines (keeps their Tailwind stone-800 / pink-500 fills). */
-.lobby-title h1 {
-  text-shadow:
-    0 1px 0 rgba(0, 0, 0, 0.14),
-    0 2px 0 rgba(0, 0, 0, 0.11),
-    0 4px 6px rgba(0, 0, 0, 0.15);
+/* Lobby wordmark — a soft ambient drop-shadow so the logo sits up off the page
+   like the moulded buttons below it. drop-shadow follows the PNG's alpha, so it
+   hugs the wordmark rather than boxing it. */
+.lobby-title img {
+  filter:
+    drop-shadow(0 2px 0 rgba(0, 0, 0, 0.10))
+    drop-shadow(0 4px 6px rgba(0, 0, 0, 0.15));
 }
 
 .lobby-btn-badge {

@@ -1,12 +1,13 @@
 // Little Sylly Games — Service Worker v214
 // All assets are local — no external CDN URLs, no opaque response issues.
 
-const CACHE_NAME = 'sylly-games-v216';
+const CACHE_NAME = 'sylly-games-v217';
 
 const PRECACHE_URLS = [
   './',
   'index.html',
   'css/styles.css',
+  'assets/logo.png',
   'fonts/fredoka-latin.woff2',
   'fonts/fredoka-latin-ext.woff2',
   'js/engine.js',

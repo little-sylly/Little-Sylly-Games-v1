@@ -273,26 +273,17 @@ On every bump the outgoing SW entry moves **verbatim** to `docs/sw-changelog.md`
 "keep the last three". **A second `**SW v…**` paragraph appearing here means that move didn't
 happen: do it before anything else.**
 
-**SW v216 — Lobby title-page polish (30 Aug 2026).** `#screen-lobby` only. (1) Every game button
-gains an **emoji badge on the LEFT** (`.lobby-btn-badge`, game emoji from Table B; a convex domed
-disc — radial gradient + rim/inner-shade box-shadow, reads as a 3-D pin) so the left-aligned game
-name (`.lobby-btn-label`) gets the full width, plus a **classic gel moulding**
-in four colour-agnostic layers (zero per-game values) over each button's own flat brand
-`background-color`: a body gradient, a **`::before` specular cap** (inset, with an elliptical bottom
-edge — this is the layer that makes it read 3-D), an `::after` bounce-light off the base, and a
-`box-shadow` carrying an outer bezel + inner rims + the keycap drop. Frutiger-Aero / Web-2.0.
-**A gradient stop can only paint a flat stripe — a domed highlight needs a positioned element with
-its own `border-radius`**; three earlier flat attempts (peel, diagonal darken, gradient-band gloss)
-all failed for want of that. No library or build step involved. `.lobby-btn:active` is redeclared
-so `.key-cap:active` can't strip the bezel mid-press. The lobby wordmark
-(`<div class="lobby-title">`) gets a short `text-shadow` extrude so it sits up off the page too.
-(2) Sort toggle row `items-center`→`items-baseline`. (3) `LOBBY_COLOUR_ORDER` leads `btn-flw` then `btn-dstw`.
-(4) FRT + CJAR labels white like the other 16. **Emoji corrections:** YGI how-to 🃏→💡 (menu +
-settings were already 💡); NT ⚡→💻 (menu + how-to + lobby badge; `SYS.CONFIG ⚡` settings title
-kept); BLD menu hero 💬→📋 (how-to already 📋). 18-button headless-Chromium check: no h-scroll,
-no label clip. Detail: `shared-implementation-notes` DD-09/DD-10.
+**SW v217 — Lobby logo image (1 Sep 2026).** `#screen-lobby` only. The `.lobby-title` wordmark's two
+`<h1>` lines ("Little Sylly" / "Games") are replaced by `<img src="assets/logo.png" class="w-full">`
+— a new brand logo (1152×642 transparent PNG, ~480 KB). New top-level `assets/` folder for app-chrome
+images (distinct from `data/art/` game art and `data/packs/` skins); `assets/logo.png` added to
+`PRECACHE_URLS` (part of the app version, so precached + version-bumped). The old
+`.lobby-title h1 { text-shadow }` extrude becomes `.lobby-title img { filter: drop-shadow(...) }` so
+the logo still lifts off the page like the moulded buttons below it — `drop-shadow` follows the PNG
+alpha rather than boxing it. `#lobby-icon` 🎮 above the logo is untouched (owner is reworking that
+next).
 
-**Previous versions: `docs/sw-changelog.md`** — continuous, v214 back to v167.
+**Previous versions: `docs/sw-changelog.md`** — continuous, v216 back to v167.
 
 **Where the suite stands.** **18 games shipped**, all gold-master, plus multiplayer. Newest three:
 **Cookie Jar** (`cjar`, game 18, phase 39), **Pecking Order** (`pko`, game 17, phase 37) and its
