@@ -8,6 +8,56 @@ Tick items off here; promote anything architectural into `decision-log.md`.
 
 ---
 
+## FRT + CJAR in-game CTAs still use dark ink while their lobby keycaps use white (2 Sep 2026)
+
+**Status:** approved by the owner, deliberately deferred — it is not the two-button change it looks like.
+
+**What's inconsistent.** SW v216 gave FRT and CJAR white labels on their **lobby keycaps** only —
+`#btn-frt` carries `text-white`, and `#btn-cjar` gets `#btn-cjar { color: #ffffff }` overriding
+`.cjar-cta`'s near-black. The comment at `css/styles.css:2105` is explicit that this is "Lobby
+keycap only… without touching in-game CTAs." Every other brand-fill button in both games is still
+dark ink, so each game now reads two ways depending on which screen you are on.
+
+**The owner has confirmed white as visually acceptable on both fills** and wants them brought into
+line. This was raised while settling Cold Shoulder's own brand (`#8ECAE6`, white everywhere —
+`new-game-brief-cold-shoulder.md` §1), which set the precedent this would align to.
+
+**Why it is deferred: the scope is ~10 sites, not 2.** FRT alone has eight dark-ink brand-fill
+buttons:
+
+| File | Site |
+|---|---|
+| `index.html:8042` | `btn-frt-menu-play` |
+| `index.html:8094` | `btn-frt-go-again` |
+| `index.html:8167` | `btn-frt-settings-done` |
+| `index.html:8223` | `btn-frt-howto-close` |
+| `index.html:8233` | `btn-frt-howto-close-cards` |
+| `index.html:8246` | `btn-frt-quit-confirm` |
+| `index.html:8260` | `btn-frt-new-confirm` |
+| `index.html:8341` | `btn-frt-personalities-close` |
+| `css/styles.css:2103` | `.cjar-cta { color: #292524 }` — covers every CJAR in-game CTA at once |
+| `js/engine-multiplayer.js:352` | FRT `ctaTextClass: 'text-stone-800'` |
+| `js/engine-multiplayer.js:444` | CJAR `ctaTextClass: 'text-stone-800'` |
+
+**Three things to respect when picking this up:**
+
+1. **All or nothing per game.** Changing only the Play CTA leaves FRT with white on one button and
+   dark on seven — visibly worse than either extreme. This is the reason it wasn't done as a quick fix.
+2. **Use a Node script, not Edit calls.** Eight `index.html` sites is a systematic change, and the
+   standing encoding rule applies — Edit-tool sweeps of `index.html` have produced UTF-8 mojibake before.
+3. **A measurement is being overridden, knowingly.** `engine-multiplayer.js:442` records "#D4A017
+   measures 2.38:1 against white — below the 3:1 floor", and white on FRT's `#FFE500` is worse still.
+   The owner's visual confirmation supersedes it, but **replace that comment rather than deleting it** —
+   the next reader needs to know the number was considered, not missed. Both games' fills sit behind
+   `.gel-btn`'s dark base gradient and label text-shadow on the surfaces that matter, which is what
+   makes it legible in practice; any *flat* brand-fill surface should gain a matching text-shadow.
+
+**Closing it needs:** the ~10 edits, an SW bump (with the outgoing entry moved verbatim to
+`sw-changelog.md`), and updates to `docs/rules/per-game-classes.md:105` and `logic-engine.md`'s
+`ctaTextClass` row, both of which currently cite FRT and CJAR as the examples of dark-ink fills.
+
+---
+
 ## Music — the architecture shipped, the content has not (28 Aug 2026, SW v212)
 
 `js/lib/music.js` and the `data/music/` contract are live and verified. What is parked:
