@@ -273,17 +273,19 @@ On every bump the outgoing SW entry moves **verbatim** to `docs/sw-changelog.md`
 "keep the last three". **A second `**SW v…**` paragraph appearing here means that move didn't
 happen: do it before anything else.**
 
-**SW v217 — Lobby logo image (1 Sep 2026).** `#screen-lobby` only. The `.lobby-title` wordmark's two
-`<h1>` lines ("Little Sylly" / "Games") are replaced by `<img src="assets/logo.png" class="w-full">`
-— a new brand logo (1152×642 transparent PNG, ~480 KB). New top-level `assets/` folder for app-chrome
-images (distinct from `data/art/` game art and `data/packs/` skins); `assets/logo.png` added to
-`PRECACHE_URLS` (part of the app version, so precached + version-bumped). The old
-`.lobby-title h1 { text-shadow }` extrude becomes `.lobby-title img { filter: drop-shadow(...) }` so
-the logo still lifts off the page like the moulded buttons below it — `drop-shadow` follows the PNG
-alpha rather than boxing it. `#lobby-icon` 🎮 above the logo is untouched (owner is reworking that
-next).
+**SW v218 — Gel buttons on every game menu (1 Sep 2026).** The lobby's moulded keycap/gel
+treatment now covers all 18 game menus' four buttons (Play CTA, How to Play, Settings, ← Back to
+the Box) — 72 buttons. The four colour-agnostic gloss layers were extracted from `.lobby-btn` into
+a badge-agnostic **`.gel-btn`** (`css/styles.css`); `.lobby-btn` keeps only the left-badge layout
+and lobby markup becomes `gel-btn lobby-btn` (visually identical). `.gel-btn` uses
+`isolation: isolate` + `::before`/`::after` at `z-index: -1` so the gloss sits over the fill but
+under the button's own text — no label span needed on menu buttons. New **`.gel-btn-light`**
+(softened gloss, same bezel) for Settings + ← Back to the Box, whose pale fills the full-strength
+cap would blow out. Menu buttons drop `active:scale-95` / `transition-all` — `.gel-btn:active`
+supplies the `translateY(3px)` press. CSS + `index.html` only, no new assets. Docs: `ui-style.md`
+§ Gel Button Treatment + § Universal Menu Standard.
 
-**Previous versions: `docs/sw-changelog.md`** — continuous, v216 back to v167.
+**Previous versions: `docs/sw-changelog.md`** — continuous, v217 back to v167.
 
 **Where the suite stands.** **18 games shipped**, all gold-master, plus multiplayer. Newest three:
 **Cookie Jar** (`cjar`, game 18, phase 39), **Pecking Order** (`pko`, game 17, phase 37) and its

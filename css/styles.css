@@ -2338,38 +2338,13 @@ body.flash-red   { background-color: #fecaca; }
    misaligned (§ Gameover podium rank icons). */
 .jec-medal-slot { width: 1.4rem; text-align: center; flex-shrink: 0; }
 
-/* ── Lobby keycap treatment (SW v214) ──────────────────────────────────────
-   Colour-agnostic: layered translucent black/white over whatever background
-   each of the 18 lobby buttons already sets (Tailwind utility, custom *-cta
-   class, or inline style="background-color:..."). No per-game CSS needed.
-   Press animates transform ONLY (composited) — the shadow snaps rather than
-   eases, same as a real key. transform-only also satisfies the ≤300ms /
-   transform-or-opacity rule (§ Motion Standard) without a transition-all. */
-.key-cap {
-  position: relative;
-  background-image: radial-gradient(ellipse 120% 100% at 50% 0%,
-                     rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0) 70%);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.28),
-    inset 0 -2px 0 rgba(0, 0, 0, 0.10),
-    0 4px 0 rgba(0, 0, 0, 0.22),
-    0 6px 10px rgba(0, 0, 0, 0.10);
-  transition: transform 100ms ease-out;
-}
-.key-cap:active {
-  transform: translateY(3px);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.28),
-    inset 0 -2px 0 rgba(0, 0, 0, 0.10),
-    0 1px 0 rgba(0, 0, 0, 0.22);
-}
-
-/* ── Lobby button — left emoji badge + classic gel moulding (SW v216) ─────
-   Frutiger-Aero / Web-2.0 gel pill, built from FOUR layers over each button's
-   own flat brand `background-color` (set by its own class). All of it is
-   colour-AGNOSTIC — translucent white/black only, zero per-game values, same
-   philosophy as .key-cap — so it works identically over a Tailwind class, a
-   bg-[#hex], a custom *-cta class or GTH's inline style, and follows :hover.
+/* ── Gel button — badge-agnostic classic gel moulding (SW v218) ──────────────
+   Extracted from the SW v214/v216 lobby button so the 18 game menus share it.
+   A Frutiger-Aero / Web-2.0 gel pill built from FOUR layers over whatever flat
+   background each button's own class sets (Tailwind utility, bg-[#hex], a custom
+   *-cta class, or GTH's inline style). Every layer is colour-AGNOSTIC —
+   translucent white/black only, zero per-game values — so it follows :hover and
+   works over any fill.
 
      1. body gradient  — faint crown light, deepening toward the base
      2. ::before       — THE SPECULAR CAP. The load-bearing layer.
@@ -2384,15 +2359,15 @@ body.flash-red   { background-color: #fecaca; }
    a flat pill with a gradient on it. Three earlier flat attempts (peel,
    diagonal darken, gradient-band gloss) all failed for want of this.
 
-   Lobby only; game menus' Play CTAs untouched. Static — nothing for the
-   reduced-motion block to catch. */
-.lobby-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding-left: 3.9rem;          /* room for the left badge */
-  padding-right: 1.25rem;
-  text-align: left;
+   `isolation: isolate` makes the button its own stacking context so the gloss
+   pseudo-elements (z-index: -1) paint OVER the fill but UNDER the button's own
+   text — no label-span markup needed on menu buttons. Press animates transform
+   ONLY (composited); the shadow snaps like a real key, which also satisfies the
+   ≤300ms transform-or-opacity rule (§ Motion Standard) with no transition-all.
+   Static otherwise — nothing for the reduced-motion block to catch. */
+.gel-btn {
+  position: relative;
+  isolation: isolate;
   background-image: linear-gradient(to bottom,
     rgba(255, 255, 255, 0.10) 0%,
     rgba(255, 255, 255, 0) 42%,
@@ -2406,11 +2381,12 @@ body.flash-red   { background-color: #fecaca; }
     0 0 0 1.5px rgba(0, 0, 0, 0.20),                /* outer bezel — reads as darker moulding */
     0 5px 0 rgba(0, 0, 0, 0.20),                    /* keycap 3-D drop */
     0 8px 15px rgba(0, 0, 0, 0.18);
+  transition: transform 100ms ease-out;
 }
 /* The specular cap — inset from the edges, elliptical bottom edge. Deliberately
-   restrained (short + low-alpha) so the game's brand colour stays dominant; it's
+   restrained (short + low-alpha) so the button's own colour stays dominant; it's
    a sheen near the crown, not a white dome over the top half. */
-.lobby-btn::before {
+.gel-btn::before {
   content: "";
   position: absolute;
   left: 4px;
@@ -2422,11 +2398,11 @@ body.flash-red   { background-color: #fecaca; }
     rgba(255, 255, 255, 0.52),
     rgba(255, 255, 255, 0.20) 62%,
     rgba(255, 255, 255, 0.05));
-  z-index: 1;
+  z-index: -1;
   pointer-events: none;
 }
 /* Bounce-light off the base — the "deep colour refraction" of the reference. */
-.lobby-btn::after {
+.gel-btn::after {
   content: "";
   position: absolute;
   left: 14%;
@@ -2436,12 +2412,14 @@ body.flash-red   { background-color: #fecaca; }
   border-radius: 50%;
   background: radial-gradient(ellipse at 50% 100%,
     rgba(255, 255, 255, 0.20), rgba(255, 255, 255, 0) 70%);
-  z-index: 1;
+  z-index: -1;
   pointer-events: none;
 }
-/* Pressed state — must be redeclared here, or .key-cap:active (equal specificity,
-   earlier in the file) would strip the bezel and rims mid-press. Sinks the same 3px. */
-.lobby-btn:active {
+/* Pressed state — redeclare the FULL box-shadow: an equal-specificity :active
+   rule earlier in the file would otherwise strip the bezel and rims mid-press.
+   Sinks the same 3px. */
+.gel-btn:active {
+  transform: translateY(3px);
   box-shadow:
     inset 0 0 0 1px rgba(255, 255, 255, 0.18),
     inset 0 1px 0 rgba(255, 255, 255, 0.40),
@@ -2449,6 +2427,37 @@ body.flash-red   { background-color: #fecaca; }
     inset 0 -2px 1px rgba(0, 0, 0, 0.22),
     0 0 0 1.5px rgba(0, 0, 0, 0.20),
     0 1px 0 rgba(0, 0, 0, 0.20);
+}
+
+/* Light-fill variant — Settings (light brand tint) and ← Back to the Box
+   (bg-stone-200). The gloss layers above are tuned for saturated fills: at full
+   strength the white specular cap blows out a pale button and the dark base
+   gradient muddies it. Keep the moulded bezel/drop (colour-agnostic, reads fine
+   on any fill), soften the gloss. */
+.gel-btn-light {
+  background-image: linear-gradient(to bottom,
+    rgba(255, 255, 255, 0.45) 0%,
+    rgba(255, 255, 255, 0) 45%,
+    rgba(0, 0, 0, 0.04) 100%);
+}
+.gel-btn-light::before {
+  background: linear-gradient(to bottom,
+    rgba(255, 255, 255, 0.38),
+    rgba(255, 255, 255, 0.12) 62%,
+    rgba(255, 255, 255, 0.02));
+}
+.gel-btn-light::after { opacity: 0.5; }
+
+/* ── Lobby button — left emoji badge layout only; the moulding is .gel-btn ────
+   Lobby buttons carry `gel-btn lobby-btn`; this rule adds nothing but the room
+   for the left badge and the left-aligned label. */
+.lobby-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding-left: 3.9rem;          /* room for the left badge */
+  padding-right: 1.25rem;
+  text-align: left;
 }
 /* text-shadow is period-correct for this style AND is what keeps white legible
    where the specular cap brightens the fill under it (FRT lemon, FLW pale pink). */

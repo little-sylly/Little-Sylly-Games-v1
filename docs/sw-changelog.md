@@ -4,6 +4,18 @@ Historical SW release notes, moved out of `CLAUDE.md` (1 Aug 2026) so they stop 
 The **current** version and its notes stay in `CLAUDE.md` § Current Focus — append the outgoing entry here on each bump.
 
 
+## v217 — Lobby logo image (1 Sep 2026)
+
+`#screen-lobby` only. The `.lobby-title` wordmark's two `<h1>` lines ("Little Sylly" / "Games") are
+replaced by `<img src="assets/logo.png" class="w-full">` — a new brand logo (1152×642 transparent
+PNG, ~480 KB). New top-level `assets/` folder for app-chrome images (distinct from `data/art/` game
+art and `data/packs/` skins); `assets/logo.png` added to `PRECACHE_URLS` (part of the app version,
+so precached + version-bumped). The old `.lobby-title h1 { text-shadow }` extrude becomes
+`.lobby-title img { filter: drop-shadow(...) }` so the logo still lifts off the page like the
+moulded buttons below it — `drop-shadow` follows the PNG alpha rather than boxing it. `#lobby-icon`
+🎮 above the logo is untouched (owner is reworking that next).
+
+
 ## v216 — Lobby title-page polish (30 Aug 2026)
 
 `#screen-lobby` only. (1) Every game button gains an **emoji badge on the LEFT**

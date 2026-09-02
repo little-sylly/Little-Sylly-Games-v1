@@ -20,6 +20,13 @@ Detail: pointer to the canonical doc (snapshot / impl note / spec / memory).
 
 ---
 
+## 2026-09-01 — Gel button moulding is the standard for every menu button, not just the lobby
+Category: Process
+Decision: Extract the lobby's keycap/gel treatment into a badge-agnostic `.gel-btn` (+ `.gel-btn-light` for pale fills) and apply it to all 18 game menus' four buttons (Play CTA, How to Play, Settings, ← Back to the Box); menu buttons drop `active:scale-95` / `transition-all`.
+Why: The owner wanted the moulded look suite-wide; the DD-10 gloss layers were already colour-agnostic so it was extraction, not redesign.
+Changed: `css/styles.css` (`.key-cap`/duplicate `.lobby-btn` gel deleted → one `.gel-btn`), `index.html` (90 buttons, Node section-scoped pass), `ui-style.md` (§ Gel Button Treatment + § Universal Menu Standard table), `new-game-checklist.md`, `code-map.md`, SW v218. Deferred: none.
+Detail: `shared-implementation-notes.md` DD-11.
+
 ## 2026-08-28 — Background music: the suite's first audio files, runtime-cached with a lobby fallback
 Category: Architecture
 Decision: Adopt looping background music as **files** under `data/music/`, resolved per game through `js/lib/music.js` with a two-tier fallback (the game's own track, else the lobby theme), runtime-cached exactly like `data/packs/` — never precached.

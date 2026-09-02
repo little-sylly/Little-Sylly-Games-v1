@@ -21,6 +21,47 @@ place.
 
 ## Design Decisions
 
+**DD-11 — Gel moulding extracted to `.gel-btn`, rolled out to all 72 game-menu buttons (SW v218,
+1 Sep 2026).** Owner asked for the lobby's keycap/gel look on every game menu's four buttons (Play
+CTA, How to Play, Settings, ← Back to the Box). The four gloss layers built for `.lobby-btn` in
+DD-10 were already colour-agnostic, so the work was extraction, not redesign:
+
+- **`.gel-btn`** = DD-10's four layers, badge-free. `.lobby-btn` keeps *only* the left-badge
+  layout (`display:flex; gap; padding-left:3.9rem; text-align:left`); lobby markup went
+  `key-cap lobby-btn` → `gel-btn lobby-btn`. `.key-cap` (the SW v214 precursor) and the duplicate
+  `.lobby-btn::before/::after/:active` are **deleted** — one canonical copy now, no fork.
+- **Text-over-gloss without a label span.** Menu buttons have bare text nodes, not a
+  `.lobby-btn-label` span, so DD-10's `label { z-index:2 }` trick doesn't apply. Instead `.gel-btn`
+  sets `isolation: isolate` (own stacking context) and paints `::before`/`::after` at
+  **`z-index: -1`** — CSS paint order puts a negative-z child *after* the element's own background
+  but *before* its in-flow text. Gloss over the fill, under the text, zero markup. (Lobby's label
+  span still carries `z-index:2` — now redundant but harmless, and its `text-shadow` still earns
+  its place over FRT lemon.)
+- **`.gel-btn-light`** for the two pale buttons (Settings' light brand tint, ← Back's
+  `bg-stone-200`): keeps the colour-agnostic bezel/drop `box-shadow`, swaps the body gradient +
+  `::before` cap for a low-alpha version. At full strength the `rgba(255,255,255,0.52)` cap blows
+  a pale fill to near-white and the `rgba(0,0,0,0.28)` base gradient muddies it. Verified in
+  `visual-check` on LI5 / CJAR / FRT / GTH menus — pale buttons read as moulded keys, still clearly
+  subordinate to the Play CTA.
+- **Menu buttons lose `active:scale-95` + `transition-all duration-150`.** `.gel-btn:active` is the
+  press now (`translateY(3px)` + collapsed drop shadow), and `.gel-btn` transitions `transform`
+  only — matches the lobby and the Motion Standard's transform-only rule.
+
+*Lessons.*
+
+- **`isolation: isolate` + `z-index: -1` is the no-markup way to slip a pseudo-element between an
+  element's background and its text.** Reach for it before wrapping text in a span. The span is
+  only needed when the child also has to sit *above* the text (a badge) or carry its own style
+  (the label's text-shadow).
+- **The `.gel-btn:active` full-`box-shadow` redeclare is load-bearing and travels with the
+  extraction** — `.key-cap:active` is gone but any equal-specificity `:active` earlier in the file
+  would still strip the bezel mid-press. DD-10's note now attaches to `.gel-btn`.
+- **72-button `index.html` pass via Node, section-scoped positional.** Menu button ids are
+  inconsistent (`btn-play`, `btn-ss-play`, `btn-nat-menu-howto`, `btn-*-menu-*`), so the script
+  keyed off the 18 `#screen-*-menu` section ids and took the 4 id'd buttons in document order =
+  play, how-to, settings, back. Asserted exactly 4 per section and 72 total before writing. Pure
+  glyph/attribute edits, no inserted newlines → CRLF-safe (DD-10's Node/CRLF caveat).
+
 **DD-10 — Lobby buttons: left emoji badge + glossy moulded fill; three emoji corrections (SW v216,
 30 Aug 2026).** Tier-1 visual polish, `#screen-lobby` only (game menus' own Play CTAs untouched).
 Each of the 18 game buttons carries `.lobby-btn`: a white circular `.lobby-btn-badge` span (game

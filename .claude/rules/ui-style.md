@@ -831,24 +831,72 @@ not a smaller/quieter button than the Play CTA.)
 
 | Button | Classes |
 |--------|---------|
-| Play CTA | `min-h-14 w-full rounded-2xl [brand] text-xl font-semibold` |
-| How to Play | `min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 text-white text-xl font-semibold` |
-| Settings | `min-h-14 w-full rounded-2xl [light brand tint] text-xl font-semibold` |
-| ← Back to the Box | `min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 text-stone-500 text-xl font-semibold` |
+| Play CTA | `gel-btn min-h-14 w-full rounded-2xl [brand] text-xl font-semibold` |
+| How to Play | `gel-btn min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 text-white text-xl font-semibold` |
+| Settings | `gel-btn gel-btn-light min-h-14 w-full rounded-2xl [light brand tint] text-xl font-semibold` |
+| ← Back to the Box | `gel-btn gel-btn-light min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 text-stone-500 text-xl font-semibold` |
 
-All four carry `active:scale-95 transition-all duration-150`. **This same rule applies to any
-other same-screen button pair** — a gameover screen's primary "Play Again" alongside its
-secondary "Leave", a Decision Modal's confirm/cancel (already conforming — see § Quit Overlay
-Checklist), or any future pairing: match size and weight, and pick colour per § Game Brand
-Colour — Scope (brand for the primary action, neutral stone for a secondary one).
+**All four carry `gel-btn` — the moulded keycap treatment (SW v218), shared with the lobby
+buttons. See § Gel Button Treatment below.** They do **not** carry `active:scale-95` /
+`transition-all duration-150`: `.gel-btn:active` supplies its own `translateY(3px)` press, and
+`.gel-btn` sets `transition: transform` only (no `transition-all`). Settings and ← Back to the Box
+add `gel-btn-light` — same moulded bezel, softened gloss so their pale fills don't blow out.
 
-**Rollout status:** applied suite-wide, all 18 games (9 Aug 2026).
+The **size-and-weight parity** rule still holds. **This applies to any other same-screen button
+pair** — a gameover screen's primary "Play Again" alongside its secondary "Leave", a Decision
+Modal's confirm/cancel (already conforming — see § Quit Overlay Checklist), or any future pairing:
+match size and weight, and pick colour per § Game Brand Colour — Scope (brand for the primary
+action, neutral stone for a secondary one). The gel treatment is menu-only — do **not** put
+`gel-btn` on gameover / Decision Modal buttons.
+
+**Rollout status:** four-button menu standard applied suite-wide, all 18 games (9 Aug 2026); the
+`gel-btn` moulding added to all 72 menu buttons (SW v218, 1 Sep 2026).
 
 **Rules:**
 - "← Back to the Box" is always identical — never game-themed.
 - "How to Play" label is always identical — opens a data overlay (Pattern 1). Always `bg-stone-700 hover:bg-stone-800 text-white`.
 - Settings button label is always **"Settings"** — no exceptions. Thematic name lives inside the overlay as the title block. Button uses a **light brand tint** (`bg-[brand-100] hover:bg-[brand-200] text-[brand-700]`) — see Game Brand Colour — Scope § Per-game brand reference for per-game classes.
 - Play CTA is the primary action — largest button, top of the stack, full brand colour.
+
+---
+
+## Gel Button Treatment (`.gel-btn` / `.gel-btn-light`)
+
+The moulded "keycap / Frutiger-Aero gel pill" look. Shipped for the lobby buttons (SW v214 →
+v216), then extracted into a badge-agnostic pair (SW v218) so the **game menus' four buttons**
+share it. Classes live in `css/styles.css` (grep `.gel-btn`).
+
+**Where it is used — and only here:**
+- The 18 lobby game buttons (`gel-btn lobby-btn` — `.lobby-btn` now adds *only* the left-badge
+  layout; all the moulding is `.gel-btn`).
+- Every game menu's four buttons: Play CTA + How to Play take `gel-btn`; Settings + ← Back to the
+  Box take `gel-btn gel-btn-light`.
+
+**Do NOT extend it further.** Gameover buttons, Decision Modal confirm/cancel, in-game submit
+buttons, pills and toggles stay flat. The gel is the *menu shelf* signature — putting it on
+gameplay chrome dilutes that and fights the Motion Standard's transform-only tap feedback.
+
+**How it works (all four layers colour-AGNOSTIC — translucent white/black only, zero per-game
+values, so it sits over any Tailwind fill, `bg-[#hex]`, custom `*-cta` class or inline style):**
+1. body `background-image` gradient — crown light, deepening to the base
+2. `::before` — the specular cap: an inset pseudo-element with an elliptical bottom edge (a
+   gradient *stop* can only paint a flat stripe; the curved cap is what reads as a dome)
+3. `::after` — bounce-light off the base
+4. `box-shadow` — outer bezel + inner rims + the keycap 3-D drop
+
+`.gel-btn` sets `isolation: isolate` and paints `::before`/`::after` at `z-index: -1`, so the
+gloss sits **over the fill but under the button's own text** — menu buttons need no label-span
+wrapper (lobby buttons keep their `.lobby-btn-label` span for the badge layout + text-shadow).
+
+**`:active`** sinks `translateY(3px)` and **redeclares the full `box-shadow`** — an
+equal-specificity `:active` rule earlier in the file would otherwise strip the bezel mid-press.
+Press animates `transform` only (composited), so it needs no `transition-all` and nothing for the
+reduced-motion block to catch.
+
+**`.gel-btn-light`** overrides the body gradient + `::before` to a low-alpha gloss, keeping the
+colour-agnostic bezel/drop. Use it wherever a `gel-btn` sits on a **pale fill** (light brand tint,
+`bg-stone-200`) — at full strength the white cap blows the button out and the dark base gradient
+muddies it.
 
 ---
 
