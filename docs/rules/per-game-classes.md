@@ -5,7 +5,7 @@ is pure per-game lookup: ~2.3k tokens every session paid, including the many tha
 rules that *use* these values stay in `ui-style.md`; only the values live here.
 
 **Read when:** building or editing any game's UI and you need its exact class strings. For brand
-colour + active pill alone, `CLAUDE.md` § Per-Game Quick Index already lists all 18 games and is
+colour + active pill alone, `CLAUDE.md` § Per-Game Quick Index already lists all 19 games and is
 always loaded — come here for the range/toggle/CTA/label/tint strings it doesn't carry.
 
 **Adding a game = three rows** (one per table). Notes stay with their own rules in `ui-style.md`.
@@ -35,6 +35,7 @@ always loaded — come here for the range/toggle/CTA/label/tint strings it doesn
 | FLW | `#E879A8` rose-pink (custom) | `flw-range` | `game-toggle-on-flw` | `pill-active-flw` |
 | PKO | `#854D0E` (custom) | `pko-range` | `game-toggle-on-pko` | `pill-active-pko` |
 | CJAR | `#D4A017` honey-gold (custom) | `cjar-range` | `game-toggle-on-cjar` | `pill-active-cjar` |
+| CLD | `#8ECAE6` glacier blue (custom) | `cld-range` | `game-toggle-on-cld` | `pill-active-cld` |
 
 `sylly-range` is GM's alone — it predates the `[abbr]-range` convention every other game follows. Never reuse it.
 Gradient values live on each `.[abbr]-range` rule in `css/styles.css`.
@@ -61,6 +62,7 @@ Gradient values live on each `.[abbr]-range` rule in `css/styles.css`.
 | FLW | Enter the Exhibition | 💎 | The Counterfeit Run |
 | PKO | Enter the Wild | 🐘 | Force of Nature |
 | CJAR | Raid the Jar! | 🍪 | Dibber Dobber |
+| CLD | Hit the Ice | 🐧 | The Thaw |
 
 **†  Resolved 1 Aug 2026 — LTTP's Sylly Mode is real and shipped.** The How-to Standard's old parenthetical
 ("omit for LTTP which has none") was wrong and has been corrected. Verified in code: `lttpJokerMode`, the
@@ -99,6 +101,7 @@ The how-to **close button is always the game's `accentBtnClass`**, so it no long
 | FLW | `flw-cta` | — | `flw-step-label` | `bg-[#A02050] hover:bg-[#7A1A3E] text-white` ¶ |
 | PKO | `pko-cta` | — | `pko-label` | `bg-[#F5E6C8] hover:bg-[#EBD5A8] text-[#854D0E]` |
 | CJAR | `cjar-cta` ‡ | — | `cjar-label` | `bg-[#F7E9C4] hover:bg-[#EFDCA8] text-[#7A5C0A]` |
+| CLD | `cld-cta` | — | `cld-label` | `bg-[#e4f4fa] hover:bg-[#cbe9f4] text-[#2a6b85]` |
 
 
 **‡ CJAR takes dark ink, never white.** `.cjar-cta` supplies `color:#292524` itself — never add a
@@ -116,7 +119,12 @@ Measured contrast is low (~1.8:1) — a deliberate, owner-confirmed call, **not*
 "fix", and **not** to be generalised to other games' Settings buttons.
 
 A `—` in the `accentTextClass` column means the game never calls `showWhoFirst()` (GTH, FLW, PKO,
-SHP, CJAR). Don't invent one.
+SHP, CJAR, CLD). Don't invent one.
+
+**CLD takes white ink** (unlike the other custom-hex CTAs CJAR/FRT, which take dark ink). `.cld-cta`
+supplies `color:#fff` plus a baked-in `text-shadow: 0 1px 2px rgba(0,0,0,.35)` — the flat `#8ECAE6`
+fill has no gel gradient or label text-shadow behind it on non-menu surfaces, so the shadow is on
+the class itself and impossible to forget at a call site. Modal border `border-[#b8dfec]`.
 
 Rationale behind the ‡ § ¶ exceptions: `docs/decision-log.md` 2026-08-02 (BLD/FRT recoloured off
 yellow, with the measured contrast figures) and 2026-08-15 (FLW). FLW's six-pass settlement is

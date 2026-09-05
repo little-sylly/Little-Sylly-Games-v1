@@ -49,6 +49,7 @@ shape. Screen/overlay IDs, state variables, key functions and MP packet tables l
 | 16 | Flawless | `flw` | `flw.js` | rose-pink `#E879A8` / `pill-active-flw` |
 | 17 | Pecking Order | `pko` | `pko.js` | `#854D0E` / `pill-active-pko` |
 | 18 | Cookie Jar | `cjar` | `cjar.js` | honey-gold `#D4A017` (dark ink) / `pill-active-cjar` |
+| 19 | Cold Shoulder | `cld` | `cld.js` | glacier blue `#8ECAE6` (white ink) / `pill-active-cld` |
 
 For per-game classes (range / toggle / pill / CTA / how-to / brand class strings) read `docs/rules/per-game-classes.md` (on-demand) — the single source for those; don't duplicate them here.
 
@@ -91,7 +92,7 @@ For where each game's screens/overlays live in `index.html`, see the **Per-Game 
 ---
 
 ## 📁 Load Order
-**Load order:** `music.js` → `engine.js` → `art.js` → `engine-multiplayer.js` → `canvas-draw.js` → `li5.js` → `great-minds.js` → `secret-signals.js` → `jec.js` → `ygi.js` → `lttp.js` → `nat.js` → `dsd.js` → `bld.js` → `gth.js` → `dyb.js` → `cards.js` → `pass.js` → `nt.js` → `frt.js` → `shp.js` → `flw.js` → `pko.js` → `cjar.js` → `secret-mode.js` → `app.js`
+**Load order:** `music.js` → `engine.js` → `art.js` → `physics.js` → `engine-multiplayer.js` → `canvas-draw.js` → `li5.js` → `great-minds.js` → `secret-signals.js` → `jec.js` → `ygi.js` → `lttp.js` → `nat.js` → `dsd.js` → `bld.js` → `gth.js` → `dyb.js` → `cards.js` → `pass.js` → `nt.js` → `frt.js` → `shp.js` → `flw.js` → `pko.js` → `cjar.js` → `cld.js` → `secret-mode.js` → `app.js`
 (`tailwind-play.js` loads in `<head>` before everything else. `js/lib/music.js` loads *before* `engine.js` — the engine boot block calls `Music.init()` at parse time.)
 All symbols are global (no ES modules). Forward references work at runtime.
 
@@ -273,23 +274,26 @@ On every bump the outgoing SW entry moves **verbatim** to `docs/sw-changelog.md`
 "keep the last three". **A second `**SW v…**` paragraph appearing here means that move didn't
 happen: do it before anything else.**
 
-**SW v218 — Gel buttons on every game menu (1 Sep 2026).** The lobby's moulded keycap/gel
-treatment now covers all 18 game menus' four buttons (Play CTA, How to Play, Settings, ← Back to
-the Box) — 72 buttons. The four colour-agnostic gloss layers were extracted from `.lobby-btn` into
-a badge-agnostic **`.gel-btn`** (`css/styles.css`); `.lobby-btn` keeps only the left-badge layout
-and lobby markup becomes `gel-btn lobby-btn` (visually identical). `.gel-btn` uses
-`isolation: isolate` + `::before`/`::after` at `z-index: -1` so the gloss sits over the fill but
-under the button's own text — no label span needed on menu buttons. New **`.gel-btn-light`**
-(softened gloss, same bezel) for Settings + ← Back to the Box, whose pale fills the full-strength
-cap would blow out. Menu buttons drop `active:scale-95` / `transition-all` — `.gel-btn:active`
-supplies the `translateY(3px)` press. CSS + `index.html` only, no new assets. Docs: `ui-style.md`
-§ Gel Button Treatment + § Universal Menu Standard.
+**SW v221 — Cold Shoulder gains "The Floe", a How to Play reference tab (4 Sep 2026).** The
+game's How to Play overlay gets a 2-tab bar (**The Rules** | **The Floe**). The Rules is the
+existing step cards, unchanged. **The Floe** holds a **live practice sim** — a `<canvas>` running
+the real `Physics.simulate()`, with *Shove everyone* / *Resurface* buttons — plus **The Cast**, a
+3×2 grid of the six penguin poses (`idle` · `lean` · `squash` · `plunge` · `bob` · `throw`) each
+animating through `cldRenderPenguin`, the one seam. No art files — all procedural. The practice
+floe is a self-contained state island (`cldHowto*`): it shares nothing with game state, never
+branches on `syllyMultiplayerMode`, sends no packets; its RAF stops on tab-away, close, and in
+`cldResetState()`. `index.html` + `js/games/cld.js` only — no new precache entry, so the offline
+install check is unchanged (still must be run directly; the practice floe now also breaks visibly
+if `physics.js`/`cld.js` didn't cache). `visual-check` clean; all CLD harnesses + `verify-mp-configs`
+still green. Documented deviation: `ui-style.md` says a how-to tab shouldn't carry live running
+state — owner call, logged in `cld-implementation-notes`. Phase 40 live gate still OPEN.
 
-**Previous versions: `docs/sw-changelog.md`** — continuous, v217 back to v167.
+**Previous versions: `docs/sw-changelog.md`** — continuous, v220 back to v167.
 
-**Where the suite stands.** **18 games shipped**, all gold-master, plus multiplayer. Newest three:
-**Cookie Jar** (`cjar`, game 18, phase 39), **Pecking Order** (`pko`, game 17, phase 37) and its
-**Force of Nature** Sylly Mode (phase 38). All three phase gates are CLOSED —
+**Where the suite stands.** **19 games shipped**, all gold-master, plus multiplayer. Newest three:
+**Cold Shoulder** (`cld`, game 19, phase 40 — first physics game, `js/lib/physics.js`), **Cookie
+Jar** (`cjar`, game 18, phase 39) and **Pecking Order** (`pko`, game 17, phase 37) with its **Force
+of Nature** Sylly Mode (phase 38). All phase gates are CLOSED — `docs/phase40-snapshot.md`,
 `docs/phase39-snapshot.md`, `docs/phase37-snapshot.md`, `docs/phase38-snapshot.md`. The **Cartridge
 System** is COMPLETE, both halves (Phase A word packs, Phase B skin packs) —
 `docs/cartridge-system-plan.md`. **Core art** has rolled out to `pko`, `flw`, `frt`, `shp`; **PASS
@@ -321,6 +325,9 @@ Re-run a game's full set after touching its appliers, deck/data, packets or rend
 | CJAR | `node tools/verify-cjar-deck.js && node tools/verify-cjar-loop.js && node tools/verify-cjar-dd.js` | 76 · 102 · 47 |
 | CJAR | `node tools/verify-cjar-loopback.js` — host↔client over a Firebase-shaped wire | 177 |
 | CJAR | `node tools/simulate-cjar-dd.js` — balance instrument; asserts nothing, always exits 0 | — |
+| CLD | `node tools/verify-cld-physics.js && node tools/verify-cld-loop.js` — pure sim (determinism, no-tunnel, per-throw invariant, restitution asymmetry, 5 s cap) then game rules (multi-hop shunt incl. ≥3 hops, Dive legality, Thaw floor per Ice setting, Washout from Slide + Thaw, Peck Off last-*player* win) | 122 · 163 |
+| CLD | `node tools/verify-cld-loopback.js` — host↔**2 clients** over a Firebase-shaped wire, real mock DOM: private commit path, duplicate-commit rejection, nameless tally, empty-`events[]` / all-zero-`fish[]` round trip, host/client timeline parity, quit contract. Accepts `CLD_SRC=` | 168 |
+| CLD | `node tools/mutate-cld.js` — mutation harness over the rules/sim layer; `node tools/simulate-cld-balance.js` — balance instrument, asserts nothing, exits 0 (`CLD_SEED=`) | 26/26 · — |
 | PKO | `node tools/verify-pko-chain.js && node tools/verify-pko-loop.js && node tools/verify-pko-events.js` | 68 · 147 · 148 |
 | DYB | `node tools/verify-dyb-dice.js` — after any `js/lib/art.js` / `dybDieHTML` / `.dyb-die-*` change | 90+ |
 | SHP | `node tools/verify-shp-loop.js` — random matches, all player counts/modes/settings; `SHP_SEED=` for reproducibility | 60 matches |
@@ -331,7 +338,7 @@ Re-run a game's full set after touching its appliers, deck/data, packets or rend
 | NT | `node tools/nt-slow-fit.js` — slow-model fitter: substitutes the `NT_HONEYPOT_*` constants into nt.js's OWN timeline, so a fit can never drift from the shipped model. `--sweep`, `--grid`, `--contact`. Asserts nothing, exits 0 | — |
 | JEC | `node tools/verify-jec-loop.js` — the four tiers, the Golden-only Signature double, Crutch resolution + the never-in-pool invariant, the Instructions deck, the Fusion name vote | 77 |
 | JEC | `node tools/verify-jec-loopback.js` — host↔client over a Firebase-shaped wire with a real mock DOM; accepts `JEC_SRC=` | 164 |
-| **All 18 / MP** | `node tools/verify-mp-configs.js` — `MP_GAME_CONFIGS` entry schema, player-count bounds (sanity, **purity** — a bound may read nothing but `window.mpLobbyStyle`, and agreement with each game's own PTP count pills), the balanced-teams invariant, and the Mid-Game Quit Contract. Runs no game logic; accepts `MP_SRC=`. **Re-run after touching `MP_GAME_CONFIGS`, any quit-confirm handler, or the roster screen** | 18 games |
+| **All 19 / MP** | `node tools/verify-mp-configs.js` — `MP_GAME_CONFIGS` entry schema, player-count bounds (sanity, **purity** — a bound may read nothing but `window.mpLobbyStyle` or a pre-lobby setting in `ALLOWED_SETTINGS` (`frtPearOff`, `cldPeckOff`), and agreement with each game's own PTP count pills), the balanced-teams invariant, and the Mid-Game Quit Contract. Runs no game logic; accepts `MP_SRC=`. **Re-run after touching `MP_GAME_CONFIGS`, any quit-confirm handler, or the roster screen** | 19 games |
 | Identity docs | `node tools/verify-identity-docs.js` — every `copy` block in `docs/game-identities/` against the shipped `index.html` + plugin file | per-doc |
 | Identity docs | `node tools/verify-identity-docs.js --self-test` — proves the checker still detects planted drift | 1 |
 | FLW | `node tools/verify-flw-loopback.js` — host↔client over a Firebase-shaped wire, incl. the private-channel hand packets | 84 |

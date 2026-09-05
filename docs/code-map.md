@@ -39,6 +39,7 @@
 | Flawless (FLW) | ~8576 |
 | Pecking Order (PKO) | ~8936 |
 | Cookie Jar (CJAR) | ~9477 |
+| Cold Shoulder (CLD) | ~9970 |
 
 Each game's `<!-- ════ NAME ════ -->` section-header comment is itself a reliable Grep anchor if the line numbers have drifted.
 
@@ -2196,3 +2197,87 @@ All three evaluate the real `js/games/pko.js` in a Node `vm` sandbox — they re
 The other three harnesses run in `'single'` mode with `getElementById: () => null`, which is exactly what lets one process drive all N seats — and exactly what blinds them to the packet layer and every line of render code (TG-07, ML-03). `verify-cjar-loopback.js` closes both gaps; reach for it on anything MP- or render-shaped.
 
 **New CSS classes (`css/styles.css`), stage-polish round:** `.cjar-reveal-grid` (the standings header/row shared 5-column template, `1.8rem 1fr 4.6rem 4.6rem 4.2rem`, DD-28), `.cjar-status-in` / `.cjar-status-out` (the Still In / Snuck Out status badge, DD-28), `.cjar-medal-slot` (the gameover podium's fixed-width `1.4rem` leading slot, medal or blank, DD-30).
+
+---
+
+## Cold Shoulder (CLD)
+
+**Game 19** (phase 40). **JS file:** `js/games/cld.js` **Shared module:** `js/lib/physics.js` (new — the suite's first physics module: one pure, total `Physics.simulate()`, no DOM/canvas/`window`/`Date.now()`/bare `Math.random()`; loads after `art.js`, before `cld.js`; precached). **No data file** — two constant arrays (`CLD_INTRO_FLAVOUR`, `CLD_PLUNGE_BARKS`) live in the plugin; the penguin is drawn entirely procedurally, no art files in v1.
+**Brand colour:** `#8ECAE6` glacier blue (custom, white ink + `text-shadow` baked into `.cld-cta`) | **Active pill:** `pill-active-cld` | **Toggle ON:** `game-toggle-on-cld` | **Range:** `cld-range` (`#e4f4fa → #8ECAE6`) | **CTA/label:** `cld-cta` / `cld-label` | **Modal border:** `border-[#b8dfec]` | **Settings tint:** `bg-[#e4f4fa] hover:bg-[#cbe9f4] text-[#2a6b85]`
+**MDLM-only**, 3–8 players (`getMinPlayers`/`getMaxPlayers` return `2` when `cldPeckOff` is on — the `frtPearOff`-class pre-lobby exception, `cldPeckOff` is in `verify-mp-configs.js` `ALLOWED_SETTINGS`), host-authoritative **timeline playback** (host runs the one sim, broadcasts sampled keyframes + a discrete event list; clients replay, never simulate; the host replays its own broadcast samples too). Committed aims travel to the host over the **private channel** (`mpSendPrivate`), never the public feed. **Sylly Mode = The Thaw** — floe shrinks `CLD_THAW_STEP` per Slide down to `cldMinRadius()`; a geometry change only, no rule behaviour changes.
+**Lobby button:** `#btn-cld` (`LOBBY_COLOUR_ORDER` between `btn-dsd` and `btn-dyb`) | **Spec:** `docs/new-game-tech-cold-shoulder.md` | **Impl notes:** `docs/implementation-notes/cld-implementation-notes.md` | **Identity doc:** `docs/game-identities/cld.md`
+
+### Screens
+| Screen ID | Purpose |
+|-----------|---------|
+| `screen-cld-menu` | Main hub — Hit the Ice / How to Play / Settings / ← Back to the Box (four-button Universal Menu Standard, gel treatment) |
+| `screen-cld-floeoff-intro` | Floe-Off intro interstitial — **5 s auto-advance** (`CLD_INTERSTITIAL_MS`), interstitial exemption. **Also the client standby surface** (`cldIntroMode === 'standby'`, the `cjarShowClientStandby` pattern) — in standby the auto-advance timer is NOT armed; the client waits for `CLD_FLOEOFF_START` |
+| `screen-cld-floe` | The canvas stage — the game. **The ONE screen that is not the Stack**: legacy `h-screen` sticky-footer (brief-sanctioned, same as `screen-gth-canvas` — the stage must not scroll during a drag). Three phases live here via `cldPhase` (`aiming` → `waiting` → `resolving`, plus the `washout` beat) — three screens would re-init the canvas three times a Slide. `#cld-stage` holds `#cld-canvas` (logical 360×360, letterboxed by `cldResize`) + `#cld-float-layer` (absolute transient layer for plunge barks) |
+| `screen-cld-result` | Who survived, who went in, the Fish — **2.5 s auto-advance** (`CLD_RESULT_MS`), nothing interactive |
+| `screen-cld-scoreboard` | Running Fish tally between Floe-Offs — host-gated `#btn-cld-next-floeoff` / `#cld-scoreboard-waiting` line for clients |
+| `screen-cld-gameover` | The Final Floe — podium (`.cld-medal-slot` fixed leading slot) + two stat lines (hidden at Fish to Win = 1) + March On! / Waddle Off |
+
+All six added to `allScreens[]` in `engine.js` after the Cookie Jar block. `cldResetState()` (called from `resetToLobby()`) owns all four timer handles.
+
+### Overlays
+| Overlay ID | Pattern | z-index | Purpose |
+|------------|---------|---------|---------|
+| `cld-settings-overlay` | Data (slide-up) | z-[80] | **The Huddle 🐧** — Ice Conditions (difficulty slot, word-difficulty exemption) / Floe Size / Fish to Win / Aim Assist / Ice Breaker / Peck Off / ✨ Sylly Mode. `#cld-val-ice` + `#cld-val-floe` dynamic value lines, repainted from `cldSyncSettingsUI()` AND the pill click handler |
+| `cld-how-to-overlay` | Data (slide-up) | z-[90] | **2-tab bar** (`[data-cld-howto-tab]` = `rules` \| `floe`, `cldSetHowtoTab`). **The Rules** (`#cld-howto-body-rules`): six steps + two conditional cards (`#cld-howto-berg`, `#cld-howto-peckoff`, toggled by `display` from `cldSyncSettingsUI()`) + Winning and Scoring + ✨ Sylly Mode. **The Floe** (`#cld-howto-body-floe`, SW v221): a live practice sim (`#cld-howto-floe-canvas` + `btn-cld-howto-shove` / `btn-cld-howto-resurface`, real `Physics.simulate()`) + **The Cast** (`#cld-howto-cast`, 6 pose tiles built by `cldHowtoBuildCast`, rendered via `cldRenderPenguin`). Own close button `btn-cld-howto-close-floe`. Header `[?]` gated by `cldPhase` — greyed during `resolving`/`washout`. **No tip overlay**; **no tap-hold on penguins** (documented Tap-Hold Reference exception). The Floe carries live running state in a how-to tab — a logged deviation from `ui-style.md` (owner call) |
+| `cld-quit-overlay` | Decision modal | z-[80] | Mid-game exit confirm — Waddle Off? |
+| `cld-new-game-overlay` | Decision modal | z-[90] | Play-again confirm — March On? (label swaps per the Play-Again Return Pattern) |
+
+### Key state variables
+| Variable | Type | Default | Purpose |
+|----------|------|---------|---------|
+| `cldIceConditions` / `cldFloeSize` / `cldFloeSizeTouched` | string / string / bool | `'slush'` / `'standard'` / `false` | `CLD_ICE_MULT` = `{powder:0.70, slush:1.00, blackice:1.40}` scales deceleration only; `CLD_FLOE_SIZE` = `{roomy:150, standard:130, cramped:110}`. `cldFloeSizeTouched` false → count-scaled pre-selection at `cldStartMatch()` |
+| `cldFishToWin` / `cldAimAssist` / `cldIceBreaker` / `cldPeckOff` / `cldSyllyMode` | int / bool / int / bool / bool | `3` / `true` / `3` / `false` / `false` | `cldIceBreaker` = Berg hit capacity (0/1/3). `cldPeckOff` forces room bounds to 2; composable with `cldSyllyMode`, not exclusive |
+| `cldPlayerCount` / `cldPlayerNames` | int / string[] | `0` / `[]` | From `mpPlayerSlots` in `onPassThePhone` (`.nickname`, never `.name`) |
+| `cldFish` / `cldFloeOffNo` / `cldMatchStats` | int[] / int / object[] | `[]` / `0` / `[]` | Match score; `cldMatchStats[i] = {slidesStood, plunges}` → the two gameover stat lines |
+| `cldFloeRadius` / `cldPenguins` / `cldBergs` / `cldBerthCount` | number / object[] / object[] / int | — | `cldFloeRadius` shrinks under The Thaw, floored at `cldMinRadius()`. `cldPenguins[i] = {id:'owner-n', ownerIdx, x, y, drowned, berth}`. `cldBerthCount === cldPlayerCount`, fixed for the match; `CLD_BERTH_SLOTS = 2` positions per Berth |
+| `cldCommits` | (object\|null)[] | `[]` | **HOST-LOCAL, never broadcast.** One slot per player, `null` until commit. Gate is plain `cldCommits.every(c => c !== null)` (no departed-seat form — a quit dissolves the session). Host marks its own slot **directly**, never a self-sent ACTION |
+| `cldTimeline` / `cldPlaybackT` / `cldPhase` / `cldIntroMode` | object\|null / number / string / string | `null` / `0` / `'aiming'` / `'intro'` | `cldPhase` gates canvas input, the `[?]` button, and whether the RAF loop draws a live aim or replays a timeline |
+| `cldMyAims` / `cldMyDive` / `cldMySnowball` / `cldCommitted` / `cldPowerLock` | array / int / object\|null / bool / number\|null | — | This device only. `cldCommitted` is the local double-tap guard, NOT the authority (host rejects a second commit) |
+| `cldRafHandle` / `cldIntroTimer` / `cldResultTimer` | int\|null | `null` | **All timers** — RAF is a timer (Timer Lifecycle rule). Cancelled in quit-confirm, `resetToLobby()`, and every early phase transition |
+| `cldSkinArt` | object | `{}` | Decoded-asset cache for a future raster skin — empty for all of v1, no `cldPreloadArt()` call. Deliberately NOT cleared in teardown |
+| `CLD_SIM_HZ` / `CLD_SAMPLE_HZ` / `CLD_SIM_CAP_MS` | const | `120` / `20` / `5000` | Fixed physics substep (determinism), timeline sample rate (payload budget), hard sim cap |
+| `CLD_SOUND` | const map | — | Moment → `play*()` (PKO/CJAR pattern). One bespoke addition: `playSplash` (`plunge`). Collision sound is velocity-gated (`CLD_SFX_MIN_V`) + throttled (`CLD_COLLISION_SFX_MS`, keyed on playback time); `plunge`/`fish`/`thaw`/`washout`/`matchEnd` never throttled |
+
+### Key functions
+| Function | Purpose |
+|----------|---------|
+| `Physics.simulate({world, bodies, impulses, events, params, seed})` | **`js/lib/physics.js`.** One pure, total function → `{samples, events, final, durationMs}`. Owns integration (fixed substep), Coulomb friction (`d = v₀²/(2a)` closed form → computable min radius), circle–circle collision, restitution asymmetry (`drownedRestitution > 1`, `bergRestitution ≤ 1`), immovable bodies, boundary (emits `plunge` with exit position + velocity), Bergs (`shatter` mid-sim), scheduled snowballs (landing order, live position), rest detection, 5 s cap. Does NOT own Berths, the shunt, Dive legality, the Thaw schedule, scoring, or a single pixel |
+| `cldFullSlideDist(ice)` / `cldDecel(ice)` / `cldMinRadius(ice)` | Derived every call from `CLD_ICE_MULT` — **never hard-coded numbers**. `cldMinRadius = CLD_MIN_RADIUS_MULT (0.5) × cldFullSlideDist` |
+| `cldStanding()` / `cldPlayersAlive()` | Derived. `cldPlayersAlive()` = distinct `ownerIdx` among Standing — **this, not penguin count, is the win test** (Peck Off) |
+| `cldAssignBerth(x, y, vx, vy, rand)` | The multi-hop shunt (§4C) — **never fails**, no "nowhere to put them" branch (the min-radius invariant guarantees rim capacity). Outward search, prefers the side with more free slots, tie → travel direction from exit velocity, dead-straight/zero → clockwise |
+| `cldDiveAvailable(p, dir)` / `cldApplyDive(p, dir, rand)` | A Dive is voluntary and **allowed to fail** — full target Berth → stays put, no shunt. UI greys an unavailable direction |
+| `cldStartFloeOff(seed)` / `cldResolveSlide(seed)` / `cldThawStep(rand)` / `cldCheckWashout()` / `cldResolveFloeOff()` | The rules loop. `cldResolveSlide` builds the `aftermath[]` playback script (surfacings, the Thaw step, thaw-drops) and folds `CLD_FLOEOFF_END`/`CLD_GAME_OVER` into `CLD_SLIDE_RESOLVE` (DD-10). Washout is checked after a Slide **and** after a Thaw step. `cldResolveFloeOff()` is a no-op unless exactly one owner survives (DD-11) |
+| `cldRenderPenguin(ctx, state, colourIdx, x, y, r, opts)` | **The one canvas render seam** — draws to a context, returns nothing (a canvas game has no DOM node). Every penguin pixel, in play and in chrome, goes through it. Bézier silhouette (`cldPaintBody`) + clipped shading gradient, inline `cldLighten`/`cldDarken` tint per `CLD_TINTS`, posed from `cldPose(state, t)`. Deviation from the "returns a DOM node" seam contract — spec §17 |
+| `cldLoop` / `cldStartLoop` / `cldStopLoop` / `cldDraw(dt)` / `cldDrawAim` / `cldDrawBerg` | The RAF game clock and its draw calls. `cldStopLoop()` clears `cldRafHandle` |
+| `cldCommit()` / `cldHostResolveSlide()` / `cldBeginPlayback(tl)` / `cldAdvancePlayback(dtMs)` / `cldEndPlayback()` | The Slide submit + playback pipeline. `cldCommit` sends the private `CLD_COMMIT` (client) or marks the host slot directly + resolves |
+| `cldWireArr` / `cldWireList` / `cldWireNum` / `cldWirePenguins` / `cldWireBergs` / `cldWireStats` / `cldWireCommit` | **The Firebase-erasure repair** (BUG-06 class) — every SYNC applier rebuilds its collection fields through these, never a raw payload assign |
+| `cldFloeOffStartPayload()` / `cldTimelinePayload(tl)` / `cldTimelineFromPayload(p)` / `cldApplyPost(post)` / `cldApplyCommit(...)` / `cldBroadcastTally()` | Packet build/apply helpers. Every accumulator resets **in the `CLD_FLOEOFF_START` payload**, not just locally |
+| `cldHandleEnvelope(env)` | Routes all CLD ACTION/SYNC + the private `CLD_COMMIT`; called from `engine-multiplayer.js` |
+| `cldSyncSettingsUI()` / `cldApplyExpansionOverrides()` / `cldShowClientStandby()` / `cldResetState()` | Settings repaint (+ conditional how-to cards + value lines), expansion hook, client standby surface, full teardown (also `cldHowtoStop()` + clears the island) |
+| `cldOpenHowTo(tab)` / `cldSetHowtoTab(tab)` | Open the how-to on a given tab (`'rules'` default); toggle the two body divs + pill states + start/stop The Floe's RAF |
+| `cldHowtoStart()` / `cldHowtoStop()` / `cldHowtoLoop()` / `cldHowtoSeed()` / `cldHowtoShove()` / `cldHowtoSettle()` / `cldHowtoDrawFloe()` / `cldHowtoDrawCast()` / `cldHowtoBuildCast()` / `cldHowtoFit()` | **"The Floe" reference tab — a state island** (`cldHowto*`: `cldHowtoPeng`/`cldHowtoTL`/`cldHowtoRaf`/`cldHowtoCast`…). Shares nothing with game state, no `syllyMultiplayerMode` branch, no packets. `cldHowtoShove()` runs the real `Physics.simulate()` (5 penguins, fixed slush, `CLD_HOWTO_RADIUS 130`); `cldHowtoLoop` interpolates its samples then `cldHowtoSettle()` applies rest + reseats plungers on the rim. RAF stopped on tab-away / close / teardown |
+
+### Per-Game ACTION/SYNC/Private Packet Types
+| Packet | Type | Channel | Notes |
+|--------|------|---------|-------|
+| `CLD_COMMIT` | ACTION | **private** (`mpSendPrivate(cldHostUid(), …)`) | Client → host: this device's committed aim(s) (direction + power / Dive / Snowball target) + `slideNo`. **The only client → host packet in the game.** The sync lock's correctness layer does NOT cover a private packet, so the host is the sole authority on duplicates: `if (cldCommits[playerIdx] !== null) return;` — reject, never overwrite (a commit is final) |
+| `CLD_FLOEOFF_START` | SYNC | public | Host → all: `floeOffNo`, `radius`, `berthCount`, `penguins[]`, `bergs[]`, `flavourIdx`, `fish[]`, **and every accumulator at its reset value** (rebuilt client-side through the `cldWire*` helpers — Firebase erases `[]`/`{}`/`null`). Also the "next Floe-Off" packet from the scoreboard |
+| `CLD_SLIDE_TALLY` | SYNC | public | Host → all: `{locked, total}` — **a count only, never a name** |
+| `CLD_SLIDE_RESOLVE` | SYNC | public | Host → all: `slideNo`, `samples[]`, `events[]`, `aftermath[]` (ordered playback script), `final[]` (→ resolved `penguins[]` + `bergs[]`), `washout`, `floeOffOver`, `winnerIdx`, `matchOver`, `fish[]`, `stats[]`. `CLD_FLOEOFF_END` + `CLD_GAME_OVER` are folded in here (DD-10). The host never echoes an aim; `cldCommits` is never broadcast |
+| mid-game quit | ACTION | public | Generic `mpNotifyPlayerLeft()` + `resetToLobby()` — no per-game `CLD_PLAYER_LEFT` packet (uses the engine helper) |
+
+### Verification tools
+| Tool | Covers |
+|------|--------|
+| `node tools/verify-cld-physics.js` (122) | Pure sim: determinism across repeated runs and seeds, rest detection terminates, no tunnelling at max power, the snowball distance-force curve, the per-throw invariant at every Ice Conditions setting + both radius extremes, sequential landing order incl. the race-miss, restitution asymmetry, Berg shatter opening the edge mid-sim, the 5 s cap forcing rest |
+| `node tools/verify-cld-loop.js` (163) | Game rules, `'single'` mode: Berth legality, the multi-hop shunt incl. a seeded ≥3-hop case, the exit-direction tie-break + clockwise default, Dive legality + the allowed-to-fail case, The Thaw radius schedule + floor at each Ice Conditions setting, Washout from a Slide AND a Thaw step, Peck Off's last-*player* win, Fish scoring + the Fish-to-Win terminator |
+| `node tools/verify-cld-loopback.js` (168) | Host ↔ 2 clients over a Firebase-shaped wire, real mock DOM: `fbWrite`/`fbRead` wire behaviour asserted first; the private commit path end to end; a duplicate commit rejected not applied; the tally never carries a name; a zero-collision Slide's empty `events[]` survives the round trip; Floe-Off 1's all-zero `fish[]` survives; host/client timelines replay identically; the mid-game quit contract. Accepts `CLD_SRC=` |
+| `node tools/mutate-cld.js` (26/26) | Mutation harness — plants defects in the rules/sim layer and asserts the loop/physics harnesses catch each |
+| `node tools/simulate-cld-balance.js` | Balance instrument — asserts nothing, always exits 0. Slides per Floe-Off, plunges per Slide, leader-punishment rate, snowball race-miss rate, Slides-to-first-Berg-shatter across 3–8 players / all Ice Conditions / both Thaw states. Accepts `CLD_SEED=` |
+
+Re-run `verify-cld-loop.js` + `mutate-cld.js` after any `cld.js` rules/applier change; the full set after touching `physics.js`, the packets, or the render seam.

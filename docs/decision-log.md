@@ -20,6 +20,20 @@ Detail: pointer to the canonical doc (snapshot / impl note / spec / memory).
 
 ---
 
+## 2026-09-04 — Cold Shoulder gains "The Floe", a live-sim reference tab in How to Play (SW v221)
+Category: Architecture
+Decision: Add a second How-to tab to Cold Shoulder holding a live practice sim (real `Physics.simulate()`, Shove/Resurface) plus a six-pose cast gallery rendered through `cldRenderPenguin` — as a self-contained `cldHowto*` state island, procedural (no art files), one combined tab alongside The Rules.
+Why: The owner wanted the game exercisable without a lobby and the mechanics shown in motion; the game's seam and sim were already pure and callable, so the feature cost is entirely isolation bookkeeping, not new engine surface. Knowingly deviates from `ui-style.md`'s "no live running state in a how-to tab" — recorded as a sanctioned exception rather than bent silently.
+Changed: `index.html` (2-tab bar + The Floe body), `js/games/cld.js` (`cldSetHowtoTab`, `cldHowto*` module, teardown hook), `sw.js` (v221); docs — `code-map.md`, `ui-style.md` § How-to Overlay Standard, `cld.md` T7a/T7b/T9, `cld-implementation-notes.md` DD-12. No packet/sim/rules change — all CLD harnesses + `verify-mp-configs` + `verify-identity-docs` green; `visual-check` clean.
+Detail: `docs/implementation-notes/cld-implementation-notes.md` DD-12.
+
+## 2026-09-04 — Cold Shoulder ships (game 19); the suite's first physics game and first shared sim module
+Category: Architecture
+Decision: Ship Cold Shoulder (`cld`) on a new game-agnostic `js/lib/physics.js` — one pure, total `Physics.simulate()` verified under Node before any UI — with host-authoritative timeline playback (clients replay sampled keyframes, never simulate) over a **client → host private channel** (`mpSendPrivate` travelling that direction for the first time), and the penguin drawn entirely in procedural canvas code rather than the brief's planned 9-file PNG core art pack.
+Why: A physics bug found through a canvas is found the expensive way, so the sim had to be testable first; blind-commit tension is silently broken by a rival reading an aim off Firebase, so aims had to be private at the network level; lockstep desync shows players different outcomes undetectably, so resolution is replayed not re-simulated; and at the penguin's true ~24 px on-screen size a painted sprite's detail doesn't survive, so a zero-byte procedural draw was *proven* (not assumed) to look as good in-engine.
+Changed: new `js/lib/physics.js`, `js/games/cld.js`, 6 screens, 4 overlays, 4 CSS classes, `playSplash()`, `tools/verify-cld-{physics,loop,loopback}.js` + `mutate-cld.js` + `simulate-cld-balance.js`; modified `engine.js`, `engine-multiplayer.js`, `secret-mode.js`, `index.html`, `css/styles.css`, `sw.js` (v219), `tools/verify-mp-configs.js` (`ALLOWED_SETTINGS.cldPeckOff`). Deferred: TG-13 (The Thaw's shrink is visually inaudible in playback — a Stage-4 presentation fix, in `deferred-work.md`); the owner intends to demote The Thaw to a normal setting and find a rules-changing Sylly Mode later.
+Detail: `docs/new-game-tech-cold-shoulder.md` (spec + §17 deviations), `docs/implementation-notes/cld-implementation-notes.md`, `docs/phase40-snapshot.md`.
+
 ## 2026-09-01 — Gel button moulding is the standard for every menu button, not just the lobby
 Category: Process
 Decision: Extract the lobby's keycap/gel treatment into a badge-agnostic `.gel-btn` (+ `.gel-btn-light` for pale fills) and apply it to all 18 game menus' four buttons (Play CTA, How to Play, Settings, ← Back to the Box); menu buttons drop `active:scale-95` / `transition-all`.

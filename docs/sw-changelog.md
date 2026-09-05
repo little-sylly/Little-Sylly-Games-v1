@@ -4,6 +4,44 @@ Historical SW release notes, moved out of `CLAUDE.md` (1 Aug 2026) so they stop 
 The **current** version and its notes stay in `CLAUDE.md` § Current Focus — append the outgoing entry here on each bump.
 
 
+## v220 — The Thaw's floe-shrink is visible in playback (CLD TG-13) (4 Sep 2026)
+
+Presentation-only fix to Cold Shoulder's timeline replay. The Slide is simulated on the *pre*-Thaw
+floe, but `cldResolveSlide` shrinks `cldFloeRadius` before playback begins (and the client only ever
+sees the packet's post-Thaw `radius`), so the replay opened already-contracted and the shrink — the
+one moment The Thaw exists to sell — was invisible. `cldBeginPlayback` now rewinds `cldFloeRadius`
+to the first `thaw` beat's `fromRadius`, and the `thaw` aftermath beat sets it to `newRadius` as it
+plays. No packet, sim or rules change — `verify-cld-loop` (122+163), `mutate-cld` (26/26) and
+`verify-cld-loopback` (168) all still green. Phase 40 live gate (real-device Match + offline install
+check) still OPEN — needs the owner's hardware.
+
+
+## v219 — Cold Shoulder ships (game 19) (4 Sep 2026)
+
+The suite's first physics game: penguins slingshot-shove each other off an ice floe, everyone aims
+blind and the whole floe resolves at once, last one dry catches a Fish. Adds `js/lib/physics.js`
+(new shared module — one pure, total `Physics.simulate()`, verified under Node before any pixel) and
+`js/games/cld.js`, **both** added to `PRECACHE_URLS`. 6 screens, 4 overlays, 4 CSS classes
+(`cld-cta` / `pill-active-cld` / `game-toggle-on-cld` / `cld-range`), one bespoke sound
+`playSplash()`. MDLM-only, host-authoritative timeline playback, committed aims over the private
+channel. Sylly Mode **The Thaw**. No art files — the penguin is drawn procedurally. Spec
+`docs/new-game-tech-cold-shoulder.md`; snapshot `docs/phase40-snapshot.md`.
+
+
+## v218 — Gel buttons on every game menu (1 Sep 2026)
+
+The lobby's moulded keycap/gel treatment now covers all 18 game menus' four buttons (Play CTA, How
+to Play, Settings, ← Back to the Box) — 72 buttons. The four colour-agnostic gloss layers were
+extracted from `.lobby-btn` into a badge-agnostic **`.gel-btn`** (`css/styles.css`); `.lobby-btn`
+keeps only the left-badge layout and lobby markup becomes `gel-btn lobby-btn` (visually identical).
+`.gel-btn` uses `isolation: isolate` + `::before`/`::after` at `z-index: -1` so the gloss sits over
+the fill but under the button's own text — no label span needed on menu buttons. New
+**`.gel-btn-light`** (softened gloss, same bezel) for Settings + ← Back to the Box, whose pale fills
+the full-strength cap would blow out. Menu buttons drop `active:scale-95` / `transition-all` —
+`.gel-btn:active` supplies the `translateY(3px)` press. CSS + `index.html` only, no new assets.
+Docs: `ui-style.md` § Gel Button Treatment + § Universal Menu Standard.
+
+
 ## v217 — Lobby logo image (1 Sep 2026)
 
 `#screen-lobby` only. The `.lobby-title` wordmark's two `<h1>` lines ("Little Sylly" / "Games") are

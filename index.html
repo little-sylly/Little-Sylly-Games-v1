@@ -92,6 +92,9 @@
       <button id="btn-cjar" class="gel-btn lobby-btn cjar-cta min-h-14 w-full rounded-2xl text-xl font-semibold">
         <span class="lobby-btn-label">Cookie Jar</span><span class="lobby-btn-badge" aria-hidden="true">🍪</span>
       </button>
+      <button id="btn-cld" class="gel-btn lobby-btn cld-cta min-h-14 w-full rounded-2xl text-xl font-semibold">
+        <span class="lobby-btn-label">Cold Shoulder</span><span class="lobby-btn-badge" aria-hidden="true">🐧</span>
+      </button>
     </div>
   </section>
 
@@ -3995,6 +3998,7 @@ Head Out Again
   <script src="js/lib/music.js"></script>
   <script src="js/engine.js"></script>
   <script src="js/lib/art.js"></script>
+  <script src="js/lib/physics.js"></script>
   <script src="js/engine-multiplayer.js"></script>
   <script src="js/lib/canvas-draw.js"></script>
   <script src="js/games/li5.js"></script>
@@ -6973,6 +6977,8 @@ Climb Again
   <script src="js/games/flw.js"></script>
   <script src="js/games/pko.js"></script>
   <script src="js/games/cjar.js"></script>
+  <script src="js/games/cld.js"></script>
+  <script src="js/games/comb.js"></script>
   <script src="js/secret-mode.js"></script>
   <script src="js/arcade/asherplane.js"></script>
   <script src="js/app.js"></script>
@@ -9959,6 +9965,408 @@ Reboot
         <div id="cjar-tip-body" class="text-stone-500 text-sm text-left flex flex-col gap-1.5"></div>
       </div>
       <button id="btn-cjar-tip-close" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-sm transition-all duration-100">Got it</button>
+    </div>
+  </div>
+
+  <!-- ════ COLD SHOULDER ════
+       Screens : screen-cld-menu, screen-cld-floeoff-intro, screen-cld-floe,
+                 screen-cld-result, screen-cld-scoreboard, screen-cld-gameover
+       Overlays: cld-settings-overlay, cld-how-to-overlay, cld-quit-overlay,
+                 cld-new-game-overlay
+       Canvas  : #cld-canvas inside #cld-stage — logical 360x360, letterboxed (apResize pattern)
+    ════════════════════════════════════════════════════════════════ -->
+
+  <!-- CLD MENU — content-height section (NO min-h-screen, or the 🔊 detaches to
+       the viewport top and reads as unattached to the title) -->
+  <section id="screen-cld-menu" style="display:none"
+    class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
+    <button class="btn-open-sound absolute top-4 right-4 text-2xl active:scale-90 transition-transform duration-100">🔊</button>
+    <div class="text-5xl" role="img" aria-label="Penguin">🐧</div>
+    <div>
+      <h2 class="text-3xl font-bold text-stone-800">Cold Shoulder</h2>
+      <p class="text-stone-400 text-base mt-1">Barge your mates into the drink — last penguin on the floe wins.</p>
+    </div>
+    <div class="flex flex-col gap-3 w-full">
+      <button id="btn-cld-menu-play" class="gel-btn cld-cta min-h-14 w-full rounded-2xl text-xl font-semibold">Hit the Ice</button>
+      <button id="btn-cld-menu-how-to" class="gel-btn min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 text-white text-xl font-semibold">How to Play</button>
+      <button id="btn-cld-menu-settings" class="gel-btn gel-btn-light min-h-14 w-full rounded-2xl bg-[#e4f4fa] hover:bg-[#cbe9f4] text-[#2a6b85] text-xl font-semibold">Settings</button>
+      <button id="btn-cld-menu-back" class="gel-btn gel-btn-light min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 text-stone-500 text-xl font-semibold">← Back to the Box</button>
+    </div>
+  </section>
+
+  <!-- CLD FLOE-OFF INTRO — interstitial. NO [?] / 🔊 / ✕: it auto-advances AND has no
+       interactive element, both conditions of the ui-style.md rule-5 exemption.
+       Doubles as the CLIENT STANDBY surface (cldIntroMode === 'standby'), the cjar
+       cjarShowClientStandby pattern — in that mode the auto-advance timer is NOT
+       armed, or a client marches past the intro into an empty floe. -->
+  <section id="screen-cld-floeoff-intro" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-4 text-center">
+      <div class="text-6xl" role="img" aria-label="Ice floe">🧊</div>
+      <h2 id="cld-intro-heading" class="text-3xl font-bold text-stone-800"></h2>
+      <p id="cld-intro-sub" class="text-stone-500 text-base"></p>
+      <p id="cld-intro-note" style="display:none" class="text-stone-400 text-sm"></p>
+    </div>
+  </section>
+
+  <!-- CLD THE FLOE — the canvas stage, and the ONE screen in this game that is not
+       the Stack. Documented legacy h-screen sticky-footer exception (spec §3, brief
+       §13/§14), same justification as screen-gth-canvas: the stage must not scroll
+       while the player is dragging on it, and the power bar / tally / CTA must stay
+       put beneath a canvas being dragged. Three phases live on this ONE screen
+       (aiming → waiting → resolving, plus the washout beat) via cldPhase — three
+       screens would re-initialise the canvas three times a Slide. -->
+  <section id="screen-cld-floe" style="display:none"
+    class="h-screen w-full flex flex-col overflow-hidden px-4 pb-4">
+
+    <!-- HEADER -->
+    <div class="flex items-center justify-between flex-shrink-0 pt-4 pb-2">
+      <p id="cld-floe-header" class="text-stone-500 text-sm font-semibold uppercase tracking-widest"></p>
+      <div class="flex items-center gap-2">
+        <button id="btn-cld-how-to" class="text-stone-400 font-bold text-sm active:scale-90 transition-transform duration-100">[?]</button>
+        <button class="btn-open-sound text-xl active:scale-90 transition-transform duration-100">🔊</button>
+        <button class="btn-cld-quit-open text-stone-500 font-bold text-xl active:scale-90 transition-transform duration-100">✕</button>
+      </div>
+    </div>
+
+    <!-- STAGE — the canvas is sized in JS (cldResize) and letterboxed into this box.
+         The pointer surface is the stage, not the canvas, so a drag straying into the
+         letterbox margin keeps steering instead of dropping mid-aim. -->
+    <div id="cld-stage" class="flex-1 min-h-0 w-full relative">
+      <canvas id="cld-canvas"></canvas>
+      <!-- Transient layer — floats over a relative parent, contributes zero height, so a
+           bark popping in can never re-centre the column beneath it (ui-style.md
+           § Transient animations must float). -->
+      <div id="cld-float-layer" class="absolute inset-0 pointer-events-none flex items-start justify-center pt-3"></div>
+    </div>
+
+    <!-- CONTROLS — frozen beneath the stage. The brief flags this as the exception it is. -->
+    <div class="flex-shrink-0 flex flex-col gap-2 pt-3 w-full max-w-sm mx-auto">
+
+      <!-- Drowned-only row: Dive left / stay / right. Hidden while Standing. -->
+      <div id="cld-dive-row" style="display:none" class="flex items-center gap-2">
+        <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest flex-shrink-0">Dive</p>
+        <div class="flex gap-2 flex-1">
+          <button class="cld-dive-btn pill flex-1" data-cld-dive="-1">← Left</button>
+          <button class="cld-dive-btn pill pill-active-cld flex-1" data-cld-dive="0">Stay</button>
+          <button class="cld-dive-btn pill flex-1" data-cld-dive="1">Right →</button>
+        </div>
+      </div>
+
+      <!-- POWER — the bar IS the lock control (brief §14). Wrapper carries the padding
+           that clears the 44px touch minimum; the track itself is 1.25rem. -->
+      <button id="btn-cld-power" class="w-full flex flex-col gap-1 py-2 active:scale-[0.99] transition-transform duration-100">
+        <div class="flex items-center justify-between w-full">
+          <p id="cld-power-hint" class="text-stone-400 text-xs">Tap to lock power</p>
+          <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest">Power</p>
+        </div>
+        <div id="cld-power-track" class="cld-power-track w-full">
+          <div id="cld-power-fill" class="cld-power-fill"></div>
+        </div>
+      </button>
+
+      <p id="cld-tally" class="text-stone-500 text-sm text-center"></p>
+
+      <button id="btn-cld-commit" class="btn-mp-action cld-cta min-h-14 w-full rounded-2xl text-xl font-semibold">Lock It In</button>
+    </div>
+  </section>
+
+  <!-- CLD FLOE-OFF RESULT — interstitial, auto-advances after CLD_RESULT_MS. -->
+  <section id="screen-cld-result" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-4 text-center">
+      <div id="cld-result-art" class="flex items-center justify-center"></div>
+      <h2 id="cld-result-heading" class="text-3xl font-bold text-stone-800"></h2>
+      <p id="cld-result-sub" class="text-stone-500 text-base"></p>
+      <div id="cld-result-plunges" class="flex flex-col gap-1 text-stone-400 text-sm"></div>
+    </div>
+  </section>
+
+  <!-- CLD SCOREBOARD — the Stack. Host-gated "Next Floe-Off". -->
+  <section id="screen-cld-scoreboard" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-4">
+      <div class="flex items-center justify-between">
+        <p class="text-stone-500 text-sm font-semibold uppercase tracking-widest">The Standings</p>
+        <div class="flex items-center gap-2">
+          <button id="btn-cld-scoreboard-how-to" class="text-stone-400 font-bold text-sm active:scale-90 transition-transform duration-100">[?]</button>
+          <button class="btn-open-sound text-xl active:scale-90 transition-transform duration-100">🔊</button>
+          <button class="btn-cld-quit-open text-stone-500 font-bold text-xl active:scale-90 transition-transform duration-100">✕</button>
+        </div>
+      </div>
+      <div id="cld-scoreboard-rows" class="flex flex-col gap-2"></div>
+      <button id="btn-cld-next-floeoff" class="cld-cta min-h-14 w-full rounded-2xl text-xl font-semibold active:scale-95 transition-all duration-150">Next Floe-Off</button>
+      <p id="cld-scoreboard-waiting" style="display:none" class="text-stone-400 text-sm text-center">Waiting for the host…</p>
+    </div>
+  </section>
+
+  <!-- CLD GAMEOVER — The Final Floe -->
+  <section id="screen-cld-gameover" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-4">
+      <div class="flex items-start justify-between">
+        <div>
+          <h2 class="text-2xl font-bold text-stone-800">The Final Floe 🐧</h2>
+          <p id="cld-go-sub" class="text-stone-400 text-sm mt-0.5"></p>
+        </div>
+        <div class="flex items-center gap-2 shrink-0">
+          <button class="btn-open-sound text-xl active:scale-90 transition-transform duration-100">🔊</button>
+          <button id="btn-cld-go-exit" class="text-stone-500 font-bold text-xl active:scale-90 transition-transform duration-100">✕</button>
+        </div>
+      </div>
+      <div id="cld-podium" class="flex flex-col gap-2"></div>
+      <!-- Both stat lines are hidden at Fish to Win = 1, where a single Floe-Off makes
+           them meaningless (brief §17). The podium always shows. -->
+      <div id="cld-go-stats" class="flex flex-col gap-1"></div>
+      <button id="btn-cld-go-new" class="cld-cta min-h-14 w-full rounded-2xl active:scale-95 text-xl font-semibold transition-all duration-150">March On!</button>
+      <button id="btn-cld-go-leave" class="min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-xl font-semibold transition-all duration-150">Waddle Off</button>
+    </div>
+  </section>
+
+  <!-- CLD SETTINGS — The Huddle. Ice Conditions first (the difficulty slot — Cold
+       Shoulder draws nothing from words.json, so the checklist's word-difficulty item
+       takes the documented non-word-bank exemption, spec §5). Sylly Mode always last. -->
+  <div id="cld-settings-overlay" style="display:none"
+    class="fixed inset-0 bg-black/40 z-[80] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
+      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
+        <h2 class="text-xl font-bold text-stone-800">The Huddle 🐧</h2>
+        <p class="text-xs text-stone-400 mt-1">Set the ice, then get shoving.</p>
+      </div>
+      <div id="cld-settings-body" class="overflow-y-auto flex flex-col gap-5 px-5 py-5">
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">Ice Conditions</p>
+            <p class="text-stone-400 text-sm mt-0.5">How slippery the floe is. Grippier ice is easier to control and more forgiving.</p>
+          </div>
+          <div class="flex flex-col gap-2">
+            <div class="flex gap-2">
+              <button class="pill" data-group="cld-ice" data-val="powder">Powder</button>
+              <button class="pill pill-active-cld" data-group="cld-ice" data-val="slush">Slush</button>
+              <button class="pill" data-group="cld-ice" data-val="blackice">Black Ice</button>
+            </div>
+            <p id="cld-val-ice" class="text-stone-400 text-xs"></p>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">Floe Size</p>
+            <p class="text-stone-400 text-sm mt-0.5">How much room you've got. Smaller means crammed together, faster and more brutal.</p>
+          </div>
+          <div class="flex flex-col gap-2">
+            <div class="flex gap-2">
+              <button class="pill" data-group="cld-floe" data-val="roomy">Roomy</button>
+              <button class="pill pill-active-cld" data-group="cld-floe" data-val="standard">Standard</button>
+              <button class="pill" data-group="cld-floe" data-val="cramped">Cramped</button>
+            </div>
+            <p id="cld-val-floe" class="text-stone-400 text-xs"></p>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">Fish to Win</p>
+            <p class="text-stone-400 text-sm mt-0.5">How many Floe-Offs it takes to win the whole thing.</p>
+          </div>
+          <div class="flex flex-col gap-2">
+            <div class="flex gap-2">
+              <button class="pill" data-group="cld-fish" data-val="1">1</button>
+              <button class="pill pill-active-cld" data-group="cld-fish" data-val="3">3</button>
+              <button class="pill" data-group="cld-fish" data-val="5">5</button>
+            </div>
+            <p id="cld-val-fish" class="text-stone-400 text-xs"></p>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <div class="flex items-center justify-between">
+            <p class="text-stone-800 font-semibold">Aim Assist</p>
+            <button id="btn-cld-aimassist-toggle" class="game-toggle-on-cld shrink-0">ON</button>
+          </div>
+          <p class="text-stone-400 text-sm">Draws a dotted line showing where your first bounce lands while you aim.</p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">Ice Breaker</p>
+            <p class="text-stone-400 text-sm mt-0.5">Puts chunks of ice near the edge that bounce you back instead of dumping you in — until they shatter.</p>
+          </div>
+          <div class="flex flex-col gap-2">
+            <div class="flex gap-2">
+              <button class="pill" data-group="cld-berg" data-val="0">Off</button>
+              <button class="pill" data-group="cld-berg" data-val="1">1 hit</button>
+              <button class="pill pill-active-cld" data-group="cld-berg" data-val="3">3 hits</button>
+            </div>
+            <p id="cld-val-berg" class="text-stone-400 text-xs"></p>
+          </div>
+        </div>
+
+        <!-- Peck Off is ALWAYS VISIBLE (spec §5 / §17 deviation 1). The brief wanted it
+             hidden above 2 players, but in MDLM the host opens Settings BEFORE creating
+             the room, so no player count exists to hide against. Instead the toggle
+             forces getMin/MaxPlayers to 2, so the room physically cannot fill past two —
+             the frtPearOff precedent. Composable with The Thaw, NOT exclusive. -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <div class="flex items-center justify-between">
+            <p class="text-stone-800 font-semibold">Peck Off</p>
+            <button id="btn-cld-peckoff-toggle" class="game-toggle-off shrink-0">OFF</button>
+          </div>
+          <p class="text-stone-400 text-sm">A two-player duel with two penguins each. Turning this on makes the room a 2-player game.</p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <div class="flex items-center justify-between">
+            <p class="text-stone-800 font-semibold">✨ Sylly Mode</p>
+            <button id="btn-cld-sylly-toggle" class="game-toggle-off shrink-0">OFF</button>
+          </div>
+          <p class="text-stone-600 text-sm font-semibold">The Thaw</p>
+          <p class="text-stone-400 text-sm">The floe is melting. It shrinks a little after every Slide until there's nowhere left to stand. The Drowned close in with the rim.</p>
+        </div>
+
+        <button id="btn-cld-settings-close" class="cld-cta min-h-14 w-full rounded-2xl text-xl font-semibold active:scale-95 transition-all duration-150">Got it</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CLD HOW TO PLAY — NO tab bar (spec §8): one visual primitive in six states is a
+       poster, not a reference set. Tap-hold on a penguin is deliberately left idle
+       under the documented Tap-Hold Reference exception. -->
+  <div id="cld-how-to-overlay" style="display:none"
+    class="fixed inset-0 bg-black/40 z-[90] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
+      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
+        <h2 class="text-xl font-bold text-stone-800">How to Play 🐧</h2>
+        <p class="text-xs text-stone-400 mt-1">Shove your mates off the ice. Last one dry wins.</p>
+      </div>
+      <div class="px-5 pt-3 pb-3 border-b border-stone-200 flex-shrink-0 flex gap-2">
+        <button id="btn-cld-howto-tab-rules" class="pill pill-active-cld" data-cld-howto-tab="rules">The Rules</button>
+        <button id="btn-cld-howto-tab-floe" class="pill" data-cld-howto-tab="floe">The Floe</button>
+      </div>
+      <div id="cld-howto-body-rules" class="overflow-y-auto flex flex-col gap-4 px-5 py-5">
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest cld-label">Step 1</p>
+          <p class="font-bold text-stone-800">You're one penguin on a crowded floe</p>
+          <p class="text-stone-500 text-sm">Everyone gets shoved off eventually. Be the last one who isn't.</p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest cld-label">Step 2</p>
+          <p class="font-bold text-stone-800">Drag back to aim, like a slingshot</p>
+          <p class="text-stone-500 text-sm">Pull back from your own penguin — further back is harder. Release to <span class="font-semibold text-stone-700">arm</span> it, then tap <span class="font-semibold text-stone-700">Lock It In</span> to commit. Re-drag as many times as you like before that, but once you lock in, that's your Slide.</p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest cld-label">Step 3</p>
+          <p class="font-bold text-stone-800">Everyone aims at the same time</p>
+          <p class="text-stone-500 text-sm">Nobody sees anyone else's plan until every player has locked in. You're not reacting to a rival's move — you're <span class="font-semibold text-stone-700">guessing</span> it.</p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest cld-label">Step 4</p>
+          <p class="font-bold text-stone-800">All penguins slide at once</p>
+          <p class="text-stone-500 text-sm">You will hit people you didn't aim at. That's the game working correctly, not a bug.</p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest cld-label">Step 5</p>
+          <p class="font-bold text-stone-800">Off the edge and you're in the Drink</p>
+          <p class="text-stone-500 text-sm"><span class="font-semibold text-stone-700">Drowned</span> for the rest of this Floe-Off — but not benched.</p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest cld-label">Step 6</p>
+          <p class="font-bold text-stone-800">Being Drowned doesn't bench you</p>
+          <p class="text-stone-500 text-sm">You bob at a <span class="font-semibold text-stone-700">Berth</span> on the rim and do two things every Slide: you're a bumper, and you get a <span class="font-semibold text-stone-700">Snowball</span> to nudge someone's aim off — stronger the closer you are, which is why you can <span class="font-semibold text-stone-700">Dive</span> one Berth left or right to chase the action.</p>
+          <p class="text-stone-500 text-sm">Easy to miss: a Drowned penguin <span class="font-semibold text-stone-700">does not save</span> whoever hits them — it shoves them back <span class="font-semibold text-stone-700">harder</span>, which is usually worse. Also easy to miss: a Dive picks a <span class="font-semibold text-stone-700">Berth</span>, not a spot — where exactly you surface is up to the sea.</p>
+        </div>
+
+        <!-- Conditional — shown only when Ice Breaker is on (spec §8). -->
+        <div id="cld-howto-berg" style="display:none" class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest cld-label">Ice Breaker</p>
+          <p class="font-bold text-stone-800">The floe starts guarded</p>
+          <p class="text-stone-500 text-sm">Chunks of ice near the edge bounce you back instead of dumping you in, until they've taken enough hits and <span class="font-semibold text-stone-700">shatter</span>. Handy early. Don't count on it forever.</p>
+        </div>
+
+        <!-- Conditional — shown only when Peck Off is on (spec §8). -->
+        <div id="cld-howto-peckoff" style="display:none" class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest cld-label">Peck Off</p>
+          <p class="font-bold text-stone-800">You've got two penguins</p>
+          <p class="text-stone-500 text-sm">Aim both, commit both. You're only out when <span class="font-semibold text-stone-700">both</span> are in the Drink — and a Drowned penguin of yours still throws Snowballs while the other one skates.</p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest cld-label">Winning and Scoring</p>
+          <p class="font-bold text-stone-800">Last one dry catches a Fish</p>
+          <ul class="list-disc pl-5 flex flex-col gap-1 text-stone-500 text-sm">
+            <li><span class="font-semibold text-stone-700">Last player Standing</span> — catches a 🐟. First to the Fish target wins the whole thing.</li>
+            <li><span class="font-semibold text-stone-700">Shoving someone in</span> — no Fish. Nobody's rewarded for it, so nobody can farm it.</li>
+            <li><span class="font-semibold text-stone-700">Washout</span> — nobody left after a Slide. No Fish, everyone Resurfaces, run it again.</li>
+          </ul>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest cld-label">✨ Sylly Mode</p>
+          <p class="font-bold text-stone-800">The Thaw</p>
+          <p class="text-stone-500 text-sm">The floe melts a little every Slide, shrinking until there's nowhere left to stand. The <span class="font-semibold text-stone-700">Drowned close in with the rim</span> — and if the ice runs out from under you, you're going in whether you moved or not.</p>
+        </div>
+
+        <button id="btn-cld-howto-close"
+          class="cld-cta min-h-14 w-full rounded-2xl text-xl font-semibold active:scale-95 transition-all duration-150">Got it</button>
+      </div>
+
+      <!-- THE FLOE tab - a procedural reference, no art files. The practice floe runs the
+           real Physics.simulate() on a state island that never touches game state or the
+           wire; the cast tiles all render through cldRenderPenguin, the one seam. -->
+      <div id="cld-howto-body-floe" style="display:none" class="overflow-y-auto flex flex-col gap-4 px-5 py-5">
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <p class="text-xs font-semibold uppercase tracking-widest cld-label">Practice Floe</p>
+          <p class="text-stone-500 text-sm">No commit, no scoring - just the real physics. Give everyone a random shove and watch the whole floe resolve at once.</p>
+          <div class="relative w-full rounded-xl overflow-hidden" style="aspect-ratio:1/1;background:#0e2536">
+            <canvas id="cld-howto-floe-canvas" class="absolute inset-0 w-full h-full"></canvas>
+          </div>
+          <div class="flex gap-2">
+            <button id="btn-cld-howto-shove" class="cld-cta flex-1 min-h-11 rounded-xl font-semibold text-sm active:scale-95 transition-transform duration-100">Shove everyone</button>
+            <button id="btn-cld-howto-resurface" class="flex-1 min-h-11 rounded-xl bg-stone-200 hover:bg-stone-300 text-stone-700 font-semibold text-sm active:scale-95 transition-transform duration-100">Resurface</button>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <p class="text-xs font-semibold uppercase tracking-widest cld-label">The Cast</p>
+          <p class="text-stone-500 text-sm">Every pose the penguin strikes on the ice, and the moment it means.</p>
+          <div id="cld-howto-cast" class="grid grid-cols-3 gap-2"></div>
+        </div>
+
+        <button id="btn-cld-howto-close-floe"
+          class="cld-cta min-h-14 w-full rounded-2xl text-xl font-semibold active:scale-95 transition-all duration-150">Got it</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CLD QUIT -->
+  <div id="cld-quit-overlay" style="display:none"
+    class="fixed inset-0 z-[80] overlay-modal-backdrop flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-[#b8dfec]">
+      <p class="text-3xl">🐧</p>
+      <h3 class="text-lg font-bold text-stone-800">Waddle Off?</h3>
+      <p class="text-stone-500 text-sm">The Floe-Off ends for everyone and the Fish go back in the sea.</p>
+      <button id="btn-cld-quit-confirm" class="cld-cta min-h-14 w-full rounded-2xl active:scale-95 font-semibold text-lg transition-all duration-150">Yeah, waddle off.</button>
+      <button id="btn-cld-quit-cancel" class="min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-lg transition-all duration-150">Not yet!</button>
+    </div>
+  </div>
+
+  <!-- CLD PLAY AGAIN — confirm label swaps per the Play-Again Return Pattern. -->
+  <div id="cld-new-game-overlay" style="display:none"
+    class="fixed inset-0 z-[90] overlay-modal-backdrop flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-[#b8dfec]">
+      <p class="text-3xl">🐟</p>
+      <h3 class="text-lg font-bold text-stone-800">March On?</h3>
+      <p class="text-stone-500 text-sm">Fresh ice, everyone back on, Fish tally back to nothing.</p>
+      <button id="btn-cld-new-confirm" class="cld-cta min-h-14 w-full rounded-2xl active:scale-95 font-semibold text-lg transition-all duration-150">March On!</button>
+      <button id="btn-cld-new-cancel" class="min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-lg transition-all duration-150">Stay here</button>
     </div>
   </div>
 

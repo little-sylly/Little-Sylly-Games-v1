@@ -468,6 +468,43 @@ const MP_GAME_CONFIGS = {
     // bust odds or the affinity draw is player-count dependent; 3-player balance is
     // UNSIMULATED (the balance tool ran 5 and 8) — watch it at the next playtest.
   },
+  cld: {
+    gameName:       'Cold Shoulder',
+    emoji:          '\u{1F427}',
+    brandBtnClass:  'cld-cta',
+    // No ctaTextClass: #8ECAE6 carries white ink on every surface in this game
+    // (brief Decision 13), so the default text-white is correct here.
+    ptpLabel:       'Hit the Ice',
+    lobbyCtaLabel:  'Hit the Ice',
+    menuScreen:     'screen-cld-menu',
+    onPassThePhone: () => {
+      // Names come straight from the lobby — cld has no setup screen. The slot
+      // object is { uid, nickname }: .name returns undefined silently.
+      cldPlayerCount = mpPlayerSlots.length;
+      cldPlayerNames = mpPlayerSlots.map(p => p.nickname);
+      // Straight onto the ice, NOT back to the game menu: settings were locked in
+      // before the lobby, so a menu re-visit is just a second tap. GTH, FRT, SHP,
+      // FLW, PKO and CJAR all do this.
+      if (window.syllyMultiplayerMode === 'host') cldStartMatchLocal(cldPlayerNames);
+      else cldShowClientStandby();
+    },
+    recommendedMode: 'mdlm',
+    supportedModes:  ['mdlm'],
+    multiplayerOnly: true,
+    // 'individual' requires every player to be hand-assigned in Assign Spots; anyone
+    // left unassigned produces reordered[-1] and corrupts the slot array. Seating in
+    // Cold Shoulder is automatic (penguins are placed round the floe by index).
+    rosterConfig:    { type: 'none' },
+    // Both bounds read ONLY cldPeckOff — a settings-overlay toggle on
+    // screen-cld-menu, so it is already set when the host creates the room and
+    // rides SETTINGS_SYNC to clients. The documented frtPearOff exception; it is
+    // listed in ALLOWED_SETTINGS in tools/verify-mp-configs.js with that reason.
+    // The typeof guard is not defensiveness: engine-multiplayer.js is parsed BEFORE
+    // js/games/cld.js in the load order, and tools/verify-mp-configs.js evaluates this
+    // literal in a bare vm with no game file at all. Same shape as frtPearOff.
+    getMaxPlayers:   () => (typeof cldPeckOff !== 'undefined' && cldPeckOff) ? 2 : 8,
+    getMinPlayers:   () => (typeof cldPeckOff !== 'undefined' && cldPeckOff) ? 2 : 3,
+  },
 };
 
 // ── Nickname Helpers ──────────────────────────────────────────────────────────
@@ -898,6 +935,14 @@ function mpSerialiseSettings(abbr) {
       cjarSnackFriendly, cjarHouseRules, cjarMatchLength, cjarDecisionTime,
       cjarOpenBook, cjarSyllyMode,
     };
+    // All seven are host-owned. cldIceConditions is load-bearing beyond flavour —
+    // it sets the slide distance AND cldMinRadius(), the floor The Thaw contracts
+    // to — and cldPeckOff is what the lobby's own player bounds read, so a client
+    // out of step with either is playing a different game.
+    case 'cld': return {
+      cldIceConditions, cldFloeSize, cldFishToWin, cldAimAssist,
+      cldIceBreaker, cldPeckOff, cldSyllyMode,
+    };
     case 'ss': return {
       ssSettingInterceptsToWin, ssDifficultyLevel,
       ssRerollLimitSetting: ssRerollLimitSetting === Infinity ? 'Infinity' : ssRerollLimitSetting,  // JSON-safe (Infinity → null otherwise)
@@ -1120,6 +1165,18 @@ function mpHandleEnvelope(env) {
           if (s.cjarDecisionTime  !== undefined) cjarDecisionTime  = s.cjarDecisionTime;
           if (s.cjarOpenBook      !== undefined) cjarOpenBook      = s.cjarOpenBook;
           if (s.cjarSyllyMode     !== undefined) cjarSyllyMode     = s.cjarSyllyMode;
+          break;
+        case 'cld':
+          if (s.cldIceConditions !== undefined) cldIceConditions = s.cldIceConditions;
+          if (s.cldFloeSize      !== undefined) cldFloeSize      = s.cldFloeSize;
+          if (s.cldFishToWin     !== undefined) cldFishToWin     = s.cldFishToWin;
+          if (s.cldAimAssist     !== undefined) cldAimAssist     = s.cldAimAssist;
+          if (s.cldIceBreaker    !== undefined) cldIceBreaker    = s.cldIceBreaker;
+          if (s.cldPeckOff       !== undefined) cldPeckOff       = s.cldPeckOff;
+          if (s.cldSyllyMode     !== undefined) cldSyllyMode     = s.cldSyllyMode;
+          // A client's settings overlay is read-only but still openable, so repaint
+          // it — otherwise it shows this device's defaults, not the room's rules.
+          if (typeof cldSyncSettingsUI === 'function') cldSyncSettingsUI();
           break;
         // Additional games added as Sprint 4 progresses
       }
@@ -1680,6 +1737,11 @@ function mpHandleEnvelope(env) {
   // ── Cookie Jar ACTION/SYNC/private ────────────────────────────────────────
   if (mpActiveGame === 'cjar') {
     if (typeof cjarHandleEnvelope === 'function') cjarHandleEnvelope(env);
+  }
+
+  // ── Cold Shoulder SYNC + the private CLD_COMMIT ───────────────────────────
+  if (mpActiveGame === 'cld') {
+    if (typeof cldHandleEnvelope === 'function') cldHandleEnvelope(env);
   }
 
   // ── Secret Signals ACTION/SYNC ─────────────────────────────────────────────

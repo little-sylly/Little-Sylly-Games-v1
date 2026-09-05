@@ -733,3 +733,10 @@ as much to *resolving* one. Mark it `RESOLVED [date]` with a one-line note on wh
 than deleting it; the discovery record is the valuable half and the resolution line is what stops
 the next reader re-opening the investigation. And treat any doc that only gets **appended to** as
 structurally prone to this — a document nobody ever reads back is a document nobody ever corrects.
+
+**`js/lib/physics.js` (new, Cold Shoulder Stage 1–2) — its design decisions and bug log live in
+`cld-implementation-notes.md`, not here**, because the module and its harness were built as one
+piece of that game's Stage 1. The one entry worth knowing about from outside: **BUG-03** —
+`Physics.rng(seed)` returned a near-zero first draw for every small seed, so any caller that seeds
+a stream and immediately takes one draw got the same answer from all of them. Fixed with a warm-up
+inside `rng()`. If a second game ever adopts `Physics`, read that entry first.

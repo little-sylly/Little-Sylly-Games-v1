@@ -2502,3 +2502,116 @@ body.flash-red   { background-color: #fecaca; }
     inset 0 0 0 1px rgba(0, 0, 0, 0.06);          /* hairline bezel */
   z-index: 3;                    /* above the specular cap (1) and the label (2) */
 }
+
+/* ── Cold Shoulder (cld) — glacier blue #8ECAE6 with DEEP GLACIER ink ──────
+   The tech spec §1 asked for white ink plus a text-shadow. Measured, white on
+   #8ECAE6 is 1.79:1 — WORSE than the #D4A017 case (2.38:1) that the v156
+   recolour phase existed to remove, and a text-shadow changes perception, not
+   the ratio. Deep glacier #123B4C measures 6.69:1 on the same fill and stays
+   on-brand (it is the floe's own shadow colour), so this follows the cjar
+   precedent exactly: dark ink on the flat fill, white only on the lobby keycap
+   where .gel-btn's dark base gradient carries it. */
+.pill-active-cld {
+  background-color: #8ECAE6;
+  color: #123B4C;
+  font-weight: 600;
+}
+.game-toggle-on-cld {
+  background-color: #8ECAE6;
+  color: #123B4C;
+  border-radius: 9999px;
+  padding: 0.4rem 1.2rem;
+  font-weight: 700;
+  font-size: 0.9rem;
+  transition: background 0.2s, color 0.2s;
+  border: none;
+  cursor: pointer;
+}
+/* Custom CTA: MUST declare flex centering — when JS/Tailwind sets display:flex the
+   label would top-left-align without these (DYB/GTH/FRT/FLW/PKO lesson). */
+.cld-cta { background-color: #8ECAE6; color: #123B4C; display: flex; align-items: center; justify-content: center; }
+.cld-cta:hover { background-color: #6FB6D6; }
+/* Lobby keycap only — white game-name label on the glacier fill, matching the other
+   18 buttons. ID selector beats .cld-cta's deep ink without touching in-game CTAs;
+   .gel-btn's dark base gradient + .lobby-btn-label's text-shadow carry it there. */
+#btn-cld { color: #ffffff; }
+/* Raw #8ECAE6 on bg-stone-50 measures 1.71:1 — step labels take the darkened brand
+   (5.68:1). Same split cjar makes with .cjar-label. */
+.cld-label { color: #2a6b85; }
+.cld-medal-slot { display: inline-block; width: 1.4rem; text-align: center; flex-shrink: 0; }
+.cld-range {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 9999px;
+  background: linear-gradient(to right, #e4f4fa, #8ECAE6); /* meltwater → glacier */
+  outline: none;
+  cursor: pointer;
+}
+.cld-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: #8ECAE6;
+  border: 3px solid #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
+.cld-range::-moz-range-thumb {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: #8ECAE6;
+  border: none;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
+
+/* ── The Floe — canvas stage ────────────────────────────────────────────────
+   #cld-stage is the flex-1 box the canvas is letterboxed INTO (the asherplane
+   apResize pattern); the canvas itself is sized in JS and centred here. The
+   stage is the pointer surface, not the canvas, so a drag that strays into the
+   letterbox margin keeps steering instead of dropping mid-aim.
+   touch-action:none is load-bearing: without it the browser claims a vertical
+   drag as a page scroll and the aim is stolen halfway through. */
+#cld-stage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+#cld-canvas { display: block; touch-action: none; }
+
+/* Power bar — the bar IS the lock control (brief §14), so the two states have to
+   be unmistakable at a glance: live is soft and unoutlined, locked is outlined
+   and saturated. Height clears the 44px touch minimum via its wrapper's padding. */
+.cld-power-track {
+  position: relative;
+  height: 1.25rem;
+  border-radius: 9999px;
+  background: #e7e5e4;                      /* stone-200 */
+  overflow: hidden;
+  border: 2px solid transparent;
+  transition: border-color 0.15s ease;
+}
+.cld-power-track.cld-power-locked { border-color: #2a6b85; }
+.cld-power-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 0%;
+  border-radius: 9999px;
+  background: linear-gradient(to right, #cbe9f4, #8ECAE6);
+  transition: width 0.06s linear;           /* transform-only rule: width is the
+                                               fill's ONLY animatable dimension and
+                                               it repaints ~20x/s during a drag, well
+                                               inside the 100-160ms feedback band */
+}
+.cld-power-track.cld-power-locked .cld-power-fill {
+  background: linear-gradient(to right, #8ECAE6, #2a6b85);
+}
+
+/* Dive controls — a direction with no free position renders unavailable rather
+   than failing at resolution (brief §14). Dimmed + non-interactive, never hidden:
+   a control that vanishes reads as a bug, one that dims reads as a rule. */
+.cld-dive-btn.cld-dive-unavailable { opacity: 0.35; pointer-events: none; }

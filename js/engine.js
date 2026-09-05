@@ -89,6 +89,12 @@ const allScreens = [
   // Cookie Jar
   'screen-cjar-menu', 'screen-cjar-raid-intro', 'screen-cjar-table',
   'screen-cjar-busted', 'screen-cjar-raid-summary', 'screen-cjar-gameover',
+  // Cold Shoulder
+  'screen-cld-menu', 'screen-cld-floeoff-intro', 'screen-cld-floe',
+  'screen-cld-result', 'screen-cld-scoreboard', 'screen-cld-gameover',
+  // Honeycomb Hills
+  'screen-comb-menu', 'screen-comb-standby', 'screen-comb-meadow',
+  'screen-comb-gameover',
   // Arcade cabinets (Secret Mode) — not Sylly Games, but still real screens.
   'screen-arcade-asherplane',
 ];
@@ -408,6 +414,56 @@ function playPoacher() {
   });
 }
 
+// SPLASH — CLD: a penguin goes into the Drink. The ONE bespoke sound Cold Shoulder
+// adds (spec §9): the plunge is the game's entire payoff and fires many times a match,
+// and playHullThud reads structural, not wet. Three layers, comic weight not horror:
+// a bright highpassed water-slap transient, a low sub thump under it, and a short
+// bubble tail of descending blips. Never throttled — it is one of the beats the
+// collision throttle exists to protect.
+function playSplash() {
+  if (isMuted || !sfxEnabled) return;
+  const ctx = getAudioCtx(), now = ctx.currentTime;
+
+  // 1. Water slap — ~40ms of highpassed noise. The 'tsh' of the surface breaking.
+  const bufLen = Math.floor(ctx.sampleRate * 0.12);
+  const buf = ctx.createBuffer(1, bufLen, ctx.sampleRate);
+  const data = buf.getChannelData(0);
+  for (let i = 0; i < bufLen; i++) data[i] = Math.random() * 2 - 1;
+  const noise = ctx.createBufferSource();
+  noise.buffer = buf;
+  const hp = ctx.createBiquadFilter();
+  hp.type = 'highpass'; hp.frequency.value = 1400; hp.Q.value = 0.7;
+  const nEnv = ctx.createGain();
+  nEnv.gain.setValueAtTime(0.32, now);
+  nEnv.gain.exponentialRampToValueAtTime(0.001, now + 0.045);
+  noise.connect(hp); hp.connect(nEnv); nEnv.connect(ctx.destination);
+  noise.start(now); noise.stop(now + 0.12);
+
+  // 2. Sub thump — the weight of the body going under.
+  const sub = ctx.createOscillator();
+  const sEnv = ctx.createGain();
+  sub.type = 'sine';
+  sub.frequency.setValueAtTime(70, now);
+  sub.frequency.exponentialRampToValueAtTime(48, now + 0.16);
+  sEnv.gain.setValueAtTime(0.30, now);
+  sEnv.gain.exponentialRampToValueAtTime(0.001, now + 0.20);
+  sub.connect(sEnv); sEnv.connect(ctx.destination);
+  sub.start(now); sub.stop(now + 0.25);
+
+  // 3. Bubble tail — three tiny descending blips. This is the comedy half: the
+  //    splash lands, then the penguin is audibly still down there.
+  [[900, 0.09], [680, 0.16], [500, 0.23]].forEach(([freq, at]) => {
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = 'sine'; o.frequency.value = freq;
+    g.gain.setValueAtTime(0.0001, now + at);
+    g.gain.exponentialRampToValueAtTime(0.10, now + at + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + at + 0.07);
+    o.connect(g); g.connect(ctx.destination);
+    o.start(now + at); o.stop(now + at + 0.09);
+  });
+}
+
 // CLASH WIN — PKO: you empty your Hoard. A deepened, slower playSuccess
 function playClashWin() {
   if (isMuted || !sfxEnabled) return;
@@ -554,7 +610,8 @@ function updateSliderTheme(gameId) {
     'nat': 'nat-range', 'dsd': 'dsd-range',
     'gth': 'gth-range', 'bld': 'bld-range', 'dyb': 'dyb-range', 'pass': 'pass-range',
     'nt': 'nt-range', 'frt': 'frt-range', 'shp': 'shp-range', 'flw': 'flw-range',
-    'pko': 'pko-range', 'cjar': 'cjar-range'
+    'pko': 'pko-range', 'cjar': 'cjar-range', 'cld': 'cld-range',
+    'comb': 'comb-range'
   };
   const cls = (map[gameId] || 'stone-range') + ' w-full';
   const el = document.getElementById('global-sound-volume');
@@ -575,7 +632,8 @@ function getMuteToggleOnClass(gameId) {
     'nt': 'game-toggle-on-emerald', 'shp': 'game-toggle-on-shp',
     'frt': 'game-toggle-on-frt',
     'flw': 'game-toggle-on-flw', 'pko': 'game-toggle-on-pko',
-    'cjar': 'game-toggle-on-cjar'
+    'cjar': 'game-toggle-on-cjar', 'cld': 'game-toggle-on-cld',
+    'comb': 'game-toggle-on-comb'
   };
   return map[gameId] || 'game-toggle-on-stone';
 }
@@ -766,6 +824,25 @@ function resetToLobby() {
     const el = document.getElementById(id); if (el) el.style.display = 'none';
   });
   if (typeof cjarResetState === 'function') cjarResetState();
+  // Cold Shoulder teardown. cldResetState() owns all four timer handles — the RAF
+  // loop included (logic-engine.md § Timer Lifecycle: a RAF is a timer, and a live
+  // one repaints against the next screen's state).
+  ['cld-settings-overlay','cld-how-to-overlay',
+   'cld-quit-overlay','cld-new-game-overlay'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.style.display = 'none';
+  });
+  if (typeof cldResetState === 'function') cldResetState();
+  // Honeycomb Hills teardown. combResetState() owns all three timer handles —
+  // the RAF included (logic-engine.md § Timer Lifecycle). comb-map-overlay is
+  // the z-[75] pinch-zoom map; it is an overlay like any other here.
+  ['comb-settings-overlay','comb-how-to-overlay','comb-quit-overlay',
+   'comb-new-season-overlay','comb-overflow-overlay','comb-trade-overlay',
+   'comb-trade-offer-overlay','comb-steal-overlay','comb-instinct-overlay',
+   'comb-instinct-reveal-overlay','comb-log-overlay','comb-tip-overlay',
+   'comb-pheromone-overlay','comb-bloom-overlay','comb-map-overlay'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.style.display = 'none';
+  });
+  if (typeof combResetState === 'function') combResetState();
   // Help-tip overlay cleanup (Phase 21a)
   ['li5','gm','ss','jec','ygi','lttp','nat','dsd'].forEach(abbr => {
     const el = document.getElementById(`${abbr}-help-tip-overlay`);
@@ -905,8 +982,8 @@ if (_musicToggle && _musicSlider) {
 // preference doesn't earn a 4th key against the documented three.
 const LOBBY_COLOUR_ORDER = [
   'btn-flw', 'btn-dstw', 'btn-lttp', 'btn-bld', 'btn-pko', 'btn-ygi',
-  'btn-jec', 'btn-cjar', 'btn-frt', 'btn-nat', 'btn-gth', 'btn-nt',
-  'btn-sylly-signals', 'btn-dsd', 'btn-dyb', 'btn-shp', 'btn-great-minds',
+  'btn-jec', 'btn-comb', 'btn-cjar', 'btn-frt', 'btn-nat', 'btn-gth', 'btn-nt',
+  'btn-sylly-signals', 'btn-dsd', 'btn-cld', 'btn-dyb', 'btn-shp', 'btn-great-minds',
   'btn-pass'
 ];
 let lobbySortMode = 'release';

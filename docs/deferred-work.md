@@ -8,6 +8,109 @@ Tick items off here; promote anything architectural into `decision-log.md`.
 
 ---
 
+## ⬆ HIGH PRIORITY — MDLM client reconnect (Honeycomb Hills Q20, 6 Sep 2026)
+
+**Status:** owner-approved deferral. Raised as **Q20** in `docs/new-game-tech-honeycomb-hills.md` §16;
+the owner's answer was *"fine with you folding it into the build **unless you need to touch other games
+or a big part of the core code**, otherwise place it in deferred work high priority."*
+
+**The exclusion applies, so it is deferred.** Reconnect **Option 1** (a client that drops rejoins its
+seat) is not per-game work: its change #3 redefines the **Mid-Game Quit Contract**, which
+`tools/verify-mp-configs.js` §6 asserts across **all 20 games**. Today that contract says one device
+leaving dissolves the session for everyone — which is precisely the behaviour reconnect has to stop
+being unconditional. Folding it into a new game's build would make a suite-wide engine change wear a
+new game's clothes, and would put every other game's quit path in the blast radius of game 20.
+
+**Why it is high priority and not "someday":** every MDLM game already carries this exposure, and
+Honeycomb Hills makes it materially worse. A Full Season is **60–80 turns / ~50 minutes** with
+**permanent private hands**. Every other MDLM game's worst case is losing a short round; this one's is
+losing three-quarters of an hour of four people's evening to one phone locking or one tab being
+backgrounded too long.
+
+**Groundwork already shipping in the game 20 build — do not redo it:**
+- `combSerialiseState()` / `combApplyState()` are **written in v1** (spec §11), even though nothing calls
+  them for reconnect. They exist for the loopback harness and the late-join path, and they are exactly
+  the state-transfer half reconnect needs.
+- `COMB_FULL_STATE` is already in the private-packet table as the late-join carrier.
+- The brief's Appendix A4 investigation found **stable device identity is already free** (`syllyDeviceUid`),
+  which was the piece expected to be hard.
+
+**Explicitly still open (the engine half):** re-attaching `mpStartEventListener` /
+`mpStartPrivateListener` on rejoin, the host recognising a returning `uid` as its existing seat rather
+than a new join, a grace window before the quit contract fires, and the `verify-mp-configs.js` §6
+assertion being rewritten to accept the new contract. **Host migration is a separate, larger question**
+— Appendix A4 found it blocked by a single line, but reopening it has consequences and it is not part
+of this item.
+
+**When picked up:** it is an *engine* task (`js/engine-multiplayer.js` + the harness), not a game task.
+Model + effort: **Opus, high** — it is a cross-cutting contract change.
+
+## ⬆ HIGH PRIORITY — JEC and CJAR brand colours vs the new Honeycomb Hills gold (Q22, 6 Sep 2026)
+
+**Status:** owner-approved, logged at the owner's explicit request (*"yes log it in deferred work also
+high priority"*). Raised as **Q22** in `docs/new-game-tech-honeycomb-hills.md` §16.
+
+**The problem.** The lobby sorts its keycaps by hue (`LOBBY_COLOUR_ORDER`, `js/engine.js`). Game 20
+inserts a third warm gold into a span barely 6° wide:
+
+| Slot | Game | Colour | Hue |
+|---|---|---|---|
+| n | **JEC** (Just Enough Cooks) | amber-500 `#f59e0b` | **37.7°** |
+| n+1 | **COMB** (Honeycomb Hills) — new | `#F0A500` | **41.3°** |
+| n+2 | **CJAR** (Cookie Jar) | `#D4A017` | **43.5°** |
+| n+3 | FRT (Fruit Salad) | `#FFE500` | 53.9° |
+
+Three adjacent keycaps within **5.8°** of each other. Individually each is a good colour; stacked in
+the lobby they read as one smear rather than three games, which defeats the point of sorting by colour
+at all.
+
+**The brief's proposal (Q3): move JEC off amber-500, and move CJAR to chocolate.** Neither is decided —
+CJAR's honey-gold in particular is tied to its identity (a *cookie jar*), so "chocolate" needs to be
+weighed as an identity change, not just a hue nudge. That is the call this item is holding open.
+
+**Not blocking, and explicitly not game 20's job to fix.** COMB ships `#F0A500` and takes its
+`LOBBY_COLOUR_ORDER` slot between `btn-jec` and `btn-cjar` as specced. Logged so the crowding is a known
+decision rather than something re-discovered later as drift.
+
+**Blast radius if actioned** — per game, and this is why it is not a two-line change: brand hex in
+`css/styles.css` (CTA + hover, `pill-active-*`, `game-toggle-on-*`, `*-range` gradient ×3, label tone,
+modal border, settings light tint), the `MP_GAME_CONFIGS` `brandBtnClass`/`ctaTextClass`, the identity
+doc, `docs/rules/per-game-classes.md` Tables A/C, and `LOBBY_COLOUR_ORDER` if the hue moves far enough
+to change the sort position. **Also check ink:** `#f59e0b` and `#D4A017` are light fills using dark ink,
+and a darker replacement may flip that — which collides with the **open FRT + CJAR ink-mismatch item
+below** (2 Sep 2026). **Do these two together**; fixing one without the other means touching CJAR's
+palette twice.
+
+**When picked up:** decide the *identities* first (does CJAR want to be chocolate?), then do JEC and
+CJAR in one pass with the ink item. Model + effort: **Sonnet, medium** for the mechanical sweep once
+the colours are chosen; the choice itself is an owner call, not a model call.
+
+---
+
+## Cold Shoulder (CLD) — phase 40 gate still OPEN + two presentation follow-ons (4 Sep 2026, SW v219 → v221)
+
+Game 19 shipped through Stage 6 (documentation closure). Every headless harness and the two-client
+loopback pass. **Not yet done:**
+
+1. **Live multi-device session** — host + ≥2 real devices, a full Match including a plunge, a rim
+   Snowball, a Dive, a Washout, and The Thaw on. Closes the phase gate along with item 2. Also
+   check **How to Play → The Floe** on a real device: Shove/Resurface, the six-pose cast, and the
+   practice RAF stopping on tab-switch / close (v221; `visual-check` clean but never on hardware).
+2. **Offline install check** — unregister the SW, go offline, cold-boot, confirm
+   `js/lib/physics.js` and `js/games/cld.js` precached. The Floe tab (v221) is a *procedural*
+   reference, not asset-backed, so it does not double as a gallery check — run this directly.
+3. **TG-13 — The Thaw's shrink is visually inaudible in playback. DONE, SW v220 (4 Sep 2026).**
+   `cldBeginPlayback` rewinds `cldFloeRadius` to the first `thaw` beat's `fromRadius`; the `thaw`
+   aftermath beat sets it to `newRadius` as it plays. Two lines in shared functions, no timeline
+   field. All headless harnesses still green; real-device readability of the shrink now rides check 1
+   (the live session with The Thaw on). `cld-implementation-notes` TG-13 (RESOLVED).
+4. **Recorded intent, not a bug** — the owner intends to demote The Thaw to a normal setting later
+   and give CLD a Sylly Mode that changes what the game *is*, not how fast it runs. Ships as-is.
+5. **Peck Off (2-player) balance** got lighter attention than the mid sizes in
+   `simulate-cld-balance.js`.
+
+Snapshot: `docs/phase40-snapshot.md`.
+
 ## FRT + CJAR in-game CTAs still use dark ink while their lobby keycaps use white (2 Sep 2026)
 
 **Status:** approved by the owner, deliberately deferred — it is not the two-button change it looks like.

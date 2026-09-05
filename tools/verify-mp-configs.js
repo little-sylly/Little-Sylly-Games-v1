@@ -86,7 +86,7 @@ const PLUGIN = {
   li5: 'li5.js', gm: 'great-minds.js', ss: 'secret-signals.js', jec: 'jec.js',
   ygi: 'ygi.js', lttp: 'lttp.js', nat: 'nat.js', dsd: 'dsd.js', gth: 'gth.js',
   dyb: 'dyb.js', bld: 'bld.js', pass: 'pass.js', nt: 'nt.js', frt: 'frt.js',
-  shp: 'shp.js', flw: 'flw.js', pko: 'pko.js', cjar: 'cjar.js',
+  shp: 'shp.js', flw: 'flw.js', pko: 'pko.js', cjar: 'cjar.js', cld: 'cld.js',
 };
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -96,7 +96,7 @@ console.log('='.repeat(70));
 // ── 1. Schema ────────────────────────────────────────────────────────────────
 // A missing display field renders the literal string "undefined" on screen-mp-mode.
 section('1. Entry schema (every field the mode/lobby screens read)');
-check('18 games registered', IDS.length, 18);
+check('19 games registered', IDS.length, 19);
 ok('every game has a plugin file mapping', IDS.every(id => PLUGIN[id]),
    'unmapped: ' + IDS.filter(id => !PLUGIN[id]).join(', '));
 
@@ -157,6 +157,9 @@ const ALLOWED_SETTINGS = {
   frtPearOff: 'FRT: a settings-overlay toggle on screen-frt-menu, so it is already set when ' +
               'the host creates the room (and rides SETTINGS_SYNC to clients). Pear-Off is a ' +
               'strict 2-player duel — the bound genuinely differs by setting.',
+  cldPeckOff: 'CLD: a settings-overlay toggle on screen-cld-menu, so it is already set when ' +
+              'the host creates the room (and rides SETTINGS_SYNC to clients). Peck Off is a ' +
+              'strict 1v1 — two penguins each — so the room bounds really are 2..2 under it.',
 };
 for (const id of IDS) {
   for (const which of ['getMaxPlayers', 'getMinPlayers']) {

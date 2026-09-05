@@ -32,6 +32,7 @@
 |--------|--------|-----|----------------|
 | `js/lib/cards.js` | `Cards` | `Cards.buildEl({ rank, suit, deckIdx })` → card-face DOM node; `Cards.buildBackEl(deckIdx)` → face-down node. Joker = `{ rank: 'Joker', suit: '', deckIdx }`. Layered by DOM order — no per-card z-index. | PASS |
 | `js/lib/music.js` | `Music` | `init()`, `playFor(gameId)`, `setEnabled(b)`, `setVolume(v)`, `syncMute()`, `nowPlaying()`. Looping background tracks from `data/music/`, resolved per game with a lobby fallback. **Driven entirely from `showScreen()` — a plugin never calls it.** See § Background music. | engine (all 18 games) |
+| `js/lib/physics.js` | `Physics` | `simulate({ world, bodies, impulses, events, params, seed })` → `{ samples, events, final, durationMs, capped }`; `rng(seed)` → a seeded xorshift32 stream. **Pure and total: no DOM, no canvas, no `window`, no `Date.now()`, no bare `Math.random()`** — same inputs give byte-identical output on any device, which is what lets it be verified under Node before a pixel exists. Owns motion only; it *reports* a plunge and never decides what one means. | CLD |
 | `js/lib/canvas-draw.js` | `CanvasDraw` | `init(canvasEl, { onStrokeEnd })`, `clear()`, `lock()` → `{ w, h, s }` stroke data, `render(canvasEl, data, opts)`, `setTremor(wrapperEl, bool)`, `setBlur(canvasEl, ms)`. **Tremor applies to the wrapper `<div>` only — never the `<canvas>` (coordinate system must stay unaffected).** | GTH |
 
 **Not `js/lib/` but the same shared-not-reinvented rule — `engine.js` globals used by 3+ games:**
@@ -78,6 +79,7 @@ All sound **effects** are synthesised via Web Audio API — no files, and that w
 | `playUnchallenged()` | PKO: winning an Encounter | Rising three-note sting G3–D4–G4, sawtooth through lowpass |
 | `playPoacher()` | PKO: Poacher played | Dry highpassed click + two detuned square partials — deliberately out-of-ecosystem |
 | `playClashWin()` | PKO: emptying your Hoard | Deepened, slower `playSuccess()` (C4–E4–G4) over a sine sub |
+| `playSplash()` | CLD: a penguin goes into the Drink | Highpassed noise slap (~40 ms) + sine sub 70→48 Hz + a three-blip bubble tail. Comic weight, not horror. **Never throttled** — it is one of the beats CLD's collision throttle exists to protect |
 
 **Force of Nature adds NO new audio functions.** PKO's nine events announce themselves by **reusing** the catalogue above, mapped in one place — `PKO_EVENT_SOUND` in `js/games/pko.js`: `playPoacher` (Invasive Mimicry — out-of-ecosystem, like the Poacher itself), `playAbyssThud` (The Culling, Extinction Event), `playWhoosh` (The Great Reversal, Migration), `playSonarPing` (Alpha, Carrion), `playDone` (The Deluge, The Dry Season). Keeping the map beside the registry is deliberate: an event's identity (data) and its voice (audio) cannot drift apart, and a new event needs no new synthesised sound.
 

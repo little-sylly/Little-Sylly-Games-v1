@@ -375,6 +375,7 @@ These are the **only** remaining legacy sticky-footer screens — each a deliber
 | `screen-gth-canvas` | Freehand drawing surface — the canvas must **not** scroll while drawing (a page-scroll would hijack the stroke). Fixed Stage is mandatory. |
 | `screen-gth-case` | Rendered drawing + answer cards + live countdown — fixed Stage with the diagnosis action always visible. |
 | `screen-dsd-captain`, `screen-dsd-crew`, `screen-dsd-execution`, `screen-dsd-sabotage`, `screen-dsd-spectator` | 5×5 grid + legend with an always-visible Sonar/sequence/disarm CTA while tapping tiles. |
+| `screen-cld-floe` | Drag-to-aim canvas — a page-scroll during a drag would hijack the aim. Power bar, commit tally and Lock It In must stay fixed beneath a stage the player is dragging on. |
 | `screen-nt-allocation` | DNP captain huddle — cluster bridge + rebalance controls + Lock CTA + huddle timer; controls must stay put while scanning legs. |
 | `screen-mp-mode`, `screen-mp-lobby-host`, `screen-mp-lobby-join`, `screen-mp-roster` | Shared multiplayer infrastructure (all 4 MDLM games) — roster lists with a frozen primary CTA. High blast radius; migrate only if visibly broken. |
 
@@ -465,9 +466,16 @@ sticky title block, sticky with it, never scrolling:
 </div>
 ```
 
-**Rollout:** six games carry one — CJAR, PKO, FRT, SHP, FLW, DYB. That is every game with a
-card/dice render seam except **PASS**, whose 54 faces make a tile grid a poster rather than a
-reference — deliberately still open, see `docs/deferred-work.md`.
+**Rollout:** seven games carry one — CJAR, PKO, FRT, SHP, FLW, DYB, and **CLD** (SW v221). The
+first six are every *card/dice* game except **PASS**, whose 54 faces make a tile grid a poster
+rather than a reference — deliberately still open, see `docs/deferred-work.md`. CLD's is the odd
+one out on three counts, all deliberate: it has no card/dice seam (the tiles render the six
+penguin **poses** through `cldRenderPenguin`, its canvas seam); the tiles are **procedural**, so
+they are *not* `artMakeZoomable` (no resolved URL — consistent with § Pattern 2a) and do *not*
+double as the offline install check; and its **"The Floe"** tab carries a **live practice sim**
+(real `Physics.simulate()`, a Shove/Resurface pair) — a knowing exception to the "no live running
+state in a tab" rule below, made by the owner. Its RAF is a timer: stopped on tab-away, close, and
+in teardown.
 
 **A gallery tab must render through the game's own render seam** (`[abbr]RenderCard`, `dybDieHTML`),
 never hand-built markup. Two load-bearing consequences: the gallery can never drift from the live
@@ -491,6 +499,10 @@ deck, and it is **skinnable**, which is what makes it double as the offline inst
   and a tap-held card — same overlay, pre-selected via `pkoOpenHowTo(tab, highlightId)`). Excluded
   is content that is **not** teaching material at all — Settings, a match/score log, or any *live*
   running state a static tab can't represent. Not a licence to fold those into How to Play.
+  **One sanctioned exception:** CLD's "The Floe" tab embeds a live practice sim (SW v221) —
+  teaching material that *is* live running state. Owner call; the RAF is stopped on any switch
+  away, on close, and in teardown. Do not read this as a general opening — the default still
+  stands.
 
 **Why:** a separate reference overlay is one overlay further away than the thing it explains, plus
 a z-index entry and a `resetToLobby()` teardown entry — and the real cost is duplicating content
