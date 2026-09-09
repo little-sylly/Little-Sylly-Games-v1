@@ -116,7 +116,7 @@ const MP_GAME_CONFIGS = {
   jec: {
     gameName:        'Just Enough Cooks',
     emoji:           '🍳',
-    brandBtnClass:   'bg-amber-500 hover:bg-amber-600',
+    brandBtnClass:   'bg-slate-600 hover:bg-slate-700',
     ptpLabel:        "Let's Cook!",
     menuScreen:      'screen-jec-menu',
     onPassThePhone:  () => { jecInitRoster(); showScreen('screen-jec-roster'); },
@@ -132,7 +132,9 @@ const MP_GAME_CONFIGS = {
   ygi: {
     gameName:        'You Get It?',
     emoji:           '🃏',
-    brandBtnClass:   'bg-orange-500 hover:bg-orange-600',
+    brandBtnClass:   'bg-amber-500 hover:bg-amber-600',
+    // REQUIRED. #f59e0b measures ~2.1:1 against white — below the 3:1 floor.
+    ctaTextClass:    'text-stone-800',
     ptpLabel:        'Show Your Take 🃏',
     menuScreen:      'screen-ygi-menu',
     onPassThePhone:  () => { ygiShowSetup(); showScreen('screen-ygi-setup'); },
@@ -439,9 +441,8 @@ const MP_GAME_CONFIGS = {
     gameName:       'Cookie Jar',
     emoji:          '\u{1F36A}',
     brandBtnClass:  'cjar-cta',
-    // REQUIRED. #D4A017 measures 2.38:1 against white — below the 3:1 floor. cjar is
-    // the second consumer of this field after FRT (v156).
-    ctaTextClass:   'text-stone-800',
+    // No ctaTextClass: #5C3A21 (5 Sep 2026 recolour) carries white ink fine —
+    // .cjar-cta already sets it, this used to be required for #D4A017.
     ptpLabel:       'Raid the Jar!',
     lobbyCtaLabel:  'Raid the Jar!',
     menuScreen:     'screen-cjar-menu',
@@ -504,6 +505,43 @@ const MP_GAME_CONFIGS = {
     // literal in a bare vm with no game file at all. Same shape as frtPearOff.
     getMaxPlayers:   () => (typeof cldPeckOff !== 'undefined' && cldPeckOff) ? 2 : 8,
     getMinPlayers:   () => (typeof cldPeckOff !== 'undefined' && cldPeckOff) ? 2 : 3,
+  },
+  comb: {
+    gameName:       'Honeycomb Hills',
+    emoji:          '\u{1F41D}',
+    brandBtnClass:  'comb-cta',
+    // REQUIRED. #F0A500 is a light fill — white ink on it fails contrast, the same
+    // reason FRT and CJAR carry this field.
+    ctaTextClass:   'text-stone-800',
+    ptpLabel:       'Send the Scouts',
+    lobbyCtaLabel:  'Send the Scouts',
+    menuScreen:     'screen-comb-menu',
+    onPassThePhone: () => {
+      // The slot object is { uid, nickname } — .name returns undefined silently.
+      combPlayerCount = mpPlayerSlots.length;
+      combPlayerNames = mpPlayerSlots.map(p => p.nickname);
+      // Straight to the board, NOT back to the game menu: all seven settings were
+      // locked before the room was created. CLD, CJAR, PKO, FLW, SHP, FRT, GTH.
+      if (window.syllyMultiplayerMode === 'host') combStartMatchLocal();
+      else combShowClientStandby();
+    },
+    recommendedMode: 'mdlm',
+    supportedModes:  ['mdlm'],
+    // MDLM-only is STRUCTURAL, not a preference (spec §11): a 4-player Full Season
+    // is 60–80 turns, and every one of them would be a pass-the-phone handover
+    // behind a "don't look" gate, because every player holds a permanent private
+    // hand. The two simultaneous moments — the Overflow and answering a trade —
+    // have no single-device expression at all.
+    multiplayerOnly: true,
+    // 'individual' requires every player to be hand-assigned in Assign Spots; anyone
+    // left unassigned produces reordered[-1] and corrupts the slot array. Turn order
+    // here is simply the lobby's seat order (the snake draft is the compensation for
+    // going last), so there is nothing to assign.
+    rosterConfig:    { type: 'none' },
+    // Bare constants. No setting anywhere changes the player range, so neither bound
+    // reads any game state and no ALLOWED_SETTINGS entry is needed.
+    getMaxPlayers:   () => 4,
+    getMinPlayers:   () => 3,
   },
 };
 
@@ -939,6 +977,12 @@ function mpSerialiseSettings(abbr) {
     // it sets the slide distance AND cldMinRadius(), the floor The Thaw contracts
     // to — and cldPeckOff is what the lobby's own player bounds read, so a client
     // out of step with either is playing a different game.
+    // All seven are host-owned and all seven are locked at match start, so
+    // COMB_MATCH_START carries them too. This half is the lobby view: without it a
+    // client's read-only settings overlay shows its own defaults, not the room's.
+    case 'comb': return {
+      combSeason, combLayout, combWasp, combOverflow, combWaggle, combDaylight, combBounty,
+    };
     case 'cld': return {
       cldIceConditions, cldFloeSize, cldFishToWin, cldAimAssist,
       cldIceBreaker, cldPeckOff, cldSyllyMode,
@@ -1177,6 +1221,16 @@ function mpHandleEnvelope(env) {
           // A client's settings overlay is read-only but still openable, so repaint
           // it — otherwise it shows this device's defaults, not the room's rules.
           if (typeof cldSyncSettingsUI === 'function') cldSyncSettingsUI();
+          break;
+        case 'comb':
+          if (s.combSeason   !== undefined) combSeason   = s.combSeason;
+          if (s.combLayout   !== undefined) combLayout   = s.combLayout;
+          if (s.combWasp     !== undefined) combWasp     = s.combWasp;
+          if (s.combOverflow !== undefined) combOverflow = s.combOverflow;
+          if (s.combWaggle   !== undefined) combWaggle   = s.combWaggle;
+          if (s.combDaylight !== undefined) combDaylight = s.combDaylight;
+          if (s.combBounty   !== undefined) combBounty   = s.combBounty;
+          if (typeof combSyncSettingsUI === 'function') combSyncSettingsUI();
           break;
         // Additional games added as Sprint 4 progresses
       }
@@ -1742,6 +1796,11 @@ function mpHandleEnvelope(env) {
   // ── Cold Shoulder SYNC + the private CLD_COMMIT ───────────────────────────
   if (mpActiveGame === 'cld') {
     if (typeof cldHandleEnvelope === 'function') cldHandleEnvelope(env);
+  }
+
+  // ── Honeycomb Hills ACTION + SYNC + the private hand/Instinct repairs ─────
+  if (mpActiveGame === 'comb') {
+    if (typeof combHandleEnvelope === 'function') combHandleEnvelope(env);
   }
 
   // ── Secret Signals ACTION/SYNC ─────────────────────────────────────────────

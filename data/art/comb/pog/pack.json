@@ -1,0 +1,14 @@
+{
+  "id": "comb/pog",
+  "label": "HONEYCOMB HILLS — CORE ART (BLOOM MARKER POGS)",
+  "core": true,
+  "games": ["comb"],
+  "assets": {
+    "kind": "comb-pog",
+    "basePath": "img/",
+    "extras": {
+      "blank": "blank.png",
+      "hot": "hot.png"
+    }
+  }
+}

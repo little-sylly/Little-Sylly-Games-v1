@@ -1,0 +1,24 @@
+{
+  "id": "comb/piece",
+  "label": "HONEYCOMB HILLS — CORE ART (STRUCTURES, BOARD)",
+  "core": true,
+  "games": ["comb"],
+  "assets": {
+    "kind": "comb-piece",
+    "basePath": "img/",
+    "faces": {
+      "wall-0": "wall-0.png",
+      "wall-1": "wall-1.png",
+      "wall-2": "wall-2.png",
+      "wall-3": "wall-3.png",
+      "cell-0": "cell-0.png",
+      "cell-1": "cell-1.png",
+      "cell-2": "cell-2.png",
+      "cell-3": "cell-3.png",
+      "dome-0": "dome-0.png",
+      "dome-1": "dome-1.png",
+      "dome-2": "dome-2.png",
+      "dome-3": "dome-3.png"
+    }
+  }
+}

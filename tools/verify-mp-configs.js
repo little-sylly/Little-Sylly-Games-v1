@@ -87,6 +87,7 @@ const PLUGIN = {
   ygi: 'ygi.js', lttp: 'lttp.js', nat: 'nat.js', dsd: 'dsd.js', gth: 'gth.js',
   dyb: 'dyb.js', bld: 'bld.js', pass: 'pass.js', nt: 'nt.js', frt: 'frt.js',
   shp: 'shp.js', flw: 'flw.js', pko: 'pko.js', cjar: 'cjar.js', cld: 'cld.js',
+  comb: 'comb.js',
 };
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -96,7 +97,7 @@ console.log('='.repeat(70));
 // ── 1. Schema ────────────────────────────────────────────────────────────────
 // A missing display field renders the literal string "undefined" on screen-mp-mode.
 section('1. Entry schema (every field the mode/lobby screens read)');
-check('19 games registered', IDS.length, 19);
+check('20 games registered', IDS.length, 20);
 ok('every game has a plugin file mapping', IDS.every(id => PLUGIN[id]),
    'unmapped: ' + IDS.filter(id => !PLUGIN[id]).join(', '));
 

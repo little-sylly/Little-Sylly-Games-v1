@@ -921,7 +921,7 @@ function pkoRenderPlayerStrip() {
     chip.className = 'flex flex-col items-center rounded-xl px-2.5 py-1.5 text-center '
       + (isTurn ? 'bg-[#F5E6C8]' : 'bg-white shadow-sm');
     const n = document.createElement('p');
-    n.className = 'text-[0.7rem] font-semibold ' + (isTurn ? 'text-[#854D0E]' : 'text-stone-600');
+    n.className = 'text-[0.7rem] font-semibold ' + (isTurn ? 'text-[#9A3412]' : 'text-stone-600');
     n.textContent = name + (i === pkoMyIdx() ? ' (you)' : '');
     const c = document.createElement('p');
     c.className = 'text-[0.6rem] text-stone-400';

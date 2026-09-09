@@ -4,6 +4,51 @@ Historical SW release notes, moved out of `CLAUDE.md` (1 Aug 2026) so they stop 
 The **current** version and its notes stay in `CLAUDE.md` § Current Focus — append the outgoing entry here on each bump.
 
 
+## v224 — Honeycomb Hills' Sun Compass: the Scout Flight die animation (10 Sep 2026)
+
+COMB's fifth render seam (`combRenderDie`) plus a RAF beat, and **no packet change** — it rides
+`COMB_TURN_BEGIN` (cast, spinning blind) and `COMB_ROLL_RESULT` (land on the host's face), filling
+a `setTimeout` window that had been showing nothing. 1050 ms for the first three flights then 600 ms
+(Appendix B3), tap-to-skip, explicit `prefers-reduced-motion`. How to Play gains a **Sun Compass**
+card — the `comb-die` pack's first gallery consumer. All COMB harnesses green (loop 223→**231**) +
+`verify-mp-configs`; `visual-check` drove spin, land, skip and gallery. `comb.js` is **still not**
+in `PRECACHE_URLS`. Detail: `comb-implementation-notes` DD-24/DD-25, TG-13.
+
+
+## v223 — Honeycomb Hills' core art is precached and polished (9–10 Sep 2026)
+
+All nine core art packs converted/manifested/precached under one nested
+`data/art/comb/` folder (COMB is the first game whose art spans more than one `art.js` `kind` — nine
+manifests, one per `kind`). Successive reviews of the shipped gallery fixed: no gallery tap-to-zoom,
+reference icons too small to tell apart, the shared art viewer never scaling a small master UP,
+transparent PNGs bleeding the dark backdrop through, a messy double name label on hex tiles, the card
+back not zoomable — and, once the viewer fix exposed it, hex/resource/hero-piece/die masters were
+re-converted at ~4× resolution (owner: KB/MB cost is not the constraint for gallery art). Precache
+now 3.64 MB for these nine packs (up from 842 KB). `comb.js` itself is **still not** in
+`PRECACHE_URLS` — ships once the Sun Compass roll animation lands. All COMB harnesses green +
+`verify-mp-configs`; `visual-check` confirmed each fix. Detail: `comb-implementation-notes` DD-19
+through DD-23.
+
+*(v222 was an intermediate bump inside the same core-art work and never had a separate entry — the
+above covers both.)*
+
+
+## v221 — Cold Shoulder gains "The Floe", a How to Play reference tab (4 Sep 2026)
+
+The game's How to Play overlay gets a 2-tab bar (**The Rules** | **The Floe**). The Rules is the
+existing step cards, unchanged. **The Floe** holds a **live practice sim** — a `<canvas>` running
+the real `Physics.simulate()`, with *Shove everyone* / *Resurface* buttons — plus **The Cast**, a
+3×2 grid of the six penguin poses (`idle` · `lean` · `squash` · `plunge` · `bob` · `throw`) each
+animating through `cldRenderPenguin`, the one seam. No art files — all procedural. The practice
+floe is a self-contained state island (`cldHowto*`): it shares nothing with game state, never
+branches on `syllyMultiplayerMode`, sends no packets; its RAF stops on tab-away, close, and in
+`cldResetState()`. `index.html` + `js/games/cld.js` only — no new precache entry, so the offline
+install check is unchanged (still must be run directly; the practice floe now also breaks visibly
+if `physics.js`/`cld.js` didn't cache). `visual-check` clean; all CLD harnesses + `verify-mp-configs`
+still green. Documented deviation: `ui-style.md` says a how-to tab shouldn't carry live running
+state — owner call, logged in `cld-implementation-notes`. Phase 40 live gate still OPEN.
+
+
 ## v220 — The Thaw's floe-shrink is visible in playback (CLD TG-13) (4 Sep 2026)
 
 Presentation-only fix to Cold Shoulder's timeline replay. The Slide is simulated on the *pre*-Thaw

@@ -1,0 +1,13 @@
+{
+  "id": "comb/wasp",
+  "label": "HONEYCOMB HILLS — CORE ART (THE WASP)",
+  "core": true,
+  "games": ["comb"],
+  "assets": {
+    "kind": "comb-wasp",
+    "basePath": "img/",
+    "extras": {
+      "wasp": "wasp.png"
+    }
+  }
+}

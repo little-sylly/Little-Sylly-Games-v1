@@ -123,15 +123,15 @@ longer copy, terminology, how-to-play and the Sylly Mode description are all in 
 | 7 | Natural Selection | 🦁 | lime-600 | #65A30D | 3–8 | PTP · MDLM | Survival of the Fittest | Everyone knows the animal; one person has only the category and has to fake it. |
 | 8 | Deep-Sea Deploy | ⚓ | cyan-700 | #0E7490 | 4 or 6 (2v2 / 3v3) | PTP · TLM · MDLM | Silent Running | One person can see the minefield; everyone else can see a word and a number. |
 | 9 | Group Therapy | 🛋️ | sage (custom) | #B1BCA0 | 4–8 | MDLM | Stroke or Genius | Everyone draws their own diagnosis at once; nobody knows whose scribble is whose. |
-| 10 | The Bluff | 🎲 | ocean (custom) | #1E4D8C | 3–8 | MDLM | The Tempest | Private dice, public claims — believe them, or call it. |
+| 10 | The Bluff | 🎲 | rock-grey (custom) | #6B5744 | 3–8 | MDLM | The Tempest | Private dice, public claims — believe them, or call it. |
 | 11 | Bailed | 📋 | red-800 | #991B1B | 5–10 | MDLM · PTP | Drama Mode | Someone in the group chat is going to flake, and five plans need to happen first. |
 | 12 | Pass | 🃏 | zinc-900 | #18181B | 3–6 | MDLM | The Abyss | A climbing card game — beat the table's combo, or pass and wait for your shot. |
 | 13 | Net-Trace | ⚡ | emerald * | #10B981 | 2–8 | PTP · MDLM | Devil's Network Protocol | Build the maze that slows an incoming breach for the longest. |
 | 14 | Fruit Salad | 🍌 | electric lemon (dark ink) | #FFE500 | 2–8 | MDLM | Fruity Personalities | Slide a face-down card to someone and name a fruit. It might even be true. |
 | 15 | Counting Sheep | 🐑 | midnight (custom) | #3A3D52 | 3–8 | MDLM | Night Terrors | Keep the count at or under 99 — or you're out. |
 | 16 | Flawless | 💎 | pink pair (custom) | #F9A8D4 / ink #A02050 | 3–4 | MDLM | The Counterfeit Run | You hold two gems: the one you show the table, and the one you're hiding. |
-| 17 | Pecking Order | 🐘 | amber-brown (custom) | #854D0E | 3–6 | MDLM | Force of Nature | A Bear beats a Leopard because a Bear actually eats a Leopard. |
-| 18 | Cookie Jar | 🍪 | honey-gold (dark ink) | #D4A017 | 3–8 | MDLM | Dibber Dobber | Everyone's hand is in the same jar, and the card you're betting on hasn't been seen yet. |
+| 17 | Pecking Order | 🐘 | rust-orange (custom) | #9A3412 | 3–6 | MDLM | Force of Nature | A Bear beats a Leopard because a Bear actually eats a Leopard. |
+| 18 | Cookie Jar | 🍪 | chocolate-brown | #5C3A21 | 3–8 | MDLM | Dibber Dobber | Everyone's hand is in the same jar, and the card you're betting on hasn't been seen yet. |
 
 `*` **Two live inconsistencies worth settling in the redesign rather than preserving:** the lobby's
 Net-Trace button ships `bg-emerald-500` while the documented brand is emerald-600; Great Minds' lobby

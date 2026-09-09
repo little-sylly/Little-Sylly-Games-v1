@@ -1,7 +1,7 @@
 # Pecking Order
 
 **Game 17** · `activeGameId: pko` · plugin `js/games/pko.js`
-**Emoji:** 🐘 · **Brand:** deep amber-brown `#854D0E` · **Players:** 3–6 · **Modes:** MDLM only
+**Emoji:** 🐘 · **Brand:** rust-orange `#9A3412` · **Players:** 3–6 · **Modes:** MDLM only
 **Status:** gold master · verified against SW v209 on 23 August 2026
 
 > **Change contract.** Each section is tagged **free** (reword freely — but it must stay true),

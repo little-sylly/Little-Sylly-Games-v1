@@ -1,0 +1,14 @@
+{
+  "id": "comb/die",
+  "label": "HONEYCOMB HILLS — CORE ART (THE SUN COMPASS)",
+  "core": true,
+  "games": ["comb"],
+  "assets": {
+    "kind": "comb-die",
+    "basePath": "img/",
+    "extras": {
+      "die": "die.png",
+      "die-numbered": "die-numbered.png"
+    }
+  }
+}

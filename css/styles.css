@@ -130,8 +130,8 @@ body.flash-red   { background-color: #fecaca; }
   border: none;
   cursor: pointer;
 }
-.game-toggle-on-amber {
-  background: #f59e0b;
+.game-toggle-on-slate {
+  background: #475569;
   color: #fff;
   border-radius: 9999px;
   padding: 0.4rem 1.2rem;
@@ -141,9 +141,9 @@ body.flash-red   { background-color: #fecaca; }
   border: none;
   cursor: pointer;
 }
-.game-toggle-on-orange {
-  background: #f97316;
-  color: #fff;
+.game-toggle-on-amber {
+  background: #f59e0b;
+  color: #292524;
   border-radius: 9999px;
   padding: 0.4rem 1.2rem;
   font-weight: 700;
@@ -252,9 +252,9 @@ body.flash-red   { background-color: #fecaca; }
   color: #fff;
 }
 
-/* ── Just Enough Cooks pill active state (amber) ─────────────────────────── */
-.pill-active-amber {
-  background: #f59e0b;  /* amber-500 */
+/* ── Just Enough Cooks pill active state (steel slate) ───────────────────── */
+.pill-active-slate {
+  background: #475569;  /* slate-600 */
   color: #fff;
 }
 
@@ -264,10 +264,10 @@ body.flash-red   { background-color: #fecaca; }
   color: #fff;
 }
 
-/* ── You Get It? pill active state (orange) ──────────────────────────────── */
-.pill-active-orange {
-  background: #f97316;  /* orange-500 */
-  color: #fff;
+/* ── You Get It? pill active state (amber) ───────────────────────────────── */
+.pill-active-amber {
+  background: #f59e0b;  /* amber-500 */
+  color: #292524;
 }
 
 /* ── Late To The Party pill active state (red) ───────────────────────────── */
@@ -378,12 +378,24 @@ body.flash-red   { background-color: #fecaca; }
  * Opened by openArtViewer(src, caption); see js/engine.js.  */
 .art-viewer-img {
   display: block;
-  max-width: 100%;
-  max-height: 72vh;
-  width: auto;
+  /* `width: 100%` (not `width: auto`) is load-bearing: `auto` only ever lets
+     an oversized source SHRINK to fit — it never scales a small source UP,
+     so a master well under the container's width (a 30 KB icon capped for a
+     30 px board render, say) opened at its own tiny native pixel size,
+     smaller than the gallery tile it was tapped from. `width: 100%` fills the
+     container either way; `height: auto` keeps it undistorted, and
+     `max-height` is still the ceiling for a tall/portrait master. */
+  width: 100%;
   height: auto;
+  max-height: 72vh;
   border-radius: 1rem;
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
+  /* A light card behind the art, not the modal's dark backdrop showing
+     through — invisible on an opaque master (every game before COMB), and
+     what stops a transparent-background master (COMB's hex/resource/piece
+     PNGs) reading as "floating on black" the way an opaque Instinct card
+     never does. */
+  background: #fafaf9;
   /* Art is authored at the card's aspect; never distort it to fill the box. */
   object-fit: contain;
 }
@@ -539,7 +551,7 @@ body.flash-red   { background-color: #fecaca; }
   appearance: none;
   height: 6px;
   border-radius: 9999px;
-  background: linear-gradient(to right, #fde68a, #f59e0b);
+  background: linear-gradient(to right, #cbd5e1, #475569);
   outline: none;
   cursor: pointer;
 }
@@ -548,24 +560,23 @@ body.flash-red   { background-color: #fecaca; }
   appearance: none;
   width: 22px; height: 22px;
   border-radius: 50%;
-  background: #f59e0b;
+  background: #475569;
   border: 3px solid #fff;
   box-shadow: 0 1px 4px rgba(0,0,0,0.2);
 }
 .jec-range::-moz-range-thumb {
   width: 22px; height: 22px;
   border-radius: 50%;
-  background: #f59e0b;
+  background: #475569;
   border: none;
   box-shadow: 0 1px 4px rgba(0,0,0,0.2);
 }
 /* Signature Dish nomination - the tapped star on the prep screen. Transform and
    colour only; the row's layout must not shift when a Chef changes their mind. */
 .jec-sig-btn    { transition: background-color 150ms ease, transform 100ms ease; }
-/* amber-400 washed the yellow star out against its own fill - the SELECTED
-   state made the glyph less legible than the unselected one. Brand amber-500
-   with an inset white ring frames it instead. Inset: no layout shift. */
-.jec-sig-btn-on { background-color: #f59e0b; box-shadow: inset 0 0 0 2px #fff; }
+/* Brand slate-600 with an inset white ring frames the selected star.
+   Inset: no layout shift. */
+.jec-sig-btn-on { background-color: #475569; box-shadow: inset 0 0 0 2px #fff; }
 
 /* The Tasting's staged reveal. Ingredients arrive in ASCENDING count order -
    Table for One first, Chef's Kisses landing in the middle where the reactions
@@ -583,7 +594,7 @@ body.flash-red   { background-color: #fecaca; }
   appearance: none;
   height: 6px;
   border-radius: 9999px;
-  background: linear-gradient(to right, #fed7aa, #f97316);
+  background: linear-gradient(to right, #fde68a, #f59e0b);
   outline: none;
   cursor: pointer;
 }
@@ -592,14 +603,14 @@ body.flash-red   { background-color: #fecaca; }
   appearance: none;
   width: 22px; height: 22px;
   border-radius: 50%;
-  background: #f97316;
+  background: #f59e0b;
   border: 3px solid #fff;
   box-shadow: 0 1px 4px rgba(0,0,0,0.2);
 }
 .ygi-range::-moz-range-thumb {
   width: 22px; height: 22px;
   border-radius: 50%;
-  background: #f97316;
+  background: #f59e0b;
   border: none;
   box-shadow: 0 1px 4px rgba(0,0,0,0.2);
 }
@@ -792,14 +803,19 @@ body.flash-red   { background-color: #fecaca; }
   border: none;
   cursor: pointer;
 }
-/* ── The Bluff (dyb) — #1E4D8C (ocean blue) ─────────────────────────────── */
+/* ── The Bluff (dyb) — #6B5744 (warm rock/clay grey) ───────────────────────
+   Moved off ocean blue #1E4D8C (5 Sep 2026) — a rocks/bluff/grey-zone theme
+   fits the game better than blue, and it pulls DYB out of an already-crowded
+   blue cluster (DSD cyan, CLD glacier). Deliberately warmer/more saturated
+   than a flat neutral grey so it doesn't read as "no colour" next to the
+   app's own neutral-stone chrome — see per-game-classes.md Table A. */
 .pill-active-dyb {
-  background-color: #1E4D8C;
+  background-color: #6B5744;
   color: #ffffff;
   font-weight: 600;
 }
 .game-toggle-on-dyb {
-  background-color: #1E4D8C;
+  background-color: #6B5744;
   color: #ffffff;
   border-radius: 9999px;
   padding: 0.4rem 1.2rem;
@@ -809,15 +825,15 @@ body.flash-red   { background-color: #fecaca; }
   border: none;
   cursor: pointer;
 }
-.dyb-cta { background-color: #1E4D8C; display: flex; align-items: center; justify-content: center; }
-.dyb-cta:hover { background-color: #183d70; }
-.dyb-label { color: #1E4D8C; }
+.dyb-cta { background-color: #6B5744; display: flex; align-items: center; justify-content: center; }
+.dyb-cta:hover { background-color: #54432F; }
+.dyb-label { color: #6B5744; }
 .dyb-range {
   -webkit-appearance: none;
   appearance: none;
   height: 6px;
   border-radius: 9999px;
-  background: linear-gradient(to right, #dce8f7, #1E4D8C);
+  background: linear-gradient(to right, #e8e1d8, #6B5744);
   outline: none;
   cursor: pointer;
 }
@@ -826,14 +842,14 @@ body.flash-red   { background-color: #fecaca; }
   appearance: none;
   width: 22px; height: 22px;
   border-radius: 50%;
-  background: #1E4D8C;
+  background: #6B5744;
   border: 3px solid #fff;
   box-shadow: 0 1px 4px rgba(0,0,0,0.2);
 }
 .dyb-range::-moz-range-thumb {
   width: 22px; height: 22px;
   border-radius: 50%;
-  background: #1E4D8C;
+  background: #6B5744;
   border: none;
   box-shadow: 0 1px 4px rgba(0,0,0,0.2);
 }
@@ -1904,14 +1920,16 @@ body.flash-red   { background-color: #fecaca; }
 
 
 
-/* ── Pecking Order (pko) — savanna deep amber-brown #854D0E (yellow-800, custom) ── */
+/* ── Pecking Order (pko) — earthy rust-orange #9A3412 (orange-800, custom) ──
+   Moved off #854D0E (5 Sep 2026) so PKO reads as orange rather than brown now
+   that CJAR owns the chocolate slot — see per-game-classes.md Table A. */
 .pill-active-pko {
-  background-color: #854D0E;
+  background-color: #9A3412;
   color: #ffffff;
   font-weight: 600;
 }
 .game-toggle-on-pko {
-  background-color: #854D0E;
+  background-color: #9A3412;
   color: #ffffff;
   border-radius: 9999px;
   padding: 0.4rem 1.2rem;
@@ -1923,15 +1941,15 @@ body.flash-red   { background-color: #fecaca; }
 }
 /* Custom CTA: MUST declare flex centering — when JS/Tailwind sets display:flex the
    label would top-left-align without these (DYB/GTH/FRT/FLW lesson). */
-.pko-cta { background-color: #854D0E; color: #ffffff; display: flex; align-items: center; justify-content: center; }
-.pko-cta:hover { background-color: #6B3E0B; }
-.pko-label { color: #854D0E; }
+.pko-cta { background-color: #9A3412; color: #ffffff; display: flex; align-items: center; justify-content: center; }
+.pko-cta:hover { background-color: #7C2D12; }
+.pko-label { color: #9A3412; }
 .pko-range {
   -webkit-appearance: none;
   appearance: none;
   height: 6px;
   border-radius: 9999px;
-  background: linear-gradient(to right, #F5E6C8, #854D0E); /* dry grass → savanna earth */
+  background: linear-gradient(to right, #F5E6C8, #9A3412); /* dry grass → rust earth */
   outline: none;
   cursor: pointer;
 }
@@ -1940,14 +1958,14 @@ body.flash-red   { background-color: #fecaca; }
   appearance: none;
   width: 22px; height: 22px;
   border-radius: 50%;
-  background: #854D0E;
+  background: #9A3412;
   border: 3px solid #fff;
   box-shadow: 0 1px 4px rgba(0,0,0,0.2);
 }
 .pko-range::-moz-range-thumb {
   width: 22px; height: 22px;
   border-radius: 50%;
-  background: #854D0E;
+  background: #9A3412;
   border: none;
   box-shadow: 0 1px 4px rgba(0,0,0,0.2);
 }
@@ -1966,7 +1984,7 @@ body.flash-red   { background-color: #fecaca; }
   flex-shrink: 0;
 }
 .pko-card-emoji { font-size: 1.8rem; line-height: 1; }
-.pko-card-name  { font-size: 0.6rem; font-weight: 700; color: #854D0E; text-align: center; line-height: 1.1; padding: 0 2px; }
+.pko-card-name  { font-size: 0.6rem; font-weight: 700; color: #9A3412; text-align: center; line-height: 1.1; padding: 0 2px; }
 .pko-card-sea   { border-color: #9DC2D6; }
 .pko-card-wild  { border-color: #7C6A55; background: #F2EDE4; }
 .pko-card-wild .pko-card-name { color: #57493A; }
@@ -1981,8 +1999,8 @@ body.flash-red   { background-color: #fecaca; }
 .pko-card-back {
   width: 4.25rem; height: 5.75rem;
   border-radius: 0.75rem;
-  background: repeating-linear-gradient(45deg, #854D0E, #854D0E 8px, #6B3E0B 8px, #6B3E0B 16px);
-  border: 2px solid #6B3E0B;
+  background: repeating-linear-gradient(45deg, #9A3412, #9A3412 8px, #7C2D12 8px, #7C2D12 16px);
+  border: 2px solid #7C2D12;
   box-shadow: 0 1px 4px rgba(0,0,0,0.08);
   flex-shrink: 0;
 }
@@ -1990,7 +2008,7 @@ body.flash-red   { background-color: #fecaca; }
    NOTE: outline only — the lift is baked into the inline transform pkoLayoutFan writes,
    because the fan rotates each card and two sources of `transform` on one element fight
    (the class would silently overwrite the fan's rotation, or vice versa). */
-.pko-card-selected { outline: 3px solid #854D0E; outline-offset: 2px; }
+.pko-card-selected { outline: 3px solid #9A3412; outline-offset: 2px; }
 /* Force of Nature — the Alpha Mark. Crown + glow, never art (§14). The ::after crown
    sits outside the card box so it survives the asset-pack background-image branch. */
 .pko-card-alpha {
@@ -2015,7 +2033,7 @@ body.flash-red   { background-color: #fecaca; }
 .pko-carrion-bar   { height: 100%; width: 100%; border-radius: 999px; background: #C9A227; transform-origin: left center; }
 /* The event currently in force, in the Force of Nature roster overlay. A ring only — the
    card keeps the standard white surface so the roster still reads as one set. */
-.pko-event-live { outline: 2px solid #854D0E; outline-offset: 2px; }
+.pko-event-live { outline: 2px solid #9A3412; outline-offset: 2px; }
 /* A Challenge slot holding a completed Swarm — two cards, overlapped so the pair still
    reads as one slot in the row. */
 .pko-slot-swarm { display: flex; align-items: center; flex-shrink: 0; }
@@ -2034,10 +2052,10 @@ body.flash-red   { background-color: #fecaca; }
   width: 4.25rem; height: 5.75rem;
   border-radius: 0.75rem;
   border: 2px dashed #C9A227;
-  background: rgba(133,77,14,0.04);
+  background: rgba(154,52,18,0.04);
   flex-shrink: 0;
 }
-.pko-slot-active { border-color: #854D0E; background: rgba(133,77,14,0.12); }
+.pko-slot-active { border-color: #9A3412; background: rgba(154,52,18,0.12); }
 /* Overlap fan. No `gap` on purpose: pkoLayoutFan drives spacing entirely through a
    negative margin-left per card (heavy within a species, light between), so a gap here
    would fight the measured layout. min-height reserves the row while it's empty. */
@@ -2078,18 +2096,20 @@ body.flash-red   { background-color: #fecaca; }
   }
 }
 
-/* ── Cookie Jar (cjar) — honey-gold #D4A017 with DARK ink ──────────────────
-   White on #D4A017 measures 2.38:1, below the 3:1 floor. stone-800 is 6.39:1.
-   This is the same failure class the v156 recolour phase existed to remove —
-   never put white text on this fill. */
+/* ── Cookie Jar (cjar) — chocolate-chip brown #5C3A21 ──────────────────────
+   Moved off honey-gold #D4A017 (5 Sep 2026) to resolve the clash with
+   Honeycomb Hills' honey-gold #F0A500 once "sort by colour" made that
+   overlap visible — see per-game-classes.md Table A. Dark enough (white
+   measures ~10:1) that the old DARK-ink requirement is GONE: this class now
+   takes plain white text like most of the suite, not stone-800. */
 .pill-active-cjar {
-  background-color: #D4A017;
-  color: #292524; /* stone-800 */
+  background-color: #5C3A21;
+  color: #ffffff;
   font-weight: 600;
 }
 .game-toggle-on-cjar {
-  background-color: #D4A017;
-  color: #292524;
+  background-color: #5C3A21;
+  color: #ffffff;
   border-radius: 9999px;
   padding: 0.4rem 1.2rem;
   font-weight: 700;
@@ -2100,22 +2120,18 @@ body.flash-red   { background-color: #fecaca; }
 }
 /* Custom CTA: MUST declare flex centering — when JS/Tailwind sets display:flex the
    label would top-left-align without these (DYB/GTH/FRT/FLW/PKO lesson). */
-.cjar-cta { background-color: #D4A017; color: #292524; display: flex; align-items: center; justify-content: center; }
-.cjar-cta:hover { background-color: #B8860B; }
-/* Lobby keycap only — white game-name label on the honey fill, matching the other 16
-   buttons. ID selector beats .cjar-cta's near-black without touching in-game CTAs. */
-#btn-cjar { color: #ffffff; }
+.cjar-cta { background-color: #5C3A21; color: #ffffff; display: flex; align-items: center; justify-content: center; }
+.cjar-cta:hover { background-color: #4A2E1A; }
 /* DD-30 — a fixed-width leading slot on every podium row, medal or blank, so 4th place
    and below still align with 1st-3rd instead of only the top row having a leading glyph. */
 .cjar-medal-slot { display: inline-block; width: 1.4rem; text-align: center; flex-shrink: 0; }
-/* Raw #D4A017 on bg-stone-50 measures under 3:1 — labels take the darkened brand. */
-.cjar-label { color: #7A5C0A; }
+.cjar-label { color: #5C3A21; }
 .cjar-range {
   -webkit-appearance: none;
   appearance: none;
   height: 6px;
   border-radius: 9999px;
-  background: linear-gradient(to right, #F7E9C4, #D4A017); /* biscuit → honey */
+  background: linear-gradient(to right, #D8C2AC, #5C3A21); /* biscuit → chocolate */
   outline: none;
   cursor: pointer;
 }
@@ -2124,14 +2140,14 @@ body.flash-red   { background-color: #fecaca; }
   appearance: none;
   width: 22px; height: 22px;
   border-radius: 50%;
-  background: #D4A017;
+  background: #5C3A21;
   border: 3px solid #fff;
   box-shadow: 0 1px 4px rgba(0,0,0,0.2);
 }
 .cjar-range::-moz-range-thumb {
   width: 22px; height: 22px;
   border-radius: 50%;
-  background: #D4A017;
+  background: #5C3A21;
   border: none;
   box-shadow: 0 1px 4px rgba(0,0,0,0.2);
 }
@@ -2535,8 +2551,13 @@ body.flash-red   { background-color: #fecaca; }
    18 buttons. ID selector beats .cld-cta's deep ink without touching in-game CTAs;
    .gel-btn's dark base gradient + .lobby-btn-label's text-shadow carry it there. */
 #btn-cld { color: #ffffff; }
+/* Menu Play CTA only (8 Sep 2026, owner-confirmed by eye) — same white-on-gel-gradient
+   treatment as the lobby tile above; every other .cld-cta use (Lock It In, Got it, quit
+   confirm, etc.) keeps deep-glacier ink for contrast on the flat (non-gel) fill. */
+#btn-cld-menu-play { color: #ffffff; }
 /* Raw #8ECAE6 on bg-stone-50 measures 1.71:1 — step labels take the darkened brand
-   (5.68:1). Same split cjar makes with .cjar-label. */
+   (5.68:1). Same split comb makes with .comb-label (cjar no longer needs this split
+   since its 5 Sep 2026 recolour to #5C3A21, which is dark enough on its own). */
 .cld-label { color: #2a6b85; }
 .cld-medal-slot { display: inline-block; width: 1.4rem; text-align: center; flex-shrink: 0; }
 .cld-range {
@@ -2615,3 +2636,403 @@ body.flash-red   { background-color: #fecaca; }
    than failing at resolution (brief §14). Dimmed + non-interactive, never hidden:
    a control that vanishes reads as a bug, one that dims reads as a rule. */
 .cld-dive-btn.cld-dive-unavailable { opacity: 0.35; pointer-events: none; }
+
+/* ── Honeycomb Hills (comb) — bright honey gold #F0A500 with DARK ink ──────
+   Spec §1. The third custom-hex CTA to take dark ink (after cjar #D4A017 and
+   frt #FFE500) and for the same measured reason: white on #F0A500 is 1.94:1,
+   while #292524 on the same fill is 7.28:1. MP_GAME_CONFIGS sets
+   ctaTextClass: 'text-stone-800' so the mode screen agrees with this. */
+.pill-active-comb {
+  background-color: #F0A500;
+  color: #292524;
+  font-weight: 600;
+}
+.game-toggle-on-comb {
+  background-color: #F0A500;
+  color: #292524;
+  border-radius: 9999px;
+  padding: 0.4rem 1.2rem;
+  font-weight: 700;
+  font-size: 0.9rem;
+  transition: background 0.2s, color 0.2s;
+  border: none;
+  cursor: pointer;
+}
+/* Custom CTA: MUST declare flex centering — when JS/Tailwind sets display:flex the
+   label would top-left-align without these (DYB/GTH/FRT/FLW/PKO lesson, and the
+   one spec §1 calls mandatory rather than decorative). */
+.comb-cta { background-color: #F0A500; color: #292524; display: flex; align-items: center; justify-content: center; }
+.comb-cta:hover { background-color: #D18F00; }
+/* Lobby keycap only — white game-name label on the honey fill, matching the other
+   19 buttons. ID selector beats .comb-cta's near-black without touching in-game
+   CTAs; .gel-btn's dark base gradient + .lobby-btn-label's text-shadow carry it. */
+#btn-comb { color: #ffffff; }
+/* Menu Play CTA only (8 Sep 2026, owner-confirmed by eye) — same white-on-gel-gradient
+   treatment as the lobby tile above; every other .comb-cta use (Build, Buy Instinct,
+   Got it, etc.) keeps dark ink for contrast on the flat (non-gel) fill. */
+#btn-comb-menu-play { color: #ffffff; }
+/* Raw #F0A500 on bg-stone-50 measures ~2.0:1 — step labels take the darkened brand
+   (3.45:1). Same split cld (.cld-label) makes (cjar no longer needs this split
+   since its 5 Sep 2026 recolour to #5C3A21). NOTE: 3.45:1
+   is short of 4.5:1 for small text and is the weakest of the three; #9A6600 would
+   measure 4.70:1 if the owner wants it lifted. Shipped as spec §1 states it. */
+.comb-label { color: #B87A00; }
+.comb-medal-slot { display: inline-block; width: 1.4rem; text-align: center; flex-shrink: 0; }
+/* Tap-Hold Reference ping (ui-style.md) — a box-shadow transition, never an
+   animation: the global reduced-motion block zeroes transition durations already. */
+.comb-ref-row { transition: box-shadow 300ms ease-out; scroll-margin: 1rem; }
+.comb-ref-row-ping { box-shadow: 0 0 0 3px #FAE3AB, 0 2px 8px rgba(240,165,0,0.25); }
+.comb-range {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 9999px;
+  background: linear-gradient(to right, #FDF0D0, #F0A500); /* wax → honey */
+  outline: none;
+  cursor: pointer;
+}
+.comb-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: #F0A500;
+  border: 3px solid #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
+.comb-range::-moz-range-thumb {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: #F0A500;
+  border: none;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
+/* Illustrated / asset-pack faces for the two render seams (spec §1, §10). Both
+   follow .cjar-card-asset: the image fills the tile and the emoji/name fallback
+   inside it is hidden, so the seam keeps one element and swaps its dress. */
+.comb-hex-asset,
+.comb-card-asset {
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  border-color: transparent;
+}
+.comb-hex-asset .comb-hex-emoji,
+.comb-hex-asset .comb-hex-name,
+.comb-card-asset .comb-card-emoji,
+.comb-card-asset .comb-card-name { display: none; }
+/* Reverted 10 Sep 2026 (owner review): the in-tile name overlay competed
+   with the art and duplicated the caption below it. The gallery's own
+   caption line now carries the name (combined with the yield), passing
+   { label: false } to combRenderHex explicitly — so this rule hiding the
+   fallback's name+emoji over real art is back to matching .comb-card-asset's
+   original shape, and is the right default for a future caller who wants
+   the built-in overlay's fallback-only behaviour without having to know why. */
+
+/* The Meadow — the inline board stage. Mirrors #cld-stage: the canvas is
+   letterboxed INTO this flex-1 box and sized in JS. touch-action:none is
+   load-bearing here for a different reason than CLD's — this surface owns no
+   drag at all (spec §2), so the declaration exists purely to stop the browser's
+   double-tap-zoom and gesture handling eating a placement tap. */
+#comb-board-stage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  touch-action: none;
+}
+/* ⚠️ The inline board canvas MUST be given an explicit size. A <canvas> with no
+   CSS width/height falls back to its intrinsic 300x150, and inside
+   #comb-board-stage's centring flex box that renders a postage-stamp board in
+   the middle of a full-height stage — which is exactly what shipped for one
+   render pass before a screenshot caught it. combDrawBoard reads
+   getBoundingClientRect(), so the CSS box is the single source of the draw size
+   and the backing store is derived from it at DPR. */
+#comb-board-canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+/* The magnifier's own canvas — the game's ONLY pinch/pan surface (spec §2). */
+#comb-map-canvas { touch-action: none; }
+/* ── Honeycomb Hills — the four render seams ──────────────────────────────
+   Every primitive below is produced by combRenderHex / combRenderResource /
+   combRenderInstinct / combRenderPiece and NOWHERE else. A bypass is
+   unskinnable and invisible to the How-to gallery, which is what makes the
+   gallery double as the offline install check. */
+
+/* Hex tile — gallery only. The BOARD draws its hexes on canvas (2.5D slabs);
+   this is the flat top-face card the How-to "The Comb" tab shows. */
+.comb-hex-tile {
+  position: relative;
+  display: flex; align-items: center; justify-content: center;
+  aspect-ratio: 0.74;                 /* matches the 224x304 sprite master */
+  border-radius: 0.6rem;
+  overflow: hidden;
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.55);
+}
+.comb-hex-emoji { font-size: 1.9rem; line-height: 1; }
+.comb-hex-name {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  padding: 0.2rem 0.3rem;
+  background: linear-gradient(to top, rgba(0,0,0,0.62), rgba(0,0,0,0));
+  font-size: 0.62rem; font-weight: 700; text-align: center; line-height: 1.15;
+}
+
+/* Resource chip — FOUR surfaces (hand, cost line, trade offer, discard picker).
+   The SHAPE class is load-bearing, not decoration: colour alone fails under
+   deuteranopia, and the first art pass drew Resin and Nectar as the same
+   droplet in adjacent hues (spec §10 / §17-15). Never render a chip without one. */
+.comb-res-chip {
+  display: inline-flex; align-items: center; gap: 0.22rem;
+  padding: 0.2rem 0.4rem;
+  border-radius: 0.55rem;
+  background: #f5f5f4;                /* stone-100 */
+  font-size: 0.8rem; font-weight: 700; color: #44403c;
+  line-height: 1;
+}
+.comb-res-small { padding: 0.18rem 0.32rem; font-size: 0.72rem; }
+.comb-res-zero { opacity: 0.42; }
+.comb-res-icon {
+  display: inline-block; width: 0.9rem; height: 0.9rem; flex-shrink: 0;
+  border: 1.5px solid #2B2118;        /* the same dark contour the pieces carry */
+}
+.comb-res-small .comb-res-icon { width: 0.8rem; height: 0.8rem; }
+/* How-to gallery only — the 0.8-0.9rem gameplay sizes above are for a hand row
+   and inline cost lines, where five chips share one row with a build's label.
+   A REFERENCE list has no such constraint and needs to actually show the
+   shape at a glance (spec §10/§17-15's whole point). `.comb-res-big` is the
+   Resources card's one-per-row list; `.comb-res-cost` is the Costs card's
+   repeated-per-unit icons, sized between small and big so up to five (Queen
+   Dome's worst case) still fit one row with its label before wrapping. */
+.comb-res-big { padding: 0.5rem 0.75rem; gap: 0.6rem; font-size: 1.05rem; }
+.comb-res-big .comb-res-icon { width: 2.75rem; height: 2.75rem; }
+.comb-res-cost { padding: 0.3rem 0.45rem; }
+.comb-res-cost .comb-res-icon { width: 1.5rem; height: 1.5rem; }
+.comb-res-asset { border: none; background-size: contain; background-position: center; background-repeat: no-repeat; }
+/* The five shapes. Resin is ANGULAR precisely so it cannot be confused with
+   Nectar's droplet, whatever the palette does later. */
+.comb-res-shape-shard   { clip-path: polygon(50% 0, 100% 38%, 78% 100%, 22% 100%, 0 38%); border-radius: 0; }
+.comb-res-shape-hexagon { clip-path: polygon(50% 0, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%); border-radius: 0; }
+.comb-res-shape-sphere  { border-radius: 50%; }
+.comb-res-shape-droplet { border-radius: 50% 50% 50% 0; transform: rotate(-45deg); }
+.comb-res-shape-dome    { border-radius: 50% 50% 22% 22%; }
+.comb-res-count { font-variant-numeric: tabular-nums; }
+.comb-res-name  { font-weight: 600; }
+
+/* Over the carry limit — a warning, never a block: the limit only bites on a 7. */
+.comb-carry-warn {
+  display: inline-flex; align-items: center;
+  margin-left: auto; padding: 0.18rem 0.36rem;
+  border-radius: 0.5rem;
+  background: #FEF3C7; color: #B45309;
+  font-size: 0.7rem; font-weight: 700;
+}
+
+/* Instinct card */
+.comb-card {
+  position: relative;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 0.25rem;
+  width: 5rem; aspect-ratio: 1;       /* back + the 5 Instinct faces are SQUARE 600x600 masters */
+  border-radius: 0.7rem;
+  border: 2px solid #2B2118;
+  background: #FFFBF0;
+  flex-shrink: 0;
+  padding: 0.3rem;
+  text-align: center;
+}
+.comb-card-emoji { font-size: 1.5rem; line-height: 1; }
+.comb-card-name  { font-size: 0.56rem; font-weight: 700; color: #44403c; line-height: 1.1; }
+.comb-card-asset { background-size: cover; background-position: center; background-repeat: no-repeat; border-color: transparent; }
+.comb-card-asset .comb-card-emoji, .comb-card-asset .comb-card-name { display: none; }
+.comb-card-back {
+  background: repeating-linear-gradient(45deg, #F0A500, #F0A500 8px, #D18F00 8px, #D18F00 16px);
+  border-color: #D18F00;
+}
+.comb-card-golden { background: #FFF6D8; border-color: #D4A017; }
+.comb-card-guard  { background: #FFF3E0; }
+
+/* Structure — gallery/legend only; the board draws these on canvas. The dark
+   contour plus light top rim is ONE rule applied to every piece, and it is what
+   separates all four player colours from all six hex kinds at once (spec §10). */
+.comb-piece {
+  display: inline-block; width: 1.4rem; height: 1.4rem; flex-shrink: 0;
+  border: 2px solid #2B2118;
+  box-shadow: inset 0 1.5px 0 rgba(255,255,255,0.55);
+}
+.comb-piece-wall { width: 1.9rem; height: 0.5rem; border-radius: 9999px; }
+.comb-piece-cell { clip-path: polygon(50% 0, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%); border: none; }
+.comb-piece-dome { clip-path: polygon(50% 0, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%); border: none; }
+.comb-piece-asset { background-size: contain; background-position: center; background-repeat: no-repeat; border: none; box-shadow: none; }
+/* Hero piece — the ornate 300x300 gallery set (spec §5.0, How-to only). Own
+   SQUARE box; must override .comb-piece-wall's wide thin board strip AND
+   comb-piece-cell/dome's hex clip-path, since all three share base .comb-piece.
+   Two classes = higher specificity than any one of those, so this wins
+   regardless of rule order. */
+.comb-piece.comb-piece-hero {
+  width: 6rem; height: 6rem; flex-shrink: 0;
+  border: none; box-shadow: none; border-radius: 0.6rem;
+  clip-path: none;
+}
+
+/* ── The Sun Compass — the 2d6 die cast at the head of every turn ──────────
+   Sizing, colour and the drawn fallback ONLY. Every frame of the motion is
+   written by combFlightPaint() in js/games/comb.js as transform + opacity, so
+   there is deliberately no @keyframes and no transition here: a duration in this
+   file could not be varied per flight (the beat shortens after the third), and
+   the global prefers-reduced-motion block would zero it while leaving the RAF
+   running — the exact split that makes half-CSS/half-JS animation drift. The JS
+   owns the timing; this owns the look. */
+.comb-die {
+  width: 8rem; height: 8rem;
+  border-radius: 50%;
+  flex-shrink: 0;
+  position: relative;
+  display: flex; align-items: center; justify-content: center;
+  will-change: transform, opacity;
+  /* The one interactive thing inside a pointer-events:none layer. The tap
+     bubbles up to the single listener on #comb-float-layer — see combStartFlight. */
+  pointer-events: auto;
+  cursor: pointer;
+}
+.comb-die-asset {
+  background-size: contain; background-position: center; background-repeat: no-repeat;
+}
+/* The drawn fallback: a lit honey orb, not an emoji. 🎲 is a cube, and the one
+   thing this primitive has to be is a round thing that can spin. */
+.comb-die-drawn {
+  background:
+    radial-gradient(circle at 32% 27%, #FFF3C4 0%, #F5C24B 34%, #F0A500 62%, #B87A00 100%);
+  box-shadow:
+    inset 0 -0.5rem 1rem rgba(120,72,0,0.45),
+    inset 0.15rem 0.15rem 0.6rem rgba(255,255,255,0.55),
+    0 0.35rem 0.9rem rgba(120,72,0,0.32);
+  border: 2px solid #8A5A00;
+}
+/* The face the game draws, never art the game was handed
+   (art-authoring-guide.md § "Don't paint in text the game already draws").
+   Opacity is written per frame by combFlightPaint as the die settles. */
+.comb-die-face {
+  font-weight: 800;
+  font-size: 2.5rem;
+  line-height: 1;
+  color: #FFF3C4;
+  text-shadow:
+    -1.5px -1.5px 0 #3A2200, 1.5px -1.5px 0 #3A2200,
+    -1.5px  1.5px 0 #3A2200, 1.5px  1.5px 0 #3A2200,
+     0 0 0.4rem rgba(58,34,0,0.75);
+  font-variant-numeric: tabular-nums;
+  opacity: 0;
+  pointer-events: none;
+}
+/* The How-to reference tile — the NUMBERED die, at rest, zoomable. Its faces are
+   engraved into the art, so this variant hides the drawn one. */
+.comb-die-hero {
+  width: 8rem; height: 8rem;
+  cursor: zoom-in;
+}
+.comb-die-hero .comb-die-face { display: none; }
+
+/* Turn order dots, top-left of the board — non-interactive. (Renamed from
+   comb-compass/.comb-compass-* 9 Sep 2026: that markup was mislabelled as
+   "Sun Compass", which is actually the 2d6 die the game casts each turn —
+   a separate, not-yet-built render seam; see docs/content-prompts/comb-art-prompts.md § 5d.) */
+.comb-turn-order-dot {
+  display: inline-block; width: 0.5rem; height: 0.5rem; border-radius: 50%;
+  border: 1.5px solid rgba(43,33,24,0.55);
+  opacity: 0.45;
+  transition: opacity 0.15s, transform 0.15s;
+}
+.comb-turn-order-now { opacity: 1; transform: scale(1.45); }
+
+/* A disabled action-bar button. Dimmed and inert, never hidden: a control that
+   vanishes reads as a bug, one that dims reads as a rule (the CLD dive-row
+   precedent). */
+.comb-btn-off { opacity: 0.38; pointer-events: none; }
+
+/* ── The action layer (Step 5 chunk 5) ─────────────────────────────────────
+   One-shot rejection shake for §7's two REJECTED taps — the trade post and the
+   Overflow confirm. Deliberately NOT the global .shake, which loops forever and
+   is for a persistent tremor. transform only, and inside the Motion Standard's
+   300 ms ceiling for non-overlay chrome. */
+@keyframes combShake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-5px); }
+  40%, 80% { transform: translateX(5px); }
+}
+.comb-shake { animation: combShake 0.3s ease-in-out; }
+
+/* Build picker — step 1 of two. A dimmed option stays tappable for its reason,
+   so it must NOT take pointer-events: none the way .comb-btn-off does. */
+.comb-build-opt {
+  min-height: 3.5rem; border-radius: 0.75rem; background: #FFFFFF;
+  border: 1px solid #E7E5E4; padding: 0.4rem 0.3rem;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.25rem;
+  transition: transform 120ms ease-out;
+}
+.comb-build-opt:active { transform: scale(0.97); }
+.comb-build-opt-off { opacity: 0.45; }
+.comb-build-opt-name { font-size: 0.72rem; font-weight: 700; color: #44403c; }
+.comb-build-opt-cost { display: flex; align-items: center; justify-content: center; gap: 0.12rem; flex-wrap: wrap; }
+.comb-build-opt-free { font-size: 0.66rem; font-weight: 700; color: #B87A00; }
+
+/* A resource line with a −/+ stepper: the trade builder and the Overflow picker
+   are the same row, so they are the same class. */
+.comb-trade-row { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
+/* ⚠️ The label gets a FIXED width inside a stepper row. Without it the chip sizes
+   itself to the resource NAME — "Resin" against "Royal Jelly" — and the five
+   −/+ columns step raggedly down the card instead of reading as one column.
+   Found by measuring, not by looking: every row was a legal 44 px tall. */
+.comb-trade-row > .comb-res-chip {
+  width: 7.6rem; flex-shrink: 0; justify-content: flex-start;
+}
+.comb-step-btn {
+  min-width: 2.75rem; min-height: 2.75rem; border-radius: 0.6rem;
+  background: #F5F5F4; color: #44403c; font-weight: 700; font-size: 1rem;
+  display: flex; align-items: center; justify-content: center;
+  transition: transform 120ms ease-out;
+}
+.comb-step-btn:active { transform: scale(0.94); }
+.comb-step-count { min-width: 1.5rem; text-align: center; font-variant-numeric: tabular-nums; font-weight: 700; color: #44403c; }
+
+/* The Meadow's rate rows. A row you cannot pay dims but keeps its tap, which is
+   what surfaces the rate you would need. */
+.comb-bank-head {
+  min-height: 2.75rem; padding: 0 0.7rem; border-radius: 0.6rem;
+  background: #F5F5F4; color: #44403c; font-weight: 600; font-size: 0.8rem;
+  display: flex; align-items: center;
+}
+.comb-bank-off { opacity: 0.45; }
+.comb-bank-chip {
+  min-width: 2.75rem; min-height: 2.75rem; border-radius: 0.6rem;
+  border: 1px solid #E7E5E4; background: #FFFFFF;
+  display: flex; align-items: center; justify-content: center;
+  transition: transform 120ms ease-out;
+}
+.comb-bank-chip:active { transform: scale(0.94); }
+
+/* Your Instincts — one row per unplayed card, rendered through combRenderInstinct
+   so the list and the How-to gallery cannot disagree about what a card is. */
+.comb-instinct-row {
+  display: flex; align-items: center; gap: 0.6rem;
+  background: #FFFFFF; border-radius: 1rem; padding: 0.6rem; box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+.comb-instinct-play {
+  min-height: 2.75rem; padding: 0 0.9rem; border-radius: 0.75rem;
+  background: #F0A500; color: #292524; font-weight: 600; font-size: 0.8rem;
+  display: flex; align-items: center; flex-shrink: 0;
+  transition: transform 120ms ease-out;
+}
+.comb-instinct-play:active { transform: scale(0.95); }
+.comb-instinct-play-off { opacity: 0.42; }
+.comb-instinct-hidden { font-size: 0.7rem; font-weight: 700; color: #B87A00; flex-shrink: 0; }
+
+/* The two pickers a played card opens — Spring Bloom's two, Pheromone's one, and
+   the Wasp's victim list. One row shape for all three. */
+.comb-pick-row {
+  min-height: 2.75rem; border-radius: 0.75rem; background: #FFFFFF;
+  border: 1px solid #E7E5E4; padding: 0.4rem 0.7rem;
+  display: flex; align-items: center; gap: 0.5rem;
+  transition: transform 120ms ease-out;
+}
+.comb-pick-row:active { transform: scale(0.98); }
+.comb-pick-on { border-color: #F0A500; background: #FFF8E7; }
+.comb-pick-count { margin-left: auto; font-weight: 700; color: #B87A00; font-size: 0.8rem; }

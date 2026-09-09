@@ -11,7 +11,7 @@
 | Sets / Arrays | Pluralised camelCase | `allScreens`, `gmSessionGuesses`, `gmRoundLog` |
 | Constants | `SCREAMING_SNAKE_CASE` | `GM_CATEGORIES`, `BLD_ROLE_TABLE`, `LTTP_SMALL_TALK` |
 
-**Active plugin prefixes (15 games):** `li5` (state vars unprefixed — see above), `gm`, `ss`, `jec`, `ygi`, `lttp`, `nat`, `dsd`, `gth`, `dyb`, `bld`, `pass`, `nt`, `frt`, `shp`. A new game's abbreviation must not collide with any of these (Naming Collision Check 3, `new-game-process.md`).
+**Active plugin prefixes (20 games):** `li5` (state vars unprefixed — see above), `gm`, `ss`, `jec`, `ygi`, `lttp`, `nat`, `dsd`, `gth`, `dyb`, `bld`, `pass`, `nt`, `frt`, `shp`, `flw`, `pko`, `cjar`, `cld`, `comb`. A new game's abbreviation must not collide with any of these (Naming Collision Check 3, `new-game-process.md`). **This list is the collision check's source — a stale one is how a collision gets shipped**, so extend it in the same pass that registers a new plugin. (It sat at 15 from `shp` until the phase-41 gate, missing five live prefixes.)
 
 ## Function Naming
 

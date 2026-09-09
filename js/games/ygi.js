@@ -91,7 +91,7 @@ document.querySelectorAll('[data-ygi-rounds]').forEach(btn => {
     playPillClick();
     ygiRounds = parseInt(btn.dataset.ygiRounds);
     document.querySelectorAll('[data-ygi-rounds]').forEach(b => {
-      b.className = `pill${parseInt(b.dataset.ygiRounds) === ygiRounds ? ' pill-active-orange' : ''}`;
+      b.className = `pill${parseInt(b.dataset.ygiRounds) === ygiRounds ? ' pill-active-amber' : ''}`;
     });
   });
 });
@@ -101,7 +101,7 @@ document.querySelectorAll('[data-ygi-decider]').forEach(btn => {
     playPillClick();
     ygiDecider = btn.dataset.ygiDecider;
     document.querySelectorAll('[data-ygi-decider]').forEach(b => {
-      b.className = `pill${b.dataset.ygiDecider === ygiDecider ? ' pill-active-orange' : ''}`;
+      b.className = `pill${b.dataset.ygiDecider === ygiDecider ? ' pill-active-amber' : ''}`;
     });
   });
 });
@@ -111,7 +111,7 @@ document.querySelectorAll('[data-ygi-verdict]').forEach(btn => {
     playPillClick();
     ygiVerdictStyle = btn.dataset.ygiVerdict;
     document.querySelectorAll('[data-ygi-verdict]').forEach(b => {
-      b.className = `pill${b.dataset.ygiVerdict === ygiVerdictStyle ? ' pill-active-orange' : ''}`;
+      b.className = `pill${b.dataset.ygiVerdict === ygiVerdictStyle ? ' pill-active-amber' : ''}`;
     });
   });
 });
@@ -120,7 +120,7 @@ document.getElementById('btn-ygi-full-tally-toggle').addEventListener('click', (
   ygiFullTally = !ygiFullTally;
   const btn = document.getElementById('btn-ygi-full-tally-toggle');
   btn.textContent = ygiFullTally ? 'ON' : 'OFF';
-  btn.className   = ygiFullTally ? 'game-toggle-on-orange shrink-0' : 'game-toggle-off shrink-0';
+  btn.className   = ygiFullTally ? 'game-toggle-on-amber shrink-0' : 'game-toggle-off shrink-0';
   playPillClick();
 });
 
@@ -128,7 +128,7 @@ document.getElementById('btn-ygi-sylly-toggle').addEventListener('click', () => 
   ygiRinger = !ygiRinger;
   const btn = document.getElementById('btn-ygi-sylly-toggle');
   btn.textContent = ygiRinger ? 'ON' : 'OFF';
-  btn.className   = ygiRinger ? 'game-toggle-on-orange shrink-0' : 'game-toggle-off shrink-0';
+  btn.className   = ygiRinger ? 'game-toggle-on-amber shrink-0' : 'game-toggle-off shrink-0';
   ygiRinger ? playSyllyOn() : playSyllyOff();
 });
 
@@ -168,7 +168,7 @@ function ygiShowSetup() {
     return;
   }
   document.querySelectorAll('[data-ygi-player-count]').forEach(b => {
-    b.className = `pill${parseInt(b.dataset.ygiPlayerCount) === ygiPlayerCount ? ' pill-active-orange' : ''}`;
+    b.className = `pill${parseInt(b.dataset.ygiPlayerCount) === ygiPlayerCount ? ' pill-active-amber' : ''}`;
   });
   ygiUpdatePlayerFields();
 }
@@ -178,7 +178,7 @@ document.querySelectorAll('[data-ygi-player-count]').forEach(btn => {
     playPillClick();
     ygiPlayerCount = parseInt(btn.dataset.ygiPlayerCount);
     document.querySelectorAll('[data-ygi-player-count]').forEach(b => {
-      b.className = `pill${parseInt(b.dataset.ygiPlayerCount) === ygiPlayerCount ? ' pill-active-orange' : ''}`;
+      b.className = `pill${parseInt(b.dataset.ygiPlayerCount) === ygiPlayerCount ? ' pill-active-amber' : ''}`;
     });
     ygiUpdatePlayerFields();
   });
@@ -407,7 +407,7 @@ function ygiShowReveal() {
     const card = document.createElement('div');
     card.className = 'bg-white rounded-2xl p-4 shadow-sm flex items-center gap-4';
     card.innerHTML = `
-      <span class="text-2xl font-bold text-orange-500 min-w-[4rem] text-right shrink-0">${entry.number.toLocaleString()}</span>
+      <span class="text-2xl font-bold text-amber-600 min-w-[4rem] text-right shrink-0">${entry.number.toLocaleString()}</span>
       <span class="text-stone-700 font-semibold text-base leading-snug flex-1 min-w-0 break-words">${entry.metric}</span>
     `;
     container.appendChild(card);
@@ -491,11 +491,11 @@ function ygiRenderVoteCards() {
     const ranked  = rankPos !== -1;
 
     const card = document.createElement('div');
-    card.className = `${ranked ? 'bg-orange-50 border border-orange-200' : 'bg-white'} rounded-2xl p-4 shadow-sm flex items-center gap-4 cursor-pointer active:scale-95 transition-all duration-100`;
+    card.className = `${ranked ? 'bg-amber-50 border border-amber-200' : 'bg-white'} rounded-2xl p-4 shadow-sm flex items-center gap-4 cursor-pointer active:scale-95 transition-all duration-100`;
     card.innerHTML = `
-      <span class="text-xl font-bold text-orange-500 min-w-[3.5rem] text-right shrink-0">${entry.number.toLocaleString()}</span>
+      <span class="text-xl font-bold text-amber-600 min-w-[3.5rem] text-right shrink-0">${entry.number.toLocaleString()}</span>
       <span class="text-stone-700 font-semibold text-base leading-snug flex-1 min-w-0 break-words">${entry.metric}</span>
-      <span class="${ranked ? 'bg-orange-500 text-white' : 'bg-stone-200 text-stone-400'} w-10 h-10 rounded-full flex items-center justify-center font-bold text-xs shrink-0">
+      <span class="${ranked ? 'bg-amber-600 text-white' : 'bg-stone-200 text-stone-400'} w-10 h-10 rounded-full flex items-center justify-center font-bold text-xs shrink-0">
         ${ranked ? (labels[rankPos] || `#${rankPos + 1}`) : '?'}
       </span>
     `;
@@ -649,18 +649,18 @@ function ygiShowResults(roundPts, ghostIdx, ghostWins, maxRoundPts) {
     const author   = entry.isGhost ? '👻 The Ringer' : ygiPlayerNames[entry.playerIdx];
 
     const card = document.createElement('div');
-    card.className = `${entry.isGhost ? 'bg-stone-100 border border-stone-200' : isWinner ? 'bg-orange-50 border border-orange-200' : 'bg-white'} rounded-2xl p-4 shadow-sm`;
+    card.className = `${entry.isGhost ? 'bg-stone-100 border border-stone-200' : isWinner ? 'bg-amber-50 border border-amber-200' : 'bg-white'} rounded-2xl p-4 shadow-sm`;
     card.innerHTML = `
       <div class="flex items-center gap-3">
-        <span class="text-xl font-bold text-orange-500 min-w-[3.5rem] text-right shrink-0">${entry.number.toLocaleString()}</span>
+        <span class="text-xl font-bold text-amber-600 min-w-[3.5rem] text-right shrink-0">${entry.number.toLocaleString()}</span>
         <span class="text-stone-700 font-semibold flex-1 leading-snug min-w-0 break-words">${entry.metric}</span>
         ${entry.isGhost
           ? '<span class="text-stone-400 font-bold text-lg shrink-0">—</span>'
-          : `<span class="${total > 0 ? 'text-orange-500' : total < 0 ? 'text-red-500' : 'text-stone-400'} font-bold text-lg shrink-0">${total > 0 ? '+' : ''}${total}</span>`}
+          : `<span class="${total > 0 ? 'text-amber-600' : total < 0 ? 'text-red-500' : 'text-stone-400'} font-bold text-lg shrink-0">${total > 0 ? '+' : ''}${total}</span>`}
       </div>
       <div class="mt-1.5 flex items-center justify-between">
         <span class="text-stone-400 text-sm">${author}</span>
-        ${isWinner ? '<span class="text-xs font-semibold text-orange-400">Local Legend ✨ +2</span>' : ''}
+        ${isWinner ? '<span class="text-xs font-semibold text-amber-400">Local Legend ✨ +2</span>' : ''}
       </div>
     `;
     cardContainer.appendChild(card);
@@ -889,12 +889,12 @@ function ygiShowFinalStandings(winners, afterSD) {
     const isWinner = winners.includes(p.playerIdx);
     const medal    = rank === 0 ? '🥇' : rank === 1 ? '🥈' : rank === 2 ? '🥉' : `${rank + 1}.`;
     const row      = document.createElement('div');
-    row.className  = `${isWinner ? 'bg-orange-50 border border-orange-200' : 'bg-white'} rounded-2xl p-4 shadow-sm flex items-center gap-3`;
+    row.className  = `${isWinner ? 'bg-amber-50 border border-amber-200' : 'bg-white'} rounded-2xl p-4 shadow-sm flex items-center gap-3`;
     row.innerHTML  = `
       <span class="text-xl shrink-0">${medal}</span>
       <div class="flex-1 min-w-0">
         <p class="text-stone-800 font-bold truncate">${p.name}</p>
-        ${isWinner ? '<p class="text-orange-400 text-xs font-semibold">The Local Legend ✨</p>' : ''}
+        ${isWinner ? '<p class="text-amber-400 text-xs font-semibold">The Local Legend ✨</p>' : ''}
       </div>
       <span class="text-stone-800 font-bold text-lg shrink-0">${p.score} pts</span>
     `;
@@ -916,7 +916,7 @@ function ygiShowFinalStandings(winners, afterSD) {
           row.className    = 'flex items-center justify-between py-1';
           row.innerHTML    = `
             <span class="text-stone-700 font-semibold">${isSDWinner ? '⚡ ' : ''}${ygiPlayerNames[entry.playerIdx]}</span>
-            <span class="font-bold ${isSDWinner ? 'text-orange-500' : 'text-stone-400'}">${entry.number.toLocaleString()}</span>
+            <span class="font-bold ${isSDWinner ? 'text-amber-600' : 'text-stone-400'}">${entry.number.toLocaleString()}</span>
           `;
           sdContainer.appendChild(row);
         });
@@ -948,10 +948,10 @@ function ygiRenderRoundLog() {
     <p class="text-stone-800 font-semibold text-sm leading-snug mb-2">${entry.prompt.replace('[ ]', '________')}</p>
     ${entry.entries.map(e => `
       <div class="flex items-center gap-2 py-1.5 border-t border-stone-100">
-        <span class="text-orange-500 font-bold min-w-[3rem] text-right shrink-0 text-sm">${e.number.toLocaleString()}</span>
+        <span class="text-amber-600 font-bold min-w-[3rem] text-right shrink-0 text-sm">${e.number.toLocaleString()}</span>
         <span class="text-stone-600 text-sm flex-1 leading-snug min-w-0 break-words">${e.metric}</span>
         <span class="text-stone-400 text-xs shrink-0">${e.name}</span>
-        ${e.isGhost ? '' : `<span class="${e.pts > 0 ? 'text-orange-500' : e.pts < 0 ? 'text-red-400' : 'text-stone-300'} font-bold text-sm shrink-0">${e.pts > 0 ? '+' : ''}${e.pts}</span>`}
+        ${e.isGhost ? '' : `<span class="${e.pts > 0 ? 'text-amber-600' : e.pts < 0 ? 'text-red-400' : 'text-stone-300'} font-bold text-sm shrink-0">${e.pts > 0 ? '+' : ''}${e.pts}</span>`}
       </div>
     `).join('')}
   `;

@@ -305,6 +305,24 @@ These are the only ways the Stack has ever broken in this codebase. The first th
 
 4. **A screen repainted by more than one render function must have each of them own every element it cares about.** Repainting only `#body`/`#footer` of a shared screen is not "leaving the rest alone" — it's "showing whatever the previous renderer last wrote" to every element you didn't touch, header included. SHP's table screen has two renderers, `shpRenderTable` and `shpRenderNightEnd`, and only the first set `#shp-table-status`; the Night-End summary therefore inherited whatever the table wrote there last, which on a screen reached from a Plunge would have shown "THE PLUNGE 🔻" in red above a Night-won summary. When adding a second (or third) render function for one screen, list every element the *other* renderer(s) touch and set them explicitly, even to a value that looks like a no-op today. *[Elevated from shp-impl-notes Template Gaps, chunk 9, Aug 2026.]*
 
+### A control used while reading the Stage belongs IN the Stack, not over it
+
+The overlay registry is the default answer to "where does this picker live?", and for most pickers it
+is the right one. It is the wrong one whenever **the choice depends on what the Stage is showing** —
+the player then needs both at once, and an overlay takes the Stage away at exactly the wrong moment.
+Such a control goes in the **Controls zone as a mutually exclusive sibling**: one of picker / action
+bar / confirm bar shown at a time, toggled by a plain boolean, costing no z-index entry and no
+`resetToLobby()` teardown line.
+
+Reference: COMB's `#comb-build-picker` — step 1 of a build (*which piece*, with its cost) sits beside
+`#comb-action-bar` and `#comb-place-bar` rather than over the board, because *what* you can afford
+and *where* it could legally go are read together. Detail: `comb-implementation-notes` DD-12 / TG-10.
+
+**A disabled control here dims but stays tappable.** `pointer-events: none` is the suite's default for
+a disabled button and it is right when a *phase* disabled the control; it is wrong when a *rule* did,
+because the reason is the thing worth saying. Same principle as a dimmed board target that answers
+when tapped — decide deliberately between "inert" and "inert but answerable".
+
 ### Transient animations must float, never sit in the flow
 
 Any repeating, transient animation inside a Stack — a card lifting out of a hand, a token flying to a pile, a creature crossing the screen, a score popping — must live in an **absolutely-positioned layer over a `position: relative` parent**, never as an inline child of the column.
@@ -356,7 +374,8 @@ Applies to every transition and `@keyframes` in `css/styles.css` and every inlin
 
 **Reduced motion is mandatory and already global.** `css/styles.css` ends with a `@media (prefers-reduced-motion: reduce)` block collapsing every duration to `0.01ms`. Two rules follow from *how* it is written:
 - It sets `animation-duration`/`transition-duration` to near-zero — **never `animation: none`**. `js/games/li5.js` has four `animationend` listeners doing the *cleanup*; killing the animation outright means the event never fires and the class and its text stay stranded on screen. New `animationend`-driven cleanup inherits this protection — but only while the block stays duration-based.
-- Because it is global, a new animation needs no per-feature handling. Do not add a second `prefers-reduced-motion` block.
+- Because it is global, a new **CSS** animation needs no per-feature handling. Do not add a second `prefers-reduced-motion` block.
+- **⚠️ A `requestAnimationFrame` loop is the exception, and it is invisible.** The block zeroes CSS `animation-duration`/`transition-duration` — it reaches nothing about a loop writing `transform` by hand, which keeps travelling at full speed with the setting on and no error anywhere. Any RAF animation must check `prefers-reduced-motion` **itself**, in JS, and honour what the standard actually asks: *nothing travels*. Show the end state and skip the journey — do not simply drop the feature, or reduced motion becomes reduced information. Reference: `combReducedMotion()` in `js/games/comb.js` (the Sun Compass still appears and still reveals its number; it just never moves). The one place a per-feature check is required rather than forbidden.
 
 **Test it:** DevTools → Rendering → Emulate `prefers-reduced-motion: reduce`, then exercise the animation. Nothing should travel, and nothing should be left behind.
 
@@ -377,6 +396,7 @@ These are the **only** remaining legacy sticky-footer screens — each a deliber
 | `screen-dsd-captain`, `screen-dsd-crew`, `screen-dsd-execution`, `screen-dsd-sabotage`, `screen-dsd-spectator` | 5×5 grid + legend with an always-visible Sonar/sequence/disarm CTA while tapping tiles. |
 | `screen-cld-floe` | Drag-to-aim canvas — a page-scroll during a drag would hijack the aim. Power bar, commit tally and Lock It In must stay fixed beneath a stage the player is dragging on. |
 | `screen-nt-allocation` | DNP captain huddle — cluster bridge + rebalance controls + Lock CTA + huddle timer; controls must stay put while scanning legs. |
+| `screen-comb-meadow` | Fit-to-view board the player taps to place on. The hand row and action bar must stay put while the board is read, and no page-scroll may carry a legal target off screen. Zoom lives in `comb-map-overlay`, not here. |
 | `screen-mp-mode`, `screen-mp-lobby-host`, `screen-mp-lobby-join`, `screen-mp-roster` | Shared multiplayer infrastructure (all 4 MDLM games) — roster lists with a frozen primary CTA. High blast radius; migrate only if visibly broken. |
 
 Every other content/results screen in the suite has already been migrated to the Stack — a few carry a residual nested wrapper or uneven per-zone padding from the scoped class-transform used to do it; polish opportunistically, don't re-sweep.
@@ -447,7 +467,8 @@ Every other content/results screen in the suite has already been migrated to the
   Pear-Off card, but FRT never mirrored it into its How to Play overlay — NT's Debug Mode card is
   the first instance of *this* how-to mirror specifically.
 - **Winning and Scoring:** always this exact label — never just "Winning" or "Scoring".
-- **Sylly Mode card:** present for every game. Label is `✨ Sylly Mode` (literal — the `✨` is part of the label text, styled with `text-[brand]`). Heading is the thematic name (e.g. "Wild Words", "Silent Running").
+- **Sylly Mode card:** present in every game's How to Play, **including the one game that has no Sylly Mode**. Label is `✨ Sylly Mode` (literal — the `✨` is part of the label text, styled with `text-[brand]`). Heading is the thematic name (e.g. "Wild Words", "Silent Running").
+  - **The no-Sylly-Mode form (COMB, SW v225 — the only instance).** A game may ship without a Sylly Mode when its ordinary settings already own the difficulty axis and an eighth "advanced rules" switch would be decoration. When it does, **the how-to card stays in its usual last slot** with a heading saying so plainly (COMB: *"Not this one"*) and a line pointing at the setting that does the job. A player scanning for the card must get an **answer**, not a gap. The **settings overlay then carries no Sylly Mode card at all** — a dead toggle is worse than an honest sentence, and on a settings screen a dimmed control already means *unavailable* (§ Mutually-exclusive / superseded settings). Do not reach for this: it is an exception earned by having seven rule-bearing settings, not a licence to skip the work.
 - **Close button:** game brand primary colour (`bg-[brand] hover:bg-[brand-dark]`).
 - **Inner div:** must include `flex flex-col` — title block is `flex-shrink-0`, body is `overflow-y-auto`.
 
@@ -566,7 +587,7 @@ Every game's settings overlay must follow this order:
    </div>
    ```
 2. Game-specific options (timer, rounds, categories, word pools, etc.)
-3. **✨ Sylly Mode** — always last; the "advanced rules" signature
+3. **✨ Sylly Mode** — always last; the "advanced rules" signature. **Omitted entirely by a game that has none** (COMB is the only one — see § How-to Overlay Standard's no-Sylly-Mode form); never shipped as a toggle that does nothing
 
 **Settings button on the game menu:** always labelled **"Settings"** exactly. Thematic flair lives inside the overlay as the title block — not on the button.
 
@@ -752,7 +773,7 @@ See `docs/rules/per-game-classes.md` — **Table A** (brand colour) and **Table 
 
 **Notes:**
 - **GTH:** Muted Sage (`#B1BCA0`) has no Tailwind utility class — GTH brand colours are applied via inline `style` attributes throughout its markup, hence the `—` entries.
-- **DYB:** Ocean blue `#1E4D8C` — custom colour like GTH sage and FRT banana. All brand surfaces use custom CSS classes: `dyb-cta` (CTAs + hover `#183d70`), `dyb-label` (section/step labels), `pill-active-dyb`, `game-toggle-on-dyb`. Range gradient `#dce8f7 → #1E4D8C`. Settings button light tint: `bg-[#dce8f7] hover:bg-[#c8daf0] text-[#1E4D8C]`. Modal border: `border-[#9db8d9]`. `game-toggle-on-stone` is now the neutral lobby fallback only (not DYB's brand).
+- **DYB:** Warm rock/clay grey `#6B5744` (moved off ocean blue `#1E4D8C` 5 Sep 2026 — rocks/bluff/grey-zone theme, and it pulls DYB out of the suite's blue cluster) — custom colour like GTH sage and FRT banana. All brand surfaces use custom CSS classes: `dyb-cta` (CTAs + hover `#54432F`), `dyb-label` (section/step labels), `pill-active-dyb`, `game-toggle-on-dyb`. Range gradient `#e8e1d8 → #6B5744`. Settings button light tint: `bg-[#e8e1d8] hover:bg-[#ddd4c4] text-[#6B5744]`. Modal border: `border-[#c2b09d]`. `game-toggle-on-stone` is now the neutral lobby fallback only (not DYB's brand). Deliberately more saturated than a flat neutral grey so it doesn't blend into the app's own stone-toned chrome.
 - **GM:** brand is **split** — `violet-500/600` for all primary CTAs and accents, `purple-*` for pills/toggles/settings tint/modal borders/how-to labels (the values in this table). This is a documented inconsistency, not drift — see `docs/game-identities/gm.md` T7c and the fix plan (unify-or-document item).
 - `accentBtnClass`/`accentTextClass` only take effect when a game calls `showWhoFirst()` (team games). GTH, DYB, BLD, and PASS never call it; their values are derived from each game's primary CTA buttons and are listed for consistency should a future mechanic need them.
 
@@ -869,6 +890,58 @@ action, neutral stone for a secondary one). The gel treatment is menu-only — d
 - "How to Play" label is always identical — opens a data overlay (Pattern 1). Always `bg-stone-700 hover:bg-stone-800 text-white`.
 - Settings button label is always **"Settings"** — no exceptions. Thematic name lives inside the overlay as the title block. Button uses a **light brand tint** (`bg-[brand-100] hover:bg-[brand-200] text-[brand-700]`) — see Game Brand Colour — Scope § Per-game brand reference for per-game classes.
 - Play CTA is the primary action — largest button, top of the stack, full brand colour.
+
+### Menu Title Treatment (all 20 games, 8 Sep 2026)
+
+The game-name heading above the emoji/subtitle is `text-5xl font-bold leading-tight`, split into
+a neutral (`text-stone-800`) part and a brand-coloured part — never one flat-coloured string.
+Eight games shipped this from the start; the other twelve (BLD, GTH, DYB, PASS, NT, FRT, SHP, FLW,
+PKO, CJAR, CLD, COMB) were smaller and single-toned until this pass brought them level.
+
+**Multi-word titles** stack as two sibling `<h1>` lines inside the same wrapper `<div>` — first
+word(s) neutral, last word coloured (`Pecking` / `Order`, `Honeycomb` / `Hills`, `Cold` /
+`Shoulder`). A hyphenated compound with no second word (`Net-Trace`) does **not** split across two
+lines — a mid-word line break reads as a hyphenation accident, not a design choice. Keep it on one
+line instead (see single-word treatment below).
+
+**Single-word titles (and hyphenated one-word titles) split inline, same line, at the natural
+suffix** — two `<span>`s inside one `<h1>`, root neutral and suffix coloured: `Flaw` + `less`,
+`Bail` + `ed`, `Net-` + `Trace`. For a short word with no real suffix, split wherever reads most
+natural (`Pa` + `ss`). This is a judgement call per title, not a formula — there is no algorithm
+for "natural suffix", just read the word.
+
+**The coloured half is usually the game's already-established *label/accent* colour, not its raw
+CTA fill hex** — a brand fill chosen for a solid button background is frequently unreadable as thin
+text on the page's off-white ground. Several custom-hex brands already carry a separate darkened
+`-label` class for exactly this reason — reuse it: `bld-label`, `dyb-label`, `shp-label`,
+`flw-step-label`, `pko-label`, `cjar-label`, `cld-label`, `comb-label`. Games on stock Tailwind
+colours use a **darkened** shade of the same hue, not the literal button shade — YGI's CTA is
+`amber-500` but its heading half is plain `amber-500` text (already borderline on contrast,
+consistent with its pre-existing How-to step-label convention).
+
+**FRT is the sanctioned exception: its heading half (and `FRT_ACCENT` generally) is the literal
+brand fill `#FFE500`, at owner insistence, contrast cost accepted.** The road there is worth
+knowing because it's a real trap: FRT had a pre-existing `FRT_LEAF` constant (`#047857`, a green)
+reused for on-white text in three unrelated places — a How-to step label, the "Call TRUE" button,
+the selected-card outline — picked once, long before this pass, purely because it read fine, then
+copied forward by habit into a brand-new use (the menu heading) without anyone checking it was
+still FRT's colour. It wasn't. The first fix chased a *readable, same-hue* replacement instead
+(`text-yellow-700`, hue 35.5°) — passed its own contrast check, still read as brown to the eye,
+because darkening pure yellow for legibility pushes it toward brown/olive faster than it does most
+hues; hue angle and contrast ratio both said "fine" while the actual swatch didn't look yellow at
+all. The owner's call, once shown that trade-off, was to skip legibility-tuning entirely and use
+the real hex. **Read this as "don't reach for an existing accent constant without checking it's
+actually the game's colour" (the `FRT_LEAF` mistake) AND "checking hue-angle-and-contrast is not the
+same as looking at the swatch" (the `yellow-700` mistake) — not as "the fill hex is always right":
+the default for every other game is still the darkened label colour above.** Renamed to
+`FRT_ACCENT = FRT_FILL` and applied everywhere `FRT_LEAF` used to be (How-to label, "Call TRUE",
+selection outline, heading) — one constant, one value, no per-site special-casing.
+Detail: `frt-implementation-notes.md`.
+
+**A colour still needs *some* legible resting shade before most games can use it as text at all —
+CTA, heading, or label.** CJAR's honey-gold and Cold Shoulder's `#123B4C`-on-glacier both needed a
+darkened partner before this pass ever started, and that's still the default to reach for. FRT is
+the one place that default was knowingly traded away.
 
 ---
 

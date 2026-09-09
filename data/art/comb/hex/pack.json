@@ -1,0 +1,18 @@
+{
+  "id": "comb/hex",
+  "label": "HONEYCOMB HILLS — CORE ART (HEX TILES)",
+  "core": true,
+  "games": ["comb"],
+  "assets": {
+    "kind": "comb-hex",
+    "basePath": "img/",
+    "faces": {
+      "grove": "grove.png",
+      "blossom": "blossom.png",
+      "clover": "clover.png",
+      "rock": "rock.png",
+      "nursery": "nursery.png",
+      "smoke": "smoke.png"
+    }
+  }
+}

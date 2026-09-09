@@ -23,11 +23,15 @@ const FRT_FRUITS = [
   { id: 7, name: 'Angry Apple',        emoji: '🍎', cat: 'C', persona: 'An Apple flips → the loser must serve the winner next, and that target cannot Peek.' },
 ];
 
-// Banana-leaf palette (see spec §1)
-const FRT_FILL = '#FFE500';   // electric lemon fill
-const FRT_INK  = '#292524';   // stone-800 — dark ink on lemon (was white; fixed a WCAG contrast failure)
-const FRT_LEAF = '#047857';   // leaf accent — text-on-white + True button + selection outline
-const FRT_DARK = '#44403c';   // dark chip (stack count badges)
+// Banana palette (see spec §1)
+const FRT_FILL   = '#FFE500';   // electric lemon fill
+const FRT_INK    = '#292524';   // stone-800 — dark ink on lemon (was white; fixed a WCAG contrast failure)
+// Same value as FRT_FILL — the actual brand yellow, not a darkened stand-in. Text-on-white +
+// True button + selection outline. Was FRT_LEAF '#047857' (green, an unrelated hue never actually
+// FRT's colour), then briefly a darkened yellow that read as brown/mustard instead of yellow.
+// Owner call (8 Sep 2026): use the real brand hex outright rather than a legibility compromise.
+const FRT_ACCENT = FRT_FILL;
+const FRT_DARK   = '#44403c';   // dark chip (stack count badges)
 
 // ── Settings (persist between Fruit-Offs and play-agains) ───────────────────
 let frtFruitStock = 'standard'; // 'standard'(64) | 'swift'(48) | 'mega'(80)
@@ -310,7 +314,7 @@ function frtRenderStashGrouped(container, stash, opts) {
   frtGroupStash(stash).forEach(g => {
     const c = frtRenderCard(g.fruit);
     c.style.position = 'relative';
-    if (g.fruit === selFruit) c.style.outline = '3px solid ' + FRT_LEAF;
+    if (g.fruit === selFruit) c.style.outline = '3px solid ' + FRT_ACCENT;
     if (g.count > 1) {
       const badge = document.createElement('span');
       badge.textContent = '×' + g.count;
@@ -565,7 +569,7 @@ function frtRenderAwait() {
     wrap.appendChild(mk('Pass it on →', FRT_FILL, () => { playLaunch(); frtPeekComposing = true; frtServeTarget = -1; frtServeDeclaration = -1; frtRenderAwait(); }));
   } else {
     // Standard challenge (or peeked but no valid pass targets — fallback to call)
-    wrap.appendChild(mk('Call TRUE — it\'s a ' + decl.name, FRT_LEAF, () => { playDone(); frtCall('true'); }));
+    wrap.appendChild(mk('Call TRUE — it\'s a ' + decl.name, FRT_ACCENT, () => { playDone(); frtCall('true'); }));
     wrap.appendChild(mk('Call FALSE — they\'re bluffing', '#dc2626', () => { playBoing(); frtCall('false'); }));
     if (!frtPeeked && canPeek) {
       wrap.appendChild(mk('Peek & Pass', FRT_FILL, () => { playWhoosh(); frtPeeked = true; frtRenderAwait(); }));
@@ -1046,7 +1050,7 @@ function frtRenderGallery() {
     wrap.className = 'flex flex-col gap-2';
     const h = document.createElement('p');
     h.className = 'text-xs font-semibold uppercase tracking-widest';
-    h.style.color = FRT_LEAF;
+    h.style.color = FRT_ACCENT;
     h.textContent = label;
     const b = document.createElement('p');
     b.className = 'text-stone-500 text-sm';

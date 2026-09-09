@@ -1,0 +1,18 @@
+{
+  "id": "comb/blossom",
+  "label": "HONEYCOMB HILLS — CORE ART (TRADE BLOSSOMS)",
+  "core": true,
+  "games": ["comb"],
+  "assets": {
+    "kind": "comb-blossom",
+    "basePath": "img/",
+    "extras": {
+      "generic": "generic.png",
+      "resin": "resin.png",
+      "wax": "wax.png",
+      "pollen": "pollen.png",
+      "nectar": "nectar.png",
+      "jelly": "jelly.png"
+    }
+  }
+}

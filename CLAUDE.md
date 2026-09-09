@@ -34,22 +34,23 @@ shape. Screen/overlay IDs, state variables, key functions and MP packet tables l
 | 1 | Like I'm Five | `li5` | `li5.js` | pink-500 / `pill-active-pink` |
 | 2 | Great Minds | `great-minds` | `great-minds.js` | violet-500 CTAs + purple-* pills / `pill-active-purple` |
 | 3 | Secret Signals | `sylly-signals` *(legacy id)* | `secret-signals.js` | teal-500 / `pill-active-teal` |
-| 4 | Just Enough Cooks | `jec` | `jec.js` | amber-500 / `pill-active-amber` |
-| 5 | You Get It? | `ygi` | `ygi.js` | orange-500 / `pill-active-orange` |
+| 4 | Just Enough Cooks | `jec` | `jec.js` | slate-600 (steel) / `pill-active-slate` |
+| 5 | You Get It? | `ygi` | `ygi.js` | amber-500 (light-bulb gold) / `pill-active-amber` |
 | 6 | Late to the Party | `lttp` | `lttp.js` | red-500 / `pill-active-red` |
 | 7 | Natural Selection | `nat` | `nat.js` | lime-600 / `pill-active-lime` |
 | 8 | Deep-Sea Deploy | `dsd` | `dsd.js` | cyan-700 / `pill-active-cyan` |
 | 9 | Group Therapy | `gth` | `gth.js` | sage `#B1BCA0` / `pill-active-sage` |
-| 10 | The Bluff *(internal `dyb`)* | `dyb` | `dyb.js` | ocean `#1E4D8C` / `pill-active-dyb` |
+| 10 | The Bluff *(internal `dyb`)* | `dyb` | `dyb.js` | warm rock-grey `#6B5744` / `pill-active-dyb` |
 | 11 | Bailed | `bld` | `bld.js` | dark red `#991b1b` (red-800) / `pill-active-bld` |
 | 12 | Pass | `pass` | `pass.js` | zinc-900 / `pill-active-zinc` |
 | 13 | Net-Trace | `nt` | `nt.js` | emerald-600 / `pill-active-emerald` |
 | 14 | Fruit Salad | `frt` | `frt.js` | electric lemon `#FFE500` (dark ink) / `pill-active-frt` |
 | 15 | Counting Sheep | `shp` | `shp.js` | midnight `#3A3D52` (custom) / `pill-active-shp` |
 | 16 | Flawless | `flw` | `flw.js` | rose-pink `#E879A8` / `pill-active-flw` |
-| 17 | Pecking Order | `pko` | `pko.js` | `#854D0E` / `pill-active-pko` |
-| 18 | Cookie Jar | `cjar` | `cjar.js` | honey-gold `#D4A017` (dark ink) / `pill-active-cjar` |
+| 17 | Pecking Order | `pko` | `pko.js` | rust-orange `#9A3412` / `pill-active-pko` |
+| 18 | Cookie Jar | `cjar` | `cjar.js` | chocolate-brown `#5C3A21` / `pill-active-cjar` |
 | 19 | Cold Shoulder | `cld` | `cld.js` | glacier blue `#8ECAE6` (white ink) / `pill-active-cld` |
+| 20 | Honeycomb Hills | `comb` | `comb.js` | honey gold `#F0A500` (dark ink) / `pill-active-comb` |
 
 For per-game classes (range / toggle / pill / CTA / how-to / brand class strings) read `docs/rules/per-game-classes.md` (on-demand) — the single source for those; don't duplicate them here.
 
@@ -274,29 +275,32 @@ On every bump the outgoing SW entry moves **verbatim** to `docs/sw-changelog.md`
 "keep the last three". **A second `**SW v…**` paragraph appearing here means that move didn't
 happen: do it before anything else.**
 
-**SW v221 — Cold Shoulder gains "The Floe", a How to Play reference tab (4 Sep 2026).** The
-game's How to Play overlay gets a 2-tab bar (**The Rules** | **The Floe**). The Rules is the
-existing step cards, unchanged. **The Floe** holds a **live practice sim** — a `<canvas>` running
-the real `Physics.simulate()`, with *Shove everyone* / *Resurface* buttons — plus **The Cast**, a
-3×2 grid of the six penguin poses (`idle` · `lean` · `squash` · `plunge` · `bob` · `throw`) each
-animating through `cldRenderPenguin`, the one seam. No art files — all procedural. The practice
-floe is a self-contained state island (`cldHowto*`): it shares nothing with game state, never
-branches on `syllyMultiplayerMode`, sends no packets; its RAF stops on tab-away, close, and in
-`cldResetState()`. `index.html` + `js/games/cld.js` only — no new precache entry, so the offline
-install check is unchanged (still must be run directly; the practice floe now also breaks visibly
-if `physics.js`/`cld.js` didn't cache). `visual-check` clean; all CLD harnesses + `verify-mp-configs`
-still green. Documented deviation: `ui-style.md` says a how-to tab shouldn't carry live running
-state — owner call, logged in `cld-implementation-notes`. Phase 40 live gate still OPEN.
+**SW v225 — Honeycomb Hills ships: the phase-41 gate (10 Sep 2026).**
+One code line does it — `js/games/comb.js` joins `PRECACHE_URLS` — and the rest of the gate is the
+paperwork that makes it true. Protocol A run clean (four stale future-tense comments in `comb.js`
+corrected, two wrong harness counts and an "IN BUILD" header in `code-map.md` fixed). **COMB's
+identity doc is written** (`docs/game-identities/comb.md`, 194 copy strings green first run) — the
+suite now has 20 of 20. The **no-Sylly-Mode form** is recorded as a rule in `ui-style.md`, and
+`definitions.md`'s plugin-prefix list — the collision check's own source — went 15→20. All COMB
+harnesses green (56 · 122 · 231 · 250, 71/71 mutants ×5) + `verify-mp-configs` + `verify-identity-docs`.
 
-**Previous versions: `docs/sw-changelog.md`** — continuous, v220 back to v167.
+**Previous versions: `docs/sw-changelog.md`** — continuous, v224 back to v167.
 
-**Where the suite stands.** **19 games shipped**, all gold-master, plus multiplayer. Newest three:
-**Cold Shoulder** (`cld`, game 19, phase 40 — first physics game, `js/lib/physics.js`), **Cookie
-Jar** (`cjar`, game 18, phase 39) and **Pecking Order** (`pko`, game 17, phase 37) with its **Force
-of Nature** Sylly Mode (phase 38). All phase gates are CLOSED — `docs/phase40-snapshot.md`,
-`docs/phase39-snapshot.md`, `docs/phase37-snapshot.md`, `docs/phase38-snapshot.md`. The **Cartridge
+**Where the suite stands.** **20 games shipped**, all gold-master, plus multiplayer. Newest three:
+**Honeycomb Hills** (`comb`, game 20, phase 41 — the suite's biggest game and the only one with
+**no Sylly Mode**), **Cold Shoulder** (`cld`, game 19, phase 40 — first physics game,
+`js/lib/physics.js`) and **Cookie Jar** (`cjar`, game 18, phase 39). **Honeycomb Hills shipped at
+SW v225**, when `js/games/comb.js` joined `PRECACHE_URLS` at the phase-41 gate — until that line
+landed, an offline install had all nine core art packs (v223) and no game. It is MDLM-only, 3–4
+players, four screens and **fifteen overlays** (the board never goes away, so everything else is a
+layer over it), five render seams, and 25–50 minutes a match. Its two-step build picker is
+**inline**, not a sixteenth overlay (`comb-impl-notes` DD-12).
+**All phase gates are CLOSED, phase 41 included** — `docs/phase41-snapshot.md`,
+`docs/phase40-snapshot.md`,
+`docs/phase39-snapshot.md`, `docs/phase37-snapshot.md`, `docs/phase38-snapshot.md`.
+**Every game now has an identity doc** — `docs/game-identities/`, 20 of 20, all harness-green. The **Cartridge
 System** is COMPLETE, both halves (Phase A word packs, Phase B skin packs) —
-`docs/cartridge-system-plan.md`. **Core art** has rolled out to `pko`, `flw`, `frt`, `shp`; **PASS
+`docs/cartridge-system-plan.md`. **Core art** has rolled out to `pko`, `flw`, `frt`, `shp` and `comb` (nine packs); **PASS
 and DYB still run emoji/CSS defaults** — rollout tracker, the 4-step conversion and the offline
 install check live in `docs/expansion-guide.md` § Core art packs.
 
@@ -328,6 +332,9 @@ Re-run a game's full set after touching its appliers, deck/data, packets or rend
 | CLD | `node tools/verify-cld-physics.js && node tools/verify-cld-loop.js` — pure sim (determinism, no-tunnel, per-throw invariant, restitution asymmetry, 5 s cap) then game rules (multi-hop shunt incl. ≥3 hops, Dive legality, Thaw floor per Ice setting, Washout from Slide + Thaw, Peck Off last-*player* win) | 122 · 163 |
 | CLD | `node tools/verify-cld-loopback.js` — host↔**2 clients** over a Firebase-shaped wire, real mock DOM: private commit path, duplicate-commit rejection, nameless tally, empty-`events[]` / all-zero-`fish[]` round trip, host/client timeline parity, quit contract. Accepts `CLD_SRC=` | 168 |
 | CLD | `node tools/mutate-cld.js` — mutation harness over the rules/sim layer; `node tools/simulate-cld-balance.js` — balance instrument, asserts nothing, exits 0 (`CLD_SEED=`) | 26/26 · — |
+| COMB | `node tools/verify-comb-board.js && node tools/verify-comb-rules.js && node tools/verify-comb-loop.js` — topology/deal · rules (incl. the Season-preset trap, §12) · match+turn engine + the action layer's arithmetic + the Scout Flight beat's budget | 56 · 122 · 231 |
+| COMB | `node tools/verify-comb-loopback.js` — host↔**2 clients** over a Firebase-shaped wire, real mock DOM incl. a canvas; both offer shapes, re-validate-never-escrow, Full Dance's expiry, all five Instinct kinds. Accepts `COMB_SRC=` / `COMB_SEED=` | 250 |
+| COMB | `node tools/mutate-comb.js` — mutation harness; drives all four above, so its 19 packet mutants are claims about the loopback specifically. Run it 3–5×, not once | 71/71 |
 | PKO | `node tools/verify-pko-chain.js && node tools/verify-pko-loop.js && node tools/verify-pko-events.js` | 68 · 147 · 148 |
 | DYB | `node tools/verify-dyb-dice.js` — after any `js/lib/art.js` / `dybDieHTML` / `.dyb-die-*` change | 90+ |
 | SHP | `node tools/verify-shp-loop.js` — random matches, all player counts/modes/settings; `SHP_SEED=` for reproducibility | 60 matches |
@@ -338,13 +345,13 @@ Re-run a game's full set after touching its appliers, deck/data, packets or rend
 | NT | `node tools/nt-slow-fit.js` — slow-model fitter: substitutes the `NT_HONEYPOT_*` constants into nt.js's OWN timeline, so a fit can never drift from the shipped model. `--sweep`, `--grid`, `--contact`. Asserts nothing, exits 0 | — |
 | JEC | `node tools/verify-jec-loop.js` — the four tiers, the Golden-only Signature double, Crutch resolution + the never-in-pool invariant, the Instructions deck, the Fusion name vote | 77 |
 | JEC | `node tools/verify-jec-loopback.js` — host↔client over a Firebase-shaped wire with a real mock DOM; accepts `JEC_SRC=` | 164 |
-| **All 19 / MP** | `node tools/verify-mp-configs.js` — `MP_GAME_CONFIGS` entry schema, player-count bounds (sanity, **purity** — a bound may read nothing but `window.mpLobbyStyle` or a pre-lobby setting in `ALLOWED_SETTINGS` (`frtPearOff`, `cldPeckOff`), and agreement with each game's own PTP count pills), the balanced-teams invariant, and the Mid-Game Quit Contract. Runs no game logic; accepts `MP_SRC=`. **Re-run after touching `MP_GAME_CONFIGS`, any quit-confirm handler, or the roster screen** | 19 games |
+| **All 20 / MP** | `node tools/verify-mp-configs.js` — `MP_GAME_CONFIGS` entry schema, player-count bounds (sanity, **purity** — a bound may read nothing but `window.mpLobbyStyle` or a pre-lobby setting in `ALLOWED_SETTINGS` (`frtPearOff`, `cldPeckOff`), and agreement with each game's own PTP count pills), the balanced-teams invariant, and the Mid-Game Quit Contract. Runs no game logic; accepts `MP_SRC=`. **Re-run after touching `MP_GAME_CONFIGS`, any quit-confirm handler, or the roster screen** | 20 games |
 | Identity docs | `node tools/verify-identity-docs.js` — every `copy` block in `docs/game-identities/` against the shipped `index.html` + plugin file | per-doc |
 | Identity docs | `node tools/verify-identity-docs.js --self-test` — proves the checker still detects planted drift | 1 |
 | FLW | `node tools/verify-flw-loopback.js` — host↔client over a Firebase-shaped wire, incl. the private-channel hand packets | 84 |
 
-**Reach for a loopback on anything MP- or render-shaped.** Every harness *except* the four
-loopbacks (`cjar`/`shp`/`flw`/`nt`/`jec`) runs `'single'` mode with `getElementById: () => null`, which
+**Reach for a loopback on anything MP- or render-shaped.** Every harness *except* the six
+loopbacks (`cjar`/`shp`/`flw`/`nt`/`jec`/`comb`) runs `'single'` mode with `getElementById: () => null`, which
 is what lets one process drive all N seats — and exactly what blinds it to both the packet layer
 and every line of render code. CJAR's **BUG-06** survived 222 green checks in that gap; NT's
 **BUG-15/16** survived a clean host-side playtest. How to build one, and the wire/mock-DOM

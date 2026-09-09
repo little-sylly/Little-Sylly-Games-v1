@@ -8,6 +8,64 @@ Tick items off here; promote anything architectural into `decision-log.md`.
 
 ---
 
+## COMB gaps found while writing its identity doc (10 Sep 2026, phase-41 gate)
+
+Same shape as the eighteen sections below: writing `docs/game-identities/comb.md` end to end
+surfaced things a build never looks at, because the build reads one screen at a time and the doc
+reads the whole journey. None blocking; the game shipped at SW v225 with all of these open.
+
+**1. There is no turn-handover beat.** Deliberate — 60–80 turns in a Full Season, so a five-second
+intro card at the head of each one would add minutes of nothing, and the Scout Flight animation was
+built to carry that weight. What the flight cannot do is say *it is now your turn*: on a table where
+the board looks identical on every phone, the handover is signalled only by the header line changing
+and the action bar coming alive. Worth a small local beat on the active player's device — not a
+screen.
+
+**2. The Season Log is the most under-used surface in the game.** Complete, privacy-correct by
+construction, reachable from exactly one small 📜 in the board header, pointed at by nothing. In Out
+Loud trading — the default — it is the only record of what was agreed. It is also **not surfaced at
+gameover**, which is where a 50-minute season most wants to be looked back over.
+
+**3. The gameover screen is short for the length of the match.** Standings, the Golden Nectar reveal,
+two achievement lines and a Scout Flight count. The reveal is the beat it must land and it does; the
+rest is thin for fifty minutes of play.
+
+**4. Client standby shows no roster.** `#comb-standby-roster` exists and is never populated. A
+player waiting on a host who is still reading Settings sees one line of text and no evidence anything
+is happening.
+
+**5. Balance — Short Summer's achievement weight, untuned by decision.** At a 7-point target the two
+achievements are 4 of 7 (57%, against Catan's 40%), so a win on three Drone Cells plus both
+achievements is reachable. Both fallbacks are one-line edits: `COMB_ACHIEVEMENT` holds the points
+and both minimums keyed by Season. **Needs real play, not a harness** — `tools/simulate-*` would
+answer the arithmetic and not the question.
+
+**6. No `data/music/comb.mp3`.** Inherits the lobby fallback. A 25–50 minute match earns a track
+more than most games in the box, and adding one needs no code change, no `sw.js` edit and no version
+bump.
+
+---
+
+## RAF animations and `prefers-reduced-motion` — NT and CLD unswept (10 Sep 2026)
+
+**What.** `ui-style.md` § Motion Standard now says a `requestAnimationFrame` loop must check
+`prefers-reduced-motion` itself, because the global CSS block reaches nothing that writes
+`transform` by hand (decision-log 2026-09-10; `comb-impl-notes` TG-13). **COMB complies**
+(`combReducedMotion()`). **NT's playback loop (`ntStopPlayback`/`ntRafHandle`) and CLD's floe sim
+do not** — both were written before the rule existed and both still travel at full speed with the
+setting on.
+
+**Why parked.** Neither is broken for the default user, and the right treatment is per-animation
+judgement rather than a mechanical sweep: the rule is *show the end state, skip the journey*, and
+what "the end state" means differs for a maze path being retraced (NT) versus a penguin sliding to
+rest (CLD) — CLD's is arguably the harder call, since the position it stops at **is** the result.
+Doing it properly is a design pass on two games, not a find-and-replace.
+
+**Trigger.** The next time either game is opened for other work, or a phase gate touching motion.
+Also worth checking CLD's How-to "The Floe" practice sim, which is a third RAF on the same rule.
+
+---
+
 ## ⬆ HIGH PRIORITY — MDLM client reconnect (Honeycomb Hills Q20, 6 Sep 2026)
 
 **Status:** owner-approved deferral. Raised as **Q20** in `docs/new-game-tech-honeycomb-hills.md` §16;
@@ -87,6 +145,28 @@ the colours are chosen; the choice itself is an owner call, not a model call.
 
 ---
 
+## `screen-mp-mode`’s offline warning promises Pass-the-Phone to games that have none (7 Sep 2026)
+
+**Found:** walking COMB’s entry path in `visual-check` after the chunk-4 packet layer landed.
+
+`screen-mp-mode` carries the line **“No internet connection — Pass-the-Phone only.”**, shown when the
+device is offline. For an **MDLM-only** game that is not a fallback, it is a dead end: `supportedModes`
+is `[‘mdlm’]`, so there is no Pass-the-Phone path to fall back TO. The player is told to do something
+the game cannot do, and no other copy on the screen corrects it.
+
+**Affects all eleven MDLM-only games** — BLD, GTH, DYB, PASS, FRT, SHP, FLW, PKO, CJAR, CLD and now
+COMB (every entry whose `supportedModes` is exactly `['mdlm']`) — not COMB alone, which is why it is
+parked rather than fixed inside a COMB chunk. It is engine copy in `index.html`, not a per-game string.
+
+**Suggested fix (one sitting, Tier 1):** branch the line on `supportedModes`. A game with a PTP path
+keeps the current wording; one without gets the honest version — something like *“This one needs
+everyone online. Reconnect and try again.”* Worth checking at the same time whether the two lobby
+buttons should be disabled rather than merely unexplained.
+
+**Not urgent:** the app is a PWA and the case only arises offline, where the player already knows
+something is wrong. It is a copy defect, not a broken path.
+
+---
 ## Cold Shoulder (CLD) — phase 40 gate still OPEN + two presentation follow-ons (4 Sep 2026, SW v219 → v221)
 
 Game 19 shipped through Stage 6 (documentation closure). Every headless harness and the two-client

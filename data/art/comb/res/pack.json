@@ -1,0 +1,17 @@
+{
+  "id": "comb/res",
+  "label": "HONEYCOMB HILLS — CORE ART (RESOURCES)",
+  "core": true,
+  "games": ["comb"],
+  "assets": {
+    "kind": "comb-res",
+    "basePath": "img/",
+    "faces": {
+      "resin": "resin.png",
+      "wax": "wax.png",
+      "pollen": "pollen.png",
+      "nectar": "nectar.png",
+      "jelly": "jelly.png"
+    }
+  }
+}

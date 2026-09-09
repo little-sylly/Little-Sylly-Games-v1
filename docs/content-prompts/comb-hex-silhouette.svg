@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="224" height="304" viewBox="0 0 224 304">
+  <title>Honeycomb Hills - pointy-top hex slab silhouette reference (attach to every hex prompt)</title>
+  <desc>A regular pointy-top hexagon top face (sharp vertex top and bottom, flat vertical edges
+  left and right), drawn perfectly flat and mirror-symmetric - no tilt, no isometric, no
+  perspective - with a simple darker band below representing the tile's straight side wall, NOT a
+  receding 3D face. Frame 224 x 304: top face upper ~85%, wall band bottom ~15%.</desc>
+
+  <!-- transparent background -->
+
+  <!-- Side wall: a flat darker band hanging straight below the tile's lower edges. -->
+  <path d="M3,192 L3,238 L112,301 L221,238 L221,192 L112,255 Z"
+        fill="#5f6670" stroke="#33383f" stroke-width="3" stroke-linejoin="round"/>
+
+  <!-- Top face: regular POINTY-TOP hexagon. -->
+  <polygon points="112,3 221,66 221,192 112,255 3,192 3,66"
+           fill="#9aa3ad" stroke="#33383f" stroke-width="3" stroke-linejoin="round"/>
+</svg>

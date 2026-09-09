@@ -241,7 +241,7 @@ document.getElementById('btn-jec-how-to-close').addEventListener('click', () => 
 // a stale pill lit.
 function jecSyncSettingsUI() {
   const pills = (attr, val) => document.querySelectorAll(`[${attr}]`).forEach(b => {
-    b.className = `pill${b.getAttribute(attr) === String(val) ? ' pill-active-amber' : ''}`;
+    b.className = `pill${b.getAttribute(attr) === String(val) ? ' pill-active-slate' : ''}`;
   });
   pills('data-jec-rounds',          jecRounds);
   pills('data-jec-golden',          jecGoldenScore);
@@ -253,7 +253,7 @@ function jecSyncSettingsUI() {
     const b = document.getElementById(id);
     if (!b) return;
     b.textContent = on ? 'ON' : 'OFF';
-    b.className   = on ? 'game-toggle-on-amber shrink-0' : 'game-toggle-off shrink-0';
+    b.className   = on ? 'game-toggle-on-slate shrink-0' : 'game-toggle-off shrink-0';
   };
   toggle('btn-jec-souschef-toggle',     jecSousChefCheck);
   toggle('btn-jec-specials-toggle',     jecSpecialsBoard);
@@ -323,7 +323,7 @@ function jecInitRoster() {
     return;
   }
   document.querySelectorAll('[data-jec-player-count]').forEach(b => {
-    b.className = `pill${parseInt(b.dataset.jecPlayerCount) === jecPlayerCount ? ' pill-active-amber' : ''}`;
+    b.className = `pill${parseInt(b.dataset.jecPlayerCount) === jecPlayerCount ? ' pill-active-slate' : ''}`;
   });
   jecUpdatePlayerFields();
 }
@@ -333,7 +333,7 @@ document.querySelectorAll('[data-jec-player-count]').forEach(btn => {
     playPillClick();
     jecPlayerCount = parseInt(btn.dataset.jecPlayerCount);
     document.querySelectorAll('[data-jec-player-count]').forEach(b => {
-      b.className = `pill${parseInt(b.dataset.jecPlayerCount) === jecPlayerCount ? ' pill-active-amber' : ''}`;
+      b.className = `pill${parseInt(b.dataset.jecPlayerCount) === jecPlayerCount ? ' pill-active-slate' : ''}`;
     });
     jecUpdatePlayerFields();
   });
@@ -613,8 +613,8 @@ function jecBuildFrequency() {
 // against what the identity doc has always described.
 function jecBadge(count, N) {
   if (count <= 1)  return { key: 'alone',   label: 'Table for One 🍽️', cls: 'bg-stone-50 text-stone-400' };
-  if (count === 2) return { key: 'kiss',    label: "Chef's Kiss ✨",    cls: 'bg-amber-100 text-amber-700' };
-  if (count < N)   return { key: 'crowd',   label: 'Crowd-Pleaser 👌',  cls: 'bg-amber-50 text-amber-600' };
+  if (count === 2) return { key: 'kiss',    label: "Chef's Kiss ✨",    cls: 'bg-slate-100 text-slate-700' };
+  if (count < N)   return { key: 'crowd',   label: 'Crowd-Pleaser 👌',  cls: 'bg-slate-50 text-slate-600' };
   return             { key: 'toomany', label: 'Too Many Cooks! 🍲', cls: 'bg-stone-100 text-stone-500' };
 }
 
@@ -798,7 +798,7 @@ function jecRenderCallouts(rowCount) {
         <p class="font-semibold text-stone-800">${jecPlayerNames[p]}</p>
         <p class="text-xs text-stone-400 mt-0.5">${word.charAt(0).toUpperCase() + word.slice(1)}</p>
       </div>
-      <span class="px-3 py-1 rounded-full text-xs font-bold ${hit ? 'bg-amber-100 text-amber-700' : 'bg-stone-50 text-stone-400'}">${hit ? 'Called It! 📣' : 'Not this time'}</span>`;
+      <span class="px-3 py-1 rounded-full text-xs font-bold ${hit ? 'bg-slate-100 text-slate-700' : 'bg-stone-50 text-stone-400'}">${hit ? 'Called It! 📣' : 'Not this time'}</span>`;
     list.appendChild(row);
   });
   section.style.display = 'none';
@@ -831,7 +831,7 @@ function jecAdvanceToTasting() {
 }
 
 function jecClearOversightHighlights() {
-  document.querySelectorAll('.jec-sift-card').forEach(c => c.classList.remove('ring-2', 'ring-amber-400'));
+  document.querySelectorAll('.jec-sift-card').forEach(c => c.classList.remove('ring-2', 'ring-slate-400'));
 }
 
 // Sous Chef's Check is interactive only on the host (and single-device). In Lobby
@@ -865,7 +865,7 @@ function jecHandleOversightTap(norm) {
     jecOversightSelected = norm;
     document.querySelectorAll('.jec-sift-card').forEach(c => {
       c.classList.toggle('ring-2',         c.dataset.norm === norm);
-      c.classList.toggle('ring-amber-400', c.dataset.norm === norm);
+      c.classList.toggle('ring-slate-400', c.dataset.norm === norm);
     });
   } else if (jecOversightSelected === norm) {
     jecOversightSelected = null;
@@ -1159,7 +1159,7 @@ function jecRenderTally(roundScores, bonus) {
   list.innerHTML = '';
   ranked.forEach(({ name, rs, total, b }) => {
     const rsText   = rs > 0 ? `+${rs}` : `${rs}`;
-    const rsColour = rs > 0 ? 'text-amber-600' : rs < 0 ? 'text-red-500' : 'text-stone-400';
+    const rsColour = rs > 0 ? 'text-slate-600' : rs < 0 ? 'text-red-500' : 'text-stone-400';
     // Named badges, not a lump sum — a Chef needs to see WHICH bet paid off.
     // Omitted entirely when nothing landed: an empty line under every
     // non-scoring Chef is noise, not consistency.
@@ -1173,7 +1173,7 @@ function jecRenderTally(roundScores, bonus) {
       <div>
         <p class="font-semibold text-stone-800">${name}</p>
         <p class="text-xs text-stone-400 mt-0.5">Total: ${total} pts</p>
-        ${marks.length ? `<p class="text-xs text-amber-600 font-semibold mt-0.5">${marks.join(' · ')}</p>` : ''}
+        ${marks.length ? `<p class="text-xs text-slate-600 font-semibold mt-0.5">${marks.join(' · ')}</p>` : ''}
       </div>
       <span class="text-xl font-bold shrink-0 whitespace-nowrap ${rsColour}">${rsText} pts</span>`;
     list.appendChild(card);
@@ -1195,7 +1195,7 @@ function jecRenderCookBook() {
     card.className = 'bg-white rounded-2xl px-4 py-3 shadow-sm flex flex-col gap-2';
     const rows = ranked.map(({ name, score }) => {
       const scoreText   = score > 0 ? `+${score}` : `${score}`;
-      const scoreColour = score > 0 ? 'text-amber-600' : score < 0 ? 'text-red-500' : 'text-stone-400';
+      const scoreColour = score > 0 ? 'text-slate-600' : score < 0 ? 'text-red-500' : 'text-stone-400';
       return `<div class="flex justify-between items-center">
         <span class="text-stone-600 text-sm">${name}</span>
         <span class="text-sm font-bold ${scoreColour}">${scoreText}</span>
@@ -1207,7 +1207,7 @@ function jecRenderCookBook() {
     card.innerHTML = `
       <div class="flex items-center justify-between">
         <p class="text-xs font-semibold uppercase tracking-widest text-stone-400">Course ${i + 1}</p>
-        <p class="text-sm font-bold text-amber-600 uppercase tracking-wide">${orderText}</p>
+        <p class="text-sm font-bold text-slate-600 uppercase tracking-wide">${orderText}</p>
       </div>
       ${entry.instruction ? `<p class="text-xs text-stone-400 italic">${entry.instruction}</p>` : ''}
       <div class="flex flex-col gap-1">${rows}</div>`;
@@ -1243,13 +1243,13 @@ function jecShowWashup() {
     // A transparent border on the losing rows, so the winner's amber ring does not
     // inset its own contents by 2px and knock the podium out of alignment - the
     // same reason the medal slot has a fixed width.
-    card.className = `bg-white rounded-2xl px-4 py-3 shadow-sm flex items-center gap-3 border-2 ${isFirst ? 'border-amber-400' : 'border-transparent'}`;
+    card.className = `bg-white rounded-2xl px-4 py-3 shadow-sm flex items-center gap-3 border-2 ${isFirst ? 'border-slate-400' : 'border-transparent'}`;
     card.innerHTML = `
       <span class="jec-medal-slot text-2xl">${medals[i]}</span>
       <div class="flex-1">
         <p class="font-semibold text-stone-800">${p.name}</p>
       </div>
-      <span class="text-xl font-bold ${isFirst ? 'text-amber-600' : 'text-stone-400'}">${p.score} pts</span>`;
+      <span class="text-xl font-bold ${isFirst ? 'text-slate-600' : 'text-stone-400'}">${p.score} pts</span>`;
     list.appendChild(card);
   });
   jecRenderCookBook();

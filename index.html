@@ -31,9 +31,9 @@
       <img src="assets/logo.png" alt="Little Sylly Games" class="w-full" />
     </div>
     <div class="flex items-baseline justify-between w-full">
-      <p class="text-stone-500 text-lg">What are we playing today?</p>
-      <button id="btn-lobby-sort" class="flex items-center gap-1 text-stone-400 active:scale-90 transition-transform duration-100" aria-label="Sort games">
-        <span id="lobby-sort-label" class="text-xs font-semibold uppercase tracking-widest">Release</span>
+      <p class="text-stone-700 text-lg font-medium">What are we playing today?</p>
+      <button id="btn-lobby-sort" class="flex items-center gap-1 text-stone-600 active:scale-90 transition-transform duration-100" aria-label="Sort games">
+        <span id="lobby-sort-label" class="text-sm font-bold uppercase tracking-widest">Release</span>
         <span class="text-base">✨</span>
       </button>
     </div>
@@ -47,10 +47,10 @@
       <button id="btn-sylly-signals" class="gel-btn lobby-btn min-h-14 w-full rounded-2xl bg-teal-500 hover:bg-teal-600 text-white text-xl font-semibold">
         <span class="lobby-btn-label">Secret Signals</span><span class="lobby-btn-badge" aria-hidden="true">📡</span>
       </button>
-      <button id="btn-jec" class="gel-btn lobby-btn min-h-14 w-full rounded-2xl bg-amber-500 hover:bg-amber-600 text-white text-xl font-semibold">
+      <button id="btn-jec" class="gel-btn lobby-btn min-h-14 w-full rounded-2xl bg-slate-600 hover:bg-slate-700 text-white text-xl font-semibold">
         <span class="lobby-btn-label">Just Enough Cooks</span><span class="lobby-btn-badge" aria-hidden="true">🍳</span>
       </button>
-      <button id="btn-ygi" class="gel-btn lobby-btn min-h-14 w-full rounded-2xl bg-orange-500 hover:bg-orange-600 text-white text-xl font-semibold">
+      <button id="btn-ygi" class="gel-btn lobby-btn min-h-14 w-full rounded-2xl bg-amber-500 hover:bg-amber-600 text-white text-xl font-semibold">
         <span class="lobby-btn-label">You Get It?</span><span class="lobby-btn-badge" aria-hidden="true">💡</span>
       </button>
       <button id="btn-lttp" class="gel-btn lobby-btn min-h-14 w-full rounded-2xl bg-red-500 hover:bg-red-600 text-white text-xl font-semibold">
@@ -94,6 +94,9 @@
       </button>
       <button id="btn-cld" class="gel-btn lobby-btn cld-cta min-h-14 w-full rounded-2xl text-xl font-semibold">
         <span class="lobby-btn-label">Cold Shoulder</span><span class="lobby-btn-badge" aria-hidden="true">🐧</span>
+      </button>
+      <button id="btn-comb" class="gel-btn lobby-btn comb-cta min-h-14 w-full rounded-2xl text-xl font-semibold">
+        <span class="lobby-btn-label">Honeycomb Hills</span><span class="lobby-btn-badge" aria-hidden="true">🐝</span>
       </button>
     </div>
   </section>
@@ -2269,17 +2272,17 @@ Deploy
     <div class="text-6xl" role="img" aria-label="Cooking pot">🍳</div>
     <div>
       <h1 class="text-5xl font-bold leading-tight text-stone-800">Just Enough</h1>
-      <h1 class="text-5xl font-bold leading-tight text-amber-500">Cooks</h1>
+      <h1 class="text-5xl font-bold leading-tight text-slate-600">Cooks</h1>
     </div>
     <p class="text-stone-500 text-lg">Won't Spoil the Broth!</p>
     <div class="flex flex-col gap-4 w-full mt-2">
-      <button id="btn-jec-menu-play" class="gel-btn min-h-14 w-full rounded-2xl bg-amber-500 hover:bg-amber-600 text-white text-xl font-semibold">
+      <button id="btn-jec-menu-play" class="gel-btn min-h-14 w-full rounded-2xl bg-slate-600 hover:bg-slate-700 text-white text-xl font-semibold">
         Let's Cook!
       </button>
       <button id="btn-jec-menu-how-to" class="gel-btn min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 text-white text-xl font-semibold">
         How to Play
       </button>
-      <button id="btn-jec-menu-settings" class="gel-btn gel-btn-light min-h-14 w-full rounded-2xl bg-amber-100 hover:bg-amber-200 text-amber-700 text-xl font-semibold">
+      <button id="btn-jec-menu-settings" class="gel-btn gel-btn-light min-h-14 w-full rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xl font-semibold">
         Settings
       </button>
       <button id="btn-jec-menu-back" class="gel-btn gel-btn-light min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 text-stone-500 text-xl font-semibold">
@@ -2307,7 +2310,7 @@ Deploy
       <p class="text-stone-600 text-sm font-semibold mb-2">Number of Chefs</p>
       <div class="flex gap-2">
         <button class="pill" data-jec-player-count="3">3</button>
-        <button class="pill pill-active-amber" data-jec-player-count="4">4</button>
+        <button class="pill pill-active-slate" data-jec-player-count="4">4</button>
         <button class="pill" data-jec-player-count="5">5</button>
         <button class="pill" data-jec-player-count="6">6</button>
       </div>
@@ -2315,19 +2318,19 @@ Deploy
     <!-- Name inputs -->
     <div class="flex flex-col gap-2 w-full">
       <input type="text" maxlength="20" placeholder="Chef 1" id="jec-player-1"
-        class="w-full rounded-xl border-2 border-stone-200 bg-white px-4 py-3 text-base text-stone-800 placeholder-stone-300 focus:border-amber-400 focus:outline-none transition-colors" />
+        class="w-full rounded-xl border-2 border-stone-200 bg-white px-4 py-3 text-base text-stone-800 placeholder-stone-300 focus:border-slate-400 focus:outline-none transition-colors" />
       <input type="text" maxlength="20" placeholder="Chef 2" id="jec-player-2"
-        class="w-full rounded-xl border-2 border-stone-200 bg-white px-4 py-3 text-base text-stone-800 placeholder-stone-300 focus:border-amber-400 focus:outline-none transition-colors" />
+        class="w-full rounded-xl border-2 border-stone-200 bg-white px-4 py-3 text-base text-stone-800 placeholder-stone-300 focus:border-slate-400 focus:outline-none transition-colors" />
       <input type="text" maxlength="20" placeholder="Chef 3" id="jec-player-3"
-        class="w-full rounded-xl border-2 border-stone-200 bg-white px-4 py-3 text-base text-stone-800 placeholder-stone-300 focus:border-amber-400 focus:outline-none transition-colors" />
+        class="w-full rounded-xl border-2 border-stone-200 bg-white px-4 py-3 text-base text-stone-800 placeholder-stone-300 focus:border-slate-400 focus:outline-none transition-colors" />
       <input type="text" maxlength="20" placeholder="Chef 4" id="jec-player-4"
-        class="w-full rounded-xl border-2 border-stone-200 bg-white px-4 py-3 text-base text-stone-800 placeholder-stone-300 focus:border-amber-400 focus:outline-none transition-colors" />
+        class="w-full rounded-xl border-2 border-stone-200 bg-white px-4 py-3 text-base text-stone-800 placeholder-stone-300 focus:border-slate-400 focus:outline-none transition-colors" />
       <input type="text" maxlength="20" placeholder="Chef 5" id="jec-player-5" style="display:none"
-        class="w-full rounded-xl border-2 border-stone-200 bg-white px-4 py-3 text-base text-stone-800 placeholder-stone-300 focus:border-amber-400 focus:outline-none transition-colors" />
+        class="w-full rounded-xl border-2 border-stone-200 bg-white px-4 py-3 text-base text-stone-800 placeholder-stone-300 focus:border-slate-400 focus:outline-none transition-colors" />
       <input type="text" maxlength="20" placeholder="Chef 6" id="jec-player-6" style="display:none"
-        class="w-full rounded-xl border-2 border-stone-200 bg-white px-4 py-3 text-base text-stone-800 placeholder-stone-300 focus:border-amber-400 focus:outline-none transition-colors" />
+        class="w-full rounded-xl border-2 border-stone-200 bg-white px-4 py-3 text-base text-stone-800 placeholder-stone-300 focus:border-slate-400 focus:outline-none transition-colors" />
     </div>
-    <button id="btn-jec-roster-confirm" class="min-h-14 w-full rounded-2xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+    <button id="btn-jec-roster-confirm" class="min-h-14 w-full rounded-2xl bg-slate-600 hover:bg-slate-700 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
 Let's Cook!
 </button>
   </section>
@@ -2342,16 +2345,16 @@ Let's Cook!
     <div class="text-5xl" role="img" aria-label="Receipt">🧾</div>
     <div class="w-full">
       <p class="text-stone-400 text-sm font-semibold uppercase tracking-widest mb-2">Today's Order:</p>
-      <h2 id="jec-order-word" class="text-5xl font-bold text-amber-500 uppercase tracking-wide"></h2>
+      <h2 id="jec-order-word" class="text-5xl font-bold text-slate-600 uppercase tracking-wide"></h2>
       <!-- Fusion Cuisine: the second Order. Hidden entirely in standard play. -->
-      <p id="jec-order-fusion-plus" style="display:none" class="text-2xl font-bold text-amber-400 my-1">+</p>
-      <h2 id="jec-order-word2" style="display:none" class="text-5xl font-bold text-amber-500 uppercase tracking-wide"></h2>
+      <p id="jec-order-fusion-plus" style="display:none" class="text-2xl font-bold text-slate-400 my-1">+</p>
+      <h2 id="jec-order-word2" style="display:none" class="text-5xl font-bold text-slate-600 uppercase tracking-wide"></h2>
       <!-- Special Instructions: one modifier per Order, never stacked. -->
       <p id="jec-order-instruction" style="display:none" class="text-stone-600 text-lg italic mt-3"></p>
     </div>
     <button id="btn-jec-reroll" style="display:none" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-600 text-base font-medium transition-all duration-150">Reroll Order</button>
     <p id="jec-order-hint" class="text-stone-500 text-sm leading-relaxed">Everyone read this together — each Chef will take a turn.</p>
-    <button id="btn-jec-order-start" class="min-h-14 w-full rounded-2xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+    <button id="btn-jec-order-start" class="min-h-14 w-full rounded-2xl bg-slate-600 hover:bg-slate-700 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
       Start Prepping! →
     </button>
   </section>
@@ -2372,10 +2375,10 @@ Let's Cook!
       </div>
       <div class="w-full text-center">
         <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest">Today's Order 🧾</p>
-        <h2 id="jec-prep-order-word" class="text-3xl font-bold text-amber-500 uppercase tracking-wide mt-1"></h2>
+        <h2 id="jec-prep-order-word" class="text-3xl font-bold text-slate-600 uppercase tracking-wide mt-1"></h2>
         <!-- Fusion Cuisine: the second Order. Hidden entirely in standard play. -->
-        <p id="jec-prep-order-plus" style="display:none" class="text-xl font-bold text-amber-400">+</p>
-        <h2 id="jec-prep-order-word2" style="display:none" class="text-3xl font-bold text-amber-500 uppercase tracking-wide"></h2>
+        <p id="jec-prep-order-plus" style="display:none" class="text-xl font-bold text-slate-400">+</p>
+        <h2 id="jec-prep-order-word2" style="display:none" class="text-3xl font-bold text-slate-600 uppercase tracking-wide"></h2>
         <!-- Special Instructions: one modifier per Order, never stacked. -->
         <p id="jec-prep-instruction" style="display:none" class="text-stone-600 text-sm italic mt-2"></p>
       </div>
@@ -2389,19 +2392,19 @@ Let's Cook!
         <div class="flex flex-col gap-3 w-full">
           <div class="flex items-center gap-2">
             <input type="text" maxlength="30" placeholder="Ingredient 1" id="jec-prep-ingredient-1" autocomplete="off"
-              class="flex-1 min-w-0 rounded-xl border-2 border-stone-200 bg-white px-4 py-3 text-base text-stone-800 placeholder-stone-300 focus:border-amber-400 focus:outline-none transition-colors" />
+              class="flex-1 min-w-0 rounded-xl border-2 border-stone-200 bg-white px-4 py-3 text-base text-stone-800 placeholder-stone-300 focus:border-slate-400 focus:outline-none transition-colors" />
             <button id="jec-prep-sig-1" data-jec-sig="0" aria-pressed="false" aria-label="Nominate ingredient 1 as your Signature Dish"
               class="jec-sig-btn min-h-11 min-w-11 shrink-0 rounded-xl bg-stone-100 text-lg active:scale-95">⭐</button>
           </div>
           <div class="flex items-center gap-2">
             <input type="text" maxlength="30" placeholder="Ingredient 2" id="jec-prep-ingredient-2" autocomplete="off"
-              class="flex-1 min-w-0 rounded-xl border-2 border-stone-200 bg-white px-4 py-3 text-base text-stone-800 placeholder-stone-300 focus:border-amber-400 focus:outline-none transition-colors" />
+              class="flex-1 min-w-0 rounded-xl border-2 border-stone-200 bg-white px-4 py-3 text-base text-stone-800 placeholder-stone-300 focus:border-slate-400 focus:outline-none transition-colors" />
             <button id="jec-prep-sig-2" data-jec-sig="1" aria-pressed="false" aria-label="Nominate ingredient 2 as your Signature Dish"
               class="jec-sig-btn min-h-11 min-w-11 shrink-0 rounded-xl bg-stone-100 text-lg active:scale-95">⭐</button>
           </div>
           <div class="flex items-center gap-2">
             <input type="text" maxlength="30" placeholder="Ingredient 3" id="jec-prep-ingredient-3" autocomplete="off"
-              class="flex-1 min-w-0 rounded-xl border-2 border-stone-200 bg-white px-4 py-3 text-base text-stone-800 placeholder-stone-300 focus:border-amber-400 focus:outline-none transition-colors" />
+              class="flex-1 min-w-0 rounded-xl border-2 border-stone-200 bg-white px-4 py-3 text-base text-stone-800 placeholder-stone-300 focus:border-slate-400 focus:outline-none transition-colors" />
             <button id="jec-prep-sig-3" data-jec-sig="2" aria-pressed="false" aria-label="Nominate ingredient 3 as your Signature Dish"
               class="jec-sig-btn min-h-11 min-w-11 shrink-0 rounded-xl bg-stone-100 text-lg active:scale-95">⭐</button>
           </div>
@@ -2415,7 +2418,7 @@ Let's Cook!
           <button id="btn-jec-tip-crutch" class="text-stone-300 font-bold text-xs leading-none active:scale-90 transition-transform duration-100">[?]</button>
         </div>
         <input type="text" maxlength="30" placeholder="The one everyone leans on…" id="jec-prep-crutch" autocomplete="off"
-          class="w-full rounded-xl border-2 border-amber-300 bg-white px-4 py-3 text-base text-stone-800 placeholder-stone-300 focus:border-amber-500 focus:outline-none transition-colors" />
+          class="w-full rounded-xl border-2 border-slate-300 bg-white px-4 py-3 text-base text-stone-800 placeholder-stone-300 focus:border-slate-600 focus:outline-none transition-colors" />
         <p class="text-stone-400 text-xs">Every kitchen has one. Call the culinary cliché everyone leans on.</p>
       </div>
 
@@ -2426,11 +2429,11 @@ Let's Cook!
           <button id="btn-jec-tip-fusion-name" class="text-stone-300 font-bold text-xs leading-none active:scale-90 transition-transform duration-100">[?]</button>
         </div>
         <input type="text" maxlength="40" placeholder="What are we calling this?" id="jec-prep-fusion-name" autocomplete="off"
-          class="w-full rounded-xl border-2 border-amber-300 bg-white px-4 py-3 text-base text-stone-800 placeholder-stone-300 focus:border-amber-500 focus:outline-none transition-colors" />
+          class="w-full rounded-xl border-2 border-slate-300 bg-white px-4 py-3 text-base text-stone-800 placeholder-stone-300 focus:border-slate-600 focus:outline-none transition-colors" />
         <p class="text-stone-400 text-xs">Best name gets voted On the Menu — and takes half a jackpot.</p>
       </div>
       <p id="jec-prep-error" class="text-pink-500 text-sm font-semibold text-center w-full min-h-5"></p>
-      <button id="btn-jec-serve" class="btn-mp-action min-h-14 w-full rounded-2xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      <button id="btn-jec-serve" class="btn-mp-action min-h-14 w-full rounded-2xl bg-slate-600 hover:bg-slate-700 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
 Serve it Up!
 </button>
     </div>
@@ -2444,7 +2447,7 @@ Serve it Up!
         <h2 class="text-2xl font-bold text-stone-800 mt-2">Pass to <span id="jec-pass-gate-next-name"></span>!</h2>
         <p class="text-stone-500 text-sm mt-2">Don't let them peek — it's their turn now.</p>
       </div>
-      <button id="btn-jec-pass-gate-ready" class="min-h-14 w-full rounded-2xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">I've got the phone!</button>
+      <button id="btn-jec-pass-gate-ready" class="min-h-14 w-full rounded-2xl bg-slate-600 hover:bg-slate-700 active:scale-95 text-white text-xl font-semibold transition-all duration-150">I've got the phone!</button>
     </div>
 
   </section>
@@ -2462,7 +2465,7 @@ Serve it Up!
     </div>
     <div class="w-full text-center">
       <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest">Today's Order</p>
-      <h2 id="jec-sifting-order" class="text-3xl font-bold text-amber-500 uppercase tracking-wide mt-1"></h2>
+      <h2 id="jec-sifting-order" class="text-3xl font-bold text-slate-600 uppercase tracking-wide mt-1"></h2>
       <p id="jec-sifting-round-label" class="text-stone-400 text-xs mt-1"></p>
     </div>
     <!-- Which half of The Sifting we are in: Sous Chef's Check, or The Tasting. -->
@@ -2470,11 +2473,11 @@ Serve it Up!
 
     <!-- Sub-state A: Sous Chef's Check — plain, unscored, alphabetical, BLIND -->
     <div id="jec-sifting-check" style="display:none" class="w-full flex flex-col gap-4">
-      <div id="jec-oversight-hint" class="w-full bg-amber-50 border border-amber-200 rounded-xl px-4 py-2 text-center">
-        <p class="text-amber-700 text-xs font-semibold">Tap two ingredients that are the same thing to merge them.</p>
+      <div id="jec-oversight-hint" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-center">
+        <p class="text-slate-700 text-xs font-semibold">Tap two ingredients that are the same thing to merge them.</p>
       </div>
       <div id="jec-check-list" class="flex flex-col gap-3 w-full"></div>
-      <button id="btn-jec-check-proceed" class="min-h-14 w-full rounded-2xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      <button id="btn-jec-check-proceed" class="min-h-14 w-full rounded-2xl bg-slate-600 hover:bg-slate-700 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
 Start the Tasting
 </button>
     </div>
@@ -2485,10 +2488,10 @@ Start the Tasting
       <!-- The Callouts reveal AFTER the ingredient list has finished — the Crutch
            result is the round's punchline, not its preamble. -->
       <div id="jec-callouts-section" style="display:none" class="w-full flex flex-col gap-2">
-        <p class="text-xs font-semibold uppercase tracking-widest text-amber-500">The Callouts</p>
+        <p class="text-xs font-semibold uppercase tracking-widest text-slate-600">The Callouts</p>
         <div id="jec-callouts-list" class="flex flex-col gap-2"></div>
       </div>
-      <button id="btn-jec-sifting-proceed" class="min-h-14 w-full rounded-2xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      <button id="btn-jec-sifting-proceed" class="min-h-14 w-full rounded-2xl bg-slate-600 hover:bg-slate-700 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
 The Tally
 </button>
     </div>
@@ -2510,7 +2513,7 @@ The Tally
       </div>
       <div class="w-full text-center">
         <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest">Name the Dish</p>
-        <h2 id="jec-name-vote-fusion" class="text-2xl font-bold text-amber-500 uppercase tracking-wide mt-1"></h2>
+        <h2 id="jec-name-vote-fusion" class="text-2xl font-bold text-slate-600 uppercase tracking-wide mt-1"></h2>
       </div>
 
       <!-- Sub-state A: the ballot -->
@@ -2525,7 +2528,7 @@ The Tally
         <div class="text-5xl text-center" role="img" aria-label="Star">⭐</div>
         <h3 id="jec-name-vote-winner" class="text-2xl font-bold text-stone-800 text-center"></h3>
         <p id="jec-name-vote-winner-sub" class="text-stone-500 text-sm text-center"></p>
-        <button id="btn-jec-name-vote-next" class="min-h-14 w-full rounded-2xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        <button id="btn-jec-name-vote-next" class="min-h-14 w-full rounded-2xl bg-slate-600 hover:bg-slate-700 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
 The Tally
 </button>
       </div>
@@ -2547,21 +2550,21 @@ The Tally
     </div>
     <!-- Per-player score cards injected by JS -->
     <div id="jec-tally-list" class="flex flex-col gap-3 w-full"></div>
-    <button id="btn-jec-tally-next" class="min-h-14 w-full rounded-2xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+    <button id="btn-jec-tally-next" class="min-h-14 w-full rounded-2xl bg-slate-600 hover:bg-slate-700 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
 Next Course
 </button>
   </section>
 
   <!-- Sous Chef's Check merge modal (Pattern 2) -->
   <div id="jec-oversight-overlay" style="display:none" class="fixed inset-0 bg-black/50 z-[90] flex items-center justify-center px-6">
-    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-amber-300">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-slate-300">
       <p class="text-4xl">🧑‍🍳</p>
       <p class="text-xl font-bold text-stone-800">Sous Chef's Check</p>
       <p class="text-stone-500 text-sm">Are these the same ingredient?</p>
       <div class="bg-stone-50 rounded-2xl py-4 px-6 text-center">
         <span id="jec-oversight-words" class="text-lg font-bold text-stone-800 leading-snug"></span>
       </div>
-      <button id="btn-jec-oversight-merge" class="min-h-14 w-full rounded-2xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white font-semibold text-lg transition-all duration-150 mt-2">
+      <button id="btn-jec-oversight-merge" class="min-h-14 w-full rounded-2xl bg-slate-600 hover:bg-slate-700 active:scale-95 text-white font-semibold text-lg transition-all duration-150 mt-2">
 Yep — merge 'em!
 </button>
       <button id="btn-jec-oversight-cancel" class="min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-lg transition-all duration-150">
@@ -2586,7 +2589,7 @@ Yep — merge 'em!
           <p class="text-stone-400 text-sm mt-0.5">How many Orders in one meal.</p>
         </div>
         <div class="flex gap-2">
-          <button class="pill pill-active-amber" data-jec-rounds="3">3</button>
+          <button class="pill pill-active-slate" data-jec-rounds="3">3</button>
           <button class="pill" data-jec-rounds="5">5</button>
           <button class="pill" data-jec-rounds="10">10</button>
         </div>
@@ -2601,7 +2604,7 @@ Yep — merge 'em!
         <div class="flex flex-col gap-2">
           <div class="flex gap-2 flex-wrap">
             <button class="pill" data-jec-food-difficulty="easy">Everyday</button>
-            <button class="pill pill-active-amber" data-jec-food-difficulty="mixed">Restaurant</button>
+            <button class="pill pill-active-slate" data-jec-food-difficulty="mixed">Restaurant</button>
             <button class="pill" data-jec-food-difficulty="hard">Fine Dining</button>
           </div>
           <p id="jec-val-difficulty" class="text-stone-400 text-xs"></p>
@@ -2617,7 +2620,7 @@ Yep — merge 'em!
         <div class="flex gap-2">
           <button class="pill" data-jec-golden="10">10 pts</button>
           <button class="pill" data-jec-golden="20">20 pts</button>
-          <button class="pill pill-active-amber" data-jec-golden="30">30 pts</button>
+          <button class="pill pill-active-slate" data-jec-golden="30">30 pts</button>
         </div>
       </div>
 
@@ -2628,7 +2631,7 @@ Yep — merge 'em!
           <p class="text-stone-400 text-sm mt-0.5">Nobody joined you on that ingredient.</p>
         </div>
         <div class="flex gap-2">
-          <button class="pill pill-active-amber" data-jec-tablefor1="off">Off</button>
+          <button class="pill pill-active-slate" data-jec-tablefor1="off">Off</button>
           <button class="pill" data-jec-tablefor1="on">On</button>
         </div>
         <p id="jec-tablefor1-desc" class="text-stone-400 text-xs" style="visibility:hidden">Table for One costs −5 pts.</p>
@@ -2641,7 +2644,7 @@ Yep — merge 'em!
           <p class="text-stone-400 text-sm mt-0.5">Too many cooks spoil the broth.</p>
         </div>
         <div class="flex gap-2">
-          <button class="pill pill-active-amber" data-jec-tax="off">Off</button>
+          <button class="pill pill-active-slate" data-jec-tax="off">Off</button>
           <button class="pill" data-jec-tax="on">On</button>
         </div>
         <p id="jec-tax-desc" class="text-stone-400 text-xs" style="visibility:hidden">−2 pts per Chef who picked it, including you.</p>
@@ -2651,7 +2654,7 @@ Yep — merge 'em!
       <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
         <div class="flex items-center justify-between">
           <p class="text-stone-800 font-semibold">Sous Chef Check</p>
-          <button id="btn-jec-souschef-toggle" class="game-toggle-on-amber shrink-0">ON</button>
+          <button id="btn-jec-souschef-toggle" class="game-toggle-on-slate shrink-0">ON</button>
         </div>
         <p class="text-stone-400 text-sm">Before anything is scored, merge ingredients that are the same word spelt differently.</p>
       </div>
@@ -2684,7 +2687,7 @@ Yep — merge 'em!
         <p class="text-stone-400 text-sm">Two Orders drop at once. Prep three ingredients for the imagined mash-up, name the thing, then vote on the best name.</p>
       </div>
 
-      <button id="btn-jec-settings-done" class="min-h-14 w-full rounded-2xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      <button id="btn-jec-settings-done" class="min-h-14 w-full rounded-2xl bg-slate-600 hover:bg-slate-700 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
         Done
       </button>
       </div>
@@ -2701,32 +2704,32 @@ Yep — merge 'em!
       </div>
       <div class="overflow-y-auto flex flex-col gap-4 px-5 py-5">
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
-          <p class="text-xs font-semibold uppercase tracking-widest text-amber-500">Step 1</p>
+          <p class="text-xs font-semibold uppercase tracking-widest text-slate-600">Step 1</p>
           <p class="font-bold text-stone-800">Everyone sees the same Order.</p>
           <p class="text-stone-500 text-sm">A dish — like "Pizza" or "Nachos" — appears on screen. With <span class="font-semibold text-stone-700">Special Instructions</span> on, it comes with a twist: <span class="font-semibold text-stone-700">on a $5 budget</span>, or <span class="font-semibold text-stone-700">at 3am</span>.</p>
         </div>
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
-          <p class="text-xs font-semibold uppercase tracking-widest text-amber-500">Step 2</p>
+          <p class="text-xs font-semibold uppercase tracking-widest text-slate-600">Step 2</p>
           <p class="font-bold text-stone-800">Each Chef secretly picks 3 ingredients.</p>
           <p class="text-stone-500 text-sm">What would you put in this dish? You want to match others — without being so obvious that everybody does.</p>
         </div>
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
-          <p class="text-xs font-semibold uppercase tracking-widest text-amber-500">Step 3</p>
+          <p class="text-xs font-semibold uppercase tracking-widest text-slate-600">Step 3</p>
           <p class="font-bold text-stone-800">Back one with a star.</p>
           <p class="text-stone-500 text-sm">Tap the ⭐ to make one ingredient your <span class="font-semibold text-stone-700">Signature Dish</span>. If it lands in the golden range, it scores <span class="font-semibold text-stone-700">double</span>. If it doesn't, it just scores what it was worth — the only loss is the double you missed.</p>
         </div>
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
-          <p class="text-xs font-semibold uppercase tracking-widest text-amber-500">Step 4</p>
+          <p class="text-xs font-semibold uppercase tracking-widest text-slate-600">Step 4</p>
           <p class="font-bold text-stone-800">Call the Crutch.</p>
           <p class="text-stone-500 text-sm">Every kitchen has one. Name the culinary cliché you reckon everyone leans on — it can't be one of your own three. Get the round's most-picked ingredient, shared by <span class="font-semibold text-stone-700">3 or more Chefs</span>, and you've <span class="font-semibold text-stone-700">Called It! 📣</span> Miss and it costs you nothing.</p>
         </div>
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
-          <p class="text-xs font-semibold uppercase tracking-widest text-amber-500">Step 5</p>
+          <p class="text-xs font-semibold uppercase tracking-widest text-slate-600">Step 5</p>
           <p class="font-bold text-stone-800">Sous Chef's Check, then The Tasting.</p>
           <p class="text-stone-500 text-sm">First the table merges any ingredient that's the same word spelt two ways — <span class="font-semibold text-stone-700">before</span> anyone can see what it's worth. Then The Tasting reveals the counts, quietest first.</p>
         </div>
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
-          <p class="text-xs font-semibold uppercase tracking-widest text-amber-500">Winning and Scoring</p>
+          <p class="text-xs font-semibold uppercase tracking-widest text-slate-600">Winning and Scoring</p>
           <p class="font-bold text-stone-800">Most points after the last course wins.</p>
           <ul class="list-disc pl-5 flex flex-col gap-1 text-stone-500 text-sm">
             <li>🍽️ <span class="font-semibold text-stone-700">Table for One</span> — nobody else picked it. No points (with the penalty on: −5 pts).</li>
@@ -2738,11 +2741,11 @@ Yep — merge 'em!
           </ul>
         </div>
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
-          <p class="text-xs font-semibold uppercase tracking-widest text-amber-500">✨ Sylly Mode</p>
+          <p class="text-xs font-semibold uppercase tracking-widest text-slate-600">✨ Sylly Mode</p>
           <p class="font-bold text-stone-800">Fusion Cuisine</p>
           <p class="text-stone-500 text-sm">Two Orders drop at once — <span class="font-semibold text-stone-700">Sushi + Pizza</span>. Prep three ingredients for the mash-up and give the thing a name, all in one go. After The Tasting everyone votes on the best name; the winner goes <span class="font-semibold text-stone-700">On the Menu! ⭐</span> for half the jackpot. Ties all pay.</p>
         </div>
-        <button id="btn-jec-how-to-close" class="min-h-14 w-full rounded-2xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        <button id="btn-jec-how-to-close" class="min-h-14 w-full rounded-2xl bg-slate-600 hover:bg-slate-700 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
           Got it
         </button>
       </div>
@@ -2768,7 +2771,7 @@ Yep — merge 'em!
       <p class="text-xs font-semibold uppercase tracking-widest text-stone-400">Chef's Cook Book 📖</p>
       <div id="jec-washup-cookbook" class="flex flex-col gap-3 w-full"></div>
     </div>
-    <button id="btn-jec-new-game" class="min-h-14 w-full rounded-2xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+    <button id="btn-jec-new-game" class="min-h-14 w-full rounded-2xl bg-slate-600 hover:bg-slate-700 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
 New Shift
 </button>
     <button id="btn-jec-washup-back" class="min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-xl font-semibold transition-all duration-150">
@@ -2778,11 +2781,11 @@ New Shift
 
   <!-- JEC New Shift modal (Pattern 2) -->
   <div id="jec-new-shift-overlay" style="display:none" class="fixed inset-0 bg-black/50 z-[90] flex items-center justify-center px-6">
-    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-amber-300">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-slate-300">
       <p class="text-4xl">👨‍🍳</p>
       <h3 class="text-xl font-bold text-stone-800">New Shift?</h3>
       <p class="text-stone-400 text-sm">Scores will be wiped and a fresh game will begin.</p>
-      <button id="btn-jec-new-shift-start" class="min-h-14 w-full rounded-2xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white font-semibold text-lg transition-all duration-150 mt-2">Begin New Shift</button>
+      <button id="btn-jec-new-shift-start" class="min-h-14 w-full rounded-2xl bg-slate-600 hover:bg-slate-700 active:scale-95 text-white font-semibold text-lg transition-all duration-150 mt-2">Begin New Shift</button>
       <button id="btn-jec-new-shift-cancel" class="min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-lg transition-all duration-150">
         Back to the Chopping Block
       </button>
@@ -2791,7 +2794,7 @@ New Shift
 
   <!-- JEC Quit confirm overlay (Pattern 2) -->
   <div id="jec-quit-overlay" style="display:none" class="fixed inset-0 bg-black/50 z-[80] flex items-center justify-center px-6">
-    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-amber-300">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-slate-300">
       <p class="text-4xl">🏳️</p>
       <h3 class="text-xl font-bold text-stone-800">Kitchen Closed?</h3>
       <p class="text-stone-400 text-sm">Your progress will be lost.</p>
@@ -2806,7 +2809,7 @@ New Shift
 
   <!-- jec-help-tip-overlay (decision modal z-[90] — contextual help) -->
   <div id="jec-help-tip-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[90] flex items-center justify-center px-6">
-    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-amber-300">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-slate-300">
       <p id="jec-help-tip-emoji" class="text-4xl"></p>
       <h3 id="jec-help-tip-heading" class="text-lg font-bold text-stone-800"></h3>
       <div id="jec-help-tip-body" class="text-stone-500 text-sm text-left flex flex-col gap-1.5"></div>
@@ -2832,17 +2835,17 @@ New Shift
     <div class="text-6xl" role="img" aria-label="Lightbulb">💡</div>
     <div>
       <h1 class="text-5xl font-bold leading-tight text-stone-800">You Get</h1>
-      <h1 class="text-5xl font-bold leading-tight text-orange-500">It?</h1>
+      <h1 class="text-5xl font-bold leading-tight text-amber-500">It?</h1>
     </div>
     <p class="text-stone-500 text-lg">Finally, someone said it.</p>
     <div class="flex flex-col gap-4 w-full mt-2">
-      <button id="btn-ygi-menu-play" class="gel-btn min-h-14 w-full rounded-2xl bg-orange-500 hover:bg-orange-600 text-white text-xl font-semibold">
+      <button id="btn-ygi-menu-play" class="gel-btn min-h-14 w-full rounded-2xl bg-amber-500 hover:bg-amber-600 text-white text-xl font-semibold">
         Let's Get To It! 
       </button>
       <button id="btn-ygi-menu-how-to" class="gel-btn min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 text-white text-xl font-semibold">
         How to Play
       </button>
-      <button id="btn-ygi-menu-settings" class="gel-btn gel-btn-light min-h-14 w-full rounded-2xl bg-orange-100 hover:bg-orange-200 text-orange-700 text-xl font-semibold">
+      <button id="btn-ygi-menu-settings" class="gel-btn gel-btn-light min-h-14 w-full rounded-2xl bg-amber-100 hover:bg-amber-200 text-amber-700 text-xl font-semibold">
         Settings
       </button>
       <button id="btn-ygi-menu-back" class="gel-btn gel-btn-light min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 text-stone-500 text-xl font-semibold">
@@ -2868,7 +2871,7 @@ New Shift
       </div>
       <div class="flex gap-2">
         <button class="pill" data-ygi-player-count="3">3</button>
-        <button class="pill pill-active-orange" data-ygi-player-count="4">4</button>
+        <button class="pill pill-active-amber" data-ygi-player-count="4">4</button>
         <button class="pill" data-ygi-player-count="5">5</button>
         <button class="pill" data-ygi-player-count="6">6</button>
       </div>
@@ -2876,15 +2879,15 @@ New Shift
 
     <!-- Name fields -->
     <div class="flex flex-col gap-3">
-      <div class="ygi-player-row"><input id="ygi-player-1" type="text" placeholder="Friend 1" maxlength="20" class="w-full rounded-2xl border border-stone-200 px-4 py-3 text-stone-800 text-base focus:outline-none focus:ring-2 focus:ring-orange-300"></div>
-      <div class="ygi-player-row"><input id="ygi-player-2" type="text" placeholder="Friend 2" maxlength="20" class="w-full rounded-2xl border border-stone-200 px-4 py-3 text-stone-800 text-base focus:outline-none focus:ring-2 focus:ring-orange-300"></div>
-      <div class="ygi-player-row"><input id="ygi-player-3" type="text" placeholder="Friend 3" maxlength="20" class="w-full rounded-2xl border border-stone-200 px-4 py-3 text-stone-800 text-base focus:outline-none focus:ring-2 focus:ring-orange-300"></div>
-      <div class="ygi-player-row"><input id="ygi-player-4" type="text" placeholder="Friend 4" maxlength="20" class="w-full rounded-2xl border border-stone-200 px-4 py-3 text-stone-800 text-base focus:outline-none focus:ring-2 focus:ring-orange-300"></div>
-      <div class="ygi-player-row" style="display:none"><input id="ygi-player-5" type="text" placeholder="Friend 5" maxlength="20" class="w-full rounded-2xl border border-stone-200 px-4 py-3 text-stone-800 text-base focus:outline-none focus:ring-2 focus:ring-orange-300"></div>
-      <div class="ygi-player-row" style="display:none"><input id="ygi-player-6" type="text" placeholder="Friend 6" maxlength="20" class="w-full rounded-2xl border border-stone-200 px-4 py-3 text-stone-800 text-base focus:outline-none focus:ring-2 focus:ring-orange-300"></div>
+      <div class="ygi-player-row"><input id="ygi-player-1" type="text" placeholder="Friend 1" maxlength="20" class="w-full rounded-2xl border border-stone-200 px-4 py-3 text-stone-800 text-base focus:outline-none focus:ring-2 focus:ring-amber-300"></div>
+      <div class="ygi-player-row"><input id="ygi-player-2" type="text" placeholder="Friend 2" maxlength="20" class="w-full rounded-2xl border border-stone-200 px-4 py-3 text-stone-800 text-base focus:outline-none focus:ring-2 focus:ring-amber-300"></div>
+      <div class="ygi-player-row"><input id="ygi-player-3" type="text" placeholder="Friend 3" maxlength="20" class="w-full rounded-2xl border border-stone-200 px-4 py-3 text-stone-800 text-base focus:outline-none focus:ring-2 focus:ring-amber-300"></div>
+      <div class="ygi-player-row"><input id="ygi-player-4" type="text" placeholder="Friend 4" maxlength="20" class="w-full rounded-2xl border border-stone-200 px-4 py-3 text-stone-800 text-base focus:outline-none focus:ring-2 focus:ring-amber-300"></div>
+      <div class="ygi-player-row" style="display:none"><input id="ygi-player-5" type="text" placeholder="Friend 5" maxlength="20" class="w-full rounded-2xl border border-stone-200 px-4 py-3 text-stone-800 text-base focus:outline-none focus:ring-2 focus:ring-amber-300"></div>
+      <div class="ygi-player-row" style="display:none"><input id="ygi-player-6" type="text" placeholder="Friend 6" maxlength="20" class="w-full rounded-2xl border border-stone-200 px-4 py-3 text-stone-800 text-base focus:outline-none focus:ring-2 focus:ring-amber-300"></div>
     </div>
 
-    <button id="btn-ygi-setup-confirm" class="min-h-14 w-full rounded-2xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+    <button id="btn-ygi-setup-confirm" class="min-h-14 w-full rounded-2xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-stone-800 text-xl font-semibold transition-all duration-150">
       Everyone's In! →
     </button>
   </div>
@@ -2901,7 +2904,7 @@ New Shift
       <h2 class="text-2xl font-bold text-stone-800" id="ygi-pass-name"></h2>
       <p class="text-stone-500 text-lg mt-2">Pass the phone and don't peek!</p>
     </div>
-    <button id="btn-ygi-pass-ready" class="min-h-14 w-full rounded-2xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+    <button id="btn-ygi-pass-ready" class="min-h-14 w-full rounded-2xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-stone-800 text-xl font-semibold transition-all duration-150">
       I'm Ready
     </button>
   </section>
@@ -2919,7 +2922,7 @@ New Shift
       <p class="text-stone-400 text-sm font-semibold uppercase tracking-widest">New Situation Dropping...</p>
       <p id="ygi-prompt-text" class="text-stone-800 text-2xl font-bold leading-snug"></p>
     </div>
-    <button id="btn-ygi-prompt-start" class="min-h-14 w-full rounded-2xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+    <button id="btn-ygi-prompt-start" class="min-h-14 w-full rounded-2xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-stone-800 text-xl font-semibold transition-all duration-150">
 Get Into It!
 </button>
   </section>
@@ -2935,7 +2938,7 @@ Get Into It!
       </div>
     </div>
 
-    <div class="bg-orange-50 rounded-2xl p-4 border border-orange-100">
+    <div class="bg-amber-50 rounded-2xl p-4 border border-amber-100">
       <p id="ygi-input-prompt-text" class="text-stone-600 text-sm font-medium leading-snug text-center"></p>
     </div>
 
@@ -2947,7 +2950,7 @@ Get Into It!
           type="number" inputmode="numeric" pattern="[0-9]*"
           min="0" max="1000000" step="1"
           placeholder="0 – 1,000,000"
-          class="w-full rounded-2xl border border-stone-200 px-4 py-4 text-stone-800 text-2xl font-bold text-center focus:outline-none focus:ring-2 focus:ring-orange-300">
+          class="w-full rounded-2xl border border-stone-200 px-4 py-4 text-stone-800 text-2xl font-bold text-center focus:outline-none focus:ring-2 focus:ring-amber-300">
       </div>
       <!-- Metric field -->
       <div class="flex flex-col gap-1.5">
@@ -2959,13 +2962,13 @@ Get Into It!
           placeholder="Fill the gap..."
           maxlength="95"
           rows="3"
-          class="w-full rounded-2xl border border-stone-200 px-4 py-3 text-stone-800 text-base focus:outline-none focus:ring-2 focus:ring-orange-300 resize-none overflow-hidden leading-snug"></textarea>
+          class="w-full rounded-2xl border border-stone-200 px-4 py-3 text-stone-800 text-base focus:outline-none focus:ring-2 focus:ring-amber-300 resize-none overflow-hidden leading-snug"></textarea>
       </div>
     </div>
 
     <p id="ygi-input-error" class="text-red-500 text-sm text-center min-h-5"></p>
 
-    <button id="btn-ygi-input-confirm" class="btn-mp-action min-h-14 w-full rounded-2xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+    <button id="btn-ygi-input-confirm" class="btn-mp-action min-h-14 w-full rounded-2xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-stone-800 text-xl font-semibold transition-all duration-150">
       That's My Take
     </button>
   </section>
@@ -2984,7 +2987,7 @@ Get Into It!
     <div class="  overflow-x-hidden flex flex-col ">
       <div class=" px-6 py-4 flex flex-col gap-4">
         <div class="text-center">
-          <p class="text-base font-bold uppercase tracking-widest text-orange-400 mb-2">The Lineup 🃏</p>
+          <p class="text-base font-bold uppercase tracking-widest text-amber-400 mb-2">The Lineup 🃏</p>
           <p id="ygi-reveal-prompt-text" class="text-stone-700 font-semibold text-base leading-snug"></p>
         </div>
         <div id="ygi-lineup-cards" class="flex flex-col gap-3">
@@ -2994,7 +2997,7 @@ Get Into It!
     </div>
 
     <div class="px-6 pb-8 pt-2 ">
-      <button id="btn-ygi-reveal-next" class="min-h-14 w-full rounded-2xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      <button id="btn-ygi-reveal-next" class="min-h-14 w-full rounded-2xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-stone-800 text-xl font-semibold transition-all duration-150">
 Start the Verdict
 </button>
     </div>
@@ -3015,7 +3018,7 @@ Start the Verdict
 
     <div class="px-6 pt-1 pb-3  text-center">
       <p id="ygi-vote-player-label" class="text-stone-800 font-bold text-lg"></p>
-      <p class="text-xs font-semibold uppercase tracking-widest text-orange-400 mt-1 mb-2">The Verdict 🏆</p>
+      <p class="text-xs font-semibold uppercase tracking-widest text-amber-400 mt-1 mb-2">The Verdict 🏆</p>
       <p id="ygi-vote-prompt-text" class="text-stone-500 text-sm leading-snug"></p>
     </div>
 
@@ -3031,7 +3034,7 @@ Start the Verdict
 
     <div class="px-6 pb-8 pt-2 ">
       <p id="ygi-vote-error" class="text-red-500 text-sm text-center mb-2 min-h-5"></p>
-      <button id="btn-ygi-vote-submit" class="btn-mp-action min-h-14 w-full rounded-2xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      <button id="btn-ygi-vote-submit" class="btn-mp-action min-h-14 w-full rounded-2xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-stone-800 text-xl font-semibold transition-all duration-150">
         Lock In My Verdict
       </button>
     </div>
@@ -3053,7 +3056,7 @@ Start the Verdict
 
     <!-- Fixed subheader — prompt always visible -->
     <div class="px-6 pt-2 pb-3  text-center">
-      <p class="text-xs font-semibold uppercase tracking-widest text-orange-400 mb-2">The Tally</p>
+      <p class="text-xs font-semibold uppercase tracking-widest text-amber-400 mb-2">The Tally</p>
       <p id="ygi-results-prompt-text" class="text-stone-700 font-semibold text-base leading-snug"></p>
     </div>
 
@@ -3079,7 +3082,7 @@ Start the Verdict
 
     <!-- Sticky footer -->
     <div class="px-6 pb-8 pt-2 ">
-      <button id="btn-ygi-results-next" class="min-h-14 w-full rounded-2xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      <button id="btn-ygi-results-next" class="min-h-14 w-full rounded-2xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-stone-800 text-xl font-semibold transition-all duration-150">
         Next Situation →
       </button>
     </div>
@@ -3132,7 +3135,7 @@ Start the Verdict
 
     <!-- Sticky footer -->
     <div class="px-6 pb-2 pt-2 flex flex-col gap-3">
-      <button id="btn-ygi-play-again" class="min-h-14 w-full rounded-2xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      <button id="btn-ygi-play-again" class="min-h-14 w-full rounded-2xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-stone-800 text-xl font-semibold transition-all duration-150">
         Run It Back 
       </button>
       <button id="btn-ygi-gameover-back" class="min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-xl font-semibold transition-all duration-150">
@@ -3152,16 +3155,16 @@ Start the Verdict
     <div>
       <p class="text-5xl mb-3">⚡</p>
       <h2 class="text-3xl font-bold text-stone-800">Sudden Death!</h2>
-      <p id="ygi-sd-tied-names" class="text-orange-500 font-bold text-lg mt-2"></p>
+      <p id="ygi-sd-tied-names" class="text-amber-500 font-bold text-lg mt-2"></p>
       <p class="text-stone-400 text-sm mt-1">One final question. Highest number wins.</p>
     </div>
 
-    <div class="bg-orange-50 border border-orange-200 rounded-2xl p-5 w-full">
+    <div class="bg-amber-50 border border-amber-200 rounded-2xl p-5 w-full">
       <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest mb-2">The Question</p>
       <p id="ygi-sd-question" class="text-stone-800 font-bold text-lg leading-snug"></p>
     </div>
 
-    <button id="btn-ygi-sd-begin" class="min-h-14 w-full rounded-2xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+    <button id="btn-ygi-sd-begin" class="min-h-14 w-full rounded-2xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-stone-800 text-xl font-semibold transition-all duration-150">
 Begin Sudden Death
 </button>
   </section>
@@ -3174,7 +3177,7 @@ Begin Sudden Death
       <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
     </div>
 
-    <div class="bg-orange-50 rounded-2xl p-4 border border-orange-100 text-center">
+    <div class="bg-amber-50 rounded-2xl p-4 border border-amber-100 text-center">
       <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest mb-1">⚡ Sudden Death</p>
       <p id="ygi-sd-input-question" class="text-stone-700 font-semibold text-sm leading-snug"></p>
     </div>
@@ -3185,12 +3188,12 @@ Begin Sudden Death
         type="number" inputmode="numeric" pattern="[0-9]*"
         min="0" max="1000000" step="1"
         placeholder="0 – 1,000,000"
-        class="w-full rounded-2xl border border-stone-200 px-4 py-4 text-stone-800 text-2xl font-bold text-center focus:outline-none focus:ring-2 focus:ring-orange-300">
+        class="w-full rounded-2xl border border-stone-200 px-4 py-4 text-stone-800 text-2xl font-bold text-center focus:outline-none focus:ring-2 focus:ring-amber-300">
     </div>
 
     <p id="ygi-sd-input-error" class="text-red-500 text-sm text-center min-h-5"></p>
 
-    <button id="btn-ygi-sd-input-confirm" class="btn-mp-action min-h-14 w-full rounded-2xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+    <button id="btn-ygi-sd-input-confirm" class="btn-mp-action min-h-14 w-full rounded-2xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-stone-800 text-xl font-semibold transition-all duration-150">
 Lock In My Answer
 </button>
   </section>
@@ -3211,7 +3214,7 @@ Lock In My Answer
           <p class="text-stone-400 text-sm mt-0.5">How many situations per session.</p>
         </div>
         <div class="flex gap-2">
-          <button class="pill pill-active-orange" data-ygi-rounds="3">3</button>
+          <button class="pill pill-active-amber" data-ygi-rounds="3">3</button>
           <button class="pill" data-ygi-rounds="5">5</button>
           <button class="pill" data-ygi-rounds="8">8</button>
         </div>
@@ -3224,7 +3227,7 @@ Lock In My Answer
           <p class="text-stone-400 text-sm mt-0.5">What happens if scores are tied at the end.</p>
         </div>
         <div class="flex gap-2">
-          <button class="pill pill-active-orange" data-ygi-decider="close-enough">Split Take</button>
+          <button class="pill pill-active-amber" data-ygi-decider="close-enough">Split Take</button>
           <button class="pill" data-ygi-decider="only-one">Solo Take</button>
         </div>
       </div>
@@ -3245,7 +3248,7 @@ Lock In My Answer
           <p class="text-stone-400 text-sm mt-0.5">How the group gives The Nod each round.</p>
         </div>
         <div class="flex gap-2">
-          <button class="pill pill-active-orange" data-ygi-verdict="open-ballpark">The Consensus</button>
+          <button class="pill pill-active-amber" data-ygi-verdict="open-ballpark">The Consensus</button>
           <button class="pill" data-ygi-verdict="secret-ballot">Your Call</button>
         </div>
       </div>
@@ -3260,7 +3263,7 @@ Lock In My Answer
         <p class="text-stone-400 text-sm">A mystery Ghost Card joins the Lineup. If it wins, everyone loses 2 points.</p>
       </div>
 
-      <button id="btn-ygi-settings-done" class="min-h-14 w-full rounded-2xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      <button id="btn-ygi-settings-done" class="min-h-14 w-full rounded-2xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-stone-800 text-xl font-semibold transition-all duration-150">
         Done
       </button>
       </div>
@@ -3276,36 +3279,36 @@ Lock In My Answer
       </div>
       <div class="overflow-y-auto flex flex-col gap-4 px-5 py-5">
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
-          <p class="text-xs font-semibold uppercase tracking-widest text-orange-500">Step 1</p>
+          <p class="text-xs font-semibold uppercase tracking-widest text-amber-500">Step 1</p>
           <p class="font-bold text-stone-800">Read the Situation aloud.</p>
           <p class="text-stone-500 text-sm">Everyone reads <span class="font-semibold text-stone-700">The Situation</span> together. It has a blank — that's <span class="font-semibold text-stone-700">The Gap</span> you'll fill with your answer.</p>
         </div>
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
-          <p class="text-xs font-semibold uppercase tracking-widest text-orange-500">Step 2</p>
+          <p class="text-xs font-semibold uppercase tracking-widest text-amber-500">Step 2</p>
           <p class="font-bold text-stone-800">Submit your Take.</p>
           <p class="text-stone-500 text-sm">Pass the phone around. Each player secretly picks a <span class="font-semibold text-stone-700">Number</span> and writes something for The Gap. Your combined answer should slot right into the sentence.</p>
         </div>
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
-          <p class="text-xs font-semibold uppercase tracking-widest text-orange-500">Step 3</p>
+          <p class="text-xs font-semibold uppercase tracking-widest text-amber-500">Step 3</p>
           <p class="font-bold text-stone-800">The Lineup is revealed.</p>
           <p class="text-stone-500 text-sm">All Takes appear at once 🃏, sorted lowest to highest. No names — just the answers. Read them out.</p>
         </div>
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
-          <p class="text-xs font-semibold uppercase tracking-widest text-orange-500">Step 4</p>
+          <p class="text-xs font-semibold uppercase tracking-widest text-amber-500">Step 4</p>
           <p class="font-bold text-stone-800">Give the Nod.</p>
           <p class="text-stone-500 text-sm">Vote for the take you relate to most. You can't vote for your own.</p>
         </div>
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
-          <p class="text-xs font-semibold uppercase tracking-widest text-orange-500">Winning and Scoring</p>
+          <p class="text-xs font-semibold uppercase tracking-widest text-amber-500">Winning and Scoring</p>
           <p class="font-bold text-stone-800">The Nod decides everything.</p>
           <p class="text-stone-500 text-sm">1st most votes = 3 pts, 2nd = 2 pts, 3rd = 1 pt. Most points across all Situations wins. The take everyone vibes with wins the round.</p>
         </div>
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
-          <p class="text-xs font-semibold uppercase tracking-widest text-orange-500">✨ Sylly Mode</p>
+          <p class="text-xs font-semibold uppercase tracking-widest text-amber-500">✨ Sylly Mode</p>
           <p class="font-bold text-stone-800">The Ringer</p>
           <p class="text-stone-500 text-sm">A mystery <span class="font-semibold text-stone-700">Ghost Card</span> joins The Lineup each round. If the group gives The Nod to the Ghost instead of a real player, everyone loses points.</p>
         </div>
-        <button id="btn-ygi-how-to-close" class="min-h-14 w-full rounded-2xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        <button id="btn-ygi-how-to-close" class="min-h-14 w-full rounded-2xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-stone-800 text-xl font-semibold transition-all duration-150">
           Got it
         </button>
       </div>
@@ -3314,7 +3317,7 @@ Lock In My Answer
 
   <!-- YGI Quit overlay (Pattern 2) -->
   <div id="ygi-quit-overlay" style="display:none" class="fixed inset-0 bg-black/50 z-[80] flex items-center justify-center px-6">
-    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-orange-300">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-amber-300">
       <p class="text-4xl">💡</p>
       <h3 class="text-xl font-bold text-stone-800">Not Feeling It?</h3>
       <p class="text-stone-400 text-sm">Your takes will vanish into the void.</p>
@@ -3329,11 +3332,11 @@ Lock In My Answer
 
   <!-- YGI Run It Back overlay (Pattern 2) -->
   <div id="ygi-run-it-back-overlay" style="display:none" class="fixed inset-0 bg-black/50 z-[80] flex items-center justify-center px-6">
-    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-orange-300">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-amber-300">
       <p class="text-4xl">🃏</p>
       <h3 class="text-xl font-bold text-stone-800">Run It Back?</h3>
       <p class="text-stone-400 text-sm">Start a fresh game with the same crew.</p>
-      <button id="btn-ygi-run-confirm" class="min-h-12 w-full rounded-xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white text-lg font-semibold transition-all duration-150 mt-2">
+      <button id="btn-ygi-run-confirm" class="min-h-12 w-full rounded-xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-stone-800 text-lg font-semibold transition-all duration-150 mt-2">
         Yeah, let's go! 
       </button>
       <button id="btn-ygi-run-cancel" class="min-h-12 w-full rounded-xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 text-lg font-semibold transition-all duration-150">
@@ -3344,7 +3347,7 @@ Lock In My Answer
 
   <!-- ygi-help-tip-overlay (decision modal z-[90] — contextual help) -->
   <div id="ygi-help-tip-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[90] flex items-center justify-center px-6">
-    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-orange-300">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-amber-300">
       <p id="ygi-help-tip-emoji" class="text-4xl"></p>
       <h3 id="ygi-help-tip-heading" class="text-lg font-bold text-stone-800"></h3>
       <p id="ygi-help-tip-text" class="text-stone-500 text-sm"></p>
@@ -5490,7 +5493,7 @@ Launch Sequence
     </div>
     <div class="text-5xl" role="img" aria-label="Clipboard">📋</div>
     <div>
-      <h2 class="text-3xl font-bold text-stone-800">Bailed</h2>
+      <h1 class="text-5xl font-bold leading-tight"><span class="text-stone-800">Bail</span><span class="bld-label">ed</span></h1>
       <p class="text-stone-400 text-base mt-1">Making plans is easy. Showing up is hard.</p>
     </div>
     <div class="flex flex-col gap-4 w-full mt-2">
@@ -6040,7 +6043,8 @@ Second Chances
     <button class="btn-open-sound absolute top-4 right-4 text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
     <div class="text-6xl" role="img" aria-label="Couch">🛋️</div>
     <div>
-      <h1 class="text-4xl font-bold text-stone-800">Group Therapy</h1>
+      <h1 class="text-5xl font-bold leading-tight text-stone-800">Group</h1>
+      <h1 class="text-5xl font-bold leading-tight" style="color:#B1BCA0">Therapy</h1>
       <p class="text-stone-400 text-base mt-1">We've all got issues. Now draw them.</p>
     </div>
     <div class="flex flex-col gap-4 w-full mt-2">
@@ -6554,7 +6558,8 @@ Done
     <button class="btn-open-sound absolute top-4 right-4 text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
     <div class="text-6xl" role="img" aria-label="Dice">🎲</div>
     <div>
-      <h1 class="text-3xl font-bold text-stone-800">The Bluff</h1>
+      <h1 class="text-5xl font-bold leading-tight text-stone-800">The</h1>
+      <h1 class="text-5xl font-bold leading-tight dyb-label">Bluff</h1>
       <p class="text-stone-400 text-base mt-1">Trust no one, count every face.</p>
     </div>
     <div class="flex flex-col gap-3 w-full">
@@ -6564,7 +6569,7 @@ Done
       <button id="btn-dyb-menu-how-to" class="gel-btn min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 text-white text-xl font-semibold">
         How to Play
       </button>
-      <button id="btn-dyb-menu-settings" class="gel-btn gel-btn-light min-h-14 w-full rounded-2xl bg-[#dce8f7] hover:bg-[#c8daf0] text-[#1E4D8C] text-xl font-semibold">
+      <button id="btn-dyb-menu-settings" class="gel-btn gel-btn-light min-h-14 w-full rounded-2xl bg-[#e8e1d8] hover:bg-[#ddd4c4] text-[#6B5744] text-xl font-semibold">
         Settings
       </button>
       <button id="btn-dyb-menu-back" class="gel-btn gel-btn-light min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 text-stone-500 text-xl font-semibold">
@@ -6895,7 +6900,7 @@ Deal the Dice
   <!-- DYB QUIT OVERLAY -->
   <div id="dyb-quit-overlay" style="display:none"
     class="fixed inset-0 bg-black/40 z-[80] flex items-center justify-center px-6">
-    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-[#9db8d9]">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-[#c2b09d]">
       <p class="text-3xl">🚪</p>
       <h3 class="text-lg font-bold text-stone-800">Back Down?</h3>
       <p class="text-stone-500 text-sm">Your dice go with you. The climb carries on without you.</p>
@@ -6911,7 +6916,7 @@ Deal the Dice
   <!-- DYB NEW GAME OVERLAY -->
   <div id="dyb-new-game-overlay" style="display:none"
     class="fixed inset-0 bg-black/40 z-[90] flex items-center justify-center px-6">
-    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-[#9db8d9]">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-[#c2b09d]">
       <p class="text-3xl">🎲</p>
       <h3 class="text-lg font-bold text-stone-800">Climb Again?</h3>
       <p class="text-stone-500 text-sm">New positions, fresh dice, same room code.</p>
@@ -6927,7 +6932,7 @@ Climb Again
   <!-- DYB SLICK PICKER (die-face assignment overlay) -->
   <div id="dyb-slick-picker-overlay" style="display:none"
     class="fixed inset-0 bg-black/40 z-[100] flex items-center justify-center px-6">
-    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-[#9db8d9]">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-[#c2b09d]">
       <p class="text-stone-600 font-semibold text-sm">Assign this die's face</p>
       <div id="dyb-slick-picker-content" class="flex gap-2 justify-center flex-wrap"></div>
       <button id="btn-dyb-slick-picker-cancel" onclick="document.getElementById('dyb-slick-picker-overlay').style.display='none'" class="min-h-10 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-sm transition-all duration-100">Cancel</button>
@@ -6953,7 +6958,7 @@ Climb Again
   <!-- DYB TIP OVERLAY -->
   <div id="dyb-tip-overlay" style="display:none"
     class="fixed inset-0 bg-black/40 z-[90] flex items-center justify-center px-6">
-    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-[#9db8d9]">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-[#c2b09d]">
       <div class="flex flex-col gap-2">
         <p id="dyb-tip-emoji" class="text-3xl"></p>
         <h3 id="dyb-tip-heading" class="text-lg font-bold text-stone-800"></h3>
@@ -7008,7 +7013,7 @@ Climb Again
     <p id="pass-menu-status" style="display:none" class="text-red-500 text-sm font-medium"></p>
     <div class="text-6xl" role="img" aria-label="Playing cards">🃏</div>
     <div>
-      <h1 class="text-3xl font-bold text-stone-800">Pass</h1>
+      <h1 class="text-5xl font-bold leading-tight"><span class="text-stone-800">Pa</span><span class="text-zinc-900">ss</span></h1>
       <p class="text-stone-400 text-base mt-1">Shed your hand, climb the table.</p>
     </div>
     <div class="flex flex-col gap-3 w-full">
@@ -7426,7 +7431,7 @@ Climb Again
     <p id="nt-menu-status" style="display:none" class="text-red-500 text-sm font-medium"></p>
     <div class="text-6xl" role="img" aria-label="Laptop">💻</div>
     <div>
-      <h1 class="text-3xl font-bold text-stone-800">Net-Trace</h1>
+      <h1 class="text-5xl font-bold leading-tight"><span class="text-stone-800">Net-</span><span class="text-emerald-600">Trace</span></h1>
       <p class="text-stone-400 text-base mt-1">Out-engineer the automated breach before your system data is extracted.</p>
     </div>
     <div class="flex flex-col gap-3 w-full">
@@ -8041,11 +8046,12 @@ Reboot
     <p id="frt-menu-status" style="display:none" class="text-red-500 text-sm font-medium"></p>
     <div class="text-6xl" role="img" aria-label="Banana">&#x1F34C;</div>
     <div>
-      <h1 class="text-3xl font-bold text-stone-800">Fruit Salad</h1>
+      <h1 class="text-5xl font-bold leading-tight text-stone-800">Fruit</h1>
+      <h1 class="text-5xl font-bold leading-tight" style="color:#FFE500">Salad</h1>
       <p class="text-stone-400 text-base mt-1">"This is definitely a banana. Trust me."</p>
     </div>
     <div class="flex flex-col gap-3 w-full">
-      <button id="btn-frt-menu-play" class="gel-btn min-h-14 w-full rounded-2xl bg-[#FFE500] hover:bg-[#E6D200] text-stone-800 text-xl font-semibold">
+      <button id="btn-frt-menu-play" class="gel-btn min-h-14 w-full rounded-2xl bg-[#FFE500] hover:bg-[#E6D200] text-white text-xl font-semibold">
         Start Serving
       </button>
       <button id="btn-frt-menu-how-to" class="gel-btn min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 text-white text-xl font-semibold">
@@ -8362,7 +8368,8 @@ Reboot
     <p id="shp-menu-status" style="display:none" class="text-red-500 text-sm font-medium"></p>
     <div class="text-6xl" role="img" aria-label="Sheep">&#x1F411;</div>
     <div>
-      <h1 class="text-3xl font-bold text-stone-800">Counting Sheep</h1>
+      <h1 class="text-5xl font-bold leading-tight text-stone-800">Counting</h1>
+      <h1 class="text-5xl font-bold leading-tight shp-label">Sheep</h1>
       <p class="text-stone-400 text-base mt-1">Stay awake. Pass the herd.</p>
     </div>
     <div class="flex flex-col gap-3 w-full">
@@ -8615,7 +8622,7 @@ Reboot
     <button class="btn-open-sound absolute top-4 right-4 text-2xl">🔊</button>
     <div class="text-6xl" role="img" aria-label="diamond">💎</div>
     <div>
-      <h1 class="text-4xl font-bold text-stone-700">Flawless</h1>
+      <h1 class="text-5xl font-bold leading-tight"><span class="text-stone-800">Flaw</span><span class="flw-step-label">less</span></h1>
       <p class="text-stone-400 text-base mt-2">The flawless one wins. Don't get exposed.</p>
     </div>
     <div class="flex flex-col gap-3 w-full">
@@ -8975,13 +8982,14 @@ Reboot
     <button class="btn-open-sound absolute top-4 right-4 text-2xl">🔊</button>
     <div class="text-6xl" role="img" aria-label="elephant">🐘</div>
     <div>
-      <h1 class="text-4xl font-bold text-stone-800">Pecking Order</h1>
+      <h1 class="text-5xl font-bold leading-tight text-stone-800">Pecking</h1>
+      <h1 class="text-5xl font-bold leading-tight pko-label">Order</h1>
       <p class="text-stone-400 text-base mt-2">Know the food chain. Become the Apex.</p>
     </div>
     <div class="flex flex-col gap-3 w-full">
       <button id="btn-pko-menu-play" class="gel-btn pko-cta min-h-14 w-full rounded-2xl text-white text-xl font-semibold">Enter the Wild</button>
       <button id="btn-pko-menu-how-to" class="gel-btn min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 text-white text-xl font-semibold">How to Play</button>
-      <button id="btn-pko-menu-settings" class="gel-btn gel-btn-light min-h-14 w-full rounded-2xl bg-[#F5E6C8] hover:bg-[#EBD5A8] text-[#854D0E] text-xl font-semibold">Settings</button>
+      <button id="btn-pko-menu-settings" class="gel-btn gel-btn-light min-h-14 w-full rounded-2xl bg-[#F5E6C8] hover:bg-[#EBD5A8] text-[#9A3412] text-xl font-semibold">Settings</button>
       <button id="btn-pko-menu-back" class="gel-btn gel-btn-light min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 text-stone-500 text-xl font-semibold">← Back to the Box</button>
     </div>
   </section>
@@ -8998,7 +9006,7 @@ Reboot
       <p id="pko-clash-intro-sub" class="text-stone-500 text-base"></p>
       <div id="pko-clash-intro-sylly" style="display:none" class="flex items-center gap-2 bg-[#F5E6C8] border border-[#E4CFA3] rounded-2xl p-3 justify-center">
         <span class="text-xl">🌪</span>
-        <p class="text-[#854D0E] text-sm font-semibold">Force of Nature is active — watch the board, not just your Hoard.</p>
+        <p class="text-[#9A3412] text-sm font-semibold">Force of Nature is active — watch the board, not just your Hoard.</p>
       </div>
     </div>
   </section>
@@ -9067,7 +9075,7 @@ Reboot
               <div class="flex items-center justify-center min-h-[5.75rem]"></div>
             </div>
           </div>
-          <p id="pko-table-hint" class="text-center text-xs text-[#854D0E] min-h-4"></p>
+          <p id="pko-table-hint" class="text-center text-xs text-[#9A3412] min-h-4"></p>
         </div>
         <div id="pko-player-strip" class="flex flex-wrap gap-2 justify-center"></div>
         <div class="bg-white rounded-2xl p-3 shadow-sm flex flex-col gap-2">
@@ -9081,7 +9089,7 @@ Reboot
       <div class="flex flex-col gap-2">
         <button id="btn-pko-stake" style="display:none" class="btn-mp-action pko-cta min-h-14 w-full rounded-2xl text-white text-lg font-semibold active:scale-95 transition-all duration-150">Stake</button>
         <button id="btn-pko-challenge" style="display:none" class="btn-mp-action pko-cta min-h-14 w-full rounded-2xl text-white text-lg font-semibold active:scale-95 transition-all duration-150">Challenge</button>
-        <button id="btn-pko-stampede" style="display:none" class="btn-mp-action flex items-center justify-center min-h-14 w-full rounded-2xl bg-[#F5E6C8] hover:bg-[#EBD5A8] text-[#854D0E] text-lg font-semibold active:scale-95 transition-all duration-150">Stampede</button>
+        <button id="btn-pko-stampede" style="display:none" class="btn-mp-action flex items-center justify-center min-h-14 w-full rounded-2xl bg-[#F5E6C8] hover:bg-[#EBD5A8] text-[#9A3412] text-lg font-semibold active:scale-95 transition-all duration-150">Stampede</button>
         <button id="btn-pko-retreat" style="display:none" class="btn-mp-action flex items-center justify-center min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 text-stone-600 text-lg font-semibold active:scale-95 transition-all duration-150">Retreat</button>
       </div>
     </div>
@@ -9127,7 +9135,7 @@ Reboot
       </div>
       <div id="pko-clash-result-body" class="flex flex-col items-center gap-3 text-center"></div>
       <button id="btn-pko-next-clash" class="pko-cta min-h-14 w-full rounded-2xl text-white text-lg font-semibold active:scale-95 transition-all duration-150">Next Clash</button>
-      <button id="btn-pko-result-trail" class="flex items-center justify-center min-h-11 w-full rounded-2xl bg-[#F5E6C8] hover:bg-[#EBD5A8] text-[#854D0E] text-base font-semibold active:scale-95 transition-all duration-150">Trail &amp; Discards →</button>
+      <button id="btn-pko-result-trail" class="flex items-center justify-center min-h-11 w-full rounded-2xl bg-[#F5E6C8] hover:bg-[#EBD5A8] text-[#9A3412] text-base font-semibold active:scale-95 transition-all duration-150">Trail &amp; Discards →</button>
       <p id="pko-clash-result-waiting" style="display:none" class="text-center text-stone-400 text-xs">Waiting for the host to open the next Clash…</p>
     </div>
   </section>
@@ -9284,7 +9292,7 @@ Reboot
             <button id="btn-pko-challenge-reset" class="text-[0.6rem] font-semibold uppercase tracking-wide text-stone-400 hover:text-stone-600 active:scale-90 transition-all duration-100 p-2 -m-2">↺ Reset</button>
           </div>
           <div id="pko-challenge-slots" class="flex gap-1.5 justify-center flex-wrap"></div>
-          <p id="pko-challenge-hint" class="text-center text-xs text-[#854D0E] min-h-4"></p>
+          <p id="pko-challenge-hint" class="text-center text-xs text-[#9A3412] min-h-4"></p>
         </div>
         <div class="flex flex-col gap-1.5">
           <p class="text-[0.6rem] font-semibold uppercase tracking-wide text-stone-400">Your Hoard</p>
@@ -9517,7 +9525,8 @@ Reboot
     <button class="btn-open-sound absolute top-4 right-4 text-2xl active:scale-90 transition-transform duration-100">🔊</button>
     <div class="text-5xl" role="img" aria-label="Cookie Jar">🍪</div>
     <div>
-      <h2 class="text-3xl font-bold text-stone-800">Cookie Jar</h2>
+      <h1 class="text-5xl font-bold leading-tight text-stone-800">Cookie</h1>
+      <h1 class="text-5xl font-bold leading-tight cjar-label">Jar</h1>
       <p class="text-stone-400 text-base mt-1">Who took the cookies from the cookie jar?</p>
     </div>
     <div class="flex flex-col gap-3 w-full">
@@ -9667,7 +9676,7 @@ Reboot
            bar sits directly above them because it is counting down for THEM. -->
       <div class="flex flex-col gap-3">
         <div id="cjar-timer-bar" class="h-1.5 w-full rounded-full bg-stone-200 overflow-hidden">
-          <div id="cjar-timer-fill" class="h-full w-full rounded-full" style="background-color:#D4A017"></div>
+          <div id="cjar-timer-fill" class="h-full w-full rounded-full" style="background-color:#5C3A21"></div>
         </div>
         <div id="cjar-controls" class="flex flex-col gap-2"></div>
       </div>
@@ -9983,7 +9992,8 @@ Reboot
     <button class="btn-open-sound absolute top-4 right-4 text-2xl active:scale-90 transition-transform duration-100">🔊</button>
     <div class="text-5xl" role="img" aria-label="Penguin">🐧</div>
     <div>
-      <h2 class="text-3xl font-bold text-stone-800">Cold Shoulder</h2>
+      <h1 class="text-5xl font-bold leading-tight text-stone-800">Cold</h1>
+      <h1 class="text-5xl font-bold leading-tight cld-label">Shoulder</h1>
       <p class="text-stone-400 text-base mt-1">Barge your mates into the drink — last penguin on the floe wins.</p>
     </div>
     <div class="flex flex-col gap-3 w-full">
@@ -10370,5 +10380,712 @@ Reboot
     </div>
   </div>
 
+  <!-- ════ HONEYCOMB HILLS ════
+       Screens : screen-comb-menu, screen-comb-standby, screen-comb-meadow,
+                 screen-comb-gameover
+       Overlays: comb-settings-overlay, comb-how-to-overlay, comb-quit-overlay,
+                 comb-new-season-overlay, comb-overflow-overlay, comb-trade-overlay,
+                 comb-trade-offer-overlay, comb-steal-overlay, comb-instinct-overlay,
+                 comb-instinct-reveal-overlay, comb-log-overlay, comb-tip-overlay,
+                 comb-pheromone-overlay, comb-bloom-overlay, comb-map-overlay
+       Notes   : screen-comb-meadow is on the legacy h-screen whitelist (fit-to-view
+                 board; hand row + action bar must not move — see ui-style.md).
+                 ALL zooming lives in comb-map-overlay (z-[75], the lowest of the
+                 fifteen, so pushed overlays land on top). MDLM-only. No Sylly Mode.
+    ════════════════════════════════════════════════════════════════════════════ -->
+
+  <!-- COMB MENU — content-height section (NO min-h-screen, or the 🔊 detaches to
+       the viewport top and reads as unattached to the title) -->
+  <section id="screen-comb-menu" style="display:none"
+    class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
+    <button class="btn-open-sound absolute top-4 right-4 text-2xl active:scale-90 transition-transform duration-100">🔊</button>
+    <div class="text-5xl" role="img" aria-label="Bee">🐝</div>
+    <div>
+      <h1 class="text-5xl font-bold leading-tight text-stone-800">Honeycomb</h1>
+      <h1 class="text-5xl font-bold leading-tight comb-label">Hills</h1>
+      <p class="text-stone-400 text-base mt-1">Build your comb, trade your nectar, grow the strongest hive in the meadow.</p>
+    </div>
+    <div class="flex flex-col gap-3 w-full">
+      <button id="btn-comb-menu-play" class="gel-btn comb-cta min-h-14 w-full rounded-2xl text-xl font-semibold">Send the Scouts</button>
+      <button id="btn-comb-menu-how-to" class="gel-btn min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 text-white text-xl font-semibold">How to Play</button>
+      <button id="btn-comb-menu-settings" class="gel-btn gel-btn-light min-h-14 w-full rounded-2xl bg-[#FDF0D0] hover:bg-[#FAE3AB] text-[#B87A00] text-xl font-semibold">Settings</button>
+      <button id="btn-comb-menu-back" class="gel-btn gel-btn-light min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 text-stone-500 text-xl font-semibold">← Back to the Box</button>
+    </div>
+  </section>
+
+  <!-- COMB STANDBY — the client's wait between joining the lobby and the host's
+       COMB_MATCH_START. MDLM-only game, so there is no setup screen at all: names
+       come from mpPlayerSlots (spec §3). It is NOT an interstitial — it does not
+       auto-advance and the player may leave from here — so it carries the full
+       🔊 + ✕ chrome. -->
+  <section id="screen-comb-standby" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-4">
+      <div class="flex items-center justify-end">
+        <div class="flex items-center gap-2">
+          <button class="btn-open-sound text-xl active:scale-90 transition-transform duration-100">🔊</button>
+          <button class="btn-comb-quit-open text-stone-500 font-bold text-xl active:scale-90 transition-transform duration-100">✕</button>
+        </div>
+      </div>
+      <div class="flex flex-col gap-4 text-center">
+        <div class="text-6xl" role="img" aria-label="Bee">🐝</div>
+        <h2 class="text-3xl font-bold text-stone-800">Waiting for the hive…</h2>
+        <p id="comb-standby-sub" class="text-stone-500 text-base">The host is laying out the meadow. Sit tight.</p>
+      </div>
+      <div id="comb-standby-roster" class="flex flex-col gap-2"></div>
+    </div>
+  </section>
+
+  <!-- COMB THE MEADOW — the board, and the ONE screen in this game that is not the
+       Stack. Documented legacy h-screen sticky-footer exception (spec §2/§3): the
+       board is permanently fit-to-view and the hand row + action bar must not move
+       while it is being read and tapped, and no page-scroll may carry a legal
+       target off screen. Seven phases live on this ONE screen via combPhase.
+       ⚠️ combRenderMeadow() is the ONLY function that writes here, and it sets
+       EVERY element every time — including the ones the current phase does not use
+       (spec §3, the SHP stale-status-line lesson). -->
+  <section id="screen-comb-meadow" style="display:none"
+    class="h-screen w-full flex flex-col overflow-hidden px-4 pb-4">
+
+    <!-- HEADER -->
+    <div class="flex items-center justify-between flex-shrink-0 pt-4 pb-2">
+      <div class="min-w-0">
+        <p id="comb-meadow-turn" class="text-stone-500 text-sm font-semibold uppercase tracking-widest truncate"></p>
+        <p id="comb-meadow-points" class="text-stone-400 text-xs truncate"></p>
+      </div>
+      <div class="flex items-center gap-2 shrink-0">
+        <button id="btn-comb-log" class="text-stone-400 text-base active:scale-90 transition-transform duration-100" aria-label="Season Log">📜</button>
+        <button id="btn-comb-how-to" class="text-stone-400 font-bold text-sm active:scale-90 transition-transform duration-100">[?]</button>
+        <button class="btn-open-sound text-xl active:scale-90 transition-transform duration-100">🔊</button>
+        <button class="btn-comb-quit-open text-stone-500 font-bold text-xl active:scale-90 transition-transform duration-100">✕</button>
+      </div>
+    </div>
+
+    <!-- STAGE — the canvas is sized in JS (combDrawBoard is handed this canvas) and
+         letterboxed into this box. The inline board is ALWAYS fit-to-view and holds
+         no viewport of its own; all zooming is in comb-map-overlay (spec §2). -->
+    <div id="comb-board-stage" class="flex-1 min-h-0 w-full relative">
+      <canvas id="comb-board-canvas"></canvas>
+      <!-- The 🔍 magnifier, the board's top-right corner (spec §2). -->
+      <button id="btn-comb-map-open"
+        class="absolute top-2 right-2 z-10 min-h-11 min-w-11 rounded-xl bg-white/85 text-xl flex items-center justify-center shadow-sm active:scale-90 transition-transform duration-100"
+        aria-label="Enlarge the meadow">🔍</button>
+      <!-- Turn order dots. Non-interactive. NOT the Sun Compass — that is the
+           2d6 die the game casts each turn (docs/content-prompts/comb-art-prompts.md § 5d). -->
+      <div id="comb-turn-order" class="absolute top-2 left-2 pointer-events-none flex items-center gap-1"></div>
+      <!-- Transient layer — floats over a relative parent, contributes zero height, so
+           the Scout Flight animation can never re-centre the column beneath it
+           (ui-style.md § Transient animations must float). -->
+      <div id="comb-float-layer" class="absolute inset-0 pointer-events-none flex items-start justify-center pt-3"></div>
+    </div>
+
+    <!-- CONTROLS — frozen beneath the stage. -->
+    <div class="flex-shrink-0 flex flex-col gap-2 pt-3 w-full max-w-sm mx-auto">
+
+      <p id="comb-meadow-status" class="text-stone-500 text-sm text-center"></p>
+      <p id="comb-daylight" style="display:none" class="text-stone-400 text-xs text-center font-semibold uppercase tracking-widest"></p>
+
+      <!-- HAND ROW — your five resource chips, plus the inline [?] that deep-links
+           into How to Play's "The Comb" tab (spec §8 / brief §15 surface 3: one
+           existing function call, NOT a new overlay), and the Instinct deck button. -->
+      <div class="flex items-center gap-2">
+        <div id="comb-hand-row" class="flex items-center gap-1.5 flex-1 min-w-0"></div>
+        <button id="btn-comb-hand-ref" class="text-stone-300 font-bold text-xs leading-none active:scale-90 transition-transform duration-100 shrink-0">[?]</button>
+        <button id="btn-comb-instinct" class="min-h-11 px-3 rounded-xl bg-stone-200 hover:bg-stone-300 text-stone-700 font-semibold text-sm shrink-0">Instinct 0</button>
+      </div>
+
+      <!-- PLACEMENT BAR — shown only while combPlacementMode is set. The nearest-
+           legal-target snap previews into combPendingTarget and is committed here,
+           because adjacent nodes sit ≈41 px apart at fit-to-view, under the 44 px
+           touch minimum (spec §2). -->
+      <div id="comb-place-bar" style="display:none" class="flex items-center gap-2">
+        <p id="comb-place-hint" class="text-stone-500 text-sm flex-1 min-w-0 truncate"></p>
+        <button id="btn-comb-place-cancel" class="min-h-11 px-4 rounded-xl bg-stone-200 hover:bg-stone-300 text-stone-700 font-semibold text-sm shrink-0">Cancel</button>
+        <button id="btn-comb-place-confirm" class="btn-mp-action comb-cta min-h-11 px-4 rounded-xl font-semibold text-sm shrink-0">Place</button>
+      </div>
+
+      <!-- BUILD PICKER — step 1 of the two-step build (spec §7: the option,
+           then the target). Deliberately INLINE rather than a sixteenth overlay:
+           this game's whole architecture is that the board never goes away
+           (§17-4), and a modal covering the board while you decide what to put
+           on it is the one thing it must not do. An option you cannot afford is
+           dimmed but STILL TAPPABLE — the reason is what teaches the rule. -->
+      <div id="comb-build-picker" style="display:none" class="flex flex-col gap-2">
+        <div id="comb-build-options" class="grid grid-cols-3 gap-2"></div>
+        <button id="btn-comb-build-cancel" class="min-h-11 w-full rounded-xl bg-stone-200 hover:bg-stone-300 text-stone-700 font-semibold text-sm">Never mind</button>
+      </div>
+
+      <!-- ACTION BAR — all four stay available in any order until End Turn
+           (brief §14a). -->
+      <div id="comb-action-bar" class="grid grid-cols-2 gap-2">
+        <button id="btn-comb-build" class="btn-mp-action comb-cta min-h-11 rounded-xl font-semibold text-sm">Build</button>
+        <button id="btn-comb-buy" class="btn-mp-action comb-cta min-h-11 rounded-xl font-semibold text-sm">Buy Instinct</button>
+        <button id="btn-comb-waggle" class="btn-mp-action comb-cta min-h-11 rounded-xl font-semibold text-sm">Waggle Dance</button>
+        <button id="btn-comb-end-turn" class="btn-mp-action min-h-11 rounded-xl bg-stone-200 hover:bg-stone-300 text-stone-700 font-semibold text-sm">End Turn</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- COMB GAMEOVER — The Hive. The one beat this screen must land is the Golden
+       Nectar reveal: hidden points are why the endgame has tension (brief §17). -->
+  <section id="screen-comb-gameover" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-4">
+      <div class="flex items-start justify-between">
+        <div>
+          <h2 class="text-2xl font-bold text-stone-800">The Hive is Thriving 🐝</h2>
+          <p id="comb-go-sub" class="text-stone-400 text-sm mt-0.5"></p>
+        </div>
+        <div class="flex items-center gap-2 shrink-0">
+          <button class="btn-open-sound text-xl active:scale-90 transition-transform duration-100">🔊</button>
+          <button id="btn-comb-go-exit" class="text-stone-500 font-bold text-xl active:scale-90 transition-transform duration-100">✕</button>
+        </div>
+      </div>
+      <div id="comb-podium" class="flex flex-col gap-2"></div>
+      <div id="comb-go-stats" class="flex flex-col gap-1"></div>
+      <button id="btn-comb-go-new" class="comb-cta min-h-14 w-full rounded-2xl active:scale-95 text-xl font-semibold transition-all duration-150">New Season</button>
+      <button id="btn-comb-go-leave" class="min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-xl font-semibold transition-all duration-150">Back to the Box</button>
+    </div>
+  </section>
+
+  <!-- COMB SETTINGS — seven cards, and NO Sylly Mode card. That is a decision, not
+       an omission (spec §12 / §17-1): a dead toggle is worse than an honest line,
+       and the dim treatment already means something else on this screen. The Season
+       PRESETS The Wasp and The Overflow — a plain preset, NOT either of the named
+       mutually-exclusive/superseded patterns, so nothing dims and no amber reason
+       line appears (spec §5 / §17-5). The repaint must fire from BOTH the pill
+       handler and combSyncSettingsUI(). -->
+  <div id="comb-settings-overlay" style="display:none"
+    class="fixed inset-0 bg-black/40 z-[80] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
+      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
+        <h2 class="text-xl font-bold text-stone-800">Honeycomb Hills 🐝</h2>
+        <p class="text-xs text-stone-400 mt-1">How long the summer runs, and how mean the meadow gets.</p>
+      </div>
+      <div id="comb-settings-body" class="overflow-y-auto flex flex-col gap-5 px-5 py-5">
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">The Season</p>
+            <p class="text-stone-400 text-sm mt-0.5">How many Hive Points win the match — and how long the afternoon runs.</p>
+          </div>
+          <div class="flex flex-col gap-2">
+            <div class="flex gap-2">
+              <button class="pill pill-active-comb" data-group="comb-season" data-val="short">Short Summer</button>
+              <button class="pill" data-group="comb-season" data-val="full">Full Season</button>
+            </div>
+            <p id="comb-val-season" class="text-stone-400 text-xs"></p>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">The Meadow</p>
+            <p class="text-stone-400 text-sm mt-0.5">Whether the hexes and Bloom Markers are shuffled fresh, or laid out to a known-fair pattern.</p>
+          </div>
+          <div class="flex flex-col gap-2">
+            <div class="flex gap-2">
+              <button class="pill pill-active-comb" data-group="comb-layout" data-val="wild">Wild</button>
+              <button class="pill" data-group="comb-layout" data-val="tended">Tended</button>
+            </div>
+            <p id="comb-val-layout" class="text-stone-400 text-xs"></p>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">The Wasp</p>
+            <p class="text-stone-400 text-sm mt-0.5">What happens when the Wasp lands on a hex — whether it also robs somebody.</p>
+          </div>
+          <div class="flex flex-col gap-2">
+            <div class="flex gap-2">
+              <button class="pill pill-active-comb" data-group="comb-wasp" data-val="blocks">Blocks Only</button>
+              <button class="pill" data-group="comb-wasp" data-val="steals">Blocks and Steals</button>
+            </div>
+            <p id="comb-val-wasp" class="text-stone-400 text-xs"></p>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">The Overflow</p>
+            <p class="text-stone-400 text-sm mt-0.5">How much you can carry before a 7 spills half of it.</p>
+          </div>
+          <div class="flex flex-col gap-2">
+            <div class="flex gap-2">
+              <button class="pill pill-active-comb" data-group="comb-overflow" data-val="off">Off</button>
+              <button class="pill" data-group="comb-overflow" data-val="snug">Snug</button>
+              <button class="pill" data-group="comb-overflow" data-val="roomy">Roomy</button>
+            </div>
+            <p id="comb-val-overflow" class="text-stone-400 text-xs"></p>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">The Waggle Dance</p>
+            <p class="text-stone-400 text-sm mt-0.5">Whether you sort trades out loud at the table, or negotiate them in the app.</p>
+          </div>
+          <div class="flex flex-col gap-2">
+            <div class="flex gap-2">
+              <button class="pill pill-active-comb" data-group="comb-waggle" data-val="outloud">Out Loud</button>
+              <button class="pill" data-group="comb-waggle" data-val="full">Full Dance</button>
+            </div>
+            <p id="comb-val-waggle" class="text-stone-400 text-xs"></p>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">Daylight</p>
+            <p class="text-stone-400 text-sm mt-0.5">Whether a turn has a time limit, so one long thinker cannot stall the meadow.</p>
+          </div>
+          <div class="flex flex-col gap-2">
+            <div class="flex gap-2">
+              <button class="pill pill-active-comb" data-group="comb-daylight" data-val="allday">All Day</button>
+              <button class="pill" data-group="comb-daylight" data-val="longday">Long Day</button>
+              <button class="pill" data-group="comb-daylight" data-val="shortday">Short Day</button>
+            </div>
+            <p id="comb-val-daylight" class="text-stone-400 text-xs"></p>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">The Meadow's Bounty</p>
+            <p class="text-stone-400 text-sm mt-0.5">Whether the meadow can actually run dry.</p>
+          </div>
+          <div class="flex flex-col gap-2">
+            <div class="flex gap-2">
+              <button class="pill pill-active-comb" data-group="comb-bounty" data-val="endless">Endless</button>
+              <button class="pill" data-group="comb-bounty" data-val="limited">Limited</button>
+            </div>
+            <p id="comb-val-bounty" class="text-stone-400 text-xs"></p>
+          </div>
+        </div>
+
+        <button id="btn-comb-settings-close" class="comb-cta min-h-14 w-full rounded-2xl text-xl font-semibold active:scale-95 transition-all duration-150">Got it</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- COMB HOW TO PLAY — three tabs (spec §8), matching PKO's precedent. The Rules
+       is always first and is the canonical step-card structure, unchanged. The Comb
+       and The Instinct Deck render through combRenderHex / combRenderResource /
+       combRenderInstinct — the real seams, never hand-built markup, which is what
+       stops the galleries drifting from the live board and lets them double as the
+       offline install check. Bodies are SIBLINGS toggled by display, each with its
+       own scroll region and its own close button. -->
+  <div id="comb-how-to-overlay" style="display:none"
+    class="fixed inset-0 bg-black/40 z-[90] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
+      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
+        <h2 class="text-xl font-bold text-stone-800">How to Play 🐝</h2>
+        <p class="text-xs text-stone-400 mt-1">Gather from the meadow, trade with the table, build the biggest comb.</p>
+      </div>
+      <div class="px-5 pt-3 pb-3 border-b border-stone-200 flex-shrink-0 flex gap-2">
+        <button id="btn-comb-howto-tab-rules" class="pill pill-active-comb" data-comb-howto-tab="rules">The Rules</button>
+        <button id="btn-comb-howto-tab-comb" class="pill" data-comb-howto-tab="comb">The Comb</button>
+        <button id="btn-comb-howto-tab-instinct" class="pill" data-comb-howto-tab="instinct">The Instinct Deck</button>
+      </div>
+
+      <div id="comb-howto-body-rules" class="overflow-y-auto flex flex-col gap-4 px-5 py-5">
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest comb-label">Step 1</p>
+          <p class="font-bold text-stone-800">Grow the strongest hive</p>
+          <p class="text-stone-500 text-sm">First colony to the <span class="font-semibold text-stone-700">Hive Point</span> target wins — and the win is only ever checked on your own turn.</p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest comb-label">Step 2</p>
+          <p class="font-bold text-stone-800">The meadow is nineteen hexes</p>
+          <p class="text-stone-500 text-sm">Every hex makes one resource and carries a number. <span class="font-semibold text-stone-700">Corners</span> are where you build cells; <span class="font-semibold text-stone-700">edges</span> are where you build walls.</p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest comb-label">Step 3</p>
+          <p class="font-bold text-stone-800">The Scout Flight decides what blooms</p>
+          <p class="text-stone-500 text-sm">One cast per turn, and it pays <span class="font-semibold text-stone-700">everyone at once</span> — not just the active player. Easy to miss: you collect on other people's turns too, which is why you watch every roll.</p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest comb-label">Step 4</p>
+          <p class="font-bold text-stone-800">Cells collect, Domes collect double</p>
+          <p class="text-stone-500 text-sm">A <span class="font-semibold text-stone-700">Drone Cell</span> touching a blooming hex gives you 1 of its resource. A <span class="font-semibold text-stone-700">Queen Dome</span> gives 2.</p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest comb-label">Step 5</p>
+          <p class="font-bold text-stone-800">Four things to spend on</p>
+          <p class="text-stone-500 text-sm">Comb Wall, Drone Cell, Queen Dome and an Instinct card. The full prices are in <span class="font-semibold text-stone-700">The Comb</span> tab — and in placement mode only what you can afford lights up.</p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest comb-label">Step 6</p>
+          <p class="font-bold text-stone-800">The Distance Rule</p>
+          <p class="text-stone-500 text-sm">A new Drone Cell must sit at least <span class="font-semibold text-stone-700">two edges</span> from any other cell — including your own. It is the single most-missed rule in the game.</p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest comb-label">Step 7</p>
+          <p class="font-bold text-stone-800">Everything must connect</p>
+          <p class="text-stone-500 text-sm">Whatever you build has to touch your own network. The exception is your <span class="font-semibold text-stone-700">two opening placements</span>, which are free and go anywhere legal.</p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest comb-label">Step 8</p>
+          <p class="font-bold text-stone-800">The Waggle Dance</p>
+          <p class="text-stone-500 text-sm">Trade with the table on any terms you can talk someone into, or with the Meadow at <span class="font-semibold text-stone-700">4:1</span>. Landing a Drone Cell on a <span class="font-semibold text-stone-700">Trade Blossom</span> makes the Meadow cheaper.</p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest comb-label">Step 9</p>
+          <p class="font-bold text-stone-800">A 7 brings the Wasp</p>
+          <p class="text-stone-500 text-sm">Nothing blooms, over-stuffed players drop half, and the roller parks the Wasp somewhere painful. Easy to miss: the <span class="font-semibold text-stone-700">discard hits everyone</span> over the limit, not just the roller's target.</p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest comb-label">Step 10</p>
+          <p class="font-bold text-stone-800">One Instinct card a turn</p>
+          <p class="text-stone-500 text-sm">And never on the turn you bought it. The exception is <span class="font-semibold text-stone-700">Golden Nectar</span>, which is never played at all — it just counts at the end.</p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest comb-label">Step 11</p>
+          <p class="font-bold text-stone-800">Largest Comb and Fiercest Guard</p>
+          <p class="text-stone-500 text-sm">Two points each, and they can be <span class="font-semibold text-stone-700">taken off you</span>. Easy to miss: someone placing a cell in the middle of your walls <span class="font-semibold text-stone-700">cuts your chain</span>.</p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest comb-label">Winning and Scoring</p>
+          <p class="font-bold text-stone-800">Where the Hive Points come from</p>
+          <ul class="list-disc pl-5 flex flex-col gap-1 text-stone-500 text-sm">
+            <li><span class="font-semibold text-stone-700">Drone Cell</span> — 1 point each.</li>
+            <li><span class="font-semibold text-stone-700">Queen Dome</span> — 2 points each.</li>
+            <li><span class="font-semibold text-stone-700">Largest Comb</span> — 2 points, to the longest unbroken chain of walls. Ties never transfer it.</li>
+            <li><span class="font-semibold text-stone-700">Fiercest Guard</span> — 2 points, to whoever has played the most Guard Bees. Ties never transfer it.</li>
+            <li><span class="font-semibold text-stone-700">Golden Nectar</span> — 1 point each, hidden in your hand until somebody wins.</li>
+          </ul>
+        </div>
+
+        <!-- The honest line. Honeycomb Hills is the first game in the suite to ship
+             with no Sylly Mode (spec §12 / §17-1) — the card stays so a player
+             scanning for it gets an answer rather than a gap, but there is
+             deliberately no dead toggle in Settings behind it. -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest comb-label">✨ Sylly Mode</p>
+          <p class="font-bold text-stone-800">Not this one</p>
+          <p class="text-stone-500 text-sm">Honeycomb Hills is the only game in the box without one. There is already a whole meadow of dials in <span class="font-semibold text-stone-700">Settings</span> — start with <span class="font-semibold text-stone-700">The Season</span>.</p>
+        </div>
+
+        <button id="btn-comb-howto-close"
+          class="comb-cta min-h-14 w-full rounded-2xl text-xl font-semibold active:scale-95 transition-all duration-150">Got it</button>
+      </div>
+
+      <!-- THE COMB tab — leads with the six hex kinds (spec §17-16: the hex tap-hold
+           deep-links here, and hex→resource is the first thing a new player needs),
+           then the five resources, then the four build costs. All three grids are
+           rendered by JS through the real seams. -->
+      <div id="comb-howto-body-comb" style="display:none" class="overflow-y-auto flex flex-col gap-4 px-5 py-5">
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <p class="text-xs font-semibold uppercase tracking-widest comb-label">The Sun Compass</p>
+          <p class="text-stone-500 text-sm">Cast at the head of every turn. Thirty-six faces, numbered <span class="font-semibold text-stone-700">2 to 12</span> &mdash; and they are not evenly shared out.</p>
+          <div id="comb-howto-die" class="flex items-center justify-center"></div>
+          <p class="text-stone-500 text-sm"><span class="font-semibold text-stone-700">7</span> comes up most, <span class="font-semibold text-stone-700">2</span> and <span class="font-semibold text-stone-700">12</span> almost never. That is why the fat red markers &mdash; 6 and 8 &mdash; are the corners worth fighting over, and why a 2 is a lovely spot to leave for somebody else.</p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <p class="text-xs font-semibold uppercase tracking-widest comb-label">The Hexes</p>
+          <p class="text-stone-500 text-sm">Six kinds of ground, five of them producing. Tap and hold a hex on the board to jump back here.</p>
+          <div id="comb-howto-hexes" class="grid grid-cols-2 gap-2"></div>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <p class="text-xs font-semibold uppercase tracking-widest comb-label">The Resources</p>
+          <p class="text-stone-500 text-sm">Five things the meadow makes. Each has its own shape as well as its own colour.</p>
+          <div id="comb-howto-resources" class="grid grid-cols-1 gap-2"></div>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <p class="text-xs font-semibold uppercase tracking-widest comb-label">What It Costs</p>
+          <p class="text-stone-500 text-sm">The four things you can buy, and the price of each.</p>
+          <div id="comb-howto-costs" class="flex flex-col gap-2"></div>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <p class="text-xs font-semibold uppercase tracking-widest comb-label">The Structures</p>
+          <p class="text-stone-500 text-sm">Three things you build. On the board they're small and plain — this is what they really look like.</p>
+          <div id="comb-howto-pieces" class="grid grid-cols-3 gap-2"></div>
+        </div>
+
+        <button id="btn-comb-howto-close-comb"
+          class="comb-cta min-h-14 w-full rounded-2xl text-xl font-semibold active:scale-95 transition-all duration-150">Got it</button>
+      </div>
+
+      <!-- THE INSTINCT DECK tab — all five card types, their counts and effects,
+           rendered through combRenderInstinct. -->
+      <div id="comb-howto-body-instinct" style="display:none" class="overflow-y-auto flex flex-col gap-4 px-5 py-5">
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <p class="text-xs font-semibold uppercase tracking-widest comb-label">Twenty-Five Cards</p>
+          <div class="flex items-center gap-3">
+            <div id="comb-howto-instinct-back" class="flex-shrink-0"></div>
+            <p class="text-stone-500 text-sm">One a turn, never on the turn you bought it. Tap and hold a card in your hand to jump back here.</p>
+          </div>
+          <div id="comb-howto-instinct" class="flex flex-col gap-2"></div>
+        </div>
+
+        <button id="btn-comb-howto-close-instinct"
+          class="comb-cta min-h-14 w-full rounded-2xl text-xl font-semibold active:scale-95 transition-all duration-150">Got it</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- COMB QUIT — destructive red confirm: irreversible, and in a lobby it dissolves
+       everyone's session (ui-style.md § Action Button Standard rule 2, exception 3). -->
+  <div id="comb-quit-overlay" style="display:none"
+    class="fixed inset-0 z-[80] overlay-modal-backdrop flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-[#F5C55C]">
+      <p class="text-3xl">🐝</p>
+      <h3 class="text-lg font-bold text-stone-800">Abandon the hive?</h3>
+      <p class="text-stone-500 text-sm">The comb comes apart and the season ends — for everyone at the table.</p>
+      <button id="btn-comb-quit-confirm" class="min-h-14 w-full rounded-2xl bg-red-500 hover:bg-red-600 active:scale-95 text-white font-semibold text-lg transition-all duration-150">Yeah, buzz off.</button>
+      <button id="btn-comb-quit-cancel" class="min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-lg transition-all duration-150">Not yet!</button>
+    </div>
+  </div>
+
+  <!-- COMB PLAY AGAIN — confirm label swaps per the Play-Again Return Pattern:
+       host → "Restart in Lobby 🔄", client → "Leave Session", single → "New Season". -->
+  <div id="comb-new-season-overlay" style="display:none"
+    class="fixed inset-0 z-[90] overlay-modal-backdrop flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-[#F5C55C]">
+      <p class="text-3xl">🌻</p>
+      <h3 class="text-lg font-bold text-stone-800">New Season?</h3>
+      <p class="text-stone-500 text-sm">A fresh meadow, a fresh comb. This one's done.</p>
+      <button id="btn-comb-new-confirm" class="comb-cta min-h-14 w-full rounded-2xl active:scale-95 font-semibold text-lg transition-all duration-150">New Season</button>
+      <button id="btn-comb-new-cancel" class="min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-lg transition-all duration-150">Stay here</button>
+    </div>
+  </div>
+
+
+  <!-- COMB OVERFLOW — real content plus input, so a slide-up (brief §14c). Opens on
+       COMB_OVERFLOW_BEGIN, on over-limit devices ONLY. Deliberately has NO neutral
+       dismiss button: the discard is mandatory, so it is correctly left out of the
+       engine's backdrop tap-to-dismiss by omission (ui-style.md § Backdrop tap). -->
+  <div id="comb-overflow-overlay" style="display:none"
+    class="fixed inset-0 bg-black/40 z-[85] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
+      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
+        <h2 class="text-xl font-bold text-stone-800">The Overflow 🐝</h2>
+        <p id="comb-overflow-sub" class="text-xs text-stone-400 mt-1"></p>
+      </div>
+      <div class="overflow-y-auto flex flex-col gap-4 px-5 py-5">
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <p class="text-xs font-semibold uppercase tracking-widest comb-label">Spill It</p>
+          <p id="comb-overflow-owed" class="text-stone-500 text-sm"></p>
+          <div id="comb-overflow-rows" class="flex flex-col gap-2"></div>
+        </div>
+        <p id="comb-overflow-waiting" style="display:none" class="text-stone-400 text-sm text-center">Waiting for the others to spill…</p>
+        <button id="btn-comb-overflow-confirm"
+          class="btn-mp-action comb-cta min-h-14 w-full rounded-2xl text-xl font-semibold active:scale-95 transition-all duration-150">Spill It</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- COMB WAGGLE DANCE — the offer builder plus the Meadow rate rows. Real content
+       plus input, so a slide-up (brief §14c). One open offer at a time, and only the
+       active player may post. -->
+  <div id="comb-trade-overlay" style="display:none"
+    class="fixed inset-0 bg-black/40 z-[85] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
+      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
+        <h2 class="text-xl font-bold text-stone-800">The Waggle Dance 🐝</h2>
+        <p id="comb-trade-sub" class="text-xs text-stone-400 mt-1"></p>
+      </div>
+      <div class="overflow-y-auto flex flex-col gap-4 px-5 py-5">
+
+        <div id="comb-trade-card-give" class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <p class="text-xs font-semibold uppercase tracking-widest comb-label">You Give</p>
+          <div id="comb-trade-give" class="flex flex-col gap-2"></div>
+        </div>
+
+        <div id="comb-trade-card-want" class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <p class="text-xs font-semibold uppercase tracking-widest comb-label">You Want</p>
+          <div id="comb-trade-want" class="flex flex-col gap-2"></div>
+        </div>
+
+        <div id="comb-trade-card-who" class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <p class="text-xs font-semibold uppercase tracking-widest comb-label">Who With</p>
+          <p class="text-stone-500 text-sm">Pick the player you agreed with — or open it to the whole table.</p>
+          <div id="comb-trade-targets" class="flex flex-wrap gap-2"></div>
+        </div>
+
+        <!-- The Meadow's own rates. 4:1 by default; a Trade Blossom you have reached
+             with a Drone Cell makes it cheaper. -->
+        <div id="comb-trade-card-bank" class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <p class="text-xs font-semibold uppercase tracking-widest comb-label">Trade With the Meadow</p>
+          <p class="text-stone-500 text-sm">No negotiating, no waiting. Your rates improve with every Trade Blossom you have reached.</p>
+          <div id="comb-trade-bank-rows" class="flex flex-col gap-2"></div>
+        </div>
+
+        <p id="comb-trade-error" style="display:none" class="text-amber-600 text-xs text-center"></p>
+
+        <button id="btn-comb-trade-post"
+          class="btn-mp-action comb-cta min-h-14 w-full rounded-2xl text-xl font-semibold active:scale-95 transition-all duration-150">Post the Offer</button>
+        <button id="btn-comb-trade-cancel"
+          class="min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-lg transition-all duration-150">Never mind</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- COMB TRADE OFFER — a short prompt with two real choices, so a decision modal
+       (brief §14c). Opens on COMB_TRADE_POSTED, on targeted devices. In Full Dance
+       the host auto-declines after 10 s. No neutral dismiss: Deal and No thanks are
+       both real answers, so it is correctly non-dismissible by omission. -->
+  <div id="comb-trade-offer-overlay" style="display:none"
+    class="fixed inset-0 z-[90] overlay-modal-backdrop flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-[#F5C55C]">
+      <p class="text-3xl">💃</p>
+      <h3 id="comb-offer-heading" class="text-lg font-bold text-stone-800"></h3>
+      <div id="comb-offer-body" class="text-stone-500 text-sm flex flex-col gap-1.5"></div>
+      <p id="comb-offer-timer" style="display:none" class="text-stone-400 text-xs"></p>
+      <button id="btn-comb-offer-accept" class="btn-mp-action comb-cta min-h-14 w-full rounded-2xl active:scale-95 font-semibold text-lg transition-all duration-150">Deal</button>
+      <button id="btn-comb-offer-decline" class="btn-mp-action min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-lg transition-all duration-150">No thanks</button>
+    </div>
+  </div>
+
+  <!-- COMB STEAL — pick a victim from the hex's touchers. Active player only, and
+       only while combPhase === 'waspSteal'. A real decision with no neutral answer,
+       so no dismiss button. -->
+  <div id="comb-steal-overlay" style="display:none"
+    class="fixed inset-0 z-[90] overlay-modal-backdrop flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-[#F5C55C]">
+      <p class="text-3xl">🐝</p>
+      <h3 class="text-lg font-bold text-stone-800">Rob somebody</h3>
+      <p id="comb-steal-sub" class="text-stone-500 text-sm">The Wasp has landed. Pick who it takes from.</p>
+      <div id="comb-steal-targets" class="flex flex-col gap-2"></div>
+    </div>
+  </div>
+
+  <!-- COMB INSTINCT — your own hand of cards. Real content plus input, so a
+       slide-up. Cards render through combRenderInstinct, the same seam the How-to
+       gallery uses. -->
+  <div id="comb-instinct-overlay" style="display:none"
+    class="fixed inset-0 bg-black/40 z-[85] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
+      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
+        <h2 class="text-xl font-bold text-stone-800">Your Instincts 🐝</h2>
+        <p class="text-xs text-stone-400 mt-1">One a turn, and never one you bought this turn.</p>
+      </div>
+      <div class="overflow-y-auto flex flex-col gap-4 px-5 py-5">
+        <div id="comb-instinct-cards" class="flex flex-col gap-2"></div>
+        <p id="comb-instinct-empty" style="display:none" class="text-stone-400 text-sm text-center">Nothing in the hive yet. Buy one on your turn.</p>
+        <button id="btn-comb-instinct-close"
+          class="comb-cta min-h-14 w-full rounded-2xl text-xl font-semibold active:scale-95 transition-all duration-150">Got it</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- COMB INSTINCT REVEAL — the buyer's device ONLY, after COMB_INSTINCT_BOUGHT.
+       One acknowledging button, so the tip-overlay's smaller button sizing applies
+       rather than the Decision Modal's. -->
+  <div id="comb-instinct-reveal-overlay" style="display:none"
+    class="fixed inset-0 z-[90] overlay-modal-backdrop flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-[#F5C55C]">
+      <div class="flex flex-col gap-2">
+        <p class="text-xs font-semibold uppercase tracking-widest comb-label">You Drew</p>
+        <div id="comb-reveal-card" class="flex items-center justify-center"></div>
+        <h3 id="comb-reveal-heading" class="text-lg font-bold text-stone-800"></h3>
+        <p id="comb-reveal-body" class="text-stone-500 text-sm"></p>
+      </div>
+      <button id="btn-comb-reveal-done" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-sm transition-all duration-100">Got it</button>
+    </div>
+  </div>
+
+  <!-- COMB SEASON LOG — a plain chronological list. Built on the host from SYNC
+       payloads ONLY, never from host-local state (spec §17-10) — that is what makes
+       the privacy rule structural instead of something to remember per log line. -->
+  <div id="comb-log-overlay" style="display:none"
+    class="fixed inset-0 bg-black/40 z-[90] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
+      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
+        <h2 class="text-xl font-bold text-stone-800">The Season Log 📜</h2>
+        <p class="text-xs text-stone-400 mt-1">Everything the whole table saw happen, in order.</p>
+      </div>
+      <div class="overflow-y-auto flex flex-col gap-4 px-5 py-5">
+        <div id="comb-log-rows" class="flex flex-col gap-1.5"></div>
+        <p id="comb-log-empty" style="display:none" class="text-stone-400 text-sm text-center">Nothing has happened yet. Give it a turn.</p>
+        <button id="btn-comb-log-close"
+          class="comb-cta min-h-14 w-full rounded-2xl text-xl font-semibold active:scale-95 transition-all duration-150">Got it</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- COMB TIP — the shared contextual [?] overlay, driven by
+       combShowTip(emoji, heading, lines[]). Three bullets maximum, always. Also the
+       landing place for a tap on a DIMMED placement target, which surfaces the
+       reason it is dark rather than doing nothing (brief §14b). -->
+  <div id="comb-tip-overlay" style="display:none"
+    class="fixed inset-0 z-[90] overlay-modal-backdrop flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-[#F5C55C]">
+      <div class="flex flex-col gap-2">
+        <p id="comb-tip-emoji" class="text-3xl"></p>
+        <h3 id="comb-tip-heading" class="text-lg font-bold text-stone-800"></h3>
+        <div id="comb-tip-body" class="text-stone-500 text-sm text-left flex flex-col gap-1.5"></div>
+      </div>
+      <button id="btn-comb-tip-close" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-sm transition-all duration-100">Got it</button>
+    </div>
+  </div>
+
+  <!-- COMB PHEROMONE DOMINANCE — name a resource; every other player hands you all
+       of theirs. The card is already spent by the time this opens, so there is no
+       neutral answer and no dismiss button. -->
+  <div id="comb-pheromone-overlay" style="display:none"
+    class="fixed inset-0 z-[90] overlay-modal-backdrop flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-[#F5C55C]">
+      <p class="text-3xl">🐝</p>
+      <h3 class="text-lg font-bold text-stone-800">Name your prize</h3>
+      <p class="text-stone-500 text-sm">Every other player hands you every one of these they are holding.</p>
+      <div id="comb-pheromone-choices" class="flex flex-col gap-2"></div>
+    </div>
+  </div>
+
+  <!-- COMB SPRING BLOOM — take any two resources from the Meadow. Same reasoning as
+       Pheromone: the card is spent, the pick is mandatory, so no dismiss. The
+       confirm arms only once two are chosen. -->
+  <div id="comb-bloom-overlay" style="display:none"
+    class="fixed inset-0 z-[90] overlay-modal-backdrop flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-[#F5C55C]">
+      <p class="text-3xl">🌻</p>
+      <h3 class="text-lg font-bold text-stone-800">Spring Bloom</h3>
+      <p id="comb-bloom-sub" class="text-stone-500 text-sm">Take any two from the meadow. They can be the same one twice.</p>
+      <div id="comb-bloom-choices" class="flex flex-col gap-2"></div>
+      <button id="btn-comb-bloom-confirm" class="btn-mp-action comb-cta min-h-14 w-full rounded-2xl active:scale-95 font-semibold text-lg transition-all duration-150">Take Them</button>
+    </div>
+  </div>
+
+  <!-- COMB MAP — the magnifier (spec §2, owner's answer to Q19-b). Pattern 2a's
+       shape with a canvas where the image would be, NOT a third pattern.
+       ⚠️ z-[75] — DELIBERATELY the LOWEST of the fifteen comb overlays. The map is a
+       surface the player CHOSE to open; the Overflow (z-[85]) and an arriving trade
+       offer (z-[90]) are pushed at them and must land on top. This is the one
+       overlay in the game that has to lose a z-fight.
+       The canvas is full-bleed inset-0 with NO backdrop dead space, which is what
+       makes the btn-comb-map-close naming safe: a pinch cannot land on the backdrop
+       and dismiss mid-gesture (the exact risk ui-style.md § Pattern 2a names).
+       Interactive — a tap routes through the same combAttemptPlace() the inline
+       board uses and closes the map on success. No RAF: it draws on gesture, and on
+       any SYNC that changes the board while it is open. -->
+  <div id="comb-map-overlay" style="display:none"
+    class="fixed inset-0 z-[75] bg-black/80 flex items-center justify-center">
+    <canvas id="comb-map-canvas" class="absolute inset-0 w-full h-full"></canvas>
+    <button id="btn-comb-map-close"
+      class="absolute top-4 right-4 z-10 min-h-11 min-w-11 rounded-xl bg-white/85 text-stone-700 font-bold text-xl flex items-center justify-center active:scale-90 transition-transform duration-100"
+      aria-label="Close the map">✕</button>
+    <p id="comb-map-hint" class="absolute bottom-6 left-1/2 -translate-x-1/2 max-w-[19rem] text-center text-white text-xs px-3 py-2 rounded-xl bg-black/65 pointer-events-none">Pinch to zoom, drag with two fingers. Tap a lit target to place there.</p>
+  </div>
 </body>
 </html>

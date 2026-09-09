@@ -624,8 +624,8 @@ function updateSliderTheme(gameId) {
 function getMuteToggleOnClass(gameId) {
   const map = {
     'li5': 'game-toggle-on-pink', 'great-minds': 'game-toggle-on-purple',
-    'sylly-signals': 'game-toggle-on-teal', 'jec': 'game-toggle-on-amber',
-    'ygi': 'game-toggle-on-orange', 'lttp': 'game-toggle-on-red',
+    'sylly-signals': 'game-toggle-on-teal', 'jec': 'game-toggle-on-slate',
+    'ygi': 'game-toggle-on-amber', 'lttp': 'game-toggle-on-red',
     'nat': 'game-toggle-on-lime', 'dsd': 'game-toggle-on-cyan',
     'gth': 'game-toggle-on-sage', 'bld': 'game-toggle-on-bld',
     'dyb': 'game-toggle-on-dyb', 'pass': 'game-toggle-on-zinc',
@@ -970,22 +970,70 @@ if (_musicToggle && _musicSlider) {
   });
 }
 
-// ── Lobby sort toggle (SW v214) ──────────────────────────────────────────
+// ── Lobby sort toggle (SW v214, colour mode computed 5 Sep 2026) ─────────
 // Two modes: 'release' (the order the games shipped in — the default DOM
 // order already IS this, so that mode is just clearing `style.order`) and
-// 'colour' (a hand-picked walk around the hue wheel starting at Flawless's
-// pale rose-pink, then LI5's pink-500).
+// 'colour' (a walk around the hue wheel, COMPUTED from each game's real
+// brand hex rather than hand-placed — see LOBBY_COLOUR_ORDER below).
 // Reordering via CSS `order` — never a re-render — is deliberate: each of
-// the 18 lobby buttons is bound by its own plugin at parse time
+// the 20 lobby buttons is bound by its own plugin at parse time
 // (`on('btn-cjar', ...)` etc.), so rebuilding the button DOM would silently
-// drop all 18 listeners. Memory-only (not localStorage) — a cosmetic sort
+// drop every listener. Memory-only (not localStorage) — a cosmetic sort
 // preference doesn't earn a 4th key against the documented three.
-const LOBBY_COLOUR_ORDER = [
-  'btn-flw', 'btn-dstw', 'btn-lttp', 'btn-bld', 'btn-pko', 'btn-ygi',
-  'btn-jec', 'btn-comb', 'btn-cjar', 'btn-frt', 'btn-nat', 'btn-gth', 'btn-nt',
-  'btn-sylly-signals', 'btn-dsd', 'btn-cld', 'btn-dyb', 'btn-shp', 'btn-great-minds',
-  'btn-pass'
-];
+//
+// GAME_BRAND_HEX is the one thing that still needs a human: it's a shadow
+// copy of each game's brand colour (docs/rules/per-game-classes.md Table A
+// is the source of truth) because that colour is scattered across Tailwind
+// class NAMES for several games (jec: slate-600, ygi: amber-500, etc.) with
+// no single queryable hex anywhere else. Recolour a game -> update its entry
+// here to match. Forget it, and Colour mode just quietly shows the OLD
+// colour's position — nothing else breaks, so this is easy to miss; that's
+// why it's called out at the top of the recolour checklist in that same doc.
+// Everything past this table is computed, not maintained: convert to HSL and
+// walk hue ascending (tie-break: brighter, then more saturated, first). Even
+// a low-saturation grey (dyb, jec, shp, pass) still carries a directional hue
+// from its tiny RGB imbalance, so no separate "neutral bucket" is needed —
+// verified against every live brand colour before shipping (5 Sep 2026).
+const GAME_BRAND_HEX = {
+  'btn-flw': '#F9A8D4', 'btn-dstw': '#EC4899', 'btn-lttp': '#EF4444', 'btn-bld': '#991B1B',
+  'btn-pko': '#9A3412', 'btn-cjar': '#5C3A21', 'btn-ygi': '#F59E0B', 'btn-comb': '#F0A500',
+  'btn-jec': '#475569', 'btn-frt': '#FFE500', 'btn-nat': '#65A30D', 'btn-gth': '#B1BCA0',
+  'btn-nt': '#10B981', 'btn-sylly-signals': '#14B8A6', 'btn-dsd': '#0E7490', 'btn-cld': '#8ECAE6',
+  'btn-dyb': '#6B5744', 'btn-shp': '#3A3D52', 'btn-great-minds': '#A855F7', 'btn-pass': '#18181B',
+};
+
+function lobbyHexToHSL(hex) {
+  const n = hex.replace('#', '');
+  const r = parseInt(n.substr(0, 2), 16) / 255;
+  const g = parseInt(n.substr(2, 2), 16) / 255;
+  const b = parseInt(n.substr(4, 2), 16) / 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  const l = (max + min) / 2;
+  const s = max === min ? 0 : (l > 0.5 ? (max - min) / (2 - max - min) : (max - min) / (max + min));
+  let h = 0;
+  if (max !== min) {
+    const d = max - min;
+    if (max === r) h = (g - b) / d + (g < b ? 6 : 0);
+    else if (max === g) h = (b - r) / d + 2;
+    else h = (r - g) / d + 4;
+    h *= 60;
+  }
+  return { h, s, l };
+}
+
+// The wheel is a circle with no natural start — pin it at Flawless's pale rose-pink
+// (the original hand-picked walk's opening colour) by sorting on hue MEASURED FROM
+// btn-flw rather than from 0°, so the walk still opens there even as other games'
+// hues shift under it.
+const LOBBY_COLOUR_START_ID = 'btn-flw';
+const LOBBY_COLOUR_ORDER = (() => {
+  const hsl = Object.keys(GAME_BRAND_HEX).map(id => ({ id, ...lobbyHexToHSL(GAME_BRAND_HEX[id]) }));
+  const startHue = hsl.find(x => x.id === LOBBY_COLOUR_START_ID).h;
+  return hsl
+    .map(x => ({ ...x, hFromStart: (x.h - startHue + 360) % 360 }))
+    .sort((a, b) => a.hFromStart - b.hFromStart || b.l - a.l || b.s - a.s)
+    .map(x => x.id);
+})();
 let lobbySortMode = 'release';
 
 function lobbyApplySort(mode) {

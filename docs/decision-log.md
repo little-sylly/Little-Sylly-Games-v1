@@ -20,6 +20,71 @@ Detail: pointer to the canonical doc (snapshot / impl note / spec / memory).
 
 ---
 
+## 2026-09-10 — Honeycomb Hills ships (phase 41); a game may decline a Sylly Mode, with a card
+Category: Process
+Decision: Game 20 ships at **SW v225** — `js/games/comb.js` joins `PRECACHE_URLS` at the closing gate, the last line the build was deliberately held short of. COMB's identity doc is written, taking `docs/game-identities/` to **20 of 20**. And the suite's first **no-Sylly-Mode** game is promoted from a per-game decision to a named form in `ui-style.md`: the How to Play card stays in its slot and says so plainly, the settings overlay carries no card at all, and a dead toggle is never the answer.
+Why: Holding the precache entry back kept a half-built plugin out of users' caches while the art landed ahead of it, and naming that omission in three documents meant the gate's code change was one array entry — everything else it found was documentation drift, which is the right ratio. On the Sylly Mode: an absent feature and a broken feature look identical from outside, so an opt-out from a suite-wide convention needs a surface in the place the player looks.
+Changed: `sw.js` (v224→v225 + the plugin entry), `docs/game-identities/comb.md` (new, 194 copy strings harness-green first run), `.claude/rules/ui-style.md` (the no-Sylly-Mode form), `.claude/rules/definitions.md` (plugin-prefix list 15→20 — it is the collision check's own source and had drifted five behind), `js/games/comb.js` (four stale future-tense build comments), `docs/code-map.md`, `docs/content-prompts/new-game-brief-prompt.md`, `CLAUDE.md`, `docs/sw-changelog.md`. Deferred: MDLM client reconnect (Q20) and the NT/CLD RAF reduced-motion sweep stay open in `docs/deferred-work.md`; COMB's Short Summer balance caveat ships untuned by decision.
+Detail: `docs/phase41-snapshot.md`; `docs/implementation-notes/comb-implementation-notes.md` DD-26 / DD-27 / TG-14.
+
+---
+
+## 2026-09-10 — The Sun Compass ships; a RAF animation must handle reduced motion itself
+Category: Architecture
+Decision: COMB's Scout Flight die animation ships as a fifth render seam (`combRenderDie`) driven by a `requestAnimationFrame` loop, with **no packet change** — it rides `COMB_TURN_BEGIN` (cast, spinning blind) and `COMB_ROLL_RESULT` (land on the host's face). `ui-style.md` § Motion Standard's "a new animation needs no per-feature handling" is now scoped to **CSS** animation: a RAF loop must check `prefers-reduced-motion` in JS itself.
+Why: The roll's outcome is decided before the animation starts, so the die is a presentation, not a simulation — which is what makes both the "no library" and the "no packet" answers fall out (brief Appendix B1). The reduced-motion carve-out is a real gap: the global block zeroes CSS durations and reaches nothing writing `transform` by hand, so a RAF animation keeps travelling at full speed with the setting on, silently. Three games now run one.
+Changed: `js/games/comb.js`, `css/styles.css`, `index.html` (the How-to "Sun Compass" card, the `comb-die` pack's first gallery consumer), `tools/verify-comb-loop.js` (+8 beat-budget checks, 223→231), `.claude/rules/ui-style.md`, `sw.js` (SW v224). Deferred: NT's and CLD's existing RAF loops are **not** swept — `docs/deferred-work.md`. `comb.js` is still absent from `PRECACHE_URLS`; shipping game 20 is the phase-41 gate's call, not this change's.
+Detail: `docs/implementation-notes/comb-implementation-notes.md` DD-24 / TG-13.
+
+---
+
+## 2026-09-09 — Honeycomb Hills' core art ships across nine packs; achievements stay text-only
+Category: Architecture
+Decision: COMB's delivered art is converted, manifested and precached as **nine** `comb-*` core art packs (one per `art.js` `kind` — the first game whose art spans more than one), via a new `tools/convert-comb-art.ps1` rather than an extension of the single-kind `convert-core-art.ps1`. The two Largest Comb/Fiercest Guard achievements ship as a **text status** (medal emoji + name), never as icon art or a `comb-badge` seam.
+Why: `js/lib/art.js` resolves exactly one `kind` per manifest, and COMB's four render seams + four extras genuinely need nine; a single manifest/converter can't express that. The achievements decision avoids two more ornate assets and a fifth render seam for a status line already legible as text.
+Changed: `data/art/comb/{hex,res,instinct,piece,piece-hero,blossom,wasp,pog,die}/`, `data/art/registry.json`, `sw.js` (SW v222), `tools/convert-comb-art.ps1`, `css/styles.css` (`.comb-card` square, new `.comb-piece-hero`), `js/games/comb.js` (`comb-compass`→`comb-turn-order` rename, the How-to Structures/back additions, `combAchievementMark`). Deferred: the Sun Compass die roll animation (a separate `comb-die` seam consumer) — art is precached, the seam is not yet built.
+Detail: `docs/implementation-notes/comb-implementation-notes.md` DD-19 / BUG-08 / TG-12.
+
+---
+
+## 2026-09-08 — A control used while reading the Stage goes IN the Stack, not over it
+Category: Architecture
+Decision: COMB's two-step build picker ships as an **inline** sibling of the action bar rather than as a sixteenth overlay, and `ui-style.md` § The Stack now names that as a general option — a control whose choice depends on what the Stage is showing belongs in the Controls zone, mutually exclusive with its siblings. A control disabled by a *rule* (rather than by a phase) dims but stays tappable for its reason.
+Why: The overlay registry is the template's only answer to "where does this picker live?", and it is the wrong answer for a game whose defining constraint is that the board never goes away — *what* you can afford and *where* it could legally go are read together. Costs no z-index entry and no `resetToLobby()` teardown line.
+Changed: `.claude/rules/ui-style.md` (§ The Stack, new subsection), `index.html` (`#comb-build-picker`), `css/styles.css`, `js/games/comb.js`. Deferred: nothing — existing games are not swept.
+Detail: `docs/implementation-notes/comb-implementation-notes.md` DD-12 / TG-10 / TG-11.
+
+---
+
+## 2026-09-08 — Honeycomb Hills' action layer lands; a field carried by two packets is a field no test can defend
+Category: Architecture
+Decision: COMB Step 5 chunk 5 shipped the seven remaining ACTION appliers (the Waggle Dance, the Meadow's rates, the Instinct deck), emptying `COMB_ACTION_PENDING`. `combFreeWalls` was cut back to a **single carrier** (`COMB_BOARD_UPDATE`) after the mutation harness showed a duplicated packet field is unkillable by construction.
+Why: Two packets carrying the same value are each individually removable without any harness noticing, so neither can ever be shown to matter. The rule now stated: ask which carrier is unavoidable, delete the other; if neither is, the field is derivable and should not travel at all.
+Changed: `js/games/comb.js`, `tools/verify-comb-loop.js` (162 → 223), `tools/verify-comb-loopback.js` (132 → 250), `tools/mutate-comb.js` (40 → 71 mutants). `sw.js` **not** bumped — `comb.js` is still absent from `PRECACHE_URLS`, so nothing shipped. Deferred to chunk 6: the seven settings cards, the gameover podium, core art.
+Detail: `docs/implementation-notes/comb-implementation-notes.md` DD-12…DD-16, ML-06…ML-08.
+
+---
+
+## 2026-09-08 — Menu heading gets a suite-wide two-tone standard; brand accents must derive from the real hue
+Category: Process
+Decision: Every game's menu heading is now `text-5xl` and two-toned (neutral + brand), stacked for multi-word titles or split inline at a natural suffix for single-word ones (`Flaw`/`less`, `Bail`/`ed`) — the 12 games that hadn't already shipped this (from an earlier ad-hoc pass on 8 of 20) were brought level. The coloured half must be a darkened/desaturated shade of that game's *own* brand hue, never an existing "readable on white" constant borrowed from elsewhere in the same file.
+Why: A quick pass reusing FRT's pre-existing `FRT_LEAF` (green) for its new heading text exposed that the constant had never actually been FRT's colour — it was picked once for contrast and then copied forward by habit into three unrelated places (a step label, the "Call TRUE" button, and now nearly a fourth). Generalising the rule stops the next game from repeating it.
+Changed: `index.html` (12 headings), `.claude/rules/ui-style.md` § Menu Title Treatment (new), `docs/rules/new-game-checklist.md` (new heading item), `js/games/frt.js` (`FRT_LEAF` → `FRT_ACCENT`, `#047857`→`#A16207`→`FRT_FILL` `#FFE500` — a darkened-yellow middle step also read wrong; owner picked the literal fill over legibility-tuning, a sanctioned exception to the darkened-shade default this entry otherwise sets).
+Detail: `ui-style.md` § Menu Title Treatment; `frt-implementation-notes.md` Bug Index.
+
+## 2026-09-05 — Lobby Colour sort computed from brand hex instead of hand-picked
+Category: Architecture
+Decision: `LOBBY_COLOUR_ORDER` (the Secret Mode lobby's hue-wheel sort) is now derived at load time from a `GAME_BRAND_HEX` table via HSL conversion, rather than a hand-typed array of button IDs — rotated so the walk still opens at Flawless's pink, matching the original hand-picked order.
+Why: The hand-picked array silently desynced the moment any game's colour changed (proven within the same session — a 5-game recolour broke three of its neighbour placements with nothing to flag it); a computed sort can't drift out of position, only out of *data*, and a stale hex is far easier to spot than a stale ordering.
+Changed: `js/engine.js` (`GAME_BRAND_HEX`, `lobbyHexToHSL`, computed `LOBBY_COLOUR_ORDER`). Deferred: `GAME_BRAND_HEX` is still a manually-maintained shadow copy of each game's real colour (scattered across Tailwind class names with no single queryable source) — a recolour must still update it by hand, just no longer re-decide its *position*.
+Detail: `docs/rules/per-game-classes.md` (pointer at the top of the file); `js/engine.js` inline comment above `GAME_BRAND_HEX`.
+
+## 2026-09-07 — Honeycomb Hills packet layer: seat authority from the wire, and a seeded deal is a privacy decision
+Category: Architecture
+Decision: COMB registers as the 20th `MP_GAME_CONFIGS` entry and takes a submitter’s seat from the envelope’s `originId` rather than the payload’s `playerIdx` (a suite first); a client MASKS the Instinct deck its `boardSeed` reconstructs, keeping the public length and losing the order.
+Why: A seat here holds a permanent private hand, so a spoofed `playerIdx` would spend someone else’s resources; and a seed shipped for bandwidth also handed every client the full Instinct draw order, i.e. every hidden Golden Nectar the endgame turns on.
+Changed: `js/games/comb.js`, `js/engine-multiplayer.js` (config + dispatch + SETTINGS_SYNC), `tools/verify-mp-configs.js` (20 games), new `tools/verify-comb-loopback.js` (132), `tools/mutate-comb.js` (28→40). Four rules elevated into `logic-engine.md` § MDLM Patterns. Deferred: the action layer’s seven ACTION packets, declared in `COMB_ACTION_PENDING` and asserted against spec §11 rather than forgotten.
+Detail: `docs/implementation-notes/comb-implementation-notes.md` DD-09/DD-10/BUG-06/BUG-07/ML-01–ML-05; spec §17-20…§17-24.
 ## 2026-09-04 — Cold Shoulder gains "The Floe", a live-sim reference tab in How to Play (SW v221)
 Category: Architecture
 Decision: Add a second How-to tab to Cold Shoulder holding a live practice sim (real `Physics.simulate()`, Shove/Resurface) plus a six-pose cast gallery rendered through `cldRenderPenguin` — as a self-contained `cldHowto*` state island, procedural (no art files), one combined tab alongside The Rules.

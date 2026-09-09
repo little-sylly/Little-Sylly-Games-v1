@@ -1,0 +1,18 @@
+{
+  "id": "comb/instinct",
+  "label": "HONEYCOMB HILLS — CORE ART (INSTINCT DECK)",
+  "core": true,
+  "games": ["comb"],
+  "assets": {
+    "kind": "comb-instinct",
+    "basePath": "img/",
+    "faces": {
+      "guard": "guard.jpg",
+      "golden": "golden.jpg",
+      "rush": "rush.jpg",
+      "bloom": "bloom.jpg",
+      "pheromone": "pheromone.jpg"
+    },
+    "back": "back.jpg"
+  }
+}

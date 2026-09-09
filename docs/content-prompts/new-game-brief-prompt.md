@@ -13,6 +13,11 @@ were each individually easy to miss and collectively expensive to unwind.
 
 4 Sep 2026 — added `cld` (Cold Shoulder, game 19) to the games table, taken abbreviations and the
 Sylly Mode name references. No template change.
+
+10 Sep 2026 — added `comb` (Honeycomb Hills, game 20) to the games table and taken abbreviations
+at its phase-41 gate. **The Sylly Mode reference line is now qualified rather than extended:**
+Honeycomb Hills is the first game in the suite to ship without one, deliberately, so a new brief
+must no longer read that list as "every game has one". No template change.
 -->
 
 ---
@@ -57,6 +62,7 @@ Single-page mobile app. Pass-the-phone style, or individual devices depending on
 | `pko` | Pecking Order | Adjacency-based predator-chain climbing card game — beat Marks with their specific immediate predator, not numeric rank; two parallel tracks (Land/Sea) with cross-links; Sylly Mode = Force of Nature |
 | `cjar` | Cookie Jar | Simultaneous-choice push-your-luck — a card flips, everyone secretly Takes or Sneaks Out, a second sighting of the same family member busts the Raid; Sylly Mode = Dibber Dobber |
 | `cld` | Cold Shoulder | Physics slingshot-shove — penguins on an ice floe aim blind and all slide at once; off the edge = Drowned (rides the rim, throws snowballs); last player Standing catches a Fish; suite's first physics game (`js/lib/physics.js`); Sylly Mode = The Thaw |
+| `comb` | Honeycomb Hills | Hex-and-resource engine-builder on a 19-hex meadow — one 2d6 cast pays every player at once, spend on walls/cells/domes, negotiate the rest; MDLM-only, 3–4 players; the suite's longest game (25–50 min) and the **only one with no Sylly Mode** (seven settings carry the difficulty axis instead) |
 
 ---
 
@@ -89,7 +95,7 @@ Factor these into every section of the brief:
 - **Thematic vocabulary is mandatory.** Every generic term that appears on-screen must have a game-specific name. No bare "Round", "Score", "Game Over", "Settings", "Player" etc. — everything must be voiced through the game's theme
 - **If the game has any "beats / outranks / unlocks / is immune to" relationship between elements, it must be resolved as an explicit table in §4 — not just described in prose.** A prose description ("predators beat their prey") reads fine to a human but is genuinely ambiguous the moment there's a fork, a loop, a cross-category link, or an exception — and every section downstream (sample rounds, diagrams, art direction) will silently inherit whichever interpretation gets guessed first. Resolve it once, in the table, and have every other section reference it rather than re-describing it.
 - **Settings:** difficulty-style setting first (controls word/prompt complexity or challenge level), ✨ Sylly Mode last
-- **Abbreviation:** 3–4 characters, not already used. Taken: `li5`, `gm`, `ss`, `jec`, `ygi`, `lttp`, `nat`, `dsd`, `gth`, `dyb`, `bld`, `pass`, `nt`, `frt`, `shp`, `flw`, `pko`, `cjar`, `cld`
+- **Abbreviation:** 3–4 characters, not already used. Taken: `li5`, `gm`, `ss`, `jec`, `ygi`, `lttp`, `nat`, `dsd`, `gth`, `dyb`, `bld`, `pass`, `nt`, `frt`, `shp`, `flw`, `pko`, `cjar`, `cld`, `comb`
 - **Australian English throughout:** colour, flavour, organise, recognise, °C, km, kg. No American spellings
 
 ---
@@ -107,7 +113,10 @@ Every game in the suite replaces generic game language with words from its theme
 | Quit | *(not used)* | Leave the Kitchen? | Walk Out? |
 | Settings overlay title | *(not used)* | The Pantry Cabinet 🧂 | Inpatient Admission Form 📋 |
 
-And Sylly Mode names from the existing games, as tone references:
+And Sylly Mode names from the existing games, as tone references. **A Sylly Mode is the default, not a
+requirement** — Honeycomb Hills (`comb`) ships without one because its seven settings already own the
+difficulty axis, and its How to Play card says so honestly rather than hiding the gap. Propose one
+unless the game has that same reason not to:
 Wild Words (LI5) · Static Interference (GM) · Intel Phase (SS) · Fusion Cuisine (JEC) · The Ringer (YGI) · The Troublemaker (LTTP) · Survival of the Fittest (NAT) · Silent Running (DSD) · Stroke or Genius (GTH) · The Tempest (DYB) · Drama Mode (BLD) · The Abyss (PASS) · Devil's Network Protocol (NT) · Fruity Personalities (FRT) · Night Terrors (SHP) · The Counterfeit Run (FLW) · Force of Nature (PKO) · Dibber Dobber (CJAR) · The Thaw (CLD)
 
 ---

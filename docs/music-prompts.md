@@ -67,11 +67,11 @@ reason someone picks. Curious, not exciting.
 > mischievous rather than childish — a classroom where the teacher has just left the room. Warm,
 > analogue, slightly out of tune in a charming way. Instrumental only, no vocals. Seamless loop.
 
-### 2. Great Minds 🧠 — *telepathy as radio hardware*
+### 2. Great Minds 🧠 — *telepathy as psychic waves*
 
-> Dreamy instrumental loop, retro-futurist and hypnotic. Slow analogue synth arpeggio drifting in
-> and out of phase with itself, warm tape hiss, soft filtered pads, a distant detuned sine tone,
-> occasional gentle vinyl crackle. 76 BPM, minor-key but calm rather than sad — two radios slowly
+> Dreamy instrumental loop and hypnotic. Slow analogue arpeggio drifting in
+> and out of phase with itself, soft filtered pads, a distant detuned sine tone,
+> 76 BPM, minor-key but calm rather than sad — two wavelengths slowly
 > tuning toward the same frequency. Spacious, patient, plenty of silence. No bells or chimes.
 > Instrumental only, no vocals. Seamless loop.
 

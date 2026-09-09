@@ -275,6 +275,139 @@ Plus `back`. **13 faces + back = 14 images.**
 
 ---
 
+### Honeycomb Hills — `-Game comb`
+
+**The biggest art job in the suite — four render seams plus four extras.** Read this whole entry
+before drawing anything: the board is a **2.5D hex grid**, and that imposes constraints no other
+game in the suite has.
+
+#### The four seams
+
+| Seam | `kind` | Renders at | Aspect | **Draw at** | Ids |
+|---|---|---|---|---|---|
+| **Hex tile** | `comb-hex` | **72 × 97 px** | **0.74** | **224 × 304** | `grove` `blossom` `clover` `rock` `nursery` `smoke` |
+| **Resource** | `comb-res` | 32 × 32 px | 1.00 | 96 × 96 | `resin` `wax` `pollen` `nectar` `jelly` |
+| **Instinct card** | `comb-instinct` | 160 × 220 px | **1.00 (square)** | **600 × 600** | `guard` `golden` `rush` `bloom` `pheromone` + `back` |
+| **Structure — board** | `comb-piece` | ~30 × 30 px (wall 41 × 7) | 1.00 | 96 × 96 (wall 112 × 40) | `wall-0..3` `cell-0..3` `dome-0..3` |
+| **Structure — gallery** | `comb-piece-hero` | ~80–100 px | 1.00 | **300 × 300** | same ids — ornate; How-to only |
+
+Player index → colour: **0 gold · 1 blue · 2 green · 3 red**.
+
+**6 hexes + 5 resources + 6 cards + 12 board pieces + 12 hero pieces = 41 images**, plus the extras
+below.
+
+> **Instinct cards and `back` are square** (600 × 600), not portrait — the delivered masters are
+> square and `.comb-card` is set to `aspect-ratio: 1`. **The two piece sets share ids**
+> (`wall-0`…`dome-3`); `combRenderPiece(kind, playerIdx, { hero })` picks the set. The board wall
+> art is landscape (stretched along a hex edge); the hero wall art is square (a 3/4 view). Give
+> `.comb-piece-hero` its own square box — it must override `.comb-piece-wall`'s wide thin board box.
+
+#### ⚠️ The hex tiles are the hard part — read this twice
+
+The board draws hexes as **2.5D slabs**: a flat pointy-top hex **top face**, plus a **side wall**
+extruded below it. Back-to-front painter's order means each hex's wall is hidden by the row in
+front, so only the front row's wall is fully visible.
+
+**One image contains both** — top face *and* wall — at **224 × 304**. The top face occupies the
+upper **224 × 259**; the wall is the bottom **45 px**.
+
+Four rules, and breaking any one of them stops the board tiling:
+
+1. **Identical viewing angle, wall depth and width on all six.** They tessellate. One hex drawn at
+   a slightly different angle shows as a seam across the whole board.
+2. **Decoration may overhang the TOP edge by ≤15% of hex height (~39 px of the 259). Never left,
+   right or bottom.** Top overhang is *good* — a tree breaking the top edge draws over the hex
+   behind it and reads correctly. Left/right overhang breaks tiling; bottom overhang covers the wall.
+3. **Each kind needs its own base tone.** In the first mockup pass, grove, blossom and clover all
+   sat on green. At 72 px that is unreadable, and production is resolved *by hex kind* — misreading
+   one costs a player resources they were owed. Keep Sapling Grove green; move Pollen Meadow and
+   Sunflower Patch onto their own bases. **Sunflower Patch's "base" is blue *sky* behind upright
+   flowers, not blue ground** (`docs/content-prompts/comb-art-prompts.md` §3c) — the one hex
+   painted as a scene with a horizon rather than pure top-down; its slab outline and angle still
+   match the others, so it still tessellates.
+4. **No label tags, no drop shadows onto the background.** The mockups' hanging name tags are
+   preview furniture. The game draws its own labels.
+
+**Draw at 224 × 304 (aspect 0.74), not square.** A 1024 × 1024 master `cover`-cropped into this
+throws away ~26% of every byte — the CJAR TG-02b trap.
+
+#### The four extras (`assetExtra`)
+
+| `kind` | key(s) | Renders at | Draw at | Notes |
+|---|---|---|---|---|
+| `comb-blossom` | `generic` `resin` `wax` `pollen` `nectar` `jelly` | 34 × 34 px | 112 × 112 | Trade Blossoms — 6 images |
+| `comb-wasp` | `wasp` | 34 × 34 px | 112 × 112 | Sits on `combWaspHex` |
+| `comb-pog` | `blank` `hot` | 30 × 30 px | 96 × 96 | **2 images only — see below** |
+| `comb-die` | `die` `die-numbered` | ~120–160 px | **512 × 512** | **The Sun Compass** — the 2d6 die, a faceted golden orb spun each turn. `die` ships (blank, number drawn in canvas); `die-numbered` is for the How-to tile. **NOT** the turn-order dots (`#comb-turn-order` — renamed from the mislabelled `comb-compass` 9 Sep 2026). The die roll animation/seam itself is a separate, not-yet-built chunk. See `docs/content-prompts/comb-art-prompts.md` § 5d |
+
+**The two achievements — Largest Comb / Fiercest Guard — carry NO art.** They render as a text
+status (medal emoji + name) on the holder's player row and on the gameover screen. There is no
+`comb-badge` seam — `combLargestHolder` / `combFiercestHolder` drive the label directly.
+
+> **Bloom Marker pogs are TWO images, not eleven.** One blank pog and one "hot" (red, for 6 and 8).
+> **The number is drawn in canvas on top** — so do not paint 2…12 onto eleven pogs. Ten numbered
+> bitmaps would cost ~40 KB more *and* look worse: a downscaled image of "12" at 30 px is softer
+> than canvas text rendered at the device's own pixel ratio. Same rule as CJAR's cookie values and
+> PASS's ranks — **don't paint in text the game already draws** (§ 2).
+
+#### What must read at size — and what doesn't
+
+The board is ~358 × 345 px on a typical phone. That means:
+
+- A **Queen Dome is 30 px.** Its **crown notch** must read, because that is the only thing
+  separating it from a Drone Cell. The filigree will not survive and does not need to.
+- A **Comb Wall is 41 × 7 px.** Only its **player colour** matters. There can be 60 on screen.
+- **Every piece needs a dark contour and a light top rim.** Player *green* on a green hex and
+  player *gold* on Sunlit Rock's amber both vanish without it. One outline rule separates all four
+  player colours from all six hex kinds at once — a per-colour fix cannot.
+
+#### Resource shapes are load-bearing, not decoration
+
+Colour alone fails under the most common form of colour blindness, so **each resource carries a
+distinct silhouette**:
+
+| Resource | Shape | Colour |
+|---|---|---|
+| Resin | **angular shard** — *not a droplet* | dark amber |
+| Pollen | sphere / cluster | pink |
+| Nectar | droplet | bright gold |
+| Wax | hexagon | pale cream |
+| Royal Jelly | pudding dome | purple |
+
+> The first mockup pass drew **Resin and Nectar as the same droplet in adjacent hues**. They sit
+> side by side in the hand, every cost line and every trade offer. **Resin becoming an angular
+> shard is the single change that fixes it** — with five distinct shapes, Nectar keeps its gold and
+> Wax's cream is fine against it (hexagon vs droplet, and cream is far lighter in value).
+
+#### Precache budget
+
+**3.64 MB total, actually achieved (10 Sep 2026 conversion, second pass).** Ceilings: hex **350 KB**
+(340×460) · resource **150 KB** (260×260) · Instinct card **40 KB** (600×600, unchanged) · board
+piece **6 KB** (unchanged — never zoomed, canvas-only at ~30 px) · hero piece **130 KB** (280×280) ·
+Trade Blossom **8 KB** (unchanged — canvas-only) · Wasp **10 KB** (unchanged — canvas-only) · pog
+**4 KB** (unchanged — canvas-only) · die **150 KB** (260×260). This is *core art*, so it is precached
+and **needs an `sw.js` `CACHE_NAME` bump** (§ 7) — that is the whole difference from a skin pack. (No
+badge art — the two achievements are a text status; see the extras note above.)
+
+> **Hex/resource/hero-piece/die ceilings went through two rounds, and the second is a different kind
+> of decision than the first.** Round one (9 Sep) raised only hero piece and die (14→27 KB, 12→26 KB)
+> against the *pre-art* estimate — a modest correction once real art existed to measure against.
+> Round two (10 Sep, owner review of the shipped gallery) raised all four **gallery/viewer-facing**
+> kinds by roughly 4× resolution, because the art viewer's own fix that same day (`ui-style.md` §
+> Pattern 2a note on `.art-viewer-img`) started scaling these small masters UP to fill its
+> ~342–390 px box — a master sized for a 30–100 px on-board render looks fine AT that size and
+> visibly soft once stretched 4× into a viewer. **The owner's call was explicit: KB/MB cost is not
+> the constraint for gallery-facing art.** Board pieces, Trade Blossoms, the Wasp and the pogs are
+> UNCHANGED — none of them render in a how-to gallery or the art viewer, only ever on the small
+> canvas board, so their original small-render sizing is still correct and untouched.
+> `tools/convert-comb-art.ps1` is the converter (all nine `comb-*` core art packs); see
+> `comb-implementation-notes.md` DD-19/DD-23 for both rounds. Generalises past `cjar-impl-notes`
+> TG-02b's "measure the quality a cap forces": the render size that matters is whichever CONSUMER is
+> largest, and that can change later (a viewer fix can retroactively make an earlier cap wrong without
+> the art itself changing) — re-measure when a new consumer appears, not just once at launch.
+
+---
+
 ### PASS — `-Game cards`
 
 **Card renders at** 56 × 80 px · **aspect 0.700** · **Draw at 800 × 1143**

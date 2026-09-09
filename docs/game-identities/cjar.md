@@ -1,7 +1,7 @@
 # Cookie Jar
 
 **Game 18** · `activeGameId: cjar` · plugin `js/games/cjar.js`
-**Emoji:** 🍪 · **Brand:** honey-gold `#D4A017`, dark ink · **Players:** 3–8 · **Modes:** MDLM only
+**Emoji:** 🍪 · **Brand:** chocolate-brown `#5C3A21`, white ink · **Players:** 3–8 · **Modes:** MDLM only
 **Status:** gold master · verified against SW v209 on 22 August 2026
 
 > **Change contract.** Each section is tagged **free** (reword freely — but it must stay true),

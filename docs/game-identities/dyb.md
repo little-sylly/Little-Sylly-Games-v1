@@ -1,7 +1,7 @@
 # The Bluff
 
 **Game 10** · `activeGameId: dyb` · plugin `js/games/dyb.js`
-**Emoji:** 🎲 · **Brand:** ocean blue `#1E4D8C` · **Players:** 3–8 · **Modes:** MDLM only
+**Emoji:** 🎲 · **Brand:** warm rock-grey `#6B5744` · **Players:** 3–8 · **Modes:** MDLM only
 **Status:** gold master · verified against SW v209 on 23 August 2026
 
 > **Change contract.** Each section is tagged **free** (reword freely — but it must stay true),

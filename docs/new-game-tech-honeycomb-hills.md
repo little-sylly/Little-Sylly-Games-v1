@@ -714,7 +714,7 @@ geometry with a different thing in the middle (§2).
 | Tab | Content | Renders through |
 |---|---|---|
 | **The Rules** | The 11 step cards from brief §18 — **always the first tab**, canonical structure unchanged | — |
-| **The Comb** | All five resources (icon + colour + name) and all four build costs | **`combRenderResource(kind)`** — the real seam, never hand-built markup |
+| **The Comb** | **All six hex kinds (tile + name + what it yields)**, all five resources (icon + colour + name), and all four build costs | **`combRenderHex(kind)`** and **`combRenderResource(kind)`** — the real seams, never hand-built markup |
 | **The Instinct Deck** | All five Instinct card types, counts and effects | **`combRenderInstinct(kind)`** — the real seam |
 
 `combOpenHowTo(tab, highlightId)` — forces `tab` whenever `highlightId` is set, then calls
@@ -724,7 +724,18 @@ geometry with a different thing in the middle (§2).
 - Inline `[?]` beside the hand's resource row → `combOpenHowTo('comb')` — **one existing function
   call, not a new overlay** (brief §15 surface 3)
 - Tap-hold a resource chip in the hand → `combOpenHowTo('comb', kind)` via `bindCardHold`
+- **Tap-hold a hex on the board → `combOpenHowTo('comb', kind)` via `bindCardHold`**
 - Tap-hold an Instinct card → `combOpenHowTo('instinct', kind)` via `bindCardHold`
+
+> **⚠️ Gap found 7 Sep 2026, during the art review — the hex tap-hold had nowhere to land.**
+> The Consistency Audit committed `bindCardHold` to *"tap-hold on a hex or an Instinct card →
+> deep-links into the How-to gallery tab"*, but The Comb tab was specified as resources and costs
+> only. A tap-hold on a Sapling Grove would have opened a tab that never mentions Sapling Grove.
+>
+> **Worse, it left the game with no hex→resource reference at all.** Which hex yields which
+> resource is the most basic thing a new player has to learn, and the only place it was written
+> down was the board itself. **The Comb tab now leads with the six hex kinds**, and the seam-render
+> rule means that gallery can never drift from the live board. Logged as **§17-16**.
 
 **Gallery tiles are `artMakeZoomable` only where `assetFace` resolves a URL.** With v1 shipping on
 the owner's own art via a core art pack, they will — and the tab then doubles as the offline install
@@ -880,20 +891,59 @@ every edge has exactly 2 nodes, **no node key contains a `-0`**, and the topolog
 
 ### Hex distribution — 19 hexes
 
-| Hex kind | Yields | Colour (§9 of the brief) | Count |
-|---|---|---|---|
-| Sapling Grove | **Resin** | Deep green | 4 |
-| Blossom Meadow | **Pollen** | Hot pink / magenta | 4 |
-| Clover Patch | **Nectar** | Sky blue | 4 |
-| Sunlit Rock | **Wax** | Golden yellow | 3 |
-| Nursery Cell | **Royal Jelly** | Pearl white / cream | 3 |
-| The Smoke Zone | — | Muted grey-brown | 1 |
-| | | | **19** |
+| Kind id | Display name | Yields | Colour | Count |
+|---|---|---|---|---|
+| `grove` | Sapling Grove | **Resin** | Deep green | 4 |
+| `blossom` | **Pollen Meadow** | **Pollen** | Pink flowers on green | 4 |
+| `clover` | **Sunflower Patch** | **Nectar** | Yellow sunflowers on green | 4 |
+| `rock` | Sunlit Rock | **Wax** | Honey amber | 3 |
+| `nursery` | Nursery Cell | **Royal Jelly** | Iridescent purple | 3 |
+| `smoke` | The Smoke Zone | — | Muted grey-brown | 1 |
+| | | | | **19** |
+
+> **Display names updated 7 Sep 2026 to match the owner's mockups** (§17-13). `Blossom Meadow` →
+> **Pollen Meadow**, `Clover Patch` → **Sunflower Patch**, and Nectar moves from the brief's sky
+> blue to the art's yellow. **The kind ids did not change** — `clover` is still `clover` — which is
+> the whole point of §10's stable-id rule: a display name is skin-deep, and packets, the topology,
+> the harness and `COMB_TENDED_KIND` are all untouched by a rename.
+>
+> ⚠️ **The colour consequence, which is real and needs an art pass.** Three of the five producing
+> kinds now sit on a **green base** (grove, blossom, clover). Production is resolved *by hex kind*,
+> so a player who misreads one loses resources they were owed. At 72 px a green-on-green
+> distinction is not enough. **Each kind needs a distinct base tone under its decoration** — keep
+> Sapling Grove green, and move Pollen Meadow and Sunflower Patch onto their own bases.
 
 **Every resource carries a distinct icon shape as well as its colour, on every surface** (hand, hex,
 cost line, trade offer, discard picker). Not optional — brief §9 makes it a rule, because green and
 yellow converge under the most common form of colour blindness. The icon shape is a required argument
 of the resource seam, not a property of the art.
+
+> ### ⚠️ Resin and Nectar were both amber droplets — found in the 7 Sep 2026 art review
+>
+> The first mockup pass drew **Resin** and **Nectar** as the *same shape* (a droplet) in *adjacent
+> hues* (amber and gold). That is the exact failure the rule above exists to prevent: under
+> deuteranopia the two chips are nearly indistinguishable, and they appear side by side in the hand,
+> in every cost line and in every trade offer.
+>
+> **The fix is one asset, not five: Resin becomes an angular amber shard/crystal.** Tree sap reads
+> better as a hardened shard than as a liquid drop anyway, and it is the only change needed — with
+> Resin angular, the five shapes are all distinct and **Nectar can stay gold**:
+>
+> | Resource | Shape | Colour |
+> |---|---|---|
+> | Resin | **angular shard** ⬦ | dark amber |
+> | Pollen | sphere / cluster ● | pink |
+> | Nectar | droplet 💧 | bright gold |
+> | Wax | hexagon ⬡ | pale cream |
+> | Royal Jelly | pudding dome ▲ | purple |
+>
+> Wax cream and Nectar gold remain close in *hue*, which is acceptable **because hexagon vs droplet
+> is a strong shape difference and cream is far lighter in value**. Colour is never the sole channel.
+>
+> **Resource chips are UI-only** — they live in the hand row, cost lines, the trade builder and the
+> discard picker, never on the board. So they must be separable **from each other**, not from the hex
+> fills or the player palette. That is a *different* problem from the board's nine-way separation
+> below, and conflating the two over-constrains the palette.
 
 ### Bloom Markers — 18
 
@@ -967,7 +1017,7 @@ was bought (`boughtTurn === combTurnNo` blocks it), Golden Nectar excepted becau
 | Hex tile | `combRenderHex(kind, opts)` → DOM/canvas node. Ids: `'grove'`/`'blossom'`/`'clover'`/`'rock'`/`'nursery'`/`'smoke'` |
 | Resource token | `combRenderResource(kind, opts)` → node. Ids: `'resin'`/`'wax'`/`'pollen'`/`'nectar'`/`'jelly'`. **Four surfaces** — hand, cost line, trade offer, discard picker — so this is the seam most likely to drift if any one is built inline |
 | Instinct card | `combRenderInstinct(kind, opts)` + `opts.faceDown` back. Ids: `'guard'`/`'golden'`/`'rush'`/`'bloom'`/`'pheromone'` |
-| Structure | `combRenderPiece(kind, playerIdx)`. Ids: `'wall'`/`'cell'`/`'dome'` × 4 player colours |
+| Structure | `combRenderPiece(kind, playerIdx, opts)`. Ids: `'wall'`/`'cell'`/`'dome'` × 4 player colours. **The one seam with TWO asset sets** — `comb-piece` is the simplified 30 px board set; `comb-piece-hero` is the ornate gallery set, resolved when `opts.hero` is set. Same ids in both, so the gallery and the board can never disagree about *what* a piece is, only how much detail it shows |
 | Asset `kind` strings | `'comb-hex'`, `'comb-res'`, `'comb-instinct'`, `'comb-piece'` |
 | Default v1 look | **Owner's mockups**, shipped as a **core art pack** in `data/art/` |
 
@@ -990,25 +1040,146 @@ and are expensive to retrofit. **Do not add `comb` to `SM_GAMES`** in `js/secret
 `SM_GAMES` is what makes a game selectable for skin packs in the Terminal, and with no skin planned
 it would surface an empty picker. One line to add later.
 
-### Structure rendering at board scale — the constraint that shapes the art
+### The board render stack — measured, 7 Sep 2026
+
+All figures computed from the real topology, not estimated. The board spans **8.66 × 8.00 hex
+circumradius units** (aspect 1.08 — very nearly square) and is **width-constrained on every phone**.
+
+| Device | R (px per unit) | Board renders | Vertical headroom |
+|---|---|---|---|
+| iPhone SE (375 w) | 39.6 | 343 × 331 px | 49 px |
+| iPhone 14 (390 w) | 41.3 | 358 × 345 px | 85 px |
+| Pixel 7 (412 w) | 43.9 | 380 × 366 px | 94 px |
+
+**Element sizes at R = 41.3:**
+
+| Element | Rendered size | Source art @3× DPR |
+|---|---|---|
+| Hex **top face** | 72 × 83 px | — |
+| Hex **wall depth** | 14 px | — |
+| **Full hex sprite** (top + wall, ONE image) | **72 × 97 px** | **224 × 304 px** |
+| Drone Cell / Queen Dome | **~30 px** | 96 px |
+| Comb Wall | 41 px long × ~7 px thick | 128 × 24 px |
+| Bloom Marker pog | ~30 px | 96 px |
+
+**Why pieces get 30 px and not the 41 px node spacing implies:** the **Distance Rule** means two
+structures are *never* on adjacent nodes — the minimum separation is two hops, **72 px**. So a 30 px
+piece has ~42 px of clearance. That is enough for the Queen Dome's **crown notch** to survive, which
+is the one thing that must read (Cell vs Dome). The filigree does not survive and does not need to.
+
+### The 2.5D slab — owner's call, 7 Sep 2026 (§17-14)
+
+The hexes render as **extruded slabs** (a flat top face plus a side wall below it), matching the
+mockups, rather than as flat top-down faces.
+
+**It costs nothing.** The board is width-constrained on every phone, so adding a 0.35-unit wall makes
+*height* the binding dimension nowhere — R is unchanged, and 49–94 px of vertical headroom remains.
+The mockup look is free.
+
+> #### ⚠️ The one rule that makes 2.5D safe: **the topology stays flat. The slab is render-only.**
+>
+> `combBuildTopology()` is unchanged and stays pure — 54 nodes and 72 edges in the **flat top-face
+> plane**. The extrusion exists only inside `combDrawBoard()`. Nothing about node ids, edge ids,
+> adjacency, the Distance Rule, longest-chain traversal, packets or the harness is aware the board
+> looks 3-D. Break this and every geometric rule in §6/§7 acquires a rendering dependency.
+
+**Draw order — back-to-front by row, then pieces:**
+
+```
+1. meadow ground
+2. for each hex sorted by cy ascending:      <- painter's order
+     draw its FULL sprite (wall then top face)
+   ^ a hex's wall is occluded by the row in front of it, so only the
+     front row's wall is fully visible — which is why the depth is paid
+     ONCE (14px total), not once per row.
+3. Trade Blossoms (rim)
+4. Bloom Marker pogs
+5. the Wasp
+6. Comb Walls   (72 edges)  sorted by cy
+7. Cells/Domes  (54 nodes)  sorted by cy
+8. legal-target glow + combPendingTarget preview
+```
+
+Pieces are drawn **after every hex**, so a piece is never occluded by a slab. At 30 px the
+depth-order error that introduces is invisible; sorting pieces by `cy` handles piece-on-piece.
+
+**Hit-testing, resolved:** taps test against the **flat top-face polygon** — the geometry that
+already exists. Two consequences, both wanted:
+- **Hex taps** (Wasp placement) additionally accept the hex's own wall quad. A tap on a visible wall
+  belongs to the hex that wall extrudes from, which is what it looks like.
+- **Node and edge taps** use **nearest-legal-target snapping** (§2), which absorbs the few px of
+  visual offset the extrusion introduces. This is the second thing the snapping rule buys.
+
+**Art constraint the slab imposes — decoration overhang must be bounded.** In back-to-front order a
+tree or a honey blob overhanging the **top** edge draws over the hex behind, which is correct and
+looks right. But overhang **left, right or bottom** breaks tessellation or covers the wall.
+
+> **Rule: decoration may overhang the TOP edge by ≤15% of hex height. Never left, right or bottom.**
+> Every hex sprite is the same width, the same wall depth and the same viewing angle, or the board
+> will not tile.
+
+### Structures at board scale — the nine-way separation problem
 
 Brief §11: a Comb Wall is a line segment on a hex edge and **there can be 60 on screen at once**. The
 only thing that must read at that size is **whose it is** (player colour) and, for nodes, **which of
-the two** (Cell vs Dome). Everything else is decoration. The four player colours must therefore be
-separable from each other *and* from all five resource colours and the six hex fills — a nine-way
-separation problem, and the one place the resource colour system (§9 of the brief) and the player
-palette have to be designed together rather than in sequence.
+the two** (Cell vs Dome). Everything else is decoration.
+
+The four player colours are **gold · blue · green · red** (the mockups). Two collide with the ground
+they sit on: **Player Green on the three green-based hexes**, and **Player Gold on Sunlit Rock's
+honey amber**.
+
+> **The fix is one rule applied to every piece, not a palette rework: each structure carries a dark
+> contour and a light top rim.** A consistent dark outline separates all four player colours from all
+> six hex kinds at once, which is what a per-colour fix cannot do — and it is standard game-token
+> practice for exactly this reason. Combined with the per-kind base tones above, this closes the
+> nine-way separation problem without constraining either palette further.
+
+### The static-layer cache — required, not an optimisation
+
+Layers 1–4 change **only at match start**; layers 5–8 change during play. So:
+
+**`combDrawBoard()` renders layers 1–4 once per match into an offscreen canvas and blits that single
+image on every repaint.** Without it, ~46 image draws re-run on every tap, every Wasp move and every
+frame of the magnifier's pinch gesture, for a 50-minute match. With it, a repaint is one blit plus
+at most ~30 small draws.
+
+The cache is invalidated on exactly two events: `COMB_MATCH_START` (new deal) and a viewport change
+in the map overlay (a different zoom needs a re-render at the new scale). **The inline board and
+`comb-map-overlay` share it** — one more reason the two surfaces are one draw function (§2).
 
 ### `sw.js`
 
-- **Precache:** the core art manifest `data/art/comb-*/manifest.json` and **every** image it lists.
+- **Precache:** the nine core art manifests `data/art/comb/<sub>/pack.json` and **every** image each
+  lists (`hex`/`res`/`instinct`/`piece`/`piece-hero`/`blossom`/`wasp`/`pog`/`die` — COMB is the
+  first game whose art spans more than one `art.js` `kind`, so it is nine manifests, not one).
   Core art is part of the app version; a conversion is not done until both the manifest and every
   image are in `PRECACHE_URLS` and `CACHE_NAME` is bumped.
-- **Per-file ceiling — set now, not after the art exists.** Hexes render at roughly 90–110 CSS px
-  across on a phone board; Instinct cards at ~`10rem`. Ceilings: **hex 25 KB**, **resource icon 8 KB**,
-  **Instinct card 40 KB**, **structure 6 KB**. Total ≈ 6×25 + 5×8 + 5×40 + 12×6 = **462 KB**. That is
-  in CJAR/PKO territory and installable on mobile data. **Check master aspect against render aspect
-  before generating** — square masters against a portrait card discard ~27% of every byte (CJAR TG-02b).
+- **Per-file ceiling — revised 7 Sep 2026 against the measured sizes above.** Hexes render at
+  **72 × 97 CSS px** (top face + wall), Instinct cards at ~`10rem`, pieces at ~30 px.
+
+  | Asset | Count | Ceiling | Subtotal |
+  |---|---|---|---|
+  | Hex sprite (224 × 304 master) | 6 | 25 KB | 150 KB |
+  | Resource icon | 5 | 8 KB | 40 KB |
+  | Instinct card face | 5 | 40 KB | 200 KB |
+  | Instinct card **back** | 1 | 40 KB | 40 KB |
+  | Structure (3 kinds × 4 colours) | 12 | 6 KB | 72 KB |
+  | Trade Blossom (generic + 5) | 6 | 8 KB | 48 KB |
+  | The Wasp | 1 | 10 KB | 10 KB |
+  | Bloom Marker pog (blank + red) | 2 | 4 KB | 8 KB |
+  | Achievement badge | 2 | 10 KB | 20 KB |
+  | | | | **≈ 588 KB** |
+
+  **The original 462 KB figure omitted five families** — the card back, Trade Blossoms, the Wasp, the
+  pogs and the achievement badges. 588 KB is still CJAR/PKO territory and installable on mobile data.
+
+  **Bloom Marker pogs ship as TWO images, not ten.** One blank pog and one red (6/8) variant, with the
+  **number drawn in canvas on top**. Ten numbered images would cost ~40 KB more *and* look worse — a
+  downscaled bitmap of "12" at 30 px is softer than canvas text at the device's own DPR.
+
+  **Check master aspect against render aspect before generating** — square masters against a portrait
+  card discard ~27% of every byte (CJAR TG-02b). **This bites the hex sprites specifically:** they are
+  **224 × 304 (aspect 0.74)**, so square 1024×1024 masters would waste ~26% of every byte.
 - **No data-file entry** — content is constants in the plugin.
 - **`js/games/comb.js` is added to `PRECACHE_URLS`** and to the `index.html` load order.
 
@@ -1082,7 +1253,7 @@ comb: {
 | **Buy Instinct** | n/a | → `ACTION COMB_BUY_INSTINCT` → host draws → `SYNC COMB_INSTINCT_BOUGHT { playerIdx, deckLeft }` (**not the card**) + **private** `COMB_INSTINCT_SYNC` to the buyer only |
 | **Play Instinct** | n/a | → `ACTION COMB_PLAY_INSTINCT { cardIdx, params }` → host resolves → `SYNC COMB_INSTINCT_PLAYED { playerIdx, kind, effect }` — the kind **is** public once played |
 | **End turn** | n/a | → `ACTION COMB_END_TURN` → host advances → `SYNC COMB_TURN_BEGIN { turnIdx, playerIdx, endTimestamp }` |
-| **Daylight expiry** | n/a | **Host-owned.** The host computes `endTimestamp` when it sends `COMB_TURN_BEGIN` and is the only device that acts on expiry — clients only render the countdown. GTH's `GTH_PHASE2_BEGIN` is the reference |
+| **Daylight expiry** | n/a | **Host-owned.** The host computes `endTimestamp` when it enters the `actions` phase and sends `COMB_ACTIONS_BEGIN` — **not** at turn begin (§17-17) — and is the only device that acts on expiry; clients only render the countdown. GTH’s `GTH_PHASE2_BEGIN` is the reference |
 | **Win** | n/a | Host → `SYNC COMB_GAMEOVER` carrying **every** player's Golden Nectar count — the one and only moment hidden information becomes public |
 | **Quit** | n/a | `mpNotifyPlayerLeft(); resetToLobby();` — the engine helper, no per-game packet |
 
@@ -1124,7 +1295,8 @@ comb: {
 | `COMB_TRADE_RESOLVED` | `{ a, b, ok, reason, handCounts[] }` |
 | `COMB_INSTINCT_BOUGHT` | `{ playerIdx, deckLeft, instinctCounts[], handCounts[] }` — **not the card** |
 | `COMB_INSTINCT_PLAYED` | `{ playerIdx, kind, effect, … }` |
-| `COMB_TURN_BEGIN` | `{ turnNo, playerIdx, endTimestamp, phase, instinctPlayedThisTurn: false }` |
+| `COMB_TURN_BEGIN` | `{ turnNo, playerIdx, endTimestamp: 0, phase, instinctPlayedThisTurn: false, owed[], ready[], handCounts[] }` — **`endTimestamp` is 0 here; Daylight is armed on entering `actions`, see below** |
+| `COMB_ACTIONS_BEGIN` | `{ playerIdx, endTimestamp, phase }` — **added at build time (§17-17).** The Daylight clock, broadcast from the one place it is computed |
 | `COMB_LOG_APPEND` | `{ line }` — privacy-bounded, see below |
 | `COMB_GAMEOVER` | `{ standings[], goldenNectar[], stats, largestHolder, fiercestHolder }` |
 
@@ -1541,6 +1713,21 @@ and the design note for a future one is carried in the identity doc's T-section,
 | **9** | §9: *"Everything else is clear. Verified free across all 19 identity docs: … Season …"* | **Records four soft collisions the sweep missed** — `The Season` vs PKO's `The Dry Season`, `Fiercest Guard` vs GM's `Memory Guard`, `Roomy` vs CLD's shipped pill, `Endless` vs PASS's shipped pill | All four are keep-as-is, but a future audit that re-finds them should see them already recorded rather than flag them as drift |
 | **10** | §13: the Season Log is *"a cheap window onto data we already have"* | **The log is built on the host from SYNC payloads only, never from host-local state** | Brief §13 flags the leak risk but not a mechanism. Building it from public payloads makes the privacy rule structural instead of something to remember on every log line |
 | **11** ⭐ | §14b / Q19-b: *"placement mode plus pan/zoom"* on one board canvas | **The inline board neither pans nor zooms.** It is fit-to-view and permanent; **all** zooming moved to a new `comb-map-overlay` (z-[75]), opened by a 🔍 button | **Owner's answer to Q19-b, 6 Sep 2026.** It is also the better engineering: one canvas that both pans and places has to separate a drag from a tap by a distance-and-time threshold, and that threshold is wrong for somebody. Two surfaces with one job each need no threshold. Forces two supporting decisions — a shared pure `combDrawBoard(canvas, viewport)` so the map is not a second source of board truth, and nearest-legal-target snapping, since nodes sit ≈41 px apart at fit-to-view, under the 44 px touch minimum. See §2 |
+| **13** ⭐ | §10: hex kinds named *Blossom Meadow* and *Clover Patch*, with Nectar as **sky blue** | **Pollen Meadow** and **Sunflower Patch**, Nectar **yellow** | **Owner's call, 7 Sep 2026**, taking the names from the delivered mockups. Sunflowers→nectar reads better than clover→nectar. **Kind ids unchanged** (`clover` is still `clover`), so packets, topology, harness and `COMB_TENDED_KIND` are untouched — this is exactly what §10's stable-id rule is for. **Cost:** three of five producing kinds now sit on a green base, so each needs its own base tone or the board is unreadable at 72 px. Logged in §10 |
+| **14** ⭐ | §2/§11: the board's visual treatment was never specified beyond "hexes" | **2.5D extruded slabs** — a flat top face plus a 14 px side wall, drawn back-to-front | **Owner's call, 7 Sep 2026**, matching the mockups. **Measured as free:** the board is width-constrained on every phone, so the wall makes height bind nowhere and R is unchanged (49–94 px headroom spare). Made safe by one rule — **the topology stays flat and the slab is render-only**, so `combBuildTopology()` stays pure and no geometric rule acquires a rendering dependency. The nearest-target snapping from §17-11 absorbs the visual offset, which is the second thing that rule buys. See §10 |
+| **15** | Brief §9: the resource palette was specified by colour, with "distinct icon shape" as a rule but no shapes assigned | **Shapes assigned** — Resin is an **angular shard**, not a droplet | Found in the 7 Sep 2026 art review: the mockups drew Resin *and* Nectar as droplets in adjacent hues, which is the precise failure the distinct-shape rule exists to prevent. One asset changes and all five become distinct, so Nectar keeps its gold. Also records that resource chips are **UI-only** and need separating from each other, **not** from the board palette — a distinction the brief never drew |
+| **16** | §15/§8: the How to Play "The Comb" tab holds resources and build costs | **Leads with all six hex kinds**, then resources, then costs | Found 7 Sep 2026 in the art review. The audit had already committed a **hex tap-hold** to this tab, but the tab had no hex content — the deep link pointed nowhere. It also meant the game shipped with **no hex→resource reference anywhere**, which is the first thing a new player needs. Renders through `combRenderHex`, so the reference cannot drift from the board |
+| **17** ⭐ | §11 packet table: `COMB_TURN_BEGIN` carries `endTimestamp` | **`COMB_TURN_BEGIN` carries 0; a new `COMB_ACTIONS_BEGIN` carries the real timestamp** | Found in the Step 5 chunk 3 build. Armed at turn begin, three *other* people’s Overflow taps eat the active player’s clock — a 7 opens the turn in `roll`, detours through `overflow` and `waspMove`, and only then reaches the phase the clock is meant to pressure. `logic-engine.md` § Host-gate screens before timed phases is the older rule and settles it: the host computes `endTimestamp` *at the moment the timed phase begins*. One packet rather than the same field in the three packets that all reach `actions`. See `comb-impl-notes` DD-05 |
+| **18** | §7 exempts the draft from connectivity | **The exemption is the CELL’s only — the opening WALL must touch the cell just placed** | Found in the Step 5 chunk 3 build. A blanket draft exemption lets an opening wall land on any empty edge and seed a second, disconnected network the player never has to reach. Catan’s rule is that the opening road touches the settlement just placed, and §7 only ever exempted the cell. Implemented as an `anchor` in the placement opts, which **doubles as the draft sub-step** (`combDraftNeeds()` reads it), so no second variable can disagree about which piece is owed. Adds `combDraftAnchor` to §4’s Match group. See `comb-impl-notes` DD-06 |
+| **19** | Brief and spec are silent on three Catan sub-rules | **Decided to Catan and recorded**: the second draft cell pays out; Limited Bounty uses Catan’s shortage rule (nobody is paid unless exactly one player is owed) with `COMB_SUPPLY_EACH = 19` and spent resources returning to the Meadow; the Wasp’s draw is over **holdings**, not resource kinds | Each is load-bearing and would read as arbitrary later. Without the opening payout every seat starts empty and the first lap is N dead turns. Without the supply return Limited drains to empty over a match and quietly stops paying. A draw over kinds instead of holdings removes the whole risk of hoarding one resource. See `comb-impl-notes` DD-07 |
+| **20** | §11 packet table: `COMB_WASP_PLACED` is `{ hexIdx, thief, victim, handCounts[] }` | **Adds `phase`** to both sends | Found in the Step 5 chunk 4 build. Whether a steal follows a move turns on whether an adjacent player is holding **anything** — hand contents, the one thing the public channel never carries. A client can approximate it from `handCounts[]`, and that approximation drifts the first time `combWaspVictims()` grows a condition. One authority, one answer. See `comb-impl-notes` |
+| **21** | §11: `COMB_FULL_STATE` is for *"late join into the draft; the reconnect path when it is built"*, and §17-12 defers reconnect | **Also sent when the host REJECTS an ACTION** | Found in the Step 5 chunk 4 build. As specced the packet would ship with an applier and no sender — dead code, written on trust. A rejected ACTION produces no SYNC at all, so the submitting device sits on a stale board with a dead button; repairing that one device costs six lines and uses the strip the spec already required. Unchanged as the late-join path when that lands. See `comb-impl-notes` DD-10 |
+| **22** | §11 ACTION table: every packet carries `playerIdx` | **The host takes the seat from the wire’s `originId`, never from `playerIdx`** | Found in the Step 5 chunk 4 build. A device that put another seat in that field would place their pieces and spend their hand. `playerIdx` still travels (spec compliance, and it reads well in a log) but is not authoritative. Every other MDLM game trusts the payload — none of them has a private hand an impersonation could spend. See `comb-impl-notes` DD-09 |
+| **23** | §11: the seeded deal is argued as a bandwidth win — `COMB_MATCH_START` carries a number rather than 19 hexes | **The client MASKS the Instinct deck it reconstructs** | Found in the Step 5 chunk 4 build. `combDealMatch()` rebuilds the deck from the same seed, so every client held the exact draw order — and with the public `deckLeft`, every unplayed card in every hand, Golden Nectar included. A seeded deal is a privacy decision as well as a bandwidth one. The count stays public (the stack is on the table); the order does not. See `comb-impl-notes` BUG-06 |
+| **24** | §11: `COMB_BOARD_UPDATE` is listed with no producer named | **`combBuild()` added as the non-draft build applier, and it is the packet’s send site** | Found in the Step 5 chunk 4 build. A build during `actions` went straight through `combApplyPlace` and told nobody. Splitting it out also gives the `COMB_BUILD` ACTION exactly one applier to call, so a client’s build and the host’s own tap cannot diverge. See `comb-impl-notes` DD-11 |
+| **25** | §8 fixes the overlay registry at **fifteen**, and §17-4 says "the pickers are overlays" | **The two-step build picker is INLINE — a sibling of the action bar in the Controls zone, not a sixteenth overlay** | Found in the Step 5 chunk 5 build. §8's own framing settles it two sections earlier: *"the board never goes away, so everything else is a layer over it"* — but choosing **what** to build is the one decision made while reading **where** it could go, and an overlay takes the board away at exactly that moment. `#comb-build-picker` sits beside `#comb-place-bar` and `#comb-action-bar` with exactly one of the three shown; costs no z-index entry and no `resetToLobby()` line. Registry stays at fifteen. Now a general rule in `ui-style.md` § The Stack. See `comb-impl-notes` DD-12 / TG-10 |
+| **26** | §11 does not say when `COMB_TRADE_SELECT` is reached, and §5 describes the Waggle Dance as two *modes* | **The offer's `to` field decides, not `combWaggle`**: `to >= 0` is a directed offer whose accept IS the deal; `to === -1` is an open offer whose answers accumulate for the poster to pick from | Found in the Step 5 chunk 5 build. `COMB_TRADE_SELECT` only has a job when there is more than one possible partner, which is a property of the offer rather than of the setting — and reading it off `to` lets Out Loud offer the table option too without a second code path. The 10 s auto-decline is the part that really is setting-driven, and stays Full Dance only. An offer somebody accepted **survives** its own deadline; the timer exists for a silent seat stalling the table, not for the poster's choice. See `comb-impl-notes` DD-13 / DD-14 |
+| **27** | §10: Comb Rush is *"Build two Comb Walls free, immediately"* | **A counter (`combFreeWalls`) the build applier spends, not two forced placements** — and it is authoritative state, so it serialises | Found in the Step 5 chunk 5 build. Two forced placements strand a player with nowhere legal to put the second. The spend lives in `combBuild()` rather than `combApplyPlace()`, which keeps the placement applier ignorant of Instinct cards and keeps "free" out of the draft path's separate exemption. `combBeginTurn()` drops whatever is unspent. Adds `freeWalls` to §4's Match group and to `combSerialiseState()`. See `comb-impl-notes` DD-15 |
 | **12** | Brief Appendix A4 / §19 Q20: reconnect "specced afterwards" with no priority attached | **Deferred explicitly, at high priority, in `docs/deferred-work.md`** — with the reason recorded | **Owner's answer to Q20, 6 Sep 2026**, whose condition was "unless you need to touch other games or a big part of the core code". Option 1 redefines the Mid-Game Quit Contract asserted across all 20 games, so the condition is met. Recording *why* it was excluded is what stops a later session re-deriving the analysis from scratch |
 
 ---

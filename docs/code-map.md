@@ -40,6 +40,7 @@
 | Pecking Order (PKO) | ~8936 |
 | Cookie Jar (CJAR) | ~9477 |
 | Cold Shoulder (CLD) | ~9970 |
+| Honeycomb Hills (COMB) | ~10390 |
 
 Each game's `<!-- ════ NAME ════ -->` section-header comment is itself a reliable Grep anchor if the line numbers have drifted.
 
@@ -965,7 +966,7 @@ Each plugin reads `window.activeExpansionOverrides` at its settings-apply point 
 
 **JS file:** `js/games/dyb.js`
 **Data:** none — word bank not used; dice outcomes are numeric
-**Brand colour:** `#1E4D8C` (ocean blue — custom; classes `dyb-cta`, `dyb-label`, `pill-active-dyb`, `game-toggle-on-dyb`)
+**Brand colour:** `#6B5744` (warm rock/clay grey — custom; classes `dyb-cta`, `dyb-label`, `pill-active-dyb`, `game-toggle-on-dyb`; moved off ocean blue `#1E4D8C` 5 Sep 2026)
 
 ### Screens
 | Screen ID | Purpose |
@@ -1909,7 +1910,7 @@ Per-game: LI5 `ptp`★/`tlm` · GM `ptp`★/`mdlm` · SS `tlm`★/`mdlm`/`ptp` �
 
 **JS file:** `js/games/pko.js`
 **Data:** `data/pko-data.json` — 15 entries (13 animals + Poacher + **Mimic**). `beaten_by` is the strict (Sated) chain; `reach_beaten_by` carries the six **Ravenous** two-tier edges and is never merged into it. Both forward maps (`pkoBeatsMap` / `pkoBeatsWideMap`) are derived at load, never stored. The Mimic is `force_of_nature_only` and `track: 'wild'` — it never enters a standard Pool and never becomes a Mark. Exempt from word-difficulty per the non-word-bank carve-out (Hoard Size is the velocity dial).
-**Brand colour:** `#854D0E` (savanna amber-brown — custom; hover `#6B3E0B`) | **Active pill:** `pill-active-pko` | **Toggle ON:** `game-toggle-on-pko` | **Range:** `pko-range` | **CTA/label:** `pko-cta` / `pko-label`
+**Brand colour:** `#9A3412` (earthy rust-orange — custom; hover `#7C2D12`; moved off brown `#854D0E` 5 Sep 2026) | **Active pill:** `pill-active-pko` | **Toggle ON:** `game-toggle-on-pko` | **Range:** `pko-range` | **CTA/label:** `pko-cta` / `pko-label`
 **MDLM-only**, 3–6 players, host-authoritative, host-as-participant, private Hoards over the `/private/{uid}` channel. **Sylly Mode = Force of Nature — SHIPPED (SW v149).** Nine events: the fixed opener `invasive-mimicry` plus eight drawn per Encounter (`culling`, `great-reversal`, `deluge`, `dry-season`, `extinction`, `migration`, `alpha`, `carrion`).
 **Lobby button:** `#btn-pko` | **Spec:** `docs/new-game-tech-pecking-order.md`, Force of Nature: `docs/new-game-tech-pecking-order-fon.md`
 **Verification:** three headless harnesses — `tools/verify-pko-chain.js` (68 checks, data layer), `tools/verify-pko-loop.js` (132, turn loop), `tools/verify-pko-events.js` (143, Force of Nature). Re-run all three after any change to the chain, the appliers, the balance numbers or the event rules.
@@ -2086,7 +2087,7 @@ All three evaluate the real `js/games/pko.js` in a Node `vm` sandbox — they re
 ## Cookie Jar (CJAR)
 
 **JS file:** `js/games/cjar.js` (1777 lines) **Data:** `data/cjar-data.json` — 15 cookie values (3 tier bands), 5 family archetypes (4 warn + 4 bust lines each), 5 treats, both treat schedules (Quick Snack 3 / Full Feast 5). **Content guide:** `docs/cjar-content-guide.md`.
-**Brand colour:** `#D4A017` honey-gold (custom, hover `#B8860B`) — **dark ink** `#292524` (stone-800), never white (2.38:1 fails the 3:1 floor) | **Active pill:** `pill-active-cjar` | **Toggle ON:** `game-toggle-on-cjar` | **Range:** `cjar-range` | **CTA/label:** `cjar-cta` (carries its own `color:#292524`) / `cjar-label` (`#7A5C0A`)
+**Brand colour:** `#5C3A21` chocolate-brown (custom, hover `#4A2E1A`) — plain white ink (~10:1, moved off honey-gold `#D4A017`'s dark-ink requirement 5 Sep 2026) | **Active pill:** `pill-active-cjar` | **Toggle ON:** `game-toggle-on-cjar` | **Range:** `cjar-range` | **CTA/label:** `cjar-cta` (carries its own `color:#ffffff`) / `cjar-label` (`#5C3A21`)
 **MDLM-only**, 3–8 players (`getMinPlayers` dropped 4→3, DD-08), host-authoritative, host-as-participant. Base mode is **Incan Gold 1:1** — reveal → resolve → choose about the *next, unseen* card (Delta 3: a card's effect resolves before the decision window, not after). **Sylly Mode = Dibber Dobber** — three actions (Take / Play Innocent / Dob), no bust, nobody leaves, choices commit **blind** and the card reveals at resolve (Delta 7) so both modes share one mental model.
 **Lobby button:** `#btn-cjar` | **Spec:** `docs/new-game-tech-cookie-jar.md` | **Plan:** `docs/superpowers/plans/2026-08-02-cookie-jar.md`
 **Verification:** four headless harnesses plus a simulator — `tools/verify-cjar-deck.js` (76, data layer), `tools/verify-cjar-loop.js` (102, base game + match), `tools/verify-cjar-dd.js` (47, Dibber Dobber), `tools/verify-cjar-loopback.js` (177, host↔client over a Firebase-shaped wire with a real-element DOM — see § Verification tools below), `tools/simulate-cjar-dd.js` (balance instrument, asserts nothing, always exits 0). Re-run all five after any change to the appliers, the deck, the ledger, the packets, or the reveal choreography.
@@ -2281,3 +2282,221 @@ All six added to `allScreens[]` in `engine.js` after the Cookie Jar block. `cldR
 | `node tools/simulate-cld-balance.js` | Balance instrument — asserts nothing, always exits 0. Slides per Floe-Off, plunges per Slide, leader-punishment rate, snowball race-miss rate, Slides-to-first-Berg-shatter across 3–8 players / all Ice Conditions / both Thaw states. Accepts `CLD_SEED=` |
 
 Re-run `verify-cld-loop.js` + `mutate-cld.js` after any `cld.js` rules/applier change; the full set after touching `physics.js`, the packets, or the render seam.
+
+---
+
+## Honeycomb Hills (COMB) — game 20, phase 41 · **SHIPPED (SW v225)**
+
+Spec: `docs/new-game-tech-honeycomb-hills.md`. Impl notes: `docs/implementation-notes/comb-implementation-notes.md`.
+Identity doc: `docs/game-identities/comb.md`.
+**MDLM-only, 3–4 players.** `MP_GAME_CONFIGS.comb` is registered and **the action layer landed in chunk 5**:
+the Waggle Dance, the Meadow's rates and the Instinct deck all have appliers, so `COMB_ACTION_PENDING` is
+**empty** and every ACTION packet spec §11 lists is routed. **Chunk 6** wired the seven settings cards
+(`combSyncSettingsUI()`, `combApplySeasonPreset()` — DD-17) and the gameover podium (DD-18). **`js/games/comb.js`
+joined `PRECACHE_URLS` at the phase-41 gate (SW v225)** — that line is what actually ships game 20; the nine
+core art packs had been precached since v223, so an offline install was art-complete but code-incomplete
+until the bump.
+
+**Core art (9 Sep 2026, relocated 9 Sep 2026):** all nine core art packs are precached, nested under
+one `data/art/comb/` folder (`data/art/comb/hex/`, `comb/res/`, `comb/instinct/`, `comb/piece/`,
+`comb/piece-hero/`, `comb/blossom/`, `comb/wasp/`, `comb/pog/`, `comb/die/` — a location-only
+grouping; COMB is the first game whose art spans more than one `art.js` `kind`, since
+`js/lib/art.js` resolves one `kind` per manifest). Each manifest's own `id` field is `"comb/<sub>"`
+(matches its folder, and is what `data/art/registry.json` fetches by) while `assets.kind` stays
+`comb-hex`/`comb-res`/etc — the string `combRenderHex`/`combRenderPiece`/etc actually pass to
+`assetFace`/`assetBack`/`assetExtra`, unrelated to where the manifest lives. Converted by
+`tools/convert-comb-art.ps1` (PNG throughout except the opaque Instinct cards, which stay JPEG).
+SW v223. Per-file precache ceilings went through two rounds — hero piece 14→27→**130 KB**, die
+12→26→**150 KB**, and (round two only) hex 25→**350 KB**, resource 8→**150 KB** — round one against
+the pre-art estimate, round two (10 Sep) once the art viewer fix below started scaling these masters
+UP to fill its box, exposing that a 30–100px on-board render size looked visibly soft at ~342–390px;
+owner: KB/MB cost is not the constraint for gallery-facing art. Board pieces / Trade Blossoms / Wasp
+/ pogs are unchanged (canvas-only, never in a gallery or the viewer). See `comb-implementation-notes.md`
+DD-19/DD-23. `#comb-compass`/`.comb-compass-*` renamed to `#comb-turn-order`/`.comb-turn-order-*` (it
+was mislabelled "Sun Compass", which is the 2d6 die seam — **built SW v224**, see below). The How-to "Comb"
+tab gained a **Structures** card (`combRenderPiece(kind, 0, {hero:true})` for wall/cell/dome — the
+`.comb-piece-hero` CSS, a 6rem square overriding `.comb-piece-wall`'s board strip) and each hex tile's
+caption now combines name + yield in one line below it (`{label:false}` — no more in-tile overlay);
+the Instinct tab gained a static, zoomable face-down back (`combRenderInstinct(null, {faceDown:true})`)
+beside its heading. Achievements (`combLargestHolder`/`combFiercestHolder`) now also show live as a
+medal suffix on the point strip (`combAchievementMark(p)` — 🥇/🛡️/🏆 for both at once), not
+gameover-only. The shared `#art-viewer-overlay` (`ui-style.md` § Pattern 2a) gained `width:100%` (was
+`width:auto` — never scaled a small master up) and a light background (was see-through to the dark
+backdrop on transparent PNGs) — engine-owned, benefits any future game in the same position.
+
+**The Sun Compass — the Scout Flight animation (SW v224, 10 Sep 2026).** COMB's **fifth** render
+seam, `combRenderDie(opts)` → `assetExtra('comb-die', id)`, two ids in one pack: `die` (blank,
+flies) and `die-numbered` (engraved, the How-to tile). The number is a DOM child the seam appends
+(`.comb-die-face`, stashed on the node as `el.combFaceEl` — **not** found again with
+`querySelector`, which a mock DOM returns `null` from), never painted into the art.
+
+The beat is **presentation of a decided result** (brief Appendix B1) — the host picks the face, every
+device only shows it — so it needed **no packet change at all**. It rides the two packets that were
+already there, at the same point on both host and client:
+
+| Moment | Host | Client |
+|---|---|---|
+| Cast (die appears, spins **blind**) | `combBeginTurn` → `combStartFlight()` | `COMB_TURN_BEGIN` applier → `combStartFlight()` |
+| Land (decelerate onto the face) | `combScoutFlight` → `combLandFlight(roll)` | `COMB_ROLL_RESULT` applier → `combLandFlight(combRoll)` |
+
+The blind spin **loops** rather than running out: it ends when the packet lands, so a slow
+`COMB_ROLL_RESULT` reads as "still in the air", never as a die stopped on nothing. The host's spin
+is the `setTimeout` window that used to sit there showing nothing; a client's is however far apart
+the two packets arrive.
+
+| Function / element | Purpose |
+|---|---|
+| `combRenderDie(opts)` | The seam. `{numbered, hero, face}` |
+| `combStartFlight()` | Mounts the die in `#comb-float-layer`, plays the whoosh (the **cast**, not the result), starts the RAF |
+| `combLandFlight(roll)` | Decelerate onto the face. No-op when nothing is flying — covers a skip, a headless run, a device not on the meadow |
+| `combSkipFlight()` | Tap-to-skip, **this flight only**. Bound once on the layer; the tap bubbles up from the die |
+| `combStopFlightAnim()` / `combFlightTick()` / `combFlightPaint(elapsed)` | Teardown · the RAF loop · one frame (writes **only** transform + opacity) |
+| `combFlightTotalMs()` / `combFlightSpinMs()` / `combNow()` / `combReducedMotion()` | The beat's length · its blind slice · the clock · the explicit reduced-motion check |
+| `combFlightView` | UI-only state, never serialised: `{ el, layer, face, t0, landAt, roll, spinRot, landRot, spinMs, landMs, fadeMs, still }` |
+| `#comb-float-layer` | The transient layer already in the markup. Stays `pointer-events:none` its whole life; the **die** carries `pointer-events:auto` |
+| `#comb-howto-die` | The How-to "Comb" tab's Sun Compass card — the gallery consumer for the `comb-die` pack |
+| `.comb-die` / `-asset` / `-drawn` / `-face` / `-hero` | `css/styles.css`. **No `@keyframes`, no `transition`** — every frame is written by `combFlightPaint` |
+
+**Budget:** `COMB_FLIGHT_MS` 1050 ms for the first `COMB_FLIGHT_FULL_TURNS` (3) flights, then
+`COMB_FLIGHT_SHORT_MS` 600 — Appendix B3's "shorten it after the first few rolls". Split
+50/30/20 (`COMB_FLIGHT_SPIN_F`/`LAND_F`/`FADE_F`) so the short beat is the same motion scaled.
+Asserted in `verify-comb-loop.js` § "The Scout Flight beat stays inside its budget" (8 checks) —
+the budget is a rule, not a look: a total drifting past the ceiling costs minutes of a season while
+looking fine on any one roll.
+
+`combStopFlight()` now clears **both** halves (the pending roll and the die in the air), which is
+what gets the RAF all three § Timer Lifecycle locations without a new call site — every one of them
+already called it. The one exception is `combScoutFlight`, which clears the **timer only**: it is
+the function that lands the die, and `combStopFlight()` there would take it away one line before
+`combLandFlight()` put the face on it.
+
+### Screens (4)
+| Screen ID | Purpose |
+|-----------|---------|
+| `screen-comb-menu` | Main hub — four `gel-btn` buttons |
+| `screen-comb-standby` | Client waiting for the host's `COMB_MATCH_START` |
+| `screen-comb-meadow` | **The board.** All seven phases live here — `h-screen` whitelist exception |
+| `screen-comb-gameover` | The Hive — standings, the Golden Nectar reveal, stats |
+
+**Inline surface, not an overlay:** `#comb-build-picker` (step 1 of the two-step build — three kind
+options with cost chips, a sibling of `#comb-place-bar` and `#comb-action-bar` in the Controls zone;
+exactly one of the three is ever shown). Deliberately **not** a sixteenth overlay: the board must stay
+visible while you choose what to put on it — see `comb-impl-notes` DD-12.
+
+### Overlays (15)
+`comb-settings-overlay` (z-80) · `comb-how-to-overlay` (z-90, **3 tabs**: The Rules / The Comb / The
+Instinct Deck) · `comb-quit-overlay` (z-80) · `comb-new-season-overlay` (z-90) · `comb-overflow-overlay`
+(z-85) · `comb-trade-overlay` · `comb-trade-offer-overlay` · `comb-steal-overlay` ·
+`comb-instinct-overlay` · `comb-instinct-reveal-overlay` · `comb-log-overlay` · `comb-tip-overlay` ·
+`comb-pheromone-overlay` · `comb-bloom-overlay` · `comb-map-overlay` (**z-75 — the one overlay that must
+LOSE a z-fight**; the Overflow and an arriving trade are pushed at the player and land on top).
+
+### State — the MATCH group IS `combSerialiseState()`
+| Variable | Type | Notes |
+|----------|------|-------|
+| `combHexes` | `[19]{kind,marker}` | `kind`: grove·blossom·clover·rock·nursery·smoke. Dealt from `combBoardSeed` |
+| `combNodes` | `[54]{owner,level}` | level 0 none · 1 Drone Cell · 2 Queen Dome |
+| `combEdges` | `[72]` | owner playerIdx, `-1` unowned |
+| `combWaspHex` | int | starts on the Smoke Zone |
+| `combHands` | `N×[5]` | **PRIVATE.** Write ONLY via `combSetHand()` |
+| `combInstinct` | `N×[{kind,boughtTurn,played}]` | **PRIVATE.** Write ONLY via `combSetInstinct()` |
+| `combDeck` / `combSupply` | `[]` / `[5]` | deck host-authoritative; supply read only when `combBounty==='limited'` |
+| `combTurn` / `combTurnNo` / `combPhase` / `combRoll` | | phase: `draft·roll·overflow·waspMove·waspSteal·actions·gameover-pending` |
+| `combLargestHolder` / `combFiercestHolder` | int | ⚠️ **AUTHORITATIVE, never recomputed.** Ties never transfer, so the board cannot tell you who got there first (spec §4) |
+| `combDraftOrder` / `combDraftStep` / `combDraftAnchor` | | the snake; `combDraftAnchor` is the cell this step's wall must touch, `-1` between steps |
+| `combGuardsPlayed` / `combLog` / `combStats` / `combBoardSeed` | | |
+| **Round** | `combOverflowOwed[]` · `combOverflowReady[]` | the seven's readyCheck matrix |
+| **Public mirror (not serialised)** | `combPublicCounts[]` · `combPublicInstinct[]` · `combGameover` | A client holds ONE real hand — its own. Every SYNC that changes holdings carries `handCounts[]`, which lands here, and `combHandCount(p)` reads it for any seat but this device's. `combGameover` is the podium payload. `combPublicInstinct[]` is the same idea for the Instinct collections — how many UNPLAYED cards each seat holds, count never kind |
+| **Turn** | `combOffer` · `combOfferTimer` · `combTurnEndTs` · `combTurnTimer` · `combFlightTimer` · `combDaylightArmed` · `combFreeWalls` | three live handles, all owned by `combResetState()`. `combOffer` = `{from,to,give[5],want[5],responses[],expiresAt}` — `to === -1` is an open offer. `responses[]` is **0/1/-1**, never null/bool: an all-null array is erased whole by Firebase. `combDaylightArmed` arms the clock **once a turn** (a Guard Bee re-enters `combEnterActions()`). `combFreeWalls` = unspent Comb Rush walls — **authoritative, serialised**, reset at turn begin |
+| **UI (never serialised)** | `combPlacementMode` · `combLegalTargets` · `combPendingTarget` · `combMapOpen` · `combZoom/PanX/PanY` · `combRafHandle` · `combHowtoTab` · `combChainLen` (derived cache) · `combBuildPickerOpen` · `combTradeLive` · `combDraftGive/Want/To` · `combBankPick` · `combBloomPick` · `combOverflowPick` · `combPendingCardIdx` | the last seven are chunk 5's draft/picker state — composed in an overlay, never broadcast, never serialised |
+| **Host-local (never serialised)** | `combRng` (the seeded stream) · `combQuiet` (suppresses the announce during a restore) | |
+
+### Key functions
+| Function | Does |
+|----------|------|
+| `combBuildTopology()` | Pure. 54 nodes / 72 edges / 9 ports. Dedupes with `Math.round(x*1000)`, **never `toFixed`** (see spec §10) |
+| `combDealBoard(seed)` / `combTendedBoard()` | The Wild deal (200 attempts, 6-never-touches-8, falls back to Tended) and the fixed layout |
+| `combLongestChain(p)` | Longest **simple path** over p's walls; visited set is over EDGES. An opponent's structure is a graph PRUNE — that is the "cut", for free |
+| `combRecomputeAchievements()` | **The single resolution point.** Rebuilds `combChainLen`, resolves both holders, and **announces** a transfer (sound + log) — never announced at the call sites |
+| `combResolveHolder(scores,holder,min)` | The tie rule, guarded **twice on purpose** (DD-03). Incumbent keeps a tie; beaten by two at once, keeps it |
+| `combApplyPlace(kind,target,playerIdx,opts)` | **The one placement path.** Limit → legality → cost → mutate → recompute. Explicit `playerIdx`, broadcasts nothing |
+| `combAttemptPlace(kind,target)` | **THE interceptor.** A client sends an ACTION and returns `{ok, sent:true}` without mutating; host/single route to `combDraftPlace` / `combWaspMove` / `combBuild`. Both canvases call this one function |
+| `combBuild(p,kind,target)` | The non-draft build — `combApplyPlace` plus the voice, the log line and the one `COMB_BOARD_UPDATE` that tells the table. Exists because a build during `actions` previously told nobody |
+| **— the action layer (chunk 5) —** | |
+| `combPostOffer(p,to,give,want)` | Opens a Waggle offer. `to >= 0` = **directed** (one seat asked, their accept IS the deal); `to === -1` = **open** (everyone answers, the poster then picks). Arms the 10 s auto-decline under Full Dance, **host only** |
+| `combOfferAudience()` / `combOfferAllAnswered()` / `combOfferAccepters()` | The one reader of who an offer asks — so the expiry sweep, the all-answered test and the responder guard cannot disagree |
+| `combRespondOffer(p,accept)` · `combSelectPartner(p,q)` · `combCancelOffer(p)` | Answer, pick, withdraw. One answer per seat; only the poster may select or cancel |
+| `combOfferExpire()` | Full Dance's deadline, **host only**. Unanswered = declined; an offer somebody accepted **survives** its deadline for the poster to pick — the timer's job was the stall, not the choice |
+| `combOfferAbandon(reason)` | Every way an offer ends **without** a trade, in one place — declined by all, timed out, called off |
+| `combExecuteTrade(partnerIdx)` | ⚠️ **The one place resources move between two players**, and the only place `combTradeStillValid` is called. **Re-validates BOTH sides; never escrows** (spec §11 / brief §14c) |
+| `combBankTrade(p,giveIdx,wantIdx)` | The Meadow's rate, from `combBankRate()` — the same number the rate rows render |
+| `combDrawFromSupply(want)` | The inverse of `combReturnToSupply`. Under Limited Bounty it can come up short, and a bank trade or Spring Bloom then takes what is there |
+| `combBuyInstinct(p)` | Charges, draws (`combDeck.pop()`), stamps `boughtTurn`. ⚠️ The **kind is in no public field** — the buyer learns it from the private `COMB_INSTINCT_SYNC` `combSetInstinct()` already sent |
+| `combPlayInstinct(p,cardIdx,params)` | One a turn, never the turn bought, never Golden Nectar. ⚠️ **Params are validated BEFORE the card is spent** — a malformed pick must not eat the card and the turn's single play |
+| `combInstinctCounts()` | The public half of the Instinct collections — unplayed counts, never kinds |
+| `combAttemptAction(action,payload,run)` | The action layer's shared interceptor: a client sends, the authority runs. `combAttemptRespond` is the one that passes `combLocalIdx()` rather than `combTurn` — a responder is by definition somebody else's seat |
+| `combSyncActionOverlays()` | The three overlays a **phase** opens rather than a tap — Overflow, the Wasp's victim picker, the Waggle answer board. Called from `combRenderMeadow()`, and each opens only when not already up (re-opening would wipe a half-made selection) |
+| `combOpenBuildPicker()` / `combRenderBuildPicker()` / `combBuildBlockReason(p,kind)` | Step 1 of the two-step build. A blocked option **dims but stays tappable** — the reason is what teaches the rule |
+| `combSetHand(p,hand)` / `combSetInstinct(p,cards)` | ⚠️ **The ONLY writers** of the two private collections. The private repair packet lives inside them, so a new mutation path inherits it free |
+| `combSendPrivateRepair()` / `combBroadcast()` / `combSendAction()` | Three functions, two channels, one direction each: private repair (host→one), public SYNC (host→all), ACTION (client→host). No fourth place in the file touches Firebase |
+| `combSeatOf(originId)` | Who SENT an envelope, from the **wire**, never from `payload.playerIdx`. `-1` = not a seated player, and the host drops it |
+| `combHandleEnvelope(env)` → `combHandleAction` / `combHandleSync` | The receive half. ⚠️ Never throws — it catches and `console.warn`s, because a throw in a Firebase callback strands the sender AND kills the SYNC that would advance everyone else |
+| `COMB_ACTION_ROUTES` / `COMB_ACTION_PENDING` | The ACTION table and the declared-but-unbuilt list. Every spec §11 ACTION is in exactly one of them, asserted by the loopback — that is the missing-handler audit made mechanical |
+| `combSendFullState(p)` | ⚠️ **The strip.** `combSerialiseState()` carries every seat's hand; this is the only function allowed to put it on the wire, and it removes all but the recipient's (and masks the deck). Live trigger: a rejected ACTION |
+| `combBroadcastBoard()` | The `COMB_BOARD_UPDATE` builder — counts, chain cache, both holders, points, supply |
+| `combStartDaylight()` / `combStartDaylightAt(ts)` | The authority computes the deadline; a client arms the **same number** off `COMB_ACTIONS_BEGIN`. ⚠️ `Number(ts)`, never `\| 0` — a ms timestamp truncates to 32 bits and lands in 1944 |
+| `combStartMatchLocal(seed)` / `combDealMatch(seed)` | Host entry / the seeded deal both host and client run |
+| `combDraftPlace(kind,target,p)` · `combDraftNeeds()` · `combArmDraftPlacement()` | The snake. `combDraftNeeds()` derives cell-vs-wall from the anchor |
+| `combScoutFlight(p)` · `combProduce(roll)` · `combRationProduction()` | The cast, the payout, and Limited Bounty's shortage rule |
+| `combBeginSeven()` · `combOverflowGateOpen()` · `combSubmitOverflow(p,discard)` | The seven. ⚠️ The gate is `owed[i]===0 \|\| ready[i]` — assert it **per mode** |
+| `combWaspMove(p,hex)` · `combWaspVictims(hex,thief)` · `combWaspSteal(p,victim)` · `combPickStolen(v)` | The Wasp. The draw is over **holdings**, not kinds, and the result never enters a public packet or the log |
+| `combBeginTurn(p)` · `combEnterActions()` · `combEndTurn(p)` | The turn. Daylight is armed in `combEnterActions()`, **not** at turn begin — and **once per turn**, guarded by `combDaylightArmed`: a Guard Bee sends the turn out to `waspMove` and back through this function, and without the flag that hands the active player a fresh clock |
+| `combSerialiseState()` / `combApplyState(s)` | ⚠️ A **local snapshot, not a packet** — it carries every seat's hand. Apply recomputes the chain cache and then **restores** both holders over it |
+| `combRenderMeadow()` | ⚠️ The **only** writer to `screen-comb-meadow`, and it sets every element every time — seven phases share one screen |
+| `combRenderHex/Resource/Instinct/Piece` | The four render seams. Never build these primitives anywhere else |
+| `combDrawBoard(canvasEl, viewport)` | Pure draw, target passed in — shared by the inline board and the magnifier so the map cannot become a second source of board truth |
+
+### Packets — **wired (chunk 4)**
+
+**ACTION, client → host** — routed via `COMB_ACTION_ROUTES`, each to the one applier that already
+implements the rule, with the seat taken from `env.originId`:
+`COMB_DRAFT_PLACE` · `COMB_ROLL` · `COMB_OVERFLOW_SUBMIT` · `COMB_WASP_MOVE` · `COMB_WASP_STEAL` ·
+`COMB_BUILD` · `COMB_END_TURN`. A rejected ACTION answers with a private `COMB_FULL_STATE` rather
+than silence. Quit is the engine's generic `MP_PLAYER_LEFT` — no per-game packet.
+
+`COMB_TRADE_POST` · `COMB_TRADE_RESPOND` · `COMB_TRADE_SELECT` · `COMB_TRADE_CANCEL` ·
+`COMB_BANK_TRADE` · `COMB_BUY_INSTINCT` · `COMB_PLAY_INSTINCT` (chunk 5).
+
+**`COMB_ACTION_PENDING` is now empty** and stays in the file: it is half of the loopback's mechanical
+missing-handler audit, and a packet added later belongs there until its applier lands.
+
+**SYNC, host → all** (applied in `combHandleSync`): `COMB_MATCH_START` · `COMB_DRAFT_STATE` ·
+`COMB_ROLL_RESULT` · `COMB_OVERFLOW_BEGIN` · `COMB_OVERFLOW_DONE` · `COMB_WASP_PLACED` (⚠️ carries
+its own `phase` — §17-20) · `COMB_BOARD_UPDATE` · `COMB_TURN_BEGIN` (`endTimestamp: 0`) ·
+**`COMB_ACTIONS_BEGIN`** (the real Daylight deadline, from the one place it is computed) ·
+`COMB_LOG_APPEND` · `COMB_GAMEOVER` · **`COMB_TRADE_POSTED`** (`responses[]` at its 0-filled reset
+value) · **`COMB_TRADE_RESPONSES`** · **`COMB_TRADE_RESOLVED`** (who dealt — never what changed hands) ·
+**`COMB_INSTINCT_BOUGHT`** (⚠️ `deckLeft` and `instinctCounts[]` only — **never the card**) ·
+**`COMB_INSTINCT_PLAYED`** (carries its own `phase`, so a Guard Bee moves every device to `waspMove`).
+**PRIVATE:** `COMB_HAND_SYNC` · `COMB_INSTINCT_SYNC` · `COMB_FULL_STATE`. Full table: spec §11.
+
+⚠️ **One carrier per field.** `combFreeWalls` travels **only** in `COMB_BOARD_UPDATE` — it has to, because
+a client must see the counter go *down* as each free wall is spent, and a build sends that packet. It was
+briefly in `COMB_INSTINCT_PLAYED`'s `effect{}` as well, which made both copies unkillable by a mutant.
+
+**Three rules every applier obeys:** never assign a raw payload collection (`combWireArr` /
+`combApplyNodes` / `combApplyCounts`); never recompute the two achievement holders (they are
+path-dependent — §17-3); never throw.
+
+### Verification tools
+| Tool | Covers |
+|------|--------|
+| `node tools/verify-comb-board.js` (56) | The topology (54/72/9), the Wild deal's legality + seeding, hex/marker distribution |
+| `node tools/verify-comb-rules.js` (122) | Costs, the Distance Rule, the longest-chain DFS incl. cuts, **both** achievement transfers with the incumbent at an inconvenient index, bank rates, the win check |
+| `node tools/verify-comb-loop.js` (231) | The deal, the snake draft + its anchor, the opening yield, production (Wasp block, dome ×2, Limited rationing), the seven (owed, the gate **both ways**, the Wasp's move/steal), End Turn + the own-turn-only win, Daylight, the log's privacy boundary, and the serialise/apply round trip incl. the restored-holder rule. **Chunk 5 added the action layer's arithmetic**: a trade conserves the table's total, the Meadow is a closed system under Limited Bounty, a refused Instinct effect costs nothing, and Daylight arms once a *turn*. Accepts `COMB_SRC=` / `COMB_SEED=` |
+| `node tools/verify-comb-loopback.js` (250) | **Host↔2 clients over a Firebase-shaped wire, with a real mock DOM.** The packet layer and the render code, neither of which the three above can see. Covers: MATCH_START's settings-before-deal ordering, the draft re-arming placement on the right device, seat authority from `originId`, `COMB_FULL_STATE`'s strip, the deck mask, the Daylight deadline surviving whole, the Overflow gate **with a third seat that never submits**, the Wasp's phase field and the absence of the stolen resource from every packet and log line, Golden Nectar public exactly once, and a source read of the single-writer + missing-handler rules. **Chunk 5 added** the two offer shapes, the re-validate-never-escrow path, Full Dance's expiry, the Meadow's rates, and all five Instinct kinds — plus the two privacy claims that matter most here: a buy names no card, and a resolved trade names no contents. Accepts `COMB_SRC=` / `COMB_SEED=` |
+| `node tools/mutate-comb.js` (71/71) | Mutation harness — plants a plausible mis-implementation of each rule the spec names and asserts a harness turns red. Drives **all four**, so the 19 packet-layer mutants are claims about the loopback specifically. ⚠️ Run it **3–5 times**, not once (ML-04) |
+
+Re-run `verify-comb-loop.js` + `mutate-comb.js` after any rules/applier change; **`verify-comb-loopback.js`
+after anything packet- or render-shaped**; all five after touching the topology or the seams. **None of them
+does layout** — that is `visual-check`'s tier, and it is what caught both BUG-03 and BUG-05.

@@ -682,7 +682,7 @@ function cjarRenderWarningStrip() {
          : danger     ? 'bg-red-100 ring-2 ring-red-400'
          : seen       ? 'bg-[#F7E9C4]'
                       : 'bg-stone-100 opacity-50')
-      + (cjarHighAlertId === f.id ? ' ring-2 ring-offset-1 ring-[#D4A017]' : '')
+      + (cjarHighAlertId === f.id ? ' ring-2 ring-offset-1 ring-[#5C3A21]' : '')
       + (cjarFlipAnim && cjarCard && cjarCard.type === 'family' && cjarCard.id === f.id
          ? ' cjar-warn-pulse' : '');
     slot.textContent = f.emoji || '👪';
