@@ -275,8 +275,8 @@ Hive Points, then small icons of the real pieces — cells, domes, walls, Instin
 opens the magnifier straight to its stats. After a roll, and while you are placing a build, the board
 **dims to about 65%** so what just bloomed, or where you may legally build, stands out; legal build
 targets glow in **your own colour**. Trade Blossoms you have reached, and the rim corners that would
-reach an unreached one, carry a **soft breathing bloom** in the blossom's colour — soft indication,
-not a hard marker.
+reach an unreached one, carry a small **blinking beacon** in the blossom's colour — a bright point
+that pulses like a lighthouse rather than a constant glow.
 
 **Overlays**
 

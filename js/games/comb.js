@@ -227,7 +227,7 @@ let combPulseRaf = null;       // RAF — the Trade Blossom bloom pulse. The ONL
                                // setInterval, so it is inert under the headless
                                // mock RAF (returns 0, never re-fires) and a
                                // loopback's teardown timer-count stays clean.
-                               // Throttled to ~11 fps inside the tick. Stopped in
+                               // Throttled to ~18 fps inside the tick. Stopped in
                                // combResetState(), the quit handler, at gameover;
                                // self-stops when the meadow is not visible.
 let combPulseLast = 0;
@@ -2513,7 +2513,7 @@ function combStartPulse() {
   const tick = ts => {
     const s = document.getElementById('screen-comb-meadow');
     if (!s || s.style.display === 'none' || combPhase === 'gameover-pending') { combStopPulse(); return; }
-    if (!combPulseLast || ts - combPulseLast > 90) { combPulseLast = ts; combRepaintBoards(); }
+    if (!combPulseLast || ts - combPulseLast > 55) { combPulseLast = ts; combRepaintBoards(); }
     combPulseRaf = requestAnimationFrame(tick);
   };
   combPulseRaf = requestAnimationFrame(tick);
@@ -2522,10 +2522,20 @@ function combStopPulse() {
   if (combPulseRaf) { cancelAnimationFrame(combPulseRaf); }
   combPulseRaf = null; combPulseLast = 0;
 }
-// 1 under reduced motion (steady), else a 0.55..1.0 breathe on a ~4.4 s period.
+// A beacon, not a breathe: 1 under reduced motion (steady), else 0..1 squared so
+// it sits dark most of the ~3 s cycle and blazes briefly — reads as a blink.
 function combPulsePhase() {
   if (combReducedMotion()) return 1;
-  return 0.55 + 0.45 * (0.5 + 0.5 * Math.sin(combNow() / 700));
+  const t = 0.5 + 0.5 * Math.sin(combNow() / 480);
+  return t * t;
+}
+
+// Blend a #rrggbb toward white by amt (0..1) — for the beacon's bright halo.
+function combLighten(hex, amt) {
+  const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex || '');
+  if (!m) return hex || '#ffffff';
+  const mix = c => Math.round(parseInt(c, 16) + (255 - parseInt(c, 16)) * amt);
+  return 'rgb(' + mix(m[1]) + ',' + mix(m[2]) + ',' + mix(m[3]) + ')';
 }
 // The Hive is Thriving — podium + Golden Nectar reveal + stats (spec §3/§6).
 // combGameover is fully populated (standings, goldenNectar, stats, both
@@ -3356,25 +3366,29 @@ function combDrawBlossomHints(ctx, tr) {
     const colour = port.kind === 'any' ? '#F5E6C8' : (COMB_RES_COLOUR[port.kind] || '#F5E6C8');
     const mine = port.nodes.find(n => combNodes[n] && combNodes[n].owner === me && combNodes[n].level > 0);
     if (mine !== undefined) {
-      combBlossomBloom(ctx, tr, mine, colour, 0.42 * pulse, 0.62);
+      combBlossomBloom(ctx, tr, mine, colour, 0.18 + 0.82 * pulse, 0.34);
     } else {
       for (const n of port.nodes) {
         if (combNodes[n] && combNodes[n].level > 0) continue;   // taken by anyone
-        combBlossomBloom(ctx, tr, n, colour, 0.26 * pulse, 0.52);
+        combBlossomBloom(ctx, tr, n, colour, 0.12 + 0.78 * pulse, 0.28);
       }
     }
   }
 }
 
+// A small, bright beacon: white-hot core, a saturated coloured halo (the colour
+// still says which resource), fading to nothing. Small radius + a hard pulse
+// (combPulsePhase) is what makes it read as a blinking marker, not a smudge.
 function combBlossomBloom(ctx, tr, node, colour, alpha, rFactor) {
   const p = COMB_TOPOLOGY.nodes[node];
   if (!p) return;
-  const x = tr.toX(p.x), y = tr.toY(p.y), r = Math.max(9, tr.R * rFactor);
+  const x = tr.toX(p.x), y = tr.toY(p.y), r = Math.max(7, tr.R * rFactor);
   const g = ctx.createRadialGradient(x, y, 0, x, y, r);
-  g.addColorStop(0, colour);
+  g.addColorStop(0, '#ffffff');
+  g.addColorStop(0.35, combLighten(colour, 0.15));
   g.addColorStop(1, 'rgba(0,0,0,0)');
   ctx.save();
-  ctx.globalAlpha = alpha;
+  ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
   ctx.fillStyle = g;
   ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
   ctx.restore();
@@ -3414,7 +3428,11 @@ function combDrawStructure(ctx, n, tr) {
   const p = COMB_TOPOLOGY.nodes[n];
   const x = tr.toX(p.x), y = tr.toY(p.y);
   const kind = nd.level === 2 ? 'dome' : 'cell';
-  const s = Math.max(14, tr.R * 0.72);          // ~30 px at R = 41.3
+  // The Drone Cell is drawn visibly smaller than the Queen Dome — a Dome is an
+  // upgrade of a Cell and should read as the bigger piece at a glance, art path
+  // included (both used to draw at the same box).
+  const base = Math.max(14, tr.R * 0.74);        // Dome ~30 px at R = 41.3
+  const s = kind === 'dome' ? base : base * 0.76;
   const img = combImg((typeof assetFace === 'function') && assetFace('comb-piece', kind + '-' + nd.owner));
   if (combImgReady(img)) { ctx.drawImage(img, x - s / 2, y - s / 2, s, s); return; }
 
