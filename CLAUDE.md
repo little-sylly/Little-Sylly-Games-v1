@@ -44,13 +44,13 @@ shape. Screen/overlay IDs, state variables, key functions and MP packet tables l
 | 11 | Bailed | `bld` | `bld.js` | dark red `#991b1b` (red-800) / `pill-active-bld` |
 | 12 | Pass | `pass` | `pass.js` | zinc-900 / `pill-active-zinc` |
 | 13 | Net-Trace | `nt` | `nt.js` | emerald-600 / `pill-active-emerald` |
-| 14 | Fruit Salad | `frt` | `frt.js` | electric lemon `#FFE500` (dark ink) / `pill-active-frt` |
+| 14 | Fruit Salad | `frt` | `frt.js` | electric lemon `#FFE500` (white button ink) / `pill-active-frt` |
 | 15 | Counting Sheep | `shp` | `shp.js` | midnight `#3A3D52` (custom) / `pill-active-shp` |
 | 16 | Flawless | `flw` | `flw.js` | rose-pink `#E879A8` / `pill-active-flw` |
 | 17 | Pecking Order | `pko` | `pko.js` | rust-orange `#9A3412` / `pill-active-pko` |
 | 18 | Cookie Jar | `cjar` | `cjar.js` | chocolate-brown `#5C3A21` / `pill-active-cjar` |
 | 19 | Cold Shoulder | `cld` | `cld.js` | glacier blue `#8ECAE6` (white ink) / `pill-active-cld` |
-| 20 | Honeycomb Hills | `comb` | `comb.js` | honey gold `#F0A500` (dark ink) / `pill-active-comb` |
+| 20 | Honeycomb Hills | `comb` | `comb.js` | honey gold `#F0A500` (white button ink) / `pill-active-comb` |
 
 For per-game classes (range / toggle / pill / CTA / how-to / brand class strings) read `docs/rules/per-game-classes.md` (on-demand) — the single source for those; don't duplicate them here.
 
@@ -275,17 +275,18 @@ On every bump the outgoing SW entry moves **verbatim** to `docs/sw-changelog.md`
 "keep the last three". **A second `**SW v…**` paragraph appearing here means that move didn't
 happen: do it before anything else.**
 
-**SW v226 — Honeycomb Hills' first real multi-device session: meadow UX pass + a P0 fix (10 Sep 2026).**
-Fixed the **roll-7 strand** — every 7 froze every client on the default settings (`combBeginSeven()`'s
-no-owe branch advanced the host and broadcast nothing); new loopback §12b guards it. Reworked
-`screen-comb-meadow`: a floating **player panel** (colour dots, active row lit = the turn-handover
-signal), a **persistent roll result + 11-tick probability ruler** (replacing the invisible pog pips),
-a bottom **player-stats strip** with real-asset icons, a **65% board focus-dim** post-roll/placement
-with own-colour target glow, blinking **Trade Blossom beacons**, the Drone Cell drawn smaller than
-the Queen Dome, and `comb-map-overlay` rebuilt as a **3-zone gesture-locked detail view**. One schema
-change: `COMB_OVERFLOW_DONE.spilled`. All COMB harnesses green (56 · 122 · 231 · 258, 71/71 mutants
-×5) + `verify-mp-configs` + `verify-identity-docs`.
-Spec/plan: `docs/superpowers/{specs,plans}/2026-09-10-comb-meadow-ux-polish*.md`.
+**SW v227 — Suite-wide button-ink standard: brand fill + white ink, no per-game contrast carve-out (10 Sep 2026).**
+The settings pills, toggles and in-game "proceed" buttons now follow one locked rule: **each game's
+menu Play CTA scheme (fill + ink) is the scheme for every standard button and settings pill.** In
+practice that means **white ink suite-wide** — the four light-fill brands (FRT `#FFE500`, YGI
+`amber-500`, COMB `#F0A500`, CLD `#8ECAE6`) dropped their dark-ink "contrast fixes" and went white
+too, contrast cost accepted at owner direction for one *consistent* scheme per game. Changed:
+`.pill-active-{frt,amber,cld,comb}` + `.game-toggle-on-{…}` → `#fff`; `.comb-cta` / `.cld-cta` →
+`#fff` (the 4 `#btn-*` / `#btn-*-menu-play` white-ink ID overrides deleted as redundant); ~20 YGI +
+7 FRT static buttons `text-stone-800` → `text-white`; 3 `frt.js` button sites stop forcing
+`FRT_INK`; `ctaTextClass` removed from `ygi`/`frt`/`comb` in `MP_GAME_CONFIGS`. **`-label` text
+colours (text on the off-white page) untouched.** `verify-mp-configs` green. Docs: `ui-style.md`
+§ Action Button Standard + § Settings Layout Standard, `per-game-classes.md`, `decision-log.md`.
 
 **Previous versions: `docs/sw-changelog.md`** — continuous, v224 back to v167.
 

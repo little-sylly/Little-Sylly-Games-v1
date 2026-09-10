@@ -57,10 +57,11 @@ distinctly from CJAR's new chocolate; YGI took over the amber-500 slot JEC vacat
 actually resolves the CJAR/COMB honey-gold clash, and COMB (`#F0A500`) needed no change as a result;
 DYB moved off ocean blue `#1E4D8C` to a warm rock/clay grey `#6B5744` (rocks on a bluff; bluffing as
 a "grey zone"), chosen warmer/more saturated than a flat neutral so it still reads as DYB's colour
-next to the lobby's neutral-stone default. SS's teal-500 was reconsidered and kept. Two ink-colour
-consequences: YGI's new amber-500 measures ~2.1:1 with white (below the 3:1 floor) so it takes
-`ctaTextClass: 'text-stone-800'` like CJAR/FRT/COMB; CJAR's new chocolate is dark enough (~10:1
-with white) that it DROPPED that requirement and now takes plain white ink.
+next to the lobby's neutral-stone default. SS's teal-500 was reconsidered and kept. **Button-ink
+policy (10 Sep 2026): every game's standard buttons + settings pills use brand fill + white ink,
+matching the locked menu Play CTA — no per-game dark-ink carve-out.** The four light-fill brands
+(FRT, YGI, COMB, CLD) went white too; contrast cost accepted (see the § / ※ / CLD note below).
+No `ctaTextClass` remains in `MP_GAME_CONFIGS` for any game.
 
 ### Table B — Game-voiced strings
 
@@ -142,15 +143,23 @@ measures ~10:1 with white, so `.cjar-cta` takes plain white ink like most of the
 footnote used to document a `#D4A017`-era requirement that no longer applies. Modal border
 `border-[#E5C97A]` (unchanged — the card-face biscuit palette wasn't touched by the recolour).
 
-**§ YGI's CTA/pill/toggle take dark ink, never white** — added 5 Sep 2026 when YGI moved to
-amber-500 (`#f59e0b` measures ~2.1:1 against white, below the 3:1 floor; `#292524` measures ~7:1).
-`MP_GAME_CONFIGS` sets `ctaTextClass: 'text-stone-800'`. Unlike CJAR/PKO/DYB, YGI has no custom
-`.ygi-cta` class — every static button in `index.html` carries `text-stone-800` directly instead of
-`text-white`. **The lobby tile is the one exception**, per the established FRT/CJAR/CLD/COMB
-pattern: `#btn-ygi` keeps `text-white`, because `.gel-btn`'s dark base gradient plus
-`.lobby-btn-label`'s text-shadow carry white fine there even though the flat in-game fill can't.
-FRT's how-to close button is the same dark-ink case — `bg-[#FFE500] hover:bg-[#E6D200]
-text-stone-800`, same colour as utilities.
+**§ / ※ / CLD — the four light-fill brands take WHITE button ink (10 Sep 2026 sweep).**
+Supersedes the prior "YGI/COMB/CLD take dark ink" footnotes. FRT `#FFE500`, YGI `amber-500`,
+COMB `#F0A500`, CLD `#8ECAE6`: every standard button, settings pill (`.pill-active-*`) and
+toggle-ON (`.game-toggle-on-*`) now carries `color:#fff`, matching each game's locked menu Play
+CTA. Measured contrast is low (~1.1 / ~2.1 / ~1.9 / ~1.8 : 1) — **accepted at owner direction**
+for one consistent per-game button scheme (ui-style.md § Action Button Standard → "Locked
+per-game button scheme"). What changed:
+
+- `.pill-active-frt/amber/cld/comb` and `.game-toggle-on-frt/amber/cld/comb` → `color:#fff`
+- `.comb-cta` / `.cld-cta` → `color:#ffffff`; the `#btn-comb` / `#btn-cld` / `#btn-*-menu-play`
+  white-ink ID overrides were **deleted** (redundant once the class is white)
+- YGI's ~17 static `text-stone-800` buttons in `index.html` → `text-white`; FRT's `serve` /
+  `mk()` / next-round buttons in `frt.js` stop forcing `FRT_INK`
+- `MP_GAME_CONFIGS` `ctaTextClass: 'text-stone-800'` removed from `ygi` / `frt` / `comb`
+- **Untouched:** the `-label` *text* colours (`comb-label` `#B87A00`, `cld-label` `#2a6b85`,
+  `flw-label`, …) — text on the off-white page still uses the darkened rung. `FRT_INK` and
+  `FRT_ACCENT` still exist (`FRT_ACCENT`/`#FFE500` is the card-selection outline + how-to heading).
 
 **¶ FLW's Settings/Audit/readyCheck buttons deliberately invert the light-tint convention** —
 `#A02050` fill + white text instead of the usual `bg-[brand-100] text-[brand-700]` pastel. The
@@ -161,23 +170,16 @@ Measured contrast is low (~1.8:1) — a deliberate, owner-confirmed call, **not*
 A `—` in the `accentTextClass` column means the game never calls `showWhoFirst()` (GTH, FLW, PKO,
 SHP, CJAR, CLD, COMB). Don't invent one.
 
-**※ COMB takes dark ink**, the third custom-hex CTA to do so after CJAR `#D4A017` and FRT `#FFE500`,
-and for the same measured reason: white on `#F0A500` is **1.94:1**, `#292524` on it is **7.28:1**.
-`.comb-cta` supplies `color:#292524` itself — never add a Tailwind `text-white` alongside it, and
-`MP_GAME_CONFIGS` sets `ctaTextClass: 'text-stone-800'` so the mode screen agrees. `#btn-comb`
-overrides to white for the lobby keycap alone, where `.gel-btn`'s dark base gradient carries it.
-Labels take the darkened `#B87A00` (raw `#F0A500` on `bg-stone-50` is ~2.0:1). Modal border
-`border-[#F5C55C]`. **Measured caveat:** `#B87A00` is **3.45:1**, short of 4.5:1 for small text and
-the weakest of the three darkened-label pairs (CJAR 5.99:1, CLD 5.68:1). Shipped as tech spec §1
-states it; `#9A6600` measures 4.70:1 on the same ground if the owner wants it lifted.
+**※ COMB button ink is now white** (see the § / ※ / CLD note above — 10 Sep 2026). `.comb-cta`
+carries `color:#ffffff`; the `#btn-comb` / `#btn-comb-menu-play` overrides are gone. **Labels are
+unchanged:** `.comb-label` still `#B87A00` for text on the off-white page (raw `#F0A500` is ~2.0:1).
+Modal border `border-[#F5C55C]`. **Label caveat retained:** `#B87A00` is **3.45:1**, short of 4.5:1
+for small text and the weakest of the three darkened-label pairs (CJAR 5.99:1, CLD 5.68:1);
+`#9A6600` measures 4.70:1 on the same ground if the owner wants it lifted.
 
-**CLD takes dark ink** (`.cld-cta` → `color:#123B4C`, deep glacier — corrected 8 Sep 2026; this
-entry previously claimed white ink plus a text-shadow, which was never what the shipped CSS did).
-**The one exception is `#btn-cld-menu-play`**, ID-overridden to white — owner-confirmed by eye —
-because that button alone carries `.gel-btn`'s dark base gradient, the same mechanism that lets the
-lobby tile (`#btn-cld`) use white on the same flat fill. Every other `.cld-cta` use (Lock It In, Got
-it, quit confirm, etc.) has no gel treatment and keeps dark ink. `#btn-comb-menu-play` got the
-identical menu-only override the same day, for the same reason. Modal border `border-[#b8dfec]`.
+**CLD button ink is now white** (see the § / ※ / CLD note above — 10 Sep 2026). `.cld-cta` →
+`color:#ffffff`; the `#btn-cld` / `#btn-cld-menu-play` overrides are gone. **`.cld-label` is
+unchanged** (`#2a6b85`, for text on the off-white page). Modal border `border-[#b8dfec]`.
 
 Rationale behind the ‡ § ¶ exceptions: `docs/decision-log.md` 2026-08-02 (BLD/FRT recoloured off
 yellow, with the measured contrast figures) and 2026-08-15 (FLW). FLW's six-pass settlement is

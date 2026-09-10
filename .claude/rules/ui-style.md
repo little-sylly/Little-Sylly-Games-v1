@@ -599,6 +599,9 @@ All multi-choice settings use the **Pill Button** style:
 - Inactive: `.pill` | Active: `pill-active-[game-colour]` (see table below)
 - Group targeting via `data-group` or `data-*` attributes
 - No sliders for discrete choices
+- **Active-pill fill + ink = the game's locked button scheme: brand fill + white ink**, no
+  per-game contrast carve-out (incl. FRT/YGI/COMB/CLD). Same for `game-toggle-on-*` ON states.
+  See § Action Button Standard → "Locked per-game button scheme".
 
 ### Settings Card Standard
 Every individual setting is wrapped in a white card. Do NOT use bare divs or `<hr>` separators.
@@ -817,6 +820,31 @@ Any other colour on an action button (a different game's brand bleeding in via c
 colour reused by accident) is a bug — e.g. a game's confirm button shipping in another game's brand colour,
 or a plain "proceed" CTA shipping in neutral stone despite having no cancel/destructive framing.
 
+**Locked per-game button scheme (10 Sep 2026).** When a game's **menu Play CTA** colour scheme is
+set, that fill **and its ink** are locked for the game: every *standard* button and every *settings
+pill* uses the same **brand fill + white ink**. This is the top of the hierarchy — if the menu CTA
+scheme changes, the in-game buttons follow.
+
+- **White ink, suite-wide, no per-game contrast carve-out.** The four light-fill brands — FRT
+  `#FFE500` (~1.1:1), YGI `amber-500` (~2.1:1), COMB `#F0A500` (~1.9:1), CLD `#8ECAE6` (~1.8:1) —
+  take white ink too. The contrast cost is **accepted at owner direction** in exchange for one
+  legible-or-not *consistent* scheme per game. Do not re-introduce `text-stone-800` /
+  `ctaTextClass` "contrast fixes" on these — that drift was swept out in this pass. (`.pill-active-*`,
+  `.game-toggle-on-*`, `.[abbr]-cta` all carry `color:#fff` for these four; `MP_GAME_CONFIGS` has
+  no `ctaTextClass` for any game.)
+- **`-label` / accent *text* colours are a different axis and were NOT changed** — text on the
+  off-white page still uses each brand's darkened rung (`comb-label`, `cld-label`, `flw-step-label`,
+  …). See § Menu Title Treatment.
+- **Exceptions that stay off-scheme** (unchanged by this rule): Decision-Modal **cancel** / exit /
+  back / "← Back to the Box" (neutral stone); **"How to Play"** (`bg-stone-700`, suite constant);
+  **quit-confirm / restart-confirm** (may be `bg-red-*` per § Quit Overlay Checklist);
+  **interrupt/alert splashes** (may be red per the fourth exception above); and **genuinely special
+  in-game decision pairs** where one side carries semantic weight — BLD vote in/out,
+  PASS play/pass, PKO Stampede/Retreat, trade Accept/Decline. A `*-go-leave` secondary next to a
+  brand `*-go-new` primary is a normal neutral-secondary, not an exception.
+- **Engine-shared screens** (`btn-who-first-*`, `screen-mp-*` CTAs) keep their stone static
+  defaults — they are recoloured at runtime from each game's `brandBtnClass`.
+
 **Auditing rule — watch for JS-built buttons, not just static HTML.** A label set via `.textContent =`,
 `createElement('button')`, or a helper's config object (`showWhoFirst({ confirmLabel })`,
 `dsdShowPassGate({ ctaLabel })`) never appears in an `index.html`-only grep. And a button's label can be
@@ -937,6 +965,13 @@ the default for every other game is still the darkened label colour above.** Ren
 `FRT_ACCENT = FRT_FILL` and applied everywhere `FRT_LEAF` used to be (How-to label, "Call TRUE",
 selection outline, heading) — one constant, one value, no per-site special-casing.
 Detail: `frt-implementation-notes.md`.
+
+> This section is about **heading and label _text_** on the off-white page — where a darkened
+> rung is still the default. **Button and pill _ink_** is a separate axis, settled 10 Sep 2026:
+> every game's standard buttons + settings pills use **brand fill + white ink**, matching that
+> game's locked menu Play CTA, contrast cost accepted suite-wide. See § Action Button Standard
+> → "Locked per-game button scheme" below. FRT/YGI/COMB/CLD went from dark ink to white in that
+> pass; their `-label` text colours were untouched.
 
 **A colour still needs *some* legible resting shade before most games can use it as text at all —
 CTA, heading, or label.** CJAR's honey-gold and Cold Shoulder's `#123B4C`-on-glacier both needed a

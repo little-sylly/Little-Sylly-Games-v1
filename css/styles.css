@@ -143,7 +143,7 @@ body.flash-red   { background-color: #fecaca; }
 }
 .game-toggle-on-amber {
   background: #f59e0b;
-  color: #292524;
+  color: #fff;
   border-radius: 9999px;
   padding: 0.4rem 1.2rem;
   font-weight: 700;
@@ -265,9 +265,12 @@ body.flash-red   { background-color: #fecaca; }
 }
 
 /* ── You Get It? pill active state (amber) ───────────────────────────────── */
+/* White ink, matching the locked menu Play CTA (bg-amber-500 text-white).
+   ~2.1:1 on #f59e0b — contrast cost accepted 10 Sep 2026 for one locked
+   per-game button scheme. Text-on-white keeps the darker amber rung. */
 .pill-active-amber {
   background: #f59e0b;  /* amber-500 */
-  color: #292524;
+  color: #fff;
 }
 
 /* ── Late To The Party pill active state (red) ───────────────────────────── */
@@ -939,18 +942,20 @@ body.flash-red   { background-color: #fecaca; }
   border: none;
   box-shadow: 0 1px 4px rgba(0,0,0,0.2);
 }
-/* ── Fruit Salad (electric lemon #FFE500 + dark ink + leaf #047857 on white) —
-   recoloured from banana #FFC700 2 Aug 2026: the white-on-yellow toggle/pill
-   combo failed WCAG contrast (1.57:1); dark ink on the brighter lemon fixes it.
-   See docs/new-ideas/new-game-brief-cookie-jar.md §1/§19. ── */
+/* ── Fruit Salad (electric lemon #FFE500) — WHITE button ink ──────────────
+   10 Sep 2026: buttons and settings pills take white ink to match the locked
+   menu Play CTA (bg-[#FFE500] text-white). ~1.1:1 — the sharpest contrast cost
+   in the suite, accepted at owner direction (see ui-style.md § Menu Title
+   Treatment / § Action Button Standard) so every FRT standard button, pill and
+   toggle reads as one scheme. Text-on-white keeps its darker rung. ── */
 .pill-active-frt {
   background-color: #FFE500;
-  color: #292524; /* stone-800 */
+  color: #fff;
   font-weight: 600;
 }
 .game-toggle-on-frt {
   background-color: #FFE500;
-  color: #292524; /* stone-800 */
+  color: #fff; /* white ink — one locked scheme with .pill-active-frt (10 Sep 2026) */
   border-radius: 9999px;
   padding: 0.4rem 1.2rem;
   font-weight: 700;
@@ -2519,22 +2524,20 @@ body.flash-red   { background-color: #fecaca; }
   z-index: 3;                    /* above the specular cap (1) and the label (2) */
 }
 
-/* ── Cold Shoulder (cld) — glacier blue #8ECAE6 with DEEP GLACIER ink ──────
-   The tech spec §1 asked for white ink plus a text-shadow. Measured, white on
-   #8ECAE6 is 1.79:1 — WORSE than the #D4A017 case (2.38:1) that the v156
-   recolour phase existed to remove, and a text-shadow changes perception, not
-   the ratio. Deep glacier #123B4C measures 6.69:1 on the same fill and stays
-   on-brand (it is the floe's own shadow colour), so this follows the cjar
-   precedent exactly: dark ink on the flat fill, white only on the lobby keycap
-   where .gel-btn's dark base gradient carries it. */
+/* ── Cold Shoulder (cld) — glacier blue #8ECAE6, WHITE button ink ──────────
+   Buttons and settings pills follow the suite-wide rule (10 Sep 2026): brand
+   fill + white ink, matching the locked menu Play CTA. White on #8ECAE6 is
+   ~1.8:1 — a real contrast cost, accepted at owner direction so every one of a
+   game's standard buttons reads as one locked scheme. TEXT on the off-white
+   page is a different job and keeps its darkened rung: see .cld-label below. */
 .pill-active-cld {
   background-color: #8ECAE6;
-  color: #123B4C;
+  color: #fff;
   font-weight: 600;
 }
 .game-toggle-on-cld {
   background-color: #8ECAE6;
-  color: #123B4C;
+  color: #fff;
   border-radius: 9999px;
   padding: 0.4rem 1.2rem;
   font-weight: 700;
@@ -2545,16 +2548,10 @@ body.flash-red   { background-color: #fecaca; }
 }
 /* Custom CTA: MUST declare flex centering — when JS/Tailwind sets display:flex the
    label would top-left-align without these (DYB/GTH/FRT/FLW/PKO lesson). */
-.cld-cta { background-color: #8ECAE6; color: #123B4C; display: flex; align-items: center; justify-content: center; }
+.cld-cta { background-color: #8ECAE6; color: #ffffff; display: flex; align-items: center; justify-content: center; }
 .cld-cta:hover { background-color: #6FB6D6; }
-/* Lobby keycap only — white game-name label on the glacier fill, matching the other
-   18 buttons. ID selector beats .cld-cta's deep ink without touching in-game CTAs;
-   .gel-btn's dark base gradient + .lobby-btn-label's text-shadow carry it there. */
-#btn-cld { color: #ffffff; }
-/* Menu Play CTA only (8 Sep 2026, owner-confirmed by eye) — same white-on-gel-gradient
-   treatment as the lobby tile above; every other .cld-cta use (Lock It In, Got it, quit
-   confirm, etc.) keeps deep-glacier ink for contrast on the flat (non-gel) fill. */
-#btn-cld-menu-play { color: #ffffff; }
+/* (Removed 10 Sep 2026: the #btn-cld and #btn-cld-menu-play white-ink overrides —
+   .cld-cta itself is now white, so every use inherits it and the exceptions are moot.) */
 /* Raw #8ECAE6 on bg-stone-50 measures 1.71:1 — step labels take the darkened brand
    (5.68:1). Same split comb makes with .comb-label (cjar no longer needs this split
    since its 5 Sep 2026 recolour to #5C3A21, which is dark enough on its own). */
@@ -2637,19 +2634,21 @@ body.flash-red   { background-color: #fecaca; }
    a control that vanishes reads as a bug, one that dims reads as a rule. */
 .cld-dive-btn.cld-dive-unavailable { opacity: 0.35; pointer-events: none; }
 
-/* ── Honeycomb Hills (comb) — bright honey gold #F0A500 with DARK ink ──────
-   Spec §1. The third custom-hex CTA to take dark ink (after cjar #D4A017 and
-   frt #FFE500) and for the same measured reason: white on #F0A500 is 1.94:1,
-   while #292524 on the same fill is 7.28:1. MP_GAME_CONFIGS sets
-   ctaTextClass: 'text-stone-800' so the mode screen agrees with this. */
+/* ── Honeycomb Hills (comb) — bright honey gold #F0A500, WHITE button ink ──
+   Buttons and settings pills follow the suite-wide rule (10 Sep 2026): brand
+   fill + white ink, matching the locked menu Play CTA. White on #F0A500 is
+   ~1.9:1 — a real contrast cost, accepted at owner direction so a game's
+   standard buttons read as one locked scheme. TEXT on the off-white page keeps
+   its darkened rung — see .comb-label below. MP_GAME_CONFIGS no longer sets
+   ctaTextClass for comb (the mode-screen CTA now defaults to white too). */
 .pill-active-comb {
   background-color: #F0A500;
-  color: #292524;
+  color: #fff;
   font-weight: 600;
 }
 .game-toggle-on-comb {
   background-color: #F0A500;
-  color: #292524;
+  color: #fff;
   border-radius: 9999px;
   padding: 0.4rem 1.2rem;
   font-weight: 700;
@@ -2661,16 +2660,10 @@ body.flash-red   { background-color: #fecaca; }
 /* Custom CTA: MUST declare flex centering — when JS/Tailwind sets display:flex the
    label would top-left-align without these (DYB/GTH/FRT/FLW/PKO lesson, and the
    one spec §1 calls mandatory rather than decorative). */
-.comb-cta { background-color: #F0A500; color: #292524; display: flex; align-items: center; justify-content: center; }
+.comb-cta { background-color: #F0A500; color: #ffffff; display: flex; align-items: center; justify-content: center; }
 .comb-cta:hover { background-color: #D18F00; }
-/* Lobby keycap only — white game-name label on the honey fill, matching the other
-   19 buttons. ID selector beats .comb-cta's near-black without touching in-game
-   CTAs; .gel-btn's dark base gradient + .lobby-btn-label's text-shadow carry it. */
-#btn-comb { color: #ffffff; }
-/* Menu Play CTA only (8 Sep 2026, owner-confirmed by eye) — same white-on-gel-gradient
-   treatment as the lobby tile above; every other .comb-cta use (Build, Buy Instinct,
-   Got it, etc.) keeps dark ink for contrast on the flat (non-gel) fill. */
-#btn-comb-menu-play { color: #ffffff; }
+/* (Removed 10 Sep 2026: the #btn-comb and #btn-comb-menu-play white-ink overrides —
+   .comb-cta itself is now white, so every use inherits it and the exceptions are moot.) */
 /* Raw #F0A500 on bg-stone-50 measures ~2.0:1 — step labels take the darkened brand
    (3.45:1). Same split cld (.cld-label) makes (cjar no longer needs this split
    since its 5 Sep 2026 recolour to #5C3A21). NOTE: 3.45:1

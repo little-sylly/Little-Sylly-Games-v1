@@ -133,8 +133,8 @@ const MP_GAME_CONFIGS = {
     gameName:        'You Get It?',
     emoji:           '🃏',
     brandBtnClass:   'bg-amber-500 hover:bg-amber-600',
-    // REQUIRED. #f59e0b measures ~2.1:1 against white — below the 3:1 floor.
-    ctaTextClass:    'text-stone-800',
+    // No ctaTextClass: white ink, matching the locked menu Play CTA. ~2.1:1 on
+    // #f59e0b — contrast cost accepted 10 Sep 2026 for one locked button scheme.
     ptpLabel:        'Show Your Take 🃏',
     menuScreen:      'screen-ygi-menu',
     onPassThePhone:  () => { ygiShowSetup(); showScreen('screen-ygi-setup'); },
@@ -351,7 +351,9 @@ const MP_GAME_CONFIGS = {
     gameName:       'Fruit Salad',
     emoji:          '🍌',
     brandBtnClass:  'bg-[#FFE500] hover:bg-[#E6D200]',
-    ctaTextClass:   'text-stone-800',
+    // No ctaTextClass: white ink, matching the locked menu Play CTA. ~1.1:1 on
+    // #FFE500 — the sharpest contrast cost in the suite, accepted 10 Sep 2026
+    // (owner call) for one locked per-game button scheme. See ui-style.md.
     ptpLabel:       'Start Serving',
     lobbyCtaLabel:  'Start Serving',
     menuScreen:     'screen-frt-menu',
@@ -510,9 +512,8 @@ const MP_GAME_CONFIGS = {
     gameName:       'Honeycomb Hills',
     emoji:          '\u{1F41D}',
     brandBtnClass:  'comb-cta',
-    // REQUIRED. #F0A500 is a light fill — white ink on it fails contrast, the same
-    // reason FRT and CJAR carry this field.
-    ctaTextClass:   'text-stone-800',
+    // No ctaTextClass: .comb-cta carries white ink (10 Sep 2026). ~1.9:1 on
+    // #F0A500 — contrast cost accepted for one locked per-game button scheme.
     ptpLabel:       'Send the Scouts',
     lobbyCtaLabel:  'Send the Scouts',
     menuScreen:     'screen-comb-menu',

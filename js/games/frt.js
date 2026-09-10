@@ -25,7 +25,9 @@ const FRT_FRUITS = [
 
 // Banana palette (see spec §1)
 const FRT_FILL   = '#FFE500';   // electric lemon fill
-const FRT_INK    = '#292524';   // stone-800 — dark ink on lemon (was white; fixed a WCAG contrast failure)
+const FRT_INK    = '#292524';   // stone-800. No longer on any button (10 Sep 2026: brand fill + white
+                                // ink is the suite-wide locked scheme). Retained as the dark rung for
+                                // any future text-on-lemon need; see ui-style.md § Action Button Standard.
 // Same value as FRT_FILL — the actual brand yellow, not a darkened stand-in. Text-on-white +
 // True button + selection outline. Was FRT_LEAF '#047857' (green, an unrelated hue never actually
 // FRT's colour), then briefly a darkened yellow that read as brown/mustard instead of yellow.
@@ -402,7 +404,7 @@ function frtRenderServing() {
   const ready = frtSelectedStashIdx >= 0 && frtServeTarget >= 0 && frtServeDeclaration >= 0;
   const serve = document.createElement('button');
   serve.className = 'btn-mp-action min-h-14 w-full rounded-2xl active:scale-95 text-xl font-semibold transition-all duration-150' + (ready ? '' : ' opacity-50');
-  serve.style.background = FRT_FILL; serve.style.color = FRT_INK;
+  serve.style.background = FRT_FILL; serve.style.color = '#ffffff';
   serve.disabled = !ready;
   serve.textContent = 'Serve →';
   serve.addEventListener('click', () => { if (ready) { playLaunch(); frtSubmitServe(); } });
@@ -473,7 +475,7 @@ function frtRenderAwait() {
   const decl = FRT_FRUITS[frtPassDeclaration];
   const mk = (label, bg, fn) => {
     const b = document.createElement('button');
-    const ink = bg === FRT_FILL ? FRT_INK : '#ffffff';
+    const ink = '#ffffff'; // brand fill + white ink, the suite-wide locked button scheme (10 Sep 2026)
     b.className = 'btn-mp-action min-h-12 w-full rounded-2xl active:scale-95 text-base font-semibold transition-all duration-150';
     b.style.background = bg; b.style.color = ink; b.textContent = label; b.addEventListener('click', fn);
     return b;
@@ -877,7 +879,7 @@ function frtRenderRoundEnd(eliminatedSet) {
   } else {
     const btn = document.createElement('button');
     btn.className = 'min-h-14 w-full rounded-2xl active:scale-95 text-xl font-semibold transition-all duration-150';
-    btn.style.background = FRT_FILL; btn.style.color = FRT_INK;
+    btn.style.background = FRT_FILL; btn.style.color = '#ffffff';
     btn.textContent = frtPendingRoundGameOver ? 'See Final Scores →' : 'Next Fruit-Off →';
     btn.addEventListener('click', () => {
       playLaunch();

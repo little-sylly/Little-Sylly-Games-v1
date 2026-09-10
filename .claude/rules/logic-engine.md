@@ -244,7 +244,7 @@ Required fields for every entry (grounded in the `li5` entry, `engine-multiplaye
 | `recommendedMode` | string | `'ptp'` / `'tlm'` / `'mdlm'` |
 | `supportedModes` | string[] | The modes offered on `screen-mp-mode`; an MDLM-only game lists `['mdlm']` |
 | `multiplayerOnly` | bool | Informational only — enforcement comes from `supportedModes` (see § MDLM Patterns) |
-| `ctaTextClass` | string (optional) | Overrides the `screen-mp-mode` CTA's text colour — defaults to `text-white` when omitted. Only needed when `brandBtnClass` is a light fill requiring dark ink — e.g. FRT's `#FFE500`, YGI's amber-500, both set `ctaTextClass: 'text-stone-800'`. |
+| `ctaTextClass` | string (optional) | Overrides the `screen-mp-mode` CTA's text colour — defaults to `text-white`. **No game sets it as of 10 Sep 2026** (suite-wide brand-fill + white-ink rule — even the light-fill brands FRT/YGI/COMB/CLD take white; see `ui-style.md` § Action Button Standard → "Locked per-game button scheme"). Left in the schema for a future genuine need; don't re-add it as a contrast fix on those four. |
 | `rosterConfig` | object | `{ type, ... }` — use `type: 'none'` for automatic/random seating |
 | `getMaxPlayers` | () => int | Upper bound enforced by the lobby |
 | `getMinPlayers` | () => int | Lower bound — **mandatory for any game with a minimum above 2** (role-table games, e.g. BLD min 5). Omitting it let BLD start under-strength. Defaults to the engine minimum when absent. |
