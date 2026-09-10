@@ -319,7 +319,9 @@ The host is laying out the meadow. Sit tight.
 # screen-comb-meadow — combStatusLine()
 Place a Drone Cell, then a Comb Wall beside it.
 Send the scouts out.
-A seven. Everyone over the limit spills half.
+A seven!
+A seven. Half of what you are carrying goes back to the meadow.
+A seven. Waiting on the others to spill.
 Park the Wasp somewhere painful.
 Pick who the Wasp robs.
 Build, trade, or end your turn.

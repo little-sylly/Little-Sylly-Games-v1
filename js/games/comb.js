@@ -1439,8 +1439,12 @@ function combScoutFlight(playerIdx) {
 
   if (roll === 7) {
     combPlay('waspRolled');
+    // No phase in this packet — combBeginSeven() decides and broadcasts the one
+    // real outcome (COMB_OVERFLOW_BEGIN if a discard is owed, COMB_OVERFLOW_DONE
+    // otherwise). Claiming 'overflow' here stranded every client on a 7 where
+    // nobody owed, which on the default Short Summer is every 7.
     combBroadcast('COMB_ROLL_RESULT', {
-      roll, phase: 'overflow', handCounts: combHandCounts(),
+      roll, seven: true, handCounts: combHandCounts(),
       produced: combZeroGrid(), waspBlockedHex: combWaspHex,
     });
     combBeginSeven();
@@ -1481,7 +1485,17 @@ function combBeginSeven() {
       if (held > limit) combOverflowOwed[p] = Math.floor(held / 2);
     }
   }
-  if (!combOverflowOwed.some(v => v > 0)) { combEnterWaspMove(); return; }
+  if (!combOverflowOwed.some(v => v > 0)) {
+    // No discard is owed (Overflow off, or every seat under the limit). Clients
+    // are sitting on a transient "seven" beat off COMB_ROLL_RESULT; this is the
+    // packet that moves them on. Without it they strand in 'overflow' forever
+    // while the host plays on from 'waspMove'.
+    combBroadcast('COMB_OVERFLOW_DONE', {
+      spilled: false, phase: 'waspMove', handCounts: combHandCounts(),
+    });
+    combEnterWaspMove();
+    return;
+  }
   combPhase = 'overflow';
   // ⚠️ ready[] travels at its all-false RESET value, explicitly. It is exactly
   // the field Firebase erases, and a client that keeps the previous seven's
@@ -1533,7 +1547,7 @@ function combOverflowResolve() {
   combPlay('overflowDone');
   combLogAppend('The hive spilled over.');
   combBroadcast('COMB_OVERFLOW_DONE', {
-    handCounts: combHandCounts(), phase: 'waspMove',
+    handCounts: combHandCounts(), phase: 'waspMove', spilled: true,
   });
   combEnterWaspMove();
 }
@@ -2696,9 +2710,19 @@ function combStatusLine(mine, turnName) {
       return mine ? 'Place a Drone Cell, then a Comb Wall beside it.'
                   : `${turnName} is choosing an opening spot.`;
     case 'roll':
+      // The 7's outcome packet is a beat behind COMB_ROLL_RESULT; name it rather
+      // than flash "waiting to cast" between the two.
+      if (combRoll === 7) return 'A seven!';
       return mine ? 'Send the scouts out.' : `Waiting on ${turnName} to cast.`;
-    case 'overflow':
-      return 'A seven. Everyone over the limit spills half.';
+    case 'overflow': {
+      // Owe-aware: never name a discard the settings do not allow. On Overflow
+      // off there is no 'overflow' phase at all — the 7 goes straight to the Wasp.
+      const me = combLocalIdx();
+      if ((combOverflowOwed[me] | 0) > 0 && !combOverflowReady[me]) {
+        return 'A seven. Half of what you are carrying goes back to the meadow.';
+      }
+      return 'A seven. Waiting on the others to spill.';
+    }
     case 'waspMove':
       return mine ? 'Park the Wasp somewhere painful.' : `${turnName} is moving the Wasp.`;
     case 'waspSteal':
@@ -4187,13 +4211,19 @@ function combHandleSync(action, p) {
       combRenderMeadow();
       return;
 
-    case 'COMB_OVERFLOW_DONE':
+    case 'COMB_OVERFLOW_DONE': {
       combShow('comb-overflow-overlay', false);
       combApplyCounts(p);
       combPlay('overflowDone');
       combPhase = p.phase || 'waspMove';
+      // The host appended this line itself in combOverflowResolve(); a client
+      // never ran that. Absent field = old-format packet → still log. A 7 where
+      // nobody owed carries spilled:false and must NOT log — nothing spilled.
+      const spilled = ('spilled' in p) ? !!p.spilled : true;
+      if (spilled) combLogAppend('The hive spilled over.');
       combEnterWaspMove();                    // arms the Wasp for the active seat
       return;
+    }
 
     // ── The Wasp ──────────────────────────────────────────────────────────
     case 'COMB_WASP_PLACED': {

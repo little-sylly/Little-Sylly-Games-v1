@@ -555,6 +555,49 @@ H.largest = -1; H.fiercest = -1; H.broadcastBoard();
 check('-1 survives the wire (nobody qualifies)', [C1.largest, C2.fiercest], [-1, -1]);
 
 // ═══════════════════════════════════════════════════════════════════════════
+section('12b. A seven where NOBODY owes — clients must not strand (BUG)');
+// combOverflowOwed all-zero (Overflow off, or every seat under the limit).
+// The bug: combBeginSeven() entered waspMove locally and broadcast nothing,
+// while COMB_ROLL_RESULT had already put clients in 'overflow'. On the default
+// Short Summer this is EVERY seven — Overflow presets to Off, so nobody ever
+// owes. Enters here at turn 0 / actions; leaves the same way for section 13.
+H.setHand(0, [1, 0, 0, 0, 0]);
+H.setHand(1, [1, 0, 0, 0, 0]);
+H.setHand(2, [1, 0, 0, 0, 0]);
+while (H.turn !== 0 || H.phase !== 'roll') {
+  if (H.phase === 'roll')          { H.forceRoll(8); step(host); }
+  else if (H.phase === 'actions')    H.endTurn(H.turn);
+  else if (H.phase === 'waspMove')   H.waspMove(H.turn, (H.wasp + 1) % 19);
+  else if (H.phase === 'waspSteal')  H.waspSteal(H.turn, H.victims(H.wasp, H.turn)[0] || 0);
+  else break;
+}
+const noOweFrom = sent.length;
+H.forceRoll(7);
+step(host);
+check('nobody-owes seven: every device reached waspMove, not stranded in overflow',
+      [H.phase, C1.phase, C2.phase], ['waspMove', 'waspMove', 'waspMove']);
+ok('no COMB_OVERFLOW_BEGIN was sent (nobody owes)',
+   !sent.slice(noOweFrom).some(s => s.action === 'COMB_OVERFLOW_BEGIN'),
+   JSON.stringify(sent.slice(noOweFrom).map(s => s.action)));
+const noOweDone = lastOf('COMB_OVERFLOW_DONE');
+ok('COMB_OVERFLOW_DONE carried spilled:false', !!noOweDone && noOweDone.spilled === false,
+   JSON.stringify(noOweDone));
+ok('no false "spilled over" log line',
+   !H.log.slice(-4).some(l => /spilled over/.test(l)), JSON.stringify(H.log.slice(-4)));
+check('the roller can move the Wasp', [H.mode(), H.targets() > 0], ['wasp', true]);
+ok('a non-active client is not shown the spill instruction',
+   /moving the Wasp/.test(C1.paintedStatus()), JSON.stringify(C1.paintedStatus()));
+check('no exception on any device', noErrors(), []);
+// Restore turn 0 / actions for section 13.
+{
+  let safeHex = -1;
+  for (let h = 0; h < 19 && safeHex < 0; h++) if (h !== H.wasp && !H.victims(h, 0).length) safeHex = h;
+  H.waspMove(0, safeHex);
+  while (H.phase === 'waspSteal') H.waspSteal(0, H.victims(H.wasp, 0)[0] || 0);
+}
+check('12b left the table at turn 0 / actions', [H.turn, H.phase], [0, 'actions']);
+
+// ═══════════════════════════════════════════════════════════════════════════
 section('13. A seven — the Overflow gate with two clients');
 H.setHand(0, [4, 4, 0, 0, 0]);      // 8 held, snug limit 7 → owes 4
 H.setHand(1, [5, 4, 0, 0, 0]);      // 9 held             → owes 4
