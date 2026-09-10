@@ -3062,6 +3062,16 @@ function combBuildStatic(cssW, cssH, tr) {
   return off;
 }
 
+// 0 = no dim. Otherwise the alpha of a meadow-ground wash over the static board:
+//  - during a build placement, so the legal-target glow reads
+//  - after a roll, over every hex that did NOT bloom (0.35 → board at ~65%)
+// The Wasp move is deliberately NOT dimmed — the whole board is a legal target.
+function combFocusDimAlpha() {
+  if (combPlacementMode && combPlacementMode !== 'wasp') return 0.35;
+  if (combPhase === 'actions' && combRoll && combRoll !== 7) return 0.35;
+  return 0;
+}
+
 // PURE in the sense that matters: it takes its target canvas and viewport as
 // arguments and draws current state into them. The inline board passes the
 // fit-to-view viewport; comb-map-overlay passes its live gesture viewport.
@@ -3086,6 +3096,28 @@ function combDrawBoard(canvasEl, viewport) {
   const tr = combTransform(cssW, cssH, viewport);
   const stat = combBuildStatic(cssW, cssH, tr);
   if (stat) ctx.drawImage(stat, 0, 0, cssW, cssH);
+
+  // Focus dim — a wash over the STATIC layers only (ground, hexes, blossoms,
+  // pogs). Pieces, the Wasp and the target glow are all drawn below this line
+  // and keep full contrast. Post-roll: everything except the hexes that bloomed.
+  // Placement: the whole ground, so combDrawTargets' glow pops.
+  const dim = combFocusDimAlpha();
+  if (dim > 0) {
+    ctx.save();
+    ctx.globalAlpha = dim;
+    ctx.fillStyle = '#EAF3DC';                       // meadow ground (layer 1)
+    if (combPhase === 'actions' && combRoll && !combPlacementMode) {
+      for (let h = 0; h < combHexes.length; h++) {
+        if (!combHexes[h]) continue;
+        if (combHexes[h].marker === combRoll && h !== combWaspHex) continue;
+        combPoly(ctx, combHexCornerPts(h, tr));
+        ctx.fill();
+      }
+    } else {
+      ctx.fillRect(0, 0, cssW, cssH);
+    }
+    ctx.restore();
+  }
 
   // 5. the Wasp
   if (combWaspHex >= 0 && combWaspHex < combHexes.length) {
@@ -3220,23 +3252,32 @@ function combHexPts(cx, cy, r) {
 
 function combDrawTargets(ctx, tr) {
   const mode = combPlacementMode;
-  const brand = '#F0A500';
+  // Your own colour, not the fixed brand gold — over a dimmed board (S4) a
+  // seat's targets should read as THEIRS. Falls back to gold for seat -1.
+  const glow = COMB_PLAYER_COLOUR[combLocalIdx()] || '#F0A500';
   for (const t of combLegalTargets) {
     if (mode === 'wall') {
       const [a, b] = COMB_TOPOLOGY.nodesOfEdge[t];
       const na = COMB_TOPOLOGY.nodes[a], nb = COMB_TOPOLOGY.nodes[b];
-      ctx.strokeStyle = brand; ctx.globalAlpha = 0.55;
-      ctx.lineWidth = Math.max(5, tr.R * 0.22); ctx.lineCap = 'round';
+      ctx.lineCap = 'round';
+      ctx.strokeStyle = glow; ctx.globalAlpha = 0.28;         // wide soft pass
+      ctx.lineWidth = Math.max(9, tr.R * 0.4);
+      ctx.beginPath(); ctx.moveTo(tr.toX(na.x), tr.toY(na.y)); ctx.lineTo(tr.toX(nb.x), tr.toY(nb.y)); ctx.stroke();
+      ctx.globalAlpha = 0.7;                                  // crisp core
+      ctx.lineWidth = Math.max(5, tr.R * 0.22);
       ctx.beginPath(); ctx.moveTo(tr.toX(na.x), tr.toY(na.y)); ctx.lineTo(tr.toX(nb.x), tr.toY(nb.y)); ctx.stroke();
       ctx.globalAlpha = 1;
     } else if (mode === 'wasp') {
       const c = combHexCentre(t);
       ctx.beginPath(); ctx.arc(tr.toX(c.x), tr.toY(c.y), tr.R * 0.55, 0, Math.PI * 2);
-      ctx.fillStyle = brand; ctx.globalAlpha = 0.25; ctx.fill(); ctx.globalAlpha = 1;
+      ctx.fillStyle = glow; ctx.globalAlpha = 0.25; ctx.fill(); ctx.globalAlpha = 1;
     } else {
       const p = COMB_TOPOLOGY.nodes[t];
-      ctx.beginPath(); ctx.arc(tr.toX(p.x), tr.toY(p.y), Math.max(7, tr.R * 0.26), 0, Math.PI * 2);
-      ctx.fillStyle = brand; ctx.globalAlpha = 0.5; ctx.fill(); ctx.globalAlpha = 1;
+      const cx = tr.toX(p.x), cy = tr.toY(p.y);
+      ctx.beginPath(); ctx.arc(cx, cy, Math.max(11, tr.R * 0.4), 0, Math.PI * 2);
+      ctx.fillStyle = glow; ctx.globalAlpha = 0.22; ctx.fill();     // wide soft pass
+      ctx.beginPath(); ctx.arc(cx, cy, Math.max(7, tr.R * 0.26), 0, Math.PI * 2);
+      ctx.globalAlpha = 0.7; ctx.fill(); ctx.globalAlpha = 1;       // crisp core
       ctx.strokeStyle = COMB_PIECE_INK; ctx.lineWidth = 1.5; ctx.stroke();
     }
   }
