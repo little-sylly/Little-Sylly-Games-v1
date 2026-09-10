@@ -222,6 +222,15 @@ let combMapScrollTo   = null;  // 'stats' when the map was opened from the playe
 let combZoom = 1, combPanX = 0, combPanY = 0;  // MAP OVERLAY ONLY. The inline
                                // board is always fit-to-view and holds NO viewport (§2).
 let combRafHandle = null;      // the Sun Compass / board animation loop
+let combPulseRaf = null;       // RAF — the Trade Blossom bloom pulse. The ONLY
+                               // animation on the main screen. RAF, not
+                               // setInterval, so it is inert under the headless
+                               // mock RAF (returns 0, never re-fires) and a
+                               // loopback's teardown timer-count stays clean.
+                               // Throttled to ~11 fps inside the tick. Stopped in
+                               // combResetState(), the quit handler, at gameover;
+                               // self-stops when the meadow is not visible.
+let combPulseLast = 0;
 let combLastProduced = null;   // N×5 grid from the last Scout Flight — public
                                // (COMB_ROLL_RESULT.produced), drives the player
                                // panel's per-round take column. Cleared at cast.
@@ -2253,6 +2262,7 @@ function combGoldenCounts() {
 function combFinishMatch() {
   combStopDaylight();
   combStopFlight();
+  combStopPulse();
   combClearOffer();
   combPhase = 'gameover-pending';
   combPlacementMode = null; combLegalTargets = []; combPendingTarget = null;
@@ -2490,7 +2500,33 @@ const COMB_HEX_EMOJI = {
 // combRenderMeadow, and combShowGameover renders a payload built elsewhere.
 function combShowMenu()          { showScreen('screen-comb-menu'); }
 function combShowClientStandby() { showScreen('screen-comb-standby'); }
-function combShowMeadow()        { showScreen('screen-comb-meadow'); }
+function combShowMeadow()        { showScreen('screen-comb-meadow'); combStartPulse(); }
+
+// The Trade Blossom bloom pulse. A slow opacity breathe on the dock spots —
+// soft indication without the rings/lines clogging the board. The only animation
+// on the meadow screen: cheap (a cached-static blit + ~40 canvas ops, throttled
+// to ~11 fps) and self-limiting — it stops the moment the meadow is not the
+// visible screen, and reduced-motion skips it entirely (combPulsePhase then
+// returns a steady 1).
+function combStartPulse() {
+  if (combPulseRaf || combReducedMotion() || typeof requestAnimationFrame !== 'function') return;
+  const tick = ts => {
+    const s = document.getElementById('screen-comb-meadow');
+    if (!s || s.style.display === 'none' || combPhase === 'gameover-pending') { combStopPulse(); return; }
+    if (!combPulseLast || ts - combPulseLast > 90) { combPulseLast = ts; combRepaintBoards(); }
+    combPulseRaf = requestAnimationFrame(tick);
+  };
+  combPulseRaf = requestAnimationFrame(tick);
+}
+function combStopPulse() {
+  if (combPulseRaf) { cancelAnimationFrame(combPulseRaf); }
+  combPulseRaf = null; combPulseLast = 0;
+}
+// 1 under reduced motion (steady), else a 0.55..1.0 breathe on a ~4.4 s period.
+function combPulsePhase() {
+  if (combReducedMotion()) return 1;
+  return 0.55 + 0.45 * (0.5 + 0.5 * Math.sin(combNow() / 700));
+}
 // The Hive is Thriving — podium + Golden Nectar reveal + stats (spec §3/§6).
 // combGameover is fully populated (standings, goldenNectar, stats, both
 // achievement holders) by combFinishMatch() on the host and by the
@@ -2709,25 +2745,23 @@ function combAchievementMark(p) {
 // header point-line was removed 10 Sep 2026 — its job is now split between the
 // player panel, the player strip and the map overlay's stats table.)
 
-// Floats over the top-left letterbox. Turn-order colour + name + this round's
-// take (combLastProduced, from the public COMB_ROLL_RESULT.produced grid). The
-// active row lights up: on a board identical on every phone, this is the
-// turn-handover signal (identity doc T7c).
+// Floats over the top-left letterbox. Turn-order colour dot (yours ringed) +
+// this round's take (combLastProduced, from the public COMB_ROLL_RESULT.produced
+// grid). No names — they were ragged, and the bottom stats strip carries them
+// against the same colour. The active row lights up: on a board identical on
+// every phone, this is the turn-handover signal (identity doc T7c).
 function combRenderPlayerPanel() {
   const box = combClear('comb-player-panel');
   if (!box) return;
+  const me = combLocalIdx();
   for (let p = 0; p < combPlayerCount; p++) {
     const row = document.createElement('div');
     row.className = 'comb-player-row' + (p === combTurn ? ' comb-player-row-now' : '');
 
     const dot = document.createElement('span');
-    dot.className = 'comb-player-dot';
+    dot.className = 'comb-player-dot' + (p === me ? ' comb-player-dot-me' : '');
     dot.style.background = COMB_PLAYER_COLOUR[p] || '#888';
     row.appendChild(dot);
-
-    const name = document.createElement('span');
-    name.textContent = combName(p).slice(0, 8);
-    row.appendChild(name);
 
     const take = document.createElement('span');
     take.className = 'comb-player-take';
@@ -2853,8 +2887,13 @@ function combRenderMapStats() {
   table.className = 'comb-map-stats-table';
 
   const head = document.createElement('tr');
-  ['', 'VP', 'Cells', 'Domes', 'Walls', 'Chain', 'Instinct', 'Blossoms'].forEach(h => {
-    const th = document.createElement('th'); th.textContent = h; head.appendChild(th);
+  // text where there is no single asset (VP, Chain), the real icon otherwise.
+  [{ t: '' }, { t: 'VP' }, { ic: 'cell' }, { ic: 'dome' }, { ic: 'wall' },
+   { t: 'Chain' }, { ic: 'instinct' }, { ic: 'blossom' }].forEach(col => {
+    const th = document.createElement('th');
+    if (col.ic) th.appendChild(combStatIcon(col.ic));
+    else th.textContent = col.t;
+    head.appendChild(th);
   });
   table.appendChild(head);
 
@@ -2904,6 +2943,27 @@ function combCountStructures(p) {
   return { cells, domes, walls };
 }
 
+// A ~14 px icon of a real game asset for the stats surfaces (bottom strip +
+// map table), so a count reads at a glance as the thing it counts. cell/dome/
+// wall use the board piece art (owner 0's — the type, not a player's); instinct
+// the deck back; blossom the generic Trade Blossom.
+function combStatIcon(kind) {
+  const wrap = document.createElement('span');
+  wrap.className = 'comb-stat-ic';
+  if (kind === 'instinct') {
+    wrap.appendChild(combRenderInstinct(null, { faceDown: true }));
+  } else if (kind === 'blossom') {
+    const b = document.createElement('span');
+    const url = (typeof assetExtra === 'function') && assetExtra('comb-blossom', 'generic');
+    if (url) { b.className = 'comb-stat-ic-img'; b.style.backgroundImage = 'url("' + url + '")'; }
+    else b.textContent = '❋';
+    wrap.appendChild(b);
+  } else {
+    wrap.appendChild(combRenderPiece(kind, 0, {}));
+  }
+  return wrap;
+}
+
 function combRenderPlayerStrip() {
   const box = combClear('comb-player-strip');
   if (!box) return;
@@ -2930,13 +2990,15 @@ function combRenderPlayerStrip() {
     const inst = (combPublicInstinct && combPublicInstinct[p]) | 0;
     const stats = document.createElement('div');
     stats.className = 'comb-player-card-stats';
-    // One labelled pair per stat, dot-separated so a bare number can't read as a
-    // range. cell / dome / wall / unplayed Instinct.
-    [['⬢', s.cells], ['\u{1F451}', s.domes], ['▬', s.walls], ['\u{1F3B4}', inst]]
-      .forEach(([glyph, n], i) => {
+    // A real-asset icon + count per stat: cell / dome / wall / unplayed Instinct.
+    [['cell', s.cells], ['dome', s.domes], ['wall', s.walls], ['instinct', inst]]
+      .forEach(([kind, n]) => {
         const seg = document.createElement('span');
         seg.className = 'comb-stat-seg';
-        seg.textContent = glyph + ' ' + n;
+        seg.appendChild(combStatIcon(kind));
+        const num = document.createElement('span');
+        num.textContent = n;
+        seg.appendChild(num);
         stats.appendChild(seg);
       });
     card.appendChild(stats);
@@ -3280,53 +3342,41 @@ function combDrawBoard(canvasEl, viewport) {
   if (combPlacementMode) combDrawTargets(ctx, tr);
 }
 
-// For the local player, a Catan-style dock on each Trade Blossom: a short
-// connector from a rim node to the blossom, plus a ring on the node. An
-// UNREACHED port marks its empty node(s) faintly — "build here to trade". A
-// REACHED port marks YOUR cell/dome solidly — "the rate is live from here".
-// Colour is the blossom's own resource colour (white for a generic port).
-// Suppressed during placement (combDrawTargets owns the board then).
+// For the local player, a soft breathing bloom on each Trade Blossom spot — no
+// ring, no connector line, just a faint radial glow that pulses (combPulsePhase,
+// driven by combStartPulse). An UNREACHED port glows its empty node(s), "build
+// here to trade"; a REACHED port glows YOUR cell/dome, "the rate is live here"
+// (a touch brighter). Colour is the blossom's own resource colour. Suppressed
+// during placement (combDrawTargets owns the board then).
 function combDrawBlossomHints(ctx, tr) {
   const me = combLocalIdx();
   if (me < 0) return;
+  const pulse = combPulsePhase();
   for (const port of COMB_TOPOLOGY.ports) {
     const colour = port.kind === 'any' ? '#F5E6C8' : (COMB_RES_COLOUR[port.kind] || '#F5E6C8');
-    const na = COMB_TOPOLOGY.nodes[port.nodes[0]], nb = COMB_TOPOLOGY.nodes[port.nodes[1]];
-    if (!na || !nb) continue;
-    const bx = tr.toX((na.x + nb.x) / 2), by = tr.toY((na.y + nb.y) / 2);   // the blossom
     const mine = port.nodes.find(n => combNodes[n] && combNodes[n].owner === me && combNodes[n].level > 0);
     if (mine !== undefined) {
-      combBlossomDock(ctx, tr, mine, bx, by, colour, true);
+      combBlossomBloom(ctx, tr, mine, colour, 0.42 * pulse, 0.62);
     } else {
       for (const n of port.nodes) {
         if (combNodes[n] && combNodes[n].level > 0) continue;   // taken by anyone
-        combBlossomDock(ctx, tr, n, bx, by, colour, false);
+        combBlossomBloom(ctx, tr, n, colour, 0.26 * pulse, 0.52);
       }
     }
   }
 }
 
-function combBlossomDock(ctx, tr, node, bx, by, colour, reached) {
+function combBlossomBloom(ctx, tr, node, colour, alpha, rFactor) {
   const p = COMB_TOPOLOGY.nodes[node];
   if (!p) return;
-  const x = tr.toX(p.x), y = tr.toY(p.y);
+  const x = tr.toX(p.x), y = tr.toY(p.y), r = Math.max(9, tr.R * rFactor);
+  const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+  g.addColorStop(0, colour);
+  g.addColorStop(1, 'rgba(0,0,0,0)');
   ctx.save();
-  ctx.lineCap = 'round';
-  ctx.globalAlpha = reached ? 0.9 : 0.45;
-  // the dock line, node -> blossom
-  ctx.strokeStyle = colour;
-  ctx.lineWidth = Math.max(reached ? 3.5 : 2, tr.R * (reached ? 0.14 : 0.09));
-  ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(bx, by); ctx.stroke();
-  // the ring on the node
-  ctx.beginPath();
-  ctx.arc(x, y, Math.max(reached ? 8 : 6, tr.R * (reached ? 0.34 : 0.26)), 0, Math.PI * 2);
-  ctx.lineWidth = Math.max(2, tr.R * 0.08);
-  ctx.stroke();
-  if (reached) {
-    ctx.globalAlpha = 0.22;
-    ctx.fillStyle = colour;
-    ctx.fill();
-  }
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
   ctx.restore();
 }
 
@@ -4911,6 +4961,7 @@ function combResetState() {
   if (combOfferTimer)  { clearTimeout(combOfferTimer);       combOfferTimer  = null; }
   if (combFlightTimer) { clearTimeout(combFlightTimer);      combFlightTimer = null; }
   if (combRafHandle)   { cancelAnimationFrame(combRafHandle); combRafHandle  = null; }
+  combStopPulse();
 
   combHexes = []; combNodes = []; combEdges = []; combHands = []; combInstinct = [];
   combDeck = []; combSupply = []; combLog = []; combOffer = null;
@@ -5323,6 +5374,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // timeout would otherwise fire once against the lobby's state.
     combStopDaylight();
     combStopFlight();
+    combStopPulse();
     combClearOffer();
     if (window.syllyMultiplayerMode !== 'single') {
       // One device leaving mid-game dissolves the session for everyone

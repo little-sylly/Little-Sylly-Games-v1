@@ -2935,19 +2935,20 @@ body.flash-red   { background-color: #fecaca; }
    All float over the board stage's top letterbox dead-space; zero layout
    height, so the board stays fit-to-view and the h-screen whitelist holds.
    (Replaced the turn-order dots / comb-compass markup, 10 Sep 2026.) */
-.comb-player-panel { max-width: 42%; z-index: 5; }
+.comb-player-panel { max-width: 34%; z-index: 5; }
 .comb-player-row {
-  display: flex; align-items: center; gap: 0.3rem;
+  display: flex; align-items: center; gap: 0.35rem;
   font: 600 0.68rem/1 Fredoka, system-ui, sans-serif;
   color: #57534e; background: rgba(255,255,255,0.55);
-  border-radius: 0.5rem; padding: 0.18rem 0.4rem; backdrop-filter: blur(2px);
+  border-radius: 0.5rem; padding: 0.2rem 0.42rem; backdrop-filter: blur(2px);
   transition: background 0.15s ease, transform 0.15s ease;
 }
 .comb-player-row-now {
   background: rgba(255,255,255,0.92); transform: scale(1.04); font-weight: 700;
 }
-.comb-player-dot { width: 0.55rem; height: 0.55rem; border-radius: 9999px; flex: none; }
-.comb-player-take { display: flex; align-items: center; gap: 0.1rem; color: #78716c; }
+.comb-player-dot { width: 0.62rem; height: 0.62rem; border-radius: 9999px; flex: none; }
+.comb-player-dot-me { box-shadow: 0 0 0 2px rgba(255,255,255,0.95), 0 0 0 3.5px rgba(43,33,24,0.55); }
+.comb-player-take { display: flex; align-items: center; gap: 0.1rem; color: #78716c; min-height: 0.8rem; }
 .comb-player-take .comb-res-chip { padding: 0; gap: 0; }
 .comb-player-take .comb-res-icon { width: 0.72rem; height: 0.72rem; }
 .comb-player-take .comb-res-count { display: none; }
@@ -2974,11 +2975,23 @@ body.flash-red   { background-color: #fecaca; }
 .comb-player-card-now { background: rgba(255,255,255,0.92); box-shadow: 0 0 0 2px #B87A00 inset; }
 .comb-player-card-top { display: flex; align-items: center; gap: 0.3rem; }
 .comb-player-card-vp { margin-left: auto; font-weight: 700; }
-.comb-player-card-stats { display: flex; color: #78716c; margin-top: 0.14rem; }
-.comb-stat-seg { display: inline-flex; align-items: center; gap: 0.14rem; white-space: nowrap; }
-.comb-stat-seg + .comb-stat-seg::before {
-  content: "\00B7"; margin: 0 0.32rem; color: #a8a29e;
+.comb-player-card-stats { display: flex; gap: 0.55rem; color: #78716c; margin-top: 0.16rem; }
+.comb-stat-seg { display: inline-flex; align-items: center; gap: 0.18rem; white-space: nowrap; }
+
+/* A ~14 px asset icon shared by the bottom strip and the map stats table.
+   Overrides the piece/card seams' own box so they sit inline at a legible size. */
+.comb-stat-ic { display: inline-flex; width: 0.95rem; height: 0.95rem; flex: none; }
+.comb-stat-ic .comb-piece,
+.comb-stat-ic .comb-card {
+  width: 100%; height: 100%; min-width: 0; min-height: 0;
+  background-size: contain; background-repeat: no-repeat; background-position: center;
+  border-radius: 0.15rem;
 }
+.comb-stat-ic-img {
+  display: inline-block; width: 100%; height: 100%;
+  background-size: contain; background-repeat: no-repeat; background-position: center;
+}
+.comb-map-stats-table th .comb-stat-ic { width: 1.1rem; height: 1.1rem; }
 
 /* ── The map overlay's three zones (S6). The middle zone owns the board and
    its gestures; the top and bottom never move under a pinch. ── */
