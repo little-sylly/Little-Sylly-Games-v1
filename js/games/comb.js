@@ -2916,20 +2916,14 @@ function combBuildStatic(cssW, cssH, tr) {
       ctx.fillStyle = '#F7F1E3'; ctx.fill();
       ctx.strokeStyle = COMB_PIECE_INK; ctx.lineWidth = 1.5; ctx.stroke();
     }
-    // Cream on the hot disc, not the same deep red as the disc itself — low
-    // contrast once real art sits behind it (spec §8 batch fix, 9 Sep 2026).
-    ctx.fillStyle = hot ? '#FDF6E3' : '#3A322A';
+    // Dark ink on both disc kinds. The hot disc's own red rim carries the "fat
+    // marker" signal; cream-on-red was unreadable once real art sat behind it.
+    // Rarity is the probability ruler's job now (the pip row was invisible at
+    // board scale) — removed.
+    ctx.fillStyle = hot ? '#2A1A16' : '#3A322A';
     ctx.font = `700 ${Math.round(s * 0.46)}px Fredoka, system-ui, sans-serif`;
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText(String(hex.marker), x, y);
-    // The pip row — how likely this hex is, at a glance.
-    const pips = 6 - Math.abs(7 - hex.marker);
-    ctx.fillStyle = hot ? '#B3261E' : '#6B6157';
-    for (let i = 0; i < pips; i++) {
-      ctx.beginPath();
-      ctx.arc(x - (pips - 1) * 1.6 + i * 3.2, y + s * 0.30, 1.1, 0, Math.PI * 2);
-      ctx.fill();
-    }
   }
 
   combStaticCache = { canvas: off, key, cssW, cssH };
