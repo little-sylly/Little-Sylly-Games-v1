@@ -98,6 +98,7 @@ function makeDocument() {
     closePath() {}, moveTo() {}, lineTo() {}, arc() {}, fill() {}, stroke() {},
     fillRect() {}, fillText() {}, drawImage() {}, translate() {}, rotate() {},
     scale() {}, createLinearGradient: () => ({ addColorStop() {} }),
+    createRadialGradient: () => ({ addColorStop() {} }),
     fillStyle: '', strokeStyle: '', lineWidth: 1, lineCap: '', font: '',
     textAlign: '', textBaseline: '', globalAlpha: 1,
   });

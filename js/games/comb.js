@@ -3145,8 +3145,62 @@ function combDrawBoard(canvasEl, viewport) {
   nodeOrder.sort((a, b) => COMB_TOPOLOGY.nodes[a].y - COMB_TOPOLOGY.nodes[b].y);
   for (const n of nodeOrder) combDrawStructure(ctx, n, tr);
 
-  // 8. legal-target glow + the combPendingTarget preview
+  // 8. Trade Blossom reach affordance (suppressed during placement — that is
+  //    combDrawTargets' board, and two glow systems at once is noise).
+  if (!combPlacementMode) combDrawBlossomHints(ctx, tr);
+
+  // 9. legal-target glow + the combPendingTarget preview
   if (combPlacementMode) combDrawTargets(ctx, tr);
+}
+
+// For the local player, a Catan-style dock on each Trade Blossom: a short
+// connector from a rim node to the blossom, plus a ring on the node. An
+// UNREACHED port marks its empty node(s) faintly — "build here to trade". A
+// REACHED port marks YOUR cell/dome solidly — "the rate is live from here".
+// Colour is the blossom's own resource colour (white for a generic port).
+// Suppressed during placement (combDrawTargets owns the board then).
+function combDrawBlossomHints(ctx, tr) {
+  const me = combLocalIdx();
+  if (me < 0) return;
+  for (const port of COMB_TOPOLOGY.ports) {
+    const colour = port.kind === 'any' ? '#F5E6C8' : (COMB_RES_COLOUR[port.kind] || '#F5E6C8');
+    const na = COMB_TOPOLOGY.nodes[port.nodes[0]], nb = COMB_TOPOLOGY.nodes[port.nodes[1]];
+    if (!na || !nb) continue;
+    const bx = tr.toX((na.x + nb.x) / 2), by = tr.toY((na.y + nb.y) / 2);   // the blossom
+    const mine = port.nodes.find(n => combNodes[n] && combNodes[n].owner === me && combNodes[n].level > 0);
+    if (mine !== undefined) {
+      combBlossomDock(ctx, tr, mine, bx, by, colour, true);
+    } else {
+      for (const n of port.nodes) {
+        if (combNodes[n] && combNodes[n].level > 0) continue;   // taken by anyone
+        combBlossomDock(ctx, tr, n, bx, by, colour, false);
+      }
+    }
+  }
+}
+
+function combBlossomDock(ctx, tr, node, bx, by, colour, reached) {
+  const p = COMB_TOPOLOGY.nodes[node];
+  if (!p) return;
+  const x = tr.toX(p.x), y = tr.toY(p.y);
+  ctx.save();
+  ctx.lineCap = 'round';
+  ctx.globalAlpha = reached ? 0.9 : 0.45;
+  // the dock line, node -> blossom
+  ctx.strokeStyle = colour;
+  ctx.lineWidth = Math.max(reached ? 3.5 : 2, tr.R * (reached ? 0.14 : 0.09));
+  ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(bx, by); ctx.stroke();
+  // the ring on the node
+  ctx.beginPath();
+  ctx.arc(x, y, Math.max(reached ? 8 : 6, tr.R * (reached ? 0.34 : 0.26)), 0, Math.PI * 2);
+  ctx.lineWidth = Math.max(2, tr.R * 0.08);
+  ctx.stroke();
+  if (reached) {
+    ctx.globalAlpha = 0.22;
+    ctx.fillStyle = colour;
+    ctx.fill();
+  }
+  ctx.restore();
 }
 
 function combEdgeMidY(e) {
