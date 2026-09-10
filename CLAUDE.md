@@ -275,14 +275,17 @@ On every bump the outgoing SW entry moves **verbatim** to `docs/sw-changelog.md`
 "keep the last three". **A second `**SW v…**` paragraph appearing here means that move didn't
 happen: do it before anything else.**
 
-**SW v225 — Honeycomb Hills ships: the phase-41 gate (10 Sep 2026).**
-One code line does it — `js/games/comb.js` joins `PRECACHE_URLS` — and the rest of the gate is the
-paperwork that makes it true. Protocol A run clean (four stale future-tense comments in `comb.js`
-corrected, two wrong harness counts and an "IN BUILD" header in `code-map.md` fixed). **COMB's
-identity doc is written** (`docs/game-identities/comb.md`, 194 copy strings green first run) — the
-suite now has 20 of 20. The **no-Sylly-Mode form** is recorded as a rule in `ui-style.md`, and
-`definitions.md`'s plugin-prefix list — the collision check's own source — went 15→20. All COMB
-harnesses green (56 · 122 · 231 · 250, 71/71 mutants ×5) + `verify-mp-configs` + `verify-identity-docs`.
+**SW v226 — Honeycomb Hills' first real multi-device session: meadow UX pass + a P0 fix (10 Sep 2026).**
+Fixed the **roll-7 strand** — every 7 froze every client on the default settings (`combBeginSeven()`'s
+no-owe branch advanced the host and broadcast nothing); new loopback §12b guards it. Reworked
+`screen-comb-meadow`: a floating **player panel** (colour dots, active row lit = the turn-handover
+signal), a **persistent roll result + 11-tick probability ruler** (replacing the invisible pog pips),
+a bottom **player-stats strip** with real-asset icons, a **65% board focus-dim** post-roll/placement
+with own-colour target glow, blinking **Trade Blossom beacons**, the Drone Cell drawn smaller than
+the Queen Dome, and `comb-map-overlay` rebuilt as a **3-zone gesture-locked detail view**. One schema
+change: `COMB_OVERFLOW_DONE.spilled`. All COMB harnesses green (56 · 122 · 231 · 258, 71/71 mutants
+×5) + `verify-mp-configs` + `verify-identity-docs`.
+Spec/plan: `docs/superpowers/{specs,plans}/2026-09-10-comb-meadow-ux-polish*.md`.
 
 **Previous versions: `docs/sw-changelog.md`** — continuous, v224 back to v167.
 

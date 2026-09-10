@@ -4,6 +4,16 @@ Historical SW release notes, moved out of `CLAUDE.md` (1 Aug 2026) so they stop 
 The **current** version and its notes stay in `CLAUDE.md` § Current Focus — append the outgoing entry here on each bump.
 
 
+## v225 — Honeycomb Hills ships: the phase-41 gate (10 Sep 2026)
+
+One code line does it — `js/games/comb.js` joins `PRECACHE_URLS` — and the rest of the gate is the
+paperwork that makes it true. Protocol A run clean (four stale future-tense comments in `comb.js`
+corrected, two wrong harness counts and an "IN BUILD" header in `code-map.md` fixed). **COMB's
+identity doc is written** (`docs/game-identities/comb.md`, 194 copy strings green first run) — the
+suite now has 20 of 20. The **no-Sylly-Mode form** is recorded as a rule in `ui-style.md`, and
+`definitions.md`'s plugin-prefix list — the collision check's own source — went 15→20. All COMB
+harnesses green (56 · 122 · 231 · 250, 71/71 mutants ×5) + `verify-mp-configs` + `verify-identity-docs`.
+
 ## v224 — Honeycomb Hills' Sun Compass: the Scout Flight die animation (10 Sep 2026)
 
 COMB's fifth render seam (`combRenderDie`) plus a RAF beat, and **no packet change** — it rides
