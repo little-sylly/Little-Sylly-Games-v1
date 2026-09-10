@@ -14,12 +14,10 @@ Same shape as the eighteen sections below: writing `docs/game-identities/comb.md
 surfaced things a build never looks at, because the build reads one screen at a time and the doc
 reads the whole journey. None blocking; the game shipped at SW v225 with all of these open.
 
-**1. There is no turn-handover beat.** Deliberate — 60–80 turns in a Full Season, so a five-second
-intro card at the head of each one would add minutes of nothing, and the Scout Flight animation was
-built to carry that weight. What the flight cannot do is say *it is now your turn*: on a table where
-the board looks identical on every phone, the handover is signalled only by the header line changing
-and the action bar coming alive. Worth a small local beat on the active player's device — not a
-screen.
+**1. There is no turn-handover beat. — ✅ ADDRESSED (SW v226).** The meadow's new player panel lights
+the active seat's row (`combRenderPlayerPanel`), so on a board identical on every phone the handover
+now has a visible signal beyond the header line and the action bar. A dedicated animated beat on the
+active device was considered and not built — the lit row covers the need.
 
 **2. The Season Log is the most under-used surface in the game.** Complete, privacy-correct by
 construction, reachable from exactly one small 📜 in the board header, pointed at by nothing. In Out

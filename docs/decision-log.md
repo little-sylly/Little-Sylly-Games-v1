@@ -20,6 +20,15 @@ Detail: pointer to the canonical doc (snapshot / impl note / spec / memory).
 
 ---
 
+## 2026-09-10 — Honeycomb Hills' first real multi-device session: meadow UX pass + a P0 fix (SW v226)
+Category: Architecture
+Decision: The first 3–4 device session found one hard break and a cluster of UX gaps. Fixed: the **roll-7 strand** (every 7 froze every client on the default settings — `combBeginSeven()`'s no-owe branch advanced the host and broadcast nothing); and reworked `screen-comb-meadow` — a floating **player panel** (active row lit = the turn-handover signal), a **persistent roll result** + **11-tick probability ruler** (replacing the invisible pog pips), a bottom **player-stats strip**, a **65% board focus-dim** post-roll and during placement with own-colour target glow, **Trade Blossom docks**, and `comb-map-overlay` rebuilt as a **3-zone gesture-locked detail view**. All new UI reads existing public state; the one schema change is `COMB_OVERFLOW_DONE.spilled` (bool).
+Why: The panels float over the board's letterbox dead-space so the `h-screen` whitelist justification (board stays fit-to-view) holds unchanged. The map overlay was one z-index entry and one teardown line already paid for — it earned more content and entry points before it would earn a sibling.
+Changed: `js/games/comb.js`, `index.html`, `css/styles.css`, `tools/verify-comb-loopback.js` (loopback 250→258, new §12b: a 7 nobody owes), `docs/game-identities/comb.md` (T7a + the map-overlay hint line), `docs/code-map.md`, `sw.js` (v225→v226). Deferred: none new; the blossom docks are subtle by design and could be gated to "near your network" later.
+Detail: `docs/superpowers/specs/2026-09-10-comb-meadow-ux-polish-design.md`; `docs/superpowers/plans/2026-09-10-comb-meadow-ux-polish.md`; `comb-implementation-notes` BUG-09 / ML-09 / DD-28 / DD-29.
+
+---
+
 ## 2026-09-10 — Honeycomb Hills ships (phase 41); a game may decline a Sylly Mode, with a card
 Category: Process
 Decision: Game 20 ships at **SW v225** — `js/games/comb.js` joins `PRECACHE_URLS` at the closing gate, the last line the build was deliberately held short of. COMB's identity doc is written, taking `docs/game-identities/` to **20 of 20**. And the suite's first **no-Sylly-Mode** game is promoted from a per-game decision to a named form in `ui-style.md`: the How to Play card stays in its slot and says so plainly, the settings overlay carries no card at all, and a dead toggle is never the answer.

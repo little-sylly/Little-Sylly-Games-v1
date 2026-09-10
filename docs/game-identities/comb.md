@@ -264,6 +264,18 @@ hand row and action bar must stay frozen beneath it. **Seven phases live on this
 draft, roll, overflow, wasp-move, wasp-steal, actions, gameover-pending — and one render function
 owns every element on it, setting all of them every time.
 
+**The board is framed by two floating panels over its letterbox dead-space** (they add no layout
+height, so the fit-to-view rule holds). Top-left: a **player panel**, one row per seat — colour, name,
+and what that seat took on the last Scout Flight — with the **active seat's row lit**, which is the
+game's turn-handover signal on a board that looks identical on every phone. Top-centre: the **landed
+roll**, kept up until the next cast, over an 11-tick **probability ruler** (the 2d6 bell curve, 7 red
+fading to gold at 2/12 — this replaced the invisible pog pip dots). Bottom: a **player-stats strip**,
+one mini-card per seat (visible Hive Points, cells, domes, walls, Instinct cards held) — a tap opens
+the magnifier straight to its stats. After a roll, and while you are placing a build, the board
+**dims to about 65%** so what just bloomed, or where you may legally build, stands out; legal build
+targets glow in **your own colour**. Trade Blossoms you have reached, and the rim corners that would
+reach an unreached one, carry a small **dock mark** in the blossom's colour.
+
 **Overlays**
 
 | Overlay | Opened from | What it is |
@@ -282,7 +294,7 @@ owns every element on it, setting all of them every time.
 | `comb-tip-overlay` | Any inline `[?]`, and any tap on a dimmed target | The shared contextual tip |
 | `comb-pheromone-overlay` | Playing Pheromone Dominance | Name a resource |
 | `comb-bloom-overlay` | Playing Spring Bloom | Take any two |
-| `comb-map-overlay` | 🔍 on the board's corner | The pinch-zoom magnifier — and the **one overlay in the game that must lose a z-fight**, so the Overflow and an arriving trade land on top of it |
+| `comb-map-overlay` | 🔍 on the board's corner, or a tap on the player-stats strip | A **three-zone detail view** — the player panel and an annotated probability ruler up top, the board in the middle (pinch, scroll-wheel and drag, locked to its zone so the panels never move), and a full per-player stats table below (points, cells, domes, walls, longest chain, Instinct held, Trade Blossoms reached). Still the **one overlay in the game that must lose a z-fight**, so the Overflow and an arriving trade land on top of it |
 
 **The build picker is not a sixteenth overlay.** Choosing *what* to build is an inline surface in
 the Controls zone, a sibling of the placement bar and the action bar, because what you can afford
@@ -618,7 +630,7 @@ Nothing has happened yet. Give it a turn.
 
 ```copy
 # comb-map-overlay
-Pinch to zoom, drag with two fingers. Tap a lit target to place there.
+Pinch or scroll to zoom · drag to pan · tap a lit target to place
 ```
 
 ```copy
@@ -653,13 +665,12 @@ Stay here
 
 **◇ judgement, not spec.**
 
-**There is no round intro screen, and that is deliberate — but it is the thinnest part of the
-journey.** Every other repeating-phase game in the suite gets a short auto-advancing beat at the top
-of each repetition. Honeycomb Hills has 60–80 turns in a Full Season, so a five-second card at the
-head of each one would add minutes of nothing. The Scout Flight animation was built to carry that
-weight instead, and it mostly does. What it cannot do is what an intro screen does best: **tell you
-it is now your turn.** On a table where the board looks identical on everybody's phone, the handover
-from one player to the next is signalled only by the header line and the action bar coming alive.
+**There is no round intro screen, and that is deliberate.** Every other repeating-phase game in the
+suite gets a short auto-advancing beat at the top of each repetition. Honeycomb Hills has 60–80 turns
+in a Full Season, so a five-second card at the head of each one would add minutes of nothing. The
+Scout Flight animation carries that weight instead. The one thing it could not do — **tell you it is
+now your turn** — is now the job of the player panel's lit active-seat row (SW v226); the handover is
+no longer signalled only by the header line and the action bar coming alive.
 
 **The gameover screen is short for a fifty-minute match.** Standings, the Golden Nectar reveal, two
 achievement lines and a Scout Flight count. The Golden Nectar reveal is the beat it must land and it

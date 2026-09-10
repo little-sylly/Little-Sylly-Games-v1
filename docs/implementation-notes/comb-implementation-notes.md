@@ -429,6 +429,34 @@ looks is the whole difference.
 
 ---
 
+**DD-28 — the meadow's new panels float over the board's letterbox, they do not shrink it (SW v226,
+10 Sep 2026).**
+The first real session showed the board using maybe 60% of its stage box — a wide hex cluster
+letterboxed into a tall container leaves ~120 px of dead green top and bottom. The obvious move is to
+shrink the board and add real strips; the reason not to is `screen-comb-meadow`'s `h-screen`
+whitelist entry, which exists because the board must stay fit-to-view and unscrolled. So the player
+panel, roll result, probability ruler and player-stats strip are all `position: absolute` children of
+the already-`relative` `#comb-board-stage`, painted from `combRenderMeadow()` behind `if (!el) return`
+guards like everything else it writes. They contribute **zero layout height**, the board geometry is
+untouched, and the whitelist justification still holds word for word. *Lesson: when a screen is on a
+layout whitelist for a specific reason, new chrome for it lives in a layer that does not touch the
+thing the whitelist protects.*
+
+**DD-29 — `comb-map-overlay` went from a magnifier to the game's detail view (SW v226).**
+It shipped (phase 41) as a full-screen pinch-zoom board with one hint line — and `combZoom`/`combPanX`
+/`combPanY` existed but nothing ever moved them; the "magnifier" was just a bigger render. The
+session made the case for it carrying what the inline snapshot cannot: a full per-player stats table
+(points, cells, domes, walls, longest chain, Instinct held, blossoms reached) and an annotated
+probability ruler. Rebuilt as three stacked zones — panel + ruler / board / stats — with the board
+**gesture-locked to its middle zone** (`touch-action:none` + `overscroll-behavior:contain`, real
+wheel/pinch/drag handlers finally driving the zoom/pan vars, `combClampPan()` bounding the travel) so
+a pinch never scrolls the sheet. Still `combDrawBoard` — one board renderer, no second source of
+truth — and still z-75, the deliberate z-fight loser. Opened from the player strip it lands scrolled
+to the stats. *Lesson: an overlay that is one z-index entry and one teardown line already paid for
+usually earns more entry points before it earns a sibling.*
+
+---
+
 ## Bug Index
 
 **BUG-01 — `combDealBoard` referenced a bare `Physics`, which is undefined in every harness
@@ -556,6 +584,28 @@ directly against their (separately raised, see DD-19) caps rather than trusted f
 
 ---
 
+**BUG-09 — every 7 stranded every client on the default settings (10 Sep 2026, found in the first
+real multi-device session).**
+*What happened:* after a 7 the host advanced to *"[Name] is moving the Wasp"* while every other
+device sat frozen on *"A seven. Everyone over the limit spills half."* with no discard overlay and no
+way forward. The session was dead. It reproduced on **every** 7 — the default Season (Short Summer)
+presets The Overflow to **Off**, so `combCarryLimit()` is `Infinity` and nobody is ever over the limit.
+*Root cause:* `combScoutFlight` broadcast `COMB_ROLL_RESULT { phase: 'overflow' }` unconditionally on
+a 7 — before anyone knew whether a discard was owed — so clients entered the `overflow` phase.
+`combBeginSeven()` then ran host-only, and its `!combOverflowOwed.some(v => v > 0)` branch called
+`combEnterWaspMove()`, which sets the host's phase locally and **broadcasts nothing**. The clients
+had no packet coming.
+*Fix:* the 7's `COMB_ROLL_RESULT` no longer claims a phase (it carries `seven: true`).
+`combBeginSeven()` now **always** ends by broadcasting exactly one outcome — `COMB_OVERFLOW_BEGIN`
+when a discard is owed, `COMB_OVERFLOW_DONE { spilled: false, phase: 'waspMove' }` when not. The
+applier logs *"The hive spilled over"* only when `spilled` (absent = old packet = still log).
+`combStatusLine`'s 7 is owe-aware so it never names a discard the settings disallow.
+*Lesson:* **a phase-transition function reached on only one branch of a condition needs a broadcast on
+*every* branch, including the one that does nothing.** "Nothing owed → skip ahead" felt like a local
+shortcut; it was a packet the clients needed. See ML-09 for why no harness caught it.
+
+---
+
 ## Multiplayer Lessons
 
 **ML-01 — the loopback found a send-site bug in code that was already "done".** Chunk 3 placed every
@@ -638,6 +688,15 @@ already spent, and three of them failed on the first run for that reason rather 
 The fix is a second helper, `nextTurn(seat)`, which ends the current turn first. **A "get me to state
 X" helper needs to say whether it guarantees a *fresh* X or merely an X** — and the per-turn resets
 are exactly the rules that cannot tell the difference.
+
+**ML-09 — every Overflow test drove the branch where somebody owes; the branch where nobody owes was
+never sent over the wire (10 Sep 2026, cause of BUG-09).** `verify-comb-loop.js` and the loopback's
+§13 both set up hands *over* the carry limit and asserted the discard gate, the spill, the repair.
+Neither ever rolled a 7 with every seat under the limit — the case the default settings make
+universal. A conditional skip inside a broadcasting function (`if (nobody owes) { advance; return; }`)
+is invisible to a harness that always makes the condition false. **Rule of thumb: for any phase
+function with an early-return skip, the loopback needs a case that takes the skip, and asserts every
+device still moved.** Added as loopback §12b.
 
 ---
 
