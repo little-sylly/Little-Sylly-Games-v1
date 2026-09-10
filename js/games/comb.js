@@ -217,6 +217,8 @@ let combPlacementMode = null;  // null | 'wall' | 'cell' | 'dome' | 'wasp'
 let combLegalTargets  = [];    // recomputed on entering placement mode
 let combPendingTarget = null;  // nearest-snap preview awaiting commit (§2)
 let combMapOpen       = false; // is comb-map-overlay up?
+let combMapScrollTo   = null;  // 'stats' when the map was opened from the player
+                               // strip — the render scrolls its stats zone in
 let combZoom = 1, combPanX = 0, combPanY = 0;  // MAP OVERLAY ONLY. The inline
                                // board is always fit-to-view and holds NO viewport (§2).
 let combRafHandle = null;      // the Sun Compass / board animation loop
@@ -2642,6 +2644,7 @@ function combRenderMeadow() {
   combRenderPlayerPanel();
   combRenderRollResult();
   combRenderProbRuler();
+  combRenderPlayerStrip();
 
   // ── The build picker — step 1 of two, and the action bar's sibling ──
   combShow('comb-build-picker', combBuildPickerOpen, 'flex');
@@ -2776,6 +2779,61 @@ function combRenderProbRuler() {
     tick.style.background = COMB_ROLL_RAMP[Math.abs(7 - v)];
     box.appendChild(tick);
   }
+}
+
+// ── Meadow bottom zone — the player-stats snapshot. Floats over the board
+// stage's bottom letterbox; the full table lives in the map overlay. All public:
+// visible VP, structure counts, unplayed Instinct count (combPublicInstinct —
+// count, never kind). ──
+
+function combCountStructures(p) {
+  let cells = 0, domes = 0, walls = 0;
+  for (const nd of combNodes) if (nd && nd.owner === p) { if (nd.level === 2) domes++; else if (nd.level === 1) cells++; }
+  for (const e of combEdges) if (e === p) walls++;
+  return { cells, domes, walls };
+}
+
+function combRenderPlayerStrip() {
+  const box = combClear('comb-player-strip');
+  if (!box) return;
+  for (let p = 0; p < combPlayerCount; p++) {
+    const card = document.createElement('div');
+    card.className = 'comb-player-card' + (p === combTurn ? ' comb-player-card-now' : '');
+
+    const top = document.createElement('div');
+    top.className = 'comb-player-card-top';
+    const dot = document.createElement('span');
+    dot.className = 'comb-player-dot';
+    dot.style.background = COMB_PLAYER_COLOUR[p] || '#888';
+    top.appendChild(dot);
+    const nm = document.createElement('span');
+    nm.textContent = combName(p).slice(0, 9) + combAchievementMark(p);
+    top.appendChild(nm);
+    const vp = document.createElement('span');
+    vp.className = 'comb-player-card-vp';
+    vp.textContent = combPublicPoints(p) + ' VP';
+    top.appendChild(vp);
+    card.appendChild(top);
+
+    const s = combCountStructures(p);
+    const inst = (combPublicInstinct && combPublicInstinct[p]) | 0;
+    const stats = document.createElement('div');
+    stats.className = 'comb-player-card-stats';
+    // One labelled pair per stat, dot-separated so a bare number can't read as a
+    // range. cell / dome / wall / unplayed Instinct.
+    [['⬢', s.cells], ['\u{1F451}', s.domes], ['▬', s.walls], ['\u{1F3B4}', inst]]
+      .forEach(([glyph, n], i) => {
+        const seg = document.createElement('span');
+        seg.className = 'comb-stat-seg';
+        seg.textContent = glyph + ' ' + n;
+        stats.appendChild(seg);
+      });
+    card.appendChild(stats);
+
+    box.appendChild(card);
+  }
+  box.onclick = () => { playDone(); combOpenMap('stats'); };
+  box.style.pointerEvents = 'auto';
 }
 
 function combStatusLine(mine, turnName) {
@@ -3479,10 +3537,12 @@ function combRenderGalleries() {
 // ── The magnifier (spec §2) ───────────────────────────────────────────────
 // The inline board neither pans nor zooms — it is fit-to-view and permanent.
 // ALL zooming lives here, and this canvas is the game's ONLY pinch/pan surface.
-function combOpenMap() {
+function combOpenMap(scrollTo) {
   const ov = document.getElementById('comb-map-overlay');
   if (!ov) return;
   combMapOpen = true;
+  combMapScrollTo = scrollTo || null;  // 'stats' → the map render scrolls its
+                                       // bottom zone into view, then clears this
   combZoom = 1; combPanX = 0; combPanY = 0;
   combStaticCache = null;              // a different scale needs a re-render
   ov.style.display = 'flex';
@@ -3493,6 +3553,7 @@ function combCloseMap() {
   const ov = document.getElementById('comb-map-overlay');
   if (ov) ov.style.display = 'none';
   combMapOpen = false;
+  combMapScrollTo = null;
   combStaticCache = null;              // back to the inline board's scale
   combRepaintBoards();
 }
@@ -4639,7 +4700,8 @@ function combResetState() {
   combDraftTo = -1; combBankPick = -1; combBloomPick = [];
   combOverflowPick = [0, 0, 0, 0, 0];
   combPlacementMode = null; combLegalTargets = []; combPendingTarget = null;
-  combMapOpen = false; combZoom = 1; combPanX = 0; combPanY = 0;
+  combMapOpen = false; combMapScrollTo = null; combZoom = 1; combPanX = 0; combPanY = 0;
+  combLastProduced = null;
   combStats = { scoutFlights: 0, waspLandings: 0 };
 }
 

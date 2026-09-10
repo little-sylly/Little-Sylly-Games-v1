@@ -2963,6 +2963,23 @@ body.flash-red   { background-color: #fecaca; }
 .comb-prob-tick { width: 3px; border-radius: 1px; background: #6B6157; opacity: 0.5; }
 .comb-prob-tick-now { outline: 2px solid #B87A00; outline-offset: 1px; opacity: 1; }
 
+/* Bottom zone — the player-stats snapshot. Floats over the board stage's
+   bottom letterbox; the full table lives in the map overlay. */
+.comb-player-strip { z-index: 5; }
+.comb-player-card {
+  background: rgba(255,255,255,0.62); border-radius: 0.55rem; padding: 0.28rem 0.45rem;
+  backdrop-filter: blur(2px); font: 600 0.66rem/1.15 Fredoka, system-ui, sans-serif;
+  color: #57534e;
+}
+.comb-player-card-now { background: rgba(255,255,255,0.92); box-shadow: 0 0 0 2px #B87A00 inset; }
+.comb-player-card-top { display: flex; align-items: center; gap: 0.3rem; }
+.comb-player-card-vp { margin-left: auto; font-weight: 700; }
+.comb-player-card-stats { display: flex; color: #78716c; margin-top: 0.14rem; }
+.comb-stat-seg { display: inline-flex; align-items: center; gap: 0.14rem; white-space: nowrap; }
+.comb-stat-seg + .comb-stat-seg::before {
+  content: "\00B7"; margin: 0 0.32rem; color: #a8a29e;
+}
+
 /* A disabled action-bar button. Dimmed and inert, never hidden: a control that
    vanishes reads as a bug, one that dims reads as a rule (the CLD dive-row
    precedent). */

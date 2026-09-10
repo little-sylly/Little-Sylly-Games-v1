@@ -10485,6 +10485,11 @@ Reboot
            the Scout Flight animation can never re-centre the column beneath it
            (ui-style.md § Transient animations must float). -->
       <div id="comb-float-layer" class="absolute inset-0 pointer-events-none flex items-start justify-center pt-3"></div>
+      <!-- Player-stats snapshot — floats over the bottom letterbox dead-space.
+           2x2, two players per side. All public: visible VP, structure counts,
+           unplayed Instinct count. Taps through to the map overlay's stats zone;
+           full detail lives there. Painted by combRenderPlayerStrip(). -->
+      <div id="comb-player-strip" class="comb-player-strip absolute left-2 right-2 bottom-2 grid grid-cols-2 gap-x-3 gap-y-1"></div>
     </div>
 
     <!-- CONTROLS — frozen beneath the stage. -->
