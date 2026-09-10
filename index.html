@@ -10451,7 +10451,6 @@ Reboot
     <div class="flex items-center justify-between flex-shrink-0 pt-4 pb-2">
       <div class="min-w-0">
         <p id="comb-meadow-turn" class="text-stone-500 text-sm font-semibold uppercase tracking-widest truncate"></p>
-        <p id="comb-meadow-points" class="text-stone-400 text-xs truncate"></p>
       </div>
       <div class="flex items-center gap-2 shrink-0">
         <button id="btn-comb-log" class="text-stone-400 text-base active:scale-90 transition-transform duration-100" aria-label="Season Log">📜</button>
@@ -10470,13 +10469,27 @@ Reboot
       <button id="btn-comb-map-open"
         class="absolute top-2 right-2 z-10 min-h-11 min-w-11 rounded-xl bg-white/85 text-xl flex items-center justify-center shadow-sm active:scale-90 transition-transform duration-100"
         aria-label="Enlarge the meadow">🔍</button>
-      <!-- Turn order dots. Non-interactive. NOT the Sun Compass — that is the
-           2d6 die the game casts each turn (docs/content-prompts/comb-art-prompts.md § 5d). -->
-      <div id="comb-turn-order" class="absolute top-2 left-2 pointer-events-none flex items-center gap-1"></div>
+      <!-- Player panel — floats over the top-left letterbox dead-space, adds no
+           layout height. Painted by combRenderPlayerPanel(). The active row
+           lights up: on a board identical on every phone, that is the
+           turn-handover signal (identity doc T7c). Replaced the turn-order dots.
+           NOT the Sun Compass — that is the 2d6 die the game casts each turn. -->
+      <div id="comb-player-panel" class="comb-player-panel absolute top-2 left-2 pointer-events-none flex flex-col gap-1"></div>
+      <!-- The landed Scout Flight, kept visible until the next cast. The flight
+           animation lands INTO this; it is not a second animation. -->
+      <div id="comb-roll-result" class="comb-roll-result absolute left-1/2 top-2 -translate-x-1/2 pointer-events-none"></div>
+      <!-- 11-tick 2d6 probability ruler, under the result. Pure function of the
+           roll; rarity used to live in the pog pip row (removed). -->
+      <div id="comb-prob-ruler" class="comb-prob-ruler absolute left-1/2 -translate-x-1/2 pointer-events-none flex items-end gap-px" style="top:2.6rem"></div>
       <!-- Transient layer — floats over a relative parent, contributes zero height, so
            the Scout Flight animation can never re-centre the column beneath it
            (ui-style.md § Transient animations must float). -->
       <div id="comb-float-layer" class="absolute inset-0 pointer-events-none flex items-start justify-center pt-3"></div>
+      <!-- Player-stats snapshot — floats over the bottom letterbox dead-space.
+           2x2, two players per side. All public: visible VP, structure counts,
+           unplayed Instinct count. Taps through to the map overlay's stats zone;
+           full detail lives there. Painted by combRenderPlayerStrip(). -->
+      <div id="comb-player-strip" class="comb-player-strip absolute left-2 right-2 bottom-2 grid grid-cols-2 gap-x-3 gap-y-1"></div>
     </div>
 
     <!-- CONTROLS — frozen beneath the stage. -->
@@ -11079,13 +11092,28 @@ Reboot
        Interactive — a tap routes through the same combAttemptPlace() the inline
        board uses and closes the map on success. No RAF: it draws on gesture, and on
        any SYNC that changes the board while it is open. -->
+  <!-- Opaque (bg-[#1c1917], not bg-black/80): a focused detail view — the meadow
+       screen behind must not bleed through the top/bottom zones. -->
   <div id="comb-map-overlay" style="display:none"
-    class="fixed inset-0 z-[75] bg-black/80 flex items-center justify-center">
-    <canvas id="comb-map-canvas" class="absolute inset-0 w-full h-full"></canvas>
+    class="fixed inset-0 z-[75] bg-[#1c1917] flex flex-col">
+    <!-- TOP — the same player panel content (full names) + big roll result +
+         the FULL annotated probability ruler. Painted by combRenderMapPanel().
+         pr-14 so its right column clears the ✕. -->
+    <div id="comb-map-top" class="comb-map-zone flex-shrink-0 px-3 pr-14 pt-3 pb-2 flex items-start justify-between gap-3"></div>
+    <!-- MIDDLE — the board, gesture-locked to this zone: pinch + wheel zoom,
+         drag pan. touch-action:none + overscroll-behavior:contain keep the
+         gesture off the sheet; the canvas is clipped here. -->
+    <div id="comb-map-mid" class="comb-map-zone relative flex-1 min-h-0 overflow-hidden"
+         style="touch-action:none; overscroll-behavior:contain;">
+      <canvas id="comb-map-canvas" class="absolute inset-0 w-full h-full"></canvas>
+      <p id="comb-map-hint" class="absolute bottom-2 left-1/2 -translate-x-1/2 max-w-[19rem] text-center text-white/80 text-[0.7rem] px-2 py-1 rounded-lg bg-black/55 pointer-events-none">Pinch or scroll to zoom · drag to pan · tap a lit target to place</p>
+    </div>
+    <!-- BOTTOM — the full per-player stats table + the status line. Scrolls
+         internally. Painted by combRenderMapStats(). -->
+    <div id="comb-map-bottom" class="comb-map-zone flex-shrink-0 px-3 pt-2 pb-3 overflow-y-auto" style="max-height:38vh"></div>
     <button id="btn-comb-map-close"
-      class="absolute top-4 right-4 z-10 min-h-11 min-w-11 rounded-xl bg-white/85 text-stone-700 font-bold text-xl flex items-center justify-center active:scale-90 transition-transform duration-100"
+      class="absolute top-3 right-3 z-10 min-h-11 min-w-11 rounded-xl bg-white/85 text-stone-700 font-bold text-xl flex items-center justify-center active:scale-90 transition-transform duration-100"
       aria-label="Close the map">✕</button>
-    <p id="comb-map-hint" class="absolute bottom-6 left-1/2 -translate-x-1/2 max-w-[19rem] text-center text-white text-xs px-3 py-2 rounded-xl bg-black/65 pointer-events-none">Pinch to zoom, drag with two fingers. Tap a lit target to place there.</p>
   </div>
 </body>
 </html>

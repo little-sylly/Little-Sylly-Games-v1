@@ -677,6 +677,46 @@ once `back` + the hero crops are final.
 
 ---
 
+## 8b. Running the convert tool yourself
+
+`tools/convert-comb-art.ps1` turns delivered source art into the nine precached core
+art packs. You do **not** need Claude Code for this — it is PowerShell + .NET
+`System.Drawing`, nothing to install.
+
+1. **Drop the sources in `data/art/pending/comb/`**, one PNG per asset, named as the
+   convert script's `Map` keys (not the seam ids):
+   - hexes: `grove.png` `blossom.png` `sunflower.png` `rock.png` `nursery.png` `smoke.png`
+   - resources: `resin.png` `wax.png` `pollen.png` `nectar.png` `royal jelly.png`
+   - Instinct faces: `guard.png` `golden.png` `rush.png` `bloom.png` `pheromone.png` `back.png`
+   - pieces (board): `wall 1..4.png` `cell 1..4.png` `dome 1..4.png`
+   - hero pieces (gallery): `wall 1 gallery.png` … `dome 4 gallery.png`
+   - blossoms: `generic trade.png` `resin trade.png` `wax trade.png` `pollen trade.png` `nectar trade.png` `jelly trade.png`
+   - `wasp.png` · pogs `blank.png` `hot.png` · die `die unnumbered.png` (ships as id `die`) + `die.png` (ships as id `die-numbered`, the How-to comparison)
+2. **Run it** from the repo root: `& "tools\convert-comb-art.ps1"` (or
+   `powershell -ExecutionPolicy Bypass -File tools\convert-comb-art.ps1`). It writes
+   `data/art/comb/<sub>/img/<id>.<ext>` and prints each output's pixel size, format
+   and byte size, then a per-group and grand total.
+3. **Check each printed size against its ceiling.** Groups walk their own width/quality
+   down to fit, so a normal run is already under — but if the console shows a file
+   still over after 16 attempts, the master is too detailed for that box. Ceilings:
+   `hex` 350 KB · `res` 150 KB · `instinct` 40 KB (JPEG) · `piece` 6 KB · `piece-hero`
+   130 KB · `blossom` 8 KB · `wasp` 10 KB · `pog` 4 KB · `die` 150 KB.
+4. **Look at the result in the app** — any game → **How to Play → The Comb** tab (hexes,
+   resources, Sun Compass, structures) and **The Instinct Deck** tab (the five faces +
+   the back). Those galleries render through the live art seams, so a re-convert shows
+   there immediately, and a tile that lost its art visibly stops offering to enlarge —
+   that doubles as the offline-install check.
+5. **SW version:** a like-for-like re-convert where every file is still under its
+   ceiling needs **no `CACHE_NAME` bump** — the `PRECACHE_URLS` list and the manifests
+   are unchanged. Bump `CACHE_NAME` in `sw.js` only if a file crossed its ceiling and
+   you changed the ceiling (the byte count served then changed), or you added/removed
+   an asset id.
+
+Full promotion procedure (registry, `PRECACHE_URLS`, manifests): `docs/expansion-guide.md`
+§ Core art packs, steps 2–4.
+
+---
+
 ## 9. Related
 
 - `docs/art-authoring-guide.md` § Honeycomb Hills — ids, exact dimensions, precache ceilings

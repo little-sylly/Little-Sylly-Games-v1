@@ -217,9 +217,23 @@ let combPlacementMode = null;  // null | 'wall' | 'cell' | 'dome' | 'wasp'
 let combLegalTargets  = [];    // recomputed on entering placement mode
 let combPendingTarget = null;  // nearest-snap preview awaiting commit (§2)
 let combMapOpen       = false; // is comb-map-overlay up?
+let combMapScrollTo   = null;  // 'stats' when the map was opened from the player
+                               // strip — the render scrolls its stats zone in
 let combZoom = 1, combPanX = 0, combPanY = 0;  // MAP OVERLAY ONLY. The inline
                                // board is always fit-to-view and holds NO viewport (§2).
 let combRafHandle = null;      // the Sun Compass / board animation loop
+let combPulseRaf = null;       // RAF — the Trade Blossom bloom pulse. The ONLY
+                               // animation on the main screen. RAF, not
+                               // setInterval, so it is inert under the headless
+                               // mock RAF (returns 0, never re-fires) and a
+                               // loopback's teardown timer-count stays clean.
+                               // Throttled to ~18 fps inside the tick. Stopped in
+                               // combResetState(), the quit handler, at gameover;
+                               // self-stops when the meadow is not visible.
+let combPulseLast = 0;
+let combLastProduced = null;   // N×5 grid from the last Scout Flight — public
+                               // (COMB_ROLL_RESULT.produced), drives the player
+                               // panel's per-round take column. Cleared at cast.
 let combHowtoTab  = 'rules';
 let combBuildPickerOpen = false;  // step 1 of the two-step build (spec §7)
 let combChainLen  = [];        // DERIVED cache — recomputed, never trusted
@@ -1300,6 +1314,9 @@ function combReducedMotion() {
 
 function combStartFlight() {
   combStopFlightAnim();
+  // A new cast — clear last round's takes so the player panel shows "—" during
+  // the spin, then the fresh yield on land. Runs even on a headless device.
+  combLastProduced = null;
   const layer = document.getElementById('comb-float-layer');
   // No layer or no RAF means a headless harness, or a screen that is not up: the
   // beat is skipped and the roll still resolves. The animation is never
@@ -1439,8 +1456,13 @@ function combScoutFlight(playerIdx) {
 
   if (roll === 7) {
     combPlay('waspRolled');
+    // No phase in this packet — combBeginSeven() decides and broadcasts the one
+    // real outcome (COMB_OVERFLOW_BEGIN if a discard is owed, COMB_OVERFLOW_DONE
+    // otherwise). Claiming 'overflow' here stranded every client on a 7 where
+    // nobody owed, which on the default Short Summer is every 7.
+    combLastProduced = combZeroGrid();
     combBroadcast('COMB_ROLL_RESULT', {
-      roll, phase: 'overflow', handCounts: combHandCounts(),
+      roll, seven: true, handCounts: combHandCounts(),
       produced: combZeroGrid(), waspBlockedHex: combWaspHex,
     });
     combBeginSeven();
@@ -1448,6 +1470,7 @@ function combScoutFlight(playerIdx) {
   }
 
   const produced = combProduce(roll);
+  combLastProduced = produced.map(r => r.slice());
   combLogAppend(combProductionLine(produced));
   // Silence when nothing of yours bloomed is deliberate — absence is the
   // information, and a sound on every roll on every device is 60–80 of them.
@@ -1481,7 +1504,17 @@ function combBeginSeven() {
       if (held > limit) combOverflowOwed[p] = Math.floor(held / 2);
     }
   }
-  if (!combOverflowOwed.some(v => v > 0)) { combEnterWaspMove(); return; }
+  if (!combOverflowOwed.some(v => v > 0)) {
+    // No discard is owed (Overflow off, or every seat under the limit). Clients
+    // are sitting on a transient "seven" beat off COMB_ROLL_RESULT; this is the
+    // packet that moves them on. Without it they strand in 'overflow' forever
+    // while the host plays on from 'waspMove'.
+    combBroadcast('COMB_OVERFLOW_DONE', {
+      spilled: false, phase: 'waspMove', handCounts: combHandCounts(),
+    });
+    combEnterWaspMove();
+    return;
+  }
   combPhase = 'overflow';
   // ⚠️ ready[] travels at its all-false RESET value, explicitly. It is exactly
   // the field Firebase erases, and a client that keeps the previous seven's
@@ -1533,7 +1566,7 @@ function combOverflowResolve() {
   combPlay('overflowDone');
   combLogAppend('The hive spilled over.');
   combBroadcast('COMB_OVERFLOW_DONE', {
-    handCounts: combHandCounts(), phase: 'waspMove',
+    handCounts: combHandCounts(), phase: 'waspMove', spilled: true,
   });
   combEnterWaspMove();
 }
@@ -2229,6 +2262,7 @@ function combGoldenCounts() {
 function combFinishMatch() {
   combStopDaylight();
   combStopFlight();
+  combStopPulse();
   combClearOffer();
   combPhase = 'gameover-pending';
   combPlacementMode = null; combLegalTargets = []; combPendingTarget = null;
@@ -2466,7 +2500,43 @@ const COMB_HEX_EMOJI = {
 // combRenderMeadow, and combShowGameover renders a payload built elsewhere.
 function combShowMenu()          { showScreen('screen-comb-menu'); }
 function combShowClientStandby() { showScreen('screen-comb-standby'); }
-function combShowMeadow()        { showScreen('screen-comb-meadow'); }
+function combShowMeadow()        { showScreen('screen-comb-meadow'); combStartPulse(); }
+
+// The Trade Blossom bloom pulse. A slow opacity breathe on the dock spots —
+// soft indication without the rings/lines clogging the board. The only animation
+// on the meadow screen: cheap (a cached-static blit + ~40 canvas ops, throttled
+// to ~11 fps) and self-limiting — it stops the moment the meadow is not the
+// visible screen, and reduced-motion skips it entirely (combPulsePhase then
+// returns a steady 1).
+function combStartPulse() {
+  if (combPulseRaf || combReducedMotion() || typeof requestAnimationFrame !== 'function') return;
+  const tick = ts => {
+    const s = document.getElementById('screen-comb-meadow');
+    if (!s || s.style.display === 'none' || combPhase === 'gameover-pending') { combStopPulse(); return; }
+    if (!combPulseLast || ts - combPulseLast > 55) { combPulseLast = ts; combRepaintBoards(); }
+    combPulseRaf = requestAnimationFrame(tick);
+  };
+  combPulseRaf = requestAnimationFrame(tick);
+}
+function combStopPulse() {
+  if (combPulseRaf) { cancelAnimationFrame(combPulseRaf); }
+  combPulseRaf = null; combPulseLast = 0;
+}
+// A beacon, not a breathe: 1 under reduced motion (steady), else 0..1 squared so
+// it sits dark most of the ~3 s cycle and blazes briefly — reads as a blink.
+function combPulsePhase() {
+  if (combReducedMotion()) return 1;
+  const t = 0.5 + 0.5 * Math.sin(combNow() / 480);
+  return t * t;
+}
+
+// Blend a #rrggbb toward white by amt (0..1) — for the beacon's bright halo.
+function combLighten(hex, amt) {
+  const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex || '');
+  if (!m) return hex || '#ffffff';
+  const mix = c => Math.round(parseInt(c, 16) + (255 - parseInt(c, 16)) * amt);
+  return 'rgb(' + mix(m[1]) + ',' + mix(m[2]) + ',' + mix(m[3]) + ')';
+}
 // The Hive is Thriving — podium + Golden Nectar reveal + stats (spec §3/§6).
 // combGameover is fully populated (standings, goldenNectar, stats, both
 // achievement holders) by combFinishMatch() on the host and by the
@@ -2556,7 +2626,9 @@ function combRenderMeadow() {
   combSet('comb-meadow-turn', combPhase === 'draft'
     ? `Opening · ${turnName}`
     : `Turn ${combTurnNo} · ${turnName}`);
-  combSet('comb-meadow-points', combPointStrip());
+  // Points + achievement marks moved off the cramped header line onto the board:
+  // the player panel (top) and the player strip (bottom), with the full table
+  // in the map overlay.
 
   // ── Status line: one sentence per phase, always written ──
   combSet('comb-meadow-status', combStatusLine(mine, turnName));
@@ -2612,18 +2684,13 @@ function combRenderMeadow() {
   combSet('btn-comb-waggle', combOffer && combOffer.from === me ? 'The Dance' : 'Waggle Dance');
   combEnable('btn-comb-end-turn', acting && !combOffer);
 
-  // ── Turn order dots, current player marked. NOT the Sun Compass — that is
-  //    the 2d6 die the game casts each turn, a separate render seam. ──
-  const turnOrder = combClear('comb-turn-order');
-  if (turnOrder) {
-    for (let p = 0; p < combPlayerCount; p++) {
-      const dot = document.createElement('span');
-      dot.className = 'comb-turn-order-dot' + (p === combTurn ? ' comb-turn-order-now' : '');
-      dot.style.background = COMB_PLAYER_COLOUR[p] || '#888';
-      dot.title = combName(p);
-      turnOrder.appendChild(dot);
-    }
-  }
+  // ── Top zone — player panel (was the turn-order dots), persistent roll
+  //    result, probability ruler. All float over the board stage's top
+  //    letterbox; NOT the Sun Compass (the 2d6 die, its own seam). ──
+  combRenderPlayerPanel();
+  combRenderRollResult();
+  combRenderProbRuler();
+  combRenderPlayerStrip();
 
   // ── The build picker — step 1 of two, and the action bar's sibling ──
   combShow('comb-build-picker', combBuildPickerOpen, 'flex');
@@ -2682,12 +2749,274 @@ function combAchievementMark(p) {
   if (hasFiercest) return ' 🛡️';
   return '';
 }
-function combPointStrip() {
-  const out = [];
+// ── Meadow top zone — player panel, persistent roll result, probability ruler.
+// All three are pure: they RETURN nothing and write only their own element, from
+// combRenderMeadow(). Public state only. (combPointStrip() lived here until the
+// header point-line was removed 10 Sep 2026 — its job is now split between the
+// player panel, the player strip and the map overlay's stats table.)
+
+// Floats over the top-left letterbox. Turn-order colour dot (yours ringed) +
+// this round's take (combLastProduced, from the public COMB_ROLL_RESULT.produced
+// grid). No names — they were ragged, and the bottom stats strip carries them
+// against the same colour. The active row lights up: on a board identical on
+// every phone, this is the turn-handover signal (identity doc T7c).
+function combRenderPlayerPanel() {
+  const box = combClear('comb-player-panel');
+  if (!box) return;
+  const me = combLocalIdx();
   for (let p = 0; p < combPlayerCount; p++) {
-    out.push(`${combName(p)} ${combPublicPoints(p)}${combAchievementMark(p)}`);
+    const row = document.createElement('div');
+    row.className = 'comb-player-row' + (p === combTurn ? ' comb-player-row-now' : '');
+
+    const dot = document.createElement('span');
+    dot.className = 'comb-player-dot' + (p === me ? ' comb-player-dot-me' : '');
+    dot.style.background = COMB_PLAYER_COLOUR[p] || '#888';
+    row.appendChild(dot);
+
+    const take = document.createElement('span');
+    take.className = 'comb-player-take';
+    const got = (combLastProduced && combLastProduced[p]) || [0, 0, 0, 0, 0];
+    if (!got.some(v => v)) {
+      take.textContent = '—';                      // em dash: nothing bloomed
+    } else {
+      COMB_RES.forEach((kind, i) => {
+        if (!got[i]) return;
+        const n = document.createElement('span');
+        n.textContent = got[i] + '×';
+        take.appendChild(n);
+        take.appendChild(combRenderResource(kind, { small: true }));
+      });
+    }
+    row.appendChild(take);
+    box.appendChild(row);
   }
-  return out.join(' · ');
+}
+
+// The landed Scout Flight, kept on screen until the next cast clears
+// combLastProduced (combStartFlight). The flight animation lands INTO this.
+function combRenderRollResult() {
+  const el = document.getElementById('comb-roll-result');
+  if (!el) return;
+  if (!combRoll || combPhase === 'roll' || combPhase === 'draft') { el.style.display = 'none'; return; }
+  el.style.display = 'block';
+  el.textContent = String(combRoll);
+  el.classList.toggle('comb-roll-result-seven', combRoll === 7);
+}
+
+// 2d6 outcomes out of 36 — tick heights and the red→gold rarity ramp.
+const COMB_ROLL_FREQ = { 2: 1, 3: 2, 4: 3, 5: 4, 6: 5, 7: 6, 8: 5, 9: 4, 10: 3, 11: 2, 12: 1 };
+// distance-from-7 (0..5) → tick colour, precomputed so no color-mix() dependency.
+const COMB_ROLL_RAMP = ['#B3261E', '#A83A2E', '#9D4F3F', '#8A5A4E', '#77605A', '#6B6157'];
+
+// 11 ticks, 2..12. Pure function of combRoll. Rarity used to live in the pog pip
+// row (removed — invisible at board scale); it lives here now, legibly.
+function combRenderProbRuler() {
+  const box = combClear('comb-prob-ruler');
+  if (!box) return;
+  if (!combRoll || combPhase === 'roll' || combPhase === 'draft') { box.style.display = 'none'; return; }
+  box.style.display = 'flex';
+  for (let v = 2; v <= 12; v++) {
+    const f = COMB_ROLL_FREQ[v];                        // 1..6
+    const tick = document.createElement('span');
+    tick.className = 'comb-prob-tick' + (v === combRoll ? ' comb-prob-tick-now' : '');
+    tick.style.height = (0.3 + f * 0.18) + 'rem';       // 0.48rem .. 1.38rem
+    tick.style.background = COMB_ROLL_RAMP[Math.abs(7 - v)];
+    box.appendChild(tick);
+  }
+}
+
+// The map overlay's annotated version — a labelled column per value (tick +
+// number + xN/36). Returns a .comb-map-prob element or null when there is no
+// roll to annotate.
+function combBuildAnnotatedRuler() {
+  if (!combRoll || combPhase === 'roll' || combPhase === 'draft') return null;
+  const wrap = document.createElement('div');
+  wrap.className = 'comb-map-prob';
+  for (let v = 2; v <= 12; v++) {
+    const f = COMB_ROLL_FREQ[v];
+    const col = document.createElement('div');
+    col.className = 'comb-map-prob-col';
+    const tick = document.createElement('span');
+    tick.className = 'comb-prob-tick' + (v === combRoll ? ' comb-prob-tick-now' : '');
+    tick.style.height = (0.4 + f * 0.3) + 'rem';
+    tick.style.background = COMB_ROLL_RAMP[Math.abs(7 - v)];
+    col.appendChild(tick);
+    const lbl = document.createElement('span'); lbl.textContent = v; col.appendChild(lbl);
+    const pct = document.createElement('span'); pct.textContent = '×' + f;
+    pct.style.opacity = '0.55'; col.appendChild(pct);
+    wrap.appendChild(col);
+  }
+  return wrap;
+}
+
+// ── The map overlay's top and bottom zones (S6). The middle zone is the board,
+// drawn by combDrawBoard through combRepaintBoards() — these two are the detail
+// the inline snapshot can't hold. Both are pure and DOM-built (no innerHTML, so
+// a nickname with markup chars is inert). ──
+
+function combRenderMapPanel() {
+  const top = combClear('comb-map-top');
+  if (!top) return;
+
+  // left: the player panel, full names
+  const panel = document.createElement('div');
+  panel.className = 'flex flex-col gap-1';
+  for (let p = 0; p < combPlayerCount; p++) {
+    const row = document.createElement('div');
+    row.className = 'comb-player-row' + (p === combTurn ? ' comb-player-row-now' : '');
+    const dot = document.createElement('span');
+    dot.className = 'comb-player-dot';
+    dot.style.background = COMB_PLAYER_COLOUR[p] || '#888';
+    row.appendChild(dot);
+    const nm = document.createElement('span');
+    nm.textContent = combName(p);
+    row.appendChild(nm);
+    panel.appendChild(row);
+  }
+  top.appendChild(panel);
+
+  // right: big roll result + the annotated ruler
+  const right = document.createElement('div');
+  right.className = 'flex flex-col items-center gap-1';
+  if (combRoll && combPhase !== 'roll' && combPhase !== 'draft') {
+    const big = document.createElement('div');
+    big.className = 'comb-roll-result' + (combRoll === 7 ? ' comb-roll-result-seven' : '');
+    big.style.fontSize = '2.2rem';
+    big.textContent = String(combRoll);
+    right.appendChild(big);
+    const ruler = combBuildAnnotatedRuler();
+    if (ruler) right.appendChild(ruler);
+  }
+  top.appendChild(right);
+}
+
+function combRenderMapStats() {
+  const box = combClear('comb-map-bottom');
+  if (!box) return;
+  const table = document.createElement('table');
+  table.className = 'comb-map-stats-table';
+
+  const head = document.createElement('tr');
+  // text where there is no single asset (VP, Chain), the real icon otherwise.
+  [{ t: '' }, { t: 'VP' }, { ic: 'cell' }, { ic: 'dome' }, { ic: 'wall' },
+   { t: 'Chain' }, { ic: 'instinct' }, { ic: 'blossom' }].forEach(col => {
+    const th = document.createElement('th');
+    if (col.ic) th.appendChild(combStatIcon(col.ic));
+    else th.textContent = col.t;
+    head.appendChild(th);
+  });
+  table.appendChild(head);
+
+  for (let p = 0; p < combPlayerCount; p++) {
+    const tr = document.createElement('tr');
+    if (p === combTurn) tr.className = 'comb-map-stats-now';
+    const s = combCountStructures(p);
+    const chain = combLongestChain(p);
+    const inst = (combPublicInstinct && combPublicInstinct[p]) | 0;
+    let blossoms = 0;
+    for (const port of COMB_TOPOLOGY.ports) {
+      if (port.nodes.some(n => combNodes[n] && combNodes[n].owner === p && combNodes[n].level > 0)) blossoms++;
+    }
+    const cells = [
+      combName(p) + combAchievementMark(p),
+      combPublicPoints(p), s.cells, s.domes, s.walls, chain, inst, blossoms,
+    ];
+    cells.forEach((val, i) => {
+      const td = document.createElement('td');
+      td.textContent = String(val);
+      tr.appendChild(td);
+    });
+    table.appendChild(tr);
+  }
+  box.appendChild(table);
+
+  const status = document.createElement('p');
+  status.className = 'text-white/70 text-xs mt-2';
+  status.textContent = combStatusLine(combIsMyTurn(), combName(combTurn));
+  box.appendChild(status);
+
+  if (combMapScrollTo === 'stats') {
+    box.scrollIntoView && box.scrollIntoView({ block: 'end' });
+    combMapScrollTo = null;
+  }
+}
+
+// ── Meadow bottom zone — the player-stats snapshot. Floats over the board
+// stage's bottom letterbox; the full table lives in the map overlay. All public:
+// visible VP, structure counts, unplayed Instinct count (combPublicInstinct —
+// count, never kind). ──
+
+function combCountStructures(p) {
+  let cells = 0, domes = 0, walls = 0;
+  for (const nd of combNodes) if (nd && nd.owner === p) { if (nd.level === 2) domes++; else if (nd.level === 1) cells++; }
+  for (const e of combEdges) if (e === p) walls++;
+  return { cells, domes, walls };
+}
+
+// A ~14 px icon of a real game asset for the stats surfaces (bottom strip +
+// map table), so a count reads at a glance as the thing it counts. cell/dome/
+// wall use the board piece art (owner 0's — the type, not a player's); instinct
+// the deck back; blossom the generic Trade Blossom.
+function combStatIcon(kind) {
+  const wrap = document.createElement('span');
+  wrap.className = 'comb-stat-ic';
+  if (kind === 'instinct') {
+    wrap.appendChild(combRenderInstinct(null, { faceDown: true }));
+  } else if (kind === 'blossom') {
+    const b = document.createElement('span');
+    const url = (typeof assetExtra === 'function') && assetExtra('comb-blossom', 'generic');
+    if (url) { b.className = 'comb-stat-ic-img'; b.style.backgroundImage = 'url("' + url + '")'; }
+    else b.textContent = '❋';
+    wrap.appendChild(b);
+  } else {
+    wrap.appendChild(combRenderPiece(kind, 0, {}));
+  }
+  return wrap;
+}
+
+function combRenderPlayerStrip() {
+  const box = combClear('comb-player-strip');
+  if (!box) return;
+  for (let p = 0; p < combPlayerCount; p++) {
+    const card = document.createElement('div');
+    card.className = 'comb-player-card' + (p === combTurn ? ' comb-player-card-now' : '');
+
+    const top = document.createElement('div');
+    top.className = 'comb-player-card-top';
+    const dot = document.createElement('span');
+    dot.className = 'comb-player-dot';
+    dot.style.background = COMB_PLAYER_COLOUR[p] || '#888';
+    top.appendChild(dot);
+    const nm = document.createElement('span');
+    nm.textContent = combName(p).slice(0, 9) + combAchievementMark(p);
+    top.appendChild(nm);
+    const vp = document.createElement('span');
+    vp.className = 'comb-player-card-vp';
+    vp.textContent = combPublicPoints(p) + ' VP';
+    top.appendChild(vp);
+    card.appendChild(top);
+
+    const s = combCountStructures(p);
+    const inst = (combPublicInstinct && combPublicInstinct[p]) | 0;
+    const stats = document.createElement('div');
+    stats.className = 'comb-player-card-stats';
+    // A real-asset icon + count per stat: cell / dome / wall / unplayed Instinct.
+    [['cell', s.cells], ['dome', s.domes], ['wall', s.walls], ['instinct', inst]]
+      .forEach(([kind, n]) => {
+        const seg = document.createElement('span');
+        seg.className = 'comb-stat-seg';
+        seg.appendChild(combStatIcon(kind));
+        const num = document.createElement('span');
+        num.textContent = n;
+        seg.appendChild(num);
+        stats.appendChild(seg);
+      });
+    card.appendChild(stats);
+
+    box.appendChild(card);
+  }
+  box.onclick = () => { playDone(); combOpenMap('stats'); };
+  box.style.pointerEvents = 'auto';
 }
 
 function combStatusLine(mine, turnName) {
@@ -2696,9 +3025,19 @@ function combStatusLine(mine, turnName) {
       return mine ? 'Place a Drone Cell, then a Comb Wall beside it.'
                   : `${turnName} is choosing an opening spot.`;
     case 'roll':
+      // The 7's outcome packet is a beat behind COMB_ROLL_RESULT; name it rather
+      // than flash "waiting to cast" between the two.
+      if (combRoll === 7) return 'A seven!';
       return mine ? 'Send the scouts out.' : `Waiting on ${turnName} to cast.`;
-    case 'overflow':
-      return 'A seven. Everyone over the limit spills half.';
+    case 'overflow': {
+      // Owe-aware: never name a discard the settings do not allow. On Overflow
+      // off there is no 'overflow' phase at all — the 7 goes straight to the Wasp.
+      const me = combLocalIdx();
+      if ((combOverflowOwed[me] | 0) > 0 && !combOverflowReady[me]) {
+        return 'A seven. Half of what you are carrying goes back to the meadow.';
+      }
+      return 'A seven. Waiting on the others to spill.';
+    }
     case 'waspMove':
       return mine ? 'Park the Wasp somewhere painful.' : `${turnName} is moving the Wasp.`;
     case 'waspSteal':
@@ -2785,6 +3124,22 @@ function combTransform(cssW, cssH, viewport) {
   const offX = (cssW - b.w * R) / 2 - b.minX * R + (vp.panX || 0);
   const offY = (cssH - b.h * R) / 2 - b.minY * R + (vp.panY || 0);
   return { R, offX, offY, toX: x => x * R + offX, toY: y => y * R + offY };
+}
+
+// Keep the panned board from being lost off the map canvas: allow it to travel
+// until ~60% of its scaled size is past the edge, then stop. Called after every
+// pan/zoom gesture (map overlay only).
+function combClampPan(canvasEl) {
+  if (!canvasEl || !canvasEl.getBoundingClientRect) return;
+  const rect = canvasEl.getBoundingClientRect();
+  const cssW = Math.max(1, rect.width), cssH = Math.max(1, rect.height);
+  const b = combBoardBounds();
+  const base = Math.min((cssW - 12) / b.w, (cssH - 12) / b.h);
+  const R = base * (combZoom || 1);
+  const maxX = Math.max(0, (b.w * R) * 0.6);
+  const maxY = Math.max(0, (b.h * R) * 0.6);
+  combPanX = Math.max(-maxX, Math.min(maxX, combPanX));
+  combPanY = Math.max(-maxY, Math.min(maxY, combPanY));
 }
 
 function combHexCentre(h) {
@@ -2892,24 +3247,28 @@ function combBuildStatic(cssW, cssH, tr) {
       ctx.fillStyle = '#F7F1E3'; ctx.fill();
       ctx.strokeStyle = COMB_PIECE_INK; ctx.lineWidth = 1.5; ctx.stroke();
     }
-    // Cream on the hot disc, not the same deep red as the disc itself — low
-    // contrast once real art sits behind it (spec §8 batch fix, 9 Sep 2026).
-    ctx.fillStyle = hot ? '#FDF6E3' : '#3A322A';
+    // Dark ink on both disc kinds. The hot disc's own red rim carries the "fat
+    // marker" signal; cream-on-red was unreadable once real art sat behind it.
+    // Rarity is the probability ruler's job now (the pip row was invisible at
+    // board scale) — removed.
+    ctx.fillStyle = hot ? '#2A1A16' : '#3A322A';
     ctx.font = `700 ${Math.round(s * 0.46)}px Fredoka, system-ui, sans-serif`;
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText(String(hex.marker), x, y);
-    // The pip row — how likely this hex is, at a glance.
-    const pips = 6 - Math.abs(7 - hex.marker);
-    ctx.fillStyle = hot ? '#B3261E' : '#6B6157';
-    for (let i = 0; i < pips; i++) {
-      ctx.beginPath();
-      ctx.arc(x - (pips - 1) * 1.6 + i * 3.2, y + s * 0.30, 1.1, 0, Math.PI * 2);
-      ctx.fill();
-    }
   }
 
   combStaticCache = { canvas: off, key, cssW, cssH };
   return off;
+}
+
+// 0 = no dim. Otherwise the alpha of a meadow-ground wash over the static board:
+//  - during a build placement, so the legal-target glow reads
+//  - after a roll, over every hex that did NOT bloom (0.35 → board at ~65%)
+// The Wasp move is deliberately NOT dimmed — the whole board is a legal target.
+function combFocusDimAlpha() {
+  if (combPlacementMode && combPlacementMode !== 'wasp') return 0.35;
+  if (combPhase === 'actions' && combRoll && combRoll !== 7) return 0.35;
+  return 0;
 }
 
 // PURE in the sense that matters: it takes its target canvas and viewport as
@@ -2937,6 +3296,28 @@ function combDrawBoard(canvasEl, viewport) {
   const stat = combBuildStatic(cssW, cssH, tr);
   if (stat) ctx.drawImage(stat, 0, 0, cssW, cssH);
 
+  // Focus dim — a wash over the STATIC layers only (ground, hexes, blossoms,
+  // pogs). Pieces, the Wasp and the target glow are all drawn below this line
+  // and keep full contrast. Post-roll: everything except the hexes that bloomed.
+  // Placement: the whole ground, so combDrawTargets' glow pops.
+  const dim = combFocusDimAlpha();
+  if (dim > 0) {
+    ctx.save();
+    ctx.globalAlpha = dim;
+    ctx.fillStyle = '#EAF3DC';                       // meadow ground (layer 1)
+    if (combPhase === 'actions' && combRoll && !combPlacementMode) {
+      for (let h = 0; h < combHexes.length; h++) {
+        if (!combHexes[h]) continue;
+        if (combHexes[h].marker === combRoll && h !== combWaspHex) continue;
+        combPoly(ctx, combHexCornerPts(h, tr));
+        ctx.fill();
+      }
+    } else {
+      ctx.fillRect(0, 0, cssW, cssH);
+    }
+    ctx.restore();
+  }
+
   // 5. the Wasp
   if (combWaspHex >= 0 && combWaspHex < combHexes.length) {
     const c = combHexCentre(combWaspHex);
@@ -2963,8 +3344,54 @@ function combDrawBoard(canvasEl, viewport) {
   nodeOrder.sort((a, b) => COMB_TOPOLOGY.nodes[a].y - COMB_TOPOLOGY.nodes[b].y);
   for (const n of nodeOrder) combDrawStructure(ctx, n, tr);
 
-  // 8. legal-target glow + the combPendingTarget preview
+  // 8. Trade Blossom reach affordance (suppressed during placement — that is
+  //    combDrawTargets' board, and two glow systems at once is noise).
+  if (!combPlacementMode) combDrawBlossomHints(ctx, tr);
+
+  // 9. legal-target glow + the combPendingTarget preview
   if (combPlacementMode) combDrawTargets(ctx, tr);
+}
+
+// For the local player, a soft breathing bloom on each Trade Blossom spot — no
+// ring, no connector line, just a faint radial glow that pulses (combPulsePhase,
+// driven by combStartPulse). An UNREACHED port glows its empty node(s), "build
+// here to trade"; a REACHED port glows YOUR cell/dome, "the rate is live here"
+// (a touch brighter). Colour is the blossom's own resource colour. Suppressed
+// during placement (combDrawTargets owns the board then).
+function combDrawBlossomHints(ctx, tr) {
+  const me = combLocalIdx();
+  if (me < 0) return;
+  const pulse = combPulsePhase();
+  for (const port of COMB_TOPOLOGY.ports) {
+    const colour = port.kind === 'any' ? '#F5E6C8' : (COMB_RES_COLOUR[port.kind] || '#F5E6C8');
+    const mine = port.nodes.find(n => combNodes[n] && combNodes[n].owner === me && combNodes[n].level > 0);
+    if (mine !== undefined) {
+      combBlossomBloom(ctx, tr, mine, colour, 0.18 + 0.82 * pulse, 0.34);
+    } else {
+      for (const n of port.nodes) {
+        if (combNodes[n] && combNodes[n].level > 0) continue;   // taken by anyone
+        combBlossomBloom(ctx, tr, n, colour, 0.12 + 0.78 * pulse, 0.28);
+      }
+    }
+  }
+}
+
+// A small, bright beacon: white-hot core, a saturated coloured halo (the colour
+// still says which resource), fading to nothing. Small radius + a hard pulse
+// (combPulsePhase) is what makes it read as a blinking marker, not a smudge.
+function combBlossomBloom(ctx, tr, node, colour, alpha, rFactor) {
+  const p = COMB_TOPOLOGY.nodes[node];
+  if (!p) return;
+  const x = tr.toX(p.x), y = tr.toY(p.y), r = Math.max(7, tr.R * rFactor);
+  const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+  g.addColorStop(0, '#ffffff');
+  g.addColorStop(0.35, combLighten(colour, 0.15));
+  g.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.save();
+  ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
 }
 
 function combEdgeMidY(e) {
@@ -3001,7 +3428,11 @@ function combDrawStructure(ctx, n, tr) {
   const p = COMB_TOPOLOGY.nodes[n];
   const x = tr.toX(p.x), y = tr.toY(p.y);
   const kind = nd.level === 2 ? 'dome' : 'cell';
-  const s = Math.max(14, tr.R * 0.72);          // ~30 px at R = 41.3
+  // The Drone Cell is drawn visibly smaller than the Queen Dome — a Dome is an
+  // upgrade of a Cell and should read as the bigger piece at a glance, art path
+  // included (both used to draw at the same box).
+  const base = Math.max(14, tr.R * 0.74);        // Dome ~30 px at R = 41.3
+  const s = kind === 'dome' ? base : base * 0.76;
   const img = combImg((typeof assetFace === 'function') && assetFace('comb-piece', kind + '-' + nd.owner));
   if (combImgReady(img)) { ctx.drawImage(img, x - s / 2, y - s / 2, s, s); return; }
 
@@ -3070,23 +3501,32 @@ function combHexPts(cx, cy, r) {
 
 function combDrawTargets(ctx, tr) {
   const mode = combPlacementMode;
-  const brand = '#F0A500';
+  // Your own colour, not the fixed brand gold — over a dimmed board (S4) a
+  // seat's targets should read as THEIRS. Falls back to gold for seat -1.
+  const glow = COMB_PLAYER_COLOUR[combLocalIdx()] || '#F0A500';
   for (const t of combLegalTargets) {
     if (mode === 'wall') {
       const [a, b] = COMB_TOPOLOGY.nodesOfEdge[t];
       const na = COMB_TOPOLOGY.nodes[a], nb = COMB_TOPOLOGY.nodes[b];
-      ctx.strokeStyle = brand; ctx.globalAlpha = 0.55;
-      ctx.lineWidth = Math.max(5, tr.R * 0.22); ctx.lineCap = 'round';
+      ctx.lineCap = 'round';
+      ctx.strokeStyle = glow; ctx.globalAlpha = 0.28;         // wide soft pass
+      ctx.lineWidth = Math.max(9, tr.R * 0.4);
+      ctx.beginPath(); ctx.moveTo(tr.toX(na.x), tr.toY(na.y)); ctx.lineTo(tr.toX(nb.x), tr.toY(nb.y)); ctx.stroke();
+      ctx.globalAlpha = 0.7;                                  // crisp core
+      ctx.lineWidth = Math.max(5, tr.R * 0.22);
       ctx.beginPath(); ctx.moveTo(tr.toX(na.x), tr.toY(na.y)); ctx.lineTo(tr.toX(nb.x), tr.toY(nb.y)); ctx.stroke();
       ctx.globalAlpha = 1;
     } else if (mode === 'wasp') {
       const c = combHexCentre(t);
       ctx.beginPath(); ctx.arc(tr.toX(c.x), tr.toY(c.y), tr.R * 0.55, 0, Math.PI * 2);
-      ctx.fillStyle = brand; ctx.globalAlpha = 0.25; ctx.fill(); ctx.globalAlpha = 1;
+      ctx.fillStyle = glow; ctx.globalAlpha = 0.25; ctx.fill(); ctx.globalAlpha = 1;
     } else {
       const p = COMB_TOPOLOGY.nodes[t];
-      ctx.beginPath(); ctx.arc(tr.toX(p.x), tr.toY(p.y), Math.max(7, tr.R * 0.26), 0, Math.PI * 2);
-      ctx.fillStyle = brand; ctx.globalAlpha = 0.5; ctx.fill(); ctx.globalAlpha = 1;
+      const cx = tr.toX(p.x), cy = tr.toY(p.y);
+      ctx.beginPath(); ctx.arc(cx, cy, Math.max(11, tr.R * 0.4), 0, Math.PI * 2);
+      ctx.fillStyle = glow; ctx.globalAlpha = 0.22; ctx.fill();     // wide soft pass
+      ctx.beginPath(); ctx.arc(cx, cy, Math.max(7, tr.R * 0.26), 0, Math.PI * 2);
+      ctx.globalAlpha = 0.7; ctx.fill(); ctx.globalAlpha = 1;       // crisp core
       ctx.strokeStyle = COMB_PIECE_INK; ctx.lineWidth = 1.5; ctx.stroke();
     }
   }
@@ -3145,6 +3585,8 @@ function combRepaintBoards() {
   if (combMapOpen) {
     const map = document.getElementById('comb-map-canvas');
     if (map) combDrawBoard(map, { zoom: combZoom, panX: combPanX, panY: combPanY });
+    combRenderMapPanel();
+    combRenderMapStats();
   }
 }
 
@@ -3387,20 +3829,25 @@ function combRenderGalleries() {
 // ── The magnifier (spec §2) ───────────────────────────────────────────────
 // The inline board neither pans nor zooms — it is fit-to-view and permanent.
 // ALL zooming lives here, and this canvas is the game's ONLY pinch/pan surface.
-function combOpenMap() {
+function combOpenMap(scrollTo) {
   const ov = document.getElementById('comb-map-overlay');
   if (!ov) return;
   combMapOpen = true;
+  combMapScrollTo = scrollTo || null;  // 'stats' → the map render scrolls its
+                                       // bottom zone into view, then clears this
   combZoom = 1; combPanX = 0; combPanY = 0;
   combStaticCache = null;              // a different scale needs a re-render
   ov.style.display = 'flex';
   const c = document.getElementById('comb-map-canvas');
   if (c) combDrawBoard(c, { zoom: combZoom, panX: combPanX, panY: combPanY });
+  combRenderMapPanel();
+  combRenderMapStats();
 }
 function combCloseMap() {
   const ov = document.getElementById('comb-map-overlay');
   if (ov) ov.style.display = 'none';
   combMapOpen = false;
+  combMapScrollTo = null;
   combStaticCache = null;              // back to the inline board's scale
   combRepaintBoards();
 }
@@ -4169,7 +4616,8 @@ function combHandleSync(action, p) {
       combLandFlight(combRoll);
       if (combRoll === 7) combPlay('waspRolled');
       const grid = combWireArr(p.produced, combPlayerCount, null);
-      const mine = combWireArr(grid[combLocalIdx()], COMB_RES.length, 0);
+      combLastProduced = grid.map(r => combWireArr(r, COMB_RES.length, 0).map(v => v | 0));
+      const mine = combLastProduced[combLocalIdx()];
       if (mine.some(v => v)) combPlay('bloomYours');
       combRenderMeadow();
       return;
@@ -4187,13 +4635,19 @@ function combHandleSync(action, p) {
       combRenderMeadow();
       return;
 
-    case 'COMB_OVERFLOW_DONE':
+    case 'COMB_OVERFLOW_DONE': {
       combShow('comb-overflow-overlay', false);
       combApplyCounts(p);
       combPlay('overflowDone');
       combPhase = p.phase || 'waspMove';
+      // The host appended this line itself in combOverflowResolve(); a client
+      // never ran that. Absent field = old-format packet → still log. A 7 where
+      // nobody owed carries spilled:false and must NOT log — nothing spilled.
+      const spilled = ('spilled' in p) ? !!p.spilled : true;
+      if (spilled) combLogAppend('The hive spilled over.');
       combEnterWaspMove();                    // arms the Wasp for the active seat
       return;
+    }
 
     // ── The Wasp ──────────────────────────────────────────────────────────
     case 'COMB_WASP_PLACED': {
@@ -4525,6 +4979,7 @@ function combResetState() {
   if (combOfferTimer)  { clearTimeout(combOfferTimer);       combOfferTimer  = null; }
   if (combFlightTimer) { clearTimeout(combFlightTimer);      combFlightTimer = null; }
   if (combRafHandle)   { cancelAnimationFrame(combRafHandle); combRafHandle  = null; }
+  combStopPulse();
 
   combHexes = []; combNodes = []; combEdges = []; combHands = []; combInstinct = [];
   combDeck = []; combSupply = []; combLog = []; combOffer = null;
@@ -4540,7 +4995,8 @@ function combResetState() {
   combDraftTo = -1; combBankPick = -1; combBloomPick = [];
   combOverflowPick = [0, 0, 0, 0, 0];
   combPlacementMode = null; combLegalTargets = []; combPendingTarget = null;
-  combMapOpen = false; combZoom = 1; combPanX = 0; combPanY = 0;
+  combMapOpen = false; combMapScrollTo = null; combZoom = 1; combPanX = 0; combPanY = 0;
+  combLastProduced = null;
   combStats = { scoutFlights: 0, waspLandings: 0 };
 }
 
@@ -4673,6 +5129,64 @@ document.addEventListener('DOMContentLoaded', () => {
       combRenderMeadow();
     });
   });
+
+  // ── Map overlay gestures: wheel + pinch zoom (about the canvas centre),
+  //    drag pan. Bound to the map canvas only; the middle zone's
+  //    touch-action:none + overscroll-behavior:contain keep the gesture off
+  //    the sheet so the top and bottom zones never move. A short drag that
+  //    does not move is left to the click handler above (place-target tap). ──
+  (() => {
+    const c = document.getElementById('comb-map-canvas');
+    if (!c) return;
+    let drag = null;              // { x, y } last pointer pos, single-pointer pan
+    const pts = new Map();        // active pointers, for pinch
+    let pinchDist = 0;
+
+    const repaint = () => { combClampPan(c); combRepaintBoards(); };
+
+    c.addEventListener('wheel', ev => {
+      ev.preventDefault();
+      combZoom = Math.max(0.6, Math.min(4, combZoom * (ev.deltaY < 0 ? 1.12 : 1 / 1.12)));
+      repaint();
+    }, { passive: false });
+
+    c.addEventListener('pointerdown', ev => {
+      c.setPointerCapture && c.setPointerCapture(ev.pointerId);
+      pts.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+      if (pts.size === 1) drag = { x: ev.clientX, y: ev.clientY };
+      else if (pts.size === 2) {
+        const [a, b] = [...pts.values()];
+        pinchDist = Math.hypot(a.x - b.x, a.y - b.y);
+        drag = null;
+      }
+    });
+    c.addEventListener('pointermove', ev => {
+      if (!pts.has(ev.pointerId)) return;
+      pts.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+      if (pts.size >= 2) {
+        const [a, b] = [...pts.values()];
+        const d = Math.hypot(a.x - b.x, a.y - b.y);
+        if (pinchDist > 0) {
+          combZoom = Math.max(0.6, Math.min(4, combZoom * (d / pinchDist)));
+          repaint();
+        }
+        pinchDist = d;
+      } else if (drag) {
+        combPanX += ev.clientX - drag.x;
+        combPanY += ev.clientY - drag.y;
+        drag = { x: ev.clientX, y: ev.clientY };
+        repaint();
+      }
+    });
+    const up = ev => {
+      pts.delete(ev.pointerId);
+      if (pts.size < 2) pinchDist = 0;
+      if (pts.size === 0) drag = null;
+      else if (pts.size === 1) drag = { x: [...pts.values()][0].x, y: [...pts.values()][0].y };
+    };
+    c.addEventListener('pointerup', up);
+    c.addEventListener('pointercancel', up);
+  })();
 
   on('btn-comb-place-cancel', () => {
     playDone();
@@ -4878,6 +5392,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // timeout would otherwise fire once against the lobby's state.
     combStopDaylight();
     combStopFlight();
+    combStopPulse();
     combClearOffer();
     if (window.syllyMultiplayerMode !== 'single') {
       // One device leaving mid-game dissolves the session for everyone
