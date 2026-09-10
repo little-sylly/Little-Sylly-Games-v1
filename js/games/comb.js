@@ -220,6 +220,9 @@ let combMapOpen       = false; // is comb-map-overlay up?
 let combZoom = 1, combPanX = 0, combPanY = 0;  // MAP OVERLAY ONLY. The inline
                                // board is always fit-to-view and holds NO viewport (§2).
 let combRafHandle = null;      // the Sun Compass / board animation loop
+let combLastProduced = null;   // N×5 grid from the last Scout Flight — public
+                               // (COMB_ROLL_RESULT.produced), drives the player
+                               // panel's per-round take column. Cleared at cast.
 let combHowtoTab  = 'rules';
 let combBuildPickerOpen = false;  // step 1 of the two-step build (spec §7)
 let combChainLen  = [];        // DERIVED cache — recomputed, never trusted
@@ -1300,6 +1303,9 @@ function combReducedMotion() {
 
 function combStartFlight() {
   combStopFlightAnim();
+  // A new cast — clear last round's takes so the player panel shows "—" during
+  // the spin, then the fresh yield on land. Runs even on a headless device.
+  combLastProduced = null;
   const layer = document.getElementById('comb-float-layer');
   // No layer or no RAF means a headless harness, or a screen that is not up: the
   // beat is skipped and the roll still resolves. The animation is never
@@ -1443,6 +1449,7 @@ function combScoutFlight(playerIdx) {
     // real outcome (COMB_OVERFLOW_BEGIN if a discard is owed, COMB_OVERFLOW_DONE
     // otherwise). Claiming 'overflow' here stranded every client on a 7 where
     // nobody owed, which on the default Short Summer is every 7.
+    combLastProduced = combZeroGrid();
     combBroadcast('COMB_ROLL_RESULT', {
       roll, seven: true, handCounts: combHandCounts(),
       produced: combZeroGrid(), waspBlockedHex: combWaspHex,
@@ -1452,6 +1459,7 @@ function combScoutFlight(playerIdx) {
   }
 
   const produced = combProduce(roll);
+  combLastProduced = produced.map(r => r.slice());
   combLogAppend(combProductionLine(produced));
   // Silence when nothing of yours bloomed is deliberate — absence is the
   // information, and a sound on every roll on every device is 60–80 of them.
@@ -2570,7 +2578,9 @@ function combRenderMeadow() {
   combSet('comb-meadow-turn', combPhase === 'draft'
     ? `Opening · ${turnName}`
     : `Turn ${combTurnNo} · ${turnName}`);
-  combSet('comb-meadow-points', combPointStrip());
+  // Points + achievement marks moved off the cramped header line onto the board:
+  // the player panel (top) and the player strip (bottom), with the full table
+  // in the map overlay.
 
   // ── Status line: one sentence per phase, always written ──
   combSet('comb-meadow-status', combStatusLine(mine, turnName));
@@ -2626,18 +2636,12 @@ function combRenderMeadow() {
   combSet('btn-comb-waggle', combOffer && combOffer.from === me ? 'The Dance' : 'Waggle Dance');
   combEnable('btn-comb-end-turn', acting && !combOffer);
 
-  // ── Turn order dots, current player marked. NOT the Sun Compass — that is
-  //    the 2d6 die the game casts each turn, a separate render seam. ──
-  const turnOrder = combClear('comb-turn-order');
-  if (turnOrder) {
-    for (let p = 0; p < combPlayerCount; p++) {
-      const dot = document.createElement('span');
-      dot.className = 'comb-turn-order-dot' + (p === combTurn ? ' comb-turn-order-now' : '');
-      dot.style.background = COMB_PLAYER_COLOUR[p] || '#888';
-      dot.title = combName(p);
-      turnOrder.appendChild(dot);
-    }
-  }
+  // ── Top zone — player panel (was the turn-order dots), persistent roll
+  //    result, probability ruler. All float over the board stage's top
+  //    letterbox; NOT the Sun Compass (the 2d6 die, its own seam). ──
+  combRenderPlayerPanel();
+  combRenderRollResult();
+  combRenderProbRuler();
 
   // ── The build picker — step 1 of two, and the action bar's sibling ──
   combShow('comb-build-picker', combBuildPickerOpen, 'flex');
@@ -2696,12 +2700,82 @@ function combAchievementMark(p) {
   if (hasFiercest) return ' 🛡️';
   return '';
 }
-function combPointStrip() {
-  const out = [];
+// ── Meadow top zone — player panel, persistent roll result, probability ruler.
+// All three are pure: they RETURN nothing and write only their own element, from
+// combRenderMeadow(). Public state only. (combPointStrip() lived here until the
+// header point-line was removed 10 Sep 2026 — its job is now split between the
+// player panel, the player strip and the map overlay's stats table.)
+
+// Floats over the top-left letterbox. Turn-order colour + name + this round's
+// take (combLastProduced, from the public COMB_ROLL_RESULT.produced grid). The
+// active row lights up: on a board identical on every phone, this is the
+// turn-handover signal (identity doc T7c).
+function combRenderPlayerPanel() {
+  const box = combClear('comb-player-panel');
+  if (!box) return;
   for (let p = 0; p < combPlayerCount; p++) {
-    out.push(`${combName(p)} ${combPublicPoints(p)}${combAchievementMark(p)}`);
+    const row = document.createElement('div');
+    row.className = 'comb-player-row' + (p === combTurn ? ' comb-player-row-now' : '');
+
+    const dot = document.createElement('span');
+    dot.className = 'comb-player-dot';
+    dot.style.background = COMB_PLAYER_COLOUR[p] || '#888';
+    row.appendChild(dot);
+
+    const name = document.createElement('span');
+    name.textContent = combName(p).slice(0, 8);
+    row.appendChild(name);
+
+    const take = document.createElement('span');
+    take.className = 'comb-player-take';
+    const got = (combLastProduced && combLastProduced[p]) || [0, 0, 0, 0, 0];
+    if (!got.some(v => v)) {
+      take.textContent = '—';                      // em dash: nothing bloomed
+    } else {
+      COMB_RES.forEach((kind, i) => {
+        if (!got[i]) return;
+        const n = document.createElement('span');
+        n.textContent = got[i] + '×';
+        take.appendChild(n);
+        take.appendChild(combRenderResource(kind, { small: true }));
+      });
+    }
+    row.appendChild(take);
+    box.appendChild(row);
   }
-  return out.join(' · ');
+}
+
+// The landed Scout Flight, kept on screen until the next cast clears
+// combLastProduced (combStartFlight). The flight animation lands INTO this.
+function combRenderRollResult() {
+  const el = document.getElementById('comb-roll-result');
+  if (!el) return;
+  if (!combRoll || combPhase === 'roll' || combPhase === 'draft') { el.style.display = 'none'; return; }
+  el.style.display = 'block';
+  el.textContent = String(combRoll);
+  el.classList.toggle('comb-roll-result-seven', combRoll === 7);
+}
+
+// 2d6 outcomes out of 36 — tick heights and the red→gold rarity ramp.
+const COMB_ROLL_FREQ = { 2: 1, 3: 2, 4: 3, 5: 4, 6: 5, 7: 6, 8: 5, 9: 4, 10: 3, 11: 2, 12: 1 };
+// distance-from-7 (0..5) → tick colour, precomputed so no color-mix() dependency.
+const COMB_ROLL_RAMP = ['#B3261E', '#A83A2E', '#9D4F3F', '#8A5A4E', '#77605A', '#6B6157'];
+
+// 11 ticks, 2..12. Pure function of combRoll. Rarity used to live in the pog pip
+// row (removed — invisible at board scale); it lives here now, legibly.
+function combRenderProbRuler() {
+  const box = combClear('comb-prob-ruler');
+  if (!box) return;
+  if (!combRoll || combPhase === 'roll' || combPhase === 'draft') { box.style.display = 'none'; return; }
+  box.style.display = 'flex';
+  for (let v = 2; v <= 12; v++) {
+    const f = COMB_ROLL_FREQ[v];                        // 1..6
+    const tick = document.createElement('span');
+    tick.className = 'comb-prob-tick' + (v === combRoll ? ' comb-prob-tick-now' : '');
+    tick.style.height = (0.3 + f * 0.18) + 'rem';       // 0.48rem .. 1.38rem
+    tick.style.background = COMB_ROLL_RAMP[Math.abs(7 - v)];
+    box.appendChild(tick);
+  }
 }
 
 function combStatusLine(mine, turnName) {
@@ -4187,7 +4261,8 @@ function combHandleSync(action, p) {
       combLandFlight(combRoll);
       if (combRoll === 7) combPlay('waspRolled');
       const grid = combWireArr(p.produced, combPlayerCount, null);
-      const mine = combWireArr(grid[combLocalIdx()], COMB_RES.length, 0);
+      combLastProduced = grid.map(r => combWireArr(r, COMB_RES.length, 0).map(v => v | 0));
+      const mine = combLastProduced[combLocalIdx()];
       if (mine.some(v => v)) combPlay('bloomYours');
       combRenderMeadow();
       return;

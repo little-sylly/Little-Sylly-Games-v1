@@ -295,9 +295,12 @@ globalThis.__comb = {
   // 'single'-mode harness is blind to.
   paintedStatus(){ return document.getElementById('comb-meadow-status').textContent; },
   paintedTurn()  { return document.getElementById('comb-meadow-turn').textContent; },
-  paintedPoints(){ return document.getElementById('comb-meadow-points').textContent; },
   handChips()    { return document.getElementById('comb-hand-row').children.length; },
-  compassDots()  { return document.getElementById('comb-turn-order').children.length; },
+  panelRows()    { return document.getElementById('comb-player-panel').children.length; },
+  panelActive()  { return [...document.getElementById('comb-player-panel').children]
+                     .findIndex(r => r.className.indexOf('comb-player-row-now') >= 0); },
+  rollResult()   { const e = document.getElementById('comb-roll-result');
+                   return e.style.display === 'none' ? null : e.textContent; },
 };`;
 
   vm.runInContext(combSrc + BRIDGE, sandbox, { filename: `comb.js (${name})` });
@@ -438,9 +441,9 @@ section('5. The meadow actually PAINTED on a client');
 // None of this executes at all under `getElementById: () => null`.
 check('the turn line is written',   C1.paintedTurn(), 'Opening · Ali');
 check('the status line is written', C1.paintedStatus(), 'Ali is choosing an opening spot.');
-check('the point strip is written', C1.paintedPoints(), 'Ali 0 · Bec 0 · Cam 0');
 check('five resource chips',        C1.handChips(), 5);
-check('one compass dot per seat',   C1.compassDots(), 3);
+check('one player-panel row per seat', C1.panelRows(), 3);
+check('the panel marks the active seat', C1.panelActive(), 0);
 
 // ═══════════════════════════════════════════════════════════════════════════
 section('6. The opening draft — twelve placements across three devices');

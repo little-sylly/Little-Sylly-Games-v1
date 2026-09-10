@@ -10451,7 +10451,6 @@ Reboot
     <div class="flex items-center justify-between flex-shrink-0 pt-4 pb-2">
       <div class="min-w-0">
         <p id="comb-meadow-turn" class="text-stone-500 text-sm font-semibold uppercase tracking-widest truncate"></p>
-        <p id="comb-meadow-points" class="text-stone-400 text-xs truncate"></p>
       </div>
       <div class="flex items-center gap-2 shrink-0">
         <button id="btn-comb-log" class="text-stone-400 text-base active:scale-90 transition-transform duration-100" aria-label="Season Log">📜</button>
@@ -10470,9 +10469,18 @@ Reboot
       <button id="btn-comb-map-open"
         class="absolute top-2 right-2 z-10 min-h-11 min-w-11 rounded-xl bg-white/85 text-xl flex items-center justify-center shadow-sm active:scale-90 transition-transform duration-100"
         aria-label="Enlarge the meadow">🔍</button>
-      <!-- Turn order dots. Non-interactive. NOT the Sun Compass — that is the
-           2d6 die the game casts each turn (docs/content-prompts/comb-art-prompts.md § 5d). -->
-      <div id="comb-turn-order" class="absolute top-2 left-2 pointer-events-none flex items-center gap-1"></div>
+      <!-- Player panel — floats over the top-left letterbox dead-space, adds no
+           layout height. Painted by combRenderPlayerPanel(). The active row
+           lights up: on a board identical on every phone, that is the
+           turn-handover signal (identity doc T7c). Replaced the turn-order dots.
+           NOT the Sun Compass — that is the 2d6 die the game casts each turn. -->
+      <div id="comb-player-panel" class="comb-player-panel absolute top-2 left-2 pointer-events-none flex flex-col gap-1"></div>
+      <!-- The landed Scout Flight, kept visible until the next cast. The flight
+           animation lands INTO this; it is not a second animation. -->
+      <div id="comb-roll-result" class="comb-roll-result absolute left-1/2 top-2 -translate-x-1/2 pointer-events-none"></div>
+      <!-- 11-tick 2d6 probability ruler, under the result. Pure function of the
+           roll; rarity used to live in the pog pip row (removed). -->
+      <div id="comb-prob-ruler" class="comb-prob-ruler absolute left-1/2 -translate-x-1/2 pointer-events-none flex items-end gap-px" style="top:2.6rem"></div>
       <!-- Transient layer — floats over a relative parent, contributes zero height, so
            the Scout Flight animation can never re-centre the column beneath it
            (ui-style.md § Transient animations must float). -->

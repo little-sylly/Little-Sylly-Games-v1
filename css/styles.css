@@ -2931,17 +2931,37 @@ body.flash-red   { background-color: #fecaca; }
 }
 .comb-die-hero .comb-die-face { display: none; }
 
-/* Turn order dots, top-left of the board — non-interactive. (Renamed from
-   comb-compass/.comb-compass-* 9 Sep 2026: that markup was mislabelled as
-   "Sun Compass", which is actually the 2d6 die the game casts each turn —
-   a separate, not-yet-built render seam; see docs/content-prompts/comb-art-prompts.md § 5d.) */
-.comb-turn-order-dot {
-  display: inline-block; width: 0.5rem; height: 0.5rem; border-radius: 50%;
-  border: 1.5px solid rgba(43,33,24,0.55);
-  opacity: 0.45;
-  transition: opacity 0.15s, transform 0.15s;
+/* ── Meadow top zone — player panel, roll result, probability ruler.
+   All float over the board stage's top letterbox dead-space; zero layout
+   height, so the board stays fit-to-view and the h-screen whitelist holds.
+   (Replaced the turn-order dots / comb-compass markup, 10 Sep 2026.) */
+.comb-player-panel { max-width: 42%; z-index: 5; }
+.comb-player-row {
+  display: flex; align-items: center; gap: 0.3rem;
+  font: 600 0.68rem/1 Fredoka, system-ui, sans-serif;
+  color: #57534e; background: rgba(255,255,255,0.55);
+  border-radius: 0.5rem; padding: 0.18rem 0.4rem; backdrop-filter: blur(2px);
+  transition: background 0.15s ease, transform 0.15s ease;
 }
-.comb-turn-order-now { opacity: 1; transform: scale(1.45); }
+.comb-player-row-now {
+  background: rgba(255,255,255,0.92); transform: scale(1.04); font-weight: 700;
+}
+.comb-player-dot { width: 0.55rem; height: 0.55rem; border-radius: 9999px; flex: none; }
+.comb-player-take { display: flex; align-items: center; gap: 0.1rem; color: #78716c; }
+.comb-player-take .comb-res-chip { padding: 0; gap: 0; }
+.comb-player-take .comb-res-icon { width: 0.72rem; height: 0.72rem; }
+.comb-player-take .comb-res-count { display: none; }
+
+.comb-roll-result {
+  font: 800 1.6rem/1 Fredoka, system-ui, sans-serif; color: #B87A00;
+  background: rgba(255,255,255,0.8); border-radius: 0.7rem; padding: 0.1rem 0.5rem;
+  z-index: 5;
+}
+.comb-roll-result-seven { color: #B3261E; }
+
+.comb-prob-ruler { height: 1.4rem; z-index: 5; }
+.comb-prob-tick { width: 3px; border-radius: 1px; background: #6B6157; opacity: 0.5; }
+.comb-prob-tick-now { outline: 2px solid #B87A00; outline-offset: 1px; opacity: 1; }
 
 /* A disabled action-bar button. Dimmed and inert, never hidden: a control that
    vanishes reads as a bug, one that dims reads as a rule (the CLD dive-row
