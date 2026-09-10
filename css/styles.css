@@ -2980,6 +2980,27 @@ body.flash-red   { background-color: #fecaca; }
   content: "\00B7"; margin: 0 0.32rem; color: #a8a29e;
 }
 
+/* ── The map overlay's three zones (S6). The middle zone owns the board and
+   its gestures; the top and bottom never move under a pinch. ── */
+.comb-map-zone { color: #f5f5f4; }
+#comb-map-top .comb-player-row { background: rgba(255,255,255,0.14); color: #f5f5f4; }
+#comb-map-top .comb-player-row-now { background: rgba(255,255,255,0.3); }
+.comb-map-prob {
+  display: flex; align-items: flex-end; gap: 3px;
+  font: 600 0.55rem/1 Fredoka, system-ui, sans-serif; color: #d6d3d1;
+}
+.comb-map-prob-col { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.comb-map-prob-col .comb-prob-tick { width: 6px; }
+.comb-map-stats-table {
+  width: 100%; border-collapse: collapse;
+  font: 600 0.72rem/1.3 Fredoka, system-ui, sans-serif;
+}
+.comb-map-stats-table th, .comb-map-stats-table td { padding: 0.25rem 0.35rem; text-align: center; }
+.comb-map-stats-table th { color: #a8a29e; font-weight: 600; }
+.comb-map-stats-table th:first-child, .comb-map-stats-table td:first-child { text-align: left; }
+.comb-map-stats-table tr + tr td { border-top: 1px solid rgba(255,255,255,0.15); }
+.comb-map-stats-now td { background: rgba(255,255,255,0.08); }
+
 /* A disabled action-bar button. Dimmed and inert, never hidden: a control that
    vanishes reads as a bug, one that dims reads as a rule (the CLD dive-row
    precedent). */

@@ -2781,6 +2781,117 @@ function combRenderProbRuler() {
   }
 }
 
+// The map overlay's annotated version — a labelled column per value (tick +
+// number + xN/36). Returns a .comb-map-prob element or null when there is no
+// roll to annotate.
+function combBuildAnnotatedRuler() {
+  if (!combRoll || combPhase === 'roll' || combPhase === 'draft') return null;
+  const wrap = document.createElement('div');
+  wrap.className = 'comb-map-prob';
+  for (let v = 2; v <= 12; v++) {
+    const f = COMB_ROLL_FREQ[v];
+    const col = document.createElement('div');
+    col.className = 'comb-map-prob-col';
+    const tick = document.createElement('span');
+    tick.className = 'comb-prob-tick' + (v === combRoll ? ' comb-prob-tick-now' : '');
+    tick.style.height = (0.4 + f * 0.3) + 'rem';
+    tick.style.background = COMB_ROLL_RAMP[Math.abs(7 - v)];
+    col.appendChild(tick);
+    const lbl = document.createElement('span'); lbl.textContent = v; col.appendChild(lbl);
+    const pct = document.createElement('span'); pct.textContent = '×' + f;
+    pct.style.opacity = '0.55'; col.appendChild(pct);
+    wrap.appendChild(col);
+  }
+  return wrap;
+}
+
+// ── The map overlay's top and bottom zones (S6). The middle zone is the board,
+// drawn by combDrawBoard through combRepaintBoards() — these two are the detail
+// the inline snapshot can't hold. Both are pure and DOM-built (no innerHTML, so
+// a nickname with markup chars is inert). ──
+
+function combRenderMapPanel() {
+  const top = combClear('comb-map-top');
+  if (!top) return;
+
+  // left: the player panel, full names
+  const panel = document.createElement('div');
+  panel.className = 'flex flex-col gap-1';
+  for (let p = 0; p < combPlayerCount; p++) {
+    const row = document.createElement('div');
+    row.className = 'comb-player-row' + (p === combTurn ? ' comb-player-row-now' : '');
+    const dot = document.createElement('span');
+    dot.className = 'comb-player-dot';
+    dot.style.background = COMB_PLAYER_COLOUR[p] || '#888';
+    row.appendChild(dot);
+    const nm = document.createElement('span');
+    nm.textContent = combName(p);
+    row.appendChild(nm);
+    panel.appendChild(row);
+  }
+  top.appendChild(panel);
+
+  // right: big roll result + the annotated ruler
+  const right = document.createElement('div');
+  right.className = 'flex flex-col items-center gap-1';
+  if (combRoll && combPhase !== 'roll' && combPhase !== 'draft') {
+    const big = document.createElement('div');
+    big.className = 'comb-roll-result' + (combRoll === 7 ? ' comb-roll-result-seven' : '');
+    big.style.fontSize = '2.2rem';
+    big.textContent = String(combRoll);
+    right.appendChild(big);
+    const ruler = combBuildAnnotatedRuler();
+    if (ruler) right.appendChild(ruler);
+  }
+  top.appendChild(right);
+}
+
+function combRenderMapStats() {
+  const box = combClear('comb-map-bottom');
+  if (!box) return;
+  const table = document.createElement('table');
+  table.className = 'comb-map-stats-table';
+
+  const head = document.createElement('tr');
+  ['', 'VP', 'Cells', 'Domes', 'Walls', 'Chain', 'Instinct', 'Blossoms'].forEach(h => {
+    const th = document.createElement('th'); th.textContent = h; head.appendChild(th);
+  });
+  table.appendChild(head);
+
+  for (let p = 0; p < combPlayerCount; p++) {
+    const tr = document.createElement('tr');
+    if (p === combTurn) tr.className = 'comb-map-stats-now';
+    const s = combCountStructures(p);
+    const chain = combLongestChain(p);
+    const inst = (combPublicInstinct && combPublicInstinct[p]) | 0;
+    let blossoms = 0;
+    for (const port of COMB_TOPOLOGY.ports) {
+      if (port.nodes.some(n => combNodes[n] && combNodes[n].owner === p && combNodes[n].level > 0)) blossoms++;
+    }
+    const cells = [
+      combName(p) + combAchievementMark(p),
+      combPublicPoints(p), s.cells, s.domes, s.walls, chain, inst, blossoms,
+    ];
+    cells.forEach((val, i) => {
+      const td = document.createElement('td');
+      td.textContent = String(val);
+      tr.appendChild(td);
+    });
+    table.appendChild(tr);
+  }
+  box.appendChild(table);
+
+  const status = document.createElement('p');
+  status.className = 'text-white/70 text-xs mt-2';
+  status.textContent = combStatusLine(combIsMyTurn(), combName(combTurn));
+  box.appendChild(status);
+
+  if (combMapScrollTo === 'stats') {
+    box.scrollIntoView && box.scrollIntoView({ block: 'end' });
+    combMapScrollTo = null;
+  }
+}
+
 // ── Meadow bottom zone — the player-stats snapshot. Floats over the board
 // stage's bottom letterbox; the full table lives in the map overlay. All public:
 // visible VP, structure counts, unplayed Instinct count (combPublicInstinct —
@@ -2941,6 +3052,22 @@ function combTransform(cssW, cssH, viewport) {
   const offX = (cssW - b.w * R) / 2 - b.minX * R + (vp.panX || 0);
   const offY = (cssH - b.h * R) / 2 - b.minY * R + (vp.panY || 0);
   return { R, offX, offY, toX: x => x * R + offX, toY: y => y * R + offY };
+}
+
+// Keep the panned board from being lost off the map canvas: allow it to travel
+// until ~60% of its scaled size is past the edge, then stop. Called after every
+// pan/zoom gesture (map overlay only).
+function combClampPan(canvasEl) {
+  if (!canvasEl || !canvasEl.getBoundingClientRect) return;
+  const rect = canvasEl.getBoundingClientRect();
+  const cssW = Math.max(1, rect.width), cssH = Math.max(1, rect.height);
+  const b = combBoardBounds();
+  const base = Math.min((cssW - 12) / b.w, (cssH - 12) / b.h);
+  const R = base * (combZoom || 1);
+  const maxX = Math.max(0, (b.w * R) * 0.6);
+  const maxY = Math.max(0, (b.h * R) * 0.6);
+  combPanX = Math.max(-maxX, Math.min(maxX, combPanX));
+  combPanY = Math.max(-maxY, Math.min(maxY, combPanY));
 }
 
 function combHexCentre(h) {
@@ -3390,6 +3517,8 @@ function combRepaintBoards() {
   if (combMapOpen) {
     const map = document.getElementById('comb-map-canvas');
     if (map) combDrawBoard(map, { zoom: combZoom, panX: combPanX, panY: combPanY });
+    combRenderMapPanel();
+    combRenderMapStats();
   }
 }
 
@@ -3643,6 +3772,8 @@ function combOpenMap(scrollTo) {
   ov.style.display = 'flex';
   const c = document.getElementById('comb-map-canvas');
   if (c) combDrawBoard(c, { zoom: combZoom, panX: combPanX, panY: combPanY });
+  combRenderMapPanel();
+  combRenderMapStats();
 }
 function combCloseMap() {
   const ov = document.getElementById('comb-map-overlay');
@@ -4929,6 +5060,64 @@ document.addEventListener('DOMContentLoaded', () => {
       combRenderMeadow();
     });
   });
+
+  // ── Map overlay gestures: wheel + pinch zoom (about the canvas centre),
+  //    drag pan. Bound to the map canvas only; the middle zone's
+  //    touch-action:none + overscroll-behavior:contain keep the gesture off
+  //    the sheet so the top and bottom zones never move. A short drag that
+  //    does not move is left to the click handler above (place-target tap). ──
+  (() => {
+    const c = document.getElementById('comb-map-canvas');
+    if (!c) return;
+    let drag = null;              // { x, y } last pointer pos, single-pointer pan
+    const pts = new Map();        // active pointers, for pinch
+    let pinchDist = 0;
+
+    const repaint = () => { combClampPan(c); combRepaintBoards(); };
+
+    c.addEventListener('wheel', ev => {
+      ev.preventDefault();
+      combZoom = Math.max(0.6, Math.min(4, combZoom * (ev.deltaY < 0 ? 1.12 : 1 / 1.12)));
+      repaint();
+    }, { passive: false });
+
+    c.addEventListener('pointerdown', ev => {
+      c.setPointerCapture && c.setPointerCapture(ev.pointerId);
+      pts.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+      if (pts.size === 1) drag = { x: ev.clientX, y: ev.clientY };
+      else if (pts.size === 2) {
+        const [a, b] = [...pts.values()];
+        pinchDist = Math.hypot(a.x - b.x, a.y - b.y);
+        drag = null;
+      }
+    });
+    c.addEventListener('pointermove', ev => {
+      if (!pts.has(ev.pointerId)) return;
+      pts.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+      if (pts.size >= 2) {
+        const [a, b] = [...pts.values()];
+        const d = Math.hypot(a.x - b.x, a.y - b.y);
+        if (pinchDist > 0) {
+          combZoom = Math.max(0.6, Math.min(4, combZoom * (d / pinchDist)));
+          repaint();
+        }
+        pinchDist = d;
+      } else if (drag) {
+        combPanX += ev.clientX - drag.x;
+        combPanY += ev.clientY - drag.y;
+        drag = { x: ev.clientX, y: ev.clientY };
+        repaint();
+      }
+    });
+    const up = ev => {
+      pts.delete(ev.pointerId);
+      if (pts.size < 2) pinchDist = 0;
+      if (pts.size === 0) drag = null;
+      else if (pts.size === 1) drag = { x: [...pts.values()][0].x, y: [...pts.values()][0].y };
+    };
+    c.addEventListener('pointerup', up);
+    c.addEventListener('pointercancel', up);
+  })();
 
   on('btn-comb-place-cancel', () => {
     playDone();

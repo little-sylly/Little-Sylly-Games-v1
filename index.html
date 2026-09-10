@@ -11092,13 +11092,28 @@ Reboot
        Interactive — a tap routes through the same combAttemptPlace() the inline
        board uses and closes the map on success. No RAF: it draws on gesture, and on
        any SYNC that changes the board while it is open. -->
+  <!-- Opaque (bg-[#1c1917], not bg-black/80): a focused detail view — the meadow
+       screen behind must not bleed through the top/bottom zones. -->
   <div id="comb-map-overlay" style="display:none"
-    class="fixed inset-0 z-[75] bg-black/80 flex items-center justify-center">
-    <canvas id="comb-map-canvas" class="absolute inset-0 w-full h-full"></canvas>
+    class="fixed inset-0 z-[75] bg-[#1c1917] flex flex-col">
+    <!-- TOP — the same player panel content (full names) + big roll result +
+         the FULL annotated probability ruler. Painted by combRenderMapPanel().
+         pr-14 so its right column clears the ✕. -->
+    <div id="comb-map-top" class="comb-map-zone flex-shrink-0 px-3 pr-14 pt-3 pb-2 flex items-start justify-between gap-3"></div>
+    <!-- MIDDLE — the board, gesture-locked to this zone: pinch + wheel zoom,
+         drag pan. touch-action:none + overscroll-behavior:contain keep the
+         gesture off the sheet; the canvas is clipped here. -->
+    <div id="comb-map-mid" class="comb-map-zone relative flex-1 min-h-0 overflow-hidden"
+         style="touch-action:none; overscroll-behavior:contain;">
+      <canvas id="comb-map-canvas" class="absolute inset-0 w-full h-full"></canvas>
+      <p id="comb-map-hint" class="absolute bottom-2 left-1/2 -translate-x-1/2 max-w-[19rem] text-center text-white/80 text-[0.7rem] px-2 py-1 rounded-lg bg-black/55 pointer-events-none">Pinch or scroll to zoom · drag to pan · tap a lit target to place</p>
+    </div>
+    <!-- BOTTOM — the full per-player stats table + the status line. Scrolls
+         internally. Painted by combRenderMapStats(). -->
+    <div id="comb-map-bottom" class="comb-map-zone flex-shrink-0 px-3 pt-2 pb-3 overflow-y-auto" style="max-height:38vh"></div>
     <button id="btn-comb-map-close"
-      class="absolute top-4 right-4 z-10 min-h-11 min-w-11 rounded-xl bg-white/85 text-stone-700 font-bold text-xl flex items-center justify-center active:scale-90 transition-transform duration-100"
+      class="absolute top-3 right-3 z-10 min-h-11 min-w-11 rounded-xl bg-white/85 text-stone-700 font-bold text-xl flex items-center justify-center active:scale-90 transition-transform duration-100"
       aria-label="Close the map">✕</button>
-    <p id="comb-map-hint" class="absolute bottom-6 left-1/2 -translate-x-1/2 max-w-[19rem] text-center text-white text-xs px-3 py-2 rounded-xl bg-black/65 pointer-events-none">Pinch to zoom, drag with two fingers. Tap a lit target to place there.</p>
   </div>
 </body>
 </html>
