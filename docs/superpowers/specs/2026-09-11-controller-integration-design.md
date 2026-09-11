@@ -9,7 +9,7 @@
 
 ## 1. Summary
 
-The 3D controller prototype built in `assets/controller/` becomes a real part of the app. It
+The 3D controller prototype built in `docs/controller-prototype/` becomes a real part of the app. It
 replaces the lobby's 🎮 emoji, opens a **Workshop** screen where its four colour groups are painted
 from the suite's own twenty brand colours, and becomes the **input surface for the Konami code** —
 which now leads to a rebuilt, animated Sylly Gateway and on to the unchanged Secret Terminal.
@@ -26,7 +26,7 @@ entrance, and it remembers what you did to it.*
 
 ### 2.1 What exists
 
-`assets/controller/` holds a working prototype:
+`docs/controller-prototype/` holds a working prototype:
 
 | File | What it is |
 |------|-----------|
@@ -167,7 +167,7 @@ sticker sub-project adds two real tabs and nothing reflows.
 | File | Origin | Global | Precached |
 |------|--------|--------|-----------|
 | `js/lib/three.min.js` | Vendored Three r128, unmodified | `THREE` | yes |
-| `js/lib/controller-body.js` | `assets/controller/body.js`, wrapped | `ControllerBody` | yes |
+| `js/lib/controller-body.js` | `docs/controller-prototype/body.js`, wrapped | `ControllerBody` | yes |
 | `js/controller.js` | **New** — extracted from `standalone-stickerless.html`'s scene/app script blocks | `ctl*` functions | yes |
 
 `controller-body.js` exposes its builders on one namespace object rather than as bare globals:
@@ -185,7 +185,7 @@ in `definitions.md`.
 `controller-handoff-v3.md` § 4.2 and § 6.3 both flag that `body.js` and `sticker-surface.js` are
 duplicated inline in the standalone prototype, and that every fix in that session had to be applied
 twice by hand. **This spec ends that:** `body.js` lives once, at `js/lib/controller-body.js`, and
-`assets/controller/standalone-stickerless.html` becomes a **frozen reference artefact** — kept for
+`docs/controller-prototype/standalone-stickerless.html` becomes a **frozen reference artefact** — kept for
 its documentation value, explicitly never edited again. A note to that effect goes at the top of the
 handoff document.
 
@@ -437,11 +437,19 @@ Once the gateway is a **one-shot boot animation**, that destination is wrong in 
 readings: either the player is dropped into a replaying hack sequence they must sit through, or onto
 a stranded screen already reading `[ ACCESS GRANTED ]` with nothing to do but tap forward again.
 
-**Decision: `sm-terminal-back` returns to the lobby.** Re-entry costs a fresh Konami on the
-controller. That is more friction than today, and it is the right amount — entering the sequence is
-now the enjoyable part rather than a toll gate, and a secret that stays one tap away stops feeling
-like one. The arcade's sticky unlock (`smArcadeUnlocked`) is unaffected: once found, 🕹️ remains in
-the lobby header for the rest of the session and reaches the cabinets without the Terminal.
+**Decision: `sm-terminal-back` returns to the lobby** — confirmed by the owner at spec review.
+
+What that costs is worth stating precisely, because it is easy to assume the header 🕹️ covers it and
+it does not quite. `smArcadeUnlocked` is sticky across `resetToLobby()`, so once found, 🕹️ stays in
+the header for the rest of the session — but it calls `smOpenArcadeMenu()`, a deliberately lean
+sibling of `smOpenTerminal()` that lists **cabinets only** and skips `smLoadPacks()` so the arcade
+still opens on a cold offline start. Backing out of the Terminal therefore leaves the **arcade** one
+tap away and the **pack/skin Terminal** behind a fresh Konami.
+
+That is accepted, and it is the right amount of friction: entering the sequence is now the enjoyable
+part rather than a toll gate, and a secret that stays one tap away stops feeling like one. Nothing
+about `smOpenArcadeMenu()` changes in this spec — widening 🕹️ to the full Terminal would cost the
+offline-start guarantee that shape exists to protect.
 
 The handler's existing cleanup (clearing typewriter timers and the selected expansion/game) is
 retained; only its `showScreen` target and the two now-absent `sm-controller-status` writes change.
@@ -524,7 +532,7 @@ Per the Documentation Integrity Protocol, in order:
 - `docs/design-brief-lobby.md` § 4.1 states that 7 rapid taps on `#lobby-icon` must be preserved and
   that the 🎮 must stay a real tappable element with that exact id. Both cease to be true. § 4.2's
   description of `smShowArcadeTile()` wrapping the icon also changes.
-- `assets/controller/controller-handoff-v3.md` gains a header note recording that `body.js` now lives
+- `docs/controller-prototype/controller-handoff-v3.md` gains a header note recording that `body.js` now lives
   at `js/lib/controller-body.js`, that the standalone prototype is frozen, and that § 4.2's
   duplication item is closed.
 
@@ -545,8 +553,11 @@ Deliberately deferred, with nothing in this spec foreclosing them:
   gated model can be layered on.
 - **Player profiles.** Requires a database; out of reach on the current zero-cost constraints.
 
-Also noted for that work: `assets/stickers/logo.png` is a 490 KB copy of the full lobby wordmark and
-is unlikely to be a usable sticker source at sticker dimensions.
+**The dump folder exists now: `data/stickers/`.** Three test stickers are in it (`banana`,
+`computer`, `pan`); the owner adds more as they are drawn. It is deliberately empty of any manifest,
+loader or caching rule — those are that sub-project's first decisions, and `data/art/` (precached,
+version-bumped) and `data/packs/` (runtime-cached, no bump) are the two contracts to choose between.
+The prototype's own five test stickers stay at `docs/controller-prototype/stickers/` as reference.
 
 ---
 
