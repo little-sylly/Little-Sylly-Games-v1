@@ -567,6 +567,41 @@ more effective radius — with zero vertices touched.
 the *search*, not the geometry. This generalises to any small raycast-against-a-3D-mesh hit target on
 a touch surface — padding the mesh changes its appearance; padding the ray does not.
 
+**TG-13 — Three hand-drawn attempts at the how-to diagram's controller silhouette all failed; the
+real outline was extractable under Node the whole time. [11 Sep 2026, controller integration polish]**
+*What happened:* the Step 1 how-to diagram (`#ctl-how-to-overlay`, `index.html`) needs a flat 2D
+silhouette of the controller's front. Three attempts — a plain rounded rect, two ellipses glued
+behind a pill, then a Catmull-Rom curve through 8 hand-estimated landmark points read off a
+screenshot — all shipped and all were visibly wrong against the real render, because every attempt
+was a guess at the shape rather than a measurement of it.
+*Root cause:* the real shape was never actually unreachable — it was sitting in
+`js/lib/controller-body.js` the whole time. `buildBody()`'s shell is a `THREE.Shape` whose
+`extractPoints(64).shape` becomes `geo.userData.poly` (641 points, in the same local units the SDF
+and every button `seat()` call already use) — a load-bearing field `ctlBuildPlateUV` already reads
+for the faceplate map. `buildEars()` is even simpler: two full ellipses, `rx=.36, ry=.52`, seated at
+`x=±0.84, y=0.80, z=-0.44` with `rotation.x=-0.30, rotation.z=∓0.12` — hard-coded literals, not
+derived at runtime. None of this requires a browser: `tools/verify-controller-body.js`'s own loader
+(`global.window=global; require('three.min.js'); require('controller-body.js')`) is enough to call
+`CB.buildBody(THREE,{}).userData.poly` and `CB.buildEars` and read the real numbers back under plain
+Node — proven working, see the command below.
+*Fix (not yet applied — handed off):* build the diagram's SVG path from these real coordinates
+instead of another hand-plotted curve — project the shell's `poly` (x,y direct, no z, this is a flat
+schematic not a 3D render — flip y for SVG's downward axis) for the body outline, and each ear
+ellipse (its 3D tilt is small enough to approximate as an upright ellipse, or account for it with
+`ry *= cos(0.30)` ≈ ×0.955 if it matters at this scale) for the two ear lobes, then affine-map the
+combined bounding box into the SVG's viewBox. Extraction command (confirmed working, 11 Sep 2026):
+
+```bash
+node -e "global.window=global; const THREE=require('./js/lib/three.min.js'); require('./js/lib/controller-body.js'); const U=global.window.ControllerBody.buildBody(THREE,{}).userData; console.log(U.poly.length, U.minx, U.maxx, U.miny, U.maxy);"
+```
+
+*Lesson:* before hand-authoring a 2D approximation of something that already exists as real geometry
+in the codebase, check whether the geometry itself is reachable under Node first — a pure-function
+extraction of the real numbers is strictly cheaper and strictly more accurate than any number of
+screenshot-and-eyeball iterations, and this project's whole "pure half above the RENDERER marker"
+split (see the file header of `js/controller.js`) exists specifically to make that kind of headless
+extraction possible.
+
 ---
 
 ## Multiplayer Lessons
