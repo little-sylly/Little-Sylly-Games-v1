@@ -22,7 +22,7 @@ let whoFirstPath        = null;   // 'random' | 'rps' — drives back-from-confi
 
 // ── DOM: all screen IDs ───────────────────────────────────────────────────────
 const allScreens = [
-  'screen-lobby', 'screen-who-first', 'screen-menu', 'screen-setup',
+  'screen-lobby', 'screen-who-first', 'screen-workshop', 'screen-menu', 'screen-setup',
   'screen-gatekeeper', 'screen-active-play', 'screen-gameover',
   'screen-gm-menu', 'screen-gm-setup', 'screen-gm-input', 'screen-gm-pass-gate',
   'screen-gm-reveal-gate', 'screen-gm-reveal', 'screen-gm-result',
@@ -875,7 +875,7 @@ function resetToLobby() {
   document.body.classList.remove('mp-sync-locked');
   ['mp-version-mismatch-overlay', 'mp-host-disconnected-overlay',
    'mp-lttp-message-interrupt-overlay', 'mp-network-error-overlay',
-   'mp-host-prelobby-overlay', 'mp-roster-mismatch-overlay'].forEach(id => {
+   'mp-host-prelobby-overlay', 'mp-roster-mismatch-overlay', 'ctl-how-to-overlay'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = 'none';
   });

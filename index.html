@@ -104,6 +104,67 @@
     </div>
   </section>
 
+  <!-- ② WORKSHOP — controller customiser. NOT a game: activeGameId stays null. -->
+  <section id="screen-workshop" style="display:none"
+    class="relative flex flex-col w-full max-w-sm mx-auto h-screen overflow-hidden">
+
+    <!-- HEADER — fixed -->
+    <div class="flex items-center justify-between px-5 pt-4 pb-2 flex-shrink-0">
+      <h2 class="text-xl font-bold text-stone-800">Workshop</h2>
+      <div class="flex items-center gap-2">
+        <button id="btn-ctl-how-to" class="text-stone-400 font-bold text-sm min-h-11 min-w-11">[?]</button>
+        <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100 min-h-11 min-w-11">🔊</button>
+        <button id="btn-ctl-exit" class="text-stone-500 font-bold text-xl active:scale-90 transition-transform duration-100 min-h-11 min-w-11">✕</button>
+      </div>
+    </div>
+
+    <!-- STAGE — fixed, never scrolls -->
+    <div class="flex-shrink-0 px-5">
+      <div id="ctl-stage" class="ctl-workshop-stage"></div>
+      <p class="text-stone-400 text-xs text-center mt-1">Drag to turn it around</p>
+    </div>
+
+    <!-- PANEL — scrolls independently -->
+    <div id="ctl-panel" class="flex-1 min-h-0 overflow-y-auto px-5 py-4 flex flex-col gap-4"></div>
+
+    <!-- CONTROLS — fixed -->
+    <div class="flex-shrink-0 px-5 pb-5 pt-2 flex flex-col gap-2">
+      <button id="btn-ctl-save"
+        class="min-h-14 w-full rounded-2xl bg-purple-500 hover:bg-purple-600 text-white font-semibold text-lg active:scale-95 transition-all duration-150">Save</button>
+      <button id="btn-ctl-reset"
+        class="min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 text-stone-700 font-semibold text-lg active:scale-95 transition-all duration-150">Reset</button>
+    </div>
+  </section>
+
+  <div id="ctl-how-to-overlay" style="display:none"
+    class="fixed inset-0 bg-black/40 z-[90] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
+      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
+        <h2 class="text-xl font-bold text-stone-800">The Workshop 🎮</h2>
+        <p class="text-xs text-stone-400 mt-1">Make the controller yours.</p>
+      </div>
+      <div class="overflow-y-auto flex flex-col gap-4 px-5 py-5">
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest text-purple-500">Step 1</p>
+          <p class="font-bold text-stone-800">Have a look around</p>
+          <p class="text-stone-500 text-sm">Drag the controller to spin it. Every side is paintable, so check the back before you settle.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest text-purple-500">Step 2</p>
+          <p class="font-bold text-stone-800">Pick your colours</p>
+          <p class="text-stone-500 text-sm">Four parts, twenty colours — one for every game in the box. Tap a swatch and the controller changes straight away.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest text-purple-500">Step 3</p>
+          <p class="font-bold text-stone-800">Save it, or start again</p>
+          <p class="text-stone-500 text-sm"><span class="font-semibold text-stone-700">Save</span> keeps your design for next time. <span class="font-semibold text-stone-700">Reset</span> puts it back to the colours it came in. Leaving without saving changes nothing.</p>
+        </div>
+        <button id="btn-ctl-howto-close"
+          class="min-h-14 w-full rounded-2xl bg-purple-500 hover:bg-purple-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">Got it</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ENGINE — Shared "Who Goes First?" screen -->
   <section id="screen-who-first" style="display:none"
     class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">

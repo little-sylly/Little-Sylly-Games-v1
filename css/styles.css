@@ -3115,3 +3115,45 @@ body.flash-red   { background-color: #fecaca; }
   touch-action: none;        /* a rotate-drag must not scroll the lobby */
 }
 .ctl-lobby-mount canvas { display: block; width: 100%; height: 100%; }
+
+/* ── 3D controller: the Workshop stage ───────────────────────────────────────
+   A fixed stage, per the h-screen whitelist entry: a page-scroll during a
+   rotate-drag would hijack the drag, and the preview has to stay visible while
+   the colours under it change. */
+.ctl-workshop-stage {
+  width: 100%;
+  height: 38vh;
+  min-height: 200px;
+  max-height: 340px;
+  cursor: grab;
+  touch-action: none;
+}
+.ctl-workshop-stage canvas { display: block; width: 100%; height: 100%; }
+
+/* A swatch is a colour, so it carries no text — the ring and the tick are what
+   say "this one". The tick is drawn in both inks so it survives over #FFE500
+   and over #18181B alike. */
+.ctl-swatch {
+  aspect-ratio: 1;
+  min-height: 2.75rem;            /* 44 px touch minimum */
+  border-radius: 0.5rem;
+  border: 2px solid rgba(0, 0, 0, 0.08);
+  position: relative;
+  transition: transform 120ms ease-out;
+}
+.ctl-swatch:active { transform: scale(0.92); }
+.ctl-swatch-on {
+  box-shadow: 0 0 0 3px #fafaf9, 0 0 0 5px #78716c;
+}
+.ctl-swatch-on::after {
+  content: '✓';
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 0 3px rgba(0, 0, 0, 0.75);
+}

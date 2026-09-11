@@ -662,3 +662,117 @@ function ctlScheduleIdleNudge() {
 }
 
 document.addEventListener('DOMContentLoaded', ctlMountLobby);
+
+// ── The Workshop ─────────────────────────────────────────────────────────────
+const CTL_GROUP_LABELS = {
+  shell:   { name: 'Shell',     hint: 'The body, front and back.' },
+  plate:   { name: 'Faceplate', hint: 'The panel the sticks sit on.' },
+  ears:    { name: 'Ears',      hint: 'The two grips either side.' },
+  buttons: { name: 'Buttons',   hint: 'Sticks, D-pad and shoulders.' },
+};
+
+/* The design being edited. Unsaved changes are discarded on exit, so the lobby
+   always reflects the last SAVED state — which is why this is a copy rather
+   than a live pointer at ctlDesign. */
+let ctlDraft = null;
+
+function ctlOpenWorkshop() {
+  ctlDraft = Object.assign({}, ctlReadDesign());
+  showScreen('screen-workshop');
+  const stage = document.getElementById('ctl-stage');
+  if (!ctlEnsureBuilt()) return;
+  ctlPressEnabled = true;          // the Konami is live HERE and nowhere else
+  // Task 6 defines ctlKonamiPress. The typeof guard is what keeps this task
+  // independently shippable: between the two commits the Workshop opens and the
+  // buttons press, they just feed no code yet.
+  ctlOnPress = (typeof ctlKonamiPress === 'function') ? ctlKonamiPress : null;
+  ctlOnTap = null;
+  ctlApplyDesign(ctlDraft);
+  ctlMount(stage);
+  ctlBindPointer(stage);
+  ctlRenderPanel();
+}
+
+function ctlCloseWorkshop() {
+  ctlTeardown();
+  ctlDraft = null;
+  ctlDesign = ctlReadDesign();     // discard unsaved changes
+  showScreen('screen-lobby');
+  ctlMountLobby();
+}
+
+function ctlRenderPanel() {
+  const panel = document.getElementById('ctl-panel');
+  if (!panel) return;
+  panel.innerHTML = '';
+  const palette = ctlPalette();
+  for (const group of CTL_GROUPS) {
+    const meta = CTL_GROUP_LABELS[group];
+    const card = document.createElement('div');
+    card.className = 'bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3';
+
+    const head = document.createElement('div');
+    const title = document.createElement('p');
+    title.className = 'text-stone-800 font-semibold';
+    title.textContent = meta.name;
+    const hint = document.createElement('p');
+    hint.className = 'text-stone-400 text-sm mt-0.5';
+    hint.textContent = meta.hint;
+    head.appendChild(title); head.appendChild(hint);
+    card.appendChild(head);
+
+    /* Six columns: 6 × 44 px + 5 × 6 px of gap = 294 px, inside the 312 px a
+       max-w-sm card leaves once its own padding is taken. Twenty swatches land
+       as 6/6/6/2. */
+    const grid = document.createElement('div');
+    grid.className = 'grid grid-cols-6 gap-1.5';
+    for (const sw of palette) {
+      const b = document.createElement('button');
+      b.className = 'ctl-swatch' + (ctlDraft[group].toUpperCase() === sw.hex.toUpperCase() ? ' ctl-swatch-on' : '');
+      b.style.backgroundColor = sw.hex;
+      b.setAttribute('aria-label', meta.name + ' — ' + sw.hex);
+      b.addEventListener('click', () => ctlSelectColour(group, sw.hex));
+      grid.appendChild(b);
+    }
+    card.appendChild(grid);
+    panel.appendChild(card);
+  }
+}
+
+function ctlSelectColour(group, hex) {
+  playPillClick();
+  ctlDraft[group] = hex;
+  ctlApplyDesign(ctlDraft);
+  ctlRenderPanel();
+}
+
+document.getElementById('btn-ctl-save').addEventListener('click', () => {
+  playDone();
+  ctlWriteDesign(ctlDraft);
+  ctlDesign = Object.assign({}, ctlDraft);
+  ctlCloseWorkshop();
+});
+
+document.getElementById('btn-ctl-reset').addEventListener('click', () => {
+  playWhoosh();
+  ctlDraft = Object.assign({}, CTL_DEFAULTS);
+  ctlApplyDesign(ctlDraft);
+  ctlRenderPanel();
+});
+
+/* No quit-confirm overlay: nothing is mid-round, and an unsaved colour change
+   is two taps from being remade. */
+document.getElementById('btn-ctl-exit').addEventListener('click', () => {
+  playExit();
+  ctlCloseWorkshop();
+});
+
+document.getElementById('btn-ctl-how-to').addEventListener('click', () => {
+  const ov = document.getElementById('ctl-how-to-overlay');
+  ov.querySelector('.overlay-data-inner').scrollTop = 0;
+  ov.style.display = 'flex';
+});
+document.getElementById('btn-ctl-howto-close').addEventListener('click', () => {
+  playDone();
+  document.getElementById('ctl-how-to-overlay').style.display = 'none';
+});
