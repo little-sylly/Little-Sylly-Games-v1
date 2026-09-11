@@ -80,7 +80,7 @@ function ctlPalette() {
 // ══ RENDERER ══ everything below needs THREE, a document and a canvas ═══════
 
 let ctlBuilt = false;
-let ctlScene, ctlCamera, ctlRenderer, ctlRig, ctlBody, ctlControls, ctlEars;
+let ctlScene, ctlCamera, ctlRenderer, ctlRig, ctlBody, ctlControls, ctlEars, ctlFloor;
 let ctlCanvas, ctlCtx, ctlTex, ctlEarCanvas, ctlEarCtx, ctlEarTex;
 let ctlShellMat, ctlEarMat;
 const CTL_BUTTON_MATS = new Set();
@@ -135,10 +135,14 @@ function ctlBuildScene() {
   const rim  = new THREE.DirectionalLight(0xFF9AD0, .75); rim.position.set(1.6, 2.2, -5); ctlScene.add(rim);
 
   /* ShadowMaterial is invisible except where something shadows it, so the page
-     background still shows through the catcher plane. */
-  const floor = new THREE.Mesh(new THREE.PlaneGeometry(18, 18), new THREE.ShadowMaterial({ opacity: .16 }));
-  floor.rotation.x = -Math.PI / 2; floor.position.y = -3.0; floor.receiveShadow = true;
-  ctlScene.add(floor);
+     background still shows through the catcher plane. Visibility is toggled
+     per mount (ctlMount's `floor` option) — the lobby's 150px scenery mount
+     has no headroom below the controller for a contact shadow to land in
+     without being clipped by the mount's own bounding box, so it mounts with
+     the floor hidden; the Workshop's taller stage keeps it. */
+  ctlFloor = new THREE.Mesh(new THREE.PlaneGeometry(18, 18), new THREE.ShadowMaterial({ opacity: .16 }));
+  ctlFloor.rotation.x = -Math.PI / 2; ctlFloor.position.y = -3.0; ctlFloor.receiveShadow = true;
+  ctlScene.add(ctlFloor);
 
   ctlRig = new THREE.Group();
   ctlScene.add(ctlRig);
@@ -368,9 +372,12 @@ function ctlTick() {
   if (ctlBusy()) ctlRaf = requestAnimationFrame(ctlTick);
 }
 
-function ctlMount(el) {
+/* `floor` defaults to true (the Workshop's roomier stage). The lobby's small
+   scenery mount passes false — see the comment on ctlFloor's construction. */
+function ctlMount(el, { floor = true } = {}) {
   if (!el || !ctlEnsureBuilt()) return false;
   ctlMountEl = el;
+  if (ctlFloor) ctlFloor.visible = floor;
   el.appendChild(ctlRenderer.domElement);
   ctlResize();
   ctlWake();
@@ -578,8 +585,9 @@ function ctlMountLobby() {
     ctlPressEnabled = false;         // the lobby's buttons are scenery
     ctlOnPress = null;
     ctlOnTap = () => { playLaunch(); ctlOpenWorkshop(); };
-    ctlMount(el);
+    ctlMount(el, { floor: false });   // no headroom below the mount for the contact shadow
     ctlBindPointer(el);
+    ctlScheduleIdleNudge();
   };
   if (window.requestIdleCallback) requestIdleCallback(start, { timeout: 1200 });
   else setTimeout(start, 0);
@@ -615,6 +623,37 @@ function ctlTeardown() {
       if (d.baseQuat) m.quaternion.copy(d.baseQuat);
     }
   }
+}
+
+/* ── Idle nudge — the lobby scenery invites a tap ─────────────────────────────
+   A small, randomly-signed spin every few seconds, reusing the exact coast-
+   and-settle physics a real drag release already has (ctlVelY + ctlTick's
+   friction) rather than a second animation system. Self-scheduling chain that
+   runs for the life of the page, same shape as the resize listener above —
+   it is not tied to a single timed phase, so there is no single exit point to
+   cancel it from. It is near-zero cost when it declines to act: reduced
+   motion, an active drag/stick-hold, a game in progress (screen-lobby hidden)
+   and the Workshop (a different mount element) all take the early return. */
+const CTL_IDLE_NUDGE_MIN_MS = 4000;
+const CTL_IDLE_NUDGE_MAX_MS = 7500;
+let ctlIdleNudgeArmed = false;
+
+function ctlScheduleIdleNudge() {
+  if (ctlIdleNudgeArmed) return;   // one chain, however many times the lobby (re)mounts
+  ctlIdleNudgeArmed = true;
+  const fire = () => {
+    setTimeout(fire, CTL_IDLE_NUDGE_MIN_MS + Math.random() * (CTL_IDLE_NUDGE_MAX_MS - CTL_IDLE_NUDGE_MIN_MS));
+    if (ctlReducedMotion()) return;                 // no unsolicited motion
+    if (ctlDragging || ctlHeldStick) return;         // never fight the player's own drag
+    const lobbyEl = document.getElementById('lobby-controller');
+    const screenLobby = document.getElementById('screen-lobby');
+    if (ctlMountEl !== lobbyEl) return;              // Workshop mount, or not mounted
+    if (!screenLobby || screenLobby.style.display === 'none') return;  // a game is on screen
+    const sign = Math.random() < 0.5 ? -1 : 1;
+    ctlVelY = sign * (0.02 + Math.random() * 0.02);  // small — a wiggle, not a spin
+    ctlWake();
+  };
+  setTimeout(fire, CTL_IDLE_NUDGE_MIN_MS + Math.random() * (CTL_IDLE_NUDGE_MAX_MS - CTL_IDLE_NUDGE_MIN_MS));
 }
 
 document.addEventListener('DOMContentLoaded', ctlMountLobby);
