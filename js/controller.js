@@ -633,16 +633,21 @@ function ctlTeardown() {
    it is not tied to a single timed phase, so there is no single exit point to
    cancel it from. It is near-zero cost when it declines to act: reduced
    motion, an active drag/stick-hold, a game in progress (screen-lobby hidden)
-   and the Workshop (a different mount element) all take the early return. */
-const CTL_IDLE_NUDGE_MIN_MS = 4000;
-const CTL_IDLE_NUDGE_MAX_MS = 7500;
+   and the Workshop (a different mount element) all take the early return.
+   The first nudge fires quickly (1s) — a player may not linger on the lobby
+   or may have scrolled past the fold before the "few seconds" cadence would
+   otherwise have caught them; every nudge after that is 3-5s apart. */
+const CTL_IDLE_NUDGE_FIRST_MS = 1000;
+const CTL_IDLE_NUDGE_MIN_MS = 3000;
+const CTL_IDLE_NUDGE_MAX_MS = 5000;
 let ctlIdleNudgeArmed = false;
 
 function ctlScheduleIdleNudge() {
   if (ctlIdleNudgeArmed) return;   // one chain, however many times the lobby (re)mounts
   ctlIdleNudgeArmed = true;
+  const nextDelay = () => CTL_IDLE_NUDGE_MIN_MS + Math.random() * (CTL_IDLE_NUDGE_MAX_MS - CTL_IDLE_NUDGE_MIN_MS);
   const fire = () => {
-    setTimeout(fire, CTL_IDLE_NUDGE_MIN_MS + Math.random() * (CTL_IDLE_NUDGE_MAX_MS - CTL_IDLE_NUDGE_MIN_MS));
+    setTimeout(fire, nextDelay());
     if (ctlReducedMotion()) return;                 // no unsolicited motion
     if (ctlDragging || ctlHeldStick) return;         // never fight the player's own drag
     const lobbyEl = document.getElementById('lobby-controller');
@@ -653,7 +658,7 @@ function ctlScheduleIdleNudge() {
     ctlVelY = sign * (0.02 + Math.random() * 0.02);  // small — a wiggle, not a spin
     ctlWake();
   };
-  setTimeout(fire, CTL_IDLE_NUDGE_MIN_MS + Math.random() * (CTL_IDLE_NUDGE_MAX_MS - CTL_IDLE_NUDGE_MIN_MS));
+  setTimeout(fire, CTL_IDLE_NUDGE_FIRST_MS);
 }
 
 document.addEventListener('DOMContentLoaded', ctlMountLobby);
