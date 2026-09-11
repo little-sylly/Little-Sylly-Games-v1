@@ -1,8 +1,8 @@
 # Design — Controller integration part 2: stickers
 
 **Date:** 11 Sep 2026
-**Status:** Draft, reviewed against the real geometry 12 Sep 2026 (§ 5.2b, § 6 and § 12 are outputs
-of that review; § 12.4's legibility fix is the one item still open to the owner)
+**Status:** Reviewed against the real geometry 12 Sep 2026 (§ 5.2b, § 6 and § 12 are outputs of that
+review). All decisions settled — ready for an implementation plan.
 **Tier:** 2 — Architectural (new storage schema, new overlay UI, a substantial geometry component
 not yet live in the app)
 **Amends:** `docs/superpowers/specs/2026-09-11-controller-integration-design.md` § 13 (this is the
@@ -123,6 +123,15 @@ version, which would silently reset every existing player's saved colours (not j
 to factory defaults on next load. `ctlWriteDesign` starts serializing `stickers` alongside the four
 colour fields; `ctlReadDesign` gains its own independently-validated read of that field, same
 defensive shape as the hex validator.
+
+**D8 — Every sticker gets an adaptive die-cut border.** Confirmed by the owner 12 Sep 2026, on the
+measurement in § 12.4: the current art is invisible on six of the twenty shells (worst 1.01:1 — the
+same colour), and the bump lip does not rescue it. A thin border is drawn around every sticker, its
+colour chosen **per texel** from the atlas pixel already underneath, so a light shell gets a dark
+border and vice versa. Art sampling is **inset** by the border width rather than requiring artwork to
+carry a transparent margin — all three test stickers are full-bleed, and an authoring rule that must
+be remembered for every future sticker is a worse contract than one the renderer guarantees.
+Implementation detail in § 12.4.
 
 ---
 
@@ -458,7 +467,7 @@ is `plan()` refusing a sticker that reaches the crest but cannot wrap cleanly, w
 refusal copy already tells the player what to do ("Too tight an edge to wrap around — try a smaller
 sticker or move in a bit"). No change proposed; noted so it is not re-diagnosed as a bug.
 
-### 12.4 Legibility — the open issue, and the biggest one
+### 12.4 Legibility — the measurement behind D8
 
 **Six of the twenty shell colours make the current test art effectively invisible.** All three test
 stickers are near-white dominant (18–32% of their opaque pixels are ≈`rgb(240,240,239)`). Measured
@@ -478,7 +487,7 @@ exists only *inside* the sticker's own alpha — there is no outward halo. On a 
 result is a faint relief outline (at the deliberately subtle `bumpScale: 0.035`) around a flat blank
 plateau where the artwork should be: shape visible at favourable light angles, image illegible.
 
-**Recommended fix — an adaptive die-cut border.** Real vinyl stickers have one, so it is thematically
+**The fix (D8) — an adaptive die-cut border.** Real vinyl stickers have one, so it is thematically
 right as well as functional:
 - In `stamp()`, compute the ring average `hgt` *before* the alpha early-out. Where `al` is low but
   `hgt > 0`, the texel is in the band just outside the artwork — paint the border there.
@@ -491,8 +500,8 @@ right as well as functional:
   on all four edges** — so a border drawn within the existing `[-R, R]` square would clip. Insetting
   makes the border unconditional and needs no authoring discipline for future stickers.
 
-This is the one item in this spec still open to the owner's judgement: it is a visible aesthetic
-change (every sticker gains an outline), so it is called out rather than assumed.
+Confirmed by the owner 12 Sep 2026 — recorded as D8. It is a visible aesthetic change (every sticker
+gains an outline), which is why it was put to them rather than assumed.
 
 ---
 
@@ -505,5 +514,5 @@ change (every sticker gains an outline), so it is called out rather than assumed
 | A future body-geometry change could silently orphan saved placements | § 6's load-time legality check via `SURF.plan()` drops anything no longer legal — reading its `ok` flag only, never its coordinates |
 | **Porting the module without its caller-side config** — it compiles and runs while silently losing every keep-out, letting stickers paint inside the stick-well hole | § 5.2b makes the config a named constant that is part of the port, and § 9.1 asserts the four keep-out zones actually refuse |
 | **Re-deriving the anchor on load walks saved stickers across the shell** — measured at 5.75 atlas texels over 200 loads | § 6 persists `chart` and uses stored coordinates as-is; § 9.1 asserts a load round-trip is bit-stable over many iterations |
-| **Light stickers are invisible on 6 of the 20 shell colours** (down to 1.01:1), and the bump map does not rescue it | § 12.4 — adaptive die-cut border with inset art sampling. **Open to owner judgement**, since it changes how every sticker looks |
+| **Light stickers are invisible on 6 of the 20 shell colours** (down to 1.01:1), and the bump map does not rescue it | D8 / § 12.4 — adaptive die-cut border, colour chosen per-texel from the shell beneath, art sampling inset so the border always has room |
 | Bumping `CTL_STATE_VERSION` by habit (it's the obvious-looking move when adding a field) would reset every player's saved colours | Called out explicitly as D7, with the exact existing test that would catch it named |
