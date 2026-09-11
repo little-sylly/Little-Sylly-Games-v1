@@ -248,7 +248,14 @@ function smHandleButton(code) {
 
 /* Plausible-looking nonsense. It is meant to be scanned, not read — the blur
    is doing half the work — so the shapes matter more than the words: hex
-   addresses, symbol names, sizes, the vocabulary of something linking. */
+   addresses, symbol names, sizes, the vocabulary of something linking.
+   Four line SHAPES, not one, so the stream reads as a real execution rather
+   than one table repeated 26 times: a linker-style row (the original,
+   tuned to run the container's full width so it doesn't look clipped), a raw
+   hex dump (fixed-width by construction, so it always reaches the edge), and
+   two templated one-liners (a code statement, a JSON blob) whose LENGTH
+   varies line to line — that variation is deliberate, the same way a real
+   build log doesn't line up. */
 const SM_GATEWAY_TOKENS = [
   'SEG', 'REL', 'PLT', 'GOT', 'BSS', 'TEXT', 'RODATA', 'SYM', 'DWARF', 'VMA',
   'sylly_core', 'pack_registry', 'arcade_rom', 'vault_key', 'brand_lut',
@@ -257,6 +264,22 @@ const SM_GATEWAY_TOKENS = [
 const SM_GATEWAY_VERBS = [
   'LINK', 'MAP', 'PATCH', 'VERIFY', 'INFLATE', 'SEED', 'BIND', 'RESOLVE', 'MOUNT', 'ARM',
 ];
+const SM_GATEWAY_CODE_TEMPLATES = [
+  'if (vault.unlock(0x{H4}) && rom.mounted) queue.push(seed);',
+  'const key = deriveKey(seed_0x{H2}, ROUNDS={N2});',
+  'for (i=0;i<pack_registry.length;i++) resolve(pack_registry[i]);',
+  'function initShaderCache(seed) { return atlas.decrypt(seed); }',
+  'export default class Loadout extends Module { boot() { return 0x{H2}; } }',
+  'await Promise.all(chunks.map(c => c.verify(0x{H4})));',
+  'while (!arcade.ready) tick(sw_scope, 0x{H2});',
+  'return sylly_core.mount(brand_lut, { strict: true });',
+];
+const SM_GATEWAY_JSON_TEMPLATES = [
+  '{"module":"{TOKEN}","size":{N4},"status":"ok","chk":"0x{H4}"}',
+  '{"seed":"0x{H8}","rounds":{N2},"verified":true}',
+  '{"pack":"{TOKEN}","version":1,"locked":false}',
+  '{"scope":"sw","cache":"{TOKEN}","hit":true}',
+];
 
 function smGatewayHex(n) {
   let s = '';
@@ -264,21 +287,84 @@ function smGatewayHex(n) {
   return s;
 }
 
-function smGatewayLine() {
+function smGatewayFill(tpl) {
+  return tpl
+    .replace(/\{H8\}/g, () => smGatewayHex(8))
+    .replace(/\{H4\}/g, () => smGatewayHex(4))
+    .replace(/\{H2\}/g, () => smGatewayHex(2))
+    .replace(/\{N2\}/g, () => String(1 + Math.floor(Math.random() * 32)))
+    .replace(/\{N4\}/g, () => String(1 + Math.floor(Math.random() * 4096)))
+    .replace(/\{TOKEN\}/g, () => SM_GATEWAY_TOKENS[Math.floor(Math.random() * SM_GATEWAY_TOKENS.length)]);
+}
+
+/* Every field is a fixed width (padEnd/fixed-length hex), so this always
+   comes out the same length — long enough to run to the log's right edge
+   rather than stopping visibly short of it. */
+function smGatewayTableLine() {
   const v = SM_GATEWAY_VERBS[Math.floor(Math.random() * SM_GATEWAY_VERBS.length)];
   const t = SM_GATEWAY_TOKENS[Math.floor(Math.random() * SM_GATEWAY_TOKENS.length)];
+  const size = (1 + Math.floor(Math.random() * 4096)) + 'b';
   return '0x' + smGatewayHex(8) + '  ' + v.padEnd(8) + t.padEnd(16) +
-         '+' + smGatewayHex(4) + '  ' + (1 + Math.floor(Math.random() * 4096)) + 'b  OK';
+         '+' + smGatewayHex(4) + '  ' + size.padEnd(6) + ' #' + smGatewayHex(4) + ' OK';
+}
+
+/* A classic hex-viewer row — offset, 12 byte pairs, an ASCII gutter. Fixed
+   width by construction, so it's the one shape guaranteed to reach the
+   right edge every single time. */
+function smGatewayHexDumpLine() {
+  const addr = smGatewayHex(6);
+  const bytes = [];
+  let ascii = '';
+  for (let i = 0; i < 12; i++) {
+    const b = Math.floor(Math.random() * 256);
+    bytes.push(b.toString(16).toUpperCase().padStart(2, '0'));
+    ascii += (b >= 32 && b <= 126) ? String.fromCharCode(b) : '.';
+  }
+  return addr + '  ' + bytes.join(' ') + '  ' + ascii;
+}
+
+/* Builds the whole stream up front so the SHAPE of the sequence is
+   deliberate, not per-line-random: the first and last few lines read like a
+   boot/finalise beat (a code statement or a JSON blob), the middle is mostly
+   the table/hex-dump "data" simulation with occasional code/JSON breaking it
+   up — mixed formats, mixed lengths, reads like a real execution rather than
+   one table repeated. */
+function smGatewayBuildLines(n) {
+  const lines = [];
+  for (let i = 0; i < n; i++) {
+    const edge = i < 3 || i >= n - 3;
+    let kind;
+    if (edge) {
+      kind = Math.random() < 0.5 ? 'code' : 'json';
+    } else {
+      const r = Math.random();
+      kind = r < 0.55 ? 'table' : r < 0.80 ? 'hexdump' : r < 0.90 ? 'code' : 'json';
+    }
+    if (kind === 'table') lines.push(smGatewayTableLine());
+    else if (kind === 'hexdump') lines.push(smGatewayHexDumpLine());
+    else if (kind === 'code') lines.push(smGatewayFill(SM_GATEWAY_CODE_TEMPLATES[Math.floor(Math.random() * SM_GATEWAY_CODE_TEMPLATES.length)]));
+    else lines.push(smGatewayFill(SM_GATEWAY_JSON_TEMPLATES[Math.floor(Math.random() * SM_GATEWAY_JSON_TEMPLATES.length)]));
+  }
+  return lines;
 }
 
 const SM_GATEWAY_LINES = 26;
 const SM_GATEWAY_GAP   = 55;   // ms — ~1.4 s of stream, then the payoff
+
+function smGatewayTimestamp() {
+  const d = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  return pad(d.getDate()) + '.' + pad(d.getMonth() + 1) + '.' + d.getFullYear() +
+         ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+}
 
 function smOpenGateway() {
   /* The Workshop's rAF is a timer and this is an early transition out of that
      screen — logic-engine.md § Timer Lifecycle's third required clear site. */
   if (typeof ctlTeardown === 'function') ctlTeardown();
   showScreen('screen-secret-gateway');
+  const ts = document.getElementById('sm-gateway-timestamp');
+  if (ts) ts.textContent = smGatewayTimestamp();
   smGatewayStream();
 }
 
@@ -291,15 +377,15 @@ function smGatewayStream() {
   log.innerHTML = '';
   granted.style.display = 'none';
 
+  const lines = smGatewayBuildLines(SM_GATEWAY_LINES);
+
   /* The stream is driven by timers, and the global prefers-reduced-motion CSS
      block only zeroes animation/transition durations — it cannot reach a
      setTimeout writing text. Under reduced motion the screen renders its
      finished state at once: the whole loadout is there to read, and the payoff
      is there to tap. Reduced motion, not reduced information. */
   if (smReducedMotion()) {
-    const all = [];
-    for (let i = 0; i < SM_GATEWAY_LINES; i++) all.push(smGatewayLine());
-    log.textContent = all.join('\n');
+    log.textContent = lines.join('\n');
     smGatewayFinish();
     return;
   }
@@ -307,7 +393,7 @@ function smGatewayStream() {
   for (let i = 0; i < SM_GATEWAY_LINES; i++) {
     const t = setTimeout(() => {
       const p = document.createElement('div');
-      p.textContent = smGatewayLine();
+      p.textContent = lines[i];
       log.appendChild(p);
       log.scrollTop = log.scrollHeight;
       if (i % 4 === 0) playSecretBeep(180 + i * 12);

@@ -680,10 +680,11 @@ no rendering, no DOM beyond a mock `localStorage`; layout is `visual-check`'s jo
 ### Key gateway elements (SW v228 — replaced the 2D controller UI)
 | ID | Purpose |
 |----|---------|
-| `#sm-gateway-log` | The streaming loadout log — plausible link-loader gibberish under a static `.sm-gateway-blur` (`filter: blur()`, never animated), written by `smGatewayStream()`/`smGatewayLine()` |
+| `#sm-gateway-log` | The streaming loadout log — plausible link-loader gibberish under a static `.sm-gateway-blur` (`filter: blur()`, never animated), written by `smGatewayStream()`/`smGatewayBuildLines()` |
+| `#sm-gateway-timestamp` | The header section's live timestamp (`smGatewayTimestamp()`, DD.MM.YYYY HH:MM:SS), set once when `smOpenGateway()` opens the screen |
 | `#sm-gateway-granted` | `[ ACCESS GRANTED ]` + `#sm-gateway-continue` — hidden until `smGatewayFinish()`, shown on the resolve; the screen **waits** for the tap rather than auto-advancing |
 | `#sm-gateway-continue` | TAP TO CONTINUE — clears any stream timers, plays a beep, `smOpenTerminal()` |
-| `#sm-btn-exit` | ✕ on the gateway — clears stream timers, resets the Konami buffer, back to the lobby (`ctlMountLobby()`) |
+| `#sm-btn-exit` | ✕ on the gateway — sits `mt-12` above the ASCII-framed header section, not over it. Clears stream timers, resets the Konami buffer, back to the lobby (`ctlMountLobby()`) |
 
 Removed with the 2D controller: `#sm-btn-up/down/left/right/b/a/select/start` (the eight NES-style buttons), `#sm-konami-progress` (progress dots — `smUpdateProgress()` still checks for it and no-ops if absent, so no code change was needed there), `#sm-controller-status` (status line — the gateway has no equivalent single line; the log + `#sm-gateway-granted` replace it). The Konami sequence itself is unchanged (`SM_KONAMI`, `smKonamiBuffer`, `smHandleButton()`) — only its **input surface** moved, onto the real controller's D-pad/Face A/Face B/Start via `js/controller.js`'s `ctlKonamiCode()`/`ctlKonamiPress()`.
 
@@ -699,9 +700,13 @@ Removed with the 2D controller: `#sm-btn-up/down/left/right/b/a/select/start` (t
 | `smOpenVocabOverlay()` | Opens GM vocab reference overlay |
 | `resetSecretMode()` | Full teardown; called by `resetToLobby()` |
 | `smOpenGateway()` | **(SW v228)** Called from `smHandleButton()`'s match branch and the keyboard Konami's match branch. Tears down the Workshop's controller (`ctlTeardown()` — Timer Lifecycle's third clear site), shows `screen-secret-gateway`, starts the stream |
-| `smGatewayStream()` | Clears any prior `smTypewriterTimers`, then schedules `SM_GATEWAY_LINES` (26) staggered writes (`SM_GATEWAY_GAP` = 55ms apart) into `#sm-gateway-log`, finishing with `smGatewayFinish()`. Has its own `smReducedMotion()` check — the global CSS block cannot reach a `setTimeout`, so under reduced motion the whole log is written at once and `smGatewayFinish()` runs immediately |
+| `smGatewayStream()` | Builds the sequence via `smGatewayBuildLines()`, clears any prior `smTypewriterTimers`, then schedules `SM_GATEWAY_LINES` (26) staggered writes (`SM_GATEWAY_GAP` = 55ms apart) into `#sm-gateway-log`, finishing with `smGatewayFinish()`. Has its own `smReducedMotion()` check — the global CSS block cannot reach a `setTimeout`, so under reduced motion the whole log is written at once and `smGatewayFinish()` runs immediately |
 | `smGatewayFinish()` | Reveals `#sm-gateway-granted`, plays the victory arpeggio |
-| `smGatewayLine()` / `smGatewayHex(n)` | One line of plausible link-loader gibberish (`SM_GATEWAY_TOKENS`/`SM_GATEWAY_VERBS`) |
+| `smGatewayBuildLines(n)` | Builds the whole `n`-line sequence up front, not per-line-random: the first/last 3 lines are always a code or JSON one-liner (a boot/finalise beat), the middle is weighted table (55%) / hex-dump (25%) / code (10%) / JSON (10%) — mixed formats and lengths so it reads as an execution, not one table repeated |
+| `smGatewayTableLine()` / `smGatewayHex(n)` | The original linker-style row (`SM_GATEWAY_TOKENS`/`SM_GATEWAY_VERBS`), all fields fixed-width so every line reaches the log's right edge rather than stopping short |
+| `smGatewayHexDumpLine()` | A hex-viewer row — 6-hex offset, 12 byte pairs, an ASCII gutter — fixed-width by construction, so it's the one shape guaranteed to reach the edge every time |
+| `smGatewayFill(tpl)` / `SM_GATEWAY_CODE_TEMPLATES` / `SM_GATEWAY_JSON_TEMPLATES` | Template one-liners (a code statement, a JSON blob) with `{H8}`/`{H4}`/`{H2}`/`{N2}`/`{N4}`/`{TOKEN}` placeholders filled at render time; deliberately variable-length |
+| `smGatewayTimestamp()` | `DD.MM.YYYY HH:MM:SS` of `new Date()` at the moment the gateway opens — written into `#sm-gateway-timestamp` |
 
 ### Key config objects (built at runtime by `smLoadPacks()` — Phase A)
 | Name | Purpose |

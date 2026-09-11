@@ -702,7 +702,7 @@ document.addEventListener('DOMContentLoaded', ctlMountLobby);
 // ── The Workshop ─────────────────────────────────────────────────────────────
 const CTL_GROUP_LABELS = {
   shell:   { name: 'Shell',     hint: 'The body, front and back.' },
-  plate:   { name: 'Faceplate', hint: 'The panel the sticks sit on.' },
+  plate:   { name: 'Face',      hint: 'The panel the sticks sit on.' },
   ears:    { name: 'Ears',      hint: 'The two grips either side.' },
   buttons: { name: 'Buttons',   hint: 'Sticks, D-pad and shoulders.' },
 };
