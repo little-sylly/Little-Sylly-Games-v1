@@ -49,8 +49,9 @@ const PRECACHE_URLS = [
   'js/lib/tailwind-play.js',
   'js/lib/canvas-draw.js',
   'data/words.json',
-  // Expansion/skin packs (data/packs/) are NOT precached — they are runtime-cached
-  // on first use so adding a pack needs no version bump. See the fetch handler below.
+  // Expansion/skin packs (data/packs/), background music (data/music/) and controller
+  // stickers (data/stickers/) are NOT precached — they are runtime-cached on first use
+  // so adding one needs no version bump. See the fetch handler below.
   //
   // CORE ART (data/art/) IS precached — it is a game's default artwork, so it must be
   // present on a cold offline install. Same manifest format as a skin pack, opposite
@@ -273,6 +274,35 @@ self.addEventListener('fetch', event => {
     } else {
       // Audio: cache-first — a track is fetched once and then costs nothing,
       // which is what keeps repeat play off mobile data.
+      event.respondWith(
+        caches.match(event.request).then(cached => cached || fetch(event.request).then(res => {
+          const copy = res.clone();
+          caches.open(CACHE_NAME).then(c => c.put(event.request, copy));
+          return res;
+        }))
+      );
+    }
+    return;
+  }
+
+  // Stickers (data/stickers/) — runtime cache, no precache, no version bump.
+  // Same contract as data/packs/ and data/music/: the owner adds stickers as
+  // they are drawn, and a new one must not cost a service-worker release.
+  // js/lib/controller-sticker-surface.js IS precached — that is app code, and
+  // app code is part of the app version. The art is not.
+  if (url.pathname.includes('/data/stickers/')) {
+    if (url.pathname.endsWith('.json')) {
+      // Manifest: network-first, so a newly-drawn sticker is discovered on the
+      // next online load; the cache covers offline.
+      event.respondWith(
+        fetch(event.request).then(res => {
+          const copy = res.clone();
+          caches.open(CACHE_NAME).then(c => c.put(event.request, copy));
+          return res;
+        }).catch(() => caches.match(event.request))
+      );
+    } else {
+      // Art: cache-first — fetched once, then free.
       event.respondWith(
         caches.match(event.request).then(cached => cached || fetch(event.request).then(res => {
           const copy = res.clone();

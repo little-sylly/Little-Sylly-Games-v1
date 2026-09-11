@@ -93,6 +93,59 @@ function ctlKonamiCode(name, dir) {
   return CTL_KONAMI_BUTTONS[name] || null;
 }
 
+// ── The sticker inventory ────────────────────────────────────────────────────
+/* Runtime-cached, never precached — a sticker ships by dropping a PNG in the
+   folder and adding one manifest line, with no sw.js edit and no CACHE_NAME
+   bump. Same contract as data/packs/ and data/music/, and the opposite of
+   data/art/'s precached-and-version-bumped one, which is for default art that
+   IS part of the app version. See logic-engine.md § PWA Guardian.
+
+   The file shape is data/music/'s — one flat manifest — rather than
+   data/packs/'s folder-per-item + registry.json: a pack carries a whole
+   settings/word-list config, a sticker carries four fields. */
+const CTL_STICKER_DIR = 'data/stickers/';
+
+let ctlStickerManifest = null;   // null until the first load resolves
+
+/* Total by construction, same defensive shape as ctlReadDesign. Anything
+   malformed becomes a DROPPED ENTRY, never a throw and never a partial record
+   the renderer would later trip over. `unlocked` is reserved for the
+   achievements sub-project (spec D3) and defaults to true: today every sticker
+   is free to everyone, exactly like every colour. */
+function ctlValidateManifest(raw) {
+  const out = [];
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
+  if (!Array.isArray(raw.stickers)) return out;
+  const seen = new Set();
+  for (const e of raw.stickers) {
+    if (!e || typeof e !== 'object' || Array.isArray(e)) continue;
+    const str = v => typeof v === 'string' && v.length > 0;
+    if (!str(e.id) || !str(e.label) || !str(e.image)) continue;
+    if (seen.has(e.id)) continue;          // first occurrence wins
+    seen.add(e.id);
+    out.push({ id: e.id, label: e.label, image: e.image, unlocked: e.unlocked !== false });
+  }
+  return out;
+}
+
+/* One fetch for the life of the page. Every failure path — offline before the
+   first fetch, a 404, malformed JSON — resolves to an empty inventory, which
+   renders as a book with nothing in it rather than an error on a screen the
+   player reached by tapping a toy. */
+function ctlLoadStickerManifest() {
+  if (ctlStickerManifest) return Promise.resolve(ctlStickerManifest);
+  return fetch(CTL_STICKER_DIR + 'manifest.json')
+    .then(r => r.ok ? r.json() : null)
+    .catch(() => null)
+    .then(raw => (ctlStickerManifest = ctlValidateManifest(raw)));
+}
+
+function ctlStickerById(id) {
+  if (!ctlStickerManifest) return null;
+  for (const e of ctlStickerManifest) if (e.id === id) return e;
+  return null;
+}
+
 // ══ RENDERER ══ everything below needs THREE, a document and a canvas ═══════
 
 let ctlBuilt = false;

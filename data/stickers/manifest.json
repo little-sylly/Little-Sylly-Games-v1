@@ -1,0 +1,5 @@
+{ "stickers": [
+  { "id": "banana",   "label": "Banana",   "image": "banana.png",   "unlocked": true },
+  { "id": "computer", "label": "Computer", "image": "computer.png", "unlocked": true },
+  { "id": "pan",      "label": "Pan",      "image": "pan.png",      "unlocked": true }
+] }

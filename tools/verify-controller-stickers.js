@@ -25,6 +25,51 @@ function ok(cond, label) {
   else { fail++; console.log('  FAIL  ' + label); }
 }
 
+const fs = require('fs');
+const vm = require('vm');
+
+// js/controller.js's pure half, evaluated with no DOM — the same cut
+// verify-controller-state.js uses. CTL_SRC= points at another copy so a
+// pre-fix version can be driven through these checks.
+const CTL_SRC = process.env.CTL_SRC
+  ? path.resolve(process.env.CTL_SRC)
+  : path.join(ROOT, 'js/controller.js');
+
+/* The symbols the pure half publishes to these checks. const/let at top level
+   never become own properties of the vm context, so each is copied onto
+   `window` explicitly. The copy is typeof-guarded because this list spans the
+   whole sub-project and later tasks have not written their half yet — but a
+   guarded copy would turn a RENAMED symbol into a silent undefined, so every
+   call names the symbols it actually requires and loadCtlPure throws when one
+   is missing. Guarded for the not-yet-written; loud for the misspelt. */
+const CTL_PURE_EXPORTS = ['ctlValidateManifest', 'ctlValidateStickers',
+                          'ctlStickerReduce', 'CTL_STICKER_OPT'];
+
+function loadCtlPure(storeInitial, need) {
+  const map = Object.assign({}, storeInitial);
+  const store = {
+    _map: map,
+    getItem(k) { return k in map ? map[k] : null; },
+    setItem(k, v) { map[k] = String(v); },
+    removeItem(k) { delete map[k]; },
+  };
+  const sandbox = { localStorage: store, console, Math, JSON, Date };
+  sandbox.window = sandbox;
+  vm.createContext(sandbox);
+  const full = fs.readFileSync(CTL_SRC, 'utf8');
+  const cut = full.indexOf('// ══ RENDERER ══');
+  if (cut < 0) throw new Error('js/controller.js is missing its "// ══ RENDERER ══" marker');
+  const publish = CTL_PURE_EXPORTS
+    .map(n => "if (typeof " + n + " !== 'undefined') window." + n + " = " + n + ";")
+    .join('\n');
+  vm.runInContext(full.slice(0, cut) + '\n' + publish, sandbox, { filename: 'controller-pure' });
+  for (const n of (need || [])) {
+    if (typeof sandbox[n] === 'undefined')
+      throw new Error('js/controller.js pure half does not define ' + n);
+  }
+  return { sandbox, store };
+}
+
 global.window = global;
 const THREE = require(path.join(ROOT, 'js/lib/three.min.js'));
 require(path.join(ROOT, 'js/lib/controller-body.js'));
@@ -123,6 +168,65 @@ console.log('── 5. padPairs is computed and non-empty ──');
   ok(PAD && PAD.dst && PAD.src, 'padPairs(4) returns a dst/src pair');
   ok(PAD.dst.length === PAD.src.length, 'the pair arrays are the same length');
   ok(PAD.dst.length > 1000, 'it found a real number of seam texels, got ' + PAD.dst.length);
+}
+
+console.log('── 6. Manifest validation is total (spec § 5.1) ──');
+{
+  const { sandbox } = loadCtlPure(undefined, ['ctlValidateManifest']);
+  const V = sandbox.ctlValidateManifest;
+
+  const good = { stickers: [
+    { id: 'banana', label: 'Banana', image: 'banana.png', unlocked: true },
+    { id: 'pan',    label: 'Pan',    image: 'pan.png',    unlocked: true },
+  ] };
+  ok(V(good).length === 2, 'a well-formed manifest keeps both entries');
+  ok(V(good)[0].id === 'banana', 'order is preserved');
+
+  const cases = [
+    ['null',                 null],
+    ['a bare array',         []],
+    ['a number',             7],
+    ['a string',             'stickers'],
+    ['no stickers key',      { things: [] }],
+    ['stickers not an array',{ stickers: {} }],
+  ];
+  for (const [label, value] of cases) {
+    let out = null, threw = null;
+    try { out = V(value); } catch (e) { threw = e; }
+    ok(!threw, 'validating ' + label + ' does not throw');
+    ok(Array.isArray(out) && out.length === 0, 'validating ' + label + ' yields []');
+  }
+
+  const messy = { stickers: [
+    null,                                                       // dropped
+    7,                                                          // dropped
+    { label: 'No id', image: 'x.png' },                         // dropped: no id
+    { id: 'noimg', label: 'No image' },                         // dropped: no image
+    { id: 'nolabel', image: 'x.png' },                          // dropped: no label
+    { id: '', label: 'Empty id', image: 'x.png' },              // dropped: empty id
+    { id: 'ok1', label: 'Fine', image: 'ok1.png' },             // kept, unlocked defaults true
+    { id: 'ok1', label: 'Duplicate', image: 'other.png' },      // dropped: duplicate id
+    { id: 'ok2', label: 'Locked', image: 'ok2.png', unlocked: false }, // kept, unlocked false
+  ] };
+  const out = V(messy);
+  ok(out.length === 2, 'a messy manifest keeps exactly the two valid entries, got ' + out.length);
+  ok(out[0].id === 'ok1' && out[0].unlocked === true, 'unlocked defaults to true');
+  ok(out[1].id === 'ok2' && out[1].unlocked === false, 'an explicit unlocked:false is kept');
+  ok(out.filter(e => e.id === 'ok1').length === 1, 'the duplicate id is dropped, first wins');
+}
+
+console.log('── 7. The shipped manifest is valid ──');
+{
+  const { sandbox } = loadCtlPure(undefined, ['ctlValidateManifest']);
+  const raw = JSON.parse(fs.readFileSync(path.join(ROOT, 'data/stickers/manifest.json'), 'utf8'));
+  const out = sandbox.ctlValidateManifest(raw);
+  ok(out.length === raw.stickers.length,
+     'every entry in the shipped manifest survives validation (' +
+     out.length + '/' + raw.stickers.length + ')');
+  for (const e of out) {
+    ok(fs.existsSync(path.join(ROOT, 'data/stickers', e.image)),
+       'the image named by "' + e.id + '" exists on disk: ' + e.image);
+  }
 }
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
