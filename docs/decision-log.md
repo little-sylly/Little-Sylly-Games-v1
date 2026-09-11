@@ -20,6 +20,15 @@ Detail: pointer to the canonical doc (snapshot / impl note / spec / memory).
 
 ---
 
+## 2026-09-11 — The Workshop's button diagram is generated from the real geometry, not drawn
+Category: Process
+Decision: The Step 1 diagram in `#ctl-how-to-overlay` is produced by `tools/gen-controller-diagram.js`, which projects the controller's own geometry (`buildBody`'s `userData.poly`, `buildEars`' ellipses, `buildShoulder`'s arc, every `seat()` position) through one uniform map into the SVG viewBox. Re-run and paste; the numbers are never hand-edited. Rule going forward: before hand-authoring a 2D approximation of something that already exists as real geometry in the codebase, check whether that geometry is reachable under plain Node first.
+Why: Three hand-drawn attempts at the silhouette all shipped visibly wrong, each one a guess rather than a measurement — while the real outline sat in `js/lib/controller-body.js` the whole time, extractable headlessly in ~10 lines. Measuring also exposed that the *button* layout was 2.46× vertically out of true, which is why no correct silhouette could have looked right around it.
+Changed: `index.html` (the Step 1 SVG block), new `tools/gen-controller-diagram.js`. No SW bump — v228 is unreleased. Deferred: nothing.
+Detail: `docs/implementation-notes/shared-implementation-notes.md` TG-13 (incl. the Playwright overlay check that verifies the outline against the live 3D render).
+
+---
+
 ## 2026-09-11 — The Konami code moves onto the real controller; the gateway becomes a loadout (SW v228)
 Category: Architecture
 Decision: The 7-rapid-tap trigger and the 2D NES-style input screen (`screen-secret-controller`) are both deleted. The Konami sequence is now entered on the real 3D controller's D-pad/Face A/Face B/Start, live only on `screen-workshop` (`ctlKonamiCode`/`ctlKonamiPress` in `js/controller.js`, a pure mapping forwarding to `secret-mode.js`'s unchanged buffer/beeps). Success now opens `screen-secret-gateway`, a blurred streaming link-loader animation that waits for a tap before handing off to the Terminal — one path in instead of two (keyboard entry now completes the same unlock rather than opening a second input screen). `sm-terminal-back` returns to the lobby, not the gateway (a one-shot boot animation, not a re-enterable screen).

@@ -379,6 +379,13 @@ Card *art* and card *names* were always separate skinning concerns by constructi
 
 ## Bug Index
 
+**BUG-13 — The Sylly Gateway's ASCII rule lines were counted characters, so they didn't reliably reach the frame's edge; the dashed side rails only wrapped the header, not the stream below it. [11 Sep 2026, owner playtest]**
+*What happened:* the `////`, `====` and `----` header rules stopped visibly short of the right-hand dashed rail on the owner's device, and the green dashed side rails appeared to end where the header did — the loadout stream below had no visible frame at all.
+*Root cause:* the rules were fixed-length strings of `/`/`=`/`-` characters at three different font-sizes/tracking values, each one a guess at how many characters happen to span the container's width at one specific viewport+font combination — correct nowhere in general. Separately, the `border-l-2 border-r-2 border-dashed` rails were applied only to the header's own wrapper div, which closed before the `#sm-gateway-log` stream div — so the rails never extended down through the stream despite the header comment's own claim that they "run the full height."
+*Fix:* the three counted-character rules became CSS-drawn: a `repeating-linear-gradient` diagonal hash (`.sm-gw-rule-hash`, `css/styles.css`) for the `////` line, and native `border-top: double`/`border-top: dashed` for the `====`/`----` lines — all three span exactly 100% of their container at any width, by construction, with no character-counting involved. The header and the stream were merged into one `border-l-2 border-r-2 border-dashed` frame (header content wrapped in an inner `px-2` div, stream kept as a sibling inside the same frame) so the rails run the full height for real.
+*Verification:* driven in a real headless Chromium session (Playwright, `visual-check` pattern), mid-stream and at the ACCESS GRANTED payoff, `getBoundingClientRect()` confirming the rule elements and the frame share the same left/right edges.
+*Lesson:* an ASCII rule line built from a fixed character count is a per-viewport guess dressed as a horizontal line — it will look right on whatever device it was eyeballed on and wrong everywhere else. Where CSS can draw the same effect (a border, a gradient), it always spans the true container width; reach for that before counting characters. Applies to any future terminal/ASCII-styled screen — the pattern is already flagged as reusable if a second one is built.
+
 **BUG-01 — The Secret Mode Terminal never ran a game's own lobby-entry side effects, leaving lazily-loaded game data (and `activeGameId`) unset. [11 Aug 2026, found testing PKO's Dinosaurs skin]**
 *What happened:* selecting a PKO skin pack in the Konami Terminal and navigating straight to How to Play → Animals showed no rows at all — not even the mode-note text.
 *Root cause:* PKO's chain data (`data/pko-data.json`) is fetched lazily, deliberately deferred to lobby entry rather than boot (see `pko-implementation-notes.md` DD-07) — the fetch fires from the `#btn-pko` click handler, which also sets `activeGameId`. The Terminal's launch path in `secret-mode.js` navigates straight to `game.screen` via `showScreen()` and never runs any per-game entry handler, so `pkoChain` stayed `null` and `pkoRenderChain()`'s `if (!body || !pkoChain) return;` guard fired silently. `activeGameId` was also left unset on this path for **every** game launched via the Terminal, not just PKO — a second, quieter bug (wrong sound-overlay theming) riding the same gap.
@@ -584,16 +591,39 @@ derived at runtime. None of this requires a browser: `tools/verify-controller-bo
 (`global.window=global; require('three.min.js'); require('controller-body.js')`) is enough to call
 `CB.buildBody(THREE,{}).userData.poly` and `CB.buildEars` and read the real numbers back under plain
 Node — proven working, see the command below.
-*Fix (not yet applied — handed off):* build the diagram's SVG path from these real coordinates
-instead of another hand-plotted curve — project the shell's `poly` (x,y direct, no z, this is a flat
-schematic not a 3D render — flip y for SVG's downward axis) for the body outline, and each ear
-ellipse (its 3D tilt is small enough to approximate as an upright ellipse, or account for it with
-`ry *= cos(0.30)` ≈ ×0.955 if it matters at this scale) for the two ear lobes, then affine-map the
-combined bounding box into the SVG's viewBox. Extraction command (confirmed working, 11 Sep 2026):
+*Fix (APPLIED 11 Sep 2026):* the diagram is now **generated, not drawn** —
+`tools/gen-controller-diagram.js` projects the shell's `poly` (x,y direct, no z; this is a flat
+schematic, not a 3D render — flip y for SVG's downward axis), both ear ellipses (`ry *= cos(0.30)`
+for the `rotation.x` foreshortening, and `rotation.z` becomes a `+side*.12`-radian SVG `rotate()`
+once y flips), the two shoulder bands (the real `buildShoulder` arc `s=1.35..2.34` with its radial
+span, which is why they read as bumpers standing proud of the rim) and every control position,
+through **one uniform map** into the viewBox, then Douglas-Peucker's the 641-point outline down to
+~70 for the markup. Re-run it and paste the block over the one in `index.html`; do not hand-edit
+the numbers. Extraction command, if you only want the raw numbers (confirmed working):
 
 ```bash
 node -e "global.window=global; const THREE=require('./js/lib/three.min.js'); require('./js/lib/controller-body.js'); const U=global.window.ControllerBody.buildBody(THREE,{}).userData; console.log(U.poly.length, U.minx, U.maxx, U.miny, U.maxy);"
 ```
+
+*The second thing the measurement exposed, which none of the three hand-drawn attempts could have
+seen:* the diagram's **button positions were wrong too** — and "wrong" in a way that looked fine.
+Fitting an affine map from the real control coordinates to the drawn ones gives a clean x fit
+(51.0 px/unit, residuals ≤ 11 px across nine controls) and a hopeless y one: the drawn layout runs
+at **125.6 px/unit vertically, 2.46× its own horizontal scale**. Select/Start had been drawn *below*
+the D-pad when they really sit above it, and the face cluster was drawn at 1.8× its true radius. At
+the drawn y-scale the real body would be 568×414 px in a 440×320 viewBox — so **no affine map of the
+true outline could ever have contained those buttons**, at any scale. The silhouette had been
+repeatedly redrawn to fit a button layout that was itself the thing out of true. Every position is
+now projected through the same map as the outline, and the leaders re-routed to match.
+
+*Verification:* the check that actually settles it is an **overlay**, not a side-by-side. Drive the
+Workshop in Playwright, set `ctlRotX`/`ctlRotY` to 0 (**bare** assignment — they are top-level `let`
+bindings, see the `window.` prefix rule), push the camera to `fov 5` at `z 60` for a
+near-orthographic square-on view, hide `ctlFloor` so the ground shadow can't pollute the scan, and
+**call `ctlRenderer.render()` by hand** — the tick loop is on-demand and idles, so setting the
+rotation alone changes nothing on screen. Then find the shell's bbox by colour (blue clearly above
+green separates purple shell from grey shadow) and stroke the generated path over it at that bbox.
+Aspect agreed to 2.8% and the outline tracked the rendered edge all the way round.
 
 *Lesson:* before hand-authoring a 2D approximation of something that already exists as real geometry
 in the codebase, check whether the geometry itself is reachable under Node first — a pure-function
@@ -601,6 +631,13 @@ extraction of the real numbers is strictly cheaper and strictly more accurate th
 screenshot-and-eyeball iterations, and this project's whole "pure half above the RENDERER marker"
 split (see the file header of `js/controller.js`) exists specifically to make that kind of headless
 extraction possible.
+
+*Second lesson — when one element keeps coming out wrong, measure the things around it too.* Three
+attempts treated the silhouette as the defect because the silhouette was what looked wrong. It was
+being redrawn each time to sit around a button layout that was itself 2.46× out of true, so no
+correct silhouette could ever have looked right there. A hand-drawn neighbour is not a fixed point
+to fit against — the moment real numbers are available for *one* element of a composition, check
+them for **all** of it, or you calibrate the measured part against the unmeasured error.
 
 ---
 

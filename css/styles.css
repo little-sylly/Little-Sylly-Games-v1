@@ -3158,6 +3158,15 @@ body.flash-red   { background-color: #fecaca; }
   text-shadow: 0 0 3px rgba(0, 0, 0, 0.75);
 }
 
+
+/* Diagonal-hash rule — a CSS-drawn line, not counted /// characters. A
+   fixed string of slashes only reaches the container edge by luck at one
+   specific viewport+font combination; a gradient always spans exactly
+   100%, at any width. currentColor picks up the green-400 it sits in. */
+.sm-gw-rule-hash {
+  background-image: repeating-linear-gradient(115deg, currentColor 0 2px, transparent 2px 6px);
+  opacity: .6;
+}
 /* ── Sylly Gateway loadout ───────────────────────────────────────────────────
    The blur is STATIC and stays static. `filter` is neither transform nor
    opacity, so animating it would break the Motion Standard and janks on a

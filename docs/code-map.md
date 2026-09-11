@@ -613,7 +613,7 @@ doc, `activeGameId` never touches it.
 | `#lobby-header-icons` | Top-right icon row, replaces the old bare `.btn-open-sound` — 🕹️ (once unlocked) then 🔊 |
 | `#ctl-stage` | The Workshop's 3D mount (`.ctl-workshop-stage`, 38vh, floor shadow shown) |
 | `#ctl-panel` | The Workshop's scrolling colour-card panel |
-| `#ctl-how-to-overlay` | The Workshop's How to Play (no Sylly Mode card — that rule is scoped to games) |
+| `#ctl-how-to-overlay` | The Workshop's How to Play (no Sylly Mode card — that rule is scoped to games). Its Step 1 button diagram is **generated, not drawn** — silhouette, ears, shoulders and every button position are projected from `js/lib/controller-body.js` by `tools/gen-controller-diagram.js`. Re-run that and paste; never hand-edit the numbers (shared-implementation-notes TG-13) |
 | `#btn-ctl-save` / `#btn-ctl-reset` / `#btn-ctl-exit` / `#btn-ctl-how-to` | Workshop controls |
 
 ### Key state

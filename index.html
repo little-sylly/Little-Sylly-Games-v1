@@ -149,69 +149,69 @@
           <p class="font-bold text-stone-800">Test the buttons</p>
           <svg viewBox="0 0 440 320" class="w-full max-w-[300px] mx-auto" role="img"
             aria-label="Diagram of the controller's front, with every button labelled">
-            <!-- silhouette — one closed curve through the real controller's own
-                 outline (twin ear tips, a shallow top valley, a wide waist, a
-                 shallow bottom arch), not a pill with circles glued on -->
-            <path fill="#d9d5cf" d="M103,40
-              C132.67,23.17 167.67,68 200,68
-              C232.33,68 267.33,23.17 297,40
-              C326.67,56.83 373.5,128.67 378,169
-              C382.5,209.33 353.67,266.83 324,282
-              C294.33,297.17 241.33,260 200,260
-              C158.67,260 105.67,297.17 76,282
-              C46.33,266.83 17.5,209.33 22,169
-              C26.5,128.67 73.33,56.83 103,40 Z"/>
-            <!-- shoulders — small caps sitting on the ear tips, unmarked -->
-            <rect x="75" y="42" width="56" height="18" rx="9" fill="#a855f7"/>
-            <rect x="269" y="42" width="56" height="18" rx="9" fill="#a855f7"/>
-            <!-- sticks / select — plain, unmarked -->
-            <circle cx="160" cy="145" r="16" fill="#a855f7"/>
-            <circle cx="280" cy="195" r="16" fill="#a855f7"/>
-            <rect x="198" y="201" width="20" height="12" rx="5" fill="#a855f7"/>
+            <!-- SILHOUETTE, EARS, SHOULDERS AND BUTTON POSITIONS ARE GENERATED, NOT DRAWN.
+                 Every one of them is projected from the controller's own geometry in
+                 js/lib/controller-body.js by tools/gen-controller-diagram.js — re-run that
+                 and paste; do not hand-edit the numbers. Three hand-drawn attempts at this
+                 shape all shipped visibly wrong. See shared-implementation-notes TG-13. -->
+            <!-- ears — the real rx .36 / ry .52 ellipses, seated and tilted as buildEars does -->
+            <ellipse cx="170" cy="89.4" rx="21.4" ry="29.6" fill="#d9d5cf" transform="rotate(-6.9 170 89.4)"/>
+            <ellipse cx="270" cy="89.4" rx="21.4" ry="29.6" fill="#d9d5cf" transform="rotate(6.9 270 89.4)"/>
+            <!-- shell — buildBody()'s own outline: wide wings, a shallow top valley, two
+                 grips hanging down, and a shallow arch between them -->
+            <path fill="#d9d5cf" d="M220,89.4L205.7,84.7L189.3,81.4L172.8,80.2L156.5,80.8L140.9,83.3L125.6,87.8L114.9,93.2L105.7,100.9L98.8,110.3L93.6,122.3L90.8,133.7L87.4,158L85.7,179.7L85.8,197.5L87.7,213.4L91.5,227.3L95.2,235.2L100,242L105.8,247.7L112.3,252L119,254.8L125.9,256L132.8,255.8L140.7,253.8L146.2,251.2L152.5,246.9L162,237.2L168.5,227.2L180.7,202.8L185.4,195.8L190.7,190L196.7,185.3L203.7,181.7L211.8,179.3L220,178.1L228.2,179.3L236.3,181.7L243.3,185.3L249.3,190L254.6,195.8L259.3,202.8L271.5,227.2L278,237.2L287.5,246.9L293.8,251.2L299.3,253.8L307.2,255.8L314.1,256L321,254.8L327.7,252L334.2,247.7L340,242L344.8,235.2L348.5,227.3L352.3,213.4L354.2,197.5L354.3,179.7L352.6,158L349.2,133.7L346.4,122.3L341.2,110.3L334.3,100.9L325.1,93.2L314.4,87.8L299.1,83.3L283.5,80.8L267.2,80.2L250.7,81.4L234.3,84.7L220,89.4Z"/>
+            <!-- L / R — the real swept band: inner edge buried, outer edge proud of the rim -->
+            <path fill="#a855f7" d="M142.3,89L134.2,91.2L127.8,93.4L122,96L116.6,99.3L111.7,103.3L107.5,108L104,113.2L101.2,119L90.8,114.6L94.2,107.6L98.6,101.1L102.5,96.6L108.4,91.3L114.9,87L121.9,83.5L130.8,80.4L139.9,78Z"/>
+            <path fill="#a855f7" d="M297.7,89L305.8,91.2L312.2,93.4L318,96L323.4,99.3L328.3,103.3L332.5,108L336,113.2L338.8,119L349.2,114.6L345.8,107.6L341.4,101.1L337.5,96.6L331.6,91.3L325.1,87L318.1,83.5L309.2,80.4L300.1,78Z"/>
+            <!-- sticks — the well ring, and the cap that tilts inside it -->
+            <circle cx="145.6" cy="125.1" r="16.1" fill="none" stroke="#7c3aed" stroke-width="6.5"/>
+            <circle cx="145.6" cy="125.1" r="12" fill="#a855f7"/>
+            <circle cx="294.4" cy="187.6" r="16.1" fill="none" stroke="#7c3aed" stroke-width="6.5"/>
+            <circle cx="294.4" cy="187.6" r="12" fill="#a855f7"/>
             <!-- D-pad — the one shape that keeps its markings, so a direction still
                  reads as a direction -->
-            <path d="M151,165 L169,165 L169,180 L184,180 L184,198 L169,198 L169,213 L151,213 L151,198 L136,198 L136,180 L151,180 Z" fill="#a855f7"/>
-            <polygon points="156,176 164,176 160,168" fill="#fff"/>
-            <polygon points="156,202 164,202 160,210" fill="#fff"/>
-            <polygon points="147,185 147,193 139,189" fill="#fff"/>
-            <polygon points="173,185 173,193 181,189" fill="#fff"/>
-            <!-- face buttons — plain, unmarked, spaced so all four read as
-                 separate buttons rather than one fused blob -->
-            <circle cx="280" cy="109" r="14" fill="#a855f7"/>
-            <circle cx="306" cy="135" r="14" fill="#a855f7"/>
-            <circle cx="280" cy="161" r="14" fill="#a855f7"/>
-            <circle cx="254" cy="135" r="14" fill="#a855f7"/>
-            <!-- Start -->
-            <rect x="230" y="201" width="20" height="12" rx="5" fill="#a855f7"/>
+            <path fill="#a855f7" d="M147.2,178.3L162.4,178.3L162.4,196.9L147.2,196.9L147.2,212.1L128.6,212.1L128.6,196.9L113.3,196.9L113.3,178.3L128.6,178.3L128.6,163L147.2,163Z"/>
+            <polygon points="133.9,174 141.9,174 137.9,167" fill="#fff"/>
+            <polygon points="133.9,201.1 141.9,201.1 137.9,208.1" fill="#fff"/>
+            <polygon points="124.3,183.6 124.3,191.6 117.3,187.6" fill="#fff"/>
+            <polygon points="151.4,183.6 151.4,191.6 158.4,187.6" fill="#fff"/>
+            <!-- face buttons — the real diamond: centre (1.18, 0.18), radius .30 -->
+            <circle cx="290.2" cy="108.4" r="10.4" fill="#a855f7"/>
+            <circle cx="308.1" cy="126.3" r="10.4" fill="#a855f7"/>
+            <circle cx="290.2" cy="144.1" r="10.4" fill="#a855f7"/>
+            <circle cx="272.4" cy="126.3" r="10.4" fill="#a855f7"/>
+            <!-- select / start -->
+            <rect x="192.5" y="150.9" width="17" height="8" rx="4" fill="#a855f7"/>
+            <rect x="230.5" y="150.9" width="17" height="8" rx="4" fill="#a855f7"/>
 
             <!-- leaders + labels — each routed the SHORT way to open surface, so
                  nothing has to cross the body to reach its label -->
-            <line x1="55" y1="24" x2="90" y2="48" stroke="#a8a29e" stroke-width="2"/>
+            <line x1="55" y1="26" x2="106" y2="86" stroke="#a8a29e" stroke-width="2"/>
             <text x="8" y="20" font-size="13" font-weight="700" fill="#44403c" text-anchor="start">L Button</text>
-            <line x1="385" y1="24" x2="314" y2="48" stroke="#a8a29e" stroke-width="2"/>
+            <line x1="385" y1="26" x2="334" y2="86" stroke="#a8a29e" stroke-width="2"/>
             <text x="432" y="20" font-size="13" font-weight="700" fill="#44403c" text-anchor="end">R Button</text>
 
-            <line x1="70" y1="146" x2="144" y2="145" stroke="#a8a29e" stroke-width="2"/>
-            <text x="8" y="150" font-size="13" font-weight="700" fill="#44403c" text-anchor="start">Left Stick</text>
+            <line x1="72" y1="128" x2="126" y2="126" stroke="#a8a29e" stroke-width="2"/>
+            <text x="8" y="132" font-size="13" font-weight="700" fill="#44403c" text-anchor="start">Left Stick</text>
+            <line x1="72" y1="200" x2="114" y2="192" stroke="#a8a29e" stroke-width="2"/>
+            <text x="8" y="206" font-size="13" font-weight="700" fill="#44403c" text-anchor="start">D-pad</text>
 
-            <line x1="292" y1="102" x2="368" y2="90" stroke="#a8a29e" stroke-width="2"/>
-            <text x="372" y="94" font-size="13" font-weight="700" fill="#44403c" text-anchor="start">Y Button</text>
-            <line x1="320" y1="135" x2="368" y2="135" stroke="#a8a29e" stroke-width="2"/>
-            <text x="372" y="139" font-size="13" font-weight="700" fill="#44403c" text-anchor="start">B Button</text>
-            <line x1="292" y1="168" x2="368" y2="178" stroke="#a8a29e" stroke-width="2"/>
-            <text x="372" y="182" font-size="13" font-weight="700" fill="#44403c" text-anchor="start">A Button</text>
-            <line x1="296" y1="200" x2="368" y2="215" stroke="#a8a29e" stroke-width="2"/>
-            <text x="372" y="219" font-size="13" font-weight="700" fill="#44403c" text-anchor="start">Right Stick</text>
+            <line x1="368" y1="92" x2="299" y2="102" stroke="#a8a29e" stroke-width="2"/>
+            <text x="372" y="96" font-size="13" font-weight="700" fill="#44403c" text-anchor="start">Y Button</text>
+            <line x1="368" y1="126" x2="319" y2="126" stroke="#a8a29e" stroke-width="2"/>
+            <text x="372" y="130" font-size="13" font-weight="700" fill="#44403c" text-anchor="start">B Button</text>
+            <line x1="368" y1="160" x2="299" y2="151" stroke="#a8a29e" stroke-width="2"/>
+            <text x="372" y="164" font-size="13" font-weight="700" fill="#44403c" text-anchor="start">A Button</text>
+            <line x1="368" y1="200" x2="312" y2="190" stroke="#a8a29e" stroke-width="2"/>
+            <text x="372" y="204" font-size="13" font-weight="700" fill="#44403c" text-anchor="start">Right Stick</text>
 
-            <line x1="243" y1="125" x2="205" y2="105" stroke="#a8a29e" stroke-width="2"/>
-            <text x="200" y="100" font-size="13" font-weight="700" fill="#44403c" text-anchor="end">X Button</text>
+            <line x1="224" y1="78" x2="264" y2="119" stroke="#a8a29e" stroke-width="2"/>
+            <text x="220" y="72" font-size="13" font-weight="700" fill="#44403c" text-anchor="middle">X Button</text>
 
-            <line x1="160" y1="213" x2="130" y2="278" stroke="#a8a29e" stroke-width="2"/>
-            <text x="130" y="294" font-size="13" font-weight="700" fill="#44403c" text-anchor="middle">D-pad</text>
-            <line x1="208" y1="213" x2="210" y2="278" stroke="#a8a29e" stroke-width="2"/>
-            <text x="210" y="294" font-size="13" font-weight="700" fill="#44403c" text-anchor="middle">Select</text>
-            <line x1="240" y1="213" x2="290" y2="278" stroke="#a8a29e" stroke-width="2"/>
-            <text x="290" y="294" font-size="13" font-weight="700" fill="#44403c" text-anchor="middle">Start</text>
+            <line x1="190" y1="272" x2="201" y2="164" stroke="#a8a29e" stroke-width="2"/>
+            <text x="190" y="288" font-size="13" font-weight="700" fill="#44403c" text-anchor="middle">Select</text>
+            <line x1="252" y1="272" x2="239" y2="164" stroke="#a8a29e" stroke-width="2"/>
+            <text x="252" y="288" font-size="13" font-weight="700" fill="#44403c" text-anchor="middle">Start</text>
           </svg>
           <p class="text-stone-500 text-sm">Try having fun with the buttons — you might just find a secret.</p>
         </div>
@@ -2254,46 +2254,54 @@ Deploy
         class="text-green-400 text-xl active:scale-90 transition-transform duration-100 min-h-11 min-w-11">✕</button>
     </div>
 
-    <!-- Header section — nested ASCII-framed boxes, terminal-style: a slash
-         rule, a pipe-bordered stat box, a dotted-corner title box, a dashed
-         rule, then a live status line. Dashed side rails run the full height. -->
+    <!-- Header + stream — ONE bordered frame. The rule lines below are
+         CSS-drawn (a diagonal-hash gradient, a double border, a dashed
+         border) rather than counted ASCII characters — a fixed string of
+         slashes/equals/dashes only reaches the container edge by luck at
+         one specific viewport+font combination and falls short or overruns
+         at every other one. A CSS rule always spans exactly 100%. The
+         dashed side rails wrap header AND stream as one box, so they run
+         the full height the comment always claimed. -->
     <div class="w-full max-w-sm text-green-400 select-none font-mono mb-5
-      border-l-2 border-r-2 border-dashed border-green-400/25 px-2">
-      <div class="text-[9px] tracking-tighter opacity-60 overflow-hidden whitespace-nowrap leading-none">////////////////////////////////////////////////////////////////////////</div>
-      <div class="text-[8px] tracking-tighter opacity-30 overflow-hidden whitespace-nowrap leading-none mt-0.5">========================================================================</div>
+      border-l-2 border-r-2 border-dashed border-green-400/25">
+      <div class="px-2">
+        <div class="sm-gw-rule-hash h-[3px]"></div>
+        <div class="border-t border-double border-green-400/30 mt-0.5"></div>
 
-      <!-- stat box -->
-      <div class="border-l border-r border-green-400/30 px-2 py-1 my-0.5 flex flex-col gap-0.5 text-[8px] tracking-wide opacity-70">
-        <div class="flex items-center justify-between">
-          <span>SYLLY-OS v1.0</span><span>LINK OK</span>
+        <!-- stat box -->
+        <div class="border-l border-r border-green-400/30 px-2 py-1 my-0.5 flex flex-col gap-0.5 text-[8px] tracking-wide opacity-70">
+          <div class="flex items-center justify-between">
+            <span>SYLLY-OS v1.0</span><span>LINK OK</span>
+          </div>
+          <div class="flex items-center justify-between">
+            <span id="sm-gateway-stat1"></span><span id="sm-gateway-stat2"></span>
+          </div>
         </div>
-        <div class="flex items-center justify-between">
-          <span id="sm-gateway-stat1"></span><span id="sm-gateway-stat2"></span>
+
+        <div class="border-t border-double border-green-400/30"></div>
+
+        <!-- dotted-corner title box -->
+        <div class="flex items-center justify-between text-[10px] opacity-40 tracking-tighter mt-1 leading-none">
+          <span>......</span><span>......</span>
         </div>
+        <div class="text-center py-1">
+          <div class="text-lg font-bold tracking-[0.25em]">[ SYLLY GATEWAY ]</div>
+          <div class="text-[9px] tracking-widest opacity-50 mt-0.5">// CLASSIFIED ACCESS</div>
+        </div>
+        <div class="flex items-center justify-between text-[10px] opacity-40 tracking-tighter leading-none">
+          <span>......</span><span>......</span>
+        </div>
+
+        <div class="border-t border-dashed border-green-400/50 mt-0.5"></div>
+
+        <div class="text-center text-[10px] tracking-widest opacity-70 py-1">&gt; <span id="sm-gateway-timestamp"></span> &lt;</div>
       </div>
 
-      <div class="text-[8px] tracking-tighter opacity-30 overflow-hidden whitespace-nowrap leading-none">========================================================================</div>
-
-      <!-- dotted-corner title box -->
-      <div class="flex items-center justify-between text-[10px] opacity-40 tracking-tighter mt-1 leading-none">
-        <span>......</span><span>......</span>
-      </div>
-      <div class="text-center py-1">
-        <div class="text-lg font-bold tracking-[0.25em]">[ SYLLY GATEWAY ]</div>
-        <div class="text-[9px] tracking-widest opacity-50 mt-0.5">// CLASSIFIED ACCESS</div>
-      </div>
-      <div class="flex items-center justify-between text-[10px] opacity-40 tracking-tighter leading-none">
-        <span>......</span><span>......</span>
-      </div>
-
-      <div class="text-[9px] tracking-tighter opacity-50 overflow-hidden whitespace-nowrap leading-none mt-0.5">------------------------------------------------------------------------</div>
-
-      <div class="text-center text-[10px] tracking-widest opacity-70 py-1">&gt; <span id="sm-gateway-timestamp"></span> &lt;</div>
+      <!-- The loadout stream — same frame, same inset, so its edges are the
+           header's edges, not a narrower box floating inside them -->
+      <div id="sm-gateway-log"
+        class="sm-gateway-blur px-2 py-1 h-64 overflow-hidden text-green-400/90 text-[10px] leading-[1.35] tracking-wide select-none"></div>
     </div>
-
-    <!-- The loadout stream -->
-    <div id="sm-gateway-log"
-      class="sm-gateway-blur w-full max-w-sm h-64 overflow-hidden text-green-400/90 text-[10px] leading-[1.35] tracking-wide select-none"></div>
 
     <!-- Resolution + tap-to-continue. Waits for a tap rather than auto-advancing:
          a slow phone must not let the payoff scroll past before it is read. -->
