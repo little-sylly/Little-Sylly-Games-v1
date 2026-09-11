@@ -582,7 +582,13 @@ function buildControls(THREE, geo) {
   // revert. `mat` still accepts an emissive term if a cap ever needs one.
   const SHELL = mat(0xb388e0), STICK_M = mat(0x8f66c4),
         DPAD  = mat(0x8f66c4), MENU  = mat(0xf2eef7);
-  const FACE = [mat(0xf5e6a3), mat(0xf7b9d2), mat(0xa6e5de), mat(0xd2ea9e)];
+  /* Deepened from the original f5e6a3/f7b9d2/a6e5de/d2ea9e — those read fine
+     over the factory lilac shell but washed out to near-white over a darker
+     Workshop colour, and the self-emission/roughness the comment above
+     describes was never actually passed in. Both fixed together: more
+     saturated hex, plus the emissiveIntensity/roughness that keeps a small
+     cap visible under the ACES curve regardless of what colour surrounds it. */
+  const FACE = [mat(0xf0c94d, .34, .10), mat(0xef7fae, .34, .10), mat(0x4bd0c4, .34, .10), mat(0xa0d65c, .34, .10)];
 
   // left stick, D-pad, right stick -- exact positions from the original
   // controller-three.html build (makeStick(-1.25,0.20)/makeStick(1.25,-0.85),

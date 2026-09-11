@@ -149,14 +149,21 @@
           <p class="font-bold text-stone-800">Test the buttons</p>
           <svg viewBox="0 0 440 320" class="w-full max-w-[300px] mx-auto" role="img"
             aria-label="Diagram of the controller's front, with every button labelled">
-            <!-- silhouette — two ear lobes behind a wide rounded body, same fill, no
-                 stroke, so the seams are invisible and it reads as one flat shape -->
-            <ellipse cx="130" cy="95" rx="55" ry="46" fill="#d9d5cf"/>
-            <ellipse cx="310" cy="95" rx="55" ry="46" fill="#d9d5cf"/>
-            <rect x="80" y="101" width="280" height="112" rx="54" fill="#d9d5cf"/>
-            <!-- shoulders — small caps sitting on the ears, unmarked -->
-            <rect x="102" y="45" width="56" height="18" rx="9" fill="#a855f7"/>
-            <rect x="282" y="45" width="56" height="18" rx="9" fill="#a855f7"/>
+            <!-- silhouette — one closed curve through the real controller's own
+                 outline (twin ear tips, a shallow top valley, a wide waist, a
+                 shallow bottom arch), not a pill with circles glued on -->
+            <path fill="#d9d5cf" d="M103,40
+              C132.67,23.17 167.67,68 200,68
+              C232.33,68 267.33,23.17 297,40
+              C326.67,56.83 373.5,128.67 378,169
+              C382.5,209.33 353.67,266.83 324,282
+              C294.33,297.17 241.33,260 200,260
+              C158.67,260 105.67,297.17 76,282
+              C46.33,266.83 17.5,209.33 22,169
+              C26.5,128.67 73.33,56.83 103,40 Z"/>
+            <!-- shoulders — small caps sitting on the ear tips, unmarked -->
+            <rect x="75" y="42" width="56" height="18" rx="9" fill="#a855f7"/>
+            <rect x="269" y="42" width="56" height="18" rx="9" fill="#a855f7"/>
             <!-- sticks / select — plain, unmarked -->
             <circle cx="160" cy="145" r="16" fill="#a855f7"/>
             <circle cx="280" cy="195" r="16" fill="#a855f7"/>
@@ -179,10 +186,10 @@
 
             <!-- leaders + labels — each routed the SHORT way to open surface, so
                  nothing has to cross the body to reach its label -->
-            <line x1="55" y1="28" x2="105" y2="50" stroke="#a8a29e" stroke-width="2"/>
-            <text x="8" y="24" font-size="13" font-weight="700" fill="#44403c" text-anchor="start">L Button</text>
-            <line x1="385" y1="28" x2="335" y2="50" stroke="#a8a29e" stroke-width="2"/>
-            <text x="432" y="24" font-size="13" font-weight="700" fill="#44403c" text-anchor="end">R Button</text>
+            <line x1="55" y1="24" x2="90" y2="48" stroke="#a8a29e" stroke-width="2"/>
+            <text x="8" y="20" font-size="13" font-weight="700" fill="#44403c" text-anchor="start">L Button</text>
+            <line x1="385" y1="24" x2="314" y2="48" stroke="#a8a29e" stroke-width="2"/>
+            <text x="432" y="20" font-size="13" font-weight="700" fill="#44403c" text-anchor="end">R Button</text>
 
             <line x1="70" y1="146" x2="144" y2="145" stroke="#a8a29e" stroke-width="2"/>
             <text x="8" y="150" font-size="13" font-weight="700" fill="#44403c" text-anchor="start">Left Stick</text>
@@ -2237,14 +2244,20 @@ Deploy
   <section id="screen-secret-gateway" style="display:none"
     class="relative flex flex-col items-center justify-center w-full min-h-screen bg-black px-4 py-8 font-mono">
 
-    <!-- Exit — sits just above the header section below, not over it -->
-    <button id="sm-btn-exit"
-      class="absolute top-4 right-4 text-green-400 text-xl active:scale-90 transition-transform duration-100 min-h-11 min-w-11">✕</button>
+    <!-- Exit — in normal flow, not absolute: the screen centres its content as
+         one vertical group, so an absolutely-positioned button pinned to the
+         literal viewport corner leaves a large gap above the (shorter,
+         centred) header below it. As a flow sibling it always sits directly
+         above the header, wherever that group ends up centring. -->
+    <div class="w-full max-w-sm flex justify-end mb-1">
+      <button id="sm-btn-exit"
+        class="text-green-400 text-xl active:scale-90 transition-transform duration-100 min-h-11 min-w-11">✕</button>
+    </div>
 
     <!-- Header section — nested ASCII-framed boxes, terminal-style: a slash
          rule, a pipe-bordered stat box, a dotted-corner title box, a dashed
          rule, then a live status line. Dashed side rails run the full height. -->
-    <div class="w-full max-w-sm text-green-400 select-none font-mono mt-12 mb-5
+    <div class="w-full max-w-sm text-green-400 select-none font-mono mb-5
       border-l-2 border-r-2 border-dashed border-green-400/25 px-2">
       <div class="text-[9px] tracking-tighter opacity-60 overflow-hidden whitespace-nowrap leading-none">////////////////////////////////////////////////////////////////////////</div>
       <div class="text-[8px] tracking-tighter opacity-30 overflow-hidden whitespace-nowrap leading-none mt-0.5">========================================================================</div>
