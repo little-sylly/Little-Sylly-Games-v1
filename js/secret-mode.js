@@ -348,14 +348,24 @@ function smGatewayBuildLines(n) {
   return lines;
 }
 
-const SM_GATEWAY_LINES = 26;
-const SM_GATEWAY_GAP   = 55;   // ms — ~1.4 s of stream, then the payoff
+/* This plays once, so it earns a proper length — ~5s of stream before the
+   payoff, not a 1.4s blink. */
+const SM_GATEWAY_LINES = 70;
+const SM_GATEWAY_GAP   = 70;   // ms — 70 × 70ms = 4.9s of stream, then the payoff
 
 function smGatewayTimestamp() {
   const d = new Date();
   const pad = n => String(n).padStart(2, '0');
   return pad(d.getDate()) + '.' + pad(d.getMonth() + 1) + '.' + d.getFullYear() +
          ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+}
+
+/* One line of the header's stat box — a fake module id and a fake load
+   percentage, same vocabulary as the stream below it. */
+function smGatewayStatLine() {
+  const t = SM_GATEWAY_TOKENS[Math.floor(Math.random() * SM_GATEWAY_TOKENS.length)];
+  return t.toUpperCase().slice(0, 8) + '_' + smGatewayHex(2) + '  ' +
+         (100 + Math.floor(Math.random() * 900)) + '%';
 }
 
 function smOpenGateway() {
@@ -365,6 +375,10 @@ function smOpenGateway() {
   showScreen('screen-secret-gateway');
   const ts = document.getElementById('sm-gateway-timestamp');
   if (ts) ts.textContent = smGatewayTimestamp();
+  const s1 = document.getElementById('sm-gateway-stat1');
+  const s2 = document.getElementById('sm-gateway-stat2');
+  if (s1) s1.textContent = smGatewayStatLine();
+  if (s2) s2.textContent = smGatewayStatLine();
   smGatewayStream();
 }
 
