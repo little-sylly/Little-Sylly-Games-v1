@@ -41,6 +41,7 @@ const PRECACHE_URLS = [
   'data/gth-data.json',
   'data/pko-data.json',
   'data/cjar-data.json',
+  'js/controller.js',
   'js/secret-mode.js',
   'js/arcade/asherplane.js',
   'js/app.js',
