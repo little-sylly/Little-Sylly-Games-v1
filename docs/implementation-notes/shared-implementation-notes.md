@@ -548,6 +548,25 @@ reduced-motion CSS block by construction and needs its own JS-side check — thi
 this feature, it is a standing requirement (already documented in `ui-style.md` § Motion Standard)
 that a new rAF/timer-driven feature must re-derive rather than inherit for free.
 
+**BUG-12 — A single raycast against a small curved button misses exactly at the edges a fingertip is
+least precise about. [11 Sep 2026, controller integration polish]**
+*What happened:* owner playtest on the real page found the D-pad and the four face buttons hard to
+press at their edges — a cursor that looked like it was over the button often registered nothing,
+worse the further the controller had been spun off dead-centre (a rotated button's screen-space
+footprint foreshortens).
+*Root cause:* `ctlTryPress` cast exactly one ray per pointer event, through the literal pixel the
+event reported. A phone touch is never that precise, and the button meshes themselves (ported,
+load-bearing geometry shared with the Konami direction read) were never a candidate for padding —
+enlarging them would also change what a press *looks* like, not just where it lands.
+*Fix:* `ctlTryPress` now tries the exact point first, then a small ring of 8 screen-space offsets
+around it (`CTL_PRESS_FUDGE_PX`, ±6px cardinal / ±5,5px diagonal), taking the first that hits a
+pressable and isn't occluded by the shell. Measured against a real mount: a single ray misses past
+~10–11px from a button's screen centre; with the fudge ring that extends to ~16–17px — roughly 60%
+more effective radius — with zero vertices touched.
+*Lesson:* when a hit-test problem is really "the input is imprecise, not the target is wrong", widen
+the *search*, not the geometry. This generalises to any small raycast-against-a-3D-mesh hit target on
+a touch surface — padding the mesh changes its appearance; padding the ray does not.
+
 ---
 
 ## Multiplayer Lessons

@@ -435,19 +435,39 @@ const _ctlPtr = new THREE.Vector2(), _ctlRay = new THREE.Raycaster();
    press deliberately. */
 let ctlOnPress = null;
 
+/* A single ray against a small, curved button mesh misses at exactly the
+   edges a fingertip is least precise about, and gets worse the further the
+   controller has been spun off dead-centre (the button's screen-space
+   footprint foreshortens). Rather than pad the geometry itself — the button
+   meshes are ported, load-bearing shapes shared with the Konami direction
+   read in ctlTryPress below — try the exact point first, then a small ring of
+   offsets around it in screen space, and take the first hit that isn't
+   occluded by the shell. This enlarges the effective hit area without
+   touching a single vertex. */
+const CTL_PRESS_FUDGE_PX = [
+  [0, 0], [6, 0], [-6, 0], [0, 6], [0, -6], [5, 5], [-5, 5], [5, -5], [-5, -5],
+];
+
 function ctlTryPress(ev) {
   const r = ctlRenderer.domElement.getBoundingClientRect();
-  _ctlPtr.x = ((ev.clientX - r.left) / r.width) * 2 - 1;
-  _ctlPtr.y = -((ev.clientY - r.top) / r.height) * 2 + 1;
-  _ctlRay.setFromCamera(_ctlPtr, ctlCamera);
-  const h = _ctlRay.intersectObjects(ctlControls.pressables, true);
-  if (!h.length) return false;
-  /* Buttons raycast against their own list alone, so nothing stopped a front
-     button's ray reaching it through empty space while the controller was
-     rotated to show the back. Check the shell along the same ray and refuse
-     whenever it sits closer: a real button can't be pressed through the case. */
-  const hb = _ctlRay.intersectObject(ctlBody, false);
-  if (hb.length && hb[0].distance < h[0].distance - 1e-4) return false;
+  let h = null;
+  for (const [ox, oy] of CTL_PRESS_FUDGE_PX) {
+    _ctlPtr.x = ((ev.clientX + ox - r.left) / r.width) * 2 - 1;
+    _ctlPtr.y = -((ev.clientY + oy - r.top) / r.height) * 2 + 1;
+    _ctlRay.setFromCamera(_ctlPtr, ctlCamera);
+    const hit = _ctlRay.intersectObjects(ctlControls.pressables, true);
+    if (!hit.length) continue;
+    /* Buttons raycast against their own list alone, so nothing stopped a
+       front button's ray reaching it through empty space while the
+       controller was rotated to show the back. Check the shell along the
+       same ray and refuse whenever it sits closer: a real button can't be
+       pressed through the case. */
+    const hb = _ctlRay.intersectObject(ctlBody, false);
+    if (hb.length && hb[0].distance < hit[0].distance - 1e-4) continue;
+    h = hit;
+    break;
+  }
+  if (!h) return false;
   let o = h[0].object;
   while (o && !o.userData.rest) o = o.parent;
   if (!o) return false;
@@ -692,8 +712,16 @@ const CTL_GROUP_LABELS = {
    than a live pointer at ctlDesign. */
 let ctlDraft = null;
 
+/* Which of the four parts the palette below is currently painting. One
+   palette shown at a time (pill-select, then colour) rather than four
+   identical 20-swatch grids stacked on top of each other — the same shape
+   the settings overlay already uses for a pill group (ui-style.md § Settings
+   Layout Standard), just picking a part instead of a value. */
+let ctlActiveGroup = 'shell';
+
 function ctlOpenWorkshop() {
   ctlDraft = Object.assign({}, ctlReadDesign());
+  ctlActiveGroup = 'shell';
   showScreen('screen-workshop');
   const stage = document.getElementById('ctl-stage');
   if (!ctlEnsureBuilt()) return;
@@ -722,37 +750,48 @@ function ctlRenderPanel() {
   if (!panel) return;
   panel.innerHTML = '';
   const palette = ctlPalette();
+  const meta = CTL_GROUP_LABELS[ctlActiveGroup];
+
+  const card = document.createElement('div');
+  card.className = 'bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3';
+
+  // Part picker — which of the four the palette below is about to paint.
+  const pills = document.createElement('div');
+  pills.className = 'flex gap-2 flex-wrap';
   for (const group of CTL_GROUPS) {
-    const meta = CTL_GROUP_LABELS[group];
-    const card = document.createElement('div');
-    card.className = 'bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3';
-
-    const head = document.createElement('div');
-    const title = document.createElement('p');
-    title.className = 'text-stone-800 font-semibold';
-    title.textContent = meta.name;
-    const hint = document.createElement('p');
-    hint.className = 'text-stone-400 text-sm mt-0.5';
-    hint.textContent = meta.hint;
-    head.appendChild(title); head.appendChild(hint);
-    card.appendChild(head);
-
-    /* Six columns: 6 × 44 px + 5 × 6 px of gap = 294 px, inside the 312 px a
-       max-w-sm card leaves once its own padding is taken. Twenty swatches land
-       as 6/6/6/2. */
-    const grid = document.createElement('div');
-    grid.className = 'grid grid-cols-6 gap-1.5';
-    for (const sw of palette) {
-      const b = document.createElement('button');
-      b.className = 'ctl-swatch' + (ctlDraft[group].toUpperCase() === sw.hex.toUpperCase() ? ' ctl-swatch-on' : '');
-      b.style.backgroundColor = sw.hex;
-      b.setAttribute('aria-label', meta.name + ' — ' + sw.hex);
-      b.addEventListener('click', () => ctlSelectColour(group, sw.hex));
-      grid.appendChild(b);
-    }
-    card.appendChild(grid);
-    panel.appendChild(card);
+    const p = document.createElement('button');
+    p.className = 'pill' + (group === ctlActiveGroup ? ' pill-active-purple' : '');
+    p.textContent = CTL_GROUP_LABELS[group].name;
+    p.addEventListener('click', () => {
+      if (group === ctlActiveGroup) return;
+      playPillClick();
+      ctlActiveGroup = group;
+      ctlRenderPanel();
+    });
+    pills.appendChild(p);
   }
+  card.appendChild(pills);
+
+  const hint = document.createElement('p');
+  hint.className = 'text-stone-400 text-sm';
+  hint.textContent = meta.hint;
+  card.appendChild(hint);
+
+  /* Six columns: 6 × 44 px + 5 × 6 px of gap = 294 px, inside the 312 px a
+     max-w-sm card leaves once its own padding is taken. Twenty swatches land
+     as 6/6/6/2. */
+  const grid = document.createElement('div');
+  grid.className = 'grid grid-cols-6 gap-1.5';
+  for (const sw of palette) {
+    const b = document.createElement('button');
+    b.className = 'ctl-swatch' + (ctlDraft[ctlActiveGroup].toUpperCase() === sw.hex.toUpperCase() ? ' ctl-swatch-on' : '');
+    b.style.backgroundColor = sw.hex;
+    b.setAttribute('aria-label', meta.name + ' — ' + sw.hex);
+    b.addEventListener('click', () => ctlSelectColour(ctlActiveGroup, sw.hex));
+    grid.appendChild(b);
+  }
+  card.appendChild(grid);
+  panel.appendChild(card);
 }
 
 function ctlSelectColour(group, hex) {

@@ -146,13 +146,46 @@
       <div class="overflow-y-auto flex flex-col gap-4 px-5 py-5">
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
           <p class="text-xs font-semibold uppercase tracking-widest text-purple-500">Step 1</p>
-          <p class="font-bold text-stone-800">Have a look around</p>
-          <p class="text-stone-500 text-sm">Drag the controller to spin it. Every side is paintable, so check the back before you settle.</p>
+          <p class="font-bold text-stone-800">Know your buttons</p>
+          <svg viewBox="0 0 360 220" class="w-full max-w-[260px] mx-auto" role="img"
+            aria-label="Diagram of the controller's front, showing the D-pad, Face A, Face B and Start buttons">
+            <rect x="30" y="40" width="280" height="120" rx="58" fill="#e7e5e4" stroke="#d6d3d1" stroke-width="2"/>
+            <!-- dimmed — no part in the code -->
+            <circle cx="105" cy="80" r="14" fill="#d6d3d1"/>
+            <circle cx="235" cy="130" r="14" fill="#d6d3d1"/>
+            <circle cx="235" cy="60" r="10" fill="#d6d3d1"/>
+            <circle cx="215" cy="80" r="10" fill="#d6d3d1"/>
+            <rect x="147" y="140" width="18" height="14" rx="6" fill="#d6d3d1"/>
+            <!-- D-pad -->
+            <path d="M97,106 L113,106 L113,122 L129,122 L129,138 L113,138 L113,154 L97,154 L97,138 L81,138 L81,122 L97,122 Z" fill="#a855f7"/>
+            <polygon points="101,118 109,118 105,110" fill="#fff"/>
+            <polygon points="101,142 109,142 105,150" fill="#fff"/>
+            <polygon points="89,126 89,134 81,130" fill="#fff"/>
+            <polygon points="121,126 121,134 129,130" fill="#fff"/>
+            <!-- Face A / Face B -->
+            <circle cx="255" cy="80" r="10" fill="#a855f7"/>
+            <text x="255" y="84" font-size="11" font-weight="700" fill="#fff" text-anchor="middle">B</text>
+            <circle cx="235" cy="100" r="10" fill="#a855f7"/>
+            <text x="235" y="104" font-size="11" font-weight="700" fill="#fff" text-anchor="middle">A</text>
+            <!-- Start -->
+            <rect x="177" y="140" width="18" height="14" rx="6" fill="#a855f7"/>
+            <!-- leaders -->
+            <line x1="105" y1="156" x2="105" y2="198" stroke="#a8a29e" stroke-width="2"/>
+            <line x1="186" y1="154" x2="186" y2="198" stroke="#a8a29e" stroke-width="2"/>
+            <line x1="264" y1="76" x2="300" y2="55" stroke="#a8a29e" stroke-width="2"/>
+            <line x1="242" y1="107" x2="300" y2="130" stroke="#a8a29e" stroke-width="2"/>
+            <!-- labels -->
+            <text x="105" y="212" font-size="13" font-weight="700" fill="#44403c" text-anchor="middle">D-pad</text>
+            <text x="186" y="212" font-size="13" font-weight="700" fill="#44403c" text-anchor="middle">Start</text>
+            <text x="304" y="52" font-size="13" font-weight="700" fill="#44403c" text-anchor="start">Face B</text>
+            <text x="304" y="134" font-size="13" font-weight="700" fill="#44403c" text-anchor="start">Face A</text>
+          </svg>
+          <p class="text-stone-500 text-sm">The code uses the <span class="font-semibold text-stone-700">D-pad</span>, <span class="font-semibold text-stone-700">Face A</span>, <span class="font-semibold text-stone-700">Face B</span> and <span class="font-semibold text-stone-700">Start</span> — everything else on the controller is just for show.</p>
         </div>
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
           <p class="text-xs font-semibold uppercase tracking-widest text-purple-500">Step 2</p>
           <p class="font-bold text-stone-800">Pick your colours</p>
-          <p class="text-stone-500 text-sm">Four parts, twenty colours — one for every game in the box. Tap a swatch and the controller changes straight away.</p>
+          <p class="text-stone-500 text-sm">Four parts, twenty colours — one for every game in the box. Choose a part, then tap a swatch, and the controller changes straight away.</p>
         </div>
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
           <p class="text-xs font-semibold uppercase tracking-widest text-purple-500">Step 3</p>
