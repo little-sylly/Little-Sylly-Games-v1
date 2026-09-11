@@ -885,6 +885,7 @@ function resetToLobby() {
   if (isMuted) document.getElementById('global-mute-toggle').className = getMuteToggleOnClass(null);
   if (typeof syncSfxUI === 'function') syncSfxUI();       // sfx toggle back to neutral stone
   if (typeof syncMusicUI === 'function') syncMusicUI();   // music toggle back to neutral stone
+  if (typeof ctlTeardown === 'function') ctlTeardown();
   showScreen('screen-lobby');   // ← also swaps music back to the lobby theme
 }
 

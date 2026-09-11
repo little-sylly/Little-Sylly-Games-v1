@@ -563,3 +563,58 @@ function ctlVoiceRelease() {
   if (isMuted || !sfxEnabled) return;
   CTL_VOICE.release();
 }
+
+// ── The lobby mount ──────────────────────────────────────────────────────────
+/* Deferred one frame past first paint. buildBody walks a distance field over a
+   grid and is the single most expensive thing this feature does; running it
+   inline would stall the app's front door on exactly the devices least able to
+   afford it. The mount is empty until it lands — a placeholder that flashes and
+   is replaced reads worse than the object simply arriving. */
+function ctlMountLobby() {
+  const el = document.getElementById('lobby-controller');
+  if (!el) return;
+  const start = () => {
+    if (!ctlEnsureBuilt()) return;
+    ctlPressEnabled = false;         // the lobby's buttons are scenery
+    ctlOnPress = null;
+    ctlOnTap = () => { playLaunch(); ctlOpenWorkshop(); };
+    ctlMount(el);
+    ctlBindPointer(el);
+  };
+  if (window.requestIdleCallback) requestIdleCallback(start, { timeout: 1200 });
+  else setTimeout(start, 0);
+}
+
+// Keyboard equivalence for the tap — the mount is role="button".
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  if (document.activeElement && document.activeElement.id === 'lobby-controller') {
+    e.preventDefault();
+    playLaunch();
+    ctlOpenWorkshop();
+  }
+});
+
+/* Full teardown. Called from resetToLobby() and from the Workshop's ✕. The rAF
+   handle is a timer under logic-engine.md § Timer Lifecycle; the scene itself
+   is deliberately kept — rebuilding it is the expensive part and the lobby
+   wants it back immediately. */
+function ctlTeardown() {
+  ctlStop();
+  ctlHeldStick = null;
+  ctlDragging = false;
+  ctlDownPos = null;
+  ctlOnPress = null;
+  ctlPressEnabled = false;
+  if (ctlBuilt) {
+    for (const m of ctlControls.pressables) {
+      const d = m.userData;
+      d.t = 0; d.pressed = false;
+      d.tiltX = d.tiltZ = d.vTiltX = d.vTiltZ = 0;
+      if (d.rest) m.position.copy(d.rest);
+      if (d.baseQuat) m.quaternion.copy(d.baseQuat);
+    }
+  }
+}
+
+document.addEventListener('DOMContentLoaded', ctlMountLobby);

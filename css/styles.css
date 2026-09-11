@@ -3100,3 +3100,18 @@ body.flash-red   { background-color: #fecaca; }
 .comb-pick-row:active { transform: scale(0.98); }
 .comb-pick-on { border-color: #F0A500; background: #FFF8E7; }
 .comb-pick-count { margin-left: auto; font-weight: 700; color: #B87A00; font-size: 0.8rem; }
+
+/* ── 3D controller: the lobby mount ──────────────────────────────────────────
+   Roughly 2.5× the 🎮 emoji's old footprint (text-6xl ≈ 60 px): big enough that
+   the ears, d-pad and sticks read at a glance and the object announces itself
+   as interactive, small enough that the wordmark below stays the hero. Tune
+   against a real render with the visual-check skill — this is a starting point,
+   not a measured value. */
+.ctl-lobby-mount {
+  width: 150px;
+  height: 150px;
+  margin-inline: auto;
+  cursor: grab;
+  touch-action: none;        /* a rotate-drag must not scroll the lobby */
+}
+.ctl-lobby-mount canvas { display: block; width: 100%; height: 100%; }

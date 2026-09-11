@@ -491,21 +491,22 @@ let smArcadeUnlocked = false;
 // Injects the 🕹️ shortcut beside the lobby's 🎮. Built in JS rather than in
 // index.html because the tile only exists once unlocked — this keeps the whole
 // arcade self-contained and leaves the lobby markup alone. Idempotent.
+/* The 🕹️ sits in the lobby's header icon row, to the LEFT of the speaker —
+   prepended, so it reads as the earlier of the two. It used to wrap the lobby's
+   🎮 emoji in a flex row and sit beside it; that emoji is now the 3D
+   controller, which is the hero of the screen and has no room for a sibling.
+   Idempotent, and the sticky unlock across resetToLobby() is unchanged. */
 function smShowArcadeTile() {
   if (document.getElementById('sm-arcade-tile')) return;
-  const icon = document.getElementById('lobby-icon');
-  if (!icon) return;
-  const row = document.createElement('div');
-  row.className = 'flex items-center justify-center gap-4';
-  icon.parentElement.insertBefore(row, icon);
-  row.appendChild(icon);
+  const row = document.getElementById('lobby-header-icons');
+  if (!row) return;
   const btn = document.createElement('button');
   btn.id = 'sm-arcade-tile';
-  btn.className = 'text-5xl active:scale-90 transition-transform duration-100 min-h-11 min-w-11';
+  btn.className = 'text-xl active:scale-90 transition-transform duration-100 min-h-11 min-w-11';
   btn.setAttribute('aria-label', 'Arcade');
   btn.textContent = '🕹️';
   btn.addEventListener('click', () => { playSecretBeep(660); smOpenArcadeMenu(); });
-  row.appendChild(btn);
+  row.insertBefore(btn, row.firstChild);
 }
 
 // Lean sibling of smOpenTerminal(). Critically it does NOT await smLoadPacks():
@@ -946,25 +947,6 @@ document.getElementById('sm-btn-exit').addEventListener('click', () => {
   document.getElementById('sm-controller-status').textContent = '> ENTER SEQUENCE TO CONTINUE';
   document.getElementById('sm-controller-status').style.color = '';
   showScreen('screen-lobby');
-});
-
-// ── Hidden trigger: 7 rapid taps on lobby icon ───────────────────────────────
-let smLobbyTapCount = 0;
-let smLobbyTapTimer = null;
-document.getElementById('lobby-icon').addEventListener('click', () => {
-  smLobbyTapCount++;
-  clearTimeout(smLobbyTapTimer);
-  smLobbyTapTimer = setTimeout(() => { smLobbyTapCount = 0; }, 1500);
-  if (smLobbyTapCount >= 7) {
-    smLobbyTapCount = 0;
-    clearTimeout(smLobbyTapTimer);
-    smKonamiBuffer = [];
-    smUpdateProgress();
-    document.getElementById('sm-controller-status').textContent = '> ENTER SEQUENCE TO CONTINUE';
-    document.getElementById('sm-controller-status').style.color = '';
-    playSyllyOn();
-    showScreen('screen-secret-controller');
-  }
 });
 
 // ── Keyboard Konami (desktop convenience) ────────────────────────────────────
