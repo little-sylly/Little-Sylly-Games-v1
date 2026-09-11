@@ -238,17 +238,98 @@ function smHandleButton(code) {
     // Discovery beat — the arcade stays unlocked for the rest of the session.
     smArcadeUnlocked = true;
     smShowArcadeTile();
-    // Victory arpeggio
-    playSecretBeep(523);
-    setTimeout(() => playSecretBeep(659), 100);
-    setTimeout(() => playSecretBeep(784), 200);
-    // Show ACCESS GRANTED then slide to terminal
-    setTimeout(() => {
-      document.getElementById('sm-controller-status').textContent = '[ ACCESS GRANTED ]';
-      document.getElementById('sm-controller-status').style.color = '#00FF00';
-    }, 350);
-    setTimeout(() => smOpenTerminal(), 1400);
+    smOpenGateway();
   }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ── The Sylly Gateway — the loadout between the code and the terminal ─────
+// ═══════════════════════════════════════════════════════════════════════════
+
+/* Plausible-looking nonsense. It is meant to be scanned, not read — the blur
+   is doing half the work — so the shapes matter more than the words: hex
+   addresses, symbol names, sizes, the vocabulary of something linking. */
+const SM_GATEWAY_TOKENS = [
+  'SEG', 'REL', 'PLT', 'GOT', 'BSS', 'TEXT', 'RODATA', 'SYM', 'DWARF', 'VMA',
+  'sylly_core', 'pack_registry', 'arcade_rom', 'vault_key', 'brand_lut',
+  'atlas_blit', 'shader_cache', 'audio_graph', 'wake_lock', 'sw_scope',
+];
+const SM_GATEWAY_VERBS = [
+  'LINK', 'MAP', 'PATCH', 'VERIFY', 'INFLATE', 'SEED', 'BIND', 'RESOLVE', 'MOUNT', 'ARM',
+];
+
+function smGatewayHex(n) {
+  let s = '';
+  for (let i = 0; i < n; i++) s += '0123456789ABCDEF'[Math.floor(Math.random() * 16)];
+  return s;
+}
+
+function smGatewayLine() {
+  const v = SM_GATEWAY_VERBS[Math.floor(Math.random() * SM_GATEWAY_VERBS.length)];
+  const t = SM_GATEWAY_TOKENS[Math.floor(Math.random() * SM_GATEWAY_TOKENS.length)];
+  return '0x' + smGatewayHex(8) + '  ' + v.padEnd(8) + t.padEnd(16) +
+         '+' + smGatewayHex(4) + '  ' + (1 + Math.floor(Math.random() * 4096)) + 'b  OK';
+}
+
+const SM_GATEWAY_LINES = 26;
+const SM_GATEWAY_GAP   = 55;   // ms — ~1.4 s of stream, then the payoff
+
+function smOpenGateway() {
+  /* The Workshop's rAF is a timer and this is an early transition out of that
+     screen — logic-engine.md § Timer Lifecycle's third required clear site. */
+  if (typeof ctlTeardown === 'function') ctlTeardown();
+  showScreen('screen-secret-gateway');
+  smGatewayStream();
+}
+
+function smGatewayStream() {
+  smTypewriterTimers.forEach(clearTimeout);
+  smTypewriterTimers = [];
+  const log = document.getElementById('sm-gateway-log');
+  const granted = document.getElementById('sm-gateway-granted');
+  if (!log || !granted) return;
+  log.innerHTML = '';
+  granted.style.display = 'none';
+
+  /* The stream is driven by timers, and the global prefers-reduced-motion CSS
+     block only zeroes animation/transition durations — it cannot reach a
+     setTimeout writing text. Under reduced motion the screen renders its
+     finished state at once: the whole loadout is there to read, and the payoff
+     is there to tap. Reduced motion, not reduced information. */
+  if (smReducedMotion()) {
+    const all = [];
+    for (let i = 0; i < SM_GATEWAY_LINES; i++) all.push(smGatewayLine());
+    log.textContent = all.join('\n');
+    smGatewayFinish();
+    return;
+  }
+
+  for (let i = 0; i < SM_GATEWAY_LINES; i++) {
+    const t = setTimeout(() => {
+      const p = document.createElement('div');
+      p.textContent = smGatewayLine();
+      log.appendChild(p);
+      log.scrollTop = log.scrollHeight;
+      if (i % 4 === 0) playSecretBeep(180 + i * 12);
+    }, i * SM_GATEWAY_GAP);
+    smTypewriterTimers.push(t);
+  }
+  const done = setTimeout(smGatewayFinish, SM_GATEWAY_LINES * SM_GATEWAY_GAP + 120);
+  smTypewriterTimers.push(done);
+}
+
+function smGatewayFinish() {
+  const granted = document.getElementById('sm-gateway-granted');
+  if (granted) granted.style.display = 'flex';
+  playSecretBeep(523);
+  setTimeout(() => playSecretBeep(659), 100);
+  setTimeout(() => playSecretBeep(784), 200);
+}
+
+function smReducedMotion() {
+  try {
+    return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  } catch (_) { return false; }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -916,37 +997,46 @@ document.getElementById('gm-vocab-list-btn').addEventListener('click', () => {
 });
 
 // ── Terminal button listeners ─────────────────────────────────────────────────
+/* ← BACK returns to the LOBBY, not to the gateway. The gateway is now a
+   one-shot boot animation: sending the player back there would either replay
+   the whole hack sequence at them or strand them on a screen already reading
+   ACCESS GRANTED with nothing to do but tap forward again.
+   What that costs is worth being precise about. smArcadeUnlocked is sticky, so
+   🕹️ stays in the lobby header for the rest of the session — but it calls
+   smOpenArcadeMenu(), which lists CABINETS only (and skips smLoadPacks, so the
+   arcade still opens on a cold offline start). The arcade is therefore one tap
+   away; the pack/skin terminal costs a fresh Konami. Confirmed with the owner
+   at spec review. */
 document.getElementById('sm-terminal-back').addEventListener('click', () => {
   smTypewriterTimers.forEach(clearTimeout);
   smTypewriterTimers = [];
   smSelectedExpansion = null;
   smSelectedGame      = null;
-  document.getElementById('sm-controller-status').textContent = '> ENTER SEQUENCE TO CONTINUE';
-  document.getElementById('sm-controller-status').style.color = '';
-  showScreen('screen-secret-controller');
+  showScreen('screen-lobby');
+  if (typeof ctlMountLobby === 'function') ctlMountLobby();
 });
 
 document.getElementById('sm-terminal-launch').addEventListener('click', smLaunch);
 document.getElementById('sm-terminal-launch-back').addEventListener('click', smReturnFromLaunch);
 
 // ═══════════════════════════════════════════════════════════════════════════
-// ── Controller button listeners ───────────────────────────────────────────
+// ── The Sylly Gateway's own buttons ────────────────────────────────────────
 // ═══════════════════════════════════════════════════════════════════════════
 
-document.getElementById('sm-btn-up').addEventListener('click',    () => smHandleButton('U'));
-document.getElementById('sm-btn-down').addEventListener('click',  () => smHandleButton('D'));
-document.getElementById('sm-btn-left').addEventListener('click',  () => smHandleButton('L'));
-document.getElementById('sm-btn-right').addEventListener('click', () => smHandleButton('R'));
-document.getElementById('sm-btn-b').addEventListener('click',     () => smHandleButton('B'));
-document.getElementById('sm-btn-a').addEventListener('click',     () => smHandleButton('A'));
-document.getElementById('sm-btn-start').addEventListener('click', () => smHandleButton('S'));
-
 document.getElementById('sm-btn-exit').addEventListener('click', () => {
+  smTypewriterTimers.forEach(clearTimeout);
+  smTypewriterTimers = [];
   smKonamiBuffer = [];
   smUpdateProgress();
-  document.getElementById('sm-controller-status').textContent = '> ENTER SEQUENCE TO CONTINUE';
-  document.getElementById('sm-controller-status').style.color = '';
   showScreen('screen-lobby');
+  if (typeof ctlMountLobby === 'function') ctlMountLobby();
+});
+
+document.getElementById('sm-gateway-continue').addEventListener('click', () => {
+  smTypewriterTimers.forEach(clearTimeout);
+  smTypewriterTimers = [];
+  playSecretBeep(880);
+  smOpenTerminal();
 });
 
 // ── Keyboard Konami (desktop convenience) ────────────────────────────────────
@@ -957,7 +1047,7 @@ const SM_KEY_MAP = {
 document.addEventListener('keydown', e => {
   const code = SM_KEY_MAP[e.key];
   if (!code) return;
-  if (document.getElementById('screen-secret-controller').style.display !== 'none') return;
+  if (document.getElementById('screen-secret-gateway').style.display !== 'none') return;
   // Asherplane's RAF loop reschedules unconditionally, so navigating away from
   // the cabinet without tearing it down leaves it updating and painting under
   // every later screen. The arrow keys are also its steering — see Small 3.
@@ -967,6 +1057,8 @@ document.addEventListener('keydown', e => {
   if (smKonamiBuffer.join('') === SM_KONAMI.join('')) {
     smKonamiBuffer = [];
     smUpdateProgress();
-    showScreen('screen-secret-controller');
+    smArcadeUnlocked = true;
+    smShowArcadeTile();
+    smOpenGateway();
   }
 });

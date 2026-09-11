@@ -3157,3 +3157,14 @@ body.flash-red   { background-color: #fecaca; }
   color: #fff;
   text-shadow: 0 0 3px rgba(0, 0, 0, 0.75);
 }
+
+/* ── Sylly Gateway loadout ───────────────────────────────────────────────────
+   The blur is STATIC and stays static. `filter` is neither transform nor
+   opacity, so animating it would break the Motion Standard and janks on a
+   mid-range phone. It is here to make the stream read as something executing
+   rather than something to be read — the legibility loss is the point. */
+.sm-gateway-blur {
+  filter: blur(0.7px);
+  white-space: pre;
+  word-break: break-all;
+}

@@ -32,7 +32,7 @@ const allScreens = [
   'screen-ss-decode-gate', 'screen-ss-decode', 'screen-ss-resolution', 'screen-ss-gameover',
   'screen-ss-players',
   'screen-ss-tiebreak', 'screen-ss-intel-intro', 'screen-ss-intel-guess', 'screen-ss-intel-summary',
-  'screen-secret-controller',
+  'screen-secret-gateway',
   'screen-secret-terminal',
   'screen-gm-concede',
   'screen-jec-menu', 'screen-jec-roster', 'screen-jec-order',
