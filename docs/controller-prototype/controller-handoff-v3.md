@@ -1,5 +1,15 @@
 # Controller rebuild — session handoff (v3)
 
+> **Status update (SW v228, 11 Sep 2026): this document is FROZEN reference material.**
+> The standalone prototypes (`standalone.html`, `standalone-stickerless.html`) are frozen
+> artefacts — read, never edit. `body.js` now lives once, at `js/lib/controller-body.js` (ported
+> verbatim, see `docs/controller-prototype/README.md`); the duplication flagged in § 4.2 below is
+> **closed**. The controller is live in the app: the lobby's 🎮 emoji, `screen-workshop`, and the
+> Konami adapter (`js/controller.js`, prefix `ctl`) — see `docs/code-map.md` § 3D Controller /
+> Workshop and `CLAUDE.md` § Current Focus. This handoff's bug-fix history (§ 3) and gotchas (§ 5)
+> remain the authoritative record for the geometry — read them before touching rotation, curvature
+> or ear geometry.
+
 **Project:** Little Sylly Games — 3D controller icon / sticker customiser for the title page
 **Status:** Sticker placement, thickness, keep-outs, and a first-pass Controller
 Customiser (colour picker) are all working in the prototype. Rotation and
@@ -454,6 +464,8 @@ Per v2, still true, nothing resolved this session:
   running stale code if only one copy gets edited. This session hit that
   risk directly: every single fix in §3 had to be applied to both copies
   by hand, twice, every time.
+  **CLOSED (SW v228).** `body.js` now lives once, at `js/lib/controller-body.js` —
+  edit there, never in either standalone prototype again.
 - Mobile: touch handling was not specifically tested or tuned this
   session. The click-vs-drag logic (§3.1) uses standard Pointer Events,
   which do fire on touch, but nothing was verified on an actual mobile

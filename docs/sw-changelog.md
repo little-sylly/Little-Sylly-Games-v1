@@ -4,6 +4,21 @@ Historical SW release notes, moved out of `CLAUDE.md` (1 Aug 2026) so they stop 
 The **current** version and its notes stay in `CLAUDE.md` § Current Focus — append the outgoing entry here on each bump.
 
 
+## v227 — Suite-wide button-ink standard: brand fill + white ink, no per-game contrast carve-out (10 Sep 2026)
+
+The settings pills, toggles and in-game "proceed" buttons now follow one locked rule: **each game's
+menu Play CTA scheme (fill + ink) is the scheme for every standard button and settings pill.** In
+practice that means **white ink suite-wide** — the four light-fill brands (FRT `#FFE500`, YGI
+`amber-500`, COMB `#F0A500`, CLD `#8ECAE6`) dropped their dark-ink "contrast fixes" and went white
+too, contrast cost accepted at owner direction for one *consistent* scheme per game. Changed:
+`.pill-active-{frt,amber,cld,comb}` + `.game-toggle-on-{…}` → `#fff`; `.comb-cta` / `.cld-cta` →
+`#fff` (the 4 `#btn-*` / `#btn-*-menu-play` white-ink ID overrides deleted as redundant); ~20 YGI +
+7 FRT static buttons `text-stone-800` → `text-white`; 3 `frt.js` button sites stop forcing
+`FRT_INK`; `ctaTextClass` removed from `ygi`/`frt`/`comb` in `MP_GAME_CONFIGS`. **`-label` text
+colours (text on the off-white page) untouched.** `verify-mp-configs` green. Docs: `ui-style.md`
+§ Action Button Standard + § Settings Layout Standard, `per-game-classes.md`, `decision-log.md`.
+
+
 ## v226 — Honeycomb Hills' first real multi-device session: meadow UX pass + a P0 fix (10 Sep 2026)
 
 Fixed the **roll-7 strand** — every 7 froze every client on the default settings (`combBeginSeven()`'s

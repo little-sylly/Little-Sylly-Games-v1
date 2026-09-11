@@ -1,7 +1,7 @@
-// Little Sylly Games — Service Worker v225
+// Little Sylly Games — Service Worker v228
 // All assets are local — no external CDN URLs, no opaque response issues.
 
-const CACHE_NAME = 'sylly-games-v227';
+const CACHE_NAME = 'sylly-games-v228';
 
 const PRECACHE_URLS = [
   './',

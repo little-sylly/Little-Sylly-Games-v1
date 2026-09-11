@@ -20,6 +20,33 @@ Detail: pointer to the canonical doc (snapshot / impl note / spec / memory).
 
 ---
 
+## 2026-09-11 — The Konami code moves onto the real controller; the gateway becomes a loadout (SW v228)
+Category: Architecture
+Decision: The 7-rapid-tap trigger and the 2D NES-style input screen (`screen-secret-controller`) are both deleted. The Konami sequence is now entered on the real 3D controller's D-pad/Face A/Face B/Start, live only on `screen-workshop` (`ctlKonamiCode`/`ctlKonamiPress` in `js/controller.js`, a pure mapping forwarding to `secret-mode.js`'s unchanged buffer/beeps). Success now opens `screen-secret-gateway`, a blurred streaming link-loader animation that waits for a tap before handing off to the Terminal — one path in instead of two (keyboard entry now completes the same unlock rather than opening a second input screen). `sm-terminal-back` returns to the lobby, not the gateway (a one-shot boot animation, not a re-enterable screen).
+Why: The gateway's markup was already a 2D controller pretending to be the icon it now literally is; keeping both was redundant and the 7-tap trigger's target element (`#lobby-icon`) no longer exists. A one-shot animation that replays or strands the player on ACCESS GRANTED forever is worse than sending them to the lobby, with the cost (a fresh Konami re-opens the pack/skin terminal; the arcade tile stays reachable) stated at the code and confirmed with the owner.
+Changed: `index.html` (`screen-secret-gateway` replaces `screen-secret-controller`), `js/secret-mode.js` (`smOpenGateway`/`smGatewayStream`/`smGatewayFinish`, deleted 7 button listeners + the 7-tap trigger), `js/controller.js` (the Konami adapter), `js/engine.js` (`allScreens[]`), `css/styles.css` (`.sm-gateway-blur`, static — never animated).
+Detail: `docs/code-map.md` § 3D Controller / Workshop; `docs/implementation-notes/shared-implementation-notes.md` BUG-11 (reduced-motion for the stream).
+
+---
+
+## 2026-09-11 — `sylly_controller` as the fourth permitted localStorage key
+Category: Architecture
+Decision: The 3D controller's saved paint job (`{shell, plate, ears, buttons}`) persists to `localStorage` under `sylly_controller` — a user preference like `sylly_nickname`, not game state, and the app's existing `localStorage`-for-game-state ban is unaffected.
+Why: The design is deliberately per-device cosmetic flair with no gameplay weight; a `ctlReadDesign()` total read resolves any absent/malformed/hostile payload to the factory design without throwing, since this runs on the app's front door on every load.
+Changed: `js/controller.js` (`CTL_STORAGE_KEY`, `ctlReadDesign`/`ctlWriteDesign`), `CLAUDE.md` § Anti-Patterns' localStorage exception list.
+Detail: `tools/verify-controller-state.js` §§ 1-3 (round-trip, the ten malformed-input cases, the factory design).
+
+---
+
+## 2026-09-11 — Three.js vendored as the third first-party library (SW v228)
+Category: Architecture
+Decision: Three.js r128 is vendored to `js/lib/three.min.js` (~603 KB) on the same terms as local Tailwind and the Firebase SDK — a local file, precached, never fetched from a CDN — rather than loaded from cdnjs as the prototype did. The geometry module (`body.js`) is de-duplicated into a single copy, `js/lib/controller-body.js`, ending a standing risk where the prototype's two standalone HTML files each carried their own copy and every fix had to be applied twice by hand.
+Why: The app's zero-runtime-third-party-dependency property (stated in `CLAUDE.md` § Tech Stack) is a hard constraint the prototype's CDN-loaded Three would have broken; vendoring is the only option consistent with the existing precedent.
+Changed: `js/lib/three.min.js` (new), `js/lib/controller-body.js` (new, ported from `docs/controller-prototype/`, now frozen), `sw.js` `PRECACHE_URLS` + `CACHE_NAME` → v228, `CLAUDE.md` § Anti-Patterns ("only three" libraries) + § Load Order.
+Detail: install delta ~658 KB (Three + the geometry module + `js/controller.js`), recorded in `docs/sw-changelog.md` v228; `tools/verify-controller-body.js` (28 checks pinning the vendored revision and the geometry contract).
+
+---
+
 ## 2026-09-10 — Suite-wide button-ink standard: brand fill + white ink, no per-game contrast carve-out (SW v227)
 Category: Process
 Decision: A game's **menu Play CTA colour scheme (fill + ink) is locked** and cascades: every *standard* button and every *settings pill* in that game uses the same fill + ink. In practice this settled as **white ink suite-wide** — the four light-fill brands (FRT `#FFE500` ~1.1:1, YGI `amber-500` ~2.1:1, COMB `#F0A500` ~1.9:1, CLD `#8ECAE6` ~1.8:1) dropped the `text-stone-800` / `ctaTextClass` "contrast fixes" accumulated over prior recolours and went white too. Carve-outs that stay off-scheme: cancel / exit / back / "How to Play" (neutral stone), quit-confirm (may be red), interrupt splashes (may be red), and genuinely semantic in-game decision pairs (BLD vote in/out, PASS play/pass, PKO Stampede/Retreat, trade Accept/Decline). `-label` *text* colours (text on the off-white page) are a separate axis and were not touched.

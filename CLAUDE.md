@@ -113,11 +113,14 @@ All symbols are global (no ES modules). Forward references work at runtime.
 ## 🚫 Anti-Patterns (Do Not)
 - Do NOT add a build step — no `npm`/`webpack`/bundler for the app itself. (`tools/*.js` verification
   harnesses run under Node; that's dev tooling, not a build.)
-- Do NOT add external JS libraries. The only two are vendored: local Tailwind (`js/lib/tailwind-play.js`)
-  and the Firebase SDK (precached, lazy-loaded at runtime — see `logic-engine.md` § Firebase Lazy-Load).
+- Do NOT add external JS libraries. The only **three** are vendored: local Tailwind
+  (`js/lib/tailwind-play.js`), the Firebase SDK (precached, lazy-loaded at runtime — see
+  `logic-engine.md` § Firebase Lazy-Load), and Three.js r128 (`js/lib/three.min.js`, precached,
+  never fetched from a CDN — see `logic-engine.md` § Shared Library Modules).
 - Do NOT create multiple HTML pages — single-page app
 - Do NOT use `localStorage` for game state mid-round (memory only; settings may persist)
-  - **Exception:** `sylly_nickname` (multiplayer nickname) and `isMuted`/`masterVolume` are permitted localStorage uses
+  - **Exception:** `sylly_nickname` (multiplayer nickname), `isMuted`/`masterVolume`, and
+    `sylly_controller` (the saved 3D controller design) are permitted localStorage uses
 - Do NOT over-engineer: no classes/inheritance unless genuinely needed
 - Do NOT assume context from previous sessions — reference files explicitly
 - Do NOT add game-specific audio controls — audio is global via `engine.js`
@@ -275,20 +278,18 @@ On every bump the outgoing SW entry moves **verbatim** to `docs/sw-changelog.md`
 "keep the last three". **A second `**SW v…**` paragraph appearing here means that move didn't
 happen: do it before anything else.**
 
-**SW v227 — Suite-wide button-ink standard: brand fill + white ink, no per-game contrast carve-out (10 Sep 2026).**
-The settings pills, toggles and in-game "proceed" buttons now follow one locked rule: **each game's
-menu Play CTA scheme (fill + ink) is the scheme for every standard button and settings pill.** In
-practice that means **white ink suite-wide** — the four light-fill brands (FRT `#FFE500`, YGI
-`amber-500`, COMB `#F0A500`, CLD `#8ECAE6`) dropped their dark-ink "contrast fixes" and went white
-too, contrast cost accepted at owner direction for one *consistent* scheme per game. Changed:
-`.pill-active-{frt,amber,cld,comb}` + `.game-toggle-on-{…}` → `#fff`; `.comb-cta` / `.cld-cta` →
-`#fff` (the 4 `#btn-*` / `#btn-*-menu-play` white-ink ID overrides deleted as redundant); ~20 YGI +
-7 FRT static buttons `text-stone-800` → `text-white`; 3 `frt.js` button sites stop forcing
-`FRT_INK`; `ctaTextClass` removed from `ygi`/`frt`/`comb` in `MP_GAME_CONFIGS`. **`-label` text
-colours (text on the off-white page) untouched.** `verify-mp-configs` green. Docs: `ui-style.md`
-§ Action Button Standard + § Settings Layout Standard, `per-game-classes.md`, `decision-log.md`.
+**SW v228 — The 3D controller: lobby ornament, Workshop, Konami, gateway (11 Sep 2026).**
+The lobby's 🎮 emoji is now a real 3D controller (Three.js r128, vendored — the third first-party
+library after Tailwind and Firebase, precached at `js/lib/three.min.js` / `-controller-body.js`).
+Tap it → the **Workshop** (`screen-workshop`), a colour-only customiser painting shell/faceplate/
+ears/buttons from the 20 brand hexes, saved to the new `sylly_controller` localStorage key. The
+Konami code moves onto the controller's real D-pad/Face A/Face B/Start (the 7-tap and the 2D NES-
+style input screen are both deleted) and now resolves to the **Sylly Gateway**
+(`screen-secret-gateway`) — a blurred, streaming link-loader animation that waits for a tap before
+handing off to the Terminal. Install delta: ~658 KB (Three + the geometry module + `controller.js`).
+Harnesses: `verify-controller-body.js` (28) + `verify-controller-state.js` (63).
 
-**Previous versions: `docs/sw-changelog.md`** — continuous, v224 back to v167.
+**Previous versions: `docs/sw-changelog.md`** — continuous, v227 back to v167.
 
 **Where the suite stands.** **20 games shipped**, all gold-master, plus multiplayer. Newest three:
 **Honeycomb Hills** (`comb`, game 20, phase 41 — the suite's biggest game and the only one with

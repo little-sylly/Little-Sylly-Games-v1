@@ -75,8 +75,9 @@ games. Track key = `activeGameId`, falling back to `'lobby'`. No plugin has musi
 ### Screens
 | ID | Purpose |
 |----|---------|
-| `#screen-lobby` | Game selection — main title screen. Children: `#lobby-game-list` (the 18 game buttons; the flex container the Colour sort reorders via `style.order`), `#btn-lobby-sort` + `#lobby-sort-label` (Release/Colour toggle, `lobbyApplySort()` in `engine.js`). Each game button carries `gel-btn lobby-btn`: a `.lobby-btn-badge` span (game emoji, `z-index:3`) on the **left** — a convex domed disc (radial-gradient white→pale-grey + rim/inner-shade box-shadow, reads as a 3-D pin) — and the `.lobby-btn-label` span (`z-index:2`) left-aligned after it. `.lobby-btn` now supplies **only** that badge layout; the moulding is the shared **`.gel-btn`** (SW v218, extracted from the old `.lobby-btn` — also on all 72 game-menu buttons): a colour-agnostic classic-gel treatment — body gradient + `::before` specular cap + `::after` base bounce-light (both `z-index:-1`, under the label via `isolation:isolate`) + `box-shadow` bezel/rims — over the button's own brand fill. All CSS, no per-game values; `.gel-btn:active` redeclares the full `box-shadow` so an earlier `:active` can't strip the bezel. `.gel-btn-light` = softened gloss for pale fills (menu Settings + ← Back). See `css/styles.css` "Gel button" + `ui-style.md` § Gel Button Treatment. The lobby wordmark `<div class="lobby-title">` is an `<img src="assets/logo.png">` (SW v217) with a `.lobby-title img { filter: drop-shadow(...) }` lift. |
+| `#screen-lobby` | Game selection — main title screen. Children: `#lobby-header-icons` (top-right icon row — `.btn-open-sound` 🔊, plus 🕹️ prepended by `smShowArcadeTile()` once the arcade is unlocked), `#lobby-controller` (the 3D controller mount — `.ctl-lobby-mount`, `ctlMountLobby()` in `js/controller.js`; replaced the old `#lobby-icon` 🎮 emoji, SW v228), `#lobby-game-list` (the 20 game buttons; the flex container the Colour sort reorders via `style.order`), `#btn-lobby-sort` + `#lobby-sort-label` (Release/Colour toggle, `lobbyApplySort()` in `engine.js`). Each game button carries `gel-btn lobby-btn`: a `.lobby-btn-badge` span (game emoji, `z-index:3`) on the **left** — a convex domed disc (radial-gradient white→pale-grey + rim/inner-shade box-shadow, reads as a 3-D pin) — and the `.lobby-btn-label` span (`z-index:2`) left-aligned after it. `.lobby-btn` now supplies **only** that badge layout; the moulding is the shared **`.gel-btn`** (SW v218, extracted from the old `.lobby-btn` — also on all 72 game-menu buttons): a colour-agnostic classic-gel treatment — body gradient + `::before` specular cap + `::after` base bounce-light (both `z-index:-1`, under the label via `isolation:isolate`) + `box-shadow` bezel/rims — over the button's own brand fill. All CSS, no per-game values; `.gel-btn:active` redeclares the full `box-shadow` so an earlier `:active` can't strip the bezel. `.gel-btn-light` = softened gloss for pale fills (menu Settings + ← Back). See `css/styles.css` "Gel button" + `ui-style.md` § Gel Button Treatment. The lobby wordmark `<div class="lobby-title">` is an `<img src="assets/logo.png">` (SW v217) with a `.lobby-title img { filter: drop-shadow(...) }` lift. |
 | `#screen-who-first` | Shared "Who Goes First?" — method picker → RPS declare → winner choice |
+| `#screen-workshop` | Controller customiser (SW v228). NOT a game — `activeGameId` stays `null`, so lobby music keeps playing and the sound overlay stays neutral stone. Fixed-stage layout (h-screen whitelist, `ui-style.md`): header (`[?]`/🔊/✕) → `#ctl-stage` (the 3D preview, `ctl-workshop-stage`) → `#ctl-panel` (scrolling, four colour cards — Shell/Faceplate/Ears/Buttons, 20 swatches each read live from `GAME_BRAND_HEX`) → `#btn-ctl-save`/`#btn-ctl-reset`. Opened by `ctlOpenWorkshop()` (tap/Enter on `#lobby-controller`), closed by `ctlCloseWorkshop()` (✕ or Save). The Konami is live here only (`ctlPressEnabled = true`, `ctlOnPress = ctlKonamiPress`). `#ctl-how-to-overlay` is its How to Play (no Sylly Mode card — scoped to games). |
 
 ### Overlays
 | ID | Pattern | Opened by |
@@ -105,7 +106,7 @@ games. Track key = `activeGameId`, falling back to `'lobby'`. No plugin has musi
 | `#btn-flw` | Lobby → FLW menu screen |
 | `#btn-pko` | Lobby → PKO menu screen |
 | `#btn-lobby-sort` | Toggles the lobby's 18 game buttons between Release order (default, the shipped DOM order) and Colour order (hue-wheel walk starting at Flawless's pale pink, then LI5) — see `lobbyApplySort()` below |
-| `#lobby-icon` | Secret Mode tap counter (7 taps → controller screen) |
+| `#lobby-controller` | The 3D controller mount (SW v228) — tap/Enter opens the Workshop (`ctlOpenWorkshop()`). Replaced `#lobby-icon` and its 7-tap trigger; see § 3D Controller / Workshop above |
 | `.btn-open-sound` | Tap opens `#sound-overlay`; tap-**hold** (500 ms) toggles Mute All directly, no overlay. See `bindCardHold` wiring at the bottom of `engine.js`'s boot block |
 | `#global-mute-toggle` | Mute toggle inside sound overlay |
 | `#btn-global-sfx-toggle` | System Sounds (effects) ON/OFF — independent of Music's toggle, mirrors it |
@@ -591,6 +592,64 @@ the live Small Talk UI is the `#lttp-smalltalk-overlay` overlay below.
 
 ---
 
+## 3D Controller / Workshop (SW v228)
+
+**JS files:** `js/lib/three.min.js` (vendored Three.js r128, `window.THREE`), `js/lib/controller-body.js`
+(`window.ControllerBody` — pure geometry: `buildBody`, `buildControls`, `buildEars`, `buildShoulder`,
+`smoothNormals`), `js/controller.js` (everything else — prefix `ctl`). Loaded in that order, `art.js`
+→ `three.min.js` → `controller-body.js` → `physics.js`, and `comb.js` → `controller.js` →
+`secret-mode.js` — see `CLAUDE.md` § Load Order. Not a game: no `MP_GAME_CONFIGS` entry, no identity
+doc, `activeGameId` never touches it.
+
+### Screens
+| ID | Purpose |
+|----|---------|
+| `#screen-workshop` | Controller customiser — see the Lobby/Workshop entries above |
+
+### Key ids
+| ID | Purpose |
+|----|---------|
+| `#lobby-controller` | The lobby's 3D mount (`.ctl-lobby-mount`, 150px, no floor shadow — no headroom below it) |
+| `#lobby-header-icons` | Top-right icon row, replaces the old bare `.btn-open-sound` — 🕹️ (once unlocked) then 🔊 |
+| `#ctl-stage` | The Workshop's 3D mount (`.ctl-workshop-stage`, 38vh, floor shadow shown) |
+| `#ctl-panel` | The Workshop's scrolling colour-card panel |
+| `#ctl-how-to-overlay` | The Workshop's How to Play (no Sylly Mode card — that rule is scoped to games) |
+| `#btn-ctl-save` / `#btn-ctl-reset` / `#btn-ctl-exit` / `#btn-ctl-how-to` | Workshop controls |
+
+### Key state
+| Name | Purpose |
+|------|---------|
+| `CTL_DEFAULTS` | The factory `{shell, plate, ears, buttons}` — deliberately outside the 20-colour palette, so Reset is always distinguishable from any player design |
+| `ctlDesign` | The live (saved) design; read by the lobby mount |
+| `ctlDraft` | The Workshop's in-progress edit — a copy, not a pointer at `ctlDesign`, so an unsaved change is discarded on exit |
+| `ctlOnPress` / `ctlOnTap` | Assigned per mount: lobby sets `ctlOnPress = null`, `ctlOnTap` opens the Workshop; the Workshop sets `ctlOnPress = ctlKonamiPress`, `ctlOnTap = null` |
+| `ctlRaf` | The on-demand render loop's handle — a Timer Lifecycle rAF; cancelled by `ctlStop()`/`ctlTeardown()`, restarted by `ctlWake()` only while something is moving (`ctlBusy()`) |
+
+### Key functions
+| Function | Purpose |
+|----------|---------|
+| `ctlReadDesign()` / `ctlWriteDesign(design)` | Total, never-throwing persistence to the `sylly_controller` localStorage key (the fourth permitted key, alongside `isMuted`/`masterVolume`/`sylly_nickname`) |
+| `ctlPalette()` | Reads `GAME_BRAND_HEX` live, ordered by `LOBBY_COLOUR_ORDER` (the lobby's own Colour-sort hue walk) — a 21st game needs no edit here |
+| `ctlEnsureBuilt()` | Idempotent scene/geometry/atlas build — the single most expensive call in the feature (~587ms unthrottled, ~1.2s at 4× CPU throttle), which is why every mount defers it |
+| `ctlApplyDesign(design)` | Repaints the shell/faceplate atlases and sets the button materials' colour directly (buttons are untextured, unlike the atlas-painted shell) |
+| `ctlMount(el, { floor })` / `ctlUnmount()` | Re-parents the single WebGL renderer between the lobby and Workshop mounts — one context, never two, since phones cap live WebGL contexts. `floor` (default `true`) toggles the contact-shadow plane; the lobby mount passes `false` |
+| `ctlMountLobby()` | Defers the build past first paint (`requestIdleCallback`), then mounts + binds pointer + starts the idle nudge |
+| `ctlScheduleIdleNudge()` | A small randomly-signed wiggle every 3-5s (first at 1s) — reuses the drag-release coast physics (`ctlVelY`) rather than a second animation system; declines under reduced motion, mid-drag, off-lobby, or once the Workshop takes the mount |
+| `ctlOpenWorkshop()` / `ctlCloseWorkshop()` | Enter/exit the Workshop; close discards unsaved changes (`ctlDesign = ctlReadDesign()`) |
+| `ctlRenderPanel()` / `ctlSelectColour(group, hex)` | Renders the four colour cards from `ctlPalette()`; a tap updates `ctlDraft`, repaints live, re-renders the panel |
+| `ctlKonamiCode(name, dir)` | Pure mapping: D-pad direction → `U`/`D`/`L`/`R`, `Face A`/`Face B`/`Start` → `A`/`B`/`S`, everything else → `null`. Lives above the `// ══ RENDERER ══` marker so `tools/verify-controller-state.js` can load it under Node with no DOM/THREE/canvas |
+| `ctlKonamiPress(name, dir)` | Forwards a mapped code to `smHandleButton()` (a forward reference into `secret-mode.js`); live only while `ctlPressEnabled` is true, which is only the Workshop |
+| `ctlTeardown()` | Stops the rAF, resets all pressable state to rest — called by `resetToLobby()`, `ctlCloseWorkshop()`, and `smOpenGateway()` (an early exit from the Workshop) |
+
+**Verification:** `tools/verify-controller-body.js` (28 checks — the vendored Three revision, the
+`ControllerBody` namespace, the geometry contract's `userData` fields, the five mesh names the Konami
+adapter switches on) and `tools/verify-controller-state.js` (63 checks — persistence round-trip, the
+total read against 10 malformed-input cases, the factory design, palette derivation, the Konami
+mapping including the full press order and interleaved noise). Both are pure/contract harnesses —
+no rendering, no DOM beyond a mock `localStorage`; layout is `visual-check`'s job.
+
+---
+
 ## Secret Mode
 
 **JS file:** `js/secret-mode.js`
@@ -598,7 +657,7 @@ the live Small Talk UI is the `#lttp-smalltalk-overlay` overlay below.
 ### Screens
 | ID | Purpose |
 |----|---------|
-| `#screen-secret-controller` | Konami Code input (NES controller UI) |
+| `#screen-secret-gateway` | The Sylly Gateway (SW v228) — the loadout screen after the Konami is entered on the real 3D controller (see `js/controller.js`'s Konami adapter, `ctlKonamiCode`/`ctlKonamiPress`, live only on `screen-workshop`). Replaced `#screen-secret-controller`'s 2D NES-style d-pad/buttons — those are gone, the sequence is entered on the controller model itself. |
 | `#screen-secret-terminal` | Sylly-OS Terminal — expansion + game selector |
 
 ### Overlays
@@ -617,14 +676,15 @@ the live Small Talk UI is the `#lttp-smalltalk-overlay` overlay below.
 | `#sm-terminal-launch` | `[ LAUNCH SEQUENCE ]` button |
 | `#sm-terminal-back` | ← BACK (returns to lobby) |
 
-### Key controller elements
+### Key gateway elements (SW v228 — replaced the 2D controller UI)
 | ID | Purpose |
 |----|---------|
-| `#sm-btn-up/down/left/right` | D-pad buttons |
-| `#sm-btn-select` | SELECT button |
-| `#sm-btn-start` | START button |
-| `#sm-btn-b` | B button |
-| `#sm-btn-a` | A button |
+| `#sm-gateway-log` | The streaming loadout log — plausible link-loader gibberish under a static `.sm-gateway-blur` (`filter: blur()`, never animated), written by `smGatewayStream()`/`smGatewayLine()` |
+| `#sm-gateway-granted` | `[ ACCESS GRANTED ]` + `#sm-gateway-continue` — hidden until `smGatewayFinish()`, shown on the resolve; the screen **waits** for the tap rather than auto-advancing |
+| `#sm-gateway-continue` | TAP TO CONTINUE — clears any stream timers, plays a beep, `smOpenTerminal()` |
+| `#sm-btn-exit` | ✕ on the gateway — clears stream timers, resets the Konami buffer, back to the lobby (`ctlMountLobby()`) |
+
+Removed with the 2D controller: `#sm-btn-up/down/left/right/b/a/select/start` (the eight NES-style buttons), `#sm-konami-progress` (progress dots — `smUpdateProgress()` still checks for it and no-ops if absent, so no code change was needed there), `#sm-controller-status` (status line — the gateway has no equivalent single line; the log + `#sm-gateway-granted` replace it). The Konami sequence itself is unchanged (`SM_KONAMI`, `smKonamiBuffer`, `smHandleButton()`) — only its **input surface** moved, onto the real controller's D-pad/Face A/Face B/Start via `js/controller.js`'s `ctlKonamiCode()`/`ctlKonamiPress()`.
 
 ### Key functions
 | Function | Purpose |
@@ -637,6 +697,10 @@ the live Small Talk UI is the `#lttp-smalltalk-overlay` overlay below.
 | `smBuildExpansionData(words)` | Builds `window.activeExpansionData` vocab Set + category map |
 | `smOpenVocabOverlay()` | Opens GM vocab reference overlay |
 | `resetSecretMode()` | Full teardown; called by `resetToLobby()` |
+| `smOpenGateway()` | **(SW v228)** Called from `smHandleButton()`'s match branch and the keyboard Konami's match branch. Tears down the Workshop's controller (`ctlTeardown()` — Timer Lifecycle's third clear site), shows `screen-secret-gateway`, starts the stream |
+| `smGatewayStream()` | Clears any prior `smTypewriterTimers`, then schedules `SM_GATEWAY_LINES` (26) staggered writes (`SM_GATEWAY_GAP` = 55ms apart) into `#sm-gateway-log`, finishing with `smGatewayFinish()`. Has its own `smReducedMotion()` check — the global CSS block cannot reach a `setTimeout`, so under reduced motion the whole log is written at once and `smGatewayFinish()` runs immediately |
+| `smGatewayFinish()` | Reveals `#sm-gateway-granted`, plays the victory arpeggio |
+| `smGatewayLine()` / `smGatewayHex(n)` | One line of plausible link-loader gibberish (`SM_GATEWAY_TOKENS`/`SM_GATEWAY_VERBS`) |
 
 ### Key config objects (built at runtime by `smLoadPacks()` — Phase A)
 | Name | Purpose |

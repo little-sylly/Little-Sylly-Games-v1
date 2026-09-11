@@ -478,6 +478,76 @@ Same method — walked every SYNC producer's payload tree in the four plugins.
 *Verification:* `node -c` on the two touched files only. GTH and DSD have **no** `tools/verify-*.js`
 harness and neither fix is played live — flag for the retest backlog. `docs/deferred-work.md` updated.
 
+**BUG-08 — The faceplate's phantom dependency on `sticker-surface.js`. [11 Sep 2026, controller integration Task 3]**
+*What happened:* the prototype's `redraw()` looked like it needed `sticker-surface.js` (a 40 KB
+module) via `buildPlateUV()` → `SURF.toAtlas()`, which the integration plan initially assumed had
+to be vendored or reimplemented for the colour-only Workshop.
+*Root cause:* `toAtlas(x,y,back)` is `WARP_D <= 0 || !U.warpXY ? plainAtlas(x,y,back) :
+plainAtlas(U.warpXY(x,y,back))` — and `warpXY` is never assigned onto `geo.userData` anywhere in
+`body.js`. `sticker-surface.js` only ever *reads* `warpXY`; nothing ever writes it. So in the
+shipped prototype, `toAtlas` **always** resolves to `plainAtlas`, and the warped branch has never
+once executed. The same reasoning kills the second apparent dependency, `padEdges()` (seam-bleed for
+a sticker wrapping the rim) — with no stickers the atlas is a uniform fill on both sides of the rim,
+so the bleed is a copy of a colour onto itself.
+*Fix:* ported the eight-line `plainAtlas` computation directly (`ctlPlainAtlas` in
+`js/controller.js`), bit-identical to the prototype's actual (not intended) output. No sticker
+module, no `StickerSurface` build cost (multi-hundred-ms on desktop per the prototype's own
+`design brief`), zero behaviour change.
+*Lesson:* trace a dependency to the branch that **actually executes** before planning around it — a
+`.warpXY`-shaped conditional reads as "this is wired up" from the call site alone, and only tracing
+where the property would be *set* reveals it never is. An eight-line port replaced a 40 KB module.
+
+**BUG-09 — A bump/height atlas whose data is always zero is not a texture, it's four wasted canvases. [11 Sep 2026, controller integration Task 3]**
+*What happened:* the prototype pairs every colour atlas with a same-size greyscale height atlas so
+a sticker's edge lights as a raised lip (`bumpMap`/`bumpScale` on the shell/ear materials).
+*Root cause:* a bare, colour-only shell has height **zero everywhere** — there is no sticker to
+raise a lip for. The height atlas would be a uniformly black canvas: real memory (two more full-size
+canvases beyond the two colour atlases, on a phone) buying literally nothing to look at.
+*Fix:* dropped both height atlases and the `bumpMap`/`bumpScale` material properties entirely for
+this colour-only feature; the sticker sub-project restores both when it has real height data to
+encode.
+*Lesson:* a data texture whose data is provably uniform is a constant, not a texture — check whether
+a planned resource's *content* could vary at all before allocating it, not just whether the upstream
+code path supports it.
+
+**BUG-10 — Deleting `#lobby-icon` is a parse-time hazard, not a tidy-up. [11 Sep 2026, controller integration Task 4]**
+*What happened:* replacing the lobby's 🎮 emoji div (`#lobby-icon`) with the new 3D controller mount
+looked like a pure markup swap.
+*Root cause:* `secret-mode.js` bound a 7-rapid-tap listener to `#lobby-icon` at the file's **top
+level** — `document.getElementById('lobby-icon').addEventListener(...)`, executed at parse time, not
+inside a function. Removing the element without also removing that listener means
+`getElementById` returns `null` and `.addEventListener` throws **immediately on script load**,
+which would have taken the entire `secret-mode.js` file down (every function declared below the
+throw point, including `smShowArcadeTile`, `smHandleButton`, the whole Terminal) before any of it
+ran — with no error surfaced anywhere near the actual markup change.
+*Fix:* the listener block and its two supporting `let`s (`smLobbyTapCount`/`smLobbyTapTimer`) were
+deleted in the same commit as the markup change, never left to be cleaned up "later."
+*Lesson:* an element with a top-level (non-function-scoped) `getElementById(...).addEventListener`
+anywhere in the codebase is load-bearing for that entire script file's ability to parse and run —
+grep every id being deleted from markup against the whole codebase, not just the game/screen that
+visibly uses it, before deleting it.
+
+**BUG-11 — A rAF loop and a timer-driven stream both need their own reduced-motion check; the global CSS block reaches neither. [11 Sep 2026, controller integration Tasks 3 and 7]**
+*What happened:* two independent pieces of this feature — the controller's spin-down-and-settle
+physics (`ctlTick`, a `requestAnimationFrame` loop) and the Sylly Gateway's streaming loadout log
+(`smGatewayStream`, a chain of `setTimeout`s) — both animate by writing JS state/DOM directly, frame
+by frame or line by line.
+*Root cause:* the suite's global `@media (prefers-reduced-motion: reduce)` block (`css/styles.css`)
+works by collapsing `animation-duration`/`transition-duration` to near-zero. That reaches every CSS
+`transition`/`@keyframes` in the app for free, but it cannot reach a `requestAnimationFrame` callback
+or a `setTimeout` chain — neither is a CSS animation, so the block has nothing to zero.
+*Fix:* both files carry their own `matchMedia('(prefers-reduced-motion: reduce)')` check
+(`ctlReducedMotion()` in `js/controller.js`, `smReducedMotion()` in `js/secret-mode.js`) and honour
+what the standard actually asks — **nothing travels**, not "the feature is skipped." A released
+controller stops coasting instead of spinning down (§ ui-style.md § Motion Standard's rule already
+named this pattern; `combReducedMotion()` was the first instance). A reduced-motion gateway writes
+the whole 26-line loadout via `textContent` in one frame and reveals ACCESS GRANTED immediately —
+the same information, no journey.
+*Lesson:* any hand-rolled animation loop (rAF or chained timers) is invisible to the global
+reduced-motion CSS block by construction and needs its own JS-side check — this is not a one-off for
+this feature, it is a standing requirement (already documented in `ui-style.md` § Motion Standard)
+that a new rAF/timer-driven feature must re-derive rather than inherit for free.
+
 ---
 
 ## Multiplayer Lessons

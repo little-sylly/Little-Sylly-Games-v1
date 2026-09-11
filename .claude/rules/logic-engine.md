@@ -34,6 +34,8 @@
 | `js/lib/music.js` | `Music` | `init()`, `playFor(gameId)`, `setEnabled(b)`, `setVolume(v)`, `syncMute()`, `nowPlaying()`. Looping background tracks from `data/music/`, resolved per game with a lobby fallback. **Driven entirely from `showScreen()` — a plugin never calls it.** See § Background music. | engine (all 18 games) |
 | `js/lib/physics.js` | `Physics` | `simulate({ world, bodies, impulses, events, params, seed })` → `{ samples, events, final, durationMs, capped }`; `rng(seed)` → a seeded xorshift32 stream. **Pure and total: no DOM, no canvas, no `window`, no `Date.now()`, no bare `Math.random()`** — same inputs give byte-identical output on any device, which is what lets it be verified under Node before a pixel exists. Owns motion only; it *reports* a plunge and never decides what one means. | CLD |
 | `js/lib/canvas-draw.js` | `CanvasDraw` | `init(canvasEl, { onStrokeEnd })`, `clear()`, `lock()` → `{ w, h, s }` stroke data, `render(canvasEl, data, opts)`, `setTremor(wrapperEl, bool)`, `setBlur(canvasEl, ms)`. **Tremor applies to the wrapper `<div>` only — never the `<canvas>` (coordinate system must stay unaffected).** | GTH |
+| `js/lib/controller-body.js` | `ControllerBody` | `{ buildBody, buildControls, buildEars, buildShoulder, smoothNormals }`. Pure geometry — takes `THREE` as an argument, touches no DOM. Ported once from the frozen prototype (`docs/controller-prototype/`); the prototype carried it duplicated inline and every fix had to be applied twice by hand. | the lobby's 3D controller / Workshop |
+| `js/controller.js` | prefix `ctl` (not `window`-namespaced) | The lobby ornament, the Workshop customiser, and the Konami input surface. Colour state (`ctlReadDesign`/`ctlWriteDesign`, `sylly_controller`), palette (`ctlPalette()`, read live from `GAME_BRAND_HEX`), the renderer (`ctlEnsureBuilt`/`ctlMount`/`ctlApplyDesign`), and the Konami adapter (`ctlKonamiCode`/`ctlKonamiPress`). SW v228. Full inventory: `docs/code-map.md` § 3D Controller / Workshop. | the lobby, `screen-workshop` |
 
 **Not `js/lib/` but the same shared-not-reinvented rule — `engine.js` globals used by 3+ games:**
 
@@ -560,6 +562,14 @@ type differs: cancel with `cancelAnimationFrame(handle)`, not `clearInterval`. A
 RAF loop left running repaints/advances against the next screen's state. Reference:
 `nt.js` `ntStopPlayback()` clears `ntRafHandle`. *[Elevated from nt-impl-notes TG-01.]*
 
+**Not game-specific, same rule — `ctlRaf` and `smTypewriterTimers` (SW v228).** `ctlRaf`
+(`js/controller.js`) is the 3D controller's on-demand render loop, cancelled by `ctlStop()`/
+`ctlTeardown()`; its three clear sites are `resetToLobby()`, `ctlCloseWorkshop()` (the Workshop's
+✕/Save), and `smOpenGateway()` (an early exit from the Workshop into the gateway — the Konami
+success path). `smTypewriterTimers` (`js/secret-mode.js`) is a `setTimeout` array reused by both
+the Terminal's boot sequence and the Sylly Gateway's streaming log (`smGatewayStream()`); its clear
+sites are the gateway's own ✕, its TAP TO CONTINUE, and the Terminal's ← BACK.
+
 ---
 
 ## PWA Guardian
@@ -585,6 +595,11 @@ Before implementing, answer:
 Adding a file to the app means adding it to that array AND bumping `CACHE_NAME`.
 
 Note: the four Firebase lib files ARE precached (so Lobby Mode works offline-first once installed) but are still lazy-loaded at runtime — they are not in the `index.html` `<script>` load order. See Firebase Lazy-Load below.
+
+**Three.js (SW v228):** `js/lib/three.min.js` (r128, vendored, ~603 KB) and `js/lib/controller-body.js`
+are precached and load in the normal `<script>` order (unlike Firebase, nothing about Three is
+lazy) — see § Shared Library Modules above. The whole vendored-Three + geometry-module + controller.js
+install delta is ~658 KB, recorded in the v228 SW note.
 
 **Core art — precached (`data/art/`):** A game's *default* artwork lives in
 `data/art/<kind>/` using the **same manifest format** as a skin pack, but with the opposite caching

@@ -87,13 +87,17 @@ should stay inside this law or consciously argue its way out of it.
 
 Easy to destroy, hard to notice:
 
-1. **7 rapid taps on `#lobby-icon` (🎮) opens the Secret Terminal** (`screen-secret-controller`) —
-   a hidden Konami-code screen gating expansion word packs, art skin packs and an arcade cabinet.
-   The 🎮 must stay a real, tappable, reasonably large element with that exact id.
-2. **An arcade tile (🕹️) is injected by JS beside `#lobby-icon`** once unlocked —
-   `smShowArcadeTile()` wraps the icon in a new `flex items-center justify-center gap-4` row and
-   appends a sibling button. Whatever the icon lives inside must tolerate a second element appearing
-   next to it.
+1. **(Superseded, SW v228 — see `CLAUDE.md` § Current Focus for the full change.)** `#lobby-icon`
+   and the 7-rapid-tap trigger are gone. The 🎮 emoji is now a real 3D controller
+   (`#lobby-controller`, `js/controller.js`) — tapping it opens the **Workshop**
+   (`screen-workshop`), a colour customiser, and the Konami code is entered on the controller's own
+   D-pad/Face A/Face B/Start buttons there, resolving to the **Sylly Gateway**
+   (`screen-secret-gateway`, replacing `screen-secret-controller`). Whatever redesign follows this
+   brief must keep `#lobby-controller` tappable and reasonably large in the same slot.
+2. **An arcade tile (🕹️) is injected by JS into `#lobby-header-icons`** once unlocked —
+   `smShowArcadeTile()` prepends a sibling button to the LEFT of `.btn-open-sound` in that row (no
+   longer wraps the icon itself). Whatever redesign follows this brief must keep `#lobby-header-icons`
+   as a row that tolerates a second icon appearing at its start.
 3. **The speaker `.btn-open-sound`** is a delegated global — class, not id. Every screen has one. On
    full-screen menus it sits `absolute top-4 right-4`, which requires the section **not** to carry
    `min-h-screen` (or it detaches to the viewport top).
