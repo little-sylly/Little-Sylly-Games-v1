@@ -197,5 +197,47 @@ console.log('── 4. Palette derivation ──');
   delete sandbox.GAME_BRAND_HEX['btn-newgame'];
 }
 
+console.log('── 5. The Konami adapter ──');
+{
+  const { sandbox } = load();
+  const code = sandbox.ctlKonamiCode;
+
+  // The four cardinals come off ONE mesh — the d-pad is a single rocker plate,
+  // and tryPress resolves which arm was hit from the raycast point.
+  ok(code('D-pad', 'Up')    === 'U', 'D-pad Up maps to U');
+  ok(code('D-pad', 'Down')  === 'D', 'D-pad Down maps to D');
+  ok(code('D-pad', 'Left')  === 'L', 'D-pad Left maps to L');
+  ok(code('D-pad', 'Right') === 'R', 'D-pad Right maps to R');
+  ok(code('Face A') === 'A', 'Face A maps to A');
+  ok(code('Face B') === 'B', 'Face B maps to B');
+  ok(code('Start')  === 'S', 'Start maps to S');
+
+  // Everything else presses and sounds normally but feeds no code.
+  ['Face X', 'Face Y', 'Select', 'L button', 'R button',
+   'Left stick', 'Right stick', 'Left well', 'Right well']
+    .forEach(n => ok(code(n) === null, n + ' contributes no code'));
+  ok(code('D-pad', undefined) === null, 'a d-pad press with no resolved direction contributes nothing');
+  ok(code('D-pad', 'Diagonal') === null, 'an unrecognised direction contributes nothing');
+
+  // The whole sequence, in order, is exactly what SM_KONAMI expects.
+  const presses = [
+    ['D-pad', 'Up'], ['D-pad', 'Up'], ['D-pad', 'Down'], ['D-pad', 'Down'],
+    ['D-pad', 'Left'], ['D-pad', 'Right'], ['D-pad', 'Left'], ['D-pad', 'Right'],
+    ['Face B'], ['Face A'], ['Start'],
+  ];
+  const got = presses.map(p => code(p[0], p[1])).join('');
+  ok(got === 'UUDDLRLRBAS', 'the full press order produces U U D D L R L R B A S, got ' + got);
+
+  // A stray unmapped press mid-sequence must not break it — it contributes
+  // nothing rather than a wrong code, so the buffer is untouched.
+  const withNoise = [
+    ['D-pad', 'Up'], ['Face X'], ['D-pad', 'Up'], ['Select'], ['D-pad', 'Down'], ['D-pad', 'Down'],
+    ['D-pad', 'Left'], ['D-pad', 'Right'], ['Left stick'], ['D-pad', 'Left'], ['D-pad', 'Right'],
+    ['Face B'], ['Face A'], ['Start'],
+  ];
+  const noisy = withNoise.map(p => code(p[0], p[1])).filter(c => c !== null).join('');
+  ok(noisy === 'UUDDLRLRBAS', 'unmapped presses interleaved through the sequence change nothing');
+}
+
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);

@@ -77,6 +77,22 @@ function ctlPalette() {
   return order.map(id => ({ id: id, hex: src[id] }));
 }
 
+// ── Konami adapter ───────────────────────────────────────────────────────────
+/* The Konami sequence is entered on the REAL buttons. This is a mapping and
+   nothing else: the buffer, the retro beeps, the arcade unlock and the hand-off
+   to the terminal all stay in secret-mode.js, untouched.
+   It is this small only because the prototype already resolves which d-pad arm
+   was pressed from the raycast hit point — one rocker mesh, four cardinals,
+   with a diagonal forced to a single axis the way a real pivot forces it.
+   No geometry and no press logic changes. */
+const CTL_KONAMI_DIRS = { Up: 'U', Down: 'D', Left: 'L', Right: 'R' };
+const CTL_KONAMI_BUTTONS = { 'Face A': 'A', 'Face B': 'B', 'Start': 'S' };
+
+function ctlKonamiCode(name, dir) {
+  if (name === 'D-pad') return CTL_KONAMI_DIRS[dir] || null;
+  return CTL_KONAMI_BUTTONS[name] || null;
+}
+
 // ══ RENDERER ══ everything below needs THREE, a document and a canvas ═══════
 
 let ctlBuilt = false;
@@ -776,3 +792,12 @@ document.getElementById('btn-ctl-howto-close').addEventListener('click', () => {
   playDone();
   document.getElementById('ctl-how-to-overlay').style.display = 'none';
 });
+
+/* Live on the Workshop screen only. The lobby's single tap opens the Workshop;
+   the Workshop is where the buttons are big enough to press deliberately.
+   No progress indicator — it is a secret, and the beeps are the feedback. */
+function ctlKonamiPress(name, dir) {
+  const code = ctlKonamiCode(name, dir);
+  if (!code) return;
+  if (typeof smHandleButton === 'function') smHandleButton(code);
+}
