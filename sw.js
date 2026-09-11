@@ -35,6 +35,8 @@ const PRECACHE_URLS = [
   'js/lib/art.js',
   'js/lib/music.js',
   'js/lib/physics.js',
+  'js/lib/three.min.js',
+  'js/lib/controller-body.js',
   'data/ygi-data.json',
   'data/gth-data.json',
   'data/pko-data.json',
