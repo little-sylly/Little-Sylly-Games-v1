@@ -1,7 +1,8 @@
 # Design — Controller integration part 2: stickers
 
 **Date:** 11 Sep 2026
-**Status:** Draft — pending owner + implementation review
+**Status:** Draft, reviewed against the real geometry 12 Sep 2026 (§ 5.2b, § 6 and § 12 are outputs
+of that review; § 12.4's legibility fix is the one item still open to the owner)
 **Tier:** 2 — Architectural (new storage schema, new overlay UI, a substantial geometry component
 not yet live in the app)
 **Amends:** `docs/superpowers/specs/2026-09-11-controller-integration-design.md` § 13 (this is the
@@ -178,7 +179,7 @@ New functions (names indicative, not binding):
 | Function | Purpose |
 |----------|---------|
 | `ctlLoadStickerManifest()` | fetch + validate the manifest; total, never throws, same shape as `ctlReadDesign` |
-| `ctlEnsureStickerSurface()` | idempotent lazy build of `ctlStickerSurface` from the existing body `geo.userData` — **only called on first Stickers-tab open**, so colour-only Workshop use never pays this cost (preserving the parent spec's explicit guarantee) |
+| `ctlEnsureStickerSurface()` | idempotent lazy build of `ctlStickerSurface` from the existing body `geo.userData` — **only called on first Stickers-tab open**, so colour-only Workshop use never pays this cost (preserving the parent spec's explicit guarantee). **Must pass the caller-side config below** |
 | `ctlArmSticker(id)` / `ctlDeselectSticker()` | book-tap handlers |
 | `ctlPlaceOrRelocateSticker(x, y, back)` | shell tap handler — runs `SURF.plan()`, pushes a new entry or overwrites the selected one, pushes an undo snapshot first |
 | `ctlPlaceOrRelocateEarSticker(uv)` | ear tap handler — the UV-space path, capped radius, side/bevel rejected |
@@ -192,6 +193,39 @@ render calls — the same separation `js/lib/physics.js` and `controller-body.js
 this codebase (pure logic, taking its inputs as arguments, callable and assertable under plain Node;
 rendering as a thin layer on top). This is what makes the transition table in § 7 testable by
 `tools/verify-controller-stickers.js` (§ 9) without a DOM at all.
+
+### 5.2b The caller-side config — the part that is easy to lose in the port
+
+**`sticker-surface.js` contains none of the tuned numbers.** Every keep-out is caller-supplied
+(`const EXCL = opt.exclude || []`) and so is the distortion tolerance (`opt.maxDistort || 0.10`).
+Porting the module alone and constructing it with `{}` compiles, runs, and is silently wrong:
+stickers become placeable **inside the stick-well torus** (which is a ring standing on the deck —
+anything painted inside shows straight through the hole) and on the **ear bosses**, and the
+distortion tolerance drops from the tuned 0.14 to the module's stricter 0.10 default.
+
+`ctlEnsureStickerSurface()` must construct it with exactly the prototype's call-site options
+(`standalone.html:1691`), which are part of the port and belong in the new code as a named constant:
+
+```js
+const CTL_STICKER_OPT = {
+  exclude: [{ x: -1.25, y:  0.20, r: 0.33, back: false },   // left stick well
+            { x:  1.25, y: -0.85, r: 0.33, back: false },   // right stick well
+            { x: -0.84, y:  0.84, r: 0.45, back: true  },   // left ear boss
+            { x:  0.84, y:  0.84, r: 0.45, back: true  }],  // right ear boss
+  maxDistort: 0.14,
+};
+```
+
+**Grips are deliberately NOT a keep-out** — the prototype removed that at the owner's request
+(handoff § 3.6) because it refused too many spots that felt placeable. Curvature alone governs
+them. See § 12's measured note on what that actually means in practice.
+
+`SURF.padPairs(4)` is likewise computed once at construction and used by `padEdges()`; it is what
+stops a wrapped sticker reading as cut off along the crest, and must be carried across too.
+
+**Measured build cost: 347 ms** on a desktop (2048 atlas, the options above) — the handoff § 4.2
+asked for this to be re-measured before assuming it was still fine, and it has improved from the
+~800 ms v2 recorded. It stays lazy regardless: a low-end phone is plausibly 3–5× that.
 
 ### 5.3 `redraw()` / ear-atlas additions
 
@@ -212,14 +246,32 @@ array:
 
 ```json
 "stickers": [
-  { "id": "banana", "surface": "shell", "x": 0.42, "y": -0.10, "back": false, "rot": 0.3, "size": 0.18 },
+  { "id": "banana", "surface": "shell", "x": 0.42, "y": -0.10, "back": false, "rot": 0.3, "size": 0.18, "chart": "tangent" },
   { "id": "pan",     "surface": "earL", "u": 0.5, "v": 0.6, "r": 0.2, "rot": 0.0 }
 ]
 ```
 
 `surface` is `'shell' | 'earL' | 'earR'`. Shell entries carry the fields `SURF.plan()` already
-returns (`x`, `y`, `back`, `size` — `chart` is **not** persisted, it's re-derived on load); ear
-entries carry the fields `dropEar()` already produces (`u`, `v`, `r`).
+returns (`x`, `y`, `back`, `size`, `chart`); ear entries carry the fields `dropEar()` already
+produces (`u`, `v`, `r`).
+
+**`chart` IS persisted, and the anchor is never re-derived on load.** This reverses an earlier draft
+of this spec, which had `chart` re-derived by re-running `plan()` at load time. That is wrong, and
+measurably so:
+
+- `chart` is not metadata — both `makeChart(st)` and `boxes(st)` branch on `st.chart === 'rim'`, so
+  it is load-bearing for rendering. It is a two-value enum; storing it costs nothing.
+- **Re-running `plan()` moves the anchor, and the movement compounds.** `plan()`'s rim branch snaps a
+  near-edge placement onto the crest (`ax = o[0] + o[2]*0.001`), and that snap is *not* exactly
+  idempotent. Measured against the real geometry: of 7034 legal placements at r=0.18, 528 moved on a
+  single re-plan (worst 2.95e-4 body units ≈ 0.13 atlas texels) — invisible once, but a saved design
+  is re-planned on **every load**. Iterated 200 times, the worst case walks **5.75 atlas texels**,
+  monotonically, at the body's widest point. A sticker that slowly creeps across the shell over
+  months is close to undiagnosable after the fact.
+
+So: validate the stored record, then use its `x`/`y`/`size`/`chart` **as-is**. `plan()` may still be
+run as a pure legality *check* (guarding against a future `body.js` geometry change), but its
+returned coordinates are discarded — only its `ok` flag is read.
 
 **Load validation — total, never throws, same defensive shape `ctlReadDesign` already uses for
 colours:**
@@ -227,13 +279,13 @@ colours:**
 2. `id` not present in the loaded manifest → drop (a design removed from the manifest since the
    player placed it).
 3. Non-finite numeric fields → drop.
-4. Duplicate `id` across entries → keep only the first occurrence (enforces D2 on read, not just on
+4. A shell entry whose `chart` is neither `'rim'` nor `'tangent'` → drop (never guess it).
+5. Duplicate `id` across entries → keep only the first occurrence (enforces D2 on read, not just on
    write — never trust that stored data obeys a rule the UI enforces).
-5. A `surface:'shell'` entry is re-run through `SURF.plan(x, y, back, size)` on load. A spot that's
-   no longer legal (only possible if the body geometry itself changes in a future release) is
-   dropped rather than rendered at a stale/invalid position. This also re-derives `chart`, which is
-   why it isn't stored.
-6. An ear entry has `r` re-clamped to the ear's max, same as a fresh placement.
+6. A shell entry is passed through `SURF.plan(x, y, back, size)` **for its `ok` flag only** — a spot
+   no longer legal (possible only if the body geometry changes in a future release) is dropped rather
+   than rendered at an invalid position. **The returned `x`/`y`/`chart` are discarded**; see above.
+7. An ear entry has `r` re-clamped to the ear's max, same as a fresh placement.
 
 ---
 
@@ -295,7 +347,16 @@ the same way `verify-controller-body.js` already does). Asserts:
 - **D2 enforcement on load** — a duplicate `id` in stored data keeps only the first occurrence.
 - **Placement legality** — `SURF.plan()` results match known-good/known-bad spots the parent
   `sticker-surface.js` already exercises informally in the prototype (off-edge, stick-ring, tight-
-  edge, over-curved all refuse; a normal flat spot and a gentle-edge wrap both succeed).
+  edge all refuse; a normal flat spot and a gentle-edge wrap both succeed).
+- **The keep-outs are actually wired** (§ 5.2b) — a placement at each of the four excluded centres
+  refuses with `reason: 'ring'`. This is the assertion that catches a port constructed with `{}`,
+  which is otherwise silent.
+- **Load round-trip is bit-stable** — a saved placement, put through the load path repeatedly
+  (≥200 iterations), returns byte-identical `x`/`y`/`size`/`chart` every time. Guards § 6's
+  no-re-derivation rule directly; a regression here is the slow-creep bug, which is close to
+  undiagnosable in the wild.
+- **`chart` is honoured, not guessed** — a stored `chart: 'rim'` still routes through the rim branch
+  of `makeChart`/`boxes` after a load round-trip.
 - **The state machine** (§ 7's table) as pure functions — every Idle/Armed/Selected transition, since
   § 5.2 specifically separates this logic from DOM rendering to make it testable here.
 - **Undo** — push/pop parity across place, relocate, and delete.
@@ -352,11 +413,97 @@ Per the Documentation Integrity Protocol, in order:
 
 ---
 
-## 12. Risks
+## 12. Measured behaviour of the limits — seam, grips, ears, and legibility
+
+All numbers below were measured against the real geometry under Node (`buildBody` +
+`sticker-surface.js` with § 5.2b's options), not estimated. They exist because the owner flagged the
+seam, the grips and the area around the ears as "slightly problematic" in the prototype, and because
+none of it can be settled by looking at the code.
+
+### 12.1 The `curve` refusal never fires at the tuned tolerance
+
+`maxDistort: 0.14`, but the **highest distortion measured anywhere on the body** is:
+
+| sticker radius | median | p99 | max | spots refused at 0.14 |
+|---|---|---|---|---|
+| 0.18 | 0.0029 | 0.0356 | **0.0425** | 0 |
+| 0.28 | 0.0076 | 0.0671 | **0.0864** | 0 |
+
+So "the curvature test alone decides" for the grips (handoff § 3.6) is, in practice, **nothing
+refuses**. The tolerance would have to come down to about **0.05** before it began to bite (at
+r=0.28: 0.05 refuses 3.7% of flat placements, 0.06 refuses 1.7%, 0.08 refuses 0.24%; at r=0.18,
+nothing is refused until ~0.04).
+
+This is not a bug — the distortion genuinely is mild — but it means `maxDistort` is currently an
+inert dial, and it is the **only** lever for the grip/ear distortion the owner is watching for.
+Ship at 0.14 (preserving reviewed prototype behaviour); if visual review says the worst spots are
+too warped, 0.05–0.06 is the useful range, and the table above says what it costs.
+
+### 12.2 Where the distortion actually is — it matches the "around the ears" report
+
+The worst spots are not spread evenly. At both radii the top of the distribution sits at
+**y ≈ 0.57–0.78 on the back sheet** — an annulus immediately *outside* the `r=0.45` ear-boss
+keep-outs, plus the saddle between the two bosses. Worst measured spots at r=0.28: `(-0.41, 0.64)`
+0.0864, `(1.34, 0.61)` 0.0862, `(1.27, 0.64)` 0.0861.
+
+The keep-out covers the boss dome itself; the skirt around it carries the sharpest curvature left on
+the body. This is the concrete, located version of "around the ears was problematic" — worth
+pointing a real-device check at first (§ 9.3).
+
+### 12.3 The seam is `edge` refusals working as designed
+
+`edge` refusals scale with sticker size — 400 → 946 → 2066 as radius goes 0.10 → 0.18 → 0.28. That
+is `plan()` refusing a sticker that reaches the crest but cannot wrap cleanly, which the handoff
+(§ 3.2) records as the deliberate fix for stickers being cut in half along the seam. The existing
+refusal copy already tells the player what to do ("Too tight an edge to wrap around — try a smaller
+sticker or move in a bit"). No change proposed; noted so it is not re-diagnosed as a bug.
+
+### 12.4 Legibility — the open issue, and the biggest one
+
+**Six of the twenty shell colours make the current test art effectively invisible.** All three test
+stickers are near-white dominant (18–32% of their opaque pixels are ≈`rgb(240,240,239)`). Measured
+WCAG contrast of each sticker's dominant band against each shell:
+
+| sticker | worst shells | contrast |
+|---|---|---|
+| `banana` | FRT `#FFE500` | **1.06:1** |
+| `computer` | FRT, CLD `#8ECAE6`, FLW `#F9A8D4` | **1.04–1.16:1** |
+| `pan` | COMB `#F0A500`, YGI `#F59E0B` | **1.01–1.06:1** |
+
+1.0:1 is literally the same colour. The affected shells are FRT, CLD, FLW, GTH, COMB and YGI — all
+of them light, all freely selectable.
+
+**The bump map does not rescue this.** In `stamp()`, `if (al <= 0.004) continue;` means the lip ramp
+exists only *inside* the sticker's own alpha — there is no outward halo. On a matching shell the
+result is a faint relief outline (at the deliberately subtle `bumpScale: 0.035`) around a flat blank
+plateau where the artwork should be: shape visible at favourable light angles, image illegible.
+
+**Recommended fix — an adaptive die-cut border.** Real vinyl stickers have one, so it is thematically
+right as well as functional:
+- In `stamp()`, compute the ring average `hgt` *before* the alpha early-out. Where `al` is low but
+  `hgt > 0`, the texel is in the band just outside the artwork — paint the border there.
+- Choose the border colour **per texel** from the atlas pixel already underneath (`D[o]`): light
+  shell → dark border, dark shell → light border. Per-texel handles a sticker straddling the
+  faceplate automatically, and because a recolour triggers a full `redraw()` that re-stamps every
+  sticker, borders re-derive against the new shell colour for free.
+- **Inset the art sampling** by the border width rather than requiring artwork to carry a
+  transparent margin. Measured: all three test stickers are **full-bleed — zero transparent margin
+  on all four edges** — so a border drawn within the existing `[-R, R]` square would clip. Insetting
+  makes the border unconditional and needs no authoring discipline for future stickers.
+
+This is the one item in this spec still open to the owner's judgement: it is a visible aesthetic
+change (every sticker gains an outline), so it is called out rather than assumed.
+
+---
+
+## 13. Risks
 
 | Risk | Mitigation |
 |------|-----------|
-| `StickerSurface`'s ~0.8s build cost (handoff-flagged for re-measurement) regresses Workshop-open time if triggered eagerly | Built lazily, only on first Stickers-tab open (§ 5.2) — colour-only use is unaffected, and the number is re-measured during implementation per the handoff's own ask |
+| `StickerSurface`'s build cost regresses Workshop-open time if triggered eagerly | Built lazily, only on first Stickers-tab open (§ 5.2). **Re-measured at 347 ms** (§ 5.2b), down from the ~800 ms the handoff recorded — but it stays lazy, since a low-end phone is plausibly 3–5× that |
 | The shell rasteriser (`stamp()`/`makeChart`) has never been ported or seen outside the prototype in this app's real DOM/WebGL context | `verify-controller-stickers.js` pins the pure legality/chart logic under Node before any rendering is trusted; `visual-check` and a real-device pass (§ 9.3) catch anything the pure layer can't |
-| A future body-geometry change could silently orphan saved placements | § 6's load-time re-validation via `SURF.plan()` drops anything no longer legal rather than rendering it wrong or crashing |
+| A future body-geometry change could silently orphan saved placements | § 6's load-time legality check via `SURF.plan()` drops anything no longer legal — reading its `ok` flag only, never its coordinates |
+| **Porting the module without its caller-side config** — it compiles and runs while silently losing every keep-out, letting stickers paint inside the stick-well hole | § 5.2b makes the config a named constant that is part of the port, and § 9.1 asserts the four keep-out zones actually refuse |
+| **Re-deriving the anchor on load walks saved stickers across the shell** — measured at 5.75 atlas texels over 200 loads | § 6 persists `chart` and uses stored coordinates as-is; § 9.1 asserts a load round-trip is bit-stable over many iterations |
+| **Light stickers are invisible on 6 of the 20 shell colours** (down to 1.01:1), and the bump map does not rescue it | § 12.4 — adaptive die-cut border with inset art sampling. **Open to owner judgement**, since it changes how every sticker looks |
 | Bumping `CTL_STATE_VERSION` by habit (it's the obvious-looking move when adding a field) would reset every player's saved colours | Called out explicitly as D7, with the exact existing test that would catch it named |
