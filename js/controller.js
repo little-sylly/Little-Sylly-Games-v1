@@ -24,6 +24,12 @@
 const CTL_DEFAULTS = { shell: '#a97fd6', plate: '#9670c8', ears: '#a97fd6', buttons: '#8f66c4' };
 const CTL_GROUPS = ['shell', 'plate', 'ears', 'buttons'];
 
+/* The ear crown is 0.36 by 0.52 and its outer 0.075 is bevel, so a sticker is
+   held to what will actually lie flat on it. Deliberately NOT added to
+   CTL_GROUPS: that array drives the colour-swatch UI and the hex validator. */
+const CTL_EAR_MAX_R = 0.26;
+const CTL_SURFACES = ['shell', 'earL', 'earR'];
+
 const CTL_STORAGE_KEY   = 'sylly_controller';
 const CTL_STATE_VERSION = 1;
 
@@ -39,6 +45,7 @@ function ctlIsHex(v) { return typeof v === 'string' && /^#[0-9a-fA-F]{6}$/.test(
    colour must be readable before this file has ever heard of it. */
 function ctlReadDesign() {
   const out = Object.assign({}, CTL_DEFAULTS);
+  out.stickers = [];
   try {
     const raw = localStorage.getItem(CTL_STORAGE_KEY);
     if (!raw) return out;
@@ -46,6 +53,13 @@ function ctlReadDesign() {
     if (!o || typeof o !== 'object' || Array.isArray(o)) return out;
     if (o.v !== CTL_STATE_VERSION) return out;
     for (const k of CTL_GROUPS) if (ctlIsHex(o[k])) out[k] = o[k];
+    /* Independently validated, so a malformed placement array costs the player
+       their stickers and not their colours. The legality probe is only
+       available once the surface has been built (it is lazy — spec § 5.2), so
+       rule 6 is applied later, by ctlEnsureStickerSurface, rather than skipped. */
+    out.stickers = ctlValidateStickers(o.stickers, {
+      known: ctlStickerManifest ? new Set(ctlStickerManifest.map(s => s.id)) : null,
+    });
   } catch (_) { /* fall through to the factory design */ }
   return out;
 }
@@ -53,11 +67,12 @@ function ctlReadDesign() {
 function ctlWriteDesign(design) {
   try {
     localStorage.setItem(CTL_STORAGE_KEY, JSON.stringify({
-      v: CTL_STATE_VERSION,
+      v: CTL_STATE_VERSION,                       // NOT bumped — see spec D7
       shell:   design.shell,
       plate:   design.plate,
       ears:    design.ears,
       buttons: design.buttons,
+      stickers: Array.isArray(design.stickers) ? design.stickers : [],
     }));
   } catch (_) { /* storage unavailable — the session still works, it just won't persist */ }
 }
@@ -144,6 +159,55 @@ function ctlStickerById(id) {
   if (!ctlStickerManifest) return null;
   for (const e of ctlStickerManifest) if (e.id === id) return e;
   return null;
+}
+
+/* Placement validation — spec § 6, rules 1-7. Total by construction, same
+   defensive shape the colour read already uses: this runs on the app's front
+   door, and a hand-edited or half-written localStorage value must yield a
+   controller, never a throw.
+
+   The two optional probes are injected rather than reached for, so this stays
+   pure and the harness can drive every rule under Node with no geometry:
+     known — a Set of manifest ids; omit to skip rule 2
+     legal — (rec) => boolean; omit to skip rule 6
+
+   Rule 6 is the subtle one. plan() is consulted for its `ok` flag ONLY and its
+   returned coordinates are thrown away. Feeding them back moves the anchor a
+   fraction of a texel per load, monotonically, and a sticker that creeps
+   across the shell over months is close to undiagnosable after the fact. */
+function ctlValidateStickers(raw, opts) {
+  const out = [];
+  if (!Array.isArray(raw)) return out;
+  const known = opts && opts.known;
+  const legal = opts && opts.legal;
+  const num = v => typeof v === 'number' && isFinite(v);
+  const seen = new Set();
+
+  for (const e of raw) {
+    if (!e || typeof e !== 'object' || Array.isArray(e)) continue;          // 1
+    if (typeof e.id !== 'string' || !e.id) continue;                        // 1
+    if (CTL_SURFACES.indexOf(e.surface) < 0) continue;                      // 1
+    if (known && !known.has(e.id)) continue;                                // 2
+    if (seen.has(e.id)) continue;                                           // 5 (first wins)
+
+    if (e.surface === 'shell') {
+      if (!num(e.x) || !num(e.y) || !num(e.size) || !num(e.rot)) continue;  // 3
+      if (e.size <= 0) continue;                                            // 3
+      if (e.chart !== 'rim' && e.chart !== 'tangent') continue;             // 4 — never guessed
+      const rec = { id: e.id, surface: 'shell', x: e.x, y: e.y,
+                    back: e.back === true, rot: e.rot, size: e.size, chart: e.chart };
+      if (legal && !legal(rec)) continue;                                   // 6 — ok flag only
+      seen.add(e.id); out.push(rec);
+    } else {
+      if (!num(e.u) || !num(e.v) || !num(e.r) || !num(e.rot)) continue;     // 3
+      if (e.r <= 0) continue;                                               // 7
+      if (e.u < 0 || e.u > 1 || e.v < 0 || e.v > 1) continue;               // 7
+      seen.add(e.id);
+      out.push({ id: e.id, surface: e.surface, u: e.u, v: e.v,
+                 r: Math.min(e.r, CTL_EAR_MAX_R), rot: e.rot });            // 7 — re-clamped
+    }
+  }
+  return out;
 }
 
 // ══ RENDERER ══ everything below needs THREE, a document and a canvas ═══════

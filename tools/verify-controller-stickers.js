@@ -42,8 +42,18 @@ const CTL_SRC = process.env.CTL_SRC
    guarded copy would turn a RENAMED symbol into a silent undefined, so every
    call names the symbols it actually requires and loadCtlPure throws when one
    is missing. Guarded for the not-yet-written; loud for the misspelt. */
-const CTL_PURE_EXPORTS = ['ctlValidateManifest', 'ctlValidateStickers',
-                          'ctlStickerReduce', 'CTL_STICKER_OPT'];
+const CTL_PURE_EXPORTS = ['ctlReadDesign', 'ctlWriteDesign', 'ctlValidateManifest',
+                          'ctlStickerById', 'ctlValidateStickers', 'ctlStickerReduce',
+                          'CTL_STICKER_OPT', 'CTL_EAR_MAX_R'];
+
+/* Top-level `let`s that a check needs to DRIVE, not just read. A plain copy
+   cannot: `let` at the top of a vm script is a lexical binding, not an own
+   property of the context, so `sandbox.ctlStickerManifest = [...]` would make a
+   new global the module's own code never looks at — the injection would be
+   silently inert and the check would pass for the wrong reason. An accessor
+   pair reaches the real binding. Harness-side only; nothing is added to
+   js/controller.js for the tests' benefit. */
+const CTL_PURE_MUTABLE = ['ctlStickerManifest'];
 
 function loadCtlPure(storeInitial, need) {
   const map = Object.assign({}, storeInitial);
@@ -61,6 +71,9 @@ function loadCtlPure(storeInitial, need) {
   if (cut < 0) throw new Error('js/controller.js is missing its "// ══ RENDERER ══" marker');
   const publish = CTL_PURE_EXPORTS
     .map(n => "if (typeof " + n + " !== 'undefined') window." + n + " = " + n + ";")
+    .concat(CTL_PURE_MUTABLE.map(n =>
+      "if (typeof " + n + " !== 'undefined') Object.defineProperty(window, '" + n + "', {" +
+      " get() { return " + n + "; }, set(v) { " + n + " = v; }, configurable: true });"))
     .join('\n');
   vm.runInContext(full.slice(0, cut) + '\n' + publish, sandbox, { filename: 'controller-pure' });
   for (const n of (need || [])) {
@@ -227,6 +240,159 @@ console.log('── 7. The shipped manifest is valid ──');
     ok(fs.existsSync(path.join(ROOT, 'data/stickers', e.image)),
        'the image named by "' + e.id + '" exists on disk: ' + e.image);
   }
+}
+
+console.log('── 8. Placement validation (spec § 6, rules 1-7) ──');
+{
+  const { sandbox } = loadCtlPure(undefined, ['ctlValidateStickers', 'CTL_EAR_MAX_R']);
+  const V = sandbox.ctlValidateStickers;
+  const known = new Set(['banana', 'computer', 'pan']);
+
+  ok(Array.isArray(V(null, { known })) && V(null, { known }).length === 0,
+     'a non-array resolves to []');
+  ok(V('nope', { known }).length === 0, 'a string resolves to []');
+
+  const shell = { id: 'banana', surface: 'shell', x: 1.16, y: -0.12, back: false,
+                  rot: 0.3, size: 0.18, chart: 'tangent' };
+  const ear   = { id: 'pan', surface: 'earL', u: 0.5, v: 0.6, r: 0.2, rot: 0 };
+  ok(V([shell, ear], { known }).length === 2, 'two well-formed entries survive');
+
+  // rule 1 — missing id or surface
+  ok(V([{ surface: 'shell', x: 0, y: 0, back: false, rot: 0, size: 0.18, chart: 'tangent' }],
+       { known }).length === 0, 'rule 1: an entry with no id is dropped');
+  ok(V([Object.assign({}, shell, { surface: 'elbow' })], { known }).length === 0,
+     'rule 1: an unknown surface is dropped');
+
+  // rule 2 — id not in the manifest
+  ok(V([Object.assign({}, shell, { id: 'retired' })], { known }).length === 0,
+     'rule 2: an id absent from the manifest is dropped');
+  ok(V([Object.assign({}, shell, { id: 'retired' })], {}).length === 1,
+     'rule 2 is skipped when no known-set is supplied');
+
+  // rule 3 — non-finite numbers
+  for (const bad of [NaN, Infinity, -Infinity, 'x', null, undefined]) {
+    ok(V([Object.assign({}, shell, { x: bad })], { known }).length === 0,
+       'rule 3: a non-finite x (' + String(bad) + ') is dropped');
+  }
+
+  // rule 4 — chart must be exactly rim or tangent, never guessed
+  ok(V([Object.assign({}, shell, { chart: 'rim' })], { known }).length === 1,
+     'rule 4: chart rim is accepted');
+  for (const bad of ['flat', '', undefined, null, 0]) {
+    ok(V([Object.assign({}, shell, { chart: bad })], { known }).length === 0,
+       'rule 4: chart "' + String(bad) + '" is dropped, never guessed');
+  }
+
+  // rule 5 — one design, one placement (D2), enforced on READ
+  const dup = V([shell, Object.assign({}, shell, { x: 0.5 })], { known });
+  ok(dup.length === 1, 'rule 5: a duplicate id keeps only one entry');
+  ok(dup[0].x === 1.16, 'rule 5: the FIRST occurrence is the one kept');
+  const crossSurface = V([shell, { id: 'banana', surface: 'earR', u: 0.5, v: 0.5, r: 0.2, rot: 0 }],
+                         { known });
+  ok(crossSurface.length === 1,
+     'rule 5: the cap is per design across the WHOLE controller, shell and ears together');
+
+  // rule 6 — legality, ok flag only
+  ok(V([shell], { known, legal: () => false }).length === 0,
+     'rule 6: an entry the legality probe rejects is dropped');
+  ok(V([shell], { known, legal: () => true })[0].x === 1.16,
+     'rule 6: a legal entry keeps its STORED x — the probe cannot move it');
+
+  // rule 7 — ear radius re-clamped
+  const big = V([Object.assign({}, ear, { r: 5 })], { known })[0];
+  ok(big && Math.abs(big.r - 0.26) < 1e-9,
+     'rule 7: an oversized ear radius is re-clamped to 0.26, got ' + (big && big.r));
+  ok(V([Object.assign({}, ear, { r: -1 })], { known }).length === 0,
+     'rule 7: a non-positive ear radius is dropped');
+  ok(V([Object.assign({}, ear, { u: 2 })], { known }).length === 0,
+     'rule 7: an out-of-range ear uv is dropped');
+
+  // the shape that comes back is the shape the renderer consumes
+  const clean = V([shell, ear], { known });
+  ok(Object.keys(clean[0]).sort().join(',') === 'back,chart,id,rot,size,surface,x,y',
+     'a clean shell record carries exactly its eight fields, got ' +
+     Object.keys(clean[0]).sort().join(','));
+  ok(Object.keys(clean[1]).sort().join(',') === 'id,r,rot,surface,u,v',
+     'a clean ear record carries exactly its six fields, got ' +
+     Object.keys(clean[1]).sort().join(','));
+}
+
+console.log('── 9. Persistence round-trip, no version bump (spec D7) ──');
+{
+  const { sandbox, store } = loadCtlPure(undefined, ['ctlReadDesign', 'ctlWriteDesign']);
+  sandbox.ctlStickerManifest = [
+    { id: 'banana', label: 'Banana', image: 'banana.png', unlocked: true },
+    { id: 'pan',    label: 'Pan',    image: 'pan.png',    unlocked: true },
+  ];
+  ok(sandbox.ctlStickerById('banana') !== null,
+     "the injected manifest reaches the module's own binding — the accessor is not inert");
+  const design = {
+    shell: '#A855F7', plate: '#9333EA', ears: '#14B8A6', buttons: '#18181B',
+    stickers: [
+      { id: 'banana', surface: 'shell', x: 1.16, y: -0.12, back: false,
+        rot: 0.3, size: 0.18, chart: 'tangent' },
+      { id: 'pan', surface: 'earL', u: 0.5, v: 0.6, r: 0.2, rot: 0 },
+    ],
+  };
+  sandbox.ctlWriteDesign(design);
+  const parsed = JSON.parse(store._map['sylly_controller']);
+  ok(parsed.v === 1, 'the payload is STILL v:1 — no version bump');
+  ok(Array.isArray(parsed.stickers) && parsed.stickers.length === 2,
+     'both placements are serialised');
+  ok(parsed.stickers[0].chart === 'tangent',
+     'chart is PERSISTED, not re-derived (spec § 6)');
+
+  const back = loadCtlPure(store._map, ['ctlReadDesign']);
+  back.sandbox.ctlStickerManifest = sandbox.ctlStickerManifest;
+  const read = back.sandbox.ctlReadDesign();
+  ok(read.shell === design.shell && read.buttons === design.buttons,
+     'the colours survive alongside the stickers');
+  ok(read.stickers.length === 2, 'both placements read back');
+  ok(read.stickers[0].x === 1.16 && read.stickers[0].chart === 'tangent',
+     'the shell placement reads back identically');
+  ok(read.stickers[1].r === 0.2 && read.stickers[1].surface === 'earL',
+     'the ear placement reads back identically');
+
+  // A design saved before stickers existed
+  const old = loadCtlPure({ sylly_controller:
+    '{"v":1,"shell":"#A855F7","plate":"#9333EA","ears":"#14B8A6","buttons":"#18181B"}' },
+    ['ctlReadDesign']);
+  const d = old.sandbox.ctlReadDesign();
+  ok(Array.isArray(d.stickers) && d.stickers.length === 0,
+     'a pre-sticker payload reads back with an empty stickers array, not undefined');
+  ok(d.shell === '#A855F7', 'and its colours are untouched');
+}
+
+console.log('── 10. The load path is bit-stable (spec § 6, the slow-creep bug) ──');
+{
+  // The rim branch's crest snap is not exactly idempotent, so re-planning a
+  // saved anchor walks it across the shell — measured at up to 5.75 atlas
+  // texels over 200 loads, monotonically. The spec's fix is to read plan()'s
+  // ok flag and DISCARD its coordinates. This proves the shipped read does that.
+  const { sandbox } = loadCtlPure(undefined, ['ctlValidateStickers']);
+  const known = new Set(['banana']);
+  const seed = S.plan(2.11, -0.12, false, 0.18);
+  ok(seed.ok && seed.chart === 'rim', 'the seed placement is a rim wrap');
+
+  let rec = [{ id: 'banana', surface: 'shell', x: seed.x, y: seed.y, back: false,
+               rot: 0, size: seed.size, chart: seed.chart }];
+  const first = JSON.stringify(rec[0]);
+  const legal = r => S.plan(r.x, r.y, r.back, r.size).ok;
+  for (let i = 0; i < 500; i++) rec = sandbox.ctlValidateStickers(rec, { known, legal });
+  ok(rec.length === 1, 'the placement survives 500 load cycles');
+  ok(JSON.stringify(rec[0]) === first,
+     'and is BYTE-IDENTICAL after 500 loads — no anchor drift');
+
+  // The contrast: the re-deriving version this replaced does move.
+  let bad = { x: seed.x, y: seed.y, back: false, size: seed.size, chart: seed.chart };
+  for (let i = 0; i < 500; i++) {
+    const p = S.plan(bad.x, bad.y, bad.back, bad.size);
+    if (!p.ok) break;
+    if (p.x !== undefined) bad.x = p.x;
+    if (p.y !== undefined) bad.y = p.y;
+  }
+  ok(bad.x !== seed.x || bad.y !== seed.y,
+     'sanity: re-deriving the anchor DOES move it — the check above is real');
 }
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed');

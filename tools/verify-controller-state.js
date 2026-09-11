@@ -103,8 +103,9 @@ console.log('── 1. Persistence round-trip ──');
   ok(typeof raw === 'string', 'ctlWriteDesign writes the sylly_controller key');
   const parsed = JSON.parse(raw);
   ok(parsed.v === 1, 'the stored payload is versioned v:1');
-  ok(Object.keys(parsed).sort().join(',') === 'buttons,ears,plate,shell,v',
-     'the payload carries exactly v + the four groups, got ' + Object.keys(parsed).sort().join(','));
+  ok(Object.keys(parsed).sort().join(',') === 'buttons,ears,plate,shell,stickers,v',
+     'the payload carries exactly v + the four groups + stickers, got ' +
+     Object.keys(parsed).sort().join(','));
 
   const back = load(store._map).sandbox.ctlReadDesign();
   ok(back.shell === wanted.shell && back.plate === wanted.plate &&
