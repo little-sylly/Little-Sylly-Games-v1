@@ -210,6 +210,109 @@ function ctlValidateStickers(raw, opts) {
   return out;
 }
 
+
+// ── The placement state machine ──────────────────────────────────────────────
+/* Pure reducers over a plain { stickers, armed, selected, history } object,
+   deliberately separated from every DOM-touching render call — the same split
+   js/lib/physics.js and controller-body.js already establish in this codebase.
+   That is what lets tools/verify-controller-stickers.js drive the whole
+   Idle/Armed/Selected table under Node with no browser at all.
+
+   Nothing here mutates its input: each action returns a new state. The render
+   layer reads the result; it never reaches in and edits a placement directly. */
+const CTL_STICKER_HISTORY_MAX = 30;   // a Workshop session, not a document history
+
+function ctlStickerMode(st) {
+  if (st.armed) return 'armed';
+  if (st.selected >= 0 && st.selected < st.stickers.length) return 'selected';
+  return 'idle';
+}
+
+/* Snapshot the whole array. It is at most one entry per design in the
+   inventory, so a deep copy is a handful of small objects — far cheaper to
+   reason about than a per-action inverse patch, and it makes undo of a
+   relocate, a delete and a place the single line below. */
+function ctlStickerPush(st) {
+  const h = st.history.concat([st.stickers.map(s => Object.assign({}, s))]);
+  return h.length > CTL_STICKER_HISTORY_MAX ? h.slice(h.length - CTL_STICKER_HISTORY_MAX) : h;
+}
+
+function ctlStickerReduce(st, a) {
+  const S = st.stickers;
+  const next = (patch) => Object.assign({ stickers: S, armed: st.armed,
+                                          selected: st.selected, history: st.history }, patch);
+  switch (a.t) {
+    /* One rule, every state (spec § 7): an unplaced tile arms, a placed tile
+       selects, and the tile that is already current deselects. So a book tap
+       can interrupt anything to jump to another design, and there is no dead
+       state to get stuck in. */
+    case 'bookTap': {
+      const idx = S.findIndex(s => s.id === a.id);
+      if (idx >= 0) {
+        return next(st.selected === idx ? { armed: null, selected: -1 }
+                                        : { armed: null, selected: idx });
+      }
+      return next(st.armed === a.id ? { armed: null, selected: -1 }
+                                    : { armed: a.id, selected: -1 });
+    }
+
+    case 'place': {
+      if (!st.armed) return st;
+      const history = ctlStickerPush(st);
+      const stickers = S.concat([Object.assign({ id: st.armed }, a.rec)]);
+      return { stickers, armed: null, selected: stickers.length - 1, history };
+    }
+
+    case 'relocate': {
+      const i = st.selected;
+      if (i < 0 || i >= S.length) return st;
+      const history = ctlStickerPush(st);
+      const stickers = S.slice();
+      stickers[i] = Object.assign({ id: S[i].id }, a.rec);
+      return { stickers, armed: null, selected: i, history };
+    }
+
+    /* Rotate and size are dragged on a slider, so they deliberately do NOT
+       push history on every input event — the Workshop would fill the stack
+       with a hundred intermediate values from one gesture. Undo steps over the
+       whole adjustment to the last place/relocate/delete, which is the unit a
+       player thinks in. */
+    case 'adjust': {
+      const i = st.selected;
+      if (i < 0 || i >= S.length) return st;
+      const stickers = S.slice();
+      stickers[i] = Object.assign({}, S[i], a.patch);
+      return next({ stickers });
+    }
+
+    case 'hit':
+      return (a.index >= 0 && a.index < S.length)
+        ? next({ armed: null, selected: a.index })
+        : st;
+
+    case 'delete': {
+      const i = st.selected;
+      if (i < 0 || i >= S.length) return st;
+      const history = ctlStickerPush(st);
+      return { stickers: S.slice(0, i).concat(S.slice(i + 1)),
+               armed: null, selected: -1, history };
+    }
+
+    case 'done':
+      return next({ armed: null, selected: -1 });
+
+    case 'undo': {
+      if (!st.history.length) return st;
+      const stickers = st.history[st.history.length - 1];
+      return { stickers, armed: null, selected: -1,
+               history: st.history.slice(0, st.history.length - 1) };
+    }
+
+    default:
+      return st;
+  }
+}
+
 // ══ RENDERER ══ everything below needs THREE, a document and a canvas ═══════
 
 let ctlBuilt = false;

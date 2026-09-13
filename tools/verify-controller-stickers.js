@@ -44,7 +44,8 @@ const CTL_SRC = process.env.CTL_SRC
    is missing. Guarded for the not-yet-written; loud for the misspelt. */
 const CTL_PURE_EXPORTS = ['ctlReadDesign', 'ctlWriteDesign', 'ctlValidateManifest',
                           'ctlStickerById', 'ctlValidateStickers', 'ctlStickerReduce',
-                          'CTL_STICKER_OPT', 'CTL_EAR_MAX_R'];
+                          'ctlStickerMode', 'CTL_STICKER_OPT', 'CTL_EAR_MAX_R',
+                          'CTL_STICKER_HISTORY_MAX'];
 
 /* Top-level `let`s that a check needs to DRIVE, not just read. A plain copy
    cannot: `let` at the top of a vm script is a lexical binding, not an own
@@ -393,6 +394,134 @@ console.log('── 10. The load path is bit-stable (spec § 6, the slow-creep b
   }
   ok(bad.x !== seed.x || bad.y !== seed.y,
      'sanity: re-deriving the anchor DOES move it — the check above is real');
+}
+
+console.log('── 11. The placement state machine (spec § 7) ──');
+{
+  const { sandbox } = loadCtlPure(undefined, ['ctlStickerReduce', 'ctlStickerMode']);
+  const R = sandbox.ctlStickerReduce;
+  const M = sandbox.ctlStickerMode;
+  const blank = { stickers: [], armed: null, selected: -1, history: [] };
+  const shellRec = { surface: 'shell', x: 1.16, y: -0.12, back: false,
+                     rot: 0, size: 0.18, chart: 'tangent' };
+
+  ok(M(blank) === 'idle', 'a blank state is Idle');
+
+  // --- book taps: the rule is the same in every state ---
+  let s = R(blank, { t: 'bookTap', id: 'banana' });
+  ok(M(s) === 'armed' && s.armed === 'banana', 'tapping an unplaced tile arms that design');
+  ok(blank.armed === null && blank.stickers.length === 0, 'the reducer did not mutate its input');
+
+  s = R(s, { t: 'bookTap', id: 'banana' });
+  ok(M(s) === 'idle', 'tapping the ALREADY armed tile deselects back to Idle');
+
+  s = R(R(blank, { t: 'bookTap', id: 'banana' }), { t: 'bookTap', id: 'pan' });
+  ok(M(s) === 'armed' && s.armed === 'pan',
+     'a book tap can interrupt an in-progress Arm and jump to another design');
+
+  // --- Armed + a legal spot -> placed, and becomes Selected ---
+  s = R(blank, { t: 'bookTap', id: 'banana' });
+  s = R(s, { t: 'place', rec: shellRec });
+  ok(s.stickers.length === 1 && s.stickers[0].id === 'banana', 'placing pushes the entry');
+  ok(s.stickers[0].x === 1.16 && s.stickers[0].chart === 'tangent',
+     'the placement record is stored verbatim');
+  ok(M(s) === 'selected' && s.selected === 0, 'after placing, the new entry is Selected');
+  ok(s.armed === null, 'and nothing is left armed');
+
+  // --- Selected + a legal spot -> relocates, STAYS Selected ---
+  const placed = s;
+  s = R(placed, { t: 'relocate', rec: Object.assign({}, shellRec, { x: 0.4 }) });
+  ok(s.stickers.length === 1, 'relocating does not add an entry');
+  ok(s.stickers[0].x === 0.4, 'the entry moved');
+  ok(s.stickers[0].id === 'banana', 'and kept its id');
+  ok(M(s) === 'selected' && s.selected === 0, 'it stays Selected after a relocate');
+
+  // --- a book tap on a PLACED tile selects rather than re-arming (D2) ---
+  s = R(placed, { t: 'bookTap', id: 'banana' });
+  ok(M(s) === 'idle', 'tapping the placed tile that is already selected deselects');
+  s = R(R(placed, { t: 'done' }), { t: 'bookTap', id: 'banana' });
+  ok(M(s) === 'selected' && s.selected === 0,
+     'from Idle, tapping a PLACED tile selects that placement — it never re-arms');
+  ok(s.armed === null, 'D2: an already-placed design can never be armed again');
+
+  // --- controller taps that hit or miss an existing placement ---
+  s = R(R(placed, { t: 'done' }), { t: 'hit', index: 0 });
+  ok(M(s) === 'selected' && s.selected === 0, 'Idle + a hit selects that placement');
+  s = R(R(placed, { t: 'done' }), { t: 'hit', index: -1 });
+  ok(M(s) === 'idle', 'Idle + a miss is a no-op');
+
+  // --- adjust writes to the selected entry ---
+  s = R(placed, { t: 'adjust', patch: { rot: 1.2, size: 0.22 } });
+  ok(s.stickers[0].rot === 1.2 && s.stickers[0].size === 0.22,
+     'adjust patches the selected entry');
+  ok(R(R(placed, { t: 'done' }), { t: 'adjust', patch: { rot: 9 } }).stickers[0].rot === 0,
+     'adjust with nothing selected is a no-op');
+
+  // --- delete returns to Idle ---
+  s = R(placed, { t: 'delete' });
+  ok(s.stickers.length === 0, 'delete removes the entry');
+  ok(M(s) === 'idle', 'and returns to Idle');
+
+  // --- done deselects ---
+  ok(M(R(placed, { t: 'done' })) === 'idle', 'Done deselects to Idle');
+}
+
+console.log('── 12. Undo (spec § 5.2, § 9.1) ──');
+{
+  const { sandbox } = loadCtlPure(undefined, ['ctlStickerReduce', 'CTL_STICKER_HISTORY_MAX']);
+  const R = sandbox.ctlStickerReduce;
+  const blank = { stickers: [], armed: null, selected: -1, history: [] };
+  const rec = { surface: 'shell', x: 1.16, y: -0.12, back: false,
+                rot: 0, size: 0.18, chart: 'tangent' };
+
+  ok(R(blank, { t: 'undo' }).stickers.length === 0, 'undo on an empty history is a no-op');
+
+  // place -> undo
+  let s = R(R(blank, { t: 'bookTap', id: 'banana' }), { t: 'place', rec });
+  ok(s.history.length === 1, 'placing pushes one history entry');
+  s = R(s, { t: 'undo' });
+  ok(s.stickers.length === 0, 'undo removes the placement');
+  ok(s.history.length === 0, 'and pops the history');
+
+  // relocate -> undo restores the old position
+  let p = R(R(blank, { t: 'bookTap', id: 'banana' }), { t: 'place', rec });
+  p = R(p, { t: 'relocate', rec: Object.assign({}, rec, { x: 0.4 }) });
+  ok(p.stickers[0].x === 0.4, 'the relocate applied');
+  p = R(p, { t: 'undo' });
+  ok(p.stickers[0].x === 1.16, 'undo restores the previous position');
+  ok(p.stickers.length === 1, 'and does not remove the sticker');
+
+  // delete -> undo restores it at its index
+  let d = R(R(blank, { t: 'bookTap', id: 'banana' }), { t: 'place', rec });
+  d = R(d, { t: 'bookTap', id: 'pan' });
+  d = R(d, { t: 'place', rec: Object.assign({}, rec, { x: -0.5 }) });
+  ok(d.stickers.length === 2, 'two placements');
+  d = R(R(d, { t: 'done' }), { t: 'hit', index: 0 });
+  d = R(d, { t: 'delete' });
+  ok(d.stickers.length === 1 && d.stickers[0].id === 'pan', 'the first was deleted');
+  d = R(d, { t: 'undo' });
+  ok(d.stickers.length === 2, 'undo restores it');
+  ok(d.stickers[0].id === 'banana', 'at its original index, not appended');
+
+  // push/pop parity across a long run
+  let q = blank;
+  for (let i = 0; i < 5; i++) {
+    q = R(q, { t: 'bookTap', id: 'id' + i });
+    q = R(q, { t: 'place', rec: Object.assign({}, rec, { x: i * 0.1 }) });
+  }
+  ok(q.stickers.length === 5 && q.history.length === 5, 'five placements, five history entries');
+  for (let i = 0; i < 5; i++) q = R(q, { t: 'undo' });
+  ok(q.stickers.length === 0 && q.history.length === 0,
+     'five undos return to empty — push/pop parity');
+
+  // the stack is bounded
+  let big = blank;
+  for (let i = 0; i < 60; i++) {
+    big = R(big, { t: 'bookTap', id: 'id' + i });
+    big = R(big, { t: 'place', rec: Object.assign({}, rec, { x: i * 0.01 }) });
+  }
+  ok(big.history.length === sandbox.CTL_STICKER_HISTORY_MAX,
+     'the history stack is capped at CTL_STICKER_HISTORY_MAX, got ' + big.history.length);
 }
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
