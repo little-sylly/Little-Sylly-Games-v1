@@ -15,7 +15,7 @@
   { "id": "shp",    "label": "Counting Sheep",    "image": "shp.png",    "unlocked": true },
   { "id": "flw",    "label": "Flawless",          "image": "flw.png",    "unlocked": true },
   { "id": "pko",    "label": "Pecking Order",     "image": "pko.png",    "unlocked": true },
-  { "id": "cookie", "label": "Cookie Jar",        "image": "cookie.png", "unlocked": true },
-  { "id": "cold",   "label": "Cold Shoulder",     "image": "cold.png",   "unlocked": true },
+  { "id": "cjar",   "label": "Cookie Jar",        "image": "cjar.png",   "unlocked": true },
+  { "id": "cld",    "label": "Cold Shoulder",     "image": "cld.png",    "unlocked": true },
   { "id": "comb",   "label": "Honeycomb Hills",   "image": "comb.png",   "unlocked": true }
 ] }
