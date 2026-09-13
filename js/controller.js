@@ -319,6 +319,8 @@ let ctlBuilt = false;
 let ctlScene, ctlCamera, ctlRenderer, ctlRig, ctlBody, ctlControls, ctlEars, ctlFloor;
 let ctlCanvas, ctlCtx, ctlTex, ctlEarCanvas, ctlEarCtx, ctlEarTex;
 let ctlBumpCanvas, ctlBumpCtx, ctlBumpTex;
+let ctlEarBumpCanvas, ctlEarBumpCtx, ctlEarBumpTex;
+let ctlEarScale = 1;                // world units -> UV, set by ctlBuildEarUV
 let ctlShellMat, ctlEarMat;
 let ctlGeo = null;                  // retained: geo.userData is what the surface needs
 let ctlStickerSurface = null;       // lazily built — see ctlEnsureStickerSurface
@@ -344,7 +346,9 @@ let ctlMountEl = null;
    over the atlas size at construction, so the resize must happen FIRST. */
 let CTL_ATLAS = 1024;
 const CTL_ATLAS_STICKERS = 2048;
-const CTL_EAR_ATLAS = 512;
+/* 1024, was 512. The 2x2 cap grid ctlBuildEarUV lays down needs a 512
+   quadrant per cap; at 512 each cap would have had 256. */
+const CTL_EAR_ATLAS = 1024;
 
 function ctlReducedMotion() {
   try {
@@ -476,6 +480,12 @@ function ctlBuildAtlases() {
   ctlEarCtx = ctlEarCanvas.getContext('2d', { willReadFrequently: true });
   ctlEarTex = new THREE.CanvasTexture(ctlEarCanvas);
   ctlEarTex.flipY = false; ctlEarTex.anisotropy = 8; ctlEarTex.encoding = THREE.sRGBEncoding;
+
+  ctlEarBumpCanvas = document.createElement('canvas');
+  ctlEarBumpCanvas.width = ctlEarBumpCanvas.height = CTL_EAR_ATLAS;
+  ctlEarBumpCtx = ctlEarBumpCanvas.getContext('2d', { willReadFrequently: true });
+  ctlEarBumpTex = new THREE.CanvasTexture(ctlEarBumpCanvas);
+  ctlEarBumpTex.flipY = false; ctlEarBumpTex.anisotropy = 8;
 }
 
 // ── Stickers: the surface ────────────────────────────────────────────────────
@@ -778,10 +788,180 @@ function ctlRedrawShell() {
   ctlTex.needsUpdate = true;
 }
 
+/* ── Ear UVs ──────────────────────────────────────────────────────────────
+   buildEars returns ExtrudeGeometry's DEFAULT UVs, which are meaningless for
+   painting: the shipped colour-only build never noticed, because it only ever
+   flood-fills the ear atlas. Ported from the prototype.
+
+   Planar UVs over BOTH outward-facing caps. The ellipse extrusion has one cap
+   that used to be the only stickerable "crown" and a second, opposite cap that
+   was parked as bevel/side; each now gets its own band within the ear's half of
+   the canvas — a 2x2 grid, left/right ear by column and front/back cap by row.
+   Mixed-normal triangles (the bevel, the rim) are parked on a SINGLE texel of
+   bare ear colour, so nothing smears across either cap and a tap there can be
+   rejected cheaply (see ctlPlanEarSticker).
+
+   The ears each hold geo.clone(), so per-mesh UVs are safe. This must NOT be
+   pushed down into controller-body.js: that module is shared geometry with its
+   own contract harness, and these UVs are this renderer's business. */
+function ctlBuildEarUV() {
+  const HALF = [0.25, 0.75];                    // ear column centres
+  const VBAND = { back: 0.74, front: 0.26 };    // cap band centres
+  ctlEars.forEach((m, idx) => {
+    const g = m.geometry, p = g.attributes.position.array, nm = g.attributes.normal.array;
+    let hw = 0, hh = 0;
+    for (let i = 0; i < p.length; i += 3) {
+      hw = Math.max(hw, Math.abs(p[i])); hh = Math.max(hh, Math.abs(p[i + 1]));
+    }
+    // 0.40 not 0.94: half the height, two bands not one
+    ctlEarScale = Math.min(0.46 / (2 * hw), 0.40 / (2 * hh));
+    /* Which local cap — +Z or -Z in the ellipse's OWN space — actually faces
+       the controller's front. Read off the mesh's own fixed rotation rather
+       than assumed, so this keeps working if buildEars' tilt numbers change. */
+    const q = new THREE.Quaternion().setFromEuler(m.rotation);
+    m.userData.earQ = q;
+    const frontIsPosZ = new THREE.Vector3(0, 0, 1).applyQuaternion(q).z
+                      > new THREE.Vector3(0, 0, -1).applyQuaternion(q).z;
+    const uv = new Float32Array(p.length / 3 * 2);
+    for (let t = 0; t < p.length / 3; t += 3) {
+      let side = null, consistent = true;
+      for (let k = 0; k < 3; k++) {
+        const nz = nm[(t + k) * 3 + 2];
+        const s = nz < -0.35 ? (frontIsPosZ ? 'back' : 'front')
+                : (nz >  0.35 ? (frontIsPosZ ? 'front' : 'back') : null);
+        if (k === 0) side = s; else if (s !== side) consistent = false;
+      }
+      if (!consistent) side = null;
+      for (let k = 0; k < 3; k++) {
+        const i = t + k;
+        if (side) {
+          uv[i * 2]     = HALF[idx] + p[i * 3] * ctlEarScale;
+          uv[i * 2 + 1] = VBAND[side] - p[i * 3 + 1] * ctlEarScale;
+        } else {
+          uv[i * 2] = 0.998; uv[i * 2 + 1] = 0.004;   // the parked texel
+        }
+      }
+    }
+    g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  });
+}
+
+/* The die-cut border (spec D8) on the ear, done in 2D.
+   ─────────────────────────────────────────────────────────────────────────
+   D8 says EVERY sticker, and an ear sticker has the same problem the shell
+   one does: the ears take a colour from the same 20 brand hexes, so near-white
+   art on FRT's #FFE500 ears measures the same 1.01:1 it does on the shell.
+
+   The shell chooses the border colour per texel because the shell atlas holds
+   TWO colours and a sticker can straddle the faceplate edge. The ear atlas is
+   a flat fill of one colour, so per-texel and per-ear are the same answer —
+   one luminance test on ctlDesign.ears gives it, and nothing is lost.
+
+   The outline itself is a ring of offset silhouette draws rather than a blur:
+   a blur fades, and a die cut does not. Eight is enough at this size — the
+   silhouette is drawn at the sticker's own scale, so gaps between adjacent
+   offsets are sub-texel. */
+const CTL_EAR_BORDER_STEPS = 8;
+
+function ctlEarSilhouette(im, w, h, hex) {
+  const c = document.createElement('canvas');
+  c.width = Math.max(1, Math.ceil(w)); c.height = Math.max(1, Math.ceil(h));
+  const g = c.getContext('2d');
+  g.drawImage(im, 0, 0, c.width, c.height);
+  g.globalCompositeOperation = 'source-in';    // keep the alpha, replace the colour
+  g.fillStyle = hex;
+  g.fillRect(0, 0, c.width, c.height);
+  return c;
+}
+
+/* The ears get their own texture rather than a corner of the body atlas: they
+   are separate meshes standing off the boss — that is WHY they are separate,
+   the height field cannot do the undercut — so nothing ever crosses between
+   the two, and a second small canvas costs far less than repacking the body's
+   islands. Their outward face is close to flat, so this is plain 2D drawing:
+   no chart and no per-texel rasteriser, because the crown has almost no
+   curvature to correct for. */
 function ctlRedrawEars() {
   ctlEarCtx.fillStyle = ctlDesign.ears;
   ctlEarCtx.fillRect(0, 0, CTL_EAR_ATLAS, CTL_EAR_ATLAS);
+  if (ctlEarBumpCtx) { ctlEarBumpCtx.fillStyle = '#000'; ctlEarBumpCtx.fillRect(0, 0, CTL_EAR_ATLAS, CTL_EAR_ATLAS); }
+
+  /* One luminance test for the whole atlas — see ctlEarSilhouette's note on
+     why per-texel buys nothing here. */
+  const en = parseInt(ctlDesign.ears.slice(1), 16);
+  const elum = (0.2126 * ((en >> 16) & 255) + 0.7152 * ((en >> 8) & 255)
+                + 0.0722 * (en & 255)) / 255;
+  const borderHex = elum > 0.5 ? '#1c1c1c' : '#f2f2f2';
+
+  for (const s of ctlDesign.stickers || []) {
+    if (s.surface !== 'earL' && s.surface !== 'earR') continue;
+    const rec = ctlStickerImage(s.id);
+    if (!rec) continue;                      // not decoded yet; onload repaints
+    const im = rec.img;
+    const w = s.r * 2 * ctlEarScale * CTL_EAR_ATLAS, h = w * im.height / im.width;
+    /* The art is inset and the border drawn in the freed band, exactly as on
+       the shell (spec D8) — so `r` means the same thing on both surfaces: the
+       whole footprint, border included, not the artwork plus an overhang. */
+    const aw = w * (1 - CTL_BORDER), ah = h * (1 - CTL_BORDER);
+    const off = Math.max(1, w * CTL_BORDER * 0.5);
+
+    ctlEarCtx.save(); ctlEarBumpCtx.save();
+    /* Clipped to its own quadrant — ear column (left/right) AND cap band
+       (front/back). A sticker near a region's inner edge would otherwise paint
+       across into whichever neighbour shares that edge. u/v are the raycast's
+       full-atlas UVs and already carry both offsets; do not add them again. */
+    for (const g of [ctlEarCtx, ctlEarBumpCtx]) {
+      g.beginPath();
+      g.rect(s.u < 0.5 ? 0 : CTL_EAR_ATLAS / 2, s.v > 0.5 ? CTL_EAR_ATLAS / 2 : 0,
+             CTL_EAR_ATLAS / 2, CTL_EAR_ATLAS / 2);
+      g.clip();
+      g.translate(s.u * CTL_EAR_ATLAS, s.v * CTL_EAR_ATLAS);
+      g.rotate(s.rot);
+    }
+
+    // the die-cut edge goes down first, as a ring of offset silhouettes
+    const sil = ctlEarSilhouette(im, aw, ah, borderHex);
+    for (let k = 0; k < CTL_EAR_BORDER_STEPS; k++) {
+      const a = k * 2 * Math.PI / CTL_EAR_BORDER_STEPS;
+      ctlEarCtx.drawImage(sil, -aw / 2 + Math.cos(a) * off, -ah / 2 + Math.sin(a) * off, aw, ah);
+    }
+    // colours go down flat, exactly as on the shell — no baked shading
+    ctlEarCtx.drawImage(im, -aw / 2, -ah / 2, aw, ah);
+
+    /* Height: the sticker's own silhouette in white, blurred just enough to
+       turn its cut edge into a short ramp. Same lip the shell gets, done with
+       a 2D blur rather than per-texel because the ear cap is flat. Drawn at
+       the FULL w/h so the border stands proud with the artwork, as it does on
+       the shell — a border at height zero would read as painted on rather than
+       cut out.
+       'lighten' takes the per-pixel MAX against what is already there, so a
+       stack of overlapping stickers reads as the tallest at each point.
+       'lighter' was tried first and was the actual cause of ear stickers
+       looking puffy and blown out: it SUMS every overlap, so a handful of them
+       saturated to solid white over a spreading area. Do not change it back. */
+    ctlEarBumpCtx.globalCompositeOperation = 'lighten';
+    try { ctlEarBumpCtx.filter = 'blur(' + Math.max(1, w * CTL_BORDER * 0.9) + 'px) brightness(0) invert(1)'; } catch (e) {}
+    ctlEarBumpCtx.drawImage(im, -w / 2, -h / 2, w, h);
+    ctlEarBumpCtx.filter = 'none'; ctlEarBumpCtx.globalCompositeOperation = 'source-over';
+    ctlEarCtx.restore(); ctlEarBumpCtx.restore();
+  }
   ctlEarTex.needsUpdate = true;
+  if (ctlEarBumpTex) ctlEarBumpTex.needsUpdate = true;
+}
+
+/* The crown is 0.36 by 0.52 and its outer 0.075 is bevel, so a sticker is held
+   to what will actually lie flat on it. A sticker cannot run from the ear onto
+   the shell: there is a real gap between them, and no parameterisation bridges
+   a gap. Returns a placement record, or null with a refusal already reported. */
+function ctlPlanEarSticker(uv, want, rot) {
+  /* Everything that is not an outward cap shares one parked texel, so a tap on
+     the side or the bevel would paint that texel and flood the whole rim of the
+     ear with it. */
+  if (uv.y < 0.05 || uv.x > 0.99) return { ok: false, reason: 'earSide' };
+  const r = Math.min(want, CTL_EAR_MAX_R);
+  return { ok: true, rec: { surface: uv.x < 0.5 ? 'earL' : 'earR',
+                            u: uv.x, v: uv.y, r: r, rot: rot },
+           capped: r < want - 1e-4 };
 }
 
 function ctlSetButtonColour(hex) {
@@ -816,8 +996,10 @@ function ctlEnsureBuilt() {
   ctlBody.castShadow = true; ctlBody.receiveShadow = true;
   ctlRig.add(ctlBody);
 
-  ctlEarMat = new THREE.MeshStandardMaterial({ map: ctlEarTex, roughness: .52, metalness: .06 });
+  ctlEarMat = new THREE.MeshStandardMaterial({ map: ctlEarTex, roughness: .52, metalness: .06,
+                                               bumpMap: ctlEarBumpTex, bumpScale: 0.035 });
   ctlEars = ControllerBody.buildEars(THREE, ctlEarMat);
+  ctlBuildEarUV();                   // buildEars ships default UVs — see the note there
   ctlEars.forEach(m => ctlRig.add(m));
 
   ctlControls = ControllerBody.buildControls(THREE, geo);

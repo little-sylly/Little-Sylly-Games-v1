@@ -176,7 +176,72 @@ async function probe() {
                    shellBlack: +lumAt(K.bare, 0).toFixed(3),
                    id: borderId };
 
-  return { before, after: A, canvas: ctlCanvas.width, bumpCanvas: ctlBumpCanvas.width,
+  /* ── EAR UVs and the flat rasteriser ──────────────────────────────────
+     buildEars ships ExtrudeGeometry's default UVs and the colour-only build
+     never noticed, because a flood fill does not care where the UVs point.
+     So the first thing to prove is that every ear vertex now lands in its own
+     quadrant of the 2x2 cap grid — or on the parked texel that mixed-normal
+     triangles share. A default-UV ear fails this immediately. */
+  const badUV = [];
+  ctlEars.forEach((m, idx) => {
+    const uv = m.geometry.attributes.uv.array;
+    for (let i = 0; i < uv.length; i += 2) {
+      const u = uv[i], v = uv[i + 1];
+      if (u > 0.99 && v < 0.01) continue;                      // parked
+      const rightColumn = idx === 0 ? (u < 0.5) : (u >= 0.5);
+      if (!rightColumn || u < 0 || u > 1 || v < 0 || v > 1) badUV.push([idx, +u.toFixed(3), +v.toFixed(3)]);
+    }
+  });
+
+  /* Then: does a sticker stay inside the quadrant it was placed in? The clip
+     rect is the only thing stopping a sticker near a quadrant's inner edge
+     from painting into whichever neighbour shares that edge. */
+  const EA = CTL_EAR_ATLAS, EH = EA / 2;
+  ctlDesign.ears = '#B1BCA0';
+  ctlDesign.stickers = [{ id: borderId, surface: 'earL', u: 0.25, v: 0.26, r: 0.2, rot: 0 }];
+  ctlRedrawEars();
+  const ed = ctlEarCtx.getImageData(0, 0, EA, EA).data;
+  const en = parseInt(ctlDesign.ears.slice(1), 16);
+  const er = (en >> 16) & 255, eg = (en >> 8) & 255, ebv = en & 255;
+  const quad = [0, 0, 0, 0];
+  for (let y = 0; y < EA; y++) for (let x = 0; x < EA; x++) {
+    const o = (y * EA + x) * 4;
+    if (Math.abs(ed[o] - er) + Math.abs(ed[o + 1] - eg) + Math.abs(ed[o + 2] - ebv) < 24) continue;
+    quad[(y < EH ? 0 : 2) + (x < EH ? 0 : 1)]++;
+  }
+  const earBumpLit = (() => {
+    const bd = ctlEarBumpCtx.getImageData(0, 0, EA, EA).data;
+    let n = 0; for (let i = 0; i < bd.length; i += 4) if (bd[i] > 8) n++; return n;
+  })();
+
+  /* The ear border, measured the same threshold-free way as the shell's: the
+     ears take a colour from the same 20 brand hexes, so near-white art on
+     FRT's #FFE500 ears is the same 1.01:1 the shell case is. */
+  const earOn = (hex) => {
+    ctlDesign.ears = hex;
+    ctlDesign.stickers = []; ctlRedrawEars();
+    const bare = ctlEarCtx.getImageData(0, 0, EA, EA).data.slice();
+    ctlDesign.stickers = [{ id: borderId, surface: 'earL', u: 0.25, v: 0.26, r: 0.2, rot: 0 }];
+    ctlRedrawEars();
+    return { bare, now: ctlEarCtx.getImageData(0, 0, EA, EA).data.slice() };
+  };
+  const EY = earOn('#FFE500'), EK = earOn('#18181B');
+  let enB = 0, esY = 0, esK = 0;
+  for (let o = 0; o < EY.now.length; o += 4) {
+    const cY = !(EY.bare[o] === EY.now[o] && EY.bare[o+1] === EY.now[o+1] && EY.bare[o+2] === EY.now[o+2]);
+    const cK = !(EK.bare[o] === EK.now[o] && EK.bare[o+1] === EK.now[o+1] && EK.bare[o+2] === EK.now[o+2]);
+    if (!cY && !cK) continue;
+    if (EY.now[o] === EK.now[o] && EY.now[o+1] === EK.now[o+1] && EY.now[o+2] === EK.now[o+2]) continue;
+    enB++; esY += lumAt(EY.now, o); esK += lumAt(EK.now, o);
+  }
+  const ear = { atlas: EA, scale: +ctlEarScale.toFixed(4), badUV: badUV.length, quad,
+                bumpLit: earBumpLit, borderN: enB,
+                meanOnYellow: +(esY / Math.max(1, enB)).toFixed(3),
+                meanOnBlack: +(esK / Math.max(1, enB)).toFixed(3),
+                side: ctlPlanEarSticker({ x: 0.25, y: 0.01 }, 0.2, 0),
+                capped: ctlPlanEarSticker({ x: 0.25, y: 0.26 }, 99, 0) };
+
+  return { before, after: A, canvas: ctlCanvas.width, bumpCanvas: ctlBumpCanvas.width, ear,
            built, idem, surfaceMs, id, manifest: ctlStickerManifest.length,
            padPairs: ctlStickerPad.dst.length, tanQ, tan, rimQ, rim, well,
            border,
@@ -230,6 +295,21 @@ async function probe() {
     ok(r.border.meanOnBlack > r.border.shellBlack + 0.25,
        'on a DARK shell the same border goes light: mean ' + r.border.meanOnBlack +
        ' against a #18181B shell at ' + r.border.shellBlack);
+    ok(r.ear.atlas === 1024, 'the ear atlas is 1024, one 512 quadrant per cap');
+    ok(r.ear.badUV === 0 && r.ear.scale > 0,
+       'every ear vertex is in its own quadrant or parked (scale ' + r.ear.scale + ')');
+    ok(r.ear.quad[0] > 2000 && r.ear.quad[1] === 0 && r.ear.quad[2] === 0 && r.ear.quad[3] === 0,
+       'an ear sticker stays in its own quadrant: ' + JSON.stringify(r.ear.quad));
+    ok(r.ear.bumpLit > 1000, 'the ear bump atlas got the lip: ' + r.ear.bumpLit + ' texels');
+    ok(r.ear.borderN > 500 &&
+       r.ear.meanOnYellow < r.ear.meanOnBlack - 0.2,
+       'the ear sticker gets the die-cut border too (D8 says every sticker): mean ' +
+       r.ear.meanOnYellow + ' on #FFE500 ears vs ' + r.ear.meanOnBlack + ' on #18181B, ' +
+       r.ear.borderN + ' texels');
+    ok(r.ear.side.ok === false && r.ear.side.reason === 'earSide',
+       'a tap on the ear bevel is refused, not painted onto the parked texel');
+    ok(r.ear.capped.ok === true && r.ear.capped.capped === true && r.ear.capped.rec.r === 0.26,
+       'an oversized ear sticker is capped at CTL_EAR_MAX_R: r=' + r.ear.capped.rec.r);
     ok(errs.length === 0, 'no page errors: ' + (errs.join(' | ') || 'none'));
 
     if (SHOT) {
