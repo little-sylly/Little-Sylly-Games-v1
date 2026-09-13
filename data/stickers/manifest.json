@@ -1,5 +1,21 @@
 { "stickers": [
-  { "id": "banana",   "label": "Banana",   "image": "banana.png",   "unlocked": true },
-  { "id": "computer", "label": "Computer", "image": "computer.png", "unlocked": true },
-  { "id": "pan",      "label": "Pan",      "image": "pan.png",      "unlocked": true }
+  { "id": "li5",    "label": "Like I'm Five",     "image": "li5.png",    "unlocked": true },
+  { "id": "gm",     "label": "Great Minds",       "image": "gm.png",     "unlocked": true },
+  { "id": "ss",     "label": "Secret Signals",    "image": "ss.png",     "unlocked": true },
+  { "id": "jec",    "label": "Just Enough Cooks", "image": "jec.png",    "unlocked": true },
+  { "id": "ygi",    "label": "You Get It?",       "image": "ygi.png",    "unlocked": true },
+  { "id": "lttp",   "label": "Late to the Party", "image": "lttp.png",   "unlocked": true },
+  { "id": "nat",    "label": "Natural Selection", "image": "nat.png",    "unlocked": true },
+  { "id": "dsd",    "label": "Deep-Sea Deploy",   "image": "dsd.png",    "unlocked": true },
+  { "id": "gth",    "label": "Group Therapy",     "image": "gth.png",    "unlocked": true },
+  { "id": "dyb",    "label": "The Bluff",         "image": "dyb.png",    "unlocked": true },
+  { "id": "pass",   "label": "Pass",              "image": "pass.png",   "unlocked": true },
+  { "id": "nt",     "label": "Net-Trace",         "image": "nt.png",     "unlocked": true },
+  { "id": "frt",    "label": "Fruit Salad",       "image": "frt.png",    "unlocked": true },
+  { "id": "shp",    "label": "Counting Sheep",    "image": "shp.png",    "unlocked": true },
+  { "id": "flw",    "label": "Flawless",          "image": "flw.png",    "unlocked": true },
+  { "id": "pko",    "label": "Pecking Order",     "image": "pko.png",    "unlocked": true },
+  { "id": "cookie", "label": "Cookie Jar",        "image": "cookie.png", "unlocked": true },
+  { "id": "cold",   "label": "Cold Shoulder",     "image": "cold.png",   "unlocked": true },
+  { "id": "comb",   "label": "Honeycomb Hills",   "image": "comb.png",   "unlocked": true }
 ] }

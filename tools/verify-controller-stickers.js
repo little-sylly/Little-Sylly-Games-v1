@@ -241,6 +241,18 @@ console.log('── 7. The shipped manifest is valid ──');
     ok(fs.existsSync(path.join(ROOT, 'data/stickers', e.image)),
        'the image named by "' + e.id + '" exists on disk: ' + e.image);
   }
+
+  /* And the other direction. A PNG dropped in the folder without a manifest
+     line simply never appears in the book: no error, no warning, nothing to
+     notice. The inventory is authored by hand while the art is still being
+     drawn, so this is the likelier of the two mistakes, not the rarer one. */
+  const onDisk = fs.readdirSync(path.join(ROOT, 'data/stickers'))
+    .filter(f => /\.(png|jpe?g|webp)$/i.test(f));
+  const named = new Set(out.map(e => e.image));
+  const orphans = onDisk.filter(f => !named.has(f));
+  ok(orphans.length === 0,
+     'every image in data/stickers/ is named by the manifest — unlisted: ' +
+     (orphans.join(', ') || 'none'));
 }
 
 console.log('── 8. Placement validation (spec § 6, rules 1-7) ──');
