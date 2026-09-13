@@ -576,9 +576,28 @@ function ctlSampleImage(im, sx, sy, out) {
   }
 }
 
-/* LIP is how wide the height ramp is as a fraction of the sticker radius —
-   small, because a sticker on paper has a very short edge, not a dome. */
-const CTL_LIP = 0.055;
+/* The border's width as a fraction of the sticker radius, and equally the
+   amount the ART is inset by so the border always has somewhere to go.
+   Deliberately the same as the lip ramp it replaces: the border IS the lip,
+   made visible. */
+const CTL_BORDER = 0.055;
+
+/* How hard the border fills its band. The ring average tops out at 0.8 in the
+   border band (al is 0 there by definition, so at most four of the five
+   samples can be opaque), which is why a multiplier is needed at all: without
+   one the ring never reaches its own colour.
+
+   Measured on the worst case the spec names — flw on FRT #FFE500, 1.01:1 —
+   over the 7,521 texels the border actually owns, as decile buckets of
+   luminance against a shell sitting at 0.855:
+     1.6  core at 0.30-0.40, a second band left stranded at 0.60-0.70
+     2.4  core at 0.10-0.20, second band 0.40-0.50
+     3.2  core at 0.10-0.20, second band pulled down to 0.30-0.40
+   The width never changes — that is CTL_BORDER — only how opaque the ring is
+   within it, so this saturates rather than thickens. 1.6 reads as a soft grey
+   smudge; 3.2 reads as a cut edge. Past about 4 the outer fall-off starts to
+   step instead of fading. */
+const CTL_BORDER_FIRM = 3.2;
 
 /* The real rasteriser, ported from the prototype's stamp(). NOT the stampFlat
    / OLD_WAY debug path, which pasted the sticker into the atlas with drawImage
@@ -589,7 +608,14 @@ const CTL_LIP = 0.055;
    it asks the surface where that texel is and which part of the sticker lands
    there. Nothing about the atlas layout enters the answer, so the rim roll and
    the grip bulges stop mattering and a sticker running off the front island
-   simply continues onto the back one. */
+   simply continues onto the back one.
+
+   The die-cut border (spec D8) is the one part of this with no prototype
+   precedent. Measured over the shipped nineteen: every one is near-white
+   dominant, and against FRT's #FFE500 the worst (flw) contrasts at 1.01:1 —
+   the same colour. The bump lip cannot rescue that on its own, because the
+   ramp only exists INSIDE the sticker's own alpha, so a matching shell gives a
+   faint relief outline around a flat blank plateau. */
 function ctlStampShell(s) {
   const S = ctlStickerSurface;
   if (!S) return;
@@ -597,11 +623,23 @@ function ctlStampShell(s) {
   if (!rec) return;                       // not decoded yet; onload repaints
   const im = rec.data;
   const chart = S.makeChart(s), R = s.size, px = [0, 0, 0, 0];
-  const eb = R * CTL_LIP, W = im.width, H = im.height, DA = im.data;
+  const W = im.width, H = im.height, DA = im.data;
 
+  /* THE ART IS INSET, rather than the border added outside it (spec D8). All
+     nineteen shipped stickers are full-bleed — measured: zero transparent
+     margin on all four edges of every one — so a border drawn inside the
+     existing [-R,R] square would clip. Insetting makes the border
+     unconditional and costs future sticker authoring nothing: artwork that
+     DOES carry a margin simply gets a slightly wider gap, which is harmless. */
+  const AR = R * (1 - CTL_BORDER);        // the radius the artwork now occupies
+  const eb = R * CTL_BORDER;              // ring radius = border width
+
+  /* Alpha of the ARTWORK at a chart coordinate, under the inset mapping. Used
+     both for the ring average and for the outside test, so the two can never
+     disagree about where the artwork ends. */
   const alphaAt = (a, b) => {
-    if (a < -R || a > R || b < -R || b > R) return 0;
-    const x = (a / R * 0.5 + 0.5) * W, y = (0.5 - b / R * 0.5) * H;
+    if (a < -AR || a > AR || b < -AR || b > AR) return 0;
+    const x = (a / AR * 0.5 + 0.5) * W, y = (0.5 - b / AR * 0.5) * H;
     const xi = x < 0 ? 0 : (x > W - 1 ? W - 1 : x | 0);
     const yi = y < 0 ? 0 : (y > H - 1 ? H - 1 : y | 0);
     return DA[(yi * W + xi) * 4 + 3] / 255;
@@ -618,20 +656,49 @@ function ctlStampShell(s) {
       const c = chart(xy[0], xy[1], bx.back);
       if (!c) continue;
       const o = (j * w + i) * 4;
-      ctlSampleImage(im, (c[0] / R * 0.5 + 0.5) * W, (0.5 - c[1] / R * 0.5) * H, px);
-      const al = px[3] / 255;
-      if (al <= 0.004) continue;     // outside the sticker: atlas and height untouched
-      /* Height averaged over a small ring, so the ramp spreads over the lip
-         width rather than the one or two texels of the image's own antialiased
-         edge — a one-texel cliff makes the bump map sparkle instead of
-         catching the light. */
+
+      ctlSampleImage(im, (c[0] / AR * 0.5 + 0.5) * W, (0.5 - c[1] / AR * 0.5) * H, px);
+      const al = (c[0] < -AR || c[0] > AR || c[1] < -AR || c[1] > AR) ? 0 : px[3] / 255;
+
+      /* The ring average is computed BEFORE the alpha early-out — that
+         reordering is the whole mechanism. A texel with al ~ 0 but hgt > 0 is
+         in the band just OUTSIDE the artwork, which is exactly the band the
+         border occupies. Averaging over the ring also spreads the height ramp
+         over the border width rather than the one or two texels of the image's
+         own antialiased edge: a one-texel cliff makes the bump map sparkle
+         instead of catching the light. */
       const hgt = (al + alphaAt(c[0] + eb, c[1]) + alphaAt(c[0] - eb, c[1])
                       + alphaAt(c[0], c[1] + eb) + alphaAt(c[0], c[1] - eb)) / 5;
+      if (al <= 0.004 && hgt <= 0.004) continue;   // genuinely outside: untouched
+
+      /* Height first, so the border stands proud WITH the artwork — it is part
+         of the same piece of vinyl, and a border at height zero would read as
+         painted on rather than cut out. Overlaps keep the taller. */
       const hv = hgt * 255;
-      if (hv > B[o]) { B[o] = B[o + 1] = B[o + 2] = hv; B[o + 3] = 255; }  // overlaps keep the taller
-      D[o]     = D[o]     * (1 - al) + px[0] * al;
-      D[o + 1] = D[o + 1] * (1 - al) + px[1] * al;
-      D[o + 2] = D[o + 2] * (1 - al) + px[2] * al;
+      if (hv > B[o]) { B[o] = B[o + 1] = B[o + 2] = hv; B[o + 3] = 255; }
+
+      if (al > 0.004) {
+        // inside the artwork — colours go down flat, no baked shading
+        D[o]     = D[o]     * (1 - al) + px[0] * al;
+        D[o + 1] = D[o + 1] * (1 - al) + px[1] * al;
+        D[o + 2] = D[o + 2] * (1 - al) + px[2] * al;
+      } else {
+        /* THE BORDER. Its colour is chosen per texel from the atlas pixel
+           ALREADY underneath: a light shell gets a dark border, a dark shell a
+           light one. Per-texel is what makes a sticker straddling the
+           faceplate edge work with no special case — and because a recolour
+           re-enters ctlRedrawShell and re-stamps every sticker from scratch,
+           borders re-derive against the new shell colour for free.
+
+           Coverage is the ring average, so the outer edge antialiases instead
+           of stepping. */
+        const lum = (0.2126 * D[o] + 0.7152 * D[o + 1] + 0.0722 * D[o + 2]) / 255;
+        const bc = lum > 0.5 ? 28 : 242;
+        const a2 = Math.min(1, hgt * CTL_BORDER_FIRM);
+        D[o]     = D[o]     * (1 - a2) + bc * a2;
+        D[o + 1] = D[o + 1] * (1 - a2) + bc * a2;
+        D[o + 2] = D[o + 2] * (1 - a2) + bc * a2;
+      }
       D[o + 3] = 255; touched = true;
     }
     if (touched) {
