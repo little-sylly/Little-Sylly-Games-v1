@@ -318,17 +318,32 @@ function ctlStickerReduce(st, a) {
 let ctlBuilt = false;
 let ctlScene, ctlCamera, ctlRenderer, ctlRig, ctlBody, ctlControls, ctlEars, ctlFloor;
 let ctlCanvas, ctlCtx, ctlTex, ctlEarCanvas, ctlEarCtx, ctlEarTex;
+let ctlBumpCanvas, ctlBumpCtx, ctlBumpTex;
 let ctlShellMat, ctlEarMat;
+let ctlGeo = null;                  // retained: geo.userData is what the surface needs
+let ctlStickerSurface = null;       // lazily built — see ctlEnsureStickerSurface
+let ctlStickerPad = null;           // padPairs(4), computed once with the surface
+const ctlStickerImages = {};        // id -> { img, data } once decoded
 const CTL_BUTTON_MATS = new Set();
 let ctlMountEl = null;
 
-/* CHANGE FROM THE PROTOTYPE (1): 1024, not 2048.
-   The prototype's atlas is sized for stickers rasterised in surface space. A
-   colour-only atlas holds a flat fill and one inset polygon, and a 2048 square
-   canvas is 16 MB of memory per atlas on a phone for no visible gain. The
-   faceplate map is expressed in fractions of ATLAS, so this scales cleanly.
-   The sticker sub-project restores 2048 when it needs the resolution. */
-const CTL_ATLAS = 1024;
+/* CHANGE FROM THE PROTOTYPE (1), NOW CONDITIONAL: 1024 until stickers are
+   needed, then 2048.
+
+   A colour-only atlas holds a flat fill and one inset polygon, and a 2048
+   square canvas is 16 MB of memory per atlas on a phone for no visible gain.
+   But a sticker of radius 0.18 covers about 7.8% of the atlas width — 80 px at
+   1024 against source art of ~512 px, which is visibly soft, and 160 px at
+   2048, which is not. So the atlas GROWS, once, inside
+   ctlEnsureStickerSurface(): a player who only ever recolours never pays for
+   the resolution, and a player who places a sticker pays once.
+
+   Everything downstream is expressed in fractions of CTL_ATLAS, so the resize
+   is a canvas resize plus a plate-UV rebuild plus a repaint. The order in
+   ctlEnsureStickerSurface is forced: the surface and its pad pairs both close
+   over the atlas size at construction, so the resize must happen FIRST. */
+let CTL_ATLAS = 1024;
+const CTL_ATLAS_STICKERS = 2048;
 const CTL_EAR_ATLAS = 512;
 
 function ctlReducedMotion() {
@@ -404,7 +419,8 @@ function ctlBuildScene() {
    The second apparent dependency, padEdges(), bleeds colour across the atlas
    seam so a sticker wrapping the rim shows no crease. With no stickers the
    atlas is a uniform fill at the rim on both sides, so the bleed is a copy of a
-   colour onto itself. Dropped. The sticker sub-project brings both back. */
+   colour onto itself — it was dropped for the colour-only port and is back as
+   ctlPadEdges() below, now that there is something on the rim to bleed. */
 function ctlPlainAtlas(U, x, y, back) {
   const u = (x - U.minx) / (U.maxx - U.minx);
   const v = (y - U.miny) / (U.maxy - U.miny);
@@ -428,25 +444,235 @@ function ctlShade(hex, amt) {
   return '#' + ((1 << 24) + (f(r) << 16) + (f(g) << 8) + f(b)).toString(16).slice(1);
 }
 
-/* CHANGE FROM THE PROTOTYPE (3): no bump atlas.
+/* CHANGE FROM THE PROTOTYPE (3), NOW CONDITIONAL: the bump atlas exists but
+   stays black while there are no stickers.
+
    The prototype pairs each colour atlas with a greyscale height atlas so the
    renderer lights a sticker's edge as a raised lip. A bare shell is height zero
-   everywhere, so that atlas would be uniformly black — a no-op costing two more
-   full-size canvases. bumpMap/bumpScale come off the materials with it. The
-   sticker sub-project restores both; the comment block at
-   standalone-stickerless.html:1601 explains why it matters then. */
+   everywhere, so on a stickerless controller this is a uniformly black texture
+   — which costs a canvas but keeps the material contract identical whether or
+   not stickers are present, so no material has to be rebuilt when the first one
+   lands. bumpScale is deliberately small: this is a sticker on a shell, not a
+   puffy dome.
+
+   willReadFrequently is not decoration here: the rasteriser below does a
+   getImageData/putImageData pair per sticker per sheet, and without the hint a
+   GPU-backed canvas reads back over the bus every time. */
 function ctlBuildAtlases() {
   ctlCanvas = document.createElement('canvas');
   ctlCanvas.width = ctlCanvas.height = CTL_ATLAS;
-  ctlCtx = ctlCanvas.getContext('2d');
+  ctlCtx = ctlCanvas.getContext('2d', { willReadFrequently: true });
   ctlTex = new THREE.CanvasTexture(ctlCanvas);
   ctlTex.flipY = false; ctlTex.anisotropy = 8; ctlTex.encoding = THREE.sRGBEncoding;
 
+  ctlBumpCanvas = document.createElement('canvas');
+  ctlBumpCanvas.width = ctlBumpCanvas.height = CTL_ATLAS;
+  ctlBumpCtx = ctlBumpCanvas.getContext('2d', { willReadFrequently: true });
+  ctlBumpTex = new THREE.CanvasTexture(ctlBumpCanvas);
+  ctlBumpTex.flipY = false; ctlBumpTex.anisotropy = 8;
+
   ctlEarCanvas = document.createElement('canvas');
   ctlEarCanvas.width = ctlEarCanvas.height = CTL_EAR_ATLAS;
-  ctlEarCtx = ctlEarCanvas.getContext('2d');
+  ctlEarCtx = ctlEarCanvas.getContext('2d', { willReadFrequently: true });
   ctlEarTex = new THREE.CanvasTexture(ctlEarCanvas);
   ctlEarTex.flipY = false; ctlEarTex.anisotropy = 8; ctlEarTex.encoding = THREE.sRGBEncoding;
+}
+
+// ── Stickers: the surface ────────────────────────────────────────────────────
+/* THE TUNED NUMBERS. js/lib/controller-sticker-surface.js contains none of
+   these — every keep-out is opt.exclude and the tolerance is opt.maxDistort
+   (whose default is a stricter 0.10). Building the surface with {} compiles,
+   runs, and silently lets stickers paint INSIDE the stick-well holes, where
+   they show straight through. tools/verify-controller-stickers.js § 2 asserts
+   all four refuse.
+
+   Grips are deliberately NOT a keep-out — that was removed at the owner's
+   request because it refused too many spots that felt placeable. Curvature
+   alone governs them. Measured consequence: at 0.14 nothing on the body is
+   ever refused for curvature (the highest distortion anywhere is 0.0864), so
+   maxDistort is currently an inert dial. It is also the ONLY lever for grip
+   and ear warping: if a real-device check says the worst spots look too
+   stretched, 0.05-0.06 is the useful range — spec § 12.1 tabulates what each
+   value costs. */
+const CTL_STICKER_OPT = {
+  exclude: [{ x: -1.25, y:  0.20, r: 0.33, back: false },   // left stick well
+            { x:  1.25, y: -0.85, r: 0.33, back: false },   // right stick well
+            { x: -0.84, y:  0.84, r: 0.45, back: true  },   // left ear boss
+            { x:  0.84, y:  0.84, r: 0.45, back: true  }],  // right ear boss
+  maxDistort: 0.14,
+};
+
+/* Idempotent and lazy. Measured at 339 ms on a desktop at 2048; a low-end
+   phone is plausibly 3-5x that, which is why it is never on the app's front
+   door. Called from the Stickers tab's first open, and from the deferred
+   lobby path when a SAVED design already has stickers (see ctlApplyDesign). */
+function ctlEnsureStickerSurface() {
+  if (ctlStickerSurface) return true;
+  if (!ctlBuilt || !ctlGeo || !window.StickerSurface) return false;
+
+  // Order is forced: the surface and its pad pairs both close over the atlas
+  // size at construction, so the resize has to land first.
+  if (CTL_ATLAS !== CTL_ATLAS_STICKERS) {
+    CTL_ATLAS = CTL_ATLAS_STICKERS;
+    ctlCanvas.width = ctlCanvas.height = CTL_ATLAS;
+    ctlBumpCanvas.width = ctlBumpCanvas.height = CTL_ATLAS;
+    ctlBuildPlateUV(ctlGeo);          // plate UVs are in atlas pixels
+  }
+
+  ctlStickerSurface = window.StickerSurface.StickerSurface(
+    ctlGeo.userData, CTL_ATLAS, CTL_STICKER_OPT);
+  ctlStickerPad = ctlStickerSurface.padPairs(4);
+
+  /* Rule 6 of the load validation (spec § 6) needs the surface, which did not
+     exist when ctlReadDesign ran. Apply it now to both the live design and any
+     open draft — a placement made illegal by a future body-geometry change is
+     dropped rather than rendered somewhere invalid. The ok flag ONLY: its
+     returned coordinates are discarded, or saved stickers creep. */
+  const legal = r => ctlStickerSurface.plan(r.x, r.y, r.back, r.size).ok;
+  const known = ctlStickerManifest ? new Set(ctlStickerManifest.map(s => s.id)) : null;
+  for (const d of [ctlDesign, ctlDraft]) {
+    if (d && Array.isArray(d.stickers)) d.stickers = ctlValidateStickers(d.stickers, { known, legal });
+  }
+
+  ctlRedrawShell();
+  ctlRedrawEars();
+  ctlWake();
+  return true;
+}
+
+/* Decoded once per design, held as ImageData so the per-texel loop can sample
+   it directly. Bilinear, because a wrapped sticker is magnified where the
+   surface turns and nearest-neighbour there looks like a broken JPEG. */
+function ctlStickerImage(id) {
+  const hit = ctlStickerImages[id];
+  if (hit) return hit.data ? hit : null;      // present but still loading
+  const entry = ctlStickerById(id);
+  if (!entry) return null;
+  const rec = { img: new Image(), data: null };
+  ctlStickerImages[id] = rec;
+  rec.img.onload = () => {
+    const c = document.createElement('canvas');
+    c.width = rec.img.width; c.height = rec.img.height;
+    const cx = c.getContext('2d', { willReadFrequently: true });
+    cx.drawImage(rec.img, 0, 0);
+    rec.data = cx.getImageData(0, 0, c.width, c.height);
+    /* The atlas was painted before this arrived, so repaint now. Placing a
+       sticker for the first time in a session goes through here. */
+    ctlRedrawShell(); ctlRedrawEars(); ctlWake();
+  };
+  rec.img.onerror = () => { /* a missing image is simply an absent sticker */ };
+  rec.img.src = CTL_STICKER_DIR + entry.image;
+  return null;
+}
+
+function ctlSampleImage(im, sx, sy, out) {
+  const x = Math.max(0, Math.min(im.width - 1.001, sx - 0.5));
+  const y = Math.max(0, Math.min(im.height - 1.001, sy - 0.5));
+  const x0 = x | 0, y0 = y | 0, tx = x - x0, ty = y - y0, W = im.width, D = im.data;
+  for (let k = 0; k < 4; k++) {
+    const a = D[(y0 * W + x0) * 4 + k],       b = D[(y0 * W + x0 + 1) * 4 + k];
+    const c = D[((y0 + 1) * W + x0) * 4 + k], d = D[((y0 + 1) * W + x0 + 1) * 4 + k];
+    out[k] = (a * (1 - tx) + b * tx) * (1 - ty) + (c * (1 - tx) + d * tx) * ty;
+  }
+}
+
+/* LIP is how wide the height ramp is as a fraction of the sticker radius —
+   small, because a sticker on paper has a very short edge, not a dome. */
+const CTL_LIP = 0.055;
+
+/* The real rasteriser, ported from the prototype's stamp(). NOT the stampFlat
+   / OLD_WAY debug path, which pasted the sticker into the atlas with drawImage
+   and inherited every distortion the atlas parameterisation has; it is not
+   ported at all.
+
+   This runs the other way round. For each atlas texel the sticker could touch,
+   it asks the surface where that texel is and which part of the sticker lands
+   there. Nothing about the atlas layout enters the answer, so the rim roll and
+   the grip bulges stop mattering and a sticker running off the front island
+   simply continues onto the back one. */
+function ctlStampShell(s) {
+  const S = ctlStickerSurface;
+  if (!S) return;
+  const rec = ctlStickerImage(s.id);
+  if (!rec) return;                       // not decoded yet; onload repaints
+  const im = rec.data;
+  const chart = S.makeChart(s), R = s.size, px = [0, 0, 0, 0];
+  const eb = R * CTL_LIP, W = im.width, H = im.height, DA = im.data;
+
+  const alphaAt = (a, b) => {
+    if (a < -R || a > R || b < -R || b > R) return 0;
+    const x = (a / R * 0.5 + 0.5) * W, y = (0.5 - b / R * 0.5) * H;
+    const xi = x < 0 ? 0 : (x > W - 1 ? W - 1 : x | 0);
+    const yi = y < 0 ? 0 : (y > H - 1 ? H - 1 : y | 0);
+    return DA[(yi * W + xi) * 4 + 3] / 255;
+  };
+
+  for (const bx of S.boxes(s)) {
+    const w = bx.x1 - bx.x0, h = bx.y1 - bx.y0;
+    if (w <= 0 || h <= 0) continue;
+    const dst = ctlCtx.getImageData(bx.x0, bx.y0, w, h), D = dst.data;
+    const bst = ctlBumpCtx.getImageData(bx.x0, bx.y0, w, h), B = bst.data;
+    let touched = false;
+    for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) {
+      const xy = S.fromAtlas(bx.x0 + i + 0.5, bx.y0 + j + 0.5, bx.back);
+      const c = chart(xy[0], xy[1], bx.back);
+      if (!c) continue;
+      const o = (j * w + i) * 4;
+      ctlSampleImage(im, (c[0] / R * 0.5 + 0.5) * W, (0.5 - c[1] / R * 0.5) * H, px);
+      const al = px[3] / 255;
+      if (al <= 0.004) continue;     // outside the sticker: atlas and height untouched
+      /* Height averaged over a small ring, so the ramp spreads over the lip
+         width rather than the one or two texels of the image's own antialiased
+         edge — a one-texel cliff makes the bump map sparkle instead of
+         catching the light. */
+      const hgt = (al + alphaAt(c[0] + eb, c[1]) + alphaAt(c[0] - eb, c[1])
+                      + alphaAt(c[0], c[1] + eb) + alphaAt(c[0], c[1] - eb)) / 5;
+      const hv = hgt * 255;
+      if (hv > B[o]) { B[o] = B[o + 1] = B[o + 2] = hv; B[o + 3] = 255; }  // overlaps keep the taller
+      D[o]     = D[o]     * (1 - al) + px[0] * al;
+      D[o + 1] = D[o + 1] * (1 - al) + px[1] * al;
+      D[o + 2] = D[o + 2] * (1 - al) + px[2] * al;
+      D[o + 3] = 255; touched = true;
+    }
+    if (touched) {
+      ctlCtx.putImageData(dst, bx.x0, bx.y0);
+      ctlBumpCtx.putImageData(bst, bx.x0, bx.y0);
+    }
+  }
+}
+
+/* Both islands stop dead at the silhouette and the renderer filters texels
+   bilinearly, so along the crest it mixes painted texels with the unpainted
+   atlas behind them and draws a hard line exactly where the two sheets meet.
+   That line is what read as stickers being "cut off at the seam" even when
+   they had wrapped correctly. Bleeding the painted edge a few texels outward
+   gives the filter something sensible to reach for. Both atlases get it:
+   padding only the colours would leave the height map with a cliff at the
+   crest, and the renderer lights that cliff as a crease across every wrap. */
+function ctlPadEdges(boxes) {
+  const PAD = ctlStickerPad;
+  if (!PAD || !PAD.dst.length) return;
+  const regions = boxes && boxes.length
+    ? boxes.map(b => ({ x0: Math.max(0, b.x0 - 12), y0: Math.max(0, b.y0 - 12),
+                        x1: Math.min(CTL_ATLAS, b.x1 + 12), y1: Math.min(CTL_ATLAS, b.y1 + 12) }))
+    : [{ x0: 0, y0: 0, x1: CTL_ATLAS, y1: CTL_ATLAS }];
+  for (const r of regions) {
+    const w = r.x1 - r.x0, h = r.y1 - r.y0;
+    if (w <= 0 || h <= 0) continue;
+    const im = ctlCtx.getImageData(r.x0, r.y0, w, h), D = im.data;
+    const bm = ctlBumpCtx.getImageData(r.x0, r.y0, w, h), BD = bm.data;
+    for (let i = 0; i < PAD.dst.length; i++) {
+      const dy = (PAD.dst[i] / CTL_ATLAS) | 0, dx = PAD.dst[i] - dy * CTL_ATLAS;
+      if (dx < r.x0 || dx >= r.x1 || dy < r.y0 || dy >= r.y1) continue;
+      const sy = (PAD.src[i] / CTL_ATLAS) | 0, sx = PAD.src[i] - sy * CTL_ATLAS;
+      if (sx < r.x0 || sx >= r.x1 || sy < r.y0 || sy >= r.y1) continue;
+      const d = ((dy - r.y0) * w + (dx - r.x0)) * 4, s = ((sy - r.y0) * w + (sx - r.x0)) * 4;
+      D[d] = D[s]; D[d + 1] = D[s + 1]; D[d + 2] = D[s + 2]; D[d + 3] = 255;
+      BD[d] = BD[s]; BD[d + 1] = BD[s + 1]; BD[d + 2] = BD[s + 2]; BD[d + 3] = 255;
+    }
+    ctlCtx.putImageData(im, r.x0, r.y0);
+    ctlBumpCtx.putImageData(bm, r.x0, r.y0);
+  }
 }
 
 /* Recolouring repaints what the atlas is FILLED with, never material.color: the
@@ -457,6 +683,8 @@ function ctlBuildAtlases() {
 function ctlRedrawShell() {
   ctlCtx.fillStyle = ctlDesign.shell;
   ctlCtx.fillRect(0, 0, CTL_ATLAS, CTL_ATLAS);
+  // bare shell is height zero; only stickers stand proud of it
+  if (ctlBumpCtx) { ctlBumpCtx.fillStyle = '#000'; ctlBumpCtx.fillRect(0, 0, CTL_ATLAS, CTL_ATLAS); }
   if (ctlPlateUV && ctlPlateUV.length) {
     ctlCtx.save();
     ctlCtx.beginPath();
@@ -470,6 +698,15 @@ function ctlRedrawShell() {
     ctlCtx.strokeStyle = ctlShade(ctlDesign.plate, -0.14);
     ctlCtx.stroke();
     ctlCtx.restore();
+  }
+  /* Stickers go on AFTER the plate, so one can straddle the faceplate edge.
+     A recolour re-enters here and re-stamps every sticker from scratch, which
+     is what lets the die-cut border (Task 6) re-derive against the new shell
+     colour for free. */
+  if (ctlStickerSurface) {
+    for (const s of ctlDesign.stickers || []) if (s.surface === 'shell') ctlStampShell(s);
+    ctlPadEdges(null);
+    if (ctlBumpTex) ctlBumpTex.needsUpdate = true;
   }
   ctlTex.needsUpdate = true;
 }
@@ -503,9 +740,11 @@ function ctlEnsureBuilt() {
   ctlBuildAtlases();
 
   const geo = ControllerBody.buildBody(THREE, {});
+  ctlGeo = geo;                      // the sticker surface needs geo.userData later
   ctlBuildPlateUV(geo);
 
-  ctlShellMat = new THREE.MeshStandardMaterial({ map: ctlTex, roughness: .52, metalness: .06 });
+  ctlShellMat = new THREE.MeshStandardMaterial({ map: ctlTex, roughness: .52, metalness: .06,
+                                                 bumpMap: ctlBumpTex, bumpScale: 0.035 });
   ctlBody = new THREE.Mesh(geo, ctlShellMat);
   ctlBody.castShadow = true; ctlBody.receiveShadow = true;
   ctlRig.add(ctlBody);
