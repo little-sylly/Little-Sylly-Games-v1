@@ -36,6 +36,10 @@ const http = require('http'), fs = require('fs'), path = require('path'), os = r
 const ROOT = path.resolve(__dirname, '..');
 const SHOT = process.argv.indexOf('--shot') >= 0 ? process.argv[process.argv.indexOf('--shot') + 1] : null;
 
+/* The one refusal this harness asserts by value — it is the message a
+   player sees most, and copying it here is what would catch it being
+   quietly reworded away from the prototype's (spec § 7). */
+const CTL_REFUSAL_RING = 'The stick rings and the bosses behind the ears are off-limits.';
 const GL_ARGS = ['--use-gl=angle', '--use-angle=swiftshader',
                  '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'];
 
@@ -241,7 +245,37 @@ async function probe() {
                 side: ctlPlanEarSticker({ x: 0.25, y: 0.01 }, 0.2, 0),
                 capped: ctlPlanEarSticker({ x: 0.25, y: 0.26 }, 99, 0) };
 
-  return { before, after: A, canvas: ctlCanvas.width, bumpCanvas: ctlBumpCanvas.width, ear,
+  /* ── THE TAP GESTURE ──────────────────────────────────────────────────
+     ctlStickerReduce itself is covered under Node (verify-controller-stickers
+     § 9-12). What only a browser can show is the WIRING around it: that a
+     dispatch leaves ctlDraft, ctlDesign and the live state pointing at one
+     array — the thing that makes 'discard unsaved changes' honest — and that
+     the surface's own plan() is what gates a placement. */
+  ctlDesign.ears = '#B1BCA0';
+  ctlStickerState = { stickers: [], armed: null, selected: -1, history: [] };
+  ctlDesign.stickers = []; ctlDraft.stickers = [];
+  const t8id = ctlStickerManifest[0].id;
+  const t8 = { refusals: Object.keys(CTL_REFUSAL).sort().join(',') };
+  ctlStickerDispatch({ t: 'bookTap', id: t8id });
+  t8.armed = ctlStickerMode(ctlStickerState);
+  const t8p = ctlStickerSurface.plan(1.16, -0.12, false, 0.18);
+  ctlStickerDispatch({ t: 'place', rec: { surface: 'shell', x: 1.16, y: -0.12, back: false,
+                                          rot: 0, size: t8p.size, chart: t8p.chart } });
+  t8.placed = ctlStickerState.stickers.length;
+  t8.mode = ctlStickerMode(ctlStickerState);
+  t8.shared = ctlDraft.stickers === ctlStickerState.stickers &&
+              ctlDesign.stickers === ctlStickerState.stickers;
+  /* A keep-out is refused by plan(), and the refusal has copy of its own —
+     spec § 7 reuses the prototype's set rather than inventing new wording. */
+  const t8bad = ctlStickerSurface.plan(-1.25, 0.20, false, 0.18);
+  t8.keepOut = [t8bad.ok, t8bad.reason, !!CTL_REFUSAL[t8bad.reason]];
+  ctlStickerDispatch({ t: 'relocate', rec: { surface: 'shell', x: 0.4, y: -0.4, back: false,
+                                             rot: 0, size: 0.18, chart: 'tangent' } });
+  t8.moved = [ctlStickerState.stickers[0].x, ctlStickerState.stickers.length];
+  ctlStickerDispatch({ t: 'undo' });
+  t8.undone = ctlStickerState.stickers[0].x;
+
+  return { before, after: A, canvas: ctlCanvas.width, bumpCanvas: ctlBumpCanvas.width, ear, t8,
            built, idem, surfaceMs, id, manifest: ctlStickerManifest.length,
            padPairs: ctlStickerPad.dst.length, tanQ, tan, rimQ, rim, well,
            border,
@@ -310,6 +344,163 @@ async function probe() {
        'a tap on the ear bevel is refused, not painted onto the parked texel');
     ok(r.ear.capped.ok === true && r.ear.capped.capped === true && r.ear.capped.rec.r === 0.26,
        'an oversized ear sticker is capped at CTL_EAR_MAX_R: r=' + r.ear.capped.rec.r);
+    ok(r.t8.refusals === 'curve,earSide,edge,off,ring',
+       'the refusal set is the prototype\'s, plus the ear side: ' + r.t8.refusals);
+    ok(r.t8.armed === 'armed' && r.t8.placed === 1 && r.t8.mode === 'selected',
+       'a book tap arms, a place lands one sticker and leaves it selected');
+    ok(r.t8.shared === true,
+       'ctlDraft, ctlDesign and the live state share one array after a dispatch');
+    ok(r.t8.keepOut[0] === false && r.t8.keepOut[1] === 'ring' && r.t8.keepOut[2] === true,
+       'a stick well is refused with copy of its own: ' + r.t8.keepOut[1]);
+    ok(r.t8.moved[0] === 0.4 && r.t8.moved[1] === 1,
+       'relocating overwrites the selected entry instead of pushing a new one');
+    ok(Math.abs(r.t8.undone - 1.16) < 1e-9, 'undo puts it back where it was: x=' + r.t8.undone);
+
+    /* ── A REAL POINTER, through the fragile path ────────────────────────
+       Everything above drives the dispatcher directly, which proves nothing
+       about ctlOnTap ever being called: ctlBindPointer's pointerup decides
+       tap-or-drag, and controller-handoff-v3.md § 3.1 flags that as fragile.
+       So aim real clicks at body points of known legality by projecting them
+       through the live camera, and let Chromium deliver the events. */
+    await page.evaluate(() => {
+      if (document.getElementById('ctl-sticker-say')) return;
+      /* Task 9 builds this element; standing one in now is what makes a
+         refusal OBSERVABLE — otherwise a missed click and a refused one look
+         identical, both leaving the state alone. Parked off-layout on
+         purpose: appended into the flow it lengthens the page the instant it
+         says anything, a scrollbar appears, the canvas shifts, and every
+         later click lands beside the point that was projected for it. */
+      const d = document.createElement('p');
+      d.id = 'ctl-sticker-say';
+      d.style.cssText = 'position:fixed;left:-9999px;top:0';
+      document.body.appendChild(d);
+    });
+
+    /* Re-measured immediately before each click — the rect and the rig are
+       both live, and one projection reused across three clicks is only right
+       until something moves. */
+    const clickBody = async (bx, by) => {
+      const a = await page.evaluate(([x, y]) => {
+        const P = ctlStickerSurface.point(x, y, false);
+        const v = new THREE.Vector3(P[0], P[1], P[2]);
+        ctlBody.updateWorldMatrix(true, false);
+        v.applyMatrix4(ctlBody.matrixWorld).project(ctlCamera);
+        const b = ctlRenderer.domElement.getBoundingClientRect();
+        return { x: b.left + (v.x * 0.5 + 0.5) * b.width,
+                 y: b.top + (0.5 - v.y * 0.5) * b.height };
+      }, [bx, by]);
+      await page.mouse.click(a.x, a.y);
+    };
+
+    const armedId = await page.evaluate(() => {
+      ctlStickerState = { stickers: [], armed: null, selected: -1, history: [] };
+      ctlDesign.stickers = []; ctlDraft.stickers = [];
+      ctlRedrawShell();
+      const id = ctlStickerManifest[1].id;
+      ctlStickerDispatch({ t: 'bookTap', id: id });
+      return id;
+    });
+    await clickBody(1.16, -0.12);                       // the open front deck
+    const afterTap = await page.evaluate(() => ({
+      ids: ctlStickerState.stickers.map(s => s.id),
+      mode: ctlStickerMode(ctlStickerState),
+      say: document.getElementById('ctl-sticker-say').textContent }));
+    ok(afterTap.ids.length === 1 && afterTap.ids[0] === armedId,
+       'a real click on the canvas places the armed sticker: [' + afterTap.ids + ']');
+    ok(afterTap.mode === 'selected' && /Placed on the front/.test(afterTap.say),
+       'and it selects it and says so: "' + afterTap.say + '"');
+
+    /* Refusals, delivered by real clicks. Which ones a finger can actually
+       reach was measured, not assumed, and it is not the obvious set:
+        · 'ring' speaks only at the OUTER rim of a stick well. The analogue
+          stick's own mesh — plus ctlTryPress's 6 px fudge — covers the middle,
+          and a pointerup that grabbed a stick never calls ctlOnTap at all
+          (wasStick). Aiming at the well's centre therefore proves nothing:
+          it looks exactly like a refusal, and is asserted separately below.
+        · 'off' is unreachable by tap and always will be — there is no
+          geometry off the edge of the body for a ray to hit.
+        · 'edge' is the one a player meets in normal use, at any tight fold. */
+    const clickRefusal = async (bx, by) => {
+      await page.evaluate(() => {
+        const id = ctlStickerManifest[2].id;
+        // bookTap TOGGLES: re-arming the same id would disarm it instead
+        if (ctlStickerState.armed !== id) ctlStickerDispatch({ t: 'bookTap', id: id });
+        document.getElementById('ctl-sticker-say').textContent = '';
+      });
+      await clickBody(bx, by);
+      return page.evaluate(() => ({ n: ctlStickerState.stickers.length,
+        say: document.getElementById('ctl-sticker-say').textContent }));
+    };
+
+    const ringHit = await clickRefusal(1.24, -0.542);      // the right well's rim
+    ok(ringHit.n === 1 && ringHit.say === CTL_REFUSAL_RING,
+       'a real click on a stick well\'s rim is refused in the prototype\'s words: "' +
+       ringHit.say + '"');
+
+    const edgeHit = await clickRefusal(-0.68, -0.902);     // too tight a fold to wrap
+    ok(edgeHit.n === 1 && /^Too tight an edge to wrap around/.test(edgeHit.say),
+       'and a fold too tight to wrap says so: "' + edgeHit.say + '"');
+
+    const stickHit = await clickRefusal(-1.25, 0.20);      // the stick itself
+    ok(stickHit.n === 1 && stickHit.say === '',
+       'a tap that grabs an analogue stick places nothing and says nothing — ' +
+       'the stick swallows it before ctlOnTap, and the well is a keep-out anyway');
+
+    // and with nothing armed, a click on the sticker selects it instead
+    await page.evaluate(() => { ctlStickerState = Object.assign({}, ctlStickerState,
+                                                 { armed: null, selected: -1 }); });
+    await clickBody(1.16, -0.12);
+    const afterPick = await page.evaluate(() => ctlStickerState.selected);
+    ok(afterPick === 0,
+       'tapping a placed sticker with nothing armed selects it: ' + afterPick);
+
+
+    /* ── The two orderings the Workshop can be in ────────────────────────
+       ctlOnTap is assigned on OPEN, but the surface is not built until the
+       Stickers tab is first shown. So the handler spends the whole Colours
+       tab armed and surface-less, and must be inert there. */
+    const parked = await page.evaluate(() => {
+      const P = ctlStickerSurface.point(1.16, -0.12, false);
+      const v = new THREE.Vector3(P[0], P[1], P[2]);
+      ctlBody.updateWorldMatrix(true, false);
+      v.applyMatrix4(ctlBody.matrixWorld).project(ctlCamera);
+      const b = ctlRenderer.domElement.getBoundingClientRect();
+      ctlStickerDispatch({ t: 'bookTap', id: ctlStickerManifest[3].id });
+      document.getElementById('ctl-sticker-say').textContent = '';
+      const n = ctlStickerState.stickers.length;
+      ctlStickerSurface = null;                       // as it is on the Colours tab
+      return { n: n, x: b.left + (v.x * 0.5 + 0.5) * b.width,
+               y: b.top + (0.5 - v.y * 0.5) * b.height };
+    });
+    await page.mouse.click(parked.x, parked.y);
+    const inert = await page.evaluate(() => ({ n: ctlStickerState.stickers.length,
+      say: document.getElementById('ctl-sticker-say').textContent }));
+    ok(inert.n === parked.n && inert.say === '',
+       'the Colours tab is untouched: armed but surface-less, the tap is inert');
+
+    /* And the other ordering, which is the one that bites. ctlOpenWorkshop
+       seeds the editing state from ctlDraft; the surface build is where rule 6
+       finally has enough to run, and it REPLACES ctlDraft.stickers with the
+       validated array. Left un-re-pointed the two silently disagree, and the
+       next dispatch writes the un-validated list back over the top — rule 6
+       holding until the first tap and then undoing itself. */
+    const reseed = await page.evaluate(() => {
+      const ok1 = { id: ctlStickerManifest[0].id, surface: 'shell', x: 1.16, y: -0.12,
+                    back: false, rot: 0, size: 0.18, chart: 'tangent' };
+      const bad = { id: ctlStickerManifest[1].id, surface: 'shell', x: -1.25, y: 0.20,
+                    back: false, rot: 0, size: 0.18, chart: 'tangent' };
+      ctlDraft = Object.assign({}, ctlReadDesign(), { stickers: [ok1, bad] });
+      ctlDesign = Object.assign({}, ctlDesign, { stickers: [ok1, bad] });
+      ctlStickerState = { stickers: ctlDraft.stickers.slice(),   // as ctlOpenWorkshop seeds it
+                          armed: null, selected: -1, history: [] };
+      ctlEnsureStickerSurface();                                 // as the tab's first open does
+      return { same: ctlStickerState.stickers === ctlDraft.stickers,
+               ids: ctlStickerState.stickers.map(s => s.id) };
+    });
+    ok(reseed.same === true && reseed.ids.length === 1,
+       'building the surface re-points the live state at the array rule 6 just ' +
+       'validated: [' + reseed.ids + ']');
+
     ok(errs.length === 0, 'no page errors: ' + (errs.join(' | ') || 'none'));
 
     if (SHOT) {

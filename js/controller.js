@@ -544,6 +544,16 @@ function ctlEnsureStickerSurface() {
     if (d && Array.isArray(d.stickers)) d.stickers = ctlValidateStickers(d.stickers, { known, legal });
   }
 
+  /* ctlOpenWorkshop seeded the editing state from ctlDraft before any of
+     this existed, and the loop above has just REPLACED that array. Left
+     alone the two disagree, and the next dispatch writes the un-validated
+     list straight back over the top — so rule 6 would hold until the first
+     tap and then silently undo itself. Re-point, keeping the history. */
+  if (ctlDraft && Array.isArray(ctlDraft.stickers)) {
+    ctlStickerState = { stickers: ctlDraft.stickers, armed: null, selected: -1,
+                        history: ctlStickerState.history };
+  }
+
   ctlRedrawShell();
   ctlRedrawEars();
   ctlWake();
@@ -962,6 +972,137 @@ function ctlPlanEarSticker(uv, want, rot) {
   return { ok: true, rec: { surface: uv.x < 0.5 ? 'earL' : 'earR',
                             u: uv.x, v: uv.y, r: r, rot: rot },
            capped: r < want - 1e-4 };
+}
+
+// ── Sticker editing: live state and the tap gesture ──────────────────────────
+/* One place decides what a refusal means, so nothing can disagree about
+   whether a spot is legal. Ported verbatim from standalone.html:2000, plus the
+   ear side (standalone.html:2022). */
+const CTL_REFUSAL = {
+  off:     'That is off the edge of the controller.',
+  ring:    'The stick rings and the bosses behind the ears are off-limits.',
+  edge:    'Too tight an edge to wrap around — try a smaller sticker or move in a bit.',
+  curve:   'Too curved here for a sticker this big — try a smaller one.',
+  earSide: 'That is the side of the ear — stickers go on its face.',
+};
+
+let ctlStickerState = { stickers: [], armed: null, selected: -1, history: [] };
+
+/* The reducer is pure and returns a NEW stickers array on every structural
+   action, so ctlDraft has to be re-pointed at it each time. Assigning the
+   array (rather than mutating in place) is deliberate: ctlApplyDesign does
+   Object.assign({}, ctlDesign, design), which would otherwise leave ctlDesign
+   and ctlDraft sharing one array and make "discard unsaved changes" a lie. */
+function ctlStickerDispatch(action) {
+  const before = ctlStickerState;
+  ctlStickerState = ctlStickerReduce(before, action);
+  if (ctlStickerState === before) return;         // a no-op action
+  if (ctlDraft) ctlDraft.stickers = ctlStickerState.stickers;
+  ctlDesign.stickers = ctlStickerState.stickers;
+  ctlRedrawShell();
+  ctlRedrawEars();
+  ctlWake();
+  ctlRenderPanel();
+}
+
+function ctlStickerSay(msg) {
+  const el = document.getElementById('ctl-sticker-say');
+  if (el) el.textContent = msg || '';
+}
+
+/* The size slider in body units. The prototype's conversion, unchanged: the
+   slider is a percentage of half the body's width. */
+function ctlStickerWantRadius() {
+  const el = document.getElementById('ctl-sticker-size');
+  const pct = el ? +el.value : 18;
+  const U = ctlGeo.userData;
+  return (pct / 100) * (U.maxx - U.minx) / 1.96;
+}
+
+function ctlStickerWantRot() {
+  const el = document.getElementById('ctl-sticker-rot');
+  return (el ? +el.value : 0) * Math.PI / 180;
+}
+
+/* Which placement, if any, did this tap land on? Compared in the sticker's own
+   chart space, so a wrapped sticker is hit correctly on both sheets and the
+   test matches exactly what was painted — ctlStampShell bounds the stamp at
+   the same |c| <= size. */
+function ctlStickerHitIndex(xy, back) {
+  const S = ctlStickerSurface;
+  if (!S) return -1;
+  const list = ctlStickerState.stickers;
+  // last painted is on top, so search backwards
+  for (let i = list.length - 1; i >= 0; i--) {
+    const s = list[i];
+    if (s.surface !== 'shell') continue;
+    const c = S.makeChart(s)(xy[0], xy[1], back);
+    if (c && Math.abs(c[0]) <= s.size && Math.abs(c[1]) <= s.size) return i;
+  }
+  return -1;
+}
+
+function ctlStickerEarHitIndex(uv) {
+  const list = ctlStickerState.stickers;
+  for (let i = list.length - 1; i >= 0; i--) {
+    const s = list[i];
+    if (s.surface !== 'earL' && s.surface !== 'earR') continue;
+    // same quadrant, and within the sticker's own UV footprint
+    if ((uv.x < 0.5) !== (s.u < 0.5)) continue;
+    if ((uv.y > 0.5) !== (s.v > 0.5)) continue;
+    const half = s.r * ctlEarScale;
+    if (Math.abs(uv.x - s.u) <= half && Math.abs(uv.y - s.v) <= half) return i;
+  }
+  return -1;
+}
+
+/* Assigned to ctlOnTap in the Workshop. The pointer handlers are UNCHANGED:
+   ctlBindPointer already tells a tap from a drag, and that disambiguation is
+   flagged as fragile in controller-handoff-v3.md § 3.1. Dragging still rotates
+   the view — placing, selecting and relocating are all the same single tap
+   (spec D6), which is exactly why this needed no new gesture. */
+function ctlStickerTap(ev) {
+  if (!ctlStickerSurface) return;
+  const r = ctlRenderer.domElement.getBoundingClientRect();
+  _ctlPtr.x =  ((ev.clientX - r.left) / r.width)  * 2 - 1;
+  _ctlPtr.y = -((ev.clientY - r.top)  / r.height) * 2 + 1;
+  _ctlRay.setFromCamera(_ctlPtr, ctlCamera);
+  const hits = _ctlRay.intersectObjects([ctlBody].concat(ctlEars), false);
+  if (!hits.length || !hits[0].uv) return;
+
+  const mode = ctlStickerMode(ctlStickerState);
+
+  // ---- an ear ----
+  if (hits[0].object !== ctlBody) {
+    const uv = hits[0].uv;
+    const hit = ctlStickerEarHitIndex(uv);
+    if (mode === 'idle') { if (hit >= 0) ctlStickerDispatch({ t: 'hit', index: hit }); return; }
+    const plan = ctlPlanEarSticker(uv, ctlStickerWantRadius(), ctlStickerWantRot());
+    if (!plan.ok) { ctlStickerSay(CTL_REFUSAL[plan.reason]); return; }
+    ctlStickerDispatch({ t: mode === 'armed' ? 'place' : 'relocate', rec: plan.rec });
+    ctlStickerSay('On the ear' + (plan.capped ? ' — sized down to fit the face.' : '.'));
+    return;
+  }
+
+  // ---- the shell ----
+  const uv = hits[0].uv, back = uv.y < 0.50;
+  const xy = ctlStickerSurface.fromAtlas(uv.x * CTL_ATLAS, uv.y * CTL_ATLAS, back);
+  if (mode === 'idle') {
+    ctlStickerDispatch({ t: 'hit', index: ctlStickerHitIndex(xy, back) });
+    return;
+  }
+  const want = ctlStickerWantRadius();
+  const p = ctlStickerSurface.plan(xy[0], xy[1], back, want);
+  if (!p.ok) { ctlStickerSay(CTL_REFUSAL[p.reason] || 'Cannot place a sticker there.'); return; }
+  /* plan() returns x/y only on the rim branch, where it nudges the anchor onto
+     the crest so the wrap is even. A flat placement keeps the tapped point. */
+  const rec = { surface: 'shell',
+                x: p.x !== undefined ? p.x : xy[0],
+                y: p.y !== undefined ? p.y : xy[1],
+                back: back, rot: ctlStickerWantRot(), size: p.size, chart: p.chart };
+  ctlStickerDispatch({ t: mode === 'armed' ? 'place' : 'relocate', rec: rec });
+  ctlStickerSay(p.chart === 'rim' ? 'Wrapped over the edge.'
+                                  : 'Placed on the ' + (back ? 'back' : 'front') + '.');
 }
 
 function ctlSetButtonColour(hex) {
@@ -1438,7 +1579,12 @@ function ctlOpenWorkshop() {
   // independently shippable: between the two commits the Workshop opens and the
   // buttons press, they just feed no code yet.
   ctlOnPress = (typeof ctlKonamiPress === 'function') ? ctlKonamiPress : null;
-  ctlOnTap = null;
+  /* No-ops until the surface exists, i.e. until the Stickers tab has been
+     opened — so the Colours tab behaves exactly as it did, and the lobby is
+     untouched (ctlMountLobby assigns its own ctlOnTap). */
+  ctlOnTap = ctlStickerTap;
+  ctlStickerState = { stickers: (ctlDraft.stickers || []).slice(),
+                      armed: null, selected: -1, history: [] };
   ctlApplyDesign(ctlDraft);
   ctlMount(stage);
   ctlBindPointer(stage);
@@ -1448,6 +1594,10 @@ function ctlOpenWorkshop() {
 function ctlCloseWorkshop() {
   ctlTeardown();
   ctlDraft = null;
+  /* The history is a Workshop session, not a document history: an unsaved
+     edit must not survive the ✕ (the line below already restores the saved
+     placements). */
+  ctlStickerState = { stickers: [], armed: null, selected: -1, history: [] };
   ctlDesign = ctlReadDesign();     // discard unsaved changes
   showScreen('screen-lobby');
   ctlMountLobby();
