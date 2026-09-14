@@ -8,6 +8,31 @@ Tick items off here; promote anything architectural into `decision-log.md`.
 
 ---
 
+## Controller Workshop — rotate-to-sticker's ear precision (14 Sep 2026, SW v230)
+
+Picking a placed sticker from the book now rotates the model to face it (`ctlStickerGoToModel` in
+`js/controller.js`) — general `atan2` aim math against the local surface normal, not a per-surface
+angle table. Shell placements land essentially dead-on (~0.99-1.00 facing-alignment, measured as
+the dot product of the world-space normal against the camera's forward axis). **Ears land around
+0.71-0.82 — noticeably better than the two defects fixed en route (see `shared-implementation-notes
+.md` DD-12), but not perfect, and the owner has flagged it as an accepted "good enough for now."**
+
+**Why it's capped there:** `ctlStickerAimNormal` only has yaw to work with (the player's own tilt,
+`ctlRotX`, is deliberately left alone), and a corner-mounted ear cap needs BOTH yaw and pitch to
+square up to the camera — yaw alone gets it partway. The aim direction itself is also an
+approximation (there is no `ctlStickerSurface.normal()` for an ear; it reads the shell's own normal
+at that ear's boss keep-out coordinate, `CTL_STICKER_OPT`'s `x = ∓0.84, y = 0.84`, as a stand-in).
+
+**If revisited:** the real fix is likely easing `ctlRotX` toward a computed pitch alongside
+`ctlRotY`, using the same normal (its Y-component already carries the tilt information the yaw-only
+version discards) — `ctlTick`'s existing `ctlRotYTarget` easing block generalises to a second
+`ctlRotXTarget` with minimal new code. Not attempted this round: the shell case (the common one) was
+already fixed, and going further into ear-specific pitch math was judged not worth it against the
+"might revisit later" bar. No harness gap here — this is presentation, per the project's harness-
+scope rule; a fix would be verified the same throwaway `visual-check` way this round's was.
+
+---
+
 ## Controller stickers — the on-device pass is OUTSTANDING, and Bailed has no badge (14 Sep 2026, SW v229)
 
 The sticker sub-project is code-complete and every harness is green — `verify-controller-stickers.js`
@@ -27,8 +52,12 @@ sticker looks acceptable. The checklist, verbatim from the plan's Task 11 Step 2
    concrete version of the owner's "around the ears was problematic" report. If it looks too warped the
    only lever is `maxDistort` in `CTL_STICKER_OPT` (`js/controller.js`): 0.05-0.06 is the useful range,
    and spec § 12.1 tabulates what each value costs. It is an inert dial — nothing else reads it.
-6. Check the die-cut border on the six shells measured at 1.01-1.16:1 — FRT `#FFE500`, COMB `#F0A500`,
-   CLD `#8ECAE6`, FLW `#F9A8D4`, GTH `#B1BCA0`, YGI `#F59E0B`.
+6. **Superseded by SW v230:** the die-cut border no longer paints on any LIGHT shell/ear at all
+   (`lum > 0.5` skips the ring entirely — the sticker's own near-white edge was found to already
+   read fine there), so the six shells below no longer have a border to contrast-check. What's
+   worth eyeballing now instead is that the bump lip alone (no colour ring) still reads as a raised
+   edge on FRT `#FFE500`, COMB `#F0A500`, CLD `#8ECAE6`, FLW `#F9A8D4`, GTH `#B1BCA0`, YGI `#F59E0B`
+   — and that a DARK shell/ear still gets a visibly light ring, unchanged.
 7. Save, kill the app, reopen: every placement survives, in the same place.
 8. Offline install from cold — the manifest and images fetched while online are still there; a design
    never fetched simply does not appear (not an error).
