@@ -617,7 +617,101 @@ async function probe() {
        kept.w > 0 && kept.h > 0,
        'reopening the Workshop at once survives a stale deferred lobby mount: ' +
        'the rig is in ' + kept.parent + ' at ' + kept.w + 'x' + kept.h);
+
+    /* ── THE LAZY GUARANTEE, on a cold lobby ─────────────────────────────
+       A third page, never taken into the Workshop: every check above has
+       already built the surface, so none of them can see whether the LOBBY
+       would have built it on its own. browser.newPage() opens its own context,
+       so this one gets its own localStorage and the pages above are untouched.
+
+       Half one is the guarantee the whole lazy design exists to keep: a player
+       who only ever recolours must never pay the 339 ms build or the 2048
+       atlas. Half two is its payoff: a design that DOES carry a placement gets
+       the ornament decorated without the player going anywhere. */
+    const lobby = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    lobby.on('pageerror', e => errs.push('lobby: ' + String(e)));
+    lobby.on('console', m => { if (m.type() === 'error') errs.push('lobby console: ' + m.text()); });
+    const seed = design => lobby.evaluate(d =>
+      localStorage.setItem('sylly_controller', JSON.stringify(d)), design);
+    const COLOURS = { v: 1, shell: '#FFE500', plate: '#FFE500', ears: '#FFE500', buttons: '#18181B' };
+
+    await lobby.goto('http://127.0.0.1:' + port + '/index.html', { waitUntil: 'networkidle' });
+    await seed(COLOURS);
+    await lobby.reload({ waitUntil: 'networkidle' });
+    await lobby.waitForFunction(() => typeof ctlBuilt !== 'undefined' && ctlBuilt === true,
+                                null, { timeout: 20000 });
+    await lobby.waitForTimeout(2600);          // well past requestIdleCallback's 2000 ms timeout
+    const cold = await lobby.evaluate(() => ({
+      surface: ctlStickerSurface !== null, atlas: CTL_ATLAS,
+      queued: ctlStickerBuildQueued, canvas: ctlCanvas.width }));
+    ok(cold.surface === false && cold.atlas === 1024 && cold.canvas === 1024 && cold.queued === false,
+       'a colour-only design NEVER builds the sticker surface: atlas ' + cold.atlas +
+       ', surface ' + cold.surface);
+
+    /* Timestamped in the page, not polled from here: waitForFunction can only
+       catch ctlBuilt whenever it next polls, and on a warm load the deferred
+       build has already landed by then — the claim would pass or fail on the
+       poll interval rather than on the code. */
+    await lobby.addInitScript(() => {
+      window.__ctlWhen = { built: 0, surface: 0 };
+      const tick = () => {
+        if (!window.__ctlWhen.built && typeof ctlBuilt !== 'undefined' && ctlBuilt)
+          window.__ctlWhen.built = performance.now();
+        if (!window.__ctlWhen.surface && typeof ctlStickerSurface !== 'undefined' && ctlStickerSurface)
+          window.__ctlWhen.surface = performance.now();
+        if (!window.__ctlWhen.surface) requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    });
+    await seed(Object.assign({}, COLOURS, { stickers: [
+      { id: 'frt', surface: 'shell', x: 0, y: 0.2, back: false,
+        rot: 0, size: 0.18, chart: 'tangent' }] }));
+    await lobby.reload({ waitUntil: 'networkidle' });
+    await lobby.waitForFunction(() => typeof ctlBuilt !== 'undefined' && ctlBuilt === true,
+                                null, { timeout: 20000 });
+    const early = await lobby.evaluate(() => window.__ctlWhen);
+    const mount = await lobby.evaluate(() => {
+      const r = ctlRenderer.domElement.getBoundingClientRect();
+      return { parent: ctlRenderer.domElement.parentElement.id,
+               w: Math.round(r.width), h: Math.round(r.height) };
+    });
+    ok(mount.parent === 'lobby-controller' && mount.w > 0 && mount.h > 0 &&
+       early.built > 0 && early.surface > early.built,
+       'the ornament paints BEFORE the sticker build: up at ' + Math.round(early.built) +
+       ' ms, decorated ' + (early.surface ? Math.round(early.surface - early.built) + ' ms later' : 'never') + ', ' +
+       mount.w + 'x' + mount.h);
+
+    /* Tolerated, not asserted here: a surface that never arrives is a FAIL in
+       the two checks below, and a TimeoutError thrown out of the harness reads
+       as infrastructure trouble rather than as the regression it is. */
+    await lobby.waitForFunction(() => ctlStickerSurface !== null, null, { timeout: 15000 })
+      .catch(() => {});
+    await lobby.waitForTimeout(800);           // the PNG decodes, then re-stamps
+    const warm = await lobby.evaluate(() => {
+      /* Diff with-sticker against bare, per trap 1 in this file's header:
+         counting texels that differ from the shell fill would mostly count the
+         faceplate polygon and move by about one whether the stamp ran or not. */
+      const a = ctlCtx.getImageData(0, 0, CTL_ATLAS, CTL_ATLAS).data;
+      const keep = ctlDesign.stickers;
+      ctlDesign.stickers = [];
+      ctlRedrawShell();
+      const b = ctlCtx.getImageData(0, 0, CTL_ATLAS, CTL_ATLAS).data;
+      ctlDesign.stickers = keep;
+      ctlRedrawShell();
+      let diff = 0;
+      for (let i = 0; i < a.length; i += 4) if (a[i] !== b[i] || a[i + 1] !== b[i + 1] || a[i + 2] !== b[i + 2]) diff++;
+      return { surface: ctlStickerSurface !== null, atlas: CTL_ATLAS,
+               canvas: ctlCanvas.width, bump: ctlBumpCanvas.width,
+               kept: ctlDesign.stickers.length, id: (ctlDesign.stickers[0] || {}).id,
+               queued: ctlStickerBuildQueued, diff: diff };
+    });
+    ok(warm.surface === true && warm.atlas === 2048 && warm.canvas === 2048 && warm.bump === 2048,
+       'a SAVED placement builds the surface on the lobby with no Workshop visit: atlas ' +
+       warm.atlas);
+    ok(warm.kept === 1 && warm.id === 'frt' && warm.queued === false && warm.diff > 4000,
+       'and the ornament is repainted with it: ' + warm.diff + ' texels the bare shell does not have');
     await phone.close();
+    await lobby.close();
 
     ok(errs.length === 0, 'no page errors: ' + (errs.join(' | ') || 'none'));
 

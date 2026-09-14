@@ -1111,12 +1111,47 @@ function ctlSetButtonColour(hex) {
   });
 }
 
+/* A design with stickers needs the surface; a design without one never builds
+   it. So the trigger is the DESIGN, not the screen — which is what lets the
+   lobby ornament show a decorated controller while preserving the guarantee
+   that colour-only use pays nothing (spec § 5.2).
+
+   Deferred exactly the way ctlMountLobby already defers buildBody: this runs
+   on the app's front door, and the build is the single most expensive thing
+   the feature does. */
+let ctlStickerBuildQueued = false;
+function ctlMaybeBuildStickerSurface() {
+  if (ctlStickerSurface || ctlStickerBuildQueued) return;
+  if (!ctlDesign || !Array.isArray(ctlDesign.stickers) || !ctlDesign.stickers.length) return;
+  ctlStickerBuildQueued = true;
+  const run = () => {
+    /* The manifest gates rule 2 of the load validation, so it has to land
+       first — otherwise every placement is dropped as an unknown id. The flag
+       is held ACROSS the fetch rather than released as this callback starts:
+       released early, a second ctlApplyDesign (a colour tapped in the Workshop
+       while the fetch is in flight) queues a parallel run whose known-only
+       pass would write the un-probed list back over the one the first run's
+       legality probe had already pruned. */
+    ctlLoadStickerManifest().then(() => {
+      ctlStickerBuildQueued = false;
+      if (ctlStickerSurface) return;          // the Stickers tab got there first
+      ctlDesign.stickers = ctlValidateStickers(ctlDesign.stickers, {
+        known: new Set(ctlStickerManifest.map(s => s.id)),
+      });
+      ctlEnsureStickerSurface();     // re-validates with the legality probe and repaints
+    });
+  };
+  if (window.requestIdleCallback) requestIdleCallback(run, { timeout: 2000 });
+  else setTimeout(run, 0);
+}
+
 function ctlApplyDesign(design) {
   if (design) ctlDesign = Object.assign({}, ctlDesign, design);
   if (!ctlBuilt) return;
   ctlRedrawShell();
   ctlRedrawEars();
   ctlSetButtonColour(ctlDesign.buttons);
+  ctlMaybeBuildStickerSurface();   // no-op unless this design actually has stickers
   ctlWake();
 }
 
