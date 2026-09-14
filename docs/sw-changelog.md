@@ -4,6 +4,18 @@ Historical SW release notes, moved out of `CLAUDE.md` (1 Aug 2026) so they stop 
 The **current** version and its notes stay in `CLAUDE.md` § Current Focus — append the outgoing entry here on each bump.
 
 
+## v228 — The 3D controller: lobby ornament, Workshop, Konami, gateway (11 Sep 2026)
+
+The lobby's 🎮 emoji is now a real 3D controller (Three.js r128, vendored — the third first-party
+library after Tailwind and Firebase, precached at `js/lib/three.min.js` / `-controller-body.js`).
+Tap it → the **Workshop** (`screen-workshop`), a colour-only customiser painting shell/faceplate/
+ears/buttons from the 20 brand hexes, saved to the new `sylly_controller` localStorage key. The
+Konami code moves onto the controller's real D-pad/Face A/Face B/Start (the 7-tap and the 2D NES-
+style input screen are both deleted) and now resolves to the **Sylly Gateway**
+(`screen-secret-gateway`) — a blurred, streaming link-loader animation that waits for a tap before
+handing off to the Terminal. Install delta: ~658 KB (Three + the geometry module + `controller.js`).
+Harnesses: `verify-controller-body.js` (28) + `verify-controller-state.js` (63).
+
 ## v227 — Suite-wide button-ink standard: brand fill + white ink, no per-game contrast carve-out (10 Sep 2026)
 
 The settings pills, toggles and in-game "proceed" buttons now follow one locked rule: **each game's

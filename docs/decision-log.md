@@ -20,6 +20,15 @@ Detail: pointer to the canonical doc (snapshot / impl note / spec / memory).
 
 ---
 
+## 2026-09-14 — Controller stickers ship: a game badge on the shell or an ear (SW v229)
+Category: Architecture
+Decision: The Workshop gains a second tab and the controller becomes decorable. Eight calls settle it: D1 `data/stickers/` is runtime-cached exactly like `data/packs/` (folder drop + one manifest line, no SW bump); D2 one design, one placement — tapping a placed badge selects it rather than arming a second; D3 `unlocked` is in the manifest schema and defaults to true, reserved for a later achievements sub-project; D4 exactly two tabs; D5 shell and ears only; D6 tap places, drag still rotates, reusing the existing tap/drag discrimination rather than a second gesture system; D7 no `CTL_STATE_VERSION` bump — a v1 design with no `stickers` key is already valid; D8 an adaptive die-cut border, chosen per texel from the pixel underneath, because six of the twenty brand shells sit at 1.01-1.16:1 against near-white art.
+Why: The 20 brand colours gave the controller identity but nothing personal. Stickers are the cheapest real expression on top of geometry that already exists, and the packs-style caching contract means adding one is content work, not a release.
+Changed: new `js/lib/controller-sticker-surface.js` (precached — app code) + `data/stickers/` (runtime-cached — content); `js/controller.js` gains the manifest load, a pure placement state machine and two rasterisers; `index.html` gains the tab bar and the sticker panel; `sw.js` v229. New harnesses `tools/verify-controller-stickers.js` (157) and `tools/visual-controller-stickers.js` (48). Deferred: achievement gating (D3 reserves the field only), sticker textures/finishes, cross-device sync, and Bailed's own badge (`bld.png`) — still to come from the owner, so Bailed is deliberately absent from the manifest.
+Detail: spec `docs/superpowers/specs/2026-09-11-controller-integration-design.md`, plan `docs/superpowers/plans/2026-09-12-controller-stickers.md`; lessons in `docs/implementation-notes/shared-implementation-notes.md` BUG-15 to BUG-18.
+
+---
+
 ## 2026-09-11 — The Workshop's button diagram is generated from the real geometry, not drawn
 Category: Process
 Decision: The Step 1 diagram in `#ctl-how-to-overlay` is produced by `tools/gen-controller-diagram.js`, which projects the controller's own geometry (`buildBody`'s `userData.poly`, `buildEars`' ellipses, `buildShoulder`'s arc, every `seat()` position) through one uniform map into the SVG viewBox. Re-run and paste; the numbers are never hand-edited. Rule going forward: before hand-authoring a 2D approximation of something that already exists as real geometry in the codebase, check whether that geometry is reachable under plain Node first.

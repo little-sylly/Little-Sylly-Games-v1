@@ -35,7 +35,8 @@
 | `js/lib/physics.js` | `Physics` | `simulate({ world, bodies, impulses, events, params, seed })` → `{ samples, events, final, durationMs, capped }`; `rng(seed)` → a seeded xorshift32 stream. **Pure and total: no DOM, no canvas, no `window`, no `Date.now()`, no bare `Math.random()`** — same inputs give byte-identical output on any device, which is what lets it be verified under Node before a pixel exists. Owns motion only; it *reports* a plunge and never decides what one means. | CLD |
 | `js/lib/canvas-draw.js` | `CanvasDraw` | `init(canvasEl, { onStrokeEnd })`, `clear()`, `lock()` → `{ w, h, s }` stroke data, `render(canvasEl, data, opts)`, `setTremor(wrapperEl, bool)`, `setBlur(canvasEl, ms)`. **Tremor applies to the wrapper `<div>` only — never the `<canvas>` (coordinate system must stay unaffected).** | GTH |
 | `js/lib/controller-body.js` | `ControllerBody` | `{ buildBody, buildControls, buildEars, buildShoulder, smoothNormals }`. Pure geometry — takes `THREE` as an argument, touches no DOM. Ported once from the frozen prototype (`docs/controller-prototype/`); the prototype carried it duplicated inline and every fix had to be applied twice by hand. | the lobby's 3D controller / Workshop |
-| `js/controller.js` | prefix `ctl` (not `window`-namespaced) | The lobby ornament, the Workshop customiser, and the Konami input surface. Colour state (`ctlReadDesign`/`ctlWriteDesign`, `sylly_controller`), palette (`ctlPalette()`, read live from `GAME_BRAND_HEX`), the renderer (`ctlEnsureBuilt`/`ctlMount`/`ctlApplyDesign`), and the Konami adapter (`ctlKonamiCode`/`ctlKonamiPress`). SW v228. Full inventory: `docs/code-map.md` § 3D Controller / Workshop. | the lobby, `screen-workshop` |
+| `js/lib/controller-sticker-surface.js` | `StickerSurface` | `StickerSurface(U, ATLAS, opt)` → `{ plan, stamp, padPairs, toAtlas, fromAtlas, boxes, sheets, … }`. Surface-space sticker placement and rasterisation for the 3D controller. **Pure: takes `geo.userData` + the atlas size + an options object, touches no DOM and no THREE** — same contract as `physics.js`, and what lets it be verified under Node. Ported unchanged from the frozen prototype. **Its tuned numbers are NOT in it** — the keep-out discs and `maxDistort` live in `CTL_STICKER_OPT` at the call site, and a surface built with `{}` runs happily while painting inside the stick wells (see the caller-side-config lesson in `shared-implementation-notes.md`). | the Workshop's Stickers tab |
+| `js/controller.js` | prefix `ctl` (not `window`-namespaced) | The lobby ornament, the Workshop customiser, and the Konami input surface. Colour state (`ctlReadDesign`/`ctlWriteDesign`, `sylly_controller`), palette (`ctlPalette()`, read live from `GAME_BRAND_HEX`), the renderer (`ctlEnsureBuilt`/`ctlMount`/`ctlApplyDesign`), the Konami adapter (`ctlKonamiCode`/`ctlKonamiPress`), and — SW v229 — the Stickers tab: the manifest load, the pure placement state machine (`ctlStickerReduce`, Idle/Armed/Selected + undo) and the two rasterisers (`ctlStampShell` for the shell, a flat one for the ears). SW v228–v229. Full inventory: `docs/code-map.md` § 3D Controller / Workshop. | the lobby, `screen-workshop` |
 
 **Not `js/lib/` but the same shared-not-reinvented rule — `engine.js` globals used by 3+ games:**
 
@@ -596,10 +597,12 @@ Adding a file to the app means adding it to that array AND bumping `CACHE_NAME`.
 
 Note: the four Firebase lib files ARE precached (so Lobby Mode works offline-first once installed) but are still lazy-loaded at runtime — they are not in the `index.html` `<script>` load order. See Firebase Lazy-Load below.
 
-**Three.js (SW v228):** `js/lib/three.min.js` (r128, vendored, ~603 KB) and `js/lib/controller-body.js`
-are precached and load in the normal `<script>` order (unlike Firebase, nothing about Three is
-lazy) — see § Shared Library Modules above. The whole vendored-Three + geometry-module + controller.js
-install delta is ~658 KB, recorded in the v228 SW note.
+**Three.js (SW v228-v229):** `js/lib/three.min.js` (r128, vendored, ~603 KB),
+`js/lib/controller-body.js` (~34 KB) and — SW v229 — `js/lib/controller-sticker-surface.js`
+(~41 KB) are all precached and load in the normal `<script>` order (unlike Firebase, nothing about
+Three is lazy) — see § Shared Library Modules above. The vendored-Three + geometry-module +
+`controller.js` install delta was ~658 KB at v228; the sticker surface adds ~41 KB on top. The
+sticker **images** are not in that number — they are runtime-cached, see below.
 
 **Core art — precached (`data/art/`):** A game's *default* artwork lives in
 `data/art/<kind>/` using the **same manifest format** as a skin pack, but with the opposite caching
@@ -631,6 +634,14 @@ open with no version bump), **images are cache-first** (instant + lean). This is
 asset pack be added or removed by dropping a folder + editing `data/packs/registry.json` — no `sw.js`
 edit, no SW version bump. The legacy `data/secret*_words.json` files were migrated into
 `data/packs/<id>/pack.json` manifests (inline `words`) and deleted. See `docs/expansion-guide.md`.
+
+**Controller stickers — runtime-cached, NOT precached (SW v229):** `data/stickers/` (the
+`manifest.json` and one PNG per design) follows the `data/packs/` split exactly — **manifest
+network-first**, **images cache-first** — so a new sticker is a folder drop plus one manifest line:
+no `sw.js` edit, no `CACHE_NAME` bump. The **module** `js/lib/controller-sticker-surface.js` **is**
+precached, the same split `data/music/` draws: the code is part of the app version, the content is
+not. Every failure path is silent by design — no manifest, or a design never fetched while online,
+means that sticker simply does not appear in the book, never an error on a game screen.
 
 ---
 

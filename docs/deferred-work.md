@@ -8,6 +8,44 @@ Tick items off here; promote anything architectural into `decision-log.md`.
 
 ---
 
+## Controller stickers — the on-device pass is OUTSTANDING, and Bailed has no badge (14 Sep 2026, SW v229)
+
+The sticker sub-project is code-complete and every harness is green — `verify-controller-stickers.js`
+(157), `visual-controller-stickers.js` (48), `verify-controller-state.js` (63),
+`verify-controller-body.js` (28). Two things are genuinely not done, and neither is a harness's job.
+
+**1. The manual pass on a real phone (spec § 9.3) has not been run.** No harness reaches any of it:
+headless Chromium has no touch, no GPU of the kind a phone has, and no opinion about whether a warped
+sticker looks acceptable. The checklist, verbatim from the plan's Task 11 Step 2:
+
+1. Place a sticker wrapped over an edge — it must continue onto the back sheet, not stop at the crest.
+2. Place one flat on an ear.
+3. Rotate the controller so a placement is out of view, then **select it from the book** and relocate it.
+4. Remove one; undo it; undo a relocate.
+5. **Look hard at the annulus just outside the ear bosses, `y ~ 0.57-0.78` on the back sheet, and the
+   saddle between them** — spec § 12.2 measured the body's worst distortion there, and it is the
+   concrete version of the owner's "around the ears was problematic" report. If it looks too warped the
+   only lever is `maxDistort` in `CTL_STICKER_OPT` (`js/controller.js`): 0.05-0.06 is the useful range,
+   and spec § 12.1 tabulates what each value costs. It is an inert dial — nothing else reads it.
+6. Check the die-cut border on the six shells measured at 1.01-1.16:1 — FRT `#FFE500`, COMB `#F0A500`,
+   CLD `#8ECAE6`, FLW `#F9A8D4`, GTH `#B1BCA0`, YGI `#F59E0B`.
+7. Save, kill the app, reopen: every placement survives, in the same place.
+8. Offline install from cold — the manifest and images fetched while online are still there; a design
+   never fetched simply does not appear (not an error).
+
+Record the result in `shared-implementation-notes.md`. Items 5 and 6 are the two that could still
+change shipped values; 1-4, 7 and 8 are confirmations of behaviour the harnesses already assert
+headlessly.
+
+**2. Bailed (`bld`) has no sticker.** `data/stickers/manifest.json` carries nineteen designs and
+deliberately omits Bailed until the owner supplies `bld.png`. This is not a bug and needs no code
+change: dropping the PNG in and adding one manifest line is the whole job, with no `sw.js` edit and no
+`CACHE_NAME` bump (D1's runtime-cached contract). `verify-controller-stickers.js` § 7 checks manifest
+against folder **both ways**, so it will flag the file the moment it lands without the manifest line —
+leave the harness as it is.
+
+---
+
 ## COMB gaps found while writing its identity doc (10 Sep 2026, phase-41 gate)
 
 Same shape as the eighteen sections below: writing `docs/game-identities/comb.md` end to end

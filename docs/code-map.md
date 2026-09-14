@@ -592,14 +592,25 @@ the live Small Talk UI is the `#lttp-smalltalk-overlay` overlay below.
 
 ---
 
-## 3D Controller / Workshop (SW v228)
+## 3D Controller / Workshop (SW v228; stickers SW v229)
 
 **JS files:** `js/lib/three.min.js` (vendored Three.js r128, `window.THREE`), `js/lib/controller-body.js`
 (`window.ControllerBody` — pure geometry: `buildBody`, `buildControls`, `buildEars`, `buildShoulder`,
-`smoothNormals`), `js/controller.js` (everything else — prefix `ctl`). Loaded in that order, `art.js`
-→ `three.min.js` → `controller-body.js` → `physics.js`, and `comb.js` → `controller.js` →
+`smoothNormals`), `js/lib/controller-sticker-surface.js` (`window.StickerSurface` — the
+surface-space sticker rasteriser, SW v229; pure, takes `geo.userData` + the atlas size + an
+options object, touches no DOM and no THREE), `js/controller.js` (everything else — prefix
+`ctl`). Loaded in that order, `art.js` → `three.min.js` → `controller-body.js` →
+`controller-sticker-surface.js` → `physics.js`, and `comb.js` → `controller.js` →
 `secret-mode.js` — see `CLAUDE.md` § Load Order. Not a game: no `MP_GAME_CONFIGS` entry, no identity
 doc, `activeGameId` never touches it.
+
+**Data (SW v229):** `data/stickers/manifest.json` + one PNG per design — **runtime-cached, NOT
+precached**, the same contract as `data/packs/` and `data/music/` (manifest network-first, images
+cache-first). Adding a sticker is a folder drop + one manifest line: no `sw.js` edit, no
+`CACHE_NAME` bump. The *module* is precached — that is app code. Nineteen designs ship;
+**Bailed has none** and is deliberately absent from the manifest
+(`tools/verify-controller-stickers.js` § 7 checks manifest against folder both ways and will flag
+`bld.png` the moment it lands).
 
 ### Screens
 | ID | Purpose |
@@ -615,6 +626,13 @@ doc, `activeGameId` never touches it.
 | `#ctl-panel` | The Workshop's scrolling colour-card panel |
 | `#ctl-how-to-overlay` | The Workshop's How to Play (no Sylly Mode card — that rule is scoped to games). Its Step 1 button diagram is **generated, not drawn** — silhouette, ears, shoulders and every button position are projected from `js/lib/controller-body.js` by `tools/gen-controller-diagram.js`. Re-run that and paste; never hand-edit the numbers (shared-implementation-notes TG-13) |
 | `#btn-ctl-save` / `#btn-ctl-reset` / `#btn-ctl-exit` / `#btn-ctl-how-to` | Workshop controls |
+| `#ctl-tabs` | The Workshop's tab bar (SW v229) — Colours / Stickers, standard `.pill` / `pill-active-*`. **Exactly two tabs** (spec D4) |
+| `#ctl-panel-colours` / `#ctl-panel-stickers` | The two tab bodies — **siblings toggled by display**, never one body repainted, so each keeps its own scroll position |
+| `#ctl-sticker-book` | The book — one tile per manifest entry, rendered by `ctlRenderStickerBook()`. A design already placed reads as placed, and tapping it **selects that placement** rather than arming a second (spec D2 — one design, one placement) |
+| `#ctl-sticker-controls` | Wrapper for the sliders + Undo / Remove / Done row; `ctlSyncStickerControls()` drives it from `ctlStickerMode()` |
+| `#ctl-sticker-sliders` / `#ctl-sticker-size` / `#ctl-sticker-rot` | Size (a percentage of half the body width) and rotation (degrees) for the armed or selected placement |
+| `#ctl-sticker-say` | The one-line refusal/status line — the only surface `CTL_REFUSAL`'s five messages reach |
+| `#btn-ctl-sticker-undo` / `#btn-ctl-sticker-delete` / `#btn-ctl-sticker-done` | Undo (30-deep, Workshop-session only), Remove the selected placement, Done (back to Idle) |
 
 ### Key state
 | Name | Purpose |
@@ -623,6 +641,12 @@ doc, `activeGameId` never touches it.
 | `ctlDesign` | The live (saved) design; read by the lobby mount |
 | `ctlDraft` | The Workshop's in-progress edit — a copy, not a pointer at `ctlDesign`, so an unsaved change is discarded on exit |
 | `ctlOnPress` / `ctlOnTap` | Assigned per mount: lobby sets `ctlOnPress = null`, `ctlOnTap` opens the Workshop; the Workshop sets `ctlOnPress = ctlKonamiPress`, `ctlOnTap = null` |
+| `ctlStickerManifest` | The loaded manifest, `null` until the first fetch resolves. `ctlValidateManifest()` **drops** a malformed entry rather than throwing. `unlocked` is reserved for the achievements sub-project (spec D3) and defaults to `true` — today every sticker is free to everyone, exactly like every colour |
+| `ctlStickerState` | `{ stickers, armed, selected, history }`, driven by **pure reducers** and deliberately split from every DOM-touching call — the same split `physics.js` and `controller-body.js` already establish. That split is what lets the harness drive the whole Idle/Armed/Selected table under Node with no browser |
+| `CTL_STICKER_OPT` | **The tuned numbers live here, at the call site, not in the module** — four keep-out discs (two stick wells, two ear bosses) and `maxDistort: 0.14` (the module's own default is 0.10). A surface built with `{}` compiles, runs, and silently paints inside the stick wells; `verify-controller-stickers.js` § 2 is the assertion that catches it |
+| `CTL_BORDER` / `CTL_BORDER_FIRM` | The adaptive die-cut border (spec D8) — `0.055` art inset (the width) and `3.2` ring opacity (the firmness; it saturates rather than thickens). The border **is** the bump lip made visible: the lip exists only inside the sticker's own alpha, so on a matching shell it outlines a blank plateau. Tuned against the worst case the spec names, `flw` on FRT `#FFE500` at 1.01:1 |
+| `CTL_STICKER_HISTORY_MAX` | `30` — a Workshop session's undo, not a document history. Each entry is a whole-array snapshot (at most one placement per design, so a handful of small objects) |
+| `ctlStickerSurface` / `ctlStickerPad` | The lazily-built surface and its `padPairs(4)`. Both close over the atlas size at construction, which is why the resize to `CTL_ATLAS_STICKERS` (2048) has to land first |
 | `ctlRaf` | The on-demand render loop's handle — a Timer Lifecycle rAF; cancelled by `ctlStop()`/`ctlTeardown()`, restarted by `ctlWake()` only while something is moving (`ctlBusy()`) |
 
 ### Key functions
@@ -640,14 +664,32 @@ doc, `activeGameId` never touches it.
 | `ctlTryPress(ev)` | Raycasts the pointer against `ctlControls.pressables`; tries the exact point, then `CTL_PRESS_FUDGE_PX`'s ring of 8 nearby screen-space offsets, so a touch that looks on-target but lands just off a button's true edge still registers (shared-implementation-notes.md BUG-12) |
 | `ctlKonamiCode(name, dir)` | Pure mapping: D-pad direction → `U`/`D`/`L`/`R`, `Face A`/`Face B`/`Start` → `A`/`B`/`S`, everything else → `null`. Lives above the `// ══ RENDERER ══` marker so `tools/verify-controller-state.js` can load it under Node with no DOM/THREE/canvas |
 | `ctlKonamiPress(name, dir)` | Forwards a mapped code to `smHandleButton()` (a forward reference into `secret-mode.js`); live only while `ctlPressEnabled` is true, which is only the Workshop |
+| `ctlLoadStickerManifest()` / `ctlStickerById(id)` | Fetch + validate the manifest once; look one entry up. Every failure path is silent by design — a design never fetched simply does not appear, it is not an error |
+| `ctlValidateStickers(raw, opts)` | Placement validation, spec § 6 rules 1–7. Total by construction: a hand-edited `sylly_controller` must yield a controller, never a throw. Its two probes (`known`, `legal`) are **injected**, so it stays pure and the harness drives every rule with no geometry. **Rule 6 reads `plan()`'s `ok` flag ONLY and throws its coordinates away** — feeding them back walks a saved anchor up to 5.75 atlas texels over 200 loads, monotonically (shared-implementation-notes BUG-16) |
+| `ctlStickerMode(st)` / `ctlStickerReduce(st, a)` / `ctlStickerPush(st)` | The pure placement state machine — Idle / Armed / Selected — and the whole-array undo snapshot. Nothing here mutates its input |
+| `ctlStickerDispatch(action)` | The one impure seam: reduce, re-point **both** `ctlDraft.stickers` and `ctlDesign.stickers` at the new array, redraw both atlases, re-render the panel. Assigning the array rather than mutating it in place is what keeps "discard unsaved changes" honest |
+| `ctlEnsureStickerSurface()` | Idempotent, lazy build of the surface at the 2048 atlas — ~339 ms on a desktop, plausibly 3–5× that on a low-end phone, which is why it is never on the app's front door. Called from the Stickers tab's first open, and from the deferred lobby path when a **saved** design already carries stickers |
+| `ctlStampShell(s)` | The real rasteriser, and it runs **inverse**: for each atlas texel the sticker could touch it asks the surface where that texel is and which part of the sticker lands there. Nothing about the atlas layout enters the answer, so the rim roll and the grip bulges stop mattering and a sticker running off the front island continues onto the back one. The prototype's `drawImage` path (`stampFlat` / `OLD_WAY`) is deliberately **not** ported |
+| `ctlRedrawShell()` / `ctlRedrawEars()` | Repaint the colour base, then stamp every placement for that surface into both the colour atlas and the bump atlas |
+| `ctlBuildEarUV()` / `ctlPlanEarSticker(uv, want, rot)` / `ctlEarSilhouette(…)` | The ears are **flat**, so they get planar cap UVs and a flat rasteriser rather than the surface charts. `buildEars` shipped `ExtrudeGeometry`'s default UVs and the colour-only build flood-filled the ear atlas, so nothing depended on them for a whole release (shared-implementation-notes BUG-18) |
+| `ctlStickerTap(ev)` | **Tap-only placement; a drag still rotates** (spec D6) — reuses the existing `CTL_CLICK_MOVE_MAX` / `CTL_CLICK_TIME_MAX` tap discrimination rather than adding a second gesture system. Raycasts to a surface point, then arms / places / selects / relocates per `ctlStickerMode()` |
+| `ctlStickerHitIndex(xy, back)` / `ctlStickerEarHitIndex(uv)` | Which placement did this tap land on? Compared in the sticker's **own chart space** and bounded at the same `|c| <= size` the stamp used, so a wrapped sticker is hit correctly on both sheets and the test matches exactly what was painted. Searched backwards — last painted is on top |
+| `ctlOpenStickersTab()` / `ctlRenderStickerBook()` / `ctlSyncStickerControls()` | Open the tab (loading the manifest and building the surface on first entry), render the book, drive the controls row from the current mode |
+| `ctlMaybeBuildStickerSurface()` | The deferred lobby path — a saved design carrying stickers needs the surface built before the ornament can show them, but not before first paint |
 | `ctlTeardown()` | Stops the rAF, resets all pressable state to rest — called by `resetToLobby()`, `ctlCloseWorkshop()`, and `smOpenGateway()` (an early exit from the Workshop) |
 
 **Verification:** `tools/verify-controller-body.js` (28 checks — the vendored Three revision, the
 `ControllerBody` namespace, the geometry contract's `userData` fields, the five mesh names the Konami
-adapter switches on) and `tools/verify-controller-state.js` (63 checks — persistence round-trip, the
+adapter switches on), `tools/verify-controller-stickers.js` (157 checks — the caller-side options
+contract, the two charts and the wrap seam, manifest + placement validation, the load path's
+bit-stability, the placement state machine, undo, and the manifest-vs-folder check both ways),
+`tools/visual-controller-stickers.js` (48 checks — real headless Chromium: the tab, the book, a
+placement actually painting texels, the lobby ornament repainting with them) and
+`tools/verify-controller-state.js` (63 checks — persistence round-trip, the
 total read against 10 malformed-input cases, the factory design, palette derivation, the Konami
 mapping including the full press order and interleaved noise). Both are pure/contract harnesses —
-no rendering, no DOM beyond a mock `localStorage`; layout is `visual-check`'s job.
+no rendering, no DOM beyond a mock `localStorage`; layout is `visual-check`'s job — and
+`tools/visual-controller-stickers.js` is that job, already written.
 
 ---
 

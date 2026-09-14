@@ -278,18 +278,16 @@ On every bump the outgoing SW entry moves **verbatim** to `docs/sw-changelog.md`
 "keep the last three". **A second `**SW v…**` paragraph appearing here means that move didn't
 happen: do it before anything else.**
 
-**SW v228 — The 3D controller: lobby ornament, Workshop, Konami, gateway (11 Sep 2026).**
-The lobby's 🎮 emoji is now a real 3D controller (Three.js r128, vendored — the third first-party
-library after Tailwind and Firebase, precached at `js/lib/three.min.js` / `-controller-body.js`).
-Tap it → the **Workshop** (`screen-workshop`), a colour-only customiser painting shell/faceplate/
-ears/buttons from the 20 brand hexes, saved to the new `sylly_controller` localStorage key. The
-Konami code moves onto the controller's real D-pad/Face A/Face B/Start (the 7-tap and the 2D NES-
-style input screen are both deleted) and now resolves to the **Sylly Gateway**
-(`screen-secret-gateway`) — a blurred, streaming link-loader animation that waits for a tap before
-handing off to the Terminal. Install delta: ~658 KB (Three + the geometry module + `controller.js`).
-Harnesses: `verify-controller-body.js` (28) + `verify-controller-state.js` (63).
+**SW v229 — Controller stickers: a game badge on the shell or an ear (14 Sep 2026).**
+The Workshop gains a **Stickers** tab: tap the model to place one of nineteen game badges, a drag
+still rotates, one design = one placement. `js/lib/controller-sticker-surface.js` (ported from the
+frozen prototype, precached) rasterises **inverse** — per atlas texel, asking the surface what lands
+there — so a sticker wraps the rim onto the back sheet undistorted, and an adaptive die-cut border
+keeps a near-white badge legible on a matching shell. `data/stickers/` is **runtime-cached like
+`data/packs/`** — a new badge is a folder drop plus a manifest line, no SW bump. Harnesses:
+`verify-controller-stickers.js` (157) + `visual-controller-stickers.js` (48).
 
-**Previous versions: `docs/sw-changelog.md`** — continuous, v227 back to v167.
+**Previous versions: `docs/sw-changelog.md`** — continuous, v228 back to v167.
 
 **Where the suite stands.** **20 games shipped**, all gold-master, plus multiplayer. Newest three:
 **Honeycomb Hills** (`comb`, game 20, phase 41 — the suite's biggest game and the only one with
@@ -317,7 +315,11 @@ Stack or the brand palette. First cabinet: **Asherplane** (`js/arcade/asherplane
 shmup. Adding cabinet #2 = one `SM_ARCADE` entry + one file. Spec + plan:
 `docs/superpowers/{specs,plans}/2026-08-03-arcade-asherplane*.md`.
 
-**Open threads — all deliberately deferred, none blocking: `docs/deferred-work.md`.** Older-games
+**Open threads — all deliberately deferred, none blocking: `docs/deferred-work.md`.** The
+**controller stickers' on-device pass (spec § 9.3) is outstanding** — no harness reaches touch, a
+real GPU, or a judgement about how warped is too warped, and it is the only step that could still
+move a shipped value (`maxDistort`). Bailed's own badge is pending from the owner, which is why
+`bld.png` is absent from the sticker manifest. Beyond those: older-games
 retest backlog, four pending suite-wide sweeps (BUG-06 Firebase-erasure re-sweep by payload shape,
 DD-13 settings value line, DD-31 button parity, a How-to gallery for PASS), NT's open Minors and
 `mpConfirmRoster` late-join race (BUG-07), PKO's unplayed **Stragglers** mode, and CJAR's **DD-06**
@@ -354,6 +356,9 @@ Re-run a game's full set after touching its appliers, deck/data, packets or rend
 | Identity docs | `node tools/verify-identity-docs.js` — every `copy` block in `docs/game-identities/` against the shipped `index.html` + plugin file | per-doc |
 | Identity docs | `node tools/verify-identity-docs.js --self-test` — proves the checker still detects planted drift | 1 |
 | FLW | `node tools/verify-flw-loopback.js` — host↔client over a Firebase-shaped wire, incl. the private-channel hand packets | 84 |
+| Controller | `node tools/verify-controller-body.js && node tools/verify-controller-state.js` — the vendored Three revision + the geometry contract, then persistence, the factory design, palette derivation and the Konami mapping. **Not a game** — no MP config, no identity doc | 28 · 63 |
+| Controller | `node tools/verify-controller-stickers.js` — the caller-side `CTL_STICKER_OPT` contract (a surface built with `{}` accepts all four keep-out centres), both charts + the wrap seam, manifest and placement validation, the load path's bit-stability, the placement state machine, undo, and `data/stickers/` manifest-vs-folder **both ways**. **Re-run after any `js/lib/controller-sticker-surface.js` or `ctlSticker*` change** | 157 |
+| Controller | `node tools/visual-controller-stickers.js` — real headless Chromium: the tab, the book, a placement actually painting texels, the lobby ornament repainting with them. The layout/render tier no pure harness reaches | 48 |
 
 **Reach for a loopback on anything MP- or render-shaped.** Every harness *except* the six
 loopbacks (`cjar`/`shp`/`flw`/`nt`/`jec`/`comb`) runs `'single'` mode with `getElementById: () => null`, which

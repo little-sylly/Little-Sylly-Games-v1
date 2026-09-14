@@ -379,6 +379,127 @@ Card *art* and card *names* were always separate skinning concerns by constructi
 
 ## Bug Index
 
+**BUG-18 — `buildEars` shipped ExtrudeGeometry's default UVs, and nothing read them for a whole
+release. [13 Sep 2026, controller stickers Task 7]**
+
+*What happened:* the first ear sticker rendered as a smear of a few texels stretched across the whole
+ear, in the wrong place, on both ears at once. The shell rasteriser it shares a code path with was
+already correct.
+
+*Root cause:* `ControllerBody.buildEars` builds each ear with `THREE.ExtrudeGeometry` and never sets a
+`uv` attribute, so the ears carried the extruder's own default parameterisation — which maps the
+shape's world-ish X/Y onto the cap and gives the side wall whatever falls out of the extrusion. That
+had been true since SW v228 and had never mattered: the colour-only Workshop flood-fills the ear atlas
+with one flat colour, and a flat fill looks identical under any UVs whatsoever. The attribute was
+wrong from the day it shipped and the renderer simply never asked it a question that could tell.
+
+*Fix:* `ctlBuildEarUV()` computes planar cap UVs itself — two bands in one atlas (front `v` 0.26, back
+`v` 0.74), each ear its own column (`u` 0.25 / 0.75), scaled by the ear's measured half-extent. Which
+local cap faces the controller's front is **read off the mesh's own rotation quaternion** rather than
+assumed, so it survives a change to `buildEars`' tilt numbers. Every triangle whose three normals do
+not agree on a side — i.e. the side wall — is parked on a single known texel (`0.998, 0.004`) instead
+of being given a plausible-looking wrong answer; that parked texel is what makes `earSide` ("that is
+the side of the ear") a refusal the player can be told about rather than a silent misplacement.
+
+*Lesson:* **"the renderer has never read this attribute" is not the same as "this attribute is
+right".** A buffer attribute with no consumer is untested by construction, and a flat fill is exactly
+the consumer that cannot fail. When a new feature becomes the first real reader of existing data,
+treat that data as unverified — the release history behind it is evidence about the old consumers,
+not about the value.
+
+**BUG-17 — The bump lip exists only inside the sticker's own alpha, so on a matching shell the relief
+outlined a blank plateau. [13 Sep 2026, controller stickers Task 6]**
+
+*What happened:* a sticker placed on a shell close to its own art colour all but disappeared. The
+depth cue was working — the light caught a raised outline — but what it outlined was a flat blank
+shape, because the art inside it was the same colour as the shell around it.
+
+*Root cause:* the stamp's `if (al <= 0.004) continue;` guard confines every write, colour **and**
+height, to texels the sticker's own alpha covers. That is the right rule for colour and the wrong one
+for relief: a real die-cut sticker's edge is visible because the vinyl stands proud of the surface
+*outside* the printed art, and there was no such band. Measured over the nineteen shipped designs,
+every one is near-white dominant, and the worst pairing the spec names — `flw` on FRT's `#FFE500` —
+contrasts at **1.01:1**. Six shells measure 1.01–1.16:1 (FRT, COMB, CLD, FLW, GTH, YGI). The bump map
+could never rescue any of them on its own.
+
+*Fix:* an adaptive die-cut border (spec D8). The art is inset by `CTL_BORDER` (0.055) so the border
+always has somewhere to go, and the guard widens to `al <= 0.004 && hgt <= 0.004`, where `hgt` is a
+five-tap average of the alpha around the texel — so height is written in a band *outside* the
+artwork and the border stands proud **with** it, as one piece of vinyl. The border's colour is chosen
+**per texel from the atlas pixel already underneath**: a light shell gets a dark border and a dark
+shell a light one, a sticker straddling the faceplate edge needs no special case, and because a
+recolour re-enters `ctlRedrawShell()` and re-stamps from scratch, every border re-derives against the
+new shell colour for free. `CTL_BORDER_FIRM` (3.2) is how hard the ring fills its band — it saturates
+rather than thickens, because the width is `CTL_BORDER` and only the opacity moves. The ears get the
+same treatment done in 2D (`ctlEarSilhouette`), a ring of eight offset silhouette draws rather than a
+blur: a blur fades, and a die cut does not.
+
+*Lesson:* **a depth cue is not a contrast cue, and "it reads well" is a claim about a palette, not
+about a design.** The relief looked convincing on every shell colour it was developed against and
+failed on six of twenty. Check legibility against the **actual** palette the feature will meet —
+here, nineteen fixed designs against twenty fixed shells, which is a 380-cell grid small enough to
+measure exactly rather than sample.
+
+**BUG-16 — Re-deriving a saved anchor on every load walked it across the shell, monotonically.
+[12 Sep 2026, controller stickers Task 3]**
+
+*What happened:* caught at design time rather than in the wild, which is the only reason it is cheap.
+The natural shape for the load path — re-run `plan()` on each saved placement, keep what it returns —
+moves a rim-wrapped sticker a fraction of a texel per load, **always in the same direction**. Measured
+at up to **5.75 atlas texels over 200 loads**. A sticker that creeps across the shell over months, and
+only for the players who use it most, is close to undiagnosable after the fact.
+
+*Root cause:* `plan()`'s rim branch snaps an anchor to the crest, and that snap is **not idempotent** —
+`plan(plan(x))` is not `plan(x)`. Nothing about that is a defect in `plan()`; it is a defect in asking
+it a question it was not built to answer twice. The load path needed one bit from it (is this
+placement still legal?) and helped itself to the rest of the return value because it was there.
+
+*Fix:* `ctlValidateStickers`' rule 6 consults the injected `legal` probe **for its `ok` flag only** and
+throws the coordinates away; the stored `x`/`y`/`size`/`chart` are what the renderer uses. `chart` is
+stored rather than re-derived for the same reason (rule 4 — never guessed).
+
+*Verification:* `verify-controller-stickers.js` § 10 round-trips a rim placement through 500 load
+cycles and asserts it comes back **byte-identical**, then — the half that makes the first half mean
+anything — runs the re-deriving version alongside it and asserts that one **does** move.
+
+*Lesson:* **a load path that recomputes what it could have stored is a slow-drift bug generator.**
+Store the derived value; re-run the derivation only for its *validity* flag, and discard the rest of
+what it hands back. The general form: when a function's output is fed back into its own input, the
+question to ask before shipping is whether it is idempotent — and a snap, a clamp or a round almost
+never is.
+
+**BUG-15 — A pure module's tuned constants all lived at its call site, so porting the module alone
+left it silently mis-configured. [12 Sep 2026, controller stickers Tasks 1 and 5]**
+
+*What happened:* `js/lib/controller-sticker-surface.js` was ported from the frozen prototype
+unchanged, as `controller-body.js` had been before it. It compiled, it ran, it planned and stamped
+stickers — and it accepted placements **inside the stick wells and the ear bosses**, because the
+keep-out discs are not in the module.
+
+*Root cause:* the module takes everything tuned as `opt`: `opt.exclude` is every keep-out disc
+(`const EXCL = opt.exclude || []`) and `opt.maxDistort` is the distortion tolerance
+(`opt.maxDistort || 0.10`, **not** the tuned 0.14). Constructed with `{}` it has no keep-outs at all
+and a tighter curvature budget, and neither shows up as an error — it shows up as a sticker painted
+over a hole. A pure module is the easiest kind to port and, for exactly that reason, the easiest to
+port half of: the file is self-contained, so the part that is *not* in the file is invisible while
+you are reading it.
+
+*Fix:* the call site is a **named constant next to the module's user**, `CTL_STICKER_OPT` in
+`js/controller.js`, carrying the four discs and `maxDistort: 0.14` with the reasoning for each
+beside it. A file-head comment in the module points at it in capitals, because the module is where
+someone will look first.
+
+*Verification:* `verify-controller-stickers.js` § 2 asserts each of the four keep-out centres refuses
+with `ring` — **and then builds a second surface with `{}` and asserts it accepts all four**. Without
+that second assertion the first four pass trivially against a surface that has no keep-outs, which is
+the precise failure being guarded. The check tests the *config*, not the geometry.
+
+*Lesson:* **when porting a module that takes an options object, port the call site in the same commit,
+as a named constant — and write the assertion that fails when the options are absent.** A default that
+is merely *different* from the tuned value (0.10 vs 0.14) rather than absent is worse again: there is
+no throw, no warning, and the feature works, slightly wrong, forever. The general test for any
+`opt.x || default` is "what does this do when nobody passes x?" — if the answer is "something
+plausible", that line needs a harness.
 **BUG-14 — A deferred lobby mount could land on top of a reopened Workshop, leaving it showing an
 empty 0×0 stage whose every tap reopened the Workshop again. [14 Sep 2026, found while verifying the
 Stickers tab]**
