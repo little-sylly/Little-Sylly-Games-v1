@@ -242,6 +242,8 @@ async function probe() {
                 bumpLit: earBumpLit, borderN: enB,
                 meanOnYellow: +(esY / Math.max(1, enB)).toFixed(3),
                 meanOnBlack: +(esK / Math.max(1, enB)).toFixed(3),
+                shellYellow: +lumAt(EY.bare, 0).toFixed(3),
+                shellBlack: +lumAt(EK.bare, 0).toFixed(3),
                 side: ctlPlanEarSticker({ x: 0.25, y: 0.01 }, 0.2, 0),
                 capped: ctlPlanEarSticker({ x: 0.25, y: 0.26 }, 99, 0) };
 
@@ -322,12 +324,12 @@ async function probe() {
     ok(r.well.ok === false && r.well.reason === 'ring',
        'the stick-well keep-out is wired: ' + (r.well.reason || 'ACCEPTED — CTL_STICKER_OPT is not reaching the surface'));
     ok(r.border.n > 2000, 'the die-cut border exists: ' + r.border.n + ' texels own it');
-    ok(r.border.meanOnYellow < r.border.shellYellow - 0.25,
-       'on a LIGHT shell the border goes dark: mean ' + r.border.meanOnYellow +
-       ' against a #FFE500 shell at ' + r.border.shellYellow +
-       ' ("' + r.border.id + '" measures 1.01:1 on that yellow)');
+    ok(Math.abs(r.border.meanOnYellow - r.border.shellYellow) < 0.05,
+       'on a LIGHT shell there is no painted ring at all: mean ' + r.border.meanOnYellow +
+       ' vs a bare #FFE500 shell at ' + r.border.shellYellow +
+       ' — the sticker\'s own near-white edge already reads fine there');
     ok(r.border.meanOnBlack > r.border.shellBlack + 0.25,
-       'on a DARK shell the same border goes light: mean ' + r.border.meanOnBlack +
+       'on a DARK shell the ring still goes light: mean ' + r.border.meanOnBlack +
        ' against a #18181B shell at ' + r.border.shellBlack);
     ok(r.ear.atlas === 1024, 'the ear atlas is 1024, one 512 quadrant per cap');
     ok(r.ear.badUV === 0 && r.ear.scale > 0,
@@ -335,11 +337,13 @@ async function probe() {
     ok(r.ear.quad[0] > 2000 && r.ear.quad[1] === 0 && r.ear.quad[2] === 0 && r.ear.quad[3] === 0,
        'an ear sticker stays in its own quadrant: ' + JSON.stringify(r.ear.quad));
     ok(r.ear.bumpLit > 1000, 'the ear bump atlas got the lip: ' + r.ear.bumpLit + ' texels');
-    ok(r.ear.borderN > 500 &&
-       r.ear.meanOnYellow < r.ear.meanOnBlack - 0.2,
-       'the ear sticker gets the die-cut border too (D8 says every sticker): mean ' +
-       r.ear.meanOnYellow + ' on #FFE500 ears vs ' + r.ear.meanOnBlack + ' on #18181B, ' +
-       r.ear.borderN + ' texels');
+    ok(r.ear.borderN > 500, 'the ear sticker gets a border region to test: ' + r.ear.borderN + ' texels');
+    ok(Math.abs(r.ear.meanOnYellow - r.ear.shellYellow) < 0.1,
+       'on a LIGHT ear there is no painted ring either (SW v230, matches the shell): mean ' +
+       r.ear.meanOnYellow + ' vs a bare #FFE500 ear at ' + r.ear.shellYellow);
+    ok(r.ear.meanOnBlack > r.ear.shellBlack + 0.25,
+       'on a DARK ear the ring still goes light: mean ' + r.ear.meanOnBlack +
+       ' against a #18181B ear at ' + r.ear.shellBlack);
     ok(r.ear.side.ok === false && r.ear.side.reason === 'earSide',
        'a tap on the ear bevel is refused, not painted onto the parked texel');
     ok(r.ear.capped.ok === true && r.ear.capped.capped === true && r.ear.capped.rec.r === 0.26,
@@ -446,10 +450,19 @@ async function probe() {
        'a tap that grabs an analogue stick places nothing and says nothing — ' +
        'the stick swallows it before ctlOnTap, and the well is a keep-out anyway');
 
-    // and with nothing armed, a click on the sticker selects it instead
-    await page.evaluate(() => { ctlStickerState = Object.assign({}, ctlStickerState,
-                                                 { armed: null, selected: -1 }); });
-    await clickBody(1.16, -0.12);
+    // and with nothing armed, a click on the sticker selects it instead —
+    // relocated first to a spot proven clear of any button (SW v230:
+    // ctlButtonPressSuppressesTap now refuses an idle-mode select when the
+    // press also lands on a real button, and (1.16, -0.12) turns out to;
+    // this is testing the sticker-select path, not the button guard, so it
+    // needs a click that unambiguously exercises only that path)
+    await page.evaluate(() => {
+      const q = ctlStickerSurface.plan(-1.0, -0.5, false, ctlStickerState.stickers[0].size);
+      ctlStickerState = Object.assign({}, ctlStickerState, { armed: null, selected: -1,
+        stickers: [Object.assign({}, ctlStickerState.stickers[0],
+          { x: q.x !== undefined ? q.x : -1.0, y: q.y !== undefined ? q.y : -0.5, chart: q.chart })] });
+    });
+    await clickBody(-1.0, -0.5);
     const afterPick = await page.evaluate(() => ctlStickerState.selected);
     ok(afterPick === 0,
        'tapping a placed sticker with nothing armed selects it: ' + afterPick);

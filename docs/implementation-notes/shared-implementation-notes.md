@@ -21,6 +21,242 @@ place.
 
 ## Design Decisions
 
+**DD-12 — Workshop polish: randomise/zoom/drag-to-reposition, and the real cause of the slider lag
+(SW v230, 14 Sep 2026).** Owner playtesting flagged three things at once: no quick way to try random
+colour combos, no way to get closer to the model, and the rotate/size sliders feeling "clunky" —
+plus a couple of seconds of visible stutter while the lobby ornament's stickers popped in on a cold
+load. The first two were straightforward additions (`ctlRandomiseAll()`; wheel + pinch `ctlZoom`,
+view-only, clamped, resets on Workshop close). The slider lag was the one worth tracing before
+touching anything: `ctlStickerDispatch()` called `ctlRenderPanel()` — a full rebuild of the
+19-tile sticker gallery **and** the colour card — on *every* `'adjust'` dispatch, and both sliders
+fire `input` many times a second. Fixed by skipping the panel rebuild entirely for `'adjust'`
+(selection and the sticker list never change on an adjust, so nothing there needs to repaint).
+
+That fix also explained the ornament's load-in stutter, which turned out to be the *same* mistake
+wearing different clothes: `ctlStickerImage()`'s `onload` called `ctlRedrawShell()`/`ctlRedrawEars()`
+directly, and each of those sets `needsUpdate = true` on both the colour and bump textures — a real
+GPU re-upload of the full 2048² atlas, not a cheap operation. N stickers finishing async decode in
+quick succession meant N full re-uploads stacking on top of each other. `ctlScheduleRedraw()`
+collapses any such burst — sliders, a live sticker drag, or several images arriving together — into
+one `requestAnimationFrame`-scheduled redraw, however many callers ask for one first.
+
+Drag-to-reposition (press the *selected* placement to move it live; anywhere else still rotates)
+needed no reducer changes: it reuses the existing `'adjust'` action to patch position, the same way
+the sliders patch size/rotation, so a whole drag is one undo step rather than one per pixel — an
+existing pattern applied to a new gesture, not a new one invented. The one real trap: patching only
+`{surface, u, v}` when a drag crosses from the shell onto an ear silently drops `r` (a shell
+placement carries no radius field under that name), leaving the merged sticker with `r: undefined`
+and NaN ear hit-testing. Any cross-surface position patch must carry the radius explicitly.
+**Lesson:** before adding a feature to fix "it feels slow", find what a `dispatch`/`setState` call
+actually triggers on every tick — a burst-frequency event path silently doing the same expensive
+work as its single-shot sibling is the recurring shape (§ CJAR/COMB packet lessons apply just as
+much to a purely local render loop as to a multiplayer one).
+**Changed:** `js/controller.js` only. No new harness — presentation/interaction, not rules/packets/
+state; verified with a throwaway `visual-check` driver instead (`docs/code-map.md` § 3D Controller /
+Workshop has the specifics). All existing controller harnesses (157+63+28+48 checks) still pass
+unmodified.
+
+**Two follow-on bugs, same owner-playtesting pass:**
+1. **Zoom survived a Konami/gateway round-trip.** Zoom was reset in `ctlOpenWorkshop()` and
+   `ctlCloseWorkshop()`, but the Konami→Sylly Gateway exit calls `ctlTeardown()` directly and later
+   remounts the lobby via `ctlMountLobby()` — it never calls `ctlCloseWorkshop()` at all, so that
+   reset was simply skipped on that path. Moved the reset into `ctlMountLobby()` itself instead: it
+   is the one choke point every return to the lobby ornament actually passes through, so "the lobby
+   is never zoomed" is now enforced where the invariant actually lives, not at one of several
+   possible exits. **Lesson:** when a value must be reset "on the way back to X", reset it at X's
+   own entry point, not at every exit you can currently think of — an exit you didn't know about
+   (or add later) inherits the fix for free.
+2. **A button press with nothing selected was also arming/placing a sticker sitting under it.**
+   `ctlOnTap` (`= ctlStickerTap` in the Workshop) fires on pointerup whenever the gesture reads as a
+   tap, with no awareness that `ctlTryPress` had already consumed the matching pointerdown as a real
+   button press — `ctlStickerTap`'s raycast hits the shell mesh underneath the button regardless.
+   Fixed with `ctlButtonPressSuppressesTap`, set at pointerdown only when the press both hit a
+   button AND sticker mode was `'idle'`, read at the matching pointerup to skip `ctlOnTap`. Owner's
+   spec for the fix, preserved deliberately: a button press with something **already** armed/
+   selected is still allowed to place it at the button's spot — same as any other point on the
+   shell — so the guard only ever applies to the idle case, never a blanket "buttons are off-limits
+   to stickers" rule.
+**Changed:** `js/controller.js` only (both fixes). Re-verified with the same throwaway
+`visual-check` driver pattern; all existing harnesses still pass unmodified.
+
+**Three more requests, same round:**
+1. **Gradient Randomise All, tied to the colour inventory, not copied.** Owner asked for bright
+   pink -> purple specifically, reading from the suite's own colours rather than a literal hex
+   pair, so a future brand recolour of either game carries the gradient with it for free — the
+   same intent as `ctlPalette()`'s own "read `GAME_BRAND_HEX` live" rule. `GAME_BRAND_HEX['btn-
+   dstw']` (li5) and `['btn-great-minds']` are read at render time in `ctlRenderColourCard()`.
+   This is a deliberate exception to § Action Button Standard's brand/neutral/destructive colour
+   rule — the same shape as FRT's literal-hex heading exception — because the ask was for a
+   specific two-colour gradient, not "make this button brand-coloured."
+2. **Tapping a placed sticker now jumps to the Stickers tab and rings its book tile.** Selecting
+   a sticker via a tap on the 3D model previously changed `ctlStickerState` with **zero** visible
+   feedback if the player happened to be viewing the Colours tab (the controls row lives inside
+   `#ctl-panel-stickers`, hidden the whole time) — a selection nothing shows is not really a
+   selection to the player. `ctlStickerSelect()`/`ctlStickerGoToBook()` reuse the suite's existing
+   Tap-Hold Reference pattern (`ui-style.md`) for a plain tap rather than inventing a new
+   feedback mechanism: switch tab, `refHighlightRow()` against a new `data-ctl-sticker-id`
+   attribute on each book tile.
+3. **Tapping a different placed sticker while one is selected now re-selects it, instead of
+   relocating the selected one onto it.** The reducer/tap logic before this made no distinction
+   between an empty spot and one already carrying another sticker — any tap in `'selected'` mode
+   relocated the current selection there, which is surprising the moment two stickers sit close
+   together (the owner's example: a sticker near the D-pad kept getting bumped by taps meant to
+   select or re-examine a different one). `ctlStickerTap` now checks the tapped spot's existing
+   placement index first; a hit on a DIFFERENT index re-selects rather than relocates. Moving a
+   sticker deliberately on top of another is still possible — just via drag (`ctlStickerDragTo`
+   has no such guard, since a live drag is already an intentional, visible act), never a plain tap.
+**Changed:** `js/controller.js`, `css/styles.css` (two new `.ctl-sticker-ref-row*` rules, same
+shape as `.flw-ref-row*`/`.pko-ref-row-ping`). No new harness — same reasoning as above; verified
+with another throwaway `visual-check` driver, including a live `GAME_BRAND_HEX` mutation to prove
+the gradient isn't a copied literal. All existing harnesses still pass unmodified.
+
+**Three more requests, same round again:**
+1. **The rainbow was meant to be literal — all 20 games, not just the two endpoints.** The
+   2-colour pink->purple gradient from the previous chunk was a misread of "bright pink starting,
+   purple ending" as *only* two stops; the owner meant a full rainbow across every live game
+   colour with those two pinned at the ends. `ctlRainbowGradientStops()` pins li5 first and
+   great-minds last and fills the middle from `LOBBY_COLOUR_ORDER` — the suite's own hue walk,
+   already used for the lobby's own Colour sort — rather than inventing a second ordering. Same
+   "read `GAME_BRAND_HEX` live" guarantee as before, now proven against the full set (a 21st game
+   changes the stop *count*, not just a colour).
+2. **Removed the die-cut border's dark ring on a light shell/ear.** `ctlStampShell`'s border
+   branch picked `28` (near-black) or `242` (near-white) per texel from the luminance already
+   underneath — light shell, dark ring; dark shell, light ring — same rule `ctlRedrawEars` used for
+   the ear cap. Owner's read, confirmed correct: on a light shell the sticker's own near-white
+   die-cut edge already provides the padding, so the added dark ring was padding on padding. The
+   fix keeps the height/bump lip (`hgt`/`hv`) unconditional in both cases — the raised-edge lighting
+   cue survives — and only skips the *colour* ring when `lum > 0.5`. This changes what the harness
+   measures, not just presentation dressing on top of unchanged output, so
+   `tools/visual-controller-stickers.js` needed real updates: both border assertions rewritten
+   (light case now asserts "no meaningful change from bare shell colour" instead of "goes dark"),
+   plus new `shellYellow`/`shellBlack` bare-luminance captures added for the ear the same way the
+   shell already had them. One knock-on: the harness's own "tapping a placed sticker with nothing
+   armed selects it" check placed its test sticker at a body coordinate that — coincidence, unrelated
+   to this chunk — turned out to sit on a real button, so the *previous* chunk's
+   `ctlButtonPressSuppressesTap` guard (correctly) started refusing it. Fixed by relocating that
+   one test's sticker to a coordinate already proven clear of every button, rather than touching the
+   guard — the test was asserting the select path, not the button-guard path, and needed a click
+   that exercises only the one it claims to.
+3. **Drag-to-reposition was still laggy — because "coalesced to one redraw per frame" is still one
+   real redraw+GPU-upload every ~16ms while a finger is moving, and that alone is enough to feel
+   clunky on a mid-range phone.** Reworked to defer the real move entirely: `ctlStickerDragTo` now
+   only re-plans the legality (cheap — pure geometry, no rasterisation) and repositions a flat DOM
+   ghost (`.ctl-drag-ghost`, green/red border for legal/refused) directly from the pointer event's
+   own screen coordinates — no raycast-to-screen projection needed. The real sticker's dispatch,
+   redraw and texture upload happen exactly ONCE, in `ctlStickerDragCommit()` on release (still via
+   `'adjust'`, so still one undo step). Measured with a throwaway driver instrumenting
+   `ctlStickerDispatch`: zero dispatches during a multi-move drag, exactly one after release. This is
+   a stronger fix than the previous chunk's coalescing, not a duplicate of it — coalescing bounds the
+   redraw rate to once per frame; the ghost removes the redraw from the drag entirely.
+   **Lesson, generalised:** "batch the expensive operation to once per frame" is the right fix when
+   the operation must reflect every frame's state (an animation, a physics step). It is the *wrong*
+   fix when the expensive operation only needs to reflect the FINAL state and every intermediate one
+   is disposable — there, skip the operation during the interaction and run it once at the end,
+   which is strictly cheaper than any per-frame rate. The tell is whether anything downstream reads
+   the intermediate values; here nothing did.
+**Changed:** `js/controller.js`, `css/styles.css` (`.ctl-drag-ghost`, `position: relative` on
+`.ctl-workshop-stage`), `tools/visual-controller-stickers.js` (border assertions rewritten, 48 ->
+50 checks — the only chunk this round that touched a harness, per the reasoning in item 2). Verified
+with more throwaway `visual-check` drivers: the gradient's stop count and order, and
+`ctlStickerDispatch` call counts during vs. after a live drag.
+
+**One more request, same round: the reverse of tap-to-book.** Tapping a sticker on the model already
+jumps to its book tile; picking it from the book should equally rotate the model to face it, rather
+than leaving the player to hunt for it by dragging (a real need — the book is deliberately how you
+reach a sticker that's currently on the back or an ear, out of view). `ctlStickerGoToModel(s)` eases
+`ctlRotY` toward `ctlStickerAimYaw(ctlStickerAimPoint(s))` over several `ctlTick` frames (shortest
+way round, `prefers-reduced-motion`-aware per `ui-style.md` § Motion Standard's RAF-animation
+carve-out). The aim math is general rather than a four-way (shell front/back, earL/earR) table of
+hardcoded angles: `atan2(-point[0], point[2])` is three.js's own Y-rotation matrix solved for "what
+yaw puts this local point directly in front of the camera" — any local point, any starting
+rotation, one formula. Verified by placing a sticker on all four surfaces, selecting each from the
+book, letting the tween settle, and re-projecting that sticker's own point through the camera: all
+four land within rounding of dead-centre. Ears have no `ctlStickerSurface.point()` (that API is
+shell-only), so `ctlStickerAimPoint` reuses the same shell-atlas coordinate `CTL_STICKER_OPT`
+already has for that ear's own boss keep-out — an approximation, but the goal is "bring it into
+view," not a placement, so exactness isn't the bar.
+
+**Caught by the same verification pass, not by the owner:** the tween-cancel only lived in the
+rotate-view branch of `pointerdown` (`ctlDragging = true; ctlRotYTarget = null;`), on the reasoning
+that grabbing to rotate is what conflicts with an auto-rotate. It doesn't cover every way a
+`pointerdown` can go — a press landing on the sticker mid-tween takes the drag-to-reposition branch
+instead (a real scenario: the tween had already carried the sticker close to centre, i.e. close to
+where the player's next tap naturally lands), and that branch never touched `ctlRotYTarget` at all,
+leaving the tween fighting the drag on every subsequent frame. A throwaway driver that grabbed
+mid-tween caught it immediately; the fix moved the cancel to the top of `pointerdown`, before any
+branch, since ANY manual touch on the stage — button, sticker-drag, or rotate — is the player taking
+control and should win. **Lesson:** a "cancel X on manual override" fix that reads correct for the
+one path being actively tested (here: view-rotate) still needs checking against every OTHER way the
+same handler can branch, not just the one the current feature happens to add.
+**Changed:** `js/controller.js` only. No new harness — same reasoning as the rest of this round.
+Verified with a throwaway driver covering all four surface combinations, plus reduced-motion and
+manual-interrupt as separate cases; all existing harnesses (including the 50-check visual one from
+the border chunk) still pass.
+
+**Owner caught a real defect in the above: "it's trying to get it at an angle, not face-on."**
+The verification I'd actually run only checked that the sticker's projected screen X landed at
+canvas centre after the tween — true for all four surfaces, and wrong test. Centred-on-screen and
+facing-the-camera are different claims; the first says nothing about which way the surface itself
+is turned. Diagnosing it directly (`ctlStickerSurface.point()` vs `.normal()` at a spread of shell
+coordinates) showed why: `point()`'s x/y ARE the unwarped atlas x/y (see the module's own comment on
+`point()`), so the front/back faces are parameterised nearly FLAT — a sticker at x=1.2 on an
+ordinary front placement measured a 70° point-based yaw purely from being off to one side, and a
+back placement measured 109°, both wildly over-rotating a sticker that was already reasonably
+face-on. The surface NORMAL doesn't have this problem — it directly encodes "which way does this
+patch point," independent of how far sideways the parameterisation happens to put it — and switching
+`ctlStickerAimYaw`'s input from `point()` to `normal()` took those same cases to 0° and 12°
+respectively. Re-verified with a driver that checks the actual claim this time: transform the local
+normal by the settled rig rotation and take its dot product with the camera's forward axis — shell
+placements now land at 0.99-1.00 (near-perfect), ears at 0.7-0.8 (yaw alone can't fully square a
+corner-mounted cap that also needs pitch to face dead-on; a known limit of the ear approximation
+already documented above, not a new one this introduced).
+**Lesson:** when "rotate/move something to face/reach X" is the ask, the thing to aim at is
+whatever encodes ORIENTATION (a normal, a forward vector, a tangent) — not a POSITION, even though
+a position is very often more directly available and a position-based formula will frequently look
+correct in casual testing (it visibly moves the target toward the right general area). The tell that
+should have caught this before shipping: verify the actual property being claimed (here, "faces the
+camera") rather than a correlated but different one (here, "is horizontally centred") that happens
+to also improve when the real fix would.
+**Changed:** `js/controller.js` only (`ctlStickerAimYaw`'s parameter and both call sites in
+`ctlStickerAimNormal`/`ctlStickerGoToModel`). No new harness — verified with another throwaway
+driver measuring the world-space facing dot product directly; all existing harnesses still pass.
+
+**Owner caught a second, sharper defect on the very same feature: "mainly snaps to the front...
+placed a sticker at the back, viewing the back, click to snap and it takes me to the front."**
+The normal-based fix above was directionally correct but had one more hole: `ctlStickerSurface
+.normal(x, y, back)`'s own formula is `n = [-zx, -zy, 1]` — the z-component is HARDCODED to +1
+before normalising, for both `back: true` and `back: false` alike. That's the right outward
+direction for the front sheet (`point()`'s z is `heightF`, bulging toward +Z) and exactly backwards
+for the back sheet (z is `-heightB`, bulging toward -Z): measured directly, `normal(0,0,true)`
+returns the identical `[0,0,1]` that `normal(0,0,false)` does, when the back's true outward
+direction is `[0,0,-1]`. So a back-placed sticker's aim yaw always came out near 0° — "front" — no
+matter where on the back it actually sat, which matches the report exactly ("mainly snaps to the
+front... most of the others it will not"), since only front placements were ever getting the right
+answer. This is a real quirk of the shared, already-verified `js/lib/controller-sticker-surface.js`
+module, not a fresh bug in it: every EXISTING caller of `normal()` (`makeChart`'s `tangentFrame`)
+only uses the vector to build a self-consistent local tangent/bitangent basis for texture
+projection, where the absolute sign of the normal never mattered — it just needs to be perpendicular
+to the tangent plane, which it is either way. `ctlStickerGoToModel` is the first caller that needs
+the true facing direction, so the fix stays caller-side in `controller.js` rather than touching the
+frozen, separately-harnessed module: `ctlStickerAimNormal` now negates the whole vector whenever
+`back` is true. Re-measured properly (world-normal-dot-camera after the tween settles, for front AND
+back on both a shell placement and an ear cap, run as SEPARATE sequential cases with the sticker
+state fully reset between each — an earlier version of this same verification script reused one
+sticker id across cases without resetting `selected`, which silently toggled the book tap OFF
+instead of re-arming it and made the second case look like it hadn't rotated at all when the
+product code was already correct): shell front 1.00, shell back 0.99, earL front cap 0.71, earL back
+cap 0.82 — all four now land close to face-on, front and back alike.
+**Lesson, on top of the previous chunk's:** a fix can correctly identify the right CONCEPT (aim at
+the normal, not the point) while still inheriting a wrong ASSUMPTION about a helper it calls (that
+`normal()` returns an unambiguous absolute direction, when its own docstring-equivalent — the
+`n = [-zx,-zy,1]` line — only promises "perpendicular," a weaker contract existing callers never
+needed more than). When reusing a shared function outside the pattern its existing callers use it
+for, checking what it actually promises (read the implementation, not just the name) matters more
+than confirming the new caller's own logic is sound.
+**Changed:** `js/controller.js` only (`ctlStickerAimNormal`). No new harness — same reasoning as
+the rest of this round. Verified with a throwaway driver running front/back/ear cases sequentially
+with a full state reset between each; all existing harnesses still pass.
+
 **DD-11 — Gel moulding extracted to `.gel-btn`, rolled out to all 72 game-menu buttons (SW v218,
 1 Sep 2026).** Owner asked for the lobby's keycap/gel look on every game menu's four buttons (Play
 CTA, How to Play, Settings, ← Back to the Box). The four gloss layers built for `.lobby-btn` in

@@ -4,6 +4,16 @@ Historical SW release notes, moved out of `CLAUDE.md` (1 Aug 2026) so they stop 
 The **current** version and its notes stay in `CLAUDE.md` § Current Focus — append the outgoing entry here on each bump.
 
 
+## v229 — Controller stickers: a game badge on the shell or an ear (14 Sep 2026)
+
+The Workshop gains a **Stickers** tab: tap the model to place one of nineteen game badges, a drag
+still rotates, one design = one placement. `js/lib/controller-sticker-surface.js` (ported from the
+frozen prototype, precached) rasterises **inverse** — per atlas texel, asking the surface what lands
+there — so a sticker wraps the rim onto the back sheet undistorted, and an adaptive die-cut border
+keeps a near-white badge legible on a matching shell. `data/stickers/` is **runtime-cached like
+`data/packs/`** — a new badge is a folder drop plus a manifest line, no SW bump. Harnesses:
+`verify-controller-stickers.js` (157) + `visual-controller-stickers.js` (48).
+
 ## v228 — The 3D controller: lobby ornament, Workshop, Konami, gateway (11 Sep 2026)
 
 The lobby's 🎮 emoji is now a real 3D controller (Three.js r128, vendored — the third first-party

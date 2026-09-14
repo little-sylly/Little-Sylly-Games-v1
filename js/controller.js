@@ -577,8 +577,12 @@ function ctlStickerImage(id) {
     cx.drawImage(rec.img, 0, 0);
     rec.data = cx.getImageData(0, 0, c.width, c.height);
     /* The atlas was painted before this arrived, so repaint now. Placing a
-       sticker for the first time in a session goes through here. */
-    ctlRedrawShell(); ctlRedrawEars(); ctlWake();
+       sticker for the first time in a session goes through here — and so
+       does the lobby ornament on a cold load with several stickers already
+       on it, where every image finishes decoding within a frame or two of
+       each other. Scheduled rather than direct: a burst of N arrivals costs
+       one texture re-upload instead of N (see ctlScheduleRedraw). */
+    ctlScheduleRedraw();
   };
   rec.img.onerror = () => { /* a missing image is simply an absent sticker */ };
   rec.img.src = CTL_STICKER_DIR + entry.image;
@@ -703,21 +707,25 @@ function ctlStampShell(s) {
         D[o + 1] = D[o + 1] * (1 - al) + px[1] * al;
         D[o + 2] = D[o + 2] * (1 - al) + px[2] * al;
       } else {
-        /* THE BORDER. Its colour is chosen per texel from the atlas pixel
-           ALREADY underneath: a light shell gets a dark border, a dark shell a
-           light one. Per-texel is what makes a sticker straddling the
-           faceplate edge work with no special case — and because a recolour
-           re-enters ctlRedrawShell and re-stamps every sticker from scratch,
-           borders re-derive against the new shell colour for free.
+        /* THE BORDER — light shells only get the height ramp above, not a
+           painted ring: the sticker's own near-white die-cut edge already
+           reads fine against a light surface, so an added dark ring was
+           redundant padding on top of padding. A DARK shell still gets the
+           light ring (242) — chosen per texel from the atlas pixel ALREADY
+           underneath, so a sticker straddling the faceplate edge still works
+           with no special case, and a recolour re-derives it for free since
+           ctlRedrawShell re-stamps every sticker from scratch.
 
            Coverage is the ring average, so the outer edge antialiases instead
            of stepping. */
         const lum = (0.2126 * D[o] + 0.7152 * D[o + 1] + 0.0722 * D[o + 2]) / 255;
-        const bc = lum > 0.5 ? 28 : 242;
-        const a2 = Math.min(1, hgt * CTL_BORDER_FIRM);
-        D[o]     = D[o]     * (1 - a2) + bc * a2;
-        D[o + 1] = D[o + 1] * (1 - a2) + bc * a2;
-        D[o + 2] = D[o + 2] * (1 - a2) + bc * a2;
+        if (lum <= 0.5) {
+          const bc = 242;
+          const a2 = Math.min(1, hgt * CTL_BORDER_FIRM);
+          D[o]     = D[o]     * (1 - a2) + bc * a2;
+          D[o + 1] = D[o + 1] * (1 - a2) + bc * a2;
+          D[o + 2] = D[o + 2] * (1 - a2) + bc * a2;
+        }
       }
       D[o + 3] = 255; touched = true;
     }
@@ -897,11 +905,13 @@ function ctlRedrawEars() {
   if (ctlEarBumpCtx) { ctlEarBumpCtx.fillStyle = '#000'; ctlEarBumpCtx.fillRect(0, 0, CTL_EAR_ATLAS, CTL_EAR_ATLAS); }
 
   /* One luminance test for the whole atlas — see ctlEarSilhouette's note on
-     why per-texel buys nothing here. */
+     why per-texel buys nothing here. Light ears skip the painted ring below
+     entirely (matches ctlStampShell) — the sticker's own near-white die-cut
+     edge already reads fine there, so a dark ring on top was redundant. */
   const en = parseInt(ctlDesign.ears.slice(1), 16);
   const elum = (0.2126 * ((en >> 16) & 255) + 0.7152 * ((en >> 8) & 255)
                 + 0.0722 * (en & 255)) / 255;
-  const borderHex = elum > 0.5 ? '#1c1c1c' : '#f2f2f2';
+  const borderHex = '#f2f2f2';
 
   for (const s of ctlDesign.stickers || []) {
     if (s.surface !== 'earL' && s.surface !== 'earR') continue;
@@ -929,11 +939,14 @@ function ctlRedrawEars() {
       g.rotate(s.rot);
     }
 
-    // the die-cut edge goes down first, as a ring of offset silhouettes
-    const sil = ctlEarSilhouette(im, aw, ah, borderHex);
-    for (let k = 0; k < CTL_EAR_BORDER_STEPS; k++) {
-      const a = k * 2 * Math.PI / CTL_EAR_BORDER_STEPS;
-      ctlEarCtx.drawImage(sil, -aw / 2 + Math.cos(a) * off, -ah / 2 + Math.sin(a) * off, aw, ah);
+    // the die-cut edge goes down first, as a ring of offset silhouettes —
+    // only on a DARK ear; a light one relies on the sticker's own border
+    if (elum <= 0.5) {
+      const sil = ctlEarSilhouette(im, aw, ah, borderHex);
+      for (let k = 0; k < CTL_EAR_BORDER_STEPS; k++) {
+        const a = k * 2 * Math.PI / CTL_EAR_BORDER_STEPS;
+        ctlEarCtx.drawImage(sil, -aw / 2 + Math.cos(a) * off, -ah / 2 + Math.sin(a) * off, aw, ah);
+      }
     }
     // colours go down flat, exactly as on the shell — no baked shading
     ctlEarCtx.drawImage(im, -aw / 2, -ah / 2, aw, ah);
@@ -988,6 +1001,24 @@ const CTL_REFUSAL = {
 
 let ctlStickerState = { stickers: [], armed: null, selected: -1, history: [] };
 
+/* A burst of 'adjust' patches (a slider drag, a live sticker reposition, or
+   several sticker images decoding back-to-back on the lobby ornament) each
+   want the canvas re-rasterised and both textures re-uploaded to the GPU —
+   the expensive half of a redraw. Doing that once per event in the burst is
+   what made the sliders feel clunky. This collapses any such burst into ONE
+   redraw on the next frame, however many callers asked for one in between. */
+let ctlRedrawScheduled = false;
+function ctlScheduleRedraw() {
+  if (ctlRedrawScheduled) return;
+  ctlRedrawScheduled = true;
+  requestAnimationFrame(() => {
+    ctlRedrawScheduled = false;
+    ctlRedrawShell();
+    ctlRedrawEars();
+    ctlWake();
+  });
+}
+
 /* The reducer is pure and returns a NEW stickers array on every structural
    action, so ctlDraft has to be re-pointed at it each time. Assigning the
    array (rather than mutating in place) is deliberate: ctlApplyDesign does
@@ -999,6 +1030,11 @@ function ctlStickerDispatch(action) {
   if (ctlStickerState === before) return;         // a no-op action
   if (ctlDraft) ctlDraft.stickers = ctlStickerState.stickers;
   ctlDesign.stickers = ctlStickerState.stickers;
+  /* 'adjust' (the rotate/size sliders, and a live sticker drag — see
+     ctlBindPointer) fires in rapid bursts and touches neither the sticker
+     list nor the selection, so the gallery/colour panel need not rebuild on
+     every tick — only the canvas, and that through the coalesced path. */
+  if (action.t === 'adjust') { ctlScheduleRedraw(); return; }
   ctlRedrawShell();
   ctlRedrawEars();
   ctlWake();
@@ -1056,6 +1092,18 @@ function ctlStickerEarHitIndex(uv) {
   return -1;
 }
 
+/* Shared by the tap gesture and the drag-to-reposition gesture below: casts
+   from a pointer event against the body + ears and returns the first hit
+   with a uv, or null. */
+function ctlStickerRay(ev) {
+  const r = ctlRenderer.domElement.getBoundingClientRect();
+  _ctlPtr.x =  ((ev.clientX - r.left) / r.width)  * 2 - 1;
+  _ctlPtr.y = -((ev.clientY - r.top)  / r.height) * 2 + 1;
+  _ctlRay.setFromCamera(_ctlPtr, ctlCamera);
+  const hits = _ctlRay.intersectObjects([ctlBody].concat(ctlEars), false);
+  return (hits.length && hits[0].uv) ? hits[0] : null;
+}
+
 /* Assigned to ctlOnTap in the Workshop. The pointer handlers are UNCHANGED:
    ctlBindPointer already tells a tap from a drag, and that disambiguation is
    flagged as fragile in controller-handoff-v3.md § 3.1. Dragging still rotates
@@ -1063,20 +1111,25 @@ function ctlStickerEarHitIndex(uv) {
    (spec D6), which is exactly why this needed no new gesture. */
 function ctlStickerTap(ev) {
   if (!ctlStickerSurface) return;
-  const r = ctlRenderer.domElement.getBoundingClientRect();
-  _ctlPtr.x =  ((ev.clientX - r.left) / r.width)  * 2 - 1;
-  _ctlPtr.y = -((ev.clientY - r.top)  / r.height) * 2 + 1;
-  _ctlRay.setFromCamera(_ctlPtr, ctlCamera);
-  const hits = _ctlRay.intersectObjects([ctlBody].concat(ctlEars), false);
-  if (!hits.length || !hits[0].uv) return;
+  const hit0 = ctlStickerRay(ev);
+  if (!hit0) return;
+  const hits = [hit0];
 
   const mode = ctlStickerMode(ctlStickerState);
 
   // ---- an ear ----
   if (hits[0].object !== ctlBody) {
     const uv = hits[0].uv;
-    const hit = ctlStickerEarHitIndex(uv);
-    if (mode === 'idle') { if (hit >= 0) ctlStickerDispatch({ t: 'hit', index: hit }); return; }
+    const hitIdx = ctlStickerEarHitIndex(uv);
+    if (mode === 'idle') { if (hitIdx >= 0) ctlStickerSelect(hitIdx); return; }
+    /* Tapping a DIFFERENT already-placed sticker while one is selected
+       re-selects it rather than relocating the old one onto it — to move a
+       sticker on top of another, drag it there instead (ctlStickerDragTo
+       has no such guard: dragging onto an occupied spot is still allowed). */
+    if (mode === 'selected' && hitIdx >= 0 && hitIdx !== ctlStickerState.selected) {
+      ctlStickerSelect(hitIdx);
+      return;
+    }
     const plan = ctlPlanEarSticker(uv, ctlStickerWantRadius(), ctlStickerWantRot());
     if (!plan.ok) { ctlStickerSay(CTL_REFUSAL[plan.reason]); return; }
     ctlStickerDispatch({ t: mode === 'armed' ? 'place' : 'relocate', rec: plan.rec });
@@ -1087,8 +1140,10 @@ function ctlStickerTap(ev) {
   // ---- the shell ----
   const uv = hits[0].uv, back = uv.y < 0.50;
   const xy = ctlStickerSurface.fromAtlas(uv.x * CTL_ATLAS, uv.y * CTL_ATLAS, back);
-  if (mode === 'idle') {
-    ctlStickerDispatch({ t: 'hit', index: ctlStickerHitIndex(xy, back) });
+  const hitIdx = ctlStickerHitIndex(xy, back);
+  if (mode === 'idle') { if (hitIdx >= 0) ctlStickerSelect(hitIdx); return; }
+  if (mode === 'selected' && hitIdx >= 0 && hitIdx !== ctlStickerState.selected) {
+    ctlStickerSelect(hitIdx);
     return;
   }
   const want = ctlStickerWantRadius();
@@ -1103,6 +1158,214 @@ function ctlStickerTap(ev) {
   ctlStickerDispatch({ t: mode === 'armed' ? 'place' : 'relocate', rec: rec });
   ctlStickerSay(p.chart === 'rim' ? 'Wrapped over the edge.'
                                   : 'Placed on the ' + (back ? 'back' : 'front') + '.');
+}
+
+/* Selects placement `index` and, if the selection actually changed, surfaces
+   it: switches to the Stickers tab and rings its book tile — the Tap-Hold
+   Reference pattern (ui-style.md), reused here for a plain tap since a
+   selection with nothing visible changing on screen isn't really feedback. */
+function ctlStickerSelect(index) {
+  const before = ctlStickerState.selected;
+  ctlStickerDispatch({ t: 'hit', index: index });
+  if (ctlStickerState.selected === before) return;   // out of range — a no-op
+  ctlStickerGoToBook(ctlStickerState.stickers[index].id);
+}
+
+function ctlStickerGoToBook(id) {
+  ctlActiveTab = 'stickers';
+  ctlRenderPanel();
+  refHighlightRow(document.getElementById('ctl-sticker-book'), 'data-ctl-sticker-id', id,
+    'ctl-sticker-ref-row-ping');
+}
+
+/* The reverse of ctlStickerGoToBook: picking a placed sticker from the book
+   rotates the model to bring it into view, instead of leaving the player to
+   hunt for it by dragging.
+
+   FIRST VERSION of this aimed at the sticker's raw local POINT — atan2(-x,z)
+   on ctlStickerSurface.point(), on the reasoning that rotating a point's
+   (x,z) onto the +Z axis brings it in front of the camera. That is true for
+   a point on a sphere or cylinder, and false here: the front/back faces are
+   parameterised nearly FLAT (point()'s x/y ARE the atlas x/y, unwarped —
+   see its own comment), so a sticker sitting at x=1.2 on an otherwise flat
+   front measured a 70° yaw purely from its lateral offset, spinning a
+   face-on sticker to a steep, unwanted angle. Measured across a spread of
+   front/back placements: point-based yaw ranged ±109°; normal-based below.
+
+   The FIX aims at the local surface NORMAL instead — the vector that
+   actually encodes "which way does this patch face," independent of how far
+   sideways the parameterisation happens to put it. The same atan2(-n[0],n[2])
+   rotates that normal onto +Z, i.e. turns the model until the sticker's own
+   surface points straight at the camera: near 0° for anywhere on the mostly-
+   flat front, and only the real curvature (a rim, the back's own gentle
+   dome) contributes any yaw at all. Only yaw moves; the player's own tilt
+   (ctlRotX) is left alone. */
+function ctlStickerAimYaw(normal) {
+  return Math.atan2(-normal[0], normal[2]);
+}
+
+/* Ears have no ctlStickerSurface.normal() of their own (that API is shell-
+   only), so the aim normal is approximate: read at the same shell-atlas
+   coordinate CTL_STICKER_OPT already uses for that ear's boss keep-out
+   (x = ∓0.84, y = 0.84), which sits right where the real ear mounts — the
+   shell's own curvature there is a reasonable stand-in for the ear cap's
+   outward direction. Good enough to bring the ear into view; this is a
+   camera convenience, not a placement.
+
+   normal(x,y,back)'s OWN formula is n=[-zx,-zy,1] — always biased toward
+   local +Z, because it treats point()'s z as a height field the way you
+   would for a single graph z=f(x,y) opening upward. That is the right
+   outward direction for the FRONT sheet (z=heightF, bulging toward +Z) but
+   exactly backwards for the BACK sheet (z=-heightB, bulging toward -Z):
+   measured at (0,0), normal(0,0,true) returns the identical [0,0,1] that
+   normal(0,0,false) does, when the back's true outward direction is
+   [0,0,-1]. A back-placed sticker's aim yaw came out near 0° instead of
+   near 180° — "snaps to the front" exactly as reported. Nothing ELSE that
+   calls normal() (makeChart's tangent frame) cares about this: it only
+   needs a vector perpendicular to the local tangent plane to build a self-
+   consistent basis, and gets one either way. This is the first caller that
+   needs the true facing direction, so the correction belongs here. */
+function ctlStickerAimNormal(s) {
+  const back = s.surface === 'shell' ? s.back : s.v > 0.5;
+  const n = s.surface === 'shell'
+    ? ctlStickerSurface.normal(s.x, s.y, back)
+    : ctlStickerSurface.normal(s.surface === 'earL' ? -0.84 : 0.84, 0.84, back);
+  return back ? [-n[0], -n[1], -n[2]] : n;
+}
+
+function ctlStickerGoToModel(s) {
+  if (!ctlStickerSurface) return;
+  ctlRotYTarget = ctlStickerAimYaw(ctlStickerAimNormal(s));
+  ctlWake();
+}
+
+// ── Sticker editing: drag-to-reposition ──────────────────────────────────────
+/* A press that lands on the ALREADY-SELECTED placement starts a live drag
+   instead of rotating the view (see ctlBindPointer); anywhere else, dragging
+   is untouched. Set by ctlBindPointer's pointerdown, read by pointermove and
+   pointerup. */
+let ctlStickerDragActive = false;
+
+/* Does this raycast hit land on the sticker that is currently selected? The
+   only question a pointerdown needs answered to decide rotate-view vs
+   drag-sticker. */
+function ctlStickerHitIsSelected(hit) {
+  if (!ctlStickerSurface || ctlStickerState.selected < 0) return false;
+  if (hit.object !== ctlBody) return ctlStickerEarHitIndex(hit.uv) === ctlStickerState.selected;
+  const uv = hit.uv, back = uv.y < 0.50;
+  const xy = ctlStickerSurface.fromAtlas(uv.x * CTL_ATLAS, uv.y * CTL_ATLAS, back);
+  return ctlStickerHitIndex(xy, back) === ctlStickerState.selected;
+}
+
+/* The drag preview: a flat 2D ghost that follows the pointer directly (no
+   raycast-to-screen projection needed — the pointer event already carries
+   its own screen position), instead of re-rasterising the real sticker onto
+   the 3D shell every frame. That rasterisation is the expensive part (a
+   canvas fill plus a full 2048² texture re-upload per event — see
+   ctlScheduleRedraw's own note) and a drag can fire it 30+ times a second;
+   moving a cheap DOM element costs nothing by comparison. The REAL sticker
+   is left exactly where it was for the whole drag and only actually moves
+   once, on release — see ctlStickerDragCommit. */
+let ctlDragGhostEl = null;
+function ctlEnsureDragGhost() {
+  if (ctlDragGhostEl) return ctlDragGhostEl;
+  const stage = document.getElementById('ctl-stage');
+  if (!stage) return null;
+  const el = document.createElement('div');
+  el.className = 'ctl-drag-ghost';
+  el.style.display = 'none';
+  stage.appendChild(el);
+  ctlDragGhostEl = el;
+  return el;
+}
+
+/* Legal (green) / refused (red) ring — the same distinction CTL_REFUSAL's
+   text already carries, just visible without reading it mid-drag. */
+function ctlUpdateDragGhost(ev, ok, imgSrc, diameterPx) {
+  const el = ctlEnsureDragGhost();
+  if (!el) return;
+  const stage = document.getElementById('ctl-stage');
+  const r = stage.getBoundingClientRect();
+  el.style.display = 'block';
+  el.style.left = (ev.clientX - r.left) + 'px';
+  el.style.top = (ev.clientY - r.top) + 'px';
+  el.style.width = el.style.height = diameterPx + 'px';
+  el.style.backgroundImage = 'url(' + imgSrc + ')';
+  el.style.borderColor = ok ? '#22c55e' : '#ef4444';
+}
+
+function ctlHideDragGhost() {
+  if (ctlDragGhostEl) ctlDragGhostEl.style.display = 'none';
+}
+
+/* Roughly the on-screen size a sticker of this body-space radius reads at —
+   not pixel-exact (the real placement is decided by the raycast on release,
+   not by this), just close enough that the ghost feels like the sticker
+   rather than a generic dot. Inverts ctlStickerWantRadius()'s own
+   percentage-of-half-body-width conversion. */
+function ctlDragGhostDiameter(curRadius) {
+  const U = ctlGeo.userData;
+  const pct = curRadius / ((U.maxx - U.minx) / 1.96);
+  const stage = document.getElementById('ctl-stage');
+  const w = stage ? stage.getBoundingClientRect().width : 300;
+  return Math.max(24, Math.min(140, pct * w * 0.92));
+}
+
+/* The one placement the drag would commit if released right now — null
+   whenever the pointer is over an illegal spot, which is what makes "let go
+   over a refused spot" a no-op instead of snapping back to something else. */
+let ctlStickerDragPending = null;
+
+/* One frame of the live drag: re-plan the selected sticker's position under
+   the current pointer, exactly as a tap would — same legality checks, same
+   refusal messages — but only moves the GHOST. Nothing is dispatched, no
+   texture is touched, until the drag ends (ctlStickerDragCommit). Rotation
+   and size are carried over unchanged; this only moves the sticker. */
+function ctlStickerDragTo(ev) {
+  const hit = ctlStickerRay(ev);
+  const sel = ctlStickerState.stickers[ctlStickerState.selected];
+  if (!sel) return;
+  const curRadius = sel.surface === 'shell' ? sel.size : sel.r;
+  const entry = ctlStickerById(sel.id);
+  const imgSrc = entry ? CTL_STICKER_DIR + entry.image : '';
+  const diameter = ctlDragGhostDiameter(curRadius);
+
+  if (!hit) { ctlStickerDragPending = null; ctlUpdateDragGhost(ev, false, imgSrc, diameter); return; }
+
+  if (hit.object !== ctlBody) {
+    const plan = ctlPlanEarSticker(hit.uv, curRadius, sel.rot);
+    ctlUpdateDragGhost(ev, plan.ok, imgSrc, diameter);
+    if (!plan.ok) { ctlStickerDragPending = null; ctlStickerSay(CTL_REFUSAL[plan.reason]); return; }
+    /* r must travel too — dragging in from the shell leaves no r on the
+       sticker at all (only a shell placement carries size), and ear hit-
+       testing/stamping both read s.r directly. */
+    ctlStickerDragPending = { surface: plan.rec.surface, u: plan.rec.u, v: plan.rec.v, r: plan.rec.r };
+    ctlStickerSay(plan.capped ? 'On the ear — sized down to fit the face.' : '');
+    return;
+  }
+
+  const uv = hit.uv, back = uv.y < 0.50;
+  const xy = ctlStickerSurface.fromAtlas(uv.x * CTL_ATLAS, uv.y * CTL_ATLAS, back);
+  const p = ctlStickerSurface.plan(xy[0], xy[1], back, curRadius);
+  ctlUpdateDragGhost(ev, p.ok, imgSrc, diameter);
+  if (!p.ok) { ctlStickerDragPending = null; ctlStickerSay(CTL_REFUSAL[p.reason] || 'Cannot place a sticker there.'); return; }
+  ctlStickerDragPending = {
+    surface: 'shell',
+    x: p.x !== undefined ? p.x : xy[0],
+    y: p.y !== undefined ? p.y : xy[1],
+    back: back, size: p.size, chart: p.chart,
+  };
+  ctlStickerSay('');
+}
+
+/* Drag release: commit the last legal position in ONE dispatch (still
+   through 'adjust', so the whole drag remains one undo step), or do nothing
+   if the pointer was released over an illegal spot — the sticker simply
+   stays where it started. Either way the ghost comes down. */
+function ctlStickerDragCommit() {
+  if (ctlStickerDragPending) ctlStickerDispatch({ t: 'adjust', patch: ctlStickerDragPending });
+  ctlStickerDragPending = null;
+  ctlHideDragGhost();
 }
 
 function ctlSetButtonColour(hex) {
@@ -1205,6 +1468,11 @@ const CTL_TILT_RATE = 0.005;  // radians per pixel dragged
 const CTL_ROCK = 0.13;        // radians the D-pad plate leans on a full press
 
 let ctlRotX = 0, ctlRotY = 0, ctlVelY = 0;
+/* Non-null while auto-rotating to a book-selected sticker (ctlStickerGoToModel)
+   — the yaw ctlTick eases ctlRotY toward, taking the shortest way round.
+   null the instant a manual drag grabs the view (see ctlBindPointer's
+   pointerdown) or the tween arrives. */
+let ctlRotYTarget = null;
 let ctlRaf = null;
 const _ctlE = new THREE.Euler(), _ctlQ = new THREE.Quaternion();
 
@@ -1218,6 +1486,7 @@ function ctlApplyTilt(m) {
    controller sitting still on the lobby costs nothing. */
 function ctlBusy() {
   if (ctlDragging || ctlHeldStick) return true;
+  if (ctlRotYTarget !== null) return true;
   if (Math.abs(ctlVelY) > 0.0005) return true;
   for (const m of ctlControls.pressables) {
     const d = m.userData;
@@ -1236,7 +1505,15 @@ function ctlStop() { if (ctlRaf !== null) { cancelAnimationFrame(ctlRaf); ctlRaf
 
 function ctlTick() {
   ctlRaf = null;
-  if (!ctlDragging) { ctlRotY += ctlVelY; ctlVelY *= 0.94; }
+  if (ctlRotYTarget !== null) {
+    /* Shortest way round — wrap the delta into (-PI, PI] before easing, or a
+       target just past the wrap point would spin the long way. Reduced
+       motion (a RAF-driven animation CSS cannot reach — ui-style.md § Motion
+       Standard) snaps straight to the target instead of travelling. */
+    let d = ((ctlRotYTarget - ctlRotY + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI;
+    if (Math.abs(d) < 0.01 || ctlReducedMotion()) { ctlRotY = ctlRotYTarget; ctlRotYTarget = null; }
+    else ctlRotY += d * 0.18;
+  } else if (!ctlDragging) { ctlRotY += ctlVelY; ctlVelY *= 0.94; }
   for (const m of ctlControls.pressables) {
     const t = m.userData.t || 0;
     if (t > 0.002) {
@@ -1292,23 +1569,87 @@ function ctlUnmount() {
   ctlMountEl = null;
 }
 
+/* View-only zoom (Workshop stage only — see ctlBindZoom). Not part of the
+   saved design: it resets to 1 whenever the Workshop is (re)opened, the same
+   way the camera itself resets on every mount. */
+let ctlZoom = 1;
+const CTL_ZOOM_MIN = 0.55, CTL_ZOOM_MAX = 1.7;
+
 function ctlResize() {
   if (!ctlMountEl || !ctlBuilt) return;
   const w = ctlMountEl.clientWidth, h = ctlMountEl.clientHeight;
   if (!w || !h) return;
   ctlRenderer.setSize(w, h, false);
   ctlCamera.aspect = w / h;
-  ctlCamera.position.set(0, 0.4, w / h < 0.9 ? 12 : 9.5);
+  ctlCamera.position.set(0, 0.4, (w / h < 0.9 ? 12 : 9.5) * ctlZoom);
   ctlCamera.lookAt(0, -0.2, 0);
   ctlCamera.updateProjectionMatrix();
   ctlWake();
 }
 window.addEventListener('resize', ctlResize);
 
+function ctlSetZoom(z) {
+  ctlZoom = Math.max(CTL_ZOOM_MIN, Math.min(CTL_ZOOM_MAX, z));
+  ctlResize();
+}
+
+/* Wheel (desktop) + pinch (touch) zoom. Workshop stage only — the lobby
+   ornament is small and decorative, and its mount never calls this. Wheel
+   needs preventDefault so the page itself doesn't scroll under the stage;
+   pinch tracks the distance between the two active pointers and scales the
+   zoom by how that distance changes between move events, so it composes
+   naturally with however far in/out the player already is. */
+function ctlBindZoom(el) {
+  if (el.dataset.ctlZoomBound === '1') return;
+  el.dataset.ctlZoomBound = '1';
+
+  el.addEventListener('wheel', ev => {
+    ev.preventDefault();
+    ctlSetZoom(ctlZoom * (1 + ev.deltaY * 0.0015));
+  }, { passive: false });
+
+  const pinch = new Map();   // pointerId -> {x,y}
+  let pinchStartDist = null, pinchStartZoom = 1;
+
+  el.addEventListener('pointerdown', ev => {
+    if (ev.pointerType !== 'touch') return;
+    pinch.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+    if (pinch.size === 2) {
+      const [a, b] = [...pinch.values()];
+      pinchStartDist = Math.hypot(a.x - b.x, a.y - b.y);
+      pinchStartZoom = ctlZoom;
+      // A second finger landing means this gesture is a pinch, not a
+      // rotate — ctlBindPointer's drag tracking has no per-pointer identity,
+      // so without this the first finger's in-progress rotate would keep
+      // fighting the pinch for the same shared ctlLast.
+      ctlDragging = false;
+    }
+  });
+  el.addEventListener('pointermove', ev => {
+    if (!pinch.has(ev.pointerId)) return;
+    pinch.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+    if (pinch.size !== 2 || !pinchStartDist) return;
+    const [a, b] = [...pinch.values()];
+    const dist = Math.hypot(a.x - b.x, a.y - b.y);
+    ctlSetZoom(pinchStartZoom * (pinchStartDist / Math.max(1, dist)));
+  });
+  const pinchEnd = ev => { pinch.delete(ev.pointerId); pinchStartDist = null; };
+  el.addEventListener('pointerup', pinchEnd);
+  el.addEventListener('pointercancel', pinchEnd);
+}
+
 const CTL_CLICK_MOVE_MAX = 6;    // px — beyond this a pointer-up is a drag, not a tap
 const CTL_CLICK_TIME_MAX = 400;  // ms
 
 let ctlDragging = false, ctlHeldStick = null;
+/* Set on a pointerdown that ctlTryPress consumed as a real button press,
+   while nothing was armed/selected yet — read on the matching pointerup to
+   stop that same gesture ALSO arming/selecting/placing a sticker sitting on
+   or near the button (ctlStickerTap's raycast has no idea a button already
+   claimed this gesture). Once a sticker IS armed/selected, a tap landing on
+   a button's spot is allowed to place it there too, same as any other point
+   on the shell — this only guards the idle case. */
+let ctlButtonPressSuppressesTap = false;
 let ctlLast = null, ctlStickLast = null, ctlDownPos = null, ctlDownTime = 0;
 const _ctlPtr = new THREE.Vector2(), _ctlRay = new THREE.Raycaster();
 
@@ -1389,7 +1730,32 @@ function ctlBindPointer(el) {
   el.addEventListener('pointerdown', ev => {
     ctlDownPos = { x: ev.clientX, y: ev.clientY };
     ctlDownTime = performance.now();
-    if (ctlPressEnabled && ctlTryPress(ev)) return;
+    /* ANY touch on the stage is the player taking manual control — a button
+       press or a sticker-drag-start cancels an in-flight auto-rotate exactly
+       as much as grabbing to rotate does. This has to sit before every
+       branch below, not just the rotate one, or a press that happens to hit
+       the sticker mid-tween (see ctlStickerDragActive) leaves the tween
+       fighting the drag. */
+    ctlRotYTarget = null;
+    if (ctlPressEnabled && ctlTryPress(ev)) {
+      ctlButtonPressSuppressesTap = ctlStickerSurface
+        ? ctlStickerMode(ctlStickerState) === 'idle' : false;
+      return;
+    }
+    ctlButtonPressSuppressesTap = false;
+    /* A press that lands on the currently-selected sticker starts a live
+       drag instead of rotating the view — everywhere else, unchanged. Only
+       worth a raycast at all when something is actually selected (never
+       true on the lobby mount, which never edits stickers). */
+    if (ctlStickerSurface && ctlStickerState.selected >= 0) {
+      const hit = ctlStickerRay(ev);
+      if (hit && ctlStickerHitIsSelected(hit)) {
+        ctlStickerDragActive = true;
+        el.setPointerCapture(ev.pointerId);
+        ctlWake();
+        return;
+      }
+    }
     ctlDragging = true;
     ctlLast = { x: ev.clientX, y: ev.clientY };
     el.setPointerCapture(ev.pointerId);
@@ -1397,6 +1763,7 @@ function ctlBindPointer(el) {
   });
 
   el.addEventListener('pointermove', ev => {
+    if (ctlStickerDragActive) { ctlStickerDragTo(ev); return; }
     if (ctlHeldStick) {
       const d = ctlHeldStick.userData;
       d.tiltZ = Math.max(-CTL_TILT_MAX, Math.min(CTL_TILT_MAX, (d.tiltZ || 0) - (ev.clientX - ctlStickLast.x) * CTL_TILT_RATE));
@@ -1421,7 +1788,14 @@ function ctlBindPointer(el) {
     const wasTap = ctlDownPos && Math.hypot(dx, dy) < CTL_CLICK_MOVE_MAX
                    && (performance.now() - ctlDownTime) < CTL_CLICK_TIME_MAX;
     const wasStick = !!ctlHeldStick;
+    const wasStickerDrag = ctlStickerDragActive;
     ctlDragging = false; ctlHeldStick = null; ctlDownPos = null;
+    ctlStickerDragActive = false;
+    /* The whole drag has been a cheap ghost following the pointer — this is
+       the one point the real sticker actually moves (see ctlStickerDragTo's
+       note on why). A release with no movement never armed a pending patch,
+       so this is correctly a no-op then, same as before. */
+    if (wasStickerDrag) ctlStickerDragCommit();
     /* The spin-down is JS-driven, so the global prefers-reduced-motion CSS
        block cannot reach it (ui-style.md § Motion Standard). Under reduced
        motion the controller settles where it was let go rather than coasting —
@@ -1430,8 +1804,26 @@ function ctlBindPointer(el) {
     for (const m of ctlControls.pressables) {
       if (m.userData.pressed) { m.userData.pressed = false; ctlVoiceRelease(); }
     }
-    if (wasTap && !wasStick && typeof ctlOnTap === 'function') ctlOnTap(ev);
+    /* A drag that never moved has already left the sticker exactly where it
+       was — nothing for a tap to redo, and ctlStickerTap would only push a
+       spurious no-op history entry. A button press with nothing armed/
+       selected must not ALSO arm/select/place whatever sticker happens to
+       sit under that button (ctlButtonPressSuppressesTap, set on the
+       matching pointerdown) — but once something IS armed/selected, this tap
+       is allowed through so it can still be placed at a button's spot, same
+       as any other point on the shell. */
+    if (wasTap && !wasStick && !wasStickerDrag && !ctlButtonPressSuppressesTap
+        && typeof ctlOnTap === 'function') ctlOnTap(ev);
     ctlWake();
+  });
+
+  /* A cancelled gesture (the browser reclaiming the pointer mid-drag — a
+     scroll, an OS gesture) is not a release: drop the pending ghost patch
+     rather than commit it, but still bring the ghost down, or it is left
+     floating on screen with no pointer driving it. */
+  el.addEventListener('pointercancel', () => {
+    ctlDragging = false; ctlHeldStick = null; ctlDownPos = null;
+    if (ctlStickerDragActive) { ctlStickerDragActive = false; ctlStickerDragPending = null; ctlHideDragGhost(); }
   });
 }
 
@@ -1512,6 +1904,11 @@ function ctlMountLobby() {
     ctlPressEnabled = false;         // the lobby's buttons are scenery
     ctlOnPress = null;
     ctlOnTap = () => { playLaunch(); ctlOpenWorkshop(); };
+    /* The lobby ornament is never zoomed — but this isn't the only path back
+       to it (the Konami/gateway return calls ctlTeardown() directly, never
+       ctlCloseWorkshop), so the reset belongs at the one place every return
+       to the lobby mount actually passes through, not at ctlCloseWorkshop. */
+    ctlZoom = 1;
     ctlMount(el, { floor: false });   // no headroom below the mount for the contact shadow
     ctlBindPointer(el);
     ctlScheduleIdleNudge();
@@ -1628,9 +2025,11 @@ function ctlOpenWorkshop() {
   ctlOnTap = ctlStickerTap;
   ctlStickerState = { stickers: (ctlDraft.stickers || []).slice(),
                       armed: null, selected: -1, history: [] };
+  ctlZoom = 1;   // a view convenience, not part of the saved design — see ctlSetZoom
   ctlApplyDesign(ctlDraft);
   ctlMount(stage);
   ctlBindPointer(stage);
+  ctlBindZoom(stage);
   ctlRenderPanel();
 }
 
@@ -1643,7 +2042,7 @@ function ctlCloseWorkshop() {
   ctlStickerState = { stickers: [], armed: null, selected: -1, history: [] };
   ctlDesign = ctlReadDesign();     // discard unsaved changes
   showScreen('screen-lobby');
-  ctlMountLobby();
+  ctlMountLobby();   // resets ctlZoom to 1 itself — see the note there
 }
 
 /* Which tab the panel is showing. Two, not three (spec D4): the placed list
@@ -1720,7 +2119,51 @@ function ctlRenderColourCard() {
     grid.appendChild(b);
   }
   card.appendChild(grid);
+
+  const rand = document.createElement('button');
+  rand.id = 'btn-ctl-randomise';
+  rand.className = 'min-h-11 w-full rounded-xl active:scale-95 hover:brightness-110 text-white font-semibold text-sm transition-all duration-150';
+  rand.style.background = 'linear-gradient(90deg, ' + ctlRainbowGradientStops().join(', ') + ')';
+  rand.textContent = 'Randomise All';
+  rand.addEventListener('click', ctlRandomiseAll);
+  card.appendChild(rand);
+
   panel.appendChild(card);
+}
+
+/* The Randomise All button's rainbow: every LIVE game colour, read from
+   GAME_BRAND_HEX (never copied), so a 21st game or a recoloured existing one
+   moves the gradient with it — zero edits here, the same guarantee
+   ctlPalette() already makes for the swatch grid. Owner asked for pink first
+   and purple last specifically, so those two are pinned at the ends and
+   everything else keeps its position from LOBBY_COLOUR_ORDER (the suite's
+   own hue walk, already used for the lobby's own Colour sort) in between —
+   one canonical colour order, not a bespoke one invented for this button. */
+function ctlRainbowGradientStops() {
+  const src = (typeof GAME_BRAND_HEX === 'object' && GAME_BRAND_HEX) ? GAME_BRAND_HEX : {};
+  const PINK = 'btn-dstw', PURPLE = 'btn-great-minds';
+  const order = (typeof LOBBY_COLOUR_ORDER !== 'undefined' && Array.isArray(LOBBY_COLOUR_ORDER))
+    ? LOBBY_COLOUR_ORDER : Object.keys(src);
+  const middle = order.filter(id => id !== PINK && id !== PURPLE && src[id]);
+  const ids = [PINK].concat(middle, [PURPLE]).filter(id => src[id]);
+  return ids.length ? ids.map(id => src[id]) : ['#EC4899', '#A855F7'];
+}
+
+/* Picks a random brand swatch for each of the four parts at once. Owner-
+   directed exception to § Action Button Standard's brand/neutral/destructive
+   rule (the same kind of exception FRT's literal-hex heading is) — a gradient
+   was asked for specifically, to make the button read as "chance", not a
+   decision. Reuses ctlPalette() so a 21st game's colour is in the draw with
+   zero edits here, same as the swatch grid above. */
+function ctlRandomiseAll() {
+  const palette = ctlPalette();
+  if (!palette.length || !ctlDraft) return;
+  playPillClick();
+  for (const group of CTL_GROUPS) {
+    ctlDraft[group] = palette[Math.floor(Math.random() * palette.length)].hex;
+  }
+  ctlApplyDesign(ctlDraft);
+  ctlRenderPanel();
 }
 
 /* The book: one tile per manifest entry. A PLACED tile stays tappable and
@@ -1760,9 +2203,10 @@ function ctlRenderStickerBook() {
     const isSelected = isPlaced && ctlStickerState.selected === i;
 
     const b = document.createElement('button');
-    b.className = 'ctl-sticker-tile' +
+    b.className = 'ctl-sticker-tile ctl-sticker-ref-row' +
       ((isArmed || isSelected) ? ' ctl-sticker-tile-on' : '') +
       (isPlaced ? ' ctl-sticker-tile-placed' : '');
+    b.setAttribute('data-ctl-sticker-id', e.id);   // ctlStickerGoToBook's hook
     b.setAttribute('aria-label', e.label + (isPlaced ? ' — on the controller' : ''));
     b.setAttribute('aria-pressed', String(isArmed || isSelected));
 
@@ -1786,6 +2230,10 @@ function ctlRenderStickerBook() {
       ctlStickerSay(m === 'armed' ? 'Tap the controller to put it on.'
                   : m === 'selected' ? 'Tap somewhere else to move it.'
                   : '');
+      // The reverse of tapping a sticker on the model to jump to its book
+      // tile: picking an already-placed one from the book rotates the model
+      // to it. Not on 'armed' — an unplaced tile has no location to face.
+      if (m === 'selected') ctlStickerGoToModel(ctlStickerState.stickers[ctlStickerState.selected]);
     });
     book.appendChild(b);
   }

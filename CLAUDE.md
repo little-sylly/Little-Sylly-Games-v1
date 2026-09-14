@@ -278,14 +278,30 @@ On every bump the outgoing SW entry moves **verbatim** to `docs/sw-changelog.md`
 "keep the last three". **A second `**SW v…**` paragraph appearing here means that move didn't
 happen: do it before anything else.**
 
-**SW v229 — Controller stickers: a game badge on the shell or an ear (14 Sep 2026).**
-The Workshop gains a **Stickers** tab: tap the model to place one of nineteen game badges, a drag
-still rotates, one design = one placement. `js/lib/controller-sticker-surface.js` (ported from the
-frozen prototype, precached) rasterises **inverse** — per atlas texel, asking the surface what lands
-there — so a sticker wraps the rim onto the back sheet undistorted, and an adaptive die-cut border
-keeps a near-white badge legible on a matching shell. `data/stickers/` is **runtime-cached like
-`data/packs/`** — a new badge is a folder drop plus a manifest line, no SW bump. Harnesses:
-`verify-controller-stickers.js` (157) + `visual-controller-stickers.js` (48).
+**SW v230 — Workshop polish round: randomise, zoom, drag-to-reposition (14 Sep 2026).**
+Owner-playtesting round on the Workshop, `js/controller.js` (+ `css/styles.css`), nothing new
+persisted: a rainbow **Randomise All** (all 20 `GAME_BRAND_HEX` colours, pink-to-purple, live —
+never copied); wheel + pinch **zoom**; **drag-to-reposition** via a cheap DOM ghost that follows
+the pointer, the real sticker only actually moving once on release (was the sliders' real lag
+cause too — a burst of state changes re-uploaded the full shell/bump textures once per event, now
+`ctlScheduleRedraw()`); tapping a placed sticker jumps to the Stickers tab and rings its tile;
+tapping a *different* placed sticker while one is selected re-selects it instead of relocating the
+old one there (drag still allows stacking); the die-cut border no longer paints on a light shell
+or ear (the sticker's own edge already reads fine there); **and the reverse of the tab-jump** —
+picking a placed sticker from the book eases the model's yaw to face it (`ctlStickerGoToModel`,
+general `atan2` aim math against the local surface NORMAL, not a per-surface angle table — a first
+version aimed at the sticker's raw point instead and measured yaws up to ±109° on an ordinary
+placement, since the front/back faces are parameterised nearly flat). Bugs the round surfaced:
+zoom surviving a Konami/gateway round-trip, a button press also grabbing a sticker under it, the
+auto-rotate tween only cancelling on the rotate-view pointerdown branch instead of every branch,
+the point-vs-normal aim defect above, and — caught after that fix shipped — `normal()`'s own
+`z`-always-positive formula meant a BACK placement's normal came out identical to a front one's,
+so back stickers kept "snapping to the front" regardless; fixed by negating the vector whenever
+`back` is true (a caller-side correction, not a change to the shared, separately-harnessed
+`controller-sticker-surface.js` module). Full detail:
+`docs/implementation-notes/shared-implementation-notes.md` DD-12,
+`docs/code-map.md` § 3D Controller / Workshop. All controller checks (157+63+28) pass; the visual
+harness grew two border assertions to match the new behaviour (48 -> 50, all green).
 
 **Previous versions: `docs/sw-changelog.md`** — continuous, v228 back to v167.
 
