@@ -3158,6 +3158,63 @@ body.flash-red   { background-color: #fecaca; }
   text-shadow: 0 0 3px rgba(0, 0, 0, 0.75);
 }
 
+/* The Workshop's slider. It is not a game, so it has no [abbr]-range class of
+   its own — but borrowing another game's would be exactly the FRT_LEAF mistake
+   ui-style.md § Menu Title Treatment records (reaching for an existing accent
+   constant without checking it is actually this surface's colour). Three rules,
+   the same shape as every .[abbr]-range: base, webkit thumb, moz thumb. */
+.ctl-range {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 9999px;
+  background: linear-gradient(to right, #ede9fe, #a855f7);
+  outline: none;
+  cursor: pointer;
+}
+.ctl-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: #a855f7;
+  border: 3px solid #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
+.ctl-range::-moz-range-thumb {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: #a855f7;
+  border: none;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
+
+/* Sticker book tiles. The book sits directly in #ctl-panel with no card of its
+   own, so it gets the full 344 px a max-w-sm panel leaves after its px-5:
+   4 columns × 80 px + 3 × 8 px of gap. Comfortably over the 44 px touch
+   minimum (ui-style.md § Thumb-Friendly UI). */
+.ctl-sticker-tile {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  min-height: 44px;
+  border-radius: 0.75rem;
+  background: #fff;
+  border: 2px solid #e7e5e4;
+  padding: 0.35rem;
+  transition: transform 120ms ease, border-color 120ms ease;
+}
+.ctl-sticker-tile:active { transform: scale(0.95); }
+.ctl-sticker-tile-on { border-color: #a855f7; box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.22); }
+/* Already on the controller. Nineteen tiles is a lot of grid to scan for four
+   10 px dots, so the tint answers "which have I used?" at a glance and the dot
+   confirms it per tile — a filled dot, not a tick: it marks state, not success. */
+.ctl-sticker-tile-placed { background: #faf5ff; }
+.ctl-sticker-dot {
+  position: absolute; top: 4px; right: 4px;
+  width: 10px; height: 10px; border-radius: 9999px;
+  background: #a855f7; border: 2px solid #fff;
+}
+
 
 /* Diagonal-hash rule — a CSS-drawn line, not counted /// characters. A
    fixed string of slashes only reaches the container edge by luck at one

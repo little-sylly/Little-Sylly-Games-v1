@@ -501,6 +501,124 @@ async function probe() {
        'building the surface re-points the live state at the array rule 6 just ' +
        'validated: [' + reseed.ids + ']');
 
+    /* ── The tab itself, at a phone's width ──────────────────────────────
+       A second page rather than a resize: the checks above own a 900x1400
+       rig and a live camera, and re-laying that out underneath them to ask a
+       CSS question would make every earlier projection stale. 390 px is the
+       suite's reference width (ui-style.md). */
+    const phone = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    phone.on('pageerror', e => errs.push('390px: ' + String(e)));
+    phone.on('console', m => { if (m.type() === 'error') errs.push('390px console: ' + m.text()); });
+    await phone.goto('http://127.0.0.1:' + port + '/index.html', { waitUntil: 'networkidle' });
+    await phone.waitForFunction(() => typeof ctlEnsureBuilt === 'function' && ctlEnsureBuilt(),
+                                null, { timeout: 20000 });
+    await phone.evaluate(() => { ctlOpenWorkshop(); });
+    await phone.click('#ctl-tabs [data-ctl-tab="stickers"]');
+    await phone.waitForFunction(() => ctlStickerManifest && ctlStickerManifest.length,
+                                null, { timeout: 20000 });
+
+    const box = await phone.evaluate(() => {
+      const R = el => el.getBoundingClientRect();
+      const tiles = [...document.querySelectorAll('.ctl-sticker-tile')].map(R);
+      const pills = [...document.querySelectorAll('#ctl-tabs [data-ctl-tab]')].map(R);
+      const sec = document.getElementById('screen-workshop');
+      return {
+        n: tiles.length,
+        minW: Math.round(Math.min(...tiles.map(t => t.width))),
+        minH: Math.round(Math.min(...tiles.map(t => t.height))),
+        perRow: tiles.filter(t => Math.round(t.top) === Math.round(tiles[0].top)).length,
+        pillRows: new Set(pills.map(p => Math.round(p.top))).size,
+        secX: sec.scrollWidth > sec.clientWidth,
+        docX: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+      };
+    });
+    ok(box.minW >= 44 && box.minH >= 44,
+       'every book tile clears the 44 px touch minimum: ' + box.n + ' at ' +
+       box.minW + 'x' + box.minH + ', ' + box.perRow + ' across');
+    ok(box.pillRows === 1, 'the two tab pills sit on one line at 390 px');
+    ok(box.secX === false && box.docX === false,
+       'nothing scrolls sideways at 390 px: the Workshop section and the document both fit');
+
+    const ctrls = await phone.evaluate(() => {
+      ctlStickerDispatch({ t: 'bookTap', id: ctlStickerManifest[0].id });
+      const p = ctlStickerSurface.plan(1.16, -0.12, false, ctlStickerWantRadius());
+      /* plan() only returns x/y for the rim chart — the same guard ctlStickerTap
+         carries, and the one thing that makes this record legal. */
+      ctlStickerDispatch({ t: 'place', rec: { id: ctlStickerManifest[0].id, surface: 'shell',
+        x: p.x !== undefined ? p.x : 1.16, y: p.y !== undefined ? p.y : -0.12,
+        back: false, rot: 0, size: p.size, chart: p.chart } });
+      const H = id => Math.round(document.getElementById(id).getBoundingClientRect().height);
+      return { mode: ctlStickerMode(ctlStickerState),
+               row: getComputedStyle(document.getElementById('ctl-sticker-controls')).display,
+               undo: H('btn-ctl-sticker-undo'), del: H('btn-ctl-sticker-delete'),
+               done: H('btn-ctl-sticker-done'),
+               badges: document.querySelectorAll('.ctl-sticker-tile-placed .ctl-sticker-dot').length };
+    });
+    ok(ctrls.mode === 'selected' && ctrls.row === 'flex' &&
+       ctrls.undo >= 44 && ctrls.del >= 44 && ctrls.done >= 44,
+       'a selected placement raises the controls card, all three buttons >= 44 tall: ' +
+       ctrls.undo + '/' + ctrls.del + '/' + ctrls.done);
+    ok(ctrls.badges === 1, 'and the placed tile is badged in the book: ' + ctrls.badges);
+
+    /* Each body is its OWN overflow-y-auto region. On the shared parent the two
+       shared one scrollTop, and hopping to the shorter Colours body clamped the
+       book's 436 down to 117 — measured, before this was moved onto the bodies. */
+    const trip = await phone.evaluate(() => {
+      const cols = document.getElementById('ctl-panel-colours');
+      const stk = document.getElementById('ctl-panel-stickers');
+      stk.scrollTop = 150;                    // mid-way, so no clamp can confuse this
+      const before = Math.round(stk.scrollTop);
+      document.querySelector('#ctl-tabs [data-ctl-tab="colours"]').click();
+      const coloursTop = Math.round(cols.scrollTop);
+      document.querySelector('#ctl-tabs [data-ctl-tab="stickers"]').click();
+      return { before: before, after: Math.round(stk.scrollTop), coloursTop: coloursTop,
+               parent: getComputedStyle(document.getElementById('ctl-panel')).overflowY,
+               body: getComputedStyle(stk).overflowY };
+    });
+    ok(trip.body === 'auto' && trip.parent !== 'auto' &&
+       trip.before === 150 && trip.after === 150 && trip.coloursTop === 0,
+       'the two bodies are independent scroll regions: the book keeps ' + trip.after +
+       ' across a hop to Colours, which sits at ' + trip.coloursTop);
+
+    /* Spec § 7: "Undo appears whenever ctlStickerHistory has an entry to pop" —
+       no state qualifier. The card therefore outlives the selection. */
+    const idle = await phone.evaluate(() => {
+      const D = id => getComputedStyle(document.getElementById(id)).display;
+      return { mode: ctlStickerMode(ctlStickerState), history: ctlStickerState.history.length,
+               row: D('ctl-sticker-controls'), undo: D('btn-ctl-sticker-undo'),
+               del: D('btn-ctl-sticker-delete'), done: D('btn-ctl-sticker-done'),
+               sliders: D('ctl-sticker-sliders') };
+    });
+    ok(idle.mode === 'idle' && idle.history === 1 && idle.row !== 'none' &&
+       idle.undo !== 'none' && idle.del === 'none' && idle.done === 'none' &&
+       idle.sliders === 'none',
+       'back in Idle the card keeps Undo alone — spec § 7 puts no state on it, and ' +
+       'Done is one tap from the placement you might want back');
+
+    /* Leave the Workshop and go straight back in. ctlMountLobby defers its real
+       work through requestIdleCallback(start, { timeout: 1200 }) and
+       ctlCloseWorkshop() schedules one on its way out, so the stale callback can
+       land on top of the reopened Workshop — pulling the canvas back to the lobby
+       mount and leaving a 0x0 stage that reopens the Workshop on every tap. This
+       is what made the real-click checks above fail intermittently: they were
+       clicking a canvas that had been moved out from under them. */
+    const reopened = await phone.evaluate(() => {
+      ctlCloseWorkshop();
+      ctlOpenWorkshop();
+      return true;
+    });
+    await phone.waitForTimeout(1600);          // past the idle callback's own timeout
+    const kept = await phone.evaluate(() => {
+      const r = ctlRenderer.domElement.getBoundingClientRect();
+      return { parent: ctlRenderer.domElement.parentElement.id, press: ctlPressEnabled,
+               w: Math.round(r.width), h: Math.round(r.height) };
+    });
+    ok(reopened && kept.parent === 'ctl-stage' && kept.press === true &&
+       kept.w > 0 && kept.h > 0,
+       'reopening the Workshop at once survives a stale deferred lobby mount: ' +
+       'the rig is in ' + kept.parent + ' at ' + kept.w + 'x' + kept.h);
+    await phone.close();
+
     ok(errs.length === 0, 'no page errors: ' + (errs.join(' | ') || 'none'));
 
     if (SHOT) {

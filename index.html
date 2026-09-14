@@ -124,8 +124,50 @@
       <p class="text-stone-400 text-xs text-center mt-1">Drag to turn it around</p>
     </div>
 
-    <!-- PANEL — scrolls independently -->
-    <div id="ctl-panel" class="flex-1 min-h-0 overflow-y-auto px-5 py-4 flex flex-col gap-4"></div>
+    <!-- TAB BAR — sticky with the stage, never scrolls. The panel band was
+         left free of a tab bar by the colour-only build specifically so these
+         two could arrive without anything reflowing. -->
+    <div id="ctl-tabs" class="flex-shrink-0 px-5 pt-1 pb-2 flex gap-2">
+      <button class="pill pill-active-purple" data-ctl-tab="colours">Colours</button>
+      <button class="pill" data-ctl-tab="stickers">Stickers</button>
+    </div>
+
+    <!-- PANEL — two sibling bodies toggled by display, never one body
+         repainted, so the sticker sliders survive a repaint of the book. The
+         scroll region is on each BODY, not on this shared parent: one shared
+         scrollTop gets clamped the moment you hop to the shorter body, and the
+         book's place in a 19-tile grid is lost coming back. -->
+    <div id="ctl-panel" class="flex-1 min-h-0 flex flex-col">
+      <div id="ctl-panel-colours" class="flex-1 min-h-0 overflow-y-auto px-5 py-4 flex flex-col gap-4"></div>
+      <div id="ctl-panel-stickers" style="display:none"
+        class="flex-1 min-h-0 overflow-y-auto px-5 py-4 flex flex-col gap-4">
+        <div id="ctl-sticker-book" class="grid grid-cols-4 gap-2"></div>
+        <p id="ctl-sticker-say" class="text-stone-400 text-xs min-h-[1rem]"></p>
+        <div id="ctl-sticker-controls" style="display:none"
+          class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div id="ctl-sticker-sliders" class="flex flex-col gap-3">
+            <div class="flex flex-col gap-1">
+              <label for="ctl-sticker-size" class="text-stone-500 text-sm font-semibold">Size</label>
+              <input id="ctl-sticker-size" type="range" min="6" max="30" step="1" value="18"
+                class="ctl-range w-full" />
+            </div>
+            <div class="flex flex-col gap-1">
+              <label for="ctl-sticker-rot" class="text-stone-500 text-sm font-semibold">Turn</label>
+              <input id="ctl-sticker-rot" type="range" min="-180" max="180" step="5" value="0"
+                class="ctl-range w-full" />
+            </div>
+          </div>
+          <div class="flex gap-2">
+            <button id="btn-ctl-sticker-undo"
+              class="min-h-11 flex-1 rounded-xl bg-stone-200 hover:bg-stone-300 text-stone-700 font-semibold text-sm">Undo</button>
+            <button id="btn-ctl-sticker-delete"
+              class="min-h-11 flex-1 rounded-xl bg-red-500 hover:bg-red-600 text-white font-semibold text-sm">Remove</button>
+            <button id="btn-ctl-sticker-done"
+              class="min-h-11 flex-1 rounded-xl bg-purple-500 hover:bg-purple-600 text-white font-semibold text-sm">Done</button>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!-- CONTROLS — fixed -->
     <div class="flex-shrink-0 px-5 pb-5 pt-2 flex flex-col gap-2">

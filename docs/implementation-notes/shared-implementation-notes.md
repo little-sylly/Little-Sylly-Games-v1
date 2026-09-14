@@ -379,6 +379,49 @@ Card *art* and card *names* were always separate skinning concerns by constructi
 
 ## Bug Index
 
+**BUG-14 — A deferred lobby mount could land on top of a reopened Workshop, leaving it showing an
+empty 0×0 stage whose every tap reopened the Workshop again. [14 Sep 2026, found while verifying the
+Stickers tab]**
+
+*What happened:* `tools/visual-controller-stickers.js` began failing intermittently — three runs in
+four, six checks at a time, all of them the Task 8 real-click ones. The same six passed on other runs
+of a byte-identical tree, which is what marked it as a race rather than a regression. It was not new:
+the committed Task 8 tree failed two runs in three the same way, so the harness had been shipped green
+by luck.
+
+*Root cause:* `ctlMountLobby()` defers its real work through
+`requestIdleCallback(start, { timeout: 1200 })`, and `ctlCloseWorkshop()` calls `ctlMountLobby()` on
+its way out. A Workshop reopened inside that window therefore gets the **stale** callback landing on
+top of it: `start` runs `ctlMount(el, …)` and moves the shared canvas back to `#lobby-controller`,
+sets `ctlPressEnabled = false`, replaces `ctlOnTap` with the lobby's open-the-Workshop handler, and
+rebinds the pointer to the lobby element — while `screen-workshop` is still the screen on show. The
+stage measures 0×0 from then on. Reachable by a player, not just a harness: close the Workshop and tap
+the ornament again straight away (the previous `ctlBindPointer` is still attached, so the tap lands).
+
+*Fix:* one guard at the top of `start` — `if (!el.offsetParent && !el.getClientRects().length)
+return;`. If the lobby mount is not on screen the callback is simply out of date. Same test
+`ctlScheduleIdleNudge` already applies to its own deferred `fire`, which is the precedent this one
+should have followed from the start.
+
+*Verification:* a permanent check in `tools/visual-controller-stickers.js` closes the Workshop,
+reopens it immediately, waits 1600 ms past the idle callback's own timeout and asserts the rig is
+still in `#ctl-stage` at a non-zero size. Removing the guard turns exactly that one check red; with it
+in place the harness ran five consecutive times at 44/0, against three-in-four failing before.
+
+*Lesson:* **a deferred callback is a claim about the future, and by the time it runs the thing it was
+written for may not be true any more.** Every `requestIdleCallback`/`setTimeout` that mounts, moves or
+rebinds shared state needs a re-check of its own precondition at fire time — scheduling it is not the
+same as being allowed to do it. The suite already had the right shape one function away and did not
+reuse it.
+
+*Second lesson — an intermittent harness is worse than a missing one, and it hides its own cause.*
+The six failing checks were about clicks, so they read as click flakiness; the actual fault was that
+the canvas had been moved out from under them, which no click-shaped hypothesis would ever reach. Two
+wrong guesses (the 400 ms tap/drag threshold, a font-metric layout settle) were both killed by
+measurement — the threshold logged 1–65 ms, and the decisive number was the mount point, not any
+timing. **When a check fails intermittently, run the same tree several times and instrument the
+environment the check depends on, not the assertion it makes.**
+
 **BUG-13 — The Sylly Gateway's ASCII rule lines were counted characters, so they didn't reliably reach the frame's edge; the dashed side rails only wrapped the header, not the stream below it. [11 Sep 2026, owner playtest]**
 *What happened:* the `////`, `====` and `----` header rules stopped visibly short of the right-hand dashed rail on the owner's device, and the green dashed side rails appeared to end where the header did — the loadout stream below had no visible frame at all.
 *Root cause:* the rules were fixed-length strings of `/`/`=`/`-` characters at three different font-sizes/tracking values, each one a guess at how many characters happen to span the container's width at one specific viewport+font combination — correct nowhere in general. Separately, the `border-l-2 border-r-2 border-dashed` rails were applied only to the header's own wrapper div, which closed before the `#sm-gateway-log` stream div — so the rails never extended down through the stream despite the header comment's own claim that they "run the full height."

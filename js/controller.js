@@ -1466,6 +1466,13 @@ function ctlMountLobby() {
   const el = document.getElementById('lobby-controller');
   if (!el) return;
   const start = () => {
+    /* This is DEFERRED by up to 1200 ms, and ctlCloseWorkshop() schedules one
+       on its way out — so a player who reopens the Workshop inside that window
+       gets the stale callback landing on top of it: the canvas is pulled back
+       to the lobby mount, ctlPressEnabled goes false and ctlOnTap becomes the
+       lobby's, leaving an empty stage whose every tap reopens the Workshop.
+       If the mount is not on screen, this callback is simply out of date. */
+    if (!el.offsetParent && !el.getClientRects().length) return;
     if (!ctlEnsureBuilt()) return;
     ctlPressEnabled = false;         // the lobby's buttons are scenery
     ctlOnPress = null;
@@ -1571,6 +1578,7 @@ let ctlActiveGroup = 'shell';
 function ctlOpenWorkshop() {
   ctlDraft = Object.assign({}, ctlReadDesign());
   ctlActiveGroup = 'shell';
+  ctlActiveTab = 'colours';
   showScreen('screen-workshop');
   const stage = document.getElementById('ctl-stage');
   if (!ctlEnsureBuilt()) return;
@@ -1603,9 +1611,37 @@ function ctlCloseWorkshop() {
   ctlMountLobby();
 }
 
+/* Which tab the panel is showing. Two, not three (spec D4): the placed list
+   lives INSIDE the Stickers tab as the book itself — one surface to scan
+   rather than two. */
+let ctlActiveTab = 'colours';
+
 function ctlRenderPanel() {
-  const panel = document.getElementById('ctl-panel');
+  const tabs = document.getElementById('ctl-tabs');
+  if (tabs) {
+    tabs.querySelectorAll('[data-ctl-tab]').forEach(b => {
+      const on = b.getAttribute('data-ctl-tab') === ctlActiveTab;
+      // .pill must ALWAYS stay on — only pill-active-* is toggled
+      // (ui-style.md § Settings Layout Standard, pill toggle rule)
+      b.classList.toggle('pill-active-purple', on);
+    });
+  }
+  const colours = document.getElementById('ctl-panel-colours');
+  const stickers = document.getElementById('ctl-panel-stickers');
+  if (colours)  colours.style.display  = ctlActiveTab === 'colours'  ? 'flex' : 'none';
+  if (stickers) stickers.style.display = ctlActiveTab === 'stickers' ? 'flex' : 'none';
+  if (ctlActiveTab === 'colours') ctlRenderColourCard();
+  else { ctlRenderStickerBook(); ctlSyncStickerControls(); }
+}
+
+/* Unchanged from the colour-only build except for the container it renders
+   into — it used to own #ctl-panel outright. */
+function ctlRenderColourCard() {
+  const panel = document.getElementById('ctl-panel-colours');
   if (!panel) return;
+  /* ctlStickerDispatch repaints the panel, and it reads the draft — so the
+     one caller that could ever arrive here outside the Workshop must bounce. */
+  if (!ctlDraft) return;
   panel.innerHTML = '';
   const palette = ctlPalette();
   const meta = CTL_GROUP_LABELS[ctlActiveGroup];
@@ -1652,6 +1688,112 @@ function ctlRenderPanel() {
   panel.appendChild(card);
 }
 
+/* The book: one tile per manifest entry. A PLACED tile stays tappable and
+   SELECTS its placement rather than re-arming the design (spec D2 + § 7) —
+   which matters because a sticker on the back face or an ear may not be
+   visible from the current camera angle, and selecting from the book sidesteps
+   having to rotate to find it. */
+function ctlRenderStickerBook() {
+  const book = document.getElementById('ctl-sticker-book');
+  if (!book) return;
+  book.innerHTML = '';
+
+  if (!ctlStickerManifest) {
+    const p = document.createElement('p');
+    p.className = 'text-stone-400 text-sm col-span-4';
+    p.textContent = 'Getting the stickers out…';
+    book.appendChild(p);
+    return;
+  }
+  if (!ctlStickerManifest.length) {
+    const p = document.createElement('p');
+    p.className = 'text-stone-400 text-sm col-span-4';
+    // Offline before the manifest was ever fetched is a legitimate path, and it
+    // is not an error — there simply are no stickers to show yet.
+    p.textContent = 'No stickers yet — they turn up as they are drawn.';
+    book.appendChild(p);
+    return;
+  }
+
+  const placedIdx = {};
+  ctlStickerState.stickers.forEach((s, i) => { placedIdx[s.id] = i; });
+
+  for (const e of ctlStickerManifest) {
+    const i = placedIdx[e.id];
+    const isPlaced = i !== undefined;
+    const isArmed = ctlStickerState.armed === e.id;
+    const isSelected = isPlaced && ctlStickerState.selected === i;
+
+    const b = document.createElement('button');
+    b.className = 'ctl-sticker-tile' +
+      ((isArmed || isSelected) ? ' ctl-sticker-tile-on' : '') +
+      (isPlaced ? ' ctl-sticker-tile-placed' : '');
+    b.setAttribute('aria-label', e.label + (isPlaced ? ' — on the controller' : ''));
+    b.setAttribute('aria-pressed', String(isArmed || isSelected));
+
+    const img = document.createElement('img');
+    img.src = CTL_STICKER_DIR + e.image;
+    img.alt = '';
+    img.className = 'w-full h-full object-contain pointer-events-none';
+    b.appendChild(img);
+
+    if (isPlaced) {
+      const dot = document.createElement('span');
+      dot.className = 'ctl-sticker-dot';
+      dot.setAttribute('aria-hidden', 'true');
+      b.appendChild(dot);
+    }
+
+    b.addEventListener('click', () => {
+      playPillClick();
+      ctlStickerDispatch({ t: 'bookTap', id: e.id });
+      const m = ctlStickerMode(ctlStickerState);
+      ctlStickerSay(m === 'armed' ? 'Tap the controller to put it on.'
+                  : m === 'selected' ? 'Tap somewhere else to move it.'
+                  : '');
+    });
+    book.appendChild(b);
+  }
+}
+
+/* Synced, never rebuilt — the sliders are static markup precisely so a repaint
+   of the book cannot interrupt a drag.
+
+   The card outlives the selection. Spec § 7 gives the sliders and Done to
+   Armed/Selected and Delete to Selected, but says Undo "appears whenever
+   ctlStickerHistory has an entry to pop" — no state qualifier. Hiding the whole
+   card in Idle would take Undo away one tap after Done, which is exactly when a
+   player wants it, so the card shows whenever ANY of its controls applies. */
+function ctlSyncStickerControls() {
+  const row = document.getElementById('ctl-sticker-controls');
+  if (!row) return;
+  const mode = ctlStickerMode(ctlStickerState);
+  const editing = mode !== 'idle';
+  const canUndo = ctlStickerState.history.length > 0;
+  row.style.display = (editing || canUndo) ? 'flex' : 'none';
+
+  const sliders = document.getElementById('ctl-sticker-sliders');
+  if (sliders) sliders.style.display = editing ? 'flex' : 'none';
+  const done = document.getElementById('btn-ctl-sticker-done');
+  if (done) done.style.display = editing ? '' : 'none';
+  const del = document.getElementById('btn-ctl-sticker-delete');
+  if (del) del.style.display = mode === 'selected' ? '' : 'none';   // nothing to remove while Armed
+  const undo = document.getElementById('btn-ctl-sticker-undo');
+  if (undo) undo.style.display = canUndo ? '' : 'none';
+
+  const sel = ctlStickerState.stickers[ctlStickerState.selected];
+  if (mode === 'selected' && sel) {
+    const rot = document.getElementById('ctl-sticker-rot');
+    const size = document.getElementById('ctl-sticker-size');
+    if (rot) rot.value = String(Math.round(sel.rot * 180 / Math.PI));
+    if (size && ctlGeo) {
+      const U = ctlGeo.userData;
+      const r = sel.surface === 'shell' ? sel.size : sel.r;
+      size.value = String(Math.round(r * 1.96 / (U.maxx - U.minx) * 100));
+    }
+  }
+}
+
 function ctlSelectColour(group, hex) {
   playPillClick();
   ctlDraft[group] = hex;
@@ -1668,9 +1810,74 @@ document.getElementById('btn-ctl-save').addEventListener('click', () => {
 
 document.getElementById('btn-ctl-reset').addEventListener('click', () => {
   playWhoosh();
-  ctlDraft = Object.assign({}, CTL_DEFAULTS);
+  /* CTL_DEFAULTS has no stickers key, so assigning it alone left the previous
+     placements attached to a factory-coloured shell — a Reset that resets
+     three-quarters of the design. */
+  ctlDraft = Object.assign({}, CTL_DEFAULTS, { stickers: [] });
+  ctlStickerState = { stickers: [], armed: null, selected: -1, history: [] };
   ctlApplyDesign(ctlDraft);
   ctlRenderPanel();
+});
+
+// ── The tab bar ──────────────────────────────────────────────────────────────
+document.querySelectorAll('#ctl-tabs [data-ctl-tab]').forEach(b => {
+  b.addEventListener('click', () => {
+    const tab = b.getAttribute('data-ctl-tab');
+    if (tab === ctlActiveTab) return;
+    playPillClick();
+    ctlActiveTab = tab;
+    if (tab === 'stickers') ctlOpenStickersTab();
+    else { ctlStickerDispatch({ t: 'done' }); ctlRenderPanel(); }
+  });
+});
+
+/* First open pays for the manifest fetch and the surface build. Measured at
+   339 ms on a desktop; a low-end phone is plausibly 3-5x that, so the panel
+   says what it is doing rather than sitting blank. */
+function ctlOpenStickersTab() {
+  ctlRenderPanel();                       // shows "Getting the stickers out…"
+  ctlLoadStickerManifest().then(() => {
+    ctlEnsureStickerSurface();
+    ctlRenderPanel();
+    ctlStickerSay(ctlStickerState.stickers.length
+      ? 'Tap a sticker to move it, or pick a new one.'
+      : 'Pick a sticker, then tap the controller.');
+  });
+}
+
+/* Live on input, so the sticker resizes/turns under the finger. These
+   deliberately do NOT push undo history — a single drag would otherwise fill
+   the stack with a hundred intermediate values; undo steps over the whole
+   adjustment to the last place/relocate/remove (see ctlStickerReduce). */
+['ctl-sticker-rot', 'ctl-sticker-size'].forEach(id => {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.addEventListener('input', () => {
+    const sel = ctlStickerState.stickers[ctlStickerState.selected];
+    if (!sel || !ctlGeo) return;
+    const patch = id === 'ctl-sticker-rot'
+      ? { rot: ctlStickerWantRot() }
+      : (sel.surface === 'shell'
+          ? { size: ctlStickerWantRadius() }
+          : { r: Math.min(ctlStickerWantRadius(), CTL_EAR_MAX_R) });
+    ctlStickerDispatch({ t: 'adjust', patch: patch });
+  });
+});
+
+document.getElementById('btn-ctl-sticker-undo').addEventListener('click', () => {
+  playWhoosh();
+  ctlStickerDispatch({ t: 'undo' });
+  ctlStickerSay('Put that back.');
+});
+document.getElementById('btn-ctl-sticker-delete').addEventListener('click', () => {
+  playExit();
+  ctlStickerDispatch({ t: 'delete' });
+  ctlStickerSay('Peeled it off.');
+});
+document.getElementById('btn-ctl-sticker-done').addEventListener('click', () => {
+  playDone();
+  ctlStickerDispatch({ t: 'done' });
+  ctlStickerSay('');
 });
 
 /* No quit-confirm overlay: nothing is mid-round, and an unsaved colour change
