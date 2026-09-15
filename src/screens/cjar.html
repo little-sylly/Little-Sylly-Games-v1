@@ -1,0 +1,466 @@
+  <!-- ════ COOKIE JAR (cjar) — simultaneous-choice push-your-luck ════
+       Screens : screen-cjar-menu, screen-cjar-raid-intro, screen-cjar-table,
+                 screen-cjar-busted, screen-cjar-raid-summary, screen-cjar-gameover
+       Overlays: cjar-settings-overlay, cjar-how-to-overlay, cjar-trail-overlay,
+                 cjar-quit-overlay, cjar-new-raid-overlay, cjar-tip-overlay
+    ══════════════════════════════════════════════════ -->
+
+  <!-- CJAR MENU — content-height section (NO min-h-screen, or the 🔊 detaches to
+       the viewport top and reads as unattached to the title) -->
+  <section id="screen-cjar-menu" style="display:none"
+    class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
+    <button class="btn-open-sound absolute top-4 right-4 text-2xl active:scale-90 transition-transform duration-100">🔊</button>
+    <div class="text-5xl" role="img" aria-label="Cookie Jar">🍪</div>
+    <div>
+      <h1 class="text-5xl font-bold leading-tight text-stone-800">Cookie</h1>
+      <h1 class="text-5xl font-bold leading-tight cjar-label">Jar</h1>
+      <p class="text-stone-400 text-base mt-1">Who took the cookies from the cookie jar?</p>
+    </div>
+    <div class="flex flex-col gap-3 w-full">
+      <button id="btn-cjar-menu-play" class="gel-btn cjar-cta min-h-14 w-full rounded-2xl text-xl font-semibold">Raid the Jar!</button>
+      <button id="btn-cjar-menu-how-to" class="gel-btn min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 text-white text-xl font-semibold">How to Play</button>
+      <button id="btn-cjar-menu-settings" class="gel-btn gel-btn-light min-h-14 w-full rounded-2xl bg-[#F7E9C4] hover:bg-[#EFDCA8] text-[#7A5C0A] text-xl font-semibold">Settings</button>
+      <button id="btn-cjar-menu-back" class="gel-btn gel-btn-light min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 text-stone-500 text-xl font-semibold">← Back to the Box</button>
+    </div>
+  </section>
+
+  <!-- CJAR RAID INTRO — interstitial. NO [?] / 🔊 / ✕: it auto-advances AND has no
+       interactive element, both conditions of the ui-style.md rule-5 exemption. -->
+  <section id="screen-cjar-raid-intro" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-4 text-center">
+      <div class="text-6xl" role="img" aria-label="Cookie jar">🍪</div>
+      <h2 id="cjar-intro-heading" class="text-3xl font-bold text-stone-800"></h2>
+      <p id="cjar-intro-sub" class="text-stone-500 text-base"></p>
+      <div id="cjar-intro-affinity" style="display:none" class="flex flex-col gap-2 bg-white rounded-2xl p-4 shadow-sm"></div>
+    </div>
+  </section>
+
+  <!-- CJAR TABLE — THE gameplay screen. Four sub-states via cjarTablePhase. -->
+  <section id="screen-cjar-table" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-4">
+
+      <!-- HEADER — title row + the family warning strip on a second row INSIDE the header zone -->
+      <div class="flex flex-col gap-2">
+        <div class="flex items-center justify-between">
+          <p id="cjar-table-raid" class="text-stone-500 text-sm font-semibold uppercase tracking-widest"></p>
+          <div class="flex items-center gap-2">
+            <button id="btn-cjar-how-to" class="text-stone-400 font-bold text-sm active:scale-90 transition-transform duration-100">[?]</button>
+            <button class="btn-open-sound text-xl active:scale-90 transition-transform duration-100">🔊</button>
+            <button class="btn-cjar-quit-open text-stone-500 font-bold text-xl active:scale-90 transition-transform duration-100">✕</button>
+          </div>
+        </div>
+        <div class="flex items-center gap-2.5">
+          <div id="cjar-warning-strip" class="flex items-center gap-1 flex-1"></div>
+          <button id="btn-cjar-family-tip" class="text-stone-300 font-bold text-xs leading-none active:scale-90 transition-transform duration-100">[?]</button>
+        </div>
+      </div>
+
+      <!-- STAGE — THREE BANDS, because one row was doing three different jobs and none
+           of them well. Band 1 is TABLE state (shared, up for grabs), band 2 is the
+           DECISION (what just resolved + what you are betting on), band 3 is the HISTORY.
+           All three previously shared one ~350px row: the trail was left ~142px — 2.6
+           thumbs of a Raid that runs 10+ flips — and the `next` card rendered at nearly
+           the same size as the spent ones, which undercut the past → present → future
+           read entirely. The Treat also stacked UNDER the deck in that same 56px column,
+           where it read as a card stuck below the deck rather than as the most valuable
+           object on the table (playtest round 2 reported it as a rendering bug; the
+           mechanic was correct, the presentation was not). -->
+      <div class="flex flex-col gap-2">
+
+        <!-- BAND 2 — the decision, THREE COLUMNS via CSS grid (not flex): grid is what
+             lets columns 1 and 3 STRETCH to column 2's (the hero's) height automatically,
+             which is what makes their two stacked items span the same visual row as the
+             single big hero — no explicit height math needed anywhere.
+             Col 1 — "on the table": the Treat slot (art, or a dashed placeholder in the
+               exact same footprint before one appears — art fills the same spot it will
+               occupy) on top, Crumbs below. Crumbs lived in its own band above this row
+               until round 2 folded it in here: it is part of what's sitting on the table,
+               same as the Treat.
+             Col 2 — the card you're betting on, face-down. It flips face-up only for the
+               2100 ms reveal choreography (CJAR_FLIP_ANIM_MS), then settles into the
+               history strip while the next face-down card rises to take its place — the
+               Aug 2026 action-stage rework (DD-18) moved this job here FROM col 3, which
+               is why the col 3 note below now says the opposite of what it said before.
+             Col 3 — the jar: an offset stack of card backs, a RESERVOIR rather than a bet
+               (DD-24 — it shrank once col 2 took over "the card you're betting on") with
+               a prominent count, so col 3's two stacked items still reach hero height. -->
+        <!-- Column headings are their own grid row, sharing col1/2/3's grid-cols-3 — DD-32.
+             Previously each heading lived INSIDE its own column's flex box: col 1's sat near
+             the top of a padded white card (justify-between pins the first child), col 2/3's
+             sat wherever a justify-center block landed within the stretched column height —
+             never the same row. A literal shared grid row is what guarantees they align
+             regardless of what each column's content below does. Col 1's white card is
+             dropped for the same reason: col 2/3 render actual card art (which already has
+             its own shape/shadow), so a third layer of chrome around col 1's plain
+             text+icon was the one thing making the row look uneven, not something the other
+             two columns needed to match. -->
+        <div class="grid grid-cols-3 gap-2 text-center">
+          <p class="text-[0.6rem] uppercase tracking-widest cjar-label">up for grabs</p>
+          <p id="cjar-stage-label-now" class="text-[0.6rem] uppercase tracking-widest cjar-label">Next from Jar</p>
+          <p class="text-[0.6rem] uppercase tracking-widest text-stone-300">Left in Jar</p>
+        </div>
+        <div id="cjar-stage-row" class="relative grid grid-cols-3 items-stretch gap-2">
+          <!-- COL 1 — "Up for Grabs". Crumbs and the Treat are ONE object because they
+               are one idea: shared table state that a solo departure claims. Crumbs sits
+               on TOP because it is almost always present, where a Treat is occasional.
+               h-full is what lets grid items-stretch give this card the hero's height, so
+               the three columns balance with no explicit height maths. DD-23. -->
+          <div id="cjar-grabs-card" class="h-full flex flex-col items-center justify-center gap-1.5">
+            <div class="flex items-center gap-1">
+              <span id="cjar-crumbs-value" class="text-3xl font-bold text-[#7A5C0A] leading-none"></span>
+              <span class="text-lg leading-none">🍪</span>
+              <button id="btn-cjar-crumbs-tip" class="text-stone-300 font-bold text-[0.65rem] leading-none active:scale-90 transition-transform duration-100">[?]</button>
+            </div>
+            <!-- Fixed footprint whether empty or full: a dashed placeholder marks WHERE a
+                 Treat will land, so one appearing is a fill-in, not a layout jump. -->
+            <div id="cjar-treat-slot" class="flex flex-col items-center"></div>
+            <p id="cjar-grabs-caption" class="text-xs text-stone-400 text-center leading-snug px-0.5"></p>
+          </div>
+          <div class="flex items-center justify-center h-full">
+            <div id="cjar-table-hero" class="flex items-end"></div>
+          </div>
+          <div class="flex flex-col items-center justify-center gap-1 h-full">
+            <div id="cjar-deck-badge" class="flex flex-col items-center"></div>
+          </div>
+          <!-- Delta animation layer: absolute so a flying cookie contributes ZERO height.
+               In-flow it would change the column height and re-centre the whole Stack on
+               every flip — the SHP sheep-parade bug, and this fires ~55× a match. -->
+          <div id="cjar-delta-layer" class="absolute inset-0 pointer-events-none"></div>
+        </div>
+
+        <!-- BAND 3 — history, full width: ~6.5 thumbs visible with real room to scroll.
+             The strip carries NO click handler of its own — it is a scroll container, and
+             a tap-to-open handler on it fights the swipe. The label is the affordance. -->
+        <div class="flex flex-col gap-1">
+          <div id="cjar-trail-strip" class="flex items-end gap-1.5 overflow-x-auto py-1 min-h-[4.6rem]"></div>
+          <button id="btn-cjar-trail-open" class="self-start text-[0.65rem] uppercase tracking-widest text-stone-300 active:scale-95 transition-transform duration-100">what's come out &rsaquo;</button>
+        </div>
+      </div>
+
+      <!-- SCORE TABLE — sits between the Stage and the action buttons in every phase, so
+           Open Book's live standings are readable at the exact moment they matter: while
+           deciding, not just at reveal. Header + rows share ONE wrapper (DD-32) — they used
+           to be two direct children of the Stack's own gap-4 column, so the Stack's 16px
+           inter-zone gap landed BETWEEN the header and its rows on top of the header's own
+           margin, a ~20px gap where row-to-row is 6px (gap-1.5). Wrapping both removes them
+           from the Stack's gap entirely; the tight gap-1 below is what actually controls the
+           header-to-first-row distance now. -->
+      <div class="flex flex-col gap-1">
+        <div id="cjar-reveal-header" class="cjar-reveal-grid gap-1.5 px-3 text-[0.6rem] uppercase tracking-widest text-stone-400"></div>
+        <div id="cjar-reveal-rows" class="flex flex-col gap-1.5"></div>
+      </div>
+
+      <!-- SYLLY-ONLY personal chips (Favourite / Watcher / Owes). Cookie Stash and This
+           Raid used to live here too, but they duplicated exactly what cjar-reveal-rows
+           already shows for your own seat — Open Book gates OTHERS' numbers, never your
+           own, so your row there is always live regardless of the setting. Hidden
+           entirely in the base game, where this strip now has nothing to say. -->
+      <div id="cjar-private-strip" style="display:none" class="flex flex-wrap items-center gap-2"></div>
+
+      <!-- CONTROLS — the action buttons stay the fixed floor of the screen; the timer
+           bar sits directly above them because it is counting down for THEM. -->
+      <div class="flex flex-col gap-3">
+        <div id="cjar-timer-bar" class="h-1.5 w-full rounded-full bg-stone-200 overflow-hidden">
+          <div id="cjar-timer-fill" class="h-full w-full rounded-full" style="background-color:#5C3A21"></div>
+        </div>
+        <div id="cjar-controls" class="flex flex-col gap-2"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CJAR BUSTED — interstitial, base game only. Chrome-exempt, same two conditions. -->
+  <section id="screen-cjar-busted" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-4 text-center">
+      <div id="cjar-busted-emoji" class="text-6xl" role="img" aria-label="Caught"></div>
+      <h2 class="text-4xl font-bold" style="color:#991b1b">BUSTED!</h2>
+      <p id="cjar-busted-who" class="text-xl font-bold text-stone-800"></p>
+      <p id="cjar-busted-line" class="text-stone-500 text-base italic"></p>
+    </div>
+  </section>
+
+  <!-- CJAR RAID SUMMARY — host-gated CTA -->
+  <section id="screen-cjar-raid-summary" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-4">
+      <div class="flex items-center justify-between">
+        <p id="cjar-summary-raid" class="text-stone-500 text-sm font-semibold uppercase tracking-widest"></p>
+        <div class="flex items-center gap-2">
+          <button id="btn-cjar-summary-how-to" class="text-stone-400 font-bold text-sm active:scale-90 transition-transform duration-100">[?]</button>
+          <button class="btn-open-sound text-xl active:scale-90 transition-transform duration-100">🔊</button>
+          <button class="btn-cjar-quit-open text-stone-500 font-bold text-xl active:scale-90 transition-transform duration-100">✕</button>
+        </div>
+      </div>
+      <div id="cjar-summary-rows" class="overflow-x-auto"></div>
+      <button id="btn-cjar-next-raid" class="cjar-cta min-h-14 w-full rounded-2xl active:scale-95 text-xl font-semibold transition-all duration-150">Next Raid</button>
+      <p id="cjar-summary-waiting" style="display:none" class="text-stone-400 text-sm text-center">Waiting for the host…</p>
+    </div>
+  </section>
+
+  <!-- CJAR GAMEOVER -->
+  <section id="screen-cjar-gameover" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-4">
+      <!-- "The Haul" closes the arc the Play CTA opens ("Raid the Jar!") and follows the
+           suite's gameover shape — PKO's The Hierarchy, FLW's The Vault. The nursery
+           rhyme stays as the subtitle, where it reads as flavour rather than as a title. -->
+      <div class="flex items-start justify-between">
+        <div>
+          <h2 class="text-2xl font-bold text-stone-800">The Haul 🍪</h2>
+          <p class="text-stone-400 text-sm mt-0.5">Who took the cookies from the cookie jar?</p>
+        </div>
+        <div class="flex items-center gap-2 shrink-0">
+          <button class="btn-open-sound text-xl active:scale-90 transition-transform duration-100">🔊</button>
+          <button id="btn-cjar-go-exit" class="text-stone-500 font-bold text-xl active:scale-90 transition-transform duration-100">✕</button>
+        </div>
+      </div>
+      <div id="cjar-podium" class="flex flex-col gap-2"></div>
+      <div id="cjar-history-grid" class="overflow-x-auto"></div>
+      <button id="btn-cjar-go-new" class="cjar-cta min-h-14 w-full rounded-2xl active:scale-95 text-xl font-semibold transition-all duration-150">Another Raid?</button>
+      <button id="btn-cjar-go-leave" class="min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-xl font-semibold transition-all duration-150">Leave the Jar</button>
+    </div>
+  </section>
+
+  <!-- CJAR SETTINGS — shell; cards authored in Task 14 -->
+  <div id="cjar-settings-overlay" style="display:none"
+    class="fixed inset-0 bg-black/40 z-[80] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
+      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
+        <h2 class="text-xl font-bold text-stone-800">Cookie Playbook 🍪</h2>
+        <p class="text-xs text-stone-400 mt-1">How the raid runs — and how much trouble you're in.</p>
+      </div>
+      <div id="cjar-settings-body" class="overflow-y-auto flex flex-col gap-5 px-5 py-5">
+        <div id="cjar-set-snack" class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">Snack Friendly</p>
+            <p class="text-stone-400 text-sm mt-0.5">Guarantees the first card or two of every Raid is cookies, so nobody gets busted before they've grabbed anything.</p>
+          </div>
+          <div class="flex flex-col gap-2">
+            <div class="flex gap-2">
+              <button class="pill" data-group="cjar-snack" data-val="off">Off</button>
+              <button class="pill pill-active-cjar" data-group="cjar-snack" data-val="safe">Safe First Grab</button>
+              <button class="pill" data-group="cjar-snack" data-val="warmup">Warm-Up</button>
+            </div>
+            <p id="cjar-val-snack" class="text-stone-400 text-xs"></p>
+          </div>
+        </div>
+
+        <div id="cjar-set-house" class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">House Rules</p>
+            <p class="text-stone-400 text-sm mt-0.5">What happens to a family member after they catch you. Standard Burn makes them a little less likely next time; High Alert makes someone <span class="font-semibold text-stone-700">more</span> likely.</p>
+          </div>
+          <div class="flex flex-col gap-2">
+            <div class="flex gap-2">
+              <button class="pill pill-active-cjar" data-group="cjar-house" data-val="burn">Standard Burn</button>
+              <button class="pill" data-group="cjar-house" data-val="on-guard">On Guard</button>
+              <button class="pill" data-group="cjar-house" data-val="high-alert">High Alert</button>
+            </div>
+            <p id="cjar-val-house" class="text-stone-400 text-xs"></p>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">Match Length</p>
+            <p class="text-stone-400 text-sm mt-0.5">How many Cookie Raids before the biggest Cookie Stash wins.</p>
+          </div>
+          <div class="flex flex-col gap-2">
+            <div class="flex gap-2">
+              <button class="pill" data-group="cjar-length" data-val="3">Quick Snack</button>
+              <button class="pill pill-active-cjar" data-group="cjar-length" data-val="5">Full Feast</button>
+            </div>
+            <p id="cjar-val-length" class="text-stone-400 text-xs"></p>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">Decision Time</p>
+            <p class="text-stone-400 text-sm mt-0.5">How long everyone gets to choose each flip. No Rush turns the clock off completely — the jar waits for the slowest hand.</p>
+          </div>
+          <div class="flex flex-col gap-2">
+            <div class="flex gap-2">
+              <button class="pill" data-group="cjar-time" data-val="blitz">Blitz</button>
+              <button class="pill pill-active-cjar" data-group="cjar-time" data-val="standard">Standard</button>
+              <button class="pill" data-group="cjar-time" data-val="norush">No Rush</button>
+            </div>
+            <p id="cjar-val-time" class="text-stone-400 text-xs"></p>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <div class="flex items-center justify-between">
+            <p class="text-stone-800 font-semibold">Open Book</p>
+            <button id="btn-cjar-openbook-toggle" class="game-toggle-on-cjar shrink-0">ON</button>
+          </div>
+          <p class="text-stone-400 text-sm">Shows everyone's cookies to everyone. Turn it off and you'll only see your own numbers — you'll hear what happened to the others, just not how much.</p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <div class="flex items-center justify-between">
+            <p class="text-stone-800 font-semibold">✨ Sylly Mode</p>
+            <button id="btn-cjar-sylly-toggle" class="game-toggle-off shrink-0">OFF</button>
+          </div>
+          <p class="text-stone-600 text-sm font-semibold">Dibber Dobber</p>
+          <p class="text-stone-400 text-sm">Three moves instead of two. Take grabs cookies, Play Innocent keeps you safe and sweeps the crumbs, and Dob points the finger at whoever's taking. Nobody leaves, nobody busts, and nobody ever loses everything.</p>
+        </div>
+
+        <button id="btn-cjar-settings-close" class="cjar-cta min-h-14 w-full rounded-2xl text-xl font-semibold active:scale-95 transition-all duration-150">Got it</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CJAR HOW TO PLAY — shell; step cards authored in Task 14 -->
+  <div id="cjar-how-to-overlay" style="display:none"
+    class="fixed inset-0 bg-black/40 z-[90] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
+      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
+        <h2 class="text-xl font-bold text-stone-800">How to Play 🍪</h2>
+        <p class="text-xs text-stone-400 mt-1">Grab cookies, don't get caught twice.</p>
+      </div>
+      <!-- TAB BAR — the card gallery used to be its own overlay opened from a button at
+           the bottom of this one. Knowing what cards exist IS learning the game, so it
+           belongs here rather than one overlay further away; folding it in also removes
+           a z-index stack and one overlay from the teardown list. Sticky with the title
+           block, never scrolling with the body. -->
+      <div class="px-5 pt-3 pb-3 border-b border-stone-200 flex-shrink-0 flex gap-2">
+        <button id="btn-cjar-howto-tab-rules" class="pill pill-active-cjar" data-cjar-howto-tab="rules">The Rules</button>
+        <button id="btn-cjar-howto-tab-cards" class="pill" data-cjar-howto-tab="cards">The Cards</button>
+      </div>
+      <div id="cjar-how-to-body" class="overflow-y-auto flex flex-col gap-4 px-5 py-5">
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest cjar-label">Step 1</p>
+          <p class="font-bold text-stone-800">A card comes out of the jar</p>
+          <p class="text-stone-500 text-sm">Everyone sees it at once. It's either <span class="font-semibold text-stone-700">cookies</span> 🍪, a member of the <span class="font-semibold text-stone-700">family</span> 👪, or a <span class="font-semibold text-stone-700">Treat</span> 🍰 that lands on the counter.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest cjar-label">Step 2</p>
+          <p class="font-bold text-stone-800">Cookies get shared out straight away</p>
+          <p class="text-stone-500 text-sm">Split evenly between everyone still raiding. Anything left over that won't divide becomes <span class="font-semibold text-stone-700">Cookie Crumbs</span>, sitting on the bench.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest cjar-label">Step 3</p>
+          <p class="font-bold text-stone-800">Then everyone decides, at the same time</p>
+          <p class="text-stone-500 text-sm"><span class="font-semibold text-stone-700">Reach In Again</span> to stay in for the next card, or <span class="font-semibold text-stone-700">Sneak Out</span> to bank everything you've collected this Raid. Decision Time is a setting — Blitz, Standard, or No Rush with no clock at all.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest cjar-label">Step 4</p>
+          <p class="font-bold text-stone-800">Sneak out alone and you take the crumbs</p>
+          <p class="text-stone-500 text-sm">The only one leaving? You scoop <span class="font-semibold text-stone-700">every crumb</span> on the bench and any Treat on the counter. Leave with someone else and you just split the crumbs.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest cjar-label">Step 5</p>
+          <p class="font-bold text-stone-800">The family is watching</p>
+          <p class="text-stone-500 text-sm">The first time someone turns up, it's just a scare. The <span class="font-semibold text-stone-700">second time the same person turns up</span>, it's BUSTED! — everyone still in the kitchen loses the lot.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest cjar-label">Step 6</p>
+          <p class="font-bold text-stone-800">Banked cookies are safe forever</p>
+          <p class="text-stone-500 text-sm">A bust only costs you what you were carrying <span class="font-semibold text-stone-700">this Raid</span>. Your <span class="font-semibold text-stone-700">Cookie Stash</span> can never go down.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest cjar-label">Step 7</p>
+          <p class="font-bold text-stone-800">Five Raids, one jar</p>
+          <p class="text-stone-500 text-sm">Each Raid starts a fresh jar. Check the <span class="font-semibold text-stone-700">Crumb Trail</span> 🔍 any time to see every flip and who's still lurking in the deck.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest cjar-label">Winning and Scoring</p>
+          <p class="font-bold text-stone-800">Biggest Cookie Stash takes it</p>
+          <ul class="list-disc pl-5 flex flex-col gap-1 text-stone-500 text-sm">
+            <li><span class="font-semibold text-stone-700">Most cookies banked</span> — Top Cookie Thief 🍪.</li>
+            <li><span class="font-semibold text-stone-700">Tied?</span> Whoever grabbed more Treats wins it.</li>
+            <li><span class="font-semibold text-stone-700">Still tied?</span> You share the spot.</li>
+            <li><span class="font-semibold text-stone-700">Last place</span> gets caught Red-Handed.</li>
+          </ul>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest cjar-label">✨ Sylly Mode</p>
+          <p class="font-bold text-stone-800">Dibber Dobber</p>
+          <p class="text-stone-500 text-sm">Three moves instead of two. <span class="font-semibold text-stone-700">Take</span> grabs cookies, <span class="font-semibold text-stone-700">Play Innocent</span> keeps you safe and sweeps the crumbs, and <span class="font-semibold text-stone-700">Dob</span> points the finger at whoever's taking — but it backfires if nobody was. Every Raid you get a secret <span class="font-semibold text-stone-700">Favourite</span> who lets you off and a <span class="font-semibold text-stone-700">Watcher</span> who costs you double. Nobody leaves, nobody busts, and nobody ever loses everything.</p>
+        </div>
+        <button id="btn-cjar-howto-close" class="cjar-cta min-h-14 w-full rounded-2xl text-xl font-semibold active:scale-95 transition-all duration-150">Got it</button>
+      </div>
+
+      <!-- THE CARDS tab. Body is built from CJAR_DATA on every open, so it can never
+           drift from the live deck the way a hand-written list would, and every tile
+           goes through cjarRenderCard — a gallery that built its own markup would be
+           unskinnable. This is also what makes the offline install check a SINGLE-DEVICE
+           job: open it offline and illustrated cards mean the art precached, emoji mean
+           it did not. On an MDLM-only game the alternative is four phones and a live
+           Firebase room to answer a service-worker question. -->
+      <div id="cjar-how-to-cards" style="display:none" class="overflow-y-auto flex-col gap-5 px-5 py-5">
+        <div id="cjar-cards-body" class="flex flex-col gap-5"></div>
+        <button id="btn-cjar-howto-close-cards" class="cjar-cta min-h-14 w-full rounded-2xl text-xl font-semibold active:scale-95 transition-all duration-150">Got it</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CJAR CRUMB TRAIL — the flip log. Title must read as a LOG, never just "Crumbs"
+       (the scoring currency is Cookie Crumbs; PKO owns "The Trail"). -->
+  <div id="cjar-trail-overlay" style="display:none"
+    class="fixed inset-0 bg-black/40 z-[90] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
+      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
+        <h2 class="text-xl font-bold text-stone-800">Crumb Trail 🔍</h2>
+        <p class="text-xs text-stone-400 mt-1">Every flip this Raid.</p>
+      </div>
+      <div class="overflow-y-auto flex flex-col gap-3 px-5 py-5">
+        <div id="cjar-trail-copies" class="flex flex-col gap-2"></div>
+        <div id="cjar-trail-log" class="flex flex-col gap-2"></div>
+        <button id="btn-cjar-trail-close" class="cjar-cta min-h-14 w-full rounded-2xl text-xl font-semibold active:scale-95 transition-all duration-150">Got it</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CJAR QUIT -->
+  <div id="cjar-quit-overlay" style="display:none"
+    class="fixed inset-0 z-[80] overlay-modal-backdrop flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-[#E5C97A]">
+      <p class="text-3xl">🍪</p>
+      <h3 class="text-lg font-bold text-stone-800">Giving up on the jar?</h3>
+      <p class="text-stone-500 text-sm">Your Cookie Stash will be lost.</p>
+      <button id="btn-cjar-quit-confirm" class="cjar-cta min-h-14 w-full rounded-2xl active:scale-95 font-semibold text-lg transition-all duration-150">Yeah, sneak off.</button>
+      <button id="btn-cjar-quit-cancel" class="min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-lg transition-all duration-150">Keep raiding!</button>
+    </div>
+  </div>
+
+  <!-- CJAR PLAY AGAIN -->
+  <div id="cjar-new-raid-overlay" style="display:none"
+    class="fixed inset-0 z-[90] overlay-modal-backdrop flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-[#E5C97A]">
+      <p class="text-3xl">🍪</p>
+      <h3 class="text-lg font-bold text-stone-800">Another Raid?</h3>
+      <p class="text-stone-500 text-sm">Everyone's Cookie Stash goes back to zero.</p>
+      <button id="btn-cjar-new-confirm" class="cjar-cta min-h-14 w-full rounded-2xl active:scale-95 font-semibold text-lg transition-all duration-150">Restart in Lobby</button>
+      <button id="btn-cjar-new-cancel" class="min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-lg transition-all duration-150">Stay here</button>
+    </div>
+  </div>
+
+  <!-- CJAR CARD VIEW — full illustration popup, opened by tapping a thumb in the
+       history strip (DD-27). Reuses cjar-card-hero (the pre-DD-18 hero size) since
+       nothing else in the game needs a card at 15rem anymore. -->
+  <div id="cjar-card-view-overlay" style="display:none"
+    class="fixed inset-0 z-[90] overlay-modal-backdrop flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col items-center gap-4 text-center border border-[#E5C97A]">
+      <div id="cjar-card-view-body" class="flex items-center justify-center"></div>
+      <h3 id="cjar-card-view-name" class="text-lg font-bold text-stone-800"></h3>
+      <button id="btn-cjar-card-view-close" class="cjar-cta min-h-14 w-full rounded-2xl active:scale-95 font-semibold text-lg transition-all duration-150">Got it</button>
+    </div>
+  </div>
+
+  <!-- CJAR SHARED TIP — content injected by cjarShowTip(emoji, heading, lines[]) -->
+  <div id="cjar-tip-overlay" style="display:none"
+    class="fixed inset-0 z-[90] overlay-modal-backdrop flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-[#E5C97A]">
+      <div class="flex flex-col gap-2">
+        <p id="cjar-tip-emoji" class="text-3xl"></p>
+        <h3 id="cjar-tip-heading" class="text-lg font-bold text-stone-800"></h3>
+        <div id="cjar-tip-body" class="text-stone-500 text-sm text-left flex flex-col gap-1.5"></div>
+      </div>
+      <button id="btn-cjar-tip-close" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-sm transition-all duration-100">Got it</button>
+    </div>
+  </div>
+

@@ -1,0 +1,514 @@
+  <!-- ════ GROUP THERAPY ════
+       Screens : screen-gth-menu, screen-gth-patient-intake, screen-gth-disorder-reveal, screen-gth-canvas,
+                 screen-gth-waiting-room, screen-gth-shrink-intro, screen-gth-case,
+                 screen-gth-case-report, screen-gth-big-reveal, screen-gth-final-report
+       Overlays: gth-settings-overlay, gth-how-to-overlay, gth-quit-overlay, gth-new-session-overlay
+    ════════════════════════════════════════════════════════════════════════════════════ -->
+
+  <!-- GTH MENU -->
+  <section id="screen-gth-menu" style="display:none"
+    class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
+    <button class="btn-open-sound absolute top-4 right-4 text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+    <div class="text-6xl" role="img" aria-label="Couch">🛋️</div>
+    <div>
+      <h1 class="text-5xl font-bold leading-tight text-stone-800">Group</h1>
+      <h1 class="text-5xl font-bold leading-tight" style="color:#B1BCA0">Therapy</h1>
+      <p class="text-stone-400 text-base mt-1">We've all got issues. Now draw them.</p>
+    </div>
+    <div class="flex flex-col gap-4 w-full mt-2">
+      <button id="btn-gth-menu-play" class="gel-btn min-h-14 w-full rounded-2xl text-white text-xl font-semibold" style="background-color:#B1BCA0">Start the Session</button>
+      <button id="btn-gth-menu-how-to" class="gel-btn min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 text-white text-xl font-semibold">How to Play</button>
+      <button id="btn-gth-menu-settings" class="gel-btn gel-btn-light min-h-14 w-full rounded-2xl text-xl font-semibold" style="background-color:#e8ede3;color:#6b7a5f">Settings</button>
+      <button id="btn-gth-menu-back" class="gel-btn gel-btn-light min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 text-stone-500 text-xl font-semibold">← Back to the Box</button>
+    </div>
+  </section>
+
+  <!-- GTH PATIENT INTAKE -->
+  <section id="screen-gth-patient-intake" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-6">
+      <div class="flex items-center justify-end">
+        <div class="flex items-center gap-2">
+          <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+          <button class="btn-gth-quit-open text-xl text-stone-500 font-bold active:scale-90 transition-transform duration-100">✕</button>
+        </div>
+      </div>
+      <div class="text-center">
+        <div class="text-5xl mb-3">🛋️</div>
+        <h2 class="text-2xl font-bold text-stone-800">Welcome to Group Therapy</h2>
+        <p class="text-stone-400 text-sm mt-2 leading-relaxed">Thanks for checking yourself in. Our shrinks will be with you shortly. In the meantime, please illustrate your current symptoms.</p>
+      </div>
+      <div>
+        <p class="text-xs font-semibold uppercase tracking-widest mb-2" style="color:#B1BCA0">Your Symptoms</p>
+        <div id="gth-intake-disorders" class="flex flex-col gap-2"></div>
+      </div>
+      <p class="text-stone-400 text-xs text-center">Auto-starting in <span id="gth-intake-countdown" class="font-semibold text-stone-600 tabular-nums">30</span>s — tap when ready</p>
+      <button id="btn-gth-intake-ready" class="min-h-14 w-full rounded-2xl active:scale-95 text-white text-xl font-semibold transition-all duration-150" style="background-color:#B1BCA0">
+        I'm Ready to Draw →
+      </button>
+    </div>
+  </section>
+
+  <!-- GTH DISORDER REVEAL -->
+  <section id="screen-gth-disorder-reveal" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-6">
+      <div class="flex items-center justify-between">
+        <p id="gth-reveal-progress" class="text-stone-400 text-xs font-semibold uppercase tracking-widest"></p>
+        <div class="flex items-center gap-2">
+          <button id="btn-gth-how-to" class="text-stone-400 font-bold text-sm active:scale-90 transition-transform duration-100">[?]</button>
+          <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+          <button class="btn-gth-quit-open text-xl text-stone-500 font-bold active:scale-90 transition-transform duration-100">✕</button>
+        </div>
+      </div>
+
+      <!-- Preview sub-state -->
+      <div id="gth-reveal-preview" class="flex flex-col gap-4">
+        <div class="text-center">
+          <h2 id="gth-reveal-name" class="text-3xl font-bold text-stone-800"></h2>
+          <p id="gth-reveal-definition" class="text-stone-500 text-base mt-2 leading-relaxed"></p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm">
+          <p class="text-xs font-semibold uppercase tracking-widest mb-2" style="color:#B1BCA0">Drawing Tip 🎨</p>
+          <p id="gth-reveal-tip" class="text-stone-600 text-sm leading-relaxed"></p>
+        </div>
+        <button id="btn-gth-reveal-ready" class="min-h-14 w-full rounded-2xl active:scale-95 text-white text-xl font-semibold transition-all duration-150" style="background-color:#B1BCA0">
+          Ready to Draw →
+        </button>
+      </div>
+
+      <!-- Between sub-state -->
+      <div id="gth-reveal-between" class="hidden flex flex-col gap-4 text-center">
+        <div>
+          <p id="gth-between-progress" class="text-stone-400 text-sm font-semibold"></p>
+          <h2 id="gth-between-next-name" class="text-3xl font-bold text-stone-800 mt-2"></h2>
+          <p id="gth-between-next-def" class="text-stone-500 text-base mt-2 leading-relaxed"></p>
+        </div>
+        <button id="btn-gth-between-draw" class="min-h-14 w-full rounded-2xl active:scale-95 text-white text-xl font-semibold transition-all duration-150" style="background-color:#B1BCA0">
+          Draw Next →
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- GTH CANVAS -->
+  <section id="screen-gth-canvas" style="display:none"
+    class="flex flex-col w-full max-w-sm mx-auto h-screen overflow-hidden">
+    <!-- Header -->
+    <div class="flex items-center justify-between px-4 pt-4 pb-2 flex-shrink-0">
+      <div>
+        <p id="gth-canvas-disorder-name" class="text-stone-800 font-bold text-base"></p>
+        <p id="gth-canvas-tip" class="text-stone-500 text-xs mt-0.5 leading-snug"></p>
+        <p id="gth-canvas-progress" class="text-stone-400 text-xs mt-0.5"></p>
+      </div>
+      <div class="flex items-center gap-2">
+        <p id="gth-canvas-timer" class="text-stone-800 font-bold text-xl tabular-nums"></p>
+        <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+      </div>
+    </div>
+    <!-- Canvas body -->
+    <div class="flex-1 overflow-hidden flex items-center justify-center px-4 min-h-0">
+      <div id="gth-canvas-wrapper" class="w-full aspect-square max-h-full bg-white rounded-2xl shadow-sm border border-stone-200 overflow-hidden touch-none">
+        <canvas id="gth-canvas" class="w-full h-full block"></canvas>
+      </div>
+    </div>
+    <!-- Footer -->
+    <div class="px-4 pb-6 pt-3 flex-shrink-0 flex gap-3">
+      <button id="btn-gth-canvas-clear" class="min-h-12 rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-600 font-semibold text-sm transition-all duration-100 px-5">
+        Clear
+      </button>
+      <button id="btn-gth-canvas-undo" class="min-h-12 rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-600 font-semibold text-sm transition-all duration-100 px-5">
+        Undo
+      </button>
+      <button id="btn-gth-canvas-done" class="min-h-12 flex-1 rounded-2xl active:scale-95 text-white text-lg font-semibold transition-all duration-150" style="background-color:#B1BCA0">
+Done
+</button>
+    </div>
+  </section>
+
+  <!-- GTH WAITING ROOM -->
+  <section id="screen-gth-waiting-room" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-6 text-center">
+      <div class="text-5xl">⏳</div>
+      <div>
+        <h2 class="text-2xl font-bold text-stone-800">Waiting Room</h2>
+        <p class="text-stone-400 text-base mt-1">Everyone's finishing up their drawings.</p>
+      </div>
+      <div id="gth-waiting-progress" class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+        <!-- Populated dynamically: player name + ✓ / drawing... per player -->
+      </div>
+      <p class="text-stone-400 text-sm">The Shrink Phase begins when everyone's done.</p>
+    </div>
+  </section>
+
+  <!-- GTH SHRINK INTRO -->
+  <section id="screen-gth-shrink-intro" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-4">
+      <div class="flex items-center justify-between">
+        <div></div>
+        <div class="flex items-center gap-2">
+          <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+          <button class="btn-gth-quit-open text-xl text-stone-500 font-bold active:scale-90 transition-transform duration-100">✕</button>
+        </div>
+      </div>
+      <div class="text-center flex flex-col gap-8">
+        <div>
+          <div class="text-5xl mb-4">🧠</div>
+          <h2 class="text-3xl font-bold text-stone-800">The Shrink Phase</h2>
+          <p class="text-stone-400 text-base mt-2">Diagnose each anonymous drawing before the time runs out.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2 text-left">
+          <p class="text-xs font-semibold uppercase tracking-widest" style="color:#B1BCA0">How it works</p>
+          <p class="text-stone-600 text-sm">You'll see anonymous drawings one at a time. Pick the correct disorder from the options — or type it if Deep Dive is on. You <span class="font-semibold text-stone-700">won't</span> see your own drawings.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm text-left">
+          <p class="text-xs font-semibold uppercase tracking-widest mb-1" style="color:#B1BCA0">Time limit</p>
+          <p id="gth-shrink-window-label" class="text-stone-600 text-sm"></p>
+        </div>
+        <button id="btn-gth-shrink-start" class="min-h-14 w-full rounded-2xl active:scale-95 text-white text-xl font-semibold transition-all duration-150" style="background-color:#B1BCA0">
+          Open the Case Files →
+        </button>
+        <p id="gth-shrink-countdown-label" class="text-stone-400 text-sm">Auto-starting in <span id="gth-shrink-countdown">15</span>s — tap when ready</p>
+        <p id="gth-shrink-wait-msg" style="display:none" class="text-stone-400 text-sm">Waiting for the host to open the files…</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- GTH CASE (Shrink Phase) -->
+  <section id="screen-gth-case" style="display:none"
+    class="flex flex-col w-full max-w-sm mx-auto h-screen overflow-hidden">
+    <!-- Header -->
+    <div class="flex items-center justify-between px-4 pt-4 pb-2 flex-shrink-0">
+      <div>
+        <p id="gth-case-progress" class="text-stone-400 text-xs font-semibold uppercase tracking-widest"></p>
+      </div>
+      <div class="flex items-center gap-2">
+        <p id="gth-case-timer" class="text-stone-800 font-bold text-xl tabular-nums"></p>
+        <button id="btn-gth-how-to-case" class="text-stone-400 font-bold text-sm active:scale-90 transition-transform duration-100">[?]</button>
+        <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+        <button class="btn-gth-quit-open text-xl text-stone-500 font-bold active:scale-90 transition-transform duration-100">✕</button>
+      </div>
+    </div>
+    <!-- Drawing display -->
+    <div class="flex-shrink-0 px-4 pb-2">
+      <canvas id="gth-case-canvas" class="w-full aspect-square rounded-2xl bg-white shadow-sm border border-stone-200 block"></canvas>
+    </div>
+    <!-- Body: diagnostic cards or deep-dive input -->
+    <div class="flex-1 overflow-y-auto px-4 pb-2 min-h-0">
+      <!-- Standard mode: 4 Diagnostic Cards -->
+      <div id="gth-case-cards" class="grid grid-cols-2 gap-2">
+        <!-- Populated by gthShowCase() -->
+      </div>
+      <!-- Deep Dive mode: text input -->
+      <div id="gth-case-deepdive" class="hidden flex flex-col gap-3">
+        <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest text-center">Your Diagnosis</p>
+        <input id="gth-deepdive-input" type="text" placeholder="Type your diagnosis…"
+          class="w-full rounded-xl border-2 border-stone-200 bg-white px-4 py-3 text-base text-stone-800 placeholder-stone-300 focus:outline-none transition-colors"
+          style="focus-border-color:#B1BCA0" maxlength="60" autocomplete="off" autocorrect="off" />
+        <p id="gth-deepdive-error" class="text-red-500 text-xs text-center hidden"></p>
+        <button id="btn-gth-deepdive-submit" class="btn-mp-action min-h-14 w-full rounded-2xl active:scale-95 text-white text-xl font-semibold transition-all duration-150" style="background-color:#B1BCA0">
+          Submit Diagnosis →
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- GTH CASE REPORT -->
+  <section id="screen-gth-case-report" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-4">
+      <div class="flex items-center justify-between">
+        <div></div>
+        <div class="flex items-center gap-2">
+          <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+          <button class="btn-gth-quit-open text-xl text-stone-500 font-bold active:scale-90 transition-transform duration-100">✕</button>
+        </div>
+      </div>
+      <div class="flex flex-col gap-6 text-center">
+      <div class="text-5xl">📋</div>
+      <div>
+        <h2 class="text-2xl font-bold text-stone-800">Session Notes Filed</h2>
+        <p class="text-stone-400 text-base mt-1">You finished your queue. Waiting for the rest of the group.</p>
+      </div>
+      <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2 text-left">
+        <p class="text-xs font-semibold uppercase tracking-widest" style="color:#B1BCA0">How it works</p>
+        <p class="text-stone-600 text-sm">Anonymous drawings are assigned to everyone — you won't see your own. Pick the correct disorder from four options, or type it in Deep Dive mode.</p>
+      </div>
+      <div class="bg-white rounded-2xl p-4 shadow-sm text-left">
+        <p class="text-xs font-semibold uppercase tracking-widest mb-1" style="color:#B1BCA0">Time remaining</p>
+        <p id="gth-case-report-time" class="text-stone-600 text-sm font-semibold tabular-nums"></p>
+      </div>
+      <div id="gth-case-report-stats" class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+        <!-- Populated dynamically -->
+      </div>
+      <div id="gth-case-report-progress" class="flex flex-col gap-2">
+        <!-- Per-player progress dots -->
+      </div>
+      <p class="text-stone-400 text-sm">The Big Reveal starts when everyone's done.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- GTH BIG REVEAL -->
+  <section id="screen-gth-big-reveal" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-5">
+      <div class="flex items-center justify-between">
+        <h2 class="text-xl font-bold text-stone-800">Case Files Unsealed 📂</h2>
+        <div class="flex items-center gap-2">
+          <p id="gth-reveal-count" class="text-stone-400 text-sm font-semibold"></p>
+          <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+          <button id="btn-gth-big-reveal-exit" class="text-xl text-stone-500 font-bold active:scale-90 transition-transform duration-100">✕</button>
+        </div>
+      </div>
+
+      <!-- Drawing display -->
+      <canvas id="gth-reveal-canvas" class="w-full aspect-square rounded-2xl bg-white shadow-sm border border-stone-200 block"></canvas>
+
+      <!-- Case info card -->
+      <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-widest" style="color:#B1BCA0">The Disorder</p>
+          <h3 id="gth-reveal-disorder" class="text-2xl font-bold text-stone-800 mt-1"></h3>
+        </div>
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-widest" style="color:#B1BCA0">Artist</p>
+          <p id="gth-reveal-artist" class="text-stone-700 font-semibold mt-1"></p>
+        </div>
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-widest" style="color:#B1BCA0">Correct Diagnoses</p>
+          <div id="gth-reveal-shrinks" class="text-stone-600 text-sm mt-1"></div>
+        </div>
+      </div>
+
+      <!-- Navigation -->
+      <div id="gth-reveal-next-wrap">
+        <button id="btn-gth-reveal-next" class="min-h-14 w-full rounded-2xl active:scale-95 text-white text-xl font-semibold transition-all duration-150" style="background-color:#B1BCA0">
+          Next Case →
+        </button>
+      </div>
+      <div id="gth-reveal-finish-wrap" class="hidden">
+        <button id="btn-gth-reveal-finish" class="min-h-14 w-full rounded-2xl active:scale-95 text-white text-xl font-semibold transition-all duration-150" style="background-color:#B1BCA0">
+          See Final Results →
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- GTH FINAL REPORT -->
+  <section id="screen-gth-final-report" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-5">
+      <div class="flex items-center justify-between">
+        <h2 class="text-xl font-bold text-stone-800">Session Summary 📋</h2>
+        <button id="btn-gth-final-exit" class="text-xl text-stone-500 font-bold active:scale-90 transition-transform duration-100">✕</button>
+      </div>
+
+      <!-- Leaderboard -->
+      <div id="gth-final-leaderboard" class="flex flex-col gap-2">
+        <!-- Populated by gthShowFinalReport() -->
+      </div>
+
+      <!-- Score breakdown legend -->
+      <div class="bg-white rounded-2xl p-4 shadow-sm">
+        <p class="text-xs font-semibold uppercase tracking-widest mb-2" style="color:#B1BCA0">How Sessions Work</p>
+        <div class="flex flex-col gap-1 text-stone-500 text-sm">
+          <p>🎨 Patient: <span class="font-semibold text-stone-700">+2</span> per correct Shrink diagnosis</p>
+          <p>🧠 Shrink correct: <span class="font-semibold text-stone-700">+2</span></p>
+          <p>⚡ Fastest correct: <span class="font-semibold text-stone-700">+1</span> bonus</p>
+          <p>🔬 Tier 3 disorder: <span class="font-semibold text-stone-700">+1</span> bonus</p>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <button id="btn-gth-new-session" class="min-h-14 w-full rounded-2xl active:scale-95 text-white text-xl font-semibold transition-all duration-150" style="background-color:#B1BCA0">
+        New Session
+      </button>
+    </div>
+  </section>
+
+  <!-- GTH SETTINGS OVERLAY -->
+  <div id="gth-settings-overlay" style="display:none"
+    class="fixed inset-0 bg-black/40 z-[80] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
+      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
+        <h2 class="text-xl font-bold text-stone-800">Inpatient Admission Form 📋</h2>
+        <p class="text-xs text-stone-400 mt-1">Please complete all fields accurately to ensure an efficient institutional visit.</p>
+      </div>
+      <div class="overflow-y-auto flex flex-col gap-5 px-5 py-5">
+
+        <!-- Reportable Symptoms -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">Reportable Symptoms</p>
+            <p class="text-stone-400 text-sm mt-0.5">Number of disorders each patient must convey.</p>
+          </div>
+          <div class="flex gap-2">
+            <button class="pill pill-active-sage" data-group="gth-disorders" data-val="3">3</button>
+            <button class="pill" data-group="gth-disorders" data-val="4">4</button>
+            <button class="pill" data-group="gth-disorders" data-val="5">5</button>
+          </div>
+        </div>
+
+        <!-- Expression Window -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">Expression Window</p>
+            <p class="text-stone-400 text-sm mt-0.5">Time available to convey each disorder.</p>
+          </div>
+          <div class="flex gap-2">
+            <button class="pill" data-group="gth-drawtime" data-val="30">30s</button>
+            <button class="pill pill-active-sage" data-group="gth-drawtime" data-val="60">60s</button>
+            <button class="pill" data-group="gth-drawtime" data-val="0">No Limit</button>
+          </div>
+        </div>
+
+        <!-- Diagnosis Window -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">Diagnosis Window</p>
+            <p class="text-stone-400 text-sm mt-0.5">Total time for diagnosing patient disorders.</p>
+          </div>
+          <div class="flex gap-2">
+            <button class="pill" data-group="gth-window" data-val="60">60s</button>
+            <button class="pill pill-active-sage" data-group="gth-window" data-val="90">90s</button>
+            <button class="pill" data-group="gth-window" data-val="120">120s</button>
+          </div>
+          <div class="flex gap-2 text-stone-400 text-xs">
+            <p class="flex-1 text-center">Fast — ~4 cases</p>
+            <p class="flex-1 text-center">Balanced — ~6 cases</p>
+            <p class="flex-1 text-center">Relaxed — ~8 cases</p>
+          </div>
+        </div>
+
+        <!-- Symptom Severity -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">Symptom Severity</p>
+            <p class="text-stone-400 text-sm mt-0.5">Abstract visual complexity of the disorders in the pool.</p>
+          </div>
+          <div class="flex flex-col gap-2">
+            <div class="flex gap-2">
+              <button class="pill" data-group="gth-difficulty" data-val="episodic">Episodic</button>
+              <button class="pill pill-active-sage" data-group="gth-difficulty" data-val="recurrent">Recurrent</button>
+              <button class="pill" data-group="gth-difficulty" data-val="refractory">Refractory</button>
+            </div>
+            <p id="gth-val-difficulty" class="text-stone-400 text-xs"></p>
+          </div>
+        </div>
+
+        <!-- Psychiatric Evaluation -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <div class="flex items-center justify-between">
+            <p class="text-stone-800 font-semibold">Psychiatric Evaluation</p>
+            <button id="btn-gth-deepdive-toggle" class="game-toggle-off shrink-0">OFF</button>
+          </div>
+          <p class="text-stone-400 text-sm">Removes Diagnostic Cards — Shrinks must type their diagnosis. Leniency accounted for.</p>
+        </div>
+
+        <!-- Sylly Mode -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <div class="flex items-center justify-between">
+            <p class="text-stone-800 font-semibold">✨ Sylly Mode</p>
+            <button id="btn-gth-sylly-toggle" class="game-toggle-off shrink-0">OFF</button>
+          </div>
+          <p class="text-stone-600 text-sm font-semibold">Stroke or Genius</p>
+          <p class="text-stone-400 text-sm">Activates a low-frequency motor tremor on the artist's canvas while forcing Shrinks to decipher case files through a decaying cognitive blur.</p>
+        </div>
+
+        <button id="btn-gth-settings-done" class="min-h-14 w-full rounded-2xl active:scale-95 text-white text-xl font-semibold transition-all duration-150" style="background-color:#B1BCA0">
+          Done
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- GTH HOW-TO OVERLAY -->
+  <div id="gth-how-to-overlay" style="display:none"
+    class="fixed inset-0 bg-black/40 z-[90] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
+      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
+        <h2 class="text-xl font-bold text-stone-800">How to Play 🛋️</h2>
+        <p class="text-xs text-stone-400 mt-1">A drawing game about your issues.</p>
+      </div>
+      <div class="overflow-y-auto flex flex-col gap-4 px-5 py-5">
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest" style="color:#B1BCA0">Step 1</p>
+          <p class="font-bold text-stone-800">Everyone draws their disorders</p>
+          <p class="text-stone-500 text-sm">Each player is secretly assigned a few <span class="font-semibold text-stone-700">Disorders</span> and has to draw them — simultaneously, on their own device. A tip is shown before each drawing to help.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest" style="color:#B1BCA0">Step 2</p>
+          <p class="font-bold text-stone-800">Everyone becomes a Shrink</p>
+          <p class="text-stone-500 text-sm">The <span class="font-semibold text-stone-700">Shrink Phase</span> opens a queue of anonymous drawings. For each one, pick the correct disorder from the <span class="font-semibold text-stone-700">Diagnostic Cards</span>. You never see your own drawings.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest" style="color:#B1BCA0">Step 3</p>
+          <p class="font-bold text-stone-800">The Big Reveal</p>
+          <p class="text-stone-500 text-sm">After time runs out, all drawings are revealed one at a time — with who drew them and who guessed correctly.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest" style="color:#B1BCA0">Winning and Scoring</p>
+          <p class="font-bold text-stone-800">Two ways to earn Sessions</p>
+          <ul class="list-disc pl-5 flex flex-col gap-1 text-stone-500 text-sm">
+            <li><span class="font-semibold text-stone-700">Patient +2</span> — each time a Shrink correctly diagnoses your drawing.</li>
+            <li><span class="font-semibold text-stone-700">Shrink +2</span> — for each correct diagnosis you submit.</li>
+            <li><span class="font-semibold text-stone-700">Speed +1</span> — the fastest correct diagnosis per drawing.</li>
+            <li><span class="font-semibold text-stone-700">Tier 3 +1</span> — bonus for correctly diagnosing a Complex Condition.</li>
+          </ul>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest" style="color:#B1BCA0">✨ Sylly Mode</p>
+          <p class="font-bold text-stone-800">Stroke or Genius</p>
+          <p class="text-stone-500 text-sm">The canvas trembles while you draw. Drawings blur into focus during the Shrink Phase — a 3.5 second reveal that tests your eye.</p>
+        </div>
+        <button id="btn-gth-how-to-done" class="min-h-14 w-full rounded-2xl active:scale-95 text-white text-xl font-semibold transition-all duration-150" style="background-color:#B1BCA0">
+          Got it
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- GTH QUIT OVERLAY -->
+  <div id="gth-quit-overlay" style="display:none"
+    class="fixed inset-0 bg-black/40 z-[80] overlay-modal-backdrop flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-stone-300">
+      <div class="flex flex-col gap-2">
+        <p class="text-3xl">🛋️</p>
+        <h3 class="text-lg font-bold text-stone-800">Walk Out?</h3>
+        <p class="text-stone-500 text-sm">Your session will be lost. The waiting room will be very disappointed.</p>
+      </div>
+      <div class="flex flex-col gap-2">
+        <button id="btn-gth-quit-confirm" class="min-h-14 w-full rounded-2xl bg-red-500 hover:bg-red-600 active:scale-95 text-white text-lg font-semibold transition-all duration-150">
+          Yeah, I'm out.
+        </button>
+        <button id="btn-gth-quit-cancel" class="min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 text-lg font-semibold transition-all duration-150">
+          Keep going!
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- GTH NEW SESSION OVERLAY -->
+  <div id="gth-new-session-overlay" style="display:none"
+    class="fixed inset-0 bg-black/40 z-[90] overlay-modal-backdrop flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-stone-300">
+      <div class="flex flex-col gap-2">
+        <p class="text-3xl">🛋️</p>
+        <h3 class="text-lg font-bold text-stone-800">New Session?</h3>
+        <p class="text-stone-500 text-sm">All drawings and diagnoses will be cleared. Names and settings stay.</p>
+      </div>
+      <div class="flex flex-col gap-2">
+        <button id="btn-gth-new-session-confirm" class="min-h-14 w-full rounded-2xl active:scale-95 text-white text-lg font-semibold transition-all duration-150" style="background-color:#B1BCA0">
+          Start New Session
+        </button>
+        <button id="btn-gth-new-session-cancel" class="min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 text-lg font-semibold transition-all duration-150">
+          Stay here
+        </button>
+      </div>
+    </div>
+  </div>
+
+

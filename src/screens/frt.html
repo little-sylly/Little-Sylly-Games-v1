@@ -1,0 +1,574 @@
+  <!-- ════ FRUIT SALAD ════
+       Screens : screen-frt-menu, screen-frt-deal, screen-frt-table, screen-frt-gameover
+       Overlays: frt-settings-overlay, frt-how-to-overlay, frt-quit-overlay, frt-new-game-overlay, frt-tip-overlay
+       MDLM-only · couch security · 2-player "Pear of Fruits" duel auto-engages
+    ════════════════════════════════════════════════════════════════ -->
+  <section id="screen-frt-menu" style="display:none"
+    class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
+    <button class="btn-open-sound absolute top-4 right-4 text-xl text-stone-400 active:scale-90 transition-transform duration-100">&#x1F50A;</button>
+    <p id="frt-menu-status" style="display:none" class="text-red-500 text-sm font-medium"></p>
+    <div class="text-6xl" role="img" aria-label="Banana">&#x1F34C;</div>
+    <div>
+      <h1 class="text-5xl font-bold leading-tight text-stone-800">Fruit</h1>
+      <h1 class="text-5xl font-bold leading-tight" style="color:#FFE500">Salad</h1>
+      <p class="text-stone-400 text-base mt-1">"This is definitely a banana. Trust me."</p>
+    </div>
+    <div class="flex flex-col gap-3 w-full">
+      <button id="btn-frt-menu-play" class="gel-btn min-h-14 w-full rounded-2xl bg-[#FFE500] hover:bg-[#E6D200] text-white text-xl font-semibold">
+        Start Serving
+      </button>
+      <button id="btn-frt-menu-how-to" class="gel-btn min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 text-white text-xl font-semibold">
+        How to Play
+      </button>
+      <button id="btn-frt-menu-settings" class="gel-btn gel-btn-light min-h-14 w-full rounded-2xl bg-[#FFF4CC] hover:bg-[#FFF3A6] text-[#854d0e] text-xl font-semibold">
+        Settings
+      </button>
+      <button id="btn-frt-menu-back" class="gel-btn gel-btn-light min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 text-stone-500 text-xl font-semibold">
+        &#x2190; Back to the Box
+      </button>
+    </div>
+  </section>
+
+  <!-- FRT DEAL — dealing interstitial (skeleton placeholder) -->
+  <section id="screen-frt-deal" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col items-center w-full max-w-sm gap-4 text-center">
+      <div class="text-5xl" role="img">&#x1F34C;</div>
+      <h2 class="text-2xl font-bold text-stone-800">Tossing the Salad…</h2>
+      <p id="frt-deal-sub" class="text-stone-400 text-sm">Dealing the stashes.</p>
+    </div>
+  </section>
+
+  <!-- FRT TABLE — main play (centred column; all sub-states flow inside one wrapper) -->
+  <section id="screen-frt-table" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-4 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-3">
+      <div class="flex items-center justify-between">
+        <p id="frt-table-round" class="text-stone-400 text-xs font-semibold uppercase tracking-widest">Fruit-Off 1</p>
+        <div class="flex items-center gap-2">
+          <button id="btn-frt-log" class="text-stone-400 text-base active:scale-90 transition-transform duration-100" title="Pass-off log">&#x1F4CB;</button>
+          <button id="btn-frt-how-to" class="text-stone-400 font-bold text-sm active:scale-90 transition-transform duration-100">[?]</button>
+          <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">&#x1F50A;</button>
+          <button class="btn-frt-quit-open text-stone-500 font-bold text-xl active:scale-90 transition-transform duration-100">&#x2715;</button>
+        </div>
+      </div>
+      <div id="frt-table-opponents"></div>
+      <div id="frt-table-body" class="flex flex-col gap-2"></div>
+      <div id="frt-table-footer"></div>
+    </div>
+  </section>
+
+  <!-- FRT GAMEOVER -->
+  <section id="screen-frt-gameover" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col items-center w-full max-w-sm gap-4 text-center">
+      <button class="btn-open-sound self-end text-xl text-stone-400 active:scale-90 transition-transform duration-100">&#x1F50A;</button>
+      <div class="text-5xl" role="img">&#x1F34A;</div>
+      <h2 class="text-2xl font-bold text-stone-800">Orange You Glad It's Over?</h2>
+      <div id="frt-gameover-standings" class="w-full flex flex-col gap-2"></div>
+      <button id="btn-frt-go-again" class="min-h-14 w-full rounded-2xl bg-[#FFE500] hover:bg-[#E6D200] active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        More Fruit
+      </button>
+      <button id="btn-frt-gameover-exit" class="min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-xl font-semibold transition-all duration-150">
+        &#x2190; Back to the Box
+      </button>
+    </div>
+  </section>
+
+  <!-- FRT SETTINGS (data slide-up — cards filled in Step 5) -->
+  <div id="frt-settings-overlay" style="display:none"
+    class="fixed inset-0 bg-black/40 z-[80] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
+      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
+        <h2 class="text-xl font-bold text-stone-800">Fruit Selection &#x1F34C;</h2>
+        <p class="text-xs text-stone-400 mt-1">Stock the salad before the first serve.</p>
+      </div>
+      <div class="overflow-y-auto flex flex-col gap-5 px-5 py-5" id="frt-settings-body">
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">Fruit Stock</p>
+            <p class="text-stone-400 text-sm mt-0.5">Copies of each fruit in the deck — Standard: 8, Swift: 6, Mega: 10 (best with 5+). Fewer copies = faster game.</p>
+          </div>
+          <div class="flex gap-2 flex-wrap">
+            <button class="pill" data-frt-stock="swift">Swift</button>
+            <button class="pill pill-active-frt" data-frt-stock="standard">Standard</button>
+            <button class="pill" id="frt-pill-mega" data-frt-stock="mega">Mega Salad</button>
+          </div>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">Fruit-Offs</p>
+            <p class="text-stone-400 text-sm mt-0.5">How many rounds before the overall winner.</p>
+          </div>
+          <div class="flex gap-2 flex-wrap">
+            <button class="pill" data-frt-rounds="1">1</button>
+            <button class="pill pill-active-frt" data-frt-rounds="3">3</button>
+            <button class="pill" data-frt-rounds="5">5</button>
+          </div>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">Think Before You Fruit</p>
+            <p class="text-stone-400 text-sm mt-0.5">A turn timer for snap decisions. Off for relaxed bluffing.</p>
+          </div>
+          <div class="flex gap-2 flex-wrap">
+            <button class="pill pill-active-frt" data-frt-timer="0">Off</button>
+            <button class="pill" data-frt-timer="15">15s</button>
+            <button class="pill" data-frt-timer="30">30s</button>
+            <button class="pill" data-frt-timer="60">60s</button>
+          </div>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <div class="flex items-center justify-between">
+            <p class="text-stone-800 font-semibold">Pear-Off</p>
+            <button id="btn-frt-pearoff-toggle" class="game-toggle-off shrink-0">OFF</button>
+          </div>
+          <p class="text-stone-600 text-sm font-semibold">1v1 Duel Mode</p>
+          <p class="text-stone-400 text-sm">Locks to 2 players. 10 cards are burned before dealing — each player gets 27. Peek &amp; Pass is stripped out; every serve is a direct True or False. Fruit Loop threshold rises to 5 cards (from 4). Empty hand still loses.</p>
+          <p id="frt-pearoff-locked-note" style="display:none" class="text-amber-600 text-xs font-medium">Pear-Off is unavailable while Fruity Personalities is on.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <div class="flex items-center justify-between">
+            <p class="text-stone-800 font-semibold">&#x2728; Sylly Mode</p>
+            <button id="btn-frt-sylly-toggle" class="game-toggle-off shrink-0">OFF</button>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <p class="text-stone-600 text-sm font-semibold">Fruity Personalities</p>
+            <button id="btn-frt-personalities-settings" class="text-stone-300 font-bold text-xs leading-none active:scale-90 transition-transform duration-100">[?]</button>
+          </div>
+          <p class="text-stone-400 text-sm">Every fruit variety gains a unique, rule-breaking quirk. Requires 3+ players.</p>
+          <p id="frt-sylly-locked-note" style="display:none" class="text-amber-600 text-xs font-medium">Fruity Personalities is unavailable while Pear-Off is on.</p>
+        </div>
+        <button id="btn-frt-settings-done" class="min-h-14 w-full rounded-2xl bg-[#FFE500] hover:bg-[#E6D200] active:scale-95 text-white text-xl font-semibold transition-all duration-150">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- FRT HOW-TO (data slide-up — cards filled in Step 5) -->
+  <div id="frt-how-to-overlay" style="display:none"
+    class="fixed inset-0 bg-black/40 z-[90] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
+      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
+        <h2 class="text-xl font-bold text-stone-800">How to Play &#x1F34C;</h2>
+        <p class="text-xs text-stone-400 mt-1">Bluff your fruit. Don't get caught holding four.</p>
+      </div>
+      <div class="px-5 pt-3 pb-3 border-b border-stone-200 flex-shrink-0 flex gap-2">
+        <button id="btn-frt-howto-tab-rules" class="pill pill-active-frt" data-frt-howto-tab="rules">The Rules</button>
+        <button id="btn-frt-howto-tab-cards" class="pill" data-frt-howto-tab="cards">The Fruit</button>
+      </div>
+      <div class="overflow-y-auto flex flex-col gap-4 px-5 py-5" id="frt-how-to-body">
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2" id="frt-howto-step1">
+          <p class="text-xs font-semibold uppercase tracking-widest" style="color:#047857">Step 1</p>
+          <p class="font-bold text-stone-800">The Serve</p>
+          <p class="text-stone-500 text-sm">On your turn, slide one card from your <span class="font-semibold text-stone-700">Fruit Stash</span> face-down to another player and <span class="font-semibold text-stone-700">declare a fruit</span> — the truth, or a bald-faced lie. 🍌</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest" style="color:#047857">Step 2</p>
+          <p class="font-bold text-stone-800">The Stare Down</p>
+          <p class="text-stone-500 text-sm">The receiver judges you. They <span class="font-semibold text-stone-700">Call True</span>, <span class="font-semibold text-stone-700">Call False</span>, or <span class="font-semibold text-stone-700">Peek &amp; Pass</span> — sneak a look, then slide it onward to someone who hasn’t handled it yet, with a fresh claim.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest" style="color:#047857">Step 3</p>
+          <p class="font-bold text-stone-800">Getting Caught</p>
+          <p class="text-stone-500 text-sm">When someone calls, the card flips. Guess wrong, or get caught in a lie, and the card lands <span class="font-semibold text-stone-700">face-up in your Fruit Bowl</span>. Whoever just collected it serves next.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest" style="color:#047857">Step 4</p>
+          <p class="font-bold text-stone-800">Fruit Looped</p>
+          <p class="text-stone-500 text-sm">Collect <span class="font-semibold text-stone-700">4 of the same fruit</span> in your bowl (5 in a 2-player duel), or get stuck with <span class="font-semibold text-stone-700">no cards to serve</span>, and you’re <span class="font-semibold text-stone-700">Fruit Looped</span> — the round ends.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest" style="color:#047857">Winning and Scoring</p>
+          <p class="font-bold text-stone-800">Fruit Tokens across the Fruit-Offs</p>
+          <ul class="list-disc pl-5 flex flex-col gap-1 text-stone-500 text-sm">
+            <li><span class="font-semibold text-stone-700">Fruit Looped</span> — 0 tokens that round.</li>
+            <li><span class="font-semibold text-stone-700">Survived the Salad</span> — +5 tokens.</li>
+            <li><span class="font-semibold text-stone-700">Pristine Clean Escape</span> — +10 if your bowl is empty.</li>
+            <li><span class="font-semibold text-stone-700">The Silver Lining</span> — +2 for the most correct calls all game (“Fruit Master” ✨).</li>
+          </ul>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest" style="color:#047857">✨ Sylly Mode</p>
+          <div class="flex items-center gap-1.5">
+            <p class="font-bold text-stone-800">Fruity Personalities</p>
+            <button id="btn-frt-personalities-howto" class="text-stone-300 font-bold text-xs leading-none active:scale-90 transition-transform duration-100">[?]</button>
+          </div>
+          <p class="text-stone-500 text-sm">Every fruit gains a rule-breaking quirk — the <span class="font-semibold text-stone-700">Smug Banana</span> keeps your turn, the <span class="font-semibold text-stone-700">Angry Apple</span> starts a duel, the <span class="font-semibold text-stone-700">Sus Pear</span> lets you pocket and swap, and more. Requires 3+ players.</p>
+        </div>
+        <button id="btn-frt-howto-close" class="min-h-14 w-full rounded-2xl bg-[#FFE500] hover:bg-[#E6D200] active:scale-95 text-white text-xl font-semibold transition-all duration-150">Got it</button>
+      </div>
+
+      <!-- GALLERY tab - built on every switch INTO it, from the game's own data and
+           through the game's own render seam, so it can neither drift from the deck
+           nor be unskinnable. This is also what makes the offline install check a
+           single-device job: open it offline and illustrated art means the pack
+           precached, emoji means it did not. -->
+      <div id="frt-how-to-cards" style="display:none" class="overflow-y-auto flex-col gap-5 px-5 py-5">
+        <div id="frt-cards-body" class="flex flex-col gap-5"></div>
+        <button id="btn-frt-howto-close-cards" class="min-h-14 w-full rounded-2xl bg-[#FFE500] hover:bg-[#E6D200] active:scale-95 text-white text-xl font-semibold transition-all duration-150">Got it</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- FRT QUIT -->
+  <div id="frt-quit-overlay" style="display:none"
+    class="fixed inset-0 z-[80] overlay-modal-backdrop flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center" style="border:1px solid #FFF3A6">
+      <p class="text-3xl">&#x1F966;</p>
+      <h3 class="text-lg font-bold text-stone-800">Vegetables Instead?</h3>
+      <p class="text-stone-500 text-sm">Your salad will be tossed.</p>
+      <div class="flex flex-col gap-2">
+        <button id="btn-frt-quit-confirm" class="min-h-14 w-full rounded-2xl bg-[#FFE500] hover:bg-[#E6D200] active:scale-95 text-white font-semibold text-lg transition-all duration-150">Yeah, I'm out.</button>
+        <button id="btn-frt-quit-cancel" class="min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-lg transition-all duration-150">Keep bluffing!</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- FRT NEW GAME (play-again) -->
+  <div id="frt-new-game-overlay" style="display:none"
+    class="fixed inset-0 z-[90] overlay-modal-backdrop flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center" style="border:1px solid #FFF3A6">
+      <p class="text-3xl">&#x1F353;</p>
+      <h3 class="text-lg font-bold text-stone-800">More Fruit?</h3>
+      <p class="text-stone-500 text-sm">Fresh decks, scores reset.</p>
+      <div class="flex flex-col gap-2">
+        <button id="btn-frt-new-confirm" class="min-h-14 w-full rounded-2xl bg-[#FFE500] hover:bg-[#E6D200] active:scale-95 text-white font-semibold text-lg transition-all duration-150">More Fruit</button>
+        <button id="btn-frt-new-cancel" class="min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-lg transition-all duration-150">Stay here</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- FRT PASS-OFF LOG -->
+  <div id="frt-log-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[90] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
+      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
+        <h2 class="text-xl font-bold text-stone-800">Pass-Off Log &#x1F4CB;</h2>
+        <p class="text-xs text-stone-400 mt-1">Who caught who, this Fruit-Off.</p>
+      </div>
+      <div class="overflow-y-auto flex flex-col gap-2 px-5 py-5" id="frt-log-body"></div>
+      <div class="px-5 pb-5 flex-shrink-0">
+        <button id="btn-frt-log-close" class="min-h-12 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold transition-all duration-150">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- FRT TIP (shared contextual [?]) -->
+  <div id="frt-tip-overlay" style="display:none"
+    class="fixed inset-0 z-[90] overlay-modal-backdrop flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center" style="border:1px solid #FFF3A6">
+      <p id="frt-tip-emoji" class="text-3xl"></p>
+      <h3 id="frt-tip-heading" class="text-lg font-bold text-stone-800"></h3>
+      <div id="frt-tip-body" class="text-stone-500 text-sm text-left flex flex-col gap-1.5"></div>
+      <button id="btn-frt-tip-close" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-sm transition-all duration-100">Got it</button>
+    </div>
+  </div>
+
+  <!-- FRT PERSONALITIES (data slide-up — z-[95] opens from within how-to z-[90]) -->
+  <div id="frt-personalities-overlay" style="display:none"
+    class="fixed inset-0 bg-black/40 z-[95] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
+      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
+        <h2 class="text-xl font-bold text-stone-800">Fruity Personalities &#x1F353;</h2>
+        <p class="text-xs text-stone-400 mt-1">Every fruit's rule-breaking quirk in Sylly Mode.</p>
+      </div>
+      <div class="overflow-y-auto flex flex-col gap-3 px-5 py-5">
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-1.5">
+          <p class="font-bold text-stone-800">&#x1F34C; Smug Banana <span class="text-xs font-normal text-stone-400 ml-1">on-challenge</span></p>
+          <p class="text-stone-500 text-sm">When an opponent loses a challenge against a Banana, they take the card as normal — but <span class="font-semibold text-stone-700">you keep the serve</span>.</p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-1.5">
+          <p class="font-bold text-stone-800">&#x1F34B; Sour Lemon <span class="text-xs font-normal text-stone-400 ml-1">on-challenge</span></p>
+          <p class="text-stone-500 text-sm">Whenever a Lemon is revealed, the <span class="font-semibold text-stone-700">other party flips one random card</span> from their own Stash — win or lose, nobody walks away clean.</p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-1.5">
+          <p class="font-bold text-stone-800">&#x1F351; Charming Peach <span class="text-xs font-normal text-stone-400 ml-1">on-challenge</span></p>
+          <p class="text-stone-500 text-sm">If a Peach lands in a Bowl, the <span class="font-semibold text-stone-700">challenger must flip one of their own Peaches</span> from their Stash — if they're holding one.</p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-1.5">
+          <p class="font-bold text-stone-800">&#x1F347; Dramatic Grape <span class="text-xs font-normal text-stone-400 ml-1">on-challenge</span></p>
+          <p class="text-stone-500 text-sm">When a Grape is flipped, <span class="font-semibold text-stone-700">whoever is hiding the most Grapes</span> must flip one into their Bowl. Ties? Everyone tied flips one.</p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-1.5">
+          <p class="font-bold text-stone-800">&#x1F349; Chill Watermelon <span class="text-xs font-normal text-stone-400 ml-1">passive</span></p>
+          <p class="text-stone-500 text-sm">A <span class="font-semibold text-stone-700">live counter</span> shows the whole table how many Watermelons each player is hiding. No secrets.</p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-1.5">
+          <p class="font-bold text-stone-800">&#x1F350; Sus Pear <span class="text-xs font-normal text-stone-400 ml-1">on-peek</span></p>
+          <p class="text-stone-500 text-sm">If you Peek and find a Pear, you can <span class="font-semibold text-stone-700">pocket it and swap</span> any card from your Stash to pass on instead, with a fresh claim.</p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-1.5">
+          <p class="font-bold text-stone-800">&#x1F353; Panicked Strawberry <span class="text-xs font-normal text-stone-400 ml-1">on-serve</span></p>
+          <p class="text-stone-500 text-sm">Every time you serve a Strawberry, there's a <span class="font-semibold text-stone-700">1-in-4 chance it panics</span> and auto-reveals into your own Bowl. No bluffing required.</p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-1.5">
+          <p class="font-bold text-stone-800">&#x1F34E; Angry Apple <span class="text-xs font-normal text-stone-400 ml-1">on-challenge</span></p>
+          <p class="text-stone-500 text-sm">When an Apple is flipped, the <span class="font-semibold text-stone-700">loser must serve the winner</span> on their next turn — and the winner <span class="font-semibold text-stone-700">cannot Peek</span>.</p>
+        </div>
+
+        <button id="btn-frt-personalities-close" class="min-h-14 w-full rounded-2xl bg-[#FFE500] hover:bg-[#E6D200] active:scale-95 text-white text-xl font-semibold transition-all duration-150">Got it</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- &#x2550;&#x2550;&#x2550;&#x2550; COUNTING SHEEP (shp) &#x2550;&#x2550;&#x2550;&#x2550;
+       Screens : screen-shp-menu, screen-shp-night-intro, screen-shp-table, screen-shp-gameover
+       Overlays: shp-settings-overlay, shp-how-to-overlay, shp-quit-overlay,
+                 shp-new-night-overlay, shp-tip-overlay, shp-play-log-overlay
+       Render  : shpRenderCard(cardId, opts) - asset-pack seam (no cards.js reuse)
+       MDLM-only - couch security - Sylly Mode = Night Terrors (Climb <-> Plunge)
+    &#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550; -->
+  <section id="screen-shp-menu" style="display:none"
+    class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
+    <button class="btn-open-sound absolute top-4 right-4 text-xl text-stone-400 active:scale-90 transition-transform duration-100">&#x1F50A;</button>
+    <p id="shp-menu-status" style="display:none" class="text-red-500 text-sm font-medium"></p>
+    <div class="text-6xl" role="img" aria-label="Sheep">&#x1F411;</div>
+    <div>
+      <h1 class="text-5xl font-bold leading-tight text-stone-800">Counting</h1>
+      <h1 class="text-5xl font-bold leading-tight shp-label">Sheep</h1>
+      <p class="text-stone-400 text-base mt-1">Stay awake. Pass the herd.</p>
+    </div>
+    <div class="flex flex-col gap-3 w-full">
+      <button id="btn-shp-menu-play" class="gel-btn min-h-14 w-full rounded-2xl shp-cta text-white text-xl font-semibold">
+        Lights Out
+      </button>
+      <button id="btn-shp-menu-how-to" class="gel-btn min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 text-white text-xl font-semibold">
+        How to Play
+      </button>
+      <button id="btn-shp-menu-settings" class="gel-btn gel-btn-light min-h-14 w-full rounded-2xl bg-[#E6E7EE] hover:bg-[#C9CBDA] text-[#3A3D52] text-xl font-semibold">
+        Settings
+      </button>
+      <button id="btn-shp-menu-back" class="gel-btn gel-btn-light min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 text-stone-500 text-xl font-semibold">
+        &#x2190; Back to the Box
+      </button>
+    </div>
+  </section>
+
+  <!-- SHP NIGHT INTRO — auto-advancing (SHP_INTERSTITIAL_MS), no [?]/&#x1F50A;/&#x2715; per
+       ui-style.md rule-5 (nothing to tap for the ~5s it's on screen). Shown at the start of
+       EVERY Night, both host and clients, via shpShowNightIntro(). Reference: screen-cjar-raid-intro. -->
+  <section id="screen-shp-night-intro" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-4 text-center">
+      <div class="text-6xl" role="img" aria-label="Moon">&#x1F319;</div>
+      <h2 id="shp-intro-heading" class="text-3xl font-bold text-stone-800"></h2>
+      <p id="shp-intro-sub" class="text-stone-500 text-base"></p>
+      <p id="shp-intro-tally" style="display:none" class="text-stone-400 text-sm"></p>
+      <div id="shp-intro-sylly" style="display:none" class="flex items-center gap-2 bg-red-50 border border-red-200 rounded-2xl p-3 justify-center">
+        <span class="text-xl">&#x1F53B;</span>
+        <p class="text-red-600 text-sm font-semibold">Night Terrors is active — hit 99 and the dream Plunges.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- SHP TABLE - main play (h-screen sticky-footer: the Pen stays visible) -->
+  <section id="screen-shp-table" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-4 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-3">
+      <div class="flex items-center justify-between">
+        <p id="shp-table-status" class="shp-label text-xs font-semibold uppercase tracking-widest">Night</p>
+        <div class="flex items-center gap-2">
+          <button id="btn-shp-how-to" class="text-stone-400 font-bold text-sm active:scale-90 transition-transform duration-100">[?]</button>
+          <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">&#x1F50A;</button>
+          <button class="btn-shp-quit-open text-stone-500 font-bold text-xl active:scale-90 transition-transform duration-100">&#x2715;</button>
+        </div>
+      </div>
+      <div id="shp-table-body" class="flex flex-col gap-4"></div>
+      <div id="shp-table-footer" class="flex flex-col gap-2"></div>
+    </div>
+  </section>
+
+  <!-- SHP GAMEOVER (Daybreak) -->
+  <section id="screen-shp-gameover" style="display:none"
+    class="relative flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <button class="btn-open-sound absolute top-4 right-4 text-xl text-stone-400 active:scale-90 transition-transform duration-100">&#x1F50A;</button>
+    <div class="flex flex-col items-center w-full max-w-sm gap-4 text-center">
+      <div class="text-5xl" role="img" aria-label="Sunrise">&#x2600;&#xFE0F;</div>
+      <h2 class="text-2xl font-bold text-stone-800">Daybreak</h2>
+      <div id="shp-gameover-standings" class="w-full flex flex-col gap-2"></div>
+      <button id="btn-shp-go-again" class="min-h-14 w-full rounded-2xl shp-cta active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Another Night
+      </button>
+      <button id="btn-shp-gameover-exit" class="min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-xl font-semibold transition-all duration-150">
+        Time to Sleep
+      </button>
+    </div>
+  </section>
+
+  <!-- SHP SETTINGS (data slide-up) -->
+  <div id="shp-settings-overlay" style="display:none"
+    class="fixed inset-0 bg-black/40 z-[80] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
+      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
+        <h2 class="text-xl font-bold text-stone-800">Bedtime Routine &#x1F319;</h2>
+        <p class="text-xs text-stone-400 mt-1">Set the scene before lights out.</p>
+      </div>
+      <div class="overflow-y-auto flex flex-col gap-5 px-5 py-5" id="shp-settings-body">
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">Hand Size</p>
+            <p class="text-stone-400 text-sm mt-0.5">How many cards you hold. More cards, more options - and fewer forced crashes.</p>
+          </div>
+          <div class="flex gap-2 flex-wrap">
+            <button class="pill" data-shp-hand="3">3</button>
+            <button class="pill pill-active-shp" data-shp-hand="4">4</button>
+            <button class="pill" data-shp-hand="5">5</button>
+          </div>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p id="shp-moons-title" class="text-stone-800 font-semibold">Moons</p>
+            <p id="shp-moons-desc" class="text-stone-400 text-sm mt-0.5"></p>
+          </div>
+          <div class="flex flex-col gap-2">
+            <div id="shp-moons-win-row" class="flex gap-2">
+              <button class="pill" data-shp-moons-win="1">Catnap</button>
+              <button class="pill pill-active-shp" data-shp-moons-win="2">Full Night</button>
+              <button class="pill" data-shp-moons-win="3">Hibernate</button>
+            </div>
+            <div id="shp-moons-life-row" style="display:none" class="flex gap-2">
+              <button class="pill pill-active-shp" data-shp-moons="3">3</button>
+              <button class="pill" data-shp-moons="5">5</button>
+              <button class="pill" data-shp-moons="7">7</button>
+            </div>
+            <p id="shp-val-moons" class="text-stone-400 text-xs"></p>
+          </div>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <div class="flex items-center justify-between">
+            <p class="text-stone-800 font-semibold">Dream Acceleration</p>
+            <button id="btn-shp-dream-toggle" class="game-toggle-on-shp shrink-0">ON</button>
+          </div>
+          <p class="text-stone-400 text-sm">Below 50, every Pasture card counts double — Skip a Few and other specials aren't affected.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <div class="flex items-center justify-between">
+            <p class="text-stone-800 font-semibold">&#x2728; Sylly Mode</p>
+            <button id="btn-shp-sylly-toggle" class="game-toggle-off shrink-0">OFF</button>
+          </div>
+          <p class="text-stone-600 text-sm font-semibold">Night Terrors</p>
+          <p class="text-stone-400 text-sm">Reach 99 and the dream inverts: the count plunges, every number flips its sign, and the ceiling falls each turn. Knocked-out players linger as Sleepwalkers and can nudge the dream through the Nightmare Meter. Last one awake survives.</p>
+        </div>
+        <button id="btn-shp-settings-done" class="min-h-14 w-full rounded-2xl shp-cta active:scale-95 text-white text-xl font-semibold transition-all duration-150">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SHP HOW-TO (data slide-up) -->
+  <div id="shp-how-to-overlay" style="display:none"
+    class="fixed inset-0 bg-black/40 z-[90] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
+      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
+        <h2 class="text-xl font-bold text-stone-800">How to Play &#x1F411;</h2>
+        <p class="text-xs text-stone-400 mt-1">Keep the herd below 99. Don't be the one who nods off.</p>
+      </div>
+      <div class="px-5 pt-3 pb-3 border-b border-stone-200 flex-shrink-0 flex gap-2">
+        <button id="btn-shp-howto-tab-rules" class="pill pill-active-shp" data-shp-howto-tab="rules">The Rules</button>
+        <button id="btn-shp-howto-tab-cards" class="pill" data-shp-howto-tab="cards">The Cards</button>
+      </div>
+      <div class="overflow-y-auto flex flex-col gap-4 px-5 py-5" id="shp-how-to-body">
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest shp-label">Step 1</p>
+          <p class="font-bold text-stone-800">The Count</p>
+          <p class="text-stone-500 text-sm">On your turn, play one card to change the <span class="font-semibold text-stone-700">Herd</span>. Number cards add sheep - but if your play would push the count <span class="font-semibold text-stone-700">past 99</span>, it's illegal.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest shp-label">Step 2</p>
+          <p class="font-bold text-stone-800">Pillows &amp; Alarms</p>
+          <p class="text-stone-500 text-sm"><span class="font-semibold text-stone-700">Pillows</span> stall or shrink the count (Doze, Counting Backwards, Lullaby, Swap Dreams). <span class="font-semibold text-stone-700">Alarms</span> shake it up — Skip a Few, the Black Sheep (snaps to 99), Wide Awake, Heavy Eyelids and Rude Awakening. The <span class="font-semibold text-stone-700">Big Bad Wolf</span> hides in the Flock — draw one and a card slot locks for the Night. Not sure what a card does? <span class="font-semibold text-stone-700">Press and hold it</span> in your hand, or check <span class="font-semibold text-stone-700">The Cards</span> tab above.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest shp-label">Step 3</p>
+          <p class="font-bold text-stone-800">Dozing Off</p>
+          <p class="text-stone-500 text-sm">Bust the count, or run out of safe cards, and you <span class="font-semibold text-stone-700">doze off</span> - you're out for the night. Everyone else plays on from exactly where the Herd sits.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest shp-label">Winning and Scoring</p>
+          <p class="font-bold text-stone-800">Last one awake</p>
+          <ul class="list-disc pl-5 flex flex-col gap-1 text-stone-500 text-sm">
+            <li><span class="font-semibold text-stone-700">Last One Awake</span> - win the Night and earn a <span class="font-semibold text-stone-700">Moon</span> &#x1F319;.</li>
+            <li><span class="font-semibold text-stone-700">Daybreak</span> - first to the target number of Moons wins the match. Set it in Settings.</li>
+            <li><span class="font-semibold text-stone-700">A busted play is rolled back</span> - the Herd returns to where it was before your card, so the Night carries on unchanged without you.</li>
+          </ul>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest shp-label">&#x2728; Sylly Mode</p>
+          <p class="font-bold text-stone-800">Night Terrors</p>
+          <p class="text-stone-500 text-sm">One <span class="font-semibold text-stone-700">long Night</span> - no redeals, and your Moons are <span class="font-semibold text-stone-700">lives</span>. Crash and you lose one, then <span class="font-semibold text-stone-700">the Jolt</span> wakes you with a fresh hand. Reach 99 and the dream inverts - <span class="font-semibold text-stone-700">the Plunge</span>: every number card flips its sign and the ceiling <span class="font-semibold text-stone-700">falls a little each turn</span>. At zero Moons you don't just leave - you become a <span class="font-semibold text-stone-700">Sleepwalker</span>, haunting the dream. Every Pasture card played charges the <span class="font-semibold text-stone-700">Nightmare Meter</span>; when it fills, a Sleepwalker flips one of three face-down nightmares onto the living. &#x1F4A4; Last one awake survives the night.</p>
+        </div>
+        <button id="btn-shp-howto-close" class="min-h-14 w-full rounded-2xl shp-cta active:scale-95 text-white text-xl font-semibold transition-all duration-150">Got it</button>
+      </div>
+
+      <!-- GALLERY tab - built on every switch INTO it, from the game's own data and
+           through the game's own render seam, so it can neither drift from the deck
+           nor be unskinnable. This is also what makes the offline install check a
+           single-device job: open it offline and illustrated art means the pack
+           precached, emoji means it did not. -->
+      <div id="shp-how-to-cards" style="display:none" class="overflow-y-auto flex-col gap-5 px-5 py-5">
+        <div id="shp-cards-body" class="flex flex-col gap-5"></div>
+        <button id="btn-shp-howto-close-cards" class="min-h-14 w-full rounded-2xl shp-cta active:scale-95 text-white text-xl font-semibold transition-all duration-150">Got it</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SHP QUIT -->
+  <div id="shp-quit-overlay" style="display:none"
+    class="fixed inset-0 z-[80] overlay-modal-backdrop flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-[#C9CBDA]">
+      <p class="text-3xl">&#x1F6CF;&#xFE0F;</p>
+      <h3 class="text-lg font-bold text-stone-800">Tuck In?</h3>
+      <p class="text-stone-500 text-sm">Give in to sleep now and you're out for the night.</p>
+      <div class="flex flex-col gap-2">
+        <button id="btn-shp-quit-confirm" class="min-h-14 w-full rounded-2xl shp-cta active:scale-95 text-white font-semibold text-lg transition-all duration-150">Yeah, lights out.</button>
+        <button id="btn-shp-quit-cancel" class="min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-lg transition-all duration-150">Stay awake!</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SHP NEW NIGHT (play-again) -->
+  <div id="shp-new-night-overlay" style="display:none"
+    class="fixed inset-0 z-[90] overlay-modal-backdrop flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-[#C9CBDA]">
+      <p class="text-3xl">&#x1F319;</p>
+      <h3 class="text-lg font-bold text-stone-800">Another Night?</h3>
+      <p class="text-stone-500 text-sm">Fresh Flock, full Moons, everyone wakes up.</p>
+      <div class="flex flex-col gap-2">
+        <button id="btn-shp-new-confirm" class="min-h-14 w-full rounded-2xl shp-cta active:scale-95 text-white font-semibold text-lg transition-all duration-150">Count Again</button>
+        <button id="btn-shp-new-cancel" class="min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-lg transition-all duration-150">Stay here</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SHP TIP (shared contextual [?]) -->
+  <div id="shp-tip-overlay" style="display:none"
+    class="fixed inset-0 z-[90] overlay-modal-backdrop flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-[#C9CBDA]">
+      <p id="shp-tip-emoji" class="text-3xl"></p>
+      <h3 id="shp-tip-heading" class="text-lg font-bold text-stone-800"></h3>
+      <div id="shp-tip-body" class="text-stone-500 text-sm text-left flex flex-col gap-1.5"></div>
+      <button id="btn-shp-tip-close" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-sm transition-all duration-100">Got it</button>
+    </div>
+  </div>
+
+  <!-- SHP CARD INFO (long-press card inspect) -->
+  <div id="shp-play-log-overlay" style="display:none"
+    class="fixed inset-0 bg-black/40 z-[90] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
+      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
+        <h2 class="text-xl font-bold text-stone-800">Dream Journal 📖</h2>
+        <p class="text-xs text-stone-400 mt-1">Cards played this Night, newest first.</p>
+      </div>
+      <div id="shp-play-log-list" class="overflow-y-auto flex flex-col px-5 py-4 gap-0"></div>
+      <div class="px-5 pb-8 flex-shrink-0">
+        <button id="btn-shp-play-log-close" class="min-h-14 w-full rounded-2xl shp-cta active:scale-95 text-white text-lg font-semibold transition-all duration-150">Close</button>
+      </div>
+    </div>
+  </div>
+

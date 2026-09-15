@@ -1,5 +1,17 @@
 # Ordered partials assembled into index.html by tools/build-index.js.
 # Edit a partial in src/screens/, never index.html itself.
 _rest.html
+bld.html
+_scripts-2.html
+gth.html
+dyb.html
+_scripts-3.html
+pass.html
+nt.html
+frt.html
+flw.html
+pko.html
+cjar.html
+cld.html
 comb.html
 _foot.html
