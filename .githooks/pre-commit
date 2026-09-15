@@ -1,0 +1,20 @@
+#!/bin/sh
+# Rebuilds index.html from src/screens/ and stages it, so a partial edit can
+# never ship without its assembled output.
+#
+# Versioned deliberately: .git/hooks is not committed, so a hook living there
+# would protect only this machine. Activate once with:
+#   git config core.hooksPath .githooks
+#
+# Bypassable with `git commit --no-verify`, and absent on a fresh clone until
+# that config is set — which is exactly what tools/verify-build-fresh.js is for.
+
+if git diff --cached --name-only | grep -qE '^src/'; then
+  if ! node tools/build-index.js; then
+    echo "pre-commit: build-index.js failed — commit aborted." >&2
+    exit 1
+  fi
+  git add index.html
+fi
+
+exit 0
