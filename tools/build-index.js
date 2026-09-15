@@ -23,6 +23,15 @@ const MANIFEST = path.join(ROOT, 'src', 'manifest.txt');
 const OUT      = path.join(ROOT, 'index.html');
 const BOM      = '﻿';
 
+const BANNER =
+  '<!-- ═══════════════════════════════════════════════════════════════\n' +
+  '     GENERATED FILE — DO NOT EDIT BY HAND.\n' +
+  '     Assembled by tools/build-index.js from src/screens/.\n' +
+  '     Edit the partial for the game you are changing, then commit —\n' +
+  '     the pre-commit hook rebuilds this file for you.\n' +
+  '     A hand edit here is silently overwritten on the next build.\n' +
+  '═══════════════════════════════════════════════════════════════ -->\n';
+
 function readManifest() {
   const raw = fs.readFileSync(MANIFEST, 'utf8');
   return raw.split('\n')
@@ -46,7 +55,13 @@ function assemble() {
   });
 
   // join('') — never join('\n'). The slices already carry their own newlines.
-  return BOM + parts.join('');
+  const body = parts.join('');
+
+  // The banner goes immediately AFTER the DOCTYPE, which must stay the first
+  // thing in the document.
+  const nl = body.indexOf('\n') + 1;
+  if (nl === 0) throw new Error('assembled output has no newline — the manifest is wrong');
+  return BOM + body.slice(0, nl) + BANNER + body.slice(nl);
 }
 
 module.exports = { assemble, readManifest };
