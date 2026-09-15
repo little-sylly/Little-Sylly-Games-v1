@@ -119,7 +119,7 @@ git commit -m "chore: pin index.html encoding and line endings before decomposit
 - Consumes: `assemble()` from `tools/build-index.js` (Task 3 — does not exist yet, which is the point)
 - Produces: `node tools/verify-build-fresh.js`, exit 0 clean / non-zero stale
 
-- [ ] **Step 1: Write the harness**
+- [x] **Step 1: Write the harness**
 
 ```js
 // ═══════════════════════════════════════════════════════════════
@@ -157,12 +157,12 @@ console.error('  Fix: node tools/build-index.js');
 process.exit(1);
 ```
 
-- [ ] **Step 2: Run it to verify it fails**
+- [x] **Step 2: Run it to verify it fails**
 
 Run: `node tools/verify-build-fresh.js`
 Expected: FAIL — `Cannot find module './build-index.js'`. That is the correct failure; the assembler is Task 3.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add tools/verify-build-fresh.js
@@ -182,7 +182,7 @@ The manifest starts with a single partial holding the entire current file. This 
 - Consumes: `src/manifest.txt`, `src/screens/*.html`
 - Produces: `assemble() -> string` (BOM-prefixed full document), exported via `module.exports`. Task 2 and Task 4 both depend on this exact name.
 
-- [ ] **Step 1: Create the whole-file partial and the manifest**
+- [x] **Step 1: Create the whole-file partial and the manifest**
 
 ```bash
 mkdir -p src/screens
@@ -194,7 +194,7 @@ printf '%s\n' '# Ordered partials assembled into index.html by tools/build-index
 wc -c src/screens/_rest.html   # expect 751822 (751825 minus the 3-byte BOM)
 ```
 
-- [ ] **Step 2: Write the assembler**
+- [x] **Step 2: Write the assembler**
 
 ```js
 // ═══════════════════════════════════════════════════════════════
@@ -246,12 +246,12 @@ if (require.main === module) {
 }
 ```
 
-- [ ] **Step 3: Run the harness to verify it now passes**
+- [x] **Step 3: Run the harness to verify it now passes**
 
 Run: `node tools/verify-build-fresh.js`
 Expected: PASS — `✓ index.html is fresh (751825 bytes)`
 
-- [ ] **Step 4: Prove the build writes identical bytes**
+- [x] **Step 4: Prove the build writes identical bytes**
 
 ```bash
 node tools/build-index.js
@@ -261,7 +261,7 @@ sha256sum -c /tmp/baseline.txt
 
 Expected: no diff, `index.html: OK`. **If there is any diff, stop.** Do not proceed to Task 4 — every later task assumes this holds.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add tools/build-index.js src/manifest.txt src/screens/_rest.html
