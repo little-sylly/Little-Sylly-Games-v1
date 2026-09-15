@@ -21,6 +21,56 @@ place.
 
 ## Design Decisions
 
+**DD-13 — `index.html` decomposed into `src/screens/` partials; three lessons the
+migration surfaced (15 Sep 2026).** Lever A (the dev-only assembly build deferred 2026-06-30)
+was adopted once its revisit trigger fired: `tools/build-index.js` now assembles
+`index.html` from 29 per-game partials in `src/screens/`. Full design and migration
+record: `docs/superpowers/specs/2026-09-15-index-decomposition-design.md` and
+`docs/superpowers/plans/2026-09-15-index-decomposition.md`. Three lessons worth keeping.
+
+*What happened (1) — a silent CRLF/LF mismatch would have broken the safety check for a reason
+unrelated to any bad cut.* The migration's entire safety property is a byte-identical build:
+assemble `index.html` from the partials and diff it against the committed file. Before that
+check could be trusted, `git ls-files --eol index.html` turned up `i/lf w/crlf` — the local
+working tree was CRLF (one extra byte per line, 763,121 bytes total) while the committed blob
+GitHub Pages actually serves was LF (751,825 bytes). An assembler writing LF would have left
+`git diff` clean regardless (git normalises line endings on staging), while silently rewriting
+11,296 bytes on disk — so a working-tree hash check would have failed later, for a reason that
+had nothing to do with a mis-cut, exactly when trust in the check mattered most. *Root cause:*
+`core.autocrlf=true` with no `.gitattributes` to override it for this specific file, combined with
+the file carrying a UTF-8 BOM (`ef bb bf`) that the same mismatch could also have corrupted.
+*Lesson:* before trusting any byte-identical or hash-based safety check on a Windows repo, run
+`git ls-files --eol <file>` and compare it against the actual committed blob size
+(`git cat-file -s $(git rev-parse HEAD:<file>)`), not just the working-tree `wc -c`. The two can
+silently disagree, and a check that only ever compares two views of the SAME broken assumption
+proves nothing.
+
+*What happened (2) — the codebase already tolerated the thing the migration seemed to need
+fixing.* The original 2026 decision assumed any HTML decomposition would need every plugin
+converted off parse-time DOM access first (a real boot-ordering problem: partials must exist
+before scripts that read them run). An audit of all 23 plugin/shared files before cutting anything
+found this was already mostly done: **14 of 23 already bind entirely inside `DOMContentLoaded`**,
+and **4,130 lines of markup already sat after the last `<script>` tag** in the pre-migration file —
+twelve games have been parsing their JS before their own markup existed in the DOM all along.
+`js/games/cld.js` documents the contract explicitly ("parse time except constant declarations
+and the DOMContentLoaded binding"). *Root cause:* the boot-ordering objection was never re-checked
+against the current codebase before being treated as a hard blocker in planning. *Lesson:* a
+multi-year-old architectural objection is a hypothesis, not a fact — a 20-minute audit of the
+actual code can retire it (or confirm it) before it shapes a design. Here it meant option A
+(dev-only build, output byte-identical, no boot-order work required at all) was strictly safer
+than the runtime-assembly alternative the objection was originally raised against.
+
+*What happened (3) — one section mixed ownership, and it mattered less than expected.* Every
+other section header cleanly named one game or one shared concern. One did not: the block
+literally titled "GLOBAL + GM SUPPLEMENTARY OVERLAYS" held the global `#sound-overlay` *inside*
+a Great Minds-titled block. *Root cause:* historical — the comment inside the section itself
+calls GM's how-to overlay's placement there "for historical reasons". *Lesson:* it split cleanly
+once inspected (the global overlays came first, GM's own overlays after, not interleaved) into
+`_sound.html` and `gm-overlays.html` — but the split left GM's markup in two non-adjacent
+partials with `ss.html` between them in manifest order, preserved exactly rather than tidied,
+because reordering would have broken the byte-identical guarantee. A generated-code migration
+should preserve an ugly-but-correct structure over a tidy-but-reordered one; tidying is a
+separate, later, deliberately-reviewed change, never a side effect of a mechanical split.
 **DD-12 — Workshop polish: randomise/zoom/drag-to-reposition, and the real cause of the slider lag
 (SW v230, 14 Sep 2026).** Owner playtesting flagged three things at once: no quick way to try random
 colour combos, no way to get closer to the model, and the rotate/size sliders feeling "clunky" —

@@ -18,6 +18,34 @@ Changed: Files/systems touched. Deferred/superseded: anything left open.
 Detail: pointer to the canonical doc (snapshot / impl note / spec / memory).
 ```
 
+## 2026-09-15 — index.html decomposed into src/screens/ (Lever A resolved)
+Category: Architecture
+Decision: Adopt a dev-only assembly build for `index.html`, superseding the 2026-06-30 deferral
+whose trigger fired the same day. `tools/build-index.js` concatenates per-game partials in
+`src/screens/` (one file per game, ~350–750 lines each) into the committed `index.html`; the
+runtime is unchanged — GitHub Pages still serves one static file.
+Why: The owner wanted all four candidate wins named in the cost-envelope entry above, and
+hand-editable markup is the one that discipline-only cannot buy. Chosen over runtime assembly
+(plugins fetching their own markup at boot) because its failure mode is loud and at dev time
+rather than silent on a player's device in an offline-first PWA, and over CI assembly because a
+broken GitHub Action would block shipping entirely. The whole migration rode a byte-identical
+invariant — `node tools/build-index.js && git diff --exit-code index.html` — proving each of 28
+individual cuts changed nothing shipped before the next one was attempted.
+Changed: new `src/screens/*.html` (29 partials), `src/manifest.txt`, `tools/build-index.js`,
+`tools/extract-section.js`, `tools/verify-build-fresh.js`, `.githooks/pre-commit` (activated via
+`core.hooksPath`), `.gitattributes` (pins LF/UTF-8 against `core.autocrlf`); `CLAUDE.md` §
+Anti-Patterns (scoped, not deleted) and § Token Hygiene; `docs/code-map.md`’s Per-Game Offset Map
+became a Per-Game File Map. Total shipped byte change: 7 lines (a "generated file, do not edit"
+banner). Also corrected in this pass: the trigger measurement itself was the local Windows
+working-tree size (763,121 bytes, CRLF) rather than the shipped LF blob (751,825 bytes) — the
+decision stands regardless, since the game-count half of the trigger was met exactly at 20.
+Deferred: converting the game files whose plugin JS still binds at parse time (9 of 23) off that
+pattern — unnecessary now, since the assembler emits all markup before all scripts either way;
+moving the `<script>` tags to formalise that is a separate, optional change with its own byte
+delta, out of scope for this migration.
+Detail: `docs/superpowers/specs/2026-09-15-index-decomposition-design.md`;
+`docs/superpowers/plans/2026-09-15-index-decomposition.md`.
+
 ---
 
 ## 2026-09-15 — Cost envelope adopted; strategic direction recorded; build-step trigger fired

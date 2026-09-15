@@ -213,8 +213,9 @@ personalising an account. **The controller is envisioned as doubling as the play
 far this goes depends on whether the project finds an audience. Architecturally the gap is small
 (§ 4, Tier 3 — the anonymous-UID primitive is already installed).
 
-**Is a build step worth it? — decided in 2026, deferred with a trigger, and THE TRIGGER HAS NOW
-FIRED.**
+**Is a build step worth it? — decided in 2026, deferred with a trigger, and THE TRIGGER FIRED.**
+
+**RESOLVED 15 Sep 2026.** Adopted. `tools/build-index.js` assembles `index.html` from `src/screens/` partials — design in `docs/superpowers/specs/2026-09-15-index-decomposition-design.md`, decision recorded in `docs/decision-log.md`. The section below is kept as the historical record of the trigger firing and the reasoning that led to the decision.
 
 `docs/decision-log.md` 2026-06-30 ("No-build constraint reviewed; dev-only assembly build
 deferred") kept every constraint and deferred — explicitly *not* rejected — the **dev-only
@@ -228,7 +229,7 @@ The revisit trigger was **`index.html` crossing ~750 KB / ~20 games, whichever c
 
 | Condition | Trigger | Measured 15 Sep 2026 |
 |---|---|---|
-| `index.html` size | ~750 KB | **763,121 bytes** — 745 KiB, 763 KB decimal. At the line on either reading |
+| `index.html` size | ~750 KB | **751,825 bytes** shipped (LF, 751.8 KB decimal / 734 KiB) — the figure recorded here at the time, 763,121 bytes, was the local Windows working-tree size under `core.autocrlf=true` (CRLF), not what GitHub Pages served. Correction: `docs/superpowers/specs/2026-09-15-index-decomposition-design.md` § 1. |
 | Game count | ~20 games | **20.** Met exactly |
 
 **Both conditions are now at or past the line.** Per that entry the next step is to *spec it as

@@ -1,6 +1,6 @@
 # `index.html` Decomposition Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Split the 751,825-byte `index.html` into ~23 small per-game partials assembled by a dev-only Node script, without changing a single shipped byte.
 
@@ -283,7 +283,7 @@ Cutting 23 sections by hand is 23 chances to fumble a boundary. This tool makes 
 
 **⚠ Line numbers are RELATIVE to the named partial, not to `index.html`.** After the first extraction the two diverge permanently. Always `grep -n` the *partial* you are about to cut, never `index.html`.
 
-- [ ] **Step 1: Write the tool**
+- [x] **Step 1: Write the tool**
 
 ```js
 // ═══════════════════════════════════════════════════════════════
@@ -357,7 +357,7 @@ console.log(`✓ ${src} → ${replacements.join(' + ')}`);
 console.log('  now run: node tools/verify-build-fresh.js');
 ```
 
-- [ ] **Step 2: Test it on one real section — Honeycomb Hills**
+- [x] **Step 2: Test it on one real section — Honeycomb Hills**
 
 ```bash
 grep -n "════ HONEYCOMB HILLS ════" src/screens/_rest.html   # note the line N
@@ -365,12 +365,12 @@ wc -l src/screens/_rest.html                                  # note the last li
 node tools/extract-section.js _rest.html <N> <M> comb.html
 ```
 
-- [ ] **Step 3: Verify identity survived the cut**
+- [x] **Step 3: Verify identity survived the cut**
 
 Run: `node tools/verify-build-fresh.js`
 Expected: PASS, still 751825 bytes. The file was cut in three and reassembled to the same bytes.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add tools/extract-section.js src/manifest.txt src/screens/
@@ -406,14 +406,14 @@ git add src/ && git commit -m "refactor(build): extract <NAME> partial"
 
 Order is newest-first: the recent games use a single consistent inline header format and have the cleanest boundaries, so the pattern is established before the messy sections.
 
-- [ ] **Task 5 — Batch A (cleanest, inline `<!-- ════ NAME ════` headers):** `cld`, `cjar`, `pko`, `flw`, `frt`. Verify identity after each; commit after each.
-- [ ] **Task 6 — Batch B:** `shp`, `nt`, `pass`, `dyb`, `gth`. Verify + commit after each.
-- [ ] **Task 7 — Batch C:** `bld`, `dsd`, `nat`, `lttp`, plus the `_mp.html` (multiplayer engine + global MP overlays, two adjacent sections at the old lines 5318 and 5544) and `_terminal.html` (secret terminal + arcade cabinet). Verify + commit after each.
-- [ ] **Task 8 — Batch D (the messy ones, left till last deliberately):** `li5`, `gm`, `ss`, `jec`, `ygi`, and `_shell.html`.
+- [x] **Task 5 — Batch A (cleanest, inline `<!-- ════ NAME ════` headers):** `cld`, `cjar`, `pko`, `flw`, `frt`. Verify identity after each; commit after each.
+- [x] **Task 6 — Batch B:** `shp`, `nt`, `pass`, `dyb`, `gth`. Verify + commit after each.
+- [x] **Task 7 — Batch C:** `bld`, `dsd`, `nat`, `lttp`, plus the `_mp.html` (multiplayer engine + global MP overlays, two adjacent sections at the old lines 5318 and 5544) and `_secret.html` (secret terminal + arcade cabinet). Verify + commit after each. **(named `_secret.html` during execution, matching the section's own "SECRET MODE" header — not `_terminal.html` as planned; see `src/manifest.txt`.)**
+- [x] **Task 8 — Batch D (the messy ones, left till last deliberately):** `li5`, `gm`, `ss`, `jec`, `ygi`, and `_shell.html`.
 
 **⚠ Batch D contains the only genuinely ambiguous cut in the file.** The section at the original line 2134 is headed `GLOBAL + GM SUPPLEMENTARY OVERLAYS` and holds the *global* `#sound-overlay` inside a *GM* block. Split it: `#sound-overlay` and the global audio chrome go to `_sound.html`; the `gm-*` overlays go to `gm.html`. Two `extract-section.js` calls, identity verified after each. If the two are interleaved rather than adjacent, leave them together in `_sound.html` and note it in the implementation notes — a correct ugly cut beats a pretty broken one.
 
-- [ ] **Final step for Tasks 5–8: confirm the shape**
+- [x] **Final step for Tasks 5–8: confirm the shape**
 
 ```bash
 node tools/verify-build-fresh.js          # still 751825 bytes
@@ -434,7 +434,7 @@ Everything to here has been byte-identical. This task deliberately changes the f
 - Consumes: `assemble()`
 - Produces: an `index.html` whose first lines warn against hand-editing
 
-- [ ] **Step 1: Add the banner to the assembler**
+- [x] **Step 1: Add the banner to the assembler**
 
 Insert into `assemble()`, immediately after the BOM and before the parts:
 
@@ -458,7 +458,7 @@ if (nl === 0) throw new Error('assembled output has no newline — manifest is w
 return BOM + body.slice(0, nl) + BANNER + body.slice(nl);
 ```
 
-- [ ] **Step 2: Rebuild and inspect the diff deliberately**
+- [x] **Step 2: Rebuild and inspect the diff deliberately**
 
 ```bash
 node tools/build-index.js
@@ -468,11 +468,11 @@ git diff index.html | head -20
 
 Expected: one added block after the DOCTYPE, nothing else. **Any other hunk is a bug — revert and investigate.**
 
-- [ ] **Step 3: Confirm the app still loads**
+- [x] **Step 3: Confirm the app still loads**
 
 Open `index.html` in a browser, confirm the lobby renders and one game opens. An HTML comment after the DOCTYPE is valid and inert, but this is the first byte change and deserves a real look.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add tools/build-index.js index.html
@@ -490,7 +490,7 @@ git commit -m "feat(build): add generated-file banner to assembled index.html"
 - Consumes: `tools/build-index.js`
 - Produces: automatic rebuild + stage on every commit, once `core.hooksPath` is set
 
-- [ ] **Step 1: Write the hook**
+- [x] **Step 1: Write the hook**
 
 ```sh
 #!/bin/sh
@@ -507,14 +507,14 @@ fi
 exit 0
 ```
 
-- [ ] **Step 2: Activate and make executable**
+- [x] **Step 2: Activate and make executable**
 
 ```bash
 chmod +x .githooks/pre-commit
 git config core.hooksPath .githooks
 ```
 
-- [ ] **Step 3: Test that it actually fires**
+- [x] **Step 3: Test that it actually fires**
 
 ```bash
 printf '\n' >> src/screens/comb.html          # harmless whitespace change
@@ -530,7 +530,7 @@ git revert --no-edit HEAD
 node tools/verify-build-fresh.js
 ```
 
-- [ ] **Step 4: Commit the hook**
+- [x] **Step 4: Commit the hook**
 
 ```bash
 git add .githooks/pre-commit
@@ -545,7 +545,7 @@ git commit -m "chore(build): add versioned pre-commit hook that rebuilds index.h
 - Modify: `CLAUDE.md`, `docs/code-map.md`, `docs/decision-log.md`, `docs/token-budget-register.md`, `docs/deferred-work.md`
 - Create: `docs/implementation-notes/shared-implementation-notes.md` entry
 
-- [ ] **Step 1: `CLAUDE.md` § Anti-Patterns — scope the rule, do not delete it**
+- [x] **Step 1: `CLAUDE.md` § Anti-Patterns — scope the rule, do not delete it**
 
 Replace the `Do NOT add a build step` bullet with:
 
@@ -561,38 +561,38 @@ Replace the `Do NOT add a build step` bullet with:
   (`tools/*.js` verification harnesses remain dev tooling, not a build.)
 ```
 
-- [ ] **Step 2: `CLAUDE.md` § Token Hygiene — retarget the never-full-read rule**
+- [x] **Step 2: `CLAUDE.md` § Token Hygiene — retarget the never-full-read rule**
 
 The rule survives; its target changes. Note that per-game markup now lives in `src/screens/[abbr].html` (~350–750 lines, safe to read whole) and that `index.html` is generated and should essentially never be read.
 
-- [ ] **Step 3: `CLAUDE.md` § Verification harnesses — add the row**
+- [x] **Step 3: `CLAUDE.md` § Verification harnesses — add the row**
 
 ```markdown
 | Build | `node tools/verify-build-fresh.js` — is the committed `index.html` a faithful assembly of `src/screens/`? **Re-run after any markup change** | 1 |
 ```
 
-- [ ] **Step 4: `docs/code-map.md` — Per-Game Offset Map becomes a file map**
+- [x] **Step 4: `docs/code-map.md` — Per-Game Offset Map becomes a file map**
 
 Replace line-offset accelerators with partial filenames. Note in the section that offsets no longer rot on every edit — a secondary win of this migration.
 
-- [ ] **Step 5: `docs/deferred-work.md` — two fixes promised during planning**
+- [x] **Step 5: `docs/deferred-work.md` — two fixes promised during planning**
 
 1. The lobby entry's plan is reversed to match the recorded owner decision (`wip/lobby-lab/OWNER-REVIEW.md` item 6 and `DESIGN-NOTES.md` line 83, both of which say TV mode comes first). Correct order: **TV-mode sandbox round → lobby implementation (Shelves + TV) → one combined ship.**
 2. Kill the naming collision. That entry uses "build-step" to mean *the lobby's implementation round*, while `cost-envelope.md` § 7 uses it for *this* work. Rename the lobby one to "the lobby implementation round" throughout.
 
-- [ ] **Step 6: `docs/token-budget-register.md` § 5 Lever A — mark resolved**
+- [x] **Step 6: `docs/token-budget-register.md` § 5 Lever A — mark resolved**
 
 Point at the spec and this plan; record the measured before/after (751,825 bytes in one file → ~23 partials of ~350–750 lines).
 
-- [ ] **Step 7: `docs/decision-log.md` — one entry, newest on top**
+- [x] **Step 7: `docs/decision-log.md` — one entry, newest on top**
 
 Confluence Snapshot shape. **Decision:** adopt a dev-only assembly build for `index.html`, superseding the 2026-06-30 deferral whose trigger fired at 751,825 bytes / 20 games. **Rationale:** the owner wanted all four wins, and hand-editable markup is the one discipline cannot buy; option A was chosen over runtime assembly because its failure mode is loud and at dev time rather than silent on a player's phone. **Technical Impact:** `src/screens/` + `tools/build-index.js` + `tools/verify-build-fresh.js` + `.githooks/pre-commit`; zero runtime change, no `CACHE_NAME` bump.
 
-- [ ] **Step 8: `shared-implementation-notes.md` — the lessons**
+- [x] **Step 8: `shared-implementation-notes.md` — the lessons**
 
 What happened → root cause → lesson, for: the BOM and `core.autocrlf` landmine (§ 3.3); the discovery that 12 games already tolerate late markup (§ 3.1) and that only 9 files still bind at parse time (§ 3.2); and the mixed-ownership section at the old line 2134 (§ 3.4).
 
-- [ ] **Step 9: Final verification**
+- [x] **Step 9: Final verification**
 
 ```bash
 node tools/verify-build-fresh.js
@@ -603,7 +603,7 @@ git status --porcelain            # clean
 
 Expected: all pass. No `sw.js` change, no `CACHE_NAME` bump — nothing shipped changed beyond Task 9's banner.
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 git add CLAUDE.md docs/

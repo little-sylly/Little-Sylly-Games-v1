@@ -1,48 +1,55 @@
 # Code Map — Little Sylly Games
-**Purpose:** Surgical reference for editing. Element IDs are the stable authority; the offset map below gives coarse line anchors purely to accelerate `Read`, never as a source of truth.
+**Purpose:** Surgical reference for editing. Element IDs are the stable authority; the Per-Game File Map below points at the `src/screens/` partial to `Read`, never as a source of truth.
 **Updated:** Phase 32 / June 2026 (studio audit Phase 2 — all 12 games verified against code)
 
 ---
 
-## How to use this (token-lean — never full-read `index.html`)
-`index.html` is ~515 KB / ~7900 lines — a full read nearly fills the context window. Always work in slices:
-1. Find the game you're editing in the **Per-Game Offset Map** below, or copy a known element ID.
-2. **Grep the ID** (`screen-[abbr]-*`, `[abbr]-*-overlay`) to get its live line number — this is the authority.
-3. **`Read` with `offset`/`limit`** around that line (or around the offset-map anchor) — read only the slice you need.
-4. Cross-reference the key functions list to find the right entry point in the JS file.
+## How to use this (token-lean — `index.html` is generated, don't read it)
+**15 Sep 2026 — `index.html` is now assembled by `tools/build-index.js` from per-game partials in `src/screens/`.** It carries a "DO NOT EDIT BY HAND" banner; a hand edit there is silently overwritten on the next build. Work in the partials instead:
+1. Find the game you're editing in the **Per-Game File Map** below — `src/screens/[abbr].html`, each ~350–750 lines and safe to `Read` whole.
+2. **Grep the element ID** (`screen-[abbr]-*`, `[abbr]-*-overlay`) inside that one partial if you need to jump straight to it — the ID is still the authority, but line numbers no longer drift the way they did in the monolith.
+3. After editing, run `node tools/build-index.js` (or let the pre-commit hook do it) and `node tools/verify-build-fresh.js` before committing.
+4. Cross-reference the key functions list below to find the right entry point in the JS file.
+
+Spec: `docs/superpowers/specs/2026-09-15-index-decomposition-design.md`.
 
 ---
 
-## Per-Game Offset Map (`index.html`)
-**Coarse `Read` anchors only — APPROXIMATE, refreshed 27 Aug 2026.** Line numbers drift on every `index.html` edit; treat ±a few hundred lines as normal and **always Grep the actual ID to confirm** before editing. Each game's block runs roughly from its anchor to the next game's anchor.
+## Per-Game File Map (`src/screens/`)
+**15 Sep 2026 — replaces the old line-offset map.** Offsets rotted on every `index.html` edit; a filename does not. Each row is the partial holding that game's screens and overlays — `Read` it whole, no offset needed. Full manifest order: `src/manifest.txt`.
 
-| Section | ≈ Start line |
-|---------|-------------|
-| Like I'm Five (LI5) | ~130 |
-| Great Minds (GM) | ~636 |
-| Secret Signals (SS) | ~1208 |
-| Secret Mode / Arcade | ~2086 |
-| Just Enough Cooks (JEC) | ~2229 |
-| You Get It? (YGI) | ~2794 |
-| Late to the Party (LTTP) | ~3332 |
-| Natural Selection (NAT) | ~3980 |
-| Deep-Sea Deploy (DSD) | ~4561 |
-| Multiplayer engine / lobby | ~5112 |
-| Multiplayer global overlays | ~5338 |
-| Bailed (BLD) | ~5450 |
-| Group Therapy (GTH) | ~6003 |
-| The Bluff (DYB) | ~6516 |
-| Pass (PASS) | ~6967 |
-| Net-Trace (NT) | ~7385 |
-| Fruit Salad (FRT) | ~8004 |
-| Counting Sheep (SHP) | ~8323 |
-| Flawless (FLW) | ~8576 |
-| Pecking Order (PKO) | ~8936 |
-| Cookie Jar (CJAR) | ~9477 |
-| Cold Shoulder (CLD) | ~9970 |
-| Honeycomb Hills (COMB) | ~10390 |
+| Section | Partial |
+|---------|---------|
+| Like I'm Five (LI5) | `src/screens/li5.html` |
+| Great Minds (GM) | `src/screens/gm.html` + `src/screens/gm-overlays.html` |
+| Secret Signals (SS) | `src/screens/ss.html` |
+| Secret Mode / Arcade | `src/screens/_secret.html` |
+| Just Enough Cooks (JEC) | `src/screens/jec.html` |
+| You Get It? (YGI) | `src/screens/ygi.html` |
+| Late to the Party (LTTP) | `src/screens/lttp.html` |
+| Natural Selection (NAT) | `src/screens/nat.html` |
+| Deep-Sea Deploy (DSD) | `src/screens/dsd.html` |
+| Multiplayer engine / lobby | `src/screens/_mp.html` |
+| Bailed (BLD) | `src/screens/bld.html` |
+| Group Therapy (GTH) | `src/screens/gth.html` |
+| The Bluff (DYB) | `src/screens/dyb.html` |
+| Pass (PASS) | `src/screens/pass.html` |
+| Net-Trace (NT) | `src/screens/nt.html` |
+| Fruit Salad (FRT) | `src/screens/frt.html` |
+| Counting Sheep (SHP) | `src/screens/shp.html` |
+| Flawless (FLW) | `src/screens/flw.html` |
+| Pecking Order (PKO) | `src/screens/pko.html` |
+| Cookie Jar (CJAR) | `src/screens/cjar.html` |
+| Cold Shoulder (CLD) | `src/screens/cld.html` |
+| Honeycomb Hills (COMB) | `src/screens/comb.html` |
+| Multiplayer global overlays | `src/screens/_mp.html` (same partial as the multiplayer engine — the two sections are adjacent) |
+| Global sound overlay + art viewer | `src/screens/_sound.html` |
+| Shell (lobby, who-first, engine-global) | `src/screens/_shell.html` |
+| Document head + script tags | `src/screens/_head.html`, `_scripts-1.html` through `_scripts-3.html` |
 
-Each game's `<!-- ════ NAME ════ -->` section-header comment is itself a reliable Grep anchor if the line numbers have drifted.
+**Great Minds is split across two non-adjacent partials** — `gm.html` (its own screens) and `gm-overlays.html` (its quit/how-to overlays), with `ss.html` between them in manifest order. This mirrors the original file, where a section literally titled "GLOBAL + GM SUPPLEMENTARY OVERLAYS" held the global sound overlay ahead of GM's own overlays — preserved as-is because reordering would have broken the byte-identical migration guarantee. See `docs/superpowers/specs/2026-09-15-index-decomposition-design.md` § 3.4.
+
+Each game's `<!-- ════ NAME ════ -->` section-header comment inside its partial is still a reliable Grep anchor.
 
 ---
 

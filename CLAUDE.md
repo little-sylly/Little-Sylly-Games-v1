@@ -113,8 +113,13 @@ All symbols are global (no ES modules). Forward references work at runtime.
 ---
 
 ## 🚫 Anti-Patterns (Do Not)
-- Do NOT add a build step — no `npm`/`webpack`/bundler for the app itself. (`tools/*.js` verification
-  harnesses run under Node; that's dev tooling, not a build.)
+- Do NOT add a build step **to the runtime** — no `npm`/`webpack`/bundler, no transpile, nothing
+  between the repo and what GitHub Pages serves. **Sanctioned exception (15 Sep 2026):**
+  `tools/build-index.js`, a dev-only assembler with zero dependencies that concatenates
+  `src/screens/*.html` into the committed `index.html`. The output is committed, so deleting the
+  script still leaves a shippable app. Rationale and the process that approved it:
+  `docs/cost-envelope.md` § 7 and `docs/superpowers/specs/2026-09-15-index-decomposition-design.md`.
+  (`tools/*.js` verification harnesses remain dev tooling, not a build.)
 - Do NOT add external JS libraries. The only **three** are vendored: local Tailwind
   (`js/lib/tailwind-play.js`), the Firebase SDK (precached, lazy-loaded at runtime — see
   `logic-engine.md` § Firebase Lazy-Load), and Three.js r128 (`js/lib/three.min.js`, precached,
@@ -160,7 +165,7 @@ All symbols are global (no ES modules). Forward references work at runtime.
 ---
 
 ## 🧼 Token Hygiene & Context Management
-- **Never full-read `index.html`:** It is ~515 KB (~128k tokens) — a single full read nearly fills the context window and is the largest avoidable token sink in this project. To work on a screen or overlay, **Grep first** for its identifier (`screen-[abbr]-*`, an `[abbr]-*-overlay` ID, or the `<!-- ════ GAME NAME ════ -->` section header), then **Read with `offset`/`limit`** around the hit — never read the whole file to "get oriented".
+- **`index.html` is generated — edit `src/screens/[abbr].html` instead (15 Sep 2026).** `index.html` itself is assembled by `tools/build-index.js` and carries a "DO NOT EDIT BY HAND" banner; a hand edit is silently overwritten on the next build. Per-game markup now lives in `src/screens/[abbr].html` (~350–750 lines each) — small enough to read whole, no Grep-then-offset needed. `index.html` itself should essentially never be read; if you must (e.g. auditing the assembler's own output), Grep first for the identifier and `Read` with `offset`/`limit` as before. After editing a partial, run `node tools/build-index.js` (or let the pre-commit hook do it) and `node tools/verify-build-fresh.js`. Detail: `docs/superpowers/specs/2026-09-15-index-decomposition-design.md`.
 - **Same rule for any file over ~40 KB** (e.g. `js/games/nt.js`, `engine-multiplayer.js`, `secret-signals.js`): locate the relevant section with Grep, then read only that slice. Reading a large file in full to orient yourself is the single most common cause of the mid-task auto-compact spiral.
 - **Lean Context:** Avoid repetitive explanations. Assume technical competence.
 - **Australian English:** Use Australian spelling (e.g., "colour", "synthesised"). Metric units only.
@@ -351,6 +356,7 @@ Re-run a game's full set after touching its appliers, deck/data, packets or rend
 
 | Game | Command | Checks |
 |------|---------|--------|
+| Build | `node tools/verify-build-fresh.js` — is the committed `index.html` a faithful assembly of `src/screens/`? **Re-run after any markup change** | 1 |
 | CJAR | `node tools/verify-cjar-deck.js && node tools/verify-cjar-loop.js && node tools/verify-cjar-dd.js` | 76 · 102 · 47 |
 | CJAR | `node tools/verify-cjar-loopback.js` — host↔client over a Firebase-shaped wire | 177 |
 | CJAR | `node tools/simulate-cjar-dd.js` — balance instrument; asserts nothing, always exits 0 | — |

@@ -92,17 +92,21 @@ The first pass removed `@` prefixes from the on-demand docs, expecting that to s
 
 ## 5. Remaining levers / action plan (ranked)
 
-**A. `index.html` (138k) — the biggest avoidable sink. OWNER DECISION MADE 2026-06-30: defer the build (see below). ⚠ TRIGGER FIRED 15 Sep 2026 — the deferral is now due for its spec task.**
-> **Decision (2026-06-30):** keep discipline-only for now; the dev-only assembly build is **deferred, not rejected**. **Revisit trigger:** `index.html` crosses **~750 KB / ~20 games**, OR subagent-hunting stops keeping edits under the ceiling — whichever first. Rationale: "$0" and "no build" are independent; the build's only payoff is this file's token pain, currently mitigated, and a build adds owner-facing fragility (non-coder owner). Full entry: `docs/decision-log.md` 2026-06-30 "No-build constraint reviewed". Interim discipline: `docs/templates/testing-session-protocol.md`.
->
-> **⚠ TRIGGER FIRED — measured 15 Sep 2026 (SW v230).** `index.html` is **763,121 bytes** (745 KiB / 763 KB decimal — at the ~750 KB line on either reading) and the suite is at **20 games** — the game-count condition is met exactly. Per the 2026-06-30 entry the next step is to **spec the option as its own task**, not to adopt it reflexively; the owner-fragility objection that drove the deferral is unchanged and still load-bearing.
->
-> **Two things have changed since, and both belong in that spec.** (1) A **third option** the original decision never weighed: each `js/games/[abbr].js` already owns its game's state, logic, screens, packets and teardown, so it could own its **markup** too — injected at runtime from a template string or a precached `<template>`. That is **not a build step** (nothing to break at 11 pm, no npm, no stale artefact), so it dodges the exact fragility objection that deferred Lever A while delivering the editability Lever A was wanted for. Its real cost is a **boot-ordering problem**: `js/engine.js` calls `getElementById` at parse time (boot block, `_lobbySortBtn`), so partials must be in the DOM before plugin scripts run — synchronous injection or an async boot gate. (2) The **lobby redesign's four switchable layouts** will be the first growth in the engine/global section rather than a game's. Neither blocks the redesign; this is its own task. Context: `docs/cost-envelope.md` § 7.
+**A. `index.html` — RESOLVED 15 Sep 2026.** The dev-only assembly build deferred 2026-06-30 was
+adopted: `tools/build-index.js` assembles `index.html` from per-game partials in `src/screens/`.
+Design: `docs/superpowers/specs/2026-09-15-index-decomposition-design.md`. Plan: `docs/superpowers/plans/2026-09-15-index-decomposition.md`. Decision: `docs/decision-log.md` 2026-09-15.
 
-Governed now by the never-full-read rule. The open question (now answered, above): is discipline alone enough, or should the file be **physically split**?
-- *Tension:* the project is explicitly **no-build / single-page** (Anti-Patterns). A runtime split into multiple HTML pages is forbidden.
-- *Possible middle path:* a **dev-only assembly step** — per-game HTML partials under `src/` concatenated into the shipped `index.html` by a Node script that is **not** part of the runtime/PWA. Keeps the single-page runtime intact while making edits touch small files. **This conflicts with the spirit of "no build tools" and must have an explicit owner decision before any work.** Log the outcome in `decision-log.md`.
-- *Cheapest path:* leave it whole, keep hardening discipline (offset map already exists).
+**Trigger measurement correction.** The revisit trigger (`index.html` crossing ~750 KB / ~20 games) fired
+15 Sep 2026, but the size figure recorded at the time — 763,121 bytes — was the local Windows
+working-tree size under `core.autocrlf=true` (CRLF, one extra byte per line). The file GitHub Pages
+actually served was **751,825 bytes** (LF) — 751.8 KB decimal, 734 KiB. The decision was correct
+regardless: the trigger fires on the game-count condition alone, met exactly at 20.
+
+**Before / after.** One 751,825-byte / 11,296-line file → 29 partials in `src/screens/`, largest
+747 lines (`ss.html`). Every byte of shipped markup came back identical except a 7-line "generated
+file, do not edit" banner — verified after each of the 28 individual cuts via
+`node tools/verify-build-fresh.js`. A versioned pre-commit hook (`.githooks/pre-commit`) rebuilds
+automatically; commits require no new manual step.
 
 **B. Split `ui-style.md` (~10.7k) + `logic-engine.md` (~10.2k) into core + appendix. (~10–15k/turn possible.)**
 Both are always-loaded on purpose, but much of their bulk is *reference tables* (per-game brand-colour / range-class / toggle-class tables, the legacy `h-screen` whitelist, the full audio catalogue), not apply-on-every-edit rules. Those could move to an on-demand `docs/rules/` appendix, leaving a lean always-on core. **Risk:** drift if the appendix isn't read when needed — this exact trade-off is why de-`@`-ing these was *deferred* in the 2026-06-29 decision. Mechanical and reversible if attempted.

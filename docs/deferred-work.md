@@ -8,44 +8,44 @@ Tick items off here; promote anything architectural into `decision-log.md`.
 
 ---
 
-## Lobby redesign — TV mode sandbox round (15 Sep 2026)
+## Lobby redesign — TV mode next, then the implementation round (15 Sep 2026, corrected)
 
 **Deliberately deferred, not blocked.** The Shelves round (`wip/lobby-lab/`) is done —
 sandbox built, screenshot-verified, all owner decisions recorded in
-`wip/lobby-lab/OWNER-REVIEW.md` and `wip/lobby-lab/DESIGN-NOTES.md`. Next up is the
-**build-step** (Opus plans, Fable/a build session implements Shelves for real — the four-slot
-switcher shell, Shelves wired live, Original kept working). **TV mode comes after that**, not
-before and not in parallel: Pane 3 (`#wide-canvas` in `wip/lobby-lab/index.html`) plugs into
-the same switcher shell the build-step creates, so designing it first would mean guessing at
-that shell instead of building against the real one. Premium stays an honest placeholder
-either way — that was already decided (OWNER-REVIEW.md item 6), this entry is only about
-Shelves and TV.
+`wip/lobby-lab/OWNER-REVIEW.md` and `wip/lobby-lab/DESIGN-NOTES.md`.
 
-**The plan:** build-step (Shelves) → TV-mode sandbox round → build-step (TV mode) → **one**
-combined ship (one Documentation Integrity Protocol pass, one SW version bump, one phase
-snapshot for the whole lobby-redesign initiative, not two release cycles for one initiative).
+**Correction, 15 Sep 2026 (same day, later in the round).** This entry originally read "build-step
+(Shelves) → TV-mode sandbox round → build-step (TV mode)", which silently reversed a recorded
+owner decision. `wip/lobby-lab/OWNER-REVIEW.md` item 6 and `DESIGN-NOTES.md` both say **TV mode
+comes first** — "the owner wants to build TV mode first (before their Fable window closes)". The
+plan below is the corrected order.
 
-**When picking this up:** open a fresh session (Fable, design mode) and reuse the prompt below
-— it's the same shape as the brief that produced the Shelves round, pointed at the sandbox as
-it stands after the build-step instead of the original static mockup.
+**Naming collision, also fixed here.** The word "build-step" in the original entry meant *the
+lobby's implementation round* — turning the finished Shelves/TV design into real, live-wired
+screens. A second, unrelated thing is also called "build-step" elsewhere in this project:
+`docs/cost-envelope.md` § 7 and `docs/superpowers/specs/2026-09-15-index-decomposition-design.md` use it
+for the `index.html` → `src/screens/` assembly work (Lever A), which is now **done** — see
+`docs/decision-log.md`. **From here on, "build-step" means only the `index.html` assembler.** The lobby
+entry below says **"the lobby implementation round"** throughout instead.
 
-```text
-Now that Shelves has shipped for real (see [wherever the build-step spec/PR ends up — update
-this pointer once it exists]), it's TV mode's turn. Same brief structure as the Shelves round:
-read docs/lobby-redesign-brief.md § 1 first (almost nothing else), then wip/lobby-lab/
-DESIGN-NOTES.md and OWNER-REVIEW.md for what Shelves actually became and why, particularly
-the settled visual language (the keycap/gel-btn treatment, the badge-disc-with-sticker
-pattern, the plum ink, the Stack layout discipline) — TV mode should read as the same family,
-not a fourth unrelated visual system. Build in wip/lobby-lab/ Pane 3 (#wide-canvas, 900px,
-already scaffolded) against the REAL four-slot switcher shell from the build-step — not a
-guess at it. Same budget discipline: ~USD 100 total Fable credit for the whole lobby redesign,
-Shelves used very little of it. Same deliverable shape: a working sandbox pane, screenshot-
-verified, plus a DESIGN-NOTES.md addendum (what you built and why, anything from the brief
-you'd push back on) and an OWNER-REVIEW.md checklist for the owner's open calls.
-```
+**The plan, corrected order:**
+1. **TV-mode sandbox round** (Fable, design mode) — the host-display look-and-feel for the lobby.
+   Scoped 15 Sep 2026: it serves wide browsers and actual TVs, and its real job is to host the
+   lobby while players connect on their own phones — shared info: who has joined, the room code,
+   whose turn it is, logs. This round covers **the lobby's** host state only — no game has host
+   screens yet and none of that data exists, so anything in-game would be designed against
+   imagined state. Leave one honest, clearly-marked seam for in-game host content later. **A
+   ready-to-paste Fable prompt for this round exists — see the owner's session for the full text
+   (drafted 15 Sep 2026); paste it into a fresh Fable session to start.**
+2. **The lobby implementation round** — Shelves and TV both wired live: the four-slot switcher
+   shell for real, Shelves and TV built against real data, Original kept working. Premium stays an
+   honest placeholder (OWNER-REVIEW.md item 6).
+3. **One combined ship** — one Documentation Integrity Protocol pass, one SW version bump, one
+   phase snapshot for the whole lobby-redesign initiative, not two release cycles for one
+   initiative.
 
----
-
+**Budget note (15 Sep 2026):** ~A33 of the ~USD 100 Fable allocation remained after Shelves
+(which used only ~A2). TV mode is estimated at A5–55, comfortably inside what is left.
 ## Controller Workshop — rotate-to-sticker's ear precision (14 Sep 2026, SW v230)
 
 Picking a placed sticker from the book now rotates the model to face it (`ctlStickerGoToModel` in
