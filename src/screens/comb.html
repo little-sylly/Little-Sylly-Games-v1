@@ -1,0 +1,735 @@
+  <!-- ════ HONEYCOMB HILLS ════
+       Screens : screen-comb-menu, screen-comb-standby, screen-comb-meadow,
+                 screen-comb-gameover
+       Overlays: comb-settings-overlay, comb-how-to-overlay, comb-quit-overlay,
+                 comb-new-season-overlay, comb-overflow-overlay, comb-trade-overlay,
+                 comb-trade-offer-overlay, comb-steal-overlay, comb-instinct-overlay,
+                 comb-instinct-reveal-overlay, comb-log-overlay, comb-tip-overlay,
+                 comb-pheromone-overlay, comb-bloom-overlay, comb-map-overlay
+       Notes   : screen-comb-meadow is on the legacy h-screen whitelist (fit-to-view
+                 board; hand row + action bar must not move — see ui-style.md).
+                 ALL zooming lives in comb-map-overlay (z-[75], the lowest of the
+                 fifteen, so pushed overlays land on top). MDLM-only. No Sylly Mode.
+    ════════════════════════════════════════════════════════════════════════════ -->
+
+  <!-- COMB MENU — content-height section (NO min-h-screen, or the 🔊 detaches to
+       the viewport top and reads as unattached to the title) -->
+  <section id="screen-comb-menu" style="display:none"
+    class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
+    <button class="btn-open-sound absolute top-4 right-4 text-2xl active:scale-90 transition-transform duration-100">🔊</button>
+    <div class="text-5xl" role="img" aria-label="Bee">🐝</div>
+    <div>
+      <h1 class="text-5xl font-bold leading-tight text-stone-800">Honeycomb</h1>
+      <h1 class="text-5xl font-bold leading-tight comb-label">Hills</h1>
+      <p class="text-stone-400 text-base mt-1">Build your comb, trade your nectar, grow the strongest hive in the meadow.</p>
+    </div>
+    <div class="flex flex-col gap-3 w-full">
+      <button id="btn-comb-menu-play" class="gel-btn comb-cta min-h-14 w-full rounded-2xl text-xl font-semibold">Send the Scouts</button>
+      <button id="btn-comb-menu-how-to" class="gel-btn min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 text-white text-xl font-semibold">How to Play</button>
+      <button id="btn-comb-menu-settings" class="gel-btn gel-btn-light min-h-14 w-full rounded-2xl bg-[#FDF0D0] hover:bg-[#FAE3AB] text-[#B87A00] text-xl font-semibold">Settings</button>
+      <button id="btn-comb-menu-back" class="gel-btn gel-btn-light min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 text-stone-500 text-xl font-semibold">← Back to the Box</button>
+    </div>
+  </section>
+
+  <!-- COMB STANDBY — the client's wait between joining the lobby and the host's
+       COMB_MATCH_START. MDLM-only game, so there is no setup screen at all: names
+       come from mpPlayerSlots (spec §3). It is NOT an interstitial — it does not
+       auto-advance and the player may leave from here — so it carries the full
+       🔊 + ✕ chrome. -->
+  <section id="screen-comb-standby" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-4">
+      <div class="flex items-center justify-end">
+        <div class="flex items-center gap-2">
+          <button class="btn-open-sound text-xl active:scale-90 transition-transform duration-100">🔊</button>
+          <button class="btn-comb-quit-open text-stone-500 font-bold text-xl active:scale-90 transition-transform duration-100">✕</button>
+        </div>
+      </div>
+      <div class="flex flex-col gap-4 text-center">
+        <div class="text-6xl" role="img" aria-label="Bee">🐝</div>
+        <h2 class="text-3xl font-bold text-stone-800">Waiting for the hive…</h2>
+        <p id="comb-standby-sub" class="text-stone-500 text-base">The host is laying out the meadow. Sit tight.</p>
+      </div>
+      <div id="comb-standby-roster" class="flex flex-col gap-2"></div>
+    </div>
+  </section>
+
+  <!-- COMB THE MEADOW — the board, and the ONE screen in this game that is not the
+       Stack. Documented legacy h-screen sticky-footer exception (spec §2/§3): the
+       board is permanently fit-to-view and the hand row + action bar must not move
+       while it is being read and tapped, and no page-scroll may carry a legal
+       target off screen. Seven phases live on this ONE screen via combPhase.
+       ⚠️ combRenderMeadow() is the ONLY function that writes here, and it sets
+       EVERY element every time — including the ones the current phase does not use
+       (spec §3, the SHP stale-status-line lesson). -->
+  <section id="screen-comb-meadow" style="display:none"
+    class="h-screen w-full flex flex-col overflow-hidden px-4 pb-4">
+
+    <!-- HEADER -->
+    <div class="flex items-center justify-between flex-shrink-0 pt-4 pb-2">
+      <div class="min-w-0">
+        <p id="comb-meadow-turn" class="text-stone-500 text-sm font-semibold uppercase tracking-widest truncate"></p>
+      </div>
+      <div class="flex items-center gap-2 shrink-0">
+        <button id="btn-comb-log" class="text-stone-400 text-base active:scale-90 transition-transform duration-100" aria-label="Season Log">📜</button>
+        <button id="btn-comb-how-to" class="text-stone-400 font-bold text-sm active:scale-90 transition-transform duration-100">[?]</button>
+        <button class="btn-open-sound text-xl active:scale-90 transition-transform duration-100">🔊</button>
+        <button class="btn-comb-quit-open text-stone-500 font-bold text-xl active:scale-90 transition-transform duration-100">✕</button>
+      </div>
+    </div>
+
+    <!-- STAGE — the canvas is sized in JS (combDrawBoard is handed this canvas) and
+         letterboxed into this box. The inline board is ALWAYS fit-to-view and holds
+         no viewport of its own; all zooming is in comb-map-overlay (spec §2). -->
+    <div id="comb-board-stage" class="flex-1 min-h-0 w-full relative">
+      <canvas id="comb-board-canvas"></canvas>
+      <!-- The 🔍 magnifier, the board's top-right corner (spec §2). -->
+      <button id="btn-comb-map-open"
+        class="absolute top-2 right-2 z-10 min-h-11 min-w-11 rounded-xl bg-white/85 text-xl flex items-center justify-center shadow-sm active:scale-90 transition-transform duration-100"
+        aria-label="Enlarge the meadow">🔍</button>
+      <!-- Player panel — floats over the top-left letterbox dead-space, adds no
+           layout height. Painted by combRenderPlayerPanel(). The active row
+           lights up: on a board identical on every phone, that is the
+           turn-handover signal (identity doc T7c). Replaced the turn-order dots.
+           NOT the Sun Compass — that is the 2d6 die the game casts each turn. -->
+      <div id="comb-player-panel" class="comb-player-panel absolute top-2 left-2 pointer-events-none flex flex-col gap-1"></div>
+      <!-- The landed Scout Flight, kept visible until the next cast. The flight
+           animation lands INTO this; it is not a second animation. -->
+      <div id="comb-roll-result" class="comb-roll-result absolute left-1/2 top-2 -translate-x-1/2 pointer-events-none"></div>
+      <!-- 11-tick 2d6 probability ruler, under the result. Pure function of the
+           roll; rarity used to live in the pog pip row (removed). -->
+      <div id="comb-prob-ruler" class="comb-prob-ruler absolute left-1/2 -translate-x-1/2 pointer-events-none flex items-end gap-px" style="top:2.6rem"></div>
+      <!-- Transient layer — floats over a relative parent, contributes zero height, so
+           the Scout Flight animation can never re-centre the column beneath it
+           (ui-style.md § Transient animations must float). -->
+      <div id="comb-float-layer" class="absolute inset-0 pointer-events-none flex items-start justify-center pt-3"></div>
+      <!-- Player-stats snapshot — floats over the bottom letterbox dead-space.
+           2x2, two players per side. All public: visible VP, structure counts,
+           unplayed Instinct count. Taps through to the map overlay's stats zone;
+           full detail lives there. Painted by combRenderPlayerStrip(). -->
+      <div id="comb-player-strip" class="comb-player-strip absolute left-2 right-2 bottom-2 grid grid-cols-2 gap-x-3 gap-y-1"></div>
+    </div>
+
+    <!-- CONTROLS — frozen beneath the stage. -->
+    <div class="flex-shrink-0 flex flex-col gap-2 pt-3 w-full max-w-sm mx-auto">
+
+      <p id="comb-meadow-status" class="text-stone-500 text-sm text-center"></p>
+      <p id="comb-daylight" style="display:none" class="text-stone-400 text-xs text-center font-semibold uppercase tracking-widest"></p>
+
+      <!-- HAND ROW — your five resource chips, plus the inline [?] that deep-links
+           into How to Play's "The Comb" tab (spec §8 / brief §15 surface 3: one
+           existing function call, NOT a new overlay), and the Instinct deck button. -->
+      <div class="flex items-center gap-2">
+        <div id="comb-hand-row" class="flex items-center gap-1.5 flex-1 min-w-0"></div>
+        <button id="btn-comb-hand-ref" class="text-stone-300 font-bold text-xs leading-none active:scale-90 transition-transform duration-100 shrink-0">[?]</button>
+        <button id="btn-comb-instinct" class="min-h-11 px-3 rounded-xl bg-stone-200 hover:bg-stone-300 text-stone-700 font-semibold text-sm shrink-0">Instinct 0</button>
+      </div>
+
+      <!-- PLACEMENT BAR — shown only while combPlacementMode is set. The nearest-
+           legal-target snap previews into combPendingTarget and is committed here,
+           because adjacent nodes sit ≈41 px apart at fit-to-view, under the 44 px
+           touch minimum (spec §2). -->
+      <div id="comb-place-bar" style="display:none" class="flex items-center gap-2">
+        <p id="comb-place-hint" class="text-stone-500 text-sm flex-1 min-w-0 truncate"></p>
+        <button id="btn-comb-place-cancel" class="min-h-11 px-4 rounded-xl bg-stone-200 hover:bg-stone-300 text-stone-700 font-semibold text-sm shrink-0">Cancel</button>
+        <button id="btn-comb-place-confirm" class="btn-mp-action comb-cta min-h-11 px-4 rounded-xl font-semibold text-sm shrink-0">Place</button>
+      </div>
+
+      <!-- BUILD PICKER — step 1 of the two-step build (spec §7: the option,
+           then the target). Deliberately INLINE rather than a sixteenth overlay:
+           this game's whole architecture is that the board never goes away
+           (§17-4), and a modal covering the board while you decide what to put
+           on it is the one thing it must not do. An option you cannot afford is
+           dimmed but STILL TAPPABLE — the reason is what teaches the rule. -->
+      <div id="comb-build-picker" style="display:none" class="flex flex-col gap-2">
+        <div id="comb-build-options" class="grid grid-cols-3 gap-2"></div>
+        <button id="btn-comb-build-cancel" class="min-h-11 w-full rounded-xl bg-stone-200 hover:bg-stone-300 text-stone-700 font-semibold text-sm">Never mind</button>
+      </div>
+
+      <!-- ACTION BAR — all four stay available in any order until End Turn
+           (brief §14a). -->
+      <div id="comb-action-bar" class="grid grid-cols-2 gap-2">
+        <button id="btn-comb-build" class="btn-mp-action comb-cta min-h-11 rounded-xl font-semibold text-sm">Build</button>
+        <button id="btn-comb-buy" class="btn-mp-action comb-cta min-h-11 rounded-xl font-semibold text-sm">Buy Instinct</button>
+        <button id="btn-comb-waggle" class="btn-mp-action comb-cta min-h-11 rounded-xl font-semibold text-sm">Waggle Dance</button>
+        <button id="btn-comb-end-turn" class="btn-mp-action min-h-11 rounded-xl bg-stone-200 hover:bg-stone-300 text-stone-700 font-semibold text-sm">End Turn</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- COMB GAMEOVER — The Hive. The one beat this screen must land is the Golden
+       Nectar reveal: hidden points are why the endgame has tension (brief §17). -->
+  <section id="screen-comb-gameover" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-4">
+      <div class="flex items-start justify-between">
+        <div>
+          <h2 class="text-2xl font-bold text-stone-800">The Hive is Thriving 🐝</h2>
+          <p id="comb-go-sub" class="text-stone-400 text-sm mt-0.5"></p>
+        </div>
+        <div class="flex items-center gap-2 shrink-0">
+          <button class="btn-open-sound text-xl active:scale-90 transition-transform duration-100">🔊</button>
+          <button id="btn-comb-go-exit" class="text-stone-500 font-bold text-xl active:scale-90 transition-transform duration-100">✕</button>
+        </div>
+      </div>
+      <div id="comb-podium" class="flex flex-col gap-2"></div>
+      <div id="comb-go-stats" class="flex flex-col gap-1"></div>
+      <button id="btn-comb-go-new" class="comb-cta min-h-14 w-full rounded-2xl active:scale-95 text-xl font-semibold transition-all duration-150">New Season</button>
+      <button id="btn-comb-go-leave" class="min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-xl font-semibold transition-all duration-150">Back to the Box</button>
+    </div>
+  </section>
+
+  <!-- COMB SETTINGS — seven cards, and NO Sylly Mode card. That is a decision, not
+       an omission (spec §12 / §17-1): a dead toggle is worse than an honest line,
+       and the dim treatment already means something else on this screen. The Season
+       PRESETS The Wasp and The Overflow — a plain preset, NOT either of the named
+       mutually-exclusive/superseded patterns, so nothing dims and no amber reason
+       line appears (spec §5 / §17-5). The repaint must fire from BOTH the pill
+       handler and combSyncSettingsUI(). -->
+  <div id="comb-settings-overlay" style="display:none"
+    class="fixed inset-0 bg-black/40 z-[80] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
+      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
+        <h2 class="text-xl font-bold text-stone-800">Honeycomb Hills 🐝</h2>
+        <p class="text-xs text-stone-400 mt-1">How long the summer runs, and how mean the meadow gets.</p>
+      </div>
+      <div id="comb-settings-body" class="overflow-y-auto flex flex-col gap-5 px-5 py-5">
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">The Season</p>
+            <p class="text-stone-400 text-sm mt-0.5">How many Hive Points win the match — and how long the afternoon runs.</p>
+          </div>
+          <div class="flex flex-col gap-2">
+            <div class="flex gap-2">
+              <button class="pill pill-active-comb" data-group="comb-season" data-val="short">Short Summer</button>
+              <button class="pill" data-group="comb-season" data-val="full">Full Season</button>
+            </div>
+            <p id="comb-val-season" class="text-stone-400 text-xs"></p>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">The Meadow</p>
+            <p class="text-stone-400 text-sm mt-0.5">Whether the hexes and Bloom Markers are shuffled fresh, or laid out to a known-fair pattern.</p>
+          </div>
+          <div class="flex flex-col gap-2">
+            <div class="flex gap-2">
+              <button class="pill pill-active-comb" data-group="comb-layout" data-val="wild">Wild</button>
+              <button class="pill" data-group="comb-layout" data-val="tended">Tended</button>
+            </div>
+            <p id="comb-val-layout" class="text-stone-400 text-xs"></p>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">The Wasp</p>
+            <p class="text-stone-400 text-sm mt-0.5">What happens when the Wasp lands on a hex — whether it also robs somebody.</p>
+          </div>
+          <div class="flex flex-col gap-2">
+            <div class="flex gap-2">
+              <button class="pill pill-active-comb" data-group="comb-wasp" data-val="blocks">Blocks Only</button>
+              <button class="pill" data-group="comb-wasp" data-val="steals">Blocks and Steals</button>
+            </div>
+            <p id="comb-val-wasp" class="text-stone-400 text-xs"></p>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">The Overflow</p>
+            <p class="text-stone-400 text-sm mt-0.5">How much you can carry before a 7 spills half of it.</p>
+          </div>
+          <div class="flex flex-col gap-2">
+            <div class="flex gap-2">
+              <button class="pill pill-active-comb" data-group="comb-overflow" data-val="off">Off</button>
+              <button class="pill" data-group="comb-overflow" data-val="snug">Snug</button>
+              <button class="pill" data-group="comb-overflow" data-val="roomy">Roomy</button>
+            </div>
+            <p id="comb-val-overflow" class="text-stone-400 text-xs"></p>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">The Waggle Dance</p>
+            <p class="text-stone-400 text-sm mt-0.5">Whether you sort trades out loud at the table, or negotiate them in the app.</p>
+          </div>
+          <div class="flex flex-col gap-2">
+            <div class="flex gap-2">
+              <button class="pill pill-active-comb" data-group="comb-waggle" data-val="outloud">Out Loud</button>
+              <button class="pill" data-group="comb-waggle" data-val="full">Full Dance</button>
+            </div>
+            <p id="comb-val-waggle" class="text-stone-400 text-xs"></p>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">Daylight</p>
+            <p class="text-stone-400 text-sm mt-0.5">Whether a turn has a time limit, so one long thinker cannot stall the meadow.</p>
+          </div>
+          <div class="flex flex-col gap-2">
+            <div class="flex gap-2">
+              <button class="pill pill-active-comb" data-group="comb-daylight" data-val="allday">All Day</button>
+              <button class="pill" data-group="comb-daylight" data-val="longday">Long Day</button>
+              <button class="pill" data-group="comb-daylight" data-val="shortday">Short Day</button>
+            </div>
+            <p id="comb-val-daylight" class="text-stone-400 text-xs"></p>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">The Meadow's Bounty</p>
+            <p class="text-stone-400 text-sm mt-0.5">Whether the meadow can actually run dry.</p>
+          </div>
+          <div class="flex flex-col gap-2">
+            <div class="flex gap-2">
+              <button class="pill pill-active-comb" data-group="comb-bounty" data-val="endless">Endless</button>
+              <button class="pill" data-group="comb-bounty" data-val="limited">Limited</button>
+            </div>
+            <p id="comb-val-bounty" class="text-stone-400 text-xs"></p>
+          </div>
+        </div>
+
+        <button id="btn-comb-settings-close" class="comb-cta min-h-14 w-full rounded-2xl text-xl font-semibold active:scale-95 transition-all duration-150">Got it</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- COMB HOW TO PLAY — three tabs (spec §8), matching PKO's precedent. The Rules
+       is always first and is the canonical step-card structure, unchanged. The Comb
+       and The Instinct Deck render through combRenderHex / combRenderResource /
+       combRenderInstinct — the real seams, never hand-built markup, which is what
+       stops the galleries drifting from the live board and lets them double as the
+       offline install check. Bodies are SIBLINGS toggled by display, each with its
+       own scroll region and its own close button. -->
+  <div id="comb-how-to-overlay" style="display:none"
+    class="fixed inset-0 bg-black/40 z-[90] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
+      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
+        <h2 class="text-xl font-bold text-stone-800">How to Play 🐝</h2>
+        <p class="text-xs text-stone-400 mt-1">Gather from the meadow, trade with the table, build the biggest comb.</p>
+      </div>
+      <div class="px-5 pt-3 pb-3 border-b border-stone-200 flex-shrink-0 flex gap-2">
+        <button id="btn-comb-howto-tab-rules" class="pill pill-active-comb" data-comb-howto-tab="rules">The Rules</button>
+        <button id="btn-comb-howto-tab-comb" class="pill" data-comb-howto-tab="comb">The Comb</button>
+        <button id="btn-comb-howto-tab-instinct" class="pill" data-comb-howto-tab="instinct">The Instinct Deck</button>
+      </div>
+
+      <div id="comb-howto-body-rules" class="overflow-y-auto flex flex-col gap-4 px-5 py-5">
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest comb-label">Step 1</p>
+          <p class="font-bold text-stone-800">Grow the strongest hive</p>
+          <p class="text-stone-500 text-sm">First colony to the <span class="font-semibold text-stone-700">Hive Point</span> target wins — and the win is only ever checked on your own turn.</p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest comb-label">Step 2</p>
+          <p class="font-bold text-stone-800">The meadow is nineteen hexes</p>
+          <p class="text-stone-500 text-sm">Every hex makes one resource and carries a number. <span class="font-semibold text-stone-700">Corners</span> are where you build cells; <span class="font-semibold text-stone-700">edges</span> are where you build walls.</p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest comb-label">Step 3</p>
+          <p class="font-bold text-stone-800">The Scout Flight decides what blooms</p>
+          <p class="text-stone-500 text-sm">One cast per turn, and it pays <span class="font-semibold text-stone-700">everyone at once</span> — not just the active player. Easy to miss: you collect on other people's turns too, which is why you watch every roll.</p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest comb-label">Step 4</p>
+          <p class="font-bold text-stone-800">Cells collect, Domes collect double</p>
+          <p class="text-stone-500 text-sm">A <span class="font-semibold text-stone-700">Drone Cell</span> touching a blooming hex gives you 1 of its resource. A <span class="font-semibold text-stone-700">Queen Dome</span> gives 2.</p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest comb-label">Step 5</p>
+          <p class="font-bold text-stone-800">Four things to spend on</p>
+          <p class="text-stone-500 text-sm">Comb Wall, Drone Cell, Queen Dome and an Instinct card. The full prices are in <span class="font-semibold text-stone-700">The Comb</span> tab — and in placement mode only what you can afford lights up.</p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest comb-label">Step 6</p>
+          <p class="font-bold text-stone-800">The Distance Rule</p>
+          <p class="text-stone-500 text-sm">A new Drone Cell must sit at least <span class="font-semibold text-stone-700">two edges</span> from any other cell — including your own. It is the single most-missed rule in the game.</p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest comb-label">Step 7</p>
+          <p class="font-bold text-stone-800">Everything must connect</p>
+          <p class="text-stone-500 text-sm">Whatever you build has to touch your own network. The exception is your <span class="font-semibold text-stone-700">two opening placements</span>, which are free and go anywhere legal.</p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest comb-label">Step 8</p>
+          <p class="font-bold text-stone-800">The Waggle Dance</p>
+          <p class="text-stone-500 text-sm">Trade with the table on any terms you can talk someone into, or with the Meadow at <span class="font-semibold text-stone-700">4:1</span>. Landing a Drone Cell on a <span class="font-semibold text-stone-700">Trade Blossom</span> makes the Meadow cheaper.</p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest comb-label">Step 9</p>
+          <p class="font-bold text-stone-800">A 7 brings the Wasp</p>
+          <p class="text-stone-500 text-sm">Nothing blooms, over-stuffed players drop half, and the roller parks the Wasp somewhere painful. Easy to miss: the <span class="font-semibold text-stone-700">discard hits everyone</span> over the limit, not just the roller's target.</p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest comb-label">Step 10</p>
+          <p class="font-bold text-stone-800">One Instinct card a turn</p>
+          <p class="text-stone-500 text-sm">And never on the turn you bought it. The exception is <span class="font-semibold text-stone-700">Golden Nectar</span>, which is never played at all — it just counts at the end.</p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest comb-label">Step 11</p>
+          <p class="font-bold text-stone-800">Largest Comb and Fiercest Guard</p>
+          <p class="text-stone-500 text-sm">Two points each, and they can be <span class="font-semibold text-stone-700">taken off you</span>. Easy to miss: someone placing a cell in the middle of your walls <span class="font-semibold text-stone-700">cuts your chain</span>.</p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest comb-label">Winning and Scoring</p>
+          <p class="font-bold text-stone-800">Where the Hive Points come from</p>
+          <ul class="list-disc pl-5 flex flex-col gap-1 text-stone-500 text-sm">
+            <li><span class="font-semibold text-stone-700">Drone Cell</span> — 1 point each.</li>
+            <li><span class="font-semibold text-stone-700">Queen Dome</span> — 2 points each.</li>
+            <li><span class="font-semibold text-stone-700">Largest Comb</span> — 2 points, to the longest unbroken chain of walls. Ties never transfer it.</li>
+            <li><span class="font-semibold text-stone-700">Fiercest Guard</span> — 2 points, to whoever has played the most Guard Bees. Ties never transfer it.</li>
+            <li><span class="font-semibold text-stone-700">Golden Nectar</span> — 1 point each, hidden in your hand until somebody wins.</li>
+          </ul>
+        </div>
+
+        <!-- The honest line. Honeycomb Hills is the first game in the suite to ship
+             with no Sylly Mode (spec §12 / §17-1) — the card stays so a player
+             scanning for it gets an answer rather than a gap, but there is
+             deliberately no dead toggle in Settings behind it. -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest comb-label">✨ Sylly Mode</p>
+          <p class="font-bold text-stone-800">Not this one</p>
+          <p class="text-stone-500 text-sm">Honeycomb Hills is the only game in the box without one. There is already a whole meadow of dials in <span class="font-semibold text-stone-700">Settings</span> — start with <span class="font-semibold text-stone-700">The Season</span>.</p>
+        </div>
+
+        <button id="btn-comb-howto-close"
+          class="comb-cta min-h-14 w-full rounded-2xl text-xl font-semibold active:scale-95 transition-all duration-150">Got it</button>
+      </div>
+
+      <!-- THE COMB tab — leads with the six hex kinds (spec §17-16: the hex tap-hold
+           deep-links here, and hex→resource is the first thing a new player needs),
+           then the five resources, then the four build costs. All three grids are
+           rendered by JS through the real seams. -->
+      <div id="comb-howto-body-comb" style="display:none" class="overflow-y-auto flex flex-col gap-4 px-5 py-5">
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <p class="text-xs font-semibold uppercase tracking-widest comb-label">The Sun Compass</p>
+          <p class="text-stone-500 text-sm">Cast at the head of every turn. Thirty-six faces, numbered <span class="font-semibold text-stone-700">2 to 12</span> &mdash; and they are not evenly shared out.</p>
+          <div id="comb-howto-die" class="flex items-center justify-center"></div>
+          <p class="text-stone-500 text-sm"><span class="font-semibold text-stone-700">7</span> comes up most, <span class="font-semibold text-stone-700">2</span> and <span class="font-semibold text-stone-700">12</span> almost never. That is why the fat red markers &mdash; 6 and 8 &mdash; are the corners worth fighting over, and why a 2 is a lovely spot to leave for somebody else.</p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <p class="text-xs font-semibold uppercase tracking-widest comb-label">The Hexes</p>
+          <p class="text-stone-500 text-sm">Six kinds of ground, five of them producing. Tap and hold a hex on the board to jump back here.</p>
+          <div id="comb-howto-hexes" class="grid grid-cols-2 gap-2"></div>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <p class="text-xs font-semibold uppercase tracking-widest comb-label">The Resources</p>
+          <p class="text-stone-500 text-sm">Five things the meadow makes. Each has its own shape as well as its own colour.</p>
+          <div id="comb-howto-resources" class="grid grid-cols-1 gap-2"></div>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <p class="text-xs font-semibold uppercase tracking-widest comb-label">What It Costs</p>
+          <p class="text-stone-500 text-sm">The four things you can buy, and the price of each.</p>
+          <div id="comb-howto-costs" class="flex flex-col gap-2"></div>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <p class="text-xs font-semibold uppercase tracking-widest comb-label">The Structures</p>
+          <p class="text-stone-500 text-sm">Three things you build. On the board they're small and plain — this is what they really look like.</p>
+          <div id="comb-howto-pieces" class="grid grid-cols-3 gap-2"></div>
+        </div>
+
+        <button id="btn-comb-howto-close-comb"
+          class="comb-cta min-h-14 w-full rounded-2xl text-xl font-semibold active:scale-95 transition-all duration-150">Got it</button>
+      </div>
+
+      <!-- THE INSTINCT DECK tab — all five card types, their counts and effects,
+           rendered through combRenderInstinct. -->
+      <div id="comb-howto-body-instinct" style="display:none" class="overflow-y-auto flex flex-col gap-4 px-5 py-5">
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <p class="text-xs font-semibold uppercase tracking-widest comb-label">Twenty-Five Cards</p>
+          <div class="flex items-center gap-3">
+            <div id="comb-howto-instinct-back" class="flex-shrink-0"></div>
+            <p class="text-stone-500 text-sm">One a turn, never on the turn you bought it. Tap and hold a card in your hand to jump back here.</p>
+          </div>
+          <div id="comb-howto-instinct" class="flex flex-col gap-2"></div>
+        </div>
+
+        <button id="btn-comb-howto-close-instinct"
+          class="comb-cta min-h-14 w-full rounded-2xl text-xl font-semibold active:scale-95 transition-all duration-150">Got it</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- COMB QUIT — destructive red confirm: irreversible, and in a lobby it dissolves
+       everyone's session (ui-style.md § Action Button Standard rule 2, exception 3). -->
+  <div id="comb-quit-overlay" style="display:none"
+    class="fixed inset-0 z-[80] overlay-modal-backdrop flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-[#F5C55C]">
+      <p class="text-3xl">🐝</p>
+      <h3 class="text-lg font-bold text-stone-800">Abandon the hive?</h3>
+      <p class="text-stone-500 text-sm">The comb comes apart and the season ends — for everyone at the table.</p>
+      <button id="btn-comb-quit-confirm" class="min-h-14 w-full rounded-2xl bg-red-500 hover:bg-red-600 active:scale-95 text-white font-semibold text-lg transition-all duration-150">Yeah, buzz off.</button>
+      <button id="btn-comb-quit-cancel" class="min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-lg transition-all duration-150">Not yet!</button>
+    </div>
+  </div>
+
+  <!-- COMB PLAY AGAIN — confirm label swaps per the Play-Again Return Pattern:
+       host → "Restart in Lobby 🔄", client → "Leave Session", single → "New Season". -->
+  <div id="comb-new-season-overlay" style="display:none"
+    class="fixed inset-0 z-[90] overlay-modal-backdrop flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-[#F5C55C]">
+      <p class="text-3xl">🌻</p>
+      <h3 class="text-lg font-bold text-stone-800">New Season?</h3>
+      <p class="text-stone-500 text-sm">A fresh meadow, a fresh comb. This one's done.</p>
+      <button id="btn-comb-new-confirm" class="comb-cta min-h-14 w-full rounded-2xl active:scale-95 font-semibold text-lg transition-all duration-150">New Season</button>
+      <button id="btn-comb-new-cancel" class="min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-lg transition-all duration-150">Stay here</button>
+    </div>
+  </div>
+
+
+  <!-- COMB OVERFLOW — real content plus input, so a slide-up (brief §14c). Opens on
+       COMB_OVERFLOW_BEGIN, on over-limit devices ONLY. Deliberately has NO neutral
+       dismiss button: the discard is mandatory, so it is correctly left out of the
+       engine's backdrop tap-to-dismiss by omission (ui-style.md § Backdrop tap). -->
+  <div id="comb-overflow-overlay" style="display:none"
+    class="fixed inset-0 bg-black/40 z-[85] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
+      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
+        <h2 class="text-xl font-bold text-stone-800">The Overflow 🐝</h2>
+        <p id="comb-overflow-sub" class="text-xs text-stone-400 mt-1"></p>
+      </div>
+      <div class="overflow-y-auto flex flex-col gap-4 px-5 py-5">
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <p class="text-xs font-semibold uppercase tracking-widest comb-label">Spill It</p>
+          <p id="comb-overflow-owed" class="text-stone-500 text-sm"></p>
+          <div id="comb-overflow-rows" class="flex flex-col gap-2"></div>
+        </div>
+        <p id="comb-overflow-waiting" style="display:none" class="text-stone-400 text-sm text-center">Waiting for the others to spill…</p>
+        <button id="btn-comb-overflow-confirm"
+          class="btn-mp-action comb-cta min-h-14 w-full rounded-2xl text-xl font-semibold active:scale-95 transition-all duration-150">Spill It</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- COMB WAGGLE DANCE — the offer builder plus the Meadow rate rows. Real content
+       plus input, so a slide-up (brief §14c). One open offer at a time, and only the
+       active player may post. -->
+  <div id="comb-trade-overlay" style="display:none"
+    class="fixed inset-0 bg-black/40 z-[85] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
+      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
+        <h2 class="text-xl font-bold text-stone-800">The Waggle Dance 🐝</h2>
+        <p id="comb-trade-sub" class="text-xs text-stone-400 mt-1"></p>
+      </div>
+      <div class="overflow-y-auto flex flex-col gap-4 px-5 py-5">
+
+        <div id="comb-trade-card-give" class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <p class="text-xs font-semibold uppercase tracking-widest comb-label">You Give</p>
+          <div id="comb-trade-give" class="flex flex-col gap-2"></div>
+        </div>
+
+        <div id="comb-trade-card-want" class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <p class="text-xs font-semibold uppercase tracking-widest comb-label">You Want</p>
+          <div id="comb-trade-want" class="flex flex-col gap-2"></div>
+        </div>
+
+        <div id="comb-trade-card-who" class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <p class="text-xs font-semibold uppercase tracking-widest comb-label">Who With</p>
+          <p class="text-stone-500 text-sm">Pick the player you agreed with — or open it to the whole table.</p>
+          <div id="comb-trade-targets" class="flex flex-wrap gap-2"></div>
+        </div>
+
+        <!-- The Meadow's own rates. 4:1 by default; a Trade Blossom you have reached
+             with a Drone Cell makes it cheaper. -->
+        <div id="comb-trade-card-bank" class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <p class="text-xs font-semibold uppercase tracking-widest comb-label">Trade With the Meadow</p>
+          <p class="text-stone-500 text-sm">No negotiating, no waiting. Your rates improve with every Trade Blossom you have reached.</p>
+          <div id="comb-trade-bank-rows" class="flex flex-col gap-2"></div>
+        </div>
+
+        <p id="comb-trade-error" style="display:none" class="text-amber-600 text-xs text-center"></p>
+
+        <button id="btn-comb-trade-post"
+          class="btn-mp-action comb-cta min-h-14 w-full rounded-2xl text-xl font-semibold active:scale-95 transition-all duration-150">Post the Offer</button>
+        <button id="btn-comb-trade-cancel"
+          class="min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-lg transition-all duration-150">Never mind</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- COMB TRADE OFFER — a short prompt with two real choices, so a decision modal
+       (brief §14c). Opens on COMB_TRADE_POSTED, on targeted devices. In Full Dance
+       the host auto-declines after 10 s. No neutral dismiss: Deal and No thanks are
+       both real answers, so it is correctly non-dismissible by omission. -->
+  <div id="comb-trade-offer-overlay" style="display:none"
+    class="fixed inset-0 z-[90] overlay-modal-backdrop flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-[#F5C55C]">
+      <p class="text-3xl">💃</p>
+      <h3 id="comb-offer-heading" class="text-lg font-bold text-stone-800"></h3>
+      <div id="comb-offer-body" class="text-stone-500 text-sm flex flex-col gap-1.5"></div>
+      <p id="comb-offer-timer" style="display:none" class="text-stone-400 text-xs"></p>
+      <button id="btn-comb-offer-accept" class="btn-mp-action comb-cta min-h-14 w-full rounded-2xl active:scale-95 font-semibold text-lg transition-all duration-150">Deal</button>
+      <button id="btn-comb-offer-decline" class="btn-mp-action min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-lg transition-all duration-150">No thanks</button>
+    </div>
+  </div>
+
+  <!-- COMB STEAL — pick a victim from the hex's touchers. Active player only, and
+       only while combPhase === 'waspSteal'. A real decision with no neutral answer,
+       so no dismiss button. -->
+  <div id="comb-steal-overlay" style="display:none"
+    class="fixed inset-0 z-[90] overlay-modal-backdrop flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-[#F5C55C]">
+      <p class="text-3xl">🐝</p>
+      <h3 class="text-lg font-bold text-stone-800">Rob somebody</h3>
+      <p id="comb-steal-sub" class="text-stone-500 text-sm">The Wasp has landed. Pick who it takes from.</p>
+      <div id="comb-steal-targets" class="flex flex-col gap-2"></div>
+    </div>
+  </div>
+
+  <!-- COMB INSTINCT — your own hand of cards. Real content plus input, so a
+       slide-up. Cards render through combRenderInstinct, the same seam the How-to
+       gallery uses. -->
+  <div id="comb-instinct-overlay" style="display:none"
+    class="fixed inset-0 bg-black/40 z-[85] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
+      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
+        <h2 class="text-xl font-bold text-stone-800">Your Instincts 🐝</h2>
+        <p class="text-xs text-stone-400 mt-1">One a turn, and never one you bought this turn.</p>
+      </div>
+      <div class="overflow-y-auto flex flex-col gap-4 px-5 py-5">
+        <div id="comb-instinct-cards" class="flex flex-col gap-2"></div>
+        <p id="comb-instinct-empty" style="display:none" class="text-stone-400 text-sm text-center">Nothing in the hive yet. Buy one on your turn.</p>
+        <button id="btn-comb-instinct-close"
+          class="comb-cta min-h-14 w-full rounded-2xl text-xl font-semibold active:scale-95 transition-all duration-150">Got it</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- COMB INSTINCT REVEAL — the buyer's device ONLY, after COMB_INSTINCT_BOUGHT.
+       One acknowledging button, so the tip-overlay's smaller button sizing applies
+       rather than the Decision Modal's. -->
+  <div id="comb-instinct-reveal-overlay" style="display:none"
+    class="fixed inset-0 z-[90] overlay-modal-backdrop flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-[#F5C55C]">
+      <div class="flex flex-col gap-2">
+        <p class="text-xs font-semibold uppercase tracking-widest comb-label">You Drew</p>
+        <div id="comb-reveal-card" class="flex items-center justify-center"></div>
+        <h3 id="comb-reveal-heading" class="text-lg font-bold text-stone-800"></h3>
+        <p id="comb-reveal-body" class="text-stone-500 text-sm"></p>
+      </div>
+      <button id="btn-comb-reveal-done" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-sm transition-all duration-100">Got it</button>
+    </div>
+  </div>
+
+  <!-- COMB SEASON LOG — a plain chronological list. Built on the host from SYNC
+       payloads ONLY, never from host-local state (spec §17-10) — that is what makes
+       the privacy rule structural instead of something to remember per log line. -->
+  <div id="comb-log-overlay" style="display:none"
+    class="fixed inset-0 bg-black/40 z-[90] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
+      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
+        <h2 class="text-xl font-bold text-stone-800">The Season Log 📜</h2>
+        <p class="text-xs text-stone-400 mt-1">Everything the whole table saw happen, in order.</p>
+      </div>
+      <div class="overflow-y-auto flex flex-col gap-4 px-5 py-5">
+        <div id="comb-log-rows" class="flex flex-col gap-1.5"></div>
+        <p id="comb-log-empty" style="display:none" class="text-stone-400 text-sm text-center">Nothing has happened yet. Give it a turn.</p>
+        <button id="btn-comb-log-close"
+          class="comb-cta min-h-14 w-full rounded-2xl text-xl font-semibold active:scale-95 transition-all duration-150">Got it</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- COMB TIP — the shared contextual [?] overlay, driven by
+       combShowTip(emoji, heading, lines[]). Three bullets maximum, always. Also the
+       landing place for a tap on a DIMMED placement target, which surfaces the
+       reason it is dark rather than doing nothing (brief §14b). -->
+  <div id="comb-tip-overlay" style="display:none"
+    class="fixed inset-0 z-[90] overlay-modal-backdrop flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-[#F5C55C]">
+      <div class="flex flex-col gap-2">
+        <p id="comb-tip-emoji" class="text-3xl"></p>
+        <h3 id="comb-tip-heading" class="text-lg font-bold text-stone-800"></h3>
+        <div id="comb-tip-body" class="text-stone-500 text-sm text-left flex flex-col gap-1.5"></div>
+      </div>
+      <button id="btn-comb-tip-close" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-sm transition-all duration-100">Got it</button>
+    </div>
+  </div>
+
+  <!-- COMB PHEROMONE DOMINANCE — name a resource; every other player hands you all
+       of theirs. The card is already spent by the time this opens, so there is no
+       neutral answer and no dismiss button. -->
+  <div id="comb-pheromone-overlay" style="display:none"
+    class="fixed inset-0 z-[90] overlay-modal-backdrop flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-[#F5C55C]">
+      <p class="text-3xl">🐝</p>
+      <h3 class="text-lg font-bold text-stone-800">Name your prize</h3>
+      <p class="text-stone-500 text-sm">Every other player hands you every one of these they are holding.</p>
+      <div id="comb-pheromone-choices" class="flex flex-col gap-2"></div>
+    </div>
+  </div>
+
+  <!-- COMB SPRING BLOOM — take any two resources from the Meadow. Same reasoning as
+       Pheromone: the card is spent, the pick is mandatory, so no dismiss. The
+       confirm arms only once two are chosen. -->
+  <div id="comb-bloom-overlay" style="display:none"
+    class="fixed inset-0 z-[90] overlay-modal-backdrop flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-[#F5C55C]">
+      <p class="text-3xl">🌻</p>
+      <h3 class="text-lg font-bold text-stone-800">Spring Bloom</h3>
+      <p id="comb-bloom-sub" class="text-stone-500 text-sm">Take any two from the meadow. They can be the same one twice.</p>
+      <div id="comb-bloom-choices" class="flex flex-col gap-2"></div>
+      <button id="btn-comb-bloom-confirm" class="btn-mp-action comb-cta min-h-14 w-full rounded-2xl active:scale-95 font-semibold text-lg transition-all duration-150">Take Them</button>
+    </div>
+  </div>
+
+  <!-- COMB MAP — the magnifier (spec §2, owner's answer to Q19-b). Pattern 2a's
+       shape with a canvas where the image would be, NOT a third pattern.
+       ⚠️ z-[75] — DELIBERATELY the LOWEST of the fifteen comb overlays. The map is a
+       surface the player CHOSE to open; the Overflow (z-[85]) and an arriving trade
+       offer (z-[90]) are pushed at them and must land on top. This is the one
+       overlay in the game that has to lose a z-fight.
+       The canvas is full-bleed inset-0 with NO backdrop dead space, which is what
+       makes the btn-comb-map-close naming safe: a pinch cannot land on the backdrop
+       and dismiss mid-gesture (the exact risk ui-style.md § Pattern 2a names).
+       Interactive — a tap routes through the same combAttemptPlace() the inline
+       board uses and closes the map on success. No RAF: it draws on gesture, and on
+       any SYNC that changes the board while it is open. -->
+  <!-- Opaque (bg-[#1c1917], not bg-black/80): a focused detail view — the meadow
+       screen behind must not bleed through the top/bottom zones. -->
+  <div id="comb-map-overlay" style="display:none"
+    class="fixed inset-0 z-[75] bg-[#1c1917] flex flex-col">
+    <!-- TOP — the same player panel content (full names) + big roll result +
+         the FULL annotated probability ruler. Painted by combRenderMapPanel().
+         pr-14 so its right column clears the ✕. -->
+    <div id="comb-map-top" class="comb-map-zone flex-shrink-0 px-3 pr-14 pt-3 pb-2 flex items-start justify-between gap-3"></div>
+    <!-- MIDDLE — the board, gesture-locked to this zone: pinch + wheel zoom,
+         drag pan. touch-action:none + overscroll-behavior:contain keep the
+         gesture off the sheet; the canvas is clipped here. -->
+    <div id="comb-map-mid" class="comb-map-zone relative flex-1 min-h-0 overflow-hidden"
+         style="touch-action:none; overscroll-behavior:contain;">
+      <canvas id="comb-map-canvas" class="absolute inset-0 w-full h-full"></canvas>
+      <p id="comb-map-hint" class="absolute bottom-2 left-1/2 -translate-x-1/2 max-w-[19rem] text-center text-white/80 text-[0.7rem] px-2 py-1 rounded-lg bg-black/55 pointer-events-none">Pinch or scroll to zoom · drag to pan · tap a lit target to place</p>
+    </div>
+    <!-- BOTTOM — the full per-player stats table + the status line. Scrolls
+         internally. Painted by combRenderMapStats(). -->
+    <div id="comb-map-bottom" class="comb-map-zone flex-shrink-0 px-3 pt-2 pb-3 overflow-y-auto" style="max-height:38vh"></div>
+    <button id="btn-comb-map-close"
+      class="absolute top-3 right-3 z-10 min-h-11 min-w-11 rounded-xl bg-white/85 text-stone-700 font-bold text-xl flex items-center justify-center active:scale-90 transition-transform duration-100"
+      aria-label="Close the map">✕</button>
+  </div>

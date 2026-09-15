@@ -1,3 +1,5 @@
 # Ordered partials assembled into index.html by tools/build-index.js.
 # Edit a partial in src/screens/, never index.html itself.
 _rest.html
+comb.html
+_foot.html
