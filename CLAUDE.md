@@ -20,6 +20,8 @@
 - `docs/rules/phase-audit.md` — Protocols A/B/C (drift check, skeleton-first, studio sweep). **Read when:** a phase boundary, or before a new game's first line of code.
 - `docs/sw-changelog.md` — every SW release note, continuous v204→v167. **Read when:** you need the history behind a past version.
 - `docs/deferred-work.md` — the parked-work list: older-games retest backlog, pending suite-wide sweeps, smaller flagged items. **Read when:** picking up maintenance work, or at a phase gate.
+- `docs/cost-envelope.md` — **what the project may spend, and on what.** Three tiers (already-paid-for / costs-something-propose-the-number / changes-what-this-is), the split between permanent *craft* constraints and reviewable *business* ones, the measured install breakdown, the precache-vs-runtime-cache lever, and the owner's recorded strategic direction. **Read when:** any change adds an asset, a dependency, a font, or artwork — or when § Anti-Patterns below looks like it's saying "no" to something worth doing. It is the escape procedure for that list, not a replacement.
+- `docs/lobby-redesign-brief.md` — the Fable handoff for the lobby/main-menu redesign, plus the `wip/lobby-lab/` sandbox it points at (verified 20-game data table, a working data-driven render of today's lobby, empty canvases). **Read when:** working on the lobby redesign. Self-contained by design — it exists so that round needs no other reads.
 
 ### 🎮 Per-Game Quick Index
 Always-on pointer so single-game work doesn't need a big file read. Brand colour rarely changes; everything else, confirm at the source.

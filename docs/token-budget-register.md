@@ -92,8 +92,12 @@ The first pass removed `@` prefixes from the on-demand docs, expecting that to s
 
 ## 5. Remaining levers / action plan (ranked)
 
-**A. `index.html` (138k) — the biggest avoidable sink. OWNER DECISION MADE 2026-06-30: defer the build (see below).**
+**A. `index.html` (138k) — the biggest avoidable sink. OWNER DECISION MADE 2026-06-30: defer the build (see below). ⚠ TRIGGER FIRED 15 Sep 2026 — the deferral is now due for its spec task.**
 > **Decision (2026-06-30):** keep discipline-only for now; the dev-only assembly build is **deferred, not rejected**. **Revisit trigger:** `index.html` crosses **~750 KB / ~20 games**, OR subagent-hunting stops keeping edits under the ceiling — whichever first. Rationale: "$0" and "no build" are independent; the build's only payoff is this file's token pain, currently mitigated, and a build adds owner-facing fragility (non-coder owner). Full entry: `docs/decision-log.md` 2026-06-30 "No-build constraint reviewed". Interim discipline: `docs/templates/testing-session-protocol.md`.
+>
+> **⚠ TRIGGER FIRED — measured 15 Sep 2026 (SW v230).** `index.html` is **763,121 bytes** (745 KiB / 763 KB decimal — at the ~750 KB line on either reading) and the suite is at **20 games** — the game-count condition is met exactly. Per the 2026-06-30 entry the next step is to **spec the option as its own task**, not to adopt it reflexively; the owner-fragility objection that drove the deferral is unchanged and still load-bearing.
+>
+> **Two things have changed since, and both belong in that spec.** (1) A **third option** the original decision never weighed: each `js/games/[abbr].js` already owns its game's state, logic, screens, packets and teardown, so it could own its **markup** too — injected at runtime from a template string or a precached `<template>`. That is **not a build step** (nothing to break at 11 pm, no npm, no stale artefact), so it dodges the exact fragility objection that deferred Lever A while delivering the editability Lever A was wanted for. Its real cost is a **boot-ordering problem**: `js/engine.js` calls `getElementById` at parse time (boot block, `_lobbySortBtn`), so partials must be in the DOM before plugin scripts run — synchronous injection or an async boot gate. (2) The **lobby redesign's four switchable layouts** will be the first growth in the engine/global section rather than a game's. Neither blocks the redesign; this is its own task. Context: `docs/cost-envelope.md` § 7.
 
 Governed now by the never-full-read rule. The open question (now answered, above): is discipline alone enough, or should the file be **physically split**?
 - *Tension:* the project is explicitly **no-build / single-page** (Anti-Patterns). A runtime split into multiple HTML pages is forbidden.
