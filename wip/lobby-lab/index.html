@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lobby Redesign Lab</title>
+
+  <!-- The REAL local Tailwind + the REAL self-hosted stylesheet (Fredoka
+       @font-face lives here — its relative url('../fonts/...') resolves
+       against THIS file's path, not this HTML's, so it correctly reaches
+       the repo's real fonts/ dir from here). Same files index.html loads. -->
+  <script src="../../js/lib/tailwind-play.js"></script>
+  <link rel="stylesheet" href="../../css/styles.css" />
+  <link rel="stylesheet" href="lobby.css" />
+
+  <style>
+    /* Sandbox chrome only — never part of what ships. Keeps the three panes
+       readable side by side on a wide monitor while each still tests true
+       at a real 390px phone width (resize the window / use DevTools). */
+    body { background: #e7e5e4; font-family: 'Fredoka', sans-serif; }
+    .lab-row { display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start; padding: 24px; }
+    .lab-pane {
+      background: #fff; border-radius: 16px; overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,.15);
+    }
+    .lab-pane-header {
+      font: 700 13px/1.4 -apple-system, sans-serif; letter-spacing: .04em;
+      text-transform: uppercase; color: #78716c; background: #f5f5f4;
+      padding: 8px 14px; border-bottom: 1px solid #e7e5e4;
+    }
+    .lab-pane-body { width: 390px; min-height: 200px; position: relative; background: #FAFAF9; }
+    .lab-pane-body.phone { width: var(--lab-phone-w, 390px); }
+    .lab-pane-body.wide { width: 900px; }
+    .lab-note {
+      font: 400 12px/1.5 -apple-system, sans-serif; color: #57534e;
+      background: #fef9c3; border: 1px solid #fde047; border-radius: 10px;
+      padding: 10px 14px; margin: 0 24px 16px; max-width: 860px;
+    }
+    #shelves-canvas:empty::before {
+      content: 'Empty — build here. games.js is loaded as window.GAMES / window.SHELVES.';
+      display: block; padding: 40px 20px; text-align: center;
+      color: #a8a29e; font-size: 13px;
+    }
+  </style>
+</head>
+<body class="bg-stone-50 min-h-screen">
+
+  <div class="lab-note">
+    <strong>Sandbox, not the shipped app.</strong> The "Today (Original)" pane on the left is a
+    faithful, data-driven re-render of the live lobby — same classes (<code>gel-btn lobby-btn</code>),
+    same Fredoka, same brand colours — generated from <code>games.js</code> rather than hand-copied,
+    so it can never silently drift from what it's rendering. It is the fourth layout option, not
+    just a reference. The "Shelves" pane is the redesign — <code>lobby.css</code> + <code>lobby.js</code>,
+    rationale in <code>DESIGN-NOTES.md</code>. Read <code>docs/lobby-redesign-brief.md</code> first.
+  </div>
+
+  <div class="lab-row">
+
+    <!-- ══════════════════════════════════════════════════════════════
+         PANE 1 — "Today (Original)" — data-driven re-render of the
+         live lobby. This is a REAL layout option (the fallback / mobile
+         default per the owner's decision), not decoration.
+    ═══════════════════════════════════════════════════════════════ -->
+    <div class="lab-pane">
+      <div class="lab-pane-header">Today — Original (fallback layout)</div>
+      <div class="lab-pane-body">
+        <section class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
+          <div class="absolute top-4 right-4 flex items-center gap-3">
+            <button class="text-xl text-stone-400">🔊</button>
+          </div>
+          <div class="lobby-title">
+            <img src="../../assets/logo.png" alt="Little Sylly Games" class="w-full" />
+          </div>
+          <div class="flex items-baseline justify-between w-full">
+            <p class="text-stone-700 text-lg font-medium">What are we playing today?</p>
+            <span class="flex items-center gap-1 text-stone-600">
+              <span class="text-sm font-bold uppercase tracking-widest">Release</span>
+              <span class="text-base">✨</span>
+            </span>
+          </div>
+          <div id="original-game-list" class="flex flex-col gap-4 w-full mt-2"></div>
+        </section>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════════
+         PANE 2 — Shelves — Fable's canvas. Deliberately empty.
+    ═══════════════════════════════════════════════════════════════ -->
+    <div class="lab-pane">
+      <div class="lab-pane-header">Shelves — the redesign (390px phone; hash states: #folder=talk #sheet=cld #unlock #count=4 #onephone #view=original)</div>
+      <div class="lab-pane-body phone">
+        <div id="shelves-canvas"></div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════════
+         PANE 3 — wide canvas for TV/widescreen exploration, if/when
+         it's worked on. Also empty; 900px wide to leave room at 1024px
+         breakpoints without the pane itself needing a resize.
+    ═══════════════════════════════════════════════════════════════ -->
+    <div class="lab-pane">
+      <div class="lab-pane-header">Wide / TV — build here (900px, not in this round's remit)</div>
+      <div class="lab-pane-body wide">
+        <div id="wide-canvas"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- The verified 20-game data table. window.GAMES / window.SHELVES / window.SHELF_NOTES -->
+  <script src="games.js"></script>
+  <!-- The Shelves lobby: renderer + stylesheet. Reads window.GAMES / SHELVES. -->
+  <script src="lobby.js"></script>
+
+  <script>
+    // Renders Pane 1 from real games.js data using the EXACT classes the
+    // shipped lobby uses (css/styles.css .gel-btn/.lobby-btn/.lobby-btn-label/
+    // .lobby-btn-badge — grep index.html's #lobby-game-list for the source
+    // this mirrors). Sort: release order = GAMES array order (bld..ygi is
+    // NOT release order — this sandbox doesn't reproduce lobbyApplySort's
+    // exact history, just the visual treatment; not load-bearing for design work).
+    // Badge content goes through lbBadgeInner(g) (lobby.js) rather than a
+    // second hand-written `${g.emoji}` — this pane and the Shelves view's own
+    // "Original" tab (lobby.js's lbRenderOriginal) would otherwise be two
+    // copies of the same badge that could silently drift apart, which is
+    // exactly what this pane's whole reason for existing is meant to prevent.
+    const list = document.getElementById('original-game-list');
+    for (const g of GAMES) {
+      const btn = document.createElement('button');
+      btn.className = 'gel-btn lobby-btn min-h-14 w-full rounded-2xl text-white text-xl font-semibold';
+      btn.style.backgroundColor = g.brandHex;
+      btn.innerHTML = `<span class="lobby-btn-label">${g.gameName}</span><span class="lobby-btn-badge" aria-hidden="true">${lbBadgeInner(g)}</span>`;
+      list.appendChild(btn);
+    }
+
+    console.log('%cLobby Redesign Lab', 'font-weight:bold;font-size:14px');
+    console.log(GAMES.length + ' games loaded. window.GAMES / window.SHELVES / window.SHELF_NOTES available.');
+    console.log(SHELF_NOTES);
+  </script>
+
+</body>
+</html>

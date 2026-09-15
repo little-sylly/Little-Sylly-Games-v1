@@ -1,0 +1,610 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   lobby.css — the Shelves lobby, phone. Sandbox only (wip/lobby-lab/).
+   Everything here is Tier 1: CSS, inline SVG, the real Fredoka, the 20 brand
+   hexes, and the suite's existing keycap (.gel-btn) vocabulary from styles.css.
+   Animates transform + opacity only. The global prefers-reduced-motion block in
+   styles.css collapses every duration below; there is no RAF anywhere.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.lb-phone {
+  --lb-bg: #FAFAF9;          /* the app's ground — same as every game screen   */
+  --lb-surface: #FFFFFF;
+  --lb-line: #E7E5E4;
+  --lb-sunken: #F5F5F4;
+  --lb-ink: #2B1B45;         /* plum, pulled from the lockup's outline — lobby only */
+  --lb-ink-2: #6B6480;       /* plum-grey secondary                            */
+  --lb-ink-3: #A39DB0;       /* tertiary / meta                                */
+  --lb-accent: #E9408E;      /* the lockup's "Games" pink                      */
+  --lb-accent-tint: #FDE7F1;
+  --lb-r-card: 22px;
+  --lb-r-tile: 18px;
+  --lb-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --lb-ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+
+  position: relative;
+  width: 100%;
+  height: 844px;
+  overflow: hidden;
+  background: var(--lb-bg);
+  color: var(--lb-ink);
+  font-family: 'Fredoka', system-ui, sans-serif;
+  isolation: isolate;
+}
+.lb-scroll {
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  padding: 14px 16px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+/* Whole selector inside :where() — ".lb-phone" outside it still counts
+   toward specificity, tying this with any single-class component rule
+   (.lobby-btn included) and losing that tie to source order alone. That's
+   what silently zeroed .lobby-btn's padding-left when the Original layout
+   started reusing it (OWNER-REVIEW.md item 1 follow-up, 15 Sep 2026) — the
+   badge sat over the label with nothing visibly wrong in this file. Keep
+   the WHOLE selector inside :where() so this reset always loses to any
+   real class, regardless of load order. */
+:where(.lb-phone button) { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; touch-action: manipulation; }
+.lb-phone button:focus-visible { outline: 3px solid var(--lb-accent); outline-offset: 2px; }
+
+/* ── Press feedback: every pressable thing answers the thumb the same way ─── */
+.lb-press { transition: transform 120ms var(--lb-ease-out); }
+.lb-press:active { transform: scale(0.97); }
+
+/* ── Brand row: the lockup and the player's controller, side by side ─────────
+   The logo is the box lid; the controller is the figurine standing on it. It
+   gets a real footprint (96 px) rather than a dock icon — it's the single most
+   distinctive object in the app and the Workshop's only door. */
+.lb-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-top: 2px;
+}
+.lb-logo {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: block;
+  filter: drop-shadow(0 2px 0 rgba(0,0,0,0.08)) drop-shadow(0 4px 6px rgba(0,0,0,0.12));
+}
+.lb-logo img { display: block; width: 100%; height: auto; }
+/* The wrap is the popover's anchor — position:relative, nothing else. Two
+   separate buttons live inside it: the controller (→ Workshop, unchanged)
+   and "You" (→ the profile popover, new). */
+.lb-you-wrap {
+  position: relative;
+  flex: 0 0 auto;
+  width: 104px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  border-radius: 20px;
+  padding: 4px 0 6px;
+}
+.lb-you-controller { display: grid; place-items: center; }
+.lb-you-mount {                       /* this box is #lobby-controller's slot */
+  width: 96px;
+  height: 84px;
+  display: grid;
+  place-items: center;
+  cursor: grab;
+}
+.lb-you-mount svg { width: 92px; height: auto; filter: drop-shadow(0 6px 6px rgba(43,27,69,0.22)); }
+.lb-you-label {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  max-width: 100%;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--lb-ink-3);
+}
+/* "You" is short by definition; a real name isn't — keep the wrap from
+   ever forcing the button (or the row) wider than its 104px column. */
+#lb-you-label-text {
+  max-width: 78px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lb-you-chev { font-size: 9px; flex: 0 0 auto; }
+
+/* ── Profile popover — nickname + placeholder stats ─────────────────────────
+   Anchored under the "You" button, not a full sheet — the controller stays
+   the Workshop's door, this is the lighter, second entry point. */
+.lb-you-pop {
+  position: absolute;
+  /* z-index:auto would lose to .lb-body: its rise animation (opacity +
+     transform) makes it its OWN stacking context per spec, and since it
+     comes after .lb-brand in the DOM, an auto-level popover paints BEHIND
+     it wherever the two overlap. An explicit z-index puts the popover in
+     the higher, always-wins tier regardless of document order. */
+  z-index: 4;
+  top: calc(100% + 10px);
+  right: 0;
+  width: 236px;
+  background: var(--lb-surface);
+  border: 1px solid var(--lb-line);
+  border-radius: 16px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: 0 10px 24px rgba(43,27,69,0.18), 0 2px 6px rgba(43,27,69,0.10);
+  text-align: left;
+  animation: lb-rise 160ms var(--lb-ease-out) both;
+}
+.lb-you-pop-arrow {
+  position: absolute;
+  top: -6px; right: 28px;
+  width: 12px; height: 12px;
+  background: var(--lb-surface);
+  border-left: 1px solid var(--lb-line);
+  border-top: 1px solid var(--lb-line);
+  transform: rotate(45deg);
+}
+.lb-you-pop-field { display: flex; flex-direction: column; gap: 4px; }
+.lb-you-pop-label { font-size: 11px; font-weight: 600; color: var(--lb-ink-3); }
+.lb-you-pop-input {
+  min-height: 40px;
+  border-radius: 10px;
+  border: 1.5px solid var(--lb-line);
+  padding: 0 10px;
+  font: inherit;
+  font-size: 14px;
+  color: var(--lb-ink);
+  background: var(--lb-sunken);
+}
+.lb-you-pop-input:focus { outline: none; border-color: var(--lb-accent); }
+.lb-you-pop-hint { font-size: 11px; color: var(--lb-ink-3); margin: -4px 0 0; }
+.lb-you-pop-stats {
+  display: flex;
+  border-top: 1px solid var(--lb-line);
+  padding-top: 10px;
+}
+.lb-you-pop-stat {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+.lb-you-pop-stat-n { font-size: 15px; font-weight: 700; color: var(--lb-ink); }
+.lb-you-pop-stat-l { font-size: 9px; color: var(--lb-ink-3); text-align: center; }
+.lb-you-pop-note { font-size: 10px; color: var(--lb-ink-3); font-style: italic; margin: 0; }
+.lb-tagline {
+  margin: -6px 0 0;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--lb-ink-2);
+}
+
+/* ── Dock: utility icons + the four-slot view switcher, one card ──────────────
+   Icons and switcher share a wrapping row. With the three locked icons absent
+   (nothing greyed-out — a dimmed icon tells every player a secret exists) the
+   two visible ones and the switcher fit on one line; after the Konami code the
+   five icons push the switcher to its own line. A rare, one-time reflow. */
+.lb-dock {
+  background: var(--lb-surface);
+  border: 1px solid var(--lb-line);
+  border-radius: 28px;
+  padding: 8px;
+  box-shadow: 0 1px 2px rgba(43,27,69,0.04), 0 6px 18px -12px rgba(43,27,69,0.18);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.lb-icons { display: flex; gap: 6px; flex: 0 0 auto; }
+.lb-icon {
+  width: 44px; height: 44px;
+  border-radius: 22px;
+  background: var(--lb-sunken);
+  display: grid; place-items: center;
+  font-size: 19px;
+  line-height: 1;
+}
+.lb-icon[hidden] { display: none; }
+.lb-icon-sound { background: var(--lb-accent-tint); }
+
+.lb-switch {
+  flex: 1 1 200px;
+  min-width: 0;
+  display: flex;
+  gap: 2px;
+  background: var(--lb-sunken);
+  border-radius: 22px;
+  padding: 3px;
+  height: 50px;
+}
+.lb-seg {
+  border-radius: 19px;
+  flex: 0 0 44px;
+  min-width: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--lb-ink-3);
+  white-space: nowrap;
+  min-width: 0;
+  transition: transform 120ms var(--lb-ease-out), color 150ms ease;
+}
+.lb-seg:active { transform: scale(0.96); }
+.lb-seg-ico { font-size: 14px; line-height: 1; }
+.lb-seg-lbl { overflow: hidden; text-overflow: ellipsis; }
+.lb-seg[aria-selected="true"] {
+  flex: 1 1 auto;
+  padding: 0 10px;
+  background: var(--lb-surface);
+  color: var(--lb-ink);
+  box-shadow: 0 1px 3px rgba(43,27,69,0.16);
+}
+/* Four slots at 390 px: the icon carries each inactive slot, the selected one
+   keeps its word. Same at every width — a label that appears at 430 and not at
+   390 would be a different control on two phones. */
+.lb-seg:not([aria-selected="true"]) .lb-seg-lbl { display: none; }
+
+/* ── Who's here? — the deciding group's two real questions ───────────────────
+   Not a search box. Twenty games across six shelves don't need search; a
+   group deciding does need "how many of us?" and "is there one phone or one
+   each?" — 11 of 20 games can't be played on a single passed phone. */
+.lb-who {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.lb-step {
+  display: flex;
+  align-items: center;
+  background: var(--lb-surface);
+  border: 1px solid var(--lb-line);
+  border-radius: 23px;
+  height: 46px;
+  flex: 0 0 auto;
+}
+.lb-step-btn {
+  width: 44px; height: 44px;
+  display: grid; place-items: center;
+  font-size: 20px; font-weight: 600; color: var(--lb-ink-2);
+  border-radius: 21px;
+  transition: transform 120ms var(--lb-ease-out);
+}
+.lb-step-btn:active { transform: scale(0.9); }
+.lb-step-btn:disabled { color: var(--lb-line); }
+.lb-step-val {
+  min-width: 64px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+  display: flex; align-items: center; justify-content: center; gap: 4px;
+}
+.lb-toggle {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 44px;
+  border-radius: 22px;
+  border: 1px solid var(--lb-line);
+  background: var(--lb-surface);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--lb-ink-2);
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  transition: transform 120ms var(--lb-ease-out), background-color 150ms ease, color 150ms ease;
+}
+.lb-toggle:active { transform: scale(0.97); }
+.lb-toggle[aria-pressed="true"] {
+  background: var(--lb-ink);
+  border-color: var(--lb-ink);
+  color: #fff;
+}
+.lb-who-note {
+  margin: -6px 0 0;
+  font-size: 12px;
+  color: var(--lb-ink-3);
+  min-height: 1.3em;
+}
+
+/* ── Shelf rows ──────────────────────────────────────────────────────────────
+   One tap target per row. The right-hand side is a static stack of the
+   shelf's own tiles — every game on the shelf, overlapped like boxes leaning
+   on a shelf, edge-masked. No marquee: six rows of continuous compositing
+   bought nothing a static stack doesn't already say, and a static design has
+   to work anyway under reduced motion. */
+.lb-shelves { display: flex; flex-direction: column; gap: 10px; }
+.lb-row {
+  width: 100%;
+  min-height: 76px;
+  background: var(--lb-surface);
+  border: 1px solid var(--lb-line);
+  border-radius: var(--lb-r-card);
+  display: grid;
+  grid-template-columns: 120px 1fr 22px;
+  align-items: center;
+  padding: 10px 6px 10px 14px;
+  text-align: left;
+  overflow: hidden;
+  box-shadow: 0 1px 2px rgba(43,27,69,0.04);
+  transition: transform 120ms var(--lb-ease-out), opacity 150ms ease;
+}
+.lb-row:active { transform: scale(0.985); }
+.lb-row-head { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.lb-row-name {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 18px; font-weight: 700; line-height: 1.15; letter-spacing: -0.01em;
+}
+.lb-row-emoji { font-size: 16px; line-height: 1; }
+.lb-row-count { font-size: 11.5px; font-weight: 500; color: var(--lb-ink-3); }
+.lb-row-stack {
+  display: flex;
+  align-items: center;
+  padding: 4px 0 4px 4px;
+  -webkit-mask-image: linear-gradient(90deg, #000 0, #000 90%, transparent);
+  mask-image: linear-gradient(90deg, #000 0, #000 90%, transparent);
+  min-width: 0;
+}
+.lb-row-chev { font-size: 22px; color: #C9C3D4; line-height: 1; text-align: center; }
+.lb-row.is-empty { opacity: 0.45; }
+
+/* Mini keycap — the shelf's preview tile. 46 px, the keycap recipe at a
+   lighter weight than .gel-btn so six of them don't read as six buttons. */
+.lb-mini {
+  width: 46px; height: 46px;
+  border-radius: 13px;
+  flex: 0 0 auto;
+  position: relative;
+  display: grid; place-items: center;
+  margin-left: -13px;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.45),
+    inset 0 -2px 1px rgba(0,0,0,0.20),
+    0 0 0 2px var(--lb-surface),
+    0 2px 0 rgba(0,0,0,0.18),
+    0 4px 8px rgba(0,0,0,0.12);
+  background-image: linear-gradient(to bottom, rgba(255,255,255,0.14), rgba(255,255,255,0) 45%, rgba(0,0,0,0.22));
+  transition: opacity 150ms ease;
+}
+.lb-mini:first-child { margin-left: 0; }
+/* Six on a shelf lean closer so the last one still shows at 390 px. */
+.lb-row-stack[data-n="6"] .lb-mini:not(:first-child) { margin-left: -18px; }
+.lb-mini.is-out { opacity: 0.28; }
+
+/* The badge disc: a white domed pin under every emoji. It gives every emoji
+   the same footprint and ground regardless of which platform drew it — the
+   disc is the tile's identity anchor, the emoji is a passenger on it. Real
+   art (runtime-cached, later) replaces the whole face, not the badge. */
+.lb-badge {
+  position: relative;
+  overflow: hidden;
+  border-radius: 9999px;
+  background: radial-gradient(circle at 34% 28%, #ffffff 0%, #f2f2f5 55%, #dcdce2 100%);
+  display: grid; place-items: center;
+  line-height: 1;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.25), inset 0 -1px 1px rgba(0,0,0,0.08);
+}
+.lb-mini .lb-badge { width: 30px; height: 30px; font-size: 17px; }
+/* A controller sticker (cheap win, not the full-face art upgrade — see
+   img.lb-art below) sits inside the disc, inset so it never touches the
+   rim, contain so an irregular die-cut sticker is never cropped — the
+   whole design shows at whatever size its own aspect ratio allows. */
+.lb-badge-art {
+  position: absolute; inset: 14%;
+  width: 72%; height: 72%;
+  object-fit: contain;
+}
+.lb-badge-emoji { position: relative; }
+
+/* ── Folder view ─────────────────────────────────────────────────────────── */
+.lb-folder-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.lb-back {
+  width: 44px; height: 44px;
+  border-radius: 22px;
+  background: var(--lb-surface);
+  border: 1px solid var(--lb-line);
+  display: grid; place-items: center;
+  font-size: 20px; color: var(--lb-ink-2);
+  flex: 0 0 auto;
+}
+.lb-folder-title { display: flex; flex-direction: column; min-width: 0; }
+.lb-folder-name {
+  font-size: 24px; font-weight: 700; line-height: 1.1; letter-spacing: -0.01em;
+  display: flex; align-items: center; gap: 8px;
+}
+.lb-folder-name .lb-row-emoji { font-size: 20px; }
+.lb-folder-blurb { font-size: 13px; color: var(--lb-ink-2); margin-top: 2px; }
+
+.lb-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 12px;
+}
+.lb-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  text-align: left;
+  min-width: 0;
+  transition: transform 120ms var(--lb-ease-out), opacity 150ms ease;
+}
+.lb-tile:active { transform: scale(0.97); }
+.lb-tile.is-out .lb-face { opacity: 0.35; }
+.lb-tile.is-out .lb-tile-name { color: var(--lb-ink-3); }
+.lb-face {                                   /* the art slot */
+  position: relative;
+  aspect-ratio: 4 / 3;
+  border-radius: var(--lb-r-tile);
+  display: grid; place-items: center;
+  overflow: hidden;
+  transition: opacity 150ms ease;
+}
+.lb-face .lb-badge { width: 58px; height: 58px; font-size: 32px; }
+.lb-face img.lb-art {                        /* runtime-cached art, when it exists */
+  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+}
+.lb-tile-name {
+  font-size: 15px; font-weight: 600; line-height: 1.2;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.lb-tile-meta {
+  font-size: 12px; font-weight: 500; color: var(--lb-ink-3);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  margin-top: -5px;
+}
+.lb-tile-meta.is-why { color: #B45309; }      /* amber = unavailable, per ui-style */
+
+/* Staggered entry for the grid — 30 ms steps, decorative, never blocking. */
+@keyframes lb-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.lb-grid.is-fresh .lb-tile { animation: lb-rise 220ms var(--lb-ease-out) both; }
+.lb-grid.is-fresh .lb-tile:nth-child(2) { animation-delay: 30ms; }
+.lb-grid.is-fresh .lb-tile:nth-child(3) { animation-delay: 60ms; }
+.lb-grid.is-fresh .lb-tile:nth-child(4) { animation-delay: 90ms; }
+.lb-grid.is-fresh .lb-tile:nth-child(5) { animation-delay: 120ms; }
+.lb-grid.is-fresh .lb-tile:nth-child(6) { animation-delay: 150ms; }
+
+/* View swap (shelves ⇄ folder ⇄ original) — a 180 ms rise+fade on the body. */
+.lb-body { animation: lb-rise 180ms var(--lb-ease-out) both; }
+
+/* ── Info sheet ──────────────────────────────────────────────────────────────
+   Bottom drawer, 80 % tall, iOS drawer curve in, faster ease-out out. The scrim
+   and sheet are transitions (not keyframes) so a tap-tap-tap is interruptible. */
+.lb-scrim {
+  position: absolute; inset: 0;
+  background: rgba(27,17,43,0.42);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 200ms ease-out;
+  z-index: 5;
+}
+.lb-sheet {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  height: 80%;
+  background: var(--lb-bg);
+  border-radius: 26px 26px 0 0;
+  box-shadow: 0 -8px 30px rgba(27,17,43,0.22);
+  transform: translateY(100%);
+  transition: transform 200ms var(--lb-ease-out);
+  display: flex;
+  flex-direction: column;
+  z-index: 6;
+  visibility: hidden;
+}
+.lb-phone.sheet-open .lb-scrim { opacity: 1; pointer-events: auto; }
+.lb-phone.sheet-open .lb-sheet {
+  transform: translateY(0);
+  visibility: visible;
+  transition: transform 280ms var(--lb-ease-drawer);
+}
+.lb-sheet-grab {
+  width: 40px; height: 5px; border-radius: 3px;
+  background: #D6D0E0; margin: 8px auto 0; flex: 0 0 auto;
+}
+.lb-sheet-head {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 18px 12px;
+  flex: 0 0 auto;
+}
+.lb-sheet-face { width: 60px; height: 60px; border-radius: 16px; flex: 0 0 auto; display: grid; place-items: center; }
+.lb-sheet-face .lb-badge { width: 40px; height: 40px; font-size: 22px; }
+.lb-sheet-title { min-width: 0; }
+.lb-sheet-name { font-size: 21px; font-weight: 700; line-height: 1.1; letter-spacing: -0.01em; }
+.lb-sheet-pitch { font-size: 14px; color: var(--lb-ink-2); margin-top: 3px; line-height: 1.3; }
+.lb-sheet-close {
+  width: 44px; height: 44px; border-radius: 22px; margin-left: auto; flex: 0 0 auto;
+  display: grid; place-items: center; font-size: 18px; font-weight: 700; color: var(--lb-ink-3);
+  background: var(--lb-sunken);
+}
+.lb-sheet-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 2px 18px 16px;
+  display: flex; flex-direction: column; gap: 14px;
+}
+.lb-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.lb-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  height: 30px; padding: 0 11px;
+  border-radius: 15px;
+  background: var(--lb-surface); border: 1px solid var(--lb-line);
+  font-size: 12.5px; font-weight: 600; color: var(--lb-ink-2);
+  white-space: nowrap;
+}
+.lb-chip-ico { font-size: 13px; line-height: 1; }
+.lb-sec-label {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
+  margin-bottom: 6px;
+}
+.lb-steps { display: flex; flex-direction: column; gap: 8px; }
+.lb-step-card {
+  display: flex; align-items: flex-start; gap: 12px;
+  background: var(--lb-surface); border: 1px solid var(--lb-line);
+  border-radius: 16px; padding: 11px 13px;
+  font-size: 14.5px; line-height: 1.35; color: var(--lb-ink);
+}
+.lb-step-num {
+  flex: 0 0 auto;
+  width: 26px; height: 26px; border-radius: 13px;
+  display: grid; place-items: center;
+  font-size: 13px; font-weight: 700; color: #fff;
+  margin-top: 1px;
+}
+.lb-sylly {
+  background: var(--lb-surface); border: 1px solid var(--lb-line);
+  border-radius: 16px; padding: 11px 13px;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.lb-sylly-name { font-size: 14.5px; font-weight: 600; }
+.lb-sylly-sub { font-size: 12.5px; color: var(--lb-ink-3); }
+.lb-sheet-foot {
+  flex: 0 0 auto;
+  padding: 10px 18px 18px;
+  display: flex; flex-direction: column; gap: 8px;
+  border-top: 1px solid var(--lb-line);
+  background: var(--lb-bg);
+}
+.lb-cta {
+  min-height: 56px; width: 100%;
+  border-radius: 16px;
+  font-size: 19px; font-weight: 600; color: #fff;
+  transition: transform 120ms var(--lb-ease-out);
+}
+.lb-cta:active { transform: scale(0.97); }
+.lb-cta-2 { background: #ECEAF0; color: var(--lb-ink-2); }
+
+/* ── Placeholder cards for the two views not in this round ─────────────────── */
+.lb-later {
+  background: var(--lb-surface); border: 1px dashed #D6D0E0; border-radius: var(--lb-r-card);
+  padding: 22px 18px; text-align: center; color: var(--lb-ink-3); font-size: 14px;
+}
+.lb-later strong { display: block; color: var(--lb-ink-2); font-size: 18px; margin-bottom: 4px; }
+
+/* Original view inside the new shell — the shipped .lobby-btn/.lobby-btn-badge
+   classes, untouched. The one addition is scoped to this sandbox: the real
+   .lobby-btn-badge has no overflow rule (it never needed one for an emoji),
+   and the sticker-badge trial (OWNER-REVIEW.md item 1 follow-up) reuses the
+   shared .lb-badge-art/.lb-badge-emoji pair inside it — this just keeps that
+   pair's inset/contain box tidy without editing the shipped stylesheet.
+   Two places build this markup — index.html's Pane 1 (#original-game-list)
+   and this file's own "Original" tab inside the Shelves switcher — so both
+   are listed here. */
+.lb-original { display: flex; flex-direction: column; gap: 16px; padding: 4px 4px 0; }
+.lb-original .lobby-btn-badge, #original-game-list .lobby-btn-badge { overflow: hidden; }
+
+@media (hover: hover) and (pointer: fine) {
+  .lb-row:hover, .lb-tile:hover .lb-face { filter: brightness(1.02); }
+}

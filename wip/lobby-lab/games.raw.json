@@ -1,0 +1,1049 @@
+{
+  "generatedAt": "2026-09-14T16:16:18.347Z",
+  "games": [
+    {
+      "id": "bld",
+      "gameName": "Bailed",
+      "emoji": "📋",
+      "brandHex": "#991B1B",
+      "minPlayers": 5,
+      "maxPlayers": 10,
+      "playerRangeDisplay": null,
+      "supportedModes": [
+        "mdlm"
+      ],
+      "multiplayerOnly": true,
+      "pitch": "Making plans is easy. Showing up is hard.",
+      "playCtaLabel": "Make the Plans",
+      "howToTitle": {
+        "heading": "How to Play 📋",
+        "subtitle": "A social deduction game of trust, betrayal, and terrible excuses."
+      },
+      "howToStepsRaw": [
+        "Everyone gets a secret role",
+        "Roles per player count",
+        "Picking the group",
+        "The mission cards",
+        "Five plans, pass the phone",
+        "Winning and Scoring",
+        "First to three wins"
+      ],
+      "howItGoes": {
+        "steps": [
+          "Everyone gets a secret role",
+          "Roles per player count",
+          "Picking the group"
+        ],
+        "needsReview": true,
+        "totalRealSteps": 5
+      },
+      "syllyModeName": "Drama Mode",
+      "minutes": null,
+      "_sources": {
+        "identityDoc": "docs/game-identities/bld.md",
+        "mpConfig": "js/engine-multiplayer.js MP_GAME_CONFIGS.bld",
+        "lobbyButton": "index.html #btn-bld"
+      }
+    },
+    {
+      "id": "cjar",
+      "gameName": "Cookie Jar",
+      "emoji": "🍪",
+      "brandHex": "#5C3A21",
+      "minPlayers": 3,
+      "maxPlayers": 8,
+      "playerRangeDisplay": null,
+      "supportedModes": [
+        "mdlm"
+      ],
+      "multiplayerOnly": true,
+      "pitch": "Who took the cookies from the cookie jar?",
+      "playCtaLabel": "Raid the Jar!",
+      "howToTitle": {
+        "heading": "How to Play 🍪",
+        "subtitle": "Grab cookies, don't get caught twice."
+      },
+      "howToStepsRaw": [
+        "A card comes out of the jar",
+        "Cookies get shared out straight away",
+        "Then everyone decides, at the same time",
+        "Sneak out alone and you take the crumbs",
+        "The family is watching",
+        "Banked cookies are safe forever",
+        "Five Raids, one jar",
+        "Winning and Scoring",
+        "Biggest Cookie Stash takes it"
+      ],
+      "howItGoes": {
+        "steps": [
+          "A card comes out of the jar",
+          "Cookies get shared out straight away",
+          "Then everyone decides, at the same time"
+        ],
+        "needsReview": true,
+        "totalRealSteps": 7
+      },
+      "syllyModeName": "Dibber Dobber",
+      "minutes": null,
+      "_sources": {
+        "identityDoc": "docs/game-identities/cjar.md",
+        "mpConfig": "js/engine-multiplayer.js MP_GAME_CONFIGS.cjar",
+        "lobbyButton": "index.html #btn-cjar"
+      }
+    },
+    {
+      "id": "cld",
+      "gameName": "Cold Shoulder",
+      "emoji": "🐧",
+      "brandHex": "#8ECAE6",
+      "minPlayers": 2,
+      "maxPlayers": 8,
+      "playerRangeDisplay": "2 (Peck Off) or 3–8",
+      "supportedModes": [
+        "mdlm"
+      ],
+      "multiplayerOnly": true,
+      "pitch": "Barge your mates into the drink — last penguin on the floe wins.",
+      "playCtaLabel": "Hit the Ice",
+      "howToTitle": {
+        "heading": "How to Play 🐧",
+        "subtitle": "Shove your mates off the ice. Last one dry wins."
+      },
+      "howToStepsRaw": [
+        "You're one penguin on a crowded floe",
+        "Drag back to aim, like a slingshot",
+        "Everyone aims at the same time",
+        "All penguins slide at once",
+        "Off the edge and you're in the Drink",
+        "Being Drowned doesn't bench you",
+        "The floe starts guarded",
+        "You've got two penguins",
+        "Winning and Scoring",
+        "Last one dry catches a Fish"
+      ],
+      "howItGoes": {
+        "steps": [
+          "You're one penguin on a crowded floe",
+          "Drag back to aim, like a slingshot",
+          "Everyone aims at the same time"
+        ],
+        "needsReview": true,
+        "totalRealSteps": 8
+      },
+      "syllyModeName": "The Thaw",
+      "minutes": null,
+      "_sources": {
+        "identityDoc": "docs/game-identities/cld.md",
+        "mpConfig": "js/engine-multiplayer.js MP_GAME_CONFIGS.cld",
+        "lobbyButton": "index.html #btn-cld"
+      }
+    },
+    {
+      "id": "comb",
+      "gameName": "Honeycomb Hills",
+      "emoji": "🐝",
+      "brandHex": "#F0A500",
+      "minPlayers": 3,
+      "maxPlayers": 4,
+      "playerRangeDisplay": null,
+      "supportedModes": [
+        "mdlm"
+      ],
+      "multiplayerOnly": true,
+      "pitch": "Build your comb, trade your nectar, grow the strongest hive in the meadow.",
+      "playCtaLabel": "Send the Scouts",
+      "howToTitle": null,
+      "howToStepsRaw": [
+        "Grow the strongest hive",
+        "The meadow is nineteen hexes",
+        "The Scout Flight decides what blooms",
+        "Cells collect, Domes collect double",
+        "Four things to spend on",
+        "The Distance Rule",
+        "Everything must connect",
+        "The Waggle Dance",
+        "A 7 brings the Wasp",
+        "One Instinct card a turn",
+        "Largest Comb and Fiercest Guard",
+        "Winning and Scoring",
+        "Where the Hive Points come from"
+      ],
+      "howItGoes": {
+        "steps": [
+          "Grow the strongest hive",
+          "The meadow is nineteen hexes",
+          "The Scout Flight decides what blooms"
+        ],
+        "needsReview": true,
+        "totalRealSteps": 11
+      },
+      "syllyModeName": null,
+      "minutes": null,
+      "_sources": {
+        "identityDoc": "docs/game-identities/comb.md",
+        "mpConfig": "js/engine-multiplayer.js MP_GAME_CONFIGS.comb",
+        "lobbyButton": "index.html #btn-comb"
+      }
+    },
+    {
+      "id": "dsd",
+      "gameName": "Deep-Sea Deploy",
+      "emoji": "⚓",
+      "brandHex": "#0E7490",
+      "minPlayers": 2,
+      "maxPlayers": 6,
+      "playerRangeDisplay": "2 (TLM) or 4–6 (MDLM)",
+      "supportedModes": [
+        "ptp",
+        "tlm",
+        "mdlm"
+      ],
+      "multiplayerOnly": false,
+      "pitch": "Read the grid. Trust your Captain. Don't hit the mine.",
+      "playCtaLabel": "Begin Deployment",
+      "howToTitle": {
+        "heading": "How to Play ⚓",
+        "subtitle": "How to run a successful deployment."
+      },
+      "howToStepsRaw": [
+        "Step 1",
+        "The Grid.",
+        "A 5×5 grid of 25 words is dealt face-down. Words belong to one of four roles:",
+        "Friendly Payloads",
+        "(9 for the first team, 8 for the second),",
+        "Enemy Payloads",
+        ",",
+        "Spiked Urchins",
+        ", and",
+        "Mines",
+        ". Only the Captain can see the roles.",
+        "Step 2",
+        "The Captain gives a Sonar Ping.",
+        "The Captain sees the colour-coded grid and gives the Crew a Sonar Ping — one word + one number. The word hints at multiple targets. The number says how many payloads it covers.",
+        "Step 3",
+        "The Crew taps their sequence.",
+        "Using the Sonar Ping, the Crew taps grid words in the order they want to reveal them, then launches the sequence. You can guess up to the Captain's number + 1, or stop early.",
+        "Step 4",
+        "Hazard outcomes.",
+        "✅ Friendly Payload — +10 Valour, keep going.",
+        "⚠️ Enemy Payload — enemy gains +10 Valour.",
+        "🦔 Spiked Urchin — −5 Valour.",
+        "💣 Pressure Mine — −20 Valour.",
+        "💀 Nuclear Mine — −1000 Valour, game over.",
+        "Whether hazards end your turn is controlled in Settings.",
+        "Winning and Scoring",
+        "Highest Valour wins.",
+        "The game ends when a team arms all of their payloads. The team with the highest Valour wins — not necessarily the team that finished first.",
+        "✨ Sylly Mode",
+        "Silent Running",
+        "The grid drifts between deployments, scrambling unrevealed cells. Teams can also plant a Jammer tile to ambush the enemy's next sequence.",
+        "Got it"
+      ],
+      "howItGoes": {
+        "steps": [
+          "The Grid.",
+          "The Captain gives a Sonar Ping.",
+          "The Crew taps their sequence."
+        ],
+        "needsReview": false,
+        "totalRealSteps": 4
+      },
+      "syllyModeName": "Silent Running",
+      "minutes": null,
+      "_sources": {
+        "identityDoc": "docs/game-identities/dsd.md",
+        "mpConfig": "js/engine-multiplayer.js MP_GAME_CONFIGS.dsd",
+        "lobbyButton": "index.html #btn-dsd"
+      }
+    },
+    {
+      "id": "dyb",
+      "gameName": "The Bluff",
+      "emoji": "🎲",
+      "brandHex": "#6B5744",
+      "minPlayers": 3,
+      "maxPlayers": 8,
+      "playerRangeDisplay": null,
+      "supportedModes": [
+        "mdlm"
+      ],
+      "multiplayerOnly": true,
+      "pitch": "Trust no one, count every face.",
+      "playCtaLabel": "Let's Play!",
+      "howToTitle": {
+        "heading": "How to Play 🎲",
+        "subtitle": "A bluffing game where every claim must be worth believing."
+      },
+      "howToStepsRaw": [
+        "The Shake",
+        "The Claim",
+        "Climb or Challenge",
+        "Winning and Scoring",
+        "Last Die Standing"
+      ],
+      "howItGoes": {
+        "steps": [
+          "The Shake",
+          "The Claim",
+          "Climb or Challenge"
+        ],
+        "needsReview": false,
+        "totalRealSteps": 3
+      },
+      "syllyModeName": "The Tempest",
+      "minutes": null,
+      "_sources": {
+        "identityDoc": "docs/game-identities/dyb.md",
+        "mpConfig": "js/engine-multiplayer.js MP_GAME_CONFIGS.dyb",
+        "lobbyButton": "index.html #btn-dyb"
+      }
+    },
+    {
+      "id": "flw",
+      "gameName": "Flawless",
+      "emoji": "💎",
+      "brandHex": "#F9A8D4",
+      "minPlayers": 3,
+      "maxPlayers": 4,
+      "playerRangeDisplay": null,
+      "supportedModes": [
+        "mdlm"
+      ],
+      "multiplayerOnly": true,
+      "pitch": "The flawless one wins. Don't get exposed.",
+      "playCtaLabel": "Enter the Exhibition",
+      "howToTitle": {
+        "heading": "How to Play 💎",
+        "subtitle": "Hold the most flawless stone when the vault locks."
+      },
+      "howToStepsRaw": [
+        "Draw and place",
+        "Draw one gem so you're holding two, then place one face-up and resolve its effect — keep the other as your secret Showpiece",
+        "Read your rival Collectors",
+        "Effects let you peek, compare, swap, or expose. Get Exposed — a correct guess, a lost appraisal, or being forced to discard the Pink Diamond — and you're out for this Showing.",
+        "Lock the Vault",
+        "When the Vault runs dry it's Vault Lock — every Collector still in reveals, highest carat wins. Or simply be the last one standing.",
+        "Winning and Scoring"
+      ],
+      "howItGoes": {
+        "steps": [
+          "Draw and place",
+          "Draw one gem so you're holding two, then place one face-up and resolve its effect — keep the other as your secret Showpiece",
+          "Read your rival Collectors"
+        ],
+        "needsReview": true,
+        "totalRealSteps": 6
+      },
+      "syllyModeName": "The Counterfeit Run",
+      "minutes": null,
+      "_sources": {
+        "identityDoc": "docs/game-identities/flw.md",
+        "mpConfig": "js/engine-multiplayer.js MP_GAME_CONFIGS.flw",
+        "lobbyButton": "index.html #btn-flw"
+      }
+    },
+    {
+      "id": "frt",
+      "gameName": "Fruit Salad",
+      "emoji": "🍌",
+      "brandHex": "#FFE500",
+      "minPlayers": 2,
+      "maxPlayers": 8,
+      "playerRangeDisplay": "2 (Pear-Off) or 3–8",
+      "supportedModes": [
+        "mdlm"
+      ],
+      "multiplayerOnly": true,
+      "pitch": "\"This is definitely a banana. Trust me.\"",
+      "playCtaLabel": "Start Serving",
+      "howToTitle": {
+        "heading": "How to Play 🍌",
+        "subtitle": "Bluff your fruit. Don't get caught holding four."
+      },
+      "howToStepsRaw": [
+        "The Serve",
+        "The Stare Down",
+        "Getting Caught",
+        "Fruit Looped",
+        "Winning and Scoring",
+        "Fruit Tokens across the Fruit-Offs"
+      ],
+      "howItGoes": {
+        "steps": [
+          "The Serve",
+          "The Stare Down",
+          "Getting Caught"
+        ],
+        "needsReview": false,
+        "totalRealSteps": 4
+      },
+      "syllyModeName": "Fruity Personalities",
+      "minutes": null,
+      "_sources": {
+        "identityDoc": "docs/game-identities/frt.md",
+        "mpConfig": "js/engine-multiplayer.js MP_GAME_CONFIGS.frt",
+        "lobbyButton": "index.html #btn-frt"
+      }
+    },
+    {
+      "id": "gm",
+      "gameName": "Great Minds",
+      "emoji": "🧠",
+      "brandHex": "#A855F7",
+      "minPlayers": 2,
+      "maxPlayers": 2,
+      "playerRangeDisplay": "exactly 2",
+      "supportedModes": [
+        "ptp",
+        "mdlm"
+      ],
+      "multiplayerOnly": false,
+      "pitch": "Think alike. And say the same.",
+      "playCtaLabel": "Begin Link",
+      "howToTitle": {
+        "heading": "How to Play 🧠",
+        "subtitle": "Find the same connecting word as your partner."
+      },
+      "howToStepsRaw": [
+        "Step 1",
+        "Two players. One word pair.",
+        "You're each shown the same pair of words. Your job: think of one word that connects them both — without talking to each other.",
+        "Step 2",
+        "Enter your word privately.",
+        "No peeking! Each player enters their word without showing the other. You also can't use any part of either starting word.",
+        "Step 3",
+        "Reveal and check for a match.",
+        "After the countdown, both answers are revealed. If they match — Mind Meld! 🧠 If not, your two words become the new starting pair. Keep going until you meld!",
+        "Winning and Scoring",
+        "Fewer rounds is more impressive.",
+        "The game ends when you achieve Neural Link — both words match. The fewer rounds it took, the stronger the connection. Lower rounds = bigger brains. 🧠",
+        "✨ Sylly Mode",
+        "Static Interference",
+        "Each round, a random consonant is banned — no clue may contain it. Set your intensity in Settings: Mental Fog for a sub-atomic challenge, or Neural Storm for full supernova mayhem.",
+        "Got it"
+      ],
+      "howItGoes": {
+        "steps": [
+          "Two players. One word pair.",
+          "Enter your word privately.",
+          "Reveal and check for a match."
+        ],
+        "needsReview": false,
+        "totalRealSteps": 3
+      },
+      "syllyModeName": "Static Interference",
+      "minutes": null,
+      "_sources": {
+        "identityDoc": "docs/game-identities/gm.md",
+        "mpConfig": "js/engine-multiplayer.js MP_GAME_CONFIGS.gm",
+        "lobbyButton": "index.html #btn-great-minds"
+      }
+    },
+    {
+      "id": "gth",
+      "gameName": "Group Therapy",
+      "emoji": "🛋️",
+      "brandHex": "#B1BCA0",
+      "minPlayers": 4,
+      "maxPlayers": 8,
+      "playerRangeDisplay": null,
+      "supportedModes": [
+        "mdlm"
+      ],
+      "multiplayerOnly": true,
+      "pitch": "We've all got issues. Now draw them.",
+      "playCtaLabel": "Start the Session",
+      "howToTitle": {
+        "heading": "How to Play 🛋️",
+        "subtitle": "A drawing game about your issues."
+      },
+      "howToStepsRaw": [
+        "Step 1",
+        "Everyone draws their disorders",
+        "Each player is secretly assigned a few Disorders and has to draw them — simultaneously, on their own device. A tip is shown before each drawing to help.",
+        "Step 2",
+        "Everyone becomes a Shrink",
+        "The",
+        "Shrink Phase",
+        "opens a queue of anonymous drawings. For each one, pick the correct disorder from the",
+        "Diagnostic Cards",
+        ". You never see your own drawings.",
+        "Step 3",
+        "The Big Reveal",
+        "After time runs out, all drawings are revealed one at a time — with who drew them and who guessed correctly.",
+        "Winning and Scoring",
+        "Two ways to earn Sessions",
+        "Patient +2 — each time a Shrink correctly diagnoses your drawing.",
+        "Shrink +2 — for each correct diagnosis you submit.",
+        "Speed +1 — the fastest correct diagnosis per drawing.",
+        "Tier 3 +1 — bonus for correctly diagnosing a Complex Condition.",
+        "✨ Sylly Mode",
+        "Stroke or Genius",
+        "The canvas trembles while you draw. Drawings blur into focus during the Shrink Phase — a 3.5 second reveal that tests your eye.",
+        "Got it"
+      ],
+      "howItGoes": {
+        "steps": [
+          "Everyone draws their disorders",
+          "Everyone becomes a Shrink",
+          "The Big Reveal"
+        ],
+        "needsReview": false,
+        "totalRealSteps": 3
+      },
+      "syllyModeName": "Stroke or Genius",
+      "minutes": null,
+      "_sources": {
+        "identityDoc": "docs/game-identities/gth.md",
+        "mpConfig": "js/engine-multiplayer.js MP_GAME_CONFIGS.gth",
+        "lobbyButton": "index.html #btn-gth"
+      }
+    },
+    {
+      "id": "jec",
+      "gameName": "Just Enough Cooks",
+      "emoji": "🍳",
+      "brandHex": "#475569",
+      "minPlayers": 3,
+      "maxPlayers": 6,
+      "playerRangeDisplay": null,
+      "supportedModes": [
+        "ptp",
+        "mdlm"
+      ],
+      "multiplayerOnly": false,
+      "pitch": "Won't Spoil the Broth!",
+      "playCtaLabel": "Let's Cook!",
+      "howToTitle": {
+        "heading": "How to Play 🍳",
+        "subtitle": "Think the same as just enough people — not too many, not too few."
+      },
+      "howToStepsRaw": [
+        "Step 1",
+        "Everyone sees the same Order.",
+        "Step 2",
+        "Each Chef secretly picks 3 ingredients.",
+        "Step 3",
+        "Back one with a star.",
+        "Step 4",
+        "Call the Crutch.",
+        "Step 5",
+        "Sous Chef's Check, then The Tasting.",
+        "Winning and Scoring",
+        "Most points after the last course wins.",
+        "✨ Sylly Mode",
+        "Fusion Cuisine",
+        "Got it"
+      ],
+      "howItGoes": {
+        "steps": [
+          "Everyone sees the same Order.",
+          "Each Chef secretly picks 3 ingredients.",
+          "Back one with a star."
+        ],
+        "needsReview": true,
+        "totalRealSteps": 5
+      },
+      "syllyModeName": "Fusion Cuisine",
+      "minutes": null,
+      "_sources": {
+        "identityDoc": "docs/game-identities/jec.md",
+        "mpConfig": "js/engine-multiplayer.js MP_GAME_CONFIGS.jec",
+        "lobbyButton": "index.html #btn-jec"
+      }
+    },
+    {
+      "id": "li5",
+      "gameName": "Like I'm Five",
+      "emoji": "💬",
+      "brandHex": "#EC4899",
+      "minPlayers": 2,
+      "maxPlayers": 2,
+      "playerRangeDisplay": "exactly 2 teams",
+      "supportedModes": [
+        "ptp",
+        "tlm"
+      ],
+      "multiplayerOnly": false,
+      "pitch": "Explain it simply. But no no-nos for me!",
+      "playCtaLabel": "Play Time!",
+      "howToTitle": {
+        "heading": "How to Play 💬",
+        "subtitle": "Describe the word without saying anything on the No-No List."
+      },
+      "howToStepsRaw": [
+        "Step 1",
+        "Divide into two teams.",
+        "One person describes the Word on screen while their team guesses. Get as many right as you can before the timer runs out!",
+        "Step 2",
+        "Don't say the No-No words.",
+        "You also can't say any part of the main word. Use your hands, sounds, or wild metaphors — just no cheating, yeah?",
+        "Winning and Scoring",
+        "Points on every outcome.",
+        "✅ Correct — your team got it, ripper!",
+        "❌ No-No! — busted! Points off.",
+        "⏩ Skip — too hard? Pass it on.",
+        "✨ Sylly words — tricky ones worth double points.",
+        "✨ Sylly Mode",
+        "Extra Credit",
+        "Extra Credit words are shuffled into the deck. Correct answers score double, but they carry penalties too — and show all 10 No-No words.",
+        "Got it"
+      ],
+      "howItGoes": {
+        "steps": [
+          "Divide into two teams.",
+          "Don't say the No-No words."
+        ],
+        "needsReview": false,
+        "totalRealSteps": 2
+      },
+      "syllyModeName": "Extra Credit",
+      "minutes": null,
+      "_sources": {
+        "identityDoc": "docs/game-identities/li5.md",
+        "mpConfig": "js/engine-multiplayer.js MP_GAME_CONFIGS.li5",
+        "lobbyButton": "index.html #btn-dstw"
+      }
+    },
+    {
+      "id": "lttp",
+      "gameName": "Late to the Party",
+      "emoji": "🏃‍♂️",
+      "brandHex": "#EF4444",
+      "minPlayers": 4,
+      "maxPlayers": 6,
+      "playerRangeDisplay": null,
+      "supportedModes": [
+        "ptp",
+        "mdlm"
+      ],
+      "multiplayerOnly": false,
+      "pitch": "Everyone's at the party except you.",
+      "playCtaLabel": "Find The Location!",
+      "howToTitle": {
+        "heading": "How to Play 🏃‍♂️",
+        "subtitle": "Figure out the secret address. Don't blow your cover."
+      },
+      "howToStepsRaw": [
+        "Step 1",
+        "Roles are assigned in secret.",
+        "One player is the Friend of a Friend — they don't know the location and are trying to blend in. Everyone else is The Gang — they see a shortlist of possible locations that narrows each plan.",
+        "Step 2",
+        "Players message each other over 4 Plans.",
+        "Each lap, every player messages one other player. The Gang's shortlist narrows:",
+        "6 → 3 → 1 location",
+        ". By Plan 3, The Gang knows the exact spot — but the Friend of a Friend might too if they've been paying attention.",
+        "Step 3",
+        "Use the map to track locations.",
+        "Open 🗺️ any time. The Gang see their narrowing highlights. Friend of a Friend sees all locations and can annotate ✅ Safe or ❌ Dead End.",
+        "Step 4",
+        "Plan 4 — Last Drinks.",
+        "After the final plan, everyone votes on who they think is the",
+        "Friend of a Friend",
+        ", and the Friend of a Friend pins their guess on the map.",
+        "Winning and Scoring",
+        "Points for the right read.",
+        "📍 Friend of a Friend pins correctly → +10 pts.",
+        "🕵️ The Gang keeps the secret → +5 each.",
+        "🃏 Troublemaker plants a fake → +20 if the Friend of a Friend pins it.",
+        "✨ Sylly Mode",
+        "The Troublemaker",
+        "One member of The Gang secretly knows the real location and holds 2 decoy locations. They want the Friend of a Friend to pin a decoy instead. Three-way scoring: Friend of a Friend, The Gang, and The Troublemaker each have different win conditions.",
+        "Got it"
+      ],
+      "howItGoes": {
+        "steps": [
+          "Roles are assigned in secret.",
+          "Players message each other over 4 Plans.",
+          "Use the map to track locations."
+        ],
+        "needsReview": false,
+        "totalRealSteps": 4
+      },
+      "syllyModeName": "The Troublemaker",
+      "minutes": null,
+      "_sources": {
+        "identityDoc": "docs/game-identities/lttp.md",
+        "mpConfig": "js/engine-multiplayer.js MP_GAME_CONFIGS.lttp",
+        "lobbyButton": "index.html #btn-lttp"
+      }
+    },
+    {
+      "id": "nat",
+      "gameName": "Natural Selection",
+      "emoji": "🦁",
+      "brandHex": "#65A30D",
+      "minPlayers": 3,
+      "maxPlayers": 8,
+      "playerRangeDisplay": null,
+      "supportedModes": [
+        "ptp",
+        "mdlm"
+      ],
+      "multiplayerOnly": false,
+      "pitch": "One of you doesn't know what they're looking at.",
+      "playCtaLabel": "Begin Observation",
+      "howToTitle": {
+        "heading": "How to Play 🦁",
+        "subtitle": "Natural Selection — a wildlife documentary goes wrong."
+      },
+      "howToStepsRaw": [
+        "Step 1",
+        "Roles are Assigned.",
+        "Each habitat draws a new Specimen. Roles are secretly assigned and revealed one at a time:",
+        "🔬 Lead Biologist (1)",
+        "— sees the full animal name.",
+        "📋 Field Researchers",
+        "— each sees a different detail word about the animal.",
+        "🕵️ The Mole (1)",
+        "— only knows the broad grouping (e.g. \"Sea Creature\"). Trying to blend in.",
+        "Step 2",
+        "The Observation.",
+        "Over several Observation Days, each player submits one word to describe the Specimen. Turn order is random each day. You can't use the animal's name, and you can't repeat a word already given this habitat.",
+        "Step 3",
+        "The Selection.",
+        "Once all days are done, the field notes are revealed. Each player votes for who they think is The Mole. Most votes = exposed.",
+        "Step 4",
+        "The Last Stand.",
+        "If The Mole is caught, they get one final chance — name the Specimen. The Lead Biologist decides if it counts. +10 Credibility either way for a correct guess.",
+        "Winning and Scoring",
+        "Credibility decides the winner.",
+        "Mole escapes →",
+        "+Escape Bonus",
+        "to The Mole.",
+        "Mole names Specimen correctly →",
+        "+10",
+        "to The Mole.",
+        "Mole caught →",
+        "+10",
+        "to each Field Researcher & Biologist.",
+        "Discredited clue (Peer Review) →",
+        "−5",
+        "to the author.",
+        "✨ Sylly Mode",
+        "Survival of the Fittest",
+        "No Lead Biologist. Every player gets a detail word — including the player normally in that role. All clues stay hidden until",
+        "The Daily Review",
+        "reveals them before voting.",
+        "Got it"
+      ],
+      "howItGoes": {
+        "steps": [
+          "Roles are Assigned.",
+          "The Observation.",
+          "The Selection."
+        ],
+        "needsReview": false,
+        "totalRealSteps": 4
+      },
+      "syllyModeName": "Survival of the Fittest",
+      "minutes": null,
+      "_sources": {
+        "identityDoc": "docs/game-identities/nat.md",
+        "mpConfig": "js/engine-multiplayer.js MP_GAME_CONFIGS.nat",
+        "lobbyButton": "index.html #btn-nat"
+      }
+    },
+    {
+      "id": "nt",
+      "gameName": "Net-Trace",
+      "emoji": "💻",
+      "brandHex": "#10B981",
+      "minPlayers": 2,
+      "maxPlayers": 8,
+      "playerRangeDisplay": null,
+      "supportedModes": [
+        "ptp",
+        "mdlm"
+      ],
+      "multiplayerOnly": false,
+      "pitch": "Out-engineer the automated breach before your system data is extracted.",
+      "playCtaLabel": "Initialise System",
+      "howToTitle": {
+        "heading": "How to Play 💻",
+        "subtitle": "Build a maze so the breach signal takes the longest possible path."
+      },
+      "howToStepsRaw": [
+        "Harden the Node",
+        "Controls",
+        "Tap and long-press",
+        "Symbol Legend",
+        "Winning and Scoring",
+        "System Efficiency Rating"
+      ],
+      "howItGoes": {
+        "steps": [
+          "Harden the Node",
+          "Controls",
+          "Tap and long-press"
+        ],
+        "needsReview": false,
+        "totalRealSteps": 4
+      },
+      "syllyModeName": "Distributed Network Protocol",
+      "minutes": null,
+      "_sources": {
+        "identityDoc": "docs/game-identities/nt.md",
+        "mpConfig": "js/engine-multiplayer.js MP_GAME_CONFIGS.nt",
+        "lobbyButton": "index.html #btn-nt"
+      }
+    },
+    {
+      "id": "pass",
+      "gameName": "Pass",
+      "emoji": "🃏",
+      "brandHex": "#18181B",
+      "minPlayers": 3,
+      "maxPlayers": 6,
+      "playerRangeDisplay": null,
+      "supportedModes": [
+        "mdlm"
+      ],
+      "multiplayerOnly": true,
+      "pitch": "Shed your hand, climb the table.",
+      "playCtaLabel": "Deal Me In",
+      "howToTitle": {
+        "heading": "How to Play 🃏",
+        "subtitle": "A climbing card game — shed your hand faster than everyone else."
+      },
+      "howToStepsRaw": [
+        "Deal and sort",
+        "Lowest card leads first",
+        "Play a combo or pass",
+        "Clear the table",
+        "Empty your hand to win",
+        "Winning and Scoring",
+        "Chips decide the match"
+      ],
+      "howItGoes": {
+        "steps": [
+          "Deal and sort",
+          "Lowest card leads first",
+          "Play a combo or pass"
+        ],
+        "needsReview": true,
+        "totalRealSteps": 5
+      },
+      "syllyModeName": "The Abyss",
+      "minutes": null,
+      "_sources": {
+        "identityDoc": "docs/game-identities/pass.md",
+        "mpConfig": "js/engine-multiplayer.js MP_GAME_CONFIGS.pass",
+        "lobbyButton": "index.html #btn-pass"
+      }
+    },
+    {
+      "id": "pko",
+      "gameName": "Pecking Order",
+      "emoji": "🐘",
+      "brandHex": "#9A3412",
+      "minPlayers": 3,
+      "maxPlayers": 6,
+      "playerRangeDisplay": null,
+      "supportedModes": [
+        "mdlm"
+      ],
+      "multiplayerOnly": true,
+      "pitch": "Know the food chain. Become the Apex.",
+      "playCtaLabel": "Enter the Wild",
+      "howToTitle": {
+        "heading": "How to Play 🐘",
+        "subtitle": "Shed your whole hand by playing each animal's natural predator."
+      },
+      "howToStepsRaw": [
+        "The food chain",
+        "Staking your claim",
+        "Open at the bottom",
+        "The Challenge",
+        "Swarm it instead",
+        "Stampede",
+        "Retreat and rejoin",
+        "Going Unchallenged",
+        "Answers to no one",
+        "Nothing eats an Eagle",
+        "Winning and Scoring"
+      ],
+      "howItGoes": {
+        "steps": [
+          "The food chain",
+          "Staking your claim",
+          "Open at the bottom"
+        ],
+        "needsReview": true,
+        "totalRealSteps": 10
+      },
+      "syllyModeName": "Force of Nature",
+      "minutes": null,
+      "_sources": {
+        "identityDoc": "docs/game-identities/pko.md",
+        "mpConfig": "js/engine-multiplayer.js MP_GAME_CONFIGS.pko",
+        "lobbyButton": "index.html #btn-pko"
+      }
+    },
+    {
+      "id": "shp",
+      "gameName": "Counting Sheep",
+      "emoji": "🐑",
+      "brandHex": "#3A3D52",
+      "minPlayers": 3,
+      "maxPlayers": 8,
+      "playerRangeDisplay": null,
+      "supportedModes": [
+        "mdlm"
+      ],
+      "multiplayerOnly": true,
+      "pitch": "Stay awake. Pass the herd.",
+      "playCtaLabel": "Lights Out",
+      "howToTitle": {
+        "heading": "How to Play 🐑",
+        "subtitle": "Keep the herd below 99. Don't be the one who nods off."
+      },
+      "howToStepsRaw": [
+        "The Count",
+        "On your turn, play one card to change the Herd",
+        "Number cards add sheep - but if your play would push the count past 99",
+        "it's illegal.",
+        "Pillows & Alarms",
+        "Pillows stall or shrink the count (Doze, Counting Backwards, Lullaby, Swap Dreams). Alarms shake it up — Skip a Few, the Black Sheep (snaps to 99), Wide Awake, Heavy Eyelids and Rude Awakening. The Big Bad Wolf hides in the Flock — draw one and a card slot locks for the Night. Not sure what a card does? Press and hold it in your hand, or check The Cards tab above.",
+        "Dozing Off",
+        "Bust the count, or run out of safe cards, and you doze off - you're out for the night. Everyone else plays on from exactly where the Herd sits.",
+        "Winning and Scoring",
+        "Last one awake"
+      ],
+      "howItGoes": {
+        "steps": [
+          "The Count",
+          "On your turn, play one card to change the Herd",
+          "Number cards add sheep - but if your play would push the count past 99"
+        ],
+        "needsReview": true,
+        "totalRealSteps": 8
+      },
+      "syllyModeName": "Night Terrors",
+      "minutes": null,
+      "_sources": {
+        "identityDoc": "docs/game-identities/shp.md",
+        "mpConfig": "js/engine-multiplayer.js MP_GAME_CONFIGS.shp",
+        "lobbyButton": "index.html #btn-shp"
+      }
+    },
+    {
+      "id": "ss",
+      "gameName": "Secret Signals",
+      "emoji": "📡",
+      "brandHex": "#14B8A6",
+      "minPlayers": 2,
+      "maxPlayers": 6,
+      "playerRangeDisplay": "2 (TLM) or 4–6 (MDLM)",
+      "supportedModes": [
+        "ptp",
+        "tlm",
+        "mdlm"
+      ],
+      "multiplayerOnly": false,
+      "pitch": "Send the signal. Secure the code.",
+      "playCtaLabel": "Start Mission",
+      "howToTitle": {
+        "heading": "How to Play 📡",
+        "subtitle": "Encrypt your vault. Intercept theirs."
+      },
+      "howToStepsRaw": [
+        "Step 1",
+        "Each team memorises their vault.",
+        "Your team gets 4 secret keywords numbered 1–4. Only your team can see them — memorise them!",
+        "Step 2",
+        "Encrypt your broadcast.",
+        "Each round, your Encoder receives a secret code (e.g. 3-1-4). Give one clue per number — cryptic enough to fool the enemy, clear enough for your own team.",
+        "Step 3",
+        "Intercept or decode.",
+        "The enemy team tries to crack your code first — that's an 🕵️",
+        "Interception",
+        ". Then your own team decodes it. Get it wrong and it's a",
+        "Misfire",
+        "💥.",
+        "Winning and Scoring",
+        "Intercept to win. Don't misfire.",
+        "🕵️ Intercept — enemy cracked your code. They score.",
+        "💥 Misfire — your own team got it wrong. Two misfires and you lose.",
+        "First team to reach the interception target wins.",
+        "✨ Sylly Mode",
+        "Intel Phase",
+        "After the main game ends, both teams take turns guessing the other team's vault keywords in order. A second chance to steal the win.",
+        "Got it"
+      ],
+      "howItGoes": {
+        "steps": [
+          "Each team memorises their vault.",
+          "Encrypt your broadcast.",
+          "Intercept or decode."
+        ],
+        "needsReview": false,
+        "totalRealSteps": 3
+      },
+      "syllyModeName": "Intel Phase",
+      "minutes": null,
+      "_sources": {
+        "identityDoc": "docs/game-identities/ss.md",
+        "mpConfig": "js/engine-multiplayer.js MP_GAME_CONFIGS.ss",
+        "lobbyButton": "index.html #btn-sylly-signals"
+      }
+    },
+    {
+      "id": "ygi",
+      "gameName": "You Get It?",
+      "emoji": "💡",
+      "brandHex": "#F59E0B",
+      "minPlayers": 3,
+      "maxPlayers": 6,
+      "playerRangeDisplay": null,
+      "supportedModes": [
+        "ptp",
+        "mdlm"
+      ],
+      "multiplayerOnly": false,
+      "pitch": "Finally, someone said it.",
+      "playCtaLabel": "Let's Get To It!",
+      "howToTitle": {
+        "heading": "How to Play 💡",
+        "subtitle": "Fill in the blank. Vote for the take you relate to most."
+      },
+      "howToStepsRaw": [
+        "Step 1",
+        "Read the Situation aloud.",
+        "Everyone reads The Situation together. It has a blank — that's The Gap you'll fill with your answer.",
+        "Step 2",
+        "Submit your Take.",
+        "Pass the phone around. Each player secretly picks a Number and writes something for The Gap. Your combined answer should slot right into the sentence.",
+        "Step 3",
+        "The Lineup is revealed.",
+        "All Takes appear at once 🃏, sorted lowest to highest. No names — just the answers. Read them out.",
+        "Step 4",
+        "Give the Nod.",
+        "Vote for the take you relate to most. You can't vote for your own.",
+        "Winning and Scoring",
+        "The Nod decides everything.",
+        "1st most votes = 3 pts, 2nd = 2 pts, 3rd = 1 pt. Most points across all Situations wins. The take everyone vibes with wins the round.",
+        "✨ Sylly Mode",
+        "The Ringer",
+        "A mystery Ghost Card joins The Lineup each round. If the group gives The Nod to the Ghost instead of a real player, everyone loses points.",
+        "Got it"
+      ],
+      "howItGoes": {
+        "steps": [
+          "Read the Situation aloud.",
+          "Submit your Take.",
+          "The Lineup is revealed."
+        ],
+        "needsReview": false,
+        "totalRealSteps": 4
+      },
+      "syllyModeName": "The Ringer",
+      "minutes": null,
+      "_sources": {
+        "identityDoc": "docs/game-identities/ygi.md",
+        "mpConfig": "js/engine-multiplayer.js MP_GAME_CONFIGS.ygi",
+        "lobbyButton": "index.html #btn-ygi"
+      }
+    }
+  ]
+}

@@ -8,6 +8,44 @@ Tick items off here; promote anything architectural into `decision-log.md`.
 
 ---
 
+## Lobby redesign — TV mode sandbox round (15 Sep 2026)
+
+**Deliberately deferred, not blocked.** The Shelves round (`wip/lobby-lab/`) is done —
+sandbox built, screenshot-verified, all owner decisions recorded in
+`wip/lobby-lab/OWNER-REVIEW.md` and `wip/lobby-lab/DESIGN-NOTES.md`. Next up is the
+**build-step** (Opus plans, Fable/a build session implements Shelves for real — the four-slot
+switcher shell, Shelves wired live, Original kept working). **TV mode comes after that**, not
+before and not in parallel: Pane 3 (`#wide-canvas` in `wip/lobby-lab/index.html`) plugs into
+the same switcher shell the build-step creates, so designing it first would mean guessing at
+that shell instead of building against the real one. Premium stays an honest placeholder
+either way — that was already decided (OWNER-REVIEW.md item 6), this entry is only about
+Shelves and TV.
+
+**The plan:** build-step (Shelves) → TV-mode sandbox round → build-step (TV mode) → **one**
+combined ship (one Documentation Integrity Protocol pass, one SW version bump, one phase
+snapshot for the whole lobby-redesign initiative, not two release cycles for one initiative).
+
+**When picking this up:** open a fresh session (Fable, design mode) and reuse the prompt below
+— it's the same shape as the brief that produced the Shelves round, pointed at the sandbox as
+it stands after the build-step instead of the original static mockup.
+
+```text
+Now that Shelves has shipped for real (see [wherever the build-step spec/PR ends up — update
+this pointer once it exists]), it's TV mode's turn. Same brief structure as the Shelves round:
+read docs/lobby-redesign-brief.md § 1 first (almost nothing else), then wip/lobby-lab/
+DESIGN-NOTES.md and OWNER-REVIEW.md for what Shelves actually became and why, particularly
+the settled visual language (the keycap/gel-btn treatment, the badge-disc-with-sticker
+pattern, the plum ink, the Stack layout discipline) — TV mode should read as the same family,
+not a fourth unrelated visual system. Build in wip/lobby-lab/ Pane 3 (#wide-canvas, 900px,
+already scaffolded) against the REAL four-slot switcher shell from the build-step — not a
+guess at it. Same budget discipline: ~USD 100 total Fable credit for the whole lobby redesign,
+Shelves used very little of it. Same deliverable shape: a working sandbox pane, screenshot-
+verified, plus a DESIGN-NOTES.md addendum (what you built and why, anything from the brief
+you'd push back on) and an OWNER-REVIEW.md checklist for the owner's open calls.
+```
+
+---
+
 ## Controller Workshop — rotate-to-sticker's ear precision (14 Sep 2026, SW v230)
 
 Picking a placed sticker from the book now rotates the model to face it (`ctlStickerGoToModel` in
