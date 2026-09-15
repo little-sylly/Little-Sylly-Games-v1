@@ -1,0 +1,504 @@
+  <!-- ═══════════════════════════════════════════════════════════════
+       LIKE I'M FIVE (LI5)
+       Screens : #screen-menu, #screen-setup, #screen-gatekeeper,
+                 #screen-active-play, #screen-gameover
+       Overlays: #settings-overlay, #li5-how-to-overlay, #quit-overlay,
+                 #li5-play-again-overlay, #skip-turn-overlay, #review-overlay,
+                 #history-overlay, #pause-overlay (inline), #deck-panel,
+                 #li5-help-tip-overlay
+       Ref     : js/games/li5.js  (was dstw.js)
+  ════════════════════════════════════════════════════════════════ -->
+  <!-- ② MENU screen — Don't Say Those Words -->
+  <main id="screen-menu" style="display:none" class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
+    <button class="btn-open-sound absolute top-4 right-4 text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+    <div class="text-6xl" role="img" aria-label="Speech balloon">💬</div>
+    <div>
+      <h1 class="text-5xl font-bold leading-tight text-stone-800">Like I'm</h1>
+      <h1 class="text-5xl font-bold leading-tight text-pink-500">Five</h1>
+    </div>
+    <p class="text-stone-500 text-lg">Explain it simply. But no no-nos for me!</p>
+    <div class="flex flex-col gap-4 w-full mt-2">
+      <button id="btn-play" class="gel-btn min-h-14 w-full rounded-2xl bg-pink-500 hover:bg-pink-600 text-white text-xl font-semibold">
+        Play Time!
+      </button>
+      <button id="btn-how-to" class="gel-btn min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 text-white text-xl font-semibold">
+        How to Play
+      </button>
+      <button id="btn-settings" class="gel-btn gel-btn-light min-h-14 w-full rounded-2xl bg-pink-100 hover:bg-pink-200 text-pink-700 text-xl font-semibold">
+        Settings
+      </button>
+      <button id="btn-back-to-lobby" class="gel-btn gel-btn-light min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 text-stone-500 text-xl font-semibold">
+        ← Back to the Box
+      </button>
+    </div>
+  </main>
+
+  <!-- ② SETUP screen — team name entry -->
+  <section id="screen-setup" style="display:none" class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
+    <div class="absolute top-4 right-4 flex items-center gap-2">
+      <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+      <button id="btn-setup-exit" class="text-xl text-stone-500 font-bold active:scale-90 transition-transform duration-100">✕</button>
+    </div>
+    <div class="text-5xl" role="img" aria-label="People">👥</div>
+    <div>
+      <h2 class="text-3xl font-bold text-stone-800">Name your Playgroups!</h2>
+      <p class="text-stone-400 text-base mt-1">Leave blank to use Crayon Crew &amp; Glue Stick Gang</p>
+    </div>
+    <div class="flex flex-col gap-4 w-full text-left">
+      <div>
+        <label class="text-stone-500 text-sm font-semibold uppercase tracking-widest block mb-1">Team 1</label>
+        <input id="input-team1" type="text" maxlength="20" placeholder="e.g. Crayon Crew"
+          class="w-full rounded-xl border-2 border-stone-200 bg-white px-4 py-3 text-lg text-stone-800 placeholder-stone-300 focus:border-pink-400 focus:outline-none transition-colors" />
+      </div>
+      <div>
+        <label class="text-stone-500 text-sm font-semibold uppercase tracking-widest block mb-1">Team 2</label>
+        <input id="input-team2" type="text" maxlength="20" placeholder="e.g. Glue Stick Gang"
+          class="w-full rounded-xl border-2 border-stone-200 bg-white px-4 py-3 text-lg text-stone-800 placeholder-stone-300 focus:border-pink-400 focus:outline-none transition-colors" />
+      </div>
+    </div>
+    <button id="btn-start-game" class="min-h-14 w-full rounded-2xl bg-pink-500 hover:bg-pink-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+Let's Go Already!
+</button>
+  </section>
+
+  <!-- ③ INTERMISSION screen — round info, scores, hype, blind start -->
+  <section id="screen-gatekeeper" style="display:none" class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
+    <div class="absolute top-4 right-4 flex items-center gap-2">
+      <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+      <button id="btn-gatekeeper-exit" class="text-xl text-stone-500 font-bold active:scale-90 transition-transform duration-100">✕</button>
+    </div>
+    <p id="gatekeeper-round-label" class="text-stone-400 text-sm font-semibold uppercase tracking-widest">Round 1 of 5</p>
+
+    <!-- Mini scoreboard -->
+    <div class="flex gap-4 w-full">
+      <div id="gatekeeper-score-team1" class="team-box flex-1 rounded-2xl bg-white shadow-sm p-4">
+        <p id="gatekeeper-name-team1" class="text-stone-500 text-sm font-semibold truncate">Team 1</p>
+        <p id="gatekeeper-pts-team1" class="text-4xl font-bold text-stone-800">0</p>
+      </div>
+      <div id="gatekeeper-score-team2" class="team-box flex-1 rounded-2xl bg-white shadow-sm p-4">
+        <p id="gatekeeper-name-team2" class="text-stone-500 text-sm font-semibold truncate">Team 2</p>
+        <p id="gatekeeper-pts-team2" class="text-4xl font-bold text-stone-800">0</p>
+      </div>
+    </div>
+
+    <!-- Team name + hype -->
+    <div>
+      <p class="text-stone-400 text-base">Ready up,</p>
+      <h2 id="gatekeeper-team-name" class="text-4xl font-bold text-stone-800 mt-1"></h2>
+      <p id="gatekeeper-hype" class="text-stone-500 text-lg mt-3 italic"></p>
+    </div>
+
+    <button id="btn-start-turn" class="min-h-14 w-full rounded-2xl bg-pink-500 hover:bg-pink-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      My Turn!
+    </button>
+  </section>
+
+  <!-- ⑤ ACTIVE PLAY screen — timer, word, taboo list, score buttons -->
+  <section id="screen-active-play" style="display:none" class="flex flex-col items-center px-6 py-3 w-full max-w-sm mx-auto text-center gap-2">
+
+    <!-- Header row: [Team Name] | Timer | [⏸ ⏭ 🔊 ✕] -->
+    <div class="w-full" style="display:grid; grid-template-columns: 1fr auto 1fr; align-items: center;">
+      <div class="flex flex-col items-center min-w-0">
+        <span id="active-team-label" class="text-stone-500 text-sm font-semibold truncate w-full"></span>
+        <span id="hype-phrase" class="text-xs font-bold text-orange-500 leading-tight"></span>
+      </div>
+      <span id="timer-display" class="text-3xl font-bold text-stone-800 tabular-nums">1:00</span>
+      <div class="flex items-center justify-end gap-2">
+        <button id="btn-pause"    aria-label="Pause"    class="text-xl leading-none text-stone-400 active:scale-90 transition-transform duration-100">⏸</button>
+        <button id="btn-end-turn" aria-label="End turn" class="text-xl leading-none text-stone-400 active:scale-90 transition-transform duration-100">⏭</button>
+        <button id="btn-mute"     aria-label="Mute"     class="text-xl leading-none text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+        <button id="btn-li5-how-to" aria-label="Help" class="text-stone-300 font-mono font-bold text-xl leading-none active:scale-90 transition-transform duration-100">?</button>
+        <button id="btn-stop"     aria-label="Quit game" class="text-xl leading-none text-stone-500 font-bold active:scale-90 transition-transform duration-100">✕</button>
+      </div>
+    </div>
+
+    <!-- Pause overlay — shown instead of word/taboo/buttons when paused -->
+    <div id="pause-overlay" style="display:none" class="flex flex-col items-center gap-4 w-full">
+      <p class="text-5xl">⏸</p>
+      <p class="text-stone-400 text-lg font-semibold">Time Out</p>
+      <p class="text-stone-400 text-sm">Word is hidden so no peeking!</p>
+      <button id="btn-resume" class="min-h-14 w-full rounded-2xl bg-pink-500 hover:bg-pink-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        ▶ Let's Continue Playing!
+      </button>
+    </div>
+
+    <!-- Game content — hidden while paused -->
+    <div id="active-content" class="flex flex-col w-full gap-2">
+      <!-- Target word + taboo list wrapped for Sylly glow -->
+      <div id="active-word-card" class="w-full">
+        <p id="word-category-label" class="text-stone-400 text-xs uppercase tracking-widest mb-1"></p>
+        <h2 id="active-word" class="text-3xl font-bold text-pink-500 mb-2"></h2>
+        <div id="taboo-card" class="w-full text-center bg-white rounded-2xl px-3 pb-3 pt-8 shadow-sm">
+          <p class="text-stone-400 text-xs uppercase tracking-widest mb-2">The No-No List</p>
+          <ul id="active-taboo-list" class="flex flex-col gap-2"></ul>
+        </div>
+      </div>
+
+      <!-- Live score + Sylly scoring hint -->
+      <p class="text-stone-500 text-base mb-1">Score: <span id="score-display" class="font-bold text-stone-800">0</span></p>
+      <p id="sylly-scoring-hint" style="display:none" class="text-purple-500 text-sm font-semibold">✨ Sylly word x2 🔥</p>
+
+      <!-- Action buttons -->
+      <div class="flex gap-3 w-full mb-3">
+        <button id="btn-correct" class="min-h-12 flex-1 rounded-xl bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white text-lg font-semibold transition-all duration-150">
+          Yay!
+        </button>
+        <button id="btn-taboo" class="min-h-12 flex-1 rounded-xl bg-red-500 hover:bg-red-600 active:scale-95 text-white text-lg font-semibold transition-all duration-150">
+          Nay!
+        </button>
+      </div>
+      <button id="btn-skip" class="min-h-10 w-full rounded-xl bg-stone-300 hover:bg-stone-400 active:scale-95 text-stone-700 text-base font-semibold transition-all duration-150">
+        Skip!
+      </button>
+    </div>
+  </section>
+
+  <!-- ⑦ SETTINGS MODAL — slide-up overlay -->
+  <div id="settings-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[80] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
+
+      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
+        <h2 class="text-xl font-bold text-stone-800">Learning Plan 📝</h2>
+        <p class="text-xs text-stone-400 mt-1">Adults make the rules! ✋</p>
+      </div>
+
+      <!-- Scrollable settings body -->
+      <div class="flex-1 overflow-y-auto flex flex-col gap-5 px-6 pt-5 pb-3">
+
+        <!-- Decks -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <div class="flex items-center justify-between">
+            <p class="text-stone-800 font-semibold">The Toy Box</p>
+            <button id="all-decks-toggle" class="game-toggle-on-pink shrink-0">ON</button>
+          </div>
+          <p class="text-stone-400 text-sm">Play with all word categories, or pick and choose.</p>
+          <button id="btn-edit-deck" style="display:none"
+            class="w-full rounded-xl bg-stone-200 text-stone-700 font-semibold py-2 text-base active:scale-95 transition-all">
+            Edit Toy Box ▸
+          </button>
+        </div>
+
+        <!-- Difficulty -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">Report Card</p>
+            <p class="text-stone-400 text-sm mt-0.5">Control how tricky the words are.</p>
+          </div>
+          <div class="flex flex-col gap-2">
+            <div class="flex gap-2">
+              <button class="pill" data-group="difficulty" data-value="easy">Gold Star ⭐</button>
+              <button class="pill pill-active-pink" data-group="difficulty" data-value="standard">Honour Roll 📚</button>
+            </div>
+            <p id="li5-val-difficulty" class="text-stone-400 text-xs"></p>
+          </div>
+        </div>
+
+        <!-- Timer -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">Tick Tock Clock</p>
+            <p class="text-stone-400 text-sm mt-0.5">How long each team has to describe words.</p>
+          </div>
+          <div class="flex gap-2">
+            <button class="pill" data-group="timer" data-value="30">30s</button>
+            <button class="pill pill-active-pink" data-group="timer" data-value="60">60s</button>
+            <button class="pill" data-group="timer" data-value="90">90s</button>
+          </div>
+        </div>
+
+        <!-- Rounds -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">Roundy Rounds</p>
+            <p class="text-stone-400 text-sm mt-0.5">Number of turns per team.</p>
+          </div>
+          <div class="flex gap-2">
+            <button class="pill" data-group="rounds" data-value="3">3</button>
+            <button class="pill pill-active-pink" data-group="rounds" data-value="5">5</button>
+            <button class="pill" data-group="rounds" data-value="10">10</button>
+          </div>
+        </div>
+
+        <!-- Penalty Type -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">Oopsie Daisy</p>
+            <p class="text-stone-400 text-sm mt-0.5">Penalty for saying a forbidden word.</p>
+          </div>
+          <div class="flex gap-2">
+            <button class="pill pill-active-pink" data-group="penalty-mode" data-value="points">−1 Point</button>
+            <button id="pill-time-penalty" class="pill" data-group="penalty-mode" data-value="time">−10 Secs</button>
+          </div>
+        </div>
+
+        <!-- Skip Cost -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">Skip</p>
+            <p class="text-stone-400 text-sm mt-0.5">Whether skipping a word costs a penalty.</p>
+          </div>
+          <div class="flex gap-2">
+            <button class="pill pill-active-pink" data-group="skip-cost" data-value="free">Free</button>
+            <button class="pill" data-group="skip-cost" data-value="penalised">Penalised</button>
+          </div>
+        </div>
+
+        <!-- Review Corrections -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <div class="flex items-center justify-between">
+            <p class="text-stone-800 font-semibold">Pinky Swear Mode</p>
+            <button id="corrections-toggle" class="sylly-toggle-off shrink-0">OFF</button>
+          </div>
+          <p class="text-stone-400 text-sm">Tap words to flip outcome after the round.</p>
+        </div>
+
+        <!-- Sylly Mode toggle + intensity -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <div class="flex items-center justify-between">
+            <p class="text-stone-800 font-semibold">✨ Sylly Mode</p>
+            <button id="sylly-toggle" class="sylly-toggle-off shrink-0">OFF</button>
+          </div>
+          <p class="text-stone-600 text-sm font-semibold">Extra Credit</p>
+          <p class="text-stone-400 text-sm">Mixed in with the deck — correct answers score double, but also penalties! Extra Credit words always show the full No-No List.</p>
+          <div id="sylly-pct-row" style="display:none" class="flex flex-col gap-2 mt-1">
+            <p class="text-stone-500 text-sm font-semibold">Extra Credit Level</p>
+            <input id="sylly-intensity" type="range" min="30" max="100" step="10" value="30"
+              class="li5-range w-full" />
+            <p id="sylly-intensity-label" class="text-stone-400 text-xs">30% extra credit words</p>
+          </div>
+        </div>
+
+      </div><!-- end scrollable body -->
+
+      <div class="px-6 pb-8 pt-3 border-t border-stone-200">
+        <button id="btn-settings-done" class="min-h-14 w-full rounded-2xl bg-pink-500 hover:bg-pink-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+          Done
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ⑥ GAME OVER screen — final scores, winner announcement -->
+  <section id="screen-gameover" style="display:none" class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
+    <div class="absolute top-4 right-4 flex items-center gap-2">
+      <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+      <button id="btn-gameover-exit" class="text-xl text-stone-500 font-bold active:scale-90 transition-transform duration-100">✕</button>
+    </div>
+    <div class="text-6xl" role="img" aria-label="Trophy">🏆</div>
+    <h2 class="text-3xl font-bold text-stone-800">Class Dismissed!</h2>
+
+    <!-- Final scoreboard -->
+    <div class="flex gap-4 w-full">
+      <div id="gameover-card-team1" class="team-box flex-1 rounded-2xl bg-white shadow-sm p-4 cursor-pointer active:opacity-75 transition-opacity">
+        <p id="gameover-name-team1" class="text-stone-500 text-sm font-semibold truncate">Team 1</p>
+        <p id="gameover-pts-team1" class="text-5xl font-bold text-stone-800">0</p>
+        <p class="text-stone-300 text-xs mt-1">View History ›</p>
+      </div>
+      <div id="gameover-card-team2" class="team-box flex-1 rounded-2xl bg-white shadow-sm p-4 cursor-pointer active:opacity-75 transition-opacity">
+        <p id="gameover-name-team2" class="text-stone-500 text-sm font-semibold truncate">Team 2</p>
+        <p id="gameover-pts-team2" class="text-5xl font-bold text-stone-800">0</p>
+        <p class="text-stone-300 text-xs mt-1">View History ›</p>
+      </div>
+    </div>
+
+    <!-- Winner line -->
+    <p id="gameover-result" class="text-2xl font-bold text-pink-500"></p>
+
+    <!-- Early end message (word exhaustion) -->
+    <p id="gameover-early-end" style="display:none" class="text-stone-400 text-sm italic"></p>
+
+    <button id="btn-play-again" class="min-h-14 w-full rounded-2xl bg-pink-500 hover:bg-pink-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      One More Go?
+    </button>
+  </section>
+
+  <!-- Custom Deck sub-panel -->
+  <div id="deck-panel" style="display:none"
+    class="fixed inset-0 bg-black/40 z-[100] flex items-end justify-center">
+    <div class="overlay-data-inner deck-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl px-6 pt-5 pb-10 flex flex-col gap-4">
+
+      <!-- Header -->
+      <div class="text-center">
+        <h3 class="text-xl font-bold text-stone-800">Toy Box</h3>
+      </div>
+      <p class="text-stone-400 text-xs text-center -mt-2">Tap to include or exclude a category</p>
+
+      <!-- Toggle All -->
+      <div class="flex justify-end -mt-1">
+        <button id="btn-toggle-all-decks" class="text-xs font-semibold text-pink-500 active:opacity-60 transition-opacity">Deselect All</button>
+      </div>
+
+      <!-- Category grid -->
+      <div class="grid grid-cols-2 gap-3">
+        <button class="deck-card deck-card-active" data-category="animals">🐾 Animals</button>
+        <button class="deck-card deck-card-active" data-category="food">🍕 Food</button>
+        <button class="deck-card deck-card-active" data-category="places">📍 Places</button>
+        <button class="deck-card deck-card-active" data-category="objects">📦 Objects</button>
+        <button class="deck-card deck-card-active" data-category="sports">⚽ Sports</button>
+        <button class="deck-card deck-card-active" data-category="nature">🌿 Nature</button>
+        <button class="deck-card deck-card-active" data-category="vehicles">🚗 Vehicles</button>
+        <button class="deck-card deck-card-active" data-category="jobs">💼 Jobs</button>
+        <button class="deck-card deck-card-active" data-category="activities">🎯 Activities</button>
+        <button class="deck-card deck-card-active" data-category="music">🎵 Music</button>
+        <button class="deck-card deck-card-active" data-category="pop_culture">🎬 Pop Culture</button>
+        <button class="deck-card deck-card-active" data-category="people">👤 People</button>
+        <button class="deck-card deck-card-active" data-category="brands">🏷️ Brands</button>
+        <button class="deck-card deck-card-active" data-category="emotions">💭 Emotions</button>
+        <button class="deck-card deck-card-active" data-category="actions">⚡ Actions</button>
+        <button class="deck-card deck-card-active" data-category="aussie_slang">🦘 Aussie Slang</button>
+      </div>
+
+      <p id="deck-empty-msg" style="display:none" class="text-center text-pink-500 text-sm font-semibold">
+        Don't be Sylly — we need at least one deck to play! 🃏
+      </p>
+
+      <p id="deck-few-msg" style="display:none" class="text-center text-amber-500 text-sm font-semibold">
+        You sure? It'll be way more fun with more decks! 🎉
+      </p>
+
+      <button id="btn-deck-done"
+        class="min-h-14 w-full rounded-2xl bg-pink-500 hover:bg-pink-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Done
+      </button>
+    </div>
+  </div>
+
+  <!-- Quit confirmation overlay -->
+  <div id="quit-overlay" style="display:none" class="fixed inset-0 bg-black/50 z-[80] flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-pink-300">
+      <p class="text-4xl">🏳️</p>
+      <h3 class="text-xl font-bold text-stone-800">Done explaining already? 🧒</h3>
+      <p class="text-stone-400 text-sm">Your stars will disappear!</p>
+      <button id="btn-quit-confirm" class="min-h-12 w-full rounded-xl bg-red-500 hover:bg-red-600 active:scale-95 text-white text-lg font-semibold transition-all duration-150 mt-2">
+        Yeah, pack up!
+      </button>
+      <button id="btn-quit-cancel" class="min-h-12 w-full rounded-xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 text-lg font-semibold transition-all duration-150">
+        Keep going!
+      </button>
+    </div>
+  </div>
+
+  <!-- Play-again confirmation overlay -->
+  <div id="li5-play-again-overlay" style="display:none" class="fixed inset-0 bg-black/60 z-[90] flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-pink-300">
+      <div class="text-4xl">📚</div>
+      <h3 class="text-xl font-bold text-stone-800">New Playgroup?</h3>
+      <p class="text-stone-400 text-sm">Your stars and word pile will be packed away.</p>
+      <button id="btn-li5-confirm-new-game" class="min-h-14 w-full rounded-2xl bg-pink-500 hover:bg-pink-600 active:scale-95 text-white text-lg font-semibold transition-all duration-150">
+Let's do it!
+</button>
+      <button id="btn-li5-cancel-new-game" class="min-h-11 w-full rounded-2xl bg-stone-100 hover:bg-stone-200 active:scale-95 text-stone-500 text-base font-semibold transition-all duration-150">
+        Not yet!
+      </button>
+    </div>
+  </div>
+
+  <!-- Skip turn confirmation overlay -->
+  <div id="skip-turn-overlay" style="display:none" class="fixed inset-0 bg-black/50 z-[80] flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-pink-300">
+      <p class="text-4xl">⏭</p>
+      <h3 class="text-xl font-bold text-stone-800">All tuckered out?</h3>
+      <p class="text-stone-400 text-sm">The current word won't count.</p>
+      <button id="btn-skip-turn-confirm" class="min-h-12 w-full rounded-xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-lg font-semibold transition-all duration-150 mt-2">
+        Yep, break time!
+      </button>
+      <button id="btn-skip-turn-cancel" class="min-h-12 w-full rounded-xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 text-lg font-semibold transition-all duration-150">
+        Not yet!
+      </button>
+    </div>
+  </div>
+
+  <!-- Round Review overlay — slide-up sheet, appears after each turn -->
+  <div id="review-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[90] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl px-5 pt-5 pb-5 flex flex-col">
+
+      <!-- Header -->
+      <div class="text-center mb-1">
+        <p id="review-team-label" class="text-stone-400 text-xs font-semibold uppercase tracking-widest"></p>
+        <h3 class="text-xl font-bold text-stone-800 mt-0.5">Report Card</h3>
+        <p id="review-score-delta" class="text-pink-500 font-semibold text-sm mt-0.5"></p>
+      </div>
+
+      <!-- Streak callout (hidden unless 3+ consecutive correct) -->
+      <p id="review-streak" style="display:none" class="text-center text-orange-500 font-bold text-sm mb-2">🔥 Hot streak!</p>
+
+      <!-- Scrollable word list -->
+      <ul id="review-list" class="flex-1 overflow-y-auto flex flex-col gap-2 py-3 min-h-0"></ul>
+
+      <!-- Next button -->
+      <div class="pt-3">
+        <button id="btn-review-next" class="min-h-14 w-full rounded-2xl bg-pink-500 hover:bg-pink-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+          Your Turn →
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Match History overlay -->
+  <div id="history-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[90] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl px-5 pt-5 pb-5 flex flex-col">
+      <div class="text-center mb-3">
+        <p id="history-subtitle" class="text-stone-400 text-xs font-semibold uppercase tracking-widest mb-0.5">Report Card</p>
+        <h3 id="history-title" class="text-xl font-bold text-stone-800"></h3>
+      </div>
+      <div id="history-body" class="flex-1 overflow-y-auto flex flex-col gap-4 pb-2 min-h-0"></div>
+      <div class="pt-3">
+        <button id="btn-history-close" class="min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- How to Play overlay -->
+  <div id="li5-how-to-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[90] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
+      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
+        <h2 class="text-xl font-bold text-stone-800">How to Play 💬</h2>
+        <p class="text-xs text-stone-400 mt-1">Describe the word without saying anything on the No-No List.</p>
+      </div>
+      <div class="overflow-y-auto flex flex-col gap-4 px-5 py-5">
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest text-pink-500">Step 1</p>
+          <p class="font-bold text-stone-800">Divide into two teams.</p>
+          <p class="text-stone-500 text-sm">One person describes the <span class="font-semibold text-stone-700">Word</span> on screen while their team guesses. Get as many right as you can before the timer runs out!</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest text-pink-500">Step 2</p>
+          <p class="font-bold text-stone-800">Don't say the No-No words.</p>
+          <p class="text-stone-500 text-sm">You also can't say any part of the main word. Use your hands, sounds, or wild metaphors — just no cheating, yeah?</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest text-pink-500">Winning and Scoring</p>
+          <p class="font-bold text-stone-800">Points on every outcome.</p>
+          <ul class="list-disc pl-5 flex flex-col gap-1 text-stone-500 text-sm">
+            <li>✅ <span class="font-semibold text-stone-700">Correct</span> — your team got it, ripper!</li>
+            <li>❌ <span class="font-semibold text-stone-700">No-No!</span> — busted! Points off.</li>
+            <li>⏩ <span class="font-semibold text-stone-700">Skip</span> — too hard? Pass it on.</li>
+            <li>✨ <span class="font-semibold text-stone-700">Sylly words</span> — tricky ones worth double points.</li>
+          </ul>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest text-pink-500">✨ Sylly Mode</p>
+          <p class="font-bold text-stone-800">Extra Credit</p>
+          <p class="text-stone-500 text-sm">Extra Credit words are shuffled into the deck. Correct answers score double, but they carry penalties too — and show all 10 No-No words.</p>
+        </div>
+        <button id="btn-li5-how-to-close" class="min-h-14 w-full rounded-2xl bg-pink-500 hover:bg-pink-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+          Got it
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- li5-help-tip-overlay (decision modal z-[90] — contextual help) -->
+  <div id="li5-help-tip-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[90] flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-pink-300">
+      <p id="li5-help-tip-emoji" class="text-4xl"></p>
+      <h3 id="li5-help-tip-heading" class="text-lg font-bold text-stone-800"></h3>
+      <p id="li5-help-tip-text" class="text-stone-500 text-sm"></p>
+      <button id="btn-li5-help-tip-close" class="min-h-12 w-full rounded-xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-base font-semibold transition-all duration-150">
+        Got it ✓
+      </button>
+    </div>
+  </div>
+

@@ -1,0 +1,640 @@
+  <!-- ════════════════════════════════════════════════════════════════
+       LATE TO THE PARTY (LTTP)
+       Screens : screen-lttp-menu, screen-lttp-setup, screen-lttp-briefing,
+                 screen-lttp-role-reveal, screen-lttp-handover, screen-lttp-chat,
+                 screen-lttp-guess, screen-lttp-group-guess, screen-lttp-gameover
+       Overlays: lttp-suspicion-overlay (folder), lttp-history-overlay, lttp-guess-map-overlay,
+                 lttp-confirm-overlay (free-text message), lttp-settings-overlay,
+                 lttp-how-to-overlay, lttp-quit-overlay, lttp-new-plans-overlay,
+                 lttp-help-tip-overlay, lttp-tip-overlay, lttp-smalltalk-overlay
+       Note    : screen-lttp-smalltalk (screen) removed Phase 21a; lttp-smalltalk-overlay data overlay retained
+       Ref     : js/games/lttp.js
+  ════════════════════════════════════════════════════════════════ -->
+
+  <!-- lttp-① MENU -->
+  <section id="screen-lttp-menu" style="display:none" class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
+    <button class="btn-open-sound absolute top-4 right-4 text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+    <div class="text-6xl" role="img" aria-label="Running man">🏃‍♂️</div>
+    <div>
+      <h1 class="text-5xl font-bold leading-tight text-stone-800">Late To</h1>
+      <h1 class="text-5xl font-bold leading-tight text-red-500">The Party</h1>
+    </div>
+    <p class="text-stone-500 text-lg">Everyone's at the party except you.</p>
+    <div class="flex flex-col gap-4 w-full mt-2">
+      <button id="btn-lttp-menu-play" class="gel-btn min-h-14 w-full rounded-2xl bg-red-500 hover:bg-red-600 text-white text-xl font-semibold">
+        Find The Location!
+      </button>
+      <button id="btn-lttp-menu-how-to" class="gel-btn min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 text-white text-xl font-semibold">
+        How to Play
+      </button>
+      <button id="btn-lttp-menu-settings" class="gel-btn gel-btn-light min-h-14 w-full rounded-2xl bg-red-100 hover:bg-red-200 text-red-700 text-xl font-semibold">
+        Settings
+      </button>
+      <button id="btn-lttp-menu-back" class="gel-btn gel-btn-light min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 text-stone-500 text-xl font-semibold">
+        ← Back to the Box
+      </button>
+    </div>
+  </section>
+
+  <!-- lttp-② SETUP -->
+  <section id="screen-lttp-setup" style="display:none" class="flex flex-col px-6 w-full max-w-sm mx-auto min-h-screen overflow-y-auto">
+    <div class="flex flex-col gap-6 my-auto py-8">
+      <div class="flex items-center justify-between">
+        <button id="btn-lttp-setup-back" class="text-stone-400 text-2xl active:scale-90 transition-transform duration-100">←</button>
+        <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest">Who's Coming?</p>
+        <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+      </div>
+
+      <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+        <div>
+          <p class="text-stone-800 font-semibold">Players</p>
+          <p class="text-stone-400 text-sm mt-0.5">How many friends are at the party?</p>
+        </div>
+        <div class="flex gap-2">
+          <button class="pill pill-active-red" data-lttp-player-count="4">4</button>
+          <button class="pill" data-lttp-player-count="5">5</button>
+          <button class="pill" data-lttp-player-count="6">6</button>
+        </div>
+      </div>
+
+      <div class="flex flex-col gap-3">
+        <div id="lttp-player-row-1"><input id="lttp-player-1" type="text" placeholder="Player 1" maxlength="20" class="w-full rounded-2xl bg-stone-100 border-0 px-4 py-3 text-stone-800 text-base placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-red-300"></div>
+        <div id="lttp-player-row-2"><input id="lttp-player-2" type="text" placeholder="Player 2" maxlength="20" class="w-full rounded-2xl bg-stone-100 border-0 px-4 py-3 text-stone-800 text-base placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-red-300"></div>
+        <div id="lttp-player-row-3"><input id="lttp-player-3" type="text" placeholder="Player 3" maxlength="20" class="w-full rounded-2xl bg-stone-100 border-0 px-4 py-3 text-stone-800 text-base placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-red-300"></div>
+        <div id="lttp-player-row-4"><input id="lttp-player-4" type="text" placeholder="Player 4" maxlength="20" class="w-full rounded-2xl bg-stone-100 border-0 px-4 py-3 text-stone-800 text-base placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-red-300"></div>
+        <div id="lttp-player-row-5" style="display:none"><input id="lttp-player-5" type="text" placeholder="Player 5" maxlength="20" class="w-full rounded-2xl bg-stone-100 border-0 px-4 py-3 text-stone-800 text-base placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-red-300"></div>
+        <div id="lttp-player-row-6" style="display:none"><input id="lttp-player-6" type="text" placeholder="Player 6" maxlength="20" class="w-full rounded-2xl bg-stone-100 border-0 px-4 py-3 text-stone-800 text-base placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-red-300"></div>
+      </div>
+
+      <button id="btn-lttp-setup-confirm" class="min-h-14 w-full rounded-2xl bg-red-500 hover:bg-red-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Everyone's In! →
+      </button>
+    </div>
+  </section>
+
+  <!-- lttp-③ ROLE REVEAL (private — shown after pass-gate handover) -->
+  <section id="screen-lttp-role-reveal" style="display:none" class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-4">
+    <div class="flex items-center justify-between px-4 pt-4 pb-2 ">
+      <button class="btn-lttp-quit-open w-10 h-10 flex items-center justify-center text-stone-500 font-bold text-xl active:scale-90 transition-transform duration-100">✕</button>
+      <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+    </div>
+    <div class="  flex flex-col">
+      <div class=" px-6 py-8 flex flex-col items-center gap-5 text-center">
+        <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest" id="lttp-reveal-name"></p>
+        <div id="lttp-reveal-badge" class="text-2xl font-black text-red-600 tracking-wide"></div>
+        <div id="lttp-reveal-info" class="text-stone-500 text-sm"></div>
+        <div id="lttp-reveal-grid" class="grid grid-cols-4 gap-1 w-full max-w-xs mt-2"></div>
+      </div>
+    </div>
+    <div class="px-6 pb-8 pt-2 ">
+      <button id="btn-lttp-role-got-it" class="min-h-14 w-full rounded-2xl bg-red-500 hover:bg-red-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Got it →
+      </button>
+    </div>
+  
+    </div>
+  </section>
+
+  <!-- lttp-④ BRIEFING (settings recap + first player callout) -->
+  <section id="screen-lttp-briefing" style="display:none" class="relative flex flex-col items-center justify-center px-6 w-full max-w-sm mx-auto text-center min-h-screen">
+    <div class="absolute top-4 right-4 flex items-center gap-2">
+      <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+      <button class="btn-lttp-quit-open text-stone-400 text-2xl active:scale-90 transition-transform duration-100">✕</button>
+    </div>
+    <div class="overlay-modal-inner w-full flex flex-col gap-4 border border-red-300">
+      <div>
+        <div id="lttp-briefing-emoji" class="text-4xl mb-2">🎉</div>
+        <h2 id="lttp-briefing-heading" class="text-2xl font-bold text-stone-800">Tonight's Plans</h2>
+      </div>
+      <div class="flex flex-col gap-2 text-left bg-stone-50 rounded-2xl px-4 py-3">
+        <p class="text-stone-700 font-medium" id="lttp-briefing-players"></p>
+        <p class="text-stone-700 font-medium" id="lttp-briefing-diff"></p>
+        <p class="text-stone-700 font-medium" id="lttp-briefing-joker"></p>
+      </div>
+      <hr class="border-stone-200">
+      <p class="text-stone-500 text-sm" id="lttp-briefing-first"></p>
+      <button id="btn-lttp-briefing-go" class="min-h-14 w-full rounded-2xl bg-red-500 hover:bg-red-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        <span id="lttp-briefing-btn-label">Let's Go</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- lttp-⑥ HANDOVER (pass gate between turns + plan transitions) -->
+  <section id="screen-lttp-handover" style="display:none" class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6 min-h-screen">
+    <div class="absolute top-4 right-4 flex items-center gap-2">
+      <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+      <button class="btn-lttp-quit-open text-stone-400 text-2xl active:scale-90 transition-transform duration-100">✕</button>
+    </div>
+    <div class="text-6xl">📱</div>
+    <div>
+      <h2 class="text-2xl font-bold text-stone-800" id="lttp-handover-name"></h2>
+      <p class="text-stone-500 text-base mt-2" id="lttp-handover-sub">Don't peek — hand it over.</p>
+    </div>
+    <!-- Message block — visible in chat mode when a message was sent -->
+    <div id="lttp-handover-msg-block" style="display:none" class="flex flex-col gap-2 w-full">
+      <p id="lttp-handover-msg-text" class="bg-stone-100 rounded-2xl px-4 py-3 text-stone-800 text-base italic text-left"></p>
+      <p class="text-stone-600 text-sm font-semibold">Read this message aloud, then hand over the phone.</p>
+    </div>
+    <button id="btn-lttp-handover-ready" class="min-h-14 w-full rounded-2xl bg-red-500 hover:bg-red-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      I'm Ready
+    </button>
+  </section>
+
+  <!-- lttp-⑤ CHAT (main interrogation hub) -->
+  <section id="screen-lttp-chat" style="display:none" class="flex flex-col justify-center w-full max-w-sm mx-auto min-h-screen">
+
+    <!-- Red bar: plan / name / role — 🔊 + ✕ only -->
+    <div class="bg-red-500 px-4 pt-3 pb-3 relative">
+      <div class="text-center">
+        <p id="lttp-chat-plan-label"      class="text-red-200 text-xs font-semibold uppercase tracking-widest"></p>
+        <p id="lttp-chat-player-label"    class="text-white text-lg font-black leading-tight mt-0.5"></p>
+        <p id="lttp-chat-role-label"      class="text-red-200 text-xs font-medium mt-0.5"></p>
+        <p id="lttp-chat-role-objective"  class="text-red-300 text-xs mt-0.5"></p>
+      </div>
+      <div class="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-3">
+        <button class="btn-open-sound text-white text-xl active:scale-90 transition-transform duration-100">🔊</button>
+        <button id="btn-lttp-how-to" class="btn-lttp-help-open text-white/50 font-mono font-bold text-xl active:scale-90 transition-transform duration-100">?</button>
+        <button class="btn-lttp-quit-open text-white text-2xl active:scale-90 transition-transform duration-100">✕</button>
+      </div>
+    </div>
+
+    <!-- Tab bar -->
+    <div class="bg-white border-b border-stone-100 flex">
+      <button id="btn-lttp-tab-map"
+        class="flex-1 py-2.5 text-sm font-semibold text-stone-700 border-b-2 border-stone-700 transition-all duration-200">
+        🗺️ Map
+      </button>
+      <button id="btn-lttp-tab-contacts"
+        class="flex-1 py-2.5 text-sm font-semibold text-stone-400 border-b-2 border-transparent transition-all duration-200">
+        🕵️ Contacts
+      </button>
+    </div>
+
+    <!-- Pane A: Map (shown by default) -->
+    <div id="lttp-pane-map" class="flex flex-col px-4 pt-4 pb-6 gap-2">
+      <h2 class="text-base font-bold text-stone-800">🗺️ Map</h2>
+      <p id="lttp-map-sub" class="text-xs text-stone-400"></p>
+      <div id="lttp-map-grid" class="grid grid-cols-4 gap-1.5"></div>
+      <div class="flex items-center justify-center gap-2 pt-1">
+        <p id="lttp-map-instruction" class="text-xs text-stone-400 text-center">1. Check the map.&nbsp;&nbsp;2. Tap Contacts to choose who to message.</p>
+        <button id="btn-lttp-chat-tip" class="text-stone-300 font-mono font-bold text-sm active:scale-90 transition-transform duration-100 flex-shrink-0">?</button>
+      </div>
+    </div>
+
+    <!-- Pane B: Contacts + Chatlog (hidden by default) -->
+    <div id="lttp-pane-contacts" style="display:none" class="flex flex-col px-4 pt-4 pb-6 gap-4">
+
+      <div>
+        <h2 class="text-base font-bold text-stone-800">👥 Contacts</h2>
+        <p class="text-xs text-stone-400 mt-0.5">Tap a name to message · tap notes to annotate.</p>
+      </div>
+
+      <!-- Contacts table -->
+      <div class="flex flex-col">
+        <div class="flex items-center px-1 pb-1 text-stone-400 text-xs font-semibold uppercase tracking-widest">
+          <span class="w-1/4">Contact</span>
+          <span class="w-1/2 px-2">Notes</span>
+          <span class="w-1/4 text-right">Status</span>
+        </div>
+        <div class="relative">
+          <div class="absolute top-0 left-0 right-0 h-5 bg-gradient-to-b from-white to-transparent pointer-events-none z-10"></div>
+          <div id="lttp-contacts-list" class="flex flex-col gap-2 max-h-[45vh] overflow-y-auto py-1"></div>
+          <div class="absolute bottom-0 left-0 right-0 h-5 bg-gradient-to-t from-white to-transparent pointer-events-none z-10"></div>
+        </div>
+      </div>
+
+      <!-- Chatlog preview -->
+      <div class="border-t border-stone-100 pt-3">
+        <button id="btn-lttp-open-history" class="w-full text-left mb-2">
+          <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest">📜 Group Chatlog ›</p>
+        </button>
+        <div id="lttp-chatlog-preview" class="flex flex-col gap-1 text-stone-500 text-xs"></div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- lttp-⑥ GUESS (Plan 4 vote + pin — pass-the-phone) -->
+  <section id="screen-lttp-guess" style="display:none" class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-4">
+
+      <!-- Pass gate sub-state -->
+      <div id="lttp-guess-pass-gate" class="flex flex-col gap-4">
+        <div class="flex items-center justify-end">
+          <div class="flex items-center gap-2">
+            <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+            <button class="btn-lttp-quit-open w-10 h-10 flex items-center justify-center text-stone-500 font-bold text-xl active:scale-90 transition-transform duration-100">✕</button>
+          </div>
+        </div>
+        <div class="flex flex-col items-center gap-4 text-center">
+          <div class="text-6xl">📱</div>
+          <div>
+            <h2 class="text-2xl font-bold text-stone-800" id="lttp-guess-pass-name"></h2>
+            <p class="text-stone-500 text-base mt-2">Don't peek — it's time to find the Friend of a Friend.</p>
+          </div>
+          <button id="btn-lttp-guess-ready" class="min-h-14 w-full rounded-2xl bg-red-500 hover:bg-red-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+            I'm Ready
+          </button>
+        </div>
+      </div>
+
+      <!-- Action sub-state (vote or pin) -->
+      <div id="lttp-guess-action" style="display:none" class="flex flex-col gap-4">
+        <div class="flex items-center justify-between">
+          <div>
+            <p id="lttp-guess-action-header" class="text-stone-800 font-black text-xl"></p>
+            <p id="lttp-guess-action-sub" class="text-stone-400 text-sm mt-0.5"></p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button id="btn-lttp-guess-map" class="text-stone-400 text-xl active:scale-90 transition-transform duration-100">🗺️</button>
+            <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+            <button class="btn-lttp-quit-open w-10 h-10 flex items-center justify-center text-stone-500 font-bold text-xl active:scale-90 transition-transform duration-100">✕</button>
+          </div>
+        </div>
+        <div>
+          <!-- Pin grid (Stray only) -->
+          <div id="lttp-guess-pin-area" style="display:none" class="flex flex-col gap-3">
+            <div id="lttp-guess-grid" class="grid grid-cols-4 gap-1.5"></div>
+          </div>
+          <!-- Vote list (non-Stray) -->
+          <div id="lttp-guess-vote-area" style="display:none" class="flex flex-col gap-2">
+            <div id="lttp-guess-vote-list" class="flex flex-col gap-2"></div>
+          </div>
+        </div>
+        <button id="btn-lttp-guess-confirm" class="min-h-14 w-full rounded-2xl bg-red-500 hover:bg-red-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+          Lock It In
+        </button>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- lttp-⑦ GROUP GUESS -->
+  <section id="screen-lttp-group-guess" style="display:none" class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-4">
+      <div class="flex items-center justify-between">
+        <span class="text-stone-400 text-sm font-medium">Plan 4 — Last Drinks</span>
+        <div class="flex items-center gap-2">
+          <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+          <button class="btn-lttp-quit-open w-10 h-10 flex items-center justify-center text-stone-500 font-bold text-xl active:scale-90 transition-transform duration-100">✕</button>
+        </div>
+      </div>
+      <div class="text-center">
+        <p class="text-stone-800 text-lg font-bold">Who's the Friend of a Friend?</p>
+        <p class="text-stone-400 text-sm mt-1">Discuss as a group, then tap to select.</p>
+      </div>
+      <div id="lttp-group-guess-list" class="flex flex-col gap-3"></div>
+      <button id="btn-lttp-group-guess-confirm" disabled
+        class="min-h-14 w-full rounded-2xl bg-stone-300 text-white text-xl font-semibold transition-all duration-150 cursor-not-allowed">
+Lock It In
+</button>
+    </div>
+  </section>
+
+  <!-- lttp-⑧ GAMEOVER -->
+  <section id="screen-lttp-gameover" style="display:none" class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-4">
+
+    <!-- Fixed header -->
+    <div class="flex items-center justify-between px-4 pt-4 pb-2 ">
+      <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest">How It All Played Out</p>
+      <div class="flex items-center gap-2">
+        <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+        <button id="btn-lttp-gameover-exit" class="text-stone-400 text-2xl active:scale-90 transition-transform duration-100">✕</button>
+      </div>
+    </div>
+
+    <!-- Scrollable body -->
+    <div class="   px-6 py-3 flex flex-col gap-5">
+
+      <!-- Win banner -->
+      <div class="flex flex-col items-center gap-1">
+        <div id="lttp-gameover-banner" class="text-2xl font-black text-red-600 text-center"></div>
+        <div id="lttp-gameover-banner-sub" class="text-stone-500 text-sm text-center mt-1"></div>
+      </div>
+
+      <!-- Reveal block -->
+      <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+        <p id="lttp-gameover-address" class="text-stone-800 font-bold text-base"></p>
+        <p id="lttp-gameover-stray" class="text-stone-500 text-sm"></p>
+        <p id="lttp-gameover-pin" class="text-stone-500 text-sm"></p>
+      </div>
+
+      <!-- Votes -->
+      <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-1">
+        <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest mb-2">Who They Voted</p>
+        <div id="lttp-gameover-votes" class="flex flex-col gap-1"></div>
+      </div>
+
+      <!-- Plan log carousel -->
+      <div class="flex flex-col gap-3">
+        <div class="flex items-center justify-between">
+          <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest">The Plans</p>
+          <div class="flex items-center gap-3">
+            <button id="btn-lttp-log-prev" class="text-stone-400 text-lg active:scale-90 transition-transform duration-100">←</button>
+            <p id="lttp-log-plan-label" class="text-xs text-stone-400 font-semibold"></p>
+            <button id="btn-lttp-log-next" class="text-stone-400 text-lg active:scale-90 transition-transform duration-100">→</button>
+          </div>
+        </div>
+        <div id="lttp-log-grid" class="grid grid-cols-4 gap-1"></div>
+      </div>
+
+    </div>
+
+    <!-- Footer -->
+    <div class="px-6 pb-2 pt-2 flex flex-col gap-3">
+      <button id="btn-lttp-new-plans" class="min-h-14 w-full rounded-2xl bg-red-500 hover:bg-red-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        New Plans
+      </button>
+      <button id="btn-lttp-gameover-back" class="min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-xl font-semibold transition-all duration-150">
+        ← Back to the Box
+      </button>
+    </div>
+  
+    </div>
+  </section>
+
+  <!-- ════ LTTP OVERLAYS ════════════════════════════════════════════════════ -->
+
+  <!-- CONTACTS OVERLAY (Pattern 1 — slide-up, folder-only) -->
+  <div id="lttp-suspicion-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[80] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col" style="max-height:80vh">
+
+      <!-- FOLDER VIEW -->
+      <div id="lttp-contacts-folder" class="flex flex-col flex-1 min-h-0">
+        <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0 flex items-center gap-3">
+          <button id="btn-lttp-folder-back" class="text-stone-400 text-sm font-medium active:scale-90 transition-transform duration-100">← Done</button>
+          <h2 id="lttp-folder-name" class="text-xl font-bold text-stone-800 flex-1"></h2>
+        </div>
+        <div class="flex flex-col gap-4 px-5 py-4 overflow-y-auto flex-1">
+          <!-- Status section — shown/hidden by role -->
+          <div id="lttp-folder-status-section" class="bg-white rounded-2xl p-4 shadow-sm flex items-center justify-between">
+            <p class="text-stone-800 font-semibold text-sm">Status</p>
+            <button id="btn-lttp-folder-status" class="px-4 py-1.5 rounded-full text-sm font-medium bg-stone-100 text-stone-500">—</button>
+          </div>
+          <!-- Notes -->
+          <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+            <p class="text-stone-800 font-semibold text-sm">Observations</p>
+            <textarea id="lttp-folder-notes" rows="5"
+              class="w-full bg-stone-50 border border-stone-200 rounded-xl px-3 py-2 text-sm text-stone-700 resize-none focus:outline-none focus:ring-2 focus:ring-red-300"
+              placeholder=""></textarea>
+          </div>
+        </div>
+        <div class="px-5 pb-6 pt-2 flex-shrink-0">
+          <button id="btn-lttp-folder-done" class="min-h-12 w-full rounded-xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-base font-semibold transition-all duration-150">
+            Done
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- HISTORY OVERLAY (Pattern 1 — slide-up, full chatlog) -->
+  <div id="lttp-history-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[90] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col" style="max-height:80vh">
+      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0 flex items-center justify-between">
+        <h2 class="text-xl font-bold text-stone-800">Group Chatlog 📜</h2>
+        <button id="btn-lttp-history-close" class="text-stone-400 text-sm font-medium active:scale-90 transition-transform duration-100">Close</button>
+      </div>
+      <div id="lttp-history-full" class="flex flex-col gap-1 px-5 py-4 overflow-y-auto flex-1 text-stone-500 text-sm"></div>
+    </div>
+  </div>
+
+  <!-- GUESS MAP OVERLAY (Pattern 2 — centred modal, annotations only, guess phase) -->
+  <div id="lttp-guess-map-overlay" style="display:none" class="fixed inset-0 bg-black/50 z-[95] flex items-center justify-center px-4">
+    <div class="bg-white rounded-2xl w-full max-w-sm flex flex-col shadow-xl" style="max-height:85vh">
+      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
+        <h2 class="text-base font-bold text-stone-800">🚨 Your Map — Annotations</h2>
+        <p class="text-xs text-stone-400 mt-0.5">Use your notes to pick the right location.</p>
+      </div>
+      <div class="px-4 py-4 overflow-y-auto flex-1">
+        <div id="lttp-guess-map-grid" class="grid grid-cols-4 gap-1.5"></div>
+      </div>
+      <div class="px-5 pb-5 pt-2 flex-shrink-0">
+        <button id="btn-lttp-guess-map-close" class="min-h-12 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-base font-semibold transition-all duration-150">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SETTINGS OVERLAY (Pattern 1 — slide-up) -->
+  <div id="lttp-settings-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[80] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
+      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
+        <h2 class="text-xl font-bold text-stone-800">Night Out Settings 🗺️</h2>
+        <p class="text-xs text-stone-400 mt-1">What's the plan tonight?</p>
+      </div>
+      <div class="overflow-y-auto flex flex-col gap-5 px-5 py-5">
+
+      <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+        <div>
+          <p class="text-stone-800 font-semibold">Party Destination</p>
+          <p class="text-stone-400 text-sm mt-0.5">How familiar is tonight's location?</p>
+        </div>
+        <div class="flex gap-2">
+          <button class="pill pill-active-red flex-1" data-lttp-difficulty="local">The Local Hang</button>
+          <button class="pill flex-1" data-lttp-difficulty="secret">The Secret Spot</button>
+        </div>
+        <p id="lttp-val-difficulty" class="text-stone-400 text-xs"></p>
+      </div>
+
+      <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+        <div class="flex items-center justify-between">
+          <p class="text-stone-800 font-semibold">Group Vote</p>
+          <button id="btn-lttp-groupvote-toggle" class="game-toggle-on-red shrink-0">ON</button>
+        </div>
+        <p class="text-stone-400 text-sm">Everyone votes together on who's the Friend of a Friend. Turn off to pass the phone individually.</p>
+      </div>
+
+      <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+        <div class="flex items-center justify-between">
+          <p class="text-stone-800 font-semibold">Small Talk Helper</p>
+          <button id="btn-lttp-smalltalk-toggle" class="game-toggle-off shrink-0">OFF</button>
+        </div>
+        <p class="text-stone-400 text-sm">Suggests conversation starters to help kick off small talk before you type your message.</p>
+      </div>
+
+      <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+        <div class="flex items-center justify-between">
+          <p class="text-stone-800 font-semibold">✨ Sylly Mode</p>
+          <button id="btn-lttp-joker-toggle" class="game-toggle-off shrink-0">OFF</button>
+        </div>
+        <p class="text-stone-600 text-sm font-semibold">The Troublemaker</p>
+        <p class="text-stone-400 text-sm">One Gang member knows the real location and holds 2 decoys to plant. If the Friend of a Friend pins one, The Troublemaker scores big instead.</p>
+      </div>
+
+      <button id="btn-lttp-settings-done" class="min-h-14 w-full rounded-2xl bg-red-500 hover:bg-red-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Done
+      </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- HOW TO PLAY OVERLAY (Pattern 1 — slide-up) -->
+  <div id="lttp-how-to-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[90] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
+      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
+        <h2 class="text-xl font-bold text-stone-800">How to Play 🏃‍♂️</h2>
+        <p class="text-xs text-stone-400 mt-1">Figure out the secret address. Don't blow your cover.</p>
+      </div>
+      <div class="overflow-y-auto flex flex-col gap-4 px-5 py-5">
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest text-red-500">Step 1</p>
+          <p class="font-bold text-stone-800">Roles are assigned in secret.</p>
+          <p class="text-stone-500 text-sm">One player is the <span class="font-semibold text-stone-700">Friend of a Friend</span> — they don't know the location and are trying to blend in. Everyone else is <span class="font-semibold text-stone-700">The Gang</span> — they see a shortlist of possible locations that narrows each plan.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest text-red-500">Step 2</p>
+          <p class="font-bold text-stone-800">Players message each other over 4 Plans.</p>
+          <p class="text-stone-500 text-sm">Each lap, every player messages one other player. The Gang's shortlist narrows: <span class="font-semibold text-stone-700">6 → 3 → 1 location</span>. By Plan 3, The Gang knows the exact spot — but the Friend of a Friend might too if they've been paying attention.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest text-red-500">Step 3</p>
+          <p class="font-bold text-stone-800">Use the map to track locations.</p>
+          <p class="text-stone-500 text-sm">Open 🗺️ any time. <span class="font-semibold text-stone-700">The Gang</span> see their narrowing highlights. <span class="font-semibold text-stone-700">Friend of a Friend</span> sees all locations and can annotate ✅ Safe or ❌ Dead End.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest text-red-500">Step 4</p>
+          <p class="font-bold text-stone-800">Plan 4 — Last Drinks.</p>
+          <p class="text-stone-500 text-sm">After the final plan, everyone votes on who they think is the <span class="font-semibold text-stone-700">Friend of a Friend</span>, and the Friend of a Friend pins their guess on the map.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest text-red-500">Winning and Scoring</p>
+          <p class="font-bold text-stone-800">Points for the right read.</p>
+          <ul class="list-disc pl-5 flex flex-col gap-1 text-stone-500 text-sm">
+            <li>📍 <span class="font-semibold text-stone-700">Friend of a Friend pins correctly</span> → +10 pts.</li>
+            <li>🕵️ <span class="font-semibold text-stone-700">The Gang keeps the secret</span> → +5 each.</li>
+            <li>🃏 <span class="font-semibold text-stone-700">Troublemaker plants a fake</span> → +20 if the Friend of a Friend pins it.</li>
+          </ul>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest text-red-500">✨ Sylly Mode</p>
+          <p class="font-bold text-stone-800">The Troublemaker</p>
+          <p class="text-stone-500 text-sm">One member of <span class="font-semibold text-stone-700">The Gang</span> secretly knows the real location and holds 2 decoy locations. They want the <span class="font-semibold text-stone-700">Friend of a Friend</span> to pin a decoy instead. Three-way scoring: Friend of a Friend, The Gang, and The Troublemaker each have different win conditions.</p>
+        </div>
+        <button id="btn-lttp-how-to-done" class="min-h-14 w-full rounded-2xl bg-red-500 hover:bg-red-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+          Got it
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONFIRM OVERLAY (Pattern 2 — free-text message input) -->
+  <div id="lttp-confirm-overlay" style="display:none" class="fixed inset-0 bg-black/50 z-[80] flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-3 border border-red-300">
+      <div class="flex items-center justify-center gap-2">
+        <h3 id="lttp-confirm-heading" class="text-stone-800 text-lg font-bold text-center"></h3>
+        <button id="btn-lttp-tip-message" class="text-stone-300 font-bold text-xs leading-none active:scale-90 transition-transform duration-100 flex-shrink-0">[?]</button>
+      </div>
+      <textarea id="lttp-message-input" maxlength="80" rows="3"
+        placeholder="Type your message..."
+        class="w-full rounded-xl border-2 border-stone-200 bg-white px-3 py-2.5 text-stone-800 text-sm resize-none focus:border-red-400 focus:outline-none transition-colors"></textarea>
+      <p id="lttp-char-counter" class="text-stone-400 text-xs text-right">0 / 80</p>
+      <button id="btn-lttp-message-send" disabled
+        class="btn-mp-action min-h-12 w-full rounded-xl bg-red-500 hover:bg-red-600 active:scale-95 text-white text-lg font-semibold transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed">
+Send
+</button>
+      <button id="btn-lttp-message-cancel"
+        class="min-h-12 w-full rounded-xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 text-lg font-semibold transition-all duration-150">
+        Cancel
+      </button>
+    </div>
+  </div>
+
+  <!-- lttp-tip-overlay (decision modal z-[90] — contextual tips) -->
+  <div id="lttp-tip-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[90] flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-red-300">
+      <p id="lttp-tip-emoji" class="text-3xl"></p>
+      <h3 id="lttp-tip-heading" class="text-lg font-bold text-stone-800"></h3>
+      <div id="lttp-tip-body" class="text-stone-500 text-sm text-left flex flex-col gap-1.5"></div>
+      <button id="btn-lttp-tip-close" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-sm transition-all duration-100">Got it</button>
+    </div>
+  </div>
+
+  <!-- QUIT OVERLAY (Pattern 2 — center modal) -->
+  <div id="lttp-quit-overlay" style="display:none" class="fixed inset-0 bg-black/50 z-[80] flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-red-300">
+      <p class="text-4xl">🚨</p>
+      <h2 class="text-xl font-bold text-stone-800">Cancel the plans?</h2>
+      <p class="text-stone-400 text-sm">Everyone will just stay home.</p>
+      <button id="btn-lttp-quit-confirm" class="min-h-12 w-full rounded-xl bg-red-500 hover:bg-red-600 active:scale-95 text-white text-lg font-semibold transition-all duration-150 mt-2">
+        Yeah, staying in.
+      </button>
+      <button id="btn-lttp-quit-cancel" class="min-h-12 w-full rounded-xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 text-lg font-semibold transition-all duration-150">
+        Not yet!
+      </button>
+    </div>
+  </div>
+
+  <!-- lttp-help-tip-overlay (decision modal z-[90] — contextual help) -->
+  <div id="lttp-help-tip-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[90] flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-red-300">
+      <p id="lttp-help-tip-emoji" class="text-4xl"></p>
+      <h3 id="lttp-help-tip-heading" class="text-lg font-bold text-stone-800"></h3>
+      <p id="lttp-help-tip-text" class="text-stone-500 text-sm"></p>
+      <button id="btn-lttp-help-tip-close" class="min-h-12 w-full rounded-xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-base font-semibold transition-all duration-150">
+        Got it ✓
+      </button>
+    </div>
+  </div>
+
+  <!-- lttp-new-plans-overlay (play-again confirmation — Decision Modal z-[90]) -->
+  <div id="lttp-new-plans-overlay" style="display:none"
+    class="fixed inset-0 bg-black/50 z-[90] overlay-modal-backdrop flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8
+                flex flex-col gap-4 text-center border border-red-300">
+      <div class="flex flex-col gap-2">
+        <p class="text-3xl">🏃‍♂️</p>
+        <h3 class="text-lg font-bold text-stone-800">Head Out Again?</h3>
+        <p class="text-stone-400 text-sm">All suspicions, messages, and location guesses will be forgotten.</p>
+      </div>
+      <button id="btn-lttp-new-plans-confirm"
+        class="min-h-11 w-full rounded-2xl bg-red-500 hover:bg-red-600 active:scale-95
+               text-white font-semibold text-sm transition-all duration-100">
+Head Out Again
+</button>
+      <button id="btn-lttp-new-plans-cancel"
+        class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95
+               text-stone-700 font-semibold text-sm transition-all duration-100">
+        Stay here
+      </button>
+    </div>
+  </div>
+
+  <!-- SMALL TALK OVERLAY (Guided mode — Pattern 1, slide-up) — restored post-21a; precedes free-text confirm when Guided Messages ON -->
+  <div id="lttp-smalltalk-overlay" style="display:none"
+    class="fixed inset-0 bg-black/50 z-[80] flex items-end justify-center">
+    <div class="overlay-data-inner bg-white w-full max-w-sm rounded-t-3xl settings-slide-up flex flex-col"
+         style="max-height:80vh">
+
+      <!-- Header -->
+      <div class="flex items-center justify-between px-5 pt-5 pb-3 border-b border-stone-100 flex-shrink-0">
+        <div>
+          <p class="text-xs text-stone-400 uppercase tracking-widest font-medium">Asking</p>
+          <p class="text-lg font-bold text-stone-800" id="lttp-st-overlay-name"></p>
+        </div>
+        <button id="btn-lttp-st-overlay-close"
+          class="w-9 h-9 rounded-full bg-stone-100 flex items-center justify-center text-stone-500 text-sm font-bold active:scale-95 transition-transform">
+          ✕
+        </button>
+      </div>
+
+      <!-- Tab bar (rendered by JS from LTTP_SMALL_TALK keys) -->
+      <div id="lttp-st-overlay-tabs" class="flex flex-wrap border-b border-stone-100 flex-shrink-0 bg-white px-1 pt-1"></div>
+
+      <!-- Sub-topic pills (rendered by JS for active tab) -->
+      <div id="lttp-st-overlay-subs" class="flex flex-col gap-3 px-5 py-4 overflow-y-auto flex-1"></div>
+
+      <!-- Footer -->
+      <div class="px-5 pb-8 pt-3 flex-shrink-0">
+        <button id="btn-lttp-st-overlay-send"
+          class="min-h-14 w-full rounded-2xl bg-stone-200 text-stone-400 text-xl font-semibold transition-all duration-150"
+          disabled>
+          Use this →
+        </button>
+      </div>
+
+    </div>
+  </div>
+

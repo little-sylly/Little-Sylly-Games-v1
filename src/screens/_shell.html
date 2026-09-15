@@ -1,0 +1,293 @@
+  <!-- ═══════════════════════════════════════════════════════════════
+       ENGINE / GLOBAL
+       Screens : #screen-lobby, #screen-who-first
+       Overlays: #sound-overlay (line ~1743)
+       Ref     : js/engine.js
+  ════════════════════════════════════════════════════════════════ -->
+  <!-- ① LOBBY screen — game selection -->
+  <section id="screen-lobby" class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
+    <div id="lobby-header-icons" class="absolute top-4 right-4 flex items-center gap-3">
+      <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+    </div>
+    <div id="lobby-controller" class="ctl-lobby-mount" role="button" tabindex="0"
+      aria-label="Your controller — tap to customise"></div>
+    <div class="lobby-title">
+      <img src="assets/logo.png" alt="Little Sylly Games" class="w-full" />
+    </div>
+    <div class="flex items-baseline justify-between w-full">
+      <p class="text-stone-700 text-lg font-medium">What are we playing today?</p>
+      <button id="btn-lobby-sort" class="flex items-center gap-1 text-stone-600 active:scale-90 transition-transform duration-100" aria-label="Sort games">
+        <span id="lobby-sort-label" class="text-sm font-bold uppercase tracking-widest">Release</span>
+        <span class="text-base">✨</span>
+      </button>
+    </div>
+    <div id="lobby-game-list" class="flex flex-col gap-4 w-full mt-2">
+      <button id="btn-dstw" class="gel-btn lobby-btn min-h-14 w-full rounded-2xl bg-pink-500 hover:bg-pink-600 text-white text-xl font-semibold">
+        <span class="lobby-btn-label">Like I'm Five</span><span class="lobby-btn-badge" aria-hidden="true">💬</span>
+      </button>
+      <button id="btn-great-minds" class="gel-btn lobby-btn min-h-14 w-full rounded-2xl bg-purple-500 hover:bg-purple-600 text-white text-xl font-semibold">
+        <span class="lobby-btn-label">Great Minds</span><span class="lobby-btn-badge" aria-hidden="true">🧠</span>
+      </button>
+      <button id="btn-sylly-signals" class="gel-btn lobby-btn min-h-14 w-full rounded-2xl bg-teal-500 hover:bg-teal-600 text-white text-xl font-semibold">
+        <span class="lobby-btn-label">Secret Signals</span><span class="lobby-btn-badge" aria-hidden="true">📡</span>
+      </button>
+      <button id="btn-jec" class="gel-btn lobby-btn min-h-14 w-full rounded-2xl bg-slate-600 hover:bg-slate-700 text-white text-xl font-semibold">
+        <span class="lobby-btn-label">Just Enough Cooks</span><span class="lobby-btn-badge" aria-hidden="true">🍳</span>
+      </button>
+      <button id="btn-ygi" class="gel-btn lobby-btn min-h-14 w-full rounded-2xl bg-amber-500 hover:bg-amber-600 text-white text-xl font-semibold">
+        <span class="lobby-btn-label">You Get It?</span><span class="lobby-btn-badge" aria-hidden="true">💡</span>
+      </button>
+      <button id="btn-lttp" class="gel-btn lobby-btn min-h-14 w-full rounded-2xl bg-red-500 hover:bg-red-600 text-white text-xl font-semibold">
+        <span class="lobby-btn-label">Late To The Party</span><span class="lobby-btn-badge" aria-hidden="true">🏃‍♂️</span>
+      </button>
+      <button id="btn-nat" class="gel-btn lobby-btn min-h-14 w-full rounded-2xl bg-lime-600 hover:bg-lime-700 text-white text-xl font-semibold">
+        <span class="lobby-btn-label">Natural Selection</span><span class="lobby-btn-badge" aria-hidden="true">🦁</span>
+      </button>
+      <button id="btn-dsd" class="gel-btn lobby-btn min-h-14 w-full rounded-2xl bg-cyan-700 hover:bg-cyan-800 text-white text-xl font-semibold">
+        <span class="lobby-btn-label">Deep-Sea Deploy</span><span class="lobby-btn-badge" aria-hidden="true">⚓</span>
+      </button>
+      <button id="btn-bld" class="gel-btn lobby-btn min-h-14 w-full rounded-2xl bld-cta text-white text-xl font-semibold">
+        <span class="lobby-btn-label">Bailed</span><span class="lobby-btn-badge" aria-hidden="true">📋</span>
+      </button>
+      <button id="btn-gth" class="gel-btn lobby-btn min-h-14 w-full rounded-2xl text-white text-xl font-semibold" style="background-color:#B1BCA0">
+        <span class="lobby-btn-label">Group Therapy</span><span class="lobby-btn-badge" aria-hidden="true">🛋️</span>
+      </button>
+      <button id="btn-dyb" class="gel-btn lobby-btn min-h-14 w-full rounded-2xl dyb-cta text-white text-xl font-semibold">
+        <span class="lobby-btn-label">The Bluff</span><span class="lobby-btn-badge" aria-hidden="true">🎲</span>
+      </button>
+      <button id="btn-pass" class="gel-btn lobby-btn min-h-14 w-full rounded-2xl bg-zinc-900 hover:bg-zinc-800 text-white text-xl font-semibold">
+        <span class="lobby-btn-label">Pass</span><span class="lobby-btn-badge" aria-hidden="true">🃏</span>
+      </button>
+      <button id="btn-nt" class="gel-btn lobby-btn min-h-14 w-full rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white text-xl font-semibold">
+        <span class="lobby-btn-label">Net-Trace</span><span class="lobby-btn-badge" aria-hidden="true">💻</span>
+      </button>
+      <button id="btn-frt" class="gel-btn lobby-btn min-h-14 w-full rounded-2xl bg-[#FFE500] hover:bg-[#E6D200] text-white text-xl font-semibold">
+        <span class="lobby-btn-label">Fruit Salad</span><span class="lobby-btn-badge" aria-hidden="true">🍌</span>
+      </button>
+      <button id="btn-shp" class="gel-btn lobby-btn min-h-14 w-full rounded-2xl shp-cta text-white text-xl font-semibold">
+        <span class="lobby-btn-label">Counting Sheep</span><span class="lobby-btn-badge" aria-hidden="true">🐑</span>
+      </button>
+      <button id="btn-flw" class="gel-btn lobby-btn flw-cta min-h-14 w-full rounded-2xl text-xl font-semibold">
+        <span class="lobby-btn-label">Flawless</span><span class="lobby-btn-badge" aria-hidden="true">💎</span>
+      </button>
+      <button id="btn-pko" class="gel-btn lobby-btn pko-cta min-h-14 w-full rounded-2xl text-white text-xl font-semibold">
+        <span class="lobby-btn-label">Pecking Order</span><span class="lobby-btn-badge" aria-hidden="true">🐘</span>
+      </button>
+      <button id="btn-cjar" class="gel-btn lobby-btn cjar-cta min-h-14 w-full rounded-2xl text-xl font-semibold">
+        <span class="lobby-btn-label">Cookie Jar</span><span class="lobby-btn-badge" aria-hidden="true">🍪</span>
+      </button>
+      <button id="btn-cld" class="gel-btn lobby-btn cld-cta min-h-14 w-full rounded-2xl text-xl font-semibold">
+        <span class="lobby-btn-label">Cold Shoulder</span><span class="lobby-btn-badge" aria-hidden="true">🐧</span>
+      </button>
+      <button id="btn-comb" class="gel-btn lobby-btn comb-cta min-h-14 w-full rounded-2xl text-xl font-semibold">
+        <span class="lobby-btn-label">Honeycomb Hills</span><span class="lobby-btn-badge" aria-hidden="true">🐝</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ② WORKSHOP — controller customiser. NOT a game: activeGameId stays null. -->
+  <section id="screen-workshop" style="display:none"
+    class="relative flex flex-col w-full max-w-sm mx-auto h-screen overflow-hidden">
+
+    <!-- HEADER — fixed -->
+    <div class="flex items-center justify-between px-5 pt-4 pb-2 flex-shrink-0">
+      <h2 class="text-xl font-bold text-stone-800">Workshop</h2>
+      <div class="flex items-center gap-2">
+        <button id="btn-ctl-how-to" class="text-stone-400 font-bold text-sm min-h-11 min-w-11">[?]</button>
+        <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100 min-h-11 min-w-11">🔊</button>
+        <button id="btn-ctl-exit" class="text-stone-500 font-bold text-xl active:scale-90 transition-transform duration-100 min-h-11 min-w-11">✕</button>
+      </div>
+    </div>
+
+    <!-- STAGE — fixed, never scrolls -->
+    <div class="flex-shrink-0 px-5">
+      <div id="ctl-stage" class="ctl-workshop-stage"></div>
+      <p class="text-stone-400 text-xs text-center mt-1">Drag to turn it around</p>
+    </div>
+
+    <!-- TAB BAR — sticky with the stage, never scrolls. The panel band was
+         left free of a tab bar by the colour-only build specifically so these
+         two could arrive without anything reflowing. -->
+    <div id="ctl-tabs" class="flex-shrink-0 px-5 pt-1 pb-2 flex gap-2">
+      <button class="pill pill-active-purple" data-ctl-tab="colours">Colours</button>
+      <button class="pill" data-ctl-tab="stickers">Stickers</button>
+    </div>
+
+    <!-- PANEL — two sibling bodies toggled by display, never one body
+         repainted, so the sticker sliders survive a repaint of the book. The
+         scroll region is on each BODY, not on this shared parent: one shared
+         scrollTop gets clamped the moment you hop to the shorter body, and the
+         book's place in a 19-tile grid is lost coming back. -->
+    <div id="ctl-panel" class="flex-1 min-h-0 flex flex-col">
+      <div id="ctl-panel-colours" class="flex-1 min-h-0 overflow-y-auto px-5 py-4 flex flex-col gap-4"></div>
+      <div id="ctl-panel-stickers" style="display:none"
+        class="flex-1 min-h-0 overflow-y-auto px-5 py-4 flex flex-col gap-4">
+        <div id="ctl-sticker-book" class="grid grid-cols-4 gap-2"></div>
+        <p id="ctl-sticker-say" class="text-stone-400 text-xs min-h-[1rem]"></p>
+        <div id="ctl-sticker-controls" style="display:none"
+          class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div id="ctl-sticker-sliders" class="flex flex-col gap-3">
+            <div class="flex flex-col gap-1">
+              <label for="ctl-sticker-size" class="text-stone-500 text-sm font-semibold">Size</label>
+              <input id="ctl-sticker-size" type="range" min="6" max="30" step="1" value="18"
+                class="ctl-range w-full" />
+            </div>
+            <div class="flex flex-col gap-1">
+              <label for="ctl-sticker-rot" class="text-stone-500 text-sm font-semibold">Turn</label>
+              <input id="ctl-sticker-rot" type="range" min="-180" max="180" step="5" value="0"
+                class="ctl-range w-full" />
+            </div>
+          </div>
+          <div class="flex gap-2">
+            <button id="btn-ctl-sticker-undo"
+              class="min-h-11 flex-1 rounded-xl bg-stone-200 hover:bg-stone-300 text-stone-700 font-semibold text-sm">Undo</button>
+            <button id="btn-ctl-sticker-delete"
+              class="min-h-11 flex-1 rounded-xl bg-red-500 hover:bg-red-600 text-white font-semibold text-sm">Remove</button>
+            <button id="btn-ctl-sticker-done"
+              class="min-h-11 flex-1 rounded-xl bg-purple-500 hover:bg-purple-600 text-white font-semibold text-sm">Done</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CONTROLS — fixed -->
+    <div class="flex-shrink-0 px-5 pb-5 pt-2 flex flex-col gap-2">
+      <button id="btn-ctl-save"
+        class="min-h-14 w-full rounded-2xl bg-purple-500 hover:bg-purple-600 text-white font-semibold text-lg active:scale-95 transition-all duration-150">Save</button>
+      <button id="btn-ctl-reset"
+        class="min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 text-stone-700 font-semibold text-lg active:scale-95 transition-all duration-150">Reset</button>
+    </div>
+  </section>
+
+  <div id="ctl-how-to-overlay" style="display:none"
+    class="fixed inset-0 bg-black/40 z-[90] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
+      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
+        <h2 class="text-xl font-bold text-stone-800">The Workshop 🎮</h2>
+        <p class="text-xs text-stone-400 mt-1">Make the controller yours.</p>
+      </div>
+      <div class="overflow-y-auto flex flex-col gap-4 px-5 py-5">
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest text-purple-500">Step 1</p>
+          <p class="font-bold text-stone-800">Test the buttons</p>
+          <svg viewBox="0 0 440 320" class="w-full max-w-[300px] mx-auto" role="img"
+            aria-label="Diagram of the controller's front, with every button labelled">
+            <!-- SILHOUETTE, EARS, SHOULDERS AND BUTTON POSITIONS ARE GENERATED, NOT DRAWN.
+                 Every one of them is projected from the controller's own geometry in
+                 js/lib/controller-body.js by tools/gen-controller-diagram.js — re-run that
+                 and paste; do not hand-edit the numbers. Three hand-drawn attempts at this
+                 shape all shipped visibly wrong. See shared-implementation-notes TG-13. -->
+            <!-- ears — the real rx .36 / ry .52 ellipses, seated and tilted as buildEars does -->
+            <ellipse cx="170" cy="89.4" rx="21.4" ry="29.6" fill="#d9d5cf" transform="rotate(-6.9 170 89.4)"/>
+            <ellipse cx="270" cy="89.4" rx="21.4" ry="29.6" fill="#d9d5cf" transform="rotate(6.9 270 89.4)"/>
+            <!-- shell — buildBody()'s own outline: wide wings, a shallow top valley, two
+                 grips hanging down, and a shallow arch between them -->
+            <path fill="#d9d5cf" d="M220,89.4L205.7,84.7L189.3,81.4L172.8,80.2L156.5,80.8L140.9,83.3L125.6,87.8L114.9,93.2L105.7,100.9L98.8,110.3L93.6,122.3L90.8,133.7L87.4,158L85.7,179.7L85.8,197.5L87.7,213.4L91.5,227.3L95.2,235.2L100,242L105.8,247.7L112.3,252L119,254.8L125.9,256L132.8,255.8L140.7,253.8L146.2,251.2L152.5,246.9L162,237.2L168.5,227.2L180.7,202.8L185.4,195.8L190.7,190L196.7,185.3L203.7,181.7L211.8,179.3L220,178.1L228.2,179.3L236.3,181.7L243.3,185.3L249.3,190L254.6,195.8L259.3,202.8L271.5,227.2L278,237.2L287.5,246.9L293.8,251.2L299.3,253.8L307.2,255.8L314.1,256L321,254.8L327.7,252L334.2,247.7L340,242L344.8,235.2L348.5,227.3L352.3,213.4L354.2,197.5L354.3,179.7L352.6,158L349.2,133.7L346.4,122.3L341.2,110.3L334.3,100.9L325.1,93.2L314.4,87.8L299.1,83.3L283.5,80.8L267.2,80.2L250.7,81.4L234.3,84.7L220,89.4Z"/>
+            <!-- L / R — the real swept band: inner edge buried, outer edge proud of the rim -->
+            <path fill="#a855f7" d="M142.3,89L134.2,91.2L127.8,93.4L122,96L116.6,99.3L111.7,103.3L107.5,108L104,113.2L101.2,119L90.8,114.6L94.2,107.6L98.6,101.1L102.5,96.6L108.4,91.3L114.9,87L121.9,83.5L130.8,80.4L139.9,78Z"/>
+            <path fill="#a855f7" d="M297.7,89L305.8,91.2L312.2,93.4L318,96L323.4,99.3L328.3,103.3L332.5,108L336,113.2L338.8,119L349.2,114.6L345.8,107.6L341.4,101.1L337.5,96.6L331.6,91.3L325.1,87L318.1,83.5L309.2,80.4L300.1,78Z"/>
+            <!-- sticks — the well ring, and the cap that tilts inside it -->
+            <circle cx="145.6" cy="125.1" r="16.1" fill="none" stroke="#7c3aed" stroke-width="6.5"/>
+            <circle cx="145.6" cy="125.1" r="12" fill="#a855f7"/>
+            <circle cx="294.4" cy="187.6" r="16.1" fill="none" stroke="#7c3aed" stroke-width="6.5"/>
+            <circle cx="294.4" cy="187.6" r="12" fill="#a855f7"/>
+            <!-- D-pad — the one shape that keeps its markings, so a direction still
+                 reads as a direction -->
+            <path fill="#a855f7" d="M147.2,178.3L162.4,178.3L162.4,196.9L147.2,196.9L147.2,212.1L128.6,212.1L128.6,196.9L113.3,196.9L113.3,178.3L128.6,178.3L128.6,163L147.2,163Z"/>
+            <polygon points="133.9,174 141.9,174 137.9,167" fill="#fff"/>
+            <polygon points="133.9,201.1 141.9,201.1 137.9,208.1" fill="#fff"/>
+            <polygon points="124.3,183.6 124.3,191.6 117.3,187.6" fill="#fff"/>
+            <polygon points="151.4,183.6 151.4,191.6 158.4,187.6" fill="#fff"/>
+            <!-- face buttons — the real diamond: centre (1.18, 0.18), radius .30 -->
+            <circle cx="290.2" cy="108.4" r="10.4" fill="#a855f7"/>
+            <circle cx="308.1" cy="126.3" r="10.4" fill="#a855f7"/>
+            <circle cx="290.2" cy="144.1" r="10.4" fill="#a855f7"/>
+            <circle cx="272.4" cy="126.3" r="10.4" fill="#a855f7"/>
+            <!-- select / start -->
+            <rect x="192.5" y="150.9" width="17" height="8" rx="4" fill="#a855f7"/>
+            <rect x="230.5" y="150.9" width="17" height="8" rx="4" fill="#a855f7"/>
+
+            <!-- leaders + labels — each routed the SHORT way to open surface, so
+                 nothing has to cross the body to reach its label -->
+            <line x1="55" y1="26" x2="106" y2="86" stroke="#a8a29e" stroke-width="2"/>
+            <text x="8" y="20" font-size="13" font-weight="700" fill="#44403c" text-anchor="start">L Button</text>
+            <line x1="385" y1="26" x2="334" y2="86" stroke="#a8a29e" stroke-width="2"/>
+            <text x="432" y="20" font-size="13" font-weight="700" fill="#44403c" text-anchor="end">R Button</text>
+
+            <line x1="72" y1="128" x2="126" y2="126" stroke="#a8a29e" stroke-width="2"/>
+            <text x="8" y="132" font-size="13" font-weight="700" fill="#44403c" text-anchor="start">Left Stick</text>
+            <line x1="72" y1="200" x2="114" y2="192" stroke="#a8a29e" stroke-width="2"/>
+            <text x="8" y="206" font-size="13" font-weight="700" fill="#44403c" text-anchor="start">D-pad</text>
+
+            <line x1="368" y1="92" x2="299" y2="102" stroke="#a8a29e" stroke-width="2"/>
+            <text x="372" y="96" font-size="13" font-weight="700" fill="#44403c" text-anchor="start">Y Button</text>
+            <line x1="368" y1="126" x2="319" y2="126" stroke="#a8a29e" stroke-width="2"/>
+            <text x="372" y="130" font-size="13" font-weight="700" fill="#44403c" text-anchor="start">B Button</text>
+            <line x1="368" y1="160" x2="299" y2="151" stroke="#a8a29e" stroke-width="2"/>
+            <text x="372" y="164" font-size="13" font-weight="700" fill="#44403c" text-anchor="start">A Button</text>
+            <line x1="368" y1="200" x2="312" y2="190" stroke="#a8a29e" stroke-width="2"/>
+            <text x="372" y="204" font-size="13" font-weight="700" fill="#44403c" text-anchor="start">Right Stick</text>
+
+            <line x1="224" y1="78" x2="264" y2="119" stroke="#a8a29e" stroke-width="2"/>
+            <text x="220" y="72" font-size="13" font-weight="700" fill="#44403c" text-anchor="middle">X Button</text>
+
+            <line x1="190" y1="272" x2="201" y2="164" stroke="#a8a29e" stroke-width="2"/>
+            <text x="190" y="288" font-size="13" font-weight="700" fill="#44403c" text-anchor="middle">Select</text>
+            <line x1="252" y1="272" x2="239" y2="164" stroke="#a8a29e" stroke-width="2"/>
+            <text x="252" y="288" font-size="13" font-weight="700" fill="#44403c" text-anchor="middle">Start</text>
+          </svg>
+          <p class="text-stone-500 text-sm">Try having fun with the buttons — you might just find a secret.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest text-purple-500">Step 2</p>
+          <p class="font-bold text-stone-800">Pick your colours</p>
+          <p class="text-stone-500 text-sm">Four parts, twenty colours — one for every game in the box. Choose a part, then tap a swatch, and the controller changes straight away.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest text-purple-500">Step 3</p>
+          <p class="font-bold text-stone-800">Save it, or start again</p>
+          <p class="text-stone-500 text-sm"><span class="font-semibold text-stone-700">Save</span> keeps your design for next time. <span class="font-semibold text-stone-700">Reset</span> puts it back to the colours it came in. Leaving without saving changes nothing.</p>
+        </div>
+        <button id="btn-ctl-howto-close"
+          class="min-h-14 w-full rounded-2xl bg-purple-500 hover:bg-purple-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">Got it</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ENGINE — Shared "Who Goes First?" screen -->
+  <section id="screen-who-first" style="display:none"
+    class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
+    <div class="absolute top-4 right-4">
+      <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+    </div>
+    <div id="who-first-emoji" class="text-5xl"></div>
+    <div>
+      <p id="who-first-eyebrow" class="text-stone-400 text-xs font-semibold uppercase tracking-widest"></p>
+      <h2 id="who-first-heading" class="text-2xl font-bold text-stone-800 mt-1"></h2>
+      <p id="who-first-prompt" class="text-stone-500 text-sm mt-2"></p>
+    </div>
+    <!-- Sub-state 1: method picker -->
+    <div id="who-first-sub-method" class="flex flex-col gap-3 w-full">
+      <button id="btn-who-first-random" class="min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+Random Assignment
+</button>
+      <button id="btn-who-first-rps" class="min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+Rock Paper Scissors
+</button>
+    </div>
+    <!-- Sub-state 2: RPS — who goes first? -->
+    <div id="who-first-sub-rps" style="display:none" class="flex flex-col gap-4 w-full">
+      <div class="flex gap-3 w-full">
+        <button id="btn-who-first-rps-a" class="min-h-14 flex-1 rounded-2xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-lg font-semibold transition-all duration-150"></button>
+        <button id="btn-who-first-rps-b" class="min-h-14 flex-1 rounded-2xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-lg font-semibold transition-all duration-150"></button>
+      </div>
+      <button id="btn-who-first-back-from-rps" class="min-h-11 w-full rounded-2xl bg-stone-100 hover:bg-stone-200 active:scale-95 text-stone-500 text-base font-semibold transition-all duration-150">← Back</button>
+    </div>
+    <!-- Sub-state 3: confirm -->
+    <div id="who-first-sub-confirm" style="display:none" class="flex flex-col gap-4 w-full items-center">
+      <p id="who-first-confirm-label" class="text-2xl font-bold text-stone-700 text-center"></p>
+      <button id="btn-who-first-confirm" class="min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-xl font-semibold transition-all duration-150"></button>
+      <button id="btn-who-first-back-from-confirm" class="min-h-11 w-full rounded-2xl bg-stone-100 hover:bg-stone-200 active:scale-95 text-stone-500 text-base font-semibold transition-all duration-150">← Back</button>
+    </div>
+  </section>
+

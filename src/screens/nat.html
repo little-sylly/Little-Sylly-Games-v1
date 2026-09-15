@@ -1,0 +1,581 @@
+  <!-- ════════════════════════════════════════════════════════════════
+       NATURAL SELECTION (NAT)
+       Screens : screen-nat-menu, screen-nat-setup, screen-nat-habitat-intro, screen-nat-handover,
+                 screen-nat-observation, screen-nat-daily-review, screen-nat-selection,
+                 screen-nat-last-stand, screen-nat-tally, screen-nat-gameover
+       Overlays: nat-settings-overlay, nat-how-to-overlay, nat-quit-overlay,
+                 nat-new-expedition-overlay, nat-help-tip-overlay
+       Ref     : js/games/nat.js
+  ════════════════════════════════════════════════════════════════ -->
+
+  <!-- nat-① MENU -->
+  <section id="screen-nat-menu" style="display:none" class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
+    <button class="btn-open-sound absolute top-4 right-4 text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+    <div class="text-6xl" role="img" aria-label="Lion">🦁</div>
+    <div>
+      <h1 class="text-5xl font-bold leading-tight text-stone-800">Natural</h1>
+      <h1 class="text-5xl font-bold leading-tight text-lime-600">Selection</h1>
+    </div>
+    <p class="text-stone-500 text-lg">One of you doesn't know what they're looking at.</p>
+    <div class="flex flex-col gap-4 w-full mt-2">
+      <button id="btn-nat-menu-play" class="gel-btn min-h-14 w-full rounded-2xl bg-lime-600 hover:bg-lime-700 text-white text-xl font-semibold">
+        Begin Observation
+      </button>
+      <button id="btn-nat-menu-howto" class="gel-btn min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 text-white text-xl font-semibold">
+        How to Play
+      </button>
+      <button id="btn-nat-menu-settings" class="gel-btn gel-btn-light min-h-14 w-full rounded-2xl bg-lime-100 hover:bg-lime-200 text-lime-700 text-xl font-semibold">
+        Settings
+      </button>
+      <button id="btn-nat-menu-back" class="gel-btn gel-btn-light min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 text-stone-500 text-xl font-semibold">
+        ← Back to the Box
+      </button>
+    </div>
+  </section>
+
+  <!-- nat-② SETUP -->
+  <section id="screen-nat-setup" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-4">
+
+      <div class="flex items-center justify-between">
+        <button id="btn-nat-setup-back" class="text-stone-400 text-2xl active:scale-90 transition-transform duration-100">←</button>
+        <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest">The Research Team</p>
+        <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+      </div>
+
+      <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+        <div>
+          <p class="text-stone-800 font-semibold">Researchers</p>
+          <p class="text-stone-400 text-sm mt-0.5">How many are joining the expedition?</p>
+        </div>
+        <div id="nat-count-group" class="flex gap-2">
+          <button class="pill pill-active-lime" data-count="4">4</button>
+          <button class="pill" data-count="5">5</button>
+          <button class="pill" data-count="6">6</button>
+          <button class="pill" data-count="7">7</button>
+          <button class="pill" data-count="8">8</button>
+        </div>
+      </div>
+
+      <div id="nat-name-inputs" class="flex flex-col gap-3"></div>
+
+      <button id="btn-nat-setup-start" class="min-h-14 w-full rounded-2xl bg-lime-600 hover:bg-lime-700 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Head Out →
+      </button>
+
+    </div>
+  </section>
+
+  <!-- NAT HABITAT INTRO — auto-advancing (NAT_INTERSTITIAL_MS), no [?]/🔊/✕ per ui-style.md
+       rule-5 (nothing to tap for the ~5s it's on screen). Shown at the start of EVERY Habitat,
+       both host/single and clients, via natShowHabitatIntro(). Reference: screen-cjar-raid-intro,
+       screen-shp-night-intro, screen-pko-clash-intro. -->
+  <section id="screen-nat-habitat-intro" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-4 text-center">
+      <div class="text-6xl" role="img" aria-label="Lion">🦁</div>
+      <h2 id="nat-habitat-intro-heading" class="text-3xl font-bold text-stone-800"></h2>
+      <p id="nat-habitat-intro-sub" class="text-stone-500 text-base"></p>
+      <div id="nat-habitat-intro-sylly" style="display:none" class="flex items-center gap-2 bg-lime-50 border border-lime-200 rounded-2xl p-3 justify-center">
+        <span class="text-xl">🧬</span>
+        <p class="text-lime-700 text-sm font-semibold">Survival of the Fittest is active — nobody sees the full name this Habitat.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- nat-③ HANDOVER (pass-the-phone gate before each clue turn) -->
+  <section id="screen-nat-handover" style="display:none"
+    class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6 min-h-screen">
+    <div class="absolute top-4 right-4 flex items-center gap-2">
+      <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+      <button id="btn-nat-how-to" class="btn-nat-help-open text-stone-300 font-mono font-bold text-xl active:scale-90 transition-transform duration-100">?</button>
+      <button id="btn-nat-handover-quit" class="text-stone-400 text-2xl active:scale-90 transition-transform duration-100">✕</button>
+    </div>
+    <div class="text-6xl">📱</div>
+    <div>
+      <h2 id="nat-handover-name" class="text-2xl font-bold text-stone-800"></h2>
+      <p id="nat-handover-sub" class="text-stone-500 text-base mt-2">Don't peek — hand it over.</p>
+    </div>
+    <button id="btn-nat-handover-ready"
+      class="min-h-14 w-full rounded-2xl bg-lime-600 hover:bg-lime-700 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      Open Field Notes
+    </button>
+  </section>
+
+  <!-- nat-④ OBSERVATION (journal entry — sequential per player) -->
+  <section id="screen-nat-observation" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-4">
+
+      <!-- 1. Header — progress info grouped together top-left -->
+      <div class="flex items-start justify-between">
+        <div>
+          <p id="nat-obs-round" class="text-stone-400 text-xs font-semibold uppercase tracking-widest"></p>
+          <p id="nat-obs-step" class="text-stone-400 text-xs font-semibold uppercase tracking-widest mt-0.5"></p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+          <button class="btn-nat-help-open text-stone-300 font-mono font-bold text-xl active:scale-90 transition-transform duration-100">?</button>
+          <button id="btn-nat-obs-quit" class="text-stone-400 text-2xl active:scale-90 transition-transform duration-100">✕</button>
+        </div>
+      </div>
+
+      <!-- 2. Role card -->
+      <div class="bg-lime-50 border border-lime-100 rounded-2xl px-4 py-2.5 flex items-center justify-between gap-3">
+        <div class="min-w-0">
+          <p id="nat-obs-role" class="text-sm font-bold text-lime-700 uppercase tracking-wide leading-none mb-0.5"></p>
+          <p id="nat-obs-role-desc" class="text-stone-400 text-sm leading-none mt-0.5"></p>
+        </div>
+        <div class="text-right flex-shrink-0">
+          <p id="nat-obs-word-label" class="text-stone-400 text-xs uppercase tracking-widest leading-none mb-0.5"></p>
+          <p id="nat-obs-word" class="text-sm font-bold text-stone-800 leading-none mb-2"></p>
+          <p id="nat-obs-category-label" class="text-stone-400 text-xs uppercase tracking-widest leading-none mb-0.5 hidden"></p>
+          <p id="nat-obs-category-value" class="text-stone-800 font-bold text-sm leading-none hidden"></p>
+        </div>
+      </div>
+
+      <!-- 3. Journal (flows naturally; page scrolls when content grows tall) -->
+      <div id="nat-obs-journal" class="flex flex-col gap-3"></div>
+
+      <!-- 4. Researcher name -->
+      <p id="nat-obs-name" class="text-center font-bold text-stone-800 text-sm"></p>
+
+      <!-- 5. Observation input + error -->
+      <div class="flex items-center gap-2">
+        <input id="nat-obs-input" type="text" maxlength="30" autocomplete="off" autocorrect="off" spellcheck="false"
+          placeholder="Your observation…"
+          class="flex-1 rounded-2xl border border-stone-200 bg-white px-4 py-3 text-stone-800 text-lg text-center focus:outline-none focus:ring-2 focus:ring-lime-400" />
+        <button id="btn-nat-obs-help-tip" class="text-stone-300 font-mono font-bold text-xl active:scale-90 transition-transform duration-100 flex-shrink-0">?</button>
+      </div>
+      <p id="nat-obs-error" class="text-red-500 text-sm text-center min-h-5"></p>
+      <p class="text-stone-400 text-xs text-center -mt-2">Say your clue aloud, then submit.</p>
+
+      <button id="btn-nat-obs-submit" disabled
+        class="btn-mp-action min-h-14 w-full rounded-2xl bg-lime-600 hover:bg-lime-700 active:scale-95 text-white text-xl font-semibold transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed">
+        Add to Journal
+      </button>
+
+    </div>
+  </section>
+
+  <!-- nat-④b DAILY REVIEW (Sylly Mode — shared end-of-day observation reveal) -->
+  <section id="screen-nat-daily-review" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-4">
+
+      <div class="flex items-center justify-between">
+        <p id="nat-review-header" class="text-stone-400 text-xs font-semibold uppercase tracking-widest"></p>
+        <div class="flex items-center gap-2">
+          <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+          <button id="btn-nat-review-quit" class="text-stone-400 text-2xl active:scale-90 transition-transform duration-100">✕</button>
+        </div>
+      </div>
+
+      <div class="text-center">
+        <p class="text-stone-800 font-semibold text-lg">Today's Observations</p>
+        <p class="text-stone-400 text-sm mt-0.5">Review together before continuing.</p>
+      </div>
+
+      <div id="nat-review-entries" class="flex flex-col gap-2"></div>
+
+      <button id="btn-nat-review-continue"
+        class="min-h-14 w-full rounded-2xl bg-lime-600 hover:bg-lime-700 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Day 2 →
+      </button>
+
+    </div>
+  </section>
+
+  <!-- nat-⑤ THE SELECTION (vote to identify the Mole) -->
+  <section id="screen-nat-selection" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-4">
+
+      <div class="flex items-center justify-between">
+        <p id="nat-sel-round" class="text-stone-400 text-xs font-semibold uppercase tracking-widest"></p>
+        <div class="flex items-center gap-2">
+          <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+          <button id="btn-nat-sel-quit" class="text-stone-400 text-2xl active:scale-90 transition-transform duration-100">✕</button>
+        </div>
+      </div>
+
+      <p class="text-stone-600 font-semibold text-center">The Field Notes Are In</p>
+
+      <div id="nat-sel-clues" class="flex flex-col gap-2"></div>
+
+      <!-- Field Consensus tally (shown when voting) -->
+      <div id="nat-sel-tally-wrapper" style="display:none" class="flex flex-col gap-2">
+        <p class="text-stone-500 text-sm font-semibold text-center">Cast your votes</p>
+        <div id="nat-sel-consensus-tally" class="flex flex-col gap-2"></div>
+      </div>
+
+      <!-- Independent Verification voter UI (shown when voting) -->
+      <div id="nat-sel-indep-wrapper" style="display:none" class="flex flex-col gap-2">
+        <div class="text-center">
+          <p id="nat-sel-voter" class="text-stone-800 font-bold text-base"></p>
+          <p id="nat-sel-vote-step" class="text-stone-400 text-xs"></p>
+        </div>
+        <div id="nat-sel-vote-buttons" class="flex flex-col gap-2"></div>
+      </div>
+
+      <!-- Reveal phase action -->
+      <div id="nat-sel-reveal-footer" class="flex flex-col gap-2">
+        <p class="text-stone-400 text-sm text-center">Study the observations. Who doesn't belong?</p>
+        <button id="btn-nat-sel-start" class="min-h-14 w-full rounded-2xl bg-lime-600 hover:bg-lime-700 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+Begin The Selection
+</button>
+      </div>
+
+      <!-- Field Consensus submit -->
+      <div id="nat-sel-consensus-footer" style="display:none" class="flex flex-col gap-2">
+        <p id="nat-sel-consensus-total" class="text-stone-400 text-xs text-center">0 of N votes assigned</p>
+        <button id="btn-nat-sel-consensus-submit" disabled
+          class="btn-mp-action min-h-14 w-full rounded-2xl bg-lime-600 hover:bg-lime-700 active:scale-95 text-white text-xl font-semibold transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed">
+Identify the Mole
+</button>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- nat-⑥ LAST STAND (Mole guess + Biologist verdict) -->
+  <section id="screen-nat-last-stand" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-4">
+
+      <div class="flex items-center justify-between">
+        <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest">Final Identification</p>
+        <div class="flex items-center gap-2">
+          <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+          <button id="btn-nat-ls-quit" class="text-stone-400 text-2xl active:scale-90 transition-transform duration-100">✕</button>
+        </div>
+      </div>
+
+      <!-- Mole guess phase -->
+      <div id="nat-ls-mole-section" class="flex flex-col items-center gap-5 text-center">
+        <p class="text-5xl">🕵️</p>
+        <div>
+          <p id="nat-ls-mole-name" class="text-2xl font-bold text-stone-800"></p>
+          <p class="text-stone-500 mt-1">Final Identification.</p>
+          <p class="text-stone-400 text-sm mt-0.5">Make your Final Identification — name the specimen.</p>
+        </div>
+        <input id="nat-ls-guess-input" type="text" maxlength="40" autocomplete="off" autocorrect="off" spellcheck="false"
+          placeholder="The specimen is…"
+          class="w-full rounded-2xl border border-stone-200 bg-white px-4 py-3 text-stone-800 text-lg text-center focus:outline-none focus:ring-2 focus:ring-lime-400" />
+        <p id="nat-ls-guess-error" class="text-red-500 text-sm min-h-5"></p>
+      </div>
+
+      <!-- Biologist verdict phase -->
+      <div id="nat-ls-bio-section" class="hidden flex flex-col items-center gap-5 text-center">
+        <p class="text-5xl">🔬</p>
+        <div>
+          <p id="nat-ls-bio-name" class="text-2xl font-bold text-stone-800"></p>
+          <p class="text-stone-500 mt-1">The Mole's final identification:</p>
+        </div>
+        <div class="bg-stone-100 rounded-2xl px-5 py-3 w-full">
+          <p class="text-xs text-stone-400 uppercase tracking-widest mb-1">Their guess</p>
+          <p id="nat-ls-guess-display" class="text-2xl font-black text-stone-800"></p>
+        </div>
+        <div class="bg-lime-50 border border-lime-200 rounded-2xl px-5 py-3 w-full">
+          <p class="text-xs text-stone-400 uppercase tracking-widest mb-1">The specimen</p>
+          <p id="nat-ls-specimen-reveal" class="text-xl font-bold text-lime-800"></p>
+        </div>
+        <p class="text-stone-400 text-sm">Is this close enough?</p>
+      </div>
+
+      <!-- MDLM standby (non-active devices during Mole guess / Biologist verdict) -->
+      <p id="nat-ls-standby" style="display:none" class="text-stone-400 text-sm text-center"></p>
+
+      <div class="flex flex-col gap-3">
+        <button id="btn-nat-ls-submit" disabled
+          class="btn-mp-action min-h-14 w-full rounded-2xl bg-lime-600 hover:bg-lime-700 active:scale-95 text-white text-xl font-semibold transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed">
+          Submit Identification
+        </button>
+        <button id="btn-nat-ls-confirmed" class="hidden min-h-14 w-full rounded-2xl bg-lime-600 hover:bg-lime-700 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+Confirmed
+</button>
+        <button id="btn-nat-ls-disputed" class="hidden min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+          Disputed ✕
+        </button>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- nat-⑦ TALLY (per-round scores) -->
+  <section id="screen-nat-tally" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-4">
+
+      <div class="flex items-center justify-between">
+        <p id="nat-tally-round" class="text-stone-400 text-xs font-semibold uppercase tracking-widest"></p>
+        <div class="flex items-center gap-2">
+          <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+          <button id="btn-nat-tally-quit" class="text-stone-400 text-2xl active:scale-90 transition-transform duration-100">✕</button>
+        </div>
+      </div>
+
+      <p id="nat-tally-specimen" class="text-center text-stone-400 text-sm font-semibold uppercase tracking-widest"></p>
+      <div class="bg-stone-100 rounded-2xl px-4 py-3 text-center">
+        <p id="nat-tally-result" class="text-stone-800 font-semibold"></p>
+      </div>
+      <p id="nat-tally-mole-reveal" class="text-center text-stone-500 text-sm"></p>
+      <div id="nat-tally-scores" class="flex flex-col gap-2"></div>
+      <div id="nat-tally-suspicion" style="display:none" class="flex-col gap-2"></div>
+
+      <button id="btn-nat-tally-next" class="min-h-14 w-full rounded-2xl bg-lime-600 hover:bg-lime-700 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Next Observation
+      </button>
+
+    </div>
+  </section>
+
+  <!-- nat-⑧ GAMEOVER (Final Report) -->
+  <section id="screen-nat-gameover" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-4">
+
+      <div class="flex items-center justify-between">
+        <button id="btn-nat-gameover-exit" class="w-10 h-10 flex items-center justify-center text-stone-500 font-bold text-xl active:scale-90 transition-transform duration-100">✕</button>
+        <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest">Final Report</p>
+        <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+      </div>
+
+      <div class="text-center">
+        <p class="text-stone-400 text-sm">Lead Researcher of the Expedition</p>
+        <p id="nat-go-winner" class="text-3xl font-black text-lime-600 mt-1"></p>
+        <p id="nat-go-winner-score" class="text-stone-400 text-sm mt-0.5"></p>
+      </div>
+      <div id="nat-go-leaderboard" class="flex flex-col gap-2"></div>
+      <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest text-center">Expedition Log</p>
+      <div id="nat-go-log" class="flex flex-col gap-2"></div>
+
+      <button id="btn-nat-go-new" class="min-h-14 w-full rounded-2xl bg-lime-600 hover:bg-lime-700 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        New Expedition
+      </button>
+      <button id="btn-nat-go-exit" class="min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-xl font-semibold transition-all duration-150">
+        ← Back to the Box
+      </button>
+
+    </div>
+  </section>
+
+  <!-- nat-new-expedition-overlay (decision modal z-[90]) -->
+  <div id="nat-new-expedition-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[90] flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-lime-300">
+      <p class="text-5xl">🦁</p>
+      <div>
+        <h2 class="text-xl font-bold text-stone-800">New Expedition?</h2>
+        <p class="text-stone-400 text-sm mt-1">Pack up camp and start fresh with the same researchers.</p>
+      </div>
+      <div class="flex flex-col gap-2">
+        <button id="btn-nat-expedition-confirm" class="min-h-14 w-full rounded-2xl bg-lime-600 hover:bg-lime-700 active:scale-95 text-white text-lg font-semibold transition-all duration-150">
+Begin Expedition
+</button>
+        <button id="btn-nat-expedition-cancel" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-base font-medium transition-all duration-150">
+          Stay at Camp
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- nat-help-tip-overlay (decision modal z-[90] — contextual help) -->
+  <div id="nat-help-tip-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[90] flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-lime-300">
+      <p id="nat-help-tip-emoji" class="text-4xl"></p>
+      <h3 id="nat-help-tip-heading" class="text-lg font-bold text-stone-800"></h3>
+      <p id="nat-help-tip-text" class="text-stone-500 text-sm"></p>
+      <button id="btn-nat-help-tip-close" class="min-h-12 w-full rounded-xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-base font-semibold transition-all duration-150">
+        Got it ✓
+      </button>
+    </div>
+  </div>
+
+  <!-- ─── NAT OVERLAYS ─────────────────────────────────────────────────────── -->
+
+  <!-- nat-settings-overlay (data slide-up z-[80]) -->
+  <div id="nat-settings-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[80] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
+      <!-- Title block -->
+      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
+        <h2 class="text-xl font-bold text-stone-800">The Permit Office 🦁</h2>
+        <p class="text-xs text-stone-400 mt-1">Configure the expedition before you head out.</p>
+      </div>
+      <div class="overflow-y-auto flex flex-col gap-5 px-5 py-5">
+
+        <!-- Days per Habitat -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">Days per Habitat</p>
+            <p class="text-stone-400 text-sm mt-0.5">How many observation cycles before the vote.</p>
+          </div>
+          <div id="nat-rounds-group" class="flex gap-2">
+            <button class="pill pill-active-lime" data-days="2">2</button>
+            <button class="pill" data-days="3">3</button>
+            <button class="pill" data-days="4">4</button>
+          </div>
+        </div>
+
+        <!-- Research Log -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <div class="flex items-center justify-between">
+            <p class="text-stone-800 font-semibold">Research Log</p>
+            <button id="btn-nat-cumulative-toggle" class="game-toggle-off shrink-0">OFF</button>
+          </div>
+          <p class="text-stone-400 text-sm">Researchers get a new clue word each day and see all previous words stacked.</p>
+        </div>
+
+        <!-- Habitats -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">Habitats</p>
+            <p class="text-stone-400 text-sm mt-0.5">How many different animals per expedition.</p>
+          </div>
+          <div id="nat-matches-group" class="flex gap-2">
+            <button class="pill pill-active-lime" data-habitats="3">3</button>
+            <button class="pill" data-habitats="4">4</button>
+            <button class="pill" data-habitats="5">5</button>
+          </div>
+        </div>
+
+        <!-- Field Difficulty -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">Field Difficulty</p>
+            <p class="text-stone-400 text-sm mt-0.5">Controls how common or exotic the animals are.</p>
+          </div>
+          <div id="nat-diff-group" class="flex gap-2">
+            <button class="pill" data-diff="d1">Common</button>
+            <button class="pill pill-active-lime" data-diff="d1+d2">Rare</button>
+            <button class="pill" data-diff="all">Exotic</button>
+          </div>
+          <p id="nat-val-diff" class="text-stone-400 text-xs"></p>
+        </div>
+
+        <!-- The Vote -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">The Classification</p>
+            <p class="text-stone-400 text-sm mt-0.5">How the group identifies the anomaly.</p>
+          </div>
+          <div id="nat-vote-group" class="flex gap-2">
+            <button class="pill pill-active-lime" data-vote="consensus">Field Consensus</button>
+            <button class="pill" data-vote="independent">Independent</button>
+          </div>
+        </div>
+
+        <!-- Mole Escape Bonus -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">Mole Escape Bonus</p>
+            <p class="text-stone-400 text-sm mt-0.5">Credibility awarded to the Mole for surviving the round undetected.</p>
+          </div>
+          <div id="nat-escape-group" class="flex gap-2">
+            <button class="pill pill-active-lime" data-escape="10">10</button>
+            <button class="pill" data-escape="15">15</button>
+            <button class="pill" data-escape="20">20</button>
+          </div>
+        </div>
+
+        <!-- Scientific Integrity -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">Scientific Integrity</p>
+            <p class="text-stone-400 text-sm mt-0.5">Relaxed: no penalties for vague observations. Peer Review: during Selection, flag any clue — a majority marks it Discredited and costs the author Credibility.</p>
+          </div>
+          <div id="nat-integrity-group" class="flex gap-2">
+            <button class="pill pill-active-lime" data-integrity="relaxed">Relaxed</button>
+            <button class="pill" data-integrity="peer-review">Peer Review</button>
+          </div>
+        </div>
+
+        <!-- Sylly Mode -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <div class="flex items-center justify-between">
+            <p class="text-stone-800 font-semibold">✨ Sylly Mode</p>
+            <button id="btn-nat-sylly-toggle" class="game-toggle-off shrink-0">OFF</button>
+          </div>
+          <p class="text-stone-600 text-sm font-semibold">Survival of the Fittest</p>
+          <p class="text-stone-400 text-sm">Day 1 everyone shares the same broad clue. Day 2 and beyond, researchers reveal their specific detail while the Mole holds on.</p>
+        </div>
+
+        <button id="btn-nat-settings-close" class="min-h-14 w-full rounded-2xl bg-lime-600 hover:bg-lime-700 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+          Done
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- nat-how-to-overlay (data slide-up z-[90]) -->
+  <div id="nat-how-to-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[90] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
+      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
+        <h2 class="text-xl font-bold text-stone-800">How to Play 🦁</h2>
+        <p class="text-xs text-stone-400 mt-1">Natural Selection — a wildlife documentary goes wrong.</p>
+      </div>
+      <div class="overflow-y-auto flex flex-col gap-4 px-5 py-5">
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest text-lime-600">Step 1</p>
+          <p class="font-bold text-stone-800">Roles are Assigned.</p>
+          <p class="text-stone-500 text-sm">Each habitat draws a new Specimen. Roles are secretly assigned and revealed one at a time:</p>
+          <ul class="list-disc pl-5 flex flex-col gap-1 text-stone-500 text-sm">
+            <li><span class="font-semibold text-stone-700">🔬 Lead Biologist (1)</span> — sees the full animal name.</li>
+            <li><span class="font-semibold text-stone-700">📋 Field Researchers</span> — each sees a different detail word about the animal.</li>
+            <li><span class="font-semibold text-stone-700">🕵️ The Mole (1)</span> — only knows the broad grouping (e.g. "Sea Creature"). Trying to blend in.</li>
+          </ul>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest text-lime-600">Step 2</p>
+          <p class="font-bold text-stone-800">The Observation.</p>
+          <p class="text-stone-500 text-sm">Over several Observation Days, each player submits one word to describe the Specimen. Turn order is random each day. You can't use the animal's name, and you can't repeat a word already given this habitat.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest text-lime-600">Step 3</p>
+          <p class="font-bold text-stone-800">The Selection.</p>
+          <p class="text-stone-500 text-sm">Once all days are done, the field notes are revealed. Each player votes for who they think is The Mole. Most votes = exposed.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest text-lime-600">Step 4</p>
+          <p class="font-bold text-stone-800">The Last Stand.</p>
+          <p class="text-stone-500 text-sm">If The Mole is caught, they get one final chance — name the Specimen. The Lead Biologist decides if it counts. +10 Credibility either way for a correct guess.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest text-lime-600">Winning and Scoring</p>
+          <p class="font-bold text-stone-800">Credibility decides the winner.</p>
+          <ul class="list-disc pl-5 flex flex-col gap-1 text-stone-500 text-sm">
+            <li>Mole escapes → <span class="font-semibold text-stone-700">+Escape Bonus</span> to The Mole.</li>
+            <li>Mole names Specimen correctly → <span class="font-semibold text-stone-700">+10</span> to The Mole.</li>
+            <li>Mole caught → <span class="font-semibold text-stone-700">+10</span> to each Field Researcher &amp; Biologist.</li>
+            <li>Discredited clue (Peer Review) → <span class="font-semibold text-stone-700">−5</span> to the author.</li>
+          </ul>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest text-lime-600">✨ Sylly Mode</p>
+          <p class="font-bold text-stone-800">Survival of the Fittest</p>
+          <p class="text-stone-500 text-sm">No Lead Biologist. Every player gets a detail word — including the player normally in that role. All clues stay hidden until <span class="font-semibold text-stone-700">The Daily Review</span> reveals them before voting.</p>
+        </div>
+        <button id="btn-nat-howto-close" class="min-h-14 w-full rounded-2xl bg-lime-600 hover:bg-lime-700 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+          Got it
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- nat-quit-overlay (decision modal z-[80]) -->
+  <div id="nat-quit-overlay" style="display:none" class="fixed inset-0 bg-black/50 z-[80] flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-lime-300">
+      <p class="text-4xl">🔬</p>
+      <h2 class="text-xl font-bold text-stone-800">Abandon the expedition?</h2>
+      <p class="text-stone-500 text-sm text-center">All observations and Credibility will be lost.</p>
+      <div class="flex flex-col gap-3 mt-2">
+        <button id="btn-nat-quit-confirm" class="min-h-14 w-full rounded-2xl bg-red-500 hover:bg-red-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+          Yeah, pack up.
+        </button>
+        <button id="btn-nat-quit-cancel" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-base font-medium transition-all duration-150">
+          Keep watching.
+        </button>
+      </div>
+    </div>
+  </div>
+

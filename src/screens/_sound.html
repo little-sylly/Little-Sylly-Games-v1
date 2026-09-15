@@ -1,0 +1,59 @@
+  <!-- ═══════════════════════════════════════════════════════════════
+       GLOBAL + GM SUPPLEMENTARY OVERLAYS
+       #sound-overlay      — Global sound settings (z-[110], always on top)
+       #gm-quit-overlay    — GM quit confirmation
+       #gm-how-to-overlay  — GM how-to (placed here for historical reasons)
+  ════════════════════════════════════════════════════════════════ -->
+  <!-- Global Sound overlay -->
+  <!-- ART VIEWER (engine-owned, global) - one image as large as the viewport allows.
+       Opened by openArtViewer(src, caption) in engine.js from every game's How-to
+       gallery; a card tile is 3-4.5rem, which is a token, not a picture. Pattern 2
+       geometry with an image body, NOT a third overlay pattern. Deliberately
+       unbranded: six games open it, so any one game's colour would be wrong five
+       times out of six. z-[105] sits above the how-to sheets (z-[90]) and PKO's
+       events sheet (z-[95]), below the global sound overlay (z-[110]). -->
+  <div id="art-viewer-overlay" style="display:none"
+    class="fixed inset-0 bg-black/80 z-[105] overlay-modal-backdrop flex items-center justify-center">
+    <button id="btn-art-viewer-close" aria-label="Close artwork"
+      class="absolute top-4 right-4 min-h-11 min-w-11 rounded-full bg-black/40 text-white text-xl font-bold active:scale-90 transition-transform duration-100">&#x2715;</button>
+    <div class="flex flex-col items-center gap-3 w-full max-w-sm">
+      <img id="art-viewer-img" class="art-viewer-img" alt="" />
+      <p id="art-viewer-caption" class="text-white/80 text-sm font-semibold text-center"></p>
+    </div>
+  </div>
+
+  <div id="sound-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[110] flex items-center justify-center px-6">
+    <div class="bg-white rounded-2xl p-6 w-full max-w-sm flex flex-col gap-4 shadow-xl">
+      <h3 class="text-xl font-bold text-stone-800 text-center">🔊 Sound</h3>
+      <div class="flex items-center justify-between">
+        <p class="text-stone-800 font-semibold">Mute All</p>
+        <button id="global-mute-toggle" class="sylly-toggle-off">OFF</button>
+      </div>
+      <div id="global-volume-group" class="flex flex-col gap-4">
+        <div class="flex items-center justify-between">
+          <p class="text-stone-800 font-semibold">System Sounds</p>
+          <button id="btn-global-sfx-toggle" class="game-toggle-off shrink-0">OFF</button>
+        </div>
+        <div id="global-sfx-slider-row">
+          <p class="text-stone-400 text-sm font-semibold mb-2">Effects Volume — <span id="global-volume-label">60%</span></p>
+          <input id="global-sound-volume" type="range" min="0" max="100" step="10" value="60"
+            class="stone-range w-full" />
+        </div>
+      </div>
+      <div id="global-music-group" class="flex flex-col gap-4">
+        <div class="flex items-center justify-between">
+          <p class="text-stone-800 font-semibold">Music</p>
+          <button id="btn-global-music-toggle" class="game-toggle-off shrink-0">OFF</button>
+        </div>
+        <div id="global-music-slider-row">
+          <p class="text-stone-400 text-sm font-semibold mb-2">Music Volume — <span id="global-music-label">30%</span></p>
+          <input id="global-music-volume" type="range" min="0" max="100" step="10" value="30"
+            class="stone-range w-full" />
+        </div>
+      </div>
+      <button id="btn-sound-overlay-done" class="min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Done
+      </button>
+    </div>
+  </div>
+

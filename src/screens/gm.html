@@ -1,0 +1,570 @@
+  <!-- ══ GREAT MINDS SCREENS ══════════════════════════════════════════════════ -->
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       GREAT MINDS (GM)
+       Screens : #screen-gm-menu, #screen-gm-setup, #screen-gm-input,
+                 #screen-gm-pass-gate, #screen-gm-reveal-gate,
+                 #screen-gm-reveal, #screen-gm-result, #screen-gm-concede
+       Overlays: #gm-settings-overlay, #gm-near-sync-overlay,
+                 #gm-boost-overlay, #gm-neural-library-overlay,
+                 #gm-new-frequency-overlay, #gm-vocab-overlay,
+                 #gm-concede-overlay, #gm-override-overlay, #gm-deck-panel,
+                 #gm-help-tip-overlay
+       Note    : #gm-quit-overlay and #gm-how-to-overlay placed near
+                 line ~1794 (after SS, before Secret Mode)
+       Ref     : js/games/great-minds.js
+  ════════════════════════════════════════════════════════════════ -->
+  <!-- GM MENU screen — Great Minds game hub -->
+  <section id="screen-gm-menu" style="display:none" class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
+    <button class="btn-open-sound absolute top-4 right-4 text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+    <div class="text-6xl" role="img" aria-label="Brain">🧠</div>
+    <div>
+      <h1 class="text-5xl font-bold leading-tight text-stone-800">Great</h1>
+      <h1 class="text-5xl font-bold leading-tight text-purple-500">Minds</h1>
+    </div>
+    <p class="text-stone-500 text-lg">Think alike. And say the same.</p>
+    <div class="flex flex-col gap-4 w-full mt-2">
+      <button id="btn-gm-menu-play" class="gel-btn min-h-14 w-full rounded-2xl bg-purple-500 hover:bg-purple-600 text-white text-xl font-semibold">
+        Begin Link
+      </button>
+      <button id="btn-gm-menu-how-to" class="gel-btn min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 text-white text-xl font-semibold">
+        How to Play
+      </button>
+      <button id="btn-gm-menu-settings" class="gel-btn gel-btn-light min-h-14 w-full rounded-2xl bg-purple-100 hover:bg-purple-200 text-purple-700 text-xl font-semibold">
+        Settings
+      </button>
+      <button id="btn-gm-menu-back" class="gel-btn gel-btn-light min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 text-stone-500 text-xl font-semibold">
+        ← Back to the Box
+      </button>
+    </div>
+  </section>
+
+  <!-- GM① SETUP — name entry (phase: 'names') then pair reveal (phase: 'pair') -->
+  <section id="screen-gm-setup" style="display:none" class="flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
+
+    <!-- Phase: names -->
+    <div id="gm-setup-names" class="flex flex-col items-center gap-6 w-full">
+      <div class="flex items-center justify-between w-full">
+        <div class="w-10"></div>
+        <div class="text-6xl" role="img" aria-label="Brain">🧠</div>
+        <div class="flex items-center gap-2">
+          <button class="btn-open-sound w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-lg">🔊</button>
+          <button id="btn-gm-setup-exit" class="w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-stone-500 font-bold text-lg">✕</button>
+        </div>
+      </div>
+      <div>
+        <h2 class="text-3xl font-bold text-stone-800">Great Minds</h2>
+        <p class="text-stone-400 text-sm mt-1">Who's syncing today?</p>
+      </div>
+      <div class="flex flex-col gap-3 w-full">
+        <input id="gm-input-player1" type="text" maxlength="20" placeholder="Mind 1" autocomplete="off"
+          class="w-full rounded-2xl border-2 border-stone-200 px-4 py-3 text-lg text-center text-stone-800 focus:outline-none focus:border-purple-400" />
+        <input id="gm-input-player2" type="text" maxlength="20" placeholder="Mind 2" autocomplete="off"
+          class="w-full rounded-2xl border-2 border-stone-200 px-4 py-3 text-lg text-center text-stone-800 focus:outline-none focus:border-purple-400" />
+      </div>
+      <button id="btn-gm-names-done" class="min-h-14 w-full rounded-2xl bg-purple-500 hover:bg-purple-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+Begin Link
+</button>
+    </div>
+
+    <!-- Phase: pair reveal (hidden until names submitted) -->
+    <div id="gm-setup-pair" style="display:none" class="flex flex-col items-center gap-6 w-full">
+      <div class="flex justify-end gap-2 w-full">
+        <button class="btn-open-sound w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-lg">🔊</button>
+        <button id="btn-gm-setup-pair-exit" class="w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-stone-500 font-bold">✕</button>
+      </div>
+      <p class="text-stone-400 text-sm font-semibold uppercase tracking-widest">Round 1 — Connect these</p>
+      <div class="flex items-center justify-center gap-4 w-full">
+        <div class="flex-1 bg-white rounded-2xl py-5 shadow-sm">
+          <p id="gm-pair-word-a" class="text-2xl font-bold text-stone-800"></p>
+        </div>
+        <div class="text-2xl text-stone-300">↔</div>
+        <div class="flex-1 bg-white rounded-2xl py-5 shadow-sm">
+          <p id="gm-pair-word-b" class="text-2xl font-bold text-stone-800"></p>
+        </div>
+      </div>
+      <p class="text-stone-500 text-sm">Both players — look together, then take turns entering your clue.</p>
+      <button id="btn-gm-reroll-pair" style="display:none"
+        class="min-h-11 w-full rounded-2xl bg-stone-100 hover:bg-stone-200 active:scale-95 text-stone-500 text-base font-medium transition-all duration-150">
+New Frequency
+</button>
+      <button id="btn-gm-start-round" class="min-h-14 w-full rounded-2xl bg-purple-500 hover:bg-purple-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+Start!
+</button>
+    </div>
+
+  </section>
+
+  <!-- GM② INPUT — privacy gate, reused for Player 1 and Player 2 -->
+  <section id="screen-gm-input" style="display:none" class="flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-5">
+    <div class="flex justify-end gap-2 w-full">
+      <button class="btn-open-sound w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-lg">🔊</button>
+      <button id="btn-gm-how-to" class="btn-gm-help-open w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-stone-300 font-mono font-bold">?</button>
+      <button id="btn-gm-input-exit" class="w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-stone-500 font-bold">✕</button>
+    </div>
+    <p class="text-stone-300 text-xs font-semibold uppercase tracking-widest">Round <span id="gm-round-num-input"></span></p>
+    <p id="gm-input-prompt" class="text-stone-400 text-sm font-semibold uppercase tracking-widest">Your turn</p>
+    <div class="flex items-center justify-center gap-4 w-full">
+      <div class="flex-1 bg-white rounded-2xl py-4 shadow-sm">
+        <p id="gm-input-word-a" class="text-xl font-bold text-stone-800"></p>
+      </div>
+      <div class="text-xl text-stone-300">↔</div>
+      <div class="flex-1 bg-white rounded-2xl py-4 shadow-sm">
+        <p id="gm-input-word-b" class="text-xl font-bold text-stone-800"></p>
+      </div>
+    </div>
+    <!-- Static Interference alert — shown when setting is ON -->
+    <div id="gm-static-alert" style="display:none"
+      class="w-full bg-amber-50 border border-amber-200 rounded-xl px-4 py-2 text-center">
+      <p class="text-amber-500 text-xs font-semibold uppercase tracking-widest">Static Interference</p>
+      <p class="text-amber-800 text-base font-bold">Letter <span id="gm-static-letter"></span> is banned this round</p>
+    </div>
+    <!-- Boost context banner — shown to receiver when transmitter sent a boost -->
+    <div id="gm-boost-context-banner" style="display:none"
+         class="w-full rounded-2xl bg-purple-50 border border-purple-200 px-4 py-3 text-center">
+      <p class="text-xs text-purple-400 uppercase tracking-widest font-semibold mb-1">Boost Signal ⚡</p>
+      <p id="gm-boost-context-text" class="text-stone-700 font-semibold text-base"></p>
+    </div>
+    <div class="flex items-center gap-2 w-full">
+      <p class="text-stone-500 text-sm flex-1 text-center">Establishing Link... Transmit Clue.</p>
+      <button id="btn-gm-input-tip" class="text-stone-300 font-mono font-bold text-xl active:scale-90 transition-transform duration-100 flex-shrink-0">?</button>
+    </div>
+    <input id="gm-word-input" type="text" maxlength="30" placeholder="Your clue…" autocomplete="off"
+      class="w-full rounded-2xl border-2 border-stone-200 px-4 py-4 text-xl text-center text-stone-800 focus:outline-none focus:border-purple-400" />
+    <p id="gm-input-error" style="display:none" class="text-pink-500 text-sm font-semibold text-center"></p>
+    <!-- Secret Mode vocab list trigger — hidden until first vocab guard failure -->
+    <button id="gm-vocab-list-btn" style="display:none"
+      class="text-xs font-mono text-green-400 border border-green-800 bg-black rounded-xl px-4 py-2 min-h-11 w-full active:scale-95 transition-transform duration-75">
+      📋 VIEW WORD LIST
+    </button>
+    <button id="btn-gm-lock-in" class="btn-mp-action min-h-14 w-full rounded-2xl bg-purple-500 hover:bg-purple-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+Lock it in
+</button>
+    <!-- Psychic Echoes — round history visible while typing -->
+    <div id="gm-input-echoes" class="w-full max-h-28 overflow-y-auto flex flex-col"></div>
+    <!-- Sever Link — Secret Mode only, revealed from round 11 -->
+    <div id="gm-concede-wrap" style="display:none" class="flex flex-col items-center gap-2 w-full pt-1">
+      <p class="text-stone-300 text-xs text-center">Losing the connection — frequency mismatch intensifying 📡</p>
+      <button id="btn-gm-sever-link"
+        class="min-h-11 w-full rounded-2xl bg-stone-100 hover:bg-stone-200 active:scale-95 text-red-400 text-sm font-medium transition-all duration-150">
+        Sever Link
+      </button>
+    </div>
+  </section>
+
+  <!-- GM③ PASS GATE — neutral handoff, nothing revealing -->
+  <section id="screen-gm-pass-gate" style="display:none" class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
+    <div class="absolute top-4 right-4 flex items-center gap-2">
+      <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+      <button id="btn-gm-pass-exit" class="text-xl text-stone-500 font-bold active:scale-90 transition-transform duration-100">✕</button>
+    </div>
+    <p class="text-stone-300 text-xs font-semibold uppercase tracking-widest">Round <span id="gm-round-num-pass"></span></p>
+    <div class="text-6xl">🙈</div>
+    <div>
+      <h2 class="text-2xl font-bold text-stone-800">Finding Wavelength 📡</h2>
+      <p id="gm-pass-prompt" class="text-stone-500 text-lg mt-2">Pass the phone to <span id="gm-pass-name" class="font-semibold text-purple-500"></span></p>
+    </div>
+    <button id="btn-gm-ready" class="min-h-14 w-full rounded-2xl bg-purple-500 hover:bg-purple-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+I've got it
+</button>
+  </section>
+
+  <!-- GM④ REVEAL GATE — both players watch the countdown together -->
+  <section id="screen-gm-reveal-gate" style="display:none" class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
+    <div class="absolute top-4 right-4 flex items-center gap-2">
+      <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+      <button id="btn-gm-reveal-gate-exit" class="text-xl text-stone-500 font-bold active:scale-90 transition-transform duration-100">✕</button>
+    </div>
+    <p class="text-stone-300 text-xs font-semibold uppercase tracking-widest">Round <span id="gm-round-num-reveal-gate"></span></p>
+    <div class="text-6xl">🤝</div>
+    <div>
+      <h2 class="text-2xl font-bold text-stone-800">Frequencies Locked... 📡</h2>
+      <p class="text-stone-500 text-lg mt-2">Pass to <span id="gm-ready-pass-name" class="font-semibold text-purple-500"></span> — both watch together!</p>
+    </div>
+    <button id="btn-gm-countdown-ready" class="min-h-14 w-full rounded-2xl bg-purple-500 hover:bg-purple-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+Matching Wavelength
+</button>
+  </section>
+
+  <!-- GM⑤ REVEAL COUNTDOWN — 3… 2… 1… -->
+  <section id="screen-gm-reveal" style="display:none" class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
+    <div class="absolute top-4 right-4 flex items-center gap-2">
+      <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+      <button id="btn-gm-reveal-exit" class="text-xl text-stone-500 font-bold active:scale-90 transition-transform duration-100">✕</button>
+    </div>
+    <p class="text-stone-300 text-xs font-semibold uppercase tracking-widest">Round <span id="gm-round-num-countdown"></span></p>
+    <p class="text-stone-400 text-sm font-semibold uppercase tracking-widest">Revealing in…</p>
+    <p id="gm-countdown-number" class="text-9xl font-bold text-purple-500 leading-none">3</p>
+  </section>
+
+  <!-- GM⑤ RESULT — match or no match -->
+  <section id="screen-gm-result" style="display:none" class="flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
+
+    <!-- No-match state (shown by default, hidden on match) -->
+    <div id="gm-result-nomatch" class="flex flex-col items-center gap-5 w-full">
+      <div class="flex justify-end gap-2 w-full">
+        <button class="btn-open-sound w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-lg">🔊</button>
+        <button id="btn-gm-result-exit" class="w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-stone-500 font-bold">✕</button>
+      </div>
+      <div class="text-5xl">📡</div>
+      <div>
+        <h2 id="gm-result-heading" class="text-2xl font-bold text-stone-800"></h2>
+        <p class="text-stone-500 text-sm mt-1">Round <span id="gm-result-round-num"></span></p>
+      </div>
+      <div class="flex items-center justify-center gap-3 w-full">
+        <div class="flex-1 bg-white rounded-2xl py-4 shadow-sm">
+          <p class="text-xs text-stone-400 mb-1" id="gm-result-name-a"></p>
+          <p id="gm-result-word-a" class="text-xl font-bold text-stone-800"></p>
+        </div>
+        <div class="text-xl text-stone-300">≠</div>
+        <div class="flex-1 bg-white rounded-2xl py-4 shadow-sm">
+          <p class="text-xs text-stone-400 mb-1" id="gm-result-name-b"></p>
+          <p id="gm-result-word-b" class="text-xl font-bold text-stone-800"></p>
+        </div>
+      </div>
+      <p id="gm-result-pair-hint" class="text-stone-400 text-sm">New signal acquired ↑</p>
+      <div id="gm-result-echoes" class="w-full max-h-32 overflow-y-auto text-left"></div>
+      <button id="btn-gm-next-round" class="min-h-14 w-full rounded-2xl bg-purple-500 hover:bg-purple-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+Recalibrate
+</button>
+      <button id="btn-gm-reroll-result" style="display:none"
+        class="min-h-11 w-full rounded-2xl bg-stone-100 hover:bg-stone-200 active:scale-95 text-stone-500 text-base font-medium transition-all duration-150">
+New Frequency
+</button>
+      <div class="flex items-center gap-2">
+        <button id="btn-gm-override" class="flex-1 min-h-11 rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-base font-medium transition-all duration-150">
+Actually... that's a sync
+</button>
+        <button id="btn-gm-override-tip" class="text-stone-300 font-bold text-sm leading-none active:scale-90 transition-transform duration-100">[?]</button>
+      </div>
+    </div>
+
+    <!-- Match state (hidden until match) -->
+    <div id="gm-result-match" style="display:none" class="flex flex-col items-center gap-5 w-full">
+      <div class="flex justify-end gap-2 w-full">
+        <button class="btn-open-sound w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-lg">🔊</button>
+        <button id="btn-gm-victory-exit" class="w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-stone-500 font-bold">✕</button>
+      </div>
+      <div class="text-6xl">🎉</div>
+      <div>
+        <h2 class="text-3xl font-bold text-purple-500">NEURAL LINK!</h2>
+        <p id="gm-match-subtext" class="text-stone-500 text-sm mt-1"></p>
+      </div>
+      <div class="bg-white rounded-2xl py-6 px-8 shadow-sm w-full">
+        <p id="gm-match-word" class="text-3xl font-bold text-stone-800"></p>
+      </div>
+      <div class="bg-stone-100 rounded-2xl p-4 w-full">
+        <p class="text-stone-400 text-xs uppercase tracking-widest mb-1">Rounds to sync</p>
+        <p id="gm-victory-rounds" class="text-4xl font-bold text-stone-800"></p>
+      </div>
+      <div class="w-full">
+        <p class="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-2">Psychic Echoes 📖</p>
+        <div class="relative w-full">
+        <div id="gm-journey-log" class="w-full max-h-64 overflow-y-auto"></div>
+        <div class="pointer-events-none absolute inset-x-0 top-0 h-6 bg-gradient-to-b from-stone-50 to-transparent"></div>
+        <div class="pointer-events-none absolute inset-x-0 bottom-0 h-6 bg-gradient-to-t from-stone-50 to-transparent"></div>
+        </div>
+      </div>
+      <button id="btn-gm-new-frequency" class="min-h-14 w-full rounded-2xl bg-purple-500 hover:bg-purple-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+New Frequency
+</button>
+    </div>
+
+  </section>
+
+  <!-- GM CONCEDE — end state when players sever the link -->
+  <section id="screen-gm-concede" style="display:none"
+    class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
+    <div class="absolute top-4 right-4 flex items-center gap-2">
+      <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+      <button id="btn-gm-concede-exit" class="text-xl text-stone-500 font-bold active:scale-90 transition-transform duration-100">✕</button>
+    </div>
+    <div class="text-5xl">📡</div>
+    <div>
+      <h2 class="text-2xl font-bold text-stone-800">No Link Could Be Established</h2>
+      <p class="text-stone-400 text-sm mt-1">Incompatible wavelengths — frequencies could not be aligned.</p>
+    </div>
+    <div class="flex items-center justify-center gap-3 w-full">
+      <div class="flex-1 bg-white rounded-2xl py-4 shadow-sm">
+        <p id="gm-concede-word-a" class="text-xl font-bold text-stone-800"></p>
+      </div>
+      <div class="text-xl text-stone-300">↔</div>
+      <div class="flex-1 bg-white rounded-2xl py-4 shadow-sm">
+        <p id="gm-concede-word-b" class="text-xl font-bold text-stone-800"></p>
+      </div>
+    </div>
+    <p class="text-stone-400 text-sm">Rounds attempted: <span id="gm-concede-rounds" class="font-bold text-stone-800"></span></p>
+    <div class="w-full">
+      <p class="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-2">Psychic Echoes 📖</p>
+      <div id="gm-concede-log" class="w-full max-h-48 overflow-y-auto text-left"></div>
+    </div>
+    <button id="btn-gm-concede-new-frequency"
+      class="min-h-14 w-full rounded-2xl bg-purple-500 hover:bg-purple-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+New Frequency
+</button>
+    <button id="btn-gm-concede-back"
+      class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-base font-medium transition-all duration-150">
+      ← Back to Menu
+    </button>
+  </section>
+
+  <!-- Great Minds Settings overlay -->
+  <div id="gm-settings-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[80] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
+      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
+        <h2 class="text-xl font-bold text-stone-800">Frequency Configuration 📡</h2>
+        <p class="text-stone-400 text-xs mt-1">Calibrate before you sync.</p>
+      </div>
+      <div class="overflow-y-auto flex flex-col gap-5 px-5 py-5">
+
+      <!-- 1. Frequency Tuner (Custom Words toggle + pickers) -->
+      <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-4">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-stone-800 font-semibold">Frequency Tuner</p>
+            <p class="text-stone-400 text-sm">Tune which category each word is drawn from.</p>
+          </div>
+          <button id="btn-gm-custom-toggle" class="sylly-toggle-off shrink-0">OFF</button>
+        </div>
+
+        <div id="gm-custom-pickers" style="display:none" class="flex flex-col gap-2">
+          <button id="btn-gm-set-pool-a" class="min-h-12 w-full rounded-xl bg-stone-100 hover:bg-stone-200 active:scale-95 text-stone-700 text-sm font-semibold transition-all duration-150 text-left px-4">
+            Word 1 Decks — all 📂
+          </button>
+          <button id="btn-gm-set-pool-b" class="min-h-12 w-full rounded-xl bg-stone-100 hover:bg-stone-200 active:scale-95 text-stone-700 text-sm font-semibold transition-all duration-150 text-left px-4">
+            Word 2 Decks — all 📂
+          </button>
+        </div>
+      </div>
+
+      <!-- 2. Adjust Frequency Range -->
+      <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+        <div>
+          <p class="text-stone-800 font-semibold">Adjust Frequency Range</p>
+          <p id="gm-frequency-desc" class="text-stone-400 text-sm mt-0.5">Standard words only.</p>
+        </div>
+        <div id="gm-frequency-pills" class="flex gap-2">
+          <button class="pill pill-active-purple" data-gm-frequency="stable">Stable</button>
+          <button class="pill" data-gm-frequency="unstable">Unstable</button>
+          <button class="pill" data-gm-frequency="chaotic">Chaotic</button>
+        </div>
+      </div>
+
+      <!-- 3. Memory Guard -->
+      <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+        <div class="flex items-center justify-between">
+          <p class="text-stone-800 font-semibold">Memory Guard</p>
+          <button id="btn-gm-memory-guard-toggle" class="sylly-toggle-off shrink-0">OFF</button>
+        </div>
+        <p id="gm-memory-guard-desc" class="text-stone-400 text-sm">Previous round's words are always blocked. No further restrictions.</p>
+      </div>
+
+      <!-- 4. Resonance Tolerance -->
+      <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+        <div>
+          <p class="text-stone-800 font-semibold">Resonance Tolerance</p>
+          <p id="gm-resonance-desc" class="text-stone-400 text-sm mt-0.5">Exact match only. No partial credit.</p>
+        </div>
+        <div id="gm-resonance-pills" class="flex gap-2">
+          <button class="pill pill-active-purple" data-gm-resonance="strict">High Fidelity</button>
+          <button class="pill" data-gm-resonance="normal">Resonant</button>
+        </div>
+      </div>
+
+      <!-- 5. Infinite Resync -->
+      <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+        <div class="flex items-center justify-between">
+          <p class="text-stone-800 font-semibold">Infinite Resync</p>
+          <button id="btn-gm-resync-toggle" class="sylly-toggle-off shrink-0">OFF</button>
+        </div>
+        <p class="text-stone-400 text-sm">Reroll the starting word pair before the game begins.</p>
+      </div>
+
+      <!-- 6. Signal Boost -->
+      <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+        <div class="flex items-center justify-between">
+          <p class="text-stone-800 font-semibold">Signal Boost</p>
+          <div class="flex items-center gap-2">
+            <button id="btn-gm-boost-help-settings" class="min-h-8 min-w-8 rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 text-stone-500 font-bold text-sm flex items-center justify-center transition-all duration-150">?</button>
+            <button id="btn-gm-signal-boost-toggle" class="sylly-toggle-off shrink-0">OFF</button>
+          </div>
+        </div>
+        <p class="text-stone-400 text-sm">From round 5, optionally add 15 chars of context before locking in. Logged in Psychic Echoes.</p>
+      </div>
+
+      <!-- 7. ✨ Sylly Mode (always last) -->
+      <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+        <div class="flex items-center justify-between">
+          <p class="text-stone-800 font-semibold">✨ Sylly Mode</p>
+          <button id="btn-gm-static-toggle" class="sylly-toggle-off shrink-0">OFF</button>
+        </div>
+        <p class="text-stone-600 text-sm font-semibold">Static Interference</p>
+        <p id="gm-sylly-intensity-desc" class="text-stone-400 text-sm">Each round, a random consonant is banned for both players. No clue may contain it.</p>
+        <div id="gm-sylly-mode-detail" style="display:none" class="flex flex-col gap-2">
+          <div id="gm-sylly-intensity-pills" class="flex gap-2">
+            <button class="pill pill-active-purple" data-gm-intensity="sub-atomic">Mental Fog</button>
+            <button class="pill" data-gm-intensity="supernova">Neural Storm</button>
+          </div>
+        </div>
+      </div>
+
+      <button id="btn-gm-settings-done" class="min-h-14 w-full rounded-2xl bg-purple-500 hover:bg-purple-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Done 
+      </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Near-Sync overlay (Great Minds) — fires when root forms match but words differ -->
+  <div id="gm-near-sync-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[95] flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-purple-300">
+      <p class="text-4xl">⚡</p>
+      <p class="text-xl font-bold text-stone-800">Frequency Overlap</p>
+      <p class="text-stone-500 text-sm">These wavelengths are nearly identical. Do you accept this resonance?</p>
+      <div class="flex items-center justify-center gap-3 bg-white rounded-2xl py-4 px-6 shadow-sm">
+        <span id="gm-near-sync-word-a" class="text-lg font-bold text-stone-800"></span>
+        <span class="text-stone-300 text-xl">≈</span>
+        <span id="gm-near-sync-word-b" class="text-lg font-bold text-stone-800"></span>
+      </div>
+      <button id="btn-gm-near-sync-accept" class="min-h-14 w-full rounded-2xl bg-purple-500 hover:bg-purple-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+Accept Sync
+</button>
+      <button id="btn-gm-near-sync-reject" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-base font-medium transition-all duration-150">
+        Reject — recalibrate
+      </button>
+    </div>
+  </div>
+
+  <!-- Signal Boost overlay (Great Minds) — optional context before locking in -->
+  <div id="gm-boost-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[95] flex overlay-modal-backdrop">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 border border-purple-300">
+      <div class="text-center">
+        <p class="text-lg font-bold text-stone-800">Boost Signal ⚡</p>
+        <p class="text-stone-400 text-sm mt-1">Hint at category, relationship, or part of speech (15 chars max).</p>
+      </div>
+      <div class="flex gap-2 items-center">
+        <input id="gm-boost-input" type="text" maxlength="15" placeholder='"noun", "shape", "feeling"…' autocomplete="off"
+          class="flex-1 rounded-2xl border-2 border-stone-200 px-4 py-3 text-base text-center text-stone-800 focus:outline-none focus:border-purple-400" />
+        <button id="btn-gm-boost-help" class="min-h-11 min-w-11 rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 text-stone-500 font-bold text-base flex items-center justify-center transition-all duration-150">?</button>
+      </div>
+      <p id="gm-boost-error" style="display:none" class="text-pink-500 text-sm font-semibold text-center">
+        Static Interference! Context cannot match your clue.
+      </p>
+      <button id="btn-gm-boost-confirm" class="min-h-14 w-full rounded-2xl bg-purple-500 hover:bg-purple-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+Boost Signal
+</button>
+      <button id="btn-gm-raw-signal" class="min-h-11 w-full rounded-2xl bg-stone-100 hover:bg-stone-200 active:scale-95 text-stone-500 text-base font-medium transition-all duration-150">
+Raw Signal
+</button>
+    </div>
+  </div>
+
+  <!-- Neural Library modal (Signal Boost guide) -->
+  <div id="gm-neural-library-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[100] flex overlay-modal-backdrop">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 border border-purple-300">
+      <div class="text-center">
+        <p class="text-lg font-bold text-stone-800">Boost Signal Guide ⚡</p>
+        <p class="text-stone-400 text-sm mt-1 font-semibold">Provide Metadata, not Synonyms.</p>
+        <p class="text-stone-400 text-sm">Describe the <em>type</em> of word your partner should look for.</p>
+      </div>
+      <div class="flex flex-col gap-2 text-sm text-stone-600">
+        <div class="rounded-xl bg-stone-100 px-4 py-2"><span class="font-semibold text-stone-700">Grammar</span> — Noun · Adjective · Verb</div>
+        <div class="rounded-xl bg-stone-100 px-4 py-2"><span class="font-semibold text-stone-700">Physical</span> — Scale · Colour · Shape · Texture</div>
+        <div class="rounded-xl bg-stone-100 px-4 py-2"><span class="font-semibold text-stone-700">Conceptual</span> — Feeling · Location · Time Period · Relationship</div>
+      </div>
+      <div class="rounded-xl bg-purple-50 border border-purple-200 px-4 py-3 text-sm">
+        <p class="text-xs text-purple-400 uppercase tracking-widest font-semibold mb-1">Example</p>
+        <p class="text-stone-500 mb-1">Pair: <span class="font-semibold text-stone-700">Elephant · Whale</span> — Clue: "Big"</p>
+        <p class="text-green-600 font-semibold">✅ "Scale" or "Size" — metadata</p>
+        <p class="text-pink-500 font-semibold">❌ "Huge" or "Enormous" — exploit</p>
+      </div>
+      <button id="btn-gm-neural-library-close" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-600 text-base font-semibold transition-all duration-150">
+        Got it 📡
+      </button>
+    </div>
+  </div>
+
+  <!-- New Frequency confirmation overlay (Great Minds) -->
+  <div id="gm-new-frequency-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[95] flex overlay-modal-backdrop">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 border border-purple-300">
+      <p class="text-lg font-bold text-stone-800 text-center">Session Terminal</p>
+      <button id="btn-gm-new-game-confirm" class="min-h-14 w-full rounded-2xl bg-purple-500 hover:bg-purple-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+Memory Purge
+</button>
+      <button id="btn-gm-new-game-cancel" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-base font-medium transition-all duration-150">
+Resume Current Evaluation
+</button>
+    </div>
+  </div>
+
+  <!-- Vocab reference overlay — Secret Mode expansion (terminal-style slide-up) -->
+  <div id="gm-vocab-overlay" style="display:none"
+    class="fixed inset-0 bg-black/90 z-[95] flex items-end justify-center">
+    <div class="bg-black border-t-2 border-green-800 w-full max-w-sm font-mono flex flex-col rounded-t-3xl settings-slide-up"
+      style="height:85vh">
+      <!-- Header -->
+      <div class="flex items-center justify-between px-5 pt-5 pb-3 border-b border-green-900 flex-shrink-0">
+        <p id="gm-vocab-title" class="text-green-400 text-xs tracking-widest"></p>
+        <button id="btn-gm-vocab-close"
+          class="text-green-600 text-xs border border-green-800 rounded px-3 py-1 min-h-11 min-w-11 active:scale-90 transition-transform">
+          ✕ CLOSE
+        </button>
+      </div>
+      <!-- Search -->
+      <div class="px-4 pt-3 pb-2 flex-shrink-0">
+        <input id="gm-vocab-search" type="text" placeholder="SEARCH..." maxlength="30" autocomplete="off"
+          class="w-full bg-transparent border border-green-800 rounded px-3 py-2 text-green-400 text-xs placeholder-green-900 focus:outline-none focus:border-green-400" />
+      </div>
+      <!-- Tab bar -->
+      <div id="gm-vocab-tabs" class="flex gap-2 px-4 pb-2 flex-shrink-0 overflow-x-auto"></div>
+      <!-- Word list -->
+      <div id="gm-vocab-list" class="flex-1 overflow-y-auto px-5 pb-6 text-green-400 text-xs leading-7"></div>
+    </div>
+  </div>
+
+  <!-- Concede confirmation overlay (Great Minds — Secret Mode) -->
+  <div id="gm-concede-overlay" style="display:none"
+    class="fixed inset-0 bg-black/40 z-[95] flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-purple-300">
+      <p class="text-4xl">📡</p>
+      <p class="text-xl font-bold text-stone-800">Incompatible Wavelengths</p>
+      <p class="text-stone-500 text-sm">We are losing the connection — frequency mismatch intensifying.</p>
+      <button id="btn-gm-concede-confirm"
+        class="min-h-14 w-full rounded-2xl bg-red-500 hover:bg-red-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+        Sever
+      </button>
+      <button id="btn-gm-concede-cancel"
+        class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-base font-medium transition-all duration-150">
+        Re-establish Connection
+      </button>
+    </div>
+  </div>
+
+  <!-- Override confirmation overlay (Great Minds) -->
+  <div id="gm-override-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[95] flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-purple-300">
+      <p class="text-4xl">⚛️</p>
+      <p class="text-xl font-bold text-stone-800">Quantum Entanglement?</p>
+      <p class="text-stone-500 text-sm">Unorthodox frequency… but does it sync?</p>
+      <button id="btn-gm-override-confirm" class="min-h-14 w-full rounded-2xl bg-purple-500 hover:bg-purple-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+Confirm sync
+</button>
+      <button id="btn-gm-override-cancel" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-base font-medium transition-all duration-150">
+        Nah, recalibrate
+      </button>
+    </div>
+  </div>
+
+  <!-- gm-help-tip-overlay (decision modal z-[90] — contextual help) -->
+  <div id="gm-help-tip-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[90] flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-purple-300">
+      <p id="gm-help-tip-emoji" class="text-4xl"></p>
+      <h3 id="gm-help-tip-heading" class="text-lg font-bold text-stone-800"></h3>
+      <p id="gm-help-tip-text" class="text-stone-500 text-sm"></p>
+      <button id="btn-gm-help-tip-close" class="min-h-12 w-full rounded-xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-base font-semibold transition-all duration-150">
+        Got it ✓
+      </button>
+    </div>
+  </div>
+

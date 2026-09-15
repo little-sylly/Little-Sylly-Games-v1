@@ -1,6 +1,20 @@
 # Ordered partials assembled into index.html by tools/build-index.js.
 # Edit a partial in src/screens/, never index.html itself.
-_rest.html
+_head.html
+_shell.html
+li5.html
+gm.html
+ss.html
+_sound.html
+gm-overlays.html
+_secret.html
+jec.html
+ygi.html
+lttp.html
+_scripts-1.html
+nat.html
+dsd.html
+_mp.html
 bld.html
 _scripts-2.html
 gth.html

@@ -1,0 +1,747 @@
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!-- SYLLY SIGNALS screens                                                  -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       SECRET SIGNALS (SS)
+       Screens : #screen-ss-menu, #screen-ss-setup, #screen-ss-players,
+                 #screen-ss-vault-gate, #screen-ss-vault, #screen-ss-transmit-gate,
+                 #screen-ss-encrypt,
+                 #screen-ss-broadcast, #screen-ss-intercept,
+                 #screen-ss-decode-gate, #screen-ss-decode,
+                 #screen-ss-resolution, #screen-ss-gameover,
+                 #screen-ss-tiebreak, #screen-ss-intel-intro,
+                 #screen-ss-intel-guess, #screen-ss-intel-summary,
+                 #screen-ss-standby
+       Overlays: #ss-settings-overlay, #ss-how-to-overlay,
+                 #ss-quit-overlay, #ss-play-again-overlay,
+                 #ss-override-overlay, #ss-help-tip-overlay,
+                 #ss-dossier-overlay, #ss-inning-transition, #ss-endgame-splash
+       Ref     : js/games/secret-signals.js  (was sylly-signals.js)
+  ════════════════════════════════════════════════════════════════ -->
+  <!-- SS-① MENU -->
+  <section id="screen-ss-menu" style="display:none" class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
+    <button class="btn-open-sound absolute top-4 right-4 text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+    <div class="text-6xl" role="img" aria-label="Satellite">📡</div>
+    <div>
+      <h1 class="text-5xl font-bold leading-tight text-stone-800">Secret</h1>
+      <h1 class="text-5xl font-bold leading-tight text-teal-500">Signals</h1>
+    </div>
+    <p class="text-stone-500 text-lg">Send the signal. Secure the code.</p>
+    <div class="flex flex-col gap-4 w-full mt-2">
+      <button id="btn-ss-play" class="gel-btn min-h-14 w-full rounded-2xl bg-teal-500 hover:bg-teal-600 text-white text-xl font-semibold">
+        Start Mission
+      </button>
+      <button id="btn-ss-how-to" class="gel-btn min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 text-white text-xl font-semibold">
+        How to Play
+      </button>
+      <button id="btn-ss-settings" class="gel-btn gel-btn-light min-h-14 w-full rounded-2xl bg-teal-100 hover:bg-teal-200 text-teal-700 text-xl font-semibold">
+        Settings
+      </button>
+      <button id="btn-ss-back" class="gel-btn gel-btn-light min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 text-stone-500 text-xl font-semibold">
+        ← Back to the Box
+      </button>
+    </div>
+  </section>
+
+  <!-- SS-② SETUP — team name entry -->
+  <section id="screen-ss-setup" style="display:none" class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
+    <div class="absolute top-4 right-4 flex items-center gap-2">
+      <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+      <button id="btn-ss-setup-exit" class="text-xl text-stone-500 font-bold active:scale-90 transition-transform duration-100">✕</button>
+    </div>
+    <div class="text-5xl" role="img" aria-label="People">👥</div>
+    <div>
+      <h2 class="text-3xl font-bold text-stone-800">Establish Cover Identities</h2>
+      <p class="text-stone-400 text-base mt-1">Leave blank to use Alpha Echo &amp; Bravo Zulu</p>
+    </div>
+    <div class="flex flex-col gap-4 w-full text-left">
+      <div>
+        <label class="text-stone-500 text-sm font-semibold uppercase tracking-widest block mb-1">Team A name</label>
+        <input id="ss-input-team-a" type="text" maxlength="20" placeholder="e.g. Alpha Echo"
+          class="w-full rounded-xl border-2 border-stone-200 bg-white px-4 py-3 text-lg text-stone-800 placeholder-stone-300 focus:border-teal-400 focus:outline-none transition-colors" />
+      </div>
+      <div>
+        <label class="text-stone-500 text-sm font-semibold uppercase tracking-widest block mb-1">Team B name</label>
+        <input id="ss-input-team-b" type="text" maxlength="20" placeholder="e.g. Bravo Zulu"
+          class="w-full rounded-xl border-2 border-stone-200 bg-white px-4 py-3 text-lg text-stone-800 placeholder-stone-300 focus:border-teal-400 focus:outline-none transition-colors" />
+      </div>
+    </div>
+    <button id="btn-ss-start-game" class="min-h-14 w-full rounded-2xl bg-teal-500 hover:bg-teal-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+Next — Meet the Operatives
+</button>
+  </section>
+
+  <!-- SS-② PLAYERS — operative names -->
+  <section id="screen-ss-players" style="display:none" class="relative flex flex-col items-start px-6 py-10 w-full max-w-sm mx-auto gap-5">
+    <div class="flex justify-between items-center w-full">
+      <button id="btn-ss-players-back" class="text-stone-500 font-bold text-xl active:scale-90 transition-transform duration-100">←</button>
+      <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest">Operatives</p>
+      <div class="flex items-center gap-2">
+        <button class="btn-open-sound w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-lg">🔊</button>
+        <button class="btn-ss-quit-open text-xl text-stone-500 font-bold active:scale-90 transition-transform duration-100">✕</button>
+      </div>
+    </div>
+    <div>
+      <h2 class="text-2xl font-bold text-stone-800">Meet the Operatives</h2>
+      <p class="text-stone-400 text-sm mt-1">Names optional — helps with broadcaster rotation.</p>
+    </div>
+    <!-- Player count toggle -->
+    <div class="w-full">
+      <p class="text-stone-600 text-sm font-semibold mb-2">Team size</p>
+      <div class="flex gap-2">
+        <button class="pill pill-active-teal" data-ss-player-count="2">2v2</button>
+        <button class="pill" data-ss-player-count="3">3v3</button>
+      </div>
+    </div>
+    <!-- Team A -->
+    <div class="w-full">
+      <p id="ss-players-team-a-label" class="text-xs font-semibold uppercase tracking-widest text-teal-600 mb-2">Team A</p>
+      <div class="flex flex-col gap-2" id="ss-players-a-inputs">
+        <input type="text" maxlength="20" placeholder="Operative 1" id="ss-player-a1"
+          class="w-full rounded-xl border-2 border-stone-200 bg-white px-4 py-3 text-base text-stone-800 placeholder-stone-300 focus:border-teal-400 focus:outline-none transition-colors" />
+        <input type="text" maxlength="20" placeholder="Operative 2" id="ss-player-a2"
+          class="w-full rounded-xl border-2 border-stone-200 bg-white px-4 py-3 text-base text-stone-800 placeholder-stone-300 focus:border-teal-400 focus:outline-none transition-colors" />
+        <input type="text" maxlength="20" placeholder="Operative 3" id="ss-player-a3" style="display:none"
+          class="w-full rounded-xl border-2 border-stone-200 bg-white px-4 py-3 text-base text-stone-800 placeholder-stone-300 focus:border-teal-400 focus:outline-none transition-colors" />
+      </div>
+    </div>
+    <!-- Team B -->
+    <div class="w-full">
+      <p id="ss-players-team-b-label" class="text-xs font-semibold uppercase tracking-widest text-teal-600 mb-2">Team B</p>
+      <div class="flex flex-col gap-2" id="ss-players-b-inputs">
+        <input type="text" maxlength="20" placeholder="Operative 1" id="ss-player-b1"
+          class="w-full rounded-xl border-2 border-stone-200 bg-white px-4 py-3 text-base text-stone-800 placeholder-stone-300 focus:border-teal-400 focus:outline-none transition-colors" />
+        <input type="text" maxlength="20" placeholder="Operative 2" id="ss-player-b2"
+          class="w-full rounded-xl border-2 border-stone-200 bg-white px-4 py-3 text-base text-stone-800 placeholder-stone-300 focus:border-teal-400 focus:outline-none transition-colors" />
+        <input type="text" maxlength="20" placeholder="Operative 3" id="ss-player-b3" style="display:none"
+          class="w-full rounded-xl border-2 border-stone-200 bg-white px-4 py-3 text-base text-stone-800 placeholder-stone-300 focus:border-teal-400 focus:outline-none transition-colors" />
+      </div>
+    </div>
+    <button id="btn-ss-players-confirm" class="min-h-14 w-full rounded-2xl bg-teal-500 hover:bg-teal-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      Proceed to Vault →
+    </button>
+  </section>
+
+  <!-- SS-③ VAULT GATE — reused for both teams (dynamic content) -->
+  <section id="screen-ss-vault-gate" style="display:none" class="flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
+    <div class="text-6xl" role="img" aria-label="Shh">🤫</div>
+    <div>
+      <p class="text-stone-400 text-sm font-semibold uppercase tracking-widest">Top Secret</p>
+      <h2 id="ss-vault-gate-title" class="text-3xl font-bold text-stone-800 mt-1">Team A only</h2>
+      <p class="text-stone-500 text-base mt-3 leading-relaxed">Pass the phone to <span id="ss-vault-gate-team" class="font-bold text-teal-600">Team A</span>.<br>Don't let the other team peek!</p>
+    </div>
+    <button id="btn-ss-vault-gate-ready" class="min-h-14 w-full rounded-2xl bg-teal-500 hover:bg-teal-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+We're ready — show our vault
+</button>
+  </section>
+
+  <!-- SS-④ VAULT — reused for both teams (dynamic content) -->
+  <section id="screen-ss-vault" style="display:none" class="flex flex-col items-center px-6 py-10 w-full max-w-sm mx-auto gap-5">
+    <div class="flex justify-between items-center w-full">
+      <div class="w-10"></div>
+      <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest">Secret Vault</p>
+      <div class="flex items-center gap-2">
+        <button class="btn-open-sound w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-lg">🔊</button>
+        <button id="btn-ss-vault-exit" class="w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-stone-500 font-bold">✕</button>
+      </div>
+    </div>
+    <div class="text-5xl text-center" role="img" aria-label="Lock">🔐</div>
+    <div class="text-center">
+      <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest">Your Secret Vault</p>
+      <h2 id="ss-vault-title" class="text-2xl font-bold text-stone-800 mt-1">Team A</h2>
+      <p class="text-stone-400 text-sm mt-1">Memorise these — don't show the other team!</p>
+    </div>
+    <div id="ss-vault-grid" class="w-full grid grid-cols-2 gap-3">
+      <!-- 4 keyword cards injected by JS -->
+    </div>
+    <p id="ss-vault-reroll-note" class="text-stone-400 text-xs text-center" style="display:none"></p>
+    <p id="ss-vault-instruction" class="text-stone-500 text-sm text-center" style="display:none"></p>
+    <button id="btn-ss-vault-done" class="btn-mp-action min-h-14 w-full rounded-2xl bg-teal-500 hover:bg-teal-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      Got it! I've memorised my vault 👁️
+    </button>
+  </section>
+
+  <!-- SS-④b TRANSMIT GATE — TLM hand-off before each half's code is revealed (reused for both teams) -->
+  <section id="screen-ss-transmit-gate" style="display:none" class="flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
+    <div class="text-6xl" role="img" aria-label="Incoming transmission">📡</div>
+    <div>
+      <p class="text-stone-400 text-sm font-semibold uppercase tracking-widest">Incoming Transmission</p>
+      <h2 id="ss-transmit-gate-title" class="text-3xl font-bold text-stone-800 mt-1">Team A's turn</h2>
+      <p class="text-stone-500 text-base mt-3 leading-relaxed">Pass the phone to <span id="ss-transmit-gate-team" class="font-bold text-teal-600">Team A</span>.<br>Don't let the other team peek!</p>
+    </div>
+    <button id="btn-ss-transmit-gate-ready" class="min-h-14 w-full rounded-2xl bg-teal-500 hover:bg-teal-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+We're ready — encrypt now
+</button>
+  </section>
+
+  <!-- SS-⑤ ENCRYPT — encrypter's private view -->
+  <section id="screen-ss-encrypt" style="display:none" class="flex flex-col items-start px-6 py-10 w-full max-w-sm mx-auto gap-5">
+    <div class="flex justify-between items-center w-full">
+      <button id="btn-ss-dossier" class="w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-lg">📖</button>
+      <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest">Encrypt</p>
+      <div class="flex items-center gap-2">
+        <button id="btn-ss-how-to-game" class="text-stone-400 font-bold text-sm active:scale-90 transition-transform duration-100">[?]</button>
+        <button class="btn-open-sound w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-lg">🔊</button>
+        <button id="btn-ss-encrypt-tip" class="w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-stone-300 font-mono font-bold">?</button>
+        <button id="btn-ss-encrypt-exit" class="w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-stone-500 font-bold">✕</button>
+      </div>
+    </div>
+    <div class="flex items-baseline justify-between w-full gap-4">
+      <p id="ss-encrypt-team-label" class="text-sm font-semibold text-teal-600 uppercase tracking-widest">Team A</p>
+      <p id="ss-encrypt-timer-label" class="text-xs font-semibold uppercase tracking-widest text-stone-400" style="display:none">Time</p>
+    </div>
+    <div class="flex items-baseline justify-between w-full gap-4">
+      <h2 class="text-2xl font-bold text-stone-800">Encrypt Transmission</h2>
+      <p id="ss-encrypt-timer-display" class="text-2xl font-bold tabular-nums text-stone-700" style="display:none">2:00</p>
+    </div>
+    <p id="ss-broadcaster-name" class="text-xs text-stone-400 -mt-3" style="display:none"></p>
+    <div class="w-full bg-stone-100 rounded-2xl p-4">
+      <p class="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-3">Your Vault</p>
+      <div id="ss-encrypt-vault" class="grid grid-cols-2 gap-2"></div>
+    </div>
+    <div class="w-full bg-teal-50 rounded-2xl p-4 text-center">
+      <p class="text-xs font-semibold uppercase tracking-widest text-teal-400 mb-2">Your Code</p>
+      <p id="ss-encrypt-code" class="text-4xl font-bold text-teal-600 tracking-[0.25em]"></p>
+      <div class="flex items-center justify-center gap-1.5 mt-1">
+        <p class="text-xs text-teal-400">Give one clue for each number, in order</p>
+        <button id="btn-ss-clue-tip" class="text-teal-300 font-bold text-xs leading-none active:scale-90 transition-transform duration-100">[?]</button>
+      </div>
+    </div>
+    <div id="ss-clue-inputs" class="w-full flex flex-col gap-3"></div>
+    <p id="ss-clue-error" style="display:none" class="text-red-500 text-xs font-semibold -mt-2"></p>
+    <button id="btn-ss-transmit" class="btn-mp-action min-h-14 w-full rounded-2xl bg-teal-500 hover:bg-teal-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed" disabled>
+Transmit
+</button>
+  </section>
+
+  <!-- SS-⑤b STANDBY — non-encrypting team waits in TLM mode -->
+  <section id="screen-ss-standby" style="display:none" class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-6 text-center">
+      <div class="w-full flex justify-between items-center">
+        <button class="btn-open-sound w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-lg">🔊</button>
+        <p class="text-xs font-semibold uppercase tracking-widest text-stone-400">Secret Signals</p>
+        <button id="btn-ss-standby-exit" class="text-stone-500 font-bold text-lg leading-none active:scale-90 transition-transform duration-100">✕</button>
+      </div>
+      <div class="flex flex-col items-center gap-4">
+        <p class="text-5xl">📡</p>
+        <div>
+          <p id="ss-standby-heading" class="text-2xl font-bold text-stone-800">Interceptors Ready</p>
+          <p id="ss-standby-subtext" class="text-stone-400 text-sm mt-2">Waiting for <span id="ss-standby-team" class="font-semibold text-stone-600"></span> to transmit…</p>
+        </div>
+        <p class="text-stone-300 text-xs mt-2">Listen carefully — the broadcast is coming.</p>
+      </div>
+      <div id="ss-standby-board" style="display:none" class="w-full flex flex-col gap-2 text-left">
+        <p class="text-xs font-semibold uppercase tracking-widest text-stone-400">Your Board 🗒️</p>
+        <div id="ss-standby-archive" class="w-full bg-white rounded-2xl p-3 shadow-sm overflow-x-auto"></div>
+      </div>
+    </div>
+  </section>
+
+    <!-- SS-⑥ BROADCAST — everyone sees clues + archive -->
+  <section id="screen-ss-broadcast" style="display:none" class="flex flex-col items-start px-6 py-10 w-full max-w-sm mx-auto gap-5">
+    <div class="w-full flex justify-between items-center">
+      <button class="btn-open-sound w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-lg">🔊</button>
+      <p class="text-xs font-semibold uppercase tracking-widest text-stone-400">Transmission</p>
+      <button id="btn-ss-broadcast-exit" class="w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-stone-500 font-bold">✕</button>
+    </div>
+    <div class="text-center w-full">
+      <p id="ss-broadcast-label" class="text-sm font-semibold text-teal-600 uppercase tracking-widest">Team A — Round 1</p>
+      <h2 class="text-2xl font-bold text-stone-800 mt-0.5">📡 Incoming Clues</h2>
+    </div>
+    <div id="ss-broadcast-clues" class="w-full flex flex-col gap-2"></div>
+    <div class="w-full">
+      <p class="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-2">Intelligence Archive</p>
+      <div id="ss-broadcast-archive" class="w-full flex flex-col gap-2"></div>
+    </div>
+    <button id="btn-ss-to-intercept" class="min-h-14 w-full rounded-2xl bg-teal-500 hover:bg-teal-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+Interceptors, Ready?
+</button>
+  </section>
+
+  <!-- SS-⑦ INTERCEPT — intercepting team guesses code -->
+  <section id="screen-ss-intercept" style="display:none" class="flex flex-col items-start px-6 py-10 w-full max-w-sm mx-auto gap-5">
+    <div class="flex justify-between items-center w-full">
+      <div class="w-10"></div>
+      <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest">Intercept</p>
+      <div class="flex items-center gap-2">
+        <button class="btn-open-sound w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-lg">🔊</button>
+        <button id="btn-ss-intercept-exit" class="w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-stone-500 font-bold">✕</button>
+      </div>
+    </div>
+    <div>
+      <p id="ss-intercept-team-label" class="text-sm font-semibold text-teal-600 uppercase tracking-widest">Team B</p>
+      <h2 class="text-2xl font-bold text-stone-800 mt-0.5">🕵️ Intercept the code</h2>
+    </div>
+    <div id="ss-intercept-clues" class="w-full flex flex-col gap-2"></div>
+    <div class="w-full">
+      <p class="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-2">Intelligence Archive</p>
+      <div id="ss-intercept-archive" class="w-full flex flex-col gap-2"></div>
+    </div>
+    <div class="w-full">
+      <div class="flex items-center gap-1.5 mb-3">
+        <p class="text-xs font-semibold uppercase tracking-widest text-stone-400">Guess the code</p>
+        <button id="btn-ss-intercept-tip" class="text-stone-300 font-bold text-xs leading-none active:scale-90 transition-transform duration-100">[?]</button>
+      </div>
+      <div id="ss-intercept-guess-ui" class="flex flex-col gap-3"></div>
+    </div>
+    <button id="btn-ss-submit-intercept" class="btn-mp-action min-h-14 w-full rounded-2xl bg-teal-500 hover:bg-teal-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed" disabled>
+      Submit Intercept
+    </button>
+  </section>
+
+  <!-- SS-⑧ DECODE GATE — pass gate before encrypting team decodes -->
+  <section id="screen-ss-decode-gate" style="display:none" class="flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
+    <div class="text-6xl" role="img" aria-label="Key">🔑</div>
+    <div>
+      <p class="text-stone-400 text-sm font-semibold uppercase tracking-widest">Next up</p>
+      <h2 id="ss-decode-gate-title" class="text-3xl font-bold text-stone-800 mt-1">Team A — Decode</h2>
+      <p class="text-stone-500 text-base mt-3 leading-relaxed">Pass the phone to <span id="ss-decode-gate-team" class="font-bold text-teal-600">Team A</span>.<br>Time to verify your transmission.</p>
+    </div>
+    <button id="btn-ss-decode-gate-ready" class="min-h-14 w-full rounded-2xl bg-teal-500 hover:bg-teal-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+Ready to Decode
+</button>
+  </section>
+
+  <!-- SS-⑨ DECODE — encrypting team guesses own code -->
+  <section id="screen-ss-decode" style="display:none" class="flex flex-col items-start px-6 py-10 w-full max-w-sm mx-auto gap-5">
+    <div class="flex justify-between items-center w-full">
+      <div class="w-10"></div>
+      <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest">Decode</p>
+      <div class="flex items-center gap-2">
+        <button class="btn-open-sound w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-lg">🔊</button>
+        <button id="btn-ss-decode-exit" class="w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-stone-500 font-bold">✕</button>
+      </div>
+    </div>
+    <div>
+      <p id="ss-decode-team-label" class="text-sm font-semibold text-teal-600 uppercase tracking-widest">Team A</p>
+      <h2 id="ss-decode-header" class="text-2xl font-bold text-stone-800 mt-0.5">🔑 Decode your message</h2>
+      <p class="text-stone-400 text-sm mt-1">What was the code you sent?</p>
+    </div>
+    <div class="w-full bg-stone-100 rounded-2xl p-3">
+      <p class="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-2">Your Vault</p>
+      <div id="ss-decode-vault" class="w-full"></div>
+    </div>
+    <div id="ss-decode-clues" class="w-full flex flex-col gap-2"></div>
+    <div class="w-full">
+      <p class="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-2">Intelligence Archive</p>
+      <div id="ss-decode-archive" class="w-full flex flex-col gap-2"></div>
+    </div>
+    <div class="w-full">
+      <p class="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-3">Your code</p>
+      <div id="ss-decode-guess-ui" class="flex flex-col gap-3"></div>
+    </div>
+    <button id="btn-ss-submit-decode" class="btn-mp-action min-h-14 w-full rounded-2xl bg-teal-500 hover:bg-teal-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed" disabled>
+      Confirm Code
+    </button>
+  </section>
+
+  <!-- SS-⑩ RESOLUTION — round result -->
+  <section id="screen-ss-resolution" style="display:none" class="flex flex-col items-start px-6 py-10 w-full max-w-sm mx-auto gap-5">
+    <div class="flex justify-between items-center w-full">
+      <button class="btn-open-sound w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-lg">🔊</button>
+      <p class="text-xs font-semibold uppercase tracking-widest text-stone-400">The Code Was</p>
+      <button id="btn-ss-resolution-exit" class="w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-stone-500 font-bold">✕</button>
+    </div>
+    <div class="text-center w-full">
+      <p id="ss-resolution-code" class="text-5xl font-bold text-teal-600 tracking-[0.25em]"></p>
+      <p id="ss-resolution-hype" class="text-base font-bold text-stone-600 mt-2"></p>
+    </div>
+    <div id="ss-resolution-results" class="w-full flex flex-col gap-3"></div>
+    <div class="w-full bg-stone-100 rounded-2xl p-4">
+      <p class="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-3">Scoreboard</p>
+      <div id="ss-scoreboard" class="flex flex-col gap-2"></div>
+    </div>
+    <button id="btn-ss-continue" class="min-h-14 w-full rounded-2xl bg-teal-500 hover:bg-teal-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      Continue
+    </button>
+  </section>
+
+  <!-- SS-⑪ GAME OVER -->
+  <section id="screen-ss-gameover" style="display:none" class="flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
+    <div id="ss-gameover-emoji" class="text-6xl">🏆</div>
+    <div>
+      <p class="text-stone-400 text-sm font-semibold uppercase tracking-widest">Mission Debrief</p>
+      <h2 id="ss-gameover-title" class="text-3xl font-bold text-stone-800 mt-1">Team A wins!</h2>
+      <p id="ss-gameover-reason" class="text-stone-500 text-base mt-2"></p>
+    </div>
+    <div id="ss-gameover-scores" class="w-full bg-stone-100 rounded-2xl p-4 flex flex-col gap-2"></div>
+    <!-- Mission Journal -->
+    <div class="w-full">
+      <p class="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-2">Mission Journal</p>
+      <div id="ss-mission-journal" class="w-full flex flex-col gap-2 max-h-64 overflow-y-auto"></div>
+    </div>
+    <div class="flex flex-col gap-3 w-full mt-2">
+      <button id="btn-ss-play-again" class="min-h-14 w-full rounded-2xl bg-teal-500 hover:bg-teal-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+Start New Mission
+</button>
+      <button id="btn-ss-gameover-exit" class="min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-xl font-semibold transition-all duration-150">
+        ← Back to the Box
+      </button>
+    </div>
+  </section>
+
+  <!-- SS-⑫ TIEBREAK — who goes first in Intel Reveal -->
+  <section id="screen-ss-tiebreak" style="display:none" class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
+    <div class="absolute top-4 right-4 flex items-center gap-2">
+      <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+      <button id="btn-ss-tiebreak-exit" class="text-xl text-stone-500 font-bold active:scale-90 transition-transform duration-100">✕</button>
+    </div>
+    <div class="text-5xl">📡</div>
+    <div>
+      <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest">Intelligence Reveal</p>
+      <h2 class="text-2xl font-bold text-stone-800 mt-1">Signal Interference!<br>Leadership is contested.</h2>
+      <p class="text-stone-500 text-sm mt-2">Going second = you see the target score before guessing</p>
+    </div>
+    <!-- Method selection (shown first) -->
+    <div id="ss-tiebreak-method" class="flex flex-col gap-3 w-full">
+      <button id="btn-ss-tiebreak-random" class="min-h-14 w-full rounded-2xl bg-teal-500 hover:bg-teal-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+Let Fate Decide — Go Random
+</button>
+      <button id="btn-ss-tiebreak-rps" class="min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+Trial by Combat — Rock Paper Scissors
+</button>
+    </div>
+    <!-- RPS duel buttons (shown after RPS tap) -->
+    <div id="ss-tiebreak-rps-result" style="display:none" class="flex flex-col gap-4 w-full">
+      <div class="bg-stone-100 rounded-2xl p-4 text-sm text-stone-600 leading-relaxed">
+        ✂️ Play Rock Paper Scissors now.<br>Winner gets to choose who goes first.
+      </div>
+      <div class="flex flex-col gap-3 w-full">
+        <button id="btn-ss-rps-a-won" class="min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-lg font-semibold transition-all duration-150"></button>
+        <button id="btn-ss-rps-b-won" class="min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-lg font-semibold transition-all duration-150"></button>
+      </div>
+    </div>
+    <!-- Winner choice (shown after Random pick or RPS winner tapped) -->
+    <div id="ss-tiebreak-winner-choice" style="display:none" class="flex flex-col gap-4 w-full items-center">
+      <p id="ss-tiebreak-winner-heading" class="text-xl font-bold text-teal-600"></p>
+      <p class="text-stone-500 text-sm">Going second = you know the target score. Choose wisely.</p>
+      <div class="flex gap-3 w-full">
+        <button id="btn-ss-tiebreak-go-first" class="min-h-14 flex-1 rounded-2xl bg-teal-500 hover:bg-teal-600 active:scale-95 text-white text-lg font-semibold transition-all duration-150">
+Go First
+</button>
+        <button id="btn-ss-tiebreak-go-second" class="min-h-14 flex-1 rounded-2xl bg-teal-500 hover:bg-teal-600 active:scale-95 text-white text-lg font-semibold transition-all duration-150">
+Go Second
+</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- SS-⑬ INTEL INTRO — team handoff (reused for both teams) -->
+  <section id="screen-ss-intel-intro" style="display:none" class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-5">
+    <div class="absolute top-4 right-4 flex items-center gap-2">
+      <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+      <button id="btn-ss-intel-intro-exit" class="text-xl text-stone-500 font-bold active:scale-90 transition-transform duration-100">✕</button>
+    </div>
+    <div>
+      <p class="text-2xl font-black tracking-widest text-teal-700 uppercase">Phase 2: Intelligence Reveal</p>
+      <h2 id="ss-intel-intro-title" class="text-2xl font-bold text-stone-800 mt-2">Team A — your turn</h2>
+      <p id="ss-intel-intro-sub" class="text-stone-500 text-base mt-2">You're guessing <strong id="ss-intel-intro-opponent"></strong>'s keywords.<br>Use their clue history as your only evidence.</p>
+    </div>
+    <!-- Target to Beat card — shown only for the 2nd team -->
+    <div id="ss-intel-target-card" style="display:none" class="w-full bg-teal-50 rounded-2xl p-4 text-left">
+      <p class="text-xs font-semibold uppercase tracking-widest text-teal-400 mb-2">Target to Beat</p>
+      <p id="ss-intel-target-text" class="text-stone-700 font-semibold text-sm leading-relaxed"></p>
+      <p id="ss-intel-target-needed" class="text-teal-600 font-bold text-base mt-1"></p>
+    </div>
+    <button id="btn-ss-intel-begin" class="min-h-14 w-full rounded-2xl bg-teal-500 hover:bg-teal-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+Begin Intel Sweep
+</button>
+  </section>
+
+  <!-- SS-⑭ INTEL GUESS — keyword dossier + attempt inputs (reused per keyword) -->
+  <section id="screen-ss-intel-guess" style="display:none" class="flex flex-col items-start px-6 py-10 w-full max-w-sm mx-auto gap-5">
+    <div class="flex justify-between items-center w-full">
+      <p id="ss-intel-guess-progress" class="text-stone-400 text-xs font-semibold uppercase tracking-widest">Keyword 1 of 4</p>
+      <div class="flex items-center gap-2">
+        <button class="btn-open-sound w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-lg">🔊</button>
+        <button id="btn-ss-intel-guess-exit" class="w-10 h-10 flex items-center justify-center rounded-full bg-stone-100 hover:bg-stone-200 active:scale-95 transition-all duration-150 text-stone-500 font-bold">✕</button>
+      </div>
+    </div>
+    <div>
+      <p id="ss-intel-guess-team" class="text-sm font-semibold text-teal-600 uppercase tracking-widest">Team A guessing</p>
+      <h2 class="text-2xl font-bold text-stone-800 mt-0.5">Crack the keyword 🔍</h2>
+    </div>
+    <!-- Clue Dossier -->
+    <div class="w-full bg-stone-100 rounded-2xl p-4">
+      <p class="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-2">Clue Dossier</p>
+      <div id="ss-intel-dossier" class="flex flex-wrap gap-2"></div>
+    </div>
+    <!-- Attempt inputs — JS renders attempt 1; adds 2 and 3 on failure -->
+    <div id="ss-intel-attempts" class="w-full flex flex-col gap-3"></div>
+    <!-- Feedback flash -->
+    <p id="ss-intel-feedback" style="display:none" class="text-base font-bold w-full text-center"></p>
+    <!-- Continue button — shown after result revealed -->
+    <button id="btn-ss-intel-continue" style="display:none" class="min-h-14 w-full rounded-2xl bg-teal-500 hover:bg-teal-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      Continue →
+    </button>
+    <!-- Override button — shown only after 3rd failed attempt -->
+    <button id="btn-ss-intel-override" style="display:none" class="w-full min-h-11 rounded-xl bg-stone-100 hover:bg-stone-200 active:scale-95 text-stone-600 text-base font-semibold transition-all duration-150">
+Accept It
+</button>
+  </section>
+
+  <!-- SS-⑮ INTEL SUMMARY — team's intel tally (reused for both teams) -->
+  <section id="screen-ss-intel-summary" style="display:none" class="flex flex-col items-start px-6 py-10 w-full max-w-sm mx-auto gap-5">
+    <div class="w-full flex justify-end items-center gap-2">
+      <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+      <button id="btn-ss-intel-summary-exit" class="text-xl text-stone-500 font-bold active:scale-90 transition-transform duration-100">✕</button>
+    </div>
+    <div class="text-center w-full">
+      <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest">Intel Summary</p>
+      <h2 id="ss-intel-summary-title" class="text-2xl font-bold text-stone-800 mt-1">Team A</h2>
+    </div>
+    <!-- Keyword result grid -->
+    <div id="ss-intel-summary-grid" class="w-full grid grid-cols-4 gap-2"></div>
+    <!-- Score breakdown -->
+    <div class="w-full bg-stone-100 rounded-2xl p-4 flex flex-col gap-2">
+      <div class="flex justify-between text-sm">
+        <span class="text-stone-500 font-semibold">Keywords found</span>
+        <span id="ss-intel-summary-kw" class="text-stone-800 font-bold"></span>
+      </div>
+      <div id="ss-intel-summary-scramble-row" class="flex justify-between text-sm" style="display:none">
+        <span class="text-teal-500 font-semibold">✨ Scramble Bonus</span>
+        <span class="text-teal-600 font-bold">+1.0</span>
+      </div>
+      <hr class="border-stone-200" />
+      <div class="flex justify-between text-base">
+        <span class="text-stone-700 font-bold">Intel Points</span>
+        <span id="ss-intel-summary-total" class="text-teal-600 font-bold text-xl"></span>
+      </div>
+    </div>
+    <button id="btn-ss-intel-summary-next" class="min-h-14 w-full rounded-2xl bg-teal-500 hover:bg-teal-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      Pass to Team B →
+    </button>
+  </section>
+
+  <!-- SS Settings overlay -->
+  <div id="ss-settings-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[80] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
+      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
+        <h2 class="text-xl font-bold text-stone-800">Operations Briefing 🔐</h2>
+        <p class="text-xs text-stone-400 mt-1">Configure before your first broadcast.</p>
+      </div>
+      <!-- Scrollable body -->
+      <div class="flex-1 overflow-y-auto px-6 py-5 flex flex-col gap-5">
+        <!-- 1. Customise Vault -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <div class="flex items-center justify-between">
+            <p class="text-stone-800 font-semibold">Designate Vault Contents</p>
+            <button id="btn-ss-customise-toggle" class="sylly-toggle-off shrink-0">OFF</button>
+          </div>
+          <p class="text-stone-400 text-sm">OFF uses the standard curated word pool. Turn on to pick specific categories.</p>
+          <div id="ss-customise-body" style="display:none" class="flex flex-col gap-2 mt-3">
+            <div class="flex items-center justify-between">
+              <p class="text-stone-500 text-xs font-semibold">Categories</p>
+              <div class="flex items-center gap-2">
+                <button id="btn-ss-cat-select-all" class="text-xs font-semibold text-teal-600 active:opacity-60 transition-opacity">Deselect All</button>
+                <p id="ss-cat-count" class="text-xs font-bold text-stone-400">16 selected</p>
+              </div>
+            </div>
+            <div id="ss-cat-grid" class="flex flex-wrap gap-2">
+              <!-- Category pills injected by JS on settings open -->
+            </div>
+            <p id="ss-cat-warn" style="display:none" class="text-amber-500 text-xs mt-1">⚠️ Fewer than 4 categories may cause repeated keywords.</p>
+          </div>
+        </div>
+        <!-- 2. Difficulty -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-stone-800 font-semibold">Encryption Protocol</p>
+          <div class="flex gap-2">
+            <button class="pill pill-active-teal" data-ss-setting="difficulty" data-value="1">Clear</button>
+            <button class="pill" data-ss-setting="difficulty" data-value="2">Scrambled</button>
+            <button class="pill" data-ss-setting="difficulty" data-value="3">Deep Space</button>
+          </div>
+          <p id="ss-val-difficulty" class="text-stone-400 text-xs"></p>
+          <p class="text-stone-400 text-sm">Controls how abstract the vault keywords are.</p>
+        </div>
+        <!-- 3. Intercepts to Win -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-stone-800 font-semibold">Interceptions Required</p>
+          <div class="flex gap-2">
+            <button class="pill pill-active-teal" data-ss-setting="interceptsToWin" data-value="2">2</button>
+            <button class="pill" data-ss-setting="interceptsToWin" data-value="3">3</button>
+          </div>
+          <p class="text-stone-400 text-sm">First team to intercept this many codes wins.</p>
+        </div>
+        <!-- 4. Vault Word Rerolls -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <div class="flex items-center justify-between">
+            <p class="text-stone-800 font-semibold">Vault Rotations</p>
+            <button id="btn-ss-reroll-toggle" class="sylly-toggle-off shrink-0">OFF</button>
+          </div>
+          <p class="text-stone-400 text-sm">Let broadcasters reroll any vault keyword as many times as they like. Off by default.</p>
+        </div>
+        <!-- 5. Broadcaster Timer -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-stone-800 font-semibold">Broadcaster Timer</p>
+          <div class="flex items-center gap-3">
+            <button id="btn-ss-timer-toggle" class="sylly-toggle-off flex-shrink-0">OFF</button>
+            <p class="text-stone-400 text-sm">Countdown during clue-giving</p>
+          </div>
+          <div id="ss-timer-duration-row" style="display:none" class="flex gap-2">
+            <button class="pill" data-ss-setting="timer" data-value="60">1 min</button>
+            <button class="pill" data-ss-setting="timer" data-value="120">2 min</button>
+            <button class="pill" data-ss-setting="timer" data-value="180">3 min</button>
+          </div>
+          <p class="text-stone-400 text-sm">Alarm sounds at 0 — stops on Transmit.</p>
+        </div>
+        <!-- 6. Sylly Mode (always last) -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <div class="flex items-center justify-between">
+            <p class="text-stone-800 font-semibold">✨ Sylly Mode</p>
+            <button id="ss-sylly-toggle" class="sylly-toggle-off flex-shrink-0">OFF</button>
+          </div>
+          <p class="text-stone-600 text-sm font-semibold">Intel Phase</p>
+          <p class="text-stone-400 text-sm">Teams guess the opponent's vault after the game.</p>
+        </div>
+      </div>
+      <!-- Fixed footer -->
+      <div class="flex-shrink-0 px-6 pb-8 pt-3 border-t border-stone-100">
+        <button id="btn-ss-settings-done" class="min-h-14 w-full rounded-2xl bg-teal-500 hover:bg-teal-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+          Done
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SS Inning Transition overlay -->
+  <div id="ss-inning-transition" style="display:none" class="fixed inset-0 bg-stone-900 z-[95] flex flex-col items-center justify-center px-6 gap-6 text-center">
+    <div class="text-6xl">📡</div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-widest text-teal-400 mb-2">Intel Phase</p>
+      <h2 class="text-2xl font-black tracking-widest text-white uppercase">Data Filed —<br>Intel Secured</h2>
+      <p class="text-stone-400 text-sm mt-3">Switching operative teams. Stand by.</p>
+    </div>
+    <button id="btn-ss-mission-continues" class="min-h-14 w-full max-w-xs rounded-2xl bg-teal-500 hover:bg-teal-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+      Mission Continues »
+    </button>
+  </div>
+
+  <!-- SS Intel Override overlay -->
+  <div id="ss-override-overlay" style="display:none" class="fixed inset-0 bg-black/50 z-[90] flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-teal-300">
+      <p class="text-4xl">🤝</p>
+      <h3 class="text-xl font-bold text-stone-800">Diplomatic Resolution</h3>
+      <div class="flex gap-2 items-center justify-center my-1">
+        <button id="btn-override-word-guess" class="flex-1 rounded-xl p-3 bg-stone-100 text-stone-700 font-bold text-lg text-center transition-all"></button>
+        <span class="text-stone-300 font-bold text-sm">vs</span>
+        <button id="btn-override-word-target" class="flex-1 rounded-xl p-3 bg-stone-100 text-stone-700 font-bold text-lg text-center transition-all"></button>
+      </div>
+      <p class="text-stone-400 text-xs -mt-1">Tap the word you're arguing for</p>
+      <p class="text-stone-600 text-sm"><strong>Both teams agree this guess is close enough.</strong></p>
+      <button id="btn-ss-override-confirm" class="min-h-12 w-full rounded-xl bg-teal-500 hover:bg-teal-600 active:scale-95 text-white text-lg font-semibold transition-all duration-150 mt-2">
+Agreed — it counts!
+</button>
+      <button id="btn-ss-override-cancel" class="min-h-12 w-full rounded-xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 text-lg font-semibold transition-all duration-150">
+        No deal, try again
+      </button>
+    </div>
+  </div>
+
+  <!-- SS Clue Dossier overlay -->
+  <div id="ss-dossier-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[90] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col" style="max-height:80vh">
+      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0 flex items-center justify-between">
+        <div>
+          <h2 class="text-xl font-bold text-stone-800">Clue Dossier 📖</h2>
+          <p class="text-xs text-stone-400 mt-1">Your team's transmission history.</p>
+        </div>
+        <button id="btn-ss-dossier-close" class="w-10 h-10 flex items-center justify-center rounded-full bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 font-bold">✕</button>
+      </div>
+      <div class="overflow-y-auto px-5 py-4 flex-1">
+        <div id="ss-dossier-content"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SS Quit overlay -->
+  <div id="ss-quit-overlay" style="display:none" class="fixed inset-0 bg-black/50 z-[80] flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-teal-300">
+      <p class="text-4xl">🏳️</p>
+      <h3 class="text-xl font-bold text-stone-800">Abort the mission?</h3>
+      <p class="text-stone-400 text-sm">Your intel will be lost.</p>
+      <button id="btn-ss-quit-confirm" class="min-h-12 w-full rounded-xl bg-red-500 hover:bg-red-600 active:scale-95 text-white text-lg font-semibold transition-all duration-150 mt-2">
+        Yeah, pull out
+      </button>
+      <button id="btn-ss-quit-cancel" class="min-h-12 w-full rounded-xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 text-lg font-semibold transition-all duration-150">
+        Stay in the field
+      </button>
+    </div>
+  </div>
+
+  <!-- SS Endgame Splash — mission result + Phase 2 bridge -->
+  <div id="ss-endgame-splash" style="display:none" class="fixed inset-0 bg-stone-900 z-[95] flex flex-col items-center justify-center px-6 gap-6 text-center">
+    <div id="ss-splash-icon" class="text-6xl"></div>
+    <div>
+      <p id="ss-splash-status" class="text-xs font-semibold uppercase tracking-widest text-teal-400 mb-2">Mission Status</p>
+      <h2 id="ss-splash-title" class="text-3xl font-black tracking-widest text-white uppercase leading-tight"></h2>
+      <p id="ss-splash-sub" class="text-stone-400 text-sm mt-3 leading-relaxed"></p>
+    </div>
+    <button id="btn-ss-splash-phase2" style="display:none" class="min-h-14 w-full max-w-xs rounded-2xl bg-red-600 text-white text-base font-bold ss-flash-btn">
+Urgent mission received: Phase 2 incoming
+</button>
+    <button id="btn-ss-splash-results" style="display:none" class="min-h-14 w-full max-w-xs rounded-2xl bg-teal-500 hover:bg-teal-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+See Results
+</button>
+  </div>
+
+  <!-- SS Play Again confirmation modal -->
+  <div id="ss-play-again-overlay" style="display:none" class="fixed inset-0 bg-black/50 z-[90] flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-teal-300">
+      <p class="text-4xl">🕵️</p>
+      <h3 class="text-xl font-bold text-stone-800">New Mission?</h3>
+      <p class="text-stone-400 text-sm">This mission's intel will be archived.</p>
+      <button id="btn-ss-play-again-confirm" class="min-h-12 w-full rounded-xl bg-teal-500 hover:bg-teal-600 active:scale-95 text-white text-lg font-semibold transition-all duration-150 mt-2">
+Deploy
+</button>
+      <button id="btn-ss-play-again-cancel" class="min-h-12 w-full rounded-xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 text-lg font-semibold transition-all duration-150">
+        Back to Mission Review
+      </button>
+    </div>
+  </div>
+
+  <!-- SS How to Play overlay -->
+  <div id="ss-how-to-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[90] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
+      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
+        <h2 class="text-xl font-bold text-stone-800">How to Play 📡</h2>
+        <p class="text-xs text-stone-400 mt-1">Encrypt your vault. Intercept theirs.</p>
+      </div>
+      <div class="overflow-y-auto flex flex-col gap-4 px-5 py-5">
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest text-teal-500">Step 1</p>
+          <p class="font-bold text-stone-800">Each team memorises their vault.</p>
+          <p class="text-stone-500 text-sm">Your team gets 4 secret keywords numbered 1–4. Only your team can see them — memorise them!</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest text-teal-500">Step 2</p>
+          <p class="font-bold text-stone-800">Encrypt your broadcast.</p>
+          <p class="text-stone-500 text-sm">Each round, your <span class="font-semibold text-stone-700">Encoder</span> receives a secret code (e.g. 3-1-4). Give one clue per number — cryptic enough to fool the enemy, clear enough for your own team.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest text-teal-500">Step 3</p>
+          <p class="font-bold text-stone-800">Intercept or decode.</p>
+          <p class="text-stone-500 text-sm">The enemy team tries to crack your code first — that's an 🕵️ <span class="font-semibold text-stone-700">Interception</span>. Then your own team decodes it. Get it wrong and it's a <span class="font-semibold text-stone-700">Misfire</span> 💥.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest text-teal-500">Winning and Scoring</p>
+          <p class="font-bold text-stone-800">Intercept to win. Don't misfire.</p>
+          <ul class="list-disc pl-5 flex flex-col gap-1 text-stone-500 text-sm">
+            <li>🕵️ <span class="font-semibold text-stone-700">Intercept</span> — enemy cracked your code. They score.</li>
+            <li>💥 <span class="font-semibold text-stone-700">Misfire</span> — your own team got it wrong. Two misfires and you lose.</li>
+            <li>First team to reach the interception target wins.</li>
+          </ul>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest text-teal-500">✨ Sylly Mode</p>
+          <p class="font-bold text-stone-800">Intel Phase</p>
+          <p class="text-stone-500 text-sm">After the main game ends, both teams take turns guessing the other team's <span class="font-semibold text-stone-700">vault keywords</span> in order. A second chance to steal the win.</p>
+        </div>
+        <button id="btn-ss-how-to-close" class="min-h-14 w-full rounded-2xl bg-teal-500 hover:bg-teal-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+          Got it
+        </button>
+      </div>
+    </div>
+  </div>
+
