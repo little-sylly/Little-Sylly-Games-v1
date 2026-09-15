@@ -14,8 +14,19 @@ first.** Both fired:
 
 | Condition | Trigger | Measured 15 Sep 2026 |
 |---|---|---|
-| `index.html` size | ~750 KB | **763,121 bytes** (11,296 lines) |
+| `index.html` size | ~750 KB | **751,825 bytes** shipped (11,296 lines) |
 | Game count | ~20 | **20**, met exactly |
+
+> **Measurement correction (15 Sep 2026, during implementation).** `docs/cost-envelope.md` and
+> `docs/token-budget-register.md` both record **763,121 bytes**. That is the *local working-tree*
+> size on a Windows machine with `core.autocrlf = true` — it includes one carriage return per line
+> (11,296 of them) that is **not** in the committed blob and never reaches GitHub Pages. The shipped
+> file is **751,825 bytes**, LF.
+>
+> This slightly weakens the size half of the trigger: 751,825 bytes is **751.8 KB decimal (past the
+> ~750 KB line) but 734 KiB (under it)**, where the envelope claimed "at the line on either reading".
+> **The decision is unaffected** — the trigger was "whichever came first", and the game-count
+> condition is met exactly at 20. Both source documents are corrected in Task 11 of the plan.
 
 The owner confirmed all four candidate wins are wanted, not just the original one:
 
@@ -95,11 +106,16 @@ the option is not lost, not scoped in.
 
 - `index.html` begins with a **UTF-8 BOM** (`ef bb bf`). This is the origin of the recorded mojibake
   hazard that already bans Edit-tool sweeps on this file.
-- **`core.autocrlf = true` with no `.gitattributes`.** Git is configured to rewrite line endings on
-  checkout while the working tree is currently LF throughout. Unpinned, this would either break the
-  byte-identical check at random or silently flip all 11,296 line endings into an enormous diff.
+- **`core.autocrlf = true` with no `.gitattributes`.** Measured during implementation: the working
+  tree was **CRLF** (11,296 carriage returns) while the committed blob was **LF**. An assembler
+  writing LF would have left `git diff` clean — git normalises on staging — while silently changing
+  11,296 bytes on disk, so a working-tree hash check would have failed for a reason unrelated to any
+  mis-cut. The two views of the file must be made to agree before any of this is trustworthy.
 
-**Both must be pinned before the assembler runs once.**
+**Both are pinned in Task 1, before the assembler runs once.** `.gitattributes` sets `eol=lf` on
+`index.html` and `src/screens/*.html`; the working tree was re-materialised to LF and the committed
+blob verified unchanged (`0c0775c7…` before and after). The byte-identical invariant (§ 4.3) is
+therefore measured against **751,825 LF bytes** — the file GitHub Pages actually serves.
 
 ### 3.4 The sections do not divide mechanically
 
@@ -159,7 +175,7 @@ layouts to exactly that section.
 ### 4.3 The byte-identical invariant — the core safety property
 
 **Milestone one is an assembler that reproduces the current `index.html` byte for byte.** Same BOM,
-same line endings, same 763,121 bytes.
+same line endings, same 751,825 bytes.
 
 ```sh
 node tools/build-index.js && git diff --exit-code index.html

@@ -1,0 +1,13 @@
+# index.html is a GENERATED artefact, assembled by tools/build-index.js from
+# src/screens/. Its bytes must be stable and platform-independent: core.autocrlf
+# is true on the owner's machine, which would otherwise give the working tree
+# CRLF while the repo (and GitHub Pages) serves LF. Pinning eol=lf makes the
+# working tree, the committed blob and the shipped file all agree.
+index.html          text eol=lf working-tree-encoding=UTF-8
+src/screens/*.html  text eol=lf working-tree-encoding=UTF-8
+
+# Everything else the assembler or its harnesses touch.
+*.js   text eol=lf
+*.json text eol=lf
+*.md   text eol=lf
+*.css  text eol=lf

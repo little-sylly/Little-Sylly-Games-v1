@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Split the 763,121-byte `index.html` into ~23 small per-game partials assembled by a dev-only Node script, without changing a single shipped byte.
+**Goal:** Split the 751,825-byte `index.html` into ~23 small per-game partials assembled by a dev-only Node script, without changing a single shipped byte.
 
 **Architecture:** `src/screens/*.html` holds exact linear slices of today's `index.html`. `src/manifest.txt` lists them in order. `tools/build-index.js` concatenates them and writes `index.html`. Because the partials are exact slices joined with no separator, the output is byte-identical to the current file — which is the safety property the whole migration rests on. A versioned pre-commit hook rebuilds automatically; `tools/verify-build-fresh.js` catches staleness where the hook is absent.
 
@@ -46,37 +46,62 @@
 - Consumes: nothing
 - Produces: a repo where `index.html` bytes are stable across checkout — the precondition for every later byte comparison
 
-- [ ] **Step 1: Record the ground-truth hash**
+**⚠ Executed 15 Sep 2026 — with two deviations from the steps as first written. Both are recorded below rather than tidied away.**
+
+- [x] **Step 1: Record the ground-truth hash — and check git's view of line endings**
 
 ```bash
 git status --porcelain index.html   # MUST be empty; stop if not
-sha256sum index.html | tee /tmp/baseline.txt
-wc -c index.html                    # expect 763121
+git ls-files --eol index.html       # ← the step that was missing, and mattered
+sha256sum index.html
+wc -c index.html
 ```
 
-- [ ] **Step 2: Create `.gitattributes`**
+**Deviation 1 — the original step measured the wrong file.** `git ls-files --eol` reported
+`i/lf w/crlf`: the working tree was **CRLF** (763,121 bytes) while the committed blob — the file
+GitHub Pages serves — was **LF** (751,825 bytes). An earlier `od -c | grep` check had missed this
+because `od -c` puts whitespace between `\r` and `\n`, so the pattern could not match. Every byte
+figure in the spec and this plan was the local CRLF number and has been corrected to **751,825**.
+
+- [x] **Step 2: Create `.gitattributes`** (as shipped)
 
 ```text
-# index.html is a generated artefact assembled by tools/build-index.js from
-# src/screens/. Its bytes must be stable — core.autocrlf must not rewrite them,
-# or the byte-identical build check fails spuriously.
+# index.html is a GENERATED artefact, assembled by tools/build-index.js from
+# src/screens/. Its bytes must be stable and platform-independent: core.autocrlf
+# is true on the owner's machine, which would otherwise give the working tree
+# CRLF while the repo (and GitHub Pages) serves LF. Pinning eol=lf makes the
+# working tree, the committed blob and the shipped file all agree.
 index.html          text eol=lf working-tree-encoding=UTF-8
 src/screens/*.html  text eol=lf working-tree-encoding=UTF-8
-*.js                text eol=lf
-*.md                text eol=lf
+
+# Everything else the assembler or its harnesses touch.
+*.js   text eol=lf
+*.json text eol=lf
+*.md   text eol=lf
+*.css  text eol=lf
 ```
 
-- [ ] **Step 3: Prove the pin did not itself change the file**
+- [x] **Step 3: Re-materialise the working tree under the new attributes, and prove the blob is untouched**
 
 ```bash
-git add .gitattributes && git stash -u
-git checkout -- . && sha256sum -c /tmp/baseline.txt
-git stash pop
+BLOB_BEFORE=$(git rev-parse HEAD:index.html)
+rm index.html && git checkout -- index.html      # re-materialise using eol=lf
+tr -cd '\r' < index.html | wc -c                 # expect 0
+wc -c < index.html                               # expect 751825
+[ "$BLOB_BEFORE" = "$(git rev-parse HEAD:index.html)" ] && echo "blob UNCHANGED"
+git ls-files --eol index.html                    # expect i/lf w/lf attr/text eol=lf
 ```
 
-Expected: `index.html: OK`. If it reports FAILED, git has rewritten line endings — stop and report before going further.
+**Deviation 2 — the original step used `git stash -u` + `git checkout -- .`, which is needlessly
+risky** (it moves every untracked file in the tree, including `wip/`, to prove one thing about one
+file). Replaced with a targeted delete-and-re-checkout of `index.html` alone. Same proof, no blast
+radius.
 
-- [ ] **Step 4: Commit**
+Result: working tree now LF at 751,825 bytes, `i/lf w/lf`, blob `0c0775c7…` identical before and
+after. **Nothing shipped changed.** If the blob SHA had differed, the correct response is to stop —
+that would mean git rewrote the file that GitHub Pages serves.
+
+- [x] **Step 4: Commit**
 
 ```bash
 git add .gitattributes
@@ -166,7 +191,7 @@ tail -c +4 index.html > src/screens/_rest.html
 printf '%s\n' '# Ordered partials assembled into index.html by tools/build-index.js.' \
               '# Edit a partial in src/screens/, never index.html itself.' \
               '_rest.html' > src/manifest.txt
-wc -c src/screens/_rest.html   # expect 763118 (763121 minus the 3-byte BOM)
+wc -c src/screens/_rest.html   # expect 751822 (751825 minus the 3-byte BOM)
 ```
 
 - [ ] **Step 2: Write the assembler**
@@ -224,7 +249,7 @@ if (require.main === module) {
 - [ ] **Step 3: Run the harness to verify it now passes**
 
 Run: `node tools/verify-build-fresh.js`
-Expected: PASS — `✓ index.html is fresh (763121 bytes)`
+Expected: PASS — `✓ index.html is fresh (751825 bytes)`
 
 - [ ] **Step 4: Prove the build writes identical bytes**
 
@@ -343,7 +368,7 @@ node tools/extract-section.js _rest.html <N> <M> comb.html
 - [ ] **Step 3: Verify identity survived the cut**
 
 Run: `node tools/verify-build-fresh.js`
-Expected: PASS, still 763121 bytes. The file was cut in three and reassembled to the same bytes.
+Expected: PASS, still 751825 bytes. The file was cut in three and reassembled to the same bytes.
 
 - [ ] **Step 4: Commit**
 
@@ -391,7 +416,7 @@ Order is newest-first: the recent games use a single consistent inline header fo
 - [ ] **Final step for Tasks 5–8: confirm the shape**
 
 ```bash
-node tools/verify-build-fresh.js          # still 763121 bytes
+node tools/verify-build-fresh.js          # still 751825 bytes
 cat src/manifest.txt
 wc -l src/screens/*.html | sort -n | tail -5   # largest partial ≲ 800 lines
 ```
@@ -557,11 +582,11 @@ Replace line-offset accelerators with partial filenames. Note in the section tha
 
 - [ ] **Step 6: `docs/token-budget-register.md` § 5 Lever A — mark resolved**
 
-Point at the spec and this plan; record the measured before/after (763,121 bytes in one file → ~23 partials of ~350–750 lines).
+Point at the spec and this plan; record the measured before/after (751,825 bytes in one file → ~23 partials of ~350–750 lines).
 
 - [ ] **Step 7: `docs/decision-log.md` — one entry, newest on top**
 
-Confluence Snapshot shape. **Decision:** adopt a dev-only assembly build for `index.html`, superseding the 2026-06-30 deferral whose trigger fired at 763,121 bytes / 20 games. **Rationale:** the owner wanted all four wins, and hand-editable markup is the one discipline cannot buy; option A was chosen over runtime assembly because its failure mode is loud and at dev time rather than silent on a player's phone. **Technical Impact:** `src/screens/` + `tools/build-index.js` + `tools/verify-build-fresh.js` + `.githooks/pre-commit`; zero runtime change, no `CACHE_NAME` bump.
+Confluence Snapshot shape. **Decision:** adopt a dev-only assembly build for `index.html`, superseding the 2026-06-30 deferral whose trigger fired at 751,825 bytes / 20 games. **Rationale:** the owner wanted all four wins, and hand-editable markup is the one discipline cannot buy; option A was chosen over runtime assembly because its failure mode is loud and at dev time rather than silent on a player's phone. **Technical Impact:** `src/screens/` + `tools/build-index.js` + `tools/verify-build-fresh.js` + `.githooks/pre-commit`; zero runtime change, no `CACHE_NAME` bump.
 
 - [ ] **Step 8: `shared-implementation-notes.md` — the lessons**
 
