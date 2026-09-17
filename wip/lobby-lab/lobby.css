@@ -1206,8 +1206,15 @@
 
 /* Left: the controller */
 .lb-lg-left { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; min-height: 0; }
-.lb-lg-ctl { width: 250px; height: auto; filter: drop-shadow(0 20px 18px rgba(43,27,69,.22)); animation: lb-nudge 7s ease-in-out infinite; }
-.lb-lg-ctl-svg { display: block; width: 250px; animation: lb-nudge 7s ease-in-out infinite; }
+/* The resting pose is in the BASE rule, not only in lb-nudge's 0%/100% frame.
+   The global reduced-motion block collapses animation-duration to 0.01ms with
+   iteration-count 1 and no fill-mode, so an element whose pose exists only
+   inside its keyframes snaps back to identity the instant it is frozen — the
+   controller stood bolt upright, which is precisely the "must read as
+   finished" clause of README § 8 failing. The keyframes override this while
+   they run, so nothing else changes. */
+.lb-lg-ctl { width: 250px; height: auto; transform: rotate(-3deg); filter: drop-shadow(0 20px 18px rgba(43,27,69,.22)); animation: lb-nudge 7s ease-in-out infinite; }
+.lb-lg-ctl-svg { display: block; width: 250px; transform: rotate(-3deg); animation: lb-nudge 7s ease-in-out infinite; }
 .lb-lg-ctl-svg[hidden] { display: none; }
 .lb-lg-ctl-svg svg { width: 100%; height: auto; }
 .lb-lg-you { position: relative; top: 10px; padding: 6px 10px; font: 600 12px/1 Fredoka; letter-spacing: .14em; text-transform: uppercase; color: var(--lb-ink-3); }
@@ -1310,13 +1317,24 @@
 .lb-lg-stitle { flex: 1; display: flex; align-items: baseline; justify-content: center; gap: 10px; }
 .lb-lg-semoji { font-size: 22px; line-height: 1; }
 .lb-lg-sname { margin: 0; font: 700 26px/1 Fredoka; color: var(--lb-ink); }
-.lb-lg-scount { margin: 0; font: 400 14px/1 Fredoka; color: var(--lb-ink-3); }
+.lb-lg-scount { margin: 0; font: 400 14px/1 Fredoka; color: var(--lb-ink-3); white-space: nowrap; }
 .lb-lg-sspacer { width: 92px; flex: none; }
+/* The well scrolls rather than clipping. README § 3 allows interior regions
+   to scroll and names the pane body and the rail; the well is the third, and
+   it has to be — at 900x500 a six-game shelf is taller than the space the
+   panel can give it, and `overflow:hidden` there did not compress the field,
+   it made two games unreachable.
+   `safe center` is the load-bearing keyword: plain `align-content:center`
+   centres the overflow too, pushing the first row up past the scroll origin
+   where it cannot be scrolled back to. `safe` falls back to flex-start the
+   moment the content is taller than the box. */
 .lb-lg-well {
-  flex: 1; min-height: 0; overflow: hidden;
+  flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden;
+  overscroll-behavior: contain; scrollbar-width: none;
   border-radius: 20px; background: #F3F0F7; padding: 14px;
-  display: flex; flex-wrap: wrap; align-content: center; justify-content: center; gap: 6px 10px;
+  display: flex; flex-wrap: wrap; align-content: safe center; justify-content: center; gap: 6px 10px;
 }
+.lb-lg-well::-webkit-scrollbar { display: none; }
 
 /* A free-standing sticker — no tile, no frame — over a soft brand blob. */
 .lb-lg-gs { position: relative; width: 150px; height: 158px; flex: none; display: flex; flex-direction: column; align-items: center; }
@@ -1405,3 +1423,221 @@
 
 /* ── Rail wrapper — README § 3: full bleed, over the columns above it ────── */
 .lb-lg-railwrap { position: relative; z-index: 50; isolation: isolate; flex: none; }
+
+/* ── The rail ────────────────────────────────────────────────────────────── */
+.lb-lg-rail {
+  width: 100%; display: flex; gap: 16px;
+  overflow-x: auto; overflow-y: hidden;
+  scrollbar-width: none; outline: none;
+  cursor: grab; touch-action: pan-x;
+  /* Side padding puts an item's CENTRE on the frame's centre when scrollLeft
+     is a whole multiple of 166 — which is what makes the snap arithmetic a
+     plain round(). */
+  padding: 46px calc(50% - 75px) 0;
+  /* ...and the matching negative margin hides that padding, so the 46px is
+     pure headroom for the breakout sticker + jumpIn's 26px peak + the lid's
+     22px lift. The mock's 34px is not enough once the lid rises. */
+  margin-top: -46px;
+  mask-image: linear-gradient(90deg, transparent, #000 22%, #000 78%, transparent);
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 22%, #000 78%, transparent);
+  position: relative;
+}
+.lb-lg-rail::-webkit-scrollbar { display: none; }
+.lb-lg-rail:focus-visible { outline: 3px solid var(--lb-ink); outline-offset: 3px; }
+.lb-lg-item {
+  position: relative; flex: none; width: 150px;
+  padding: 40px 0 10px;
+  display: flex; flex-direction: column; align-items: center; gap: 5px;
+}
+.lb-lg-boxwrap { position: relative; width: 150px; height: 112px; }
+.lb-lg-box {
+  position: relative; z-index: 1;
+  width: 150px; height: 112px; padding: 0 8px 9px;
+  border-radius: 14px 14px 10px 10px;
+  background-image: linear-gradient(to bottom, rgba(255,255,255,.14) 0%, rgba(255,255,255,0) 42%, rgba(0,0,0,.05) 62%, rgba(0,0,0,.26) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.4), inset 0 -2px 1px rgba(0,0,0,.2),
+    0 0 0 1.5px rgba(0,0,0,.16), 0 4px 0 rgba(0,0,0,.18), 0 8px 12px rgba(0,0,0,.16);
+  display: flex; flex-direction: column; justify-content: flex-end; align-items: center;
+  transition: transform .22s var(--lb-ease-out), opacity .2s ease;
+}
+.lb-lg-item.is-out .lb-lg-box { opacity: .38; }
+.lb-lg-bsticker {
+  position: absolute; top: -34px; left: 50%; width: 100px; height: 100px;
+  background-size: contain; background-position: center; background-repeat: no-repeat;
+  transform: translateX(-50%) rotate(var(--gs-tilt, 0deg));
+  filter: drop-shadow(0 5px 5px rgba(0,0,0,.28)); pointer-events: none;
+}
+.lb-lg-bsticker.lb-lg-disc { width: 78px; height: 78px; top: -26px; font-size: 38px; transform: translateX(-50%); }
+.lb-lg-bname { font: 600 14px/1.1 Fredoka; text-align: center; }
+.lb-lg-reason { font: 600 11px/1 Fredoka; color: #C2410C; white-space: nowrap; min-height: 11px; }
+
+/* The pick jumps once, then re-bounces every 2.8s so it stays findable in a
+   20-box strip. BOTH ride .lb-lg-item — the transform group — so the box, its
+   breakout sticker and the extended tab below move as one object. Putting
+   either on .lb-lg-box instead detaches the tab on every hop. */
+.lb-lg-item.is-sel { animation: lb-jumpin .5s cubic-bezier(.2,1.5,.4,1), lb-rebounce 2.8s ease-in-out .6s infinite; }
+.lb-lg-item.is-sel .lb-lg-box { transform: translateY(-22px) scale(1.06); }
+
+/* ── The extended tab: the lid lifts off the box ─────────────────────────────
+   Not in the spec — the owner asked for it directly (17 Sep 2026), to carry
+   the players/phones facts the detail pane's chips used to hold before they
+   were cut.
+
+   It is the box's INTERIOR, not a floating badge: always in the layout at the
+   bottom of the 150x112 wrap, behind the lid (z-index 0 vs the lid's 1) and
+   invisible until the lid rises 22px off it. Two consequences worth keeping:
+
+   - It lives INSIDE .lb-lg-item, the transform group carrying jumpIn and
+     reBounce, so lid, breakout sticker and strip hop as one object. A tab
+     positioned against the rail, or against .lb-lg-item's parent, visibly
+     detaches on every 2.8s bounce.
+   - Card stock, not brand fill. A brand-filled strip would need the same
+     luminance ink-switch the pane's CTA does, and it would read as a second
+     box rather than the inside of this one.
+
+   The lift is 22px, which is why the rail's headroom went from the mock's
+   34px to 46px: 22px of lift plus jumpIn's 26px peak would otherwise clip the
+   breakout sticker's top against overflow-y:hidden. */
+.lb-lg-tab {
+  position: absolute; z-index: 0;
+  left: 5px; right: 5px; bottom: 0; height: 104px;
+  border-radius: 10px 10px 9px 9px;
+  background: #F3F0F7;
+  box-shadow: 0 4px 0 rgba(43,27,69,.14), inset 0 1px 0 rgba(255,255,255,.7);
+  display: flex; align-items: flex-end; justify-content: center;
+  padding-bottom: 5px;
+  font: 600 11px/1 Fredoka; color: var(--lb-ink); white-space: nowrap;
+  opacity: 0;
+  transition: opacity .18s ease-out;
+}
+.lb-lg-item.is-sel .lb-lg-tab { opacity: 1; }
+/* A dimmed, non-fitting box that is nonetheless the pick still shows its tab
+   — the reason line underneath says why it doesn't fit; the tab says what it
+   would need. Different facts. */
+.lb-lg-item.is-out.is-sel .lb-lg-tab { opacity: .85; }
+
+/* Random Game — pinned above the rail's left edge. */
+.lb-lg-spin {
+  position: absolute; left: 28px; bottom: 100%; margin-bottom: 6px; z-index: 5; isolation: isolate;
+  height: 38px; padding: 0 14px; border-radius: 13px;
+  background-color: var(--lb-surface); color: var(--lb-ink); font: 600 13px/1 Fredoka;
+  display: flex; align-items: center; gap: 6px;
+  background-image: linear-gradient(to bottom, rgba(255,255,255,.45) 0%, rgba(255,255,255,0) 45%, rgba(0,0,0,.04) 100%);
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,.18), inset 0 1px 0 rgba(255,255,255,.40),
+    inset 0 -16px 20px -13px rgba(0,0,0,.16), inset 0 -2px 1px rgba(0,0,0,.10),
+    0 0 0 1.5px rgba(0,0,0,.16), 0 5px 0 rgba(0,0,0,.16), 0 8px 15px rgba(0,0,0,.14);
+  transition: transform 100ms ease-out, opacity 150ms ease;
+}
+.lb-lg-spin-ico { font-size: 15px; line-height: 1; }
+.lb-lg-spin:active { transform: translateY(3px); }
+.lb-lg-spin.is-spinning { opacity: .5; pointer-events: none; }
+
+/* ── 900x500: the three columns are the load-bearing thing ───────────────────
+   README § 3: shrink the CONTROLLER column first (it may drop to ~200px),
+   then the rail's box height. The sticker-pill field already wraps, so it
+   needs nothing. Not a uniform scale-down — the panel and pane keep their
+   type sizes, because this is the size at which reading matters most. */
+@container tv (max-width: 1000px) {
+  .lb-lg-head { height: 56px; padding: 0 18px; }
+  .lb-lg-mark-a { font-size: 19px; }
+  .lb-lg-mark-b { font-size: 11px; padding: 5px 8px; }
+  .lb-lg-clock { font-size: 13px; }
+  .lb-lg-tool { width: 38px; height: 38px; font-size: 16px; }
+  .lb-lg-mode { height: 32px; font-size: 12.5px; }
+  .lb-lg-body { grid-template-columns: 200px minmax(0,1fr) 268px; gap: 14px; padding: 0 18px; }
+  .lb-lg-ctl, .lb-lg-ctl-svg { width: 176px; }
+  .lb-lg-ask { font-size: 22px; }
+  .lb-lg-pill { width: 152px; height: 62px; }
+  .lb-lg-pill-disc { width: 42px; height: 42px; }
+  .lb-lg-pill-emoji { font-size: 22px; }
+  .lb-lg-pill-name { font-size: 15px; }
+  .lb-lg-sname { font-size: 22px; }
+  .lb-lg-scount { font-size: 12.5px; }
+  /* The well SCROLLS at this size (see .lb-lg-well) — a six-game shelf does
+     not fit whatever we do here. Shrinking the stickers is still worth it:
+     it takes the common three/four-game shelf from scrolling to not, and
+     halves how far the six-game ones have to go. Not shrunk further than
+     this: the name tag is nowrap and "Counting Sheep" already runs wider
+     than the sticker it sits under. */
+  .lb-lg-gs { width: 112px; height: 116px; }
+  .lb-lg-gs-art { width: 90px; height: 90px; }
+  .lb-lg-blob { left: 14px; top: 4px; width: 82px; height: 82px; }
+  .lb-lg-gs-sticker.lb-lg-disc { inset: 9px; font-size: 36px; }
+  .lb-lg-tag { font-size: 11px; padding: 4px 8px; }
+  .lb-lg-well { padding: 10px; gap: 4px 8px; }
+  /* The pane at a 500px-tall viewport gets ~140px of body. Its own scroll
+     handles the overflow, but at full size the CTA landed across a
+     half-visible step 2, which reads as broken rather than as "there's more
+     below". Tightening the band, the type and the paddings buys ~55px — with
+     three steps that is the difference between a clipped list and a whole
+     one. */
+  .lb-lg-band { height: 48px; }
+  .lb-lg-hang { width: 64px; height: 64px; bottom: -22px; }
+  .lb-lg-hang.lb-lg-disc { width: 50px; height: 50px; bottom: -20px; font-size: 25px; }
+  .lb-lg-x { width: 30px; height: 30px; top: 9px; right: 9px; font-size: 13px; }
+  .lb-lg-cbody { padding: 28px 14px 6px; gap: 8px; }
+  .lb-lg-ct { font-size: 21px; }
+  .lb-lg-cp { font-size: 13px; }
+  .lb-lg-step p { font-size: 12px; }
+  .lb-lg-sn { width: 18px; height: 18px; font-size: 10px; line-height: 18px; }
+  .lb-lg-sy { font-size: 11.5px; }
+  .lb-lg-cfoot { padding: 8px 14px 12px; }
+  .lb-lg-play { height: 46px; font-size: 17px; }
+  /* Same for the empty state's boxed-set stack. */
+  .lb-lg-empty { gap: 12px; padding: 18px 16px; }
+  .lb-lg-stack { width: 160px; height: 96px; }
+  .lb-lg-lid { width: 76px; height: 59px; }
+  .lb-lg-lid-1 { left: 5px; top: 21px; }
+  .lb-lg-lid-2 { right: 3px; top: 18px; }
+  .lb-lg-lid-3 { left: 42px; top: 6px; height: 62px; }
+  .lb-lg-empty-h { font-size: 17px; }
+  .lb-lg-empty-s { font-size: 12.5px; }
+  /* The rail loses HEIGHT, not width — an item's pitch must stay 166px or the
+     snap arithmetic (round(scrollLeft / 166)) stops landing on centres. */
+  .lb-lg-box, .lb-lg-boxwrap { height: 92px; }
+  .lb-lg-tab { height: 84px; }
+  .lb-lg-bsticker { width: 84px; height: 84px; top: -28px; }
+  .lb-lg-bsticker.lb-lg-disc { width: 66px; height: 66px; top: -22px; font-size: 32px; }
+  .lb-lg-item { padding-top: 34px; padding-bottom: 6px; }
+  .lb-lg-rail { padding-top: 40px; margin-top: -40px; }
+  .lb-lg-spin { left: 18px; height: 34px; font-size: 12px; }
+}
+
+/* ── 1920: widen the middle, show more boxes ─────────────────────────────────
+   README § 3 is explicit that this must NOT be a uniform scale-up. The rail
+   gains boxes for free (it is full-bleed at a fixed 166px pitch), the pill
+   field gains a third column for free (it wraps), and the controller and pane
+   grow only modestly. */
+@container tv (min-width: 1500px) {
+  .lb-lg-head { height: 72px; padding: 0 40px; }
+  .lb-lg-mark-a { font-size: 26px; }
+  .lb-lg-clock { font-size: 16px; }
+  .lb-lg-body { grid-template-columns: 340px minmax(0,1fr) 352px; gap: 26px; padding: 0 40px; }
+  .lb-lg-ctl, .lb-lg-ctl-svg { width: 290px; }
+  .lb-lg-ask { font-size: 30px; }
+  .lb-lg-ct { font-size: 28px; }
+  .lb-lg-cp { font-size: 15.5px; }
+  .lb-lg-play { height: 58px; font-size: 20px; }
+  .lb-lg-spin { left: 40px; }
+  /* The well stops stretching here. At 1096px wide every shelf fits on one
+     row, so a flex:1 well became an 800px lilac field holding six stickers —
+     the opposite of "looks deliberate at 1920" (README § 3). Capped and
+     centred in the panel, it reads as a generous tray instead of an empty
+     room. It keeps its own scroll for the day a shelf outgrows the cap. */
+  /* `margin: auto 0` on the well, NOT justify-content on the column: the
+     shelf's own header row ("← Shelves · Cards · 6 games") has to stay pinned
+     at the top of the card. Centring the column moved it to the middle, which
+     made the panel read as having no header at all. */
+  .lb-lg-well { flex: 0 1 auto; max-height: 520px; padding: 22px; margin: auto 0; }
+  .lb-lg-gs { width: 168px; height: 176px; }
+  .lb-lg-gs-art { width: 140px; height: 140px; }
+  .lb-lg-blob { left: 22px; top: 8px; width: 124px; height: 124px; }
+  .lb-lg-gs-sticker.lb-lg-disc { inset: 16px; font-size: 58px; }
+  .lb-lg-tag { font-size: 14px; padding: 7px 13px; }
+  /* The picker needs no equivalent — .lb-lg-pills is already flex:1 with
+     align-content:center, so the heading and filters stay at the top and the
+     field centres in what is left. It just gets a third column for free,
+     because it wraps. */
+}

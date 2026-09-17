@@ -549,14 +549,315 @@ function lgPaintCard(inst) {
     .addEventListener('click', () => console.log(`→ screen-${g.id}-menu (the game's existing menu)`));
 }
 
-// ═══ Rail (Tasks 5a–5c) ══════════════════════════════════════════════════════
-// Stubs until the rail lands; each is replaced, not wrapped.
-function lgBuildRail(inst) { const r = document.createElement('div'); r.className = 'lb-lg-railwrap'; inst.els.railwrap = r; return r; }
-function lgPaintRail(_inst) {}
-function lgBindRail(_inst) {}
-function lgStartDrift(_inst) {}
-function lgScrollToId(_id) {}
-function lgWatchMotion() {}
+// ═══ The rail ════════════════════════════════════════════════════════════════
+// 5 concatenated copies of ORDER, not 3: at 1920 the visible window is wide
+// enough that a 3-copy loop shows the seam at the wrap point (README § 7.2).
+// The list is built ONCE; lgPaintRail() patches the 100 items in place, which
+// is what lets scrollLeft, the rAF and an in-flight smooth scroll survive a
+// filter change.
+function lgBuildRail(inst) {
+  const wrap = document.createElement('div');
+  wrap.className = 'lb-lg-railwrap';
+
+  const spin = document.createElement('button');
+  spin.className = 'lb-lg-spin';
+  spin.innerHTML = `<span class="lb-lg-spin-ico" aria-hidden="true">🎲</span>Random Game`;
+  spin.addEventListener('click', () => lgSpin(inst));
+  inst.els.spin = spin;
+  wrap.appendChild(spin);
+
+  const rail = document.createElement('div');
+  rail.className = 'lb-lg-rail';
+  rail.tabIndex = 0;
+  rail.setAttribute('role', 'listbox');
+  rail.setAttribute('aria-label', 'All 20 games');
+  inst.els.boxes = [];
+  for (let c = 0; c < LG_COPIES; c++) {
+    LG_ORDER.forEach((id, i) => {
+      const g = lbGame(id);
+      const item = document.createElement('div');
+      item.className = 'lb-lg-item';        // the TRANSFORM GROUP — jumpIn/reBounce ride here
+      item.dataset.id = id;
+      item.dataset.idx = String(i);
+      item.innerHTML = `
+        <div class="lb-lg-boxwrap">
+          <span class="lb-lg-tab" aria-hidden="true">${lbEsc(lbPlayersText(g))} · ${lbEsc(lbPhoneText(g))}</span>
+          <button class="lb-lg-box" style="background-color:${g.brandHex}" role="option"
+            title="${lbEsc(g.gameName)}"
+            aria-label="${lbEsc(g.gameName)}, ${lbEsc(lbPlayersText(g))} players, ${lbEsc(lbPhoneText(g))}">
+            ${lgSticker(g, 'lb-lg-bsticker')}
+            <span class="lb-lg-bname" style="color:${lgInk(g.brandHex)}">${lbEsc(g.gameName)}</span>
+          </button>
+        </div>
+        <span class="lb-lg-reason"></span>`;
+      item.querySelector('.lb-lg-box').addEventListener('click', () => {
+        if (inst.suppressClick || LOUNGE.spinning) return;
+        lgPause(inst);
+        lgSelect(id);
+      });
+      inst.els.boxes.push(item);
+      rail.appendChild(item);
+    });
+  }
+  inst.els.rail = rail;
+  wrap.appendChild(rail);
+  inst.els.railwrap = wrap;
+  return wrap;
+}
+
+// Patch, never rebuild. 100 items, four attributes each.
+function lgPaintRail(inst) {
+  if (!inst.els.boxes) return;
+  for (const item of inst.els.boxes) {
+    const g = lbGame(item.dataset.id);
+    const why = lbWhyOut(g);
+    const sel = LOUNGE.sel === g.id;
+    item.classList.toggle('is-out', !!why);
+    item.classList.toggle('is-sel', sel);
+    const reason = item.querySelector('.lb-lg-reason');
+    if (reason.textContent !== (why || '')) reason.textContent = why || '';
+    item.querySelector('.lb-lg-box').setAttribute('aria-selected', String(sel));
+  }
+  inst.els.spin.classList.toggle('is-spinning', !!LOUNGE.spinning);
+}
+
+// One-shot: land in the middle of the five copies so there is a full list of
+// headroom on both sides before the first wrap is needed.
+//
+// If a game is ALREADY selected when the rail first lays out — the hash
+// seeded one, or a shelf was opened before the rail existed — land on it
+// rather than on index 0. Directly, not through lgSnapTo: the first frame is
+// not a transition the player made, and smooth-scrolling it would look like
+// the rail was already moving before they touched anything.
+function lgPositionRail(inst) {
+  const el = inst.els.rail;
+  if (!el || inst.positioned) return;
+  if (el.scrollWidth < LG_COPIES * LG_W) return;   // still laying out
+  inst.positioned = true;
+  const idx = LOUNGE.sel ? LG_ORDER.indexOf(LOUNGE.sel) : -1;
+  el.scrollLeft = (2 * LG_ORDER.length + Math.max(0, idx)) * LG_ITEM;
+  inst.sl = el.scrollLeft;
+}
+
+// ── Drift ────────────────────────────────────────────────────────────────────
+// Continuous, ~0.38px/frame rightwards. The rAF runs for the instance's whole
+// life and gates itself — starting and stopping a loop on every hover would
+// drop frames at the hand-off. Cancelled in lgDrop(), which is § Timer
+// Lifecycle applied to a rAF (a rAF is a timer; cf. nt.js's ntRafHandle).
+function lgDriftActive(inst) {
+  return inst.positioned
+    && !lgReduced()                 // the CSS block cannot reach a rAF — README § 8
+    && !inst.dragging && !inst.animating && !inst.hovering
+    && !LOUNGE.spinning && !LOUNGE.sel     // a pick freezes the rail so it stays findable
+    && performance.now() >= inst.pauseUntil;
+}
+
+function lgStartDrift(inst) {
+  const step = () => {
+    inst.raf = requestAnimationFrame(step);
+    const el = inst.els.rail;
+    if (!el) return;
+    lgPositionRail(inst);
+    if (!lgDriftActive(inst)) { inst.sl = null; return; }
+    // Re-sync if anything else moved the scroll since the last frame (a snap,
+    // a wheel); otherwise accumulate sub-pixel travel ourselves, because
+    // scrollLeft rounds and 0.38px/frame would floor to zero.
+    if (inst.sl == null || Math.abs(inst.sl - el.scrollLeft) > 2) inst.sl = el.scrollLeft;
+    inst.sl += 0.38;
+    el.scrollLeft = inst.sl;
+  };
+  inst.raf = requestAnimationFrame(step);
+}
+
+function lgPause(inst, ms) { inst.pauseUntil = performance.now() + (ms || 2600); }
+
+// ── Input ────────────────────────────────────────────────────────────────────
+function lgBindRail(inst) {
+  const el = inst.els.rail;
+  if (!el || inst.bound) return;
+  inst.bound = true;
+  el.addEventListener('scroll', () => lgOnScroll(inst), { passive: true });
+  el.addEventListener('mouseenter', () => { inst.hovering = true; });
+  el.addEventListener('mouseleave', () => { inst.hovering = false; });
+
+  // Vertical wheel maps to horizontal — a trackpad or a mouse over the rail
+  // should move the rail, not fight the page (which cannot scroll anyway).
+  el.addEventListener('wheel', e => {
+    if (Math.abs(e.deltaY) <= Math.abs(e.deltaX) || LOUNGE.spinning) return;
+    e.preventDefault();
+    lgPositionRail(inst);
+    lgPause(inst);
+    el.scrollLeft += e.deltaY * 1.4;
+    lgQueueSnap(inst);
+  }, { passive: false });
+
+  // Drag. Touch is left to the browser's own momentum pan (touch-action:
+  // pan-x) — hijacking it with pointer maths feels worse than native.
+  let sx = 0, ssl = 0, drag = false, moved = false;
+  el.addEventListener('pointerdown', e => {
+    lgPositionRail(inst);
+    lgPause(inst);
+    if (e.pointerType === 'touch' || LOUNGE.spinning) return;
+    drag = true; moved = false; sx = e.clientX; ssl = el.scrollLeft;
+    inst.dragging = true; el.style.cursor = 'grabbing';
+  });
+  el.addEventListener('pointermove', e => {
+    if (!drag) return;
+    const dx = e.clientX - sx;
+    if (Math.abs(dx) > 4) moved = true;         // 4px threshold: a drag is not a click
+    el.scrollLeft = ssl - dx;
+  });
+  const up = () => {
+    if (!drag) return;
+    drag = false; inst.dragging = false; el.style.cursor = 'grab';
+    if (moved) { inst.suppressClick = true; setTimeout(() => { inst.suppressClick = false; }, 60); }
+    lgQueueSnap(inst);
+  };
+  el.addEventListener('pointerup', up);
+  el.addEventListener('pointercancel', up);
+  el.addEventListener('pointerleave', up);
+
+  // One tab stop; arrows move, Enter/Space selects. This is also how a TV
+  // remote drives the rail (README § 7.8).
+  el.addEventListener('keydown', e => {
+    if (LOUNGE.spinning) return;
+    const pos = Math.round(el.scrollLeft / LG_ITEM);
+    if (e.key === 'ArrowRight') { e.preventDefault(); lgSnapTo(inst, pos + 1); }
+    else if (e.key === 'ArrowLeft') { e.preventDefault(); lgSnapTo(inst, pos - 1); }
+    else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); lgSelect(LG_ORDER[LOUNGE.focus]); }
+  });
+}
+
+function lgOnScroll(inst) {
+  const el = inst.els.rail;
+  if (!el) return;
+  // Never wrap mid-drag or mid-animation: moving scrollLeft by a whole W
+  // under a smooth scroll makes the browser re-target and the rail lurches.
+  if (!inst.animating && !inst.dragging) {
+    const w = lgWrap(el.scrollLeft);
+    if (w !== el.scrollLeft) { el.scrollLeft = w; inst.sl = w; }
+  }
+  const n = LG_ORDER.length;
+  const i = ((Math.round(el.scrollLeft / LG_ITEM) % n) + n) % n;
+  if (i !== LOUNGE.focus) LOUNGE.focus = i;     // not lgSet — focus never needs a repaint
+  if (!inst.dragging && !inst.animating && !lgDriftActive(inst)) lgQueueSnap(inst);
+}
+
+// ── Snap ─────────────────────────────────────────────────────────────────────
+function lgQueueSnap(inst) {
+  clearTimeout(inst.snapT);
+  inst.snapT = setTimeout(() => {
+    if (inst.els.rail) lgSnapTo(inst, Math.round(inst.els.rail.scrollLeft / LG_ITEM));
+  }, 140);
+}
+
+function lgSnapTo(inst, pos) {
+  const el = inst.els.rail;
+  if (!el || LOUNGE.spinning) return;
+  lgPositionRail(inst);
+  lgPause(inst, 1400);
+  const target = pos * LG_ITEM;
+  if (Math.abs(el.scrollLeft - target) < 1) return;
+  // README § 8: scrollTo's explicit {behavior:'smooth'} OVERRIDES the CSS
+  // scroll-behavior the global reduced-motion block sets, so the check is
+  // here, not in the stylesheet. Frozen, the snap still lands — it just
+  // arrives instead of travelling.
+  if (lgReduced()) { el.scrollLeft = target; inst.sl = target; return; }
+  inst.animating = true;
+  clearTimeout(inst.animT);
+  el.scrollTo({ left: target, behavior: 'smooth' });
+  inst.animT = setTimeout(() => { inst.animating = false; }, 450);
+}
+
+// Bring a game to the rail's centre in EVERY live instance. Picking the copy
+// nearest where that instance already sits is the whole point: selecting the
+// first game while parked on the last would otherwise haul the rail backwards
+// past all 20 boxes (README § 7.5).
+function lgScrollToId(id) {
+  const idx = LG_ORDER.indexOf(id);
+  if (idx < 0) return;
+  for (const inst of LG_INSTANCES) {
+    if (!inst.els.rail) continue;
+    lgPositionRail(inst);
+    if (!inst.positioned) continue;
+    const copy = lgNearestCopy(inst.els.rail.scrollLeft, idx);
+    lgSnapTo(inst, copy * LG_ORDER.length + idx);
+  }
+}
+
+// ── Random Game (README § 7.7) ───────────────────────────────────────────────
+// Spins 1800ms on an ease-out cubic to a game drawn from those that FIT the
+// current filters — falling back to all 20 when nothing fits, because a dice
+// button that refuses to roll is worse than one that offers you a game you'd
+// have to move a filter for.
+function lgSpin(inst) {
+  const el = inst.els.rail;
+  if (!el || LOUNGE.spinning) return;
+  lgPositionRail(inst);
+  if (!inst.positioned) return;
+
+  // Normalise into copy 2 first so `to` (copy 4) is always FORWARD of `from`
+  // — a spin that runs backwards reads as a mistake, not a roll.
+  while (el.scrollLeft >= 3 * LG_W) el.scrollLeft -= LG_W;
+  while (el.scrollLeft < 2 * LG_W) el.scrollLeft += LG_W;
+
+  const all = LG_ORDER.map((id, i) => ({ id, i }));
+  const fits = all.filter(x => !lbWhyOut(lbGame(x.id)));
+  const pool = fits.length ? fits : all;
+  const target = pool[Math.floor(Math.random() * pool.length)];
+  const to = (4 * LG_ORDER.length + target.i) * LG_ITEM;
+
+  // Reduced motion: the OUTCOME is the information, the spin is the journey.
+  // Land on it and select it — don't drop the feature (README § 8).
+  if (lgReduced()) {
+    el.scrollLeft = to - LG_W;
+    inst.sl = el.scrollLeft;
+    lgSelect(target.id);
+    return;
+  }
+
+  const from = el.scrollLeft, t0 = performance.now(), dur = 1800;
+  inst.animating = true;
+  lgSet({ spinning: true });
+  const step = now => {
+    const t = Math.min(1, (now - t0) / dur);
+    const e = 1 - Math.pow(1 - t, 3);
+    el.scrollLeft = from + (to - from) * e;
+    if (t < 1) { inst.spinRaf = requestAnimationFrame(step); return; }
+    // Land back in the middle copies so the loop window is intact, then select.
+    el.scrollLeft = to - LG_W;
+    inst.sl = el.scrollLeft;
+    inst.animating = false;
+    inst.spinRaf = null;
+    lgSet({ spinning: false });        // the guard clears on the SAME frame the tween ends
+    lgSelect(target.id);
+  };
+  inst.spinRaf = requestAnimationFrame(step);
+}
+
+// ── The JS half of reduced motion, part two: react to a LIVE change ─────────
+// The preference can flip while the page is open — a DevTools emulation
+// toggle, or the OS setting on a real device. Without this the drift stays
+// frozen (or stays running) until a reload, which makes the setting look
+// broken and makes verification unreliable. One listener for the document,
+// not one per instance.
+let lgMotionWatched = false;
+function lgWatchMotion() {
+  if (lgMotionWatched) return;
+  lgMotionWatched = true;
+  try {
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const onChange = () => {
+      for (const inst of LG_INSTANCES) {
+        inst.sl = null;                 // the drift re-reads scrollLeft on its next active frame
+        if (lgReduced() && inst.animT) { clearTimeout(inst.animT); inst.animT = null; inst.animating = false; }
+      }
+      lgApplyAll();
+    };
+    if (mq.addEventListener) mq.addEventListener('change', onChange);
+    else if (mq.addListener) mq.addListener(onChange);     // Safari < 14
+  } catch (_) {}
+}
 
 if (typeof module !== 'undefined') module.exports = {
   LOUNGE, LG_ORDER, LG_ITEM, LG_COPIES, LG_W,
