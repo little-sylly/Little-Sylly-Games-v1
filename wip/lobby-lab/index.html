@@ -51,7 +51,7 @@
     same Fredoka, same brand colours — generated from <code>games.js</code> rather than hand-copied,
     so it can never silently drift from what it's rendering. It is the fourth layout option, not
     just a reference. The "Shelves" pane is the redesign — <code>lobby.css</code> + <code>lobby.js</code>,
-    rationale in <code>DESIGN-NOTES.md</code>. Read <code>docs/lobby-redesign-brief.md</code> first.
+    rationale in <code>DESIGN-NOTES.md</code>. The "TV" pane is the same lobby laid out wide for a laptop, tablet or cast screen (a seatless "Big Screen" host mode is reachable via the <code>#tv=host</code> hash — § TV mode in both files, <code>DESIGN-NOTES.md</code> §§ 4-5). <strong>This pane is a fixed 900×506 frame for side-by-side viewing only</strong> — to judge the real scale, squishing or the eligibility floor, open <code>tv.html</code> directly and resize the window. Read <code>docs/lobby-redesign-brief.md</code> first.
   </div>
 
   <div class="lab-row">
@@ -94,12 +94,24 @@
     </div>
 
     <!-- ══════════════════════════════════════════════════════════════
-         PANE 3 — wide canvas for TV/widescreen exploration, if/when
-         it's worked on. Also empty; 900px wide to leave room at 1024px
-         breakpoints without the pane itself needing a resize.
+         PANE 3 — TV mode: the same lobby laid out wide (rail · field ·
+         pane, per the owner's 2b mockup) for any screen that can hold it
+         — laptop, tablet, a cast. lbMountTV() (lobby.js) renders
+         lbRenderTV() here inside a 16:9 .lb-tv-host frame. The pane's one
+         CTA is Play — the "which device hosts, and does it take a seat"
+         choice belongs at lobby creation (a pill on screen-mp-mode's Host
+         card, not built here; OWNER-REVIEW.md T8), not on this pane. The
+         Big Screen / seatless-host display (lbRenderTVHost) is reachable
+         via the #tv=host hash for review. The Shelves switcher's TV slot
+         on a phone renders the hand-off card instead (lbRenderTVHandoff),
+         and so does a wide-enough window that shrinks below the
+         eligibility floor in tv.html. 900px wide, 506px tall at 16:9 here
+         only for side-by-side viewing — a cast screen doesn't scroll, so
+         the rail and pane scroll inside the frame (lobby.css § TV mode);
+         open tv.html directly for the real, unframed result.
     ═══════════════════════════════════════════════════════════════ -->
     <div class="lab-pane">
-      <div class="lab-pane-header">Wide / TV — build here (900px, not in this round's remit)</div>
+      <div class="lab-pane-header">TV — the wide layout (900px, 16:9; hash states: #folder=cards sel=pko · #count=4 #onephone · #tv=host roster=empty|room|ready|full|table)</div>
       <div class="lab-pane-body wide">
         <div id="wide-canvas"></div>
       </div>
@@ -109,6 +121,10 @@
 
   <!-- The verified 20-game data table. window.GAMES / window.SHELVES / window.SHELF_NOTES -->
   <script src="games.js"></script>
+  <!-- TV mode's wide browse layout (artboard 2a "The Lounge"). Loads BEFORE
+       lobby.js: it owns its own patch-in-place renderer, and lobby.js's
+       lbMountTV/lbMountTVFull delegate to lgMount(). -->
+  <script src="lounge.js"></script>
   <!-- The Shelves lobby: renderer + stylesheet. Reads window.GAMES / SHELVES. -->
   <script src="lobby.js"></script>
 

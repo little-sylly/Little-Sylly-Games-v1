@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Little Sylly Games — TV mode</title>
+
+  <!-- Same real files index.html loads — see that file's own header comment
+       for why the relative paths are ../../ from here. -->
+  <script src="../../js/lib/tailwind-play.js"></script>
+  <link rel="stylesheet" href="../../css/styles.css" />
+  <link rel="stylesheet" href="lobby.css" />
+
+  <style>
+    /* This page IS the result, not a frame around it — no lab chrome, no
+       fixed aspect-ratio, no side-by-side panes. Resize the window (or open
+       this on/cast to an actual wide screen) to see the eligibility floor
+       and the big-screen zoom steps live — OWNER-REVIEW.md T9/T10, which
+       Pane 3's fixed 900×506 sandbox frame in index.html cannot show. */
+    html, body { margin: 0; height: 100%; background: #FAFAF9; overflow: hidden; }
+    #tv-app { height: 100vh; width: 100vw; }
+  </style>
+</head>
+<body>
+  <div id="tv-app"></div>
+
+  <!-- The verified 20-game data table, then the renderer. lobby.js's own
+       boot (lbBoot, bottom of the file) seeds state from the hash, mounts
+       #shelves-canvas and #wide-canvas (both harmlessly absent here — every
+       mount function no-ops when its target isn't found), mounts #tv-app
+       via lbMountTVFull(), and attaches the resize listener that keeps it
+       live. Nothing else is needed on this page. -->
+  <script src="games.js"></script>
+  <!-- TV mode's wide browse layout (artboard 2a "The Lounge"). Loads BEFORE
+       lobby.js: it owns its own patch-in-place renderer, and lobby.js's
+       lbMountTV/lbMountTVFull delegate to lgMount(). -->
+  <script src="lounge.js"></script>
+  <script src="lobby.js"></script>
+</body>
+</html>
