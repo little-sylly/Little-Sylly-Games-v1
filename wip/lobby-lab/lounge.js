@@ -109,6 +109,455 @@ function lgReduced() {
   } catch (_) { return false; }
 }
 
+// ── Instances ────────────────────────────────────────────────────────────────
+// Two mounts can be live at once (index.html's Pane 3 and, separately,
+// tv.html) and each needs its OWN rail scroll and rAF. A module-level
+// singleton would have them fighting over one handle, so the instance hangs
+// off its container and every apply walks the list.
+const LG_INSTANCES = [];
+
+function lgMount(container, hostClass) {
+  const live = container.__lounge;
+  if (live && live.root.isConnected) { lgApply(live); return live; }
+  if (live) lgDrop(container);
+  container.innerHTML = '';
+  const host = document.createElement('div');
+  host.className = hostClass;
+  const inst = lgBuild();
+  host.appendChild(inst.root);
+  container.appendChild(host);
+  container.__lounge = inst;
+  inst.container = container;
+  LG_INSTANCES.push(inst);
+  // A reload or a re-mount mid-spin would otherwise leave spinning === true
+  // and freeze the drift for good (README § 7.7's "guard the spin flag").
+  if (LOUNGE.spinning) LOUNGE.spinning = false;
+  lgWatchMotion();
+  lgApply(inst);
+  lgStartClock(inst);
+  lgBindRail(inst);
+  lgStartDrift(inst);
+  return inst;
+}
+
+function lgDrop(container) {
+  const inst = container && container.__lounge;
+  if (!inst) return;
+  if (inst.raf) { cancelAnimationFrame(inst.raf); inst.raf = null; }
+  if (inst.spinRaf) { cancelAnimationFrame(inst.spinRaf); inst.spinRaf = null; }
+  if (inst.clock) { clearInterval(inst.clock); inst.clock = null; }
+  if (inst.snapT) { clearTimeout(inst.snapT); inst.snapT = null; }
+  if (inst.animT) { clearTimeout(inst.animT); inst.animT = null; }
+  const i = LG_INSTANCES.indexOf(inst);
+  if (i >= 0) LG_INSTANCES.splice(i, 1);
+  delete container.__lounge;
+}
+
+// Prune first: an instance whose root left the document is a leaked rAF.
+function lgApplyAll() {
+  for (const inst of LG_INSTANCES.slice()) {
+    if (!inst.root.isConnected) { lgDrop(inst.container); continue; }
+    lgApply(inst);
+  }
+}
+
+// Lounge-only state (shelf, selection, spin). A FILTER change goes through
+// lbSet() instead, so Pane 1's phone reflects it too — the mounts are
+// idempotent now, so lbSet's calls land here as a patch, not a rebuild.
+function lgSet(patch) {
+  Object.assign(LOUNGE, patch);
+  lgApplyAll();
+}
+
+// ── Build: the whole tree, once per mount. Everything that ever changes is
+// stashed on inst.els so lgApply() can patch it without touching innerHTML.
+function lgBuild() {
+  const inst = {
+    root: null, els: {}, sl: 0, raf: null, spinRaf: null, clock: null, snapT: null, animT: null,
+    pauseUntil: 0, hovering: false, dragging: false, animating: false,
+    bound: false, positioned: false, suppressClick: false,
+  };
+  const root = document.createElement('div');
+  root.className = 'lb-tv lb-lounge';        // .lb-tv for the palette + button reset;
+  const inn = document.createElement('div'); //  .lb-lounge so the .lb-tv-browse zoom rules never apply
+  inn.className = 'lb-lg-in';
+  root.appendChild(inn);
+  inst.root = root;
+
+  inn.appendChild(lgBuildHeader(inst));
+  inn.appendChild(lgBuildBody(inst));
+  inn.appendChild(lgBuildRail(inst));
+  lgBuildPick(inst);
+  lgBuildShelf(inst);
+  return inst;
+}
+
+// ── Header: wordmark · clock · tools pill ────────────────────────────────────
+// The wordmark is the HORIZONTAL variant README § 3 asks for — text, not the
+// stacked assets/logo.png lockup, which does not fit a 64px bar. § 9 lists
+// building a real horizontal asset as an open item.
+function lgBuildHeader(inst) {
+  const h = document.createElement('div');
+  h.className = 'lb-lg-head';
+  h.innerHTML = `
+    <div class="lb-lg-mark">
+      <span class="lb-lg-mark-a">Little Sylly</span><span class="lb-lg-mark-b">Games</span>
+    </div>
+    <p class="lb-lg-clock"></p>
+    <div class="lb-lg-tools">
+      <button class="lb-lg-tool" title="Achievements" aria-label="Achievements">🏆</button>
+      <button class="lb-lg-tool is-sound" title="Sound" aria-label="Sound">🔊</button>
+      <div class="lb-lg-modes" role="tablist" aria-label="Lobby layout"></div>
+    </div>`;
+  inst.els.clock = h.querySelector('.lb-lg-clock');
+
+  // The four-mode switcher. TV is the current mode. The other three are the
+  // sandbox's real views — but tv.html has no shell to switch INSIDE, so
+  // there they navigate to index.html rather than silently doing nothing.
+  const modes = h.querySelector('.lb-lg-modes');
+  for (const v of LB_VIEWS) {
+    const on = v.id === 'tv';
+    const b = document.createElement('button');
+    b.className = 'lb-lg-mode' + (on ? ' is-on' : '');
+    b.setAttribute('role', 'tab');
+    b.setAttribute('aria-selected', String(on));
+    b.title = v.label;
+    b.setAttribute('aria-label', v.label);
+    b.innerHTML = `<span class="lb-lg-mode-ico" aria-hidden="true">${v.ico}</span>${on ? v.label : ''}`;
+    if (!on) b.addEventListener('click', () => {
+      if (document.getElementById('shelves-canvas')) lbSet({ view: v.id, folder: null, sheet: null });
+      else location.href = 'index.html#view=' + v.id;
+    });
+    modes.appendChild(b);
+  }
+  return h;
+}
+
+// Re-render every 30s, per README § 3. It is an interval on the instance, so
+// lgDrop() clears it — § Timer Lifecycle.
+//
+// Locale is pinned to en-AU rather than left to the browser's. Two reasons:
+// the mock's "Thu, Sep 17 · 10:09 AM" is a US machine's rendering of the
+// shape, and this suite is Australian English by rule (CLAUDE.md § Token
+// Hygiene) — an Australian lounge reads "Thu, 17 Sep · 11:45 am". Pinning it
+// also makes the header deterministic, so a screenshot taken on any machine
+// is comparable. The day/month ORDER is the locale's; the shape (weekday,
+// date · time) is the spec's.
+function lgClockText(d) {
+  const day = d.toLocaleDateString('en-AU', { weekday: 'short' });
+  const date = d.toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }).replace('Sept', 'Sep');
+  const time = d.toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit', hour12: true }).toLowerCase().replace(/\s+/g, ' ');
+  return `${day}, ${date} · ${time}`;
+}
+function lgStartClock(inst) {
+  const paint = () => { inst.els.clock.textContent = lgClockText(new Date()); };
+  paint();
+  inst.clock = setInterval(paint, 30000);
+}
+
+// ── Body: controller | speech-bubble panel | reserved pane ───────────────────
+function lgBuildBody(inst) {
+  const body = document.createElement('div');
+  body.className = 'lb-lg-body';
+
+  // Left: the controller, asking the question. controller.png is the design's
+  // flat Workshop render (README § 9 — replace with the live 3D object
+  // eventually); lbControllerSVG() is the sandbox's existing stand-in and
+  // catches a missing file, the same defensive shape as lbBadgeInner.
+  const left = document.createElement('div');
+  left.className = 'lb-lg-left';
+  left.innerHTML = `
+    <img class="lb-lg-ctl" src="../tv-mode-design/tv/controller.png" alt="Your controller">
+    <span class="lb-lg-ctl-svg" hidden>${lbControllerSVG()}</span>
+    <button class="lb-lg-you" aria-haspopup="dialog">You ▾</button>`;
+  const img = left.querySelector('.lb-lg-ctl');
+  img.addEventListener('error', () => {
+    img.remove();
+    const svg = left.querySelector('.lb-lg-ctl-svg');
+    if (svg) svg.hidden = false;
+  });
+  left.querySelector('.lb-lg-you').addEventListener('click', () => lbSet({ profileOpen: !lbState.profileOpen }));
+  inst.els.left = left;
+  body.appendChild(left);
+
+  // Middle: the speech bubble. Two states in ONE card (README § 5) — the
+  // picker and the open shelf are siblings toggled by hidden, never a
+  // rebuild, so the card's geometry never flickers between them.
+  const panel = document.createElement('div');
+  panel.className = 'lb-lg-panel';
+  panel.innerHTML = `
+    <span class="lb-lg-tail" aria-hidden="true"></span>
+    <div class="lb-lg-pick"></div>
+    <div class="lb-lg-shelf" hidden></div>`;
+  inst.els.panel = panel;
+  inst.els.pick = panel.querySelector('.lb-lg-pick');
+  inst.els.shelfView = panel.querySelector('.lb-lg-shelf');
+  body.appendChild(panel);
+
+  // Right: ALWAYS reserved (README § 6) — the column never appears or
+  // disappears, only its two children swap, so the middle column's width
+  // never moves under the player's eye mid-decision.
+  const pane = document.createElement('div');
+  pane.className = 'lb-lg-pane-slot';
+  pane.innerHTML = `
+    <div class="lb-lg-empty">
+      <div class="lb-lg-stack" aria-hidden="true">
+        <span class="lb-lg-lid lb-lg-lid-1"></span>
+        <span class="lb-lg-lid lb-lg-lid-2"></span>
+        <span class="lb-lg-lid lb-lg-lid-3"></span>
+      </div>
+      <div class="lb-lg-empty-text">
+        <p class="lb-lg-empty-h">20 games in the box</p>
+        <p class="lb-lg-empty-s">Pick a shelf, or take one off the rail below — it lands here.</p>
+      </div>
+    </div>
+    <div class="lb-lg-card" hidden></div>`;
+  inst.els.paneEmpty = pane.querySelector('.lb-lg-empty');
+  inst.els.paneCard = pane.querySelector('.lb-lg-card');
+  body.appendChild(pane);
+  return body;
+}
+
+// ── The one patch entry. Everything below repaints THROUGH this. ─────────────
+function lgApply(inst) {
+  const open = !!LOUNGE.shelf;
+  inst.els.pick.hidden = open;
+  inst.els.shelfView.hidden = !open;
+  if (open) lgPaintShelf(inst); else lgPaintPick(inst);
+  inst.els.paneEmpty.hidden = !!LOUNGE.sel;
+  inst.els.paneCard.hidden = !LOUNGE.sel;
+  if (LOUNGE.sel) lgPaintCard(inst);
+  lgPaintRail(inst);
+}
+
+// ═══ Panel ═══════════════════════════════════════════════════════════════════
+
+const LG_COUNTS = ['any', 2, 3, 4, 5, 6, 7, 8];
+
+// The die-cut sticker, or Bailed's fallback. One helper for all three surfaces
+// (shelf well, detail pane, rail box) so the Bailed path can never be right in
+// two of them and missing in the third. README § 9: the fallback is the
+// shipped phone treatment and must stay until bld.png exists.
+function lgSticker(g, cls) {
+  if (LB_NO_STICKER.has(g.id)) {
+    return `<span class="${cls} lb-lg-disc" aria-hidden="true">${g.emoji}</span>`;
+  }
+  return `<span class="${cls} lb-lg-art" aria-hidden="true"
+    style="--gs-tilt:${lgTilt(g.id)}; background-image:url(../../data/stickers/${g.id}.png)"></span>`;
+}
+
+// ── Panel state A: the shelf picker (README § 5a) ───────────────────────────
+function lgBuildPick(inst) {
+  const el = inst.els.pick;
+  el.innerHTML = `
+    <p class="lb-lg-ask">What are we playing today?</p>
+    <div class="lb-lg-filters">
+      <div class="lb-lg-filter">
+        <p class="lb-lg-flabel">How many of you</p>
+        <div class="lb-lg-keys lb-lg-keys-count"></div>
+      </div>
+      <div class="lb-lg-filter lb-lg-filter-phones">
+        <p class="lb-lg-flabel">Phones</p>
+        <div class="lb-lg-keys lb-lg-keys-phone"></div>
+      </div>
+    </div>
+    <p class="lb-lg-count"></p>
+    <div class="lb-lg-pills"></div>`;
+  inst.els.keysCount = el.querySelector('.lb-lg-keys-count');
+  inst.els.keysPhone = el.querySelector('.lb-lg-keys-phone');
+  inst.els.countLine = el.querySelector('.lb-lg-count');
+  inst.els.pills = el.querySelector('.lb-lg-pills');
+
+  for (const c of LG_COUNTS) {
+    const b = document.createElement('button');
+    b.className = 'lb-lg-key';
+    b.dataset.count = String(c);
+    b.textContent = c === 'any' ? 'Any' : (c === 8 ? '8+' : String(c));
+    b.addEventListener('click', () => lbSet({ count: c === 'any' ? null : c }));
+    inst.els.keysCount.appendChild(b);
+  }
+  for (const p of [{ label: 'One phone', one: true }, { label: 'A phone each', one: false }]) {
+    const b = document.createElement('button');
+    b.className = 'lb-lg-key lb-lg-key-phone';
+    b.dataset.one = String(p.one);
+    b.textContent = p.label;
+    b.addEventListener('click', () => lbSet({ onePhone: p.one }));
+    inst.els.keysPhone.appendChild(b);
+  }
+
+  // Six sticker pills. Pre-tilted and offset in the MARKUP, not by a script,
+  // so the field still reads as slapped-on stickers with motion reduced
+  // (README § 8). The field wraps and the rotations cycle by index, so a
+  // seventh shelf costs nothing — do not hand-place these.
+  const ROT = [-3, 2.5, -2, 3, -2.5, 2], OFF = [0, 7, -5, 5, -3, 6];
+  LB_SHELVES.forEach((s, i) => {
+    const b = document.createElement('button');
+    b.className = 'lb-lg-pill';
+    b.dataset.shelf = s.id;
+    b.title = s.label;
+    b.style.setProperty('--pill-rot', `${ROT[i % 6]}deg`);
+    b.style.setProperty('--pill-off', `${OFF[i % 6]}px`);
+    b.innerHTML = `
+      <span class="lb-lg-pill-disc"><span class="lb-lg-pill-emoji" style="animation-delay:${(i * 0.24).toFixed(2)}s">${s.emoji}</span></span>
+      <span class="lb-lg-pill-text">
+        <span class="lb-lg-pill-name">${s.label}</span>
+        <span class="lb-lg-pill-count"></span>
+      </span>`;
+    b.addEventListener('click', () => lgOpenShelf(s.id));
+    inst.els.pills.appendChild(b);
+  });
+}
+
+// Only the live numbers repaint. The keycaps, pills and their tilts are built
+// once — a filter tap must not re-slap the sticker field.
+function lgPaintPick(inst) {
+  const c = lbState.count;
+  for (const b of inst.els.keysCount.children) {
+    const v = b.dataset.count;
+    // The 8 key is "8+", so it also holds for the phone stepper's 9 and 10.
+    const on = v === 'any' ? c == null : (+v === 8 ? c >= 8 : c === +v);
+    b.classList.toggle('is-on', !!on);
+    b.setAttribute('aria-pressed', String(!!on));
+  }
+  for (const b of inst.els.keysPhone.children) {
+    const on = (b.dataset.one === 'true') === lbState.onePhone;
+    b.classList.toggle('is-on', on);
+    b.setAttribute('aria-pressed', String(on));
+  }
+  inst.els.countLine.textContent = lbFitLine();
+  const active = lbState.count != null || lbState.onePhone;
+  for (const b of inst.els.pills.children) {
+    const games = lbShelfGames(b.dataset.shelf);
+    const fit = games.filter(g => !lbWhyOut(g)).length;
+    b.querySelector('.lb-lg-pill-count').textContent =
+      active ? `${fit} of ${games.length} fit` : `${games.length} games`;
+  }
+}
+
+// ── Panel state B: a shelf, open in the SAME card (README § 5b) ─────────────
+function lgBuildShelf(inst) {
+  const el = inst.els.shelfView;
+  el.innerHTML = `
+    <div class="lb-lg-shead">
+      <button class="lb-lg-back">← Shelves</button>
+      <div class="lb-lg-stitle">
+        <span class="lb-lg-semoji"></span>
+        <p class="lb-lg-sname"></p>
+        <p class="lb-lg-scount"></p>
+      </div>
+      <span class="lb-lg-sspacer"></span>
+    </div>
+    <div class="lb-lg-well"></div>`;
+  el.querySelector('.lb-lg-back').addEventListener('click', () => lgSet({ shelf: null, sel: null }));
+  inst.els.sEmoji = el.querySelector('.lb-lg-semoji');
+  inst.els.sName = el.querySelector('.lb-lg-sname');
+  inst.els.sCount = el.querySelector('.lb-lg-scount');
+  inst.els.well = el.querySelector('.lb-lg-well');
+}
+
+// The well IS rebuilt on repaint — its content is a different set of games per
+// shelf and the sway phases are per-game, so there is nothing stable to patch.
+// It is ~8 nodes and never animates during a rebuild.
+function lgPaintShelf(inst) {
+  const s = LB_SHELVES.find(x => x.id === LOUNGE.shelf);
+  if (!s) return;
+  const games = lbSortByFit(lbShelfGames(s.id));
+  const fit = games.filter(g => !lbWhyOut(g)).length;
+  const active = lbState.count != null || lbState.onePhone;
+  inst.els.sEmoji.textContent = s.emoji;
+  inst.els.sName.textContent = s.label;
+  inst.els.sCount.textContent = active ? `${fit} of ${games.length} fit` : `${games.length} games`;
+
+  inst.els.well.innerHTML = '';
+  for (const g of games) {
+    const why = lbWhyOut(g);
+    const b = document.createElement('button');
+    b.className = 'lb-lg-gs' + (why ? ' is-out' : '') + (LOUNGE.sel === g.id ? ' is-sel' : '');
+    b.title = g.gameName;
+    b.setAttribute('aria-pressed', String(LOUNGE.sel === g.id));
+    b.setAttribute('aria-label', `${g.gameName}${why ? ' — ' + why : ''}`);
+    b.style.setProperty('--gs-brand', g.brandHex);
+    b.innerHTML = `
+      <span class="lb-lg-blob" aria-hidden="true"></span>
+      <span class="lb-lg-gs-art" style="animation-delay:${lgSwaySeed(g.id)}s">${lgSticker(g, 'lb-lg-gs-sticker')}</span>
+      <span class="lb-lg-tag" style="${why ? '' : `background:${g.brandHex};color:${lgInk(g.brandHex)}`}">${why ? why : lbEsc(g.gameName)}</span>`;
+    b.addEventListener('click', () => lgSelect(g.id));
+    inst.els.well.appendChild(b);
+  }
+}
+
+// Opening a shelf lands on a RANDOM game from it — owner decision, 17 Sep
+// 2026 (README § 9 lists "its first game instead" as the open alternative; it
+// was closed in favour of random). Fitting games only, unless none fit.
+function lgOpenShelf(shelfId) {
+  const games = lbShelfGames(shelfId);
+  const pool = games.filter(g => !lbWhyOut(g));
+  const from = pool.length ? pool : games;
+  const pick = from[Math.floor(Math.random() * from.length)];
+  lgSet({ shelf: shelfId, sel: pick.id });
+  lgScrollToId(pick.id);
+}
+
+// Selecting from anywhere — a shelf sticker or a rail box. Both centre the
+// rail on it (README § 7.5).
+function lgSelect(id) {
+  const g = lbGame(id);
+  lgSet({ sel: id, shelf: LOUNGE.shelf || (g && g.shelves[0]) || null });
+  lgScrollToId(id);
+}
+
+// ═══ Detail pane ═════════════════════════════════════════════════════════════
+
+// No chips and no reason line: the shipped .dc.html has both the chip
+// <sc-for> and the reason <sc-if> bodies emptied (owner, 17 Sep 2026 —
+// README § 6's chip sentence is stale), and § 6 names the reason's two homes
+// as the shelf well and under the rail boxes. The players/phones the chips
+// used to carry now ride the selected rail box's extended tab instead.
+function lgPaintCard(inst) {
+  const g = lbGame(LOUNGE.sel);
+  if (!g) return;
+  const ink = lgInk(g.brandHex), label = lgLabel(g.brandHex), name = lgSplitName(g.gameName);
+  const cta = LOUNGE.plainCta ? 'Play' : g.playCtaLabel;
+  const sylly = g.syllyModeName
+    ? `<span class="lb-lg-sy-k" style="color:${label}">✨ Sylly Mode</span> · ${lbEsc(g.syllyModeName)}`
+    : `<span class="lb-lg-sy-k" style="color:${label}">✨ Sylly Mode</span> · Not this one — its own settings carry the dial.`;
+
+  inst.els.paneCard.innerHTML = `
+    <div class="lb-lg-band" style="background-color:${g.brandHex}">
+      <button class="lb-lg-x" title="Close" aria-label="Close">✕</button>
+      ${lgSticker(g, 'lb-lg-hang')}
+    </div>
+    <div class="lb-lg-cbody">
+      <h2 class="lb-lg-ct"><span>${lbEsc(name.a)}</span><span style="color:${label}">${lbEsc(name.b)}</span></h2>
+      <p class="lb-lg-cp">${lbEsc(g.pitch)}</p>
+      <div class="lb-lg-steps">
+        <p class="lb-lg-slabel" style="color:${label}">How it goes</p>
+        ${g.howItGoes.map((t, i) => `
+          <div class="lb-lg-step">
+            <span class="lb-lg-sn" style="background:${g.brandHex};color:${ink}">${i + 1}</span>
+            <p>${lbEsc(t)}</p>
+          </div>`).join('')}
+      </div>
+      <p class="lb-lg-sy">${sylly}</p>
+    </div>
+    <div class="lb-lg-cfoot">
+      <button class="lb-lg-play" style="background-color:${g.brandHex};color:${ink}">${lbEsc(cta)}</button>
+    </div>`;
+  inst.els.paneCard.querySelector('.lb-lg-x')
+    .addEventListener('click', () => lgSet({ sel: null }));
+  inst.els.paneCard.querySelector('.lb-lg-play')
+    .addEventListener('click', () => console.log(`→ screen-${g.id}-menu (the game's existing menu)`));
+}
+
+// ═══ Rail (Tasks 5a–5c) ══════════════════════════════════════════════════════
+// Stubs until the rail lands; each is replaced, not wrapped.
+function lgBuildRail(inst) { const r = document.createElement('div'); r.className = 'lb-lg-railwrap'; inst.els.railwrap = r; return r; }
+function lgPaintRail(_inst) {}
+function lgBindRail(_inst) {}
+function lgStartDrift(_inst) {}
+function lgScrollToId(_id) {}
+function lgWatchMotion() {}
+
 if (typeof module !== 'undefined') module.exports = {
   LOUNGE, LG_ORDER, LG_ITEM, LG_COPIES, LG_W,
   lgLum, lgInk, lgLabel, lgTilt, lgSwaySeed, lgWrap, lgNearestCopy, lgSplitName, lgReduced,

@@ -608,3 +608,800 @@
 @media (hover: hover) and (pointer: fine) {
   .lb-row:hover, .lb-tile:hover .lb-face { filter: brightness(1.02); }
 }
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   TV mode — the host display. Same family as the phone (plum ink, the keycap,
+   the badge disc, one column of zones), scaled to be read from ~3 m.
+
+   Sizing is CONTAINER-QUERY driven: every size below is
+   max(<phone px floor>, <fraction of the container width>) — so the identical
+   markup stacks at 390 px inside the phone shell and fills a 1920 px TV in
+   Pane 3, with no breakpoints on the viewport. --u is 1 % of the container's
+   inline size (1cqi), declared on the INNER element so it resolves against
+   .lb-tv and not some ancestor.
+
+   Whole reset selector inside :where() — see the note on :where(.lb-phone
+   button) above. Same trap, same fix: this scoped reset must lose every tie.
+   ═══════════════════════════════════════════════════════════════════════════ */
+.lb-tv {
+  --lb-bg: #FAFAF9;
+  --lb-surface: #FFFFFF;
+  --lb-line: #E7E5E4;
+  --lb-sunken: #F5F5F4;
+  --lb-ink: #2B1B45;
+  --lb-ink-2: #6B6480;
+  --lb-ink-3: #A39DB0;
+  --lb-accent: #E9408E;
+  --lb-accent-tint: #FDE7F1;
+  --lb-r-card: 22px;
+  --lb-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+
+  container-type: inline-size;
+  container-name: tv;
+  width: 100%;
+  background: var(--lb-bg);
+  color: var(--lb-ink);
+  font-family: 'Fredoka', system-ui, sans-serif;
+}
+:where(.lb-tv button) { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; touch-action: manipulation; }
+.lb-tv button:focus-visible { outline: 3px solid var(--lb-accent); outline-offset: 3px; }
+
+/* A TV does not scroll. The standalone host is a fixed 16:9 frame and the
+   layout must fit it — every zone below has a fixed footprint except the
+   stage, which takes what's left. */
+.lb-tv-host { aspect-ratio: 16 / 9; overflow: hidden; background: #FAFAF9; }
+.lb-tv-host .lb-tv, .lb-tv-host .lb-tv-in { height: 100%; }
+
+/* tv.html's real, unframed mount (lbMountTVFull(), OWNER-REVIEW.md T9/T10) —
+   fills its parent exactly, no aspect-ratio lock. Pane 3's fixed 900×506
+   frame above is a sandbox convenience for showing three layouts side by
+   side; this is what TV mode actually looks like in the app, where it
+   already owns the whole viewport. */
+.lb-tv-full { height: 100%; width: 100%; overflow: hidden; background: #FAFAF9; }
+.lb-tv-full .lb-tv, .lb-tv-full .lb-tv-in { height: 100%; }
+/* The below-floor state on tv.html: .lb-tv (not a bare div) so the handoff
+   card's colours resolve against the same custom-property block .lb-phone
+   uses, just centred and given room to breathe at a window's actual size
+   rather than a 390px column. */
+.lb-tv-full-gate { height: 100%; width: 100%; display: flex; align-items: center; justify-content: center; padding: 24px; box-sizing: border-box; }
+.lb-tv-full-gate .lb-tv-handoff { max-width: 460px; }
+
+.lb-tv-in {
+  /* 1vw is the fallback a browser without container queries keeps — a
+     valid unit everywhere, and in the real app TV mode fills the viewport
+     so the two measure the same thing. Declaring `1cqi` directly would
+     not degrade: an unsupporting browser stores the custom property as
+     text, then every calc() using it fails at computed-value time and the
+     whole font-size/width declaration is dropped. */
+  --u: 1vw;
+  --tv-pad: max(16px, calc(var(--u) * 2.4));
+  --tv-gap: max(12px, calc(var(--u) * 1.5));
+  --tv-r: max(14px, calc(var(--u) * 1.8));
+  box-sizing: border-box;
+  padding: var(--tv-pad);
+  display: flex;
+  flex-direction: column;
+  gap: var(--tv-gap);
+}
+@supports (container-type: inline-size) { .lb-tv-in { --u: 1cqi; } }
+
+/* Shared small caps label — the same voice as .lb-sec-label, TV-sized. */
+.lb-tv-label {
+  font-size: max(11px, calc(var(--u) * 1.3));
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--lb-ink-3);
+  line-height: 1.2;
+}
+
+/* ── Header: what are we playing ─────────────────────────────────────────── */
+.lb-tv-head {
+  display: flex;
+  align-items: center;
+  gap: var(--tv-gap);
+  flex-wrap: wrap;
+  flex: 0 0 auto;
+}
+.lb-tv-logo {
+  height: max(34px, calc(var(--u) * 4.6));
+  flex: 0 0 auto;
+  display: block;
+  filter: drop-shadow(0 2px 0 rgba(0,0,0,0.08)) drop-shadow(0 4px 6px rgba(0,0,0,0.12));
+}
+.lb-tv-logo img { display: block; height: 100%; width: auto; }
+.lb-tv-game {
+  display: flex;
+  align-items: center;
+  gap: max(10px, calc(var(--u) * 1.3));
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.lb-tv-face {
+  flex: 0 0 auto;
+  width: max(48px, calc(var(--u) * 6));
+  height: max(48px, calc(var(--u) * 6));
+  border-radius: max(13px, calc(var(--u) * 1.6));
+  display: grid; place-items: center;
+}
+.lb-tv-face .lb-badge { width: 66%; height: 66%; font-size: max(20px, calc(var(--u) * 2.6)); }
+.lb-tv-game-text { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.lb-tv-game-name {
+  font-size: max(21px, calc(var(--u) * 2.8));
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -0.01em;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.lb-tv-game-meta {
+  font-size: max(12.5px, calc(var(--u) * 1.5));
+  font-weight: 500;
+  color: var(--lb-ink-2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.lb-tv-sep { margin: 0 0.45em; color: var(--lb-ink-3); }
+.lb-tv-tools {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: max(8px, calc(var(--u) * 1));
+  flex: 0 0 auto;
+}
+.lb-tv-live {
+  display: inline-flex; align-items: center; gap: 0.5em;
+  height: max(30px, calc(var(--u) * 3.6));
+  padding: 0 max(11px, calc(var(--u) * 1.3));
+  border-radius: 999px;
+  background: var(--lb-surface);
+  border: 1px solid var(--lb-line);
+  font-size: max(11px, calc(var(--u) * 1.3));
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--lb-ink-2);
+}
+.lb-tv-icon {
+  width: max(44px, calc(var(--u) * 5));
+  height: max(44px, calc(var(--u) * 5));
+  border-radius: 50%;
+  background: var(--lb-accent-tint);
+  display: grid; place-items: center;
+  font-size: max(19px, calc(var(--u) * 2.2));
+  line-height: 1;
+}
+
+/* ── Stage: how do I join — or, in play, the seam ────────────────────────── */
+.lb-tv-stage {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--tv-gap);
+  align-content: start;
+}
+.lb-tv-code-card {
+  background: var(--lb-surface);
+  border: 1px solid var(--lb-line);
+  border-radius: var(--lb-r-card);
+  padding: max(14px, calc(var(--u) * 1.8)) max(16px, calc(var(--u) * 2.4));
+  display: flex; flex-direction: column; align-items: center;
+  gap: max(8px, calc(var(--u) * 1));
+  box-shadow: 0 1px 2px rgba(43,27,69,0.04), 0 6px 18px -12px rgba(43,27,69,0.18);
+}
+.lb-tv-code { display: flex; gap: max(8px, calc(var(--u) * 1.1)); }
+/* The room code: four plum keycaps. Plum, not the game's brand — this is the
+   one thing on the screen that must be read right first time from the far
+   couch, and white on plum is the highest-contrast pair the lobby owns. */
+.lb-tv-key {
+  width: max(58px, calc(var(--u) * 9.2));
+  height: max(68px, calc(var(--u) * 10.8));
+  border-radius: max(12px, calc(var(--u) * 1.8));
+  background-color: var(--lb-ink);
+  color: #fff;
+  display: grid; place-items: center;
+  font-size: max(38px, calc(var(--u) * 6.4));
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  /* The one place the game's colour touches the code: the keycap's SIDE —
+     the 3-D drop under a plum top — is the game's brand, like a two-tone
+     keycap. The glyph face stays plum/white for the far-couch read. Same
+     shadow stack as .gel-btn with only that one layer recoloured; this rule
+     ties .gel-btn on specificity and wins on source order (lobby.css loads
+     after styles.css), which is intended here, not a reset accident. */
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.40),
+    inset 0 -16px 20px -13px rgba(0, 0, 0, 0.40),
+    inset 0 -2px 1px rgba(0, 0, 0, 0.22),
+    0 0 0 1.5px rgba(0, 0, 0, 0.20),
+    0 5px 0 var(--key-brand, rgba(0, 0, 0, 0.20)),
+    0 8px 15px rgba(0, 0, 0, 0.18);
+}
+.lb-tv-join {
+  display: flex; flex-direction: column;
+  gap: max(8px, calc(var(--u) * 1));
+  justify-content: center;
+  min-width: 0;
+}
+.lb-tv-step {
+  display: flex; align-items: center;
+  gap: max(10px, calc(var(--u) * 1.2));
+  font-size: max(15px, calc(var(--u) * 2));
+  line-height: 1.25;
+  color: var(--lb-ink);
+}
+.lb-tv-step b { font-weight: 600; }
+.lb-tv-step-num {
+  flex: 0 0 auto;
+  width: max(26px, calc(var(--u) * 3.2));
+  height: max(26px, calc(var(--u) * 3.2));
+  border-radius: 50%;
+  display: grid; place-items: center;
+  font-size: max(13px, calc(var(--u) * 1.6));
+  font-weight: 700;
+  color: #fff;
+}
+
+/* The seam — an honest, labelled placeholder for in-game host content.
+   Dashed, sunken, and it says what it is. */
+.lb-tv-seam {
+  border: 2px dashed #D6D0E0;
+  border-radius: var(--lb-r-card);
+  padding: max(12px, calc(var(--u) * 1.4));
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: max(8px, calc(var(--u) * 1));
+  min-height: 100%;
+  box-sizing: border-box;
+}
+.lb-tv-seam-cell {
+  background: var(--lb-sunken);
+  border-radius: var(--tv-r);
+  padding: max(12px, calc(var(--u) * 1.4));
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 4px;
+  text-align: center;
+  color: var(--lb-ink-3);
+}
+.lb-tv-seam-cell strong { color: var(--lb-ink-2); font-size: max(15px, calc(var(--u) * 2)); font-weight: 600; }
+.lb-tv-seam-cell span { font-size: max(12px, calc(var(--u) * 1.4)); line-height: 1.3; }
+.lb-tv-seam-note {
+  font-size: max(11px, calc(var(--u) * 1.3));
+  color: var(--lb-ink-3);
+  font-style: italic;
+  text-align: center;
+}
+
+/* ── Seats: who's here ───────────────────────────────────────────────────── */
+.lb-tv-seats { display: flex; flex-direction: column; gap: max(6px, calc(var(--u) * 0.8)); flex: 0 0 auto; }
+.lb-tv-seats-head { display: flex; justify-content: space-between; align-items: baseline; padding: 0 2px; }
+.lb-tv-seats-count { font-size: max(12px, calc(var(--u) * 1.5)); font-weight: 600; color: var(--lb-ink-2); }
+.lb-tv-seat-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: max(8px, calc(var(--u) * 1));
+}
+.lb-tv-seat {
+  position: relative;
+  flex: 1 1 max(84px, calc(var(--u) * 9));
+  min-width: 0;
+  display: flex; flex-direction: column; align-items: center;
+  gap: max(4px, calc(var(--u) * 0.5));
+  padding: max(10px, calc(var(--u) * 1.1)) 6px max(8px, calc(var(--u) * 0.9));
+  border-radius: var(--tv-r);
+  background: var(--lb-surface);
+  border: 1.5px solid var(--lb-line);
+  box-shadow: 0 1px 2px rgba(43,27,69,0.04);
+}
+/* Arrivals rise in; open seats are furniture and never animate — a seat
+   that blinks out on every re-render would read as someone leaving. */
+.lb-tv-seat:not(.is-open) { animation: lb-rise 220ms var(--lb-ease-out) both; }
+.lb-tv-seat:nth-child(2) { animation-delay: 30ms; }
+.lb-tv-seat:nth-child(3) { animation-delay: 60ms; }
+.lb-tv-seat:nth-child(4) { animation-delay: 90ms; }
+.lb-tv-seat:nth-child(5) { animation-delay: 120ms; }
+.lb-tv-seat:nth-child(6) { animation-delay: 150ms; }
+.lb-tv-seat:nth-child(n+7) { animation-delay: 180ms; }
+.lb-tv-seat.is-open {
+  background: transparent;
+  border-style: dashed;
+  border-color: #D6D0E0;
+  box-shadow: none;
+  color: var(--lb-ink-3);
+}
+.lb-tv-seat-disc {
+  width: max(38px, calc(var(--u) * 4.8));
+  height: max(38px, calc(var(--u) * 4.8));
+  font-size: max(17px, calc(var(--u) * 2.2));
+  font-weight: 700;
+  color: var(--lb-ink);
+}
+.lb-tv-seat.is-open .lb-tv-seat-disc {
+  background: var(--lb-sunken);
+  box-shadow: none;
+  border: 1.5px dashed #D6D0E0;
+  box-sizing: border-box;
+}
+.lb-tv-seat-name {
+  max-width: 100%;
+  font-size: max(13.5px, calc(var(--u) * 1.7));
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.lb-tv-seat.is-open .lb-tv-seat-name { font-weight: 500; }
+.lb-tv-seat-tag {
+  position: absolute;
+  top: calc(-0.6em - 2px);
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: max(9px, calc(var(--u) * 1.05));
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  line-height: 1;
+  padding: 0.35em 0.8em;
+  border-radius: 999px;
+  background: var(--lb-accent);
+  color: #fff;
+  white-space: nowrap;
+}
+.lb-tv-seat-warn {
+  font-size: max(10px, calc(var(--u) * 1.15));
+  font-weight: 600;
+  color: #B45309;             /* amber = something to fix, per ui-style */
+  white-space: nowrap;
+}
+/* Whose turn (table phase): the game's own colour rings the seat. */
+.lb-tv-seat.is-turn { border-color: var(--seat-brand); box-shadow: 0 0 0 3px var(--seat-brand); }
+.lb-tv-seat-tag.is-turn { background: var(--seat-brand); }
+
+/* ── Status bar: the engine's strings, the engine's CTA ──────────────────── */
+.lb-tv-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--tv-gap);
+  flex-wrap: wrap;
+  flex: 0 0 auto;
+}
+.lb-tv-status {
+  display: flex; align-items: center;
+  gap: max(8px, calc(var(--u) * 1));
+  font-size: max(15px, calc(var(--u) * 1.9));
+  font-weight: 500;
+  color: var(--lb-ink-2);
+  flex: 1 1 auto;
+  min-width: 0;
+}
+/* One sign of life on a screen that may sit waiting for minutes — opacity
+   only, and the global reduced-motion block collapses it. */
+.lb-tv-dot {
+  flex: 0 0 auto;
+  width: max(10px, calc(var(--u) * 1.1));
+  height: max(10px, calc(var(--u) * 1.1));
+  border-radius: 50%;
+  background: var(--lb-accent);
+  animation: lb-tv-pulse 2000ms ease-in-out infinite;
+}
+.lb-tv-dot.is-ready { background: #16A34A; animation: none; }
+.lb-tv-live .lb-tv-dot { width: 0.6em; height: 0.6em; }
+@keyframes lb-tv-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+.lb-tv-actions { display: flex; gap: max(8px, calc(var(--u) * 1)); margin-left: auto; flex: 0 0 auto; }
+.lb-tv-cta {
+  min-height: max(48px, calc(var(--u) * 6));
+  padding: 0 max(22px, calc(var(--u) * 3));
+  border-radius: var(--tv-r);
+  font-size: max(17px, calc(var(--u) * 2.2));
+  font-weight: 600;
+  color: #fff;
+  white-space: nowrap;
+  transition: transform 120ms var(--lb-ease-out), opacity 150ms ease;
+}
+.lb-tv-cta:active { transform: scale(0.97); }
+.lb-tv-cta[disabled] { opacity: 0.45; pointer-events: none; }   /* phase-disabled → inert */
+.lb-tv-cta-2 { background: #ECEAF0; color: var(--lb-ink-2); }
+
+/* ── Wide: the stage splits, the seats stay one row ──────────────────────── */
+@container tv (min-width: 640px) {
+  .lb-tv-stage { grid-template-columns: auto minmax(0, 1fr); align-items: center; align-content: center; }
+  .lb-tv-seam { grid-template-columns: 1fr 2fr 1fr; grid-template-rows: 1fr auto; align-items: stretch; }
+  .lb-tv-seam-note { grid-column: 1 / -1; }
+  .lb-tv-seat-row { flex-wrap: nowrap; }
+  .lb-tv-bar { flex-wrap: nowrap; }
+}
+@media (hover: hover) and (pointer: fine) {
+  .lb-tv-cta:not([disabled]):hover { filter: brightness(1.04); }
+}
+
+
+/* ── The wide lobby: rail · field · pane ─────────────────────────────────────
+   The phone's own components, re-seated. Nothing below restyles a component
+   from scratch — every rule is a placement override under .lb-tv-browse, so
+   the phone and the wide layout stay one design (README: "one design, two
+   layouts"). Sizes here are plain px: this layout is for a laptop, a tablet
+   or a cast at arm's-to-couch length, not the 3 m read the host display
+   gets — a container-query zoom (bottom) scales the whole thing on a big
+   screen rather than re-tuning every number. */
+.lb-tv-browse { gap: 14px; padding: 20px 22px; }        /* plain px — the zoom below scales it */
+.lb-tv-browse .lb-tv-label { font-size: 11px; }
+.lb-tv-browse .lb-tv-head { flex-wrap: nowrap; gap: 14px; }
+.lb-tv-browse .lb-tv-logo { height: 54px; }
+.lb-tv-you { width: auto; flex-direction: row; align-items: center; gap: 2px; padding: 0; }
+.lb-tv-you .lb-you-mount { width: 64px; height: 56px; }
+.lb-tv-you .lb-you-mount svg { width: 60px; }
+.lb-tv-you .lb-you-label { min-height: 44px; min-width: 44px; padding: 0 8px; justify-content: center; }
+.lb-tv-browse .lb-dock { margin-left: auto; flex: 0 1 auto; flex-wrap: nowrap; }
+.lb-tv-browse .lb-switch { flex: 0 0 auto; width: 236px; }
+
+.lb-tv-main {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 232px minmax(0, 1fr) 276px;
+  gap: 16px;
+}
+.lb-tv-rail, .lb-tv-field {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: flex; flex-direction: column;
+  gap: 10px;
+  padding: 2px 2px 10px;
+}
+/* Rail rows: the phone's shelf row, narrower — name over count, the mini
+   stack tucked right in a fixed, edge-masked slot (four show, the rest
+   fade — the phone's own "boxes leaning on a shelf"), no chevron (a rail
+   selects, it doesn't navigate). */
+.lb-tv-rail .lb-row {
+  grid-template-columns: minmax(0, 1fr) 100px;    /* "♟️ Strategy" is the widest name; it must never touch the stack */
+  min-height: 56px;
+  padding: 7px 8px 7px 12px;
+  border-width: 1.5px;
+  transition: transform 120ms var(--lb-ease-out), opacity 150ms ease, border-color 150ms ease;
+}
+.lb-tv-rail .lb-row.is-selected { border-color: var(--lb-ink); box-shadow: 0 0 0 1px var(--lb-ink); }
+.lb-tv-rail .lb-row-name { font-size: 15px; }
+.lb-tv-rail .lb-row-chev { display: none; }
+.lb-tv-rail .lb-row-stack { overflow: hidden; padding-left: 2px; }
+.lb-tv-rail .lb-mini { width: 30px; height: 30px; border-radius: 9px; margin-left: -12px; }
+/* Restate first-child here: the override above ties the phone's own
+   `.lb-mini:first-child { margin-left: 0 }` on specificity (0,2,0 each) and
+   wins on source order, so without this the FIRST mini also pulled left
+   12px and clipped under the stack's overflow. The :where() trap's mirror
+   image — an intended override eating a sibling rule you forgot existed. */
+.lb-tv-rail .lb-mini:first-child { margin-left: 0; }
+.lb-tv-rail .lb-row-stack[data-n="6"] .lb-mini:not(:first-child) { margin-left: -12px; }
+.lb-tv-rail .lb-mini .lb-badge { width: 20px; height: 20px; font-size: 12px; }
+.lb-tv-rail .lb-who { flex-wrap: wrap; }
+.lb-tv-rail .lb-who-note { margin-top: -2px; }
+
+/* Field: the phone's folder grid, as many columns as fit. */
+.lb-tv-field .lb-grid { grid-template-columns: repeat(auto-fill, minmax(136px, 1fr)); gap: 14px 12px; }
+/* Selection ring — an outline, so .gel-btn's own box-shadow stack (the
+   moulding) is untouched. Same brand-ring idea as the mockup's 2b. */
+.lb-tv-field .lb-tile.is-selected .lb-face { outline: 3px solid var(--tile-brand); outline-offset: 3px; }
+.lb-tv-field .lb-tile.is-selected .lb-tile-name { color: var(--lb-ink); }
+
+/* Pane: the info sheet standing open. The body is the sheet's body; the
+   foot stays put while the body scrolls — an inspector, not a page. */
+.lb-tv-pane {
+  min-height: 0;
+  display: flex; flex-direction: column;
+  background: var(--lb-surface);
+  border: 1px solid var(--lb-line);
+  border-radius: var(--lb-r-card);
+  overflow: hidden;
+  box-shadow: 0 1px 2px rgba(43,27,69,0.04), 0 6px 18px -12px rgba(43,27,69,0.18);
+}
+.lb-tv-pane-head { padding: 14px 16px 12px; border-bottom: 1px solid var(--lb-line); }
+.lb-tv-pane-body { padding: 12px 16px 14px; overscroll-behavior: contain; }
+/* A chip may carry the whole verified range string ("2 (one phone per team)
+   or 4–6 (a phone each) players") — in a 276 px pane it wraps rather than
+   clips; the phone's drawer is wider than that and never needed to. */
+.lb-tv-pane-body .lb-chip { white-space: normal; height: auto; min-height: 30px; padding: 5px 11px; line-height: 1.25; text-align: left; }
+.lb-tv-pane-body .lb-step-card, .lb-tv-pane-body .lb-sylly { background: var(--lb-sunken); border-color: transparent; }
+.lb-tv-pane-foot { padding: 10px 16px 14px; background: var(--lb-surface); }
+.lb-tv-pane-foot .lb-cta { min-height: 48px; font-size: 17px; }
+.lb-tv-pane-why { margin: 0 0 2px; font-size: 12.5px; font-weight: 600; color: #B45309; }   /* amber = unavailable */
+
+/* The phone's TV slot — a hand-off, in the shell's own placeholder card. */
+.lb-tv-handoff { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 28px 20px 20px; }
+.lb-tv-handoff-ico { font-size: 44px; line-height: 1; }
+.lb-tv-handoff p { margin: 0; font-size: 14px; line-height: 1.45; color: var(--lb-ink-2); }
+.lb-tv-handoff-back { margin-top: 6px; }
+
+/* Big screens: scale the whole browse layout rather than re-tune it. The
+   layout is designed at ~900–1200; a 1080p telly gets it at 1.5×, which is
+   the mockup at its own 1024 width, larger. `zoom` is standard in every
+   evergreen browser since 2024; where it isn't, the layout simply stays 1×. */
+@container tv (min-width: 1200px) { .lb-tv-browse { zoom: 1.2; } }
+@container tv (min-width: 1600px) { .lb-tv-browse { zoom: 1.5; } }
+
+/* No container queries (older smart-TV browsers): same wide rules on the
+   viewport instead. TV mode fills the viewport in the real app, so the two
+   are the same number there — only this sandbox's side-by-side panes need
+   the container flavour. */
+@supports not (container-type: inline-size) {
+  @media (min-width: 640px) {
+    .lb-tv-stage { grid-template-columns: auto minmax(0, 1fr); align-items: center; align-content: center; }
+    .lb-tv-seam { grid-template-columns: 1fr 2fr 1fr; grid-template-rows: 1fr auto; align-items: stretch; }
+    .lb-tv-seam-note { grid-column: 1 / -1; }
+    .lb-tv-seat-row { flex-wrap: nowrap; }
+    .lb-tv-bar { flex-wrap: nowrap; }
+  }
+  @media (min-width: 1200px) { .lb-tv-browse { zoom: 1.2; } }
+  @media (min-width: 1600px) { .lb-tv-browse { zoom: 1.5; } }
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   TV mode — artboard 2a "The Lounge". Spec: wip/tv-mode-design/README.md.
+   Plan: docs/superpowers/plans/2026-09-17-tv-lounge-2a.md
+
+   Root is `.lb-tv.lb-lounge`: `.lb-tv` for the palette custom properties, the
+   container-query context and the button reset; `.lb-lounge` so the older
+   `@container tv (min-width:1200px) { .lb-tv-browse { zoom } }` rules further
+   up this file do NOT apply. README § 3 is explicit that 1920 widens the
+   middle column and shows more rail boxes — it does not scale up.
+
+   Plain px throughout, with two container queries (<=1000 and >=1500) doing
+   the two size steps by hand. Transform/opacity only.
+
+   Keyframes are lb- prefixed: styles.css and this file already carry ~40
+   between them, and an unprefixed `sway`/`nudge` is a collision waiting for
+   the next game.
+   ═══════════════════════════════════════════════════════════════════════════ */
+@keyframes lb-nudge    { 0%,100% { transform: rotate(-3deg) translateY(0) } 18% { transform: rotate(-1deg) translateY(-6px) } 36% { transform: rotate(-4deg) translateY(0) } }
+@keyframes lb-floaty   { 0%,100% { transform: translateY(0) rotate(0deg) } 30% { transform: translateY(-7px) rotate(-6deg) } 60% { transform: translateY(-2px) rotate(5deg) } }
+@keyframes lb-sway     { 0%,100% { transform: translateY(0) rotate(0deg) } 50% { transform: translateY(-4px) rotate(2deg) } }
+@keyframes lb-jumpin   { 0% { transform: translateY(0) } 32% { transform: translateY(-26px) } 58% { transform: translateY(0) } 76% { transform: translateY(-8px) } 100% { transform: translateY(0) } }
+@keyframes lb-rebounce { 0%,70%,100% { transform: translateY(0) } 78% { transform: translateY(-10px) } 86% { transform: translateY(0) } 92% { transform: translateY(-3px) } }
+
+.lb-lounge { height: 100%; }
+.lb-tv-host .lb-lg-in, .lb-tv-full .lb-lg-in { height: 100%; }
+.lb-lg-in {
+  box-sizing: border-box;
+  height: 100%;
+  display: flex; flex-direction: column;
+  overflow: hidden;               /* README § 3: the page never scrolls */
+  background: var(--lb-bg);
+}
+
+/* ── Header ──────────────────────────────────────────────────────────────── */
+.lb-lg-head {
+  flex: none; height: 64px; padding: 0 28px;
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+}
+.lb-lg-mark { display: flex; align-items: center; gap: 7px; }
+.lb-lg-mark-a { font: 700 23px/1 Fredoka; color: var(--lb-ink); letter-spacing: -0.01em; }
+.lb-lg-mark-b { font: 700 13px/1 Fredoka; color: #fff; background: var(--lb-accent); padding: 6px 10px; border-radius: 999px; }
+.lb-lg-clock { margin: 0; font: 600 15px/1 Fredoka; color: var(--lb-ink); letter-spacing: 0.02em; white-space: nowrap; }
+.lb-lg-tools {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--lb-surface); border: 1px solid var(--lb-line);
+  border-radius: 28px; padding: 6px; box-shadow: 0 1px 2px rgba(0,0,0,.04);
+}
+.lb-lg-tool {
+  width: 44px; height: 44px; border-radius: 22px; flex: none;
+  background: var(--lb-sunken); font-size: 18px; line-height: 1;
+}
+.lb-lg-tool.is-sound { background: var(--lb-accent-tint); }
+.lb-lg-modes { display: flex; align-items: center; gap: 4px; background: var(--lb-sunken); border-radius: 22px; padding: 4px; }
+.lb-lg-mode {
+  height: 36px; padding: 0 9px; border-radius: 18px;
+  background: transparent; color: var(--lb-ink-2);
+  font: 600 13.5px/1 Fredoka; display: flex; align-items: center; gap: 7px; white-space: nowrap;
+}
+.lb-lg-mode-ico { font-size: 16px; line-height: 1; }
+.lb-lg-mode.is-on { padding: 0 15px 0 12px; background: var(--lb-surface); color: var(--lb-ink); box-shadow: 0 1px 3px rgba(43,27,69,.18); }
+
+/* ── Body: the three columns ─────────────────────────────────────────────── */
+.lb-lg-body {
+  flex: 1; min-height: 0;
+  display: grid; grid-template-columns: 300px minmax(0,1fr) 300px;
+  gap: 20px; padding: 0 28px;
+  transition: grid-template-columns .25s var(--lb-ease-out);
+}
+
+/* Left: the controller */
+.lb-lg-left { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; min-height: 0; }
+.lb-lg-ctl { width: 250px; height: auto; filter: drop-shadow(0 20px 18px rgba(43,27,69,.22)); animation: lb-nudge 7s ease-in-out infinite; }
+.lb-lg-ctl-svg { display: block; width: 250px; animation: lb-nudge 7s ease-in-out infinite; }
+.lb-lg-ctl-svg[hidden] { display: none; }
+.lb-lg-ctl-svg svg { width: 100%; height: auto; }
+.lb-lg-you { position: relative; top: 10px; padding: 6px 10px; font: 600 12px/1 Fredoka; letter-spacing: .14em; text-transform: uppercase; color: var(--lb-ink-3); }
+
+/* Middle: the speech bubble */
+.lb-lg-panel {
+  position: relative; top: 5px;
+  background: var(--lb-surface); border: 1px solid var(--lb-line); border-radius: 28px;
+  padding: 14px 16px; min-height: 0; min-width: 0;
+  display: flex; flex-direction: column; gap: 10px;
+  box-shadow: 0 1px 3px rgba(0,0,0,.05), 0 14px 30px -18px rgba(43,27,69,.25);
+}
+/* The tail — a rotated square showing only two borders, so it reads as one
+   continuous edge of the bubble rather than a pasted-on triangle. */
+.lb-lg-tail {
+  position: absolute; left: -13px; top: 50%; margin-top: -12px;
+  width: 24px; height: 24px; background: var(--lb-surface);
+  border-left: 1px solid var(--lb-line); border-bottom: 1px solid var(--lb-line);
+  transform: rotate(45deg);
+}
+.lb-lg-pick, .lb-lg-shelf { display: flex; flex-direction: column; gap: 10px; min-height: 0; flex: 1; }
+.lb-lg-pick[hidden], .lb-lg-shelf[hidden] { display: none; }
+
+/* Right: the reserved pane */
+.lb-lg-pane-slot { position: relative; top: 5px; min-height: 0; display: flex; }
+.lb-lg-empty, .lb-lg-card { flex: 1; min-height: 0; border-radius: 28px; overflow: hidden; }
+.lb-lg-empty[hidden], .lb-lg-card[hidden] { display: none; }
+.lb-lg-empty {
+  background: #F3F0F7; border: 1px solid var(--lb-line);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 18px; padding: 28px 22px;
+}
+.lb-lg-stack { position: relative; width: 200px; height: 120px; flex: none; }
+.lb-lg-lid {
+  position: absolute; width: 96px; height: 74px; border-radius: 12px 12px 8px 8px;
+  background-image: linear-gradient(to bottom, rgba(255,255,255,.14), rgba(255,255,255,0) 45%, rgba(0,0,0,.26));
+  box-shadow: 0 4px 0 rgba(0,0,0,.16), 0 8px 14px rgba(0,0,0,.14);
+}
+.lb-lg-lid-1 { left: 6px;  top: 26px; background-color: #A855F7; transform: rotate(-9deg); }
+.lb-lg-lid-2 { right: 4px; top: 22px; background-color: #F59E0B; transform: rotate(8deg); }
+.lb-lg-lid-3 { left: 52px; top: 8px;  height: 78px; background-color: #E9408E; transform: rotate(-2deg); box-shadow: 0 5px 0 rgba(0,0,0,.18), 0 10px 16px rgba(0,0,0,.16); }
+.lb-lg-empty-text { display: flex; flex-direction: column; gap: 7px; align-items: center; }
+.lb-lg-empty-h { margin: 0; font: 700 20px/1.1 Fredoka; color: var(--lb-ink); text-align: center; }
+.lb-lg-empty-s { margin: 0; font: 400 13.5px/1.45 Fredoka; color: var(--lb-ink-2); text-align: center; }
+
+/* ── Panel state A: the shelf picker ─────────────────────────────────────── */
+.lb-lg-ask { margin: 0; padding: 6px 0 0; font: 700 26px/1 Fredoka; color: var(--lb-ink); text-align: center; }
+.lb-lg-filters { flex: none; display: flex; gap: 14px; padding: 2px 4px 0; }
+.lb-lg-filter { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 7px; }
+.lb-lg-filter-phones { flex: none; width: 156px; }
+.lb-lg-flabel { margin: 0; font: 600 10.5px/1 Fredoka; letter-spacing: .14em; text-transform: uppercase; color: var(--lb-ink-3); }
+.lb-lg-keys-count { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.lb-lg-keys-phone { display: grid; grid-template-rows: 1fr 1fr; gap: 6px; }
+
+/* The keycap. Same moulding vocabulary as the suite's .gel-btn (ui-style.md
+   § Gel Button Treatment) at the design's own 42px/13px, and colour-agnostic
+   in exactly the same way — the shadow stack is translucent white/black only,
+   so the selected plum fill and the unselected white take identical rules. */
+.lb-lg-key {
+  position: relative; isolation: isolate;
+  height: 42px; border-radius: 13px;
+  background-color: var(--lb-surface); color: var(--lb-ink);
+  font: 700 16px/1 Fredoka;
+  background-image: linear-gradient(to bottom, rgba(255,255,255,.45) 0%, rgba(255,255,255,0) 45%, rgba(0,0,0,.04) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.40),
+    inset 0 -12px 16px -11px rgba(0,0,0,.20),
+    0 0 0 1.5px rgba(0,0,0,.12),
+    0 4px 0 rgba(0,0,0,.12),
+    0 6px 12px rgba(0,0,0,.10);
+  transition: transform 100ms ease-out, background-color 120ms ease, color 120ms ease;
+}
+.lb-lg-key-phone { font: 600 14px/1 Fredoka; }
+.lb-lg-key.is-on {
+  background-color: var(--lb-ink); color: #fff;
+  background-image: linear-gradient(to bottom, rgba(255,255,255,.10) 0%, rgba(255,255,255,0) 42%, rgba(0,0,0,.05) 62%, rgba(0,0,0,.28) 100%);
+}
+.lb-lg-key:active { transform: translateY(3px); }
+.lb-lg-count { margin: 0; padding: 0 4px; font: 400 13.5px/1 Fredoka; color: var(--lb-ink-2); text-align: center; }
+
+/* The sticker-pill field. Wraps, so a seventh shelf needs no retune. */
+.lb-lg-pills { flex: 1; min-height: 0; display: flex; flex-wrap: wrap; align-content: center; justify-content: center; gap: 8px 12px; padding: 0 2px 4px; }
+.lb-lg-pill {
+  position: relative; width: 172px; height: 70px; border-radius: 22px; flex: none;
+  background: #F3F0F7; box-shadow: 0 3px 0 rgba(43,27,69,.07);
+  display: flex; align-items: center; gap: 10px; padding: 0 14px 0 8px;
+  transform: rotate(var(--pill-rot, 0deg)) translateY(var(--pill-off, 0px));
+  transition: transform .2s var(--lb-ease-out);
+}
+.lb-lg-pill:hover, .lb-lg-pill:focus-visible { transform: rotate(0deg) translateY(-5px) scale(1.05); }
+.lb-lg-pill-disc { flex: none; width: 48px; height: 48px; border-radius: 50%; background: var(--lb-surface); box-shadow: 0 2px 6px rgba(43,27,69,.16); display: flex; align-items: center; justify-content: center; }
+.lb-lg-pill-emoji { font-size: 25px; line-height: 1; display: block; animation: lb-floaty 2.8s ease-in-out infinite; }
+.lb-lg-pill-text { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-width: 0; }
+.lb-lg-pill-name { font: 700 17px/1 Fredoka; color: var(--lb-ink); }
+.lb-lg-pill-count { font: 400 12px/1 Fredoka; color: var(--lb-ink-2); }
+
+/* ── Panel state B: a shelf, open ────────────────────────────────────────── */
+.lb-lg-shead { display: flex; align-items: center; gap: 12px; padding: 0 2px; flex: none; }
+.lb-lg-back { height: 36px; padding: 0 12px; border-radius: 18px; background: #F3F0F7; color: var(--lb-ink-2); font: 600 13px/1 Fredoka; flex: none; }
+.lb-lg-stitle { flex: 1; display: flex; align-items: baseline; justify-content: center; gap: 10px; }
+.lb-lg-semoji { font-size: 22px; line-height: 1; }
+.lb-lg-sname { margin: 0; font: 700 26px/1 Fredoka; color: var(--lb-ink); }
+.lb-lg-scount { margin: 0; font: 400 14px/1 Fredoka; color: var(--lb-ink-3); }
+.lb-lg-sspacer { width: 92px; flex: none; }
+.lb-lg-well {
+  flex: 1; min-height: 0; overflow: hidden;
+  border-radius: 20px; background: #F3F0F7; padding: 14px;
+  display: flex; flex-wrap: wrap; align-content: center; justify-content: center; gap: 6px 10px;
+}
+
+/* A free-standing sticker — no tile, no frame — over a soft brand blob. */
+.lb-lg-gs { position: relative; width: 150px; height: 158px; flex: none; display: flex; flex-direction: column; align-items: center; }
+.lb-lg-blob {
+  position: absolute; left: 19px; top: 6px; width: 112px; height: 112px; border-radius: 50%;
+  background: var(--gs-brand); opacity: 0; transition: opacity .2s ease-out;
+}
+.lb-lg-gs:hover .lb-lg-blob, .lb-lg-gs:focus-visible .lb-lg-blob { opacity: .18; }
+.lb-lg-gs.is-sel .lb-lg-blob { opacity: .32; }
+.lb-lg-gs-art { position: relative; display: block; width: 126px; height: 126px; animation: lb-sway 3.2s ease-in-out infinite; }
+.lb-lg-gs-sticker {
+  position: absolute; inset: 0;
+  background-size: contain; background-position: center; background-repeat: no-repeat;
+  transform: rotate(var(--gs-tilt, 0deg));
+  filter: drop-shadow(0 5px 5px rgba(0,0,0,.28));
+  transition: transform .18s var(--lb-ease-out);
+}
+.lb-lg-gs.is-sel .lb-lg-gs-sticker { transform: rotate(var(--gs-tilt, 0deg)) scale(1.12); }
+.lb-lg-gs.is-out .lb-lg-gs-sticker, .lb-lg-gs.is-out .lb-lg-disc { filter: grayscale(1) opacity(.4); }
+.lb-lg-tag {
+  position: absolute; bottom: 0; left: 50%; transform: translateX(-50%);
+  white-space: nowrap; padding: 6px 11px; border-radius: 999px;
+  background: var(--lb-line); color: var(--lb-ink-2);
+  font: 600 13px/1 Fredoka; box-shadow: 0 2px 4px rgba(0,0,0,.14);
+}
+/* Bailed's fallback: the shipped phone treatment — a domed white disc +
+   emoji. README § 9 — it stays until bld.png exists. */
+.lb-lg-disc {
+  border-radius: 50%;
+  background: radial-gradient(circle at 34% 28%, #fff 0%, #f2f2f5 55%, #dcdce2 100%);
+  box-shadow: 0 4px 8px rgba(0,0,0,.25), inset 0 -3px 4px rgba(0,0,0,.13);
+  display: flex; align-items: center; justify-content: center; line-height: 1;
+}
+.lb-lg-gs-sticker.lb-lg-disc { inset: 13px; font-size: 50px; }
+
+/* ── Detail pane, selected ───────────────────────────────────────────────── */
+.lb-lg-card {
+  background: var(--lb-surface); border: 1px solid var(--lb-line);
+  display: flex; flex-direction: column;
+  box-shadow: 0 1px 3px rgba(0,0,0,.05), 0 14px 30px -18px rgba(43,27,69,.25);
+}
+.lb-lg-band {
+  position: relative; flex: none; height: 60px;
+  background-image: linear-gradient(to bottom, rgba(255,255,255,.14), rgba(255,255,255,0) 50%, rgba(0,0,0,.14));
+}
+.lb-lg-x { position: absolute; right: 12px; top: 12px; width: 36px; height: 36px; border-radius: 18px; background: rgba(255,255,255,.88); color: var(--lb-ink-2); font: 700 15px/1 Fredoka; }
+/* The sticker hangs 26px below the band's edge, half on the colour and half
+   on the white — the thing that makes the pane read as a box being opened. */
+.lb-lg-hang {
+  position: absolute; left: 50%; bottom: -26px; width: 76px; height: 76px; display: block;
+  background-size: contain; background-position: center; background-repeat: no-repeat;
+  transform: translateX(-50%) rotate(var(--gs-tilt, 0deg));
+  filter: drop-shadow(0 6px 6px rgba(0,0,0,.28));
+}
+.lb-lg-hang.lb-lg-disc { width: 60px; height: 60px; bottom: -24px; font-size: 30px; transform: translateX(-50%); }
+.lb-lg-cbody { flex: 1; min-height: 0; overflow-y: auto; padding: 34px 20px 6px; display: flex; flex-direction: column; gap: 10px; scrollbar-width: none; }
+.lb-lg-cbody::-webkit-scrollbar { display: none; }
+.lb-lg-ct { margin: 0; font: 700 25px/1.1 Fredoka; color: var(--lb-ink); text-align: center; }
+.lb-lg-cp { margin: 0; font: 400 14.5px/1.4 Fredoka; color: var(--lb-ink-2); text-align: center; }
+.lb-lg-steps { display: flex; flex-direction: column; gap: 6px; padding-top: 2px; }
+.lb-lg-slabel { margin: 0; font: 600 10.5px/1 Fredoka; letter-spacing: .14em; text-transform: uppercase; }
+.lb-lg-step { display: flex; gap: 9px; align-items: flex-start; }
+.lb-lg-step p { margin: 0; font: 400 13px/1.4 Fredoka; color: var(--lb-ink); }
+.lb-lg-sn { flex: none; width: 20px; height: 20px; border-radius: 10px; font: 700 11px/20px Fredoka; text-align: center; }
+.lb-lg-sy { margin: 0; font: 400 12.5px/1.4 Fredoka; color: var(--lb-ink-2); }
+.lb-lg-sy-k { font-weight: 600; }
+.lb-lg-cfoot { flex: none; padding: 10px 20px 18px; }
+/* The pinned CTA — the full keycap moulding, in the game's own words. */
+.lb-lg-play {
+  position: relative; isolation: isolate;
+  width: 100%; height: 54px; border-radius: 16px; font: 600 19px/1 Fredoka;
+  background-image: linear-gradient(to bottom, rgba(255,255,255,.10) 0%, rgba(255,255,255,0) 42%, rgba(0,0,0,.05) 62%, rgba(0,0,0,.28) 100%);
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,.18), inset 0 1px 0 rgba(255,255,255,.40),
+    inset 0 -16px 20px -13px rgba(0,0,0,.40), inset 0 -2px 1px rgba(0,0,0,.22),
+    0 0 0 1.5px rgba(0,0,0,.20), 0 5px 0 rgba(0,0,0,.20), 0 8px 15px rgba(0,0,0,.18);
+  transition: transform 100ms ease-out;
+}
+.lb-lg-play::before {
+  content: ''; position: absolute; left: 4px; right: 4px; top: 3px; height: 36%;
+  border-radius: 13px 13px 50% 50% / 11px 11px 15px 15px;
+  background: linear-gradient(to bottom, rgba(255,255,255,.52), rgba(255,255,255,.20) 62%, rgba(255,255,255,.05));
+  z-index: -1; pointer-events: none;
+}
+.lb-lg-play:active { transform: translateY(3px); }
+
+/* ── Rail wrapper — README § 3: full bleed, over the columns above it ────── */
+.lb-lg-railwrap { position: relative; z-index: 50; isolation: isolate; flex: none; }
