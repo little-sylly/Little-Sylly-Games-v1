@@ -340,9 +340,11 @@ No pick target, no hover.
   { id: 'game-stack',      builder: 'stack',      unlocked: true } ]
 ```
 
-v1 ships five studio pieces, all `unlocked: true`, all non-interactive. A future achievements
-feature flips `unlocked` and adds entries; the shelf leaves an empty slot's width for a locked
-one so the row does not reflow. That is the entire hook — no more is built.
+v1 ships five studio pieces, all `unlocked: true`, all non-interactive. **Trinkets are easter
+eggs** (owner, 18 Sep 2026): looks and atmosphere only, never a pick target, never a door.
+Some may later be *earned* — by achievements or some other system, undecided — which is what
+the `unlocked` flag is for; the shelf leaves an empty slot's width for a locked one so the row
+does not reflow. That is the entire hook — no more is built.
 
 ---
 
