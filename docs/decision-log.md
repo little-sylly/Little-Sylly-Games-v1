@@ -18,6 +18,22 @@ Changed: Files/systems touched. Deferred/superseded: anything left open.
 Detail: pointer to the canonical doc (snapshot / impl note / spec / memory).
 ```
 
+## 2026-09-18 — Premium is a cinematic lounge hub, built fully procedural
+Category: Strategy · Architecture
+Decision: The Premium lobby layout is a real-time 3D lounge (you're a guest at Little Sylly's on
+game night) whose objects are doors — TV → TV mode, phone → Shelves, controller → Workshop, a
+cartridge dial → Random Game into TV mode — not a fifth way to browse twenty games. Room shell
+and props are both Three.js primitives with canvas-drawn surface patterns; no model files, no
+image assets, a per-element PNG escape hatch decided in the polish pass. Retro (CRT, flip phone,
+jukebox) in the controller's material language; TV and jukebox inherit the player's design.
+Why: Game selection already has three layouts; the showpiece earns its place by being a *place*.
+Procedural over a baked plate because the camera must move (push-ins, and a portrait Scene B as a
+second camera preset), the shelf must stay data-driven, and the room is boxes and cylinders —
+the one organic object (the controller) is already built. Install delta is code only.
+Changed: `wip/premium/` (sandbox, greybox not yet built). Deferred: Scene B (phones), the
+production wiring, achievements on the trinket shelf.
+Detail: `docs/superpowers/specs/2026-09-18-premium-lounge-scene-design.md`.
+
 ## 2026-09-15 — index.html decomposed into src/screens/ (Lever A resolved)
 Category: Architecture
 Decision: Adopt a dev-only assembly build for `index.html`, superseding the 2026-06-30 deferral

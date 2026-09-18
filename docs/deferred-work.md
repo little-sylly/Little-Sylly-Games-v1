@@ -40,6 +40,15 @@ entry below says **"the lobby implementation round"** throughout instead.
 2. **The lobby implementation round** — Shelves and TV both wired live: the four-slot switcher
    shell for real, Shelves and TV built against real data, Original kept working. Premium stays an
    honest placeholder (OWNER-REVIEW.md item 6).
+   - **Premium is now specced (18 Sep 2026):** `docs/superpowers/specs/2026-09-18-premium-lounge-scene-design.md`
+     — a cinematic lounge *hub* (TV → TV mode, phone → Shelves, controller → Workshop, dial →
+     Random Game into TV mode), fully procedural under `wip/premium/`. Greybox is its own round
+     after this one; it depends on TV mode existing to hand `enterTV(gameId)` to.
+   - **Scene B (Premium on phones) — DO NOT FORGET.** Owner instruction, 18 Sep 2026: widescreen
+     only for v1, *but* a phone arriving at Premium needs a real path and a transition. Designed
+     in the spec's § 12 (same scene graph, a second camera preset + portrait HUD, fades not
+     push-ins); shows the honest "wants a bigger screen" card until it is built. Its own round,
+     after the greybox has been seen.
 3. **One combined ship** — one Documentation Integrity Protocol pass, one SW version bump, one
    phase snapshot for the whole lobby-redesign initiative, not two release cycles for one
    initiative.
