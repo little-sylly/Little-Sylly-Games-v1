@@ -83,8 +83,8 @@ Called after the step-1 and step-2 shots. These override the sections named besi
 **z = 0.72**, so a front run entirely nearer than that is invisible however large it is. The front
 **back-rest must sit behind the camera** (z > 1.50) or it is a pale wall across the bottom of the
 shot rather than the thing we are leaning on. And an **off-centre curtain gap does not split the run
-evenly** — sizing both halves at  pushed the short half straight through the back
-wall.
+evenly** — sizing both halves at `(CUR_W - GAP) / 2` pushed the short half straight through the
+back wall.
 
 **A measured constraint that forced D17 further than asked.** The frame's top edge crosses the back
 wall at only **~1.37 m** from this camera. A wall-mounted shelf at chest height — and even the

@@ -38,6 +38,12 @@ then open `http://localhost:8791/wip/premium/index.html` on a laptop or landscap
 **Answer:** _(yes → production wiring starts; no → name which of scale / mood / a specific prop,
 and I re-tune that alone rather than everything)_
 
+**Round 3 nudges, all in:** the couch is now a **U** wrapping the table left, front and right, so
+the wall-less right side is closed by the furniture itself; every back panel shares a face with its
+seat (they were detached slabs before); the sill is narrower with the curtains drawn further back
+and the cattails standing in the gap where the sun reaches them; the two prints moved above the
+jukebox; and the bookshelf has a visible gap from the TV bench.
+
 ---
 
 ## Measured, so you do not have to take my word for it
