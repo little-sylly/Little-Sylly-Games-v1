@@ -107,7 +107,9 @@
       birchDark:  std({ map: tex.wood('#c9a77f', '#9d7a52'), roughness: .62 }),
       floor:      std({ map: tex.wood('#e6d2b4', '#c6a882', 6, 6), roughness: .5 }),
       wall:       std({ map: tex.wallpaper(), roughness: .95 }),
-      rug:        std({ color: '#f1ebe1', bumpMap: tex.weave(), bumpScale: .004, roughness: .95 }),
+      /* Soft oat, not the near-white it was: on a pale floor a #f1ebe1 rug is a
+         featureless bright field across the bottom third of the frame. */
+      rug:        std({ color: '#ddd0bb', bumpMap: tex.weave(), bumpScale: .004, roughness: .95 }),
       fabric:     std({ color: '#8d7f74', bumpMap: tex.boucle(), bumpScale: .006, roughness: 1 }),
       cream:      std({ color: '#f4efe6', roughness: .55, metalness: .05 }),
       skirting:   std({ color: '#f7f2ea', roughness: .6 }),

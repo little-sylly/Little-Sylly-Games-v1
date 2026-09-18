@@ -21,6 +21,32 @@ place.
 
 ## Design Decisions
 
+**DD-14 — matte plastic needs an environment map, not more lights; the shipped controller has
+none (19 Sep 2026, `wip/premium/` greybox).** Building the Premium lounge's props in the
+controller's own material language made a long-standing look problem legible for the first time.
+
+*What happened.* The lounge's props are `MeshStandardMaterial` at the same roughness as the
+Workshop's controller, lit by a comparable three-source rig. In the lounge they read as moulded
+plastic; in the Workshop the same geometry has always read slightly flat, and no amount of
+adjusting the three lights fixed it. The difference is one line: `prm-scene.js` sets
+`scene.environment` and `ctlBuildScene()` (`js/controller.js`, ~line 359) does not.
+
+*Root cause.* A rough metal-free surface gets almost all of its character from what it
+**reflects**, not from what shines on it. A `DirectionalLight` contributes a single specular
+highlight; an environment map contributes a whole surrounding, so the shell picks up a warm
+side, a cool side, a dark floor and a pale ceiling and the eye reads curvature. Without one,
+`MeshStandardMaterial` has nothing to reflect and the roughness parameter has almost nothing to
+act on — lights alone cannot substitute, which is why adding and re-aiming them never worked.
+
+*Lesson.* It costs no asset. `prmBuildEnvMap()` builds four `MeshBasicMaterial` planes in a
+throwaway `THREE.Scene` and runs them through `PMREMGenerator` — about fifteen lines, zero bytes
+of install, one generation at mount. **The production round should apply the same to
+`ctlBuildScene()`**, where it is a strictly larger win than in the lounge: the Workshop shows one
+object, full-frame, that the player is deliberately studying. Two things the lounge's tuning also
+established, both likely to transfer: the env map is the dominant *ambient* source once present,
+so the existing `HemisphereLight` wants cutting rather than keeping, and the key light is what
+blows a pale surface out — exposure barely touches something already clipping well past white.
+
 **DD-13 — `index.html` decomposed into `src/screens/` partials; three lessons the
 migration surfaced (15 Sep 2026).** Lever A (the dev-only assembly build deferred 2026-06-30)
 was adopted once its revisit trigger fired: `tools/build-index.js` now assembles

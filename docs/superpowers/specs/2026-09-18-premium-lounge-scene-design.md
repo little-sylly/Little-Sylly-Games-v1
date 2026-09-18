@@ -1,7 +1,7 @@
 # Design — Premium: the cinematic lounge scene
 
-**Date:** 18 Sep 2026 · **Status:** design, approved in brainstorm, pending owner review of this
-file · **Tier:** 2 (architectural)
+**Date:** 18 Sep 2026 · **Status:** built as greybox (`wip/premium/`), owner review pending —
+`wip/premium/OWNER-REVIEW.md` · **Tier:** 2 (architectural)
 **Supersedes:** `wip/premium/premium-nanobanana-brief.md` § 6 (the six containers) and § 7 (the
 "twenty readable games" tension) — Premium no longer selects games. §§ 1–4, 8–12 of that brief
 still apply and are not repeated here.

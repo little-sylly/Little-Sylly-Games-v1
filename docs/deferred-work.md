@@ -44,6 +44,17 @@ entry below says **"the lobby implementation round"** throughout instead.
      — a cinematic lounge *hub* (TV → TV mode, phone → Shelves, controller → Workshop, dial →
      Random Game into TV mode), fully procedural under `wip/premium/`. Greybox is its own round
      after this one; it depends on TV mode existing to hand `enterTV(gameId)` to.
+   - **Greybox BUILT (19 Sep 2026)** — `wip/premium/`, sandbox only: nothing in `index.html`,
+     `sw.js`, `src/screens/` or `js/` was touched. Four files (`prm-lib`, `prm-room`, `prm-props`,
+     `prm-scene`), 297 checks in `node wip/premium/verify-prm-props.js` and 12 in the Playwright
+     driver `visual-prm.js`. **Owner review is the gate:** `wip/premium/OWNER-REVIEW.md`, six
+     questions with screenshots. **Escape hatches (spec D2): none taken** — the couch arm,
+     curtain, wallpaper and lamp shade all stay procedural; each read well enough in
+     `shots/wide-1920.png` that a painted plate would have cost an asset and a runtime-cache
+     entry for nothing. The one colour call I made rather than inherited is the rug
+     (`#f1ebe1` → `#ddd0bb`), flagged as review question 6.
+   - **The env map is a finding for the shipped controller, not just the lounge** — see the
+     Controller Workshop entries below and `shared-implementation-notes.md` DD-14.
    - **Stickerbook feature (owner vision, 18 Sep 2026).** The lounge's yellow binder is the
      planned door to a stickerbook that is collection + record + progress + achievements: play to
      earn stickers, earned stickers go on the controller via the Workshop. Gets its own layout-mode
@@ -60,6 +71,11 @@ entry below says **"the lobby implementation round"** throughout instead.
 **Budget note (15 Sep 2026):** ~A33 of the ~USD 100 Fable allocation remained after Shelves
 (which used only ~A2). TV mode is estimated at A5–55, comfortably inside what is left.
 ## Controller Workshop — rotate-to-sticker's ear precision (14 Sep 2026, SW v230)
+
+**Also open, from the Premium greybox (19 Sep 2026):** `ctlBuildScene()` sets no
+`scene.environment`, which is why the Workshop's matte plastic reads flatter than the same
+materials do in `wip/premium/`. Zero-asset fix, ~15 lines — `shared-implementation-notes.md`
+DD-14 and `prmBuildEnvMap()` in `wip/premium/prm-scene.js`.
 
 Picking a placed sticker from the book now rotates the model to face it (`ctlStickerGoToModel` in
 `js/controller.js`) — general `atan2` aim math against the local surface normal, not a per-surface

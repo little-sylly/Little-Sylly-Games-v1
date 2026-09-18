@@ -34,12 +34,12 @@
   /* A procedural environment: four emissive planes through PMREM. Zero assets;
      it is what makes matte plastic read as plastic (spec § 3.2). */
   function prmBuildEnvMap(THREE, renderer) {
-    const env = new THREE.Scene(); env.background = new THREE.Color('#e9e2d8');
+    const env = new THREE.Scene(); env.background = new THREE.Color('#bdb4a8');
     const plane = (w, h, pos, rot, hex) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: hex, side: THREE.DoubleSide })); m.position.set(pos[0], pos[1], pos[2]); m.rotation.set(rot[0], rot[1], rot[2]); env.add(m); };
-    plane(6, 3, [-3, 3, 0], [0, Math.PI / 2, 0], '#ffe4c2');    // warm, above-left (the lamp side)
-    plane(4, 4, [3, 2, 0], [0, -Math.PI / 2, 0], '#cfe0ef');    // cool, right (the window side)
+    plane(6, 3, [-3, 3, 0], [0, Math.PI / 2, 0], '#e8c9a2');    // warm, above-left (the lamp side)
+    plane(4, 4, [3, 2, 0], [0, -Math.PI / 2, 0], '#aec4d8');    // cool, right (the window side)
     plane(8, 8, [0, -2, 0], [Math.PI / 2, 0, 0], '#5b514a');    // dark floor
-    plane(8, 8, [0, 5, 0], [-Math.PI / 2, 0, 0], '#fff6ea');    // pale ceiling
+    plane(8, 8, [0, 5, 0], [-Math.PI / 2, 0, 0], '#cfc4b6');    // pale ceiling
     const pmrem = new THREE.PMREMGenerator(renderer); const rt = pmrem.fromScene(env, 0.04); pmrem.dispose();
     return rt.texture;
   }
@@ -58,7 +58,7 @@
     const renderer = new THREE.WebGLRenderer({ canvas: canvasEl, antialias: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
     renderer.outputEncoding = THREE.sRGBEncoding;
-    renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 0.78;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 0.80;
     renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap; renderer.shadowMap.autoUpdate = false;
     const scene = new THREE.Scene(); scene.background = new THREE.Color('#efe6dc'); scene.fog = new THREE.Fog('#e7dcd0', 6.8, 15);
     scene.environment = prmBuildEnvMap(THREE, renderer);
@@ -66,7 +66,7 @@
     const lookAt = new THREE.Vector3();
 
     // lights — spec § 3.2: the three visible sources each have a real light behind them
-    const key = new THREE.SpotLight('#ffd9b0', 3.6, 14, 0.85, 0.45, 1);
+    const key = new THREE.SpotLight('#ffd9b0', 1.75, 14, 0.85, 0.45, 1);
     key.position.set(-2.1, 1.95, -0.6); key.target.position.set(0.15, 0.30, -0.1);
     key.castShadow = true; key.shadow.mapSize.set(1024, 1024); key.shadow.bias = -0.0004; key.shadow.radius = 3;
     scene.add(key, key.target);
