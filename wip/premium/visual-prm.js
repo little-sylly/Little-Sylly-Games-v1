@@ -39,7 +39,7 @@ function loadPlaywright() {
     if (w === 1280) {
       const f0 = await page.evaluate(() => window.prmDebug.frames()); await page.waitForTimeout(600);
       const f1 = await page.evaluate(() => window.prmDebug.frames());
-      ok(f1 > f0, 'normal motion: the loop keeps rendering while idle rotations run (or nothing animates yet, in which case this is expected to FAIL until Task 7)');
+      ok(f1 > f0, 'normal motion: the loop keeps rendering while the idle rotations run');
       await page.evaluate(() => window.prmApi.setPreset('portrait')); await page.waitForTimeout(400);
       await page.screenshot({ path: path.join(SHOTS, `portrait-preset-${w}.png`) });
     }
@@ -61,6 +61,29 @@ function loadPlaywright() {
   const small = await browser.newPage({ viewport: { width: 390, height: 844 } });
   await small.goto(url); await small.waitForFunction(() => window.prmReady === true);
   ok(await small.evaluate(() => document.getElementById('prm-card').classList.contains('on')), 'portrait phone shows the honest card');
+  // keyboard: Tab into the canvas, arrows walk the order, Enter activates the dial (spin), Escape clears
+  const kb = await browser.newPage({ viewport: { width: 1280, height: 720 } }); await kb.goto(url); await settle(kb);
+  await kb.focus('#prm-canvas'); await kb.keyboard.press('ArrowRight'); await kb.keyboard.press('ArrowRight'); await kb.waitForTimeout(100);
+  ok(await kb.evaluate(() => document.getElementById('prm-focus').style.display === 'block'), 'keyboard: focus ring is drawn');
+  await kb.keyboard.press('ArrowRight'); await kb.keyboard.press('Enter');
+  /* Poll rather than sleep a fixed span: the spin is 1800 ms + a 250 ms beat +
+     a 600 ms push-in, and every one of those advances only when the render loop
+     ticks — which under SwiftShader is ~3.5 fps, so a fixed 2.6 s wait checks
+     too early on this machine and would still be a lie on a fast one. */
+  const handedOff = await kb.waitForFunction(() => /TV mode would open on /.test(document.getElementById('prm-status').textContent), null, { timeout: 12000 }).then(() => true, () => false);
+  ok(handedOff, 'keyboard: Enter on the dial spins and hands a game to TV mode');
+  await kb.evaluate(() => window.prmApi.resetView()); await kb.keyboard.press('Escape');
+  ok(await kb.evaluate(() => document.getElementById('prm-focus').style.display === 'none'), 'keyboard: Escape clears the ring');
+  await kb.close();
+  // reduced motion: a dial spin resolves instantly and the camera cuts (no tween)
+  const rmp = await ctx.newPage(); await rmp.goto(url); await settle(rmp);
+  const before = await rmp.evaluate(() => window.prmDebug.cameraMatrix());
+  await rmp.evaluate(() => window.prmApi.activate('dial')); await rmp.waitForTimeout(150);
+  const mid = await rmp.evaluate(() => window.prmDebug.cameraMatrix());
+  ok(JSON.stringify(before) === JSON.stringify(mid), 'reduced motion: no camera tween in the first 150 ms of a spin');
+  await rmp.waitForTimeout(1200);
+  ok(await rmp.evaluate(() => /TV mode would open on /.test(document.getElementById('prm-status').textContent)), 'reduced motion: the dial still hands a game to TV mode');
+  await rmp.close();
   await browser.close(); server.close();
   console.log(`\n${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);
 })().catch(e => { console.error(e); process.exit(1); });

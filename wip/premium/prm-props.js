@@ -274,8 +274,12 @@
     const shell = lib.role('shell', design.shell), plate = lib.role('plate', design.plate);
     const ears = lib.role('ears', design.ears), buttons = lib.role('buttons', design.buttons, { roughness: .34 });
     const arch = (w, h) => { const s = new THREE.Shape(), r = w / 2; s.moveTo(-r, -h / 2); s.lineTo(r, -h / 2); s.lineTo(r, h / 2 - r); s.absarc(0, h / 2 - r, r, 0, Math.PI, false); s.lineTo(-r, -h / 2); return s; };
-    g.add(prmMesh(THREE, lib.extrude(arch(W, H), D, 0.02), shell, 'cabinet', [0, cy, 0]));
-    g.add(prmMesh(THREE, lib.extrude(arch(W - 0.05, H - 0.05), 0.02, 0.005), plate, 'panel', [0, cy, D / 2 + 0.005]));
+    /* lib.extrude is the raw one: bevelSize pushes the outline OUTWARD, so the
+       shape is inset by the bevel to make the finished cabinet exactly W x H.
+       Un-inset it sank 2 cm of itself into the bench it stands on. */
+    const CAB_BEV = 0.02, PAN_BEV = 0.005;
+    g.add(prmMesh(THREE, lib.extrude(arch(W - 2 * CAB_BEV, H - 2 * CAB_BEV), D, CAB_BEV), shell, 'cabinet', [0, cy, 0]));
+    g.add(prmMesh(THREE, lib.extrude(arch(W - 0.05 - 2 * PAN_BEV, H - 0.05 - 2 * PAN_BEV), 0.02, PAN_BEV), plate, 'panel', [0, cy, D / 2 + 0.005]));
     for (let i = 0; i < 6; i++) g.add(prmMesh(THREE, new THREE.BoxGeometry(0.12, 0.005, 0.006), mats.plum, 'grille' + i, [0, cy + 0.12 - i * 0.012, D / 2 + 0.02], null, false));
     const knobGeo = new THREE.CylinderGeometry(0.018, 0.02, 0.02, 24);
     const knob = prmMesh(THREE, knobGeo, buttons, 'jukebox-knob', [-0.09, cy + 0.02, D / 2 + 0.025], [Math.PI / 2, 0, 0]); prmTag(knob, 'jukebox-knob'); g.add(knob);

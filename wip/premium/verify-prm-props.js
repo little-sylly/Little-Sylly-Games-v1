@@ -253,6 +253,53 @@ section('lamp-shelf');
   ok(bb.min.x > S.x - S.w / 2 - 0.01 && bb.max.x < S.x + S.w / 2 + 0.01, 'shelf contents stay inside the shelf width');
 }
 
+section('contracts');
+{
+  const A = PrmProps.PRM_ACTIONS, built = PrmProps.prmBuildAll(global.__prmCtx);
+  const ids = new Set(); Object.values(built).forEach(g => g.traverse(o => { if (o.userData.prmId) ids.add(o.userData.prmId); }));
+  Object.keys(A).forEach(id => ok(ids.has(id), `action id "${id}" exists as a pick node`));
+  ids.forEach(id => ok(A[id], `pick node "${id}" has an action`));
+  const HOST = new Set(['enterTV', 'enterShelves', 'openWorkshop', 'openSound', 'openSwitcher', 'openStickerbook', 'music.next']);
+  Object.entries(A).forEach(([id, a]) => ok(a.local || HOST.has(a.callback), `"${id}" names a host callback or a local api`));
+  ['enterTV', 'enterShelves', 'openWorkshop', 'openSound', 'openSwitcher'].forEach(cb => ok(Object.values(A).some(a => a.callback === cb), `required callback ${cb} is reachable from a prop`));
+  eq(Object.values(A).filter(a => a.optional).length, 1, 'exactly one optional action (the binder)');
+  PrmProps.PRM_TAB_ORDER.forEach(id => ok(ids.has(id), `tab order id "${id}" exists`));
+  // footprints: each prop, placed, sits inside its surface's region (spec § 14 check 1)
+  const place = (id) => { const g = built[id], p = PrmProps.PRM_PLACES[id]; g.position.set(...p.pos); if (p.rot) g.rotation.set(...p.rot); g.updateMatrixWorld(true); return new THREE.Box3().setFromObject(g); };
+  const inside = (bb, r) => bb.min.x >= r.x[0] && bb.max.x <= r.x[1] && bb.min.z >= r.z[0] && bb.max.z <= r.z[1] && bb.min.y >= r.y[0] - 0.01;
+  const R = room.userData.prmRoom;
+  const REGIONS = {
+    tv:        { x: [-0.65, 0.25], z: [-2.80, -2.20], y: [R.benchTopY, 1.5] },
+    jukebox:   { x: [ 0.60, 1.10], z: [-2.80, -2.20], y: [R.benchTopY, 1.5] },
+    dial:      { x: [-0.45, 0.65], z: [ 0.04,  0.66], y: [R.tableTopY, 0.8] },
+    binder:    { x: [-0.45, 0.65], z: [ 0.04,  0.66], y: [R.tableTopY, 0.8] },
+    phone:     { x: [-0.45, 0.65], z: [ 0.04,  0.66], y: [R.tableTopY, 0.8] },
+    controller:{ x: [-1.65, -1.05], z: [ 0.85,  1.85], y: [R.armTopY, 1.0] },
+    lamp:      { x: [-1.95, -1.45], z: [-2.35, -1.85], y: [R.sideTableTopY, 1.0] },
+  };
+  Object.entries(REGIONS).forEach(([id, r]) => { const bb = place(id); ok(inside(bb, r), `${id} sits inside its surface region (x ${bb.min.x.toFixed(2)}..${bb.max.x.toFixed(2)}, z ${bb.min.z.toFixed(2)}..${bb.max.z.toFixed(2)}, y ${bb.min.y.toFixed(2)})`); });
+  // table props must not overlap each other
+  const boxes = ['dial', 'binder', 'phone'].map(id => [id, new THREE.Box3().setFromObject(built[id])]);
+  for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) ok(!boxes[i][1].intersectsBox(boxes[j][1]), `${boxes[i][0]} and ${boxes[j][0]} do not overlap`);
+  // design purity across the whole prop set (spec § 14 check 2)
+  const root = new THREE.Group(); Object.values(built).forEach(g => root.add(g));
+  const snap = () => { const m = new Map(); root.traverse(o => { if (o.isMesh) (Array.isArray(o.material) ? o.material : [o.material]).forEach(mat => m.set(mat, mat.color.getHex())); }); return m; };
+  const d0 = Object.assign({}, global.__prmCtx.design), before = snap();
+  PrmLib.prmApplyDesign(root, Object.assign({}, d0, { ears: '#abcdef' }));
+  const after = snap(); let earsChanged = 0, othersChanged = 0;
+  before.forEach((hex, mat) => { if (after.get(mat) !== hex) { if (mat.userData.prmRole === 'ears') earsChanged++; else othersChanged++; } });
+  /* Counted per MATERIAL, not per mesh: each eared prop shares one ear
+     material across its two ears, so the TV, the jukebox and the controller
+     are three, not six. Assert every ear material present repaints, and that
+     all three eared props are actually there. */
+  const earMats = new Set(); root.traverse(o => { if (o.isMesh) (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => { if (m.userData.prmRole === 'ears') earMats.add(m); }); });
+  ok(earMats.size >= 3, `three props carry ears — TV, jukebox, controller (${earMats.size} ear materials)`);
+  eq(earsChanged, earMats.size, `changing design.ears repaints every ear material (${earsChanged} of ${earMats.size})`);
+  eq(othersChanged, 0, 'and nothing else');
+  const noRole = []; root.traverse(o => { if (o.isMesh && o.material.userData.prmRole && !['shell', 'plate', 'ears', 'buttons'].includes(o.material.userData.prmRole)) noRole.push(o.name); });
+  eq(noRole.length, 0, 'every tagged role is one of the four');
+}
+
 section('dial');
 global.__prmAsync = true;
 {
