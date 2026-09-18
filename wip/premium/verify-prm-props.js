@@ -83,6 +83,34 @@ ok(lib.mats.emissive('#ff0000', 2).emissiveIntensity === 2, 'mats.emissive takes
   eq(c.material.color.getHex(), before, 'and nothing untagged');
 }
 
+section('room');
+const PrmRoom = require(path.join(ROOT, 'wip/premium/prm-room.js'));
+const room = PrmRoom.prmBuildRoom(lib);
+eq(room.name, 'room', 'room group is named');
+const roomNames = new Set(); room.traverse(o => { if (o.name) roomNames.add(o.name); });
+['wallBack', 'wallLeft', 'skirtingBack', 'skirtingLeft', 'cornice', 'floor', 'rug', 'tableTop', 'tableLeg0', 'tableLeg3',
+ 'bench', 'benchDrawerL', 'benchDrawerR', 'benchKnobL', 'benchKnobR', 'deck', 'deckKey3', 'shelfBack', 'shelfSideL', 'shelfSideR',
+ 'shelfBoard0', 'shelfBoard1', 'shelfBoard2', 'sideTableTop', 'sideTableLeg2', 'couchArm', 'window', 'curtain',
+ 'floorLampBase', 'floorLampStem', 'floorLampShade', 'printA', 'printAFace', 'printB', 'printBFace']
+  .forEach(n => ok(roomNames.has(n), `room has ${n}`));
+{
+  let picks = 0; room.traverse(o => { if (o.userData.prmId) picks++; });
+  eq(picks, 0, 'nothing in the room shell is a pick target');
+  const rug = room.getObjectByName('rug'); ok(rug.receiveShadow, 'rug receives shadow');
+  const floor = room.getObjectByName('floor'); ok(floor.receiveShadow, 'floor receives shadow');
+  const R = room.userData.prmRoom;
+  ['floorY', 'backZ', 'leftX', 'benchZ', 'benchTopY', 'tableTopY', 'armTopY', 'sideTableTopY'].forEach(k => ok(typeof R[k] === 'number', `prmRoom.${k} is a number`));
+  near(R.benchTopY, 0.52, 0.001, 'bench top height'); near(R.tableTopY, 0.44, 0.001, 'table top height');
+  const S = room.userData.prmShelf; eq(S.ys.length, 3, 'three shelf boards');
+  room.updateMatrixWorld(true);
+  const bb = new THREE.Box3().setFromObject(room.getObjectByName('tableTop'));
+  near(bb.max.y, R.tableTopY, 0.001, 'tableTop surface equals prmRoom.tableTopY');
+  const arm = new THREE.Box3().setFromObject(room.getObjectByName('couchArm'));
+  near(arm.max.y, R.armTopY, 0.002, 'couchArm top equals prmRoom.armTopY');
+  const cur = room.getObjectByName('curtain'); const cb = new THREE.Box3().setFromObject(cur);
+  ok(cb.max.y - cb.min.y > 2.0, 'curtain is tall (extruded vertically, not lying flat)');
+}
+
 // Later tasks append their sections above this line.
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
