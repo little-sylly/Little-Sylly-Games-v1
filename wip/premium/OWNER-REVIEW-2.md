@@ -27,7 +27,7 @@ then open `http://localhost:8791/wip/premium/index.html` on a laptop or landscap
   lamp is gone.
 - Saturday afternoon: darker, not dark, with the couch dark in the foreground framing the shot.
 - The telly is centred and the jukebox moved left, per your note.
-- The couch is an L with backrests; the controller sits on the return's seat, not on an arm.
+- The couch is a U wrapping the table left, front and right; the controller sits on the left run.
 - The bookshelf is a low floor-standing unit with the photo lamp on its lowest board, books above,
   trinket easter eggs on top.
 - The phone sits in the middle of the table.
@@ -50,10 +50,10 @@ jukebox; and the bookshelf has a visible gap from the TV bench.
 
 | Check | Result |
 |---|---|
-| `node wip/premium/verify-prm-props.js` | **365 passed, 0 failed** |
+| `node wip/premium/verify-prm-props.js` | **384 passed, 0 failed** |
 | `NODE_PATH="$HOME/.claude-tooling/playwright/node_modules" node wip/premium/visual-prm.js` | **18 passed, 0 failed** |
-| Mean frame brightness | 124 (the "darker, not dark" band is 60–150; round 1 was 178) |
-| Brightest patch ÷ darkest | 2.5× (round 1 was 1.66; the floor is 2.2×) |
+| Mean frame brightness | 126 (the "darker, not dark" band is 60–150; round 1 was 178) |
+| Brightest patch ÷ darkest | 2.3× (round 1 was 1.66; the floor is 2.2×) |
 | Photo lamp on screen | 71 px tall at 1280×720 (a tap target needs ≥ 48) |
 | Shadow-casting lights | exactly 1, positioned outside the left wall |
 
