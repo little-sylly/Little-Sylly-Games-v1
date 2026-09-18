@@ -1,0 +1,66 @@
+// visual-prm.js — real headless Chromium over wip/premium/index.html: the two
+// composition screenshots the owner reviews, plus the two contract checks no
+// Node harness can make — under prefers-reduced-motion the camera never moves
+// and the RAF goes idle. Run from the repo root:
+//   NODE_PATH="$HOME/.claude-tooling/playwright/node_modules" node wip/premium/visual-prm.js
+const http = require('http'), fs = require('fs'), path = require('path'), os = require('os');
+const ROOT = path.resolve(__dirname, '..', '..');
+const SHOTS = path.join(__dirname, 'shots');
+const GL_ARGS = ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'];
+let pass = 0, fail = 0;
+const ok = (c, m) => { if (c) { pass++; console.log('  ok   ' + m); } else { fail++; console.log('  FAIL ' + m); } };
+const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg', '.woff2': 'font/woff2' };
+
+function serve() {
+  return new Promise(resolve => {
+    const s = http.createServer((req, res) => {
+      const p = path.join(ROOT, decodeURIComponent(req.url.split('?')[0]));
+      fs.readFile(p, (err, data) => { if (err) { res.writeHead(404); res.end(); return; } res.writeHead(200, { 'Content-Type': MIME[path.extname(p)] || 'application/octet-stream' }); res.end(data); });
+    });
+    s.listen(0, '127.0.0.1', () => resolve({ server: s, port: s.address().port }));
+  });
+}
+function loadPlaywright() {
+  for (const c of [path.join(os.homedir(), '.claude-tooling', 'playwright', 'node_modules', 'playwright'), 'playwright']) { try { return require(c); } catch (_) {} }
+  throw new Error('Playwright not found — see .claude/skills/visual-check/SKILL.md § 2');
+}
+(async () => {
+  const pw = loadPlaywright(); const { server, port } = await serve();
+  fs.mkdirSync(SHOTS, { recursive: true });
+  const browser = await pw.chromium.launch({ args: GL_ARGS });
+  const url = `http://127.0.0.1:${port}/wip/premium/index.html?seed=7`;
+  const settle = async (page) => { await page.waitForFunction(() => window.prmReady === true, null, { timeout: 20000 }); await page.waitForTimeout(1500); };
+
+  for (const [w, h] of [[1280, 720], [1920, 1080]]) {
+    const page = await browser.newPage({ viewport: { width: w, height: h } });
+    await page.goto(url); await settle(page);
+    await page.screenshot({ path: path.join(SHOTS, `wide-${w}.png`) });
+    ok(true, `screenshot wide-${w}.png`);
+    if (w === 1280) {
+      const f0 = await page.evaluate(() => window.prmDebug.frames()); await page.waitForTimeout(600);
+      const f1 = await page.evaluate(() => window.prmDebug.frames());
+      ok(f1 > f0, 'normal motion: the loop keeps rendering while idle rotations run (or nothing animates yet, in which case this is expected to FAIL until Task 7)');
+      await page.evaluate(() => window.prmApi.setPreset('portrait')); await page.waitForTimeout(400);
+      await page.screenshot({ path: path.join(SHOTS, `portrait-preset-${w}.png`) });
+    }
+    await page.close();
+  }
+  // reduced motion: camera frozen, RAF idle
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 }, reducedMotion: 'reduce' });
+  const page = await ctx.newPage(); await page.goto(url); await settle(page);
+  await page.mouse.move(400, 300); await page.waitForTimeout(300);
+  const m0 = await page.evaluate(() => window.prmDebug.cameraMatrix()); const f0 = await page.evaluate(() => window.prmDebug.frames());
+  await page.mouse.move(900, 500); await page.waitForTimeout(2000);
+  const m1 = await page.evaluate(() => window.prmDebug.cameraMatrix()); const f1 = await page.evaluate(() => window.prmDebug.frames());
+  ok(JSON.stringify(m0) === JSON.stringify(m1), 'reduced motion: the camera matrix never changes (no parallax, no drift)');
+  ok(f1 - f0 <= 2, `reduced motion: the RAF is idle (frames advanced ${f1 - f0}, allow ≤2 for the pointer-move repaint)`);
+  const running = await page.evaluate(() => window.prmDebug.isRunning());
+  ok(!running, 'reduced motion: no RAF scheduled once settled');
+  await page.screenshot({ path: path.join(SHOTS, 'reduced-1280.png') });
+  // the honest card below the floor
+  const small = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  await small.goto(url); await small.waitForFunction(() => window.prmReady === true);
+  ok(await small.evaluate(() => document.getElementById('prm-card').classList.contains('on')), 'portrait phone shows the honest card');
+  await browser.close(); server.close();
+  console.log(`\n${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);
+})().catch(e => { console.error(e); process.exit(1); });

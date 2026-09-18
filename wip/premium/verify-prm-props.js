@@ -111,6 +111,50 @@ const roomNames = new Set(); room.traverse(o => { if (o.name) roomNames.add(o.na
   ok(cb.max.y - cb.min.y > 2.0, 'curtain is tall (extruded vertically, not lying flat)');
 }
 
+section('props-core');
+const PrmProps = require(path.join(ROOT, 'wip/premium/prm-props.js'));
+ok(PrmProps.PRM_ACTIONS && typeof PrmProps.PRM_ACTIONS === 'object', 'PRM_ACTIONS exists');
+ok(Array.isArray(PrmProps.PRM_TAB_ORDER) && PrmProps.PRM_TAB_ORDER[0] === 'tv-screen', 'PRM_TAB_ORDER starts at the TV');
+{
+  const m = PrmProps.prmMotion(); const seen = [];
+  m.add(0, 10, 100, PrmProps.prmEaseOutCubic, v => seen.push(v), () => seen.push('done'));
+  ok(m.tick(1000) === true, 'motion active on first tick'); ok(m.tick(1050) === true, 'still active mid-way');
+  ok(m.tick(1100) === false, 'finished at ms'); eq(seen[seen.length - 1], 'done', 'onDone fires once at the end');
+  near(seen[seen.length - 2], 10, 1e-9, 'final value is the target');
+  near(PrmProps.prmEaseOutCubic(0), 0, 1e-9, 'easeOutCubic(0)'); near(PrmProps.prmEaseOutCubic(1), 1, 1e-9, 'easeOutCubic(1)');
+  near(PrmProps.prmEaseOutBack(1), 1, 1e-9, 'easeOutBack(1)'); ok(PrmProps.prmEaseOutBack(0.7) > 1, 'easeOutBack overshoots');
+}
+{
+  const at = PrmProps.prmAttract(makeCanvas, GAMES);
+  at.draw(0); at.draw(3.5); eq(at.frames(), 2, 'attract counts frames'); ok(at.canvas.width === 512, 'attract canvas is 512 wide');
+}
+{
+  const ctx = { lib, design: { shell: '#111111', plate: '#222222', ears: '#333333', buttons: '#444444' }, games: GAMES,
+    stickers: { base: 'data/stickers/', list: GAMES.map(g => ({ id: g.id, image: g.id + '.png', unlocked: true })) },
+    lampPanels: { base: 'lamp images/', manifest: require(path.join(ROOT, 'wip/premium/lamp images/manifest.json')) },
+    ControllerBody: CB, attractTexture: null, roomData: room.userData };
+  const built = PrmProps.prmBuildAll(ctx);
+  ok(built && typeof built === 'object', 'prmBuildAll returns an object (empty until builders register)');
+  global.__prmCtx = ctx;   // later sections reuse it
+}
+
+section('scene-pure');
+const PrmScene = require(path.join(ROOT, 'wip/premium/prm-scene.js'));
+{
+  const good = { games: GAMES, stickers: { base: '', list: [] }, design: {}, lampPanels: { base: '', manifest: { panels: [] } }, music: { keys: [], nowPlaying: () => null, playFor: () => {} },
+    enterTV() {}, enterShelves() {}, openWorkshop() {}, openSound() {}, openSwitcher() {} };
+  ok(PrmScene.prmValidateHost(good) === true, 'a complete host validates');
+  ok(PrmScene.prmValidateHost(Object.assign({}, good, { openStickerbook() {} })) === true, 'openStickerbook is accepted when given');
+  let threw = false; try { PrmScene.prmValidateHost(Object.assign({}, good, { enterTV: undefined })); } catch (e) { threw = /enterTV/.test(e.message); }
+  ok(threw, 'a missing required callback throws naming it');
+  threw = false; try { PrmScene.prmValidateHost(Object.assign({}, good, { openStickerbook: 'nope' })); } catch (e) { threw = true; }
+  ok(threw, 'a non-function openStickerbook throws');
+  ok(PrmScene.prmEligible(1280, 720, true), 'eligible at 1280x720 with WebGL');
+  ok(!PrmScene.prmEligible(390, 844, true), 'a portrait phone is not eligible');
+  ok(!PrmScene.prmEligible(1280, 720, false), 'no WebGL is not eligible');
+  ok(PrmScene.PRM_PRESETS.wide && PrmScene.PRM_PRESETS.portrait, 'both camera presets exist');
+}
+
 // Later tasks append their sections above this line.
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

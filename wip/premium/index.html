@@ -39,8 +39,50 @@
 <script src="prm-props.js"></script>
 <script src="prm-scene.js"></script>
 <script>
-  // Mount wiring is added in Task 4. Until then the page proves the scripts load.
-  window.prmReady = false;
+(async function () {
+  const $ = id => document.getElementById(id);
+  const status = (t) => { $('prm-status').textContent = t; };
+  const webgl = (() => { try { const c = document.createElement('canvas'); return !!(c.getContext('webgl2') || c.getContext('webgl')); } catch (_) { return false; } })();
+  function gate() {
+    const ok = PrmScene.prmEligible(window.innerWidth, window.innerHeight, webgl);
+    $('prm-card').classList.toggle('on', !ok); return ok;
+  }
+  window.addEventListener('resize', gate);
+  if (!gate()) { window.prmReady = true; return; }
+
+  const [stickerManifest, lampManifest] = await Promise.all([
+    fetch('../../data/stickers/manifest.json').then(r => r.json()),
+    fetch('lamp images/manifest.json').then(r => r.json()),
+  ]);
+  const DESIGN_DEFAULT = { shell: '#a97fd6', plate: '#9670c8', ears: '#a97fd6', buttons: '#8f66c4' };
+  let saved = null; try { saved = JSON.parse(localStorage.getItem('sylly_controller') || 'null'); } catch (_) {}
+  const design = Object.assign({}, DESIGN_DEFAULT, saved && saved.shell ? { shell: saved.shell, plate: saved.plate, ears: saved.ears, buttons: saved.buttons } : {});
+
+  // The sandbox host: every door writes to the status line and offers the way back.
+  const music = { keys: window.GAMES.map(g => g.id), current: null,
+    nowPlaying() { if (!this.current) return null; const g = window.GAMES.find(x => x.id === this.current); return { key: this.current, title: null, artist: null, game: g && g.gameName }; },
+    playFor(k) { this.current = k; } };
+  const params = new URLSearchParams(location.search);
+  const host = {
+    games: window.GAMES,
+    stickers: { base: '../../data/stickers/', list: stickerManifest.stickers },
+    design, lampPanels: { base: 'lamp images/', manifest: lampManifest }, music,
+    enterTV(gameId) { status(gameId ? 'TV mode would open on ' + gameId + '. Reset view to come back.' : 'TV mode would open. Reset view to come back.'); },
+    enterShelves() { status('Shelves would open. Reset view to come back.'); },
+    openWorkshop() { status('The Workshop would open (ctlOpenWorkshop).'); },
+    openSound() { status('The sound overlay would open.'); },
+    openSwitcher() { status('The layout switcher would open.'); },
+    debug: true,
+    reducedMotion: params.has('reduced') ? true : undefined,
+  };
+  if (params.has('seed')) { let s = +params.get('seed') || 1; host.rand = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; }
+  const api = PrmScene.prmMount($('prm-canvas'), host);
+  window.prmApi = api;
+  $('prm-reset').addEventListener('click', () => { api.resetView(); status(''); });
+  $('prm-portrait').addEventListener('click', () => { api.setPreset('portrait'); status('Portrait preset (Scene B framing, spec § 12).'); });
+  document.querySelectorAll('.prm-swatch').forEach(b => b.addEventListener('click', () => api.setDesign(JSON.parse(b.dataset.design))));
+  window.prmReady = true;
+})();
 </script>
 </body>
 </html>
