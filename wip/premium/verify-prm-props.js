@@ -228,6 +228,31 @@ section('jukebox-phone-binder');
   ok(typeof api[PrmProps.PRM_ACTIONS.binder.fallback] === 'function', 'the fallback names a real api method');
 }
 
+section('lamp-shelf');
+{
+  const man = global.__prmCtx.lampPanels.manifest;
+  const slots = PrmProps.prmLampSlots(man); eq(slots.length, man.panels.length * man.rows, 'slots = panels × rows');
+  eq(slots[0].id, 'laughing', 'slot 0 is the first panel'); eq(slots[8].id, 'frustrated', 'slot 8 is the ninth panel');
+  const two = PrmProps.prmLampSlots(Object.assign({}, man, { rows: 2 })); eq(two.length, 18, 'two rows double the slots'); eq(two[9].id, 'laughing', 'the second row repeats from the start');
+  const built = PrmProps.prmBuildAll(global.__prmCtx); const lamp = built.lamp; ok(lamp, 'lamp builds'); eq(lamp.userData.prmId, 'lamp', 'lamp group is the pick node');
+  const films = []; lamp.traverse(o => { if (o.isMesh && o.material.userData.prmImage) films.push(o.material.userData.prmImage); });
+  eq(films.length, 9, 'nine film materials tagged with images');
+  ok(films.every(u => u.startsWith(global.__prmCtx.lampPanels.base)), 'every film url comes from the lamp base');
+  ok(films.every(u => man.panels.some(p => u.endsWith(p.image))), 'no film url outside the manifest');
+  lamp.traverse(o => { if (o.isMesh && o.material.userData.prmImage) ok(o.material.userData.prmEmissiveMap === true, 'portraits are lit from inside (emissiveMap flag)'); });
+  const spin = lamp.getObjectByName('spinGroup'); const r0 = spin.rotation.y; const api = lamp.userData.api;
+  ok(api.tick(100, 0.1, false) === true, 'lamp idles (active)'); ok(spin.rotation.y > r0, 'idle rotation advances');
+  const r1 = spin.rotation.y; api.tick(200, 0.1, true); eq(spin.rotation.y, r1, 'no rotation under reduced motion');
+  api.flick(4); api.tick(300, 0.1, false); ok(spin.rotation.y - r1 > 0.2, 'a flick spins it hard');
+  const shelf = built.shelfContents; ok(shelf, 'shelf contents build');
+  let books = 0, trinkets = 0, picks = 0; shelf.traverse(o => { if (/^book\d+$/.test(o.name)) books++; if (/^trinket-/.test(o.name)) trinkets++; if (o.userData.prmId) picks++; });
+  eq(books, 10, 'ten books'); eq(trinkets, 5, 'five unlocked trinkets'); eq(picks, 0, 'nothing on the shelf is interactive');
+  const locked = PrmProps.prmBuildShelf(lib, PrmProps.PRM_TRINKETS_V1.map((t, i) => Object.assign({}, t, { unlocked: i !== 2 })), GAMES, room.userData.prmShelf);
+  let t2 = 0; locked.traverse(o => { if (/^trinket-/.test(o.name)) t2++; }); eq(t2, 4, 'a locked trinket leaves its slot empty');
+  const S = room.userData.prmShelf; shelf.updateMatrixWorld(true); const bb = new THREE.Box3().setFromObject(shelf);
+  ok(bb.min.x > S.x - S.w / 2 - 0.01 && bb.max.x < S.x + S.w / 2 + 0.01, 'shelf contents stay inside the shelf width');
+}
+
 section('dial');
 global.__prmAsync = true;
 {

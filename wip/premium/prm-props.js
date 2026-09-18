@@ -357,7 +357,92 @@
   }
   PRM_BUILDERS.binder = (ctx) => prmBuildBinder(ctx.lib, ctx.games.map(g => g.id), id => { const s = (ctx.stickers.list || []).find(x => x.id === id); return ctx.stickers.base + (s ? s.image : id + '.png'); });
 
-  const api = { PRM_ACTIONS, PRM_TAB_ORDER, PRM_PLACES, PRM_BUILDERS, PRM_ATTRACT_LINES, prmBuildAll, prmMotion, prmEaseOutCubic, prmEaseOutBack, prmMesh, prmTag, prmAttract, prmSpinPlan };
+  /* Pure: which image goes in which ring slot. rows × panels.length slots,
+     filled in manifest order and repeating — so a 9-panel set fills one row of
+     nine, and a second row repeats from the start. */
+  function prmLampSlots(manifest) {
+    const rows = Math.max(1, manifest.rows | 0), panels = manifest.panels || [], out = [];
+    for (let row = 0; row < rows; row++) for (let col = 0; col < panels.length; col++) { const p = panels[(row * panels.length + col) % panels.length]; out.push({ id: p.id, image: p.image, row, col }); }
+    return out;
+  }
+
+  /* The photo-carousel lamp, ported from lampshade-hero.html at metre scale:
+     birch base, brass stem/hoops/posts, a lit tube, and one card per slot
+     carrying a portrait from the manifest. Drag-to-flick with friction. */
+  function prmBuildLamp(lib, lampPanels) {
+    const { THREE, mats } = lib; const g = new THREE.Group(); prmTag(g, 'lamp');
+    const slots = prmLampSlots(lampPanels.manifest), n = lampPanels.manifest.panels.length, rows = Math.max(1, lampPanels.manifest.rows | 0);
+    g.add(prmMesh(THREE, new THREE.CylinderGeometry(0.065, 0.068, 0.02, 32), mats.birch, 'base', [0, 0.01, 0]));
+    g.add(prmMesh(THREE, new THREE.CylinderGeometry(0.008, 0.008, 0.06, 12), mats.brass, 'stem', [0, 0.05, 0]));
+    g.add(prmMesh(THREE, new THREE.CylinderGeometry(0.012, 0.012, 0.14, 20), mats.emissive('#ffe2b8', 1.2), 'tube', [0, 0.15, 0], null, false));
+    const spin = new THREE.Group(); spin.name = 'spinGroup'; g.add(spin);
+    const CARD = 0.05, GAP = 0.006, R = 0.075, TOP = 0.215, pitch = CARD + GAP;
+    const bottomY = TOP - rows * pitch;
+    [TOP, bottomY + 0.01].forEach((y, i) => spin.add(prmMesh(THREE, new THREE.TorusGeometry(R, 0.0025, 6, 64), mats.brass, 'hoop' + i, [0, y, 0], [Math.PI / 2, 0, 0], false)));
+    for (let v = 0; v < n; v += 2) { const a = (v + 0.5) * Math.PI * 2 / n; spin.add(prmMesh(THREE, new THREE.CylinderGeometry(0.002, 0.002, TOP - bottomY, 6), mats.brass, 'post' + v, [Math.sin(a) * R, (TOP + bottomY) / 2, Math.cos(a) * R], null, false)); }
+    const cardGeo = new THREE.BoxGeometry(CARD, CARD, 0.002), filmGeo = new THREE.PlaneGeometry(CARD * 0.74, CARD * 0.74);
+    slots.forEach(s => {
+      const a = s.col * Math.PI * 2 / n, y = TOP - s.row * pitch - CARD / 2 - 0.004;
+      const card = prmMesh(THREE, cardGeo, mats.cream, 'card-' + s.row + '-' + s.col, [Math.sin(a) * R, y, Math.cos(a) * R], [0, a, 0], false); spin.add(card);
+      const fm = new THREE.MeshStandardMaterial({ color: '#ffffff', emissive: '#ffffff', emissiveIntensity: .35, roughness: .6 });
+      fm.userData.prmImage = lampPanels.base + s.image; fm.userData.prmEmissiveMap = true;
+      card.add(prmMesh(THREE, filmGeo, fm, 'film-' + s.id, [0, 0, 0.0011], null, false));
+    });
+    const IDLE = 0.21;   // rad/s ≈ 2 rpm
+    let vel = IDLE, dragging = false;
+    g.userData.api = {
+      flick(v) { vel = v; dragging = false; },
+      nudge(v) { dragging = true; spin.rotation.y += v; },
+      tick(now, dt, reduced) {
+        if (reduced || dragging) { dragging = false; return false; }
+        vel *= Math.pow(0.955, dt * 60); if (Math.abs(vel) < IDLE) vel += (IDLE - vel) * 0.02;
+        spin.rotation.y += vel * dt; return true;
+      },
+    };
+    return g;
+  }
+  PRM_BUILDERS.lamp = (ctx) => prmBuildLamp(ctx.lib, ctx.lampPanels);
+
+  /* Trinkets are easter eggs: looks only, never a pick target, never a door.
+     `unlocked` is the seam a future earning system flips (spec § 7.9). */
+  const PRM_TRINKETS_V1 = [
+    { id: 'mini-controller', builder: 'controller', unlocked: true },
+    { id: 'mini-lamp',       builder: 'lamp',       unlocked: true },
+    { id: 'plant',           builder: 'plant',      unlocked: true },
+    { id: 'studio-print',    builder: 'print',      unlocked: true },
+    { id: 'game-stack',      builder: 'stack',      unlocked: true },
+  ];
+  function prmBuildShelf(lib, trinkets, games, S) {
+    const { THREE, mats } = lib; const g = new THREE.Group();
+    const heights = [0.2, 0.17, 0.22, 0.15, 0.19, 0.16, 0.21, 0.18, 0.2, 0.14];
+    let x = S.x - S.w / 2 + S.side + 0.02; const y = S.ys[1] + 0.01;
+    heights.forEach((h, i) => {
+      const col = new THREE.Color(games[(i * 3) % games.length].brandHex).lerp(new THREE.Color('#8f8a85'), 0.5), t = 0.02 + (i % 3) * 0.006;
+      const b = prmMesh(THREE, new THREE.BoxGeometry(t, h, 0.16), new THREE.MeshStandardMaterial({ color: col, roughness: .8 }), 'book' + i, [x + t / 2, y + h / 2, S.z + 0.02]);
+      if (i === 6) b.rotation.z = -0.12; g.add(b); x += t + 0.004;
+    });
+    const mini = {
+      controller() { const m = new THREE.Group(); m.add(prmMesh(THREE, lib.moulded(0.06, 0.035, 0.014, 0.012), new THREE.MeshStandardMaterial({ color: '#a97fd6', roughness: .5 }), 'miniBody', [0, 0.012, 0], [-Math.PI / 2 + 0.3, 0, 0]));
+        [-1, 1].forEach(s => m.add(prmMesh(THREE, new THREE.SphereGeometry(0.008, 12, 10), new THREE.MeshStandardMaterial({ color: '#a97fd6' }), 'miniEar', [s * 0.02, 0.03, -0.006]))); return m; },
+      lamp() { const m = new THREE.Group(); m.add(prmMesh(THREE, new THREE.CylinderGeometry(0.02, 0.02, 0.006, 20), mats.birch, 'miniBase', [0, 0.003, 0]));
+        m.add(prmMesh(THREE, new THREE.CylinderGeometry(0.005, 0.005, 0.045, 12), mats.emissive('#ffe2b8', 1), 'miniTube', [0, 0.03, 0], null, false));
+        m.add(prmMesh(THREE, new THREE.TorusGeometry(0.02, 0.0015, 6, 32), mats.brass, 'miniHoop', [0, 0.05, 0], [Math.PI / 2, 0, 0], false)); return m; },
+      plant() { const m = new THREE.Group(); m.add(prmMesh(THREE, new THREE.CylinderGeometry(0.025, 0.02, 0.04, 20), new THREE.MeshStandardMaterial({ color: '#c9795a', roughness: .8 }), 'pot', [0, 0.02, 0]));
+        [[0, 0.06, 0], [0.015, 0.05, 0.01], [-0.014, 0.052, -0.008]].forEach((p, i) => m.add(prmMesh(THREE, new THREE.SphereGeometry(0.022, 14, 12), new THREE.MeshStandardMaterial({ color: '#7fa86b', roughness: .9 }), 'leaf' + i, p))); return m; },
+      print() { const m = new THREE.Group(); m.add(prmMesh(THREE, new THREE.BoxGeometry(0.07, 0.09, 0.008), mats.birchDark, 'frame', [0, 0.045, 0], [-0.15, 0, 0]));
+        m.add(prmMesh(THREE, new THREE.PlaneGeometry(0.058, 0.078), new THREE.MeshStandardMaterial({ map: lib.tex.label('★', '#FAFAF9', '#E9408E', 128, 160), roughness: .9 }), 'printFace', [0, 0.045 + 0.0006, 0.0041], [-0.15, 0, 0], false)); return m; },
+      stack() { const m = new THREE.Group(); [3, 7, 12].forEach((gi, i) => m.add(prmMesh(THREE, new THREE.BoxGeometry(0.08, 0.02, 0.06), new THREE.MeshStandardMaterial({ color: games[gi % games.length].brandHex, roughness: .6 }), 'box' + i, [0, 0.01 + i * 0.021, 0], [0, (i - 1) * 0.15, 0]))); return m; },
+    };
+    const pitch = S.w / 5, y2 = S.ys[2] + 0.01;
+    trinkets.forEach((t, i) => {
+      if (!t.unlocked || !mini[t.builder]) return;
+      const tg = mini[t.builder](); tg.name = 'trinket-' + t.id; tg.position.set(S.x - S.w / 2 + pitch * (i + 0.5), y2, S.z); g.add(tg);
+    });
+    return g;
+  }
+  PRM_BUILDERS.shelfContents = (ctx) => prmBuildShelf(ctx.lib, PRM_TRINKETS_V1, ctx.games, ctx.roomData.prmShelf);
+
+  const api = { PRM_ACTIONS, PRM_TAB_ORDER, PRM_PLACES, PRM_BUILDERS, PRM_ATTRACT_LINES, prmBuildAll, prmMotion, prmEaseOutCubic, prmEaseOutBack, prmMesh, prmTag, prmAttract, prmSpinPlan, prmLampSlots, prmBuildShelf, PRM_TRINKETS_V1 };
   if (typeof window !== 'undefined') window.PrmProps = api;
   if (typeof module !== 'undefined') module.exports = api;
 })();
