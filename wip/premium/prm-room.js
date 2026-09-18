@@ -12,7 +12,7 @@
     /* The re-block (spec 2026-09-19 § 3.1): a corner about 3.2 m wide and 1.9 m
        deep, the bench a metre behind a table that sits right of centre, and a
        seat we are sitting on. Every prop reads its surface from here. */
-    const R = { floorY: 0, backZ: -1.55, leftX: -1.6, benchZ: -1.15, benchTopY: 0.52, tableTopY: 0.44, tableX: 0.35, tableZ: 0.05, armTopY: 0.58, seatTopY: 0.47, sideTableTopY: 0.565 };
+    const R = { floorY: 0, backZ: -1.55, leftX: -1.6, benchZ: -1.15, benchTopY: 0.52, tableTopY: 0.44, tableX: 0.35, tableZ: 0.05, armTopY: 0.58, seatTopY: 0.47, sillTopY: 0.68, sideTableTopY: 0.565 };
     const g = new THREE.Group(); g.name = 'room';
     const add = (name, geo, mat, pos, rot, o = {}) => {
       const m = new THREE.Mesh(geo, mat); m.name = name; m.position.set(pos[0], pos[1], pos[2]);
@@ -66,14 +66,17 @@
     add('seat', moulded(1.3, 0.47, 1.0, 0.09), mats.fabric, [0.07, R.seatTopY - 0.235, 1.08], null, { cast: true });
     add('couchArm', moulded(0.4, 0.58, 0.95, 0.09), mats.fabric, [-0.62, R.armTopY - 0.29, 0.925], null, { cast: true });
 
-    // window (the cool fill's visible source) + the wavy curtain in front of it
-    add('window', new THREE.PlaneGeometry(0.7, 1.3), mats.window, [2.55, 1.7, R.backZ + 0.005]);
-    add('curtain', prmCurtainGeometry(lib, 0.9, 2.2, 7), mats.curtain, [2.55, 1.15, R.backZ + 0.12], null, { cast: true });
-
-    // floor lamp (the warm key's visible source)
-    add('floorLampBase', new THREE.CylinderGeometry(0.13, 0.13, 0.02, 24), mats.chrome, [-2.3, 0.01, -1.5]);
-    add('floorLampStem', new THREE.CylinderGeometry(0.012, 0.012, 1.35, 12), mats.chrome, [-2.3, 0.69, -1.5]);
-    add('floorLampShade', new THREE.CylinderGeometry(0.13, 0.2, 0.3, 32, 1, true), mats.shade, [-2.3, 1.5, -1.5]);
+    // window on the LEFT wall — the visible source of the key. Centre sits toward the back so the
+    // whole opening is in frame from the couch. Sill = a birch ledge the plant sits on (step 3).
+    const WZ = -0.90, WY = 1.25, WW = 0.75, WH = 1.1;
+    add('window', new THREE.PlaneGeometry(WW, WH), mats.window, [R.leftX + 0.005, WY, WZ], [0, Math.PI / 2, 0]);
+    add('sill', new THREE.BoxGeometry(0.16, 0.03, 0.9), mats.birch, [R.leftX + 0.08, R.sillTopY - 0.015, WZ], null, { cast: true });
+    /* Drawn, in two halves, a 0.10 m slit at about 40 % of the width (spec D5). The halves do NOT
+       cast: the sun light passes through the curtain as a real drawn curtain glows and diffuses —
+       the slit's bright stripe is its own narrow light in prm-scene.js, not a shadow cut-out. */
+    const CUR_W = 1.0, GAP = 0.10, halfW = (CUR_W - GAP) / 2, gapAt = WZ - CUR_W / 2 + CUR_W * 0.40;
+    add('curtainL', prmCurtainGeometry(lib, halfW, 2.2, 4), mats.curtain, [R.leftX + 0.12, 1.15, gapAt - GAP / 2 - halfW / 2], [0, Math.PI / 2, 0], { cast: false });
+    add('curtainR', prmCurtainGeometry(lib, halfW, 2.2, 4), mats.curtain, [R.leftX + 0.12, 1.15, gapAt + GAP / 2 + halfW / 2], [0, Math.PI / 2, 0], { cast: false });
 
     // two prints on the shelf wall
     const print = (id, x, y, seed) => {

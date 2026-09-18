@@ -37,12 +37,12 @@
   /* A procedural environment: four emissive planes through PMREM. Zero assets;
      it is what makes matte plastic read as plastic (spec § 3.2). */
   function prmBuildEnvMap(THREE, renderer) {
-    const env = new THREE.Scene(); env.background = new THREE.Color('#bdb4a8');
+    const env = new THREE.Scene(); env.background = new THREE.Color('#332e29');
     const plane = (w, h, pos, rot, hex) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: hex, side: THREE.DoubleSide })); m.position.set(pos[0], pos[1], pos[2]); m.rotation.set(rot[0], rot[1], rot[2]); env.add(m); };
-    plane(6, 3, [-3, 3, 0], [0, Math.PI / 2, 0], '#e8c9a2');    // warm, above-left (the lamp side)
-    plane(4, 4, [3, 2, 0], [0, -Math.PI / 2, 0], '#aec4d8');    // cool, right (the window side)
-    plane(8, 8, [0, -2, 0], [Math.PI / 2, 0, 0], '#5b514a');    // dark floor
-    plane(8, 8, [0, 5, 0], [-Math.PI / 2, 0, 0], '#cfc4b6');    // pale ceiling
+    plane(6, 3, [-3, 3, 0], [0, Math.PI / 2, 0], '#9c8468');    // warm, above-left (the window side)
+    plane(4, 4, [3, 2, 0], [0, -Math.PI / 2, 0], '#6b7783');    // cool, right, dimmer than before
+    plane(8, 8, [0, -2, 0], [Math.PI / 2, 0, 0], '#3a332e');    // dark floor
+    plane(8, 8, [0, 5, 0], [-Math.PI / 2, 0, 0], '#6a6259');    // ceiling — ambient, kept low so the key can pool
     const pmrem = new THREE.PMREMGenerator(renderer); const rt = pmrem.fromScene(env, 0.04); pmrem.dispose();
     return rt.texture;
   }
@@ -61,25 +61,30 @@
     const renderer = new THREE.WebGLRenderer({ canvas: canvasEl, antialias: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
     renderer.outputEncoding = THREE.sRGBEncoding;
-    renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 0.80;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 0.56;   // Saturday afternoon: darker, not dark (spec D7)
     renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap; renderer.shadowMap.autoUpdate = false;
-    const scene = new THREE.Scene(); scene.background = new THREE.Color('#efe6dc'); scene.fog = new THREE.Fog('#b59a80', 2.8, 6.5);
+    const scene = new THREE.Scene(); scene.background = new THREE.Color('#d9c7b4'); scene.fog = new THREE.Fog('#b59a80', 2.8, 6.5);
     scene.environment = prmBuildEnvMap(THREE, renderer);
     const camera = new THREE.PerspectiveCamera(35, 16 / 9, 0.05, 30);
     const lookAt = new THREE.Vector3();
 
-    // lights — spec § 3.2: the three visible sources each have a real light behind them
-    const key = new THREE.SpotLight('#ffd9b0', 1.75, 14, 0.85, 0.45, 1);
-    key.position.set(-2.1, 1.95, -0.6); key.target.position.set(0.15, 0.30, -0.1);
-    key.castShadow = true; key.shadow.mapSize.set(1024, 1024); key.shadow.bias = -0.0004; key.shadow.radius = 3;
-    scene.add(key, key.target);
-    scene.add(new THREE.HemisphereLight('#cfe0ef', '#e2c9ae', 0.30));
-    const tvLight = new THREE.PointLight('#bfe6d0', 0.6, 2.5, 2); tvLight.position.set(-0.25, 0.9, -2.0); scene.add(tvLight);
-    const bulb = new THREE.PointLight('#ffd7a0', 0.5, 1.5, 2); bulb.position.set(-1.7, 0.75, -2.1); scene.add(bulb);
-    const dialLight = new THREE.PointLight(design.buttons || '#ffffff', 0.25, 0.6, 2); dialLight.position.set(0.35, 0.5, 0.3); scene.add(dialLight);
-
-    // room + props
+    // room first — the lights read its constants
     const room = window.PrmRoom.prmBuildRoom(lib); scene.add(room);
+    const RM = room.userData.prmRoom;
+
+    // lights — spec 2026-09-19 § 3.2: the window IS the light. One shadow-casting sun outside the left
+    // wall, wide and warm, plus a narrow bright spot for the slit's stripe; a low fill; the telly's spill.
+    const sun = new THREE.SpotLight('#ffcf9a', 4.2, 8, 0.40, 0.5, 1); sun.name = 'sun';
+    sun.position.set(RM.leftX - 0.6, 1.80, -0.75); sun.target.position.set(0.45, 0.05, -0.30);
+    sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024); sun.shadow.bias = -0.0004; sun.shadow.radius = 3;
+    scene.add(sun, sun.target);
+    const slit = new THREE.SpotLight('#ffd9ae', 3.4, 5, 0.15, 0.6, 1); slit.name = 'slit';
+    slit.position.set(RM.leftX - 0.3, 1.7, -0.62); slit.target.position.set(0.25, 0.02, -0.25);
+    scene.add(slit, slit.target);
+    const fill = new THREE.HemisphereLight('#b9c4cf', '#c9a98a', 0.035); fill.name = 'fill'; scene.add(fill);
+    const tvLight = new THREE.PointLight('#bfe6d0', 0.6, 2.5, 2); tvLight.name = 'tvLight'; tvLight.position.set(-0.55, 0.9, -0.85); scene.add(tvLight);
+    const glow = new THREE.PointLight('#ffd0a0', 0.45, 1.2, 2); glow.name = 'windowGlow'; glow.position.set(RM.leftX + 0.25, 1.2, -0.9); scene.add(glow);
+    const dialLight = new THREE.PointLight(design.buttons || '#ffffff', 0.25, 0.6, 2); dialLight.name = 'dialLight'; dialLight.position.set(0.60, 0.5, 0.0); scene.add(dialLight);
     const attract = P.prmAttract(makeCanvas, host.games);
     const attractTex = new THREE.CanvasTexture(attract.canvas); attractTex.encoding = THREE.sRGBEncoding;
     const ctx = { lib, design, games: host.games, stickers: host.stickers, lampPanels: host.lampPanels, ControllerBody: CB, attractTexture: attractTex, roomData: room.userData };
@@ -283,7 +288,30 @@
         renderer.dispose();
       },
     };
-    if (host.debug) window.prmDebug = { cameraMatrix: () => camera.matrixWorld.elements.slice(), frames: () => frames, isRunning: () => timers.raf !== null, nodes: () => Object.keys(nodes), api };
+    if (host.debug) window.prmDebug = {
+      cameraMatrix: () => camera.matrixWorld.elements.slice(), frames: () => frames, isRunning: () => timers.raf !== null, nodes: () => Object.keys(nodes), api,
+      lights() { const out = []; scene.traverse(o => { if (o.isLight) out.push({ name: o.name, type: o.type, castShadow: !!o.castShadow, position: o.position.toArray() }); }); return out; },
+      /* Mean luma (0–255) of a cols×rows grid of patches, read straight off the GL buffer after a fresh
+         render — same task, so no preserveDrawingBuffer needed. Row 0 is the TOP of the frame. */
+      lumaGrid(cols = 8, rows = 5) {
+        renderer.render(scene, camera); const gl = renderer.getContext(), W = gl.drawingBufferWidth, H = gl.drawingBufferHeight;
+        const px = new Uint8Array(W * H * 4); gl.readPixels(0, 0, W, H, gl.RGBA, gl.UNSIGNED_BYTE, px);
+        const out = []; const pw = Math.floor(W / cols), ph = Math.floor(H / rows);
+        for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+          let sum = 0, n = 0;
+          for (let y = (rows - 1 - r) * ph; y < (rows - r) * ph; y += 4) for (let x = c * pw; x < (c + 1) * pw; x += 4) { const i = (y * W + x) * 4; sum += 0.2126 * px[i] + 0.7152 * px[i + 1] + 0.0722 * px[i + 2]; n++; }
+          out.push(sum / n);
+        }
+        return out;
+      },
+      screenBox(id) {
+        const node = nodes[id]; if (!node) return null; const box = new THREE.Box3().setFromObject(node); const r = canvasEl.getBoundingClientRect();
+        let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+        for (let i = 0; i < 8; i++) { const v = new THREE.Vector3(i & 1 ? box.max.x : box.min.x, i & 2 ? box.max.y : box.min.y, i & 4 ? box.max.z : box.min.z).project(camera);
+          const sx = (v.x + 1) / 2 * r.width, sy = (1 - v.y) / 2 * r.height; x0 = Math.min(x0, sx); y0 = Math.min(y0, sy); x1 = Math.max(x1, sx); y1 = Math.max(y1, sy); }
+        return { w: x1 - x0, h: y1 - y0 };
+      },
+    };
     wake();
     return api;
   }

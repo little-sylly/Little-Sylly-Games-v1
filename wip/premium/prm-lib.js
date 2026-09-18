@@ -52,7 +52,7 @@
         }
         x.globalAlpha = 1; return wrap(c, rx, ry);
       },
-      wallpaper(base = '#f3dccb', tone = '#eccfb9', rx = 6, ry = 4) {
+      wallpaper(base = '#e9c4a6', tone = '#d9ad8c', rx = 6, ry = 4) {
         const c = makeCanvas(256, 256), x = c.getContext('2d');
         x.fillStyle = base; x.fillRect(0, 0, 256, 256); x.strokeStyle = tone; x.lineWidth = 6;
         for (let k = 0; k < 4; k++) { x.beginPath(); x.arc(128, 200, 40 + k * 22, Math.PI, 2 * Math.PI); x.stroke(); }
@@ -105,12 +105,14 @@
     return {
       birch:      std({ map: tex.wood(), roughness: .6, metalness: 0 }),
       birchDark:  std({ map: tex.wood('#c9a77f', '#9d7a52'), roughness: .62 }),
-      floor:      std({ map: tex.wood('#e6d2b4', '#c6a882', 6, 6), roughness: .5 }),
+      floor:      std({ map: tex.wood('#c99a6b', '#a87a4e', 6, 6), roughness: .5 }),
       wall:       std({ map: tex.wallpaper(), roughness: .95 }),
-      /* Soft oat, not the near-white it was: on a pale floor a #f1ebe1 rug is a
-         featureless bright field across the bottom third of the frame. */
-      rug:        std({ color: '#ddd0bb', bumpMap: tex.weave(), bumpScale: .004, roughness: .95 }),
-      fabric:     std({ color: '#8d7f74', bumpMap: tex.boucle(), bumpScale: .006, roughness: 1 }),
+      /* Braided-jute oat (spec 2026-09-19 § 3.2): the soft oat it replaced was still a
+         bright field across the bottom third. Round geometry + braid texture in step 3. */
+      rug:        std({ color: '#a88a63', bumpMap: tex.weave(), bumpScale: .004, roughness: .95 }),
+      /* The front plane: deliberately soft and DARK at the edge (original spec § 6) — it frames
+         the shot and is the room's one genuinely shadowed mass. */
+      fabric:     std({ color: '#6b5a4d', bumpMap: tex.boucle(), bumpScale: .006, roughness: 1 }),
       cream:      std({ color: '#f4efe6', roughness: .55, metalness: .05 }),
       skirting:   std({ color: '#f7f2ea', roughness: .6 }),
       plum:       std({ color: '#2B1B45', roughness: .6 }),
@@ -118,8 +120,8 @@
       chrome:     std({ color: '#cfd3d8', roughness: .25, metalness: .9 }),
       brass:      std({ color: '#c9a24a', roughness: .35, metalness: .85 }),
       curtain:    std({ color: '#f6efe3', roughness: .9, transparent: true, opacity: .92, side: THREE.DoubleSide }),
-      window:     std({ color: '#dbe9f5', emissive: '#dbe9f5', emissiveIntensity: 1.4, roughness: .8 }),
-      shade:      std({ color: '#f6ead6', emissive: '#ffd7a0', emissiveIntensity: .35, roughness: .9, side: THREE.DoubleSide }),
+      /* Warm sun behind a drawn curtain, not open sky (spec 2026-09-19 § 3.2). */
+      window:     std({ color: '#f4dcc0', emissive: '#f4dcc0', emissiveIntensity: 0.9, roughness: .8 }),
       yellow:     std({ color: '#F3E2A0', roughness: .55, bumpMap: tex.quilt(), bumpScale: .0025 }),
       yellowDark: std({ color: '#d9c27a', roughness: .55 }),
       paper:      std({ color: '#ffffff', roughness: .8 }),

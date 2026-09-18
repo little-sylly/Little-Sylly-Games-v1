@@ -60,7 +60,7 @@ ok(lib.THREE === THREE, 'lib carries the injected THREE');
 });
 ok(lib.tex.label('Hello').isTexture, 'tex.label returns a texture');
 ok(lib.tex.abstract(3).isTexture, 'tex.abstract returns a texture');
-['birch', 'birchDark', 'floor', 'wall', 'rug', 'fabric', 'cream', 'skirting', 'plum', 'black', 'chrome', 'brass', 'curtain', 'window', 'shade', 'yellow', 'yellowDark', 'paper', 'sleeve']
+['birch', 'birchDark', 'floor', 'wall', 'rug', 'fabric', 'cream', 'skirting', 'plum', 'black', 'chrome', 'brass', 'curtain', 'window', 'yellow', 'yellowDark', 'paper', 'sleeve']
   .forEach(k => ok(lib.mats[k] && lib.mats[k].isMaterial, `mats.${k} exists`));
 ok(lib.mats.emissive('#ff0000', 2).emissiveIntensity === 2, 'mats.emissive takes an intensity');
 {
@@ -90,8 +90,8 @@ eq(room.name, 'room', 'room group is named');
 const roomNames = new Set(); room.traverse(o => { if (o.name) roomNames.add(o.name); });
 ['wallBack', 'wallLeft', 'skirtingBack', 'skirtingLeft', 'cornice', 'floor', 'rug', 'tableTop', 'tableLeg0', 'tableLeg3',
  'bench', 'benchDrawerL', 'benchDrawerR', 'benchKnobL', 'benchKnobR', 'deck', 'deckKey3', 'shelfBack', 'shelfSideL', 'shelfSideR',
- 'shelfBoard0', 'shelfBoard1', 'shelfBoard2', 'sideTableTop', 'sideTableLeg2', 'couchArm', 'seat', 'window', 'curtain',
- 'floorLampBase', 'floorLampStem', 'floorLampShade', 'printA', 'printAFace', 'printB', 'printBFace']
+ 'shelfBoard0', 'shelfBoard1', 'shelfBoard2', 'sideTableTop', 'sideTableLeg2', 'couchArm', 'seat', 'window', 'curtainL', 'curtainR',
+ 'sill', 'printA', 'printAFace', 'printB', 'printBFace']
   .forEach(n => ok(roomNames.has(n), `room has ${n}`));
 {
   let picks = 0; room.traverse(o => { if (o.userData.prmId) picks++; });
@@ -117,8 +117,19 @@ const roomNames = new Set(); room.traverse(o => { if (o.name) roomNames.add(o.na
   near(seat.max.y, R.seatTopY, 0.002, 'seat top equals prmRoom.seatTopY');
   ok(seat.min.z > R.tableZ + 0.31 - 0.02, 'seat front does not run under the table');
   ok(arm.min.z < seat.min.z, 'the arm reaches ahead of the seat (a real couch arm)');
-  const cur = room.getObjectByName('curtain'); const cb = new THREE.Box3().setFromObject(cur);
-  ok(cb.max.y - cb.min.y > 2.0, 'curtain is tall (extruded vertically, not lying flat)');
+  // the window is on the LEFT wall, drawn, with a slit (spec 2026-09-19 § 3.2, D4/D5)
+  ok(typeof R.sillTopY === 'number', 'prmRoom.sillTopY is a number');
+  ok(!roomNames.has('floorLampShade') && !roomNames.has('floorLampStem'), 'the floor lamp is gone');
+  const win = new THREE.Box3().setFromObject(room.getObjectByName('window'));
+  ok(win.max.x - win.min.x < 0.05 && win.min.x < R.leftX + 0.05, 'window plane lies in the left wall');
+  const cl = new THREE.Box3().setFromObject(room.getObjectByName('curtainL')), cr = new THREE.Box3().setFromObject(room.getObjectByName('curtainR'));
+  ok(cl.max.y - cl.min.y > 1.8 && cr.max.y - cr.min.y > 1.8, 'both curtain halves stand tall');
+  const gap = Math.max(cl.min.z, cr.min.z) - Math.min(cl.max.z, cr.max.z);
+  ok(gap > 0.06 && gap < 0.14, `the two halves leave a hand-width slit (${gap.toFixed(3)} m)`);
+  ok(cl.max.x < R.leftX + 0.3 && cr.max.x < R.leftX + 0.3, 'curtain hangs against the left wall');
+  const sill = new THREE.Box3().setFromObject(room.getObjectByName('sill'));
+  near(sill.max.y, R.sillTopY, 0.002, 'sill top equals prmRoom.sillTopY');
+  ok(!room.getObjectByName('curtainL').castShadow, 'curtain halves do not cast (the sun must reach the room through them)');
 }
 
 section('props-core');
