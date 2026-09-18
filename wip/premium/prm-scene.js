@@ -13,7 +13,11 @@
      re-aimed in the re-block's step 6. */
   const PRM_PRESETS = {
     wide:     { pos: [-0.05, 1.32, 1.50], look: [0.15, 0.28, -1.05], fov: 46 },
-    portrait: { pos: [0.00, 1.55, 1.75], look: [0.00, 0.45,  0.25], fov: 52 },
+    /* Scene B preview, re-aimed for the smaller box. It centres on the TABLE, not the controller:
+       at 9:16 the frame spans only ~0.7 m across at this distance, and the controller now lives on
+       the couch a metre to the left, so the spec's "controller is the hero" framing no longer fits.
+       That is a Scene B design question for its own round — flagged, not silently resolved here. */
+    portrait: { pos: [0.33, 1.22, 0.92], look: [0.33, 0.40, -0.30], fov: 54 },
   };
   const PRM_REQUIRED = ['games', 'stickers', 'design', 'lampPanels', 'music', 'enterTV', 'enterShelves', 'openWorkshop', 'openSound', 'openSwitcher'];
   const PRM_FUNCS = ['enterTV', 'enterShelves', 'openWorkshop', 'openSound', 'openSwitcher'];

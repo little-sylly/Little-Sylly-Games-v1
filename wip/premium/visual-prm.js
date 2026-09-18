@@ -50,6 +50,8 @@ function loadPlaywright() {
       const mean = grid.reduce((a, b) => a + b, 0) / grid.length, lo = Math.min(...grid), hi = Math.max(...grid);
       ok(mean > 60 && mean < 150, `frame is darker, not dark (mean luma ${mean.toFixed(0)}, want 60–150)`);
       ok(hi / Math.max(lo, 1) >= 2.2, `there is a lit wall and a dark corner (patch range ${lo.toFixed(0)}–${hi.toFixed(0)})`);
+      const lampBox = await page.evaluate(() => window.prmDebug.screenBox('lamp'));
+      ok(lampBox && lampBox.h >= 48, `the photo lamp is a reachable target on the shelf (${lampBox ? lampBox.h.toFixed(0) : '?'} px tall at 1280x720, want >= 48)`);
       await page.evaluate(() => window.prmApi.setPreset('portrait')); await page.waitForTimeout(400);
       await page.screenshot({ path: path.join(SHOTS, `portrait-preset-${w}.png`) });
     }
