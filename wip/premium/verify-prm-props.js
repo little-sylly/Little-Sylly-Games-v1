@@ -170,6 +170,39 @@ section('controller');
   near(bb.min.y, 0, 0.02, 'controller rests on its group origin (base at y≈0)');
 }
 
+section('tv');
+{
+  const built = PrmProps.prmBuildAll(global.__prmCtx); const tv = built.tv; ok(tv, 'tv builds');
+  const ids = {}; tv.traverse(o => { if (o.userData.prmId) ids[o.userData.prmId] = o; });
+  ['tv-screen', 'tv-channel', 'tv-volume'].forEach(id => ok(ids[id], `tv has pick node ${id}`));
+  ok(ids['tv-screen'].isMesh && ids['tv-screen'].geometry.type === 'SphereGeometry', 'the screen is a sphere section (curved glass)');
+  ok(tv.getObjectByName('earL') && tv.getObjectByName('earR'), 'tv has two ears');
+  const roles = {}; tv.traverse(o => { if (o.isMesh && o.material.userData.prmRole) roles[o.material.userData.prmRole] = (roles[o.material.userData.prmRole] || 0) + 1; });
+  ['shell', 'plate', 'ears', 'buttons'].forEach(r => ok(roles[r] > 0, `tv carries ${r}`));
+  eq(tv.getObjectByName('earL').material.color.getHexString(), '333333', 'ears take design.ears');
+  tv.updateMatrixWorld(true); const bb = new THREE.Box3().setFromObject(tv);
+  near(bb.min.y, 0, 0.005, 'tv rests on its origin'); ok(bb.max.y > 0.6 && bb.max.y < 0.9, `tv with ears is ${bb.max.y.toFixed(2)} tall`);
+  ok(bb.max.x - bb.min.x < 0.75, 'tv fits its bench slot');
+  // the screen faces +z: its centre is in front of the body's front face
+  const sc = new THREE.Vector3(); ids['tv-screen'].getWorldPosition(sc);
+  const body = new THREE.Box3().setFromObject(tv.getObjectByName('body'));
+  ok(sc.z < body.max.z, 'screen sphere centre sits behind the front face (the slice bulges forward)');
+  /* A viewer sitting in front of the telly must actually SEE the glass. The
+     bezel shipped as a solid slab in the screen's own depth range and hid it
+     completely — invisible to every name/role check, so this raycast is the
+     one that holds the contract. */
+  {
+    const ray = new THREE.Raycaster();
+    const target = new THREE.Vector3(); ids['tv-screen'].getWorldPosition(target);
+    const glass = new THREE.Box3().setFromObject(ids['tv-screen']).getCenter(new THREE.Vector3());
+    const eye = glass.clone().add(new THREE.Vector3(0, 0.02, 1.2));
+    ray.set(eye, glass.clone().sub(eye).normalize());
+    const meshes = []; tv.traverse(o => { if (o.isMesh) meshes.push(o); });
+    const hit = ray.intersectObjects(meshes, false).filter(h => h.object.name !== 'screenGlow')[0];
+    ok(hit && hit.object.name === 'screen', `looking at the telly you see the screen first (got ${hit ? hit.object.name : 'nothing'})`);
+  }
+}
+
 // Later tasks append their sections above this line.
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

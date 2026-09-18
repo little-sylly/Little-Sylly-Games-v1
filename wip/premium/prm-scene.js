@@ -125,8 +125,12 @@
       camera.fov = pr.fov; camera.updateProjectionMatrix(); camera.lookAt(lookAt); wake();
     }
     let preset = 'wide'; applyPreset(preset);
+    /* Aim at what the prop LOOKS like, not where its origin is. The TV screen
+       is a slice of a 1.2 m sphere, so its origin sits a metre behind the back
+       wall — pushing in on that flew the camera through the wall. A bounding
+       box is the visible thing for every prop, whatever its geometry. */
     function pushIn(target, done) {
-      const p = new THREE.Vector3(); target.getWorldPosition(p);
+      const p = new THREE.Box3().setFromObject(target).getCenter(new THREE.Vector3());
       later(() => hud.fade && hud.fade.classList.add('on'), reduced() ? 0 : PRM_FADE_AT_MS);
       if (reduced()) { later(done, 220); return; }
       const from = camera.position.clone(), look0 = lookAt.clone(), to = p.clone().add(new THREE.Vector3(0, 0, 0.45));

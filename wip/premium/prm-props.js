@@ -133,6 +133,52 @@
   }
   PRM_BUILDERS.controller = (ctx) => prmBuildController(ctx.lib, ctx.design, ctx.ControllerBody);
 
+  /* The telly: a CRT silhouette in the controller's material language. Body =
+     shell, bezel = plate, dials = buttons, ears = the controller's own ear
+     geometry scaled up and stood upright. The screen is a sphere section. */
+  function prmBuildTV(lib, design, opts = {}) {
+    const { THREE, mats } = lib; const W = 0.62, H = 0.48, D = 0.40, FEET = 0.03;
+    const g = new THREE.Group();
+    const shell = lib.role('shell', design.shell), plate = lib.role('plate', design.plate);
+    const ears = lib.role('ears', design.ears), buttons = lib.role('buttons', design.buttons, { roughness: .34 });
+    const cy = FEET + H / 2;   // body centre, so the feet rest on the group origin
+    g.add(prmMesh(THREE, lib.moulded(W, H, D, 0.06), shell, 'body', [0, cy, 0]));
+    // screen: sphere section facing +z, bulging ~2 cm proud of the bezel
+    const R = 1.2, sw = 0.40, sh = 0.30, phiL = sw / R, thL = sh / R;
+    /* The bezel is a FRAME, not a plate: an aperture the glass shows through.
+       Cut it with a hole rather than a solid slab, or it sits in the screen's
+       own depth range and hides it completely. The bevel closes the hole in by
+       bevelSize on each side, so the cut is that much oversize. */
+    const BEZ_BEV = 0.006;
+    const bezelShape = lib.roundedRect(W - 0.04, H - 0.04, 0.05);
+    bezelShape.holes.push(lib.roundedRect(sw + 0.02 + 2 * BEZ_BEV, sh + 0.02 + 2 * BEZ_BEV, 0.03));
+    g.add(prmMesh(THREE, lib.extrude(bezelShape, 0.03, BEZ_BEV, { crease: 25 }), plate, 'bezel', [0, cy, D / 2 + 0.005]));
+    const screenGeo = new THREE.SphereGeometry(R, 40, 30, Math.PI / 2 - phiL / 2, phiL, Math.PI / 2 - thL / 2, thL);
+    const screenMat = new THREE.MeshStandardMaterial({ color: '#dfeee4', emissive: '#ffffff', emissiveIntensity: 0.48, roughness: .25, metalness: 0 });
+    if (opts.attractTexture) { screenMat.map = opts.attractTexture; screenMat.emissiveMap = opts.attractTexture; }
+    const screen = prmMesh(THREE, screenGeo, screenMat, 'screen', [-0.05, cy, D / 2 + 0.02 - R], null, false); prmTag(screen, 'tv-screen'); g.add(screen);
+    const glow = prmMesh(THREE, new THREE.PlaneGeometry(sw + 0.04, sh + 0.04),
+      new THREE.MeshBasicMaterial({ color: '#cfe9dc', transparent: true, opacity: 0.12, blending: THREE.AdditiveBlending, depthWrite: false }), 'screenGlow', [-0.05, cy, D / 2 + 0.03], null, false); g.add(glow);
+    // two dials on the control strip, each with a chrome rim and a mark that turns with it
+    const dialGeo = new THREE.CylinderGeometry(0.036, 0.036, 0.03, 28), rimGeo = new THREE.TorusGeometry(0.036, 0.006, 10, 36);
+    [['tv-channel', 0.10], ['tv-volume', -0.04]].forEach(([id, dy]) => {
+      const d = prmMesh(THREE, dialGeo, buttons, id, [0.22, cy + dy, D / 2 + 0.03], [Math.PI / 2, 0, 0]); prmTag(d, id);
+      d.add(prmMesh(THREE, new THREE.BoxGeometry(0.004, 0.004, 0.02), mats.plum, id + '-mark', [0, 0.016, -0.02]));
+      g.add(d); g.add(prmMesh(THREE, rimGeo, mats.chrome, id + '-rim', [0.22, cy + dy, D / 2 + 0.035]));
+    });
+    for (let i = 0; i < 6; i++) g.add(prmMesh(THREE, new THREE.BoxGeometry(0.09, 0.006, 0.006), mats.plum, 'grille' + i, [0.22, cy - 0.12 - i * 0.014, D / 2 + 0.022], null, false));
+    if (opts.earGeometry) [-1, 1].forEach(side => {
+      const e = new THREE.Mesh(opts.earGeometry, ears); e.name = side < 0 ? 'earL' : 'earR';
+      e.scale.setScalar(0.24); e.position.set(side * 0.2, cy + H / 2 + 0.06, -0.04); e.rotation.set(-0.12, 0, -side * 0.1);
+      e.castShadow = e.receiveShadow = true; g.add(e);
+    });
+    [[-0.24, -0.15], [0.24, -0.15], [-0.24, 0.12], [0.24, 0.12]].forEach(([x, z], i) =>
+      g.add(prmMesh(THREE, new THREE.CylinderGeometry(0.02, 0.022, FEET, 16), shell, 'foot' + i, [x, FEET / 2, z])));
+    g.userData.api = { screen, tick() { return false; } };
+    return g;
+  }
+  PRM_BUILDERS.tv = (ctx, shared) => prmBuildTV(ctx.lib, ctx.design, { earGeometry: shared.earGeometry, attractTexture: ctx.attractTexture });
+
   const api = { PRM_ACTIONS, PRM_TAB_ORDER, PRM_PLACES, PRM_BUILDERS, PRM_ATTRACT_LINES, prmBuildAll, prmMotion, prmEaseOutCubic, prmEaseOutBack, prmMesh, prmTag, prmAttract };
   if (typeof window !== 'undefined') window.PrmProps = api;
   if (typeof module !== 'undefined') module.exports = api;
