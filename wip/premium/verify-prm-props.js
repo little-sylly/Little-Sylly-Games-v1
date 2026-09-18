@@ -203,6 +203,46 @@ section('tv');
   }
 }
 
+section('dial');
+global.__prmAsync = true;
+{
+  const TAU = Math.PI * 2, n = 20, slot = TAU / n;
+  const p = PrmProps.prmSpinPlan(n, 0.3, 5);
+  eq(p.targetIdx, 5, 'plan keeps the target'); eq(p.durationMs, 1800, 'plan is 1800 ms');
+  ok(p.endRot > 0.3 + 3 * TAU, 'plan spins at least three full turns forward');
+  const wrap = a => ((a % TAU) + TAU) % TAU;
+  near(wrap(p.endRot), wrap(-5 * slot), 1e-9, 'end rotation puts cartridge 5 at the front');
+  const p2 = PrmProps.prmSpinPlan(n, -5 * slot, 5); ok(p2.endRot > -5 * slot + 3 * TAU, 'already-at-target still spins forward a full turn, never zero');
+  const built = PrmProps.prmBuildAll(global.__prmCtx); const dial = built.dial; ok(dial, 'dial builds');
+  eq(dial.userData.prmId, 'dial', 'dial group is the pick node');
+  const carts = []; dial.traverse(o => { if (o.userData.gameId) carts.push(o); });
+  eq(carts.length, 20, 'dial holds exactly 20 cartridges');
+  eq(new Set(carts.map(c => c.userData.gameId)).size, 20, 'one cartridge per game id');
+  GAMES.forEach(g => ok(carts.some(c => c.userData.gameId === g.id), `cartridge for ${g.id}`));
+  const urls = []; dial.traverse(o => { if (o.isMesh && o.material.userData.prmImage) urls.push(o.material.userData.prmImage); });
+  eq(urls.length, 20, '20 label materials tagged with an image url');
+  ok(urls.every(u => u.startsWith(global.__prmCtx.stickers.base)), 'every label url comes from the sticker base');
+  const bodyOf = carts[3].getObjectByName('cartBody'); eq(bodyOf.material.color.getHexString(), GAMES[3].brandHex.slice(1).toLowerCase(), 'cartridge takes its game brand hex');
+  const ring = dial.getObjectByName('ring'); eq(ring.material.userData.prmRole, 'buttons', 'ring glow is the buttons role'); ok(ring.material.userData.prmEmissive, 'ring emissive follows the design');
+  const api = dial.userData.api; let calls = 0; const rand = () => { calls++; return 0.37; };   // → index 7
+  let resolved = null; api.spin(rand, { instant: false }).then(id => resolved = id);
+  ok(api.isSpinning(), 'spinning after spin()'); api.spin(rand); ok(calls === 1, 'a second spin() while running is a no-op (same promise)');
+  let t = 1000; for (let i = 0; i <= 40; i++) api.tick(t += 50, 0.05, false);   // 2000 ms of ticks > 1800 ms tween
+  // the resolution is a microtask; the rest of this section runs after it, then finish() prints the summary
+  Promise.resolve().then(() => {
+    api.tick(3060, 0.05, true); api.tick(3300, 0.05, true);   // let the 200 ms rise tween finish (tweens tick even under reduced motion)
+    eq(resolved, GAMES[7].id, 'spin resolves to the rand-chosen game'); ok(!api.isSpinning(), 'not spinning after the tween ends');
+    near(wrap(dial.getObjectByName('spinner').rotation.y), wrap(-7 * slot), 1e-6, 'spinner rests with cartridge 7 at the front');
+    ok(carts[7].position.y > carts[6].position.y + 0.01, 'the chosen cartridge is risen');
+    const r0 = dial.getObjectByName('spinner').rotation.y; api.tick(3350, 0.05, true); eq(dial.getObjectByName('spinner').rotation.y, r0, 'no drift under reduced motion');
+    api.pauseDrift(0, 3350); api.tick(3400, 0.05, false); ok(dial.getObjectByName('spinner').rotation.y > r0, 'drift resumes when not reduced');
+    let instant = null; api.spin(() => 0.12, { instant: true }).then(id => instant = id);   // → index 2
+    ok(!api.isSpinning(), 'an instant spin is never "spinning"');
+    Promise.resolve().then(() => { eq(instant, GAMES[2].id, 'instant spin resolves to the chosen game'); near(wrap(dial.getObjectByName('spinner').rotation.y), wrap(-2 * slot), 1e-9, 'instant spin puts the cartridge at the front'); finish(); });
+  });
+}
+
 // Later tasks append their sections above this line.
-console.log(`\n${pass} passed, ${fail} failed`);
-process.exit(fail ? 1 : 0);
+function finish() { console.log(`
+${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0); }
+if (!global.__prmAsync) finish();

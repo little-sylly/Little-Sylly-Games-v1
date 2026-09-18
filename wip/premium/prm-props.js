@@ -179,7 +179,88 @@
   }
   PRM_BUILDERS.tv = (ctx, shared) => prmBuildTV(ctx.lib, ctx.design, { earGeometry: shared.earGeometry, attractTexture: ctx.attractTexture });
 
-  const api = { PRM_ACTIONS, PRM_TAB_ORDER, PRM_PLACES, PRM_BUILDERS, PRM_ATTRACT_LINES, prmBuildAll, prmMotion, prmEaseOutCubic, prmEaseOutBack, prmMesh, prmTag, prmAttract };
+  /* Pure: the rotation a spin ends on. Cartridge i sits at angle i·slot on the
+     ring; spinner rotation θ = -k·slot brings k to the front. Always at least
+     `turns` full turns forward, then the shortest forward distance. */
+  function prmSpinPlan(n, currentRot, targetIdx, turns = 3) {
+    const TAU = Math.PI * 2, slot = TAU / n, want = -targetIdx * slot;
+    let delta = ((want - currentRot) % TAU + TAU) % TAU; if (delta < 1e-9) delta = TAU;
+    return { targetIdx, endRot: currentRot + turns * TAU + delta, durationMs: 1800 };
+  }
+
+  /* The cartridge caddy. Base = shell, top plate/boss/wedge = plate, one soft
+     ring in the buttons colour (all that is left of the RGB), twenty generic
+     cartridges in their games' brand colours with the stickers as labels. */
+  function prmBuildDial(lib, design, games, stickerUrl) {
+    const { THREE, mats } = lib; const g = new THREE.Group(); prmTag(g, 'dial');
+    const shell = lib.role('shell', design.shell), plate = lib.role('plate', design.plate);
+    const ring = lib.role('buttons', design.buttons, { emissive: design.buttons, emissiveIntensity: .35, transparent: true, opacity: .9 }); ring.userData.prmEmissive = true;
+    g.add(prmMesh(THREE, new THREE.CylinderGeometry(0.16, 0.165, 0.05, 48), shell, 'base', [0, 0.025, 0]));
+    g.add(prmMesh(THREE, new THREE.TorusGeometry(0.155, 0.005, 8, 64), ring, 'ring', [0, 0.02, 0], [Math.PI / 2, 0, 0], false));
+    const spinner = new THREE.Group(); spinner.name = 'spinner'; spinner.position.y = 0.05; g.add(spinner);
+    spinner.add(prmMesh(THREE, new THREE.CylinderGeometry(0.145, 0.145, 0.012, 48), plate, 'topPlate', [0, 0.006, 0]));
+    spinner.add(prmMesh(THREE, new THREE.CylinderGeometry(0.045, 0.045, 0.012, 32), plate, 'boss', [0, 0.018, 0]));
+    spinner.add(prmMesh(THREE, new THREE.PlaneGeometry(0.06, 0.06), new THREE.MeshStandardMaterial({ map: lib.tex.label('★', '#ffffff', '#2B1B45', 128, 128), roughness: .5 }), 'bossLabel', [0, 0.0251, 0], [-Math.PI / 2, 0, 0], false));
+    const n = games.length, slot = Math.PI * 2 / n, r = 0.115, REST = 0.03;
+    const cartGeo = lib.moulded(0.03, 0.038, 0.007, 0.004, { bevelSegments: 2 });
+    const cartridges = games.map((game, i) => {
+      const a = i * slot, cg = new THREE.Group(); cg.name = 'cart-' + game.id; cg.userData.gameId = game.id; cg.userData.restY = REST;
+      cg.position.set(Math.sin(a) * r, REST, Math.cos(a) * r); cg.rotation.y = a;
+      cg.add(prmMesh(THREE, cartGeo, new THREE.MeshStandardMaterial({ color: game.brandHex, roughness: .5 }), 'cartBody', [0, 0, 0]));
+      const labelMat = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: .6, transparent: true }); labelMat.userData.prmImage = stickerUrl(game.id);
+      cg.add(prmMesh(THREE, new THREE.PlaneGeometry(0.022, 0.022), labelMat, 'cartLabel', [0, 0.002, 0.0042], null, false));
+      spinner.add(cg); return cg;
+    });
+    // fixed wedge housing, front-right, with the little display on top
+    const a0 = -75 * Math.PI / 180, a1 = -25 * Math.PI / 180, wedge = new THREE.Shape();
+    wedge.absarc(0, 0, 0.09, a0, a1, false); wedge.absarc(0, 0, 0.17, a1, a0, true); wedge.closePath();
+    const wedgeGeo = lib.extrude(wedge, 0.05, 0.006, { center: false }); wedgeGeo.rotateX(-Math.PI / 2);
+    g.add(prmMesh(THREE, wedgeGeo, plate, 'wedge', [0, 0.056, 0]));
+    const am = (a0 + a1) / 2, dispMat = new THREE.MeshStandardMaterial({ map: lib.tex.label('', '#1a1a1a', '#e9ffe9', 256, 96), roughness: .3, emissive: '#3a5a3a', emissiveIntensity: .3 });
+    g.add(prmMesh(THREE, new THREE.PlaneGeometry(0.05, 0.018), dispMat, 'display', [Math.cos(am) * 0.13, 0.113, -Math.sin(am) * 0.13], [-Math.PI / 2, 0, -am - Math.PI / 2], false));
+    /* After a spin lands, the dial holds still long enough for the chosen
+       cartridge to be read and for the camera to push into the telly (the
+       scene waits 250 ms, then a 600 ms tween). Resuming the idle drift the
+       instant the tween ends slides the winner off the front while the player
+       is still looking at it. */
+    const HOLD_MS = 2000;
+    let rot = 0, driftPauseUntil = 0, risen = null, spinning = null, lastNow = 0; const motion = prmMotion();
+    const api = {
+      spinner, cartridges, isSpinning: () => !!spinning,
+      setDisplay(text) { const old = dispMat.map; dispMat.map = lib.tex.label(text, '#1a1a1a', '#e9ffe9', 256, 96); dispMat.needsUpdate = true; if (old) old.dispose(); },
+      rise(k, instant) {
+        if (risen !== null && risen !== k) { const prev = cartridges[risen]; motion.add(prev.position.y, REST, 200, prmEaseOutCubic, v => prev.position.y = v); }
+        const c = cartridges[k]; risen = k;
+        if (instant) c.position.y = REST + 0.012; else motion.add(c.position.y, REST + 0.012, 200, prmEaseOutBack, v => c.position.y = v);
+        api.setDisplay(games[k].gameName);
+      },
+      spin(rand, opt = {}) {
+        if (spinning) return spinning;
+        const k = Math.min(n - 1, Math.floor(rand() * n));
+        /* Reduced motion: show the result, skip the journey (spec § 11). Not
+           tracked as `spinning` — there is no tween to guard against. */
+        if (opt.instant) { rot = -k * slot; spinner.rotation.y = rot; api.rise(k, true); return Promise.resolve(games[k].id); }
+        driftPauseUntil = Infinity;
+        const plan = prmSpinPlan(n, rot, k);
+        spinning = new Promise(res => {
+          motion.add(rot, plan.endRot, plan.durationMs, prmEaseOutCubic, v => { rot = v; spinner.rotation.y = v; },
+            () => { api.rise(k); spinning = null; driftPauseUntil = lastNow + HOLD_MS; res(games[k].id); });
+        });
+        return spinning;
+      },
+      pauseDrift(ms, now) { driftPauseUntil = now + ms; },
+      tick(now, dt, reduced) {
+        lastNow = now;
+        let active = motion.tick(now);
+        if (!spinning && !reduced && now >= driftPauseUntil) { rot += dt * 0.07; spinner.rotation.y = rot; active = true; }
+        return active;
+      },
+    };
+    g.userData.api = api; return g;
+  }
+  PRM_BUILDERS.dial = (ctx) => prmBuildDial(ctx.lib, ctx.design, ctx.games, id => { const s = (ctx.stickers.list || []).find(x => x.id === id); return ctx.stickers.base + (s ? s.image : id + '.png'); });
+
+  const api = { PRM_ACTIONS, PRM_TAB_ORDER, PRM_PLACES, PRM_BUILDERS, PRM_ATTRACT_LINES, prmBuildAll, prmMotion, prmEaseOutCubic, prmEaseOutBack, prmMesh, prmTag, prmAttract, prmSpinPlan };
   if (typeof window !== 'undefined') window.PrmProps = api;
   if (typeof module !== 'undefined') module.exports = api;
 })();
