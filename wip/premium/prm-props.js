@@ -31,13 +31,13 @@
      them in step by hand; the harness footprint check is what catches drift.
      A builder's group origin is its resting base. */
   const PRM_PLACES = {
-    tv:            { pos: [-0.55, 0.52, -1.10] },
-    jukebox:       { pos: [ 0.35, 0.52, -1.10] },
-    dial:          { pos: [ 0.60, 0.44,  0.00] },
-    binder:        { pos: [ 0.00, 0.44, -0.10], rot: [0, 0.18, 0] },
-    phone:         { pos: [ 0.80, 0.44,  0.27], rot: [0, -0.5, 0] },
-    controller:    { pos: [-0.62, 0.58,  0.62], rot: [0, -0.35, 0] },
-    lamp:          { pos: [-1.70, 0.565, -2.10] },
+    tv:            { pos: [ 0.16, 0.52, -1.10] },                      // dead on the camera's view axis — the telly is the focus
+    jukebox:       { pos: [-0.72, 0.52, -1.10] },                      // left, balancing the window and the sill plant
+    dial:          { pos: [ 0.62, 0.44,  0.02] },
+    binder:        { pos: [ 0.03, 0.44, -0.08], rot: [0, 0.18, 0] },
+    phone:         { pos: [ 0.33, 0.44,  0.26], rot: [0, -0.35, 0] },  // front-centre: the Shelves door, and Scene B's hero
+    controller:    { pos: [-0.50, 0.47,  0.42], rot: [0, -0.30, 0] },  // on the couch return's seat, not on an arm
+    lamp:          { pos: [ 1.25, 0.43, -1.44] },                      // the shelf's LOWEST board
     shelfContents: { pos: [0, 0, 0] },
   };
   /* Builders register here, one per task: id → (ctx, shared) => Group. */
@@ -421,7 +421,7 @@
   function prmBuildShelf(lib, trinkets, games, S) {
     const { THREE, mats } = lib; const g = new THREE.Group();
     const heights = [0.2, 0.17, 0.22, 0.15, 0.19, 0.16, 0.21, 0.18, 0.2, 0.14];
-    let x = S.x - S.w / 2 + S.side + 0.02; const y = S.ys[1] + 0.01;
+    let x = S.x - S.w / 2 + S.side + 0.02; const y = S.ys[1] + 0.01;   // books on the MIDDLE board (the lamp owns the lowest)
     heights.forEach((h, i) => {
       const col = new THREE.Color(games[(i * 3) % games.length].brandHex).lerp(new THREE.Color('#8f8a85'), 0.5), t = 0.02 + (i % 3) * 0.006;
       const b = prmMesh(THREE, new THREE.BoxGeometry(t, h, 0.16), new THREE.MeshStandardMaterial({ color: col, roughness: .8 }), 'book' + i, [x + t / 2, y + h / 2, S.z + 0.02]);
@@ -439,7 +439,7 @@
         m.add(prmMesh(THREE, new THREE.PlaneGeometry(0.058, 0.078), new THREE.MeshStandardMaterial({ map: lib.tex.label('★', '#FAFAF9', '#E9408E', 128, 160), roughness: .9 }), 'printFace', [0, 0.045 + 0.0006, 0.0041], [-0.15, 0, 0], false)); return m; },
       stack() { const m = new THREE.Group(); [3, 7, 12].forEach((gi, i) => m.add(prmMesh(THREE, new THREE.BoxGeometry(0.08, 0.02, 0.06), new THREE.MeshStandardMaterial({ color: games[gi % games.length].brandHex, roughness: .6 }), 'box' + i, [0, 0.01 + i * 0.021, 0], [0, (i - 1) * 0.15, 0]))); return m; },
     };
-    const pitch = S.w / 5, y2 = S.ys[2] + 0.01;
+    const pitch = S.w / 5, y2 = S.ys[2] + 0.01;   // trinket easter eggs top out the unit
     trinkets.forEach((t, i) => {
       if (!t.unlocked || !mini[t.builder]) return;
       const tg = mini[t.builder](); tg.name = 'trinket-' + t.id; tg.position.set(S.x - S.w / 2 + pitch * (i + 0.5), y2, S.z); g.add(tg);

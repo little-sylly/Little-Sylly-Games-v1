@@ -82,7 +82,7 @@
     slit.position.set(RM.leftX - 0.3, 1.7, -0.62); slit.target.position.set(0.25, 0.02, -0.25);
     scene.add(slit, slit.target);
     const fill = new THREE.HemisphereLight('#b9c4cf', '#c9a98a', 0.035); fill.name = 'fill'; scene.add(fill);
-    const tvLight = new THREE.PointLight('#bfe6d0', 0.6, 2.5, 2); tvLight.name = 'tvLight'; tvLight.position.set(-0.55, 0.9, -0.85); scene.add(tvLight);
+    const tvLight = new THREE.PointLight('#bfe6d0', 0.6, 2.5, 2); tvLight.name = 'tvLight'; tvLight.position.set(0.16, 0.9, -0.85); scene.add(tvLight);
     const glow = new THREE.PointLight('#ffd0a0', 0.45, 1.2, 2); glow.name = 'windowGlow'; glow.position.set(RM.leftX + 0.25, 1.2, -0.9); scene.add(glow);
     const dialLight = new THREE.PointLight(design.buttons || '#ffffff', 0.25, 0.6, 2); dialLight.name = 'dialLight'; dialLight.position.set(0.60, 0.5, 0.0); scene.add(dialLight);
     const attract = P.prmAttract(makeCanvas, host.games);

@@ -58,9 +58,10 @@ ok(lib.THREE === THREE, 'lib carries the injected THREE');
 ['wood', 'wallpaper', 'weave', 'boucle', 'quilt'].forEach(k => {
   const t = lib.tex[k](); ok(t && t.isTexture && t.wrapS === THREE.RepeatWrapping, `tex.${k} returns a repeating texture`);
 });
+['braid', 'braidBump'].forEach(k => ok(lib.tex[k]().isTexture, `tex.${k} returns a texture`));
 ok(lib.tex.label('Hello').isTexture, 'tex.label returns a texture');
 ok(lib.tex.abstract(3).isTexture, 'tex.abstract returns a texture');
-['birch', 'birchDark', 'floor', 'wall', 'rug', 'fabric', 'cream', 'skirting', 'plum', 'black', 'chrome', 'brass', 'curtain', 'window', 'yellow', 'yellowDark', 'paper', 'sleeve']
+['birch', 'birchDark', 'floor', 'wall', 'rug', 'rugEdge', 'fabric', 'cream', 'skirting', 'plum', 'black', 'chrome', 'brass', 'curtain', 'window', 'yellow', 'yellowDark', 'paper', 'sleeve', 'potCream', 'leaf', 'cattail']
   .forEach(k => ok(lib.mats[k] && lib.mats[k].isMaterial, `mats.${k} exists`));
 ok(lib.mats.emissive('#ff0000', 2).emissiveIntensity === 2, 'mats.emissive takes an intensity');
 {
@@ -90,15 +91,29 @@ eq(room.name, 'room', 'room group is named');
 const roomNames = new Set(); room.traverse(o => { if (o.name) roomNames.add(o.name); });
 ['wallBack', 'wallLeft', 'skirtingBack', 'skirtingLeft', 'cornice', 'floor', 'rug', 'tableTop', 'tableLeg0', 'tableLeg3',
  'bench', 'benchDrawerL', 'benchDrawerR', 'benchKnobL', 'benchKnobR', 'deck', 'deckKey3', 'shelfBack', 'shelfSideL', 'shelfSideR',
- 'shelfBoard0', 'shelfBoard1', 'shelfBoard2', 'sideTableTop', 'sideTableLeg2', 'couchArm', 'seat', 'window', 'curtainL', 'curtainR',
- 'sill', 'printA', 'printAFace', 'printB', 'printBFace']
+ 'shelfBoard0', 'shelfBoard1', 'shelfBoard2', 'shelfTop', 'couchArm', 'seat', 'seatBack', 'seatReturn', 'seatReturnBack',
+ 'rugEdge', 'plant', 'window', 'curtainL', 'curtainR', 'sill', 'printA', 'printAFace', 'printB', 'printBFace']
   .forEach(n => ok(roomNames.has(n), `room has ${n}`));
 {
+  const R = room.userData.prmRoom;
   let picks = 0; room.traverse(o => { if (o.userData.prmId) picks++; });
   eq(picks, 0, 'nothing in the room shell is a pick target');
   const rug = room.getObjectByName('rug'); ok(rug.receiveShadow, 'rug receives shadow');
+  ok(rug.geometry.type === 'CylinderGeometry', 'rug is round');
+  { const rb = new THREE.Box3().setFromObject(rug); near((rb.min.x + rb.max.x) / 2, R.tableX, 0.02, 'rug is centred under the table'); }
+  ok(!roomNames.has('sideTableTop'), 'the side table is gone');
+  const plant = room.getObjectByName('plant'); ok(plant && plant.isGroup, 'plant is a group on the shell');
+  { let blades = 0, heads = 0;
+    plant.traverse(o => { if (/^blade\d+$/.test(o.name)) blades++; if (/^cattail\d+$/.test(o.name)) heads++; });
+    ok(blades >= 4, `plant has blades (${blades})`); eq(heads, 3, 'three cattail heads');
+    ok(plant.getObjectByName('pot') && plant.getObjectByName('soil'), 'plant has a pot and soil');
+    const pb = new THREE.Box3().setFromObject(plant);
+    near(pb.min.y, R.sillTopY, 0.01, 'plant rests on the sill');
+    ok(pb.min.x > R.leftX && pb.max.x < R.leftX + 0.35, 'plant sits on the sill, not in the wall');
+    ok(pb.max.y - pb.min.y > 0.16, 'the cattails stand tall enough to read as a silhouette');
+    let painted = 0; plant.traverse(o => { if (o.isMesh && o.material.userData.prmRole) painted++; });
+    eq(painted, 0, 'the plant is furniture - no design role'); }
   const floor = room.getObjectByName('floor'); ok(floor.receiveShadow, 'floor receives shadow');
-  const R = room.userData.prmRoom;
   ['floorY', 'backZ', 'leftX', 'benchZ', 'benchTopY', 'tableTopY', 'tableX', 'tableZ', 'armTopY', 'seatTopY'].forEach(k => ok(typeof R[k] === 'number', `prmRoom.${k} is a number`));
   near(R.benchTopY, 0.52, 0.001, 'bench top height'); near(R.tableTopY, 0.44, 0.001, 'table top height');
   // the re-block (spec 2026-09-19 § 3.1): a corner, not a hall
@@ -108,15 +123,29 @@ const roomNames = new Set(); room.traverse(o => { if (o.name) roomNames.add(o.na
   ok(R.tableX > 0.2, `table is right of centre (tableX ${R.tableX})`);
   ok(R.seatTopY > R.tableTopY && R.seatTopY < R.armTopY, 'seat cushion sits between table top and arm top');
   const S = room.userData.prmShelf; eq(S.ys.length, 3, 'three shelf boards');
+  ok(S.ys[2] < 1.25, `the top board is inside the frame (ys[2] ${S.ys[2]})`);
+  ok(S.ys[0] < 0.55, `the lowest board is low enough to read (ys[0] ${S.ys[0]})`);
+  { const unit = new THREE.Box3().setFromObject(room.getObjectByName('shelfSideL'));
+    ok(unit.min.y < 0.05, 'the shelf unit stands on the floor'); }
   room.updateMatrixWorld(true);
   const bb = new THREE.Box3().setFromObject(room.getObjectByName('tableTop'));
   near(bb.max.y, R.tableTopY, 0.001, 'tableTop surface equals prmRoom.tableTopY');
   const arm = new THREE.Box3().setFromObject(room.getObjectByName('couchArm'));
   near(arm.max.y, R.armTopY, 0.002, 'couchArm top equals prmRoom.armTopY');
+  // the L-shaped couch (owner, 19 Sep 2026): a main run along the bottom of frame and a short
+  // return up the left, whose seat carries the controller and whose back is the frame's left border
   const seat = new THREE.Box3().setFromObject(room.getObjectByName('seat'));
   near(seat.max.y, R.seatTopY, 0.002, 'seat top equals prmRoom.seatTopY');
   ok(seat.min.z > R.tableZ + 0.31 - 0.02, 'seat front does not run under the table');
-  ok(arm.min.z < seat.min.z, 'the arm reaches ahead of the seat (a real couch arm)');
+  const ret = new THREE.Box3().setFromObject(room.getObjectByName('seatReturn'));
+  near(ret.max.y, R.seatTopY, 0.002, 'the return seat is the same height as the main run');
+  ok(ret.max.x < seat.max.x && ret.min.z < seat.min.z, 'the return runs up the LEFT and reaches further back than the main run (an L)');
+  ok(ret.max.z > seat.min.z, 'the two runs meet at the corner');
+  const retBack = new THREE.Box3().setFromObject(room.getObjectByName('seatReturnBack'));
+  ok(retBack.max.x <= ret.min.x + 0.01, 'the return back sits outside its seat, on the left');
+  ok(retBack.min.y >= R.seatTopY - 0.01 && retBack.max.y > R.seatTopY + 0.3, 'the return back rises well above the seat');
+  const mainBack = new THREE.Box3().setFromObject(room.getObjectByName('seatBack'));
+  ok(mainBack.min.z > seat.max.z - 0.02, 'the main run back sits behind it (behind the camera)');
   // the window is on the LEFT wall, drawn, with a slit (spec 2026-09-19 § 3.2, D4/D5)
   ok(typeof R.sillTopY === 'number', 'prmRoom.sillTopY is a number');
   ok(!roomNames.has('floorLampShade') && !roomNames.has('floorLampStem'), 'the floor lamp is gone');
@@ -268,6 +297,12 @@ section('lamp-shelf');
   const shelf = built.shelfContents; ok(shelf, 'shelf contents build');
   let books = 0, trinkets = 0, picks = 0; shelf.traverse(o => { if (/^book\d+$/.test(o.name)) books++; if (/^trinket-/.test(o.name)) trinkets++; if (o.userData.prmId) picks++; });
   eq(books, 10, 'ten books'); eq(trinkets, 5, 'five unlocked trinkets'); eq(picks, 0, 'nothing on the shelf is interactive');
+  { const SS = room.userData.prmShelf;
+    const bookBox = new THREE.Box3().setFromObject(shelf.getObjectByName('book0'));
+    const trinketBox = new THREE.Box3().setFromObject(shelf.getObjectByName('trinket-mini-controller'));
+    near(bookBox.min.y, SS.ys[1] + 0.01, 0.02, 'books stand on the MIDDLE board');
+    near(trinketBox.min.y, SS.ys[2] + 0.01, 0.03, 'trinkets are easter eggs on the TOP board');
+    near(PrmProps.PRM_PLACES.lamp.pos[1], SS.ys[0] + 0.01, 0.02, 'the photo lamp sits on the LOWEST board, where it reads'); }
   const locked = PrmProps.prmBuildShelf(lib, PrmProps.PRM_TRINKETS_V1.map((t, i) => Object.assign({}, t, { unlocked: i !== 2 })), GAMES, room.userData.prmShelf);
   let t2 = 0; locked.traverse(o => { if (/^trinket-/.test(o.name)) t2++; }); eq(t2, 4, 'a locked trinket leaves its slot empty');
   const S = room.userData.prmShelf; shelf.updateMatrixWorld(true); const bb = new THREE.Box3().setFromObject(shelf);
@@ -288,17 +323,24 @@ section('contracts');
   // footprints: each prop, placed, sits inside its surface's region (spec § 14 check 1)
   const place = (id) => { const g = built[id], p = PrmProps.PRM_PLACES[id]; g.position.set(...p.pos); if (p.rot) g.rotation.set(...p.rot); g.updateMatrixWorld(true); return new THREE.Box3().setFromObject(g); };
   const inside = (bb, r) => bb.min.x >= r.x[0] && bb.max.x <= r.x[1] && bb.min.z >= r.z[0] && bb.max.z <= r.z[1] && bb.min.y >= r.y[0] - 0.01;
-  const R = room.userData.prmRoom;
+  const R = room.userData.prmRoom, S = room.userData.prmShelf;
   const REGIONS = {
-    tv:        { x: [R.tableX - 1.30, R.tableX - 0.50], z: [R.benchZ - 0.30, R.benchZ + 0.30], y: [R.benchTopY, 1.5] },
-    jukebox:   { x: [R.tableX - 0.30, R.tableX + 0.30], z: [R.benchZ - 0.30, R.benchZ + 0.30], y: [R.benchTopY, 1.5] },
+    tv:        { x: [R.tableX - 0.60, R.tableX + 0.30], z: [R.benchZ - 0.30, R.benchZ + 0.30], y: [R.benchTopY, 1.5] },
+    jukebox:   { x: [R.tableX - 1.50, R.tableX - 0.60], z: [R.benchZ - 0.30, R.benchZ + 0.30], y: [R.benchTopY, 1.5] },
     dial:      { x: [R.tableX - 0.57, R.tableX + 0.57], z: [R.tableZ - 0.33, R.tableZ + 0.33], y: [R.tableTopY, 0.8] },
     binder:    { x: [R.tableX - 0.57, R.tableX + 0.57], z: [R.tableZ - 0.33, R.tableZ + 0.33], y: [R.tableTopY, 0.8] },
     phone:     { x: [R.tableX - 0.57, R.tableX + 0.57], z: [R.tableZ - 0.33, R.tableZ + 0.33], y: [R.tableTopY, 0.8] },
-    controller:{ x: [-1.05, -0.35], z: [ 0.30,  1.10], y: [R.armTopY, 1.0] },
-    lamp:      { x: [-1.95, -1.45], z: [-2.35, -1.85], y: [R.sideTableTopY, 1.0] },
+    controller:{ x: [-0.85, -0.15], z: [ 0.20,  0.70], y: [R.seatTopY, 1.0] },
+    lamp:      { x: [S.x - 0.30, S.x + 0.30], z: [R.backZ, R.backZ + 0.32], y: [S.ys[0], 1.0] },
   };
   Object.entries(REGIONS).forEach(([id, r]) => { const bb = place(id); ok(inside(bb, r), `${id} sits inside its surface region (x ${bb.min.x.toFixed(2)}..${bb.max.x.toFixed(2)}, z ${bb.min.z.toFixed(2)}..${bb.max.z.toFixed(2)}, y ${bb.min.y.toFixed(2)})`); });
+  // the telly is the focus: centred horizontally, the jukebox left of it (owner, 19 Sep 2026)
+  { const tvB = place('tv'), jbB = place('jukebox');
+    const tvMid = (tvB.min.x + tvB.max.x) / 2, jbMid = (jbB.min.x + jbB.max.x) / 2;
+    ok(Math.abs(tvMid - 0.16) < 0.18, `the telly sits on the camera view axis (mid x ${tvMid.toFixed(2)})`);
+    ok(jbMid < tvMid - 0.5, 'the jukebox sits well to the left of the telly'); }
+  { const ph = new THREE.Box3().setFromObject(built['phone']);
+    ok(Math.abs((ph.min.x + ph.max.x) / 2 - R.tableX) < 0.22, 'the phone sits near the middle of the table (the Shelves door)'); }
   // table props must not overlap each other
   const boxes = ['dial', 'binder', 'phone'].map(id => [id, new THREE.Box3().setFromObject(built[id])]);
   for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) ok(!boxes[i][1].intersectsBox(boxes[j][1]), `${boxes[i][0]} and ${boxes[j][0]} do not overlap`);

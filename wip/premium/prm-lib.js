@@ -70,6 +70,28 @@
         for (let i = 0; i < 400; i++) { x.fillStyle = r() > .5 ? '#a0a0a0' : '#606060'; x.beginPath(); x.arc(r() * 128, r() * 128, 2 + r() * 3, 0, 7); x.fill(); }
         return wrap(c, rx, ry, true);
       },
+      /* A round braided rug: concentric rope rings with a diagonal twist hatch. Drawn once on a
+         square canvas; a cylinder cap's UVs are planar, so the centre lands under the table. */
+      braid(base = '#a88a63', tone = '#94764f', size = 512, rings = 22) {
+        const c = makeCanvas(size, size), x = c.getContext('2d'), cx = size / 2, step = (size / 2) / rings;
+        x.fillStyle = base; x.fillRect(0, 0, size, size);
+        for (let i = 0; i < rings; i++) {
+          const r = (i + 0.5) * step;
+          x.strokeStyle = i % 2 ? tone : base; x.lineWidth = step * 0.9; x.beginPath(); x.arc(cx, cx, r, 0, Math.PI * 2); x.stroke();
+          x.strokeStyle = 'rgba(0,0,0,0.10)'; x.lineWidth = 1.5;
+          const n = Math.max(24, Math.round(r / 3));
+          for (let k = 0; k < n; k++) { const a = k / n * Math.PI * 2;
+            x.beginPath(); x.moveTo(cx + Math.cos(a) * (r - step * 0.4), cx + Math.sin(a) * (r - step * 0.4));
+            x.lineTo(cx + Math.cos(a + 0.06) * (r + step * 0.4), cx + Math.sin(a + 0.06) * (r + step * 0.4)); x.stroke(); }
+        }
+        return flat(c);
+      },
+      braidBump(size = 512, rings = 22) {
+        const c = makeCanvas(size, size), x = c.getContext('2d'), cx = size / 2, step = (size / 2) / rings;
+        x.fillStyle = '#808080'; x.fillRect(0, 0, size, size);
+        for (let i = 0; i < rings; i++) { x.strokeStyle = i % 2 ? '#a8a8a8' : '#585858'; x.lineWidth = step * 0.5; x.beginPath(); x.arc(cx, cx, (i + 0.5) * step, 0, Math.PI * 2); x.stroke(); }
+        const t = new THREE.CanvasTexture(c); t.encoding = THREE.LinearEncoding; return t;
+      },
       quilt(rx = 4, ry = 5) {
         const c = makeCanvas(128, 128), x = c.getContext('2d');
         x.fillStyle = '#909090'; x.fillRect(0, 0, 128, 128); x.strokeStyle = '#404040'; x.lineWidth = 5;
@@ -109,7 +131,14 @@
       wall:       std({ map: tex.wallpaper(), roughness: .95 }),
       /* Braided-jute oat (spec 2026-09-19 § 3.2): the soft oat it replaced was still a
          bright field across the bottom third. Round geometry + braid texture in step 3. */
-      rug:        std({ color: '#a88a63', bumpMap: tex.weave(), bumpScale: .004, roughness: .95 }),
+      rug:        std({ map: tex.braid(), bumpMap: tex.braidBump(), bumpScale: .006, roughness: .95 }),
+      rugEdge:    std({ color: '#8d7148', roughness: .95 }),
+      /* The sill cattails — fixed furniture colours (never a design role). A warm pot and sage
+         blades keep the plant out of the props' hue space, so the only saturated things in frame
+         are still the player's own. */
+      potCream:   std({ color: '#e8ce8e', roughness: .75 }),
+      leaf:       std({ color: '#7f9c63', roughness: .9, side: THREE.DoubleSide }),
+      cattail:    std({ color: '#a8836f', roughness: .95 }),
       /* The front plane: deliberately soft and DARK at the edge (original spec § 6) — it frames
          the shot and is the room's one genuinely shadowed mass. */
       fabric:     std({ color: '#6b5a4d', bumpMap: tex.boucle(), bumpScale: .006, roughness: 1 }),
