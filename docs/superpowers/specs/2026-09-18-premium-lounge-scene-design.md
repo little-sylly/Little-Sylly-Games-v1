@@ -37,12 +37,14 @@ the suite's existing Random Game button does, made into an object.
 
 **Whose room it is** is decided: Sylly's, and the player is visiting. The trinkets are the
 studio's, the controller is the player's and has been handed to them. Player achievements do
-not exist yet; when they do, they attach to the controller (stickers already do), not the shelf.
+not exist yet; when they do, they live in the **stickerbook** (§ 7.7 — earned stickers, which the
+Workshop then lets you put on the controller), never on the shelf.
 
 ### 1.1 Not this spec
 
 - **Scene B** (a portrait composition for phones) — designed in § 12, built in its own round.
-- **Achievements / earnable trinkets** — the shelf's slot list is the hook (§ 7.9); no feature.
+- **The stickerbook feature / achievements** — the binder's `openStickerbook()` callback is the
+  door (§ 7.7) and the shelf's slot list is a secondary hook (§ 7.9); neither feature is built.
 - **Production wiring** into `src/screens/lobby.html`, `sw.js` and the layout switcher — a
   later round, after the sandbox has been seen. This spec builds under `wip/premium/` only.
 - **Depth-of-field, bloom or any post-processing pass** — Three's example passes are not
@@ -61,6 +63,8 @@ not exist yet; when they do, they attach to the controller (stickers already do)
 | D5 | **Widescreen only for v1**, with the honest "wants a bigger screen" card below the floor. Scene B is designed now (§ 12) so the room can host it, and tracked in `docs/deferred-work.md` so it is not forgotten. | Building the portrait composition before the room has been seen once. |
 | D6 | **TV and jukebox inherit the player's controller design** — `{ shell, plate, ears, buttons }` read live from `sylly_controller` — and each has its own distinct ears. The dial and the phone take the palette too; furniture, binder and lamp stay fixed warm neutrals. | Monochrome props (rejected in the review: the controller must never render monochrome). |
 | D7 | **The dial's neon is gone.** One soft warm ring, emissive in the player's `buttons` colour at low intensity, is all that remains of the RGB under-glow. Generic cartridges with the games' die-cut stickers as labels — no Nintendo Switch branding. | The prop-sheet render as drawn. |
+| D8 | **The lamp's panels are the nine Sylly mood portraits, loaded from a manifest** (§ 7.6) so the set can be swapped later with a folder drop. Runtime-cached, zero install delta. | Canvas-drawn placeholder polaroids; a hard-coded file list. |
+| D9 | **The stickerbook is the soft-yellow quilted binder holding stickers, with a dormant door.** Prop-only in v1 (cover flips), but its `openStickerbook()` callback is in the host contract now, because it is the planned door to the stickerbook feature (collection + record + progress + achievements; earned stickers customise the controller). | Chocolate brown, discs, and "a prop, not a door" with no seam for later. |
 
 ---
 
@@ -268,21 +272,56 @@ Hover is universal — the group lifts ~3 mm over 150 ms ease-out (transform onl
 ### 7.6 Photo-carousel lamp — a trinket that spins
 
 - **Geometry.** Ported from `lampshade-hero.html`: birch base, brass posts and hoops, a
-  translucent tube with the bulb, panels around the ring. Panels carry **placeholder polaroids**
-  drawn to a canvas (pastel gradients + a pixel star), never the owner's photos and not the game
-  stickers (the stickers are the dial's job).
-- **Idle.** Slow rotation (~2 rpm); the bulb is a warm emissive with a faint point light.
+  translucent tube with the bulb, panels around the ring.
+- **Panel images — a manifest, not a code change (owner, 18 Sep 2026).** The panels carry the
+  nine illustrated **Sylly mood portraits** in `wip/premium/lamp images/` (`laughing`, `victory`,
+  `focused`, `confused`, `startled`, `bored`, `meh`, `sad`, `frustrated` — the brand character
+  with her purple controller, ~35 KB each). The lamp builder takes a **manifest**, never a file
+  list in code:
+
+  ```json
+  { "schema": 1, "rows": 1,
+    "panels": [ { "id": "laughing", "image": "laughing.jpg" }, … ] }
+  ```
+
+  Ring slots = `panels.length` (the lampshade page's 6–14 range); `rows` stacks them; fewer
+  images than slots repeat in order. Swapping the set later is a folder drop plus a manifest
+  edit — no JS, no `sw.js`, no version bump — exactly the `data/stickers/` contract. Sandbox path
+  `wip/premium/lamp images/manifest.json`; production `data/lounge/lamp/`, **runtime-cached**
+  (manifest network-first, images cache-first), never precached, so the install delta stays zero.
+  Per-image ceiling **40 KB**, already met. The brief's § 9 photo warning is moot: these are
+  brand illustrations, not the owner's photos. The stickers are still the dial's job, not the
+  lamp's.
+- **Idle.** Slow rotation (~2 rpm); the bulb is a warm emissive with a faint point light,
+  and the portraits are lit from inside — `emissive` at low intensity with the image as
+  `emissiveMap`, so the faces read even when the panel is turned away from the key.
 - **Activate.** `flick(v)`: an angular impulse in the drag direction with friction, the
   lampshade page's own drag-to-spin behaviour.
 - **Reduced motion.** Does not rotate; a tap does nothing visible.
 
-### 7.7 Stickerbook binder — a prop, not a door
+### 7.7 Stickerbook — a prop today, the door to a feature tomorrow
 
-- **Geometry.** A padded `prmMoulded` book (chocolate brown, fixed) with a canvas quilt bump
-  and an embossed star; a cover that pivots on a hinge; inside, two pages each showing a 2×5
-  grid of the 20 sticker PNGs on white sleeves.
-- **Activate.** `openCover()`: the cover lifts and flops back over 400 ms ease-out; the next
-  tap, or 6 s, closes it. Nothing navigates.
+- **Look (owner, 18 Sep 2026 — `wip/premium/stickerbook.png`).** The padded mini-disc binder's
+  *cover*, in **soft yellow** (fixed, `#F3E2A0`-ish, never the player's colour — it reads more
+  playful than the brown of the lounge renders): a `prmMoulded` book with a canvas-drawn
+  **diamond quilt** as `bumpMap`, a piped edge (a thin torus-section trim), and an embossed
+  "Little Sylly" star (a shallow extrude in a slightly darker yellow). Inside, **stickers, not
+  discs**: two pages, each a 2×5 grid of the game sticker PNGs on clear sleeves (white planes at
+  ~.85 opacity with a specular highlight).
+- **Activate — two-stage, wired by the host.** The scene calls `openStickerbook()` if the host
+  provided one; **in v1 the host passes nothing**, and the prop falls back to `openCover()` — the
+  cover lifts and flops back over 400 ms ease-out, the next tap or 6 s closes it, nothing
+  navigates. When the stickerbook feature exists the host wires the callback and the prop
+  becomes its door, with no scene change. The pick target, hover lift and keyboard tab stop are
+  built now so the door is already in the room.
+- **The vision this leaves room for (recorded, not built).** The stickerbook is planned as the
+  suite's **collection + record + progress + achievements** surface: players earn stickers by
+  playing; earned stickers are the ones the Workshop's Stickers tab lets them put on the
+  controller (the sticker manifest's `unlocked` flag is already that seam). It will get its own
+  icon among the layout modes later, so the lounge's binder is *a* door to it, not the only
+  one. Nothing about the binder's geometry or `api` should assume the book is only decorative:
+  the page grid is built from the sticker list it is given, so a future "earned vs locked"
+  rendering (greyed sleeves) is a data change.
 - **Reduced motion.** Cover state cuts.
 
 ### 7.8 Cassette deck, books, prints — fixed, non-interactive
@@ -349,9 +388,15 @@ prmMount(canvasEl, {
   openWorkshop(),                   // controller
   openSound(),                      // jukebox knob / TV volume dial
   openSwitcher(),                   // TV channel dial
+  openStickerbook,                  // binder — OPTIONAL; absent in v1 → the cover just flips
+  lampPanels,                       // the lamp manifest (§ 7.6), already fetched by the host
   music: { nowPlaying(), playFor(key), keys: [] }   // jukebox; stubbed in the sandbox
 }) → { setDesign(design), setPreset('wide' | 'portrait'), dispose() }
 ```
+
+`openStickerbook` is the one optional callback; every other one is required and the scene
+throws at mount if it is missing, so a mis-wired host fails loudly at dev time rather than with a
+dead prop on a player's screen.
 
 The scene never calls `showScreen`, never reads `localStorage`, never touches `Music` directly.
 `index.html` (sandbox) and, later, the production lobby wire these. `dispose()` cancels the RAF
@@ -449,10 +494,13 @@ the card the same way TV mode does.
 3. No builder touches `window`, `document` or `localStorage` (the shim throws on access).
 4. The dial holds exactly 20 cartridges, one per `games.js` id, each labelled with that game's
    sticker path and coloured with its `brandHex`.
-5. The interaction registry maps every pick id to exactly one action, and every action named in
-   § 9.3 is reachable from at least one prop.
+5. The interaction registry maps every pick id to exactly one action, every required callback
+   in § 9.3 is reachable from at least one prop, and the binder routes to `openStickerbook` when
+   it is supplied and to `openCover` when it is not.
 6. `spin()` is idempotent while running (a second call is a no-op) and always resolves to an id
    in the table.
+7. The lamp builder fills exactly `manifest.panels.length` slots in manifest order, repeats when
+   given fewer images than slots, and reads no path that is not in the manifest.
 
 **Headless Chromium (the `visual-check` skill's pattern):** a screenshot at 1280×720 and
 1920×1080 for the composition; a run with `prefers-reduced-motion: reduce` emulated asserting the
@@ -469,8 +517,8 @@ RAF is idle (no frame in 500 ms) once nothing animates.
   (no `MeshPhysical` clearcoat — the env map does that job more cheaply).
 - **Install delta: two JS files** (`prm-scene.js`, `prm-props.js`) plus a stylesheet, once
   promoted to production. No new precached binary. Sticker PNGs and music are
-  already runtime-cached. Any § 4 escape-hatch PNG is runtime-cached, never precached — the
-  `data/music/` split. This sits in the cost envelope's *already-paid-for* tier; a decision to
+  already runtime-cached; the nine lamp portraits (§ 7.6, ~320 KB total) and any § 4
+  escape-hatch PNG are runtime-cached the same way, never precached — the `data/music/` split. This sits in the cost envelope's *already-paid-for* tier; a decision to
   vendor a post-processing pass would not, and is out of scope (§ 1.1).
 - The scene is built lazily on first entry to the Premium layout and disposed on leaving it, so
   players who never open Premium pay nothing at runtime.
@@ -489,7 +537,8 @@ per step.
 3. **TV**: the moulded helper proves itself; attract canvas; push-in; the two dials.
 4. **Dial**: 20 cartridges from `games.js`, drift, spin, rise, hand-off to `enterTV(id)`.
 5. **Jukebox** with the `music` stub; **phone**; **binder**.
-6. **Lamp** ported from the lampshade page; **shelf** with the five trinket slots and the books.
+6. **Lamp** ported from the lampshade page, reading the portrait manifest; **shelf** with the
+   five trinket slots and the books.
 7. **Polish pass**: materials, shadow tuning, fog distance, the per-element escape-hatch calls
    (§ 4), with the real lighting on. Then the § 14 harness and screenshots.
 8. **Claude Design handoff** for the 2D chrome (§ 17).

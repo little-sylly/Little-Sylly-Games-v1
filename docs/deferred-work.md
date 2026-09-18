@@ -44,6 +44,10 @@ entry below says **"the lobby implementation round"** throughout instead.
      — a cinematic lounge *hub* (TV → TV mode, phone → Shelves, controller → Workshop, dial →
      Random Game into TV mode), fully procedural under `wip/premium/`. Greybox is its own round
      after this one; it depends on TV mode existing to hand `enterTV(gameId)` to.
+   - **Stickerbook feature (owner vision, 18 Sep 2026).** The lounge's yellow binder is the
+     planned door to a stickerbook that is collection + record + progress + achievements: play to
+     earn stickers, earned stickers go on the controller via the Workshop. Gets its own layout-mode
+     icon later. Spec § 7.7 keeps the door dormant (`openStickerbook` optional); no feature built.
    - **Scene B (Premium on phones) — DO NOT FORGET.** Owner instruction, 18 Sep 2026: widescreen
      only for v1, *but* a phone arriving at Premium needs a real path and a transition. Designed
      in the spec's § 12 (same scene graph, a second camera preset + portrait HUD, fades not

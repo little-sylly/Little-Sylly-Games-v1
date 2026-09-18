@@ -31,7 +31,8 @@ Procedural over a baked plate because the camera must move (push-ins, and a port
 second camera preset), the shelf must stay data-driven, and the room is boxes and cylinders —
 the one organic object (the controller) is already built. Install delta is code only.
 Changed: `wip/premium/` (sandbox, greybox not yet built). Deferred: Scene B (phones), the
-production wiring, achievements on the trinket shelf.
+production wiring, the stickerbook feature (collection + achievements; the lounge's yellow
+binder is its dormant door).
 Detail: `docs/superpowers/specs/2026-09-18-premium-lounge-scene-design.md`.
 
 ## 2026-09-15 — index.html decomposed into src/screens/ (Lever A resolved)
