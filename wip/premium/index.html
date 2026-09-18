@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Premium — the lounge (sandbox)</title>
+<link rel="stylesheet" href="../../css/styles.css">
+<link rel="stylesheet" href="prm-hud.css">
+</head>
+<body>
+<div id="prm-stage">
+  <canvas id="prm-canvas" tabindex="0" aria-label="Little Sylly's lounge. Tab through the room, Enter to use a thing."></canvas>
+  <div id="prm-vignette"></div>
+  <div id="prm-hud">
+    <h1 id="prm-heading">Little Sylly's Lounge</h1>
+    <div id="prm-status"></div>
+    <div id="prm-tools">
+      <button class="prm-swatch" data-design='{"shell":"#a97fd6","plate":"#9670c8","ears":"#a97fd6","buttons":"#8f66c4"}' style="background:#a97fd6" title="Factory lilac"></button>
+      <button class="prm-swatch" data-design='{"shell":"#F0A500","plate":"#5C3A21","ears":"#E9408E","buttons":"#8ECAE6"}' style="background:#F0A500" title="Honey / chocolate / pink / glacier"></button>
+      <button class="prm-swatch" data-design='{"shell":"#3A3D52","plate":"#E879A8","ears":"#FFE500","buttons":"#10B981"}' style="background:#3A3D52" title="Midnight / rose / lemon / emerald"></button>
+      <button id="prm-reset" class="prm-keycap prm-light">Reset view</button>
+      <button id="prm-portrait" class="prm-keycap prm-light">Portrait preset</button>
+    </div>
+    <div id="prm-focus"></div>
+  </div>
+  <div id="prm-fade"></div>
+</div>
+<div id="prm-card"><div>
+  <h2>The lounge wants a bigger screen.</h2>
+  <p>Cast it, or open it on a laptop — the Shelves are right here.</p>
+  <button class="prm-keycap">Open the Shelves</button>
+</div></div>
+
+<script src="../../js/lib/three.min.js"></script>
+<script src="../../js/lib/controller-body.js"></script>
+<script src="../lobby-lab/games.js"></script>
+<script src="prm-lib.js"></script>
+<script src="prm-room.js"></script>
+<script src="prm-props.js"></script>
+<script src="prm-scene.js"></script>
+<script>
+  // Mount wiring is added in Task 4. Until then the page proves the scripts load.
+  window.prmReady = false;
+</script>
+</body>
+</html>

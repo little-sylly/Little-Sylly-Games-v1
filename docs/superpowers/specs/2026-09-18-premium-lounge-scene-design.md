@@ -157,9 +157,11 @@ All under `wip/premium/`. Naming prefix **`prm`** (checked against the 20 plugin
 
 | File | Owns | Depends on |
 |---|---|---|
-| `index.html` | The sandbox page: canvas, HUD layer, the honest card, wiring of the five host callbacks (§ 9.3) to sandbox stubs | `../../js/lib/three.min.js`, `../../js/lib/controller-body.js`, `../lobby-lab/games.js` (the verified 20-game table), the two files below |
-| `prm-scene.js` | Room shell (§ 6), lights, env map, fog, camera rig + presets, picking, the render-on-demand loop, the motion contract (§ 11), design read/re-read (§ 10) | `THREE`, `ControllerBody`, `prm-props.js` |
-| `prm-props.js` | One builder per prop: `prmBuildTV(THREE, design, opts)`, `prmBuildJukebox`, `prmBuildDial(…, games)`, `prmBuildPhone`, `prmBuildBinder(…, stickers)`, `prmBuildLamp`, `prmBuildShelf(…, trinkets)`, `prmBuildCouchArm`, plus the canvas-texture functions. **Pure: takes `THREE` as an argument, touches no DOM, reads no globals, returns a `Group` with named children and an `api` for its animations** | `THREE`, `ControllerBody.smoothNormals` / `buildEars` |
+| `index.html` | The sandbox page: canvas, HUD layer, the honest card, wiring of the five host callbacks (§ 9.3) to sandbox stubs | `../../js/lib/three.min.js`, `../../js/lib/controller-body.js`, `../lobby-lab/games.js` (the verified 20-game table), the four files below |
+| `prm-lib.js` | The moulded-plastic helper (`moulded`/`extrude`/`roundedRect`), the canvas-drawn surface patterns (`tex.*`), the shared material set (`mats.*`), `role()` and `prmApplyDesign` (§ 10) | `THREE`, an injected canvas factory, `ControllerBody.smoothNormals` |
+| `prm-room.js` | The room shell (§ 6): walls, floor, rug, furniture, curtain, floor lamp, prints. Fixed neutrals; nothing in it is a pick target | `prm-lib.js` |
+| `prm-props.js` | One builder per prop: `prmBuildTV`, `prmBuildJukebox`, `prmBuildDial`, `prmBuildPhone`, `prmBuildBinder`, `prmBuildLamp`, `prmBuildShelf`, `prmBuildController`, plus the action/placement data (`PRM_ACTIONS`, `PRM_PLACES`, `PRM_TAB_ORDER`) and the attract-screen drawer. **Pure: each builder is `prmBuildX(lib, …data) → Group`, where `lib` carries `THREE`, the moulded helper, the canvas textures and the material set, injected by the scene (or by the harness)** — touches no DOM, reads no globals, returns a `Group` with named children and an `api` for its animations | `prm-lib.js`, `ControllerBody.smoothNormals` / `buildEars` |
+| `prm-scene.js` | Renderer, lights, env map, fog, camera rig + presets, picking, the render-on-demand loop, the motion contract (§ 11), the host contract (§ 9.3), design read/re-read (§ 10) | `THREE`, `ControllerBody`, `prm-lib.js`, `prm-room.js`, `prm-props.js` |
 | `prm-hud.css` | The 2D chrome: heading, keycap, switcher, the honest card, the vignette | — (handed to Claude Design, § 16) |
 | `verify-prm-props.js` | Node harness (§ 14) | `three.min.js` under Node, the same shim as `tools/verify-controller-body.js` |
 
@@ -263,7 +265,7 @@ Hover is universal — the group lifts ~3 mm over 150 ms ease-out (transform onl
 - **Geometry.** `ControllerBody.buildBody/buildControls/buildEars/buildShoulder` exactly as
   `js/controller.js` mounts them; the scene calls the same construction path with the same
   design so it is pixel-consistent with the lobby ornament and the Workshop. Stickers render
-  through the same atlas path (`ctlStampShell`) — **never monochrome**.
+  through the same atlas path (`ctlStampShell`) — **never monochrome** — in **production**. The sandbox mounts the shipped geometry with the design's four flat colours (no plate outline, no stickers), because the atlas painter lives in `js/controller.js` and is wired in the production round.
 - **Placement.** Resting on the couch arm, bottom-left, ~30% out of frame, yaw ~-20°.
 - **Idle.** None beyond the ornament's existing behaviour; it is resting, not floating.
 - **Activate.** `openWorkshop()`. On return, the scene re-reads the design (§ 10) and repaints
@@ -384,14 +386,13 @@ over the focused prop's projected bounds, 3 px `#2B1B45`.
 
 ```js
 prmMount(canvasEl, {
-  games, stickers, design,          // data in
+  games, stickers: { base, list }, design, lampPanels: { base, manifest },   // data in
   enterTV(gameId | null),           // TV screen / dial
   enterShelves(),                   // phone
   openWorkshop(),                   // controller
   openSound(),                      // jukebox knob / TV volume dial
   openSwitcher(),                   // TV channel dial
   openStickerbook,                  // binder — OPTIONAL; absent in v1 → the cover just flips
-  lampPanels,                       // the lamp manifest (§ 7.6), already fetched by the host
   music: { nowPlaying(), playFor(key), keys: [] }   // jukebox; stubbed in the sandbox
 }) → { setDesign(design), setPreset('wide' | 'portrait'), dispose() }
 ```
@@ -517,7 +518,7 @@ RAF is idle (no frame in 500 ms) once nothing animates.
 
 - Pixel ratio capped at 1.5; one 1024² shadow map; ~40 meshes; every material `MeshStandard`
   (no `MeshPhysical` clearcoat — the env map does that job more cheaply).
-- **Install delta: two JS files** (`prm-scene.js`, `prm-props.js`) plus a stylesheet, once
+- **Install delta: four JS files** (`prm-lib.js`, `prm-room.js`, `prm-props.js`, `prm-scene.js`) plus a stylesheet, once
   promoted to production. No new precached binary. Sticker PNGs and music are
   already runtime-cached; the nine lamp portraits (§ 7.6, ~320 KB total) and any § 4
   escape-hatch PNG are runtime-cached the same way, never precached — the `data/music/` split. This sits in the cost envelope's *already-paid-for* tier; a decision to
