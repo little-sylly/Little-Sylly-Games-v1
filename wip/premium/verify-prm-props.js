@@ -98,7 +98,8 @@ eq(room.name, 'room', 'room group is named');
 const roomNames = new Set(); room.traverse(o => { if (o.name) roomNames.add(o.name); });
 ['wallBack', 'wallLeft', 'skirtingBack', 'skirtingLeft', 'cornice', 'floor', 'rug', 'tableTop', 'tableLeg0', 'tableLeg3',
  'bench', 'benchDrawerL', 'benchDrawerR', 'benchKnobL', 'benchKnobR', 'deck', 'deckKey3', 'shelfBack', 'shelfSideL', 'shelfSideR',
- 'shelfBoard0', 'shelfBoard1', 'shelfBoard2', 'shelfTop', 'couchArm', 'seat', 'seatBack', 'seatReturn', 'seatReturnBack',
+ 'shelfBoard0', 'shelfBoard1', 'shelfBoard2', 'shelfTop', 'seatFront', 'seatLeft', 'seatRight',
+ 'backFront', 'backLeft', 'backRight', 'armLeft', 'armRight',
  'rugEdge', 'plant', 'window', 'curtainL', 'curtainR', 'sill', 'printA', 'printAFace', 'printB', 'printBFace']
   .forEach(n => ok(roomNames.has(n), `room has ${n}`));
 {
@@ -118,6 +119,12 @@ const roomNames = new Set(); room.traverse(o => { if (o.name) roomNames.add(o.na
     near(pb.min.y, R.sillTopY, 0.01, 'plant rests on the sill');
     ok(pb.min.x > R.leftX && pb.max.x < R.leftX + 0.35, 'plant sits on the sill, not in the wall');
     ok(pb.max.y - pb.min.y > 0.16, 'the cattails stand tall enough to read as a silhouette');
+    { const cl = new THREE.Box3().setFromObject(room.getObjectByName('curtainL'));
+      const cr = new THREE.Box3().setFromObject(room.getObjectByName('curtainR'));
+      const gz = [Math.min(cl.max.z, cr.max.z), Math.max(cl.min.z, cr.min.z)].sort((a, b) => a - b);
+      const pz = (pb.min.z + pb.max.z) / 2;
+      ok(pz > gz[0] - 0.02 && pz < gz[1] + 0.02, 'the plant stands IN the curtains\' gap, so the sun reaches it');
+      ok(pb.min.x > cl.max.x - 0.01, 'the plant stands in FRONT of the curtain, not behind it'); }
     let painted = 0; plant.traverse(o => { if (o.isMesh && o.material.userData.prmRole) painted++; });
     eq(painted, 0, 'the plant is furniture - no design role'); }
   const floor = room.getObjectByName('floor'); ok(floor.receiveShadow, 'floor receives shadow');
@@ -133,26 +140,39 @@ const roomNames = new Set(); room.traverse(o => { if (o.name) roomNames.add(o.na
   ok(S.ys[2] < 1.25, `the top board is inside the frame (ys[2] ${S.ys[2]})`);
   ok(S.ys[0] < 0.55, `the lowest board is low enough to read (ys[0] ${S.ys[0]})`);
   { const unit = new THREE.Box3().setFromObject(room.getObjectByName('shelfSideL'));
-    ok(unit.min.y < 0.05, 'the shelf unit stands on the floor'); }
+    ok(unit.min.y < 0.05, 'the shelf unit stands on the floor');
+    const bench = new THREE.Box3().setFromObject(room.getObjectByName('bench'));
+    const gap = unit.min.x - bench.max.x;
+    ok(gap > 0.15, `a visible gap between the shelf and the TV bench (${gap.toFixed(2)} m)`); }
   room.updateMatrixWorld(true);
   const bb = new THREE.Box3().setFromObject(room.getObjectByName('tableTop'));
   near(bb.max.y, R.tableTopY, 0.001, 'tableTop surface equals prmRoom.tableTopY');
-  const arm = new THREE.Box3().setFromObject(room.getObjectByName('couchArm'));
-  near(arm.max.y, R.armTopY, 0.002, 'couchArm top equals prmRoom.armTopY');
-  // the L-shaped couch (owner, 19 Sep 2026): a main run along the bottom of frame and a short
-  // return up the left, whose seat carries the controller and whose back is the frame's left border
-  const seat = new THREE.Box3().setFromObject(room.getObjectByName('seat'));
-  near(seat.max.y, R.seatTopY, 0.002, 'seat top equals prmRoom.seatTopY');
-  ok(seat.min.z > R.tableZ + 0.31 - 0.02, 'seat front does not run under the table');
-  const ret = new THREE.Box3().setFromObject(room.getObjectByName('seatReturn'));
-  near(ret.max.y, R.seatTopY, 0.002, 'the return seat is the same height as the main run');
-  ok(ret.max.x < seat.max.x && ret.min.z < seat.min.z, 'the return runs up the LEFT and reaches further back than the main run (an L)');
-  ok(ret.max.z > seat.min.z, 'the two runs meet at the corner');
-  const retBack = new THREE.Box3().setFromObject(room.getObjectByName('seatReturnBack'));
-  ok(retBack.max.x <= ret.min.x + 0.01, 'the return back sits outside its seat, on the left');
-  ok(retBack.min.y >= R.seatTopY - 0.01 && retBack.max.y > R.seatTopY + 0.3, 'the return back rises well above the seat');
-  const mainBack = new THREE.Box3().setFromObject(room.getObjectByName('seatBack'));
-  ok(mainBack.min.z > seat.max.z - 0.02, 'the main run back sits behind it (behind the camera)');
+  const arm = new THREE.Box3().setFromObject(room.getObjectByName('armLeft'));
+  near(arm.max.y, R.armTopY, 0.002, 'armLeft top equals prmRoom.armTopY');
+  /* The U-shaped couch (owner, 19 Sep 2026, second pass): three runs wrapping the table left,
+     front and right, so the wall-less right side is closed by the furniture itself. */
+  const box = (n) => new THREE.Box3().setFromObject(room.getObjectByName(n));
+  const seat = box('seatFront'), sL = box('seatLeft'), sR = box('seatRight');
+  [['seatFront', seat], ['seatLeft', sL], ['seatRight', sR]].forEach(([n, b]) =>
+    near(b.max.y, R.seatTopY, 0.002, n + ' top equals prmRoom.seatTopY'));
+  ok(seat.min.z > R.tableZ + 0.31 - 0.02, 'the front run does not slide under the table');
+  /* The bottom of frame crosses seat height at z = 0.72 from this camera, so a front run entirely
+     nearer than that is invisible however big it is — which is how the first version shipped. */
+  ok(seat.min.z < 0.68, 'the front run reaches back past the bottom of frame, so its length actually shows');
+  ok(sL.max.x < R.tableX && sR.min.x > R.tableX, 'the two arms sit either side of the table');
+  ok(sL.min.z < seat.min.z && sR.min.z < seat.min.z, 'both arms reach further back than the front run (a U, not an L)');
+  ok(sL.max.z > seat.min.z && sR.max.z > seat.min.z, 'both arms meet the front run at their corners');
+  ok(sR.min.x > R.tableX + 0.5, 'the right arm closes the wall-less side of the room');
+  // every back shares a face with its own seat — a back floating clear of the cushion reads as a slab
+  const bF = box('backFront'), bL = box('backLeft'), bR = box('backRight');
+  ok(Math.abs(bF.min.z - seat.max.z) < 0.01, 'the front back touches the front seat');
+  ok(Math.abs(bL.max.x - sL.min.x) < 0.01, 'the left back touches the left seat');
+  ok(Math.abs(bR.min.x - sR.max.x) < 0.01, 'the right back touches the right seat');
+  [['backFront', bF], ['backLeft', bL], ['backRight', bR]].forEach(([n, b]) => {
+    ok(b.min.y >= R.seatTopY - 0.01, n + ' starts at seat height');
+    ok(b.max.y > R.seatTopY + 0.3, n + ' rises well above the seat');
+  });
+  ok(box('armRight').max.y > R.seatTopY, 'the right arm caps the U\'s other open end');
   // the window is on the LEFT wall, drawn, with a slit (spec 2026-09-19 § 3.2, D4/D5)
   ok(typeof R.sillTopY === 'number', 'prmRoom.sillTopY is a number');
   ok(!roomNames.has('floorLampShade') && !roomNames.has('floorLampStem'), 'the floor lamp is gone');
@@ -161,7 +181,7 @@ const roomNames = new Set(); room.traverse(o => { if (o.name) roomNames.add(o.na
   const cl = new THREE.Box3().setFromObject(room.getObjectByName('curtainL')), cr = new THREE.Box3().setFromObject(room.getObjectByName('curtainR'));
   ok(cl.max.y - cl.min.y > 1.8 && cr.max.y - cr.min.y > 1.8, 'both curtain halves stand tall');
   const gap = Math.max(cl.min.z, cr.min.z) - Math.min(cl.max.z, cr.max.z);
-  ok(gap > 0.06 && gap < 0.14, `the two halves leave a hand-width slit (${gap.toFixed(3)} m)`);
+  ok(gap > 0.10 && gap < 0.25, `the curtains are drawn back to a hand-width gap (${gap.toFixed(3)} m)`);
   ok(cl.max.x < R.leftX + 0.3 && cr.max.x < R.leftX + 0.3, 'curtain hangs against the left wall');
   const sill = new THREE.Box3().setFromObject(room.getObjectByName('sill'));
   near(sill.max.y, R.sillTopY, 0.002, 'sill top equals prmRoom.sillTopY');
@@ -359,10 +379,15 @@ section('contracts');
     dial:      { x: [R.tableX - 0.57, R.tableX + 0.57], z: [R.tableZ - 0.33, R.tableZ + 0.33], y: [R.tableTopY, 0.8] },
     binder:    { x: [R.tableX - 0.57, R.tableX + 0.57], z: [R.tableZ - 0.33, R.tableZ + 0.33], y: [R.tableTopY, 0.8] },
     phone:     { x: [R.tableX - 0.57, R.tableX + 0.57], z: [R.tableZ - 0.33, R.tableZ + 0.33], y: [R.tableTopY, 0.8] },
-    controller:{ x: [-0.85, -0.15], z: [ 0.20,  0.70], y: [R.seatTopY, 1.0] },
+    controller:{ x: [-0.85, -0.15], z: [ 0.02,  0.60], y: [R.seatTopY, 1.0] },
     lamp:      { x: [S.x - 0.30, S.x + 0.30], z: [R.backZ, R.backZ + 0.32], y: [S.ys[0], 1.0] },
   };
   Object.entries(REGIONS).forEach(([id, r]) => { const bb = place(id); ok(inside(bb, r), `${id} sits inside its surface region (x ${bb.min.x.toFixed(2)}..${bb.max.x.toFixed(2)}, z ${bb.min.z.toFixed(2)}..${bb.max.z.toFixed(2)}, y ${bb.min.y.toFixed(2)})`); });
+  { const pa = new THREE.Box3().setFromObject(room.getObjectByName('printA'));
+    const pb2 = new THREE.Box3().setFromObject(room.getObjectByName('printB'));
+    const jbX = PrmProps.PRM_PLACES.jukebox.pos[0], tvX = PrmProps.PRM_PLACES.tv.pos[0];
+    [pa, pb2].forEach((b, i) => ok(Math.abs((b.min.x + b.max.x) / 2 - jbX) < Math.abs((b.min.x + b.max.x) / 2 - tvX),
+      'print ' + (i ? 'B' : 'A') + ' hangs over the jukebox, not the telly')); }
   // the telly is the focus: centred horizontally, the jukebox left of it (owner, 19 Sep 2026)
   { const tvB = place('tv'), jbB = place('jukebox');
     const tvMid = (tvB.min.x + tvB.max.x) / 2, jbMid = (jbB.min.x + jbB.max.x) / 2;

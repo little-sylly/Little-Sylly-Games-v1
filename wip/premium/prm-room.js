@@ -30,8 +30,8 @@
     add('floor', new THREE.PlaneGeometry(9, 9), mats.floor, [0.5, 0, 0.5], FLAT);
 
     // rug — round braided jute under the table; receives every table prop's contact shadow
-    add('rug', new THREE.CylinderGeometry(1.05, 1.05, 0.012, 48), mats.rug, [R.tableX, 0.006, R.tableZ]);
-    add('rugEdge', new THREE.TorusGeometry(1.05, 0.012, 8, 64), mats.rugEdge, [R.tableX, 0.008, R.tableZ], FLAT);
+    add('rug', new THREE.CylinderGeometry(0.88, 0.88, 0.012, 48), mats.rug, [R.tableX, 0.006, R.tableZ]);
+    add('rugEdge', new THREE.TorusGeometry(0.88, 0.012, 8, 64), mats.rugEdge, [R.tableX, 0.008, R.tableZ], FLAT);
 
     // coffee table (top surface = tableTopY), right of centre so it is not stacked under the telly
     add('tableTop', moulded(1.1, 0.62, 0.04, 0.05), mats.birch, [R.tableX, R.tableTopY - 0.02, R.tableZ], FLAT, { cast: true });
@@ -54,49 +54,82 @@
        out of shot — every board has to live below that. The photo-carousel lamp takes the lowest
        board (owner, 19 Sep 2026) where it is nearest the eye and a real tap target; books sit above
        it and the trinket easter eggs top out the unit. */
-    const S = { x: 1.25, w: 0.80, d: 0.22, ys: [0.42, 0.80, 1.18], side: 0.02, h: 1.35 }; S.z = R.backZ + S.d / 2;
+    /* x sits clear of the bench's right edge (0.80) by a visible gap, not a hairline. */
+    const S = { x: 1.52, w: 0.80, d: 0.22, ys: [0.42, 0.80, 1.18], side: 0.02, h: 1.35 }; S.z = R.backZ + S.d / 2;
     add('shelfBack', new THREE.BoxGeometry(S.w, S.h, 0.01), mats.birchDark, [S.x, S.h / 2, R.backZ + 0.005]);
     add('shelfSideL', new THREE.BoxGeometry(S.side, S.h, S.d), mats.birch, [S.x - S.w / 2, S.h / 2, S.z], null, { cast: true });
     add('shelfSideR', new THREE.BoxGeometry(S.side, S.h, S.d), mats.birch, [S.x + S.w / 2, S.h / 2, S.z], null, { cast: true });
     S.ys.forEach((y, i) => add('shelfBoard' + i, new THREE.BoxGeometry(S.w, 0.02, S.d), mats.birch, [S.x, y, S.z], null, { cast: true }));
     add('shelfTop', new THREE.BoxGeometry(S.w + 0.04, 0.025, S.d + 0.02), mats.birch, [S.x, S.h, S.z], null, { cast: true });
 
-    /* The L-shaped couch we are sitting on (owner, 19 Sep 2026). The MAIN run lies along the bottom
-       of frame — we sit on it, so its back is behind the camera and never seen. The RETURN runs up
-       the left; its seat carries the controller and its raised back is the frame's left border,
-       which is what pushes the controller in off the edge rather than leaving it stranded. */
-    const SEAT_H = 0.47, BACK_H = 0.41;
-    add('seat', moulded(1.5, SEAT_H, 0.95, 0.09), mats.fabric, [0.15, R.seatTopY - SEAT_H / 2, 1.30], null, { cast: true });
-    add('seatBack', moulded(1.5, BACK_H, 0.16, 0.06), mats.fabric, [0.15, R.seatTopY + BACK_H / 2, 1.87], null, { cast: true });
-    add('seatReturn', moulded(0.44, SEAT_H, 0.95, 0.09), mats.fabric, [-0.52, R.seatTopY - SEAT_H / 2, 0.62], null, { cast: true });
-    add('seatReturnBack', moulded(0.13, BACK_H, 0.95, 0.06), mats.fabric, [-0.805, R.seatTopY + BACK_H / 2, 0.62], null, { cast: true });
-    // the L's outer arm, capping the return's far end
-    add('couchArm', moulded(0.44, 0.58, 0.20, 0.09), mats.fabric, [-0.52, R.armTopY - 0.29, 0.06], null, { cast: true });
+    /* The U-shaped couch (owner, 19 Sep 2026, second pass). Three runs wrapping the coffee table
+       on the left, the front and the right. The right run is the point of the U: that side of the
+       room has no wall, no door and nothing else to stop the eye, so the couch closes the space
+       itself and the scene reads as somewhere enclosed rather than a set that runs out.
+
+       Two measured constraints decide the numbers, not taste:
+       - The bottom of frame crosses seat height at z = 0.72, so the FRONT run must reach back past
+         that or its whole length sits below the shot — which is what happened the first time.
+       - Every back panel shares a face with its seat. A back floating a centimetre clear of the
+         cushion reads as a detached slab, which is exactly how the first version looked. */
+    const SEAT_H = 0.47, BACK_H = 0.41, BACK_T = 0.13;
+    /* frontZ1 sits BEHIND the camera (z 1.50), so the front back-rest is what we are leaning on
+       rather than a pale wall across the bottom of the shot — which is what it was at 1.35. The
+       arms are wide enough to leave the table its air; a tighter U swallowed the rug whole. */
+    const U = { frontZ0: 0.55, frontZ1: 1.50, armZ0: -0.30, armZ1: 0.60, leftX: -0.95, rightX: 1.55, innerL: -0.42, innerR: 1.10 };
+    const seatY = R.seatTopY - SEAT_H / 2, backY = R.seatTopY + BACK_H / 2;
+    const span = (a, b) => b - a, mid = (a, b) => (a + b) / 2;
+
+    add('seatFront', moulded(span(U.leftX, U.rightX) + 0.05, SEAT_H, span(U.frontZ0, U.frontZ1), 0.09), mats.fabric,
+        [mid(U.leftX, U.rightX), seatY, mid(U.frontZ0, U.frontZ1)], null, { cast: true });
+    add('seatLeft', moulded(span(U.leftX, U.innerL), SEAT_H, span(U.armZ0, U.armZ1), 0.09), mats.fabric,
+        [mid(U.leftX, U.innerL), seatY, mid(U.armZ0, U.armZ1)], null, { cast: true });
+    add('seatRight', moulded(span(U.innerR, U.rightX), SEAT_H, span(U.armZ0, U.armZ1), 0.09), mats.fabric,
+        [mid(U.innerR, U.rightX), seatY, mid(U.armZ0, U.armZ1)], null, { cast: true });
+    // backs — each shares a face with its own seat, so the U reads as one piece of furniture
+    add('backFront', moulded(span(U.leftX, U.rightX) + 0.05, BACK_H, BACK_T, 0.06), mats.fabric,
+        [mid(U.leftX, U.rightX), backY, U.frontZ1 + BACK_T / 2], null, { cast: true });
+    add('backLeft', moulded(BACK_T, BACK_H, span(U.armZ0, U.frontZ1), 0.06), mats.fabric,
+        [U.leftX - BACK_T / 2, backY, mid(U.armZ0, U.frontZ1)], null, { cast: true });
+    add('backRight', moulded(BACK_T, BACK_H, span(U.armZ0, U.frontZ1), 0.06), mats.fabric,
+        [U.rightX + BACK_T / 2, backY, mid(U.armZ0, U.frontZ1)], null, { cast: true });
+    // arms capping the U's two open ends, facing the telly
+    add('armLeft', moulded(span(U.leftX, U.innerL), 0.58, 0.18, 0.09), mats.fabric,
+        [mid(U.leftX, U.innerL), R.armTopY - 0.29, U.armZ0 - 0.09], null, { cast: true });
+    add('armRight', moulded(span(U.innerR, U.rightX), 0.58, 0.18, 0.09), mats.fabric,
+        [mid(U.innerR, U.rightX), R.armTopY - 0.29, U.armZ0 - 0.09], null, { cast: true });
 
     // window on the LEFT wall — the visible source of the key. Centre sits toward the back so the
     // whole opening is in frame from the couch. Sill = a birch ledge the plant sits on (step 3).
-    const WZ = -1.05, WY = 1.25, WW = 0.72, WH = 1.1;
+    const WZ = -1.05, WY = 1.25, WW = 0.72, WH = 1.1;   // the slit sits toward the FAR end, and the plant sits in it
     add('window', new THREE.PlaneGeometry(WW, WH), mats.window, [R.leftX + 0.005, WY, WZ], [0, Math.PI / 2, 0]);
     /* The sill protrudes PAST the curtain line into the room, so the plant stands in front of the
        drapes and reads as a silhouette against them. Sitting it flush with the wall put the curtain
        in front of the plant and the whole left-side flair simply never appeared in frame. */
-    add('sill', new THREE.BoxGeometry(0.34, 0.03, 0.82), mats.birch, [R.leftX + 0.17, R.sillTopY - 0.015, WZ], null, { cast: true });
+    add('sill', new THREE.BoxGeometry(0.28, 0.03, 0.82), mats.birch, [R.leftX + 0.14, R.sillTopY - 0.015, WZ], null, { cast: true });
     /* Drawn, in two halves, a 0.10 m slit at about 40 % of the width (spec D5). The halves do NOT
        cast: the sun light passes through the curtain as a real drawn curtain glows and diffuses —
        the slit's bright stripe is its own narrow light in prm-scene.js, not a shadow cut-out. */
-    const CUR_W = 0.88, GAP = 0.10, halfW = (CUR_W - GAP) / 2, gapAt = WZ - CUR_W / 2 + CUR_W * 0.40;
-    add('curtainL', prmCurtainGeometry(lib, halfW, 2.2, 4), mats.curtain, [R.leftX + 0.12, 1.15, gapAt - GAP / 2 - halfW / 2], [0, Math.PI / 2, 0], { cast: false });
-    add('curtainR', prmCurtainGeometry(lib, halfW, 2.2, 4), mats.curtain, [R.leftX + 0.12, 1.15, gapAt + GAP / 2 + halfW / 2], [0, Math.PI / 2, 0], { cast: false });
+    /* Drawn back to a hand-width gap at 25% of the run, with the cattails standing in it. The two
+       halves are sized ASYMMETRICALLY around that gap: giving both the same width (CUR_W - GAP)/2
+       pushed the short half straight through the back wall, because an off-centre gap does not
+       split a run evenly. The curtain hugs the wall so the plant clears it and catches the sun. */
+    const CUR_W = 0.80, GAP = 0.17, CUR_X = R.leftX + 0.07;
+    const curZ0 = WZ - CUR_W / 2, curZ1 = WZ + CUR_W / 2, gapAt = curZ0 + CUR_W * 0.25;
+    const curL = [curZ0, gapAt - GAP / 2], curR = [gapAt + GAP / 2, curZ1];
+    add('curtainL', prmCurtainGeometry(lib, curL[1] - curL[0], 2.2, 2), mats.curtain, [CUR_X, 1.15, (curL[0] + curL[1]) / 2], [0, Math.PI / 2, 0], { cast: false });
+    add('curtainR', prmCurtainGeometry(lib, curR[1] - curR[0], 2.2, 4), mats.curtain, [CUR_X, 1.15, (curR[0] + curR[1]) / 2], [0, Math.PI / 2, 0], { cast: false });
 
     // the cattails on the sill (owner, 19 Sep 2026) — furniture: no pick id, no design role
-    const plant = prmBuildPlant(lib); plant.position.set(R.leftX + 0.25, R.sillTopY, WZ - 0.20); g.add(plant);
+    // standing IN the curtains' gap, so the sun actually reaches it
+    const plant = prmBuildPlant(lib); plant.position.set(R.leftX + 0.20, R.sillTopY, gapAt); g.add(plant);
 
     // two prints on the shelf wall
     const print = (id, x, y, seed) => {
       add('print' + id, new THREE.BoxGeometry(0.22, 0.28, 0.02), mats.birchDark, [x, y, R.backZ + 0.01]);
       add('print' + id + 'Face', new THREE.PlaneGeometry(0.18, 0.24), new THREE.MeshStandardMaterial({ map: tex.abstract(seed), roughness: .9 }), [x, y, R.backZ + 0.021]);
     };
-    print('A', 0.30, 1.15, 1); print('B', 0.66, 1.05, 5);
+    print('A', -0.88, 1.18, 1); print('B', -0.52, 1.06, 5);   // above the jukebox: over the telly they cluttered it
 
     g.userData.prmRoom = R; g.userData.prmShelf = S;
     return g;

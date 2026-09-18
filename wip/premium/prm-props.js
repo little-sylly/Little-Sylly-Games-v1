@@ -36,8 +36,8 @@
     dial:          { pos: [ 0.62, 0.44,  0.02] },
     binder:        { pos: [ 0.03, 0.44, -0.08], rot: [0, 0.18, 0] },
     phone:         { pos: [ 0.33, 0.44,  0.26], rot: [0, -0.35, 0] },  // front-centre: the Shelves door, and Scene B's hero
-    controller:    { pos: [-0.50, 0.47,  0.42], rot: [0, -0.30, 0] },  // on the couch return's seat, not on an arm
-    lamp:          { pos: [ 1.25, 0.43, -1.44] },                      // the shelf's LOWEST board
+    controller:    { pos: [-0.68, 0.47,  0.22], rot: [0, -0.30, 0] },  // on the U's left run, not on an arm
+    lamp:          { pos: [ 1.52, 0.43, -1.44] },                      // the shelf's LOWEST board
     shelfContents: { pos: [0, 0, 0] },
   };
   /* Builders register here, one per task: id → (ctx, shared) => Group. */

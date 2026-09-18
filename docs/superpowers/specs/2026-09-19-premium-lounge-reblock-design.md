@@ -74,6 +74,18 @@ Called after the step-1 and step-2 shots. These override the sections named besi
 | D18 | The **phone moves to the middle of the table** — the Shelves door and Scene B's hero both want it there | § 6 |
 | D19 | The sill plant is **cattails** (owner's mock-up), in warm/sage fixed colours rather than the mock-up's lavender, so it does not compete with the player's props | § 4 |
 
+| D20 | The couch becomes a **U**, wrapping the table left, front and right. The right run is the point: that side has no wall, no door and nothing else to stop the eye, so the furniture closes the space and the scene reads as somewhere enclosed | D16 |
+| D21 | **Narrower sill, curtains drawn further back**, cattails standing **in the gap** so the sun reaches them | § 4 |
+| D22 | The two **prints move above the jukebox** — over the telly they cluttered it | § 4 |
+| D23 | A **visible gap** between the bookshelf and the TV bench | § 4 |
+
+**Three measured constraints the U round turned up.** The bottom of frame crosses seat height at
+**z = 0.72**, so a front run entirely nearer than that is invisible however large it is. The front
+**back-rest must sit behind the camera** (z > 1.50) or it is a pale wall across the bottom of the
+shot rather than the thing we are leaning on. And an **off-centre curtain gap does not split the run
+evenly** — sizing both halves at  pushed the short half straight through the back
+wall.
+
 **A measured constraint that forced D17 further than asked.** The frame's top edge crosses the back
 wall at only **~1.37 m** from this camera. A wall-mounted shelf at chest height — and even the
 boards this spec originally planned at 1.42 — sit outside the shot entirely. The shipped unit stands
