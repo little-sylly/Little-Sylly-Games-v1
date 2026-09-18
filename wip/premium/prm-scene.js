@@ -9,7 +9,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 (function () {
   const PRM_PRESETS = {
-    wide:     { pos: [0.15, 1.30, 3.40], look: [0.10, 0.50, -1.55], fov: 40 },
+    wide:     { pos: [-0.20, 1.30, 3.40], look: [-0.05, 0.50, -1.55], fov: 40 },
     portrait: { pos: [0.00, 1.55, 1.75], look: [0.00, 0.45,  0.25], fov: 52 },
   };
   const PRM_REQUIRED = ['games', 'stickers', 'design', 'lampPanels', 'music', 'enterTV', 'enterShelves', 'openWorkshop', 'openSound', 'openSwitcher'];

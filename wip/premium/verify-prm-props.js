@@ -155,6 +155,21 @@ const PrmScene = require(path.join(ROOT, 'wip/premium/prm-scene.js'));
   ok(PrmScene.PRM_PRESETS.wide && PrmScene.PRM_PRESETS.portrait, 'both camera presets exist');
 }
 
+section('controller');
+{
+  const built = PrmProps.prmBuildAll(global.__prmCtx);
+  ok(built.controller, 'controller builds');
+  eq(built.controller.userData.prmId, 'controller', 'controller group is the pick node');
+  const roles = new Set(); built.controller.traverse(o => { if (o.isMesh && o.material.userData.prmRole) roles.add(o.material.userData.prmRole); });
+  ['shell', 'ears', 'buttons'].forEach(r => ok(roles.has(r), `controller carries a ${r} material`));
+  const shellM = built.controller.getObjectByName('body').material;
+  eq(shellM.color.getHexString(), '111111', 'shell takes design.shell');
+  built.controller.updateMatrixWorld(true);
+  const bb = new THREE.Box3().setFromObject(built.controller); const s = new THREE.Vector3(); bb.getSize(s);
+  ok(s.x > 0.12 && s.x < 0.22, `controller is hand-sized in metres (x ${s.x.toFixed(3)})`);
+  near(bb.min.y, 0, 0.02, 'controller rests on its group origin (base at y≈0)');
+}
+
 // Later tasks append their sections above this line.
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

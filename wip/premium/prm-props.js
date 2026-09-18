@@ -106,6 +106,33 @@
 
   // ── builders are appended below by Tasks 5–9 ──────────────────────────────
 
+  /* The player's controller: the shipped geometry, mounted with the design's
+     flat colours. Stickers and the plate outline come with the production
+     round (the atlas painter lives in js/controller.js). Never monochrome. */
+  function prmBuildController(lib, design, CB) {
+    const { THREE } = lib; const g = new THREE.Group(); prmTag(g, 'controller');
+    const geo = CB.buildBody(THREE, {});
+    const body = new THREE.Mesh(geo, lib.role('shell', design.shell)); body.name = 'body'; body.castShadow = body.receiveShadow = true;
+    const inner = new THREE.Group(); inner.name = 'rig'; inner.add(body);
+    CB.buildEars(THREE, lib.role('ears', design.ears)).forEach(m => inner.add(m));
+    const controls = CB.buildControls(THREE, geo); inner.add(controls.group);
+    controls.group.traverse(o => {
+      if (!o.isMesh || !o.material) return; o.castShadow = true;
+      const pd = o.parent && o.parent.name === 'D-pad';
+      if (o.name === 'L button' || o.name === 'R button' || o.name === 'D-pad' || pd || / stick$/.test(o.name) || / well$/.test(o.name)) {
+        o.material = o.material.clone(); o.material.userData.prmRole = 'buttons'; o.material.color.set(design.buttons);
+      }
+    });
+    /* Body units are ~4.6 wide; 0.036 makes it ~16.5 cm. Face up, leaning toward the camera. */
+    inner.scale.setScalar(0.036); inner.rotation.x = -Math.PI / 2 + 0.28;
+    inner.updateMatrixWorld(true);
+    const bb = new THREE.Box3().setFromObject(inner); inner.position.y = -bb.min.y;   // rest the lowest point on the group origin
+    g.add(inner);
+    g.userData.api = { tick() { return false; } };
+    return g;
+  }
+  PRM_BUILDERS.controller = (ctx) => prmBuildController(ctx.lib, ctx.design, ctx.ControllerBody);
+
   const api = { PRM_ACTIONS, PRM_TAB_ORDER, PRM_PLACES, PRM_BUILDERS, PRM_ATTRACT_LINES, prmBuildAll, prmMotion, prmEaseOutCubic, prmEaseOutBack, prmMesh, prmTag, prmAttract };
   if (typeof window !== 'undefined') window.PrmProps = api;
   if (typeof module !== 'undefined') module.exports = api;
