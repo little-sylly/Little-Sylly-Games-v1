@@ -53,6 +53,15 @@ entry below says **"the lobby implementation round"** throughout instead.
      `shots/wide-1920.png` that a painted plate would have cost an asset and a runtime-cache
      entry for nothing. The one colour call I made rather than inherited is the rug
      (`#f1ebe1` → `#ddd0bb`), flagged as review question 6.
+   - **Owner review ANSWERED, re-block SPECCED (19 Sep 2026).** Verdict: reads as a diorama
+     but not a cosy one — the room is ~3× too deep, the camera ~2.7 m from the table, and
+     nothing in frame is in shadow. Re-block spec:
+     `docs/superpowers/specs/2026-09-19-premium-lounge-reblock-design.md` (overrides the
+     original's §§ 3, 6, 7.1, 7.2, 7.6): compress the box, sit on the couch, window-as-key on
+     the left (floor lamp dropped, plant on the sill, drawn curtain with a slit), Saturday-
+     afternoon exposure, droopy-ear TV, cat-jar jukebox, round jute rug, photo lamp to the
+     shelves, table off-centre. **Plan not yet written. Production wiring waits behind the
+     re-block** — the ninety-second test is the gate, not the harness.
    - **The env map is a finding for the shipped controller, not just the lounge** — see the
      Controller Workshop entries below and `shared-implementation-notes.md` DD-14.
    - **Stickerbook feature (owner vision, 18 Sep 2026).** The lounge's yellow binder is the

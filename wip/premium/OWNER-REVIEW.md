@@ -1,6 +1,6 @@
 # Premium Lounge — Owner Review
 
-**19 Sep 2026. The greybox is built and screenshot-verified; nothing here is shipped.** The
+**19 Sep 2026. The greybox is built and screenshot-verified; nothing here is shipped.** **ANSWERED same day** — plus layout notes (compress the room, sit on the couch, window as key on the left with a plant on the sill, photo lamp to the shelves, table off-centre right, Saturday-afternoon mood). Outcome: `docs/superpowers/specs/2026-09-19-premium-lounge-reblock-design.md`; production wiring deferred behind it. The
 lounge lives entirely in `wip/premium/` — no `index.html`, no `sw.js`, no `js/` file was
 touched. Every question below is a judgement I could not make for you. Answer inline under
 each; I have put my own leaning in *italics* so a "yes, that" is a complete answer.
@@ -38,7 +38,7 @@ the bench are the main thing selling "small objects on a real surface".
 *My leaning: yes, but it is one notch brighter and one notch less contrasty than the renders.
 That is deliberate — it is a menu you will look at every session, not a hero image.*
 
-**Answer:**
+**Answer (owner, 19 Sep 2026):** Reads as a diorama but lacks its warmth. Colours not quite right; the Gemini warm-room injection is much closer. Root cause agreed as scale + light (room ~3x too deep, camera ~2.7 m from the table, no dark corner). -> re-block, `docs/superpowers/specs/2026-09-19-premium-lounge-reblock-design.md`.
 
 ---
 
@@ -59,7 +59,7 @@ could not carry them (spec D2). My calls, all "keep procedural":
 *My leaning: keep all four. A plate costs an asset, a fetch and a runtime-cache entry, and none
 of the four looked like it was fighting the geometry.*
 
-**Answer:**
+**Answer (owner, 19 Sep 2026):** Keep the four. The problem is not these elements.
 
 ---
 
@@ -77,7 +77,7 @@ Too slow to notice? Fast enough to be annoying in peripheral vision on a menu yo
 right for a menu, but this is exactly the kind of thing that is different in a dark room at
 night.*
 
-**Answer:**
+**Answer (owner, 19 Sep 2026):** On point. Keep.
 
 ---
 
@@ -94,7 +94,7 @@ Is that enough difference, or do they read as the same object twice on one shelf
 *My leaning: enough. The silhouettes differ more than the ears do — a wide CRT against a
 narrow arched cabinet.*
 
-**Answer:**
+**Answer (owner, 19 Sep 2026):** Not good for either. New shapes: cat-jar jukebox (Gemini "Lavender Cat"), droopy bunny ears on the TV (Gemini "Bunny Beats"). Re-block spec § 5.1 / § 5.2.
 
 ---
 
@@ -112,7 +112,7 @@ object entirely, a label on the table, a tooltip on hover)?
 *My leaning: the word carries it, and I would not add chrome to the room to explain a prop.
 If it does not carry it, the honest fix is a different object, not a caption.*
 
-**Answer:**
+**Answer (owner, 19 Sep 2026):** Colour matching the controller/TV/jukebox is enough to make it read as a door. Keep the clamshell (Gemini "Legacy Clamshell"); no label chrome.
 
 ---
 
@@ -130,7 +130,7 @@ be my taste rather than yours.
 *My leaning: keep the separation, but the exact tone is yours — a dusty sage or a pale terracotta
 would both work and would put one more colour in a very beige room.*
 
-**Answer:**
+**Answer (owner, 19 Sep 2026):** Too light. Darker, round, thick-threaded braided jute like the Gemini render. Re-block spec § 5.3.
 
 ---
 
