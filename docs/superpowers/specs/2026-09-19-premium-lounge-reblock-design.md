@@ -1,6 +1,7 @@
 # Design — Premium lounge: the re-block (greybox round 2)
 
-**Date:** 19 Sep 2026 · **Status:** approved by the owner in conversation, plan not yet written ·
+**Date:** 19 Sep 2026 · **Status:** BUILT (`wip/premium/`), owner review round 2 pending —
+`wip/premium/OWNER-REVIEW-2.md`. Plan: `docs/superpowers/plans/2026-09-19-premium-lounge-reblock.md` ·
 **Tier:** 2 (architectural — it restructures the stage, the light and three props)
 **Amends:** `docs/superpowers/specs/2026-09-18-premium-lounge-scene-design.md`. Where this
 document and that one disagree, **this one wins**. It overrides §§ 3.1, 3.2, 6, 7.1, 7.2, 7.6 and
@@ -58,6 +59,31 @@ nothing to pool against.
 | D12 | Phone stays the **clamshell** | "legacy clamshell or swift slider" — clamshell chosen: already built, era-correct beside the deck |
 | D13 | Rug: **round, braided jute, darker oat** | "darker, circular, thick-threaded, ropey" |
 | D14 | Colours match the controller/TV/jukebox — no label chrome for the phone | "as long as the colors match … intuitive as a door" |
+
+---
+
+## 2b. Amendments from the owner's mid-build layout round (19 Sep 2026)
+
+Called after the step-1 and step-2 shots. These override the sections named beside them.
+
+| # | Change | Overrides |
+|---|---|---|
+| D15 | The **telly swaps with the jukebox** and sits on the camera's view axis — the focus of the room is the focus of the frame. The jukebox goes left, balancing the window and the sill plant | § 6's plane table |
+| D16 | The couch becomes an **L with backrests**: a main run along the bottom of frame, a return up the left whose **seat carries the controller**. No controller-on-an-arm | § 3.1's seat slab |
+| D17 | The bookshelf becomes a **low floor-standing unit** with the **photo lamp on its LOWEST board**, books above, trinket easter eggs on top | § 4, § 5.4 |
+| D18 | The **phone moves to the middle of the table** — the Shelves door and Scene B's hero both want it there | § 6 |
+| D19 | The sill plant is **cattails** (owner's mock-up), in warm/sage fixed colours rather than the mock-up's lavender, so it does not compete with the player's props | § 4 |
+
+**A measured constraint that forced D17 further than asked.** The frame's top edge crosses the back
+wall at only **~1.37 m** from this camera. A wall-mounted shelf at chest height — and even the
+boards this spec originally planned at 1.42 — sit outside the shot entirely. The shipped unit stands
+on the floor with boards at 0.42 / 0.80 / 1.18.
+
+**Two tuning departures from § 3.2's palette table, both kept:** the couch fabric went to `#6b5a4d`
+(darker than planned) because it was reading as a cream slab across the bottom of frame, and it is
+now the shot's foreground frame and the source of most of its contrast; and the rug's colour moved
+in step 2 rather than step 3, because it was the brightest field in frame and was hiding whether the
+lighting had worked at all.
 
 ---
 

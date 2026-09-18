@@ -53,6 +53,14 @@ entry below says **"the lobby implementation round"** throughout instead.
      `shots/wide-1920.png` that a painted plate would have cost an asset and a runtime-cache
      entry for nothing. The one colour call I made rather than inherited is the rug
      (`#f1ebe1` → `#ddd0bb`), flagged as review question 6.
+   - **Re-block BUILT (19 Sep 2026)** — steps 1–6 shipped in `wip/premium/`, sandbox only.
+     **365** checks in `node wip/premium/verify-prm-props.js` and **18** in `visual-prm.js`, all
+     green. Mean frame luma 124 (band 60–150), brightest/darkest patch 2.5x (floor 2.2x). The gate
+     is now `wip/premium/OWNER-REVIEW-2.md` — one question, does it pass the ninety-second test.
+     **Production wiring still waits behind it.** Two things flagged there rather than resolved:
+     **Scene B's framing no longer matches its spec** (at 9:16 the frame spans ~0.7 m and the
+     controller now sits on the couch, so "controller is the hero" cannot hold both it and the game
+     props), and three judgement calls on the plant, the couch colour and the cattail palette.
    - **Owner review ANSWERED, re-block SPECCED (19 Sep 2026).** Verdict: reads as a diorama
      but not a cosy one — the room is ~3× too deep, the camera ~2.7 m from the table, and
      nothing in frame is in shadow. Re-block spec:

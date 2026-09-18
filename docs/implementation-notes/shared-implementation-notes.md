@@ -21,6 +21,46 @@ place.
 
 ## Design Decisions
 
+**DD-15 — judge a greybox's first shots against the reference at matched camera distance, and
+measure the two claims a screenshot lets you fool yourself about (19 Sep 2026, `wip/premium/`
+re-block).** The Premium lounge greybox passed 297 checks and 12 visual checks and still failed
+its own question: a toy diorama, but not a cosy one.
+
+*What happened.* The owner's verdict was "too spacious, props small and insignificant, too light".
+Every instinct said to polish the props. The answer was in the room's numbers: an 8 m wall with the
+camera 2.7 m from the table, and no dark corner anywhere in frame. Compressing the room to a corner
+and seating the camera on the couch changed the read completely — before a single prop was touched.
+
+*Root cause.* A greybox is judged by eye against a reference, and the eye is very bad at absolute
+scale in isolation. Both images look like rooms. What differs is measurable and was never measured:
+camera-to-subject distance, subject-to-background distance, and the ratio between the brightest and
+darkest parts of the frame. Pulling the camera in alone leaves the background tiny; compressing the
+room alone leaves everything small. The two only work together, which is exactly the kind of
+coupled change that eyeballing one screenshot at a time will not find.
+
+*The second half is worse, because it is invisible.* "Warmer" and "darker" felt done after each of
+three separate attempts. Measuring the real render buffer showed the first attempt moved the mean
+brightness from 178 to 169 and the contrast ratio from 1.66 to 1.61 — i.e. the contrast got slightly
+*worse* while looking better. The flattener was the ambient environment map, which lights every
+surface equally and therefore cannot produce a shadow; no amount of adjusting the key would have
+fixed it. (Note the tension with DD-14: an env map is what makes plastic read as plastic **and**
+what erases a room's contrast. Both are true; it needs a level, not an on/off.)
+
+*Lesson.* Before polishing anything in a 3D scene: measure camera-to-subject and
+subject-to-background against the reference, and add a numeric contract for any claim about light —
+mean frame brightness in a band, and a floor on the brightest-to-darkest patch ratio, read off the
+GL buffer rather than judged from a PNG. `window.prmDebug.lumaGrid()` in `wip/premium/prm-scene.js`
+is ~12 lines and is the check that ended three rounds of guessing. A second, smaller instance of the
+same lesson in the same round: the frame's top edge crossed the back wall at only 1.37 m, so a
+planned shelf position sat outside the shot — a two-line frustum calculation would have caught it
+before the geometry was written.
+
+*Also found, and unrelated to the above.* Moving the camera put a prop under the visual harness's
+first pointer position, and that revealed the hover **out** tween was never guarded by reduced
+motion — only the hover-in lift was. Under `prefers-reduced-motion` the drop back still travelled.
+It had been shipping since the greybox and no check could see it, because no check had ever hovered
+anything. A motion contract needs asserting on both edges of a transition, not just the entry.
+
 **DD-14 — matte plastic needs an environment map, not more lights; the shipped controller has
 none (19 Sep 2026, `wip/premium/` greybox).** Building the Premium lounge's props in the
 controller's own material language made a long-standing look problem legible for the first time.

@@ -18,6 +18,19 @@ Changed: Files/systems touched. Deferred/superseded: anything left open.
 Detail: pointer to the canonical doc (snapshot / impl note / spec / memory).
 ```
 
+## 2026-09-19 — Premium lounge re-blocked: the window is the light, the room is a corner
+Category: Architecture
+Decision: The greybox's composition and lighting are replaced wholesale — room compressed to a
+corner, camera seated on an L-shaped couch, the left-wall window (drawn curtain, one slit) as the
+single shadow-casting key, the floor lamp deleted, and three props reshaped.
+Why: The greybox answered its own question honestly — a toy diorama, but not a cosy one. It was
+~3x too deep, the camera 2.7 m from the table, and nothing in frame was in shadow.
+Changed: `wip/premium/prm-{lib,room,props,scene}.js`, `prm-hud.css`, both harnesses. Sandbox only:
+no `index.html`, `sw.js`, `src/screens/` or `js/`, no SW bump. Deferred: production wiring, behind
+owner review round 2; Scene B's framing, which no longer matches its own spec.
+Detail: `docs/superpowers/specs/2026-09-19-premium-lounge-reblock-design.md`,
+`wip/premium/OWNER-REVIEW-2.md`, `shared-implementation-notes.md` DD-15.
+
 ## 2026-09-18 — Premium is a cinematic lounge hub, built fully procedural
 Category: Strategy · Architecture
 Decision: The Premium lobby layout is a real-time 3D lounge (you're a guest at Little Sylly's on
