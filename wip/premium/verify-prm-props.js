@@ -163,14 +163,23 @@ const roomNames = new Set(); room.traverse(o => { if (o.name) roomNames.add(o.na
   ok(sL.min.z < seat.min.z && sR.min.z < seat.min.z, 'both arms reach further back than the front run (a U, not an L)');
   ok(sL.max.z > seat.min.z && sR.max.z > seat.min.z, 'both arms meet the front run at their corners');
   ok(sR.min.x > R.tableX + 0.5, 'the right arm closes the wall-less side of the room');
-  // every back shares a face with its own seat — a back floating clear of the cushion reads as a slab
+  /* Every back must OVERLAP its seat, not merely meet it on a plane. Two moulded boxes sharing an
+     exact face still read as separate objects, because each one's rounded edge curves away from the
+     shared line and leaves a groove with the floor visible through it. Asserting intersection rather
+     than adjacency is the whole lesson. */
   const bF = box('backFront'), bL = box('backLeft'), bR = box('backRight');
-  ok(Math.abs(bF.min.z - seat.max.z) < 0.01, 'the front back touches the front seat');
-  ok(Math.abs(bL.max.x - sL.min.x) < 0.01, 'the left back touches the left seat');
-  ok(Math.abs(bR.min.x - sR.max.x) < 0.01, 'the right back touches the right seat');
-  [['backFront', bF], ['backLeft', bL], ['backRight', bR]].forEach(([n, b]) => {
-    ok(b.min.y >= R.seatTopY - 0.01, n + ' starts at seat height');
+  const overlap = (a, b, axis) => Math.min(a.max[axis], b.max[axis]) - Math.max(a.min[axis], b.min[axis]);
+  ok(bF.intersectsBox(seat) && overlap(bF, seat, 'z') > 0.03, `the front back bites into the front seat (${overlap(bF, seat, 'z').toFixed(3)} m)`);
+  ok(bL.intersectsBox(sL) && overlap(bL, sL, 'x') > 0.03, `the left back bites into the left seat (${overlap(bL, sL, 'x').toFixed(3)} m)`);
+  ok(bR.intersectsBox(sR) && overlap(bR, sR, 'x') > 0.03, `the right back bites into the right seat (${overlap(bR, sR, 'x').toFixed(3)} m)`);
+  [['backFront', bF, seat], ['backLeft', bL, sL], ['backRight', bR, sR]].forEach(([n, b, st]) => {
+    ok(b.min.y < R.seatTopY - 0.05, n + ' drops below the seat top, the way a real back panel does');
     ok(b.max.y > R.seatTopY + 0.3, n + ' rises well above the seat');
+    ok(overlap(b, st, 'y') > 0.05, n + ' and its seat share real height, not a single line');
+  });
+  [['armLeft', sL], ['armRight', sR]].forEach(([n, st]) => {
+    const a = box(n);
+    ok(a.intersectsBox(st) && overlap(a, st, 'z') > 0.03, n + ' bites into its seat too');
   });
   ok(box('armRight').max.y > R.seatTopY, 'the right arm caps the U\'s other open end');
   // the window is on the LEFT wall, drawn, with a slit (spec 2026-09-19 § 3.2, D4/D5)

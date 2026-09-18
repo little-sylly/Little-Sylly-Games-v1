@@ -40,7 +40,7 @@ and I re-tune that alone rather than everything)_
 
 **Round 3 nudges, all in:** the couch is now a **U** wrapping the table left, front and right, so
 the wall-less right side is closed by the furniture itself; every back panel shares a face with its
-seat (they were detached slabs before); the sill is narrower with the curtains drawn further back
+seat and drops below its top (they were detached slabs before); the sill is narrower with the curtains drawn further back
 and the cattails standing in the gap where the sun reaches them; the two prints moved above the
 jukebox; and the bookshelf has a visible gap from the TV bench.
 
@@ -50,7 +50,7 @@ jukebox; and the bookshelf has a visible gap from the TV bench.
 
 | Check | Result |
 |---|---|
-| `node wip/premium/verify-prm-props.js` | **384 passed, 0 failed** |
+| `node wip/premium/verify-prm-props.js` | **389 passed, 0 failed** |
 | `NODE_PATH="$HOME/.claude-tooling/playwright/node_modules" node wip/premium/visual-prm.js` | **18 passed, 0 failed** |
 | Mean frame brightness | 126 (the "darker, not dark" band is 60–150; round 1 was 178) |
 | Brightest patch ÷ darkest | 2.3× (round 1 was 1.66; the floor is 2.2×) |

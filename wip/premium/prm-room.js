@@ -70,14 +70,21 @@
        Two measured constraints decide the numbers, not taste:
        - The bottom of frame crosses seat height at z = 0.72, so the FRONT run must reach back past
          that or its whole length sits below the shot — which is what happened the first time.
-       - Every back panel shares a face with its seat. A back floating a centimetre clear of the
-         cushion reads as a detached slab, which is exactly how the first version looked. */
-    const SEAT_H = 0.47, BACK_H = 0.41, BACK_T = 0.13;
+       - Every back panel must OVERLAP its seat, not merely touch it. Boxes that meet on an exact
+         plane still read as two objects: both pieces are moulded with rounded edges, so at the
+         shared line each one curves away and leaves a groove with the floor showing through it.
+         The backs therefore reach 6 cm into the seat horizontally and drop 20 cm below its top,
+         the way a real couch's back panel continues down behind the cushion. */
+    const SEAT_H = 0.47, BACK_H = 0.41, BACK_T = 0.13, BACK_BITE = 0.06, BACK_DROP = 0.20;
     /* frontZ1 sits BEHIND the camera (z 1.50), so the front back-rest is what we are leaning on
        rather than a pale wall across the bottom of the shot — which is what it was at 1.35. The
        arms are wide enough to leave the table its air; a tighter U swallowed the rug whole. */
     const U = { frontZ0: 0.55, frontZ1: 1.50, armZ0: -0.30, armZ1: 0.60, leftX: -0.95, rightX: 1.55, innerL: -0.42, innerR: 1.10 };
-    const seatY = R.seatTopY - SEAT_H / 2, backY = R.seatTopY + BACK_H / 2;
+    const seatY = R.seatTopY - SEAT_H / 2;
+    // the back's own box: thickness + the bite it takes out of the seat, dropped below the seat top
+    const backT = BACK_T + BACK_BITE, backH = BACK_H + BACK_DROP;
+    const backY = R.seatTopY + BACK_H / 2 - BACK_DROP / 2;
+    const backOff = BACK_T / 2 - BACK_BITE / 2;   // centre offset from the seat's outer face
     const span = (a, b) => b - a, mid = (a, b) => (a + b) / 2;
 
     add('seatFront', moulded(span(U.leftX, U.rightX) + 0.05, SEAT_H, span(U.frontZ0, U.frontZ1), 0.09), mats.fabric,
@@ -87,17 +94,18 @@
     add('seatRight', moulded(span(U.innerR, U.rightX), SEAT_H, span(U.armZ0, U.armZ1), 0.09), mats.fabric,
         [mid(U.innerR, U.rightX), seatY, mid(U.armZ0, U.armZ1)], null, { cast: true });
     // backs — each shares a face with its own seat, so the U reads as one piece of furniture
-    add('backFront', moulded(span(U.leftX, U.rightX) + 0.05, BACK_H, BACK_T, 0.06), mats.fabric,
-        [mid(U.leftX, U.rightX), backY, U.frontZ1 + BACK_T / 2], null, { cast: true });
-    add('backLeft', moulded(BACK_T, BACK_H, span(U.armZ0, U.frontZ1), 0.06), mats.fabric,
-        [U.leftX - BACK_T / 2, backY, mid(U.armZ0, U.frontZ1)], null, { cast: true });
-    add('backRight', moulded(BACK_T, BACK_H, span(U.armZ0, U.frontZ1), 0.06), mats.fabric,
-        [U.rightX + BACK_T / 2, backY, mid(U.armZ0, U.frontZ1)], null, { cast: true });
-    // arms capping the U's two open ends, facing the telly
-    add('armLeft', moulded(span(U.leftX, U.innerL), 0.58, 0.18, 0.09), mats.fabric,
-        [mid(U.leftX, U.innerL), R.armTopY - 0.29, U.armZ0 - 0.09], null, { cast: true });
-    add('armRight', moulded(span(U.innerR, U.rightX), 0.58, 0.18, 0.09), mats.fabric,
-        [mid(U.innerR, U.rightX), R.armTopY - 0.29, U.armZ0 - 0.09], null, { cast: true });
+    add('backFront', moulded(span(U.leftX, U.rightX) + 0.05, backH, backT, 0.06), mats.fabric,
+        [mid(U.leftX, U.rightX), backY, U.frontZ1 + backOff], null, { cast: true });
+    add('backLeft', moulded(backT, backH, span(U.armZ0, U.frontZ1), 0.06), mats.fabric,
+        [U.leftX - backOff, backY, mid(U.armZ0, U.frontZ1)], null, { cast: true });
+    add('backRight', moulded(backT, backH, span(U.armZ0, U.frontZ1), 0.06), mats.fabric,
+        [U.rightX + backOff, backY, mid(U.armZ0, U.frontZ1)], null, { cast: true });
+    // arms capping the U's two open ends, facing the telly — they bite into the seat for the same reason
+    const ARM_D = 0.18 + BACK_BITE;
+    add('armLeft', moulded(span(U.leftX, U.innerL), 0.58, ARM_D, 0.09), mats.fabric,
+        [mid(U.leftX, U.innerL), R.armTopY - 0.29, U.armZ0 - 0.09 + BACK_BITE / 2], null, { cast: true });
+    add('armRight', moulded(span(U.innerR, U.rightX), 0.58, ARM_D, 0.09), mats.fabric,
+        [mid(U.innerR, U.rightX), R.armTopY - 0.29, U.armZ0 - 0.09 + BACK_BITE / 2], null, { cast: true });
 
     // window on the LEFT wall — the visible source of the key. Centre sits toward the back so the
     // whole opening is in frame from the couch. Sill = a birch ledge the plant sits on (step 3).
