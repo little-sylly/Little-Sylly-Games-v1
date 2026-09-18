@@ -59,9 +59,16 @@ ok(lib.THREE === THREE, 'lib carries the injected THREE');
   const t = lib.tex[k](); ok(t && t.isTexture && t.wrapS === THREE.RepeatWrapping, `tex.${k} returns a repeating texture`);
 });
 ['braid', 'braidBump'].forEach(k => ok(lib.tex[k]().isTexture, `tex.${k} returns a texture`));
+{
+  const e = lib.droopEar([[0, 0, 0], [0, 0.14, 0], [0, 0.24, 0.03], [0, 0.27, 0.10], [0, 0.22, 0.17]], 0.055, 0.55);
+  ok(e.outer && e.outer.isBufferGeometry && e.inner && e.inner.isBufferGeometry, 'droopEar returns outer + inner geometries');
+  e.outer.computeBoundingBox(); const sz = new THREE.Vector3(); e.outer.boundingBox.getSize(sz);
+  ok(sz.x < sz.z * 0.8, `droopEar is flattened in x (x ${sz.x.toFixed(3)} vs z ${sz.z.toFixed(3)})`);
+  ok(e.tip.y < e.outer.boundingBox.max.y - 0.03, 'the tip hangs below the ear crown (it droops)');
+}
 ok(lib.tex.label('Hello').isTexture, 'tex.label returns a texture');
 ok(lib.tex.abstract(3).isTexture, 'tex.abstract returns a texture');
-['birch', 'birchDark', 'floor', 'wall', 'rug', 'rugEdge', 'fabric', 'cream', 'skirting', 'plum', 'black', 'chrome', 'brass', 'curtain', 'window', 'yellow', 'yellowDark', 'paper', 'sleeve', 'potCream', 'leaf', 'cattail']
+['birch', 'birchDark', 'floor', 'wall', 'rug', 'rugEdge', 'fabric', 'cream', 'skirting', 'plum', 'black', 'chrome', 'brass', 'curtain', 'window', 'yellow', 'yellowDark', 'paper', 'sleeve', 'potCream', 'leaf', 'cattail', 'glass']
   .forEach(k => ok(lib.mats[k] && lib.mats[k].isMaterial, `mats.${k} exists`));
 ok(lib.mats.emissive('#ff0000', 2).emissiveIntensity === 2, 'mats.emissive takes an intensity');
 {
@@ -226,7 +233,15 @@ section('tv');
   const ids = {}; tv.traverse(o => { if (o.userData.prmId) ids[o.userData.prmId] = o; });
   ['tv-screen', 'tv-channel', 'tv-volume'].forEach(id => ok(ids[id], `tv has pick node ${id}`));
   ok(ids['tv-screen'].isMesh && ids['tv-screen'].geometry.type === 'SphereGeometry', 'the screen is a sphere section (curved glass)');
-  ok(tv.getObjectByName('earL') && tv.getObjectByName('earR'), 'tv has two ears');
+  const eL = tv.getObjectByName('earL'), eR = tv.getObjectByName('earR'); ok(eL && eR, 'tv has two ears');
+  ok(eL.getObjectByName('inner') && eL.getObjectByName('inner').material.userData.prmRole === 'plate', 'ear inner takes the plate role');
+  ok(eL.getObjectByName('tip') && eL.getObjectByName('tip').material === eL.material, 'ear tip shares the ear material');
+  tv.updateMatrixWorld(true);
+  { const tipW = new THREE.Vector3(); eL.getObjectByName('tip').getWorldPosition(tipW);
+    const earBox = new THREE.Box3().setFromObject(eL), bodyBox = new THREE.Box3().setFromObject(tv.getObjectByName('body'));
+    ok(tipW.y < earBox.max.y - 0.03, 'the ear droops: its tip is below its crown');
+    ok(tipW.z > bodyBox.max.z - 0.12, 'the ear folds forward toward the viewer');
+    ok(earBox.min.x < bodyBox.min.x + 0.02, 'the left ear leans outward past the cabinet'); }
   const roles = {}; tv.traverse(o => { if (o.isMesh && o.material.userData.prmRole) roles[o.material.userData.prmRole] = (roles[o.material.userData.prmRole] || 0) + 1; });
   ['shell', 'plate', 'ears', 'buttons'].forEach(r => ok(roles[r] > 0, `tv carries ${r}`));
   eq(tv.getObjectByName('earL').material.color.getHexString(), '333333', 'ears take design.ears');
@@ -259,8 +274,22 @@ section('jukebox-phone-binder');
   ok(built.jukebox && built.phone && built.binder, 'jukebox, phone and binder build');
   const ids = {}; built.jukebox.traverse(o => { if (o.userData.prmId) ids[o.userData.prmId] = o; });
   ok(ids['jukebox-knob'] && ids['jukebox-record'], 'jukebox has knob + record pick nodes');
-  ok(built.jukebox.getObjectByName('earL') && built.jukebox.getObjectByName('earR'), 'jukebox has ears');
-  ok(built.jukebox.getObjectByName('earL').scale.y < built.jukebox.getObjectByName('earL').scale.x, 'jukebox ears are shorter and rounder than tall (distinct from the TV)');
+  // the cat jar (owner, 19 Sep 2026 — the "Lavender Cat" reference): a see-through body with the
+  // records standing inside, a dome lid with triangular cat ears. Same pick ids as the cabinet it replaced.
+  const jar = built.jukebox.getObjectByName('jar');
+  ok(jar && jar.material.transparent && jar.material.opacity > 0.2 && jar.material.opacity < 0.5, 'jar is a see-through cylinder');
+  ok(jar.geometry.type === 'CylinderGeometry' && !jar.castShadow, 'jar is a cylinder that casts no shadow');
+  ok(built.jukebox.getObjectByName('lid') && built.jukebox.getObjectByName('lid').material.userData.prmRole === 'shell', 'lid takes the shell role');
+  const jEL = built.jukebox.getObjectByName('earL'), jER = built.jukebox.getObjectByName('earR');
+  ok(jEL && jER, 'cat jar has two ears');
+  ok(jEL.geometry.type === 'ConeGeometry' && jEL.material.userData.prmRole === 'ears', 'cat ears are cones in the ears role');
+  ok(jEL.getObjectByName('inner') && jEL.getObjectByName('inner').material.userData.prmRole === 'plate', 'cat ear inner takes the plate role');
+  ok(built.jukebox.getObjectByName('recordBack'), 'a second record stands behind the first');
+  built.jukebox.updateMatrixWorld(true);
+  { const jarBox = new THREE.Box3().setFromObject(jar), recBox = new THREE.Box3().setFromObject(ids['jukebox-record']);
+    ok(jarBox.containsBox(recBox), 'the front record is inside the jar'); }
+  ok(built.jukebox.getObjectByName('eyeL').material.userData.prmRole === 'buttons', 'eyes take the buttons role');
+  { let btns = 0; built.jukebox.traverse(o => { if (/^button\d$/.test(o.name)) btns++; }); eq(btns, 4, 'four candy buttons on the base'); }
   const jb = built.jukebox.userData.api; jb.setLabel('Hello'); jb.setPlaying(true);
   const q0 = ids['jukebox-record'].quaternion.clone(); ok(jb.tick(100, 0.1, false) === true, 'record turns while playing');
   ok(!ids['jukebox-record'].quaternion.equals(q0), 'record orientation changed'); ok(jb.tick(200, 0.1, true) === false, 'record still under reduced motion');

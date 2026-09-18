@@ -44,7 +44,7 @@
   const PRM_BUILDERS = {};
 
   function prmBuildAll(ctx) {
-    const shared = { earGeometry: ctx.ControllerBody ? ctx.ControllerBody.buildEars(ctx.lib.THREE, ctx.lib.mats.cream)[0].geometry : null };
+    const shared = {};   // the TV and the jukebox now build their own ears; nothing is shared
     const out = {};
     Object.keys(PRM_BUILDERS).forEach(id => { const g = PRM_BUILDERS[id](ctx, shared); g.name = id; out[id] = g; });
     return out;
@@ -169,17 +169,29 @@
       g.add(d); g.add(prmMesh(THREE, rimGeo, mats.chrome, id + '-rim', [0.22, cy + dy, D / 2 + 0.035]));
     });
     for (let i = 0; i < 6; i++) g.add(prmMesh(THREE, new THREE.BoxGeometry(0.09, 0.006, 0.006), mats.plum, 'grille' + i, [0.22, cy - 0.12 - i * 0.014, D / 2 + 0.022], null, false));
-    if (opts.earGeometry) [-1, 1].forEach(side => {
-      const e = new THREE.Mesh(opts.earGeometry, ears); e.name = side < 0 ? 'earL' : 'earR';
-      e.scale.setScalar(0.24); e.position.set(side * 0.2, cy + H / 2 + 0.06, -0.04); e.rotation.set(-0.12, 0, -side * 0.1);
-      e.castShadow = e.receiveShadow = true; g.add(e);
+    /* Droopy bunny ears (owner, 19 Sep 2026 — the "Bunny Beats" reference): each ear rises from
+       the cabinet top, leans outward, then folds forward and down past the front top edge. The
+       tip is a flattened sphere cap in the ear colour. */
+    /* The fold has to bring the tip visibly DOWN, not just forward: a fold that travels mostly along
+       +z is foreshortened to nothing from the couch and the ear reads as a straight antenna. This
+       curve rises, arcs over the front edge and hangs the tip low, in front of the screen top. */
+    const EAR_R = 0.062, EAR_PTS = [[0, 0, 0], [0, 0.12, 0.0], [0.01, 0.22, 0.04], [0.03, 0.25, 0.12], [0.05, 0.16, 0.21], [0.06, 0.06, 0.24]];
+    [-1, 1].forEach(side => {
+      const ear = lib.droopEar(EAR_PTS, EAR_R, 0.55);
+      const e = new THREE.Mesh(ear.outer, ears); e.name = side < 0 ? 'earL' : 'earR';
+      e.castShadow = e.receiveShadow = true;
+      e.position.set(side * 0.165, cy + H / 2 - 0.01, -0.06); e.rotation.set(0, 0, -side * 0.34); e.scale.x = side < 0 ? -1 : 1;
+      const inner = new THREE.Mesh(ear.inner, plate); inner.name = 'inner'; inner.receiveShadow = true; e.add(inner);
+      const tipGeo = new THREE.SphereGeometry(EAR_R, 14, 10); tipGeo.scale(0.55, 1, 1);
+      const tip = new THREE.Mesh(tipGeo, ears); tip.name = 'tip'; tip.position.copy(ear.tip); tip.castShadow = true; e.add(tip);
+      g.add(e);
     });
     [[-0.24, -0.15], [0.24, -0.15], [-0.24, 0.12], [0.24, 0.12]].forEach(([x, z], i) =>
       g.add(prmMesh(THREE, new THREE.CylinderGeometry(0.02, 0.022, FEET, 16), shell, 'foot' + i, [x, FEET / 2, z])));
     g.userData.api = { screen, tick() { return false; } };
     return g;
   }
-  PRM_BUILDERS.tv = (ctx, shared) => prmBuildTV(ctx.lib, ctx.design, { earGeometry: shared.earGeometry, attractTexture: ctx.attractTexture });
+  PRM_BUILDERS.tv = (ctx) => prmBuildTV(ctx.lib, ctx.design, { attractTexture: ctx.attractTexture });
 
   /* Pure: the rotation a spin ends on. Cartridge i sits at angle i·slot on the
      ring; spinner rotation θ = -k·slot brings k to the front. Always at least
@@ -268,45 +280,66 @@
     s.closePath(); return s;
   }
 
-  /* The jukebox: an arched cabinet (shell), inset panel (plate), grille, two
-     knobs + four candy caps (buttons), a record with a label, a brass antenna
-     with a lit bead, and ears that are shorter, rounder and angled out. */
-  function prmBuildJukebox(lib, design, opts = {}) {
-    const { THREE, mats } = lib; const g = new THREE.Group(); const W = 0.30, H = 0.44, D = 0.24, cy = H / 2;
+  /* The cat jar (owner, 19 Sep 2026 — the "Lavender Cat" reference). A see-through cylinder with
+     two records standing inside it, on a base ring carrying the knob and four candy buttons; a
+     dome lid with a rim, two triangular cat ears and two lit eyes. Replaces the arched cabinet
+     wholesale but keeps every pick id and the same api, so the scene's wiring is untouched.
+     shell → lid + base · plate → record labels + inner ears · ears → cat ears · buttons → knob,
+     buttons, eyes. */
+  function prmBuildJukebox(lib, design) {
+    const { THREE, mats } = lib; const g = new THREE.Group();
     const shell = lib.role('shell', design.shell), plate = lib.role('plate', design.plate);
     const ears = lib.role('ears', design.ears), buttons = lib.role('buttons', design.buttons, { roughness: .34 });
-    const arch = (w, h) => { const s = new THREE.Shape(), r = w / 2; s.moveTo(-r, -h / 2); s.lineTo(r, -h / 2); s.lineTo(r, h / 2 - r); s.absarc(0, h / 2 - r, r, 0, Math.PI, false); s.lineTo(-r, -h / 2); return s; };
-    /* lib.extrude is the raw one: bevelSize pushes the outline OUTWARD, so the
-       shape is inset by the bevel to make the finished cabinet exactly W x H.
-       Un-inset it sank 2 cm of itself into the bench it stands on. */
-    const CAB_BEV = 0.02, PAN_BEV = 0.005;
-    g.add(prmMesh(THREE, lib.extrude(arch(W - 2 * CAB_BEV, H - 2 * CAB_BEV), D, CAB_BEV), shell, 'cabinet', [0, cy, 0]));
-    g.add(prmMesh(THREE, lib.extrude(arch(W - 0.05 - 2 * PAN_BEV, H - 0.05 - 2 * PAN_BEV), 0.02, PAN_BEV), plate, 'panel', [0, cy, D / 2 + 0.005]));
-    for (let i = 0; i < 6; i++) g.add(prmMesh(THREE, new THREE.BoxGeometry(0.12, 0.005, 0.006), mats.plum, 'grille' + i, [0, cy + 0.12 - i * 0.012, D / 2 + 0.02], null, false));
-    const knobGeo = new THREE.CylinderGeometry(0.018, 0.02, 0.02, 24);
-    const knob = prmMesh(THREE, knobGeo, buttons, 'jukebox-knob', [-0.09, cy + 0.02, D / 2 + 0.025], [Math.PI / 2, 0, 0]); prmTag(knob, 'jukebox-knob'); g.add(knob);
-    g.add(prmMesh(THREE, knobGeo, buttons, 'knobR', [0.09, cy + 0.02, D / 2 + 0.025], [Math.PI / 2, 0, 0]));
-    const capGeo = new THREE.CylinderGeometry(0.011, 0.012, 0.008, 20);
-    [[0, 0.045], [0, 0.005], [-0.02, 0.025], [0.02, 0.025]].forEach(([x, y], i) => g.add(prmMesh(THREE, capGeo, buttons, 'cap' + i, [x, cy + y, D / 2 + 0.02], [Math.PI / 2, 0, 0])));
-    const record = prmMesh(THREE, new THREE.CylinderGeometry(0.085, 0.085, 0.005, 48), mats.black, 'jukebox-record', [0, cy - 0.11, D / 2 + 0.02], [Math.PI / 2, 0, 0]); prmTag(record, 'jukebox-record'); g.add(record);
+    const eyes = lib.role('buttons', design.buttons, { emissive: design.buttons, emissiveIntensity: .6, roughness: .3 });
+    eyes.userData.prmEmissive = true;
+    const JR = 0.11, JH = 0.16, BASE_H = 0.035, LID_R = 0.118;
+    const jarBottom = BASE_H, jarTop = BASE_H + JH, recY = jarBottom + JH / 2;
+
+    g.add(prmMesh(THREE, new THREE.CylinderGeometry(LID_R, LID_R + 0.005, BASE_H, 32), shell, 'base', [0, BASE_H / 2, 0]));
+    /* Open-ended so we see the records through both walls; no shadow, or the jar casts a solid
+       black drum on the bench and stops reading as glass at all. */
+    g.add(prmMesh(THREE, new THREE.CylinderGeometry(JR, JR, JH, 48, 1, true), mats.glass, 'jar', [0, jarBottom + JH / 2, 0], null, false));
+
+    const recGeo = new THREE.CylinderGeometry(0.072, 0.072, 0.005, 48);
+    const record = prmMesh(THREE, recGeo, mats.black, 'jukebox-record', [0, recY, 0.025], [Math.PI / 2, 0, 0]);
+    prmTag(record, 'jukebox-record'); g.add(record);
     const labelMat = new THREE.MeshStandardMaterial({ map: lib.tex.label('', '#2B1B45', '#ffffff', 256, 256), roughness: .6 });
-    const label = prmMesh(THREE, new THREE.CircleGeometry(0.032, 32), labelMat, 'recordLabel', [0, cy - 0.11, D / 2 + 0.0231], null, false); g.add(label);
-    g.add(prmMesh(THREE, new THREE.CylinderGeometry(0.003, 0.003, 0.06, 8), mats.brass, 'antenna', [0, H + 0.03, -0.02], null, false));
-    g.add(prmMesh(THREE, new THREE.SphereGeometry(0.008, 12, 10), mats.emissive('#ffd27a', 1.5), 'bead', [0, H + 0.065, -0.02], null, false));
-    if (opts.earGeometry) [-1, 1].forEach(side => {
-      const e = new THREE.Mesh(opts.earGeometry, ears); e.name = side < 0 ? 'earL' : 'earR';
-      e.scale.set(0.17, 0.14, 0.17); e.position.set(side * 0.11, H + 0.02, -0.03); e.rotation.set(-0.1, 0, -side * 0.45);
-      e.castShadow = e.receiveShadow = true; g.add(e);
+    const label = prmMesh(THREE, new THREE.CircleGeometry(0.028, 32), labelMat, 'recordLabel', [0, recY, 0.0281], null, false);
+    g.add(label);
+    const back = prmMesh(THREE, recGeo, mats.black, 'recordBack', [0.012, recY, -0.03], [Math.PI / 2, 0.18, 0]);
+    back.add(prmMesh(THREE, new THREE.CircleGeometry(0.028, 32), plate, 'recordBackLabel', [0, 0.0031, 0], [-Math.PI / 2, 0, 0], false));
+    g.add(back);
+
+    // the control strip on the base's front
+    const knob = prmMesh(THREE, new THREE.CylinderGeometry(0.014, 0.016, 0.018, 24), buttons, 'jukebox-knob', [-0.06, BASE_H / 2, LID_R + 0.008], [Math.PI / 2, 0, 0]);
+    prmTag(knob, 'jukebox-knob'); g.add(knob);
+    const capGeo = new THREE.CylinderGeometry(0.008, 0.009, 0.008, 20);
+    [-0.02, 0.0, 0.02, 0.04].forEach((x, i) => g.add(prmMesh(THREE, capGeo, buttons, 'button' + i, [x + 0.01, BASE_H / 2, LID_R + 0.003], [Math.PI / 2, 0, 0])));
+
+    // the lid: a dome, a rim, two cat ears with paler inners, two lit eyes
+    g.add(prmMesh(THREE, new THREE.SphereGeometry(LID_R, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2), shell, 'lid', [0, jarTop, 0]));
+    g.add(prmMesh(THREE, new THREE.TorusGeometry(LID_R, 0.009, 10, 48), shell, 'lidRim', [0, jarTop, 0], [Math.PI / 2, 0, 0]));
+    const earGeo = new THREE.ConeGeometry(0.036, 0.075, 4); earGeo.scale(1, 1, 0.55); earGeo.rotateY(Math.PI / 4);
+    const innerGeo = new THREE.ConeGeometry(0.02, 0.045, 4); innerGeo.scale(1, 1, 0.55); innerGeo.rotateY(Math.PI / 4);
+    [-1, 1].forEach(side => {
+      /* On TOP of the dome, not inside it: the dome's own radius is 0.118, so an ear parked near
+         jarTop simply vanishes into the lid. */
+      const e = prmMesh(THREE, earGeo, ears, side < 0 ? 'earL' : 'earR', [side * 0.072, jarTop + 0.125, -0.005], [0, 0, -side * 0.30]);
+      e.add(prmMesh(THREE, innerGeo, plate, 'inner', [0, -0.008, 0.014], null, false));
+      g.add(e);
     });
+    [-1, 1].forEach(side => g.add(prmMesh(THREE, new THREE.SphereGeometry(0.009, 12, 10), eyes, side < 0 ? 'eyeL' : 'eyeR', [side * 0.038, jarTop + 0.050, 0.102], null, false)));
+
     let playing = false;
     g.userData.api = {
       setLabel(text) { const old = labelMat.map; labelMat.map = lib.tex.label(text, '#2B1B45', '#ffffff', 256, 256); labelMat.needsUpdate = true; if (old) old.dispose(); },
       setPlaying(b) { playing = !!b; },
-      tick(now, dt, reduced) { if (!playing || reduced) return false; const d = dt * 3.49; record.rotateY(d); label.rotation.z += d; return true; },   // 33 rpm
+      // 33 rpm, now seen through the glass
+      tick(now, dt, reduced) { if (!playing || reduced) return false; const d = dt * 3.49; record.rotateY(d); label.rotation.z += d; return true; },
     };
     return g;
   }
-  PRM_BUILDERS.jukebox = (ctx, shared) => prmBuildJukebox(ctx.lib, ctx.design, { earGeometry: shared.earGeometry });
+  PRM_BUILDERS.jukebox = (ctx) => prmBuildJukebox(ctx.lib, ctx.design);
 
   /* The flip phone: lower half with the keypad flat on the table, upper half
      hinged open ~110° with its screen facing the camera. Body = shell, screen

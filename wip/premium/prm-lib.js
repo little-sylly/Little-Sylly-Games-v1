@@ -155,6 +155,9 @@
       yellowDark: std({ color: '#d9c27a', roughness: .55 }),
       paper:      std({ color: '#ffffff', roughness: .8 }),
       sleeve:     std({ color: '#ffffff', roughness: .15, transparent: true, opacity: .85 }),
+      /* The cat jar's body. Plain opacity, never MeshPhysical transmission — the cost envelope
+         rules that out and at this size opacity reads as glass anyway. */
+      glass:      std({ color: '#dfeef5', roughness: .15, metalness: 0, transparent: true, opacity: .32, side: THREE.DoubleSide, depthWrite: false }),
       emissive(hex, intensity = 1) { return std({ color: hex, emissive: hex, emissiveIntensity: intensity, roughness: .5 }); },
     };
   }
@@ -174,6 +177,18 @@
         return prmExtrude(THREE, shape, d, bevel, opt, smoothNormals);
       },
       extrude: (shape, d, bevel, opt = {}) => prmExtrude(THREE, shape, d, bevel, opt, smoothNormals),
+      /* A droopy ear: a tube swept along a bent curve (rise, lean, fold forward and down),
+         flattened in x so it reads as a lobe and not a sausage; an inner tube along the same
+         curve pushed forward so the fold shows a paler inside. Local frame: root at the origin,
+         +y up, +z toward the viewer. The caller rotates the mesh about z to lean it outward.
+         A lathe cannot bend, which is why this is a tube and not a profile. */
+      droopEar(points, r, flatten = 0.55) {
+        const curve = new THREE.CatmullRomCurve3(points.map(p => new THREE.Vector3(p[0], p[1], p[2])));
+        const outer = new THREE.TubeGeometry(curve, 28, r, 12, false); outer.scale(flatten, 1, 1);
+        const inner = new THREE.TubeGeometry(curve, 28, r * 0.5, 10, false); inner.scale(flatten * 0.8, 1, 1); inner.translate(0, 0, r * 0.62);
+        const last = points[points.length - 1];
+        return { outer, inner, tip: new THREE.Vector3(last[0], last[1], last[2]) };
+      },
       role(role, hex, extra = {}) {
         const m = new THREE.MeshStandardMaterial(Object.assign({ color: hex, roughness: .52, metalness: .06 }, extra));
         m.userData.prmRole = role; return m;
