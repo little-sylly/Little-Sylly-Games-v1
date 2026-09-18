@@ -203,6 +203,31 @@ section('tv');
   }
 }
 
+section('jukebox-phone-binder');
+{
+  const built = PrmProps.prmBuildAll(global.__prmCtx);
+  ok(built.jukebox && built.phone && built.binder, 'jukebox, phone and binder build');
+  const ids = {}; built.jukebox.traverse(o => { if (o.userData.prmId) ids[o.userData.prmId] = o; });
+  ok(ids['jukebox-knob'] && ids['jukebox-record'], 'jukebox has knob + record pick nodes');
+  ok(built.jukebox.getObjectByName('earL') && built.jukebox.getObjectByName('earR'), 'jukebox has ears');
+  ok(built.jukebox.getObjectByName('earL').scale.y < built.jukebox.getObjectByName('earL').scale.x, 'jukebox ears are shorter and rounder than tall (distinct from the TV)');
+  const jb = built.jukebox.userData.api; jb.setLabel('Hello'); jb.setPlaying(true);
+  const q0 = ids['jukebox-record'].quaternion.clone(); ok(jb.tick(100, 0.1, false) === true, 'record turns while playing');
+  ok(!ids['jukebox-record'].quaternion.equals(q0), 'record orientation changed'); ok(jb.tick(200, 0.1, true) === false, 'record still under reduced motion');
+  jb.setPlaying(false); ok(jb.tick(300, 0.1, false) === false, 'record still when nothing plays');
+  eq(built.phone.userData.prmId, 'phone', 'phone group is the pick node');
+  const keys = []; built.phone.traverse(o => { if (/^key\d\d$/.test(o.name)) keys.push(o); }); eq(keys.length, 12, 'phone has a 3x4 keypad');
+  ok(keys[0].material.userData.prmRole === 'buttons', 'keypad takes the buttons role');
+  const b = built.binder, api = b.userData.api; eq(b.userData.prmId, 'binder', 'binder group is the pick node');
+  const stickers = []; b.traverse(o => { if (o.isMesh && o.material.userData.prmImage) stickers.push(o); }); eq(stickers.length, 20, 'binder shows all 20 stickers');
+  ok(b.getObjectByName('cover').material === lib.mats.yellow, 'cover is the fixed soft yellow (never the design)');
+  let roleCount = 0; b.traverse(o => { if (o.isMesh && o.material.userData.prmRole) roleCount++; }); eq(roleCount, 0, 'nothing on the binder follows the design');
+  ok(!api.isOpen(), 'binder starts closed'); api.openCover(true); ok(api.isOpen(), 'openCover(instant) opens');
+  ok(Math.abs(b.getObjectByName('hinge').rotation.z) > 2.5, 'cover flops back past 145°'); api.openCover(true); ok(!api.isOpen(), 'second call closes');
+  eq(PrmProps.PRM_ACTIONS.binder.fallback, 'openCover', 'binder falls back to openCover when no openStickerbook is given');
+  ok(typeof api[PrmProps.PRM_ACTIONS.binder.fallback] === 'function', 'the fallback names a real api method');
+}
+
 section('dial');
 global.__prmAsync = true;
 {

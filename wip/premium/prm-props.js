@@ -260,6 +260,103 @@
   }
   PRM_BUILDERS.dial = (ctx) => prmBuildDial(ctx.lib, ctx.design, ctx.games, id => { const s = (ctx.stickers.list || []).find(x => x.id === id); return ctx.stickers.base + (s ? s.image : id + '.png'); });
 
+  function prmStarShape(THREE, R, r, n = 5) {
+    const s = new THREE.Shape();
+    for (let i = 0; i < n * 2; i++) { const a = -Math.PI / 2 + i * Math.PI / n, rr = i % 2 ? r : R; const x = Math.cos(a) * rr, y = Math.sin(a) * rr; if (i) s.lineTo(x, y); else s.moveTo(x, y); }
+    s.closePath(); return s;
+  }
+
+  /* The jukebox: an arched cabinet (shell), inset panel (plate), grille, two
+     knobs + four candy caps (buttons), a record with a label, a brass antenna
+     with a lit bead, and ears that are shorter, rounder and angled out. */
+  function prmBuildJukebox(lib, design, opts = {}) {
+    const { THREE, mats } = lib; const g = new THREE.Group(); const W = 0.30, H = 0.44, D = 0.24, cy = H / 2;
+    const shell = lib.role('shell', design.shell), plate = lib.role('plate', design.plate);
+    const ears = lib.role('ears', design.ears), buttons = lib.role('buttons', design.buttons, { roughness: .34 });
+    const arch = (w, h) => { const s = new THREE.Shape(), r = w / 2; s.moveTo(-r, -h / 2); s.lineTo(r, -h / 2); s.lineTo(r, h / 2 - r); s.absarc(0, h / 2 - r, r, 0, Math.PI, false); s.lineTo(-r, -h / 2); return s; };
+    g.add(prmMesh(THREE, lib.extrude(arch(W, H), D, 0.02), shell, 'cabinet', [0, cy, 0]));
+    g.add(prmMesh(THREE, lib.extrude(arch(W - 0.05, H - 0.05), 0.02, 0.005), plate, 'panel', [0, cy, D / 2 + 0.005]));
+    for (let i = 0; i < 6; i++) g.add(prmMesh(THREE, new THREE.BoxGeometry(0.12, 0.005, 0.006), mats.plum, 'grille' + i, [0, cy + 0.12 - i * 0.012, D / 2 + 0.02], null, false));
+    const knobGeo = new THREE.CylinderGeometry(0.018, 0.02, 0.02, 24);
+    const knob = prmMesh(THREE, knobGeo, buttons, 'jukebox-knob', [-0.09, cy + 0.02, D / 2 + 0.025], [Math.PI / 2, 0, 0]); prmTag(knob, 'jukebox-knob'); g.add(knob);
+    g.add(prmMesh(THREE, knobGeo, buttons, 'knobR', [0.09, cy + 0.02, D / 2 + 0.025], [Math.PI / 2, 0, 0]));
+    const capGeo = new THREE.CylinderGeometry(0.011, 0.012, 0.008, 20);
+    [[0, 0.045], [0, 0.005], [-0.02, 0.025], [0.02, 0.025]].forEach(([x, y], i) => g.add(prmMesh(THREE, capGeo, buttons, 'cap' + i, [x, cy + y, D / 2 + 0.02], [Math.PI / 2, 0, 0])));
+    const record = prmMesh(THREE, new THREE.CylinderGeometry(0.085, 0.085, 0.005, 48), mats.black, 'jukebox-record', [0, cy - 0.11, D / 2 + 0.02], [Math.PI / 2, 0, 0]); prmTag(record, 'jukebox-record'); g.add(record);
+    const labelMat = new THREE.MeshStandardMaterial({ map: lib.tex.label('', '#2B1B45', '#ffffff', 256, 256), roughness: .6 });
+    const label = prmMesh(THREE, new THREE.CircleGeometry(0.032, 32), labelMat, 'recordLabel', [0, cy - 0.11, D / 2 + 0.0231], null, false); g.add(label);
+    g.add(prmMesh(THREE, new THREE.CylinderGeometry(0.003, 0.003, 0.06, 8), mats.brass, 'antenna', [0, H + 0.03, -0.02], null, false));
+    g.add(prmMesh(THREE, new THREE.SphereGeometry(0.008, 12, 10), mats.emissive('#ffd27a', 1.5), 'bead', [0, H + 0.065, -0.02], null, false));
+    if (opts.earGeometry) [-1, 1].forEach(side => {
+      const e = new THREE.Mesh(opts.earGeometry, ears); e.name = side < 0 ? 'earL' : 'earR';
+      e.scale.set(0.17, 0.14, 0.17); e.position.set(side * 0.11, H + 0.02, -0.03); e.rotation.set(-0.1, 0, -side * 0.45);
+      e.castShadow = e.receiveShadow = true; g.add(e);
+    });
+    let playing = false;
+    g.userData.api = {
+      setLabel(text) { const old = labelMat.map; labelMat.map = lib.tex.label(text, '#2B1B45', '#ffffff', 256, 256); labelMat.needsUpdate = true; if (old) old.dispose(); },
+      setPlaying(b) { playing = !!b; },
+      tick(now, dt, reduced) { if (!playing || reduced) return false; const d = dt * 3.49; record.rotateY(d); label.rotation.z += d; return true; },   // 33 rpm
+    };
+    return g;
+  }
+  PRM_BUILDERS.jukebox = (ctx, shared) => prmBuildJukebox(ctx.lib, ctx.design, { earGeometry: shared.earGeometry });
+
+  /* The flip phone: lower half with the keypad flat on the table, upper half
+     hinged open ~110° with its screen facing the camera. Body = shell, screen
+     surround = plate, keys = buttons. */
+  function prmBuildPhone(lib, design) {
+    const { THREE } = lib; const g = new THREE.Group(); prmTag(g, 'phone');
+    const shell = lib.role('shell', design.shell), plate = lib.role('plate', design.plate), buttons = lib.role('buttons', design.buttons, { roughness: .4 });
+    const PW = 0.05, PL = 0.10, PT = 0.012, FLAT = [-Math.PI / 2, 0, 0];
+    g.add(prmMesh(THREE, lib.moulded(PW, PL, PT, 0.008), shell, 'lower', [0, PT / 2, 0], FLAT));
+    const keyGeo = new THREE.BoxGeometry(0.009, 0.003, 0.007);
+    for (let r = 0; r < 4; r++) for (let c = 0; c < 3; c++) g.add(prmMesh(THREE, keyGeo, buttons, 'key' + r + c, [(c - 1) * 0.013, PT + 0.0015, 0.005 + r * 0.011], null, false));
+    const hinge = new THREE.Group(); hinge.name = 'hinge'; hinge.position.set(0, PT, -PL / 2); hinge.rotation.x = -110 * Math.PI / 180; g.add(hinge);
+    hinge.add(prmMesh(THREE, lib.moulded(PW, PL, PT * 0.8, 0.008), shell, 'upper', [0, PT * 0.4, PL / 2], FLAT));
+    hinge.add(prmMesh(THREE, lib.moulded(PW - 0.008, PL - 0.02, 0.002, 0.005), plate, 'surround', [0, -0.0008, PL / 2], [Math.PI / 2, 0, 0], false));
+    const screenMat = new THREE.MeshStandardMaterial({ map: lib.tex.label('Shelves', '#dcefff', '#2B1B45', 128, 192), emissive: '#dcefff', emissiveIntensity: .5, roughness: .3 });
+    screenMat.emissiveMap = screenMat.map;
+    hinge.add(prmMesh(THREE, new THREE.PlaneGeometry(PW - 0.014, PL - 0.03), screenMat, 'screen', [0, -0.0022, PL / 2], [Math.PI / 2, 0, 0], false));
+    g.userData.api = { tick(now, dt, reduced) { if (reduced) { screenMat.emissiveIntensity = .5; return false; } screenMat.emissiveIntensity = .5 + Math.sin(now / 640) * 0.03; return true; } };
+    return g;
+  }
+  PRM_BUILDERS.phone = (ctx) => prmBuildPhone(ctx.lib, ctx.design);
+
+  /* The stickerbook: the soft-yellow quilted binder (fixed colour), a cover
+     hinged on the spine, ten stickers on the open page and ten on the cover's
+     inside. A prop today; PRM_ACTIONS.binder is its dormant door. */
+  function prmBuildBinder(lib, stickerIds, stickerUrl) {
+    const { THREE, mats } = lib; const g = new THREE.Group(); prmTag(g, 'binder');
+    const BW = 0.20, BH = 0.24, T = 0.03, FLAT = [-Math.PI / 2, 0, 0];
+    g.add(prmMesh(THREE, lib.moulded(BW, BH, T, 0.015), mats.yellow, 'base', [0, T / 2, 0], FLAT));
+    g.add(prmMesh(THREE, new THREE.BoxGeometry(BW - 0.02, T - 0.012, BH - 0.02), mats.paper, 'pages', [0.005, T / 2, 0], null, false));
+    const grid = (parent, ids, y, flip) => ids.forEach((id, i) => {
+      const cx = (i % 2 - 0.5) * 0.075, cz = (Math.floor(i / 2) - 2) * 0.042, rot = flip ? [Math.PI / 2, 0, 0] : FLAT;
+      parent.add(prmMesh(THREE, new THREE.PlaneGeometry(0.065, 0.036), mats.sleeve, 'sleeve-' + id, [cx, y, cz], rot, false));
+      const sm = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: .6, transparent: true }); sm.userData.prmImage = stickerUrl(id);
+      parent.add(prmMesh(THREE, new THREE.PlaneGeometry(0.03, 0.03), sm, 'sticker-' + id, [cx, y + (flip ? -0.0006 : 0.0006), cz], rot, false));
+    });
+    /* The page rides just ABOVE the base's top face — at T - 0.005 its stickers
+       sat 4 mm inside the slab, so the opened binder showed a blank page. When
+       the cover is shut it closes over them, which is what hides them then. */
+    const page = new THREE.Group(); page.name = 'page'; page.position.set(0.005, T + 0.001, 0); g.add(page);
+    grid(page, stickerIds.slice(0, 10), 0.0006, false);
+    const hinge = new THREE.Group(); hinge.name = 'hinge'; hinge.position.set(-BW / 2, T, 0); g.add(hinge);
+    hinge.add(prmMesh(THREE, lib.moulded(BW, BH, 0.008, 0.015), mats.yellow, 'cover', [BW / 2, 0.004, 0], FLAT));
+    hinge.add(prmMesh(THREE, lib.extrude(prmStarShape(THREE, 0.028, 0.013), 0.003, 0.0008), mats.yellowDark, 'star', [BW / 2, 0.0095, 0], FLAT, false));
+    const inside = new THREE.Group(); inside.name = 'coverInside'; inside.position.set(BW / 2, 0, 0); hinge.add(inside);
+    grid(inside, stickerIds.slice(10, 20), -0.0006, true);
+    let open = false; const motion = prmMotion();
+    g.userData.api = {
+      isOpen: () => open,
+      openCover(instant) { open = !open; const to = open ? Math.PI * 0.92 : 0; if (instant) { hinge.rotation.z = to; return; } motion.add(hinge.rotation.z, to, 400, prmEaseOutCubic, v => hinge.rotation.z = v); },
+      tick(now) { return motion.tick(now); },
+    };
+    return g;
+  }
+  PRM_BUILDERS.binder = (ctx) => prmBuildBinder(ctx.lib, ctx.games.map(g => g.id), id => { const s = (ctx.stickers.list || []).find(x => x.id === id); return ctx.stickers.base + (s ? s.image : id + '.png'); });
+
   const api = { PRM_ACTIONS, PRM_TAB_ORDER, PRM_PLACES, PRM_BUILDERS, PRM_ATTRACT_LINES, prmBuildAll, prmMotion, prmEaseOutCubic, prmEaseOutBack, prmMesh, prmTag, prmAttract, prmSpinPlan };
   if (typeof window !== 'undefined') window.PrmProps = api;
   if (typeof module !== 'undefined') module.exports = api;

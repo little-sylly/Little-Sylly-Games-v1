@@ -76,11 +76,19 @@
         x.beginPath(); x.moveTo(0, 64); x.lineTo(64, 0); x.lineTo(128, 64); x.lineTo(64, 128); x.closePath(); x.stroke();
         return wrap(c, rx, ry, true);
       },
+      /* Shrinks to fit rather than clipping: 'Shelves' on a 128 px screen drew
+         as 'helve', and a long game name would lose its ending on the dial's
+         readout. Width is ESTIMATED from the character count (~0.55 em for a
+         bold sans) — measureText reads back from the context, which the Node
+         harness deliberately does not support. */
       label(text, bg = '#f8f1dc', ink = '#2B1B45', w = 256, h = 128) {
         const c = makeCanvas(w, h), x = c.getContext('2d');
         x.fillStyle = bg; x.fillRect(0, 0, w, h); x.fillStyle = ink;
-        x.font = 'bold ' + Math.round(h * 0.28) + 'px Fredoka, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
-        x.fillText(text, w / 2, h / 2); return flat(c);
+        const s = String(text === undefined || text === null ? '' : text);
+        const fit = s.length ? (w * 0.88) / (s.length * 0.55) : h;
+        x.font = 'bold ' + Math.max(8, Math.round(Math.min(h * 0.28, fit))) + 'px Fredoka, sans-serif';
+        x.textAlign = 'center'; x.textBaseline = 'middle';
+        x.fillText(s, w / 2, h / 2); return flat(c);
       },
       abstract(seed = 1, w = 128, h = 128) {
         const c = makeCanvas(w, h), x = c.getContext('2d'), r = prmRng(seed);
