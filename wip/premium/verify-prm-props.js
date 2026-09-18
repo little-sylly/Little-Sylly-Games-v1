@@ -90,7 +90,7 @@ eq(room.name, 'room', 'room group is named');
 const roomNames = new Set(); room.traverse(o => { if (o.name) roomNames.add(o.name); });
 ['wallBack', 'wallLeft', 'skirtingBack', 'skirtingLeft', 'cornice', 'floor', 'rug', 'tableTop', 'tableLeg0', 'tableLeg3',
  'bench', 'benchDrawerL', 'benchDrawerR', 'benchKnobL', 'benchKnobR', 'deck', 'deckKey3', 'shelfBack', 'shelfSideL', 'shelfSideR',
- 'shelfBoard0', 'shelfBoard1', 'shelfBoard2', 'sideTableTop', 'sideTableLeg2', 'couchArm', 'window', 'curtain',
+ 'shelfBoard0', 'shelfBoard1', 'shelfBoard2', 'sideTableTop', 'sideTableLeg2', 'couchArm', 'seat', 'window', 'curtain',
  'floorLampBase', 'floorLampStem', 'floorLampShade', 'printA', 'printAFace', 'printB', 'printBFace']
   .forEach(n => ok(roomNames.has(n), `room has ${n}`));
 {
@@ -99,14 +99,24 @@ const roomNames = new Set(); room.traverse(o => { if (o.name) roomNames.add(o.na
   const rug = room.getObjectByName('rug'); ok(rug.receiveShadow, 'rug receives shadow');
   const floor = room.getObjectByName('floor'); ok(floor.receiveShadow, 'floor receives shadow');
   const R = room.userData.prmRoom;
-  ['floorY', 'backZ', 'leftX', 'benchZ', 'benchTopY', 'tableTopY', 'armTopY', 'sideTableTopY'].forEach(k => ok(typeof R[k] === 'number', `prmRoom.${k} is a number`));
+  ['floorY', 'backZ', 'leftX', 'benchZ', 'benchTopY', 'tableTopY', 'tableX', 'tableZ', 'armTopY', 'seatTopY'].forEach(k => ok(typeof R[k] === 'number', `prmRoom.${k} is a number`));
   near(R.benchTopY, 0.52, 0.001, 'bench top height'); near(R.tableTopY, 0.44, 0.001, 'table top height');
+  // the re-block (spec 2026-09-19 § 3.1): a corner, not a hall
+  ok(R.backZ > -1.8 && R.backZ < -1.3, `back wall is close (backZ ${R.backZ})`);
+  ok(R.leftX > -1.9 && R.leftX < -1.3, `left wall is close (leftX ${R.leftX})`);
+  ok(R.benchZ - R.tableZ > -1.3 && R.benchZ - R.tableZ < -0.7, `bench sits about a metre behind the table (${(R.tableZ - R.benchZ).toFixed(2)} m)`);
+  ok(R.tableX > 0.2, `table is right of centre (tableX ${R.tableX})`);
+  ok(R.seatTopY > R.tableTopY && R.seatTopY < R.armTopY, 'seat cushion sits between table top and arm top');
   const S = room.userData.prmShelf; eq(S.ys.length, 3, 'three shelf boards');
   room.updateMatrixWorld(true);
   const bb = new THREE.Box3().setFromObject(room.getObjectByName('tableTop'));
   near(bb.max.y, R.tableTopY, 0.001, 'tableTop surface equals prmRoom.tableTopY');
   const arm = new THREE.Box3().setFromObject(room.getObjectByName('couchArm'));
   near(arm.max.y, R.armTopY, 0.002, 'couchArm top equals prmRoom.armTopY');
+  const seat = new THREE.Box3().setFromObject(room.getObjectByName('seat'));
+  near(seat.max.y, R.seatTopY, 0.002, 'seat top equals prmRoom.seatTopY');
+  ok(seat.min.z > R.tableZ + 0.31 - 0.02, 'seat front does not run under the table');
+  ok(arm.min.z < seat.min.z, 'the arm reaches ahead of the seat (a real couch arm)');
   const cur = room.getObjectByName('curtain'); const cb = new THREE.Box3().setFromObject(cur);
   ok(cb.max.y - cb.min.y > 2.0, 'curtain is tall (extruded vertically, not lying flat)');
 }
@@ -269,12 +279,12 @@ section('contracts');
   const inside = (bb, r) => bb.min.x >= r.x[0] && bb.max.x <= r.x[1] && bb.min.z >= r.z[0] && bb.max.z <= r.z[1] && bb.min.y >= r.y[0] - 0.01;
   const R = room.userData.prmRoom;
   const REGIONS = {
-    tv:        { x: [-0.65, 0.25], z: [-2.80, -2.20], y: [R.benchTopY, 1.5] },
-    jukebox:   { x: [ 0.60, 1.10], z: [-2.80, -2.20], y: [R.benchTopY, 1.5] },
-    dial:      { x: [-0.45, 0.65], z: [ 0.04,  0.66], y: [R.tableTopY, 0.8] },
-    binder:    { x: [-0.45, 0.65], z: [ 0.04,  0.66], y: [R.tableTopY, 0.8] },
-    phone:     { x: [-0.45, 0.65], z: [ 0.04,  0.66], y: [R.tableTopY, 0.8] },
-    controller:{ x: [-1.65, -1.05], z: [ 0.85,  1.85], y: [R.armTopY, 1.0] },
+    tv:        { x: [R.tableX - 1.30, R.tableX - 0.50], z: [R.benchZ - 0.30, R.benchZ + 0.30], y: [R.benchTopY, 1.5] },
+    jukebox:   { x: [R.tableX - 0.30, R.tableX + 0.30], z: [R.benchZ - 0.30, R.benchZ + 0.30], y: [R.benchTopY, 1.5] },
+    dial:      { x: [R.tableX - 0.57, R.tableX + 0.57], z: [R.tableZ - 0.33, R.tableZ + 0.33], y: [R.tableTopY, 0.8] },
+    binder:    { x: [R.tableX - 0.57, R.tableX + 0.57], z: [R.tableZ - 0.33, R.tableZ + 0.33], y: [R.tableTopY, 0.8] },
+    phone:     { x: [R.tableX - 0.57, R.tableX + 0.57], z: [R.tableZ - 0.33, R.tableZ + 0.33], y: [R.tableTopY, 0.8] },
+    controller:{ x: [-1.05, -0.35], z: [ 0.30,  1.10], y: [R.armTopY, 1.0] },
     lamp:      { x: [-1.95, -1.45], z: [-2.35, -1.85], y: [R.sideTableTopY, 1.0] },
   };
   Object.entries(REGIONS).forEach(([id, r]) => { const bb = place(id); ok(inside(bb, r), `${id} sits inside its surface region (x ${bb.min.x.toFixed(2)}..${bb.max.x.toFixed(2)}, z ${bb.min.z.toFixed(2)}..${bb.max.z.toFixed(2)}, y ${bb.min.y.toFixed(2)})`); });

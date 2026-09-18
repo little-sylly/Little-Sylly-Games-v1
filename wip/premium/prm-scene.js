@@ -8,8 +8,11 @@
 // pure functions above it are what verify-prm-props.js loads under Node.
 // ═══════════════════════════════════════════════════════════════════════════
 (function () {
+  /* Seated on the couch, the table pushed up to our knees: eye height just
+     behind the table's near edge, which is the bottom of frame. Portrait is
+     re-aimed in the re-block's step 6. */
   const PRM_PRESETS = {
-    wide:     { pos: [-0.20, 1.30, 3.40], look: [-0.05, 0.50, -1.55], fov: 40 },
+    wide:     { pos: [-0.05, 1.32, 1.50], look: [0.15, 0.28, -1.05], fov: 46 },
     portrait: { pos: [0.00, 1.55, 1.75], look: [0.00, 0.45,  0.25], fov: 52 },
   };
   const PRM_REQUIRED = ['games', 'stickers', 'design', 'lampPanels', 'music', 'enterTV', 'enterShelves', 'openWorkshop', 'openSound', 'openSwitcher'];
@@ -60,7 +63,7 @@
     renderer.outputEncoding = THREE.sRGBEncoding;
     renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 0.80;
     renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap; renderer.shadowMap.autoUpdate = false;
-    const scene = new THREE.Scene(); scene.background = new THREE.Color('#efe6dc'); scene.fog = new THREE.Fog('#e7dcd0', 6.8, 15);
+    const scene = new THREE.Scene(); scene.background = new THREE.Color('#efe6dc'); scene.fog = new THREE.Fog('#b59a80', 2.8, 6.5);
     scene.environment = prmBuildEnvMap(THREE, renderer);
     const camera = new THREE.PerspectiveCamera(35, 16 / 9, 0.05, 30);
     const lookAt = new THREE.Vector3();
@@ -114,7 +117,12 @@
     const hud = { focus: document.getElementById('prm-focus'), fade: document.getElementById('prm-fade') };
     function setHover(node) {
       if (hovered === node) return;
-      if (hovered) { const h = hovered; hoverTweens.add(h.position.y, h.userData.restY, 150, P.prmEaseOutCubic, v => h.position.y = v); }
+      /* The un-hover must honour reduced motion too — it travels just as visibly as the lift,
+         and it was unguarded until the re-block moved a prop under the harness's first pointer
+         position and the "RAF is idle" check finally saw it. */
+      if (hovered) { const h = hovered;
+        if (reduced()) h.position.y = h.userData.restY;
+        else hoverTweens.add(h.position.y, h.userData.restY, 150, P.prmEaseOutCubic, v => h.position.y = v); }
       hovered = node;
       if (node && !reduced()) hoverTweens.add(node.position.y, node.userData.restY + PRM_HOVER_LIFT, 150, P.prmEaseOutCubic, v => node.position.y = v);
       canvasEl.style.cursor = node ? 'pointer' : ''; shadowDirty = true; wake();

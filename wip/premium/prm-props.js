@@ -27,14 +27,16 @@
   const PRM_TAB_ORDER = ['tv-screen', 'jukebox-record', 'dial', 'binder', 'phone', 'controller', 'lamp'];
   /* World placement per prop group. y values sit on the room's surfaces
      (prm-room.js prmRoom): bench top 0.52, table top 0.44, arm top 0.58,
-     side table top 0.565. A builder's group origin is its resting base. */
+     side table top 0.565. x/z mirror prmRoom's tableX/tableZ/benchZ — keep
+     them in step by hand; the harness footprint check is what catches drift.
+     A builder's group origin is its resting base. */
   const PRM_PLACES = {
-    tv:            { pos: [-0.20, 0.52, -2.50] },
-    jukebox:       { pos: [ 0.85, 0.52, -2.50] },
-    dial:          { pos: [ 0.35, 0.44,  0.30] },
-    binder:        { pos: [-0.25, 0.44,  0.20], rot: [0, 0.18, 0] },
-    phone:         { pos: [ 0.55, 0.44,  0.57], rot: [0, -0.5, 0] },
-    controller:    { pos: [-1.30, 0.58,  1.30], rot: [0, -0.35, 0] },
+    tv:            { pos: [-0.55, 0.52, -1.10] },
+    jukebox:       { pos: [ 0.35, 0.52, -1.10] },
+    dial:          { pos: [ 0.60, 0.44,  0.00] },
+    binder:        { pos: [ 0.00, 0.44, -0.10], rot: [0, 0.18, 0] },
+    phone:         { pos: [ 0.80, 0.44,  0.27], rot: [0, -0.5, 0] },
+    controller:    { pos: [-0.62, 0.58,  0.62], rot: [0, -0.35, 0] },
     lamp:          { pos: [-1.70, 0.565, -2.10] },
     shelfContents: { pos: [0, 0, 0] },
   };
