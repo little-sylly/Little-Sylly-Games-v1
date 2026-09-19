@@ -5,6 +5,7 @@
 const { GAMES } = require('./games.js');
 const R = require('./shell-router.js');
 const PrmScene = require('../premium/prm-scene.js');
+const H = require('./shell-host.js');
 
 let pass = 0, fail = 0, current = '';
 const section = (name) => { current = name; console.log('── ' + name + ' ──'); };
@@ -110,6 +111,61 @@ section('the dock (W6)');
   eq(R.shellReduce(start(), { t: 'openSwitcher' }).view, 'premium', 'and summoning it does not leave the room');
   eq(R.shellReduce(start({ switcher: true }), { t: 'enterTV' }).switcher, true, 'a door out of the room shows the dock');
   eq(R.shellReduce(start(), { t: 'enterShelves' }).switcher, true, 'both doors do');
+}
+
+section('the door map');
+{
+  const seen = [];
+  const deps = {
+    games: GAMES, stickers: { base: 'x/', list: [] }, design: { shell: '#a97fd6' },
+    lampPanels: { base: 'y/', manifest: {} }, music: { keys: [], nowPlaying: () => null, playFor() {} },
+    dispatch: (a) => seen.push(a),
+    openSound: () => seen.push({ t: '@openSound' }),
+  };
+  const host = H.shellCreateHost(deps);
+
+  ok(PrmScene.prmValidateHost(host) === true, 'the shell host satisfies prmValidateHost');
+  PrmScene.PRM_REQUIRED.forEach(k => ok(host[k] !== undefined, `host supplies the required key "${k}"`));
+  PrmScene.PRM_OPTIONAL_FUNCS.forEach(k => eq(host[k], undefined, `host supplies no ${k} — the door stays dormant`));
+
+  // Every callable the room can reach has exactly one destination, and the
+  // destination table covers exactly the callables — no orphans either way.
+  PrmScene.PRM_FUNCS.forEach(k => ok(k in H.SHELL_DOORS, `PRM_FUNCS name "${k}" has a destination`));
+  Object.keys(H.SHELL_DOORS).forEach(k => ok(PrmScene.PRM_FUNCS.indexOf(k) !== -1, `door "${k}" is a real PRM_FUNCS name`));
+
+  // Each door actually dispatches the action the table promises.
+  Object.entries(H.SHELL_DOORS).forEach(([fn, action]) => {
+    seen.length = 0;
+    host[fn]();
+    eq(seen.length, 1, `${fn}() produces exactly one effect`);
+    eq(seen[0].t, action || '@openSound', `${fn}() ${action ? 'dispatches ' + action : 'calls the injected openSound effect'}`);
+  });
+
+  // No router action is unreachable: every one is either a door's destination
+  // or on the page's own list.
+  const reachable = new Set(Object.values(H.SHELL_DOORS).filter(Boolean).concat(R.SHELL_PAGE_ACTIONS));
+  ['go', 'enterTV', 'enterShelves', 'openSwitcher', 'roomMounted', 'workshopOpen', 'workshopClose', 'designSaved', 'leaveShell']
+    .forEach(t => ok(reachable.has(t), `router action "${t}" is reachable`));
+
+  // The dial's game id rides through untouched; the telly screen sends nothing.
+  seen.length = 0; host.enterTV('comb');
+  eq(seen[0].gameId, 'comb', 'the dial hands its game id to the router');
+  seen.length = 0; host.enterTV();
+  eq(seen[0].gameId, null, 'the telly screen hands null, which keeps the previous pick');
+
+  // Refuse to build a host that cannot reach anything.
+  let threw = 0;
+  try { H.shellCreateHost(Object.assign({}, deps, { dispatch: null })); } catch (_) { threw++; }
+  try { H.shellCreateHost(Object.assign({}, deps, { openSound: null })); } catch (_) { threw++; }
+  eq(threw, 2, 'a host with no dispatch or no openSound is refused at build time');
+
+  // Optional passthroughs are absent unless asked for, so prmMount's own
+  // defaults (real prefers-reduced-motion, Math.random) stay in charge.
+  eq(host.reducedMotion, undefined, 'reducedMotion is absent unless supplied');
+  eq(host.rand, undefined, 'rand is absent unless supplied');
+  const seeded = H.shellCreateHost(Object.assign({}, deps, { reducedMotion: true, rand: () => 0.5 }));
+  eq(seeded.reducedMotion, true, 'reducedMotion passes through when supplied');
+  eq(typeof seeded.rand, 'function', 'rand passes through when supplied');
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);
