@@ -15,7 +15,15 @@
     'tv-screen':      { callback: 'enterTV', arg: null, pushIn: 'tv-screen' },
     'tv-channel':     { callback: 'openSwitcher', turn: true },
     'tv-volume':      { callback: 'openSound', turn: true },
-    'jukebox-knob':   { callback: 'openSound' },
+    /* W4 — a dormant door to the undecided karaoke/jukebox feature, NOT the
+       sound overlay (that is the telly's volume dial). Nobody supplies
+       openJukebox this round, so the turn is the whole response: tweenTurn
+       writes node.rotation.y, and the knob is a CylinderGeometry whose local
+       Y is its axis — Three's default XYZ Euler applies Ry before the mesh's
+       own x = PI/2 tilt, so it spins about itself and the tilt faces it at
+       the camera. Deliberately absent from PRM_TAB_ORDER: a tab stop on a
+       door that goes nowhere is a question for the round that builds it. */
+    'jukebox-knob':   { callback: 'openJukebox', optional: true, turn: true },
     'jukebox-record': { callback: 'music.next' },
     'dial':           { callback: 'enterTV', spin: true, pushIn: 'tv-screen' },
     'phone':          { callback: 'enterShelves', fade: true },

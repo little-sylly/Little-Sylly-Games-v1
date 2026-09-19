@@ -21,6 +21,10 @@
   };
   const PRM_REQUIRED = ['games', 'stickers', 'design', 'lampPanels', 'music', 'enterTV', 'enterShelves', 'openWorkshop', 'openSound', 'openSwitcher'];
   const PRM_FUNCS = ['enterTV', 'enterShelves', 'openWorkshop', 'openSound', 'openSwitcher'];
+  /* Optional host callbacks: absent is fine (the door is dormant), present
+     must be a function. Adding a third dormant door means adding it here and
+     flagging its action `optional: true` — no third hardcoded name. */
+  const PRM_OPTIONAL_FUNCS = ['openStickerbook', 'openJukebox'];
   const PRM_HOVER_LIFT = 0.003, PRM_PUSH_MS = 600, PRM_FADE_AT_MS = 400, PRM_ATTRACT_MS = 100, PRM_PARALLAX = 0.035;
 
   function prmValidateHost(host) {
@@ -28,7 +32,7 @@
     const missing = PRM_REQUIRED.filter(k => host[k] === undefined);
     if (missing.length) throw new Error('prmMount: host is missing ' + missing.join(', '));
     PRM_FUNCS.forEach(k => { if (typeof host[k] !== 'function') throw new Error('prmMount: host.' + k + ' must be a function'); });
-    if (host.openStickerbook !== undefined && typeof host.openStickerbook !== 'function') throw new Error('prmMount: host.openStickerbook must be a function when given');
+    PRM_OPTIONAL_FUNCS.forEach(k => { if (host[k] !== undefined && typeof host[k] !== 'function') throw new Error('prmMount: host.' + k + ' must be a function when given'); });
     if (!Array.isArray(host.games) || host.games.length === 0) throw new Error('prmMount: host.games must be a non-empty array');
     return true;
   }
@@ -123,6 +127,15 @@
     // motion
     const camTweens = P.prmMotion(), hoverTweens = P.prmMotion();
     let hovered = null, focused = -1, busy = false, parallaxT = { x: 0, y: 0 }, parallax = { x: 0, y: 0 };
+    /* `paused` is the shell's stop switch (W5): a hidden room must cost
+       nothing, and CSS alone cannot do it — the attract interval further down
+       calls wake() ten times a second whatever the canvas's display is.
+       Declared here, ahead of wake()'s own definition, because syncJukebox()
+       below calls wake() synchronously during mount — a `let` declared next
+       to wake() itself would still be in its temporal dead zone at that call.
+       Stopping is NOT disposing: rebuilding re-runs every procedural texture
+       and the PMREM pass, which is the whole reason the room is kept. */
+    let paused = false;
     const hud = { focus: document.getElementById('prm-focus'), fade: document.getElementById('prm-fade') };
     function setHover(node) {
       if (hovered === node) return;
@@ -177,9 +190,13 @@
           later(() => pushIn(nodes['tv-screen'], () => { busy = false; host.enterTV(gameId); }), reduced() ? 600 : 250);
         }); wake(); return;
       }
-      if (a.callback === 'openStickerbook') {
-        if (typeof host.openStickerbook === 'function') host.openStickerbook();
-        else built.binder.userData.api[a.fallback](reduced());
+      /* A dormant door: call the host callback if this host supplies one,
+         otherwise fall back to the prop's own api when the action names one.
+         a.turn has already fired above, which is the jukebox knob's whole
+         response. Flag-driven, so a third dormant door needs no third name. */
+      if (a.optional) {
+        if (typeof host[a.callback] === 'function') host[a.callback]();
+        else if (a.fallback && built[id] && built[id].userData.api) built[id].userData.api[a.fallback](reduced());
         wake(); return;
       }
       if (a.callback === 'music.next') {
@@ -246,7 +263,7 @@
     // the attract loop, 10 fps, only while visible; one frozen frame under reduced motion
     const t0 = performance.now(); let attractDrawn = false;
     timers.interval = setInterval(() => {
-      if (document.hidden) return;
+      if (document.hidden || paused) return;
       if (reduced()) { if (attractDrawn) return; attractDrawn = true; attract.draw(0); }
       else attract.draw((performance.now() - t0) / 1000);
       attractTex.needsUpdate = true; wake();
@@ -254,7 +271,7 @@
 
     // render on demand: run while something animates, then stop
     let last = 0, frames = 0;
-    function wake() { if (timers.raf === null) timers.raf = requestAnimationFrame(frame); }
+    function wake() { if (!paused && timers.raf === null) timers.raf = requestAnimationFrame(frame); }
     function frame(now) {
       timers.raf = null;
       const dt = last ? Math.min((now - last) / 1000, 0.05) : 0; last = now;
@@ -270,7 +287,7 @@
       if (shadowDirty) { renderer.shadowMap.needsUpdate = true; shadowDirty = false; }
       renderer.render(scene, camera); frames++;
       if (focused >= 0) drawFocus();
-      if (active) timers.raf = requestAnimationFrame(frame); else last = 0;
+      if (active && !paused) timers.raf = requestAnimationFrame(frame); else last = 0;
     }
     function resize() {
       const w = canvasEl.clientWidth || 1280, h = canvasEl.clientHeight || 720;
@@ -282,6 +299,8 @@
       setDesign(d) { design = Object.assign(design, d); window.PrmLib.prmApplyDesign(props, design); if (design.buttons) dialLight.color.set(design.buttons); shadowDirty = true; wake(); },
       setPreset(name) { preset = PRM_PRESETS[name] ? name : 'wide'; resetView(); },
       resetView, activate, focus, built, nodes,
+      stop() { paused = true; if (timers.raf !== null) cancelAnimationFrame(timers.raf); timers.raf = null; last = 0; },
+      resume() { paused = false; resize(); },
       dispose() {
         if (timers.raf !== null) cancelAnimationFrame(timers.raf); timers.raf = null;
         clearInterval(timers.interval); timers.timeouts.forEach(clearTimeout); timers.timeouts.clear();
@@ -320,7 +339,7 @@
     return api;
   }
 
-  const api = { prmMount, prmValidateHost, prmEligible, prmReducedMotion, prmBuildEnvMap, PRM_PRESETS, PRM_REQUIRED };
+  const api = { prmMount, prmValidateHost, prmEligible, prmReducedMotion, prmBuildEnvMap, PRM_PRESETS, PRM_REQUIRED, PRM_FUNCS, PRM_OPTIONAL_FUNCS };
   if (typeof window !== 'undefined') window.PrmScene = api;
   if (typeof module !== 'undefined') module.exports = api;
 })();

@@ -373,10 +373,10 @@ section('contracts');
   const ids = new Set(); Object.values(built).forEach(g => g.traverse(o => { if (o.userData.prmId) ids.add(o.userData.prmId); }));
   Object.keys(A).forEach(id => ok(ids.has(id), `action id "${id}" exists as a pick node`));
   ids.forEach(id => ok(A[id], `pick node "${id}" has an action`));
-  const HOST = new Set(['enterTV', 'enterShelves', 'openWorkshop', 'openSound', 'openSwitcher', 'openStickerbook', 'music.next']);
+  const HOST = new Set(['enterTV', 'enterShelves', 'openWorkshop', 'openSound', 'openSwitcher', 'openStickerbook', 'openJukebox', 'music.next']);
   Object.entries(A).forEach(([id, a]) => ok(a.local || HOST.has(a.callback), `"${id}" names a host callback or a local api`));
   ['enterTV', 'enterShelves', 'openWorkshop', 'openSound', 'openSwitcher'].forEach(cb => ok(Object.values(A).some(a => a.callback === cb), `required callback ${cb} is reachable from a prop`));
-  eq(Object.values(A).filter(a => a.optional).length, 1, 'exactly one optional action (the binder)');
+  eq(Object.values(A).filter(a => a.optional).length, 2, 'exactly two optional actions (the binder and the jukebox knob)');
   PrmProps.PRM_TAB_ORDER.forEach(id => ok(ids.has(id), `tab order id "${id}" exists`));
   // footprints: each prop, placed, sits inside its surface's region (spec § 14 check 1)
   const place = (id) => { const g = built[id], p = PrmProps.PRM_PLACES[id]; g.position.set(...p.pos); if (p.rot) g.rotation.set(...p.rot); g.updateMatrixWorld(true); return new THREE.Box3().setFromObject(g); };
@@ -424,6 +424,44 @@ section('contracts');
   eq(othersChanged, 0, 'and nothing else');
   const noRole = []; root.traverse(o => { if (o.isMesh && o.material.userData.prmRole && !['shell', 'plate', 'ears', 'buttons'].includes(o.material.userData.prmRole)) noRole.push(o.name); });
   eq(noRole.length, 0, 'every tagged role is one of the four');
+}
+
+section('shell-doors');
+{
+  const A = PrmProps.PRM_ACTIONS;
+  const S = require(path.join(ROOT, 'wip/premium/prm-scene.js'));
+
+  // W4 — the knob is a dormant door to the undecided karaoke/jukebox feature,
+  // not the sound overlay it was wrongly pointed at.
+  eq(A['jukebox-knob'].callback, 'openJukebox', 'the jukebox knob names openJukebox');
+  ok(A['jukebox-knob'].optional === true, 'the jukebox knob is optional');
+  ok(A['jukebox-knob'].turn === true, 'the jukebox knob turns — a dormant door still feels alive');
+  ok(!A['jukebox-knob'].fallback, 'the knob needs no named fallback: the turn IS the response');
+  eq(Object.values(A).filter(a => a.callback === 'openSound').length, 1, 'openSound survives at exactly one site');
+  eq(A['tv-volume'].callback, 'openSound', "and that site is the telly's volume dial");
+
+  // A dormant door may never be silent.
+  Object.entries(A).filter(([, a]) => a.optional).forEach(([id, a]) => {
+    ok(a.turn || a.spin || a.pushIn || a.fallback,
+       `optional door "${id}" answers a tap (turn/spin/pushIn or a named fallback)`);
+  });
+
+  // The optional-function contract, generalised off the hardcoded openStickerbook name.
+  ok(Array.isArray(S.PRM_OPTIONAL_FUNCS), 'prm-scene exports PRM_OPTIONAL_FUNCS');
+  ok(S.PRM_OPTIONAL_FUNCS.includes('openStickerbook'), 'openStickerbook is optional');
+  ok(S.PRM_OPTIONAL_FUNCS.includes('openJukebox'), 'openJukebox is optional');
+  ok(Array.isArray(S.PRM_FUNCS) && S.PRM_FUNCS.length === 5, 'prm-scene exports PRM_FUNCS (5 callables)');
+  S.PRM_OPTIONAL_FUNCS.forEach(k => ok(!S.PRM_REQUIRED.includes(k), `PRM_REQUIRED does not contain ${k}`));
+
+  const base = { games: GAMES, stickers: {}, design: {}, lampPanels: {}, music: {},
+                 enterTV() {}, enterShelves() {}, openWorkshop() {}, openSound() {}, openSwitcher() {} };
+  S.PRM_OPTIONAL_FUNCS.forEach(k => {
+    ok(S.prmValidateHost(Object.assign({}, base)) === true, `a host with no ${k} is accepted`);
+    ok(S.prmValidateHost(Object.assign({}, base, { [k]: () => {} })) === true, `a host with ${k} as a function is accepted`);
+    let threw = false;
+    try { S.prmValidateHost(Object.assign({}, base, { [k]: 'nope' })); } catch (_) { threw = true; }
+    ok(threw, `a host with ${k} as a non-function is rejected`);
+  });
 }
 
 section('dial');
