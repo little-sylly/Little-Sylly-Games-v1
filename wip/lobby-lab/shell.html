@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Little Sylly Games — the shell (sandbox)</title>
+
+  <!-- The same real files index.html loads. ../../ from here, as tv.html
+       already documents. -->
+  <script src="../../js/lib/tailwind-play.js"></script>
+  <link rel="stylesheet" href="../../css/styles.css" />
+  <link rel="stylesheet" href="lobby.css" />
+  <link rel="stylesheet" href="../premium/prm-hud.css" />
+
+  <style>
+    /* This page IS the result, not a frame around it — no lab chrome, no
+       fixed panes. It is the only place all four layouts live together, which
+       is what makes the room's props real doors rather than status lines. */
+    html, body { margin: 0; height: 100%; background: #FAFAF9; overflow: hidden; }
+    .shell-view { position: absolute; inset: 0; }
+    .shell-view[hidden] { display: none; }
+    #tv-app { height: 100vh; width: 100vw; }
+    /* The phone layouts test true at a real 390px width, centred on the page
+       rather than stretched — same as index.html's phone pane. */
+    #shell-phone { display: flex; justify-content: center; overflow-y: auto; }
+    #shelves-canvas { width: 390px; min-height: 100vh; position: relative; background: #FAFAF9; }
+
+    /* The dock (W6): hidden in the Premium view, summoned by the telly's
+       channel dial. Off Premium it is the normal fixed strip. */
+    #shell-dock {
+      position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%);
+      z-index: 40; display: flex; gap: 8px; padding: 8px;
+      background: rgba(250,250,249,.92); border-radius: 16px;
+      box-shadow: 0 6px 24px rgba(0,0,0,.18); backdrop-filter: blur(6px);
+    }
+    #shell-dock[hidden] { display: none; }
+    #shell-dock .lb-seg[aria-selected="true"] { background: #2B1B45; color: #fff; }
+    #shell-dock .lb-seg[hidden] { display: none; }
+
+    /* The ?live container. Everything the shipped engine needs lives in here,
+       out of the way until a real overlay or screen is asked for. */
+    #live-screens { position: fixed; inset: 0; z-index: 1000; overflow-y: auto; background: #FAFAF9; }
+    #live-screens[hidden] { display: none; }
+  </style>
+</head>
+<body>
+
+<!-- ── Premium: the lounge ─────────────────────────────────────────────────── -->
+<div id="shell-premium" class="shell-view">
+  <div id="prm-stage">
+    <canvas id="prm-canvas" tabindex="0" aria-label="Little Sylly's lounge. Tab through the room, Enter to use a thing."></canvas>
+    <div id="prm-vignette"></div>
+    <div id="prm-hud">
+      <h1 id="prm-heading">Little Sylly's Lounge</h1>
+      <div id="prm-status"></div>
+      <div id="prm-focus"></div>
+    </div>
+    <div id="prm-fade"></div>
+  </div>
+</div>
+
+<!-- ── TV: the Lounge layout, unframed ─────────────────────────────────────── -->
+<div id="shell-tv" class="shell-view" hidden><div id="tv-app"></div></div>
+
+<!-- ── Shelves / Original: the phone layouts ───────────────────────────────── -->
+<div id="shell-phone" class="shell-view" hidden><div id="shelves-canvas"></div></div>
+
+<!-- Below the eligibility floor the lounge says so honestly, and the dock
+     stays up so the other three layouts are still reachable. -->
+<div id="prm-card"><div>
+  <h2>The lounge wants a bigger screen.</h2>
+  <p>Cast it, or open it on a laptop — the Shelves are right here.</p>
+  <button id="btn-shell-to-shelves" class="prm-keycap">Open the Shelves</button>
+</div></div>
+
+<div id="shell-dock" role="tablist" aria-label="Lobby layout" hidden></div>
+<div id="live-screens" hidden></div>
+
+<script src="../../js/lib/three.min.js"></script>
+<script src="../../js/lib/controller-body.js"></script>
+<script src="games.js"></script>
+<!-- lounge.js before lobby.js: lobby.js's lbMountTVFull delegates to lgMount. -->
+<script src="lounge.js"></script>
+<!-- lobby.js's own lbBoot runs on load: it renders into #shelves-canvas and
+     mounts #tv-app, and no-ops on #wide-canvas, which this page deliberately
+     does not have (that is index.html's 900x506 review frame, not a result). -->
+<script src="lobby.js"></script>
+<script src="../premium/prm-lib.js"></script>
+<script src="../premium/prm-room.js"></script>
+<script src="../premium/prm-props.js"></script>
+<script src="../premium/prm-scene.js"></script>
+<script src="shell-router.js"></script>
+<script src="shell-host.js"></script>
+<script>
+(async function shellBoot() {
+  const $ = id => document.getElementById(id);
+  const params = new URLSearchParams(location.search);
+  const LIVE = params.has('live');
+
+  let state = Object.assign({}, ShellRouter.SHELL_INIT, { live: LIVE });
+  let api = null;                       // the premium scene api, once mounted
+  window.prmApi = null;                 // null, not undefined — the harness reads it before any mount
+  const realLbSet = window.lbSet;       // captured before the wrapper replaces it
+
+  const status = (t) => { $('prm-status').textContent = t; };
+  const webgl = (() => { try { const c = document.createElement('canvas'); return !!(c.getContext('webgl2') || c.getContext('webgl')); } catch (_) { return false; } })();
+  const eligible = () => PrmScene.prmEligible(window.innerWidth, window.innerHeight, webgl);
+
+  // ── The one write path ────────────────────────────────────────────────────
+  function dispatch(action) {
+    const prev = state;
+    state = ShellRouter.shellReduce(prev, action);
+    if (state !== prev) apply(prev, state);
+  }
+  window.shellDispatch = dispatch;
+  window.shellState = () => state;
+
+  // ── The room ──────────────────────────────────────────────────────────────
+  // Mounting is a FACT, not an intent, so it writes state directly rather than
+  // re-entering dispatch from inside apply.
+  function ensureRoom(host) {
+    if (api || !eligible()) return;
+    api = PrmScene.prmMount($('prm-canvas'), host);
+    window.prmApi = api;
+    state = ShellRouter.shellReduce(state, { t: 'roomMounted' });
+  }
+
+  // ── The dock (W6) ─────────────────────────────────────────────────────────
+  // Its buttons call lbSet, exactly as lobby.js's own in-phone switcher does,
+  // so both go through one path — the wrapper below.
+  function buildDock() {
+    const dock = $('shell-dock');
+    dock.innerHTML = '';
+    for (const v of LB_VIEWS) {
+      const b = document.createElement('button');
+      b.className = 'lb-seg';
+      b.dataset.shellView = v.id;
+      b.setAttribute('role', 'tab');
+      b.setAttribute('aria-label', v.label);
+      b.innerHTML = `<span class="lb-seg-ico" aria-hidden="true">${v.ico}</span><span class="lb-seg-lbl">${v.label}</span>`;
+      b.addEventListener('click', () => window.lbSet({ view: v.id, folder: null, sheet: null }));
+      dock.appendChild(b);
+    }
+  }
+
+  // ── State to page ─────────────────────────────────────────────────────────
+  function apply(prev, next) {
+    const ok = eligible();
+    const phone = next.view === 'shelves' || next.view === 'original';
+
+    $('shell-premium').hidden = next.view !== 'premium';
+    $('shell-tv').hidden      = next.view !== 'tv';
+    $('shell-phone').hidden   = !phone;
+    $('prm-card').classList.toggle('on', next.view === 'premium' && !ok);
+
+    // W5 — hide and stop, never dispose. Dispose fires once, on leaving.
+    if (next.room === 'absent') {
+      if (api) { api.dispose(); api = null; window.prmApi = null; }
+    } else if (next.view === 'premium' && next.room === 'running') {
+      if (api) api.resume(); else ensureRoom(host);
+    } else if (api) {
+      api.stop();
+    }
+
+    if (api && next.design && next.design !== prev.design) api.setDesign(next.design);
+
+    // lbState.view is a PROJECTION of the router's view, never a second source
+    // of truth. The three lobby.js mount functions each no-op when their target
+    // is hidden or absent, so re-rendering all of them costs nothing.
+    if (phone || next.view === 'tv') {
+      window.lbState.view = next.view;
+      window.lbState.tvSel = next.tvSel;
+      window.LOUNGE.sel = next.tvSel;
+      realLbSet({});
+    }
+
+    $('shell-dock').hidden = !(next.switcher || !ok);
+    $('shell-dock').querySelectorAll('.lb-seg').forEach(b => {
+      b.hidden = b.dataset.shellView === 'premium' && !ok;
+      b.setAttribute('aria-selected', String(b.dataset.shellView === next.view));
+    });
+
+    // The Workshop. Task 5 replaces the else branch with the real thing.
+    if (next.workshop && !prev.workshop) openWorkshopEffect();
+  }
+
+  function openWorkshopEffect() {
+    status('The Workshop would open (ctlOpenWorkshop). Add ?live to reach the real one.');
+    // A fact correction, not an intent: nothing opened, so nothing is open.
+    state = ShellRouter.shellReduce(state, { t: 'workshopClose' });
+  }
+
+  function openSoundEffect() {
+    status('The sound overlay would open. Add ?live to reach the real one.');
+  }
+
+  // ── lbSet wrapper ─────────────────────────────────────────────────────────
+  // lobby.js's in-phone dock calls lbSet({ view }) directly (lobby.js:281).
+  // Routing those through the router is what keeps lbState.view a projection.
+  window.lbSet = function (patch) {
+    const p = Object.assign({}, patch || {});
+    if (p.view) {
+      const v = p.view; delete p.view;
+      if (Object.keys(p).length) Object.assign(window.lbState, p);
+      dispatch({ t: 'go', view: v });
+      return;
+    }
+    realLbSet(p);
+  };
+
+  // ── Boot ──────────────────────────────────────────────────────────────────
+  buildDock();
+  $('btn-shell-to-shelves').addEventListener('click', () => window.lbSet({ view: 'shelves', folder: null, sheet: null }));
+  window.addEventListener('resize', () => apply(state, state));
+  window.addEventListener('beforeunload', () => dispatch({ t: 'leaveShell' }));
+
+  let host = null;
+  try {
+    const [stickerManifest, lampManifest] = await Promise.all([
+      fetch('../../data/stickers/manifest.json').then(r => r.json()),
+      fetch('../premium/lamp images/manifest.json').then(r => r.json()),
+    ]);
+
+    const DESIGN_DEFAULT = { shell: '#a97fd6', plate: '#9670c8', ears: '#a97fd6', buttons: '#8f66c4' };
+    let saved = null; try { saved = JSON.parse(localStorage.getItem('sylly_controller') || 'null'); } catch (_) {}
+    const design = Object.assign({}, DESIGN_DEFAULT, saved && saved.shell
+      ? { shell: saved.shell, plate: saved.plate, ears: saved.ears, buttons: saved.buttons } : {});
+
+    const music = { keys: window.GAMES.map(g => g.id), current: null,
+      nowPlaying() { if (!this.current) return null; const g = window.GAMES.find(x => x.id === this.current); return { key: this.current, title: null, artist: null, game: g && g.gameName }; },
+      playFor(k) { this.current = k; } };
+
+    const deps = {
+      games: window.GAMES,
+      /* Asset bases move with the page, and every URL comes from here — which
+         is why no prm-* module needed editing for the new home. Both sandboxes
+         sit at wip/<dir>/, so the sticker path is unchanged. */
+      stickers: { base: '../../data/stickers/', list: stickerManifest.stickers },
+      lampPanels: { base: '../premium/lamp images/', manifest: lampManifest },
+      design, music, dispatch,
+      openSound: () => openSoundEffect(),
+      debug: true,
+      reducedMotion: params.has('reduced') ? true : undefined,
+    };
+    if (params.has('seed')) { let s = +params.get('seed') || 1; deps.rand = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; }
+
+    host = ShellHost.shellCreateHost(deps);
+    if (LIVE) await shellLoadLive();
+    apply(state, state);
+    if (state.view === 'premium' && eligible()) ensureRoom(host);
+  } finally {
+    // However boot ended — no WebGL, a missing manifest, an ineligible window —
+    // the page is in a state the harness can read.
+    apply(state, state);
+    window.shellReady = true;
+  }
+})();
+</script>
+</body>
+</html>
