@@ -172,6 +172,67 @@ function loadPlaywright() {
     await lp.close();
   }
 
+  // ── W5: the room is kept, stopped, and disposed exactly once ──────────────
+  {
+    const lc = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+    await lc.goto(`${base}?seed=7`); await settle(lc);
+    await lc.waitForFunction(() => window.prmApi !== null, null, { timeout: 30000 });
+    await lc.waitForFunction(() => window.prmDebug.isRunning() === true, null, { timeout: 20000 });
+
+    await lc.evaluate(() => window.shellDispatch({ t: 'go', view: 'shelves' }));
+    await lc.waitForFunction(() => window.shellState().room === 'idle', null, { timeout: 15000 });
+    ok(await lc.evaluate(() => document.getElementById('prm-canvas') !== null), 'leaving Premium leaves the canvas in the DOM (W5)');
+    ok(await lc.evaluate(() => window.prmApi !== null), 'and the scene is kept, not disposed');
+    await lc.waitForFunction(() => window.prmDebug.isRunning() === false, null, { timeout: 20000 });
+    ok(true, 'and the RAF is stopped — a hidden room costs nothing');
+
+    // The attract interval must not wake it back up. It ticks every 100 ms.
+    const f0 = await lc.evaluate(() => window.prmDebug.frames());
+    await lc.waitForTimeout(1200);
+    const f1 = await lc.evaluate(() => window.prmDebug.frames());
+    ok(f1 === f0, `a stopped room renders no frames at all (advanced ${f1 - f0} over 1.2 s, want 0)`);
+
+    await lc.evaluate(() => window.shellDispatch({ t: 'go', view: 'premium' }));
+    await lc.waitForFunction(() => window.prmDebug.isRunning() === true, null, { timeout: 20000 });
+    ok(true, 'returning to Premium restarts the same scene');
+    /* isRunning() flips true the instant resume()'s resize() schedules the
+       RAF — synchronously, before that frame() callback has actually run and
+       incremented the counter. Poll for the real effect rather than racing it. */
+    await lc.waitForFunction(n => window.prmDebug.frames() > n, f1, { timeout: 5000 });
+    ok(true, 'and it renders again');
+
+    // A round trip through every view never rebuilds it.
+    const built0 = await lc.evaluate(() => window.prmDebug.nodes().length);
+    for (const v of ['tv', 'shelves', 'original', 'premium']) {
+      await lc.evaluate(x => window.shellDispatch({ t: 'go', view: x }), v);
+      await lc.waitForFunction(x => window.shellState().view === x, v, { timeout: 15000 });
+    }
+    ok(await lc.evaluate(() => window.prmDebug.nodes().length) === built0, 'four view switches later it is still the same scene');
+    await lc.close();
+  }
+
+  // ── reduced motion: the room is still honest inside the shell ─────────────
+  {
+    const rctx = await browser.newContext({ viewport: { width: 1280, height: 720 }, reducedMotion: 'reduce' });
+    const rp = await rctx.newPage();
+    await rp.goto(`${base}?seed=7`); await settle(rp);
+    await rp.waitForFunction(() => window.prmApi !== null, null, { timeout: 30000 });
+    await rp.waitForTimeout(1500);
+
+    const m0 = await rp.evaluate(() => window.prmDebug.cameraMatrix());
+    await rp.mouse.move(400, 300); await rp.mouse.move(900, 500); await rp.waitForTimeout(1200);
+    const m1 = await rp.evaluate(() => window.prmDebug.cameraMatrix());
+    ok(JSON.stringify(m0) === JSON.stringify(m1), 'reduced motion: the camera never moves inside the shell either');
+    ok(await rp.evaluate(() => window.prmDebug.isRunning() === false), 'reduced motion: the loop settles idle');
+
+    // The doors still work, they just do not travel.
+    await rp.evaluate(() => window.prmApi.activate('phone'));
+    await rp.waitForFunction(() => window.shellState().view === 'shelves', null, { timeout: 20000 });
+    ok(true, 'reduced motion: the clamshell phone still reaches the Shelves');
+    await rp.screenshot({ path: path.join(SHOTS, 'shell-reduced-1280.png') });
+    await rp.close(); await rctx.close();
+  }
+
   await browser.close(); server.close();
   console.log(`\n${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);
 })().catch(e => { console.error(e); process.exit(1); });
