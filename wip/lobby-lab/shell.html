@@ -143,6 +143,67 @@
     }
   }
 
+  // ── ?live: the shipped engine, loaded into the sandbox ────────────────────
+  // Three.js and controller-body.js are deliberately NOT in this list: the
+  // room already loaded them and both halves use the same vendored copy, so
+  // the Workshop costs no extra library bytes on top of the room. That is a
+  // real number for the production round's install maths.
+  function shellLoadScript(src) {
+    return new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = src; s.onload = resolve; s.onerror = () => reject(new Error('shell: failed to load ' + src));
+      document.body.appendChild(s);
+    });
+  }
+
+  async function shellLoadLive() {
+    const wrap = $('live-screens');
+    const [shellHtml, soundHtml] = await Promise.all([
+      fetch('../../src/screens/_shell.html').then(r => r.text()),
+      fetch('../../src/screens/_sound.html').then(r => r.text()),
+    ]);
+    /* #btn-mute is the one engine-required id that lives in a GAME partial
+       (src/screens/li5.html:109) rather than the shell, and engine.js wires it
+       unguarded at boot (js/engine.js:903 and :912). A hidden stub is the whole
+       cost of that asymmetry. */
+    wrap.innerHTML = shellHtml + soundHtml + '<button id="btn-mute" hidden aria-hidden="true">\u{1F50A}</button>';
+
+    // Shipped load order. music.js before engine.js: the engine's boot block
+    // calls Music.init() at parse time.
+    await shellLoadScript('../../js/lib/music.js');
+    await shellLoadScript('../../js/engine.js');
+    await shellLoadScript('../../js/lib/controller-sticker-surface.js');
+    await shellLoadScript('../../js/controller.js');
+
+    /* THE FINDING (spec § 1.1.1): ctlCloseWorkshop hardcodes
+       showScreen('screen-lobby') at js/controller.js:2044 — the SHIPPED lobby,
+       not the lounge — so this wrapper's job is to hide it again. That is the
+       evidence shipped controller.js needs a return-destination variable
+       (ctlReturnScreen, or Premium registered in allScreens[]). Recorded here
+       and in shared-implementation-notes.md, deliberately NOT patched: nothing
+       under js/ is touched this round.
+
+       One path covers both exits. Save (controller.js:2287) calls
+       ctlWriteDesign(ctlDraft) then ctlCloseWorkshop(); the X calls
+       ctlCloseWorkshop() directly, and line 2043 restores the saved design on
+       the way out. So reading ctlReadDesign() AFTER close is correct for both,
+       with no branch. */
+    const realClose = window.ctlCloseWorkshop;
+    window.ctlCloseWorkshop = function () {
+      realClose();
+      wrap.hidden = true;
+      dispatch({ t: 'designSaved', design: window.ctlReadDesign() });
+      dispatch({ t: 'workshopClose' });
+    };
+
+    // The sound overlay has no close hook of its own, so put the screens away
+    // when its Done button fires.
+    const done = $('btn-sound-overlay-done');
+    if (done) done.addEventListener('click', () => { wrap.hidden = true; });
+
+    window.shellLive = true;
+  }
+
   // ── State to page ─────────────────────────────────────────────────────────
   function apply(prev, next) {
     const ok = eligible();
@@ -185,12 +246,22 @@
   }
 
   function openWorkshopEffect() {
+    if (state.live && typeof window.ctlOpenWorkshop === 'function') {
+      $('live-screens').hidden = false;
+      window.ctlOpenWorkshop();
+      return;
+    }
     status('The Workshop would open (ctlOpenWorkshop). Add ?live to reach the real one.');
     // A fact correction, not an intent: nothing opened, so nothing is open.
     state = ShellRouter.shellReduce(state, { t: 'workshopClose' });
   }
 
   function openSoundEffect() {
+    if (state.live && typeof window.openSoundOverlay === 'function') {
+      $('live-screens').hidden = false;
+      window.openSoundOverlay();
+      return;
+    }
     status('The sound overlay would open. Add ?live to reach the real one.');
   }
 

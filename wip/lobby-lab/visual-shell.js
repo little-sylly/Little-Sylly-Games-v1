@@ -89,6 +89,89 @@ function loadPlaywright() {
   await small.screenshot({ path: path.join(SHOTS, 'shell-gate-390.png') });
   await small.close();
 
+  // ── ?live: the real Workshop, and the design round-trip ───────────────────
+  {
+    const lp = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+    const liveErrors = []; lp.on('pageerror', e => liveErrors.push(String(e)));
+    await lp.goto(`${base}?live&seed=7`);
+    await lp.waitForFunction(() => window.shellReady === true && window.shellLive === true, null, { timeout: 40000 });
+    await lp.waitForFunction(() => window.prmApi !== null, null, { timeout: 30000 });
+
+    ok(await lp.evaluate(() => typeof window.ctlOpenWorkshop === 'function'), 'the shipped controller.js loaded');
+    ok(await lp.evaluate(() => typeof window.openSoundOverlay === 'function'), 'the shipped engine.js loaded');
+    ok(await lp.evaluate(() => document.getElementById('screen-workshop') !== null), '_shell.html supplied screen-workshop');
+    ok(await lp.evaluate(() => document.getElementById('sound-overlay') !== null), '_sound.html supplied the sound overlay');
+    ok(await lp.evaluate(() => document.getElementById('live-screens').hidden === true), 'and all of it starts out of the way');
+    ok(liveErrors.length === 0, `no uncaught page errors while loading the shipped engine (${liveErrors.slice(0, 2).join(' | ') || 'none'})`);
+
+    // Three.js is shared — the Workshop costs no extra library bytes on top of
+    // the room. Worth banking for the production round's install maths.
+    ok(await lp.evaluate(() => document.querySelectorAll('script[src*="three.min.js"]').length === 1),
+       'one vendored Three serves both the room and the Workshop');
+
+    // The controller prop opens the real Workshop.
+    await lp.evaluate(() => window.prmApi.activate('controller'));
+    await lp.waitForFunction(() => document.getElementById('screen-workshop').style.display === 'flex', null, { timeout: 20000 });
+    ok(true, 'the controller prop opens the real screen-workshop');
+    ok(await lp.evaluate(() => window.shellState().workshop === true), 'and the router knows it');
+    ok(await lp.evaluate(() => window.prmDebug.isRunning() === false), 'the room stopped while the Workshop is up (W5)');
+    await lp.screenshot({ path: path.join(SHOTS, 'shell-live-workshop-1280.png') });
+
+    // Save a changed shell colour and come back.
+    /* ctlDraft is `let`-declared at controller.js's top level, so (like the
+       mp* variables logic-engine.md documents) it is a global LEXICAL binding,
+       never a window property — window.ctlDraft is undefined even though
+       controller.js is fully loaded. Accessed bare, it resolves fine: the
+       function passed to evaluate() runs directly in the page's realm. */
+    await lp.evaluate(() => { ctlDraft.shell = '#10B981'; window.ctlApplyDesign(ctlDraft); });
+    await lp.click('#btn-ctl-save');
+    await lp.waitForFunction(() => window.shellState().workshop === false, null, { timeout: 20000 });
+
+    ok(await lp.evaluate(() => window.shellState().view === 'premium'),
+       'saving returns to the lounge, NOT to screen-lobby (spec § 1.1.1)');
+    ok(await lp.evaluate(() => document.getElementById('live-screens').hidden === true), 'and the shipped screens go back out of the way');
+    ok(await lp.evaluate(() => window.shellState().design.shell === '#10B981'), 'the saved design reached the router');
+    ok(await lp.evaluate(() => JSON.parse(localStorage.getItem('sylly_controller')).shell === '#10B981'), 'and sylly_controller holds it');
+
+    // The room repainted — the half no pure harness can reach.
+    await lp.waitForFunction(() => window.prmDebug.isRunning() === true, null, { timeout: 20000 });
+    ok(true, 'the room restarted on the way back');
+    const repainted = await lp.evaluate(() => {
+      let hit = false;
+      window.prmApi.built.controller.traverse(o => {
+        if (o.isMesh && o.material && o.material.userData.prmRole === 'shell' && o.material.color.getHexString() === '10b981') hit = true;
+      });
+      return hit;
+    });
+    ok(repainted, "the controller prop's shell repainted in the saved colour — the round-trip, closed");
+    await lp.screenshot({ path: path.join(SHOTS, 'shell-live-return-1280.png') });
+
+    // The ✕ path: discards, and still lands on the lounge.
+    await lp.evaluate(() => window.prmApi.activate('controller'));
+    await lp.waitForFunction(() => window.shellState().workshop === true, null, { timeout: 20000 });
+    await lp.evaluate(() => { ctlDraft.shell = '#FFE500'; window.ctlApplyDesign(ctlDraft); });
+    await lp.click('#btn-ctl-exit');
+    await lp.waitForFunction(() => window.shellState().workshop === false, null, { timeout: 20000 });
+    ok(await lp.evaluate(() => window.shellState().view === 'premium'), 'the exit path lands on the lounge too');
+    ok(await lp.evaluate(() => window.shellState().design.shell === '#10B981'), 'and the unsaved edit is discarded — one wrapper covers both exits');
+
+    // The telly's volume dial reaches the real overlay.
+    await lp.evaluate(() => window.prmApi.activate('tv-volume'));
+    await lp.waitForFunction(() => document.getElementById('sound-overlay').style.display === 'flex', null, { timeout: 20000 });
+    ok(true, "the telly's volume dial opens the real sound overlay");
+    await lp.click('#btn-sound-overlay-done');
+    await lp.waitForFunction(() => document.getElementById('live-screens').hidden === true, null, { timeout: 20000 });
+    ok(true, 'and closing it puts the shipped screens away again');
+
+    // W4 — the jukebox knob is NOT the sound overlay, even with the engine loaded.
+    await lp.evaluate(() => window.prmApi.activate('jukebox-knob'));
+    await lp.waitForTimeout(400);
+    ok(await lp.evaluate(() => document.getElementById('live-screens').hidden === true),
+       'the jukebox knob opens nothing — a dormant door, not the sound overlay (W4)');
+
+    await lp.close();
+  }
+
   await browser.close(); server.close();
   console.log(`\n${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);
 })().catch(e => { console.error(e); process.exit(1); });
