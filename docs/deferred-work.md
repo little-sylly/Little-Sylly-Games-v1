@@ -70,6 +70,24 @@ entry below says **"the lobby implementation round"** throughout instead.
      afternoon exposure, droopy-ear TV, cat-jar jukebox, round jute rug, photo lamp to the
      shelves, table off-centre. **Plan not yet written. Production wiring waits behind the
      re-block** — the ninety-second test is the gate, not the harness.
+   - **Sandbox wiring is done (19 Sep 2026)** — `wip/lobby-lab/shell.html` joins the two
+     sandboxes: one full-window page hosting all four lobby layouts, the Premium room's props
+     wired as real doors between them, and — under `?live` — the controller prop reaching the
+     shipped `ctlOpenWorkshop()`. 134 checks in `node wip/lobby-lab/verify-shell.js`, 57 in the
+     Playwright driver `visual-shell.js`, both green; `verify-lounge.js` (919) and
+     `verify-prm-props.js` (409) confirmed unmoved. Spec:
+     `docs/superpowers/specs/2026-09-19-premium-shell-wiring-design.md`.
+   - **Production wiring is still deferred** — `src/screens/lobby.html`, the `sw.js` precache,
+     and the real layout switcher are all untouched; nothing under `index.html`, `sw.js`,
+     `src/screens/` or `js/` was edited this round.
+   - **`ctlReturnScreen` (or Premium registered in `allScreens[]`) is a known prerequisite for
+     production wiring** — `js/controller.js:2044`'s `ctlCloseWorkshop` hardcodes
+     `showScreen('screen-lobby')`, which is why the sandbox had to wrap it rather than call it
+     directly. See `shared-implementation-notes.md` DD-16.
+   - **`jukebox-knob` is deliberately absent from `PRM_TAB_ORDER`** — keyboard reach is a
+     question for the round that builds the karaoke/jukebox feature, not this one.
+   - **The jukebox/karaoke feature itself is undecided** — the door exists (`openJukebox`,
+     optional), nothing supplies it. The knob turns and does nothing else.
    - **The env map is a finding for the shipped controller, not just the lounge** — see the
      Controller Workshop entries below and `shared-implementation-notes.md` DD-14.
    - **Stickerbook feature (owner vision, 18 Sep 2026).** The lounge's yellow binder is the

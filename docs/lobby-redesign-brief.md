@@ -214,6 +214,7 @@ local-now / server-later is a data-source swap rather than a redesign**, and say
 | **`games.js`** | The verified 20-game table — `window.GAMES`, `window.SHELVES`, `window.SHELF_NOTES`. **Read its header comments**; they say exactly which fields are machine-verified and which are editorial |
 | `games.raw.json` | The unedited extraction, for traceability |
 | `build-games.js` | Regenerates the raw extraction from the shipped app |
+| **`shell.html`** | Joins this sandbox to `wip/premium/`'s Premium lounge: one full-window page showing all four lobby layouts, with the room's props (telly, dial, clamshell phone) wired as real doors between them. Add `?live` to reach the shipped Workshop and sound overlay through the controller prop and the telly's volume dial. Sandbox only — nothing under `index.html`, `sw.js`, `src/screens/` or `js/` is touched |
 
 **`minutes` is `null` for 13 of the 20 games, deliberately.** It is filled only where a game's own
 copy states a number outright. The mockup guessed these and flagged its own guessing as a problem.

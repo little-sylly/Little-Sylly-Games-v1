@@ -21,6 +21,28 @@ place.
 
 ## Design Decisions
 
+**DD-16 — `ctlCloseWorkshop` hardcodes its return screen, and one vendored Three now serves two
+live scenes (19 Sep 2026, `wip/lobby-lab/shell.html` sandbox wiring round).** Joining the Premium
+lounge sandbox to the lobby-lab sandbox behind a new full-window shell, with the controller prop
+reaching the real `ctlOpenWorkshop()` under a `?live` flag, surfaced two findings worth carrying
+into the production wiring round.
+
+*The `ctlCloseWorkshop` return destination.* `js/controller.js:2044` hardcodes
+`showScreen('screen-lobby')` — the shipped lobby, not wherever the Workshop was opened from. Wiring
+Premium to the real Workshop meant the only way out landed on the shipped lobby underneath the
+sandbox's own screens, so `shellLoadLive()` in `wip/lobby-lab/shell.html` had to wrap
+`ctlCloseWorkshop` purely to hide it again and route the shell back to the lounge. The lesson: a
+teardown function that also *navigates* has baked a caller's destination into a shared routine.
+Shipped `controller.js` needs a return-destination variable (`ctlReturnScreen`) or Premium
+registered in `allScreens[]` before production wiring can drop the wrapper — that decision belongs
+to the production round, not this sandbox one.
+
+*One vendored Three serves both scenes.* The Premium room and the Workshop both read `window.THREE`
+from the single precached `js/lib/three.min.js`, so putting a 3D lounge in front of the Workshop
+adds **no library bytes** to the install — confirmed in `wip/lobby-lab/visual-shell.js` by counting
+`<script src*="three.min.js">` tags on the `?live` page (exactly one). A real number for
+`docs/cost-envelope.md` to draw on when the production round's install maths gets written.
+
 **DD-15 — judge a greybox's first shots against the reference at matched camera distance, and
 measure the two claims a screenshot lets you fool yourself about (19 Sep 2026, `wip/premium/`
 re-block).** The Premium lounge greybox passed 297 checks and 12 visual checks and still failed
@@ -1338,6 +1360,28 @@ extraction is about reachability, not relocation.
 ---
 
 ## Template Gaps
+
+### A render-on-demand loop with a wake-on-interval companion cannot be stopped by hiding its canvas
+
+**What happened.** `wip/premium/prm-scene.js`'s render loop is on-demand: `wake()` schedules a RAF
+only while something is animating, and the loop goes idle once nothing is. Alongside it, a 10 fps
+attract `setInterval` redraws the jukebox's idle texture and calls `wake()` every tick, guarded only
+on `document.hidden`. Joining the Premium room to the sandbox shell (19 Sep 2026) meant leaving the
+room's view for good the first time — the shell hides the canvas with CSS rather than navigating
+away from the page — and the room kept rendering forever underneath the hidden view.
+
+**Root cause.** `document.hidden` is a page-level signal (tab switched, window minimised); it says
+nothing about whether *this element* is currently on screen. CSS visibility is invisible to the
+interval, so the one thing standing between "hidden" and "still costing a GPU frame ten times a
+second" was a guard that could never see the difference.
+
+**Lesson.** Added `api.stop()` / `api.resume()` and a `paused` flag that gates `wake()`, the
+`frame()` re-schedule, and the attract interval's own tick — an explicit switch, not a CSS
+inference. Generalises to any `wake()`/RAF pair in this suite (`ctlRaf`, `ntRafHandle`): if
+something *else* — an interval, a second listener, a retained closure — can call the loop's own wake
+function, then `display:none` on its canvas is not a stop. `wip/lobby-lab/visual-shell.js`'s W5
+block measures rather than asserts this: it counts frames rendered over 1.2 s of a stopped room and
+requires exactly zero, which is the check that would have caught the interval waking a hidden room.
 
 ### A doc-verification harness must require a BOUNDED match, not a substring
 

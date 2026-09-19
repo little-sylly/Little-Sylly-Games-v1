@@ -18,6 +18,23 @@ Changed: Files/systems touched. Deferred/superseded: anything left open.
 Detail: pointer to the canonical doc (snapshot / impl note / spec / memory).
 ```
 
+## 2026-09-19 — The Premium sandbox joins the lobby-lab sandbox behind a new shell
+Category: Architecture
+Decision: `wip/lobby-lab/shell.html` hosts all four lobby layouts in one full-window page, with the
+Premium room's props wired as real doors between them, and — under a `?live` flag — the controller
+prop reaching the shipped `ctlOpenWorkshop()` so the Workshop return path, the design round-trip and
+two live Three.js scenes get settled before production wiring. Also: the jukebox knob is corrected
+from `openSound` to `openJukebox`, a dormant door to an undecided feature.
+Why: Settle three real questions (the Workshop's hardcoded return screen, whether a save/discard
+round-trip actually repaints the room, whether one vendored Three can serve two live scenes at once)
+against the sandbox rather than discovering them mid-production-wiring.
+Changed: `wip/lobby-lab/{shell,shell-router,shell-host,verify-shell,visual-shell}.js/.html`;
+`wip/premium/{prm-props,prm-scene,verify-prm-props}.js`. Sandbox only: no `index.html`, `sw.js`,
+`src/screens/` or `js/`, no SW bump. Deferred: `ctlReturnScreen` (or Premium in `allScreens[]`) as a
+prerequisite for production wiring; the jukebox/karaoke feature itself is undecided.
+Detail: `docs/superpowers/specs/2026-09-19-premium-shell-wiring-design.md`,
+`shared-implementation-notes.md` DD-16.
+
 ## 2026-09-19 — Premium lounge re-blocked: the window is the light, the room is a corner
 Category: Architecture
 Decision: The greybox's composition and lighting are replaced wholesale — room compressed to a
