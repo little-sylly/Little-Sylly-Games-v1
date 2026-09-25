@@ -8,6 +8,53 @@ Tick items off here; promote anything architectural into `decision-log.md`.
 
 ---
 
+## Bookshelf easter eggs — deferred by the owner (25 Sep 2026, sandbox)
+
+The room pass's item 15 dressed the lounge bookshelf's top two boards with books and toys. The owner
+said: *"we can worry about easter eggs down the line"*. The spec's trinket seam (§ 7.9,
+`PRM_TRINKETS_V1` with an `unlocked` flag) was removed with the round-1 trinkets it gated. When earned
+or hidden pieces come back, they are items in `prmBuildShelf` (`wip/premium/prm-props.js`). They could
+come from achievements, the stickerbook, or something else, all undecided. Decide the earning source
+first, then whether a locked piece leaves a gap or the row reflows. Detail:
+`shared-implementation-notes.md` DD-41 § 4.
+
+---
+
+## Stickerbook achievements — prototype built, owner answered (23 Sep 2026, sandbox)
+
+The binder is the stickerbook and a prototype achievements loop runs behind its door in
+`wip/lobby-lab/shell.html` (spec `docs/superpowers/specs/2026-09-23-stickerbook-achievements-design.md`,
+`shared-implementation-notes.md` DD-24). The owner answered the four open questions the same day:
+
+- **The loop is the point:** play → earn/collect → customise. Earned stickers are the ones the
+  Workshop offers. **Short term, everything stays unlocked** in the Workshop (as shipped today —
+  every `data/stickers/manifest.json` entry is `unlocked: true`); gating waits for progress storage.
+- **A "play" = a match finished to its end screen**, not a Play-CTA press. Production seam: one
+  engine-side hook on each game's gameover screen (the same shape as `showScreen` → `Music.playFor`),
+  not a call in 20 plugins.
+- **Sticker finishes** (glossy / holo / gold / …), each earned by a different achievement beyond
+  play counts. Needs its own design pass. Data shape to leave room for: a sticker is `id + finish`.
+- **Player profiles** (name + controller design + progress). The owner's worry was that this needs
+  a stored-data backend. Split it: **on one device it needs none** — `sylly_nickname` and
+  `sylly_controller` are already a profile; progress is one more permitted key (e.g.
+  `sylly_progress`). **Following a player across devices** is the part that needs Firebase Auth
+  beyond anonymous, per-user security rules and a privacy position. Firebase's free tier is not the
+  constraint (a profile is ~1–2 KB). Open design question first: in pass-the-phone play one device
+  serves several people — whose progress is it?
+- **The 2D book has no spine** — it does not read as a book. Polish later; middle ground for now.
+- **The open binder's fold** ("D" vs the mockup's "Sticker Tray" flap) — still open.
+- **Bailed** has no sticker (badge pending), so no achievement — `achDefine` simply has 19.
+
+### Prop rooms — Workshop, Jukebox, Stickerbook (owner, 23 Sep 2026)
+
+The Workshop (a plain full screen), the stickerbook (a full-screen purple scene) and the Jukebox
+don't share a look. Owner's direction: each should work **full-screen on wide and on mobile**, at a
+middle-ground polish level — a working feature first. Recommendation on record: **one responsive
+layout per feature** (the stickerbook already does this at 720 px), not two separate builds, and a
+**shared "prop room" frame** (header, ✕/🔊, backdrop, entry/exit) that all three sit in, so they
+match through the frame and differ only inside it. Remaining work: Workshop wide layout, Jukebox
+room, stickerbook spine/book feel. Sequencing: after the lounge ships and is wired.
+
 ## Lobby redesign — TV mode next, then the implementation round (15 Sep 2026, corrected)
 
 **Deliberately deferred, not blocked.** The Shelves round (`wip/lobby-lab/`) is done —
@@ -77,13 +124,110 @@ entry below says **"the lobby implementation round"** throughout instead.
      Playwright driver `visual-shell.js`, both green; `verify-lounge.js` (919) and
      `verify-prm-props.js` (409) confirmed unmoved. Spec:
      `docs/superpowers/specs/2026-09-19-premium-shell-wiring-design.md`.
-   - **Production wiring is still deferred** — `src/screens/lobby.html`, the `sw.js` precache,
-     and the real layout switcher are all untouched; nothing under `index.html`, `sw.js`,
-     `src/screens/` or `js/` was edited this round.
-   - **`ctlReturnScreen` (or Premium registered in `allScreens[]`) is a known prerequisite for
-     production wiring** — `js/controller.js:2044`'s `ctlCloseWorkshop` hardcodes
-     `showScreen('screen-lobby')`, which is why the sandbox had to wrap it rather than call it
-     directly. See `shared-implementation-notes.md` DD-16.
+   - **Production wiring is DONE — shipped as SW v231 (25 Sep 2026).** All four layouts, the Lounge
+     first, every exit through `lobbyShow()`. Plan
+     `docs/superpowers/plans/2026-09-25-lobby-production-wiring.md`, record
+     `shared-implementation-notes.md` DD-42. **What it leaves open** (spec § 13 + the round's own):
+     - **Controller animation round — owner-prioritised.** The ornament and the Lounge's prop both
+       idle-static in v1 (only the existing idle nudge moves the ornament).
+     - **Stickerbook earning** — the earn loop, the toast, placement, and the **localStorage key** it
+       will need (a new permitted key — `CLAUDE.md` § Anti-Patterns; an owner decision). The pure
+       reducer ships and is harnessed (`tools/verify-achievements.js`), waiting. Put its data source
+       behind one module (cost-envelope § 4, the Tier 3 seam).
+     - **Stickerbook on phones** — phones never see the Lounge, so they cannot reach the book in v1.
+       Planned: its own layout icon in Shelves' dock (the 🏆 slot, removed in v1) and TV's header.
+     - **The fourth layout's label** — "Original" until the owner renames it ("Classic" / "The
+       List" floated). One string in `LOBBY_LAYOUTS`; the id stays `original`.
+     - **Jukebox feature** (the owner's next round) — the `openJukebox` door and `jukebox-knob` tab
+       order. v1's jukebox only lights with the real music and picks nothing.
+     - **The owner's real-device pass** — desktop, a phone and the TV — before the phase snapshot. No
+       harness sees a real GPU, touch, or how the Lounge feels.
+     - **Archive `wip/lobby-lab/` + `wip/premium/` out of the repo** (spec § 11.3). Safe: nothing in
+       `js/`, `css/`, `src/`, `data/`, `sw.js` or `tools/` loads from `wip/`, and the five ported
+       harnesses were re-run green, identical counts, in a copy of the app with no `wip/` in it (plan
+       Task 12 Step 5 — the in-place rename was refused by Windows: something held a file open in `wip/`).
+   - **Production v1 scope, owner-decided 21 Sep 2026:** **all four layouts, Premium included**,
+     as **new screens beside `screen-lobby`** (today's lobby survives untouched as the "Original"
+     layout; the switcher picks). Chosen over a phone/TV-first round and over rebuilding
+     `screen-lobby` to swap panes internally.
+   - **⚠️ …but Premium is the DEFAULT and first view, so this is additive in MARKUP only, NOT in
+     routing** (owner clarification, 21 Sep 2026 — it corrects this entry's own first draft, which
+     claimed `resetToLobby()` was untouched). Four shipped sites land on the lobby today and every
+     one of them has to land on the layout router instead: **`engine.js:889` `resetToLobby()` —
+     which every one of the 20 games' exit paths calls** — `secret-mode.js:1115` and `:1131` (the
+     Konami/Terminal returns), and `controller.js`'s idle-nudge "is the lobby on screen" check.
+     Treat the router as a **single seam**, the same shape as `showScreen()` being the one music
+     seam: fix it once and all 20 games inherit it. This is the highest-blast-radius item in the
+     whole initiative.
+   - **Prop quality rounds — OUTLINE WRITTEN, 22 Sep 2026:**
+     `docs/superpowers/plans/2026-09-22-premium-prop-quality.md`. **Rounds 1–3 done (TV, dial,
+     jukebox shape pass, 23 Sep)** — live progress is the plan's § 2 checklist, not this line. At
+     the outline's writing the props were still **greybox**,
+     and the owner's read was that this is not polish — some shapes are simply wrong. Owner-set
+     order: **TV → dial → jukebox → phone → binder → lamp → shelf contents**, then the room.
+     One prop per round, one session each; the owner re-provides that prop's rendered mockup
+     **in-session** (the `Gemini_Generated_Image_*.jpg` files in `wip/premium/` may be stale — do
+     not treat them as the reference). The bar is **controller quality, fully procedural**: the
+     measured gap is geometry density plus a canvas-drawn bump map, and `role()` already matches
+     `ctlShellMat` on roughness and metalness, so **zero install bytes**. Stickers are out of scope
+     for every prop but the controller. Two things recorded there rather than decided: the TV's
+     dials may be doors its mockup lacks, and Scene B may need a re-tune after the phone round
+     (owner: finish the phone first, then decide). **Also carries a real bug to fix in round 1** —
+     `shadowDirty` is never set by any prop's `tick()`, so every animated prop runs against a
+     frozen shadow map (the binder's open-delay).
+   - **Scene B — BUILT IN THE SANDBOX, 22 Sep 2026.** `wip/lobby-lab/shell.html` now detects the
+     tier, mounts the room **lean** (no controller prop), plays the arrival beat and hands one way
+     to Shelves; `prm-scene.js` gained `api.arrive()`, `prmCanArrive()` and `prmArriveMs()`.
+     **TWO outcomes, not three** (owner, 22 Sep): the interactive lounge, or the Shelves. A device
+     with no WebGL / `prefers-reduced-data` is not a third tier — it reaches the same Shelves
+     without the beat. **The honest card is retired from the shell** (it survives only in
+     `wip/premium/index.html`, which has nowhere to hand anyone to). The live-vs-pre-rendered
+     question below is **SETTLED: live**, because the controller prop alone was 87% of the low-end
+     mount cost and is out of the portrait framing anyway — skipping it buys −65% at CPU 4× for
+     zero new assets. Harnesses: verify-shell 134→165, verify-prm-props 409→432, visual-shell
+     69→87. Detail: `shared-implementation-notes.md` DD-19. **Still sandbox only — nothing
+     shipped, no SW bump.** The paragraph below is kept for the framing it records.
+   - **Scene B REDEFINED (owner, 21 Sep 2026) — it is a one-way handoff, not a portrait lounge.**
+     The spec's § 12 (`2026-09-18-premium-lounge-scene-design.md`) designs a portrait-*playable*
+     room: a portrait HUD, a keycap in thumb reach, and a fade between Scene B and Shelves **in
+     both directions**. That is not what is wanted. **A phone can never stay in the lounge** —
+     dimensions and low-end specs both rule it out — so it gets a **preset scene (an auto-pan to
+     the clamshell prop, or some other scripted beat) and is handed to the Shelves layout, one
+     way.** This DELETES the portrait HUD and the return path rather than deferring them; § 12 is
+     superseded. **Three tiers, not two:** widescreen + WebGL → interactive lounge; phone with a
+     working context → preset arrival, pan, handoff; no WebGL / `prefers-reduced-data` / too weak
+     → no lounge at all, straight to Shelves. **Open design question for that round:** whether the
+     transition is worth building the live scene for on a low-end phone at all, or whether it
+     should be a pre-rendered beat — the owner left it as "auto pan or something else".
+     **ANSWERED 22 Sep 2026: live, with the controller prop omitted.** See the entry above.
+   - **Measured install delta for that scope: ~581 KB on a ~5.0 MB precache (+11.6%).** Runtime
+     files only, harnesses excluded: Premium scene modules (`prm-lib`/`prm-props`/`prm-room`/
+     `prm-scene`) ~90 KB · **lamp images ~310 KB (9 JPEGs, ~34 KB each)** · lobby/TV layers
+     (`games.js`, `lobby.css`, `lobby.js`, `lounge.js`, `shell-host`, `shell-router`) ~181 KB.
+     **`three.min.js` is already precached, so the 3D room adds no library bytes** (DD-16's
+     measured finding). The lamp images are over half the delta and are the obvious lever —
+     `docs/cost-envelope.md` § tiers says an asset addition this size is a
+     propose-the-number decision, and runtime-caching them the way `data/music/` is cached
+     (manifest network-first, media cache-first) would cut the precache delta to ~271 KB.
+     **The spec must propose a number here; do not just add them to `PRECACHE_URLS`.**
+   - **`ctlReturnScreen` — DONE, 21 Sep 2026.** `ctlOpenWorkshop(opts)` now takes
+     `{ returnScreen, onReturn }` and `ctlCloseWorkshop` no longer hardcodes
+     `showScreen('screen-lobby')`; the sandbox's monkey-patch is deleted and `visual-shell.js`
+     went 63 → 69. **`js/controller.js` is therefore modified and NOT SW-bumped** — held for this
+     initiative's single combined ship (§ 3 below), which is safe only because the change is a
+     behavioural no-op for every shipped call site. See `shared-implementation-notes.md` DD-18.
+   - **Registering Premium in `allScreens[]` is still outstanding, and is a SEPARATE prerequisite**
+     — DD-16 framed it as an alternative to `ctlReturnScreen` and that was wrong. `allScreens[]`
+     governs *hiding*: whatever round creates `screen-premium` must add it there or it becomes a
+     ghost screen that never hides (`logic-engine.md` § Screen Routing). Production also passes
+     `returnScreen: 'screen-premium'` at the lounge's call site — the half that can only exist
+     once that screen does.
+   - **The production switcher must hide panes by inline `style.display`, not the `hidden`
+     attribute** — the sandbox hid panes with `hidden` and one id-level `display:flex` rule beat
+     the attribute's stylesheet rule outright, leaving a pane lit over the lounge while five
+     harnesses stayed green (fixed 21 Sep 2026; `shared-implementation-notes.md` BUG-19). Shipped
+     `showScreen()` already writes inline `style.display`, which nothing in the cascade can lose
+     to — follow its shape rather than porting the sandbox's toggling across.
    - **`jukebox-knob` is deliberately absent from `PRM_TAB_ORDER`** — keyboard reach is a
      question for the round that builds the karaoke/jukebox feature, not this one.
    - **The jukebox/karaoke feature itself is undecided** — the door exists (`openJukebox`,
@@ -94,11 +238,16 @@ entry below says **"the lobby implementation round"** throughout instead.
      planned door to a stickerbook that is collection + record + progress + achievements: play to
      earn stickers, earned stickers go on the controller via the Workshop. Gets its own layout-mode
      icon later. Spec § 7.7 keeps the door dormant (`openStickerbook` optional); no feature built.
-   - **Scene B (Premium on phones) — DO NOT FORGET.** Owner instruction, 18 Sep 2026: widescreen
+   - **Scene B (Premium on phones) — DO NOT FORGET. ⚠️ REDEFINED 21 Sep 2026 — read the Scene B
+     entry above before using anything in this bullet.** Owner instruction, 18 Sep 2026: widescreen
      only for v1, *but* a phone arriving at Premium needs a real path and a transition. Designed
      in the spec's § 12 (same scene graph, a second camera preset + portrait HUD, fades not
      push-ins); shows the honest "wants a bigger screen" card until it is built. Its own round,
-     after the greybox has been seen.
+     after the greybox has been seen. **The § 12 design is now superseded**: a phone can never stay
+     in the lounge, so there is no portrait HUD and no return path — the transition is one-way to
+     Shelves. **This is the next round to build, and it is sandbox wiring, not art** (owner, 21 Sep
+     2026): it is a routing behaviour, so it can be proven against the greybox before the quality
+     pass, and the art pass then never has to be redone around it.
 3. **One combined ship** — one Documentation Integrity Protocol pass, one SW version bump, one
    phase snapshot for the whole lobby-redesign initiative, not two release cycles for one
    initiative.

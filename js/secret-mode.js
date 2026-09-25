@@ -1112,8 +1112,7 @@ document.getElementById('sm-terminal-back').addEventListener('click', () => {
   smTypewriterTimers = [];
   smSelectedExpansion = null;
   smSelectedGame      = null;
-  showScreen('screen-lobby');
-  if (typeof ctlMountLobby === 'function') ctlMountLobby();
+  lobbyShow();   // the router seam — back to the layout the player left from
 });
 
 document.getElementById('sm-terminal-launch').addEventListener('click', smLaunch);
@@ -1128,8 +1127,7 @@ document.getElementById('sm-btn-exit').addEventListener('click', () => {
   smTypewriterTimers = [];
   smKonamiBuffer = [];
   smUpdateProgress();
-  showScreen('screen-lobby');
-  if (typeof ctlMountLobby === 'function') ctlMountLobby();
+  lobbyShow();   // the router seam — back to the layout the player left from
 });
 
 document.getElementById('sm-gateway-continue').addEventListener('click', () => {

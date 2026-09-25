@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<!--
+  prop-review.html — the prop-quality rounds' REVIEW SHEET (plan
+  docs/superpowers/plans/2026-09-22-premium-prop-quality.md, § 1 and § 3).
+  One prop, six supersampled views on one page: the ROOM's own camera angle
+  (whole prop, top half, bottom half), a pure side view and a pure front view
+  (orthographic — the only views that show a missing wall or a gap edge-on),
+  and a back three-quarter. Rendered at pixelRatio 2 and shown at 1x.
+
+  Not the room: a flat floor, a key from the window side, no fog. It is for
+  judging SHAPE. Always check the room too (visual-prm.js's shots).
+
+  Driven by review-prop.js; readable by hand at
+  /wip/premium/review/prop-review.html?prop=jukebox&pal=coded
+    prop  a PRM_BUILDERS id (default jukebox)
+    pal   mock | factory | coded   (coded paints each role a distinct colour)
+    play  0 to show a music prop at rest
+    beat  an idle beat to pose (with at = ms into it)
+    open  1 to pose a prop that opens (the phone) open
+    exp   tone-mapping exposure (default 0.85)
+-->
+<html><head><meta charset="utf-8"><title>Prop review</title>
+<style>html,body{margin:0;background:#e9e2da}canvas{display:block;width:1920px;height:1280px}
+.l{position:absolute;font:600 15px sans-serif;color:#3a3040;background:#fff9;padding:2px 6px;border-radius:4px}</style></head>
+<body><canvas id="c"></canvas><div id="labels"></div>
+<script src="../../../js/lib/three.min.js"></script>
+<script src="../../../js/lib/controller-body.js"></script>
+<script src="../../lobby-lab/games.js"></script>
+<script src="../prm-lib.js"></script>
+<script src="../prm-props.js"></script>
+<script src="../prm-scene.js"></script>
+<script>
+(async function () {
+  const q = new URLSearchParams(location.search), id = q.get('prop') || 'jukebox';
+  const W = 1920, H = 1280, canvas = document.getElementById('c');
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+  renderer.setPixelRatio(2); renderer.setSize(W, H, false);
+  renderer.outputEncoding = THREE.sRGBEncoding; renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = +(q.get('exp') || 0.85);
+  renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  const scene = new THREE.Scene(); scene.background = new THREE.Color('#e9e2da');
+  scene.environment = PrmScene.prmBuildEnvMap(THREE, renderer);
+  const makeCanvas = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
+  const lib = PrmLib.prmCreateLib(THREE, { makeCanvas, smoothNormals: ControllerBody.smoothNormals });
+  /* `mock` is the jukebox mockup's lavender + mint; `coded` gives every role
+     its own colour, so a part on the wrong role is obvious at a glance. */
+  const PAL = {
+    mock:    { shell: '#b58be2', plate: '#86d3b4', ears: '#86d3b4', buttons: '#b58be2' },
+    factory: { shell: '#a97fd6', plate: '#9670c8', ears: '#a97fd6', buttons: '#8f66c4' },
+    coded:   { shell: '#b58be2', plate: '#86d3b4', ears: '#f0a040', buttons: '#5a8fe0' },
+    phone:   { shell: '#b9a0e0', plate: '#a488d6', ears: '#a488d6', buttons: '#f2dce4' },   // the phone mockup's lavender + pale-pink keys
+  };
+  const design = PAL[q.get('pal') || 'mock'];
+  /* The lamp is reviewed with its real photos, not an empty ring. */
+  const lampPanels = id === 'lamp' ? { base: '../lamp images/', manifest: await fetch('../lamp images/manifest.json').then(r => r.json()) } : { base: '', manifest: { panels: [] } };
+  const all = Object.keys(PrmProps.PRM_PLACES);
+  const built = PrmProps.prmBuildAll({ lib, design, games: window.GAMES, stickers: { base: '../../../data/stickers/', list: window.GAMES.filter(g => g.id !== 'bld').map(g => ({ id: g.id, image: g.id + '.png' })) },
+    lampPanels, ControllerBody, roomData: { prmShelf: null },
+    skipProps: all.filter(k => k !== id) });
+  const prop = built[id]; scene.add(prop);
+  const api = prop.userData.api || {};
+  if (api.setLabel) api.setLabel(q.get('title') || 'Cookie Jar');
+  if (api.setPlaying) api.setPlaying(q.get('play') !== '0');
+  /* beat=<name>&at=<ms>: pose a prop's idle beat at that moment (the jukebox's
+     smile / sing / roll) — ticked from a clean start so the pose is exact. */
+  if (q.get('open') === '1' && api.open) api.open({ instant: true });
+  if (q.get('beat') && api.startBeat && api.startBeat(q.get('beat'))) { api.tick(10000, 0, false); api.tick(10000 + +(q.get('at') || 500), 0, false); }
+  prop.updateMatrixWorld(true);
+  /* The scene loads prmImage textures after mount; so must the sheet, or every
+     sticker is a white square. Render once they are all in (or failed). */
+  const imgMats = []; prop.traverse(o => { if (o.isMesh && o.material.userData && o.material.userData.prmImage && imgMats.indexOf(o.material) < 0) imgMats.push(o.material); });
+  const loader = new THREE.TextureLoader();
+  Promise.all(imgMats.map(m => new Promise(res => loader.load(m.userData.prmImage, t => { t.encoding = THREE.sRGBEncoding; m.map = t; if (m.userData.prmEmissiveMap) m.emissiveMap = t; m.needsUpdate = true; res(); }, undefined, res)))).then(render);
+  function render() {
+
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(4, 4), new THREE.MeshStandardMaterial({ color: '#d8c3a5', roughness: .8 }));
+  floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
+  const key = new THREE.DirectionalLight('#ffe2c0', 2.4); key.position.set(-1.4, 1.9, 1.2); key.castShadow = true;
+  key.shadow.mapSize.set(2048, 2048); key.shadow.bias = -0.0004;
+  Object.assign(key.shadow.camera, { left: -0.6, right: 0.6, top: 0.6, bottom: -0.6 });
+  scene.add(key); scene.add(new THREE.HemisphereLight('#c9d3de', '#b09070', 0.35));
+  const rim = new THREE.DirectionalLight('#cfe0ff', 0.6); rim.position.set(1.5, 1.2, -1.2); scene.add(rim);
+
+  /* Framing comes off the prop's own box, so any prop drops in. The ROOM angle
+     is the wide preset's camera seen from where PRM_PLACES stands this prop. */
+  const box = new THREE.Box3().setFromObject(prop), size = box.getSize(new THREE.Vector3()), c = box.getCenter(new THREE.Vector3());
+  const span = Math.max(size.x, size.y, size.z), place = (PrmProps.PRM_PLACES[id] || { pos: [0, 0, 0] }).pos, room = PrmScene.PRM_PRESETS.wide.pos;
+  const roomDir = new THREE.Vector3(room[0] - place[0], room[1] - place[1] - c.y, room[2] - place[2]).normalize();
+  const persp = (dir, dist, fov, look) => { const k = new THREE.PerspectiveCamera(fov, 1, 0.01, 20); k.position.copy(look).addScaledVector(dir, dist); k.lookAt(look); return k; };
+  const ortho = (dir, half, look) => { const k = new THREE.OrthographicCamera(-half, half, half, -half, 0.01, 20); k.position.copy(look).addScaledVector(dir, 3); k.lookAt(look); return k; };
+  const azel = (a, e) => { a *= Math.PI / 180; e *= Math.PI / 180; return new THREE.Vector3(Math.sin(a) * Math.cos(e), Math.sin(e), Math.cos(a) * Math.cos(e)); };
+  const d = span * 3.6, top = c.clone().setY(box.max.y - size.y * 0.25), low = c.clone().setY(box.min.y + size.y * 0.25);
+  const az = Math.atan2(roomDir.x, roomDir.z) * 180 / Math.PI, el = Math.asin(roomDir.y) * 180 / Math.PI;
+  const views = [
+    ['room angle (az ' + az.toFixed(1) + '°, el ' + el.toFixed(1) + '°)', persp(roomDir, d, 19, c)],
+    ['top half, room angle', persp(roomDir, d * 0.62, 15, top)],
+    ['bottom half, room angle', persp(roomDir, d * 0.62, 15, low)],
+    ['pure side (ortho, +x)', ortho(new THREE.Vector3(1, 0, 0), span * 0.62, c)],
+    ['pure front (ortho)', ortho(new THREE.Vector3(0, 0, 1), span * 0.62, c)],
+    ['back three-quarter', persp(azel(145, 18), d, 19, c)],
+  ];
+  const labels = document.getElementById('labels');
+  renderer.setScissorTest(true);
+  views.forEach(([name, cam], i) => {
+    const x = (i % 3) * 640, y = Math.floor(i / 3) * 640;
+    renderer.setViewport(x, H - y - 640, 640, 640); renderer.setScissor(x, H - y - 640, 640, 640);
+    renderer.render(scene, cam);
+    const t = document.createElement('div'); t.className = 'l'; t.style.left = (x + 8) + 'px'; t.style.top = (y + 8) + 'px'; t.textContent = name; labels.appendChild(t);
+  });
+  window.reviewDone = true;
+  }
+})();
+</script></body></html>

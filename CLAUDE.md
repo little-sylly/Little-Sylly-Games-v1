@@ -95,8 +95,8 @@ For where each game's screens/overlays live in `index.html`, see the **Per-Game 
 ---
 
 ## 📁 Load Order
-**Load order:** `music.js` → `engine.js` → `art.js` → `three.min.js` → `controller-body.js` → `controller-sticker-surface.js` → `physics.js` → `engine-multiplayer.js` → `canvas-draw.js` → `li5.js` → `great-minds.js` → `secret-signals.js` → `jec.js` → `ygi.js` → `lttp.js` → `nat.js` → `dsd.js` → `bld.js` → `gth.js` → `dyb.js` → `cards.js` → `pass.js` → `nt.js` → `frt.js` → `shp.js` → `flw.js` → `pko.js` → `cjar.js` → `cld.js` → `controller.js` → `secret-mode.js` → `app.js`
-(`tailwind-play.js` loads in `<head>` before everything else. `js/lib/music.js` loads *before* `engine.js` — the engine boot block calls `Music.init()` at parse time.)
+**Load order:** `music.js` → `engine.js` → `art.js` → `three.min.js` → `controller-body.js` → `controller-sticker-surface.js` → `physics.js` → `engine-multiplayer.js` → `canvas-draw.js` → `li5.js` → `great-minds.js` → `secret-signals.js` → `jec.js` → `ygi.js` → `lttp.js` → `nat.js` → `dsd.js` → `bld.js` → `gth.js` → `dyb.js` → `cards.js` → `pass.js` → `nt.js` → `frt.js` → `shp.js` → `flw.js` → `pko.js` → `cjar.js` → `cld.js` → `comb.js` → `controller.js` → `lounge-lib.js` → `lounge-room.js` → `lounge-props.js` → `lounge-scene.js` → `lounge-sfx.js` → `lobby-games.js` → `lobby.js` → `tv.js` → `achievements.js` → `stickerbook.js` → `lobby-router.js` → `lobby-doors.js` → `lobby-host.js` → `secret-mode.js` → `app.js`
+(`tailwind-play.js` loads in `<head>` before everything else. `js/lib/music.js` loads *before* `engine.js` — the engine boot block calls `Music.init()` at parse time. `app.js`'s last line is `lobbyBoot()` — every lobby symbol exists by then.)
 All symbols are global (no ES modules). Forward references work at runtime.
 
 ---
@@ -285,32 +285,14 @@ On every bump the outgoing SW entry moves **verbatim** to `docs/sw-changelog.md`
 "keep the last three". **A second `**SW v…**` paragraph appearing here means that move didn't
 happen: do it before anything else.**
 
-**SW v230 — Workshop polish round: randomise, zoom, drag-to-reposition (14 Sep 2026).**
-Owner-playtesting round on the Workshop, `js/controller.js` (+ `css/styles.css`), nothing new
-persisted: a rainbow **Randomise All** (all 20 `GAME_BRAND_HEX` colours, pink-to-purple, live —
-never copied); wheel + pinch **zoom**; **drag-to-reposition** via a cheap DOM ghost that follows
-the pointer, the real sticker only actually moving once on release (was the sliders' real lag
-cause too — a burst of state changes re-uploaded the full shell/bump textures once per event, now
-`ctlScheduleRedraw()`); tapping a placed sticker jumps to the Stickers tab and rings its tile;
-tapping a *different* placed sticker while one is selected re-selects it instead of relocating the
-old one there (drag still allows stacking); the die-cut border no longer paints on a light shell
-or ear (the sticker's own edge already reads fine there); **and the reverse of the tab-jump** —
-picking a placed sticker from the book eases the model's yaw to face it (`ctlStickerGoToModel`,
-general `atan2` aim math against the local surface NORMAL, not a per-surface angle table — a first
-version aimed at the sticker's raw point instead and measured yaws up to ±109° on an ordinary
-placement, since the front/back faces are parameterised nearly flat). Bugs the round surfaced:
-zoom surviving a Konami/gateway round-trip, a button press also grabbing a sticker under it, the
-auto-rotate tween only cancelling on the rotate-view pointerdown branch instead of every branch,
-the point-vs-normal aim defect above, and — caught after that fix shipped — `normal()`'s own
-`z`-always-positive formula meant a BACK placement's normal came out identical to a front one's,
-so back stickers kept "snapping to the front" regardless; fixed by negating the vector whenever
-`back` is true (a caller-side correction, not a change to the shared, separately-harnessed
-`controller-sticker-surface.js` module). Full detail:
-`docs/implementation-notes/shared-implementation-notes.md` DD-12,
-`docs/code-map.md` § 3D Controller / Workshop. All controller checks (157+63+28) pass; the visual
-harness grew two border assertions to match the new behaviour (48 -> 50, all green).
+**SW v231 — the lobby's four layouts, the Lounge first (25 Sep 2026).** The Lounge (the 3D room,
+was "Premium"), TV, Shelves and Original ship; phones play the arrival beat into Shelves, no-WebGL
+boots into Shelves. Every "back to the lobby" goes through `lobbyShow()`, so a game returns to the
+layout it was launched from. Stickerbook v1 all unlocked, nothing saved; lamp photos runtime-cached.
+Install +770 KB (12.24 MB). Harnesses: `visual-lobby` 69, `verify-lobby-router` 210, `verify-lounge-props`
+1338. Detail: `shared-implementation-notes.md` DD-42, `docs/code-map.md` § Lobby layouts.
 
-**Previous versions: `docs/sw-changelog.md`** — continuous, v228 back to v167.
+**Previous versions: `docs/sw-changelog.md`** — continuous, v230 back to v167.
 
 **Where the suite stands.** **20 games shipped**, all gold-master, plus multiplayer. Newest three:
 **Honeycomb Hills** (`comb`, game 20, phase 41 — the suite's biggest game and the only one with
@@ -337,6 +319,11 @@ identity doc, no Sylly Mode, no verification harness, and explicitly **not**
 Stack or the brand palette. First cabinet: **Asherplane** (`js/arcade/asherplane.js`), a top-down
 shmup. Adding cabinet #2 = one `SM_ARCADE` entry + one file. Spec + plan:
 `docs/superpowers/{specs,plans}/2026-08-03-arcade-asherplane*.md`.
+
+**The lobby redesign shipped at v231.** What is left of it — the controller animation round
+(owner-prioritised), stickerbook earning and its storage key, the stickerbook on phones, the fourth
+layout's label, the jukebox feature, the owner's real-device pass and archiving `wip/lobby-lab/` +
+`wip/premium/` — is in `docs/deferred-work.md` § Lobby redesign.
 
 **Open threads — all deliberately deferred, none blocking: `docs/deferred-work.md`.** The
 **controller stickers' on-device pass (spec § 9.3) is outstanding** — no harness reaches touch, a
@@ -383,8 +370,10 @@ Re-run a game's full set after touching its appliers, deck/data, packets or rend
 | Controller | `node tools/verify-controller-body.js && node tools/verify-controller-state.js` — the vendored Three revision + the geometry contract, then persistence, the factory design, palette derivation and the Konami mapping. **Not a game** — no MP config, no identity doc | 28 · 63 |
 | Controller | `node tools/verify-controller-stickers.js` — the caller-side `CTL_STICKER_OPT` contract (a surface built with `{}` accepts all four keep-out centres), both charts + the wrap seam, manifest and placement validation, the load path's bit-stability, the placement state machine, undo, and `data/stickers/` manifest-vs-folder **both ways**. **Re-run after any `js/lib/controller-sticker-surface.js` or `ctlSticker*` change** | 157 |
 | Controller | `node tools/visual-controller-stickers.js` — real headless Chromium: the tab, the book, a placement actually painting texels, the lobby ornament repainting with them. The layout/render tier no pure harness reaches | 48 |
-| Shell | `node wip/lobby-lab/verify-shell.js` — the sandbox shell's pure tier: the router's three claims (the Workshop return path, the design round-trip, the room's keep-and-stop lifecycle) and the door map against `PRM_FUNCS`. **Not a game** — sandbox only | 134 |
-| Shell | `node wip/lobby-lab/visual-shell.js` — real headless Chromium over `wip/lobby-lab/shell.html`: the four layouts, W6's summonable dock, the eligibility floor, and — under `?live` — the real Workshop, the save-return-repaint round-trip and the room stopping while it is up | 57 |
+| Lobby | `node tools/verify-lobby-router.js` — the router's pure tier: `LOBBY_LAYOUTS`, every action incl. `home`/`closeSwitcher`, close-to-where-you-opened, the one-way rule on every close, the door map + the `controllerParts` passthrough | 210 |
+| Lobby | `node tools/verify-lounge-props.js` — the Lounge's room and props under Node (vendored Three, stub canvas): every builder, the host contract, the painted-controller path, an empty world. `node tools/visual-lounge.js` — real Chromium over `tools/fixtures/lounge.html`: composition shots + reduced motion | 1338 · 29 |
+| Lobby | `node tools/verify-tv.js` — TV's pure half (rail wrap, nearest-copy pick, ink/label split, order vs `GAMES`) · `node tools/verify-achievements.js` — the stickerbook's rules incl. `achAllPlaced` | 919 · 81 |
+| Lobby | `node tools/visual-lobby.js` — real Chromium over the REAL `index.html`: boot tiering (widescreen / phone beat / no WebGL), every layout → game → quit returns there, Workshop returns to its opener, gateway + Terminal returns, idle nudge, stickerbook, each runtime-cached source offline, stale ornament mount, the fade, resize below a floor. **The seam's mutation pass runs against it — re-run after touching `lobbyShow`, `resetToLobby` or any lobby return** | 69 |
 
 **Reach for a loopback on anything MP- or render-shaped.** Every harness *except* the six
 loopbacks (`cjar`/`shp`/`flw`/`nt`/`jec`/`comb`) runs `'single'` mode with `getElementById: () => null`, which

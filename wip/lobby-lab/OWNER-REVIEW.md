@@ -176,3 +176,197 @@ words: "will definitely need a review soon") — covers at least its missing sti
 Every hash state at 390 and 430, reduced motion, no horizontal overflow, no target under
 44 px, zero console errors, Fredoka loaded. Hash states: `#folder=talk` `#sheet=cld` `#unlock`
 `#count=4` `#onephone` `#view=original`.
+
+---
+
+# TV Mode — Owner Checklist (16 Sep 2026; terminology + T8–T11 settled same day)
+
+**Terms, settled 16 Sep 2026.** The technical term for a TV-eligible device that runs the room
+but takes no seat is a **seatless host** — one flag beside the engine's existing host/client
+modes, not a new mode. The friendly, player-facing term is **Big Screen**: "Host on the Big
+Screen"; the choice at lobby creation reads "I'll play too" vs "Big Screen only". "Host-spectate"
+remains fine as design-doc shorthand for the same thing.
+
+**To run it:** same server; Pane 3 of `http://localhost:8791/wip/lobby-lab/index.html`. Try
+`#folder=cards&sel=pko`, `#count=4&onephone`, then `#tv=host&roster=ready&sel=pko`,
+`roster=full&sel=bld`, `roster=table` for the Big Screen display (no longer reachable by click —
+see T1/T8). **For the real, unframed result — read this before judging scale or squishing** —
+open `wip/lobby-lab/tv.html` directly (not through index.html) and resize the browser window, or
+drive it on an actual wide screen. Rationale: `DESIGN-NOTES.md` § 4.
+
+### T1. Which device is the host? ✅ DECIDED
+**Answer:** Both, and the device chooses. A TV-eligible device is first of all an ordinary
+device — it can host, join and play with the wide layout and no other difference. It can *also*
+become a **seatless host / Big Screen**: it runs the room (room code as today) but takes no seat,
+players join on phones, and the game's host-only screens (not yet developed) run on it. The
+choice is made **once, at lobby creation** — not repeatedly from the browse pane (see T8) — and
+should not be split into a separate "join as spectator only" mode; it is always "hosting, with or
+without a seat." Engine note: a host with no seat is new in `engine-multiplayer.js` — a
+build-spec item, not a lobby one.
+
+### T2. What should tapping TV on a phone do? ✅ DECIDED
+**Answer:** The mockup's card — *"TV mode wants a wider screen. Cast the game or open it on a
+tablet… On a phone it stays on the Shelves."* with **Back to the Shelves**. Shipped:
+`lbRenderTVHandoff()`, in the shell's own placeholder card style. The same card now also covers
+a wide-enough window that shrinks below the eligibility floor (T9) — `tv.html` shows it live.
+
+### T3. Browse games on the TV ✅ DECIDED — built
+**Answer:** That *is* TV mode: shelves + game selection + info sheet on one screen (2b), and
+from there a seatless Big Screen or an ordinary host/join, as normal. Shipped: `lbRenderTV()` —
+rail · field · pane, every piece the phone's own component. It replaces the first pass as the
+default of Pane 3 and of `tv.html`.
+
+### T4. Room code: plum, with the brand woven in ✅ DECIDED
+**Answer:** Plum is fine; find an elegant, non-distracting way in for the brand if one exists
+(highlights, card background etc. are too strong). Tried: the **keycap's side** — the 5 px 3-D
+drop under each plum key is the game's colour, a two-tone keycap; the glyph face stays
+plum/white. It is deliberately quiet. **Look at:** `#tv=host&sel=pko` vs `sel=cld` — keep, or
+drop back to plain plum (one `box-shadow` line in `lobby.css`, `.lb-tv-key`).
+
+### T5. Join instructions — URL / QR ✅ DECIDED
+**Answer:** Keep the room-code system as is; the seatless host is hosting with a room code, the
+device just doesn't play. No URL or QR added.
+
+### T6. Sound on the big screen ✅ DECIDED
+**Answer:** Music on the Big Screen; each phone plays its own effects. Effects for the seatless
+host revisited when its screens are built. Shipped: the 🔊 on the host display is labelled *Music*.
+
+### T7. Old TV browsers ✅ DECIDED (delegated)
+**Answer:** Owner's call was "you decide / check the standard". Decided: container queries drive
+the sandbox; the real app's TV mode fills the viewport, so the same rules are duplicated as
+`@media` under `@supports not (container-type: inline-size)`, and the `cqi` unit has a `1vw`
+fallback. An old smart-TV browser gets the same layout, scaled by the viewport. Detail:
+`DESIGN-NOTES.md` § 4 "T7, decided here".
+
+### T8. Where the Big Screen choice lives ✅ DECIDED — recommendation, not yet built
+**Answer (owner, 16 Sep 2026):** a pill toggle, not a second pane button — both Play and Host
+already go to the same place (the game's menu, for its CTA/Settings/How to Play), so a second
+button duplicated that path for no reason. The pill reads **"I'll play too" / "Big Screen
+only"**, default *I'll play too*. Placement: at lobby creation — where `screen-mp-mode`'s Host
+card sits today — shown only when `lbTvEligible()` is true (a phone never sees it). **Shipped in
+this sandbox:** the pane's "Host on this screen" button is removed; the pane's only CTA is
+**Play**. **Not shipped:** the actual pill, because `screen-mp-mode` has no widescreen layout of
+its own yet — that's real app work, not a sandbox layout question. The Big Screen display
+(`lbRenderTVHost`) is still fully built and reachable via the `#tv=host` hash for review.
+
+### T9. What makes a device "TV-eligible"? ✅ DECIDED
+**Answer:** Width **and** height, no device sniffing — **width ≥ 900 px and height ≥ 500 px**,
+re-checked live on resize (a landscape phone is wide enough but too short, and stays excluded).
+Shipped: `lbTvEligible()` / `LB_TV_MIN_W` / `LB_TV_MIN_H` in `lobby.js`, wired into the new
+**`tv.html`** full-window mount (see below) — resize the window across the floor and the page
+swaps between the wide lobby and the phone's hand-off card with no reload.
+**On the "squished" preview (owner's question):** that wasn't resolution — CSS pixels already
+account for pixel density, so a 4K and a 1080p screen of the same physical size render
+identically. It was Pane 3 itself: a **fixed 900×506 frame** sitting beside two other panes in
+one page, with the rail and pane scrolling *inside* that frame by design (a cast screen can't
+scroll the whole page). `tv.html` removes that frame entirely — it's the real result, not a
+frame around it. Use it, not Pane 3, to judge scale and squishing from here on.
+
+### T10. The big-screen scale ✅ DECIDED (same numbers, now verifiable for real)
+**Answer:** kept as shipped — the browse layout scales whole via `zoom` (1.2× from a 1200 px
+container, 1.5× from 1600 px) rather than re-tuning every size, so a 1080p screen shows the
+mockup's own 1024-wide layout at 1.5×. **Verified live in `tv.html`** at 1024×576 (the mockup's
+own size, unscaled — it now matches `2b-tv-widescreen` closely), 1280×720 and 1920×1080 — no
+overflow, no undersized controls, at every step. If it still reads too big or small once you've
+looked at the real full-window version, the fix is the two `zoom` numbers in `lobby.css`.
+
+### T11. The rail and pane scroll inside the frame — held for now
+**Owner:** not sure how to observe this cleanly yet, same underlying issue as T9/T10.
+**Answer:** `tv.html` is the way to observe it — open it, shrink the window height until the rail
+or pane genuinely need to scroll, and see whether reaching for a mouse wheel / trackpad (or a
+touchscreen swipe) feels normal there. What it does **not** yet let you judge is a remote's
+up/down d-pad driving that same scroll — that depends on T12 below (keyboard-equivalent nav),
+which is now in place enough to Tab through, but nothing arrow-keys a list yet. Revisit once
+you've used `tv.html` for real; no code change made this round.
+
+### T12. Input model — decided, cheap floor laid now
+**Owner:** assumed a laptop/browser (mouse + keyboard, or a tablet touchscreen) driving it;
+hadn't considered smart-TV or console browsers, and asked whether leaving that for later would
+be harder to retrofit.
+**Answer:** Assuming mouse/keyboard/touch for now is fine and doesn't box anything in, provided
+one cheap thing holds from the start: **everything reachable by Tab, in a sensible order, with a
+visible focus ring** — because a remote-control browser (smart-TV, console) drives pages exactly
+that way, arrow-keys-and-Enter mapped from the remote onto the page's own Tab order. A page built
+keyboard-accessible today mostly already works on a remote later; a page that only works by
+mouse/hover needs a real rebuild. **Already true in this sandbox, confirmed this round:** every
+clickable surface in TV mode (rail rows, tiles, the switcher, Play, the seat strip's buttons) is
+a real `<button>` — none are `<div onclick>` — so Tab order and Enter/Space activation already
+work, and `.lb-tv button:focus-visible` already rings the focus. Nothing added, nothing missing
+at this floor. **Left for later, on purpose:** arrow-key grid navigation within the tile field
+(nice-to-have, not required for the floor above) and gamepad input (a separate API entirely).
+
+## New this round — the real full-window mount
+**`wip/lobby-lab/tv.html`** — two script tags and a `<div id="tv-app">`, nothing else. It's what
+answers T9/T10/T11: no lab chrome, no fixed 900×506 frame, the wide lobby (or, below the
+eligibility floor, the hand-off card) filling exactly the window it's given, live on resize.
+Same renderer as Pane 3 (`lbRenderTV()`/`lbRenderTVHost()`) — `lbMountTVFull()` in `lobby.js` is
+the only new plumbing, and it degrades to a no-op inside `index.html` (which has no `#tv-app`),
+so nothing about the three-pane sandbox changed. **Open this file directly to judge scale,
+squishing, or eligibility from now on — not Pane 3, which was never meant to show that.**
+
+## Data notes (no decision)
+- **Secret Signals' id is `ss` in `games.js`**, not the app's legacy `sylly-signals` — the
+  sandbox's `sel=` hash and `tvSel` use `ss`. Worth one line in `games.js`'s header so the next
+  round doesn't trip on it.
+- **Cold Shoulder's min is 2 only with Peck Off on** (`playerRangeDisplay: '2 (Peck Off) or
+  3–8'`). The host display's status math uses `minPlayers: 2`; the real engine reads the
+  pre-lobby `cldPeckOff` setting and would show the right one live.
+- The shipped `gel-btn` gloss and drop are fixed px, so at 1920 the room-code keycaps read
+  flatter than the phone tiles. Left untouched.
+
+## Already verified — don't re-test unless it looks wrong
+Wide lobby and all five Big Screen states at 900, 1280 and 1920 through Pane 3 (16:9, nothing
+overflows the frame), reduced motion, no horizontal overflow, no button under 44 px, zero
+console errors, stickers load, Fredoka loaded. Shell at 390 and 430 for `#view=tv`.
+**New this round, via `tv.html` directly:** the eligibility gate at 800×600 (too narrow),
+1000×420 (too short), 900×500 (exact floor, eligible), 1024×576, 1280×720 and 1920×1080; a live
+resize crossing the floor in both directions with no reload; a click-through (shelf → tile →
+pane updates) with zero console errors.
+
+---
+
+# TV Mode — handed to Claude Design (16 Sep 2026)
+
+**Status change.** TV-mode *layout* is no longer being iterated in this sandbox. The bundle at
+**`wip/tv-design-handoff/`** (zip: `wip/tv-design-handoff.zip`, 3.25 MB) is the brief for a Claude
+Design round asking for **3–4 genuinely different directions**, each a real layout at 1280×720.
+Rationale: `DESIGN-NOTES.md` § 6.
+
+**What is NOT up for redesign**, and is stated as settled in the brief: the six shelves and their
+names, the two filters and their dim-and-say-why behaviour, the no-invented-durations rule, all
+verified copy, the visual vocabulary (keycap, badge disc, plum ink, Fredoka), and the **Big Screen
+/ seatless-host display**, which is finished. Only the browse lobby is open.
+
+### The art position in the brief (owner-corrected, 16 Sep 2026)
+
+An earlier draft framed the sticker art as a placeholder and full-bleed key art as the real
+destination. **Corrected on your note:** the stickers *are* the art layer — they came from the
+controller decals, they replaced the emoji, and they are a decent middle ground rather than a
+stopgap. Full art is genuinely undecided and may never be needed. The brief now says that, and
+adds the point none of the three attempts used: the stickers are **transparent die-cuts**, so
+they can break out of a container, tilt, overlap and cast their own shadow — which a rectangular
+image can never do, and which is probably the cheapest route to "alive" available. Shipped with
+the bundle: `reference/sticker-art/` (all 19 PNGs + manifest) and
+`screenshots/art-sticker-contact-sheet.png`, all 20 at size on their brand colours, with the
+Bailed gap visible. The brief also notes the set is live and improving (Bailed outstanding, some
+reworks coming), not frozen.
+
+**The wordmark** is recorded the same way: sticker art → game lockup, and **horizontal / compact
+/ simplified variants can be made on request**, so Design is told not to contort a header around
+the stacked lockup's proportions.
+
+### Two data defects found while assembling the bundle — worth fixing at the source
+
+1. **`wip/lobby-lab/games.js`'s header is wrong.** It lists `playCtaLabel` and `howToStepsRaw`
+   among the machine-verified fields, but neither is present on the game objects — both live only
+   in `games.raw.json`. Either restore them or correct the header.
+2. **The original `2b` mockup's copy is invented throughout** — expected, given that round ran
+   with barely more than names and colours. Confirmed example: Secret Signals' button reads
+   *"Go Dark"*; the live app says **"Start Mission"**. Anything treating those screenshots as a
+   copy source inherits it. The bundle now carries a verbatim table of all 20 real Play CTA labels
+   and tells Design to use the mockups for layout only.
+
+### When the directions come back
+Pick one, and it gets built here for real — `tv.html` already gives a true full-window mount at
+any width, and the eligibility gate, the filter logic, the data and the Big Screen display all
+carry over untouched. Only the middle of the page changes shape.

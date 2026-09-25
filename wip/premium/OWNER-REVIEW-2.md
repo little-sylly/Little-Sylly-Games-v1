@@ -38,6 +38,10 @@ then open `http://localhost:8791/wip/premium/index.html` on a laptop or landscap
 **Answer:** _(yes → production wiring starts; no → name which of scale / mood / a specific prop,
 and I re-tune that alone rather than everything)_
 
+> **ANSWERED 25 Sep 2026 — YES**, after room-pass items 1–15 (`docs/superpowers/plans/2026-09-22-premium-prop-quality.md`).
+> Production wiring starts. The owner has a few smaller touches still unsettled; they are
+> post-production polish and do not gate the ship. `docs/decision-log.md` 2026-09-25.
+
 **Round 3 nudges, all in:** the couch is now a **U** wrapping the table left, front and right, so
 the wall-less right side is closed by the furniture itself; every back panel shares a face with its
 seat and drops below its top (they were detached slabs before); the sill is narrower with the curtains drawn further back

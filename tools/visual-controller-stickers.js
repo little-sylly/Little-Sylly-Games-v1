@@ -302,6 +302,29 @@ async function probe() {
 
   try {
     await page.goto('http://127.0.0.1:' + port + '/index.html');
+    /* The model/renderer split (lobby production wiring, spec § 7.2): the Lounge
+       borrows the painted model on the front door, so painting must not need a
+       renderer, and the renderer must then adopt that same model, not build a
+       second body. */
+    const split = await page.evaluate(() => {
+      if (typeof ctlEnsureModel !== 'function') return { missing: true };
+      const hadRenderer = typeof ctlRenderer !== 'undefined' && !!ctlRenderer;
+      const ok = ctlEnsureModel();
+      const parts = ctlModelParts();
+      return { ok, hadRenderer, rendererAfter: !!ctlRenderer, geo: !!(parts && parts.geo),
+               tex: !!(parts && parts.tex && parts.tex.isTexture), ears: parts ? parts.ears.length : 0 };
+    });
+    ok(!split.missing && split.ok && !split.rendererAfter && split.geo && split.tex && split.ears === 2,
+       'ctlEnsureModel paints the model with NO renderer: ' + JSON.stringify(split));
+    const adopted = await page.evaluate(() => { const g = ctlModelParts().geo; ctlEnsureBuilt(); return ctlBody.geometry === g; });
+    ok(adopted, 'ctlEnsureBuilt adopts the model ctlEnsureModel built — one buildBody, not two');
+    /* 900x1400 boots into the Lounge (SW v231), and this page then drives the
+       Workshop directly rather than through the lobby router — so nothing stops
+       the room behind it, and a full room rendering in software GL starves every
+       page opened after this one (measured: a phone page took 37 s to load and
+       never mounted). The router stops it on every real Workshop open. */
+    await page.waitForFunction(() => window.lobbyReady === true, null, { timeout: 30000 });
+    await page.evaluate(() => { if (lobbyScene) lobbyScene.stop(); });
     await page.waitForFunction(() => typeof ctlEnsureBuilt === 'function' && ctlEnsureBuilt(),
                                null, { timeout: 30000 });
     const r = await page.evaluate(probe);
@@ -523,6 +546,12 @@ async function probe() {
     phone.on('pageerror', e => errs.push('390px: ' + String(e)));
     phone.on('console', m => { if (m.type() === 'error') errs.push('390px console: ' + m.text()); });
     await phone.goto('http://127.0.0.1:' + port + '/index.html', { waitUntil: 'networkidle' });
+    /* A phone boots through the Lounge's arrival beat into Shelves (SW v231).
+       Let it land first, as a player would: the beat is not interactive, and a
+       Workshop opened under it — outside the lobby router — is taken off screen
+       by the handoff. */
+    await phone.waitForFunction(() => window.lobbyReady === true && lobbyState.view === 'shelves',
+                                null, { timeout: 30000 });
     await phone.waitForFunction(() => typeof ctlEnsureBuilt === 'function' && ctlEnsureBuilt(),
                                 null, { timeout: 20000 });
     await phone.evaluate(() => { ctlOpenWorkshop(); });
@@ -652,7 +681,7 @@ async function probe() {
     await seed(COLOURS);
     await lobby.reload({ waitUntil: 'networkidle' });
     await lobby.waitForFunction(() => typeof ctlBuilt !== 'undefined' && ctlBuilt === true,
-                                null, { timeout: 20000 });
+                                null, { timeout: 30000 });   // the phone plays the arrival beat into Shelves first
     await lobby.waitForTimeout(2600);          // well past requestIdleCallback's 2000 ms timeout
     const cold = await lobby.evaluate(() => ({
       surface: ctlStickerSurface !== null, atlas: CTL_ATLAS,
@@ -681,24 +710,27 @@ async function probe() {
         rot: 0, size: 0.18, chart: 'tangent' }] }));
     await lobby.reload({ waitUntil: 'networkidle' });
     await lobby.waitForFunction(() => typeof ctlBuilt !== 'undefined' && ctlBuilt === true,
-                                null, { timeout: 20000 });
+                                null, { timeout: 30000 });   // the phone plays the arrival beat into Shelves first
+    /* Tolerated, not asserted here: a surface that never arrives is a FAIL in
+       this check and the two below, and a TimeoutError thrown out of the harness
+       reads as infrastructure trouble rather than as the regression it is.
+       Waited for BEFORE the timestamps are read: both are stamped in the page,
+       so reading them late costs nothing — reading them the instant ctlBuilt
+       was caught raced the deferred build and failed on a slow poll. */
+    await lobby.waitForFunction(() => ctlStickerSurface !== null, null, { timeout: 15000 })
+      .catch(() => {});
     const early = await lobby.evaluate(() => window.__ctlWhen);
     const mount = await lobby.evaluate(() => {
       const r = ctlRenderer.domElement.getBoundingClientRect();
       return { parent: ctlRenderer.domElement.parentElement.id,
                w: Math.round(r.width), h: Math.round(r.height) };
     });
-    ok(mount.parent === 'lobby-controller' && mount.w > 0 && mount.h > 0 &&
+    ok(['lobby-controller', 'shelves-controller', 'tv-controller'].includes(mount.parent) && mount.w > 0 && mount.h > 0 &&
        early.built > 0 && early.surface > early.built,
-       'the ornament paints BEFORE the sticker build: up at ' + Math.round(early.built) +
+       'the ornament paints BEFORE the sticker build (in ' + mount.parent + '): up at ' + Math.round(early.built) +
        ' ms, decorated ' + (early.surface ? Math.round(early.surface - early.built) + ' ms later' : 'never') + ', ' +
        mount.w + 'x' + mount.h);
 
-    /* Tolerated, not asserted here: a surface that never arrives is a FAIL in
-       the two checks below, and a TimeoutError thrown out of the harness reads
-       as infrastructure trouble rather than as the regression it is. */
-    await lobby.waitForFunction(() => ctlStickerSurface !== null, null, { timeout: 15000 })
-      .catch(() => {});
     await lobby.waitForTimeout(800);           // the PNG decodes, then re-stamps
     const warm = await lobby.evaluate(() => {
       /* Diff with-sticker against bare, per trap 1 in this file's header:

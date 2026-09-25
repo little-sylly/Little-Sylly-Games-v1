@@ -238,7 +238,7 @@ just to make it participate.
 | z-index | Used for |
 |---------|----------|
 | z-[80] | Quit confirm, settings slide-up overlays |
-| z-[90] | How-to, history, review overlays |
+| z-[90] | How-to, history, review overlays; `#lobby-switcher-overlay`, `#stickerbook-overlay` |
 | z-[95] | gm-boost, gm-near-sync, gm-override, gm-new-frequency; ss-intel overlays |
 | z-[100] | gm-neural-library, deck panels |
 | z-[105] | `#art-viewer-overlay` — global; above the how-to sheets it opens from |
@@ -397,6 +397,7 @@ These are the **only** remaining legacy sticky-footer screens — each a deliber
 | `screen-cld-floe` | Drag-to-aim canvas — a page-scroll during a drag would hijack the aim. Power bar, commit tally and Lock It In must stay fixed beneath a stage the player is dragging on. |
 | `screen-nt-allocation` | DNP captain huddle — cluster bridge + rebalance controls + Lock CTA + huddle timer; controls must stay put while scanning legs. |
 | `screen-comb-meadow` | Fit-to-view board the player taps to place on. The hand row and action bar must stay put while the board is read, and no page-scroll may carry a legal target off screen. Zoom lives in `comb-map-overlay`, not here. |
+| `screen-lounge`, `screen-tv` | The lobby's two full-window stages (SW v231). A page-scroll would hijack a drag in the Lounge's room; TV is a fixed rail + pane layout. `screen-shelves` scrolls as a column and is not an exception. |
 | `screen-workshop` | The 3D controller stage. A page-scroll during a rotate-drag would hijack the drag (the same ground as `screen-cld-floe`), and the preview must stay visible while the colour panel under it is scrolled and tapped — the choice depends on what the Stage is showing. |
 | `screen-mp-mode`, `screen-mp-lobby-host`, `screen-mp-lobby-join`, `screen-mp-roster` | Shared multiplayer infrastructure (all 4 MDLM games) — roster lists with a frozen primary CTA. High blast radius; migrate only if visibly broken. |
 
@@ -878,6 +879,14 @@ Look for ONE opportunity to inject playfulness — cheeky button labels, Austral
 **Australian English is mandatory across all games:** colour, flavour, organise, recognise, chilli. Metric units only (°C, kg, km). Applies to all UI copy, system messages, and doc writing.
 
 ---
+
+## Lobby layouts (SW v231)
+Four ways to view the lobby — **the Lounge** (the 3D room, first on launch), **TV**, **Shelves** and
+**Original** (`screen-lobby`). Every switcher (Shelves' `.lb-switch`, TV's mode buttons,
+`#lobby-switcher-overlay`) renders from **`LobbyRouter.LOBBY_LAYOUTS`** and hides a layout this
+device may not use — absent, not dimmed. "Original" is display copy only; code keys on the id
+`original`. The lobby's own styles live in `css/lobby.css`, scoped under each layout's root — it
+may never style `html`, `body` or a bare element. Routing rule: `logic-engine.md` § Lobby Router Seam.
 
 ## Universal Menu Standard (All Games)
 Every game's main menu screen must have exactly these 4 buttons, in this order: **Play CTA** → **How to Play** → **Settings** → **← Back to the Box**. Only the Play CTA label is game-voiced — the other three are identical across all games (see Rules below).

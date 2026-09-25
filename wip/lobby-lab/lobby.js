@@ -450,7 +450,9 @@ function lbRenderSheet() {
     </div>`;
   sheet.querySelector('#lb-sheet-close').addEventListener('click', () => lbSet({ sheet: null }));
   sheet.querySelector('#lb-sheet-back').addEventListener('click', () => lbSet({ sheet: null }));
-  sheet.querySelector('#lb-play').addEventListener('click', () => console.log(`→ screen-${g.id}-menu (the game's existing menu)`));
+  /* A Play press is a play (stickerbook prototype, 23 Sep 2026): one event, and the
+     shell decides what it earns. A page with no listener loses nothing. */
+  sheet.querySelector('#lb-play').addEventListener('click', () => { console.log(`→ screen-${g.id}-menu (the game's existing menu)`); window.dispatchEvent(new CustomEvent('sylly:play', { detail: { gameId: g.id } })); });
   return sheet;
 }
 

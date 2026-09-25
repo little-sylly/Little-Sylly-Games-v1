@@ -22,7 +22,8 @@ let whoFirstPath        = null;   // 'random' | 'rps' — drives back-from-confi
 
 // ── DOM: all screen IDs ───────────────────────────────────────────────────────
 const allScreens = [
-  'screen-lobby', 'screen-who-first', 'screen-workshop', 'screen-menu', 'screen-setup',
+  'screen-lobby', 'screen-lounge', 'screen-tv', 'screen-shelves',
+  'screen-who-first', 'screen-workshop', 'screen-menu', 'screen-setup',
   'screen-gatekeeper', 'screen-active-play', 'screen-gameover',
   'screen-gm-menu', 'screen-gm-setup', 'screen-gm-input', 'screen-gm-pass-gate',
   'screen-gm-reveal-gate', 'screen-gm-reveal', 'screen-gm-result',
@@ -886,7 +887,7 @@ function resetToLobby() {
   if (typeof syncSfxUI === 'function') syncSfxUI();       // sfx toggle back to neutral stone
   if (typeof syncMusicUI === 'function') syncMusicUI();   // music toggle back to neutral stone
   if (typeof ctlTeardown === 'function') ctlTeardown();
-  showScreen('screen-lobby');   // ← also swaps music back to the lobby theme
+  lobbyShow();   // ← the router seam: the layout the player left from (also swaps music via showScreen)
 }
 
 function resetToMenu() {

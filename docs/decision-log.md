@@ -18,6 +18,98 @@ Changed: Files/systems touched. Deferred/superseded: anything left open.
 Detail: pointer to the canonical doc (snapshot / impl note / spec / memory).
 ```
 
+## 2026-09-25 — Lobby v1 ships (SW v231): the Lounge first, games return to the launching layout
+Category: Architecture
+Decision: The lobby's four layouts ship — the Lounge (renamed from "Premium") first, then TV, Shelves and Original (today's `screen-lobby`) — and every return to the lobby goes through one router seam, `lobbyShow()`, which lands on the layout the game was launched from. Stickerbook v1 is all unlocked with nothing saved; the lamp photos take the runtime-cached contract.
+Why: One seam means all 20 games' exits inherit the return rule with no plugin edited (the `showScreen()` music-seam precedent), and a runtime-cached lamp costs phones nothing — they never see the Lounge.
+Changed: `js/lounge/*`, `js/lobby/*`, `css/lobby.css`, `data/lamp/`, `src/screens/lobby.html`, `engine.js`/`secret-mode.js`/`app.js`/`controller.js` (model/renderer split), `sw.js`. Precache +770 KB (12.24 MB). Deferred: controller animation, stickerbook earning + its storage key, the book on phones, the fourth layout's label, the jukebox feature, the owner's real-device pass, archiving `wip/`.
+Detail: `shared-implementation-notes.md` DD-42; `docs/code-map.md` § Lobby layouts; `logic-engine.md` § Lobby Router Seam.
+
+## 2026-09-25 — The lounge passes the ninety-second test; production wiring opens
+Category: Strategy
+Decision: The owner answered `wip/premium/OWNER-REVIEW-2.md` yes, after room-pass items 1–15. Production wiring of the lobby redesign starts. Small unsettled touches wait for post-production polish rather than holding the ship.
+Why: The room reads as the intended cosy diorama. Any remaining nits are local to single props and don't change routing, the install cost or the screen structure.
+Changed: Nothing shipped yet. The next round is a Tier-2 production-wiring spec (brainstorm → spec → plan) covering the scope already on record in `docs/deferred-work.md` § Lobby redesign.
+Detail: `docs/deferred-work.md` § Lobby redesign (v1 scope, router seam, install delta, `allScreens[]`, the inline-display switcher).
+
+## 2026-09-24 — The lounge goes warm and rich: spec D7's "darker" is lifted, and the room is graded
+Category: Strategy
+Decision: The owner lifted re-block spec D7 ("darker, not dark") and the rule that only the player's colours saturate. The room now aims at the owner's Gemini render: warm light, surfaces separated by material, contact shade. It stays fully procedural as long as that gets close.
+Why: The room read flat. Measured against the mockup, it was not too dark (mean luma 121 against 113) but half as saturated (0.23 against 0.47).
+Changed: `wip/premium/prm-scene.js` (rig, VSM, `prmContactPass`), `prm-lib.js` (`prmContactShade`, materials), `prm-room.js` (walnut table), harnesses. Sandbox only, no SW bump. The spec's D7/D13 rows carry a superseded note.
+Detail: `docs/implementation-notes/shared-implementation-notes.md` DD-26; priority order in `docs/superpowers/plans/2026-09-22-premium-prop-quality.md` § 2 "The room pass".
+
+## 2026-09-24 — The lounge keeps one shadow-casting light; a prop's light effects are drawn
+Category: Architecture
+Decision: The sun stays the room's only shadow caster. A prop that lights things up (the photo lamp's shadows on the bookshelf) paints the effect itself, on a plane, from its own geometry.
+Why: A second caster cost every frame even while dark (it failed visual-prm's frame-rate checks, which pass without it), and switching casting on per beat recompiles every material.
+Changed: `wip/premium/prm-props.js` (the lamp's `drawPool`), its harness. Sandbox only, no SW bump.
+Detail: `docs/implementation-notes/shared-implementation-notes.md` DD-25.
+
+## 2026-09-23 — Finish the lounge before profiles, prop rooms or sticker finishes
+Category: Strategy
+Decision: The order to shipping is the lamp shade, then the room's environment assets, then ship and wire the lounge. Profiles, the shared "prop room" frame for the Workshop/Jukebox/stickerbook, sticker finishes, the dial's idle and the controller prop all come after wiring.
+Why: None blocks the lounge, and each is its own design. The one early call is the data shape (a sticker is id + finish; a profile is local-first), so nothing written now needs migrating.
+Changed: docs only — the owner's answers and the profile/prop-room direction in `docs/deferred-work.md`; the order in the prop-quality plan. Binder idle built the same day (DD-24 follow-up).
+Detail: `docs/deferred-work.md` § Stickerbook achievements; `docs/superpowers/plans/2026-09-22-premium-prop-quality.md` § 2.
+
+## 2026-09-23 — The binder is the stickerbook, and a prototype achievements loop sits behind it
+Category: Strategy
+Decision: The lounge's binder is now a real door: flip, push in, a flat stickerbook where stickers earned by playing (one per game, tiers 1/5/10 plays) are peeled from a tray onto fixed sleeves. The rules are a pure module (`achievements.js`, the router's contract); the page owns storage and effects.
+Why: The owner's round-5 brief and mockup. A pure rules module keeps every fact Node-verifiable, and the door reuses the phone's open → push-in path rather than inventing a third choreography.
+Changed: `wip/premium/prm-props.js` (binder rebuilt; `PRM_ACTIONS.binder` gains `open`/`pushIn`), `prm-scene.js` (`openProp`, `withProp`), `prm-sfx.js` (`binderOpen`), `wip/lobby-lab/` (new `achievements.js`, `stickerbook.js/.css`, router/host/shell wiring, `sylly:play` from both Play CTAs), four harnesses. **Sandbox only — no SW bump.** Deferred: production storage key, Workshop gating, what counts as a play (`docs/deferred-work.md`).
+Detail: `docs/implementation-notes/shared-implementation-notes.md` DD-24.
+
+## 2026-09-23 — The lounge's phone rests closed, and its door is a flip and a dive
+Category: Strategy
+Decision: The lounge's flip phone (the Shelves door and Scene B's target) now rests **closed**; a tap flips it open, lights a menu that highlights *Shelves*, and pushes the camera in on the screen before the Shelves. Scene B ends the same way.
+Why: The owner's round-4 brief. This supersedes spec § 7.4's "no push-in" line, knowingly: the dive is aimed at a lit screen that says where it goes.
+Changed: `wip/premium/prm-props.js` (phone rebuilt; `PRM_ACTIONS.phone` gains `open` and `pushIn`, loses `fade`), `wip/premium/prm-scene.js` (`openPhone`, `pushIn` honours a prop's `focusPose`, `resetView` calls prop `reset`, `setDesign` calls prop `onDesign`, Scene B re-timed to 2.40 s), `prm-sfx.js` (`phoneOpen`), both premium harnesses. Sandbox only. **Open:** the phone's size in the room (it is real size and the smallest door on the table), recorded in the prop-quality plan § 5.
+Detail: `docs/implementation-notes/shared-implementation-notes.md` DD-23.
+
+## 2026-09-23 — The whole jukebox is its door
+Category: Strategy
+Decision: In the lounge, tapping the jukebox **anywhere** is the door to the future jukebox/karaoke feature, which the owner pictures as a full-size view inside the lounge, opened the way the Workshop opens from the controller, with the faceplate's five transport buttons live there. In the sandbox, `jukebox-knob` (id kept) now tags the whole body and bops when no `openJukebox` is supplied; `jukebox-record` stays on the carousel as `music.next`.
+Why: The owner's mockup has no knob, and a single "the jukebox is the door" reads better than a small dial on a big object, especially since the buttons it would need belong in the full-size view.
+Changed: `wip/premium/prm-props.js` (`PRM_ACTIONS['jukebox-knob']` gains `prop: 'jukebox'`, `fallback: 'bop'`, loses `turn`), `wip/premium/prm-scene.js` (fallback lookup by `prop`), both harnesses. **Sandbox only — no SW bump.** Deferred: the owner rethinks the door at production, including whether `music.next` survives as a separate door (plan § 5).
+Also (owner round 3b): the carousel carries **every** game on ten records by relabelling each one behind the back wall as it turns (the dial's "illusion of all the games"), so adding a game needs no jukebox edit.
+Detail: `docs/implementation-notes/shared-implementation-notes.md` DD-22 § 2 and § 8.
+
+## 2026-09-23 — The room may name a sound, but never make one
+Category: Architecture
+Decision: `prm-scene.js` gains an optional host function `sfx(name)` and calls it at named moments; the host decides what those sound like. It lives in its own exported list, **`PRM_EFFECT_FUNCS`**, not in `PRM_OPTIONAL_FUNCS`. (The dial named three moments on the day; the owner then cut the spin hum, so it names one — the seam is the decision, not the roster.)
+Why: The scene has to stay pure and Node-drivable — an AudioContext in a builder or in `activate()` would end that — and a host with no audio, or a browser that has not had a gesture yet, must be silent rather than broken. The list is separate because `PRM_OPTIONAL_FUNCS` means *dormant door*, and the harness's "a dormant door must answer a tap" rightly does not apply to an effect; it is the same split `shell-host.js` already draws for `openSound`.
+Changed: `wip/premium/prm-scene.js`, new `wip/premium/prm-sfx.js` (synthesised Web Audio — no files, zero install bytes, per CLAUDE.md § Tech Stack), `wip/lobby-lab/shell-host.js`, both sandbox pages, `verify-prm-props.js`. **Sandbox only — nothing shipped, no SW bump.** Deferred: the production round decides whether the shipped app routes this at `engine.js`'s `play*()` catalogue instead of a private synth.
+Detail: `docs/implementation-notes/shared-implementation-notes.md` DD-21 § 8.
+
+## 2026-09-22 — Two outcomes, and the arrival beat is live (minus one prop)
+Category: Architecture
+Decision: A player may only ever see **two** outcomes — the interactive lounge (widescreen + WebGL) or the Shelves. Scene B is built as a **live** scene, not a pre-render, mounted **without the controller prop**; a device that cannot animate reaches the same Shelves without the beat, which is a code path, not a third screen. The honest card is retired from the shell.
+Why: Measured, not argued. The controller is **87% of the low-end mount cost** (859 ms of 990 at CPU 4×) and is out of frame in the portrait preset anyway — omitting it takes the mount from 1,674 → 593 ms at 4× and 2,506 → 767 ms at 6×, for zero new assets and no pre-render to re-render on every future art pass. The owner's correction on tiers ("there should only be two options") retires the card, which existed only because a phone had nowhere to go.
+Changed: `wip/premium/prm-scene.js` (`prmEligible` takes `reducedData`; new `prmCanArrive`/`prmArriveMs`/`api.arrive`; `prmMount` takes per-tier opts), `prm-props.js` (`ctx.skipProps`), `wip/lobby-lab/shell-router.js` (`arrival` state + the one-way refusal), `shell.html`, three harnesses. **Sandbox only — nothing shipped, no SW bump.** Supersedes spec § 12 and § 13's card; § 13's size floor stands. Deferred: the production round still owes `allScreens[]` registration and the inline-`style.display` switcher.
+Detail: `docs/implementation-notes/shared-implementation-notes.md` DD-19.
+
+## 2026-09-21 — Premium is the default view, and Scene B is a one-way handoff
+Category: Architecture
+Decision: In production the Premium lounge is the DEFAULT and first view, not one option among four — today's `screen-lobby` survives untouched as the "Original" layout but is no longer what the app lands on. And Scene B is redefined: a phone can never stay in the lounge (dimensions + low-end specs), so it gets a preset arrival beat and a ONE-WAY handoff to Shelves — no portrait HUD, no return path.
+Why: Owner clarification. Two consequences that were recorded wrongly an hour earlier: (1) "new screens beside screen-lobby" is additive in MARKUP only — `resetToLobby()` (every one of the 20 games' exit path), both `secret-mode.js` returns and the controller's idle-nudge check all land on the lobby today and must land on the layout router instead, making it the initiative's highest-blast-radius item; (2) the scene spec's § 12 designs a portrait-PLAYABLE lounge with a both-directions fade, which is not what was ever wanted.
+Changed: `docs/deferred-work.md` (scope entry corrected, Scene B redefined, three eligibility tiers recorded), `docs/superpowers/specs/2026-09-18-premium-lounge-scene-design.md` § 12 marked superseded. No code. Deferred: whether the phone transition is worth building the live scene for on low-end hardware, or should be a pre-rendered beat.
+Detail: `docs/deferred-work.md`, the lobby-redesign entry. Sequencing confirmed: sandbox wiring (incl. this handoff) → production lounge quality build → ship.
+
+## 2026-09-21 — The Workshop names its own way back; allScreens[] is a separate problem
+Category: Architecture
+Decision: `ctlOpenWorkshop(opts)` takes `{ returnScreen, onReturn }` and `ctlCloseWorkshop` no longer hardcodes `showScreen('screen-lobby')` — the opener names its destination, and the lobby is simply the default. Registering Premium in `allScreens[]` is NOT an alternative to this (DD-16 framed it as one): that governs hiding, this governs the return, and a production Premium screen needs both.
+Why: A teardown that also navigates had baked one caller's destination into a shared routine, so the Premium sandbox could only get back by monkey-patching `window.ctlCloseWorkshop` to undo the navigation it had just done. Two values, not one, because a destination is a screen AND a mount element — `showScreen()` alone lands on a screen with no controller in it.
+Changed: `js/controller.js` (shipped, **not SW-bumped** — held for the lobby-redesign initiative's single combined ship, safe only because it is a behavioural no-op at every shipped call site); `wip/lobby-lab/shell.html` (wrapper deleted); `visual-shell.js` 63 → 69. Deferred: `allScreens[]` registration and `returnScreen: 'screen-premium'`, both of which need a `screen-premium` to exist.
+Detail: `docs/implementation-notes/shared-implementation-notes.md` DD-18 (incl. the mutation result: either redundancy alone leaves all 69 green).
+
+## 2026-09-21 — W6 revised: the shell dock is summoned, never automatic
+Category: Architecture
+Decision: The lobby shell's layout dock no longer appears on arrival in a non-Premium view; it is raised only by the telly's channel dial (`openSwitcher`) or below the eligibility floor, where it is the only way out.
+Why: Owner review found "an extra layout bar" — every other layout already ships its own switcher offering all four views (lobby.js's in-phone `.lb-switch`, the Lounge's mode buttons), so off Premium the dock was always a duplicate, and in TV it sat under the rail. Premium is the one layout with no switcher by design: it is a room, not a menu.
+Changed: `wip/lobby-lab/shell-router.js` (`go`/`enterTV`/`enterShelves` leave `switcher` false), `shell.html` comment, `verify-shell.js` (134 green). Sandbox only — nothing under `js/`, `src/screens/` or `sw.js`. Deferred: whether production's Premium keeps the same summon-only rule.
+Detail: `docs/implementation-notes/shared-implementation-notes.md` DD-17; supersedes W6 as written in `docs/superpowers/specs/2026-09-19-premium-shell-wiring-design.md`.
+
 ## 2026-09-19 — The Premium sandbox joins the lobby-lab sandbox behind a new shell
 Category: Architecture
 Decision: `wip/lobby-lab/shell.html` hosts all four lobby layouts in one full-window page, with the

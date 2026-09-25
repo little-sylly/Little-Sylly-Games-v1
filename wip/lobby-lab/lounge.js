@@ -545,8 +545,9 @@ function lgPaintCard(inst) {
     </div>`;
   inst.els.paneCard.querySelector('.lb-lg-x')
     .addEventListener('click', () => lgSet({ sel: null }));
+  /* A Play press is a play — see lobby.js's sheet Play (stickerbook prototype). */
   inst.els.paneCard.querySelector('.lb-lg-play')
-    .addEventListener('click', () => console.log(`→ screen-${g.id}-menu (the game's existing menu)`));
+    .addEventListener('click', () => { console.log(`→ screen-${g.id}-menu (the game's existing menu)`); window.dispatchEvent(new CustomEvent('sylly:play', { detail: { gameId: g.id } })); });
 }
 
 // ═══ The rail ════════════════════════════════════════════════════════════════

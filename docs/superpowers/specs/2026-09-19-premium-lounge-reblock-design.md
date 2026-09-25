@@ -49,15 +49,15 @@ nothing to pool against.
 | D2 | Dial drift speed stays | "on point" |
 | D3 | Room compresses; camera sits on the couch, table pushed against us | "the tight space felt cozy" |
 | D4 | The **window is the key light**, on the **left**; the floor lamp is **dropped** | "drop the floor lamp, have the window on the left" |
-| D5 | Curtains **drawn**, a **slit of light** through | "keep the curtains drawn but maybe let a slither of light through" |
+| D5 | ~~Curtains **drawn**, a **slit of light** through~~ **Superseded 24 Sep 2026 (room pass, round 8):** drawn OPEN and tied back, to the lounge mockup; the owner left open/partly/drawn to Claude. The light rig is unchanged (the curtain never cast). `shared-implementation-notes.md` DD-33 | "keep the curtains drawn but maybe let a slither of light through" |
 | D6 | A **potted plant** on the window sill | "to add a bit of flair and stop that left side from feeling empty" |
-| D7 | Mood is **Saturday afternoon**: darker, not dark | "a darker (not dark, just darker) room has more fun ambience … vs a quiet morning sunlit feel" |
+| D7 | ~~Mood is **Saturday afternoon**: darker, not dark~~ **Superseded 24 Sep 2026 (owner, room pass round 1):** warmer, richer, contact-shaded — measured against the owner's mockup, which is no brighter than this room was but twice as saturated. See `shared-implementation-notes.md` DD-26 | "a darker (not dark, just darker) room has more fun ambience … vs a quiet morning sunlit feel" |
 | D8 | Photo-carousel lamp moves to the **shelves** | "move our photo lampshade to the shelves" |
 | D9 | Coffee table **off-centre right**, breathing room from the TV | "moved a bit to the right so it's not in a visible line to the tv" |
 | D10 | TV gets **droopy bunny ears** | "droopy ears nudges it out" |
 | D11 | Jukebox becomes the **cat jar** | "cat jukebox (top right)" |
 | D12 | Phone stays the **clamshell** | "legacy clamshell or swift slider" — clamshell chosen: already built, era-correct beside the deck |
-| D13 | Rug: **round, braided jute, darker oat** | "darker, circular, thick-threaded, ropey" |
+| D13 | Rug: **round, braided jute**, ~~darker oat~~ warm rust-brown from 24 Sep 2026, banded multi-colour ropes from 25 Sep 2026 (room pass item 11, DD-37) | "darker, circular, thick-threaded, ropey" |
 | D14 | Colours match the controller/TV/jukebox — no label chrome for the phone | "as long as the colors match … intuitive as a door" |
 
 ---

@@ -87,8 +87,9 @@ is no other layer of fiction — the geography metaphor carries the entire theme
 **Australian English throughout**, as everywhere in the suite — colour, not color; metric where
 anything is measured at all.
 
-**On theme:** ocean blue as the brand colour, dice that read as genuinely tactile objects rather than
-decoration, and copy that never breaks from the climbing/cliff-edge framing even in small UI labels.
+**On theme:** warm rock-grey as the brand colour, dice that read as genuinely tactile objects rather
+than decoration, and copy that never breaks from the climbing/cliff-edge framing even in small UI
+labels.
 
 **Off theme:** anything that undercuts the tension with a joke, or complicates the theme with a
 second metaphor layered on top. The Bluff's whole appeal is the purity of its mechanic; the flavour

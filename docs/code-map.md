@@ -20,6 +20,7 @@ Spec: `docs/superpowers/specs/2026-09-15-index-decomposition-design.md`.
 
 | Section | Partial |
 |---------|---------|
+| Lobby layouts — the Lounge, TV, Shelves (Original is `_shell.html`) | `src/screens/lobby.html` |
 | Like I'm Five (LI5) | `src/screens/li5.html` |
 | Great Minds (GM) | `src/screens/gm.html` + `src/screens/gm-overlays.html` |
 | Secret Signals (SS) | `src/screens/ss.html` |
@@ -627,7 +628,7 @@ cache-first). Adding a sticker is a folder drop + one manifest line: no `sw.js` 
 ### Key ids
 | ID | Purpose |
 |----|---------|
-| `#lobby-controller` | The lobby's 3D mount (`.ctl-lobby-mount`, 150px, no floor shadow — no headroom below it) |
+| `#lobby-controller` | Original's ornament slot (one of three — § Lobby layouts); the lobby's 3D mount (`.ctl-lobby-mount`, 150px, no floor shadow — no headroom below it) |
 | `#lobby-header-icons` | Top-right icon row, replaces the old bare `.btn-open-sound` — 🕹️ (once unlocked) then 🔊 |
 | `#ctl-stage` | The Workshop's 3D mount (`.ctl-workshop-stage`, 38vh, floor shadow shown) |
 | `#ctl-panel` | The Workshop's scrolling colour-card panel |
@@ -649,6 +650,7 @@ cache-first). Adding a sticker is a folder drop + one manifest line: no `sw.js` 
 | `ctlDesign` | The live (saved) design; read by the lobby mount |
 | `ctlDraft` | The Workshop's in-progress edit — a copy, not a pointer at `ctlDesign`, so an unsaved change is discarded on exit |
 | `ctlOnPress` / `ctlOnTap` | Assigned per mount: lobby sets `ctlOnPress = null`, `ctlOnTap` opens the Workshop; the Workshop sets `ctlOnPress = ctlKonamiPress`, `ctlOnTap = null` |
+| `ctlReturnScreen` / `ctlReturnMount` | **(21 Sep 2026)** Where `ctlCloseWorkshop()` goes, and what re-mounts the model there — written by `ctlOpenWorkshop(opts)` on **every** entry, so a bare open always means the lobby (`CTL_RETURN_DEFAULT = 'screen-lobby'`, `ctlReturnMount = null` ⇒ `ctlMountLobby`). Two values because a destination is a screen **and** a mount element; `showScreen()` alone lands on a screen with no controller in it. `ctlTeardown()` also clears the pair — redundant with the write-on-entry and kept only to release the `onReturn` closure. Replaced a hardcoded `showScreen('screen-lobby')`; see `shared-implementation-notes.md` DD-18 |
 | `ctlStickerManifest` | The loaded manifest, `null` until the first fetch resolves. `ctlValidateManifest()` **drops** a malformed entry rather than throwing. `unlocked` is reserved for the achievements sub-project (spec D3) and defaults to `true` — today every sticker is free to everyone, exactly like every colour |
 | `ctlStickerState` | `{ stickers, armed, selected, history }`, driven by **pure reducers** and deliberately split from every DOM-touching call — the same split `physics.js` and `controller-body.js` already establish. That split is what lets the harness drive the whole Idle/Armed/Selected table under Node with no browser |
 | `CTL_STICKER_OPT` | **The tuned numbers live here, at the call site, not in the module** — four keep-out discs (two stick wells, two ear bosses) and `maxDistort: 0.14` (the module's own default is 0.10). A surface built with `{}` compiles, runs, and silently paints inside the stick wells; `verify-controller-stickers.js` § 2 is the assertion that catches it |
@@ -672,7 +674,7 @@ cache-first). Adding a sticker is a folder drop + one manifest line: no `sw.js` 
 | `ctlMount(el, { floor })` / `ctlUnmount()` | Re-parents the single WebGL renderer between the lobby and Workshop mounts — one context, never two, since phones cap live WebGL contexts. `floor` (default `true`) toggles the contact-shadow plane; the lobby mount passes `false` |
 | `ctlMountLobby()` | Defers the build past first paint (`requestIdleCallback`), then mounts + binds pointer + starts the idle nudge |
 | `ctlScheduleIdleNudge()` | A small randomly-signed wiggle every 3-5s (first at 1s) — reuses the drag-release coast physics (`ctlVelY`) rather than a second animation system; declines under reduced motion, mid-drag, off-lobby, or once the Workshop takes the mount |
-| `ctlOpenWorkshop()` / `ctlCloseWorkshop()` | Enter/exit the Workshop; close discards unsaved changes (`ctlDesign = ctlReadDesign()`) |
+| `ctlOpenWorkshop(opts)` / `ctlCloseWorkshop()` | Enter/exit the Workshop; close discards unsaved changes (`ctlDesign = ctlReadDesign()`). `opts` is `{ returnScreen, onReturn }`, both optional and both defaulting to the lobby — the **opener** names its way back, so the Workshop can be reached from a second surface (the Premium lounge) without monkey-patching the close. `onReturn(design)` is handed the design that survived the close (saved on the Save path, restored on the ✕ path — one hook, no branch) and owns its own remount; with none given, `ctlMountLobby()` runs as before. Close reads the pair **before** calling `ctlTeardown()`, which clears it |
 | `ctlRenderPanel()` / `ctlSelectColour(group, hex)` | Renders one card: a pill row picking which of the four parts (`ctlActiveGroup`, default `'shell'`) plus that part's own 20-swatch palette from `ctlPalette()` — not four stacked palettes. A tap updates `ctlDraft`, repaints live, re-renders the panel |
 | `ctlRandomiseAll()` (SW v230) | Picks one random `ctlPalette()` hex per `CTL_GROUPS` entry (shell/plate/ears/buttons) in a single pass |
 | `ctlRainbowGradientStops()` (SW v230) | The button's rainbow: every LIVE `GAME_BRAND_HEX` colour (currently 20), li5 pink pinned first and great-minds purple pinned last, everything else in between kept in `LOBBY_COLOUR_ORDER` (the suite's own hue walk — one canonical colour order, not a bespoke one for this button). A 21st game or a recoloured existing one moves the gradient with it, zero edits here |
@@ -701,7 +703,7 @@ cache-first). Adding a sticker is a folder drop + one manifest line: no `sw.js` 
 | `ctlStickerHitIndex(xy, back)` / `ctlStickerEarHitIndex(uv)` | Which placement did this tap land on? Compared in the sticker's **own chart space** and bounded at the same `|c| <= size` the stamp used, so a wrapped sticker is hit correctly on both sheets and the test matches exactly what was painted. Searched backwards — last painted is on top |
 | `ctlOpenStickersTab()` / `ctlRenderStickerBook()` / `ctlSyncStickerControls()` | Open the tab (loading the manifest and building the surface on first entry), render the book, drive the controls row from the current mode |
 | `ctlMaybeBuildStickerSurface()` | The deferred lobby path — a saved design carrying stickers needs the surface built before the ornament can show them, but not before first paint |
-| `ctlTeardown()` | Stops the rAF, resets all pressable state to rest — called by `resetToLobby()`, `ctlCloseWorkshop()`, and `smOpenGateway()` (an early exit from the Workshop) |
+| `ctlTeardown()` | Stops the rAF, resets all pressable state to rest, and clears `ctlReturnScreen`/`ctlReturnMount` — called by `resetToLobby()`, `ctlCloseWorkshop()`, and `smOpenGateway()` (an early exit from the Workshop) |
 
 **Verification:** `tools/verify-controller-body.js` (28 checks — the vendored Three revision, the
 `ControllerBody` namespace, the geometry contract's `userData` fields, the five mesh names the Konami
@@ -731,6 +733,92 @@ starting mid-tween cancels it rather than fighting it. **The border change is di
 it changes what `ctlStampShell`/`ctlRedrawEars` actually paint, which
 `tools/visual-controller-stickers.js` already measured, so that harness was updated in place (two
 assertions rewritten, 48 -> 50 checks) rather than left uncovered. All harnesses above pass.
+
+## Lobby layouts (SW v231)
+
+The lobby has **four layouts** — the Lounge (the 3D room), TV, Shelves and Original — and the
+Lounge is the first view on launch. A phone (or any WebGL device below 900×500) plays the Lounge's
+arrival beat and is handed to Shelves for the session; a device with no WebGL (or
+`prefers-reduced-data`) boots straight into Shelves. **Every "back to the lobby" goes through
+`lobbyShow()`** (`logic-engine.md` § Lobby Router Seam). Spec:
+`docs/superpowers/specs/2026-09-25-lobby-production-wiring-design.md`.
+
+**Markup:** `src/screens/lobby.html` (the three new screens + two overlays); Original is the existing
+`#screen-lobby` in `src/screens/_shell.html`, now `style="display:none"` in markup (the boot shows
+the first layout — nothing else may paint first) with one new header button, `#btn-lobby-layout`.
+**CSS:** `css/lobby.css` (layouts `lb-*`/`lb-lg-*`, stickerbook `sb-*`, Lounge HUD `#lou-*`, screen
++ ornament-slot rules). **Data:** `data/lamp/` (manifest + 9 JPEGs, ~317 KB) — **runtime-cached,
+not precached**, the `data/stickers/` contract.
+
+### Files (load order: after `controller.js`, before `secret-mode.js`)
+| File | Global(s) | What it is |
+|------|-----------|------------|
+| `js/lounge/lounge-lib.js` | `LouLib` | Pure geometry/material helpers for the room (`louCreateLib`, `louApplyDesign`, contact shade) |
+| `js/lounge/lounge-room.js` | `LouRoom` | The room itself: walls, window, couch, table, stand, shelf, rug… |
+| `js/lounge/lounge-props.js` | `LouProps` | The props (telly, dial, jukebox, binder, phone, controller, lamp, shelf dressing), `LOU_ACTIONS` (door map), `LOU_BUILDERS` |
+| `js/lounge/lounge-scene.js` | `LouScene` | `louMount(canvas, host, opts)` → the scene api; `louValidateHost`, `louEligible`, `louCanArrive`, `LOU_PROVIDER_FUNCS` |
+| `js/lounge/lounge-sfx.js` | `LouSfx` | `louCreateSfx()` — the room's synthesised voices (gated on `isMuted \|\| !sfxEnabled` by the host) |
+| `js/lobby/lobby-games.js` | `GAMES`, `SHELVES` | The verified 20-game data table (regenerate with `tools/build-games.js`) |
+| `js/lobby/lobby.js` | `lb*` | Shelves layout, TV's size gate + hand-off card, the helpers both share (`lbState`, `lbSet`, `lbRender`, `lbMountTVFull`, `lbTvEligible`) |
+| `js/lobby/tv.js` | `tv*`, `TV_STATE` | The TV layout (was the sandbox's `lounge.js`): patch-in-place renderer, `tvMount`/`tvDrop` |
+| `js/lobby/achievements.js` | `Achievements` | Stickerbook rules, pure; `achAllPlaced(book)` is v1's whole book |
+| `js/lobby/stickerbook.js` | `Stickerbook` | `sbMount(root, opts)` → the book's DOM |
+| `js/lobby/lobby-router.js` | `LobbyRouter` | Pure reducer `lobbyReduce` + `LOBBY_LAYOUTS` (id, label, icon, screen — the ONE table every switcher renders from) |
+| `js/lobby/lobby-doors.js` | `LobbyDoors` | Pure: `LOBBY_DOORS` (door → router action) + `lobbyCreateHost(deps)` |
+| `js/lobby/lobby-host.js` | `lobby*` | **Every effect.** Boot, the seam, layout presentation, the room, the ornament, the switcher, the stickerbook |
+
+### Screens and overlays
+| ID | Layout / purpose |
+|----|------------------|
+| `#screen-lounge` | The Lounge — `#lou-stage` › `#lou-canvas`, `#lou-vignette`, `#lou-hud` (`#lou-heading`, `#lou-status`, `#lou-focus`), `#lou-fade`. Fixed stage |
+| `#screen-tv` | TV — `#tv-app`. Fixed stage; below 900×500 it shows the hand-off card (`#lb-tv-handoff-back` → Shelves) |
+| `#screen-shelves` | Shelves — `#shelves-canvas` (390 px column, scrolls) |
+| `#screen-lobby` | Original — unchanged content + `#btn-lobby-layout` (opens the switcher) |
+| `#lobby-switcher-overlay` | The dock (z-[90], Decision-Modal geometry): `#lobby-switcher-list`, `#btn-lobby-switcher-close`. Summoned only — Original's button and the Lounge's channel dial |
+| `#stickerbook-overlay` | The stickerbook (binder door). Toggles its own `hidden` (guarded `!important`); **never** in `resetToLobby()`'s display list — the router's `home` closes it |
+
+### Ornament slots — ONE controller canvas, moved between them
+| Layout | Slot id |
+|--------|---------|
+| Original | `#lobby-controller` |
+| Shelves | `#shelves-controller` (`.lb-you-mount.ctl-ornament`) |
+| TV | `#tv-controller` (`.lb-lg-ctl.ctl-ornament`) |
+| Lounge | none — the room's own controller prop wears the Workshop's painted atlas (`ctlModelParts`) |
+
+### `lobby-host.js` API
+| Function / state | Purpose |
+|------------------|---------|
+| `lobbyBoot()` | Called on `app.js`'s last line, synchronously: probes the tier, shows the first layout, fetches the two manifests **independently** (each fails alone), sets `window.lobbyReady` |
+| `lobbyShow()` | **The seam.** Dispatches `home`, presents the home layout. `resetToLobby()` and both `secret-mode.js` returns call it |
+| `lobbyGo(id)` | A switcher picked a layout; refused unless `lobbyOffered(id)` |
+| `lobbyLaunch(gameId)` | Clicks the game's own lobby button (`LOBBY_BTN_IDS`: `li5`→`btn-dstw`, `gm`→`btn-great-minds`, `ss`→`btn-sylly-signals`, else `btn-[id]`); stops TV's timers first |
+| `lobbyOffered(id)` / `lobbyIsUp(view)` | What a switcher may show this device / is that layout on screen |
+| `lobbyAfterLayoutRender()` | Called by `lbSet` after every Shelves re-render — puts the ornament back |
+| `lobbyDispatch(action)` | The one write path: `lobbyReduce` then `lobbyApply` |
+| `lobbyState` / `lobbyScene` / `lobbyBook` | Router state · the Lounge's scene api (null until mounted, and again after a phone's handoff) · the stickerbook's book (null when the sticker manifest never arrived) |
+| `?lobbydebug` | Exposes the scene's `window.louDebug` — for `tools/visual-lobby.js` only |
+
+### Router (`lobby-router.js`)
+State `{ view, tvSel, room, workshop, stickerbook, switcher, design, arrival }`; `view` IS the home
+layout (a game launch never changes it). Actions: `go`, `enterTV`, `enterShelves`, `openSwitcher`,
+`closeSwitcher`, `roomMounted`, `workshopOpen`, `workshopClose`, `stickerbookOpen`,
+`stickerbookClose`, `designSaved`, `leaveLobby`, `arrivalBegin`, `arrivalReset`, **`home`**.
+Workshop/stickerbook close to the layout they were opened from; **one-way rule**: once
+`arrival === 'done'`, no action lands on `lounge`.
+
+### `controller.js` additions (SW v231)
+| Function | Purpose |
+|----------|---------|
+| `ctlEnsureModel()` | Everything but the renderer (atlases, body, UVs, materials, ears, controls, repaint). Sets `ctlModelBuilt`. `ctlApplyDesign` + `ctlEnsureStickerSurface` gate on it |
+| `ctlModelParts()` | `{ geo, tex, bumpTex, earTex, earBumpTex, ears }` — the Lounge's controller prop borrows geometry + textures (never materials), tagged `louSharedGeometry`/`louSharedMaps` so the scene's `dispose()` skips them |
+| `ctlEnsureBuilt()` | `ctlEnsureModel()` + scene + rig — adopts the same model (one `buildBody` app-wide) |
+| `ctlMountOrnament(slotId, { returnScreen, onOpen, onReturn })` | Replaces `ctlMountLobby`'s body; slot remembered by id, resolved at use; a stale deferred attach bails if the current slot has no box |
+| `ctlOrnamentIsLive()` | Canvas in the current slot and that slot has a box — the idle nudge's gate |
+| `ctlMountLobby()` | Kept: `ctlMountOrnament('lobby-controller', {})`, `ctlCloseWorkshop`'s no-opener fallback |
+
+**Harnesses:** `tools/verify-lobby-router.js` (210), `tools/verify-lounge-props.js` (1338),
+`tools/verify-tv.js` (919), `tools/verify-achievements.js` (81), `tools/visual-lounge.js` (29, over
+`tools/fixtures/lounge.html`), `tools/visual-lobby.js` (69, over the real `index.html`).
 
 ---
 

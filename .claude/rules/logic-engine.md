@@ -37,6 +37,7 @@
 | `js/lib/controller-body.js` | `ControllerBody` | `{ buildBody, buildControls, buildEars, buildShoulder, smoothNormals }`. Pure geometry — takes `THREE` as an argument, touches no DOM. Ported once from the frozen prototype (`docs/controller-prototype/`); the prototype carried it duplicated inline and every fix had to be applied twice by hand. | the lobby's 3D controller / Workshop |
 | `js/lib/controller-sticker-surface.js` | `StickerSurface` | `StickerSurface(U, ATLAS, opt)` → `{ plan, stamp, padPairs, toAtlas, fromAtlas, boxes, sheets, … }`. Surface-space sticker placement and rasterisation for the 3D controller. **Pure: takes `geo.userData` + the atlas size + an options object, touches no DOM and no THREE** — same contract as `physics.js`, and what lets it be verified under Node. Ported unchanged from the frozen prototype. **Its tuned numbers are NOT in it** — the keep-out discs and `maxDistort` live in `CTL_STICKER_OPT` at the call site, and a surface built with `{}` runs happily while painting inside the stick wells (see the caller-side-config lesson in `shared-implementation-notes.md`). | the Workshop's Stickers tab |
 | `js/controller.js` | prefix `ctl` (not `window`-namespaced) | The lobby ornament, the Workshop customiser, and the Konami input surface. Colour state (`ctlReadDesign`/`ctlWriteDesign`, `sylly_controller`), palette (`ctlPalette()`, read live from `GAME_BRAND_HEX`), the renderer (`ctlEnsureBuilt`/`ctlMount`/`ctlApplyDesign`), the Konami adapter (`ctlKonamiCode`/`ctlKonamiPress`), and — SW v229 — the Stickers tab: the manifest load, the pure placement state machine (`ctlStickerReduce`, Idle/Armed/Selected + undo) and the two rasterisers (`ctlStampShell` for the shell, a flat one for the ears). SW v228–v229. Full inventory: `docs/code-map.md` § 3D Controller / Workshop. | the lobby, `screen-workshop` |
+| `js/lounge/*` + `js/lobby/*` | `LouScene`, `LobbyRouter`, `lobby*` … | The lobby's four layouts (SW v231): the Lounge's 3D room (`lou` prefix), TV (`tv`), Shelves + shared helpers (`lb`), the pure router + door map, and `lobby-host.js` — every effect. **Not a game and not a library a game may call** — a plugin reaches the lobby only through `resetToLobby()`. Inventory: `docs/code-map.md` § Lobby layouts. | the lobby |
 
 **Not `js/lib/` but the same shared-not-reinvented rule — `engine.js` globals used by 3+ games:**
 
@@ -55,6 +56,17 @@ Extract into a shared module only if a second dice game appears (YAGNI until the
 - `showScreen(id)` hides ALL `allScreens[]` entries, then shows target with CSS fadeIn
 - **Rule:** Every new screen ID must be added to `allScreens[]` in `engine.js`
 - Adding a screen without registering it leaves a ghost screen that never hides
+
+## Lobby Router Seam (SW v231)
+**`lobbyShow()` is the ONLY way back into the lobby.** The lobby has four layouts (the Lounge, TV,
+Shelves, Original = `screen-lobby`) and the router remembers which one the player left from, so a
+game returns there. **Nothing outside `js/lobby/` may `showScreen()` a layout's screen** — not
+`'screen-lobby'`, not the new three. The four sites: `resetToLobby()` (all 20 games' exits), both
+`secret-mode.js` returns (`sm-terminal-back`, `sm-btn-exit`), and the controller's idle nudge
+(`ctlOrnamentIsLive()`). A game is launched from any layout by `lobbyLaunch(id)`, which clicks the
+game's existing lobby button — **no plugin knows the layouts exist**. `tools/visual-lobby.js` is the
+proof, and its mutation pass (revert any site → red) is what keeps it honest. Detail:
+`shared-implementation-notes.md` DD-42.
 
 ---
 
@@ -571,6 +583,13 @@ success path). `smTypewriterTimers` (`js/secret-mode.js`) is a `setTimeout` arra
 the Terminal's boot sequence and the Sylly Gateway's streaming log (`smGatewayStream()`); its clear
 sites are the gateway's own ✕, its TAP TO CONTINUE, and the Terminal's ← BACK.
 
+**The lobby's timers (SW v231).** TV's drift RAF + clock interval live on its instance and are
+cleared by `tvDrop()` — which `lobby-host.js` calls whenever another layout is presented **and**
+in `lobbyLaunch()` and on a Workshop open (both keep `view === 'tv'`, so presenting alone would miss them). The
+Lounge's RAF is `lobbyScene.stop()` whenever anything else has the screen (kept, never disposed —
+except a phone's lean room, disposed after the arrival handoff). `lobbySayTimer` clears the HUD
+status line.
+
 ---
 
 ## PWA Guardian
@@ -634,6 +653,10 @@ open with no version bump), **images are cache-first** (instant + lean). This is
 asset pack be added or removed by dropping a folder + editing `data/packs/registry.json` — no `sw.js`
 edit, no SW version bump. The legacy `data/secret*_words.json` files were migrated into
 `data/packs/<id>/pack.json` manifests (inline `words`) and deleted. See `docs/expansion-guide.md`.
+
+**Lounge lamp photos — runtime-cached, NOT precached (SW v231):** `data/lamp/` (manifest + JPEGs,
+~317 KB) takes the `data/stickers/` branch exactly — a phone never sees the Lounge, so it never pays
+for them. The lobby's CODE (`js/lounge/*`, `js/lobby/*`, `css/lobby.css`, ~770 KB) IS precached.
 
 **Controller stickers — runtime-cached, NOT precached (SW v229):** `data/stickers/` (the
 `manifest.json` and one PNG per design) follows the `data/packs/` split exactly — **manifest

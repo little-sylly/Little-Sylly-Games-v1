@@ -260,6 +260,14 @@ Hover is universal — the group lifts ~3 mm over 150 ms ease-out (transform onl
 - **Activate.** Fade → `enterShelves()`. No push-in: the phone is small and a camera dive into
   it reads as a joke the second time.
 
+> **Superseded by prop round 4 (owner, 23 Sep 2026).** The phone now **rests closed** (camera, flash
+> and an S badge on the lid). A tap flips it open, the backlight comes up on a menu whose
+> highlighted row is *Shelves*, and the camera **pushes in on the screen** before `enterShelves()`.
+> This reverses the "no push-in" line above, knowingly: the dive is aimed at a lit screen that
+> says where it goes. The joke-the-second-time risk is still worth watching in a real session.
+> Scene B (§ 12) ends the same way. Idle is three shuffled beats (buzz, snap, clap), not a pulse.
+> Detail: `docs/implementation-notes/shared-implementation-notes.md` DD-23.
+
 ### 7.5 Controller — the player's, already built
 
 - **Geometry.** `ControllerBody.buildBody/buildControls/buildEars/buildShoulder` exactly as
@@ -331,6 +339,12 @@ Hover is universal — the group lifts ~3 mm over 150 ms ease-out (transform onl
 No pick target, no hover.
 
 ### 7.9 Trinket slots — data now, achievements later
+
+> **Superseded 25 Sep 2026 (room pass, item 15).** The owner had the top two boards dressed with
+> books and toys, and deferred easter eggs. `PRM_TRINKETS_V1` and the `unlocked` seam are gone:
+> `prmBuildShelf(lib, S)` builds a fixed dressing. Earned pieces, when they come, are items added
+> to it. See `shared-implementation-notes.md` DD-41 § 4 and `docs/deferred-work.md`. The text below
+> is the original design.
 
 `prmBuildShelf(THREE, trinkets)` takes a list:
 
@@ -458,6 +472,20 @@ timeout are all cleared in `dispose()`, per `logic-engine.md` § Timer Lifecycle
 
 ## 12. Scene B (portrait) — designed now, built later
 
+> **⚠️ SUPERSEDED 21 Sep 2026, and the replacement is BUILT (sandbox) 22 Sep 2026 — do not build this section as written.** It designs a portrait
+> *playable* lounge (a portrait HUD, a keycap in thumb reach, a fade between Scene B and Shelves in
+> **both** directions). The owner's intent is one-way: **a phone can never stay in the lounge** —
+> dimensions and low-end specs both rule it out — so it gets a preset arrival beat (an auto-pan to
+> the clamshell prop, or another scripted transition) and is handed to Shelves, with no return and
+> no portrait HUD. That also adds a third tier this section and § 13 do not have: a device with no
+> WebGL context cannot play the transition either, and goes straight to Shelves. The open question (live scene vs a pre-rendered beat on low-end
+> hardware) is **answered: live, with the controller prop omitted** — it is 87% of the low-end
+> mount cost and out of the portrait framing. And there is no third tier after all: the owner's
+> 22 Sep correction is that a player sees only **two** outcomes, the lounge or the Shelves, which
+> retires § 13's honest card from the shell. What was built, and the measurements behind it:
+> `docs/implementation-notes/shared-implementation-notes.md` DD-19, plus the lobby-redesign entry
+> in `docs/deferred-work.md`. The text below is kept for the framing notes only.
+
 **One scene graph, two camera presets.** Props keep their world positions; Scene B is
 `setPreset('portrait')` plus a HUD layout, not a second room.
 
@@ -476,6 +504,13 @@ timeout are all cleared in `dispose()`, per `logic-engine.md` § Timer Lifecycle
 ---
 
 ## 13. Eligibility and the honest card
+
+> **⚠ The CARD half of this section is SUPERSEDED (22 Sep 2026).** The size floor below still
+> stands and is still what `prmEligible` enforces — now taking `reducedData` as a real fourth
+> parameter rather than prose. What changed is what happens *below* it: a phone no longer gets
+> an apology, it gets the arrival beat and a one-way handoff to the Shelves, so `#prm-card` is
+> gone from `wip/lobby-lab/shell.html`. It survives only in `wip/premium/index.html`, the
+> standalone scene page, which genuinely has nowhere to hand anyone to. See DD-19.
 
 Premium is offered when **all** hold: `innerWidth ≥ 900 && innerHeight ≥ 500` (TV mode's
 `LB_TV_MIN_W/H`, reused, no device sniffing), a WebGL context can be created, and

@@ -316,6 +316,11 @@ function ctlStickerReduce(st, a) {
 // ══ RENDERER ══ everything below needs THREE, a document and a canvas ═══════
 
 let ctlBuilt = false;
+/* The model half is built before the renderer half, and can exist without it:
+   the Lounge's 3D prop borrows the painted model on the app's front door
+   (ctlModelParts), where building a WebGL context just to paint a texture would
+   double buildBody — the single most expensive thing this feature does. */
+let ctlModelBuilt = false;
 let ctlScene, ctlCamera, ctlRenderer, ctlRig, ctlBody, ctlControls, ctlEars, ctlFloor;
 let ctlCanvas, ctlCtx, ctlTex, ctlEarCanvas, ctlEarCtx, ctlEarTex;
 let ctlBumpCanvas, ctlBumpCtx, ctlBumpTex;
@@ -518,7 +523,7 @@ const CTL_STICKER_OPT = {
    lobby path when a SAVED design already has stickers (see ctlApplyDesign). */
 function ctlEnsureStickerSurface() {
   if (ctlStickerSurface) return true;
-  if (!ctlBuilt || !ctlGeo || !window.StickerSurface) return false;
+  if (!ctlModelBuilt || !ctlGeo || !window.StickerSurface) return false;
 
   // Order is forced: the surface and its pad pairs both close over the atlas
   // size at construction, so the resize has to land first.
@@ -1410,7 +1415,7 @@ function ctlMaybeBuildStickerSurface() {
 
 function ctlApplyDesign(design) {
   if (design) ctlDesign = Object.assign({}, ctlDesign, design);
-  if (!ctlBuilt) return;
+  if (!ctlModelBuilt) return;
   ctlRedrawShell();
   ctlRedrawEars();
   ctlSetButtonColour(ctlDesign.buttons);
@@ -1418,11 +1423,13 @@ function ctlApplyDesign(design) {
   ctlWake();
 }
 
-function ctlEnsureBuilt() {
-  if (ctlBuilt) return true;
+/* Everything that needs THREE but not a WebGL context: atlases, the body, plate
+   UVs, materials, the ears and their UVs, the controls, and the design repaint.
+   Idempotent. The renderer half (ctlEnsureBuilt) adopts exactly this model. */
+function ctlEnsureModel() {
+  if (ctlModelBuilt) return true;
   if (typeof THREE === 'undefined' || !window.ControllerBody) return false;
 
-  ctlBuildScene();
   ctlBuildAtlases();
 
   const geo = ControllerBody.buildBody(THREE, {});
@@ -1433,16 +1440,13 @@ function ctlEnsureBuilt() {
                                                  bumpMap: ctlBumpTex, bumpScale: 0.035 });
   ctlBody = new THREE.Mesh(geo, ctlShellMat);
   ctlBody.castShadow = true; ctlBody.receiveShadow = true;
-  ctlRig.add(ctlBody);
 
   ctlEarMat = new THREE.MeshStandardMaterial({ map: ctlEarTex, roughness: .52, metalness: .06,
                                                bumpMap: ctlEarBumpTex, bumpScale: 0.035 });
   ctlEars = ControllerBody.buildEars(THREE, ctlEarMat);
   ctlBuildEarUV();                   // buildEars ships default UVs — see the note there
-  ctlEars.forEach(m => ctlRig.add(m));
 
   ctlControls = ControllerBody.buildControls(THREE, geo);
-  ctlRig.add(ctlControls.group);
 
   /* The customisable "buttons" group: both sticks, both stick wells, the whole
      d-pad including its hub, and both shoulders. The four face buttons and
@@ -1457,9 +1461,30 @@ function ctlEnsureBuilt() {
     }
   });
 
-  ctlBuilt = true;
+  ctlModelBuilt = true;
   ctlDesign = ctlReadDesign();
   ctlApplyDesign(null);
+  return true;
+}
+
+/* The painted model's shareable parts. The Lounge builds its OWN meshes and
+   materials on these (a room material carries shader patches that must never
+   reach the Workshop's render) — it borrows geometry and textures only. */
+function ctlModelParts() {
+  if (!ctlModelBuilt) return null;
+  return { geo: ctlGeo, tex: ctlTex, bumpTex: ctlBumpTex, earTex: ctlEarTex,
+           earBumpTex: ctlEarBumpTex, ears: ctlEars.slice() };
+}
+
+function ctlEnsureBuilt() {
+  if (ctlBuilt) return true;
+  if (!ctlEnsureModel()) return false;
+  ctlBuildScene();
+  ctlRig.add(ctlBody);
+  ctlEars.forEach(m => ctlRig.add(m));
+  ctlRig.add(ctlControls.group);
+  ctlBuilt = true;
+  ctlApplyDesign(null);              // repaint now that there is somewhere to render it
   return true;
 }
 
@@ -1883,55 +1908,94 @@ function ctlVoiceRelease() {
   CTL_VOICE.release();
 }
 
-// ── The lobby mount ──────────────────────────────────────────────────────────
-/* Deferred one frame past first paint. buildBody walks a distance field over a
-   grid and is the single most expensive thing this feature does; running it
-   inline would stall the app's front door on exactly the devices least able to
-   afford it. The mount is empty until it lands — a placeholder that flashes and
-   is replaced reads worse than the object simply arriving. */
-function ctlMountLobby() {
-  const el = document.getElementById('lobby-controller');
-  if (!el) return;
-  const start = () => {
-    /* This is DEFERRED by up to 1200 ms, and ctlCloseWorkshop() schedules one
-       on its way out — so a player who reopens the Workshop inside that window
-       gets the stale callback landing on top of it: the canvas is pulled back
-       to the lobby mount, ctlPressEnabled goes false and ctlOnTap becomes the
-       lobby's, leaving an empty stage whose every tap reopens the Workshop.
-       If the mount is not on screen, this callback is simply out of date. */
-    if (!el.offsetParent && !el.getClientRects().length) return;
-    if (!ctlEnsureBuilt()) return;
-    ctlPressEnabled = false;         // the lobby's buttons are scenery
+// ── The ornament — the one controller canvas, moved between the lobby layouts ──
+/* Three layouts carry an ornament slot (Original's #lobby-controller, Shelves'
+   #shelves-controller, TV's #tv-controller); the Lounge has its own 3D prop.
+   There is ONE renderer, re-parented by ctlMount, so a layout switch costs a
+   DOM move, not a second WebGL context. The slot is remembered by ID and
+   resolved at use, because Shelves re-renders its markup on every state change.
+
+   Deferred one frame past first paint when the model is not built yet —
+   buildBody is the single most expensive thing this feature does. A deferred
+   attach that lands after the player moved on re-reads the CURRENT slot, and
+   bails if that slot is not on screen: a stale callback must never pull the
+   canvas somewhere the player has left. */
+let ctlOrnamentSlot = null;
+let ctlOrnamentOpts = {};
+
+function ctlMountOrnament(slotId, opts) {
+  ctlOrnamentSlot = slotId;
+  ctlOrnamentOpts = opts || {};
+  const attach = () => {
+    const el = document.getElementById(ctlOrnamentSlot);
+    if (!el || !el.getClientRects().length) return false;
+    if (!ctlEnsureBuilt()) return false;
+    const o = ctlOrnamentOpts;
+    ctlPressEnabled = false;         // an ornament's buttons are scenery
     ctlOnPress = null;
-    ctlOnTap = () => { playLaunch(); ctlOpenWorkshop(); };
-    /* The lobby ornament is never zoomed — but this isn't the only path back
-       to it (the Konami/gateway return calls ctlTeardown() directly, never
-       ctlCloseWorkshop), so the reset belongs at the one place every return
-       to the lobby mount actually passes through, not at ctlCloseWorkshop. */
+    ctlOnTap = () => {
+      playLaunch();
+      if (typeof o.onOpen === 'function') o.onOpen();
+      ctlOpenWorkshop({ returnScreen: o.returnScreen, onReturn: o.onReturn });
+    };
+    /* An ornament is never zoomed — and the Konami/gateway return reaches here
+       through the lobby router without ever touching ctlCloseWorkshop. */
     ctlZoom = 1;
-    ctlMount(el, { floor: false });   // no headroom below the mount for the contact shadow
+    ctlMount(el, { floor: false });  // no headroom below a slot for the contact shadow
     ctlBindPointer(el);
     ctlScheduleIdleNudge();
+    return true;
   };
-  if (window.requestIdleCallback) requestIdleCallback(start, { timeout: 1200 });
-  else setTimeout(start, 0);
+  if (ctlBuilt) return attach();
+  if (window.requestIdleCallback) requestIdleCallback(attach, { timeout: 1200 });
+  else setTimeout(attach, 0);
+  return true;
 }
 
-// Keyboard equivalence for the tap — the mount is role="button".
+/* Kept for ctlCloseWorkshop's default return (DD-18) — every production opener
+   passes its own onReturn, so this is the no-opener fallback only. */
+function ctlMountLobby() { return ctlMountOrnament('lobby-controller', {}); }
+
+/* Is an ornament on screen right now? The idle nudge's gate. Owned here so the
+   nudge needs nothing from the lobby's files: the canvas is in the current slot
+   and that slot has a box — false during a game, the Workshop, or the Lounge. */
+function ctlOrnamentIsLive() {
+  return !!ctlMountEl && !!ctlOrnamentSlot && ctlMountEl.id === ctlOrnamentSlot
+    && ctlMountEl.isConnected && ctlMountEl.getClientRects().length > 0;
+}
+
+// Keyboard equivalence for the tap — every slot is role="button" tabindex="0".
 document.addEventListener('keydown', e => {
   if (e.key !== 'Enter' && e.key !== ' ') return;
-  if (document.activeElement && document.activeElement.id === 'lobby-controller') {
+  if (document.activeElement && document.activeElement === ctlMountEl && ctlOrnamentIsLive() && ctlOnTap) {
     e.preventDefault();
-    playLaunch();
-    ctlOpenWorkshop();
+    ctlOnTap();
   }
 });
+
 
 /* Full teardown. Called from resetToLobby() and from the Workshop's ✕. The rAF
    handle is a timer under logic-engine.md § Timer Lifecycle; the scene itself
    is deliberately kept — rebuilding it is the expensive part and the lobby
    wants it back immediately. */
 function ctlTeardown() {
+  /* The return destination is Workshop-session state, so it dies with the
+     session — and this is the ONE funnel every exit passes through, including
+     the two that never touch ctlCloseWorkshop (resetToLobby() and
+     smOpenGateway()'s Konami hop). ctlCloseWorkshop captures the pair before
+     calling in here, so clearing it is safe from there too.
+
+     This is REDUNDANT with ctlOpenWorkshop's unconditional write, and knowingly
+     so: mutating either one alone leaves every check green — only removing both
+     turned the three "destination did not persist" assertions in the sandbox's
+     visual-shell.js red (retired at SW v231; tools/visual-lobby.js now drives
+     every opener's return). What it adds on its own is releasing the
+     onReturn closure when a session ends, rather than holding a reference to the
+     opener until some later open happens to overwrite it (which may be never).
+     Do not read it as the thing that makes the default correct — that is the
+     write on the way in. */
+  ctlReturnScreen = CTL_RETURN_DEFAULT;
+  ctlReturnMount  = null;
   ctlStop();
   ctlHeldStick = null;
   ctlDragging = false;
@@ -1956,7 +2020,7 @@ function ctlTeardown() {
    runs for the life of the page, same shape as the resize listener above —
    it is not tied to a single timed phase, so there is no single exit point to
    cancel it from. It is near-zero cost when it declines to act: reduced
-   motion, an active drag/stick-hold, a game in progress (screen-lobby hidden)
+   motion, an active drag/stick-hold, a game in progress (no ornament slot on screen)
    and the Workshop (a different mount element) all take the early return.
    The first nudge fires quickly (1s) — a player may not linger on the lobby
    or may have scrolled past the fold before the "few seconds" cadence would
@@ -1974,10 +2038,7 @@ function ctlScheduleIdleNudge() {
     setTimeout(fire, nextDelay());
     if (ctlReducedMotion()) return;                 // no unsolicited motion
     if (ctlDragging || ctlHeldStick) return;         // never fight the player's own drag
-    const lobbyEl = document.getElementById('lobby-controller');
-    const screenLobby = document.getElementById('screen-lobby');
-    if (ctlMountEl !== lobbyEl) return;              // Workshop mount, or not mounted
-    if (!screenLobby || screenLobby.style.display === 'none') return;  // a game is on screen
+    if (!ctlOrnamentIsLive()) return;                // the Workshop, a game, the Lounge, or nothing mounted
     const sign = Math.random() < 0.5 ? -1 : 1;
     ctlVelY = sign * (0.02 + Math.random() * 0.02);  // small — a wiggle, not a spin
     ctlWake();
@@ -1985,7 +2046,6 @@ function ctlScheduleIdleNudge() {
   setTimeout(fire, CTL_IDLE_NUDGE_FIRST_MS);
 }
 
-document.addEventListener('DOMContentLoaded', ctlMountLobby);
 
 // ── The Workshop ─────────────────────────────────────────────────────────────
 const CTL_GROUP_LABELS = {
@@ -2007,7 +2067,33 @@ let ctlDraft = null;
    Layout Standard), just picking a part instead of a value. */
 let ctlActiveGroup = 'shell';
 
-function ctlOpenWorkshop() {
+/* ── Where the Workshop goes when it closes ───────────────────────────────────
+   ctlCloseWorkshop() used to hardcode showScreen('screen-lobby') + ctlMountLobby(),
+   which baked ONE caller's destination into a shared teardown: a second surface
+   that opens the Workshop (the Premium lounge) could only get back by wrapping
+   the function to undo the navigation it had just done. The opener now names its
+   own way back, and the lobby's answer is simply the default.
+
+   Two values, not one, because a destination is a screen AND whatever re-mounts
+   the 3D model there — the lobby's canvas is a different element from the
+   lounge's, and showScreen() alone would land on a screen with nothing in it.
+
+   REGISTERING A SCREEN IN allScreens[] IS A DIFFERENT PROBLEM, not an
+   alternative to this (DD-16 framed the two as either/or — they are not).
+   allScreens[] governs HIDING: any new screen must join it or it never hides
+   (logic-engine.md § Screen Routing). This pair governs the RETURN. A Premium
+   screen will need both. */
+const CTL_RETURN_DEFAULT = 'screen-lobby';
+let ctlReturnScreen = CTL_RETURN_DEFAULT;
+let ctlReturnMount  = null;   // null ⇒ ctlMountLobby, resolved at use — see ctlCloseWorkshop
+
+/* opts: { returnScreen, onReturn } — both optional, both default to the lobby.
+   Called bare from the lobby mount and the keyboard equivalence below, so the
+   no-argument form must stay exactly what it always was. */
+function ctlOpenWorkshop(opts) {
+  const o = opts || {};
+  ctlReturnScreen = o.returnScreen || CTL_RETURN_DEFAULT;
+  ctlReturnMount  = (typeof o.onReturn === 'function') ? o.onReturn : null;
   ctlDraft = Object.assign({}, ctlReadDesign());
   ctlActiveGroup = 'shell';
   ctlActiveTab = 'colours';
@@ -2034,6 +2120,11 @@ function ctlOpenWorkshop() {
 }
 
 function ctlCloseWorkshop() {
+  /* Captured BEFORE ctlTeardown(), which clears the pair itself — see the note
+     there. Reading them afterwards would always find the defaults, i.e. would
+     silently reinstate the exact hardcoding this replaced. */
+  const back  = ctlReturnScreen;
+  const mount = ctlReturnMount;
   ctlTeardown();
   ctlDraft = null;
   /* The history is a Workshop session, not a document history: an unsaved
@@ -2041,8 +2132,14 @@ function ctlCloseWorkshop() {
      placements). */
   ctlStickerState = { stickers: [], armed: null, selected: -1, history: [] };
   ctlDesign = ctlReadDesign();     // discard unsaved changes
-  showScreen('screen-lobby');
-  ctlMountLobby();   // resets ctlZoom to 1 itself — see the note there
+  showScreen(back);
+  /* The default mount resets ctlZoom to 1 itself — see the note there. A custom
+     onReturn is responsible for its own remount; it is handed the design that
+     survived the close (saved or restored, one path covers both — the Save
+     button writes before calling in, the ✕ relies on the restore two lines up),
+     so a caller that paints the controller elsewhere needs no second read. */
+  if (mount) mount(ctlDesign);
+  else ctlMountLobby();
 }
 
 /* Which tab the panel is showing. Two, not three (spec D4): the placed list

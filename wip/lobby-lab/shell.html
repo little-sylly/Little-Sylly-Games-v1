@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="../../css/styles.css" />
   <link rel="stylesheet" href="lobby.css" />
   <link rel="stylesheet" href="../premium/prm-hud.css" />
+  <link rel="stylesheet" href="stickerbook.css" />
 
   <style>
     /* This page IS the result, not a frame around it — no lab chrome, no
@@ -18,15 +19,24 @@
        is what makes the room's props real doors rather than status lines. */
     html, body { margin: 0; height: 100%; background: #FAFAF9; overflow: hidden; }
     .shell-view { position: absolute; inset: 0; }
-    .shell-view[hidden] { display: none; }
+    /* !important is load-bearing, not laziness: `hidden` here is an attribute
+       selector (0,2,0) and every pane below is addressed by id (1,0,0), so a
+       plain `display:none` LOSES to #shell-phone's `display:flex` and the pane
+       stays lit over whichever view is meant to be up. Ordering can't fix a
+       specificity loss. Any future per-pane id rule inherits the protection. */
+    .shell-view[hidden] { display: none !important; }
     #tv-app { height: 100vh; width: 100vw; }
     /* The phone layouts test true at a real 390px width, centred on the page
        rather than stretched — same as index.html's phone pane. */
     #shell-phone { display: flex; justify-content: center; overflow-y: auto; }
     #shelves-canvas { width: 390px; min-height: 100vh; position: relative; background: #FAFAF9; }
 
-    /* The dock (W6): hidden in the Premium view, summoned by the telly's
-       channel dial. Off Premium it is the normal fixed strip. */
+    /* The dock (W6): summoned by the telly's channel dial, and nothing else.
+       It is NOT raised on arrival in a layout — Shelves/Original and TV each
+       ship their own switcher, so that only ever duplicated one. It used to be
+       forced up below the eligibility floor too, because the honest card had
+       no other way out; the arrival beat lands everyone in Shelves, which has
+       a switcher of its own, so that prop is gone with the card. */
     #shell-dock {
       position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%);
       z-index: 40; display: flex; gap: 8px; padding: 8px;
@@ -35,7 +45,12 @@
     }
     #shell-dock[hidden] { display: none; }
     #shell-dock .lb-seg[aria-selected="true"] { background: #2B1B45; color: #fff; }
-    #shell-dock .lb-seg[hidden] { display: none; }
+    /* BUG-19's trap again, and this time it reaches markup the shell does not
+       own. lobby.css's `.lb-seg { display: flex }` is an AUTHOR rule, so it
+       beats the user agent's `[hidden] { display: none }` outright — hiding
+       Premium in lobby.js's in-phone strip (below) would silently do nothing.
+       Scoped to .lb-seg, so it covers the dock and that strip both. */
+    .lb-seg[hidden] { display: none !important; }
 
     /* The ?live container. Everything the shipped engine needs lives in here,
        out of the way until a real overlay or screen is asked for. */
@@ -65,16 +80,19 @@
 <!-- ── Shelves / Original: the phone layouts ───────────────────────────────── -->
 <div id="shell-phone" class="shell-view" hidden><div id="shelves-canvas"></div></div>
 
-<!-- Below the eligibility floor the lounge says so honestly, and the dock
-     stays up so the other three layouts are still reachable. -->
-<div id="prm-card"><div>
-  <h2>The lounge wants a bigger screen.</h2>
-  <p>Cast it, or open it on a laptop — the Shelves are right here.</p>
-  <button id="btn-shell-to-shelves" class="prm-keycap">Open the Shelves</button>
-</div></div>
+<!-- The honest card is GONE from the shell, and that is the point of this
+     round: below the floor a phone no longer gets an apology, it gets a real
+     path — the arrival beat, then the Shelves. The card survives only in
+     wip/premium/index.html, the standalone scene page, which genuinely has
+     nowhere to hand anyone to. -->
 
 <div id="shell-dock" role="tablist" aria-label="Lobby layout" hidden></div>
 <div id="live-screens" hidden></div>
+<!-- The stickerbook (the binder's door) — prototype, 23 Sep 2026. Mounted on
+     first open by stickerbook.js. The toast outside it is the shell's own, for
+     a sticker earned while the book is shut (a Play press in TV or Shelves). -->
+<div id="shell-stickerbook" hidden></div>
+<div id="shell-toast" class="sb-toast" role="status" aria-live="polite"></div>
 
 <script src="../../js/lib/three.min.js"></script>
 <script src="../../js/lib/controller-body.js"></script>
@@ -89,6 +107,9 @@
 <script src="../premium/prm-room.js"></script>
 <script src="../premium/prm-props.js"></script>
 <script src="../premium/prm-scene.js"></script>
+<script src="../premium/prm-sfx.js"></script>
+<script src="achievements.js"></script>
+<script src="stickerbook.js"></script>
 <script src="shell-router.js"></script>
 <script src="shell-host.js"></script>
 <script>
@@ -99,12 +120,26 @@
 
   let state = Object.assign({}, ShellRouter.SHELL_INIT, { live: LIVE });
   let api = null;                       // the premium scene api, once mounted
+  /* The room's voice. Built eagerly but SILENT until something plays — the
+     AudioContext inside is created on the first play(), because a browser
+     refuses audio before a user gesture and a context made at load time sits
+     suspended for the rest of the session. It outlives a room mount (the
+     player may leave and come back) and is closed on the way out of the page,
+     where the room itself is disposed. */
+  const shellSfx = window.PrmSfx.prmCreateSfx();
   window.prmApi = null;                 // null, not undefined — the harness reads it before any mount
   const realLbSet = window.lbSet;       // captured before the wrapper replaces it
 
   const status = (t) => { $('prm-status').textContent = t; };
   const webgl = (() => { try { const c = document.createElement('canvas'); return !!(c.getContext('webgl2') || c.getContext('webgl')); } catch (_) { return false; } })();
-  const eligible = () => PrmScene.prmEligible(window.innerWidth, window.innerHeight, webgl);
+  const reducedData = (() => { try { return !!(window.matchMedia && window.matchMedia('(prefers-reduced-data: reduce)').matches); } catch (_) { return false; } })();
+  /* TWO outcomes, never three (owner, 22 Sep 2026): the interactive lounge, or
+     the Shelves. `eligible` is the first; everything else is the second, and
+     `canArrive` only decides whether that second outcome is reached with the
+     beat or without it. A device that cannot animate is not a third kind of
+     player — it is the same player, arriving quietly. */
+  const eligible  = () => PrmScene.prmEligible(window.innerWidth, window.innerHeight, webgl, reducedData);
+  const canArrive = () => PrmScene.prmCanArrive(webgl, reducedData);
 
   // ── The one write path ────────────────────────────────────────────────────
   function dispatch(action) {
@@ -118,11 +153,43 @@
   // ── The room ──────────────────────────────────────────────────────────────
   // Mounting is a FACT, not an intent, so it writes state directly rather than
   // re-entering dispatch from inside apply.
+  let roomTier = null;                  // 'lounge' | 'arrival' — which tier the mounted room was built FOR
   function ensureRoom(host) {
-    if (api || !eligible()) return;
-    api = PrmScene.prmMount($('prm-canvas'), host);
+    /* Guarded on `host` as well as `api`: apply() runs from the boot block's
+       finally, which is reached even when a manifest fetch threw before the
+       host existed. That was survivable while only a widescreen ever mounted;
+       now that almost any device with a context does, an unguarded call would
+       throw inside finally and shellReady would never be set. */
+    if (api || !host) return;
+    const lounge = eligible();
+    if (!lounge && !canArrive()) return;   // nothing to render with; the page hands over instead
+    /* The arrival tier omits the controller. Measured 21 Sep 2026: it is 87%
+       of the prop build — 859 ms of 990 at CPU 4x, against 53 ms for the next
+       heaviest — and it is the single thing standing between a two-second
+       arrival and a stall on exactly the hardware the beat exists for. It is
+       also out of frame: the portrait preset's own comment already records
+       that the controller no longer fits that framing. */
+    api = PrmScene.prmMount($('prm-canvas'), host, { skipProps: lounge ? null : ['controller'] });
     window.prmApi = api;
+    roomTier = lounge ? 'lounge' : 'arrival';
+    syncBinder();
     state = ShellRouter.shellReduce(state, { t: 'roomMounted' });
+  }
+
+  /* The one-way handoff. Starting it is a FACT (it is playing), so it writes
+     state directly like ensureRoom; FINISHING it is an intent arriving later,
+     so that goes through dispatch. It ends on `enterShelves` because the beat
+     IS the clamshell prop's door, taken automatically — which means it
+     inherits a path the harness already proves rather than needing one of its
+     own. */
+  function runArrival() {
+    if (state.arrival !== 'none') return;
+    state = ShellRouter.shellReduce(state, { t: 'arrivalBegin' });
+    /* No context, or the player asked for reduced data: the beat cannot be
+       played at all. Same destination, no journey. The setTimeout is not a
+       delay, it is a hop out of apply() so the dispatch never re-enters it. */
+    if (!api) { setTimeout(() => dispatch({ t: 'enterShelves' }), 0); return; }
+    api.arrive(() => dispatch({ t: 'enterShelves' }));
   }
 
   // ── The dock (W6) ─────────────────────────────────────────────────────────
@@ -175,26 +242,20 @@
     await shellLoadScript('../../js/lib/controller-sticker-surface.js');
     await shellLoadScript('../../js/controller.js');
 
-    /* THE FINDING (spec § 1.1.1): ctlCloseWorkshop hardcodes
-       showScreen('screen-lobby') at js/controller.js:2044 — the SHIPPED lobby,
-       not the lounge — so this wrapper's job is to hide it again. That is the
-       evidence shipped controller.js needs a return-destination variable
-       (ctlReturnScreen, or Premium registered in allScreens[]). Recorded here
-       and in shared-implementation-notes.md, deliberately NOT patched: nothing
-       under js/ is touched this round.
+    /* THE FINDING (spec § 1.1.1), now FIXED in shipped code. This used to
+       monkey-patch window.ctlCloseWorkshop, because that function hardcoded
+       showScreen('screen-lobby') — the SHIPPED lobby, not the lounge — and the
+       wrapper's only job was to hide again what the teardown had just shown.
+       js/controller.js now takes a return destination on the way IN
+       (ctlOpenWorkshop({ returnScreen, onReturn })), so the sandbox uses the
+       supported hook and patches nothing. See shared-implementation-notes.md
+       DD-16 and DD-18.
 
-       One path covers both exits. Save (controller.js:2287) calls
+       One hook covers both exits. Save (controller.js) calls
        ctlWriteDesign(ctlDraft) then ctlCloseWorkshop(); the X calls
-       ctlCloseWorkshop() directly, and line 2043 restores the saved design on
-       the way out. So reading ctlReadDesign() AFTER close is correct for both,
-       with no branch. */
-    const realClose = window.ctlCloseWorkshop;
-    window.ctlCloseWorkshop = function () {
-      realClose();
-      wrap.hidden = true;
-      dispatch({ t: 'designSaved', design: window.ctlReadDesign() });
-      dispatch({ t: 'workshopClose' });
-    };
+       ctlCloseWorkshop() directly, and the close restores the saved design on
+       the way out. Either way the design handed to onReturn is the one that
+       survived, so there is no branch here. */
 
     // The sound overlay has no close hook of its own, so put the screens away
     // when its Done button fires.
@@ -212,13 +273,24 @@
     $('shell-premium').hidden = next.view !== 'premium';
     $('shell-tv').hidden      = next.view !== 'tv';
     $('shell-phone').hidden   = !phone;
-    $('prm-card').classList.toggle('on', next.view === 'premium' && !ok);
 
     // W5 — hide and stop, never dispose. Dispose fires once, on leaving.
     if (next.room === 'absent') {
-      if (api) { api.dispose(); api = null; window.prmApi = null; }
+      if (api) { api.dispose(); api = null; window.prmApi = null; shellSfx.dispose(); }
     } else if (next.view === 'premium' && next.room === 'running') {
-      if (api) api.resume(); else ensureRoom(host);
+      /* resetView() on the way IN, not resume(). The room's own exits are
+         transitions that deliberately leave #prm-fade lit — the phone runs
+         fadeOut(), the dial runs pushIn() — so the handoff to the next layout
+         is seamless. resetView() is the only thing that clears it (and the
+         pushed-in camera with it), and leaving by a door then returning by the
+         dock never called it: the lounge came back under an opaque off-white
+         pane. Guarded on the TRANSITION, because apply() also runs on every
+         window resize — an unguarded reset would snap the camera mid-drag. */
+      /* Coming back from the stickerbook is the same case: the binder's door
+         pushed the camera in and lit the fade, and resetView() is what shuts
+         the binder again (its api has reset). */
+      if (api) { api.resume(); if (prev.view !== 'premium' || (prev.stickerbook && !next.stickerbook)) api.resetView(); }
+      else ensureRoom(host);
     } else if (api) {
       api.stop();
     }
@@ -233,9 +305,21 @@
       window.lbState.tvSel = next.tvSel;
       window.LOUNGE.sel = next.tvSel;
       realLbSet({});
+      /* lobby.js renders all four views in its in-phone strip unconditionally,
+         and the shell does not own that markup. Below the floor the lounge is
+         a one-way arrival, so the strip must not keep offering a way back into
+         it — the router would refuse the transition anyway (that is the rule),
+         but a button that visibly does nothing is worse than no button. */
+      document.querySelectorAll('#shelves-canvas .lb-switch .lb-seg').forEach(b => {
+        if (b.getAttribute('aria-label') === 'Premium') b.hidden = !ok;
+      });
     }
 
-    $('shell-dock').hidden = !(next.switcher || !ok);
+    /* Purely summoned again (W6). The `|| !ok` force existed because the
+       honest card had no other way out; the beat lands everyone in Shelves,
+       which ships its own switcher, so there is nothing left to rescue — and
+       forcing it would have put a dock over the beat. */
+    $('shell-dock').hidden = !next.switcher;
     $('shell-dock').querySelectorAll('.lb-seg').forEach(b => {
       b.hidden = b.dataset.shellView === 'premium' && !ok;
       b.setAttribute('aria-selected', String(b.dataset.shellView === next.view));
@@ -243,17 +327,91 @@
 
     // The Workshop. Task 5 replaces the else branch with the real thing.
     if (next.workshop && !prev.workshop) openWorkshopEffect();
+    // The stickerbook: the router says whether it is up; the view follows.
+    if (next.stickerbook && !prev.stickerbook) openStickerbookEffect();
+    if (!next.stickerbook && prev.stickerbook && sb) sb.close();
+    /* The lounge's own HUD sits under the book's backdrop and its heading collided
+       with the book's; the room is stopped anyway, so its HUD goes with it. */
+    $('prm-hud').style.visibility = next.stickerbook ? 'hidden' : '';
+
+    /* The phone tier never stays. Last in apply() so every pane above has
+       already been settled before the beat starts painting over one of them. */
+    if (next.view === 'premium' && !ok) runArrival();
+  }
+
+  /* Handed the design that survived the close — saved on the Save path,
+     restored on the X path — so the sandbox never re-reads localStorage. */
+  function shellWorkshopReturn(design) {
+    $('live-screens').hidden = true;
+    dispatch({ t: 'designSaved', design: design });
+    dispatch({ t: 'workshopClose' });
   }
 
   function openWorkshopEffect() {
     if (state.live && typeof window.ctlOpenWorkshop === 'function') {
       $('live-screens').hidden = false;
-      window.ctlOpenWorkshop();
+      /* returnScreen stays the default: there is no engine screen for the
+         lounge, and onReturn hides the whole #live-screens container anyway.
+         Production, where Premium IS a registered screen, is what passes it. */
+      window.ctlOpenWorkshop({ onReturn: shellWorkshopReturn });
       return;
     }
     status('The Workshop would open (ctlOpenWorkshop). Add ?live to reach the real one.');
     // A fact correction, not an intent: nothing opened, so nothing is open.
     state = ShellRouter.shellReduce(state, { t: 'workshopClose' });
+  }
+
+  // ── The stickerbook (prototype, 23 Sep 2026) ──────────────────────────────
+  /* Achievements are the PAGE's state, like the design: achievements.js owns
+     every rule, this owns storage and effects. The key is sandbox-only on
+     purpose — production storage is an open owner decision (the project
+     permits only named localStorage keys; docs/deferred-work.md). */
+  const ACH_KEY = 'lsg_sandbox_achievements';
+  let achBook = null, ach = null, sb = null;
+  const reducedView = () => params.has('reduced') || (() => { try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (_) { return false; } })();
+  function achLoad(stickers) {
+    achBook = Achievements.achDefine(stickers);
+    let raw = null; try { raw = JSON.parse(localStorage.getItem(ACH_KEY) || 'null'); } catch (_) {}
+    ach = Achievements.achRevive(raw, achBook);
+  }
+  function syncBinder() {
+    if (!api || !achBook) return;
+    api.withProp('binder', b => { if (b.setCollection) b.setCollection({ placed: Object.keys(ach.placed), tray: Achievements.achTray(achBook, ach) }); });
+  }
+  let toastTimer = null;
+  function shellToast(list) {
+    if (!list.length) return;
+    const el = $('shell-toast'), e = achBook.byId[list[0].id];
+    el.textContent = list[0].tier === 0 ? `New sticker! ${e.label} is in your binder` : `${'★'.repeat(list[0].tier + 1)} ${e.label}`;
+    el.classList.remove('on'); void el.offsetWidth; el.classList.add('on');
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove('on'), 2600);
+  }
+  /* The one write path for achievements, as dispatch() is for the shell. */
+  function achDispatch(action) {
+    if (!achBook) return;
+    const prev = ach; ach = Achievements.achReduce(achBook, prev, action);
+    if (ach === prev) return;
+    try { localStorage.setItem(ACH_KEY, JSON.stringify(ach)); } catch (_) {}
+    const toast = Achievements.achNewTiers(achBook, prev, ach);
+    if (sb && sb.isOpen()) sb.render(ach, { toast }); else shellToast(toast);
+    syncBinder();
+  }
+  window.shellAch = () => ach;
+  window.shellAchDispatch = achDispatch;
+  window.shellStickerbook = () => sb;
+  window.addEventListener('sylly:play', ev => achDispatch({ t: 'play', id: ev.detail && ev.detail.gameId }));
+
+  function openStickerbookEffect() {
+    if (!achBook) {
+      status('The sticker book could not load its stickers.');
+      state = ShellRouter.shellReduce(state, { t: 'stickerbookClose' });   // a fact correction: nothing opened
+      return;
+    }
+    if (!sb) sb = Stickerbook.sbMount($('shell-stickerbook'), {
+      book: achBook, base: '../../data/stickers/', reduced: reducedView,
+      onIntent: (i) => { if (i.t === 'close') dispatch({ t: 'stickerbookClose' }); else achDispatch(i); },
+    });
+    sb.render(ach); sb.open();
   }
 
   function openSoundEffect() {
@@ -281,8 +439,21 @@
 
   // ── Boot ──────────────────────────────────────────────────────────────────
   buildDock();
-  $('btn-shell-to-shelves').addEventListener('click', () => window.lbSet({ view: 'shelves', folder: null, sheet: null }));
-  window.addEventListener('resize', () => apply(state, state));
+  /* Crossing the eligibility floor changes which room should exist: the
+     arrival tier's is built without a controller, and handing that to a window
+     that now qualifies for the real lounge would show a hole on the couch.
+     Drop it and let the next entry build the true one. Two facts, two actions
+     — 'leaveShell' owns the room, 'arrivalReset' owns the beat. */
+  let lastOk = null;
+  window.addEventListener('resize', () => {
+    const ok = eligible();
+    if (lastOk !== null && ok !== lastOk && api && roomTier === 'arrival') {
+      api.dispose(); api = null; window.prmApi = null; roomTier = null; shellSfx.dispose();
+      state = ShellRouter.shellReduce(ShellRouter.shellReduce(state, { t: 'leaveShell' }), { t: 'arrivalReset' });
+    }
+    lastOk = ok;
+    apply(state, state);
+  });
   window.addEventListener('beforeunload', () => dispatch({ t: 'leaveShell' }));
 
   let host = null;
@@ -292,7 +463,9 @@
       fetch('../premium/lamp images/manifest.json').then(r => r.json()),
     ]);
 
-    const DESIGN_DEFAULT = { shell: '#a97fd6', plate: '#9670c8', ears: '#a97fd6', buttons: '#8f66c4' };
+    achLoad(stickerManifest.stickers);
+
+    const DESIGN_DEFAULT ={ shell: '#a97fd6', plate: '#9670c8', ears: '#a97fd6', buttons: '#8f66c4' };
     let saved = null; try { saved = JSON.parse(localStorage.getItem('sylly_controller') || 'null'); } catch (_) {}
     const design = Object.assign({}, DESIGN_DEFAULT, saved && saved.shell
       ? { shell: saved.shell, plate: saved.plate, ears: saved.ears, buttons: saved.buttons } : {});
@@ -310,6 +483,7 @@
       lampPanels: { base: '../premium/lamp images/', manifest: lampManifest },
       design, music, dispatch,
       openSound: () => openSoundEffect(),
+      sfx: (name) => shellSfx.play(name),
       debug: true,
       reducedMotion: params.has('reduced') ? true : undefined,
     };
@@ -317,8 +491,14 @@
 
     host = ShellHost.shellCreateHost(deps);
     if (LIVE) await shellLoadLive();
+    lastOk = eligible();
+    /* SHELL_INIT.room is 'absent', and apply()'s premium branch only fires for
+       'running' — so the FIRST mount has always had to be explicit here, and
+       leaving it to apply() alone means the room is never built at all.
+       ensureRoom picks the tier; starting the beat stays apply()'s tail's job,
+       so there is exactly one place that does it. */
+    if (state.view === 'premium') ensureRoom(host);
     apply(state, state);
-    if (state.view === 'premium' && eligible()) ensureRoom(host);
   } finally {
     // However boot ended — no WebGL, a missing manifest, an ineligible window —
     // the page is in a state the harness can read.

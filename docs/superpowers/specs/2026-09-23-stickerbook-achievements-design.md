@@ -25,7 +25,7 @@ Pure and total — no DOM, no storage, no timers, no `Date.now`, no `Math.random
 
 - `achDefine(stickers, tiers = [1, 5, 10])` → the book: one **entry per sticker** in manifest order
   (`{ id, label, image, slot, tiers }`), `slot` = its fixed sleeve index. 19 production stickers →
-  19 slots on 4-slot pages → 5 pages, shown as 3 spreads (page 5 carries one sticker and three empty sleeves; the last spread's right page is blank).
+  19 slots on 4-slot pages → 5 pages, shown as 3 spreads (page 5 carries three stickers and one empty sleeve; the last spread's right page is blank).
 - State: `{ v: 1, plays: { [id]: n }, placed: { [id]: true } }`. Earned-ness is **derived** from
   `plays`, never stored, so it cannot disagree with the count.
 - `achReduce(book, state, action)`:

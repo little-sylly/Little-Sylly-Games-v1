@@ -19,6 +19,7 @@
 
   <!-- Custom styles (self-hosted Fredoka @font-face + font-family rule) -->
   <link rel="stylesheet" href="css/styles.css" />
+  <link rel="stylesheet" href="css/lobby.css" />
 
   <title>Little Sylly Games</title>
 </head>
@@ -31,8 +32,9 @@
        Ref     : js/engine.js
   ════════════════════════════════════════════════════════════════ -->
   <!-- ① LOBBY screen — game selection -->
-  <section id="screen-lobby" class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
+  <section id="screen-lobby" style="display:none" class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
     <div id="lobby-header-icons" class="absolute top-4 right-4 flex items-center gap-3">
+      <button id="btn-lobby-layout" class="text-xl text-stone-400 active:scale-90 transition-transform duration-100 min-h-11 min-w-11" aria-label="Change layout">🗂️</button>
       <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
     </div>
     <div id="lobby-controller" class="ctl-lobby-mount" role="button" tabindex="0"
@@ -317,6 +319,48 @@ Rock Paper Scissors
     </div>
   </section>
 
+  <!-- ═══════════════════════════════════════════════════════════════
+       LOBBY LAYOUTS (SW v231)
+       Screens : #screen-lounge, #screen-tv, #screen-shelves
+                 (the fourth layout, Original, is #screen-lobby in _shell.html)
+       Overlays: #lobby-switcher-overlay, #stickerbook-overlay
+       Ref     : js/lobby/lobby-host.js (every effect), js/lobby/lobby-router.js (the rules)
+       Visibility is showScreen()'s inline style.display — never `hidden` (BUG-19).
+  ════════════════════════════════════════════════════════════════ -->
+  <section id="screen-lounge" style="display:none">
+    <div id="lou-stage">
+      <canvas id="lou-canvas" tabindex="0" aria-label="Little Sylly's lounge. Tab through the room, Enter to use a thing."></canvas>
+      <div id="lou-vignette"></div>
+      <div id="lou-hud">
+        <h1 id="lou-heading">Little Sylly's Lounge</h1>
+        <div id="lou-status" role="status" aria-live="polite"></div>
+        <div id="lou-focus"></div>
+      </div>
+      <div id="lou-fade"></div>
+    </div>
+  </section>
+
+  <section id="screen-tv" style="display:none"><div id="tv-app"></div></section>
+
+  <section id="screen-shelves" style="display:none"><div id="shelves-canvas"></div></section>
+
+  <!-- The dock (DD-17): summoned, never automatic — the Lounge's channel dial and
+       Original's layout button open it. Closed by the router's `home` and `closeSwitcher`. -->
+  <div id="lobby-switcher-overlay" style="display:none"
+    class="fixed inset-0 z-[90] overlay-modal-backdrop flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-stone-300">
+      <h3 class="text-lg font-bold text-stone-800">Pick a layout</h3>
+      <div id="lobby-switcher-list" class="grid grid-cols-2 gap-3"></div>
+      <button id="btn-lobby-switcher-close"
+        class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-sm transition-transform duration-100">Not now</button>
+    </div>
+  </div>
+
+  <!-- The stickerbook (the binder's door). stickerbook.js owns this node and
+       toggles its own `hidden`, guarded by #stickerbook-overlay[hidden]{display:none!important}
+       in css/lobby.css. Do NOT add it to resetToLobby()'s style.display list — an
+       inline display:none would outlive the next open (spec § 3). -->
+  <div id="stickerbook-overlay" hidden></div>
   <!-- ═══════════════════════════════════════════════════════════════
        LIKE I'M FIVE (LI5)
        Screens : #screen-menu, #screen-setup, #screen-gatekeeper,
@@ -7168,6 +7212,19 @@ Climb Again
   <script src="js/games/cld.js"></script>
   <script src="js/games/comb.js"></script>
   <script src="js/controller.js"></script>
+  <script src="js/lounge/lounge-lib.js"></script>
+  <script src="js/lounge/lounge-room.js"></script>
+  <script src="js/lounge/lounge-props.js"></script>
+  <script src="js/lounge/lounge-scene.js"></script>
+  <script src="js/lounge/lounge-sfx.js"></script>
+  <script src="js/lobby/lobby-games.js"></script>
+  <script src="js/lobby/lobby.js"></script>
+  <script src="js/lobby/tv.js"></script>
+  <script src="js/lobby/achievements.js"></script>
+  <script src="js/lobby/stickerbook.js"></script>
+  <script src="js/lobby/lobby-router.js"></script>
+  <script src="js/lobby/lobby-doors.js"></script>
+  <script src="js/lobby/lobby-host.js"></script>
   <script src="js/secret-mode.js"></script>
   <script src="js/arcade/asherplane.js"></script>
   <script src="js/app.js"></script>

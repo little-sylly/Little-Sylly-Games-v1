@@ -1641,3 +1641,27 @@
      field centres in what is left. It just gets a third column for free,
      because it wraps. */
 }
+
+/* ── Short viewports: the controller column can outgrow .lb-lg-body ──────────
+   .lb-lg-left centres itself (justify-content:center) in .lb-lg-body, which is
+   flex:1/min-height:0 — the one row in .lb-lg-in that actually shrinks. Below
+   ~680px tall the centred controller + "You ▾" no longer fit the row, and
+   because the column has no overflow clip of its own, the overflow renders
+   straight into .lb-lg-railwrap below — which is where Random Game floats,
+   position:absolute, bottom:100% of the rail. Result: the two buttons squish
+   together. Only the three sizes README § 3 names (900x500, 1280x720,
+   1920x1080) were checked by the probes; nothing in between was, which is how
+   this shipped. `@media`, not `@container` — .lb-tv-in is `container-type:
+   inline-size` only, so height can't be queried that way (line ~640).
+   Source order matters: this must come AFTER both width breakpoints above so
+   it wins at 1920-but-short too, where the >=1500 rule grows the controller
+   further (250px -> 290px) instead of shrinking it. */
+@media (max-height: 680px) {
+  .lb-lg-ctl, .lb-lg-ctl-svg { width: 160px; }
+  .lb-lg-left { gap: 2px; }
+  .lb-lg-you { top: 4px; }
+}
+@media (max-height: 560px) {
+  .lb-lg-ctl, .lb-lg-ctl-svg { width: 120px; }
+  .lb-lg-you { top: 0; }
+}

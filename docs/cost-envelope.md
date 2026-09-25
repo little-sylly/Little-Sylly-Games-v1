@@ -55,14 +55,16 @@ prohibit.
 
 ---
 
-## 3. Where the install actually stands (measured 15 Sep 2026, SW v230)
+## 3. Where the install actually stands (measured 15 Sep 2026, SW v230; lobby row 25 Sep 2026, SW v231)
 
-**Total precached install: 11.49 MB** across 191 entries.
+**Total precached install: 12.24 MB** across 205 entries (was 11.49 MB / 191 at v230 — the
+lobby's four layouts added 14 files, **+770 KB**, all code; the owner-approved proposal was ~0.80 MB).
 
 | Bucket | Size | Note |
 |---|---|---|
 | `data/art/` — core art | **6.03 MB** | Six games of twenty. **Over half the install.** |
 | `js/games/` — 20 plugins | 1.98 MB | The actual games |
+| `js/lounge/` + `js/lobby/` + `css/lobby.css` — the lobby | 0.75 MB | SW v231. The Lounge's room is ~0.55 MB of it — code, not pixels (finding 2) |
 | `js/lib/` | 1.50 MB | Three.js ~0.60 MB, Firebase ×4, Tailwind, physics, cards, sticker surface |
 | `index.html` | 0.73 MB | Single page, all 20 games |
 | `assets/logo.png` | 0.47 MB | **One PNG. 4% of the install.** |
@@ -154,7 +156,7 @@ asset between tiers on its own.
 | Contract | Behaviour | Cost to install | Adding one |
 |---|---|---|---|
 | **Precached** (`PRECACHE_URLS` in `sw.js`) | Guaranteed present on a cold offline install | **Full size, for every user, forever** | Edit `sw.js` + bump `CACHE_NAME` |
-| **Runtime-cached** (`data/packs/`, `data/music/`, `data/stickers/`) | JSON network-first, images cache-first; fetched on first use, free thereafter | **Zero** | Drop a folder, add a manifest line. No `sw.js` edit, no version bump |
+| **Runtime-cached** (`data/packs/`, `data/music/`, `data/stickers/`, `data/lamp/`) | JSON network-first, images cache-first; fetched on first use, free thereafter | **Zero** | Drop a folder, add a manifest line. No `sw.js` edit, no version bump |
 
 **Recommendation for lobby tile art specifically: put it on the runtime-cached contract, not
 the core-art one.** Twenty tiles then cost nothing in install, need no version bump to add or

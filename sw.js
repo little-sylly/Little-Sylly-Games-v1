@@ -1,7 +1,7 @@
 // Little Sylly Games — Service Worker v230
 // All assets are local — no external CDN URLs, no opaque response issues.
 
-const CACHE_NAME = 'sylly-games-v230';
+const CACHE_NAME = 'sylly-games-v231';
 
 const PRECACHE_URLS = [
   './',
@@ -43,14 +43,30 @@ const PRECACHE_URLS = [
   'data/pko-data.json',
   'data/cjar-data.json',
   'js/controller.js',
+  // The lobby's four layouts (SW v231). Code is part of the app version; the
+  // lamp photos (data/lamp/) are NOT precached — see the fetch handler.
+  'css/lobby.css',
+  'js/lounge/lounge-lib.js',
+  'js/lounge/lounge-room.js',
+  'js/lounge/lounge-props.js',
+  'js/lounge/lounge-scene.js',
+  'js/lounge/lounge-sfx.js',
+  'js/lobby/lobby-games.js',
+  'js/lobby/lobby.js',
+  'js/lobby/tv.js',
+  'js/lobby/achievements.js',
+  'js/lobby/stickerbook.js',
+  'js/lobby/lobby-router.js',
+  'js/lobby/lobby-doors.js',
+  'js/lobby/lobby-host.js',
   'js/secret-mode.js',
   'js/arcade/asherplane.js',
   'js/app.js',
   'js/lib/tailwind-play.js',
   'js/lib/canvas-draw.js',
   'data/words.json',
-  // Expansion/skin packs (data/packs/), background music (data/music/) and controller
-  // stickers (data/stickers/) are NOT precached — they are runtime-cached on first use
+  // Expansion/skin packs (data/packs/), background music (data/music/), controller
+  // stickers (data/stickers/) and the Lounge's lamp photos (data/lamp/) are NOT precached — they are runtime-cached on first use
   // so adding one needs no version bump. See the fetch handler below.
   //
   // CORE ART (data/art/) IS precached — it is a game's default artwork, so it must be
@@ -285,12 +301,12 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // Stickers (data/stickers/) — runtime cache, no precache, no version bump.
-  // Same contract as data/packs/ and data/music/: the owner adds stickers as
-  // they are drawn, and a new one must not cost a service-worker release.
-  // js/lib/controller-sticker-surface.js IS precached — that is app code, and
-  // app code is part of the app version. The art is not.
-  if (url.pathname.includes('/data/stickers/')) {
+  // Stickers (data/stickers/) and the Lounge's lamp photos (data/lamp/) — runtime
+  // cache, no precache, no version bump. Same contract as data/packs/ and
+  // data/music/: a new sticker or photo is a file drop plus one manifest line.
+  // The lamp photos are ~317 KB a phone never sees (docs/cost-envelope.md § 5).
+  // The CODE that reads both IS precached — app code is part of the app version.
+  if (url.pathname.includes('/data/stickers/') || url.pathname.includes('/data/lamp/')) {
     if (url.pathname.endsWith('.json')) {
       // Manifest: network-first, so a newly-drawn sticker is discovered on the
       // next online load; the cache covers offline.

@@ -5,8 +5,9 @@
        Ref     : js/engine.js
   ════════════════════════════════════════════════════════════════ -->
   <!-- ① LOBBY screen — game selection -->
-  <section id="screen-lobby" class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
+  <section id="screen-lobby" style="display:none" class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
     <div id="lobby-header-icons" class="absolute top-4 right-4 flex items-center gap-3">
+      <button id="btn-lobby-layout" class="text-xl text-stone-400 active:scale-90 transition-transform duration-100 min-h-11 min-w-11" aria-label="Change layout">🗂️</button>
       <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
     </div>
     <div id="lobby-controller" class="ctl-lobby-mount" role="button" tabindex="0"

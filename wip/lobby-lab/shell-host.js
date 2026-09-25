@@ -14,7 +14,8 @@
     enterShelves: 'enterShelves',
     openWorkshop: 'workshopOpen',
     openSwitcher: 'openSwitcher',
-    openSound:    null,            // an effect, not one of the router's nine actions
+    openSound:    null,            // an effect, not one of the router's actions
+    openStickerbook: 'stickerbookOpen',   // OPTIONAL in the scene's contract; this shell supplies it (prototype, 23 Sep 2026)
   };
 
   function shellCreateHost(deps) {
@@ -39,6 +40,7 @@
          because it depends on ?live — which this file must not know about. */
       openWorkshop()  { dispatch({ t: 'workshopOpen' }); },
       openSwitcher()  { dispatch({ t: 'openSwitcher' }); },
+      openStickerbook() { dispatch({ t: 'stickerbookOpen' }); },
       openSound()     { deps.openSound(); },
 
       debug: deps.debug !== false,
@@ -51,9 +53,15 @@
        true picture of what was asked for. */
     if (deps.reducedMotion !== undefined) host.reducedMotion = deps.reducedMotion;
     if (deps.rand) host.rand = deps.rand;
+    /* An EFFECT, like openSound: the room names a moment ('dialPress'), the
+       page decides what it sounds like. Injected rather than routed, and
+       absent-not-undefined when nobody supplies one, for the same reason as
+       the two dormant doors below — the host object stays a true picture of
+       what was asked for, and no audio means silence, never an error. */
+    if (deps.sfx) host.sfx = deps.sfx;
 
-    /* openStickerbook and openJukebox are deliberately NOT supplied. Both are
-       dormant doors this round (the binder flips its cover, the knob turns). */
+    /* openJukebox is deliberately NOT supplied — a dormant door (the jukebox bops).
+       openStickerbook IS, since the stickerbook prototype (23 Sep 2026). */
     return host;
   }
 

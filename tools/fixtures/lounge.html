@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lounge — harness fixture</title>
+<link rel="stylesheet" href="../../css/styles.css">
+<link rel="stylesheet" href="../../css/lobby.css">
+<style>
+  html, body { margin: 0; height: 100%; background: #FAFAF9; font-family: Fredoka, system-ui, sans-serif; color: #2B1B45; overflow: hidden; }
+  #lou-tools { position: absolute; right: 24px; top: 24px; display: flex; gap: 8px; }
+  .lou-keycap { border: 0; border-radius: 14px; padding: 10px 16px; font: 600 15px Fredoka, sans-serif; color: #fff; background: #E9408E; box-shadow: 0 4px 0 rgba(0,0,0,0.18); cursor: pointer; }
+  .lou-keycap.lou-light { background: #fff; color: #2B1B45; }
+  .lou-swatch { width: 34px; height: 34px; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 2px 0 rgba(0,0,0,0.18); cursor: pointer; }
+  #lou-card { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; padding: 24px; background: #FAFAF9; }
+  #lou-card.on { display: flex; }
+  #lou-card > div { max-width: 360px; text-align: center; }
+</style>
+</head>
+<body>
+<div id="lou-stage">
+  <canvas id="lou-canvas" tabindex="0" aria-label="Little Sylly's lounge. Tab through the room, Enter to use a thing."></canvas>
+  <div id="lou-vignette"></div>
+  <div id="lou-hud">
+    <h1 id="lou-heading">Little Sylly's Lounge</h1>
+    <div id="lou-status"></div>
+    <div id="lou-tools">
+      <button class="lou-swatch" data-design='{"shell":"#a97fd6","plate":"#9670c8","ears":"#a97fd6","buttons":"#8f66c4"}' style="background:#a97fd6" title="Factory lilac"></button>
+      <button class="lou-swatch" data-design='{"shell":"#F0A500","plate":"#5C3A21","ears":"#E9408E","buttons":"#8ECAE6"}' style="background:#F0A500" title="Honey / chocolate / pink / glacier"></button>
+      <button class="lou-swatch" data-design='{"shell":"#3A3D52","plate":"#E879A8","ears":"#FFE500","buttons":"#10B981"}' style="background:#3A3D52" title="Midnight / rose / lemon / emerald"></button>
+      <button id="lou-reset" class="lou-keycap lou-light">Reset view</button>
+      <button id="lou-portrait" class="lou-keycap lou-light">Portrait preset</button>
+    </div>
+    <div id="lou-focus"></div>
+  </div>
+  <div id="lou-fade"></div>
+</div>
+<div id="lou-card"><div>
+  <h2>The lounge wants a bigger screen.</h2>
+  <p>Cast it, or open it on a laptop — the Shelves are right here.</p>
+  <button class="lou-keycap">Open the Shelves</button>
+</div></div>
+
+<script src="../../js/lib/three.min.js"></script>
+<script src="../../js/lib/controller-body.js"></script>
+<script src="../../js/lobby/lobby-games.js"></script>
+<script src="../../js/lounge/lounge-lib.js"></script>
+<script src="../../js/lounge/lounge-room.js"></script>
+<script src="../../js/lounge/lounge-props.js"></script>
+<script src="../../js/lounge/lounge-scene.js"></script>
+<script src="../../js/lounge/lounge-sfx.js"></script>
+<script>
+(async function () {
+  const $ = id => document.getElementById(id);
+  const status = (t) => { $('lou-status').textContent = t; };
+  const webgl = (() => { try { const c = document.createElement('canvas'); return !!(c.getContext('webgl2') || c.getContext('webgl')); } catch (_) { return false; } })();
+  function gate() {
+    const ok = LouScene.louEligible(window.innerWidth, window.innerHeight, webgl);
+    $('lou-card').classList.toggle('on', !ok); return ok;
+  }
+  window.addEventListener('resize', gate);
+  if (!gate()) { window.louReady = true; return; }
+
+  const [stickerManifest, lampManifest] = await Promise.all([
+    fetch('../../data/stickers/manifest.json').then(r => r.json()),
+    fetch('../../data/lamp/manifest.json').then(r => r.json()),
+  ]);
+  const DESIGN_DEFAULT = { shell: '#a97fd6', plate: '#9670c8', ears: '#a97fd6', buttons: '#8f66c4' };
+  let saved = null; try { saved = JSON.parse(localStorage.getItem('sylly_controller') || 'null'); } catch (_) {}
+  const design = Object.assign({}, DESIGN_DEFAULT, saved && saved.shell ? { shell: saved.shell, plate: saved.plate, ears: saved.ears, buttons: saved.buttons } : {});
+
+  // The sandbox host: every door writes to the status line and offers the way back.
+  const music = { keys: window.GAMES.map(g => g.id), current: null,
+    nowPlaying() { if (!this.current) return null; const g = window.GAMES.find(x => x.id === this.current); return { key: this.current, title: null, artist: null, game: g && g.gameName }; },
+    playFor(k) { this.current = k; } };
+  const params = new URLSearchParams(location.search);
+  const host = {
+    games: window.GAMES,
+    stickers: { base: '../../data/stickers/', list: stickerManifest.stickers },
+    design, lampPanels: { base: '../../data/lamp/', manifest: lampManifest }, music,
+    enterTV(gameId) { status(gameId ? 'TV mode would open on ' + gameId + '. Reset view to come back.' : 'TV mode would open. Reset view to come back.'); },
+    enterShelves() { status('Shelves would open. Reset view to come back.'); },
+    openWorkshop() { status('The Workshop would open (ctlOpenWorkshop).'); },
+    openSound() { status('The sound overlay would open.'); },
+    openSwitcher() { status('The layout switcher would open.'); },
+    debug: true,
+    reducedMotion: params.has('reduced') ? true : undefined,
+  };
+  /* The optional audio effect. The scene names a moment; this page decides what
+     it sounds like. Absent would simply be silence. */
+  const sfx = window.LouSfx.louCreateSfx();
+  host.sfx = (name) => sfx.play(name);
+  if (params.has('seed')) { let s = +params.get('seed') || 1; host.rand = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; }
+  const api = LouScene.louMount($('lou-canvas'), host);
+  window.louApi = api;
+  $('lou-reset').addEventListener('click', () => { api.resetView(); status(''); });
+  $('lou-portrait').addEventListener('click', () => { api.setPreset('portrait'); status('Portrait preset (Scene B framing, spec § 12).'); });
+  document.querySelectorAll('.lou-swatch').forEach(b => b.addEventListener('click', () => api.setDesign(JSON.parse(b.dataset.design))));
+  window.louReady = true;
+})();
+</script>
+</body>
+</html>
