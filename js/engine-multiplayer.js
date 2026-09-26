@@ -31,6 +31,24 @@ let mpActionAuthorised = false; // true for exactly one ACTION after a fresh mpL
 let mpJoinListenFrom  = 0;     // timestamp cutoff — ignore events older than this
 let mpMyPlayerIdx     = -1;    // this device's slot index in mpPlayerSlots; 0 = Host
 
+// ── Reconnect State (SW v236 — docs/superpowers/specs/2026-09-27-mp-client-reconnect-design.md) ──
+let mpSeats            = [];        // uids in seat order, frozen at GAME_START — mirrors rooms/{code}/seats
+let mpMatchLive        = false;     // true from GAME_START until LOBBY_RESET / teardown
+let mpAwaySeats        = new Set(); // host: seat indices currently Away
+let mpAwayPending      = new Map(); // host: seat index → setTimeout handle (the Away debounce)
+let mpPresenceListener = null;      // host: onValue unsubscribe for rooms/{code}/presence
+let mpConnListener     = null;      // client: onValue unsubscribe for .info/connected
+let mpPresenceRef      = null;      // client: this connection's own presence child
+let mpAwayTimer        = null;      // host: setTimeout handle — a non-adopter's grace
+let mpAwayTick         = null;      // any: setInterval handle — the overlay's countdown text
+let mpAwayGraceEndsAt  = 0;         // host: when a non-adopter's grace runs out
+let mpRejoinTimer      = null;      // client: setTimeout handle — a rejoin nobody answered
+const MP_AWAY_DEBOUNCE_MS  = 3000;    // a blip shorter than this never pauses the table
+const MP_AWAY_GRACE_MS     = 20000;   // games without reconnect: how long the table waits
+const MP_REJOIN_TIMEOUT_MS = 15000;   // a rejoin the host never answers
+const MP_REJOIN_KEY        = 'sylly_rejoin';
+const MP_REJOIN_TTL_MS     = 7200000; // 2 h — mpCleanupStaleRooms()'s own age limit
+
 // ── Roster helper: hasCaptain may be a bool or a zero-arg function ────────────
 function mpRcHasCaptain(rc) { return typeof rc?.hasCaptain === 'function' ? rc.hasCaptain() : !!rc?.hasCaptain; }
 
@@ -873,6 +891,8 @@ function mpStopListeners() {
   if (mpPrivateListener) { mpPrivateListener(); mpPrivateListener = null; }
   if (mpRoomListener)    { mpRoomListener();    mpRoomListener    = null; }
   if (mpPlayersListener) { mpPlayersListener(); mpPlayersListener = null; }
+  if (mpPresenceListener) { mpPresenceListener(); mpPresenceListener = null; }
+  if (mpConnListener)     { mpConnListener();     mpConnListener     = null; }
 }
 
 // ── Private envelope: Host → ONE device (bypasses the public /events stream) ──
@@ -1009,6 +1029,174 @@ function mpSerialiseSettings(abbr) {
     // Additional games added as Sprint 4 progresses
     default: return {};
   }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CLIENT RECONNECT (SW v236)
+// A DROP is not a QUIT. A deliberate quit still dissolves the session (the Mid-Game
+// Quit Contract, below — unchanged). A drop used to do nothing at all: the client's
+// onDisconnect deleted its /players entry, the host had stopped watching /players at
+// mpConfirmRoster(), and every other device waited on a turn that never came.
+// Now rooms/{code}/seats freezes who owns which seat at GAME_START, each client keeps
+// ONE presence child PER CONNECTION under rooms/{code}/presence/{uid}, and the host
+// watches presence for the length of the match.
+// Spec: docs/superpowers/specs/2026-09-27-mp-client-reconnect-design.md
+// ═══════════════════════════════════════════════════════════════
+
+// Firebase hands back a dense array as an array and a sparse one as an object.
+function mpSeatList(v) {
+  if (Array.isArray(v)) return v.filter(Boolean);
+  return v && typeof v === 'object' ? Object.values(v).filter(Boolean) : [];
+}
+
+// Host, from mpConfirmRoster(): freeze the seats and start watching presence.
+async function mpBeginMatchSeats() {
+  mpSeats = mpPlayerSlots.map(p => p.uid);
+  mpMatchLive = true;
+  mpAwaySeats.clear(); mpClearAwayPending();
+  const fb = window.syllyFirebase;
+  if (!fb || !mpActiveRoomCode) return;
+  try { await fb.set(fb.ref(`rooms/${mpActiveRoomCode}/seats`), mpSeats); } catch (_) {}
+  mpStartPresenceWatcher();
+}
+
+// Client: one presence child per CONNECTION. A single presence/{uid} = true would be
+// wiped by a stale socket's LATE onDisconnect after a fast reload — so each socket
+// removes only its own child, and a seat counts as present while ANY child exists.
+// Re-written on every .info/connected === true, which is what heals a blip.
+function mpStartPresence() {
+  const fb = window.syllyFirebase;
+  if (!fb || !mpActiveRoomCode || !window.syllyDeviceUid) return;
+  if (mpConnListener) { mpConnListener(); mpConnListener = null; }
+  const code = mpActiveRoomCode, uid = window.syllyDeviceUid;
+  mpConnListener = fb.onValue(fb.ref('.info/connected'), snap => {
+    if (snap.val() !== true || mpActiveRoomCode !== code) return;
+    const mine = fb.push(fb.ref(`rooms/${code}/presence/${uid}`));
+    fb.onDisconnect(mine).remove();
+    fb.set(mine, true);
+    mpPresenceRef = mine;
+  });
+}
+
+function mpRemovePresence() {
+  if (mpConnListener) { mpConnListener(); mpConnListener = null; }
+  if (mpPresenceRef && window.syllyFirebase) { try { window.syllyFirebase.remove(mpPresenceRef); } catch (_) {} }
+  mpPresenceRef = null;
+}
+
+// Host: watch every seat but its own for the length of the match.
+function mpStartPresenceWatcher() {
+  const fb = window.syllyFirebase;
+  if (!fb || !mpActiveRoomCode) return;
+  if (mpPresenceListener) { mpPresenceListener(); mpPresenceListener = null; }
+  mpPresenceListener = fb.onValue(fb.ref(`rooms/${mpActiveRoomCode}/presence`), snap => {
+    if (window.syllyMultiplayerMode !== 'host' || !mpMatchLive) return;
+    // The last child leaving ERASES the node — exists() false means nobody is here.
+    const present = (snap.exists() && snap.val()) || {};
+    mpSeats.forEach((uid, idx) => {
+      // The host is never Away (a host drop deletes the room) — and it is matched by
+      // uid, because a 'teams' roster reorders the slots and it is not always seat 0.
+      if (!uid || uid === window.syllyDeviceUid) return;
+      const kids = present[uid];
+      const here = !!kids && typeof kids === 'object' && Object.keys(kids).length > 0;
+      if (here) {
+        mpCancelAwayPending(idx);
+        if (mpAwaySeats.has(idx)) mpMarkBack(idx);
+      } else if (!mpAwaySeats.has(idx) && !mpAwayPending.has(idx)) {
+        // Debounced: a blip that heals inside MP_AWAY_DEBOUNCE_MS never pauses the table —
+        // and the same window absorbs the instant at GAME_START before a client's first
+        // presence write lands (this watcher starts BEFORE GAME_START goes out).
+        mpAwayPending.set(idx, setTimeout(() => { mpAwayPending.delete(idx); mpMarkAway(idx); }, MP_AWAY_DEBOUNCE_MS));
+      }
+    });
+  });
+}
+
+function mpCancelAwayPending(idx) {
+  const t = mpAwayPending.get(idx);
+  if (t) { clearTimeout(t); mpAwayPending.delete(idx); }
+}
+
+function mpClearAwayPending() {
+  mpAwayPending.forEach(t => clearTimeout(t));
+  mpAwayPending.clear();
+}
+
+// pause() on the FIRST seat to go and resume() on the LAST to come back — never twice.
+function mpMarkAway(idx) {
+  if (!mpMatchLive || mpAwaySeats.has(idx)) return;
+  const first = mpAwaySeats.size === 0;
+  mpAwaySeats.add(idx);
+  if (first) {
+    const rc = mpActiveGameConfig?.reconnect;
+    if (rc) { try { rc.pause(); } catch (e) { console.warn('[MP] reconnect.pause', e); } }
+    else mpArmAwayGrace();
+  }
+  mpBroadcastAway();
+}
+
+function mpMarkBack(idx) {
+  if (!mpAwaySeats.delete(idx)) return;
+  if (mpAwaySeats.size === 0) {
+    if (mpAwayTimer) { clearTimeout(mpAwayTimer); mpAwayTimer = null; }
+    const rc = mpActiveGameConfig?.reconnect;
+    if (rc) { try { rc.resume(); } catch (e) { console.warn('[MP] reconnect.resume', e); } }
+  }
+  mpBroadcastAway();
+}
+
+// One packet carries the WHOLE away set; an empty set closes every overlay.
+// seats: [] is ERASED by Firebase — the receiver rebuilds it with `|| []`.
+function mpBroadcastAway() {
+  const seats = [...mpAwaySeats].sort((a, b) => a - b);
+  const grace = (seats.length && !mpActiveGameConfig?.reconnect) ? mpAwayGraceEndsAt : 0;
+  try { mpSendEnvelope({ type: 'LOBBY', payload: { action: 'MP_AWAY_STATE', seats, graceEndsAt: grace } }); } catch (_) {}
+  mpShowAwayOverlay(seats, grace);   // the host's own copy — its sends never come back to it
+}
+
+function mpAwayNames(seats) {
+  const n = seats.map(i => (mpPlayerSlots[i] && mpPlayerSlots[i].nickname) || ('Player ' + (i + 1)));
+  if (n.length <= 1) return n[0] || 'a player';
+  return n.slice(0, -1).join(', ') + ' and ' + n[n.length - 1];
+}
+
+function mpShowAwayOverlay(seats, graceEndsAt) {
+  if (mpAwayTick) { clearInterval(mpAwayTick); mpAwayTick = null; }
+  const ov = document.getElementById('mp-away-overlay');
+  if (!ov) return;
+  if (!seats.length) { ov.style.display = 'none'; return; }
+  document.getElementById('mp-away-heading').textContent = `Waiting for ${mpAwayNames(seats)}…`;
+  const host = window.syllyMultiplayerMode === 'host';
+  document.getElementById('btn-mp-away-end').style.display   = host ? '' : 'none';
+  document.getElementById('btn-mp-away-leave').style.display = host ? 'none' : '';
+  const sub = document.getElementById('mp-away-sub');
+  const paint = () => {
+    if (!graceEndsAt) { sub.textContent = 'Their seat is saved. The game picks up the moment they are back.'; return; }
+    const s = Math.max(0, Math.ceil((graceEndsAt - Date.now()) / 1000));
+    sub.textContent = `The game ends in ${s}s if they are not back.`;
+  };
+  paint();
+  if (graceEndsAt) mpAwayTick = setInterval(paint, 1000);
+  ov.style.display = 'flex';
+}
+
+// Task 4 replaces this stub with the real grace window.
+function mpArmAwayGrace() {}
+
+// Wired from the DOMContentLoaded block. Its own function so a harness can wire the
+// reconnect buttons without firing every other listener in that block.
+function mpWireReconnect() {
+  document.getElementById('btn-mp-away-end').addEventListener('click', () => {
+    playExit();
+    document.getElementById('mp-away-overlay').style.display = 'none';
+    resetToLobby();                      // host: HOST_END_GAME + room teardown
+  });
+  document.getElementById('btn-mp-away-leave').addEventListener('click', () => {
+    playExit();
+    document.getElementById('mp-away-overlay').style.display = 'none';
+    mpNotifyPlayerLeft();                // the quit contract, unchanged
+    resetToLobby();
+  });
 }
 
 // ── Settings applier (SETTINGS_SYNC + the reconnect ACCEPT share it) ──────────
@@ -1230,6 +1418,10 @@ function mpHandleEnvelope(env) {
     if (env.payload.action === 'HOST_END_GAME') {
       document.getElementById('mp-host-disconnected-overlay').style.display = 'flex';
     }
+    if (env.payload.action === 'MP_AWAY_STATE' && window.syllyMultiplayerMode === 'client') {
+      const seats = Array.isArray(env.payload.seats) ? env.payload.seats.map(Number) : [];
+      mpShowAwayOverlay(seats, Number(env.payload.graceEndsAt) || 0);
+    }
     if (env.payload.action === 'LOBBY_RESET') {
       // Host is starting another round — return to join screen in a waiting state
       const codeChars = (mpActiveRoomCode || '----').split('');
@@ -1268,6 +1460,9 @@ function mpHandleEnvelope(env) {
       mpPlayerSlots = slots;
       if (env.payload.mpLobbyStyle) window.mpLobbyStyle = env.payload.mpLobbyStyle;
       window.mpLobbyRoster = env.payload.rosterData || null;
+      mpSeats     = slots.map(p => p.uid);
+      mpMatchLive = true;
+      mpStartPresence();
       // Navigate to the game's first screen — same path as Pass-the-Phone
       mpActiveGameConfig.onPassThePhone();
     }
@@ -2520,6 +2715,10 @@ async function mpConfirmRoster() {
   // Lock player list — stop watching for departures while game loads
   if (mpPlayersListener) { mpPlayersListener(); mpPlayersListener = null; }
 
+  // Freeze the seats and start watching presence BEFORE GAME_START goes out: a
+  // client's first presence write can land the instant it applies GAME_START.
+  await mpBeginMatchSeats();
+
   // Send SETTINGS_SYNC then GAME_START
   const cta = document.getElementById('btn-mp-roster-confirm');
   if (cta) { cta.disabled = true; cta.textContent = 'Starting…'; }
@@ -2792,6 +2991,7 @@ async function mpReturnToLobby() {
 
 // ── Event Wiring ──────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
+  mpWireReconnect();
 
   // — Mode screen: back + exit —
   document.getElementById('btn-mp-mode-back').addEventListener('click', () => {

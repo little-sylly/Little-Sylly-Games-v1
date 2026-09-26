@@ -406,6 +406,81 @@ async function startMatch(game, names) {
          /action === 'SETTINGS_SYNC'\)\s*\{?\s*mpApplySettings\(mpActiveGame/.test(mpSrc));
     }
 
+    section('4. Seats freeze at GAME_START; presence is per connection');
+    {
+      const { host, clients } = await startMatch('rcgame', ['Ali', 'Bec', 'Cam']);
+      const [c1, c2] = clients;
+      check('seats written once, in seat order', server.read(`rooms/${host.run('mpActiveRoomCode')}/seats`), { 0: 'uH', 1: 'u1', 2: 'u2' });
+      check('every device knows the seats', [host, c1, c2].map(d => d.run('mpSeats')), [['uH', 'u1', 'u2'], ['uH', 'u1', 'u2'], ['uH', 'u1', 'u2']]);
+      const pres = server.read(`rooms/${host.run('mpActiveRoomCode')}/presence`) || {};
+      check('each client wrote one presence child', [Object.keys(pres.u1 || {}).length, Object.keys(pres.u2 || {}).length], [1, 1]);
+      ok('the host writes no presence', !pres.uH);
+
+      section('5. A blip shorter than the debounce never pauses the table');
+      c1.net.drop();
+      advance(1000);
+      c1.net.heal();
+      await flush();
+      advance(5000);
+      check('nobody was ever marked Away', host.run('[...mpAwaySeats]'), []);
+      check('the adopter was never paused', host.S.__rc.filter(x => x === 'pause'), []);
+      ok('no overlay on any device', ![host, c1, c2].some(d => d.shown('mp-away-overlay')));
+
+      section('6. A real drop: Away after the debounce, on every device, paused once');
+      c1.net.kill();
+      advance(2999);
+      check('not yet — inside the debounce', host.run('[...mpAwaySeats]'), []);
+      advance(1);
+      await flush();
+      check('seat 1 is Away', host.run('[...mpAwaySeats]'), [1]);
+      check('pause() ran exactly once', host.S.__rc.filter(x => x === 'pause').length, 1);
+      ok('the host shows the overlay', host.shown('mp-away-overlay'));
+      ok('the other client shows it too', c2.shown('mp-away-overlay'));
+      check('  …naming who', c2.el('mp-away-heading').textContent, 'Waiting for Bec…');
+      check('the host gets End session, not Leave',
+            [host.el('btn-mp-away-end').style.display, host.el('btn-mp-away-leave').style.display], ['', 'none']);
+      check('a client gets Leave, not End session',
+            [c2.el('btn-mp-away-end').style.display, c2.el('btn-mp-away-leave').style.display], ['none', '']);
+
+      section('7. Two away at once — one pause, one sentence, one resume');
+      c2.net.drop();
+      advance(3000); await flush();
+      check('both seats are Away', host.run('[...mpAwaySeats].sort()'), [1, 2]);
+      check('still only one pause()', host.S.__rc.filter(x => x === 'pause').length, 1);
+      check('the overlay names both', host.el('mp-away-heading').textContent, 'Waiting for Bec and Cam…');
+      c2.net.heal(); await flush();
+      check('one back, one still away: no resume yet', host.S.__rc.filter(x => x === 'resume').length, 0);
+      check('  …and the overlay names who is left', host.el('mp-away-heading').textContent, 'Waiting for Bec…');
+      check('no errors anywhere', errorsOf([host, c1, c2]), []);
+    }
+
+    section('8. The stale-socket race: a late onDisconnect never evicts a live seat');
+    {
+      const { host, clients } = await startMatch('rcgame', ['Ali', 'Bec']);
+      const [c1] = clients;
+      const oldSocketNotice = c1.net.drop({ late: true });   // server has not noticed yet
+      c1.net.heal();                                         // the device is back on a new socket
+      await flush();
+      oldSocketNotice();                                      // …and NOW the old socket times out
+      advance(5000); await flush();
+      check('seat 1 was never marked Away', host.run('[...mpAwaySeats]'), []);
+      const pres = server.read(`rooms/${host.run('mpActiveRoomCode')}/presence/u1`) || {};
+      check('the new connection\'s child survived', Object.keys(pres).length, 1);
+    }
+
+    section('9. An erased presence node and a host that is NOT seat 0');
+    {
+      const { host, clients } = await startMatch('rcgame', ['Ali', 'Bec', 'Cam']);
+      // A 'teams' roster reorders slots — put the host in seat 1.
+      host.run(`mpSeats = ['u1', 'uH', 'u2']; mpPlayerSlots = [mpPlayerSlots[1], mpPlayerSlots[0], mpPlayerSlots[2]];`);
+      clients.forEach(c => c.net.kill());
+      advance(3000); await flush();
+      check('check 3.6 — the whole presence node is gone', server.read(`rooms/${host.run('mpActiveRoomCode')}/presence`), undefined);
+      check('both client seats went Away (by index)', host.run('[...mpAwaySeats].sort()'), [0, 2]);
+      ok('check 3.7 — the host never marked itself Away', !host.run('mpAwaySeats.has(1)'));
+      check('no errors', errorsOf([host]), []);
+    }
+
     // ── Later tasks add sections 3+ here, above this line ──
 
   } catch (e) {
