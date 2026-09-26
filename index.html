@@ -5716,6 +5716,26 @@ Launch Sequence
     </div>
   </div>
 
+  <!-- mp-rejoin-overlay (decision modal z-[90]) — the boot prompt for a dropped player,
+       and the rejoin's failure copy (SW v236). Rejoin takes the game's brandBtnClass at
+       runtime; "Not now" is the neutral cancel, so a backdrop tap dismisses it. -->
+  <div id="mp-rejoin-overlay" style="display:none"
+    class="fixed inset-0 bg-black/40 z-[90] flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-cyan-300">
+      <p id="mp-rejoin-emoji" class="text-4xl">📶</p>
+      <h3 id="mp-rejoin-heading" class="text-lg font-bold text-stone-800"></h3>
+      <p id="mp-rejoin-sub" class="text-stone-500 text-sm"></p>
+      <button id="btn-mp-rejoin-go"
+        class="min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white font-semibold text-lg transition-all duration-150">
+        Rejoin
+      </button>
+      <button id="btn-mp-rejoin-cancel"
+        class="min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-lg transition-all duration-150">
+        Not now
+      </button>
+    </div>
+  </div>
+
   <!-- mp-lttp-message-interrupt-overlay (decision modal z-[105]) — LTTP message broadcast to all devices -->
   <div id="mp-lttp-message-interrupt-overlay" style="display:none"
     class="fixed inset-0 bg-black/40 z-[105] flex items-center justify-center px-6">

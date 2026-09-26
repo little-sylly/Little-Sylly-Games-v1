@@ -552,6 +552,113 @@ async function startMatch(game, names) {
       check('a drop between matches marks nobody Away', host.run('[...mpAwaySeats]'), []);
     }
 
+    // A reload: the socket dies, memory is gone, the phone (localStorage) survives.
+    // The clock moves on first: mpJoinListenFrom filters with `<`, so an event stamped in
+    // the SAME millisecond as the rejoin would replay (GAME_START included) — a real
+    // reload never lands in the same ms as the last packet, so the harness must not either.
+    const reload = (dev, opts) => { dev.net.kill(opts); advance(50); return boot(dev.name + "'", dev.uid, dev.phone); };
+
+    section('15. Reload → rejoin by the room code → the same seat');
+    {
+      const { host, clients } = await startMatch('rcgame', ['Ali', 'Bec', 'Cam']);
+      const [c1, c2] = clients;
+      const code = host.run('mpActiveRoomCode');
+      advance(1000);
+      const back = reload(c1);
+      advance(3000); await flush();
+      ok('the host marked seat 1 Away', host.run('mpAwaySeats.has(1)'));
+      advance(50);                          // see reload(): never rejoin in the same ms as a packet
+      back.run(`mpRejoinRoom('${code}')`); await flush();
+      check('the rejoiner is in seat 1 again', back.run('mpMyPlayerIdx'), 1);
+      check('  …with the same slots and game', [back.run('mpPlayerSlots.map(p => p.nickname)'), back.run('mpActiveGame')], [['Ali', 'Bec', 'Cam'], 'rcgame']);
+      check('it ran onPassThePhone as a client', back.S.__rc, ['onPassThePhone:client']);
+      check('the host resumed, then sent the snapshot to seat 1', host.S.__rc.slice(-2), ['resume', 'sendState:1']);
+      const got = back.inbox.map(e => e.payload && e.payload.action);
+      ok('ACCEPT arrived before the snapshot', got.indexOf('MP_REJOIN_ACCEPT') >= 0 && got.indexOf('MP_REJOIN_ACCEPT') < got.indexOf('TEST_STATE'), got.join(','));
+      ok('the away overlay closed on the other client', !c2.shown('mp-away-overlay'));
+      check('seat 1 is present again on the server', Object.keys(server.read(`rooms/${code}/presence/u1`) || {}).length, 1);
+      ok('the rejoiner wrote the key again', !!back.phone.store.sylly_rejoin);
+      check('no errors anywhere', errorsOf([host, back, c2]), []);
+    }
+
+    section('16. A rejoin that beats the Away mark is still accepted');
+    {
+      const { host, clients } = await startMatch('rcgame', ['Ali', 'Bec']);
+      const code = host.run('mpActiveRoomCode');
+      const back = reload(clients[0], { late: true });   // the server has not noticed yet
+      back.run(`mpRejoinRoom('${code}')`); await flush();
+      check('accepted into seat 1', back.run('mpMyPlayerIdx'), 1);
+      check('no pause/resume was needed', host.S.__rc.filter(x => x === 'pause' || x === 'resume'), []);
+    }
+
+    section('17. Refusals: a stranger, a version, a game without reconnect');
+    {
+      const { host, code } = await startMatch('rcgame', ['Ali', 'Bec']);
+      const stranger = boot('s', 'uX', makePhone());
+      stranger.run(`mpActiveGame = 'rcgame'; mpActiveGameConfig = MP_GAME_CONFIGS.rcgame;`);
+      code.split('').forEach((ch, j) => { stranger.el('mp-join-c' + (j + 1)).value = ch; });
+      stranger.el('mp-join-nickname-input').value = 'Dee';
+      stranger.run('mpClientJoinRoom()'); await flush();
+      check('a stranger mid-match is refused on the join screen',
+            stranger.el('mp-join-status').textContent, 'That match is already under way — ask the host to start a new one.');
+      check('  …and never gets a slot', host.run('mpPlayerSlots.length'), 2);
+      // The HANDSHAKE race: a stranger whose HANDSHAKE arrives anyway.
+      host.run(`mpHandleEnvelope({ type: 'HANDSHAKE', originId: 'uY', payload: { version: 'vTEST', nickname: 'Eve' } })`);
+      await flush();
+      check('a mid-match HANDSHAKE adds no phantom slot', host.run('mpPlayerSlots.length'), 2);
+      // An MP_REJOIN from a uid with no seat — the membership check, by originId.
+      host.run(`mpHandleEnvelope({ type: 'ACTION', originId: 'uZ', payload: { action: 'MP_REJOIN', version: 'vTEST' } })`);
+      await flush();
+      ok('an unseated MP_REJOIN gets no snapshot', !host.S.__rc.some(x => x.startsWith('sendState')), host.S.__rc.join(','));
+    }
+    {
+      const { host, clients, code } = await startMatch('rcgame', ['Ali', 'Bec']);
+      const back = reload(clients[0]);
+      back.S.SYLLY_VERSION = 'vOLD';
+      back.run(`mpRejoinRoom('${code}')`); await flush();
+      check('a different version is refused', back.el('mp-rejoin-sub').textContent,
+            "Your app is a different version from the host's. Refresh it, then try again.");
+      check('  …and the rejoiner stood down', [back.run('window.syllyMultiplayerMode'), back.run('mpActiveRoomCode')], ['single', null]);
+      ok('  …and cleared its key', !back.phone.store.sylly_rejoin);
+    }
+    {
+      const { host, clients, code } = await startMatch('plain', ['Ali', 'Bec']);
+      const back = reload(clients[0]);
+      back.run(`mpRejoinRoom('${code}')`); await flush();
+      check('a game without reconnect refuses', back.el('mp-rejoin-sub').textContent,
+            "This game can't be rejoined mid-match. Ask the host to start a new one.");
+    }
+
+    section('18. Check 5.8 — a rejoin nobody answers fails cleanly at 15 s');
+    {
+      const { host, clients, code } = await startMatch('rcgame', ['Ali', 'Bec']);
+      const back = reload(clients[0]);
+      host.net.drop({ late: true });           // the host's socket is gone; the room is not (yet)
+      // The manual path arrives with mpActiveGame already set (game → Join). It must be
+      // cleared: no game may be routed to until the ACCEPT says which one, and how.
+      back.run(`mpActiveGame = 'rcgame'; mpActiveGameConfig = MP_GAME_CONFIGS.rcgame;`);
+      back.run(`mpRejoinRoom('${code}')`); await flush();
+      check('no game is routed until the ACCEPT', back.run('mpActiveGame'), null);
+      advance(14999);
+      ok('still waiting', !back.shown('mp-rejoin-overlay'));
+      advance(1); await flush();
+      check('then it gives up, saying why', back.el('mp-rejoin-sub').textContent, "The table didn't answer. The host may have left.");
+      check('  …leaving nothing running', [back.run('window.syllyMultiplayerMode'), back.timers.length], ['single', 0]);
+    }
+
+    section('19. Check 5.9 — a public SYNC before the ACCEPT is ignored, not thrown');
+    {
+      const { host, clients, code } = await startMatch('rcgame', ['Ali', 'Bec']);
+      const back = reload(clients[0]);
+      back.run(`mpRejoinRoom('${code}').then(() => {})`);
+      // Before the host has answered, a game packet arrives on the public channel.
+      back.run(`mpHandleEnvelope({ type: 'SYNC', originId: 'uH', payload: { action: 'COMB_DAYLIGHT', endTimestamp: 1 } })`);
+      check('it was routed to no game (none is set yet)', back.run('mpActiveGame'), null);
+      await flush();
+      check('the ACCEPT still landed', back.run('mpActiveGame'), 'rcgame');
+      check('no errors', errorsOf([back]), []);
+    }
+
     // ── Later tasks add sections 3+ here, above this line ──
 
   } catch (e) {

@@ -1246,6 +1246,131 @@ function mpReadRejoinKey() {
   return v;
 }
 
+const MP_REJOIN_COPY = {
+  gone:          'That match has already wrapped up.',
+  'not-seated':  'That match has already wrapped up.',
+  offline:       'You look to be offline. Reconnect, then try again.',
+  version:       "Your app is a different version from the host's. Refresh it, then try again.",
+  unsupported:   "This game can't be rejoined mid-match. Ask the host to start a new one.",
+  timeout:       "The table didn't answer. The host may have left.",
+};
+
+// Client. { ok } means MP_REJOIN is on the wire; the private ACCEPT does the rest.
+// mpActiveGame stays NULL until the ACCEPT: a public game SYNC that beats it here
+// must route to no game at all (a half-initialised applier is worse than none).
+async function mpRejoinRoom(code) {
+  const fb = window.syllyFirebase;
+  if (!fb || !window.syllyDeviceUid) return { ok: false, reason: 'offline' };
+  const roomRef = fb.ref(`rooms/${code}`);
+  const snap    = await fb.get(roomRef);
+  const room    = snap.exists() ? snap.val() : null;
+  if (!room || !mpSeatList(room.seats).includes(window.syllyDeviceUid)) return { ok: false, reason: 'gone' };
+  mpActiveRoomCode   = code;
+  mpRoomRef          = roomRef;
+  mpActiveGame       = null;
+  mpActiveGameConfig = null;
+  window.syllyMultiplayerMode = 'client';
+  mpStartEventListener();              // sets mpJoinListenFrom — nothing older replays
+  mpStartPrivateListener();
+  mpWatchRoomGone();
+  mpStartPresence();
+  mpArmRejoinTimeout();
+  await mpSendEnvelope({ type: 'ACTION', payload: { action: 'MP_REJOIN', version: SYLLY_VERSION } });
+  return { ok: true };
+}
+
+function mpArmRejoinTimeout() {
+  if (mpRejoinTimer) clearTimeout(mpRejoinTimer);
+  mpRejoinTimer = setTimeout(() => { mpRejoinTimer = null; mpRejoinFailed('timeout'); }, MP_REJOIN_TIMEOUT_MS);
+}
+
+// Client: the room vanished (host gone, session ended) — the same behaviour a normal
+// join has always had, factored out so the rejoin path shares it.
+function mpWatchRoomGone() {
+  const fb = window.syllyFirebase;
+  if (!fb || !mpRoomRef) return;
+  if (mpRoomListener) { mpRoomListener(); mpRoomListener = null; }
+  mpRoomListener = fb.onValue(mpRoomRef, roomSnap => {
+    if (!roomSnap.exists() && window.syllyMultiplayerMode === 'client') {
+      document.getElementById('mp-host-disconnected-overlay').style.display = 'flex';
+      mpStopListeners();
+      mpClearRejoinKey();
+      window.syllyMultiplayerMode = 'single';
+    }
+  });
+}
+
+// Host. The seat is taken from the ENVELOPE's originId, never from a payload field.
+function mpHostHandleRejoin(uid, version) {
+  const refuse = reason => mpSendPrivate(uid, { type: 'LOBBY', payload: { action: 'MP_REJOIN_REFUSE', reason } });
+  const idx = mpSeats.indexOf(uid);
+  if (!mpMatchLive || idx < 0)   { refuse('not-seated');  return; }
+  if (version !== SYLLY_VERSION) { refuse('version');     return; }
+  const rc = mpActiveGameConfig?.reconnect;
+  if (!rc)                       { refuse('unsupported'); return; }
+  // 1. The session context — the same fields GAME_START and SETTINGS_SYNC carry.
+  mpSendPrivate(uid, { type: 'LOBBY', payload: {
+    action: 'MP_REJOIN_ACCEPT', game: mpActiveGame, playerSlots: mpPlayerSlots,
+    mpLobbyStyle: window.mpLobbyStyle, rosterData: window.mpLobbyRoster || null,
+    gameSettings: mpSerialiseSettings(mpActiveGame),
+  } });
+  // 2. Seat back BEFORE the snapshot: resume() re-arms any clock first, so the
+  //    snapshot carries the live deadline. The public resume broadcast can beat the
+  //    private ACCEPT to this device and be dropped — the snapshot is the reliable carrier.
+  mpCancelAwayPending(idx);
+  mpMarkBack(idx);
+  // 3. The game's own snapshot — private, and pushed after the ACCEPT.
+  try { rc.sendState(idx); } catch (e) { console.warn('[MP] reconnect.sendState', e); }
+}
+
+// Client: mirrors the GAME_START applier, then hands over to the game.
+function mpApplyRejoinAccept(p) {
+  if (mpRejoinTimer) { clearTimeout(mpRejoinTimer); mpRejoinTimer = null; }
+  const slots = Array.isArray(p.playerSlots) ? p.playerSlots : [];
+  const myIdx = slots.findIndex(s => s && s.uid === window.syllyDeviceUid);
+  const cfg   = MP_GAME_CONFIGS[p.game];
+  if (myIdx < 0 || !cfg || !cfg.reconnect) { mpRejoinFailed('gone'); return; }
+  mpActiveGame       = p.game;
+  mpActiveGameConfig = cfg;
+  // Every adopter so far uses its MP key as its activeGameId (comb). A future adopter
+  // whose two ids differ (SS: 'ss' vs 'sylly-signals') must map it here.
+  if (typeof activeGameId !== 'undefined') activeGameId = p.game;
+  mpApplySettings(p.game, p.gameSettings || {});
+  mpPlayerSlots = slots;
+  mpMyPlayerIdx = myIdx;
+  mpSeats       = slots.map(s => s.uid);
+  mpMatchLive   = true;
+  if (p.mpLobbyStyle) window.mpLobbyStyle = p.mpLobbyStyle;
+  window.mpLobbyRoster = p.rosterData || null;
+  mpWriteRejoinKey();
+  const ov = document.getElementById('mp-rejoin-overlay');
+  if (ov) ov.style.display = 'none';
+  if (typeof lobbyLeaveForGame === 'function') lobbyLeaveForGame();
+  cfg.onPassThePhone();
+}
+
+function mpAbandonSession() {
+  if (mpRejoinTimer) { clearTimeout(mpRejoinTimer); mpRejoinTimer = null; }
+  mpStopListeners();
+  mpEndMatchLocal();
+  mpActiveRoomCode = null;
+  mpRoomRef        = null;
+  window.syllyMultiplayerMode = 'single';
+}
+
+function mpRejoinFailed(reason) {
+  mpAbandonSession();
+  mpClearRejoinKey();
+  const ov = document.getElementById('mp-rejoin-overlay');
+  if (!ov) return;
+  document.getElementById('mp-rejoin-emoji').textContent    = '🕰️';
+  document.getElementById('mp-rejoin-heading').textContent  = 'Too late!';
+  document.getElementById('mp-rejoin-sub').textContent      = MP_REJOIN_COPY[reason] || MP_REJOIN_COPY.gone;
+  document.getElementById('btn-mp-rejoin-go').style.display = 'none';
+  document.getElementById('btn-mp-rejoin-cancel').textContent = 'Got it';
+  ov.style.display = 'flex';
+}
+
 // Wired from the DOMContentLoaded block. Its own function so a harness can wire the
 // reconnect buttons without firing every other listener in that block.
 function mpWireReconnect() {
@@ -1463,7 +1588,17 @@ function mpHandleEnvelope(env) {
     return;
   }
 
+  // Reconnect — checked before any per-game routing, like the quit contract above.
+  if (env.type === 'ACTION' && env.payload?.action === 'MP_REJOIN') {
+    if (window.syllyMultiplayerMode === 'host') mpHostHandleRejoin(env.originId, env.payload.version);
+    return;
+  }
+
   if (env.type === 'HANDSHAKE' && window.syllyMultiplayerMode === 'host') {
+    if (mpMatchLive) {                 // mid-match: never a phantom slot
+      mpSendPrivate(env.originId, { type: 'LOBBY', payload: { action: 'MP_REJOIN_REFUSE', reason: 'in-progress' } });
+      return;
+    }
     if (env.payload.version !== SYLLY_VERSION) {
       document.getElementById('mp-version-mismatch-overlay').style.display = 'flex';
       return;
@@ -1491,6 +1626,17 @@ function mpHandleEnvelope(env) {
     if (env.payload.action === 'MP_AWAY_STATE' && window.syllyMultiplayerMode === 'client') {
       const seats = Array.isArray(env.payload.seats) ? env.payload.seats.map(Number) : [];
       mpShowAwayOverlay(seats, Number(env.payload.graceEndsAt) || 0);
+    }
+    if (env.payload.action === 'MP_REJOIN_ACCEPT' && window.syllyMultiplayerMode === 'client') {
+      mpApplyRejoinAccept(env.payload);
+    }
+    if (env.payload.action === 'MP_REJOIN_REFUSE' && window.syllyMultiplayerMode === 'client') {
+      if (env.payload.reason === 'in-progress') {
+        // A stranger's HANDSHAKE raced the match start: the existing "Match Already Started" modal.
+        document.getElementById('mp-roster-mismatch-overlay').style.display = 'flex';
+      } else {
+        mpRejoinFailed(env.payload.reason);
+      }
     }
     if (env.payload.action === 'LOBBY_RESET') {
       mpEndMatchLocal();
@@ -2943,6 +3089,28 @@ function mpClientJoinRoom() {
 
       // Capacity check
       const roomData     = snap.val();
+
+      // A live match: the seats are frozen. A uid in them is a player coming BACK —
+      // take the rejoin path (no capacity check, no /players slot). Anyone else is
+      // turned away here, before a HANDSHAKE could ever reach the host.
+      const seatList = mpSeatList(roomData.seats);
+      if (seatList.length) {
+        if (!seatList.includes(window.syllyDeviceUid)) {
+          status.textContent = 'That match is already under way — ask the host to start a new one.';
+          status.className   = 'text-red-500 text-sm text-center mt-2';
+          btn.textContent    = 'Enter Room →';
+          btn.disabled       = false;
+          mpUpdateJoinCta();
+          return;
+        }
+        status.textContent = 'Found your seat — getting you back in…';
+        status.className   = 'text-stone-500 text-sm text-center mt-2';
+        btn.textContent    = 'Rejoining…';
+        const r = await mpRejoinRoom(code);
+        if (!r.ok) { mpRejoinFailed(r.reason); btn.textContent = 'Enter Room →'; btn.disabled = false; mpUpdateJoinCta(); }
+        return;
+      }
+
       const maxPlayers   = roomData.maxPlayers || 99;
       const currentCount = Object.keys(roomData.players || {}).length;
       if (currentCount >= maxPlayers) {
@@ -2978,14 +3146,7 @@ function mpClientJoinRoom() {
       mpStartPrivateListener(); // own private queue (hidden-info games)
 
       // Watch for room deletion (host disconnect / session end)
-      mpRoomListener = fb.onValue(roomRef, roomSnap => {
-        if (!roomSnap.exists() && window.syllyMultiplayerMode === 'client') {
-          document.getElementById('mp-host-disconnected-overlay').style.display = 'flex';
-          mpStopListeners();
-          mpClearRejoinKey();
-          window.syllyMultiplayerMode = 'single';
-        }
-      });
+      mpWatchRoomGone();
 
       // Show waiting state
       status.textContent = 'Connected! Waiting for the host to start…';
