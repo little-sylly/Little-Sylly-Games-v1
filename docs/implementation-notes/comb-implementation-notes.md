@@ -467,7 +467,12 @@ every countdown; a turn that *enters* actions while paused banks its whole Dayli
 starting a clock. **Resume sends only the clock** (`COMB_DAYLIGHT`), never a re-sent
 `COMB_ACTIONS_BEGIN`, whose applier clears `combPlacementMode` and would throw away the active
 player's half-made placement. The Scout Flight timer is left running — a few seconds of host-only
-animation whose result travels as a normal SYNC. Proved by `verify-comb-loopback.js` § 26b/26c.
+animation whose result travels as a normal SYNC. **The snapshot must leave a rejoiner able to ACT**
+(review fix): `COMB_FULL_STATE` now also carries `overflowOwed`/`overflowReady`, and its applier
+re-arms the restored phase's UI with the same calls the phase's own applier makes
+(`combOpenOverflow`, `combEnterWaspMove`, `combOpenSteal`) — without it a device rebuilt mid-seven
+never opened its discard and the host's gate waited forever. Proved by `verify-comb-loopback.js`
+§ 26b/26c/26d.
 **Owed:** the real-device pass (lock the owner's iPhone SE mid-Season; check seat, hand and clock) —
 `docs/deferred-work.md` § Reconnect adoption.
 

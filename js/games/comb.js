@@ -4577,8 +4577,17 @@ function combHandleSync(action, p) {
       combSetInstinct(combLocalIdx(), (p.instinct || []).filter(Boolean));
       combPublicCounts = combWireArr(p.handCounts, combPlayerCount, 0).map(v => v | 0);
       combStartDaylightAt(p.endTimestamp);    // 0 (paused / All Day) stops any countdown
+      // Erased on the wire when all-zero / all-false — rebuilt to seat length.
+      combOverflowOwed  = combWireArr(p.overflowOwed,  combPlayerCount, 0).map(v => v | 0);
+      combOverflowReady = combWireArr(p.overflowReady, combPlayerCount, false).map(Boolean);
       combShowMeadow();
       combArmDraftPlacement();
+      // Phase-scoped UI is ARMED, never carried — the same calls the phase's own
+      // applier makes. A rejoiner that lands mid-seven or mid-Wasp must be able to act,
+      // or the table waits on it with no overlay and no timer (review I2).
+      if (combPhase === 'overflow')       combOpenOverflow();
+      else if (combPhase === 'waspMove')  combEnterWaspMove();
+      else if (combPhase === 'waspSteal') combOpenSteal();
       combRenderMeadow();
       return;
 
@@ -4900,6 +4909,9 @@ function combSendFullState(playerIdx) {
     // Clock state is NOT in combSerialiseState() (by design) — it travels beside it.
     // A rejoiner cannot rely on the public COMB_DAYLIGHT: it may beat the ACCEPT here.
     endTimestamp: combTurnEndTs,
+    // The seven's gate rides beside the snapshot too (review I2): a device rebuilt
+    // mid-Overflow must know what it owes, or the host waits on it forever.
+    overflowOwed: combOverflowOwed.slice(), overflowReady: combOverflowReady.slice(),
   });
 }
 

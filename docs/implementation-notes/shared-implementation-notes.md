@@ -51,8 +51,18 @@ the contract never needed rewriting, only a second path added beside it.
   Written only for adopters (for anything else a prompt would promise a rescue that can't happen).
 - **`lobbyLeaveForGame()`** — a rejoin enters a game with no lobby button, so `lobbyLaunch()`'s
   teardown was factored out and now also stops the Lounge's room.
+**Review fix pass (same day).** The whole-branch review found four defects no planned check reached:
+(1) a client leaving the *results* screen (no `MP_PLAYER_LEFT` — post-game exits never sent one)
+read as a drop, so the rest of the table got "Waiting for …" over their podium and a non-adopter
+was thrown out — fixed by `MP_SEAT_RELEASED` from teardown plus `MP_END_SCREENS` (reaching a final
+screen ends the match for reconnect); (2) a rejoiner whose clock ran a few hundred ms ahead of the
+host dropped every reply at its timestamp filter — fixed by a nonce echoed in ACCEPT/REFUSE and a
+cutoff rebased to the host's stamp; (3) the rejoiner was never put back on `/players`, so Play Again
+lost it or kept a ghost — re-registered at `players/rj-{uid}`; (4) COMB's snapshot restored the
+phase but not the seven's gate, and re-armed nothing but the draft — see `comb` DD-30.
 **Lesson.** Before rewriting a contract to make room for new behaviour, check whether the new case
-ever reached the contract at all. Q20's "redefines the quit contract" was the expensive reading; the
+ever reached the contract at all. And a detector needs a *scope*: "a seat went quiet" is only a drop
+while the table is actually waiting on it. Q20's "redefines the quit contract" was the expensive reading; the
 true one — a drop never sends the quit packet — kept 19 games out of the blast radius. Plan +
 spec: `docs/superpowers/{specs,plans}/2026-09-27-mp-client-reconnect*.md`. Harness:
 `tools/verify-mp-reconnect.js` (117) + `tools/mutate-mp-reconnect.js` (11/11). Lessons from the build:

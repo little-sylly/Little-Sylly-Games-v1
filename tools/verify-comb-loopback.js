@@ -261,6 +261,7 @@ globalThis.__comb = {
   rcPause()         { combReconnectPause(); },
   rcResume()        { combReconnectResume(); },
   get paused()      { return combPaused; },
+  get placing()     { return combPlacementMode; },
   serial()          { return combSerialiseState(); },
   legal(kind, p, o) { return combLegalTargetsFor(kind, p, o || {}); },
   resetState()      { combResetState(); },
@@ -1039,6 +1040,55 @@ CLIENTS[0] = { dev: cli1, br: C1, uid: 'u1' };
 H.fullState(1);
 check('the original seat-1 device is back in step', pub(C1.serial()), pub(H.serial()));
 check('  …and on the same clock', C1.endTs, H.endTs);
+
+section('26d. A rejoin mid-seven and mid-Wasp (review I2) — phase-scoped state rides the snapshot');
+// A rebuilt seat-1 device that must be PLAYABLE, not just correct: a seven waits on
+// every owed seat, and a Wasp waits on the active one — a rejoiner that cannot act
+// hangs the table with no overlay and no timer.
+const rebuild26 = name => {
+  const dev = makeDevice(name, 'client', 1, SLOTS);
+  const br = dev.__comb;
+  br.seat({ count: 3, names: NAMES, season: 'short', layout: 'tended', wasp: 'steals',
+            overflow: 'snug', daylight: 'shortday', bounty: 'endless' });
+  br.standby();
+  CLIENTS[0] = { dev, br, uid: 'u1' };
+  dev.mpSendEnvelope = env => {
+    const onWire = wire({ ...env, originId: 'u1', timestamp: clock.now });
+    try { H.handle(onWire); } catch (e) { host.__errors.push(`${onWire.payload.action} from u1: ${e.message}`); }
+  };
+  dev.mpSendPrivate = () => { throw new Error('a client must never write the private channel'); };
+  H.fullState(1);
+  return br;
+};
+while (H.turn !== 1 || H.phase !== 'roll') {
+  if (H.phase === 'roll')         { H.forceRoll(8); step(host); }
+  else if (H.phase === 'actions')   H.endTurn(H.turn);
+  else break;
+}
+H.setHand(0, [0, 0, 0, 0, 0]); H.setHand(1, [5, 4, 0, 0, 0]); H.setHand(2, [3, 0, 0, 0, 0]);
+H.forceRoll(7);
+step(host);
+check('seat 1 owes, at a seven on its own turn', [H.phase, H.turn, H.owed[1] > 0], ['overflow', 1, true]);
+const R26a = rebuild26('cli1c');
+check('the rebuilt device is in the seven', R26a.phase, 'overflow');
+check('  …knows what every seat owes', R26a.owed, H.owed);
+ok('  …and its discard overlay is open', R26a.overflowUp());
+R26a.send('COMB_OVERFLOW_SUBMIT', { playerIdx: 1, discard: [4, 0, 0, 0, 0] });
+check('its spill opened the gate', H.phase, 'waspMove');
+const R26b = rebuild26('cli1d');
+check('a device rebuilt mid-Wasp is armed to move it', [R26b.phase, R26b.placing], ['waspMove', 'wasp']);
+let hex26 = -1;
+for (let h = 0; h < 19 && hex26 < 0; h++) if (h !== H.wasp && H.victims(h, 1).length) hex26 = h;
+ok('found a hex seat 1 can rob from', hex26 >= 0);
+H.waspMove(1, hex26);
+check('the Wasp is waiting on seat 1 to steal', [H.phase, H.turn], ['waspSteal', 1]);
+const R26c = rebuild26('cli1e');
+ok('a device rebuilt mid-steal has the steal open', R26c.stealUp());
+H.waspSteal(1, H.victims(hex26, 1)[0]);
+check('no exception on any device', noErrors(), []);
+CLIENTS[0] = { dev: cli1, br: C1, uid: 'u1' };
+H.fullState(1);
+check('the original seat-1 device is back in step', pub(C1.serial()), pub(H.serial()));
 
 // ═══════════════════════════════════════════════════════════════════════════
 section('27. The end of the season');

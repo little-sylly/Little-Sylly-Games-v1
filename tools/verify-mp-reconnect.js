@@ -224,7 +224,7 @@ function makePhone() {
 
 // ── One device = one vm running the real engine ─────────────────────────────
 const devices = [];
-function boot(name, uid, phone) {
+function boot(name, uid, phone, skew = 0) {
   const net = connect(name);
   const timers = [], screens = [], errors = [], inbox = [];
   let seq = 0;
@@ -235,12 +235,12 @@ function boot(name, uid, phone) {
     window: {},
     navigator: { onLine: true },
     localStorage: phone.storage,
-    Date: { now: () => clock.now },
+    Date: { now: () => clock.now + skew },
     setTimeout:  (fn, ms) => { timers.push({ fn, at: clock.now + (ms || 0), id: ++seq, repeat: false }); return seq; },
     setInterval: (fn, ms) => { timers.push({ fn, at: clock.now + (ms || 0), id: ++seq, repeat: true, ms: ms || 1000 }); return seq; },
     clearTimeout:  id => { const i = timers.findIndex(t => t.id === id); if (i >= 0) timers.splice(i, 1); },
     clearInterval: id => { const i = timers.findIndex(t => t.id === id); if (i >= 0) timers.splice(i, 1); },
-    showScreen: id => screens.push(id),
+    showScreen: id => { screens.push(id); if (typeof S.mpNoteScreen === 'function') S.mpNoteScreen(id); },
     SYLLY_VERSION: 'vTEST',
     __rc: [], __resets: 0, __left: 0, __leftForGame: 0,
   };
@@ -733,6 +733,75 @@ async function startMatch(game, names) {
       back.el('btn-mp-rejoin-go').click(); await flush();
       check('the prompt explains', back.el('mp-rejoin-sub').textContent, 'That match has already wrapped up.');
       ok('  …and the key is gone', !back.phone.store.sylly_rejoin);
+    }
+
+    section('F1. Review C1 — a client leaving the results screen is NOT a drop');
+    {
+      const { host, clients } = await startMatch('plain', ['Ali', 'Bec', 'Cam']);
+      const [c1, c2] = clients;
+      c1.run('resetToLobby()'); await flush();      // the podium ✕ — no MP_PLAYER_LEFT
+      advance(3100); await flush();
+      check('nobody was marked Away', host.run('[...mpAwaySeats]'), []);
+      ok('the table is not shown a Waiting overlay', !c2.shown('mp-away-overlay') && !host.shown('mp-away-overlay'));
+      advance(25000); await flush();
+      check('and the session was not ended', host.S.__resets, 0);
+    }
+    {
+      const { host, clients } = await startMatch('rcgame', ['Ali', 'Bec']);
+      clients[0].run('resetToLobby()'); await flush();
+      advance(5000); await flush();
+      check('an adopter is not paused by a deliberate exit either', host.S.__rc.filter(x => x === 'pause'), []);
+    }
+
+    section('F1b. Review C1 — reaching an end screen ends the match for reconnect');
+    {
+      const engineSrc = fs.readFileSync(path.join(ROOT, 'js/engine.js'), 'utf8');
+      ok('engine.js showScreen tells the multiplayer module', /function showScreen[\s\S]*?mpNoteScreen\(id\)/.test(engineSrc));
+      const d0 = boot('probe', 'uP', makePhone());
+      const ends = d0.run('[...MP_END_SCREENS]');
+      const all = (engineSrc.match(/const allScreens = \[[\s\S]*?\];/) || [''])[0];
+      ok('every end screen is a registered screen', ends.length >= 18 && ends.every(id => all.includes("'" + id + "'")),
+         ends.filter(id => !all.includes("'" + id + "'")).join(', '));
+      const { host, clients } = await startMatch('rcgame', ['Ali', 'Bec', 'Cam']);
+      const [c1, c2] = clients;
+      [host, c1, c2].forEach(d => d.run(`showScreen('${ends[0]}')`));
+      check('the match is over on every device', [host, c1, c2].map(d => d.run('mpMatchLive')), [false, false, false]);
+      ok('a client at the podium drops its rejoin key', !c1.phone.store.sylly_rejoin);
+      c1.net.kill(); advance(5000); await flush();
+      check('a phone locking at the podium marks nobody Away', host.run('[...mpAwaySeats]'), []);
+      check('  …and pauses nothing', host.S.__rc.filter(x => x === 'pause'), []);
+      host.run(`mpHandleEnvelope({ type: 'ACTION', originId: 'u1', payload: { action: 'MP_REJOIN', version: 'vTEST' } })`);
+      await flush();
+      ok('a rejoin after the match is over gets no snapshot', !host.S.__rc.some(x => x.startsWith('sendState')));
+    }
+
+    section('F2. Review I1 — a rejoiner whose clock runs AHEAD of the host still gets back in');
+    for (const skew of [500, 5000, -500]) {
+      const { host, clients, code } = await startMatch('rcgame', ['Ali', 'Bec']);
+      const c = clients[0];
+      c.net.kill(); advance(50);
+      const back = boot("c1'", c.uid, c.phone, skew);
+      advance(3000); await flush();
+      back.run(`mpRejoinRoom('${code}')`); await flush();
+      check(`skew ${skew} ms: back in seat 1`, back.run('mpMyPlayerIdx'), 1);
+      ok(`skew ${skew} ms: the snapshot landed`, back.inbox.some(e => e.payload && e.payload.action === 'TEST_STATE'));
+      advance(20000); await flush();
+      ok(`skew ${skew} ms: no timeout fired afterwards`, !back.shown('mp-rejoin-overlay'));
+    }
+
+    section('F4. Review I3 — a rejoiner is back on the room roster');
+    {
+      const { host, clients, code } = await startMatch('rcgame', ['Ali', 'Bec', 'Cam']);
+      const back = reload(clients[0]);
+      advance(50);
+      back.run(`mpRejoinRoom('${code}')`); await flush();
+      const players = () => Object.values(server.read(`rooms/${code}/players`) || {}).map(p => p.uid).sort();
+      check('its /players entry is written again', players(), ['u1', 'u2', 'uH'].sort());
+      ok('  …and it can remove it on the way out', !!back.run('window.mpClientPlayerRef'));
+      host.run('mpReturnToLobby()'); await flush();
+      back.run('resetToLobby()'); await flush();
+      check('leaving the next lobby takes it off the roster', players(), ['u2', 'uH'].sort());
+      check('  …and off the host\'s slots', host.run('mpPlayerSlots.map(p => p.uid)').sort(), ['u2', 'uH'].sort());
     }
 
     // ── Later tasks add sections 3+ here, above this line ──

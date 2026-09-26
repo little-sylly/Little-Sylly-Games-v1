@@ -288,6 +288,24 @@ first**, and each game needs three things:
 **First candidates: PKO, FLW, CJAR.** Adding one is a reviewed change: `verify-mp-configs.js` § 7 pins
 the adopter list. Model + effort per game: **Opus, high**.
 
+**Owner call — the 20 s grace for non-adopters (review I4).** Before SW v236 a phone away for longer
+than a phone call simply stalled the table, and one that came back with memory intact carried on;
+now a non-adopting game ends for everyone after ~23 s (3 s debounce + 20 s). The spec chose that on
+purpose (a clean end beats a forever-hang), but the host's own **End session** already covers the
+hang, so the options are a longer grace (60–90 s), a host "Keep waiting" choice, or no automatic
+end at all. Shipped as specified; one constant (`MP_AWAY_GRACE_MS`) either way.
+
+**Minor follow-ups from the review (deferred, none blocking):** a rejoiner writes presence before its
+ACCEPT, so a refused/timed-out rejoin briefly marks the seat back; "Not now" during an in-flight
+rejoin cannot cancel the pending `mpRejoinRoom` (needs a generation token); `mpWatchRoomGone` does not
+call `mpEndMatchLocal()`, so the away overlay can sit over "Host Disconnected"; `graceEndsAt` is a
+host-clock timestamp (send remaining ms); the host itself gets no reason when the grace ends; the
+debounce starts before `GAME_START` goes out; a mid-match stranger's refusal can be filtered by its
+own post-HANDSHAKE cutoff (only before `seats` lands); a rejoin downloads the room's whole `/events`
+log (`onChildAdded` without a query); a version refusal uses the rejoin modal's copy, not
+`mp-version-mismatch-overlay`. GM and NT are not in `MP_END_SCREENS` (per-round result screens), so
+a phone locked at their podium still reads as a drop.
+
 **Host migration** — still separate and larger (a host drop deletes the room: `onDisconnect(mpRoomRef)
 .remove()`). The brief's Appendix A Option 2; not started.
 

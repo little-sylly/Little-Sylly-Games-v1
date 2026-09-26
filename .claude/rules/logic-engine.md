@@ -535,18 +535,25 @@ after a fast reload removes only its own child, never the new one. A seat with n
 `MP_AWAY_DEBOUNCE_MS` (3 s) is **Away**: one `LOBBY MP_AWAY_STATE { seats, graceEndsAt }` carries the
 whole set (`seats: []` is Firebase-erased — rebuild with `|| []`), and every device shows
 `#mp-away-overlay`. The host is skipped **by uid**, never by index (a `'teams'` roster reorders slots).
+**Only a match is watched, and only drops count.** A client leaving on purpose after the game (the
+podium ✕, "Leave Session") sends `MP_SEAT_RELEASED` from `mpReconnectTeardown()` and its seat is
+never Away; and reaching a game's final screen (`MP_END_SCREENS`, via `mpNoteScreen()` in
+`showScreen()`) ends the match for reconnect — the room lives on for Play Again. **A new game adds
+its final screen to `MP_END_SCREENS`** (GM and NT are absent on purpose: per-round result screens).
 
 **The opt-in hook** — `MP_GAME_CONFIGS[abbr].reconnect = { sendState(idx), pause(), resume() }`, all
 host-only; `verify-mp-configs.js` § 7 pins the adopter list (`['comb']`). `pause()` runs on the FIRST
 seat to go and `resume()` on the LAST back, never twice. An adopter's client `onPassThePhone` must be
 safe to re-run on a rejoining device (standby, never a new match); its full-state applier must take
-standby → live and be idempotent; `sendState` strips every other seat's private state. **A game
+standby → live and be idempotent — **re-arming phase-scoped UI** (COMB: the Overflow, the Wasp), since that is never carried; `sendState` strips every other seat's private state. **A game
 without the hook** still gets detection: a 20 s grace (`MP_AWAY_GRACE_MS`), then the host ends the
 session with `HOST_END_GAME { reason: 'dropped', name }`.
 
 **Rejoin.** A client of an adopting game writes `sylly_rejoin` at `GAME_START`; on reload the boot
 prompt (`#mp-rejoin-overlay`) sends `ACTION MP_REJOIN { version }`, checked by `originId` against
-`seats`. The host answers privately — `MP_REJOIN_ACCEPT` (the `GAME_START` + settings context,
+`seats`; it carries a **nonce** the host echoes, so the reply passes the rejoiner's timestamp filter
+however far its clock runs ahead (the ACCEPT then rebases `mpJoinListenFrom` to the host's stamp).
+The host answers privately — `MP_REJOIN_ACCEPT` (the `GAME_START` + settings context,
 applied through the shared `mpApplySettings()`), then **`mpMarkBack()` → `resume()` BEFORE
 `sendState()`**, so the snapshot carries the live clock: a public resume SYNC can beat the private
 ACCEPT to the rejoiner and is dropped there (no game is routed until the ACCEPT). A mid-match stranger

@@ -483,6 +483,9 @@ function showScreen(id) {
   el.classList.remove('screen-enter');
   void el.offsetWidth;
   el.classList.add('screen-enter');
+  // A game's final screen ends the match for client reconnect (SW v236) — see
+  // MP_END_SCREENS in engine-multiplayer.js.
+  if (typeof mpNoteScreen === 'function') mpNoteScreen(id);
   // Background music follows the active game. This is the ONE seam for all 20
   // games: every plugin sets activeGameId before navigating, and resetToLobby()
   // clears it before its own showScreen — so both directions are covered here

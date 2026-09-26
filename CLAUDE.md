@@ -296,8 +296,8 @@ happen: do it before anything else.**
 freezes `rooms/{code}/seats` and watches per-connection presence; a seat gone 3 s is **Away** and every
 device shows "Waiting for …". A game that adopts the opt-in `reconnect` hook pauses and the dropped
 phone reloads into a one-tap **Rejoin** prompt (`sylly_rejoin`); every other game ends after 20 s with
-a reason. **Honeycomb Hills is the first adopter.** Harnesses: `verify-mp-reconnect` 117,
-`mutate-mp-reconnect` 11/11, `verify-comb-loopback` 283, `visual-lobby` 101. Detail: `shared-implementation-notes.md` DD-47.
+a reason; a game's end screen ends the match for this. **Honeycomb Hills is the first adopter.**
+Harnesses: `verify-mp-reconnect` 141, `mutate-mp-reconnect` 11/11, `verify-comb-loopback` 294, `visual-lobby` 101. Detail: `shared-implementation-notes.md` DD-47.
 
 **Previous versions: `docs/sw-changelog.md`** — continuous, v235 back to v167.
 
@@ -374,7 +374,7 @@ Re-run a game's full set after touching its appliers, deck/data, packets or rend
 | JEC | `node tools/verify-jec-loop.js` — the four tiers, the Golden-only Signature double, Crutch resolution + the never-in-pool invariant, the Instructions deck, the Fusion name vote | 77 |
 | JEC | `node tools/verify-jec-loopback.js` — host↔client over a Firebase-shaped wire with a real mock DOM; accepts `JEC_SRC=` | 164 |
 | **All 20 / MP** | `node tools/verify-mp-configs.js` — `MP_GAME_CONFIGS` entry schema, player-count bounds (sanity, **purity** — a bound may read nothing but `window.mpLobbyStyle` or a pre-lobby setting in `ALLOWED_SETTINGS` (`frtPearOff`, `cldPeckOff`), and agreement with each game's own PTP count pills), the balanced-teams invariant, and the Mid-Game Quit Contract. Runs no game logic; accepts `MP_SRC=`. **Re-run after touching `MP_GAME_CONFIGS`, any quit-confirm handler, or the roster screen** | 20 games |
-| **MP reconnect** | `node tools/verify-mp-reconnect.js` — the REAL `engine-multiplayer.js` on N devices over a fake Firebase with **sockets** (drop / heal / kill, on-time or LATE `onDisconnect`): frozen seats, per-connection presence + the stale-socket race, the 3 s Away debounce, pause/resume once each, the non-adopter's 20 s grace + reasoned end, reload → rejoin into the same seat, refusals (stranger, version, non-adopter, unanswered), `sylly_rejoin` + the boot prompt. Accepts `MP_SRC=`. **Re-run after touching seats, presence, rejoin or `mpConfirmRoster`** | 117 |
+| **MP reconnect** | `node tools/verify-mp-reconnect.js` — the REAL `engine-multiplayer.js` on N devices over a fake Firebase with **sockets** (drop / heal / kill, on-time or LATE `onDisconnect`): frozen seats, per-connection presence + the stale-socket race, the 3 s Away debounce, pause/resume once each, the non-adopter's 20 s grace + reasoned end, reload → rejoin into the same seat, refusals (stranger, version, non-adopter, unanswered), `sylly_rejoin` + the boot prompt, a deliberate exit and an end screen never read as a drop, per-device clock skew on a rejoin, the rejoiner back on `/players`. Accepts `MP_SRC=`. **Re-run after touching seats, presence, rejoin, `mpConfirmRoster` or `MP_END_SCREENS`** | 141 |
 | **MP reconnect** | `node tools/mutate-mp-reconnect.js` — reverts each load-bearing reconnect line in a temp copy and drives the harness above; a survivor means a line nothing watches | 11/11 |
 | Identity docs | `node tools/verify-identity-docs.js` — every `copy` block in `docs/game-identities/` against the shipped `index.html` + plugin file | per-doc |
 | Identity docs | `node tools/verify-identity-docs.js --self-test` — proves the checker still detects planted drift | 1 |
