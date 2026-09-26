@@ -1378,6 +1378,44 @@ function mpRejoinFailed(reason) {
   ov.style.display = 'flex';
 }
 
+// Boot: a fresh sylly_rejoin opens the prompt over whichever lobby layout is up.
+function mpOfferRejoin() {
+  const k = mpReadRejoinKey();
+  if (!k) return;
+  const cfg = MP_GAME_CONFIGS[k.game];
+  const ov  = document.getElementById('mp-rejoin-overlay');
+  if (!ov) return;
+  document.getElementById('mp-rejoin-emoji').textContent   = cfg.emoji;
+  document.getElementById('mp-rejoin-heading').textContent = `Back to ${cfg.gameName}?`;
+  document.getElementById('mp-rejoin-sub').textContent     = `You dropped out of room ${k.code}. The table's waiting for you.`;
+  const go = document.getElementById('btn-mp-rejoin-go');
+  go.className     = `min-h-14 w-full rounded-2xl ${cfg.brandBtnClass} active:scale-95 text-white font-semibold text-lg transition-all duration-150`;
+  go.textContent   = 'Rejoin';
+  go.disabled      = false;
+  go.style.display = '';
+  document.getElementById('btn-mp-rejoin-cancel').textContent = 'Not now';
+  ov.style.display = 'flex';
+}
+
+function mpRejoinFromPrompt() {
+  const k = mpReadRejoinKey();
+  if (!k) { mpRejoinFailed('gone'); return; }
+  playLaunch();
+  const go = document.getElementById('btn-mp-rejoin-go');
+  go.disabled = true;
+  go.textContent = 'Getting you back in…';
+  mpArmRejoinTimeout();                  // also covers Firebase failing to load at all
+  syllyLoadFirebase(async () => {
+    try {
+      const r = await mpRejoinRoom(k.code);
+      if (!r.ok) mpRejoinFailed(r.reason);
+    } catch (e) {
+      console.error('[MP] rejoin failed:', e);
+      mpRejoinFailed('gone');
+    }
+  });
+}
+
 // Wired from the DOMContentLoaded block. Its own function so a harness can wire the
 // reconnect buttons without firing every other listener in that block.
 function mpWireReconnect() {
@@ -1391,6 +1429,13 @@ function mpWireReconnect() {
     document.getElementById('mp-away-overlay').style.display = 'none';
     mpNotifyPlayerLeft();                // the quit contract, unchanged
     resetToLobby();
+  });
+  document.getElementById('btn-mp-rejoin-go').addEventListener('click', mpRejoinFromPrompt);
+  document.getElementById('btn-mp-rejoin-cancel').addEventListener('click', () => {
+    playDone();
+    document.getElementById('mp-rejoin-overlay').style.display = 'none';
+    if (window.syllyMultiplayerMode !== 'single') mpAbandonSession();
+    mpClearRejoinKey();
   });
 }
 
@@ -3240,6 +3285,7 @@ async function mpReturnToLobby() {
 // ── Event Wiring ──────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   mpWireReconnect();
+  mpOfferRejoin();                       // a dropped player's one-tap way back (SW v236)
 
   // — Mode screen: back + exit —
   document.getElementById('btn-mp-mode-back').addEventListener('click', () => {

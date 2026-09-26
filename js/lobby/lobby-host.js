@@ -71,6 +71,18 @@ function lobbyGo(id) {
   lobbyDispatch({ t: 'go', view: id });
 }
 function lobbyButtonFor(gameId) { return document.getElementById(LOBBY_BTN_IDS[gameId] || ('btn-' + gameId)); }
+/* Everything that must stop when a game takes the screen while `view` stays put.
+   Shared by lobbyLaunch() and the reconnect prompt's rejoin (engine-multiplayer.js
+   mpApplyRejoinAccept), which enters a game WITHOUT a lobby button — so the two can
+   never drift. The Lounge's room is stopped too: at boot on a widescreen the prompt
+   sits over the Lounge with its room running, and only router state stops that loop
+   otherwise. lobbyApply resumes it on the way back (roomUp). */
+function lobbyLeaveForGame() {
+  const tvRoot = document.getElementById('tv-app');
+  if (tvRoot) tvDrop(tvRoot);
+  if (lobbyScene && typeof lobbyScene.stop === 'function') lobbyScene.stop();
+}
+
 /* Clicking the game's own lobby button runs its plugin's entry listener
    untouched — no plugin file knows these layouts exist (spec § 6). */
 function lobbyLaunch(gameId) {
@@ -80,8 +92,7 @@ function lobbyLaunch(gameId) {
      back to) — so TV's drift RAF and clock must stop here, not only when another
      layout is presented (logic-engine.md § Timer Lifecycle). lobbyPresent
      rebuilds TV on the way back. */
-  const tvRoot = document.getElementById('tv-app');
-  if (tvRoot) tvDrop(tvRoot);
+  lobbyLeaveForGame();
   btn.click();
   return true;
 }

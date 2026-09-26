@@ -381,6 +381,37 @@ const canvasParent = page => page.evaluate(() => (typeof ctlRenderer !== 'undefi
       await ctx.close();
     }
 
+    section('16 — the reconnect prompt over the real lobby (SW v236)');
+    {
+      const { ctx, page } = await open({ width: 1280, height: 800 });
+      await ctx.addInitScript(() => {
+        localStorage.setItem('sylly_rejoin', JSON.stringify({ code: 'ABCD', game: 'comb', ts: Date.now() }));
+      });
+      await page.goto(base); await booted(page); await settle(page, 400);
+      ok(await shown(page, 'mp-rejoin-overlay'), 'a fresh key opens the prompt over the Lounge');
+      ok(/Honeycomb Hills/.test(await page.evaluate(() => document.getElementById('mp-rejoin-heading').textContent)), '  …naming the game');
+      // 16b: an ACCEPT enters the game WITHOUT a lobby button — the room must stop, then come back.
+      await page.evaluate(() => {
+        window.syllyDeviceUid = 'uV';
+        mpApplyRejoinAccept({ game: 'comb', playerSlots: [{ uid: 'uH', nickname: 'Ali' }, { uid: 'uV', nickname: 'Bec' }, { uid: 'u2', nickname: 'Cam' }],
+                              mpLobbyStyle: 'individual', gameSettings: {} });
+      });
+      await settle(page, 300);
+      ok(!await shown(page, 'mp-rejoin-overlay'), '16b the prompt closed');
+      ok(await page.evaluate(() => !window.louDebug.isRunning()), '16b the Lounge room stopped when the game took the screen');
+      await page.evaluate(() => resetToLobby()); await settle(page, 800);
+      ok(await onlyLayout(page, 'lounge') && await page.evaluate(() => window.louDebug.isRunning()), '16b resetToLobby brings the Lounge back, running');
+      ok(await page.evaluate(() => localStorage.getItem('sylly_rejoin') === null), '16b teardown cleared the key');
+      await ctx.close();
+    }
+    {
+      const { ctx, page } = await open({ width: 1280, height: 800 });
+      await ctx.addInitScript(() => { localStorage.setItem('sylly_rejoin', '{not json'); });
+      await page.goto(base); await booted(page); await settle(page, 400);
+      ok(!await shown(page, 'mp-rejoin-overlay'), 'a corrupt key opens nothing and throws nothing');
+      await ctx.close();
+    }
+
     ok(errs.length === 0, 'no page errors on any device' + (errs.length ? ': ' + errs.slice(0, 5).join(' | ') : ''));
   } catch (e) {
     fail++; console.log('  FAIL harness threw: ' + (e && e.stack || e));

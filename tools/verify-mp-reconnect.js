@@ -659,6 +659,67 @@ async function startMatch(game, names) {
       check('no errors', errorsOf([back]), []);
     }
 
+    section('20. The boot prompt: one tap back into the seat');
+    {
+      const { host, clients, code } = await startMatch('rcgame', ['Ali', 'Bec']);
+      const back = reload(clients[0]);
+      back.run('mpWireReconnect(); mpOfferRejoin();');
+      ok('a fresh key opens the prompt at boot', back.shown('mp-rejoin-overlay'));
+      check('  …naming the game and the room', [back.el('mp-rejoin-heading').textContent, back.el('mp-rejoin-sub').textContent],
+            ['Back to Test Game?', `You dropped out of room ${code}. The table's waiting for you.`]);
+      ok('  …with Rejoin in the game\'s brand', back.el('btn-mp-rejoin-go').className.includes('bg-test'));
+      back.el('btn-mp-rejoin-go').click(); await flush();
+      check('one tap: back in seat 1', back.run('mpMyPlayerIdx'), 1);
+      ok('the prompt closed', !back.shown('mp-rejoin-overlay'));
+      check('the lobby was left through lobbyLeaveForGame()', back.S.__leftForGame, 1);
+    }
+
+    section('21. Not now: the key goes, the table keeps waiting');
+    {
+      const { host, clients } = await startMatch('rcgame', ['Ali', 'Bec']);
+      const back = reload(clients[0]);
+      back.run('mpWireReconnect(); mpOfferRejoin();');
+      back.el('btn-mp-rejoin-cancel').click();
+      ok('the prompt closed', !back.shown('mp-rejoin-overlay'));
+      ok('the key is gone', !back.phone.store.sylly_rejoin);
+      back.run('mpOfferRejoin();');
+      ok('so the next boot does not ask again', !back.shown('mp-rejoin-overlay'));
+    }
+
+    section('22. Checks 6.3–6.6 — keys the prompt must refuse, never throw on');
+    {
+      const cases = [
+        ['6.3 corrupt JSON',        '{not json'],
+        ['6.4 three hours old',     JSON.stringify({ code: 'ABCD', game: 'rcgame', ts: clock.now - 3 * 3600000 })],
+        ['6.5 a game without reconnect', JSON.stringify({ code: 'ABCD', game: 'plain', ts: clock.now })],
+        ['6.5b an unknown game',    JSON.stringify({ code: 'ABCD', game: 'nope', ts: clock.now })],
+      ];
+      for (const [label, raw] of cases) {
+        const phone = makePhone(); phone.store.sylly_rejoin = raw;
+        const d = boot('k', 'uK', phone);
+        d.run('mpWireReconnect(); mpOfferRejoin();');
+        ok(label + ': no prompt', !d.shown('mp-rejoin-overlay'));
+        ok(label + ': the bad key was cleared', phone.store.sylly_rejoin === undefined);
+        check(label + ': no errors', errorsOf([d]), []);
+      }
+      const phone = makePhone(); phone.store.sylly_rejoin = JSON.stringify({ code: 'ABCD', game: 'rcgame', ts: clock.now });
+      phone.setThrowing(true);
+      const d = boot('k', 'uK', phone);
+      d.run('mpWireReconnect(); mpOfferRejoin();');
+      ok('6.6 storage that throws: no prompt, no throw', !d.shown('mp-rejoin-overlay') && errorsOf([d]).length === 0);
+    }
+
+    section('23. A prompt for a match that has ended says so');
+    {
+      const { host, clients } = await startMatch('rcgame', ['Ali', 'Bec']);
+      const back = reload(clients[0]);
+      host.run('resetToLobby()'); await flush();          // the host ended it meanwhile
+      back.run('mpWireReconnect(); mpOfferRejoin();');
+      back.el('btn-mp-rejoin-go').click(); await flush();
+      check('the prompt explains', back.el('mp-rejoin-sub').textContent, 'That match has already wrapped up.');
+      ok('  …and the key is gone', !back.phone.store.sylly_rejoin);
+    }
+
     // ── Later tasks add sections 3+ here, above this line ──
 
   } catch (e) {
