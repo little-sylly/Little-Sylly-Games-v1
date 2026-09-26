@@ -581,6 +581,21 @@ async function startMatch(game, names) {
       check('no errors anywhere', errorsOf([host, back, c2]), []);
     }
 
+    section('15b. The rejoin itself marks the seat back — resume before the snapshot, presence or not');
+    {
+      const { host, clients } = await startMatch('rcgame', ['Ali', 'Bec', 'Cam']);
+      clients[0].net.kill();
+      advance(3000); await flush();
+      ok('seat 1 is Away', host.run('mpAwaySeats.has(1)'));
+      // MP_REJOIN and presence ride separate Firebase listeners: the rejoin can land first.
+      host.run(`mpHandleEnvelope({ type: 'ACTION', originId: 'u1', payload: { action: 'MP_REJOIN', version: 'vTEST' } })`);
+      await flush();
+      check('the seat is back without waiting on presence', host.run('[...mpAwaySeats]'), []);
+      check('resume() ran, and before the snapshot',
+            host.S.__rc.filter(x => x === 'resume' || x.startsWith('sendState')), ['resume', 'sendState:1']);
+      ok('the other client\'s overlay closed', !clients[1].shown('mp-away-overlay'));
+    }
+
     section('16. A rejoin that beats the Away mark is still accepted');
     {
       const { host, clients } = await startMatch('rcgame', ['Ali', 'Bec']);
