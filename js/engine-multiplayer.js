@@ -1180,8 +1180,71 @@ function mpShowAwayOverlay(seats, graceEndsAt) {
   ov.style.display = 'flex';
 }
 
-// Task 4 replaces this stub with the real grace window.
-function mpArmAwayGrace() {}
+function mpArmAwayGrace() {
+  if (mpAwayTimer) clearTimeout(mpAwayTimer);
+  mpAwayGraceEndsAt = Date.now() + MP_AWAY_GRACE_MS;
+  mpAwayTimer = setTimeout(mpAwayGraceExpired, MP_AWAY_GRACE_MS);
+}
+
+function mpAwayGraceExpired() {
+  mpAwayTimer = null;
+  if (!mpAwaySeats.size || window.syllyMultiplayerMode !== 'host') return;
+  // Say WHY first. resetToLobby()'s own HOST_END_GAME carries no reason, and a client
+  // keeps this copy because the plain packet never overwrites the text.
+  const name = mpAwayNames([...mpAwaySeats]);
+  try { mpSendEnvelope({ type: 'LOBBY', payload: { action: 'HOST_END_GAME', reason: 'dropped', name } }); } catch (_) {}
+  resetToLobby();
+}
+
+// The match is over for THIS device, but the room may not be (LOBBY_RESET).
+function mpEndMatchLocal() {
+  if (mpPresenceListener) { mpPresenceListener(); mpPresenceListener = null; }
+  mpRemovePresence();
+  mpClearAwayPending();
+  if (mpAwayTimer)   { clearTimeout(mpAwayTimer);   mpAwayTimer   = null; }
+  if (mpRejoinTimer) { clearTimeout(mpRejoinTimer); mpRejoinTimer = null; }
+  mpSeats = []; mpMatchLive = false; mpAwayGraceEndsAt = 0;
+  mpAwaySeats.clear();
+  mpShowAwayOverlay([], 0);              // also clears the countdown interval
+}
+
+// Everything reconnect owns, from resetToLobby(). Every deliberate exit ends here.
+function mpReconnectTeardown() {
+  mpEndMatchLocal();
+  mpClearRejoinKey();
+  const h = document.getElementById('mp-host-disconnected-heading');
+  const b = document.getElementById('mp-host-disconnected-body');
+  if (h) h.textContent = 'Host Disconnected';
+  if (b) b.textContent = "The host left the session. You'll be returned to the lobby.";
+  const r = document.getElementById('mp-rejoin-overlay');
+  if (r) r.style.display = 'none';
+}
+
+// ── sylly_rejoin — a POINTER to a session, never game state (the 4th localStorage
+//    exception, CLAUDE.md § Anti-Patterns). Written only for a game that adopts
+//    reconnect: for any other game a reload cannot be rescued, and a prompt would lie.
+function mpWriteRejoinKey() {
+  if (!mpActiveGameConfig?.reconnect || !mpActiveRoomCode || !mpActiveGame) return;
+  try {
+    localStorage.setItem(MP_REJOIN_KEY, JSON.stringify({ code: mpActiveRoomCode, game: mpActiveGame, ts: Date.now() }));
+  } catch (_) {}
+}
+
+function mpClearRejoinKey() { try { localStorage.removeItem(MP_REJOIN_KEY); } catch (_) {} }
+
+// Null unless the key is well-formed, fresh, and names a game that still adopts
+// reconnect. A bad key is cleared on the way past; a blocked store returns null.
+function mpReadRejoinKey() {
+  let raw = null, v = null;
+  try { raw = localStorage.getItem(MP_REJOIN_KEY); } catch (_) { return null; }
+  if (!raw) return null;
+  try { v = JSON.parse(raw); } catch (_) { v = null; }
+  const fresh = !!v && typeof v.code === 'string' && /^[A-Za-z0-9]{4}$/.test(v.code)
+    && typeof v.game === 'string' && !!MP_GAME_CONFIGS[v.game] && !!MP_GAME_CONFIGS[v.game].reconnect
+    && Math.abs(Date.now() - (Number(v.ts) || 0)) < MP_REJOIN_TTL_MS;
+  if (!fresh) { mpClearRejoinKey(); return null; }
+  return v;
+}
 
 // Wired from the DOMContentLoaded block. Its own function so a harness can wire the
 // reconnect buttons without firing every other listener in that block.
@@ -1416,6 +1479,13 @@ function mpHandleEnvelope(env) {
 
   if (env.type === 'LOBBY') {
     if (env.payload.action === 'HOST_END_GAME') {
+      mpShowAwayOverlay([], 0);
+      mpClearRejoinKey();                  // the session is over — never offer to rejoin it
+      if (env.payload.reason === 'dropped') {
+        document.getElementById('mp-host-disconnected-heading').textContent = 'Game Over';
+        document.getElementById('mp-host-disconnected-body').textContent =
+          `${env.payload.name || 'A player'} dropped out, so the game can't carry on. You'll be returned to the lobby.`;
+      }
       document.getElementById('mp-host-disconnected-overlay').style.display = 'flex';
     }
     if (env.payload.action === 'MP_AWAY_STATE' && window.syllyMultiplayerMode === 'client') {
@@ -1423,6 +1493,8 @@ function mpHandleEnvelope(env) {
       mpShowAwayOverlay(seats, Number(env.payload.graceEndsAt) || 0);
     }
     if (env.payload.action === 'LOBBY_RESET') {
+      mpEndMatchLocal();
+      mpClearRejoinKey();
       // Host is starting another round — return to join screen in a waiting state
       const codeChars = (mpActiveRoomCode || '----').split('');
       ['mp-join-c1','mp-join-c2','mp-join-c3','mp-join-c4'].forEach((id, i) => {
@@ -1463,6 +1535,7 @@ function mpHandleEnvelope(env) {
       mpSeats     = slots.map(p => p.uid);
       mpMatchLive = true;
       mpStartPresence();
+      mpWriteRejoinKey();
       // Navigate to the game's first screen — same path as Pass-the-Phone
       mpActiveGameConfig.onPassThePhone();
     }
@@ -2909,6 +2982,7 @@ function mpClientJoinRoom() {
         if (!roomSnap.exists() && window.syllyMultiplayerMode === 'client') {
           document.getElementById('mp-host-disconnected-overlay').style.display = 'flex';
           mpStopListeners();
+          mpClearRejoinKey();
           window.syllyMultiplayerMode = 'single';
         }
       });
@@ -2975,6 +3049,12 @@ function mpStartPlayersWatcher() {
 // ── Multiplayer play-again: return all devices to lobby ───────────────────────
 async function mpReturnToLobby() {
   if (window.syllyMultiplayerMode === 'host') {
+    mpEndMatchLocal();
+    // seats/presence describe the match that just ended — the next one may seat a stranger.
+    if (window.syllyFirebase && mpActiveRoomCode) {
+      try { window.syllyFirebase.remove(window.syllyFirebase.ref(`rooms/${mpActiveRoomCode}/seats`)); } catch (_) {}
+      try { window.syllyFirebase.remove(window.syllyFirebase.ref(`rooms/${mpActiveRoomCode}/presence`)); } catch (_) {}
+    }
     try {
       await mpSendEnvelope({ type: 'LOBBY', payload: { action: 'LOBBY_RESET' } });
     } catch (_) {}

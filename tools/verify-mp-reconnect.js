@@ -481,6 +481,77 @@ async function startMatch(game, names) {
       check('no errors', errorsOf([host]), []);
     }
 
+    section('10. A game without reconnect: 20 s of grace, then a reasoned end');
+    {
+      const { host, clients } = await startMatch('plain', ['Ali', 'Bec', 'Cam']);
+      const [c1, c2] = clients;
+      c1.net.kill();
+      advance(3000); await flush();
+      ok('the table is waiting', c2.shown('mp-away-overlay'));
+      check('with a countdown', c2.el('mp-away-sub').textContent, 'The game ends in 20s if they are not back.');
+      advance(19999); await flush();
+      check('the host has not given up yet', host.S.__resets, 0);
+      advance(1); await flush();
+      check('then the host ends the session', host.S.__resets, 1);
+      ok('the other client saw the disconnect overlay', c2.shown('mp-host-disconnected-overlay'));
+      check('  …with the reason', c2.el('mp-host-disconnected-body').textContent,
+            "Bec dropped out, so the game can't carry on. You'll be returned to the lobby.");
+      ok('  …and the away overlay closed', !c2.shown('mp-away-overlay'));
+    }
+
+    section('11. A blip inside the grace: back before the end, nothing lost');
+    {
+      const { host, clients } = await startMatch('plain', ['Ali', 'Bec']);
+      const [c1] = clients;
+      c1.net.drop();
+      advance(8000); await flush();
+      ok('Away after the debounce', host.run('mpAwaySeats.has(1)'));
+      c1.net.heal(); await flush();
+      check('back, and the grace was cancelled', [host.run('[...mpAwaySeats]'), host.run('mpAwayTimer')], [[], null]);
+      advance(30000); await flush();
+      check('the session did NOT end', host.S.__resets, 0);
+      ok('the overlay closed on the client', !c1.shown('mp-away-overlay'));
+    }
+
+    section('12. Deliberate quit still dissolves — the contract is untouched');
+    {
+      const { host, clients } = await startMatch('rcgame', ['Ali', 'Bec', 'Cam']);
+      const [c1] = clients;
+      c1.run('mpNotifyPlayerLeft(); resetToLobby();');
+      await flush();
+      check('the host dissolved the room', host.S.__resets, 1);
+      check('teardown left nothing running on the host',
+            [host.run('mpMatchLive'), host.run('mpPresenceListener'), host.timers.length], [false, null, 0]);
+    }
+
+    section('13. The rejoin key: adopters only, cleared by every deliberate exit');
+    {
+      const { host, clients } = await startMatch('rcgame', ['Ali', 'Bec']);
+      const [c1] = clients;
+      const key = JSON.parse(c1.phone.store.sylly_rejoin || 'null');
+      check('a client of an adopting game wrote the key', key && [key.code, key.game], [host.run('mpActiveRoomCode'), 'rcgame']);
+      ok('the host writes none', !host.phone.store.sylly_rejoin);
+      c1.run('resetToLobby()');
+      ok('resetToLobby() cleared it', !c1.phone.store.sylly_rejoin);
+      const plain = await startMatch('plain', ['Ali', 'Bec']);
+      ok('a non-adopting game never writes it', !plain.clients[0].phone.store.sylly_rejoin);
+      ok('engine.js resetToLobby() calls mpReconnectTeardown()',
+         /function resetToLobby[\s\S]*?mpReconnectTeardown\(\)/.test(fs.readFileSync(path.join(ROOT, 'js/engine.js'), 'utf8')));
+    }
+
+    section('14. LOBBY_RESET: the next match starts clean');
+    {
+      const { host, clients } = await startMatch('rcgame', ['Ali', 'Bec']);
+      const [c1] = clients;
+      host.run('mpReturnToLobby()'); await flush();
+      const code = host.run('mpActiveRoomCode');
+      check('seats and presence are gone from the room', [server.read(`rooms/${code}/seats`), server.read(`rooms/${code}/presence`)], [undefined, undefined]);
+      check('the client dropped its match state', [c1.run('mpMatchLive'), c1.run('mpSeats')], [false, []]);
+      ok('  …and its rejoin key', !c1.phone.store.sylly_rejoin);
+      c1.net.kill(); advance(10000); await flush();
+      check('a drop between matches marks nobody Away', host.run('[...mpAwaySeats]'), []);
+    }
+
     // ── Later tasks add sections 3+ here, above this line ──
 
   } catch (e) {

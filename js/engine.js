@@ -895,6 +895,7 @@ function resetToLobby() {
   window.mpLobbyRosterTeamNames    = null;
   window.mpLobbyRosterCaptainNames = null;
   document.body.classList.remove('mp-sync-locked');
+  if (typeof mpReconnectTeardown === 'function') mpReconnectTeardown();   // presence, away overlay, rejoin key (SW v236)
   ['mp-version-mismatch-overlay', 'mp-host-disconnected-overlay',
    'mp-lttp-message-interrupt-overlay', 'mp-network-error-overlay',
    'mp-host-prelobby-overlay', 'mp-roster-mismatch-overlay', 'ctl-how-to-overlay'].forEach(id => {
