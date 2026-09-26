@@ -55,211 +55,58 @@ layout per feature** (the stickerbook already does this at 720 px), not two sepa
 match through the frame and differ only inside it. Remaining work: Workshop wide layout, Jukebox
 room, stickerbook spine/book feel. Sequencing: after the lounge ships and is wired.
 
-## Lobby redesign — TV mode next, then the implementation round (15 Sep 2026, corrected)
+## Lobby redesign — production shipped, what's left is polish and a few owner decisions
 
-**Deliberately deferred, not blocked.** The Shelves round (`wip/lobby-lab/`) is done —
-sandbox built, screenshot-verified, all owner decisions recorded in
-`wip/lobby-lab/OWNER-REVIEW.md` and `wip/lobby-lab/DESIGN-NOTES.md`.
+**The initiative (Shelves → TV mode → Premium/Lounge → production wiring) is DONE**, shipped across
+SW v231–v235 (25–26 Sep 2026). Full design/build history — the Shelves and TV sandbox rounds, the
+Premium greybox and two re-blocks, Scene B's redefinition to a one-way phone handoff, the prop
+quality rounds, the production-wiring plan and its bug fixes (BUG-19, DD-14/16/18/19/42/43/44/46) —
+lives in the specs/plans under `docs/superpowers/{specs,plans}/2026-09-*-premium-*` and
+`shared-implementation-notes.md`; not repeated here. What remains open:
 
-**Correction, 15 Sep 2026 (same day, later in the round).** This entry originally read "build-step
-(Shelves) → TV-mode sandbox round → build-step (TV mode)", which silently reversed a recorded
-owner decision. `wip/lobby-lab/OWNER-REVIEW.md` item 6 and `DESIGN-NOTES.md` both say **TV mode
-comes first** — "the owner wants to build TV mode first (before their Fable window closes)". The
-plan below is the corrected order.
-
-**Naming collision, also fixed here.** The word "build-step" in the original entry meant *the
-lobby's implementation round* — turning the finished Shelves/TV design into real, live-wired
-screens. A second, unrelated thing is also called "build-step" elsewhere in this project:
-`docs/cost-envelope.md` § 7 and `docs/superpowers/specs/2026-09-15-index-decomposition-design.md` use it
-for the `index.html` → `src/screens/` assembly work (Lever A), which is now **done** — see
-`docs/decision-log.md`. **From here on, "build-step" means only the `index.html` assembler.** The lobby
-entry below says **"the lobby implementation round"** throughout instead.
-
-**The plan, corrected order:**
-1. **TV-mode sandbox round** (Fable, design mode) — the host-display look-and-feel for the lobby.
-   Scoped 15 Sep 2026: it serves wide browsers and actual TVs, and its real job is to host the
-   lobby while players connect on their own phones — shared info: who has joined, the room code,
-   whose turn it is, logs. This round covers **the lobby's** host state only — no game has host
-   screens yet and none of that data exists, so anything in-game would be designed against
-   imagined state. Leave one honest, clearly-marked seam for in-game host content later. **A
-   ready-to-paste Fable prompt for this round exists — see the owner's session for the full text
-   (drafted 15 Sep 2026); paste it into a fresh Fable session to start.**
-2. **The lobby implementation round** — Shelves and TV both wired live: the four-slot switcher
-   shell for real, Shelves and TV built against real data, Original kept working. Premium stays an
-   honest placeholder (OWNER-REVIEW.md item 6).
-   - **Premium is now specced (18 Sep 2026):** `docs/superpowers/specs/2026-09-18-premium-lounge-scene-design.md`
-     — a cinematic lounge *hub* (TV → TV mode, phone → Shelves, controller → Workshop, dial →
-     Random Game into TV mode), fully procedural under `wip/premium/`. Greybox is its own round
-     after this one; it depends on TV mode existing to hand `enterTV(gameId)` to.
-   - **Greybox BUILT (19 Sep 2026)** — `wip/premium/`, sandbox only: nothing in `index.html`,
-     `sw.js`, `src/screens/` or `js/` was touched. Four files (`prm-lib`, `prm-room`, `prm-props`,
-     `prm-scene`), 297 checks in `node wip/premium/verify-prm-props.js` and 12 in the Playwright
-     driver `visual-prm.js`. **Owner review is the gate:** `wip/premium/OWNER-REVIEW.md`, six
-     questions with screenshots. **Escape hatches (spec D2): none taken** — the couch arm,
-     curtain, wallpaper and lamp shade all stay procedural; each read well enough in
-     `shots/wide-1920.png` that a painted plate would have cost an asset and a runtime-cache
-     entry for nothing. The one colour call I made rather than inherited is the rug
-     (`#f1ebe1` → `#ddd0bb`), flagged as review question 6.
-   - **Re-block BUILT (19 Sep 2026)** — steps 1–6 shipped in `wip/premium/`, sandbox only.
-     **365** checks in `node wip/premium/verify-prm-props.js` and **18** in `visual-prm.js`, all
-     green. Mean frame luma 124 (band 60–150), brightest/darkest patch 2.5x (floor 2.2x). The gate
-     is now `wip/premium/OWNER-REVIEW-2.md` — one question, does it pass the ninety-second test.
-     **Production wiring still waits behind it.** Two things flagged there rather than resolved:
-     **Scene B's framing no longer matches its spec** (at 9:16 the frame spans ~0.7 m and the
-     controller now sits on the couch, so "controller is the hero" cannot hold both it and the game
-     props), and three judgement calls on the plant, the couch colour and the cattail palette.
-   - **Owner review ANSWERED, re-block SPECCED (19 Sep 2026).** Verdict: reads as a diorama
-     but not a cosy one — the room is ~3× too deep, the camera ~2.7 m from the table, and
-     nothing in frame is in shadow. Re-block spec:
-     `docs/superpowers/specs/2026-09-19-premium-lounge-reblock-design.md` (overrides the
-     original's §§ 3, 6, 7.1, 7.2, 7.6): compress the box, sit on the couch, window-as-key on
-     the left (floor lamp dropped, plant on the sill, drawn curtain with a slit), Saturday-
-     afternoon exposure, droopy-ear TV, cat-jar jukebox, round jute rug, photo lamp to the
-     shelves, table off-centre. **Plan not yet written. Production wiring waits behind the
-     re-block** — the ninety-second test is the gate, not the harness.
-   - **Sandbox wiring is done (19 Sep 2026)** — `wip/lobby-lab/shell.html` joins the two
-     sandboxes: one full-window page hosting all four lobby layouts, the Premium room's props
-     wired as real doors between them, and — under `?live` — the controller prop reaching the
-     shipped `ctlOpenWorkshop()`. 134 checks in `node wip/lobby-lab/verify-shell.js`, 57 in the
-     Playwright driver `visual-shell.js`, both green; `verify-lounge.js` (919) and
-     `verify-prm-props.js` (409) confirmed unmoved. Spec:
-     `docs/superpowers/specs/2026-09-19-premium-shell-wiring-design.md`.
-   - **Production wiring is DONE — shipped as SW v231 (25 Sep 2026).** All four layouts, the Lounge
-     first, every exit through `lobbyShow()`. Plan
-     `docs/superpowers/plans/2026-09-25-lobby-production-wiring.md`, record
-     `shared-implementation-notes.md` DD-42. **What it leaves open** (spec § 13 + the round's own):
-     - **Controller animation round — owner-prioritised.** The ornament and the Lounge's prop both
-       idle-static in v1 (only the existing idle nudge moves the ornament).
-     - **Stickerbook earning** — the earn loop, the toast, placement, and the **localStorage key** it
-       will need (a new permitted key — `CLAUDE.md` § Anti-Patterns; an owner decision). The pure
-       reducer ships and is harnessed (`tools/verify-achievements.js`), waiting. Put its data source
-       behind one module (cost-envelope § 4, the Tier 3 seam).
-     - **Stickerbook on phones** — phones never see the Lounge, so they cannot reach the book in v1.
-       Planned: its own layout icon in Shelves' dock (the 🏆 slot, removed in v1) and TV's header.
-     - **The fourth layout's label** — "Original" until the owner renames it ("Classic" / "The
-       List" floated). One string in `LOBBY_LAYOUTS`; the id stays `original`.
-     - **Jukebox feature** (the owner's next round) — the `openJukebox` door and `jukebox-knob` tab
-       order. v1's jukebox only lights with the real music and picks nothing.
-     - **The owner's real-device pass** — desktop, a phone and the TV — before the phase snapshot. No
-       harness sees a real GPU, touch, or how the Lounge feels.
-     - **Archive `wip/lobby-lab/` + `wip/premium/` out of the repo** (spec § 11.3). Safe: nothing in
-       `js/`, `css/`, `src/`, `data/`, `sw.js` or `tools/` loads from `wip/`, and the five ported
-       harnesses were re-run green, identical counts, in a copy of the app with no `wip/` in it (plan
-       Task 12 Step 5 — the in-place rename was refused by Windows: something held a file open in `wip/`).
-   - **Production v1 scope, owner-decided 21 Sep 2026:** **all four layouts, Premium included**,
-     as **new screens beside `screen-lobby`** (today's lobby survives untouched as the "Original"
-     layout; the switcher picks). Chosen over a phone/TV-first round and over rebuilding
-     `screen-lobby` to swap panes internally.
-   - **⚠️ …but Premium is the DEFAULT and first view, so this is additive in MARKUP only, NOT in
-     routing** (owner clarification, 21 Sep 2026 — it corrects this entry's own first draft, which
-     claimed `resetToLobby()` was untouched). Four shipped sites land on the lobby today and every
-     one of them has to land on the layout router instead: **`engine.js:889` `resetToLobby()` —
-     which every one of the 20 games' exit paths calls** — `secret-mode.js:1115` and `:1131` (the
-     Konami/Terminal returns), and `controller.js`'s idle-nudge "is the lobby on screen" check.
-     Treat the router as a **single seam**, the same shape as `showScreen()` being the one music
-     seam: fix it once and all 20 games inherit it. This is the highest-blast-radius item in the
-     whole initiative.
-   - **Prop quality rounds — OUTLINE WRITTEN, 22 Sep 2026:**
-     `docs/superpowers/plans/2026-09-22-premium-prop-quality.md`. **Rounds 1–3 done (TV, dial,
-     jukebox shape pass, 23 Sep)** — live progress is the plan's § 2 checklist, not this line. At
-     the outline's writing the props were still **greybox**,
-     and the owner's read was that this is not polish — some shapes are simply wrong. Owner-set
-     order: **TV → dial → jukebox → phone → binder → lamp → shelf contents**, then the room.
-     One prop per round, one session each; the owner re-provides that prop's rendered mockup
-     **in-session** (the `Gemini_Generated_Image_*.jpg` files in `wip/premium/` may be stale — do
-     not treat them as the reference). The bar is **controller quality, fully procedural**: the
-     measured gap is geometry density plus a canvas-drawn bump map, and `role()` already matches
-     `ctlShellMat` on roughness and metalness, so **zero install bytes**. Stickers are out of scope
-     for every prop but the controller. Two things recorded there rather than decided: the TV's
-     dials may be doors its mockup lacks, and Scene B may need a re-tune after the phone round
-     (owner: finish the phone first, then decide). **Also carries a real bug to fix in round 1** —
-     `shadowDirty` is never set by any prop's `tick()`, so every animated prop runs against a
-     frozen shadow map (the binder's open-delay).
-   - **Scene B — BUILT IN THE SANDBOX, 22 Sep 2026.** `wip/lobby-lab/shell.html` now detects the
-     tier, mounts the room **lean** (no controller prop), plays the arrival beat and hands one way
-     to Shelves; `prm-scene.js` gained `api.arrive()`, `prmCanArrive()` and `prmArriveMs()`.
-     **TWO outcomes, not three** (owner, 22 Sep): the interactive lounge, or the Shelves. A device
-     with no WebGL / `prefers-reduced-data` is not a third tier — it reaches the same Shelves
-     without the beat. **The honest card is retired from the shell** (it survives only in
-     `wip/premium/index.html`, which has nowhere to hand anyone to). The live-vs-pre-rendered
-     question below is **SETTLED: live**, because the controller prop alone was 87% of the low-end
-     mount cost and is out of the portrait framing anyway — skipping it buys −65% at CPU 4× for
-     zero new assets. Harnesses: verify-shell 134→165, verify-prm-props 409→432, visual-shell
-     69→87. Detail: `shared-implementation-notes.md` DD-19. **Still sandbox only — nothing
-     shipped, no SW bump.** The paragraph below is kept for the framing it records.
-   - **Scene B REDEFINED (owner, 21 Sep 2026) — it is a one-way handoff, not a portrait lounge.**
-     The spec's § 12 (`2026-09-18-premium-lounge-scene-design.md`) designs a portrait-*playable*
-     room: a portrait HUD, a keycap in thumb reach, and a fade between Scene B and Shelves **in
-     both directions**. That is not what is wanted. **A phone can never stay in the lounge** —
-     dimensions and low-end specs both rule it out — so it gets a **preset scene (an auto-pan to
-     the clamshell prop, or some other scripted beat) and is handed to the Shelves layout, one
-     way.** This DELETES the portrait HUD and the return path rather than deferring them; § 12 is
-     superseded. **Three tiers, not two:** widescreen + WebGL → interactive lounge; phone with a
-     working context → preset arrival, pan, handoff; no WebGL / `prefers-reduced-data` / too weak
-     → no lounge at all, straight to Shelves. **Open design question for that round:** whether the
-     transition is worth building the live scene for on a low-end phone at all, or whether it
-     should be a pre-rendered beat — the owner left it as "auto pan or something else".
-     **ANSWERED 22 Sep 2026: live, with the controller prop omitted.** See the entry above.
-   - **Measured install delta for that scope: ~581 KB on a ~5.0 MB precache (+11.6%).** Runtime
-     files only, harnesses excluded: Premium scene modules (`prm-lib`/`prm-props`/`prm-room`/
-     `prm-scene`) ~90 KB · **lamp images ~310 KB (9 JPEGs, ~34 KB each)** · lobby/TV layers
-     (`games.js`, `lobby.css`, `lobby.js`, `lounge.js`, `shell-host`, `shell-router`) ~181 KB.
-     **`three.min.js` is already precached, so the 3D room adds no library bytes** (DD-16's
-     measured finding). The lamp images are over half the delta and are the obvious lever —
-     `docs/cost-envelope.md` § tiers says an asset addition this size is a
-     propose-the-number decision, and runtime-caching them the way `data/music/` is cached
-     (manifest network-first, media cache-first) would cut the precache delta to ~271 KB.
-     **The spec must propose a number here; do not just add them to `PRECACHE_URLS`.**
-   - **`ctlReturnScreen` — DONE, 21 Sep 2026.** `ctlOpenWorkshop(opts)` now takes
-     `{ returnScreen, onReturn }` and `ctlCloseWorkshop` no longer hardcodes
-     `showScreen('screen-lobby')`; the sandbox's monkey-patch is deleted and `visual-shell.js`
-     went 63 → 69. **`js/controller.js` is therefore modified and NOT SW-bumped** — held for this
-     initiative's single combined ship (§ 3 below), which is safe only because the change is a
-     behavioural no-op for every shipped call site. See `shared-implementation-notes.md` DD-18.
-   - **Registering Premium in `allScreens[]` is still outstanding, and is a SEPARATE prerequisite**
-     — DD-16 framed it as an alternative to `ctlReturnScreen` and that was wrong. `allScreens[]`
-     governs *hiding*: whatever round creates `screen-premium` must add it there or it becomes a
-     ghost screen that never hides (`logic-engine.md` § Screen Routing). Production also passes
-     `returnScreen: 'screen-premium'` at the lounge's call site — the half that can only exist
-     once that screen does.
-   - **The production switcher must hide panes by inline `style.display`, not the `hidden`
-     attribute** — the sandbox hid panes with `hidden` and one id-level `display:flex` rule beat
-     the attribute's stylesheet rule outright, leaving a pane lit over the lounge while five
-     harnesses stayed green (fixed 21 Sep 2026; `shared-implementation-notes.md` BUG-19). Shipped
-     `showScreen()` already writes inline `style.display`, which nothing in the cascade can lose
-     to — follow its shape rather than porting the sandbox's toggling across.
-   - **`jukebox-knob` is deliberately absent from `PRM_TAB_ORDER`** — keyboard reach is a
-     question for the round that builds the karaoke/jukebox feature, not this one.
-   - **The jukebox/karaoke feature itself is undecided** — the door exists (`openJukebox`,
-     optional), nothing supplies it. The knob turns and does nothing else.
-   - **The env map is a finding for the shipped controller, not just the lounge** — see the
-     Controller Workshop entries below and `shared-implementation-notes.md` DD-14.
-   - **Stickerbook feature (owner vision, 18 Sep 2026).** The lounge's yellow binder is the
-     planned door to a stickerbook that is collection + record + progress + achievements: play to
-     earn stickers, earned stickers go on the controller via the Workshop. Gets its own layout-mode
-     icon later. Spec § 7.7 keeps the door dormant (`openStickerbook` optional); no feature built.
-   - **Scene B (Premium on phones) — DO NOT FORGET. ⚠️ REDEFINED 21 Sep 2026 — read the Scene B
-     entry above before using anything in this bullet.** Owner instruction, 18 Sep 2026: widescreen
-     only for v1, *but* a phone arriving at Premium needs a real path and a transition. Designed
-     in the spec's § 12 (same scene graph, a second camera preset + portrait HUD, fades not
-     push-ins); shows the honest "wants a bigger screen" card until it is built. Its own round,
-     after the greybox has been seen. **The § 12 design is now superseded**: a phone can never stay
-     in the lounge, so there is no portrait HUD and no return path — the transition is one-way to
-     Shelves. **This is the next round to build, and it is sandbox wiring, not art** (owner, 21 Sep
-     2026): it is a routing behaviour, so it can be proven against the greybox before the quality
-     pass, and the art pass then never has to be redone around it.
-3. **One combined ship** — one Documentation Integrity Protocol pass, one SW version bump, one
-   phase snapshot for the whole lobby-redesign initiative, not two release cycles for one
-   initiative.
-
-**Budget note (15 Sep 2026):** ~A33 of the ~USD 100 Fable allocation remained after Shelves
-(which used only ~A2). TV mode is estimated at A5–55, comfortably inside what is left.
+- **Stickerbook earning** — the earn loop, the toast, placement, and the **localStorage key** it
+  will need (a new permitted key — `CLAUDE.md` § Anti-Patterns; an owner decision). The pure reducer
+  ships and is harnessed (`tools/verify-achievements.js`), waiting. Put its data source behind one
+  module (cost-envelope § 4, the Tier 3 seam). See also the **Stickerbook achievements** section
+  above, where the owner already answered most of the design questions (23 Sep 2026).
+- **Phone entry point for the jukebox AND the stickerbook — the next lobby round.** Both are
+  reachable only through a Lounge door, and phones never keep the Lounge. One answer for both: an
+  entry in Shelves (the old 🏆 dock slot) and TV's header. Each must go through a router action
+  (never a direct `showScreen`), and `jukeboxClose`/`stickerbookClose` must still return to the
+  layout they were opened from — today both assume the Lounge in practice. `css/jukebox.css`
+  already has a <860 px single-column layout, never tested on a real phone. Read first: DD-44 +
+  DD-42 in `shared-implementation-notes.md`, `lobby-host.js` (Grep `lobbyOpenJukebox`,
+  `lobbyOpenStickerbook`). Opus, high.
+- **Jukebox open items (owner calls):** the artist is a stand-in ("Sylly House Band", every track);
+  the Eerie Night Sky and Harmonium Hums covers look like stand-ins; the **soft-lock** flag
+  (`locked`) is carried and drawn (🔒, dimmed, a toast) but wired to nothing — it wants the
+  stickerbook's earn loop and its storage key; songs are 1.2–5.7 MB against music's ~1.5 MB
+  ceiling (runtime-cached, install untouched) — whether the masters in `data/music/New folder/`
+  stay in git is still open; the Lounge's cat shows a song's title on its little screen — whether it
+  should also show "paused" is a feel call for the real-device pass. **Songs are provisional** —
+  the owner generates a few a day, so the catalogue will keep churning; replacing one is the master
+  file + `node tools/encode-music.js` + one manifest line, no `sw.js` edit either way.
+- **The owner's real-device pass** — desktop browser confirmed clean (26 Sep 2026); a phone and the
+  TV are still outstanding, owner's call to pick up later. No harness sees a real GPU, touch, or how
+  the Lounge feels — any issue that pass turns up gets logged here when it happens. This also
+  includes the controller idle animations' feel (cadence, rumble loudness, whether the pairing glow
+  reads — DD-43) and the Workshop's Tool Belt phone layout (DD-46), both code-complete and
+  harness-green but never felt on hardware.
+- **Prop quality rounds** — TV, dial and jukebox shape passes are done (23 Sep 2026); remaining
+  owner-set order: **phone → binder → lamp → shelf contents**, then the room itself. One prop per
+  round; plan: `docs/superpowers/plans/2026-09-22-premium-prop-quality.md` § 2 checklist.
+- **Archive `wip/lobby-lab/`, `wip/premium/`, `wip/jukebox-lab/` and `wip/workshop-lab/` out of the
+  repo** (spec § 11.3). Safe: nothing in `js/`, `css/`, `src/`, `data/`, `sw.js` or `tools/` loads
+  from `wip/`, and the ported harnesses were re-run green, identical counts, in a `wip/`-free copy
+  of the app.
 ## Controller Workshop — rotate-to-sticker's ear precision (14 Sep 2026, SW v230)
 
-**Also open, from the Premium greybox (19 Sep 2026):** `ctlBuildScene()` sets no
-`scene.environment`, which is why the Workshop's matte plastic reads flatter than the same
-materials do in `wip/premium/`. Zero-asset fix, ~15 lines — `shared-implementation-notes.md`
-DD-14 and `prmBuildEnvMap()` in `wip/premium/prm-scene.js`.
+**RESOLVED 26 Sep 2026 (DD-14).** `ctlBuildScene()` set no `scene.environment`, which is why the
+Workshop's matte plastic read flatter than the same materials do in `wip/premium/`. Fixed with a
+~15-line port of `prmBuildEnvMap()` (four emissive planes through `THREE.PMREMGenerator`, zero
+assets) into `ctlBuildScene()` itself, tuned to the controller's own three-point light rig rather
+than the Lounge's palette. `visual-controller-stickers.js` (59 checks, real Chromium/WebGL) confirms
+no page errors and the ornament still paints correctly.
 
 Picking a placed sticker from the book now rotates the model to face it (`ctlStickerGoToModel` in
 `js/controller.js`) — general `atan2` aim math against the local surface normal, not a per-surface
@@ -419,70 +266,27 @@ of this item.
 **When picked up:** it is an *engine* task (`js/engine-multiplayer.js` + the harness), not a game task.
 Model + effort: **Opus, high** — it is a cross-cutting contract change.
 
-## ⬆ HIGH PRIORITY — JEC and CJAR brand colours vs the new Honeycomb Hills gold (Q22, 6 Sep 2026)
+## JEC and CJAR brand colours vs Honeycomb Hills gold (Q22, 6 Sep 2026) — RESOLVED
 
-**Status:** owner-approved, logged at the owner's explicit request (*"yes log it in deferred work also
-high priority"*). Raised as **Q22** in `docs/new-game-tech-honeycomb-hills.md` §16.
-
-**The problem.** The lobby sorts its keycaps by hue (`LOBBY_COLOUR_ORDER`, `js/engine.js`). Game 20
-inserts a third warm gold into a span barely 6° wide:
-
-| Slot | Game | Colour | Hue |
-|---|---|---|---|
-| n | **JEC** (Just Enough Cooks) | amber-500 `#f59e0b` | **37.7°** |
-| n+1 | **COMB** (Honeycomb Hills) — new | `#F0A500` | **41.3°** |
-| n+2 | **CJAR** (Cookie Jar) | `#D4A017` | **43.5°** |
-| n+3 | FRT (Fruit Salad) | `#FFE500` | 53.9° |
-
-Three adjacent keycaps within **5.8°** of each other. Individually each is a good colour; stacked in
-the lobby they read as one smear rather than three games, which defeats the point of sorting by colour
-at all.
-
-**The brief's proposal (Q3): move JEC off amber-500, and move CJAR to chocolate.** Neither is decided —
-CJAR's honey-gold in particular is tied to its identity (a *cookie jar*), so "chocolate" needs to be
-weighed as an identity change, not just a hue nudge. That is the call this item is holding open.
-
-**Not blocking, and explicitly not game 20's job to fix.** COMB ships `#F0A500` and takes its
-`LOBBY_COLOUR_ORDER` slot between `btn-jec` and `btn-cjar` as specced. Logged so the crowding is a known
-decision rather than something re-discovered later as drift.
-
-**Blast radius if actioned** — per game, and this is why it is not a two-line change: brand hex in
-`css/styles.css` (CTA + hover, `pill-active-*`, `game-toggle-on-*`, `*-range` gradient ×3, label tone,
-modal border, settings light tint), the `MP_GAME_CONFIGS` `brandBtnClass`/`ctaTextClass`, the identity
-doc, `docs/rules/per-game-classes.md` Tables A/C, and `LOBBY_COLOUR_ORDER` if the hue moves far enough
-to change the sort position. **Also check ink:** `#f59e0b` and `#D4A017` are light fills using dark ink,
-and a darker replacement may flip that — which collides with the **open FRT + CJAR ink-mismatch item
-below** (2 Sep 2026). **Do these two together**; fixing one without the other means touching CJAR's
-palette twice.
-
-**When picked up:** decide the *identities* first (does CJAR want to be chocolate?), then do JEC and
-CJAR in one pass with the ink item. Model + effort: **Sonnet, medium** for the mechanical sweep once
-the colours are chosen; the choice itself is an owner call, not a model call.
+**Confirmed 26 Sep 2026.** The three-way hue crowding this item flagged (JEC amber-500 37.7° / COMB
+`#F0A500` 41.3° / CJAR `#D4A017` 43.5°, all within 5.8° of each other) no longer exists: JEC is now
+slate-600 (steel) and CJAR is chocolate-brown `#5C3A21`. Both moves happened as part of other work
+without this note being closed. No action needed.
 
 ---
 
-## `screen-mp-mode`’s offline warning promises Pass-the-Phone to games that have none (7 Sep 2026)
+## `screen-mp-mode`'s offline warning — RESOLVED 26 Sep 2026
 
-**Found:** walking COMB’s entry path in `visual-check` after the chunk-4 packet layer landed.
-
-`screen-mp-mode` carries the line **“No internet connection — Pass-the-Phone only.”**, shown when the
-device is offline. For an **MDLM-only** game that is not a fallback, it is a dead end: `supportedModes`
-is `[‘mdlm’]`, so there is no Pass-the-Phone path to fall back TO. The player is told to do something
-the game cannot do, and no other copy on the screen corrects it.
-
-**Affects all eleven MDLM-only games** — BLD, GTH, DYB, PASS, FRT, SHP, FLW, PKO, CJAR, CLD and now
-COMB (every entry whose `supportedModes` is exactly `['mdlm']`) — not COMB alone, which is why it is
-parked rather than fixed inside a COMB chunk. It is engine copy in `index.html`, not a per-game string.
-
-**Suggested fix (one sitting, Tier 1):** branch the line on `supportedModes`. A game with a PTP path
-keeps the current wording; one without gets the honest version — something like *“This one needs
-everyone online. Reconnect and try again.”* Worth checking at the same time whether the two lobby
-buttons should be disabled rather than merely unexplained.
-
-**Not urgent:** the app is a PWA and the case only arises offline, where the player already knows
-something is wrong. It is a copy defect, not a broken path.
+For an MDLM-only game, the offline notice on `screen-mp-mode` used to say *"No internet connection —
+Pass-the-Phone only"* even though `supportedModes` is `['mdlm']` and there is no Pass-the-Phone path
+to fall back to. `mpShowModeScreen()` (`js/engine-multiplayer.js`) now branches the copy on
+`cfg.supportedModes.includes('ptp')`: a game with a PTP path keeps the original wording, one without
+gets *"This one needs everyone online. Reconnect and try again."* The Host/Join buttons were already
+correctly dimmed by `mpBuildModeSection`'s existing `dimmed = isLobby && !online` — only the copy
+needed fixing.
 
 ---
+
 ## Cold Shoulder (CLD) — phase 40 gate still OPEN + two presentation follow-ons (4 Sep 2026, SW v219 → v221)
 
 Game 19 shipped through Stage 6 (documentation closure). Every headless harness and the two-client
@@ -507,70 +311,37 @@ loopback pass. **Not yet done:**
 
 Snapshot: `docs/phase40-snapshot.md`.
 
-## FRT + CJAR in-game CTAs still use dark ink while their lobby keycaps use white (2 Sep 2026)
+## FRT + CJAR in-game CTAs vs lobby keycap ink — RESOLVED
 
-**Status:** approved by the owner, deliberately deferred — it is not the two-button change it looks like.
-
-**What's inconsistent.** SW v216 gave FRT and CJAR white labels on their **lobby keycaps** only —
-`#btn-frt` carries `text-white`, and `#btn-cjar` gets `#btn-cjar { color: #ffffff }` overriding
-`.cjar-cta`'s near-black. The comment at `css/styles.css:2105` is explicit that this is "Lobby
-keycap only… without touching in-game CTAs." Every other brand-fill button in both games is still
-dark ink, so each game now reads two ways depending on which screen you are on.
-
-**The owner has confirmed white as visually acceptable on both fills** and wants them brought into
-line. This was raised while settling Cold Shoulder's own brand (`#8ECAE6`, white everywhere —
-`new-game-brief-cold-shoulder.md` §1), which set the precedent this would align to.
-
-**Why it is deferred: the scope is ~10 sites, not 2.** FRT alone has eight dark-ink brand-fill
-buttons:
-
-| File | Site |
-|---|---|
-| `index.html:8042` | `btn-frt-menu-play` |
-| `index.html:8094` | `btn-frt-go-again` |
-| `index.html:8167` | `btn-frt-settings-done` |
-| `index.html:8223` | `btn-frt-howto-close` |
-| `index.html:8233` | `btn-frt-howto-close-cards` |
-| `index.html:8246` | `btn-frt-quit-confirm` |
-| `index.html:8260` | `btn-frt-new-confirm` |
-| `index.html:8341` | `btn-frt-personalities-close` |
-| `css/styles.css:2103` | `.cjar-cta { color: #292524 }` — covers every CJAR in-game CTA at once |
-| `js/engine-multiplayer.js:352` | FRT `ctaTextClass: 'text-stone-800'` |
-| `js/engine-multiplayer.js:444` | CJAR `ctaTextClass: 'text-stone-800'` |
-
-**Three things to respect when picking this up:**
-
-1. **All or nothing per game.** Changing only the Play CTA leaves FRT with white on one button and
-   dark on seven — visibly worse than either extreme. This is the reason it wasn't done as a quick fix.
-2. **Use a Node script, not Edit calls.** Eight `index.html` sites is a systematic change, and the
-   standing encoding rule applies — Edit-tool sweeps of `index.html` have produced UTF-8 mojibake before.
-3. **A measurement is being overridden, knowingly.** `engine-multiplayer.js:442` records "#D4A017
-   measures 2.38:1 against white — below the 3:1 floor", and white on FRT's `#FFE500` is worse still.
-   The owner's visual confirmation supersedes it, but **replace that comment rather than deleting it** —
-   the next reader needs to know the number was considered, not missed. Both games' fills sit behind
-   `.gel-btn`'s dark base gradient and label text-shadow on the surfaces that matter, which is what
-   makes it legible in practice; any *flat* brand-fill surface should gain a matching text-shadow.
-
-**Closing it needs:** the ~10 edits, an SW bump (with the outgoing entry moved verbatim to
-`sw-changelog.md`), and updates to `docs/rules/per-game-classes.md:105` and `logic-engine.md`'s
-`ctaTextClass` row, both of which currently cite FRT and CJAR as the examples of dark-ink fills.
+**Confirmed 26 Sep 2026.** The 10 Sep 2026 suite-wide white-ink sweep (`ui-style.md` § Action Button
+Standard → "Locked per-game button scheme") closed this: no game sets `ctaTextClass` any more, and
+every brand fill — including FRT and CJAR's — carries white ink consistently across lobby keycap
+and in-game CTAs. No action needed.
 
 ---
 
-## Music — the architecture shipped, the content has not (28 Aug 2026, SW v212)
+## Music — the architecture shipped, the Sylly wiring is now DONE (28 Aug 2026 → 27 Sep 2026)
 
-`js/lib/music.js` and the `data/music/` contract are live and verified. What is parked:
+`js/lib/music.js` and the `data/music/` contract are live and verified. **All three Sylly Mode
+tracks steps are DONE as of 27 Sep 2026** — SHP, PKO and FRT's matches now play their own Sylly
+track. What is parked:
 
-- **3 of 18 games now have a track of their own — LI5, Great Minds, Secret Signals (30 Aug 2026).**
-  The other 15 still fall back to the lobby theme, which is the designed behaviour, not a bug.
-  Prompts for all 18 are written and ready to generate: `docs/music-prompts.md`. Shipping one is:
-  generate → trim to a loop → drop `data/music/<activeGameId>.mp3` in → add one manifest line. No
-  code, no SW bump.
-- **All four shipped tracks are well over the ~1.5 MB per-track ceiling** (`lobby.mp3` 5.46 MB,
-  `li5.mp3` 4.32 MB, `gm.mp3` 3.52 MB, `ss.mp3` 6.04 MB — ~19.3 MB combined). Shipped as-is
-  deliberately so there is something playing today. Needs a trim to 60–120 s loops at ~128 kbps
-  before the track count grows further — cache-first means the cost is a one-off download per
-  device per game played, but it compounds as more tracks ship untrimmed.
+- **19 of 20 games now have a track of their own.** LI5/Great Minds/Secret Signals keep their
+  original encodes; the other 16 point straight at their jukebox base file
+  (`"file": "jukebox/<id>.mp3"`, no duplicated audio). **The Bluff (`dyb`) is the only game still on
+  the lobby fallback** — it has no song generated yet.
+- **The SS jukebox duplicate is resolved.** "A Night Out" and "The Stakeout" were the same song
+  generated twice (near-identical file size, distinct hashes — a re-export, not a coincidence). "The
+  Stakeout" kept (fits the espionage theme; already the id baked into `visual-lobby.js`'s jukebox
+  test), "A Night Out" and its mp3/cover deleted. Jukebox catalogue is 25 songs, not 26.
+- **PKO's two base songs were checked, not resolved — a real owner call, unlike SS's.** "A Force of
+  Nature" and "Quiet Hunting" are genuinely different recordings (different hashes, 153s vs 86s), so
+  nothing was deleted. The in-game promotion picked "Quiet Hunting" to avoid a base track sharing its
+  name with the Sylly Mode itself. Whether "A Force of Nature" should stay as a second jukebox option
+  or go is still open.
+- **The four original-encode tracks are still well over the ~1.5 MB per-track ceiling**
+  (`lobby.mp3` 5.46 MB, `li5.mp3` 4.32 MB, `gm.mp3` 3.52 MB, `ss.mp3` 6.04 MB). The 16 newly-promoted
+  tracks are jukebox-sized already (~1.4–2.6 MB), so this gap is now down to the original four.
 - **`li5.mp3` / `gm.mp3` / `ss.mp3` carry no title/artist in the manifest** (`null`/`null` — the
   generator used didn't hand back metadata the way the lobby track's did). Cosmetic only —
   `Music.nowPlaying()` already handles `null` — but worth filling in before a credits surface is
@@ -579,10 +350,30 @@ buttons:
   Three fields, no more: the register in one line, tempo/energy, and anything the music must *not*
   do (Deep-Sea Deploy's "no sonar pings" is the model). The fallback rule means it can be left blank
   without blocking a build — which is exactly why it hasn't been added yet.
-- **Sylly Mode variant tracks** — five games flip register hard enough to justify a second take at
-  the same tempo and key (SHP → Night Terrors, PKO → Force of Nature, FLW → The Counterfeit Run,
-  NT → Devil's Network Protocol, GM → Static Interference). Would need a second resolution tier
-  (`<gameId>-sylly`) in `Music.playFor` — deliberately not built for a hypothetical.
+- **Sylly Mode tracks — three separate jobs, all DONE except ongoing generation.**
+  1. **Generation (owner, ongoing — a few per day).** In order: FLW *The Counterfeit Run* → DYB's
+     **base** track (the only game with no song) → DYB *The Tempest* → GM *Static Interference*
+     (only if the shipped `gm.mp3` is close to Option B) → NT *Distributed Network Protocol*.
+     Optional after that: CJAR, GTH. CLD waits for its replacement Sylly Mode. Each new variant lands
+     in the jukebox first (`tools/encode-music.js` + one manifest line), then needs the same two
+     lines step 2/3 below already gave SHP/PKO/FRT: a `"<abbr>:sylly"` entry in
+     `data/music/manifest.json` pointing at the jukebox file — `isGameSyllyOn`'s getter map
+     (`js/engine.js`) already covers any game with a `let [abbr]SyllyMode` flag, so a new variant
+     needs no code change, only the manifest entry.
+  2. **RESOLVED 26 Sep 2026 — promote jukebox songs into the in-game manifest.**
+  3. **RESOLVED 27 Sep 2026 — the Sylly wiring.** `resolveKey(gameId, isSylly)` in
+     `js/lib/music.js` tries `"<gameId>:sylly"` first (falling back to the base track, then the
+     lobby), and `isGameSyllyOn(gameId)` in `js/engine.js` is the one place that reads across the
+     engine/plugin boundary — a small per-game getter map (`frt`/`shp`/`pko` today), same shape as
+     `getMuteToggleOnClass`. `showScreen()`'s existing one-seam call
+     (`Music.playFor(activeGameId, isGameSyllyOn(activeGameId))`) is the only call site touched — no
+     plugin needs a line of code, then or now. SHP/PKO/FRT all verified in a real browser: the actual
+     settings toggle correctly switches the track on the next screen transition (settings overlays
+     toggle by `style.display`, not `showScreen()`, so the retheme happens at the natural moment —
+     starting the match — not mid-settings). **A real bug was caught and fixed along the way**:
+     `js/lib/music.js` encoded a manifest `file` path with `encodeURIComponent()` on the whole
+     string, which also escapes a subfolder's own `/` — every jukebox-sourced in-game track (all 16
+     from step 2) would have silently 404'd. Detail: `shared-implementation-notes.md` BUG-22.
 - **No credits surface.** `Music.nowPlaying()` returns `{ key, title, artist }` and nothing consumes
   it yet. The manifest already carries per-track attribution.
 
@@ -826,21 +617,18 @@ separate task (spec § 15).
   ever be exactly 4 players, not the 4–6 range Pass-the-Phone supports, with no visible setting
   anywhere in Lobby Mode explaining why a 5th join is rejected. `code-map.md`'s LTTP section didn't
   previously record this — worth checking whether it's an intentional MDLM floor or a genuine gap.
-- **`#screen-lttp-role-reveal` is dead code that still ships.** It's registered in `allScreens[]`
-  with a complete Stack-migrated layout, and `index.html`'s own LTTP section-header comment lists it
-  as part of the screen inventory — but `lttpShowRoleReveal()` no longer exists in `lttp.js` at all
-  (it was apparently removed at some point after the Phase 3 audit flagged it as dead-but-present),
-  and nothing else calls `showScreen('screen-lttp-role-reveal')`. Role info is folded into the Chat
-  screen's own header instead. `docs/code-map.md`'s LTTP Screens table previously described this
-  screen as live ("shown after pass-gate handover") — corrected in the same pass as this entry.
+- **RESOLVED 26 Sep 2026** — `#screen-lttp-role-reveal` was dead code that still shipped (registered
+  in `allScreens[]`, fully built, never shown — role info was already folded into the Chat screen's
+  own header). Removed: markup, its `allScreens[]` entry, and the section-header comment reference
+  are all gone.
 - **Three contextual-help surfaces with unclear boundaries.** The header `[?]` opens the full How to
   Play overlay; a second inline `?` next to the map instructions opens `lttp-tip-overlay`; the
   message composer has its own `[?]` opening `lttp-help-tip-overlay` (a legacy single-string
   variant, shaped differently from every other tip overlay in the suite). A player can't tell which
   of the two non-header `?` icons goes where before tapping one.
 
-`docs/game-identities/lttp.md` T7c already carries the first and second of these; fixing any of them
-means updating that section (and `code-map.md`, already partially corrected) in the same change.
+`docs/game-identities/lttp.md` T7c already carries the remaining bound question and the help-surface
+overlap; fixing either means updating that section in the same change.
 
 ---
 
@@ -891,55 +679,33 @@ section in the same change.
 
 ## GTH gaps found while writing its identity doc (23 Aug 2026)
 
-**Found, not fixed.** An identity pass records the game as it shipped; fixing what it reveals is a
-separate task (spec § 15).
+**One of two RESOLVED (stale), confirmed 26 Sep 2026** — `gth-case-report-progress` is populated:
+`gthUpdateCaseReportProgress()` exists and is called from both `gthShowCaseReport()` and the
+diagnosis-ready path. Whatever fixed it did so without updating this note; no action needed.
 
-- **`gth-case-report-progress` is a reserved, empty container.** `screen-gth-case-report` reserves a
-  div for per-player progress dots (the comment reads "Per-player progress dots"), but nothing in
-  `gth.js` ever writes to it — `gthShowCaseReport()` only populates `gth-case-report-stats` and
-  `gth-case-report-time`. A player waiting there sees only static text, no sense of how close the
-  rest of the group is. Already logged in `gth-implementation-notes.md`'s Bug Index (June 2026
-  audit) as "logged, not yet fixed" — carried forward here as part of the identity-doc migration
-  rather than newly found.
-- **The Waiting Room and Case Report screens carry no rotating flavour line.** Both are held-beats a
-  player can sit in for a while depending on how slow the table is, and both show one fixed line
-  every session, unlike the suite's Round/Night Intro standard (a small rotating pool, per
-  `ui-style.md`).
-
-Either populate the progress container (mirror `gthUpdateWaitingProgress()` using
-`gthDiagnosesReady`) or remove the dead div; either way `docs/game-identities/gth.md` T7c needs the
-matching update in the same change. The flavour-rotation gap is lower priority — CJAR carries the
-identical open item for its own Raid Summary screen.
+- **Still open: the Waiting Room and Case Report screens carry no rotating flavour line.** Both are
+  held-beats a player can sit in for a while depending on how slow the table is, and both show one
+  fixed line every session, unlike the suite's Round/Night Intro standard (a small rotating pool,
+  per `ui-style.md`). Lower priority — CJAR carries the identical open item for its own Raid
+  Summary screen.
 
 ---
 
-## `verify-cjar-loopback.js` is FLAKY — intermittent Dibber Dobber payout-beat failure (22 Aug 2026)
+## `verify-cjar-loopback.js` flakiness — RESOLVED 26 Sep 2026
 
-**Found during identity-doc pass 1, which changed no application code at all** (docs + one new tool
-only; `git diff main` over `js/`, `index.html`, `sw.js`, `css/`, `data/` is empty). The harness still
-fails at **~20-25%**. Measured over 20 trials each: **pristine `main` 4/20, the branch 5/20** — statistically indistinguishable, so this is not something the pass introduced. (An initial 8-run sample came back 8/8 clean on `main` and was misleading; at this rate that has ~10% probability. Use 20+ trials when judging this one.)
+Logged twice (15 Aug, then 22 Aug) as a Dibber Dobber payout-beat check that failed ~20–25% of runs
+(`host2 threw the exact split token count`, `expected 3, got 4`). Both entries guessed it was RNG
+variance from the harness's real (unseeded) shuffle and proposed adding a `CJAR_SEED=` env var.
 
-```
-Dibber Dobber payout beat: the actual split, not cjarPlayerCount (DD-20 review fix)
-  FAIL  host2 threw the exact split token count
-          expected 3, got 4
-  FAIL  client2 threw the exact split token count
-```
-
-**Likely cause.** This is the one CJAR harness with a **real shuffle** (the other three stub identity
-— TG-03). The assertion expects a fixed token count of 3, but the number of players who Reach In on
-the flip under test depends on the deal, so a different shuffle legitimately produces 4. The
-assertion looks over-specified rather than the game being wrong — but that is a hypothesis, not a
-diagnosis, and it has not been confirmed.
-
-**Why it matters more than a normal flake.** `CLAUDE.md` and `docs/code-map.md` both publish this
-harness at **177 checks** as a pass/fail gate, and `logic-engine.md` names the loopback pattern as
-the thing to reach for on anything MP-shaped. A gate that fails ~17% of the time for no reason
-trains people to re-run until green, which is exactly how a real regression gets waved through.
-
-**Next step:** reproduce with a fixed seed. The harness accepts `CJAR_SRC=` but has no documented
-seed variable — SHP's `SHP_SEED=` is the pattern to copy. Not attempted here; out of scope for a
-documentation pass.
+**The real cause was a test bug, not a shuffle-driven flake.** The scenario sets up 3 takers + 1
+innocent + 0 dobbers, which the *actual* game code (`cjarBeginFlipAnim`, `js/games/cjar.js`) resolves
+through its "takers + innocents, no dobbers" branch — heads = takers.length + innocents.length = 4,
+remainder always 0. The test's `ddExpected` was instead computed from the pure takers-only formula
+(heads=3, remainder = value % 3), which only happened to match the real branch's answer (4) when the
+random card's value wasn't a multiple of 3 — exactly the ~20–25% split observed. Fixed by deriving
+`ddExpected` from the branch the game actually takes (`tools/verify-cjar-loopback.js`, "Dibber Dobber
+payout beat" section) rather than reimplementing a different one. **30/30 clean runs after the fix**,
+no seeding needed.
 
 ---
 
@@ -962,66 +728,34 @@ that never confirms its face even at reveal) — a design call for the owner, no
 
 ---
 
-## SHP dead overlay found while writing its identity doc (23 Aug 2026)
+## SHP dead overlay — RESOLVED 26 Sep 2026
 
-**Found, not fixed.** An identity pass records the game as it shipped; fixing what it reveals is a
-separate task (spec § 15).
-
-- **`shp-tip-overlay` is fully built and never opened.** The markup (`shp-tip-emoji`,
-  `shp-tip-heading`, `shp-tip-body`, `btn-shp-tip-close`) and its renderer
-  (`shpShowTip(emoji, heading, lines)` in `js/games/shp.js`) both exist, but nothing in `shp.js` or
-  `index.html` ever calls `shpShowTip` — no inline `[?]` button anywhere on `screen-shp-table` opens
-  it. It's listed live in the game's overlay inventory (`index.html`'s own header comment,
-  `code-map.md`) as though it were a working contextual-tip surface. Counting Sheep instead solved
-  the "explain this card" need with the tap-hold-to-gallery pattern (long-press jumps to the card's
-  row in How to Play → The Cards), which may be exactly why this overlay was scaffolded and then
-  abandoned mid-build.
-
-Either wire a real trigger to it (there's no obvious mechanic left needing one, per the tap-hold
-coverage above) or remove the overlay, its renderer, and its `resetToLobby()` teardown entry —
-whichever the owner decides, `docs/game-identities/shp.md` T7a/T7c and `docs/code-map.md`'s SHP
-overlay table need the matching update in the same change.
+`shp-tip-overlay` was fully built and never opened (Counting Sheep's tap-hold-to-gallery pattern
+covered the same need). Removed rather than wired: markup, `shpShowTip()`, its close handler, and
+its `resetToLobby()` teardown entry are all gone. `docs/game-identities/shp.md` and
+`docs/code-map.md`'s SHP overlay table updated in the same change.
 
 ---
 
-## PKO copy drift found while writing its identity doc (23 Aug 2026)
+## PKO copy drift — RESOLVED 26 Sep 2026
 
-**Found, not fixed.** An identity pass records the game as it shipped; fixing what it reveals is a
-separate task (spec § 15).
-
-- **The Culling's interstitial blurb describes Extinction Event's effect, not its own.**
-  `PKO_EVENTS` in `js/games/pko.js` gives The Culling the blurb *"The season takes the rarest species
-  from every Hoard"* — that is a global, single-species wipe, which is what Extinction Event actually
-  does. The Culling's real rule (`pkoFireCulling`, `PKO_EVENT_DETAIL['culling']`) is per-player: each
-  player individually discards their own fewest-held species. The 5-second event interstitial
-  (`screen-pko-event`) is the only place a player reads this text before their Hoard visibly changes,
-  so a first-time Force of Nature player is briefly told the wrong mechanic for what just happened to
-  their own hand. The correct explanation already exists one overlay away, in `PKO_EVENT_DETAIL`
-  (read from the `[?]` events roster) — only the interstitial's own `blurb` field is wrong.
-
-Fixing it means editing the `blurb` string on `PKO_EVENTS`'s `'culling'` entry in `js/games/pko.js`
-**and** the matching copy note in `docs/game-identities/pko.md` T7c in the same change.
+The Culling's interstitial blurb described Extinction Event's effect (a global wipe), not its own
+per-player one. `PKO_EVENTS`'s `'culling'` blurb (`js/games/pko.js`) now reads *"Every Hoard
+discards the species it holds fewest of"*, matching `pkoFireCulling()` and `PKO_EVENT_DETAIL`.
+`docs/game-identities/pko.md` T7c updated in the same change.
 
 ---
 
-## CJAR copy drift found while writing its identity doc (22 Aug 2026)
+## CJAR copy drift — RESOLVED 26 Sep 2026
 
-**Found, not fixed.** An identity pass records the game as it shipped; fixing what it reveals is a
-separate task (spec § 15). Three items, all cosmetic, none affecting rules or packets:
+All three items fixed in `src/screens/cjar.html` / `js/games/cjar.js`, paired with
+`docs/game-identities/cjar.md` (`node tools/verify-identity-docs.js` green):
 
-- **The Dibber Dobber action button reads `Reach In`, but every place that *explains* the mode calls
-  it "Take"** — the settings overlay's Sylly Mode card, the How to Play Sylly Mode card, and
-  `docs/code-map.md`'s CJAR summary line. The rename away from "Take a Cookie" (DD-21) is documented
-  in `js/games/cjar.js` beside the button itself, but the three explanations never followed. A player
-  reads "Take grabs cookies" and looks for a Take button that does not exist. **Most worth fixing.**
-- **How to Play step 7 is headed "Five Raids, one jar"** — hardcoded to the Full Feast default. On
-  Quick Snack it is three.
-- **Two case variants of the same caption** ship side by side: `Sneak Out alone and you take the lot.`
-  and `Sneak out alone and you take the lot.`
-
-Fixing any of these means editing `index.html` / `js/games/cjar.js` **and** the matching copy block in
-`docs/game-identities/cjar.md` in the same change — they are **paired** under the change contract.
-`node tools/verify-identity-docs.js` will fail until both halves land.
+- "Take grabs cookies" → "Reach In grabs cookies" (settings + how-to Sylly Mode cards), matching
+  the DD-21 rename the button itself already carried.
+- "Five Raids, one jar" → "Every Raid, one jar" — no longer hardcoded to the Full Feast default.
+- The two case variants of the crumbs caption unified on "Sneak Out alone…" (capital O), matching
+  the button's own label.
 
 ---
 
@@ -1311,33 +1045,6 @@ doesn't fill at 1v1/2v2. Low priority now that the screen reads as intentional r
 
 ---
 
-## `verify-cjar-loopback.js` is FLAKY — fails ~1 run in 3 (added 15 Aug 2026)
-
-**Not a regression.** Found incidentally while running the full harness suite after the NT work;
-`git status` confirms neither `tools/verify-cjar-loopback.js` nor `js/games/cjar.js` was touched
-that session. Reproduced by running it 6–8 times in a row.
-
-**Symptom:** always the same two checks, in the Dibber Dobber payout-beat section:
-`host2 threw the exact split token count` / `client2 threw the exact split token count`.
-
-**Cause:** the harness stubs `shuffle` with the real Fisher–Yates over an **unseeded**
-`Math.random()` (deliberately — an identity stub would deal a family-first deck that busts on flip
-2 every time, per its own comment). So the deck order differs every run, and those two checks
-assert an *exact* token count that depends on how many seats take vs. dob on that particular deal.
-
-**Why it matters beyond CJAR:** a suite where one harness fails a third of the time trains everyone
-to re-run until green, which is how a real regression gets waved through. It also means the "222
-green checks" figure quoted in `CLAUDE.md` was never reliably 222.
-
-**Fix shape (not done here — different game, and it changes what 177 checks exercise):** port the
-seeded mulberry32 + `*_SEED=` env hook from `verify-shp-loopback.js` / `verify-nt-loopback.js`, then
-run across several seeds to find which assertions were only ever passing by luck. Expect the two
-failing checks to need rewriting as an invariant (`tokens === takers`, computed from the same deal)
-rather than a literal — the NT harness hit exactly this and the fix was to *construct* the
-precondition instead of hoping for it (`nt-implementation-notes.md` D21, lesson 1).
-
----
-
 ## BUG-06 re-sweep by payload SHAPE, not by applier line (added 15 Aug 2026)
 
 The 13 Aug BUG-06 sweep declared NT clean; two days later NT turned out to be carrying **two more
@@ -1395,9 +1102,9 @@ all three. Detail: `nt-implementation-notes.md` BUG-15/16/17, D21.
 state, but does not close the race itself; and a **real 3-device retest** is still required, since
 no harness models clock skew, Firebase ordering or dropped packets.
 
-**Two smaller items surfaced while building the harness, neither fixed:**
-- `ntRoutingTimer` is the one timer handle missing from `ntResetState()` — a pending 700/1200 ms
-  `ntSetRouting('valid')` can fire against the next screen (§ Timer Lifecycle).
+**Two smaller items surfaced while building the harness:**
+- **RESOLVED 26 Sep 2026** — `ntRoutingTimer` was the one timer handle missing from `ntResetState()`;
+  added next to `ntLongPressTimer`/`ntResolveGuard` (§ Timer Lifecycle).
 - The DNP allocation appliers (`NT_ALLOCATION_UPDATE` / `_LOCK`) validate the sender's **team** but
   never that the sender is that team's **captain**, so any client on a team can drive its
   allocation. Current behaviour is pinned by a check in the harness labelled `KNOWN GAP` so a
@@ -1455,7 +1162,7 @@ Group Therapy → The Bluff → Pass → Net-Trace → Fruit Salad → Counting 
 - Stack compliance — any screen looking sparse or edge-pinned that is **not** on the legacy `h-screen`
   whitelist in `ui-style.md` is a new bug.
 - The per-game values in `ui-style.md` § Per-Game Reference actually match what renders.
-- Sylly Mode reachable and working (all 17 games have one).
+- Sylly Mode reachable and working (19 of 20 games have one — COMB is the sole exception, by design).
 
 **Log findings** in each game's `docs/implementation-notes/[abbr]-implementation-notes.md` as they surface,
 not in a batch at the end.

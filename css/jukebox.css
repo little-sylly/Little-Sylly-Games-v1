@@ -1,0 +1,227 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   css/jukebox.css — the Jukebox screen (SW v233), ported from the signed-off
+   sandbox (wip/jukebox-lab/jukebox.css): the frame, the deck, the rail, and the
+   owner's pick — Records (A · Crate) + List (B · Setlist). The Shelf and Wallbox
+   designs stayed in the lab.
+
+   The room is the Lounge with the lights down: the stickerbook's plum
+   (#2B1B45) as the dark, the Lounge's sun (#ffcf9a) as the one warm pool the
+   jukebox stands in, the faceplate's five pastels for every key, and the
+   jukebox screen's rainbow for anything that means "music is happening".
+
+   Everything is scoped under #screen-jukebox — nothing here may style html, body
+   or a bare element. Animates transform + opacity only (the rail and search
+   colour transitions excepted); the global prefers-reduced-motion block in
+   styles.css collapses every duration, and the two RAF loops check it in JS.
+   ═══════════════════════════════════════════════════════════════════════════ */
+#screen-jukebox {
+  --jbx-bg: #2B1B45; --jbx-bg-hi: #432c66; --jbx-bg-lo: #1c1130;
+  --jbx-ink: #fbf5ff; --jbx-dim: rgba(251, 245, 255, .62); --jbx-faint: rgba(251, 245, 255, .38);
+  --jbx-glass: rgba(255, 255, 255, .065); --jbx-glass-hi: rgba(255, 255, 255, .11); --jbx-line: rgba(255, 255, 255, .12);
+  --jbx-warm: #ffcf9a;
+  /* the faceplate, left to right — fill / ink (lounge-props.js BTN) */
+  --k-play: #f4cf6a; --k-play-ink: #8a6a1c;
+  --k-prev: #ee8fa6; --k-prev-ink: #9c3d55;
+  --k-next: #8fd3c4; --k-next-ink: #2f7a6c;
+  --k-down: #b2dc9a; --k-down-ink: #4f7f3a;
+  --k-up:   #8fb4ea; --k-up-ink:   #3a5d99;
+  color: var(--jbx-ink); font-family: 'Fredoka', system-ui, sans-serif; -webkit-font-smoothing: antialiased;
+}
+#screen-jukebox *, #screen-jukebox *::before, #screen-jukebox *::after { box-sizing: border-box; }
+#screen-jukebox button { font: inherit; color: inherit; }
+#screen-jukebox img { display: block; }
+#screen-jukebox .jbx-pick-msg { margin: auto; padding: 40px 24px; text-align: center; color: var(--jbx-dim); font-size: 15px; }
+
+/* ── The frame ─────────────────────────────────────────────────────────── */
+#screen-jukebox {
+  position: fixed; inset: 0; display: flex; flex-direction: column; overflow: hidden;
+  background:
+    radial-gradient(60% 70% at 24% 62%, rgba(255, 207, 154, .13), transparent 70%),
+    radial-gradient(80% 60% at 80% 0%, rgba(160, 110, 230, .22), transparent 70%),
+    linear-gradient(180deg, var(--jbx-bg-hi), var(--jbx-bg) 40%, var(--jbx-bg-lo));
+}
+#screen-jukebox .jbx-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 22px 28px 14px; flex-shrink: 0; }
+#screen-jukebox .jbx-title { margin: 0; font-size: 28px; font-weight: 700; letter-spacing: .2px; }
+#screen-jukebox .jbx-sub { margin: 2px 0 0; font-size: 14px; color: var(--jbx-dim); }
+#screen-jukebox .jbx-head-tools { display: flex; align-items: center; gap: 10px; }
+#screen-jukebox .jbx-icon {
+  min-width: 44px; min-height: 44px; border: 0; border-radius: 14px; background: var(--jbx-glass-hi);
+  font-size: 18px; cursor: pointer; transition: transform 120ms ease-out, background-color 150ms ease;
+}
+#screen-jukebox .jbx-icon:hover { background: rgba(255, 255, 255, .17); }
+#screen-jukebox .jbx-icon:active { transform: scale(.94); }
+
+#screen-jukebox .jbx-body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(340px, 5fr) 7fr; gap: 24px; padding: 0 28px 24px; }
+
+/* ── Stage: the jukebox + the deck ─────────────────────────────────────── */
+#screen-jukebox .jbx-stage { display: flex; flex-direction: column; min-height: 0; gap: 12px; }
+#screen-jukebox .jbx-view { position: relative; flex: 1; min-height: 220px; }
+#screen-jukebox .jbx-spot { position: absolute; inset: 6% 8% 0; background: radial-gradient(50% 42% at 50% 86%, rgba(255, 207, 154, .30), transparent 72%), radial-gradient(34% 50% at 50% 45%, rgba(205, 182, 236, .16), transparent 70%); pointer-events: none; }
+#screen-jukebox #jbx-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: pan-y; }
+#screen-jukebox .jbx-nogl { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 96px; }
+#screen-jukebox .jbx-nogl[hidden] { display: none; }
+#screen-jukebox .jbx-nogl span { font-size: 40px; color: var(--k-play); margin-left: -12px; margin-top: -60px; }
+
+#screen-jukebox .jbx-deck { flex-shrink: 0; display: flex; flex-direction: column; gap: 12px; padding: 16px 18px 14px; border-radius: 26px; background: var(--jbx-glass); border: 1px solid var(--jbx-line); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+#screen-jukebox .jbx-np { display: flex; align-items: center; gap: 14px; min-width: 0; }
+#screen-jukebox .jbx-np-art { width: 56px; height: 56px; flex-shrink: 0; border-radius: 50%; }
+#screen-jukebox .jbx-np-art .jbx-disc { width: 100%; height: 100%; }
+#screen-jukebox .jbx-np-text { min-width: 0; }
+#screen-jukebox .jbx-np-title { margin: 0; font-size: 19px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#screen-jukebox .jbx-np-meta { margin: 2px 0 0; font-size: 13px; color: var(--jbx-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+#screen-jukebox .jbx-scrub { display: flex; align-items: center; gap: 10px; }
+#screen-jukebox .jbx-time { font-size: 12px; font-variant-numeric: tabular-nums; color: var(--jbx-dim); min-width: 32px; }
+#screen-jukebox .jbx-time:last-child { text-align: right; }
+#screen-jukebox .jbx-wave { flex: 1; height: 38px; display: flex; align-items: center; gap: 2px; cursor: pointer; border-radius: 8px; outline-offset: 4px; }
+#screen-jukebox .jbx-wave i { flex: 1; min-width: 1px; height: 100%; border-radius: 2px; opacity: .22; background: var(--c); transform: scaleY(var(--s, .3)); will-change: transform; transition: opacity 150ms ease; }
+#screen-jukebox .jbx-wave i.on { opacity: 1; }
+#screen-jukebox .jbx-wave.idle i { background: var(--jbx-faint); }
+
+#screen-jukebox .jbx-transport { display: flex; justify-content: center; gap: 14px; }
+#screen-jukebox .jbx-key {
+  --f: #fff; --i: #333;
+  width: 52px; height: 52px; border-radius: 50%; border: 0; cursor: pointer; background: var(--f); color: var(--i);
+  display: inline-flex; align-items: center; justify-content: center;
+  box-shadow: inset 0 -4px 0 rgba(0, 0, 0, .14), inset 0 3px 0 rgba(255, 255, 255, .55), 0 4px 0 rgba(0, 0, 0, .28), 0 8px 18px rgba(0, 0, 0, .25);
+  transition: transform 120ms ease-out;
+}
+#screen-jukebox .jbx-key:active, #screen-jukebox .jbx-key.pressed { transform: translateY(3px); box-shadow: inset 0 -2px 0 rgba(0, 0, 0, .14), inset 0 2px 0 rgba(255, 255, 255, .5), 0 1px 0 rgba(0, 0, 0, .28), 0 3px 8px rgba(0, 0, 0, .25); }
+#screen-jukebox .jbx-key svg { width: 22px; height: 22px; }
+#screen-jukebox .jbx-key.k-play { --f: var(--k-play); --i: var(--k-play-ink); width: 60px; height: 60px; margin-top: -4px; }
+#screen-jukebox .jbx-key.k-play svg { width: 26px; height: 26px; }
+#screen-jukebox .jbx-key.k-prev { --f: var(--k-prev); --i: var(--k-prev-ink); }
+#screen-jukebox .jbx-key.k-next { --f: var(--k-next); --i: var(--k-next-ink); }
+#screen-jukebox .jbx-key.k-down { --f: var(--k-down); --i: var(--k-down-ink); }
+#screen-jukebox .jbx-key.k-up   { --f: var(--k-up);   --i: var(--k-up-ink); }
+#screen-jukebox .jbx-vol { display: flex; justify-content: center; gap: 4px; height: 6px; }
+#screen-jukebox .jbx-vol i { width: 14px; border-radius: 3px; background: var(--jbx-glass-hi); }
+#screen-jukebox .jbx-vol i.on { background: var(--k-up); }
+
+/* ── Shared pieces the designs use ─────────────────────────────────────── */
+#screen-jukebox .jbx-pick { position: relative; min-height: 0; border-radius: 28px; background: var(--jbx-glass); border: 1px solid var(--jbx-line); overflow: hidden; display: flex; flex-direction: column; }
+#screen-jukebox .jbx-pick > .d-root { flex: 1; min-height: 0; display: flex; flex-direction: column; animation: jbx-in 200ms ease-out; }
+@keyframes jbx-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+/* artwork: the game's sticker on its brand colour; emoji where there is no sticker yet */
+#screen-jukebox .jbx-art { position: relative; overflow: hidden; background: var(--b); display: flex; align-items: center; justify-content: center; }
+#screen-jukebox .jbx-art::after { content: ''; position: absolute; inset: 0; background: linear-gradient(160deg, rgba(255, 255, 255, .28), transparent 45%, rgba(0, 0, 0, .12)); pointer-events: none; }
+#screen-jukebox .jbx-art img { width: 84%; height: 84%; object-fit: contain; filter: drop-shadow(0 3px 4px rgba(0, 0, 0, .25)); }
+#screen-jukebox .jbx-art.is-cover img { width: 100%; height: 100%; object-fit: cover; filter: none; }
+#screen-jukebox .jbx-art .emo { font-size: 1em; line-height: 1; filter: drop-shadow(0 2px 3px rgba(0, 0, 0, .2)); }
+
+/* a vinyl record whose label is the artwork */
+#screen-jukebox .jbx-disc { display: block; position: relative; border-radius: 50%; background: repeating-radial-gradient(circle at 50% 50%, #17121f 0 1.2px, #231c2e 1.2px 2.6px); box-shadow: 0 0 0 1px rgba(255, 255, 255, .08) inset, 0 10px 24px rgba(0, 0, 0, .4); }
+#screen-jukebox .jbx-disc::before { content: ''; position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(from 20deg, transparent 0 8%, rgba(255, 255, 255, .13) 12%, transparent 17% 55%, rgba(255, 255, 255, .09) 60%, transparent 66%); }
+#screen-jukebox .jbx-disc .jbx-art { position: absolute; inset: 31%; border-radius: 50%; box-shadow: 0 0 0 2px rgba(0, 0, 0, .35); }
+#screen-jukebox .jbx-disc .jbx-art::before { content: ''; position: absolute; z-index: 2; left: 50%; top: 50%; width: 9%; height: 9%; margin: -4.5% 0 0 -4.5%; border-radius: 50%; background: var(--jbx-bg-lo); }
+#screen-jukebox .jbx-disc.spin { animation: jbx-spin 3.2s linear infinite; }
+#screen-jukebox .jbx-disc.spin::before { animation: jbx-spin 3.2s linear infinite reverse; }   /* the sheen holds still while the record turns */
+@keyframes jbx-spin { to { transform: rotate(360deg); } }
+
+#screen-jukebox .tag { display: inline-block; padding: 1px 7px; border-radius: 99px; font-size: 11px; font-weight: 600; background: var(--jbx-glass-hi); color: var(--jbx-dim); vertical-align: 1px; white-space: nowrap; }
+#screen-jukebox .lock { font-size: .9em; }
+#screen-jukebox .is-locked { opacity: .45; }
+
+/* the "this one is on" equaliser */
+#screen-jukebox .eq { display: inline-flex; align-items: flex-end; gap: 2px; height: 14px; }
+#screen-jukebox .eq i { width: 3px; height: 100%; border-radius: 1px; background: var(--k-play); transform-origin: bottom; animation: jbx-eq 900ms ease-in-out infinite; }
+#screen-jukebox .eq i:nth-child(2) { animation-delay: -300ms; background: var(--k-next); } #screen-jukebox .eq i:nth-child(3) { animation-delay: -600ms; background: var(--k-prev); }
+#screen-jukebox .eq.paused i { animation-play-state: paused; transform: scaleY(.35); }
+@keyframes jbx-eq { 0%, 100% { transform: scaleY(.3); } 50% { transform: scaleY(1); } }
+
+#screen-jukebox .scroll { overflow-y: auto; min-height: 0; scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, .2) transparent; }
+#screen-jukebox .chip { flex-shrink: 0; display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 4px 14px 4px 4px; border-radius: 99px; border: 1px solid var(--jbx-line); background: var(--jbx-glass); font-size: 13px; font-weight: 600; color: var(--jbx-dim); cursor: pointer; transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease; white-space: nowrap; }
+#screen-jukebox .chip .jbx-art { width: 28px; height: 28px; border-radius: 50%; font-size: 15px; }
+#screen-jukebox .chip.solo { padding: 4px 14px; }
+#screen-jukebox .chip[aria-pressed="true"] { background: var(--jbx-ink); color: var(--jbx-bg); border-color: transparent; }
+
+/* ── The rail (Records and List) — chips, no scrollbar, fading ends ──────────────── */
+#screen-jukebox .rail { flex-shrink: 0; }
+#screen-jukebox .rail-track {
+  --fl: 0px; --fr: 0px;
+  position: relative; display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; padding: 4px 20px 6px;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 var(--fl), #000 calc(100% - var(--fr)), transparent 100%);
+  mask-image: linear-gradient(90deg, transparent 0, #000 var(--fl), #000 calc(100% - var(--fr)), transparent 100%);
+  cursor: grab;
+}
+#screen-jukebox .rail-track::-webkit-scrollbar { display: none; }
+#screen-jukebox .rail-track.dragging { cursor: grabbing; }
+#screen-jukebox .rail-track.dragging .chip { pointer-events: none; }
+#screen-jukebox .rail .chip { min-height: 40px; padding: 4px 16px 4px 5px; gap: 9px; }
+#screen-jukebox .rail .chip .jbx-art { width: 30px; height: 30px; }
+#screen-jukebox .rail .chip.solo { padding: 4px 18px; }
+#screen-jukebox .rail .chip:hover:not([aria-pressed="true"]) { background: var(--jbx-glass-hi); color: var(--jbx-ink); }
+
+/* ── The pick (Records + List together) ──────────────────────────────────────────── */
+#screen-jukebox .dP { gap: 0; }
+#screen-jukebox .pk-head { flex-shrink: 0; display: flex; align-items: center; gap: 10px; padding: 16px 20px 12px; }
+#screen-jukebox .seg { flex-shrink: 0; display: flex; gap: 2px; padding: 4px; border-radius: 99px; background: rgba(0, 0, 0, .25); }
+#screen-jukebox .seg button { display: inline-flex; align-items: center; gap: 7px; min-height: 36px; padding: 0 14px; border: 0; border-radius: 99px; background: transparent; color: var(--jbx-dim); font-size: 14px; font-weight: 600; cursor: pointer; transition: background-color 150ms ease, color 150ms ease; }
+#screen-jukebox .seg button[aria-selected="true"] { background: var(--jbx-ink); color: var(--jbx-bg); }
+#screen-jukebox .seg svg, #screen-jukebox .pk-find svg { width: 17px; height: 17px; }
+#screen-jukebox .pk-find { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 16px; border: 1px solid var(--jbx-line); border-radius: 99px; background: rgba(0, 0, 0, .2); color: var(--jbx-dim); font-size: 14px; font-weight: 600; cursor: pointer; transition: background-color 150ms ease, color 150ms ease; }
+#screen-jukebox .pk-find:hover { background: var(--jbx-glass-hi); color: var(--jbx-ink); }
+#screen-jukebox .pk-head .dB-search { min-width: 0; }
+#screen-jukebox .pk-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+#screen-jukebox .pk-body > .d-root { flex: 1; min-height: 0; display: flex; flex-direction: column; animation: jbx-in 180ms ease-out; }
+#screen-jukebox .dP .dA { padding-top: 0; }
+#screen-jukebox .dP .dB { padding-top: 0; gap: 6px; }
+
+/* ── Records (the lab's A · Crate) — flip through the crate ────────────────────── */
+#screen-jukebox .dA { padding: 18px 0 20px; gap: 10px; }
+#screen-jukebox .dA-flow { position: relative; flex: 1; min-height: 220px; outline: none; touch-action: pan-y; overflow: hidden; }
+#screen-jukebox .dA-rec { position: absolute; left: 50%; top: 50%; width: min(56%, 300px); aspect-ratio: 1; margin: 0; padding: 0; border: 0; background: none; cursor: pointer;
+  transform: translate(-50%, -50%) translateX(calc(var(--o) * 46%)) scale(var(--s)); opacity: var(--a); z-index: var(--z);
+  transition: transform 260ms cubic-bezier(.4, 0, .2, 1), opacity 260ms ease; }
+#screen-jukebox .dA-rec .jbx-disc { width: 100%; height: 100%; }
+#screen-jukebox .dA-rec[data-o="0"] .jbx-disc { box-shadow: 0 0 0 1px rgba(255, 255, 255, .08) inset, 0 18px 40px rgba(0, 0, 0, .5), 0 0 0 6px rgba(255, 255, 255, .05); }
+#screen-jukebox .dA-flow:focus-visible .dA-rec[data-o="0"] .jbx-disc { outline: 3px solid var(--k-play); outline-offset: 4px; }
+#screen-jukebox .dA-arrow { position: absolute; top: 50%; z-index: 50; width: 44px; height: 44px; margin-top: -22px; border: 0; border-radius: 50%; background: rgba(0, 0, 0, .35); font-size: 20px; cursor: pointer; }
+#screen-jukebox .dA-arrow.l { left: 14px; } #screen-jukebox .dA-arrow.r { right: 14px; }
+#screen-jukebox .dA-info { text-align: center; padding: 0 20px; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+#screen-jukebox .dA-idx { font-size: 12px; color: var(--jbx-faint); font-variant-numeric: tabular-nums; }
+#screen-jukebox .dA-title { margin: 0; font-size: 24px; font-weight: 700; }
+#screen-jukebox .dA-meta { margin: 0; font-size: 14px; color: var(--jbx-dim); }
+#screen-jukebox .dA-play { margin-top: 10px; min-height: 48px; padding: 0 28px; border: 0; border-radius: 99px; background: var(--k-play); color: var(--k-play-ink); font-size: 16px; font-weight: 700; cursor: pointer; box-shadow: 0 4px 0 rgba(0, 0, 0, .25); transition: transform 120ms ease-out; }
+#screen-jukebox .dA-play:active { transform: translateY(3px); box-shadow: 0 1px 0 rgba(0, 0, 0, .25); }
+
+/* ── List (the lab's B · Setlist) — filter, search, tap ───────────────── */
+#screen-jukebox .dB { padding: 18px 0 0; gap: 12px; }
+#screen-jukebox .dB-search { flex: 1; min-height: 44px; padding: 0 16px 0 40px; border-radius: 99px; border: 1px solid var(--jbx-line); background: rgba(0, 0, 0, .2) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23b8a9cc' stroke-width='2.4' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-4-4'/%3E%3C/svg%3E") 14px 50% / 18px no-repeat; color: var(--jbx-ink); font: inherit; font-size: 15px; outline: none; }
+#screen-jukebox .dB-search:focus { border-color: var(--k-up); }
+#screen-jukebox .dB-search::placeholder { color: var(--jbx-faint); }
+#screen-jukebox .dB-list { flex: 1; list-style: none; margin: 0; padding: 4px 12px 20px; }
+#screen-jukebox .dB-group { position: sticky; top: 0; z-index: 1; padding: 12px 10px 6px; font-size: 12px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: var(--jbx-faint); background: linear-gradient(var(--jbx-bg) 70%, transparent); }
+#screen-jukebox .dB-row { width: 100%; display: flex; align-items: center; gap: 14px; padding: 8px 10px; border: 0; border-radius: 18px; background: transparent; text-align: left; cursor: pointer; transition: background-color 150ms ease; }
+#screen-jukebox .dB-row:hover { background: var(--jbx-glass); }
+#screen-jukebox .dB-row.is-current { background: var(--jbx-glass-hi); box-shadow: inset 3px 0 0 var(--k-play); }
+#screen-jukebox .dB-row .jbx-art { width: 52px; height: 52px; border-radius: 14px; flex-shrink: 0; font-size: 26px; }
+#screen-jukebox .dB-text { flex: 1; min-width: 0; }
+#screen-jukebox .dB-title { font-size: 16px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#screen-jukebox .dB-meta { font-size: 13px; color: var(--jbx-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+#screen-jukebox .dB-end { flex-shrink: 0; min-width: 40px; text-align: right; font-size: 13px; font-variant-numeric: tabular-nums; color: var(--jbx-dim); }
+#screen-jukebox .dB-empty { padding: 40px 20px; text-align: center; color: var(--jbx-faint); }
+
+#screen-jukebox .jbx-toast { position: fixed; left: 50%; bottom: 24px; z-index: 10; transform: translate(-50%, 16px); opacity: 0; pointer-events: none; padding: 10px 18px; border-radius: 99px; background: var(--jbx-ink); color: var(--jbx-bg); font-weight: 600; font-size: 14px; transition: transform 200ms ease-out, opacity 200ms ease-out; max-width: calc(100vw - 32px); text-align: center; }
+#screen-jukebox .jbx-toast.on { transform: translate(-50%, 0); opacity: 1; }
+
+/* ── Phones: one column, the whole room scrolls ──────────────────────────── */
+@media (max-width: 859px) {
+  /* Still a fixed layer (it sits over the kept Lounge), so it scrolls itself —
+     the canvas takes pan-y, so a thumb on the cat still scrolls the page. */
+  #screen-jukebox { overflow-x: hidden; overflow-y: auto; }
+  #screen-jukebox .jbx-body { flex: none; }
+  #screen-jukebox .jbx-head { padding: 16px 16px 8px; flex-wrap: wrap; }
+  #screen-jukebox .jbx-title { font-size: 22px; }
+  #screen-jukebox .jbx-head-tools { width: 100%; justify-content: space-between; order: -1; }
+  #screen-jukebox .jbx-body { display: flex; flex-direction: column; padding: 0 16px 20px; gap: 16px; }
+  #screen-jukebox .jbx-view { flex: none; height: 38vh; min-height: 240px; }
+  #screen-jukebox .jbx-pick { min-height: 70vh; }
+  #screen-jukebox .jbx-pick > .d-root { min-height: 70vh; }
+  #screen-jukebox .dA-rec { width: 62%; }
+  #screen-jukebox .pk-head { padding: 12px 12px 10px; }
+  #screen-jukebox .pk-find { padding: 0; width: 44px; justify-content: center; }
+  #screen-jukebox .pk-find-t { display: none; }
+  #screen-jukebox .rail-track { padding-inline: 12px; }
+}

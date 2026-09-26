@@ -23,6 +23,18 @@ Flake players only see their fellow flakes on the role reveal screen — once th
 **Recoloured yellow-500 → dark red `#991b1b` (2 Aug 2026)**
 Design review for the incoming Cookie Jar game (see `docs/new-ideas/new-game-brief-cookie-jar.md` §1/§19) flagged two problems with BLD's original yellow-500 brand: (1) the white-on-yellow-500 toggle/pill combo measured 1.92:1 contrast, failing the 3:1 WCAG floor; (2) yellow/amber was needed as clear ground for Cookie Jar's own honey-gold identity. Fix: new custom classes `pill-active-bld` / `game-toggle-on-bld` / `bld-cta` / `bld-label`, all dark red `#991b1b` (Tailwind red-800) with white text (now passing contrast), CTA hover `#7f1d1d` (red-900). Secondary in-game accents (rejection dots, selection rings, role-colour text) were remapped shade-for-shade from `yellow-N` to `red-N` rather than reusing red-800 everywhere. The old generic `.pill-active-yellow` / `.game-toggle-on-yellow` CSS rules were deleted (confirmed BLD-only via grep before removal). No rule/logic change — CSS + class-name only.
 
+**Emoji rebrand: 📋/💬 → 😬 (26 Sep 2026, SW v236)**
+Owner-requested Tier 1 pass. Every occurrence in `src/screens/bld.html` (menu hero + aria-label,
+pass-gate, role-reveal, main-screen phase headers, settings title, How to Play title) plus the
+identity doc and `docs/rules/per-game-classes.md` Table B changed to 😬. **Brand colour `#991b1b`
+was deliberately kept** — the owner considered a change and decided against it after checking it
+against all 20 games' brands (see the handoff that scoped this task). No class-string change, no
+CSS touched — this was purely the two literal emoji glyphs, done with a scoped Node script rather
+than the Edit tool, per the `index.html` mojibake rule (edit `src/screens/bld.html`, never the
+generated file). One gotcha: a blind find-and-replace across `per-game-classes.md` also caught
+LI5's unrelated 💬 in Table B — reverted after diffing; a shared file with per-game rows needs a
+scoped read-and-check before a blanket replace, not a blind one.
+
 ---
 
 ## Bug Index

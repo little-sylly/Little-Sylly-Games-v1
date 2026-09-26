@@ -104,7 +104,28 @@
       r.connect(rf); rf.connect(rg); rg.connect(master); r.start(t + 0.07); r.stop(t + 0.22);
     }
 
-    const VOICE = { dialPress: click, phoneOpen: flip, binderOpen: flump };
+    /* The controller prop's idle rumble (controller animation round): a rumble
+       motor, not a phone buzzer — a low saw through a lowpass, in the prop's own
+       two pulses (lounge-props.js LOU_CTL_RUMBLE_PULSES, 0-260 and 360-640 ms;
+       kept in step by hand). One-shot: 0.64 s, and it stops itself. */
+    function rumble(c) {
+      const t = c.currentTime;
+      const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 420; lp.Q.value = 0.7;
+      const g = c.createGain(); g.gain.setValueAtTime(0.0001, t);
+      [[0, 0.26], [0.36, 0.64]].forEach(([a, z]) => {
+        g.gain.setValueAtTime(0.0001, t + a);   // an anchor, or the second attack ramps across the whole gap
+        g.gain.exponentialRampToValueAtTime(0.16, t + a + 0.03);
+        g.gain.setValueAtTime(0.16, t + z - 0.06);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + z);
+      });
+      [[58, 'sawtooth'], [87, 'square']].forEach(([hz, type]) => {
+        const o = c.createOscillator(); o.type = type; o.frequency.value = hz;
+        o.connect(lp); o.start(t); o.stop(t + 0.68);
+      });
+      lp.connect(g); g.connect(master);
+    }
+
+    const VOICE = { dialPress: click, phoneOpen: flip, binderOpen: flump, controllerRumble: rumble };
     return {
       /* Total by design: an unknown name, a blocked context or a suspended one
          are all "no sound", never a throw — lounge-scene.js guards this call too,
@@ -126,7 +147,7 @@
 
   /* The names the room may say, as data, so a harness can check a door's sound
      exists without an AudioContext. Kept in step with VOICE by hand. */
-  const LOU_SFX_VOICES = ['dialPress', 'phoneOpen', 'binderOpen'];
+  const LOU_SFX_VOICES = ['dialPress', 'phoneOpen', 'binderOpen', 'controllerRumble'];
   const api = { louCreateSfx, LOU_SFX_VOICES };
   if (typeof module !== 'undefined') module.exports = api;
   if (typeof window !== 'undefined') window.LouSfx = api;

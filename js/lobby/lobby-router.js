@@ -8,12 +8,12 @@
 (function () {
   /* The four layouts, in the order every switcher shows them. `screen` is what
      showScreen() shows for it. The label is display copy only — the code keys on
-     the id, whatever the owner renames "Original" to (spec § 0). */
+     the id: `original` shows as "Classic" (owner, 26 Sep 2026). */
   const LOBBY_LAYOUTS = [
     { id: 'lounge',   label: 'Lounge',   ico: '✨', screen: 'screen-lounge' },
     { id: 'shelves',  label: 'Shelves',  ico: '🗂️', screen: 'screen-shelves' },
     { id: 'tv',       label: 'TV',       ico: '🖥️', screen: 'screen-tv' },
-    { id: 'original', label: 'Original', ico: '▤',  screen: 'screen-lobby' },
+    { id: 'original', label: 'Classic',  ico: '▤',  screen: 'screen-lobby' },
   ];
   const LOBBY_VIEWS = LOBBY_LAYOUTS.map(l => l.id);
 
@@ -28,6 +28,7 @@
     room:     'absent',       // 'absent' | 'running' | 'idle'
     workshop: false,          // the real Workshop screen is up
     stickerbook: false,       // the stickerbook (the binder's door) is up — prototype, 23 Sep 2026
+    jukebox:  false,          // the jukebox screen (the cat's door) is up — SW v233
     switcher: false,          // the dock is visible — SUMMONED only (W6)
     design:   null,           // the last-read sylly_controller design
     /* The phone tier's one-way arrival beat. 'none' on a widescreen, where it
@@ -41,7 +42,7 @@
   /* The five actions the PAGE dispatches for itself. Everything else arrives
      from a door in the room — see LOBBY_DOORS in lobby-doors.js. Keeping the
      split as data is what lets verify-lobby-router.js prove no action is unreachable. */
-  const LOBBY_PAGE_ACTIONS = ['go', 'roomMounted', 'workshopClose', 'designSaved', 'leaveLobby', 'arrivalBegin', 'arrivalReset', 'stickerbookClose', 'home', 'closeSwitcher'];
+  const LOBBY_PAGE_ACTIONS = ['go', 'roomMounted', 'workshopClose', 'designSaved', 'leaveLobby', 'arrivalBegin', 'arrivalReset', 'stickerbookClose', 'jukeboxClose', 'home', 'closeSwitcher'];
 
   function lobbyReduce(state, action) {
     const a = action || {};
@@ -132,6 +133,24 @@
         s.switcher = false;
         return s;
 
+      /* The cat's door (SW v233): the stickerbook's shape exactly — the room is
+         kept but stopped while the jukebox has the screen, and ✕ goes back to the
+         layout it was opened from. A song left playing is Music's business, not
+         the router's: nothing here knows whether one is. */
+      case 'jukeboxOpen':
+        if (state.jukebox) return state;
+        s.jukebox = true;
+        s.room = keep();
+        return s;
+
+      case 'jukeboxClose':
+        if (!state.jukebox) return state;
+        s.jukebox = false;
+        s.view = (state.view === 'lounge' && !lounged) ? 'shelves' : state.view;
+        s.room = state.room === 'absent' ? 'absent' : (s.view === 'lounge' ? 'running' : 'idle');
+        s.switcher = false;
+        return s;
+
       case 'designSaved': {
         const d = a.design || null;
         if (d === state.design) return state;   // same reference: one change to apply, not two
@@ -169,6 +188,7 @@
       case 'home':
         s.workshop = false;
         s.stickerbook = false;
+        s.jukebox = false;
         s.switcher = false;
         s.view = (state.view === 'lounge' && !lounged) ? 'shelves' : state.view;
         s.room = state.room === 'absent' ? 'absent' : (s.view === 'lounge' ? 'running' : 'idle');

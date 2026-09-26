@@ -185,7 +185,6 @@ the interstitial exemption. 5 seconds is the ceiling this suite treats as safe, 
 | `shp-settings-overlay` | Menu | Bedtime Routine — the four settings |
 | `shp-how-to-overlay` | Menu, table `[?]` | How to Play — two tabs: The Rules, The Cards |
 | `shp-play-log-overlay` | Table's Dream Journal tap | This Night's played cards, newest first |
-| `shp-tip-overlay` | *(scaffolded, no live entry point — see T7c)* | Shared contextual tip shell |
 | `shp-quit-overlay` | Table ✕ | Mid-Night quit confirm |
 | `shp-new-night-overlay` | Gameover | Play-again confirm |
 
@@ -333,14 +332,13 @@ Stay here
 
 **◇ judgement, not spec.**
 
-**`shp-tip-overlay` is a fully-built overlay with no live entry point.** The markup, IDs, and the
-`shpShowTip(emoji, heading, lines)` renderer all exist, but nothing in `js/games/shp.js` or
-`index.html` ever calls it — no inline `[?]` button opens it anywhere on the table. Every other game
-with a shared contextual-tip overlay (Cookie Jar, Pecking Order's per-card tips) wires one from a
-mechanic that genuinely needs an inline explanation; Counting Sheep instead solved that need through
-the tap-hold-to-gallery pattern (long-press a card jumps to its row in The Cards tab), which may be
-exactly why the tip overlay was never finished — but it currently sits in every screen inventory as
-if it were live.
+**RESOLVED 26 Sep 2026 — `shp-tip-overlay` removed.** It was a fully-built overlay with no live
+entry point: the markup, IDs, and the `shpShowTip(emoji, heading, lines)` renderer all existed, but
+nothing in `js/games/shp.js` or `index.html` ever called it — no inline `[?]` button opened it
+anywhere on the table. Counting Sheep solved the "explain this card" need through the
+tap-hold-to-gallery pattern instead (long-press a card jumps to its row in The Cards tab), which is
+almost certainly why the tip overlay was scaffolded and then abandoned. Removed rather than wired:
+markup, renderer, close handler, and its `resetToLobby()` teardown entry are all gone.
 
 **Sylly Mode's vocabulary is genuinely richer than the base game's.** *Sleepwalker*, *the Jolt*, *the
 Nightmare Meter*, *the Plunge* — four distinct named concepts with their own mechanics — against the

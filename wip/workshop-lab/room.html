@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Workshop Room</title>
+<!-- SANDBOX (wip/workshop-lab). The REAL Workshop — src/screens/_shell.html, css/workshop.css,
+     js/controller.js, all as shipped at SW v234 — with one phone design applied on top:
+       room.html?phone=pocket | drawer | belt | standin
+     index.html frames this at phone sizes; open it directly on a phone to feel it for real.
+
+     <base> points at the repo root ON PURPOSE: js/controller.js resolves its sticker manifest
+     and images as 'data/stickers/…' relative to the page, exactly as it does from index.html. -->
+<base href="../../">
+<script src="js/lib/tailwind-play.js"></script>
+<link rel="stylesheet" href="css/styles.css">
+<link rel="stylesheet" href="css/workshop.css">
+<link rel="stylesheet" href="wip/workshop-lab/workshop-lab.css">
+</head>
+<body class="wl-body">
+
+<!-- The shipped partials land here, unhidden: #screen-workshop is the real screen. -->
+<div id="wl-live"></div>
+<div class="wl-toast" id="wl-toast" role="status" aria-live="polite"></div>
+
+<script src="js/lib/three.min.js"></script>
+<script src="js/lib/controller-body.js"></script>
+<script src="wip/workshop-lab/designs.js"></script>
+<script src="wip/workshop-lab/workshop-lab.js"></script>
+</body>
+</html>

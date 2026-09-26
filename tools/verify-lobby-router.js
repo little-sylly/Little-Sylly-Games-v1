@@ -19,6 +19,7 @@ eq(R.LOBBY_INIT.view, 'lounge', 'the shell opens on Premium');
 eq(R.LOBBY_INIT.room, 'absent', 'nothing is built yet');
 eq(R.LOBBY_INIT.workshop, false, 'the Workshop is shut');
 eq(R.LOBBY_INIT.stickerbook, false, 'the stickerbook is shut');
+eq(R.LOBBY_INIT.jukebox, false, 'the jukebox is shut');
 eq(R.LOBBY_INIT.switcher, false, 'the dock is hidden on Premium (W6)');
 eq(R.LOBBY_INIT.design, null, 'no design has been read');
 eq(R.LOBBY_INIT.arrival, 'none', 'no arrival beat has played');
@@ -213,6 +214,25 @@ section('the stickerbook (binder door, 23 Sep 2026)');
   eq(absent.room, 'absent', 'a room never built stays unbuilt');
 }
 
+section("the jukebox (the cat's door, SW v233)");
+{
+  const lounge = start({ room: 'running' });
+  const open = R.lobbyReduce(lounge, { t: 'jukeboxOpen' });
+  eq(open.jukebox, true, 'the cat opens the jukebox');
+  eq(open.room, 'idle', 'the room is kept but stopped while it is up — two scenes never render at once');
+  eq(open.view, 'lounge', 'the view does not change under it');
+  eq(R.lobbyReduce(open, { t: 'jukeboxOpen' }), open, 'opening it again changes nothing');
+  const shut = R.lobbyReduce(open, { t: 'jukeboxClose' });
+  eq(shut.jukebox, false, '✕ shuts it');
+  eq(shut.view, 'lounge', 'and the way out is the Lounge');
+  eq(shut.room, 'running', 'running again');
+  eq(R.lobbyReduce(lounge, { t: 'jukeboxClose' }), lounge, 'closing a shut jukebox changes nothing');
+  const handed = R.lobbyReduce(start({ room: 'running', arrival: 'done', view: 'lounge' }), { t: 'jukeboxOpen' });
+  eq(R.lobbyReduce(handed, { t: 'jukeboxClose' }).view, 'shelves', 'a device the Lounge is closed to leaves to the Shelves');
+  eq(R.lobbyReduce(R.lobbyReduce(start(), { t: 'jukeboxOpen' }), { t: 'jukeboxClose' }).room, 'absent', 'a room never built stays unbuilt');
+  ok(R.LOBBY_PAGE_ACTIONS.includes('jukeboxClose'), "jukeboxClose is the page's own action (the screen's ✕)");
+}
+
 section('the door map');
 {
   const seen = [];
@@ -226,7 +246,7 @@ section('the door map');
 
   ok(LouScene.louValidateHost(host) === true, 'the shell host satisfies louValidateHost');
   LouScene.LOU_REQUIRED.forEach(k => ok(host[k] !== undefined, `host supplies the required key "${k}"`));
-  eq(host.openJukebox, undefined, 'host supplies no openJukebox — that door stays dormant');
+  eq(typeof host.openJukebox, 'function', 'host supplies openJukebox — the cat is a real door now (SW v233)');
   eq(typeof host.openStickerbook, 'function', 'host supplies openStickerbook — the binder is a real door now');
 
   // Every callable the room can reach has exactly one destination, and the
@@ -246,7 +266,7 @@ section('the door map');
   // or on the page's own list.
   const reachable = new Set(Object.values(H.LOBBY_DOORS).filter(Boolean).concat(R.LOBBY_PAGE_ACTIONS));
   ['go', 'enterTV', 'enterShelves', 'openSwitcher', 'roomMounted', 'workshopOpen', 'workshopClose', 'designSaved', 'leaveLobby',
-   'arrivalBegin', 'arrivalReset', 'stickerbookOpen', 'stickerbookClose', 'home', 'closeSwitcher']
+   'arrivalBegin', 'arrivalReset', 'stickerbookOpen', 'stickerbookClose', 'jukeboxOpen', 'jukeboxClose', 'home', 'closeSwitcher']
     .forEach(t => ok(reachable.has(t), `router action "${t}" is reachable`));
 
   // The dial's game id rides through untouched; the telly screen sends nothing.
@@ -281,9 +301,9 @@ eq(R.LOBBY_INIT.view, 'lounge', 'the lobby opens on the Lounge');
 
 section('production — home (every exit from outside the lobby)');
 R.LOBBY_VIEWS.forEach(v => {
-  const s = R.lobbyReduce(start({ view: v, room: v === 'lounge' ? 'idle' : 'idle', workshop: true, stickerbook: true, switcher: true }), { t: 'home' });
+  const s = R.lobbyReduce(start({ view: v, room: v === 'lounge' ? 'idle' : 'idle', workshop: true, stickerbook: true, jukebox: true, switcher: true }), { t: 'home' });
   eq(s.view, v, `home from a game launched in "${v}" lands on "${v}"`);
-  eq(s.workshop || s.stickerbook || s.switcher, false, `home from "${v}" closes the Workshop, the book and the dock`);
+  eq(s.workshop || s.stickerbook || s.jukebox || s.switcher, false, `home from "${v}" closes the Workshop, the book, the jukebox and the dock`);
 });
 {
   const out = R.lobbyReduce(start({ view: 'lounge', arrival: 'done', room: 'idle' }), { t: 'home' });
@@ -307,6 +327,8 @@ section('production — closeSwitcher and the one-way rule on every close');
      'workshopClose cannot put a handed-out device back in the Lounge');
   eq(R.lobbyReduce(Object.assign({}, handed, { stickerbook: true }), { t: 'stickerbookClose' }).view, 'shelves',
      'nor can stickerbookClose');
+  eq(R.lobbyReduce(Object.assign({}, handed, { jukebox: true }), { t: 'jukeboxClose' }).view, 'shelves',
+     'nor can jukeboxClose');
   eq(R.lobbyReduce(handed, { t: 'go', view: 'lounge' }), handed, 'nor a switcher pick');
 }
 

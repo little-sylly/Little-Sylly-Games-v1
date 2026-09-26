@@ -18,6 +18,27 @@ Changed: Files/systems touched. Deferred/superseded: anything left open.
 Detail: pointer to the canonical doc (snapshot / impl note / spec / memory).
 ```
 
+## 2026-09-26 — The Workshop's phone tier (SW v235): Tool Belt, reversible layout swap
+Category: Architecture
+Decision: Below 860 px the Workshop drops the widescreen stand-in for Tool Belt (owner's pick of three, tested against their own iPhone SE) — no tabs, Paint and Stickers as strips under the controller. Four elements move between the widescreen markup and Belt's shape via `ctlLayoutPhone()`/`ctlLayoutWide()`, a reversible pair driven by one `matchMedia` listener, since CSS alone can't move an element into a different flex parent.
+Why: CSS-only breakpoints restyle a box in place but can't relocate one across parents; a one-shot (non-reversible) version was tried first and failed the harness the moment it resized the same page across the breakpoint, so the real fix is symmetric apply/revert functions, not a one-way move.
+Changed: `js/controller.js` (`ctlLayoutPhone`/`ctlLayoutWide`/`ctlSyncPhoneLayout`, `data-st` on `ctlRenderPanel`), `css/workshop.css` (the <860 px tier rewritten), `src/screens/_shell.html` (comment only — markup unchanged), `sw.js`, `tools/visual-controller-stickers.js` (+8 checks, incl. three at the owner's real iPhone SE sizes).
+Detail: `docs/implementation-notes/shared-implementation-notes.md` DD-46.
+
+## 2026-09-26 — The Workshop becomes a room (SW v234): design B, no tabs
+Category: Architecture
+Decision: The Workshop leaves its narrow tabbed column for the jukebox's plum room — paint | the controller | the sticker sheet side by side (owner's pick of three lab designs), with Randomise All as a glass die key and the sticker surface paid on the first pick-up instead of on open.
+Why: The jukebox and stickerbook made the lobby's doors full rooms; widescreen has space for both Workshop jobs at once, and a tab bar hid half the tools for no gain.
+Changed: `src/screens/_shell.html`, `css/workshop.css` (new, precached), `js/controller.js` (panel renderer), `css/styles.css` (old Workshop rules retired), `sw.js`, `tools/visual-controller-stickers.js`. Deferred: the real phone design (a pinned-stage stand-in ships below 1100 px).
+Detail: `docs/implementation-notes/shared-implementation-notes.md` DD-45.
+
+## 2026-09-26 — The jukebox ships (SW v233): a screen behind the cat, songs held by Music
+Category: Architecture
+Decision: The Lounge's cat opens a jukebox SCREEN (the owner's Records + List pick), and every song plays through `Music.hold()` — Music's one media element, kept through lobby navigation and let go the moment a game asks for its own music.
+Why: One player means one mute, one level and one "what is playing" for the whole app (the Lounge's cat just reads it); a Blob-fed element is the only form that both plays a 6-minute song without ~130 MB of PCM and still works offline once heard.
+Changed: `js/lib/music.js` (hold API), `js/lobby/jukebox.js`, `css/jukebox.css`, `src/screens/lobby.html`, router (`jukeboxOpen`/`jukeboxClose`), doors, `lounge-props.js`/`lounge-scene.js` (push-in, tab stop, `syncMusic`), catalogue → `data/music/jukebox/manifest.json`, `sw.js` (precache the code). Deferred: stand-in artist + two covers, soft-lock wiring, song sizes, phones.
+Detail: `docs/implementation-notes/shared-implementation-notes.md` DD-44.
+
 ## 2026-09-25 — Lobby v1 ships (SW v231): the Lounge first, games return to the launching layout
 Category: Architecture
 Decision: The lobby's four layouts ship — the Lounge (renamed from "Premium") first, then TV, Shelves and Original (today's `screen-lobby`) — and every return to the lobby goes through one router seam, `lobbyShow()`, which lands on the layout the game was launched from. Stickerbook v1 is all unlocked with nothing saved; the lamp photos take the runtime-cached contract.

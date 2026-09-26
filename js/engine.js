@@ -22,7 +22,7 @@ let whoFirstPath        = null;   // 'random' | 'rps' — drives back-from-confi
 
 // ── DOM: all screen IDs ───────────────────────────────────────────────────────
 const allScreens = [
-  'screen-lobby', 'screen-lounge', 'screen-tv', 'screen-shelves',
+  'screen-lobby', 'screen-lounge', 'screen-tv', 'screen-shelves', 'screen-jukebox',
   'screen-who-first', 'screen-workshop', 'screen-menu', 'screen-setup',
   'screen-gatekeeper', 'screen-active-play', 'screen-gameover',
   'screen-gm-menu', 'screen-gm-setup', 'screen-gm-input', 'screen-gm-pass-gate',
@@ -44,7 +44,7 @@ const allScreens = [
   'screen-ygi-vote', 'screen-ygi-results', 'screen-ygi-gameover',
   'screen-ygi-sd-intro', 'screen-ygi-sd-input',
   // Late To The Party
-  'screen-lttp-menu', 'screen-lttp-setup', 'screen-lttp-briefing', 'screen-lttp-role-reveal',
+  'screen-lttp-menu', 'screen-lttp-setup', 'screen-lttp-briefing',
   'screen-lttp-handover', 'screen-lttp-chat', 'screen-lttp-guess', 'screen-lttp-group-guess', 'screen-lttp-gameover',
   // Natural Selection
   'screen-nat-menu', 'screen-nat-setup', 'screen-nat-habitat-intro', 'screen-nat-handover',
@@ -483,13 +483,17 @@ function showScreen(id) {
   el.classList.remove('screen-enter');
   void el.offsetWidth;
   el.classList.add('screen-enter');
-  // Background music follows the active game. This is the ONE seam for all 18
+  // Background music follows the active game. This is the ONE seam for all 20
   // games: every plugin sets activeGameId before navigating, and resetToLobby()
   // clears it before its own showScreen — so both directions are covered here
   // and no plugin needs a line of music code. Resolving to the track already
   // playing is a no-op inside Music, so moving between screens within one game
-  // never restarts it.
-  if (typeof Music !== 'undefined') Music.playFor(activeGameId);
+  // never restarts it. The Sylly flag rides the same seam via isGameSyllyOn()
+  // — a plugin toggling its own Sylly Mode needs no music call either. Settings
+  // overlays toggle by style.display, not showScreen(), so flipping the switch
+  // mid-settings doesn't retheme the track instantly; it updates at the next
+  // real screen transition (starting the match), the natural moment for it.
+  if (typeof Music !== 'undefined') Music.playFor(activeGameId, isGameSyllyOn(activeGameId));
 }
 
 function toggleMute() {
@@ -637,6 +641,23 @@ function getMuteToggleOnClass(gameId) {
     'comb': 'game-toggle-on-comb'
   };
   return map[gameId] || 'game-toggle-on-stone';
+}
+
+// Sylly Mode background tracks (27 Sep 2026). Each game's Sylly flag is
+// private plugin state — a plain `let [abbr]SyllyMode` — so this is the one
+// place `js/lib/music.js` reads across that boundary, same shape as the two
+// per-game maps above. Only games with an actual Sylly-variant TRACK need an
+// entry; every other game's key is simply absent, and Music.playFor's own
+// `<id>:sylly` lookup then falls straight through to the base track — no
+// per-game code required as more variants are generated.
+function isGameSyllyOn(gameId) {
+  const getters = {
+    'frt': () => frtSyllyMode,
+    'shp': () => shpSyllyMode,
+    'pko': () => pkoSyllyMode,
+  };
+  const g = getters[gameId];
+  return g ? !!g() : false;
 }
 
 function shuffle(arr) {
@@ -800,7 +821,7 @@ function resetToLobby() {
   if (typeof frtResetState === 'function') frtResetState();
   // Counting Sheep teardown
   ['shp-settings-overlay','shp-how-to-overlay','shp-quit-overlay',
-   'shp-new-night-overlay','shp-tip-overlay','shp-play-log-overlay'].forEach(id => {
+   'shp-new-night-overlay','shp-play-log-overlay'].forEach(id => {
     const el = document.getElementById(id); if (el) el.style.display = 'none';
   });
   if (typeof shpResetState === 'function') shpResetState();
@@ -887,6 +908,9 @@ function resetToLobby() {
   if (typeof syncSfxUI === 'function') syncSfxUI();       // sfx toggle back to neutral stone
   if (typeof syncMusicUI === 'function') syncMusicUI();   // music toggle back to neutral stone
   if (typeof ctlTeardown === 'function') ctlTeardown();
+  // The jukebox screen's two RAF loops (its stage, its equaliser). A song left
+  // playing is NOT stopped here — a game's own showScreen lets go of it (Music).
+  if (window.Jukebox) Jukebox.jbxStop();
   lobbyShow();   // ← the router seam: the layout the player left from (also swaps music via showScreen)
 }
 

@@ -448,12 +448,21 @@ async function probe() {
           geometry off the edge of the body for a ray to hit.
         · 'edge' is the one a player meets in normal use, at any tight fold. */
     const clickRefusal = async (bx, by) => {
-      await page.evaluate(() => {
+      const was = await page.evaluate(() => {
         const id = ctlStickerManifest[2].id;
         // bookTap TOGGLES: re-arming the same id would disarm it instead
         if (ctlStickerState.armed !== id) ctlStickerDispatch({ t: 'bookTap', id: id });
         document.getElementById('ctl-sticker-say').textContent = '';
+        /* The refusals below were measured for a default-size sticker (18).
+           Since SW v234 the Size slider is always on screen and syncs to
+           whichever placement was last selected, so pin it back — a smaller
+           sticker fits the fold this check exists to refuse. */
+        const size = document.getElementById('ctl-sticker-size');
+        const before = size.value;
+        size.value = '18';
+        return before;
       });
+      if (was !== '18') console.log('   (Size slider was ' + was + ' from the last selection; pinned to 18)');
       await clickBody(bx, by);
       return page.evaluate(() => ({ n: ctlStickerState.stickers.length,
         say: document.getElementById('ctl-sticker-say').textContent }));
@@ -493,8 +502,9 @@ async function probe() {
 
     /* ── The two orderings the Workshop can be in ────────────────────────
        ctlOnTap is assigned on OPEN, but the surface is not built until the
-       Stickers tab is first shown. So the handler spends the whole Colours
-       tab armed and surface-less, and must be inert there. */
+       first sticker is picked up from the sheet (SW v234 — before it, the
+       Stickers tab's first open). So the handler spends every recolour armed
+       and surface-less, and must be inert there. */
     const parked = await page.evaluate(() => {
       const P = ctlStickerSurface.point(1.16, -0.12, false);
       const v = new THREE.Vector3(P[0], P[1], P[2]);
@@ -504,7 +514,7 @@ async function probe() {
       ctlStickerDispatch({ t: 'bookTap', id: ctlStickerManifest[3].id });
       document.getElementById('ctl-sticker-say').textContent = '';
       const n = ctlStickerState.stickers.length;
-      ctlStickerSurface = null;                       // as it is on the Colours tab
+      ctlStickerSurface = null;                       // as it is before the first pick-up
       return { n: n, x: b.left + (v.x * 0.5 + 0.5) * b.width,
                y: b.top + (0.5 - v.y * 0.5) * b.height };
     });
@@ -512,7 +522,7 @@ async function probe() {
     const inert = await page.evaluate(() => ({ n: ctlStickerState.stickers.length,
       say: document.getElementById('ctl-sticker-say').textContent }));
     ok(inert.n === parked.n && inert.say === '',
-       'the Colours tab is untouched: armed but surface-less, the tap is inert');
+       'before the first pick-up the tap is inert: armed but surface-less');
 
     /* And the other ordering, which is the one that bites. ctlOpenWorkshop
        seeds the editing state from ctlDraft; the surface build is where rule 6
@@ -529,7 +539,7 @@ async function probe() {
       ctlDesign = Object.assign({}, ctlDesign, { stickers: [ok1, bad] });
       ctlStickerState = { stickers: ctlDraft.stickers.slice(),   // as ctlOpenWorkshop seeds it
                           armed: null, selected: -1, history: [] };
-      ctlEnsureStickerSurface();                                 // as the tab's first open does
+      ctlEnsureStickerSurface();                                 // as the first pick-up does
       return { same: ctlStickerState.stickers === ctlDraft.stickers,
                ids: ctlStickerState.stickers.map(s => s.id) };
     });
@@ -537,11 +547,13 @@ async function probe() {
        'building the surface re-points the live state at the array rule 6 just ' +
        'validated: [' + reseed.ids + ']');
 
-    /* ── The tab itself, at a phone's width ──────────────────────────────
+    /* ── The Workshop at a phone's width ─────────────────────────────────
        A second page rather than a resize: the checks above own a 900x1400
        rig and a live camera, and re-laying that out underneath them to ask a
        CSS question would make every earlier projection stale. 390 px is the
-       suite's reference width (ui-style.md). */
+       suite's reference width (ui-style.md). Since SW v234 the Workshop is
+       design B (three columns, no tabs); below 860 px the columns stack and
+       the stage pins to the top. */
     const phone = await browser.newPage({ viewport: { width: 390, height: 844 } });
     phone.on('pageerror', e => errs.push('390px: ' + String(e)));
     phone.on('console', m => { if (m.type() === 'error') errs.push('390px console: ' + m.text()); });
@@ -555,31 +567,69 @@ async function probe() {
     await phone.waitForFunction(() => typeof ctlEnsureBuilt === 'function' && ctlEnsureBuilt(),
                                 null, { timeout: 20000 });
     await phone.evaluate(() => { ctlOpenWorkshop(); });
-    await phone.click('#ctl-tabs [data-ctl-tab="stickers"]');
-    await phone.waitForFunction(() => ctlStickerManifest && ctlStickerManifest.length,
+    await phone.waitForFunction(() => ctlStickerManifest && ctlStickerManifest.length &&
+                                      document.querySelector('.ctl-sticker-tile'),
                                 null, { timeout: 20000 });
+
+    /* The lazy guarantee, INSIDE the Workshop. With no tabs the sheet is on
+       screen from the first frame, so opening the Workshop fetches the
+       manifest — and must stop there. The surface (339 ms, a 2048 atlas) is
+       paid by the first sticker picked up, never by a player who only
+       recolours. */
+    const open = await phone.evaluate(() => ({
+      tiles: document.querySelectorAll('.ctl-sticker-tile').length,
+      surface: ctlStickerSurface !== null, atlas: CTL_ATLAS }));
+    ok(open.tiles === 19 && open.surface === false && open.atlas === 1024,
+       'opening the Workshop shows the sheet (' + open.tiles + ' tiles) WITHOUT building ' +
+       'the sticker surface: atlas ' + open.atlas);
+    await phone.click('.ctl-sticker-tile >> nth=1');           // a real pick-up
+    await phone.waitForFunction(() => ctlStickerSurface !== null &&
+                                      ctlStickerMode(ctlStickerState) === 'armed',
+                                null, { timeout: 15000 });
+    const picked = await phone.evaluate(() => ({ atlas: CTL_ATLAS, armed: ctlStickerState.armed,
+      say: document.getElementById('ctl-sticker-say').textContent }));
+    ok(picked.atlas === 2048 && picked.armed === 'gm' && picked.say === 'Tap the controller to put it on.',
+       'the first pick-up pays for it: atlas ' + picked.atlas + ', ' + picked.armed + ' in hand');
 
     const box = await phone.evaluate(() => {
       const R = el => el.getBoundingClientRect();
       const tiles = [...document.querySelectorAll('.ctl-sticker-tile')].map(R);
-      const pills = [...document.querySelectorAll('#ctl-tabs [data-ctl-tab]')].map(R);
       const sec = document.getElementById('screen-workshop');
       return {
         n: tiles.length,
         minW: Math.round(Math.min(...tiles.map(t => t.width))),
         minH: Math.round(Math.min(...tiles.map(t => t.height))),
         perRow: tiles.filter(t => Math.round(t.top) === Math.round(tiles[0].top)).length,
-        pillRows: new Set(pills.map(p => Math.round(p.top))).size,
         secX: sec.scrollWidth > sec.clientWidth,
         docX: document.documentElement.scrollWidth > document.documentElement.clientWidth,
       };
     });
     ok(box.minW >= 44 && box.minH >= 44,
-       'every book tile clears the 44 px touch minimum: ' + box.n + ' at ' +
+       'every sheet tile clears the 44 px touch minimum: ' + box.n + ' at ' +
        box.minW + 'x' + box.minH + ', ' + box.perRow + ' across');
-    ok(box.pillRows === 1, 'the two tab pills sit on one line at 390 px');
     ok(box.secX === false && box.docX === false,
        'nothing scrolls sideways at 390 px: the Workshop section and the document both fit');
+
+    /* The stage never moves. Tool Belt (SW v235) drops the old stand-in's
+       whole-page scroll for a phone that never scrolls at all — the sheet
+       scrolls SIDEWAYS, in its own strip, so reaching the last sticker (the
+       hardest tap to reach in the old design) leaves the controller exactly
+       where it was. */
+    const pin = await phone.evaluate(() => {
+      const scroller = document.querySelector('.wks-sheet-scroll');
+      scroller.scrollLeft = scroller.scrollWidth;
+      const s = document.getElementById('ctl-stage').getBoundingClientRect();
+      const t = document.querySelector('.ctl-sticker-tile:last-child').getBoundingClientRect();
+      const out = { scrolled: Math.round(scroller.scrollLeft), stageTop: Math.round(s.top), stageH: Math.round(s.height),
+                    lastTileOnScreen: t.right > t.left && Math.round(t.right) <= innerWidth + 1,
+                    pageScrolls: document.getElementById('screen-workshop').scrollHeight >
+                                 document.getElementById('screen-workshop').clientHeight + 1 };
+      scroller.scrollLeft = 0;
+      return out;
+    });
+    ok(pin.scrolled > 0 && pin.stageTop >= 0 && pin.stageH > 150 && pin.lastTileOnScreen && !pin.pageScrolls,
+       'the sheet scrolls sideways to the last sticker (' + pin.scrolled + ' px), the stage never moves: ' +
+       pin.stageH + ' px tall at y=' + pin.stageTop);
 
     const ctrls = await phone.evaluate(() => {
       ctlStickerDispatch({ t: 'bookTap', id: ctlStickerManifest[0].id });
@@ -594,48 +644,38 @@ async function probe() {
                row: getComputedStyle(document.getElementById('ctl-sticker-controls')).display,
                undo: H('btn-ctl-sticker-undo'), del: H('btn-ctl-sticker-delete'),
                done: H('btn-ctl-sticker-done'),
+               title: document.getElementById('ctl-sticker-insp-title').textContent,
+               count: document.getElementById('ctl-sticker-count').textContent,
                badges: document.querySelectorAll('.ctl-sticker-tile-placed .ctl-sticker-dot').length };
     });
     ok(ctrls.mode === 'selected' && ctrls.row === 'flex' &&
        ctrls.undo >= 44 && ctrls.del >= 44 && ctrls.done >= 44,
        'a selected placement raises the controls card, all three buttons >= 44 tall: ' +
        ctrls.undo + '/' + ctrls.del + '/' + ctrls.done);
-    ok(ctrls.badges === 1, 'and the placed tile is badged in the book: ' + ctrls.badges);
-
-    /* Each body is its OWN overflow-y-auto region. On the shared parent the two
-       shared one scrollTop, and hopping to the shorter Colours body clamped the
-       book's 436 down to 117 — measured, before this was moved onto the bodies. */
-    const trip = await phone.evaluate(() => {
-      const cols = document.getElementById('ctl-panel-colours');
-      const stk = document.getElementById('ctl-panel-stickers');
-      stk.scrollTop = 150;                    // mid-way, so no clamp can confuse this
-      const before = Math.round(stk.scrollTop);
-      document.querySelector('#ctl-tabs [data-ctl-tab="colours"]').click();
-      const coloursTop = Math.round(cols.scrollTop);
-      document.querySelector('#ctl-tabs [data-ctl-tab="stickers"]').click();
-      return { before: before, after: Math.round(stk.scrollTop), coloursTop: coloursTop,
-               parent: getComputedStyle(document.getElementById('ctl-panel')).overflowY,
-               body: getComputedStyle(stk).overflowY };
-    });
-    ok(trip.body === 'auto' && trip.parent !== 'auto' &&
-       trip.before === 150 && trip.after === 150 && trip.coloursTop === 0,
-       'the two bodies are independent scroll regions: the book keeps ' + trip.after +
-       ' across a hop to Colours, which sits at ' + trip.coloursTop);
+    ok(ctrls.badges === 1 && ctrls.count === '1' && ctrls.title === 'Like I\'m Five',
+       'the placed tile is badged, the sheet counts it (' + ctrls.count + '), and the card names it: ' +
+       ctrls.title);
 
     /* Spec § 7: "Undo appears whenever ctlStickerHistory has an entry to pop" —
-       no state qualifier. The card therefore outlives the selection. */
+       no state qualifier. Widescreen keeps this literally (the card outlives
+       the selection, showing Undo alone); Tool Belt (SW v235) satisfies the
+       same guarantee by relocating Undo into the sheet's own head instead —
+       the card would otherwise squat in Paint's tray for a single button. */
     const idle = await phone.evaluate(() => {
+      // Back to Idle the way a player gets there: Done.
+      document.getElementById('btn-ctl-sticker-done').click();
       const D = id => getComputedStyle(document.getElementById(id)).display;
       return { mode: ctlStickerMode(ctlStickerState), history: ctlStickerState.history.length,
                row: D('ctl-sticker-controls'), undo: D('btn-ctl-sticker-undo'),
+               undoInBeltHead: document.getElementById('btn-ctl-sticker-undo').closest('.wks-belt-head') !== null,
                del: D('btn-ctl-sticker-delete'), done: D('btn-ctl-sticker-done'),
                sliders: D('ctl-sticker-sliders') };
     });
-    ok(idle.mode === 'idle' && idle.history === 1 && idle.row !== 'none' &&
-       idle.undo !== 'none' && idle.del === 'none' && idle.done === 'none' &&
-       idle.sliders === 'none',
-       'back in Idle the card keeps Undo alone — spec § 7 puts no state on it, and ' +
-       'Done is one tap from the placement you might want back');
+    ok(idle.mode === 'idle' && idle.history === 1 && idle.row === 'none' &&
+       idle.undoInBeltHead && idle.undo !== 'none' && idle.del === 'none' &&
+       idle.done === 'none' && idle.sliders === 'none',
+       'back in Idle on a phone, the card (spec § 7 — Paint\'s tray-mate) hides entirely; Undo ' +
+       'lives in the sheet\'s own head instead, always reachable');
 
     /* Leave the Workshop and go straight back in. ctlMountLobby defers its real
        work through requestIdleCallback(start, { timeout: 1200 }) and
@@ -659,6 +699,93 @@ async function probe() {
        kept.w > 0 && kept.h > 0,
        'reopening the Workshop at once survives a stale deferred lobby mount: ' +
        'the rig is in ' + kept.parent + ' at ' + kept.w + 'x' + kept.h);
+
+    /* ── The same Workshop, widescreen ───────────────────────────────────
+       Design B is widescreen-first: paint | stage | stickers side by side,
+       the room itself never scrolling, and each column its own scroll region.
+       The phone page is resized rather than a fourth page loaded — every
+       check that owns a projection on it has already run. */
+    await phone.setViewportSize({ width: 1440, height: 860 });
+    await phone.waitForTimeout(400);
+    const wide = await phone.evaluate(() => {
+      const R = sel => document.querySelector(sel).getBoundingClientRect();
+      const sec = document.getElementById('screen-workshop');
+      const paint = R('.wks-paint'), view = R('.wks-view'), stk = R('.wks-stickers');
+      const c = ctlRenderer.domElement.getBoundingClientRect();
+      const scroll = document.querySelector('.wks-sheet-scroll');
+      return { order: paint.right <= view.left && view.right <= stk.left,
+               topsAligned: Math.abs(paint.top - stk.top) < 2,
+               roomScrolls: sec.scrollHeight > sec.clientHeight + 1,
+               sheetScrolls: getComputedStyle(scroll).overflowY,
+               canvas: [Math.round(c.width), Math.round(c.height)],
+               pinned: getComputedStyle(document.querySelector('.wks-view')).position,
+               swatches: document.querySelectorAll('#ctl-palette .ctl-swatch').length,
+               parts: document.querySelectorAll('#ctl-parts .ctl-part').length };
+    });
+    ok(wide.order && wide.topsAligned && !wide.roomScrolls && wide.pinned !== 'sticky',
+       'at 1440 px the three columns sit side by side (paint | stage | stickers) and the room ' +
+       'does not scroll');
+    ok(wide.sheetScrolls === 'auto' && wide.canvas[0] > 400 && wide.canvas[1] > 400 &&
+       wide.swatches === 20 && wide.parts === 4,
+       'the sheet scrolls on its own, the stage re-fits (' + wide.canvas.join('x') + '), ' +
+       wide.parts + ' parts and ' + wide.swatches + ' swatches');
+
+    /* The resize crossed back over 859 px — ctlLayoutWide() should have put
+       every phone-only wrapper back where it found it: the card back at the
+       foot of the sheet, Undo back inside it, none of the four wrappers left
+       behind. (The reopen just above reset ctlStickerState — a fresh session,
+       same as a real reopen — so this checks structure, not Undo's own
+       visibility; that half is what the idle check above already proved.) */
+    const backWide = await phone.evaluate(() => {
+      const ws = document.getElementById('screen-workshop');
+      return { phoneLayoutFlag: ws.dataset.phoneLayout,
+               phoneWrappers: ['.wks-tray', '.wks-strip', '.wks-belt-head', '.wks-foot']
+                 .filter(sel => document.querySelector(sel)).length,
+               cardInStickers: document.getElementById('ctl-sticker-controls').closest('.wks-stickers') !== null,
+               undoInCard: document.getElementById('btn-ctl-sticker-undo').closest('.wks-insp-btns') !== null };
+    });
+    ok(!backWide.phoneLayoutFlag && backWide.phoneWrappers === 0 &&
+       backWide.cardInStickers && backWide.undoInCard,
+       'crossing back over 859 px reverts every phone wrapper — the card is back at the foot ' +
+       'of the sheet, Undo back inside it');
+
+    /* ── The owner's actual phone: an iPhone SE (2nd gen) ────────────────
+       390 px above is the suite's reference width; the owner's own device is
+       narrower still, and at 320 x ~452 (Display Zoom, iOS) came back bugged
+       once already (the sheet ran under the footer). Three fresh pages —
+       full screen, inside a browser's own toolbars, and Display Zoom — each
+       placing a sticker through the real tap path, checking the one thing
+       that broke: nothing in the tools sits under the footer. */
+    for (const [w, h, tag] of [[375, 667, 'SE full'], [375, 548, 'SE in-browser'], [320, 452, 'SE Display Zoom']]) {
+      const se = await browser.newPage({ viewport: { width: w, height: h }, isMobile: true, deviceScaleFactor: 2 });
+      se.on('pageerror', e => errs.push(tag + ': ' + String(e)));
+      se.on('console', m => { if (m.type() === 'error') errs.push(tag + ' console: ' + m.text()); });
+      await se.goto('http://127.0.0.1:' + port + '/index.html', { waitUntil: 'networkidle' });
+      await se.waitForFunction(() => window.lobbyReady === true && lobbyState.view === 'shelves',
+                               null, { timeout: 30000 });
+      await se.waitForFunction(() => typeof ctlEnsureBuilt === 'function' && ctlEnsureBuilt(),
+                               null, { timeout: 20000 });
+      await se.evaluate(() => { ctlOpenWorkshop(); });
+      await se.waitForFunction(() => ctlStickerManifest && ctlStickerManifest.length &&
+                                     document.querySelector('.ctl-sticker-tile'),
+                               null, { timeout: 20000 });
+      await se.evaluate(() => {
+        ctlEnsureStickerSurface();
+        ctlStickerDispatch({ t: 'bookTap', id: ctlStickerManifest[0].id });
+      });
+      await se.waitForFunction(() => ctlStickerSurface !== null, null, { timeout: 15000 });
+      const fit = await se.evaluate(() => {
+        const s = document.getElementById('ctl-stage').getBoundingClientRect();
+        const foot = document.querySelector('.wks-foot'), stk = document.querySelector('.wks-stickers');
+        const clash = (foot && stk) ? Math.max(0, Math.round(stk.getBoundingClientRect().bottom -
+                                                              foot.getBoundingClientRect().top)) : 0;
+        return { stageOn: s.top >= 0 && s.bottom <= innerHeight + 1, stageH: Math.round(s.height), clash };
+      });
+      ok(fit.stageOn && fit.stageH >= 100 && fit.clash === 0,
+         tag + ' (' + w + 'x' + h + '): stage ' + fit.stageH + 'px on screen with a sticker in ' +
+         'hand, nothing under the footer');
+      await se.close();
+    }
 
     /* ── THE LAZY GUARANTEE, on a cold lobby ─────────────────────────────
        A third page, never taken into the Workshop: every check above has

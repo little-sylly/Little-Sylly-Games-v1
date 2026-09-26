@@ -25,6 +25,120 @@
       "title": null,
       "artist": null,
       "gain": 1.0
+    },
+    "jec": {
+      "file": "jukebox/ready-set-cook.mp3",
+      "title": "Ready Set Cook",
+      "artist": "Sylly House Band",
+      "gain": 1.0
+    },
+    "ygi": {
+      "file": "jukebox/get-together.mp3",
+      "title": "Get Together",
+      "artist": "Sylly House Band",
+      "gain": 1.0
+    },
+    "lttp": {
+      "file": "jukebox/fashionably-on-time.mp3",
+      "title": "Fashionably On Time",
+      "artist": "Sylly House Band",
+      "gain": 1.0
+    },
+    "nat": {
+      "file": "jukebox/safari-adventure.mp3",
+      "title": "Safari Adventure",
+      "artist": "Sylly House Band",
+      "gain": 1.0
+    },
+    "dsd": {
+      "file": "jukebox/cruising-depths.mp3",
+      "title": "Cruising Depths",
+      "artist": "Sylly House Band",
+      "gain": 1.0
+    },
+    "gth": {
+      "file": "jukebox/deadpan-lounge.mp3",
+      "title": "Deadpan Lounge",
+      "artist": "Sylly House Band",
+      "gain": 1.0
+    },
+    "bld": {
+      "file": "jukebox/clown-s-alibi.mp3",
+      "title": "Clown's Alibi",
+      "artist": "Sylly House Band",
+      "gain": 1.0
+    },
+    "pass": {
+      "file": "jukebox/passing-time.mp3",
+      "title": "Passing Time",
+      "artist": "Sylly House Band",
+      "gain": 1.0
+    },
+    "nt": {
+      "file": "jukebox/trace-on.mp3",
+      "title": "Trace On",
+      "artist": "Sylly House Band",
+      "gain": 1.0
+    },
+    "frt": {
+      "file": "jukebox/fruit-salad-boogie.mp3",
+      "title": "Fruit Salad Boogie",
+      "artist": "Sylly House Band",
+      "gain": 1.0
+    },
+    "frt:sylly": {
+      "file": "jukebox/fruity-fun.mp3",
+      "title": "Fruity Fun",
+      "artist": "Sylly House Band",
+      "gain": 1.0
+    },
+    "shp": {
+      "file": "jukebox/music-box-lullaby.mp3",
+      "title": "Music Box Lullaby",
+      "artist": "Sylly House Band",
+      "gain": 1.0
+    },
+    "shp:sylly": {
+      "file": "jukebox/eerie-night-sky.mp3",
+      "title": "Eerie Night Sky",
+      "artist": "Sylly House Band",
+      "gain": 1.0
+    },
+    "flw": {
+      "file": "jukebox/private-exhibition.mp3",
+      "title": "Private Exhibition",
+      "artist": "Sylly House Band",
+      "gain": 1.0
+    },
+    "pko": {
+      "file": "jukebox/quiet-hunting.mp3",
+      "title": "Quiet Hunting",
+      "artist": "Sylly House Band",
+      "gain": 1.0
+    },
+    "pko:sylly": {
+      "file": "jukebox/weather-turned.mp3",
+      "title": "Weather Turned",
+      "artist": "Sylly House Band",
+      "gain": 1.0
+    },
+    "cjar": {
+      "file": "jukebox/dinner-dinner-radio-cha-cha.mp3",
+      "title": "Dinner Dinner Radio Cha-Cha",
+      "artist": "Sylly House Band",
+      "gain": 1.0
+    },
+    "cld": {
+      "file": "jukebox/slip-sideways.mp3",
+      "title": "Slip Sideways",
+      "artist": "Sylly House Band",
+      "gain": 1.0
+    },
+    "comb": {
+      "file": "jukebox/harmonium-hums.mp3",
+      "title": "Harmonium Hums",
+      "artist": "Sylly House Band",
+      "gain": 1.0
     }
   }
 }

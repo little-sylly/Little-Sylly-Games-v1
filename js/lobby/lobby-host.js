@@ -11,7 +11,7 @@
 // sfxEnabled, Music), controller.js (ctlMountOrnament, ctlOpenWorkshop,
 // ctlEnsureModel, ctlModelParts, ctlReadDesign, ctlReducedMotion),
 // js/lounge/* (LouScene, LouSfx), js/lobby/* (GAMES, lb*, tv*, Achievements,
-// Stickerbook, LobbyRouter, LobbyDoors).
+// Stickerbook, Jukebox, LobbyRouter, LobbyDoors).
 // ═══════════════════════════════════════════════════════════════════════════
 
 /* Three lobby buttons predate the short ids (spec § 6). Every other game's is btn-[id]. */
@@ -94,19 +94,28 @@ function lobbyAfterLayoutRender() {
 function lobbyApply(prev, next) {
   // The room: kept and stopped, never disposed, whenever anything else has the screen.
   if (next.room === 'absent' && prev.room !== 'absent') lobbyDisposeRoom();
-  const roomUp = next.view === 'lounge' && !next.workshop && !next.stickerbook;
+  const roomUp = next.view === 'lounge' && !next.workshop && !next.stickerbook && !next.jukebox;
   if (roomUp) {
     if (lobbyScene) {
       lobbyScene.resume();
       /* resetView on the way IN clears a fade a door left lit (the phone's
          fadeOut, the dial's pushIn) and shuts the binder. Guarded on the
          transition, because a resize re-applies and must not snap a drag. */
-      if (prev.view !== 'lounge' || prev.stickerbook || prev.workshop) lobbyScene.resetView();
+      if (prev.view !== 'lounge' || prev.stickerbook || prev.workshop || prev.jukebox) lobbyScene.resetView();
+      /* The jukebox prop reads Music only when told: a song may have changed,
+         started or been let go (a game's music took over) while the room slept. */
+      if (lobbyScene.syncMusic) lobbyScene.syncMusic();
     } else lobbyEnsureRoom();
   } else if (lobbyScene) lobbyScene.stop();
   if (lobbyScene && next.design && next.design !== prev.design) lobbyScene.setDesign(next.design);
 
   lobbyPaintSwitcher(next);
+
+  /* The jukebox (SW v233) is a SCREEN, not an overlay: open shows it, and close
+     is presented below like any change of view — lobbyPresent's showScreen is
+     what takes it down. Its two RAF loops stop in jbxClose (Timer Lifecycle). */
+  if (next.jukebox && !prev.jukebox) lobbyOpenJukebox();
+  if (!next.jukebox && prev.jukebox) Jukebox.jbxClose();
 
   if (next.stickerbook && !prev.stickerbook) lobbyOpenStickerbook();
   if (!next.stickerbook && prev.stickerbook && lobbySb) lobbySb.close();
@@ -124,10 +133,11 @@ function lobbyApply(prev, next) {
      ornament opens it itself and only tells the router (onOpen). */
   if (next.workshop && !prev.workshop && next.view === 'lounge') lobbyOpenWorkshopFromRoom();
 
-  if (!next.workshop && (next.view !== prev.view || prev.workshop)) lobbyPresent(next.view);
+  if (!next.workshop && !next.jukebox && (next.view !== prev.view || prev.workshop || prev.jukebox)) lobbyPresent(next.view);
 
   // A lounge that no longer fits (a phone, or a window shrunk) plays the beat and hands on.
-  if (next.view === 'lounge' && !next.workshop && !lobbyEligible()) lobbyRunArrival();
+  // Not from behind the jukebox: the beat would hand the room on while its screen is up.
+  if (next.view === 'lounge' && !next.workshop && !next.jukebox && !lobbyEligible()) lobbyRunArrival();
 
   /* The beat has handed this device to Shelves for good, so its lean room is
      dead weight — a WebGL context and the room's GPU memory on exactly the
@@ -167,6 +177,10 @@ function lobbyMountOrnament(view) {
 function lobbyWorkshopReturn(design) {
   lobbyDispatch({ t: 'designSaved', design });
   lobbyDispatch({ t: 'workshopClose' });
+}
+function lobbyOpenJukebox() {
+  showScreen('screen-jukebox');
+  Jukebox.jbxOpen();
 }
 function lobbyOpenWorkshopFromRoom() {
   ctlOpenWorkshop({ returnScreen: 'screen-lounge', onReturn: lobbyWorkshopReturn });
@@ -281,13 +295,27 @@ function lobbyDesignColours() {
   const d = ctlReadDesign();
   return { shell: d.shell, plate: d.plate, ears: d.ears, buttons: d.buttons };
 }
-/* The jukebox is decorative in v1 (owner): it reads what the real Music plays and
-   picks nothing — music stays driven by showScreen(). */
+/* The room names two kinds of sound: its own (lounge-sfx.js) and the Workshop's.
+   The controller prop's idle Konami must sound exactly like the code typed in
+   the Workshop, so those names route to controller.js / secret-mode.js's own
+   voices rather than a copy. Sound ONLY — nothing here reaches smHandleButton,
+   so the room's Konami is a hint and never an unlock. Mute is checked by the caller. */
+function lobbyPlaySfx(name) {
+  if (name.indexOf('controllerPress:') === 0) { ctlVoiceFor(name.slice('controllerPress:'.length)); return; }
+  if (name === 'controllerRelease') { ctlVoiceRelease(); return; }
+  if (name === 'konamiBeep') { playSecretBeep(); return; }
+  if (lobbySfx) lobbySfx.play(name);
+}
+/* The Lounge's jukebox prop reads what Music plays (a held song included —
+   nowPlaying() reports it while it plays). Its record carousel is "next record"
+   (SW v233): the key the scene passes is a GAMES id and is ignored — the next
+   record is the jukebox's call, not the room's. Background music still follows
+   showScreen() whenever no song is held. */
 function lobbyMusicAdapter() {
   return {
     keys: GAMES.map(g => g.id),
     nowPlaying() { return (typeof Music !== 'undefined' && Music.nowPlaying) ? Music.nowPlaying() : null; },
-    playFor() {},
+    playFor() { Jukebox.jbxNextRecord(); },
   };
 }
 async function lobbyLoadContent() {
@@ -306,9 +334,17 @@ async function lobbyLoadContent() {
     music: lobbyMusicAdapter(),
     dispatch: lobbyDispatch,
     openSound: () => openSoundOverlay(),
-    sfx: (name) => { if (!isMuted && sfxEnabled && lobbySfx) lobbySfx.play(name); },
+    sfx: (name) => { if (!isMuted && sfxEnabled) lobbyPlaySfx(name); },
     controllerParts: () => (ctlEnsureModel() ? ctlModelParts() : null),
     debug: lobbyDebug,
+  });
+  Jukebox.jbxConfigure({
+    games: GAMES,
+    stickers: { base: LOBBY_DATA.stickers, list: stickers },
+    design: lobbyDesignColours,
+    onClose: () => lobbyDispatch({ t: 'jukeboxClose' }),
+    onChange: () => { if (lobbyScene && lobbyScene.syncMusic) lobbyScene.syncMusic(); },
+    say: lobbySay,
   });
 }
 

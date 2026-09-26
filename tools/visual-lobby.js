@@ -163,12 +163,23 @@ const canvasParent = page => page.evaluate(() => (typeof ctlRenderer !== 'undefi
       await page.click('#sm-terminal-back'); await settle(page, 400);
       ok(await onlyLayout(page, 'shelves'), 'the Terminal\'s back lands on Shelves');
 
-      section('7 — the idle nudge runs in every ornament layout');
+      section('7 — the idle nudge runs in every ornament layout, and always comes home');
+      /* Sampled across the window, not compared at its end: since the home spring (26 Sep 2026)
+         a nudge can settle back onto EXACTLY its starting yaw inside 5.6 s on a fast machine.
+         The bound is the bug the spring fixed — with random-signed coasts and no way home, the
+         yaw random-walked to -2.1 rad (edge-on, nearly its back) within a minute. */
       for (const layout of ['shelves', 'tv', 'original']) {
         await page.evaluate(v => lobbyGo(v), layout); await settle(page, 500);
-        const r0 = await page.evaluate(() => ctlRotY); await settle(page, 5600);
-        ok(await page.evaluate(r => ctlRotY !== r, r0), `${layout}: the ornament nudges itself`);
+        const r0 = await page.evaluate(() => ctlRotY); let moved = false, far = 0;
+        for (let i = 0; i < 28; i++) { await settle(page, 200);
+          const [r, off] = await page.evaluate(() => [ctlRotY, Math.abs(ctlYawOffHome())]); if (r !== r0) moved = true; far = Math.max(far, off); }
+        ok(moved, `${layout}: the ornament nudges itself`);
+        ok(far < 0.6, `${layout}: a wiggle, never a turn away (max ${far.toFixed(2)} rad off home)`);
       }
+      await page.evaluate(() => lobbyGo('shelves')); await settle(page, 300);
+      await page.evaluate(() => { ctlRotY = 4.0; ctlVelY = 0; ctlWake(); });
+      await page.waitForFunction(() => Math.abs(ctlYawOffHome()) < 0.05, null, { timeout: 60000 }).catch(() => {});
+      ok(await page.evaluate(() => Math.abs(ctlYawOffHome()) < 0.05), 'a controller spun off its pose in a slot glides home');
 
       section('8 — the stickerbook: full, empty tray, nothing written');
       await page.evaluate(() => lobbyGo('lounge')); await settle(page, 400);
@@ -194,6 +205,86 @@ const canvasParent = page => page.evaluate(() => (typeof ctlRenderer !== 'undefi
       ok(await onlyLayout(page, 'tv'), 'the telly screen door leads to TV');
       await page.evaluate(() => lobbyGo('lounge')); await settle(page, 500);
       ok(await page.evaluate(() => getComputedStyle(document.getElementById('lou-fade')).opacity) === '0', 'the fade is cleared on return — the room is visible');
+
+      section('14 — the Lounge controller\'s Konami is a hint, never an unlock');
+      /* The idle beat only NAMES sounds; the host routes them to the Workshop's own voices.
+         Nothing on that path may reach the code's buffer or the gateway. Software GL frames
+         are slow enough that some presses fall inside one frame and stay silent, so this
+         asserts the route and the absence of an unlock, not the count (the pure harness,
+         verify-lounge-props.js, owns the sequence). */
+      await page.evaluate(() => {
+        window.__kh = { heard: [], voices: [], beeps: 0, handled: 0, gateway: 0 };
+        const h = lobbyHost.sfx; lobbyHost.sfx = n => { window.__kh.heard.push(n); h(n); };
+        const vf = ctlVoiceFor; window.ctlVoiceFor = n => { window.__kh.voices.push(n); return vf(n); };
+        const pb = playSecretBeep; window.playSecretBeep = f => { window.__kh.beeps++; return pb(f); };
+        const hb = smHandleButton; window.smHandleButton = c => { window.__kh.handled++; return hb(c); };
+        const og = smOpenGateway; window.smOpenGateway = () => { window.__kh.gateway++; return og(); };
+        smKonamiBuffer = [];
+        lobbyScene.withProp('controller', a => a.idle('konami', performance.now()));
+      });
+      await page.waitForFunction(() => lobbyScene.built.controller.userData.api.idleState().kind === null, null, { timeout: 30000 }).catch(() => {});
+      /* A frame gap over LOU_CTL_STOPPED_MS (1.5 s) drops the whole beat at rest — by design,
+         it is how the prop tells a stopped scene from a slow one — and a software-GL stall can
+         do exactly that (seen 2 runs in 5, 26 Sep 2026: 0 voices, 0 beeps). This check is about
+         the ROUTE, so a beat that was dropped whole is run once more, never more. */
+      if (await page.evaluate(() => window.__kh.heard.length === 0)) {
+        await page.evaluate(() => lobbyScene.withProp('controller', a => a.idle('konami', performance.now())));
+        await page.waitForFunction(() => lobbyScene.built.controller.userData.api.idleState().kind === null, null, { timeout: 30000 }).catch(() => {});
+      }
+      const kh = await page.evaluate(() => Object.assign({}, window.__kh, { buf: smKonamiBuffer.length }));
+      ok(kh.heard.some(n => n.indexOf('controllerPress:') === 0) && kh.voices.length > 0 && kh.beeps > 0,
+         `the room's Konami plays the Workshop's own voices (${kh.voices.length} press voices, ${kh.beeps} beeps)`);
+      ok(kh.handled === 0 && kh.gateway === 0 && kh.buf === 0, 'and never reaches the code\'s buffer or the gateway');
+      ok(await onlyLayout(page, 'lounge'), 'the Lounge is still the only layout up');
+
+      section('15 — the jukebox: the cat\'s door, a song held through the lobby, ✕ back to the Lounge');
+      /* Software GL stalls CSS transitions, so a chip mid-transition screenshots as
+         unselected — turn them off for this screen. Visibility is still geometry. */
+      await page.addStyleTag({ content: '#screen-jukebox *, #screen-jukebox *::before { transition: none !important; }' });
+      await page.evaluate(() => lobbyGo('lounge')); await settle(page, 400);
+      await page.evaluate(() => lobbyScene.activate('jukebox-knob'));
+      await page.waitForFunction(() => lobbyState.jukebox === true, null, { timeout: 10000 }).catch(() => {});
+      await page.waitForFunction(() => Jukebox.debug().tracks > 0, null, { timeout: 10000 }).catch(() => {});
+      ok(await shown(page, 'screen-jukebox') && !await shown(page, 'screen-lounge'), 'the cat\'s door opens the jukebox screen, and only it');
+      ok(await page.evaluate(() => !window.louDebug.isRunning() && Jukebox.debug().stageRunning),
+         'the Lounge\'s RAF is stopped while the jukebox\'s own stage runs — one scene at a time');
+      ok(await page.evaluate(() => Jukebox.debug().tracks) === 25, 'the catalogue loads from data/music/jukebox/ (25 songs)');
+      ok(await page.evaluate(() => document.getElementById('jbx-tab-records').getAttribute('aria-selected') === 'true'), 'Records is the default view');
+      await page.click('#jbx-find'); await settle(page, 200);
+      ok(await page.evaluate(() => document.getElementById('jbx-tab-list').getAttribute('aria-selected') === 'true'
+        && document.activeElement && document.activeElement.id === 'jbx-search'), '"Find a song" opens the List with the search focused');
+      await page.fill('#jbx-search', 'stakeout'); await settle(page, 200);
+      ok(await page.evaluate(() => document.querySelectorAll('#jbx-pick .dB-row').length) === 1, 'the search narrows the List to one song');
+      await page.click('#jbx-pick .dB-row[data-id="the-stakeout"]');
+      await page.waitForFunction(() => Jukebox.debug().playing, null, { timeout: 15000 }).catch(() => {});
+      ok(await page.evaluate(() => Music.heldKey() === 'the-stakeout' && Jukebox.debug().playing), 'a tap on a row holds that song and it plays');
+      ok(await page.evaluate(() => (Music.nowPlaying() || {}).title === 'The Stakeout'), 'Music reports it as what is playing');
+      await page.screenshot({ path: path.join(os.tmpdir(), 'visual-lobby-jukebox.png') });
+      await page.click('#jbx-close'); await settle(page, 500);
+      ok(await onlyLayout(page, 'lounge') && !await shown(page, 'screen-jukebox'), '✕ lands back on the Lounge, jukebox gone');
+      ok(await page.evaluate(() => window.louDebug.isRunning() && !Jukebox.debug().stageRunning && !Jukebox.debug().waveRaf),
+         'the room runs again; both jukebox RAF loops are stopped (Timer Lifecycle)');
+      ok(await page.evaluate(() => getComputedStyle(document.getElementById('lou-fade')).opacity) === '0', 'the door\'s fade is cleared — the room is visible');
+      await page.evaluate(() => lobbyGo('shelves')); await settle(page, 400);
+      ok(await page.evaluate(() => Music.heldKey() === 'the-stakeout' && !Music.deck().paused), 'the song is held through lobby navigation');
+      await page.evaluate(() => lbSet({ folder: lbGame('frt').shelves[0], sheet: 'frt' })); await page.click('#lb-play'); await settle(page, 400);
+      ok(await shown(page, 'screen-frt-menu') && await page.evaluate(() => Music.heldKey() === null), 'a game lets go of it — the game\'s music takes the room back');
+      await page.click('#btn-frt-menu-back'); await settle(page, 400);
+      ok(await onlyLayout(page, 'shelves'), 'and quitting the game still lands on Shelves');
+      // Paused and left: the house music comes back. And resetToLobby with the jukebox up.
+      await page.evaluate(() => lobbyGo('lounge')); await settle(page, 400);
+      await page.evaluate(() => lobbyDispatch({ t: 'jukeboxOpen' })); await settle(page, 600);
+      ok(await page.evaluate(() => Jukebox.debug().currentId === 'the-stakeout' && !Jukebox.debug().playing), 'reopened, it shows the last record, not playing');
+      await page.click('#screen-jukebox .jbx-key.k-play');
+      await page.waitForFunction(() => Jukebox.debug().playing, null, { timeout: 15000 }).catch(() => {});
+      await page.click('#screen-jukebox .jbx-key.k-play'); await settle(page, 300);
+      ok(await page.evaluate(() => Music.heldKey() === 'the-stakeout' && Music.deck().paused), 'the play key pauses it');
+      await page.click('#jbx-close'); await settle(page, 500);
+      ok(await page.evaluate(() => Music.heldKey() === null), 'closed while paused, the song is let go — the house music comes back');
+      await page.evaluate(() => lobbyDispatch({ t: 'jukeboxOpen' })); await settle(page, 500);
+      await page.evaluate(() => resetToLobby()); await settle(page, 500);
+      ok(await onlyLayout(page, 'lounge') && !await shown(page, 'screen-jukebox') && await page.evaluate(() => !Jukebox.debug().stageRunning && !Jukebox.isOpen()),
+         'resetToLobby with the jukebox up lands on the Lounge with its loops stopped');
 
       section('13 — resizing below a layout\'s floor');
       await page.evaluate(() => lobbyGo('tv')); await settle(page, 300);

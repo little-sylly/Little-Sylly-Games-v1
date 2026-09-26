@@ -77,7 +77,7 @@ No `ctaTextClass` remains in `MP_GAME_CONFIGS` for any game.
 | DSD | Begin Deployment | ⚓ | Silent Running |
 | GTH | Start the Session | 🛋️ | Stroke or Genius |
 | DYB | Let's Play! | 🎲 | The Tempest |
-| BLD | Make the Plans | 📋 | Drama Mode |
+| BLD | Make the Plans | 😬 | Drama Mode |
 | PASS | Deal Me In | 🃏 | The Abyss |
 | NT | Initialise System | 💻 | Devil's Network Protocol |
 | FRT | Start Serving | 🍌 | Fruity Personalities |
@@ -107,7 +107,13 @@ what the game already shows elsewhere: **YGI 🃏→💡** (its menu hero and `H
 title were already 💡; the how-to title alone lagged — 🃏 stays only on the in-game card labels
 *The Lineup* / *The Ringer*), **NT ⚡→💻** (menu hero + how-to + lobby badge; the `SYS.CONFIG ⚡`
 settings title deliberately keeps ⚡ as a terminal-theme flourish), and **BLD** — the menu hero was
-💬, now 📋, matching the how-to (its `Bailed 💬` settings title keeps 💬). `shared-implementation-notes` DD-10.
+💬, changed to 📋, matching the how-to (its `Bailed 💬` settings title kept 💬).
+`shared-implementation-notes` DD-10.
+
+**BLD emoji rebrand (26 Sep 2026).** Every 📋/💬 instance — menu hero, How to Play title, settings
+title, pass-gate and role-reveal screens — became 😬, including the `Bailed 😬` settings title (no
+"keeps its own emoji" exception this time, unlike the v216 note above). Brand colour `#991b1b`
+unchanged (owner call). Detail: `bld-implementation-notes`.
 
 ### Table C — Brand class strings
 

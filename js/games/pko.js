@@ -306,7 +306,7 @@ const PKO_EVENTS = [
     blurb: 'Mimics have infiltrated the Pool. Everyone draws a few more cards.',
     canFire: null, onFire: null, track: null, reversal: false, alpha: false, carrion: false },
   { id: 'culling', name: 'The Culling', emoji: '🍂',
-    blurb: 'The season takes the rarest species from every Hoard.',
+    blurb: 'Every Hoard discards the species it holds fewest of.',
     canFire: null, onFire: () => pkoFireCulling(), track: null, reversal: false, alpha: false, carrion: false },
   { id: 'great-reversal', name: 'The Great Reversal', emoji: '🔄',
     blurb: 'The chain runs backwards. Prey becomes predator.',

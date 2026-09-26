@@ -473,12 +473,10 @@ Stay here
 Hoard-count strip already implied and adds one sentence about who leads next — the natural next
 candidate for a per-Clash flavour line the way the Clash Intro has one.
 
-**The Culling's blurb describes the wrong event.** `PKO_EVENTS`'s interstitial text for The Culling
-reads *"The season takes the rarest species from every Hoard"* — that is Extinction Event's job (one
-globally-rarest species, wiped everywhere at once). The Culling actually makes each player discard
-their own individually fewest-held species, a per-player rather than a global effect. That
-5-second interstitial is the only place a player sees this text before the Hoard visibly changes, so
-a first-time Sylly player is briefly told the wrong rule for what just happened to their hand.
+**RESOLVED 26 Sep 2026.** The Culling's blurb described the wrong event — it read *"The season takes
+the rarest species from every Hoard"*, which is Extinction Event's job (one globally-rarest species,
+wiped everywhere at once). `PKO_EVENTS`'s `'culling'` blurb now reads *"Every Hoard discards the
+species it holds fewest of"*, matching its own `pkoFireCulling()` and `PKO_EVENT_DETAIL['culling']`.
 
 **Force of Nature has real texture and the base game has almost none.** Nine named events each get
 their own emoji, blurb and detail card; the base game's only comparable colour is the Clash Intro's

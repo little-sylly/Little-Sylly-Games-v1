@@ -691,7 +691,16 @@ function mpShowModeScreen(gameAbbr) {
   cta.className   = `min-h-14 w-full rounded-2xl ${cfg.brandBtnClass} active:scale-95 ${cfg.ctaTextClass || 'text-white'} text-xl font-semibold transition-all duration-150`;
 
   const online     = navigator.onLine;
-  document.getElementById('mp-mode-offline-notice').style.display = online ? 'none' : 'block';
+  const offlineNotice = document.getElementById('mp-mode-offline-notice');
+  offlineNotice.style.display = online ? 'none' : 'block';
+  // MDLM-only games (no 'ptp' in supportedModes) have no Pass-the-Phone fallback to
+  // offer offline — telling the player to use one they can't reach is a dead end.
+  // The Host/Join buttons are already correctly dimmed by mpBuildModeSection's own
+  // `dimmed = isLobby && !online`; this only fixes the copy that used to promise a
+  // path the game doesn't have (docs/deferred-work.md, 7 Sep 2026).
+  offlineNotice.textContent = cfg.supportedModes.includes('ptp')
+    ? 'No internet connection — Pass-the-Phone only.'
+    : 'This one needs everyone online. Reconnect and try again.';
 
   const recMode    = cfg.recommendedMode;
   const otherModes = cfg.supportedModes.filter(m => m !== recMode);

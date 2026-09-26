@@ -23,10 +23,11 @@
        longer `turn` (tweenTurn would spin the entire cabinet), so with nobody
        supplying openJukebox the answer is the prop's own `bop`, a small hop.
        `prop` names whose api that is: the pick id is not the prop id here,
-       unlike the binder's. Still absent from LOU_TAB_ORDER — a tab stop on a
-       door that goes nowhere is a question for the round that builds it. The
-       owner will rethink this whole door at production (plan § 5). */
-    'jukebox-knob':   { callback: 'openJukebox', optional: true, prop: 'jukebox', fallback: 'bop' },
+       unlike the binder's. SW v233 built the room it leads to: a host that
+       supplies openJukebox gets a push-in on the cat and then the jukebox
+       screen; one that does not still gets the bop. It is a tab stop now, just
+       before the records. */
+    'jukebox-knob':   { callback: 'openJukebox', optional: true, prop: 'jukebox', fallback: 'bop', pushIn: 'jukebox-knob' },
     'jukebox-record': { callback: 'music.next' },
     'dial':           { callback: 'enterTV', spin: true, pushIn: 'tv-screen' },
     /* Prop round 4 (owner, 23 Sep 2026): the phone rests CLOSED. A tap flips it
@@ -44,7 +45,7 @@
     'binder':         { callback: 'openStickerbook', optional: true, open: 'open', pushIn: 'binder', fallback: 'openCover' },
   };
   /* Keyboard / remote order, spec § 9.2. */
-  const LOU_TAB_ORDER = ['tv-screen', 'jukebox-record', 'dial', 'binder', 'phone', 'controller', 'lamp'];
+  const LOU_TAB_ORDER = ['tv-screen', 'jukebox-knob', 'jukebox-record', 'dial', 'binder', 'phone', 'controller', 'lamp'];
   /* World placement per prop group. y values sit on the room's surfaces
      (lounge-room.js louRoom): bench top 0.52, table top 0.44, arm top 0.58,
      side table top 0.565. x/z mirror louRoom's tableX/tableZ/benchZ — keep
@@ -149,7 +150,7 @@
      Workshop's render, so only geometry and textures are borrowed, and both are
      tagged so the scene's dispose() leaves them alone. No parts → flat colour,
      exactly as before. Never monochrome. */
-  function louBuildController(lib, design, CB, getParts) {
+  function louBuildController(lib, design, CB, getParts, ctx = {}) {
     const { THREE } = lib; const g = new THREE.Group(); louTag(g, 'controller');
     let parts = null;
     try { parts = typeof getParts === 'function' ? getParts() : null; } catch (_) { parts = null; }
@@ -186,10 +187,156 @@
     inner.updateMatrixWorld(true);
     const bb = new THREE.Box3().setFromObject(inner); inner.position.y = -bb.min.y;   // rest the lowest point on the group origin
     g.add(inner);
-    g.userData.api = { tick() { return false; } };
+    g.userData.api = louControllerIdle(THREE, inner, controls.group, ctx.rand || Math.random, ctx.sfx);
     return g;
   }
-  LOU_BUILDERS.controller = (ctx) => louBuildController(ctx.lib, ctx.design, ctx.ControllerBody, ctx.controllerParts);
+
+  /* ── The controller's idle beats (controller animation round, owner 26 Sep 2026) ──
+     The controller is the room's focus prop, so every 8-14 s it does one small
+     thing a real controller does when it is left on a couch:
+       rumble  — two buzz pulses, chattering in place (a room voice, lounge-sfx.js)
+       sticks  — both thumbsticks circle 1.5 turns, opposite ways, and spring home
+       pair    — the face buttons light in turn round the diamond, twice: looking
+                 for a player. Silent, and nothing travels
+       konami  — RARE (10%): ↑↑↓↓←→←→ B A Start, each press with the Workshop's
+                 own button voice and secret beep. A HINT ONLY: it names sounds,
+                 it never reaches smHandleButton, so it cannot unlock anything.
+     No timers: the scheduler reads `now` from the scene's frame, which the attract
+     loop wakes at 10 fps whenever the room is on screen. A gap in `now` means the
+     scene was stopped (a door, the Workshop) — the beat is dropped at rest and the
+     next one re-armed, so nothing is ever caught half-pressed. Under reduced
+     motion nothing moves; only the Konami's SOUND plays, because the sound is the
+     hint (ui-style.md § Motion Standard: reduced motion, not reduced information). */
+  const LOU_CTL_FIRST_MS = [3000, 5000];
+  const LOU_CTL_STOPPED_MS = 1500;   // a longer silence between frames than this means the scene was stopped, not a slow frame
+  const LOU_CTL_GAP_MS = [8000, 14000];
+  const LOU_CTL_BEATS = [{ kind: 'konami', w: 0.10 }, { kind: 'rumble', w: 0.35 }, { kind: 'sticks', w: 0.30 }, { kind: 'pair', w: 0.25 }];
+  /* The code as buttons — the D-pad's four arms, then two face caps and Start.
+     Button names are controller-body.js's mesh names, so the host can hand each
+     to ctlVoiceFor unchanged. */
+  const LOU_CTL_KONAMI = [['D-pad', 'Up'], ['D-pad', 'Up'], ['D-pad', 'Down'], ['D-pad', 'Down'], ['D-pad', 'Left'], ['D-pad', 'Right'], ['D-pad', 'Left'], ['D-pad', 'Right'], ['Face B'], ['Face A'], ['Start']];
+  const LOU_CTL_KONAMI_STEP_MS = 260, LOU_CTL_KONAMI_BREATH_MS = 140;   // an even, deliberate cadence, with a breath before B
+  const LOU_CTL_PRESS = { down: 60, hold: 120, up: 190 };               // one press: sink by 60 ms, let go at 120, home by 190
+  const LOU_CTL_PRESS_GLOW = 0.9;  // how brightly a Konami key lights at the bottom of its press
+  const LOU_CTL_ROCK = 0.13;      // radians the D-pad plate leans — js/controller.js CTL_ROCK, so it rocks like the Workshop's
+  const LOU_CTL_STICK_MS = 1700, LOU_CTL_STICK_TILT = 0.24, LOU_CTL_STICK_TURNS = 1.5;
+  const LOU_CTL_RUMBLE_PULSES = [[0, 260], [360, 640]];
+  const LOU_CTL_RUMBLE = { pos: 0.0011, lift: 0.0004, rot: 0.015 };   // metres / radians — a chatter, never a hop
+  const LOU_CTL_FACES = ['Face Y', 'Face B', 'Face A', 'Face X'];      // clockwise round the diamond
+  const LOU_CTL_PAIR_MS = 1600, LOU_CTL_PAIR_GLOW = 1.1;
+  const louCtlKonamiAt = i => i * LOU_CTL_KONAMI_STEP_MS + (i >= 8 ? LOU_CTL_KONAMI_BREATH_MS : 0);
+  const LOU_CTL_KONAMI_MS = louCtlKonamiAt(LOU_CTL_KONAMI.length - 1) + LOU_CTL_PRESS.up + 60;
+  const louSmooth = p => p <= 0 ? 0 : p >= 1 ? 1 : p * p * (3 - 2 * p);
+
+  function louControllerIdle(THREE, inner, group, rand, sfx) {
+    const say = name => { if (typeof sfx === 'function') { try { sfx(name); } catch (_) {} } };
+    const part = n => group.getObjectByName(n);
+    const sticks = ['Left stick', 'Right stick'].map(part).filter(Boolean);
+    const faces = LOU_CTL_FACES.map(part).filter(Boolean);
+    const glowBase = faces.map(m => m.material.emissiveIntensity);
+    /* A pressed Konami key also LIGHTS with its press. The travel is true to scale (2 mm, the
+       Workshop's rock) and invisible from the couch camera — seen in real Chromium, 26 Sep 2026 —
+       so without it the beeps seemed to come from nowhere. Each part owns its material (the
+       caps from buildControls, the D-pad a per-prop clone), so lighting one lights nothing else. */
+    const lit = {};
+    LOU_CTL_KONAMI.forEach(([n]) => { const m = part(n); if (m && !lit[n]) lit[n] = { m, c: m.material.emissive.clone(), i: m.material.emissiveIntensity }; });
+    function light(name, e) {
+      const L = lit[name]; if (!L) return; const mat = L.m.material;
+      if (e > 0) { mat.emissive.copy(mat.color); mat.emissiveIntensity = L.i + LOU_CTL_PRESS_GLOW * e; }
+      else { mat.emissive.copy(L.c); mat.emissiveIntensity = L.i; }
+    }
+    const rest = { pos: inner.position.clone(), rot: inner.rotation.clone() };
+    const E = new THREE.Euler(), Q = new THREE.Quaternion();
+    const between = r => r[0] + rand() * (r[1] - r[0]);
+    let beat = null, nextAt = null, last = null, lastKind = null;
+
+    // One press envelope, 0..1 — shared by the D-pad's rock and a cap's sink.
+    const pressE = tau => tau < 0 || tau >= LOU_CTL_PRESS.up ? 0 : tau < LOU_CTL_PRESS.down ? louSmooth(tau / LOU_CTL_PRESS.down)
+      : tau < LOU_CTL_PRESS.hold ? 1 : 1 - louSmooth((tau - LOU_CTL_PRESS.hold) / (LOU_CTL_PRESS.up - LOU_CTL_PRESS.hold));
+    function pose(m, e, dir) {
+      const d = m.userData;
+      if (d.rocker) {
+        const a = LOU_CTL_ROCK * e, dx = dir === 'Right' ? 1 : dir === 'Left' ? -1 : 0, dy = dir === 'Up' ? 1 : dir === 'Down' ? -1 : 0;
+        m.quaternion.copy(Q.setFromEuler(E.set(-a * dy, a * dx, 0))).multiply(d.baseQuat);   // parent-frame rock, as ctlTick does
+      } else m.position.copy(d.rest).addScaledVector(d.axis, -d.press * e);
+    }
+    function tilt(m, x, z) { m.quaternion.copy(m.userData.baseQuat).multiply(Q.setFromEuler(E.set(x, 0, z))); }
+
+    // Everything a beat can touch, put back exactly — the end of every beat and every drop.
+    function home() {
+      inner.position.copy(rest.pos); inner.rotation.copy(rest.rot);
+      group.traverse(o => { const d = o.userData; if (d && d.rest) o.position.copy(d.rest); if (d && d.baseQuat) o.quaternion.copy(d.baseQuat); });
+      faces.forEach((m, i) => { m.material.emissiveIntensity = glowBase[i]; });
+      Object.keys(lit).forEach(n => light(n, 0));
+    }
+
+    const RUN = {
+      konami: { ms: LOU_CTL_KONAMI_MS, frame(tau, b, quiet) {
+        LOU_CTL_KONAMI.forEach(([name, dir], i) => {
+          const at = tau - louCtlKonamiAt(i);
+          if (at < 0 || b.fired[i] === 3) return;
+          if (!b.fired[i] && at >= LOU_CTL_PRESS.up) { b.fired[i] = 3; return; }   // a press a long frame skipped whole stays silent: a hitch never fires a burst of beeps
+          if (!b.fired[i]) { b.fired[i] = 1; say('controllerPress:' + name); say('konamiBeep'); }
+          if (at >= LOU_CTL_PRESS.hold && b.fired[i] === 1) { b.fired[i] = 2; say('controllerRelease'); }
+          const m = part(name); if (m && !quiet) { pose(m, pressE(at), dir); light(name, pressE(at)); }   // pressE is 0 past `up`: this frame lands it home
+          if (at >= LOU_CTL_PRESS.up) b.fired[i] = 3;
+        });
+      } },
+      rumble: { ms: LOU_CTL_RUMBLE_PULSES[1][1] + 40, start() { say('controllerRumble'); }, frame(tau) {
+        const p = LOU_CTL_RUMBLE_PULSES.find(([a, z]) => tau >= a && tau < z);
+        const env = p ? Math.min(1, (tau - p[0]) / 30, (p[1] - tau) / 60) : 0;
+        const j = () => (Math.random() * 2 - 1) * env;   // presentation only: kept off `rand` so the schedule never depends on frame rate
+        inner.position.set(rest.pos.x + j() * LOU_CTL_RUMBLE.pos, rest.pos.y + Math.abs(j()) * LOU_CTL_RUMBLE.lift, rest.pos.z + j() * LOU_CTL_RUMBLE.pos);
+        inner.rotation.set(rest.rot.x, rest.rot.y, rest.rot.z + j() * LOU_CTL_RUMBLE.rot);
+      } },
+      sticks: { ms: LOU_CTL_STICK_MS, frame(tau) {
+        const env = Math.min(louSmooth(tau / 250), louSmooth((LOU_CTL_STICK_MS - tau) / 300));
+        const th = 2 * Math.PI * LOU_CTL_STICK_TURNS * louSmooth(tau / LOU_CTL_STICK_MS), A = LOU_CTL_STICK_TILT * env;
+        sticks.forEach((m, i) => { const s = i ? -1 : 1; tilt(m, A * Math.sin(s * th), A * Math.cos(s * th)); });
+      } },
+      pair: { ms: LOU_CTL_PAIR_MS, frame(tau) {
+        const slot = LOU_CTL_PAIR_MS / (2 * faces.length);   // two laps
+        faces.forEach((m, i) => {
+          let e = 0; for (let lap = 0; lap < 2; lap++) e = Math.max(e, 1 - Math.abs(tau - (lap * faces.length + i + 0.5) * slot) / (slot * 1.4));
+          m.material.emissiveIntensity = glowBase[i] + LOU_CTL_PAIR_GLOW * louSmooth(e);
+        });
+      } },
+    };
+
+    function pick() {
+      const pool = LOU_CTL_BEATS.filter(b => b.kind === 'konami' || b.kind !== lastKind);
+      let r = rand() * pool.reduce((s, b) => s + b.w, 0);
+      for (const b of pool) { r -= b.w; if (r < 0) return b.kind; }
+      return pool[pool.length - 1].kind;
+    }
+    function begin(kind, now) {
+      home(); beat = { kind, t0: now, fired: [] }; lastKind = kind;
+      if (RUN[kind].start) RUN[kind].start();
+    }
+    function drop(now) { if (beat) home(); beat = null; nextAt = now + between(LOU_CTL_FIRST_MS); }
+
+    return {
+      tick(now, dt, reduced) {
+        const gap = last !== null && now - last > LOU_CTL_STOPPED_MS; last = now;
+        if (nextAt === null || gap) { drop(now); return false; }
+        if (!beat && now >= nextAt) {
+          const kind = pick();
+          if (!reduced || kind === 'konami') begin(kind, now);
+          nextAt = now + between(LOU_CTL_GAP_MS);
+          if (!beat) return false;
+        }
+        if (!beat) return false;
+        const tau = now - beat.t0, run = RUN[beat.kind];
+        if (tau >= run.ms) { home(); beat = null; return true; }   // exactly home, and one frame to show it
+        run.frame(tau, beat, reduced);
+        return true;   // even a reduced (sound-only) Konami: at the attract loop's 10 fps its beeps would lose their rhythm
+      },
+      /* Start a beat now — the debug hook and the harness's way in. */
+      idle(kind, now) { if (RUN[kind]) begin(kind, now === undefined ? (last === null ? 0 : last) : now); },
+      idleState: () => ({ kind: beat ? beat.kind : null, nextAt }),
+    };
+  }
+  LOU_BUILDERS.controller = (ctx) => louBuildController(ctx.lib, ctx.design, ctx.ControllerBody, ctx.controllerParts, ctx);
 
   /* A rounded-rect PATH at an arbitrary centre — the hole version of
      lib.roundedRect, which always centres on the origin. The telly's screen

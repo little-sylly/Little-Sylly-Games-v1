@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Workshop Phone Lab</title>
+<!-- SANDBOX (wip/workshop-lab). Serve from the repo root (`npx http-server -p 8080` or
+     `python -m http.server`) and open /wip/workshop-lab/. Nothing in production loads this.
+
+     The review page: each design is the REAL Workshop (room.html) in a phone-sized frame,
+     side by side. To feel one in the hand, open its "on a phone" link on a phone on the
+     same network. -->
+<style>
+  :root { --bg: #1c1130; --ink: #fbf5ff; --dim: rgba(251, 245, 255, .62); --line: rgba(255, 255, 255, .12); --warm: #ffcf9a; --yel: #f4cf6a; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: radial-gradient(70% 50% at 50% 0%, #432c66, var(--bg) 70%) fixed, var(--bg); color: var(--ink);
+    font: 15px/1.45 'Fredoka', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  header { padding: 22px 24px 8px; display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 14px 24px; }
+  h1 { margin: 0; font-size: 26px; font-weight: 700; }
+  header p { margin: 4px 0 0; color: var(--dim); max-width: 64ch; }
+  .tag { display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
+    padding: 3px 9px; border-radius: 99px; background: var(--yel); color: #6e5212; vertical-align: 4px; margin-right: 8px; }
+  .sizes { display: flex; gap: 6px; flex-wrap: wrap; padding: 4px; border-radius: 14px; background: rgba(0, 0, 0, .25); box-shadow: inset 0 0 0 1px var(--line); }
+  .sizes button { font: inherit; font-size: 13.5px; font-weight: 600; color: var(--dim); background: none; border: 0; cursor: pointer;
+    min-height: 40px; padding: 0 12px; border-radius: 10px; }
+  .sizes button[aria-pressed="true"] { background: rgba(255, 255, 255, .12); color: var(--ink); }
+  .row { display: flex; gap: 28px; overflow-x: auto; padding: 18px 24px 32px; align-items: flex-start; }
+  figure { margin: 0; flex: none; display: flex; flex-direction: column; gap: 12px; }
+  .frame { position: relative; border-radius: 34px; padding: 10px; background: #0d0718; box-shadow: 0 0 0 1px #3a2a55, 0 24px 60px rgba(0, 0, 0, .45); }
+  .frame iframe { display: block; border: 0; border-radius: 26px; background: #2B1B45; }
+  figcaption { width: var(--w); }
+  figcaption h2 { margin: 0; font-size: 18px; font-weight: 700; }
+  figcaption h2 small { font-size: 12.5px; font-weight: 500; color: var(--dim); margin-left: 6px; }
+  figcaption p { margin: 4px 0 8px; color: var(--dim); font-size: 14px; }
+  figcaption ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; font-size: 13.5px; }
+  figcaption li::before { display: inline-block; width: 1.2em; font-weight: 700; }
+  figcaption li.g::before { content: '+'; color: #8fd3c4; }
+  figcaption li.c::before { content: '−'; color: #ee8fa6; }
+  figcaption a { color: var(--warm); font-size: 13px; }
+  .notes { margin: 0 24px 40px; padding: 16px 20px; border-radius: 20px; background: rgba(255, 255, 255, .05); box-shadow: inset 0 0 0 1px var(--line); max-width: 1100px; }
+  .notes h3 { margin: 0 0 6px; font-size: 15px; }
+  .notes ul { margin: 0; padding-left: 20px; color: var(--dim); font-size: 14px; }
+  .notes li { margin: 3px 0; }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1><span class="tag">Sandbox</span>The Workshop on a phone</h1>
+    <p>Four frames, each running the real Workshop from v234: the stand-in that ships today, then three phone designs.
+       Try this in each one: paint a part, pick up a sticker, put it on the controller, then Save.</p>
+  </div>
+  <div class="sizes" role="group" aria-label="Frame size">
+    <button data-size="375x548" aria-pressed="true">iPhone SE · in browser</button>
+    <button data-size="320x452">iPhone SE · Display Zoom</button>
+    <button data-size="375x667">iPhone SE · full</button>
+    <button data-size="390x844">390 × 844</button>
+    <button data-size="360x740">360 × 740</button>
+    <button data-size="360x640">360 × 640</button>
+    <button data-size="430x932">430 × 932</button>
+    <button data-size="844x390">Sideways</button>
+  </div>
+</header>
+
+<div class="row" id="row"></div>
+
+<section class="notes">
+  <h3>Same in all three</h3>
+  <ul>
+    <li>The controller stays on screen while a sticker is placed, and a drag on it still turns it (<code>touch-action: none</code>).</li>
+    <li>The sticker surface is still built on the first sticker picked up, never on open.</li>
+    <li>Parts go four across and swatches seven across (~44 px each on a 390 phone); the colour's name moves to the line above the swatches.</li>
+    <li>Sideways, every design splits in two: the controller on the left, its tools on the right.</li>
+    <li>Only the phone tier changes (under 860 px). The 860–1099 pinned layout and widescreen B stay as they are.</li>
+  </ul>
+</section>
+
+<script src="designs.js"></script>
+<script>
+  const row = document.getElementById('row');
+  const order = ['standin', 'pocket', 'drawer', 'belt'];
+  let size = '375x548';   // the owner's phone: iPhone SE (2nd gen), inside the browser
+  try { size = localStorage.getItem('wp-size') || size; } catch (_) {}
+
+  function build() {
+    const [w, h] = size.split('x').map(Number);
+    row.innerHTML = '';
+    for (const k of order) {
+      const d = WP_DESIGNS[k];
+      const fig = document.createElement('figure');
+      fig.style.setProperty('--w', Math.max(w, 300) + 20 + 'px');
+      fig.innerHTML = `
+        <div class="frame"><iframe src="room.html?phone=${k}" width="${w}" height="${h}" title="${d.label}" loading="lazy"></iframe></div>
+        <figcaption>
+          <h2>${d.label}<small>${d.tag}</small></h2>
+          <p>${d.pitch}</p>
+          <ul>${d.gains.map(g => `<li class="g">${g}</li>`).join('')}${d.costs.map(c => `<li class="c">${c}</li>`).join('')}</ul>
+          <p><a href="room.html?phone=${k}" target="_blank" rel="noopener">Open on its own ↗</a> — on a phone, this is the real test.</p>
+        </figcaption>`;
+      row.appendChild(fig);
+    }
+    document.querySelectorAll('.sizes button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.size === size)));
+  }
+  document.querySelector('.sizes').addEventListener('click', e => {
+    const b = e.target.closest('[data-size]');
+    if (!b || b.dataset.size === size) return;
+    size = b.dataset.size;
+    try { localStorage.setItem('wp-size', size); } catch (_) {}
+    build();
+  });
+  build();
+</script>
+</body>
+</html>

@@ -2054,14 +2054,6 @@ function shpRenderGallery(highlightId) {
   // the target row so the player lands exactly where their question was.
   if (highlightId != null) refHighlightRow(box, 'data-shp-card-id', highlightId, 'shp-ref-row-ping');
 }
-function shpShowTip(emoji, heading, lines) {
-  document.getElementById('shp-tip-emoji').textContent = emoji || '';
-  document.getElementById('shp-tip-heading').textContent = heading || '';
-  const body = document.getElementById('shp-tip-body');
-  body.innerHTML = '';
-  (lines || []).forEach(l => { const p = document.createElement('p'); p.textContent = l; body.appendChild(p); });
-  document.getElementById('shp-tip-overlay').style.display = 'flex';
-}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Multiplayer (§11)
@@ -2256,7 +2248,6 @@ document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('[data-shp-howto-tab]').forEach(b => {
     b.addEventListener('click', () => { playPillClick(); shpSetHowToTab(b.dataset.shpHowtoTab); });
   });
-  on('btn-shp-tip-close',      () => { playDone(); document.getElementById('shp-tip-overlay').style.display = 'none'; });
   on('btn-shp-play-log-close', () => { playDone(); document.getElementById('shp-play-log-overlay').style.display = 'none'; });
 
   // Settings controls — pills + toggles

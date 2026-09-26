@@ -1,8 +1,8 @@
 # Bailed
 
 **Game 11** · `activeGameId: bld` · plugin `js/games/bld.js`
-**Emoji:** 📋 · **Brand:** dark red `#991b1b` (red-800) · **Players:** 5–10 · **Modes:** MDLM + PTP
-**Status:** gold master · verified against SW v209 on 23 August 2026
+**Emoji:** 😬 · **Brand:** dark red `#991b1b` (red-800) · **Players:** 5–10 · **Modes:** MDLM + PTP
+**Status:** gold master · verified against SW v236 on 26 September 2026 (emoji rebrand: 📋/💬 → 😬)
 
 > **Change contract.** Each section is tagged **free** (reword freely — but it must stay true),
 > **paired** (change the doc and the code together, or you open a gap between them), or **derived**
@@ -72,7 +72,7 @@ moment a group's fifth nomination is rejected — whichever comes first.
 ## T4 — Theme & Flavour · *free*
 
 **The world.** A friend group's group chat, rendered completely literally — the setup screen's
-eyebrow reads "The Group Chat", the settings overlay is titled "Bailed 💬", and every plan is a
+eyebrow reads "The Group Chat", the settings overlay is titled "Bailed 😬", and every plan is a
 mundane pre-party task everyone has actually lived through. There's no fantasy layer between the
 mechanic and the theme; social deduction *is* the plot.
 
@@ -119,7 +119,7 @@ outside the game. The tone throughout is "we've all been this person," never vil
 
 ## T6 — Settings · *mixed — labels paired, values derived*
 
-The settings overlay is titled **Bailed 💬** — *"Toggle Drama Mode on or off before play."* Bailed
+The settings overlay is titled **Bailed 😬** — *"Toggle Drama Mode on or off before play."* Bailed
 runs the smallest settings surface in the suite: player count and Sylly Mode, nothing else.
 
 | Setting | Options | Default | What it does in play |
@@ -284,7 +284,7 @@ result — *"The Big Flake nailed it. The Pot-Stirrer was [Name]. The Flakes ste
 
 ```copy
 # bld-settings-overlay
-Bailed 💬
+Bailed 😬
 Toggle Drama Mode on or off before play.
 ✨ Sylly Mode
 Drama Mode
@@ -296,7 +296,7 @@ Done
 
 ```copy
 # bld-how-to-overlay — title
-How to Play 📋
+How to Play 😬
 A social deduction game of trust, betrayal, and terrible excuses.
 ```
 

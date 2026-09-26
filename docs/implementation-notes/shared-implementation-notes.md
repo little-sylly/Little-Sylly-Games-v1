@@ -21,6 +21,203 @@ place.
 
 ## Design Decisions
 
+**DD-46 — the Workshop's phone tier: Tool Belt, and a reversible layout swap.
+[26 Sep 2026, SW v235]**
+**What happened.** DD-45 shipped the widescreen room and left the phone tier (<860 px) running a
+stand-in: the stage pinned on top, paint and stickers scrolling under it, the sticker card docked at
+the foot of a long sheet. Three candidates — P1 · Pocket (fixed split + tabs), P2 · Drawer (full
+stage + pull-up sheet), P3 · Tool Belt (no tabs, swipe strips) — were built against the REAL shipped
+partial in `wip/workshop-lab/` (the lab rebased on the v234 port; the earlier three widescreen
+designs moved to `widescreen-round/`) and reviewed against the owner's own device, an iPhone SE (2nd
+gen), at three sizes: full screen (375×667), inside a browser (375×548), and with iOS Display
+Zoom on (320×452) — the last of which found a real bug in Belt's first pass (the sticker strip ran
+entirely under the footer) before the owner ever saw it. The owner picked **P3 · Tool Belt** —
+it is the only one that keeps B's own rule (both jobs on screen, no tabs) rather than trading it away.
+
+**Decisions:**
+- **No live DOM restructuring turned out to be needed for sizing** — the port's own to-do list
+  (a ResizeObserver on `#ctl-stage`, a width-fitting camera for tall stages) assumed Belt's boxes
+  would resize with state, the way Drawer's pull-up sheet did. They don't: Belt's tray/sheet/footer
+  heights are all viewport-sized constants, never state-sized, so the stage's box only ever changes
+  on a real window resize — already covered by the engine's existing `window.resize` → `ctlResize()`
+  listener. Checked by computing every measured aspect ratio across all three SE sizes plus 390/360:
+  none fell below the shipped formula's 0.9 threshold, so the formula already fits them.
+- **Four elements DO need a real DOM move, because CSS cannot put one element in a different flex
+  parent than its own DOM parent:** Randomise All + the palette (into `.wks-strip`, one scrolling
+  row); Paint + the sticker card (into `.wks-tray`, one visible at a time via a new `data-st`
+  attribute `ctlRenderPanel()` now writes to `#screen-workshop`); the sheet's kicker + running line +
+  Undo (into `.wks-belt-head` — Undo needed its OWN home, separate from the card, because the design
+  wants it reachable even while the card is hidden entirely, which the card's own widescreen rule
+  "outlives the selection" doesn't give on a phone where the card is Paint's tray-mate); Reset/Save
+  (into a `.wks-foot` footer, under the thumb, rather than overlaid on the stage).
+- **The move is reversible, not one-shot.** The first version applied only once, at Workshop-open,
+  gated by a breakpoint check — cheaper, but wrong the moment a session crosses the breakpoint live
+  (a resizable window, a folding phone): the DOM stayed phone-shaped forever after. `ctlLayoutWide()`
+  undoes `ctlLayoutPhone()`'s five moves in the exact opposite order, and a single
+  `matchMedia('(max-width: 859px)')` listener plus one call at boot is the **only** mechanism —
+  `ctlOpenWorkshop()` needs no breakpoint check of its own, because the DOM is already correct by the
+  time it runs. Both directions are idempotent-guarded by `ws.dataset.phoneLayout`.
+- **The static HTML never changed.** `_shell.html`'s Workshop markup is always the widescreen shape;
+  the phone layout exists **only** as a JS-built transformation of it, verified by having a real
+  browser cross the breakpoint mid-session and checking the reverse restores every original parent.
+
+**Lessons:**
+- **"Will this need to resize live?" is a real question with a checkable answer, not a default
+  yes.** The Drawer prototype's sheet genuinely changed height with sticker state (needing a
+  ResizeObserver + a camera refit); Belt's tray does not (same height, different **content**,
+  swapped via `display`). Copying Drawer's port checklist onto Belt would have added two
+  mechanisms that never do anything — measure the actual boxes before assuming the harder sibling's
+  problems apply.
+- **A one-way toggle is a trap disguised as a simplification.** "Apply once, at open, never revert"
+  reads like a reasonable scope-cut for a device whose width never changes — until the very
+  harness written to prove the port correct does exactly the thing being waved away (resizing the
+  same page from 390 to 1440 mid-test), and fails on it. If a test can trivially do the thing you
+  decided not to support, a real device eventually will too.
+- **Test the owner's actual device, not a round number.** 390 px is this suite's reference width
+  and a fine default, but it is not what shipped on the owner's phone: Display Zoom put their own
+  layout at 320 px wide with roughly 452 px visible, and that specific size is what surfaced the
+  footer-overlap bug the 390 px pass never would have. `tools/visual-controller-stickers.js` now
+  carries all three of the owner's real sizes for this reason.
+
+---
+
+**DD-45 — the Workshop becomes a room: design B · Paint Shop, no tabs.
+[26 Sep 2026, SW v234]**
+**What happened.** With the jukebox and the stickerbook both full screens in the plum room, the
+Workshop was the one lobby door still opening a narrow light-stone column with a Colours | Stickers
+tab bar. Three widescreen designs were built in `wip/workshop-lab/` over the REAL `_shell.html` +
+`controller.js` (the live elements moved into each layout, listeners and all). The owner picked
+**B · Paint Shop** — paint | the controller | the sticker sheet side by side, no tabs — and, in the
+same review, scrapped the SW v230 rainbow Randomise All. Ported to `#screen-workshop` +
+`css/workshop.css`; `ctlRenderPanel()` now repaints static regions instead of building a card.
+
+**Decisions:**
+- **No tabs on widescreen.** Both jobs are visible at once; the old tab state (`ctlActiveTab`,
+  `ctlOpenStickersTab`) is gone. The sticker card docks at the foot of the sheet — the lab floated it
+  over the stage first, and it hid the very spot being stuck on.
+- **The sticker surface is paid on the first pick-up, not on open.** The sheet is on screen from the
+  first frame, so opening the Workshop fetches the manifest — and stops there. `ctlStickerPickUp()`
+  builds the surface (339 ms desktop, the 2048 atlas) behind one painted frame of "Peeling it off the
+  sheet…". A recolour-only visit still never builds it, which is the guarantee the old tab gave.
+- **Randomise All is a glass key**: a die (chance) and four dots previewing the parts' current colours
+  (what it changes), which pop on the roll. `ctlRainbowGradientStops()` and its § Action Button
+  Standard exception are retired with it.
+- **No floor shadow in the Workshop.** The 340 px stage cropped the contact shadow; the full room showed
+  all of it, cut off by the key light's shadow frustum into a hard-edged blotch on the plum. The CSS
+  plinth grounds the model instead (`ctlMount(stage, { floor: false })`).
+- **Colour names come from `GAMES`** (`lobby-games.js`, matched by `brandHex`), so a swatch reads
+  "Cold Shoulder", not a hex — never copied into `controller.js`.
+- **Three widths, one of them a stand-in.** ≥1100 px: B as designed. 860–1099: the three columns
+  squeezed the stage to 180 px at 900, so the stage pins across the top and paint | stickers sit
+  beneath. <860: all stacked. Below 1100 the stage is `position: sticky` — without it, picking a
+  sticker low in the sheet scrolled the controller away from the tap that places it (the old phone
+  Workshop's fixed stage did this job). The real phone design is still owed (`deferred-work.md`).
+
+**Lessons:**
+- **A control that was hidden is a control that was never synced — moving it on screen changes what
+  a harness measured.** The old Size slider only synced to the selected placement while the Stickers
+  tab showed; the harness's rig never opened that tab, so its fold-refusal click was always measured
+  at the default size 18. With the slider always live it held 8 from an earlier selection, a smaller
+  sticker fit the fold, and the "refused" click placed a sticker. The check now pins the size it was
+  measured at. When a layout change makes hidden UI visible, look for tests that leaned on it staying
+  stale.
+- **Re-check the in-between widths when a design is widescreen-first.** B was signed off at 1280 and
+  1440; the harness's 900 px rig found the 180 px stage. A three-column layout needs a named tier
+  between "wide" and "phone", not just a phone breakpoint.
+
+**DD-44 — the jukebox ships: a screen behind the cat, and `Music.hold()`.
+[26 Sep 2026, SW v233]**
+**What happened.** The signed-off sandbox (`wip/jukebox-lab/`, the owner's "picked" design —
+Records by default, List with search one tap away) became `screen-jukebox`, opened by tapping the
+cat in the Lounge (a push-in on the cat, then the screen). `js/lobby/jukebox.js` is the port;
+`css/jukebox.css` its styles, scoped under `#screen-jukebox`. The catalogue moved to
+`data/music/jukebox/manifest.json`, beside the 26 songs and covers `tools/encode-music.js` made, so
+`sw.js`'s existing `/data/music/` branch runtime-caches all of it with no fetch-handler change. The
+Lounge's record carousel became "next record" (it plays from the room, no screen needed).
+
+**Decisions:**
+- **One player, and it is Music's.** `Music.hold(track)` / `release()` / `heldKey()` / `deck()` /
+  `scope()`. The jukebox never owns an `<audio>`. A held song is kept through lobby navigation
+  (`playFor(null)` is a no-op while held) and let go the moment a **game** asks for music
+  (`playFor(gameId)`), so the game's theme always wins. `nowPlaying()` reports a held song only
+  while it plays, which is what lights the Lounge's cat.
+- **A held song plays through a media element, not a decoded buffer.** The loop tracks decode into
+  an `AudioBufferSourceNode` for a gapless wrap; a 6-minute song decoded is ~130 MB of PCM. The
+  element is routed through the shared AudioContext (gain → AnalyserNode → destination), so global
+  mute and the equaliser both reach it.
+- **The element is fed a Blob, not a URL.** A media element streams with Range requests; the 206
+  replies are ones the Cache API refuses to `put`, so a streamed song would never have worked
+  offline, however often it was heard online. `hold()` fetches the whole file (a plain GET the SW
+  caches cache-first) and plays an object URL. Cost: a song starts after its download (1.2–5.7 MB),
+  shown as "Finding the record…".
+- **Mute All silences it; the Music toggle does not.** A held song was asked for by name. The
+  jukebox's −/+ keys move the same music level the sound overlay's slider does (one level, not two).
+- **✕ keeps a playing song, and lets go of a paused one.** Close with a song on and it plays on
+  in the lobby; close with it paused (or nothing on) and the house music comes back.
+- **A screen, not an overlay, with the stickerbook's router shape.** `jukeboxOpen` (a door) /
+  `jukeboxClose` (the page's ✕) keep the room built but stopped; `home` closes it. The jukebox's
+  own stage is the Lounge's real `LOU_BUILDERS.jukebox`, built once and kept, rendered only while
+  the Lounge's RAF is stopped.
+
+**Lessons:**
+- **An AnalyserNode is a routing decision, not a read-only tap.** `createMediaElementSource`
+  takes the element's output over: if its context is suspended, the song is silent, not just the
+  bars. `hold()` only ever runs from a tap, and both `hold()` and `deck()` resume the context.
+- **The Lounge prop reads Music only when told.** The scene called `syncJukebox()` at mount and
+  after its own record tap; a song the page changes (the screen, a song ending, a game letting go)
+  now reaches it through `scene.syncMusic()`, called from `jbxConfigure`'s `onChange` and on every
+  return to the room. `wake()` already refuses a stopped room, so a sync behind the screen is free.
+
+Open (owner): the artist is a stand-in ("Sylly House Band"); the Eerie Night Sky and Harmonium Hums
+covers look like stand-ins; the soft-lock flag is carried and drawn but wired to nothing; songs are
+1.2–5.7 MB against music's ~1.5 MB ceiling; phones cannot reach the Lounge, so cannot reach the
+jukebox. Harnesses: `verify-lobby-router` 212 → 228, `verify-lounge-props` 1368 → 1371,
+`visual-lobby` 76 → 94 (§ 15: the door, the stage-vs-room RAF split, Records default, Find a song,
+a held song through ✕ / Shelves / a game, pause-then-✕, `resetToLobby` with it up). Two older
+sections flaked under software GL this round, neither on the jukebox's path: § 9's "both offline:
+the room says why" once (its status line clears after 4 s), and § 14's Konami 2 runs in 5 — **0
+voices, 0 beeps**, i.e. the whole beat dropped by the prop's own stopped-scene rule (a frame gap
+> 1.5 s), not a routing fault. § 14 now re-runs a beat that was dropped whole, once; it still asserts
+the route and the absence of an unlock.
+
+**DD-43 — the controller animation round: the ornament comes home, the Lounge's controller idles.
+[26 Sep 2026, SW v232]**
+**What happened.** The owner asked for Shelves and TV to "adopt" Classic's idle nudge, and for the
+Lounge's controller to get idle animations of its own (rumble, rolling sticks, a rare Konami whose
+*sounds* hint at the secret without unlocking it, and one of our choosing). A real-Chromium probe
+showed the nudge **already fired on all three ornament layouts** — `ctlOrnamentIsLive()` was true
+throughout. What was missing was a way home: each nudge is a random-signed coast, so the yaw
+random-walked (−2.1 rad within a minute, reached through the Lounge's own doors), and in the small
+Shelves/TV slots an edge-on or back-facing controller read as "no animation here". Fix: a home
+spring in `ctlTick` (`CTL_HOME_SPRING`, ornament mounts only), making every nudge an out-and-back
+wiggle. The Lounge prop got `louControllerIdle` — four beats, scheduled off the scene's frame time,
+with a fourth pick of ours: a **pairing light chase** round the face buttons (silent, nothing
+travels, so it never competes with the Konami for attention). "Original" now displays as "Classic".
+
+**Root causes / lessons:**
+- **"It doesn't run there" was a pose bug, not a gate bug.** The report described a missing
+  behaviour; the code had the behaviour and lacked a bound. Probe before editing — the fix the
+  report implied (re-wiring the nudge into Shelves/TV) would have changed nothing.
+- **A "scene was stopped" detector must not trip on a slow frame.** The first threshold (500 ms)
+  dropped a live Konami after one press under SwiftShader's ~400–600 ms frames — exactly what a
+  low-end device's hitch does. Raised to 1.5 s, and a press whose whole window falls inside one
+  frame is now skipped *silently*, so a hitch can never fire a burst of beeps. The pure harness
+  pins both (a 600 ms-frame mutant of the old threshold goes red).
+- **True-to-scale is invisible at room distance.** 2 mm of key travel and the Workshop's 0.13 rad
+  D-pad rock could not be seen from the couch camera, so the beeps seemed to come from nowhere.
+  Each Konami key now also lights with its press; the travel stays true.
+- **Presentation jitter stays off the injected RNG.** The rumble's per-frame jitter uses
+  `Math.random`, so the scheduler's draws (and the harness's control of them) never depend on
+  frame rate.
+- **The hint cannot become an unlock by construction.** The prop only NAMES sounds; the host routes
+  `controllerPress:*`/`controllerRelease`/`konamiBeep` to the Workshop's own voices
+  (`lobbyPlaySfx`) and nothing on that path calls `smHandleButton`. `visual-lobby` § 14 spies on
+  `smHandleButton`/`smOpenGateway` and the buffer through the real host.
+
+Harnesses: `verify-lounge-props` 1338 → 1368 (idle beats: every beat returns exactly to rest incl.
+emissives, the Konami's order and D-pad rock direction, reduced motion, the stopped-scene drop, slow
+frames); `visual-lobby` 69 → 76 (§ 7 now samples the window and bounds the wiggle; § 14 the hint).
+
 **DD-42 — the lobby goes production: four layouts, the Lounge first, one router seam.
 [25 Sep 2026, SW v231 — shipped]**
 **What happened.** The sandbox (`wip/lobby-lab/` + `wip/premium/`) moved into `js/lounge/` (the 3D
@@ -3667,6 +3864,88 @@ being redrawn each time to sit around a button layout that was itself 2.46× out
 correct silhouette could ever have looked right there. A hand-drawn neighbour is not a fixed point
 to fit against — the moment real numbers are available for *one* element of a composition, check
 them for **all** of it, or you calibrate the measured part against the unmeasured error.
+
+---
+
+**BUG-21 — a deferred-work priority pass, batched (26 Sep 2026, Tier-0/1, one closure pass).**
+Reviewing `docs/deferred-work.md` for priority/effort/value surfaced a batch of small, independent
+items; fixed together as one round per the Task Triage Gate's batching rule rather than one cycle
+each. All harness-verified; full context for each lives in the (now-resolved) `deferred-work.md`
+entry it replaces.
+
+- **`verify-cjar-loopback.js`'s ~20–25% flake was a test bug, not RNG variance.** The Dibber Dobber
+  payout-beat scenario (3 takers, 1 innocent, 0 dobbers) hits `cjarBeginFlipAnim`'s "takers +
+  innocents, no dobbers" branch (heads = takers.length + innocents.length, remainder always 0), but
+  the test computed its expected count from the *pure takers-only* formula instead — the two only
+  agreed when the random card's value happened not to be a multiple of 3, which is exactly the
+  ~20–25% failure rate both prior investigations measured without finding the cause. Fixed by
+  deriving the expected count from the branch the game actually takes. 30/30 clean runs after the
+  fix; no seeding was needed. *Lesson: when a real-shuffle harness fails at a rate that lines up
+  with a simple modular fraction (1/3, 1/4…), suspect the assertion's own arithmetic before reaching
+  for a seed — a seed hides a wrong formula's dependence on the random input instead of fixing it.*
+- **`ntRoutingTimer`** (`js/games/nt.js`) was the one timer handle missing from `ntResetState()` —
+  added next to `ntLongPressTimer`/`ntResolveGuard` (§ Timer Lifecycle, `logic-engine.md`).
+- **`screen-mp-mode`'s offline notice** promised Pass-the-Phone to the 11 MDLM-only games that have
+  none. `mpShowModeScreen()` (`js/engine-multiplayer.js`) now branches the copy on
+  `cfg.supportedModes.includes('ptp')`. The Host/Join buttons were already correctly dimmed by
+  `mpBuildModeSection`'s pre-existing `dimmed = isLobby && !online` — only the copy was wrong.
+- **The 3D controller had no environment map (DD-14)** — `ctlBuildScene()` set no
+  `scene.environment`, so `ctlShellMat`'s matte plastic (roughness .52, metalness .06) had nothing to
+  reflect but the three point lights, reading flatter than the same material in `wip/premium/`.
+  Fixed with a ~15-line port of `prmBuildEnvMap()` (four emissive planes through
+  `THREE.PMREMGenerator`, zero assets) into `ctlBuildScene()`, retuned to the controller's own
+  three-point rig. `visual-controller-stickers.js` (59 checks, real Chromium/WebGL) confirms no
+  regressions.
+- **Two dead screens removed**, both confirmed unreachable before deletion (no caller, no `[?]`, no
+  button anywhere): SHP's `shp-tip-overlay` (Counting Sheep's tap-hold-to-gallery pattern already
+  covers the "explain this card" need it was scaffolded for) and LTTP's `screen-lttp-role-reveal`
+  (role info was already folded into the Chat screen's own header). Each removal took its markup,
+  renderer/handler, `allScreens[]` or `resetToLobby()` teardown entry, and doc references together.
+- **Two copy-drift fixes, paired with their identity docs** (`node tools/verify-identity-docs.js`
+  green): PKO's Culling interstitial blurb described Extinction Event's effect, not its own — now
+  matches `pkoFireCulling()`/`PKO_EVENT_DETAIL`. CJAR had three: "Take" vs the renamed "Reach In"
+  button, a hardcoded "Five Raids" heading (wrong on Quick Snack), and two case variants of the same
+  caption.
+- **CLAUDE.md's Current Focus claimed all phase gates were closed** while `docs/phase40-snapshot.md`
+  itself says Cold Shoulder's is still open — corrected to name phase 40 as the open one.
+
+---
+
+**BUG-22 — `encodeURIComponent` on a whole relative path also encodes its own `/`, silently 404ing
+any manifest entry that points into a subfolder (26 Sep 2026, `js/lib/music.js`).**
+
+*What happened.* Promoting jukebox songs into `data/music/manifest.json` (deferred-work.md's Sylly
+Mode tracks job, step 2) reused the existing files under `data/music/jukebox/` rather than
+duplicating ~40 MB of audio — 16 games' entries got `"file": "jukebox/<id>.mp3"`. `loadBuffer()`
+built the fetch URL as `TRACK_DIR + encodeURIComponent(entry.file)`, and `encodeURIComponent` treats
+`/` as a character to escape, not a path separator: `"jukebox/ready-set-cook.mp3"` became
+`"jukebox%2Fready-set-cook.mp3"`, which does not exist. Every one of the 16 promoted tracks would
+have silently failed to load.
+
+*Why it was never hit before.* Every `file` value in every manifest this suite has shipped —
+`data/music/manifest.json`'s original four, `data/music/jukebox/manifest.json`'s 25, every skin/word
+pack — has always been a bare filename with no subpath, because each manifest lives next to its own
+files. This is the first `file` value to ever point *across* a folder boundary, and the encoding bug
+was there from the day the module shipped (28 Aug 2026); nothing had ever exercised the branch.
+
+*Why it stayed invisible even after landing.* `loadBuffer()`'s `catch (_) { return null; }` is
+correct and deliberate — a truncated/corrupt/absent track must never break a game screen — but the
+same guard that makes a missing file harmless also makes a *wrong URL* harmless. The failure mode is
+identical to "no music generated yet": the game plays the lobby fallback, nothing throws, nothing
+logs. Caught here only because the URL was worked out by hand and inspected before trusting it, not
+by any harness — no headless check calls `Music.playFor` and asserts a real fetch succeeded, because
+`js/lib/music.js` predates the loopback/mock-DOM pattern and nothing has needed one since.
+
+*Fix.* Encode each `/`-separated segment individually and rejoin with the literal separator:
+`entry.file.split('/').map(encodeURIComponent).join('/')`. A plain filename (no `/`) is unaffected;
+a subpath now survives. One call site, one line.
+
+*Lesson.* **A "never breaks the screen" catch block hides a broken URL exactly as well as it hides a
+genuinely missing file — silent-by-design failure paths need to be tested by inspecting the request,
+not just by confirming nothing crashes.** And: the first time a data shape is used in a new way (a
+`file` field crossing a folder boundary, here), re-read the function that consumes it rather than
+assuming a value written correctly is read correctly — `encodeURIComponent` is right for a filename
+and wrong for a path, and nothing about the manifest's own schema said which one `file` was.
 
 ---
 

@@ -397,8 +397,8 @@ These are the **only** remaining legacy sticky-footer screens — each a deliber
 | `screen-cld-floe` | Drag-to-aim canvas — a page-scroll during a drag would hijack the aim. Power bar, commit tally and Lock It In must stay fixed beneath a stage the player is dragging on. |
 | `screen-nt-allocation` | DNP captain huddle — cluster bridge + rebalance controls + Lock CTA + huddle timer; controls must stay put while scanning legs. |
 | `screen-comb-meadow` | Fit-to-view board the player taps to place on. The hand row and action bar must stay put while the board is read, and no page-scroll may carry a legal target off screen. Zoom lives in `comb-map-overlay`, not here. |
-| `screen-lounge`, `screen-tv` | The lobby's two full-window stages (SW v231). A page-scroll would hijack a drag in the Lounge's room; TV is a fixed rail + pane layout. `screen-shelves` scrolls as a column and is not an exception. |
-| `screen-workshop` | The 3D controller stage. A page-scroll during a rotate-drag would hijack the drag (the same ground as `screen-cld-floe`), and the preview must stay visible while the colour panel under it is scrolled and tapped — the choice depends on what the Stage is showing. |
+| `screen-lounge`, `screen-tv`, `screen-jukebox` | The lobby's full-window stages (SW v231; the jukebox SW v233 — its cat is drag-to-turn, and below 860 px the screen scrolls itself as one column). A page-scroll would hijack a drag in the Lounge's room; TV is a fixed rail + pane layout. `screen-shelves` scrolls as a column and is not an exception. |
+| `screen-workshop` | The 3D controller stage — since SW v234 a full room like the jukebox (`css/workshop.css`: paint \| stage \| stickers, no tabs). A page-scroll during a rotate-drag would hijack the drag (the same ground as `screen-cld-floe`), and the preview must stay visible while colours and stickers are picked — the choice depends on what the Stage is showing. Below 1100 px the room scrolls itself with the stage **pinned** (sticky) on top, for the same reason. |
 | `screen-mp-mode`, `screen-mp-lobby-host`, `screen-mp-lobby-join`, `screen-mp-roster` | Shared multiplayer infrastructure (all 4 MDLM games) — roster lists with a frozen primary CTA. High blast radius; migrate only if visibly broken. |
 
 Every other content/results screen in the suite has already been migrated to the Stack — a few carry a residual nested wrapper or uneven per-zone padding from the scoped class-transform used to do it; polish opportunistically, don't re-sweep.
@@ -882,10 +882,10 @@ Look for ONE opportunity to inject playfulness — cheeky button labels, Austral
 
 ## Lobby layouts (SW v231)
 Four ways to view the lobby — **the Lounge** (the 3D room, first on launch), **TV**, **Shelves** and
-**Original** (`screen-lobby`). Every switcher (Shelves' `.lb-switch`, TV's mode buttons,
+**Classic** (`screen-lobby`). Every switcher (Shelves' `.lb-switch`, TV's mode buttons,
 `#lobby-switcher-overlay`) renders from **`LobbyRouter.LOBBY_LAYOUTS`** and hides a layout this
-device may not use — absent, not dimmed. "Original" is display copy only; code keys on the id
-`original`. The lobby's own styles live in `css/lobby.css`, scoped under each layout's root — it
+device may not use — absent, not dimmed. The **jukebox** (SW v233) is not a layout: a screen behind the Lounge's cat, dark plum, styled in `css/jukebox.css` under `#screen-jukebox` — never in `LOBBY_LAYOUTS`. The **Workshop** (SW v234) joins that room: same plum, glass and warm pool, in `css/workshop.css` under `#screen-workshop`; its Save/Remove borrow the controller's own face-button colours. "Classic" is display copy only (SW v232, was "Original");
+code keys on the id `original`. The lobby's own styles live in `css/lobby.css`, scoped under each layout's root — it
 may never style `html`, `body` or a bare element. Routing rule: `logic-engine.md` § Lobby Router Seam.
 
 ## Universal Menu Standard (All Games)

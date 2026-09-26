@@ -462,7 +462,7 @@ const section = t => console.log(`\n${t}`);
   check('CLIENT REACHED THE TABLE', lastScreen(client), 'screen-cjar-table');
   check('client can decide',       C.phase, 'deciding');
   check('base-game button labels', C.controlLabels(), ['Reach In Again', 'Sneak Out']);
-  check('grabs caption, base game', C.grabsCaption(), 'Sneak out alone and you take the lot.');
+  check('grabs caption, base game', C.grabsCaption(), 'Sneak Out alone and you take the lot.');
   check('crumbs render as a count',  /^\d+$/.test(C.crumbsValue()), true);
   check('deck renders as a stack, not one card', C.deckBacks(), 3);
   check('base row shows both pills', (C.pillTexts(0) || []).length, 2);
@@ -747,13 +747,21 @@ const section = t => console.log(`\n${t}`);
   check('no client exception',      client2.__errors, []);
 
   section('Dibber Dobber payout beat: the actual split, not cjarPlayerCount (DD-20 review fix)');
-  // Seats 0, 2 and 3 took, seat 1 played innocent, nobody dobbed — the "takers only"
-  // branch of cjarResolveFlipDD, which divides by takers.length (3), never by
-  // cjarPlayerCount (4). The scare-off then sweeps any remainder to the lone
-  // innocent, but that is a step further downstream than this beat models — the
-  // beat only needs to match cjarResolveFlipDD's OWN divisor, which the review
-  // fix is about. cjarBeginFlipAnim(false) was armed synchronously inside
-  // H2.resolve() above, so its payout timer is still pending on both devices.
+  // Seats 0, 2 and 3 took, seat 1 played innocent, nobody dobbed. That is NOT the pure
+  // "takers only" branch of cjarBeginFlipAnim's payout — takers.length AND
+  // innocents.length are both non-zero, so it is the mixed "takers + innocents, no
+  // dobbers" branch (js/games/cjar.js ~line 1611): the scare-off runs because there is
+  // no Dobber present, and it sweeps the WHOLE pool straight out to takers AND
+  // innocents in this same beat — heads = takers.length + innocents.length, remainder
+  // is always 0. **This section previously computed `ddExpected` from the pure
+  // takers-only formula (heads=3, remainder=value%3) instead — a genuine test bug,
+  // not a shuffle-driven flake: it only happened to pass when the random card's value
+  // was not a multiple of 3, because that is the one case where the wrong formula's
+  // answer (4) accidentally matched the real branch's answer (4) too.** Fixed by
+  // deriving heads from the actual branch the game takes, mirroring the source
+  // rather than reimplementing a different one. cjarBeginFlipAnim(false) was armed
+  // synchronously inside H2.resolve() above, so its payout timer is still pending on
+  // both devices.
   //
   // cjarHostResolveFlip already called cjarFlyDelta for each device's OWN seat delta
   // (a pre-existing, separate feature sharing this same #cjar-delta-layer) before
@@ -762,9 +770,9 @@ const section = t => console.log(`\n${t}`);
   // than the sum of the two unrelated features.
   vm.runInContext("document.getElementById('cjar-delta-layer').innerHTML = '';", host2);
   vm.runInContext("document.getElementById('cjar-delta-layer').innerHTML = '';", client2);
-  const ddValue    = H2.card.value;
-  const ddHeads    = 3;                              // takers = seats 0, 2, 3
-  const ddExpected = ddHeads + (ddValue % ddHeads !== 0 ? 1 : 0);
+  const ddTakers    = 3;                             // seats 0, 2, 3
+  const ddInnocents = 1;                             // seat 1 (client2)
+  const ddExpected  = ddTakers + ddInnocents;         // mixed branch: heads only, remainder 0
   step(host2);
   step(client2);
   check('host2 threw the exact split token count',   H2.tokenCount(), ddExpected);

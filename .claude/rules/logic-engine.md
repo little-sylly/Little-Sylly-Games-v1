@@ -31,12 +31,12 @@
 | Module | Global | API | Reference user |
 |--------|--------|-----|----------------|
 | `js/lib/cards.js` | `Cards` | `Cards.buildEl({ rank, suit, deckIdx })` → card-face DOM node; `Cards.buildBackEl(deckIdx)` → face-down node. Joker = `{ rank: 'Joker', suit: '', deckIdx }`. Layered by DOM order — no per-card z-index. | PASS |
-| `js/lib/music.js` | `Music` | `init()`, `playFor(gameId)`, `setEnabled(b)`, `setVolume(v)`, `syncMute()`, `nowPlaying()`. Looping background tracks from `data/music/`, resolved per game with a lobby fallback. **Driven entirely from `showScreen()` — a plugin never calls it.** See § Background music. | engine (all 18 games) |
+| `js/lib/music.js` | `Music` | `init()`, `playFor(gameId)`, `setEnabled(b)`, `setVolume(v)`, `syncMute()`, `nowPlaying()`; the jukebox's `hold(track)`/`release()`/`heldKey()`/`deck()`/`scope()` (SW v233). Looping background tracks from `data/music/`, resolved per game with a lobby fallback. **Driven entirely from `showScreen()` — a plugin never calls it.** See § Background music. | engine (all 18 games), the jukebox |
 | `js/lib/physics.js` | `Physics` | `simulate({ world, bodies, impulses, events, params, seed })` → `{ samples, events, final, durationMs, capped }`; `rng(seed)` → a seeded xorshift32 stream. **Pure and total: no DOM, no canvas, no `window`, no `Date.now()`, no bare `Math.random()`** — same inputs give byte-identical output on any device, which is what lets it be verified under Node before a pixel exists. Owns motion only; it *reports* a plunge and never decides what one means. | CLD |
 | `js/lib/canvas-draw.js` | `CanvasDraw` | `init(canvasEl, { onStrokeEnd })`, `clear()`, `lock()` → `{ w, h, s }` stroke data, `render(canvasEl, data, opts)`, `setTremor(wrapperEl, bool)`, `setBlur(canvasEl, ms)`. **Tremor applies to the wrapper `<div>` only — never the `<canvas>` (coordinate system must stay unaffected).** | GTH |
 | `js/lib/controller-body.js` | `ControllerBody` | `{ buildBody, buildControls, buildEars, buildShoulder, smoothNormals }`. Pure geometry — takes `THREE` as an argument, touches no DOM. Ported once from the frozen prototype (`docs/controller-prototype/`); the prototype carried it duplicated inline and every fix had to be applied twice by hand. | the lobby's 3D controller / Workshop |
 | `js/lib/controller-sticker-surface.js` | `StickerSurface` | `StickerSurface(U, ATLAS, opt)` → `{ plan, stamp, padPairs, toAtlas, fromAtlas, boxes, sheets, … }`. Surface-space sticker placement and rasterisation for the 3D controller. **Pure: takes `geo.userData` + the atlas size + an options object, touches no DOM and no THREE** — same contract as `physics.js`, and what lets it be verified under Node. Ported unchanged from the frozen prototype. **Its tuned numbers are NOT in it** — the keep-out discs and `maxDistort` live in `CTL_STICKER_OPT` at the call site, and a surface built with `{}` runs happily while painting inside the stick wells (see the caller-side-config lesson in `shared-implementation-notes.md`). | the Workshop's Stickers tab |
-| `js/controller.js` | prefix `ctl` (not `window`-namespaced) | The lobby ornament, the Workshop customiser, and the Konami input surface. Colour state (`ctlReadDesign`/`ctlWriteDesign`, `sylly_controller`), palette (`ctlPalette()`, read live from `GAME_BRAND_HEX`), the renderer (`ctlEnsureBuilt`/`ctlMount`/`ctlApplyDesign`), the Konami adapter (`ctlKonamiCode`/`ctlKonamiPress`), and — SW v229 — the Stickers tab: the manifest load, the pure placement state machine (`ctlStickerReduce`, Idle/Armed/Selected + undo) and the two rasterisers (`ctlStampShell` for the shell, a flat one for the ears). SW v228–v229. Full inventory: `docs/code-map.md` § 3D Controller / Workshop. | the lobby, `screen-workshop` |
+| `js/controller.js` | prefix `ctl` (not `window`-namespaced) | The lobby ornament, the Workshop customiser, and the Konami input surface. Colour state (`ctlReadDesign`/`ctlWriteDesign`, `sylly_controller`), palette (`ctlPalette()`, read live from `GAME_BRAND_HEX`), the renderer (`ctlEnsureBuilt`/`ctlMount`/`ctlApplyDesign`), the Konami adapter (`ctlKonamiCode`/`ctlKonamiPress`), and — SW v229 — the stickers (a tab until SW v234, now the always-visible sheet): the manifest load, the pure placement state machine (`ctlStickerReduce`, Idle/Armed/Selected + undo) and the two rasterisers (`ctlStampShell` for the shell, a flat one for the ears). SW v228–v229. Full inventory: `docs/code-map.md` § 3D Controller / Workshop. | the lobby, `screen-workshop` |
 | `js/lounge/*` + `js/lobby/*` | `LouScene`, `LobbyRouter`, `lobby*` … | The lobby's four layouts (SW v231): the Lounge's 3D room (`lou` prefix), TV (`tv`), Shelves + shared helpers (`lb`), the pure router + door map, and `lobby-host.js` — every effect. **Not a game and not a library a game may call** — a plugin reaches the lobby only through `resetToLobby()`. Inventory: `docs/code-map.md` § Lobby layouts. | the lobby |
 
 **Not `js/lib/` but the same shared-not-reinvented rule — `engine.js` globals used by 3+ games:**
@@ -63,7 +63,8 @@ Shelves, Original = `screen-lobby`) and the router remembers which one the playe
 game returns there. **Nothing outside `js/lobby/` may `showScreen()` a layout's screen** — not
 `'screen-lobby'`, not the new three. The four sites: `resetToLobby()` (all 20 games' exits), both
 `secret-mode.js` returns (`sm-terminal-back`, `sm-btn-exit`), and the controller's idle nudge
-(`ctlOrnamentIsLive()`). A game is launched from any layout by `lobbyLaunch(id)`, which clicks the
+(`ctlOrnamentIsLive()`). The jukebox screen (SW v233) is not a layout but obeys the same rule: its ✕
+dispatches `jukeboxClose` and the router brings the Lounge back. A game is launched from any layout by `lobbyLaunch(id)`, which clicks the
 game's existing lobby button — **no plugin knows the layouts exist**. `tools/visual-lobby.js` is the
 proof, and its mutation pass (revert any site → red) is what keeps it honest. Detail:
 `shared-implementation-notes.md` DD-42.
@@ -151,6 +152,14 @@ per track** (128 kbps, 60–120 s loop).
 
 Every failure path is silent by design: no manifest, no file, a corrupt file or offline-before-first-
 fetch all mean "no music", never a thrown error on a game screen.
+
+**Hold — one chosen song (the jukebox, SW v233).** `Music.hold(track)` puts a whole song on through
+Music's **one** media element (never a second `<audio>` anywhere else), routed through the shared
+AudioContext with an AnalyserNode. It is kept through lobby navigation (`playFor(null)` leaves it) and
+let go by `playFor(gameId)` — **a game's theme always wins**. Two load-bearing details: the element is
+fed a **Blob**, because a streamed element's 206 Range replies cannot be cached (no offline); and
+`hold()` runs only from a tap, because `createMediaElementSource` hands the element's output to the
+context — a suspended context silences the song, not just the equaliser. Detail: `shared-implementation-notes.md` DD-44.
 
 ---
 
@@ -588,7 +597,11 @@ cleared by `tvDrop()` — which `lobby-host.js` calls whenever another layout is
 in `lobbyLaunch()` and on a Workshop open (both keep `view === 'tv'`, so presenting alone would miss them). The
 Lounge's RAF is `lobbyScene.stop()` whenever anything else has the screen (kept, never disposed —
 except a phone's lean room, disposed after the arrival handoff). `lobbySayTimer` clears the HUD
-status line.
+status line. The Lounge controller's idle beats (SW v232) add **no** timer: they schedule off the
+scene's frame time inside the prop's `tick`, so `stop()` stops them too — the pattern to copy for any
+future prop that idles. The **jukebox screen** (SW v233) runs two RAFs — its own cat stage and the
+equaliser (`js/lobby/jukebox.js`) — both stopped by `jbxClose()` (every router close, `home` included)
+and by `jbxStop()` in `resetToLobby()`; its stage is kept, like the room, never disposed.
 
 ---
 
@@ -653,6 +666,11 @@ open with no version bump), **images are cache-first** (instant + lean). This is
 asset pack be added or removed by dropping a folder + editing `data/packs/registry.json` — no `sw.js`
 edit, no SW version bump. The legacy `data/secret*_words.json` files were migrated into
 `data/packs/<id>/pack.json` manifests (inline `words`) and deleted. See `docs/expansion-guide.md`.
+
+**Jukebox songs — runtime-cached, NOT precached (SW v233):** `data/music/jukebox/` (`manifest.json`,
+26 mp3s, `covers/`, ~68 MB) rides the existing `/data/music/` branch — no `sw.js` fetch change. The
+code (`js/lobby/jukebox.js`, `css/jukebox.css`) IS precached. So is the Workshop room's
+`css/workshop.css` (SW v234); its stickers stay runtime-cached (below).
 
 **Lounge lamp photos — runtime-cached, NOT precached (SW v231):** `data/lamp/` (manifest + JPEGs,
 ~317 KB) takes the `data/stickers/` branch exactly — a phone never sees the Lounge, so it never pays

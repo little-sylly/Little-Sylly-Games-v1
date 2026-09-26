@@ -2,6 +2,7 @@
        LOBBY LAYOUTS (SW v231)
        Screens : #screen-lounge, #screen-tv, #screen-shelves
                  (the fourth layout, Original, is #screen-lobby in _shell.html)
+                 #screen-jukebox — not a layout: the Lounge's jukebox door (SW v233)
        Overlays: #lobby-switcher-overlay, #stickerbook-overlay
        Ref     : js/lobby/lobby-host.js (every effect), js/lobby/lobby-router.js (the rules)
        Visibility is showScreen()'s inline style.display — never `hidden` (BUG-19).
@@ -22,6 +23,60 @@
   <section id="screen-tv" style="display:none"><div id="tv-app"></div></section>
 
   <section id="screen-shelves" style="display:none"><div id="shelves-canvas"></div></section>
+
+  <!-- THE JUKEBOX (SW v233) — the cat's door in the Lounge. js/lobby/jukebox.js owns
+       everything inside; the ✕ goes back through the router (lobby-host.js), never
+       showScreen. Styles: css/jukebox.css, all scoped under #screen-jukebox. -->
+  <section id="screen-jukebox" class="jbx" style="display:none" aria-label="The Jukebox">
+    <header class="jbx-head">
+      <div>
+        <h1 class="jbx-title">The Jukebox</h1>
+        <p class="jbx-sub">Pick a record. The cat will sing it.</p>
+      </div>
+      <div class="jbx-head-tools">
+        <button class="btn-open-sound jbx-icon" aria-label="Sound">🔊</button>
+        <button class="jbx-icon" id="jbx-close" aria-label="Back to the Lounge">✕</button>
+      </div>
+    </header>
+
+    <main class="jbx-body">
+      <!-- STAGE — the cat jukebox itself, then what it is playing -->
+      <div class="jbx-stage">
+        <div class="jbx-view">
+          <div class="jbx-spot" aria-hidden="true"></div>
+          <canvas id="jbx-canvas" aria-label="The cat jukebox. Its five buttons work."></canvas>
+          <div class="jbx-nogl" id="jbx-nogl" hidden>🐱<span>♪</span></div>
+        </div>
+
+        <div class="jbx-deck">
+          <div class="jbx-np">
+            <div class="jbx-np-art" id="jbx-np-art"></div>
+            <div class="jbx-np-text">
+              <p class="jbx-np-title" id="jbx-np-title">Nothing on yet</p>
+              <p class="jbx-np-meta" id="jbx-np-meta">Pick a record — or tap the cat’s yellow button</p>
+            </div>
+          </div>
+          <div class="jbx-scrub">
+            <span class="jbx-time" id="jbx-t0">0:00</span>
+            <div class="jbx-wave idle" id="jbx-wave" role="slider" tabindex="0" aria-label="Seek" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"></div>
+            <span class="jbx-time" id="jbx-t1">0:00</span>
+          </div>
+          <div class="jbx-transport" role="group" aria-label="Jukebox buttons">
+            <button class="jbx-key k-play" data-kind="playpause" aria-label="Play or pause"></button>
+            <button class="jbx-key k-prev" data-kind="prev" aria-label="Previous song"></button>
+            <button class="jbx-key k-next" data-kind="next" aria-label="Next song"></button>
+            <button class="jbx-key k-down" data-kind="down" aria-label="Volume down"></button>
+            <button class="jbx-key k-up" data-kind="up" aria-label="Volume up"></button>
+          </div>
+          <div class="jbx-vol" id="jbx-vol" aria-hidden="true"></div>
+        </div>
+      </div>
+
+      <!-- SELECTION — Records by default, List with search one tap away -->
+      <div class="jbx-pick" id="jbx-pick"></div>
+    </main>
+    <div class="jbx-toast" id="jbx-toast" role="status" aria-live="polite"></div>
+  </section>
 
   <!-- The dock (DD-17): summoned, never automatic — the Lounge's channel dial and
        Original's layout button open it. Closed by the router's `home` and `closeSwitcher`. -->

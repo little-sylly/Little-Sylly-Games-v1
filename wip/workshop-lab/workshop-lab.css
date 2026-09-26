@@ -1,0 +1,270 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   workshop-lab.css — SANDBOX. Phone layouts for the Workshop, applied on top
+   of the SHIPPED css/workshop.css (loaded first, untouched).
+
+   Every rule is scoped #screen-workshop.wp (all three phone designs) or
+   #screen-workshop[data-phone="…"] (one design) — one class or attribute
+   more specific than the shipped stand-in's @media rules, which therefore
+   still load in a phone-width frame and are overridden here, not removed.
+   The stand-in (?phone=standin) gets none of this: it is v234 as shipped.
+
+   Porting note: the whole of a chosen design moves into css/workshop.css
+   under @media (max-width: 859px), replacing the stand-in's stacked tier;
+   the 860–1099 pinned tier and widescreen stay as they are.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Lab chrome (not part of any design) ──────────────────────────────────── */
+body.wl-body { margin: 0; background: #1c1130; }
+.wl-toast { position: fixed; left: 50%; bottom: 96px; transform: translate(-50%, 12px); opacity: 0; z-index: 200; max-width: 90vw;
+  padding: 10px 16px; border-radius: 14px; background: #fbf5ff; color: #2B1B45; font: 600 13px/1.35 'Fredoka', system-ui, sans-serif;
+  transition: opacity 180ms ease-out, transform 180ms ease-out; pointer-events: none; }
+.wl-toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+/* The room page itself never scrolls — on iOS a scrollable document lets the
+   toolbars collapse and drag the fixed room with them. */
+html:has(body.wl-body), body.wl-body { height: 100%; overflow: hidden; overscroll-behavior: none; }
+
+/* ═══ Shared phone base (.wp) ════════════════════════════════════════════════ */
+/* Sized to the VISIBLE viewport (dvh), not the layout viewport inset:0 uses —
+   on iOS that one is the toolbars-hidden height, so the footer sat under
+   the browser's bottom bar. A port item. */
+#screen-workshop.wp { overflow: hidden; bottom: auto; height: 100%; height: 100dvh; overscroll-behavior: contain; }
+#screen-workshop.wp .wks-head { align-items: center; padding: max(12px, env(safe-area-inset-top)) 14px 8px; }
+#screen-workshop.wp .wks-title { font-size: 21px; }
+#screen-workshop.wp .wks-sub { display: none; }
+#screen-workshop.wp .wks-head-tools { gap: 8px; }
+
+/* Undo the stand-in's grid, pinned stage and page scroll. */
+#screen-workshop.wp .wks-body { display: flex; flex-direction: column; flex: 1; min-height: 0; gap: 0; padding: 0;
+  grid-template-areas: none; align-items: stretch; position: relative; }
+#screen-workshop.wp .wks-view { position: relative; top: auto; z-index: auto; height: auto; min-height: 0; margin: 0;
+  background: none; box-shadow: none; }
+#screen-workshop.wp .ctl-workshop-stage { bottom: 0; }
+#screen-workshop.wp .wks-hint { display: block; top: 0; }
+#screen-workshop.wp .wks-plinth { bottom: 9%; width: min(80%, 440px); }
+/* On a phone the room is the card — the panels lose their glass box. */
+#screen-workshop.wp .wks-col { border-radius: 0; background: none; box-shadow: none; padding: 0;
+  -webkit-backdrop-filter: none; backdrop-filter: none; }
+
+/* The four parts, four across: chip over name. The colour's name is on the
+   "picked" line above the swatches, where it has room. */
+#screen-workshop.wp .wks-parts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+#screen-workshop.wp .ctl-part { grid-template-columns: 1fr; grid-template-rows: auto auto; justify-items: center; row-gap: 5px;
+  min-height: 60px; padding: 8px 4px 7px; text-align: center; border-radius: 14px; }
+#screen-workshop.wp .ctl-part-chip { grid-row: auto; width: 26px; height: 26px; border-radius: 8px; }
+#screen-workshop.wp .ctl-part-txt b { font-size: 13.5px; }
+#screen-workshop.wp .ctl-part-txt small,
+#screen-workshop.wp .ctl-part-now { display: none; }
+
+/* Twenty swatches, seven across: ~44 px each at 390 wide. */
+#screen-workshop.wp .wks-pal { grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 7px; }
+#screen-workshop.wp .ctl-swatch { min-height: 0; border-radius: 12px; }
+#screen-workshop.wp .ctl-swatch-on { box-shadow: inset 0 0 0 2px rgba(255, 255, 255, .16), 0 0 0 2px var(--wks-bg), 0 0 0 4px var(--wks-ink); }
+#screen-workshop.wp .ctl-swatch-on::after { font-size: 15px; }
+#screen-workshop.wp .wks-picked { font-size: 13px; }
+
+/* The sheet, four across. */
+#screen-workshop.wp .wks-sheet { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+#screen-workshop.wp .ctl-sticker-tile { padding: 7px 4px 6px; border-radius: 14px; gap: 4px; }
+#screen-workshop.wp .ctl-sticker-cap { font-size: 10.5px; }
+#screen-workshop.wp .ctl-sticker-dot { top: 4px; right: 4px; padding: 1px 6px; font-size: 10px; }
+
+/* The card for the sticker in hand, tightened. */
+#screen-workshop.wp .wks-insp { gap: 10px; padding: 12px 14px; border-radius: 18px; }
+#screen-workshop.wp .wks-insp-top { min-height: 40px; }
+#screen-workshop.wp .wks-insp-img { width: 40px; height: 40px; }
+
+/* Segmented control — Paint | Stickers (P1, P2). */
+#screen-workshop .wp-seg { display: flex; gap: 4px; padding: 4px; border-radius: 16px; flex-shrink: 0;
+  background: rgba(0, 0, 0, .24); box-shadow: inset 0 0 0 1px var(--wks-line); }
+#screen-workshop .wp-seg button { flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px;
+  border-radius: 12px; font-size: 15px; font-weight: 600; color: var(--wks-dim); transition: transform 120ms ease-out, background-color 150ms ease; }
+#screen-workshop .wp-seg button[aria-selected="true"] { background: var(--wks-glass-hi); color: var(--wks-ink); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .18); }
+#screen-workshop .wp-seg button:active { transform: scale(.97); }
+#screen-workshop .wp-seg .wks-count { margin-left: 0; }
+
+/* Footer — Reset | Save, under the thumb (P1, P3). */
+#screen-workshop .wp-foot { display: flex; gap: 10px; flex-shrink: 0; padding: 10px 14px max(12px, env(safe-area-inset-bottom));
+  background: rgba(28, 17, 48, .55); box-shadow: 0 -1px 0 var(--wks-line); }
+#screen-workshop .wp-foot .wks-btn { min-height: 52px; padding: 0 16px; font-size: 17px; }
+#screen-workshop .wp-foot .wks-btn-ghost { flex: 1; }
+#screen-workshop .wp-foot .wks-btn-save { flex: 2; min-width: 0; }
+
+/* ═══ P1 · Pocket — fixed split + tabs ═══════════════════════════════════════ */
+#screen-workshop[data-phone="pocket"] .wks-view { flex: none; height: clamp(200px, 38svh, 420px); }
+#screen-workshop[data-phone="pocket"] .wp-seg { margin: 6px 14px 12px; }
+#screen-workshop[data-phone="pocket"] .wp-panes { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+#screen-workshop[data-phone="pocket"] .wks-col { flex: 1; min-height: 0; gap: 12px; padding: 0 14px 12px; }
+#screen-workshop[data-phone="pocket"] .wks-col > .wks-kicker { display: none; }   /* the tab says it */
+#screen-workshop[data-phone="pocket"][data-tab="paint"] .wks-stickers,
+#screen-workshop[data-phone="pocket"][data-tab="stickers"] .wks-paint { display: none; }
+#screen-workshop[data-phone="pocket"] .wks-paint { overflow-y: auto; }
+#screen-workshop[data-phone="pocket"] .wks-paint > * { flex-shrink: 0; }
+#screen-workshop[data-phone="pocket"] .wks-pal-wrap { flex: none; overflow: visible; margin: 0; padding: 4px 0 0; }
+#screen-workshop[data-phone="pocket"] .wks-sheet-scroll { flex: 1; min-height: 0; overflow-y: auto; }
+#screen-workshop[data-phone="pocket"] .wp-pickrow { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+#screen-workshop[data-phone="pocket"] .wp-pickrow .wks-picked { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#screen-workshop[data-phone="pocket"] .wp-pickrow .wks-dice { min-height: 44px; gap: 8px; padding: 0 10px 0 12px; border-radius: 14px; font-size: 13.5px; }
+#screen-workshop[data-phone="pocket"] .wp-pickrow .wks-dice-die { width: 20px; height: 20px; }
+#screen-workshop[data-phone="pocket"] .wp-pickrow .wks-dice-dots i { width: 14px; height: 14px; margin-left: -4px; }
+
+/* ═══ P2 · Drawer — full stage + pull-up sheet ═══════════════════════════════
+   The sheet is always its OPEN height and rests by translating down, so its
+   travel is transform-only. The stage's box ends where the sheet's visible
+   top is (the ResizeObserver re-fits the model when it rests). */
+#screen-workshop[data-phone="drawer"] {
+  --open-h: min(58svh, 520px);
+  --tuck-h: 104px;           /* grab + the tabs/Save row */
+  --insp-h: 214px;           /* grab + the sticker card */
+  --shown: var(--tuck-h);
+}
+#screen-workshop[data-phone="drawer"][data-sheet="open"] { --shown: var(--open-h); }
+#screen-workshop[data-phone="drawer"][data-st="armed"],
+#screen-workshop[data-phone="drawer"][data-st="selected"] { --shown: var(--insp-h); }
+
+#screen-workshop[data-phone="drawer"] .wks-view { position: absolute; inset: 0 0 calc(var(--shown) - 18px) 0; }
+#screen-workshop[data-phone="drawer"] .wp-sheet { position: absolute; left: 0; right: 0; bottom: 0; height: var(--open-h); z-index: 3;
+  display: flex; flex-direction: column; border-radius: 26px 26px 0 0;
+  background: rgba(43, 27, 69, .9); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .14), 0 -14px 40px rgba(10, 4, 24, .4);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  transform: translateY(calc(var(--open-h) - var(--shown))); transition: transform 260ms cubic-bezier(.2, .8, .2, 1); }
+#screen-workshop[data-phone="drawer"] .wp-grab { flex: none; height: 28px; display: grid; place-items: center; touch-action: none; }
+#screen-workshop[data-phone="drawer"] .wp-grab i { width: 44px; height: 5px; border-radius: 99px; background: rgba(255, 255, 255, .3); }
+#screen-workshop[data-phone="drawer"] .wp-sheet-top { flex: none; display: flex; gap: 10px; align-items: center; padding: 0 14px 14px; }
+#screen-workshop[data-phone="drawer"] .wp-sheet-top .wp-seg { flex: 1; }
+#screen-workshop[data-phone="drawer"] .wp-sheet-top .wks-btn-save { min-width: 0; min-height: 52px; padding: 0 22px; font-size: 17px; }
+#screen-workshop[data-phone="drawer"] .wp-panes { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+#screen-workshop[data-phone="drawer"] .wks-col { flex: 1; min-height: 0; gap: 12px; padding: 0 14px 14px; }
+#screen-workshop[data-phone="drawer"] .wks-col > .wks-kicker { display: none; }
+#screen-workshop[data-phone="drawer"]:not([data-tab="paint"]) .wks-paint,
+#screen-workshop[data-phone="drawer"]:not([data-tab="stickers"]) .wks-stickers { display: none; }
+#screen-workshop[data-phone="drawer"] .wks-paint { overflow-y: auto; }
+#screen-workshop[data-phone="drawer"] .wks-paint > * { flex-shrink: 0; }
+#screen-workshop[data-phone="drawer"] .wks-pal-wrap { flex: none; overflow: visible; margin: 0; padding: 4px 0 0; }
+#screen-workshop[data-phone="drawer"] .wks-sheet-scroll { flex: 1; min-height: 0; overflow-y: auto; }
+#screen-workshop[data-phone="drawer"] .wp-row { display: flex; gap: 10px; }
+#screen-workshop[data-phone="drawer"] .wp-row .wks-dice { flex: 2; min-width: 0; }
+#screen-workshop[data-phone="drawer"] .wp-row .wks-btn { flex: 1; min-height: 52px; padding: 0 12px; font-size: 15px; }
+/* The sticker card: docked at the sheet's foot when only Undo applies; the
+   sheet's whole face while a sticker is in hand. */
+#screen-workshop[data-phone="drawer"] .wks-insp { margin: 0 14px 14px; }
+#screen-workshop[data-phone="drawer"][data-st="armed"] :is(.wp-sheet-top, .wp-panes),
+#screen-workshop[data-phone="drawer"][data-st="selected"] :is(.wp-sheet-top, .wp-panes) { display: none; }
+#screen-workshop[data-phone="drawer"][data-st="armed"] .wks-insp,
+#screen-workshop[data-phone="drawer"][data-st="selected"] .wks-insp { margin-top: 0; background: none; box-shadow: none; padding-top: 0; }
+
+/* ═══ P3 · Tool Belt — no tabs, swipe strips ═════════════════════════════════ */
+#screen-workshop[data-phone="belt"] .wks-view { flex: 1 1 auto; min-height: 150px; }
+#screen-workshop[data-phone="belt"] .wp-tray { flex: none; height: 152px; margin: 4px 14px 0; display: flex; flex-direction: column; }
+#screen-workshop[data-phone="belt"] .wks-paint { flex: 1; gap: 8px; }
+#screen-workshop[data-phone="belt"] .wks-col > .wks-kicker { display: none; }
+#screen-workshop[data-phone="belt"] .wks-pal-wrap { flex: none; overflow: visible; margin: 0; padding: 0; gap: 4px; }
+/* Same slot, two faces: the paint, or the sticker in hand. */
+#screen-workshop[data-phone="belt"][data-st="armed"] .wks-paint,
+#screen-workshop[data-phone="belt"][data-st="selected"] .wks-paint { display: none; }
+#screen-workshop[data-phone="belt"][data-st="idle"] #ctl-sticker-controls { display: none !important; }   /* Undo lives in the belt's head */
+#screen-workshop[data-phone="belt"] .wks-insp { flex: 1; justify-content: space-between; }
+
+/* The swatch strip, led by the die. The strip's padding keeps the picked
+   swatch's outer ring inside the scroller. */
+#screen-workshop[data-phone="belt"] .wp-strip { display: flex; gap: 4px; align-items: center; }
+#screen-workshop[data-phone="belt"] .wp-strip .wks-dice { flex: 0 0 56px; height: 56px; min-height: 0; padding: 0; gap: 5px;
+  flex-direction: column; justify-content: center; }
+#screen-workshop[data-phone="belt"] .wp-strip .wks-dice-lbl { display: none; }
+#screen-workshop[data-phone="belt"] .wp-strip .wks-dice-die { width: 22px; height: 22px; }
+#screen-workshop[data-phone="belt"] .wp-strip .wks-dice-dots { padding-left: 3px; }
+#screen-workshop[data-phone="belt"] .wp-strip .wks-dice-dots i { width: 11px; height: 11px; margin-left: -3px; box-shadow: 0 0 0 1.5px #35244f; }
+#screen-workshop[data-phone="belt"] .wp-strip .wks-pal { flex: 1; min-width: 0; grid-auto-flow: column; grid-template-columns: none;
+  grid-auto-columns: 46px; grid-template-rows: 46px; gap: 8px; padding: 6px; overflow-x: auto; overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity; scrollbar-width: none;
+  -webkit-mask-image: linear-gradient(90deg, #000 86%, transparent); mask-image: linear-gradient(90deg, #000 86%, transparent); }
+#screen-workshop[data-phone="belt"] .wp-strip .ctl-swatch { scroll-snap-align: start; }
+
+#screen-workshop[data-phone="belt"] .wks-stickers { flex: none; gap: 2px; padding: 8px 0 8px; }
+#screen-workshop[data-phone="belt"] .wp-belt-head { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 14px; }
+#screen-workshop[data-phone="belt"] .wp-belt-head .wks-kicker { display: block; flex-shrink: 0; }
+#screen-workshop[data-phone="belt"] .wp-belt-head .wks-say { flex: 1; min-width: 0; font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#screen-workshop[data-phone="belt"] .wp-belt-head .wks-say:empty::before { content: 'Pick one, tap the controller'; }
+#screen-workshop[data-phone="belt"] .wp-belt-head .wks-mini { flex: none; padding: 0 16px; }
+#screen-workshop[data-phone="belt"] .wks-sheet-scroll { flex: none; overflow-x: auto; overflow-y: hidden; padding: 2px 14px 4px;
+  overscroll-behavior-x: contain; scroll-snap-type: x proximity; scrollbar-width: none;
+  -webkit-mask-image: linear-gradient(90deg, #000 88%, transparent); mask-image: linear-gradient(90deg, #000 88%, transparent); }
+#screen-workshop[data-phone="belt"] .wks-sheet { grid-auto-flow: column; grid-template-columns: none; grid-auto-columns: 74px; gap: 8px; }
+#screen-workshop[data-phone="belt"] .ctl-sticker-tile { scroll-snap-align: start; }
+#screen-workshop[data-phone="belt"] .ctl-sheet-msg { grid-column: auto; white-space: nowrap; padding: 30px 4px; }
+/* A short phone (≤700 tall): the strips lose their words — the part's name
+   and the sticker's caption stay as aria-labels — so the stage keeps ~200 px. */
+@media (max-height: 700px) and (orientation: portrait) {
+  #screen-workshop[data-phone="belt"] .wp-tray { height: 128px; }
+  #screen-workshop[data-phone="belt"] .ctl-part { min-height: 44px; padding: 5px 2px 4px; row-gap: 2px; }
+  #screen-workshop[data-phone="belt"] .ctl-part-chip { width: 16px; height: 16px; border-radius: 5px; }
+  #screen-workshop[data-phone="belt"] .ctl-part-txt b { font-size: 12.5px; }
+  #screen-workshop[data-phone="belt"] .ctl-sticker-cap { display: none; }
+  #screen-workshop[data-phone="belt"] .wks-sheet { grid-auto-columns: 64px; }
+  #screen-workshop[data-phone="belt"] .wks-stickers { padding-top: 4px; }
+  /* The card in the shorter slot: its buttons move up beside the title.
+     (!important beats the display:flex ctlSyncStickerControls writes inline.) */
+  #screen-workshop[data-phone="belt"]:is([data-st="armed"], [data-st="selected"]) #ctl-sticker-controls {
+    display: grid !important; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "top btns" "sl sl";
+    align-items: center; gap: 8px 10px; padding: 10px 12px; }
+  #screen-workshop[data-phone="belt"] .wks-insp-top { grid-area: top; min-height: 0; }
+  #screen-workshop[data-phone="belt"] .wks-insp-img { width: 30px; height: 30px; }
+  #screen-workshop[data-phone="belt"] .wks-insp-kick { display: none; }
+  #screen-workshop[data-phone="belt"] .wks-insp-btns { grid-area: btns; }
+  #screen-workshop[data-phone="belt"] .wks-insp-btns .wks-mini { flex: none; padding: 0 14px; }
+  #screen-workshop[data-phone="belt"] #ctl-sticker-sliders { grid-area: sl; }
+}
+/* A very short phone (≤620 visible — an SE inside a browser's toolbars, 452
+   with Display Zoom on): the header stops taking a row and floats over the
+   stage's top edge, where the model never reaches; the "picked" line goes
+   (the ringed swatch says it); the footer slims to 44 px keys. */
+@media (max-height: 620px) and (orientation: portrait) {
+  #screen-workshop[data-phone="belt"] .wks-head { position: absolute; top: 0; left: 0; right: 0; z-index: 4; padding: 8px 10px 0 14px; pointer-events: none; }
+  #screen-workshop[data-phone="belt"] .wks-head > * { pointer-events: auto; }
+  #screen-workshop[data-phone="belt"] .wks-title { font-size: 17px; }
+  #screen-workshop[data-phone="belt"] .wks-hint { display: none; }
+  #screen-workshop[data-phone="belt"] .wks-view { min-height: 130px; }
+  #screen-workshop[data-phone="belt"] .ctl-workshop-stage { top: 30px; }
+  #screen-workshop[data-phone="belt"] .wp-tray { height: 112px; margin-top: 0; }
+  #screen-workshop[data-phone="belt"] .wks-picked { display: none; }
+  #screen-workshop[data-phone="belt"] .wks-paint { gap: 6px; }
+  #screen-workshop[data-phone="belt"] .wp-strip .wks-dice { flex-basis: 50px; height: 50px; }
+  #screen-workshop[data-phone="belt"] .wp-strip .wks-pal { grid-auto-columns: 42px; grid-template-rows: 42px; padding: 5px; }
+  #screen-workshop[data-phone="belt"] .wks-stickers { padding: 2px 0 4px; gap: 0; }
+  #screen-workshop[data-phone="belt"] .wp-belt-head { min-height: 40px; }
+  #screen-workshop[data-phone="belt"] .wp-belt-head .wks-mini { min-height: 40px; }
+  #screen-workshop[data-phone="belt"] .wks-sheet { grid-auto-columns: 58px; }
+  #screen-workshop[data-phone="belt"] .ctl-sticker-tile { padding: 5px 3px; }
+  #screen-workshop.wp .wp-foot { padding-top: 7px; padding-bottom: max(8px, env(safe-area-inset-bottom)); }
+  #screen-workshop.wp .wp-foot .wks-btn { min-height: 44px; font-size: 16px; }
+}
+/* A narrow phone (320 — an SE with Display Zoom): the title must not wrap. */
+@media (max-width: 359px) {
+  #screen-workshop.wp .wks-title { font-size: 18px; white-space: nowrap; }
+  #screen-workshop.wp .wks-head-tools { gap: 6px; }
+  #screen-workshop.wp .wp-belt-head .wks-say { font-size: 11.5px; }
+}
+
+/* ═══ Landscape phones (844 × 390) ═══════════════════════════════════════════
+   Too short for anything stacked: every design turns sideways — the stage
+   on the left half, the design's tools on the right, scrolling themselves. */
+@media (orientation: landscape) and (max-height: 500px) {
+  #screen-workshop.wp .wks-head { padding-top: 8px; padding-bottom: 4px; }
+  #screen-workshop.wp .wks-body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
+  #screen-workshop.wp .wks-view { grid-column: 1; grid-row: 1 / 3; height: auto; }
+  #screen-workshop[data-phone="pocket"] .wp-seg { grid-column: 2; margin: 0 14px 8px 0; }
+  #screen-workshop[data-phone="pocket"] .wp-panes { grid-column: 2; grid-row: 2; }
+  #screen-workshop[data-phone="pocket"] .wks-col { padding-left: 0; }
+  #screen-workshop[data-phone="belt"] .wp-tray { grid-column: 2; grid-row: 1; margin-left: 0; }
+  #screen-workshop[data-phone="belt"] .wks-stickers { grid-column: 2; grid-row: 2; }
+  #screen-workshop[data-phone="belt"] .wp-belt-head { padding-left: 0; }
+  #screen-workshop[data-phone="belt"] .wks-sheet-scroll { padding-left: 0; }
+  #screen-workshop.wp .wp-foot { padding-top: 6px; padding-bottom: 8px; }
+  #screen-workshop.wp .wp-foot .wks-btn { min-height: 44px; }
+  /* The drawer becomes a side sheet, always open; the stage takes the rest. */
+  #screen-workshop[data-phone="drawer"] { --shown: 0px; }
+  #screen-workshop[data-phone="drawer"] .wks-view { inset: 0 50% 0 0; }
+  #screen-workshop[data-phone="drawer"] .wp-sheet { left: 50%; top: 0; height: auto; transform: none; border-radius: 22px 0 0 0; }
+  #screen-workshop[data-phone="drawer"] .wp-grab { display: none; }
+  #screen-workshop[data-phone="drawer"] .wp-sheet-top { padding-top: 10px; }
+}

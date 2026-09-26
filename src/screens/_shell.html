@@ -86,77 +86,96 @@
     </div>
   </section>
 
-  <!-- ② WORKSHOP — controller customiser. NOT a game: activeGameId stays null. -->
-  <section id="screen-workshop" style="display:none"
-    class="relative flex flex-col w-full max-w-sm mx-auto h-screen overflow-hidden">
-
-    <!-- HEADER — fixed -->
-    <div class="flex items-center justify-between px-5 pt-4 pb-2 flex-shrink-0">
-      <h2 class="text-xl font-bold text-stone-800">Workshop</h2>
-      <div class="flex items-center gap-2">
-        <button id="btn-ctl-how-to" class="text-stone-400 font-bold text-sm min-h-11 min-w-11">[?]</button>
-        <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100 min-h-11 min-w-11">🔊</button>
-        <button id="btn-ctl-exit" class="text-stone-500 font-bold text-xl active:scale-90 transition-transform duration-100 min-h-11 min-w-11">✕</button>
+  <!-- ② WORKSHOP — controller customiser. NOT a game: activeGameId stays null.
+       SW v234: a full room, design B · Paint Shop (signed off in wip/workshop-lab/,
+       26 Sep 2026) — paint on the left, the controller in the middle, the sticker
+       sheet on the right, both jobs live at once with no tabs. Styles:
+       css/workshop.css, all scoped under #screen-workshop. Below 1100 px the stage
+       moves on top, pinned, and the room scrolls itself.
+       SW v235: below 860 px, Tool Belt (reviewed in wip/workshop-lab/, 26 Sep
+       2026) — no tabs, like widescreen; Paint and Stickers become strips under
+       the controller, the card taking over Paint's slot while a sticker is in
+       hand. `js/controller.js`'s ctlLayoutPhone()/ctlLayoutWide() move four
+       elements house on crossing the breakpoint — the markup below is always
+       the widescreen shape at rest. (The stage keeps touch-action:none, so a
+       drag on the controller still turns it rather than scrolling.) -->
+  <section id="screen-workshop" class="wks" style="display:none" aria-label="The Workshop">
+    <header class="wks-head">
+      <div>
+        <h2 class="wks-title">The Workshop</h2>
+        <p class="wks-sub">Make the controller yours.</p>
       </div>
-    </div>
+      <div class="wks-head-tools">
+        <button id="btn-ctl-how-to" class="wks-icon" aria-label="How the Workshop works">?</button>
+        <button class="btn-open-sound wks-icon" aria-label="Sound">🔊</button>
+        <button id="btn-ctl-exit" class="wks-icon" aria-label="Close without saving">✕</button>
+      </div>
+    </header>
 
-    <!-- STAGE — fixed, never scrolls -->
-    <div class="flex-shrink-0 px-5">
-      <div id="ctl-stage" class="ctl-workshop-stage"></div>
-      <p class="text-stone-400 text-xs text-center mt-1">Drag to turn it around</p>
-    </div>
+    <div class="wks-body">
+      <!-- PAINT — which part, then which colour. js/controller.js repaints
+           #ctl-parts, #ctl-picked, #ctl-palette and the dice dots. -->
+      <aside class="wks-col wks-paint" aria-label="Paint">
+        <p class="wks-kicker">🎨 Paint</p>
+        <div id="ctl-parts" class="wks-parts"></div>
+        <div class="wks-pal-wrap">
+          <p id="ctl-picked" class="wks-picked"></p>
+          <div id="ctl-palette" class="wks-pal"></div>
+        </div>
+        <button id="btn-ctl-randomise" class="wks-dice" aria-label="Randomise All">
+          <svg class="wks-dice-die" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <rect x="2.5" y="2.5" width="19" height="19" rx="5.5" fill="none" stroke="currentColor" stroke-width="2"/>
+            <circle cx="8.2" cy="8.2" r="1.7"/><circle cx="15.8" cy="8.2" r="1.7"/><circle cx="12" cy="12" r="1.7"/>
+            <circle cx="8.2" cy="15.8" r="1.7"/><circle cx="15.8" cy="15.8" r="1.7"/>
+          </svg>
+          <span class="wks-dice-lbl">Randomise All</span>
+          <span id="ctl-dice-dots" class="wks-dice-dots" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+        </button>
+      </aside>
 
-    <!-- TAB BAR — sticky with the stage, never scrolls. The panel band was
-         left free of a tab bar by the colour-only build specifically so these
-         two could arrive without anything reflowing. -->
-    <div id="ctl-tabs" class="flex-shrink-0 px-5 pt-1 pb-2 flex gap-2">
-      <button class="pill pill-active-purple" data-ctl-tab="colours">Colours</button>
-      <button class="pill" data-ctl-tab="stickers">Stickers</button>
-    </div>
-
-    <!-- PANEL — two sibling bodies toggled by display, never one body
-         repainted, so the sticker sliders survive a repaint of the book. The
-         scroll region is on each BODY, not on this shared parent: one shared
-         scrollTop gets clamped the moment you hop to the shorter body, and the
-         book's place in a 19-tile grid is lost coming back. -->
-    <div id="ctl-panel" class="flex-1 min-h-0 flex flex-col">
-      <div id="ctl-panel-colours" class="flex-1 min-h-0 overflow-y-auto px-5 py-4 flex flex-col gap-4"></div>
-      <div id="ctl-panel-stickers" style="display:none"
-        class="flex-1 min-h-0 overflow-y-auto px-5 py-4 flex flex-col gap-4">
-        <div id="ctl-sticker-book" class="grid grid-cols-4 gap-2"></div>
-        <p id="ctl-sticker-say" class="text-stone-400 text-xs min-h-[1rem]"></p>
-        <div id="ctl-sticker-controls" style="display:none"
-          class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
-          <div id="ctl-sticker-sliders" class="flex flex-col gap-3">
-            <div class="flex flex-col gap-1">
-              <label for="ctl-sticker-size" class="text-stone-500 text-sm font-semibold">Size</label>
-              <input id="ctl-sticker-size" type="range" min="6" max="30" step="1" value="18"
-                class="ctl-range w-full" />
-            </div>
-            <div class="flex flex-col gap-1">
-              <label for="ctl-sticker-rot" class="text-stone-500 text-sm font-semibold">Turn</label>
-              <input id="ctl-sticker-rot" type="range" min="-180" max="180" step="5" value="0"
-                class="ctl-range w-full" />
-            </div>
-          </div>
-          <div class="flex gap-2">
-            <button id="btn-ctl-sticker-undo"
-              class="min-h-11 flex-1 rounded-xl bg-stone-200 hover:bg-stone-300 text-stone-700 font-semibold text-sm">Undo</button>
-            <button id="btn-ctl-sticker-delete"
-              class="min-h-11 flex-1 rounded-xl bg-red-500 hover:bg-red-600 text-white font-semibold text-sm">Remove</button>
-            <button id="btn-ctl-sticker-done"
-              class="min-h-11 flex-1 rounded-xl bg-purple-500 hover:bg-purple-600 text-white font-semibold text-sm">Done</button>
-          </div>
+      <!-- STAGE — the one WebGL canvas is mounted into #ctl-stage (ctlMount).
+           Save sits under the model like a till. -->
+      <div class="wks-view">
+        <div class="wks-spot" aria-hidden="true"></div>
+        <div class="wks-plinth" aria-hidden="true"></div>
+        <div id="ctl-stage" class="ctl-workshop-stage"></div>
+        <p class="wks-hint">Drag to turn it · scroll to zoom</p>
+        <div class="wks-till">
+          <button id="btn-ctl-reset" class="wks-btn wks-btn-ghost">Reset</button>
+          <button id="btn-ctl-save" class="wks-btn wks-btn-save">Save</button>
         </div>
       </div>
-    </div>
 
-    <!-- CONTROLS — fixed -->
-    <div class="flex-shrink-0 px-5 pb-5 pt-2 flex flex-col gap-2">
-      <button id="btn-ctl-save"
-        class="min-h-14 w-full rounded-2xl bg-purple-500 hover:bg-purple-600 text-white font-semibold text-lg active:scale-95 transition-all duration-150">Save</button>
-      <button id="btn-ctl-reset"
-        class="min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 text-stone-700 font-semibold text-lg active:scale-95 transition-all duration-150">Reset</button>
+      <!-- STICKERS — the sheet, and the card for the sticker in hand. The card
+           docks at the foot of the sheet (the sandbox floated it over the stage
+           first; it hid the very spot being stuck on). -->
+      <aside class="wks-col wks-stickers" aria-label="Stickers">
+        <p class="wks-kicker">⭐ Stickers <span id="ctl-sticker-count" class="wks-count" hidden></span></p>
+        <p id="ctl-sticker-say" class="wks-say" aria-live="polite"></p>
+        <div class="wks-sheet-scroll"><div id="ctl-sticker-book" class="wks-sheet"></div></div>
+        <div id="ctl-sticker-controls" class="wks-insp" style="display:none">
+          <div class="wks-insp-top">
+            <img id="ctl-sticker-insp-img" class="wks-insp-img" alt="" hidden>
+            <div class="wks-insp-text">
+              <p id="ctl-sticker-insp-kick" class="wks-insp-kick"></p>
+              <p id="ctl-sticker-insp-title" class="wks-insp-title"></p>
+            </div>
+          </div>
+          <div id="ctl-sticker-sliders" class="wks-insp-sliders">
+            <label class="wks-slider" for="ctl-sticker-size">Size
+              <input id="ctl-sticker-size" type="range" min="6" max="30" step="1" value="18" class="ctl-range" />
+            </label>
+            <label class="wks-slider" for="ctl-sticker-rot">Turn
+              <input id="ctl-sticker-rot" type="range" min="-180" max="180" step="5" value="0" class="ctl-range" />
+            </label>
+          </div>
+          <div class="wks-insp-btns">
+            <button id="btn-ctl-sticker-undo" class="wks-mini">Undo</button>
+            <button id="btn-ctl-sticker-delete" class="wks-mini wks-mini-danger">Remove</button>
+            <button id="btn-ctl-sticker-done" class="wks-mini wks-mini-go">Done</button>
+          </div>
+        </div>
+      </aside>
     </div>
   </section>
 
@@ -246,8 +265,13 @@
         </div>
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
           <p class="text-xs font-semibold uppercase tracking-widest text-purple-500">Step 3</p>
+          <p class="font-bold text-stone-800">Add stickers</p>
+          <p class="text-stone-500 text-sm">Pick one from the <span class="font-semibold text-stone-700">sticker sheet</span>, then tap the controller where it should go. Tap a sticker that is already on to move it, resize it or turn it.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest text-purple-500">Step 4</p>
           <p class="font-bold text-stone-800">Save it, or start again</p>
-          <p class="text-stone-500 text-sm"><span class="font-semibold text-stone-700">Save</span> keeps your design for next time. <span class="font-semibold text-stone-700">Reset</span> puts it back to the colours it came in. Leaving without saving changes nothing.</p>
+          <p class="text-stone-500 text-sm"><span class="font-semibold text-stone-700">Save</span> keeps your design for next time. <span class="font-semibold text-stone-700">Reset</span> puts it back the way it came — colours and stickers. Leaving without saving changes nothing.</p>
         </div>
         <button id="btn-ctl-howto-close"
           class="min-h-14 w-full rounded-2xl bg-purple-500 hover:bg-purple-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">Got it</button>

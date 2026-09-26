@@ -4581,6 +4581,7 @@ function ntResetState() {
   if (ntHuddleTimer)   { clearInterval(ntHuddleTimer); ntHuddleTimer = null; }
   if (ntLongPressTimer){ clearTimeout(ntLongPressTimer); ntLongPressTimer = null; }
   if (ntResolveGuard)  { clearTimeout(ntResolveGuard); ntResolveGuard = null; }
+  if (ntRoutingTimer)  { clearTimeout(ntRoutingTimer); ntRoutingTimer = null; }
   ntBootTimers.forEach(clearTimeout);
   ntBootTimers = [];
   ntCycleResolved  = false;

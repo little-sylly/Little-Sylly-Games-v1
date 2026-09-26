@@ -80,12 +80,20 @@ the toggle/slider — called from `openSoundOverlay()` and `resetToLobby()`).
 **The seam:** `showScreen()` calls `Music.playFor(activeGameId)` — the single call site for all 18
 games. Track key = `activeGameId`, falling back to `'lobby'`. No plugin has music code.
 
+**Hold — the jukebox (SW v233).** `Music.hold({ key, url, title, artist })` → `'playing' | 'blocked' |
+'failed' | 'superseded'`; `release()`; `heldKey()`; `deck()` (the one media element, for transport —
+wakes the context; never creates); `scope()` (the AnalyserNode). A held song survives `playFor(null)`
+(lobby navigation) and is let go by `playFor(gameId)` (a game). Media element, not a decoded buffer;
+fed a **Blob** (a streamed element's 206 Range replies cannot be cached). Level = `isMuted ? 0 :
+volume` — the Music toggle does not silence it. `nowPlaying()` reports it only while it plays.
+Detail: `shared-implementation-notes.md` DD-44.
+
 ### Screens
 | ID | Purpose |
 |----|---------|
 | `#screen-lobby` | Game selection — main title screen. Children: `#lobby-header-icons` (top-right icon row — `.btn-open-sound` 🔊, plus 🕹️ prepended by `smShowArcadeTile()` once the arcade is unlocked), `#lobby-controller` (the 3D controller mount — `.ctl-lobby-mount`, `ctlMountLobby()` in `js/controller.js`; replaced the old `#lobby-icon` 🎮 emoji, SW v228), `#lobby-game-list` (the 20 game buttons; the flex container the Colour sort reorders via `style.order`), `#btn-lobby-sort` + `#lobby-sort-label` (Release/Colour toggle, `lobbyApplySort()` in `engine.js`). Each game button carries `gel-btn lobby-btn`: a `.lobby-btn-badge` span (game emoji, `z-index:3`) on the **left** — a convex domed disc (radial-gradient white→pale-grey + rim/inner-shade box-shadow, reads as a 3-D pin) — and the `.lobby-btn-label` span (`z-index:2`) left-aligned after it. `.lobby-btn` now supplies **only** that badge layout; the moulding is the shared **`.gel-btn`** (SW v218, extracted from the old `.lobby-btn` — also on all 72 game-menu buttons): a colour-agnostic classic-gel treatment — body gradient + `::before` specular cap + `::after` base bounce-light (both `z-index:-1`, under the label via `isolation:isolate`) + `box-shadow` bezel/rims — over the button's own brand fill. All CSS, no per-game values; `.gel-btn:active` redeclares the full `box-shadow` so an earlier `:active` can't strip the bezel. `.gel-btn-light` = softened gloss for pale fills (menu Settings + ← Back). See `css/styles.css` "Gel button" + `ui-style.md` § Gel Button Treatment. The lobby wordmark `<div class="lobby-title">` is an `<img src="assets/logo.png">` (SW v217) with a `.lobby-title img { filter: drop-shadow(...) }` lift. |
 | `#screen-who-first` | Shared "Who Goes First?" — method picker → RPS declare → winner choice |
-| `#screen-workshop` | Controller customiser (SW v228). NOT a game — `activeGameId` stays `null`, so lobby music keeps playing and the sound overlay stays neutral stone. Fixed-stage layout (h-screen whitelist, `ui-style.md`): header (`[?]`/🔊/✕) → `#ctl-stage` (the 3D preview, `ctl-workshop-stage`) → `#ctl-panel` (scrolling, four colour cards — Shell/Faceplate/Ears/Buttons, 20 swatches each read live from `GAME_BRAND_HEX`) → `#btn-ctl-save`/`#btn-ctl-reset`. Opened by `ctlOpenWorkshop()` (tap/Enter on `#lobby-controller`), closed by `ctlCloseWorkshop()` (✕ or Save). The Konami is live here only (`ctlPressEnabled = true`, `ctlOnPress = ctlKonamiPress`). `#ctl-how-to-overlay` is its How to Play (no Sylly Mode card — scoped to games). |
+| `#screen-workshop` | Controller customiser — since SW v234 a full room (design B · Paint Shop, `css/workshop.css`, scoped under `#screen-workshop`): paint column \| stage \| sticker column, **no tabs**. Below 1100 px the stage pins to the top and the room scrolls. **Below 860 px, SW v235: Tool Belt** — no tabs either; Paint and Stickers become strips under the controller, the sticker card taking over Paint's slot while a sticker is in hand. The static markup is always the widescreen shape — `ctlLayoutPhone()`/`ctlLayoutWide()` move four elements house on crossing the breakpoint, reversibly |
 
 ### Overlays
 | ID | Pattern | Opened by |
@@ -518,7 +526,6 @@ Mid-game quit uses the engine's generic `mpNotifyPlayerLeft()` — JEC has no `J
 | `#screen-lttp-menu` | Title card + "Find The Location!" CTA |
 | `#screen-lttp-setup` | Player count + names |
 | `#screen-lttp-briefing` | Plan start/transition — session summary (Tonight's Plans / Plans Updated), first active player named |
-| `#screen-lttp-role-reveal` | ⚠️ DEAD — fully built and registered in `allScreens[]`, but no function in `lttp.js` ever calls `showScreen('screen-lttp-role-reveal')`; role info is instead folded into the Chat screen's own header (`#lttp-chat-role-label`/`#lttp-chat-role-objective`) on first entry. [AUDIT FLAG — 23 Aug 2026 identity-doc pass: candidate for removal or a real trigger; logged in `deferred-work.md`.] |
 | `#screen-lttp-handover` | Pass gate between turns + plan-end transitions; shows message text in chat mode |
 | `#screen-lttp-chat` | Main interrogation hub (active player's turn) |
 | `#screen-lttp-guess` | Plan 4 vote + pin phase (pass-the-phone) |
@@ -600,7 +607,7 @@ the live Small Talk UI is the `#lttp-smalltalk-overlay` overlay below.
 
 ---
 
-## 3D Controller / Workshop (SW v228; stickers SW v229; polish SW v230)
+## 3D Controller / Workshop (SW v228; stickers SW v229; polish SW v230; the room SW v234; phone SW v235)
 
 **JS files:** `js/lib/three.min.js` (vendored Three.js r128, `window.THREE`), `js/lib/controller-body.js`
 (`window.ControllerBody` — pure geometry: `buildBody`, `buildControls`, `buildEars`, `buildShoulder`,
@@ -623,25 +630,23 @@ cache-first). Adding a sticker is a folder drop + one manifest line: no `sw.js` 
 ### Screens
 | ID | Purpose |
 |----|---------|
-| `#screen-workshop` | Controller customiser — see the Lobby/Workshop entries above |
+| `#screen-workshop` | Controller customiser — since SW v234 a full room (design B · Paint Shop, `css/workshop.css`, scoped under `#screen-workshop`): paint column \| stage \| sticker column, **no tabs**. Below 1100 px the stage pins to the top and the room scrolls. **Below 860 px, SW v235: Tool Belt** — no tabs either; Paint and Stickers become strips under the controller, the sticker card taking over Paint's slot while a sticker is in hand. The static markup is always the widescreen shape — `ctlLayoutPhone()`/`ctlLayoutWide()` move four elements house on crossing the breakpoint, reversibly |
 
 ### Key ids
 | ID | Purpose |
 |----|---------|
 | `#lobby-controller` | Original's ornament slot (one of three — § Lobby layouts); the lobby's 3D mount (`.ctl-lobby-mount`, 150px, no floor shadow — no headroom below it) |
 | `#lobby-header-icons` | Top-right icon row, replaces the old bare `.btn-open-sound` — 🕹️ (once unlocked) then 🔊 |
-| `#ctl-stage` | The Workshop's 3D mount (`.ctl-workshop-stage`, 38vh, floor shadow shown) |
-| `#ctl-panel` | The Workshop's scrolling colour-card panel |
+| `#ctl-stage` | The Workshop's 3D mount (`.ctl-workshop-stage`), filling the middle column; mounted with **no floor shadow** since SW v234 (the full room showed the whole shadow, cut off by the key light's frustum). Anchors `.ctl-drag-ghost` |
+| `#ctl-parts` / `#ctl-picked` / `#ctl-palette` (SW v234) | The paint column: four part rows (`ctlRenderParts`, each showing its current colour by game name), the "Shell · Cold Shoulder" line, and the 20 swatches (`ctlRenderPalette`, `.ctl-swatch`) |
 | `#ctl-how-to-overlay` | The Workshop's How to Play (no Sylly Mode card — that rule is scoped to games). Its Step 1 button diagram is **generated, not drawn** — silhouette, ears, shoulders and every button position are projected from `js/lib/controller-body.js` by `tools/gen-controller-diagram.js`. Re-run that and paste; never hand-edit the numbers (shared-implementation-notes TG-13) |
 | `#btn-ctl-save` / `#btn-ctl-reset` / `#btn-ctl-exit` / `#btn-ctl-how-to` | Workshop controls |
-| `#ctl-tabs` | The Workshop's tab bar (SW v229) — Colours / Stickers, standard `.pill` / `pill-active-*`. **Exactly two tabs** (spec D4) |
-| `#ctl-panel-colours` / `#ctl-panel-stickers` | The two tab bodies — **siblings toggled by display**, never one body repainted, so each keeps its own scroll position |
-| `#ctl-sticker-book` | The book — one tile per manifest entry, rendered by `ctlRenderStickerBook()`. A design already placed reads as placed, and tapping it **selects that placement** rather than arming a second (spec D2 — one design, one placement) |
-| `#ctl-sticker-controls` | Wrapper for the sliders + Undo / Remove / Done row; `ctlSyncStickerControls()` drives it from `ctlStickerMode()` |
+| `#ctl-sticker-book` / `#ctl-sticker-count` | The sticker sheet — one `.ctl-sticker-tile` per manifest entry (3 across), rendered by `ctlRenderStickerBook()`, plus the placed-count badge. A design already placed dims and wears an "On" pill (`.ctl-sticker-dot`), and tapping it **selects that placement** rather than arming a second (spec D2 — one design, one placement) |
+| `#ctl-sticker-controls` / `#ctl-sticker-insp-img` / `-kick` / `-title` | The card for the sticker in hand, docked at the foot of the sheet: its picture, "In your hand" / "On the controller", its name, then the sliders + Undo / Remove / Done. `ctlSyncStickerControls()` drives it from `ctlStickerMode()` |
 | `#ctl-sticker-sliders` / `#ctl-sticker-size` / `#ctl-sticker-rot` | Size (a percentage of half the body width) and rotation (degrees) for the armed or selected placement |
 | `#ctl-sticker-say` | The one-line refusal/status line — the only surface `CTL_REFUSAL`'s five messages reach |
 | `#btn-ctl-sticker-undo` / `#btn-ctl-sticker-delete` / `#btn-ctl-sticker-done` | Undo (30-deep, Workshop-session only), Remove the selected placement, Done (back to Idle) |
-| `#btn-ctl-randomise` (SW v230) | Built by `ctlRenderColourCard()`, not static HTML — a "Randomise All" row under the swatch grid; picks one random `ctlPalette()` hex per `CTL_GROUPS` entry at once. Owner-directed gradient fill, bright pink -> purple, read live from `GAME_BRAND_HEX['btn-dstw']` / `['btn-great-minds']` rather than literal hex — an exception to § Action Button Standard's brand/neutral/destructive rule, the same shape as FRT's literal-hex heading |
+| `#btn-ctl-randomise` / `#ctl-dice-dots` (SW v234) | Randomise All — **static markup** since SW v234: a glass key with a die and four dots previewing the parts' current colours (`ctlRenderDiceDots`). A press re-triggers `.ctl-rolling` (die spins, dots pop) and calls `ctlRandomiseAll()`. Replaced SW v230's rainbow bar (and its owner exception to § Action Button Standard) at the owner's call, 26 Sep 2026 |
 
 ### Key state
 | Name | Purpose |
@@ -671,13 +676,15 @@ cache-first). Adding a sticker is a folder drop + one manifest line: no `sw.js` 
 | `ctlPalette()` | Reads `GAME_BRAND_HEX` live, ordered by `LOBBY_COLOUR_ORDER` (the lobby's own Colour-sort hue walk) — a 21st game needs no edit here |
 | `ctlEnsureBuilt()` | Idempotent scene/geometry/atlas build — the single most expensive call in the feature (~587ms unthrottled, ~1.2s at 4× CPU throttle), which is why every mount defers it |
 | `ctlApplyDesign(design)` | Repaints the shell/faceplate atlases and sets the button materials' colour directly (buttons are untextured, unlike the atlas-painted shell) |
-| `ctlMount(el, { floor })` / `ctlUnmount()` | Re-parents the single WebGL renderer between the lobby and Workshop mounts — one context, never two, since phones cap live WebGL contexts. `floor` (default `true`) toggles the contact-shadow plane; the lobby mount passes `false` |
+| `ctlMount(el, { floor, home })` / `ctlUnmount()` | Re-parents the single WebGL renderer between the lobby and Workshop mounts — one context, never two, since phones cap live WebGL contexts. `floor` (default `true`) toggles the contact-shadow plane; the lobby mount passes `false`. `home` (default `false`; the ornament passes `true`) sets `ctlSpringHome` — see below |
+| `ctlSpringHome` / `ctlHomeActive()` / `ctlYawOffHome()` (SW v232) | The ornament's pull back to its showcase pose: `ctlTick` adds `-off × CTL_HOME_SPRING` (0.006) to `ctlVelY` and decays `ctlRotX` by `CTL_HOME_TILT`, the short way round. Ornament mounts only (the Workshop keeps the player's turn), off mid-drag, off under reduced motion. Makes the idle nudge an out-and-back wiggle (9–18°, ~2 s) |
 | `ctlMountLobby()` | Defers the build past first paint (`requestIdleCallback`), then mounts + binds pointer + starts the idle nudge |
-| `ctlScheduleIdleNudge()` | A small randomly-signed wiggle every 3-5s (first at 1s) — reuses the drag-release coast physics (`ctlVelY`) rather than a second animation system; declines under reduced motion, mid-drag, off-lobby, or once the Workshop takes the mount |
+| `ctlScheduleIdleNudge()` | A small randomly-signed wiggle every 3-5s (first at 1s) — reuses the drag-release coast physics (`ctlVelY`) rather than a second animation system; declines under reduced motion, mid-drag, off-lobby, or once the Workshop takes the mount. Runs in all three ornament layouts (Classic, Shelves, TV); since SW v232 the home spring brings each nudge back |
 | `ctlOpenWorkshop(opts)` / `ctlCloseWorkshop()` | Enter/exit the Workshop; close discards unsaved changes (`ctlDesign = ctlReadDesign()`). `opts` is `{ returnScreen, onReturn }`, both optional and both defaulting to the lobby — the **opener** names its way back, so the Workshop can be reached from a second surface (the Premium lounge) without monkey-patching the close. `onReturn(design)` is handed the design that survived the close (saved on the Save path, restored on the ✕ path — one hook, no branch) and owns its own remount; with none given, `ctlMountLobby()` runs as before. Close reads the pair **before** calling `ctlTeardown()`, which clears it |
-| `ctlRenderPanel()` / `ctlSelectColour(group, hex)` | Renders one card: a pill row picking which of the four parts (`ctlActiveGroup`, default `'shell'`) plus that part's own 20-swatch palette from `ctlPalette()` — not four stacked palettes. A tap updates `ctlDraft`, repaints live, re-renders the panel |
+| `ctlRenderPanel()` / `ctlSelectColour(group, hex)` | `ctlRenderPanel` repaints the whole room from `ctlDraft` + `ctlStickerState` (parts, palette, dice dots, sheet, card) — every region is static markup it fills. `ctlActiveGroup` (default `'shell'`) is which part the palette paints. `ctlSelectColour` sets one part and repaints. **SW v235:** also writes `data-st` (`ctlStickerMode()`) and `data-undo` onto `#screen-workshop` — what Tool Belt's `[data-st]` CSS rules read to show Paint or the card |
+| `ctlLayoutPhone()` / `ctlLayoutWide()` / `ctlSyncPhoneLayout()` (SW v235) | CSS alone restyles a box in place; it can't move an element into a **different** flex parent than its own DOM parent. These move four shipped elements house whenever the viewport crosses 859 px: Randomise All + the palette into `.wks-strip`; Paint + the sticker card into `.wks-tray` (one visible at a time via `data-st`); the sticker sheet's kicker + running line + Undo into `.wks-belt-head` (Undo stays reachable even with the card hidden); Reset/Save into a `.wks-foot` footer. `ctlLayoutWide()` is the exact reverse, run in the opposite order. `CTL_PHONE_MQ` (a `matchMedia('(max-width: 859px)')`) plus one `change` listener is the **only** mechanism — `ctlSyncPhoneLayout()` runs once at boot and again on every crossing, so `ctlOpenWorkshop()` needs no breakpoint check of its own. Each function is idempotent-guarded by `ws.dataset.phoneLayout` |
 | `ctlRandomiseAll()` (SW v230) | Picks one random `ctlPalette()` hex per `CTL_GROUPS` entry (shell/plate/ears/buttons) in a single pass |
-| `ctlRainbowGradientStops()` (SW v230) | The button's rainbow: every LIVE `GAME_BRAND_HEX` colour (currently 20), li5 pink pinned first and great-minds purple pinned last, everything else in between kept in `LOBBY_COLOUR_ORDER` (the suite's own hue walk — one canonical colour order, not a bespoke one for this button). A 21st game or a recoloured existing one moves the gradient with it, zero edits here |
+| `ctlColourName(group, hex)` / `ctlRenderParts()` / `ctlRenderPalette()` / `ctlRenderDiceDots()` (SW v234) | A colour's name is the game it belongs to, read from `GAMES` (`js/lobby/lobby-games.js`) by `brandHex` — never copied; the factory colours read "Factory lilac". The three renderers are the paint column. (`ctlRainbowGradientStops()` was retired with the rainbow button) |
 | `ctlSetZoom(z)` / `ctlBindZoom(el)` (SW v230) | Clamp-and-apply `ctlZoom`, then wheel (`preventDefault`, so the page doesn't scroll under the stage) + two-pointer pinch (distance ratio against the gesture's own start, so it composes with whatever zoom the player is already at). A second touch landing mid-rotate sets `ctlDragging = false` — `ctlBindPointer`'s drag tracking has no per-pointer identity, so without that the first finger's rotate would keep fighting the pinch |
 | `ctlTryPress(ev)` | Raycasts the pointer against `ctlControls.pressables`; tries the exact point, then `CTL_PRESS_FUDGE_PX`'s ring of 8 nearby screen-space offsets, so a touch that looks on-target but lands just off a button's true edge still registers (shared-implementation-notes.md BUG-12) |
 | `ctlKonamiCode(name, dir)` | Pure mapping: D-pad direction → `U`/`D`/`L`/`R`, `Face A`/`Face B`/`Start` → `A`/`B`/`S`, everything else → `null`. Lives above the `// ══ RENDERER ══` marker so `tools/verify-controller-state.js` can load it under Node with no DOM/THREE/canvas |
@@ -692,7 +699,7 @@ cache-first). Adding a sticker is a folder drop + one manifest line: no `sw.js` 
 | `ctlRedrawShell()` / `ctlRedrawEars()` | Repaint the colour base, then stamp every placement for that surface into both the colour atlas and the bump atlas |
 | `ctlBuildEarUV()` / `ctlPlanEarSticker(uv, want, rot)` / `ctlEarSilhouette(…)` | The ears are **flat**, so they get planar cap UVs and a flat rasteriser rather than the surface charts. `buildEars` shipped `ExtrudeGeometry`'s default UVs and the colour-only build flood-filled the ear atlas, so nothing depended on them for a whole release (shared-implementation-notes BUG-18) |
 | `ctlStickerTap(ev)` | **Tap-only placement; a drag still rotates, UNLESS the drag started on the selected placement** (spec D6, extended SW v230 — see `ctlStickerDragActive` below). Raycasts via the shared `ctlStickerRay(ev)`, then arms / places / relocates per `ctlStickerMode()` — **except** tapping a DIFFERENT already-placed sticker while one is selected re-selects it instead of relocating the old one there (SW v230; dragging still allows stacking, see `ctlStickerDragTo`) |
-| `ctlStickerSelect(index)` / `ctlStickerGoToBook(id)` (SW v230) | Any selection made by a tap on the model (fresh, or a reselect per the row above) also surfaces it: switches `ctlActiveTab` to `'stickers'` and rings the matching book tile via the shared `refHighlightRow()` (the Tap-Hold Reference pattern, `ui-style.md`) — a selection with nothing visible changing on screen otherwise isn't real feedback. A no-op selection (out-of-range index) skips the tab switch |
+| `ctlStickerSelect(index)` / `ctlStickerGoToBook(id)` (SW v230) | Any selection made by a tap on the model (fresh, or a reselect per the row above) also surfaces it: repaints the room and rings that sticker's tile on the sheet via `refHighlightRow` (the Tap-Hold Reference pattern, `ui-style.md`) — a selection with nothing visible changing on screen otherwise isn't real feedback. Since SW v234 there is no tab to switch to: the sheet is always on screen. A no-op selection (out-of-range index) skips the ring |
 | `ctlStickerGoToModel(s)` / `ctlStickerAimYaw(normal)` / `ctlStickerAimNormal(s)` (SW v230) | The reverse: picking an already-placed sticker from the book rotates the model to face it, instead of the player hunting for it by dragging. General, not a per-surface angle table — `ctlStickerAimYaw` is `atan2(-normal[0], normal[2])`, the yaw that puts a given local direction vector straight in front of the camera (three.js's Y-rotation matrix solved for a zero x-component and positive z). **Aims at the local surface NORMAL, not the sticker's raw point** — a first version used the point and measured yaws up to ±109° on an ordinary front placement, because the front/back faces are parameterised nearly flat (`point()`'s x/y ARE the unwarped atlas x/y — see its own comment), so a point merely sitting off to one side read as "far around the side" when it wasn't. `ctlStickerAimNormal` supplies it: `ctlStickerSurface.normal(x,y,back)` for a shell placement, or — since that API is shell-only — the same `CTL_STICKER_OPT` ear-boss coordinate (`x = ∓0.84, y = 0.84`) for an ear one; ears land around 0.7-0.8 facing-alignment (yaw alone can't fully square a corner-mounted cap that also needs pitch — a known limit of the approximation, not a bug). **`normal(x,y,back)`'s own formula (`n=[-zx,-zy,1]`) always biases +Z, which is right for the front sheet but backwards for the back one — `normal(0,0,true)` measures the identical `[0,0,1]` `normal(0,0,false)` does, so a back-placed sticker's yaw came out near 0° instead of near 180°: "snaps to the front" exactly as reported.** `ctlStickerAimNormal` negates the whole vector whenever `back` is true to recover the true outward direction; nothing else that calls `normal()` (`makeChart`'s tangent frame) needed correcting, since it only uses the vector to build a self-consistent local basis where the absolute sign never mattered. Shell now measures ~1.00 (front) / ~0.99 (back) facing-alignment; ears ~0.71 (front cap) / ~0.82 (back cap). Wired from the book tile's click handler when `bookTap` lands on `'selected'` (never `'armed'` — nothing to face yet) |
 | `ctlRotYTarget` (SW v230) | Non-null while `ctlTick` eases `ctlRotY` toward a book-selected sticker's yaw (shortest way round; `prefers-reduced-motion` snaps instead of travelling — a RAF animation, so it needs its own check per `ui-style.md` § Motion Standard). Counted in `ctlBusy()`. Cleared at the very top of every `pointerdown` on the stage — before the button/drag/rotate branch split, not just the rotate one, since a press that happens to land on the sticker mid-tween takes the drag branch instead and must cancel just as much |
 | `ctlStickerRay(ev)` (SW v230) | Shared raycast against body+ears, extracted from `ctlStickerTap` so the drag-start check below can ask the identical question |
@@ -701,7 +708,7 @@ cache-first). Adding a sticker is a folder drop + one manifest line: no `sw.js` 
 | `ctlStickerDragCommit()` (SW v230) | Drag release: applies `ctlStickerDragPending` in ONE `'adjust'` dispatch if it is non-null (still one undo step, matching the sliders), or does nothing over an illegal spot — either way hides the ghost. This is the only point in the whole drag the real sticker/texture actually moves |
 | `ctlEnsureDragGhost()` / `ctlUpdateDragGhost(ev, ok, imgSrc, diameterPx)` / `ctlHideDragGhost()` / `ctlDragGhostDiameter(curRadius)` (SW v230) | The ghost's lifecycle: lazy creation inside `#ctl-stage`, positioning straight from the pointer event's own screen coordinates (no raycast-to-screen projection needed), green/red border for legal/refused, and an approximate on-screen diameter inverted from `ctlStickerWantRadius()`'s own percentage-of-half-body-width conversion — not pixel-exact, the real placement is decided by the raycast on release |
 | `ctlStickerHitIndex(xy, back)` / `ctlStickerEarHitIndex(uv)` | Which placement did this tap land on? Compared in the sticker's **own chart space** and bounded at the same `|c| <= size` the stamp used, so a wrapped sticker is hit correctly on both sheets and the test matches exactly what was painted. Searched backwards — last painted is on top |
-| `ctlOpenStickersTab()` / `ctlRenderStickerBook()` / `ctlSyncStickerControls()` | Open the tab (loading the manifest and building the surface on first entry), render the book, drive the controls row from the current mode |
+| `ctlStickerPickUp(id)` / `ctlRenderStickerBook()` / `ctlSyncStickerControls()` (SW v234) | A sheet tap. The **first** pick-up of a session pays for `ctlEnsureStickerSurface()` (339 ms desktop, the 2048 atlas) after one painted frame of "Peeling it off the sheet…" — opening the Workshop only fetches the manifest, so a recolour-only visit never builds the surface (`visual-controller-stickers.js` asserts both halves). Replaced `ctlOpenStickersTab()` and the `ctlActiveTab` state with the tabs |
 | `ctlMaybeBuildStickerSurface()` | The deferred lobby path — a saved design carrying stickers needs the surface built before the ornament can show them, but not before first paint |
 | `ctlTeardown()` | Stops the rAF, resets all pressable state to rest, and clears `ctlReturnScreen`/`ctlReturnMount` — called by `resetToLobby()`, `ctlCloseWorkshop()`, and `smOpenGateway()` (an early exit from the Workshop) |
 
@@ -756,13 +763,14 @@ not precached**, the `data/stickers/` contract.
 | `js/lounge/lounge-lib.js` | `LouLib` | Pure geometry/material helpers for the room (`louCreateLib`, `louApplyDesign`, contact shade) |
 | `js/lounge/lounge-room.js` | `LouRoom` | The room itself: walls, window, couch, table, stand, shelf, rug… |
 | `js/lounge/lounge-props.js` | `LouProps` | The props (telly, dial, jukebox, binder, phone, controller, lamp, shelf dressing), `LOU_ACTIONS` (door map), `LOU_BUILDERS` |
-| `js/lounge/lounge-scene.js` | `LouScene` | `louMount(canvas, host, opts)` → the scene api; `louValidateHost`, `louEligible`, `louCanArrive`, `LOU_PROVIDER_FUNCS` |
-| `js/lounge/lounge-sfx.js` | `LouSfx` | `louCreateSfx()` — the room's synthesised voices (gated on `isMuted \|\| !sfxEnabled` by the host) |
+| `js/lounge/lounge-scene.js` | `LouScene` | `louMount(canvas, host, opts)` → the scene api (incl. `syncMusic()`, SW v233 — re-read `host.music` into the jukebox prop); `louValidateHost`, `louEligible`, `louCanArrive`, `LOU_PROVIDER_FUNCS` |
+| `js/lounge/lounge-sfx.js` | `LouSfx` | `louCreateSfx()` — the room's synthesised voices (gated on `isMuted \|\| !sfxEnabled` by the host): `dialPress`, `phoneOpen`, `binderOpen`, `controllerRumble` (SW v232) |
 | `js/lobby/lobby-games.js` | `GAMES`, `SHELVES` | The verified 20-game data table (regenerate with `tools/build-games.js`) |
 | `js/lobby/lobby.js` | `lb*` | Shelves layout, TV's size gate + hand-off card, the helpers both share (`lbState`, `lbSet`, `lbRender`, `lbMountTVFull`, `lbTvEligible`) |
 | `js/lobby/tv.js` | `tv*`, `TV_STATE` | The TV layout (was the sandbox's `lounge.js`): patch-in-place renderer, `tvMount`/`tvDrop` |
 | `js/lobby/achievements.js` | `Achievements` | Stickerbook rules, pure; `achAllPlaced(book)` is v1's whole book |
 | `js/lobby/stickerbook.js` | `Stickerbook` | `sbMount(root, opts)` → the book's DOM |
+| `js/lobby/jukebox.js` | `Jukebox` (prefix `jbx`) | The jukebox screen (SW v233): `jbxConfigure(cfg)` (`games`, `stickers`, `design()`, `onClose`, `onChange`, `say`), `jbxOpen()`, `jbxClose()` (stops both RAFs; lets go of a paused song), `jbxStop()` (RAFs only — `resetToLobby()`), `jbxNextRecord()` (the Lounge's record carousel), `isOpen()`, `debug()`. Internals: `jbxMountStage` (the real `LOU_BUILDERS.jukebox` on its own renderer — built once, kept, `start`/`stop`), `jbxRail`, `jbxPanel` (Records `jbxCrate` / List `jbxSetlist`). Plays nothing itself — every song goes through `Music.hold()` |
 | `js/lobby/lobby-router.js` | `LobbyRouter` | Pure reducer `lobbyReduce` + `LOBBY_LAYOUTS` (id, label, icon, screen — the ONE table every switcher renders from) |
 | `js/lobby/lobby-doors.js` | `LobbyDoors` | Pure: `LOBBY_DOORS` (door → router action) + `lobbyCreateHost(deps)` |
 | `js/lobby/lobby-host.js` | `lobby*` | **Every effect.** Boot, the seam, layout presentation, the room, the ornament, the switcher, the stickerbook |
@@ -775,6 +783,7 @@ not precached**, the `data/stickers/` contract.
 | `#screen-shelves` | Shelves — `#shelves-canvas` (390 px column, scrolls) |
 | `#screen-lobby` | Original — unchanged content + `#btn-lobby-layout` (opens the switcher) |
 | `#lobby-switcher-overlay` | The dock (z-[90], Decision-Modal geometry): `#lobby-switcher-list`, `#btn-lobby-switcher-close`. Summoned only — Original's button and the Lounge's channel dial |
+| `#screen-jukebox` | The jukebox (the cat's door; not a layout) — `.jbx-head` (`.btn-open-sound`, `#jbx-close`), `.jbx-stage` › `#jbx-canvas` / `#jbx-nogl`, the deck (`#jbx-np-art`, `#jbx-np-title`, `#jbx-np-meta`, `#jbx-wave` seek+equaliser, `#jbx-t0`/`#jbx-t1`, five `.jbx-key[data-kind]`, `#jbx-vol`), `#jbx-pick` (built: `#jbx-tab-records`, `#jbx-tab-list`, `#jbx-find`, `#jbx-search`, `#jbx-crate-play`, `.dB-row[data-id]`), `#jbx-toast`. Fixed stage. Styles `css/jukebox.css`. **Data:** `data/music/jukebox/` (`manifest.json` + 25 mp3 + `covers/`, ~68 MB) — runtime-cached by `sw.js`'s `/data/music/` branch |
 | `#stickerbook-overlay` | The stickerbook (binder door). Toggles its own `hidden` (guarded `!important`); **never** in `resetToLobby()`'s display list — the router's `home` closes it |
 
 ### Ornament slots — ONE controller canvas, moved between them
@@ -784,6 +793,16 @@ not precached**, the `data/stickers/` contract.
 | Shelves | `#shelves-controller` (`.lb-you-mount.ctl-ornament`) |
 | TV | `#tv-controller` (`.lb-lg-ctl.ctl-ornament`) |
 | Lounge | none — the room's own controller prop wears the Workshop's painted atlas (`ctlModelParts`) |
+
+"Original" is the layout id; it **displays as "Classic"** (SW v232 — `LOBBY_LAYOUTS` label only).
+
+### The controller's idle motion (SW v232)
+| Where | What |
+|-------|------|
+| Ornament (Classic / Shelves / TV) | `ctlScheduleIdleNudge()` + the home spring (§ 3D Controller above) |
+| Lounge prop — `louControllerIdle(THREE, inner, group, rand, sfx)` in `lounge-props.js` | The prop's `api.tick` runs a scheduler off the scene's frame time — **no timers** (the attract loop wakes the scene at 10 fps). First beat 3–5 s, then every 8–14 s (`LOU_CTL_FIRST_MS`/`LOU_CTL_GAP_MS`); beats `LOU_CTL_BEATS`: `rumble` 35%, `sticks` 30%, `pair` 25%, `konami` 10%; no ordinary beat twice running. A frame gap > `LOU_CTL_STOPPED_MS` (1.5 s = the scene was stopped) drops the beat at rest. `api.idle(kind, now)` / `api.idleState()` are the debug + harness hooks. Reduced motion: nothing moves, the Konami's sound still plays |
+| Konami data | `LOU_CTL_KONAMI` — `[button, dir]` pairs using `controller-body.js` mesh names. Each press names `controllerPress:<name>` + `konamiBeep`, then `controllerRelease`; the key lights with its press (`LOU_CTL_PRESS_GLOW`) because 2 mm of travel is invisible from the couch camera |
+| Sound routing — `lobbyPlaySfx(name)` in `lobby-host.js` | `controllerPress:*` → `ctlVoiceFor`, `controllerRelease` → `ctlVoiceRelease`, `konamiBeep` → `playSecretBeep`, anything else → `LouSfx` (`controllerRumble` is a room voice). **Never** `smHandleButton` — the room's Konami is a hint, not an unlock (`visual-lobby` § 14) |
 
 ### `lobby-host.js` API
 | Function / state | Purpose |
@@ -799,11 +818,11 @@ not precached**, the `data/stickers/` contract.
 | `?lobbydebug` | Exposes the scene's `window.louDebug` — for `tools/visual-lobby.js` only |
 
 ### Router (`lobby-router.js`)
-State `{ view, tvSel, room, workshop, stickerbook, switcher, design, arrival }`; `view` IS the home
+State `{ view, tvSel, room, workshop, stickerbook, jukebox, switcher, design, arrival }`; `view` IS the home
 layout (a game launch never changes it). Actions: `go`, `enterTV`, `enterShelves`, `openSwitcher`,
 `closeSwitcher`, `roomMounted`, `workshopOpen`, `workshopClose`, `stickerbookOpen`,
-`stickerbookClose`, `designSaved`, `leaveLobby`, `arrivalBegin`, `arrivalReset`, **`home`**.
-Workshop/stickerbook close to the layout they were opened from; **one-way rule**: once
+`stickerbookClose`, `jukeboxOpen`, `jukeboxClose` (SW v233), `designSaved`, `leaveLobby`, `arrivalBegin`, `arrivalReset`, **`home`**.
+Workshop/stickerbook/jukebox close to the layout they were opened from; **one-way rule**: once
 `arrival === 'done'`, no action lands on `lounge`.
 
 ### `controller.js` additions (SW v231)
@@ -1821,7 +1840,6 @@ players requires 2 Bails to fail (not 1).
 | `shp-how-to-overlay` | Data (slide-up) | z-[90] | How to Play |
 | `shp-quit-overlay` | Decision modal | z-[80] | "Tuck In?" — mid-game exit |
 | `shp-new-night-overlay` | Decision modal | z-[90] | "Another Night?" — play-again |
-| `shp-tip-overlay` | Decision modal | z-[90] | Shared contextual tips — `shpShowTip(emoji, heading, lines[])` |
 
 ### Key State Variables
 | Variable | Type | Default | Purpose |

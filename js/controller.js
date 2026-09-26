@@ -406,6 +406,27 @@ function ctlBuildScene() {
 
   ctlRig = new THREE.Group();
   ctlScene.add(ctlRig);
+
+  // A tiny procedural environment through PMREM, ported from wip/premium's
+  // prmBuildEnvMap (deferred-work.md, 14 Sep 2026): with no scene.environment set,
+  // ctlShellMat (roughness .52, metalness .06 — matte plastic) has nothing to
+  // reflect but the three point lights, so it reads flatter than the same
+  // material does in the Lounge room, which builds one. Four emissive planes,
+  // zero assets, ~15 lines — no PRECACHE_URLS change, no SW bump.
+  const envScene = new THREE.Scene();
+  const envPlane = (w, h, pos, rot, hex) => {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h),
+      new THREE.MeshBasicMaterial({ color: hex, side: THREE.DoubleSide }));
+    m.position.set(pos[0], pos[1], pos[2]); m.rotation.set(rot[0], rot[1], rot[2]);
+    envScene.add(m);
+  };
+  envPlane(6, 3, [-3, 3, 0], [0, Math.PI / 2, 0], 0xFFF6EE);   // warm key side
+  envPlane(4, 4, [3, 2, 0], [0, -Math.PI / 2, 0], 0xC9B6FF);   // cool fill side
+  envPlane(8, 8, [0, -3, 0], [Math.PI / 2, 0, 0], 0x2A2438);   // dark floor
+  envPlane(8, 8, [0, 6, 0], [-Math.PI / 2, 0, 0], 0x4A3F63);   // ambient ceiling
+  const pmrem = new THREE.PMREMGenerator(ctlRenderer);
+  ctlScene.environment = pmrem.fromScene(envScene, 0.04).texture;
+  pmrem.dispose();
 }
 
 /* ── The faceplate outline, without StickerSurface ──────────────────────────
@@ -519,7 +540,7 @@ const CTL_STICKER_OPT = {
 
 /* Idempotent and lazy. Measured at 339 ms on a desktop at 2048; a low-end
    phone is plausibly 3-5x that, which is why it is never on the app's front
-   door. Called from the Stickers tab's first open, and from the deferred
+   door. Called on the first sticker picked up in the Workshop (ctlStickerPickUp), and from the deferred
    lobby path when a SAVED design already has stickers (see ctlApplyDesign). */
 function ctlEnsureStickerSurface() {
   if (ctlStickerSurface) return true;
@@ -1166,7 +1187,7 @@ function ctlStickerTap(ev) {
 }
 
 /* Selects placement `index` and, if the selection actually changed, surfaces
-   it: switches to the Stickers tab and rings its book tile — the Tap-Hold
+   it: rings its tile on the sticker sheet — the Tap-Hold
    Reference pattern (ui-style.md), reused here for a plain tap since a
    selection with nothing visible changing on screen isn't really feedback. */
 function ctlStickerSelect(index) {
@@ -1177,7 +1198,6 @@ function ctlStickerSelect(index) {
 }
 
 function ctlStickerGoToBook(id) {
-  ctlActiveTab = 'stickers';
   ctlRenderPanel();
   refHighlightRow(document.getElementById('ctl-sticker-book'), 'data-ctl-sticker-id', id,
     'ctl-sticker-ref-row-ping');
@@ -1402,7 +1422,7 @@ function ctlMaybeBuildStickerSurface() {
        legality probe had already pruned. */
     ctlLoadStickerManifest().then(() => {
       ctlStickerBuildQueued = false;
-      if (ctlStickerSurface) return;          // the Stickers tab got there first
+      if (ctlStickerSurface) return;          // a Workshop pick-up got there first
       ctlDesign.stickers = ctlValidateStickers(ctlDesign.stickers, {
         known: new Set(ctlStickerManifest.map(s => s.id)),
       });
@@ -1499,6 +1519,20 @@ let ctlRotX = 0, ctlRotY = 0, ctlVelY = 0;
    pointerdown) or the tween arrives. */
 let ctlRotYTarget = null;
 let ctlRaf = null;
+
+/* The ornament's pull back to its showcase pose. Without it the idle nudge was
+   a one-way coast: signs are random, so the yaw random-walked, and after a
+   minute on Shelves or TV the controller sat edge-on or showing its back —
+   which read as "the nudge doesn't run here" (owner, 26 Sep 2026). With it a
+   nudge is a sprung out-and-back wiggle (9-18°, settled in ~2 s at k 0.006),
+   and a drag in a lobby slot settles home too. Ornament mounts only: in the
+   Workshop the controller stays where the player turned it. Off under reduced
+   motion — it settles where it was let go, same as the drag release. */
+const CTL_HOME_SPRING = 0.006;   // per-frame pull on the yaw velocity, per radian off home
+const CTL_HOME_TILT   = 0.92;    // per-frame decay of the pitch back to level
+let ctlSpringHome = false;
+const ctlYawOffHome = () => ((ctlRotY + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI;
+function ctlHomeActive() { return ctlSpringHome && !ctlDragging && ctlRotYTarget === null && !ctlReducedMotion(); }
 const _ctlE = new THREE.Euler(), _ctlQ = new THREE.Quaternion();
 
 function ctlApplyTilt(m) {
@@ -1513,6 +1547,7 @@ function ctlBusy() {
   if (ctlDragging || ctlHeldStick) return true;
   if (ctlRotYTarget !== null) return true;
   if (Math.abs(ctlVelY) > 0.0005) return true;
+  if (ctlHomeActive() && (Math.abs(ctlYawOffHome()) > 0.002 || Math.abs(ctlRotX) > 0.002)) return true;
   for (const m of ctlControls.pressables) {
     const d = m.userData;
     if ((d.t || 0) > 0.002) return true;
@@ -1539,6 +1574,14 @@ function ctlTick() {
     if (Math.abs(d) < 0.01 || ctlReducedMotion()) { ctlRotY = ctlRotYTarget; ctlRotYTarget = null; }
     else ctlRotY += d * 0.18;
   } else if (!ctlDragging) { ctlRotY += ctlVelY; ctlVelY *= 0.94; }
+  if (ctlHomeActive()) {
+    const off = ctlYawOffHome();
+    /* Snap only when both have died away, and into the SAME turn (ctlRotY - off),
+       so a controller spun three times round settles without a visible jump. */
+    if (Math.abs(off) < 0.002 && Math.abs(ctlVelY) < 0.0005) { ctlRotY -= off; ctlVelY = 0; }
+    else ctlVelY -= off * CTL_HOME_SPRING;
+    ctlRotX = Math.abs(ctlRotX) < 0.002 ? 0 : ctlRotX * CTL_HOME_TILT;
+  }
   for (const m of ctlControls.pressables) {
     const t = m.userData.t || 0;
     if (t > 0.002) {
@@ -1575,10 +1618,12 @@ function ctlTick() {
 }
 
 /* `floor` defaults to true (the Workshop's roomier stage). The lobby's small
-   scenery mount passes false — see the comment on ctlFloor's construction. */
-function ctlMount(el, { floor = true } = {}) {
+   scenery mount passes false — see the comment on ctlFloor's construction.
+   `home` is the ornament's: see CTL_HOME_SPRING. */
+function ctlMount(el, { floor = true, home = false } = {}) {
   if (!el || !ctlEnsureBuilt()) return false;
   ctlMountEl = el;
+  ctlSpringHome = home;
   if (ctlFloor) ctlFloor.visible = floor;
   el.appendChild(ctlRenderer.domElement);
   ctlResize();
@@ -1941,7 +1986,7 @@ function ctlMountOrnament(slotId, opts) {
     /* An ornament is never zoomed — and the Konami/gateway return reaches here
        through the lobby router without ever touching ctlCloseWorkshop. */
     ctlZoom = 1;
-    ctlMount(el, { floor: false });  // no headroom below a slot for the contact shadow
+    ctlMount(el, { floor: false, home: true });  // no headroom below a slot for the contact shadow
     ctlBindPointer(el);
     ctlScheduleIdleNudge();
     return true;
@@ -2087,6 +2132,129 @@ const CTL_RETURN_DEFAULT = 'screen-lobby';
 let ctlReturnScreen = CTL_RETURN_DEFAULT;
 let ctlReturnMount  = null;   // null ⇒ ctlMountLobby, resolved at use — see ctlCloseWorkshop
 
+/* ── Phone layout (<=859 px) — the Workshop as Tool Belt ──────────────────────
+   Reviewed in wip/workshop-lab/ (26 Sep 2026): no tabs, like widescreen — paint
+   and stickers both stay on screen, as strips under the controller, with the
+   sticker card taking over Paint's slot while a sticker is in hand.
+
+   CSS alone restyles a box in place; it can't put an element into a
+   DIFFERENT flex parent than its own DOM parent. Four shipped elements move
+   house whenever the viewport crosses the breakpoint: Randomise All joins the
+   palette as one scrolling strip (css/workshop.css `.wks-strip`); the sticker
+   card becomes Paint's tray-mate, one visible at a time via the `[data-st]`
+   rules there (`.wks-tray`); Undo moves into the sheet's own header so it
+   stays reachable even while the card is hidden (`.wks-belt-head`); Reset/Save
+   become a footer (`.wks-foot`). `ctlLayoutWide()` is the exact reverse, so a
+   resize back across the line (a resizable window, a folding phone) restores
+   the shipped widescreen markup rather than leaving it stranded mid-move. */
+function ctlLayoutPhone() {
+  const ws = document.getElementById('screen-workshop');
+  if (!ws || ws.dataset.phoneLayout === '1') return;
+  ws.dataset.phoneLayout = '1';
+
+  const body      = ws.querySelector('.wks-body');
+  const view      = ws.querySelector('.wks-view');
+  const paint     = ws.querySelector('.wks-paint');
+  const stickers  = ws.querySelector('.wks-stickers');
+  const palWrap   = ws.querySelector('.wks-pal-wrap');
+  const dice      = document.getElementById('btn-ctl-randomise');
+  const palette   = document.getElementById('ctl-palette');
+  const card      = document.getElementById('ctl-sticker-controls');
+  const kicker    = stickers.querySelector('.wks-kicker');
+  const say       = document.getElementById('ctl-sticker-say');
+  const undo      = document.getElementById('btn-ctl-sticker-undo');
+  const till      = ws.querySelector('.wks-till');
+
+  // Randomise All leads the palette as one scrolling strip.
+  const strip = document.createElement('div');
+  strip.className = 'wks-strip';
+  strip.append(dice, palette);
+  palWrap.appendChild(strip);
+
+  // The tray: Paint's controls, or the sticker card — the same slot, one
+  // visible at a time (css/workshop.css [data-st] rules).
+  const tray = document.createElement('div');
+  tray.className = 'wks-tray';
+  tray.append(paint, card);
+
+  // The sticker sheet's own head: kicker, the running line, Undo — always
+  // reachable, even while the card above has taken Paint's place.
+  const head = document.createElement('div');
+  head.className = 'wks-belt-head';
+  head.append(kicker, say, undo);
+  stickers.prepend(head);
+
+  body.append(view, tray, stickers);
+
+  // Reset / Save become a footer, under the thumb.
+  const foot = document.createElement('div');
+  foot.className = 'wks-foot';
+  foot.append(...till.children);
+  till.remove();
+  ws.append(foot);
+}
+
+/* The exact reverse of ctlLayoutPhone() — undone in the opposite order so
+   each step finds things exactly where the matching forward step left them.
+   Rebuilds a fresh `.wks-till` (the old one was removed, not kept) rather
+   than trying to resurrect the original node. */
+function ctlLayoutWide() {
+  const ws = document.getElementById('screen-workshop');
+  if (!ws || ws.dataset.phoneLayout !== '1') return;
+  delete ws.dataset.phoneLayout;
+
+  const body     = ws.querySelector('.wks-body');
+  const view     = ws.querySelector('.wks-view');
+  const tray     = ws.querySelector('.wks-tray');
+  const paint    = tray.querySelector('.wks-paint');
+  const card     = document.getElementById('ctl-sticker-controls');
+  const stickers = ws.querySelector('.wks-stickers');
+  const head     = ws.querySelector('.wks-belt-head');
+  const kicker   = head.querySelector('.wks-kicker');
+  const say      = document.getElementById('ctl-sticker-say');
+  const undo     = document.getElementById('btn-ctl-sticker-undo');
+  const sheetScroll = stickers.querySelector('.wks-sheet-scroll');
+  const strip    = ws.querySelector('.wks-strip');
+  const palWrap  = paint.querySelector('.wks-pal-wrap');
+  const dice     = document.getElementById('btn-ctl-randomise');
+  const palette  = document.getElementById('ctl-palette');
+  const foot     = ws.querySelector('.wks-foot');
+
+  // The footer's buttons return to a fresh till, docked back inside the stage.
+  const till = document.createElement('div');
+  till.className = 'wks-till';
+  till.append(...foot.children);
+  view.appendChild(till);
+  foot.remove();
+
+  // Kicker and the running line return to being Stickers' own direct
+  // children; Undo returns inside the card, first among its three buttons.
+  stickers.insertBefore(kicker, sheetScroll);
+  stickers.insertBefore(say, sheetScroll);
+  card.querySelector('.wks-insp-btns').prepend(undo);
+  head.remove();
+
+  // The card docks at the foot of the sheet again; Paint returns to being
+  // Stickers' opposite-column sibling, ahead of the stage.
+  stickers.appendChild(card);
+  body.prepend(paint);
+  tray.remove();
+
+  // Randomise All and the palette return to being Paint's own children.
+  palWrap.after(dice);
+  palWrap.appendChild(palette);
+  strip.remove();
+}
+
+/* One mechanism, not two: an always-on listener plus an immediate call at
+   boot, so ctlOpenWorkshop() needs no breakpoint check of its own — the DOM
+   is already whichever shape the current viewport calls for by the time it
+   runs. */
+const CTL_PHONE_MQ = matchMedia('(max-width: 859px)');
+function ctlSyncPhoneLayout() { (CTL_PHONE_MQ.matches ? ctlLayoutPhone : ctlLayoutWide)(); }
+CTL_PHONE_MQ.addEventListener('change', ctlSyncPhoneLayout);
+ctlSyncPhoneLayout();
+
 /* opts: { returnScreen, onReturn } — both optional, both default to the lobby.
    Called bare from the lobby mount and the keyboard equivalence below, so the
    no-argument form must stay exactly what it always was. */
@@ -2096,7 +2264,6 @@ function ctlOpenWorkshop(opts) {
   ctlReturnMount  = (typeof o.onReturn === 'function') ? o.onReturn : null;
   ctlDraft = Object.assign({}, ctlReadDesign());
   ctlActiveGroup = 'shell';
-  ctlActiveTab = 'colours';
   showScreen('screen-workshop');
   const stage = document.getElementById('ctl-stage');
   if (!ctlEnsureBuilt()) return;
@@ -2105,18 +2272,28 @@ function ctlOpenWorkshop(opts) {
   // independently shippable: between the two commits the Workshop opens and the
   // buttons press, they just feed no code yet.
   ctlOnPress = (typeof ctlKonamiPress === 'function') ? ctlKonamiPress : null;
-  /* No-ops until the surface exists, i.e. until the Stickers tab has been
-     opened — so the Colours tab behaves exactly as it did, and the lobby is
+  /* No-ops until the surface exists, i.e. until the first sticker is picked
+     up — so recolouring behaves exactly as it did, and the lobby is
      untouched (ctlMountLobby assigns its own ctlOnTap). */
   ctlOnTap = ctlStickerTap;
   ctlStickerState = { stickers: (ctlDraft.stickers || []).slice(),
                       armed: null, selected: -1, history: [] };
   ctlZoom = 1;   // a view convenience, not part of the saved design — see ctlSetZoom
   ctlApplyDesign(ctlDraft);
-  ctlMount(stage);
+  /* No floor since SW v234. The contact shadow was cropped by the old 340 px
+     stage; the full room shows all of it, and on the plum it reads as a dark,
+     hard-edged blotch cut off by the key light's shadow frustum. The stage's
+     own plinth grounds the model instead (css/workshop.css). */
+  ctlMount(stage, { floor: false });
   ctlBindPointer(stage);
   ctlBindZoom(stage);
-  ctlRenderPanel();
+  ctlStickerSay('');
+  ctlRenderPanel();                 // the sheet says "Getting the stickers out…" until…
+  /* …the manifest lands. Only the FETCH happens on open — the sheet is on
+     screen from the start (SW v234, no tabs). The sticker SURFACE still waits
+     for the first sticker picked up (ctlStickerPickUp), so a player who only
+     recolours never pays its build or the 2048 atlas. */
+  ctlLoadStickerManifest().then(() => { if (ctlDraft) ctlRenderPanel(); });
 }
 
 function ctlCloseWorkshop() {
@@ -2142,116 +2319,113 @@ function ctlCloseWorkshop() {
   else ctlMountLobby();
 }
 
-/* Which tab the panel is showing. Two, not three (spec D4): the placed list
-   lives INSIDE the Stickers tab as the book itself — one surface to scan
-   rather than two. */
-let ctlActiveTab = 'colours';
-
+/* ── The panel: design B · Paint Shop (SW v234) ───────────────────────────────
+   One room, no tabs: paint on the left, the controller in the middle, the
+   sticker sheet on the right, all live at once — signed off in the sandbox
+   (wip/workshop-lab/, 26 Sep 2026). Every region is static markup in
+   src/screens/_shell.html that this repaints; nothing here builds the room. */
 function ctlRenderPanel() {
-  const tabs = document.getElementById('ctl-tabs');
-  if (tabs) {
-    tabs.querySelectorAll('[data-ctl-tab]').forEach(b => {
-      const on = b.getAttribute('data-ctl-tab') === ctlActiveTab;
-      // .pill must ALWAYS stay on — only pill-active-* is toggled
-      // (ui-style.md § Settings Layout Standard, pill toggle rule)
-      b.classList.toggle('pill-active-purple', on);
-    });
+  if (!ctlDraft) return;   // ctlStickerDispatch repaints — only ever inside the Workshop
+  ctlRenderParts();
+  ctlRenderPalette();
+  ctlRenderDiceDots();
+  ctlRenderStickerBook();
+  ctlSyncStickerControls();
+  /* The sticker mode as an attribute — what the phone layout's tray-swap
+     (css/workshop.css `[data-st]` rules) reads to show Paint or the card. */
+  const ws = document.getElementById('screen-workshop');
+  if (ws) {
+    ws.dataset.st = ctlStickerMode(ctlStickerState);
+    ws.dataset.undo = String(ctlStickerState.history.length > 0);
   }
-  const colours = document.getElementById('ctl-panel-colours');
-  const stickers = document.getElementById('ctl-panel-stickers');
-  if (colours)  colours.style.display  = ctlActiveTab === 'colours'  ? 'flex' : 'none';
-  if (stickers) stickers.style.display = ctlActiveTab === 'stickers' ? 'flex' : 'none';
-  if (ctlActiveTab === 'colours') ctlRenderColourCard();
-  else { ctlRenderStickerBook(); ctlSyncStickerControls(); }
 }
 
-/* Unchanged from the colour-only build except for the container it renders
-   into — it used to own #ctl-panel outright. */
-function ctlRenderColourCard() {
-  const panel = document.getElementById('ctl-panel-colours');
-  if (!panel) return;
-  /* ctlStickerDispatch repaints the panel, and it reads the draft — so the
-     one caller that could ever arrive here outside the Workshop must bounce. */
-  if (!ctlDraft) return;
-  panel.innerHTML = '';
-  const palette = ctlPalette();
-  const meta = CTL_GROUP_LABELS[ctlActiveGroup];
+/* A swatch's name is the game whose colour it is — read from GAMES
+   (js/lobby/lobby-games.js), matched by hex, never copied here. The factory
+   look is the one colour that belongs to no game. */
+function ctlColourName(group, hex) {
+  const up = String(hex).toUpperCase();
+  if (typeof GAMES !== 'undefined' && Array.isArray(GAMES)) {
+    for (const g of GAMES) if (String(g.brandHex).toUpperCase() === up) return g.gameName;
+  }
+  if (CTL_DEFAULTS[group] && CTL_DEFAULTS[group].toUpperCase() === up) return 'Factory lilac';
+  return up;
+}
 
-  const card = document.createElement('div');
-  card.className = 'bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3';
-
-  // Part picker — which of the four the palette below is about to paint.
-  const pills = document.createElement('div');
-  pills.className = 'flex gap-2 flex-wrap';
+/* The four parts as rows — which one the palette paints, and what each wears
+   now. Picking a part is the pill-select of the old colour card, as a list. */
+function ctlRenderParts() {
+  const box = document.getElementById('ctl-parts');
+  if (!box) return;
+  box.innerHTML = '';
   for (const group of CTL_GROUPS) {
-    const p = document.createElement('button');
-    p.className = 'pill' + (group === ctlActiveGroup ? ' pill-active-purple' : '');
-    p.textContent = CTL_GROUP_LABELS[group].name;
-    p.addEventListener('click', () => {
+    const L = CTL_GROUP_LABELS[group], hex = ctlDraft[group], on = group === ctlActiveGroup;
+    const b = document.createElement('button');
+    b.className = 'ctl-part' + (on ? ' ctl-part-on' : '');
+    b.setAttribute('aria-pressed', String(on));
+    const chip = document.createElement('span');
+    chip.className = 'ctl-part-chip';
+    chip.style.backgroundColor = hex;
+    const txt = document.createElement('span');
+    txt.className = 'ctl-part-txt';
+    const name = document.createElement('b');
+    name.textContent = L.name;
+    const hint = document.createElement('small');
+    hint.textContent = L.hint;
+    txt.append(name, hint);
+    const now = document.createElement('span');
+    now.className = 'ctl-part-now';
+    now.textContent = ctlColourName(group, hex);
+    b.append(chip, txt, now);
+    b.addEventListener('click', () => {
       if (group === ctlActiveGroup) return;
       playPillClick();
       ctlActiveGroup = group;
       ctlRenderPanel();
     });
-    pills.appendChild(p);
+    box.appendChild(b);
   }
-  card.appendChild(pills);
+}
 
-  const hint = document.createElement('p');
-  hint.className = 'text-stone-400 text-sm';
-  hint.textContent = meta.hint;
-  card.appendChild(hint);
-
-  /* Six columns: 6 × 44 px + 5 × 6 px of gap = 294 px, inside the 312 px a
-     max-w-sm card leaves once its own padding is taken. Twenty swatches land
-     as 6/6/6/2. */
-  const grid = document.createElement('div');
-  grid.className = 'grid grid-cols-6 gap-1.5';
-  for (const sw of palette) {
+/* Twenty swatches, one per game, in LOBBY_COLOUR_ORDER (ctlPalette). A
+   swatch carries no text — the ring and the tick say "this one", and the
+   line above names it. */
+function ctlRenderPalette() {
+  const grid = document.getElementById('ctl-palette');
+  if (!grid) return;
+  const L = CTL_GROUP_LABELS[ctlActiveGroup], cur = ctlDraft[ctlActiveGroup];
+  const picked = document.getElementById('ctl-picked');
+  if (picked) {
+    picked.textContent = '';
+    const b = document.createElement('b');
+    b.textContent = L.name;
+    picked.append(b, ' · ' + ctlColourName(ctlActiveGroup, cur));
+  }
+  grid.innerHTML = '';
+  for (const sw of ctlPalette()) {
+    const on = cur.toUpperCase() === sw.hex.toUpperCase();
+    const nm = ctlColourName(ctlActiveGroup, sw.hex);
     const b = document.createElement('button');
-    b.className = 'ctl-swatch' + (ctlDraft[ctlActiveGroup].toUpperCase() === sw.hex.toUpperCase() ? ' ctl-swatch-on' : '');
+    b.className = 'ctl-swatch' + (on ? ' ctl-swatch-on' : '');
     b.style.backgroundColor = sw.hex;
-    b.setAttribute('aria-label', meta.name + ' — ' + sw.hex);
+    b.title = nm;
+    b.setAttribute('aria-label', L.name + ' — ' + nm);
+    b.setAttribute('aria-pressed', String(on));
     b.addEventListener('click', () => ctlSelectColour(ctlActiveGroup, sw.hex));
     grid.appendChild(b);
   }
-  card.appendChild(grid);
-
-  const rand = document.createElement('button');
-  rand.id = 'btn-ctl-randomise';
-  rand.className = 'min-h-11 w-full rounded-xl active:scale-95 hover:brightness-110 text-white font-semibold text-sm transition-all duration-150';
-  rand.style.background = 'linear-gradient(90deg, ' + ctlRainbowGradientStops().join(', ') + ')';
-  rand.textContent = 'Randomise All';
-  rand.addEventListener('click', ctlRandomiseAll);
-  card.appendChild(rand);
-
-  panel.appendChild(card);
 }
 
-/* The Randomise All button's rainbow: every LIVE game colour, read from
-   GAME_BRAND_HEX (never copied), so a 21st game or a recoloured existing one
-   moves the gradient with it — zero edits here, the same guarantee
-   ctlPalette() already makes for the swatch grid. Owner asked for pink first
-   and purple last specifically, so those two are pinned at the ends and
-   everything else keeps its position from LOBBY_COLOUR_ORDER (the suite's
-   own hue walk, already used for the lobby's own Colour sort) in between —
-   one canonical colour order, not a bespoke one invented for this button. */
-function ctlRainbowGradientStops() {
-  const src = (typeof GAME_BRAND_HEX === 'object' && GAME_BRAND_HEX) ? GAME_BRAND_HEX : {};
-  const PINK = 'btn-dstw', PURPLE = 'btn-great-minds';
-  const order = (typeof LOBBY_COLOUR_ORDER !== 'undefined' && Array.isArray(LOBBY_COLOUR_ORDER))
-    ? LOBBY_COLOUR_ORDER : Object.keys(src);
-  const middle = order.filter(id => id !== PINK && id !== PURPLE && src[id]);
-  const ids = [PINK].concat(middle, [PURPLE]).filter(id => src[id]);
-  return ids.length ? ids.map(id => src[id]) : ['#EC4899', '#A855F7'];
+/* Randomise All's preview: the four parts as they are now. The button itself
+   is static markup — a glass key with a die, replacing the rainbow bar the
+   owner scrapped in the sandbox review (26 Sep 2026). */
+function ctlRenderDiceDots() {
+  const dots = document.querySelectorAll('#ctl-dice-dots i');
+  dots.forEach((d, i) => { if (CTL_GROUPS[i]) d.style.backgroundColor = ctlDraft[CTL_GROUPS[i]]; });
 }
 
-/* Picks a random brand swatch for each of the four parts at once. Owner-
-   directed exception to § Action Button Standard's brand/neutral/destructive
-   rule (the same kind of exception FRT's literal-hex heading is) — a gradient
-   was asked for specifically, to make the button read as "chance", not a
-   decision. Reuses ctlPalette() so a 21st game's colour is in the draw with
-   zero edits here, same as the swatch grid above. */
+/* Picks a random brand swatch for each of the four parts at once. Reuses
+   ctlPalette(), so a 21st game's colour is in the draw with zero edits here. */
 function ctlRandomiseAll() {
   const palette = ctlPalette();
   if (!palette.length || !ctlDraft) return;
@@ -2263,29 +2437,26 @@ function ctlRandomiseAll() {
   ctlRenderPanel();
 }
 
-/* The book: one tile per manifest entry. A PLACED tile stays tappable and
-   SELECTS its placement rather than re-arming the design (spec D2 + § 7) —
-   which matters because a sticker on the back face or an ear may not be
-   visible from the current camera angle, and selecting from the book sidesteps
-   having to rotate to find it. */
+/* The sticker sheet: one tile per manifest entry. A PLACED tile stays
+   tappable and SELECTS its placement rather than re-arming the design (spec
+   D2 + § 7) — a sticker on the back face or an ear may not be visible from
+   the current camera angle, and selecting from the sheet sidesteps having to
+   rotate to find it. */
 function ctlRenderStickerBook() {
   const book = document.getElementById('ctl-sticker-book');
   if (!book) return;
+  const n = ctlStickerState.stickers.length;
+  const count = document.getElementById('ctl-sticker-count');
+  if (count) { count.textContent = n ? String(n) : ''; count.hidden = !n; }
   book.innerHTML = '';
 
-  if (!ctlStickerManifest) {
+  if (!ctlStickerManifest || !ctlStickerManifest.length) {
     const p = document.createElement('p');
-    p.className = 'text-stone-400 text-sm col-span-4';
-    p.textContent = 'Getting the stickers out…';
-    book.appendChild(p);
-    return;
-  }
-  if (!ctlStickerManifest.length) {
-    const p = document.createElement('p');
-    p.className = 'text-stone-400 text-sm col-span-4';
+    p.className = 'ctl-sheet-msg';
     // Offline before the manifest was ever fetched is a legitimate path, and it
     // is not an error — there simply are no stickers to show yet.
-    p.textContent = 'No stickers yet — they turn up as they are drawn.';
+    p.textContent = !ctlStickerManifest ? 'Getting the stickers out…'
+                                        : 'No stickers yet — they turn up as they are drawn.';
     book.appendChild(p);
     return;
   }
@@ -2307,37 +2478,56 @@ function ctlRenderStickerBook() {
     b.setAttribute('aria-label', e.label + (isPlaced ? ' — on the controller' : ''));
     b.setAttribute('aria-pressed', String(isArmed || isSelected));
 
+    const face = document.createElement('span');
+    face.className = 'ctl-sticker-face';
     const img = document.createElement('img');
     img.src = CTL_STICKER_DIR + e.image;
     img.alt = '';
-    img.className = 'w-full h-full object-contain pointer-events-none';
-    b.appendChild(img);
+    face.appendChild(img);
+    const cap = document.createElement('span');
+    cap.className = 'ctl-sticker-cap';
+    cap.textContent = e.label;
+    b.append(face, cap);
 
     if (isPlaced) {
       const dot = document.createElement('span');
       dot.className = 'ctl-sticker-dot';
+      dot.textContent = 'On';
       dot.setAttribute('aria-hidden', 'true');
       b.appendChild(dot);
     }
 
-    b.addEventListener('click', () => {
-      playPillClick();
-      ctlStickerDispatch({ t: 'bookTap', id: e.id });
-      const m = ctlStickerMode(ctlStickerState);
-      ctlStickerSay(m === 'armed' ? 'Tap the controller to put it on.'
-                  : m === 'selected' ? 'Tap somewhere else to move it.'
-                  : '');
-      // The reverse of tapping a sticker on the model to jump to its book
-      // tile: picking an already-placed one from the book rotates the model
-      // to it. Not on 'armed' — an unplaced tile has no location to face.
-      if (m === 'selected') ctlStickerGoToModel(ctlStickerState.stickers[ctlStickerState.selected]);
-    });
+    b.addEventListener('click', () => { playPillClick(); ctlStickerPickUp(e.id); });
     book.appendChild(b);
   }
 }
 
+/* A sheet tap. The first sticker picked up in a Workshop session is what pays
+   for the surface (ctlEnsureStickerSurface, 339 ms on a desktop, a 2048 atlas)
+   — the price the old Stickers tab paid on its first open. It is synchronous,
+   so the line says what is happening and the build waits one painted frame
+   for the words to show. */
+function ctlStickerPickUp(id) {
+  const go = () => {
+    if (!ctlDraft) return;                  // the Workshop closed in between
+    ctlEnsureStickerSurface();
+    ctlStickerDispatch({ t: 'bookTap', id: id });
+    const m = ctlStickerMode(ctlStickerState);
+    ctlStickerSay(m === 'armed' ? 'Tap the controller to put it on.'
+                : m === 'selected' ? 'Tap somewhere else to move it.'
+                : '');
+    // The reverse of tapping a sticker on the model to jump to its tile:
+    // picking an already-placed one rotates the model to it. Not on 'armed' —
+    // an unplaced tile has no location to face.
+    if (m === 'selected') ctlStickerGoToModel(ctlStickerState.stickers[ctlStickerState.selected]);
+  };
+  if (ctlStickerSurface) { go(); return; }
+  ctlStickerSay('Peeling it off the sheet…');
+  requestAnimationFrame(() => setTimeout(go, 0));
+}
+
 /* Synced, never rebuilt — the sliders are static markup precisely so a repaint
-   of the book cannot interrupt a drag.
+   of the sheet cannot interrupt a drag.
 
    The card outlives the selection. Spec § 7 gives the sliders and Done to
    Armed/Selected and Delete to Selected, but says Undo "appears whenever
@@ -2353,7 +2543,7 @@ function ctlSyncStickerControls() {
   row.style.display = (editing || canUndo) ? 'flex' : 'none';
 
   const sliders = document.getElementById('ctl-sticker-sliders');
-  if (sliders) sliders.style.display = editing ? 'flex' : 'none';
+  if (sliders) sliders.style.display = editing ? 'grid' : 'none';
   const done = document.getElementById('btn-ctl-sticker-done');
   if (done) done.style.display = editing ? '' : 'none';
   const del = document.getElementById('btn-ctl-sticker-delete');
@@ -2361,7 +2551,17 @@ function ctlSyncStickerControls() {
   const undo = document.getElementById('btn-ctl-sticker-undo');
   if (undo) undo.style.display = canUndo ? '' : 'none';
 
+  // The card's own heading: which sticker, and whether it is in hand or on.
   const sel = ctlStickerState.stickers[ctlStickerState.selected];
+  const id = mode === 'armed' ? ctlStickerState.armed : (mode === 'selected' && sel ? sel.id : null);
+  const e = id ? ctlStickerById(id) : null;
+  const img = document.getElementById('ctl-sticker-insp-img');
+  if (img) { img.hidden = !e; if (e) img.src = CTL_STICKER_DIR + e.image; }
+  const kick = document.getElementById('ctl-sticker-insp-kick');
+  if (kick) kick.textContent = e ? (mode === 'armed' ? 'In your hand' : 'On the controller') : 'Changed your mind?';
+  const title = document.getElementById('ctl-sticker-insp-title');
+  if (title) title.textContent = e ? e.label : 'Undo the last sticker';
+
   if (mode === 'selected' && sel) {
     const rot = document.getElementById('ctl-sticker-rot');
     const size = document.getElementById('ctl-sticker-size');
@@ -2399,31 +2599,17 @@ document.getElementById('btn-ctl-reset').addEventListener('click', () => {
   ctlRenderPanel();
 });
 
-// ── The tab bar ──────────────────────────────────────────────────────────────
-document.querySelectorAll('#ctl-tabs [data-ctl-tab]').forEach(b => {
-  b.addEventListener('click', () => {
-    const tab = b.getAttribute('data-ctl-tab');
-    if (tab === ctlActiveTab) return;
-    playPillClick();
-    ctlActiveTab = tab;
-    if (tab === 'stickers') ctlOpenStickersTab();
-    else { ctlStickerDispatch({ t: 'done' }); ctlRenderPanel(); }
-  });
+// ── Randomise All ────────────────────────────────────────────────────────────
+/* The die spins and the four preview dots pop into their new colours — the
+   re-trigger pattern (logic-engine.md § Animation Re-trigger), so a second
+   press mid-roll starts the roll again rather than being swallowed. */
+document.getElementById('btn-ctl-randomise').addEventListener('click', e => {
+  const b = e.currentTarget;
+  b.classList.remove('ctl-rolling');
+  void b.offsetWidth;
+  b.classList.add('ctl-rolling');
+  ctlRandomiseAll();
 });
-
-/* First open pays for the manifest fetch and the surface build. Measured at
-   339 ms on a desktop; a low-end phone is plausibly 3-5x that, so the panel
-   says what it is doing rather than sitting blank. */
-function ctlOpenStickersTab() {
-  ctlRenderPanel();                       // shows "Getting the stickers out…"
-  ctlLoadStickerManifest().then(() => {
-    ctlEnsureStickerSurface();
-    ctlRenderPanel();
-    ctlStickerSay(ctlStickerState.stickers.length
-      ? 'Tap a sticker to move it, or pick a new one.'
-      : 'Pick a sticker, then tap the controller.');
-  });
-}
 
 /* Live on input, so the sticker resizes/turns under the finger. These
    deliberately do NOT push undo history — a single drag would otherwise fill

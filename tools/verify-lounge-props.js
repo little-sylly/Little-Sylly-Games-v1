@@ -1381,6 +1381,11 @@ section('shell-doors');
   ok(!A['jukebox-knob'].turn, 'the jukebox door does not turn — it is the whole body now');
   eq(A['jukebox-knob'].fallback, 'bop', "it answers a tap with the prop's bop");
   eq(A['jukebox-knob'].prop, 'jukebox', 'and names the prop that owns that bop');
+  /* SW v233: a host that supplies openJukebox gets a push-in on the cat before
+     the jukebox screen, and the door is a tab stop, just before the records. */
+  eq(A['jukebox-knob'].pushIn, 'jukebox-knob', 'a supplied jukebox door pushes in on the cat itself');
+  { const o = LouProps.LOU_TAB_ORDER;
+    ok(o.indexOf('jukebox-knob') !== -1 && o.indexOf('jukebox-knob') === o.indexOf('jukebox-record') - 1, 'the jukebox door is a tab stop, just before the records'); }
   eq(Object.values(A).filter(a => a.callback === 'openSound').length, 1, 'openSound survives at exactly one site');
   eq(A['tv-volume'].callback, 'openSound', "and that site is the telly's volume dial");
 
@@ -2468,6 +2473,98 @@ section('production — the scene validates the provider, and survives an empty 
   const u19 = []; d19.traverse(o => { if (o.isMesh && o.material.userData.louImage) u19.push(o.material.userData.louImage); });
   eq(u19.length, 19, 'the dial asks only for stickers the manifest lists');
   ok(!u19.some(u => /bld\.png$/.test(u)), 'and never for a sticker it does not list');
+}
+
+section('controller idle beats (controller animation round, 26 Sep 2026)');
+{
+  /* Deterministic rand: a cycle of fixed draws, so which beat comes next is
+     chosen by the test, not by luck. */
+  const mk = (draws, extra = {}) => {
+    let i = 0; const heard = [];
+    const rand = () => draws[i++ % draws.length];
+    const g = LouProps.LOU_BUILDERS.controller(Object.assign({}, global.__prmCtx, { rand, sfx: n => heard.push(n) }, extra));
+    return { g, api: g.userData.api, heard };
+  };
+  // A fingerprint of every pose a beat could touch: the rig, every control's position/quaternion, every emissive (the caps' glow, a lit Konami key).
+  const snap = g => { const out = []; g.traverse(o => { out.push(o.position.toArray().map(v => v.toFixed(6)).join(), o.quaternion.toArray().map(v => v.toFixed(6)).join());
+    if (o.isMesh && o.material.emissive) out.push(o.material.emissive.getHexString() + '@' + o.material.emissiveIntensity.toFixed(6)); }); return out.join('|'); };
+  const run = (api, t0, ms, reduced = false, step = 16) => { let moved = false; for (let t = t0; t <= t0 + ms; t += step) moved = api.tick(t, step / 1000, reduced) || moved; return moved; };
+
+  for (const kind of ['rumble', 'sticks', 'pair', 'konami']) {
+    const { g, api } = mk([0.5]);
+    const rest = snap(g);
+    api.tick(0, 0, false);                        // arms the scheduler
+    api.idle(kind, 16);
+    let changed = false;
+    for (let t = 16; t < 700; t += 16) { api.tick(t, 0.016, false); if (snap(g) !== rest) changed = true; }
+    ok(changed, `${kind}: the beat visibly changes the prop`);
+    run(api, 700, 2400);                          // past the longest beat (Konami, ~3 s), short of the scheduler's own first beat at 4 s
+    eq(api.idleState().kind, null, `${kind}: the beat ends on its own`);
+    ok(snap(g) === rest, `${kind}: and leaves every part exactly at rest`);
+  }
+
+  // The Konami is the real code, and it only ever NAMES sounds — no unlock path exists in a pure module.
+  { const { api, heard } = mk([0.5]);
+    api.tick(0, 0, false); api.idle('konami', 16); run(api, 16, 4000);
+    const presses = heard.filter(n => n.indexOf('controllerPress:') === 0).map(n => n.slice(16));
+    eq(presses.join(','), 'D-pad,D-pad,D-pad,D-pad,D-pad,D-pad,D-pad,D-pad,Face B,Face A,Start', 'konami: eleven presses, the D-pad eight times then B, A, Start');
+    eq(heard.filter(n => n === 'konamiBeep').length, 11, 'konami: a secret beep with every press');
+    eq(heard.filter(n => n === 'controllerRelease').length, 11, 'konami: and a release after every press');
+    const dirs = []; const { g: g2, api: a2 } = mk([0.5]); const dp = g2.getObjectByName('D-pad'), base = dp.userData.baseQuat.clone();
+    a2.tick(0, 0, false); a2.idle('konami', 16);
+    let lastDir = null;
+    for (let t = 16; t < 2400; t += 8) { a2.tick(t, 0.008, false);
+      const e = new THREE.Euler().setFromQuaternion(dp.quaternion.clone().multiply(base.clone().invert()));
+      const d = Math.abs(e.x) > 0.06 ? (e.x < 0 ? 'U' : 'D') : Math.abs(e.y) > 0.06 ? (e.y > 0 ? 'R' : 'L') : null;
+      if (d && d !== lastDir) dirs.push(d); lastDir = d; }
+    eq(dirs.join(''), 'UUDDLRLR', 'konami: the D-pad plate actually rocks up, up, down, down, left, right, left, right'); }
+
+  // The scheduler: nothing before the first window; a beat inside it; the same beat never twice running (bar the rare Konami).
+  { const { api } = mk([0.0, 0.5]);   // 0.0 → the earliest first beat (3 s); 0.5 → 'rumble' by weight
+    api.tick(0, 0, false); run(api, 16, 2900);
+    eq(api.idleState().kind, null, 'no beat inside the first three seconds');
+    run(api, 2916, 200);
+    ok(api.idleState().kind !== null, `a beat starts by 3 s (${api.idleState().kind})`); }
+  { const { api } = mk([0.5]); const seen = []; let last = null;
+    api.tick(0, 0, false);
+    for (let t = 16; t < 200000; t += 16) { api.tick(t, 0.016, false); const k = api.idleState().kind; if (k && k !== last) seen.push(k); last = k; }
+    ok(seen.length > 8, `beats keep coming (${seen.length} in 200 s)`);
+    ok(seen.every((k, i) => i === 0 || k === 'konami' || k !== seen[i - 1]), 'no ordinary beat plays twice running'); }
+
+  // Reduced motion: nothing moves, but the Konami's sound — the hint — still plays.
+  { const { g, api, heard } = mk([0.5]); const rest = snap(g);
+    api.tick(0, 0, true); api.idle('konami', 16); run(api, 16, 4000, true);
+    ok(snap(g) === rest, 'reduced motion: the Konami presses nothing');
+    eq(heard.filter(n => n === 'konamiBeep').length, 11, 'reduced motion: but every beep of it is still heard'); }
+  { const { g, api } = mk([0.0, 0.5]); const rest = snap(g); let moved = false;
+    api.tick(0, 0, true);
+    for (let t = 16; t < 60000; t += 16) { api.tick(t, 0.016, true); if (snap(g) !== rest) moved = true; }
+    ok(!moved, 'reduced motion: a minute of the scheduler moves nothing'); }
+
+  /* A slow device is not a stopped scene. Found in real Chromium: at swiftshader's 400-600 ms frames
+     the first threshold (500 ms) dropped the Konami after one press. A slow frame keeps the beat,
+     and a press a frame skipped whole stays silent — never a burst. */
+  { const { api, heard } = mk([0.5]); let most = 0;
+    api.tick(0, 0, false); api.idle('konami', 16);
+    for (let t = 616; t < 3600; t += 600) { const n0 = heard.filter(n => n === 'konamiBeep').length; api.tick(t, 0.6, false);
+      most = Math.max(most, heard.filter(n => n === 'konamiBeep').length - n0); }
+    ok(heard.filter(n => n === 'konamiBeep').length >= 3, `slow frames: the Konami keeps going (${heard.filter(n => n === 'konamiBeep').length} beeps at 600 ms frames)`);
+    ok(most <= 1, 'slow frames: never more than one beep in one frame'); }
+
+  // A stopped scene (a door, the Workshop) resumes with a gap in `now`: the beat is dropped AT REST.
+  { const { g, api } = mk([0.5]); const rest = snap(g);
+    api.tick(0, 0, false); api.idle('sticks', 16); run(api, 16, 400);
+    ok(snap(g) !== rest, 'mid-beat, the sticks are off centre');
+    api.tick(60000, 0.05, false);
+    eq(api.idleState().kind, null, 'a resume after a gap drops the beat');
+    ok(snap(g) === rest, 'and puts the sticks back at rest'); }
+
+  // No sfx seam (a host with no audio) is simply silent, never a throw.
+  { const g = LouProps.LOU_BUILDERS.controller(Object.assign({}, global.__prmCtx, { sfx: undefined })); let threw = false;
+    try { const a = g.userData.api; a.tick(0, 0, false); a.idle('konami', 16); a.idle('rumble', 16); for (let t = 16; t < 4000; t += 16) a.tick(t, 0.016, false); } catch (_) { threw = true; }
+    ok(!threw, 'a host with no sfx runs every beat silently');
+    const S = require(path.join(ROOT, 'js/lounge/lounge-sfx.js'));
+    ok(S.LOU_SFX_VOICES.indexOf('controllerRumble') !== -1, 'the rumble is a room voice'); }
 }
 
 // Later tasks append their sections above this line.

@@ -16,6 +16,7 @@
     openSwitcher: 'openSwitcher',
     openSound:    null,            // an effect, not one of the router's actions
     openStickerbook: 'stickerbookOpen',   // OPTIONAL in the scene's contract; the lobby supplies it
+    openJukebox:  'jukeboxOpen',          // OPTIONAL too; supplied since SW v233 (the jukebox screen)
   };
 
   function lobbyCreateHost(deps) {
@@ -41,6 +42,7 @@
       openWorkshop()  { dispatch({ t: 'workshopOpen' }); },
       openSwitcher()  { dispatch({ t: 'openSwitcher' }); },
       openStickerbook() { dispatch({ t: 'stickerbookOpen' }); },
+      openJukebox()     { dispatch({ t: 'jukeboxOpen' }); },
       openSound()     { deps.openSound(); },
 
       debug: deps.debug !== false,
@@ -64,8 +66,10 @@
        Absent-not-undefined, same reason as sfx; absent means flat colour. */
     if (deps.controllerParts) host.controllerParts = deps.controllerParts;
 
-    /* openJukebox is deliberately NOT supplied — a dormant door (the jukebox bops).
-       openStickerbook IS, since the stickerbook prototype (23 Sep 2026). */
+    /* Both optional doors are supplied now: openStickerbook since the stickerbook
+       prototype (23 Sep 2026), openJukebox since the jukebox screen (SW v233). A
+       host that leaves either off still gets a room — that door falls back to its
+       prop's own answer (the binder's cover flip, the jukebox's bop). */
     return host;
   }
 

@@ -234,7 +234,8 @@
     const dialLight = new THREE.PointLight(design.buttons || '#ffffff', 0.25, 0.6, 2); dialLight.name = 'dialLight'; dialLight.position.set(0.60, 0.5, 0.0); scene.add(dialLight);
     const attract = P.louAttract(makeCanvas, host.games);
     const attractTex = new THREE.CanvasTexture(attract.canvas); attractTex.encoding = THREE.sRGBEncoding;
-    const ctx = { lib, design, games: host.games, stickers: host.stickers, lampPanels: host.lampPanels, ControllerBody: CB, controllerParts: host.controllerParts, attractTexture: attractTex, roomData: room.userData, skipProps: mountOpts.skipProps || null };
+    const ctx = { lib, design, games: host.games, stickers: host.stickers, lampPanels: host.lampPanels, ControllerBody: CB, controllerParts: host.controllerParts, attractTexture: attractTex, roomData: room.userData, skipProps: mountOpts.skipProps || null,
+      rand: host.rand, sfx };   // sfx: a hoisted declaration below — the controller's idle beats name their sounds through the same seam as a door
     const props = new THREE.Group(); props.name = 'props'; scene.add(props);
     const built = P.louBuildAll(ctx);
     Object.keys(built).forEach(id => {
@@ -446,6 +447,10 @@
           /* A supplied optional door with an 'open' field is a real door now: the binder
              flips, the camera pushes in, then the host opens the stickerbook. */
           if (a.open) { busy = true; openProp(id, () => { busy = false; host[a.callback](); }, true); return; }
+          /* ...and one with a 'pushIn' goes in the way the telly does: the camera
+             closes on the prop, the fade comes up, then the host takes over (the
+             jukebox, SW v233). */
+          if (a.pushIn) { busy = true; pushIn(nodes[a.pushIn], () => { busy = false; host[a.callback](); }); return; }
           host[a.callback]();
         } else if (a.fallback && owner && owner.userData.api) owner.userData.api[a.fallback](reduced());
         wake(); return;
@@ -576,6 +581,10 @@
       },
       setPreset(name) { preset = LOU_PRESETS[name] ? name : 'wide'; resetView(); },
       resetView, arrive, activate, focus, built, nodes,
+      /* Re-read host.music into the jukebox prop. The scene reads it at mount and
+         after its own record tap; a song the page changed (the jukebox screen, a
+         track ending) is the page's to announce. */
+      syncMusic: syncJukebox,
       /* Call a prop's api from outside the scene and re-render — the shell tells
          the binder what the collection is. A missing prop or api is a no-op. */
       withProp(id, fn) { const a = built[id] && built[id].userData.api; if (!a) return; try { fn(a); } catch (_) {} shadowDirty = true; wake(); },

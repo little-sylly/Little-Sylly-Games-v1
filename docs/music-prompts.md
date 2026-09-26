@@ -1,54 +1,78 @@
 # Music Prompts — Little Sylly Games
 
-Generation prompts for a title theme plus one track per game. Written for a text-to-music model
-(Suno / Udio / Stable Audio style). Each block is copy-paste ready; the **house style** below is the
-part every prompt already carries, restated once here so you can adjust it globally.
+Generation prompts for the title theme, one track per game, and the Sylly Mode variants worth making.
+Written for a text-to-music model (Suno / Udio / Stable Audio style). Every prompt block is
+copy-paste ready.
 
-**Status (28 Aug 2026, SW v212):** the **architecture is live** — `js/lib/music.js` resolves a track
-per game from `data/music/manifest.json` and falls back to the lobby theme. Four tracks ship
-(`lobby.mp3`, `li5.mp3`, `gm.mp3`, `ss.mp3`); the rest are unused so far.
+**How this doc is laid out**
 
-**Status (20 Sep 2026 — lobby jukebox review):** every game now has an identity doc
-(`docs/game-identities/`), so this pass re-read each prompt against its game's own T1/T4 sections.
-Several prompts had drifted toward a shared "generic warm acoustic party game" palette instead of
-the specific thing their game is — see § Convergence problem below. **This pass adds options, it
-does not remove any** — generation is cheap, so every prompt below that changed keeps its original
-as Option A and adds one or more new directions as B/C. Nothing is prescribed; generate whichever
-you like and keep what actually sounds right. Two games were also missing entirely (Cold Shoulder,
-Honeycomb Hills) and are added at the end of § Per game.
-
-**To ship a track:** generate it, trim it to a clean 60–120 s loop, save it as **any filename** —
-`data/music/manifest.json` maps each `activeGameId` key to a `file` field, so the file does not need
-to be named after the game (the shipped tracks are `gm.mp3` for the `great-minds` key and `ss.mp3`
-for `sylly-signals`, which is what let the mismatch between the game's internal id and a tidy
-filename get chosen deliberately rather than fought). Add one line to `data/music/manifest.json`
-with the `file`, and while you're there fill in `title`/`artist` — currently `null` for three of the
-four shipped tracks, and the jukebox will want them. **No code change, no `sw.js` edit, no version
-bump.** Until a game has a line, it plays the lobby theme.
-
-The costs and constraints that shaped the architecture are still worth reading before generating
-finals — see § Before any of this ships, particularly the **~1.5 MB per-track ceiling** and the
-looping requirement. **All four shipped tracks are currently over that ceiling** (`lobby.mp3` 5.46
-MB, `ss.mp3` 6.04 MB, `li5.mp3` 4.32 MB, `gm.mp3` 3.52 MB) and want a trim pass before the jukebox
-ships — a browsing jukebox makes a cold runtime-cache pull more likely, not less.
+| § | What's there |
+|---|--------------|
+| [Where things stand](#where-things-stand) | What plays in-game, what's in the jukebox, what's missing |
+| [House style](#house-style--true-of-every-track) | The rules every prompt already carries, plus the convergence problem that shaped them |
+| [Title screen](#title-screen--the-house-theme) | The lobby / fallback theme |
+| [Per game](#per-game) | 20 games, every option kept (A = original; B/C/D = later directions). Each ends with its **Lead** and its **Sylly** verdict |
+| [Sylly Mode tracks](#sylly-mode-tracks) | Game-by-game verdict, priority order, prompts for the ones worth making, and the code change they'll need |
+| [Unique-lead reference](#unique-lead-reference-jukebox-anti-convergence-table) | Which lead instrument belongs to which game |
+| [Policy and pipeline](#policy-and-pipeline) | Fallback rule, shipping a track, the settled constraints, deferred ideas |
 
 ---
 
-## Convergence problem (read before generating any new options)
+## Where things stand
 
-Counting instruments actually named across the original 18 prompts: **brushed kit** in 9, **upright
-bass** in 7, **marimba** in 5, **vibraphone**/**ukulele**/**Rhodes** in 3 each. A generator handed
-"marimba, upright bass, brushed kit, warm major key" four separate times will hand back four
-versions of the same track — that's what several of the reported "this one drifted" tracks probably
-were: not a bad take on the game, just an interchangeable one. Two rules going forward:
+**26 Sep 2026, SW v235.** There are two separate surfaces, and they now share tracks (one-way):
 
-1. **One named lead instrument per track, distinct across the whole suite.** The shared rhythm bed
-   (upright bass + brushed kit) is fine — that's allowed to be the house sound. The lead is what
-   must not repeat. § Unique-lead reference below tracks which lead belongs to which game so a
-   future prompt doesn't reissue one by accident.
-2. **A prompt for a jukebox needs a five-second identity, and needs to not blur into whatever plays
-   next.** The old house style optimised purely for "sit under a conversation" — right for a single
-   ambient track, incomplete once tracks are auditioned back-to-back. Added to § House style below.
+- **In-game music** (`data/music/manifest.json`, resolved by `Music.playFor(activeGameId)`) — **20
+  tracks**: `lobby`, `li5`, `great-minds`, `sylly-signals` keep their own original encodes; the
+  other 16 games' entries point straight at their jukebox base file (`"file": "jukebox/<id>.mp3"` —
+  no duplicated audio, `sw.js`'s `/data/music/` handler already runtime-caches anything under that
+  path). **The Bluff (`dyb`) is the only game still on the lobby fallback** — it has no song at all
+  yet.
+- **The jukebox** (`data/music/jukebox/manifest.json`) — **25 songs** (was 26 — Secret Signals'
+  A Night Out and The Stakeout were the same song generated twice; A Night Out was removed, The
+  Stakeout kept for fitting the espionage theme better and being the id already baked into
+  `visual-lobby.js`'s test fixture). All provisional (the owner generates a few per day and replaces
+  them as better takes land). Three are already Sylly Mode variants (`variant` field):
+
+  | Game | Base song(s) | Sylly variant |
+  |------|--------------|---------------|
+  | Fruit Salad | Fruit Salad Boogie | Fruity Fun — *Fruity Personalities* |
+  | Counting Sheep | Music Box Lullaby | Eerie Night Sky — *Night Terrors* |
+  | Pecking Order | A Force of Nature, Quiet Hunting | Weather Turned — *Force of Nature* |
+
+  (Lobby also has a variant, Old Toy Box — *Game Selection*.)
+
+  **Pecking Order's two base songs were checked, not resolved.** Unlike Secret Signals' pair, "A
+  Force of Nature" and "Quiet Hunting" are genuinely different recordings (different hashes, 153s vs
+  86s) — both prompt options (§ 17 below) were generated and kept, not a duplicate. The in-game
+  manifest promotion picked **Quiet Hunting**, to avoid a base track sharing its name with the Sylly
+  Mode itself (the naming-collision risk this doc already flagged). Whether "A Force of Nature"
+  should stay in the jukebox as a second PKO option or get dropped is still an owner call.
+
+**What that means for Sylly tracks:** `Music.playFor` now has its Sylly tier — see
+[§ The code change](#the-code-change--done-27-sep-2026). SHP, PKO and FRT's matches already play
+their own Sylly track; a new variant needs only a manifest line, no code. A song file is
+runtime-cached, so a Sylly track costs **no install bytes** — only generation budget.
+
+<details>
+<summary>Earlier status notes (kept for history)</summary>
+
+**28 Aug 2026, SW v212:** the architecture went live — `js/lib/music.js` resolves a track per game
+from `data/music/manifest.json` and falls back to the lobby theme. Four tracks shipped (`lobby.mp3`,
+`li5.mp3`, `gm.mp3`, `ss.mp3`). **All four are over the ~1.5 MB ceiling** (`lobby.mp3` 5.46 MB,
+`ss.mp3` 6.04 MB, `li5.mp3` 4.32 MB, `gm.mp3` 3.52 MB) and want a trim pass — a browsing jukebox
+makes a cold runtime-cache pull more likely, not less. `title`/`artist` are `null` for three of the
+four.
+
+**20 Sep 2026, lobby jukebox review:** every game now has an identity doc
+(`docs/game-identities/`), so this pass re-read each prompt against its game's own T1/T4 sections.
+Several prompts had drifted toward a shared "generic warm acoustic party game" palette instead of
+the specific thing their game is — see § Convergence problem. **That pass added options and removed
+none** — generation is cheap, so every prompt that changed kept its original as Option A and gained
+new directions as B/C. Nothing is prescribed; generate whichever you like and keep what actually
+sounds right. Cold Shoulder and Honeycomb Hills were added then.
+
+</details>
 
 ---
 
@@ -70,7 +94,8 @@ were: not a bad take on the game, just an interchangeable one. Two rules going f
   visual language. Net-Trace is the deliberate exception.
 - **One named lead instrument, distinct from every other track in the suite (jukebox rule, added 20
   Sep 2026).** Shared rhythm bed is fine; the lead is the game's fingerprint. See § Unique-lead
-  reference.
+  reference. **Sylly variants are exempt** — they keep their base game's lead on purpose (see
+  § Sylly Mode tracks).
 - **Identifiable inside ~5 seconds, and distinct from its neighbours (jukebox rule, added 20 Sep
   2026).** A jukebox is auditioned back-to-back, not discovered one game at a time — a track that
   needs 20 seconds to reveal its character, or that shares its palette with the track before it,
@@ -78,6 +103,22 @@ were: not a bad take on the game, just an interchangeable one. Two rules going f
 
 Append to any prompt as needed: *"Instrumental only, no vocals. Seamless loop. Sparse mix, low
 dynamic range, nothing above a background level. No bells or chimes in the 1–2 kHz range."*
+
+### Convergence problem (why the lead rule exists)
+
+Counting instruments actually named across the original 18 prompts: **brushed kit** in 9, **upright
+bass** in 7, **marimba** in 5, **vibraphone**/**ukulele**/**Rhodes** in 3 each. A generator handed
+"marimba, upright bass, brushed kit, warm major key" four separate times will hand back four
+versions of the same track — that's what several of the reported "this one drifted" tracks probably
+were: not a bad take on the game, just an interchangeable one. Two rules came out of it:
+
+1. **One named lead instrument per track, distinct across the whole suite.** The shared rhythm bed
+   (upright bass + brushed kit) is fine — that's allowed to be the house sound. The lead is what
+   must not repeat. § Unique-lead reference tracks which lead belongs to which game so a future
+   prompt doesn't reissue one by accident.
+2. **A prompt for a jukebox needs a five-second identity, and needs to not blur into whatever plays
+   next.** The old house style optimised purely for "sit under a conversation" — right for a single
+   ambient track, incomplete once tracks are auditioned back-to-back.
 
 ---
 
@@ -101,6 +142,9 @@ per-game track.
 
 ## Per game
 
+Every game block ends with two lines: **Lead** (feeds the unique-lead table) and **Sylly** (the
+verdict from § Sylly Mode tracks, in one line).
+
 ### 1. Like I'm Five 💬 — *cheeky classroom*
 
 **Option A — original.**
@@ -122,6 +166,7 @@ game.
 > Instrumental only, no vocals. Seamless loop.
 
 *Lead: honky-tonk upright piano (B) / glockenspiel (A).*
+*Sylly: **no** — Extra Credit only changes which words appear.*
 
 ---
 
@@ -153,6 +198,7 @@ tuning to a channel. Generic ambient/ethereal drifts away from that into ordinar
 > vocals. Seamless loop.
 
 *Lead: detuned oscillator (B) / theremin-like sine (C) / analogue arpeggio (A).*
+*Sylly: **yes, cheap** — Static Interference, priority 3. Worth it only if the base take is Option B.*
 
 ---
 
@@ -176,6 +222,8 @@ deadpan — tremolo surf guitar reads more caper-movie than stakeout.
 > spy-caper fanfare, never comedic. Instrumental only, no vocals. Seamless loop.
 
 *Lead: tremolo surf guitar (A, shipped) / muted trumpet (B).*
+*Sylly: **no** — Intel Phase is a second act bolted onto the end. A mode-wide track would play under
+the whole main mission, where nothing has changed.*
 
 ---
 
@@ -197,6 +245,7 @@ repeating elsewhere in the suite.**
 > no marimba. Instrumental only, no vocals. Seamless loop.
 
 *Lead: clavinet (both — B drops the marimba double-lead).*
+*Sylly: **no** — Fusion Cuisine makes the prompt harder; the kitchen sounds the same.*
 
 ---
 
@@ -218,6 +267,7 @@ leans less like an advert and more like the actual feeling of being called out b
 > production. Instrumental only, no vocals. Seamless loop.
 
 *Lead: Wurlitzer (both).*
+*Sylly: **no** — The Ringer is one fake answer per round; the mood is unchanged.*
 
 ---
 
@@ -231,6 +281,8 @@ leans less like an advert and more like the actual feeling of being called out b
 > Cool, social, a little bit smug. Instrumental only, no vocals. Seamless loop.
 
 *Lead: muted disco guitar.*
+*Sylly: **no** — The Troublemaker adds a third goal inside the same loop, and the base track's
+"a little bit smug" already fits it.*
 
 ---
 
@@ -251,6 +303,7 @@ leans less like an advert and more like the actual feeling of being called out b
 > wide-screen. Instrumental only, no vocals. Seamless loop.
 
 *Lead: solo flute (both).*
+*Sylly: **no** — Survival of the Fittest changes who knows what, and when. The mood stays the same.*
 
 ---
 
@@ -275,6 +328,8 @@ rather than grim").**
 > Seamless loop.
 
 *Lead: low piano (both).*
+*Sylly: **no** — the base track already *is* Silent Running (quiet, pressurised, patient). A variant
+would be the same track, only quieter.*
 
 ---
 
@@ -288,10 +343,15 @@ rather than grim").**
 > that it becomes funny. Warm, low-stakes, unhurried. Instrumental only, no vocals. Seamless loop.
 
 *Lead: Rhodes electric piano.*
+*Sylly: **optional, low** — Stroke or Genius is perceptual (a shaking canvas, blurred drawings). A
+warped-tape take of the same lift music would be a good joke, but not a change of register.*
 
 ---
 
 ### 10. The Bluff 🎲 — *a mountain, and a lie*
+
+**⚠️ The only game with no song in the jukebox yet.** Generate a base track before anything else
+for this game.
 
 **Option A — original (written for the old ocean-blue brand).**
 
@@ -312,43 +372,54 @@ the old ocean blue — see `docs/game-identities/dyb.md`).**
 *Lead: hammered dulcimer (A) / bowed cello (B) — note: A's lead collides with Honeycomb Hills Option
 A below if both are generated; pick one or the other, or accept the overlap since they're unlikely
 to play back-to-back.*
+*Sylly: **yes, after the base track** — The Tempest, priority 2b. The dice themselves become
+untrustworthy, and the mode's name already hands you the weather.*
 
 ---
 
 ### 11. Bailed 📋 — *the group chat, dryly*
 
-**No change proposed — matches T4 well.** Original kept as-is.
+**Option A — original. No change proposed — matches T4 well.**
 
 > Dry, deadpan indie instrumental loop. Palm-muted electric guitar, plain electric bass, minimal
 > kit with rim-clicks, a lone melodica or cheap organ line. 100 BPM, mildly minor, wry rather than
 > tense — the sound of five people typing and one of them lying. Sparse, understated, faintly
 > unimpressed. Instrumental only, no vocals. Seamless loop.
 
-Option B — "Yeah, nah" (backyard pre-drinks, still waiting to see who actually turns up). This leans on the "very Australian" voice in T4. Lap steel bends are the musical version of "yeah… nah": a hopeful slide up that slumps back down.
+**Option B — "Yeah, nah" (backyard pre-drinks, still waiting to see who actually turns up).** This
+leans on the "very Australian" voice in T4. Lap steel bends are the musical version of "yeah… nah":
+a hopeful slide up that slumps back down.
 
-Laid-back, warm instrumental loop — backyard pre-drinks on a summer evening, half the group still
-"on their way". Lap steel guitar in a low, lazy register carrying the lead, each phrase sliding up
-hopefully then slumping back down, over loose strummed acoustic guitar, plain electric bass and a
-relaxed kit with rim-clicks. 92 BPM, sunny major with a mixolydian flattened seventh that sags at
-the end of each phrase. Easygoing, wry and fond, never sad or twangy-country. Instrumental only,
-no vocals. Seamless loop. Sparse mix, low dynamic range, no bells or chimes in the 1–2 kHz range.
+> Laid-back, warm instrumental loop — backyard pre-drinks on a summer evening, half the group still
+> "on their way". Lap steel guitar in a low, lazy register carrying the lead, each phrase sliding up
+> hopefully then slumping back down, over loose strummed acoustic guitar, plain electric bass and a
+> relaxed kit with rim-clicks. 92 BPM, sunny major with a mixolydian flattened seventh that sags at
+> the end of each phrase. Easygoing, wry and fond, never sad or twangy-country. Instrumental only,
+> no vocals. Seamless loop. Sparse mix, low dynamic range, no bells or chimes in the 1–2 kHz range.
 
-Why: it scores the Friends' side of the night, the people who did turn up, with just enough sag in the harmony to say someone won't.
+*Why:* it scores the Friends' side of the night, the people who did turn up, with just enough sag in
+the harmony to say someone won't.
 
-Option C — the sitcom (one clown in the group who's always somehow gone). 😬 in harmonic terms is a major chord with a note that shouldn't be there, a cheerful grin through gritted teeth. Bass clarinet delivers that without drifting into the bright band where your SFX live.
+**Option C — the sitcom (one clown in the group who's always somehow gone).** 😬 in harmonic terms
+is a major chord with a note that shouldn't be there, a cheerful grin through gritted teeth. Bass
+clarinet delivers that without drifting into the bright band where your SFX live.
 
-Bouncy, light-hearted instrumental loop in the style of a sitcom scene transition — a friend group
-hanging out, and the lovable clown who always has an excuse. Bass clarinet carrying a short,
-sheepish, bouncing figure with little grace-note slips, over a buoyant fingerstyle electric bass
-line, tight dry kit with light handclaps, and warm organ chords held well back. 104 BPM, bright
-major key with a slightly awkward chromatic rub at the end of each phrase — cheerful, but wincing.
-Playful and affectionate, never mocking. No pizzicato, no tiptoeing or sneaking figure, no
-sad-trombone "wah-wah", no laugh track or crowd noise. Instrumental only, no vocals. Seamless loop.
-Sparse mix, low dynamic range, no bells or chimes in the 1–2 kHz range.
+> Bouncy, light-hearted instrumental loop in the style of a sitcom scene transition — a friend group
+> hanging out, and the lovable clown who always has an excuse. Bass clarinet carrying a short,
+> sheepish, bouncing figure with little grace-note slips, over a buoyant fingerstyle electric bass
+> line, tight dry kit with light handclaps, and warm organ chords held well back. 104 BPM, bright
+> major key with a slightly awkward chromatic rub at the end of each phrase — cheerful, but wincing.
+> Playful and affectionate, never mocking. No pizzicato, no tiptoeing or sneaking figure, no
+> sad-trombone "wah-wah", no laugh track or crowd noise. Instrumental only, no vocals. Seamless loop.
+> Sparse mix, low dynamic range, no bells or chimes in the 1–2 kHz range.
 
-Why: this one is the 😬 face as music. Its exclusions do the heavy lifting: without them, "sitcom" and "clown" pull a generator straight toward circus or cartoon-heist.
+*Why:* this one is the 😬 face as music. Its exclusions do the heavy lifting: without them, "sitcom"
+and "clown" pull a generator straight toward circus or cartoon-heist. (The jukebox's *Clown's Alibi*
+is this direction.)
 
-Lead: melodica (A) / lap steel (B) / bass clarinet (C). Neither new lead appears anywhere else in the doc, so the unique-lead table row becomes Bailed | bass clarinet (C) / lap steel (B) / melodica (A).
+*Lead: bass clarinet (C) / lap steel (B) / melodica (A). Neither new lead appears anywhere else.*
+*Sylly: **no** — Drama Mode sharpens the endgame of a game that already runs on suspicion. Same room,
+one extra liar.*
 
 ---
 
@@ -369,30 +440,40 @@ Lead: melodica (A) / lap steel (B) / bass clarinet (C). Neither new lead appears
 > ambience. 90 BPM, neutral modal key, confident and unhurried. No smoke-and-neon atmosphere, no
 > melody line — steady, focused, table-level calm. Instrumental only, no vocals. Seamless loop.
 
-Option C — "the shuffle" (no scene, just a groove). The blues shuffle is a rhythm feel, not a setting, and the card pun costs nothing. The swing has an easy, loping forward motion: confident like T4's voice, without inventing a backstory.
+**Option C — "the shuffle" (no scene, just a groove).** The blues shuffle is a rhythm feel, not a
+setting, and the card pun costs nothing. The swing has an easy, loping forward motion: confident
+like T4's voice, without inventing a backstory.
 
-Relaxed, confident instrumental loop built on a slow blues shuffle groove. Soft low-register
-harmonica carrying a short, laid-back riff, over a walking electric bass, a swung kit with
-brushes on the snare, and sparse clean guitar chords on the offbeat. 88 BPM, major blues, easy
-and unbothered — a game everyone at the table already knows how to play. No wailing bends, no
-smoky bar atmosphere, no crowd noise. Instrumental only, no vocals. Seamless loop. Sparse mix,
-low dynamic range, no bells or chimes in the 1–2 kHz range.
+> Relaxed, confident instrumental loop built on a slow blues shuffle groove. Soft low-register
+> harmonica carrying a short, laid-back riff, over a walking electric bass, a swung kit with
+> brushes on the snare, and sparse clean guitar chords on the offbeat. 88 BPM, major blues, easy
+> and unbothered — a game everyone at the table already knows how to play. No wailing bends, no
+> smoky bar atmosphere, no crowd noise. Instrumental only, no vocals. Seamless loop. Sparse mix,
+> low dynamic range, no bells or chimes in the 1–2 kHz range.
 
-Why: this gives Pass something to hum without giving it a costume. The "low-register" and "no wailing bends" instructions keep the harmonica out of the bright band where your SFX live.
+*Why:* this gives Pass something to hum without giving it a costume. The "low-register" and "no
+wailing bends" instructions keep the harmonica out of the bright band where your SFX live.
 
-Option D — "passing again" (cards night, staring out the window). This is lo-fi daydream music, and that suits it for two reasons. Generators understand the genre well, and it describes exactly the scene you're after: someone at a desk, drifting. The sigh comes from a classic musical device, a two-note falling figure. Tenor sax plays one lazily behind the beat each time, like an exhale when your turn comes round and you've got nothing.
+**Option D — "passing again" (cards night, staring out the window).** This is lo-fi daydream music,
+and that suits it for two reasons. Generators understand the genre well, and it describes exactly
+the scene you're after: someone at a desk, drifting. The sigh comes from a classic musical device, a
+two-note falling figure. Tenor sax plays one lazily behind the beat each time, like an exhale when
+your turn comes round and you've got nothing.
 
-Mellow lo-fi instrumental loop — a casual cards night with mates, and you've passed five times in
-a row. Breathy tenor saxophone in a low, lazy register playing short descending two-note sighs,
-slightly behind the beat, over soft jazzy seventh chords on muted guitar, a warm round bass line
-and a relaxed, head-nodding hip-hop beat with a dusty snare. 80 BPM, warm major with gentle
-minor-seventh turns, faint vinyl crackle. Resigned and drowsy, like staring out a classroom window
-on a slow afternoon — gently bored, never sad, never frustrated or tense. Instrumental only, no
-vocals. Seamless loop. Sparse mix, low dynamic range, no bells or chimes in the 1–2 kHz range.
+> Mellow lo-fi instrumental loop — a casual cards night with mates, and you've passed five times in
+> a row. Breathy tenor saxophone in a low, lazy register playing short descending two-note sighs,
+> slightly behind the beat, over soft jazzy seventh chords on muted guitar, a warm round bass line
+> and a relaxed, head-nodding hip-hop beat with a dusty snare. 80 BPM, warm major with gentle
+> minor-seventh turns, faint vinyl crackle. Resigned and drowsy, like staring out a classroom window
+> on a slow afternoon — gently bored, never sad, never frustrated or tense. Instrumental only, no
+> vocals. Seamless loop. Sparse mix, low dynamic range, no bells or chimes in the 1–2 kHz range.
 
-Why: this scores the passer rather than the game. Most turns in Pass are someone else's, and this is what those turns feel like.
+*Why:* this scores the passer rather than the game. Most turns in Pass are someone else's, and this
+is what those turns feel like.
 
-Lead: harmonica (C) / tenor saxophone (D) / muted trumpet (A — collides with Secret Signals B) / ostinato only (B). Neither harmonica nor sax appears anywhere else in the doc.
+*Lead: harmonica (C) / tenor saxophone (D) / muted trumpet (A — collides with Secret Signals B) /
+ostinato only (B). Neither harmonica nor sax appears anywhere else.*
+*Sylly: **no** — The Abyss adds a growing threat, but the table and its mood are unchanged.*
 
 ---
 
@@ -408,6 +489,8 @@ Lead: harmonica (C) / tenor saxophone (D) / muted trumpet (A — collides with S
 > thriller tension.** Instrumental only, no vocals. Seamless loop.
 
 *Lead: arpeggiated synth sequence.*
+*Sylly: **yes, medium** — Distributed Network Protocol, priority 4. It turns a solo puzzle into a team
+relay.*
 
 ---
 
@@ -430,6 +513,7 @@ suite — steel drum/congas relocate it to a tiki bar it never asked for).**
 > loop.
 
 *Lead: xylophone (B) / steel drum (A).*
+*Sylly: **done** — Fruity Fun (*Fruity Personalities*) is in the jukebox.*
 
 ---
 
@@ -443,6 +527,8 @@ suite — steel drum/congas relocate it to a tiki bar it never asked for).**
 > light on. Extremely soft dynamics. Instrumental only, no vocals. Seamless loop.
 
 *Lead: music box.*
+*Sylly: **done** — Eerie Night Sky (*Night Terrors*) is in the jukebox. Of all 20 games, this mode
+changes the mood the most.*
 
 ---
 
@@ -465,6 +551,8 @@ tend to become the whole track and read as spa/wedding music rather than "quietl
 > vocals. Seamless loop.
 
 *Lead: vibraphone (B) / harp (A).*
+*Sylly: **yes, first** — The Counterfeit Run, priority 1. The biggest mood change among the games
+still without a variant.*
 
 ---
 
@@ -488,6 +576,9 @@ track.**
 > Instrumental only, no vocals. Seamless loop.
 
 *Lead: kalimba (both — B drops the marimba double-lead).*
+*Sylly: **done** — Weather Turned (*Force of Nature*) is in the jukebox. Watch the naming: one of the
+**base** songs is called "A Force of Nature", the same as the mode, so the two are easy to confuse
+on a track list.*
 
 ---
 
@@ -513,10 +604,13 @@ named and excluded.**
 > loop.
 
 *Lead: upright piano (both).*
+*Sylly: **optional, low** — Dibber Dobber turns sneaking into dobbing (playground accusation, blind
+commits). It changes the mood a little, but the base track's "conspiratorial" already covers most
+of it.*
 
 ---
 
-### 19. Cold Shoulder 🧊 — *slapstick on the ice* (new — game was missing a prompt)
+### 19. Cold Shoulder 🧊 — *slapstick on the ice*
 
 T4: cartoon double-take, "shove first, apologise never," cold blues and greys with a bright horizon,
 **never real jeopardy**. Rounds run ~10 minutes.
@@ -539,10 +633,12 @@ T4: cartoon double-take, "shove first, apologise never," cold blues and greys wi
 *Lead: bassoon (A) / felt piano (B). Note: comic loops with a strong instrumental "bit" (A) tend to
 fatigue faster than a calmer bed over CLD's ~10-minute round length — worth generating both and
 listening at real length, not just on first pass.*
+*Sylly: **not yet** — the owner plans to demote The Thaw to a normal setting and give Cold Shoulder a
+new Sylly Mode (`cld.md` T8). Wait for that before scoring anything.*
 
 ---
 
-### 20. Honeycomb Hills 🍯 — *the longest sitting in the box* (new — game was missing a prompt)
+### 20. Honeycomb Hills 🍯 — *the longest sitting in the box*
 
 T4: meadow in high summer, a gardener's register, warm golds/greens/terracotta, nothing grim,
 nothing industrial. **25–50 minutes a match** — fatigue resistance matters more here than for any
@@ -568,14 +664,143 @@ range in the suite, deliberately).**
 *Lead: hammered dulcimer (A) / harmonium (B). Note: Option A's hammered dulcimer collides with The
 Bluff Option A above — if generating both, prefer Bluff-B (bowed cello) or Comb-B (harmonium) to
 keep both leads unique.*
+*Sylly: **n/a** — the one game with no Sylly Mode (`comb.md` T8).*
+
+---
+
+## Sylly Mode tracks
+
+### The test
+
+A Sylly Mode earns its own track when it changes **what the game feels like to sit at**, not just
+what the rules say. Harder words, an extra phase at the end or one secret role all leave the room
+sounding the same, so the base track still fits them. The ones that pass the test change the
+register itself: a lullaby becomes a fever dream, a cocktail party becomes a room full of forgers.
+
+**A variant keeps its base game's lead instrument, on purpose.** It should sound like *the same game,
+turned* — recognisable in five seconds as Flawless or Net-Trace — and not like a new game. So
+variants are exempt from the unique-lead rule and use up no slot in its table. Same tempo family and
+key centre as the base track, so a later mid-session crossfade (menu → match) doesn't lurch.
+
+### Verdict, all 20
+
+| # | Game | Sylly Mode | How far it moves the mood | Verdict |
+|---|------|------------|---------------------------|---------|
+| 15 | Counting Sheep | Night Terrors | Lullaby → fever dream; the biggest flip in the suite | ✅ **Done** — Eerie Night Sky |
+| 17 | Pecking Order | Force of Nature | Stable ecology → weather reshaping the rules every Encounter | ✅ **Done** — Weather Turned |
+| 14 | Fruit Salad | Fruity Personalities | Every fruit gets an attitude; sillier, busier | ✅ **Done** — Fruity Fun |
+| 16 | Flawless | The Counterfeit Run | Poised lounge → a room full of forgers and auditors | **Make — priority 1** |
+| 10 | The Bluff | The Tempest | Honest dice → dice you can't trust, even your own | **Make — priority 2b** (after the base track, 2a) |
+| 2 | Great Minds | Static Interference | Same tuning, with the signal jammed | **Make — priority 3** (cheap, *if* base is Option B) |
+| 13 | Net-Trace | Distributed Network Protocol | A solo puzzle → a team relay across chained nodes | **Make — priority 4** |
+| 18 | Cookie Jar | Dibber Dobber | Sneaking → dobbing; blind three-way commits | Optional, low |
+| 9 | Group Therapy | Stroke or Genius | Perceptual (a shaking canvas, blurred drawings), not tonal | Optional, low — a fun joke, not a new register |
+| 19 | Cold Shoulder | The Thaw | Geometry only; the mode is due to be replaced | **Wait** for the new mode |
+| 11 | Bailed | Drama Mode | A sharper endgame; same suspicion | No |
+| 6 | Late to the Party | The Troublemaker | A third goal inside the same loop | No |
+| 8 | Deep-Sea Deploy | Silent Running | The base track already sounds like it | No |
+| 12 | Pass | The Abyss | A growing threat; same table | No |
+| 4 | Just Enough Cooks | Fusion Cuisine | A harder prompt; same kitchen | No |
+| 3 | Secret Signals | Intel Phase | A second act at the end — wrong shape for a mode-wide track | No |
+| 1 | Like I'm Five | Extra Credit | Harder words | No |
+| 7 | Natural Selection | Survival of the Fittest | Who knows what, and when | No |
+| 5 | You Get It? | The Ringer | One fake answer per round | No |
+| 20 | Honeycomb Hills | — | No Sylly Mode | n/a |
+
+### Priority order (a few generations a day)
+
+1. **Flawless — The Counterfeit Run.** Of the modes still without a variant, this one changes the
+   mood the most, and the base palette turns into it easily.
+2. **The Bluff — base track first (2a), then The Tempest (2b).** Filling the jukebox's only empty
+   game beats any variant. The Tempest then comes almost straight from Option B's palette.
+3. **Great Minds — Static Interference.** Check first whether the shipped base take (*Psychic
+   Waves* / `gm.mp3`) is close to Option B. If it is, this is one cheap generation. If it isn't, the
+   variant won't sound like the same game. Regenerate the base as Option B first, or skip this one.
+4. **Net-Trace — Distributed Network Protocol.** A real change, from solo to team play, but a mild
+   one. It shares Net-Trace's cold palette, so it stays distinct from everything else.
+5. *(Optional)* Cookie Jar — Dibber Dobber; Group Therapy — Stroke or Genius. Only once the rest of
+   the list is finished, and only if a take is actually funny.
+
+Anything below that line is a **no**: the base track already fits the mode.
+
+### Prompts
+
+**Flawless — The Counterfeit Run.** Same room as the base track after the lights go down, with half
+the pieces on display fake.
+
+> Cool, nocturnal instrumental loop — the same private jewel exhibition after hours, when half the
+> pieces on display are fakes. Low-register vibraphone carrying a sly, slightly-too-smooth line with
+> one chromatic note per phrase that doesn't belong, upright bass walking quietly, brushed kit with a
+> dry rimshot, muted nylon guitar, a low dark string pad. 88 BPM, minor with chromatic turns, poised
+> and suspicious — everyone smiling, nobody trusting. Heist-cool, never a caper: no surf guitar, no
+> creeping-pizzicato cliché, no stingers. Instrumental only, no vocals. Seamless loop. Sparse mix,
+> low dynamic range, no bells or chimes in the 1–2 kHz range.
+
+**The Bluff — The Tempest** *(generate only after the base track exists, and match its tempo and
+key)*. Built on Option B's palette.
+
+> Same warm rock ledge as before, with weather coming in. Low bowed cello drone, frame drum now
+> slightly uneven, muted plucked guitar harmonics, dry wind texture that rises and falls, a soft
+> distant low swell every few bars — never a hit, never thunder. 84 BPM, minor and modal, unsettled
+> — you can't trust your footing, or the dice in your own hand. No storm crashes, no orchestral
+> climax, tension held and never released. Instrumental only, no vocals. Seamless loop. Sparse mix,
+> low dynamic range, no bells or chimes in the 1–2 kHz range.
+
+**Great Minds — Static Interference** *(only if the base take is Option B)*.
+
+> Same analogue radio laboratory, with the signal being jammed. Two slow detuned oscillators
+> drifting in and out of phase, tape-saturated pad, shortwave band noise now closer and breathing in
+> and out, the sustained sine tone dropping out for half a bar now and then as if a frequency has
+> been cut, sparse low piano. 76 BPM, minor, calm but frustrated — two receivers trying to reach
+> each other through interference. No glitch stutters, no morse, no alarm, nothing rhythmic enough to
+> read as a game cue. Instrumental only, no vocals. Seamless loop.
+
+**Net-Trace — Distributed Network Protocol.**
+
+> Same cold emerald infrastructure, scaled up to a data centre: two interlocking arpeggiated synth
+> sequences handing a phrase off to each other every four bars like a relay, deep sub bass, steady
+> closed hats, broad filtered pad. 118 BPM, restrained and hypnotic, cooperative and confident — a
+> team keeping one signal alive across a chain of machines. No alert tones, no error buzzes, no
+> modem sounds, no glitch stutters, no distorted bass drops, no thriller tension. Instrumental only,
+> no vocals. Seamless loop.
+
+*Optional concepts, no prompt yet:* **Cookie Jar — Dibber Dobber:** the base kitchen loop with a
+playground "na-na" taunt figure on muted trumpet, still cosy and never mean. **Group Therapy —
+Stroke or Genius:** the same lift music on a warped, wow-and-flutter tape, as if the waiting-room
+speaker is on the blink.
+
+### The code change — DONE, 27 Sep 2026
+
+`Music.playFor(gameId, isSylly)` now tries `tracks["<gameId>:sylly"]` first when `isSylly` is true,
+falling back to `tracks[gameId]`, then `lobby` — exactly the shape this section proposed.
+`isGameSyllyOn(gameId)` in `js/engine.js` is the one engine-side place that reads each game's
+private Sylly flag (a small per-game getter map, same pattern as `getMuteToggleOnClass`), and
+`showScreen()`'s existing single call site (`Music.playFor(activeGameId, isGameSyllyOn(activeGameId))`)
+is the only line touched — no plugin needs a line of music code, matching the module's one-seam
+design.
+
+**The mid-settings question this section flagged is answered, not a gap:** settings overlays toggle
+by `style.display`, not `showScreen()`, so flipping the Sylly switch doesn't retheme instantly. The
+track updates at the *next* real screen transition — starting the match — which is the natural
+moment for it, not an oversight.
+
+Verified in a real browser for all three current variants (SHP, PKO, FRT): the actual settings
+toggle flips the flag, the music stays on the base track while settings are still open, and the next
+screen transition picks up the Sylly track with its own title. A new Sylly variant needs only a
+`"<abbr>:sylly"` line in `data/music/manifest.json` — no code change, since `isGameSyllyOn`'s map
+already covers any game with a `let [abbr]SyllyMode` flag once that abbreviation is added to it.
+
+Detail: `docs/deferred-work.md` § Music, `shared-implementation-notes.md` BUG-22 (a real
+`encodeURIComponent`-on-a-subpath bug caught while wiring step 2, unrelated to the Sylly tier itself
+but found in the same file).
 
 ---
 
 ## Unique-lead reference (jukebox anti-convergence table)
 
-One lead instrument per track, kept distinct across the suite. Update this table if a new option
-above gets chosen or a new game is added — it's the thing that stops the next prompt round from
-reissuing an existing lead by accident.
+One lead instrument per base track, kept distinct across the suite. Update this table if a new
+option gets chosen or a new game is added — it's the thing that stops the next prompt round from
+reissuing an existing lead by accident. Sylly variants reuse their game's lead and aren't listed.
 
 | Game | Lead instrument (by option) |
 |------|------------------------------|
@@ -590,8 +815,8 @@ reissuing an existing lead by accident.
 | Deep-Sea Deploy | low piano |
 | Group Therapy | Rhodes electric piano |
 | The Bluff | bowed cello (B) / hammered dulcimer (A — collides with Comb-A) |
-| Bailed | melodica |
-| Pass | muted trumpet (A) / no lead, ostinato only (B) |
+| Bailed | bass clarinet (C) / lap steel (B) / melodica (A) |
+| Pass | harmonica (C) / tenor saxophone (D) / muted trumpet (A — collides with SS-B) / no lead, ostinato only (B) |
 | Net-Trace | arpeggiated synth sequence |
 | Fruit Salad | xylophone (B) / steel drum (A) |
 | Counting Sheep | music box |
@@ -603,59 +828,68 @@ reissuing an existing lead by accident.
 
 ---
 
-## Fallback rule (current policy)
+## Policy and pipeline
+
+### Fallback rule (current policy)
 
 **A game with no track of its own plays the title theme.** That includes every new game until it is
 given one — no silence, no per-game placeholder, no blocking a game's release on a music brief. The
 title theme was written to be neutral enough to carry this.
 
----
+### Shipping a track
 
-## Later, if the credits stretch
+**In-game:** generate it, trim it to a clean 60–120 s loop, save it under **any filename** —
+`data/music/manifest.json` maps each `activeGameId` key to a `file` field, so the file doesn't need
+to be named after the game (the shipped tracks are `gm.mp3` for the `great-minds` key and `ss.mp3`
+for `sylly-signals`, which is what let the mismatch between the game's internal id and a tidy
+filename get chosen deliberately rather than fought). Add one line to the manifest with the `file`,
+and fill in `title`/`artist` while you're there. **No code change, no `sw.js` edit, no version
+bump.** Until a game has a line, it plays the lobby theme.
 
-Not in scope now, listed so the idea isn't lost:
+**Jukebox:** drop the master in `data/music/New folder/`, run `node tools/encode-music.js` (it skips
+unchanged tracks), and add a line to `data/music/jukebox/manifest.json`, with `variant` set for a
+Sylly take. Same deal: no `sw.js` edit, no bump.
 
-- **Sylly Mode variants.** Five games flip register hard enough to justify a second take of the same
-  loop: Counting Sheep → *Night Terrors* (the lullaby soured — detuned music box, uneasy low
-  strings), Pecking Order → *Force of Nature*, Flawless → *The Counterfeit Run*, Net-Trace →
-  *Devil's Network Protocol*, Great Minds → *Static Interference* (literally the same loop, jammed —
-  Option B's phase-drifting oscillators make this close to free once B exists).
-- **A gameover / podium sting**, shared across the suite — 4–6 seconds, not a loop.
-- **A lobby-to-game transition**, if the redesigned title screen ends up with a launch moment worth
-  scoring.
+### Before any of this ships
 
----
+Prompts are free; the audio is not. Items 1, 2, 4 and 5 are **settled** — recorded here because the
+reasoning still governs what you generate. 3 and 6 are still on you.
 
-## Before any of this ships
-
-Prompts are free; the audio is not. Items 1 and 2 are now **settled** (28 Aug 2026) — recorded here
-because the reasoning still governs what you generate. 3–6 are still on you.
-
-1. ~~This breaks a standing anti-pattern.~~ **Settled.** The rule protected install size and the
-   offline guarantee; runtime-caching preserves both, so music was adopted as an exception scoped to
-   *music only* — effects stay synthesised forever. `docs/decision-log.md` 2026-08-28.
+1. ~~This breaks a standing anti-pattern.~~ **Settled (28 Aug 2026).** The rule protected install
+   size and the offline guarantee; runtime-caching preserves both, so music was adopted as an
+   exception scoped to *music only* — effects stay synthesised forever. `docs/decision-log.md`
+   2026-08-28.
 2. ~~Precache weight is the binding constraint.~~ **Settled: nothing is precached.** `data/music/`
    took the `data/packs/` contract — manifest network-first, audio cache-first, absent from
    `PRECACHE_URLS`. A track is downloaded once, on first play, and only for a game someone actually
    opens. **The per-file ceiling is ~1.5 MB** (128 kbps, 60–120 s loop) — hold to it when generating
-   finals; all four shipped tracks are currently over it pending a trim (see § Status above).
-3. **Format:** one file per track, mono or joint-stereo, ~96–128 kbps. Ship `.m4a`/AAC for iOS
-   Safari reliability; `.ogg` is smaller but weaker on that platform.
-4. **The loop must actually loop.** Most generators produce a fade-out. Trim to a zero-crossing bar
-   boundary and verify gapless playback in the browser — HTML5 `<audio loop>` is not reliably
-   gapless; a Web Audio buffer source with `loop = true` is.
-5. **It needs a mute path on day one.** `isMuted` and `masterVolume` already exist and are
-   localStorage-backed, but music almost certainly wants its *own* level, separate from effects —
-   a lot of people will want the SFX and not the soundtrack.
+   finals; the four in-game tracks are over it pending a trim, and jukebox songs run 1.2–5.7 MB.
+3. **Format:** one file per track, mono or joint-stereo, ~96–128 kbps. `.m4a`/AAC was the original
+   recommendation for iOS Safari reliability; everything shipped so far is `.mp3`, and
+   `tools/encode-music.js` encodes to it — revisit only if iOS playback actually misbehaves.
+4. ~~**The loop must actually loop.**~~ **Settled in code.** `music.js` plays game themes through a
+   Web Audio buffer source with `loop = true`, never `<audio loop>`. Still true for the file itself:
+   trim to a zero-crossing bar boundary, because most generators produce a fade-out.
+5. ~~**It needs a mute path on day one.**~~ **Settled.** Music has its own toggle and level
+   (`Music.setEnabled` / `Music.setVolume`), separate from effects, and global mute outranks both.
 6. **Licensing.** Confirm the generator's terms cover distribution in a public web app before
    generating finals, and record the outcome next to the assets.
 
----
+### Later, if the credits stretch
 
-## Adding a Music & Sound section to the new-game brief
+Not in scope now, listed so the idea isn't lost. (Sylly Mode variants used to be listed here; they
+now have their own section above.)
+
+- **A gameover / podium sting**, shared across the suite — 4–6 seconds, not a loop.
+- **A lobby-to-game transition**, if the redesigned title screen ends up with a launch moment worth
+  scoring.
+
+### Adding a Music & Sound section to the new-game brief
 
 Deferred, per your call. When it happens the natural home is
 `docs/rules/new-game-brief-template.md` (Phase 1), asking three things and nothing more: **the
 register in one line** (what does this game sound like?), **tempo and energy**, and **anything the
 music must not do** (Deep-Sea Deploy's "no sonar pings" is the model). The fallback rule above means
-the field can be left blank without blocking the build.
+the field can be left blank without blocking the build. A fourth line is worth adding at the same
+time: **does the Sylly Mode change the mood enough to earn a variant?** Use the test in § Sylly Mode
+tracks.

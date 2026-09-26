@@ -24,6 +24,7 @@ For the game just completed, verify these against the actual JS file:
 - [ ] **`allScreens[]` is current** — every screen ID registered in `engine.js` matches the screens defined for this game
 - [ ] **SW precache is current** — `sw.js` lists the plugin file; `logic-engine.md` precache list matches `sw.js`; CACHE_NAME version is correct
 - [ ] **Implementation notes current** — `docs/implementation-notes/[abbr]-implementation-notes.md` exists for this game; any bugs resolved or design decisions made during this phase are logged under the appropriate section (Design Decisions / Bug Index / Multiplayer Lessons / Template Gaps)
+- [ ] **Deferred work current** — grep `docs/deferred-work.md` for this game's abbreviation/name; any entry describing something the phase's own fixes already resolved gets marked `RESOLVED [date]` with a one-line note (never silently deleted — the discovery record is worth keeping). This is the same "close it when you fix it" discipline as an impl-notes Bug Index entry, applied to the other file that tracks open items.
 
 ---
 
@@ -146,8 +147,17 @@ Propagate general lessons from past bugs into rule files.
 2. Scan every **Bug Index** for bugs that appeared in 2+ games — these indicate a missing or under-specified rule, not a one-off
 3. Cross-reference each finding against `logic-engine.md`, `ui-style.md`, and `phase-audit.md`
 4. For any lesson not yet captured in a rule file: add it to the appropriate document before proceeding
+5. **Read `docs/deferred-work.md` in full and check its top entries against current code** — a
+   Protocol A gate only catches a fix landing *for* the game it's about; most deferred items get
+   resolved as a side effect of a *different* task, which nothing else ever checks back on
+   (26 Sep 2026 review found ~10 stale entries this way, plus one real contradiction between
+   `CLAUDE.md` and a phase snapshot). Mark resolved entries `RESOLVED [date]` with a one-line note,
+   trim anything that's pure closed history, and fix any stale suite-wide count while you're in
+   there. This is a full-file read, not a grep — the value is in catching what nobody thought to
+   check, so skimming for the obvious defeats the point.
 
-**Gate:** No unaddressed general lessons remain open → proceed to Part 2.
+**Gate:** No unaddressed general lessons remain open, and `deferred-work.md` reflects the code as it
+actually ships today → proceed to Part 2.
 
 ---
 

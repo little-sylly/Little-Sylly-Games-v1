@@ -4,6 +4,42 @@ Historical SW release notes, moved out of `CLAUDE.md` (1 Aug 2026) so they stop 
 The **current** version and its notes stay in `CLAUDE.md` § Current Focus — append the outgoing entry here on each bump.
 
 
+## v234 — the Workshop as a room (26 Sep 2026)
+
+Design B · Paint Shop from `wip/workshop-lab/`:
+paint | the controller | the sticker sheet side by side, **no tabs**, in the jukebox's plum room
+(`css/workshop.css`, precached). Randomise All is a glass die key (the rainbow is gone); the stage
+mounts with no floor shadow; the sticker surface is now paid on the first sticker picked up, not on
+open. Below 1100 px the stage pins on top; below 860 px it stacks — a stand-in until the phone design.
+Harnesses: `visual-controller-stickers` 55, `visual-lobby` 94. Detail: `shared-implementation-notes.md` DD-45.
+
+
+## v233 — the jukebox (26 Sep 2026)
+
+Tapping the Lounge's cat opens `screen-jukebox`: the
+sandbox's pick (Records, List + search) over the real cat on its own stage. Songs play through
+`Music.hold()` — kept through lobby navigation, let go by a game; the records carousel is "next
+record". Code precached (+~60 KB); the 26 songs + covers (~68 MB, `data/music/jukebox/`) are
+runtime-cached. Harnesses: `verify-lobby-router` 228, `verify-lounge-props` 1371, `visual-lobby` 94.
+Detail: `shared-implementation-notes.md` DD-44.
+
+## v232 — the controller animation round (26 Sep 2026)
+
+The ornament's idle nudge now springs
+home (it random-walked edge-on on Shelves/TV); the Lounge's controller gets four idle beats — rumble,
+stick roll, a pairing light chase, and a rare (10%) Konami that plays the Workshop's own voices as a
+hint and never unlocks. "Original" displays as **Classic**. No new files, no install change.
+Harnesses: `verify-lounge-props` 1368, `visual-lobby` 76. Detail: `shared-implementation-notes.md` DD-43.
+
+## v231 — the lobby's four layouts, the Lounge first (25 Sep 2026)
+
+The Lounge (the 3D room,
+was "Premium"), TV, Shelves and Original ship; phones play the arrival beat into Shelves, no-WebGL
+boots into Shelves. Every "back to the lobby" goes through `lobbyShow()`, so a game returns to the
+layout it was launched from. Stickerbook v1 all unlocked, nothing saved; lamp photos runtime-cached.
+Install +770 KB (12.24 MB). Harnesses: `visual-lobby` 69, `verify-lobby-router` 210, `verify-lounge-props`
+1338. Detail: `shared-implementation-notes.md` DD-42, `docs/code-map.md` § Lobby layouts.
+
 ## v230 — Workshop polish round: randomise, zoom, drag-to-reposition (14 Sep 2026)
 
 Owner-playtesting round on the Workshop, `js/controller.js` (+ `css/styles.css`), nothing new

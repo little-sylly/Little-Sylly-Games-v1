@@ -158,11 +158,6 @@ Rows 4–5 loop once per player per Plan for Plans 1–3; row 6 (or 7, depending
 Plan 4 resolution. `screen-lttp-briefing` also reappears between Plans as a "Plans Updated" recap,
 not only at the start.
 
-`screen-lttp-role-reveal` is registered in `allScreens[]` and still fully built (its section header
-comment lists it as part of the flow) but nothing in `lttp.js` ever shows it — role information is
-folded directly into the Chat screen's header instead (`lttp-chat-role-label` /
-`lttp-chat-role-objective`). See T7c.
-
 **Overlays**
 
 | Overlay | Opened from | What it is |
@@ -420,12 +415,12 @@ room fills, so it must never read game-local setup state at all — it now retur
 range as a constant. `node tools/verify-mp-configs.js` § 3 makes the old shape unrepresentable,
 and § 4 asserts each game's lobby bounds against its own Pass-the-Phone count pills.
 
-**`screen-lttp-role-reveal` is dead code that still ships.** It's registered in `allScreens[]`, has
-a complete Stack-migrated layout, and its section comment lists it as part of LTTP's screen
-inventory — but nothing in `lttp.js` calls `showScreen('screen-lttp-role-reveal')` or any wrapping
-function. Role information is instead folded into the Chat screen's own header on first entry. The
-screen either needs a real trigger or removing, and until then it's a maintenance trap — a future
-edit could "fix" it into firing without anyone noticing it was never meant to.
+**RESOLVED 26 Sep 2026 — `screen-lttp-role-reveal` removed.** It was registered in `allScreens[]`
+with a complete Stack-migrated layout, but nothing in `lttp.js` ever called
+`showScreen('screen-lttp-role-reveal')` — role information is folded into the Chat screen's own
+header on first entry instead (`lttp-chat-role-label` / `lttp-chat-role-objective`), and always was.
+Removed rather than given a trigger: markup, its `allScreens[]` entry, and the section-header
+comment reference are all gone.
 
 **Three contextual-help surfaces exist with unclear boundaries.** The header `[?]` opens the full
 How to Play overlay; a second inline `?` next to the map instructions opens `lttp-tip-overlay`; and

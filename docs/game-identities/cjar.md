@@ -408,7 +408,7 @@ Then everyone decides, at the same time
 Sneak out alone and you take the crumbs
 The family is watching
 Banked cookies are safe forever
-Five Raids, one jar
+Every Raid, one jar
 Winning and Scoring
 Biggest Cookie Stash takes it
 ```

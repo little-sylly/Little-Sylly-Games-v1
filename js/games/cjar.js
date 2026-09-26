@@ -586,7 +586,7 @@ function cjarRenderStage() {
   const cap = document.getElementById('cjar-grabs-caption');
   if (cap) cap.textContent = cjarIsSylly()
     ? 'Play innocent alone and the pile is yours.'
-    : 'Sneak out alone and you take the lot.';
+    : 'Sneak Out alone and you take the lot.';
 
   // COLUMN 2 — the card you are BETTING ON, face-down, except during the choreography
   // where it is the card that just came out. This is the whole fix: what sits directly

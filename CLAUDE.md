@@ -95,7 +95,7 @@ For where each game's screens/overlays live in `index.html`, see the **Per-Game 
 ---
 
 ## 📁 Load Order
-**Load order:** `music.js` → `engine.js` → `art.js` → `three.min.js` → `controller-body.js` → `controller-sticker-surface.js` → `physics.js` → `engine-multiplayer.js` → `canvas-draw.js` → `li5.js` → `great-minds.js` → `secret-signals.js` → `jec.js` → `ygi.js` → `lttp.js` → `nat.js` → `dsd.js` → `bld.js` → `gth.js` → `dyb.js` → `cards.js` → `pass.js` → `nt.js` → `frt.js` → `shp.js` → `flw.js` → `pko.js` → `cjar.js` → `cld.js` → `comb.js` → `controller.js` → `lounge-lib.js` → `lounge-room.js` → `lounge-props.js` → `lounge-scene.js` → `lounge-sfx.js` → `lobby-games.js` → `lobby.js` → `tv.js` → `achievements.js` → `stickerbook.js` → `lobby-router.js` → `lobby-doors.js` → `lobby-host.js` → `secret-mode.js` → `app.js`
+**Load order:** `music.js` → `engine.js` → `art.js` → `three.min.js` → `controller-body.js` → `controller-sticker-surface.js` → `physics.js` → `engine-multiplayer.js` → `canvas-draw.js` → `li5.js` → `great-minds.js` → `secret-signals.js` → `jec.js` → `ygi.js` → `lttp.js` → `nat.js` → `dsd.js` → `bld.js` → `gth.js` → `dyb.js` → `cards.js` → `pass.js` → `nt.js` → `frt.js` → `shp.js` → `flw.js` → `pko.js` → `cjar.js` → `cld.js` → `comb.js` → `controller.js` → `lounge-lib.js` → `lounge-room.js` → `lounge-props.js` → `lounge-scene.js` → `lounge-sfx.js` → `lobby-games.js` → `lobby.js` → `tv.js` → `achievements.js` → `stickerbook.js` → `jukebox.js` → `lobby-router.js` → `lobby-doors.js` → `lobby-host.js` → `secret-mode.js` → `app.js`
 (`tailwind-play.js` loads in `<head>` before everything else. `js/lib/music.js` loads *before* `engine.js` — the engine boot block calls `Music.init()` at parse time. `app.js`'s last line is `lobbyBoot()` — every lobby symbol exists by then.)
 All symbols are global (no ES modules). Forward references work at runtime.
 
@@ -156,9 +156,15 @@ All symbols are global (no ES modules). Forward references work at runtime.
 3. `CLAUDE.md` — SW version, Current Focus, key references
 4. `logic-engine.md` / `ui-style.md` — any new universal rule, audio function or engine/UI pattern
 5. `docs/implementation-notes/[abbr]-…md` (or `shared-…md` — see § Skill: Implementation Notes for which) — design decisions, bugs resolved, lessons
-6. `docs/decision-log.md` — one entry (newest on top, ~4 lines, pointer not deep-doc) **if** the work included an architectural, strategic or process-level decision. Skip only for routine bug/polish.
+6. `docs/deferred-work.md` — grep it for what you just touched (file, function, screen ID, game
+   abbreviation). If an entry describes something this fix already resolves, mark it
+   `RESOLVED [date]` with a one-line note **in this same response** — never delete outright, the
+   discovery record is the valuable half. This is cheap only *now*, while you already have the exact
+   terms to search for; re-deriving it later from a cold read is how the file accumulates stale
+   entries (a 26 Sep 2026 review found ~10). Nothing to do here if the fix wasn't already logged.
+7. `docs/decision-log.md` — one entry (newest on top, ~4 lines, pointer not deep-doc) **if** the work included an architectural, strategic or process-level decision. Skip only for routine bug/polish.
 
-**Rule:** No phase snapshot until all six are verified current. The snapshot is the final deliverable, not the starting point for cleanup.
+**Rule:** No phase snapshot until all seven are verified current. The snapshot is the final deliverable, not the starting point for cleanup.
 
 **Enforcement:** at the start of a new phase, read `docs/code-map.md` and each affected game's identity doc (`docs/game-identities/[abbr].md`) and cross-reference against the real `index.html` headers and JS. Flag and resolve any discrepancy before implementation begins. `node tools/verify-identity-docs.js` does the UI-copy half of this mechanically.
 
@@ -285,14 +291,17 @@ On every bump the outgoing SW entry moves **verbatim** to `docs/sw-changelog.md`
 "keep the last three". **A second `**SW v…**` paragraph appearing here means that move didn't
 happen: do it before anything else.**
 
-**SW v231 — the lobby's four layouts, the Lounge first (25 Sep 2026).** The Lounge (the 3D room,
-was "Premium"), TV, Shelves and Original ship; phones play the arrival beat into Shelves, no-WebGL
-boots into Shelves. Every "back to the lobby" goes through `lobbyShow()`, so a game returns to the
-layout it was launched from. Stickerbook v1 all unlocked, nothing saved; lamp photos runtime-cached.
-Install +770 KB (12.24 MB). Harnesses: `visual-lobby` 69, `verify-lobby-router` 210, `verify-lounge-props`
-1338. Detail: `shared-implementation-notes.md` DD-42, `docs/code-map.md` § Lobby layouts.
+**SW v235 — the Workshop's phone tier: Tool Belt (26 Sep 2026).** Below 860 px, the stand-in's
+page-scroll stack is replaced by P3 · Tool Belt (reviewed in `wip/workshop-lab/`, three candidates
+against the owner's iPhone SE): no tabs, like widescreen — Paint and Stickers become horizontal
+strips under the controller, the sticker card taking over Paint's slot while a sticker is in hand,
+Undo living in the sheet's own head so it stays reachable with the card hidden. The static markup
+stays the widescreen shape; `ctlLayoutPhone()`/`ctlLayoutWide()` (`js/controller.js`) move four
+elements house, reversibly, on crossing the breakpoint. Harnesses: `visual-controller-stickers` 59
+(now covers the SE at 375×667, 375×548 and 320×452 — the owner's actual sizes), `visual-lobby` 94.
+Detail: `shared-implementation-notes.md` DD-46.
 
-**Previous versions: `docs/sw-changelog.md`** — continuous, v230 back to v167.
+**Previous versions: `docs/sw-changelog.md`** — continuous, v234 back to v167.
 
 **Where the suite stands.** **20 games shipped**, all gold-master, plus multiplayer. Newest three:
 **Honeycomb Hills** (`comb`, game 20, phase 41 — the suite's biggest game and the only one with
@@ -303,9 +312,10 @@ landed, an offline install had all nine core art packs (v223) and no game. It is
 players, four screens and **fifteen overlays** (the board never goes away, so everything else is a
 layer over it), five render seams, and 25–50 minutes a match. Its two-step build picker is
 **inline**, not a sixteenth overlay (`comb-impl-notes` DD-12).
-**All phase gates are CLOSED, phase 41 included** — `docs/phase41-snapshot.md`,
-`docs/phase40-snapshot.md`,
-`docs/phase39-snapshot.md`, `docs/phase37-snapshot.md`, `docs/phase38-snapshot.md`.
+**Phase gates: 37, 38, 39 and 41 are CLOSED; phase 40 (Cold Shoulder) is still OPEN** —
+`docs/phase41-snapshot.md`, `docs/phase39-snapshot.md`, `docs/phase37-snapshot.md`,
+`docs/phase38-snapshot.md`. `docs/phase40-snapshot.md` names what's left: a live multi-device
+session and the offline install check (both `docs/deferred-work.md` § Cold Shoulder).
 **Every game now has an identity doc** — `docs/game-identities/`, 20 of 20, all harness-green. The **Cartridge
 System** is COMPLETE, both halves (Phase A word packs, Phase B skin packs) —
 `docs/cartridge-system-plan.md`. **Core art** has rolled out to `pko`, `flw`, `frt`, `shp` and `comb` (nine packs); **PASS
@@ -320,10 +330,12 @@ Stack or the brand palette. First cabinet: **Asherplane** (`js/arcade/asherplane
 shmup. Adding cabinet #2 = one `SM_ARCADE` entry + one file. Spec + plan:
 `docs/superpowers/{specs,plans}/2026-08-03-arcade-asherplane*.md`.
 
-**The lobby redesign shipped at v231.** What is left of it — the controller animation round
-(owner-prioritised), stickerbook earning and its storage key, the stickerbook on phones, the fourth
-layout's label, the jukebox feature, the owner's real-device pass and archiving `wip/lobby-lab/` +
-`wip/premium/` — is in `docs/deferred-work.md` § Lobby redesign.
+**The lobby redesign shipped at v231; the controller animation round and the "Classic" label at
+v232; the jukebox at v233; the Workshop as a room at v234.** What is left of it — stickerbook
+earning and its storage key, the stickerbook, the jukebox and the Workshop's real phone design, the
+jukebox's owner calls (the stand-in artist and covers, the soft-lock flag, song sizes), the owner's
+real-device pass and archiving `wip/lobby-lab/`, `wip/premium/`, `wip/jukebox-lab/` +
+`wip/workshop-lab/` — is in `docs/deferred-work.md` § Lobby redesign.
 
 **Open threads — all deliberately deferred, none blocking: `docs/deferred-work.md`.** The
 **controller stickers' on-device pass (spec § 9.3) is outstanding** — no harness reaches touch, a
@@ -369,11 +381,11 @@ Re-run a game's full set after touching its appliers, deck/data, packets or rend
 | FLW | `node tools/verify-flw-loopback.js` — host↔client over a Firebase-shaped wire, incl. the private-channel hand packets | 84 |
 | Controller | `node tools/verify-controller-body.js && node tools/verify-controller-state.js` — the vendored Three revision + the geometry contract, then persistence, the factory design, palette derivation and the Konami mapping. **Not a game** — no MP config, no identity doc | 28 · 63 |
 | Controller | `node tools/verify-controller-stickers.js` — the caller-side `CTL_STICKER_OPT` contract (a surface built with `{}` accepts all four keep-out centres), both charts + the wrap seam, manifest and placement validation, the load path's bit-stability, the placement state machine, undo, and `data/stickers/` manifest-vs-folder **both ways**. **Re-run after any `js/lib/controller-sticker-surface.js` or `ctlSticker*` change** | 157 |
-| Controller | `node tools/visual-controller-stickers.js` — real headless Chromium: the tab, the book, a placement actually painting texels, the lobby ornament repainting with them. The layout/render tier no pure harness reaches | 48 |
-| Lobby | `node tools/verify-lobby-router.js` — the router's pure tier: `LOBBY_LAYOUTS`, every action incl. `home`/`closeSwitcher`, close-to-where-you-opened, the one-way rule on every close, the door map + the `controllerParts` passthrough | 210 |
-| Lobby | `node tools/verify-lounge-props.js` — the Lounge's room and props under Node (vendored Three, stub canvas): every builder, the host contract, the painted-controller path, an empty world. `node tools/visual-lounge.js` — real Chromium over `tools/fixtures/lounge.html`: composition shots + reduced motion | 1338 · 29 |
+| Controller | `node tools/visual-controller-stickers.js` — real headless Chromium: a placement actually painting texels, the lobby ornament repainting with them, and the Workshop room — the sheet shown without building the surface, the first pick-up paying for it, Tool Belt's sideways sheet-scroll and Undo relocation at 390 px (SW v235), the three columns at 1440, the phone↔wide DOM revert, and the owner's own iPhone SE at three sizes (375×667, 375×548, 320×452). The layout/render tier no pure harness reaches | 59 |
+| Lobby | `node tools/verify-lobby-router.js` — the router's pure tier: `LOBBY_LAYOUTS`, every action incl. `home`/`closeSwitcher`/`jukebox*`, close-to-where-you-opened, the one-way rule on every close, the door map + the `controllerParts` passthrough | 228 |
+| Lobby | `node tools/verify-lounge-props.js` — the Lounge's room and props under Node (vendored Three, stub canvas): every builder, the host contract, the painted-controller path, an empty world, the controller's idle beats (every beat home exactly, the Konami's order, slow frames, reduced motion). `node tools/visual-lounge.js` — real Chromium over `tools/fixtures/lounge.html`: composition shots + reduced motion | 1371 · 29 |
 | Lobby | `node tools/verify-tv.js` — TV's pure half (rail wrap, nearest-copy pick, ink/label split, order vs `GAMES`) · `node tools/verify-achievements.js` — the stickerbook's rules incl. `achAllPlaced` | 919 · 81 |
-| Lobby | `node tools/visual-lobby.js` — real Chromium over the REAL `index.html`: boot tiering (widescreen / phone beat / no WebGL), every layout → game → quit returns there, Workshop returns to its opener, gateway + Terminal returns, idle nudge, stickerbook, each runtime-cached source offline, stale ornament mount, the fade, resize below a floor. **The seam's mutation pass runs against it — re-run after touching `lobbyShow`, `resetToLobby` or any lobby return** | 69 |
+| Lobby | `node tools/visual-lobby.js` — real Chromium over the REAL `index.html`: boot tiering (widescreen / phone beat / no WebGL), every layout → game → quit returns there, Workshop returns to its opener, gateway + Terminal returns, idle nudge (bounded — it comes home), the Lounge Konami never unlocks, stickerbook, each runtime-cached source offline, stale ornament mount, the fade, resize below a floor, the jukebox (the door, one scene at a time, a held song through ✕/Shelves/a game, `resetToLobby` with it up). **The seam's mutation pass runs against it — re-run after touching `lobbyShow`, `resetToLobby` or any lobby return** | 94 |
 
 **Reach for a loopback on anything MP- or render-shaped.** Every harness *except* the six
 loopbacks (`cjar`/`shp`/`flw`/`nt`/`jec`/`comb`) runs `'single'` mode with `getElementById: () => null`, which
