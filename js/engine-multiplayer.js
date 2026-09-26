@@ -1011,6 +1011,183 @@ function mpSerialiseSettings(abbr) {
   }
 }
 
+// ── Settings applier (SETTINGS_SYNC + the reconnect ACCEPT share it) ──────────
+// Moved verbatim out of SETTINGS_SYNC so a rejoining client applies the room's
+// settings through exactly the same code as a device that was there all along.
+function mpApplySettings(abbr, s) {
+  switch (abbr) {
+    case 'gm':
+      if (s.gmFrequencyRange     !== undefined) gmFrequencyRange     = s.gmFrequencyRange;
+      if (s.gmStaticInterference !== undefined) gmStaticInterference = s.gmStaticInterference;
+      if (s.gmCustomWords        !== undefined) gmCustomWords        = s.gmCustomWords;
+      if (s.gmInfiniteResync     !== undefined) gmInfiniteResync     = s.gmInfiniteResync;
+      if (s.gmMemoryGuard        !== undefined) gmMemoryGuard        = s.gmMemoryGuard;
+      if (s.gmResonanceTolerance !== undefined) gmResonanceTolerance = s.gmResonanceTolerance;
+      if (s.gmSignalBoost        !== undefined) gmSignalBoost        = s.gmSignalBoost;
+      if (s.gmSyllyIntensity     !== undefined) gmSyllyIntensity     = s.gmSyllyIntensity;
+      break;
+    case 'jec':
+      // Every field here is a boolean, a number or a short string — false and 0
+      // are stored safely, so none of them is at erasure risk on the wire.
+      if (s.jecRounds              !== undefined) jecRounds              = s.jecRounds;
+      if (s.jecGoldenScore         !== undefined) jecGoldenScore         = s.jecGoldenScore;
+      if (s.jecTableForOnePenalty  !== undefined) jecTableForOnePenalty  = s.jecTableForOnePenalty;
+      if (s.jecCrowdedKitchenTax   !== undefined) jecCrowdedKitchenTax   = s.jecCrowdedKitchenTax;
+      if (s.jecSousChefCheck       !== undefined) jecSousChefCheck       = s.jecSousChefCheck;
+      if (s.jecFusionCuisine       !== undefined) jecFusionCuisine       = s.jecFusionCuisine;
+      if (s.jecFoodDifficulty      !== undefined) jecFoodDifficulty      = s.jecFoodDifficulty;
+      if (s.jecSpecialsBoard       !== undefined) jecSpecialsBoard       = s.jecSpecialsBoard;
+      if (s.jecSpecialInstructions !== undefined) jecSpecialInstructions = s.jecSpecialInstructions;
+      jecSyncSettingsUI();
+      break;
+    case 'ygi':
+      if (s.ygiRounds    !== undefined) ygiRounds    = s.ygiRounds;
+      if (s.ygiDecider   !== undefined) ygiDecider   = s.ygiDecider;
+      if (s.ygiFullTally !== undefined) ygiFullTally = s.ygiFullTally;
+      if (s.ygiRinger    !== undefined) ygiRinger    = s.ygiRinger;
+      // ygiVerdictStyle applied later in ygiStartGame() based on mpLobbyStyle
+      break;
+    case 'lttp':
+      if (s.lttpPlayerCount !== undefined) lttpPlayerCount = s.lttpPlayerCount;
+      if (s.lttpDifficulty  !== undefined) lttpDifficulty  = s.lttpDifficulty;
+      if (s.lttpJokerMode   !== undefined) lttpJokerMode   = s.lttpJokerMode;
+      if (s.lttpGroupVote   !== undefined) lttpGroupVote   = s.lttpGroupVote;
+      if (s.lttpSmallTalk   !== undefined) lttpSmallTalk   = s.lttpSmallTalk;
+      break;
+    case 'ss':
+      if (s.ssSettingInterceptsToWin !== undefined) ssSettingInterceptsToWin = s.ssSettingInterceptsToWin;
+      if (s.ssDifficultyLevel        !== undefined) ssDifficultyLevel        = s.ssDifficultyLevel;
+      if (s.ssRerollLimitSetting     !== undefined) ssRerollLimitSetting     = s.ssRerollLimitSetting === 'Infinity' ? Infinity : s.ssRerollLimitSetting;
+      if (s.ssTimerSetting           !== undefined) ssTimerSetting           = s.ssTimerSetting;
+      if (s.ssCustomiseVault         !== undefined) ssCustomiseVault         = s.ssCustomiseVault;
+      if (s.ssIntelSyllyMode         !== undefined) ssIntelSyllyMode         = s.ssIntelSyllyMode;
+      if (Array.isArray(s.ssSelectedCategories))    ssSelectedCategories     = [...s.ssSelectedCategories];
+      break;
+    case 'dsd':
+      if (s.dsdSeaState          !== undefined) dsdSeaState          = s.dsdSeaState;
+      if (s.dsdDangerLevel       !== undefined) dsdDangerLevel       = s.dsdDangerLevel;
+      if (s.dsdStrategicPlanning !== undefined) dsdStrategicPlanning = s.dsdStrategicPlanning;
+      if (s.dsdSyllyMode         !== undefined) dsdSyllyMode         = s.dsdSyllyMode;
+      if (s.dsdHazardControl     !== undefined) Object.assign(dsdHazardControl, s.dsdHazardControl);
+      break;
+    case 'bld':
+      if (s.bldDramaMode !== undefined) bldDramaMode = s.bldDramaMode;
+      break;
+    case 'gth':
+      if (s.gthDisordersPerPatient !== undefined) gthDisordersPerPatient = s.gthDisordersPerPatient;
+      if (s.gthDrawingTime         !== undefined) gthDrawingTime         = s.gthDrawingTime;
+      if (s.gthDiagnosisWindow     !== undefined) gthDiagnosisWindow     = s.gthDiagnosisWindow;
+      if (s.gthDifficultyMix       !== undefined) gthDifficultyMix       = s.gthDifficultyMix;
+      if (s.gthDeepDive            !== undefined) gthDeepDive            = s.gthDeepDive;
+      if (s.gthSyllyMode           !== undefined) gthSyllyMode           = s.gthSyllyMode;
+      break;
+    case 'dyb':
+      if (s.dybWildcardsStyle  !== undefined) dybWildcardsStyle  = s.dybWildcardsStyle;
+      if (s.dybStartingHand    !== undefined) dybStartingHand    = s.dybStartingHand;
+      if (s.dybFootholdsMode   !== undefined) dybFootholdsMode   = s.dybFootholdsMode;
+      if (s.dybFootholdsCount  !== undefined) dybFootholdsCount  = s.dybFootholdsCount;
+      if (s.dybSyllyMode       !== undefined) dybSyllyMode       = s.dybSyllyMode;
+      if (s.dybSyllyIntensity  !== undefined) dybSyllyIntensity  = s.dybSyllyIntensity;
+      break;
+    case 'li5':
+      if (s.settingTimer        !== undefined) settingTimer        = s.settingTimer;
+      if (s.settingRounds       !== undefined) settingRounds       = s.settingRounds;
+      if (s.settingDifficulty   !== undefined) settingDifficulty   = s.settingDifficulty;
+      if (s.settingSylly        !== undefined) settingSylly        = s.settingSylly;
+      if (s.settingPenaltyMode  !== undefined) settingPenaltyMode  = s.settingPenaltyMode;
+      if (s.settingSkipFree     !== undefined) settingSkipFree     = s.settingSkipFree;
+      if (s.settingTimePenalty  !== undefined) settingTimePenalty  = s.settingTimePenalty;
+      if (s.settingPlayAllDecks !== undefined) settingPlayAllDecks = s.settingPlayAllDecks;
+      break;
+    case 'nat':
+      if (s.natMatchesSetting   !== undefined) natMatchesSetting   = s.natMatchesSetting;
+      if (s.natRoundsPerMatch   !== undefined) natRoundsPerMatch   = s.natRoundsPerMatch;
+      if (s.natDifficulty       !== undefined) natDifficulty       = s.natDifficulty;
+      if (s.natCumulativeClues  !== undefined) natCumulativeClues  = s.natCumulativeClues;
+      if (s.natSyllyMode        !== undefined) natSyllyMode        = s.natSyllyMode;
+      if (s.natVotingMode       !== undefined) natVotingMode       = s.natVotingMode;
+      if (s.natScientificIntegrity !== undefined) natScientificIntegrity = s.natScientificIntegrity;
+      if (s.natEscapePoints     !== undefined) natEscapePoints     = s.natEscapePoints;
+      break;
+    case 'nt':
+      if (s.ntMatrixScale      !== undefined) ntMatrixScale      = s.ntMatrixScale;
+      if (s.ntIterations       !== undefined) ntIterations       = s.ntIterations;
+      if (s.ntHardeningWin     !== undefined) ntHardeningWin     = s.ntHardeningWin;
+      if (s.ntNativeHoneypots  !== undefined) ntNativeHoneypots  = s.ntNativeHoneypots;
+      if (s.ntDebugMode        !== undefined) ntDebugMode        = s.ntDebugMode;
+      if (s.ntSyllyMode        !== undefined) ntSyllyMode        = s.ntSyllyMode;
+      break;
+    case 'frt':
+      if (s.frtFruitStock !== undefined) frtFruitStock = s.frtFruitStock;
+      if (s.frtRounds     !== undefined) frtRounds     = s.frtRounds;
+      if (s.frtTurnTimer  !== undefined) frtTurnTimer  = s.frtTurnTimer;
+      if (s.frtSyllyMode  !== undefined) frtSyllyMode  = s.frtSyllyMode;
+      if (s.frtPearOff    !== undefined) frtPearOff    = s.frtPearOff;
+      break;
+    case 'shp':
+      if (s.shpHandSize     !== undefined) shpHandSize     = s.shpHandSize;
+      if (s.shpMoons        !== undefined) shpMoons        = s.shpMoons;
+      if (s.shpMoonsToWin   !== undefined) shpMoonsToWin   = s.shpMoonsToWin;
+      if (s.shpDreamAccel   !== undefined) shpDreamAccel   = s.shpDreamAccel;
+      if (s.shpSyllyMode    !== undefined) shpSyllyMode    = s.shpSyllyMode;
+      break;
+    case 'flw':
+      if (s.flwLedgerMode   !== undefined) flwLedgerMode   = s.flwLedgerMode;
+      if (s.flwTokenMode    !== undefined) flwTokenMode    = s.flwTokenMode;
+      if (s.flwCustomTarget !== undefined) flwCustomTarget = s.flwCustomTarget;
+      if (s.flwTurnTimer    !== undefined) flwTurnTimer    = s.flwTurnTimer;
+      if (s.flwBurnSetting  !== undefined) flwBurnSetting  = s.flwBurnSetting;
+      if (s.flwSyllyMode    !== undefined) flwSyllyMode    = s.flwSyllyMode;
+      break;
+    case 'pko':
+      if (s.pkoScoring        !== undefined) pkoScoring        = s.pkoScoring;
+      if (s.pkoClashTarget    !== undefined) pkoClashTarget    = s.pkoClashTarget;
+      if (s.pkoHoardSize      !== undefined) pkoHoardSize      = s.pkoHoardSize;
+      if (s.pkoPoacherSetting !== undefined) pkoPoacherSetting = s.pkoPoacherSetting;
+      if (s.pkoScavenge       !== undefined) pkoScavenge       = s.pkoScavenge;
+      if (s.pkoStartSmall     !== undefined) pkoStartSmall     = s.pkoStartSmall;
+      if (s.pkoAppetite       !== undefined) pkoAppetite       = s.pkoAppetite;
+      if (s.pkoSyllyMode      !== undefined) pkoSyllyMode      = s.pkoSyllyMode;
+      break;
+    // The deserialise half of the pair above. Without it SETTINGS_SYNC arrives and
+    // is silently discarded, so a client's read-only settings overlay shows its own
+    // defaults instead of the host's while the lobby is still open. CJAR_MATCH_START
+    // also carries all five, so the in-match rules would still agree — this is the
+    // pre-game view only, but every other game wires both halves.
+    case 'cjar':
+      if (s.cjarSnackFriendly !== undefined) cjarSnackFriendly = s.cjarSnackFriendly;
+      if (s.cjarHouseRules    !== undefined) cjarHouseRules    = s.cjarHouseRules;
+      if (s.cjarMatchLength   !== undefined) cjarMatchLength   = s.cjarMatchLength;
+      if (s.cjarDecisionTime  !== undefined) cjarDecisionTime  = s.cjarDecisionTime;
+      if (s.cjarOpenBook      !== undefined) cjarOpenBook      = s.cjarOpenBook;
+      if (s.cjarSyllyMode     !== undefined) cjarSyllyMode     = s.cjarSyllyMode;
+      break;
+    case 'cld':
+      if (s.cldIceConditions !== undefined) cldIceConditions = s.cldIceConditions;
+      if (s.cldFloeSize      !== undefined) cldFloeSize      = s.cldFloeSize;
+      if (s.cldFishToWin     !== undefined) cldFishToWin     = s.cldFishToWin;
+      if (s.cldAimAssist     !== undefined) cldAimAssist     = s.cldAimAssist;
+      if (s.cldIceBreaker    !== undefined) cldIceBreaker    = s.cldIceBreaker;
+      if (s.cldPeckOff       !== undefined) cldPeckOff       = s.cldPeckOff;
+      if (s.cldSyllyMode     !== undefined) cldSyllyMode     = s.cldSyllyMode;
+      // A client's settings overlay is read-only but still openable, so repaint
+      // it — otherwise it shows this device's defaults, not the room's rules.
+      if (typeof cldSyncSettingsUI === 'function') cldSyncSettingsUI();
+      break;
+    case 'comb':
+      if (s.combSeason   !== undefined) combSeason   = s.combSeason;
+      if (s.combLayout   !== undefined) combLayout   = s.combLayout;
+      if (s.combWasp     !== undefined) combWasp     = s.combWasp;
+      if (s.combOverflow !== undefined) combOverflow = s.combOverflow;
+      if (s.combWaggle   !== undefined) combWaggle   = s.combWaggle;
+      if (s.combDaylight !== undefined) combDaylight = s.combDaylight;
+      if (s.combBounty   !== undefined) combBounty   = s.combBounty;
+      if (typeof combSyncSettingsUI === 'function') combSyncSettingsUI();
+      break;
+    // Additional games added as Sprint 4 progresses
+  }
+}
+
 // ── Envelope: receive + route ─────────────────────────────────────────────────
 // ── Mid-Game Quit Contract (logic-engine.md § Mid-Game Quit Contract) ─────────
 // One device leaving mid-game dissolves the session for everyone: a client tells the host,
@@ -1072,178 +1249,7 @@ function mpHandleEnvelope(env) {
       showScreen('screen-mp-lobby-join');
     }
     if (env.payload.action === 'SETTINGS_SYNC') {
-      const s = env.payload.gameSettings || {};
-      switch (mpActiveGame) {
-        case 'gm':
-          if (s.gmFrequencyRange     !== undefined) gmFrequencyRange     = s.gmFrequencyRange;
-          if (s.gmStaticInterference !== undefined) gmStaticInterference = s.gmStaticInterference;
-          if (s.gmCustomWords        !== undefined) gmCustomWords        = s.gmCustomWords;
-          if (s.gmInfiniteResync     !== undefined) gmInfiniteResync     = s.gmInfiniteResync;
-          if (s.gmMemoryGuard        !== undefined) gmMemoryGuard        = s.gmMemoryGuard;
-          if (s.gmResonanceTolerance !== undefined) gmResonanceTolerance = s.gmResonanceTolerance;
-          if (s.gmSignalBoost        !== undefined) gmSignalBoost        = s.gmSignalBoost;
-          if (s.gmSyllyIntensity     !== undefined) gmSyllyIntensity     = s.gmSyllyIntensity;
-          break;
-        case 'jec':
-          // Every field here is a boolean, a number or a short string — false and 0
-          // are stored safely, so none of them is at erasure risk on the wire.
-          if (s.jecRounds              !== undefined) jecRounds              = s.jecRounds;
-          if (s.jecGoldenScore         !== undefined) jecGoldenScore         = s.jecGoldenScore;
-          if (s.jecTableForOnePenalty  !== undefined) jecTableForOnePenalty  = s.jecTableForOnePenalty;
-          if (s.jecCrowdedKitchenTax   !== undefined) jecCrowdedKitchenTax   = s.jecCrowdedKitchenTax;
-          if (s.jecSousChefCheck       !== undefined) jecSousChefCheck       = s.jecSousChefCheck;
-          if (s.jecFusionCuisine       !== undefined) jecFusionCuisine       = s.jecFusionCuisine;
-          if (s.jecFoodDifficulty      !== undefined) jecFoodDifficulty      = s.jecFoodDifficulty;
-          if (s.jecSpecialsBoard       !== undefined) jecSpecialsBoard       = s.jecSpecialsBoard;
-          if (s.jecSpecialInstructions !== undefined) jecSpecialInstructions = s.jecSpecialInstructions;
-          jecSyncSettingsUI();
-          break;
-        case 'ygi':
-          if (s.ygiRounds    !== undefined) ygiRounds    = s.ygiRounds;
-          if (s.ygiDecider   !== undefined) ygiDecider   = s.ygiDecider;
-          if (s.ygiFullTally !== undefined) ygiFullTally = s.ygiFullTally;
-          if (s.ygiRinger    !== undefined) ygiRinger    = s.ygiRinger;
-          // ygiVerdictStyle applied later in ygiStartGame() based on mpLobbyStyle
-          break;
-        case 'lttp':
-          if (s.lttpPlayerCount !== undefined) lttpPlayerCount = s.lttpPlayerCount;
-          if (s.lttpDifficulty  !== undefined) lttpDifficulty  = s.lttpDifficulty;
-          if (s.lttpJokerMode   !== undefined) lttpJokerMode   = s.lttpJokerMode;
-          if (s.lttpGroupVote   !== undefined) lttpGroupVote   = s.lttpGroupVote;
-          if (s.lttpSmallTalk   !== undefined) lttpSmallTalk   = s.lttpSmallTalk;
-          break;
-        case 'ss':
-          if (s.ssSettingInterceptsToWin !== undefined) ssSettingInterceptsToWin = s.ssSettingInterceptsToWin;
-          if (s.ssDifficultyLevel        !== undefined) ssDifficultyLevel        = s.ssDifficultyLevel;
-          if (s.ssRerollLimitSetting     !== undefined) ssRerollLimitSetting     = s.ssRerollLimitSetting === 'Infinity' ? Infinity : s.ssRerollLimitSetting;
-          if (s.ssTimerSetting           !== undefined) ssTimerSetting           = s.ssTimerSetting;
-          if (s.ssCustomiseVault         !== undefined) ssCustomiseVault         = s.ssCustomiseVault;
-          if (s.ssIntelSyllyMode         !== undefined) ssIntelSyllyMode         = s.ssIntelSyllyMode;
-          if (Array.isArray(s.ssSelectedCategories))    ssSelectedCategories     = [...s.ssSelectedCategories];
-          break;
-        case 'dsd':
-          if (s.dsdSeaState          !== undefined) dsdSeaState          = s.dsdSeaState;
-          if (s.dsdDangerLevel       !== undefined) dsdDangerLevel       = s.dsdDangerLevel;
-          if (s.dsdStrategicPlanning !== undefined) dsdStrategicPlanning = s.dsdStrategicPlanning;
-          if (s.dsdSyllyMode         !== undefined) dsdSyllyMode         = s.dsdSyllyMode;
-          if (s.dsdHazardControl     !== undefined) Object.assign(dsdHazardControl, s.dsdHazardControl);
-          break;
-        case 'bld':
-          if (s.bldDramaMode !== undefined) bldDramaMode = s.bldDramaMode;
-          break;
-        case 'gth':
-          if (s.gthDisordersPerPatient !== undefined) gthDisordersPerPatient = s.gthDisordersPerPatient;
-          if (s.gthDrawingTime         !== undefined) gthDrawingTime         = s.gthDrawingTime;
-          if (s.gthDiagnosisWindow     !== undefined) gthDiagnosisWindow     = s.gthDiagnosisWindow;
-          if (s.gthDifficultyMix       !== undefined) gthDifficultyMix       = s.gthDifficultyMix;
-          if (s.gthDeepDive            !== undefined) gthDeepDive            = s.gthDeepDive;
-          if (s.gthSyllyMode           !== undefined) gthSyllyMode           = s.gthSyllyMode;
-          break;
-        case 'dyb':
-          if (s.dybWildcardsStyle  !== undefined) dybWildcardsStyle  = s.dybWildcardsStyle;
-          if (s.dybStartingHand    !== undefined) dybStartingHand    = s.dybStartingHand;
-          if (s.dybFootholdsMode   !== undefined) dybFootholdsMode   = s.dybFootholdsMode;
-          if (s.dybFootholdsCount  !== undefined) dybFootholdsCount  = s.dybFootholdsCount;
-          if (s.dybSyllyMode       !== undefined) dybSyllyMode       = s.dybSyllyMode;
-          if (s.dybSyllyIntensity  !== undefined) dybSyllyIntensity  = s.dybSyllyIntensity;
-          break;
-        case 'li5':
-          if (s.settingTimer        !== undefined) settingTimer        = s.settingTimer;
-          if (s.settingRounds       !== undefined) settingRounds       = s.settingRounds;
-          if (s.settingDifficulty   !== undefined) settingDifficulty   = s.settingDifficulty;
-          if (s.settingSylly        !== undefined) settingSylly        = s.settingSylly;
-          if (s.settingPenaltyMode  !== undefined) settingPenaltyMode  = s.settingPenaltyMode;
-          if (s.settingSkipFree     !== undefined) settingSkipFree     = s.settingSkipFree;
-          if (s.settingTimePenalty  !== undefined) settingTimePenalty  = s.settingTimePenalty;
-          if (s.settingPlayAllDecks !== undefined) settingPlayAllDecks = s.settingPlayAllDecks;
-          break;
-        case 'nat':
-          if (s.natMatchesSetting   !== undefined) natMatchesSetting   = s.natMatchesSetting;
-          if (s.natRoundsPerMatch   !== undefined) natRoundsPerMatch   = s.natRoundsPerMatch;
-          if (s.natDifficulty       !== undefined) natDifficulty       = s.natDifficulty;
-          if (s.natCumulativeClues  !== undefined) natCumulativeClues  = s.natCumulativeClues;
-          if (s.natSyllyMode        !== undefined) natSyllyMode        = s.natSyllyMode;
-          if (s.natVotingMode       !== undefined) natVotingMode       = s.natVotingMode;
-          if (s.natScientificIntegrity !== undefined) natScientificIntegrity = s.natScientificIntegrity;
-          if (s.natEscapePoints     !== undefined) natEscapePoints     = s.natEscapePoints;
-          break;
-        case 'nt':
-          if (s.ntMatrixScale      !== undefined) ntMatrixScale      = s.ntMatrixScale;
-          if (s.ntIterations       !== undefined) ntIterations       = s.ntIterations;
-          if (s.ntHardeningWin     !== undefined) ntHardeningWin     = s.ntHardeningWin;
-          if (s.ntNativeHoneypots  !== undefined) ntNativeHoneypots  = s.ntNativeHoneypots;
-          if (s.ntDebugMode        !== undefined) ntDebugMode        = s.ntDebugMode;
-          if (s.ntSyllyMode        !== undefined) ntSyllyMode        = s.ntSyllyMode;
-          break;
-        case 'frt':
-          if (s.frtFruitStock !== undefined) frtFruitStock = s.frtFruitStock;
-          if (s.frtRounds     !== undefined) frtRounds     = s.frtRounds;
-          if (s.frtTurnTimer  !== undefined) frtTurnTimer  = s.frtTurnTimer;
-          if (s.frtSyllyMode  !== undefined) frtSyllyMode  = s.frtSyllyMode;
-          if (s.frtPearOff    !== undefined) frtPearOff    = s.frtPearOff;
-          break;
-        case 'shp':
-          if (s.shpHandSize     !== undefined) shpHandSize     = s.shpHandSize;
-          if (s.shpMoons        !== undefined) shpMoons        = s.shpMoons;
-          if (s.shpMoonsToWin   !== undefined) shpMoonsToWin   = s.shpMoonsToWin;
-          if (s.shpDreamAccel   !== undefined) shpDreamAccel   = s.shpDreamAccel;
-          if (s.shpSyllyMode    !== undefined) shpSyllyMode    = s.shpSyllyMode;
-          break;
-        case 'flw':
-          if (s.flwLedgerMode   !== undefined) flwLedgerMode   = s.flwLedgerMode;
-          if (s.flwTokenMode    !== undefined) flwTokenMode    = s.flwTokenMode;
-          if (s.flwCustomTarget !== undefined) flwCustomTarget = s.flwCustomTarget;
-          if (s.flwTurnTimer    !== undefined) flwTurnTimer    = s.flwTurnTimer;
-          if (s.flwBurnSetting  !== undefined) flwBurnSetting  = s.flwBurnSetting;
-          if (s.flwSyllyMode    !== undefined) flwSyllyMode    = s.flwSyllyMode;
-          break;
-        case 'pko':
-          if (s.pkoScoring        !== undefined) pkoScoring        = s.pkoScoring;
-          if (s.pkoClashTarget    !== undefined) pkoClashTarget    = s.pkoClashTarget;
-          if (s.pkoHoardSize      !== undefined) pkoHoardSize      = s.pkoHoardSize;
-          if (s.pkoPoacherSetting !== undefined) pkoPoacherSetting = s.pkoPoacherSetting;
-          if (s.pkoScavenge       !== undefined) pkoScavenge       = s.pkoScavenge;
-          if (s.pkoStartSmall     !== undefined) pkoStartSmall     = s.pkoStartSmall;
-          if (s.pkoAppetite       !== undefined) pkoAppetite       = s.pkoAppetite;
-          if (s.pkoSyllyMode      !== undefined) pkoSyllyMode      = s.pkoSyllyMode;
-          break;
-        // The deserialise half of the pair above. Without it SETTINGS_SYNC arrives and
-        // is silently discarded, so a client's read-only settings overlay shows its own
-        // defaults instead of the host's while the lobby is still open. CJAR_MATCH_START
-        // also carries all five, so the in-match rules would still agree — this is the
-        // pre-game view only, but every other game wires both halves.
-        case 'cjar':
-          if (s.cjarSnackFriendly !== undefined) cjarSnackFriendly = s.cjarSnackFriendly;
-          if (s.cjarHouseRules    !== undefined) cjarHouseRules    = s.cjarHouseRules;
-          if (s.cjarMatchLength   !== undefined) cjarMatchLength   = s.cjarMatchLength;
-          if (s.cjarDecisionTime  !== undefined) cjarDecisionTime  = s.cjarDecisionTime;
-          if (s.cjarOpenBook      !== undefined) cjarOpenBook      = s.cjarOpenBook;
-          if (s.cjarSyllyMode     !== undefined) cjarSyllyMode     = s.cjarSyllyMode;
-          break;
-        case 'cld':
-          if (s.cldIceConditions !== undefined) cldIceConditions = s.cldIceConditions;
-          if (s.cldFloeSize      !== undefined) cldFloeSize      = s.cldFloeSize;
-          if (s.cldFishToWin     !== undefined) cldFishToWin     = s.cldFishToWin;
-          if (s.cldAimAssist     !== undefined) cldAimAssist     = s.cldAimAssist;
-          if (s.cldIceBreaker    !== undefined) cldIceBreaker    = s.cldIceBreaker;
-          if (s.cldPeckOff       !== undefined) cldPeckOff       = s.cldPeckOff;
-          if (s.cldSyllyMode     !== undefined) cldSyllyMode     = s.cldSyllyMode;
-          // A client's settings overlay is read-only but still openable, so repaint
-          // it — otherwise it shows this device's defaults, not the room's rules.
-          if (typeof cldSyncSettingsUI === 'function') cldSyncSettingsUI();
-          break;
-        case 'comb':
-          if (s.combSeason   !== undefined) combSeason   = s.combSeason;
-          if (s.combLayout   !== undefined) combLayout   = s.combLayout;
-          if (s.combWasp     !== undefined) combWasp     = s.combWasp;
-          if (s.combOverflow !== undefined) combOverflow = s.combOverflow;
-          if (s.combWaggle   !== undefined) combWaggle   = s.combWaggle;
-          if (s.combDaylight !== undefined) combDaylight = s.combDaylight;
-          if (s.combBounty   !== undefined) combBounty   = s.combBounty;
-          if (typeof combSyncSettingsUI === 'function') combSyncSettingsUI();
-          break;
-        // Additional games added as Sprint 4 progresses
-      }
+      mpApplySettings(mpActiveGame, env.payload.gameSettings || {});
     }
     if (env.payload.action === 'GAME_START') {
       const slots = env.payload.playerSlots || [];

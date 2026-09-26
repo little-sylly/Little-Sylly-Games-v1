@@ -396,6 +396,16 @@ async function startMatch(game, names) {
       check('no errors anywhere', errorsOf([host, ...clients]), []);
     }
 
+    section('3. mpApplySettings is the one settings applier');
+    {
+      const d = boot('solo', 'uS', makePhone());
+      ok('mpApplySettings exists', d.run('typeof mpApplySettings') === 'function');
+      d.run(`var gmFrequencyRange = 'stable'; mpApplySettings('gm', { gmFrequencyRange: 'chaotic' });`);
+      check('it applies a game\'s settings', d.run('gmFrequencyRange'), 'chaotic');
+      ok('SETTINGS_SYNC routes through it',
+         /action === 'SETTINGS_SYNC'\)\s*\{?\s*mpApplySettings\(mpActiveGame/.test(mpSrc));
+    }
+
     // ── Later tasks add sections 3+ here, above this line ──
 
   } catch (e) {
