@@ -561,6 +561,13 @@ const MP_GAME_CONFIGS = {
     // reads any game state and no ALLOWED_SETTINGS entry is needed.
     getMaxPlayers:   () => 4,
     getMinPlayers:   () => 3,
+    // Client reconnect (SW v236). Arrow wrappers, not bare references: this object is
+    // built before comb.js loads, so the functions only exist by call time.
+    reconnect: {
+      sendState: idx => combSendFullState(idx),
+      pause:     () => combReconnectPause(),
+      resume:    () => combReconnectResume(),
+    },
   },
 };
 

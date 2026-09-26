@@ -258,6 +258,10 @@ globalThis.__comb = {
   finish()          { combFinishMatch(); },
   broadcastBoard()  { combBroadcastBoard(); },
   fullState(p)      { combSendFullState(p); },
+  rcPause()         { combReconnectPause(); },
+  rcResume()        { combReconnectResume(); },
+  get paused()      { return combPaused; },
+  serial()          { return combSerialiseState(); },
   legal(kind, p, o) { return combLegalTargetsFor(kind, p, o || {}); },
   resetState()      { combResetState(); },
   quitConfirm()     { document.getElementById('btn-comb-quit-confirm'); },
@@ -966,6 +970,75 @@ check('three kinds are offered', H.buildOpts(), 3);
 // The picker, the placement bar and the action bar are siblings that must never
 // compete for the same thumb — one at a time, always.
 check('  …and the action bar stood down', H.actionBarUp(), false);
+
+section('26b. Reconnect — pause, a device rebuilt from nothing, resume');
+// The engine's reconnect hook (MP_GAME_CONFIGS.comb.reconnect). The engine side is
+// proven in tools/verify-mp-reconnect.js; this proves COMB's half over the wire.
+ok('seat 1 is acting', nextTurn(1));
+const dl1 = H.endTs;
+ok('  …on the clock', dl1 > clock.now);
+H.setHand(1, [2, 0, 0, 0, 0]); H.setHand(2, [0, 0, 0, 2, 0]);
+check('an open dance at the moment of the drop', H.post(1, 2, [1, 0, 0, 0, 0], R(3)).ok, true);
+clock.now += 20000;
+const left1 = dl1 - clock.now;
+sent.length = 0;
+H.rcPause();
+check('pause stopped the host clock', H.endTs, 0);
+check('  …and told every device to stop theirs', lastOf('COMB_DAYLIGHT'), { action: 'COMB_DAYLIGHT', endTimestamp: 0 });
+check('  …which they did', [C1.endTs, C2.endTs], [0, 0]);
+check('the open dance was called off, and the table told', [!!H.offer, !!C2.offer, !!lastOf('COMB_TRADE_RESOLVED')], [false, false, true]);
+H.rcPause();
+check('a second pause is a no-op', actions().filter(a => a === 'COMB_DAYLIGHT').length, 1);
+clock.now += 5 * 60000;                                   // the table waits five minutes
+check('no clock ran while paused', H.endTs, 0);
+
+// Seat 1's phone reloads: a device with NOTHING in memory.
+const cli1b = makeDevice('cli1b', 'client', 1, SLOTS);
+const C1b = cli1b.__comb;
+C1b.seat({ count: 3, names: NAMES, season: 'short', layout: 'tended', wasp: 'steals',
+           overflow: 'snug', daylight: 'shortday', bounty: 'endless' });   // mpApplySettings + onPassThePhone
+C1b.standby();
+CLIENTS[0] = { dev: cli1b, br: C1b, uid: 'u1' };
+cli1b.mpSendEnvelope = env => {
+  const onWire = wire({ ...env, originId: 'u1', timestamp: clock.now });
+  try { H.handle(onWire); } catch (e) { host.__errors.push(`${onWire.payload.action} from u1: ${e.message}`); }
+};
+cli1b.mpSendPrivate = () => { throw new Error('a client must never write the private channel'); };
+
+H.rcResume();                                             // the engine resumes BEFORE sendState
+const resumed = lastOf('COMB_DAYLIGHT');
+check('resume re-armed the time that was left', H.endTs - clock.now, left1);
+check('  …and broadcast it', resumed.endTimestamp, H.endTs);
+check('  …not as a COMB_ACTIONS_BEGIN (a placement would be thrown away)',
+      actions().filter(a => a === 'COMB_ACTIONS_BEGIN').length, 0);
+check('the other client re-armed', C2.endTs, H.endTs);
+H.fullState(1);
+check('the rebuilt device reached the meadow', lastScreen(cli1b), 'screen-comb-meadow');
+check('  …holding exactly its own hand', C1b.hands[1], H.hands[1]);
+ok('  …and nobody else\'s', [0, 2].every(p => (C1b.hands[p] || []).every(v => v === 0)),
+   JSON.stringify([C1b.hands[0], C1b.hands[2]]));
+check('  …with the clock from the snapshot (check 26b / Review Focus 4)', C1b.endTs, H.endTs);
+const pub = s => ({ nodes: s.nodes, edges: s.edges, waspHex: s.waspHex, turn: s.turn, turnNo: s.turnNo,
+                    phase: s.phase, supply: s.supply, largestHolder: s.largestHolder, fiercestHolder: s.fiercestHolder });
+check('host and rebuilt client agree on everything public', pub(C1b.serial()), pub(H.serial()));
+check('a second resume is a no-op', (H.rcResume(), actions().filter(a => a === 'COMB_DAYLIGHT').length), 2);
+check('no exception on any device', [...host.__errors, ...cli1b.__errors, ...cli2.__errors], []);
+
+section('26c. A turn that ENTERS actions while paused banks its Daylight');
+H.rcPause();
+H.endTurn(H.turn);                                        // a new turn begins mid-pause
+toActions(H.turn);
+check('no clock started', H.endTs, 0);
+H.rcResume();
+ok('resume armed the full turn', H.endTs - clock.now > 0);
+check('no exception on any device', [...host.__errors, ...cli1b.__errors, ...cli2.__errors], []);
+// Hand seat 1 back to the ORIGINAL device for §27 onward (they read cli1/C1), resynced
+// the same way a rejoiner is — which doubles as a second proof the snapshot repairs a
+// device that missed every packet of 26b/26c.
+CLIENTS[0] = { dev: cli1, br: C1, uid: 'u1' };
+H.fullState(1);
+check('the original seat-1 device is back in step', pub(C1.serial()), pub(H.serial()));
+check('  …and on the same clock', C1.endTs, H.endTs);
 
 // ═══════════════════════════════════════════════════════════════════════════
 section('27. The end of the season');

@@ -256,6 +256,19 @@ for (const id of IDS) {
      'quit-confirm must call mpNotifyPlayerLeft() before resetToLobby(), or send its own [ABBR]_PLAYER_LEFT');
 }
 
+// ── 7. Client reconnect — the optional hook is whole wherever it is present ─────
+// A half-adopted hook is worse than none: the engine calls all three. The adopter list
+// is pinned so a new adopter is a deliberate, reviewed change (docs/deferred-work.md).
+section('7. Client reconnect — adopters and hook shape');
+const ADOPTERS = IDS.filter(id => CONFIGS[id].reconnect !== undefined);
+check('the adopters are exactly the reviewed list', ADOPTERS, ['comb']);
+for (const id of ADOPTERS) {
+  const rc = CONFIGS[id].reconnect;
+  ok(id + ': reconnect has sendState, pause and resume',
+     ['sendState', 'pause', 'resume'].every(k => typeof rc[k] === 'function'));
+}
+ok('engine handles MP_REJOIN before per-game routing', /'MP_REJOIN'/.test(engineSrc));
+
 // ═════════════════════════════════════════════════════════════════════════════
 console.log('\n' + '='.repeat(70));
 console.log(failures ? 'FAILED — ' + failures + ' check(s)' : 'ALL CHECKS PASSED');

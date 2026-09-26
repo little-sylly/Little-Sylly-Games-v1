@@ -207,6 +207,8 @@ let combOffer      = null;     // { from,to,give[5],want[5],responses[],expiresA
 let combOfferTimer = null;     // setTimeout handle — the 10 s auto-decline
 let combTurnEndTs  = 0;        // Daylight endTimestamp, 0 when All Day
 let combTurnTimer  = null;     // setInterval handle
+let combPaused = false;         // reconnect: the table is waiting on a dropped seat
+let combPausedDaylightMs = 0;   // Daylight banked by the pause; 0 = no clock was running
 let combDaylightArmed = false; // armed once per turn — see combEnterActions()
 let combFlightTimer = null;    // setTimeout handle — the host's blind-spin window
 let combFlightView  = null;    // the die in the air — { el, face, layer, t0, ... } | null.
@@ -2202,6 +2204,9 @@ function combPlayInstinct(playerIdx, cardIdx, params) {
 // client's countdown can never be a second computation of the same number.
 function combStartDaylight() {
   const ms = combDaylightMs();
+  // Paused by a dropped seat (engine reconnect): bank the whole turn rather than start
+  // a clock nobody can play against. combReconnectResume() arms it.
+  if (combPaused) { combStopDaylight(); combPausedDaylightMs = ms; return; }
   combStartDaylightAt(ms ? Date.now() + ms : 0);   // All Day: no clock, no timer
 }
 
@@ -2237,6 +2242,35 @@ function combDaylightExpire() {
   combClearOffer();                          // an open offer must not block the auto-end
   combLogAppend(combName(combTurn) + ' ran out of daylight.');
   combEndTurn(combTurn);
+}
+
+// ── Reconnect hooks (MP_GAME_CONFIGS.comb.reconnect — engine, SW v236) ──────
+// HOST ONLY. The engine calls pause() when the FIRST seat drops and resume() when the
+// LAST one is back, and calls resume() BEFORE a rejoiner's snapshot is sent — so the
+// snapshot carries the live deadline.
+function combReconnectPause() {
+  if (!combIsAuthority() || combPaused) return;
+  combPaused = true;
+  combPausedDaylightMs = combTurnEndTs ? Math.max(0, combTurnEndTs - Date.now()) : 0;
+  combStopDaylight();
+  combBroadcast('COMB_DAYLIGHT', { endTimestamp: 0 });        // every countdown freezes
+  // An open dance would auto-decline under Full Dance, or wait on a seat that cannot answer.
+  if (combOffer) combOfferAbandon('Someone dropped out, so the dance was called off.');
+  combRenderMeadow();
+}
+
+function combReconnectResume() {
+  if (!combIsAuthority() || !combPaused) return;
+  combPaused = false;
+  const ms = combPausedDaylightMs;
+  combPausedDaylightMs = 0;
+  if (ms > 0 && combPhase === 'actions') {
+    combStartDaylightAt(Date.now() + ms);
+    // Only the clock — NOT a re-send of COMB_ACTIONS_BEGIN, whose applier clears
+    // combPlacementMode and would throw away the active player's half-made placement.
+    combBroadcast('COMB_DAYLIGHT', { endTimestamp: combTurnEndTs });
+  }
+  combRenderMeadow();
 }
 
 // ── The end of the season ─────────────────────────────────────────────────
@@ -4542,8 +4576,15 @@ function combHandleSync(action, p) {
       combSetHand(combLocalIdx(), combWireArr(p.hand, COMB_RES.length, 0));
       combSetInstinct(combLocalIdx(), (p.instinct || []).filter(Boolean));
       combPublicCounts = combWireArr(p.handCounts, combPlayerCount, 0).map(v => v | 0);
+      combStartDaylightAt(p.endTimestamp);    // 0 (paused / All Day) stops any countdown
       combShowMeadow();
       combArmDraftPlacement();
+      combRenderMeadow();
+      return;
+
+    // Reconnect's pause (0) and resume (a fresh deadline) — the clock and nothing else.
+    case 'COMB_DAYLIGHT':
+      combStartDaylightAt(p.endTimestamp);    // Number(), never `| 0` — see the helper
       combRenderMeadow();
       return;
 
@@ -4856,6 +4897,9 @@ function combSendFullState(playerIdx) {
   state.deck = new Array((state.deck || []).length).fill('?');
   combSendPrivateRepair(playerIdx, 'COMB_FULL_STATE', {
     state, hand, instinct, handCounts: combHandCounts(),
+    // Clock state is NOT in combSerialiseState() (by design) — it travels beside it.
+    // A rejoiner cannot rely on the public COMB_DAYLIGHT: it may beat the ACCEPT here.
+    endTimestamp: combTurnEndTs,
   });
 }
 
@@ -4990,6 +5034,7 @@ function combResetState() {
   combOverflowOwed = []; combOverflowReady = []; combInstinctPlayedThisTurn = false;
   combPublicCounts = []; combPublicInstinct = []; combGameover = null;
   combTurnEndTs = 0; combDaylightArmed = false; combFreeWalls = 0;
+  combPaused = false; combPausedDaylightMs = 0;
   combBuildPickerOpen = false; combPendingCardIdx = -1;
   combDraftGive = [0, 0, 0, 0, 0]; combDraftWant = [0, 0, 0, 0, 0];
   combDraftTo = -1; combBankPick = -1; combBloomPick = [];
