@@ -229,7 +229,16 @@ Also worth checking CLD's How-to "The Floe" practice sim, which is a third RAF o
 
 ---
 
-## ⬆ HIGH PRIORITY — MDLM client reconnect (Honeycomb Hills Q20, 6 Sep 2026)
+## ⬆ HIGH PRIORITY — MDLM client reconnect (Honeycomb Hills Q20, 6 Sep 2026) — RESOLVED 27 Sep 2026 (engine half + COMB, SW v236)
+
+**RESOLVED 27 Sep 2026 (SW v236).** The engine half shipped as an opt-in `reconnect` hook, with
+Honeycomb Hills its first adopter: frozen seats, per-connection presence, the Away overlay, a 20 s
+grace for every non-adopter, and reload → one-tap rejoin (`sylly_rejoin`). **The premise below was
+wrong in one respect:** a drop never sends `MP_PLAYER_LEFT`, so the Mid-Game Quit Contract and
+`verify-mp-configs.js` § 6 were **not** rewritten — deliberate quits still dissolve. Detail:
+`shared-implementation-notes.md` DD-47. What is left moved to § Reconnect adoption, per game (below).
+The original entry is kept as the discovery record.
+
 
 **Status:** owner-approved deferral. Raised as **Q20** in `docs/new-game-tech-honeycomb-hills.md` §16;
 the owner's answer was *"fine with you folding it into the build **unless you need to touch other games
@@ -265,6 +274,40 @@ of this item.
 
 **When picked up:** it is an *engine* task (`js/engine-multiplayer.js` + the harness), not a game task.
 Model + effort: **Opus, high** — it is a cross-cutting contract change.
+
+## Reconnect adoption, per game (27 Sep 2026)
+
+The engine half of client reconnect shipped at SW v236 (`shared-implementation-notes.md` DD-47) with
+**Honeycomb Hills the only adopter**. Every other MDLM game gets drop *detection* — a 20 s "Waiting
+for …" grace, then a reasoned end — but not *rescue*. Adopting is per-game work, **longest matches
+first**, and each game needs three things:
+- a **serialiser** and a full-state applier that takes a client from standby to the live screen
+  (idempotent), with its client `onPassThePhone` safe to re-run;
+- a **strip** — `sendState(idx)` sends that seat's own private state and nobody else's;
+- **pause/resume** for every clock and auto-resolving timer the game runs.
+**First candidates: PKO, FLW, CJAR.** Adding one is a reviewed change: `verify-mp-configs.js` § 7 pins
+the adopter list. Model + effort per game: **Opus, high**.
+
+**Host migration** — still separate and larger (a host drop deletes the room: `onDisconnect(mpRoomRef)
+.remove()`). The brief's Appendix A Option 2; not started.
+
+**⚠️ Outstanding — the real-device pass (no harness replaces it).** A session on at least two phones,
+one of them the owner's iPhone SE: start a Short Summer; lock the SE for a minute mid-turn and check
+the other phone shows "Waiting for …" and the clock froze; unlock (or reload) and tap **Rejoin**, then
+check the seat, the hand and the time left; do it once with a trade open. Record the outcome in
+`comb-implementation-notes.md` DD-30 and close this line.
+
+## Found during the reconnect build (27 Sep 2026)
+
+- **`verify-jec-loopback.js` fails 1 of 164** — *"a Chef with no bonus gets no line"* (expected 3,
+  got 0). It fails identically with the reconnect changes stashed, so it predates them and is not
+  engine-related. Untriaged.
+- **CRLF working copies break the mutation harnesses.** `.gitattributes` pins `*.js` to LF and the
+  committed blobs are LF, but the working copies of `js/games/cjar.js` and `js/games/pko.js` (and,
+  until SW v236, `comb.js`) carry CRLF. `mutate-comb.js` reported **19 of 71 mutants as PATCH-MISS**
+  for exactly this reason — multi-line anchors never matched, so those mutants never ran, and the
+  summary read as "survivors". Fix: re-write the working copy with LF (no content change), or make each
+  mutator normalise on read as `mutate-mp-reconnect.js` does.
 
 ## JEC and CJAR brand colours vs Honeycomb Hills gold (Q22, 6 Sep 2026) — RESOLVED
 

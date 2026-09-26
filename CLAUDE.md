@@ -126,8 +126,9 @@ All symbols are global (no ES modules). Forward references work at runtime.
   never fetched from a CDN — see `logic-engine.md` § Shared Library Modules).
 - Do NOT create multiple HTML pages — single-page app
 - Do NOT use `localStorage` for game state mid-round (memory only; settings may persist)
-  - **Exception:** `sylly_nickname` (multiplayer nickname), `isMuted`/`masterVolume`, and
-    `sylly_controller` (the saved 3D controller design) are permitted localStorage uses
+  - **Exception:** `sylly_nickname` (multiplayer nickname), `isMuted`/`masterVolume`,
+    `sylly_controller` (the saved 3D controller design), and `sylly_rejoin` (a session *pointer*
+    `{ code, game, ts }` for the reconnect prompt — never game state) are permitted localStorage uses
 - Do NOT over-engineer: no classes/inheritance unless genuinely needed
 - Do NOT assume context from previous sessions — reference files explicitly
 - Do NOT add game-specific audio controls — audio is global via `engine.js`
@@ -291,17 +292,14 @@ On every bump the outgoing SW entry moves **verbatim** to `docs/sw-changelog.md`
 "keep the last three". **A second `**SW v…**` paragraph appearing here means that move didn't
 happen: do it before anything else.**
 
-**SW v235 — the Workshop's phone tier: Tool Belt (26 Sep 2026).** Below 860 px, the stand-in's
-page-scroll stack is replaced by P3 · Tool Belt (reviewed in `wip/workshop-lab/`, three candidates
-against the owner's iPhone SE): no tabs, like widescreen — Paint and Stickers become horizontal
-strips under the controller, the sticker card taking over Paint's slot while a sticker is in hand,
-Undo living in the sheet's own head so it stays reachable with the card hidden. The static markup
-stays the widescreen shape; `ctlLayoutPhone()`/`ctlLayoutWide()` (`js/controller.js`) move four
-elements house, reversibly, on crossing the breakpoint. Harnesses: `visual-controller-stickers` 59
-(now covers the SE at 375×667, 375×548 and 320×452 — the owner's actual sizes), `visual-lobby` 94.
-Detail: `shared-implementation-notes.md` DD-46.
+**SW v236 — MDLM client reconnect: a drop is not a quit (27 Sep 2026).** At `GAME_START` the host
+freezes `rooms/{code}/seats` and watches per-connection presence; a seat gone 3 s is **Away** and every
+device shows "Waiting for …". A game that adopts the opt-in `reconnect` hook pauses and the dropped
+phone reloads into a one-tap **Rejoin** prompt (`sylly_rejoin`); every other game ends after 20 s with
+a reason. **Honeycomb Hills is the first adopter.** Harnesses: `verify-mp-reconnect` 117,
+`mutate-mp-reconnect` 11/11, `verify-comb-loopback` 283, `visual-lobby` 101. Detail: `shared-implementation-notes.md` DD-47.
 
-**Previous versions: `docs/sw-changelog.md`** — continuous, v234 back to v167.
+**Previous versions: `docs/sw-changelog.md`** — continuous, v235 back to v167.
 
 **Where the suite stands.** **20 games shipped**, all gold-master, plus multiplayer. Newest three:
 **Honeycomb Hills** (`comb`, game 20, phase 41 — the suite's biggest game and the only one with
@@ -376,6 +374,8 @@ Re-run a game's full set after touching its appliers, deck/data, packets or rend
 | JEC | `node tools/verify-jec-loop.js` — the four tiers, the Golden-only Signature double, Crutch resolution + the never-in-pool invariant, the Instructions deck, the Fusion name vote | 77 |
 | JEC | `node tools/verify-jec-loopback.js` — host↔client over a Firebase-shaped wire with a real mock DOM; accepts `JEC_SRC=` | 164 |
 | **All 20 / MP** | `node tools/verify-mp-configs.js` — `MP_GAME_CONFIGS` entry schema, player-count bounds (sanity, **purity** — a bound may read nothing but `window.mpLobbyStyle` or a pre-lobby setting in `ALLOWED_SETTINGS` (`frtPearOff`, `cldPeckOff`), and agreement with each game's own PTP count pills), the balanced-teams invariant, and the Mid-Game Quit Contract. Runs no game logic; accepts `MP_SRC=`. **Re-run after touching `MP_GAME_CONFIGS`, any quit-confirm handler, or the roster screen** | 20 games |
+| **MP reconnect** | `node tools/verify-mp-reconnect.js` — the REAL `engine-multiplayer.js` on N devices over a fake Firebase with **sockets** (drop / heal / kill, on-time or LATE `onDisconnect`): frozen seats, per-connection presence + the stale-socket race, the 3 s Away debounce, pause/resume once each, the non-adopter's 20 s grace + reasoned end, reload → rejoin into the same seat, refusals (stranger, version, non-adopter, unanswered), `sylly_rejoin` + the boot prompt. Accepts `MP_SRC=`. **Re-run after touching seats, presence, rejoin or `mpConfirmRoster`** | 117 |
+| **MP reconnect** | `node tools/mutate-mp-reconnect.js` — reverts each load-bearing reconnect line in a temp copy and drives the harness above; a survivor means a line nothing watches | 11/11 |
 | Identity docs | `node tools/verify-identity-docs.js` — every `copy` block in `docs/game-identities/` against the shipped `index.html` + plugin file | per-doc |
 | Identity docs | `node tools/verify-identity-docs.js --self-test` — proves the checker still detects planted drift | 1 |
 | FLW | `node tools/verify-flw-loopback.js` — host↔client over a Firebase-shaped wire, incl. the private-channel hand packets | 84 |
@@ -385,7 +385,7 @@ Re-run a game's full set after touching its appliers, deck/data, packets or rend
 | Lobby | `node tools/verify-lobby-router.js` — the router's pure tier: `LOBBY_LAYOUTS`, every action incl. `home`/`closeSwitcher`/`jukebox*`, close-to-where-you-opened, the one-way rule on every close, the door map + the `controllerParts` passthrough | 228 |
 | Lobby | `node tools/verify-lounge-props.js` — the Lounge's room and props under Node (vendored Three, stub canvas): every builder, the host contract, the painted-controller path, an empty world, the controller's idle beats (every beat home exactly, the Konami's order, slow frames, reduced motion). `node tools/visual-lounge.js` — real Chromium over `tools/fixtures/lounge.html`: composition shots + reduced motion | 1371 · 29 |
 | Lobby | `node tools/verify-tv.js` — TV's pure half (rail wrap, nearest-copy pick, ink/label split, order vs `GAMES`) · `node tools/verify-achievements.js` — the stickerbook's rules incl. `achAllPlaced` | 919 · 81 |
-| Lobby | `node tools/visual-lobby.js` — real Chromium over the REAL `index.html`: boot tiering (widescreen / phone beat / no WebGL), every layout → game → quit returns there, Workshop returns to its opener, gateway + Terminal returns, idle nudge (bounded — it comes home), the Lounge Konami never unlocks, stickerbook, each runtime-cached source offline, stale ornament mount, the fade, resize below a floor, the jukebox (the door, one scene at a time, a held song through ✕/Shelves/a game, `resetToLobby` with it up). **The seam's mutation pass runs against it — re-run after touching `lobbyShow`, `resetToLobby` or any lobby return** | 94 |
+| Lobby | `node tools/visual-lobby.js` — real Chromium over the REAL `index.html`: boot tiering (widescreen / phone beat / no WebGL), every layout → game → quit returns there, Workshop returns to its opener, gateway + Terminal returns, idle nudge (bounded — it comes home), the Lounge Konami never unlocks, stickerbook, each runtime-cached source offline, stale ornament mount, the fade, resize below a floor, the jukebox (the door, one scene at a time, a held song through ✕/Shelves/a game, `resetToLobby` with it up), the reconnect prompt over the Lounge (SW v236). **The seam's mutation pass runs against it — re-run after touching `lobbyShow`, `resetToLobby` or any lobby return** | 101 |
 
 **Reach for a loopback on anything MP- or render-shaped.** Every harness *except* the six
 loopbacks (`cjar`/`shp`/`flw`/`nt`/`jec`/`comb`) runs `'single'` mode with `getElementById: () => null`, which

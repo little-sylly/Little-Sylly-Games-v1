@@ -18,6 +18,13 @@ Changed: Files/systems touched. Deferred/superseded: anything left open.
 Detail: pointer to the canonical doc (snapshot / impl note / spec / memory).
 ```
 
+## 2026-09-27 — MDLM client reconnect (SW v236): a drop is not a quit
+Category: Architecture
+Decision: A dropped client is detected by per-connection presence against seats frozen at `GAME_START`; games opt in to rescue through a `reconnect` hook (`sendState`/`pause`/`resume`), and Honeycomb Hills is the first adopter — every other game ends after a 20 s grace instead of hanging.
+Why: A drop never sends `MP_PLAYER_LEFT`, so it had no behaviour at all; adding a second path beside the quit contract kept all 19 other games' quit handling and `verify-mp-configs.js` § 6 untouched.
+Changed: `js/engine-multiplayer.js`, `js/engine.js`, `js/games/comb.js`, `js/lobby/lobby-host.js`, `src/screens/_mp.html`; new `sylly_rejoin` localStorage pointer. Deferred: per-game adoption (PKO, FLW, CJAR first), host migration, the real-device pass.
+Detail: `docs/superpowers/specs/2026-09-27-mp-client-reconnect-design.md`; `shared-implementation-notes.md` DD-47.
+
 ## 2026-09-26 — The Workshop's phone tier (SW v235): Tool Belt, reversible layout swap
 Category: Architecture
 Decision: Below 860 px the Workshop drops the widescreen stand-in for Tool Belt (owner's pick of three, tested against their own iPhone SE) — no tabs, Paint and Stickers as strips under the controller. Four elements move between the widescreen markup and Belt's shape via `ctlLayoutPhone()`/`ctlLayoutWide()`, a reversible pair driven by one `matchMedia` listener, since CSS alone can't move an element into a different flex parent.

@@ -4,6 +4,18 @@ Historical SW release notes, moved out of `CLAUDE.md` (1 Aug 2026) so they stop 
 The **current** version and its notes stay in `CLAUDE.md` § Current Focus — append the outgoing entry here on each bump.
 
 
+## v235 — the Workshop's phone tier: Tool Belt (26 Sep 2026)
+
+Below 860 px, the stand-in's
+page-scroll stack is replaced by P3 · Tool Belt (reviewed in `wip/workshop-lab/`, three candidates
+against the owner's iPhone SE): no tabs, like widescreen — Paint and Stickers become horizontal
+strips under the controller, the sticker card taking over Paint's slot while a sticker is in hand,
+Undo living in the sheet's own head so it stays reachable with the card hidden. The static markup
+stays the widescreen shape; `ctlLayoutPhone()`/`ctlLayoutWide()` (`js/controller.js`) move four
+elements house, reversibly, on crossing the breakpoint. Harnesses: `visual-controller-stickers` 59
+(now covers the SE at 375×667, 375×548 and 320×452 — the owner's actual sizes), `visual-lobby` 94.
+Detail: `shared-implementation-notes.md` DD-46.
+
 ## v234 — the Workshop as a room (26 Sep 2026)
 
 Design B · Paint Shop from `wip/workshop-lab/`:

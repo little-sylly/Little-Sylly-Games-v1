@@ -810,7 +810,8 @@ not precached**, the `data/stickers/` contract.
 | `lobbyBoot()` | Called on `app.js`'s last line, synchronously: probes the tier, shows the first layout, fetches the two manifests **independently** (each fails alone), sets `window.lobbyReady` |
 | `lobbyShow()` | **The seam.** Dispatches `home`, presents the home layout. `resetToLobby()` and both `secret-mode.js` returns call it |
 | `lobbyGo(id)` | A switcher picked a layout; refused unless `lobbyOffered(id)` |
-| `lobbyLaunch(gameId)` | Clicks the game's own lobby button (`LOBBY_BTN_IDS`: `li5`→`btn-dstw`, `gm`→`btn-great-minds`, `ss`→`btn-sylly-signals`, else `btn-[id]`); stops TV's timers first |
+| `lobbyLaunch(gameId)` | Clicks the game's own lobby button (`LOBBY_BTN_IDS`: `li5`→`btn-dstw`, `gm`→`btn-great-minds`, `ss`→`btn-sylly-signals`, else `btn-[id]`); calls `lobbyLeaveForGame()` first |
+| `lobbyLeaveForGame()` | Everything that stops when a game takes the screen while `view` stays put: TV's timers (`tvDrop`) and the Lounge's room (`lobbyScene.stop()`; `lobbyApply` resumes it on the way back). Shared by `lobbyLaunch()` and the reconnect rejoin (`mpApplyRejoinAccept`), which enters a game with no lobby button (SW v236) |
 | `lobbyOffered(id)` / `lobbyIsUp(view)` | What a switcher may show this device / is that layout on screen |
 | `lobbyAfterLayoutRender()` | Called by `lbSet` after every Shelves re-render — puts the ornament back |
 | `lobbyDispatch(action)` | The one write path: `lobbyReduce` then `lobbyApply` |
@@ -2059,6 +2060,12 @@ Run.**
 | `mpLobbyStyle` | string | `'individual'` | `'team'` (TLM) / `'individual'` (MDLM) — set at mode selection; broadcast in GAME_START; reset in `resetToLobby()` |
 | `mpPlayersListener` | function\|null | `null` | `onValue` unsubscribe for `/players` node; active during host lobby only; cancelled in `mpStopListeners()` and before GAME_START in `mpConfirmRoster()` |
 | `window.mpClientPlayerRef` | Firebase ref\|null | `null` | Reference to client's own `/players/{uid}` node; used for explicit removal on leave/cancel; set in `mpClientJoinRoom()`, cleared in `resetToLobby()` and cancel handler |
+| `mpSeats` | uid[] | `[]` | Reconnect (SW v236): seat order frozen at `GAME_START` — mirrors `rooms/{code}/seats`. Host sets it in `mpBeginMatchSeats()`, clients in the `GAME_START` / rejoin appliers |
+| `mpMatchLive` | bool | `false` | True from `GAME_START` until `LOBBY_RESET` / teardown — gates the presence watcher, the mid-match `HANDSHAKE` refusal and `MP_REJOIN` |
+| `mpAwaySeats` / `mpAwayPending` | Set / Map | empty | Host: seat indices currently Away / seat → the 3 s debounce handle |
+| `mpPresenceListener` / `mpConnListener` / `mpPresenceRef` | fn / fn / ref | `null` | Host's watcher on `rooms/{code}/presence`; a client's `.info/connected` listener and its current connection's presence child |
+| `mpAwayTimer` / `mpAwayTick` / `mpAwayGraceEndsAt` / `mpRejoinTimer` | handles / ms | `null` / `0` | Non-adopter grace, the overlay countdown, the grace deadline, an unanswered rejoin. All cleared in `mpEndMatchLocal()` |
+| `MP_AWAY_DEBOUNCE_MS` / `MP_AWAY_GRACE_MS` / `MP_REJOIN_TIMEOUT_MS` / `MP_REJOIN_TTL_MS` | const | 3000 / 20000 / 15000 / 7200000 | Reconnect timings; `MP_REJOIN_KEY = 'sylly_rejoin'` |
 
 ### Multiplayer Mode Classification
 Three named modes (Phase 23). Each game has a `recommendedMode` and `supportedModes[]` in `MP_GAME_CONFIGS`:
@@ -2085,9 +2092,11 @@ Per-game: LI5 `ptp`★/`tlm` · GM `ptp`★/`mdlm` · SS `tlm`★/`mdlm`/`ptp` �
 |------------|---------|---------|---------|
 | `mp-network-error-overlay` | Decision modal | z-[90] | Firebase load timeout on mode screen |
 | `mp-version-mismatch-overlay` | Decision modal | z-[90] | Handshake: client SW version !== host SW version |
-| `mp-host-disconnected-overlay` | Decision modal | z-[100] | Firebase `.onDisconnect()` sentinel fires on all client devices |
+| `mp-host-disconnected-overlay` | Decision modal | z-[100] | Firebase `.onDisconnect()` sentinel fires on all client devices. `#mp-host-disconnected-heading` / `-body` are rewritten to "Game Over" / "{name} dropped out…" by `HOST_END_GAME { reason: 'dropped' }`, reset by `mpReconnectTeardown()` |
 | `mp-lttp-message-interrupt-overlay` | Decision modal | z-[105] | `SYNC: LTTP_MESSAGE_INTERRUPT` — fires on ALL LTTP devices simultaneously |
 | `mp-host-prelobby-overlay` | Decision modal | z-[90] | Host selects "Host Lobby" — nickname entry before room code generation |
+| `mp-away-overlay` | Decision modal | z-[100] | `MP_AWAY_STATE` with a non-empty set (and the host's own copy) — "Waiting for …"; host gets **End session**, a client **Leave**; a non-adopter shows the grace countdown. No cancel id, so a backdrop tap never hides it |
+| `mp-rejoin-overlay` | Decision modal | z-[90] | Boot, when `sylly_rejoin` is fresh (`mpOfferRejoin()`) — **Rejoin** (game's `brandBtnClass`) / **Not now** (`btn-mp-rejoin-cancel`); also carries a failed rejoin's reason (`mpRejoinFailed()`) |
 
 ### Key Functions
 | Function | Purpose |
@@ -2116,6 +2125,20 @@ Per-game: LI5 `ptp`★/`tlm` · GM `ptp`★/`mdlm` · SS `tlm`★/`mdlm`/`ptp` �
 | `mpShakeNicknameInput(el)` | Shake animation helper for invalid nickname input |
 | `mpStartPlayersWatcher()` | Subscribes `onValue` to `/rooms/{code}/players`; on count decrease rebuilds `mpPlayerSlots` from Firebase and re-renders host lobby; called after room creation and after each `mpReturnToLobby()` host call |
 | `mpReturnToLobby()` | Universal play-again handler for Lobby Mode. Host: broadcasts `LOBBY_RESET` + returns to `screen-mp-lobby-host` with same room code + re-subscribes players watcher. Client: calls `resetToLobby()`. Every game's play-again confirm must call this instead of navigating to setup when `syllyMultiplayerMode !== 'single'`. |
+| `mpApplySettings(abbr, s)` | The one settings applier — `SETTINGS_SYNC` and `MP_REJOIN_ACCEPT` both call it (moved verbatim out of `SETTINGS_SYNC`, SW v236) |
+| `mpBeginMatchSeats()` | Host, from `mpConfirmRoster()` before `GAME_START`: writes `seats`, sets `mpMatchLive`, starts `mpStartPresenceWatcher()` |
+| `mpStartPresence()` / `mpRemovePresence()` | Client: one presence child per connection, re-pushed on every `.info/connected === true` (heals a blip) / tear it down |
+| `mpStartPresenceWatcher()` | Host: `onValue` on `rooms/{code}/presence`; a seat (skipped by uid if it is the host) with no children is debounced 3 s into `mpMarkAway()`; its return runs `mpMarkBack()` |
+| `mpMarkAway(idx)` / `mpMarkBack(idx)` | Away set changes; `reconnect.pause()` on the first away / `resume()` on the last back (or `mpArmAwayGrace()` for a non-adopter); each broadcasts `mpBroadcastAway()` |
+| `mpBroadcastAway()` / `mpShowAwayOverlay(seats, graceEndsAt)` / `mpAwayNames(seats)` | `MP_AWAY_STATE` out + the host's own overlay / paint `#mp-away-overlay` / "Bec and Cam" |
+| `mpArmAwayGrace()` / `mpAwayGraceExpired()` | Non-adopter: 20 s, then `HOST_END_GAME { reason: 'dropped', name }` + `resetToLobby()` |
+| `mpEndMatchLocal()` / `mpReconnectTeardown()` | Every reconnect handle and listener cleared (`LOBBY_RESET`, abandon) / that + the rejoin key + overlay copy, from `resetToLobby()` |
+| `mpWriteRejoinKey()` / `mpClearRejoinKey()` / `mpReadRejoinKey()` | `sylly_rejoin` — written only for adopters; read returns null (and clears) unless well-formed, < 2 h old and naming an adopter; all try/catch |
+| `mpRejoinRoom(code)` | Client: room + seat check, becomes a client with `mpActiveGame = null`, starts listeners + presence + the 15 s timeout, sends `MP_REJOIN`. Also reached from `mpClientJoinRoom()` when `roomData.seats` holds this uid (manual re-typing) |
+| `mpHostHandleRejoin(uid, version)` | Host: refuse (`not-seated`/`version`/`unsupported`) or private `MP_REJOIN_ACCEPT` → `mpMarkBack()` (resume) → `reconnect.sendState(idx)` — in that order |
+| `mpApplyRejoinAccept(p)` | Client: mirrors the `GAME_START` applier via `mpApplySettings`, rewrites the key, `lobbyLeaveForGame()`, `cfg.onPassThePhone()` |
+| `mpRejoinFailed(reason)` / `mpAbandonSession()` / `mpArmRejoinTimeout()` / `mpWatchRoomGone()` | Failure copy (`MP_REJOIN_COPY`) in `#mp-rejoin-overlay` / stand down to `'single'` / the 15 s give-up / the room-deleted watcher (shared with a normal join) |
+| `mpOfferRejoin()` / `mpRejoinFromPrompt()` / `mpWireReconnect()` | The boot prompt (from `DOMContentLoaded`) / its Rejoin tap / wiring for the away + rejoin buttons |
 
 ### Envelope Schema
 ```js
@@ -2135,14 +2158,26 @@ Per-game: LI5 `ptp`★/`tlm` · GM `ptp`★/`mdlm` · SS `tlm`★/`mdlm`/`ptp` �
 |--------|-----------|---------|-------------------|
 | `SETTINGS_SYNC` | Host → All | Host settings change in lobby | Client applies serialised settings |
 | `GAME_START` | Host → All | Host confirms roster | All devices call `mpActiveGameConfig.onPassThePhone()` |
-| `HOST_END_GAME` | Host → All | Host force-ends session | All clients call `resetToLobby()` |
+| `HOST_END_GAME` | Host → All | Host force-ends session | Clients show `mp-host-disconnected-overlay` (its button calls `resetToLobby()`), close the away overlay and clear `sylly_rejoin`. Optional `{ reason: 'dropped', name }` (SW v236) rewrites the copy to "{name} dropped out" |
 | `LOBBY_RESET` | Host → All | Host confirms play-again | Client pre-fills code boxes, shows "Host is setting up another round — waiting to start…", disables join CTA, navigates to `screen-mp-lobby-join` |
+| `MP_AWAY_STATE` | Host → All | A seat goes Away or comes back | `{ seats: int[], graceEndsAt }` — the WHOLE away set; empty (erased on the wire → `[]`) closes the overlay. `graceEndsAt` is 0 for an adopter |
+| `MP_REJOIN_ACCEPT` | Host → one (private) | Valid `MP_REJOIN` | `{ game, playerSlots, mpLobbyStyle, rosterData, gameSettings }` → `mpApplyRejoinAccept()`; the game's own snapshot follows on the same private queue |
+| `MP_REJOIN_REFUSE` | Host → one (private) | Bad `MP_REJOIN`, or a mid-match `HANDSHAKE` | `reason`: `'not-seated'`/`'version'`/`'unsupported'` → `mpRejoinFailed()`; `'in-progress'` → the existing `mp-roster-mismatch-overlay` |
 
 **Engine-level ACTION types (game-agnostic):**
 
 | Action | Direction | Trigger | Effect on receiver |
 |--------|-----------|---------|-------------------|
 | `MP_PLAYER_LEFT` | Client → Host | `mpNotifyPlayerLeft()`, from any game's quit-confirm | Host calls `resetToLobby()`, which broadcasts `HOST_END_GAME` to the rest. Handled in `mpHandleEnvelope` **before** any per-game routing, so a game needs no handler. Added 23 Aug 2026 (SW v210); the ten games predating it still send their own `[ABBR]_PLAYER_LEFT` and are unchanged |
+| `MP_REJOIN` | Client → Host | `mpRejoinRoom()` | `{ version }`; seat taken from `originId` against `mpSeats` → `mpHostHandleRejoin()`. Handled before per-game routing (SW v236) |
+
+### Reconnect nodes (SW v236)
+| Node | Writer | Shape |
+|------|--------|-------|
+| `rooms/{code}/seats` | host, at `GAME_START`; removed by `mpReturnToLobby()` | `[uid0, uid1, …]` in seat order — never mutated mid-match |
+| `rooms/{code}/presence/{uid}/{pushId}` | each client, for itself | `true`, one child per connection with its own `onDisconnect().remove()`. Host writes none |
+
+Adopters (`MP_GAME_CONFIGS[abbr].reconnect`): **`comb`** only — pinned by `verify-mp-configs.js` § 7. Harness: `tools/verify-mp-reconnect.js`. Rule: `logic-engine.md` § Client Reconnect.
 
 ### Per-Game ACTION/SYNC Packet Types
 | Game | ACTION packets | SYNC packets |
@@ -2713,7 +2748,9 @@ chain · instinct · blossoms — + the status line, scrolls internally). Render
 | `COMB_ACTION_ROUTES` / `COMB_ACTION_PENDING` | The ACTION table and the declared-but-unbuilt list. Every spec §11 ACTION is in exactly one of them, asserted by the loopback — that is the missing-handler audit made mechanical |
 | `combSendFullState(p)` | ⚠️ **The strip.** `combSerialiseState()` carries every seat's hand; this is the only function allowed to put it on the wire, and it removes all but the recipient's (and masks the deck). Live trigger: a rejected ACTION |
 | `combBroadcastBoard()` | The `COMB_BOARD_UPDATE` builder — counts, chain cache, both holders, points, supply |
-| `combStartDaylight()` / `combStartDaylightAt(ts)` | The authority computes the deadline; a client arms the **same number** off `COMB_ACTIONS_BEGIN`. ⚠️ `Number(ts)`, never `\| 0` — a ms timestamp truncates to 32 bits and lands in 1944 |
+| `combStartDaylight()` / `combStartDaylightAt(ts)` | The authority computes the deadline; a client arms the **same number** off `COMB_ACTIONS_BEGIN`. ⚠️ `Number(ts)`, never `\| 0` — a ms timestamp truncates to 32 bits and lands in 1944. While `combPaused`, `combStartDaylight()` banks the whole turn into `combPausedDaylightMs` instead of starting a clock |
+| `combReconnectPause()` / `combReconnectResume()` | The engine's `reconnect` hook (SW v236), host only. Pause: bank the Daylight left in `combPausedDaylightMs`, stop the clock, broadcast `COMB_DAYLIGHT { endTimestamp: 0 }`, abandon an open dance via `combOfferAbandon()`. Resume: re-arm from the banked time and broadcast a fresh `COMB_DAYLIGHT` — never a `COMB_ACTIONS_BEGIN` (its applier would throw away a half-made placement). `sendState` is `combSendFullState(idx)` |
+| `combPaused` / `combPausedDaylightMs` | Reconnect state: the table is waiting on a dropped seat / the Daylight banked by the pause (0 = no clock was running). Reset in `combResetState()` |
 | `combStartMatchLocal(seed)` / `combDealMatch(seed)` | Host entry / the seeded deal both host and client run |
 | `combDraftPlace(kind,target,p)` · `combDraftNeeds()` · `combArmDraftPlacement()` | The snake. `combDraftNeeds()` derives cell-vs-wall from the anchor |
 | `combScoutFlight(p)` · `combProduce(roll)` · `combRationProduction()` | The cast, the payout, and Limited Bounty's shortage rule |
@@ -2760,8 +2797,9 @@ its own `phase` — §17-20) · `COMB_BOARD_UPDATE` · `COMB_TURN_BEGIN` (`endTi
 `COMB_LOG_APPEND` · `COMB_GAMEOVER` · **`COMB_TRADE_POSTED`** (`responses[]` at its 0-filled reset
 value) · **`COMB_TRADE_RESPONSES`** · **`COMB_TRADE_RESOLVED`** (who dealt — never what changed hands) ·
 **`COMB_INSTINCT_BOUGHT`** (⚠️ `deckLeft` and `instinctCounts[]` only — **never the card**) ·
-**`COMB_INSTINCT_PLAYED`** (carries its own `phase`, so a Guard Bee moves every device to `waspMove`).
-**PRIVATE:** `COMB_HAND_SYNC` · `COMB_INSTINCT_SYNC` · `COMB_FULL_STATE`. Full table: spec §11.
+**`COMB_INSTINCT_PLAYED`** (carries its own `phase`, so a Guard Bee moves every device to `waspMove`) ·
+**`COMB_DAYLIGHT`** (`endTimestamp` only — reconnect's pause (0) and resume; SW v236).
+**PRIVATE:** `COMB_HAND_SYNC` · `COMB_INSTINCT_SYNC` · `COMB_FULL_STATE` (carries `endTimestamp` beside the snapshot since SW v236 — a rejoiner's clock; the public `COMB_DAYLIGHT` can beat its ACCEPT). Full table: spec §11.
 
 ⚠️ **One carrier per field.** `combFreeWalls` travels **only** in `COMB_BOARD_UPDATE` — it has to, because
 a client must see the counter go *down* as each free wall is spent, and a build sends that packet. It was
@@ -2777,7 +2815,7 @@ path-dependent — §17-3); never throw.
 | `node tools/verify-comb-board.js` (56) | The topology (54/72/9), the Wild deal's legality + seeding, hex/marker distribution |
 | `node tools/verify-comb-rules.js` (122) | Costs, the Distance Rule, the longest-chain DFS incl. cuts, **both** achievement transfers with the incumbent at an inconvenient index, bank rates, the win check |
 | `node tools/verify-comb-loop.js` (231) | The deal, the snake draft + its anchor, the opening yield, production (Wasp block, dome ×2, Limited rationing), the seven (owed, the gate **both ways**, the Wasp's move/steal), End Turn + the own-turn-only win, Daylight, the log's privacy boundary, and the serialise/apply round trip incl. the restored-holder rule. **Chunk 5 added the action layer's arithmetic**: a trade conserves the table's total, the Meadow is a closed system under Limited Bounty, a refused Instinct effect costs nothing, and Daylight arms once a *turn*. Accepts `COMB_SRC=` / `COMB_SEED=` |
-| `node tools/verify-comb-loopback.js` (258) | **Host↔2 clients over a Firebase-shaped wire, with a real mock DOM.** The packet layer and the render code, neither of which the three above can see. Covers: MATCH_START's settings-before-deal ordering, the draft re-arming placement on the right device, seat authority from `originId`, `COMB_FULL_STATE`'s strip, the deck mask, the Daylight deadline surviving whole, the Overflow gate **with a third seat that never submits** AND **§12b: a 7 where nobody owes — all three devices must reach `waspMove`, not strand in `overflow`** (SW v226), the Wasp's phase field and the absence of the stolen resource from every packet and log line, Golden Nectar public exactly once, the player-panel row-per-seat + active mark, and a source read of the single-writer + missing-handler rules. **Chunk 5 added** the two offer shapes, the re-validate-never-escrow path, Full Dance's expiry, the Meadow's rates, and all five Instinct kinds — plus the two privacy claims that matter most here: a buy names no card, and a resolved trade names no contents. Accepts `COMB_SRC=` / `COMB_SEED=` |
+| `node tools/verify-comb-loopback.js` (283) | **Host↔2 clients over a Firebase-shaped wire, with a real mock DOM.** The packet layer and the render code, neither of which the three above can see. Covers: MATCH_START's settings-before-deal ordering, the draft re-arming placement on the right device, seat authority from `originId`, `COMB_FULL_STATE`'s strip, the deck mask, the Daylight deadline surviving whole, the Overflow gate **with a third seat that never submits** AND **§12b: a 7 where nobody owes — all three devices must reach `waspMove`, not strand in `overflow`** (SW v226), the Wasp's phase field and the absence of the stolen resource from every packet and log line, Golden Nectar public exactly once, the player-panel row-per-seat + active mark, and a source read of the single-writer + missing-handler rules. **Chunk 5 added** the two offer shapes, the re-validate-never-escrow path, Full Dance's expiry, the Meadow's rates, and all five Instinct kinds — plus the two privacy claims that matter most here: a buy names no card, and a resolved trade names no contents. **§26b/26c (SW v236)** add reconnect: pause/resume once, an open dance called off, a device rebuilt from nothing holding only its own hand on the live clock, and a turn that enters actions mid-pause banking its Daylight. Accepts `COMB_SRC=` / `COMB_SEED=` |
 | `node tools/mutate-comb.js` (71/71) | Mutation harness — plants a plausible mis-implementation of each rule the spec names and asserts a harness turns red. Drives **all four**, so the 19 packet-layer mutants are claims about the loopback specifically. ⚠️ Run it **3–5 times**, not once (ML-04) |
 
 Re-run `verify-comb-loop.js` + `mutate-comb.js` after any rules/applier change; **`verify-comb-loopback.js`

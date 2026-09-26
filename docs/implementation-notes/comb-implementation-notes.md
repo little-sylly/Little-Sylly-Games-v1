@@ -455,6 +455,22 @@ truth — and still z-75, the deliberate z-fight loser. Opened from the player s
 to the stats. *Lesson: an overlay that is one z-index entry and one teardown line already paid for
 usually earns more entry points before it earns a sibling.*
 
+**DD-30 — Honeycomb Hills adopts client reconnect (SW v236).** The engine half and the design are
+`shared-implementation-notes.md` DD-47; this is COMB's half. `reconnect.sendState` is the existing
+`combSendFullState(idx)` (it already strips other hands and masks deck order), which now also carries
+`endTimestamp` — clock state stays out of `combSerialiseState()` by design and travels beside it
+(shared ML-08). **Pause abandons an open dance** through `combOfferAbandon()`, not the bare
+`combClearOffer()`, so the table is told: under Full Dance the offer would auto-decline mid-pause,
+and otherwise it would wait on a seat that cannot answer. **Daylight is banked, not frozen on
+screen**: `combPausedDaylightMs` holds the time left and `COMB_DAYLIGHT { endTimestamp: 0 }` stops
+every countdown; a turn that *enters* actions while paused banks its whole Daylight instead of
+starting a clock. **Resume sends only the clock** (`COMB_DAYLIGHT`), never a re-sent
+`COMB_ACTIONS_BEGIN`, whose applier clears `combPlacementMode` and would throw away the active
+player's half-made placement. The Scout Flight timer is left running — a few seconds of host-only
+animation whose result travels as a normal SYNC. Proved by `verify-comb-loopback.js` § 26b/26c.
+**Owed:** the real-device pass (lock the owner's iPhone SE mid-Season; check seat, hand and clock) —
+`docs/deferred-work.md` § Reconnect adoption.
+
 ---
 
 ## Bug Index

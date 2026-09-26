@@ -21,6 +21,43 @@ place.
 
 ## Design Decisions
 
+**DD-47 — MDLM client reconnect: a drop is not a quit, and reconnect is an opt-in hook.
+[27 Sep 2026, SW v236]**
+**What happened.** A client whose phone locked or lost signal mid-match was simply gone. Its
+`onDisconnect` quietly deleted its `/players` entry, but the host had stopped watching `/players` at
+`mpConfirmRoster()`, so nobody noticed; the reloaded phone booted into the lobby with no memory of the
+room, and every other device waited on a turn that never came. Honeycomb Hills made it acute: a Full
+Season is ~50 minutes of permanent private hands. The deferred note (Q20) assumed the fix would
+rewrite the Mid-Game Quit Contract and `verify-mp-configs.js` § 6 across all 20 games.
+**Root cause.** Two different events shared one missing code path. A *quit* sends `MP_PLAYER_LEFT` and
+has always dissolved the session correctly; a *drop* sends nothing, and had no behaviour at all — so
+the contract never needed rewriting, only a second path added beside it.
+**Decisions:**
+- **Seats freeze at `GAME_START`** (`rooms/{code}/seats`) and the host watches **per-connection
+  presence** (`rooms/{code}/presence/{uid}/{pushId}`) for the match. A seat empty for 3 s is Away —
+  the debounce stops a sub-second blip cancelling a trade, and absorbs the instant before a client's
+  first presence write lands, so no "seen" gate is needed (a seen-gate would have made a phone that
+  drops right at match start never go Away: the old forever-hang, back).
+- **Reconnect is an opt-in hook**, `MP_GAME_CONFIGS[abbr].reconnect = { sendState, pause, resume }`.
+  Every game gets *detection*; only an adopter gets *rescue*. A non-adopter ends after a 20 s grace
+  with a reason, rather than hanging. Honeycomb Hills is the only adopter; § 7 of
+  `verify-mp-configs.js` pins the list so the next adopter is a reviewed change.
+- **One packet, the whole set** — `MP_AWAY_STATE { seats, graceEndsAt }` instead of an away/back
+  pair, so a dropped packet self-corrects on the next one (the private-repair rule, § MDLM Patterns).
+- **The host is skipped by uid**, not index: a `'teams'` roster reorders `mpPlayerSlots`.
+- **`mpApplySettings()` extracted verbatim** from `SETTINGS_SYNC`, so a rejoiner applies the room's
+  settings through exactly the code every other device ran.
+- **`sylly_rejoin`** — a session *pointer* `{ code, game, ts }`, the fourth localStorage exception.
+  Written only for adopters (for anything else a prompt would promise a rescue that can't happen).
+- **`lobbyLeaveForGame()`** — a rejoin enters a game with no lobby button, so `lobbyLaunch()`'s
+  teardown was factored out and now also stops the Lounge's room.
+**Lesson.** Before rewriting a contract to make room for new behaviour, check whether the new case
+ever reached the contract at all. Q20's "redefines the quit contract" was the expensive reading; the
+true one — a drop never sends the quit packet — kept 19 games out of the blast radius. Plan +
+spec: `docs/superpowers/{specs,plans}/2026-09-27-mp-client-reconnect*.md`. Harness:
+`tools/verify-mp-reconnect.js` (117) + `tools/mutate-mp-reconnect.js` (11/11). Lessons from the build:
+ML-07, ML-08.
+
 **DD-46 — the Workshop's phone tier: Tool Belt, and a reversible layout swap.
 [26 Sep 2026, SW v235]**
 **What happened.** DD-45 shipped the widescreen room and left the phone tier (<860 px) running a
@@ -4128,6 +4165,34 @@ no behaviour, and turns the tier of verification that catches host/client diverg
 extraction is about reachability, not relocation.
 
 ---
+
+### ML-07 — Presence must be per CONNECTION, or a stale socket evicts a live player [27 Sep 2026, SW v236]
+**What happened.** The obvious presence write — `presence/{uid} = true` with `onDisconnect().remove()`
+— fails on exactly the event reconnect exists for. A locked phone's socket can take up to a minute to
+be declared dead by the server. If the player reloads first, the new connection writes
+`presence/{uid} = true`, and then the OLD socket's late `onDisconnect` fires and deletes it: a player
+who is sitting right there, back in the game, is marked Away.
+**Root cause.** `onDisconnect` belongs to a *socket*, but the node it removes belonged to a *uid* —
+and one uid can own two sockets for a while.
+**Lesson.** Firebase's own presence pattern: `push()` one child per connection under the uid, each
+with its own `onDisconnect().remove()`, and count a seat present while ANY child exists. Re-push on
+every `.info/connected === true` and a blip heals itself. The harness models the race directly
+(`drop({ late: true })` returns the server's delayed notice; § 8), and the mutation pass reverts to a
+shared node to prove the harness notices.
+
+### ML-08 — A public packet can beat a private one to the same device [27 Sep 2026, SW v236]
+**What happened.** A rejoining client needs two things from the host: the session context
+(`MP_REJOIN_ACCEPT`, private) and the live Daylight deadline. The spec first had the deadline ride
+`resume()`'s public `COMB_DAYLIGHT` broadcast. But the public `/events` and private `/private/{uid}`
+queues are separate listeners with no ordering between them, and the rejoiner routes no game packet
+until the ACCEPT has told it which game is running — so a public packet that arrives first is
+dropped, and the rejoiner sits with no clock.
+**Root cause.** Ordering holds *within* a Firebase queue, never *across* two.
+**Lesson.** Anything a late device must not miss rides the SAME queue as the thing that makes it able
+to read it. The host now runs `mpMarkBack()` → `resume()` **before** `sendState()`, so the private
+snapshot (`COMB_FULL_STATE`, which gained `endTimestamp`) carries the live clock. The rejoiner
+keeps `mpActiveGame = null` until the ACCEPT, so the early public packet routes to nothing rather
+than to a half-initialised applier (`verify-mp-reconnect.js` § 19; `verify-comb-loopback.js` § 26b).
 
 ## Template Gaps
 

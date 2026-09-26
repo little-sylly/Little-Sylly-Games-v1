@@ -86,6 +86,11 @@ syllyMultiplayerMode: 'single' | 'host' | 'client'
 | Handed out | A device whose Lounge arrival beat has played (a phone). The Lounge is closed to it for the session |
 | Ornament | The live 3D controller shown in Original, Shelves or TV — one canvas, moved between their slots |
 | Internal game id | The `activeGameId` string is the *internal* id and may differ from the display name — SS uses `'sylly-signals'` (legacy) although the game is displayed as Secret Signals |
+| Seats | `rooms/{code}/seats` — the uids in seat order, frozen by the host at `GAME_START` (`mpSeats`). Answers "does this room still have a seat for me?" without asking the host. Rewritten each match (SW v236) |
+| Presence | `rooms/{code}/presence/{uid}/{pushId}` — one child **per connection**, each removed by its own `onDisconnect`. A seat is present while any child exists. Clients only; the host writes none |
+| Away | A seated client whose presence has been empty for 3 s. Every device shows `#mp-away-overlay` ("Waiting for …") until it returns or the session ends. **A drop, not a quit** |
+| `sylly_rejoin` | localStorage `{ code, game, ts }` — a pointer to a live session for the reconnect prompt, never game state. Adopting games only; 2 h expiry |
+| `reconnect` hook | Optional `MP_GAME_CONFIGS[abbr].reconnect = { sendState(idx), pause(), resume() }`, host-only. The game can then be rejoined mid-match; without it a drop ends the session after 20 s. Adopters: `comb` |
 
 ## Data Schema: words.json
 ```json

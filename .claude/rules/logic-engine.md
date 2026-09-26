@@ -484,6 +484,9 @@ and that wording is exactly what let LI5 and DSD (both TLM) ship without it: nei
 "MDLM game", so the rule looked like someone else's problem. The failure is identical in both. The
 mode label never mattered — only that a Firebase room exists and another device is waiting on it.
 
+**A drop is not a quit — see § Client Reconnect.** This contract covers *deliberate* exits only; a
+phone that locks or loses signal never sends `MP_PLAYER_LEFT`.
+
 **The contract:** one device leaving mid-game dissolves the session for everyone.
 - **Host quits:** `resetToLobby()` broadcasts `HOST_END_GAME` (standard engine behaviour), tears
   down the Firebase room, and returns to the lobby. All clients get the disconnect overlay.
@@ -522,11 +525,44 @@ packet.
 **Enforced:** `node tools/verify-mp-configs.js` § 6 asserts all 18 games satisfy this one way or the
 other. A new game that forgets it fails that check.
 
+### Client Reconnect (SW v236)
+
+**A drop is not a quit.** At `GAME_START`, `mpConfirmRoster()` freezes `rooms/{code}/seats` (uids in
+seat order) and the host watches `rooms/{code}/presence` for the length of the match. Each **client**
+writes **one presence child per connection** (`push` + its own `onDisconnect().remove()`), re-written
+on every `.info/connected === true` — so a blip heals itself, and a stale socket's LATE onDisconnect
+after a fast reload removes only its own child, never the new one. A seat with no children for
+`MP_AWAY_DEBOUNCE_MS` (3 s) is **Away**: one `LOBBY MP_AWAY_STATE { seats, graceEndsAt }` carries the
+whole set (`seats: []` is Firebase-erased — rebuild with `|| []`), and every device shows
+`#mp-away-overlay`. The host is skipped **by uid**, never by index (a `'teams'` roster reorders slots).
+
+**The opt-in hook** — `MP_GAME_CONFIGS[abbr].reconnect = { sendState(idx), pause(), resume() }`, all
+host-only; `verify-mp-configs.js` § 7 pins the adopter list (`['comb']`). `pause()` runs on the FIRST
+seat to go and `resume()` on the LAST back, never twice. An adopter's client `onPassThePhone` must be
+safe to re-run on a rejoining device (standby, never a new match); its full-state applier must take
+standby → live and be idempotent; `sendState` strips every other seat's private state. **A game
+without the hook** still gets detection: a 20 s grace (`MP_AWAY_GRACE_MS`), then the host ends the
+session with `HOST_END_GAME { reason: 'dropped', name }`.
+
+**Rejoin.** A client of an adopting game writes `sylly_rejoin` at `GAME_START`; on reload the boot
+prompt (`#mp-rejoin-overlay`) sends `ACTION MP_REJOIN { version }`, checked by `originId` against
+`seats`. The host answers privately — `MP_REJOIN_ACCEPT` (the `GAME_START` + settings context,
+applied through the shared `mpApplySettings()`), then **`mpMarkBack()` → `resume()` BEFORE
+`sendState()`**, so the snapshot carries the live clock: a public resume SYNC can beat the private
+ACCEPT to the rejoiner and is dropped there (no game is routed until the ACCEPT). A mid-match stranger
+is refused. Harness: `tools/verify-mp-reconnect.js` (+ `mutate-mp-reconnect.js`). Detail:
+`shared-implementation-notes.md` DD-47.
+
 ### localStorage Exception
 
 `sylly_nickname` is stored in `localStorage` via `mpGetNickname()` / `mpSaveNickname(v)`. This
 is the **only** permitted localStorage use beyond `isMuted` and `masterVolume` — it is a user
 preference (not game state) that survives across sessions.
+
+`sylly_rejoin` (SW v236) is the other multiplayer one: `{ code, game, ts }`, a *pointer* to a live
+session for the reconnect prompt, never game state. Written only by a client of a game that adopts
+`reconnect`; cleared by `resetToLobby()`, any refusal, `HOST_END_GAME`, `LOBBY_RESET` and **Not now**;
+expires after 2 h. Every read/write is `try/catch` — a blocked store must never stop boot.
 
 ---
 
@@ -602,6 +638,12 @@ scene's frame time inside the prop's `tick`, so `stop()` stops them too — the 
 future prop that idles. The **jukebox screen** (SW v233) runs two RAFs — its own cat stage and the
 equaliser (`js/lobby/jukebox.js`) — both stopped by `jbxClose()` (every router close, `home` included)
 and by `jbxStop()` in `resetToLobby()`; its stage is kept, like the room, never disposed.
+
+**Reconnect's handles (SW v236).** The Away debounce map (`mpAwayPending`), the non-adopter's grace
+(`mpAwayTimer`), the overlay's countdown (`mpAwayTick`), the unanswered-rejoin timeout
+(`mpRejoinTimer`) and the two listeners (`mpPresenceListener`, `mpConnListener`) are all cleared in
+**one** place, `mpEndMatchLocal()` — reached from `resetToLobby()` (via `mpReconnectTeardown()`), from
+`LOBBY_RESET` on both sides, and from an abandoned rejoin. `mpStopListeners()` also drops both listeners.
 
 ---
 
