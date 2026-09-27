@@ -1,7 +1,7 @@
 // Little Sylly Games — Service Worker v236
 // All assets are local — no external CDN URLs, no opaque response issues.
 
-const CACHE_NAME = 'sylly-games-v238';
+const CACHE_NAME = 'sylly-games-v239';
 
 const PRECACHE_URLS = [
   './',
@@ -249,6 +249,16 @@ self.addEventListener('activate', event => {
   );
 });
 
+// Runtime-cache write for packs, music, stickers and lamp photos. Only a complete
+// 200 is kept: a 404 (a file requested before it was pushed) stored under a
+// cache-first key is served for the rest of the version, and on a network-first
+// manifest it would overwrite the good copy. A 206 range reply cannot be stored at all.
+function swKeep(req, res) {
+  if (res.status !== 200) return;
+  const copy = res.clone();
+  caches.open(CACHE_NAME).then(c => c.put(req, copy));
+}
+
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
 
@@ -259,8 +269,7 @@ self.addEventListener('fetch', event => {
       // discovered without a version bump; fall back to cache when offline.
       event.respondWith(
         fetch(event.request).then(res => {
-          const copy = res.clone();
-          caches.open(CACHE_NAME).then(c => c.put(event.request, copy));
+          swKeep(event.request, res);
           return res;
         }).catch(() => caches.match(event.request))
       );
@@ -268,8 +277,7 @@ self.addEventListener('fetch', event => {
       // Media (skin images): cache-first — instant + lean.
       event.respondWith(
         caches.match(event.request).then(cached => cached || fetch(event.request).then(res => {
-          const copy = res.clone();
-          caches.open(CACHE_NAME).then(c => c.put(event.request, copy));
+          swKeep(event.request, res);
           return res;
         }))
       );
@@ -289,8 +297,7 @@ self.addEventListener('fetch', event => {
       // next online load without a version bump; cache covers offline.
       event.respondWith(
         fetch(event.request).then(res => {
-          const copy = res.clone();
-          caches.open(CACHE_NAME).then(c => c.put(event.request, copy));
+          swKeep(event.request, res);
           return res;
         }).catch(() => caches.match(event.request))
       );
@@ -299,8 +306,7 @@ self.addEventListener('fetch', event => {
       // which is what keeps repeat play off mobile data.
       event.respondWith(
         caches.match(event.request).then(cached => cached || fetch(event.request).then(res => {
-          const copy = res.clone();
-          caches.open(CACHE_NAME).then(c => c.put(event.request, copy));
+          swKeep(event.request, res);
           return res;
         }))
       );
@@ -319,8 +325,7 @@ self.addEventListener('fetch', event => {
       // next online load; the cache covers offline.
       event.respondWith(
         fetch(event.request).then(res => {
-          const copy = res.clone();
-          caches.open(CACHE_NAME).then(c => c.put(event.request, copy));
+          swKeep(event.request, res);
           return res;
         }).catch(() => caches.match(event.request))
       );
@@ -328,8 +333,7 @@ self.addEventListener('fetch', event => {
       // Art: cache-first — fetched once, then free.
       event.respondWith(
         caches.match(event.request).then(cached => cached || fetch(event.request).then(res => {
-          const copy = res.clone();
-          caches.open(CACHE_NAME).then(c => c.put(event.request, copy));
+          swKeep(event.request, res);
           return res;
         }))
       );

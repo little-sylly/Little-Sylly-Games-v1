@@ -4020,6 +4020,26 @@ and wrong for a path, and nothing about the manifest's own schema said which one
 
 ---
 
+**BUG-23 — the runtime caches stored any reply, including a 404 (28 Sep 2026, `sw.js`, SW v239).**
+
+*What happened.* All six runtime-cache writes in `sw.js` (packs, music, stickers + lamp — manifest
+and file each) did `c.put(request, res.clone())` with no status check. A sticker, pack image or track
+requested before its file was pushed got GitHub Pages' 404 stored under a **cache-first** key, and
+that 404 was then served for the rest of the version — the file could land and the device would never
+ask again. On the **network-first** manifests it was worse: an error reply overwrote the good cached
+copy, so the next offline load had nothing. Surfaced while explaining why the owner's newly-drawn
+Bailed sticker might still be missing on a phone.
+
+*Fix.* One helper, `swKeep(req, res)`, stores `res.status === 200` only (a 206 range reply cannot be
+put at all), and all six sites call it. `CACHE_NAME` → v239 so every device drops anything already
+poisoned.
+
+*Lesson.* **A cache-first contract is only as good as what it agrees to keep.** "Fetched once, then
+free" silently becomes "failed once, then forever" without a status gate — and the same silent-by-design
+fallbacks as BUG-22 (the emoji badge, the lobby theme) make it look like nothing is wrong.
+
+---
+
 ## Multiplayer Lessons
 
 ### ML-01 — A lobby bound that reads game state reads it before the game has run [23 Aug 2026, SW v210]

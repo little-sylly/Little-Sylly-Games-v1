@@ -1261,6 +1261,15 @@ not in a batch at the end.
 
 ## Smaller flagged items
 
+**`SYLLY_VERSION` is `'v83'` while `CACHE_NAME` is v239** (found 28 Sep 2026). `js/engine.js:16`
+  says "must match CACHE_NAME in sw.js — bump both together", but it has not moved since v83. The MP
+  handshake (`engine-multiplayer.js`, join + `MP_REJOIN`) compares it, so in practice it has become a
+  **multiplayer protocol version**, not the app version — two devices on different app builds are let
+  into one room. Harmless while every release is backward-compatible on the wire, which is not
+  guaranteed. **When picked up (the architecture review):** decide whether it is a protocol version
+  (rename, bump only on a packet change) or the app version (bump with every SW), and fix the comment
+  either way.
+
 **PKO's Stragglers scoring mode is shipped but unplayed** (open since v166; moved here from
   `CLAUDE.md` § Current Focus, 19 Aug 2026). Force of Nature can hand a player cards they did not
   choose (Deluge, Culling, Migration, Great Reversal), which is a straight penalty under Stragglers

@@ -4,6 +4,14 @@ Historical SW release notes, moved out of `CLAUDE.md` (1 Aug 2026) so they stop 
 The **current** version and its notes stay in `CLAUDE.md` § Current Focus — append the outgoing entry here on each bump.
 
 
+## v238 — the three menu layouts brought up to the rooms; the jukebox and stickerbook get a phone door (27 Sep 2026).
+
+Shelves, Classic and TV carry 🎵 Jukebox / 📒 Stickers (router `jukeboxOpen`/`stickerbookOpen`, closing back
+to the opener) and the live word art (`.sylly-wordmark`); lobby scrollbars hidden; Shelves lost its 390×844
+sandbox box. TV got white ink on every brand fill, Bailed's sticker, a flip clock with a game of the hour, a big controller turned to its bubble with idle beats and a glance
+(`ctlMount` `pose`/`beats`, `ctlGlance`), sticker-fan shelf tiles, a hero pane, Random's shuffling dot, a rail that swells, hops and waves. Harnesses: `verify-lobby-router` 261, `visual-lobby` 112/113 (§ 14 pre-existing, Lounge).
+Detail: `shared-implementation-notes.md` DD-49, DD-50.
+
 ## v237 — Reconnect adopted by Flawless, Pecking Order and Cookie Jar (27 Sep 2026)
 
 A dropped

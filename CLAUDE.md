@@ -292,14 +292,13 @@ On every bump the outgoing SW entry moves **verbatim** to `docs/sw-changelog.md`
 "keep the last three". **A second `**SW v…**` paragraph appearing here means that move didn't
 happen: do it before anything else.**
 
-**SW v238 — the three menu layouts brought up to the rooms; the jukebox and stickerbook get a phone door (27 Sep 2026).**
-Shelves, Classic and TV carry 🎵 Jukebox / 📒 Stickers (router `jukeboxOpen`/`stickerbookOpen`, closing back
-to the opener) and the live word art (`.sylly-wordmark`); lobby scrollbars hidden; Shelves lost its 390×844
-sandbox box. TV got white ink on every brand fill, Bailed's sticker, a flip clock with a game of the hour, a big controller turned to its bubble with idle beats and a glance
-(`ctlMount` `pose`/`beats`, `ctlGlance`), sticker-fan shelf tiles, a hero pane, Random's shuffling dot, a rail that swells, hops and waves. Harnesses: `verify-lobby-router` 261, `visual-lobby` 112/113 (§ 14 pre-existing, Lounge).
-Detail: `shared-implementation-notes.md` DD-49, DD-50.
+**SW v239 — runtime caches keep only a complete reply (28 Sep 2026).**
+`sw.js`'s six runtime-cache writes (packs, music, stickers + lamp; manifest and file each) now go
+through `swKeep()`, which stores a `200` only. A 404 for a file requested before it was pushed was
+being kept under a cache-first key for the whole version, and on a network-first manifest it
+overwrote the good copy. No game code touched. Detail: `shared-implementation-notes.md` BUG entry (SW v239).
 
-**Previous versions: `docs/sw-changelog.md`** — continuous, v237 back to v167.
+**Previous versions: `docs/sw-changelog.md`** — continuous, v238 back to v167.
 
 **Where the suite stands.** **20 games shipped**, all gold-master, plus multiplayer. Newest three:
 **Honeycomb Hills** (`comb`, game 20, phase 41 — the suite's biggest game and the only one with
