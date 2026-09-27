@@ -18,10 +18,9 @@
 - `docs/rules/new-game-brief-template.md` / `new-game-technical-template.md` — the Phase 1 and Phase 2 templates. **Read when:** new-game Stage 1 / Stage 2.
 - `docs/rules/new-game-checklist.md` — the ~40-item build checklist (engine registration, settings/overlay standards, MP handler audit, render seam, harness, closure). **Read when:** implementing a new game — before its first line of code. Binding.
 - `docs/rules/phase-audit.md` — Protocols A/B/C (drift check, skeleton-first, studio sweep). **Read when:** a phase boundary, or before a new game's first line of code.
-- `docs/sw-changelog.md` — every SW release note, continuous v204→v167. **Read when:** you need the history behind a past version.
-- `docs/deferred-work.md` — the parked-work list: older-games retest backlog, pending suite-wide sweeps, smaller flagged items. **Read when:** picking up maintenance work, or at a phase gate.
+- `docs/sw-changelog.md` — every SW release note, continuous v238→v167. **Read when:** you need the history behind a past version.
+- `docs/deferred-work.md` — the parked-work list, **open items only**: older-games retest backlog, pending suite-wide sweeps, smaller flagged items. **Read when:** picking up maintenance work, or at a phase gate. Resolved entries move to `docs/deferred-work-log.md` — history, grep it; never read it as a to-do list.
 - `docs/cost-envelope.md` — **what the project may spend, and on what.** Three tiers (already-paid-for / costs-something-propose-the-number / changes-what-this-is), the split between permanent *craft* constraints and reviewable *business* ones, the measured install breakdown, the precache-vs-runtime-cache lever, and the owner's recorded strategic direction. **Read when:** any change adds an asset, a dependency, a font, or artwork — or when § Anti-Patterns below looks like it's saying "no" to something worth doing. It is the escape procedure for that list, not a replacement.
-- `docs/lobby-redesign-brief.md` — the Fable handoff for the lobby/main-menu redesign, plus the `wip/lobby-lab/` sandbox it points at (verified 20-game data table, a working data-driven render of today's lobby, empty canvases). **Read when:** working on the lobby redesign. Self-contained by design — it exists so that round needs no other reads.
 
 ### 🎮 Per-Game Quick Index
 Always-on pointer so single-game work doesn't need a big file read. Brand colour rarely changes; everything else, confirm at the source.
@@ -56,7 +55,7 @@ shape. Screen/overlay IDs, state variables, key functions and MP packet tables l
 
 For per-game classes (range / toggle / pill / CTA / how-to / brand class strings) read `docs/rules/per-game-classes.md` (on-demand) — the single source for those; don't duplicate them here.
 
-For where each game's screens/overlays live in `index.html`, see the **Per-Game Offset Map** at the top of `docs/code-map.md`. **`code-map.md` is ~132 KB (~33k tokens) — never read it whole.** Same rule as any large file: Grep for the game or element ID, then offset-Read that slice. One careless full read costs more than the entire always-loaded rule set.
+For where each game's screens/overlays live in `index.html`, see the **Per-Game Offset Map** at the top of `docs/code-map.md`. **`code-map.md` is ~325 KB (~80k tokens) — never read it whole.** Same rule as any large file: Grep for the game or element ID, then offset-Read that slice. One careless full read costs more than the entire always-loaded rule set.
 
 ---
 
@@ -66,7 +65,7 @@ For where each game's screens/overlays live in `index.html`, see the **Per-Game 
 
 | Starting a… | Open this workflow | Record the outcome in |
 |-------------|--------------------|------------------------|
-| **New game** | `docs/rules/new-game-process.md` (3-stage: brief → tech spec → implementation) | tech spec `docs/new-game-tech-[name].md` + phase snapshot + `docs/decision-log.md` |
+| **New game** | `docs/rules/new-game-process.md` (3-stage: brief → tech spec → implementation) | tech spec `docs/new-game-tech-[name].md` (archived at the gate — `phase-audit.md` Protocol A § 5) + phase snapshot + `docs/decision-log.md` |
 | **Audit / phase gate** | `docs/rules/phase-audit.md` (Protocols A/B/C) | phase snapshot + `docs/decision-log.md` |
 | **Bug / update / polish** | `docs/templates/task-bug-polish.md` (fill the intake form first) | `docs/implementation-notes/[abbr]-implementation-notes.md` — or `shared-implementation-notes.md` if the root cause is in engine/secret-mode/art.js rather than a specific game (+ `docs/decision-log.md` if it became architectural) |
 
@@ -159,7 +158,8 @@ All symbols are global (no ES modules). Forward references work at runtime.
 5. `docs/implementation-notes/[abbr]-…md` (or `shared-…md` — see § Skill: Implementation Notes for which) — design decisions, bugs resolved, lessons
 6. `docs/deferred-work.md` — grep it for what you just touched (file, function, screen ID, game
    abbreviation). If an entry describes something this fix already resolves, mark it
-   `RESOLVED [date]` with a one-line note **in this same response** — never delete outright, the
+   `RESOLVED [date]` with a one-line note **in this same response**, then move it to
+   `docs/deferred-work-log.md` under the same heading — never delete outright, the
    discovery record is the valuable half. This is cheap only *now*, while you already have the exact
    terms to search for; re-deriving it later from a cold read is how the file accumulates stale
    entries (a 26 Sep 2026 review found ~10). Nothing to do here if the fix wasn't already logged.
@@ -331,8 +331,8 @@ shmup. Adding cabinet #2 = one `SM_ARCADE` entry + one file. Spec + plan:
 v232; the jukebox at v233; the Workshop as a room at v234.** What is left of it — stickerbook
 earning and its storage key, the stickerbook, the jukebox and the Workshop's real phone design, the
 jukebox's owner calls (the stand-in artist and covers, the soft-lock flag, song sizes), the owner's
-real-device pass and archiving `wip/lobby-lab/`, `wip/premium/`, `wip/jukebox-lab/` +
-`wip/workshop-lab/` — is in `docs/deferred-work.md` § Lobby redesign.
+real-device pass — is in `docs/deferred-work.md` § Lobby redesign. **`wip/` is git-ignored** (28 Sep
+2026): a local sandbox only, never deployed; its shipped labs are in the owner's external archive (`D:\Coding Projects\Documents archive\`).
 
 **Open threads — all deliberately deferred, none blocking: `docs/deferred-work.md`.** The
 **controller stickers' on-device pass (spec § 9.3) is outstanding** — no harness reaches touch, a
@@ -403,8 +403,10 @@ judgement about how anything *feels*.
 
 **Standing pointers.** Phase snapshots are written **in-repo** to `docs/phase[N]-snapshot.md`
 (current template: `docs/phase37-snapshot.md`). Snapshots up to and including phase36, the
-fable-audit campaign, and phase22 live in the owner's external archive — ask if you need one.
-Every game's confirmed spec is `docs/new-game-tech-[name].md`; its bug log and design decisions are
+fable-audit campaign, and phase22 live in the owner's external archive (`D:\Coding Projects\Documents archive\`).
+A shipped game's tech spec and its superpowers **plan** move there at its phase gate too — a
+`docs/new-game-tech-*.md` or `docs/superpowers/plans/…` path in a comment or an old log is history,
+not a broken link. What the game *is* now: its identity doc; its bug log and design decisions are
 `docs/implementation-notes/[abbr]-implementation-notes.md`. Non-game-specific bug logs and design
 decisions (engine.js, engine-multiplayer.js, secret-mode.js, js/lib/*) live in
 `docs/implementation-notes/shared-implementation-notes.md` instead. Those, plus `docs/code-map.md`

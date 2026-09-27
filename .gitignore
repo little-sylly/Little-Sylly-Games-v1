@@ -1,5 +1,7 @@
 .superpowers/
 data/sticker-masters/
 
-# Premium lounge: the owner's layout source, kept locally — 11 MB, nothing reads it at runtime
-wip/premium/*.pdf
+# Sandbox: local only, never deployed (28 Sep 2026). Labs live here while a design is being
+# worked on and move to the owner's external archive when it ships. Only the README is tracked.
+wip/*
+!wip/README.md

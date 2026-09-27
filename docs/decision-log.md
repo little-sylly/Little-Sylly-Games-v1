@@ -19,6 +19,13 @@ Detail: pointer to the canonical doc (snapshot / impl note / spec / memory).
 ```
 
 
+## 2026-09-28 — Cleanup round: `wip/` leaves git, shipped specs leave the repo, deferred-work splits
+Category: Process
+Decision: `wip/` is git-ignored (a local sandbox, never deployed); a shipped game's tech spec, superpowers plan, Stage 1 brief and `wip/` lab move to the owner's external archive at its phase gate; `deferred-work.md` holds open items only, with resolved ones moved to `deferred-work-log.md`.
+Why: `wip/` was 146 MB of tracked design material served publicly from Pages; the identity doc + implementation notes + code-map are the source of truth, so a spec kept in the repo only drifts; half of deferred-work was closed history read as a to-do list.
+Changed: `.gitignore`, `wip/README.md`, `CLAUDE.md` (pointers, code-map size 132→325 KB, Documentation Integrity step 6), `phase-audit.md` Protocol A § 5 (new), `logic-engine.md`, `deferred-work{,-log}.md`. Moved out: 7 tech specs, 26 plans, `controller-prototype/`, the lobby briefs, used briefs, all of `wip/`. Git history is not rewritten, so the old `wip/` blobs stay in the pack. Deferred: splitting `code-map.md` per game (its own round).
+Detail: `D:\Coding Projects\Documents archive\2026-09-28 cleanup\MANIFEST.md` (out-of-repo).
+
 ## 2026-09-27 — Menu title is live word art; the logo lockup belongs to the stickerbook
 Category: Strategy
 Decision: Shelves and Classic show "Little Sylly Games" as CSS text (`.sylly-wordmark`), and the PNG lockup moves to the Sticker Book header; both menus gain a 🎵/📒 places row so phones can reach the jukebox and stickerbook.
