@@ -1531,7 +1531,21 @@ let ctlRaf = null;
 const CTL_HOME_SPRING = 0.006;   // per-frame pull on the yaw velocity, per radian off home
 const CTL_HOME_TILT   = 0.92;    // per-frame decay of the pitch back to level
 let ctlSpringHome = false;
-const ctlYawOffHome = () => ((ctlRotY + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI;
+/* The home POSE a slot springs back to (SW v238, DD-50). Face-on (0, 0) everywhere
+   except where a layout asks for a showcase angle — TV turns it toward its speech
+   bubble. Set per mount by ctlMount's `pose`; the Workshop always gets 0, 0. */
+let ctlHomeYaw = 0, ctlHomePitch = 0;
+/* A glance: a temporary offset ON TOP of the home pose, so the same spring that
+   brings the ornament home carries it to "home, turned toward X" and back when
+   the glance clears (ctlGlance). TV uses it to look at the rail box under the
+   pointer. The spring is off under reduced motion, so a glance is too. */
+let ctlGlanceYaw = 0, ctlGlancePitch = 0;
+const ctlYawOffHome = () => ((ctlRotY - ctlHomeYaw - ctlGlanceYaw + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI;
+function ctlGlance(yaw, pitch) {
+  if (!ctlSpringHome) return;                    // ornaments only; never the Workshop
+  ctlGlanceYaw = yaw || 0; ctlGlancePitch = pitch || 0;
+  ctlWake();
+}
 function ctlHomeActive() { return ctlSpringHome && !ctlDragging && ctlRotYTarget === null && !ctlReducedMotion(); }
 const _ctlE = new THREE.Euler(), _ctlQ = new THREE.Quaternion();
 
@@ -1545,9 +1559,10 @@ function ctlApplyTilt(m) {
    controller sitting still on the lobby costs nothing. */
 function ctlBusy() {
   if (ctlDragging || ctlHeldStick) return true;
+  if (ctlBeat) return true;                       // an idle beat in flight (TV)
   if (ctlRotYTarget !== null) return true;
   if (Math.abs(ctlVelY) > 0.0005) return true;
-  if (ctlHomeActive() && (Math.abs(ctlYawOffHome()) > 0.002 || Math.abs(ctlRotX) > 0.002)) return true;
+  if (ctlHomeActive() && (Math.abs(ctlYawOffHome()) > 0.002 || Math.abs(ctlRotX - ctlHomePitch - ctlGlancePitch) > 0.002)) return true;
   for (const m of ctlControls.pressables) {
     const d = m.userData;
     if ((d.t || 0) > 0.002) return true;
@@ -1580,7 +1595,8 @@ function ctlTick() {
        so a controller spun three times round settles without a visible jump. */
     if (Math.abs(off) < 0.002 && Math.abs(ctlVelY) < 0.0005) { ctlRotY -= off; ctlVelY = 0; }
     else ctlVelY -= off * CTL_HOME_SPRING;
-    ctlRotX = Math.abs(ctlRotX) < 0.002 ? 0 : ctlRotX * CTL_HOME_TILT;
+    const px = ctlHomePitch + ctlGlancePitch, dx = ctlRotX - px;
+    ctlRotX = Math.abs(dx) < 0.002 ? px : px + dx * CTL_HOME_TILT;
   }
   for (const m of ctlControls.pressables) {
     const t = m.userData.t || 0;
@@ -1612,6 +1628,7 @@ function ctlTick() {
       ctlApplyTilt(m);
     }
   }
+  if (ctlBeat) ctlBeatFrame(performance.now());
   ctlRig.rotation.set(ctlRotX, ctlRotY, 0);
   ctlRenderer.render(ctlScene, ctlCamera);
   if (ctlBusy()) ctlRaf = requestAnimationFrame(ctlTick);
@@ -1619,11 +1636,25 @@ function ctlTick() {
 
 /* `floor` defaults to true (the Workshop's roomier stage). The lobby's small
    scenery mount passes false — see the comment on ctlFloor's construction.
-   `home` is the ornament's: see CTL_HOME_SPRING. */
-function ctlMount(el, { floor = true, home = false } = {}) {
+   `home` is the ornament's: see CTL_HOME_SPRING. `pose` ({ yaw, pitch }, radians) is
+   that ornament's resting angle — face-on when absent. `beats` opts the slot into
+   the idle beats (see ctlBeatStart). */
+function ctlMount(el, { floor = true, home = false, pose = null, beats = false } = {}) {
   if (!el || !ctlEnsureBuilt()) return false;
   ctlMountEl = el;
   ctlSpringHome = home;
+  if (ctlBeat) ctlBeatEnd();                      // never carry a lit cap into the next mount
+  ctlGlanceYaw = ctlGlancePitch = 0;              // nor a glance at something that is no longer there
+  ctlBeatsOn = !!(home && beats);
+  /* Carry the view across a pose change RELATIVE to home, so a controller
+     resting in TV's turned pose opens in the Workshop face-on (not turned),
+     and comes back into TV by springing round to face the bubble. Reduced
+     motion has no spring, so it lands on the new pose directly. */
+  const yaw = home && pose ? pose.yaw || 0 : 0, pitch = home && pose ? pose.pitch || 0 : 0;
+  if (yaw !== ctlHomeYaw || pitch !== ctlHomePitch) {
+    if (!home || ctlReducedMotion()) { ctlRotY += yaw - ctlHomeYaw; ctlRotX += pitch - ctlHomePitch; }
+    ctlHomeYaw = yaw; ctlHomePitch = pitch;
+  }
   if (ctlFloor) ctlFloor.visible = floor;
   el.appendChild(ctlRenderer.domElement);
   ctlResize();
@@ -1986,7 +2017,7 @@ function ctlMountOrnament(slotId, opts) {
     /* An ornament is never zoomed — and the Konami/gateway return reaches here
        through the lobby router without ever touching ctlCloseWorkshop. */
     ctlZoom = 1;
-    ctlMount(el, { floor: false, home: true });  // no headroom below a slot for the contact shadow
+    ctlMount(el, { floor: false, home: true, pose: o.pose || null, beats: !!o.beats });  // no headroom below a slot for the contact shadow
     ctlBindPointer(el);
     ctlScheduleIdleNudge();
     return true;
@@ -2086,9 +2117,79 @@ function ctlScheduleIdleNudge() {
     if (!ctlOrnamentIsLive()) return;                // the Workshop, a game, the Lounge, or nothing mounted
     const sign = Math.random() < 0.5 ? -1 : 1;
     ctlVelY = sign * (0.02 + Math.random() * 0.02);  // small — a wiggle, not a spin
+    // A slot that asked for beats (TV) sometimes does one on top of the wiggle.
+    if (ctlBeatsOn && !ctlBeat && Math.random() < CTL_BEAT_CHANCE) ctlBeatStart(ctlBeatPick());
     ctlWake();
   };
   setTimeout(fire, CTL_IDLE_NUDGE_FIRST_MS);
+}
+
+/* ── Idle beats — the ornament's small bits of play (SW v238, DD-50) ────────────
+   The Lounge's controller does a little thing every few seconds (lounge-props.js
+   louControllerIdle); an ornament big enough to see it — TV's — now does too,
+   through the physics this file already has rather than a second system:
+     flick — both thumbsticks knocked opposite ways; the stick spring (ctlTick)
+             overshoots and settles them, exactly as a released drag does
+     press — A, then B, then A: each cap sinks on the press spring and LIGHTS
+             (its emissive, the Lounge's trick — 2 mm of travel is invisible alone)
+     pair  — the four face caps light in turn round the diamond, twice
+   Opt-in per slot (ctlMount's `beats`), riding the idle nudge's own timer: no new
+   timer, and every gate that stops the nudge (reduced motion, a drag, no live
+   ornament) stops these. Silent — an ornament's buttons are scenery. While a beat
+   runs ctlBusy() keeps the loop awake; ctlBeatEnd() puts every glow back, and a
+   remount ends a beat in flight so nothing is left lit. */
+let ctlBeatsOn = false, ctlBeat = null, ctlBeatLast = '';
+const CTL_BEAT_CHANCE = 0.55;
+const CTL_BEAT_KINDS = ['flick', 'press', 'pair'];
+const CTL_BEAT_MS = { flick: 60, press: 820, pair: 1500 };
+const CTL_BEAT_FACES = ['Face Y', 'Face B', 'Face A', 'Face X'];     // clockwise round the diamond
+const CTL_BEAT_PRESSES = [[0, 'Face A'], [230, 'Face B'], [460, 'Face A']];
+const CTL_BEAT_GLOW = 1.1;
+const ctlBeatSmooth = p => p <= 0 ? 0 : p >= 1 ? 1 : p * p * (3 - 2 * p);
+function ctlBeatPart(n) { return ctlControls && ctlControls.group.getObjectByName(n); }
+function ctlBeatGlow(m, e) {
+  if (!m || !m.material) return;
+  const d = m.userData;
+  if (d.glowBase === undefined) d.glowBase = m.material.emissiveIntensity;
+  m.material.emissiveIntensity = d.glowBase + CTL_BEAT_GLOW * e;
+}
+function ctlBeatPick() {
+  const pool = CTL_BEAT_KINDS.filter(k => k !== ctlBeatLast);   // never the same beat twice running
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+function ctlBeatStart(kind) {
+  if (!ctlBuilt) return;
+  ctlBeat = { kind, t0: performance.now(), fired: 0 };
+  ctlBeatLast = kind;
+  if (kind === 'flick') {
+    const [l, r] = [ctlBeatPart('Left stick'), ctlBeatPart('Right stick')];
+    if (l && l.userData.baseQuat) { l.userData.tiltX = 0.26; l.userData.tiltZ = 0.12; }
+    if (r && r.userData.baseQuat) { r.userData.tiltX = -0.12; r.userData.tiltZ = -0.26; }
+  }
+  ctlWake();
+}
+function ctlBeatEnd() {
+  for (const n of CTL_BEAT_FACES) ctlBeatGlow(ctlBeatPart(n), 0);
+  ctlBeat = null;
+}
+function ctlBeatFrame(now) {
+  const b = ctlBeat, tau = now - b.t0;
+  if (b.kind === 'press') {
+    CTL_BEAT_PRESSES.forEach(([at, name], i) => {
+      const m = ctlBeatPart(name);
+      if (!m) return;
+      if (tau >= at && !(b.fired & (1 << i))) { b.fired |= 1 << i; m.userData.t = 1; }   // the press spring sinks it
+      if (tau >= at) ctlBeatGlow(m, Math.max(0, 1 - (tau - at) / 300));
+    });
+  } else if (b.kind === 'pair') {
+    const n = CTL_BEAT_FACES.length, slot = CTL_BEAT_MS.pair / (2 * n);
+    CTL_BEAT_FACES.forEach((name, i) => {
+      let e = 0;
+      for (let lap = 0; lap < 2; lap++) e = Math.max(e, 1 - Math.abs(tau - (lap * n + i + 0.5) * slot) / (slot * 1.4));
+      ctlBeatGlow(ctlBeatPart(name), ctlBeatSmooth(e));
+    });
+  }
+  if (tau >= CTL_BEAT_MS[b.kind]) ctlBeatEnd();
 }
 
 

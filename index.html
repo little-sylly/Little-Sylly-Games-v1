@@ -34,15 +34,25 @@
        Ref     : js/engine.js
   ════════════════════════════════════════════════════════════════ -->
   <!-- ① LOBBY screen — game selection -->
-  <section id="screen-lobby" style="display:none" class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
-    <div id="lobby-header-icons" class="absolute top-4 right-4 flex items-center gap-3">
-      <button id="btn-lobby-layout" class="text-xl text-stone-400 active:scale-90 transition-transform duration-100 min-h-11 min-w-11" aria-label="Change layout">🗂️</button>
-      <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
+  <!-- The section is the full-window scroller (css/lobby.css § Classic), like the other
+       three layouts' screens; .lobby-col is the column. The scrollbar is hidden. -->
+  <section id="screen-lobby" style="display:none">
+   <div class="lobby-col relative flex flex-col items-center px-6 pt-16 pb-12 w-full max-w-sm text-center gap-6">
+    <div id="lobby-header-icons" class="absolute top-4 right-4 flex items-center gap-2">
+      <button id="btn-lobby-layout" class="lobby-icon" aria-label="Change layout">🗂️</button>
+      <button class="btn-open-sound lobby-icon" aria-label="Sound">🔊</button>
     </div>
     <div id="lobby-controller" class="ctl-lobby-mount" role="button" tabindex="0"
       aria-label="Your controller — tap to customise"></div>
-    <div class="lobby-title">
-      <img src="assets/logo.png" alt="Little Sylly Games" class="w-full" />
+    <h1 class="sylly-wordmark lobby-title">
+      <span class="sylly-wordmark-a">Little Sylly</span>
+      <span class="sylly-wordmark-b">Games</span>
+    </h1>
+    <!-- The rooms' doors for a device without the Lounge (lobby-host.js lobbyPaintPlaces).
+         Stickers stays hidden until the sticker manifest has loaded. -->
+    <div class="lobby-places" role="group" aria-label="Around the house">
+      <button id="btn-lobby-jukebox" class="lobby-place" data-lobby-place="jukebox"><span aria-hidden="true">🎵</span>Jukebox</button>
+      <button id="btn-lobby-stickers" class="lobby-place" data-lobby-place="stickers" hidden><span aria-hidden="true">📒</span>Stickers</button>
     </div>
     <div class="flex items-baseline justify-between w-full">
       <p class="text-stone-700 text-lg font-medium">What are we playing today?</p>
@@ -113,6 +123,7 @@
         <span class="lobby-btn-label">Honeycomb Hills</span><span class="lobby-btn-badge" aria-hidden="true">🐝</span>
       </button>
     </div>
+   </div>
   </section>
 
   <!-- ② WORKSHOP — controller customiser. NOT a game: activeGameId stays null.
@@ -371,7 +382,8 @@ Rock Paper Scissors
 
   <section id="screen-shelves" style="display:none"><div id="shelves-canvas"></div></section>
 
-  <!-- THE JUKEBOX (SW v233) — the cat's door in the Lounge. js/lobby/jukebox.js owns
+  <!-- THE JUKEBOX (SW v233) — the cat's door in the Lounge, and the 🎵 place in
+       Shelves and Classic (SW v238). js/lobby/jukebox.js owns
        everything inside; the ✕ goes back through the router (lobby-host.js), never
        showScreen. Styles: css/jukebox.css, all scoped under #screen-jukebox. -->
   <section id="screen-jukebox" class="jbx" style="display:none" aria-label="The Jukebox">
@@ -382,7 +394,7 @@ Rock Paper Scissors
       </div>
       <div class="jbx-head-tools">
         <button class="btn-open-sound jbx-icon" aria-label="Sound">🔊</button>
-        <button class="jbx-icon" id="jbx-close" aria-label="Back to the Lounge">✕</button>
+        <button class="jbx-icon" id="jbx-close" aria-label="Close the jukebox">✕</button>
       </div>
     </header>
 

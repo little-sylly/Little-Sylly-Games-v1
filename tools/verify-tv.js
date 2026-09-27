@@ -19,17 +19,17 @@ for (const g of GAMES) ok(L.TV_ORDER.includes(g.id), `games.js id "${g.id}" appe
 eq(L.TV_W, 20 * 166, 'W = 20 x ITEM');
 
 // ── Ink and label by luminance ──────────────────────────────────────────────
-// Threshold is >0.3 for ink (README § 6). Light-fill brands must take plum ink.
+// White ink on every brand fill — the suite's locked button scheme, the four
+// light brands included (ui-style.md § Action Button Standard).
 console.log('ink / label');
-eq(L.tvInk('#FFE500'), '#2B1B45', 'FRT electric lemon takes plum ink');
-eq(L.tvInk('#F0A500'), '#2B1B45', 'COMB honey gold takes plum ink');
-eq(L.tvInk('#8ECAE6'), '#2B1B45', 'CLD glacier takes plum ink');
-eq(L.tvInk('#18181B'), '#FFFFFF', 'PASS zinc-900 takes white ink');
-eq(L.tvInk('#991B1B'), '#FFFFFF', 'BLD dark red takes white ink');
-for (const g of GAMES) ok(['#2B1B45', '#FFFFFF'].includes(L.tvInk(g.brandHex)), `${g.id} ink resolves`);
+eq(L.tvInk('#FFE500'), '#FFFFFF', 'FRT electric lemon takes white ink');
+eq(L.tvInk('#F0A500'), '#FFFFFF', 'COMB honey gold takes white ink');
+eq(L.tvInk('#8ECAE6'), '#FFFFFF', 'CLD glacier takes white ink');
+for (const g of GAMES) eq(L.tvInk(g.brandHex), '#FFFFFF', `${g.id} takes white ink`);
 // Pale brands get a darkened label so the heading's second word is readable
 // on the off-white ground (ui-style.md § Menu Title Treatment, same principle).
-ok(L.tvLabel('#FFE500') !== '#FFE500', 'FRT label is darkened, not the raw fill');
+eq(L.tvLabel('#FFE500'), '#FFE500', 'FRT label is its literal fill — the sanctioned exception');
+ok(L.tvLabel('#8ECAE6') !== '#8ECAE6', 'a pale brand (CLD) gets a darkened label');
 eq(L.tvLabel('#18181B'), '#18181B', 'a dark brand is its own label colour');
 
 // ── Tilt: deterministic, bounded ±7deg ──────────────────────────────────────
@@ -91,6 +91,32 @@ console.log('name split');
 eq(JSON.stringify(L.tvSplitName('Cookie Jar')), JSON.stringify({ a: 'Cookie ', b: 'Jar' }), 'two words split at the last');
 eq(JSON.stringify(L.tvSplitName('Pass')), JSON.stringify({ a: '', b: 'Pass' }), 'one word is all colour');
 eq(JSON.stringify(L.tvSplitName('Just Enough Cooks')), JSON.stringify({ a: 'Just Enough ', b: 'Cooks' }), 'three words keep two neutral');
+
+// ── Shelf fans: own games only, as few repeats as the shelves allow ──────────
+console.log('shelf fans');
+const { SHELVES } = require('../js/lobby/lobby-games.js');
+const gamesOf = id => GAMES.filter(g => g.shelves.includes(id));
+const fans = L.tvShelfFans(SHELVES, gamesOf);
+const face = new Map();
+for (const s of SHELVES) {
+  const f = fans[s.id], own = gamesOf(s.id);
+  eq(f.length, Math.min(3, own.length), `${s.id} fans min(3, its games)`);
+  ok(f.every(g => own.includes(g)), `${s.id} fans only its own games`);
+  eq(new Set(f.map(g => g.id)).size, f.length, `${s.id} fan has no duplicate`);
+  f.forEach(g => face.set(g.id, (face.get(g.id) || 0) + 1));
+}
+const slots = SHELVES.reduce((n, s) => n + fans[s.id].length, 0);
+// A repeat is forced only when some shelf has no unused game left to pick —
+// so the count of distinct faces must beat plain "first three" and never fall
+// below it. Deterministic: the same inputs give the same fans.
+const naive = new Set(SHELVES.flatMap(s => gamesOf(s.id).slice(0, 3).map(g => g.id))).size;
+ok(face.size >= naive, `fans show at least as many different faces as first-three (${face.size} vs ${naive})`);
+ok(face.size >= slots - 1, `at most one repeat at today's catalogue (${face.size} of ${slots})`);
+eq(JSON.stringify(L.tvShelfFans(SHELVES, gamesOf)), JSON.stringify(fans), 'fans are deterministic');
+// A synthetic catalogue where no repeat is needed must produce none.
+const synth = [{ id: 'a', shelves: ['x', 'y'] }, { id: 'b', shelves: ['x', 'y'] }, { id: 'c', shelves: ['x'] }, { id: 'd', shelves: ['y'] }];
+const sf = L.tvShelfFans([{ id: 'x' }, { id: 'y' }], id => synth.filter(g => g.shelves.includes(id)), 2);
+eq(new Set([...sf.x, ...sf.y].map(g => g.id)).size, 4, 'a catalogue that allows no repeats gets none');
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

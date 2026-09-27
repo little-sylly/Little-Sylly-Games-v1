@@ -46,6 +46,27 @@ function lobbyOffered(id) {
 }
 function lobbyIsUp(view) { return lobbyState.view === view && !lobbyState.workshop; }
 
+/* The rooms' doors outside the Lounge (27 Sep 2026): Shelves' and Classic's places
+   row. A phone never keeps the Lounge, so without these it had no way in. Same
+   router actions the Lounge's doors dispatch, and the close goes back to whichever
+   layout opened it (the router's jukeboxClose / stickerbookClose). The stickerbook
+   needs its manifest — absent until it arrives, like a layout a device may not use. */
+function lobbyPlaceOffered(id) {
+  if (id === 'stickers') return !!lobbyBook;
+  return id === 'jukebox';
+}
+function lobbyOpenPlace(id) {
+  if (!window.lobbyReady || !lobbyPlaceOffered(id)) return;   // Jukebox is configured by lobbyLoadContent
+  lobbyDispatch({ t: id === 'stickers' ? 'stickerbookOpen' : 'jukeboxOpen' });
+}
+function lobbyPaintPlaces() {
+  document.querySelectorAll('#screen-lobby [data-lobby-place]').forEach(b => { b.hidden = !lobbyPlaceOffered(b.dataset.lobbyPlace); });
+  if (lobbyIsUp('shelves')) { lbRender(); lobbyAfterLayoutRender(); }
+  // TV patches in place and is never scoped by the #screen-lobby query above
+  // (it lives outside it) — repaint its own places row through tvApplyAll.
+  if (typeof tvApplyAll === 'function') tvApplyAll();
+}
+
 function lobbySay(text) {
   const el = document.getElementById('lou-status'); if (!el) return;
   el.textContent = text;
@@ -180,6 +201,8 @@ function lobbyMountOrnament(view) {
   if (!lobbyWebgl) return;
   ctlMountOrnament(LOBBY_SLOTS[view], {
     returnScreen: lobbyScreen(view),
+    pose: view === 'tv' ? TV_CTL_POSE : null,   // TV's controller turns to face its speech bubble
+    beats: view === 'tv',                        // ...and is big enough to show its idle beats
     onOpen: () => lobbyDispatch({ t: 'workshopOpen' }),
     onReturn: lobbyWorkshopReturn,
   });
@@ -214,6 +237,8 @@ function lobbyBuildSwitcher() {
   if (close) close.addEventListener('click', () => lobbyDispatch({ t: 'closeSwitcher' }));
   const btn = document.getElementById('btn-lobby-layout');
   if (btn) btn.addEventListener('click', () => lobbyDispatch({ t: 'openSwitcher' }));
+  document.querySelectorAll('#screen-lobby [data-lobby-place]').forEach(b =>
+    b.addEventListener('click', () => lobbyOpenPlace(b.dataset.lobbyPlace)));
 }
 function lobbyPaintSwitcher(s) {
   const ov = document.getElementById('lobby-switcher-overlay');
@@ -286,7 +311,7 @@ function lobbySyncBinder() {
 function lobbyOpenStickerbook() {
   if (!lobbyBook) {
     lobbyState = LobbyRouter.lobbyReduce(lobbyState, { t: 'stickerbookClose' });   // a fact correction: nothing opened
-    if (lobbyScene) { lobbyScene.resume(); lobbyScene.resetView(); }
+    if (lobbyScene && lobbyIsUp('lounge')) { lobbyScene.resume(); lobbyScene.resetView(); }   // never wake the room behind another layout
     lobbySay('The sticker book could not load — it needs one trip online first.');
     return;
   }
@@ -381,5 +406,6 @@ function lobbyBoot() {
     }
     lobbyPaintSwitcher(lobbyState);
     window.lobbyReady = true;
+    lobbyPaintPlaces();   // the stickerbook's door appears once its manifest has
   });
 }

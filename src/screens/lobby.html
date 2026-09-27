@@ -24,7 +24,8 @@
 
   <section id="screen-shelves" style="display:none"><div id="shelves-canvas"></div></section>
 
-  <!-- THE JUKEBOX (SW v233) — the cat's door in the Lounge. js/lobby/jukebox.js owns
+  <!-- THE JUKEBOX (SW v233) — the cat's door in the Lounge, and the 🎵 place in
+       Shelves and Classic (SW v238). js/lobby/jukebox.js owns
        everything inside; the ✕ goes back through the router (lobby-host.js), never
        showScreen. Styles: css/jukebox.css, all scoped under #screen-jukebox. -->
   <section id="screen-jukebox" class="jbx" style="display:none" aria-label="The Jukebox">
@@ -35,7 +36,7 @@
       </div>
       <div class="jbx-head-tools">
         <button class="btn-open-sound jbx-icon" aria-label="Sound">🔊</button>
-        <button class="jbx-icon" id="jbx-close" aria-label="Back to the Lounge">✕</button>
+        <button class="jbx-icon" id="jbx-close" aria-label="Close the jukebox">✕</button>
       </div>
     </header>
 

@@ -118,7 +118,10 @@ function lbEl(tag, cls, html) {
 // and the <img>'s onerror unhides it and drops the image, so a missing or
 // corrupt file falls back to the plain emoji rather than a broken-image
 // icon or the two stacked on top of each other.
-const LB_NO_STICKER = new Set(['bld']);
+// Games whose sticker art does not exist yet — they draw the emoji disc instead.
+// Empty since Bailed's badge landed (bld.png, 27 Sep 2026); kept so the next game
+// that ships before its art needs one line, not a new code path.
+const LB_NO_STICKER = new Set();
 function lbBadgeInner(g) {
   const emoji = typeof g === 'string' ? g : g.emoji;
   const id = typeof g === 'string' ? null : g.id;
@@ -146,6 +149,7 @@ function lbRender() {
 
   const scroll = lbEl('div', 'lb-scroll');
   scroll.appendChild(lbRenderBrand());
+  scroll.appendChild(lbRenderPlaces());
   scroll.appendChild(lbRenderDock());
   scroll.appendChild(lbRenderBody());
   phone.appendChild(scroll);
@@ -162,10 +166,15 @@ function lbRender() {
 // is its own button under it that opens a small profile popover — the
 // nickname — rather than the controller itself doubling as that door.
 // OWNER-REVIEW.md item 5 follow-up, 15 Sep 2026.
+// The title is live text (.sylly-wordmark), not the PNG lockup: it scales with
+// the column on every phone, and the lockup lives in the stickerbook now
+// (owner, 27 Sep 2026). The places row follows it (lbRenderPlaces).
 function lbRenderBrand() {
   const row = lbEl('div', 'lb-brand');
   row.innerHTML = `
-    <a class="lb-logo" href="#" aria-label="Little Sylly Games"><img src="assets/logo.png" alt="Little Sylly Games"></a>
+    <div class="lb-brand-main">
+      <h1 class="sylly-wordmark lb-wordmark"><span class="sylly-wordmark-a">Little Sylly</span><span class="sylly-wordmark-b">Games</span></h1>
+    </div>
     <div class="lb-you-wrap">
       <div class="lb-you-controller">
         <span class="lb-you-mount ctl-ornament" id="shelves-controller" role="button" tabindex="0"
@@ -176,9 +185,26 @@ function lbRenderBrand() {
       </button>
       ${lbState.profileOpen ? lbRenderProfilePop() : ''}
     </div>`;
-  row.querySelector('.lb-logo').addEventListener('click', e => e.preventDefault());
   row.querySelector('#lb-you-label').addEventListener('click', () => lbSet({ profileOpen: !lbState.profileOpen }));
   if (lbState.profileOpen) lbWireProfilePop(row);
+  return row;
+}
+
+// The two rooms a phone can't reach through the Lounge — the same pair Classic
+// carries. A place this device can't open yet (the sticker manifest not loaded)
+// is absent, not dimmed — the switchers' rule. lobby-host.js re-renders once it can.
+function lbRenderPlaces() {
+  const offered = (id) => typeof lobbyPlaceOffered !== 'function' || lobbyPlaceOffered(id);
+  const places = [
+    { id: 'jukebox',  ico: '🎵', label: 'Jukebox' },
+    { id: 'stickers', ico: '📒', label: 'Stickers' },
+  ].filter(p => offered(p.id));
+  const row = lbEl('div', 'lobby-places lb-places', places.map(p =>
+    `<button class="lobby-place" data-lobby-place="${p.id}"><span aria-hidden="true">${p.ico}</span>${p.label}</button>`).join(''));
+  row.setAttribute('role', 'group');
+  row.setAttribute('aria-label', 'Around the house');
+  row.querySelectorAll('[data-lobby-place]').forEach(b =>
+    b.addEventListener('click', () => lobbyOpenPlace(b.dataset.lobbyPlace)));
   return row;
 }
 
@@ -218,8 +244,8 @@ function lbRenderDock() {
   const icons = lbEl('div', 'lb-icons');
   /* Production icons (spec § 6.1). Skins / Word Packs are gone: the pack/skin
      terminal costs a fresh Konami (secret-mode.js), so a lobby icon for it would
-     lie. The trophy waits for the stickerbook's own layout icon (deferred). The
-     arcade follows Original's header tile: shown once smArcadeUnlocked. */
+     lie. The stickerbook and the jukebox are the brand row's places, not icons
+     here. The arcade follows Original's header tile: shown once smArcadeUnlocked. */
   const arcade = typeof smArcadeUnlocked !== 'undefined' && smArcadeUnlocked;
   const list = [
     { ico: '🔊', label: 'Sound', cls: 'lb-icon-sound', on: () => openSoundOverlay() },

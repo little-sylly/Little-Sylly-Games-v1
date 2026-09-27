@@ -32,9 +32,12 @@
     root.innerHTML = `
       <div class="sb" role="dialog" aria-modal="true" aria-labelledby="sb-title">
         <div class="sb-head">
-          <div>
-            <h2 id="sb-title" class="sb-title">Sticker Book</h2>
-            <p class="sb-sub">Play games to earn stickers, then peel them onto their page.</p>
+          <div class="sb-brand">
+            <img class="sb-logo" src="assets/logo.png" alt="Little Sylly Games">
+            <div>
+              <h2 id="sb-title" class="sb-title">Sticker Book</h2>
+              <p class="sb-sub">Play games to earn stickers, then peel them onto their page.</p>
+            </div>
           </div>
           <button class="sb-x" id="sb-close" aria-label="Close the sticker book">✕</button>
         </div>

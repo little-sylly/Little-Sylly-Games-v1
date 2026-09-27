@@ -7,6 +7,7 @@
   { "id": "lttp",   "label": "Late to the Party", "image": "lttp.png",   "unlocked": true },
   { "id": "nat",    "label": "Natural Selection", "image": "nat.png",    "unlocked": true },
   { "id": "dsd",    "label": "Deep-Sea Deploy",   "image": "dsd.png",    "unlocked": true },
+  { "id": "bld",    "label": "Bailed",            "image": "bld.png",    "unlocked": true },
   { "id": "gth",    "label": "Group Therapy",     "image": "gth.png",    "unlocked": true },
   { "id": "dyb",    "label": "The Bluff",         "image": "dyb.png",    "unlocked": true },
   { "id": "pass",   "label": "Pass",              "image": "pass.png",   "unlocked": true },

@@ -1208,8 +1208,9 @@
      both: were it pickable, every tap on a record would land on the glass in
      front of it and open the wrong door.
      ───────────────────────────────────────────────────────────────────────── */
-  function louBuildJukebox(lib, design, games) {
+  function louBuildJukebox(lib, design, games, sfx) {
     const { THREE, mats } = lib;
+    const say = name => { if (typeof sfx === 'function') { try { sfx(name); } catch (_) {} } };
     const g = new THREE.Group();
     const R = 0.118, WALL = 0.004;                                   // body radius, wall thickness
     const FIL = 0.009, Y_BASE = 0.050;                                // the base: bottom fillet, top
@@ -1654,7 +1655,7 @@
         }
         if (beat === null) {
           if (beatAt === null) beatAt = now + gap();
-          else if (now >= beatAt) { beat = lastBeat = pick(); beatT0 = now; }
+          else if (now >= beatAt) { beat = lastBeat = pick(); beatT0 = now; if (beat === 'sing') say('jukeboxWhistle'); }
         }
         if (beat !== null) {
           if (beatT0 === null) beatT0 = now;
@@ -1672,7 +1673,7 @@
     };
     return g;
   }
-  LOU_BUILDERS.jukebox = (ctx) => louBuildJukebox(ctx.lib, ctx.design, ctx.games);
+  LOU_BUILDERS.jukebox = (ctx) => louBuildJukebox(ctx.lib, ctx.design, ctx.games, ctx.sfx);
 
   /* ─────────────────────────────────────────────────────────────────────────
      The flip phone — round 4, to the owner's rendered mockup
@@ -1836,8 +1837,9 @@
     x.fillStyle = gr; x.fillRect(0, 0, 128, 128); return c;
   }
 
-  function louBuildPhone(lib, design) {
+  function louBuildPhone(lib, design, sfx) {
     const { THREE } = lib; const g = new THREE.Group(); louTag(g, 'phone');
+    const say = name => { if (typeof sfx === 'function') { try { sfx(name); } catch (_) {} } };
     // ── dimensions, metres. x across, y up, z along; the hinge is at −z (away from the couch).
     const W = 0.056, L = 0.100;
     const TL = 0.011, BL = 0.0034;                  // lower half: thickness, bevel
@@ -2120,7 +2122,7 @@
         if (reduced || isOpen) { if (beat) { beat = null; beatT0 = null; settle(); } beatAt = null; return active; }
         if (beat === null) {
           if (beatAt === null) beatAt = now + gap();
-          else if (now >= beatAt) { beat = lastBeat = pick(); beatT0 = now; }
+          else if (now >= beatAt) { beat = lastBeat = pick(); beatT0 = now; if (beat === 'buzz') say('phoneAlert'); }
         }
         if (beat !== null) {
           if (beatT0 === null) beatT0 = now;
@@ -2133,7 +2135,7 @@
     };
     return g;
   }
-  LOU_BUILDERS.phone = (ctx) => louBuildPhone(ctx.lib, ctx.design);
+  LOU_BUILDERS.phone = (ctx) => louBuildPhone(ctx.lib, ctx.design, ctx.sfx);
 
   /* The stickerbook — prop round 5 (owner's mockup, 23 Sep 2026 —
      the reference render is archived with the sandbox). A butter-yellow quilted binder: a

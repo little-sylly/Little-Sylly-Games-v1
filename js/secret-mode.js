@@ -683,7 +683,7 @@ function smShowArcadeTile() {
   if (!row) return;
   const btn = document.createElement('button');
   btn.id = 'sm-arcade-tile';
-  btn.className = 'text-xl active:scale-90 transition-transform duration-100 min-h-11 min-w-11';
+  btn.className = 'lobby-icon';   // Classic's header icon (css/lobby.css), same as its two neighbours
   btn.setAttribute('aria-label', 'Arcade');
   btn.textContent = '🕹️';
   btn.addEventListener('click', () => { playSecretBeep(660); smOpenArcadeMenu(); });

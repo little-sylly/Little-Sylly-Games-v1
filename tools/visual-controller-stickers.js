@@ -34,6 +34,9 @@
 const http = require('http'), fs = require('fs'), path = require('path'), os = require('os');
 
 const ROOT = path.resolve(__dirname, '..');
+// Read, not pinned: it was 19 until Bailed's badge landed (27 Sep 2026), and a
+// hardcoded count fails on every new sticker for no reason.
+const MANIFEST_N = (m => (m.stickers || m).length)(JSON.parse(fs.readFileSync(path.join(ROOT, 'data', 'stickers', 'manifest.json'), 'utf8')));
 const SHOT = process.argv.indexOf('--shot') >= 0 ? process.argv[process.argv.indexOf('--shot') + 1] : null;
 
 /* The one refusal this harness asserts by value — it is the message a
@@ -335,7 +338,7 @@ async function probe() {
     ok(r.canvas === 2048 && r.bumpCanvas === 2048, 'BOTH canvases were resized, not just the colour one');
     ok(r.built === true && r.idem === true, 'ctlEnsureStickerSurface built, and is idempotent');
     ok(r.bumpMap && r.bumpScale === 0.035, 'the shell material carries the bump map');
-    ok(r.manifest === 19, 'the shipped manifest loaded: ' + r.manifest + ' stickers');
+    ok(r.manifest === MANIFEST_N, 'the shipped manifest loaded: ' + r.manifest + ' stickers');
     ok(r.padPairs > 1000, 'padPairs computed at the GROWN atlas size: ' + r.padPairs);
     ok(r.tanQ.chart === 'tangent' && r.tan.front > 5000 && r.tan.back === 0,
        'a tangent sticker paints its own sheet only: front ' + r.tan.front + ', back ' + r.tan.back);
@@ -579,7 +582,7 @@ async function probe() {
     const open = await phone.evaluate(() => ({
       tiles: document.querySelectorAll('.ctl-sticker-tile').length,
       surface: ctlStickerSurface !== null, atlas: CTL_ATLAS }));
-    ok(open.tiles === 19 && open.surface === false && open.atlas === 1024,
+    ok(open.tiles === MANIFEST_N && open.surface === false && open.atlas === 1024,
        'opening the Workshop shows the sheet (' + open.tiles + ' tiles) WITHOUT building ' +
        'the sticker surface: atlas ' + open.atlas);
     await phone.click('.ctl-sticker-tile >> nth=1');           // a real pick-up

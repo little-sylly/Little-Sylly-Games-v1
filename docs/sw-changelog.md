@@ -4,6 +4,16 @@ Historical SW release notes, moved out of `CLAUDE.md` (1 Aug 2026) so they stop 
 The **current** version and its notes stay in `CLAUDE.md` § Current Focus — append the outgoing entry here on each bump.
 
 
+## v237 — Reconnect adopted by Flawless, Pecking Order and Cookie Jar (27 Sep 2026)
+
+A dropped
+phone in any of the three now rejoins its seat instead of ending the match after 20 s. Each pauses only
+what acts *for* a seat — FLW's Appraisal Clock, CJAR's decision window + flip loop, PKO's Carrion window
+— and sends a private snapshot stripped to one seat's secrets. PKO gets its first loopback. Harnesses:
+`verify-pko-loopback` 47 (new), `verify-flw-loopback` 113, `verify-cjar-loopback` 213, every reconnect
+mutant killed (FLW 4, CJAR 6, PKO 7). Detail: `shared-implementation-notes.md` ML-09.
+
+
 ## v236 — MDLM client reconnect: a drop is not a quit (27 Sep 2026)
 
 At `GAME_START` the host

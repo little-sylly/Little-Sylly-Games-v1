@@ -248,7 +248,9 @@ const canvasParent = page => page.evaluate(() => (typeof ctlRenderer !== 'undefi
       ok(await shown(page, 'screen-jukebox') && !await shown(page, 'screen-lounge'), 'the cat\'s door opens the jukebox screen, and only it');
       ok(await page.evaluate(() => !window.louDebug.isRunning() && Jukebox.debug().stageRunning),
          'the Lounge\'s RAF is stopped while the jukebox\'s own stage runs — one scene at a time');
-      ok(await page.evaluate(() => Jukebox.debug().tracks) === 25, 'the catalogue loads from data/music/jukebox/ (25 songs)');
+      // The catalogue churns (docs/deferred-work.md § Jukebox) — compare against the manifest, never a pinned count.
+      const jbxWant = JSON.parse(fs.readFileSync(path.join(ROOT, 'data/music/jukebox/manifest.json'), 'utf8')).tracks.length;
+      ok(await page.evaluate(() => Jukebox.debug().tracks) === jbxWant, `the catalogue loads from data/music/jukebox/ (${jbxWant} songs)`);
       ok(await page.evaluate(() => document.getElementById('jbx-tab-records').getAttribute('aria-selected') === 'true'), 'Records is the default view');
       await page.click('#jbx-find'); await settle(page, 200);
       ok(await page.evaluate(() => document.getElementById('jbx-tab-list').getAttribute('aria-selected') === 'true'
@@ -409,6 +411,43 @@ const canvasParent = page => page.evaluate(() => (typeof ctlRenderer !== 'undefi
       await ctx.addInitScript(() => { localStorage.setItem('sylly_rejoin', '{not json'); });
       await page.goto(base); await booted(page); await settle(page, 400);
       ok(!await shown(page, 'mp-rejoin-overlay'), 'a corrupt key opens nothing and throws nothing');
+      await ctx.close();
+    }
+
+    section("17 — the places row: the rooms' doors outside the Lounge (SW v238)");
+    {
+      // A phone never keeps the Lounge, so these are its only way into the jukebox and
+      // the stickerbook. Each must go through the router and close back to its opener.
+      const { ctx, page } = await open({ width: 375, height: 667 });
+      await page.goto(base); await booted(page); await settle(page, 300);
+      for (const [view, scr, sel] of [['shelves', 'screen-shelves', '#shelves-canvas'], ['original', 'screen-lobby', '#screen-lobby']]) {
+        await page.evaluate(v => lobbyGo(v), view); await settle(page, 300);
+        await page.click(`${sel} [data-lobby-place="jukebox"]`); await settle(page, 600);
+        ok(await shown(page, 'screen-jukebox') && await page.evaluate(() => lobbyState.jukebox), `${view}: 🎵 opens the jukebox through the router`);
+        await page.click('#jbx-close'); await settle(page, 300);
+        ok(await onlyLayout(page, view), `${view}: its ✕ comes back to ${view}`);
+        await page.click(`${sel} [data-lobby-place="stickers"]`); await settle(page, 400);
+        ok(await page.evaluate(() => lobbyState.stickerbook && !document.getElementById('stickerbook-overlay').hidden), `${view}: 📒 opens the stickerbook`);
+        await page.click('#sb-close'); await settle(page, 300);
+        ok(await onlyLayout(page, view) && await page.evaluate(() => !lobbyState.stickerbook), `${view}: closing it comes back to ${view}`);
+      }
+      await ctx.close();
+    }
+    {
+      // TV keeps its own compact icon pair (DD-49's second round) rather than
+      // Shelves/Classic's labelled row, but the same two buttons through the
+      // same router actions — proved at TV's own widescreen floor.
+      const { ctx, page } = await open({ width: 1280, height: 800 });
+      await page.goto(base); await booted(page); await settle(page, 300);
+      await page.evaluate(() => lobbyGo('tv')); await settle(page, 300);
+      await page.click('#tv-app [data-lobby-place="jukebox"]'); await settle(page, 600);
+      ok(await shown(page, 'screen-jukebox') && await page.evaluate(() => lobbyState.jukebox), 'tv: 🎵 opens the jukebox through the router');
+      await page.click('#jbx-close'); await settle(page, 300);
+      ok(await onlyLayout(page, 'tv'), "tv: its ✕ comes back to tv");
+      await page.click('#tv-app [data-lobby-place="stickers"]'); await settle(page, 400);
+      ok(await page.evaluate(() => lobbyState.stickerbook && !document.getElementById('stickerbook-overlay').hidden), 'tv: 📒 opens the stickerbook');
+      await page.click('#sb-close'); await settle(page, 300);
+      ok(await onlyLayout(page, 'tv') && await page.evaluate(() => !lobbyState.stickerbook), 'tv: closing it comes back to tv');
       await ctx.close();
     }
 

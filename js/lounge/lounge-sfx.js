@@ -107,25 +107,68 @@
     /* The controller prop's idle rumble (controller animation round): a rumble
        motor, not a phone buzzer — a low saw through a lowpass, in the prop's own
        two pulses (lounge-props.js LOU_CTL_RUMBLE_PULSES, 0-260 and 360-640 ms;
-       kept in step by hand). One-shot: 0.64 s, and it stops itself. */
+       kept in step by hand). One-shot: 0.68 s, and it stops itself.
+       Re-tuned 27 Sep 2026 (owner): the original 58/87 Hz saw+square droned
+       long enough to read as a sustained hum rather than two chattering
+       pulses, and got mistaken for the phone's own notification. Higher
+       oscillators (72/104 Hz), a tighter lowpass and a faster decay per pulse
+       keep it a quick rattle instead of a hum. */
     function rumble(c) {
       const t = c.currentTime;
-      const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 420; lp.Q.value = 0.7;
+      const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 340; lp.Q.value = 0.6;
       const g = c.createGain(); g.gain.setValueAtTime(0.0001, t);
       [[0, 0.26], [0.36, 0.64]].forEach(([a, z]) => {
         g.gain.setValueAtTime(0.0001, t + a);   // an anchor, or the second attack ramps across the whole gap
-        g.gain.exponentialRampToValueAtTime(0.16, t + a + 0.03);
-        g.gain.setValueAtTime(0.16, t + z - 0.06);
+        g.gain.exponentialRampToValueAtTime(0.14, t + a + 0.02);
         g.gain.exponentialRampToValueAtTime(0.0001, t + z);
       });
-      [[58, 'sawtooth'], [87, 'square']].forEach(([hz, type]) => {
+      [[72, 'sawtooth'], [104, 'square']].forEach(([hz, type]) => {
         const o = c.createOscillator(); o.type = type; o.frequency.value = hz;
         o.connect(lp); o.start(t); o.stop(t + 0.68);
       });
       lp.connect(g); g.connect(master);
     }
 
-    const VOICE = { dialPress: click, phoneOpen: flip, binderOpen: flump, controllerRumble: rumble };
+    /* The phone's notification alert (owner, 27 Sep 2026 — replaces the
+       silent buzz beat). A clean two-note chime rather than anything
+       buzz-shaped, so it reads unmistakably as "a message arrived" and never
+       as the controller's rumble: two bell-like sines (a soft attack, longer
+       decay) a fifth apart, echoing the shape of playSuccess but shorter and
+       gentler for an idle-room ambience rather than a win state. */
+    function phoneAlert(c) {
+      const t = c.currentTime;
+      [[880, 0], [1318.5, 0.09]].forEach(([hz, at]) => {
+        const o = c.createOscillator(); o.type = 'sine'; o.frequency.value = hz;
+        const g = c.createGain();
+        g.gain.setValueAtTime(0.0001, t + at);
+        g.gain.exponentialRampToValueAtTime(0.22, t + at + 0.015);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + at + 0.38);
+        o.connect(g); g.connect(master); o.start(t + at); o.stop(t + at + 0.4);
+      });
+    }
+
+    /* The cat jukebox's "sing" idle beat (owner, 27 Sep 2026) — a whistled tune
+       under the five floating notes, rather than a silent animation. A pure
+       sine with a light vibrato (a real whistle's timbre, not a synth lead),
+       five short notes timed to the notes' own birth beats in lounge-props.js
+       (NOTE_FROM's `born = 150 + i*430`) so the tune and the visual notes
+       land together — a jaunty little up-down phrase, not a scale. */
+    function jukeboxWhistle(c) {
+      const t = c.currentTime;
+      [[659.25, 0.15], [880, 0.58], [987.77, 1.01], [880, 1.44], [659.25, 1.87]].forEach(([hz, at]) => {
+        const o = c.createOscillator(); o.type = 'sine'; o.frequency.value = hz;
+        const vib = c.createOscillator(); vib.type = 'sine'; vib.frequency.value = 5.5;
+        const vibG = c.createGain(); vibG.gain.value = hz * 0.012;
+        vib.connect(vibG); vibG.connect(o.frequency); vib.start(t + at); vib.stop(t + at + 0.34);
+        const g = c.createGain();
+        g.gain.setValueAtTime(0.0001, t + at);
+        g.gain.exponentialRampToValueAtTime(0.16, t + at + 0.03);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + at + 0.32);
+        o.connect(g); g.connect(master); o.start(t + at); o.stop(t + at + 0.34);
+      });
+    }
+
+    const VOICE = { dialPress: click, phoneOpen: flip, binderOpen: flump, controllerRumble: rumble, phoneAlert, jukeboxWhistle };
     return {
       /* Total by design: an unknown name, a blocked context or a suspended one
          are all "no sound", never a throw — lounge-scene.js guards this call too,
@@ -147,7 +190,7 @@
 
   /* The names the room may say, as data, so a harness can check a door's sound
      exists without an AudioContext. Kept in step with VOICE by hand. */
-  const LOU_SFX_VOICES = ['dialPress', 'phoneOpen', 'binderOpen', 'controllerRumble'];
+  const LOU_SFX_VOICES = ['dialPress', 'phoneOpen', 'binderOpen', 'controllerRumble', 'phoneAlert', 'jukeboxWhistle'];
   const api = { louCreateSfx, LOU_SFX_VOICES };
   if (typeof module !== 'undefined') module.exports = api;
   if (typeof window !== 'undefined') window.LouSfx = api;

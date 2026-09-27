@@ -43,7 +43,7 @@ The binder is the stickerbook and a prototype achievements loop runs behind its 
   serves several people — whose progress is it?
 - **The 2D book has no spine** — it does not read as a book. Polish later; middle ground for now.
 - **The open binder's fold** ("D" vs the mockup's "Sticker Tray" flap) — still open.
-- **Bailed** has no sticker (badge pending), so no achievement — `achDefine` simply has 19.
+- **Bailed** has no sticker (badge pending), so no achievement — `achDefine` simply has 19. **RESOLVED [27 Sep 2026]** — the badge landed; the book now has 20.
 
 ### Prop rooms — Workshop, Jukebox, Stickerbook (owner, 23 Sep 2026)
 
@@ -69,7 +69,7 @@ lives in the specs/plans under `docs/superpowers/{specs,plans}/2026-09-*-premium
   ships and is harnessed (`tools/verify-achievements.js`), waiting. Put its data source behind one
   module (cost-envelope § 4, the Tier 3 seam). See also the **Stickerbook achievements** section
   above, where the owner already answered most of the design questions (23 Sep 2026).
-- **Phone entry point for the jukebox AND the stickerbook — the next lobby round.** Both are
+- **RESOLVED 27 Sep 2026 (SW v238) for Shelves and Classic — Phone entry point for the jukebox AND the stickerbook — the next lobby round.** Both are
   reachable only through a Lounge door, and phones never keep the Lounge. One answer for both: an
   entry in Shelves (the old 🏆 dock slot) and TV's header. Each must go through a router action
   (never a direct `showScreen`), and `jukeboxClose`/`stickerbookClose` must still return to the
@@ -77,6 +77,14 @@ lives in the specs/plans under `docs/superpowers/{specs,plans}/2026-09-*-premium
   already has a <860 px single-column layout, never tested on a real phone. Read first: DD-44 +
   DD-42 in `shared-implementation-notes.md`, `lobby-host.js` (Grep `lobbyOpenJukebox`,
   `lobbyOpenStickerbook`). Opus, high.
+  **Shipped:** a 🎵 Jukebox / 📒 Stickers places row in Shelves (its own row under the brand row, not
+  the dock) and Classic (under the wordmark), through the router, each closing back to its opener
+  (`visual-lobby` § 17). **RESOLVED [27 Sep 2026] for TV too** — a compact `.lb-lg-tool` icon pair in
+  its own tools pill (`tvBuildHeader()`/`tvApply()`, `js/lobby/tv.js`), same `data-lobby-place` +
+  `lobbyOpenPlace()` wiring, proved at TV's own widescreen floor (`visual-lobby` § 17). TV's own
+  `assets/logo.png` question — **RESOLVED [27 Sep 2026]**: TV's header now carries the live-text
+  `.sylly-wordmark` like Shelves and Classic (DD-50), so no horizontal asset is needed. The jukebox's <860 px layout
+  was checked at 375×667 in headless Chromium only; a real phone is still the owner's pass. DD-49.
 - **Jukebox open items (owner calls):** the artist is a stand-in ("Sylly House Band", every track) —
   tracks are generated with **HappyShrimp**; whether to credit it in place of the stand-in for a
   publicly distributed app is still open, pending a check of its terms (owner call, not something
@@ -174,7 +182,7 @@ Record the result in `shared-implementation-notes.md`. Items 5 and 6 are the two
 change shipped values; 1-4, 7 and 8 are confirmations of behaviour the harnesses already assert
 headlessly.
 
-**2. Bailed (`bld`) has no sticker.** `data/stickers/manifest.json` carries nineteen designs and
+**2. Bailed (`bld`) has no sticker.** **RESOLVED [27 Sep 2026]** — `bld.png` + its manifest line landed (owner), and `LB_NO_STICKER` (`js/lobby/lobby.js`) was emptied so Shelves and TV draw it too. `verify-controller-stickers` 158, `verify-achievements` 81 (DD-50 follow-up 3). `data/stickers/manifest.json` carries nineteen designs and
 deliberately omits Bailed until the owner supplies `bld.png`. This is not a bug and needs no code
 change: dropping the PNG in and adding one manifest line is the whole job, with no `sw.js` edit and no
 `CACHE_NAME` bump (D1's runtime-cached contract). `verify-controller-stickers.js` § 7 checks manifest

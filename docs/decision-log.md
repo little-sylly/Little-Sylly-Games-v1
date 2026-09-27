@@ -18,6 +18,14 @@ Changed: Files/systems touched. Deferred/superseded: anything left open.
 Detail: pointer to the canonical doc (snapshot / impl note / spec / memory).
 ```
 
+
+## 2026-09-27 — Menu title is live word art; the logo lockup belongs to the stickerbook
+Category: Strategy
+Decision: Shelves and Classic show "Little Sylly Games" as CSS text (`.sylly-wordmark`), and the PNG lockup moves to the Sticker Book header; both menus gain a 🎵/📒 places row so phones can reach the jukebox and stickerbook.
+Why: a fixed-aspect image can't flex across phone widths and stays one size beside the controller; text reflows — and the book is the keepsake, so the keepsake art lives there.
+Changed: `src/screens/_shell.html`, `js/lobby/{lobby,lobby-host,lobby-router,stickerbook}.js`, `css/lobby.css` (SW v238). Deferred: TV's places entry; `assets/logo.png`'s 490 KB precache now serves only the book.
+Detail: `shared-implementation-notes.md` DD-49.
+
 ## 2026-09-27 — Reconnect adopted by FLW, PKO and CJAR (SW v237); pause only what acts for a seat
 Category: Architecture
 Decision: Three more games adopt the `reconnect` hook, and an adopter's `pause()` stops only what decides on a seat's behalf (auto-plays, auto-resolves, the loop that opens the next one), not every timer.

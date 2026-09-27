@@ -27,11 +27,16 @@
   --lb-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --lb-ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
 
+  /* The whole window, not a phone-sized box (SW v238): the sandbox's fixed 844 px
+     frame survived into production, so a real phone scrolled the box inside a
+     scrolling screen — two scrollbars — and a desktop cut the last shelf off
+     mid-card. Now .lb-scroll is the ONE scroller, full width, bar hidden, with the
+     column centred inside it by padding — so a wheel anywhere on the page scrolls it. */
+  --lb-col: 440px;
   position: relative;
   width: 100%;
-  height: 844px;
+  height: 100%;
   overflow: hidden;
-  background: var(--lb-bg);
   color: var(--lb-ink);
   font-family: 'Fredoka', system-ui, sans-serif;
   isolation: isolate;
@@ -41,11 +46,13 @@
   overflow-y: auto;
   overflow-x: hidden;
   overscroll-behavior: contain;
-  padding: 14px 16px 40px;
+  scrollbar-width: none;
+  padding: calc(14px + env(safe-area-inset-top, 0px)) max(16px, calc((100% - var(--lb-col)) / 2)) calc(40px + env(safe-area-inset-bottom, 0px));
   display: flex;
   flex-direction: column;
   gap: 14px;
 }
+.lb-scroll::-webkit-scrollbar, .lb-sheet-body::-webkit-scrollbar { display: none; }
 /* Whole selector inside :where() — ".lb-phone" outside it still counts
    toward specificity, tying this with any single-class component rule
    (.lobby-btn included) and losing that tie to source order alone. That's
@@ -61,23 +68,26 @@
 .lb-press { transition: transform 120ms var(--lb-ease-out); }
 .lb-press:active { transform: scale(0.97); }
 
-/* ── Brand row: the lockup and the player's controller, side by side ─────────
-   The logo is the box lid; the controller is the figurine standing on it. It
+/* ── Brand row: the wordmark + places, and the player's controller ────────────
+   The wordmark is the box lid; the controller is the figurine standing on it. It
    gets a real footprint (96 px) rather than a dock icon — it's the single most
-   distinctive object in the app and the Workshop's only door. */
+   distinctive object in the app and the Workshop's only door. The wordmark sizes
+   off its own column (cqi), so it fills the lid at 320 px and at 440 alike. */
 .lb-brand {
   display: flex;
   align-items: center;
   gap: 8px;
   padding-top: 2px;
 }
-.lb-logo {
+.lb-brand-main {
   flex: 1 1 auto;
   min-width: 0;
-  display: block;
-  filter: drop-shadow(0 2px 0 rgba(0,0,0,0.08)) drop-shadow(0 4px 6px rgba(0,0,0,0.12));
+  container-type: inline-size;
 }
-.lb-logo img { display: block; width: 100%; height: auto; }
+.lb-wordmark { font-size: 36px; font-size: clamp(28px, 16cqi, 46px); }
+/* Shelves' places: two equal halves, one row, at every width. */
+.lb-places { flex-wrap: nowrap; margin-top: -2px; }
+.lb-places .lobby-place { flex: 1 1 0; min-width: 0; }
 /* The wrap is the popover's anchor — position:relative, nothing else. Two
    separate buttons live inside it: the controller (→ Workshop, unchanged)
    and "You" (→ the profile popover, new). */
@@ -499,6 +509,7 @@
 }
 .lb-sheet {
   position: absolute; left: 0; right: 0; bottom: 0;
+  max-width: var(--lb-col); margin: 0 auto;   /* the column's width on a wide window */
   height: 80%;
   background: var(--lb-bg);
   border-radius: 26px 26px 0 0;
@@ -538,6 +549,7 @@
 .lb-sheet-body {
   flex: 1 1 auto;
   overflow-y: auto;
+  scrollbar-width: none;
   padding: 2px 18px 16px;
   display: flex; flex-direction: column; gap: 14px;
 }
@@ -578,7 +590,7 @@
 .lb-sylly-sub { font-size: 12.5px; color: var(--lb-ink-3); }
 .lb-sheet-foot {
   flex: 0 0 auto;
-  padding: 10px 18px 18px;
+  padding: 10px 18px calc(18px + env(safe-area-inset-bottom, 0px));
   display: flex; flex-direction: column; gap: 8px;
   border-top: 1px solid var(--lb-line);
   background: var(--lb-bg);
@@ -1171,7 +1183,12 @@
   height: 100%;
   display: flex; flex-direction: column;
   overflow: hidden;               /* README § 3: the page never scrolls */
-  background: var(--lb-bg);
+  /* The same ground as Shelves and Classic (SW v238): off-white with a faint
+     wash of the lockup's pink and violet from above. */
+  background:
+    radial-gradient(120% 55% at 50% -12%, rgba(233, 64, 142, 0.08), transparent 62%),
+    radial-gradient(80% 45% at 100% 0%, rgba(139, 92, 246, 0.07), transparent 60%),
+    var(--lb-bg);
 }
 
 /* ── Header ──────────────────────────────────────────────────────────────── */
@@ -1179,10 +1196,52 @@
   flex: none; height: 64px; padding: 0 28px;
   display: flex; align-items: center; justify-content: space-between; gap: 16px;
 }
-.lb-lg-mark { display: flex; align-items: center; gap: 7px; }
-.lb-lg-mark-a { font: 700 23px/1 Fredoka; color: var(--lb-ink); letter-spacing: -0.01em; }
-.lb-lg-mark-b { font: 700 13px/1 Fredoka; color: #fff; background: var(--lb-accent); padding: 6px 10px; border-radius: 999px; }
-.lb-lg-clock { margin: 0; font: 600 15px/1 Fredoka; color: var(--lb-ink); letter-spacing: 0.02em; white-space: nowrap; }
+/* The shared .sylly-wordmark (stacked, extruded, sparkled); TV sets only its
+   size, the same contract Shelves and Classic keep. Two lines at 26px = ~51px,
+   inside the 64px bar with room for the extrude. */
+/* One row here — "Little Sylly Games" — where Shelves and Classic stack it: a
+   header bar is wide and short, a phone column is the opposite. The sparkles
+   still ride "Games". */
+.sylly-wordmark.lb-lg-mark { font-size: 27px; flex: none; flex-direction: row; align-items: baseline; gap: .26em; }
+
+/* The flip clock: the date as a quiet two-line label, the time on split-flap
+   tiles — white keycap faces, plum digits, a hairline hinge. See tvFlipTo. */
+.lb-lg-clock { --fd-w: 30px; --fd-h: 40px; --fd-f: 27px;
+  margin: 0; display: flex; align-items: center; gap: 12px; color: var(--lb-ink); white-space: nowrap; }
+.lb-lg-date { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; font: 600 11px/1 Fredoka; letter-spacing: .14em; text-transform: uppercase; color: var(--lb-ink-3); }
+.lb-lg-date-m { font-size: 13px; letter-spacing: .02em; text-transform: none; color: var(--lb-ink-2); }
+.lb-lg-flips { display: flex; align-items: center; gap: 4px; }
+.lb-lg-fd { position: relative; width: var(--fd-w); height: var(--fd-h); border-radius: 8px; perspective: 160px;
+  box-shadow: 0 0 0 1px rgba(43, 27, 69, .10), 0 3px 0 rgba(43, 27, 69, .10), 0 6px 10px -4px rgba(43, 27, 69, .25); }
+.lb-lg-fd.is-blank { width: 0; margin-right: -4px; box-shadow: none; }
+.lb-lg-fd-h { position: absolute; left: 0; right: 0; height: 50%; overflow: hidden; background: #fff; backface-visibility: hidden; }
+.lb-lg-fd-top { top: 0; border-radius: 8px 8px 0 0; background: linear-gradient(#fff, #F6F2FA); }
+.lb-lg-fd-bot { bottom: 0; border-radius: 0 0 8px 8px; background: linear-gradient(#F3EEF8, #fff); box-shadow: inset 0 1px 0 rgba(43, 27, 69, .14); }
+.lb-lg-fd-h b { position: absolute; left: 0; right: 0; height: var(--fd-h); display: grid; place-items: center;
+  font: 700 var(--fd-f)/1 Fredoka; color: var(--lb-ink); }
+.lb-lg-fd-top b { top: 0; }
+.lb-lg-fd-bot b { bottom: 0; }
+.lb-lg-fd-f1, .lb-lg-fd-f2 { display: none; z-index: 1; }
+.lb-lg-fd-f1 { transform-origin: 50% 100%; }
+.lb-lg-fd-f2 { transform-origin: 50% 0; transform: rotateX(90deg); }
+.lb-lg-fd.is-flip .lb-lg-fd-f1, .lb-lg-fd.is-flip .lb-lg-fd-f2 { display: block; }
+.lb-lg-fd.is-flip .lb-lg-fd-f1 { animation: lb-flip-a 240ms ease-in forwards; }
+.lb-lg-fd.is-flip .lb-lg-fd-f2 { animation: lb-flip-b 260ms 220ms cubic-bezier(.3, 1.4, .5, 1) forwards; }
+@keyframes lb-flip-a { from { transform: rotateX(0); } to { transform: rotateX(-90deg); } }
+@keyframes lb-flip-b { from { transform: rotateX(90deg); } to { transform: rotateX(0); } }
+.lb-lg-colon { display: flex; flex-direction: column; gap: 7px; padding: 0 1px; }
+.lb-lg-colon i { width: 5px; height: 5px; border-radius: 50%; background: var(--lb-accent); }
+/* The game of the hour (tvPaintHour): a sticker that pops up beside the clock
+   for the first minute of every hour, bobbing; tap to pick it. The pose lives in
+   the base rule (rotate), so reduced motion leaves it sitting there, tilted. */
+.lb-lg-hour { position: relative; width: 40px; height: 40px; flex: none; margin-left: 2px; rotate: 8deg;
+  animation: lb-hourpop 460ms cubic-bezier(.3, 1.6, .5, 1) backwards, lb-sway 2.6s ease-in-out 460ms infinite; }
+.lb-lg-hour[hidden] { display: none; }
+.lb-lg-hour-art { position: absolute; inset: 0; display: block; background-size: contain; background-position: center; background-repeat: no-repeat;
+  filter: drop-shadow(0 3px 3px rgba(43, 27, 69, .3)); }
+.lb-lg-hour-art.lb-lg-disc { inset: 4px; font-size: 18px; }
+@keyframes lb-hourpop { 0% { transform: scale(.3) translateY(10px); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+.lb-lg-ampm { align-self: flex-end; margin-left: 3px; padding-bottom: 3px; font: 600 12px/1 Fredoka; color: var(--lb-ink-3); }
 .lb-lg-tools {
   display: flex; align-items: center; gap: 8px;
   background: var(--lb-surface); border: 1px solid var(--lb-line);
@@ -1193,6 +1252,12 @@
   background: var(--lb-sunken); font-size: 18px; line-height: 1;
 }
 .lb-lg-tool.is-sound { background: var(--lb-accent-tint); }
+/* Same two rooms as Shelves/Classic's places row (DD-49) — TV's own compact
+   icon idiom, coloured the same as their discs so the room reads consistently
+   across all three menus. */
+.lb-lg-tool.is-jukebox { background: #EFE7FB; }
+.lb-lg-tool.is-stickers { background: #FBEFC8; }
+.lb-lg-tool[hidden] { display: none; }
 .lb-lg-modes { display: flex; align-items: center; gap: 4px; background: var(--lb-sunken); border-radius: 22px; padding: 4px; }
 .lb-lg-mode {
   height: 36px; padding: 0 9px; border-radius: 18px;
@@ -1205,13 +1270,32 @@
 /* ── Body: the three columns ─────────────────────────────────────────────── */
 .lb-lg-body {
   flex: 1; min-height: 0;
-  display: grid; grid-template-columns: 300px minmax(0,1fr) 300px;
-  gap: 20px; padding: 0 28px;
+  /* The controller's column is fluid (240 at 1024 → 330 at 1440): fixed at 330 it
+     starved the panel to 298px at 1024. */
+  display: grid; grid-template-columns: clamp(240px, 23vw, 330px) minmax(0,1fr) 300px;
+  gap: 20px; padding: 6px 28px 0;
   transition: grid-template-columns .25s var(--lb-ease-out);
+  position: relative;
+}
+/* PARKED — the screen behind the three sections, OFF (display:none) by owner call,
+   27 Sep 2026: no direction won. Tried, all rendered side by side at 1440x800: a
+   soft lilac tray (too light, added little), a white TV bezel (crowded the header;
+   a TV inside a TV), a glow behind the controller only (too light), and this dark
+   plum screen (striking, but distracting, and it fought the daylight rail). Delete
+   `display: none` to see it again. z-index 0 under the columns (1-2) and rail (50). */
+.lb-lg-body::before {
+  display: none;
+  content: ''; position: absolute; z-index: 0; inset: 0 12px -40px; border-radius: 34px; pointer-events: none;
+  background: radial-gradient(90% 75% at 26% 22%, #4A2F74 0%, #34214F 45%, #24163A 100%);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06), inset 0 22px 60px rgba(0, 0, 0, 0.35), 0 20px 44px -22px rgba(43, 27, 69, 0.6);
 }
 
 /* Left: the controller */
-.lb-lg-left { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; min-height: 0; }
+/* z-index 1 under the panel and pane (2): the controller is bigger than its column and
+   its far grip slides BEHIND the speech bubble, so the bubble reads as coming from it.
+   The bottom padding keeps the column's content clear of Random Game, which floats
+   above the rail's left end. */
+.lb-lg-left { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; min-height: 0; padding-bottom: 62px; }
 /* The resting pose is in the BASE rule, not only in lb-nudge's 0%/100% frame.
    The global reduced-motion block collapses animation-duration to 0.01ms with
    iteration-count 1 and no fill-mode, so an element whose pose exists only
@@ -1219,19 +1303,53 @@
    controller stood bolt upright, which is precisely the "must read as
    finished" clause of README § 8 failing. The keyframes override this while
    they run, so nothing else changes. */
-.lb-lg-ctl { width: 250px; height: auto; transform: rotate(-3deg); filter: drop-shadow(0 20px 18px rgba(43,27,69,.22)); animation: lb-nudge 7s ease-in-out infinite; }
-.lb-lg-ctl-svg { display: block; width: 250px; transform: rotate(-3deg); animation: lb-nudge 7s ease-in-out infinite; }
+.lb-lg-ctl { width: 280px; height: auto; transform: rotate(-3deg); filter: drop-shadow(0 20px 18px rgba(43,27,69,.22)); animation: lb-nudge 7s ease-in-out infinite; }
+.lb-lg-ctl-svg { display: block; width: 280px; transform: rotate(-3deg); animation: lb-nudge 7s ease-in-out infinite; }
 .lb-lg-ctl-svg[hidden] { display: none; }
 .lb-lg-ctl-svg svg { width: 100%; height: auto; }
-.lb-lg-you { position: relative; top: 10px; padding: 6px 10px; font: 600 12px/1 Fredoka; letter-spacing: .14em; text-transform: uppercase; color: var(--lb-ink-3); }
+/* The stage the controller stands on: a soft pink/violet halo behind, and a
+   lilac plinth whose top face the controller's feet land on. Both sized in %
+   of the stage, so every breakpoint that resizes the controller resizes them. */
+/* The stage is ~155% of the column and starts just left of it, so the controller's
+   right side runs under the panel while its face buttons (where the idle beats
+   light up) stay clear of it. Capped by the window's HEIGHT too: the model's size
+   follows the canvas height (4:3), and a width-only rule let a 720px-tall window
+   push "You" down onto Random Game. ~360px is the header, the rail, Random's room
+   and the name tag; the rest, at 4:3 plus padding, is what the stage may take. */
+.lb-lg-stage { position: relative; display: grid; place-items: center; padding: 3% 0 3%;
+  width: min(155%, calc((100vh - 390px) * 1.2)); flex: none; align-self: flex-start; margin-left: -12%; }
+.lb-lg-stage > .lb-lg-ctl { position: relative; z-index: 1; width: 100%; }
+.lb-lg-halo {
+  position: absolute; left: 50%; top: 46%; width: 112%; aspect-ratio: 1; border-radius: 50%;
+  translate: -50% -50%;
+  background: radial-gradient(closest-side, rgba(233, 64, 142, 0.16), rgba(139, 92, 246, 0.10) 55%, transparent 100%);
+}
+.lb-lg-plinth {
+  position: absolute; left: 50%; bottom: 1%; width: 60%; height: 16%; translate: -50% 0;
+  border-radius: 50%;
+  background: radial-gradient(60% 55% at 50% 38%, #FFFFFF 0%, #F1EAFA 58%, #E2D6F2 100%);
+  box-shadow: 0 10px 18px -8px rgba(43, 27, 69, 0.30), inset 0 -3px 0 rgba(43, 27, 69, 0.06);
+}
+/* "You" is a name tag now — the places row's white pill, not a caption. */
+.lb-lg-you {
+  position: relative; height: 34px; padding: 0 14px;
+  border-radius: 17px; border: 1px solid var(--lb-line); background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 1px 2px rgba(43, 27, 69, 0.06), 0 8px 16px -12px rgba(43, 27, 69, 0.35);
+  font: 600 12px/1 Fredoka; letter-spacing: .12em; text-transform: uppercase; color: var(--lb-ink-2);
+  transition: transform 120ms var(--lb-ease-out);
+}
+.lb-lg-you:active { transform: scale(0.96); }
 
-/* Middle: the speech bubble */
+/* Middle: the speech bubble. A size container of its own (tvpanel): the
+   middle column is the one that changes width most — 374px at 900, 1096px at
+   1920 — and the picker lays itself out off THAT, not off the window. */
 .lb-lg-panel {
-  position: relative; top: 5px;
+  position: relative; z-index: 2; top: 5px;
+  container: tvpanel / inline-size;
   background: var(--lb-surface); border: 1px solid var(--lb-line); border-radius: 28px;
   padding: 14px 16px; min-height: 0; min-width: 0;
   display: flex; flex-direction: column; gap: 10px;
-  box-shadow: 0 1px 3px rgba(0,0,0,.05), 0 14px 30px -18px rgba(43,27,69,.25);
+  box-shadow: 0 1px 2px rgba(43, 27, 69, 0.06), 0 22px 44px -26px rgba(43, 27, 69, 0.38);
 }
 /* The tail — a rotated square showing only two borders, so it reads as one
    continuous edge of the bubble rather than a pasted-on triangle. */
@@ -1245,28 +1363,42 @@
 .lb-lg-pick[hidden], .lb-lg-shelf[hidden] { display: none; }
 
 /* Right: the reserved pane */
-.lb-lg-pane-slot { position: relative; top: 5px; min-height: 0; display: flex; }
+.lb-lg-pane-slot { position: relative; z-index: 2; top: 5px; min-height: 0; display: flex; }
 .lb-lg-empty, .lb-lg-card { flex: 1; min-height: 0; border-radius: 28px; overflow: hidden; }
 .lb-lg-empty[hidden], .lb-lg-card[hidden] { display: none; }
 .lb-lg-empty {
-  background: #F3F0F7; border: 1px solid var(--lb-line);
+  background:
+    radial-gradient(90% 60% at 50% 36%, rgba(255, 255, 255, 0.85), transparent 70%),
+    linear-gradient(165deg, #FDEFF6 0%, #F3EDFC 100%);
+  border: 1px solid rgba(43, 27, 69, 0.07);
+  box-shadow: 0 1px 2px rgba(43, 27, 69, 0.05), 0 22px 44px -28px rgba(43, 27, 69, 0.32);
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 18px; padding: 28px 22px;
+  gap: 20px; padding: 28px 22px;
 }
-.lb-lg-stack { position: relative; width: 200px; height: 120px; flex: none; }
-.lb-lg-lid {
-  position: absolute; width: 96px; height: 74px; border-radius: 12px 12px 8px 8px;
-  background-image: linear-gradient(to bottom, rgba(255,255,255,.14), rgba(255,255,255,0) 45%, rgba(0,0,0,.26));
-  box-shadow: 0 4px 0 rgba(0,0,0,.16), 0 8px 14px rgba(0,0,0,.14);
+/* A little pile of real stickers, each bobbing on its own phase. The tilt is
+   the individual `rotate` property and the bob animates `transform`, so the
+   two compose — and with motion reduced the pile still rests tilted. */
+.lb-lg-pile { position: relative; flex: none; width: min(94%, 300px); aspect-ratio: 1.55; }
+.lb-lg-pile-s {
+  position: absolute; bottom: 0; width: 52%; aspect-ratio: 1;
+  animation: lb-sway 3.4s ease-in-out infinite;
 }
-.lb-lg-lid-1 { left: 6px;  top: 26px; background-color: #A855F7; transform: rotate(-9deg); }
-.lb-lg-lid-2 { right: 4px; top: 22px; background-color: #F59E0B; transform: rotate(8deg); }
-.lb-lg-lid-3 { left: 52px; top: 8px;  height: 78px; background-color: #E9408E; transform: rotate(-2deg); box-shadow: 0 5px 0 rgba(0,0,0,.18), 0 10px 16px rgba(0,0,0,.16); }
-.lb-lg-empty-text { display: flex; flex-direction: column; gap: 7px; align-items: center; }
-.lb-lg-empty-h { margin: 0; font: 700 20px/1.1 Fredoka; color: var(--lb-ink); text-align: center; }
-.lb-lg-empty-s { margin: 0; font: 400 13.5px/1.45 Fredoka; color: var(--lb-ink-2); text-align: center; }
+.lb-lg-pile-s:nth-child(1) { left: 0;   bottom: 4%; rotate: -12deg; animation-delay: -0.4s; }
+.lb-lg-pile-s:nth-child(2) { left: 24%; bottom: 20%; rotate: 4deg;  animation-delay: -1.6s; z-index: 1; }
+.lb-lg-pile-s:nth-child(3) { right: 0;  bottom: 2%; rotate: 13deg; animation-delay: -2.5s; }
+.lb-lg-pile-art {
+  position: absolute; inset: 0; display: block;
+  background-size: contain; background-position: center; background-repeat: no-repeat;
+  filter: drop-shadow(0 8px 8px rgba(43, 27, 69, 0.22));
+}
+.lb-lg-empty-text { display: flex; flex-direction: column; gap: 8px; align-items: center; max-width: 250px; }
+.lb-lg-empty-h { margin: 0; font: 700 22px/1.1 Fredoka; color: var(--lb-ink); text-align: center; }
+.lb-lg-empty-s { margin: 0; font: 400 14px/1.45 Fredoka; color: var(--lb-ink-2); text-align: center; text-wrap: balance; }
 
 /* ── Panel state A: the shelf picker ─────────────────────────────────────── */
+/* The picker's column is capped and centred: at 1920 a full-width filter row
+   stretched each count key to ~280px, which read as a form, not a keypad. */
+.lb-lg-pick { width: 100%; max-width: 880px; align-self: center; }
 .lb-lg-ask { margin: 0; padding: 6px 0 0; font: 700 26px/1 Fredoka; color: var(--lb-ink); text-align: center; }
 .lb-lg-filters { flex: none; display: flex; gap: 14px; padding: 2px 4px 0; }
 .lb-lg-filter { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 7px; }
@@ -1301,21 +1433,96 @@
 .lb-lg-key:active { transform: translateY(3px); }
 .lb-lg-count { margin: 0; padding: 0 4px; font: 400 13.5px/1 Fredoka; color: var(--lb-ink-2); text-align: center; }
 
-/* The sticker-pill field. Wraps, so a seventh shelf needs no retune. */
-.lb-lg-pills { flex: 1; min-height: 0; display: flex; flex-wrap: wrap; align-content: center; justify-content: center; gap: 8px 12px; padding: 0 2px 4px; }
-.lb-lg-pill {
-  position: relative; width: 172px; height: 70px; border-radius: 22px; flex: none;
-  background: #F3F0F7; box-shadow: 0 3px 0 rgba(43,27,69,.07);
-  display: flex; align-items: center; gap: 10px; padding: 0 14px 0 8px;
-  transform: rotate(var(--pill-rot, 0deg)) translateY(var(--pill-off, 0px));
-  transition: transform .2s var(--lb-ease-out);
+/* The shelf tiles. A grid, not a wrap: two columns in a narrow panel, three
+   from 560px — so six shelves are always a tidy 3×2 or 2×3, and a seventh
+   just starts a row. Rows size to their content and the field centres in what
+   is left; `safe` keeps the first row reachable if a short window makes the
+   field taller than the panel (same reasoning as the well below). */
+.lb-lg-pills {
+  flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: none;
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: max-content;
+  align-content: safe center; gap: 10px; padding: 5px 4px;
 }
-.lb-lg-pill:hover, .lb-lg-pill:focus-visible { transform: rotate(0deg) translateY(-5px) scale(1.05); }
-.lb-lg-pill-disc { flex: none; width: 48px; height: 48px; border-radius: 50%; background: var(--lb-surface); box-shadow: 0 2px 6px rgba(43,27,69,.16); display: flex; align-items: center; justify-content: center; }
-.lb-lg-pill-emoji { font-size: 25px; line-height: 1; display: block; animation: lb-floaty 2.8s ease-in-out infinite; }
+.lb-lg-pills::-webkit-scrollbar { display: none; }
+.lb-lg-pill {
+  position: relative; min-height: 62px; border-radius: 22px; min-width: 0;
+  background: linear-gradient(to bottom, #FBF9FD, #F3EEF9);
+  border: 1px solid rgba(43, 27, 69, 0.06);
+  box-shadow: 0 3px 0 rgba(43, 27, 69, 0.06), 0 10px 18px -14px rgba(43, 27, 69, 0.30);
+  display: flex; align-items: center; gap: 10px; padding: 8px 14px 8px 8px;
+  transform: rotate(var(--pill-rot, 0deg));
+  transition: transform .2s var(--lb-ease-out), box-shadow .2s ease;
+}
+.lb-lg-pill:hover, .lb-lg-pill:focus-visible {
+  transform: rotate(0deg) translateY(-4px);
+  box-shadow: 0 3px 0 rgba(43, 27, 69, 0.06), 0 18px 26px -14px rgba(43, 27, 69, 0.38);
+}
+.lb-lg-pill:active { transform: rotate(0deg) translateY(-1px) scale(0.98); }
+.lb-lg-pill-disc { flex: none; width: 44px; height: 44px; border-radius: 50%; background: var(--lb-surface); box-shadow: 0 2px 6px rgba(43,27,69,.16); display: flex; align-items: center; justify-content: center; }
+.lb-lg-pill-emoji { font-size: 23px; line-height: 1; display: block; animation: lb-floaty 2.8s ease-in-out infinite; }
 .lb-lg-pill-text { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-width: 0; }
-.lb-lg-pill-name { font: 700 17px/1 Fredoka; color: var(--lb-ink); }
+.lb-lg-pill-name { display: flex; align-items: center; gap: 6px; font: 700 16px/1 Fredoka; color: var(--lb-ink); white-space: nowrap; }
+.lb-lg-pill-ico { display: none; font-size: .9em; line-height: 1; }
 .lb-lg-pill-count { font: 400 12px/1 Fredoka; color: var(--lb-ink-2); }
+
+/* The fan: the shelf's first three stickers, overlapping, the middle one on
+   top. Hidden in a narrow panel (the emoji disc stands in). Height rides the
+   panel's own width (cqi) so it scales with the column it lives in. Each
+   sticker's tilt is the individual `rotate` property, so hover's spread
+   (`translate`) composes with it rather than replacing it. */
+.lb-lg-pill-fan { display: none; position: relative; flex: none; height: 56px; aspect-ratio: 1.84; }
+.lb-lg-fan-s {
+  position: absolute; top: 0; height: 100%; aspect-ratio: 1;
+  left: calc(var(--fan-i) * 22.8%);
+  transition: translate .22s var(--lb-ease-out), rotate .22s var(--lb-ease-out);
+}
+.lb-lg-fan-s:nth-child(1) { rotate: -9deg; }
+.lb-lg-fan-s:nth-child(2) { rotate: 2deg; z-index: 1; translate: 0 -4%; }
+.lb-lg-fan-s:nth-child(3) { rotate: 10deg; }
+.lb-lg-pill:hover .lb-lg-fan-s:nth-child(1), .lb-lg-pill:focus-visible .lb-lg-fan-s:nth-child(1) { translate: -14% 2%; rotate: -15deg; }
+.lb-lg-pill:hover .lb-lg-fan-s:nth-child(2), .lb-lg-pill:focus-visible .lb-lg-fan-s:nth-child(2) { translate: 0 -12%; }
+.lb-lg-pill:hover .lb-lg-fan-s:nth-child(3), .lb-lg-pill:focus-visible .lb-lg-fan-s:nth-child(3) { translate: 14% 2%; rotate: 16deg; }
+.lb-lg-fan-art {
+  position: absolute; inset: 0; display: block;
+  background-size: contain; background-position: center; background-repeat: no-repeat;
+  filter: drop-shadow(0 3px 3px rgba(0,0,0,.25));
+  transition: filter .2s ease;
+}
+.lb-lg-fan-art.lb-lg-disc { inset: 12%; font-size: 1.4em; }
+.lb-lg-fan-s.is-out .lb-lg-fan-art { filter: grayscale(1) opacity(.4); }
+
+/* 480px+: two columns are wide enough for a small fan in place of the disc. */
+@container tvpanel (min-width: 480px) {
+  .lb-lg-pill-disc { display: none; }
+  .lb-lg-pill-fan { display: block; height: 46px; }
+  .lb-lg-pill { gap: 12px; padding: 5px 14px 5px 10px; min-height: 54px; }
+  .lb-lg-pill-ico { display: inline; }
+}
+/* 560px+: three columns, and the tile turns upright — fan on top, name below. */
+@container tvpanel (min-width: 560px) {
+  .lb-lg-pills { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+  .lb-lg-pill { flex-direction: column; justify-content: center; gap: 8px; padding: 14px 10px 14px; }
+  .lb-lg-pill-disc { display: none; }
+  .lb-lg-pill-fan { display: block; height: clamp(44px, min(10cqi, calc(16vh - 60px)), 116px); }
+  .lb-lg-pill-text { align-items: center; }
+  .lb-lg-pill-ico { display: inline; }
+  .lb-lg-pill-name { font-size: 17px; }
+}
+/* 580px+: both filters fit on ONE row — eight count keys and the two phone
+   keys side by side, instead of a 4×2 keypad and a stacked pair. */
+@container tvpanel (min-width: 580px) {
+  .lb-lg-keys-count { grid-template-columns: repeat(8, 1fr); }
+  .lb-lg-filter-phones { width: 204px; }
+  .lb-lg-key-phone { font-size: 13px; }
+  .lb-lg-keys-phone { grid-template-rows: none; grid-template-columns: 1fr 1fr; }
+  .lb-lg-ask { padding-top: 10px; }
+}
+@container tvpanel (min-width: 760px) { .lb-lg-filter-phones { width: 260px; } .lb-lg-key-phone { font-size: 14px; } }
+@container tvpanel (min-width: 900px) {
+  .lb-lg-pill-name { font-size: 20px; }
+  .lb-lg-pill-count { font-size: 13.5px; }
+  .lb-lg-pills { gap: 18px; }
+}
 
 /* ── Panel state B: a shelf, open ────────────────────────────────────────── */
 .lb-lg-shead { display: flex; align-items: center; gap: 12px; padding: 0 2px; flex: none; }
@@ -1337,7 +1544,8 @@
 .lb-lg-well {
   flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden;
   overscroll-behavior: contain; scrollbar-width: none;
-  border-radius: 20px; background: #F3F0F7; padding: 14px;
+  border-radius: 20px; padding: 14px;
+  background: radial-gradient(90% 70% at 50% 18%, rgba(255,255,255,.75), transparent 70%), linear-gradient(to bottom, #F8F5FC, #EFE9F8);
   display: flex; flex-wrap: wrap; align-content: safe center; justify-content: center; gap: 6px 10px;
 }
 .lb-lg-well::-webkit-scrollbar { display: none; }
@@ -1367,7 +1575,7 @@
   font: 600 13px/1 Fredoka; box-shadow: 0 2px 4px rgba(0,0,0,.14);
 }
 /* Bailed's fallback: the shipped phone treatment — a domed white disc +
-   emoji. README § 9 — it stays until bld.png exists. */
+   emoji. Any game in LB_NO_STICKER (none since bld.png landed). */
 .lb-lg-disc {
   border-radius: 50%;
   background: radial-gradient(circle at 34% 28%, #fff 0%, #f2f2f5 55%, #dcdce2 100%);
@@ -1380,34 +1588,56 @@
 .lb-lg-card {
   background: var(--lb-surface); border: 1px solid var(--lb-line);
   display: flex; flex-direction: column;
-  box-shadow: 0 1px 3px rgba(0,0,0,.05), 0 14px 30px -18px rgba(43,27,69,.25);
+  box-shadow: 0 1px 2px rgba(43, 27, 69, 0.06), 0 22px 44px -26px rgba(43, 27, 69, 0.38);
 }
+/* The hero band. flex-basis 0 + grow: it takes whatever height the body and
+   CTA leave, between a strip (min) and a stage (max) — the body shrinks and
+   scrolls first on a short screen, the band grows first on a tall one. */
 .lb-lg-band {
-  position: relative; flex: none; height: 60px;
-  background-image: linear-gradient(to bottom, rgba(255,255,255,.14), rgba(255,255,255,0) 50%, rgba(0,0,0,.14));
+  position: relative; flex: 1 1 0; min-height: 88px; max-height: 250px;
+  background-image:
+    radial-gradient(rgba(255,255,255,.16) 1.5px, transparent 2px),
+    linear-gradient(to bottom, rgba(255,255,255,.16), rgba(255,255,255,0) 50%, rgba(0,0,0,.16));
+  background-size: 18px 18px, auto;
 }
-.lb-lg-x { position: absolute; right: 12px; top: 12px; width: 36px; height: 36px; border-radius: 18px; background: rgba(255,255,255,.88); color: var(--lb-ink-2); font: 700 15px/1 Fredoka; }
-/* The sticker hangs 26px below the band's edge, half on the colour and half
-   on the white — the thing that makes the pane read as a box being opened. */
+/* A pool of light behind the sticker, so the art sits IN the colour, not on it. */
+.lb-lg-band-glow {
+  position: absolute; left: 50%; top: 54%; width: 70%; aspect-ratio: 1; translate: -50% -50%;
+  border-radius: 50%; pointer-events: none;
+  background: radial-gradient(closest-side, rgba(255,255,255,.55), rgba(255,255,255,0));
+}
+.lb-lg-x { position: absolute; z-index: 2; right: 12px; top: 12px; width: 36px; height: 36px; border-radius: 18px; background: rgba(255,255,255,.88); color: var(--lb-ink-2); font: 700 15px/1 Fredoka; }
+/* The sticker scales with the band and still hangs over its lower edge, half
+   on the colour and half on the white — the pane reads as a box being opened.
+   Centring is `translate`, the tilt is `rotate`, the sway animates `transform`:
+   three properties that compose, so the sway never drops the tilt or the
+   centring, and with motion reduced the resting pose is already the base rule. */
 .lb-lg-hang {
-  position: absolute; left: 50%; bottom: -26px; width: 76px; height: 76px; display: block;
+  position: absolute; left: 50%; bottom: -16px; height: 92%; max-height: 210px; aspect-ratio: 1; display: block;
   background-size: contain; background-position: center; background-repeat: no-repeat;
-  transform: translateX(-50%) rotate(var(--gs-tilt, 0deg));
-  filter: drop-shadow(0 6px 6px rgba(0,0,0,.28));
+  translate: -50% 0; rotate: var(--gs-tilt, 0deg);
+  filter: drop-shadow(0 8px 8px rgba(0,0,0,.28));
+  animation: lb-sway 3.6s ease-in-out infinite;
 }
-.lb-lg-hang.lb-lg-disc { width: 60px; height: 60px; bottom: -24px; font-size: 30px; transform: translateX(-50%); }
-.lb-lg-cbody { flex: 1; min-height: 0; overflow-y: auto; padding: 34px 20px 6px; display: flex; flex-direction: column; gap: 10px; scrollbar-width: none; }
+.lb-lg-hang.lb-lg-disc { height: 64%; max-height: 120px; bottom: -18px; font-size: 40px; rotate: none; }
+.lb-lg-cbody { flex: 0 1 auto; min-height: 0; overflow-y: auto; padding: 28px 20px 6px; display: flex; flex-direction: column; gap: 10px; scrollbar-width: none; }
 .lb-lg-cbody::-webkit-scrollbar { display: none; }
 .lb-lg-ct { margin: 0; font: 700 25px/1.1 Fredoka; color: var(--lb-ink); text-align: center; }
-.lb-lg-cp { margin: 0; font: 400 14.5px/1.4 Fredoka; color: var(--lb-ink-2); text-align: center; }
-.lb-lg-steps { display: flex; flex-direction: column; gap: 6px; padding-top: 2px; }
+.lb-lg-cp { margin: 0; font: 400 14.5px/1.4 Fredoka; color: var(--lb-ink-2); text-align: center; text-wrap: balance; }
+/* The steps sit in a tray tinted with the game's own colour. */
+.lb-lg-steps {
+  display: flex; flex-direction: column; gap: 7px; margin-top: 2px; padding: 12px 12px 12px;
+  border-radius: 16px; background: color-mix(in oklab, var(--card-brand, #E9408E) 8%, #FFFFFF);
+}
 .lb-lg-slabel { margin: 0; font: 600 10.5px/1 Fredoka; letter-spacing: .14em; text-transform: uppercase; }
 .lb-lg-step { display: flex; gap: 9px; align-items: flex-start; }
 .lb-lg-step p { margin: 0; font: 400 13px/1.4 Fredoka; color: var(--lb-ink); }
 .lb-lg-sn { flex: none; width: 20px; height: 20px; border-radius: 10px; font: 700 11px/20px Fredoka; text-align: center; }
-.lb-lg-sy { margin: 0; font: 400 12.5px/1.4 Fredoka; color: var(--lb-ink-2); }
+.lb-lg-sy { margin: 0; font: 400 12.5px/1.4 Fredoka; color: var(--lb-ink-2); text-align: center; }
 .lb-lg-sy-k { font-weight: 600; }
-.lb-lg-cfoot { flex: none; padding: 10px 20px 18px; }
+/* margin-top:auto: once the band has hit its cap, any height still spare
+   lands above the CTA, keeping it pinned to the card's foot. */
+.lb-lg-cfoot { flex: none; margin-top: auto; padding: 10px 20px 18px; }
 /* The pinned CTA — the full keycap moulding, in the game's own words. */
 .lb-lg-play {
   position: relative; isolation: isolate;
@@ -1429,6 +1659,63 @@
 
 /* ── Rail wrapper — README § 3: full bleed, over the columns above it ────── */
 .lb-lg-railwrap { position: relative; z-index: 50; isolation: isolate; flex: none; }
+/* The track the boxes stand on: a lilac shelf — a lit top face the box feet
+   land on, and a deeper front lip — full bleed, fading out at both ends like
+   the boxes do. Static; the studs below are what travels. Sits behind the rail
+   (z-index -1 inside the railwrap's own isolation), so it never takes a hit. */
+.lb-lg-railwrap::before {
+  content: ''; position: absolute; z-index: -1; left: 0; right: 0; bottom: 0; height: 66px; pointer-events: none;
+  background:
+    linear-gradient(to bottom, rgba(255,255,255,.8), rgba(255,255,255,0) 3px),
+    linear-gradient(to bottom, #F3EDFB 0%, #E6DCF4 75%, #D9CBEC 75%, #D0C0E6 100%);
+  box-shadow: 0 -1px 0 rgba(43, 27, 69, 0.05);
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent);
+}
+/* The slot: a warm pool of light on the track under the centre box — where a
+   game lands, and where the swell and the hop happen. */
+.lb-lg-railwrap::after {
+  content: ''; position: absolute; z-index: -1; left: 50%; bottom: 0; width: 330px; height: 170px;
+  translate: -50% 0; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(closest-side, rgba(233, 64, 142, 0.24), rgba(139, 92, 246, 0.10) 62%, transparent);
+}
+/* The hop — a box arriving in the slot asks to be picked. On .lb-lg-boxwrap,
+   whose `translate`/`scale` carry the centre swell (tvSwell) and compose with
+   this `transform`. Squash on take-off and landing, a wiggle at the top. */
+@keyframes lb-askme {
+  0%   { transform: translateY(0) rotate(0) scaleY(1); }
+  14%  { transform: translateY(2px) rotate(0) scaleY(.95); }
+  38%  { transform: translateY(-16px) rotate(-3deg) scaleY(1.03); }
+  56%  { transform: translateY(-16px) rotate(2.5deg) scaleY(1.02); }
+  78%  { transform: translateY(0) rotate(0) scaleY(.97); }
+  90%  { transform: translateY(-3px) rotate(0) scaleY(1); }
+  100% { transform: translateY(0) rotate(0) scaleY(1); }
+}
+.lb-lg-boxwrap { transform-origin: 50% 100%; }
+/* The wave (tvWave): each sticker jumps out of its box, flips its tilt at the
+   top and lands. Written out whole, translateX(-50%) and the tilt included, so
+   the keyframes never drop the sticker's own centring or angle. */
+@keyframes lb-stickerwave {
+  0%, 100% { transform: translateX(-50%) translateY(0) rotate(var(--gs-tilt, 0deg)); }
+  35% { transform: translateX(-50%) translateY(-18px) rotate(calc(var(--gs-tilt, 0deg) * -1.4)); }
+  62% { transform: translateX(-50%) translateY(0) rotate(var(--gs-tilt, 0deg)); }
+  78% { transform: translateX(-50%) translateY(-4px) rotate(var(--gs-tilt, 0deg)); }
+}
+.lb-lg-bsticker.is-wave { animation: lb-stickerwave .62s cubic-bezier(.3, .7, .4, 1) backwards; }
+/* Hover: the box lifts a little and its sticker wiggles — "this one?" */
+@keyframes lb-stickerwiggle {
+  0%, 100% { transform: translateX(-50%) rotate(var(--gs-tilt, 0deg)); }
+  30% { transform: translateX(-50%) translateY(-6px) rotate(calc(var(--gs-tilt, 0deg) - 7deg)); }
+  65% { transform: translateX(-50%) translateY(-6px) rotate(calc(var(--gs-tilt, 0deg) + 6deg)); }
+}
+.lb-lg-item:not(.is-sel) .lb-lg-box:hover { transform: translateY(-6px); }
+.lb-lg-item:not(.is-sel) .lb-lg-box:hover .lb-lg-bsticker { animation: lb-stickerwiggle .5s ease-in-out; }
+.lb-lg-boxwrap.is-ask { animation: lb-askme .7s cubic-bezier(.3, .7, .4, 1); }
+/* The landing ring (tvDotLand): the rolled box rings out in its own colour. */
+.lb-lg-box::after { content: ''; position: absolute; inset: -5px; border-radius: 18px 18px 14px 14px; z-index: 2;
+  border: 3px solid var(--ring, transparent); opacity: 0; pointer-events: none; }
+.lb-lg-box.is-ring::after { animation: lb-boxring 800ms ease-out; }
+@keyframes lb-boxring { 0% { transform: scale(1); opacity: .95; } 100% { transform: scale(1.28); opacity: 0; } }
 
 /* ── The rail ────────────────────────────────────────────────────────────── */
 .lb-lg-rail {
@@ -1447,6 +1734,14 @@
   mask-image: linear-gradient(90deg, transparent, #000 22%, #000 78%, transparent);
   -webkit-mask-image: linear-gradient(90deg, transparent, #000 22%, #000 78%, transparent);
   position: relative;
+  /* Studs along the track's front lip. `local` pins the background to the
+     rail's SCROLLED content, so the studs travel with the boxes — the drift
+     reads as a moving belt, not as boxes sliding over a still floor. */
+  background-image: radial-gradient(circle, rgba(255,255,255,.9) 0 2.5px, transparent 3px);
+  background-size: 41.5px 16px;
+  background-repeat: repeat-x;
+  background-position: 0 100%;
+  background-attachment: local;
 }
 /* The headroom above overlaps the columns — and at 1280×800 it covered the lower
    half of the pane's Play button, so a click on "Start Serving" landed on the
@@ -1529,22 +1824,41 @@
    would need. Different facts. */
 .lb-lg-item.is-out.is-sel .lb-lg-tab { opacity: .85; }
 
-/* Random Game — pinned above the rail's left edge. */
+/* Random Game — pinned above the rail's left edge. The Workshop's Randomise All
+   key in daylight: the places row's white glass, a pink die, the label over a live
+   "from N" line, and four brand dots previewing the pool. While the rail spins,
+   the die rolls and the dots hop in turn — transform only, and the global
+   reduced-motion block reaches both (they are CSS animations, not the rAF). */
 .lb-lg-spin {
-  position: absolute; left: 28px; bottom: 100%; margin-bottom: 6px; z-index: 5; isolation: isolate;
-  height: 38px; padding: 0 14px; border-radius: 13px;
-  background-color: var(--lb-surface); color: var(--lb-ink); font: 600 13px/1 Fredoka;
-  display: flex; align-items: center; gap: 6px;
-  background-image: linear-gradient(to bottom, rgba(255,255,255,.45) 0%, rgba(255,255,255,0) 45%, rgba(0,0,0,.04) 100%);
-  box-shadow:
-    inset 0 0 0 1px rgba(255,255,255,.18), inset 0 1px 0 rgba(255,255,255,.40),
-    inset 0 -16px 20px -13px rgba(0,0,0,.16), inset 0 -2px 1px rgba(0,0,0,.10),
-    0 0 0 1.5px rgba(0,0,0,.16), 0 5px 0 rgba(0,0,0,.16), 0 8px 15px rgba(0,0,0,.14);
-  transition: transform 100ms ease-out, opacity 150ms ease;
+  position: absolute; left: 28px; bottom: 100%; margin-bottom: 8px; z-index: 5;
+  min-height: 52px; padding: 0 14px 0 8px; border-radius: 18px;
+  display: flex; align-items: center; gap: 10px;
+  border: 1px solid var(--lb-line); background: rgba(255, 255, 255, 0.94); color: var(--lb-ink);
+  box-shadow: 0 1px 2px rgba(43, 27, 69, 0.06), 0 12px 22px -14px rgba(43, 27, 69, 0.45), inset 0 -3px 0 rgba(43, 27, 69, 0.05);
+  transition: transform 120ms var(--lb-ease-out);
 }
-.lb-lg-spin-ico { font-size: 15px; line-height: 1; }
-.lb-lg-spin:active { transform: translateY(3px); }
-.lb-lg-spin.is-spinning { opacity: .5; pointer-events: none; }
+.lb-lg-spin:hover { transform: translateY(-2px); }
+.lb-lg-spin:active { transform: scale(0.97); }
+.lb-lg-spin-die { width: 36px; height: 36px; flex: none; border-radius: 12px; display: grid; place-items: center;
+  background: var(--lb-accent-tint); color: var(--lb-accent); }
+.lb-lg-spin-die svg { width: 22px; height: 22px; display: block; }
+.lb-lg-spin-txt { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; }
+.lb-lg-spin-lbl { font: 600 14.5px/1 Fredoka; white-space: nowrap; }
+.lb-lg-spin-sub { font: 400 11.5px/1 Fredoka; color: var(--lb-ink-3); white-space: nowrap; }
+/* The one dot: a wheel of all 20 brands at rest (--wheel, set in tvBuildRail);
+   during a spin its colour is the box passing the centre, and it swells a touch
+   while it shuffles; on landing it pops to the rolled colour with a ring. */
+.lb-lg-spin-dot { position: relative; flex: none; width: 22px; height: 22px; margin-left: 2px; border-radius: 50%;
+  background-image: var(--wheel); box-shadow: 0 0 0 2px #fff, 0 0 0 3px rgba(43, 27, 69, .10), inset 0 2px 3px rgba(255, 255, 255, .35), inset 0 -2px 3px rgba(0, 0, 0, .2);
+  transition: transform 160ms var(--lb-ease-out); }
+.lb-lg-spin-dot.is-rolled, .lb-lg-spin.is-spinning .lb-lg-spin-dot { background-image: none; }
+.lb-lg-spin.is-spinning .lb-lg-spin-dot { transform: scale(1.18); }
+.lb-lg-spin-dot::after { content: ''; position: absolute; inset: -2px; border-radius: 50%; border: 2px solid currentColor; opacity: 0; pointer-events: none; }
+.lb-lg-spin-dot.is-land { animation: lb-dotland 420ms cubic-bezier(.3, 1.6, .5, 1); }
+.lb-lg-spin-dot.is-land::after { color: var(--lb-accent); animation: lb-dotring 520ms ease-out; }
+@keyframes lb-dotland { 0% { transform: scale(.5); } 60% { transform: scale(1.4); } 100% { transform: scale(1); } }
+@keyframes lb-dotring { 0% { transform: scale(1); opacity: .7; } 100% { transform: scale(2.3); opacity: 0; } }
+.lb-lg-spin.is-spinning { pointer-events: none; }
 
 /* ── 900x500: the three columns are the load-bearing thing ───────────────────
    README § 3: shrink the CONTROLLER column first (it may drop to ~200px),
@@ -1553,17 +1867,21 @@
    type sizes, because this is the size at which reading matters most. */
 @container tv (max-width: 1000px) {
   .lb-lg-head { height: 56px; padding: 0 18px; }
-  .lb-lg-mark-a { font-size: 19px; }
-  .lb-lg-mark-b { font-size: 11px; padding: 5px 8px; }
-  .lb-lg-clock { font-size: 13px; }
+  .sylly-wordmark.lb-lg-mark { font-size: 20px; }
+  .lb-lg-clock { --fd-w: 24px; --fd-h: 32px; --fd-f: 21px; gap: 8px; }
+  .lb-lg-date { display: none; }
   .lb-lg-tool { width: 38px; height: 38px; font-size: 16px; }
   .lb-lg-mode { height: 32px; font-size: 12.5px; }
-  .lb-lg-body { grid-template-columns: 200px minmax(0,1fr) 268px; gap: 14px; padding: 0 18px; }
-  .lb-lg-ctl, .lb-lg-ctl-svg { width: 176px; }
+  .lb-lg-body { grid-template-columns: 200px minmax(0,1fr) 268px; gap: 14px; padding: 5px 18px 0; }
+  .lb-lg-body::before { inset: 0 7px -34px; border-radius: 28px; }
+  .lb-lg-left { padding-bottom: 54px; }
+  .lb-lg-stage { width: min(150%, calc((100vh - 330px) * 1.2)); }
   .lb-lg-ask { font-size: 22px; }
-  .lb-lg-pill { width: 152px; height: 62px; }
-  .lb-lg-pill-disc { width: 42px; height: 42px; }
-  .lb-lg-pill-emoji { font-size: 22px; }
+  /* Three rows of tiles have ~190px here: tighter tiles, not a scroll. */
+  .lb-lg-pills { gap: 6px 8px; padding: 4px 2px; }
+  .lb-lg-pill { min-height: 50px; padding: 6px 12px 6px 6px; border-radius: 18px; }
+  .lb-lg-pill-disc { width: 38px; height: 38px; }
+  .lb-lg-pill-emoji { font-size: 20px; }
   .lb-lg-pill-name { font-size: 15px; }
   .lb-lg-sname { font-size: 22px; }
   .lb-lg-scount { font-size: 12.5px; }
@@ -1585,11 +1903,12 @@
      below". Tightening the band, the type and the paddings buys ~55px — with
      three steps that is the difference between a clipped list and a whole
      one. */
-  .lb-lg-band { height: 48px; }
-  .lb-lg-hang { width: 64px; height: 64px; bottom: -22px; }
-  .lb-lg-hang.lb-lg-disc { width: 50px; height: 50px; bottom: -20px; font-size: 25px; }
+  .lb-lg-band { min-height: 64px; }
+  .lb-lg-hang { bottom: -12px; }
+  .lb-lg-hang.lb-lg-disc { font-size: 28px; }
   .lb-lg-x { width: 30px; height: 30px; top: 9px; right: 9px; font-size: 13px; }
-  .lb-lg-cbody { padding: 28px 14px 6px; gap: 8px; }
+  .lb-lg-cbody { padding: 22px 14px 6px; gap: 8px; }
+  .lb-lg-steps { padding: 9px 10px; }
   .lb-lg-ct { font-size: 21px; }
   .lb-lg-cp { font-size: 13px; }
   .lb-lg-step p { font-size: 12px; }
@@ -1599,11 +1918,7 @@
   .lb-lg-play { height: 46px; font-size: 17px; }
   /* Same for the empty state's boxed-set stack. */
   .lb-lg-empty { gap: 12px; padding: 18px 16px; }
-  .lb-lg-stack { width: 160px; height: 96px; }
-  .lb-lg-lid { width: 76px; height: 59px; }
-  .lb-lg-lid-1 { left: 5px; top: 21px; }
-  .lb-lg-lid-2 { right: 3px; top: 18px; }
-  .lb-lg-lid-3 { left: 42px; top: 6px; height: 62px; }
+  .lb-lg-pile { width: min(86%, 190px); }
   .lb-lg-empty-h { font-size: 17px; }
   .lb-lg-empty-s { font-size: 12.5px; }
   /* The rail loses HEIGHT, not width — an item's pitch must stay 166px or the
@@ -1614,7 +1929,10 @@
   .lb-lg-bsticker.lb-lg-disc { width: 66px; height: 66px; top: -22px; font-size: 32px; }
   .lb-lg-item { padding-top: 34px; padding-bottom: 6px; }
   .lb-lg-rail { padding-top: 40px; margin-top: -40px; }
-  .lb-lg-spin { left: 18px; height: 34px; font-size: 12px; }
+  .lb-lg-spin { left: 18px; min-height: 46px; gap: 8px; padding: 0 12px 0 6px; }
+  .lb-lg-spin-die { width: 32px; height: 32px; }
+  .lb-lg-spin-lbl { font-size: 13.5px; }
+  .lb-lg-railwrap::after { width: 280px; height: 146px; }
 }
 
 /* ── 1920: widen the middle, show more boxes ─────────────────────────────────
@@ -1624,29 +1942,26 @@
    grow only modestly. */
 @container tv (min-width: 1500px) {
   .lb-lg-head { height: 72px; padding: 0 40px; }
-  .lb-lg-mark-a { font-size: 26px; }
-  .lb-lg-clock { font-size: 16px; }
-  .lb-lg-body { grid-template-columns: 340px minmax(0,1fr) 352px; gap: 26px; padding: 0 40px; }
-  .lb-lg-ctl, .lb-lg-ctl-svg { width: 290px; }
+  .sylly-wordmark.lb-lg-mark { font-size: 32px; }
+  .lb-lg-clock { --fd-w: 34px; --fd-h: 46px; --fd-f: 31px; }
+  .lb-lg-body { grid-template-columns: 390px minmax(0,1fr) 352px; gap: 26px; padding: 8px 40px 0; }
+  .lb-lg-body::before { inset: 0 20px -40px; border-radius: 38px; }
+  .lb-lg-stage { width: min(152%, calc((100vh - 400px) * 1.2)); }
   .lb-lg-ask { font-size: 30px; }
   .lb-lg-ct { font-size: 28px; }
   .lb-lg-cp { font-size: 15.5px; }
   .lb-lg-play { height: 58px; font-size: 20px; }
   .lb-lg-spin { left: 40px; }
-  /* The well stops stretching here. At 1096px wide every shelf fits on one
-     row, so a flex:1 well became an 800px lilac field holding six stickers —
-     the opposite of "looks deliberate at 1920" (README § 3). Capped and
-     centred in the panel, it reads as a generous tray instead of an empty
-     room. It keeps its own scroll for the day a shelf outgrows the cap. */
-  /* `margin: auto 0` on the well, NOT justify-content on the column: the
-     shelf's own header row ("← Shelves · Cards · 6 games") has to stay pinned
-     at the top of the card. Centring the column moved it to the middle, which
-     made the panel read as having no header at all. */
-  .lb-lg-well { flex: 0 1 auto; max-height: 520px; padding: 22px; margin: auto 0; }
-  .lb-lg-gs { width: 168px; height: 176px; }
-  .lb-lg-gs-art { width: 140px; height: 140px; }
-  .lb-lg-blob { left: 22px; top: 8px; width: 124px; height: 124px; }
-  .lb-lg-gs-sticker.lb-lg-disc { inset: 16px; font-size: 58px; }
+  /* The well keeps filling the panel here, and the STICKERS grow instead. It
+     used to be capped at 520px and centred (an 800px field of six small
+     stickers read as an empty room) — but the cap left bands of blank white
+     above and below the tray, the same dead space from the other side. At
+     196px a shelf wraps to two generous rows that fill the field. */
+  .lb-lg-well { padding: 26px; gap: 14px 22px; }
+  .lb-lg-gs { width: 196px; height: 206px; }
+  .lb-lg-gs-art { width: 166px; height: 166px; }
+  .lb-lg-blob { left: 24px; top: 8px; width: 148px; height: 148px; }
+  .lb-lg-gs-sticker.lb-lg-disc { inset: 18px; font-size: 66px; }
   .lb-lg-tag { font-size: 14px; padding: 7px 13px; }
   /* The picker needs no equivalent — .lb-lg-pills is already flex:1 with
      align-content:center, so the heading and filters stay at the top and the
@@ -1669,13 +1984,67 @@
    it wins at 1920-but-short too, where the >=1500 rule grows the controller
    further (250px -> 290px) instead of shrinking it. */
 @media (max-height: 680px) {
-  .lb-lg-ctl, .lb-lg-ctl-svg { width: 160px; }
   .lb-lg-left { gap: 2px; }
   .lb-lg-you { top: 4px; }
 }
+
+/* Medium-short windows (641-760 tall) with a wide panel: the upright fan tiles
+   (~130px) no longer fit two rows, so they lie flat — three columns, a mini fan
+   beside the name, ~60px a row. Nested container-in-media: it is the HEIGHT that
+   decides the form here, the panel's width only whether there is room for it. */
+@media (max-height: 760px) {
+  @container tvpanel (min-width: 560px) {
+    .lb-lg-pill { flex-direction: row; justify-content: flex-start; gap: 10px; padding: 8px 12px 8px 8px; }
+    .lb-lg-pill-fan { height: 40px; }
+    .lb-lg-pill-text { align-items: flex-start; }
+    .lb-lg-pill-name { font-size: 15px; }
+    .lb-lg-pill-count { font-size: 12px; }
+    .lb-lg-pills { gap: 10px; }
+  }
+}
+/* Short windows (≤640 tall — a 1366x600 laptop in a browser, the 900x500 floor):
+   the question, filters, pane band and rail all give back height so the shelf
+   tiles still fit whole (the old two-column pills ran 50px out of the panel at
+   900x500). The tiles' own short forms: flat with a mini fan (≤760, above), and
+   name-only below 560 (the block after this one). The controller needs no rule
+   here: its stage is capped by the window's height everywhere (.lb-lg-stage). */
+@media (max-height: 640px) {
+  .lb-lg-ask { font-size: 20px; padding-top: 2px; }
+  .lb-lg-key { height: 36px; }
+  .lb-lg-pick { gap: 7px; }
+  /* The pane gives its band back first: a strip, so all three steps stay whole. */
+  .lb-lg-band { min-height: 44px; }
+  .lb-lg-cbody { padding-top: 16px; }
+  .lb-lg-ct { font-size: 19px; }
+  /* The rail gives back height too — the ≤1000 layout's shorter boxes, at any
+     width. Height only: the 166px pitch the snap arithmetic rests on is untouched. */
+  .lb-lg-box, .lb-lg-boxwrap { height: 92px; }
+  .lb-lg-tab { height: 84px; }
+  .lb-lg-bsticker { width: 84px; height: 84px; top: -28px; }
+  .lb-lg-bsticker.lb-lg-disc { width: 66px; height: 66px; top: -22px; font-size: 32px; }
+  .lb-lg-item { padding-top: 34px; padding-bottom: 6px; }
+  .lb-lg-rail { padding-top: 40px; margin-top: -40px; }
+  /* ...and with a wide-enough panel the filters take one row even here. */
+  @container tvpanel (min-width: 480px) {
+    .lb-lg-keys-count { grid-template-columns: repeat(8, 1fr); }
+    .lb-lg-filter-phones { width: 190px; }
+    .lb-lg-keys-phone { grid-template-rows: none; grid-template-columns: 1fr 1fr; }
+    .lb-lg-key-phone { font-size: 12.5px; }
+  }
+}
 @media (max-height: 560px) {
-  .lb-lg-ctl, .lb-lg-ctl-svg { width: 120px; }
   .lb-lg-you { top: 0; }
+}
+/* Name-only tiles, three columns, two rows: the floor and anything as short
+   (≤560), and a short window whose panel is too narrow for the flat fan tiles. */
+@media (max-height: 560px), (max-height: 640px) and (max-width: 1260px) {
+  .lb-lg-pills { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; padding: 4px 2px; }
+  .lb-lg-pill { min-height: 0; flex-direction: column; justify-content: center; gap: 3px; padding: 6px 4px; }
+  .lb-lg-pill-disc, .lb-lg-pill-fan { display: none; }
+  .lb-lg-pill-text { align-items: center; }
+  .lb-lg-pill-ico { display: inline; }
+  .lb-lg-pill-name { font-size: 14px; }
+  .lb-lg-pill-count { font-size: 11px; }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -1693,11 +2062,18 @@
   padding: 16px; background: rgba(43, 27, 69, .8); -webkit-backdrop-filter: blur(5px); backdrop-filter: blur(5px); overflow-y: auto; font-family: Fredoka, system-ui, sans-serif; color: var(--sb-ink);
 }
 #stickerbook-overlay[hidden] { display: none !important; }
+/* No visible scrollbars in the book either (SW v238) — the page and the tray still scroll. */
+#stickerbook-overlay, .sb-tray-list { scrollbar-width: none; }
+#stickerbook-overlay::-webkit-scrollbar, .sb-tray-list::-webkit-scrollbar { display: none; }
 #stickerbook-overlay.sb-in .sb { animation: sb-in 220ms ease-out; }
 @keyframes sb-in { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: none; } }
 
 .sb { position: relative; width: 100%; max-width: 1040px; display: flex; flex-direction: column; gap: 12px; margin: auto; }
 .sb-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.25); }
+/* The PNG lockup lives here now, not on the menus (owner, 27 Sep 2026): the book is
+   the keepsake, and a fixed-aspect image is the one thing a menu title can't flex. */
+.sb-brand { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.sb-logo { flex: none; height: 76px; width: auto; filter: drop-shadow(0 3px 6px rgba(0,0,0,.28)); }
 .sb-title { margin: 0; font-size: 28px; font-weight: 700; }
 .sb-sub { margin: 2px 0 0; font-size: 14px; opacity: .92; }
 .sb-x { min-width: 44px; min-height: 44px; border: 0; border-radius: 14px; background: rgba(255,255,255,.92); color: #57534e; font-size: 18px; font-weight: 700; cursor: pointer; }
@@ -1811,11 +2187,116 @@
   .sb-tray-item { width: 78px; height: 78px; touch-action: pan-x; }
   .sb-page { padding: 10px; gap: 8px; min-height: 0; }
   .sb-title { font-size: 22px; }
+  .sb-brand { gap: 10px; }
+  .sb-logo { height: 54px; }
   .sb-foot { flex-direction: column; align-items: stretch; }
   .sb-nav { justify-content: center; }
   .sb-progress { max-width: none; }
 }
 
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   The wordmark and the places row — shared by Shelves and Classic (SW v238).
+   ═══════════════════════════════════════════════════════════════════════════ */
+/* "Little Sylly / Games" as live text again (it was, until SW v216's PNG). Text
+   reflows to any width; a fixed-aspect lockup either overflows a small phone or
+   shrinks to a stamp beside the controller. Plum and pink are the lockup's own
+   colours; a short extrude lifts it off the page like the gel buttons below.
+   Each layout sets only the font-size — everything else scales in em. */
+.sylly-wordmark {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  font-family: 'Fredoka', system-ui, sans-serif;
+  font-weight: 700;
+  line-height: 0.98;
+  letter-spacing: -0.02em;
+}
+.sylly-wordmark-a {
+  color: #2B1B45;
+  white-space: nowrap;
+  text-shadow: 0 1px 0 rgba(43, 27, 69, 0.14), 0 2px 0 rgba(43, 27, 69, 0.10), 0 5px 9px rgba(43, 27, 69, 0.16);
+}
+.sylly-wordmark-b {
+  position: relative;
+  width: max-content;
+  color: #E9408E;
+  text-shadow: 0 1px 0 rgba(150, 20, 80, 0.16), 0 2px 0 rgba(150, 20, 80, 0.10), 0 5px 9px rgba(233, 64, 142, 0.22);
+}
+/* Two of the lockup's sparkles, riding the word so they move with it. */
+.sylly-wordmark-b::before, .sylly-wordmark-b::after {
+  position: absolute;
+  line-height: 1;
+  text-shadow: none;
+  pointer-events: none;
+}
+.sylly-wordmark-b::before { content: '✦'; color: #8B5CF6; font-size: 0.4em; right: -0.78em; top: -0.02em; }
+.sylly-wordmark-b::after  { content: '✦'; color: #14B8A6; font-size: 0.26em; right: -1.2em; top: 0.58em; }
+
+/* The places: the rooms a phone can't reach through the Lounge. */
+.lobby-places { display: flex; flex-wrap: wrap; gap: 8px; }
+.lobby-place {
+  min-height: 44px;
+  padding: 0 16px 0 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 22px;
+  border: 1px solid #E7E5E4;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 1px 2px rgba(43, 27, 69, 0.06), 0 8px 16px -12px rgba(43, 27, 69, 0.35);
+  font-family: 'Fredoka', system-ui, sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  color: #2B1B45;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: transform 120ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+.lobby-place:active { transform: scale(0.96); }
+.lobby-place[hidden] { display: none; }
+.lobby-place > span {
+  width: 32px; height: 32px;
+  border-radius: 16px;
+  display: grid; place-items: center;
+  font-size: 16px; line-height: 1;
+}
+/* Each disc takes its room's colour: the cat's lilac, the binder's butter. */
+.lobby-place[data-lobby-place="jukebox"] > span  { background: #EFE7FB; }
+.lobby-place[data-lobby-place="stickers"] > span { background: #FBEFC8; }
+.lobby-place:focus-visible { outline: 3px solid #E9408E; outline-offset: 2px; }
+
+/* ── Classic (#screen-lobby) — the original lobby, reframed ──────────────────
+   Now a full-window screen like the other three layouts: the section is the
+   scroller (bar hidden) and .lobby-col is the column, so the header icons sit in
+   the column's corner rather than the window's. */
+#screen-lobby {
+  position: fixed;
+  inset: 0;
+  flex-direction: column;
+  align-items: center;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+#screen-lobby::-webkit-scrollbar { display: none; }
+#screen-lobby .lobby-col { flex: none; padding-bottom: calc(3rem + env(safe-area-inset-bottom, 0px)); }
+#screen-lobby .lobby-title { align-items: center; font-size: 46px; font-size: clamp(40px, 13vw, 54px); }
+#screen-lobby .lobby-places { justify-content: center; margin-top: -8px; }
+/* The header's icons: the rooms' rounded-square buttons (the jukebox's 🔊 / ✕), in daylight. */
+.lobby-icon {
+  width: 44px; height: 44px;
+  display: grid; place-items: center;
+  border-radius: 14px;
+  border: 1px solid #E7E5E4;
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 1px 2px rgba(43, 27, 69, 0.06);
+  font-size: 19px; line-height: 1;
+  cursor: pointer;
+  transition: transform 120ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+.lobby-icon:active { transform: scale(0.94); }
 
 /* ── The Lounge's HUD — the 2D layer over the room canvas ───────────────────── */
 #lou-stage { position: absolute; inset: 0; background: #FAFAF9; font-family: Fredoka, system-ui, sans-serif; color: #2B1B45; }
@@ -1833,8 +2314,17 @@
 
 /* ── Lobby screens (SW v231) ────────────────────────────────────────────────── */
 #screen-lounge, #screen-tv, #screen-shelves { position: fixed; inset: 0; }
-#screen-shelves { justify-content: center; overflow-y: auto; background: #FAFAF9; }
-#shelves-canvas { width: 390px; max-width: 100%; min-height: 100vh; position: relative; background: #FAFAF9; }
+/* Shelves and Classic share the ground: the app's off-white with a faint wash of the
+   lockup's pink and violet from above — the rooms' warm pool, in daylight (SW v238).
+   A scroll container's own background stays put while its content scrolls. */
+#screen-shelves, #screen-lobby {
+  background:
+    radial-gradient(120% 55% at 50% -12%, rgba(233, 64, 142, 0.08), transparent 62%),
+    radial-gradient(80% 45% at 100% 0%, rgba(139, 92, 246, 0.07), transparent 60%),
+    #FAFAF9;
+}
+#screen-shelves { overflow: hidden; }   /* .lb-scroll is the one scroller */
+#shelves-canvas { width: 100%; height: 100%; position: relative; }
 #tv-app { width: 100%; height: 100%; }
 /* The ornament slots — the ONE controller canvas moves between these (ctlMountOrnament). */
 .ctl-ornament { cursor: grab; touch-action: none; }

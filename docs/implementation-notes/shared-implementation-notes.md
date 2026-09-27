@@ -4257,6 +4257,211 @@ sufficient; this pass adds the data-load line, the pause-scope line and the harn
 Every adoption shipped with a mutation pass driven through its own `*_SRC=` (FLW 4/4, CJAR 6/6,
 PKO 7/7) — and two of PKO's seven survived the first run, both test gaps, not code gaps.
 
+### DD-48 — The Lounge's phone "buzz" idle beat was silent; its low hum was the controller's rumble [27 Sep 2026]
+**What happened.** Owner reported a low hum in the Lounge, attributed to the phone vibrating for a
+message. The phone's `buzz` idle beat (shake + notification-light flash + a floating envelope,
+`js/lounge/lounge-props.js`) has never called `sfx()` — it is silent by design, no voice existed for
+it. The actual hum was the **controller's** `rumble` idle beat (`controllerRumble` in
+`js/lounge/lounge-sfx.js`): a sustained-feeling 58/87 Hz saw+square through a 420 Hz lowpass, close
+enough in register to a phone buzzer that it read as one.
+**Fix.** Added a `phoneAlert` voice — a short two-note bell chime (880 Hz → 1318.5 Hz, a fifth apart,
+soft attack/decay, ~0.4 s) — and wired it from the phone's idle scheduler when it picks the `buzz`
+beat (`louBuildPhone` now takes `sfx` from `ctx.sfx`, same as the controller). Re-tuned `rumble`
+itself (72/104 Hz, tighter 340 Hz lowpass, faster per-pulse decay) so it reads as a quick rattle
+rather than a hum, and no longer gets mistaken for a notification.
+**Lesson.** A described sound can belong to a different prop than the one the reporter names — two
+idle props firing on independent schedules in the same room are easy to conflate by ear. Confirm
+which `VOICE`/beat pairing actually produces the sound (grep the beat's `start()`/scheduler for a
+`say(...)` call) before touching either prop's tuning.
+
+**Same session, follow-on:** the cat jukebox's `sing` idle beat (the five floating music notes,
+`js/lounge/lounge-props.js`) was silent for the same reason as the phone's `buzz` — no voice ever
+existed. Added `jukeboxWhistle`: a whistled five-note phrase (pure sine + light 5.5 Hz vibrato, the
+actual timbre of a whistle rather than a synth lead), timed to the notes' own `born = 150 + i*430`
+schedule so the tune and the floating notes land together. `louBuildJukebox` now takes `sfx` from
+`ctx.sfx`, wired at the beat-pick site exactly like `phoneAlert`.
+
+### DD-49 — Shelves and Classic: a phone door to the jukebox and stickerbook, live word art, no scrollbars [27 Sep 2026, SW v238]
+**What happened.** Owner round: the jukebox and stickerbook were reachable only through Lounge doors, and a
+phone never keeps the Lounge; the two menu layouts also looked dated beside the Workshop and jukebox rooms.
+Measuring the real layouts (visual-check, 375×667 / 320×452 / 1440×900) found a bug under the polish:
+**Shelves still ran inside the sandbox's fixed `.lb-phone { height: 844px }` box.** On a phone that box
+scrolled inside a screen that also scrolled (two scrollbars on Windows); on a 900 px desktop it cut the
+last shelf off mid-card; and the info sheet's "80 %" was 80 % of 844, not of the window.
+**Decisions.**
+- **Places row** — 🎵 Jukebox / 📒 Stickers in both layouts (Shelves: its own full-width row under the
+  brand row, two equal halves; Classic: centred under the wordmark). It dispatches the SAME router actions as the
+  Lounge's doors, now also on `LOBBY_PAGE_ACTIONS`; the router already closed both back to `state.view`,
+  so no reducer change was needed — only the proof (`verify-lobby-router` § the places row, both layouts ×
+  both arrival states × both rooms; `visual-lobby` § 17). Stickers is **absent until the sticker manifest
+  loads** (`lobbyPlaceOffered`), the switchers' rule — a stickers button that can only say "offline" is
+  worse than none. Shelves' first choice put the chips under the wordmark beside the controller; at 375 px
+  they stacked and shrank the title, so they took their own row.
+- **Word art back** — "Little Sylly / Games" as text (`.sylly-wordmark`, one rule in `css/lobby.css` for
+  both layouts, sized per layout: Classic by `vw`, Shelves by `cqi` of its own column). Plum + pink are the
+  lockup's own colours; two ✦ pseudo-elements echo its sparkles. The PNG lockup moved to the stickerbook
+  header (`.sb-logo`) — still precached, still 490 KB (see Lesson).
+- **Scrollbars hidden** on every lobby scroller the owner sees — `.lb-scroll`, `.lb-sheet-body`,
+  `#screen-lobby`, `#stickerbook-overlay`, `.sb-tray-list` — the rails' precedent in TV/Workshop/jukebox.
+- **Classic reframed** as a fixed full-window scroller like the other three layouts (section = scroller,
+  `.lobby-col` = the column, header icons in the column's corner as `.lobby-icon` rounded squares — the
+  rooms' 🔊/✕ in daylight). Both menus share a faint pink/violet wash from above: the rooms' warm pool, light.
+**Lesson.** A sandbox's device frame is a layout decision that survives a port silently: `height: 844px`
+was right for a phone mock-up in `wip/lobby-lab/` and wrong in production, and nothing flagged it because
+headless Chromium hides scrollbars and every harness asserted routing, not boxes. When porting a sandbox
+layout, grep it for fixed viewport-sized numbers (844, 390, 100vh stand-ins) before calling it done.
+**Open.** `assets/logo.png` is now shown only inside the stickerbook but is still in `PRECACHE_URLS` at
+490 KB — candidate for a resize or a move to runtime caching (cost-envelope call).
+
+**Follow-up [27 Sep 2026] — TV's places entry.** TV keeps its own header (the compact `.lb-lg-tools`
+icon pill, not Shelves/Classic's labelled row) but now carries the same two doors:
+`.lb-lg-tool.is-jukebox` / `.is-stickers`, added in `tvBuildHeader()` and wired through the same
+`data-lobby-place` + `lobbyOpenPlace()` call every other place button uses — no router change. One
+wrinkle TV's own patch-in-place model creates: `lobbyPaintPlaces()`'s un-hide query is scoped to
+`#screen-lobby`, which never reaches TV's DOM (TV lives outside it and rebuilds nothing after mount —
+see this file's header comment on why). Fixed by having `lobbyPaintPlaces()` also call
+`tvApplyAll()`, and by re-checking `lobbyPlaceOffered('stickers')` inside `tvApply()` on every patch
+cycle, the same place every other piece of TV's live state (shelf, selection, rail) already gets
+repainted. Harness: `visual-lobby` § 17 (all three layouts now, not just the two phone ones).
+
+### DD-50 — TV brought up to the rooms: word art, shelf tiles, a hero pane, a rail that asks [27 Sep 2026, SW v238]
+**What happened.** Owner round after DD-49: TV's structure (controller | speech bubble | pane, rail below)
+was right, but every zone ignored the space it was given. Measured at 1920×910 (visual-check): the eight
+count keys stretched to ~280 px each; the six shelf pills sat in one 70 px strip in a ~400 px void; the
+pane gave its brand a 60 px band and left ~300 px of white above the CTA; the controller floated with
+nothing under it; the header still drew the pre-lockup "Little Sylly" + pink pill.
+**Decisions** (all `js/lobby/tv.js` + TV's block of `css/lobby.css`; no router, state or packet change).
+- **Header** — the shared `.sylly-wordmark`, sized per breakpoint (26 / 21 / 31 px). Closes the "horizontal
+  wordmark is text, not an asset" item from `wip/lobby-lab/DESIGN-NOTES.md` § 7.6 — live text was the answer.
+- **The panel is its own size container** (`container: tvpanel`). The middle column is the one whose width
+  varies ~3× (374 → 1096 px), and laying the picker out from the *window* was the root of the stretched
+  keys. Off its own width: filters on one row from 700 px, the picker capped at 880 px and centred.
+- **Shelf tiles** — a grid (2 cols; 3 from 560 px), each fanning its first three games' stickers — the TV
+  cousin of Shelves' brand stacks. Upright from 560, a mini fan from 480, the emoji disc below that, and a
+  name-only 3×2 at ≤560 px tall (the floor: the old pills ran 50 px out of the panel at 900×500). Fan
+  stickers grey with the filters.
+- **Pane** — the band is a hero (`flex: 1 1 0`, 88–250 px): it takes the height the body leaves, and the
+  sticker scales with it. Steps in a brand-tinted tray. Empty state: a pile of three real stickers
+  (`TV_PILE`) in place of three flat lids.
+- **Controller** — a halo and a plinth (`.lb-lg-stage`), 280 px default; "You" is a pill.
+- **Open shelf at 1920** — the well fills again and its stickers grow (196 px). The 520 px cap it replaced
+  swapped one empty room for two blank bands.
+- **Rail** — a lilac shelf track (`.lb-lg-railwrap::before`), studs on the rail's own background with
+  `background-attachment: local` so they travel with the boxes, a pink pool behind the centre slot, a centre
+  **swell** (`tvSwell`, a Gaussian over item units, ≤4 boxes a frame) and a **"pick me" hop** (`tvAsk`) as a
+  drifting box reaches dead centre — `floor(sl / 166)` ticking up by exactly one, never on the loop's ±20
+  wrap. Both ride the existing drift rAF (no new timer) and both are off under reduced motion, with a
+  selection, and mid-spin.
+**Lessons.**
+1. **Two systems that both want `transform` compose if one uses the individual properties.** The swell
+   writes `translate`/`scale` on `.lb-lg-boxwrap` while the hop animates its `transform`; the pane sticker
+   centres with `translate`, tilts with `rotate` and sways on `transform`. Neither overwrites the other, and
+   the resting pose survives the reduced-motion freeze because it is not inside the keyframes.
+2. **Headless Chromium runs rAF at ~1–5 fps here** (the WebGL controller is software-rendered on the page),
+   so a per-frame drift of 0.38 px barely moves in 9 s — a wait-and-see probe "failed" three sizes for
+   no real reason. Test rAF behaviour by **placing state at the threshold** (park the rail 1 px before a
+   centre, clear `lastF`) and letting one real frame cross it.
+3. **A grid `auto` row collapses when its item has `min-height: 0`** — the item's minimum contribution
+   becomes zero, and a height-constrained grid squashes the row under its content. `grid-auto-rows:
+   max-content` where rows must never shrink.
+**Verification.** `verify-tv` 919, `verify-lobby-router` 261, `visual-lobby` 112/113 (the one failure is § 14,
+the Lounge Konami voices — pre-existing, `lounge-props.js`/`lounge-sfx.js`, not TV). A throwaway
+visual-check probe (45 checks at 1920×910 / 1366×768 / 906×600 / 900×500 + reduced motion): swell on,
+hop fires, no swell or hop under reduced motion, a selection clears the swell, all six tiles fit with no
+scroll, band height, CTA inside the card, fan dimming both ways, no sideways scroll, no page errors.
+**Open.** The feel of the hop's cadence (~7 s a box at the drift speed) and the track's weight want the
+owner's real-screen pass — headless shows neither.
+
+**Follow-up [27 Sep 2026] — the controller turns to the question, a screen, a better die.**
+- **Controller pose.** The ornament gained an opt-in resting pose: `ctlMount(el, { pose: { yaw, pitch } })`
+  (`js/controller.js` — `ctlHomeYaw`/`ctlHomePitch`; `ctlYawOffHome()` and the pitch decay measure from it).
+  TV passes `TV_CTL_POSE` (0.45 / 0.22 rad) through `lobbyMountOrnament()`: the controller turns to face the
+  speech bubble, at 150% of its column, its far grip sliding **behind** the panel (left column z 1, panel and
+  pane z 2) — the bubble's tail now lands on it. Five poses were rendered first; turning *away* (−0.5) put
+  the face buttons under the panel and read as not listening. A pose change carries the view **relative to
+  home** — so the Workshop (always 0/0) opens face-on, not turned, and returning to TV springs round to face
+  the bubble. Reduced motion has no spring, so it lands on the pose directly. Every other slot is unchanged
+  (no `pose` → 0/0).
+- **Shelf fans de-duplicated** — `tvShelfFans()`: each shelf fans its own games, preferring ones no other
+  fan has used, then the ones on the fewest shelves; smallest shelves pick first; catalogue order breaks
+  ties. 17 different faces in 17 slots at 20 games (first-three gave 14). The exclusive-first tie-break was
+  found by a synthetic case in `verify-tv` (shared-first spent the shared games and forced a repeat).
+- **The screen** — one soft lilac tray behind the three sections (`.lb-lg-body::before`), running down behind
+  the rail. A white TV bezel was rendered too and rejected: it crowded the wordmark and tools pill, and read
+  as a TV inside a TV. Boxing each section separately was not tried — the tray already does the grouping.
+- **Random Game** — the Workshop's Randomise All in daylight: an SVG die, a live "from N" line and four brand
+  dots of the pool `tvSpin` draws from (both repainted in `tvPaintRail`); the die rolls and the dots hop while
+  the rail spins (CSS, so the global reduced-motion block reaches them).
+**Follow-up 2 [27 Sep 2026] — a round of play.** Owner's list, explored and built:
+- **Wordmark on one row** in TV's header (`.sylly-wordmark.lb-lg-mark` — the shared rule comes later
+  in the file, so the override needs the extra class).
+- **Flip clock** — the time on split-flap tiles (`tvFlipTile`/`tvFlipTo`), the date as a quiet label.
+  Only a digit that changed flips; the paint is a self-rescheduling timeout aimed just past each minute
+  boundary (so the flip lands ON the minute), still in `inst.clock` — `tvDrop`'s `clearInterval`
+  clears a timeout too (one id pool, per the HTML spec).
+- **Controller bigger + idle beats.** Its column is fluid (`clamp(240px, 23vw, 330px)`) and the stage is
+  capped by the window's height as well as its width (the model's size follows the canvas height). New
+  in `js/controller.js`: an opt-in beat channel (`ctlMount`'s `beats`, TV only) on the idle nudge's own
+  timer — `flick` (both sticks knocked; the stick spring overshoots home), `press` (A-B-A, each cap
+  sinking on the press spring and lighting its emissive), `pair` (the diamond lights in turn, twice).
+  Silent, off under reduced motion, never the same beat twice; `ctlBeatEnd()` restores every glow and a
+  remount ends a beat in flight. Bigger than ~155% put the face buttons behind the panel — which would
+  hide the very lights the beats add.
+- **The screen went dark** — the rooms' plum (`.lb-lg-body::before`). Four directions rendered side by
+  side (soft lilac, none, a glow behind the controller only, dark); the soft one was neither here nor
+  there, and dark was the only one that justified itself: a lit screen with the daylight room around it.
+- **Rail wave** (`tvWave`, every 9 s of drift): the visible stickers hop out of their boxes one after
+  another — the owner's "snake bump" from Random's dots, moved to where it belongs. Hovering a box lifts
+  it and wiggles its sticker. Both on `.lb-lg-bsticker` / `.lb-lg-box`, clear of the swell and hop.
+- **Random's dot** — one dot, a wheel of all 20 brands at rest; during a spin it takes the colour of the
+  box passing the centre (so it shuffles in time with the rail) and on landing pops into the rolled
+  game's colour with a ring, the line reading "landed on …". `tvSelect(id, fromRoll)` records a roll;
+  any hand pick clears it.
+- **Resizing.** A sweep (12 widths × 9 heights × picker/selected) found the name tag landing on Random,
+  the controller poking into the header and the tiles scrolling across most short heights. Fixed with
+  one height-aware stage cap, a fluid left column, and three tile forms chosen by height — upright fans
+  (>760 tall), flat tiles with a mini fan (≤760, wide panel), name-only 3×2 (≤560, or short and narrow)
+  — plus a shorter rail and one-row filters below 640 tall. The sweep ends at zero collisions.
+**Follow-up 3 [27 Sep 2026] — owner calls: no tray, white ink, Bailed.**
+- **The screen is parked OFF** (`display: none` on `.lb-lg-body::before`, halo and plinth back to their
+  daylight values). Dark was distracting and fought the daylight rail; the light ones added nothing.
+  No direction won; the rule stays, one line from coming back.
+- **White ink on every brand fill.** `tvInk()` returns white, always — the suite's locked button scheme
+  (ui-style.md § Action Button Standard). The sandbox's luminance rule (README § 6) had put plum text
+  on FRT/COMB/CLD/YGI in TV and nowhere else — box names, tags, step numbers, the Play CTA. Labels (text
+  on white) still darken pale brands, except FRT, whose literal `#FFE500` is the sanctioned exception
+  (§ Menu Title Treatment) — `tvLabel` now knows it.
+- **Bailed's sticker** — `data/stickers/bld.png` and its manifest line (owner's). `LB_NO_STICKER` in
+  `js/lobby/lobby.js` is now empty (kept for the next game that ships before its art), so Shelves and TV
+  draw the real sticker. Classic keeps its emoji badges for every game, Bailed included — by design.
+  `verify-achievements` stopped assuming Bailed has no sticker.
+**Follow-up 4 [27 Sep 2026] — three small delights, then TV is closed for now.**
+- **Game of the hour** (`tvHourGame`/`tvPaintHour`): for the first minute of every hour a sticker pops up
+  beside the flip clock, walking `TV_ORDER` by hour; tap picks it. Rides the clock's own minute timer.
+  `inst.paintClock(date)` takes a date for the harness.
+- **Landing ring** (`tvDotLand`): the rolled box rings out on the rail in its brand colour, the same burst
+  as Random's dot. On `.lb-lg-box::after`, not the wrapper — the pick lifts `.lb-lg-box` 22px, and a ring
+  on the wrapper would sit below the box it circles.
+- **The glance** (`tvGlance` → `ctlGlance(yaw, pitch)` in `js/controller.js`): hovering a rail box turns
+  the controller toward it and leans it forward to look down at the rail. A glance is an offset ON TOP of
+  the home pose, so the same spring carries it there and back; ornaments only, cleared on every mount,
+  inert under reduced motion (the spring is off). Pointer hover only.
+Owner closed the round here — "revisit later". The probe ended at 110/110.
+
+**Lesson.** A sandbox rule ported into production keeps overriding the suite's rules until someone
+checks it against them — the luminance ink was right in the mock-up and wrong in the app, and only a
+side-by-side with Classic's buttons made it visible. When porting, grep the sandbox for colour logic of
+its own (`tvInk`, `tvLabel`) and reconcile it with ui-style.md before shipping.
+
+**Lesson.** The sweep's first readings disagreed with fresh loads at the same size: `.lb-lg-body`
+transitions its grid columns over 250 ms, and at headless frame rates a 120 ms wait measured it
+mid-flight. Settle transitions before measuring a resize.
+
+**Lesson.** A probe's fixed wait is a claim about frame rate. The bigger software-rendered controller slowed
+headless rAF further, and a 600 ms "selection clears the swell" check started failing with nothing wrong —
+poll for the condition instead. (And the old one again: inline `node -e` with template literals dies in Git
+Bash — write the script to a file.)
+
 ## Template Gaps
 
 ### A render-on-demand loop with a wake-on-interval companion cannot be stopped by hiding its canvas

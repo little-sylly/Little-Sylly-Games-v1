@@ -292,14 +292,14 @@ On every bump the outgoing SW entry moves **verbatim** to `docs/sw-changelog.md`
 "keep the last three". **A second `**SW v…**` paragraph appearing here means that move didn't
 happen: do it before anything else.**
 
-**SW v237 — reconnect adopted by Flawless, Pecking Order and Cookie Jar (27 Sep 2026).** A dropped
-phone in any of the three now rejoins its seat instead of ending the match after 20 s. Each pauses only
-what acts *for* a seat — FLW's Appraisal Clock, CJAR's decision window + flip loop, PKO's Carrion window
-— and sends a private snapshot stripped to one seat's secrets. PKO gets its first loopback. Harnesses:
-`verify-pko-loopback` 47 (new), `verify-flw-loopback` 113, `verify-cjar-loopback` 213, every reconnect
-mutant killed (FLW 4, CJAR 6, PKO 7). Detail: `shared-implementation-notes.md` ML-09.
+**SW v238 — the three menu layouts brought up to the rooms; the jukebox and stickerbook get a phone door (27 Sep 2026).**
+Shelves, Classic and TV carry 🎵 Jukebox / 📒 Stickers (router `jukeboxOpen`/`stickerbookOpen`, closing back
+to the opener) and the live word art (`.sylly-wordmark`); lobby scrollbars hidden; Shelves lost its 390×844
+sandbox box. TV got white ink on every brand fill, Bailed's sticker, a flip clock with a game of the hour, a big controller turned to its bubble with idle beats and a glance
+(`ctlMount` `pose`/`beats`, `ctlGlance`), sticker-fan shelf tiles, a hero pane, Random's shuffling dot, a rail that swells, hops and waves. Harnesses: `verify-lobby-router` 261, `visual-lobby` 112/113 (§ 14 pre-existing, Lounge).
+Detail: `shared-implementation-notes.md` DD-49, DD-50.
 
-**Previous versions: `docs/sw-changelog.md`** — continuous, v236 back to v167.
+**Previous versions: `docs/sw-changelog.md`** — continuous, v237 back to v167.
 
 **Where the suite stands.** **20 games shipped**, all gold-master, plus multiplayer. Newest three:
 **Honeycomb Hills** (`comb`, game 20, phase 41 — the suite's biggest game and the only one with
@@ -338,8 +338,7 @@ real-device pass and archiving `wip/lobby-lab/`, `wip/premium/`, `wip/jukebox-la
 **Open threads — all deliberately deferred, none blocking: `docs/deferred-work.md`.** The
 **controller stickers' on-device pass (spec § 9.3) is outstanding** — no harness reaches touch, a
 real GPU, or a judgement about how warped is too warped, and it is the only step that could still
-move a shipped value (`maxDistort`). Bailed's own badge is pending from the owner, which is why
-`bld.png` is absent from the sticker manifest. Beyond those: older-games
+move a shipped value (`maxDistort`). Bailed's badge landed 27 Sep 2026 (`bld.png`; `LB_NO_STICKER` is now empty). Beyond those: older-games
 retest backlog, four pending suite-wide sweeps (BUG-06 Firebase-erasure re-sweep by payload shape,
 DD-13 settings value line, DD-31 button parity, a How-to gallery for PASS), NT's open Minors and
 `mpConfirmRoster` late-join race (BUG-07), PKO's unplayed **Stragglers** mode, and CJAR's **DD-06**
@@ -383,10 +382,10 @@ Re-run a game's full set after touching its appliers, deck/data, packets or rend
 | Controller | `node tools/verify-controller-body.js && node tools/verify-controller-state.js` — the vendored Three revision + the geometry contract, then persistence, the factory design, palette derivation and the Konami mapping. **Not a game** — no MP config, no identity doc | 28 · 63 |
 | Controller | `node tools/verify-controller-stickers.js` — the caller-side `CTL_STICKER_OPT` contract (a surface built with `{}` accepts all four keep-out centres), both charts + the wrap seam, manifest and placement validation, the load path's bit-stability, the placement state machine, undo, and `data/stickers/` manifest-vs-folder **both ways**. **Re-run after any `js/lib/controller-sticker-surface.js` or `ctlSticker*` change** | 157 |
 | Controller | `node tools/visual-controller-stickers.js` — real headless Chromium: a placement actually painting texels, the lobby ornament repainting with them, and the Workshop room — the sheet shown without building the surface, the first pick-up paying for it, Tool Belt's sideways sheet-scroll and Undo relocation at 390 px (SW v235), the three columns at 1440, the phone↔wide DOM revert, and the owner's own iPhone SE at three sizes (375×667, 375×548, 320×452). The layout/render tier no pure harness reaches | 59 |
-| Lobby | `node tools/verify-lobby-router.js` — the router's pure tier: `LOBBY_LAYOUTS`, every action incl. `home`/`closeSwitcher`/`jukebox*`, close-to-where-you-opened, the one-way rule on every close, the door map + the `controllerParts` passthrough | 228 |
+| Lobby | `node tools/verify-lobby-router.js` — the router's pure tier: `LOBBY_LAYOUTS`, every action incl. `home`/`closeSwitcher`/`jukebox*`, close-to-where-you-opened, the one-way rule on every close, the door map + the `controllerParts` passthrough, the places row closing back to its opener (SW v238) | 261 |
 | Lobby | `node tools/verify-lounge-props.js` — the Lounge's room and props under Node (vendored Three, stub canvas): every builder, the host contract, the painted-controller path, an empty world, the controller's idle beats (every beat home exactly, the Konami's order, slow frames, reduced motion). `node tools/visual-lounge.js` — real Chromium over `tools/fixtures/lounge.html`: composition shots + reduced motion | 1371 · 29 |
-| Lobby | `node tools/verify-tv.js` — TV's pure half (rail wrap, nearest-copy pick, ink/label split, order vs `GAMES`) · `node tools/verify-achievements.js` — the stickerbook's rules incl. `achAllPlaced` | 919 · 81 |
-| Lobby | `node tools/visual-lobby.js` — real Chromium over the REAL `index.html`: boot tiering (widescreen / phone beat / no WebGL), every layout → game → quit returns there, Workshop returns to its opener, gateway + Terminal returns, idle nudge (bounded — it comes home), the Lounge Konami never unlocks, stickerbook, each runtime-cached source offline, stale ornament mount, the fade, resize below a floor, the jukebox (the door, one scene at a time, a held song through ✕/Shelves/a game, `resetToLobby` with it up), the reconnect prompt over the Lounge (SW v236). **The seam's mutation pass runs against it — re-run after touching `lobbyShow`, `resetToLobby` or any lobby return** | 101 |
+| Lobby | `node tools/verify-tv.js` — TV's pure half (rail wrap, nearest-copy pick, ink/label split, order vs `GAMES`, the shelf fans) · `node tools/verify-achievements.js` — the stickerbook's rules incl. `achAllPlaced` | 940 · 81 |
+| Lobby | `node tools/visual-lobby.js` — real Chromium over the REAL `index.html`: boot tiering (widescreen / phone beat / no WebGL), every layout → game → quit returns there, Workshop returns to its opener, gateway + Terminal returns, idle nudge (bounded — it comes home), the Lounge Konami never unlocks, stickerbook, each runtime-cached source offline, stale ornament mount, the fade, resize below a floor, the jukebox (the door, one scene at a time, a held song through ✕/Shelves/a game, `resetToLobby` with it up), the reconnect prompt over the Lounge (SW v236), the places row from Shelves, Classic and TV (SW v238). **The seam's mutation pass runs against it — re-run after touching `lobbyShow`, `resetToLobby` or any lobby return** | 113 |
 
 **Reach for a loopback on anything MP- or render-shaped.** Every harness *except* the seven
 loopbacks (`cjar`/`shp`/`flw`/`nt`/`jec`/`comb`/`pko`) runs `'single'` mode with `getElementById: () => null`, which

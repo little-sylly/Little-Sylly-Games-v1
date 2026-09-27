@@ -42,7 +42,10 @@
   /* The five actions the PAGE dispatches for itself. Everything else arrives
      from a door in the room — see LOBBY_DOORS in lobby-doors.js. Keeping the
      split as data is what lets verify-lobby-router.js prove no action is unreachable. */
-  const LOBBY_PAGE_ACTIONS = ['go', 'roomMounted', 'workshopClose', 'designSaved', 'leaveLobby', 'arrivalBegin', 'arrivalReset', 'stickerbookClose', 'jukeboxClose', 'home', 'closeSwitcher'];
+  const LOBBY_PAGE_ACTIONS = ['go', 'roomMounted', 'workshopClose', 'designSaved', 'leaveLobby', 'arrivalBegin', 'arrivalReset',
+    'stickerbookOpen', 'stickerbookClose', 'jukeboxOpen', 'jukeboxClose', 'home', 'closeSwitcher'];
+  /* stickerbookOpen / jukeboxOpen are BOTH a door's action (the Lounge's binder and
+     cat) and the page's own (Shelves' and Classic's places row, SW v238). */
 
   function lobbyReduce(state, action) {
     const a = action || {};
@@ -117,8 +120,9 @@
 
       /* The binder's door (the stickerbook prototype): the Workshop's shape
          exactly — the room is kept but stopped while the book is up, and the
-         way out is the layout it was opened from (only ever the lounge today),
-         or the Shelves for a device the lounge is closed to. */
+         way out is the layout it was opened from (the lounge's binder, or Shelves'
+         and Classic's places row since SW v238), or the Shelves for a device the
+         lounge is closed to. */
       case 'stickerbookOpen':
         if (state.stickerbook) return state;
         s.stickerbook = true;

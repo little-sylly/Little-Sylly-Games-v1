@@ -643,7 +643,7 @@ success path). `smTypewriterTimers` (`js/secret-mode.js`) is a `setTimeout` arra
 the Terminal's boot sequence and the Sylly Gateway's streaming log (`smGatewayStream()`); its clear
 sites are the gateway's own ✕, its TAP TO CONTINUE, and the Terminal's ← BACK.
 
-**The lobby's timers (SW v231).** TV's drift RAF + clock interval live on its instance and are
+**The lobby's timers (SW v231).** TV's drift RAF + clock timer (a self-rescheduling timeout aimed at each minute boundary — `clearInterval` clears it) live on its instance and are
 cleared by `tvDrop()` — which `lobby-host.js` calls whenever another layout is presented **and**
 in `lobbyLaunch()` and on a Workshop open (both keep `view === 'tv'`, so presenting alone would miss them). The
 Lounge's RAF is `lobbyScene.stop()` whenever anything else has the screen (kept, never disposed —

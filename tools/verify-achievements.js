@@ -60,7 +60,7 @@ section('play and devAdd');
   const s = run(S0, ...plays(ids[2], 3));
   eq(A.achPlays(s, ids[2]), 3, 'three plays count three');
   eq(A.achPlays(s, ids[0]), 0, 'an unplayed game has 0');
-  ok(A.achReduce(book, S0, { t: 'play', id: 'bld' }) === S0, 'a play for a game with no sticker (Bailed) is ignored');
+  ok(A.achReduce(book, S0, { t: 'play', id: 'no-such-game' }) === S0, 'a play for a game with no sticker is ignored');
   ok(A.achReduce(book, S0, { t: 'play' }) === S0, 'a play with no id is ignored');
   eq(A.achPlays(run(S0, { t: 'devAdd', id: ids[1], n: 7 }), ids[1]), 7, 'devAdd adds n');
   eq(A.achPlays(run(S0, { t: 'devAdd', id: ids[1], n: 3 }, { t: 'devAdd', id: ids[1], n: -10 }), ids[1]), 0, 'devAdd clamps at 0');

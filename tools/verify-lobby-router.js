@@ -233,6 +233,27 @@ section("the jukebox (the cat's door, SW v233)");
   ok(R.LOBBY_PAGE_ACTIONS.includes('jukeboxClose'), "jukeboxClose is the page's own action (the screen's ✕)");
 }
 
+section("the places row — the rooms' doors outside the Lounge (SW v238)");
+{
+  ok(R.LOBBY_PAGE_ACTIONS.includes('jukeboxOpen') && R.LOBBY_PAGE_ACTIONS.includes('stickerbookOpen'),
+     "both opens are the page's own actions too (Shelves' and Classic's places row)");
+  // Opened from a menu layout, each closes back to THAT layout — never the Lounge,
+  // on a device that still could go there and on one handed out of it.
+  for (const view of ['shelves', 'original']) {
+    for (const arrival of ['none', 'done']) {
+      for (const [o, c] of [['jukeboxOpen', 'jukeboxClose'], ['stickerbookOpen', 'stickerbookClose']]) {
+        const from = start({ room: 'idle', view, arrival });
+        const open = R.lobbyReduce(from, { t: o });
+        eq(open.view, view, `${o} from ${view} (arrival ${arrival}) leaves the view alone`);
+        eq(open.room, 'idle', `  and the stopped room stays stopped`);
+        const shut = R.lobbyReduce(open, { t: c });
+        eq(shut.view, view, `${c} returns to ${view}`);
+        eq(shut.room, 'idle', `  without waking the room behind it`);
+      }
+    }
+  }
+}
+
 section('the door map');
 {
   const seen = [];

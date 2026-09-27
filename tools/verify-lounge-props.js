@@ -2463,7 +2463,7 @@ section('production — the scene validates the provider, and survives an empty 
   const emptyBuilt = LouProps.louBuildAll(Object.assign({}, global.__prmCtx, {
     stickers: { base: 'data/stickers/', list: [] }, lampPanels: { base: 'data/lamp/', manifest: { panels: [] } } }));
   ok(Object.keys(emptyBuilt).length === Object.keys(fullBuilt).length, 'an empty sticker list and an empty lamp manifest still build every prop');
-  /* The shipped manifest has no bld.png (Bailed's badge is pending): a label
+  /* A manifest missing a game's sticker (Bailed's, until 27 Sep 2026): a label
      must not guess a file the manifest never promised — that was a 404 on every
      Lounge load. An unlisted game keeps its plain white label, as a failed
      image already left it. */
