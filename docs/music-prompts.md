@@ -20,39 +20,48 @@ copy-paste ready.
 
 ## Where things stand
 
-**26 Sep 2026, SW v235.** There are two separate surfaces, and they now share tracks (one-way):
+**27 Sep 2026.** There are two separate surfaces, and they now share tracks (one-way):
 
-- **In-game music** (`data/music/manifest.json`, resolved by `Music.playFor(activeGameId)`) — **20
-  tracks**: `lobby`, `li5`, `great-minds`, `sylly-signals` keep their own original encodes; the
-  other 16 games' entries point straight at their jukebox base file (`"file": "jukebox/<id>.mp3"` —
-  no duplicated audio, `sw.js`'s `/data/music/` handler already runtime-caches anything under that
-  path). **The Bluff (`dyb`) is the only game still on the lobby fallback** — it has no song at all
-  yet.
-- **The jukebox** (`data/music/jukebox/manifest.json`) — **25 songs** (was 26 — Secret Signals'
-  A Night Out and The Stakeout were the same song generated twice; A Night Out was removed, The
-  Stakeout kept for fitting the espionage theme better and being the id already baked into
-  `visual-lobby.js`'s test fixture). All provisional (the owner generates a few per day and replaces
-  them as better takes land). Three are already Sylly Mode variants (`variant` field):
+- **In-game music** (`data/music/manifest.json`, resolved by `Music.playFor(activeGameId, isSylly)`)
+  — **20 games + the lobby, all pointing at jukebox files, zero original encodes left.**
+  `lobby`/`li5`/`great-minds`/`sylly-signals` turned out to already have jukebox-processed twins
+  (the lobby track's own title was literally "旧玩具箱" = Old Toy Box) and were repointed there 27
+  Sep 2026, deleting the four originals that sat over the ~1.5 MB ceiling. **The Bluff (`dyb`) has
+  its base track** — "Endless Rise" — closing the one gap left. Seven games now carry a `:sylly`
+  entry: `frt`, `shp`, `pko`, `flw`, `nt`, `dyb`, `great-minds` — see the table below.
+- **The jukebox** (`data/music/jukebox/manifest.json`) — **30 songs** (was 25). Secret Signals'
+  duplicate ("A Night Out"/"The Stakeout") is still resolved as below; five new tracks landed 27 Sep
+  2026 (Endless Rise, Perilous Gambit, Relay Handoff, The Wrong Piece, Two Radios); and PKO's
+  standalone bonus track "A Force of Nature" is renamed **"Wild Instinct"** (it shared its name with
+  PKO's own Sylly Mode) and kept, not dropped — the owner's call. Sylly Mode variants now in the
+  jukebox (`variant` field):
 
   | Game | Base song(s) | Sylly variant |
   |------|--------------|---------------|
   | Fruit Salad | Fruit Salad Boogie | Fruity Fun — *Fruity Personalities* |
   | Counting Sheep | Music Box Lullaby | Eerie Night Sky — *Night Terrors* |
-  | Pecking Order | A Force of Nature, Quiet Hunting | Weather Turned — *Force of Nature* |
+  | Pecking Order | Wild Instinct, Quiet Hunting | Weather Turned — *Force of Nature* |
+  | Flawless | Private Exhibition | The Wrong Piece — *The Counterfeit Run* |
+  | The Bluff | Endless Rise | Perilous Gambit — *The Tempest* |
+  | Net-Trace | Trace On | Relay Handoff — *Distributed Network Protocol* |
+  | Great Minds | Psychic Waves | Two Radios — *Static Interference* |
 
   (Lobby also has a variant, Old Toy Box — *Game Selection*.)
 
-  **Pecking Order's two base songs were checked, not resolved.** Unlike Secret Signals' pair, "A
-  Force of Nature" and "Quiet Hunting" are genuinely different recordings (different hashes, 153s vs
-  86s) — both prompt options (§ 17 below) were generated and kept, not a duplicate. The in-game
-  manifest promotion picked **Quiet Hunting**, to avoid a base track sharing its name with the Sylly
-  Mode itself (the naming-collision risk this doc already flagged). Whether "A Force of Nature"
-  should stay in the jukebox as a second PKO option or get dropped is still an owner call.
+  **Pecking Order's two base songs were checked, not resolved.** Unlike Secret Signals' pair, "Wild
+  Instinct" (né "A Force of Nature") and "Quiet Hunting" are genuinely different recordings
+  (different hashes, 153s vs 86s) — both prompt options (§ 17 below) were generated and kept, not a
+  duplicate. The in-game manifest promotion picked **Quiet Hunting**, to avoid a base track sharing
+  its name with the Sylly Mode itself (the naming-collision risk this doc already flagged). "Wild
+  Instinct" stays in the jukebox only, as a second PKO option.
 
-**What that means for Sylly tracks:** `Music.playFor` now has its Sylly tier — see
-[§ The code change](#the-code-change--done-27-sep-2026). SHP, PKO and FRT's matches already play
-their own Sylly track; a new variant needs only a manifest line, no code. A song file is
-runtime-cached, so a Sylly track costs **no install bytes** — only generation budget.
+**What that means for Sylly tracks:** `Music.playFor` has its Sylly tier — see
+[§ The code change](#the-code-change--done-27-sep-2026). Seven games' matches now play their own
+Sylly track; a new variant needs a manifest line **and** one `js/engine.js` getter-map line (see
+that section — the doc previously said "no code change", which was wrong). A song file is
+runtime-cached, so a Sylly track costs **no install bytes** — only generation budget. **Only CJAR
+and GTH remain optional and ungenerated** — prompts for both are now written, § Prompts below. CLD
+waits for its replacement Sylly Mode.
 
 <details>
 <summary>Earlier status notes (kept for history)</summary>
@@ -198,7 +207,7 @@ tuning to a channel. Generic ambient/ethereal drifts away from that into ordinar
 > vocals. Seamless loop.
 
 *Lead: detuned oscillator (B) / theremin-like sine (C) / analogue arpeggio (A).*
-*Sylly: **yes, cheap** — Static Interference, priority 3. Worth it only if the base take is Option B.*
+*Sylly: ✅ **Done** — Two Radios (27 Sep 2026).*
 
 ---
 
@@ -344,14 +353,14 @@ would be the same track, only quieter.*
 
 *Lead: Rhodes electric piano.*
 *Sylly: **optional, low** — Stroke or Genius is perceptual (a shaking canvas, blurred drawings). A
-warped-tape take of the same lift music would be a good joke, but not a change of register.*
+warped-tape take of the same lift music would be a good joke, but not a change of register. Prompt
+written 27 Sep 2026, § Prompts — not yet generated.*
 
 ---
 
 ### 10. The Bluff 🎲 — *a mountain, and a lie*
 
-**⚠️ The only game with no song in the jukebox yet.** Generate a base track before anything else
-for this game.
+**✅ Base track shipped 27 Sep 2026 — "Endless Rise".**
 
 **Option A — original (written for the old ocean-blue brand).**
 
@@ -372,8 +381,7 @@ the old ocean blue — see `docs/game-identities/dyb.md`).**
 *Lead: hammered dulcimer (A) / bowed cello (B) — note: A's lead collides with Honeycomb Hills Option
 A below if both are generated; pick one or the other, or accept the overlap since they're unlikely
 to play back-to-back.*
-*Sylly: **yes, after the base track** — The Tempest, priority 2b. The dice themselves become
-untrustworthy, and the mode's name already hands you the weather.*
+*Sylly: ✅ **Done** — Perilous Gambit (27 Sep 2026).*
 
 ---
 
@@ -489,8 +497,7 @@ ostinato only (B). Neither harmonica nor sax appears anywhere else.*
 > thriller tension.** Instrumental only, no vocals. Seamless loop.
 
 *Lead: arpeggiated synth sequence.*
-*Sylly: **yes, medium** — Distributed Network Protocol, priority 4. It turns a solo puzzle into a team
-relay.*
+*Sylly: ✅ **Done** — Relay Handoff (27 Sep 2026).*
 
 ---
 
@@ -551,8 +558,7 @@ tend to become the whole track and read as spa/wedding music rather than "quietl
 > vocals. Seamless loop.
 
 *Lead: vibraphone (B) / harp (A).*
-*Sylly: **yes, first** — The Counterfeit Run, priority 1. The biggest mood change among the games
-still without a variant.*
+*Sylly: ✅ **Done** — The Wrong Piece (27 Sep 2026).*
 
 ---
 
@@ -576,9 +582,9 @@ track.**
 > Instrumental only, no vocals. Seamless loop.
 
 *Lead: kalimba (both — B drops the marimba double-lead).*
-*Sylly: **done** — Weather Turned (*Force of Nature*) is in the jukebox. Watch the naming: one of the
-**base** songs is called "A Force of Nature", the same as the mode, so the two are easy to confuse
-on a track list.*
+*Sylly: **done** — Weather Turned (*Force of Nature*) is in the jukebox. The base song that used to
+share its name with the mode ("A Force of Nature") is renamed **Wild Instinct** (27 Sep 2026) —
+kept in the jukebox as a second PKO option, not dropped.*
 
 ---
 
@@ -606,7 +612,7 @@ named and excluded.**
 *Lead: upright piano (both).*
 *Sylly: **optional, low** — Dibber Dobber turns sneaking into dobbing (playground accusation, blind
 commits). It changes the mood a little, but the base track's "conspiratorial" already covers most
-of it.*
+of it. Prompt written 27 Sep 2026, § Prompts — not yet generated.*
 
 ---
 
@@ -689,12 +695,12 @@ key centre as the base track, so a later mid-session crossfade (menu → match) 
 | 15 | Counting Sheep | Night Terrors | Lullaby → fever dream; the biggest flip in the suite | ✅ **Done** — Eerie Night Sky |
 | 17 | Pecking Order | Force of Nature | Stable ecology → weather reshaping the rules every Encounter | ✅ **Done** — Weather Turned |
 | 14 | Fruit Salad | Fruity Personalities | Every fruit gets an attitude; sillier, busier | ✅ **Done** — Fruity Fun |
-| 16 | Flawless | The Counterfeit Run | Poised lounge → a room full of forgers and auditors | **Make — priority 1** |
-| 10 | The Bluff | The Tempest | Honest dice → dice you can't trust, even your own | **Make — priority 2b** (after the base track, 2a) |
-| 2 | Great Minds | Static Interference | Same tuning, with the signal jammed | **Make — priority 3** (cheap, *if* base is Option B) |
-| 13 | Net-Trace | Distributed Network Protocol | A solo puzzle → a team relay across chained nodes | **Make — priority 4** |
-| 18 | Cookie Jar | Dibber Dobber | Sneaking → dobbing; blind three-way commits | Optional, low |
-| 9 | Group Therapy | Stroke or Genius | Perceptual (a shaking canvas, blurred drawings), not tonal | Optional, low — a fun joke, not a new register |
+| 16 | Flawless | The Counterfeit Run | Poised lounge → a room full of forgers and auditors | ✅ **Done** — The Wrong Piece |
+| 10 | The Bluff | The Tempest | Honest dice → dice you can't trust, even your own | ✅ **Done** — Perilous Gambit |
+| 2 | Great Minds | Static Interference | Same tuning, with the signal jammed | ✅ **Done** — Two Radios |
+| 13 | Net-Trace | Distributed Network Protocol | A solo puzzle → a team relay across chained nodes | ✅ **Done** — Relay Handoff |
+| 18 | Cookie Jar | Dibber Dobber | Sneaking → dobbing; blind three-way commits | Optional, low — prompt ready |
+| 9 | Group Therapy | Stroke or Genius | Perceptual (a shaking canvas, blurred drawings), not tonal | Optional, low — a fun joke, not a new register; prompt ready |
 | 19 | Cold Shoulder | The Thaw | Geometry only; the mode is due to be replaced | **Wait** for the new mode |
 | 11 | Bailed | Drama Mode | A sharper endgame; same suspicion | No |
 | 6 | Late to the Party | The Troublemaker | A third goal inside the same loop | No |
@@ -707,19 +713,14 @@ key centre as the base track, so a later mid-session crossfade (menu → match) 
 | 5 | You Get It? | The Ringer | One fake answer per round | No |
 | 20 | Honeycomb Hills | — | No Sylly Mode | n/a |
 
-### Priority order (a few generations a day)
+### Priority order — DONE except the optional pair
 
-1. **Flawless — The Counterfeit Run.** Of the modes still without a variant, this one changes the
-   mood the most, and the base palette turns into it easily.
-2. **The Bluff — base track first (2a), then The Tempest (2b).** Filling the jukebox's only empty
-   game beats any variant. The Tempest then comes almost straight from Option B's palette.
-3. **Great Minds — Static Interference.** Check first whether the shipped base take (*Psychic
-   Waves* / `gm.mp3`) is close to Option B. If it is, this is one cheap generation. If it isn't, the
-   variant won't sound like the same game. Regenerate the base as Option B first, or skip this one.
-4. **Net-Trace — Distributed Network Protocol.** A real change, from solo to team play, but a mild
-   one. It shares Net-Trace's cold palette, so it stays distinct from everything else.
-5. *(Optional)* Cookie Jar — Dibber Dobber; Group Therapy — Stroke or Genius. Only once the rest of
-   the list is finished, and only if a take is actually funny.
+Flawless, The Bluff (base + Sylly), Great Minds and Net-Trace all shipped 27 Sep 2026 (§ Where
+things stand). What's left:
+
+1. *(Optional)* Cookie Jar — Dibber Dobber; Group Therapy — Stroke or Genius. Prompts are written
+   (§ Prompts below); generate only if a take is actually funny, and only after everything else on
+   the owner's list.
 
 Anything below that line is a **no**: the base track already fits the mode.
 
@@ -764,10 +765,30 @@ key)*. Built on Option B's palette.
 > modem sounds, no glitch stutters, no distorted bass drops, no thriller tension. Instrumental only,
 > no vocals. Seamless loop.
 
-*Optional concepts, no prompt yet:* **Cookie Jar — Dibber Dobber:** the base kitchen loop with a
-playground "na-na" taunt figure on muted trumpet, still cosy and never mean. **Group Therapy —
-Stroke or Genius:** the same lift music on a warped, wow-and-flutter tape, as if the waiting-room
-speaker is on the blink.
+**Cookie Jar — Dibber Dobber** *(optional; generate only after the base track exists, and match its
+tempo and key).* Same kitchen, but sneaking has turned into tattling.
+
+> Same warm family-kitchen loop as before, but with a playground "I'm telling" energy underneath.
+> Upright piano still carrying the light ragtime-ish figure, now with a short two-note "na-na"
+> taunt phrase on muted trumpet dropped in every few bars, pizzicato strings ducking out of sight
+> a beat earlier than before, brushed kit, wood block and triangle used sparingly. 104 BPM,
+> honey-gold major key, still playful and conspiratorial but with a nervier, more accusatory edge —
+> someone's about to point the finger. No comedy tiptoe walking bass, no creeping-pizzicato cliché,
+> no wah-muted trumpet, no cartoon-heist flavour, still cosy and domestic, never sinister.
+> Instrumental only, no vocals. Seamless loop. Sparse mix, low dynamic range, no bells or chimes in
+> the 1–2 kHz range.
+
+**Group Therapy — Stroke or Genius** *(optional; generate only after the base track exists, and
+match its tempo and key).* Same deadpan waiting-room lift music, now on a tape that's on the blink.
+
+> Same gently absurd waiting-room loop as before — Rhodes electric piano still playing soft
+> bossa-nova chords, nylon guitar, muted flugelhorn, brushed kit, subtle vibraphone — but the whole
+> thing now sits on a warped, wow-and-flutter tape: pitch drifting very slightly up and down in slow
+> waves, as if the speaker in the waiting room is on the blink. 88 BPM, mellow major key, still
+> deliberately pleasant and slightly too calm, now with an extra layer of "something's not quite
+> right" that stays funny rather than tense. No glitch stutters, no digital artefacts, no radio
+> static — the wobble is analogue tape, not broken electronics. Instrumental only, no vocals.
+> Seamless loop. Sparse mix, low dynamic range, no bells or chimes in the 1–2 kHz range.
 
 ### The code change — DONE, 27 Sep 2026
 
@@ -784,11 +805,13 @@ by `style.display`, not `showScreen()`, so flipping the Sylly switch doesn't ret
 track updates at the *next* real screen transition — starting the match — which is the natural
 moment for it, not an oversight.
 
-Verified in a real browser for all three current variants (SHP, PKO, FRT): the actual settings
+Verified in a real browser for all three original variants (SHP, PKO, FRT): the actual settings
 toggle flips the flag, the music stays on the base track while settings are still open, and the next
-screen transition picks up the Sylly track with its own title. A new Sylly variant needs only a
-`"<abbr>:sylly"` line in `data/music/manifest.json` — no code change, since `isGameSyllyOn`'s map
-already covers any game with a `let [abbr]SyllyMode` flag once that abbreviation is added to it.
+screen transition picks up the Sylly track with its own title. **A new Sylly variant needs a
+`"<abbr>:sylly"` line in `data/music/manifest.json` *and* one line in `isGameSyllyOn`'s getter map
+in `js/engine.js`** — this doc previously said "no code change", which was wrong; the getter map
+only covers a game once someone adds it, and FLW/NT/DYB/`great-minds` all needed that line added
+27 Sep 2026 when their tracks shipped.
 
 Detail: `docs/deferred-work.md` § Music, `shared-implementation-notes.md` BUG-22 (a real
 `encodeURIComponent`-on-a-subpath bug caught while wiring step 2, unrelated to the Sylly tier itself
@@ -846,9 +869,12 @@ filename get chosen deliberately rather than fought). Add one line to the manife
 and fill in `title`/`artist` while you're there. **No code change, no `sw.js` edit, no version
 bump.** Until a game has a line, it plays the lobby theme.
 
-**Jukebox:** drop the master in `data/music/New folder/`, run `node tools/encode-music.js` (it skips
-unchanged tracks), and add a line to `data/music/jukebox/manifest.json`, with `variant` set for a
-Sylly take. Same deal: no `sw.js` edit, no bump.
+**Jukebox:** drop the master in `data/music/pending/` (the old `data/music/New folder/` archive is
+gone as of 27 Sep 2026 — masters are no longer kept in git; `pending/` is cleared once a batch is
+processed), run `node tools/encode-music.js` (it skips unchanged tracks and safely errors-and-skips
+any entry whose master has already been cleared), and add a line to
+`data/music/jukebox/manifest.json`, with `variant` set for a Sylly take. Same deal: no `sw.js` edit,
+no bump.
 
 ### Before any of this ships
 
@@ -863,7 +889,8 @@ reasoning still governs what you generate. 3 and 6 are still on you.
    took the `data/packs/` contract — manifest network-first, audio cache-first, absent from
    `PRECACHE_URLS`. A track is downloaded once, on first play, and only for a game someone actually
    opens. **The per-file ceiling is ~1.5 MB** (128 kbps, 60–120 s loop) — hold to it when generating
-   finals; the four in-game tracks are over it pending a trim, and jukebox songs run 1.2–5.7 MB.
+   finals; the four original in-game tracks that were over it are gone (27 Sep 2026, § Where things
+   stand), and jukebox songs still run 1.0–5.7 MB since they're runtime-cached, not precached.
 3. **Format:** one file per track, mono or joint-stereo, ~96–128 kbps. `.m4a`/AAC was the original
    recommendation for iOS Safari reliability; everything shipped so far is `.mp3`, and
    `tools/encode-music.js` encodes to it — revisit only if iOS playback actually misbehaves.
@@ -873,7 +900,9 @@ reasoning still governs what you generate. 3 and 6 are still on you.
 5. ~~**It needs a mute path on day one.**~~ **Settled.** Music has its own toggle and level
    (`Music.setEnabled` / `Music.setVolume`), separate from effects, and global mute outranks both.
 6. **Licensing.** Confirm the generator's terms cover distribution in a public web app before
-   generating finals, and record the outcome next to the assets.
+   generating finals, and record the outcome next to the assets. **Tracks are generated with
+   HappyShrimp** (27 Sep 2026) — still open: whether its terms require crediting it in place of the
+   "Sylly House Band" stand-in for a publicly distributed app. Owner to check and decide.
 
 ### Later, if the credits stretch
 
@@ -883,6 +912,51 @@ now have their own section above.)
 - **A gameover / podium sting**, shared across the suite — 4–6 seconds, not a loop.
 - **A lobby-to-game transition**, if the redesigned title screen ends up with a launch moment worth
   scoring.
+
+## Cover art prompts (nano banana)
+
+Jukebox covers are extracted from each master's embedded artwork by `tools/encode-music.js`
+(`ffmpeg`, cropped to 400×400 square). Three covers read as generic stock imagery rather than the
+suite's own illustrated-vignette style (`clown-s-alibi.jpg`, `fruity-fun.jpg` are the reference —
+a warm, single-scene, flat-illustrated moment; `private-exhibition.jpg` shows the style also
+supports moody photoreal 3D). Prompts below are for a square generator (**generate at 1024×1024**,
+1:1 aspect — the pipeline crops to fill, so anything off-square loses edges).
+
+**Fastest path:** drop the generated image straight into `data/music/jukebox/covers/<id>.jpg` — no
+re-encode needed. To also update the *master's* embedded art (so a future `--force` re-encode
+doesn't regress it), the image needs embedding into the mp3's ID3 cover tag before it's dropped in
+`data/music/pending/`.
+
+**Eerie Night Sky** (Counting Sheep — *Night Terrors* Sylly variant, brand midnight `#3A3D52`):
+
+> A cozy flat-illustration album cover, square 1:1, in the style of a warm vintage picture book.
+> Scene: a child's bedroom at midnight, moonlight streaming through gingham curtains onto a bed with
+> rumpled sheep-patterned sheets; a row of sheep-shaped shadow puppets march across the wall, cast by
+> a crescent-moon nightlight; a plush sheep toy sits wide-eyed on the pillow, slightly startled
+> rather than scared. Muted midnight-blue and dusty-lavender palette (#3A3D52 as the dominant tone)
+> with warm amber lamp-glow accents. Soft grain, gentle shadows, whimsical and a little eerie but
+> never frightening — spooky story night, not horror. No text, no logos, no watermark.
+
+**Harmonium Hums** (Honeycomb Hills, brand honey gold `#F0A500`):
+
+> A cozy flat-illustration album cover, square 1:1, warm golden-hour lighting. Scene: a small
+> hand-pumped harmonium on a sunlit cottage windowsill, bellows slightly open as if mid-note,
+> surrounded by potted plants in honeycomb-patterned pots and a couple of cartoon bees drifting past;
+> a jar of honey with a wooden dipper rests beside it. Warm honey-gold palette (#F0A500 as the
+> dominant tone) with soft cream and moss-green accents. Gentle sunbeams, soft shadows, charming and
+> pastoral — a lazy summer-afternoon mood. No text, no logos, no watermark.
+
+**Dinner Dinner Radio Cha-Cha** (Cookie Jar, brand chocolate-brown `#5C3A21`):
+
+> A cozy flat-illustration album cover, square 1:1, warm retro-kitchen lighting (same illustrated
+> style as a 1950s radio advert). Scene: a vintage tabletop radio on a checkered kitchen counter, its
+> dial glowing and sound-wave lines swirling out mid cha-cha rhythm; beside it a ceramic
+> rooster-patterned cookie jar tips slightly as if caught mid-dance, with a couple of cookies
+> mid-bounce rather than sitting still. Warm chocolate-brown and caramel palette (#5C3A21 as the
+> dominant tone) with cream and dusty-rose accents. A real sense of motion and rhythm — the scene
+> should feel like it's dancing, not a still life. No text, no logos, no watermark.
+
+---
 
 ### Adding a Music & Sound section to the new-game brief
 

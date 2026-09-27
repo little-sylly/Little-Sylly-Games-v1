@@ -3,27 +3,33 @@
   "fallback": "lobby",
   "tracks": {
     "lobby": {
-      "file": "lobby.mp3",
-      "title": "旧玩具箱",
-      "artist": "Sam Tse",
+      "file": "jukebox/old-toy-box.mp3",
+      "title": "Old Toy Box",
+      "artist": "Sylly House Band",
       "gain": 1.0
     },
     "li5": {
-      "file": "li5.mp3",
-      "title": null,
-      "artist": null,
+      "file": "jukebox/teacher-s-out.mp3",
+      "title": "Teacher's Out",
+      "artist": "Sylly House Band",
       "gain": 1.0
     },
     "great-minds": {
-      "file": "gm.mp3",
-      "title": null,
-      "artist": null,
+      "file": "jukebox/psychic-waves.mp3",
+      "title": "Psychic Waves",
+      "artist": "Sylly House Band",
+      "gain": 1.0
+    },
+    "great-minds:sylly": {
+      "file": "jukebox/two-radios.mp3",
+      "title": "Two Radios",
+      "artist": "Sylly House Band",
       "gain": 1.0
     },
     "sylly-signals": {
-      "file": "ss.mp3",
-      "title": null,
-      "artist": null,
+      "file": "jukebox/the-stakeout.mp3",
+      "title": "The Stakeout",
+      "artist": "Sylly House Band",
       "gain": 1.0
     },
     "jec": {
@@ -137,6 +143,30 @@
     "comb": {
       "file": "jukebox/harmonium-hums.mp3",
       "title": "Harmonium Hums",
+      "artist": "Sylly House Band",
+      "gain": 1.0
+    },
+    "dyb": {
+      "file": "jukebox/endless-rise.mp3",
+      "title": "Endless Rise",
+      "artist": "Sylly House Band",
+      "gain": 1.0
+    },
+    "dyb:sylly": {
+      "file": "jukebox/perilous-gambit.mp3",
+      "title": "Perilous Gambit",
+      "artist": "Sylly House Band",
+      "gain": 1.0
+    },
+    "nt:sylly": {
+      "file": "jukebox/relay-handoff.mp3",
+      "title": "Relay Handoff",
+      "artist": "Sylly House Band",
+      "gain": 1.0
+    },
+    "flw:sylly": {
+      "file": "jukebox/the-wrong-piece.mp3",
+      "title": "The Wrong Piece",
       "artist": "Sylly House Band",
       "gain": 1.0
     }

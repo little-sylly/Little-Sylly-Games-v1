@@ -77,15 +77,25 @@ lives in the specs/plans under `docs/superpowers/{specs,plans}/2026-09-*-premium
   already has a <860 px single-column layout, never tested on a real phone. Read first: DD-44 +
   DD-42 in `shared-implementation-notes.md`, `lobby-host.js` (Grep `lobbyOpenJukebox`,
   `lobbyOpenStickerbook`). Opus, high.
-- **Jukebox open items (owner calls):** the artist is a stand-in ("Sylly House Band", every track);
-  the Eerie Night Sky and Harmonium Hums covers look like stand-ins; the **soft-lock** flag
-  (`locked`) is carried and drawn (🔒, dimmed, a toast) but wired to nothing — it wants the
-  stickerbook's earn loop and its storage key; songs are 1.2–5.7 MB against music's ~1.5 MB
-  ceiling (runtime-cached, install untouched) — whether the masters in `data/music/New folder/`
-  stay in git is still open; the Lounge's cat shows a song's title on its little screen — whether it
-  should also show "paused" is a feel call for the real-device pass. **Songs are provisional** —
-  the owner generates a few a day, so the catalogue will keep churning; replacing one is the master
-  file + `node tools/encode-music.js` + one manifest line, no `sw.js` edit either way.
+- **Jukebox open items (owner calls):** the artist is a stand-in ("Sylly House Band", every track) —
+  tracks are generated with **HappyShrimp**; whether to credit it in place of the stand-in for a
+  publicly distributed app is still open, pending a check of its terms (owner call, not something
+  this session can verify). **RESOLVED 27 Sep 2026 — soft-lock stays off for now.** The `locked`
+  flag is deliberately `false` on every track (already was); achievement-gated unlocking (the
+  stickerbook's earn loop + its storage key) is a later feature and nothing needs building for it
+  yet. The Lounge's cat shows a song's title on its little screen — whether it should also show
+  "paused" is a feel call for the real-device pass. **Songs are provisional** — the owner generates
+  a few a day, so the catalogue will keep churning; replacing one is the master file +
+  `node tools/encode-music.js` + one manifest line, no `sw.js` edit either way. **Masters are no
+  longer kept in git** (27 Sep 2026) — the old `data/music/New folder/` archive is gone;
+  `data/music/pending/` is the live staging spot (`jukebox/manifest.json`'s `masterDir`), cleared
+  after each track is processed. The owner keeps an archive of masters outside git, so nothing is
+  actually lost — only the git-tracked copy.
+- **RESOLVED 27 Sep 2026 — cover art regenerated for Eerie Night Sky, Harmonium Hums and Dinner
+  Dinner Radio Cha-Cha.** New illustrations (HappyShrimp, 1024×1024, matching the
+  illustrated-vignette style of `clown-s-alibi`/`fruity-fun`) resized to the catalogue's 400×400
+  spec and dropped into `data/music/jukebox/covers/<id>.jpg`, replacing the three generic
+  photo/texture stand-ins. Prompts used are in `docs/music-prompts.md` § Cover art prompts.
 - **The owner's real-device pass** — desktop browser confirmed clean (26 Sep 2026); a phone and the
   TV are still outstanding, owner's call to pick up later. No harness sees a real GPU, touch, or how
   the Lounge feels — any issue that pass turns up gets logged here when it happens. This also
@@ -287,6 +297,11 @@ first**, and each game needs three things:
 - **pause/resume** for every clock and auto-resolving timer the game runs.
 **First candidates: PKO, FLW, CJAR.** Adding one is a reviewed change: `verify-mp-configs.js` § 7 pins
 the adopter list. Model + effort per game: **Opus, high**.
+**RESOLVED 27 Sep 2026 (SW v237)** for all three — `shared-implementation-notes.md` ML-09, plus each
+game's own entry (PKO DD-27, CJAR DD-34, FLW "Client reconnect adopted"). Adopters are now
+`flw`/`pko`/`cjar`/`comb`. **Next:** the remaining MDLM games, longest matches first — not yet ranked;
+rank them before picking one (NT's per-round result screen is not in `MP_END_SCREENS`, see below). Each
+needs its own loopback Reconnect section and an `*_SRC=` mutation pass — ML-09 lists the four traps.
 
 **Owner call — the 20 s grace for non-adopters (review I4).** Before SW v236 a phone away for longer
 than a phone call simply stalled the table, and one that came back with memory intact carried on;
@@ -314,6 +329,10 @@ one of them the owner's iPhone SE: start a Short Summer; lock the SE for a minut
 the other phone shows "Waiting for …" and the clock froze; unlock (or reload) and tap **Rejoin**, then
 check the seat, the hand and the time left; do it once with a trade open. Record the outcome in
 `comb-implementation-notes.md` DD-30 and close this line.
+**Same pass, SW v237 adopters** (one reload each is enough): FLW on a 30 s Appraisal Clock — drop a
+*non*-active phone and check the active player's clock froze; CJAR on Standard — reload mid-window
+after another seat has chosen, and check the rejoiner can still choose and sees nobody else's pick;
+PKO with Force of Nature — reload the Challenger during a Carrion window.
 
 ## Found during the reconnect build (27 Sep 2026)
 
@@ -326,6 +345,9 @@ check the seat, the hand and the time left; do it once with a trade open. Record
   for exactly this reason — multi-line anchors never matched, so those mutants never ran, and the
   summary read as "survivors". Fix: re-write the working copy with LF (no content change), or make each
   mutator normalise on read as `mutate-mp-reconnect.js` does.
+  **RESOLVED 27 Sep 2026 for `pko.js` and `cjar.js`** — both working copies re-written as LF during the
+  reconnect adoption (git saw no diff). The mutator-side fix is still open: with `core.autocrlf=true` a
+  fresh checkout can bring CRLF back, so normalising on read is the durable half.
 
 ## JEC and CJAR brand colours vs Honeycomb Hills gold (Q22, 6 Sep 2026) — RESOLVED
 
@@ -387,54 +409,53 @@ and in-game CTAs. No action needed.
 tracks steps are DONE as of 27 Sep 2026** — SHP, PKO and FRT's matches now play their own Sylly
 track. What is parked:
 
-- **19 of 20 games now have a track of their own.** LI5/Great Minds/Secret Signals keep their
-  original encodes; the other 16 point straight at their jukebox base file
-  (`"file": "jukebox/<id>.mp3"`, no duplicated audio). **The Bluff (`dyb`) is the only game still on
-  the lobby fallback** — it has no song generated yet.
-- **The SS jukebox duplicate is resolved.** "A Night Out" and "The Stakeout" were the same song
-  generated twice (near-identical file size, distinct hashes — a re-export, not a coincidence). "The
-  Stakeout" kept (fits the espionage theme; already the id baked into `visual-lobby.js`'s jukebox
-  test), "A Night Out" and its mp3/cover deleted. Jukebox catalogue is 25 songs, not 26.
-- **PKO's two base songs were checked, not resolved — a real owner call, unlike SS's.** "A Force of
-  Nature" and "Quiet Hunting" are genuinely different recordings (different hashes, 153s vs 86s), so
-  nothing was deleted. The in-game promotion picked "Quiet Hunting" to avoid a base track sharing its
-  name with the Sylly Mode itself. Whether "A Force of Nature" should stay as a second jukebox option
-  or go is still open.
-- **The four original-encode tracks are still well over the ~1.5 MB per-track ceiling**
-  (`lobby.mp3` 5.46 MB, `li5.mp3` 4.32 MB, `gm.mp3` 3.52 MB, `ss.mp3` 6.04 MB). The 16 newly-promoted
-  tracks are jukebox-sized already (~1.4–2.6 MB), so this gap is now down to the original four.
-- **`li5.mp3` / `gm.mp3` / `ss.mp3` carry no title/artist in the manifest** (`null`/`null` — the
-  generator used didn't hand back metadata the way the lobby track's did). Cosmetic only —
-  `Music.nowPlaying()` already handles `null` — but worth filling in before a credits surface is
-  built. Edit the relevant `data/music/manifest.json` entry directly; no code change needed.
+- **RESOLVED 27 Sep 2026 — all 20 games + the lobby now point at jukebox files, zero original
+  encodes left.** `lobby.mp3`/`li5.mp3`/`gm.mp3`/`ss.mp3` (the four tracks over the ~1.5 MB
+  ceiling — 5.46/4.32/3.52/6.04 MB) turned out to already have jukebox-processed twins: the
+  lobby track's title was literally "旧玩具箱" (Old Toy Box), and LI5/GM/SS each had exactly one
+  jukebox entry tagged to their game (`teacher-s-out`, `psychic-waves`, `the-stakeout`). Repointed
+  `data/music/manifest.json`'s four entries at those jukebox files and deleted the four originals.
+  This also fixes the `null`/`null` title/artist gap those three carried — they inherit the
+  jukebox entries' real titles now.
+- **RESOLVED 27 Sep 2026 — The Bluff (`dyb`) has a base track.** "Endless Rise" — DYB was the one
+  game still on the lobby fallback; no longer.
+- **The SS jukebox duplicate is resolved (26 Sep 2026).** "A Night Out" and "The Stakeout" were the
+  same song generated twice (near-identical file size, distinct hashes — a re-export, not a
+  coincidence). "The Stakeout" kept (fits the espionage theme; already the id baked into
+  `visual-lobby.js`'s jukebox test), "A Night Out" and its mp3/cover deleted.
+- **RESOLVED 27 Sep 2026 — PKO's second base song, renamed and kept.** "A Force of Nature" shared
+  its name with PKO's own Sylly Mode ("Force of Nature"), so it's renamed **"Wild Instinct"**
+  (`data/music/jukebox/wild-instinct.mp3`) and kept as a jukebox-only bonus track — the owner's
+  call was to keep both, not drop one. `pko:sylly` still points at "Weather Turned"; the in-game
+  base track is still "Quiet Hunting".
 - **A Music & Sound section in the Phase 1 brief template** (`docs/rules/new-game-brief-template.md`).
   Three fields, no more: the register in one line, tempo/energy, and anything the music must *not*
   do (Deep-Sea Deploy's "no sonar pings" is the model). The fallback rule means it can be left blank
   without blocking a build — which is exactly why it hasn't been added yet.
-- **Sylly Mode tracks — three separate jobs, all DONE except ongoing generation.**
-  1. **Generation (owner, ongoing — a few per day).** In order: FLW *The Counterfeit Run* → DYB's
-     **base** track (the only game with no song) → DYB *The Tempest* → GM *Static Interference*
-     (only if the shipped `gm.mp3` is close to Option B) → NT *Distributed Network Protocol*.
-     Optional after that: CJAR, GTH. CLD waits for its replacement Sylly Mode. Each new variant lands
-     in the jukebox first (`tools/encode-music.js` + one manifest line), then needs the same two
-     lines step 2/3 below already gave SHP/PKO/FRT: a `"<abbr>:sylly"` entry in
-     `data/music/manifest.json` pointing at the jukebox file — `isGameSyllyOn`'s getter map
-     (`js/engine.js`) already covers any game with a `let [abbr]SyllyMode` flag, so a new variant
-     needs no code change, only the manifest entry.
+- **Sylly Mode tracks — RESOLVED except two optional games and CLD.**
+  1. **Generation (owner, ongoing — a few per day).** Shipped 27 Sep 2026: FLW *The Counterfeit
+     Run* → track "The Wrong Piece"; DYB's **base** track "Endless Rise"; DYB *The Tempest* → track
+     "Perilous Gambit"; GM *Static Interference* → track "Two Radios"; NT *Distributed Network
+     Protocol* → track "Relay Handoff". Each new variant needed one `js/engine.js` line too —
+     `isGameSyllyOn`'s getter map now covers `flw`/`nt`/`dyb`/`great-minds` alongside the original
+     `frt`/`shp`/`pko`; the deferred-work note that this step was manifest-only was wrong, the
+     getter map needs a line per game and always did. **Still open, both optional:** CJAR
+     (*Dibber Dobber*) and GTH (*Stroke or Genius*) — prompts written 27 Sep 2026, generation not
+     yet done. CLD waits for its replacement Sylly Mode.
   2. **RESOLVED 26 Sep 2026 — promote jukebox songs into the in-game manifest.**
   3. **RESOLVED 27 Sep 2026 — the Sylly wiring.** `resolveKey(gameId, isSylly)` in
      `js/lib/music.js` tries `"<gameId>:sylly"` first (falling back to the base track, then the
      lobby), and `isGameSyllyOn(gameId)` in `js/engine.js` is the one place that reads across the
-     engine/plugin boundary — a small per-game getter map (`frt`/`shp`/`pko` today), same shape as
-     `getMuteToggleOnClass`. `showScreen()`'s existing one-seam call
-     (`Music.playFor(activeGameId, isGameSyllyOn(activeGameId))`) is the only call site touched — no
-     plugin needs a line of code, then or now. SHP/PKO/FRT all verified in a real browser: the actual
-     settings toggle correctly switches the track on the next screen transition (settings overlays
-     toggle by `style.display`, not `showScreen()`, so the retheme happens at the natural moment —
-     starting the match — not mid-settings). **A real bug was caught and fixed along the way**:
-     `js/lib/music.js` encoded a manifest `file` path with `encodeURIComponent()` on the whole
-     string, which also escapes a subfolder's own `/` — every jukebox-sourced in-game track (all 16
-     from step 2) would have silently 404'd. Detail: `shared-implementation-notes.md` BUG-22.
+     engine/plugin boundary — a small per-game getter map, same shape as `getMuteToggleOnClass`.
+     `showScreen()`'s existing one-seam call (`Music.playFor(activeGameId,
+     isGameSyllyOn(activeGameId))`) is the only call site touched — no plugin needs a line of code,
+     then or now. SHP/PKO/FRT all verified in a real browser: the actual settings toggle correctly
+     switches the track on the next screen transition (settings overlays toggle by `style.display`,
+     not `showScreen()`, so the retheme happens at the natural moment — starting the match — not
+     mid-settings). **A real bug was caught and fixed along the way**: `js/lib/music.js` encoded a
+     manifest `file` path with `encodeURIComponent()` on the whole string, which also escapes a
+     subfolder's own `/` — every jukebox-sourced in-game track would have silently 404'd. Detail:
+     `shared-implementation-notes.md` BUG-22.
 - **No credits surface.** `Music.nowPlaying()` returns `{ key, title, artist }` and nothing consumes
   it yet. The manifest already carries per-track attribution.
 

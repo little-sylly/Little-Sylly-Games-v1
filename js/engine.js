@@ -658,6 +658,10 @@ function isGameSyllyOn(gameId) {
     'frt': () => frtSyllyMode,
     'shp': () => shpSyllyMode,
     'pko': () => pkoSyllyMode,
+    'flw': () => flwSyllyMode,
+    'nt': () => ntSyllyMode,
+    'dyb': () => dybSyllyMode,
+    'great-minds': () => gmStaticInterference,
   };
   const g = getters[gameId];
   return g ? !!g() : false;

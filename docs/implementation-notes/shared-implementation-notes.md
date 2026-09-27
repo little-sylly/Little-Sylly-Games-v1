@@ -3401,6 +3401,30 @@ Card *art* and card *names* were always separate skinning concerns by constructi
 
 ## Bug Index
 
+**BUG-23 — a new Sylly Mode track needs an `engine.js` line, not just a manifest line.
+[27 Sep 2026]**
+
+*What happened:* `docs/music-prompts.md` § The code change stated a new `"<abbr>:sylly"` manifest
+entry needs "no code change, since `isGameSyllyOn`'s map already covers any game with a
+`let [abbr]SyllyMode` flag." That's false — `isGameSyllyOn(gameId)` in `js/engine.js` reads from a
+hard-coded getter map (`{ frt: ..., shp: ..., pko: ... }`), and a game absent from that map always
+returns `false`, silently playing the base track forever regardless of the manifest.
+
+*Root cause:* the doc was written when only three games (`frt`/`shp`/`pko`) had shipped variants,
+and the sentence generalised from "the pattern needs no plugin code" (true — no plugin calls music
+functions) to "the pattern needs no code at all" (false — the engine-side map is still code, just
+not plugin code).
+
+*Fix:* when FLW/NT/DYB/`great-minds` shipped Sylly tracks the same day, `isGameSyllyOn`'s map grew
+four entries (`flw`, `nt`, `dyb`, `great-minds`) alongside the manifest lines. Corrected the doc
+claim in the same pass.
+
+*Lesson:* "no code change" claims about a getter map keyed by game id are only true for games
+already in the map — always check the map's actual keys before writing that sentence, not just the
+manifest schema.
+
+---
+
 **BUG-20 — the room's own doors leave the fade lit, and nothing cleared it on the way back in.
 [21 Sep 2026, lobby-lab shell + premium scene — sandbox only, nothing shipped]**
 
@@ -4203,6 +4227,35 @@ to read it. The host now runs `mpMarkBack()` → `resume()` **before** `sendStat
 snapshot (`COMB_FULL_STATE`, which gained `endTimestamp`) carries the live clock. The rejoiner
 keeps `mpActiveGame = null` until the ACCEPT, so the early public packet routes to nothing rather
 than to a half-initialised applier (`verify-mp-reconnect.js` § 19; `verify-comb-loopback.js` § 26b).
+
+### ML-09 — Adopting reconnect: pause what acts FOR a seat, and a rejoiner never tapped your lobby button [27 Sep 2026, SW v237]
+**What happened.** Flawless, Pecking Order and Cookie Jar adopted the `reconnect` hook (DD-47) in one
+pass. Each game's own notes carry its design; four things were true of all three.
+1. **Pause scope is "what acts for a seat", not "every timer".** The Away overlay is a full-screen
+   modal on every device, so no human can act while paused — a table that only *waits* on a person
+   needs no pause at all (PKO has no turn clock and pauses one thing). What must stop is whatever
+   decides on a seat's behalf: FLW's Appraisal Clock auto-plays the *active* device's gem, so it must
+   freeze even when a **non**-active seat drops; CJAR's decision window auto-Sneaks the absent seat
+   out of the Raid, and its reveal dwell would open the next window straight away, so the flip loop
+   is held too; PKO's Carrion window resolves the Challenger's pick. Interstitials keep running.
+2. **The lobby button's side effects are part of the contract.** CJAR's deck data and PKO's chain are
+   fetched by the game's lobby button. A rejoiner enters through `mpApplyRejoinAccept`, never taps it,
+   and so renders with `CJAR_DATA === null` (a throw) or `pkoChain === null` (bare card ids — and
+   nothing re-renders when the chain lands a moment later). Both client `onPassThePhone`s now start
+   the load, and both appliers wait for it. The mutation pass found PKO's version only after the test
+   checked that the rebuilt hand actually had its faces drawn.
+3. **Privacy includes what a field implies.** FLW's `counterfeitHeld` looks like public bookkeeping,
+   but a seat that has *spent* its token has forged a claim — so the snapshot carries one boolean, the
+   recipient's. CJAR's `choices` are secret until `CJAR_FLIP_RESOLVE`; mid-window the snapshot nulls
+   every other seat's (and their `readyCheck`, which clients never see either).
+4. **A loopback must build the rejoiner AFTER resume.** Resume's public broadcast (`PKO_CARRION_OPEN`)
+   can beat the private ACCEPT and be dropped (ML-08). Built before resume, the test device received
+   it and hid a snapshot that did not re-arm the window — a mutant that survived until the order
+   changed.
+**Lesson.** The three contract lines in `logic-engine.md` § Client Reconnect were necessary but not
+sufficient; this pass adds the data-load line, the pause-scope line and the harness-order line there.
+Every adoption shipped with a mutation pass driven through its own `*_SRC=` (FLW 4/4, CJAR 6/6,
+PKO 7/7) — and two of PKO's seven survived the first run, both test gaps, not code gaps.
 
 ## Template Gaps
 
