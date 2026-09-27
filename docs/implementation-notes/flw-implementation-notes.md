@@ -41,6 +41,16 @@ First colour choice (`#D6336C` deep rose-crimson) was too dark and too close to 
 **Invisible lobby button — root cause**
 Old SW cache served stale `css/styles.css` before `.flw-cta` was defined → transparent background + white text = invisible button. Two fixes applied: SW bumped to v132 (forces fresh cache) + `color: #ffffff` added directly to `.flw-cta` as belt-and-suspenders (some Tailwind utility class conflicts can strip inherited text colour).
 
+**Client reconnect adopted (SW v237)**
+A dropped phone rejoins its seat (engine DD-47). Pause freezes only the Appraisal Clock — the one
+thing that acts for a seat, since expiry auto-plays the **active** device's drawn gem; a *non*-active
+drop would otherwise time the active player out under the Away overlay. `FLW_CLOCK` carries pause (0)
+and resume; a turn that begins mid-pause banks its whole clock. The snapshot (`flwSendFullState`) is
+public state + that seat's Showpiece, drawn gem, Deep Vault offer and **own** Counterfeit token —
+never the array, which would reveal who has forged. The applier re-arms an open Emerald choice.
+`flwClearTimer()` now zeroes `flwTurnEndTs`. The Amethyst peek is not re-shown (a one-time glimpse).
+Loopback: 5 Reconnect sections, 4/4 mutants. Cross-game lessons: `shared-implementation-notes.md` ML-09.
+
 **Menu button sizing**
 Initial HTML used `min-h-12` with no explicit text size for How to Play and Settings buttons. Fixed to suite standard: How to Play + Settings → `min-h-14 text-xl font-semibold`; Back to the Box → `min-h-11 text-base font-medium`. Node.js script used (not the Edit tool) to avoid UTF-8 mojibake on `index.html`.
 

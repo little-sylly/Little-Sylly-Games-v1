@@ -292,14 +292,14 @@ On every bump the outgoing SW entry moves **verbatim** to `docs/sw-changelog.md`
 "keep the last three". **A second `**SW v…**` paragraph appearing here means that move didn't
 happen: do it before anything else.**
 
-**SW v236 — MDLM client reconnect: a drop is not a quit (27 Sep 2026).** At `GAME_START` the host
-freezes `rooms/{code}/seats` and watches per-connection presence; a seat gone 3 s is **Away** and every
-device shows "Waiting for …". A game that adopts the opt-in `reconnect` hook pauses and the dropped
-phone reloads into a one-tap **Rejoin** prompt (`sylly_rejoin`); every other game ends after 20 s with
-a reason; a game's end screen ends the match for this. **Honeycomb Hills is the first adopter.**
-Harnesses: `verify-mp-reconnect` 141, `mutate-mp-reconnect` 11/11, `verify-comb-loopback` 294, `visual-lobby` 101. Detail: `shared-implementation-notes.md` DD-47.
+**SW v237 — reconnect adopted by Flawless, Pecking Order and Cookie Jar (27 Sep 2026).** A dropped
+phone in any of the three now rejoins its seat instead of ending the match after 20 s. Each pauses only
+what acts *for* a seat — FLW's Appraisal Clock, CJAR's decision window + flip loop, PKO's Carrion window
+— and sends a private snapshot stripped to one seat's secrets. PKO gets its first loopback. Harnesses:
+`verify-pko-loopback` 47 (new), `verify-flw-loopback` 113, `verify-cjar-loopback` 213, every reconnect
+mutant killed (FLW 4, CJAR 6, PKO 7). Detail: `shared-implementation-notes.md` ML-09.
 
-**Previous versions: `docs/sw-changelog.md`** — continuous, v235 back to v167.
+**Previous versions: `docs/sw-changelog.md`** — continuous, v236 back to v167.
 
 **Where the suite stands.** **20 games shipped**, all gold-master, plus multiplayer. Newest three:
 **Honeycomb Hills** (`comb`, game 20, phase 41 — the suite's biggest game and the only one with
@@ -355,7 +355,7 @@ Re-run a game's full set after touching its appliers, deck/data, packets or rend
 |------|---------|--------|
 | Build | `node tools/verify-build-fresh.js` — is the committed `index.html` a faithful assembly of `src/screens/`? **Re-run after any markup change** | 1 |
 | CJAR | `node tools/verify-cjar-deck.js && node tools/verify-cjar-loop.js && node tools/verify-cjar-dd.js` | 76 · 102 · 47 |
-| CJAR | `node tools/verify-cjar-loopback.js` — host↔client over a Firebase-shaped wire | 177 |
+| CJAR | `node tools/verify-cjar-loopback.js` — host↔client over a Firebase-shaped wire, incl. reconnect (pause, a rejoin mid-window with other seats' choices stripped, a held flip) | 213 |
 | CJAR | `node tools/simulate-cjar-dd.js` — balance instrument; asserts nothing, always exits 0 | — |
 | CLD | `node tools/verify-cld-physics.js && node tools/verify-cld-loop.js` — pure sim (determinism, no-tunnel, per-throw invariant, restitution asymmetry, 5 s cap) then game rules (multi-hop shunt incl. ≥3 hops, Dive legality, Thaw floor per Ice setting, Washout from Slide + Thaw, Peck Off last-*player* win) | 122 · 163 |
 | CLD | `node tools/verify-cld-loopback.js` — host↔**2 clients** over a Firebase-shaped wire, real mock DOM: private commit path, duplicate-commit rejection, nameless tally, empty-`events[]` / all-zero-`fish[]` round trip, host/client timeline parity, quit contract. Accepts `CLD_SRC=` | 168 |
@@ -364,6 +364,7 @@ Re-run a game's full set after touching its appliers, deck/data, packets or rend
 | COMB | `node tools/verify-comb-loopback.js` — host↔**2 clients** over a Firebase-shaped wire, real mock DOM incl. a canvas; both offer shapes, re-validate-never-escrow, Full Dance's expiry, all five Instinct kinds. Accepts `COMB_SRC=` / `COMB_SEED=` | 250 |
 | COMB | `node tools/mutate-comb.js` — mutation harness; drives all four above, so its 19 packet mutants are claims about the loopback specifically. Run it 3–5×, not once | 71/71 |
 | PKO | `node tools/verify-pko-chain.js && node tools/verify-pko-loop.js && node tools/verify-pko-events.js` | 68 · 147 · 148 |
+| PKO | `node tools/verify-pko-loopback.js` — host↔client over a Firebase-shaped wire, real mock DOM (SW v237, PKO's first): private Hoards, and reconnect — a device rebuilt from nothing on the deal screen, at the table on its own turn, mid-Carrion, on the Clash result. Accepts `PKO_SRC=` | 47 |
 | DYB | `node tools/verify-dyb-dice.js` — after any `js/lib/art.js` / `dybDieHTML` / `.dyb-die-*` change | 90+ |
 | SHP | `node tools/verify-shp-loop.js` — random matches, all player counts/modes/settings; `SHP_SEED=` for reproducibility | 60 matches |
 | SHP | `node tools/verify-shp-loopback.js` — host↔client over a Firebase-shaped wire; accepts `SHP_SRC=` | 6 scenarios |
@@ -378,7 +379,7 @@ Re-run a game's full set after touching its appliers, deck/data, packets or rend
 | **MP reconnect** | `node tools/mutate-mp-reconnect.js` — reverts each load-bearing reconnect line in a temp copy and drives the harness above; a survivor means a line nothing watches | 11/11 |
 | Identity docs | `node tools/verify-identity-docs.js` — every `copy` block in `docs/game-identities/` against the shipped `index.html` + plugin file | per-doc |
 | Identity docs | `node tools/verify-identity-docs.js --self-test` — proves the checker still detects planted drift | 1 |
-| FLW | `node tools/verify-flw-loopback.js` — host↔client over a Firebase-shaped wire, incl. the private-channel hand packets | 84 |
+| FLW | `node tools/verify-flw-loopback.js` — host↔client over a Firebase-shaped wire, incl. the private-channel hand packets and reconnect (clock pause, a rejoin mid-turn and mid-Deep-Vault) | 113 |
 | Controller | `node tools/verify-controller-body.js && node tools/verify-controller-state.js` — the vendored Three revision + the geometry contract, then persistence, the factory design, palette derivation and the Konami mapping. **Not a game** — no MP config, no identity doc | 28 · 63 |
 | Controller | `node tools/verify-controller-stickers.js` — the caller-side `CTL_STICKER_OPT` contract (a surface built with `{}` accepts all four keep-out centres), both charts + the wrap seam, manifest and placement validation, the load path's bit-stability, the placement state machine, undo, and `data/stickers/` manifest-vs-folder **both ways**. **Re-run after any `js/lib/controller-sticker-surface.js` or `ctlSticker*` change** | 157 |
 | Controller | `node tools/visual-controller-stickers.js` — real headless Chromium: a placement actually painting texels, the lobby ornament repainting with them, and the Workshop room — the sheet shown without building the surface, the first pick-up paying for it, Tool Belt's sideways sheet-scroll and Undo relocation at 390 px (SW v235), the three columns at 1440, the phone↔wide DOM revert, and the owner's own iPhone SE at three sizes (375×667, 375×548, 320×452). The layout/render tier no pure harness reaches | 59 |
@@ -387,8 +388,8 @@ Re-run a game's full set after touching its appliers, deck/data, packets or rend
 | Lobby | `node tools/verify-tv.js` — TV's pure half (rail wrap, nearest-copy pick, ink/label split, order vs `GAMES`) · `node tools/verify-achievements.js` — the stickerbook's rules incl. `achAllPlaced` | 919 · 81 |
 | Lobby | `node tools/visual-lobby.js` — real Chromium over the REAL `index.html`: boot tiering (widescreen / phone beat / no WebGL), every layout → game → quit returns there, Workshop returns to its opener, gateway + Terminal returns, idle nudge (bounded — it comes home), the Lounge Konami never unlocks, stickerbook, each runtime-cached source offline, stale ornament mount, the fade, resize below a floor, the jukebox (the door, one scene at a time, a held song through ✕/Shelves/a game, `resetToLobby` with it up), the reconnect prompt over the Lounge (SW v236). **The seam's mutation pass runs against it — re-run after touching `lobbyShow`, `resetToLobby` or any lobby return** | 101 |
 
-**Reach for a loopback on anything MP- or render-shaped.** Every harness *except* the six
-loopbacks (`cjar`/`shp`/`flw`/`nt`/`jec`/`comb`) runs `'single'` mode with `getElementById: () => null`, which
+**Reach for a loopback on anything MP- or render-shaped.** Every harness *except* the seven
+loopbacks (`cjar`/`shp`/`flw`/`nt`/`jec`/`comb`/`pko`) runs `'single'` mode with `getElementById: () => null`, which
 is what lets one process drive all N seats — and exactly what blinds it to both the packet layer
 and every line of render code. CJAR's **BUG-06** survived 222 green checks in that gap; NT's
 **BUG-15/16** survived a clean host-side playtest. How to build one, and the wire/mock-DOM

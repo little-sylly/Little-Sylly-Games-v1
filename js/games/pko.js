@@ -89,6 +89,11 @@ let pkoEventTimer     = null;         // interstitial auto-advance (cleared in 3
 let pkoCarrionTimer   = null;         // Carrion window (cleared in 3 places)
 let pkoCarrionPending = null;         // HOST ONLY: { playerIdx, spoils[] } while the window is open
 
+// ── Reconnect (engine hook, SW v237) — HOST ONLY ──────────────────────────
+let pkoStage       = 'deal';          // 'deal'|'table'|'unchallenged'|'clashResult'|'over' — what a rejoiner is shown
+let pkoLastWinners = [];              // the Clash result screen's winners, for a rejoin onto it
+let pkoPaused      = false;           // the table is waiting on a dropped seat
+
 // ── Constants ─────────────────────────────────────────────────────────────
 const PKO_POACHER_ID  = 'human';      // the Poacher card's chain id
 // The small card footprint — shared by pkoRenderCard's 'sm' size and the empty
@@ -642,6 +647,7 @@ async function pkoStartSession() {
 function pkoStartClash() {
   if (window.syllyMultiplayerMode === 'client') return;
   pkoClashNum++;
+  pkoStage = 'deal';
 
   // Deal from a fresh Pool every Clash. The Reserve is what's left — Scavenge draws from it.
   const pool = pkoBuildPool(pkoPlayerCount);
@@ -760,6 +766,9 @@ function pkoShowClientStandby() {
 function pkoStartEncounter() {
   if (window.syllyMultiplayerMode === 'client') return;
   pkoEncounterNum++;
+  // 'table' even while the event interstitial is up: a rejoiner who is next to act must
+  // land where they can act. pkoResolveClash overrides it if the event ends the Clash.
+  pkoStage          = 'table';
   pkoMarks          = [];
   pkoMarkOwnerIdx   = -1;
   pkoAlphaIdx       = -1;
@@ -1618,6 +1627,13 @@ function pkoResumeAfterBoardChange(playerIdx) {
 function pkoOpenCarrion(playerIdx, spoils) {
   pkoCarrionPending = { playerIdx, spoils: spoils.slice() };
   pkoLogTrail(`${pkoPlayerNames[playerIdx]} may scavenge ${pkoSummariseCards(spoils)}.`);
+  pkoShowCarrionWindow();
+}
+
+// Host: broadcast, show and time the pending window. Its own function because
+// reconnect's resume reopens a frozen window through exactly this path.
+function pkoShowCarrionWindow() {
+  const { playerIdx, spoils } = pkoCarrionPending;
   if (window.syllyMultiplayerMode !== 'single') {
     mpSendEnvelope({ type: 'SYNC', payload: {
       action: 'PKO_CARRION_OPEN', playerIdx, spoils,
@@ -1626,7 +1642,10 @@ function pkoOpenCarrion(playerIdx, spoils) {
     }});
   }
   pkoShowCarrion(playerIdx, spoils);
-  if (pkoCarrionTimer) clearTimeout(pkoCarrionTimer);
+  if (pkoCarrionTimer) { clearTimeout(pkoCarrionTimer); pkoCarrionTimer = null; }
+  // A seat is away: no clock, or it would take the Challenger's pick for them under the
+  // Away overlay. pkoReconnectResume() reopens the window with a fresh one.
+  if (pkoPaused) return;
   // The host's timer is the backstop. Whichever lands first — this or the Challenger's
   // PKO_CARRION packet — resolves; pkoResolveCarrion drops the second (ML-05).
   pkoCarrionTimer = setTimeout(() => {
@@ -1892,6 +1911,7 @@ function pkoEndEncounter() {
   pkoAlphaIdx = -1;                             // the board is gone; so is its Alpha
 
   pkoLeaderIdx = winner;
+  pkoStage     = 'unchallenged';
   pkoLogTrail(`${pkoPlayerNames[winner]} went Unchallenged and leads the next Encounter.`);
   if (window.syllyMultiplayerMode !== 'single') {
     mpSendEnvelope({ type: 'SYNC', payload: {
@@ -2021,6 +2041,7 @@ function pkoResolveClash(winnerIdxs) {
   row.forEach((v, i) => { pkoScores[i] = (pkoScores[i] || 0) + v; });
   pkoClashHistory.push(row);
   pkoLeaderIdx = pkoNextOpener(winners);
+  pkoLastWinners = winners.slice();
   const names = winners.map(i => pkoPlayerNames[i]);
   pkoLogTrail(winners.length === 1
     ? `${names[0]} emptied their Hoard and took the Clash.`
@@ -2035,6 +2056,7 @@ function pkoResolveClash(winnerIdxs) {
     ? pkoClashNum >= pkoClashTarget
     : winners.some(i => pkoScores[i] >= pkoClashTarget);
 
+  pkoStage = matchOver ? 'over' : 'clashResult';
   if (matchOver) {
     if (window.syllyMultiplayerMode !== 'single') {
       mpSendEnvelope({ type: 'SYNC', payload: {
@@ -2206,6 +2228,105 @@ function pkoRenderTrail() {
   });
 }
 
+// ── Reconnect hooks (MP_GAME_CONFIGS.pko.reconnect — engine, SW v237) ───────
+// HOST ONLY. The engine calls pause() when the FIRST seat drops and resume() when the
+// LAST one is back — and resume() BEFORE a rejoiner's snapshot. PKO has no turn clock:
+// a table waiting on an absent seat simply waits, and nobody can act under the Away
+// overlay anyway. The one thing that acts FOR a seat is the Carrion window, which
+// resolves the Challenger's pick when its 5 s run out — so that, and only that, stops.
+// The interstitials (Unchallenged, events, the Clash intro) keep running: each only
+// moves the table on to a state that then waits on a person.
+function pkoReconnectPause() {
+  if (window.syllyMultiplayerMode !== 'host' || pkoPaused) return;
+  pkoPaused = true;
+  if (pkoCarrionTimer) { clearTimeout(pkoCarrionTimer); pkoCarrionTimer = null; }
+}
+
+function pkoReconnectResume() {
+  if (window.syllyMultiplayerMode !== 'host' || !pkoPaused) return;
+  pkoPaused = false;
+  // A fresh 5 s rather than what was left: the window is a few seconds long, and the
+  // Challenger may be the seat that just came back.
+  if (pkoCarrionPending) pkoShowCarrionWindow();
+}
+
+// ⚠️ THE STRIP. Everything public, plus exactly ONE Hoard — the recipient's. pkoHoards
+// holds every seat's hand and pkoReserve the undealt cards; neither may ever go on the
+// wire. The public channel carries counts (pkoHoardCounts), never contents.
+function pkoSendFullState(idx) {
+  if (window.syllyMultiplayerMode !== 'host') return;
+  const uid = mpPlayerSlots[idx] && mpPlayerSlots[idx].uid;
+  if (!uid || uid === window.syllyDeviceUid) return;
+  mpSendPrivate(uid, { type: 'SYNC', payload: {
+    action: 'PKO_FULL_STATE',
+    playerNames: pkoPlayerNames, playerCount: pkoPlayerCount,
+    scores: pkoScores, clashNum: pkoClashNum, clashHistory: pkoClashHistory,
+    scoring: pkoScoring, clashTarget: pkoClashTarget,
+    leaderIdx: pkoLeaderIdx, encounterNum: pkoEncounterNum, turnIdx: pkoTurnIdx,
+    hoardCounts: pkoHoardCounts, hoardReady: pkoHoardReady,
+    marks: pkoMarks, markOwnerIdx: pkoMarkOwnerIdx, retreatedSince: pkoRetreatedSince,
+    trail: pkoTrail, wateringHole: pkoWateringHole,
+    event: pkoEvent, eventsFired: pkoEventsFired, alphaIdx: pkoAlphaIdx,
+    flavourIdx: pkoClashFlavourIdx,
+    stage: pkoStage, lastWinners: pkoLastWinners,
+    carrion: pkoCarrionPending ? { playerIdx: pkoCarrionPending.playerIdx, spoils: pkoCarrionPending.spoils } : null,
+    // ── this seat only ──
+    hand: pkoHoards[idx] || [],
+  }});
+}
+
+// Firebase erases every EMPTY value and turns a half-dense array into an object keyed
+// by index — so a snapshot's per-seat arrays are rebuilt to seat length, never raw.
+function pkoWireArr(v, n, fill) {
+  const out = [];
+  for (let i = 0; i < n; i++) out.push((v && v[i] !== undefined && v[i] !== null) ? v[i] : fill);
+  return out;
+}
+
+// Client. Takes a device from the standby onPassThePhone left it on to the live screen.
+// Idempotent: it SETS everything it reads. The chain data is loaded by the lobby button,
+// which a rejoining device never tapped — onPassThePhone starts the fetch, this waits.
+function pkoApplyFullState(p) {
+  if (!pkoChain) { pkoLoadChain().then(() => pkoApplyFullState(p)); return; }
+  const num = v => (typeof v === 'number' ? v : -1);
+  if (p.playerNames && p.playerNames.length) pkoPlayerNames = p.playerNames;
+  pkoPlayerCount    = p.playerCount || pkoPlayerNames.length;
+  const n = pkoPlayerCount;
+  pkoScores         = pkoWireArr(p.scores, n, 0);
+  pkoClashNum       = p.clashNum | 0;
+  pkoClashHistory   = (p.clashHistory || []).filter(Boolean).map(r => pkoWireArr(r, n, 0));
+  pkoApplyScoringMode(p);
+  pkoLeaderIdx      = p.leaderIdx | 0;
+  pkoEncounterNum   = p.encounterNum | 0;
+  pkoTurnIdx        = p.turnIdx | 0;
+  pkoHoardCounts    = pkoWireArr(p.hoardCounts, n, 0);
+  pkoHoardReady     = pkoWireArr(p.hoardReady, n, false);
+  pkoMarks          = (p.marks || []).filter(x => x != null);
+  pkoMarkOwnerIdx   = num(p.markOwnerIdx);
+  pkoRetreatedSince = pkoWireArr(p.retreatedSince, n, false);
+  pkoTrail          = (p.trail || []).filter(Boolean);
+  pkoWateringHole   = (p.wateringHole || []).filter(Boolean);
+  pkoEvent          = p.event || null;
+  pkoEventsFired    = (p.eventsFired || []).filter(Boolean);
+  pkoAlphaIdx       = num(p.alphaIdx);
+  pkoClashFlavourIdx = p.flavourIdx | 0;
+  pkoMyHoard        = (p.hand || []).filter(x => x != null);
+  pkoStakeSel       = [];
+  // The standby's own timers must not fire into the live screen this puts up.
+  if (pkoClashIntroTimer)   { clearTimeout(pkoClashIntroTimer);   pkoClashIntroTimer = null; }
+  if (pkoEventTimer)        { clearTimeout(pkoEventTimer);        pkoEventTimer = null; }
+  if (pkoUnchallengedTimer) { clearTimeout(pkoUnchallengedTimer); pkoUnchallengedTimer = null; }
+  pkoDismissChallenge();
+  mpUnlockSync();
+  if (p.stage === 'deal')        { pkoShowHoard(); return; }
+  if (p.stage === 'clashResult') { pkoShowClashResult((p.lastWinners || []).filter(x => x != null)); return; }
+  if (p.stage === 'over')        { pkoShowHierarchy(); return; }
+  pkoShowTable();                // 'table' and 'unchallenged' (the next Encounter's SYNC moves it on)
+  // Phase-scoped UI is ARMED, never carried: a Challenger who dropped mid-Carrion must
+  // get the window back, or the choice is made for them.
+  if (p.carrion) pkoShowCarrion(p.carrion.playerIdx | 0, (p.carrion.spoils || []).filter(x => x != null));
+}
+
 // ── Multiplayer ───────────────────────────────────────────────────────────
 function pkoHandleEnvelope(env) {
   const p = (env && env.payload) || {};
@@ -2371,6 +2492,11 @@ function pkoHandleEnvelope(env) {
       pkoShowHierarchy();
       mpUnlockSync();
       break;
+
+    // Reconnect (private) — a rejoining device rebuilt from the host's stripped snapshot.
+    case 'PKO_FULL_STATE':
+      pkoApplyFullState(p);
+      break;
   }
 }
 
@@ -2389,6 +2515,7 @@ function pkoResetState() {
   if (pkoClashIntroTimer)   { clearTimeout(pkoClashIntroTimer);   pkoClashIntroTimer = null; }
   pkoEvent = null; pkoEventsFired = []; pkoAlphaIdx = -1;
   pkoCarrionSel = []; pkoCarrionPending = null;
+  pkoStage = 'deal'; pkoLastWinners = []; pkoPaused = false;
   pkoScores = []; pkoClashNum = 0; pkoClashHistory = [];
   pkoHoards = []; pkoMyHoard = []; pkoHoardCounts = []; pkoReserve = []; pkoWateringHole = [];
   pkoLeaderIdx = 0; pkoEncounterNum = 0; pkoTrail = []; pkoHoardReady = [];

@@ -542,10 +542,18 @@ never Away; and reaching a game's final screen (`MP_END_SCREENS`, via `mpNoteScr
 its final screen to `MP_END_SCREENS`** (GM and NT are absent on purpose: per-round result screens).
 
 **The opt-in hook** — `MP_GAME_CONFIGS[abbr].reconnect = { sendState(idx), pause(), resume() }`, all
-host-only; `verify-mp-configs.js` § 7 pins the adopter list (`['comb']`). `pause()` runs on the FIRST
+host-only; `verify-mp-configs.js` § 7 pins the adopter list (`['flw', 'pko', 'cjar', 'comb']`). `pause()` runs on the FIRST
 seat to go and `resume()` on the LAST back, never twice. An adopter's client `onPassThePhone` must be
-safe to re-run on a rejoining device (standby, never a new match); its full-state applier must take
-standby → live and be idempotent — **re-arming phase-scoped UI** (COMB: the Overflow, the Wasp), since that is never carried; `sendState` strips every other seat's private state. **A game
+safe to re-run on a rejoining device (standby, never a new match) **and must start any data load the
+game's lobby button would have** — a rejoiner never tapped it (`cjarLoadData()`, `pkoLoadChain()`); the
+applier waits for it. The full-state applier must take
+standby → live and be idempotent — **re-arming phase-scoped UI** (COMB: the Overflow, the Wasp; FLW: the Deep Vault; PKO: Carrion), since that is never carried; `sendState` strips every other seat's private state — including anything that *implies* it (FLW's spent Counterfeit token, CJAR's mid-window choices).
+**Pause scope:** the Away overlay covers every device, so nobody can act — pause stops only what acts
+**for** a seat: a clock that auto-plays (FLW's, even when a *non*-active seat drops), an auto-resolve
+(CJAR's window, PKO's Carrion), and anything that would open the next one (CJAR holds its flip loop).
+Resume re-arms through a **clock-only** packet (`COMB_DAYLIGHT`, `FLW_CLOCK`, `CJAR_CLOCK`), never the
+phase-start packet, whose applier resets half-made input. In a loopback, build the rejoining device
+**after** resume — that public broadcast may be lost to it in reality. **A game
 without the hook** still gets detection: a 20 s grace (`MP_AWAY_GRACE_MS`), then the host ends the
 session with `HOST_END_GAME { reason: 'dropped', name }`.
 

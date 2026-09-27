@@ -7,6 +7,18 @@
 
 ## Design Decisions
 
+**DD-27 — Client reconnect adopted; the Carrion window is the only thing that pauses. [27 Sep 2026, SW v237]**
+A dropped phone rejoins its seat (engine DD-47). PKO has no turn clock — an absent seat's turn just
+waits, and the Away overlay stops everyone else acting — so pause stops only the Carrion backstop,
+which would take the Challenger's pick for them. Resume reopens the window whole with a fresh 5 s
+(`pkoShowCarrionWindow()`, split out of `pkoOpenCarrion()`); one that opens mid-pause arms no timer.
+The interstitials keep running: each only moves the table to a state that then waits on a person.
+`pkoStage` (host) picks a rejoiner's screen — set to `'table'` at Encounter start *even while an event
+interstitial is up*, or a rejoiner who leads would sit on the deal screen unable to Stake. The client
+`onPassThePhone` now starts `pkoLoadChain()`: a rejoiner never tapped the lobby button, and a hand drawn
+before the chain lands is bare ids that nothing re-renders. PKO's first loopback,
+`tools/verify-pko-loopback.js` (47, 7/7 mutants), came with it. Lessons: `shared-implementation-notes.md` ML-09.
+
 **DD-21 — Small Fry: the opener rule ships as a three-way setting, not a hardcoded rule. [Playtest round 1]**
 Playtest feedback wanted the opening Stake of a fresh game constrained to the player's smallest animal (quantity still free). Two readings were live — *the very first Stake of the Match* vs *the first Stake of every Clash* — and both are defensible, since a Clash is a fresh deal. Rather than pick one and re-litigate it after the next playtest, it ships as `pkoStartSmall`: `Off` / `Match Start` (default) / `Every Clash`. Named **Small Fry** — on-theme for a food chain, and the plain-English description carries the actual rule per the Settings Card Standard.
 The rank ladder is an explicit const (`PKO_PREY_RANK`), **not** derived from `beaten_by`. The chain contains cycles — Bee beats Elephant, Orca⇄Stingray is a closed pair — so it has no well-defined depth and any derivation would be a lie that happened to work. Land and sea are parallel ladders, so Mouse and Fish are both rank 1 and either satisfies the rule. Bee, Eagle, Stingray and the Poacher are deliberately **unranked**: they sit outside the size ladder, so they neither force the rule nor satisfy it. A Hoard holding *only* unranked cards returns `null` (unconstrained) rather than an empty set — without that carve-out such a hand could not open at all and the Encounter would deadlock.

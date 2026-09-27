@@ -322,6 +322,16 @@ globalThis.__cjar = {
     return html;
   },
   resetState()       { cjarResetState(); },
+  // Client reconnect (SW v237)
+  get stage()        { return cjarStage; },
+  get favourites()   { return cjarFavourite; },
+  get watcher()      { return cjarMyWatcher; },
+  rcPause()          { cjarReconnectPause(); },
+  rcResume()         { cjarReconnectResume(); },
+  fullState(i)       { cjarSendFullState(i); },
+  // Exactly what MP_GAME_CONFIGS.cjar.onPassThePhone runs on a client.
+  passThePhone()     { cjarPlayerCount = mpPlayerSlots.length; cjarPlayerNames = mpPlayerSlots.map(p => p.nickname);
+                       cjarLoadData(); cjarShowClientStandby(); },
 };`;
 
   vm.runInContext(cjarSrc + BRIDGE, sandbox, { filename: `cjar.js (${name})` });
@@ -1072,6 +1082,156 @@ const section = t => console.log(`\n${t}`);
   check('final stashes agree',      C3.stashes, H3.stashes);
   check('  and are 3 long',         C3.stashes.length, 3);
   check('history rows are 3 wide',  C3.history.every(r => r.length === 3), true);
+
+  // ── Client reconnect (SW v237) ─────────────────────────────────────────────
+  // The engine half (seats, presence, Away, the rejoin handshake) is proven in
+  // tools/verify-mp-reconnect.js. This proves CJAR's half over the wire: pause stops
+  // everything that acts FOR a seat, and a device rebuilt from NOTHING — no deck data
+  // either, because it never tapped the lobby button — lands on the live table.
+  const clock = { now: 1700000000000 };
+  const tick = dev => { dev.__clock = clock; vm.runInContext('Date.now = () => __clock.now;', dev); };
+  const flush = () => new Promise(r => setImmediate(r));
+  const rig = async (label, seatOpts) => {
+    const host = makeDevice(label + '-host', 'host', 0, SLOTS);
+    tick(host);
+    await host.cjarLoadData();
+    const r = { host, H: host.__cjar, sent: [], priv: [], dev: null, C: null };
+    host.mpSendEnvelope = env => {
+      const w = wire({ ...env, originId: 'u0', timestamp: clock.now });
+      r.sent.push(w.payload.action);
+      try { r.C.handle(w); } catch (e) { r.dev.__errors.push(`${w.payload.action}: ${e.message}`); }
+    };
+    host.mpSendPrivate = (uid, env) => {
+      const w = wire({ ...env, originId: 'u0', timestamp: clock.now });
+      r.priv.push({ uid, payload: w.payload });
+      if (uid !== 'u1') return;
+      try { r.C.handle(w); } catch (e) { r.dev.__errors.push(`private ${w.payload.action}: ${e.message}`); }
+    };
+    // A seat-1 device with NOTHING in memory, through the real client onPassThePhone.
+    r.seat1 = name => {
+      const dev = makeDevice(name, 'client', 1, SLOTS);
+      tick(dev);
+      dev.mpSendEnvelope = env => {
+        const w = wire({ ...env, originId: 'u1', timestamp: clock.now });
+        try { r.H.handle(w); } catch (e) { host.__errors.push(`${w.payload.action}: ${e.message}`); }
+      };
+      dev.mpSendPrivate = () => { throw new Error('a client must never write the private channel'); };
+      r.dev = dev; r.C = dev.__cjar;
+      r.C.passThePhone();
+      return dev;
+    };
+    r.errors = () => [...host.__errors, ...r.dev.__errors];
+    r.H.seat(seatOpts);
+    return r;
+  };
+
+  section('Reconnect — pause freezes an open window; nothing acts for the absent seat');
+  const R = await rig('rc', { players: 4, names: NAMES, snack: 'warmup', length: 3 });
+  R.seat1('rc-c1');
+  await flush();
+  R.H.startMatch();
+  step(R.host);                                            // Raid intro → the first flip
+  check('the host opened a window', [R.H.stage, R.H.phase], ['deciding', 'deciding']);
+  const W = R.H.windowMs;
+  check('  …on a deadline', R.H.endTs > clock.now, true);
+  R.H.applyChoice(2, 'sneak'); R.H.applyChoice(3, 'take');  // two seats have already chosen
+  clock.now += 5000;
+  // A pause lands ≥ 3 s after the drop (the engine's debounce): the client's 3.2 s
+  // reveal choreography has handed over by then, so let its own timers run.
+  while (step(R.dev)) { /* payout + handover */ }
+  check('the client is on the clock before the drop', [R.C.timerHidden(), R.C.endTs], [false, R.H.endTs]);
+  const leftAtPause = R.H.endTs - clock.now;
+  R.sent.length = 0;
+  R.H.rcPause();
+  check('pause stopped the host clock', R.H.endTs, 0);
+  check('  …told every device, once', R.sent, ['CJAR_CLOCK']);
+  check('  …which stopped theirs', [R.C.endTs, R.C.timerHidden()], [0, true]);
+  R.H.rcPause();
+  check('a second pause is a no-op', R.sent.length, 1);
+  clock.now += 5 * 60000;                                  // five minutes under the overlay
+  while (step(R.host)) { /* every timer the host still holds fires */ }
+  check('no auto-resolve ran: the window is still open', [R.H.stage, R.H.ready], ['deciding', [false, false, true, true]]);
+  check('  …and the absent seat was NOT sneaked out', R.H.active[1], true);
+
+  section('Reconnect — seat 1 reloads mid-window: rebuilt from nothing, choices still secret');
+  const rc2 = R.seat1('rc-c2');
+  check('the rebuilt device starts with no deck data, like a reloaded phone', R.C.data, null);
+  const timersBefore = R.host.__timers.length;
+  R.priv.length = 0;
+  R.H.rcResume();                                          // the engine resumes BEFORE sendState
+  const left = Math.min(Math.max(leftAtPause, 5000), W);
+  check('resume re-armed what was left', R.H.endTs - clock.now, left);
+  check('  …as CJAR_CLOCK, never a re-sent CJAR_FLIP_START (it un-submits every seat)',
+        R.sent, ['CJAR_CLOCK', 'CJAR_CLOCK']);
+  check('  …and re-armed the auto-resolve', R.host.__timers.length, timersBefore + 1);
+  R.H.fullState(1);
+  await flush();                                           // the snapshot waited for the deck data
+  const snap = (R.priv.find(x => x.payload.action === 'CJAR_FULL_STATE') || {}).payload || {};
+  check('one CJAR_FULL_STATE, to seat 1 only', R.priv.map(x => x.uid), ['u1']);
+  check('  …with NO other seat\'s choice (seats 2 and 3 already chose)', R.C.choices, [null, null, null, null]);
+  check('  …nor their readiness', R.C.ready, [false, false, false, false]);
+  check('  …and never the deck\'s contents', 'deck' in snap, false);
+  check('the rebuilt device loaded the deck data itself', R.C.data !== null, true);
+  check('  …and reached the table, deciding', [lastScreen(rc2), R.C.phase], ['screen-cjar-table', 'deciding']);
+  check('  …on the live clock', [R.C.endTs, R.C.windowMs, R.C.timerHidden()], [R.H.endTs, W, false]);
+  check('host and rebuilt client agree on everything public',
+        [R.C.raidNo, R.C.stashes, R.C.totals, R.C.active, R.C.crumbs, R.C.trail, R.C.flipSeq, R.C.deck.length, R.C.card],
+        [R.H.raidNo, R.H.stashes, R.H.totals, R.H.active, R.H.crumbs, R.H.trail, R.H.flipSeq, R.H.deck.length, R.H.card]);
+  R.C.submit('take');
+  check('the rebuilt device\'s choice reached the host', R.H.ready[1], true);
+  R.H.applyChoice(0, 'take');
+  R.H.resolve();
+  check('the flip resolved on every device', [R.H.stage, R.C.phase], ['revealing', 'revealing']);
+  check('no exception on any device', R.errors(), []);
+
+  section('Reconnect — a flip that comes due while paused is held, then dealt on resume');
+  R.H.rcPause();
+  check('no window was open, so no clock packet', R.sent.filter(a => a === 'CJAR_CLOCK').length, 2);
+  const flipsBefore = R.sent.filter(a => a === 'CJAR_FLIP_START').length;
+  while (step(R.host)) { /* the reveal dwell fires */ }
+  check('the reveal dwell dealt nothing', R.sent.filter(a => a === 'CJAR_FLIP_START').length, flipsBefore);
+  R.H.rcResume();
+  const dealt = R.sent.filter(a => a === 'CJAR_FLIP_START').length - flipsBefore;
+  check('resume dealt it (or ended the Raid if the deck ran out)',
+        dealt === 1 || R.sent.includes('CJAR_RAID_END'), true);
+  check('no exception on any device', R.errors(), []);
+
+  section('Reconnect — a rejoin on the Raid summary lands on the summary');
+  let g9 = 0;
+  while (R.H.stage !== 'summary' && R.H.stage !== 'over' && g9++ < 400) {
+    if (R.H.stage === 'deciding') {
+      for (let i = 0; i < 4; i++) if (!R.H.ready[i]) R.H.applyChoice(i, 'sneak');
+      if (R.H.allIn()) R.H.resolve();
+      continue;
+    }
+    if (!step(R.host)) break;
+  }
+  check('the Raid ended', R.H.stage, 'summary');
+  const rc3 = R.seat1('rc-c3');
+  R.H.fullState(1);
+  await flush();
+  check('the rebuilt device is on the Raid summary', lastScreen(rc3), 'screen-cjar-raid-summary');
+  check('  …with the ledger the host has', R.C.history, R.H.history);
+  check('no exception on any device', R.errors(), []);
+
+  section('Reconnect — Dibber Dobber: the snapshot carries THIS seat\'s affinities, and a blind card');
+  const D = await rig('rcdd', { players: 4, names: NAMES, sylly: true, length: 3 });
+  D.seat1('rcdd-c1');
+  await flush();
+  D.H.startMatch();
+  step(D.host);
+  check('a blind window is open', D.H.stage, 'deciding');
+  D.H.rcPause();
+  const dd2 = D.seat1('rcdd-c2');
+  D.H.rcResume();
+  D.H.fullState(1);
+  await flush();
+  const ddSnap = (D.priv.filter(x => x.payload.action === 'CJAR_FULL_STATE').pop() || {}).payload || {};
+  check('the rebuilt device knows its own Favourite and Watcher',
+        [D.C.favourite, D.C.watcher], [D.H.favourites[1], vm.runInContext('cjarWatcher[1]', D.host)]);
+  check('  …as single ids, never the table\'s arrays', [typeof ddSnap.favourite, typeof ddSnap.watcher], ['string', 'string']);
+  check('  …with the card still face-down', [lastScreen(dd2), D.C.heroFaceDown()], ['screen-cjar-table', true]);
+  check('no exception on any device', D.errors(), []);
 
   section('A client leaving dissolves the match');
   client2.mpSendEnvelope({ type: 'ACTION', payload: { action: 'CJAR_PLAYER_LEFT' } });

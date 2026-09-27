@@ -4,6 +4,15 @@ Historical SW release notes, moved out of `CLAUDE.md` (1 Aug 2026) so they stop 
 The **current** version and its notes stay in `CLAUDE.md` § Current Focus — append the outgoing entry here on each bump.
 
 
+## v236 — MDLM client reconnect: a drop is not a quit (27 Sep 2026)
+
+At `GAME_START` the host
+freezes `rooms/{code}/seats` and watches per-connection presence; a seat gone 3 s is **Away** and every
+device shows "Waiting for …". A game that adopts the opt-in `reconnect` hook pauses and the dropped
+phone reloads into a one-tap **Rejoin** prompt (`sylly_rejoin`); every other game ends after 20 s with
+a reason; a game's end screen ends the match for this. **Honeycomb Hills is the first adopter.**
+Harnesses: `verify-mp-reconnect` 141, `mutate-mp-reconnect` 11/11, `verify-comb-loopback` 294, `visual-lobby` 101. Detail: `shared-implementation-notes.md` DD-47.
+
 ## v235 — the Workshop's phone tier: Tool Belt (26 Sep 2026)
 
 Below 860 px, the stand-in's

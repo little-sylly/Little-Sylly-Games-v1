@@ -62,6 +62,8 @@ let flwLedgerCounts  = [];      // public tally [gemId] → count discarded this
 let flwTimerHandle   = null;    // Appraisal Clock interval handle
 let flwTurnEndTs     = 0;       // wall-clock end of the current turn (Appraisal Clock)
 let flwLastTickSec   = -1;      // last whole second announced (gate playTick to 1/sec)
+let flwPaused        = false;   // host: the table is waiting on a dropped seat (engine reconnect)
+let flwPausedTurnMs  = 0;       // host: Appraisal Clock time banked by the pause
 let flwSelSlot       = null;    // 'hand' | 'drawn' — which card the active player will place
 let flwLastResult    = null;    // last Showing-end payload (drives result + gameover screens)
 let flwResultReadyCheck = [];   // bool per player — confirmed they've seen the Showing result (non-host gate before host's Next Showing unlocks)
@@ -234,7 +236,11 @@ function flwBeginTurn() {
   if (flwDeck.length === 0) { flwEndShowing('vaultlock'); return; }
   flwDrawnCard        = flwDeck.shift();
   flwPublicVaultCount = flwDeck.length;
-  const endTs = flwTurnTimer ? Date.now() + flwTurnTimer * 1000 : 0;
+  let endTs = flwTurnTimer ? Date.now() + flwTurnTimer * 1000 : 0;
+  // A turn that begins while a seat is away banks its whole clock instead of starting
+  // one the active player cannot play against (the Away overlay covers every device).
+  // flwReconnectResume() arms it.
+  if (flwPaused && endTs) { flwPausedTurnMs = flwTurnTimer * 1000; endTs = 0; }
   const activeUid = mpPlayerSlots[flwActivePlayer] && mpPlayerSlots[flwActivePlayer].uid;
   if (window.syllyMultiplayerMode !== 'single') {
     mpSendEnvelope({ type: 'SYNC', payload: {
@@ -1345,6 +1351,7 @@ function flwHostNextShowing() {
 // ── Appraisal Clock (wall-clock anchor — GTH pattern) ──────────────────────
 function flwClearTimer() {
   if (flwTimerHandle) { clearInterval(flwTimerHandle); flwTimerHandle = null; }
+  flwTurnEndTs = 0;               // 0 = no clock running — the reconnect snapshot reads this
   flwLastTickSec = -1;
   flwUpdateTimerDisplay(null);
 }
@@ -1392,6 +1399,111 @@ function flwTimerExpire() {
     return;
   }
   flwSubmitPlay(gemId, -1, null);
+}
+
+// ── Reconnect hooks (MP_GAME_CONFIGS.flw.reconnect — engine, SW v236) ───────
+// HOST ONLY. The engine calls pause() when the FIRST seat drops and resume() when the
+// LAST one is back — and resume() BEFORE a rejoiner's snapshot, so the snapshot
+// carries the live deadline. The Away overlay covers every device, so nobody can act
+// while paused; the only thing to stop is the Appraisal Clock, which auto-plays the
+// ACTIVE device's drawn gem when it runs out — a non-active seat dropping would
+// otherwise let the active player time out under the overlay.
+function flwReconnectPause() {
+  if (window.syllyMultiplayerMode !== 'host' || flwPaused) return;
+  flwPaused = true;
+  flwPausedTurnMs = flwTurnEndTs ? Math.max(0, flwTurnEndTs - Date.now()) : 0;
+  flwClearTimer();
+  mpSendEnvelope({ type: 'SYNC', payload: { action: 'FLW_CLOCK', turnEndTs: 0 } });   // every clock freezes
+}
+
+function flwReconnectResume() {
+  if (window.syllyMultiplayerMode !== 'host' || !flwPaused) return;
+  flwPaused = false;
+  const ms = flwPausedTurnMs;
+  flwPausedTurnMs = 0;
+  if (ms > 0 && !flwShowingOver) {
+    flwStartTurnTimer(Date.now() + ms);
+    // Only the clock — NOT a re-send of FLW_TURN_START, whose applier clears the
+    // active player's selected slot and any half-built Counterfeit.
+    mpSendEnvelope({ type: 'SYNC', payload: { action: 'FLW_CLOCK', turnEndTs: flwTurnEndTs } });
+  }
+}
+
+// ⚠️ THE STRIP. Everything public, plus exactly ONE seat's private state: its own
+// Showpiece, its drawn gem and an open Deep Vault offer (only if it is the active seat),
+// and whether it still holds its Counterfeit token. That last one is private for a
+// reason that is easy to miss: knowing a seat has SPENT its token tells you one of its
+// claims was a forgery. Never put another seat's entry of any of these on the wire.
+function flwSendFullState(idx) {
+  if (window.syllyMultiplayerMode !== 'host') return;
+  const uid = mpPlayerSlots[idx] && mpPlayerSlots[idx].uid;
+  if (!uid || uid === window.syllyDeviceUid) return;
+  const active = idx === flwActivePlayer && !flwShowingOver;
+  mpSendPrivate(uid, { type: 'SYNC', payload: {
+    action: 'FLW_FULL_STATE',
+    playerNames: flwPlayerNames, playerCount: flwPlayerCount, showingNum: flwShowingNum,
+    tokens: flwTokens, activePlayer: flwActivePlayer, vaultCount: flwDeck.length,
+    exposed: flwExposed, underGlass: flwUnderGlass, ledger: flwLedgerTally(),
+    topClaims: flwTopPlayClaims(), auditCharges: flwAuditCharges,
+    log: flwPublicLog, discardFeed: flwDiscardFeed,
+    auditedThisTurn: active && flwAuditedThisTurn,
+    showingOver: flwShowingOver, lastResult: flwShowingOver ? flwLastResult : null,
+    resultReady: flwResultReadyCheck,
+    // Clock state rides beside the snapshot: the public FLW_CLOCK from resume() may
+    // beat the engine's private ACCEPT to this device and be dropped there.
+    turnEndTs: flwTurnEndTs,
+    // ── this seat only ──
+    hand: flwHands[idx],
+    drawn: active ? flwDrawnCard : null,
+    emerald: (flwEmeraldOffer && flwEmeraldOffer.active === idx) ? flwEmeraldOffer.cards : null,
+    counterfeitHeld: !!flwCounterfeitHeld[idx],
+  }});
+}
+
+// Firebase erases every EMPTY value and turns a half-dense array into an object keyed
+// by index — so a snapshot's collections are rebuilt to seat length, never assigned raw.
+function flwWireArr(v, n, fill) {
+  const out = [];
+  for (let i = 0; i < n; i++) out.push((v && v[i] !== undefined && v[i] !== null) ? v[i] : fill);
+  return out;
+}
+
+// Client. Takes a device from nothing (the engine ran onPassThePhone, which for FLW is
+// a no-op on a client) to the live screen. Idempotent: it SETS everything it reads.
+function flwApplyFullState(p) {
+  flwPlayerNames  = (p.playerNames && p.playerNames.length) ? p.playerNames : flwPlayerNames;
+  flwPlayerCount  = p.playerCount || flwPlayerNames.length;
+  const n = flwPlayerCount, me = flwMyIdx();
+  flwShowingNum       = p.showingNum || flwShowingNum;
+  flwTokens           = flwWireArr(p.tokens, n, 0);
+  flwActivePlayer     = p.activePlayer | 0;
+  flwPublicVaultCount = p.vaultCount | 0;
+  flwExposed          = flwWireArr(p.exposed, n, false);
+  flwUnderGlass       = flwWireArr(p.underGlass, n, false);
+  flwLedgerCounts     = flwWireArr(p.ledger, 10, 0);
+  flwTopClaims        = flwWireArr(p.topClaims, n, null);
+  flwAuditCharges     = flwWireArr(p.auditCharges, n, 0);
+  flwPublicLog        = (p.log || []).filter(Boolean);
+  flwDiscardFeed      = (p.discardFeed || []).filter(Boolean);
+  flwAuditedThisTurn  = !!p.auditedThisTurn;
+  flwShowingOver      = !!p.showingOver;
+  flwLastResult       = p.lastResult || null;
+  flwResultReadyCheck = flwWireArr(p.resultReady, n, false);
+  flwCounterfeitHeld  = Array(n).fill(true);
+  flwCounterfeitHeld[me] = !!p.counterfeitHeld;
+  flwMyHand  = (p.hand  === undefined) ? null : p.hand;
+  flwMyDrawn = (p.drawn === undefined) ? null : p.drawn;
+  flwSelSlot = null; flwCfMode = false; flwCfKeep = null; flwCfClaimed = -1;
+  if (flwShowingOver && flwLastResult) {
+    flwClearTimer();
+    if (flwLastResult.gameOver) flwShowGameover(); else flwShowShowingResult();
+    return;
+  }
+  flwShowTable();
+  flwStartTurnTimer(p.turnEndTs || 0);
+  // Phase-scoped UI is ARMED, never carried: a seat that dropped mid-Deep-Vault must
+  // be able to finish choosing, or the table waits on it forever.
+  if (p.emerald && p.emerald.length) flwShowEmerald(p.emerald.filter(g => g != null));
 }
 
 // ── Multiplayer envelope dispatch (§11) ────────────────────────────────────
@@ -1537,6 +1649,15 @@ function flwHandleEnvelope(env) {
       case 'FLW_MATCH_DISSOLVED':
         resetToLobby();
         break;
+      // Reconnect (private) — a rejoining device rebuilt from the host's stripped snapshot.
+      case 'FLW_FULL_STATE':
+        flwApplyFullState(env.payload);
+        if (typeof mpUnlockSync === 'function') mpUnlockSync();
+        break;
+      // Reconnect's pause (0) and resume (a fresh deadline) — the clock and nothing else.
+      case 'FLW_CLOCK':
+        flwStartTurnTimer(env.payload.turnEndTs || 0);
+        break;
     }
   } catch (e) {
     console.error('[FLW] handler error', e);
@@ -1584,7 +1705,7 @@ function flwBindPills(attr, fn) {
 // ── Teardown (called from engine.js resetToLobby) ──────────────────────────
 function flwResetState() {
   if (flwTimerHandle) { clearInterval(flwTimerHandle); flwTimerHandle = null; }
-  flwTurnEndTs = 0; flwLastTickSec = -1;
+  flwTurnEndTs = 0; flwLastTickSec = -1; flwPaused = false; flwPausedTurnMs = 0;
   flwPlayerCount = 0; flwPlayerNames = [];
   flwTokens = []; flwShowingNum = 0;
   flwDeck = []; flwLockedLot = []; flwHands = [];

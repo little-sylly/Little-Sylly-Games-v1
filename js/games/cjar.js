@@ -22,6 +22,7 @@
 // safe precisely because cjarAllIn() already gates on real submissions.
 const CJAR_DECISION_TIMES   = { blitz: 10000, standard: 20000, norush: null };
 const CJAR_TIMEOUT_GRACE_MS = 1500;  // host waits this long past endTimestamp for in-flight ACTIONs
+const CJAR_RESUME_FLOOR_MS  = 5000;  // reconnect: a window frozen in its last seconds reopens with at least this
 const CJAR_REVEAL_MS        = 1200;  // outcome dwell ONLY — who sneaked out, the deltas.
                                      // Was 3000; the rest of that budget moved into
                                      // CJAR_FLIP_ANIM_MS below (DD-19). These two are
@@ -140,6 +141,13 @@ let cjarInterstitialHandle = null;       // setTimeout — raid-intro / BUSTED! 
 let cjarFlipAnim           = false;      // true while the reveal choreography owns the stage
 let cjarAnimHandle         = null;       // setTimeout — the choreography's own clock
 let cjarPayoutHandle       = null;       // setTimeout — the payout beat inside the choreography
+
+// ── Reconnect (engine hook, SW v237) — HOST ONLY ──────────────────────────
+let cjarStage          = 'intro';  // 'intro'|'deciding'|'revealing'|'summary'|'over' — what a rejoiner is shown
+let cjarPaused         = false;    // the table is waiting on a dropped seat
+let cjarWindowFrozen   = false;    // a decision window was open when the pause landed
+let cjarPausedWindowMs = 0;        // …and this much of it was left
+let cjarFlipDeferred   = false;    // a flip came due while paused — dealt on resume
 
 let CJAR_DATA = null;                    // hydrated from data/cjar-data.json
 
@@ -1369,6 +1377,7 @@ function cjarShowRaidIntro(onDone) {
   // A fresh Raid means a fresh strip — clear the render memory so the first flip
   // animates in rather than being mistaken for "the same card as last Raid's last".
   cjarLastHeroKey = null; cjarLastTrailLen = 0; cjarLastTreatId = null;
+  cjarStage = 'intro';
   showScreen('screen-cjar-raid-intro');
   if (cjarInterstitialHandle) clearTimeout(cjarInterstitialHandle);
   cjarInterstitialHandle = setTimeout(() => { cjarInterstitialHandle = null; onDone(); }, CJAR_INTERSTITIAL_MS);
@@ -1392,6 +1401,7 @@ function cjarShowBusted(familyId, line, onDone) {
 // ── Raid summary ───────────────────────────────────────────────────────────
 function cjarShowRaidSummary(banked) {
   cjarStopTimer();
+  cjarStage = 'summary';
   const t = document.getElementById('cjar-summary-raid');
   if (t) t.textContent = `Raid ${cjarRaidNo} of ${cjarMatchLength} complete`;
   const box = document.getElementById('cjar-summary-rows');
@@ -1442,6 +1452,7 @@ function cjarShowRaidSummary(banked) {
 // ── End screen ─────────────────────────────────────────────────────────────
 function cjarShowGameover() {
   cjarStopTimer();
+  cjarStage = 'over';
   const ranks = cjarRanks();
   const red   = cjarRedHanded();
   const pod = document.getElementById('cjar-podium');
@@ -1520,6 +1531,10 @@ function cjarShowClientStandby() {
 function cjarHostNextFlip() {
   if (window.syllyMultiplayerMode === 'client') return;
   if (cjarHostTimeoutHandle) { clearTimeout(cjarHostTimeoutHandle); cjarHostTimeoutHandle = null; }
+  // A seat is away (engine reconnect). Every caller is a timer — the Raid intro, the
+  // reveal dwell — so without this the flip loop would deal on under the Away overlay
+  // and auto-Sneak the absent seat out of the Raid. Held here, dealt on resume.
+  if (cjarPaused) { cjarFlipDeferred = true; return; }
 
   if (!cjarDeck.length) { cjarHostEndRaid('deckout'); return; }
 
@@ -1542,6 +1557,7 @@ function cjarHostNextFlip() {
     // dramatic card in the game is the one card you never see come out of the jar — it
     // teleports you to a verdict screen for a card you never watched arrive.
     cjarTablePhase = 'revealing';
+    cjarStage = 'revealing';
     cjarBeginFlipAnim(false);      // no decision follows a bust — see cjarBeginFlipAnim
     showScreen('screen-cjar-table');
     if (cjarRevealHandle) clearTimeout(cjarRevealHandle);
@@ -1670,6 +1686,7 @@ function cjarOpenDecisionWindow() {
   // between devices stays cosmetic exactly as it was.
   cjarEndTimestamp = windowMs ? Date.now() + animMs + windowMs : 0;
   cjarTablePhase = (!cjarIsSylly() && !cjarActive[mpMyPlayerIdx]) ? 'spectating' : 'deciding';
+  cjarStage = 'deciding';
   cjarBroadcastFlipStart();
   if (cjarIsSylly()) {
     // No reveal to animate — go straight to deciding with the clock armed immediately,
@@ -1692,18 +1709,22 @@ function cjarOpenDecisionWindow() {
   // The grace window lets an ACTION that was already in flight when the clock hit
   // zero still land. Without it a player who tapped on the last tick is silently
   // auto-resolved instead.
-  cjarHostTimeoutHandle = setTimeout(() => {
-    cjarHostTimeoutHandle = null;
-    // Timeout default: Sneak Out banks and is safe in the base game; Play Innocent
-    // is the safe action in Dibber Dobber, where Sneak Out does not exist.
-    const fallback = cjarIsSylly() ? 'innocent' : 'sneak';
-    for (let i = 0; i < cjarPlayerCount; i++) {
-      if (!cjarReadyCheck[i] && (cjarIsSylly() || cjarActive[i])) {
-        cjarApplyChoice(i, fallback, cjarFlipSeq);
-      }
+  cjarHostTimeoutHandle = setTimeout(cjarHostWindowTimeout, animMs + windowMs + CJAR_TIMEOUT_GRACE_MS);
+}
+
+// HOST ONLY. The decision window's auto-resolve — its own function so reconnect's
+// resume can re-arm the SAME behaviour against the time that was left.
+function cjarHostWindowTimeout() {
+  cjarHostTimeoutHandle = null;
+  // Timeout default: Sneak Out banks and is safe in the base game; Play Innocent
+  // is the safe action in Dibber Dobber, where Sneak Out does not exist.
+  const fallback = cjarIsSylly() ? 'innocent' : 'sneak';
+  for (let i = 0; i < cjarPlayerCount; i++) {
+    if (!cjarReadyCheck[i] && (cjarIsSylly() || cjarActive[i])) {
+      cjarApplyChoice(i, fallback, cjarFlipSeq);
     }
-    cjarHostResolveFlip();
-  }, animMs + windowMs + CJAR_TIMEOUT_GRACE_MS);
+  }
+  cjarHostResolveFlip();
 }
 
 // HOST ONLY. Closes the window, resolves, broadcasts, then dwells before the next flip.
@@ -1730,6 +1751,7 @@ function cjarHostResolveFlip() {
 
   cjarBroadcastResolve({ ...res, bustFamilyId: null });
   cjarTablePhase = 'revealing';
+  cjarStage = 'revealing';
   // In Dibber Dobber the card was revealed a few lines above by cjarRevealSyllyCard
   // (Delta 7), so THIS is where its flip beat belongs. The base game already had its
   // beat at the top of the flip and only needs the repaint. `false` because no decision
@@ -1753,6 +1775,132 @@ function cjarHostEndRaid(reason) {
   cjarBroadcastRaidEnd(banked);
   if (cjarRaidNo >= cjarMatchLength) { cjarBroadcastMatchEnd(); cjarShowGameover(); return; }
   cjarShowRaidSummary(banked);
+}
+
+// ── Reconnect hooks (MP_GAME_CONFIGS.cjar.reconnect — engine, SW v237) ──────
+// HOST ONLY. The engine calls pause() when the FIRST seat drops and resume() when the
+// LAST one is back — and resume() BEFORE a rejoiner's snapshot, so the snapshot
+// carries the live deadline. Nobody can act under the Away overlay; what must stop is
+// everything that acts FOR a seat: the decision window's auto-resolve (it Sneaks an
+// absent seat out of the Raid) and the flip loop that would open the next window.
+function cjarReconnectPause() {
+  if (window.syllyMultiplayerMode !== 'host' || cjarPaused) return;
+  cjarPaused = true;
+  if (!cjarHostTimeoutHandle) return;            // No Rush, or no window open: nothing is ticking
+  clearTimeout(cjarHostTimeoutHandle); cjarHostTimeoutHandle = null;
+  cjarWindowFrozen   = true;
+  cjarPausedWindowMs = Math.max(0, cjarEndTimestamp - Date.now());
+  cjarEndTimestamp   = 0;
+  cjarStartTimer(0, null);                       // hides the bar; a pending flip-anim handover reads the 0 too
+  cjarSend({ action: 'CJAR_CLOCK', flipSeq: cjarFlipSeq, endTimestamp: 0 });
+}
+
+function cjarReconnectResume() {
+  if (window.syllyMultiplayerMode !== 'host' || !cjarPaused) return;
+  cjarPaused = false;
+  if (cjarWindowFrozen) {
+    cjarWindowFrozen = false;
+    // What was left, but never less than the floor (a drop in the last second would
+    // otherwise hand the table straight to the auto-resolve) and never more than a whole
+    // window (a pause during the reveal choreography banked its animation time too, and
+    // would paint an over-full bar).
+    const left = Math.min(Math.max(cjarPausedWindowMs, CJAR_RESUME_FLOOR_MS), cjarWindowMs || CJAR_RESUME_FLOOR_MS);
+    cjarPausedWindowMs = 0;
+    cjarEndTimestamp = Date.now() + left;
+    if (!cjarFlipAnim) cjarStartTimer(cjarEndTimestamp, cjarWindowMs);
+    cjarHostTimeoutHandle = setTimeout(cjarHostWindowTimeout, left + CJAR_TIMEOUT_GRACE_MS);
+    // Only the clock — NOT a re-sent CJAR_FLIP_START, whose applier resets every seat's
+    // choice and would un-submit a player who had already chosen.
+    cjarSend({ action: 'CJAR_CLOCK', flipSeq: cjarFlipSeq, endTimestamp: cjarEndTimestamp, windowMs: cjarWindowMs });
+  }
+  if (cjarFlipDeferred) { cjarFlipDeferred = false; cjarHostNextFlip(); }
+}
+
+// ⚠️ THE STRIP. Everything public, plus ONE seat's private state. Mid-window, the
+// choices are secret until CJAR_FLIP_RESOLVE reveals them — a snapshot carrying the
+// table's cjarChoices would tell a rejoiner who is about to Sneak Out. Affinities are
+// this seat's only. The deck's CONTENTS never leave the host (count only, as always).
+function cjarSendFullState(idx) {
+  if (window.syllyMultiplayerMode !== 'host') return;
+  const uid = mpPlayerSlots[idx] && mpPlayerSlots[idx].uid;
+  if (!uid || uid === window.syllyDeviceUid) return;
+  const revealed = cjarStage !== 'deciding';
+  const only = (arr, fill) => cjarPlayerNames.map((_, i) => (i === idx ? arr[i] : fill));
+  mpSendPrivate(uid, { type: 'SYNC', payload: {
+    action: 'CJAR_FULL_STATE',
+    // The match (CJAR_MATCH_START's fields)
+    snackFriendly: cjarSnackFriendly, houseRules: cjarHouseRules, matchLength: cjarMatchLength,
+    openBook: cjarOpenBook, sylly: cjarSyllyMode, decisionTime: cjarDecisionTime,
+    playerNames: cjarPlayerNames, stashes: cjarStashes, treatsWon: cjarTreatsWon,
+    raidHistory: cjarRaidHistory, familyCopies: cjarFamilyCopies, highAlertId: cjarHighAlertId,
+    // The Raid
+    raidNo: cjarRaidNo, deckCount: cjarDeck.length, seen: cjarSeen, crumbs: cjarCrumbs,
+    counterTreat: cjarCounterTreat, trail: cjarTrail, raidTotals: cjarRaidTotals,
+    active: cjarActive, crumbDebt: cjarCrumbDebt,
+    // The flip. Clock state rides beside the snapshot: the public CJAR_CLOCK from
+    // resume() may beat the engine's private ACCEPT to this device and be dropped.
+    stage: cjarStage, flipSeq: cjarFlipSeq, card: cjarCard,
+    endTimestamp: cjarEndTimestamp, windowMs: cjarWindowMs,
+    choices:    revealed ? cjarChoices    : only(cjarChoices, null),
+    readyCheck: revealed ? cjarReadyCheck : only(cjarReadyCheck, false),
+    deltas: revealed ? cjarDeltas : [], lines: revealed ? cjarLines : [],
+    // ── this seat only ──
+    favourite: cjarFavourite[idx] || null, watcher: cjarWatcher[idx] || null,
+  }});
+}
+
+// Client. Takes a device from the standby onPassThePhone left it on to the live
+// screen. Idempotent: it SETS everything it reads, through the same wire normalisers
+// every other applier uses. CJAR_DATA is loaded by the lobby button, which a rejoining
+// device never tapped — onPassThePhone starts the fetch, and this waits for it.
+function cjarApplyFullState(p) {
+  if (!CJAR_DATA) { cjarLoadData().then(() => cjarApplyFullState(p)); return; }
+  cjarSnackFriendly = p.snackFriendly || cjarSnackFriendly; cjarHouseRules = p.houseRules || cjarHouseRules;
+  cjarMatchLength = p.matchLength || cjarMatchLength; cjarOpenBook = !!p.openBook; cjarSyllyMode = !!p.sylly;
+  cjarDecisionTime = p.decisionTime || cjarDecisionTime;
+  cjarPlayerNames = cjarWireList(p.playerNames);
+  if (!cjarPlayerNames.length) cjarPlayerNames = mpPlayerSlots.map(s => s.nickname);
+  cjarPlayerCount = cjarPlayerNames.length;
+  const n = cjarPlayerCount, me = mpMyPlayerIdx;
+  cjarStashes      = cjarWireArr(p.stashes, n, 0);
+  cjarTreatsWon    = cjarWireArr(p.treatsWon, n, 0);
+  cjarRaidHistory  = cjarWireList(p.raidHistory).map(r => cjarWireArr(r, n, 0));
+  cjarFamilyCopies = cjarWireObj(p.familyCopies);
+  cjarHighAlertId  = p.highAlertId || null;
+  cjarRaidNo       = p.raidNo | 0;
+  cjarDeck         = new Array(p.deckCount || 0).fill(null);   // count only; contents host-side
+  cjarSeen         = cjarWireObj(p.seen);
+  cjarCrumbs       = p.crumbs || 0;
+  cjarCounterTreat = p.counterTreat || null;
+  cjarTrail        = cjarWireList(p.trail);
+  cjarRaidTotals   = cjarWireArr(p.raidTotals, n, 0);
+  cjarActive       = cjarIsSylly() ? [] : cjarWireArr(p.active, n, false);
+  cjarCrumbDebt    = cjarWireArr(p.crumbDebt, n, 0);
+  cjarFlipSeq      = p.flipSeq | 0;
+  cjarCard         = p.card || null;
+  cjarChoices      = cjarWireArr(p.choices, n, null);
+  cjarReadyCheck   = cjarWireArr(p.readyCheck, n, false);
+  cjarDeltas       = cjarWireArr(p.deltas, n, 0);
+  cjarLines        = cjarWireArr(p.lines, n, '');
+  cjarMyFavourite  = p.favourite || null;
+  cjarMyWatcher    = p.watcher || null;
+  cjarWindowMs     = p.windowMs || null;
+  cjarEndTimestamp = Number(p.endTimestamp) || 0;
+  cjarCancelFlipAnim();
+  cjarStopTimer();
+  mpUnlockSync();
+  if (p.stage === 'summary') { cjarShowRaidSummary(cjarRaidHistory[cjarRaidNo - 1] || new Array(n).fill(0)); return; }
+  if (p.stage === 'over')    { cjarShowGameover(); return; }
+  if (p.stage === 'intro')   { cjarShowRaidIntro(() => {}); return; }   // the next CJAR_FLIP_START moves it on
+  if (p.stage === 'deciding') {
+    cjarTablePhase = (!cjarIsSylly() && !cjarActive[me]) ? 'spectating'
+                   : cjarReadyCheck[me] ? 'waiting' : 'deciding';
+  } else {
+    cjarTablePhase = 'revealing';
+  }
+  showScreen('screen-cjar-table');
+  cjarRenderTable();
+  if (p.stage === 'deciding') cjarStartTimer(cjarEndTimestamp, cjarWindowMs);
 }
 
 // ── Shared tip + data-overlay opener ───────────────────────────────────────
@@ -2321,6 +2469,21 @@ function cjarHandleEnvelope(env) {
       cjarRaidHistory = cjarWireList(p.raidHistory).map(r => cjarWireArr(r, cjarPlayerCount, 0));
       cjarShowGameover();
       break;
+
+    // Reconnect (private) — a rejoining device rebuilt from the host's stripped snapshot.
+    case 'CJAR_FULL_STATE':
+      cjarApplyFullState(p);
+      break;
+
+    // Reconnect's pause (0) and resume (a fresh deadline) — the clock and nothing else.
+    // flipSeq-tagged: a clock for a flip that has already resolved must not paint a bar.
+    case 'CJAR_CLOCK':
+      if ((p.flipSeq | 0) !== cjarFlipSeq) break;
+      cjarEndTimestamp = Number(p.endTimestamp) || 0;
+      if (p.windowMs) cjarWindowMs = p.windowMs;
+      // Mid-choreography, the animation's own handover starts the bar from these globals.
+      if (!cjarFlipAnim) cjarStartTimer(cjarEndTimestamp, cjarWindowMs);
+      break;
   }
 }
 // Cookie Jar's content is a fixed deck, not a word pool — the practical override
@@ -2366,6 +2529,8 @@ function cjarResetState() {
   cjarMyFavourite = null; cjarMyWatcher = null;
   cjarRaidOpenStashes = []; cjarLinesUsed = {};
   cjarTablePhase = 'deciding';
+  cjarStage = 'intro'; cjarPaused = false; cjarWindowFrozen = false;
+  cjarPausedWindowMs = 0; cjarFlipDeferred = false;
   // A mid-flight quit hides the screen via display:none, which suppresses animationend,
   // so any in-flight token nodes never get their own cleanup and are left orphaned.
   const deltaLayer = document.getElementById('cjar-delta-layer');

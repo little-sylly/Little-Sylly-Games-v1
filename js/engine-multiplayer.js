@@ -428,7 +428,8 @@ const MP_GAME_CONFIGS = {
         flwPlayerNames = mpPlayerSlots.map(p => p.nickname);
         flwStartSession();
       }
-      // 'client': waits for FLW_SHOWING_START SYNC
+      // 'client': waits for FLW_SHOWING_START SYNC — or, on a rejoin, FLW_FULL_STATE.
+      // Doing nothing here is what makes it safe to re-run on a rejoining device.
     },
     recommendedMode: 'mdlm',
     supportedModes:  ['mdlm'],
@@ -436,6 +437,12 @@ const MP_GAME_CONFIGS = {
     rosterConfig:    { type: 'none' },
     getMaxPlayers:   () => 4,
     getMinPlayers:   () => 3,
+    // Client reconnect (SW v237). Arrow wrappers: this object is built before flw.js loads.
+    reconnect: {
+      sendState: idx => flwSendFullState(idx),
+      pause:     () => flwReconnectPause(),
+      resume:    () => flwReconnectResume(),
+    },
   },
   pko: {
     gameName:       'Pecking Order',
@@ -450,7 +457,12 @@ const MP_GAME_CONFIGS = {
       pkoPlayerCount = mpPlayerSlots.length;
       pkoPlayerNames = mpPlayerSlots.map(p => p.nickname);   // {uid, nickname} — never .name
       if (window.syllyMultiplayerMode === 'host') pkoStartSession();
-      else pkoShowClientStandby();                            // waits for PKO_CLASH_BEGIN
+      else {
+        // A rejoining device never tapped the lobby button that loads the chain
+        // (reconnect, SW v237). Idempotent — a no-op for every other client.
+        pkoLoadChain();
+        pkoShowClientStandby();                               // waits for PKO_CLASH_BEGIN
+      }
     },
     recommendedMode: 'mdlm',
     supportedModes:  ['mdlm'],
@@ -458,6 +470,12 @@ const MP_GAME_CONFIGS = {
     rosterConfig:    { type: 'none' },
     getMaxPlayers:   () => 6,
     getMinPlayers:   () => 3,
+    // Client reconnect (SW v237). Arrow wrappers: this object is built before pko.js loads.
+    reconnect: {
+      sendState: idx => pkoSendFullState(idx),
+      pause:     () => pkoReconnectPause(),
+      resume:    () => pkoReconnectResume(),
+    },
   },
   cjar: {
     gameName:       'Cookie Jar',
@@ -478,7 +496,12 @@ const MP_GAME_CONFIGS = {
       // menu re-visit just makes the host tap "Raid the Jar!" a second time. This is
       // what GTH, FRT, SHP, FLW and PKO all do; cjar was the only game that bounced.
       if (window.syllyMultiplayerMode === 'host') cjarStartMatch();
-      else cjarShowClientStandby();
+      else {
+        // A rejoining device never tapped the lobby button that loads the deck data
+        // (reconnect, SW v237). Idempotent — a no-op for every other client.
+        cjarLoadData();
+        cjarShowClientStandby();
+      }
     },
     recommendedMode: 'mdlm',
     supportedModes:  ['mdlm'],
@@ -490,6 +513,12 @@ const MP_GAME_CONFIGS = {
     getMinPlayers:   () => 3,   // 4 → 3, owner call 3 Aug 2026. Nothing in the deck,
     // bust odds or the affinity draw is player-count dependent; 3-player balance is
     // UNSIMULATED (the balance tool ran 5 and 8) — watch it at the next playtest.
+    // Client reconnect (SW v237). Arrow wrappers: this object is built before cjar.js loads.
+    reconnect: {
+      sendState: idx => cjarSendFullState(idx),
+      pause:     () => cjarReconnectPause(),
+      resume:    () => cjarReconnectResume(),
+    },
   },
   cld: {
     gameName:       'Cold Shoulder',
@@ -1364,7 +1393,7 @@ function mpApplyRejoinAccept(p, ts) {
   if (myIdx < 0 || !cfg || !cfg.reconnect) { mpRejoinFailed('gone'); return; }
   mpActiveGame       = p.game;
   mpActiveGameConfig = cfg;
-  // Every adopter so far uses its MP key as its activeGameId (comb). A future adopter
+  // Every adopter so far uses its MP key as its activeGameId (flw, pko, cjar, comb). A future adopter
   // whose two ids differ (SS: 'ss' vs 'sylly-signals') must map it here.
   if (typeof activeGameId !== 'undefined') activeGameId = p.game;
   mpApplySettings(p.game, p.gameSettings || {});

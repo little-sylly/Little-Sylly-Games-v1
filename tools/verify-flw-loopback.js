@@ -199,6 +199,17 @@ globalThis.__flw = {
   },
   get ledgerMode() { return flwLedgerMode; },
   setLedgerMode(v) { flwLedgerMode = v; },
+  // Client reconnect (SW v237)
+  get turnEndTs()      { return flwTurnEndTs; },
+  get counterfeitHeld() { return flwCounterfeitHeld; },
+  get emeraldOffer()   { return flwEmeraldOffer; },
+  get emeraldCards()   { return flwEmeraldCards; },
+  get discardFeedLen() { return flwDiscardFeed.length; },
+  get auditCharges()   { return flwAuditCharges; },
+  setDrawn(g)          { flwDrawnCard = g; },
+  rcPause()            { flwReconnectPause(); },
+  rcResume()           { flwReconnectResume(); },
+  fullState(i)         { flwSendFullState(i); },
   // Mirrors mpSerialiseSettings/SETTINGS_SYNC's 'flw' case (engine-multiplayer.js)
   // exactly — this harness loads only flw.js, so the real serialiser/deserialiser
   // pair isn't reachable through the wire; these two reproduce their contract.
@@ -497,6 +508,125 @@ function safe(label, fn) {
     C.applySettings(onWire.payload.gameSettings);
     check(`client's flwLedgerMode becomes '${mode}'`, C.ledgerMode, mode);
   });
+
+  // ── Client reconnect (SW v237) ──────────────────────────────────────────
+  // The engine half (seats, presence, Away, the rejoin handshake) is proven in
+  // tools/verify-mp-reconnect.js. This proves FLW's half over the wire: the hook
+  // freezes the Appraisal Clock everywhere, and a device rebuilt from NOTHING lands
+  // on the live table holding its own secrets and nobody else's.
+  section('Reconnect — pause freezes the Appraisal Clock on every device, resume re-arms what was left');
+  const clock = { now: 1700000000000 };
+  const tick = dev => { dev.__clock = clock; vm.runInContext('Date.now = () => __clock.now;', dev); };
+  const host3 = makeDevice('host3', 'host', 0, 'u0', SLOTS);
+  tick(host3);
+  const H3 = host3.__flw;
+  let C3 = null, C3dev = null;
+  vm.runInContext(`
+    shuffle = function (flat) {
+      const pool = flat.slice();
+      const take = v => { const i = pool.indexOf(v); pool.splice(i, 1); return v; };
+      return [take(1), take(0), take(4), take(9), take(4), take(0)].concat(pool);
+    };
+  `, host3);
+  const sent3 = [], priv3 = [];
+  host3.mpSendEnvelope = env => {
+    const w = wire({ ...env, originId: 'u0', timestamp: clock.now });
+    sent3.push(w.payload.action);
+    try { C3.handle(w); } catch (e) { C3dev.__errors.push(`${w.payload.action}: ${e.message}`); }
+  };
+  host3.mpSendPrivate = (uid, env) => {
+    const w = wire({ ...env, originId: 'u0', timestamp: clock.now });
+    priv3.push({ uid, payload: w.payload });
+    if (uid !== 'u1') return;
+    try { C3.handle(w); } catch (e) { C3dev.__errors.push(`private ${w.payload.action}: ${e.message}`); }
+  };
+  // A seat-1 device with NOTHING in memory — what a reloaded phone is. Settings arrive
+  // through the engine's ACCEPT (mpApplySettings); FLW's client onPassThePhone is a no-op.
+  const seat1 = name => {
+    const dev = makeDevice(name, 'client', 1, 'u1', SLOTS);
+    tick(dev);
+    dev.mpSendEnvelope = env => {
+      const w = wire({ ...env, originId: 'u1', timestamp: clock.now });
+      try { H3.handle(w); } catch (e) { host3.__errors.push(`${w.payload.action}: ${e.message}`); }
+    };
+    dev.mpSendPrivate = () => { throw new Error('a client must never write the private channel'); };
+    dev.__flw.applySettings(H3.serialiseSettings());
+    C3 = dev.__flw; C3dev = dev;
+    return dev;
+  };
+  H3.seat({ players: 3, names: NAMES, sylly: true });
+  vm.runInContext('flwTurnTimer = 60;', host3);
+  const cli3 = seat1('cli3');
+  const noErr3 = () => [...host3.__errors, ...C3dev.__errors];
+  safe('a 60 s Showing deals', () => H3.startSession());
+  check('seat 0 is on a 60 s clock', H3.turnEndTs - clock.now, 60000);
+  check('  …and the client counts down against the same deadline', C3.turnEndTs, H3.turnEndTs);
+  clock.now += 20000;
+  sent3.length = 0;
+  safe('pause', () => H3.rcPause());
+  check('pause stopped the host clock', H3.turnEndTs, 0);
+  check('  …told every device, once', sent3, ['FLW_CLOCK']);
+  check('  …which stopped theirs', C3.turnEndTs, 0);
+  H3.rcPause();
+  check('a second pause is a no-op', sent3.length, 1);
+  clock.now += 5 * 60000;                                   // the table waits five minutes
+  safe('resume', () => H3.rcResume());
+  check('resume re-armed the 40 s that were left, not 60 and not 0', H3.turnEndTs - clock.now, 40000);
+  check('  …and the client re-armed with it', C3.turnEndTs, H3.turnEndTs);
+  check('  …as FLW_CLOCK, never a re-sent FLW_TURN_START (it clears a half-built play)',
+        sent3, ['FLW_CLOCK', 'FLW_CLOCK']);
+  H3.rcResume();
+  check('a second resume is a no-op', sent3.length, 2);
+  check('no exception on either device', noErr3(), []);
+
+  section('Reconnect — a turn that begins while paused banks its whole clock');
+  H3.rcPause();
+  safe('seat 0 plays while the table is paused (an ACTION already in flight)', () => H3.hostPlay(0, 0, -1, null));
+  check('seat 1 is now active', H3.activePlayer, 1);
+  check('  …but no clock started', [H3.turnEndTs, C3.turnEndTs], [0, 0]);
+  H3.rcResume();
+  check('resume armed the full 60 s turn', H3.turnEndTs - clock.now, 60000);
+
+  section('Reconnect — the ACTIVE seat reloads: rebuilt from nothing, holding only its own secrets');
+  clock.now += 15000;
+  H3.rcPause();
+  const cli3b = seat1('cli3b');
+  clock.now += 60000;
+  priv3.length = 0;
+  H3.rcResume();                                            // the engine resumes BEFORE sendState
+  safe('the snapshot sends', () => H3.fullState(1));
+  const snap3 = (priv3.find(x => x.payload.action === 'FLW_FULL_STATE') || {}).payload || {};
+  check('one FLW_FULL_STATE, to seat 1 only', priv3.map(x => x.uid), ['u1']);
+  check('  …carrying none of the host-only collections',
+        ['hands', 'deck', 'lockedLot', 'drawnCard', 'topPlay', 'emeraldOffer', 'discards'].filter(k => k in snap3), []);
+  check('  …and the Counterfeit token as ONE seat\'s boolean, never the table\'s array',
+        typeof snap3.counterfeitHeld, 'boolean');
+  check('the rebuilt device reached the table', lastScreen(cli3b), 'screen-flw-table');
+  check('  …holding exactly its own Showpiece', C3.myHand, H3.hands[1]);
+  check('  …and its own drawn gem', C3.myDrawn, H3.drawnCard);
+  check('  …on the live clock (45 s left)', [C3.turnEndTs, C3.turnEndTs - clock.now], [H3.turnEndTs, 45000]);
+  check('host and rebuilt client agree on everything public',
+        [C3.activePlayer, C3.vaultCount, C3.exposed, C3.tokens, C3.ledger, C3.discardFeed, C3.auditCharges],
+        [H3.activePlayer, H3.vaultCount, H3.exposed, H3.tokens, H3.ledger, H3.discardFeed, H3.auditCharges]);
+  safe('the rebuilt device plays its own turn over the wire', () => C3.submitPlay(0, -1, null));
+  check('  …and the host accepted it', H3.activePlayer, 2);
+  check('no exception on any device', noErr3(), []);
+
+  section('Reconnect — a rejoin mid-Deep-Vault re-opens the Emerald choice (armed, never carried)');
+  safe('seat 2 (a host-side seat) plays an Obsidian', () => { H3.setDrawn(0); H3.hostPlay(2, 0, -1, null); });
+  safe('seat 0 plays an Obsidian',                    () => { H3.setDrawn(0); H3.hostPlay(0, 0, -1, null); });
+  check('seat 1 is active again', H3.activePlayer, 1);
+  safe('seat 1 plays the Green Emerald', () => { H3.setDrawn(6); H3.hostPlay(1, 6, -1, null); });
+  check('a Deep Vault offer is waiting on seat 1', !!H3.emeraldOffer && H3.emeraldOffer.active === 1, true);
+  H3.rcPause();
+  const cli3c = seat1('cli3c');
+  H3.rcResume();
+  safe('the snapshot sends', () => H3.fullState(1));
+  check('the rebuilt device has the Deep Vault open', cli3c.document.getElementById('flw-emerald-overlay').style.display, 'flex');
+  check('  …offering exactly the host\'s cards', C3.emeraldCards, H3.emeraldOffer.cards);
+  safe('seat 1 keeps a gem', () => vm.runInContext('flwSubmitEmerald();', cli3c));
+  check('  …and the host resolved it', H3.emeraldOffer, null);
+  check('no exception on any device', noErr3(), []);
 
   console.log('\n' + '='.repeat(62));
   console.log(failures === 0 ? 'ALL CHECKS PASSED' : `${failures} CHECK(S) FAILED`);

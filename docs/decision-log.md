@@ -18,6 +18,13 @@ Changed: Files/systems touched. Deferred/superseded: anything left open.
 Detail: pointer to the canonical doc (snapshot / impl note / spec / memory).
 ```
 
+## 2026-09-27 — Reconnect adopted by FLW, PKO and CJAR (SW v237); pause only what acts for a seat
+Category: Architecture
+Decision: Three more games adopt the `reconnect` hook, and an adopter's `pause()` stops only what decides on a seat's behalf (auto-plays, auto-resolves, the loop that opens the next one), not every timer.
+Why: The Away overlay already blocks every device's input, so a table that merely waits needs no pause — and a clock on the ACTIVE seat can time it out when a different seat drops.
+Changed: `js/games/{flw,pko,cjar}.js`, `MP_GAME_CONFIGS`, `logic-engine.md` § Client Reconnect (+ data-load, pause-scope and harness-order lines), new `tools/verify-pko-loopback.js`. Deferred: the remaining MDLM adopters; the real-device pass.
+Detail: `shared-implementation-notes.md` ML-09.
+
 ## 2026-09-27 — MDLM client reconnect (SW v236): a drop is not a quit
 Category: Architecture
 Decision: A dropped client is detected by per-connection presence against seats frozen at `GAME_START`; games opt in to rescue through a `reconnect` hook (`sendState`/`pause`/`resume`), and Honeycomb Hills is the first adopter — every other game ends after a 20 s grace instead of hanging.

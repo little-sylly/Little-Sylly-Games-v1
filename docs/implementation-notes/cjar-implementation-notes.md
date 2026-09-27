@@ -9,6 +9,8 @@ Spec: `docs/new-game-tech-cookie-jar.md` · Plan: `docs/superpowers/plans/2026-0
 
 ## Design Decisions
 
+**DD-34 — Client reconnect adopted; pause holds the flip loop, not just the clock.** *(27 Sep 2026, SW v237.)* A dropped phone rejoins its seat (engine DD-47). The decision window's auto-resolve Sneaks (base) or Innocents (Dibber Dobber) every seat that has not chosen — an absent seat included — and the reveal dwell would open the next window at once. So pause freezes an open window (the auto-resolve extracted as `cjarHostWindowTimeout()`, remainder banked, `CJAR_CLOCK { endTimestamp: 0 }`) and `cjarHostNextFlip()` holds any flip that comes due. Resume re-arms the window clamped to [5 s floor, window length] — the floor so a drop in the last second doesn't hand the table to the auto-resolve, the ceiling because a pause mid-choreography banked animation time too — and deals the held flip. `CJAR_CLOCK` is `flipSeq`-tagged. The snapshot nulls other seats' `choices`/`readyCheck` mid-window (secret until resolve); affinities are the recipient's only. The client `onPassThePhone` now starts `cjarLoadData()` — a rejoiner never tapped the lobby button, and `cjarApplyFullState` waits for it. Loopback 213 (+36), 6/6 mutants. Lessons: `shared-implementation-notes.md` ML-09.
+
 **DD-25…DD-31 — the stage-polish round.** *(Owner call, 8 Aug 2026 — spec: `docs/superpowers/specs/2026-08-08-cjar-stage-polish-design.md`)*
 Owner feedback from the first real playtest of the Aug 7 action-stage rework, not a new root-cause
 finding: the beat that DD-18…DD-24 gave the game exists, but it's too fast to read comfortably, and
