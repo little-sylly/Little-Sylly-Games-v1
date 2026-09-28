@@ -1063,6 +1063,114 @@ function dybRenderShowdownScreen(data, onDone) {
   });
 }
 
+// ── Practice — a scripted, deterministic demo (How to Play tab) ─────────────
+// The suite standard (ui-style.md § Practice tab): real renderers fed a model,
+// beats gated on the player doing the thing, both branches at the decision, no
+// multiplayer. Cast: Sylvia, Sam, Shirley, Jeff — The Bluff uses the first two.
+const DYB_PRACTICE = {
+  rules: { wildcards: 'classic', onesStripped: false },
+  names: ['You', 'Sylvia', 'Sam'],
+  tints: [1, 3, 4],                                        // sandstone, terracotta, moss
+  hands: [[3, 3, 1, 5, 2], [3, 4, 6, 6, 2], [1, 5, 5, 2, 4]], // five 3s on the table, wilds included
+  climbs: [{ by: 1, qty: 4, face: 3 }, { by: 2, qty: 7, face: 3 }],
+};
+const DYB_PR_STEPS = ['shake', 'read', 'open', 'watch', 'decide', 'reveal', 'done'];
+const DYB_PR_COACH = {
+  shake:       'Hold the cup to shake, let go to throw.',
+  read:        'Two 3s, and a 1. In Classic Wilds, 1s count as any face, so you really hold three 3s.',
+  open:        'You go first. Tap 3, then + up to three 3s. You can back that yourself.',
+  watch0:      'Your claim is on the table. Now watch the others climb.',
+  watch1:      "Sylvia climbs to four 3s. She only needs one more from the ten dice you can't see. Likely.",
+  decide:      'Sam jumps to seven 3s. The other cups would need four of their ten. A stretch. Call the Bluff, or climb higher?',
+  revealCall:  'Only five 3s. Sam over-reached, so Sam loses a die.',
+  revealClimb: 'Sylvia called you. Only five 3s on the table. Climbing on a stretch is how you plunge.',
+  done:        "That's The Bluff. A real game runs until one climber is left.",
+};
+function dybPracticeCoach(s) {
+  if (s.step === 'watch') return s.watch ? DYB_PR_COACH.watch1 : DYB_PR_COACH.watch0;
+  if (s.step === 'reveal') return s.branch === 'call' ? DYB_PR_COACH.revealCall : DYB_PR_COACH.revealClimb;
+  return DYB_PR_COACH[s.step];
+}
+function dybPracticeInit() { return { step: 'shake', draft: null, claim: null, watch: 0, branch: null, view: 'whole' }; }
+function dybPracticeCtx(s) {
+  return { claim: s.claim ? { qty: s.claim.qty, face: s.claim.face } : { qty: 0, face: 0 },
+           rules: DYB_PRACTICE.rules, tableTotal: 15 };
+}
+function dybPracticeClimbAllowed(s) {
+  if (!s.draft) return false;
+  if (s.step === 'open') return s.draft.face === 3 && s.draft.qty === 3;
+  if (s.step === 'decide') return dybLegalRaise(dybPracticeCtx(s).claim, s.draft, DYB_PRACTICE.rules);
+  return false;
+}
+function dybPracticeReduce(s, ev) {
+  if (ev.type === 'reset') return dybPracticeInit();
+  if (!s) return s;
+  if (ev.type === 'view' && ['read', 'open', 'watch', 'decide'].includes(s.step)) return { ...s, view: ev.view };
+  const ctx = dybPracticeCtx(s);
+  switch (s.step) {
+    case 'shake': return ev.type === 'thrown' ? { ...s, step: 'read' } : s;
+    case 'read':  return ev.type === 'next' ? { ...s, step: 'open', draft: dybDraftInit(ctx.claim, ctx.rules) } : s;
+    case 'open':
+    case 'decide':
+      if (['face', 'inc', 'dec'].includes(ev.type)) return { ...s, draft: dybDraftReduce(s.draft, ev, ctx) };
+      if (ev.type === 'climb' && dybPracticeClimbAllowed(s)) {
+        const claim = { by: 0, qty: s.draft.qty, face: s.draft.face };
+        return s.step === 'open'
+          ? { ...s, claim, draft: null, step: 'watch', watch: 0 }
+          : { ...s, claim, draft: null, step: 'reveal', branch: 'climb' };
+      }
+      if (ev.type === 'call' && s.step === 'decide') return { ...s, draft: null, step: 'reveal', branch: 'call' };
+      return s;
+    case 'watch': {
+      if (ev.type !== 'tick') return s;
+      const claim = DYB_PRACTICE.climbs[s.watch];
+      const next = { ...s, claim, watch: s.watch + 1 };
+      return next.watch < DYB_PRACTICE.climbs.length
+        ? next
+        : { ...next, step: 'decide', draft: dybDraftInit({ qty: claim.qty, face: claim.face }, DYB_PRACTICE.rules) };
+    }
+    case 'reveal': return ev.type === 'revealed' ? { ...s, step: 'done' } : s;
+    default: return s;
+  }
+}
+function dybPracticeHands() {
+  const h = DYB_PRACTICE.hands;
+  return { n: 3, rolls: h, types: h.map(r => r.map(() => 'standard')),
+           slicks: h.map(r => r.map(() => -1)), phantoms: h.map(r => r.map(() => null)) };
+}
+// The claim on the table at the reveal is challenged: by you (call) or by Sylvia (climb).
+function dybPracticeOutcome(s) {
+  const bidder = s.branch === 'call' ? s.claim.by : 0;
+  const challenger = s.branch === 'call' ? 0 : 1;
+  const real = dybCountSum(dybCountEvents(s.claim.face, dybPracticeHands(), DYB_PRACTICE.rules));
+  return { face: s.claim.face, claimed: s.claim.qty, real, bidder, challenger, loser: real < s.claim.qty ? bidder : challenger };
+}
+function dybPracticeHighlight(s) {
+  if (s.step === 'read') return 'cup';
+  if (s.step === 'watch') return 'stage';
+  if (s.step === 'open' && s.draft) return s.draft.face !== 3 ? 'face-3' : (s.draft.qty < 3 ? 'inc' : 'climb');
+  return null;
+}
+function dybPracticeModel(s) {
+  const P = DYB_PRACTICE, set = dybActiveSet();
+  const isMyTurn = s.step === 'open' || s.step === 'decide';
+  const turn = s.step === 'watch' ? [1, 2][s.watch] : 0;
+  return {
+    set, me: 0, myTint: P.tints[0], tempest: false,
+    players: P.names.map((name, idx) => ({ idx, name, label: name, tint: P.tints[idx], count: 5,
+                                            footholds: false, out: false, active: idx === turn, you: idx === 0 })),
+    claim: s.claim ? { qty: s.claim.qty, face: s.claim.face, by: s.claim.by } : null,
+    rules: P.rules, tableTotal: 15,
+    hand: { roll: P.hands[0], types: P.hands[0].map(() => 'standard'), slicks: P.hands[0].map(() => -1),
+            slickAssigned: P.hands[0].map(() => true) },
+    isMyTurn, turnName: P.names[turn], turnTint: P.tints[turn],
+    draft: isMyTurn ? s.draft : null, view: s.view,
+    preview: s.step === 'read' ? { qty: 3, face: 3 } : null, caption: null,
+    climbEnabled: isMyTurn && dybPracticeClimbAllowed(s),
+    highlight: dybPracticeHighlight(s), ghostsIn: false,
+  };
+}
+
 function dybAdvanceFromShowdown() {
   // Host only — advance to next shake
   dybInitShake();
