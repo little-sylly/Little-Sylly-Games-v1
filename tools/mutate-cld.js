@@ -202,6 +202,24 @@ const M = [
 ['swap-misses-a-global', 'game', [
   ['    phase: cldPhase, powerLock: cldPowerLock,', '    phase: cldPhase,'],
   ['  cldPhase = s.phase; cldPowerLock = s.powerLock;', '  cldPhase = s.phase;']], 'practice'],
+
+// ── SW v245: the camera (verify-cld-practice.js) ────────────────────────────
+['camera-follows-a-finger', 'game', [[
+  `  if (!frozen && !c.manual && c.clock >= c.holdUntil && target) { c.tx = target.x; c.ty = target.y; c.tz = target.z; }
+  if (!frozen) {`,
+  `  if (!c.manual && c.clock >= c.holdUntil && target) { c.tx = target.x; c.ty = target.y; c.tz = target.z; }
+  {`]], 'practice'],
+
+['a-pinch-arms-the-aim', 'game', [[
+  "  if (cldCamPointer(cldView, e, 'down')) { cldCancelDrag(); return; }",
+  "  if (cldCamPointer(cldView, e, 'down')) { return; }"]], 'practice'],
+
+['resize-snaps-the-camera', 'game', [[
+  `  view.base = Math.min(view.box.w, view.box.h) / cldViewFit(view.fitR || CLD_R_STD);
+  cldCamApply(view);`,
+  `  view.base = Math.min(view.box.w, view.box.h) / cldViewFit(view.fitR || CLD_R_STD);
+  view.cam.x = CLD_W / 2; view.cam.y = CLD_H / 2; view.cam.z = 1;
+  cldCamApply(view);`]], 'practice'],
 ];
 
 // Which harness a mutant is aimed at. The rules/sim mutants above run the loop

@@ -984,10 +984,7 @@ const CLD_TINTS = [
 const CLD_AFTERMATH_MS   = 900;   // beat held after the last sample, for surfacings
 const CLD_BARK_MS        = 1400;  // how long a plunge bark floats
 const CLD_ASSIST_STEPS   = 90;    // aim-assist trace resolution (first bounce only)
-// Logical units fitted to the stage's short axis: the Roomy floe, the Knocked-
-// back drift past its edge and a penguin radius either side (SW v245). The
-// camera (the fun pass, Task 4) replaces this with a per-floe fit.
-const CLD_VIEW_FIT = 2 * (CLD_FLOE_SIZE.roomy + CLD_BACK_OFFSET + CLD_PENGUIN_R + 4);
+
 
 // ── Canvas / playback state ────────────────────────────────────────────────
 let cldLastFrameT   = 0;      // rAF timestamp of the previous frame
@@ -1000,6 +997,31 @@ let cldPtrId        = null;   // single-pointer discipline (the asherplane rule)
 let cldIntroIdx     = 0;      // which CLD_INTRO_FLAVOUR line this Floe-Off shows
 let cldWashoutUntil = 0;      // playback-clock ms at which the washout beat ends
 let cldFloatTimer   = null;   // TIMER — the plunge-bark float layer
+
+// ═══════════════════════════════════════════════════════════════════════════
+// The camera (SW v245 — spec 2026-09-29-cld-fun-pass § 3.3). The view no longer
+// has to hold the whole floe. Each view owns a camera in LOGICAL units, and
+// cldCamApply turns it into the view's EFFECTIVE transform (scale, offX, offY) —
+// so cldToLogical, and every caller that reads view.scale, is unchanged.
+// Every number here is a feel tunable (spec § 8): change them here only.
+// ═══════════════════════════════════════════════════════════════════════════
+const CLD_CAM_EASE         = 3.2;    // 1/s — each frame eases 1 − e^(−EASE·dt) of the way
+const CLD_CAM_AIM_Z        = 1.14;   // aim cam zoom
+const CLD_CAM_AIM_LEAN     = 0.32;   // aim cam centre: this share of the way from the floe's centre to you
+const CLD_CAM_SLIDE_Z      = 1.25;   // slide cam zoom ceiling
+const CLD_CAM_SLIDE_PAD    = 90;     // logical units round whatever is moving
+const CLD_CAM_CENTRE_LIM   = 0.55;   // × radius — the furthest the centre may wander from the floe's
+const CLD_CAM_OVERVIEW_S   = 0.8;    // s the whole floe holds at the start of every Slide
+const CLD_CAM_SLIDE_HOLD_S = 0.35;   // s the camera waits before following a Slide
+const CLD_CAM_Z_MIN        = 0.8;    // pinch limits
+const CLD_CAM_Z_MAX        = 2.6;
+const CLD_CAM_MAP_Z        = 1.18;   // the mini-map shows above this zoom, or whenever the camera is manual
+const CLD_CAM_TAP_MS       = 300;    // two taps inside this, and CLD_CAM_TAP_PX apart, = a double-tap
+const CLD_CAM_TAP_PX       = 24;
+const CLD_CAM_MOVE_EPS     = 0.5;    // logical units a penguin must move in a frame to count as moving
+
+// The floe, the Knocked-back drift past its edge and a penguin radius either side.
+function cldViewFit(radius) { return 2 * (radius + CLD_BACK_OFFSET + CLD_PENGUIN_R + 4); }
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Colour helpers — inline arithmetic, no offscreen tint cache (§10).
@@ -1268,40 +1290,156 @@ function cldPaintBody(ctx, r, tint, p) {
 // canvases on screen at once (Practice opened from the floe's [?]).
 function cldMakeView(canvas) {
   const ctx = canvas && canvas.getContext ? canvas.getContext('2d') : null;
-  return { canvas: canvas, ctx: ctx, scale: 1, offX: 0, offY: 0,
-           x: 0, y: 0, w: CLD_W, h: CLD_H };
+  return { canvas: canvas, ctx: ctx, scale: 1, offX: 0, offY: 0, x: 0, y: 0, w: CLD_W, h: CLD_H,
+           cssW: 0, cssH: 0, dpr: 1, box: { x: 0, y: 0, w: 0, h: 0 }, insetTop: 0, insetBottom: 0,
+           base: 1, fitR: CLD_R_STD,
+           cam: { x: CLD_W / 2, y: CLD_H / 2, z: 1, tx: CLD_W / 2, ty: CLD_H / 2, tz: 1,
+                  manual: false, holdUntil: 0, clock: 0, prev: {} },
+           ptrs: null, pinch: null, lastTap: null };
 }
 
+// Size the canvas to its stage and recompute the base fit. The CAMERA is kept —
+// a resize or a rotation mid-Slide must never snap the view anywhere.
 function cldResize(view) {
   if (!view || !view.canvas || !view.ctx) return;
   const box = view.canvas.parentElement;
   if (!box || !box.clientWidth || !box.clientHeight) return;
   const w = box.clientWidth, h = box.clientHeight;
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
-
-  // Fit CLD_VIEW_FIT logical units to the SHORT axis, then let the canvas fill
-  // the whole stage on the long one. Letterboxing a 360x360 square instead left
-  // ~250px of dead page above and below the water on a phone, and the dark
-  // rectangle's hard edge against stone-50 read as a rendering fault rather than
-  // as an ocean. The physics world is still exactly 360x360 centred at (180,180)
-  // — nothing about coordinates or determinism changes; the extra space on the
-  // long axis is simply more water drawn around the same floe.
-  const scale = Math.min(w, h) / CLD_VIEW_FIT;
-  view.scale = scale;
-  view.offX  = (w - CLD_W * scale) / 2;
-  view.offY  = (h - CLD_H * scale) / 2;
-
+  view.cssW = w; view.cssH = h; view.dpr = dpr;
   view.canvas.style.width  = w + 'px';
   view.canvas.style.height = h + 'px';
   view.canvas.width        = Math.floor(w * dpr);
   view.canvas.height       = Math.floor(h * dpr);
-  view.ctx.setTransform(scale * dpr, 0, 0, scale * dpr, view.offX * dpr, view.offY * dpr);
+  const top = view.insetTop || 0, bottom = view.insetBottom || 0;
+  view.box  = { x: 0, y: top, w: w, h: Math.max(1, h - top - bottom) };
+  view.base = Math.min(view.box.w, view.box.h) / cldViewFit(view.fitR || CLD_R_STD);
+  cldCamApply(view);
+}
 
-  // The visible region in LOGICAL units — what the water has to cover.
-  view.x = -view.offX / scale;
-  view.y = -view.offY / scale;
-  view.w = w / scale;
-  view.h = h / scale;
+// The camera → the view's effective transform, and the visible region in
+// LOGICAL units (what the water has to cover).
+function cldCamApply(view) {
+  const c = view.cam, s = view.base * c.z;
+  view.scale = s;
+  view.offX  = view.box.x + view.box.w / 2 - c.x * s;
+  view.offY  = view.box.y + view.box.h / 2 - c.y * s;
+  if (view.ctx) view.ctx.setTransform(s * view.dpr, 0, 0, s * view.dpr, view.offX * view.dpr, view.offY * view.dpr);
+  view.x = -view.offX / s;
+  view.y = -view.offY / s;
+  view.w = (view.cssW || view.box.w || CLD_W) / s;
+  view.h = (view.cssH || view.box.h || CLD_H) / s;
+}
+
+// A fresh floe (a Floe-Off, an Ice Bath): fit to it and open on the whole of it.
+function cldCamFrame(view, radius) {
+  if (!view) return;
+  view.fitR = radius || CLD_R_STD;
+  if (view.box.w) view.base = Math.min(view.box.w, view.box.h) / cldViewFit(view.fitR);
+  cldCamOverview(view, true);
+}
+
+// The start of every Slide: the whole floe, held CLD_CAM_OVERVIEW_S. Also ends
+// manual control — a pinch lasts until the next Slide (spec § 3.3).
+function cldCamOverview(view, snap) {
+  if (!view) return;
+  const c = view.cam;
+  c.manual = false;
+  c.tx = CLD_W / 2; c.ty = CLD_H / 2; c.tz = 1;
+  c.holdUntil = c.clock + CLD_CAM_OVERVIEW_S;
+  if (snap || cldReducedMotion()) { c.x = c.tx; c.y = c.ty; c.z = c.tz; }
+  cldCamApply(view);
+}
+
+// PURE. Frame `points` with `pad` round them inside `box` at base scale `base`;
+// zoom clamped to [1, zmax]; the centre never further than
+// CLD_CAM_CENTRE_LIM × radius from the floe's.
+function cldCamFit(points, pad, box, base, zmax, radius) {
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  points.forEach(p => { x0 = Math.min(x0, p.x); y0 = Math.min(y0, p.y); x1 = Math.max(x1, p.x); y1 = Math.max(y1, p.y); });
+  const w = x1 - x0 + 2 * pad, h = y1 - y0 + 2 * pad;
+  const z = Math.max(1, Math.min(zmax, box.w / (w * base), box.h / (h * base)));
+  let x = (x0 + x1) / 2, y = (y0 + y1) / 2;
+  const dx = x - CLD_W / 2, dy = y - CLD_H / 2, d = Math.hypot(dx, dy), lim = CLD_CAM_CENTRE_LIM * radius;
+  if (d > lim) { x = CLD_W / 2 + dx / d * lim; y = CLD_H / 2 + dy / d * lim; }
+  return { x: x, y: y, z: z };
+}
+
+// What the camera wants this frame (spec § 3.3's table), or null to hold still.
+function cldCamTarget(view, m, phase) {
+  const c = view.cam, prev = c.prev || {}, now = {};
+  m.penguins.forEach(p => { now[p.id] = { x: p.x, y: p.y }; });
+  c.prev = now;
+  const mine = m.penguins.filter(p => p.me && !p.drowned);
+  if (phase === 'aiming') {
+    if (!mine.length) return { x: CLD_W / 2, y: CLD_H / 2, z: 1 };
+    return { x: CLD_W / 2 + (mine[0].x - CLD_W / 2) * CLD_CAM_AIM_LEAN,
+             y: CLD_H / 2 + (mine[0].y - CLD_H / 2) * CLD_CAM_AIM_LEAN, z: CLD_CAM_AIM_Z };
+  }
+  if (phase === 'resolving') {
+    const pts = m.penguins.filter(p => prev[p.id] &&
+      Math.hypot(p.x - prev[p.id].x, p.y - prev[p.id].y) > CLD_CAM_MOVE_EPS).map(p => ({ x: p.x, y: p.y }));
+    mine.forEach(p => pts.push({ x: p.x, y: p.y }));
+    if (pts.length < 2) return null;
+    return cldCamFit(pts, CLD_CAM_SLIDE_PAD, view.box, view.base, CLD_CAM_SLIDE_Z, m.radius || CLD_R_STD);
+  }
+  return { x: CLD_W / 2, y: CLD_H / 2, z: 1 };
+}
+
+// One frame. The camera NEVER moves while a finger is down (`frozen`): a camera
+// that frames the aim feeds back into the aim (the style prototype found it).
+function cldCamStep(view, dtS, target, frozen) {
+  if (!view) return;
+  const c = view.cam;
+  c.clock += dtS;
+  if (!frozen && !c.manual && c.clock >= c.holdUntil && target) { c.tx = target.x; c.ty = target.y; c.tz = target.z; }
+  if (!frozen) {
+    const k = cldReducedMotion() ? 1 : 1 - Math.exp(-CLD_CAM_EASE * dtS);
+    c.x += (c.tx - c.x) * k; c.y += (c.ty - c.y) * k; c.z += (c.tz - c.z) * k;
+  }
+  cldCamApply(view);
+}
+
+// Two fingers pinch and pan; one finger always aims. Returns true when the camera
+// took the event — the caller then drops any aim in progress WITHOUT arming it.
+// A double-tap hands the camera back to auto (and still does what a tap does).
+function cldCamPointer(view, e, kind) {
+  if (!view) return false;
+  const c = view.cam, id = e.pointerId === undefined ? 'mouse' : e.pointerId;
+  const at = { x: e.clientX, y: e.clientY };
+  if (!view.ptrs) view.ptrs = new Map();
+  if (kind === 'down') {
+    view.ptrs.set(id, at);
+    if (view.ptrs.size >= 2) {
+      const pq = [...view.ptrs.values()], p = pq[0], q = pq[1];
+      view.pinch = { d: Math.hypot(p.x - q.x, p.y - q.y) || 1, z: c.z,
+                     mid: { x: (p.x + q.x) / 2, y: (p.y + q.y) / 2 }, x: c.x, y: c.y };
+      c.manual = true;
+      return true;
+    }
+    const t = e.timeStamp || 0, last = view.lastTap;
+    if (last && t - last.t < CLD_CAM_TAP_MS && Math.hypot(at.x - last.x, at.y - last.y) < CLD_CAM_TAP_PX) {
+      view.lastTap = null;
+      cldCamOverview(view, false);
+      c.holdUntil = c.clock;                       // straight back to auto, no overview hold
+    } else view.lastTap = { t: t, x: at.x, y: at.y };
+    return false;
+  }
+  if (kind === 'move') {
+    if (view.ptrs.has(id)) view.ptrs.set(id, at);
+    if (!view.pinch || view.ptrs.size < 2) return false;
+    const pq = [...view.ptrs.values()], p = pq[0], q = pq[1];
+    const d = Math.hypot(p.x - q.x, p.y - q.y), mid = { x: (p.x + q.x) / 2, y: (p.y + q.y) / 2 };
+    c.z = c.tz = Math.max(CLD_CAM_Z_MIN, Math.min(CLD_CAM_Z_MAX, view.pinch.z * d / view.pinch.d));
+    const s = view.base * c.z;
+    c.x = c.tx = view.pinch.x - (mid.x - view.pinch.mid.x) / s;
+    c.y = c.ty = view.pinch.y - (mid.y - view.pinch.mid.y) / s;
+    cldCamApply(view);
+    return true;
+  }
+  view.ptrs.delete(id);
+  if (view.pinch) { if (view.ptrs.size < 2) view.pinch = null; return true; }   // the rest of a pinch never aims
+  return false;
 }
 
 // Convert a pointer event to logical 360x360 coordinates in this view.
@@ -1343,8 +1481,12 @@ function cldLoop(now) {
   const paused = !!so && so.style.display !== 'none' && so.style.display !== '';
 
   if (!paused && cldPhase === 'resolving') cldAdvancePlayback(dt * 1000);
-  if (!paused) cldClock += dt;
-  cldDraw(cldView, cldFloeModel());
+  if (!paused && !cldReducedMotion()) cldClock += dt;      // idle sway stands still under reduced motion
+  const m = cldFloeModel();
+  cldCamStep(cldView, paused ? 0 : dt,
+    cldCamTarget(cldView, m, cldPhase === 'aiming' ? 'aiming' : cldPhase === 'resolving' ? 'resolving' : 'overview'),
+    cldDragging);
+  cldDraw(cldView, m);
 
   // A phase transition inside cldAdvancePlayback may have scheduled its own
   // next frame; standing down here is what stops two loops running alongside
@@ -1485,6 +1627,32 @@ function cldDraw(view, m) {
     ctx.stroke();
     ctx.restore();
   }
+
+  if (view.cam && view.box && view.box.w && (view.cam.manual || view.cam.z > CLD_CAM_MAP_Z)) cldDrawMiniMap(view, m);
+}
+
+// Screen space, top-left of the box: the floe, a dot per penguin (yours ringed
+// white), and the rectangle the camera is showing.
+function cldDrawMiniMap(view, m) {
+  const ctx = view.ctx, R = m.radius || CLD_R_STD, mr = 30;
+  const mx = 16 + mr, my = view.box.y + 12 + mr, k = mr / (R + 6);
+  ctx.save();
+  ctx.setTransform(view.dpr, 0, 0, view.dpr, 0, 0);
+  ctx.fillStyle = 'rgba(8,36,56,0.55)';
+  ctx.beginPath(); ctx.arc(mx, my, mr + 5, 0, CLD_TAU); ctx.fill();
+  ctx.fillStyle = '#e9f6fb';
+  ctx.beginPath(); ctx.arc(mx, my, mr, 0, CLD_TAU); ctx.fill();
+  m.penguins.forEach(p => {
+    ctx.fillStyle = cldTintOf(p.ownerIdx);
+    ctx.beginPath(); ctx.arc(mx + (p.x - CLD_W / 2) * k, my + (p.y - CLD_H / 2) * k, p.me ? 3.2 : 2.4, 0, CLD_TAU); ctx.fill();
+    if (p.me) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.2; ctx.stroke(); }
+  });
+  const x0 = Math.max(-R, view.x - CLD_W / 2), x1 = Math.min(R, view.x + view.w - CLD_W / 2);
+  const y0 = Math.max(-R, (view.box.y - view.offY) / view.scale - CLD_H / 2);
+  const y1 = Math.min(R, (view.box.y + view.box.h - view.offY) / view.scale - CLD_H / 2);
+  ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.lineWidth = 1.2;
+  ctx.strokeRect(mx + x0 * k, my + y0 * k, (x1 - x0) * k, (y1 - y0) * k);
+  ctx.restore();
 }
 
 function cldDrawBerg(ctx, b, iceBreaker) {
@@ -1689,7 +1857,7 @@ function cldFloeModel() {
     snowball: cldMySnowball, dive: back ? cldDiveModel(back, cldMyDive) : null,
     assist: cldAimAssist, clock: cldClock,
     // The ring only means something when there is a choice to make (Peck Off).
-    selectedId: standing.length > 1 ? cldDefaultPenguin(standing, cldMyAims).id : null,
+    selectedId: (standing.length > 1 && cldPhase === 'aiming' && !cldCommitted) ? cldDefaultPenguin(standing, cldMyAims).id : null,
   });
 }
 
@@ -1722,7 +1890,15 @@ function cldReleaseAim(aim, down, now, scale) {
 function cldMyBackPenguin() { return cldMyPenguins().find(p => p.drowned && !p.plug) || null; }
 const CLD_BATH_LEAD = 'Nobody made it. Into the Ice Bath with';
 
+// A pinch took over mid-aim: drop the drag without arming anything.
+function cldCancelDrag() {
+  cldDragging = false; cldPtrId = null; cldDragPenguin = null;
+  cldDragFrom = cldDragTo = null; cldDragDir = null;
+  cldSyncFloeUI();
+}
+
 function cldPointerDown(e) {
+  if (cldCamPointer(cldView, e, 'down')) { cldCancelDrag(); return; }
   if (cldPhase !== 'aiming') return;
   if (cldPtrId !== null) return;                 // one pointer at a time
   const pt = cldToLogical(cldView, e);
@@ -1765,6 +1941,7 @@ function cldPointerDown(e) {
 }
 
 function cldPointerMove(e) {
+  if (cldCamPointer(cldView, e, 'move')) return;
   if (!cldDragging) return;
   const id = (e.pointerId === undefined) ? 'mouse' : e.pointerId;
   if (id !== cldPtrId) return;
@@ -1775,6 +1952,7 @@ function cldPointerMove(e) {
 }
 
 function cldPointerUp(e) {
+  if (cldCamPointer(cldView, e, 'up')) return;
   if (!cldDragging) return;
   const id = (e.pointerId === undefined) ? 'mouse' : e.pointerId;
   if (id !== cldPtrId) return;
@@ -1813,6 +1991,9 @@ function cldShowFloe() {
   showScreen('screen-cld-floe');
   cldInitCanvas();
   cldResize(cldView);
+  // A fresh floe (slide 0 of a Floe-Off or an Ice Bath) is framed; every other
+  // Slide opens on the overview, which also ends any pinch (spec § 3.3).
+  if (cldSlideNo === 0) cldCamFrame(cldView, cldFloeRadius); else cldCamOverview(cldView, false);
   cldSyncFloeUI();
   cldStartLoop();
 }
@@ -2060,6 +2241,7 @@ function cldArmPlayback(tl) {
 
 function cldBeginPlayback(tl) {
   cldArmPlayback(tl);
+  if (cldView) cldView.cam.holdUntil = cldView.cam.clock + CLD_CAM_SLIDE_HOLD_S;
   cldCommits          = new Array(cldPlayerCount).fill(null);
   cldPhase            = 'resolving';
   cldMyAims = []; cldMySnowball = null; cldMyDive = null; cldMyMode = 'throw';
@@ -3061,6 +3243,7 @@ function cldPracticeStart() {
   const cv = document.getElementById('cld-pr-canvas');
   if (!cldPrView && cv && cv.getContext) cldPrView = cldMakeView(cv);
   cldResize(cldPrView);                           // sized on SHOW — a hidden canvas has no box
+  cldCamFrame(cldPrView, cldArenaRun(() => cldFloeRadius || CLD_R_STD));
   if (!cldPrUi) cldPrLoadDrill('headon', false);
   cldPrSyncUI();
   cldPrLastT = 0;
@@ -3716,11 +3899,14 @@ document.addEventListener('DOMContentLoaded', () => {
   // ── The Floe: pointer + control wiring ───────────────────────────────────
   const stage = document.getElementById('cld-stage');
   if (stage) {
-    stage.addEventListener('pointerdown', e => { cldPointerDown(e); });
+    // Captured, so a drag that strays off the stage keeps steering (SW v244 minor).
+    stage.addEventListener('pointerdown', e => {
+      try { if (e.pointerId !== undefined) stage.setPointerCapture(e.pointerId); } catch (_) {}
+      cldPointerDown(e);
+    });
     stage.addEventListener('pointermove', cldPointerMove);
     stage.addEventListener('pointerup', cldPointerUp);
     stage.addEventListener('pointercancel', cldPointerUp);
-    stage.addEventListener('pointerleave', cldPointerUp);
   }
 
   on('btn-cld-power', () => {

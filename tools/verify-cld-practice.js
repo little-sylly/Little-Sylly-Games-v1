@@ -217,21 +217,65 @@ if (!TUNE) {
 // C. The view (spec § 4.1)
 // ═══════════════════════════════════════════════════════════════════════════
 if (!TUNE) {
-  section('C. The view');
+  section('C. The view and the camera');
   const doc = S.document;
   const box = doc.createElement('div'); box.clientWidth = 320; box.clientHeight = 480;
   const cv  = doc.createElement('canvas'); box.appendChild(cv);
   cv.getBoundingClientRect = () => ({ left: 10, top: 20, width: 320, height: 480 });
   const v = RUN('cldMakeView')(cv);
   RUN('cldResize')(v);
-  const VF = G('CLD_VIEW_FIT');
-  ok('scale fits CLD_VIEW_FIT to the short axis', near(v.scale, 320 / VF, 1e-9), String(v.scale));
-  ok('the long axis is centred', near(v.offY, (480 - 360 * v.scale) / 2, 1e-9));
-  const c = RUN('cldToLogical')(v, { clientX: 10 + v.offX + 180 * v.scale, clientY: 20 + v.offY + 180 * v.scale });
-  ok('cldToLogical inverts the fit (centre → 180,180)', near(c.x, 180, 1e-6) && near(c.y, 180, 1e-6), JSON.stringify(c));
+  const FIT = RUN('cldViewFit')(G('CLD_R_STD'));
+  ok('at zoom 1 the floe and its outer margin fit the short axis', near(v.scale, 320 / FIT, 1e-9), String(v.scale));
+  ok('the floe centre sits at the box centre', near(v.offX + 180 * v.scale, 160, 1e-9) && near(v.offY + 180 * v.scale, 240, 1e-9));
+  const round = (x, y) => { const c = RUN('cldToLogical')(v, { clientX: 10 + v.offX + x * v.scale, clientY: 20 + v.offY + y * v.scale });
+                            return near(c.x, x, 1e-6) && near(c.y, y, 1e-6); };
+  ok('cldToLogical inverts the transform at zoom 1', round(180, 180) && round(40, 300));
+  v.cam.x = 220; v.cam.y = 150; v.cam.z = 1.7; RUN('cldCamApply')(v);
+  ok('…and at any camera position and zoom', round(220, 150) && round(-20, 400) && near(v.scale, 1.7 * v.base, 1e-9));
+  // Review Focus 1 — a resize keeps the camera.
+  RUN('cldResize')(v);
+  ok('a resize keeps the camera where it was (no snap to the overview)', near(v.cam.x, 220) && near(v.cam.z, 1.7) && round(220, 150));
+  // Review Focus 3 — Roomy's outermost Knocked-back penguin is on screen at zoom 1.
+  RUN('cldCamFrame')(v, G('CLD_FLOE_SIZE').roomy);
+  const edge = 180 + G('CLD_FLOE_SIZE').roomy + G('CLD_BACK_OFFSET') + G('CLD_PENGUIN_R');
+  ok('Roomy at zoom 1: the furthest Knocked-back penguin is inside the box',
+     v.offX + edge * v.scale <= v.box.x + v.box.w + 1e-6 && v.offX + (360 - edge) * v.scale >= v.box.x - 1e-6);
+  RUN('cldCamFrame')(v, G('CLD_R_STD'));
+  const two = RUN('cldCamFit')([{ x: 150, y: 180 }, { x: 210, y: 180 }], 90, v.box, v.base, 1.25, 170);
+  ok('cldCamFit centres on the points and caps the zoom', near(two.x, 180) && near(two.y, 180) && two.z >= 1 && two.z <= 1.25);
+  const far = RUN('cldCamFit')([{ x: 400, y: 180 }, { x: 420, y: 180 }], 10, v.box, v.base, 2, 170);
+  ok('…and never lets the centre wander past CLD_CAM_CENTRE_LIM × radius',
+     near(Math.hypot(far.x - 180, far.y - 180), G('CLD_CAM_CENTRE_LIM') * 170, 1e-6));
+  RUN('cldCamOverview')(v, true);
+  const t = { x: 230, y: 180, z: 1.14 };
+  RUN('cldCamStep')(v, 0.5, t, false);
+  ok('the overview holds for CLD_CAM_OVERVIEW_S', near(v.cam.tx, 180) && near(v.cam.x, 180));
+  RUN('cldCamStep')(v, 0.4, t, false);
+  ok('…then the camera eases toward its target rather than jumping', v.cam.x > 180 && v.cam.x < 230);
+  const x0 = v.cam.x;
+  RUN('cldCamStep')(v, 0.5, { x: 100, y: 100, z: 2 }, true);
+  ok('the camera never moves while a finger is down', near(v.cam.x, x0) && near(v.cam.tx, 230));
+  S.window.matchMedia = () => ({ matches: true });
+  RUN('cldCamStep')(v, 0.016, t, false);
+  ok('reduced motion: the camera cuts straight to its target', near(v.cam.x, 230) && near(v.cam.z, 1.14));
+  S.window.matchMedia = () => ({ matches: false });
+  const pe = (id, x, y, ts) => ({ pointerId: id, clientX: x, clientY: y, timeStamp: ts || 0 });
+  ok('one finger is never the camera', RUN('cldCamPointer')(v, pe(1, 100, 100, 1000), 'down') === false);
+  ok('a second finger starts a pinch and takes manual control',
+     RUN('cldCamPointer')(v, pe(2, 200, 100, 1010), 'down') === true && v.cam.manual === true);
+  const z0 = v.cam.z;
+  RUN('cldCamPointer')(v, pe(2, 300, 100), 'move');
+  ok('spreading the fingers zooms in', v.cam.z > z0);
+  ok('lifting one finger of a pinch is still the camera’s', RUN('cldCamPointer')(v, pe(2, 300, 100), 'up') === true);
+  ok('…and lifting the last one never reaches the aim', RUN('cldCamPointer')(v, pe(1, 100, 100), 'up') === false && v.pinch === null);
+  RUN('cldCamStep')(v, 1, t, false);
+  ok('manual control holds against the auto camera', !near(v.cam.tx, 230));
+  RUN('cldCamPointer')(v, pe(3, 50, 50, 5000), 'down'); RUN('cldCamPointer')(v, pe(3, 50, 50), 'up');
+  RUN('cldCamPointer')(v, pe(4, 52, 51, 5200), 'down'); RUN('cldCamPointer')(v, pe(4, 52, 51), 'up');
+  ok('a double-tap hands the camera back to auto', v.cam.manual === false);
   const v2 = RUN('cldMakeView')(doc.createElement('canvas'));
-  ok('two views are independent objects', v2 !== v && v2.scale === 1);
-  ok('the old view globals are gone', RUN("typeof cldViewScale === 'undefined' && typeof cldCanvas === 'undefined'"));
+  ok('two views are independent objects, each with its own camera', v2 !== v && v2.cam !== v.cam && v2.scale === 1);
+  ok('CLD_VIEW_FIT is gone — the fit is per floe', RUN("typeof CLD_VIEW_FIT === 'undefined'"));
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -287,7 +331,7 @@ if (!TUNE) {
 // ═══════════════════════════════════════════════════════════════════════════
 if (!TUNE) {
   section('E. The live gesture');
-  const pen = (id, owner, x, y) => ({ id, ownerIdx: owner, x, y, drowned: false, plug: false, angle: null, seq: null });
+  const pen = (id, owner, x, y, extra) => Object.assign({ id, ownerIdx: owner, x, y, drowned: false, plug: false, angle: null, seq: null }, extra || {});
   const box = S.document.createElement('div'); box.clientWidth = 320; box.clientHeight = 320;
   const cv = S.document.createElement('canvas'); box.appendChild(cv);
   const view = RUN('cldMakeView')(cv); RUN('cldResize')(view); SET('cldView', view);
@@ -333,6 +377,29 @@ if (!TUNE) {
   check('Peck Off: an anywhere-touch arms the unarmed penguin', G('cldMyAims').map(a => a.penguinId), ['0-0', '0-1']);
   down(102, 181); move(102, 181 + 60); up(102, 181 + 60);
   ok('Peck Off: touching a penguin re-aims that one', G('cldMyAims').slice(-1)[0].penguinId === '0-0');
+
+  // A second finger mid-aim is the camera: the aim is dropped, never armed.
+  fresh([pen('0-0', 0, 140, 180), pen('1-0', 1, 260, 180)]);
+  down(60, 180); move(60 - PULL / view.scale, 180);
+  RUN('cldPointerDown')({ clientX: 5, clientY: 5, pointerId: 2 });
+  ok('a second finger cancels the aim without arming it', G('cldDragging') === false && G('cldMyAims').length === 0);
+  RUN('cldPointerUp')({ clientX: 5, clientY: 5, pointerId: 2 });
+  up(60 - PULL / view.scale, 180);
+  check('…and lifting both fingers arms nothing', G('cldMyAims').length, 0);
+  // Review Focus 5 — a second finger during a Drowned player's Snowball tap.
+  fresh([pen('0-0', 0, 140, 180, { drowned: true, plug: true, angle: 0 }), pen('1-0', 1, 260, 180)]);
+  SET('cldFloeRadius', 130);
+  let threw2 = null;
+  try {
+    down(170, 170);
+    RUN('cldPointerDown')({ clientX: 7, clientY: 7, pointerId: 2 });
+    RUN('cldPointerUp')({ clientX: 7, clientY: 7, pointerId: 2 });
+    up(170, 170);
+  } catch (e) { threw2 = e; }
+  ok('a second finger during a Snowball tap never throws', threw2 === null, threw2 && threw2.stack);
+  ok('…and never moves the target', !!G('cldMySnowball') && near(G('cldMySnowball').x, 170, 1e-6));
+  SET('cldMySnowball', null);
+  fresh([pen('0-0', 0, 100, 180), pen('0-1', 0, 260, 180)]);
 
   SET('cldPhase', 'resolving');
   const n = G('cldMyAims').length;
@@ -675,7 +742,8 @@ if (!TUNE) {
   check('tab-away stops the Arena loop', G('cldPrRaf'), null);
   stage.clientWidth = 300; stage.clientHeight = 300;
   RUN("cldSetHowtoTab('practice')");
-  ok('the canvas is sized when Practice is shown', near(G('cldPrView').scale, 300 / G('CLD_VIEW_FIT'), 1e-9));
+  ok('the canvas is sized and framed on the Arena floe when Practice is shown',
+     near(G('cldPrView').base, 300 / RUN('cldViewFit(CLD_R_STD)'), 1e-9) && near(G('cldPrView').cam.z, 1, 1e-9));
   ok('the Arena loop runs while Practice shows', !!G('cldPrRaf'));
   check('it opens on Head-on, 1 / 5', [G('cldPrUi').drill, $('cld-pr-coach-step').textContent], ['headon', '1 / 5']);
   ok('the soft ring is on the stage', stage.classList.contains('cld-pr-ring'));
