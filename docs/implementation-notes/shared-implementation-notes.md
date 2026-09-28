@@ -4084,6 +4084,38 @@ rules the next time that doc is touched.
 
 ---
 
+**BUG-25 — a new SW version could precache the PREVIOUS version's files (28 Sep 2026, `sw.js`,
+SW v241, owner playtest).**
+
+*What happened.* The owner's first 3-player game on the DYB rebuild stuck on the seating screen: "Deal
+the dice" did nothing. The console showed `dyb.js:158 Cannot read properties of null (reading
+'addEventListener')`. Line 158:46 is `main`'s `dyb.js` exactly — `btn-dyb-hand-tip`, a button the
+rebuild removed. The browser was running the **old script against the new page**; one throw in
+`DOMContentLoaded` killed every DYB listener after it, the Deal button included.
+
+*Root cause.* Two routes, both reproduced in real Chromium with `main` served, then the branch:
+1. **The service worker** (production). The install did `cache.addAll(PRECACHE_URLS)`, and `addAll`
+   honours the **HTTP cache** — so a still-fresh copy (GitHub Pages sends `max-age=600`,
+   `http-server` 3600) went into the new version's cache. Measured: the new `sylly-games-v241` cache
+   held `main`'s `dyb.js` and `index.html` next to the new `dyb-dice.js`. A player is then on old or
+   mixed code for the whole version, and cache-first means nothing corrects it.
+2. **No service worker** (a phone testing over LAN `http://` can't register one). A normal reload
+   revalidates the document but reuses fresh cached scripts → new `index.html`, old `dyb.js`.
+
+*Fix.* Route 1: the install builds the cache from the network —
+`PRECACHE_URLS.map(u => new Request(u, { cache: 'reload' }))`. Repro RED (`dybIsOld: true`) →
+GREEN (`dybIsNew`, `indexIsNew`) at both 600 and 3600 s. No `CACHE_NAME` change: a device already
+holding a poisoned v241 cache re-installs (the `sw.js` bytes changed) and `addAll` overwrites every
+entry with a network copy. Route 2 is a dev-serving habit, not a shipped path: serve with
+`http-server -c-1` (no caching) when testing over LAN, or clear site data.
+
+*Lesson.* **A versioned cache is only a version if it is filled from the network.** "Bump
+`CACHE_NAME` on every deploy" (`logic-engine.md` § PWA Guardian) promises every device gets the new
+set — but `addAll` without `cache: 'reload'` quietly lets the browser's HTTP cache decide what "new"
+means. It was latent until a release changed a page's DOM *and* a script's expectations of it at once.
+
+---
+
 ## Multiplayer Lessons
 
 ### ML-01 — A lobby bound that reads game state reads it before the game has run [23 Aug 2026, SW v210]

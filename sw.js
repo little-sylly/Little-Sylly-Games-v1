@@ -236,7 +236,10 @@ const PRECACHE_URLS = [
 
 self.addEventListener('install', event => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(PRECACHE_URLS))
+    // cache: 'reload' — build the new version from the NETWORK, never the browser's HTTP
+    // cache. Without it, addAll() takes any still-fresh HTTP copy, so a new version's
+    // cache could hold the previous version's scripts next to its new page (SW v241).
+    caches.open(CACHE_NAME).then(cache => cache.addAll(PRECACHE_URLS.map(u => new Request(u, { cache: 'reload' }))))
   );
   self.skipWaiting();
 });

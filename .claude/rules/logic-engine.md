@@ -689,7 +689,11 @@ Before implementing, answer:
    mobile data. Converted to 360 px JPEGs at a 40 KB/card ceiling it is 682 KB. Set the ceiling
    at spec time and state it in the tech spec. Detail: `pko-impl-notes` TG-02.
 
-**SW versioning:** `CACHE_NAME = 'sylly-games-vN'` — bump N on **every deploy**.
+**SW versioning:** `CACHE_NAME = 'sylly-games-vN'` — bump N on **every deploy**. The install
+precaches with `new Request(u, { cache: 'reload' })` — never plain `addAll(PRECACHE_URLS)`, which
+reads the browser's HTTP cache and can fill a new version with the previous one's scripts
+(`shared-implementation-notes.md` BUG-25). When testing over LAN `http://` (no SW possible), serve
+with `http-server -c-1` or reloads mix a new page with old scripts.
 
 **Current SW version:** see `CLAUDE.md` § Current Focus — **the live pointer, and the only place it is written.** This line used to carry a copy (it read v205 while the app shipped v209 for four bumps); a number duplicated in an auto-loaded rule file drifts silently, so it is deliberately not repeated here.
 
