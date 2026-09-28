@@ -18,7 +18,49 @@ Spec § 10's deliberate outs — each is its own later piece of work, none block
 
 - **Dice selector + a Lounge dice-tower prop.** Players pick a dice set; the `diceSet` skin packs
   (Deep Ocean, Sea Cliff, Classic) are the catalogue. When it lands, `js/games/dyb-dice.js` moves to
-  `js/lib/` (it already reads no `dyb*` state).
+  `js/lib/` (it already reads no `dyb*` state). Design notes from the DYB build, so the brainstorm
+  doesn't start cold:
+  - **The Lounge is not the only door needed.** Most players never see it (wide-screen only; a phone
+    gets Shelves/Classic/TV). Give the selector a places-row entry too, the same way the jukebox and
+    stickerbook got phone doors at SW v238 — plus probably a "Dice" entry in DYB's own menu/settings.
+  - **A second dice game already exists.** COMB (Honeycomb Hills) rolls 2d6 (`combRollDice`,
+    `js/games/comb.js`) — but only as arithmetic; it shows the summed number as text, no physical die
+    tiles. `dyb-dice.js` is still the only *visual* dice render seam, and the YAGNI note in
+    `logic-engine.md` § Shared Library Modules ("extract only if a second dice game appears") should
+    be revisited once COMB's roll gets a visual, or once the selector needs to offer a d6 pair.
+  - **`dybActiveSet()` is the one place to plug the choice in** — today it reads a Terminal skin pack,
+    else Rocky; the selector becomes another source there, ranked however the design decides.
+  - **The preview is largely built.** `tools/dyb-dice-review.js` already draws every set × tint ×
+    Tempest form + the cup; the in-game dice and the rolling cube draw anywhere as plain HTML, so a
+    selector's preview can be exactly what's played with, including a real test roll.
+  - **Pack checks exist** (`dybValidateDiceSet` + the dice harness's pip-contrast checks). Fix first:
+    a set with unnamed tints shows "undefined" in the gallery caption (deferred-work-log.md, SW v241
+    closure pass).
+  - **The Workshop (SW v234) is the room to copy** — a Lounge prop opening a room, a live preview, a
+    save, a one-way return through the router; `js/lounge/lounge-props.js` has the prop pattern
+    (idle animation, reduced motion).
+  - **Whose dice you see is a real design decision, not a detail.** Simplest: your device always
+    draws every die in your own chosen set (no MP change). Spec §3.1's original idea — each seat's
+    dice drawn in *their* owner's set — needs the set id sent at game start (a packet change, a
+    protocol version bump); the drawing code already takes a set per die, so it's plumbing, not a
+    rewrite. Ship the simple version first.
+  - **Set is not colour.** The selector picks the material; colour stays seat identity
+    (`dybTintFor()`, `tint = seat − 1` today) until seat/colour picking (below) exists. The preview
+    can show all eight tints with "your colour comes from your seat" until then.
+  - **Remembering the pick needs a new permitted `localStorage` key** (e.g. `sylly_dice`) — same
+    owner call as the view-toggle entry below; the saved controller design is the precedent.
+  - **Gotchas from this build:** moving `dyb-dice.js` to `js/lib/` needs a `PRECACHE_URLS` update and
+    a version bump — make sure `sw.js`'s `cache: 'reload'` precache fix (BUG-25,
+    `shared-implementation-notes.md`) ships first, or the new file can land stale on some devices.
+    Any screenshot/visual-check work on the Lounge must wait for `lobbyReady` + ~6 s and call
+    `lobbyScene.stop()` before driving a screen (headless Chromium stalls otherwise), and use
+    viewport screenshots, not `fullPage`, while anything loops. Test at the owner's iPhone SE sizes
+    (320×452 first), not just 375×667 — DYB's stage-overflow bug only showed at 320.
+  - **Footnote — a playing-card selector, same shape.** PASS (`cards`, the standard 54-card deck) is
+    the only other game on a shared, swappable-in-principle render seam (`js/lib/cards.js` /
+    `Cards.buildEl`) with no selector of its own. A card-back/face-style picker would follow the same
+    prop-in-the-Lounge-plus-places-row shape as the dice selector; not scoped, just noted so it isn't
+    rediscovered from scratch.
 - **Seat and colour picking in the waiting lobby — suite-wide.** Today a DYB tint is `seat − 1`;
   `dybTintFor(playerIdx)` is the one function a colour pick replaces. Other games would need their own hook.
 - **Practice tab retrofit — one line per remaining game (19).** The pattern is `ui-style.md`
