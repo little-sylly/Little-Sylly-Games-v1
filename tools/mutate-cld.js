@@ -29,7 +29,10 @@ const OUT  = process.argv[3] || fs.mkdtempSync(path.join(os.tmpdir(), 'cld-mutan
 fs.mkdirSync(OUT, { recursive: true });
 const GAME = path.join(ROOT, 'js/games/cld.js');
 const PHYS = path.join(ROOT, 'js/lib/physics.js');
-const SRC  = { game: fs.readFileSync(GAME, 'utf8'), phys: fs.readFileSync(PHYS, 'utf8') };
+// Normalised to LF: core.autocrlf is on in this repo, and the multi-line anchors below
+// would otherwise read as STALE on a CRLF checkout.
+const SRC  = { game: fs.readFileSync(GAME, 'utf8').replace(/\r\n/g, '\n'),
+               phys: fs.readFileSync(PHYS, 'utf8').replace(/\r\n/g, '\n') };
 
 // [name, which, [ [from, to], ... ]]
 const M = [

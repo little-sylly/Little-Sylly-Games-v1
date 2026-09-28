@@ -24,7 +24,9 @@ const ROOT = process.argv[2] || path.join(__dirname, '..');
 const OUT  = process.argv[3] || fs.mkdtempSync(path.join(os.tmpdir(), 'comb-mutants-'));
 fs.mkdirSync(OUT, { recursive: true });
 const GAME = path.join(ROOT, 'js/games/comb.js');
-const SRC  = fs.readFileSync(GAME, 'utf8');
+// Normalised to LF: core.autocrlf is on in this repo, and the multi-line anchors below
+// would otherwise read as STALE on a CRLF checkout.
+const SRC  = fs.readFileSync(GAME, 'utf8').replace(/\r\n/g, '\n');
 const HARNESSES = ['tools/verify-comb-board.js', 'tools/verify-comb-rules.js',
                    'tools/verify-comb-loop.js', 'tools/verify-comb-loopback.js'];
 

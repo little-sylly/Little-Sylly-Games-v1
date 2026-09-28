@@ -40,7 +40,7 @@ the contract never needed rewriting, only a second path added beside it.
   drops right at match start never go Away: the old forever-hang, back).
 - **Reconnect is an opt-in hook**, `MP_GAME_CONFIGS[abbr].reconnect = { sendState, pause, resume }`.
   Every game gets *detection*; only an adopter gets *rescue*. A non-adopter ends after a 20 s grace
-  with a reason, rather than hanging. Honeycomb Hills is the only adopter; § 7 of
+  with a reason, rather than hanging. *(Superseded SW v240, DD-51: 60 s, then the host decides.)* Honeycomb Hills is the only adopter; § 7 of
   `verify-mp-configs.js` pins the list so the next adopter is a reviewed change.
 - **One packet, the whole set** — `MP_AWAY_STATE { seats, graceEndsAt }` instead of an away/back
   pair, so a dropped packet self-corrects on the next one (the private-repair rule, § MDLM Patterns).
@@ -4481,6 +4481,42 @@ mid-flight. Settle transitions before measuring a resize.
 headless rAF further, and a 600 ms "selection clears the swell" check started failing with nothing wrong —
 poll for the condition instead. (And the old one again: inline `node -e` with template literals dies in Git
 Bash — write the script to a file.)
+
+### DD-51 — Owner calls from the deferred list: the host decides a drop, a wire version, NAT's floor, the pill exemption [28 Sep 2026, SW v240]
+**What happened.** Five parked owner decisions (deferred-work, 28 Sep 2026) were answered in one sitting;
+four landed in code or rules here, the fifth (DYB) was re-scoped and stays parked.
+- **A non-adopter's drop is the host's call.** DD-47 ended the table 20 s after a seat went Away — a clean
+  end over a forever-hang, but shorter than a phone call. Now `MP_AWAY_GRACE_MS` is **60 s**, after which
+  `mpAwayGraceExpired()` sets `mpAwayAsking` and re-broadcasts instead of ending: the host alone sees
+  **Keep waiting** (`btn-mp-away-wait` → `mpAwayKeepWaiting()`, another full grace, then ask again) beside
+  **End session** (`mpEndSessionForDrop()` — the reasoned `HOST_END_GAME { reason: 'dropped' }` moved here
+  from the timer). Clients get `asking: true` on `MP_AWAY_STATE` and read "The host is deciding…". The
+  forever-hang the 20 s rule guarded against can't return: the overlay covers every device and the host
+  holds the only exit. `btn-mp-away-wait`'s id is deliberately outside the tap-to-dismiss vocabulary — a
+  backdrop tap must never choose for the host. This also retires DD-47's review follow-up "the host
+  itself gets no reason when the grace ends": the host now *makes* that choice.
+- **`SYLLY_VERSION` → `MP_PROTOCOL_VERSION`.** Its comment said "bump with CACHE_NAME", and it had sat at
+  `'v83'` for 150+ releases — so in practice it had always been a wire version, and the comment was the
+  bug. Renamed, value `'v240'` (this release adds `asking`), rule written into `logic-engine.md`: bump
+  only when a packet changes, to the SW version shipping it.
+- **NAT's lobby floor 3 → 4.** `getMinPlayers` said 3; the PTP pills said 4. Owner: three can't properly
+  play (no spare Field Researcher), so the engine was the error. `verify-mp-configs.js` loses its only
+  `PILL_EXCEPTIONS` entry and now checks NAT like every other game.
+- **`.pill` exempt from 44 px** — `ui-style.md` § Thumb-Friendly UI. The rule and the class disagreed;
+  choosing the exemption is what closes it, not the 5 px.
+
+**Lesson.** A constant whose comment describes a discipline nobody follows is telling you what it
+actually is — read the *value's* history before "fixing" the value to match the comment. Bumping
+`SYLLY_VERSION` with every SW would have refused every cross-version join for no wire reason.
+Harness: `verify-mp-reconnect.js` § 10 rewritten (141 → 152); `mutate-mp-reconnect.js` 11 → 13 (the
+ask-don't-end line and the re-arm are now watched).
+
+**`mutate-comb.js` and `mutate-cld.js` now normalise CRLF on read, same pattern as
+`mutate-mp-reconnect.js` (28 Sep 2026).** Closes the mutator-side half of the CRLF finding logged
+during the reconnect build (`docs/deferred-work-log.md` § Found during the reconnect build) — the
+working-copy half (`pko.js`, `cjar.js`) was already fixed; a fresh `core.autocrlf=true` checkout can
+still bring CRLF back, so reading with `.replace(/\r\n/g, '\n')` is the durable fix. No mutant list
+changed: 71/71 (COMB) and 26/26 (CLD) still caught.
 
 ## Template Gaps
 

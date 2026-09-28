@@ -215,28 +215,22 @@ Also worth checking CLD's How-to "The Floe" practice sim, which is a third RAF o
 ## Reconnect adoption, per game (27 Sep 2026)
 
 The engine half of client reconnect shipped at SW v236 (`shared-implementation-notes.md` DD-47) with
-**Honeycomb Hills the only adopter**. Every other MDLM game gets drop *detection* — a 20 s "Waiting
-for …" grace, then a reasoned end — but not *rescue*. Adopting is per-game work, **longest matches
+Honeycomb Hills as the first adopter; **FLW, PKO and CJAR followed at SW v237**. Every other MDLM game
+gets drop *detection* — a 60 s "Waiting for …" grace, then the host chooses Keep waiting or End session
+(SW v240) — but not *rescue*. Adopting is per-game work, **longest matches
 first**, and each game needs three things:
 - a **serialiser** and a full-state applier that takes a client from standby to the live screen
   (idempotent), with its client `onPassThePhone` safe to re-run;
 - a **strip** — `sendState(idx)` sends that seat's own private state and nobody else's;
 - **pause/resume** for every clock and auto-resolving timer the game runs.
-**First candidates: PKO, FLW, CJAR.** Adding one is a reviewed change: `verify-mp-configs.js` § 7 pins
+**Next candidates:** the remaining MDLM games, longest matches first. Adding one is a reviewed change: `verify-mp-configs.js` § 7 pins
 the adopter list. Model + effort per game: **Opus, high**.
-
-**Owner call — the 20 s grace for non-adopters (review I4).** Before SW v236 a phone away for longer
-than a phone call simply stalled the table, and one that came back with memory intact carried on;
-now a non-adopting game ends for everyone after ~23 s (3 s debounce + 20 s). The spec chose that on
-purpose (a clean end beats a forever-hang), but the host's own **End session** already covers the
-hang, so the options are a longer grace (60–90 s), a host "Keep waiting" choice, or no automatic
-end at all. Shipped as specified; one constant (`MP_AWAY_GRACE_MS`) either way.
 
 **Minor follow-ups from the review (deferred, none blocking):** a rejoiner writes presence before its
 ACCEPT, so a refused/timed-out rejoin briefly marks the seat back; "Not now" during an in-flight
 rejoin cannot cancel the pending `mpRejoinRoom` (needs a generation token); `mpWatchRoomGone` does not
 call `mpEndMatchLocal()`, so the away overlay can sit over "Host Disconnected"; `graceEndsAt` is a
-host-clock timestamp (send remaining ms); the host itself gets no reason when the grace ends; the
+host-clock timestamp (send remaining ms); the
 debounce starts before `GAME_START` goes out; a mid-match stranger's refusal can be filtered by its
 own post-HANDSHAKE cutoff (only before `seats` lands); a rejoin downloads the room's whole `/events`
 log (`onChildAdded` without a query); a version refusal uses the rejoin modal's copy, not
@@ -255,21 +249,6 @@ check the seat, the hand and the time left; do it once with a trade open. Record
 *non*-active phone and check the active player's clock froze; CJAR on Standard — reload mid-window
 after another seat has chosen, and check the rejoiner can still choose and sees nobody else's pick;
 PKO with Force of Nature — reload the Challenger during a Carrion window.
-
-## Found during the reconnect build (27 Sep 2026)
-
-- **`verify-jec-loopback.js` fails 1 of 164** — *"a Chef with no bonus gets no line"* (expected 3,
-  got 0). It fails identically with the reconnect changes stashed, so it predates them and is not
-  engine-related. Untriaged.
-- **CRLF working copies break the mutation harnesses.** `.gitattributes` pins `*.js` to LF and the
-  committed blobs are LF, but the working copies of `js/games/cjar.js` and `js/games/pko.js` (and,
-  until SW v236, `comb.js`) carry CRLF. `mutate-comb.js` reported **19 of 71 mutants as PATCH-MISS**
-  for exactly this reason — multi-line anchors never matched, so those mutants never ran, and the
-  summary read as "survivors". Fix: re-write the working copy with LF (no content change), or make each
-  mutator normalise on read as `mutate-mp-reconnect.js` does.
-  **RESOLVED 27 Sep 2026 for `pko.js` and `cjar.js`** — both working copies re-written as LF during the
-  reconnect adoption (git saw no diff). The mutator-side fix is still open: with `core.autocrlf=true` a
-  fresh checkout can bring CRLF back, so normalising on read is the durable half.
 
 ## Cold Shoulder (CLD) — phase 40 gate still OPEN + two presentation follow-ons (4 Sep 2026, SW v219 → v221)
 
@@ -436,12 +415,6 @@ overlap; fixing either means updating that section in the same change.
 **Found, not fixed.** An identity pass records the game as it shipped; fixing what it reveals is a
 separate task (spec § 15).
 
-- **Pass-the-Phone can't reach the Lobby Mode floor.** `getMinPlayers()` for `nat` in
-  `engine-multiplayer.js` returns 3, but the Researcher-count pills on `screen-nat-setup`
-  (`index.html`) only offer 4 through 8 — there's no way to start a 3-player expedition in
-  Pass-the-Phone even though Lobby Mode allows it. Unrecorded whether this is an intentional PTP
-  floor (three roles at three players leaves no spare Field Researcher) or a pill row that never
-  got updated to match the engine minimum.
 - **`screen-nat-daily-review` (Sylly Mode only) has no `[?]`.** Every other Interactive screen in
   the loop carries a help button; the one screen unique to Survival of the Fittest doesn't.
 - **The Suspicion Log (`nat-tally-suspicion`) only renders for one outcome.** It shows who voted
@@ -486,22 +459,25 @@ section in the same change.
 
 ---
 
-## DYB Phantom-die reveal gap found while writing its identity doc (23 Aug 2026)
+## DYB — Phantom-die reveal + a procedural dice rework (23 Aug 2026; re-scoped 28 Sep 2026)
 
-**Found, not fixed.** An identity pass records the game as it shipped; fixing what it reveals is a
-separate task (spec § 15).
+**Owner's direction (28 Sep 2026): park the Phantom question and fold it into a dice rework.** Now
+that the suite has shown what procedural generation can do (CLD's canvas penguins, COMB's board, the
+3D controller), DYB's dice should be **generated, not drawn** — the standard die and every special
+die (the Phantom, and whatever The Tempest and the Wildcards styles need) built by code rather than
+leaning on artwork. Decide the Phantom's reveal as part of that design pass, not before it.
 
-- **The How to Play copy promises a Phantom-die reveal at The Overlook that the game doesn't
-  currently deliver.** `dyb-how-to-overlay`'s Sylly Mode card reads *"Phantom hide their face until
-  The Overlook"* — implying the "?" resolves to the real value once hands are revealed. Per
-  `docs/rules/game-identities.md`'s outgoing DYB section (Special Mechanics § The Tempest), the "?"
-  glyph currently **persists through the showdown reveal** instead of resolving — a gap already
-  flagged in `dyb-implementation-notes.md`'s own bug index, just never carried into the how-to copy
-  or fixed in `dybRenderShowdownScreen`.
-
-Fixing it means either making the Phantom's real face actually resolve at `screen-dyb-showdown`
-(matching the promised copy), or rewriting the how-to line to match what currently ships (a Phantom
-that never confirms its face even at reveal) — a design call for the owner, not a doc-only fix.
+- **The gap itself, unchanged.** `dyb-how-to-overlay`'s Sylly Mode card says *"Phantom hide their
+  face until The Overlook"*, implying the "?" resolves at the reveal; the shipped `dybRenderShowdownScreen`
+  keeps the "?" through the showdown (also in `dyb-implementation-notes.md`'s bug index). Either make
+  the face resolve at `screen-dyb-showdown` or rewrite the line — an owner design call.
+- **What the rework touches.** All dice render through one seam — `dybDieHTML` (`js/games/dyb.js`),
+  plus `js/lib/art.js`'s `assetFace` for any skin. `tools/verify-dyb-dice.js` (90+) covers that seam and
+  is the harness to extend. DYB is also one of the two games still without core art
+  (`docs/expansion-guide.md` § Core art packs) — a procedural die could make its core-art pack
+  unnecessary; say so in the spec either way. A skin pack must still be able to override a generated
+  face (the render seam's three tiers).
+- **Size.** Tier 2 — a design pass (brainstorm → spec) on one game's render seam, then the build.
 
 ---
 
@@ -636,28 +612,6 @@ itself still needs replacing.
 
 ---
 
-## `.pill` is 39 px tall — under the suite's own 44 px touch minimum (added 16 Aug 2026)
-
-`ui-style.md` § Thumb-Friendly UI mandates a 44×44 px minimum touch target. `.pill` in
-`css/styles.css` uses `padding: 0.5rem 0` with `font-size: 0.95rem`, which measures **39 px** —
-verified by `visual-check` on NT's allocation screen. **Every pill in every game** has this
-measurement: settings pills, how-to tab bars, brush selectors.
-
-**Scoped fix already shipped:** NT's allocation brush pills carry `min-h-11` (NT is a mid-huddle
-tool tapped repeatedly against a running clock, unlike a settings pill tapped once).
-
-**Why it is not swept:** this is either a deliberate accepted exception for pills specifically, or a
-suite-wide gap in a rule the project states plainly — and picking between those is a phase-gate call,
-not something to decide inside a single game's round. Changing `.pill` itself alters the vertical
-rhythm of every settings overlay and every how-to tab bar in 18 games, so it also wants a
-`visual-check` pass rather than a blind CSS edit.
-
-**When picked up:** decide the rule first (exempt pills, or raise `.pill` to 44 px), record it in
-`ui-style.md` either way — the current state, where the rule says 44 and the shared class says 39,
-is the actual problem.
-
----
-
 ## NT allocation screen — ~350 px of dead space (added 16 Aug 2026, mostly closed same day)
 
 `screen-nt-allocation` is on the legacy `h-screen` sticky-footer whitelist (`ui-style.md`). The
@@ -724,15 +678,6 @@ not in a batch at the end.
 ---
 
 ## Smaller flagged items
-
-**`SYLLY_VERSION` is `'v83'` while `CACHE_NAME` is v239** (found 28 Sep 2026). `js/engine.js:16`
-  says "must match CACHE_NAME in sw.js — bump both together", but it has not moved since v83. The MP
-  handshake (`engine-multiplayer.js`, join + `MP_REJOIN`) compares it, so in practice it has become a
-  **multiplayer protocol version**, not the app version — two devices on different app builds are let
-  into one room. Harmless while every release is backward-compatible on the wire, which is not
-  guaranteed. **When picked up (the architecture review):** decide whether it is a protocol version
-  (rename, bump only on a packet change) or the app version (bump with every SW), and fix the comment
-  either way.
 
 **PKO's Stragglers scoring mode is shipped but unplayed** (open since v166; moved here from
   `CLAUDE.md` § Current Focus, 19 Aug 2026). Force of Nature can hand a player cards they did not

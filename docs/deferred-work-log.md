@@ -7,6 +7,62 @@ game abbreviation, function or screen id. Items keep their original section head
 
 ---
 
+## Found during the reconnect build (27 Sep 2026)
+
+- **`verify-jec-loopback.js` fails 1 of 164** — *"a Chef with no bonus gets no line"* (expected 3,
+  got 0). It fails identically with the reconnect changes stashed, so it predates them and is not
+  engine-related. Untriaged.
+  **RESOLVED 28 Sep 2026** — the harness, not `jec.js`, was stale. `jecRenderTally`'s bonus-line
+  colour was deliberately changed from `text-amber-600` to `text-slate-600` (JEC's brand colour;
+  `git log -S` traces it to a bulk commit) at some point, and the harness's regex kept matching the
+  old class, so it counted **0** bonus lines instead of 3. Updated the regex to
+  `text-slate-600 font-semibold`; 164/164 pass.
+- **CRLF working copies break the mutation harnesses.** `.gitattributes` pins `*.js` to LF and the
+  committed blobs are LF, but the working copies of `js/games/cjar.js` and `js/games/pko.js` (and,
+  until SW v236, `comb.js`) carry CRLF. `mutate-comb.js` reported **19 of 71 mutants as PATCH-MISS**
+  for exactly this reason — multi-line anchors never matched, so those mutants never ran, and the
+  summary read as "survivors". Fix: re-write the working copy with LF (no content change), or make each
+  mutator normalise on read as `mutate-mp-reconnect.js` does.
+  **RESOLVED 27 Sep 2026 for `pko.js` and `cjar.js`** — both working copies re-written as LF during the
+  reconnect adoption (git saw no diff). The mutator-side fix is still open: with `core.autocrlf=true` a
+  fresh checkout can bring CRLF back, so normalising on read is the durable half.
+  **RESOLVED 28 Sep 2026 for the mutator side** — `mutate-comb.js` and `mutate-cld.js` now normalise
+  `\r\n` → `\n` on read, same pattern as `mutate-mp-reconnect.js`. 71/71 and 26/26 mutants still caught.
+
+## NAT gaps found while writing its identity doc (23 Aug 2026)
+
+- **Pass-the-Phone can't reach the Lobby Mode floor.** `getMinPlayers()` for `nat` in
+  `engine-multiplayer.js` returns 3, but the Researcher-count pills on `screen-nat-setup`
+  (`index.html`) only offer 4 through 8 — there's no way to start a 3-player expedition in
+  Pass-the-Phone even though Lobby Mode allows it. Unrecorded whether this is an intentional PTP
+  floor (three roles at three players leaves no spare Field Researcher) or a pill row that never
+  got updated to match the engine minimum.
+**RESOLVED 28 Sep 2026 (SW v240)** — owner: three can't properly play, so the engine was wrong. `getMinPlayers` → 4; `verify-mp-configs.js` drops its NAT exception and checks it against the pills; `nat.md` T7c + Players updated. DD-51.
+
+## `.pill` is 39 px tall — under the suite's own 44 px touch minimum (added 16 Aug 2026)
+
+`ui-style.md` § Thumb-Friendly UI mandates a 44×44 px minimum touch target. `.pill` in
+`css/styles.css` uses `padding: 0.5rem 0` with `font-size: 0.95rem`, which measures **39 px** —
+verified by `visual-check` on NT's allocation screen. **Every pill in every game** has this
+measurement: settings pills, how-to tab bars, brush selectors.
+
+**Scoped fix already shipped:** NT's allocation brush pills carry `min-h-11` (NT is a mid-huddle
+tool tapped repeatedly against a running clock, unlike a settings pill tapped once).
+
+**Why it is not swept:** this is either a deliberate accepted exception for pills specifically, or a
+suite-wide gap in a rule the project states plainly — and picking between those is a phase-gate call,
+not something to decide inside a single game's round. Changing `.pill` itself alters the vertical
+rhythm of every settings overlay and every how-to tab bar in 18 games, so it also wants a
+`visual-check` pass rather than a blind CSS edit.
+
+**When picked up:** decide the rule first (exempt pills, or raise `.pill` to 44 px), record it in
+`ui-style.md` either way — the current state, where the rule says 44 and the shared class says 39,
+is the actual problem.
+
+
+**RESOLVED 28 Sep 2026** — owner: exempt pills rather than re-space every settings overlay. Recorded in `ui-style.md` § Thumb-Friendly UI (a pill tapped repeatedly or on a clock still takes `min-h-11`). DD-51.
+
+
 ## Stickerbook achievements — prototype built, owner answered (23 Sep 2026, sandbox)
 
 - **Bailed** has no sticker (badge pending), so no achievement — `achDefine` simply has 19. **RESOLVED [27 Sep 2026]** — the badge landed; the book now has 20.
@@ -170,6 +226,14 @@ of this item.
 Model + effort: **Opus, high** — it is a cross-cutting contract change.
 
 ## Reconnect adoption, per game (27 Sep 2026)
+
+**Owner call — the 20 s grace for non-adopters (review I4).** Before SW v236 a phone away for longer
+than a phone call simply stalled the table, and one that came back with memory intact carried on;
+now a non-adopting game ends for everyone after ~23 s (3 s debounce + 20 s). The spec chose that on
+purpose (a clean end beats a forever-hang), but the host's own **End session** already covers the
+hang, so the options are a longer grace (60–90 s), a host "Keep waiting" choice, or no automatic
+end at all. Shipped as specified; one constant (`MP_AWAY_GRACE_MS`) either way.
+**RESOLVED 28 Sep 2026 (SW v240)** — owner: 60 s, then the host chooses Keep waiting (another 60 s) or End session; nothing ends on its own. Also retires the review follow-up "the host itself gets no reason when the grace ends". `shared-implementation-notes.md` DD-51.
 
 **RESOLVED 27 Sep 2026 (SW v237)** for all three — `shared-implementation-notes.md` ML-09, plus each
 game's own entry (PKO DD-27, CJAR DD-34, FLW "Client reconnect adopted"). Adopters are now
@@ -601,6 +665,16 @@ specifically rather than assuming it went away with the rest.
 ---
 
 ## Smaller flagged items
+
+**`SYLLY_VERSION` is `'v83'` while `CACHE_NAME` is v239** (found 28 Sep 2026). `js/engine.js:16`
+  says "must match CACHE_NAME in sw.js — bump both together", but it has not moved since v83. The MP
+  handshake (`engine-multiplayer.js`, join + `MP_REJOIN`) compares it, so in practice it has become a
+  **multiplayer protocol version**, not the app version — two devices on different app builds are let
+  into one room. Harmless while every release is backward-compatible on the wire, which is not
+  guaranteed. **When picked up (the architecture review):** decide whether it is a protocol version
+  (rename, bump only on a packet change) or the app version (bump with every SW), and fix the comment
+  either way.
+**RESOLVED 28 Sep 2026 (SW v240)** — a protocol version: renamed `MP_PROTOCOL_VERSION`, value `'v240'`, bumped only on a packet change (rule in `logic-engine.md` § Client Reconnect). DD-51.
 
 ~~**DD-31's same-screen button-parity rule was applied only to CJAR**~~ — **RESOLVED, 9 Aug 2026.**
   All 18 games now conform: 17 game-menu "← Back to the Box" buttons and 9 gameover-screen

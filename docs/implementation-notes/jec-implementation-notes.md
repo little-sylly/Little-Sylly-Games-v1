@@ -125,6 +125,21 @@ Lesson: dead UI is invisible by construction. The cheap check is a grep at closu
 overlay id in a game, confirm at least one `style.display = 'flex'` **and** at least one listener that
 leads to it.
 
+**J2 — `verify-jec-loopback.js` counted 0 bonus lines instead of 3 [28 Sep 2026]**
+What happened: the check *"a Chef with no bonus gets no line"* failed (expected 3, got 0), found
+during the reconnect build and left untriaged (`docs/deferred-work-log.md` § Found during the
+reconnect build). It failed identically with the reconnect changes stashed, so it predated them.
+Root cause: `jecRenderTally()` renders each Chef's bonus marks (`Called It!`, `On the Menu!`,
+`Signature Dish`) in a `<p>` with class `text-slate-600 font-semibold` — JEC's brand colour, matching
+the positive-score colour used elsewhere on the same card. The harness's regex still looked for the
+class's earlier value, `text-amber-600 font-semibold` (from before a rebrand pass), so it never
+matched any of the three bonus lines the fixture expects.
+Resolution: updated the harness regex to `text-slate-600 font-semibold` — no `jec.js` change. 164/164
+pass.
+Lesson: a colour rebrand that isn't grepped against `tools/verify-*` string literals leaves the
+harness asserting the old palette while the code moves on — a false failure that reads as a real
+regression until someone traces the class string back through `git log -S`.
+
 ---
 
 ## Multiplayer Lessons

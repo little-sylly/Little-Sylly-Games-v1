@@ -826,7 +826,7 @@ check('the Signature double is named',
 // Chefs 0 and 1 doubled a golden Signature and Chef 3 called the Crutch; Chef 2
 // nominated a Table for One and earned nothing - so three lines, not four.
 check('a Chef with no bonus gets no line',
-  (rowsHTML(client, 'jec-tally-list').match(/text-amber-600 font-semibold/g) || []).length, 3);
+  (rowsHTML(client, 'jec-tally-list').match(/text-slate-600 font-semibold/g) || []).length, 3);
 check('no throw on JEC_TALLY',      client.__errors, []);
 
 // An all-zero bonus array is the common case AND the erasure worst case: every
