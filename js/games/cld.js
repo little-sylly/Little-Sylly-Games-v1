@@ -108,6 +108,7 @@ const CLD_CUE_LEN     = 58;                   // cue stick length, logical
 const CLD_CUE_GAP_MAX = 22;                   // cue tip stand-off at full power, logical
 const CLD_GUIDE_STUB  = 30;                   // deflection stub, logical (~1.4 diameters)
 const CLD_GRAB_R      = CLD_PENGUIN_R * 3.2;  // touch this close to one of mine to pick it
+const CLD_CUE_TAP_PX  = 4;                    // CSS px a touch must travel before release can arm
 
 // ── Settings (persist between play-agains) ─────────────────────────────────
 let cldIceConditions = 'slush';    // 'powder' | 'slush' | 'blackice'
@@ -879,8 +880,9 @@ const CLD_VIEW_FIT       = 330;   // logical units fitted to the stage's SHORT a
 let cldLastFrameT   = 0;      // rAF timestamp of the previous frame
 let cldDragging     = false;
 let cldDragPenguin  = null;   // penguin id being aimed, or null
-let cldDragFrom     = null;   // { x, y } logical — the penguin's own centre
+let cldDragFrom     = null;   // { x, y } logical — where the finger TOUCHED DOWN (SW v244; was the penguin's centre)
 let cldDragTo       = null;   // { x, y } logical — where the finger is now
+let cldDragDir      = null;   // { x, y } — the last aim direction, held inside the dead zone
 let cldPtrId        = null;   // single-pointer discipline (the asherplane rule)
 let cldIntroIdx     = 0;      // which CLD_INTRO_FLAVOUR line this Floe-Off shows
 let cldWashoutUntil = 0;      // playback-clock ms at which the washout beat ends
@@ -1579,24 +1581,28 @@ function cldFloeModel() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// Drag-to-aim (brief §14)
-//
-// Release ARMS the aim; it never commits. The arm-then-commit split is the only
-// safety net between a fat-fingered drag and a lost Floe-Off, which is why the
-// commit is a separate button your thumb has to travel to.
+// Drag-to-aim — the pool-style cue (spec § 2). Touch ANYWHERE; the finger is
+// the butt of the cue. Release ARMS the aim; it never commits. The arm-then-
+// commit split is the only safety net between a fat-fingered drag and a lost
+// Floe-Off, which is why the commit is a separate button your thumb has to
+// travel to.
 // ═══════════════════════════════════════════════════════════════════════════
 function cldCurrentDragAim() {
-  if (!cldDragFrom || !cldDragTo || !cldDragPenguin) return null;
-  // Slingshot: drag AWAY from where you want to go, so the travel vector is the
-  // reverse of the finger's displacement.
-  const dx = cldDragFrom.x - cldDragTo.x;
-  const dy = cldDragFrom.y - cldDragTo.y;
-  const len = Math.hypot(dx, dy);
-  if (len < 1e-6) return null;
-  const power = cldPowerLock !== null
-    ? cldPowerLock
-    : Math.max(0, Math.min(1, len / (CLD_W * 0.36)));
-  return { penguinId: cldDragPenguin, dx: dx, dy: dy, power: power };
+  if (!cldDragging || !cldDragFrom || !cldDragTo || !cldDragPenguin) return null;
+  const p = cldPenguins.find(q => q.id === cldDragPenguin);
+  if (!p) return null;
+  const a = cldCueAim({ down: cldDragFrom, now: cldDragTo, penguin: p,
+                        scale: cldView ? cldView.scale : 1, lock: cldPowerLock, lastDir: cldDragDir });
+  return a ? { penguinId: p.id, dx: a.dx, dy: a.dy, power: a.power, dir: a.dir } : null;
+}
+
+// PURE. What a release arms: nothing for a tap (so a stray touch can never
+// re-aim, even with the bar locked) or a too-soft pull; otherwise exactly the
+// four wire fields — never `dir` (the CLD_COMMIT shape is unchanged, spec § 2.1).
+function cldReleaseAim(aim, down, now, scale) {
+  if (!aim || aim.power < CLD_MIN_POWER) return null;
+  if (Math.hypot(now.x - down.x, now.y - down.y) * scale < CLD_CUE_TAP_PX) return null;
+  return { penguinId: aim.penguinId, dx: aim.dx, dy: aim.dy, power: aim.power };
 }
 
 // My Knocked-back penguin — the only one that can Dive (spec §3.4).
@@ -1628,20 +1634,20 @@ function cldPointerDown(e) {
     return;
   }
 
-  // Grab the nearest of MY standing penguins within a generous radius — at 24px
-  // an exact hit is not a reasonable thing to ask of a thumb.
-  let best = null, bestD = 1e9;
-  standing.forEach(p => {
-    const d = Math.hypot(p.x - pt.x, p.y - pt.y);
-    if (d < bestD) { bestD = d; best = p; }
-  });
-  if (!best || bestD > CLD_PENGUIN_R * 3.2) return;
+  // Anywhere on the stage aims: the penguin under the thumb if there is one,
+  // otherwise the default (Peck Off: the first unarmed).
+  const target = cldPickPenguin(standing, pt, cldMyAims);
+  if (!target) return;
+  const armed = cldArmedAimFor(target.id);
+  const al = armed ? (Math.hypot(armed.dx, armed.dy) || 1) : 1;
 
   cldPtrId       = (e.pointerId === undefined) ? 'mouse' : e.pointerId;
   cldDragging    = true;
-  cldDragPenguin = best.id;
-  cldDragFrom    = { x: best.x, y: best.y };
+  cldDragPenguin = target.id;
+  cldDragFrom    = pt;
   cldDragTo      = pt;
+  // A touch-down inside the dead zone keeps the armed direction, not none.
+  cldDragDir     = armed ? { x: armed.dx / al, y: armed.dy / al } : null;
   cldSyncFloeUI();
 }
 
@@ -1650,6 +1656,8 @@ function cldPointerMove(e) {
   const id = (e.pointerId === undefined) ? 'mouse' : e.pointerId;
   if (id !== cldPtrId) return;
   cldDragTo = cldToLogical(cldView, e);
+  const a = cldCurrentDragAim();
+  if (a) cldDragDir = a.dir;
   cldSyncFloeUI();
 }
 
@@ -1658,18 +1666,20 @@ function cldPointerUp(e) {
   const id = (e.pointerId === undefined) ? 'mouse' : e.pointerId;
   if (id !== cldPtrId) return;
 
-  const aim = cldCurrentDragAim();
+  const armed = cldReleaseAim(cldCurrentDragAim(), cldDragFrom, cldDragTo, cldView ? cldView.scale : 1);
   cldDragging = false;
   cldPtrId    = null;
 
-  if (aim && aim.power >= CLD_MIN_POWER) {
+  if (armed) {
     // A new drag REPLACES this penguin's armed aim, as many times as you like —
-    // right up until Lock It In, and never after.
-    cldMyAims = cldMyAims.filter(a => a.penguinId !== aim.penguinId);
-    cldMyAims.push(aim);
+    // right up until Lock It In, and never after. Pushed to the END: the most
+    // recently aimed penguin is the default when every one is armed.
+    cldMyAims = cldMyAims.filter(a => a.penguinId !== armed.penguinId);
+    cldMyAims.push(armed);
   }
   cldDragPenguin = null;
   cldDragFrom = cldDragTo = null;
+  cldDragDir = null;
   cldSyncFloeUI();
 }
 
@@ -1686,6 +1696,7 @@ function cldShowFloe() {
   cldDragging    = false;
   cldPtrId       = null;
   cldDragPenguin = null;
+  cldDragDir     = null;
   showScreen('screen-cld-floe');
   cldInitCanvas();
   cldResize(cldView);
@@ -3049,7 +3060,7 @@ function cldResetState() {
   cldPhase = 'aiming'; cldIntroMode = 'intro';
   cldFloeRadius = 0; cldPlaybackT = 0; cldLastFrameT = 0; cldClock = 0;
   cldDragging = false; cldPtrId = null; cldDragPenguin = null;
-  cldDragFrom = null; cldDragTo = null;
+  cldDragFrom = null; cldDragTo = null; cldDragDir = null;
   cldPlaybackEventPtr = 0; cldAftermathPtr = 0;
 
   // A mid-flight quit hides the screen with display:none, so nothing else clears

@@ -282,6 +282,65 @@ if (!TUNE) {
      RUN("typeof cldDrawAim === 'undefined' && typeof cldDrawOneAim === 'undefined' && typeof cldFacingOf === 'undefined'"));
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// E. The live gesture (spec § 2.1)
+// ═══════════════════════════════════════════════════════════════════════════
+if (!TUNE) {
+  section('E. The live gesture');
+  const pen = (id, owner, x, y) => ({ id, ownerIdx: owner, x, y, drowned: false, plug: false, angle: null, seq: null });
+  const box = S.document.createElement('div'); box.clientWidth = 320; box.clientHeight = 320;
+  const cv = S.document.createElement('canvas'); box.appendChild(cv);
+  const view = RUN('cldMakeView')(cv); RUN('cldResize')(view); SET('cldView', view);
+  const ev = (x, y) => ({ clientX: view.offX + x * view.scale, clientY: view.offY + y * view.scale, pointerId: 1 });
+  const down = (x, y) => RUN('cldPointerDown')(ev(x, y));
+  const move = (x, y) => RUN('cldPointerMove')(ev(x, y));
+  const up   = (x, y) => RUN('cldPointerUp')(ev(x, y));
+  const PULL = G('CLD_CUE_PULL_PX');
+  const fresh = pens => {
+    SET('cldPenguins', pens); SET('cldPhase', 'aiming'); SET('cldMyMode', 'throw');
+    SET('cldMyAims', []); SET('cldPowerLock', null); SET('cldPtrId', null); SET('cldDragging', false);
+    SET('cldMySnowball', null); SET('cldMyDive', null);
+  };
+
+  fresh([pen('0-0', 0, 140, 180), pen('1-0', 1, 260, 180)]);
+  down(60, 180); move(60 - PULL / view.scale, 180);
+  const m = RUN('cldFloeModel()');
+  check('mid-drag: my penguin leans', m.penguins.find(p => p.id === '0-0').state, 'lean');
+  ok('mid-drag: the live aim is in the model', m.aims.some(a => a.live && a.penguinId === '0-0'));
+  up(60 - PULL / view.scale, 180);
+  let aims = G('cldMyAims');
+  ok('a full pull from anywhere arms a full-power shot away from the finger',
+     aims.length === 1 && near(aims[0].dx, 1) && near(aims[0].dy, 0) && near(aims[0].power, 1, 1e-6), JSON.stringify(aims));
+  check('the armed aim carries exactly the four wire fields', Object.keys(aims[0]).sort(), ['dx', 'dy', 'penguinId', 'power']);
+
+  // Review Focus 2 — a tap after arming changes nothing, with or without a locked bar.
+  const before = JSON.stringify(G('cldMyAims'));
+  down(60, 100); up(60, 100);
+  check('a plain tap keeps the armed aim', JSON.stringify(G('cldMyAims')), before);
+  SET('cldPowerLock', 0.4);
+  down(60, 100); up(60, 100);
+  check('a tap with the bar locked keeps the armed aim too', JSON.stringify(G('cldMyAims')), before);
+
+  down(60, 180); move(60, 100); up(60, 100);
+  aims = G('cldMyAims');
+  ok('locked: a drag re-aims at the locked power', aims.length === 1 && near(aims[0].power, 0.4) && aims[0].dy > 0.5, JSON.stringify(aims));
+  SET('cldPowerLock', null);
+
+  // Review Focus 5 — Peck Off: an anywhere-touch goes to the first unarmed penguin.
+  fresh([pen('0-0', 0, 100, 180), pen('0-1', 0, 260, 180)]);
+  SET('cldMyAims', [{ penguinId: '0-0', dx: 1, dy: 0, power: 0.5 }]);
+  down(180, 40); move(180, 40 - PULL / view.scale); up(180, 40 - PULL / view.scale);
+  check('Peck Off: an anywhere-touch arms the unarmed penguin', G('cldMyAims').map(a => a.penguinId), ['0-0', '0-1']);
+  down(102, 181); move(102, 181 + 60); up(102, 181 + 60);
+  ok('Peck Off: touching a penguin re-aims that one', G('cldMyAims').slice(-1)[0].penguinId === '0-0');
+
+  SET('cldPhase', 'resolving');
+  const n = G('cldMyAims').length;
+  down(60, 180); move(20, 180); up(20, 180);
+  check('no aiming while the Slide resolves', G('cldMyAims').length, n);
+  SET('cldPhase', 'aiming');
+}
+
 // ── Report (keep LAST in the file) ─────────────────────────────────────────
 if (!TUNE) {
   console.log('\n' + '='.repeat(70));
