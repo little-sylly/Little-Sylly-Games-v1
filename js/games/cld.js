@@ -156,7 +156,7 @@ let cldPowerLock   = null; // locked power 0..1, or null. Persists across Slides
 // ── UI / render state (Stage 4 populates these) ────────────────────────────
 let cldPhase       = 'aiming';  // 'aiming' | 'waiting' | 'resolving' | 'washout'
 let cldIntroMode   = 'intro';   // 'intro' | 'standby'
-let cldCanvas = null, cldCtx = null;
+let cldView        = null;      // the floe's canvas view — cldMakeView(); the Arena owns its own
 let cldRafHandle   = null;      // TIMER — cancel in quit-confirm, resetToLobby(), every phase exit
 let cldIntroTimer  = null;      // TIMER
 let cldResultTimer = null;      // TIMER
@@ -886,11 +886,6 @@ let cldIntroIdx     = 0;      // which CLD_INTRO_FLAVOUR line this Floe-Off show
 let cldWashoutUntil = 0;      // playback-clock ms at which the washout beat ends
 let cldFloatTimer   = null;   // TIMER — the plunge-bark float layer
 
-// The view transform (set by cldResize). The physics world stays 360x360; these
-// describe where that world sits inside a canvas that fills the whole stage.
-let cldViewScale = 1, cldViewOffX = 0, cldViewOffY = 0;
-let cldViewX = 0, cldViewY = 0, cldViewW = CLD_W, cldViewH = CLD_H;
-
 // ═══════════════════════════════════════════════════════════════════════════
 // Colour helpers — inline arithmetic, no offscreen tint cache (§10).
 // There is no sprite matrix to multiply, so there is nothing to cache: the
@@ -1153,13 +1148,18 @@ function cldPaintBody(ctx, r, tint, p) {
 // Canvas plumbing — the asherplane apResize/apToLogical/apLoop patterns (§15).
 // ═══════════════════════════════════════════════════════════════════════════
 
-// Fit the fixed 360x360 logical canvas into #cld-stage, preserving aspect, and
-// size the backing store at (CSS scale x devicePixelRatio) so it renders at
-// native resolution instead of being upscaled from a fixed buffer. The logical
-// coordinate space every draw call uses is unaffected — it stays exactly 360x360.
-function cldResize() {
-  if (!cldCanvas || !cldCtx) return;
-  const box = cldCanvas.parentElement;
+// A view is one canvas and the transform that fits the 360x360 logical world
+// into it. The floe owns `cldView`; the Practice Arena owns `cldPrView` — two
+// canvases on screen at once (Practice opened from the floe's [?]).
+function cldMakeView(canvas) {
+  const ctx = canvas && canvas.getContext ? canvas.getContext('2d') : null;
+  return { canvas: canvas, ctx: ctx, scale: 1, offX: 0, offY: 0,
+           x: 0, y: 0, w: CLD_W, h: CLD_H };
+}
+
+function cldResize(view) {
+  if (!view || !view.canvas || !view.ctx) return;
+  const box = view.canvas.parentElement;
   if (!box || !box.clientWidth || !box.clientHeight) return;
   const w = box.clientWidth, h = box.clientHeight;
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -1172,41 +1172,41 @@ function cldResize() {
   // — nothing about coordinates or determinism changes; the extra space on the
   // long axis is simply more water drawn around the same floe.
   const scale = Math.min(w, h) / CLD_VIEW_FIT;
-  cldViewScale = scale;
-  cldViewOffX  = (w - CLD_W * scale) / 2;
-  cldViewOffY  = (h - CLD_H * scale) / 2;
+  view.scale = scale;
+  view.offX  = (w - CLD_W * scale) / 2;
+  view.offY  = (h - CLD_H * scale) / 2;
 
-  cldCanvas.style.width  = w + 'px';
-  cldCanvas.style.height = h + 'px';
-  cldCanvas.width        = Math.floor(w * dpr);
-  cldCanvas.height       = Math.floor(h * dpr);
-  cldCtx.setTransform(scale * dpr, 0, 0, scale * dpr, cldViewOffX * dpr, cldViewOffY * dpr);
+  view.canvas.style.width  = w + 'px';
+  view.canvas.style.height = h + 'px';
+  view.canvas.width        = Math.floor(w * dpr);
+  view.canvas.height       = Math.floor(h * dpr);
+  view.ctx.setTransform(scale * dpr, 0, 0, scale * dpr, view.offX * dpr, view.offY * dpr);
 
   // The visible region in LOGICAL units — what the water has to cover.
-  cldViewX = -cldViewOffX / scale;
-  cldViewY = -cldViewOffY / scale;
-  cldViewW = w / scale;
-  cldViewH = h / scale;
+  view.x = -view.offX / scale;
+  view.y = -view.offY / scale;
+  view.w = w / scale;
+  view.h = h / scale;
 }
 
-// Convert a pointer event to logical 360x360 canvas coordinates.
-function cldToLogical(e) {
-  if (!cldCanvas) return { x: 0, y: 0 };
-  const b = cldCanvas.getBoundingClientRect();
-  if (!b.width || !b.height || !cldViewScale) return { x: 0, y: 0 };
+// Convert a pointer event to logical 360x360 coordinates in this view.
+function cldToLogical(view, e) {
+  if (!view || !view.canvas) return { x: 0, y: 0 };
+  const b = view.canvas.getBoundingClientRect();
+  if (!b.width || !b.height || !view.scale) return { x: 0, y: 0 };
   // Undo the SAME offset cldResize baked into the context transform. Reading the
   // bounding box alone would be off by half the letterbox band the moment the
   // stage stops being square — which is always, on a phone.
-  return { x: (e.clientX - b.left - cldViewOffX) / cldViewScale,
-           y: (e.clientY - b.top  - cldViewOffY) / cldViewScale };
+  return { x: (e.clientX - b.left - view.offX) / view.scale,
+           y: (e.clientY - b.top  - view.offY) / view.scale };
 }
 
 function cldInitCanvas() {
-  if (cldCanvas) return;
-  cldCanvas = document.getElementById('cld-canvas');
-  if (!cldCanvas || !cldCanvas.getContext) { cldCanvas = null; return; }
-  cldCtx = cldCanvas.getContext('2d');
-  cldResize();
+  if (cldView) return;
+  const cv = document.getElementById('cld-canvas');
+  if (!cv || !cv.getContext) return;
+  cldView = cldMakeView(cv);
+  cldResize(cldView);
 }
 
 // The RAF loop. Cancelled in the quit-confirm handler, in resetToLobby() via
@@ -1253,21 +1253,21 @@ function cldStopLoop() {
 let cldClock = 0;   // seconds of wall time on this screen — drives idle sway
 
 function cldDraw(dt) {
-  if (!cldCtx) return;
+  if (!cldView || !cldView.ctx) return;
   cldClock += dt;
-  const ctx = cldCtx;
+  const ctx = cldView.ctx;
   const cx = CLD_W / 2, cy = CLD_H / 2;
 
-  ctx.clearRect(cldViewX, cldViewY, cldViewW, cldViewH);
+  ctx.clearRect(cldView.x, cldView.y, cldView.w, cldView.h);
 
   // ── The Drink — a cold gradient with slow concentric swell rings. Animated by
   // phase, not by frames. Painted across the whole VISIBLE region, which is wider
   // than the 360x360 world on any non-square stage.
-  const water = ctx.createLinearGradient(0, cldViewY, 0, cldViewY + cldViewH);
+  const water = ctx.createLinearGradient(0, cldView.y, 0, cldView.y + cldView.h);
   water.addColorStop(0, '#1c3f57');
   water.addColorStop(1, '#0e2536');
   ctx.fillStyle = water;
-  ctx.fillRect(cldViewX, cldViewY, cldViewW, cldViewH);
+  ctx.fillRect(cldView.x, cldView.y, cldView.w, cldView.h);
   ctx.strokeStyle = 'rgba(142,202,230,0.10)';
   ctx.lineWidth = 1.5;
   for (let k = 0; k < 4; k++) {
@@ -1549,7 +1549,7 @@ const CLD_BATH_LEAD = 'Nobody made it. Into the Ice Bath with';
 function cldPointerDown(e) {
   if (cldPhase !== 'aiming') return;
   if (cldPtrId !== null) return;                 // one pointer at a time
-  const pt = cldToLogical(e);
+  const pt = cldToLogical(cldView, e);
 
   // Dive mode: the tap picks a gap. It snaps to the free seat nearest the tap.
   if (cldMyMode === 'dive') {
@@ -1592,7 +1592,7 @@ function cldPointerMove(e) {
   if (!cldDragging) return;
   const id = (e.pointerId === undefined) ? 'mouse' : e.pointerId;
   if (id !== cldPtrId) return;
-  cldDragTo = cldToLogical(e);
+  cldDragTo = cldToLogical(cldView, e);
   cldSyncFloeUI();
 }
 
@@ -1631,7 +1631,7 @@ function cldShowFloe() {
   cldDragPenguin = null;
   showScreen('screen-cld-floe');
   cldInitCanvas();
-  cldResize();
+  cldResize(cldView);
   cldSyncFloeUI();
   cldStartLoop();
 }
@@ -1739,9 +1739,10 @@ function cldSyncFloeUI() {
   // the canvas is sized in px — so it is re-fitted whenever the stage it sits
   // in has changed height. Sized only once, in cldShowFloe(), it spilled over
   // the row the first time a player went in (visual-check, SW v243).
-  const stage = cldCanvas && cldCanvas.parentElement;
+  const cv = cldView && cldView.canvas;
+  const stage = cv && cv.parentElement;
   if (stage && stage.clientHeight &&
-      Math.round(parseFloat(cldCanvas.style.height) || 0) !== stage.clientHeight) cldResize();
+      Math.round(parseFloat(cv.style.height) || 0) !== stage.clientHeight) cldResize(cldView);
 }
 
 // Which penguin's power the bar is showing when nothing is being dragged: the
@@ -3214,6 +3215,6 @@ document.addEventListener('DOMContentLoaded', () => {
   // the sandbox, which is exactly the property that makes it safe.
   window.addEventListener('resize', () => {
     const el = document.getElementById('screen-cld-floe');
-    if (el && el.style.display !== 'none') cldResize();
+    if (el && el.style.display !== 'none') cldResize(cldView);
   });
 });

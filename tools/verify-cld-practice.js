@@ -213,6 +213,27 @@ if (!TUNE) {
      Math.hypot(g.ghost.x - 180, g.ghost.y - 180) <= 130, JSON.stringify(g));
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// C. The view (spec § 4.1)
+// ═══════════════════════════════════════════════════════════════════════════
+if (!TUNE) {
+  section('C. The view');
+  const doc = S.document;
+  const box = doc.createElement('div'); box.clientWidth = 320; box.clientHeight = 480;
+  const cv  = doc.createElement('canvas'); box.appendChild(cv);
+  cv.getBoundingClientRect = () => ({ left: 10, top: 20, width: 320, height: 480 });
+  const v = RUN('cldMakeView')(cv);
+  RUN('cldResize')(v);
+  const VF = G('CLD_VIEW_FIT');
+  ok('scale fits CLD_VIEW_FIT to the short axis', near(v.scale, 320 / VF, 1e-9), String(v.scale));
+  ok('the long axis is centred', near(v.offY, (480 - 360 * v.scale) / 2, 1e-9));
+  const c = RUN('cldToLogical')(v, { clientX: 10 + v.offX + 180 * v.scale, clientY: 20 + v.offY + 180 * v.scale });
+  ok('cldToLogical inverts the fit (centre → 180,180)', near(c.x, 180, 1e-6) && near(c.y, 180, 1e-6), JSON.stringify(c));
+  const v2 = RUN('cldMakeView')(doc.createElement('canvas'));
+  ok('two views are independent objects', v2 !== v && v2.scale === 1);
+  ok('the old view globals are gone', RUN("typeof cldViewScale === 'undefined' && typeof cldCanvas === 'undefined'"));
+}
+
 // ── Report (keep LAST in the file) ─────────────────────────────────────────
 if (!TUNE) {
   console.log('\n' + '='.repeat(70));
