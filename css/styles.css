@@ -1665,6 +1665,12 @@ body.flash-red   { background-color: #fecaca; }
 .dyb-verdict { font-size: 1.5rem; font-weight: 700; color: #44403c; min-height: 2rem; }
 .dyb-verdict-bluff { color: #dc2626; }
 
+/* ── DYB Practice — the coach ────────────────────────────────────────────── */
+.dyb-coach { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: 16px; background: #fff;
+             box-shadow: 0 1px 3px rgba(60, 40, 20, 0.15); }
+.dyb-coach-step { flex-shrink: 0; margin-top: 2px; padding: 2px 7px; border-radius: 999px; background: #6B5744; color: #fff; font-size: 10px; font-weight: 700; }
+.dyb-coach p { font-size: 14px; color: #44382c; }
+
 /* ── Team score boxes — twin transition ──────────────────────────────────── */
 .team-box {
   border: 2px solid transparent;

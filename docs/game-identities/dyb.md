@@ -322,7 +322,23 @@ Done
 How to Play 🎲
 A bluffing game where every claim must be worth believing.
 The Rules
+Practice
 The Dice
+```
+
+```copy
+# dyb-how-to-overlay — Practice
+Hold the cup to shake, let go to throw.
+Two 3s, and a 1. In Classic Wilds, 1s count as any face, so you really hold three 3s.
+You go first. Tap 3, then + up to three 3s. You can back that yourself.
+Your claim is on the table. Now watch the others climb.
+Sylvia climbs to four 3s. She only needs one more from the ten dice you can't see. Likely.
+Sam jumps to seven 3s. The other cups would need four of their ten. A stretch. Call the Bluff, or climb higher?
+Only five 3s. Sam over-reached, so Sam loses a die.
+Sylvia called you. Only five 3s on the table. Climbing on a stretch is how you plunge.
+That's The Bluff. A real game runs until one climber is left.
+Next
+Practice again
 ```
 
 ```copy

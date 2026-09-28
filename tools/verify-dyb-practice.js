@@ -107,6 +107,46 @@ drive(S.dybPracticeInit(), [{ type: 'thrown' }, { type: 'next' }, { type: 'face'
 check('no packet was sent', sends, 0);
 check('live claim, history and hand are untouched', run('[dybCurrentQty, dybCurrentFace, dybAllegationHistory.length, dybMyRoll.join()]'), [4, 5, 1, '6,6,2']);
 
+section('The driver — real renders, its own timers, stops clean (Review Focus 5)');
+{
+  const byId = {};
+  const mk = () => {
+    const el = { style: {}, dataset: {}, className: '', textContent: '', innerHTML: '', children: [],
+                 addEventListener() {}, querySelector: () => null, querySelectorAll: () => [], firstElementChild: null };
+    el.classList = { add() {}, remove() {}, contains: () => false };
+    return el;
+  };
+  S.document.getElementById = id => byId[id] || (byId[id] = mk());
+  S.document.querySelectorAll = () => [];
+  S.document.querySelector = () => null;
+  const pending = new Map(); let seq = 0;
+  S.setTimeout = (fn, ms) => { pending.set(++seq, fn); return seq; };
+  S.clearTimeout = h => pending.delete(h);
+  const fire = () => { let g = 0; while (pending.size && g++ < 200) { const [h, fn] = pending.entries().next().value; pending.delete(h); fn(); } };
+  run(`dybAnimTimers.length = 0;`);
+  sends = 0;
+  S.dybSetHowToTab('practice');
+  check('opening the tab starts on the shake', run('dybPr.step'), 'shake');
+  S.dybPracticeThrow(); fire();
+  check('the throw lands and reading begins', run('dybPr.step'), 'read');
+  check('the table rendered through dybRenderTable', byId['dyb-pr-table'].innerHTML.includes('dyb-climbers'), true);
+  S.dybPracticeDispatch({ type: 'next' });
+  ['face', 'inc', 'inc'].forEach((a, i) => S.dybPracticeAct(a, a === 'face' ? { face: '3' } : {}));
+  S.dybPracticeAct('climb', {});
+  check('watching: one pending beat', pending.size, 1);
+  S.dybPracticeAct('view', { view: 'close' });
+  check('a view tap while watching does not queue a second beat', pending.size, 1);
+  fire();
+  check('the others climbed on their own timers; your call', run('dybPr.step'), 'decide');
+  S.dybPracticeAct('call', {});
+  check('the reveal is running on the Practice bag', [run('dybPr.step'), run('dybPrTimers.length') > 0], ['reveal', true]);
+  check('…and never on the live bag', run('dybAnimTimers.length'), 0);
+  S.dybSetHowToTab('rules');                                // tab away mid-reveal
+  check('tabbing away stops Practice and clears its timers', [run('dybPr'), run('dybPrTimers.length'), pending.size], [null, 0, 0]);
+  check('still no packet sent', sends, 0);
+  check('live state still untouched', run('[dybCurrentQty, dybCurrentFace, dybMyRoll.join()]'), [4, 5, '6,6,2']);
+}
+
 // ── Task 16 appends the driver section above this line ─────────────────────
 
 console.log(`\n${failures ? `${failures} FAILED` : 'ALL PASS'}`);

@@ -112,8 +112,6 @@ function dybLater(bag, fn, ms) {
 }
 function dybStopBag(bag) { bag.forEach(h => clearTimeout(h)); bag.length = 0; }
 function dybStopChoreography() { dybStopBag(dybAnimTimers); dybShakeHeld = false; }
-// Replaced in Task 16.
-function dybPracticeStop() { dybStopBag(dybPrTimers); }
 
 // ── Init ─────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
@@ -145,6 +143,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const dybCloseDice = document.getElementById('btn-dyb-howto-close-dice');
   if (dybCloseDice) dybCloseDice.addEventListener('click', () => {
     playDone();
+    dybPracticeStop();
     document.getElementById('dyb-how-to-overlay').style.display = 'none';
   });
   document.getElementById('btn-dyb-menu-settings').addEventListener('click', () => {
@@ -164,6 +163,24 @@ document.addEventListener('DOMContentLoaded', () => {
   // ── How-to overlay
   document.getElementById('btn-dyb-howto-close').addEventListener('click', () => {
     playDone();
+    dybPracticeStop();
+    document.getElementById('dyb-how-to-overlay').style.display = 'none';
+  });
+
+  // ── Practice tab
+  const dybPrStage = document.getElementById('dyb-pr-shake');
+  dybPrStage.addEventListener('pointerdown', e => {
+    if (!dybPr || dybPr.step !== 'shake') return;
+    e.preventDefault();
+    const cup = document.getElementById('dyb-pr-cup').firstElementChild;
+    if (cup && cup.classList && !dybReducedMotion()) cup.classList.add('rattle');
+    dybSound('rattle');
+  });
+  ['pointerup', 'pointercancel'].forEach(ev => dybPrStage.addEventListener(ev, dybPracticeThrow));
+  document.getElementById('btn-dyb-pr-next').addEventListener('click', () => { playDone(); dybPracticeDispatch({ type: 'next' }); });
+  document.getElementById('btn-dyb-pr-again').addEventListener('click', () => { playLaunch(); dybPracticeStart(); });
+  document.getElementById('btn-dyb-howto-close-practice').addEventListener('click', () => {
+    playDone(); dybPracticeStop();
     document.getElementById('dyb-how-to-overlay').style.display = 'none';
   });
 
@@ -1713,23 +1730,88 @@ function dybDieBackHTML() { return dybCupMarkup(dybActiveSet()); }
 // are not shown here. Their identity is the engine's frame plus live per-die state
 // (an unassigned Slick shows the auto-rolled face you are about to choose), which a
 // static reference tile would misrepresent. They are previewed in play under Sylly Mode.
-function dybOpenHowTo(tab) {
-  dybSetHowToTab(tab || 'rules');
+function dybOpenHowTo(tab, highlightId) {
+  dybSetHowToTab(tab || 'rules', highlightId);
   const inner = document.querySelector('#dyb-how-to-overlay .overlay-data-inner');
   if (inner) inner.scrollTop = 0;
   document.getElementById('dyb-how-to-overlay').style.display = 'flex';
 }
-
-function dybSetHowToTab(tab) {
-  const rules = document.getElementById('dyb-how-to-body');
-  const dice  = document.getElementById('dyb-how-to-dice');
-  if (rules) rules.style.display = tab === 'dice' ? 'none' : 'flex';
-  if (dice)  dice.style.display  = tab === 'dice' ? 'flex' : 'none';
+function dybSetHowToTab(tab, highlightId) {
+  const bodies = { rules: 'dyb-how-to-body', practice: 'dyb-how-to-practice', dice: 'dyb-how-to-dice' };
+  Object.entries(bodies).forEach(([k, id]) => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = k === tab ? 'flex' : 'none';
+  });
   document.querySelectorAll('[data-dyb-howto-tab]').forEach(b => {
-    b.classList.remove('pill-active-dyb');       // .pill is the base — never removed
+    b.classList.remove('pill-active-dyb');                    // .pill is the base — never removed
     if (b.dataset.dybHowtoTab === tab) b.classList.add('pill-active-dyb');
   });
-  if (tab === 'dice') dybRenderDiceGallery();
+  if (tab === 'practice') dybPracticeStart(); else dybPracticeStop();
+  if (tab === 'dice') dybRenderDiceGallery(highlightId);
+}
+
+// ── Practice driver ─────────────────────────────────────────────────────────
+let dybPr = null;   // the Practice state; null whenever the tab is not showing
+function dybPracticeStart() { dybPracticeStop(); dybPr = dybPracticeInit(); dybPracticeRender(); }
+function dybPracticeStop() { dybStopBag(dybPrTimers); dybPr = null; }
+function dybPracticeDispatch(ev) {
+  if (!dybPr) return;
+  const prev = dybPr;
+  dybPr = dybPracticeReduce(dybPr, ev);
+  if (dybPr !== prev) dybPracticeRender(prev);
+}
+function dybPracticeAct(act, data) {
+  if (act === 'face') { playPillClick(); dybPracticeDispatch({ type: 'face', face: parseInt(data.face, 10) }); }
+  else if (act === 'inc' || act === 'dec') { playPillClick(); dybPracticeDispatch({ type: act }); }
+  else if (act === 'view') { playPillClick(); dybPracticeDispatch({ type: 'view', view: data.view }); }
+  else if (act === 'climb') { playDone(); dybPracticeDispatch({ type: 'climb' }); }
+  else if (act === 'call') { playExit(); dybPracticeDispatch({ type: 'call' }); }
+}
+function dybPracticeRender(prev) {
+  const s = dybPr;
+  if (!s) return;
+  const g = id => document.getElementById(id);
+  const show = (id, on) => { const el = g(id); if (el) el.style.display = on ? 'flex' : 'none'; };
+  g('dyb-pr-step').textContent = `${DYB_PR_STEPS.indexOf(s.step) + 1} / ${DYB_PR_STEPS.length}`;
+  g('dyb-pr-coach').textContent = dybPracticeCoach(s);
+  const set = dybActiveSet();
+  show('dyb-pr-shake', s.step === 'shake');
+  show('dyb-pr-table', ['read', 'open', 'watch', 'decide'].includes(s.step));
+  show('dyb-pr-reveal', s.step === 'reveal' || s.step === 'done');
+  g('btn-dyb-pr-next').style.display = s.step === 'read' ? 'flex' : 'none';
+  show('dyb-pr-done', s.step === 'done');
+
+  if (s.step === 'shake' && (!prev || prev.step !== 'shake')) {
+    g('dyb-pr-cup').innerHTML = dybCupMarkup(set);
+    g('dyb-pr-dice').innerHTML = '';
+  }
+  if (['read', 'open', 'watch', 'decide'].includes(s.step)) {
+    dybRenderTable(g('dyb-pr-table'), dybPracticeModel(s), dybPracticeAct);
+  }
+  // One beat per climber: only when the watch starts or advances — a view tap re-renders
+  // the same beat and must not queue another.
+  if (s.step === 'watch' && (!prev || prev.step !== 'watch' || prev.watch !== s.watch)) {
+    dybLater(dybPrTimers, () => dybPracticeDispatch({ type: 'tick' }), s.watch ? 3400 : 2400);
+  }
+  if (s.step === 'reveal' && (!prev || prev.step !== 'reveal')) {
+    const o = dybPracticeOutcome(s);
+    const counts = [5, 5, 5]; counts[o.loser] -= 1;
+    const spec = dybRevealSpec({
+      n: 3, names: DYB_PRACTICE.names, tints: DYB_PRACTICE.tints, counts, footholds: false,
+      hands: dybPracticeHands(), rules: DYB_PRACTICE.rules, face: o.face, claimed: o.claimed, real: o.real,
+      bidder: o.bidder, challenger: o.challenger, loser: o.loser, eliminated: false, me: -1,
+    });
+    spec.players.forEach(p => { p.label = p.name; });            // "You", not "You (you)"
+    const els = { climbers: g('dyb-pr-rv-climbers'), claimed: g('dyb-pr-rv-claimed'), stage: g('dyb-pr-rv-stage'),
+                  real: g('dyb-pr-rv-real'), verdict: g('dyb-pr-rv-verdict'), loser: g('dyb-pr-rv-loser'), hands: g('dyb-pr-rv-hands') };
+    dybPlayReveal(els, spec, dybPrTimers, () => dybPracticeDispatch({ type: 'revealed' }));
+  }
+}
+function dybPracticeThrow() {
+  if (!dybPr || dybPr.step !== 'shake') return;
+  const hand = { roll: DYB_PRACTICE.hands[0], types: [], slicks: [], slickAssigned: [] };
+  const els = { cup: document.getElementById('dyb-pr-cup'), dice: document.getElementById('dyb-pr-dice') };
+  dybPlayThrow(els, hand, dybActiveSet(), DYB_PRACTICE.tints[0], dybPrTimers, () => dybPracticeDispatch({ type: 'thrown' }));
 }
 
 function dybRenderDiceGallery() {
