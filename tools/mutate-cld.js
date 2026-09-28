@@ -173,12 +173,42 @@ const M = [
 ['rng-warmup-removed', 'phys', [[
   '    for (let i = 0; i < 4; i++) step();',
   '    // MUTANT: no warm-up']]],
+
+// ── SW v244: the cue and the Arena's swap (verify-cld-practice.js) ──────────
+['cue-dead-zone-removed', 'game', [[
+  '  if (dist >= CLD_CUE_DEAD) dir = { x: ex / dist, y: ey / dist };',
+  '  if (dist > 0) dir = { x: ex / dist, y: ey / dist };']], 'practice'],
+
+['a-tap-arms-an-aim', 'game', [[
+  '  if (Math.hypot(now.x - down.x, now.y - down.y) * scale < CLD_CUE_TAP_PX) return null;',
+  '  // MUTANT: a tap arms']], 'practice'],
+
+['swap-never-restores-live', 'game', [[
+`  try { return fn(); }
+  finally {
+    cldPrSwapDepth--;
+    cldPrFloe = cldSwapOut();
+    cldSwapIn(live);
+  }`,
+`  const r = fn();
+  cldPrSwapDepth--;
+  cldPrFloe = cldSwapOut();
+  return r;`]], 'practice'],
+
+['swap-misses-a-global', 'game', [
+  ['    phase: cldPhase, powerLock: cldPowerLock,', '    phase: cldPhase,'],
+  ['  cldPhase = s.phase; cldPowerLock = s.powerLock;', '  cldPhase = s.phase;']], 'practice'],
 ];
+
+// Which harness a mutant is aimed at. The rules/sim mutants above run the loop
+// harness; the SW v244 cue / swap mutants at the end of M are claims about
+// verify-cld-practice.
+const HARNESS = { loop: 'tools/verify-cld-loop.js', practice: 'tools/verify-cld-practice.js' };
 
 console.log('Cold Shoulder — planted-drift run');
 console.log('='.repeat(58));
 const rows = [];
-for (const [name, which, edits] of M) {
+for (const [name, which, edits, harness] of M) {
   let src = SRC[which], missed = false;
   for (const [from, to] of edits) {
     if (src.indexOf(from) < 0) { missed = true; break; }
@@ -189,7 +219,7 @@ for (const [name, which, edits] of M) {
   fs.writeFileSync(file, src);
   const env = Object.assign({}, process.env);
   env[which === 'game' ? 'CLD_SRC' : 'CLD_PHYS_SRC'] = file;
-  const r = cp.spawnSync(process.execPath, [path.join(ROOT, 'tools/verify-cld-loop.js')],
+  const r = cp.spawnSync(process.execPath, [path.join(ROOT, HARNESS[harness || 'loop'])],
                          { env, encoding: 'utf8' });
   const out = (r.stdout || '') + (r.stderr || '');
   const m = out.match(/(\d+) CHECK\(S\) FAILED/);
