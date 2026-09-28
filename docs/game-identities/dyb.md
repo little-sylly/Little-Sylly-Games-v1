@@ -236,6 +236,9 @@ Claiming 1s switches wilds off for this Shake.
 # screen-dyb-showdown
 Reaching the Edge
 THE OVERLOOK
+Counting…
+CLAIM HOLDS
+BLUFF CALLED
 Next Shake →
 Waiting for host…
 ```

@@ -1647,6 +1647,24 @@ body.flash-red   { background-color: #fecaca; }
 .dyb-cup.lift { transform: translateY(-140%) rotate(-12deg); opacity: 0; }
 .dyb-shake-dice { position: relative; z-index: 1; display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; padding: 12px; }
 
+/* ── DYB reveal — The Overlook ───────────────────────────────────────────── */
+.dyb-reveal-slots { display: flex; flex-wrap: wrap; gap: 6px 8px; justify-content: center; min-height: 44px; }
+.dyb-slot { position: relative; flex-shrink: 0; width: var(--dyb-s); height: var(--dyb-s); border-radius: calc(var(--dyb-s) * 0.22);
+            outline: 2px dashed #a8998a; outline-offset: -2px; background: rgba(255, 255, 255, 0.35); }
+.dyb-slot.filled { outline-color: transparent; background: transparent; }
+.dyb-slot.knock > .dyb-die { animation: dybKnock 320ms ease-out forwards; }
+@keyframes dybKnock { to { transform: translateY(-10px) rotate(-25deg); opacity: 0; } }
+.dyb-die.lit { animation: dybPop 220ms ease-out; }
+@keyframes dybPop { 50% { transform: scale(1.15); } }
+.dyb-die.shudder { animation: dybShudder 300ms ease-in-out; }
+@keyframes dybShudder { 25% { transform: translateX(-3px); } 75% { transform: translateX(3px); } }
+.dyb-hands-lift { animation: dybHandsIn 600ms ease-out both; }
+@keyframes dybHandsIn { from { opacity: 0; transform: translateY(12px); } }
+.dyb-hand-row { padding: 8px 10px; border-radius: 16px; background: rgba(255, 255, 255, 0.55); border-left: 4px solid var(--dyb-tint); }
+.dyb-hand-row p { margin-bottom: 6px; font-size: 12px; font-weight: 600; color: #5c4b3b; }
+.dyb-verdict { font-size: 1.5rem; font-weight: 700; color: #44403c; min-height: 2rem; }
+.dyb-verdict-bluff { color: #dc2626; }
+
 /* ── Team score boxes — twin transition ──────────────────────────────────── */
 .team-box {
   border: 2px solid transparent;

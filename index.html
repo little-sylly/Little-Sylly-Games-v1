@@ -6990,10 +6990,10 @@ Deal the Dice
     </div>
   </section>
 
-  <!-- DYB SHOWDOWN -->
+  <!-- DYB SHOWDOWN — The Overlook: cups lift, fog lifts, the count fills the claim -->
   <section id="screen-dyb-showdown" style="display:none"
-    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
-    <div class="flex flex-col w-full max-w-sm gap-4">
+    class="dyb-warm flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-3">
       <div class="flex items-center justify-between">
         <p class="text-xs font-semibold uppercase tracking-widest dyb-label">Reaching the Edge</p>
         <div class="flex items-center gap-2">
@@ -7002,10 +7002,12 @@ Deal the Dice
         </div>
       </div>
       <h2 class="text-2xl font-bold text-stone-800 text-center">THE OVERLOOK</h2>
-      <div class="bg-white rounded-2xl p-5 shadow-sm text-center flex flex-col gap-2">
-        <p id="dyb-showdown-claimed" class="text-2xl font-bold text-stone-800"></p>
-        <p id="dyb-showdown-real" class="text-xl font-bold text-stone-800"></p>
-        <p id="dyb-showdown-verdict" class="text-2xl font-bold text-stone-700"></p>
+      <div id="dyb-showdown-climbers" class="dyb-climbers"></div>
+      <p id="dyb-showdown-claimed" class="dyb-claimline justify-center"></p>
+      <div class="dyb-stage"><div id="dyb-showdown-stage" class="dyb-reveal-slots"></div></div>
+      <div class="text-center">
+        <p id="dyb-showdown-real" class="text-lg font-bold text-stone-700"></p>
+        <p id="dyb-showdown-verdict" class="dyb-verdict"></p>
         <p id="dyb-showdown-loser" class="text-stone-500 text-sm mt-1"></p>
       </div>
       <div id="dyb-showdown-hands" class="flex flex-col gap-2"></div>

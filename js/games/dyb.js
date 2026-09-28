@@ -75,6 +75,11 @@ const DYB_COPY = {
   enough:    'enough on your own',
   shakeHint: 'Hold the cup to shake, let go to throw.',
   yourHand:  'Your hand.',
+  counting:  'Counting…',
+  realCount: 'Real count:',
+  holds:     'CLAIM HOLDS',
+  bluff:     'BLUFF CALLED',
+  called:    'called',
 };
 const DYB_NUM_WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];
 function dybBidText(qty, face) { return `${DYB_NUM_WORDS[qty] || qty} ${face}${qty === 1 ? '' : 's'}`; }
@@ -879,7 +884,7 @@ function dybApplyShowdown(data) {
   showScreen('screen-dyb-showdown');
   dybRenderShowdownScreen(data, () => {
     if (data.gameOver && window.syllyMultiplayerMode !== 'client') {
-      setTimeout(() => { // pause after tally animation before advancing to gameover
+      dybLater(dybAnimTimers, () => { // pause after the verdict before The Summit — bagged, so a quit cancels it
         const goPayload = {
           action: 'DYB_GAMEOVER',
           winnerIdx: data.winnerIdx,
@@ -898,106 +903,164 @@ function dybApplyShowdown(data) {
   });
 }
 
+// ── The Overlook — a plan (pure) and its choreography ──────────────────────
+function dybRevealPlan(events, claimed) {
+  const steps = [];
+  let filled = 0, peak = 0;
+  events.forEach(e => {
+    if (e.delta > 0) {
+      for (let k = 0; k < e.delta; k++) { steps.push({ kind: 'fill', pIdx: e.pIdx, dieIdx: e.dieIdx, slot: filled }); filled++; }
+      peak = Math.max(peak, filled);
+    } else if (e.delta === 0) {
+      steps.push({ kind: 'shudder', pIdx: e.pIdx, dieIdx: e.dieIdx, slot: -1 });
+    } else if (filled > 0) {
+      filled--;
+      steps.push({ kind: 'knock', pIdx: e.pIdx, dieIdx: e.dieIdx, slot: filled });
+    } else {
+      steps.push({ kind: 'knock', pIdx: e.pIdx, dieIdx: e.dieIdx, slot: -1 });
+    }
+  });
+  return { steps, slots: Math.max(claimed, peak), filled, holds: dybCountSum(events) >= claimed };
+}
+function dybRevealDelay(i) { return Math.max(140, 400 - i * 30); }
+
+function dybRevealSpec(o) {
+  const set = dybActiveSet();
+  const players = o.names.map((name, idx) => ({
+    idx, name, label: idx === o.me ? `${name} (you)` : name, tint: o.tints[idx], count: o.counts[idx],
+    footholds: o.footholds, out: o.counts[idx] <= 0 && idx !== o.loser, active: false, you: idx === o.me,
+  }));
+  const loserName = o.names[o.loser] || 'Player';
+  const loserLine = o.eliminated ? `${loserName} is out!` : `${loserName} ${o.footholds ? 'loses a foothold.' : 'loses a die.'}`;
+  return Object.assign({ set, players, loserLine, events: dybCountEvents(o.face, o.hands, o.rules) }, o);
+}
+
+function dybRevealHandsHTML(spec) {
+  let html = '';
+  for (let p = 0; p < spec.n; p++) {
+    const roll = (spec.hands.rolls || {})[p];
+    if (!roll) continue;
+    const types = (spec.hands.types || {})[p] || [], slicks = (spec.hands.slicks || {})[p] || [];
+    const phantoms = (spec.hands.phantoms || {})[p] || [];
+    const dice = roll.map((val, d) => {
+      const s = slicks[d];
+      return dybDieHTML(val, types[d] || 'standard', s === undefined || s === null ? -1 : s, -1, true, phantoms[d] || null, spec.tints[p], 34)
+        .replace('<div class="dyb-die ', `<div data-p="${p}" data-d="${d}" class="dyb-die dyb-die-dim `);
+    }).join('');
+    html += `<div class="dyb-hand-row dyb-hands-lift" style="--dyb-tint:${dybTintHex(spec.set, spec.tints[p])}">
+      <p>${dybEsc(spec.players[p].label)}</p><div class="flex gap-2 flex-wrap">${dice}</div></div>`;
+  }
+  return html;
+}
+
+function dybRetrigger(el, cls) { if (!el || !el.classList) return; el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); }
+
+function dybFlyInto(slotEl, srcEl, html, reduced) {
+  slotEl.innerHTML = html;
+  const die = slotEl.firstElementChild;
+  if (!die || reduced || !srcEl || !srcEl.getBoundingClientRect || !slotEl.getBoundingClientRect) return;
+  const a = srcEl.getBoundingClientRect(), b = slotEl.getBoundingClientRect();
+  if (!a.width || !b.width) return;
+  die.style.transform = `translate(${a.left - b.left}px, ${a.top - b.top}px) scale(${a.width / b.width})`;
+  void die.offsetWidth;
+  die.style.transition = 'transform 320ms cubic-bezier(0.2, 0.7, 0.25, 1)';
+  die.style.transform = '';
+}
+
+function dybPlayReveal(els, spec, bag, onDone) {
+  const reduced = dybReducedMotion();
+  const plan = dybRevealPlan(spec.events, spec.claimed);
+  const px = 30;
+  const q = (box, sel) => (box.querySelector ? box.querySelector(sel) : null);
+  els.climbers.innerHTML = dybClimbersHTML(spec.players, spec.set, spec.loser);
+  const bidder = spec.players[spec.bidder], chall = spec.players[spec.challenger];
+  els.claimed.innerHTML = `${bidder ? `<b>${dybEsc(bidder.name)}</b> claimed ` : ''}<b>${dybBidText(spec.claimed, spec.face)}</b>` +
+                          (chall ? ` · <b>${dybEsc(chall.name)}</b> ${DYB_COPY.called}` : '');
+  els.stage.innerHTML = Array.from({ length: plan.slots }, (_, i) =>
+    `<span class="dyb-slot" data-slot="${i}" style="--dyb-s:${px}px"></span>`).join('');
+  els.real.textContent = DYB_COPY.counting;
+  els.verdict.textContent = ''; els.verdict.className = 'dyb-verdict';
+  els.loser.textContent = '';
+  els.hands.innerHTML = dybRevealHandsHTML(spec);          // cups lift (rows rise), then the mist lifts (CSS)
+  let shown = 0;
+  const finish = () => {
+    els.real.textContent = `${DYB_COPY.realCount} ${spec.real}`;
+    els.verdict.textContent = plan.holds ? DYB_COPY.holds : DYB_COPY.bluff;
+    els.verdict.className = plan.holds ? 'dyb-verdict' : 'dyb-verdict dyb-verdict-bluff';
+    els.loser.textContent = spec.loserLine;
+    if (els.hands.querySelectorAll) els.hands.querySelectorAll('.dyb-die-dim').forEach(el => el.classList.remove('dyb-die-dim'));
+    const fall = q(els.climbers, '.dyb-mini-plunge');
+    if (fall && fall.classList) fall.classList.add('go');
+    dybSound(plan.holds ? 'holds' : 'bluff');
+    if (onDone) onDone();
+  };
+  const step = i => {
+    if (i >= plan.steps.length) { dybLater(bag, finish, 250); return; }
+    const st = plan.steps[i];
+    const src = q(els.hands, `[data-p="${st.pIdx}"][data-d="${st.dieIdx}"]`);
+    const slot = st.slot >= 0 ? q(els.stage, `[data-slot="${st.slot}"]`) : null;
+    if (src && src.classList) src.classList.remove('dyb-die-dim');
+    if (st.kind === 'fill') {
+      shown++;
+      dybRetrigger(src, 'lit');
+      if (slot) {
+        slot.classList.add('filled');
+        const roll = spec.hands.rolls[st.pIdx], d = st.dieIdx;
+        const s = ((spec.hands.slicks || {})[st.pIdx] || [])[d];
+        dybFlyInto(slot, src, dybDieHTML(roll[d], ((spec.hands.types || {})[st.pIdx] || [])[d] || 'standard',
+          s === undefined || s === null ? -1 : s, -1, true, ((spec.hands.phantoms || {})[st.pIdx] || [])[d] || null, spec.tints[st.pIdx], px), src, reduced);
+      }
+    } else if (st.kind === 'knock') {
+      shown = Math.max(0, shown - 1);
+      dybRetrigger(src, 'shudder');
+      if (slot) {
+        slot.classList.add('knock');
+        // An empty dash means "the claim fell short" — so a slot above the claim that a
+        // Snake empties goes away rather than reading as a gap. (Fills all precede knocks.)
+        const beyond = st.slot >= spec.claimed;
+        dybLater(bag, () => {
+          if (beyond && slot.remove) { slot.remove(); return; }
+          slot.innerHTML = ''; slot.classList.remove('filled', 'knock');
+        }, 320);
+      }
+    } else {
+      dybRetrigger(src, 'shudder');
+    }
+    els.real.textContent = `${DYB_COPY.realCount} ${shown}`;
+    dybSound('count');
+    dybLater(bag, () => step(i + 1), dybRevealDelay(i));
+  };
+  dybLater(bag, () => step(0), 1100);     // 0.6 s cups + 0.5 s fog
+}
+
+function dybShowdownEls() {
+  const g = id => document.getElementById(id);
+  return { climbers: g('dyb-showdown-climbers'), claimed: g('dyb-showdown-claimed'), stage: g('dyb-showdown-stage'),
+           real: g('dyb-showdown-real'), verdict: g('dyb-showdown-verdict'), loser: g('dyb-showdown-loser'), hands: g('dyb-showdown-hands') };
+}
+
 function dybRenderShowdownScreen(data, onDone) {
-  const faceName   = data.face;
-  const claimed    = data.claimed;
-  const real       = data.real;
-  const held       = real >= claimed;
-  const loserName  = data.playerNames[data.loserIdx] || 'Player';
-  const eliminated = data.eliminatedIdx !== -1;
-
-  document.getElementById('dyb-showdown-claimed').textContent = `Claimed: ${claimed} × [${faceName}]`;
-  document.getElementById('dyb-showdown-real').textContent    = 'Counting…';
-  document.getElementById('dyb-showdown-verdict').textContent = '';
-  document.getElementById('dyb-showdown-loser').textContent   = '';
-
-  dybRenderAllHandsOnShowdown(); // reveal all hands immediately — the cup is slammed, all dice start dimmed
-
-  const container    = document.getElementById('dyb-showdown-hands');
-  const countingDice = dybGetCountingDice(data.face);
-
-  // Hide action buttons until animation completes
-  document.getElementById('btn-dyb-next-shake').style.display          = 'none';
+  dybStopChoreography();
+  const last = dybAllegationHistory[dybAllegationHistory.length - 1];
+  const names = data.playerNames || dybPlayerNames;
+  const spec = dybRevealSpec({
+    n: dybPlayerCount, names, tints: names.map((_, i) => dybTintFor(i)),
+    counts: names.map((_, i) => dybFootholdsMode ? ((data.newLives || [])[i] || 0) : ((data.newDiceInHand || [])[i] || 0)),
+    footholds: dybFootholdsMode, hands: dybHandsNow(), rules: dybRulesNow(),
+    face: data.face, claimed: data.claimed, real: data.real,
+    bidder: last ? last.playerIdx : -1, challenger: dybCurrentBidderIdx, loser: data.loserIdx,
+    eliminated: data.eliminatedIdx !== -1, me: mpMyPlayerIdx,
+  });
+  document.getElementById('btn-dyb-next-shake').style.display = 'none';
   document.getElementById('dyb-showdown-client-waiting').style.display = 'none';
-
-  const reveal = () => {
-    document.getElementById('dyb-showdown-verdict').textContent = held ? 'CLAIM HOLDS' : 'BLUFF CALLED';
-    document.getElementById('dyb-showdown-verdict').className   = held
-      ? 'text-2xl font-bold text-stone-700'
-      : 'text-2xl font-bold text-red-600';
-    const _loseMsg = dybFootholdsMode ? 'loses a foothold.' : 'loses a die.';
-    document.getElementById('dyb-showdown-loser').textContent =
-      eliminated ? `${loserName} is out!` : `${loserName} ${_loseMsg}`;
-    // un-dim all remaining dice so the full table is visible at the verdict
-    container.querySelectorAll('.dyb-die-dim').forEach(el => el.classList.remove('dyb-die-dim'));
-    playBoing();
+  dybPlayReveal(dybShowdownEls(), spec, dybAnimTimers, () => {
     if (window.syllyMultiplayerMode !== 'client') {
       document.getElementById('btn-dyb-next-shake').style.display = data.gameOver ? 'none' : 'flex';
     } else {
       document.getElementById('dyb-showdown-client-waiting').style.display = 'block';
     }
     if (onDone) onDone();
-  };
-
-  if (real <= 0) {
-    setTimeout(reveal, 600); // no count to animate — short pause before verdict
-    return;
-  }
-
-  let count = 0;
-  let highlightIdx = 0;
-  const step = () => {
-    count++;
-    document.getElementById('dyb-showdown-real').textContent = `Real count: ${count}`;
-    // un-dim the next counting die so the tally is visual
-    if (highlightIdx < countingDice.length) {
-      const { pIdx, dieIdx } = countingDice[highlightIdx];
-      const el = container.querySelector(`[data-p="${pIdx}"][data-d="${dieIdx}"]`);
-      if (el) el.classList.remove('dyb-die-dim');
-      highlightIdx++;
-    }
-    playTick();
-    if (count < real) {
-      setTimeout(step, 400); // 400ms per tick
-    } else {
-      setTimeout(reveal, 200); // brief pause after final tick before verdict
-    }
-  };
-  setTimeout(step, 400); // initial 400ms before first tick
-}
-
-function dybRenderAllHandsOnShowdown() {
-  const container = document.getElementById('dyb-showdown-hands');
-  container.innerHTML = '';
-  for (let i = 0; i < dybPlayerCount; i++) {
-    if (!dybAllRolls[i]) continue;
-    const name    = dybPlayerNames[i] || ('P' + (i + 1));
-    const roll    = dybAllRolls[i];
-    const types   = dybAllSpecialTypes[i]  || [];
-    const slicks  = dybAllSlickFaces[i]    || [];
-    const phantoms = dybAllPhantomTypes[i] || [];
-    const diceHtml = roll.map((val, j) => {
-      const type = types[j] || 'standard';
-      // dieIdx=-1 = reveal mode; pass phantom secondary for compound unmask
-      return dybDieHTML(val, type, slicks[j] !== undefined ? slicks[j] : -1, -1, true, phantoms[j] || null)
-        .replace('<div class="dyb-die ', `<div data-p="${i}" data-d="${j}" class="dyb-die dyb-die-dim `);
-    }).join('');
-    container.innerHTML += `
-      <div class="bg-white rounded-2xl p-3 shadow-sm">
-        <p class="text-xs font-semibold text-stone-500 mb-2">${name}</p>
-        <div class="flex gap-2 flex-wrap">${diceHtml}</div>
-      </div>`;
-  }
-}
-
-// Returns ordered list of {pIdx, dieIdx} for dice that contribute positively to a face count.
-// Loaded dice appear twice (they contribute +2). Snake/Cracked/negative phantoms are excluded.
-function dybGetCountingDice(face) {
-  const out = [];
-  dybCountEvents(face, dybHandsNow(), dybRulesNow()).forEach(e => {
-    for (let k = 0; k < e.delta; k++) out.push({ pIdx: e.pIdx, dieIdx: e.dieIdx });
   });
-  return out;
 }
 
 function dybAdvanceFromShowdown() {

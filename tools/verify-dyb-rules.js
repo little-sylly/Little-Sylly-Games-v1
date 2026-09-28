@@ -187,7 +187,6 @@ run(`dybPlayerCount = 2; dybWildcardsStyle = 'classic'; dybOnesStripped = false;
      dybAllRolls = [[4, 1, 6], [4, 4]]; dybAllSpecialTypes = [['standard', 'standard', 'snake'], ['loaded', 'standard']];
      dybAllSlickFaces = [[-1, -1, -1], [-1, -1]]; dybAllPhantomTypes = [[null, null, null], [null, null]];`);
 check('live count of 4s: 4 + wild 1 + loaded 4 (+2) + 4 = 5', S.dybComputeRealCount(4), 5);
-check('dybGetCountingDice lists a Loaded die twice', S.dybGetCountingDice(4).length, 5);
 
 section('dybYouHold — only what the player can see');
 const H = (roll, types = [], slicks = []) => ({ roll, types, slicks });
@@ -359,6 +358,54 @@ section('The shake — press, release, throw');
   S.dybDoRoll();
   check('Ready without shaking rolls at once', run('dybMyRoll.length'), 4);
   S.dybStopChoreography();
+}
+
+section('dybRevealPlan — the count as slots');
+{
+  let bad = 0;
+  for (let seed = 1; seed <= 300; seed++) {
+    const t = randomTable(rng(seed + 1000));
+    for (const face of F) {
+      const evs = S.dybCountEvents(face, t, R('classic'));
+      const sum = S.dybCountSum(evs), claimed = 1 + (seed % 9);
+      const p = S.dybRevealPlan(evs, claimed);
+      const fills = p.steps.filter(s => s.kind === 'fill').map(s => s.slot);
+      const pos = evs.filter(e => e.delta > 0).reduce((a, e) => a + e.delta, 0);
+      if (p.filled !== Math.max(0, sum) || p.holds !== (sum >= claimed) ||
+          p.slots !== Math.max(claimed, pos) || fills.some((s, i) => s !== i)) bad++;
+    }
+  }
+  check('filled = max(0, real), holds = real ≥ claim, slots fit every fill, fills run 0,1,2…', bad, 0);
+}
+check('a Loaded die fills two slots', S.dybRevealPlan([{ pIdx: 0, dieIdx: 0, delta: 2 }], 3).steps.map(s => s.slot), [0, 1]);
+check('a Snake knocks the last filled slot', S.dybRevealPlan([{ pIdx: 0, dieIdx: 0, delta: 1 }, { pIdx: 1, dieIdx: 0, delta: -1 }], 2).steps.map(s => [s.kind, s.slot]), [['fill', 0], ['knock', 0]]);
+check('ticks speed up and floor at 140 ms', [S.dybRevealDelay(0), S.dybRevealDelay(5), S.dybRevealDelay(50)], [400, 250, 140]);
+{
+  // The game-over hand-off after the reveal is a choreography timer: a quit inside
+  // that window must cancel it, or The Summit paints over the lobby.
+  const pending = new Map(); let seq = 0;
+  S.setTimeout = (fn, ms) => { pending.set(++seq, { fn, ms }); return seq; };
+  S.clearTimeout = h => pending.delete(h);
+  let shown = 0;
+  const realShow = S.dybShowGameover, realSend = S.mpSendEnvelope;
+  S.dybShowGameover = () => { shown++; }; S.mpSendEnvelope = () => {};
+  run(`dybPlayerCount = 2; dybPlayerNames = ['Ann', 'Bo']; dybFootholdsMode = false; dybActivePlayers = [0, 1];
+       dybAllegationHistory = [{ playerIdx: 0, qty: 2, face: 3 }]; dybCurrentBidderIdx = 1;`);
+  S.dybApplyShowdown({ face: 3, claimed: 2, real: 1, loserIdx: 0, eliminatedIdx: 0, newDiceInHand: [0, 3], newLives: [],
+    allRolls: [[3], [3, 4, 5]], allSpecialTypes: [['standard'], ['standard', 'standard', 'standard']], allSlickFaces: [[-1], [-1, -1, -1]],
+    allPhantomTypes: [[null], [null, null, null]], playerNames: ['Ann', 'Bo'], gameOver: true, winnerIdx: 1, eliminationOrder: [0] });
+  // Play the reveal to its verdict: fire every timer except the 1.5 s game-over hand-off.
+  for (let guard = 0; guard < 500; guard++) {
+    const next = [...pending.entries()].find(([, t]) => t.ms !== 1500);
+    if (!next) break;
+    pending.delete(next[0]); next[1].fn();
+  }
+  const handOff = [...pending.values()].filter(t => t.ms === 1500).length;
+  S.dybStopChoreography();                          // the quit
+  for (const t of [...pending.values()]) t.fn();
+  check('the reveal reaches the game-over hand-off, and a quit then cancels it', [handOff, shown], [1, 0]);
+  S.dybShowGameover = realShow; S.mpSendEnvelope = realSend;
+  S.setTimeout = () => 0; S.clearTimeout = () => {};
 }
 
 // ── Later tasks append their sections above this line ──────────────────────
