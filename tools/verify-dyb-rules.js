@@ -189,6 +189,28 @@ run(`dybPlayerCount = 2; dybWildcardsStyle = 'classic'; dybOnesStripped = false;
 check('live count of 4s: 4 + wild 1 + loaded 4 (+2) + 4 = 5', S.dybComputeRealCount(4), 5);
 check('dybGetCountingDice lists a Loaded die twice', S.dybGetCountingDice(4).length, 5);
 
+section('dybYouHold — only what the player can see');
+const H = (roll, types = [], slicks = []) => ({ roll, types, slicks });
+check('Classic: two 3s and a wild 1 hold three 3s', S.dybYouHold(H([3, 3, 1, 5, 2]), 3, R('classic')).total, 3);
+check('…the 1 is flagged wild', S.dybYouHold(H([3, 3, 1, 5, 2]), 3, R('classic')).dice.map(d => d.wild), [false, false, true]);
+check('Strict: the 1 is just a 1', S.dybYouHold(H([3, 3, 1, 5, 2]), 3, R('strict')).total, 2);
+check('Volatile stripped: no wilds', S.dybYouHold(H([3, 3, 1]), 3, R('volatile', true)).total, 2);
+check('a claim of 1s: a 1 is not wild for itself', S.dybYouHold(H([1, 1, 4]), 1, R('volatile')).dice.map(d => d.wild), [false, false]);
+check('Loaded weighs 2', S.dybYouHold(H([4, 4], ['loaded', 'standard']), 4, R('strict')).total, 3);
+check('Cracked and Snake fill nothing', S.dybYouHold(H([4, 4, 4], ['cracked', 'snake', 'standard']), 4, R('strict')).total, 1);
+check('a Slick counts toward its shown face', S.dybYouHold(H([2], ['slick'], [5]), 5, R('strict')).total, 1);
+check('…and not toward the face it rolled', S.dybYouHold(H([2], ['slick'], [5]), 2, R('strict')).total, 0);
+check('a Slick picked later follows the pick (DYB_SLICK_UPDATE)', S.dybYouHold(H([2], ['slick'], [6]), 6, R('classic')).total, 1);
+{
+  let leaks = 0;
+  for (const sec of [null, 'loaded', 'slick', 'cracked', 'snake']) for (const face of F) {
+    const seen = new Set();
+    for (const v of F) seen.add(JSON.stringify(S.dybYouHold(H([v, 3], ['phantom', 'standard'], [-1, -1]), face, R('classic'))));
+    if (seen.size !== 1) leaks++;
+  }
+  check('a Phantom never counts: its hidden value never changes the result', leaks, 0);
+}
+
 // ── Later tasks append their sections above this line ──────────────────────
 
 console.log(`\n${failures ? `${failures} FAILED` : 'ALL PASS'}`);

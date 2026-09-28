@@ -1330,6 +1330,28 @@ function dybCountSum(events) { return events.reduce((s, e) => s + e.delta, 0); }
 
 function dybComputeRealCount(face) { return dybCountSum(dybCountEvents(face, dybHandsNow(), dybRulesNow())); }
 
+// ── What THIS player can vouch for ──────────────────────────────────────────
+// From what they can SEE: a Phantom never counts — its face is hidden from its
+// owner, and counting it would leak it. Cracked and Snake fill nothing.
+function dybMyHand() {
+  return { roll: dybMyRoll, types: dybSpecialTypes, slicks: dybSlickFaces, slickAssigned: dybSlickAssigned };
+}
+function dybYouHold(hand, face, rules) {
+  const wild = rules.wildcards !== 'strict' && !rules.onesStripped;
+  const dice = [];
+  (hand.roll || []).forEach((val, dieIdx) => {
+    const type = (hand.types || [])[dieIdx] || 'standard';
+    if (type === 'phantom' || type === 'cracked' || type === 'snake') return;
+    if (type === 'slick') {
+      if ((hand.slicks || [])[dieIdx] === face) dice.push({ dieIdx, face, weight: 1, wild: false });
+      return;
+    }
+    const isWild = wild && val === 1 && face !== 1;
+    if (val === face || isWild) dice.push({ dieIdx, face: val, weight: type === 'loaded' ? 2 : 1, wild: isWild });
+  });
+  return { total: dice.reduce((s, d) => s + d.weight, 0), dice };
+}
+
 // ── Hand dock rendering ───────────────────────────────────────────────────────
 function dybRenderHandDock(containerId) {
   const container = document.getElementById(containerId);
