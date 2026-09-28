@@ -1921,7 +1921,9 @@ function cldHostResolveSlide() {
 let cldPlaybackEventPtr = 0;
 let cldAftermathPtr     = 0;
 
-function cldBeginPlayback(tl) {
+// The STATE half of starting a replay — no DOM, no loop — so the Practice
+// Arena can arm its own replay inside cldArenaRun (spec § 5.2).
+function cldArmPlayback(tl) {
   cldTimeline         = tl;
   // A client never runs cldResolveSlide(), so neither of these advances by
   // itself. Setting them here rather than in the applier keeps host and client
@@ -1936,20 +1938,32 @@ function cldBeginPlayback(tl) {
   if (cldFirstThaw && typeof cldFirstThaw.fromRadius === 'number') {
     cldFloeRadius = cldFirstThaw.fromRadius;
   }
-  cldCommits          = new Array(cldPlayerCount).fill(null);
   cldPlaybackT        = 0;
   cldPlaybackEventPtr = 0;
   cldAftermathPtr     = 0;
   cldLastSfxT         = -CLD_COLLISION_SFX_MS;
   cldWashoutUntil     = 0;
+}
+
+function cldBeginPlayback(tl) {
+  cldArmPlayback(tl);
+  cldCommits          = new Array(cldPlayerCount).fill(null);
   cldPhase            = 'resolving';
   cldMyAims = []; cldMySnowball = null; cldMyDive = null; cldMyMode = 'throw';
   cldSyncFloeUI();
   cldStartLoop();
 }
 
+// The live replay: step it, and only the live path navigates when it ends.
 function cldAdvancePlayback(dtMs) {
-  if (!cldTimeline) { cldPhase = 'aiming'; return; }
+  if (cldStepPlayback(dtMs, CLD_LIVE_HOOKS) === 'done') cldEndPlayback();
+}
+
+// Positions, events and aftermath — and nothing else (spec § 5.3). Every sound
+// and bark goes out through `hooks`, and the end is RETURNED, never acted on,
+// so the Practice Arena can step a replay without leaving its tab.
+function cldStepPlayback(dtMs, hooks) {
+  if (!cldTimeline) { cldPhase = 'aiming'; return 'idle'; }
   const tl = cldTimeline;
   cldPlaybackT += dtMs;
 
@@ -1977,7 +1991,7 @@ function cldAdvancePlayback(dtMs) {
   // ── Events, in order, as the clock passes them.
   while (cldPlaybackEventPtr < tl.events.length &&
          tl.events[cldPlaybackEventPtr].t <= cldPlaybackT) {
-    cldPlayEvent(tl.events[cldPlaybackEventPtr]);
+    cldPlayEvent(tl.events[cldPlaybackEventPtr], hooks);
     cldPlaybackEventPtr++;
   }
 
@@ -1987,14 +2001,15 @@ function cldAdvancePlayback(dtMs) {
     const into = cldPlaybackT - tl.durationMs;
     const per  = CLD_AFTERMATH_MS / Math.max(1, tl.aftermath.length);
     while (cldAftermathPtr < tl.aftermath.length && into >= cldAftermathPtr * per) {
-      cldPlayAftermath(tl.aftermath[cldAftermathPtr]);
+      cldPlayAftermath(tl.aftermath[cldAftermathPtr], hooks);
       cldAftermathPtr++;
     }
-    if (into >= CLD_AFTERMATH_MS) cldEndPlayback();
+    if (into >= CLD_AFTERMATH_MS) return 'done';
   }
+  return 'playing';
 }
 
-function cldPlayEvent(e) {
+function cldPlayEvent(e, hooks) {
   if (e.type === 'collision' || e.type === 'rebound') {
     // Two gates, both mandatory (§9). The throttle is keyed on PLAYBACK time,
     // not wall-clock, so it behaves identically on a replayed timeline as it did
@@ -2002,15 +2017,15 @@ function cldPlayEvent(e) {
     if ((e.speed || 0) < CLD_SFX_MIN_V) return;
     if (cldPlaybackT - cldLastSfxT < CLD_COLLISION_SFX_MS) return;
     cldLastSfxT = cldPlaybackT;
-    cldSfx(e.type === 'rebound' ? 'rebound' : 'collide');
+    hooks.sfx(e.type === 'rebound' ? 'rebound' : 'collide');
     return;
   }
   if (e.type === 'plunge') {
     // Never throttled — the plunge is one of the beats the throttle protects.
     const p = cldPenguins.find(q => q.id === e.id);
     if (p) { p.plungedThisSlide = true; p.plungeT = 0; }
-    cldSfx('plunge');
-    cldFloatBark();
+    hooks.sfx('plunge');
+    hooks.bark();
     return;
   }
   if (e.type === 'seat') {
@@ -2020,26 +2035,26 @@ function cldPlayEvent(e) {
     if (p) { p.plungedThisSlide = false; p.seatT = cldPlaybackT; }
     return;
   }
-  if (e.type === 'knockback') { cldSfx('rebound'); return; }
+  if (e.type === 'knockback') { hooks.sfx('rebound'); return; }
   if (e.type === 'shatter') {
-    cldSfx('rebound');
+    hooks.sfx('rebound');
     return;
   }
   if (e.type === 'landing') {
-    cldSfx('snowball');
+    hooks.sfx('snowball');
     return;
   }
 }
 
-function cldPlayAftermath(b) {
+function cldPlayAftermath(b, hooks) {
   if (b.type === 'surface' || b.type === 'displace' || b.type === 'knockback') {
     const p = cldPenguins.find(q => q.id === b.penguinId);
     if (p) { p.x = b.x; p.y = b.y; p.plungedThisSlide = false; }
-    if (b.type === 'displace') cldSfx('dive');
+    if (b.type === 'displace') hooks.sfx('dive');
     return;
   }
-  if (b.type === 'thaw')      { cldFloeRadius = b.newRadius; cldSfx('thaw'); return; }
-  if (b.type === 'thaw-drop') { cldSfx('plunge'); cldFloatBark(); return; }
+  if (b.type === 'thaw')      { cldFloeRadius = b.newRadius; hooks.sfx('thaw'); return; }
+  if (b.type === 'thaw-drop') { hooks.sfx('plunge'); hooks.bark(); return; }
 }
 
 function cldEndPlayback() {
@@ -2334,9 +2349,12 @@ function cldShowGameover() {
 // the flow. An in-flow animated element changes the column's height while it
 // plays, which re-centres the whole Stack (ui-style.md, SHP's sheep parade).
 // ═══════════════════════════════════════════════════════════════════════════
-function cldFloatBark() {
-  cldFloatText(CLD_PLUNGE_BARKS[Math.floor(Math.random() * CLD_PLUNGE_BARKS.length)]);
-}
+function cldBarkLine() { return CLD_PLUNGE_BARKS[Math.floor(Math.random() * CLD_PLUNGE_BARKS.length)]; }
+function cldFloatBark() { cldFloatText(cldBarkLine()); }
+
+// The live floe's replay effects. The Practice Arena passes its own pair, so a
+// bark in Practice lands in the Arena's float layer, never the floe's.
+const CLD_LIVE_HOOKS = { sfx: m => cldSfx(m), bark: () => cldFloatBark() };
 
 function cldFloatText(text) {
   const layer = document.getElementById('cld-float-layer');

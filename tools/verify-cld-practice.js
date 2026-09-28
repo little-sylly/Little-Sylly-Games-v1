@@ -341,6 +341,38 @@ if (!TUNE) {
   SET('cldPhase', 'aiming');
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// F. The replay split (spec § 5.3)
+// ═══════════════════════════════════════════════════════════════════════════
+if (!TUNE) {
+  section('F. The replay split');
+  RUN("cldIceBreaker = 2; cldSyllyMode = false; cldPeckOff = false; cldFloeSize = 'standard'; cldIceConditions = 'slush'");
+  RUN("cldStartMatch(['You', 'Sylvia', 'Sam']); cldStartFloeOff(7);");
+  // Penguin 0 shoved straight at penguin 1 — there will be a collision to hear.
+  RUN(`(() => {
+    const a = cldPenguins[0], b = cldPenguins[1];
+    cldCommits = [{ aims: [{ penguinId: a.id, dx: b.x - a.x, dy: b.y - a.y, power: 1 }], dive: null, snowball: null },
+                  { aims: [], dive: null, snowball: null }, { aims: [], dive: null, snowball: null }];
+  })()`);
+  const tl = RUN('cldTimelineFromPayload(cldTimelinePayload(cldResolveSlide(11)))');
+  const heard = [];
+  S.__hooks = { sfx: m => heard.push(m), bark: () => heard.push('bark') };
+  const screensBefore = screens.length, phaseBefore = G('cldPhase');
+  RUN('cldArmPlayback')(tl);
+  let r, guard = 0;
+  do { r = RUN('cldStepPlayback(50, __hooks)'); } while (r === 'playing' && guard++ < 4000);
+  check('the replay steps to done', r, 'done');
+  check('stepping never shows a screen', screens.length, screensBefore);
+  check('stepping never changes the phase', G('cldPhase'), phaseBefore);
+  check('every event was walked', G('cldPlaybackEventPtr'), tl.events.length);
+  heard.length = 0;
+  RUN("cldPlayEvent({ type: 'plunge', id: 'nobody' }, __hooks)");
+  check('a plunge sounds and barks through the hooks — never the live float layer', heard, ['plunge', 'bark']);
+  SET('cldTimeline', null);
+  check('no timeline → idle', RUN('cldStepPlayback(50, __hooks)'), 'idle');
+  ok('the bark line comes from the pool', G('CLD_PLUNGE_BARKS').includes(RUN('cldBarkLine()')));
+}
+
 // ── Report (keep LAST in the file) ─────────────────────────────────────────
 if (!TUNE) {
   console.log('\n' + '='.repeat(70));
