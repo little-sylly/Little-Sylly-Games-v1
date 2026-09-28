@@ -93,8 +93,8 @@ const CLD_THAW_STEP   = 10;     // logical units shed per Slide under The Thaw (
 // Slides/Floe-Off) Slush+Thaw 3.8 → 5.8, Slush 7.9 → 13.7, Black Ice 2.3 → 7.7.
 // The Thaw calves the ring as it shrinks, so it stays an EARLY barrier.
 // See cld-implementation-notes DD-16.
-const CLD_RING_COVER     = 0.80;  // share of the Berg circle's circumference that is ice
-const CLD_SLIP_GAPS      = [2, 3];                  // min, max slip gaps per Floe-Off
+const CLD_RING_COVER     = 0.75;  // share of the Berg circle's circumference that is ice (SW v245: 0.80 → 0.75, DD-19)
+const CLD_SLIP_GAPS      = [3, 4];                  // min, max slip gaps per Floe-Off (SW v245: was [2, 3] — narrower gaps need more of them, DD-19)
 const CLD_SLIP_GAP_WIDTH = [1.6, 1.8];              // × penguin diameter, arc length — capped so one floating plug seals the widest (SW v245)
 const CLD_START_RING  = 0.55;   // penguins start on this fraction of the floe radius
 const CLD_BATH_FLOOR_MULT = 1.25;   // Ice Bath radius floor, × cldMinRadius() — a tuning value (Task 8)

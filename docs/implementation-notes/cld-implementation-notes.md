@@ -409,6 +409,27 @@ the list is checked against the source (`verify-cld-practice.js` reads every top
 remembered. And a layout bug in a pane no harness renders is found only by a real browser: the
 141-check harness was green over a stage that was 0 px tall.
 
+### DD-19 — plugs in the Drink, a bigger floe, a camera, and Practice plans (SW v245)
+
+Spec:  § 3; plan: .
+
+**Balance** (,  default, mean Slides/Floe-Off; target ±15% of v244):
+
+| config | v244 | target band | v245 first cut (gaps [2,3], cover 0.80) | [3,4] 0.80 | [3,4] 0.75 **shipped (provisional)** | [4,5] 0.80 | [4,5] 0.75 | [3,4] 0.85 | [2,3] 0.75 | [3,4] 0.70 | [3,4] 0.65 | [4,5] 0.70 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 3p Slush | 17.0 | 14.5–19.6 | 29.0 | 28.7 | **22.0** | 30.9 | 25.0 | 27.1 | 25.5 | 23.8 | 20.7 | 20.9 |
+| 3p Slush + Thaw | 6.2 | 5.3–7.1 | 6.6 | 7.0 | **7.0** | 7.0 | 6.6 | 6.9 | 7.7 | 6.7 | 7.0 | 7.3 |
+| 5p Slush | 15.4 | 13.1–17.7 | 26.2 | 24.9 | **20.1** | 22.8 | 25.2 | 26.4 | 25.0 | 23.6 | 22.3 | 23.6 |
+| 5p Slush + Thaw | 7.0 | 6.0–8.1 | 8.7 | 8.2 | **8.3** | 8.0 | 8.4 | 8.3 | 8.8 | 8.6 | 8.2 | 8.6 |
+
+**No cell reaches the band — an owner call (spec § 8's stop rule).** The Thaw rows are in or at the edge
+of their band; the Thaw-OFF rows run ~30% long whatever the two allowed levers do (ten cells, cover
+0.65–0.85, 2–5 slip gaps). The length comes from the two approved changes themselves — twice the ice per
+penguin, and gaps capped at 1.8 so one floating plug seals them — and the instrument's neutral bots do not
+aim at each other, so a real table runs shorter (the DD-16/DD-17 caveat). Shipped provisionally at
+[3,4] / 0.75, the closest overall. Levers outside the spec's two, for the owner: a longer full pull
+(), a smaller floe scale than ×1.3, or accepting longer Thaw-off Floe-Offs.
+
 ---
 
 ## Bug Index
