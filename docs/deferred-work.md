@@ -268,7 +268,9 @@ rest (CLD) — CLD's is arguably the harder call, since the position it stops at
 Doing it properly is a design pass on two games, not a find-and-replace.
 
 **Trigger.** The next time either game is opened for other work, or a phase gate touching motion.
-Also worth checking CLD's How-to "The Floe" practice sim, which is a third RAF on the same rule.
+(CLD's How-to practice RAF — the third on this rule — is RESOLVED at SW v244: The Floe tab is gone
+and the Practice Arena checks reduced motion in JS; see `docs/deferred-work-log.md`. The live floe's
+replay is still unswept.)
 
 ---
 
@@ -321,17 +323,22 @@ loopback pass. **Not yet done:**
    The Thaw on. **Every device must be on SW v243** (`MP_PROTOCOL_VERSION` `'v243'`). The Throw · Dive
    row and the canvas re-fit have had `visual-check` only (375×667 / 375×548 / 320×452). Closes the
    phase gate along with item 2. Also
-   check **How to Play → The Floe** on a real device: Shove/Resurface, the six-pose cast, and the
-   practice RAF stopping on tab-switch / close (v221; `visual-check` clean but never on hardware).
+   check **How to Play → Practice** on a real device: all three drills, the Berth branch, and the
+   cue's feel (96 px, the dead zone) (SW v244). Two things the SE `visual-check` pass logged for this
+   hardware pass (`cld-impl-notes` DD-18): the coach card and the Practice stage cannot both fit the
+   overlay's visible height at any SE size — the stage alone fits, so a drag works after one scroll;
+   decide whether that reads fine in the hand or wants a layout change. And a *mouse* drag that
+   leaves the stage releases early on `pointerleave` (touch has implicit capture — phones are fine;
+   `setPointerCapture` would fix a desktop).
    **First attempt 28 Sep 2026 (3 players) stalled at the first non-host Lock In** — the live
    Firebase rules had no `private` block (`cld-impl-notes` BUG-12 → `shared` BUG-26). Re-run once
    the owner has pasted the §2.7 `private` rule into the console. The same session's feel notes
    (ring too sparse, drag clunky, art) are a design round of their own, not gate items: the ring
    was answered at SW v242 and the Drowned at SW v243 (DD-16 / DD-17); the pool-style drag + the
-   Practice Arena, then the procedural art pass, are the next two specs.
+   Practice Arena shipped at SW v244 (DD-18); the procedural art pass is the next spec.
 2. **Offline install check** — unregister the SW, go offline, cold-boot, confirm
-   `js/lib/physics.js` and `js/games/cld.js` precached. The Floe tab (v221) is a *procedural*
-   reference, not asset-backed, so it does not double as a gallery check — run this directly.
+   `js/lib/physics.js` and `js/games/cld.js` precached. The Cast and Practice tabs (SW v244) are
+   *procedural*, not asset-backed, so neither doubles as a gallery check — run this directly.
 3. **TG-13 — The Thaw's shrink is visually inaudible in playback. DONE, SW v220 (4 Sep 2026).**
    `cldBeginPlayback` rewinds `cldFloeRadius` to the first `thaw` beat's `fromRadius`; the `thaw`
    aftermath beat sets it to `newRadius` as it plays. Two lines in shared functions, no timeline

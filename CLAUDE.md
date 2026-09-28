@@ -293,14 +293,13 @@ On every bump the outgoing SW entry moves **verbatim** to `docs/sw-changelog.md`
 "keep the last three". **A second `**SW v…**` paragraph appearing here means that move didn't
 happen: do it before anything else.**
 
-**SW v243 — Cold Shoulder: Drowned plug gaps, Throw or Dive, the Ice Bath (28 Sep 2026).**
-A penguin goes in only through a gap and plugs it mid-Slide (`Physics` gains `params.seatOnPlunge`;
-any immovable with `hits` is breakable); a plug absorbs one hit, then is knocked back. Knocked back,
-it Throws **or** Dives to any free gap (closer wins). A Washout starts an Ice Bath — sudden death on a
-ringless floe. Rim-slice Berths gone. **Packets changed: `MP_PROTOCOL_VERSION` `'v243'` — every device
-must update.** Detail: `cld-implementation-notes.md` DD-17.
+**SW v244 — Cold Shoulder: the pool-style cue + the Practice Arena (29 Sep 2026).**
+Touch anywhere and pull back — the finger is the butt of the cue; a ghost + stub guide shows the first
+contact. How to Play is now Rules | Practice | The Cast: three drills against Sylvia and Sam on the real
+rules and renderer (`cldArenaRun` swaps the Arena's record into the globals for one synchronous call).
+**No packet changed — `MP_PROTOCOL_VERSION` stays `'v243'`.** Detail: `cld-implementation-notes.md` DD-18.
 
-**Previous versions: `docs/sw-changelog.md`** — continuous, v242 back to v167.
+**Previous versions: `docs/sw-changelog.md`** — continuous, v243 back to v167.
 
 **Where the suite stands.** **20 games shipped**, all gold-master, plus multiplayer. Newest three:
 **Honeycomb Hills** (`comb`, game 20, phase 41 — the suite's biggest game and the only one with
@@ -359,7 +358,8 @@ Re-run a game's full set after touching its appliers, deck/data, packets or rend
 | CJAR | `node tools/simulate-cjar-dd.js` — balance instrument; asserts nothing, always exits 0 | — |
 | CLD | `node tools/verify-cld-physics.js && node tools/verify-cld-loop.js` — pure sim (determinism, no-tunnel, per-throw invariant, restitution asymmetry, 5 s cap, `seatOnPlunge` + one-hit anchors) then game rules (ring geometry + the plug **seal**, instant plugs, knock-back, displacement, Throw-or-Dive closer-wins, Thaw with plugs, the Ice Bath roster/radius/Fish, Peck Off last-*player* win) | 133 · 138 |
 | CLD | `node tools/verify-cld-loopback.js` — host↔**2 clients** over a Firebase-shaped wire, real mock DOM: private commit path, duplicate-commit rejection, nameless tally, empty-`events[]` / all-zero-`fish[]` round trip, host/client timeline parity, `dive: null` erasure, plug/knock-back/Ice Bath agreement on 3 devices (SW v243), quit contract. Accepts `CLD_SRC=` / `CLD_SEED=` | 186 |
-| CLD | `node tools/mutate-cld.js` — mutation harness over the rules/sim layer; `node tools/simulate-cld-balance.js` — balance instrument, asserts nothing, exits 0 (`CLD_SEED=`) | 29/29 · — |
+| CLD | `node tools/verify-cld-practice.js` — the cue + guide maths, the render model, the live gesture, the replay split, the Arena's swap (every top-level `let` classified; 20 Arena Slides mid-live-replay leave it byte-identical), the three drills' claims (`--tune` re-derives their ring seeds), the coach, the pane. Accepts `CLD_SRC=` | 141 |
+| CLD | `node tools/mutate-cld.js` — mutation harness over the rules/sim layer (+ the cue and the Arena's swap, via `verify-cld-practice.js`); `node tools/simulate-cld-balance.js` — balance instrument, asserts nothing, exits 0 (`CLD_SEED=`) | 33/33 · — |
 | COMB | `node tools/verify-comb-board.js && node tools/verify-comb-rules.js && node tools/verify-comb-loop.js` — topology/deal · rules (incl. the Season-preset trap, §12) · match+turn engine + the action layer's arithmetic + the Scout Flight beat's budget | 56 · 122 · 231 |
 | COMB | `node tools/verify-comb-loopback.js` — host↔**2 clients** over a Firebase-shaped wire, real mock DOM incl. a canvas; both offer shapes, re-validate-never-escrow, Full Dance's expiry, all five Instinct kinds. Accepts `COMB_SRC=` / `COMB_SEED=` | 250 |
 | COMB | `node tools/mutate-comb.js` — mutation harness; drives all four above, so its 19 packet mutants are claims about the loopback specifically. Run it 3–5×, not once | 71/71 |

@@ -357,6 +357,58 @@ walk), BUG-14 (the canvas spilling over the Drowned row), the free-seat drawing 
 slip gap's centred seat, and a client's Washout timer that could park it on standby after the bath
 packet had already arrived (the `CLD_FLOEOFF_START` applier now clears it when `bath` is set).
 
+### DD-18 — the pool-style cue, and a Practice Arena on the real rules (SW v244)
+
+**Why.** The first live 3-player session (28 Sep 2026) called the drag **clunky**: a grab radius of
+~20 px at 320 wide, a pull of ~113 CSS px for full power that varied by phone, and the feedback line
+drawn behind the penguin — under the thumb. Spec: `docs/superpowers/specs/2026-09-28-cld-cue-arena-design.md`;
+plan: `docs/superpowers/plans/2026-09-28-cld-cue-arena.md`.
+
+**What changed (owner calls in bold).**
+- **Cue from anywhere** — the finger is the butt of the cue, the shot goes away from it
+  (`dir = unit(P − F)`); power is the pull since touch-down in **CSS px** (`CLD_CUE_PULL_PX` 96, so
+  full power is the same thumb travel on every phone); inside `CLD_CUE_DEAD` (2 × `CLD_PENGUIN_R`) the
+  aim holds. All pure in `cldCueAim`; `cldReleaseAim` decides what a release arms for both surfaces.
+  `CLD_CUE_TAP_PX` (4) was added at planning: with the bar locked, power no longer comes from the
+  pull, so without it a plain tap would re-aim at the locked power. **The wire is unchanged** — an
+  armed aim is still `{ penguinId, dx, dy, power }`.
+- **Ghost + fixed-length stub** (`cldAimGuide`) — one contact deep, direction only.
+- The renderer is **model-fed**: `cldDraw(view, m)` reads only `cldFloeModel()` / `cldArenaModel()`,
+  so the Arena is drawn by the floe's own renderer. DD-12's hand-built `cldHowtoDrawFloe` copy retired.
+- The replay is **split**: `cldStepPlayback(dtMs, hooks)` returns `'done'` and never navigates; only
+  the live `cldAdvancePlayback` calls `cldEndPlayback`. The loopback proves the live replay unchanged.
+- **The swap** (`cldArenaRun`) — the Arena keeps its own record and runs the real rules through a
+  swap into the module globals for one synchronous call, restored in `finally`. Chosen over threading
+  state through the v243 core (too large a diff) and over an Arena-lite copy (the drift D2 forbids).
+  It **bends DD-12's wording** ("never reads or writes `cldPenguins`") and keeps its intent: the live
+  match is never disturbed, proven by 20 Arena Slides run between live replay steps.
+- **Three drills, pick one**; **the Berth branch only if you go in**; tabs **The Rules | Practice |
+  The Cast**. `CLD_PR_DRILLS` as shipped — the plan's `place`/`shoves` held unchanged; `--tune`
+  gave the ring seeds:
+
+  | Drill | `ringSeed` | `slideSeed` | `gapAt` | place (at, r) ×3 | shoves |
+  |---|---|---|---|---|---|
+  | Head-on | 4 | 1 | 0 | (0, .62) · (0, .05) · (−π/2, .6) | Sylvia → You, 1.0 |
+  | Crossfire | 1 | 1 | — | (0, 0) · (π, .6) · (0, .6) | Sylvia → Sam, 0.9 |
+  | Edge | 19 | 1 | π/2 | (π/2, .8) · (π, .6) · (π/2, .45) | Sam → You, 0.7 |
+
+**Found while building it** (the SE visual pass, 320×452 / 375×548 / 375×667):
+- **The Practice stage squashed to 0 px tall.** As a flex child of the scrolling body, with
+  `overflow-hidden` giving it a min-height of 0, `flex-shrink` took its whole height; the canvas was
+  never sized and a drag landed on Resurface. Fixed with `flex-shrink: 0` on `#cld-pr-stage`. No
+  harness could see it — a mock element has no box.
+- **The aim guide was invisible** — white on near-white ice (v243's dot had the same problem). The
+  guide now draws in the game's dark ice-blue at partial alpha.
+- **Logged, not fixed:** the coach card (132 px) and the stage cannot both fit the Practice body's
+  visible height at any SE size (213 / 290 / 385 px); the stage alone fits at all three. And a
+  *mouse* drag off the stage releases on `pointerleave` (touch has implicit pointer capture, so phones
+  are unaffected). Both in `docs/deferred-work.md` § Cold Shoulder.
+
+**Lesson.** A swap is safe exactly as long as the call is synchronous and the list is complete — so
+the list is checked against the source (`verify-cld-practice.js` reads every top-level `let`), not
+remembered. And a layout bug in a pane no harness renders is found only by a real browser: the
+141-check harness was green over a stage that was 0 px tall.
+
 ---
 
 ## Bug Index

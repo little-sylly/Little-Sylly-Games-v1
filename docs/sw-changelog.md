@@ -4,6 +4,14 @@ Historical SW release notes, moved out of `CLAUDE.md` (1 Aug 2026) so they stop 
 The **current** version and its notes stay in `CLAUDE.md` § Current Focus — append the outgoing entry here on each bump.
 
 
+## v243 — Cold Shoulder: Drowned plug gaps, Throw or Dive, the Ice Bath (28 Sep 2026).
+
+A penguin goes in only through a gap and plugs it mid-Slide (`Physics` gains `params.seatOnPlunge`;
+any immovable with `hits` is breakable); a plug absorbs one hit, then is knocked back. Knocked back,
+it Throws **or** Dives to any free gap (closer wins). A Washout starts an Ice Bath — sudden death on a
+ringless floe. Rim-slice Berths gone. **Packets changed: `MP_PROTOCOL_VERSION` `'v243'` — every device
+must update.** Detail: `cld-implementation-notes.md` DD-17.
+
 ## v242 — Cold Shoulder: the Berg ring, and a client's private write (28 Sep 2026).
 
 The ring now covers ~80% of the rim (`CLD_RING_COVER`, r=16, count derived from the floe's own

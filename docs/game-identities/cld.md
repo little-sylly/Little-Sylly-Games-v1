@@ -2,7 +2,7 @@
 
 **Game 19** · `activeGameId: cld` · plugin `js/games/cld.js` · shared module `js/lib/physics.js`
 **Emoji:** 🐧 · **Brand:** glacier blue `#8ECAE6`, white ink · **Players:** 3–8 (Peck Off forces 2) · **Modes:** MDLM only
-**Status:** gold master · verified against SW v219 on 4 September 2026 · Drowned model rewritten for SW v243 (28 September 2026)
+**Status:** gold master · verified against SW v219 on 4 September 2026 · Drowned model rewritten for SW v243 (28 September 2026) · pool-style cue + Practice Arena SW v244 (29 September 2026)
 
 > **Change contract.** Each section is tagged **free** (reword freely — but it must stay true),
 > **paired** (change the doc and the code together, or you open a gap between them), or **derived**
@@ -17,8 +17,8 @@
 
 ## T1 — The Pitch · *free*
 
-You are a penguin on a crowded slab of ice, and so is everyone else. Every round, all of you drag
-back from your own penguin like a slingshot, lock it in, and then — all at once, nobody having seen
+You are a penguin on a crowded slab of ice, and so is everyone else. Every round, all of you line
+up a shot like a pool cue, lock it in, and then — all at once, nobody having seen
 anyone else's plan — the whole floe slides. You will hit penguins you never aimed at. Somebody goes
 off the edge into the Drink; from then on they bob at the rim, throwing snowballs to nudge the
 survivors' aim off. The floe empties, the last one still dry catches a Fish, and first to the Fish
@@ -56,7 +56,7 @@ worth one Fish. A Floe-Off is a series of **Slides**.
 
 **The loop.** Each Slide:
 
-- **Aim.** Drag back from your own penguin — further back is a harder shove. Release to **arm** it.
+- **Aim.** Touch anywhere on the ice and pull back — your finger is the end of a pool cue, the shot goes the other way, and further back is a harder shove. Release to **arm** it. Re-aim as often as you like.
   Re-drag as often as you like.
 - **Lock it in.** Tap **Lock It In** to commit. A commit is final — there is no taking it back.
 - **The Slide.** Once every player has locked in, all penguins slide at once and the ice resolves
@@ -160,7 +160,7 @@ The settings overlay is titled **The Huddle 🐧** — *"Set the ice, then get s
 | **Ice Conditions** | Powder · Slush · Black Ice | Slush | How slippery the floe is — really the shove-distance dial. Powder is grippy and forgiving; Black Ice carries a full pull most of the way across. Sits in the difficulty slot. |
 | **Floe Size** | Roomy · Standard · Cramped | Standard | Starting radius of the floe. Smaller is faster and more brutal. Pre-selected by player count if the host never taps it (Roomy 3–4, Standard 5–6, Cramped 7–8); tapping any pill locks the choice. |
 | **Fish to Win** | 1 · 3 · 5 | 3 | How many Floe-Offs it takes to win the Match. At 1 the two gameover stat lines are hidden. |
-| **Aim Assist** | OFF / ON | ON | Draws a dotted line to where your first bounce lands while you aim. |
+| **Aim Assist** | OFF / ON | ON | Draws your aim to the first contact: a ghost penguin where yours would touch, and a short line for which way a penguin you hit is pushed. One contact deep, never further. |
 | **Ice Breaker** | 1 hit · 2 hits · 3 hits | 2 hits | Rings the edge with **Bergs** (about 80% of it, with 2–3 random gaps a penguin can slip through) that rebound a plunge until they take that many hits and shatter. Under The Thaw the ring calves as it shrinks. No Off: without the ring a Floe-Off is over in a couple of Slides (SW v242). |
 | **Peck Off** | OFF / ON | OFF | A two-player duel, two penguins each. Turning it on forces the room to exactly two players. |
 | **✨ Sylly Mode (The Thaw)** | OFF / ON | OFF | The floe melts and shrinks after every Slide. See T8. |
@@ -220,14 +220,15 @@ a finger is dragging on it, and the power bar / tally / CTA stay frozen beneath 
 | Overlay | Opened from | What it is |
 |---|---|---|
 | `cld-settings-overlay` | Menu | The Huddle — the seven settings |
-| `cld-how-to-overlay` | Menu, floe `[?]`, scoreboard `[?]` | How to Play — **2 tabs**: *The Rules* (six steps + conditionals) and *The Floe* (a live practice sim + the six-pose cast) |
+| `cld-how-to-overlay` | Menu, floe `[?]`, scoreboard `[?]` | How to Play — **3 tabs**: *The Rules*, *Practice* (the Arena: three drills against Sylvia and Sam) and *The Cast* (the six poses) |
 | `cld-quit-overlay` | Floe, scoreboard ✕ | Mid-game quit confirm |
 | `cld-new-game-overlay` | Gameover | Play-again confirm |
 
-There is **no tip overlay** — How to Play is the only reference surface (brief §15). Since SW v221
-it has a second tab, **The Floe**: a canvas running the real physics with *Shove everyone* /
-*Resurface* buttons (test the game without playing it), and **The Cast** — the six penguin poses
-(Idle · Lean · Squash · Plunge · Bob · Throw), each drawn through the same seam the floe uses. The
+There is **no tip overlay** — How to Play is the only reference surface (brief §15). Since SW v244
+its **Practice** tab is the Arena: You, Sylvia and Sam on a fixed floe, the rivals' shoves fixed and
+drawn before you move, played on the real rules and drawn by the floe's own renderer, with a coach
+and a step counter. **The Cast** shows the six penguin poses (Idle · Lean · Squash · Plunge · Bob ·
+Throw), each drawn through the same seam the floe uses. The
 floe `[?]` is *gated by `cldPhase`*: during `resolving` and `washout` it greys out rather than
 opening a panel over the one thing the player needs to watch.
 
@@ -369,7 +370,7 @@ How many Floe-Offs it takes to win the whole thing.
 ```copy
 # cld-settings-overlay — Aim Assist, Ice Breaker
 Aim Assist
-Draws a dotted line showing where your first bounce lands while you aim.
+Draws your aim to the first thing you'd hit — a ghost where you touch, and which way they'd go.
 Ice Breaker
 Puts chunks of ice near the edge that bounce you back instead of dumping you in — until they shatter.
 1 hit
@@ -398,7 +399,7 @@ Shove your mates off the ice. Last one dry wins.
 ```copy
 # cld-how-to-overlay — step headings
 You're one penguin on a crowded floe
-Drag back to aim, like a slingshot
+Pull back to aim, like a pool cue
 Everyone aims at the same time
 All penguins slide at once
 Off the edge and you're in the Drink
@@ -416,15 +417,43 @@ The Thaw
 ```
 
 ```copy
-# cld-how-to-overlay — The Floe tab (SW v221)
+# cld-how-to-overlay — tabs (SW v244)
 The Rules
-The Floe
-Practice Floe
-No commit, no scoring - just the real physics. Give everyone a random shove and watch the whole floe resolve at once.
-Shove everyone
-Resurface
+Practice
 The Cast
 Every pose the penguin strikes on the ice, and the moment it means.
+```
+
+```copy
+# cld-how-to-overlay — Practice (the Arena, SW v244)
+Head-on
+Crossfire
+Edge
+Tap to lock power
+Power locked — tap to release
+Too soft
+Lock It In
+Sliding…
+Go again
+Resurface
+Practice again
+Got it
+```
+
+```copy
+# CLD_PR_COACH — the Practice coach (js/games/cld.js)
+Their shoves are drawn in their colours, and they’ll do the same thing every time. Touch anywhere and pull back — your finger is the end of the cue.
+The ghost shows where you’ll hit first. Tap Power to lock it — then dragging only swings your aim.
+Happy? Lock It In. Once it’s in, it’s in.
+Everyone slides at once.
+Still dry. Try another counter — or another drill.
+Last one dry — that’d be a Fish.
+Washout — everyone’s in. Resurface.
+Your go. Try a counter — or another drill.
+You’re in the Drink — and you’ve plugged the gap you went through. The next penguin to hit you bounces off. Tap a penguin to aim a Snowball, then Lock It In.
+Knocked back — so now it’s Throw or Dive. Tap Dive, then a dashed gap.
+Still plugged. Resurface to try the drill again.
+That’s the Drink. Resurface to get back on the ice.
 ```
 
 ```copy
@@ -533,12 +562,7 @@ call. `cld` is not in `data/art/registry.json` and never appears in the Terminal
 produced in exactly one place — is unchanged and binding; only the "returns a DOM node" shape of the
 checklist's seam contract does not apply. Recorded as a deviation in the tech spec §17.
 
-**How to Play's "The Floe" tab (SW v221)** doubles as the pose reference — **The Cast**, all six
-`pose(state, t)` states drawn through `cldRenderPenguin` — alongside a live practice sim of the
-real physics. It is not a *card* gallery (there are no cards) and the tiles are procedural, so they
-are not tap-to-enlarge and do not double as an offline-install check. Tap-hold on a penguin in
-play is still deliberately idle — a penguin is not a card (the documented Tap-Hold Reference
-exception).
+**How to Play's The Cast** is the pose reference — all six `pose(state, t)` states drawn through `cldRenderPenguin`. **Practice** (SW v244) draws the Arena through the floe's own renderer (`cldDraw` fed `cldArenaModel()`), so nothing in it is a hand-built copy. Both are procedural, so neither is tap-to-enlarge nor an offline-install check. Tap-hold on a penguin in play is still deliberately idle — a penguin is not a card (the documented Tap-Hold Reference exception).
 
 ---
 

@@ -7,6 +7,16 @@ game abbreviation, function or screen id. Items keep their original section head
 
 ---
 
+## RAF animations and `prefers-reduced-motion` — NT and CLD unswept (10 Sep 2026)
+
+**RESOLVED 29 Sep 2026 (SW v244) — the CLD How-to practice-sim part only.** The open entry noted
+"CLD's How-to 'The Floe' practice sim, which is a third RAF on the same rule." The Floe tab is gone:
+its sandbox was absorbed by the Practice Arena, which checks `prefers-reduced-motion` in JS
+(`cldReducedMotion()` → a Slide steps straight to its end state) — `cld-impl-notes` DD-18. The live
+floe's replay and NT's playback loop stay open in `docs/deferred-work.md`.
+
+---
+
 ## DYB — Phantom-die reveal + a procedural dice rework (23 Aug 2026; re-scoped 28 Sep 2026)
 
 **RESOLVED 2026-09-28 (SW v241).** Built as spec `docs/superpowers/specs/2026-09-28-dyb-dice-table-practice-design.md`: dice are procedural (`js/games/dyb-dice.js`, no core art needed), and at The Overlook the fog lifts off every Phantom so the How to Play line is now true. Detail: `dyb-implementation-notes.md` § SW v241.

@@ -4,7 +4,7 @@
 (`ui-style.md` § Practice tab). We work through it **one game at a time**, top of the tracker
 down, ticking the checklist as we go. The Bluff (DYB) is the reference and is backfilled below.
 
-Started 28 Sep 2026, SW v241. 20 games: **1 done, 19 to go.**
+Started 28 Sep 2026, SW v241. 20 games: **2 done, 18 to go.**
 
 ---
 
@@ -78,7 +78,7 @@ priority first, then cheaper before harder within a band, so lessons from one ga
 | Order | Game | Pri | Effort | Form | Status | D1–D12 | Next action |
 |---:|------|:---:|:---:|------|:---:|--------|-------------|
 | — | **DYB** The Bluff | ref | — | Scripted hand ✔ | ✅ | 11/12 — D10 open | Owner: confirm the hardware pass (§ 6.0) |
-| 1 | **CLD** Cold Shoulder | P1 | M | Arena ✔ | ⏳ | 0/12 | Intake; write the two targets' fixed moves + the drills |
+| 1 | **CLD** Cold Shoulder | P1 | M | Arena ✔ | ✅ | 11/12 — D10 open | Owner: hardware pass (all three drills, both branches) + the phase-40 live session |
 | 2 | **COMB** Honeycomb Hills | P1 | XL | Lessons ✔ | ☐ | 0/12 | Pick the lesson list (§ 6.2) |
 | 3 | **SS** Secret Signals | P2 | L | Scripted + Autopilot ? | ☐ | 0/12 | — |
 | 4 | **PKO** Pecking Order | P2 | L | Scripted hand ? | ☐ | 0/12 | — |
@@ -161,7 +161,28 @@ cost (`dyb-impl-notes` Template Gaps). A render that sizes itself must take its 
 parent, never from its own previous render. Two named timer bags let Practice and a live game
 coexist.
 
-### 6.1 CLD — Cold Shoulder · P1 · M
+### 6.1 CLD — Cold Shoulder · P1 · M · ✅ (SW v244)
+
+Shipped **SW v244**, 29 Sep 2026, with the pool-style cue built alongside it (branch `cld-cue-arena`).
+
+| Item | Evidence |
+|------|----------|
+| D1 Script | Spec `docs/superpowers/specs/2026-09-28-cld-cue-arena-design.md` § 6 — three drills (Head-on · Crossfire · Edge), You + Sylvia + Sam, main line 5 steps + the Berth branch B1–B3 |
+| D2 Model-fed | `cldFloeModel()` / `cldArenaModel()` → `cldDraw(view, m)`; DD-12's `cldHowtoDrawFloe` copy retired |
+| D3 Stage | SE pass: power hint and tally one line at 320; the aim guide was invisible on the ice — re-inked (`cld-impl-notes` DD-18) |
+| D4 Tab | `cld-how-to-overlay`: The Rules \| Practice \| The Cast |
+| D5 Isolation | `cldPrRaf` / `cldPracticeStop()`; the real rules run through `cldArenaRun` (a synchronous swap) — 20 Arena Slides between live replay steps leave the live game byte-identical |
+| D6 Reduced motion | `cldReducedMotion()` — a Slide steps straight to its end state |
+| D7 Harness | `tools/verify-cld-practice.js` — 141 checks (`--tune` re-derives the drills' ring seeds) |
+| D8 Regression | physics · loop · loopback · mutate 33/33 · mp-configs · identity-docs · build-fresh |
+| D9 Visual | SE pass (320×452 / 375×548 / 375×667, both motion settings); found the 0 px stage no harness could |
+| **D10 Hardware** | **☐ Owner** — the cue's feel (96 px, the dead zone) and all three drills down both branches, on the iPhone SE |
+| D11 Docs | `cld-impl-notes` DD-18; identity doc T3/T6/T7/T9; `ui-style.md` § Practice tab; decision-log 2026-09-29 |
+| D12 Shipped | SW v244 |
+
+**Superseded by the build:** the card below said the Arena would read and write none of
+`cldPenguins`/`cldCommits`/`cldTimeline`. It does — through the swap, for one synchronous call,
+restored in `finally` (owner decision, spec § 1). DD-12's intent stands; its wording does not.
 
 - **Why:** the suite's only physics-and-aim game. The drag-back shove, every penguin sliding at once,
   and the Berth afterlife (bumper, Snowball, Dive) are unlike anything else in the suite. The pass also

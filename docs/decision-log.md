@@ -19,6 +19,13 @@ Detail: pointer to the canonical doc (snapshot / impl note / spec / memory).
 ```
 
 
+## 2026-09-29 — Cold Shoulder: pool-style cue + a Practice Arena on the real rules (SW v244)
+Category: Architecture
+Decision: the drag becomes a cue from anywhere (finger = butt, pull-back power in CSS px, ghost + stub guide), and Practice runs the real rules layer through a synchronous swap (`cldArenaRun`) instead of threading a state object through the v243 core.
+Why: the live session called the drag clunky; a swap reuses every rule untouched, and a source-reading harness makes the one risk (a missed global) a red check.
+Changed: `js/games/cld.js`, `src/screens/cld.html`, `css/styles.css`, `tools/verify-cld-practice.js` (new), `tools/mutate-cld.js`. No packet change. Deferred: the owner's hardware pass (D10), the procedural art pass.
+Detail: `docs/superpowers/specs/2026-09-28-cld-cue-arena-design.md`; `cld-implementation-notes.md` DD-18.
+
 ## 2026-09-28 — Cold Shoulder: the Drowned plug the gaps; a Washout is an Ice Bath
 Category: Architecture
 Decision: A Drowned penguin plugs the ring gap it fell through, mid-Slide, as a one-hit bumper; knocked back, it Throws or Dives to any free gap; a Washout starts a sudden-death Ice Bath instead of a replay. Rim-slice Berths are retired.
