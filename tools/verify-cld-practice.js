@@ -654,6 +654,82 @@ if (!TUNE) {
   ok('How to Play step 2 teaches the cue', /Pull back to aim, like a pool cue/.test(html) && !/like a slingshot/.test(html));
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// K. The Arena on screen (spec § 6.2, § 6.6; D4, D5)
+// ═══════════════════════════════════════════════════════════════════════════
+if (!TUNE) {
+  section('K. The Arena on screen');
+  const $ = id => S.document.getElementById(id);
+  const sentAtStart = sent.envelope + sent.private;
+  let rafSeq = 100;
+  S.requestAnimationFrame = () => ++rafSeq;
+  S.cancelAnimationFrame = () => {};
+  const stage = $('cld-pr-stage'), canvas = $('cld-pr-canvas');
+  canvas.parentElement = stage; stage.clientWidth = 0; stage.clientHeight = 0;
+  RUN('cldResetState()');
+
+  // Review Focus 4 — a hidden stage has no box; Practice sizes it on SHOW.
+  RUN("cldSetHowtoTab('practice')");
+  ok('a zero-size stage is left unsized', G('cldPrView') && G('cldPrView').scale === 1);
+  RUN("cldSetHowtoTab('rules')");
+  check('tab-away stops the Arena loop', G('cldPrRaf'), null);
+  stage.clientWidth = 300; stage.clientHeight = 300;
+  RUN("cldSetHowtoTab('practice')");
+  ok('the canvas is sized when Practice is shown', near(G('cldPrView').scale, 300 / G('CLD_VIEW_FIT'), 1e-9));
+  ok('the Arena loop runs while Practice shows', !!G('cldPrRaf'));
+  check('it opens on Head-on, 1 / 5', [G('cldPrUi').drill, $('cld-pr-coach-step').textContent], ['headon', '1 / 5']);
+  ok('the soft ring is on the stage', stage.classList.contains('cld-pr-ring'));
+  check('Lock It In waits for an aim', $('btn-cld-pr-commit').disabled, true);
+
+  // A real gesture on the Arena's own stage: finger right of You → the shot goes left.
+  const v = G('cldPrView');
+  const ev = (x, y) => ({ clientX: v.offX + x * v.scale, clientY: v.offY + y * v.scale, pointerId: 7 });
+  const you = arena("cldPenguins.find(p => p.id === '0-0')");
+  const fx = you.x + 60, fy = you.y, PULL = G('CLD_CUE_PULL_PX');
+  RUN('cldPrPointerDown')(ev(fx, fy));
+  RUN('cldPrPointerMove')(ev(fx + PULL / v.scale, fy));
+  RUN('cldPrPointerUp')(ev(fx + PULL / v.scale, fy));
+  const aim = G('cldPrUi').aim;
+  ok('a full pull on the Arena stage arms a full-power shot away from the finger',
+     aim && near(aim.dx, -1) && near(aim.power, 1, 1e-6), JSON.stringify(aim));
+  check('the coach moves to 2 and rings Power', [$('cld-pr-coach-step').textContent,
+        $('btn-cld-pr-power').classList.contains('cld-pr-ring')], ['2 / 5', true]);
+  RUN("cldPrAction('power')");
+  ok('Power locks and the coach moves to 3', near(G('cldPrUi').lock, 1, 1e-6) && G('cldPrUi').coach.at === 3);
+  check('Lock It In is live', [$('btn-cld-pr-commit').textContent, $('btn-cld-pr-commit').disabled], ['Lock It In', false]);
+  RUN("cldPrAction('cta')");
+  check('committing starts the Slide', [G('cldPrUi').playing, $('btn-cld-pr-commit').textContent], [true, 'Sliding…']);
+  let g = 0;
+  while (G('cldPrUi').playing && g++ < 4000) RUN('cldPrLoop')(1000 + g * 50);
+  ok('the loop plays the Slide out', !G('cldPrUi').playing);
+  const out = G('cldPrUi').outcome;
+  check('the CTA reads the outcome', $('btn-cld-pr-commit').textContent, out === 'in' ? 'Lock It In' : 'Go again');
+
+  RUN("cldPrAction('resurface')");
+  ok('Resurface resets the drill and keeps your aim',
+     G('cldPrUi').outcome === null && !!G('cldPrUi').aim && near(G('cldPrUi').aim.power, 1, 1e-6));
+  RUN("cldPrAction('drill', 'edge')");
+  check('a drill pill switches and clears your aim', [G('cldPrUi').drill, G('cldPrUi').aim], ['edge', null]);
+  ok('Practice again shows exactly when the end is reached',
+     ($('btn-cld-pr-again').style.display === 'flex') === !!G('cldPrUi').coach.reachedEnd);
+  RUN("cldPrAction('again')");
+  check('Practice again → Head-on, 1 / 5', [G('cldPrUi').drill, $('cld-pr-coach-step').textContent], ['headon', '1 / 5']);
+
+  // In the Drink: the Throw · Dive row, a Snowball tap, and the amber reason.
+  load('headon'); resolveWith(HOLD); RUN('cldPrSyncUI()');
+  check('in the Drink: the Throw · Dive row shows', $('cld-pr-drowned-row').style.display, 'flex');
+  const sy = arena("cldPenguins.find(p => p.id === '1-0')");
+  RUN('cldPrPointerDown')(ev(sy.x, sy.y)); RUN('cldPrPointerUp')(ev(sy.x, sy.y));
+  ok('a tap aims a Snowball', !!G('cldPrUi').snowball);
+  RUN("cldPrAction('mode', 'dive')");
+  check('Plugged: Dive is refused, with the amber reason', [G('cldPrUi').mode, $('cld-pr-dive-reason').textContent],
+        ['throw', 'You can Dive once you’re knocked back.']);
+
+  RUN('cldResetState()');
+  check('cldResetState clears the Arena', [G('cldPrUi'), G('cldPrRaf'), G('cldPrFloe')], [null, null, null]);
+  check('the Arena sent nothing, start to finish', sent.envelope + sent.private - sentAtStart, 0);
+}
+
 // ── Report (keep LAST in the file) ─────────────────────────────────────────
 if (!TUNE) {
   console.log('\n' + '='.repeat(70));

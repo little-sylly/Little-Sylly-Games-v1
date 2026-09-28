@@ -2619,9 +2619,6 @@ function cldHowtoStop() {
   cldHowtoLastT = 0;
 }
 
-function cldPracticeStart() {}
-function cldPracticeStop() {}
-
 // ═══════════════════════════════════════════════════════════════════════════
 // The Practice Arena (spec § 6) — You, Sylvia and Sam on a fixed floe. The
 // rivals' shoves are FIXED and drawn before you move; yours is free. Every
@@ -2812,6 +2809,251 @@ function cldPrFloat(text) {
     const l = document.getElementById('cld-pr-float');
     if (l) l.innerHTML = '';
   }, CLD_BARK_MS);
+}
+
+// ── The Arena on screen ─────────────────────────────────────────────────────
+let cldPrView  = null;   // the Arena's canvas view (cldMakeView) — never the floe's
+let cldPrRaf   = null;   // TIMER — cancelled by cldPracticeStop (tab-away, close, teardown)
+let cldPrLastT = 0;
+let cldPrClock = 0;      // idle sway for the Arena's penguins
+
+// Me, read through the swap. Only one penguin is ever mine in the Arena.
+function cldPrMe() { return cldArenaRun(() => cldPenguins.find(p => p.id === '0-0')); }
+
+function cldPrCanCommit() {
+  const u = cldPrUi;
+  if (!u || u.playing) return false;
+  if (cldPrMe().drowned) return true;            // a Drowned player can always commit
+  return !!(u.aim && u.aim.power >= CLD_MIN_POWER);
+}
+
+function cldPrDragAim() {
+  const u = cldPrUi;
+  if (!u || !u.drag || !cldPrView) return null;
+  const a = cldCueAim({ down: u.drag.down, now: u.drag.now, penguin: cldPrMe(),
+                        scale: cldPrView.scale, lock: u.lock, lastDir: u.drag.dir });
+  return a ? { penguinId: '0-0', dx: a.dx, dy: a.dy, power: a.power, dir: a.dir } : null;
+}
+
+// The Arena's model — the same cldBuildModel the live floe uses, over the
+// Arena's record (swapped in), with the rivals' fixed shoves drawn as cues.
+function cldArenaModel() {
+  const u = cldPrUi;
+  const live = u.drag ? cldPrDragAim() : null;
+  return cldArenaRun(() => {
+    const standing = id => { const p = cldPenguins.find(q => q.id === id); return !!p && !p.drowned; };
+    const aims = [];
+    if (!u.playing) {
+      u.rivalAims.forEach(a => { if (a && standing(a.penguinId)) aims.push(Object.assign({}, a, { live: false, rival: true })); });
+      const mine = live || u.aim;
+      if (mine && standing('0-0')) aims.push({ penguinId: '0-0', dx: mine.dx, dy: mine.dy, power: mine.power,
+                                               live: !!live, rival: false });
+    }
+    const me = cldPenguins.find(q => q.id === '0-0');
+    const back = (u.mode === 'dive' && !u.playing && me.drowned && !me.plug) ? me : null;
+    return cldBuildModel(cldCurrentSrc(), {
+      meIdx: 0, phase: u.playing ? 'resolving' : 'aiming', playbackT: cldPlaybackT,
+      aims: aims, live: live, snowball: u.mode === 'throw' ? u.snowball : null,
+      dive: back ? cldDiveModel(back, u.dive) : null,
+      assist: cldAimAssist, clock: cldPrClock, selectedId: null,
+    });
+  });
+}
+
+// The same gesture as the floe (cldCueAim + cldReleaseAim); a Drowned You taps
+// for a Snowball, or — Knocked back, in Dive mode — for a gap.
+function cldPrPointerDown(e) {
+  const u = cldPrUi;
+  if (!u || u.playing || u.drag || !cldPrView) return;
+  const pt = cldToLogical(cldPrView, e);
+  const me = cldPrMe();
+  if (me.drowned) {
+    if (u.mode === 'dive') {
+      if (me.plug) return;                        // only a Knocked-back penguin Dives
+      const spot = cldArenaRun(() => cldSeatSpot(cldAngleOf(pt.x, pt.y), '0-0'));
+      if (spot) { u.dive = { penguinId: '0-0', angle: spot.angle }; cldSfx('dive'); }
+    } else if (cldArenaRun(() => cldDistFromCentre(pt.x, pt.y) <= cldFloeRadius)) {
+      u.snowball = { x: pt.x, y: pt.y };
+      cldSfx('snowball');
+    }
+    cldPrSyncUI();
+    return;
+  }
+  const al = u.aim ? (Math.hypot(u.aim.dx, u.aim.dy) || 1) : 1;
+  u.drag = { ptrId: e.pointerId === undefined ? 'mouse' : e.pointerId, down: pt, now: pt,
+             dir: u.aim ? { x: u.aim.dx / al, y: u.aim.dy / al } : null };
+  cldPrSyncUI();
+}
+
+function cldPrPointerMove(e) {
+  const u = cldPrUi;
+  if (!u || !u.drag) return;
+  if ((e.pointerId === undefined ? 'mouse' : e.pointerId) !== u.drag.ptrId) return;
+  u.drag.now = cldToLogical(cldPrView, e);
+  const a = cldPrDragAim();
+  if (a) u.drag.dir = a.dir;
+  cldPrSyncUI();
+}
+
+function cldPrPointerUp(e) {
+  const u = cldPrUi;
+  if (!u || !u.drag) return;
+  if ((e.pointerId === undefined ? 'mouse' : e.pointerId) !== u.drag.ptrId) return;
+  const armed = cldReleaseAim(cldPrDragAim(), u.drag.down, u.drag.now, cldPrView.scale);
+  u.drag = null;
+  if (armed) { u.aim = armed; cldPrCoachDispatch({ type: 'armed' }); }
+  cldPrSyncUI();
+}
+
+// Every Practice control, in one place — so the wiring is one line per button
+// and the harness can drive the pane without synthesising DOM events.
+function cldPrAction(kind, arg) {
+  const u = cldPrUi;
+  if (!u) return;
+  if (kind === 'again') {
+    cldPrLoadDrill('headon', false);
+    cldPrUi.coach = cldPrCoachStart();
+  } else if (u.playing) {
+    return;                                       // nothing else acts during a Slide
+  } else if (kind === 'drill') {
+    cldPrLoadDrill(arg, false);
+    cldPrCoachDispatch({ type: 'reset' });
+  } else if (kind === 'resurface' || (kind === 'cta' && u.outcome && u.outcome !== 'in')) {
+    cldPrLoadDrill(u.drill, true);                // Go again == Resurface: aim and lock kept
+    cldPrCoachDispatch({ type: 'reset' });
+  } else if (kind === 'power') {
+    if (u.lock !== null) u.lock = null;           // tapping a locked bar releases it
+    else if (u.aim && u.aim.power >= CLD_MIN_POWER) {
+      u.lock = u.aim.power;
+      cldSfx('powerLock');
+      cldPrCoachDispatch({ type: 'locked' });
+    }
+  } else if (kind === 'mode') {
+    u.mode = arg;
+    if (arg === 'throw') u.dive = null; else u.snowball = null;
+  } else if (kind === 'cta' && cldPrCanCommit()) {
+    const me = cldPrMe();
+    const mine = me.drowned
+      ? { aims: [], dive: u.mode === 'dive' ? u.dive : null, snowball: u.mode === 'throw' ? u.snowball : null }
+      : { aims: [u.aim], dive: null, snowball: null };
+    cldSfx('commit');
+    cldPrResolve(mine);
+  }
+  cldPrSyncUI();
+}
+
+function cldPrSyncUI() {
+  const u = cldPrUi;
+  if (!u) return;
+  const $ = id => document.getElementById(id);
+
+  document.querySelectorAll('[data-cld-pr-drill]').forEach(b => {
+    b.classList.remove('pill-active-cld');
+    if (b.dataset.cldPrDrill === u.drill) b.classList.add('pill-active-cld');
+  });
+
+  // ── The coach. A new line scrolls the card (and the stage under it) into view.
+  const v = cldPrCoachView(u.coach);
+  const stepEl = $('cld-pr-coach-step');
+  if (stepEl) stepEl.textContent = v.step;
+  const lineEl = $('cld-pr-coach-line');
+  if (lineEl && lineEl.textContent !== v.line) {
+    lineEl.textContent = v.line;
+    const card = $('cld-pr-coach');
+    if (card && card.scrollIntoView) card.scrollIntoView({ block: 'nearest', behavior: cldReducedMotion() ? 'auto' : 'smooth' });
+  }
+  const ringIds = { stage: 'cld-pr-stage', power: 'btn-cld-pr-power', commit: 'btn-cld-pr-commit',
+                    resurface: 'btn-cld-pr-resurface', dive: 'btn-cld-pr-mode-dive' };
+  Object.keys(ringIds).forEach(k => { const el = $(ringIds[k]); if (el) el.classList.toggle('cld-pr-ring', v.ring === k); });
+
+  // ── Throw · Dive — the live floe's rules: Dive only while Knocked back and
+  // while the ring has a free seat (amber reason = can't, never grey).
+  const me = cldPrMe();
+  const row = $('cld-pr-drowned-row');
+  if (row) row.style.display = (me.drowned && !u.playing) ? 'flex' : 'none';
+  if (me.drowned) {
+    const room = !me.plug ? cldArenaRun(() => cldSeatSpot(me.angle, '0-0')) : null;
+    const why = me.plug ? 'You can Dive once you’re knocked back.'
+              : !room   ? 'Every gap is taken — nowhere to Dive.' : '';
+    if (why && u.mode === 'dive') { u.mode = 'throw'; u.dive = null; }
+    const tb = $('btn-cld-pr-mode-throw'), db = $('btn-cld-pr-mode-dive');
+    if (tb) tb.classList.toggle('pill-active-cld', u.mode === 'throw');
+    if (db) {
+      db.classList.toggle('pill-active-cld', u.mode === 'dive');
+      db.classList.toggle('opacity-50', !!why);
+      db.classList.toggle('pointer-events-none', !!why);
+    }
+    const reason = $('cld-pr-dive-reason');
+    if (reason) { reason.textContent = why; reason.style.display = why ? 'block' : 'none'; }
+  }
+
+  // ── Power bar — live during a drag, frozen when locked.
+  const dragAim = u.drag ? cldPrDragAim() : null;
+  const shown = u.lock !== null ? u.lock : (dragAim ? dragAim.power : (u.aim ? u.aim.power : 0));
+  const fill = $('cld-pr-power-fill');
+  if (fill) fill.style.width = Math.round(shown * 100) + '%';
+  const track = $('cld-pr-power-track');
+  if (track) track.classList.toggle('cld-power-locked', u.lock !== null);
+  const hint = $('cld-pr-power-hint');
+  if (hint) {
+    const soft = dragAim && dragAim.power < CLD_MIN_POWER && u.lock === null;
+    hint.textContent = (u.playing || me.drowned) ? '' : u.lock !== null ? 'Power locked — tap to release'
+                     : soft ? 'Too soft' : 'Tap to lock power';
+    hint.className = soft ? 'text-amber-600 text-xs' : 'text-stone-400 text-xs';
+  }
+
+  // ── The CTA — Lock It In / Sliding… / Go again; hidden at the end of the Berth.
+  const cta = $('btn-cld-pr-commit');
+  if (cta) {
+    const base = 'min-h-14 w-full rounded-2xl text-xl font-semibold flex items-center justify-center';
+    if (u.playing) {
+      cta.style.display = 'flex'; cta.textContent = 'Sliding…'; cta.disabled = true;
+      cta.className = base + ' bg-stone-200 text-stone-500';
+    } else if (u.coach.at === 'B3') {
+      cta.style.display = 'none';
+    } else if (u.outcome && u.outcome !== 'in') {
+      cta.style.display = 'flex'; cta.textContent = 'Go again'; cta.disabled = false;
+      cta.className = base + ' cld-cta';
+    } else {
+      const can = cldPrCanCommit();
+      cta.style.display = 'flex'; cta.textContent = 'Lock It In'; cta.disabled = !can;
+      cta.className = base + ' cld-cta' + (can ? '' : ' opacity-50 pointer-events-none');
+    }
+  }
+  const again = $('btn-cld-pr-again');
+  if (again) again.style.display = u.coach.reachedEnd ? 'flex' : 'none';
+  const res = $('btn-cld-pr-resurface');
+  if (res) res.disabled = !!u.playing;
+}
+
+function cldPrLoop(now) {
+  cldPrRaf = null;
+  if (!cldPrLastT) cldPrLastT = now;
+  const dt = Math.min((now - cldPrLastT) / 1000, 0.05);   // a backgrounded tab cannot teleport a Slide
+  cldPrLastT = now;
+  cldPrClock += dt;
+  const wasPlaying = !!(cldPrUi && cldPrUi.playing);
+  cldPrTick(dt * 1000);
+  if (wasPlaying && !cldPrUi.playing) cldPrSyncUI();
+  if (cldPrView && cldPrUi) cldDraw(cldPrView, cldArenaModel());
+  if (!cldPrRaf) cldPrRaf = requestAnimationFrame(cldPrLoop);
+}
+
+function cldPracticeStart() {
+  const cv = document.getElementById('cld-pr-canvas');
+  if (!cldPrView && cv && cv.getContext) cldPrView = cldMakeView(cv);
+  cldResize(cldPrView);                           // sized on SHOW — a hidden canvas has no box
+  if (!cldPrUi) cldPrLoadDrill('headon', false);
+  cldPrSyncUI();
+  cldPrLastT = 0;
+  if (!cldPrRaf) cldPrRaf = requestAnimationFrame(cldPrLoop);
+}
+
+function cldPracticeStop() {
+  if (cldPrRaf) { cancelAnimationFrame(cldPrRaf); cldPrRaf = null; }
+  cldPrLastT = 0;
+  if (cldPrFloatTimer) { clearTimeout(cldPrFloatTimer); cldPrFloatTimer = null; }
+  if (cldPrUi) cldPrUi.drag = null;               // a finger lifted off-screen never strands a drag
 }
 
 function cldSyncSettingsUI() {
@@ -3239,6 +3481,9 @@ function cldResetState() {
   if (cldRafHandle)   { cancelAnimationFrame(cldRafHandle); cldRafHandle = null; }
   cldHowtoStop();                       // The Cast's loop — a RAF is a timer
   cldPracticeStop();                    // the Practice Arena's loop and bark timer
+  cldPrUi = null; cldPrFloe = null; cldPrClock = 0;   // the Arena starts fresh next time
+  const prLayer = document.getElementById('cld-pr-float');
+  if (prLayer) prLayer.innerHTML = '';
   if (cldIntroTimer)  { clearTimeout(cldIntroTimer);  cldIntroTimer  = null; }
   if (cldResultTimer) { clearTimeout(cldResultTimer); cldResultTimer = null; }
   if (cldFloatTimer)  { clearTimeout(cldFloatTimer);  cldFloatTimer  = null; }
@@ -3381,6 +3626,26 @@ document.addEventListener('DOMContentLoaded', () => {
     b.addEventListener('click', () => { playPillClick(); cldSetHowtoTab(b.dataset.cldHowtoTab); });
   });
 
+  // ── Practice (the Arena) ─────────────────────────────────────────────────
+  const prStage = document.getElementById('cld-pr-stage');
+  if (prStage) {
+    prStage.addEventListener('pointerdown', cldPrPointerDown);
+    prStage.addEventListener('pointermove', cldPrPointerMove);
+    prStage.addEventListener('pointerup', cldPrPointerUp);
+    prStage.addEventListener('pointercancel', cldPrPointerUp);
+    prStage.addEventListener('pointerleave', cldPrPointerUp);
+  }
+  document.querySelectorAll('[data-cld-pr-drill]').forEach(b => {
+    b.addEventListener('click', () => { playPillClick(); cldPrAction('drill', b.dataset.cldPrDrill); });
+  });
+  document.querySelectorAll('[data-cld-pr-mode]').forEach(b => {
+    b.addEventListener('click', () => { playPillClick(); cldPrAction('mode', b.dataset.cldPrMode); });
+  });
+  on('btn-cld-pr-power',     () => { playPillClick(); cldPrAction('power'); });
+  on('btn-cld-pr-commit',    () => { cldPrAction('cta'); });
+  on('btn-cld-pr-resurface', () => { playPillClick(); cldPrAction('resurface'); });
+  on('btn-cld-pr-again',     () => { playPillClick(); cldPrAction('again'); });
+
   on('btn-cld-menu-settings', () => { playDone(); cldSyncSettingsUI(); cldOpenOverlay('cld-settings-overlay'); });
   on('btn-cld-settings-close', () => {
     playDone();
@@ -3475,5 +3740,7 @@ document.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('resize', () => {
     const el = document.getElementById('screen-cld-floe');
     if (el && el.style.display !== 'none') cldResize(cldView);
+    const pb = document.getElementById('cld-howto-body-practice');
+    if (pb && pb.style.display !== 'none') cldResize(cldPrView);
   });
 });
