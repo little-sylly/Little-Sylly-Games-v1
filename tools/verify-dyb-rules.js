@@ -211,6 +211,61 @@ check('a Slick picked later follows the pick (DYB_SLICK_UPDATE)', S.dybYouHold(H
   check('a Phantom never counts: its hidden value never changes the result', leaks, 0);
 }
 
+section('The bid draft');
+{
+  const cls = R('classic'), none = C(0, 0);
+  check('opening draft: the lowest allowed face at 1 (Classic → 2)', S.dybDraftInit(none, cls), { face: 2, qty: 1, notice: null });
+  check('opening draft under Strict starts at 1s', S.dybDraftInit(none, R('strict')).face, 1);
+  check('facing a claim: the standing face, one more', S.dybDraftInit(C(5, 4), cls), { face: 4, qty: 6, notice: null });
+  const ctx = { claim: C(5, 4), rules: cls, tableTotal: 20 };
+  let d = S.dybDraftInit(C(5, 4), cls);
+  d = S.dybDraftReduce(d, { type: 'face', face: 6 }, ctx);
+  check('tapping a higher face snaps to its minimum (keeps 5)', [d.face, d.qty], [6, 5]);
+  d = S.dybDraftReduce(d, { type: 'face', face: 2 }, ctx);
+  check('tapping a lower face snaps to one more', [d.face, d.qty], [2, 6]);
+  d = S.dybDraftReduce(d, { type: 'dec' }, ctx);
+  check('− never goes below the minimum', d.qty, 6);
+  d = S.dybDraftReduce(S.dybDraftReduce(d, { type: 'inc' }, ctx), { type: 'inc' }, ctx);
+  check('+ climbs', d.qty, 8);
+  const blocked = S.dybDraftReduce(d, { type: 'face', face: 1 }, ctx);
+  check('a closed face keeps the draft and raises a notice', [blocked.face, blocked.qty, blocked.notice], [2, 8, 1]);
+  check('the next action clears the notice', S.dybDraftReduce(blocked, { type: 'inc' }, ctx).notice, null);
+  // Review Focus 2 — the claim at the table total
+  const full = { claim: C(15, 6), rules: cls, tableTotal: 15 };
+  const top = S.dybDraftInit(C(15, 6), cls);
+  check('at the table total the draft still initialises (sixteen 6s — legal, impossible)', [top.face, top.qty], [6, 16]);
+  check('+ is inert above the table total', S.dybDraftReduce(top, { type: 'inc' }, full).qty, 16);
+  check('…and the draft is still a legal raise (legality never reads the table)', S.dybLegalRaise(C(15, 6), top, cls), true);
+}
+
+section('dybStageFit — dice sized to the stage');
+check('20 dice in a wide stage fit at a comfortable size', S.dybStageFit(20, 231, 132) >= 24, true);
+check('40 dice at the SE width (375) still fit', S.dybStageFit(40, 231, 132) >= run('DYB_STAGE_MIN_PX'), true);
+check('40 dice at 320 wide do not fit — the caller collapses the ghosts', S.dybStageFit(40, 176, 132), 0);
+check('never larger than the maximum', S.dybStageFit(1, 400, 400), run('DYB_STAGE_MAX_PX'));
+
+section('The table model');
+run(`dybPlayerCount = 3; dybPlayerNames = ['Ann', 'Bo', 'Cy']; dybSeatNumbers = [3, 1, 2];
+     dybDiceInHand = [5, 4, 2]; dybLives = []; dybFootholdsMode = false; dybActivePlayers = [0, 1, 2];
+     dybWildcardsStyle = 'classic'; dybOnesStripped = false; dybCurrentQty = 3; dybCurrentFace = 4;
+     dybAllegationHistory = [{ playerIdx: 2, qty: 3, face: 4 }]; dybCurrentBidderIdx = 0;
+     dybMyRoll = [4, 1, 6, 2, 4]; dybSpecialTypes = ['standard','standard','standard','standard','standard'];
+     dybSlickFaces = [-1,-1,-1,-1,-1]; dybSlickAssigned = [false,false,false,false,false];
+     dybSyllyMode = false; dybDraft = dybDraftInit(dybClaimNow(), dybRulesNow()); dybStageView = 'whole';`);
+S.mpMyPlayerIdx = 0;
+{
+  const m = S.dybTableModel();
+  check('table total is the active players\' dice', m.tableTotal, 11);
+  check('tints follow seats', m.players.map(p => p.tint), [2, 0, 1]);
+  check('the claim knows who made it', m.claim, { qty: 3, face: 4, by: 2 });
+  check('it is my turn and the draft is four 4s', [m.isMyTurn, m.draft.qty, m.draft.face], [true, 4, 4]);
+  check('the climb is enabled', m.climbEnabled, true);
+  check('my chip is labelled "(you)"', m.players[0].label, 'Ann (you)');
+  run('dybCurrentBidderIdx = 1; dybDraft = null;');
+  const w = S.dybTableModel();
+  check('off-turn: not my turn, no draft, the turn is named', [w.isMyTurn, w.draft, w.turnName], [false, null, 'Bo']);
+}
+
 // ── Later tasks append their sections above this line ──────────────────────
 
 console.log(`\n${failures ? `${failures} FAILED` : 'ALL PASS'}`);

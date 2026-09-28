@@ -1352,6 +1352,83 @@ function dybYouHold(hand, face, rules) {
   return { total: dice.reduce((s, d) => s + d.weight, 0), dice };
 }
 
+// ── The bid draft — the claim this device is building (pure) ───────────────
+let dybDraft     = null;     // { face, qty, notice } — this device's bid in progress; null off-turn
+let dybStageView = 'whole';  // 'whole' | 'close' — memory only; survives matches, not reloads (spec § 4.1)
+
+// Opening: the lowest face the rules allow, at 1. Facing a claim: the standing
+// face, one more — so climbing is always a single tap.
+function dybDraftInit(claim, rules) {
+  if (!claim.qty) {
+    let f = 1;
+    while (f < 6 && !dybFaceAllowed(f, rules)) f++;
+    return { face: f, qty: 1, notice: null };
+  }
+  return { face: claim.face, qty: dybMinQty(claim, claim.face), notice: null };
+}
+
+// ctx: { claim, rules, tableTotal }. A closed face never changes the bid — it
+// raises a notice (the face) so the row can say why. Legality never reads the
+// table total; only + does (it stops there).
+function dybDraftReduce(draft, action, ctx) {
+  switch (action.type) {
+    case 'face':
+      if (!dybFaceAllowed(action.face, ctx.rules)) return { ...draft, notice: action.face };
+      return { face: action.face, qty: dybMinQty(ctx.claim, action.face), notice: null };
+    case 'inc':
+      return { ...draft, qty: draft.qty < ctx.tableTotal ? draft.qty + 1 : draft.qty, notice: null };
+    case 'dec':
+      return { ...draft, qty: Math.max(dybMinQty(ctx.claim, draft.face), draft.qty - 1), notice: null };
+    default:
+      return draft;
+  }
+}
+
+// ── Stage fit — the largest die size that keeps n dice on the stage ────────
+const DYB_STAGE_MIN_PX = 18, DYB_STAGE_MAX_PX = 44;
+const DYB_DIE_GAP = 3, DYB_GROUP_GAP = 8, DYB_ROW_GAP = 6;
+// Dice sit in groups of five, like tally marks. Returns 0 when even the minimum
+// size does not fit — the renderer then collapses the ghosts into "+N more".
+function dybStageFit(n, w, h) {
+  for (let px = DYB_STAGE_MAX_PX; px >= DYB_STAGE_MIN_PX; px--) {
+    const groupW = 5 * px + 4 * DYB_DIE_GAP;
+    if (groupW > w) continue;
+    const perLine = Math.max(1, Math.floor((w + DYB_GROUP_GAP) / (groupW + DYB_GROUP_GAP)));
+    const lines = Math.ceil(Math.ceil(n / 5) / perLine);
+    if (lines * px + (lines - 1) * DYB_ROW_GAP <= h) return px;
+  }
+  return 0;
+}
+
+// ── The live table model ────────────────────────────────────────────────────
+function dybTableTotal() { return dybActivePlayers.reduce((s, i) => s + (dybDiceInHand[i] || 0), 0); }
+function dybPlayersModel(turnIdx) {
+  const me = mpMyPlayerIdx;
+  return dybPlayerNames.map((name, idx) => ({
+    idx, name: name || `Player ${idx + 1}`,
+    label: idx === me ? `${name || `Player ${idx + 1}`} (you)` : (name || `Player ${idx + 1}`),
+    tint: dybTintFor(idx),
+    count: dybFootholdsMode ? (dybLives[idx] || 0) : (dybDiceInHand[idx] || 0),
+    footholds: dybFootholdsMode,
+    out: !dybActivePlayers.includes(idx), active: idx === turnIdx, you: idx === me,
+  }));
+}
+function dybTableModel() {
+  const me = mpMyPlayerIdx, turn = dybCurrentBidderIdx, claim = dybClaimNow(), rules = dybRulesNow();
+  const last = dybAllegationHistory[dybAllegationHistory.length - 1];
+  const isMyTurn = turn === me;
+  return {
+    set: dybActiveSet(), me, myTint: dybTintFor(me), tempest: dybSyllyMode,
+    players: dybPlayersModel(turn),
+    claim: claim.qty ? { qty: claim.qty, face: claim.face, by: last ? last.playerIdx : -1 } : null,
+    rules, tableTotal: dybTableTotal(), hand: dybMyHand(),
+    isMyTurn, turnName: dybPlayerNames[turn] || 'Player', turnTint: dybTintFor(turn),
+    draft: isMyTurn ? dybDraft : null, view: dybStageView, preview: null, caption: null,
+    climbEnabled: isMyTurn && !!dybDraft && dybLegalRaise(claim, dybDraft, rules),
+    highlight: null, ghostsIn: false,
+  };
+}
+
 // ── Hand dock rendering ───────────────────────────────────────────────────────
 function dybRenderHandDock(containerId) {
   const container = document.getElementById(containerId);
