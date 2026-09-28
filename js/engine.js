@@ -804,6 +804,8 @@ function resetToLobby() {
   }
   if (typeof gthResetState === 'function') gthResetState();
   // The Bluff (dyb) teardown
+  // shake/reveal/Practice timers (SW v241). typeof-guarded: some Node harnesses load engine.js without dyb.js.
+  if (typeof dybStopChoreography === 'function') { dybStopChoreography(); dybPracticeStop(); }
   document.getElementById('dyb-settings-overlay').style.display    = 'none';
   document.getElementById('dyb-how-to-overlay').style.display      = 'none';
   document.getElementById('dyb-quit-overlay').style.display        = 'none';

@@ -77,6 +77,37 @@ const DYB_COPY = {
 const DYB_NUM_WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];
 function dybBidText(qty, face) { return `${DYB_NUM_WORDS[qty] || qty} ${face}${qty === 1 ? '' : 's'}`; }
 
+// ── Sound — each moment points at an existing engine effect (CJAR_SOUND pattern).
+// No new synthesised tones: a new moment is one line here.
+const DYB_SOUND = {
+  rattle:  'playTick',       // the cup, held
+  cupLift: 'playWhoosh',     // the cup comes off
+  land:    'playPillClick',  // the dice settle
+  count:   'playTick',       // each die counted at The Overlook
+  bluff:   'playBoing',      // BLUFF CALLED
+  holds:   'playSuccess',    // CLAIM HOLDS
+};
+function dybSound(moment) {
+  const fn = globalThis[DYB_SOUND[moment]];
+  if (typeof fn === 'function') fn();
+}
+
+// ── Choreography timers — every timeout lives in a named bag ───────────────
+// Live game: dybAnimTimers. Practice: dybPrTimers. Stopping one never touches
+// the other, so opening Practice mid-game cannot disturb a live Shake.
+const dybAnimTimers = [];
+const dybPrTimers   = [];
+let dybShakeHeld = false;     // the cup is being held (rattling)
+function dybLater(bag, fn, ms) {
+  const h = setTimeout(() => { const i = bag.indexOf(h); if (i >= 0) bag.splice(i, 1); fn(); }, ms);
+  bag.push(h);
+  return h;
+}
+function dybStopBag(bag) { bag.forEach(h => clearTimeout(h)); bag.length = 0; }
+function dybStopChoreography() { dybStopBag(dybAnimTimers); dybShakeHeld = false; }
+// Replaced in Task 16.
+function dybPracticeStop() { dybStopBag(dybPrTimers); }
+
 // ── Init ─────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   // ── Lobby button
@@ -138,6 +169,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   document.getElementById('btn-dyb-quit-confirm').addEventListener('click', () => {
     playExit();
+    dybStopChoreography();
     document.getElementById('dyb-quit-overlay').style.display = 'none';
     // MDLM quit contract (PASS pattern): a client leaving mid-game must tell the host,
     // which dissolves the match for every remaining device — resetToLobby() alone only
@@ -430,6 +462,7 @@ function dybStartGame() {
 
 // ── Shake phase ───────────────────────────────────────────────────────────────
 function dybInitShake() {
+  dybStopChoreography();
   dybShakeNumber++;
   dybMyRoll = [];
   dybSpecialTypes = [];

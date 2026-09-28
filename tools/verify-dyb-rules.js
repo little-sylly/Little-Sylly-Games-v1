@@ -320,6 +320,28 @@ section('Seating, The Depths, The Ascent, The Chronicle — tints and escaped na
   S.document.getElementById = realGet;
 }
 
+section('Choreography timers stop cleanly');
+{
+  const pending = new Map(); let seq = 0;
+  S.setTimeout = (fn, ms) => { pending.set(++seq, fn); return seq; };
+  S.clearTimeout = h => pending.delete(h);
+  let fired = 0;
+  S.dybLater(run('dybAnimTimers'), () => fired++, 100);
+  S.dybLater(run('dybAnimTimers'), () => fired++, 200);
+  check('two pending in the live bag', run('dybAnimTimers').length, 2);
+  S.dybStopChoreography();
+  check('dybStopChoreography clears the bag and the timers', [run('dybAnimTimers').length, pending.size], [0, 0]);
+  const h = S.dybLater(run('dybAnimTimers'), () => fired++, 10);
+  pending.get(h)();
+  check('a fired timer removes itself from its bag', [fired, run('dybAnimTimers').length], [1, 0]);
+  S.dybLater(run('dybPrTimers'), () => {}, 10);
+  S.dybStopChoreography();
+  check('the live stop never touches the Practice bag', run('dybPrTimers').length, 1);
+  S.dybStopBag(run('dybPrTimers'));
+  S.setTimeout = () => 0; S.clearTimeout = () => {};
+}
+check('every DYB_SOUND moment names a real engine sound', Object.values(run('DYB_SOUND')).every(n => typeof S[n] === 'function'), true);
+
 // ── Later tasks append their sections above this line ──────────────────────
 
 console.log(`\n${failures ? `${failures} FAILED` : 'ALL PASS'}`);
