@@ -583,6 +583,57 @@ if (!TUNE) {
   S.showScreen = realShow;
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// I. The coach (spec § 6.5)
+// ═══════════════════════════════════════════════════════════════════════════
+if (!TUNE) {
+  section('I. The coach');
+  const start = () => RUN('cldPrCoachStart()');
+  const step = (s, ...evs) => evs.reduce((acc, e) => RUN('cldPrCoach')(acc, e), s);
+  const view = s => RUN('cldPrCoachView')(s);
+  const A = { type: 'armed' }, L = { type: 'locked' }, R = { type: 'reset' };
+  const C = (x) => Object.assign({ type: 'committed', snowball: false, dive: false }, x || {});
+  const D = (outcome, knocked) => ({ type: 'slideDone', outcome, knocked: !!knocked });
+
+  let s = start();
+  check('starts at 1 / 5, ring on the stage', [view(s).step, view(s).ring], ['1 / 5', 'stage']);
+  s = step(s, A);  check('armed → 2, ring on Power', [s.at, view(s).ring], [2, 'power']);
+  s = step(s, L);  check('locked → 3, ring on Lock It In', [s.at, view(s).ring], [3, 'commit']);
+  s = step(s, C()); check('committed → 4', s.at, 4);
+  s = step(s, D('dry'));
+  check('dry → 5 / 5 "Still dry", end reached', [view(s).step, s.result, s.reachedEnd], ['5 / 5', 'dry', true]);
+  check('skipping the lock: 2 + commit → 4', step(start(), A, C()).at, 4);
+  check('armed does nothing before step 1 advances twice', step(start(), A, A).at, 2);
+
+  s = step(start(), A, C(), D('in'));
+  check('going in → B1, 1 / 3', [s.at, view(s).step], ['B1', '1 / 3']);
+  check('B1 + a bare commit stays B1', step(s, C(), D('in', false)).at, 'B1');
+  s = step(s, C({ snowball: true }), D('in', false));
+  check('B1 + Snowball, still plugged → B2 "Still plugged", ring Resurface',
+        [s.at, view(s).line === G('CLD_PR_COACH').B2p, view(s).ring], ['B2', true, 'resurface']);
+  s = step(s, C({ snowball: true }), D('in', true));
+  check('B2 + knocked back → the Dive line, ring on Dive', [view(s).line === G('CLD_PR_COACH').B2k, view(s).ring], [true, 'dive']);
+  s = step(s, C({ dive: true }), D('in', false));
+  check('a Dive → B3, 3 / 3, end reached', [s.at, view(s).step, s.reachedEnd], ['B3', '3 / 3', true]);
+
+  check('a Washout ends anything on step 5', step(start(), A, C(), D('washout')).result, 'washout');
+  check('reset while learning keeps your place', step(start(), A, R).at, 2);
+  s = step(start(), A, C(), D('in'), R);
+  check('reset from the Berth → 5 "Your go", end reached', [s.at, s.result, s.reachedEnd], [5, 'ready', true]);
+  check('restart → back to 1 / 5', view(step(s, { type: 'restart' })).step, '1 / 5');
+  const frozen = start(); step(frozen, A);
+  check('the reducer never mutates its input', frozen.at, 1);
+  ok('every coach line is set and emoji-free', Object.values(G('CLD_PR_COACH'))
+     .every(l => typeof l === 'string' && l.length > 10 && !/\p{Extended_Pictographic}/u.test(l)));
+
+  // Wired into the Arena: committing and finishing a Slide drive the coach.
+  RUN('cldPrUi.coach = cldPrCoachStart()');
+  load('headon', true);
+  ok('the coach survives a drill reload', G('cldPrUi').coach.at === 1);
+  resolveWith(HOLD);
+  check('Arena: a stand-still Head-on walks the coach 1 → 4 → B1', G('cldPrUi').coach.at, 'B1');
+}
+
 // ── Report (keep LAST in the file) ─────────────────────────────────────────
 if (!TUNE) {
   console.log('\n' + '='.repeat(70));

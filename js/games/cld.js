@@ -2771,6 +2771,72 @@ const CLD_PR_DRILLS = {
                shoves: [null, null, { target: 0, power: 0.7 }] },
 };
 
+// The coach (spec § 6.5). Every step waits for the player to DO the thing; a
+// soft ring points at the control being taught. Lines are copy — they are
+// mirrored verbatim in docs/game-identities/cld.md T7b (a paired change).
+const CLD_PR_COACH = {
+  1:       'Their shoves are drawn in their colours, and they’ll do the same thing every time. Touch anywhere and pull back — your finger is the end of the cue.',
+  2:       'The ghost shows where you’ll hit first. Tap Power to lock it — then dragging only swings your aim.',
+  3:       'Happy? Lock It In. Once it’s in, it’s in.',
+  4:       'Everyone slides at once.',
+  dry:     'Still dry. Try another counter — or another drill.',
+  fish:    'Last one dry — that’d be a Fish.',
+  washout: 'Washout — everyone’s in. Resurface.',
+  ready:   'Your go. Try a counter — or another drill.',
+  B1:      'You’re in the Drink — and you’ve plugged the gap you went through. The next penguin to hit you bounces off. Tap a penguin to aim a Snowball, then Lock It In.',
+  B2k:     'Knocked back — so now it’s Throw or Dive. Tap Dive, then a dashed gap.',
+  B2p:     'Still plugged. Resurface to try the drill again.',
+  B3:      'That’s the Drink. Resurface to get back on the ice.',
+};
+
+function cldPrCoachStart() { return { at: 1, result: null, knocked: false, reachedEnd: false, pending: null }; }
+
+// PURE. Locking is taught, not required: a commit at step 2 jumps straight to
+// 4 (Lock It In is never disabled to force a step — the ring points, the
+// player chooses). In the Berth branch, what you committed decides the next
+// line once the Slide it started has played out.
+function cldPrCoach(s, ev) {
+  const n = Object.assign({}, s);
+  switch (ev.type) {
+    case 'restart': return cldPrCoachStart();
+    case 'armed':   if (s.at === 1) n.at = 2; return n;
+    case 'locked':  if (s.at === 2) n.at = 3; return n;
+    case 'committed':
+      if (s.at === 'B1' || s.at === 'B2') { n.pending = ev.dive ? 'dive' : ev.snowball ? 'snowball' : null; return n; }
+      if (s.at === 'B3') return n;
+      n.at = 4; return n;
+    case 'slideDone':
+      if (ev.outcome === 'washout') { n.at = 5; n.result = 'washout'; n.reachedEnd = true; n.pending = null; return n; }
+      if (s.at === 'B1') { if (s.pending === 'snowball') { n.at = 'B2'; n.knocked = !!ev.knocked; } n.pending = null; return n; }
+      if (s.at === 'B2') {
+        if (s.knocked && s.pending === 'dive') { n.at = 'B3'; n.reachedEnd = true; }
+        else n.knocked = !!ev.knocked;
+        n.pending = null; return n;
+      }
+      if (s.at === 'B3') return n;
+      if (ev.outcome === 'in') { n.at = 'B1'; n.pending = null; return n; }
+      n.at = 5; n.result = ev.outcome; n.reachedEnd = true; return n;
+    case 'reset':
+      if (s.at === 1 || s.at === 2 || s.at === 3) return n;   // still learning — keep your place
+      n.at = 5; n.result = 'ready'; n.reachedEnd = true; n.pending = null; return n;
+  }
+  return n;
+}
+
+function cldPrCoachView(s) {
+  const C = CLD_PR_COACH;
+  if (s.at === 'B1') return { line: C.B1, step: '1 / 3', ring: 'stage' };
+  if (s.at === 'B2') return s.knocked ? { line: C.B2k, step: '2 / 3', ring: 'dive' }
+                                      : { line: C.B2p, step: '2 / 3', ring: 'resurface' };
+  if (s.at === 'B3') return { line: C.B3, step: '3 / 3', ring: 'resurface' };
+  if (s.at === 5)    return { line: C[s.result] || C.ready, step: '5 / 5',
+                              ring: s.result === 'washout' ? 'resurface' : 'commit' };
+  return { line: C[s.at], step: s.at + ' / 5',
+           ring: s.at === 1 ? 'stage' : s.at === 2 ? 'power' : s.at === 3 ? 'commit' : null };
+}
+
+function cldPrCoachDispatch(ev) { if (cldPrUi) cldPrUi.coach = cldPrCoach(cldPrUi.coach, ev); }
+
 let cldPrUi         = null;   // the Arena's input + flow state (never swapped)
 let cldPrFloatTimer = null;   // TIMER — the Arena's own bark layer
 
@@ -2784,6 +2850,7 @@ function cldReducedMotion() {
 function cldPrLoadDrill(key, keepAim) {
   const d = CLD_PR_DRILLS[key];
   const prev = keepAim ? cldPrUi : null;
+  const coach = cldPrUi ? cldPrUi.coach : cldPrCoachStart();   // a drill change never loses your place
   cldPrFloe = cldPrFreshFloe();
   const rivalAims = [null, null, null];
   cldArenaRun(() => {
@@ -2802,7 +2869,7 @@ function cldPrLoadDrill(key, keepAim) {
   cldPrUi = {
     drill: key, aim: prev ? prev.aim : null, lock: prev ? prev.lock : null,
     mode: 'throw', snowball: null, dive: null,
-    playing: false, outcome: null, knocked: false, rivalAims: rivalAims, drag: null,
+    playing: false, outcome: null, knocked: false, rivalAims: rivalAims, drag: null, coach: coach,
   };
 }
 
@@ -2823,6 +2890,7 @@ function cldPrResolve(mine) {
     cldArmPlayback(cldTimelineFromPayload(cldTimelinePayload(cldResolveSlide(d.slideSeed))));
   });
   u.playing = true;
+  cldPrCoachDispatch({ type: 'committed', snowball: !!mine.snowball, dive: !!mine.dive });
   if (cldReducedMotion()) cldPrTick(1e9);        // nothing travels — straight to the end state
 }
 
@@ -2853,6 +2921,7 @@ function cldPrSlideDone() {
   u.knocked  = res.knocked;
   u.snowball = null;
   u.dive     = null;                              // one-shot, like the live floe after a Slide
+  cldPrCoachDispatch({ type: 'slideDone', outcome: u.outcome, knocked: u.knocked });
 }
 
 function cldPrFloat(text) {
